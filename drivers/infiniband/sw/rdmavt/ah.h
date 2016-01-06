@@ -1,5 +1,5 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
+#ifndef DEF_RVTAH_H
+#define DEF_RVTAH_H
 
 /*
  * Copyright(c) 2015 Intel Corporation.
@@ -49,9 +49,11 @@
  */
 
 #include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
-#include "qp.h"
-#include "ah.h"
 
-#endif          /* DEF_RDMAVT_H */
+struct ib_ah *rvt_create_ah(struct ib_pd *pd,
+			    struct ib_ah_attr *ah_attr);
+int rvt_destroy_ah(struct ib_ah *ibah);
+int rvt_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
+int rvt_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
+
+#endif          /* DEF_RVTAH_H */

@@ -1,6 +1,3 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
-
 /*
  * Copyright(c) 2015 Intel Corporation.
  *
@@ -48,10 +45,32 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
-#include "qp.h"
 #include "ah.h"
 
-#endif          /* DEF_RDMAVT_H */
+/**
+ * rvt_create_ah - create an address handle
+ * @pd: the protection domain
+ * @ah_attr: the attributes of the AH
+ *
+ * This may be called from interrupt context.
+ */
+struct ib_ah *rvt_create_ah(struct ib_pd *pd,
+			    struct ib_ah_attr *ah_attr)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+int rvt_destroy_ah(struct ib_ah *ibah)
+{
+	return -EOPNOTSUPP;
+}
+
+int rvt_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+{
+	return -EOPNOTSUPP;
+}
+
+int rvt_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+{
+	return -EOPNOTSUPP;
+}

@@ -226,6 +226,12 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, destroy_qp);
 	CHECK_DRIVER_OVERRIDE(rdi, query_qp);
 
+	/* Address Handle */
+	CHECK_DRIVER_OVERRIDE(rdi, create_ah);
+	CHECK_DRIVER_OVERRIDE(rdi, destroy_ah);
+	CHECK_DRIVER_OVERRIDE(rdi, modify_ah);
+	CHECK_DRIVER_OVERRIDE(rdi, query_ah);
+
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
 		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
