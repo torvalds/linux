@@ -72,6 +72,5 @@ SunXi family
 
     * Octa ARM Cortex-A7 based SoCs
       - Allwinner A83T
-        + Not Supported
         + Datasheet
           http://dl.linux-sunxi.org/A83T/A83T_datasheet_Revision_1.1.pdf
