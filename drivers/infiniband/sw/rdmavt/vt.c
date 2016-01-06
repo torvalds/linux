@@ -238,6 +238,10 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, destroy_srq);
 	CHECK_DRIVER_OVERRIDE(rdi, query_srq);
 
+	/* Multicast */
+	CHECK_DRIVER_OVERRIDE(rdi, attach_mcast);
+	CHECK_DRIVER_OVERRIDE(rdi, detach_mcast);
+
 	/* Mem Region */
 	CHECK_DRIVER_OVERRIDE(rdi, get_dma_mr);
 	CHECK_DRIVER_OVERRIDE(rdi, reg_user_mr);
