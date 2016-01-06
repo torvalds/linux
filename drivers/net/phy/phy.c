@@ -995,8 +995,9 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	dev_dbg(&phydev->dev, "PHY state change %s -> %s\n",
-		phy_state_to_str(old_state), phy_state_to_str(phydev->state));
+	phydev_dbg(phydev, "PHY state change %s -> %s\n",
+		   phy_state_to_str(old_state),
+		   phy_state_to_str(phydev->state));
 
 	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue,
 			   PHY_STATE_TIME * HZ);

@@ -777,6 +777,12 @@ static inline int phy_read_status(struct phy_device *phydev)
 	return phydev->drv->read_status(phydev);
 }
 
+#define phydev_err(_phydev, format, args...)	\
+	dev_err(&_phydev->dev, format, ##args)
+
+#define phydev_dbg(_phydev, format, args...)	\
+	dev_dbg(&_phydev->dev, format, ##args)
+
 int genphy_config_init(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);

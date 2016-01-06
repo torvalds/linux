@@ -163,8 +163,9 @@ static int bcm87xx_did_interrupt(struct phy_device *phydev)
 	reg = phy_read(phydev, BCM87XX_LASI_STATUS);
 
 	if (reg < 0) {
-		dev_err(&phydev->dev,
-			"Error: Read of BCM87XX_LASI_STATUS failed: %d\n", reg);
+		phydev_err(phydev,
+			   "Error: Read of BCM87XX_LASI_STATUS failed: %d\n",
+			   reg);
 		return 0;
 	}
 	return (reg & 1) != 0;

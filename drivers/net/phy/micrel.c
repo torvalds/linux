@@ -224,7 +224,7 @@ static int kszphy_setup_led(struct phy_device *phydev, u32 reg, int val)
 	rc = phy_write(phydev, reg, temp);
 out:
 	if (rc < 0)
-		dev_err(&phydev->dev, "failed to set led mode\n");
+		phydev_err(phydev, "failed to set led mode\n");
 
 	return rc;
 }
@@ -243,7 +243,7 @@ static int kszphy_broadcast_disable(struct phy_device *phydev)
 	ret = phy_write(phydev, MII_KSZPHY_OMSO, ret | KSZPHY_OMSO_B_CAST_OFF);
 out:
 	if (ret)
-		dev_err(&phydev->dev, "failed to disable broadcast address\n");
+		phydev_err(phydev, "failed to disable broadcast address\n");
 
 	return ret;
 }
@@ -263,7 +263,7 @@ static int kszphy_nand_tree_disable(struct phy_device *phydev)
 			ret & ~KSZPHY_OMSO_NAND_TREE_ON);
 out:
 	if (ret)
-		dev_err(&phydev->dev, "failed to disable NAND tree mode\n");
+		phydev_err(phydev, "failed to disable NAND tree mode\n");
 
 	return ret;
 }
@@ -288,7 +288,8 @@ static int kszphy_config_init(struct phy_device *phydev)
 	if (priv->rmii_ref_clk_sel) {
 		ret = kszphy_rmii_clk_sel(phydev, priv->rmii_ref_clk_sel_val);
 		if (ret) {
-			dev_err(&phydev->dev, "failed to set rmii reference clock\n");
+			phydev_err(phydev,
+				   "failed to set rmii reference clock\n");
 			return ret;
 		}
 	}
@@ -649,8 +650,8 @@ static int kszphy_probe(struct phy_device *phydev)
 			priv->led_mode = -1;
 
 		if (priv->led_mode > 3) {
-			dev_err(&phydev->dev, "invalid led mode: 0x%02x\n",
-					priv->led_mode);
+			phydev_err(phydev, "invalid led mode: 0x%02x\n",
+				   priv->led_mode);
 			priv->led_mode = -1;
 		}
 	} else {
@@ -672,7 +673,8 @@ static int kszphy_probe(struct phy_device *phydev)
 		} else if (rate > 49500000 && rate < 50500000) {
 			priv->rmii_ref_clk_sel_val = !rmii_ref_clk_sel_25_mhz;
 		} else {
-			dev_err(&phydev->dev, "Clock rate out of range: %ld\n", rate);
+			phydev_err(phydev, "Clock rate out of range: %ld\n",
+				   rate);
 			return -EINVAL;
 		}
 	}
