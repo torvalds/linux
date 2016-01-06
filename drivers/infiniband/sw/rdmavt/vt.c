@@ -69,6 +69,16 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	if (!rdi)
 		return -EINVAL;
 
+	/*
+	 * Drivers have the option to override anything in the ibdev that they
+	 * want to specifically handle. VT needs to check for things it supports
+	 * and if the driver wants to handle that functionality let it. We may
+	 * come up with a better mechanism that simplifies the code at some
+	 * point.
+	 */
+	rdi->ibdev.dma_ops =
+		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
+
 	return ib_register_device(&rdi->ibdev, rdi->port_callback);
 }
 EXPORT_SYMBOL(rvt_register_device);

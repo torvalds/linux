@@ -1,5 +1,5 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
+#ifndef DEF_RDMAVTDMA_H
+#define DEF_RDMAVTDMA_H
 
 /*
  * Copyright(c) 2015 Intel Corporation.
@@ -48,7 +48,6 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
-#include "dma.h"
+extern struct ib_dma_mapping_ops rvt_default_dma_mapping_ops;
 
-#endif          /* DEF_RDMAVT_H */
+#endif          /* DEF_RDMAVTDMA_H */
