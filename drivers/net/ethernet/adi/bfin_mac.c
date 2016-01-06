@@ -1838,12 +1838,6 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 
 	snprintf(miibus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, pdev->id);
-	miibus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (!miibus->irq)
-		goto out_err_irq_alloc;
-
-	for (i = rc; i < PHY_MAX_ADDR; ++i)
-		miibus->irq[i] = PHY_POLL;
 
 	rc = clamp(mii_bus_pd->phydev_number, 0, PHY_MAX_ADDR);
 	if (rc != mii_bus_pd->phydev_number)
@@ -1862,14 +1856,12 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 	rc = mdiobus_register(miibus);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
-		goto out_err_mdiobus_register;
+		goto out_err_alloc;
 	}
 
 	platform_set_drvdata(pdev, miibus);
 	return 0;
 
-out_err_mdiobus_register:
-	kfree(miibus->irq);
 out_err_irq_alloc:
 	mdiobus_free(miibus);
 out_err_alloc:
@@ -1885,7 +1877,6 @@ static int bfin_mii_bus_remove(struct platform_device *pdev)
 		dev_get_platdata(&pdev->dev);
 
 	mdiobus_unregister(miibus);
-	kfree(miibus->irq);
 	mdiobus_free(miibus);
 	peripheral_free_list(mii_bus_pd->mac_peripherals);
 

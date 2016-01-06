@@ -196,7 +196,6 @@ int stmmac_mdio_register(struct net_device *ndev)
 {
 	int err = 0;
 	struct mii_bus *new_bus;
-	int *irqlist;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	int addr, found;
@@ -227,13 +226,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 	if (new_bus == NULL)
 		return -ENOMEM;
 
-	if (mdio_bus_data->irqs) {
-		irqlist = mdio_bus_data->irqs;
-	} else {
-		for (addr = 0; addr < PHY_MAX_ADDR; addr++)
-			priv->mii_irq[addr] = PHY_POLL;
-		irqlist = priv->mii_irq;
-	}
+	if (mdio_bus_data->irqs)
+		memcpy(new_bus->irq, mdio_bus_data, sizeof(new_bus->irq));
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node)
@@ -247,7 +241,6 @@ int stmmac_mdio_register(struct net_device *ndev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
-	new_bus->irq = irqlist;
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
 
@@ -271,7 +264,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 			 */
 			if ((mdio_bus_data->irqs == NULL) &&
 			    (mdio_bus_data->probed_phy_irq > 0)) {
-				irqlist[addr] = mdio_bus_data->probed_phy_irq;
+				new_bus->irq[addr] =
+					mdio_bus_data->probed_phy_irq;
 				phydev->irq = mdio_bus_data->probed_phy_irq;
 			}
 

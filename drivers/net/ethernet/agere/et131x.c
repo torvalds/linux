@@ -3325,7 +3325,6 @@ static void et131x_pci_remove(struct pci_dev *pdev)
 	netif_napi_del(&adapter->napi);
 	phy_disconnect(adapter->phydev);
 	mdiobus_unregister(adapter->mii_bus);
-	kfree(adapter->mii_bus->irq);
 	mdiobus_free(adapter->mii_bus);
 
 	et131x_adapter_memory_free(adapter);
@@ -3944,7 +3943,6 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct et131x_adapter *adapter;
 	int rc;
-	int ii;
 
 	rc = pci_enable_device(pdev);
 	if (rc < 0) {
@@ -4034,18 +4032,11 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	adapter->mii_bus->priv = netdev;
 	adapter->mii_bus->read = et131x_mdio_read;
 	adapter->mii_bus->write = et131x_mdio_write;
-	adapter->mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int),
-					      GFP_KERNEL);
-	if (!adapter->mii_bus->irq)
-		goto err_mdio_free;
-
-	for (ii = 0; ii < PHY_MAX_ADDR; ii++)
-		adapter->mii_bus->irq[ii] = PHY_POLL;
 
 	rc = mdiobus_register(adapter->mii_bus);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to register MII bus\n");
-		goto err_mdio_free_irq;
+		goto err_mdio_free;
 	}
 
 	rc = et131x_mii_probe(netdev);
@@ -4085,8 +4076,6 @@ err_phy_disconnect:
 	phy_disconnect(adapter->phydev);
 err_mdio_unregister:
 	mdiobus_unregister(adapter->mii_bus);
-err_mdio_free_irq:
-	kfree(adapter->mii_bus->irq);
 err_mdio_free:
 	mdiobus_free(adapter->mii_bus);
 err_mem_free:

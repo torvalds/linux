@@ -127,16 +127,11 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	struct device_node *child;
 	const __be32 *paddr;
 	bool scanphys = false;
-	int addr, rc, i;
+	int addr, rc;
 
 	/* Mask out all PHYs from auto probing.  Instead the PHYs listed in
 	 * the device tree are populated after the bus has been registered */
 	mdio->phy_mask = ~0;
-
-	/* Clear all the IRQ properties */
-	if (mdio->irq)
-		for (i=0; i<PHY_MAX_ADDR; i++)
-			mdio->irq[i] = PHY_POLL;
 
 	mdio->dev.of_node = np;
 

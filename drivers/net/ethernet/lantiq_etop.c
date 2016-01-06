@@ -433,18 +433,9 @@ ltq_etop_mdio_init(struct net_device *dev)
 	priv->mii_bus->name = "ltq_mii";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		priv->pdev->name, priv->pdev->id);
-	priv->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!priv->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		priv->mii_bus->irq[i] = PHY_POLL;
-
 	if (mdiobus_register(priv->mii_bus)) {
 		err = -ENXIO;
-		goto err_out_free_mdio_irq;
+		goto err_out_free_mdiobus;
 	}
 
 	if (ltq_etop_mdio_probe(dev)) {
@@ -455,8 +446,6 @@ ltq_etop_mdio_init(struct net_device *dev)
 
 err_out_unregister_bus:
 	mdiobus_unregister(priv->mii_bus);
-err_out_free_mdio_irq:
-	kfree(priv->mii_bus->irq);
 err_out_free_mdiobus:
 	mdiobus_free(priv->mii_bus);
 err_out:
@@ -470,7 +459,6 @@ ltq_etop_mdio_cleanup(struct net_device *dev)
 
 	phy_disconnect(priv->phydev);
 	mdiobus_unregister(priv->mii_bus);
-	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);
 }
 

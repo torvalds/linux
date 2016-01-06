@@ -1220,7 +1220,7 @@ static void dwceqos_enable_mmc_interrupt(struct net_local *lp)
 
 static int dwceqos_mii_init(struct net_local *lp)
 {
-	int ret = -ENXIO, i;
+	int ret = -ENXIO;
 	struct resource res;
 	struct device_node *mdionode;
 
@@ -1241,24 +1241,14 @@ static int dwceqos_mii_init(struct net_local *lp)
 	lp->mii_bus->priv = lp;
 	lp->mii_bus->parent = &lp->ndev->dev;
 
-	lp->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!lp->mii_bus->irq) {
-		ret = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		lp->mii_bus->irq[i] = PHY_POLL;
 	of_address_to_resource(lp->pdev->dev.of_node, 0, &res);
 	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%.8llx",
 		 (unsigned long long)res.start);
 	if (of_mdiobus_register(lp->mii_bus, mdionode))
-		goto err_out_free_mdio_irq;
+		goto err_out_free_mdiobus;
 
 	return 0;
 
-err_out_free_mdio_irq:
-	kfree(lp->mii_bus->irq);
 err_out_free_mdiobus:
 	mdiobus_free(lp->mii_bus);
 err_out:
@@ -2977,7 +2967,6 @@ static int dwceqos_remove(struct platform_device *pdev)
 		if (lp->phy_dev)
 			phy_disconnect(lp->phy_dev);
 		mdiobus_unregister(lp->mii_bus);
-		kfree(lp->mii_bus->irq);
 		mdiobus_free(lp->mii_bus);
 
 		unregister_netdev(ndev);

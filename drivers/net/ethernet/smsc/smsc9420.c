@@ -78,7 +78,6 @@ struct smsc9420_pdata {
 
 	struct phy_device *phy_dev;
 	struct mii_bus *mii_bus;
-	int phy_irq[PHY_MAX_ADDR];
 	int last_duplex;
 	int last_carrier;
 };
@@ -1188,7 +1187,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 static int smsc9420_mii_init(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
-	int err = -ENXIO, i;
+	int err = -ENXIO;
 
 	pd->mii_bus = mdiobus_alloc();
 	if (!pd->mii_bus) {
@@ -1201,9 +1200,6 @@ static int smsc9420_mii_init(struct net_device *dev)
 	pd->mii_bus->priv = pd;
 	pd->mii_bus->read = smsc9420_mii_read;
 	pd->mii_bus->write = smsc9420_mii_write;
-	pd->mii_bus->irq = pd->phy_irq;
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		pd->mii_bus->irq[i] = PHY_POLL;
 
 	/* Mask all PHYs except ID 1 (internal) */
 	pd->mii_bus->phy_mask = ~(1 << 1);

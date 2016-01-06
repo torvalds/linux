@@ -2263,21 +2263,13 @@ static int b44_register_phy_one(struct b44 *bp)
 	mii_bus->parent = sdev->dev;
 	mii_bus->phy_mask = ~(1 << bp->phy_addr);
 	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "%x", instance);
-	mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!mii_bus->irq) {
-		dev_err(sdev->dev, "mii_bus irq allocation failed\n");
-		err = -ENOMEM;
-		goto err_out_mdiobus;
-	}
-
-	memset(mii_bus->irq, PHY_POLL, sizeof(int) * PHY_MAX_ADDR);
 
 	bp->mii_bus = mii_bus;
 
 	err = mdiobus_register(mii_bus);
 	if (err) {
 		dev_err(sdev->dev, "failed to register MII bus\n");
-		goto err_out_mdiobus_irq;
+		goto err_out_mdiobus;
 	}
 
 	if (!bp->mii_bus->phy_map[bp->phy_addr] &&
@@ -2322,9 +2314,6 @@ static int b44_register_phy_one(struct b44 *bp)
 err_out_mdiobus_unregister:
 	mdiobus_unregister(mii_bus);
 
-err_out_mdiobus_irq:
-	kfree(mii_bus->irq);
-
 err_out_mdiobus:
 	mdiobus_free(mii_bus);
 
@@ -2338,7 +2327,6 @@ static void b44_unregister_phy_one(struct b44 *bp)
 
 	phy_disconnect(bp->phydev);
 	mdiobus_unregister(mii_bus);
-	kfree(mii_bus->irq);
 	mdiobus_free(mii_bus);
 }
 

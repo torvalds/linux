@@ -1015,7 +1015,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	struct resource *mmio = NULL;
 	struct resource *mem = NULL;
 	struct ethoc *priv = NULL;
-	unsigned int phy;
 	int num_bd;
 	int ret = 0;
 	bool random_mac = false;
@@ -1206,19 +1205,10 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv->mdio->write = ethoc_mdio_write;
 	priv->mdio->priv = priv;
 
-	priv->mdio->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!priv->mdio->irq) {
-		ret = -ENOMEM;
-		goto free_mdio;
-	}
-
-	for (phy = 0; phy < PHY_MAX_ADDR; phy++)
-		priv->mdio->irq[phy] = PHY_POLL;
-
 	ret = mdiobus_register(priv->mdio);
 	if (ret) {
 		dev_err(&netdev->dev, "failed to register MDIO bus\n");
-		goto free_mdio;
+		goto free;
 	}
 
 	ret = ethoc_mdio_probe(netdev);
@@ -1250,8 +1240,6 @@ error2:
 	netif_napi_del(&priv->napi);
 error:
 	mdiobus_unregister(priv->mdio);
-free_mdio:
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
 	if (priv->clk)

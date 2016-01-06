@@ -113,7 +113,6 @@ struct octeon_mdiobus {
 	resource_size_t mdio_phys;
 	resource_size_t regsize;
 	enum octeon_mdiobus_mode mode;
-	int phy_irq[PHY_MAX_ADDR];
 };
 
 #ifdef CONFIG_CAVIUM_OCTEON_SOC
@@ -306,7 +305,6 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 	oct_mdio_writeq(smi_en.u64, bus->register_base + SMI_EN);
 
 	bus->mii_bus->priv = bus;
-	bus->mii_bus->irq = bus->phy_irq;
 	bus->mii_bus->name = "mdio-octeon";
 	snprintf(bus->mii_bus->id, MII_BUS_ID_SIZE, "%llx", bus->register_base);
 	bus->mii_bus->parent = &pdev->dev;

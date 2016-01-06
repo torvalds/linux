@@ -1848,17 +1848,8 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		 * if a slave is not present on hw */
 		bus->phy_mask = ~(1 << priv->phy_id);
 
-		bus->irq = devm_kzalloc(&pdev->dev, sizeof(int) * PHY_MAX_ADDR,
-					GFP_KERNEL);
-		if (!bus->irq) {
-			ret = -ENOMEM;
-			goto out_free_mdio;
-		}
-
 		if (priv->has_phy_interrupt)
 			bus->irq[priv->phy_id] = priv->phy_interrupt;
-		else
-			bus->irq[priv->phy_id] = PHY_POLL;
 
 		ret = mdiobus_register(bus);
 		if (ret) {

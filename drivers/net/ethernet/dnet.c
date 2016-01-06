@@ -302,7 +302,7 @@ static int dnet_mii_probe(struct net_device *dev)
 
 static int dnet_mii_init(struct dnet *bp)
 {
-	int err, i;
+	int err;
 
 	bp->mii_bus = mdiobus_alloc();
 	if (bp->mii_bus == NULL)
@@ -316,16 +316,6 @@ static int dnet_mii_init(struct dnet *bp)
 		bp->pdev->name, bp->pdev->id);
 
 	bp->mii_bus->priv = bp;
-
-	bp->mii_bus->irq = devm_kmalloc(&bp->pdev->dev,
-					sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!bp->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		bp->mii_bus->irq[i] = PHY_POLL;
 
 	if (mdiobus_register(bp->mii_bus)) {
 		err = -ENXIO;

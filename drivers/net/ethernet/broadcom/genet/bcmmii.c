@@ -402,8 +402,6 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	 */
 	if (priv->internal_phy)
 		priv->mii_bus->irq[phydev->addr] = PHY_IGNORE_INTERRUPT;
-	else
-		priv->mii_bus->irq[phydev->addr] = PHY_POLL;
 
 	return 0;
 }
@@ -476,12 +474,6 @@ static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
 	bus->reset = bcmgenet_mii_bus_reset;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d",
 		 priv->pdev->name, priv->pdev->id);
-
-	bus->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
-	if (!bus->irq) {
-		mdiobus_free(priv->mii_bus);
-		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -648,7 +640,6 @@ int bcmgenet_mii_init(struct net_device *dev)
 out:
 	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
-	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);
 	return ret;
 }
@@ -659,6 +650,5 @@ void bcmgenet_mii_exit(struct net_device *dev)
 
 	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
-	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);
 }

@@ -27,7 +27,6 @@
 #define MII_REGS_NUM 29
 
 struct fixed_mdio_bus {
-	int irqs[PHY_MAX_ADDR];
 	struct mii_bus *mii_bus;
 	struct list_head phys;
 };
@@ -256,7 +255,7 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 
 	memset(fp->regs, 0xFF,  sizeof(fp->regs[0]) * MII_REGS_NUM);
 
-	fmb->irqs[phy_addr] = irq;
+	fmb->mii_bus->irq[phy_addr] = irq;
 
 	fp->addr = phy_addr;
 	fp->status = *status;
@@ -395,7 +394,6 @@ static int __init fixed_mdio_bus_init(void)
 	fmb->mii_bus->parent = &pdev->dev;
 	fmb->mii_bus->read = &fixed_mdio_read;
 	fmb->mii_bus->write = &fixed_mdio_write;
-	fmb->mii_bus->irq = fmb->irqs;
 
 	ret = mdiobus_register(fmb->mii_bus);
 	if (ret)

@@ -189,10 +189,10 @@ struct mii_bus {
 	u32 phy_ignore_ta_mask;
 
 	/*
-	 * Pointer to an array of interrupts, each PHY's
-	 * interrupt at the index matching its address
+	 * An array of interrupts, each PHY's interrupt at the index
+	 * matching its address
 	 */
-	int *irq;
+	int irq[PHY_MAX_ADDR];
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 

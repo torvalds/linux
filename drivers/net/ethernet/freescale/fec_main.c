@@ -1983,7 +1983,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct device_node *node;
-	int err = -ENXIO, i;
+	int err = -ENXIO;
 	u32 mii_speed, holdtime;
 
 	/*
@@ -2065,15 +2065,6 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	fep->mii_bus->priv = fep;
 	fep->mii_bus->parent = &pdev->dev;
 
-	fep->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!fep->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		fep->mii_bus->irq[i] = PHY_POLL;
-
 	node = of_get_child_by_name(pdev->dev.of_node, "mdio");
 	if (node) {
 		err = of_mdiobus_register(fep->mii_bus, node);
@@ -2083,7 +2074,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	}
 
 	if (err)
-		goto err_out_free_mdio_irq;
+		goto err_out_free_mdiobus;
 
 	mii_cnt++;
 
@@ -2093,8 +2084,6 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 
 	return 0;
 
-err_out_free_mdio_irq:
-	kfree(fep->mii_bus->irq);
 err_out_free_mdiobus:
 	mdiobus_free(fep->mii_bus);
 err_out:
@@ -2105,7 +2094,6 @@ static void fec_enet_mii_remove(struct fec_enet_private *fep)
 {
 	if (--mii_cnt == 0) {
 		mdiobus_unregister(fep->mii_bus);
-		kfree(fep->mii_bus->irq);
 		mdiobus_free(fep->mii_bus);
 	}
 }
