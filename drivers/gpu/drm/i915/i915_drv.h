@@ -623,7 +623,11 @@ struct drm_i915_display_funcs {
 			  struct dpll *best_clock);
 	int (*compute_pipe_wm)(struct intel_crtc *crtc,
 			       struct drm_atomic_state *state);
-	void (*program_watermarks)(struct intel_crtc_state *cstate);
+	int (*compute_intermediate_wm)(struct drm_device *dev,
+				       struct intel_crtc *intel_crtc,
+				       struct intel_crtc_state *newstate);
+	void (*initial_watermarks)(struct intel_crtc_state *cstate);
+	void (*optimize_watermarks)(struct intel_crtc_state *cstate);
 	void (*update_wm)(struct drm_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
 	void (*modeset_commit_cdclk)(struct drm_atomic_state *state);
@@ -1927,6 +1931,13 @@ struct drm_i915_private {
 		};
 
 		uint8_t max_level;
+
+		/*
+		 * Should be held around atomic WM register writing; also
+		 * protects * intel_crtc->wm.active and
+		 * cstate->wm.need_postvbl_update.
+		 */
+		struct mutex wm_mutex;
 	} wm;
 
 	struct i915_runtime_pm pm;
