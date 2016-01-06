@@ -56,6 +56,16 @@
 #include "ib_verbs.h"
 
 /*
+ * For some of the IBTA objects there will likely be some
+ * initializations required. We need flags to determine whether it is OK
+ * for rdmavt to do this or not. This does not imply any functions of a
+ * partiuclar IBTA object are overridden.
+ */
+#define RVT_FLAG_MR_INIT_DRIVER BIT(1)
+#define RVT_FLAG_QP_INIT_DRIVER BIT(2)
+#define RVT_FLAG_CQ_INIT_DRIVER BIT(3)
+
+/*
  * For Memory Regions. This stuff should probably be moved into rdmavt/mr.h once
  * drivers no longer need access to the MR directly.
  */
@@ -429,6 +439,8 @@ struct rvt_dev_info {
 	/* Internal use */
 	int n_pds_allocated;
 	spinlock_t n_pds_lock; /* Protect pd allocated count */
+
+	int flags;
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
