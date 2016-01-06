@@ -50,14 +50,14 @@ static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
 	write_sysreg(0, VTTBR);
 }
 
-__alias(__tlb_flush_vmid) void __weak __kvm_tlb_flush_vmid(struct kvm *kvm);
+__alias(__tlb_flush_vmid) void __kvm_tlb_flush_vmid(struct kvm *kvm);
 
 static void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
 	__tlb_flush_vmid(kvm);
 }
 
-__alias(__tlb_flush_vmid_ipa) void __weak __kvm_tlb_flush_vmid_ipa(struct kvm *kvm,
+__alias(__tlb_flush_vmid_ipa) void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm,
 							    phys_addr_t ipa);
 
 static void __hyp_text __tlb_flush_vm_context(void)
@@ -67,4 +67,4 @@ static void __hyp_text __tlb_flush_vm_context(void)
 	dsb(ish);
 }
 
-__alias(__tlb_flush_vm_context) void __weak __kvm_flush_vm_context(void);
+__alias(__tlb_flush_vm_context) void __kvm_flush_vm_context(void);

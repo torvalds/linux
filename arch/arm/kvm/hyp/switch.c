@@ -191,7 +191,7 @@ again:
 	return exit_code;
 }
 
-__alias(__guest_run) int __weak __kvm_vcpu_run(struct kvm_vcpu *vcpu);
+__alias(__guest_run) int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
 
 static const char * const __hyp_panic_string[] = {
 	[ARM_EXCEPTION_RESET]      = "\nHYP panic: RST   PC:%08x CPSR:%08x",

@@ -58,10 +58,8 @@
  */
 
 	.align 5
-__hyp_vector:
-	.global	__hyp_vector
 __kvm_hyp_vector:
-	.weak __kvm_hyp_vector
+	.global __kvm_hyp_vector
 
 	@ Hyp-mode exception vector
 	W(b)	hyp_reset
