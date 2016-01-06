@@ -827,6 +827,13 @@ void r5l_quiesce(struct r5l_log *log, int state)
 		return;
 	if (state == 0) {
 		log->in_teardown = 0;
+		/*
+		 * This is a special case for hotadd. In suspend, the array has
+		 * no journal. In resume, journal is initialized as well as the
+		 * reclaim thread.
+		 */
+		if (log->reclaim_thread)
+			return;
 		log->reclaim_thread = md_register_thread(r5l_reclaim_thread,
 					log->rdev->mddev, "reclaim");
 	} else if (state == 1) {
