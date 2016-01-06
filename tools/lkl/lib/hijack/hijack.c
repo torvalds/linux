@@ -12,342 +12,272 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #define __USE_GNU
+#include <dlfcn.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <sys/stat.h>
 #include <sys/epoll.h>
 #include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <poll.h>
-#include <time.h>
 #include <sys/ioctl.h>
-#include <net/if.h>
+#include <assert.h>
 
-#include "hostcalls.h"
 #undef st_atime
 #undef st_mtime
 #undef st_ctime
 #include <lkl.h>
 #include <lkl_host.h>
 
-/* fd number offset */
-#define LKL_FD_OFFSET (256/2)
+#define LKL_FD_OFFSET (FD_SETSIZE/2)
 
+static int is_lklfd(int fd)
+{
+	if (fd < LKL_FD_OFFSET)
+		return 0;
+
+	return 1;
+}
+
+static void *resolve_sym(const char *sym)
+{
+	void *resolv;
+
+	resolv = dlsym(RTLD_NEXT, sym);
+	if (!resolv) {
+		fprintf(stderr, "dlsym fail %s (%s)\n", sym, dlerror());
+		assert(0);
+	}
+	return resolv;
+}
+
+typedef long (*host_call)(long p1, long p2, long p3, long p4, long p5, long p6);
+
+static host_call host_calls[__lkl__NR_syscalls];
+
+#define HOOK_FD_CALL(name)						\
+	static void __attribute__((constructor(101)))			\
+	init_host_##name(void)						\
+	{								\
+		host_calls[__lkl__NR_##name] = resolve_sym(#name);	\
+	}								\
+									\
+	long name##_hook(long p1, long p2, long p3, long p4, long p5,	\
+			 long p6)					\
+	{								\
+		long p[6] = {p1, p2, p3, p4, p5, p6 };			\
+		int ret;						\
+									\
+		if (!is_lklfd(p1))					\
+			return host_calls[__lkl__NR_##name](p1, p2, p3,	\
+							    p4, p5, p6); \
+									\
+		p[0] -= LKL_FD_OFFSET;					\
+		ret = lkl_syscall(__lkl__NR_##name, p);			\
+		if (ret < 0)	 					\
+			errno = -ret;					\
+		return ret < 0 ? -1 : ret;				\
+	}								\
+	asm(".global " #name);						\
+	asm(".set " #name "," #name "_hook");				\
+
+#define HOST_CALL(name)							\
+	static long (*host_##name)();					\
+	static void __attribute__((constructor(101)))			\
+	init2_host_##name(void)						\
+	{								\
+		host_##name = resolve_sym(#name);			\
+	}
+
+#define HOOK_CALL(name)							\
+	long name##_hook(long p1, long p2, long p3, long p4, long p5,	\
+			 long p6)					\
+	{								\
+		long p[6] = {p1, p2, p3, p4, p5, p6};			\
+		int ret;						\
+									\
+		ret = lkl_syscall(__lkl__NR_##name, p);			\
+		if (ret < 0)	 					\
+			errno = -ret;					\
+		return ret < 0 ? -1 : ret;				\
+	}								\
+	asm(".global " #name);						\
+	asm(".set " #name "," #name "_hook");				\
+
+
+static int lkl_call(int nr, int args, ...)
+{
+	long params[6];
+	va_list vl;
+	int i, ret;
+
+	va_start(vl, args);
+	for (i = 0; i < args; i++)
+		params[i] = va_arg(vl, long);
+	va_end(vl);
+
+	ret = lkl_syscall(nr, params);
+	if (ret < 0)
+		errno = -ret;
+	return ret < 0 ? -1 : ret;
+}
+
+HOOK_FD_CALL(close)
+HOOK_FD_CALL(recvmsg)
+HOOK_FD_CALL(sendmsg)
+HOOK_FD_CALL(sendmmsg)
+HOOK_FD_CALL(getsockname)
+HOOK_FD_CALL(getpeername)
+HOOK_FD_CALL(bind)
+HOOK_FD_CALL(connect)
+HOOK_FD_CALL(listen)
+HOOK_FD_CALL(shutdown)
+HOOK_FD_CALL(accept)
+HOOK_FD_CALL(write)
+HOOK_FD_CALL(writev)
+HOOK_FD_CALL(sendto)
+HOOK_FD_CALL(send)
+HOOK_FD_CALL(read)
+HOOK_FD_CALL(recvfrom)
+HOOK_FD_CALL(recv)
+HOOK_FD_CALL(epoll_wait)
+HOOK_CALL(pipe);
+HOOK_FD_CALL(setsockopt);
+HOOK_FD_CALL(getsockopt);
+
+HOST_CALL(socket);
 int socket(int domain, int type, int protocol)
 {
 	int ret;
 
-	if (domain == AF_UNIX) {
-		if (!host_socket)
-			hostcall_init();
+	if (domain == AF_UNIX)
 		return host_socket(domain, type, protocol);
-	}
 
-	ret = lkl_sys_socket(domain, type, protocol);
-	if (ret >= 0)
-		return ret + LKL_FD_OFFSET;
-	return ret;
+	ret = lkl_call(__lkl__NR_socket, 3, domain, type, protocol);
+	return ret < 0 ? ret : ret + LKL_FD_OFFSET;
 }
 
-int close(int fd)
-{
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_close)
-			hostcall_init();
-		return host_close(fd);
-	}
-
-	return lkl_sys_close(fd - LKL_FD_OFFSET);
-}
-
-ssize_t recvmsg(int fd, struct msghdr *msghdr, int flags)
-{
-	return lkl_sys_recvmsg(fd - LKL_FD_OFFSET, msghdr, flags);
-}
-
-ssize_t sendmsg(int fd, const struct msghdr *msghdr, int flags)
-{
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_sendmsg)
-			hostcall_init();
-		return host_sendmsg(fd, msghdr, flags);
-	}
-	return lkl_sys_sendmsg(fd - LKL_FD_OFFSET,
-				       (struct msghdr *)msghdr, flags);
-}
-
-int sendmmsg(int fd, struct mmsghdr *msghdr, unsigned int vlen,
-		  int flags)
-{
-	return lkl_sys_sendmmsg(fd - LKL_FD_OFFSET, msghdr,
-					vlen, flags);
-}
-
-int getsockname(int fd, struct sockaddr *name, socklen_t *namelen)
-{
-	return lkl_sys_getsockname(fd - LKL_FD_OFFSET, name,
-					   (int *)namelen);
-}
-
-int getpeername(int fd, struct sockaddr *name, socklen_t *namelen)
-{
-	return lkl_sys_getpeername(fd - LKL_FD_OFFSET, name,
-					   (int *)namelen);
-}
-
-int bind(int fd, const struct sockaddr *name, socklen_t namelen)
-{
-	if (fd < LKL_FD_OFFSET)
-		return host_bind(fd, name, namelen);
-
-	return lkl_sys_bind(fd - LKL_FD_OFFSET, (struct sockaddr *)name,
-				    namelen);
-}
-
-int connect(int fd, const struct sockaddr *addr, socklen_t len)
-{
-	return lkl_sys_connect(fd - LKL_FD_OFFSET,
-				       (struct sockaddr *)addr, len);
-}
-
-int listen(int fd, int backlog)
-{
-	if (fd < LKL_FD_OFFSET)
-		return host_listen(fd, backlog);
-	return lkl_sys_listen(fd - LKL_FD_OFFSET, backlog);
-}
-
-int shutdown(int fd, int how)
-{
-	if (fd < LKL_FD_OFFSET)
-		return host_shutdown(fd, how);
-	return lkl_sys_shutdown(fd - LKL_FD_OFFSET, how);
-}
-
-int accept(int fd, struct sockaddr *addr, socklen_t *addrlen)
-{
-	if (fd < LKL_FD_OFFSET)
-		return host_accept(fd, addr, addrlen);
-	return lkl_sys_accept(fd - LKL_FD_OFFSET, addr, (int *)addrlen);
-}
-
-ssize_t write(int fd, const void *buf, size_t count)
-{
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_write)
-			hostcall_init();
-		return host_write(fd, buf, count);
-	}
-	return lkl_sys_write(fd - LKL_FD_OFFSET, (void *)buf, count);
-}
-
-ssize_t writev(int fd, const struct iovec *iov, int count)
-{
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_writev)
-			hostcall_init();
-		return host_writev(fd, iov, count);
-	}
-	return lkl_sys_writev(fd - LKL_FD_OFFSET, (void *)iov, count);
-}
-
-ssize_t sendto(int fd, const void *buf, size_t len, int flags,
-			const struct sockaddr *dest_addr, unsigned int addrlen)
-{
-	if (fd < LKL_FD_OFFSET)
-		return host_sendto(fd, buf, len, flags, dest_addr, addrlen);
-	return lkl_sys_sendto(fd - LKL_FD_OFFSET, (void *)buf, len,
-				      flags, (struct sockaddr *)dest_addr,
-				      addrlen);
-}
-
-ssize_t send(int fd, const void *buf, size_t len, int flags)
-{
-	return sendto(fd, (void *)buf, len, flags, NULL, 0);
-}
-
-ssize_t read(int fd, void *buf, size_t count)
-{
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_read)
-			hostcall_init();
-		return host_read(fd, buf, count);
-	}
-	return lkl_sys_read(fd - LKL_FD_OFFSET, (void *)buf, count);
-}
-
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags,
-		      struct sockaddr *from, socklen_t *fromlen)
-{
-	return lkl_sys_recvfrom(fd - LKL_FD_OFFSET, buf, len, flags,
-					from, (int *)fromlen);
-}
-
-ssize_t recv(int fd, void *buf, size_t count, int flags)
-{
-	return recvfrom(fd, buf, count, flags, NULL, NULL);
-}
-
-int setsockopt(int fd, int level, int optname,
-	       const void *optval, socklen_t optlen)
-{
-	if (fd < LKL_FD_OFFSET)
-		return host_setsockopt(fd, level, optname, optval, optlen);
-	return lkl_sys_setsockopt(fd - LKL_FD_OFFSET, level, optname,
-					  (void *)optval, optlen);
-}
-
-int getsockopt(int fd, int level, int optname,
-	       void *optval, socklen_t *optlen)
-{
-	return lkl_sys_getsockopt(fd - LKL_FD_OFFSET, level, optname,
-					  optval, (int *)optlen);
-}
-
-int ioctl(int fd, unsigned long int request, ...)
+HOST_CALL(ioctl);
+int ioctl(int fd, unsigned long req, ...)
 {
 	va_list vl;
-	char *argp;
+	long arg;
 
-	va_start(vl, request);
-	argp = va_arg(vl, char *);
+	va_start(vl, req);
+	arg = va_arg(vl, long);
 	va_end(vl);
 
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_ioctl)
-			hostcall_init();
-		return host_ioctl(fd, request, argp);
-	}
-	return lkl_sys_ioctl(fd - LKL_FD_OFFSET, request,
-				     (unsigned long)argp);
+	if (!is_lklfd(fd))
+		return host_ioctl(fd, req, arg);
+	return lkl_call(__lkl__NR_fcntl, 3, fd - LKL_FD_OFFSET, req, arg);
 }
 
-int fcntl(int fd, int cmd, ... /* arg */)
+
+HOST_CALL(fcntl);
+int fcntl(int fd, int cmd, ...)
 {
 	va_list vl;
-	int *argp;
+	long arg;
 
 	va_start(vl, cmd);
-	argp = va_arg(vl, int *);
+	arg = va_arg(vl, long);
 	va_end(vl);
 
-	if (fd < LKL_FD_OFFSET) {
-		if (!host_fcntl)
-			hostcall_init();
-		return host_fcntl(fd, cmd, argp);
+	if (!is_lklfd(fd))
+		return host_fcntl(fd, cmd, arg);
+	return lkl_call(__lkl__NR_fcntl, 3, fd - LKL_FD_OFFSET, cmd, arg);
+}
+
+HOST_CALL(poll);
+int poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+	unsigned int i, lklfds = 0, hostfds = 0;
+	struct pollfd lkl_fds[nfds];
+
+	for (i = 0; i < nfds; i++) {
+		if (is_lklfd(fds[i].fd)) {
+			lklfds = 1;
+			lkl_fds[i].fd = fds[i].fd - LKL_FD_OFFSET;
+		} else
+			hostfds = 1;
 	}
-	return lkl_sys_fcntl(fd - LKL_FD_OFFSET, cmd,
-				     (unsigned long)argp);
-}
-
-#ifdef notyet
-int open(const char *pathname, int flags, ...)
-{
-	va_list vl;
-	int fd;
-
-	va_start(vl, flags);
-	if (!host_open)
-		hostcall_init();
-	fd = host_open(pathname, flags, va_arg(vl, mode_t));
-	va_end(vl);
-	return fd;
-}
-
-int open64(const char *pathname, int flags, mode_t mode)
-{
-	if (!host_open64)
-		hostcall_init();
-	int fd = host_open64(pathname, flags, mode);
-	return fd;
-}
-#endif
-
-int pipe(int pipefd[2])
-{
-	return lkl_sys_pipe(pipefd);
-}
-
-int
-poll(struct pollfd *fds, nfds_t nfds, int timeout)
-{
-	struct lkl_pollfd lkl_fds[nfds];
-	unsigned int i;
 
 	/* FIXME: need to handle mixed case of hostfd and lklfd. */
-	if (fds[0].fd < LKL_FD_OFFSET)
+	if (lklfds && hostfds) {
+		errno = LKL_EOPNOTSUPP;
+		return -1;
+	}
+
+	if (hostfds)
 		return host_poll(fds, nfds, timeout);
 
-	for (i = 0; i < nfds; i++)
-		lkl_fds[i].fd = fds[i].fd - LKL_FD_OFFSET;
-
-	return lkl_sys_poll(lkl_fds, nfds, timeout);
+	return lkl_call(__lkl__NR_poll, 3, lkl_fds, nfds, timeout);
 }
 
 int __poll(struct pollfd *, nfds_t, int) __attribute__((alias("poll")));
 
-int
-select(int nfds, fd_set *readfds, fd_set *writefds,
-	fd_set *exceptfds, struct timeval *timeout)
+HOST_CALL(select);
+int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 {
-	/* FIXME: need to handle mixed case of hostfd and lklfd. */
-	int fd, host_flag = 0;
-	fd_set lkl_rfds[nfds] __attribute__((unused)),
-		lkl_wfds[nfds] __attribute__((unused)),
-		lkl_efds[nfds] __attribute__((unused));
+	int fd, hostfds = 0, lklfds = 0;
 
 	for (fd = 0; fd < nfds; fd++) {
-		if (fd > LKL_FD_OFFSET)
-			break;
-
-		if (readfds != 0 && FD_ISSET(fd, readfds)) {
-			host_flag = 1;
-			break;
+		if (r != 0 && FD_ISSET(fd, r)) {
+			if (is_lklfd(fd))
+				lklfds = 1;
+			else
+				hostfds = 1;
 		}
-		if (writefds != 0 &&  FD_ISSET(fd, writefds)) {
-			host_flag = 1;
-			break;
+		if (w != 0 && FD_ISSET(fd, w)) {
+			if (is_lklfd(fd))
+				lklfds = 1;
+			else
+				hostfds = 1;
 		}
-		if (exceptfds != 0 && FD_ISSET(fd, exceptfds)) {
-			host_flag = 1;
-			break;
+		if (e != 0 && FD_ISSET(fd, e)) {
+			if (is_lklfd(fd))
+				lklfds = 1;
+			else
+				hostfds = 1;
 		}
 	}
 
-	if (host_flag)
-		return host_select(nfds, readfds, writefds, exceptfds, timeout);
+	/* FIXME: handle mixed case of hostfd and lklfd */
+	if (lklfds && hostfds) {
+		errno = EOPNOTSUPP;
+		return -1;
+	}
 
-	return lkl_sys_select(nfds, readfds, writefds,
-				      exceptfds, (struct lkl_timeval *)timeout);
+	if (hostfds)
+		return host_select(nfds, r, w, e, t);
+
+	return lkl_call(__lkl__NR_select, 5, nfds, r, w, e, t);
 }
 
-int
-epoll_create(int size)
+HOST_CALL(epoll_create)
+int epoll_create(int size)
 {
 	int ret;
 
-	ret = lkl_sys_epoll_create(size);
+	ret = lkl_call(__lkl__NR_epoll_create, 1, size);
 	if (ret >= 0)
 		return ret + LKL_FD_OFFSET;
-
 	return ret;
 }
 
-int
-epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
-{
-	return lkl_sys_epoll_ctl(epollfd - LKL_FD_OFFSET, op,
-					 fd - LKL_FD_OFFSET, event);
-}
 
-int
-epoll_wait(int epollfd, struct epoll_event *events,
-		int maxevents, int timeout)
+HOST_CALL(epoll_ctl);
+int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 {
-	/* FIXME: need to handle mixed case of hostfd and lklfd. */
-	return lkl_sys_epoll_wait(epollfd - LKL_FD_OFFSET, events,
-					  maxevents, timeout);
-}
+	if (is_lklfd(epollfd) != is_lklfd(fd)) {
+		errno = EOPNOTSUPP;
+		return -1;
+	}
 
+	if (!is_lklfd(epollfd))
+		return host_epoll_ctl(epollfd, op, fd, event);
+
+	return lkl_call(__lkl__NR_epoll_ctl, 4, epollfd - LKL_FD_OFFSET, op,
+			fd - LKL_FD_OFFSET, event);
+}
