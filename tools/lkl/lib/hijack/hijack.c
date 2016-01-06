@@ -73,7 +73,6 @@ static host_call host_calls[__lkl__NR_syscalls];
 			return host_calls[__lkl__NR_##name](p1, p2, p3,	\
 							    p4, p5, p6); \
 									\
-		p[0] -= LKL_FD_OFFSET;					\
 		ret = lkl_syscall(__lkl__NR_##name, p);			\
 		if (ret < 0)	 					\
 			errno = -ret;					\
@@ -149,13 +148,10 @@ HOOK_FD_CALL(getsockopt);
 HOST_CALL(socket);
 int socket(int domain, int type, int protocol)
 {
-	int ret;
-
 	if (domain == AF_UNIX)
 		return host_socket(domain, type, protocol);
 
-	ret = lkl_call(__lkl__NR_socket, 3, domain, type, protocol);
-	return ret < 0 ? ret : ret + LKL_FD_OFFSET;
+	return lkl_call(__lkl__NR_socket, 3, domain, type, protocol);
 }
 
 HOST_CALL(ioctl);
@@ -170,7 +166,7 @@ int ioctl(int fd, unsigned long req, ...)
 
 	if (!is_lklfd(fd))
 		return host_ioctl(fd, req, arg);
-	return lkl_call(__lkl__NR_fcntl, 3, fd - LKL_FD_OFFSET, req, arg);
+	return lkl_call(__lkl__NR_fcntl, 3, fd, req, arg);
 }
 
 
@@ -186,20 +182,18 @@ int fcntl(int fd, int cmd, ...)
 
 	if (!is_lklfd(fd))
 		return host_fcntl(fd, cmd, arg);
-	return lkl_call(__lkl__NR_fcntl, 3, fd - LKL_FD_OFFSET, cmd, arg);
+	return lkl_call(__lkl__NR_fcntl, 3, fd, cmd, arg);
 }
 
 HOST_CALL(poll);
 int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
 	unsigned int i, lklfds = 0, hostfds = 0;
-	struct pollfd lkl_fds[nfds];
 
 	for (i = 0; i < nfds; i++) {
-		if (is_lklfd(fds[i].fd)) {
+		if (is_lklfd(fds[i].fd))
 			lklfds = 1;
-			lkl_fds[i].fd = fds[i].fd - LKL_FD_OFFSET;
-		} else
+		else
 			hostfds = 1;
 	}
 
@@ -212,7 +206,7 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 	if (hostfds)
 		return host_poll(fds, nfds, timeout);
 
-	return lkl_call(__lkl__NR_poll, 3, lkl_fds, nfds, timeout);
+	return lkl_call(__lkl__NR_poll, 3, fds, nfds, timeout);
 }
 
 int __poll(struct pollfd *, nfds_t, int) __attribute__((alias("poll")));
@@ -255,17 +249,7 @@ int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 	return lkl_call(__lkl__NR_select, 5, nfds, r, w, e, t);
 }
 
-HOST_CALL(epoll_create)
-int epoll_create(int size)
-{
-	int ret;
-
-	ret = lkl_call(__lkl__NR_epoll_create, 1, size);
-	if (ret >= 0)
-		return ret + LKL_FD_OFFSET;
-	return ret;
-}
-
+HOOK_CALL(epoll_create)
 
 HOST_CALL(epoll_ctl);
 int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
@@ -278,6 +262,5 @@ int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 	if (!is_lklfd(epollfd))
 		return host_epoll_ctl(epollfd, op, fd, event);
 
-	return lkl_call(__lkl__NR_epoll_ctl, 4, epollfd - LKL_FD_OFFSET, op,
-			fd - LKL_FD_OFFSET, event);
+	return lkl_call(__lkl__NR_epoll_ctl, 4, epollfd, op, fd, event);
 }
