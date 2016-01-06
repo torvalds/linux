@@ -178,6 +178,26 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port,
 	return -EOPNOTSUPP;
 }
 
+/**
+ * rvt_alloc_ucontext - Allocate a user context
+ * @ibdev: Vers IB dev
+ * @data: User data allocated
+ */
+static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
+					      struct ib_udata *udata)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+/**
+ *rvt_dealloc_ucontext - Free a user context
+ *@context - Free this
+ */
+static int rvt_dealloc_ucontext(struct ib_ucontext *context)
+{
+	return -EOPNOTSUPP;
+}
+
 /*
  * Check driver override. If driver passes a value use it, otherwise we use our
  * own value.
@@ -197,6 +217,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, modify_port);
 	CHECK_DRIVER_OVERRIDE(rdi, query_pkey);
 	CHECK_DRIVER_OVERRIDE(rdi, query_gid);
+	CHECK_DRIVER_OVERRIDE(rdi, alloc_ucontext);
+	CHECK_DRIVER_OVERRIDE(rdi, dealloc_ucontext);
 
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
