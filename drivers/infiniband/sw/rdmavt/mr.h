@@ -49,6 +49,29 @@
  */
 
 #include <rdma/rdma_vt.h>
+struct rvt_fmr {
+	struct ib_fmr ibfmr;
+	struct rvt_mregion mr;        /* must be last */
+};
+
+struct rvt_mr {
+	struct ib_mr ibmr;
+	struct ib_umem *umem;
+	struct rvt_mregion mr;  /* must be last */
+};
+
+static inline struct rvt_fmr *to_ifmr(struct ib_fmr *ibfmr)
+{
+	return container_of(ibfmr, struct rvt_fmr, ibfmr);
+}
+
+static inline struct rvt_mr *to_imr(struct ib_mr *ibmr)
+{
+	return container_of(ibmr, struct rvt_mr, ibmr);
+}
+
+int rvt_driver_mr_init(struct rvt_dev_info *rdi);
+void rvt_mr_exit(struct rvt_dev_info *rdi);
 
 /* Mem Regions */
 struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc);

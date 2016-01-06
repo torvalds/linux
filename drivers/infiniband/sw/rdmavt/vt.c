@@ -214,6 +214,8 @@ static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 int rvt_register_device(struct rvt_dev_info *rdi)
 {
 	/* Validate that drivers have provided the right information */
+	int ret = 0;
+
 	if (!rdi)
 		return -EINVAL;
 
@@ -262,6 +264,12 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, detach_mcast);
 
 	/* Mem Region */
+	ret = rvt_driver_mr_init(rdi);
+	if (ret) {
+		rvt_pr_err(rdi, "Error in driver MR init.\n");
+		goto bail_no_mr;
+	}
+
 	CHECK_DRIVER_OVERRIDE(rdi, get_dma_mr);
 	CHECK_DRIVER_OVERRIDE(rdi, reg_user_mr);
 	CHECK_DRIVER_OVERRIDE(rdi, dereg_mr);
@@ -289,10 +297,21 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	spin_lock_init(&rdi->n_pds_lock);
 	rdi->n_pds_allocated = 0;
 
-	rvt_pr_info(rdi, "Registration with rdmavt done.\n");
-
 	/* We are now good to announce we exist */
-	return ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
+	ret =  ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
+	if (ret) {
+		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
+		goto bail_mr;
+	}
+
+	rvt_pr_info(rdi, "Registration with rdmavt done.\n");
+	return ret;
+
+bail_mr:
+	rvt_mr_exit(rdi);
+
+bail_no_mr:
+	return ret;
 }
 EXPORT_SYMBOL(rvt_register_device);
 
@@ -302,5 +321,6 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 		return;
 
 	ib_unregister_device(&rdi->ibdev);
+	rvt_mr_exit(rdi);
 }
 EXPORT_SYMBOL(rvt_unregister_device);
