@@ -264,6 +264,9 @@ static int phy_bus_match(struct device *dev, struct device_driver *drv)
 	const int num_ids = ARRAY_SIZE(phydev->c45_ids.device_ids);
 	int i;
 
+	if (!(phydrv->mdiodrv.flags & MDIO_DEVICE_IS_PHY))
+		return 0;
+
 	if (phydrv->match_phy_device)
 		return phydrv->match_phy_device(phydev);
 
@@ -851,9 +854,11 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 */
 	if (!d->driver) {
 		if (phydev->is_c45)
-			d->driver = &genphy_driver[GENPHY_DRV_10G].driver;
+			d->driver =
+				&genphy_driver[GENPHY_DRV_10G].mdiodrv.driver;
 		else
-			d->driver = &genphy_driver[GENPHY_DRV_1G].driver;
+			d->driver =
+				&genphy_driver[GENPHY_DRV_1G].mdiodrv.driver;
 
 		err = d->driver->probe(d);
 		if (err >= 0)
@@ -954,7 +959,8 @@ void phy_detach(struct phy_device *phydev)
 	 * real driver could be loaded
 	 */
 	for (i = 0; i < ARRAY_SIZE(genphy_driver); i++) {
-		if (phydev->mdio.dev.driver == &genphy_driver[i].driver) {
+		if (phydev->mdio.dev.driver ==
+		    &genphy_driver[i].mdiodrv.driver) {
 			device_release_driver(&phydev->mdio.dev);
 			break;
 		}
@@ -1598,13 +1604,14 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 {
 	int retval;
 
-	new_driver->driver.name = new_driver->name;
-	new_driver->driver.bus = &mdio_bus_type;
-	new_driver->driver.probe = phy_probe;
-	new_driver->driver.remove = phy_remove;
-	new_driver->driver.owner = owner;
+	new_driver->mdiodrv.flags |= MDIO_DEVICE_IS_PHY;
+	new_driver->mdiodrv.driver.name = new_driver->name;
+	new_driver->mdiodrv.driver.bus = &mdio_bus_type;
+	new_driver->mdiodrv.driver.probe = phy_probe;
+	new_driver->mdiodrv.driver.remove = phy_remove;
+	new_driver->mdiodrv.driver.owner = owner;
 
-	retval = driver_register(&new_driver->driver);
+	retval = driver_register(&new_driver->mdiodrv.driver);
 	if (retval) {
 		pr_err("%s: Error %d in registering driver\n",
 		       new_driver->name, retval);
@@ -1637,7 +1644,7 @@ EXPORT_SYMBOL(phy_drivers_register);
 
 void phy_driver_unregister(struct phy_driver *drv)
 {
-	driver_unregister(&drv->driver);
+	driver_unregister(&drv->mdiodrv.driver);
 }
 EXPORT_SYMBOL(phy_driver_unregister);
 

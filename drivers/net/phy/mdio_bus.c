@@ -357,16 +357,25 @@ EXPORT_SYMBOL(__mdiobus_register);
 
 void mdiobus_unregister(struct mii_bus *bus)
 {
+	struct mdio_device *mdiodev;
+	struct phy_device *phydev;
 	int i;
 
 	BUG_ON(bus->state != MDIOBUS_REGISTERED);
 	bus->state = MDIOBUS_UNREGISTERED;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *phydev = mdiobus_get_phy(bus, i);
-		if (phydev) {
+		mdiodev = bus->mdio_map[i];
+		if (!mdiodev)
+			continue;
+
+		if (!(mdiodev->flags & MDIO_DEVICE_FLAG_PHY)) {
+			phydev = container_of(mdiodev, struct phy_device, mdio);
 			phy_device_remove(phydev);
 			phy_device_free(phydev);
+		} else {
+			mdio_device_remove(mdiodev);
+			mdio_device_free(mdiodev);
 		}
 	}
 	device_del(&bus->dev);

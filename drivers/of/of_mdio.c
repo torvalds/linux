@@ -92,6 +92,37 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	return 0;
 }
 
+static int of_mdiobus_register_device(struct mii_bus *mdio,
+				      struct device_node *child,
+				      u32 addr)
+{
+	struct mdio_device *mdiodev;
+	int rc;
+
+	mdiodev = mdio_device_create(mdio, addr);
+	if (!mdiodev || IS_ERR(mdiodev))
+		return 1;
+
+	/* Associate the OF node with the device structure so it
+	 * can be looked up later.
+	 */
+	of_node_get(child);
+	mdiodev->dev.of_node = child;
+
+	/* All data is now stored in the mdiodev struct; register it. */
+	rc = mdio_device_register(mdiodev);
+	if (rc) {
+		mdio_device_free(mdiodev);
+		of_node_put(child);
+		return 1;
+	}
+
+	dev_dbg(&mdio->dev, "registered mdio device %s at address %i\n",
+		child->name, addr);
+
+	return 0;
+}
+
 int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
 {
 	u32 addr;
@@ -179,6 +210,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 
 		if (of_mdiobus_child_is_phy(child))
 			of_mdiobus_register_phy(mdio, child, addr);
+		else
+			of_mdiobus_register_device(mdio, child, addr);
 	}
 
 	if (!scanphys)

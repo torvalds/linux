@@ -60,6 +60,7 @@
 #define PHY_HAS_INTERRUPT	0x00000001
 #define PHY_HAS_MAGICANEG	0x00000002
 #define PHY_IS_INTERNAL		0x00000004
+#define MDIO_DEVICE_IS_PHY	0x80000000
 
 /* Interface Mode definitions */
 typedef enum {
@@ -432,6 +433,7 @@ struct phy_device {
 
 /* struct phy_driver: Driver structure for a particular PHY type
  *
+ * driver_data: static driver data
  * phy_id: The result of reading the UID registers of this PHY
  *   type, and ANDing them with the phy_id_mask.  This driver
  *   only works for PHYs with IDs which match this field
@@ -441,7 +443,6 @@ struct phy_device {
  *   by this PHY
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
- * driver_data: static driver data
  *
  * The drivers must implement config_aneg and read_status.  All
  * other functions are optional. Note that none of these
@@ -452,6 +453,7 @@ struct phy_device {
  * supported in the driver).
  */
 struct phy_driver {
+	struct mdio_driver_common mdiodrv;
 	u32 phy_id;
 	char *name;
 	unsigned int phy_id_mask;
@@ -587,10 +589,9 @@ struct phy_driver {
 	void (*get_strings)(struct phy_device *dev, u8 *data);
 	void (*get_stats)(struct phy_device *dev,
 			  struct ethtool_stats *stats, u64 *data);
-
-	struct device_driver driver;
 };
-#define to_phy_driver(d) container_of(d, struct phy_driver, driver)
+#define to_phy_driver(d) container_of(to_mdio_common_driver(d),		\
+				      struct phy_driver, mdiodrv)
 
 #define PHY_ANY_ID "MATCH ANY PHY"
 #define PHY_ANY_UID 0xffffffff
