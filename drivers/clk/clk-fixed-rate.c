@@ -104,6 +104,19 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 }
 EXPORT_SYMBOL_GPL(clk_register_fixed_rate);
 
+void clk_unregister_fixed_rate(struct clk *clk)
+{
+	struct clk_hw *hw;
+
+	hw = __clk_get_hw(clk);
+	if (!hw)
+		return;
+
+	clk_unregister(clk);
+	kfree(to_clk_fixed_rate(hw));
+}
+EXPORT_SYMBOL_GPL(clk_unregister_fixed_rate);
+
 #ifdef CONFIG_OF
 /**
  * of_fixed_clk_setup() - Setup function for simple fixed rate clock
