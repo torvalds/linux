@@ -71,6 +71,17 @@ static inline void deassert_gpio(unsigned int gpio)
 	gpio_set_value(gpio, 0);
 }
 
+/* Export gpio's to user space */
+static void export_gpios(struct arche_apb_ctrl_drvdata *apb)
+{
+	gpio_export(apb->resetn_gpio, false);
+}
+
+static void unexport_gpios(struct arche_apb_ctrl_drvdata *apb)
+{
+	gpio_unexport(apb->resetn_gpio);
+}
+
 static irqreturn_t apb_ctrl_wake_detect_irq(int irq, void *devid)
 {
 	struct arche_apb_ctrl_drvdata *apb = devid;
@@ -328,6 +339,8 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	assert_gpio(apb->resetn_gpio);
 
+	export_gpios(apb);
+
 	dev_info(&pdev->dev, "Device registered successfully\n");
 	return 0;
 
@@ -344,6 +357,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 		apb_ctrl_cleanup(apb);
 
 	platform_set_drvdata(pdev, NULL);
+	unexport_gpios(apb);
 
 	return 0;
 }

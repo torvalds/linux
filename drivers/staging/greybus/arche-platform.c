@@ -45,6 +45,19 @@ static inline void svc_reset_onoff(unsigned int gpio, bool onoff)
 	gpio_set_value(gpio, onoff);
 }
 
+/* Export gpio's to user space */
+static void export_gpios(struct arche_platform_drvdata *arche_pdata)
+{
+	gpio_export(arche_pdata->svc_reset_gpio, false);
+	gpio_export(arche_pdata->svc_sysboot_gpio, false);
+}
+
+static void unexport_gpios(struct arche_platform_drvdata *arche_pdata)
+{
+	gpio_unexport(arche_pdata->svc_reset_gpio);
+	gpio_unexport(arche_pdata->svc_sysboot_gpio);
+}
+
 static void arche_platform_cleanup(struct arche_platform_drvdata *arche_pdata)
 {
 	/* As part of exit, put APB back in reset state */
@@ -141,6 +154,8 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->num_apbs = of_get_child_count(np);
 	dev_dbg(dev, "Number of APB's available - %d\n", arche_pdata->num_apbs);
 
+	export_gpios(arche_pdata);
+
 	/* probe all childs here */
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret)
@@ -169,6 +184,7 @@ static int arche_platform_remove(struct platform_device *pdev)
 		arche_platform_cleanup(arche_pdata);
 
 	platform_set_drvdata(pdev, NULL);
+	unexport_gpios(arche_pdata);
 
 	return 0;
 }
