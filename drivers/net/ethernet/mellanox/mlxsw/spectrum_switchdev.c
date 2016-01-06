@@ -299,6 +299,22 @@ static int mlxsw_sp_port_attr_br_ageing_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_sp_ageing_set(mlxsw_sp, ageing_time);
 }
 
+static int mlxsw_sp_port_attr_br_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					  struct switchdev_trans *trans,
+					  struct net_device *orig_dev,
+					  bool vlan_enabled)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+
+	/* SWITCHDEV_TRANS_PREPARE phase */
+	if ((!vlan_enabled) && (mlxsw_sp->master_bridge.dev == orig_dev)) {
+		netdev_err(mlxsw_sp_port->dev, "Bridge must be vlan-aware\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_port_attr_set(struct net_device *dev,
 				  const struct switchdev_attr *attr,
 				  struct switchdev_trans *trans)
@@ -322,6 +338,11 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
 		err = mlxsw_sp_port_attr_br_ageing_set(mlxsw_sp_port, trans,
 						       attr->u.ageing_time);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		err = mlxsw_sp_port_attr_br_vlan_set(mlxsw_sp_port, trans,
+						     attr->orig_dev,
+						     attr->u.vlan_filtering);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -505,8 +526,13 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	/* Changing activity bits only if HW operation succeded */
-	for (vid = vid_begin; vid <= vid_end; vid++)
+	for (vid = vid_begin; vid <= vid_end; vid++) {
 		set_bit(vid, mlxsw_sp_port->active_vlans);
+		if (flag_untagged)
+			set_bit(vid, mlxsw_sp_port->untagged_vlans);
+		else
+			clear_bit(vid, mlxsw_sp_port->untagged_vlans);
+	}
 
 	/* STP state change must be done after we set active VLANs */
 	err = mlxsw_sp_port_stp_state_set(mlxsw_sp_port,
@@ -545,15 +571,15 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 				   const struct switchdev_obj_port_vlan *vlan,
 				   struct switchdev_trans *trans)
 {
-	bool untagged_flag = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
-	bool pvid_flag = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	bool flag_untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	bool flag_pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
 	return __mlxsw_sp_port_vlans_add(mlxsw_sp_port,
 					 vlan->vid_begin, vlan->vid_end,
-					 untagged_flag, pvid_flag);
+					 flag_untagged, flag_pvid);
 }
 
 static enum mlxsw_reg_sfd_rec_policy mlxsw_sp_sfd_rec_policy(bool dynamic)
@@ -933,6 +959,8 @@ static int mlxsw_sp_port_vlan_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 		vlan->flags = 0;
 		if (vid == mlxsw_sp_port->pvid)
 			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
+		if (test_bit(vid, mlxsw_sp_port->untagged_vlans))
+			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 		vlan->vid_begin = vid;
 		vlan->vid_end = vid;
 		err = cb(&vlan->obj);
@@ -1201,7 +1229,8 @@ int mlxsw_sp_port_vlan_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	 * with VID 1.
 	 */
 	mlxsw_sp_port->pvid = 1;
-	err = __mlxsw_sp_port_vlans_del(mlxsw_sp_port, 0, VLAN_N_VID, true);
+	err = __mlxsw_sp_port_vlans_del(mlxsw_sp_port, 0, VLAN_N_VID - 1,
+					true);
 	if (err) {
 		netdev_err(dev, "Unable to init VLANs\n");
 		return err;
