@@ -16,6 +16,8 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/limits.h>
+#include <linux/bitops.h>
+#include <linux/msi.h>
 #include "../include/dpmng.h"
 #include "../include/mc-sys.h"
 #include "dprc-cmd.h"
@@ -472,6 +474,8 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 		mc_dev->icid = parent_mc_dev->icid;
 		mc_dev->dma_mask = FSL_MC_DEFAULT_DMA_MASK;
 		mc_dev->dev.dma_mask = &mc_dev->dma_mask;
+		dev_set_msi_domain(&mc_dev->dev,
+				   dev_get_msi_domain(&parent_mc_dev->dev));
 	}
 
 	/*
@@ -833,7 +837,14 @@ static int __init fsl_mc_bus_driver_init(void)
 	if (error < 0)
 		goto error_cleanup_dprc_driver;
 
+	error = its_fsl_mc_msi_init();
+	if (error < 0)
+		goto error_cleanup_mc_allocator;
+
 	return 0;
+
+error_cleanup_mc_allocator:
+	fsl_mc_allocator_driver_exit();
 
 error_cleanup_dprc_driver:
 	dprc_driver_exit();
@@ -856,6 +867,7 @@ static void __exit fsl_mc_bus_driver_exit(void)
 	if (WARN_ON(!mc_dev_cache))
 		return;
 
+	its_fsl_mc_msi_cleanup();
 	fsl_mc_allocator_driver_exit();
 	dprc_driver_exit();
 	platform_driver_unregister(&fsl_mc_bus_driver);
