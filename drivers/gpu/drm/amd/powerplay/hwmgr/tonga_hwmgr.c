@@ -5157,7 +5157,7 @@ static int tonga_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 static void
 tonga_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 {
-	uint32_t sclk, mclk, active_percent;
+	uint32_t sclk, mclk, activity_percent;
 	uint32_t offset;
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
@@ -5172,11 +5172,11 @@ tonga_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 
 
 	offset = data->soft_regs_start + offsetof(SMU72_SoftRegisters, AverageGraphicsActivity);
-	active_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
-	active_percent += 80;
-	active_percent >>= 8;
+	activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
+	activity_percent += 0x80;
+	activity_percent >>= 8;
 
-	seq_printf(m, "\n [GPU load]: %u%%\n\n", active_percent > 100 ? 100 : active_percent);
+	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
 
 }
 

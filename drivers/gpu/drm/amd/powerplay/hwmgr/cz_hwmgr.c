@@ -1494,7 +1494,7 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 	uint32_t vce_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
 					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_VCE_INDEX);
 
-	uint32_t sclk, vclk, dclk, ecclk, tmp, active_percent;
+	uint32_t sclk, vclk, dclk, ecclk, tmp, activity_percent;
 	uint16_t vddnb, vddgfx;
 	int result;
 
@@ -1536,13 +1536,13 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 
 	result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
 	if (0 == result) {
-		active_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
-		active_percent = active_percent > 100 ? 100 : active_percent;
+		activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
+		activity_percent = activity_percent > 100 ? 100 : activity_percent;
 	} else {
-		active_percent = 50;
+		activity_percent = 50;
 	}
 
-	seq_printf(m, "\n [GPU load]: %u %%\n\n", active_percent);
+	seq_printf(m, "\n [GPU load]: %u %%\n\n", activity_percent);
 }
 
 static void cz_hw_print_display_cfg(
