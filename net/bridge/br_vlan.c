@@ -907,12 +907,22 @@ err_rhtbl:
 
 int nbp_vlan_init(struct net_bridge_port *p)
 {
+	struct switchdev_attr attr = {
+		.orig_dev = p->br->dev,
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
+		.u.vlan_filtering = p->br->vlan_enabled,
+	};
 	struct net_bridge_vlan_group *vg;
 	int ret = -ENOMEM;
 
 	vg = kzalloc(sizeof(struct net_bridge_vlan_group), GFP_KERNEL);
 	if (!vg)
 		goto out;
+
+	ret = switchdev_port_attr_set(p->dev, &attr);
+	if (ret && ret != -EOPNOTSUPP)
+		goto err_vlan_enabled;
 
 	ret = rhashtable_init(&vg->vlan_hash, &br_vlan_rht_params);
 	if (ret)
@@ -933,6 +943,7 @@ err_vlan_add:
 	RCU_INIT_POINTER(p->vlgrp, NULL);
 	synchronize_rcu();
 	rhashtable_destroy(&vg->vlan_hash);
+err_vlan_enabled:
 err_rhtbl:
 	kfree(vg);
 
