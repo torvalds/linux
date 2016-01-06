@@ -677,10 +677,46 @@ static void process_event(struct perf_script *script __maybe_unused, union perf_
 
 static struct scripting_ops	*scripting_ops;
 
+static void __process_stat(struct perf_evsel *counter, u64 tstamp)
+{
+	int nthreads = thread_map__nr(counter->threads);
+	int ncpus = perf_evsel__nr_cpus(counter);
+	int cpu, thread;
+	static int header_printed;
+
+	if (counter->system_wide)
+		nthreads = 1;
+
+	if (!header_printed) {
+		printf("%3s %8s %15s %15s %15s %15s %s\n",
+		       "CPU", "THREAD", "VAL", "ENA", "RUN", "TIME", "EVENT");
+		header_printed = 1;
+	}
+
+	for (thread = 0; thread < nthreads; thread++) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			struct perf_counts_values *counts;
+
+			counts = perf_counts(counter->counts, cpu, thread);
+
+			printf("%3d %8d %15" PRIu64 " %15" PRIu64 " %15" PRIu64 " %15" PRIu64 " %s\n",
+				counter->cpus->map[cpu],
+				thread_map__pid(counter->threads, thread),
+				counts->val,
+				counts->ena,
+				counts->run,
+				tstamp,
+				perf_evsel__name(counter));
+		}
+	}
+}
+
 static void process_stat(struct perf_evsel *counter, u64 tstamp)
 {
 	if (scripting_ops && scripting_ops->process_stat)
 		scripting_ops->process_stat(&stat_config, counter, tstamp);
+	else
+		__process_stat(counter, tstamp);
 }
 
 static void process_stat_interval(u64 tstamp)
