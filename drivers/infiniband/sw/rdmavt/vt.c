@@ -232,6 +232,9 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, modify_qp);
 	CHECK_DRIVER_OVERRIDE(rdi, destroy_qp);
 	CHECK_DRIVER_OVERRIDE(rdi, query_qp);
+	CHECK_DRIVER_OVERRIDE(rdi, post_send);
+	CHECK_DRIVER_OVERRIDE(rdi, post_recv);
+	CHECK_DRIVER_OVERRIDE(rdi, post_srq_recv);
 
 	/* Address Handle */
 	CHECK_DRIVER_OVERRIDE(rdi, create_ah);

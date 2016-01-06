@@ -118,3 +118,65 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 {
 	return -EOPNOTSUPP;
 }
+
+/**
+ * rvt_post_receive - post a receive on a QP
+ * @ibqp: the QP to post the receive on
+ * @wr: the WR to post
+ * @bad_wr: the first bad WR is put here
+ *
+ * This may be called from interrupt context.
+ */
+int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
+		  struct ib_recv_wr **bad_wr)
+{
+	/*
+	 * When a packet arrives the driver needs to call up to rvt to process
+	 * the packet. The UD, RC, UC processing will be done in rvt, however
+	 * the driver should be able to override this if it so choses. Perhaps a
+	 * set of function pointers set up at registration time.
+	 */
+
+	return -EOPNOTSUPP;
+}
+
+/**
+ * rvt_post_send - post a send on a QP
+ * @ibqp: the QP to post the send on
+ * @wr: the list of work requests to post
+ * @bad_wr: the first bad WR is put here
+ *
+ * This may be called from interrupt context.
+ */
+int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+		  struct ib_send_wr **bad_wr)
+{
+	/*
+	 * VT-DRIVER-API: do_send()
+	 * Driver needs to have a do_send() call which is a single entry point
+	 * to take an already formed packet and throw it out on the wire. Once
+	 * the packet is sent the driver needs to make an upcall to rvt so the
+	 * completion queue can be notified and/or any other outstanding
+	 * work/book keeping can be finished.
+	 *
+	 * Note that there should also be a way for rvt to protect itself
+	 * against hangs in the driver layer. If a send doesn't actually
+	 * complete in a timely manor rvt needs to return an error event.
+	 */
+
+	return -EOPNOTSUPP;
+}
+
+/**
+ * rvt_post_srq_receive - post a receive on a shared receive queue
+ * @ibsrq: the SRQ to post the receive on
+ * @wr: the list of work requests to post
+ * @bad_wr: A pointer to the first WR to cause a problem is put here
+ *
+ * This may be called from interrupt context.
+ */
+int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
+		      struct ib_recv_wr **bad_wr)
+{
+	return -EOPNOTSUPP;
+}

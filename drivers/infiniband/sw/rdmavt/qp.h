@@ -63,5 +63,10 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 int rvt_destroy_qp(struct ib_qp *ibqp);
 int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		 int attr_mask, struct ib_qp_init_attr *init_attr);
-
+int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
+		  struct ib_recv_wr **bad_wr);
+int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+		  struct ib_send_wr **bad_wr);
+int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
+		      struct ib_recv_wr **bad_wr);
 #endif          /* DEF_RVTQP_H */
