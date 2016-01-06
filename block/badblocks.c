@@ -550,12 +550,12 @@ int badblocks_init(struct badblocks *bb, int enable)
 EXPORT_SYMBOL_GPL(badblocks_init);
 
 /**
- * badblocks_free() - free the badblocks structure
+ * badblocks_exit() - free the badblocks structure
  * @bb:		the badblocks structure that holds all badblock information
  */
-void badblocks_free(struct badblocks *bb)
+void badblocks_exit(struct badblocks *bb)
 {
 	kfree(bb->page);
 	bb->page = NULL;
 }
-EXPORT_SYMBOL_GPL(badblocks_free);
+EXPORT_SYMBOL_GPL(badblocks_exit);

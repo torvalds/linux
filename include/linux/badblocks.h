@@ -48,6 +48,6 @@ ssize_t badblocks_show(struct badblocks *bb, char *page, int unack);
 ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,
 			int unack);
 int badblocks_init(struct badblocks *bb, int enable);
-void badblocks_free(struct badblocks *bb);
+void badblocks_exit(struct badblocks *bb);
 
 #endif
