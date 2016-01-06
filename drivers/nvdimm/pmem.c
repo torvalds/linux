@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/pmem.h>
 #include <linux/nd.h>
-#include "nd-core.h"
 #include "pfn.h"
 #include "nd.h"
 
