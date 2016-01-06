@@ -30,6 +30,16 @@ struct irq_domain;
 struct msi_domain_info;
 
 /**
+ * Maximum number of total IRQs that can be pre-allocated for an MC bus'
+ * IRQ pool
+ */
+#define FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS	256
+
+struct device_node;
+struct irq_domain;
+struct msi_domain_info;
+
+/**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
  * @root_mc_bus_dev: MC object device representing the root DPRC
  * @num_translation_ranges: number of entries in addr_translation_ranges
@@ -136,5 +146,10 @@ void fsl_mc_msi_domain_free_irqs(struct device *dev);
 int __init its_fsl_mc_msi_init(void);
 
 void its_fsl_mc_msi_cleanup(void);
+
+int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
+			     unsigned int irq_count);
+
+void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus);
 
 #endif /* _FSL_MC_PRIVATE_H_ */
