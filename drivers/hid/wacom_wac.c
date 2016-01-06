@@ -439,11 +439,15 @@ exit:
 static void wacom_intuos_schedule_prox_event(struct wacom_wac *wacom_wac)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct wacom_features *features = &wacom_wac->features;
 	struct hid_report *r;
 	struct hid_report_enum *re;
 
 	re = &(wacom->hdev->report_enum[HID_FEATURE_REPORT]);
-	r = re->report_id_hash[WACOM_REPORT_INTUOS_ID1];
+	if (features->type == INTUOSHT2)
+		r = re->report_id_hash[WACOM_REPORT_INTUOSHT2_ID];
+	else
+		r = re->report_id_hash[WACOM_REPORT_INTUOS_ID1];
 	if (r) {
 		hid_hw_request(wacom->hdev, r, HID_REQ_GET_REPORT);
 	}
