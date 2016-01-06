@@ -357,7 +357,7 @@ isert_create_device_ib_res(struct isert_device *device)
 	dev_attr = &device->dev_attr;
 	ret = isert_query_device(device->ib_device, dev_attr);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* asign function handlers */
 	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS &&
@@ -373,7 +373,7 @@ isert_create_device_ib_res(struct isert_device *device)
 
 	ret = isert_alloc_comps(device, dev_attr);
 	if (ret)
-		return ret;
+		goto out;
 
 	device->pd = ib_alloc_pd(device->ib_device);
 	if (IS_ERR(device->pd)) {
@@ -391,6 +391,9 @@ isert_create_device_ib_res(struct isert_device *device)
 
 out_cq:
 	isert_free_comps(device);
+out:
+	if (ret > 0)
+		ret = -EINVAL;
 	return ret;
 }
 
