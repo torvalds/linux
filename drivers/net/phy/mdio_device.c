@@ -46,6 +46,8 @@ struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr)
 	mdiodev->dev.release = mdio_device_release;
 	mdiodev->dev.parent = &bus->dev;
 	mdiodev->dev.bus = &mdio_bus_type;
+	mdiodev->device_free = mdio_device_free;
+	mdiodev->device_remove = mdio_device_remove;
 	mdiodev->bus = bus;
 	mdiodev->addr = addr;
 

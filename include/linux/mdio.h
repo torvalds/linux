@@ -18,7 +18,11 @@ struct mdio_device {
 
 	const struct dev_pm_ops *pm_ops;
 	struct mii_bus *bus;
+
 	int (*bus_match)(struct device *dev, struct device_driver *drv);
+	void (*device_free)(struct mdio_device *mdiodev);
+	void (*device_remove)(struct mdio_device *mdiodev);
+
 	/* Bus address of the MDIO device (0-31) */
 	int addr;
 	int flags;

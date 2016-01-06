@@ -299,6 +299,7 @@ static inline void of_mdiobus_link_mdiodev(struct mii_bus *mdio,
  */
 int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 {
+	struct mdio_device *mdiodev;
 	int i, err;
 
 	if (NULL == bus || NULL == bus->name ||
@@ -344,11 +345,12 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 
 error:
 	while (--i >= 0) {
-		struct phy_device *phydev = mdiobus_get_phy(bus, i);
-		if (phydev) {
-			phy_device_remove(phydev);
-			phy_device_free(phydev);
-		}
+		mdiodev = bus->mdio_map[i];
+		if (!mdiodev)
+			continue;
+
+		mdiodev->device_remove(mdiodev);
+		mdiodev->device_free(mdiodev);
 	}
 	device_del(&bus->dev);
 	return err;
@@ -358,7 +360,6 @@ EXPORT_SYMBOL(__mdiobus_register);
 void mdiobus_unregister(struct mii_bus *bus)
 {
 	struct mdio_device *mdiodev;
-	struct phy_device *phydev;
 	int i;
 
 	BUG_ON(bus->state != MDIOBUS_REGISTERED);
@@ -369,14 +370,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 		if (!mdiodev)
 			continue;
 
-		if (!(mdiodev->flags & MDIO_DEVICE_FLAG_PHY)) {
-			phydev = container_of(mdiodev, struct phy_device, mdio);
-			phy_device_remove(phydev);
-			phy_device_free(phydev);
-		} else {
-			mdio_device_remove(mdiodev);
-			mdio_device_free(mdiodev);
-		}
+		mdiodev->device_remove(mdiodev);
+		mdiodev->device_free(mdiodev);
 	}
 	device_del(&bus->dev);
 }

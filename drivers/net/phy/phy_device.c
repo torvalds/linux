@@ -47,9 +47,25 @@ void phy_device_free(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_device_free);
 
+static void phy_mdio_device_free(struct mdio_device *mdiodev)
+{
+	struct phy_device *phydev;
+
+	phydev = container_of(mdiodev, struct phy_device, mdio);
+	phy_device_free(phydev);
+}
+
 static void phy_device_release(struct device *dev)
 {
 	kfree(to_phy_device(dev));
+}
+
+static void phy_mdio_device_remove(struct mdio_device *mdiodev)
+{
+	struct phy_device *phydev;
+
+	phydev = container_of(mdiodev, struct phy_device, mdio);
+	phy_device_remove(phydev);
 }
 
 enum genphy_driver {
@@ -308,6 +324,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	mdiodev->bus_match = phy_bus_match;
 	mdiodev->addr = addr;
 	mdiodev->flags = MDIO_DEVICE_FLAG_PHY;
+	mdiodev->device_free = phy_mdio_device_free;
+	mdiodev->device_remove = phy_mdio_device_remove;
 
 	dev->speed = 0;
 	dev->duplex = -1;
