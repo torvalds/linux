@@ -346,7 +346,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 			 * cannot change it until we check if any user space
 			 * ABI relies on this behavior.
 			 */
-			pr_info_ratelimited("android_pipe: backend returned error %d on %s\n",
+			if (status != PIPE_ERROR_AGAIN)
+				pr_info_ratelimited("goldfish_pipe: backend returned error %d on %s\n",
 					status, is_write ? "write" : "read");
 			ret = 0;
 			break;
