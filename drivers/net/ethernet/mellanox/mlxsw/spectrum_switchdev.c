@@ -526,8 +526,13 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	/* Changing activity bits only if HW operation succeded */
-	for (vid = vid_begin; vid <= vid_end; vid++)
+	for (vid = vid_begin; vid <= vid_end; vid++) {
 		set_bit(vid, mlxsw_sp_port->active_vlans);
+		if (flag_untagged)
+			set_bit(vid, mlxsw_sp_port->untagged_vlans);
+		else
+			clear_bit(vid, mlxsw_sp_port->untagged_vlans);
+	}
 
 	/* STP state change must be done after we set active VLANs */
 	err = mlxsw_sp_port_stp_state_set(mlxsw_sp_port,
@@ -954,6 +959,8 @@ static int mlxsw_sp_port_vlan_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 		vlan->flags = 0;
 		if (vid == mlxsw_sp_port->pvid)
 			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
+		if (test_bit(vid, mlxsw_sp_port->untagged_vlans))
+			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 		vlan->vid_begin = vid;
 		vlan->vid_end = vid;
 		err = cb(&vlan->obj);

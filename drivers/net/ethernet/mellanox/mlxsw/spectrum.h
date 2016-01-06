@@ -144,6 +144,7 @@ struct mlxsw_sp_port {
 	} vport;
 	/* 802.1Q bridge VLANs */
 	unsigned long *active_vlans;
+	unsigned long *untagged_vlans;
 	/* VLAN interfaces */
 	struct list_head vports_list;
 };
