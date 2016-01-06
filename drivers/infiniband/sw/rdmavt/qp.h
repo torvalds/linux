@@ -50,11 +50,6 @@
 
 #include <rdma/rdma_vt.h>
 
-struct rvt_qp {
-	struct ib_qp *ibqp;
-	/* Other stuff */
-};
-
 struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata);
