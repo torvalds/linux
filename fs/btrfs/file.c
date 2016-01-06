@@ -406,8 +406,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 /* simple helper to fault in pages and copy.  This should go away
  * and be replaced with calls into generic code.
  */
-static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
-					 size_t write_bytes,
+static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
 					 struct page **prepared_pages,
 					 struct iov_iter *i)
 {
@@ -1588,8 +1587,7 @@ again:
 			ret = 0;
 		}
 
-		copied = btrfs_copy_from_user(pos, num_pages,
-					   write_bytes, pages, i);
+		copied = btrfs_copy_from_user(pos, write_bytes, pages, i);
 
 		/*
 		 * if we have trouble faulting in the pages, fall
