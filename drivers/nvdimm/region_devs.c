@@ -134,62 +134,6 @@ int nd_region_to_nstype(struct nd_region *nd_region)
 }
 EXPORT_SYMBOL(nd_region_to_nstype);
 
-static int is_uuid_busy(struct device *dev, void *data)
-{
-	struct nd_region *nd_region = to_nd_region(dev->parent);
-	u8 *uuid = data;
-
-	switch (nd_region_to_nstype(nd_region)) {
-	case ND_DEVICE_NAMESPACE_PMEM: {
-		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
-
-		if (!nspm->uuid)
-			break;
-		if (memcmp(uuid, nspm->uuid, NSLABEL_UUID_LEN) == 0)
-			return -EBUSY;
-		break;
-	}
-	case ND_DEVICE_NAMESPACE_BLK: {
-		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
-
-		if (!nsblk->uuid)
-			break;
-		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) == 0)
-			return -EBUSY;
-		break;
-	}
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int is_namespace_uuid_busy(struct device *dev, void *data)
-{
-	if (is_nd_pmem(dev) || is_nd_blk(dev))
-		return device_for_each_child(dev, data, is_uuid_busy);
-	return 0;
-}
-
-/**
- * nd_is_uuid_unique - verify that no other namespace has @uuid
- * @dev: any device on a nvdimm_bus
- * @uuid: uuid to check
- */
-bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
-{
-	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-
-	if (!nvdimm_bus)
-		return false;
-	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm_bus->dev));
-	if (device_for_each_child(&nvdimm_bus->dev, uuid,
-				is_namespace_uuid_busy) != 0)
-		return false;
-	return true;
-}
-
 static ssize_t size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {

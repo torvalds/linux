@@ -77,6 +77,59 @@ static bool is_namespace_io(struct device *dev)
 	return dev ? dev->type == &namespace_io_device_type : false;
 }
 
+static int is_uuid_busy(struct device *dev, void *data)
+{
+	u8 *uuid1 = data, *uuid2 = NULL;
+
+	if (is_namespace_pmem(dev)) {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+
+		uuid2 = nspm->uuid;
+	} else if (is_namespace_blk(dev)) {
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+
+		uuid2 = nsblk->uuid;
+	} else if (is_nd_btt(dev)) {
+		struct nd_btt *nd_btt = to_nd_btt(dev);
+
+		uuid2 = nd_btt->uuid;
+	} else if (is_nd_pfn(dev)) {
+		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+
+		uuid2 = nd_pfn->uuid;
+	}
+
+	if (uuid2 && memcmp(uuid1, uuid2, NSLABEL_UUID_LEN) == 0)
+		return -EBUSY;
+
+	return 0;
+}
+
+static int is_namespace_uuid_busy(struct device *dev, void *data)
+{
+	if (is_nd_pmem(dev) || is_nd_blk(dev))
+		return device_for_each_child(dev, data, is_uuid_busy);
+	return 0;
+}
+
+/**
+ * nd_is_uuid_unique - verify that no other namespace has @uuid
+ * @dev: any device on a nvdimm_bus
+ * @uuid: uuid to check
+ */
+bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
+	if (!nvdimm_bus)
+		return false;
+	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm_bus->dev));
+	if (device_for_each_child(&nvdimm_bus->dev, uuid,
+				is_namespace_uuid_busy) != 0)
+		return false;
+	return true;
+}
+
 bool pmem_should_map_pages(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
