@@ -130,7 +130,7 @@ static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to reset temp sensor history\n");
 		return err;
 	}
-	return err ? err : len;
+	return len;
 }
 
 static ssize_t mlxsw_hwmon_fan_rpm_show(struct device *dev,
