@@ -291,7 +291,9 @@ static inline void of_mdiobus_link_mdiodev(struct mii_bus *mdio,
  * Description: Called by a bus driver to bring up all the PHYs
  *   on a given bus, and attach them to the bus. Drivers should use
  *   mdiobus_register() rather than __mdiobus_register() unless they
- *   need to pass a specific owner module.
+ *   need to pass a specific owner module. MDIO devices which are not
+ *   PHYs will not be brought up by this function. They are expected to
+ *   to be explicitly listed in DT and instantiated by of_mdiobus_register().
  *
  * Returns 0 on success or < 0 on error.
  */
@@ -394,6 +396,18 @@ void mdiobus_free(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(mdiobus_free);
 
+/**
+ * mdiobus_scan - scan a bus for MDIO devices.
+ * @bus: mii_bus to scan
+ * @addr: address on bus to scan
+ *
+ * This function scans the MDIO bus, looking for devices which can be
+ * identified using a vendor/product ID in registers 2 and 3. Not all
+ * MDIO devices have such registers, but PHY devices typically
+ * do. Hence this function assumes anything found is a PHY, or can be
+ * treated as a PHY. Other MDIO devices, such as switches, will
+ * probably not be found during the scan.
+ */
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 {
 	struct phy_device *phydev;
