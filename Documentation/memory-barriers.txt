@@ -232,7 +232,7 @@ And there are a number of things that _must_ or _must_not_ be assumed:
      with memory references that are not protected by READ_ONCE() and
      WRITE_ONCE().  Without them, the compiler is within its rights to
      do all sorts of "creative" transformations, which are covered in
-     the Compiler Barrier section.
+     the COMPILER BARRIER section.
 
  (*) It _must_not_ be assumed that independent loads and stores will be issued
      in the order given.  This means that for:
@@ -818,7 +818,7 @@ In summary:
   (*) Control dependencies require that the compiler avoid reordering the
       dependency into nonexistence.  Careful use of READ_ONCE() or
       atomic{,64}_read() can help to preserve your control dependency.
-      Please see the Compiler Barrier section for more information.
+      Please see the COMPILER BARRIER section for more information.
 
   (*) Control dependencies pair normally with other types of barriers.
 
