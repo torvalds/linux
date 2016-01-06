@@ -2,6 +2,7 @@
  * Copyright (C) 2011 Google, Inc.
  * Copyright (C) 2012 Intel, Inc.
  * Copyright (C) 2013 Intel, Inc.
+ * Copyright (C) 2014 Linaro Limited
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -57,6 +58,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/goldfish.h>
+#include <linux/mm.h>
 
 /*
  * IMPORTANT: The following constants must match the ones used and defined
@@ -257,17 +259,14 @@ static int access_with_param(struct goldfish_pipe_dev *dev, const int cmd,
 	return 0;
 }
 
-/* This function is used for both reading from and writing to a given
- * pipe.
- */
 static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
-				    size_t bufflen, int is_write)
+				       size_t bufflen, int is_write)
 {
 	unsigned long irq_flags;
 	struct goldfish_pipe *pipe = filp->private_data;
 	struct goldfish_pipe_dev *dev = pipe->dev;
 	unsigned long address, address_end;
-	int ret = 0;
+	int count = 0, ret = -EINVAL;
 
 	/* If the emulator already closed the pipe, no need to go further */
 	if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags))
@@ -290,30 +289,23 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 	address_end = address + bufflen;
 
 	while (address < address_end) {
-		unsigned long  page_end = (address & PAGE_MASK) + PAGE_SIZE;
-		unsigned long  next     = page_end < address_end ? page_end
-								 : address_end;
-		unsigned long  avail    = next - address;
+		unsigned long page_end = (address & PAGE_MASK) + PAGE_SIZE;
+		unsigned long next     = page_end < address_end ? page_end
+								: address_end;
+		unsigned long avail    = next - address;
 		int status, wakeBit;
+		struct page *page;
 
-		/* Ensure that the corresponding page is properly mapped */
-		/* FIXME: this isn't safe or sufficient - use get_user_pages */
-		if (is_write) {
-			char c;
-			/* Ensure that the page is mapped and readable */
-			if (__get_user(c, (char __user *)address)) {
-				if (!ret)
-					ret = -EFAULT;
-				break;
-			}
-		} else {
-			/* Ensure that the page is mapped and writable */
-			if (__put_user(0, (char __user *)address)) {
-				if (!ret)
-					ret = -EFAULT;
-				break;
-			}
-		}
+		/*
+		 * We grab the pages on a page-by-page basis in case user
+		 * space gives us a potentially huge buffer but the read only
+		 * returns a small amount, then there's no need to pin that
+		 * much memory to the process.
+		 */
+		ret = get_user_pages(current, current->mm, address, 1,
+				     !is_write, 0, &page, NULL);
+		if (ret < 0)
+			return ret;
 
 		/* Now, try to transfer the bytes in the current page */
 		spin_lock_irqsave(&dev->lock, irq_flags);
@@ -332,33 +324,48 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		}
 		spin_unlock_irqrestore(&dev->lock, irq_flags);
 
+		if (status > 0 && !is_write)
+			set_page_dirty(page);
+		put_page(page);
+
 		if (status > 0) { /* Correct transfer */
-			ret += status;
+			count += status;
 			address += status;
 			continue;
+		} else if (status == 0) { /* EOF */
+			ret = 0;
+			break;
+		} else if (status < 0 && count > 0) {
+			/*
+			 * An error occurred and we already transferred
+			 * something on one of the previous pages.
+			 * Just return what we already copied and log this
+			 * err.
+			 *
+			 * Note: This seems like an incorrect approach but
+			 * cannot change it until we check if any user space
+			 * ABI relies on this behavior.
+			 */
+			pr_info_ratelimited("android_pipe: backend returned error %d on %s\n",
+					status, is_write ? "write" : "read");
+			ret = 0;
+			break;
 		}
 
-		if (status == 0)  /* EOF */
-			break;
-
-		/* An error occured. If we already transfered stuff, just
-		* return with its count. We expect the next call to return
-		* an error code */
-		if (ret > 0)
-			break;
-
-		/* If the error is not PIPE_ERROR_AGAIN, or if we are not in
-		* non-blocking mode, just return the error code.
-		*/
+		/*
+		 * If the error is not PIPE_ERROR_AGAIN, or if we are not in
+		 * non-blocking mode, just return the error code.
+		 */
 		if (status != PIPE_ERROR_AGAIN ||
 			(filp->f_flags & O_NONBLOCK) != 0) {
 			ret = goldfish_pipe_error_convert(status);
 			break;
 		}
 
-		/* We will have to wait until more data/space is available.
-		* First, mark the pipe as waiting for a specific wake signal.
-		*/
+		/*
+		 * The backend blocked the read/write, wait until the backend
+		 * tells us it's ready to process more data.
+		 */
 		wakeBit = is_write ? BIT_WAKE_ON_WRITE : BIT_WAKE_ON_READ;
 		set_bit(wakeBit, &pipe->flags);
 
@@ -372,22 +379,29 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		while (test_bit(wakeBit, &pipe->flags)) {
 			if (wait_event_interruptible(
 					pipe->wake_queue,
-					!test_bit(wakeBit, &pipe->flags)))
-				return -ERESTARTSYS;
+					!test_bit(wakeBit, &pipe->flags))) {
+				ret = -ERESTARTSYS;
+				break;
+			}
 
-			if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags))
-				return -EIO;
+			if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags)) {
+				ret = -EIO;
+				break;
+			}
 		}
 
 		/* Try to re-acquire the lock */
-		if (mutex_lock_interruptible(&pipe->lock))
-			return -ERESTARTSYS;
-
-		/* Try the transfer again */
-		continue;
+		if (mutex_lock_interruptible(&pipe->lock)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
 	}
 	mutex_unlock(&pipe->lock);
-	return ret;
+
+	if (ret < 0)
+		return ret;
+	else
+		return count;
 }
 
 static ssize_t goldfish_pipe_read(struct file *filp, char __user *buffer,
@@ -440,10 +454,11 @@ static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 	unsigned long irq_flags;
 	int count = 0;
 
-	/* We're going to read from the emulator a list of (channel,flags)
-	* pairs corresponding to the wake events that occured on each
-	* blocked pipe (i.e. channel).
-	*/
+	/*
+	 * We're going to read from the emulator a list of (channel,flags)
+	 * pairs corresponding to the wake events that occurred on each
+	 * blocked pipe (i.e. channel).
+	 */
 	spin_lock_irqsave(&dev->lock, irq_flags);
 	for (;;) {
 		/* First read the channel, 0 means the end of the list */
