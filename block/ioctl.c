@@ -4,6 +4,7 @@
 #include <linux/gfp.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
+#include <linux/badblocks.h>
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/blktrace_api.h>
@@ -420,6 +421,15 @@ bool blkdev_dax_capable(struct block_device *bdev)
 	 */
 	if ((bdev->bd_part->start_sect % (PAGE_SIZE / 512))
 			|| (bdev->bd_part->nr_sects % (PAGE_SIZE / 512)))
+		return false;
+
+	/*
+	 * If the device has known bad blocks, force all I/O through the
+	 * driver / page cache.
+	 *
+	 * TODO: support finer grained dax error handling
+	 */
+	if (disk->bb && disk->bb->count)
 		return false;
 
 	return true;

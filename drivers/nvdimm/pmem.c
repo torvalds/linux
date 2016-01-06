@@ -233,6 +233,7 @@ static int pmem_attach_disk(struct device *dev,
 		return -ENOMEM;
 	nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
 
+	disk->bb = &pmem->bb;
 	add_disk(disk);
 	revalidate_disk(disk);
 
