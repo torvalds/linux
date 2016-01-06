@@ -325,6 +325,10 @@
 	status = "disabled";
 };
 
+&saradc {
+	status = "okay";
+};
+
 &vopb_mmu {
 	status = "okay";
 };
