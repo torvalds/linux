@@ -961,7 +961,6 @@ _return_of_node_put:
 	of_node_put(dev_node);
 _return_dev_set_drvdata:
 	kfree(priv->fixed_link);
-	kfree(priv);
 	dev_set_drvdata(dev, NULL);
 _return:
 	return err;
