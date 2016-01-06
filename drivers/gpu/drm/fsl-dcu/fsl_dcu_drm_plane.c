@@ -41,6 +41,9 @@ static int fsl_dcu_drm_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_framebuffer *fb = state->fb;
 
+	if (!state->fb || !state->crtc)
+		return 0;
+
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_RGB888:
@@ -84,9 +87,6 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 	struct drm_gem_cma_object *gem;
 	unsigned int alpha, bpp;
 	int index, ret;
-
-	if (!fb)
-		return;
 
 	index = fsl_dcu_drm_plane_index(plane);
 	if (index < 0)
