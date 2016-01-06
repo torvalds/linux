@@ -636,14 +636,14 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 static long nd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long id = (long) file->private_data;
-	int rc = -ENXIO, read_only;
+	int rc = -ENXIO, ro;
 	struct nvdimm_bus *nvdimm_bus;
 
-	read_only = (O_RDWR != (file->f_flags & O_ACCMODE));
+	ro = ((file->f_flags & O_ACCMODE) == O_RDONLY);
 	mutex_lock(&nvdimm_bus_list_mutex);
 	list_for_each_entry(nvdimm_bus, &nvdimm_bus_list, list) {
 		if (nvdimm_bus->id == id) {
-			rc = __nd_ioctl(nvdimm_bus, NULL, read_only, cmd, arg);
+			rc = __nd_ioctl(nvdimm_bus, NULL, ro, cmd, arg);
 			break;
 		}
 	}
@@ -667,10 +667,10 @@ static int match_dimm(struct device *dev, void *data)
 
 static long nvdimm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int rc = -ENXIO, read_only;
+	int rc = -ENXIO, ro;
 	struct nvdimm_bus *nvdimm_bus;
 
-	read_only = (O_RDWR != (file->f_flags & O_ACCMODE));
+	ro = ((file->f_flags & O_ACCMODE) == O_RDONLY);
 	mutex_lock(&nvdimm_bus_list_mutex);
 	list_for_each_entry(nvdimm_bus, &nvdimm_bus_list, list) {
 		struct device *dev = device_find_child(&nvdimm_bus->dev,
@@ -681,7 +681,7 @@ static long nvdimm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			continue;
 
 		nvdimm = to_nvdimm(dev);
-		rc = __nd_ioctl(nvdimm_bus, nvdimm, read_only, cmd, arg);
+		rc = __nd_ioctl(nvdimm_bus, nvdimm, ro, cmd, arg);
 		put_device(dev);
 		break;
 	}
