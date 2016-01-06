@@ -64,6 +64,33 @@ static void rvt_cleanup(void)
 }
 module_exit(rvt_cleanup);
 
+static int rvt_query_device(struct ib_device *ibdev,
+			    struct ib_device_attr *props,
+			    struct ib_udata *uhw)
+{
+	/*
+	 * Return rvt_dev_info.props contents
+	 */
+	return -EOPNOTSUPP;
+}
+
+static int rvt_modify_device(struct ib_device *device,
+			     int device_modify_mask,
+			     struct ib_device_modify *device_modify)
+{
+	/*
+	 * Change dev props. Planned support is for node desc change and sys
+	 * guid change only. This matches hfi1 and qib behavior. Other drivers
+	 * that support existing modifications will need to add their support.
+	 */
+
+	/*
+	 * VT-DRIVER-API: node_desc_change()
+	 * VT-DRIVER-API: sys_guid_change()
+	 */
+	return -EOPNOTSUPP;
+}
+
 /*
  * Check driver override. If driver passes a value use it, otherwise we use our
  * own value.
@@ -75,6 +102,10 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 {
 	if (!rdi)
 		return -EINVAL;
+
+	/* Dev Ops */
+	CHECK_DRIVER_OVERRIDE(rdi, query_device);
+	CHECK_DRIVER_OVERRIDE(rdi, modify_device);
 
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
