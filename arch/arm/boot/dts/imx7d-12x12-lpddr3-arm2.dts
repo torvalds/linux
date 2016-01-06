@@ -840,6 +840,12 @@
 				MX7D_PAD_GPIO1_IO07__GPIO1_IO7    0x14
 			>;
 		};
+
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B 0x74
+			>;
+		};
 	};
 };
 
@@ -989,4 +995,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sim1_1>;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,wdog_b;
 };
