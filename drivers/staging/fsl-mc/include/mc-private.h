@@ -114,7 +114,8 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev);
 
 int dprc_scan_container(struct fsl_mc_device *mc_bus_dev);
 
-int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev);
+int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
+		      unsigned int *total_irq_count);
 
 int __init dprc_driver_init(void);
 
