@@ -5354,7 +5354,8 @@ int i40e_open(struct net_device *netdev)
 	vxlan_get_rx_port(netdev);
 #endif
 #ifdef CONFIG_I40E_GENEVE
-	geneve_get_rx_port(netdev);
+	if (pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE)
+		geneve_get_rx_port(netdev);
 #endif
 
 	return 0;
@@ -8458,7 +8459,13 @@ static int i40e_sw_init(struct i40e_pf *pf)
 			     I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE |
 			     I40E_FLAG_100M_SGMII_CAPABLE |
 			     I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
+	} else if ((pf->hw.aq.api_maj_ver > 1) ||
+		   ((pf->hw.aq.api_maj_ver == 1) &&
+		    (pf->hw.aq.api_min_ver > 4))) {
+		/* Supported in FW API version higher than 1.4 */
+		pf->flags |= I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
 	}
+
 	pf->eeprom_version = 0xDEAD;
 	pf->lan_veb = I40E_NO_VEB;
 	pf->lan_vsi = I40E_NO_VSI;
@@ -8672,6 +8679,9 @@ static void i40e_add_geneve_port(struct net_device *netdev,
 	u8 next_idx;
 	u8 idx;
 
+	if (!(pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE))
+		return;
+
 	if (sa_family == AF_INET6)
 		return;
 
@@ -8717,6 +8727,9 @@ static void i40e_del_geneve_port(struct net_device *netdev,
 	u8 idx;
 
 	if (sa_family == AF_INET6)
+		return;
+
+	if (!(pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE))
 		return;
 
 	idx = i40e_get_udp_port_idx(pf, port);
