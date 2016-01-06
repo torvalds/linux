@@ -390,7 +390,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
@@ -410,7 +410,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 	priv->phydev = phydev;
 	pr_info("%s: attached PHY [%s] (phy_addr=%s, irq=%d)\n",
 	       dev->name, phydev->drv->name,
-	       dev_name(&phydev->dev), phydev->irq);
+	       phydev_name(phydev), phydev->irq);
 
 	return 0;
 }

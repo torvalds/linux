@@ -1646,7 +1646,7 @@ static int emac_dev_open(struct net_device *ndev)
 
 		dev_info(emac_dev, "attached PHY driver [%s] "
 			"(mii_bus:phy_addr=%s, id=%x)\n",
-			priv->phydev->drv->name, dev_name(&priv->phydev->dev),
+			priv->phydev->drv->name, phydev_name(priv->phydev),
 			priv->phydev->phy_id);
 	}
 

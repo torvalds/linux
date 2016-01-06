@@ -2096,7 +2096,7 @@ static int tg3_phy_init(struct tg3 *tp)
 	phydev = tp->mdio_bus->phy_map[tp->phy_addr];
 
 	/* Attach the MAC to the PHY. */
-	phydev = phy_connect(tp->dev, dev_name(&phydev->dev),
+	phydev = phy_connect(tp->dev, phydev_name(phydev),
 			     tg3_adjust_link, phydev->interface);
 	if (IS_ERR(phydev)) {
 		dev_err(&tp->pdev->dev, "Could not attach to PHY\n");
@@ -17903,7 +17903,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		phydev = tp->mdio_bus->phy_map[tp->phy_addr];
 		netdev_info(dev,
 			    "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
-			    phydev->drv->name, dev_name(&phydev->dev));
+			    phydev->drv->name, phydev_name(phydev));
 	} else {
 		char *ethtype;
 

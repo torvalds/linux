@@ -216,7 +216,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 			}
 			netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
 				    phy->phy_id, phy_addr, irq_str,
-				    dev_name(&phy->dev), act ? " active" : "");
+				    phydev_name(phy), act ? " active" : "");
 			phy_found = true;
 		}
 	}

@@ -838,8 +838,8 @@ static int xlr_mii_probe(struct xlr_net_priv *priv)
 	}
 
 	/* Attach MAC to PHY */
-	phydev = phy_connect(priv->ndev, dev_name(&phydev->dev),
-			&xlr_gmac_link_adjust, priv->nd->phy_interface);
+	phydev = phy_connect(priv->ndev, phydev_name(phydev),
+			     &xlr_gmac_link_adjust, priv->nd->phy_interface);
 
 	if (IS_ERR(phydev)) {
 		pr_err("could not attach PHY\n");
@@ -855,7 +855,7 @@ static int xlr_mii_probe(struct xlr_net_priv *priv)
 
 	phydev->advertising = phydev->supported;
 	pr_info("attached PHY driver [%s] (mii_bus:phy_addr=%s\n",
-		phydev->drv->name, dev_name(&phydev->dev));
+		phydev->drv->name, phydev_name(phydev));
 	return 0;
 }
 

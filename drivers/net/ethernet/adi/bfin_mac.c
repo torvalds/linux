@@ -419,7 +419,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 		return -EINVAL;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &bfin_mac_adjust_link, phy_mode);
 
 	if (IS_ERR(phydev)) {
@@ -446,7 +446,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 
 	pr_info("attached PHY driver [%s] "
 	        "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)@sclk=%dMHz)\n",
-	        phydev->drv->name, dev_name(&phydev->dev), phydev->irq,
+		phydev->drv->name, phydev_name(phydev), phydev->irq,
 	        MDC_CLK, mdc_div, sclk/1000000);
 
 	return 0;

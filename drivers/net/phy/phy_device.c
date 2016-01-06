@@ -114,7 +114,7 @@ EXPORT_SYMBOL(phy_register_fixup_for_id);
  */
 static int phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
 {
-	if (strcmp(fixup->bus_id, dev_name(&phydev->dev)) != 0)
+	if (strcmp(fixup->bus_id, phydev_name(phydev)) != 0)
 		if (strcmp(fixup->bus_id, PHY_ANY_ID) != 0)
 			return 0;
 

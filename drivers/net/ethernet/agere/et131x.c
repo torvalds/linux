@@ -3265,7 +3265,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(netdev, dev_name(&phydev->dev),
+	phydev = phy_connect(netdev, phydev_name(phydev),
 			     &et131x_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
@@ -3291,7 +3291,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 
 	dev_info(&adapter->pdev->dev,
 		 "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
-		 phydev->drv->name, dev_name(&phydev->dev));
+		 phydev->drv->name, phydev_name(phydev));
 
 	return 0;
 }

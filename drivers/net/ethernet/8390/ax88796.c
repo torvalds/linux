@@ -372,7 +372,7 @@ static int ax_mii_probe(struct net_device *dev)
 	ax->phy_dev = phy_dev;
 
 	netdev_info(dev, "PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		    phy_dev->drv->name, dev_name(&phy_dev->dev), phy_dev->irq);
+		    phy_dev->drv->name, phydev_name(phy_dev), phy_dev->irq);
 
 	return 0;
 }

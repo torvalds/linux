@@ -298,7 +298,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 			}
 			pr_info("%s: PHY ID %08x at %d IRQ %s (%s)%s\n",
 				ndev->name, phydev->phy_id, addr,
-				irq_str, dev_name(&phydev->dev),
+				irq_str, phydev_name(phydev),
 				act ? " active" : "");
 			found = 1;
 		}

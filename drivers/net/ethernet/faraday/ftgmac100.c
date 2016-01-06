@@ -854,7 +854,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(netdev, dev_name(&phydev->dev),
+	phydev = phy_connect(netdev, phydev_name(phydev),
 			     &ftgmac100_adjust_link, PHY_INTERFACE_MODE_GMII);
 
 	if (IS_ERR(phydev)) {

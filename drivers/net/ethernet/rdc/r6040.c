@@ -1039,7 +1039,7 @@ static int r6040_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &r6040_adjust_link,
+	phydev = phy_connect(dev, phydev_name(phydev), &r6040_adjust_link,
 			     PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
@@ -1063,7 +1063,7 @@ static int r6040_mii_probe(struct net_device *dev)
 
 	dev_info(&lp->pdev->dev, "attached PHY driver [%s] "
 		"(mii_bus:phy_addr=%s)\n",
-		phydev->drv->name, dev_name(&phydev->dev));
+		phydev->drv->name, phydev_name(phydev));
 
 	return 0;
 }

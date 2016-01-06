@@ -170,7 +170,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	int ret = 0;
 
 	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
-		     dev_name(&phydev->dev), phydev->drv->name, rev, patch);
+		     phydev_name(phydev), phydev->drv->name, rev, patch);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
 	 * internal inverter may not allow the first MDIO transaction to pass

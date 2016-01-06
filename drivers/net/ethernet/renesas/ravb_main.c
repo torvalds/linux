@@ -928,7 +928,7 @@ static int ravb_phy_init(struct net_device *ndev)
 	phydev->supported &= ~PHY_10BT_FEATURES;
 
 	netdev_info(ndev, "attached PHY %d (IRQ %d) to driver %s\n",
-		    phydev->addr, phydev->irq, phydev->drv->name);
+		    phydev->addr, phydev->irq, phydev_name(phydev));
 
 	priv->phydev = phydev;
 

@@ -797,7 +797,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 		netdev_info(ndev, "using MII interface\n");
 	else
 		netdev_info(ndev, "using RMII interface\n");
-	phydev = phy_connect(ndev, dev_name(&phydev->dev),
+	phydev = phy_connect(ndev, phydev_name(phydev),
 			     &lpc_handle_link_change,
 			     lpc_phy_interface_mode(&pldat->pdev->dev));
 
@@ -818,7 +818,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 
 	netdev_info(ndev,
 		"attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
+		phydev->drv->name, phydev_name(phydev), phydev->irq);
 	return 0;
 }
 
