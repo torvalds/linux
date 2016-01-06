@@ -55,6 +55,9 @@
 
 #include "ib_verbs.h"
 
+#define RVT_MULTICAST_LID_BASE 0xC000
+#define RVT_PERMISSIVE_LID 0xFFFF
+
 /*
  * For some of the IBTA objects there will likely be some
  * initializations required. We need flags to determine whether it is OK
