@@ -257,7 +257,6 @@ LEAF(mips_cps_core_init)
 	has_mt	t0, 3f
 
 	.set	push
-	.set	mips64r2
 	.set	mt
 
 	/* Only allow 1 TC per VPE to execute... */
@@ -376,7 +375,6 @@ LEAF(mips_cps_boot_vpes)
 	 nop
 
 	.set	push
-	.set	mips64r2
 	.set	mt
 
 1:	/* Enter VPE configuration state */

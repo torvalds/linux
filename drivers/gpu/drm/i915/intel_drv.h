@@ -565,7 +565,6 @@ struct intel_crtc {
 	int adjusted_x;
 	int adjusted_y;
 
-	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	uint32_t cursor_cntl;
 	uint32_t cursor_size;

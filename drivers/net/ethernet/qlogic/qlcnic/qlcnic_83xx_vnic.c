@@ -252,7 +252,7 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
 		state = QLCRDX(ahw, QLC_83XX_VNIC_STATE);
 	}
 
-	if (!idc->vnic_wait_limit) {
+	if (state != QLCNIC_DEV_NPAR_OPER) {
 		dev_err(&adapter->pdev->dev,
 			"vNIC mode not operational, state check timed out.\n");
 		return -EIO;
