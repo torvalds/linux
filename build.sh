@@ -70,15 +70,17 @@ echo $major.$minor >> myversioning
 temp=`mktemp XXXXXX`
 sudo cat /boot/grub/grub.cfg | while read line; do
 	if [[ "$line" = */boot/vmlinuz-*medusa* ]]; then
-		echo "$line" | sed -e 's/quiet/kgdboc=ttyS0,115200 kgdbwait/' >> $temp
-		echo $line |  sed -e 's/quiet/kgdboc=ttyS0,115200 kgdbwait/'
+                if [ $GRUB == 1 ]; then
+		        echo "$line" | sed -e 's/quiet/kgdboc=ttyS0,115200 kgdbwait/' >> $temp
+                else
+                        echo "$line" | sed -e 's/quiet/kgdboc=ttyS0,115200/' >> $temp
+                fi
 	else
 		echo "$line" >> $temp
 	fi
 done
 
-
-[ $GRUB == 1 ] && sudo mv $temp /boot/grub/grub.cfg
+sudo mv $temp /boot/grub/grub.cfg
 
 rm $temp 2> /dev/null
 
