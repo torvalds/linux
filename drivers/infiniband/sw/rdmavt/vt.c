@@ -91,6 +91,52 @@ static int rvt_modify_device(struct ib_device *device,
 	return -EOPNOTSUPP;
 }
 
+/**
+ * rvt_query_port: Passes the query port call to the driver
+ * @ibdev: Verbs IB dev
+ * @port: port number
+ * @props: structure to hold returned properties
+ *
+ * Returns 0 on success
+ */
+static int rvt_query_port(struct ib_device *ibdev, u8 port,
+			  struct ib_port_attr *props)
+{
+	/*
+	 * VT-DRIVER-API: query_port_state()
+	 * driver returns pretty much everything in ib_port_attr
+	 */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * rvt_modify_port
+ * @ibdev: Verbs IB dev
+ * @port: Port number
+ * @port_modify_mask: How to change the port
+ * @props: Structure to fill in
+ *
+ * Returns 0 on success
+ */
+static int rvt_modify_port(struct ib_device *ibdev, u8 port,
+			   int port_modify_mask, struct ib_port_modify *props)
+{
+	/*
+	 * VT-DRIVER-API: set_link_state()
+	 * driver will set the link state using the IB enumeration
+	 *
+	 * VT-DRIVER-API: clear_qkey_violations()
+	 * clears driver private qkey counter
+	 *
+	 * VT-DRIVER-API: get_lid()
+	 * driver needs to return the LID
+	 *
+	 * TBD: send_trap() and post_mad_send() need examined to see where they
+	 * fit in.
+	 */
+	return -EOPNOTSUPP;
+}
+
 /*
  * Check driver override. If driver passes a value use it, otherwise we use our
  * own value.
@@ -106,6 +152,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	/* Dev Ops */
 	CHECK_DRIVER_OVERRIDE(rdi, query_device);
 	CHECK_DRIVER_OVERRIDE(rdi, modify_device);
+	CHECK_DRIVER_OVERRIDE(rdi, query_port);
+	CHECK_DRIVER_OVERRIDE(rdi, modify_port);
 
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
