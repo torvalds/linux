@@ -77,6 +77,7 @@
 #define PIPE_REG_PARAMS_ADDR_LOW	0x18  /* read/write: batch data address */
 #define PIPE_REG_PARAMS_ADDR_HIGH	0x1c  /* read/write: batch data address */
 #define PIPE_REG_ACCESS_PARAMS		0x20  /* write: batch access */
+#define PIPE_REG_VERSION		0x24  /* read: device version */
 
 /* list of commands for PIPE_REG_COMMAND */
 #define CMD_OPEN			1  /* open new channel */
@@ -126,6 +127,7 @@ struct goldfish_pipe_dev {
 	unsigned char __iomem *base;
 	struct access_params *aps;
 	int irq;
+	u32 version;
 };
 
 static struct goldfish_pipe_dev   pipe_dev[1];
@@ -296,26 +298,43 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		int status, wakeBit;
 		struct page *page;
 
+		/* Either vaddr or paddr depending on the device version */
+		unsigned long xaddr;
+
 		/*
 		 * We grab the pages on a page-by-page basis in case user
 		 * space gives us a potentially huge buffer but the read only
 		 * returns a small amount, then there's no need to pin that
 		 * much memory to the process.
 		 */
+		down_read(&current->mm->mmap_sem);
 		ret = get_user_pages(current, current->mm, address, 1,
 				     !is_write, 0, &page, NULL);
+		up_read(&current->mm->mmap_sem);
 		if (ret < 0)
 			return ret;
+
+		if (dev->version) {
+			/* Device version 1 or newer (qemu-android) expects the
+			 * physical address.
+			 */
+			xaddr = page_to_phys(page) | (address & ~PAGE_MASK);
+		} else {
+			/* Device version 0 (classic emulator) expects the
+			 * virtual address.
+			 */
+			xaddr = address;
+		}
 
 		/* Now, try to transfer the bytes in the current page */
 		spin_lock_irqsave(&dev->lock, irq_flags);
 		if (access_with_param(dev,
 				is_write ? CMD_WRITE_BUFFER : CMD_READ_BUFFER,
-				address, avail, pipe, &status)) {
+				xaddr, avail, pipe, &status)) {
 			gf_write_ptr(pipe, dev->base + PIPE_REG_CHANNEL,
 				     dev->base + PIPE_REG_CHANNEL_HIGH);
 			writel(avail, dev->base + PIPE_REG_SIZE);
-			gf_write_ptr((void *)address,
+			gf_write_ptr((void *)xaddr,
 				     dev->base + PIPE_REG_ADDRESS,
 				     dev->base + PIPE_REG_ADDRESS_HIGH);
 			writel(is_write ? CMD_WRITE_BUFFER : CMD_READ_BUFFER,
@@ -610,6 +629,12 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 		goto error;
 	}
 	setup_access_params_addr(pdev, dev);
+
+	/* Although the pipe device in the classic Android emulator does not
+	 * recognize the 'version' register, it won't treat this as an error
+	 * either and will simply return 0, which is fine.
+	 */
+	dev->version = readl(dev->base + PIPE_REG_VERSION);
 	return 0;
 
 error:
