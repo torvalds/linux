@@ -2300,6 +2300,7 @@ static struct snd_compr_ops wm5110_compr_ops = {
 	.get_caps = wm_adsp_compr_get_caps,
 	.trigger = wm_adsp_compr_trigger,
 	.pointer = wm_adsp_compr_pointer,
+	.copy = wm_adsp_compr_copy,
 };
 
 static struct snd_soc_platform_driver wm5110_compr_platform = {

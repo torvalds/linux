@@ -115,5 +115,7 @@ extern int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
 extern int wm_adsp_compr_handle_irq(struct wm_adsp *dsp);
 extern int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 				 struct snd_compr_tstamp *tstamp);
+extern int wm_adsp_compr_copy(struct snd_compr_stream *stream,
+			      char __user *buf, size_t count);
 
 #endif
