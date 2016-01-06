@@ -579,7 +579,7 @@ static int cz_tf_init_sclk_limit(struct pp_hwmgr *hwmgr, void *input,
 					hwmgr->dyn_state.vddc_dependency_on_sclk;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
@@ -606,7 +606,7 @@ static int cz_tf_init_uvd_limit(struct pp_hwmgr *hwmgr, void *input,
 				hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->uvd_dpm.soft_min_clk = 0;
@@ -634,7 +634,7 @@ static int cz_tf_init_vce_limit(struct pp_hwmgr *hwmgr, void *input,
 				hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->vce_dpm.soft_min_clk = 0;
@@ -662,7 +662,7 @@ static int cz_tf_init_acp_limit(struct pp_hwmgr *hwmgr, void *input,
 				hwmgr->dyn_state.acp_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->acp_dpm.soft_min_clk = 0;
@@ -1183,7 +1183,7 @@ int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 				hwmgr->dyn_state.vddc_dependency_on_sclk;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
