@@ -134,8 +134,8 @@ config GPIO_BCM_KONA
 
 config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
-	default y if ARCH_BRCMSTB
-	depends on OF_GPIO && (ARCH_BRCMSTB || COMPILE_TEST)
+	default y if (ARCH_BRCMSTB || BMIPS_GENERIC)
+	depends on OF_GPIO && (ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST)
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
