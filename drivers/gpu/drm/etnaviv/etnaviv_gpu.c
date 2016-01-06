@@ -251,9 +251,12 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	chipIdentity = gpu_read(gpu, VIVS_HI_CHIP_IDENTITY);
 
 	/* Special case for older graphic cores. */
-	if (VIVS_HI_CHIP_IDENTITY_FAMILY(chipIdentity) ==  0x01) {
+	if (((chipIdentity & VIVS_HI_CHIP_IDENTITY_FAMILY__MASK)
+	     >> VIVS_HI_CHIP_IDENTITY_FAMILY__SHIFT) ==  0x01) {
 		gpu->identity.model    = 0x500; /* gc500 */
-		gpu->identity.revision = VIVS_HI_CHIP_IDENTITY_REVISION(chipIdentity);
+		gpu->identity.revision =
+			(chipIdentity & VIVS_HI_CHIP_IDENTITY_REVISION__MASK)
+			>> VIVS_HI_CHIP_IDENTITY_REVISION__SHIFT;
 	} else {
 
 		gpu->identity.model = gpu_read(gpu, VIVS_HI_CHIP_MODEL);
