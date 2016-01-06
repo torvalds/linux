@@ -133,4 +133,8 @@ int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
 
 void fsl_mc_msi_domain_free_irqs(struct device *dev);
 
+int __init its_fsl_mc_msi_init(void);
+
+void its_fsl_mc_msi_cleanup(void);
+
 #endif /* _FSL_MC_PRIVATE_H_ */
