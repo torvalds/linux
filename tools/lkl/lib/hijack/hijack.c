@@ -30,7 +30,7 @@
 #include <lkl.h>
 #include <lkl_host.h>
 
-#define LKL_FD_OFFSET (FD_SETSIZE/2)
+#include "xlate.h"
 
 static int is_lklfd(int fd)
 {
@@ -67,16 +67,12 @@ static host_call host_calls[__lkl__NR_syscalls];
 			 long p6)					\
 	{								\
 		long p[6] = {p1, p2, p3, p4, p5, p6 };			\
-		int ret;						\
 									\
 		if (!is_lklfd(p1))					\
 			return host_calls[__lkl__NR_##name](p1, p2, p3,	\
 							    p4, p5, p6); \
 									\
-		ret = lkl_syscall(__lkl__NR_##name, p);			\
-		if (ret < 0)	 					\
-			errno = -ret;					\
-		return ret < 0 ? -1 : ret;				\
+		return lkl_set_errno(lkl_syscall(__lkl__NR_##name, p));	\
 	}								\
 	asm(".global " #name);						\
 	asm(".set " #name "," #name "_hook");				\
@@ -94,12 +90,8 @@ static host_call host_calls[__lkl__NR_syscalls];
 			 long p6)					\
 	{								\
 		long p[6] = {p1, p2, p3, p4, p5, p6};			\
-		int ret;						\
 									\
-		ret = lkl_syscall(__lkl__NR_##name, p);			\
-		if (ret < 0)	 					\
-			errno = -ret;					\
-		return ret < 0 ? -1 : ret;				\
+		return lkl_set_errno(lkl_syscall(__lkl__NR_##name, p));	\
 	}								\
 	asm(".global " #name);						\
 	asm(".set " #name "," #name "_hook");				\
@@ -109,17 +101,14 @@ static int lkl_call(int nr, int args, ...)
 {
 	long params[6];
 	va_list vl;
-	int i, ret;
+	int i;
 
 	va_start(vl, args);
 	for (i = 0; i < args; i++)
 		params[i] = va_arg(vl, long);
 	va_end(vl);
 
-	ret = lkl_syscall(nr, params);
-	if (ret < 0)
-		errno = -ret;
-	return ret < 0 ? -1 : ret;
+	return lkl_set_errno(lkl_syscall(nr, params));
 }
 
 HOOK_FD_CALL(close)
@@ -142,8 +131,25 @@ HOOK_FD_CALL(recvfrom)
 HOOK_FD_CALL(recv)
 HOOK_FD_CALL(epoll_wait)
 HOOK_CALL(pipe);
-HOOK_FD_CALL(setsockopt);
-HOOK_FD_CALL(getsockopt);
+
+HOST_CALL(setsockopt);
+int setsockopt(int fd, int level, int optname, const void *optval,
+	       socklen_t optlen)
+{
+	if (!is_lklfd(fd))
+		return host_setsockopt(fd, level, optname, optval, optlen);
+	return lkl_call(__lkl__NR_setsockopt, 5, fd, lkl_solevel_xlate(level),
+			lkl_soname_xlate(optname), (void*)optval, optlen);
+}
+
+HOST_CALL(getsockopt);
+int getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
+{
+	if (!is_lklfd(fd))
+		return host_setsockopt(fd, level, optname, optval, optlen);
+	return lkl_call(__lkl__NR_getsockopt, 5, fd, lkl_solevel_xlate(level),
+			lkl_soname_xlate(optname), optval, (int*)optlen);
+}
 
 HOST_CALL(socket);
 int socket(int domain, int type, int protocol)
@@ -166,7 +172,7 @@ int ioctl(int fd, unsigned long req, ...)
 
 	if (!is_lklfd(fd))
 		return host_ioctl(fd, req, arg);
-	return lkl_call(__lkl__NR_fcntl, 3, fd, req, arg);
+	return lkl_call(__lkl__NR_fcntl, 3, fd, lkl_ioctl_req_xlate(req), arg);
 }
 
 
@@ -182,7 +188,7 @@ int fcntl(int fd, int cmd, ...)
 
 	if (!is_lklfd(fd))
 		return host_fcntl(fd, cmd, arg);
-	return lkl_call(__lkl__NR_fcntl, 3, fd, cmd, arg);
+	return lkl_call(__lkl__NR_fcntl, 3, fd, lkl_fcntl_cmd_xlate(cmd), arg);
 }
 
 HOST_CALL(poll);
@@ -198,10 +204,9 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 	}
 
 	/* FIXME: need to handle mixed case of hostfd and lklfd. */
-	if (lklfds && hostfds) {
-		errno = LKL_EOPNOTSUPP;
-		return -1;
-	}
+	if (lklfds && hostfds)
+		return lkl_set_errno(LKL_EOPNOTSUPP);
+
 
 	if (hostfds)
 		return host_poll(fds, nfds, timeout);
@@ -238,10 +243,8 @@ int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 	}
 
 	/* FIXME: handle mixed case of hostfd and lklfd */
-	if (lklfds && hostfds) {
-		errno = EOPNOTSUPP;
-		return -1;
-	}
+	if (lklfds && hostfds)
+		return lkl_set_errno(LKL_EOPNOTSUPP);
 
 	if (hostfds)
 		return host_select(nfds, r, w, e, t);
@@ -254,10 +257,9 @@ HOOK_CALL(epoll_create)
 HOST_CALL(epoll_ctl);
 int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 {
-	if (is_lklfd(epollfd) != is_lklfd(fd)) {
-		errno = EOPNOTSUPP;
-		return -1;
-	}
+	if (is_lklfd(epollfd) != is_lklfd(fd))
+		return lkl_set_errno(LKL_EOPNOTSUPP);
+
 
 	if (!is_lklfd(epollfd))
 		return host_epoll_ctl(epollfd, op, fd, event);

@@ -14,7 +14,7 @@
 #include <lkl.h>
 #include <lkl_host.h>
 
-#define LKL_FD_OFFSET (FD_SETSIZE/2)
+#include "xlate.h"
 
 void __attribute__((constructor(102)))
 hijack_init(void)
