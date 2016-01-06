@@ -22,25 +22,14 @@ The slave DMA usage consists of following steps:
    Channel allocation is slightly different in the slave DMA context,
    client drivers typically need a channel from a particular DMA
    controller only and even in some cases a specific channel is desired.
-   To request a channel dma_request_channel() API is used.
+   To request a channel dma_request_chan() API is used.
 
    Interface:
-	struct dma_chan *dma_request_channel(dma_cap_mask_t mask,
-			dma_filter_fn filter_fn,
-			void *filter_param);
-   where dma_filter_fn is defined as:
-	typedef bool (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
+	struct dma_chan *dma_request_chan(struct device *dev, const char *name);
 
-   The 'filter_fn' parameter is optional, but highly recommended for
-   slave and cyclic channels as they typically need to obtain a specific
-   DMA channel.
-
-   When the optional 'filter_fn' parameter is NULL, dma_request_channel()
-   simply returns the first channel that satisfies the capability mask.
-
-   Otherwise, the 'filter_fn' routine will be called once for each free
-   channel which has a capability in 'mask'.  'filter_fn' is expected to
-   return 'true' when the desired DMA channel is found.
+   Which will find and return the 'name' DMA channel associated with the 'dev'
+   device. The association is done via DT, ACPI or board file based
+   dma_slave_map matching table.
 
    A channel allocated via this interface is exclusive to the caller,
    until dma_release_channel() is called.
