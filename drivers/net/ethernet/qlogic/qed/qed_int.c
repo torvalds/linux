@@ -783,21 +783,15 @@ void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, IGU_REG_PF_CONFIGURATION, igu_pf_conf);
 }
 
-void qed_int_igu_enable(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt,
-			enum qed_int_mode int_mode)
+int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       enum qed_int_mode int_mode)
 {
-	int i;
-
-	p_hwfn->b_int_enabled = 1;
+	int rc, i;
 
 	/* Mask non-link attentions */
 	for (i = 0; i < 9; i++)
 		qed_wr(p_hwfn, p_ptt,
 		       MISC_REG_AEU_ENABLE1_IGU_OUT_0 + (i << 2), 0);
-
-	/* Enable interrupt Generation */
-	qed_int_igu_enable_int(p_hwfn, p_ptt, int_mode);
 
 	/* Configure AEU signal change to produce attentions for link */
 	qed_wr(p_hwfn, p_ptt, IGU_REG_LEADING_EDGE_LATCH, 0xfff);
@@ -808,6 +802,19 @@ void qed_int_igu_enable(struct qed_hwfn *p_hwfn,
 
 	/* Unmask AEU signals toward IGU */
 	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_MASK_ATTN_IGU, 0xff);
+	if ((int_mode != QED_INT_MODE_INTA) || IS_LEAD_HWFN(p_hwfn)) {
+		rc = qed_slowpath_irq_req(p_hwfn);
+		if (rc != 0) {
+			DP_NOTICE(p_hwfn, "Slowpath IRQ request failed\n");
+			return -EINVAL;
+		}
+		p_hwfn->b_int_requested = true;
+	}
+	/* Enable interrupt Generation */
+	qed_int_igu_enable_int(p_hwfn, p_ptt, int_mode);
+	p_hwfn->b_int_enabled = 1;
+
+	return rc;
 }
 
 void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn,
@@ -1126,4 +1133,12 @@ int qed_int_get_num_sbs(struct qed_hwfn *p_hwfn,
 		*p_iov_blks = info->free_blks;
 
 	return info->igu_sb_cnt;
+}
+
+void qed_int_disable_post_isr_release(struct qed_dev *cdev)
+{
+	int i;
+
+	for_each_hwfn(cdev, i)
+		cdev->hwfns[i].b_int_requested = false;
 }

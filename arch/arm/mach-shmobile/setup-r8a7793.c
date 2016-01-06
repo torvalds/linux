@@ -19,7 +19,7 @@
 #include "common.h"
 #include "rcar-gen2.h"
 
-static const char *r8a7793_boards_compat_dt[] __initconst = {
+static const char * const r8a7793_boards_compat_dt[] __initconst = {
 	"renesas,r8a7793",
 	NULL,
 };

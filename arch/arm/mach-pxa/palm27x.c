@@ -344,7 +344,7 @@ void __init palm27x_pwm_init(int bl, int lcd)
 {
 	palm_bl_power	= bl;
 	palm_lcd_power	= lcd;
-	pwm_add_lookup(palm27x_pwm_lookup, ARRAY_SIZE(palm27x_pwm_lookup));
+	pwm_add_table(palm27x_pwm_lookup, ARRAY_SIZE(palm27x_pwm_lookup));
 	platform_device_register(&palm27x_backlight);
 }
 #endif

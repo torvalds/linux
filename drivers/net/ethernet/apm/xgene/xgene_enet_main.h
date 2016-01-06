@@ -155,11 +155,11 @@ struct xgene_enet_pdata {
 	enum xgene_enet_id enet_id;
 	struct xgene_enet_desc_ring *tx_ring;
 	struct xgene_enet_desc_ring *rx_ring;
+	u16 tx_level;
+	u16 txc_level;
 	char *dev_name;
 	u32 rx_buff_cnt;
 	u32 tx_qcnt_hi;
-	u32 cp_qcnt_hi;
-	u32 cp_qcnt_low;
 	u32 rx_irq;
 	u32 txc_irq;
 	u8 cq_cnt;

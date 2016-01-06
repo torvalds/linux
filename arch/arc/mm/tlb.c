@@ -619,10 +619,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 
 		int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
 		if (dirty) {
-			/* wback + inv dcache lines */
+			/* wback + inv dcache lines (K-mapping) */
 			__flush_dcache_page(paddr, paddr);
 
-			/* invalidate any existing icache lines */
+			/* invalidate any existing icache lines (U-mapping) */
 			if (vma->vm_flags & VM_EXEC)
 				__inv_icache_page(paddr, vaddr);
 		}

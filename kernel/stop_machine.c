@@ -529,7 +529,7 @@ static int __init cpu_stop_init(void)
 }
 early_initcall(cpu_stop_init);
 
-#ifdef CONFIG_STOP_MACHINE
+#if defined(CONFIG_SMP) || defined(CONFIG_HOTPLUG_CPU)
 
 static int __stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
@@ -629,4 +629,4 @@ int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 	return ret ?: done.ret;
 }
 
-#endif	/* CONFIG_STOP_MACHINE */
+#endif	/* CONFIG_SMP || CONFIG_HOTPLUG_CPU */

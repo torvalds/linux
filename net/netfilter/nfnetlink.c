@@ -295,8 +295,6 @@ replay:
 	if (!skb)
 		return netlink_ack(oskb, nlh, -ENOMEM);
 
-	skb->sk = oskb->sk;
-
 	nfnl_lock(subsys_id);
 	ss = rcu_dereference_protected(table[subsys_id].subsys,
 				       lockdep_is_held(&table[subsys_id].mutex));
@@ -381,7 +379,7 @@ replay:
 				goto ack;
 
 			if (nc->call_batch) {
-				err = nc->call_batch(net->nfnl, skb, nlh,
+				err = nc->call_batch(net, net->nfnl, skb, nlh,
 						     (const struct nlattr **)cda);
 			}
 

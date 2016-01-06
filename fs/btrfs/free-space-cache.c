@@ -891,7 +891,7 @@ out:
 		spin_unlock(&block_group->lock);
 		ret = 0;
 
-		btrfs_warn(fs_info, "failed to load free space cache for block group %llu, rebuild it now",
+		btrfs_warn(fs_info, "failed to load free space cache for block group %llu, rebuilding it now",
 			block_group->key.objectid);
 	}
 
@@ -2972,7 +2972,7 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 		     u64 cont1_bytes, u64 min_bytes)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
-	struct btrfs_free_space *entry;
+	struct btrfs_free_space *entry = NULL;
 	int ret = -ENOSPC;
 	u64 bitmap_offset = offset_to_bitmap(ctl, offset);
 
@@ -2983,8 +2983,10 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 	 * The bitmap that covers offset won't be in the list unless offset
 	 * is just its start offset.
 	 */
-	entry = list_first_entry(bitmaps, struct btrfs_free_space, list);
-	if (entry->offset != bitmap_offset) {
+	if (!list_empty(bitmaps))
+		entry = list_first_entry(bitmaps, struct btrfs_free_space, list);
+
+	if (!entry || entry->offset != bitmap_offset) {
 		entry = tree_search_offset(ctl, bitmap_offset, 1, 0);
 		if (entry && list_empty(&entry->list))
 			list_add(&entry->list, bitmaps);

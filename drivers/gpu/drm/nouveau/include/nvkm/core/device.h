@@ -159,7 +159,6 @@ struct nvkm_device_func {
 struct nvkm_device_quirk {
 	u8 tv_pin_mask;
 	u8 tv_gpio;
-	bool War00C800_0;
 };
 
 struct nvkm_device_chip {

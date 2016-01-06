@@ -429,7 +429,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	arc_unwind_init();
-	arc_unwind_setup();
 }
 
 static int __init customize_machine(void)

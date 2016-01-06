@@ -1119,14 +1119,14 @@ static int i2c_imx_probe(struct platform_device *pdev)
 			i2c_imx, IMX_I2C_I2CR);
 	imx_i2c_write_reg(i2c_imx->hwdata->i2sr_clr_opcode, i2c_imx, IMX_I2C_I2SR);
 
+	i2c_imx_init_recovery_info(i2c_imx, pdev);
+
 	/* Add I2C adapter */
 	ret = i2c_add_numbered_adapter(&i2c_imx->adapter);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "registration failed\n");
 		goto clk_disable;
 	}
-
-	i2c_imx_init_recovery_info(i2c_imx, pdev);
 
 	/* Set up platform driver data */
 	platform_set_drvdata(pdev, i2c_imx);

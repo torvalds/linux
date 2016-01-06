@@ -1057,6 +1057,7 @@ int nicvf_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(nic->netdev);
+	nic->link_up = false;
 
 	/* Teardown secondary qsets first */
 	if (!nic->sqs_mode) {
@@ -1210,9 +1211,6 @@ int nicvf_open(struct net_device *netdev)
 
 	nic->drv_stats.txq_stop = 0;
 	nic->drv_stats.txq_wake = 0;
-
-	netif_carrier_on(netdev);
-	netif_tx_start_all_queues(netdev);
 
 	return 0;
 cleanup:

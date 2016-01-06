@@ -647,9 +647,9 @@ static int gfar_parse_group(struct device_node *np,
 	if (model && strcasecmp(model, "FEC")) {
 		gfar_irq(grp, RX)->irq = irq_of_parse_and_map(np, 1);
 		gfar_irq(grp, ER)->irq = irq_of_parse_and_map(np, 2);
-		if (gfar_irq(grp, TX)->irq == NO_IRQ ||
-		    gfar_irq(grp, RX)->irq == NO_IRQ ||
-		    gfar_irq(grp, ER)->irq == NO_IRQ)
+		if (!gfar_irq(grp, TX)->irq ||
+		    !gfar_irq(grp, RX)->irq ||
+		    !gfar_irq(grp, ER)->irq)
 			return -EINVAL;
 	}
 
@@ -894,7 +894,8 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 				     FSL_GIANFAR_DEV_HAS_VLAN |
 				     FSL_GIANFAR_DEV_HAS_MAGIC_PACKET |
 				     FSL_GIANFAR_DEV_HAS_EXTENDED_HASH |
-				     FSL_GIANFAR_DEV_HAS_TIMER;
+				     FSL_GIANFAR_DEV_HAS_TIMER |
+				     FSL_GIANFAR_DEV_HAS_RX_FILER;
 
 	err = of_property_read_string(np, "phy-connection-type", &ctype);
 
@@ -1396,8 +1397,9 @@ static int gfar_probe(struct platform_device *ofdev)
 		priv->rx_queue[i]->rxic = DEFAULT_RXIC;
 	}
 
-	/* always enable rx filer */
-	priv->rx_filer_enable = 1;
+	/* Always enable rx filer if available */
+	priv->rx_filer_enable =
+	    (priv->device_flags & FSL_GIANFAR_DEV_HAS_RX_FILER) ? 1 : 0;
 	/* Enable most messages by default */
 	priv->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
 	/* use pritority h/w tx queue scheduling for single queue devices */

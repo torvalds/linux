@@ -141,8 +141,6 @@ static void i915_gem_context_clean(struct intel_context *ctx)
 	if (!ppgtt)
 		return;
 
-	WARN_ON(!list_empty(&ppgtt->base.active_list));
-
 	list_for_each_entry_safe(vma, next, &ppgtt->base.inactive_list,
 				 mm_list) {
 		if (WARN_ON(__i915_vma_unbind_no_wait(vma)))

@@ -242,6 +242,13 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 	unsigned long flags;
 	u64 ns, zero = 0;
 
+	/* mlx4_en_init_timestamp is called for each netdev.
+	 * mdev->ptp_clock is common for all ports, skip initialization if
+	 * was done for other port.
+	 */
+	if (mdev->ptp_clock)
+		return;
+
 	rwlock_init(&mdev->clock_lock);
 
 	memset(&mdev->cycles, 0, sizeof(mdev->cycles));

@@ -464,7 +464,7 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 			 * address). Print error message but continue anyway.
 			 */
 			if ((void *)tbipa > priv->map + resource_size(&res) - 4)
-				dev_err(&pdev->dev, "invalid register map (should be at least 0x%04x to contain TBI address)\n",
+				dev_err(&pdev->dev, "invalid register map (should be at least 0x%04zx to contain TBI address)\n",
 					((void *)tbipa - priv->map) + 4);
 
 			iowrite32be(be32_to_cpup(prop), tbipa);

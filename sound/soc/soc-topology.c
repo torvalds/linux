@@ -531,7 +531,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 		/* TLV bytes controls need standard kcontrol info handler,
 		 * TLV callback and extended put/get handlers.
 		 */
-		k->info = snd_soc_bytes_info;
+		k->info = snd_soc_bytes_info_ext;
 		k->tlv.c = snd_soc_bytes_tlv_callback;
 
 		ext_ops = tplg->bytes_ext_ops;
@@ -1805,6 +1805,7 @@ void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
 		snd_soc_tplg_widget_remove(w);
 		snd_soc_dapm_free_widget(w);
 	}
+	snd_soc_dapm_reset_cache(dapm);
 }
 EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_remove_all);
 

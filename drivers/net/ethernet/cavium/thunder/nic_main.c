@@ -615,6 +615,21 @@ static int nic_config_loopback(struct nicpf *nic, struct set_loopback *lbk)
 	return 0;
 }
 
+static void nic_enable_vf(struct nicpf *nic, int vf, bool enable)
+{
+	int bgx, lmac;
+
+	nic->vf_enabled[vf] = enable;
+
+	if (vf >= nic->num_vf_en)
+		return;
+
+	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+
+	bgx_lmac_rx_tx_enable(nic->node, bgx, lmac, enable);
+}
+
 /* Interrupt handler to handle mailbox messages from VFs */
 static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 {
@@ -714,14 +729,14 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		break;
 	case NIC_MBOX_MSG_CFG_DONE:
 		/* Last message of VF config msg sequence */
-		nic->vf_enabled[vf] = true;
+		nic_enable_vf(nic, vf, true);
 		goto unlock;
 	case NIC_MBOX_MSG_SHUTDOWN:
 		/* First msg in VF teardown sequence */
-		nic->vf_enabled[vf] = false;
 		if (vf >= nic->num_vf_en)
 			nic->sqs_used[vf - nic->num_vf_en] = false;
 		nic->pqs_vf[vf] = 0;
+		nic_enable_vf(nic, vf, false);
 		break;
 	case NIC_MBOX_MSG_ALLOC_SQS:
 		nic_alloc_sqs(nic, &mbx.sqs_alloc);
@@ -1074,8 +1089,7 @@ static void nic_remove(struct pci_dev *pdev)
 
 	if (nic->check_link) {
 		/* Destroy work Queue */
-		cancel_delayed_work(&nic->dwork);
-		flush_workqueue(nic->check_link);
+		cancel_delayed_work_sync(&nic->dwork);
 		destroy_workqueue(nic->check_link);
 	}
 
