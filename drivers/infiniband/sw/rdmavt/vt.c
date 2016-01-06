@@ -154,6 +154,17 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 	 * lock, if a stale value is read and sent to the user so be it there is
 	 * no way to protect against that anyway.
 	 */
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+	int port_index;
+
+	if (index >= rvt_get_npkeys(rdi))
+		return -EINVAL;
+
+	port_index = port - 1; /* IB ports start at 1 our array at 0 */
+	if ((port_index < 0) || (port_index >= rdi->dparms.nports))
+		return -EINVAL;
+
+	*pkey = rvt_get_pkey(rdi, port_index, index);
 	return 0;
 }
 
@@ -225,19 +236,6 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	    (!rdi->driver_f.check_ah)) {
 		pr_err("Driver not supporting req func\n");
 		return -EINVAL;
-	}
-
-	if (!rdi->dparms.nports) {
-		rvt_pr_err(rdi, "Driver says it has no ports.\n");
-		return -EINVAL;
-	}
-
-	rdi->ports = kcalloc(rdi->dparms.nports,
-			     sizeof(struct rvt_ibport **),
-			     GFP_KERNEL);
-	if (!rdi->ports) {
-		rvt_pr_err(rdi, "Could not allocate port mem.\n");
-		return -ENOMEM;
 	}
 
 	/* Once we get past here we can use the rvt_pr macros */
@@ -355,9 +353,25 @@ EXPORT_SYMBOL(rvt_unregister_device);
  * Keep track of a list of ports. No need to have a detach port.
  * They persist until the driver goes away.
  */
-void rvt_attach_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
-		     int portnum)
+int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
+		  int portnum, u16 *pkey_table)
 {
+	if (!rdi->dparms.nports) {
+		rvt_pr_err(rdi, "Driver says it has no ports.\n");
+		return -EINVAL;
+	}
+
+	rdi->ports = kcalloc(rdi->dparms.nports,
+			     sizeof(struct rvt_ibport **),
+			     GFP_KERNEL);
+	if (!rdi->ports) {
+		rvt_pr_err(rdi, "Could not allocate port mem.\n");
+		return -ENOMEM;
+	}
+
 	rdi->ports[portnum] = port;
+	rdi->ports[portnum]->pkey_table = pkey_table;
+
+	return 0;
 }
-EXPORT_SYMBOL(rvt_attach_port);
+EXPORT_SYMBOL(rvt_init_port);
