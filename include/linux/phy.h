@@ -18,6 +18,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/timer.h>
@@ -212,11 +213,6 @@ static inline struct mii_bus *devm_mdiobus_alloc(struct device *dev)
 
 void devm_mdiobus_free(struct device *dev, struct mii_bus *bus);
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
-int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
-int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);
-int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
-int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val);
-
 
 #define PHY_INTERRUPT_DISABLED	0x0
 #define PHY_INTERRUPT_ENABLED	0x80000000

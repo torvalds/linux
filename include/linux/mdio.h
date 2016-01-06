@@ -11,6 +11,7 @@
 
 #include <uapi/linux/mdio.h>
 
+struct mii_bus;
 
 static inline bool mdio_phy_id_is_c45(int phy_id)
 {
@@ -172,5 +173,10 @@ static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
 
 	return reg;
 }
+
+int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
+int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);
+int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 
 #endif /* __LINUX_MDIO_H__ */
