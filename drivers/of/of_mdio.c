@@ -75,7 +75,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later */
 	of_node_get(child);
-	phy->dev.of_node = child;
+	phy->mdio.dev.of_node = child;
 
 	/* All data is now stored in the phy struct;
 	 * register it */
@@ -233,7 +233,7 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	ret = phy_connect_direct(dev, phy, hndlr, iface);
 
 	/* refcount is held by phy_connect_direct() on success */
-	put_device(&phy->dev);
+	put_device(&phy->mdio.dev);
 
 	return ret ? NULL : phy;
 }
@@ -263,7 +263,7 @@ struct phy_device *of_phy_attach(struct net_device *dev,
 	ret = phy_attach_direct(dev, phy, flags, iface);
 
 	/* refcount is held by phy_attach_direct() on success */
-	put_device(&phy->dev);
+	put_device(&phy->mdio.dev);
 
 	return ret ? NULL : phy;
 }

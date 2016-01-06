@@ -40,10 +40,10 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 	const __be32 *paddr_end;
 	int len, ret;
 
-	if (!phydev->dev.of_node)
+	if (!phydev->mdio.dev.of_node)
 		return 0;
 
-	paddr = of_get_property(phydev->dev.of_node,
+	paddr = of_get_property(phydev->mdio.dev.of_node,
 				"broadcom,c45-reg-init", &len);
 	if (!paddr)
 		return 0;

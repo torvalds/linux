@@ -1295,7 +1295,7 @@ int dtsec_init(struct fman_mac *dtsec)
 
 	err = init(dtsec->regs, dtsec_drv_param, dtsec->phy_if,
 		   dtsec->max_speed, (u8 *)eth_addr, dtsec->exceptions,
-		   dtsec->tbiphy->addr);
+		   dtsec->tbiphy->mdio.addr);
 	if (err) {
 		free_init_resources(dtsec);
 		pr_err("DTSEC version doesn't support this i/f mode\n");
@@ -1434,11 +1434,11 @@ struct fman_mac *dtsec_config(struct fman_mac_params *params)
 	dtsec->tbiphy = of_phy_find_device(params->internal_phy_node);
 	if (!dtsec->tbiphy) {
 		pr_err("of_phy_find_device (TBI PHY) failed\n");
-		put_device(&dtsec->tbiphy->dev);
+		put_device(&dtsec->tbiphy->mdio.dev);
 		goto err_dtsec_drv_param;
 	}
 
-	put_device(&dtsec->tbiphy->dev);
+	put_device(&dtsec->tbiphy->mdio.dev);
 
 	/* Save FMan revision */
 	fman_get_revision(dtsec->fm, &dtsec->fm_rev_info);

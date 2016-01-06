@@ -1235,7 +1235,7 @@ static int et131x_mii_read(struct et131x_adapter *adapter, u8 reg, u16 *value)
 	if (!phydev)
 		return -EIO;
 
-	return et131x_phy_mii_read(adapter, phydev->addr, reg, value);
+	return et131x_phy_mii_read(adapter, phydev->mdio.addr, reg, value);
 }
 
 static int et131x_mii_write(struct et131x_adapter *adapter, u8 addr, u8 reg,
@@ -1462,7 +1462,7 @@ static void et1310_phy_power_switch(struct et131x_adapter *adapter, bool down)
 	data &= ~BMCR_PDOWN;
 	if (down)
 		data |= BMCR_PDOWN;
-	et131x_mii_write(adapter, phydev->addr, MII_BMCR, data);
+	et131x_mii_write(adapter, phydev->mdio.addr, MII_BMCR, data);
 }
 
 /* et131x_xcvr_init - Init the phy if we are setting it into force mode */
@@ -1490,7 +1490,7 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 		else
 			lcr2 |= (LED_VAL_LINKON << LED_TXRX_SHIFT);
 
-		et131x_mii_write(adapter, phydev->addr, PHY_LED_2, lcr2);
+		et131x_mii_write(adapter, phydev->mdio.addr, PHY_LED_2, lcr2);
 	}
 }
 
@@ -3192,14 +3192,14 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
 					&register18);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG,
 					 register18 | 0x4);
-			et131x_mii_write(adapter, phydev->addr, PHY_INDEX_REG,
-					 register18 | 0x8402);
-			et131x_mii_write(adapter, phydev->addr, PHY_DATA_REG,
-					 register18 | 511);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
+					 PHY_INDEX_REG, register18 | 0x8402);
+			et131x_mii_write(adapter, phydev->mdio.addr,
+					 PHY_DATA_REG, register18 | 511);
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG, register18);
 		}
 
@@ -3212,8 +3212,8 @@ static void et131x_adjust_link(struct net_device *netdev)
 			et131x_mii_read(adapter, PHY_CONFIG, &reg);
 			reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
 			reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
-			et131x_mii_write(adapter, phydev->addr, PHY_CONFIG,
-					 reg);
+			et131x_mii_write(adapter, phydev->mdio.addr,
+					 PHY_CONFIG, reg);
 		}
 
 		et131x_set_rx_dma_timer(adapter);
@@ -3226,14 +3226,14 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
 					&register18);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG,
 					 register18 | 0x4);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_INDEX_REG, register18 | 0x8402);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_DATA_REG, register18 | 511);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG, register18);
 		}
 

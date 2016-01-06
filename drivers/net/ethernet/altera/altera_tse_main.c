@@ -844,7 +844,7 @@ static int init_phy(struct net_device *dev)
 	}
 
 	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n",
-		   phydev->addr, phydev->phy_id, phydev->link);
+		   phydev->mdio.addr, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
 	return 0;

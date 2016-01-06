@@ -103,7 +103,7 @@ static int dp83867_config_intr(struct phy_device *phydev)
 static int dp83867_of_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
 	int ret;
 
@@ -137,7 +137,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 	u16 val, delay;
 
 	if (!phydev->priv) {
-		dp83867 = devm_kzalloc(&phydev->dev, sizeof(*dp83867),
+		dp83867 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83867),
 				       GFP_KERNEL);
 		if (!dp83867)
 			return -ENOMEM;

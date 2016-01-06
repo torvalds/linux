@@ -13,6 +13,15 @@
 
 struct mii_bus;
 
+struct mdio_device {
+	struct device dev;
+
+	struct mii_bus *bus;
+	/* Bus address of the MDIO device (0-31) */
+	int addr;
+};
+#define to_mdio_device(d) container_of(d, struct mdio_device, dev)
+
 static inline bool mdio_phy_id_is_c45(int phy_id)
 {
 	return (phy_id & MDIO_PHY_ID_C45) && !(phy_id & ~MDIO_PHY_ID_C45_MASK);

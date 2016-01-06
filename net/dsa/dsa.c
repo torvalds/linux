@@ -439,7 +439,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		if (of_phy_is_fixed_link(port_dn)) {
 			phydev = of_phy_find_device(port_dn);
 			if (phydev) {
-				int addr = phydev->addr;
+				int addr = phydev->mdio.addr;
 
 				phy_device_free(phydev);
 				of_node_put(port_dn);

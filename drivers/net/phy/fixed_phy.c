@@ -197,11 +197,11 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
-	if (!phydev || !phydev->bus)
+	if (!phydev || !phydev->mdio.bus)
 		return -EINVAL;
 
 	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->addr == phydev->addr) {
+		if (fp->addr == phydev->mdio.addr) {
 			fp->link_update = link_update;
 			fp->phydev = phydev;
 			return 0;
@@ -219,11 +219,11 @@ int fixed_phy_update_state(struct phy_device *phydev,
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
-	if (!phydev || phydev->bus != fmb->mii_bus)
+	if (!phydev || phydev->mdio.bus != fmb->mii_bus)
 		return -EINVAL;
 
 	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->addr == phydev->addr) {
+		if (fp->addr == phydev->mdio.addr) {
 #define _UPD(x) if (changed->x) \
 	fp->status.x = status->x
 			_UPD(link);
@@ -344,7 +344,7 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 	}
 
 	of_node_get(np);
-	phy->dev.of_node = np;
+	phy->mdio.dev.of_node = np;
 	phy->is_pseudo_fixed_link = true;
 
 	switch (status->speed) {

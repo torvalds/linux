@@ -319,7 +319,7 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 {
 	u32 speed = ethtool_cmd_speed(cmd);
 
-	if (cmd->phy_address != phydev->addr)
+	if (cmd->phy_address != phydev->mdio.addr)
 		return -EINVAL;
 
 	/* We make sure that we don't pass unsupported values in to the PHY */
@@ -375,7 +375,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 		cmd->port = PORT_BNC;
 	else
 		cmd->port = PORT_MII;
-	cmd->phy_address = phydev->addr;
+	cmd->phy_address = phydev->mdio.addr;
 	cmd->transceiver = phy_is_internal(phydev) ?
 		XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->autoneg = phydev->autoneg;
@@ -403,16 +403,17 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
-		mii_data->phy_id = phydev->addr;
+		mii_data->phy_id = phydev->mdio.addr;
 		/* fall through */
 
 	case SIOCGMIIREG:
-		mii_data->val_out = mdiobus_read(phydev->bus, mii_data->phy_id,
+		mii_data->val_out = mdiobus_read(phydev->mdio.bus,
+						 mii_data->phy_id,
 						 mii_data->reg_num);
 		return 0;
 
 	case SIOCSMIIREG:
-		if (mii_data->phy_id == phydev->addr) {
+		if (mii_data->phy_id == phydev->mdio.addr) {
 			switch (mii_data->reg_num) {
 			case MII_BMCR:
 				if ((val & (BMCR_RESET | BMCR_ANENABLE)) == 0) {
@@ -445,10 +446,10 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 			}
 		}
 
-		mdiobus_write(phydev->bus, mii_data->phy_id,
+		mdiobus_write(phydev->mdio.bus, mii_data->phy_id,
 			      mii_data->reg_num, val);
 
-		if (mii_data->phy_id == phydev->addr &&
+		if (mii_data->phy_id == phydev->mdio.addr &&
 		    mii_data->reg_num == MII_BMCR &&
 		    val & BMCR_RESET)
 			return phy_init_hw(phydev);
@@ -643,7 +644,7 @@ int phy_start_interrupts(struct phy_device *phydev)
 	if (request_irq(phydev->irq, phy_interrupt, 0, "phy_interrupt",
 			phydev) < 0) {
 		pr_warn("%s: Can't get IRQ %d (PHY)\n",
-			phydev->bus->name, phydev->irq);
+			phydev->mdio.bus->name, phydev->irq);
 		phydev->irq = PHY_POLL;
 		return 0;
 	}
@@ -1041,11 +1042,11 @@ static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
 int phy_read_mmd_indirect(struct phy_device *phydev, int prtad, int devad)
 {
 	struct phy_driver *phydrv = phydev->drv;
-	int addr = phydev->addr;
+	int addr = phydev->mdio.addr;
 	int value = -1;
 
 	if (!phydrv->read_mmd_indirect) {
-		struct mii_bus *bus = phydev->bus;
+		struct mii_bus *bus = phydev->mdio.bus;
 
 		mutex_lock(&bus->mdio_lock);
 		mmd_phy_indirect(bus, prtad, devad, addr);
@@ -1079,10 +1080,10 @@ void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 				   int devad, u32 data)
 {
 	struct phy_driver *phydrv = phydev->drv;
-	int addr = phydev->addr;
+	int addr = phydev->mdio.addr;
 
 	if (!phydrv->write_mmd_indirect) {
-		struct mii_bus *bus = phydev->bus;
+		struct mii_bus *bus = phydev->mdio.bus;
 
 		mutex_lock(&bus->mdio_lock);
 		mmd_phy_indirect(bus, prtad, devad, addr);

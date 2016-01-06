@@ -827,7 +827,7 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 			dev_info(dev,
 				 "MDIO of the phy is not registered yet\n");
 		else
-			put_device(&phydev->dev);
+			put_device(&phydev->mdio.dev);
 		return 0;
 	}
 

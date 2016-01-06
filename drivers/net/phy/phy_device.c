@@ -43,7 +43,7 @@ MODULE_LICENSE("GPL");
 
 void phy_device_free(struct phy_device *phydev)
 {
-	put_device(&phydev->dev);
+	put_device(&phydev->mdio.dev);
 }
 EXPORT_SYMBOL(phy_device_free);
 
@@ -65,7 +65,7 @@ static DEFINE_MUTEX(phy_fixup_lock);
 
 /**
  * phy_register_fixup - creates a new phy_fixup and adds it to the list
- * @bus_id: A string which matches phydev->dev.bus_id (or PHY_ANY_ID)
+ * @bus_id: A string which matches phydev->mdio.dev.bus_id (or PHY_ANY_ID)
  * @phy_uid: Used to match against phydev->phy_id (the UID of the PHY)
  *	It can also be PHY_ANY_UID
  * @phy_uid_mask: Applied to phydev->phy_id and fixup->phy_uid before
@@ -153,13 +153,19 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     struct phy_c45_device_ids *c45_ids)
 {
 	struct phy_device *dev;
+	struct mdio_device *mdiodev;
 
 	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev->dev.release = phy_device_release;
+	mdiodev = &dev->mdio;
+	mdiodev->dev.release = phy_device_release;
+	mdiodev->dev.parent = &bus->dev;
+	mdiodev->dev.bus = &mdio_bus_type;
+	mdiodev->bus = bus;
+	mdiodev->addr = addr;
 
 	dev->speed = 0;
 	dev->duplex = -1;
@@ -171,15 +177,11 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	dev->autoneg = AUTONEG_ENABLE;
 
 	dev->is_c45 = is_c45;
-	dev->addr = addr;
 	dev->phy_id = phy_id;
 	if (c45_ids)
 		dev->c45_ids = *c45_ids;
-	dev->bus = bus;
-	dev->dev.parent = &bus->dev;
-	dev->dev.bus = &mdio_bus_type;
 	dev->irq = bus->irq ? bus->irq[addr] : PHY_POLL;
-	dev_set_name(&dev->dev, PHY_ID_FMT, bus->id, addr);
+	dev_set_name(&mdiodev->dev, PHY_ID_FMT, bus->id, addr);
 
 	dev->state = PHY_DOWN;
 
@@ -199,7 +201,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	 */
 	request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT, MDIO_ID_ARGS(phy_id));
 
-	device_initialize(&dev->dev);
+	device_initialize(&mdiodev->dev);
 
 	return dev;
 }
@@ -382,27 +384,27 @@ int phy_device_register(struct phy_device *phydev)
 	int err;
 
 	/* Don't register a phy if one is already registered at this address */
-	if (phydev->bus->phy_map[phydev->addr])
+	if (phydev->mdio.bus->phy_map[phydev->mdio.addr])
 		return -EINVAL;
-	phydev->bus->phy_map[phydev->addr] = phydev;
+	phydev->mdio.bus->phy_map[phydev->mdio.addr] = phydev;
 
 	/* Run all of the fixups for this PHY */
 	err = phy_scan_fixups(phydev);
 	if (err) {
-		pr_err("PHY %d failed to initialize\n", phydev->addr);
+		pr_err("PHY %d failed to initialize\n", phydev->mdio.addr);
 		goto out;
 	}
 
-	err = device_add(&phydev->dev);
+	err = device_add(&phydev->mdio.dev);
 	if (err) {
-		pr_err("PHY %d failed to add\n", phydev->addr);
+		pr_err("PHY %d failed to add\n", phydev->mdio.addr);
 		goto out;
 	}
 
 	return 0;
 
  out:
-	phydev->bus->phy_map[phydev->addr] = NULL;
+	phydev->mdio.bus->phy_map[phydev->mdio.addr] = NULL;
 	return err;
 }
 EXPORT_SYMBOL(phy_device_register);
@@ -417,10 +419,10 @@ EXPORT_SYMBOL(phy_device_register);
  */
 void phy_device_remove(struct phy_device *phydev)
 {
-	struct mii_bus *bus = phydev->bus;
-	int addr = phydev->addr;
+	struct mii_bus *bus = phydev->mdio.bus;
+	int addr = phydev->mdio.addr;
 
-	device_del(&phydev->dev);
+	device_del(&phydev->mdio.dev);
 	bus->phy_map[addr] = NULL;
 }
 EXPORT_SYMBOL(phy_device_remove);
@@ -617,13 +619,13 @@ EXPORT_SYMBOL(phy_attached_info);
 void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 {
 	if (!fmt) {
-		dev_info(&phydev->dev, ATTACHED_FMT "\n",
+		dev_info(&phydev->mdio.dev, ATTACHED_FMT "\n",
 			 phydev->drv->name, phydev_name(phydev),
 			 phydev->irq);
 	} else {
 		va_list ap;
 
-		dev_info(&phydev->dev, ATTACHED_FMT,
+		dev_info(&phydev->mdio.dev, ATTACHED_FMT,
 			 phydev->drv->name, phydev_name(phydev),
 			 phydev->irq);
 
@@ -652,8 +654,8 @@ EXPORT_SYMBOL(phy_attached_print);
 int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
-	struct mii_bus *bus = phydev->bus;
-	struct device *d = &phydev->dev;
+	struct mii_bus *bus = phydev->mdio.bus;
+	struct device *d = &phydev->mdio.dev;
 	int err;
 
 	if (!try_module_get(bus->owner)) {
@@ -771,8 +773,8 @@ void phy_detach(struct phy_device *phydev)
 	 * real driver could be loaded
 	 */
 	for (i = 0; i < ARRAY_SIZE(genphy_driver); i++) {
-		if (phydev->dev.driver == &genphy_driver[i].driver) {
-			device_release_driver(&phydev->dev);
+		if (phydev->mdio.dev.driver == &genphy_driver[i].driver) {
+			device_release_driver(&phydev->mdio.dev);
 			break;
 		}
 	}
@@ -781,16 +783,16 @@ void phy_detach(struct phy_device *phydev)
 	 * The phydev might go away on the put_device() below, so avoid
 	 * a use-after-free bug by reading the underlying bus first.
 	 */
-	bus = phydev->bus;
+	bus = phydev->mdio.bus;
 
-	put_device(&phydev->dev);
+	put_device(&phydev->mdio.dev);
 	module_put(bus->owner);
 }
 EXPORT_SYMBOL(phy_detach);
 
 int phy_suspend(struct phy_device *phydev)
 {
-	struct phy_driver *phydrv = to_phy_driver(phydev->dev.driver);
+	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	int ret = 0;
 
@@ -813,7 +815,7 @@ EXPORT_SYMBOL(phy_suspend);
 
 int phy_resume(struct phy_device *phydev)
 {
-	struct phy_driver *phydrv = to_phy_driver(phydev->dev.driver);
+	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
 
 	if (phydrv->resume)
@@ -1330,7 +1332,7 @@ EXPORT_SYMBOL(phy_set_max_speed);
 
 static void of_set_phy_supported(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->dev.of_node;
+	struct device_node *node = phydev->mdio.dev.of_node;
 	u32 max_speed;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
@@ -1354,7 +1356,7 @@ static void of_set_phy_supported(struct phy_device *phydev)
 static int phy_probe(struct device *dev)
 {
 	struct phy_device *phydev = to_phy_device(dev);
-	struct device_driver *drv = phydev->dev.driver;
+	struct device_driver *drv = phydev->mdio.dev.driver;
 	struct phy_driver *phydrv = to_phy_driver(drv);
 	int err = 0;
 

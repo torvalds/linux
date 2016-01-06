@@ -190,7 +190,7 @@ static int at803x_resume(struct phy_device *phydev)
 
 static int at803x_probe(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct at803x_priv *priv;
 	struct gpio_desc *gpiod_reset;
 

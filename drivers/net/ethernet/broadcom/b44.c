@@ -2305,7 +2305,7 @@ static int b44_register_phy_one(struct b44 *bp)
 
 	bp->phydev = phydev;
 	bp->old_link = 0;
-	bp->phy_addr = phydev->addr;
+	bp->phy_addr = phydev->mdio.addr;
 
 	phy_attached_info(phydev);
 

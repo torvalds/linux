@@ -2050,7 +2050,8 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 			if (!phy_dev)
 				return -ENODEV;
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-				 PHY_ID_FMT, phy_dev->bus->id, phy_dev->addr);
+				 PHY_ID_FMT, phy_dev->mdio.bus->id,
+				 phy_dev->mdio.addr);
 		} else if (parp) {
 			u32 phyid;
 			struct device_node *mdio_node;

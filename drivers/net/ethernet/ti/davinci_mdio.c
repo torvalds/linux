@@ -396,7 +396,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		phy = data->bus->phy_map[addr];
 		if (phy) {
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
-				 phy->addr, phydev_name(phy),
+				 phy->mdio.addr, phydev_name(phy),
 				 phy->drv ? phy->drv->name : "unknown");
 		}
 	}

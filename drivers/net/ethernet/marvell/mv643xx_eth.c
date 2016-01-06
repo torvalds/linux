@@ -3133,7 +3133,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		if (!mp->phy)
 			err = -ENODEV;
 		else
-			phy_addr_set(mp, mp->phy->addr);
+			phy_addr_set(mp, mp->phy->mdio.addr);
 	} else if (pd->phy_addr != MV643XX_ETH_PHY_NONE) {
 		mp->phy = phy_scan(mp, pd->phy_addr);
 

@@ -1834,7 +1834,7 @@ static void gfar_configure_serdes(struct net_device *dev)
 	 * several seconds for it to come back.
 	 */
 	if (phy_read(tbiphy, MII_BMSR) & BMSR_LSTATUS) {
-		put_device(&tbiphy->dev);
+		put_device(&tbiphy->mdio.dev);
 		return;
 	}
 
@@ -1849,7 +1849,7 @@ static void gfar_configure_serdes(struct net_device *dev)
 		  BMCR_ANENABLE | BMCR_ANRESTART | BMCR_FULLDPLX |
 		  BMCR_SPEED1000);
 
-	put_device(&tbiphy->dev);
+	put_device(&tbiphy->mdio.dev);
 }
 
 static int __gfar_is_rx_idle(struct gfar_private *priv)

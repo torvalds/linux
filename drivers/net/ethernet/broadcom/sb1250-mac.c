@@ -2366,8 +2366,8 @@ static int sbmac_mii_probe(struct net_device *dev)
 		return -ENXIO;
 	}
 
-	phy_dev = phy_connect(dev, dev_name(&phy_dev->dev), &sbmac_mii_poll,
-			      PHY_INTERFACE_MODE_GMII);
+	phy_dev = phy_connect(dev, dev_name(&phy_dev->mdio.dev),
+			      &sbmac_mii_poll, PHY_INTERFACE_MODE_GMII);
 	if (IS_ERR(phy_dev)) {
 		printk(KERN_ERR "%s: could not attach to PHY\n", dev->name);
 		return PTR_ERR(phy_dev);

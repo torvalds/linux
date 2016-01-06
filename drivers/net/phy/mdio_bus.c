@@ -200,16 +200,16 @@ EXPORT_SYMBOL(of_mdio_find_bus);
  * the phy. This allows auto-probed pyh devices to be supplied with information
  * passed in via DT.
  */
-static void of_mdiobus_link_phydev(struct mii_bus *mdio,
+static void of_mdiobus_link_phydev(struct mii_bus *bus,
 				   struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct device_node *child;
 
-	if (dev->of_node || !mdio->dev.of_node)
+	if (dev->of_node || !bus->dev.of_node)
 		return;
 
-	for_each_available_child_of_node(mdio->dev.of_node, child) {
+	for_each_available_child_of_node(bus->dev.of_node, child) {
 		int addr;
 		int ret;
 
@@ -227,7 +227,7 @@ static void of_mdiobus_link_phydev(struct mii_bus *mdio,
 			continue;
 		}
 
-		if (addr == phydev->addr) {
+		if (addr == phydev->mdio.addr) {
 			dev->of_node = child;
 			return;
 		}
@@ -522,7 +522,7 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 
 static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 {
-	struct device_driver *drv = phydev->dev.driver;
+	struct device_driver *drv = phydev->mdio.dev.driver;
 	struct phy_driver *phydrv = to_phy_driver(drv);
 	struct net_device *netdev = phydev->attached_dev;
 

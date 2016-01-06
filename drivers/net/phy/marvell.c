@@ -300,10 +300,11 @@ static int marvell_of_reg_init(struct phy_device *phydev)
 	const __be32 *paddr;
 	int len, i, saved_page, current_page, page_changed, ret;
 
-	if (!phydev->dev.of_node)
+	if (!phydev->mdio.dev.of_node)
 		return 0;
 
-	paddr = of_get_property(phydev->dev.of_node, "marvell,reg-init", &len);
+	paddr = of_get_property(phydev->mdio.dev.of_node,
+				"marvell,reg-init", &len);
 	if (!paddr || len < (4 * sizeof(*paddr)))
 		return 0;
 
@@ -1060,7 +1061,7 @@ static int marvell_probe(struct phy_device *phydev)
 {
 	struct marvell_priv *priv;
 
-	priv = devm_kzalloc(&phydev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
