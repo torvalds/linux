@@ -59,6 +59,7 @@
 #include <linux/io.h>
 #include <linux/goldfish.h>
 #include <linux/mm.h>
+#include <linux/acpi.h>
 
 /*
  * IMPORTANT: The following constants must match the ones used and defined
@@ -650,6 +651,12 @@ static int goldfish_pipe_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct acpi_device_id goldfish_pipe_acpi_match[] = {
+	{ "GFSH0003", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, goldfish_pipe_acpi_match);
+
 static const struct of_device_id goldfish_pipe_of_match[] = {
 	{ .compatible = "google,android-pipe", },
 	{},
@@ -663,6 +670,7 @@ static struct platform_driver goldfish_pipe = {
 		.name = "goldfish_pipe",
 		.owner = THIS_MODULE,
 		.of_match_table = goldfish_pipe_of_match,
+		.acpi_match_table = ACPI_PTR(goldfish_pipe_acpi_match),
 	}
 };
 
