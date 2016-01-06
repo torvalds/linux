@@ -195,7 +195,8 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	gpio_set_value(apb->boot_ret_gpio, 0);
 	udelay(50);
 
-	ret = devm_gpio_request(dev, apb->wake_detect_gpio, "wake detect");
+	ret = devm_gpio_request_one(dev, apb->wake_detect_gpio,
+			GPIOF_INIT_LOW, "wake detect");
 	if (ret)
 		dev_err(dev, "Failed requesting wake_detect gpio %d\n",
 				apb->wake_detect_gpio);
