@@ -114,11 +114,12 @@ struct rvt_dev_info {
 	 * The driver will also be responsible for filling in certain members of
 	 * dparms.props
 	 */
-
 	struct ib_device ibdev;
 
 	/* Driver specific properties */
 	struct rvt_driver_params dparms;
+
+	/* PKey Table goes here */
 
 	/*
 	 * The work to create port files in /sys/class Infiniband is different

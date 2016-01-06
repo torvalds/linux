@@ -137,6 +137,26 @@ static int rvt_modify_port(struct ib_device *ibdev, u8 port,
 	return -EOPNOTSUPP;
 }
 
+/**
+ * rvt_query_pkey - Return a pkey from the table at a given index
+ * @ibdev: Verbs IB dev
+ * @port: Port number
+ * @intex: Index into pkey table
+ *
+ * Returns 0 on failure pkey otherwise
+ */
+static int rvt_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+			  u16 *pkey)
+{
+	/*
+	 * Driver will be responsible for keeping rvt_dev_info.pkey_table up to
+	 * date. This function will just return that value. There is no need to
+	 * lock, if a stale value is read and sent to the user so be it there is
+	 * no way to protect against that anyway.
+	 */
+	return 0;
+}
+
 /*
  * Check driver override. If driver passes a value use it, otherwise we use our
  * own value.
@@ -154,6 +174,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, modify_device);
 	CHECK_DRIVER_OVERRIDE(rdi, query_port);
 	CHECK_DRIVER_OVERRIDE(rdi, modify_port);
+	CHECK_DRIVER_OVERRIDE(rdi, query_pkey);
 
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
