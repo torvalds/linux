@@ -12577,19 +12577,22 @@ intel_compare_m_n(unsigned int m, unsigned int n,
 
 	BUILD_BUG_ON(DATA_LINK_M_N_MASK > INT_MAX);
 
-	if (m > m2) {
-		while (m > m2) {
+	if (n > n2) {
+		while (n > n2) {
 			m2 <<= 1;
 			n2 <<= 1;
 		}
-	} else if (m < m2) {
-		while (m < m2) {
+	} else if (n < n2) {
+		while (n < n2) {
 			m <<= 1;
 			n <<= 1;
 		}
 	}
 
-	return m == m2 && n == n2;
+	if (n != n2)
+		return false;
+
+	return intel_fuzzy_clock_check(m, m2);
 }
 
 static bool
