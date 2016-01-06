@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
@@ -184,7 +184,7 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
 		iwl_read32(priv->trans, CSR_UCODE_DRV_GP1);
-		if (iwl_trans_grab_nic_access(priv->trans, false, &flags))
+		if (iwl_trans_grab_nic_access(priv->trans, &flags))
 			iwl_trans_release_nic_access(priv->trans, &flags);
 
 		/* Reschedule the ct_kill timer to occur in

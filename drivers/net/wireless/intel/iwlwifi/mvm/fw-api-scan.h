@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -285,6 +285,8 @@ struct iwl_scan_channel_opt {
  * @IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
  * @IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED: insert WFA vendor-specific TPC report
  *	and DS parameter set IEs into probe requests.
+ * @IWL_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL: use extended dwell time on channels
+ *	1, 6 and 11.
  * @IWL_MVM_LMAC_SCAN_FLAG_MATCH: Send match found notification on matches
  */
 enum iwl_mvm_lmac_scan_flags {
@@ -295,6 +297,7 @@ enum iwl_mvm_lmac_scan_flags {
 	IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS	= BIT(4),
 	IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED	= BIT(5),
 	IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED	= BIT(6),
+	IWL_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL	= BIT(7),
 	IWL_MVM_LMAC_SCAN_FLAG_MATCH		= BIT(9),
 };
 
@@ -322,6 +325,7 @@ enum iwl_scan_priority_ext {
  * @active-dwell: dwell time for active channels
  * @passive-dwell: dwell time for passive channels
  * @fragmented-dwell: dwell time for fragmented passive scan
+ * @extended_dwell: dwell time for channels 1, 6 and 11 (in certain cases)
  * @reserved2: for alignment and future use
  * @rx_chain_selct: PHY_RX_CHAIN_* flags
  * @scan_flags: &enum iwl_mvm_lmac_scan_flags
@@ -346,7 +350,8 @@ struct iwl_scan_req_lmac {
 	u8 active_dwell;
 	u8 passive_dwell;
 	u8 fragmented_dwell;
-	__le16 reserved2;
+	u8 extended_dwell;
+	u8 reserved2;
 	__le16 rx_chain_select;
 	__le32 scan_flags;
 	__le32 max_out_time;
@@ -490,7 +495,7 @@ enum iwl_channel_flags {
  * @dwell_active:		default dwell time for active scan
  * @dwell_passive:		default dwell time for passive scan
  * @dwell_fragmented:		default dwell time for fragmented scan
- * @reserved:			for future use and alignment
+ * @dwell_extended:		default dwell time for channels 1, 6 and 11
  * @mac_addr:			default mac address to be used in probes
  * @bcast_sta_id:		the index of the station in the fw
  * @channel_flags:		default channel flags - enum iwl_channel_flags
@@ -507,7 +512,7 @@ struct iwl_scan_config {
 	u8 dwell_active;
 	u8 dwell_passive;
 	u8 dwell_fragmented;
-	u8 reserved;
+	u8 dwell_extended;
 	u8 mac_addr[ETH_ALEN];
 	u8 bcast_sta_id;
 	u8 channel_flags;
@@ -543,7 +548,8 @@ enum iwl_umac_scan_general_flags {
 	IWL_UMAC_SCAN_GEN_FLAGS_MULTIPLE_SSID	= BIT(6),
 	IWL_UMAC_SCAN_GEN_FLAGS_FRAGMENTED	= BIT(7),
 	IWL_UMAC_SCAN_GEN_FLAGS_RRM_ENABLED	= BIT(8),
-	IWL_UMAC_SCAN_GEN_FLAGS_MATCH		= BIT(9)
+	IWL_UMAC_SCAN_GEN_FLAGS_MATCH		= BIT(9),
+	IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL	= BIT(10),
 };
 
 /**
@@ -597,7 +603,7 @@ struct iwl_scan_req_umac_tail {
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
  * @general_flags: &enum iwl_umac_scan_general_flags
- * @reserved1: for future use and alignment
+ * @extended_dwell: dwell time for channels 1, 6 and 11
  * @active_dwell: dwell time for active scan
  * @passive_dwell: dwell time for passive scan
  * @fragmented_dwell: dwell time for fragmented passive scan
@@ -606,7 +612,7 @@ struct iwl_scan_req_umac_tail {
  * @scan_priority: scan internal prioritization &enum iwl_scan_priority
  * @channel_flags: &enum iwl_scan_channel_flags
  * @n_channels: num of channels in scan request
- * @reserved2: for future use and alignment
+ * @reserved: for future use and alignment
  * @data: &struct iwl_scan_channel_cfg_umac and
  *	&struct iwl_scan_req_umac_tail
  */
@@ -616,7 +622,7 @@ struct iwl_scan_req_umac {
 	__le32 ooc_priority;
 	/* SCAN_GENERAL_PARAMS_API_S_VER_1 */
 	__le32 general_flags;
-	u8 reserved1;
+	u8 extended_dwell;
 	u8 active_dwell;
 	u8 passive_dwell;
 	u8 fragmented_dwell;
@@ -626,7 +632,7 @@ struct iwl_scan_req_umac {
 	/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
 	u8 channel_flags;
 	u8 n_channels;
-	__le16 reserved2;
+	__le16 reserved;
 	u8 data[];
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_1 */
 

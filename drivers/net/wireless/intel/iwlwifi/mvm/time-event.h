@@ -215,6 +215,7 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 			   struct iwl_mvm_time_event_data *te_data);
 
+void iwl_mvm_cleanup_roc_te(struct iwl_mvm *mvm);
 void iwl_mvm_roc_done_wk(struct work_struct *wk);
 
 /**

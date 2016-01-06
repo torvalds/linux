@@ -454,11 +454,11 @@ static void iwl_eeprom_enhanced_txpower(struct device *dev,
 				 TXP_CHECK_AND_PRINT(COMMON_TYPE),
 				 txp->flags);
 		IWL_DEBUG_EEPROM(dev,
-				 "\t\t chain_A: 0x%02x chain_B: 0X%02x chain_C: 0X%02x\n",
+				 "\t\t chain_A: %d chain_B: %d chain_C: %d\n",
 				 txp->chain_a_max, txp->chain_b_max,
 				 txp->chain_c_max);
 		IWL_DEBUG_EEPROM(dev,
-				 "\t\t MIMO2: 0x%02x MIMO3: 0x%02x High 20_on_40: 0x%02x Low 20_on_40: 0x%02x\n",
+				 "\t\t MIMO2: %d MIMO3: %d High 20_on_40: 0x%02x Low 20_on_40: 0x%02x\n",
 				 txp->mimo2_max, txp->mimo3_max,
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
 				 (txp->delta_20_in_40 & 0x0f));

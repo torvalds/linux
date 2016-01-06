@@ -1262,7 +1262,7 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
 		IWL_ERR(priv, "Command %s failed: FW Error\n",
-			iwl_dvm_get_cmd_string(cmd->id));
+			iwl_get_cmd_string(priv->trans, cmd->id));
 		return -EIO;
 	}
 

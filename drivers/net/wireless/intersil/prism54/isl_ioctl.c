@@ -2036,7 +2036,7 @@ format_event(islpci_private *priv, char *dest, const char *str,
 			 mlme->address,
 			 (error ? (mlme->code ? " : REJECTED " : " : ACCEPTED ")
 			  : ""), mlme->code);
-	BUG_ON(n > IW_CUSTOM_MAX);
+	WARN_ON(n >= IW_CUSTOM_MAX);
 	*length = n;
 }
 

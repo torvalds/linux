@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -294,6 +294,7 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_EXIT_WORK,
 	IWL_MVM_REF_PROTECT_CSA,
 	IWL_MVM_REF_FW_DBG_COLLECT,
+	IWL_MVM_REF_INIT_UCODE,
 
 	/* update debugfs.c when changing this */
 
@@ -404,7 +405,7 @@ struct iwl_mvm_vif {
 	 */
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	/* WoWLAN GTK rekey data */
 	struct {
 		u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
@@ -421,6 +422,7 @@ struct iwl_mvm_vif {
 #if IS_ENABLED(CONFIG_IPV6)
 	/* IPv6 addresses for WoWLAN */
 	struct in6_addr target_ipv6_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX];
+	unsigned long tentative_addrs[BITS_TO_LONGS(IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX)];
 	int num_target_ipv6_addrs;
 #endif
 
@@ -473,6 +475,14 @@ enum iwl_scan_status {
 
 	IWL_MVM_SCAN_STOPPING_MASK	= 0xff << IWL_MVM_SCAN_STOPPING_SHIFT,
 	IWL_MVM_SCAN_MASK		= 0xff,
+};
+
+enum iwl_mvm_scan_type {
+	IWL_SCAN_TYPE_NOT_SET,
+	IWL_SCAN_TYPE_UNASSOC,
+	IWL_SCAN_TYPE_WILD,
+	IWL_SCAN_TYPE_MILD,
+	IWL_SCAN_TYPE_FRAGMENTED,
 };
 
 /**
@@ -643,7 +653,7 @@ struct iwl_mvm {
 	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
-	bool scan_fragmented;
+	enum iwl_mvm_scan_type scan_type;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
@@ -667,6 +677,7 @@ struct iwl_mvm {
 
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
+	struct iwl_mvm_int_sta snif_sta;
 
 	bool last_ebs_successful;
 
@@ -727,7 +738,7 @@ struct iwl_mvm {
 
 	struct ieee80211_vif *p2p_device_vif;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	struct wiphy_wowlan_support wowlan;
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 
@@ -924,6 +935,19 @@ static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
 }
 
+static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
+{
+	/* For now we only use this mode to differentiate between
+	 * slave transports, which handle D0i3 entry in suspend by
+	 * themselves in conjunction with runtime PM D0i3.  So, this
+	 * function is used to check whether we need to do anything
+	 * when entering suspend or if the transport layer has already
+	 * done it.
+	 */
+	return (mvm->trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3) &&
+		(mvm->trans->runtime_pm_mode != IWL_PLAT_PM_MODE_D0I3);
+}
+
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 {
 	bool nvm_lar = mvm->nvm_data->lar_enabled;
@@ -1111,6 +1135,11 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
 void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_phy_cmd_mq(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
+			struct iwl_rx_cmd_buffer *rxb, int queue);
+void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb, int queue);
 void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
@@ -1249,10 +1278,6 @@ static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
 /* D3 (WoWLAN, NetDetect) */
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 int iwl_mvm_resume(struct ieee80211_hw *hw);
-int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     bool configure_keys,
-				     u32 cmd_flags);
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
@@ -1263,10 +1288,31 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
+int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     bool host_awake,
+				     u32 cmd_flags);
+void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      struct iwl_wowlan_status *status);
 void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 #else
+static inline int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+						   struct ieee80211_vif *vif,
+						   bool host_awake,
+						   u32 cmd_flags)
+{
+	return 0;
+}
+
+static inline void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
+					    struct iwl_wowlan_status *status)
+{
+}
+
 static inline void
 iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -1277,6 +1323,7 @@ void iwl_mvm_set_wowlan_qos_seq(struct iwl_mvm_sta *mvm_ap_sta,
 int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       bool disable_offloading,
+			       bool offload_ns,
 			       u32 cmd_flags);
 
 /* D0i3 */

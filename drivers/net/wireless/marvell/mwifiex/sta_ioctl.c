@@ -272,7 +272,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	priv->scan_block = false;
 
 	if (bss) {
-		mwifiex_process_country_ie(priv, bss);
+		if (adapter->region_code == 0x00)
+			mwifiex_process_country_ie(priv, bss);
 
 		/* Allocate and fill new bss descriptor */
 		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
@@ -758,7 +759,7 @@ static int mwifiex_set_wpa_ie_helper(struct mwifiex_private *priv,
 			return -1;
 		}
 		memcpy(priv->wpa_ie, ie_data_ptr, ie_len);
-		priv->wpa_ie_len = (u8) ie_len;
+		priv->wpa_ie_len = ie_len;
 		mwifiex_dbg(priv->adapter, CMD,
 			    "cmd: Set Wpa_ie_len=%d IE=%#x\n",
 			    priv->wpa_ie_len, priv->wpa_ie[0]);
@@ -923,9 +924,8 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		if (encrypt_key->key_disable) {
 			memset(&priv->wep_key[index], 0,
 			       sizeof(struct mwifiex_wep_key));
-			if (wep_key->key_length)
-				goto done;
-			}
+			goto done;
+		}
 
 		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 			enc_key = encrypt_key;
@@ -1293,6 +1293,8 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 	struct ieee_types_vendor_header *pvendor_ie;
 	const u8 wpa_oui[] = { 0x00, 0x50, 0xf2, 0x01 };
 	const u8 wps_oui[] = { 0x00, 0x50, 0xf2, 0x04 };
+	u16 unparsed_len = ie_len;
+	int find_wpa_ie = 0;
 
 	/* If the passed length is zero, reset the buffer */
 	if (!ie_len) {
@@ -1304,39 +1306,68 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 		return -1;
 	}
 	pvendor_ie = (struct ieee_types_vendor_header *) ie_data_ptr;
-	/* Test to see if it is a WPA IE, if not, then it is a gen IE */
-	if (((pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC) &&
-	     (!memcmp(pvendor_ie->oui, wpa_oui, sizeof(wpa_oui)))) ||
-	    (pvendor_ie->element_id == WLAN_EID_RSN)) {
 
-		/* IE is a WPA/WPA2 IE so call set_wpa function */
-		ret = mwifiex_set_wpa_ie_helper(priv, ie_data_ptr, ie_len);
-		priv->wps.session_enable = false;
+	while (pvendor_ie) {
+		if (pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC) {
+			/* Test to see if it is a WPA IE, if not, then it is a
+			 * gen IE
+			 */
+			if (!memcmp(pvendor_ie->oui, wpa_oui,
+				    sizeof(wpa_oui))) {
+				find_wpa_ie = 1;
+				break;
+			}
 
-		return ret;
-	} else if (pvendor_ie->element_id == WLAN_EID_BSS_AC_ACCESS_DELAY) {
+			/* Test to see if it is a WPS IE, if so, enable
+			 * wps session flag
+			 */
+			if (!memcmp(pvendor_ie->oui, wps_oui,
+				    sizeof(wps_oui))) {
+				priv->wps.session_enable = true;
+				mwifiex_dbg(priv->adapter, MSG,
+					    "info: WPS Session Enabled.\n");
+				ret = mwifiex_set_wps_ie(priv,
+							 (u8 *)pvendor_ie,
+							 unparsed_len);
+			}
+		}
+
+		if (pvendor_ie->element_id == WLAN_EID_RSN) {
+			find_wpa_ie = 1;
+			break;
+		}
+
+		if (pvendor_ie->element_id == WLAN_EID_BSS_AC_ACCESS_DELAY) {
 		/* IE is a WAPI IE so call set_wapi function */
-		ret = mwifiex_set_wapi_ie(priv, ie_data_ptr, ie_len);
+			ret = mwifiex_set_wapi_ie(priv, (u8 *)pvendor_ie,
+						  unparsed_len);
+			return ret;
+		}
 
+		unparsed_len -= (pvendor_ie->len +
+				 sizeof(struct ieee_types_header));
+
+		if (unparsed_len <= sizeof(struct ieee_types_header))
+			pvendor_ie = NULL;
+		else
+			pvendor_ie = (struct ieee_types_vendor_header *)
+				(((u8 *)pvendor_ie) + pvendor_ie->len +
+				 sizeof(struct ieee_types_header));
+	}
+
+	if (find_wpa_ie) {
+		/* IE is a WPA/WPA2 IE so call set_wpa function */
+		ret = mwifiex_set_wpa_ie_helper(priv, (u8 *)pvendor_ie,
+						unparsed_len);
+		priv->wps.session_enable = false;
 		return ret;
 	}
+
 	/*
 	 * Verify that the passed length is not larger than the
 	 * available space remaining in the buffer
 	 */
 	if (ie_len < (sizeof(priv->gen_ie_buf) - priv->gen_ie_buf_len)) {
-
-		/* Test to see if it is a WPS IE, if so, enable
-		 * wps session flag
-		 */
-		pvendor_ie = (struct ieee_types_vendor_header *) ie_data_ptr;
-		if ((pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC) &&
-		    (!memcmp(pvendor_ie->oui, wps_oui, sizeof(wps_oui)))) {
-			priv->wps.session_enable = true;
-			mwifiex_dbg(priv->adapter, INFO,
-				    "info: WPS Session Enabled.\n");
-			ret = mwifiex_set_wps_ie(priv, ie_data_ptr, ie_len);
-		}
 
 		/* Append the passed data to the end of the
 		   genIeBuffer */

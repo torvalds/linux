@@ -906,6 +906,34 @@ mwifiex_timeshare_coex_write(struct file *file, const char __user *ubuf,
 		return count;
 }
 
+static ssize_t
+mwifiex_reset_write(struct file *file,
+		    const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = file->private_data;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	char cmd;
+	bool result;
+
+	if (copy_from_user(&cmd, ubuf, sizeof(cmd)))
+		return -EFAULT;
+
+	if (strtobool(&cmd, &result))
+		return -EINVAL;
+
+	if (!result)
+		return -EINVAL;
+
+	if (adapter->if_ops.card_reset) {
+		dev_info(adapter->dev, "Resetting per request\n");
+		adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
+		mwifiex_cancel_all_pending_cmd(adapter);
+		adapter->if_ops.card_reset(adapter);
+	}
+
+	return count;
+}
+
 #define MWIFIEX_DFS_ADD_FILE(name) do {                                 \
 	if (!debugfs_create_file(#name, 0644, priv->dfs_dev_dir,        \
 			priv, &mwifiex_dfs_##name##_fops))              \
@@ -943,6 +971,7 @@ MWIFIEX_DFS_FILE_OPS(hscfg);
 MWIFIEX_DFS_FILE_OPS(histogram);
 MWIFIEX_DFS_FILE_OPS(debug_mask);
 MWIFIEX_DFS_FILE_OPS(timeshare_coex);
+MWIFIEX_DFS_FILE_WRITE_OPS(reset);
 
 /*
  * This function creates the debug FS directory structure and the files.
@@ -970,6 +999,7 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(histogram);
 	MWIFIEX_DFS_ADD_FILE(debug_mask);
 	MWIFIEX_DFS_ADD_FILE(timeshare_coex);
+	MWIFIEX_DFS_ADD_FILE(reset);
 }
 
 /*

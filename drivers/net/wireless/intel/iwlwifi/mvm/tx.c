@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -64,6 +64,7 @@
  *****************************************************************************/
 #include <linux/ieee80211.h>
 #include <linux/etherdevice.h>
+#include <linux/tcp.h>
 
 #include "iwl-trans.h"
 #include "iwl-eeprom-parse.h"
@@ -345,8 +346,8 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	iwl_mvm_set_tx_cmd_rate(mvm, tx_cmd, info, sta, hdr->frame_control);
 
 	memset(&info->status, 0, sizeof(info->status));
+	memset(info->driver_data, 0, sizeof(info->driver_data));
 
-	info->driver_data[0] = NULL;
 	info->driver_data[1] = dev_cmd;
 
 	return dev_cmd;
@@ -425,11 +426,39 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	return 0;
 }
 
+static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb_gso,
+			  struct ieee80211_sta *sta,
+			  struct sk_buff_head *mpdus_skb)
+{
+	struct sk_buff *tmp, *next;
+	char cb[sizeof(skb_gso->cb)];
+
+	memcpy(cb, skb_gso->cb, sizeof(cb));
+	next = skb_gso_segment(skb_gso, 0);
+	if (IS_ERR(next))
+		return -EINVAL;
+	else if (next)
+		consume_skb(skb_gso);
+
+	while (next) {
+		tmp = next;
+		next = tmp->next;
+		memcpy(tmp->cb, cb, sizeof(tmp->cb));
+
+		tmp->prev = NULL;
+		tmp->next = NULL;
+
+		__skb_queue_tail(mpdus_skb, tmp);
+	}
+
+	return 0;
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
-int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
-		   struct ieee80211_sta *sta)
+static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
+			   struct ieee80211_sta *sta)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -523,6 +552,51 @@ drop_unlock_sta:
 	spin_unlock(&mvmsta->lock);
 drop:
 	return -1;
+}
+
+int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
+		   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct sk_buff_head mpdus_skbs;
+	unsigned int payload_len;
+	int ret;
+
+	if (WARN_ON_ONCE(!mvmsta))
+		return -1;
+
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
+		return -1;
+
+	if (!skb_is_gso(skb))
+		return iwl_mvm_tx_mpdu(mvm, skb, sta);
+
+	payload_len = skb_tail_pointer(skb) - skb_transport_header(skb) -
+		tcp_hdrlen(skb) + skb->data_len;
+
+	if (payload_len <= skb_shinfo(skb)->gso_size)
+		return iwl_mvm_tx_mpdu(mvm, skb, sta);
+
+	__skb_queue_head_init(&mpdus_skbs);
+
+	ret = iwl_mvm_tx_tso(mvm, skb, sta, &mpdus_skbs);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(skb_queue_empty(&mpdus_skbs)))
+		return ret;
+
+	while (!skb_queue_empty(&mpdus_skbs)) {
+		struct sk_buff *skb = __skb_dequeue(&mpdus_skbs);
+
+		ret = iwl_mvm_tx_mpdu(mvm, skb, sta);
+		if (ret) {
+			__skb_queue_purge(&mpdus_skbs);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
@@ -788,13 +862,43 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		if (tid != IWL_TID_NON_QOS) {
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
+			bool send_eosp_ndp = false;
 
 			spin_lock_bh(&mvmsta->lock);
 			tid_data->next_reclaimed = next_reclaimed;
 			IWL_DEBUG_TX_REPLY(mvm, "Next reclaimed packet:%d\n",
 					   next_reclaimed);
 			iwl_mvm_check_ratid_empty(mvm, sta, tid);
+
+			if (mvmsta->sleep_tx_count) {
+				mvmsta->sleep_tx_count--;
+				if (mvmsta->sleep_tx_count &&
+				    !iwl_mvm_tid_queued(tid_data)) {
+					/*
+					 * The number of frames in the queue
+					 * dropped to 0 even if we sent less
+					 * frames than we thought we had on the
+					 * Tx queue.
+					 * This means we had holes in the BA
+					 * window that we just filled, ask
+					 * mac80211 to send EOSP since the
+					 * firmware won't know how to do that.
+					 * Send NDP and the firmware will send
+					 * EOSP notification that will trigger
+					 * a call to ieee80211_sta_eosp().
+					 */
+					send_eosp_ndp = true;
+				}
+			}
+
 			spin_unlock_bh(&mvmsta->lock);
+			if (send_eosp_ndp) {
+				iwl_mvm_sta_modify_sleep_tx_count(mvm, sta,
+					IEEE80211_FRAME_RELEASE_UAPSD,
+					1, tid, false, false);
+				mvmsta->sleep_tx_count = 0;
+				ieee80211_send_eosp_nullfunc(sta, tid);
+			}
 		}
 
 		if (mvmsta->next_status_eosp) {

@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -82,7 +82,7 @@ u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg)
 {
 	u32 value = 0x5a5a5a5a;
 	unsigned long flags;
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		value = iwl_read32(trans, reg);
 		iwl_trans_release_nic_access(trans, &flags);
 	}
@@ -95,7 +95,7 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
 {
 	unsigned long flags;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		iwl_write32(trans, reg, value);
 		iwl_trans_release_nic_access(trans, &flags);
 	}
@@ -138,7 +138,7 @@ u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 	unsigned long flags;
 	u32 val = 0x5a5a5a5a;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		val = iwl_read_prph_no_grab(trans, ofs);
 		iwl_trans_release_nic_access(trans, &flags);
 	}
@@ -150,7 +150,7 @@ void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	unsigned long flags;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		iwl_write_prph_no_grab(trans, ofs, val);
 		iwl_trans_release_nic_access(trans, &flags);
 	}
@@ -176,7 +176,7 @@ void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
 	unsigned long flags;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		iwl_write_prph_no_grab(trans, ofs,
 				       iwl_read_prph_no_grab(trans, ofs) |
 				       mask);
@@ -190,7 +190,7 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 {
 	unsigned long flags;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		iwl_write_prph_no_grab(trans, ofs,
 				       (iwl_read_prph_no_grab(trans, ofs) &
 					mask) | bits);
@@ -204,7 +204,7 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	unsigned long flags;
 	u32 val;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		val = iwl_read_prph_no_grab(trans, ofs);
 		iwl_write_prph_no_grab(trans, ofs, (val & ~mask));
 		iwl_trans_release_nic_access(trans, &flags);

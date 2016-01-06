@@ -228,6 +228,10 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	wil_dbg_wmi(wil, "Head 0x%08x -> 0x%08x\n", r->head, next_head);
 	/* wait till FW finish with previous command */
 	for (retry = 5; retry > 0; retry--) {
+		if (!test_bit(wil_status_fwready, wil->status)) {
+			wil_err(wil, "WMI: cannot send command while FW not ready\n");
+			return -EAGAIN;
+		}
 		r->tail = wil_r(wil, RGF_MBOX +
 				offsetof(struct wil6210_mbox_ctl, tx.tail));
 		if (next_head != r->tail)

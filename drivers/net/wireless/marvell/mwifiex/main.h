@@ -84,7 +84,7 @@ enum {
 
 #define MWIFIEX_KEY_BUFFER_SIZE			16
 #define MWIFIEX_DEFAULT_LISTEN_INTERVAL 10
-#define MWIFIEX_MAX_REGION_CODE         7
+#define MWIFIEX_MAX_REGION_CODE         9
 
 #define DEFAULT_BCN_AVG_FACTOR          8
 #define DEFAULT_DATA_AVG_FACTOR         8
@@ -564,14 +564,14 @@ struct mwifiex_private {
 	struct mwifiex_wep_key wep_key[NUM_WEP_KEYS];
 	u16 wep_key_curr_index;
 	u8 wpa_ie[256];
-	u8 wpa_ie_len;
+	u16 wpa_ie_len;
 	u8 wpa_is_gtk_set;
 	struct host_cmd_ds_802_11_key_material aes_key;
 	struct host_cmd_ds_802_11_key_material_v2 aes_key_v2;
 	u8 wapi_ie[256];
-	u8 wapi_ie_len;
+	u16 wapi_ie_len;
 	u8 *wps_ie;
-	u8 wps_ie_len;
+	u16 wps_ie_len;
 	u8 wmm_required;
 	u8 wmm_enabled;
 	u8 wmm_qosinfo;
@@ -1273,20 +1273,46 @@ mwifiex_get_priv(struct mwifiex_adapter *adapter,
 }
 
 /*
+ * This function checks available bss_num when adding new interface or
+ * changing interface type.
+ */
+static inline u8
+mwifiex_get_unused_bss_num(struct mwifiex_adapter *adapter, u8 bss_type)
+{
+	u8 i, j;
+	int index[MWIFIEX_MAX_BSS_NUM];
+
+	memset(index, 0, sizeof(index));
+	for (i = 0; i < adapter->priv_num; i++)
+		if (adapter->priv[i]) {
+			if (adapter->priv[i]->bss_type == bss_type &&
+			    !(adapter->priv[i]->bss_mode ==
+			      NL80211_IFTYPE_UNSPECIFIED)) {
+				index[adapter->priv[i]->bss_num] = 1;
+			}
+		}
+	for (j = 0; j < MWIFIEX_MAX_BSS_NUM; j++)
+		if (!index[j])
+			return j;
+	return -1;
+}
+
+/*
  * This function returns the first available unused private structure pointer.
  */
 static inline struct mwifiex_private *
-mwifiex_get_unused_priv(struct mwifiex_adapter *adapter)
+mwifiex_get_unused_priv_by_bss_type(struct mwifiex_adapter *adapter,
+				    u8 bss_type)
 {
-	int i;
+	u8 i;
 
-	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			if (adapter->priv[i]->bss_mode ==
-			    NL80211_IFTYPE_UNSPECIFIED)
-				break;
+	for (i = 0; i < adapter->priv_num; i++)
+		if (adapter->priv[i]->bss_mode ==
+		   NL80211_IFTYPE_UNSPECIFIED) {
+			adapter->priv[i]->bss_num =
+			mwifiex_get_unused_bss_num(adapter, bss_type);
+			break;
 		}
-	}
 
 	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
 }

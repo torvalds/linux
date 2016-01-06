@@ -537,7 +537,7 @@ enum P2P_MODES {
 #define EVENT_GET_BSS_TYPE(event_cause)         \
 	(((event_cause) >> 24) & 0x00ff)
 
-#define MWIFIEX_MAX_PATTERN_LEN		20
+#define MWIFIEX_MAX_PATTERN_LEN		40
 #define MWIFIEX_MAX_OFFSET_LEN		100
 #define STACK_NBYTES			100
 #define TYPE_DNUM			1
@@ -1092,9 +1092,15 @@ struct host_cmd_ds_802_11_ad_hoc_start {
 	u8 data_rate[HOSTCMD_SUPPORTED_RATES];
 } __packed;
 
-struct host_cmd_ds_802_11_ad_hoc_result {
+struct host_cmd_ds_802_11_ad_hoc_start_result {
 	u8 pad[3];
 	u8 bssid[ETH_ALEN];
+	u8 pad2[2];
+	u8 result;
+} __packed;
+
+struct host_cmd_ds_802_11_ad_hoc_join_result {
+	u8 result;
 } __packed;
 
 struct adhoc_bss_desc {
@@ -2124,7 +2130,8 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_associate_rsp associate_rsp;
 		struct host_cmd_ds_802_11_deauthenticate deauth;
 		struct host_cmd_ds_802_11_ad_hoc_start adhoc_start;
-		struct host_cmd_ds_802_11_ad_hoc_result adhoc_result;
+		struct host_cmd_ds_802_11_ad_hoc_start_result start_result;
+		struct host_cmd_ds_802_11_ad_hoc_join_result join_result;
 		struct host_cmd_ds_802_11_ad_hoc_join adhoc_join;
 		struct host_cmd_ds_802_11d_domain_info domain_info;
 		struct host_cmd_ds_802_11d_domain_info_rsp domain_info_resp;

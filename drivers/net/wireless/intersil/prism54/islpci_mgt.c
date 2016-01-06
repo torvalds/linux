@@ -130,7 +130,7 @@ islpci_mgmt_rx_fill(struct net_device *ndev)
 			buf->pci_addr = pci_map_single(priv->pdev, buf->mem,
 						       MGMT_FRAME_SIZE,
 						       PCI_DMA_FROMDEVICE);
-			if (!buf->pci_addr) {
+			if (pci_dma_mapping_error(priv->pdev, buf->pci_addr)) {
 				printk(KERN_WARNING
 				       "Failed to make memory DMA'able.\n");
 				return -ENOMEM;
@@ -217,7 +217,7 @@ islpci_mgt_transmit(struct net_device *ndev, int operation, unsigned long oid,
 	err = -ENOMEM;
 	buf.pci_addr = pci_map_single(priv->pdev, buf.mem, frag_len,
 				      PCI_DMA_TODEVICE);
-	if (!buf.pci_addr) {
+	if (pci_dma_mapping_error(priv->pdev, buf.pci_addr)) {
 		printk(KERN_WARNING "%s: cannot map PCI memory for mgmt\n",
 		       ndev->name);
 		goto error_free;

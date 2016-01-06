@@ -122,7 +122,7 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	unsigned long flags;
 	int i, j;
 
-	if (!iwl_trans_grab_nic_access(mvm->trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(mvm->trans, &flags))
 		return;
 
 	/* Pull RXF data from all RXFs */
@@ -349,6 +349,7 @@ static const struct {
 	{ .start = 0x00a04560, .end = 0x00a0457c },
 	{ .start = 0x00a04590, .end = 0x00a04598 },
 	{ .start = 0x00a045c0, .end = 0x00a045f4 },
+	{ .start = 0x00a44000, .end = 0x00a7bf80 },
 };
 
 static u32 iwl_dump_prph(struct iwl_trans *trans,
@@ -358,7 +359,7 @@ static u32 iwl_dump_prph(struct iwl_trans *trans,
 	unsigned long flags;
 	u32 prph_len = 0, i;
 
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(trans, &flags))
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr); i++) {
@@ -383,7 +384,7 @@ static u32 iwl_dump_prph(struct iwl_trans *trans,
 			*val++ = cpu_to_le32(iwl_read_prph_no_grab(trans,
 								   reg));
 
-			*data = iwl_fw_error_next_data(*data);
+		*data = iwl_fw_error_next_data(*data);
 	}
 
 	iwl_trans_release_nic_access(trans, &flags);
@@ -400,7 +401,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_trigger_desc *dump_trig;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
 	u32 sram_len, sram_ofs;
-	u32 file_len, fifo_data_len = 0;
+	u32 file_len, fifo_data_len = 0, prph_len = 0;
 	u32 smem_len = mvm->cfg->smem_len;
 	u32 sram2_len = mvm->cfg->dccm2_len;
 	bool monitor_dump_only = false;
@@ -460,12 +461,24 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 					 sizeof(*dump_data) +
 					 sizeof(struct iwl_fw_error_dump_fifo);
 		}
+
+		/* Make room for PRPH registers */
+		for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr); i++) {
+			/* The range includes both boundaries */
+			int num_bytes_in_chunk = iwl_prph_dump_addr[i].end -
+				iwl_prph_dump_addr[i].start + 4;
+
+			prph_len += sizeof(*dump_data) +
+				sizeof(struct iwl_fw_error_dump_prph) +
+				num_bytes_in_chunk;
+		}
 	}
 
 	file_len = sizeof(*dump_file) +
 		   sizeof(*dump_data) * 2 +
 		   sram_len + sizeof(*dump_mem) +
 		   fifo_data_len +
+		   prph_len +
 		   sizeof(*dump_info);
 
 	/* Make room for the SMEM, if it exists */
@@ -487,17 +500,6 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (monitor_dump_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) +
 			   sizeof(*dump_info);
-	}
-
-	/* Make room for PRPH registers */
-	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr); i++) {
-		/* The range includes both boundaries */
-		int num_bytes_in_chunk = iwl_prph_dump_addr[i].end -
-			iwl_prph_dump_addr[i].start + 4;
-
-		file_len += sizeof(*dump_data) +
-			sizeof(struct iwl_fw_error_dump_prph) +
-			num_bytes_in_chunk;
 	}
 
 	/*
@@ -625,7 +627,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	}
 
 	dump_data = iwl_fw_error_next_data(dump_data);
-	iwl_dump_prph(mvm->trans, &dump_data);
+	if (prph_len)
+		iwl_dump_prph(mvm->trans, &dump_data);
 
 dump_trans_data:
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans,

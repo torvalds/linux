@@ -873,12 +873,6 @@ int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	else
 		val32 = 0; /* disabled */
 
-	if (priv->mode == NL80211_IFTYPE_UNSPECIFIED) {
-		/* device is down, can _not_ set threshold */
-		ret = -ENODEV;
-		goto out;
-	}
-
 	if (priv->rts_threshold == value)
 		goto out;
 

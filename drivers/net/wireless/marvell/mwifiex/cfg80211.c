@@ -26,12 +26,10 @@ module_param(reg_alpha2, charp, 0);
 
 static const struct ieee80211_iface_limit mwifiex_ap_sta_limits[] = {
 	{
-		.max = 2, .types = BIT(NL80211_IFTYPE_STATION) |
+		.max = 3, .types = BIT(NL80211_IFTYPE_STATION) |
 				   BIT(NL80211_IFTYPE_P2P_GO) |
-				   BIT(NL80211_IFTYPE_P2P_CLIENT),
-	},
-	{
-		.max = 1, .types = BIT(NL80211_IFTYPE_AP),
+				   BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				   BIT(NL80211_IFTYPE_AP),
 	},
 };
 
@@ -827,18 +825,26 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_STA);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
 		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_P2P);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
 		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_P2P);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_AP:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_UAP);
 		priv->bss_type = MWIFIEX_BSS_TYPE_UAP;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		break;
@@ -1533,6 +1539,7 @@ static const u32 mwifiex_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP104,
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
+	WLAN_CIPHER_SUITE_SMS4,
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
@@ -1700,6 +1707,11 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	struct mwifiex_sta_node *sta_node;
 	u8 deauth_mac[ETH_ALEN];
 	unsigned long flags;
+
+	if (!priv->bss_started && priv->wdev.cac_started) {
+		mwifiex_dbg(priv->adapter, INFO, "%s: abort CAC!\n", __func__);
+		mwifiex_abort_cac(priv);
+	}
 
 	if (list_empty(&priv->sta_list) || !priv->bss_started)
 		return 0;
@@ -2608,7 +2620,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv = mwifiex_get_unused_priv(adapter);
+		priv = mwifiex_get_unused_priv_by_bss_type(
+						adapter, MWIFIEX_BSS_TYPE_STA);
 		if (!priv) {
 			mwifiex_dbg(adapter, ERROR,
 				    "could not get free private struct\n");
@@ -2627,7 +2640,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
-		priv->bss_num = adapter->curr_iface_comb.sta_intf;
 
 		break;
 	case NL80211_IFTYPE_AP:
@@ -2638,7 +2650,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv = mwifiex_get_unused_priv(adapter);
+		priv = mwifiex_get_unused_priv_by_bss_type(
+						adapter, MWIFIEX_BSS_TYPE_UAP);
 		if (!priv) {
 			mwifiex_dbg(adapter, ERROR,
 				    "could not get free private struct\n");
@@ -2653,7 +2666,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_started = 0;
-		priv->bss_num = adapter->curr_iface_comb.uap_intf;
 		priv->bss_mode = type;
 
 		break;
@@ -2665,7 +2677,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv = mwifiex_get_unused_priv(adapter);
+		priv = mwifiex_get_unused_priv_by_bss_type(
+						adapter, MWIFIEX_BSS_TYPE_P2P);
 		if (!priv) {
 			mwifiex_dbg(adapter, ERROR,
 				    "could not get free private struct\n");
@@ -2689,7 +2702,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_started = 0;
-		priv->bss_num = adapter->curr_iface_comb.p2p_intf;
 
 		if (mwifiex_cfg80211_init_p2p_client(priv)) {
 			memset(&priv->wdev, 0, sizeof(priv->wdev));
@@ -2913,6 +2925,12 @@ mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
 				if (valid_byte_cnt)
 					dont_care_byte = true;
 			}
+
+			/* wildcard bytes record as the offset
+			 * before the valid byte
+			 */
+			if (!valid_byte_cnt && !dont_care_byte)
+				pat->pkt_offset++;
 
 			if (valid_byte_cnt > max_byte_seq)
 				return false;
@@ -3141,8 +3159,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		memset(&hs_cfg, 0, sizeof(hs_cfg));
 		hs_cfg.is_invoke_hostcmd = false;
 		hs_cfg.conditions = HS_CFG_COND_MAC_EVENT;
-		hs_cfg.gpio = HS_CFG_GPIO_DEF;
-		hs_cfg.gap = HS_CFG_GAP_DEF;
+		hs_cfg.gpio = adapter->hs_cfg.gpio;
+		hs_cfg.gap = adapter->hs_cfg.gap;
 		ret = mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
 					    MWIFIEX_SYNC_CMD, &hs_cfg);
 		if (ret) {
@@ -3802,6 +3820,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->cipher_suites = mwifiex_cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
 
+	if (adapter->region_code)
+		wiphy->regulatory_flags |= REGULATORY_DISABLE_BEACON_HINTS |
+					   REGULATORY_COUNTRY_IE_IGNORE;
+
 	ether_addr_copy(wiphy->perm_addr, adapter->perm_addr);
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
@@ -3862,11 +3884,15 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			    "driver hint alpha2: %2.2s\n", reg_alpha2);
 		regulatory_hint(wiphy, reg_alpha2);
 	} else {
-		country_code = mwifiex_11d_code_2_region(adapter->region_code);
-		if (country_code)
-			mwifiex_dbg(adapter, WARN,
-				    "ignoring F/W country code %2.2s\n",
-				    country_code);
+		if (adapter->region_code == 0x00) {
+			mwifiex_dbg(adapter, WARN, "Ignore world regulatory domain\n");
+		} else {
+			country_code =
+				mwifiex_11d_code_2_region(adapter->region_code);
+			if (country_code &&
+			    regulatory_hint(wiphy, country_code))
+				mwifiex_dbg(priv->adapter, ERROR, "regulatory_hint() failed\n");
+		}
 	}
 
 	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,

@@ -877,7 +877,10 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		IWL_DEBUG_RX(trans,
 			     "cmd at offset %d: %s (0x%.2x, seq 0x%x)\n",
 			     rxcb._offset,
-			     get_cmd_string(trans_pcie, pkt->hdr.cmd),
+			     iwl_get_cmd_string(trans,
+						iwl_cmd_id(pkt->hdr.cmd,
+							   pkt->hdr.group_id,
+							   0)),
 			     pkt->hdr.cmd, le16_to_cpu(pkt->hdr.sequence));
 
 		len = iwl_rx_packet_len(pkt);

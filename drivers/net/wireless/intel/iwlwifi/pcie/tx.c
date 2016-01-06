@@ -23,13 +23,17 @@
  * file called LICENSE.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
 #include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <net/ip6_checksum.h>
+#include <net/tso.h>
+#include <net/ip6_checksum.h>
 
 #include "iwl-debug.h"
 #include "iwl-csr.h"
@@ -318,7 +322,9 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 * trying to tx (during RFKILL, we're not trying to tx).
 	 */
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->q.write_ptr);
-	iwl_write32(trans, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
+	if (!txq->block)
+		iwl_write32(trans, HBUS_TARG_WRPTR,
+			    txq->q.write_ptr | (txq_id << 8));
 }
 
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
@@ -576,6 +582,19 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	return 0;
 }
 
+static void iwl_pcie_free_tso_page(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	if (info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA]) {
+		struct page *page =
+			info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA];
+
+		__free_page(page);
+		info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA] = NULL;
+	}
+}
+
 /*
  * iwl_pcie_txq_unmap -  Unmap any remaining DMA mappings and free skb's
  */
@@ -589,6 +608,15 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 	while (q->write_ptr != q->read_ptr) {
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, q->read_ptr);
+
+		if (txq_id != trans_pcie->cmd_queue) {
+			struct sk_buff *skb = txq->entries[q->read_ptr].skb;
+
+			if (WARN_ON_ONCE(!skb))
+				continue;
+
+			iwl_pcie_free_tso_page(skb);
+		}
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr);
 	}
@@ -742,7 +770,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 
 	spin_lock(&trans_pcie->irq_lock);
 
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(trans, &flags))
 		goto out;
 
 	/* Stop each Tx DMA channel */
@@ -1006,11 +1034,14 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	for (;
 	     q->read_ptr != tfd_num;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr)) {
+		struct sk_buff *skb = txq->entries[txq->q.read_ptr].skb;
 
-		if (WARN_ON_ONCE(txq->entries[txq->q.read_ptr].skb == NULL))
+		if (WARN_ON_ONCE(!skb))
 			continue;
 
-		__skb_queue_tail(skbs, txq->entries[txq->q.read_ptr].skb);
+		iwl_pcie_free_tso_page(skb);
+
+		__skb_queue_tail(skbs, skb);
 
 		txq->entries[txq->q.read_ptr].skb = NULL;
 
@@ -1411,7 +1442,8 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	 */
 	if (WARN(copy_size > TFD_MAX_PAYLOAD_SIZE,
 		 "Command %s (%#x) is too large (%d bytes)\n",
-		 get_cmd_string(trans_pcie, cmd->id), cmd->id, copy_size)) {
+		 iwl_get_cmd_string(trans, cmd->id),
+		 cmd->id, copy_size)) {
 		idx = -EINVAL;
 		goto free_dup_buf;
 	}
@@ -1501,7 +1533,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	IWL_DEBUG_HC(trans,
 		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
-		     get_cmd_string(trans_pcie, out_cmd->hdr.cmd),
+		     iwl_get_cmd_string(trans, cmd->id),
 		     group_id, out_cmd->hdr.cmd,
 		     le16_to_cpu(out_cmd->hdr.sequence),
 		     cmd_size, q->write_ptr, idx, trans_pcie->cmd_queue);
@@ -1591,16 +1623,14 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 /*
  * iwl_pcie_hcmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
- *
- * If an Rx buffer has an async callback associated with it the callback
- * will be executed.  The attached skb (if present) will only be freed
- * if the callback returns 1
  */
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
+	u8 group_id = iwl_cmd_groupid(pkt->hdr.group_id);
+	u32 cmd_id;
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
 	int cmd_index;
@@ -1626,6 +1656,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd_index = get_cmd_index(&txq->q, index);
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
+	cmd_id = iwl_cmd_id(cmd->hdr.cmd, group_id, 0);
 
 	iwl_pcie_tfd_unmap(trans, meta, &txq->tfds[index]);
 
@@ -1638,17 +1669,20 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		meta->source->_rx_page_order = trans_pcie->rx_page_order;
 	}
 
+	if (meta->flags & CMD_WANT_ASYNC_CALLBACK)
+		iwl_op_mode_async_cb(trans->op_mode, cmd);
+
 	iwl_pcie_cmdq_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
 		if (!test_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status)) {
 			IWL_WARN(trans,
 				 "HCMD_ACTIVE already clear for command %s\n",
-				 get_cmd_string(trans_pcie, cmd->hdr.cmd));
+				 iwl_get_cmd_string(trans, cmd_id));
 		}
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       get_cmd_string(trans_pcie, cmd->hdr.cmd));
+			       iwl_get_cmd_string(trans, cmd_id));
 		wake_up(&trans_pcie->wait_command_queue);
 	}
 
@@ -1662,7 +1696,6 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 				    struct iwl_host_cmd *cmd)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
 	/* An asynchronous command can not expect an SKB to be set. */
@@ -1673,7 +1706,7 @@ static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 	if (ret < 0) {
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
-			get_cmd_string(trans_pcie, cmd->id), ret);
+			iwl_get_cmd_string(trans, cmd->id), ret);
 		return ret;
 	}
 	return 0;
@@ -1687,16 +1720,16 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	int ret;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
-		       get_cmd_string(trans_pcie, cmd->id));
+		       iwl_get_cmd_string(trans, cmd->id));
 
 	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
 				  &trans->status),
 		 "Command %s: a command is already active!\n",
-		 get_cmd_string(trans_pcie, cmd->id)))
+		 iwl_get_cmd_string(trans, cmd->id)))
 		return -EIO;
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
-		       get_cmd_string(trans_pcie, cmd->id));
+		       iwl_get_cmd_string(trans, cmd->id));
 
 	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
@@ -1704,7 +1737,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
-			get_cmd_string(trans_pcie, cmd->id), ret);
+			iwl_get_cmd_string(trans, cmd->id), ret);
 		return ret;
 	}
 
@@ -1717,7 +1750,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		struct iwl_queue *q = &txq->q;
 
 		IWL_ERR(trans, "Error sending %s: time out after %dms.\n",
-			get_cmd_string(trans_pcie, cmd->id),
+			iwl_get_cmd_string(trans, cmd->id),
 			jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
 		IWL_ERR(trans, "Current CMD queue read_ptr %d write_ptr %d\n",
@@ -1725,7 +1758,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       get_cmd_string(trans_pcie, cmd->id));
+			       iwl_get_cmd_string(trans, cmd->id));
 		ret = -ETIMEDOUT;
 
 		iwl_force_nmi(trans);
@@ -1736,7 +1769,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
-			get_cmd_string(trans_pcie, cmd->id));
+			iwl_get_cmd_string(trans, cmd->id));
 		dump_stack();
 		ret = -EIO;
 		goto cancel;
@@ -1751,7 +1784,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
 		IWL_ERR(trans, "Error: Response NULL in '%s'\n",
-			get_cmd_string(trans_pcie, cmd->id));
+			iwl_get_cmd_string(trans, cmd->id));
 		ret = -EIO;
 		goto cancel;
 	}
@@ -1794,6 +1827,305 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	return iwl_pcie_send_hcmd_sync(trans, cmd);
 }
 
+static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
+			     struct iwl_txq *txq, u8 hdr_len,
+			     struct iwl_cmd_meta *out_meta,
+			     struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+{
+	struct iwl_queue *q = &txq->q;
+	u16 tb2_len;
+	int i;
+
+	/*
+	 * Set up TFD's third entry to point directly to remainder
+	 * of skb's head, if any
+	 */
+	tb2_len = skb_headlen(skb) - hdr_len;
+
+	if (tb2_len > 0) {
+		dma_addr_t tb2_phys = dma_map_single(trans->dev,
+						     skb->data + hdr_len,
+						     tb2_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb2_phys))) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			return -EINVAL;
+		}
+		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
+	}
+
+	/* set up the remaining entries to point to the data */
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		dma_addr_t tb_phys;
+		int tb_idx;
+
+		if (!skb_frag_size(frag))
+			continue;
+
+		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			return -EINVAL;
+		}
+		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
+						skb_frag_size(frag), false);
+
+		out_meta->flags |= BIT(tb_idx + CMD_TB_BITMAP_POS);
+	}
+
+	trace_iwlwifi_dev_tx(trans->dev, skb,
+			     &txq->tfds[txq->q.write_ptr],
+			     sizeof(struct iwl_tfd),
+			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
+			     skb->data + hdr_len, tb2_len);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb,
+				  hdr_len, skb->len - hdr_len);
+	return 0;
+}
+
+#ifdef CONFIG_INET
+static struct iwl_tso_hdr_page *
+get_page_hdr(struct iwl_trans *trans, size_t len)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->tso_hdr_page);
+
+	if (!p->page)
+		goto alloc;
+
+	/* enough room on this page */
+	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE)
+		return p;
+
+	/* We don't have enough room on this page, get a new one. */
+	__free_page(p->page);
+
+alloc:
+	p->page = alloc_page(GFP_ATOMIC);
+	if (!p->page)
+		return NULL;
+	p->pos = page_address(p->page);
+	return p;
+}
+
+static void iwl_compute_pseudo_hdr_csum(void *iph, struct tcphdr *tcph,
+					bool ipv6, unsigned int len)
+{
+	if (ipv6) {
+		struct ipv6hdr *iphv6 = iph;
+
+		tcph->check = ~csum_ipv6_magic(&iphv6->saddr, &iphv6->daddr,
+					       len + tcph->doff * 4,
+					       IPPROTO_TCP, 0);
+	} else {
+		struct iphdr *iphv4 = iph;
+
+		ip_send_check(iphv4);
+		tcph->check = ~csum_tcpudp_magic(iphv4->saddr, iphv4->daddr,
+						 len + tcph->doff * 4,
+						 IPPROTO_TCP, 0);
+	}
+}
+
+static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
+				   struct iwl_txq *txq, u8 hdr_len,
+				   struct iwl_cmd_meta *out_meta,
+				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
+	unsigned int mss = skb_shinfo(skb)->gso_size;
+	struct iwl_queue *q = &txq->q;
+	u16 length, iv_len, amsdu_pad;
+	u8 *start_hdr;
+	struct iwl_tso_hdr_page *hdr_page;
+	int ret;
+	struct tso_t tso;
+
+	/* if the packet is protected, then it must be CCMP or GCMP */
+	BUILD_BUG_ON(IEEE80211_CCMP_HDR_LEN != IEEE80211_GCMP_HDR_LEN);
+	iv_len = ieee80211_has_protected(hdr->frame_control) ?
+		IEEE80211_CCMP_HDR_LEN : 0;
+
+	trace_iwlwifi_dev_tx(trans->dev, skb,
+			     &txq->tfds[txq->q.write_ptr],
+			     sizeof(struct iwl_tfd),
+			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
+			     NULL, 0);
+
+	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
+	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
+	total_len = skb->len - snap_ip_tcp_hdrlen - hdr_len - iv_len;
+	amsdu_pad = 0;
+
+	/* total amount of header we may need for this A-MSDU */
+	hdr_room = DIV_ROUND_UP(total_len, mss) *
+		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
+
+	/* Our device supports 9 segments at most, it will fit in 1 page */
+	hdr_page = get_page_hdr(trans, hdr_room);
+	if (!hdr_page)
+		return -ENOMEM;
+
+	get_page(hdr_page->page);
+	start_hdr = hdr_page->pos;
+	info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA] = hdr_page->page;
+	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
+	hdr_page->pos += iv_len;
+
+	/*
+	 * Pull the ieee80211 header + IV to be able to use TSO core,
+	 * we will restore it for the tx_status flow.
+	 */
+	skb_pull(skb, hdr_len + iv_len);
+
+	tso_start(skb, &tso);
+
+	while (total_len) {
+		/* this is the data left for this subframe */
+		unsigned int data_left =
+			min_t(unsigned int, mss, total_len);
+		struct sk_buff *csum_skb = NULL;
+		unsigned int hdr_tb_len;
+		dma_addr_t hdr_tb_phys;
+		struct tcphdr *tcph;
+		u8 *iph;
+
+		total_len -= data_left;
+
+		memset(hdr_page->pos, 0, amsdu_pad);
+		hdr_page->pos += amsdu_pad;
+		amsdu_pad = (4 - (sizeof(struct ethhdr) + snap_ip_tcp_hdrlen +
+				  data_left)) & 0x3;
+		ether_addr_copy(hdr_page->pos, ieee80211_get_DA(hdr));
+		hdr_page->pos += ETH_ALEN;
+		ether_addr_copy(hdr_page->pos, ieee80211_get_SA(hdr));
+		hdr_page->pos += ETH_ALEN;
+
+		length = snap_ip_tcp_hdrlen + data_left;
+		*((__be16 *)hdr_page->pos) = cpu_to_be16(length);
+		hdr_page->pos += sizeof(length);
+
+		/*
+		 * This will copy the SNAP as well which will be considered
+		 * as MAC header.
+		 */
+		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
+		iph = hdr_page->pos + 8;
+		tcph = (void *)(iph + ip_hdrlen);
+
+		/* For testing on current hardware only */
+		if (trans_pcie->sw_csum_tx) {
+			csum_skb = alloc_skb(data_left + tcp_hdrlen(skb),
+					     GFP_ATOMIC);
+			if (!csum_skb) {
+				ret = -ENOMEM;
+				goto out_unmap;
+			}
+
+			iwl_compute_pseudo_hdr_csum(iph, tcph,
+						    skb->protocol ==
+							htons(ETH_P_IPV6),
+						    data_left);
+
+			memcpy(skb_put(csum_skb, tcp_hdrlen(skb)),
+			       tcph, tcp_hdrlen(skb));
+			skb_set_transport_header(csum_skb, 0);
+			csum_skb->csum_start =
+				(unsigned char *)tcp_hdr(csum_skb) -
+						 csum_skb->head;
+		}
+
+		hdr_page->pos += snap_ip_tcp_hdrlen;
+
+		hdr_tb_len = hdr_page->pos - start_hdr;
+		hdr_tb_phys = dma_map_single(trans->dev, start_hdr,
+					     hdr_tb_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys))) {
+			dev_kfree_skb(csum_skb);
+			ret = -EINVAL;
+			goto out_unmap;
+		}
+		iwl_pcie_txq_build_tfd(trans, txq, hdr_tb_phys,
+				       hdr_tb_len, false);
+		trace_iwlwifi_dev_tx_tso_chunk(trans->dev, start_hdr,
+					       hdr_tb_len);
+
+		/* prepare the start_hdr for the next subframe */
+		start_hdr = hdr_page->pos;
+
+		/* put the payload */
+		while (data_left) {
+			unsigned int size = min_t(unsigned int, tso.size,
+						  data_left);
+			dma_addr_t tb_phys;
+
+			if (trans_pcie->sw_csum_tx)
+				memcpy(skb_put(csum_skb, size), tso.data, size);
+
+			tb_phys = dma_map_single(trans->dev, tso.data,
+						 size, DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
+				dev_kfree_skb(csum_skb);
+				ret = -EINVAL;
+				goto out_unmap;
+			}
+
+			iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
+					       size, false);
+			trace_iwlwifi_dev_tx_tso_chunk(trans->dev, tso.data,
+						       size);
+
+			data_left -= size;
+			tso_build_data(skb, &tso, size);
+		}
+
+		/* For testing on early hardware only */
+		if (trans_pcie->sw_csum_tx) {
+			__wsum csum;
+
+			csum = skb_checksum(csum_skb,
+					    skb_checksum_start_offset(csum_skb),
+					    csum_skb->len -
+					    skb_checksum_start_offset(csum_skb),
+					    0);
+			dev_kfree_skb(csum_skb);
+			dma_sync_single_for_cpu(trans->dev, hdr_tb_phys,
+						hdr_tb_len, DMA_TO_DEVICE);
+			tcph->check = csum_fold(csum);
+			dma_sync_single_for_device(trans->dev, hdr_tb_phys,
+						   hdr_tb_len, DMA_TO_DEVICE);
+		}
+	}
+
+	/* re -add the WiFi header and IV */
+	skb_push(skb, hdr_len + iv_len);
+
+	return 0;
+
+out_unmap:
+	iwl_pcie_tfd_unmap(trans, out_meta, &txq->tfds[q->write_ptr]);
+	return ret;
+}
+#else /* CONFIG_INET */
+static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
+				   struct iwl_txq *txq, u8 hdr_len,
+				   struct iwl_cmd_meta *out_meta,
+				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+{
+	/* No A-MSDU without CONFIG_INET */
+	WARN_ON(1);
+
+	return -1;
+}
+#endif /* CONFIG_INET */
+
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id)
 {
@@ -1805,12 +2137,11 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	struct iwl_queue *q;
 	dma_addr_t tb0_phys, tb1_phys, scratch_phys;
 	void *tb1_addr;
-	u16 len, tb1_len, tb2_len;
+	u16 len, tb1_len;
 	bool wait_write_ptr;
 	__le16 fc;
 	u8 hdr_len;
 	u16 wifi_seq;
-	int i;
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
@@ -1818,6 +2149,19 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
+
+	if (unlikely(trans_pcie->sw_csum_tx &&
+		     skb->ip_summed == CHECKSUM_PARTIAL)) {
+		int offs = skb_checksum_start_offset(skb);
+		int csum_offs = offs + skb->csum_offset;
+		__wsum csum;
+
+		if (skb_ensure_writable(skb, csum_offs + sizeof(__sum16)))
+			return -1;
+
+		csum = skb_checksum(skb, offs, skb->len - offs, 0);
+		*(__sum16 *)(skb->data + csum_offs) = csum_fold(csum);
+	}
 
 	if (skb_is_nonlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS &&
@@ -1893,56 +2237,19 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		goto out_err;
 	iwl_pcie_txq_build_tfd(trans, txq, tb1_phys, tb1_len, false);
 
-	/*
-	 * Set up TFD's third entry to point directly to remainder
-	 * of skb's head, if any
-	 */
-	tb2_len = skb_headlen(skb) - hdr_len;
-	if (tb2_len > 0) {
-		dma_addr_t tb2_phys = dma_map_single(trans->dev,
-						     skb->data + hdr_len,
-						     tb2_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb2_phys))) {
-			iwl_pcie_tfd_unmap(trans, out_meta,
-					   &txq->tfds[q->write_ptr]);
+	if (ieee80211_is_data_qos(fc) &&
+	    (*ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_A_MSDU_PRESENT)) {
+		if (unlikely(iwl_fill_data_tbs_amsdu(trans, skb, txq, hdr_len,
+						     out_meta, dev_cmd,
+						     tb1_len)))
 			goto out_err;
-		}
-		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
-	}
-
-	/* set up the remaining entries to point to the data */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		dma_addr_t tb_phys;
-		int tb_idx;
-
-		if (!skb_frag_size(frag))
-			continue;
-
-		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
-					   skb_frag_size(frag), DMA_TO_DEVICE);
-
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
-			iwl_pcie_tfd_unmap(trans, out_meta,
-					   &txq->tfds[q->write_ptr]);
-			goto out_err;
-		}
-		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
-						skb_frag_size(frag), false);
-
-		out_meta->flags |= BIT(tb_idx + CMD_TB_BITMAP_POS);
+	} else if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
+				       out_meta, dev_cmd, tb1_len))) {
+		goto out_err;
 	}
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
-
-	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     &txq->tfds[txq->q.write_ptr],
-			     sizeof(struct iwl_tfd),
-			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
-			     skb->data + hdr_len, tb2_len);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb,
-				  hdr_len, skb->len - hdr_len);
 
 	wait_write_ptr = ieee80211_has_morefrags(fc);
 

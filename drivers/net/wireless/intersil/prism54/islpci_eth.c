@@ -190,7 +190,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	pci_map_address = pci_map_single(priv->pdev,
 					 (void *) skb->data, skb->len,
 					 PCI_DMA_TODEVICE);
-	if (unlikely(pci_map_address == 0)) {
+	if (pci_dma_mapping_error(priv->pdev, pci_map_address)) {
 		printk(KERN_WARNING "%s: cannot map buffer to PCI\n",
 		       ndev->name);
 		goto drop_free;
@@ -448,7 +448,8 @@ islpci_eth_receive(islpci_private *priv)
 		    pci_map_single(priv->pdev, (void *) skb->data,
 				   MAX_FRAGMENT_SIZE_RX + 2,
 				   PCI_DMA_FROMDEVICE);
-		if (unlikely(!priv->pci_map_rx_address[index])) {
+		if (pci_dma_mapping_error(priv->pdev,
+					  priv->pci_map_rx_address[index])) {
 			/* error mapping the buffer to device accessible memory address */
 			DEBUG(SHOW_ERROR_MESSAGES,
 			      "Error mapping DMA address\n");

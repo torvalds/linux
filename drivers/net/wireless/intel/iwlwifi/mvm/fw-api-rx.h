@@ -27,7 +27,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -79,6 +79,11 @@
 #define IWL_RX_INFO_ENERGY_ANT_B_POS 8
 #define IWL_RX_INFO_ENERGY_ANT_C_POS 16
 
+enum iwl_mac_context_info {
+	MAC_CONTEXT_INFO_NONE,
+	MAC_CONTEXT_INFO_GSCAN,
+};
+
 /**
  * struct iwl_rx_phy_info - phy info
  * (REPLY_RX_PHY_CMD = 0xc0)
@@ -97,6 +102,8 @@
  * @frame_time: frame's time on the air, based on byte count and frame rate
  *	calculation
  * @mac_active_msk: what MACs were active when the frame was received
+ * @mac_context_info: additional info on the context in which the frame was
+ *	received as defined in &enum iwl_mac_context_info
  *
  * Before each Rx, the device sends this data. It contains PHY information
  * about the reception of the packet.
@@ -114,7 +121,8 @@ struct iwl_rx_phy_info {
 	__le32 non_cfg_phy[IWL_RX_INFO_PHY_CNT];
 	__le32 rate_n_flags;
 	__le32 byte_count;
-	__le16 mac_active_msk;
+	u8 mac_active_msk;
+	u8 mac_context_info;
 	__le16 frame_time;
 } __packed;
 
@@ -279,11 +287,17 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_KEY_ERROR		= BIT(4),
 	IWL_RX_MPDU_STATUS_ICV_OK		= BIT(5),
 	IWL_RX_MPDU_STATUS_MIC_OK		= BIT(6),
+	/* TODO - verify this is the correct value */
+	IWL_RX_MPDU_RES_STATUS_TTAK_OK		= BIT(7),
 	IWL_RX_MPDU_STATUS_SEC_MASK		= 0x7 << 8,
 	IWL_RX_MPDU_STATUS_SEC_NONE		= 0x0 << 8,
 	IWL_RX_MPDU_STATUS_SEC_WEP		= 0x1 << 8,
 	IWL_RX_MPDU_STATUS_SEC_CCM		= 0x2 << 8,
 	IWL_RX_MPDU_STATUS_SEC_TKIP		= 0x3 << 8,
+	/* TODO - define IWL_RX_MPDU_STATUS_SEC_EXT_ENC - this is a stub */
+	IWL_RX_MPDU_STATUS_SEC_EXT_ENC		= 0x4 << 8,
+	/* TODO - define IWL_RX_MPDU_STATUS_SEC_GCM - this is a stub */
+	IWL_RX_MPDU_STATUS_SEC_GCM		= 0x5 << 8,
 	IWL_RX_MPDU_STATUS_DECRYPTED		= BIT(11),
 	IWL_RX_MPDU_STATUS_WEP_MATCH		= BIT(12),
 	IWL_RX_MPDU_STATUS_EXT_IV_MATCH		= BIT(13),
@@ -301,6 +315,8 @@ enum iwl_rx_mpdu_sta_id_flags {
 	IWL_RX_MPDU_SIF_RRF_ABORT		= 0x20,
 	IWL_RX_MPDU_SIF_FILTER_STATUS_MASK	= 0xc0,
 };
+
+#define IWL_RX_REORDER_DATA_INVALID_BAID 0x7f
 
 enum iwl_rx_mpdu_reorder_data {
 	IWL_RX_MPDU_REORDER_NSSN_MASK		= 0x00000fff,

@@ -1678,8 +1678,7 @@ static int brcmf_sdio_dcmd_resp_wait(struct brcmf_sdio *bus, uint *condition,
 
 static int brcmf_sdio_dcmd_resp_wake(struct brcmf_sdio *bus)
 {
-	if (waitqueue_active(&bus->dcmd_resp_wait))
-		wake_up_interruptible(&bus->dcmd_resp_wait);
+	wake_up_interruptible(&bus->dcmd_resp_wait);
 
 	return 0;
 }
@@ -2003,8 +2002,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 static void
 brcmf_sdio_wait_event_wakeup(struct brcmf_sdio *bus)
 {
-	if (waitqueue_active(&bus->ctrl_wait))
-		wake_up_interruptible(&bus->ctrl_wait);
+	wake_up_interruptible(&bus->ctrl_wait);
 	return;
 }
 

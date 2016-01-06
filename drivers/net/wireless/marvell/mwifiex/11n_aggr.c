@@ -203,8 +203,6 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	skb_aggr->priority = skb_src->priority;
 	skb_aggr->tstamp = skb_src->tstamp;
 
-	skb_aggr->tstamp = ktime_get_real();
-
 	do {
 		/* Check if AMSDU can accommodate this MSDU */
 		if (skb_tailroom(skb_aggr) < (skb_src->len + LLC_SNAP_LEN))

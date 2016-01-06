@@ -61,7 +61,10 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
+#include <linux/bsearch.h>
+
 #include "iwl-trans.h"
+#include "iwl-drv.h"
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
@@ -112,3 +115,91 @@ void iwl_trans_free(struct iwl_trans *trans)
 	kmem_cache_destroy(trans->dev_cmd_pool);
 	kfree(trans);
 }
+
+int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
+{
+	int ret;
+
+	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+		     test_bit(STATUS_RFKILL, &trans->status)))
+		return -ERFKILL;
+
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
+
+	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+		return -EIO;
+	}
+
+	if (WARN_ON((cmd->flags & CMD_WANT_ASYNC_CALLBACK) &&
+		    !(cmd->flags & CMD_ASYNC)))
+		return -EINVAL;
+
+	if (!(cmd->flags & CMD_ASYNC))
+		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
+
+	ret = trans->ops->send_cmd(trans, cmd);
+
+	if (!(cmd->flags & CMD_ASYNC))
+		lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
+
+/* Comparator for struct iwl_hcmd_names.
+ * Used in the binary search over a list of host commands.
+ *
+ * @key: command_id that we're looking for.
+ * @elt: struct iwl_hcmd_names candidate for match.
+ *
+ * @return 0 iff equal.
+ */
+static int iwl_hcmd_names_cmp(const void *key, const void *elt)
+{
+	const struct iwl_hcmd_names *name = elt;
+	u8 cmd1 = *(u8 *)key;
+	u8 cmd2 = name->cmd_id;
+
+	return (cmd1 - cmd2);
+}
+
+const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)
+{
+	u8 grp, cmd;
+	struct iwl_hcmd_names *ret;
+	const struct iwl_hcmd_arr *arr;
+	size_t size = sizeof(struct iwl_hcmd_names);
+
+	grp = iwl_cmd_groupid(id);
+	cmd = iwl_cmd_opcode(id);
+
+	if (!trans->command_groups || grp >= trans->command_groups_size ||
+	    !trans->command_groups[grp].arr)
+		return "UNKNOWN";
+
+	arr = &trans->command_groups[grp];
+	ret = bsearch(&cmd, arr->arr, arr->size, size, iwl_hcmd_names_cmp);
+	if (!ret)
+		return "UNKNOWN";
+	return ret->cmd_name;
+}
+IWL_EXPORT_SYMBOL(iwl_get_cmd_string);
+
+int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans)
+{
+	int i, j;
+	const struct iwl_hcmd_arr *arr;
+
+	for (i = 0; i < trans->command_groups_size; i++) {
+		arr = &trans->command_groups[i];
+		if (!arr->arr)
+			continue;
+		for (j = 0; j < arr->size - 1; j++)
+			if (arr->arr[j].cmd_id > arr->arr[j + 1].cmd_id)
+				return -1;
+	}
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_cmd_groups_verify_sorted);

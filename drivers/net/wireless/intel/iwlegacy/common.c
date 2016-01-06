@@ -1865,14 +1865,14 @@ il_send_add_sta(struct il_priv *il, struct il_addsta_cmd *sta, u8 flags)
 
 	cmd.len = il->ops->build_addsta_hcmd(sta, data);
 	ret = il_send_cmd(il, &cmd);
-
-	if (ret || (flags & CMD_ASYNC))
+	if (ret)
 		return ret;
+	if (flags & CMD_ASYNC)
+		return 0;
 
-	if (ret == 0) {
-		pkt = (struct il_rx_pkt *)cmd.reply_page;
-		ret = il_process_add_sta_resp(il, sta, pkt, true);
-	}
+	pkt = (struct il_rx_pkt *)cmd.reply_page;
+	ret = il_process_add_sta_resp(il, sta, pkt, true);
+
 	il_free_pages(il, cmd.reply_page);
 
 	return ret;
@@ -3602,7 +3602,7 @@ il_is_ht40_tx_allowed(struct il_priv *il, struct ieee80211_sta_ht_cap *ht_cap)
 }
 EXPORT_SYMBOL(il_is_ht40_tx_allowed);
 
-static u16
+static u16 noinline
 il_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 {
 	u16 new_val;

@@ -22,7 +22,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
@@ -32,7 +32,9 @@
 #include <linux/debugfs.h>
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
+
 #include "iwl-debug.h"
+#include "iwl-trans.h"
 #include "iwl-io.h"
 #include "dev.h"
 #include "agn.h"
@@ -438,7 +440,7 @@ static ssize_t iwl_dbgfs_rx_handlers_read(struct file *file,
 		if (priv->rx_handlers_stats[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
-				iwl_dvm_get_cmd_string(cnt),
+				iwl_get_cmd_string(priv->trans, (u32)cnt),
 				priv->rx_handlers_stats[cnt]);
 	}
 

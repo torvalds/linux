@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -594,7 +594,8 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				const struct firmware *ucode_raw,
 				struct iwl_firmware_pieces *pieces,
-				struct iwl_ucode_capabilities *capa)
+				struct iwl_ucode_capabilities *capa,
+				bool *usniffer_images)
 {
 	struct iwl_tlv_ucode_header *ucode = (void *)ucode_raw->data;
 	struct iwl_ucode_tlv *tlv;
@@ -607,7 +608,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	char buildstr[25];
 	u32 build, paging_mem_size;
 	int num_of_cpus;
-	bool usniffer_images = false;
 	bool usniffer_req = false;
 	bool gscan_capa = false;
 
@@ -980,7 +980,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			break;
 			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
-			usniffer_images = true;
+			*usniffer_images = true;
 			iwl_store_ucode_sec(pieces, tlv_data,
 					    IWL_UCODE_REGULAR_USNIFFER,
 					    tlv_len);
@@ -1031,7 +1031,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		}
 	}
 
-	if (usniffer_req && !usniffer_images) {
+	if (usniffer_req && !*usniffer_images) {
 		IWL_ERR(drv,
 			"user selected to work with usniffer but usniffer image isn't available in ucode package\n");
 		return -EINVAL;
@@ -1192,6 +1192,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	u32 api_ver;
 	int i;
 	bool load_module = false;
+	bool usniffer_images = false;
 
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -1229,7 +1230,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		err = iwl_parse_v1_v2_firmware(drv, ucode_raw, pieces);
 	else
 		err = iwl_parse_tlv_firmware(drv, ucode_raw, pieces,
-					     &fw->ucode_capa);
+					     &fw->ucode_capa, &usniffer_images);
 
 	if (err)
 		goto try_again;

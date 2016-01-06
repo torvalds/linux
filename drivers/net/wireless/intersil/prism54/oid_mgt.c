@@ -424,7 +424,7 @@ mgt_set_request(islpci_private *priv, enum oid_num_t n, int extra, void *data)
 	void *cache, *_data = data;
 	u32 oid;
 
-	BUG_ON(OID_NUM_LAST <= n);
+	BUG_ON(n >= OID_NUM_LAST);
 	BUG_ON(extra > isl_oid[n].range);
 
 	if (!priv->mib)
@@ -485,7 +485,7 @@ mgt_set_varlen(islpci_private *priv, enum oid_num_t n, void *data, int extra_len
 	int dlen;
 	u32 oid;
 
-	BUG_ON(OID_NUM_LAST <= n);
+	BUG_ON(n >= OID_NUM_LAST);
 
 	dlen = isl_oid[n].size;
 	oid = isl_oid[n].oid;
@@ -524,7 +524,7 @@ mgt_get_request(islpci_private *priv, enum oid_num_t n, int extra, void *data,
 	void *cache, *_res = NULL;
 	u32 oid;
 
-	BUG_ON(OID_NUM_LAST <= n);
+	BUG_ON(n >= OID_NUM_LAST);
 	BUG_ON(extra > isl_oid[n].range);
 
 	res->ptr = NULL;
@@ -626,7 +626,7 @@ mgt_commit_list(islpci_private *priv, enum oid_num_t *l, int n)
 void
 mgt_set(islpci_private *priv, enum oid_num_t n, void *data)
 {
-	BUG_ON(OID_NUM_LAST <= n);
+	BUG_ON(n >= OID_NUM_LAST);
 	BUG_ON(priv->mib[n] == NULL);
 
 	memcpy(priv->mib[n], data, isl_oid[n].size);
@@ -636,7 +636,7 @@ mgt_set(islpci_private *priv, enum oid_num_t n, void *data)
 void
 mgt_get(islpci_private *priv, enum oid_num_t n, void *res)
 {
-	BUG_ON(OID_NUM_LAST <= n);
+	BUG_ON(n >= OID_NUM_LAST);
 	BUG_ON(priv->mib[n] == NULL);
 	BUG_ON(res == NULL);
 

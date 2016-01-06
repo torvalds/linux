@@ -210,17 +210,17 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.cmdrsp_addr_lo = PCIE_SCRATCH_4_REG,
 	.cmdrsp_addr_hi = PCIE_SCRATCH_5_REG,
 	.tx_rdptr = 0xC1A4,
-	.tx_wrptr = 0xC1A8,
-	.rx_rdptr = 0xC1A8,
+	.tx_wrptr = 0xC174,
+	.rx_rdptr = 0xC174,
 	.rx_wrptr = 0xC1A4,
 	.evt_rdptr = PCIE_SCRATCH_10_REG,
 	.evt_wrptr = PCIE_SCRATCH_11_REG,
 	.drv_rdy = PCIE_SCRATCH_12_REG,
 	.tx_start_ptr = 16,
 	.tx_mask = 0x0FFF0000,
-	.tx_wrap_mask = 0x01FF0000,
+	.tx_wrap_mask = 0x1FFF0000,
 	.rx_mask = 0x00000FFF,
-	.rx_wrap_mask = 0x000001FF,
+	.rx_wrap_mask = 0x00001FFF,
 	.tx_rollover_ind = BIT(28),
 	.rx_rollover_ind = BIT(12),
 	.evt_rollover_ind = MWIFIEX_BD_FLAG_EVT_ROLLOVER_IND,
@@ -326,6 +326,7 @@ struct pcie_service_card {
 	dma_addr_t sleep_cookie_pbase;
 	void __iomem *pci_mmap;
 	void __iomem *pci_mmap1;
+	int msi_enable;
 };
 
 static inline int
@@ -342,6 +343,7 @@ mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
 			return 1;
 		break;
 	case PCIE_DEVICE_ID_MARVELL_88W8897:
+	case PCIE_DEVICE_ID_MARVELL_88W8997:
 		if (((card->txbd_wrptr & reg->tx_mask) ==
 		     (rdptr & reg->tx_mask)) &&
 		    ((card->txbd_wrptr & reg->tx_rollover_ind) ==

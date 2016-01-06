@@ -21,17 +21,12 @@
 #include <brcmu_d11.h>
 
 #define WL_NUM_SCAN_MAX			10
-#define WL_NUM_PMKIDS_MAX		MAXPMKID
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
 #define WL_ASSOC_INFO_MAX		512	/* assoc related fil max buf */
 #define WL_EXTRA_BUF_MAX		2048
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
-
-#define WL_SCAN_CHANNEL_TIME		40
-#define WL_SCAN_UNASSOC_TIME		40
-#define WL_SCAN_PASSIVE_TIME		120
 
 #define WL_ESCAN_BUF_SIZE		(1024 * 64)
 #define WL_ESCAN_TIMER_INTERVAL_MS	10000 /* E-Scan timeout */
@@ -99,19 +94,6 @@ struct brcmf_cfg80211_conf {
 	u32 rts_threshold;
 	u32 retry_short;
 	u32 retry_long;
-	s32 tx_power;
-	struct ieee80211_channel channel;
-};
-
-/* basic structure of scan request */
-struct brcmf_cfg80211_scan_req {
-	struct brcmf_ssid_le ssid_le;
-};
-
-/* basic structure of information element */
-struct brcmf_cfg80211_ie {
-	u16 offset;
-	u8 buf[WL_TLV_INFO_MAX];
 };
 
 /* security information with currently associated ap */
@@ -213,12 +195,6 @@ struct brcmf_cfg80211_assoc_ielen_le {
 	__le32 resp_len;
 };
 
-/* wpa2 pmk list */
-struct brcmf_cfg80211_pmk_list {
-	struct pmkid_list pmkids;
-	struct pmkid foo[MAXPMKID - 1];
-};
-
 /* dongle escan state */
 enum wl_escan_state {
 	WL_ESCAN_STATE_IDLE,
@@ -232,87 +208,6 @@ struct escan_info {
 	struct brcmf_if *ifp;
 	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		   struct cfg80211_scan_request *request);
-};
-
-/**
- * struct brcmf_pno_param_le - PNO scan configuration parameters
- *
- * @version: PNO parameters version.
- * @scan_freq: scan frequency.
- * @lost_network_timeout: #sec. to declare discovered network as lost.
- * @flags: Bit field to control features of PFN such as sort criteria auto
- *	enable switch and background scan.
- * @rssi_margin: Margin to avoid jitter for choosing a PFN based on RSSI sort
- *	criteria.
- * @bestn: number of best networks in each scan.
- * @mscan: number of scans recorded.
- * @repeat: minimum number of scan intervals before scan frequency changes
- *	in adaptive scan.
- * @exp: exponent of 2 for maximum scan interval.
- * @slow_freq: slow scan period.
- */
-struct brcmf_pno_param_le {
-	__le32 version;
-	__le32 scan_freq;
-	__le32 lost_network_timeout;
-	__le16 flags;
-	__le16 rssi_margin;
-	u8 bestn;
-	u8 mscan;
-	u8 repeat;
-	u8 exp;
-	__le32 slow_freq;
-};
-
-/**
- * struct brcmf_pno_net_param_le - scan parameters per preferred network.
- *
- * @ssid: ssid name and its length.
- * @flags: bit2: hidden.
- * @infra: BSS vs IBSS.
- * @auth: Open vs Closed.
- * @wpa_auth: WPA type.
- * @wsec: wsec value.
- */
-struct brcmf_pno_net_param_le {
-	struct brcmf_ssid_le ssid;
-	__le32 flags;
-	__le32 infra;
-	__le32 auth;
-	__le32 wpa_auth;
-	__le32 wsec;
-};
-
-/**
- * struct brcmf_pno_net_info_le - information per found network.
- *
- * @bssid: BSS network identifier.
- * @channel: channel number only.
- * @SSID_len: length of ssid.
- * @SSID: ssid characters.
- * @RSSI: receive signal strength (in dBm).
- * @timestamp: age in seconds.
- */
-struct brcmf_pno_net_info_le {
-	u8 bssid[ETH_ALEN];
-	u8 channel;
-	u8 SSID_len;
-	u8 SSID[32];
-	__le16	RSSI;
-	__le16	timestamp;
-};
-
-/**
- * struct brcmf_pno_scanresults_le - result returned in PNO NET FOUND event.
- *
- * @version: PNO version identifier.
- * @status: indicates completion status of PNO scan.
- * @count: amount of brcmf_pno_net_info_le entries appended.
- */
-struct brcmf_pno_scanresults_le {
-	__le32 version;
-	__le32 status;
-	__le32 count;
 };
 
 /**
@@ -341,9 +236,7 @@ struct brcmf_cfg80211_vif_event {
  * @scan_request: cfg80211 scan request object.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
- * @scan_req_int: internal scan request object.
  * @bss_info: bss information for cfg80211 layer.
- * @ie: information element object for internal purpose.
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
  * @scan_status: scan activity on the dongle.
@@ -376,11 +269,9 @@ struct brcmf_cfg80211_info {
 	struct brcmf_btcoex_info *btcoex;
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
-	struct brcmf_cfg80211_scan_req scan_req_int;
 	struct wl_cfg80211_bss_info *bss_info;
-	struct brcmf_cfg80211_ie ie;
 	struct brcmf_cfg80211_connect_info conn_info;
-	struct brcmf_cfg80211_pmk_list *pmk_list;
+	struct brcmf_pmk_list_le pmk_list;
 	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;

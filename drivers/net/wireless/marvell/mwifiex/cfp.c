@@ -66,8 +66,8 @@ static u8 supported_rates_bg[BG_SUPPORTED_RATES] = { 0x02, 0x04, 0x0b, 0x0c,
 					0x12, 0x16, 0x18, 0x24, 0x30, 0x48,
 					0x60, 0x6c, 0 };
 
-u16 region_code_index[MWIFIEX_MAX_REGION_CODE] = { 0x10, 0x20, 0x30,
-						0x32, 0x40, 0x41, 0xff };
+u16 region_code_index[MWIFIEX_MAX_REGION_CODE] = { 0x00, 0x10, 0x20, 0x30,
+						0x31, 0x32, 0x40, 0x41, 0x50 };
 
 static u8 supported_rates_n[N_SUPPORTED_RATES] = { 0x02, 0x04, 0 };
 
@@ -168,7 +168,7 @@ struct region_code_mapping {
 static struct region_code_mapping region_code_mapping_t[] = {
 	{ 0x10, "US " }, /* US FCC */
 	{ 0x20, "CA " }, /* IC Canada */
-	{ 0x30, "EU " }, /* ETSI */
+	{ 0x30, "FR " }, /* France */
 	{ 0x31, "ES " }, /* Spain */
 	{ 0x32, "FR " }, /* France */
 	{ 0x40, "JP " }, /* Japan */
