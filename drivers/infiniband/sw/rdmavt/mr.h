@@ -1,5 +1,5 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
+#ifndef DEF_RVTMR_H
+#define DEF_RVTMR_H
 
 /*
  * Copyright(c) 2015 Intel Corporation.
@@ -49,10 +49,21 @@
  */
 
 #include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
-#include "qp.h"
-#include "ah.h"
-#include "mr.h"
 
-#endif          /* DEF_RDMAVT_H */
+/* Mem Regions */
+struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc);
+struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+			      u64 virt_addr, int mr_access_flags,
+			      struct ib_udata *udata);
+int rvt_dereg_mr(struct ib_mr *ibmr);
+struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
+			   enum ib_mr_type mr_type,
+			   u32 max_num_sg);
+struct ib_fmr *rvt_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
+			     struct ib_fmr_attr *fmr_attr);
+int rvt_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
+		     int list_len, u64 iova);
+int rvt_unmap_fmr(struct list_head *fmr_list);
+int rvt_dealloc_fmr(struct ib_fmr *ibfmr);
+
+#endif          /* DEF_RVTMR_H */

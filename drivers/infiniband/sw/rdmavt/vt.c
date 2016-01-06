@@ -232,6 +232,16 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, modify_ah);
 	CHECK_DRIVER_OVERRIDE(rdi, query_ah);
 
+	/* Mem Region */
+	CHECK_DRIVER_OVERRIDE(rdi, get_dma_mr);
+	CHECK_DRIVER_OVERRIDE(rdi, reg_user_mr);
+	CHECK_DRIVER_OVERRIDE(rdi, dereg_mr);
+	CHECK_DRIVER_OVERRIDE(rdi, alloc_mr);
+	CHECK_DRIVER_OVERRIDE(rdi, alloc_fmr);
+	CHECK_DRIVER_OVERRIDE(rdi, map_phys_fmr);
+	CHECK_DRIVER_OVERRIDE(rdi, unmap_fmr);
+	CHECK_DRIVER_OVERRIDE(rdi, dealloc_fmr);
+
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
 		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
