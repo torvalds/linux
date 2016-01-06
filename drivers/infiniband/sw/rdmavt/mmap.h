@@ -50,6 +50,6 @@
 
 #include <rdma/rdma_vt.h>
 
-int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
+void rvt_mmap_init(struct rvt_dev_info *rdi);
 
 #endif          /* DEF_RDMAVTMMAP_H */

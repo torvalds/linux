@@ -254,6 +254,12 @@ struct rvt_dev_info {
 	struct rvt_ibport **ports;
 
 	struct rvt_qp_ibdev *qp_dev;
+
+	/* memory maps */
+	struct list_head pending_mmaps;
+	spinlock_t mmap_offset_lock; /* protect mmap_offset */
+	u32 mmap_offset;
+	spinlock_t pending_lock; /* protect pending mmap list */
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
@@ -285,4 +291,13 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		struct rvt_sge *isge, struct ib_sge *sge, int acc);
+int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
+void rvt_release_mmap_info(struct kref *ref);
+struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
+					   u32 size,
+					   struct ib_ucontext *context,
+					   void *obj);
+void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
+			  u32 size, void *obj);
+
 #endif          /* DEF_RDMA_VT_H */

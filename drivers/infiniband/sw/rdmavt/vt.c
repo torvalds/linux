@@ -241,6 +241,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	}
 
 	/* Once we get past here we can use the rvt_pr macros */
+	rvt_mmap_init(rdi);
 
 	/* Dev Ops */
 	CHECK_DRIVER_OVERRIDE(rdi, query_device);
