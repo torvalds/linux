@@ -238,7 +238,7 @@ extern void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr,
 			      void (*release)(struct nfs_pgio_header *hdr));
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos);
-int nfs_iocounter_wait(struct nfs_io_counter *c);
+int nfs_iocounter_wait(struct nfs_lock_context *l_ctx);
 
 extern const struct nfs_pageio_ops nfs_pgio_rw_ops;
 struct nfs_pgio_header *nfs_pgio_header_alloc(const struct nfs_rw_ops *);
@@ -251,12 +251,6 @@ int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
 void nfs_free_request(struct nfs_page *req);
 struct nfs_pgio_mirror *
 nfs_pgio_current_mirror(struct nfs_pageio_descriptor *desc);
-
-static inline void nfs_iocounter_init(struct nfs_io_counter *c)
-{
-	c->flags = 0;
-	atomic_set(&c->io_count, 0);
-}
 
 static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
 {
@@ -386,6 +380,7 @@ extern void nfs_clear_inode(struct inode *);
 extern void nfs_evict_inode(struct inode *);
 void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(struct wait_bit_key *key, int mode);
+extern int nfs_wait_atomic_killable(atomic_t *p);
 
 /* super.c */
 extern const struct super_operations nfs_sops;

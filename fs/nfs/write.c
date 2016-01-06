@@ -1565,14 +1565,6 @@ static void nfs_writeback_result(struct rpc_task *task,
 	}
 }
 
-static int nfs_wait_atomic_killable(atomic_t *key)
-{
-	if (fatal_signal_pending(current))
-		return -ERESTARTSYS;
-	freezable_schedule_unsafe();
-	return 0;
-}
-
 static int wait_on_commit(struct nfs_mds_commit_info *cinfo)
 {
 	return wait_on_atomic_t(&cinfo->rpcs_out,
