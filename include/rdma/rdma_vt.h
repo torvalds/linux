@@ -56,6 +56,56 @@
 #include "ib_verbs.h"
 
 /*
+ * For Memory Regions. This stuff should probably be moved into rdmavt/mr.h once
+ * drivers no longer need access to the MR directly.
+ */
+
+/*
+ * A segment is a linear region of low physical memory.
+ * Used by the verbs layer.
+ */
+struct rvt_seg {
+	void *vaddr;
+	size_t length;
+};
+
+/* The number of rvt_segs that fit in a page. */
+#define RVT_SEGSZ     (PAGE_SIZE / sizeof(struct rvt_seg))
+
+struct rvt_segarray {
+	struct rvt_seg segs[RVT_SEGSZ];
+};
+
+struct rvt_mregion {
+	struct ib_pd *pd;       /* shares refcnt of ibmr.pd */
+	u64 user_base;          /* User's address for this region */
+	u64 iova;               /* IB start address of this region */
+	size_t length;
+	u32 lkey;
+	u32 offset;             /* offset (bytes) to start of region */
+	int access_flags;
+	u32 max_segs;           /* number of rvt_segs in all the arrays */
+	u32 mapsz;              /* size of the map array */
+	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
+	u8  lkey_published;     /* in global table */
+	struct completion comp; /* complete when refcount goes to zero */
+	atomic_t refcount;
+	struct rvt_segarray *map[0];    /* the segments */
+};
+
+#define RVT_MAX_LKEY_TABLE_BITS 23
+
+struct rvt_lkey_table {
+	spinlock_t lock; /* protect changes in this struct */
+	u32 next;               /* next unused index (speeds search) */
+	u32 gen;                /* generation count */
+	u32 max;                /* size of the table */
+	struct rvt_mregion __rcu **table;
+};
+
+/* End Memmory Region */
+
+/*
  * Things that are driver specific, module parameters in hfi1 and qib
  */
 struct rvt_driver_params {
@@ -118,6 +168,9 @@ struct rvt_dev_info {
 
 	/* Driver specific properties */
 	struct rvt_driver_params dparms;
+
+	struct rvt_mregion __rcu *dma_mr;
+	struct rvt_lkey_table lkey_table;
 
 	/* PKey Table goes here */
 
