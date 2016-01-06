@@ -411,12 +411,20 @@ struct rvt_driver_provided {
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
 	const char * (*get_card_name)(struct rvt_dev_info *rdi);
 	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
+	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
 };
 
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;
 	int user;               /* non-zero if created from user space */
+};
+
+/* Address handle */
+struct rvt_ah {
+	struct ib_ah ibah;
+	struct ib_ah_attr attr;
+	atomic_t refcount;
 };
 
 struct rvt_dev_info {
@@ -445,12 +453,20 @@ struct rvt_dev_info {
 	int n_pds_allocated;
 	spinlock_t n_pds_lock; /* Protect pd allocated count */
 
+	int n_ahs_allocated;
+	spinlock_t n_ahs_lock; /* Protect ah allocated count */
+
 	int flags;
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct rvt_pd, ibpd);
+}
+
+static inline struct rvt_ah *ibah_to_rvtah(struct ib_ah *ibah)
+{
+	return container_of(ibah, struct rvt_ah, ibah);
 }
 
 static inline struct rvt_dev_info *ib_to_rvt(struct ib_device *ibdev)
@@ -471,6 +487,7 @@ static inline void rvt_get_mr(struct rvt_mregion *mr)
 
 int rvt_register_device(struct rvt_dev_info *rvd);
 void rvt_unregister_device(struct rvt_dev_info *rvd);
+int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,

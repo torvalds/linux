@@ -221,7 +221,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 
 	if ((!rdi->driver_f.port_callback) ||
 	    (!rdi->driver_f.get_card_name) ||
-	    (!rdi->driver_f.get_pci_dev)) {
+	    (!rdi->driver_f.get_pci_dev) ||
+	    (!rdi->driver_f.check_ah)) {
 		return -EINVAL;
 	}
 
@@ -252,6 +253,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, destroy_ah);
 	CHECK_DRIVER_OVERRIDE(rdi, modify_ah);
 	CHECK_DRIVER_OVERRIDE(rdi, query_ah);
+	spin_lock_init(&rdi->n_ahs_lock);
+	rdi->n_ahs_allocated = 0;
 
 	/* Shared Receive Queue */
 	CHECK_DRIVER_OVERRIDE(rdi, create_srq);
