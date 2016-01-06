@@ -523,41 +523,27 @@ int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 EXPORT_SYMBOL(mdiobus_write);
 
 /**
- * mdio_bus_match - determine if given PHY driver supports the given PHY device
- * @dev: target PHY device
- * @drv: given PHY driver
+ * mdio_bus_match - determine if given MDIO driver supports the given
+ *		    MDIO device
+ * @dev: target MDIO device
+ * @drv: given MDIO driver
  *
- * Description: Given a PHY device, and a PHY driver, return 1 if
- *   the driver supports the device.  Otherwise, return 0.
+ * Description: Given a MDIO device, and a MDIO driver, return 1 if
+ *   the driver supports the device.  Otherwise, return 0. This may
+ *   require calling the devices own match function, since different classes
+ *   of MDIO devices have different match criteria.
  */
 static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct phy_device *phydev = to_phy_device(dev);
-	struct phy_driver *phydrv = to_phy_driver(drv);
-	const int num_ids = ARRAY_SIZE(phydev->c45_ids.device_ids);
-	int i;
+	struct mdio_device *mdio = to_mdio_device(dev);
 
 	if (of_driver_match_device(dev, drv))
 		return 1;
 
-	if (phydrv->match_phy_device)
-		return phydrv->match_phy_device(phydev);
+	if (mdio->bus_match)
+		return mdio->bus_match(dev, drv);
 
-	if (phydev->is_c45) {
-		for (i = 1; i < num_ids; i++) {
-			if (!(phydev->c45_ids.devices_in_package & (1 << i)))
-				continue;
-
-			if ((phydrv->phy_id & phydrv->phy_id_mask) ==
-			    (phydev->c45_ids.device_ids[i] &
-			     phydrv->phy_id_mask))
-				return 1;
-		}
-		return 0;
-	} else {
-		return (phydrv->phy_id & phydrv->phy_id_mask) ==
-			(phydev->phy_id & phydrv->phy_id_mask);
-	}
+	return 0;
 }
 
 #ifdef CONFIG_PM
