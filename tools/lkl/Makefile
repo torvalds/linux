@@ -19,7 +19,6 @@ source += $(wildcard *.c)
 lib_source += lib/posix-host.c
 CFLAGS += -fPIC
 LDFLAGS += -lpthread -lrt
-source += $(wildcard *.c)
 execs =  cpfromfs
 lib += lib/liblkl.so
 else ifeq ($(OUTPUT_FORMAT),pe-i386)
@@ -57,8 +56,10 @@ $(lib_objs): lib/lkl.o
 $(objs): lib/lkl.o
 $(execs): lib/liblkl.a
 
-clean:
+host-clean:
 	-rm -rf include/lkl/ $(lib) $(lib_objs) lib/lkl.o $(objs) $(execs)
+
+clean: host-clean
 	$(MAKE) -C ../.. ARCH=lkl clean
 
 fs2tar: LDFLAGS += -larchive
