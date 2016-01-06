@@ -180,7 +180,7 @@ struct mii_bus {
 	struct device dev;
 
 	/* list of all PHYs on bus */
-	struct phy_device *phy_map[PHY_MAX_ADDR];
+	struct mdio_device *mdio_map[PHY_MAX_ADDR];
 
 	/* PHY addresses to be ignored when probing */
 	u32 phy_mask;

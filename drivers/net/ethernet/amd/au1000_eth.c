@@ -502,7 +502,7 @@ static int au1000_mii_probe(struct net_device *dev)
 		BUG_ON(aup->mac_id < 0 || aup->mac_id > 1);
 
 		if (aup->phy_addr)
-			phydev = aup->mii_bus->phy_map[aup->phy_addr];
+			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
 		else
 			netdev_info(dev, "using PHY-less setup\n");
 		return 0;
@@ -512,8 +512,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	 * on the current MAC's MII bus
 	 */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++)
-		if (aup->mii_bus->phy_map[phy_addr]) {
-			phydev = aup->mii_bus->phy_map[phy_addr];
+		if (mdiobus_get_phy(aup->mii_bus, aup->phy_addr)) {
+			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
 			if (!aup->phy_search_highest_addr)
 				/* break out with first one found */
 				break;
@@ -531,7 +531,8 @@ static int au1000_mii_probe(struct net_device *dev)
 			 */
 			for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
 				struct phy_device *const tmp_phydev =
-					aup->mii_bus->phy_map[phy_addr];
+					mdiobus_get_phy(aup->mii_bus,
+							phy_addr);
 
 				if (aup->mac_id == 1)
 					break;

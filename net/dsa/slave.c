@@ -15,6 +15,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
+#include <linux/mdio.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 #include <linux/if_bridge.h>
@@ -997,7 +998,7 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 {
 	struct dsa_switch *ds = p->parent;
 
-	p->phy = ds->slave_mii_bus->phy_map[addr];
+	p->phy = mdiobus_get_phy(ds->slave_mii_bus, addr);
 	if (!p->phy) {
 		netdev_err(slave_dev, "no phy at %d\n", addr);
 		return -ENODEV;

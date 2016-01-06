@@ -839,7 +839,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 
 	/* search for connect PHY device */
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *tmp = priv->mii_bus->phy_map[i];
+		struct phy_device *tmp = mdiobus_get_phy(priv->mii_bus, i);
 
 		if (tmp) {
 			phydev = tmp;

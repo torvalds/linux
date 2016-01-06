@@ -38,6 +38,48 @@
 
 #include <asm/irq.h>
 
+int mdiobus_register_device(struct mdio_device *mdiodev)
+{
+	if (mdiodev->bus->mdio_map[mdiodev->addr])
+		return -EBUSY;
+
+	mdiodev->bus->mdio_map[mdiodev->addr] = mdiodev;
+
+	return 0;
+}
+EXPORT_SYMBOL(mdiobus_register_device);
+
+int mdiobus_unregister_device(struct mdio_device *mdiodev)
+{
+	if (mdiodev->bus->mdio_map[mdiodev->addr] != mdiodev)
+		return -EINVAL;
+
+	mdiodev->bus->mdio_map[mdiodev->addr] = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL(mdiobus_unregister_device);
+
+struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr)
+{
+	struct mdio_device *mdiodev = bus->mdio_map[addr];
+
+	if (!mdiodev)
+		return NULL;
+
+	if (!(mdiodev->flags & MDIO_DEVICE_FLAG_PHY))
+		return NULL;
+
+	return container_of(mdiodev, struct phy_device, mdio);
+}
+EXPORT_SYMBOL(mdiobus_get_phy);
+
+bool mdiobus_is_registered_device(struct mii_bus *bus, int addr)
+{
+	return bus->mdio_map[addr];
+}
+EXPORT_SYMBOL(mdiobus_is_registered_device);
+
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
  * @size: extra amount of memory to allocate for private storage.
@@ -299,7 +341,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 
 error:
 	while (--i >= 0) {
-		struct phy_device *phydev = bus->phy_map[i];
+		struct phy_device *phydev = mdiobus_get_phy(bus, i);
 		if (phydev) {
 			phy_device_remove(phydev);
 			phy_device_free(phydev);
@@ -318,7 +360,7 @@ void mdiobus_unregister(struct mii_bus *bus)
 	bus->state = MDIOBUS_UNREGISTERED;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *phydev = bus->phy_map[i];
+		struct phy_device *phydev = mdiobus_get_phy(bus, i);
 		if (phydev) {
 			phy_device_remove(phydev);
 			phy_device_free(phydev);

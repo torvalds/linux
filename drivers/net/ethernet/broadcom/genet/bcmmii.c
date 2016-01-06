@@ -573,7 +573,7 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 		}
 
 		if (pd->phy_address >= 0 && pd->phy_address < PHY_MAX_ADDR)
-			phydev = mdio->phy_map[pd->phy_address];
+			phydev = mdiobus_get_phy(mdio, pd->phy_address);
 		else
 			phydev = phy_find_first(mdio);
 

@@ -252,7 +252,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		struct phy_device *phydev = new_bus->phy_map[addr];
+		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 		if (phydev) {
 			int act = 0;
 			char irq_num[4];

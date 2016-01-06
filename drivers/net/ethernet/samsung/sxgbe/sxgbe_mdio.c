@@ -180,7 +180,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 	}
 
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		struct phy_device *phy = mdio_bus->phy_map[phy_addr];
+		struct phy_device *phy = mdiobus_get_phy(mdio_bus, phy_addr);
 
 		if (phy) {
 			char irq_num[4];

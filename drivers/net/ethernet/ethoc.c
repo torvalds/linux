@@ -678,7 +678,7 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	int err;
 
 	if (priv->phy_id != -1)
-		phy = priv->mdio->phy_map[priv->phy_id];
+		phy = mdiobus_get_phy(priv->mdio, priv->phy_id);
 	else
 		phy = phy_find_first(priv->mdio);
 
@@ -766,7 +766,7 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (mdio->phy_id >= PHY_MAX_ADDR)
 			return -ERANGE;
 
-		phy = priv->mdio->phy_map[mdio->phy_id];
+		phy = mdiobus_get_phy(priv->mdio, mdio->phy_id);
 		if (!phy)
 			return -ENODEV;
 	} else {

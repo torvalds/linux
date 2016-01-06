@@ -19,8 +19,11 @@ struct mdio_device {
 	struct mii_bus *bus;
 	/* Bus address of the MDIO device (0-31) */
 	int addr;
+	int flags;
 };
 #define to_mdio_device(d) container_of(d, struct mdio_device, dev)
+
+#define MDIO_DEVICE_FLAG_PHY		1
 
 static inline bool mdio_phy_id_is_c45(int phy_id)
 {
@@ -187,5 +190,10 @@ int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+
+int mdiobus_register_device(struct mdio_device *mdiodev);
+int mdiobus_unregister_device(struct mdio_device *mdiodev);
+bool mdiobus_is_registered_device(struct mii_bus *bus, int addr);
+struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
 
 #endif /* __LINUX_MDIO_H__ */

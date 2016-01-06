@@ -48,6 +48,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/mdio.h>
 #include <linux/phy.h>
 #include <linux/fec.h>
 #include <linux/of.h>
@@ -1926,11 +1927,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	} else {
 		/* check for attached phy */
 		for (phy_id = 0; (phy_id < PHY_MAX_ADDR); phy_id++) {
-			if ((fep->mii_bus->phy_mask & (1 << phy_id)))
-				continue;
-			if (fep->mii_bus->phy_map[phy_id] == NULL)
-				continue;
-			if (fep->mii_bus->phy_map[phy_id]->phy_id == 0)
+			if (!mdiobus_is_registered_device(fep->mii_bus, phy_id))
 				continue;
 			if (dev_id--)
 				continue;

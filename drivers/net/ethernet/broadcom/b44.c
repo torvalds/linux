@@ -2272,7 +2272,7 @@ static int b44_register_phy_one(struct b44 *bp)
 		goto err_out_mdiobus;
 	}
 
-	if (!bp->mii_bus->phy_map[bp->phy_addr] &&
+	if (!mdiobus_is_registered_device(bp->mii_bus, bp->phy_addr) &&
 	    (sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM))) {
 
 		dev_info(sdev->dev,

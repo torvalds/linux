@@ -193,7 +193,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 
 		for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 			/* skip already registered PHYs */
-			if (mdio->phy_map[addr])
+			if (mdiobus_is_registered_device(mdio, addr))
 				continue;
 
 			/* be noisy to encourage people to set reg property */

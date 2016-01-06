@@ -1158,7 +1158,8 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	BUG_ON(pd->phy_dev);
 
 	/* Device only supports internal PHY at address 1 */
-	if (!pd->mii_bus->phy_map[1]) {
+	phydev = mdiobus_get_phy(pd->mii_bus, 1);
+	if (!phydev) {
 		netdev_err(dev, "no PHY found at address 1\n");
 		return -ENODEV;
 	}
