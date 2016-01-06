@@ -386,6 +386,7 @@ struct rvt_driver_params {
 /*
  * Functions that drivers are required to support
  */
+struct rvt_dev_info;
 struct rvt_driver_provided {
 	/*
 	 * The work to create port files in /sys/class Infiniband is different
@@ -394,6 +395,8 @@ struct rvt_driver_provided {
 	 * this.
 	 */
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
+	const char * (*get_card_name)(struct rvt_dev_info *rdi);
+	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
 };
 
 /* Protection domain */

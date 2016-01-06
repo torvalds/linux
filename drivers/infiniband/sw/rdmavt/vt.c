@@ -213,8 +213,17 @@ static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 
 int rvt_register_device(struct rvt_dev_info *rdi)
 {
+	/* Validate that drivers have provided the right information */
 	if (!rdi)
 		return -EINVAL;
+
+	if ((!rdi->driver_f.port_callback) ||
+	    (!rdi->driver_f.get_card_name) ||
+	    (!rdi->driver_f.get_pci_dev)) {
+		return -EINVAL;
+	}
+
+	/* Once we get past here we can use the rvt_pr macros */
 
 	/* Dev Ops */
 	CHECK_DRIVER_OVERRIDE(rdi, query_device);
@@ -280,9 +289,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	spin_lock_init(&rdi->n_pds_lock);
 	rdi->n_pds_allocated = 0;
 
-	/* Validate that drivers have provided the right functions */
-	if (!rdi->driver_f.port_callback)
-		return -EINVAL;
+	rvt_pr_info(rdi, "Registration with rdmavt done.\n");
 
 	/* We are now good to announce we exist */
 	return ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
