@@ -3,6 +3,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 #include <linux/medusa/l3/registry.h>
 
@@ -60,6 +61,9 @@ medusa_answer_t process_kobj2kern(struct process_kobject * tk, struct task_struc
 }
 int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 {
+        memset(tk, '\0', sizeof(struct process_kobject));
+
+        get_cmdline(ts, tk->cmdline, sizeof(tk->cmdline));
 	tk->parent_pid = tk->child_pid = tk->sibling_pid = 0;
 
 	tk->pid = ts->pid;
@@ -95,6 +99,7 @@ MED_ATTRS(process_kobject) {
 	MED_ATTR_RO	(process_kobject, parent_pid, "parent_pid", MED_SIGNED),
 	MED_ATTR_RO	(process_kobject, child_pid, "child_pid", MED_SIGNED),
 	MED_ATTR_RO	(process_kobject, sibling_pid, "sibling_pid", MED_SIGNED),
+        MED_ATTR_RO     (process_kobject, cmdline, "cmdline", MED_STRING),
 	MED_ATTR_RO	(process_kobject, pgrp, "pgrp", MED_SIGNED),
 	MED_ATTR	(process_kobject, uid, "uid", MED_UNSIGNED),
 	MED_ATTR	(process_kobject, uid, "ruid", MED_UNSIGNED),

@@ -3,6 +3,7 @@
 #include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l3/model.h>
@@ -107,6 +108,10 @@ medusa_answer_t medusa_do_permission(struct dentry * dentry, struct inode * inod
 	struct process_kobject process;
 	struct file_kobject file;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct permission_access));
+        /* process_kobject process is zeroed by process_kern2kobj function */
+        /* file_kobject file is zeroed by file_kern2kobj function */
 
 	file_kobj_dentry2string(dentry, access.filename);
 	access.mask = mask;

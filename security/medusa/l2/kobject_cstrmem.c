@@ -95,6 +95,8 @@ static struct medusa_kobject_s * cstrmem_fetch(struct medusa_kobject_s * key_obj
 	int i, ret;
 	struct task_struct * p;
 
+        memset( &storage, '\0', sizeof(struct cstrmem_kobject));
+
 	storage.pid = ((struct cstrmem_kobject *) key_obj)->pid;
 	storage.address = ((struct cstrmem_kobject *) key_obj)->address;
 	storage.size = ((struct cstrmem_kobject *) key_obj)->size;

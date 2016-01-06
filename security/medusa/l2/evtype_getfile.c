@@ -5,6 +5,7 @@
 #include <linux/fs_struct.h>
 #include <linux/init.h>
 #include <linux/mount.h>
+#include <linux/mm.h>
 #include "../../../fs/mount.h"
 
 #include "kobject_process.h"
@@ -244,6 +245,10 @@ static medusa_answer_t do_file_kobj_validate_dentry(struct path* ndcurrent,
 	struct file_kobject file;
 	struct file_kobject directory;
 	medusa_answer_t retval;
+
+        memset(&event, '\0', sizeof(struct getfile_event));
+        /* process_kobject file is zeroed by file_kern2kobj function */
+        /* process_kobject directory is zeroed by file_kern2kobj function */
 
 	file_kern2kobj(&file, ndcurrent->dentry->d_inode);
 	file_kobj_dentry2string(ndupper->dentry, event.filename);

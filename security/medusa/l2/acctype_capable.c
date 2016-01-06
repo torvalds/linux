@@ -6,6 +6,7 @@
 #include <linux/medusa/l3/arch.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 #include "kobject_process.h"
 
@@ -33,6 +34,9 @@ medusa_answer_t medusa_capable(int cap)
 	struct capable_access access;
 	struct process_kobject process;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct capable_access));
+        /* process_kobject process is zeroed by process_kern2kobj function */
 
 	if (in_interrupt()) {
 		printk("CAPABLE IN INTERRUPT\n");

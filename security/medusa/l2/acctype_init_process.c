@@ -2,6 +2,7 @@
 #include "kobject_process.h"
 #include <linux/init.h>
 #include <linux/medusa/l1/task.h>
+#include <linux/mm.h>
 
 struct init_process {
 	MEDUSA_ACCESS_HEADER;
@@ -24,6 +25,10 @@ medusa_answer_t medusa_init_process(struct task_struct *new)
 	struct init_process access;
 	struct process_kobject process;
 	struct process_kobject parent;
+
+        memset(&access, '\0', sizeof(struct init_process));
+        /* process_kobject process is zeroed by process_kern2kobj function */
+        /* process_kobject parent is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(new)) &&
 		process_kobj_validate_task(new) <= 0)

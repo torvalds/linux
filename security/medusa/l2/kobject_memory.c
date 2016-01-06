@@ -94,6 +94,8 @@ static struct medusa_kobject_s * memory_fetch(struct medusa_kobject_s * key_obj)
 	int ret;
 	struct task_struct * p;
 
+        memset(&storage, '\0', sizeof(struct memory_kobject));
+
 	storage.pid = ((struct memory_kobject *) key_obj)->pid;
 	storage.address = ((struct memory_kobject *) key_obj)->address;
 	storage.size = ((struct memory_kobject *) key_obj)->size;

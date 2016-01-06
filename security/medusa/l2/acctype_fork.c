@@ -2,6 +2,7 @@
 #include "kobject_process.h"
 #include <linux/medusa/l1/task.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 /* let's define the 'fork' access type, with object=task and subject=task. */
 
@@ -29,6 +30,10 @@ medusa_answer_t medusa_fork(struct task_struct *new, unsigned long clone_flags)
 	struct fork_access access;
 	struct process_kobject parent;
 	struct process_kobject child;
+
+        memset(&access, '\0', sizeof(struct fork_access));
+        /* process_kobject parent is zeroed by process_kern2kobj function */
+        /* process_kobject child is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
 		process_kobj_validate_task(current) <= 0)

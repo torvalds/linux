@@ -2,28 +2,29 @@
 #include <linux/dcache.h>
 #include <linux/limits.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 #include "kobject_process.h"
 #include "kobject_file.h"
 #include <linux/medusa/l1/file_handlers.h>
 
-	/* let's define the 'mknod' access type, with subj=task and obj=inode */
+/* let's define the 'mknod' access type, with subj=task and obj=inode */
 
-	struct mknod_access {
-	MEDUSA_ACCESS_HEADER;
-		char filename[NAME_MAX+1];
-		dev_t dev;
-		int mode;
-	};
+struct mknod_access {
+MEDUSA_ACCESS_HEADER;
+	char filename[NAME_MAX+1];
+	dev_t dev;
+	int mode;
+};
 
-	MED_ATTRS(mknod_access) {
-		MED_ATTR_RO (mknod_access, filename, "filename", MED_STRING),
-		MED_ATTR_RO (mknod_access, dev, "dev", MED_BITMAP),
-		MED_ATTR_RO (mknod_access, mode, "mode", MED_BITMAP),
-		MED_ATTR_END
-	};
+MED_ATTRS(mknod_access) {
+	MED_ATTR_RO (mknod_access, filename, "filename", MED_STRING),
+	MED_ATTR_RO (mknod_access, dev, "dev", MED_BITMAP),
+	MED_ATTR_RO (mknod_access, mode, "mode", MED_BITMAP),
+	MED_ATTR_END
+};
 
-	MED_ACCTYPE(mknod_access, "mknod", process_kobject, "process",
+MED_ACCTYPE(mknod_access, "mknod", process_kobject, "process",
 			file_kobject, "file");
 
 int __init mknod_acctype_init(void) {
@@ -73,6 +74,10 @@ static medusa_answer_t medusa_do_mknod(struct dentry * parent, struct dentry *de
 	struct process_kobject process;
 	struct file_kobject file;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct mknod_access));
+        /* process_kobject process is zeroed by process_kern2kobj function */
+        /* file_kobject file is zeroed by file_kern2kobj function */
 
 	file_kobj_dentry2string(dentry, access.filename);
 	access.dev = dev;

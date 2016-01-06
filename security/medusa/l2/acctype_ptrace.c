@@ -1,5 +1,6 @@
 #include <linux/medusa/l3/registry.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 #include "kobject_process.h"
 #include <linux/medusa/l1/task.h>
 
@@ -29,6 +30,10 @@ medusa_answer_t medusa_ptrace(struct task_struct * tracer, struct task_struct * 
 	struct process_kobject tracer_p;
 	struct process_kobject tracee_p;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct ptrace_access));
+        /* process_kobject tracer_p is zeroed by process_kern2kobj function */
+        /* process_kobject tracee_p is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(tracer)) &&
 		process_kobj_validate_task(tracer) <= 0)

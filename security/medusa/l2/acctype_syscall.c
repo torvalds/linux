@@ -4,6 +4,7 @@
 #include "kobject_process.h"
 #include <linux/medusa/l1/task.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 /* let's define the 'syscall' access type, with subject=task and object=task. */
 
@@ -51,6 +52,9 @@ medusa_answer_t asmlinkage medusa_syscall_i386(
 	medusa_answer_t retval = MED_OK;
 	struct syscall_access access;
 	struct process_kobject proc;
+
+        memset(&access, '\0', sizeof(struct syscall_access));
+        /* process_kobject proc is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
 		process_kobj_validate_task(current) <= 0)
