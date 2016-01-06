@@ -53,6 +53,8 @@
  * rdmavt layer.
  */
 
+#include <linux/spinlock.h>
+#include <linux/list.h>
 #include "ib_verbs.h"
 
 #define RVT_MULTICAST_LID_BASE 0xC000
@@ -359,6 +361,65 @@ struct rvt_srq {
 
 /* End QP section */
 
+struct rvt_ibport {
+	struct rvt_qp __rcu *qp[2];
+	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
+	struct rb_root mcast_tree;
+	spinlock_t lock;		/* protect changes in this struct */
+
+	/* non-zero when timer is set */
+	unsigned long mkey_lease_timeout;
+	unsigned long trap_timeout;
+	__be64 gid_prefix;      /* in network order */
+	__be64 mkey;
+	u64 tid;
+	u32 port_cap_flags;
+	u32 pma_sample_start;
+	u32 pma_sample_interval;
+	__be16 pma_counter_select[5];
+	u16 pma_tag;
+	u16 mkey_lease_period;
+	u16 sm_lid;
+	u8 sm_sl;
+	u8 mkeyprot;
+	u8 subnet_timeout;
+	u8 vl_high_limit;
+
+	/*
+	 * Driver is expected to keep these up to date. These
+	 * counters are informational only and not required to be
+	 * completely accurate.
+	 */
+	u64 n_rc_resends;
+	u64 n_seq_naks;
+	u64 n_rdma_seq;
+	u64 n_rnr_naks;
+	u64 n_other_naks;
+	u64 n_loop_pkts;
+	u64 n_pkt_drops;
+	u64 n_vl15_dropped;
+	u64 n_rc_timeouts;
+	u64 n_dmawait;
+	u64 n_unaligned;
+	u64 n_rc_dupreq;
+	u64 n_rc_seqnak;
+	u16 pkey_violations;
+	u16 qkey_violations;
+	u16 mkey_violations;
+
+	/* Hot-path per CPU counters to avoid cacheline trading to update */
+	u64 z_rc_acks;
+	u64 z_rc_qacks;
+	u64 z_rc_delayed_comp;
+	u64 __percpu *rc_acks;
+	u64 __percpu *rc_qacks;
+	u64 __percpu *rc_delayed_comp;
+
+	void *priv; /* driver private data */
+
+	/* TODO: Move sm_ah and smi_ah into here as well*/
+};
+
 /*
  * Things that are driver specific, module parameters in hfi1 and qib
  */
@@ -403,6 +464,7 @@ struct rvt_driver_params {
 	 * For instance special module parameters. Goes here.
 	 */
 	unsigned int lkey_table_size;
+	int nports;
 };
 
 /*
@@ -465,6 +527,7 @@ struct rvt_dev_info {
 	spinlock_t n_ahs_lock; /* Protect ah allocated count */
 
 	int flags;
+	struct rvt_ibport **ports;
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
@@ -501,9 +564,10 @@ static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
 int rvt_register_device(struct rvt_dev_info *rvd);
 void rvt_unregister_device(struct rvt_dev_info *rvd);
 int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+void rvt_attach_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
+		     int portnum);
 int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		struct rvt_sge *isge, struct ib_sge *sge, int acc);
-
 #endif          /* DEF_RDMA_VT_H */

@@ -300,6 +300,19 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	spin_lock_init(&rdi->n_pds_lock);
 	rdi->n_pds_allocated = 0;
 
+	if (rdi->dparms.nports) {
+		rdi->ports = kcalloc(rdi->dparms.nports,
+				     sizeof(struct rvt_ibport **),
+				     GFP_KERNEL);
+		if (!rdi->ports) {
+			rvt_pr_err(rdi, "Could not allocate port mem.\n");
+			ret = -ENOMEM;
+			goto bail_mr;
+		}
+	} else {
+		rvt_pr_warn(rdi, "Driver says it has no ports.\n");
+	}
+
 	/* We are now good to announce we exist */
 	ret =  ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
 	if (ret) {
@@ -327,3 +340,14 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 	rvt_mr_exit(rdi);
 }
 EXPORT_SYMBOL(rvt_unregister_device);
+
+/*
+ * Keep track of a list of ports. No need to have a detach port.
+ * They persist until the driver goes away.
+ */
+void rvt_attach_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
+		     int portnum)
+{
+	rdi->ports[portnum] = port;
+}
+EXPORT_SYMBOL(rvt_attach_port);
