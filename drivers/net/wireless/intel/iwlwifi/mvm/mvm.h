@@ -346,8 +346,9 @@ struct iwl_mvm_vif_bf_data {
  * @pm_enabled - Indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
- * @low_latency: indicates that this interface is in low-latency mode
- *	(VMACLowLatencyMode)
+ * @low_latency_traffic: indicates low latency traffic was detected
+ * @low_latency_dbgfs: low latency mode set from debugfs
+ * @low_latency_vcmd: low latency mode set from vendor command
  * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
@@ -375,7 +376,7 @@ struct iwl_mvm_vif {
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
-	bool low_latency;
+	bool low_latency_traffic, low_latency_dbgfs, low_latency_vcmd;
 	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 
@@ -1427,8 +1428,9 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	 * binding, so this has no real impact. For now, just return
 	 * the current desired low-latency state.
 	 */
-
-	return mvmvif->low_latency;
+	return mvmvif->low_latency_dbgfs ||
+	       mvmvif->low_latency_traffic ||
+	       mvmvif->low_latency_vcmd;
 }
 
 /* hw scheduler queue config */

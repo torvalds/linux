@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1255,6 +1257,7 @@ static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
+	bool prev;
 	u8 value;
 	int ret;
 
@@ -1265,7 +1268,9 @@ static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_update_low_latency(mvm, vif, value);
+	prev = iwl_mvm_vif_low_latency(mvmvif);
+	mvmvif->low_latency_dbgfs = value;
+	iwl_mvm_update_low_latency(mvm, vif, prev);
 	mutex_unlock(&mvm->mutex);
 
 	return count;
@@ -1277,11 +1282,15 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 {
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	char buf[2];
+	char buf[30] = {};
+	int len;
 
-	buf[0] = mvmvif->low_latency ? '1' : '0';
-	buf[1] = '\n';
-	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
+	len = snprintf(buf, sizeof(buf) - 1,
+		       "traffic=%d\ndbgfs=%d\nvcmd=%d\n",
+		       mvmvif->low_latency_traffic,
+		       mvmvif->low_latency_dbgfs,
+		       mvmvif->low_latency_vcmd);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
 static ssize_t iwl_dbgfs_uapsd_misbehaving_read(struct file *file,
