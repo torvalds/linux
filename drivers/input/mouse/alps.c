@@ -31,6 +31,7 @@
 #define ALPS_CMD_NIBBLE_10	0x01f2
 
 #define ALPS_REG_BASE_RUSHMORE	0xc2c0
+#define ALPS_REG_BASE_V7	0xc2c0
 #define ALPS_REG_BASE_PINNACLE	0x0000
 
 static const struct alps_nibble_commands alps_v3_nibble_commands[] = {
@@ -2047,7 +2048,7 @@ static int alps_absolute_mode_v3(struct psmouse *psmouse)
 	return 0;
 }
 
-static int alps_probe_trackstick_v3(struct psmouse *psmouse, int reg_base)
+static int alps_probe_trackstick_v3_v7(struct psmouse *psmouse, int reg_base)
 {
 	int ret = -EIO, reg_val;
 
@@ -2132,7 +2133,7 @@ static int alps_hw_init_v3(struct psmouse *psmouse)
 	int reg_val;
 	unsigned char param[4];
 
-	reg_val = alps_probe_trackstick_v3(psmouse, ALPS_REG_BASE_PINNACLE);
+	reg_val = alps_probe_trackstick_v3_v7(psmouse, ALPS_REG_BASE_PINNACLE);
 	if (reg_val == -EIO)
 		goto error;
 
@@ -2625,8 +2626,8 @@ static int alps_set_protocol(struct psmouse *psmouse,
 		priv->x_bits = 16;
 		priv->y_bits = 12;
 
-		if (alps_probe_trackstick_v3(psmouse,
-					     ALPS_REG_BASE_RUSHMORE) < 0)
+		if (alps_probe_trackstick_v3_v7(psmouse,
+						ALPS_REG_BASE_RUSHMORE) < 0)
 			priv->flags &= ~ALPS_DUALPOINT;
 
 		break;
@@ -2675,6 +2676,9 @@ static int alps_set_protocol(struct psmouse *psmouse,
 
 		if (priv->fw_ver[1] != 0xba)
 			priv->flags |= ALPS_BUTTONPAD;
+
+		if (alps_probe_trackstick_v3_v7(psmouse, ALPS_REG_BASE_V7) < 0)
+			priv->flags &= ~ALPS_DUALPOINT;
 
 		break;
 
