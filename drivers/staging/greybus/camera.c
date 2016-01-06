@@ -606,13 +606,21 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 
 	gcam->data_connected = true;
 
-	ret = gb_svc_link_config(svc, connection->intf->interface_id,
-				 GB_SVC_LINK_CONFIG_BURST_HS_A, 2, 2, 0);
+	ret = gb_svc_intf_set_power_mode(svc, connection->intf->interface_id,
+					 GB_SVC_UNIPRO_HS_SERIES_A,
+					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+					 GB_SVC_PWRM_RXTERMINATION |
+					 GB_SVC_PWRM_TXTERMINATION, 0);
 	if (ret < 0)
 		goto error;
 
-	ret = gb_svc_link_config(svc, svc->ap_intf_id,
-				 GB_SVC_LINK_CONFIG_BURST_HS_A, 2, 2, 0);
+	ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
+					 GB_SVC_UNIPRO_HS_SERIES_A,
+					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+					 GB_SVC_PWRM_RXTERMINATION |
+					 GB_SVC_PWRM_TXTERMINATION, 0);
 	if (ret < 0)
 		goto error;
 

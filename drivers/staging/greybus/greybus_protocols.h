@@ -737,7 +737,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_DME_PEER_SET	0x0a
 #define GB_SVC_TYPE_ROUTE_CREATE	0x0b
 #define GB_SVC_TYPE_ROUTE_DESTROY	0x0c
-#define GB_SVC_TYPE_LINK_CONFIG		0x10
+#define GB_SVC_TYPE_INTF_SET_PWRM	0x10
 
 /*
  * SVC version request/response has the same payload as
@@ -819,20 +819,6 @@ struct gb_svc_dme_peer_set_response {
 	__le16	result_code;
 } __packed;
 
-#define GB_SVC_LINK_CONFIG_BURST_PWM		0
-#define GB_SVC_LINK_CONFIG_BURST_HS_A		1
-#define GB_SVC_LINK_CONFIG_BURST_HS_B		2
-#define GB_SVC_LINK_CONFIG_FLAG_AUTO_SLEEP	(1 << 0)
-
-struct gb_svc_link_config_request {
-	__u8 intf_id;
-	__u8 burst;
-	__u8 gear;
-	__u8 nlanes;
-	__u8 flags;
-} __packed;
-/* link config response has no payload */
-
 /* Attributes for peer get/set operations */
 #define DME_ATTR_SELECTOR_INDEX		0
 /* FIXME: remove ES2 support and DME_ATTR_T_TST_SRC_INCREMENT */
@@ -860,6 +846,40 @@ struct gb_svc_route_destroy_request {
 } __packed;
 /* route destroy response has no payload */
 
+#define GB_SVC_UNIPRO_FAST_MODE			0x01
+#define GB_SVC_UNIPRO_SLOW_MODE			0x02
+#define GB_SVC_UNIPRO_FAST_AUTO_MODE		0x04
+#define GB_SVC_UNIPRO_SLOW_AUTO_MODE		0x05
+#define GB_SVC_UNIPRO_MODE_UNCHANGED		0x07
+#define GB_SVC_UNIPRO_HIBERNATE_MODE		0x11
+#define GB_SVC_UNIPRO_OFF_MODE			0x12
+
+#define GB_SVC_PWRM_RXTERMINATION		0x01
+#define GB_SVC_PWRM_TXTERMINATION		0x02
+#define GB_SVC_PWRM_LINE_RESET			0x04
+#define GB_SVC_PWRM_SCRAMBLING			0x20
+
+#define GB_SVC_PWRM_QUIRK_HSSER			0x00000001
+
+#define GB_SVC_UNIPRO_HS_SERIES_A		0x01
+#define GB_SVC_UNIPRO_HS_SERIES_B		0x02
+
+struct gb_svc_intf_set_pwrm_request {
+	__u8	intf_id;
+	__u8	hs_series;
+	__u8	tx_mode;
+	__u8	tx_gear;
+	__u8	tx_nlanes;
+	__u8	rx_mode;
+	__u8	rx_gear;
+	__u8	rx_nlanes;
+	__u8	flags;
+	__le32	quirks;
+} __packed;
+
+struct gb_svc_intf_set_pwrm_response {
+	__le16	result_code;
+} __packed;
 
 /* RAW */
 

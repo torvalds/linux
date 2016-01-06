@@ -285,22 +285,35 @@ static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 	}
 }
 
-int gb_svc_link_config(struct gb_svc *svc, u8 intf_id,
-		       unsigned int burst, unsigned int gear,
-		       unsigned int nlanes, unsigned int flags)
+int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
+			       u8 tx_mode, u8 tx_gear, u8 tx_nlanes,
+			       u8 rx_mode, u8 rx_gear, u8 rx_nlanes,
+			       u8 flags, u32 quirks)
 {
-	struct gb_svc_link_config_request request;
+	struct gb_svc_intf_set_pwrm_request request;
+	struct gb_svc_intf_set_pwrm_response response;
+	int ret;
 
 	request.intf_id = intf_id;
-	request.burst = burst;
-	request.gear = gear;
-	request.nlanes = nlanes;
+	request.hs_series = hs_series;
+	request.tx_mode = tx_mode;
+	request.tx_gear = tx_gear;
+	request.tx_nlanes = tx_nlanes;
+	request.rx_mode = rx_mode;
+	request.rx_gear = rx_gear;
+	request.rx_nlanes = rx_nlanes;
 	request.flags = flags;
+	request.quirks = cpu_to_le32(quirks);
 
-	return gb_operation_sync(svc->connection, GB_SVC_TYPE_LINK_CONFIG,
-				 &request, sizeof(request), NULL, 0);
+	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_SET_PWRM,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret < 0)
+		return ret;
+
+	return le16_to_cpu(response.result_code);
 }
-EXPORT_SYMBOL_GPL(gb_svc_link_config);
+EXPORT_SYMBOL_GPL(gb_svc_intf_set_power_mode);
 
 static int gb_svc_version_request(struct gb_operation *op)
 {
