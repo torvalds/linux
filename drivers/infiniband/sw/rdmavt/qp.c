@@ -1,6 +1,3 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
-
 /*
  * Copyright(c) 2015 Intel Corporation.
  *
@@ -48,9 +45,76 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
 #include "qp.h"
 
-#endif          /* DEF_RDMAVT_H */
+/**
+ * rvt_create_qp - create a queue pair for a device
+ * @ibpd: the protection domain who's device we create the queue pair for
+ * @init_attr: the attributes of the queue pair
+ * @udata: user data for libibverbs.so
+ *
+ * Returns the queue pair on success, otherwise returns an errno.
+ *
+ * Called by the ib_create_qp() core verbs function.
+ */
+struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
+			    struct ib_qp_init_attr *init_attr,
+			    struct ib_udata *udata)
+{
+	/*
+	 * Queue pair creation is mostly an rvt issue. However, drivers have
+	 * their own unique idea of what queue pare numbers mean. For instance
+	 * there is a reserved range for PSM.
+	 *
+	 * VI-DRIVER-API: make_qpn()
+	 * Returns a valid QPN for verbs to use
+	 */
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+/**
+ * qib_modify_qp - modify the attributes of a queue pair
+ * @ibqp: the queue pair who's attributes we're modifying
+ * @attr: the new attributes
+ * @attr_mask: the mask of attributes to modify
+ * @udata: user data for libibverbs.so
+ *
+ * Returns 0 on success, otherwise returns an errno.
+ */
+int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		  int attr_mask, struct ib_udata *udata)
+{
+	/*
+	 * VT-DRIVER-API: qp_mtu()
+	 * OPA devices have a per VL MTU the driver has a mapping of IB SL to SC
+	 * to VL and the mapping table of MTUs per VL. This is not something
+	 * that IB has and should not live in the rvt.
+	 */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * rvt_destroy_qp - destroy a queue pair
+ * @ibqp: the queue pair to destroy
+ *
+ * Returns 0 on success.
+ *
+ * Note that this can be called while the QP is actively sending or
+ * receiving!
+ */
+int rvt_destroy_qp(struct ib_qp *ibqp)
+{
+	/*
+	 * VT-DRIVER-API: qp_flush()
+	 * Driver provies a mechanism to flush and wait for that flush to
+	 * finish.
+	 */
+
+	return -EOPNOTSUPP;
+}
+
+int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		 int attr_mask, struct ib_qp_init_attr *init_attr)
+{
+	return -EOPNOTSUPP;
+}

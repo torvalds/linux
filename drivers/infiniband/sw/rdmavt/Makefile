@@ -7,5 +7,5 @@
 #
 obj-$(CONFIG_INFINIBAND_RDMAVT) += rdmavt.o
 
-rdmavt-y := vt.o dma.o pd.o
+rdmavt-y := vt.o dma.o pd.o qp.o
 

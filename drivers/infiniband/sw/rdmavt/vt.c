@@ -220,6 +220,12 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, alloc_ucontext);
 	CHECK_DRIVER_OVERRIDE(rdi, dealloc_ucontext);
 
+	/* Queue Pairs */
+	CHECK_DRIVER_OVERRIDE(rdi, create_qp);
+	CHECK_DRIVER_OVERRIDE(rdi, modify_qp);
+	CHECK_DRIVER_OVERRIDE(rdi, destroy_qp);
+	CHECK_DRIVER_OVERRIDE(rdi, query_qp);
+
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
 		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
