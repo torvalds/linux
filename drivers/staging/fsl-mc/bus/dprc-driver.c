@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/msi.h>
 #include "dprc-cmd.h"
 
 struct dprc_child_objs {
@@ -386,6 +387,230 @@ error:
 EXPORT_SYMBOL_GPL(dprc_scan_container);
 
 /**
+ * dprc_irq0_handler - Regular ISR for DPRC interrupt 0
+ *
+ * @irq: IRQ number of the interrupt being handled
+ * @arg: Pointer to device structure
+ */
+static irqreturn_t dprc_irq0_handler(int irq_num, void *arg)
+{
+	return IRQ_WAKE_THREAD;
+}
+
+/**
+ * dprc_irq0_handler_thread - Handler thread function for DPRC interrupt 0
+ *
+ * @irq: IRQ number of the interrupt being handled
+ * @arg: Pointer to device structure
+ */
+static irqreturn_t dprc_irq0_handler_thread(int irq_num, void *arg)
+{
+	int error;
+	u32 status;
+	struct device *dev = (struct device *)arg;
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
+	struct fsl_mc_io *mc_io = mc_dev->mc_io;
+	struct msi_desc *msi_desc = mc_dev->irqs[0]->msi_desc;
+
+	dev_dbg(dev, "DPRC IRQ %d triggered on CPU %u\n",
+		irq_num, smp_processor_id());
+
+	if (WARN_ON(!(mc_dev->flags & FSL_MC_IS_DPRC)))
+		return IRQ_HANDLED;
+
+	mutex_lock(&mc_bus->scan_mutex);
+	if (WARN_ON(!msi_desc || msi_desc->irq != (u32)irq_num))
+		goto out;
+
+	error = dprc_get_irq_status(mc_io, 0, mc_dev->mc_handle, 0,
+				    &status);
+	if (error < 0) {
+		dev_err(dev,
+			"dprc_get_irq_status() failed: %d\n", error);
+		goto out;
+	}
+
+	error = dprc_clear_irq_status(mc_io, 0, mc_dev->mc_handle, 0,
+				      status);
+	if (error < 0) {
+		dev_err(dev,
+			"dprc_clear_irq_status() failed: %d\n", error);
+		goto out;
+	}
+
+	if (status & (DPRC_IRQ_EVENT_OBJ_ADDED |
+		      DPRC_IRQ_EVENT_OBJ_REMOVED |
+		      DPRC_IRQ_EVENT_CONTAINER_DESTROYED |
+		      DPRC_IRQ_EVENT_OBJ_DESTROYED |
+		      DPRC_IRQ_EVENT_OBJ_CREATED)) {
+		unsigned int irq_count;
+
+		error = dprc_scan_objects(mc_dev, &irq_count);
+		if (error < 0) {
+			/*
+			 * If the error is -ENXIO, we ignore it, as it indicates
+			 * that the object scan was aborted, as we detected that
+			 * an object was removed from the DPRC in the MC, while
+			 * we were scanning the DPRC.
+			 */
+			if (error != -ENXIO) {
+				dev_err(dev, "dprc_scan_objects() failed: %d\n",
+					error);
+			}
+
+			goto out;
+		}
+
+		if (irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS) {
+			dev_warn(dev,
+				 "IRQs needed (%u) exceed IRQs preallocated (%u)\n",
+				 irq_count, FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS);
+		}
+	}
+
+out:
+	mutex_unlock(&mc_bus->scan_mutex);
+	return IRQ_HANDLED;
+}
+
+/*
+ * Disable and clear interrupt for a given DPRC object
+ */
+static int disable_dprc_irq(struct fsl_mc_device *mc_dev)
+{
+	int error;
+	struct fsl_mc_io *mc_io = mc_dev->mc_io;
+
+	WARN_ON(mc_dev->obj_desc.irq_count != 1);
+
+	/*
+	 * Disable generation of interrupt, while we configure it:
+	 */
+	error = dprc_set_irq_enable(mc_io, 0, mc_dev->mc_handle, 0, 0);
+	if (error < 0) {
+		dev_err(&mc_dev->dev,
+			"Disabling DPRC IRQ failed: dprc_set_irq_enable() failed: %d\n",
+			error);
+		return error;
+	}
+
+	/*
+	 * Disable all interrupt causes for the interrupt:
+	 */
+	error = dprc_set_irq_mask(mc_io, 0, mc_dev->mc_handle, 0, 0x0);
+	if (error < 0) {
+		dev_err(&mc_dev->dev,
+			"Disabling DPRC IRQ failed: dprc_set_irq_mask() failed: %d\n",
+			error);
+		return error;
+	}
+
+	/*
+	 * Clear any leftover interrupts:
+	 */
+	error = dprc_clear_irq_status(mc_io, 0, mc_dev->mc_handle, 0, ~0x0U);
+	if (error < 0) {
+		dev_err(&mc_dev->dev,
+			"Disabling DPRC IRQ failed: dprc_clear_irq_status() failed: %d\n",
+			error);
+		return error;
+	}
+
+	return 0;
+}
+
+static int register_dprc_irq_handler(struct fsl_mc_device *mc_dev)
+{
+	int error;
+	struct fsl_mc_device_irq *irq = mc_dev->irqs[0];
+
+	WARN_ON(mc_dev->obj_desc.irq_count != 1);
+
+	/*
+	 * NOTE: devm_request_threaded_irq() invokes the device-specific
+	 * function that programs the MSI physically in the device
+	 */
+	error = devm_request_threaded_irq(&mc_dev->dev,
+					  irq->msi_desc->irq,
+					  dprc_irq0_handler,
+					  dprc_irq0_handler_thread,
+					  IRQF_NO_SUSPEND | IRQF_ONESHOT,
+					  "FSL MC DPRC irq0",
+					  &mc_dev->dev);
+	if (error < 0) {
+		dev_err(&mc_dev->dev,
+			"devm_request_threaded_irq() failed: %d\n",
+			error);
+		return error;
+	}
+
+	return 0;
+}
+
+static int enable_dprc_irq(struct fsl_mc_device *mc_dev)
+{
+	int error;
+
+	/*
+	 * Enable all interrupt causes for the interrupt:
+	 */
+	error = dprc_set_irq_mask(mc_dev->mc_io, 0, mc_dev->mc_handle, 0,
+				  ~0x0u);
+	if (error < 0) {
+		dev_err(&mc_dev->dev,
+			"Enabling DPRC IRQ failed: dprc_set_irq_mask() failed: %d\n",
+			error);
+
+		return error;
+	}
+
+	/*
+	 * Enable generation of the interrupt:
+	 */
+	error = dprc_set_irq_enable(mc_dev->mc_io, 0, mc_dev->mc_handle, 0, 1);
+	if (error < 0) {
+		dev_err(&mc_dev->dev,
+			"Enabling DPRC IRQ failed: dprc_set_irq_enable() failed: %d\n",
+			error);
+
+		return error;
+	}
+
+	return 0;
+}
+
+/*
+ * Setup interrupt for a given DPRC device
+ */
+static int dprc_setup_irq(struct fsl_mc_device *mc_dev)
+{
+	int error;
+
+	error = fsl_mc_allocate_irqs(mc_dev);
+	if (error < 0)
+		return error;
+
+	error = disable_dprc_irq(mc_dev);
+	if (error < 0)
+		goto error_free_irqs;
+
+	error = register_dprc_irq_handler(mc_dev);
+	if (error < 0)
+		goto error_free_irqs;
+
+	error = enable_dprc_irq(mc_dev);
+	if (error < 0)
+		goto error_free_irqs;
+
+	return 0;
+
+error_free_irqs:
+	fsl_mc_free_irqs(mc_dev);
+	return error;
+}
+
+/**
  * dprc_probe - callback invoked when a DPRC is being bound to this driver
  *
  * @mc_dev: Pointer to fsl-mc device representing a DPRC
@@ -476,6 +701,13 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	if (error < 0)
 		goto error_cleanup_open;
 
+	/*
+	 * Configure interrupt for the DPRC object associated with this MC bus:
+	 */
+	error = dprc_setup_irq(mc_dev);
+	if (error < 0)
+		goto error_cleanup_open;
+
 	dev_info(&mc_dev->dev, "DPRC device bound to driver");
 	return 0;
 
@@ -492,6 +724,15 @@ error_cleanup_msi_domain:
 	}
 
 	return error;
+}
+
+/*
+ * Tear down interrupt for a given DPRC object
+ */
+static void dprc_teardown_irq(struct fsl_mc_device *mc_dev)
+{
+	(void)disable_dprc_irq(mc_dev);
+	fsl_mc_free_irqs(mc_dev);
 }
 
 /**
@@ -513,6 +754,12 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 		return -EINVAL;
 	if (WARN_ON(!mc_dev->mc_io))
 		return -EINVAL;
+
+	if (WARN_ON(!mc_bus->irq_resources))
+		return -EINVAL;
+
+	if (dev_get_msi_domain(&mc_dev->dev))
+		dprc_teardown_irq(mc_dev);
 
 	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
 	dprc_cleanup_all_resource_pools(mc_dev);
