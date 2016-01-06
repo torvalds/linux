@@ -626,8 +626,20 @@ void br_recalculate_fwd_mask(struct net_bridge *br)
 
 int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
+	struct switchdev_attr attr = {
+		.orig_dev = br->dev,
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
+		.u.vlan_filtering = val,
+	};
+	int err;
+
 	if (br->vlan_enabled == val)
 		return 0;
+
+	err = switchdev_port_attr_set(br->dev, &attr);
+	if (err && err != -EOPNOTSUPP)
+		return err;
 
 	br->vlan_enabled = val;
 	br_manage_promisc(br);
@@ -639,13 +651,15 @@ int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
+	int err;
+
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	__br_vlan_filter_toggle(br, val);
+	err = __br_vlan_filter_toggle(br, val);
 	rtnl_unlock();
 
-	return 0;
+	return err;
 }
 
 int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
