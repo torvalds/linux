@@ -40,7 +40,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
-
+#include <linux/version.h>
 #include "pvrsrv_device.h"
 #include "syscommon.h"
 #include "sysconfig.h"
@@ -49,6 +49,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "ion_support.h"
 #endif
 #include "rk_init.h"
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+#include <linux/platform_device.h>
+extern struct platform_device *gpsPVRLDMDev;
+#endif
 
 static RGX_TIMING_INFORMATION	gsRGXTimingInfo;
 static RGX_DATA			gsRGXData;
@@ -178,7 +183,11 @@ PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig, void *hDev
 	/* Device setup information */
 	gsDevices[0].sRegsCpuPBase.uiAddr   = RK_GPU_PBASE;
 	gsDevices[0].ui32RegsSize           = RK_GPU_SIZE;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 	gsDevices[0].ui32IRQ                = RK_IRQ_GPU;
+#else
+	gsDevices[0].ui32IRQ                = platform_get_irq(gpsPVRLDMDev, 0);
+#endif
 	gsDevices[0].bIRQIsShared           = IMG_FALSE;
 
 	/* Device's physical heap IDs */

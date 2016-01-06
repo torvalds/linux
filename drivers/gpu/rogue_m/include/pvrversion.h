@@ -67,6 +67,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *	    4. Get raw ion_device by IonDevAcquire.
  *  M 1.31
  *	    1. Merge 1.5_ED3830101 DDK code.
+ *  M 1.31+
+ *          1. Let Rogue M support kernel 4.4.
+ *          2. Close OPEN_GPU_PD temporarily.
  */
 
 #define PVR_STR(X) #X
@@ -94,5 +97,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
 //chenli:define rockchip version
-#define RKVERSION                   "Rogue M 1.31"
+#define RKVERSION                   "Rogue M 1.31+"
 #endif /* _PVRVERSION_H_ */

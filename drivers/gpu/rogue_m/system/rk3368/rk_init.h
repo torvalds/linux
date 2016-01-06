@@ -17,7 +17,7 @@
 #define RK33_USE_CUSTOMER_GET_GPU_UTIL      0
 
 #define RK33_USE_CL_COUNT_UTILS             0
-#define OPEN_GPU_PD                         1
+#define OPEN_GPU_PD                         0
 
 //USE_KTHREAD and USE_HRTIMER are mutually exclusive
 #define USE_KTHREAD                         0

@@ -1653,7 +1653,7 @@ static long pvr_sync_ioctl_create_fence(struct pvr_sync_timeline *timeline,
 {
 	struct pvr_sync_create_fence_ioctl_data data;
 	struct pvr_sync_alloc_data *alloc_sync_data;
-	int err = -EFAULT, fd = get_unused_fd();
+	int err = -EFAULT, fd = get_unused_fd_flags(0);
 	struct pvr_sync_data *sync_data;
 	struct pvr_sync_pt *pvr_pt;
 	struct sync_fence *fence;
@@ -1742,7 +1742,7 @@ static long pvr_sync_ioctl_alloc_fence(struct pvr_sync_timeline *timeline,
 {
 	struct pvr_sync_alloc_fence_ioctl_data data;
 	struct pvr_sync_alloc_data *alloc_sync_data;
-	int err = -EFAULT, fd = get_unused_fd();
+	int err = -EFAULT, fd = get_unused_fd_flags(0);
 	struct pvr_sync_data *sync_data;
 	struct file *file;
 
@@ -1894,7 +1894,7 @@ static long pvr_sync_ioctl_sw_create_fence(struct sw_sync_timeline *timeline,
 {
 	struct sw_sync_create_fence_data data;
 	struct sync_fence *fence;
-	int fd = get_unused_fd();
+	int fd = get_unused_fd_flags(0);
 	struct sync_pt *sync_pt;
 	int err = -EFAULT;
 

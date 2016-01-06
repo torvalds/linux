@@ -67,7 +67,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <linux/version.h>
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,0,0))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 0, 0))
 #include <linux/mm.h>
 #define PHYSMEM_SUPPORTS_SHRINKER
 #endif
@@ -92,13 +92,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 /* Provide SHRINK_STOP definition for kernel older than 3.12 */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0))
 #define SHRINK_STOP (~0UL)
 #endif
 
 #include "physmem_osmem_linux.h"
 
-#if  (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#if  (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 /* split_pages() not available on older-kernels */
 #if (PVR_LINUX_PHYSMEM_MAX_ALLOC_ORDER > 0)
 /* This includes bin (i.e. bucket) for order-0 */
@@ -443,14 +443,14 @@ _ScanObjectsInPagePool(struct shrinker *psShrinker, struct shrink_control *psShr
 	remain = g_ui32PagePoolEntryCount;
 	_PagePoolUnlock();
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0))
 	return remain;
 #else
 	return psShrinkControl->nr_to_scan - uNumToScan;
 #endif
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0))
 static int
 _ShrinkPagePool(struct shrinker *psShrinker, struct shrink_control *psShrinkControl)
 {
@@ -1000,7 +1000,11 @@ _AllocOSHigherOrderPages(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData,
 		/* Disable retry/wait at order > 0 */
 		PVR_ASSERT(psPageArrayData->uiNumPages > 1);
 		gfp_flags |= __GFP_NORETRY;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 		gfp_flags &= ~__GFP_WAIT;
+#else
+		gfp_flags &= ~__GFP_RECLAIM;
+#endif
 	}
 
 	/* Re-express uiNumPages in multi-order up to cut-off order */
@@ -1079,7 +1083,11 @@ _AllocOSHigherOrderPages(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData,
 				{
 					/* Enable retry/wait at order-0 */
 					gfp_flags &= ~__GFP_NORETRY;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 					gfp_flags |= __GFP_WAIT;
+#else
+					gfp_flags |= __GFP_RECLAIM;
+#endif
 				}
 
 				/* Accumulate remaining failed order into lower order */

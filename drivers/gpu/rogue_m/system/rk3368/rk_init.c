@@ -1,10 +1,9 @@
 #if defined(SUPPORT_ION)
 #include "ion_sys.h"
 #endif /* defined(SUPPORT_ION) */
-
+#include <linux/version.h>
 #include <linux/hardirq.h>
 #include <linux/clk.h>
-#include <linux/clk-private.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -21,15 +20,21 @@
 #include <linux/module.h>
 #include <linux/freezer.h>
 #include <linux/sched/rt.h>
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
+#include <linux/clk-private.h>
+#else
+#include <linux/clk-provider.h>
+#endif
 #include "power.h"
 #include "rk_init.h"
 
 #include <asm/compiler.h>
+#if RK33_DVFS_SUPPORT
 static IMG_HANDLE ghGpuUtilDvfs = NULL;
+#endif
 
 #if RK_TF_VERSION
 #define PSCI_RKSIP_TF_VERSION (0x82000001)
-
 
 static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
       u64 arg2)

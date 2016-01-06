@@ -41,6 +41,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 #include <linux/version.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 
@@ -57,11 +58,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#error "CONFIG_OUTER_CACHE not supported on arm64."
 #endif
 
+extern struct platform_device *gpsPVRLDMDev;
 
 static void per_cpu_cache_flush(void *arg)
 {
 	PVR_UNREFERENCED_PARAMETER(arg);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 	flush_cache_all();
+#endif
 }
 
 void OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
@@ -90,6 +94,7 @@ void OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
 	}
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 void OSFlushCPUCacheRangeKM(IMG_PVOID pvVirtStart,
 							IMG_PVOID pvVirtEnd,
 							IMG_CPU_PHYADDR sCPUPhysStart,
@@ -114,3 +119,53 @@ void OSInvalidateCPUCacheRangeKM(IMG_PVOID pvVirtStart,
 {
 	dma_ops->sync_single_for_cpu(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
 }
+#else
+void OSFlushCPUCacheRangeKM(
+				IMG_PVOID pvVirtStart,
+				IMG_PVOID pvVirtEnd,
+				IMG_CPU_PHYADDR sCPUPhysStart,
+				IMG_CPU_PHYADDR sCPUPhysEnd)
+{
+	const struct dma_map_ops *dma_ops = get_dma_ops(&gpsPVRLDMDev->dev);
+
+	dma_ops->sync_single_for_device(
+		&gpsPVRLDMDev->dev,
+		sCPUPhysStart.uiAddr,
+		sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr,
+		DMA_TO_DEVICE);
+	dma_ops->sync_single_for_cpu(&gpsPVRLDMDev->dev,
+		sCPUPhysStart.uiAddr,
+		sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr,
+		DMA_FROM_DEVICE);
+}
+
+void OSCleanCPUCacheRangeKM(
+				IMG_PVOID pvVirtStart,
+				IMG_PVOID pvVirtEnd,
+				IMG_CPU_PHYADDR sCPUPhysStart,
+				IMG_CPU_PHYADDR sCPUPhysEnd)
+{
+	const struct dma_map_ops *dma_ops = get_dma_ops(&gpsPVRLDMDev->dev);
+
+	dma_ops->sync_single_for_device(
+		&gpsPVRLDMDev->dev,
+		sCPUPhysStart.uiAddr,
+		sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr,
+		DMA_TO_DEVICE);
+}
+
+void OSInvalidateCPUCacheRangeKM(
+					IMG_PVOID pvVirtStart,
+					IMG_PVOID pvVirtEnd,
+					IMG_CPU_PHYADDR sCPUPhysStart,
+					IMG_CPU_PHYADDR sCPUPhysEnd)
+{
+	const struct dma_map_ops *dma_ops = get_dma_ops(&gpsPVRLDMDev->dev);
+
+	dma_ops->sync_single_for_cpu(
+		&gpsPVRLDMDev->dev,
+		sCPUPhysStart.uiAddr,
+		sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr,
+		DMA_FROM_DEVICE);
+}
+#endif
