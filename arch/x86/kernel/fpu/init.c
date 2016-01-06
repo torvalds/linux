@@ -3,8 +3,11 @@
  */
 #include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
+#include <asm/setup.h>
+#include <asm/cmdline.h>
 
 #include <linux/sched.h>
+#include <linux/init.h>
 
 /*
  * Initialize the TS bit in CR0 according to the style of context-switches
@@ -270,18 +273,6 @@ static void __init fpu__init_system_xstate_size_legacy(void)
  */
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
 
-static int __init eager_fpu_setup(char *s)
-{
-	if (!strcmp(s, "on"))
-		eagerfpu = ENABLE;
-	else if (!strcmp(s, "off"))
-		eagerfpu = DISABLE;
-	else if (!strcmp(s, "auto"))
-		eagerfpu = AUTO;
-	return 1;
-}
-__setup("eagerfpu=", eager_fpu_setup);
-
 /*
  * Pick the FPU context switching strategy:
  */
@@ -316,11 +307,46 @@ static void __init fpu__init_system_ctx_switch(void)
 }
 
 /*
+ * We parse fpu parameters early because fpu__init_system() is executed
+ * before parse_early_param().
+ */
+static void __init fpu__init_parse_early_param(void)
+{
+	/*
+	 * No need to check "eagerfpu=auto" again, since it is the
+	 * initial default.
+	 */
+	if (cmdline_find_option_bool(boot_command_line, "eagerfpu=off"))
+		eagerfpu = DISABLE;
+	else if (cmdline_find_option_bool(boot_command_line, "eagerfpu=on"))
+		eagerfpu = ENABLE;
+
+	if (cmdline_find_option_bool(boot_command_line, "no387"))
+		setup_clear_cpu_cap(X86_FEATURE_FPU);
+
+	if (cmdline_find_option_bool(boot_command_line, "nofxsr")) {
+		setup_clear_cpu_cap(X86_FEATURE_FXSR);
+		setup_clear_cpu_cap(X86_FEATURE_FXSR_OPT);
+		setup_clear_cpu_cap(X86_FEATURE_XMM);
+	}
+
+	if (cmdline_find_option_bool(boot_command_line, "noxsave"))
+		fpu__xstate_clear_all_cpu_caps();
+
+	if (cmdline_find_option_bool(boot_command_line, "noxsaveopt"))
+		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
+
+	if (cmdline_find_option_bool(boot_command_line, "noxsaves"))
+		setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+}
+
+/*
  * Called on the boot CPU once per system bootup, to set up the initial
  * FPU state that is later cloned into all processes:
  */
 void __init fpu__init_system(struct cpuinfo_x86 *c)
 {
+	fpu__init_parse_early_param();
 	fpu__init_system_early_generic(c);
 
 	/*
@@ -344,62 +370,3 @@ void __init fpu__init_system(struct cpuinfo_x86 *c)
 
 	fpu__init_system_ctx_switch();
 }
-
-/*
- * Boot parameter to turn off FPU support and fall back to math-emu:
- */
-static int __init no_387(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_FPU);
-	return 1;
-}
-__setup("no387", no_387);
-
-/*
- * Disable all xstate CPU features:
- */
-static int __init x86_noxsave_setup(char *s)
-{
-	if (strlen(s))
-		return 0;
-
-	fpu__xstate_clear_all_cpu_caps();
-
-	return 1;
-}
-__setup("noxsave", x86_noxsave_setup);
-
-/*
- * Disable the XSAVEOPT instruction specifically:
- */
-static int __init x86_noxsaveopt_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-
-	return 1;
-}
-__setup("noxsaveopt", x86_noxsaveopt_setup);
-
-/*
- * Disable the XSAVES instruction:
- */
-static int __init x86_noxsaves_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
-
-	return 1;
-}
-__setup("noxsaves", x86_noxsaves_setup);
-
-/*
- * Disable FX save/restore and SSE support:
- */
-static int __init x86_nofxsr_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_FXSR);
-	setup_clear_cpu_cap(X86_FEATURE_FXSR_OPT);
-	setup_clear_cpu_cap(X86_FEATURE_XMM);
-
-	return 1;
-}
-__setup("nofxsr", x86_nofxsr_setup);
