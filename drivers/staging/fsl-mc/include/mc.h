@@ -104,6 +104,23 @@ struct fsl_mc_resource {
 };
 
 /**
+ * struct fsl_mc_device_irq - MC object device message-based interrupt
+ * @msi_desc: pointer to MSI descriptor allocated by fsl_mc_msi_alloc_descs()
+ * @mc_dev: MC object device that owns this interrupt
+ * @dev_irq_index: device-relative IRQ index
+ * @resource: MC generic resource associated with the interrupt
+ */
+struct fsl_mc_device_irq {
+	struct msi_desc *msi_desc;
+	struct fsl_mc_device *mc_dev;
+	u8 dev_irq_index;
+	struct fsl_mc_resource resource;
+};
+
+#define to_fsl_mc_irq(_mc_resource) \
+	container_of(_mc_resource, struct fsl_mc_device_irq, resource)
+
+/**
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
 #define FSL_MC_IS_DPRC	0x0001

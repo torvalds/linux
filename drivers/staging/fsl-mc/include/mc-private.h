@@ -26,6 +26,9 @@
 	 strcmp(_obj_type, "dpmcp") == 0 || \
 	 strcmp(_obj_type, "dpcon") == 0)
 
+struct irq_domain;
+struct msi_domain_info;
+
 /**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
  * @root_mc_bus_dev: MC object device representing the root DPRC
@@ -79,11 +82,13 @@ struct fsl_mc_resource_pool {
  * @resource_pools: array of resource pools (one pool per resource type)
  * for this MC bus. These resources represent allocatable entities
  * from the physical DPRC.
+ * @irq_resources: Pointer to array of IRQ objects for the IRQ pool
  * @scan_mutex: Serializes bus scanning
  */
 struct fsl_mc_bus {
 	struct fsl_mc_device mc_dev;
 	struct fsl_mc_resource_pool resource_pools[FSL_MC_NUM_POOL_TYPES];
+	struct fsl_mc_device_irq *irq_resources;
 	struct mutex scan_mutex;    /* serializes bus scanning */
 };
 
@@ -115,5 +120,17 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 							  **new_resource);
 
 void fsl_mc_resource_free(struct fsl_mc_resource *resource);
+
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+						struct msi_domain_info *info,
+						struct irq_domain *parent);
+
+int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
+			   struct irq_domain **mc_msi_domain);
+
+int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
+				 unsigned int irq_count);
+
+void fsl_mc_msi_domain_free_irqs(struct device *dev);
 
 #endif /* _FSL_MC_PRIVATE_H_ */
