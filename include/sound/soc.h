@@ -787,6 +787,7 @@ struct snd_soc_component {
 	unsigned int registered_as_component:1;
 
 	struct list_head list;
+	struct list_head list_aux; /* for auxiliary component of the card */
 
 	struct snd_soc_dai_driver *dai_drv;
 	int num_dai;
@@ -829,6 +830,9 @@ struct snd_soc_component {
 
 	int (*probe)(struct snd_soc_component *);
 	void (*remove)(struct snd_soc_component *);
+
+	/* machine specific init */
+	int (*init)(struct snd_soc_component *component);
 
 #ifdef CONFIG_DEBUG_FS
 	void (*init_debugfs)(struct snd_soc_component *component);
@@ -1130,8 +1134,7 @@ struct snd_soc_card {
 	 */
 	struct snd_soc_aux_dev *aux_dev;
 	int num_aux_devs;
-	struct snd_soc_pcm_runtime *rtd_aux;
-	int num_aux_rtd;
+	struct list_head aux_comp_list;
 
 	const struct snd_kcontrol_new *controls;
 	int num_controls;
@@ -1537,6 +1540,7 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->widgets);
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
+	INIT_LIST_HEAD(&card->aux_comp_list);
 }
 
 static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
