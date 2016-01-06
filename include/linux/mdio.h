@@ -15,7 +15,7 @@ struct mii_bus;
 
 struct mdio_device {
 	struct device dev;
-
+	const struct dev_pm_ops *pm_ops;
 	struct mii_bus *bus;
 	/* Bus address of the MDIO device (0-31) */
 	int addr;

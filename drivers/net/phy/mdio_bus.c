@@ -561,95 +561,32 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 #ifdef CONFIG_PM
-
-static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
-{
-	struct device_driver *drv = phydev->mdio.dev.driver;
-	struct phy_driver *phydrv = to_phy_driver(drv);
-	struct net_device *netdev = phydev->attached_dev;
-
-	if (!drv || !phydrv->suspend)
-		return false;
-
-	/* PHY not attached? May suspend if the PHY has not already been
-	 * suspended as part of a prior call to phy_disconnect() ->
-	 * phy_detach() -> phy_suspend() because the parent netdev might be the
-	 * MDIO bus driver and clock gated at this point.
-	 */
-	if (!netdev)
-		return !phydev->suspended;
-
-	/* Don't suspend PHY if the attched netdev parent may wakeup.
-	 * The parent may point to a PCI device, as in tg3 driver.
-	 */
-	if (netdev->dev.parent && device_may_wakeup(netdev->dev.parent))
-		return false;
-
-	/* Also don't suspend PHY if the netdev itself may wakeup. This
-	 * is the case for devices w/o underlaying pwr. mgmt. aware bus,
-	 * e.g. SoC devices.
-	 */
-	if (device_may_wakeup(&netdev->dev))
-		return false;
-
-	return true;
-}
-
 static int mdio_bus_suspend(struct device *dev)
 {
-	struct phy_device *phydev = to_phy_device(dev);
+	struct mdio_device *mdio = to_mdio_device(dev);
 
-	/* We must stop the state machine manually, otherwise it stops out of
-	 * control, possibly with the phydev->lock held. Upon resume, netdev
-	 * may call phy routines that try to grab the same lock, and that may
-	 * lead to a deadlock.
-	 */
-	if (phydev->attached_dev && phydev->adjust_link)
-		phy_stop_machine(phydev);
+	if (mdio->pm_ops && mdio->pm_ops->suspend)
+		return mdio->pm_ops->suspend(dev);
 
-	if (!mdio_bus_phy_may_suspend(phydev))
-		return 0;
-
-	return phy_suspend(phydev);
+	return 0;
 }
 
 static int mdio_bus_resume(struct device *dev)
 {
-	struct phy_device *phydev = to_phy_device(dev);
-	int ret;
+	struct mdio_device *mdio = to_mdio_device(dev);
 
-	if (!mdio_bus_phy_may_suspend(phydev))
-		goto no_resume;
-
-	ret = phy_resume(phydev);
-	if (ret < 0)
-		return ret;
-
-no_resume:
-	if (phydev->attached_dev && phydev->adjust_link)
-		phy_start_machine(phydev);
+	if (mdio->pm_ops && mdio->pm_ops->resume)
+		return mdio->pm_ops->resume(dev);
 
 	return 0;
 }
 
 static int mdio_bus_restore(struct device *dev)
 {
-	struct phy_device *phydev = to_phy_device(dev);
-	struct net_device *netdev = phydev->attached_dev;
-	int ret;
+	struct mdio_device *mdio = to_mdio_device(dev);
 
-	if (!netdev)
-		return 0;
-
-	ret = phy_init_hw(phydev);
-	if (ret < 0)
-		return ret;
-
-	/* The PHY needs to renegotiate. */
-	phydev->link = 0;
-	phydev->state = PHY_UP;
-
-	phy_start_machine(phydev);
+	if (mdio->pm_ops && mdio->pm_ops->restore)
+		return mdio->pm_ops->restore(dev);
 
 	return 0;
 }

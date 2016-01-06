@@ -63,6 +63,115 @@ static struct phy_driver genphy_driver[GENPHY_DRV_MAX];
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
 
+#ifdef CONFIG_PM
+static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
+{
+	struct device_driver *drv = phydev->mdio.dev.driver;
+	struct phy_driver *phydrv = to_phy_driver(drv);
+	struct net_device *netdev = phydev->attached_dev;
+
+	if (!drv || !phydrv->suspend)
+		return false;
+
+	/* PHY not attached? May suspend if the PHY has not already been
+	 * suspended as part of a prior call to phy_disconnect() ->
+	 * phy_detach() -> phy_suspend() because the parent netdev might be the
+	 * MDIO bus driver and clock gated at this point.
+	 */
+	if (!netdev)
+		return !phydev->suspended;
+
+	/* Don't suspend PHY if the attached netdev parent may wakeup.
+	 * The parent may point to a PCI device, as in tg3 driver.
+	 */
+	if (netdev->dev.parent && device_may_wakeup(netdev->dev.parent))
+		return false;
+
+	/* Also don't suspend PHY if the netdev itself may wakeup. This
+	 * is the case for devices w/o underlaying pwr. mgmt. aware bus,
+	 * e.g. SoC devices.
+	 */
+	if (device_may_wakeup(&netdev->dev))
+		return false;
+
+	return true;
+}
+
+static int mdio_bus_phy_suspend(struct device *dev)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+
+	/* We must stop the state machine manually, otherwise it stops out of
+	 * control, possibly with the phydev->lock held. Upon resume, netdev
+	 * may call phy routines that try to grab the same lock, and that may
+	 * lead to a deadlock.
+	 */
+	if (phydev->attached_dev && phydev->adjust_link)
+		phy_stop_machine(phydev);
+
+	if (!mdio_bus_phy_may_suspend(phydev))
+		return 0;
+
+	return phy_suspend(phydev);
+}
+
+static int mdio_bus_phy_resume(struct device *dev)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	int ret;
+
+	if (!mdio_bus_phy_may_suspend(phydev))
+		goto no_resume;
+
+	ret = phy_resume(phydev);
+	if (ret < 0)
+		return ret;
+
+no_resume:
+	if (phydev->attached_dev && phydev->adjust_link)
+		phy_start_machine(phydev);
+
+	return 0;
+}
+
+static int mdio_bus_phy_restore(struct device *dev)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	struct net_device *netdev = phydev->attached_dev;
+	int ret;
+
+	if (!netdev)
+		return 0;
+
+	ret = phy_init_hw(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* The PHY needs to renegotiate. */
+	phydev->link = 0;
+	phydev->state = PHY_UP;
+
+	phy_start_machine(phydev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mdio_bus_phy_pm_ops = {
+	.suspend = mdio_bus_phy_suspend,
+	.resume = mdio_bus_phy_resume,
+	.freeze = mdio_bus_phy_suspend,
+	.thaw = mdio_bus_phy_resume,
+	.restore = mdio_bus_phy_restore,
+};
+
+#define MDIO_BUS_PHY_PM_OPS (&mdio_bus_phy_pm_ops)
+
+#else
+
+#define MDIO_BUS_PHY_PM_OPS NULL
+
+#endif /* CONFIG_PM */
+
 /**
  * phy_register_fixup - creates a new phy_fixup and adds it to the list
  * @bus_id: A string which matches phydev->mdio.dev.bus_id (or PHY_ANY_ID)
@@ -165,6 +274,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	mdiodev->dev.parent = &bus->dev;
 	mdiodev->dev.bus = &mdio_bus_type;
 	mdiodev->bus = bus;
+	mdiodev->pm_ops = MDIO_BUS_PHY_PM_OPS;
 	mdiodev->addr = addr;
 	mdiodev->flags = MDIO_DEVICE_FLAG_PHY;
 
