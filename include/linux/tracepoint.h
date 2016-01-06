@@ -171,8 +171,8 @@ extern void syscall_unregfunc(void);
 				TP_PROTO(data_proto),			\
 				TP_ARGS(data_args),			\
 				TP_CONDITION(cond),			\
-				rcu_irq_enter(),			\
-				rcu_irq_exit());			\
+				rcu_irq_enter_irqson(),			\
+				rcu_irq_exit_irqson());			\
 	}
 #else
 #define __DECLARE_TRACE_RCU(name, proto, args, cond, data_proto, data_args)
