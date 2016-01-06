@@ -401,6 +401,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	size_t region_size;
 	struct device *parent_dev = mc_dev->dev.parent;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
+	bool mc_io_created = false;
 	bool msi_domain_set = false;
 
 	if (WARN_ON(strcmp(mc_dev->obj_desc.type, "dprc") != 0))
@@ -413,6 +414,9 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		/*
 		 * This is a child DPRC:
 		 */
+		if (WARN_ON(parent_dev->bus != &fsl_mc_bus_type))
+			return -EINVAL;
+
 		if (WARN_ON(mc_dev->obj_desc.region_count == 0))
 			return -EINVAL;
 
@@ -427,6 +431,9 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 					 &mc_dev->mc_io);
 		if (error < 0)
 			return error;
+
+		mc_io_created = true;
+
 		/*
 		 * Inherit parent MSI domain:
 		 */
@@ -457,7 +464,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 			  &mc_dev->mc_handle);
 	if (error < 0) {
 		dev_err(&mc_dev->dev, "dprc_open() failed: %d\n", error);
-		goto error_cleanup_mc_io;
+		goto error_cleanup_msi_domain;
 	}
 
 	mutex_init(&mc_bus->scan_mutex);
@@ -475,11 +482,15 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 error_cleanup_open:
 	(void)dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 
-error_cleanup_mc_io:
+error_cleanup_msi_domain:
 	if (msi_domain_set)
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 
-	fsl_destroy_mc_io(mc_dev->mc_io);
+	if (mc_io_created) {
+		fsl_destroy_mc_io(mc_dev->mc_io);
+		mc_dev->mc_io = NULL;
+	}
+
 	return error;
 }
 
