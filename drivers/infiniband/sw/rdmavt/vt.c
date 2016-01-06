@@ -251,6 +251,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, map_phys_fmr);
 	CHECK_DRIVER_OVERRIDE(rdi, unmap_fmr);
 	CHECK_DRIVER_OVERRIDE(rdi, dealloc_fmr);
+	CHECK_DRIVER_OVERRIDE(rdi, mmap);
 
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =

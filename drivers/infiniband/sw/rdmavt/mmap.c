@@ -1,6 +1,3 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
-
 /*
  * Copyright(c) 2015 Intel Corporation.
  *
@@ -48,14 +45,16 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
-#include "qp.h"
-#include "ah.h"
-#include "mr.h"
-#include "srq.h"
-#include "mcast.h"
+#include <linux/slab.h>
 #include "mmap.h"
 
-#endif          /* DEF_RDMAVT_H */
+/**
+ * rvt_mmap - create a new mmap region
+ * @context: the IB user context of the process making the mmap() call
+ * @vma: the VMA to be initialized
+ * Return zero if the mmap is OK. Otherwise, return an errno.
+ */
+int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
+{
+	return -EOPNOTSUPP;
+}

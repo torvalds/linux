@@ -1,5 +1,5 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
+#ifndef DEF_RDMAVTMMAP_H
+#define DEF_RDMAVTMMAP_H
 
 /*
  * Copyright(c) 2015 Intel Corporation.
@@ -49,13 +49,7 @@
  */
 
 #include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
-#include "qp.h"
-#include "ah.h"
-#include "mr.h"
-#include "srq.h"
-#include "mcast.h"
-#include "mmap.h"
 
-#endif          /* DEF_RDMAVT_H */
+int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
+
+#endif          /* DEF_RDMAVTMMAP_H */
