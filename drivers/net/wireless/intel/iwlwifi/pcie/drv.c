@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -66,6 +67,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+#include <linux/pm_runtime.h>
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 #include <linux/acpi.h>
@@ -623,6 +627,13 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_free_drv;
 
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev,
+					 iwlwifi_mod_params.d0i3_entry_delay);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
+#endif
 	return 0;
 
 out_free_drv:
@@ -689,15 +700,58 @@ static int iwl_pci_resume(struct device *device)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+static int iwl_pci_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct iwl_trans *trans = pci_get_drvdata(pdev);
+
+	IWL_DEBUG_RPM(trans, "entering runtime suspend\n");
+
+	/* For now we only allow D0I3 if the device is off */
+	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status))
+		return -EBUSY;
+
+	trans->system_pm_mode = IWL_PLAT_PM_MODE_D0I3;
+
+	iwl_trans_d3_suspend(trans, false);
+
+	return 0;
+}
+
+static int iwl_pci_runtime_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	enum iwl_d3_status d3_status;
+
+	IWL_DEBUG_RPM(trans, "exiting runtime suspend (resume)\n");
+
+	iwl_trans_d3_resume(trans, &d3_status, false);
+
+	trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
+
+	return 0;
+}
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
+
+static const struct dev_pm_ops iwl_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(iwl_pci_suspend,
+				iwl_pci_resume)
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	SET_RUNTIME_PM_OPS(iwl_pci_runtime_suspend,
+			   iwl_pci_runtime_resume,
+			   NULL)
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
+};
 
 #define IWL_PM_OPS	(&iwl_dev_pm_ops)
 
-#else
+#else /* CONFIG_PM_SLEEP */
 
 #define IWL_PM_OPS	NULL
 
-#endif
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver iwl_pci_driver = {
 	.name = DRV_NAME,

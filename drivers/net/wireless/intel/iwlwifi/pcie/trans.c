@@ -72,6 +72,9 @@
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+#include <linux/pm_runtime.h>
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 
 #include "iwl-drv.h"
 #include "iwl-trans.h"
@@ -1194,6 +1197,9 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	if (hw_rfkill != was_hw_rfkill)
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	pm_runtime_put_sync(trans->dev);
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 	/* re-take ownership to prevent other users from stealing the deivce */
 	iwl_pcie_prepare_card_hw(trans);
 }
@@ -1353,6 +1359,9 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 	/* ... rfkill can call stop_device and set it false if needed */
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	pm_runtime_get_sync(trans->dev);
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 	return 0;
 }
 
@@ -1476,6 +1485,10 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	/* TODO: check if this is really needed */
+	pm_runtime_disable(trans->dev);
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 	synchronize_irq(trans_pcie->pci_dev->irq);
 
 	iwl_pcie_tx_free(trans);
@@ -1831,6 +1844,9 @@ void iwl_trans_pcie_ref(struct iwl_trans *trans)
 	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
 	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
 	trans_pcie->ref_count++;
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	pm_runtime_get(&trans_pcie->pci_dev->dev);
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
 }
 
@@ -1849,6 +1865,11 @@ void iwl_trans_pcie_unref(struct iwl_trans *trans)
 		return;
 	}
 	trans_pcie->ref_count--;
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	pm_runtime_mark_last_busy(&trans_pcie->pci_dev->dev);
+	pm_runtime_put_autosuspend(&trans_pcie->pci_dev->dev);
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
+
 	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
 }
 
@@ -2727,6 +2748,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	}
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
+
+#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+	trans->runtime_pm_mode = IWL_PLAT_PM_MODE_D0I3;
+#else
+	trans->runtime_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
+#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 
 	return trans;
 
