@@ -686,6 +686,9 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 			return client->auth_err;
 	}
 
+	pr_info("client%llu fsid %pU\n", ceph_client_id(client), &client->fsid);
+	ceph_debugfs_client_init(client);
+
 	return 0;
 }
 EXPORT_SYMBOL(__ceph_open_session);
