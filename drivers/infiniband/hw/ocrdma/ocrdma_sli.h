@@ -465,8 +465,11 @@ struct ocrdma_ae_qp_mcqe {
 	u32 valid_ae_event;
 };
 
-#define OCRDMA_ASYNC_RDMA_EVE_CODE 0x14
-#define OCRDMA_ASYNC_GRP5_EVE_CODE 0x5
+enum ocrdma_async_event_code {
+	OCRDMA_ASYNC_LINK_EVE_CODE	= 0x01,
+	OCRDMA_ASYNC_GRP5_EVE_CODE	= 0x05,
+	OCRDMA_ASYNC_RDMA_EVE_CODE	= 0x14
+};
 
 enum ocrdma_async_grp5_events {
 	OCRDMA_ASYNC_EVENT_QOS_VALUE	= 0x01,
@@ -487,6 +490,44 @@ enum OCRDMA_ASYNC_EVENT_TYPE {
 	OCRDMA_QP_LAST_WQE_EVENT	= 0x10,
 
 	OCRDMA_MAX_ASYNC_ERRORS
+};
+
+struct ocrdma_ae_lnkst_mcqe {
+	u32 speed_state_ptn;
+	u32 qos_reason_falut;
+	u32 evt_tag;
+	u32 valid_ae_event;
+};
+
+enum {
+	OCRDMA_AE_LSC_PORT_NUM_MASK	= 0x3F,
+	OCRDMA_AE_LSC_PT_SHIFT		= 0x06,
+	OCRDMA_AE_LSC_PT_MASK		= (0x03 <<
+			OCRDMA_AE_LSC_PT_SHIFT),
+	OCRDMA_AE_LSC_LS_SHIFT		= 0x08,
+	OCRDMA_AE_LSC_LS_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_LS_SHIFT),
+	OCRDMA_AE_LSC_LD_SHIFT		= 0x10,
+	OCRDMA_AE_LSC_LD_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_LD_SHIFT),
+	OCRDMA_AE_LSC_PPS_SHIFT		= 0x18,
+	OCRDMA_AE_LSC_PPS_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_PPS_SHIFT),
+	OCRDMA_AE_LSC_PPF_MASK		= 0xFF,
+	OCRDMA_AE_LSC_ER_SHIFT		= 0x08,
+	OCRDMA_AE_LSC_ER_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_ER_SHIFT),
+	OCRDMA_AE_LSC_QOS_SHIFT		= 0x10,
+	OCRDMA_AE_LSC_QOS_MASK		= (0xFFFF <<
+			OCRDMA_AE_LSC_QOS_SHIFT)
+};
+
+enum {
+	OCRDMA_AE_LSC_PLINK_DOWN	= 0x00,
+	OCRDMA_AE_LSC_PLINK_UP		= 0x01,
+	OCRDMA_AE_LSC_LLINK_DOWN	= 0x02,
+	OCRDMA_AE_LSC_LLINK_MASK	= 0x02,
+	OCRDMA_AE_LSC_LLINK_UP		= 0x03
 };
 
 /* mailbox command request and responses */
@@ -676,7 +717,7 @@ enum {
 	OCRDMA_PHY_PFLT_SHIFT	= 0x18,
 	OCRDMA_QOS_LNKSP_MASK	= 0xFFFF0000,
 	OCRDMA_QOS_LNKSP_SHIFT	= 0x10,
-	OCRDMA_LLST_MASK	= 0xFF,
+	OCRDMA_LINK_ST_MASK	= 0x01,
 	OCRDMA_PLFC_MASK	= 0x00000400,
 	OCRDMA_PLFC_SHIFT	= 0x8,
 	OCRDMA_PLRFC_MASK	= 0x00000200,
@@ -691,7 +732,7 @@ struct ocrdma_get_link_speed_rsp {
 
 	u32 pflt_pps_ld_pnum;
 	u32 qos_lsp;
-	u32 res_lls;
+	u32 res_lnk_st;
 };
 
 enum {

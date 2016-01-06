@@ -232,6 +232,10 @@ struct phy_info {
 	u16 interface_type;
 };
 
+enum ocrdma_flags {
+	OCRDMA_FLAGS_LINK_STATUS_INIT = 0x01
+};
+
 struct ocrdma_dev {
 	struct ib_device ibdev;
 	struct ocrdma_dev_attr attr;
@@ -287,6 +291,7 @@ struct ocrdma_dev {
 	atomic_t update_sl;
 	u16 pvid;
 	u32 asic_id;
+	u32 flags;
 
 	ulong last_stats_time;
 	struct mutex stats_lock; /* provide synch for debugfs operations */
@@ -589,6 +594,11 @@ static inline u8 ocrdma_is_enabled_and_synced(u32 state)
 	 */
 	return (state & OCRDMA_STATE_FLAG_ENABLED) &&
 		(state & OCRDMA_STATE_FLAG_SYNC);
+}
+
+static inline u8 ocrdma_get_ae_link_state(u32 ae_state)
+{
+	return ((ae_state & OCRDMA_AE_LSC_LS_MASK) >> OCRDMA_AE_LSC_LS_SHIFT);
 }
 
 #endif
