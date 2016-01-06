@@ -105,7 +105,7 @@ typedef struct _PVR_DEBUGFS_PRIV_DATA_
 static void _RefDirEntry(PVR_DEBUGFS_DIR_DATA *psDirEntry);
 static void _UnrefAndMaybeDestroyDirEntry(PVR_DEBUGFS_DIR_DATA *psDirEntry);
 static void _UnrefAndMaybeDestroyDirEntryWhileLocked(PVR_DEBUGFS_DIR_DATA *psDirEntry);
-static IMG_BOOL _RefDebugFSEntry(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry);
+static IMG_BOOL _RefDebugFSEntryNoLock(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry);
 static void _UnrefAndMaybeDestroyDebugFSEntry(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry);
 static IMG_BOOL _RefStatEntry(PVR_DEBUGFS_DRIVER_STAT *psStatEntry);
 static IMG_BOOL _UnrefAndMaybeDestroyStatEntry(PVR_DEBUGFS_DRIVER_STAT *psStatEntry);
@@ -258,6 +258,8 @@ static int _DebugFSFileOpen(struct inode *psINode, struct file *psFile)
 	IMG_BOOL bRefRet = IMG_FALSE;
 	PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry = NULL;
 
+	mutex_lock(&gDebugFSLock);
+
 	PVR_ASSERT(psINode);
 	psPrivData = (PVR_DEBUGFS_PRIV_DATA *)psINode->i_private;
 
@@ -273,7 +275,8 @@ static int _DebugFSFileOpen(struct inode *psINode, struct file *psFile)
 			 */
 			if (psDebugFSEntry)
 			{
-				bRefRet = _RefDebugFSEntry(psDebugFSEntry);
+				bRefRet = _RefDebugFSEntryNoLock(psDebugFSEntry);
+				mutex_unlock(&gDebugFSLock);
 				if (bRefRet)
 				{
 					iResult = seq_open(psFile, psPrivData->psReadOps);
@@ -291,7 +294,19 @@ static int _DebugFSFileOpen(struct inode *psINode, struct file *psFile)
 					}
 				}
 			}
+			else
+			{
+				mutex_unlock(&gDebugFSLock);
+			}
 		}
+		else
+		{
+			mutex_unlock(&gDebugFSLock);
+		}
+	}
+	else
+	{
+		mutex_unlock(&gDebugFSLock);
 	}
 
 	return iResult;
@@ -728,13 +743,11 @@ static void _UnrefAndMaybeDestroyDirEntry(PVR_DEBUGFS_DIR_DATA *psDirEntry)
 	mutex_unlock(&gDebugFSLock);
 }
 
-static IMG_BOOL _RefDebugFSEntry(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry)
+static IMG_BOOL _RefDebugFSEntryNoLock(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry)
 {
 	IMG_BOOL bResult = IMG_FALSE;
 
 	PVR_ASSERT(psDebugFSEntry != NULL);
-
-	mutex_lock(&gDebugFSLock);
 
 	bResult = (psDebugFSEntry->ui32RefCount > 0);
 	if (bResult)
@@ -742,8 +755,6 @@ static IMG_BOOL _RefDebugFSEntry(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry)
 		/* Increment refCount of psDebugFSEntry */
 		psDebugFSEntry->ui32RefCount++;
 	}
-
-	mutex_unlock(&gDebugFSLock);
 
 	return bResult;
 }
@@ -770,6 +781,7 @@ static void _UnrefAndMaybeDestroyDebugFSEntry(PVR_DEBUGFS_ENTRY_DATA *psDebugFSE
 					psPrivData->bValid = IMG_FALSE;
 					psPrivData->psDebugFSEntry = NULL;
 					OSFreeMemstatMem(psEntry->d_inode->i_private);
+					psEntry->d_inode->i_private = IMG_NULL;
 				}
 				debugfs_remove(psEntry);
 			}

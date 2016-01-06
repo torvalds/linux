@@ -666,6 +666,12 @@ PVRSRV_ERROR PVRSRVSetDevicePowerStateKM(IMG_UINT32				ui32DeviceIndex,
 	PVRSRV_DATA*    psPVRSRVData = PVRSRVGetPVRSRVData();
 	PVRSRV_DEV_POWER_STATE eOldPowerState;
 
+	if (PVRSRV_SYS_POWER_STATE_ON != psPVRSRVData->eCurrentPowerState)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVSetDevicePowerStateKM: System power state is not ON"));
+		return PVRSRV_ERROR_DEVICE_POWER_CHANGE_DENIED;
+	}
+
 	eError = PVRSRVGetDevicePowerState(ui32DeviceIndex, &eOldPowerState);
 	if (eError != PVRSRV_OK)
 	{

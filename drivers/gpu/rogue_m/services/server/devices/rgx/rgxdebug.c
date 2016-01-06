@@ -2868,7 +2868,7 @@ IMG_VOID RGXDebugRequestProcess(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 
 		 	/* Dump the IRQ info */
 			{
-				PVR_DUMPDEBUG_LOG(("RGX FW IRQ count = %d, last sampled in MISR = %d",
+				PVR_DUMPDEBUG_LOG(("RGX FW IRQ count = %d, last sampled in LISR = %d",
 				                  psDevInfo->psRGXFWIfTraceBuf->ui32InterruptCount,
 				                  g_ui32HostSampleIRQCount));
 			}

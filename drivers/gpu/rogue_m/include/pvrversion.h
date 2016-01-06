@@ -60,6 +60,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *          Merge 1.5_ED3653583 DDK code.
  *  M 1.28:
  *	    Merge 1.5_ED3776568 DDK code.
+ *  M 1.29
+ *	    1. Reopen bEnableRDPowIsland since it doesn't appear splash screen when click the drawerbutton.
+ *	    2. Don't set PVR_ANDROID_HAS_SET_BUFFERS_DATASPACE by default.
+ *	    3. Remove hGPUUtilLock to avoid dead lock.
+ *	    4. Get raw ion_device by IonDevAcquire.
+ *  M 1.31
+ *	    1. Merge 1.5_ED3830101 DDK code.
  */
 
 #define PVR_STR(X) #X
@@ -70,7 +77,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PVRVERSION_FAMILY           "rogueddk"
 #define PVRVERSION_BRANCHNAME       "1.5"
-#define PVRVERSION_BUILD             3776568
+#define PVRVERSION_BUILD             3830101
 #define PVRVERSION_BSCONTROL        "Rogue_DDK_Android"
 
 #define PVRVERSION_STRING           "Rogue_DDK_Android rogueddk 1.5@" PVR_STR2(PVRVERSION_BUILD)
@@ -78,8 +85,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
 
-#define PVRVERSION_BUILD_HI          377
-#define PVRVERSION_BUILD_LO          6568
+#define PVRVERSION_BUILD_HI          383
+#define PVRVERSION_BUILD_LO          101
 #define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
 
 #define PVRVERSION_PACK(MAJ,MIN) ((((MAJ)&0xFFFF) << 16) | (((MIN)&0xFFFF) << 0))
@@ -87,5 +94,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
 //chenli:define rockchip version
-#define RKVERSION                   "KM M 1.28"
+#define RKVERSION                   "Rogue M 1.31"
 #endif /* _PVRVERSION_H_ */

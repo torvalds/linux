@@ -219,8 +219,7 @@ PVRSRV_ERROR OSMMUPxAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_SIZE_T uiSize,
 			return PVRSRV_ERROR_UNABLE_TO_SET_CACHE_MODE;
 		}
 	}
-#endif
-#if defined(CONFIG_ARM) || defined(CONFIG_ARM64) || defined (CONFIG_METAG)
+#else
 	{
 		IMG_CPU_PHYADDR sCPUPhysAddrStart, sCPUPhysAddrEnd;
 		IMG_PVOID pvPageVAddr = kmap(psPage);
@@ -232,6 +231,7 @@ PVRSRV_ERROR OSMMUPxAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_SIZE_T uiSize,
 									pvPageVAddr + PAGE_SIZE,
 									sCPUPhysAddrStart,
 									sCPUPhysAddrEnd);
+		kunmap(psPage);
 	}
 #endif
 

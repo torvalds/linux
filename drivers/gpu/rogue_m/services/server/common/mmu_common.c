@@ -1062,14 +1062,14 @@ static PVRSRV_ERROR _SetupPxE(MMU_CONTEXT *psMMUContext,
 								IMG_DEVMEM_OFFSET_T uiSymbolicAddrOffset,
 #endif
 								MMU_FLAGS_T uiProtFlags,
-								IMG_UINT8 uiLog2PageSize)
+								IMG_UINT32 uiLog2PageSize)
 {
 	PVRSRV_DEVICE_NODE *psDevNode = psMMUContext->psDevNode;
 	MMU_MEMORY_DESC *psMemDesc = &psLevel->sMemDesc;
 	PVRSRV_ERROR eError;
 
 	IMG_UINT32 (*pfnDerivePxEProt4)(IMG_UINT32);
-	IMG_UINT64 (*pfnDerivePxEProt8)(IMG_UINT32, IMG_UINT8);
+	IMG_UINT64 (*pfnDerivePxEProt8)(IMG_UINT32, IMG_UINT32);
 
 	if (!psDevPAddr)
 	{
@@ -1283,7 +1283,6 @@ static IMG_BOOL _MMU_FreeLevel(MMU_CONTEXT *psMMUContext,
 	const MMU_PxE_CONFIG *psConfig = apsConfig[uiThisLevel];
 	IMG_UINT32 i;
 	IMG_BOOL bFreed = IMG_FALSE;
-	IMG_UINT8 uiLog2PageSize;
 
 	/* Sanity check */
 	PVR_ASSERT(*pui32CurrentLevel < MMU_MAX_LEVEL);
@@ -1343,9 +1342,7 @@ static IMG_BOOL _MMU_FreeLevel(MMU_CONTEXT *psMMUContext,
 				if (aeMMULevel[uiThisLevel] != MMU_LEVEL_1)
 				{
 					PVRSRV_ERROR eError;
-					/* Take the page size from the page table configs.
-					   Calculate array entry for PT config dependent on max MMU level */
-					uiLog2PageSize = apsConfig[MMU_MAX_LEVEL-1]->uiLog2Align;
+
 					/* Un-wire the entry */
 					eError = _SetupPxE(psMMUContext,
 									psLevel,
@@ -1359,7 +1356,7 @@ static IMG_BOOL _MMU_FreeLevel(MMU_CONTEXT *psMMUContext,
 									0,			/* Only required for data page */
 #endif
 									MMU_PROTFLAGS_INVALID,
-									uiLog2PageSize);		
+									GET_LOG2_PAGESIZE());
 
 					PVR_ASSERT(eError == PVRSRV_OK);
 				}
@@ -1480,7 +1477,6 @@ static PVRSRV_ERROR _MMU_AllocLevel(MMU_CONTEXT *psMMUContext,
 			IMG_UINT32 uiNextEndIndex;
 			IMG_BOOL bNextFirst;
 			IMG_BOOL bNextLast;
-			IMG_UINT8 uiLog2PageSize;
 
 			/* If there is already a next Px level existing, do not allocate it */
 			if (!psLevel->apsNextLevel[i])
@@ -1520,7 +1516,6 @@ static PVRSRV_ERROR _MMU_AllocLevel(MMU_CONTEXT *psMMUContext,
 					goto e0;
 				}
 
-				uiLog2PageSize = apsConfig[MMU_MAX_LEVEL-1]->uiLog2Align;
 				/* Wire up the entry */
 				eError = _SetupPxE(psMMUContext,
 									psLevel,
@@ -1534,7 +1529,7 @@ static PVRSRV_ERROR _MMU_AllocLevel(MMU_CONTEXT *psMMUContext,
 									0,			/* Only required for data page */
 #endif
 									0,
-									uiLog2PageSize);
+									GET_LOG2_PAGESIZE());
 
 				if (eError != PVRSRV_OK)
 				{

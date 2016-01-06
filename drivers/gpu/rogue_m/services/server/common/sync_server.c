@@ -235,13 +235,17 @@ SyncPrimitiveBlockToFWAddr(SYNC_PRIMITIVE_BLOCK *psSyncPrimBlock,
 
 static PVRSRV_ERROR SyncAddrListGrow(SYNC_ADDR_LIST *psList, IMG_UINT32 ui32NumSyncs)
 {
+	PVR_ASSERT(ui32NumSyncs <= PVRSRV_MAX_SYNC_PRIMS);
+	
 	if(ui32NumSyncs > psList->ui32NumSyncs)
 	{
-		OSFreeMem(psList->pasFWAddrs);
-		psList->pasFWAddrs = OSAllocMem(sizeof(PRGXFWIF_UFO_ADDR) * ui32NumSyncs);
 		if(psList->pasFWAddrs == IMG_NULL)
 		{
-			return PVRSRV_ERROR_OUT_OF_MEMORY;
+			psList->pasFWAddrs = OSAllocMem(sizeof(PRGXFWIF_UFO_ADDR) * PVRSRV_MAX_SYNC_PRIMS);
+			if(psList->pasFWAddrs == NULL)
+			{
+				return PVRSRV_ERROR_OUT_OF_MEMORY;
+			}
 		}
 
 		psList->ui32NumSyncs = ui32NumSyncs;
@@ -264,6 +268,7 @@ IMG_VOID
 SyncAddrListInit(SYNC_ADDR_LIST *psList)
 {
 	psList->ui32NumSyncs = 0;
+	psList->pasFWAddrs   = NULL;
 }
 
 /*!
@@ -279,7 +284,7 @@ SyncAddrListInit(SYNC_ADDR_LIST *psList)
 IMG_VOID
 SyncAddrListDeinit(SYNC_ADDR_LIST *psList)
 {
-	if(psList->ui32NumSyncs != 0)
+	if(psList->pasFWAddrs != NULL)
 	{
 		OSFreeMem(psList->pasFWAddrs);
 	}

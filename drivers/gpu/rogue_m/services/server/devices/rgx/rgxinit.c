@@ -342,8 +342,8 @@ static PVRSRV_ERROR RGXGetGpuUtilStats(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 
 	/***** (2) Get latest data from shared area *****/
-
-	OSLockAcquire(psDevInfo->hGPUUtilLock);
+	//zxl: Remove hGPUUtilLock to avoid dead lock.
+	//OSLockAcquire(psDevInfo->hGPUUtilLock);
 
 	/* Read the timer before reading the latest stats from the shared
 	 * area, discard it later in case of state updates after this point.
@@ -373,7 +373,7 @@ static PVRSRV_ERROR RGXGetGpuUtilStats(PVRSRV_DEVICE_NODE *psDeviceNode,
 	psReturnStats->ui32GpuEnergy = psDevInfo->psRGXFWIfTraceBuf->ui32PowMonEnergy;
 #endif
 
-	OSLockRelease(psDevInfo->hGPUUtilLock);
+	//OSLockRelease(psDevInfo->hGPUUtilLock);
 
 	if (i == MAX_ITERATIONS)
 	{

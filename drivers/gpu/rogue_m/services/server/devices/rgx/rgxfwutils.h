@@ -491,7 +491,7 @@ PVRSRV_ERROR RGXWaitForFWOp(PVRSRV_RGXDEV_INFO	*psDevInfo,
 
 ******************************************************************************/
 PVRSRV_ERROR RGXFWRequestCommonContextCleanUp(PVRSRV_DEVICE_NODE *psDeviceNode,
-											  PRGXFWIF_FWCOMMONCONTEXT psFWContext,
+											  RGX_SERVER_COMMON_CONTEXT *psServerCommonContext,
 											  PVRSRV_CLIENT_SYNC_PRIM *psSyncPrim,
 											  RGXFWIF_DM eDM);
 

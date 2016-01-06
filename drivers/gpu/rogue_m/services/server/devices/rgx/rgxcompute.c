@@ -207,7 +207,7 @@ PVRSRV_ERROR PVRSRVRGXDestroyComputeContextKM(RGX_SERVER_COMPUTE_CONTEXT *psComp
 
 	/* Check if the FW has finished with this resource ... */
 	eError = RGXFWRequestCommonContextCleanUp(psComputeContext->psDeviceNode,
-											  FWCommonContextGetFWAddress(psComputeContext->psServerCommonContext),
+											  psComputeContext->psServerCommonContext,
 											  psComputeContext->psSync,
 											  RGXFWIF_DM_CDM);
 

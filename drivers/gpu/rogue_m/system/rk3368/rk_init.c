@@ -2129,13 +2129,13 @@ PVRSRV_ERROR IonInit(void *phPrivateData)
 
 struct ion_device *IonDevAcquire(IMG_VOID)
 {
-    return g_psIonDev;
+    return rockchip_ion_dev;
 }
 
 IMG_VOID IonDevRelease(struct ion_device *psIonDev)
 {
     /* Nothing to do, sanity check the pointer we're passed back */
-    PVR_ASSERT(psIonDev == g_psIonDev);
+    PVR_ASSERT(psIonDev == rockchip_ion_dev);
 }
 
 IMG_UINT32 IonPhysHeapID(IMG_VOID)

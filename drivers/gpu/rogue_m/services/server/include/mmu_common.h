@@ -127,15 +127,15 @@ typedef struct _MMU_DEVICEATTRIBS_
 	const struct _MMU_DEVVADDR_CONFIG_ *psTopLevelDevVAddrConfig;
 
 	/*! Callback for creating protection bits for the page catalogue entry with 8 byte entry */
-	IMG_UINT64 (*pfnDerivePCEProt8)(IMG_UINT32, IMG_UINT8);
+	IMG_UINT64 (*pfnDerivePCEProt8)(IMG_UINT32, IMG_UINT32);
 	/*! Callback for creating protection bits for the page catalogue entry with 4 byte entry */
 	IMG_UINT32 (*pfnDerivePCEProt4)(IMG_UINT32);
 	/*! Callback for creating protection bits for the page directory entry with 8 byte entry */
-	IMG_UINT64 (*pfnDerivePDEProt8)(IMG_UINT32, IMG_UINT8);
+	IMG_UINT64 (*pfnDerivePDEProt8)(IMG_UINT32, IMG_UINT32);
 	/*! Callback for creating protection bits for the page directory entry with 4 byte entry */
 	IMG_UINT32 (*pfnDerivePDEProt4)(IMG_UINT32);
 	/*! Callback for creating protection bits for the page table entry with 8 byte entry */
-	IMG_UINT64 (*pfnDerivePTEProt8)(IMG_UINT32, IMG_UINT8);
+	IMG_UINT64 (*pfnDerivePTEProt8)(IMG_UINT32, IMG_UINT32);
 	/*! Callback for creating protection bits for the page table entry with 4 byte entry */
 	IMG_UINT32 (*pfnDerivePTEProt4)(IMG_UINT32);
 

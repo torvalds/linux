@@ -57,6 +57,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_drm.h"
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
+#define get_unused_fd() get_unused_fd_flags(0)
+#endif
+
 PVRSRV_ERROR OSSecureExport(CONNECTION_DATA *psConnection,
 							IMG_PVOID pvData,
 							IMG_SECURE_TYPE *phSecure,

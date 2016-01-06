@@ -114,6 +114,9 @@ IMG_VOID PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
 IMG_VOID PVRSRVStatsDecrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
         							IMG_SIZE_T uiBytes);
 
+IMG_VOID PVRSRVStatsDecrMemKAllocStat(IMG_SIZE_T uiBytes,
+        							IMG_PID decrPID);
+
 /*
  * Decrease the memory stat for eAllocType. Takes the allocation size value from the
  * hash table with uiCpuVAddr as key. Pair with PVRSRVStatsIncrMemAllocStatAndTrack().

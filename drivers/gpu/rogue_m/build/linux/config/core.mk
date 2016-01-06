@@ -740,6 +740,11 @@ Collect information about allocations such as descriptive strings_\
 and timing data for more detailed page fault analysis._\
 ))
 
+$(eval $(call TunableKernelConfigC,PVR_DISABLE_KMALLOC_MEMSTATS,,\
+Set to avoid gathering statistical information about kmalloc and vmalloc_\
+allocations._\
+))
+
 $(eval $(call TunableBothConfigC,PVRSRV_ENABLE_MEMORY_STATS,,\
 Enable Memory allocations to be recorded and published via Process Statistics._\
 ))

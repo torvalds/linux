@@ -163,11 +163,11 @@ static RGX_PAGESIZECONFIG gsPageSizeConfig2MB;
 
 /* Forward declaration of protection bits derivation functions, for
    the following structure */
-static IMG_UINT64 RGXDerivePCEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2PageSize);
+static IMG_UINT64 RGXDerivePCEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 ui32Log2PageSize);
 static IMG_UINT32 RGXDerivePCEProt4(IMG_UINT32 uiProtFlags);
-static IMG_UINT64 RGXDerivePDEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2PageSize);
+static IMG_UINT64 RGXDerivePDEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 ui32Log2PageSize);
 static IMG_UINT32 RGXDerivePDEProt4(IMG_UINT32 uiProtFlags);
-static IMG_UINT64 RGXDerivePTEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2PageSize);
+static IMG_UINT64 RGXDerivePTEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 ui32Log2PageSize);
 static IMG_UINT32 RGXDerivePTEProt4(IMG_UINT32 uiProtFlags);
 
 static PVRSRV_ERROR RGXGetPageSizeConfigCB(IMG_UINT32 uiLog2DataPageSize,
@@ -698,10 +698,10 @@ static IMG_UINT32 RGXDerivePCEProt4(IMG_UINT32 uiProtFlags)
 @Description    calculate the PCE protection flags based on an 8 byte entry
 @Return         PVRSRV_ERROR
 */ /**************************************************************************/
-static IMG_UINT64 RGXDerivePCEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2PageSize)
+static IMG_UINT64 RGXDerivePCEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 ui32Log2PageSize)
 {
 	PVR_UNREFERENCED_PARAMETER(uiProtFlags);
-	PVR_UNREFERENCED_PARAMETER(ui8Log2PageSize);
+	PVR_UNREFERENCED_PARAMETER(ui32Log2PageSize);
 
 	PVR_DPF((PVR_DBG_ERROR, "8-byte PCE not supported on this device"));
 	return 0;	
@@ -731,13 +731,13 @@ static IMG_UINT32 RGXDerivePDEProt4(IMG_UINT32 uiProtFlags)
 
 @Return         PVRSRV_ERROR
 */ /**************************************************************************/
-static IMG_UINT64 RGXDerivePDEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2PageSize)
+static IMG_UINT64 RGXDerivePDEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 ui32Log2PageSize)
 {
 	IMG_UINT64 ret_value = 0; // 0 means invalid
 
     if (! (uiProtFlags & MMU_PROTFLAGS_INVALID)) // if not invalid
 	{
-		switch (ui8Log2PageSize)
+		switch (ui32Log2PageSize)
 		{
 			case 12:
 				ret_value = RGX_MMUCTRL_PD_DATA_VALID_EN | RGX_MMUCTRL_PD_DATA_PAGE_SIZE_4KB;
@@ -760,7 +760,7 @@ static IMG_UINT64 RGXDerivePDEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2Pag
 			default:
 				PVR_DPF((PVR_DBG_ERROR,
 						 "%s:%d: in function<%s>: Invalid parameter log2_page_size. Expected {12, 14, 16, 18, 20, 21}. Got [%u]",
-						 __FILE__, __LINE__, __FUNCTION__, ui8Log2PageSize));
+						 __FILE__, __LINE__, __FUNCTION__, ui32Log2PageSize));
 		}
 	}
 	return ret_value;
@@ -785,11 +785,11 @@ static IMG_UINT32 RGXDerivePTEProt4(IMG_UINT32 uiProtFlags)
 @Description    calculate the PTE protection flags based on an 8 byte entry
 @Return         PVRSRV_ERROR
 */ /**************************************************************************/
-static IMG_UINT64 RGXDerivePTEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2PageSize)
+static IMG_UINT64 RGXDerivePTEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 ui32Log2PageSize)
 {
 	IMG_UINT64 ui64MMUFlags=0;
 
-	PVR_UNREFERENCED_PARAMETER(ui8Log2PageSize);
+	PVR_UNREFERENCED_PARAMETER(ui32Log2PageSize);
 
 	if(((MMU_PROTFLAGS_READABLE|MMU_PROTFLAGS_WRITEABLE) & uiProtFlags) == (MMU_PROTFLAGS_READABLE|MMU_PROTFLAGS_WRITEABLE))
 	{

@@ -461,9 +461,8 @@ PVRSRV_ERROR FWCommonContextAllocate(CONNECTION_DATA *psConnection,
 	}
 
 	/* Record this context so we can refer to it if the FW needs to tell us it was reset. */
-	psServerCommonContext->eLastResetReason = RGXFWIF_CONTEXT_RESET_REASON_NONE;
-	psServerCommonContext->ui32ContextID    = psDevInfo->ui32CommonCtxtCurrentID++;
-	dllist_add_to_tail(&(psDevInfo->sCommonCtxtListHead), &(psServerCommonContext->sListNode));
+	psServerCommonContext->eLastResetReason    = RGXFWIF_CONTEXT_RESET_REASON_NONE;
+	psServerCommonContext->ui32ContextID       = psDevInfo->ui32CommonCtxtCurrentID++;
 
 	/* Allocate the client CCB */
 	eError = RGXCreateCCB(psDeviceNode,
@@ -564,6 +563,8 @@ PVRSRV_ERROR FWCommonContextAllocate(CONNECTION_DATA *psConnection,
 								  pszContextName,
 								  psServerCommonContext->sFWCommonContextFWAddr.ui32Addr);
 #endif
+	/*Add the node to the list when finalised */
+	dllist_add_to_tail(&(psDevInfo->sCommonCtxtListHead), &(psServerCommonContext->sListNode));
 
 	*ppsServerCommonContext = psServerCommonContext;
 	return PVRSRV_OK;
@@ -584,6 +585,10 @@ fail_alloc:
 
 IMG_VOID FWCommonContextFree(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext)
 {
+
+	/* Remove the context from the list of all contexts. */
+	dllist_remove_node(&psServerCommonContext->sListNode);
+
 	/*
 		Unmap the context itself and then all it's resources
 	*/
@@ -606,8 +611,6 @@ IMG_VOID FWCommonContextFree(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext)
 	/* Destroy the client CCB */
 	RGXDestroyCCB(psServerCommonContext->psClientCCB);
 	
-	/* Remove the context from the list of all contexts. */
-	dllist_remove_node(&psServerCommonContext->sListNode);
 
 	/* Free the FW common context (if there was one) */
 	if (!psServerCommonContext->bCommonContextMemProvided)
@@ -3345,14 +3348,22 @@ fail_command:
 	RGXRequestCommonContextCleanUp
 */
 PVRSRV_ERROR RGXFWRequestCommonContextCleanUp(PVRSRV_DEVICE_NODE *psDeviceNode,
-											  PRGXFWIF_FWCOMMONCONTEXT psFWCommonContextFWAddr,
+											  RGX_SERVER_COMMON_CONTEXT *psServerCommonContext,
 											  PVRSRV_CLIENT_SYNC_PRIM *psSyncPrim,
 											  RGXFWIF_DM eDM)
 {
 	RGXFWIF_KCCB_CMD			sRCCleanUpCmd = {0};
 	PVRSRV_ERROR				eError;
+	PRGXFWIF_FWCOMMONCONTEXT	psFWCommonContextFWAddr;
 
-	PDUMPCOMMENT("Common ctx cleanup Request DM%d [context = 0x%08x]", eDM, psFWCommonContextFWAddr.ui32Addr);
+	psFWCommonContextFWAddr = FWCommonContextGetFWAddress(psServerCommonContext);
+
+	PDUMPCOMMENT("Common ctx cleanup Request DM%d [context = 0x%08x]",
+					eDM, psFWCommonContextFWAddr.ui32Addr);
+	PDUMPCOMMENT("Wait for CCB to be empty before common ctx cleanup");
+
+	RGXCCBPDumpDrainCCB(FWCommonContextGetClientCCB(psServerCommonContext), IMG_FALSE);
+
 
 	/* Setup our command data, the cleanup call will fill in the rest */
 	sRCCleanUpCmd.uCmdData.sCleanupData.uCleanupData.psContext = psFWCommonContextFWAddr;

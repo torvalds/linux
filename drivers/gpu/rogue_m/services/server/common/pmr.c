@@ -433,6 +433,12 @@ _PMRCreate(PMR_SIZE_T uiLogicalSize,
 		OSDivide64(uiChunkSize, (1<< uiLog2ContiguityGuarantee), &ui32Remainder);
 		if (ui32Remainder)
 		{
+			PVR_DPF((PVR_DBG_ERROR,
+					"%s: Bad chunk size, must me a multiple of the contiguity "
+					"(uiChunkSize = 0x%llx, uiLog2ContiguityGuarantee = %u)",
+					__FUNCTION__,
+					(unsigned long long) uiChunkSize,
+					uiLog2ContiguityGuarantee));
 			return PVRSRV_ERROR_PMR_BAD_CHUNK_SIZE;
 		}
 

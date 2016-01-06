@@ -50,7 +50,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #include "process_stats.h"
 #endif
-
+#include "osfunc.h"
 IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 {
 	IMG_PVOID pvRet = IMG_NULL;
@@ -61,7 +61,12 @@ IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 	}
 	if (pvRet == IMG_NULL)
 	{
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
+		/* Allocate an additional 4 bytes to store the PID of the allocating process */
+		pvRet = kmalloc(ui32Size + sizeof(IMG_UINT32), GFP_KERNEL);
+#else
 		pvRet = kmalloc(ui32Size, GFP_KERNEL);
+#endif
 	}
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
@@ -72,7 +77,14 @@ IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 		if (!is_vmalloc_addr(pvRet))
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
+			{
+				/* Store the PID in the final additional 4 bytes allocated */
+				IMG_UINT32 *puiTemp = (IMG_UINT32*) (((IMG_BYTE*)pvRet) + (ksize(pvRet) - sizeof(IMG_UINT32)));
+				*puiTemp = OSGetCurrentProcessID();
+			}
 			PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvRet));
+#endif
 #else
 			{
 				IMG_CPU_PHYADDR sCpuPAddr;
@@ -89,9 +101,11 @@ IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 		else
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
 			PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
 											   ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1)),
 											   (IMG_UINT64)(IMG_UINTPTR_T) pvRet);
+#endif
 #else
 			{
 				IMG_CPU_PHYADDR sCpuPAddr;
@@ -138,7 +152,12 @@ IMG_INTERNAL IMG_PVOID OSAllocZMem(IMG_UINT32 ui32Size)
 	}
 	if (pvRet == IMG_NULL)
 	{
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
+		/* Allocate an additional 4 bytes to store the PID of the allocating process */
+		pvRet = kzalloc(ui32Size + sizeof(IMG_UINT32), GFP_KERNEL);
+#else
 		pvRet = kzalloc(ui32Size, GFP_KERNEL);
+#endif
 	}
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
@@ -149,7 +168,14 @@ IMG_INTERNAL IMG_PVOID OSAllocZMem(IMG_UINT32 ui32Size)
 		if (!is_vmalloc_addr(pvRet))
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
+			{
+				/* Store the PID in the final additional 4 bytes allocated */
+				IMG_UINT32 *puiTemp = (IMG_UINT32*) (((IMG_BYTE*)pvRet) + (ksize(pvRet) - sizeof(IMG_UINT32)));
+				*puiTemp = OSGetCurrentProcessID();
+			}
 			PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvRet));
+#endif
 #else
 			{
 				IMG_CPU_PHYADDR sCpuPAddr;
@@ -166,9 +192,11 @@ IMG_INTERNAL IMG_PVOID OSAllocZMem(IMG_UINT32 ui32Size)
 		else
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
 			PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
 											   ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1)),
 											   (IMG_UINT64)(IMG_UINTPTR_T) pvRet);
+#endif
 #else
 			{
 				IMG_CPU_PHYADDR sCpuPAddr;
@@ -213,7 +241,9 @@ IMG_INTERNAL void OSFreeMem(IMG_PVOID pvMem)
 		if (pvMem != IMG_NULL)
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-			PVRSRVStatsDecrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvMem));
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
+			PVRSRVStatsDecrMemKAllocStat(ksize(pvMem), *((IMG_UINT32*) (((IMG_BYTE*)pvMem) + (ksize(pvMem) - sizeof(IMG_UINT32)))));
+#endif
 #else
 			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
 			                               (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
@@ -228,8 +258,10 @@ IMG_INTERNAL void OSFreeMem(IMG_PVOID pvMem)
 		if (pvMem != IMG_NULL)
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
 			PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-			                                     (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
+			                                      (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
+#endif
 #else
 			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
 			                               (IMG_UINT64)(IMG_UINTPTR_T) pvMem);

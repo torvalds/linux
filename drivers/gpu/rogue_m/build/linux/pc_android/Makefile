@@ -138,3 +138,7 @@ include ../common/android/extra_config.mk
 include ../common/pvrgdb.mk
 include ../common/3rdparty.mk
 include ../common/testchip.mk
+
+# For VP this needs to be external visible options
+$(eval $(call KernelConfigC,TC_APOLLO_ES2,))
+$(eval $(call TunableKernelConfigC,VIRTUAL_PLATFORM,))

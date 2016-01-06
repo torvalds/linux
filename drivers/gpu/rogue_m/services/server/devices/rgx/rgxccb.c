@@ -93,6 +93,27 @@ struct _RGX_CLIENT_CCB_ {
 #endif
 };
 
+IMG_EXPORT PVRSRV_ERROR RGXCCBPDumpDrainCCB(RGX_CLIENT_CCB *psClientCCB,
+						IMG_BOOL bPDumpContinuous)
+{
+	IMG_UINT32 ui32PDumpFlags;
+
+	ui32PDumpFlags = bPDumpContinuous ? PDUMP_FLAGS_CONTINUOUS : 0;
+
+	PDUMPCOMMENTWITHFLAGS(ui32PDumpFlags,
+						  "cCCB(%s@%p): Draining CCB rgxfw_roff == woff (%d)",
+						  psClientCCB->szName,
+						  psClientCCB,
+						  psClientCCB->ui32LastPDumpWriteOffset);
+
+	return DevmemPDumpDevmemPol32(psClientCCB->psClientCCBCtrlMemDesc,
+									offsetof(RGXFWIF_CCCB_CTL, ui32ReadOffset),
+									psClientCCB->ui32LastPDumpWriteOffset,
+									0xffffffff,
+									PDUMP_POLL_OPERATOR_EQUAL,
+									ui32PDumpFlags);
+}
+
 static PVRSRV_ERROR _RGXCCBPDumpTransition(IMG_PVOID *pvData, IMG_BOOL bInto, IMG_BOOL bContinuous)
 {
 	RGX_CLIENT_CCB *psClientCCB = (RGX_CLIENT_CCB *) pvData;
@@ -132,18 +153,9 @@ static PVRSRV_ERROR _RGXCCBPDumpTransition(IMG_PVOID *pvData, IMG_BOOL bInto, IM
 			thus we have no way of knowing if we can skip drain and the sync
 			prim dump or not.
 		*/
-		PDUMPCOMMENTWITHFLAGS(ui32PDumpFlags,
-							  "cCCB(%s@%p): Draining rgxfw_roff == woff (%d)",
-							  psClientCCB->szName,
-							  psClientCCB,
-							  psClientCCB->ui32LastPDumpWriteOffset);
 
-		eError = DevmemPDumpDevmemPol32(psClientCCB->psClientCCBCtrlMemDesc,
-										offsetof(RGXFWIF_CCCB_CTL, ui32ReadOffset),
-										psClientCCB->ui32LastPDumpWriteOffset,
-										0xffffffff,
-										PDUMP_POLL_OPERATOR_EQUAL,
-										ui32PDumpFlags);
+		eError = RGXCCBPDumpDrainCCB(psClientCCB, bContinuous);
+
 		if (eError != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_WARNING, "_RGXCCBPDumpTransition: problem pdumping POL for cCCBCtl (%d)", eError));

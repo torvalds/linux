@@ -107,6 +107,9 @@ typedef struct _RGX_CCB_CMD_HELPER_DATA_ {
 
 #define PADDING_COMMAND_SIZE	(sizeof(RGXFWIF_CCB_CMD_HEADER))
 
+PVRSRV_ERROR RGXCCBPDumpDrainCCB(RGX_CLIENT_CCB *psClientCCB,
+					IMG_UINT32 ui32PDumpContinuous);
+
 PVRSRV_ERROR RGXCreateCCB(PVRSRV_DEVICE_NODE	*psDeviceNode,
 						  IMG_UINT32			ui32CCBSizeLog2,
 						  CONNECTION_DATA		*psConnectionData,

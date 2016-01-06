@@ -1186,6 +1186,11 @@ failDeviceMemAlloc:
 failMemDescAlloc:
 failParams:
     PVR_ASSERT(eError != PVRSRV_OK);
+	PVR_DPF((PVR_DBG_ERROR,
+			"%s: Failed! Error is %s. Allocation size: %#llX",
+			__func__,
+			PVRSRVGETERRORSTRING(eError),
+			(unsigned long long) uiSize));
     return eError;
 }
 
@@ -1304,6 +1309,11 @@ failDeviceMemAlloc:
 failMemDescAlloc:
 failParams:
     PVR_ASSERT(eError != PVRSRV_OK);
+	PVR_DPF((PVR_DBG_ERROR,
+		"%s: Failed! Error is %s. Allocation size: %#llX",
+		__func__,
+		PVRSRVGETERRORSTRING(eError),
+		(unsigned long long) uiSize));
     return eError;
 }
 
@@ -1423,6 +1433,11 @@ failDeviceMemAlloc:
 failMemDescAlloc:
 failParams:
     PVR_ASSERT(eError != PVRSRV_OK);
+	PVR_DPF((PVR_DBG_ERROR,
+		"%s: Failed! Error is %s. Allocation size: %#llX",
+		__func__,
+		PVRSRVGETERRORSTRING(eError),
+		(unsigned long long) uiSize));
     return eError;
 }
 

@@ -196,7 +196,7 @@ static PVRSRV_ERROR _Destroy2DTransferContext(RGX_SERVER_TQ_2D_DATA *ps2DData,
 
 	/* Check if the FW has finished with this resource ... */
 	eError = RGXFWRequestCommonContextCleanUp(psDeviceNode,
-											  FWCommonContextGetFWAddress(ps2DData->psServerCommonContext),
+											  ps2DData->psServerCommonContext,
 											  psCleanupSync,
 											  RGXFWIF_DM_2D);
 	if (eError == PVRSRV_ERROR_RETRY)
@@ -212,6 +212,7 @@ static PVRSRV_ERROR _Destroy2DTransferContext(RGX_SERVER_TQ_2D_DATA *ps2DData,
 
 	/* ... it has so we can free it's resources */
 	FWCommonContextFree(ps2DData->psServerCommonContext);
+	ps2DData->psServerCommonContext = NULL;
 	return PVRSRV_OK;
 }
 
@@ -223,7 +224,7 @@ static PVRSRV_ERROR _Destroy3DTransferContext(RGX_SERVER_TQ_3D_DATA *ps3DData,
 
 	/* Check if the FW has finished with this resource ... */
 	eError = RGXFWRequestCommonContextCleanUp(psDeviceNode,
-											  FWCommonContextGetFWAddress(ps3DData->psServerCommonContext),
+											  ps3DData->psServerCommonContext,
 											  psCleanupSync,
 											  RGXFWIF_DM_3D);
 	if (eError == PVRSRV_ERROR_RETRY)
@@ -240,7 +241,7 @@ static PVRSRV_ERROR _Destroy3DTransferContext(RGX_SERVER_TQ_3D_DATA *ps3DData,
 	/* ... it has so we can free it's resources */
 	DevmemFwFree(ps3DData->psFWContextStateMemDesc);
 	FWCommonContextFree(ps3DData->psServerCommonContext);
-
+	ps3DData->psServerCommonContext = NULL;
 	return PVRSRV_OK;
 }
 
@@ -960,11 +961,11 @@ static IMG_BOOL CheckForStalledClientTransferCtxtCommand(PDLLIST_NODE psNode, IM
 	RGX_SERVER_TQ_3D_DATA		*psTransferCtx3DData = &(psCurrentServerTransferCtx->s3DData);
 	RGX_SERVER_COMMON_CONTEXT	*psCurrentServerTQ3DCommonCtx = psTransferCtx3DData->psServerCommonContext;
 
-	if (PVRSRV_ERROR_CCCB_STALLED == CheckStalledClientCommonContext(psCurrentServerTQ2DCommonCtx))
+	if (psCurrentServerTQ2DCommonCtx && (PVRSRV_ERROR_CCCB_STALLED == CheckStalledClientCommonContext(psCurrentServerTQ2DCommonCtx)))
 	{
 		*peError = PVRSRV_ERROR_CCCB_STALLED;
 	}
-	if (PVRSRV_ERROR_CCCB_STALLED == CheckStalledClientCommonContext(psCurrentServerTQ3DCommonCtx))
+	if (psCurrentServerTQ3DCommonCtx && (PVRSRV_ERROR_CCCB_STALLED == CheckStalledClientCommonContext(psCurrentServerTQ3DCommonCtx)))
 	{
 		*peError = PVRSRV_ERROR_CCCB_STALLED;
 	}
