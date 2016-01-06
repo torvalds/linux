@@ -1,20 +1,6 @@
-#include <linux/smp.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "smc.h"
-
-static int tango4_boot_secondary(unsigned int cpu, struct task_struct *idle)
-{
-	tango_set_aux_boot_addr(virt_to_phys(secondary_startup));
-	tango_start_aux_core(cpu);
-	return 0;
-}
-
-static struct smp_operations tango4_smp_ops __initdata = {
-	.smp_boot_secondary	= tango4_boot_secondary,
-};
-
-CPU_METHOD_OF_DECLARE(tango4_smp, "sigma,tango4-smp", &tango4_smp_ops);
 
 static void tango_l2c_write(unsigned long val, unsigned int reg)
 {
