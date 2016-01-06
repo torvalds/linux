@@ -630,6 +630,12 @@ config KEYBOARD_OMAP4
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap4-keypad.
 
+config KEYBOARD_ROCKCHIP
+	tristate "Rockchip keyboard support"
+	depends on IIO && ARCH_ROCKCHIP
+	help
+	  rk keyboard drivers(gpio and adc)
+
 config KEYBOARD_SPEAR
 	tristate "ST SPEAR keyboard support"
 	depends on PLAT_SPEAR
