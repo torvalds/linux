@@ -51,7 +51,8 @@ static inline u32 mpc8xxx_gpio2mask(unsigned int gpio)
 
 static void mpc8xxx_gpio_save_regs(struct of_mm_gpio_chip *mm)
 {
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(&mm->gc);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc =
+		container_of(mm, struct mpc8xxx_gpio_chip, mm_gc);
 
 	mpc8xxx_gc->data = in_be32(mm->regs + GPIO_DAT);
 }
