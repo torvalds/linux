@@ -1908,7 +1908,8 @@ static void switch_state(struct nandsim *ns)
 
 static u_char ns_nand_read_byte(struct mtd_info *mtd)
 {
-	struct nandsim *ns = mtd_to_nand(mtd)->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nandsim *ns = nand_get_controller_data(chip);
 	u_char outb = 0x00;
 
 	/* Sanity and correctness checks */
@@ -1969,7 +1970,8 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 
 static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 {
-	struct nandsim *ns = mtd_to_nand(mtd)->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
 	if (!ns->lines.ce) {
@@ -2123,7 +2125,8 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 
 static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
 {
-	struct nandsim *ns = mtd_to_nand(mtd)->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nandsim *ns = nand_get_controller_data(chip);
 
 	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;
 	ns->lines.ale = bitmask & NAND_ALE ? 1 : 0;
@@ -2150,7 +2153,8 @@ static uint16_t ns_nand_read_word(struct mtd_info *mtd)
 
 static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
-	struct nandsim *ns = mtd_to_nand(mtd)->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Check that chip is expecting data input */
 	if (!(ns->state & STATE_DATAIN_MASK)) {
@@ -2177,7 +2181,8 @@ static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 
 static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
-	struct nandsim *ns = mtd_to_nand(mtd)->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
 	if (!ns->lines.ce) {
@@ -2404,7 +2409,8 @@ module_init(ns_init_module);
  */
 static void __exit ns_cleanup_module(void)
 {
-	struct nandsim *ns = mtd_to_nand(nsmtd)->priv;
+	struct nand_chip *chip = mtd_to_nand(nsmtd);
+	struct nandsim *ns = nand_get_controller_data(chip);
 	int i;
 
 	nandsim_debugfs_remove(ns);
