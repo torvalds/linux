@@ -2432,6 +2432,20 @@ int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
 }
 EXPORT_SYMBOL_GPL(nfs_may_open);
 
+static int nfs_execute_ok(struct inode *inode, int mask)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	int ret;
+
+	if (mask & MAY_NOT_BLOCK)
+		ret = nfs_revalidate_inode_rcu(server, inode);
+	else
+		ret = nfs_revalidate_inode(server, inode);
+	if (ret == 0 && !execute_ok(inode))
+		ret = -EACCES;
+	return ret;
+}
+
 int nfs_permission(struct inode *inode, int mask)
 {
 	struct rpc_cred *cred;
@@ -2449,6 +2463,9 @@ int nfs_permission(struct inode *inode, int mask)
 		case S_IFLNK:
 			goto out;
 		case S_IFREG:
+			if ((mask & MAY_OPEN) &&
+			   nfs_server_capable(inode, NFS_CAP_ATOMIC_OPEN))
+				return 0;
 			break;
 		case S_IFDIR:
 			/*
@@ -2481,8 +2498,8 @@ force_lookup:
 			res = PTR_ERR(cred);
 	}
 out:
-	if (!res && (mask & MAY_EXEC) && !execute_ok(inode))
-		res = -EACCES;
+	if (!res && (mask & MAY_EXEC))
+		res = nfs_execute_ok(inode, mask);
 
 	dfprintk(VFS, "NFS: permission(%s/%lu), mask=0x%x, res=%d\n",
 		inode->i_sb->s_id, inode->i_ino, mask, res);

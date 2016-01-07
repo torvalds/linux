@@ -321,6 +321,7 @@ TRACE_EVENT(nfs4_sequence_done,
 			__entry->highest_slotid = res->sr_highest_slotid;
 			__entry->target_highest_slotid =
 					res->sr_target_highest_slotid;
+			__entry->status_flags = res->sr_status_flags;
 			__entry->error = res->sr_status;
 		),
 		TP_printk(

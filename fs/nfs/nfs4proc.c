@@ -208,6 +208,9 @@ static const u32 nfs4_pnfs_open_bitmap[3] = {
 	| FATTR4_WORD1_TIME_METADATA
 	| FATTR4_WORD1_TIME_MODIFY,
 	FATTR4_WORD2_MDSTHRESHOLD
+#ifdef CONFIG_NFS_V4_SECURITY_LABEL
+	| FATTR4_WORD2_SECURITY_LABEL
+#endif
 };
 
 static const u32 nfs4_open_noattr_bitmap[3] = {
@@ -1385,6 +1388,7 @@ static void __update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_s
 	 * Protect the call to nfs4_state_set_mode_locked and
 	 * serialise the stateid update
 	 */
+	spin_lock(&state->owner->so_lock);
 	write_seqlock(&state->seqlock);
 	if (deleg_stateid != NULL) {
 		nfs4_stateid_copy(&state->stateid, deleg_stateid);
@@ -1393,7 +1397,6 @@ static void __update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_s
 	if (open_stateid != NULL)
 		nfs_set_open_stateid_locked(state, open_stateid, fmode);
 	write_sequnlock(&state->seqlock);
-	spin_lock(&state->owner->so_lock);
 	update_open_stateflags(state, fmode);
 	spin_unlock(&state->owner->so_lock);
 }
@@ -8079,7 +8082,6 @@ static void nfs4_layoutreturn_release(void *calldata)
 	if (lrp->res.lrs_present)
 		pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
 	pnfs_clear_layoutreturn_waitbit(lo);
-	lo->plh_block_lgets--;
 	spin_unlock(&lo->plh_inode->i_lock);
 	pnfs_free_lseg_list(&freeme);
 	pnfs_put_layout_hdr(lrp->args.layout);
