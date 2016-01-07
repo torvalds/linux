@@ -240,7 +240,6 @@ extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
 extern int sysctl_tcp_sack;
 extern int sysctl_tcp_fin_timeout;
-extern int sysctl_tcp_keepalive_probes;
 extern int sysctl_tcp_keepalive_intvl;
 extern int sysctl_tcp_syn_retries;
 extern int sysctl_tcp_synack_retries;
@@ -1236,7 +1235,9 @@ static inline int keepalive_time_when(const struct tcp_sock *tp)
 
 static inline int keepalive_probes(const struct tcp_sock *tp)
 {
-	return tp->keepalive_probes ? : sysctl_tcp_keepalive_probes;
+	struct net *net = sock_net((struct sock *)tp);
+
+	return tp->keepalive_probes ? : net->ipv4.sysctl_tcp_keepalive_probes;
 }
 
 static inline u32 keepalive_time_elapsed(const struct tcp_sock *tp)
