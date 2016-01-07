@@ -240,7 +240,6 @@ extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
 extern int sysctl_tcp_sack;
 extern int sysctl_tcp_fin_timeout;
-extern int sysctl_tcp_keepalive_intvl;
 extern int sysctl_tcp_syn_retries;
 extern int sysctl_tcp_synack_retries;
 extern int sysctl_tcp_retries1;
@@ -1223,7 +1222,9 @@ void tcp_enter_memory_pressure(struct sock *sk);
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
 {
-	return tp->keepalive_intvl ? : sysctl_tcp_keepalive_intvl;
+	struct net *net = sock_net((struct sock *)tp);
+
+	return tp->keepalive_intvl ? : net->ipv4.sysctl_tcp_keepalive_intvl;
 }
 
 static inline int keepalive_time_when(const struct tcp_sock *tp)

@@ -96,6 +96,7 @@ struct netns_ipv4 {
 
 	int sysctl_tcp_keepalive_time;
 	int sysctl_tcp_keepalive_probes;
+	int sysctl_tcp_keepalive_intvl;
 
 	struct ping_group_range ping_group_range;
 
