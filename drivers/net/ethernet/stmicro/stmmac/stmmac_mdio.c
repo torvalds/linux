@@ -217,8 +217,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		if (mdio_node) {
 			netdev_dbg(ndev, "FOUND MDIO subnode\n");
 		} else {
-			netdev_err(ndev, "NO MDIO subnode\n");
-			return 0;
+			netdev_warn(ndev, "No MDIO subnode found\n");
 		}
 	}
 
@@ -244,7 +243,10 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
 
-	err = of_mdiobus_register(new_bus, mdio_node);
+	if (mdio_node)
+		err = of_mdiobus_register(new_bus, mdio_node);
+	else
+		err = mdiobus_register(new_bus);
 	if (err != 0) {
 		pr_err("%s: Cannot register as MDIO bus\n", new_bus->name);
 		goto bus_register_fail;
