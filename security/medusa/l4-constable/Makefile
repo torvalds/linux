@@ -3,10 +3,8 @@
 # L4/constable
 #
 
-O_TARGET := l4-constable.o
+export-objs :=  teleport_cycle teleport_reset
 
-export-objs := 
-
-obj-y:= teleport.o chardev.o
-#obj-$(CONFIG_MEDUSA_CONSTABLE) := teleport.o chardev.o
+l4-constable-y:= teleport.o chardev.o
+obj-$(CONFIG_SECURITY_MEDUSA_L4_CONSTABLE) := l4-constable.o
 

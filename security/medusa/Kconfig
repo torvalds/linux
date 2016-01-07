@@ -6,3 +6,11 @@ config SECURITY_MEDUSA
 	help
 	  This selects MEDUSA LSM.
 
+config SECURITY_MEDUSA_L4_CONSTABLE
+        tristate "MEDUSA L4 as MODULE"
+        depends on SECURITY_MEDUSA
+        default y
+        help
+          Compiles l4 on medusa as module. Good for debug purposes.
+          
+          If unsure do not touch.

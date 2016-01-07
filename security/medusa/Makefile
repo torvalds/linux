@@ -6,10 +6,9 @@
 subdir-$(CONFIG_SECURITY_MEDUSA)	+= l1
 subdir-$(CONFIG_SECURITY_MEDUSA)        += l2
 subdir-$(CONFIG_SECURITY_MEDUSA)        += l3
-subdir-$(CONFIG_SECURITY_MEDUSA)        += l4-constable
 
-obj-$(CONFIG_SECURITY_MEDUSA) += l1/built-in.o
-obj-$(CONFIG_SECURITY_MEDUSA) += l2/built-in.o
-obj-$(CONFIG_SECURITY_MEDUSA) += l3/built-in.o
-obj-$(CONFIG_SECURITY_MEDUSA) += l4-constable/built-in.o
+obj-$(CONFIG_SECURITY_MEDUSA) += l1/
+obj-$(CONFIG_SECURITY_MEDUSA) += l2/
+obj-$(CONFIG_SECURITY_MEDUSA) += l3/
+obj-$(CONFIG_SECURITY_MEDUSA_L4_CONSTABLE) += l4-constable/
 
