@@ -92,6 +92,7 @@
 
 &sdhci0 {
 	status = "okay";
+	bus-width = <8>;
 };
 
 &sdhci1 {
