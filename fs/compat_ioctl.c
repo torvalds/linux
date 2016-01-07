@@ -58,6 +58,8 @@
 #include <linux/atalk.h>
 #include <linux/gfp.h>
 
+#include "internal.h"
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_sock.h>
 #include <net/bluetooth/rfcomm.h>
@@ -115,8 +117,7 @@
 #include <asm/fbio.h>
 #endif
 
-static int do_ioctl(struct file *file, unsigned int fd,
-		unsigned int cmd, unsigned long arg)
+static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err;
 
@@ -124,10 +125,10 @@ static int do_ioctl(struct file *file, unsigned int fd,
 	if (err)
 		return err;
 
-	return do_vfs_ioctl(file, fd, cmd, arg);
+	return vfs_ioctl(file, cmd, arg);
 }
 
-static int w_long(struct file *file, unsigned int fd,
+static int w_long(struct file *file,
 		unsigned int cmd, compat_ulong_t __user *argp)
 {
 	mm_segment_t old_fs = get_fs();
@@ -135,7 +136,7 @@ static int w_long(struct file *file, unsigned int fd,
 	unsigned long val;
 
 	set_fs (KERNEL_DS);
-	err = do_ioctl(file, fd, cmd, (unsigned long)&val);
+	err = do_ioctl(file, cmd, (unsigned long)&val);
 	set_fs (old_fs);
 	if (!err && put_user(val, argp))
 		return -EFAULT;
@@ -151,7 +152,7 @@ struct compat_video_event {
 	} u;
 };
 
-static int do_video_get_event(struct file *file, unsigned int fd,
+static int do_video_get_event(struct file *file,
 		unsigned int cmd, struct compat_video_event __user *up)
 {
 	struct video_event kevent;
@@ -159,7 +160,7 @@ static int do_video_get_event(struct file *file, unsigned int fd,
 	int err;
 
 	set_fs(KERNEL_DS);
-	err = do_ioctl(file, fd, cmd, (unsigned long) &kevent);
+	err = do_ioctl(file, cmd, (unsigned long) &kevent);
 	set_fs(old_fs);
 
 	if (!err) {
@@ -181,7 +182,7 @@ struct compat_video_still_picture {
         int32_t size;
 };
 
-static int do_video_stillpicture(struct file *file, unsigned int fd,
+static int do_video_stillpicture(struct file *file,
 		unsigned int cmd, struct compat_video_still_picture __user *up)
 {
 	struct video_still_picture __user *up_native;
@@ -202,7 +203,7 @@ static int do_video_stillpicture(struct file *file, unsigned int fd,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(file, fd, cmd, (unsigned long) up_native);
+	err = do_ioctl(file, cmd, (unsigned long) up_native);
 
 	return err;
 }
@@ -212,7 +213,7 @@ struct compat_video_spu_palette {
 	compat_uptr_t palette;
 };
 
-static int do_video_set_spu_palette(struct file *file, unsigned int fd,
+static int do_video_set_spu_palette(struct file *file,
 		unsigned int cmd, struct compat_video_spu_palette __user *up)
 {
 	struct video_spu_palette __user *up_native;
@@ -230,7 +231,7 @@ static int do_video_set_spu_palette(struct file *file, unsigned int fd,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(file, fd, cmd, (unsigned long) up_native);
+	err = do_ioctl(file, cmd, (unsigned long) up_native);
 
 	return err;
 }
@@ -288,7 +289,7 @@ static int sg_build_iovec(sg_io_hdr_t __user *sgio, void __user *dxferp, u16 iov
 	return 0;
 }
 
-static int sg_ioctl_trans(struct file *file, unsigned int fd, unsigned int cmd,
+static int sg_ioctl_trans(struct file *file, unsigned int cmd,
 			sg_io_hdr32_t __user *sgio32)
 {
 	sg_io_hdr_t __user *sgio;
@@ -301,7 +302,7 @@ static int sg_ioctl_trans(struct file *file, unsigned int fd, unsigned int cmd,
 	if (get_user(interface_id, &sgio32->interface_id))
 		return -EFAULT;
 	if (interface_id != 'S')
-		return do_ioctl(file, fd, cmd, (unsigned long)sgio32);
+		return do_ioctl(file, cmd, (unsigned long)sgio32);
 
 	if (get_user(iovec_count, &sgio32->iovec_count))
 		return -EFAULT;
@@ -361,7 +362,7 @@ static int sg_ioctl_trans(struct file *file, unsigned int fd, unsigned int cmd,
 	if (put_user(compat_ptr(data), &sgio->usr_ptr))
 		return -EFAULT;
 
-	err = do_ioctl(file, fd, cmd, (unsigned long) sgio);
+	err = do_ioctl(file, cmd, (unsigned long) sgio);
 
 	if (err >= 0) {
 		void __user *datap;
@@ -392,13 +393,13 @@ struct compat_sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 	int unused;
 };
 
-static int sg_grt_trans(struct file *file, unsigned int fd,
+static int sg_grt_trans(struct file *file,
 		unsigned int cmd, struct compat_sg_req_info __user *o)
 {
 	int err, i;
 	sg_req_info_t __user *r;
 	r = compat_alloc_user_space(sizeof(sg_req_info_t)*SG_MAX_QUEUE);
-	err = do_ioctl(file, fd, cmd, (unsigned long)r);
+	err = do_ioctl(file, cmd, (unsigned long)r);
 	if (err < 0)
 		return err;
 	for (i = 0; i < SG_MAX_QUEUE; i++) {
@@ -424,7 +425,7 @@ struct sock_fprog32 {
 #define PPPIOCSPASS32	_IOW('t', 71, struct sock_fprog32)
 #define PPPIOCSACTIVE32	_IOW('t', 70, struct sock_fprog32)
 
-static int ppp_sock_fprog_ioctl_trans(struct file *file, unsigned int fd,
+static int ppp_sock_fprog_ioctl_trans(struct file *file,
 		unsigned int cmd, struct sock_fprog32 __user *u_fprog32)
 {
 	struct sock_fprog __user *u_fprog64 = compat_alloc_user_space(sizeof(struct sock_fprog));
@@ -447,7 +448,7 @@ static int ppp_sock_fprog_ioctl_trans(struct file *file, unsigned int fd,
 	else
 		cmd = PPPIOCSACTIVE;
 
-	return do_ioctl(file, fd, cmd, (unsigned long) u_fprog64);
+	return do_ioctl(file, cmd, (unsigned long) u_fprog64);
 }
 
 struct ppp_option_data32 {
@@ -463,7 +464,7 @@ struct ppp_idle32 {
 };
 #define PPPIOCGIDLE32		_IOR('t', 63, struct ppp_idle32)
 
-static int ppp_gidle(struct file *file, unsigned int fd, unsigned int cmd,
+static int ppp_gidle(struct file *file, unsigned int cmd,
 		struct ppp_idle32 __user *idle32)
 {
 	struct ppp_idle __user *idle;
@@ -472,7 +473,7 @@ static int ppp_gidle(struct file *file, unsigned int fd, unsigned int cmd,
 
 	idle = compat_alloc_user_space(sizeof(*idle));
 
-	err = do_ioctl(file, fd, PPPIOCGIDLE, (unsigned long) idle);
+	err = do_ioctl(file, PPPIOCGIDLE, (unsigned long) idle);
 
 	if (!err) {
 		if (get_user(xmit, &idle->xmit_idle) ||
@@ -484,7 +485,7 @@ static int ppp_gidle(struct file *file, unsigned int fd, unsigned int cmd,
 	return err;
 }
 
-static int ppp_scompress(struct file *file, unsigned int fd, unsigned int cmd,
+static int ppp_scompress(struct file *file, unsigned int cmd,
 	struct ppp_option_data32 __user *odata32)
 {
 	struct ppp_option_data __user *odata;
@@ -504,7 +505,7 @@ static int ppp_scompress(struct file *file, unsigned int fd, unsigned int cmd,
 			 sizeof(__u32) + sizeof(int)))
 		return -EFAULT;
 
-	return do_ioctl(file, fd, PPPIOCSCOMPRESS, (unsigned long) odata);
+	return do_ioctl(file, PPPIOCSCOMPRESS, (unsigned long) odata);
 }
 
 #ifdef CONFIG_BLOCK
@@ -524,7 +525,7 @@ struct mtpos32 {
 };
 #define MTIOCPOS32	_IOR('m', 3, struct mtpos32)
 
-static int mt_ioctl_trans(struct file *file, unsigned int fd,
+static int mt_ioctl_trans(struct file *file,
 		unsigned int cmd, void __user *argp)
 {
 	mm_segment_t old_fs = get_fs();
@@ -547,7 +548,7 @@ static int mt_ioctl_trans(struct file *file, unsigned int fd,
 		break;
 	}
 	set_fs (KERNEL_DS);
-	err = do_ioctl(file, fd, kcmd, (unsigned long)karg);
+	err = do_ioctl(file, kcmd, (unsigned long)karg);
 	set_fs (old_fs);
 	if (err)
 		return err;
@@ -618,7 +619,7 @@ struct serial_struct32 {
         compat_int_t    reserved[1];
 };
 
-static int serial_struct_ioctl(struct file *file, unsigned fd,
+static int serial_struct_ioctl(struct file *file,
 		unsigned cmd, struct serial_struct32 __user *ss32)
 {
         typedef struct serial_struct32 SS32;
@@ -642,7 +643,7 @@ static int serial_struct_ioctl(struct file *file, unsigned fd,
                 ss.iomap_base = 0UL;
         }
         set_fs(KERNEL_DS);
-	err = do_ioctl(file, fd, cmd, (unsigned long)&ss);
+	err = do_ioctl(file, cmd, (unsigned long)&ss);
         set_fs(oldseg);
         if (cmd == TIOCGSERIAL && err >= 0) {
                 if (!access_ok(VERIFY_WRITE, ss32, sizeof(SS32)))
@@ -687,7 +688,7 @@ struct i2c_rdwr_aligned {
 	struct i2c_msg msgs[0];
 };
 
-static int do_i2c_rdwr_ioctl(struct file *file, unsigned int fd,
+static int do_i2c_rdwr_ioctl(struct file *file,
 	unsigned int cmd, struct i2c_rdwr_ioctl_data32 __user *udata)
 {
 	struct i2c_rdwr_aligned		__user *tdata;
@@ -721,10 +722,10 @@ static int do_i2c_rdwr_ioctl(struct file *file, unsigned int fd,
 		    put_user(compat_ptr(datap), &tmsgs[i].buf))
 			return -EFAULT;
 	}
-	return do_ioctl(file, fd, cmd, (unsigned long)tdata);
+	return do_ioctl(file, cmd, (unsigned long)tdata);
 }
 
-static int do_i2c_smbus_ioctl(struct file *file, unsigned int fd,
+static int do_i2c_smbus_ioctl(struct file *file,
 		unsigned int cmd, struct i2c_smbus_ioctl_data32   __user *udata)
 {
 	struct i2c_smbus_ioctl_data	__user *tdata;
@@ -747,7 +748,7 @@ static int do_i2c_smbus_ioctl(struct file *file, unsigned int fd,
 	    __put_user(compat_ptr(datap), &tdata->data))
 		return -EFAULT;
 
-	return do_ioctl(file, fd, cmd, (unsigned long)tdata);
+	return do_ioctl(file, cmd, (unsigned long)tdata);
 }
 
 #define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
@@ -755,7 +756,7 @@ static int do_i2c_smbus_ioctl(struct file *file, unsigned int fd,
 #define RTC_EPOCH_READ32	_IOR('p', 0x0d, compat_ulong_t)
 #define RTC_EPOCH_SET32		_IOW('p', 0x0e, compat_ulong_t)
 
-static int rtc_ioctl(struct file *file, unsigned fd,
+static int rtc_ioctl(struct file *file,
 		unsigned cmd, void __user *argp)
 {
 	mm_segment_t oldfs = get_fs();
@@ -767,7 +768,7 @@ static int rtc_ioctl(struct file *file, unsigned fd,
 	case RTC_IRQP_READ32:
 	case RTC_EPOCH_READ32:
 		set_fs(KERNEL_DS);
-		ret = do_ioctl(file, fd, (cmd == RTC_IRQP_READ32) ?
+		ret = do_ioctl(file, (cmd == RTC_IRQP_READ32) ?
 					RTC_IRQP_READ : RTC_EPOCH_READ,
 					(unsigned long)&kval);
 		set_fs(oldfs);
@@ -776,9 +777,9 @@ static int rtc_ioctl(struct file *file, unsigned fd,
 		val32 = kval;
 		return put_user(val32, (unsigned int __user *)argp);
 	case RTC_IRQP_SET32:
-		return do_ioctl(file, fd, RTC_IRQP_SET, (unsigned long)argp);
+		return do_ioctl(file, RTC_IRQP_SET, (unsigned long)argp);
 	case RTC_EPOCH_SET32:
-		return do_ioctl(file, fd, RTC_EPOCH_SET, (unsigned long)argp);
+		return do_ioctl(file, RTC_EPOCH_SET, (unsigned long)argp);
 	}
 
 	return -ENOIOCTLCMD;
@@ -1450,53 +1451,53 @@ IGNORE_IOCTL(FBIOGCURSOR32)
  * a compat_ioctl operation in the place that handleѕ the
  * ioctl for the native case.
  */
-static long do_ioctl_trans(int fd, unsigned int cmd,
+static long do_ioctl_trans(unsigned int cmd,
 		 unsigned long arg, struct file *file)
 {
 	void __user *argp = compat_ptr(arg);
 
 	switch (cmd) {
 	case PPPIOCGIDLE32:
-		return ppp_gidle(file, fd, cmd, argp);
+		return ppp_gidle(file, cmd, argp);
 	case PPPIOCSCOMPRESS32:
-		return ppp_scompress(file, fd, cmd, argp);
+		return ppp_scompress(file, cmd, argp);
 	case PPPIOCSPASS32:
 	case PPPIOCSACTIVE32:
-		return ppp_sock_fprog_ioctl_trans(file, fd, cmd, argp);
+		return ppp_sock_fprog_ioctl_trans(file, cmd, argp);
 #ifdef CONFIG_BLOCK
 	case SG_IO:
-		return sg_ioctl_trans(file, fd, cmd, argp);
+		return sg_ioctl_trans(file, cmd, argp);
 	case SG_GET_REQUEST_TABLE:
-		return sg_grt_trans(file, fd, cmd, argp);
+		return sg_grt_trans(file, cmd, argp);
 	case MTIOCGET32:
 	case MTIOCPOS32:
-		return mt_ioctl_trans(file, fd, cmd, argp);
+		return mt_ioctl_trans(file, cmd, argp);
 #endif
 	/* Serial */
 	case TIOCGSERIAL:
 	case TIOCSSERIAL:
-		return serial_struct_ioctl(file, fd, cmd, argp);
+		return serial_struct_ioctl(file, cmd, argp);
 	/* i2c */
 	case I2C_FUNCS:
-		return w_long(file, fd, cmd, argp);
+		return w_long(file, cmd, argp);
 	case I2C_RDWR:
-		return do_i2c_rdwr_ioctl(file, fd, cmd, argp);
+		return do_i2c_rdwr_ioctl(file, cmd, argp);
 	case I2C_SMBUS:
-		return do_i2c_smbus_ioctl(file, fd, cmd, argp);
+		return do_i2c_smbus_ioctl(file, cmd, argp);
 	/* Not implemented in the native kernel */
 	case RTC_IRQP_READ32:
 	case RTC_IRQP_SET32:
 	case RTC_EPOCH_READ32:
 	case RTC_EPOCH_SET32:
-		return rtc_ioctl(file, fd, cmd, argp);
+		return rtc_ioctl(file, cmd, argp);
 
 	/* dvb */
 	case VIDEO_GET_EVENT:
-		return do_video_get_event(file, fd, cmd, argp);
+		return do_video_get_event(file, cmd, argp);
 	case VIDEO_STILLPICTURE:
-		return do_video_stillpicture(file, fd, cmd, argp);
+		return do_video_stillpicture(file, cmd, argp);
 	case VIDEO_SET_SPU_PALETTE:
-		return do_video_set_spu_palette(file, fd, cmd, argp);
+		return do_video_set_spu_palette(file, cmd, argp);
 	}
 
 	/*
@@ -1527,7 +1528,7 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 	case NBD_SET_BLKSIZE:
 	case NBD_SET_SIZE:
 	case NBD_SET_SIZE_BLOCKS:
-		return do_vfs_ioctl(file, fd, cmd, arg);
+		return vfs_ioctl(file, cmd, arg);
 	}
 
 	return -ENOIOCTLCMD;
@@ -1616,7 +1617,7 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 	if (compat_ioctl_check_table(XFORM(cmd)))
 		goto found_handler;
 
-	error = do_ioctl_trans(fd, cmd, arg, f.file);
+	error = do_ioctl_trans(cmd, arg, f.file);
 	if (error == -ENOIOCTLCMD)
 		error = -ENOTTY;
 
