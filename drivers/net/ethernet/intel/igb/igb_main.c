@@ -5786,53 +5786,6 @@ static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
 	}
 }
 
-static void igb_set_vmvir(struct igb_adapter *adapter, u32 vid, u32 vf)
-{
-	struct e1000_hw *hw = &adapter->hw;
-
-	if (vid)
-		wr32(E1000_VMVIR(vf), (vid | E1000_VMVIR_VLANA_DEFAULT));
-	else
-		wr32(E1000_VMVIR(vf), 0);
-}
-
-static int igb_ndo_set_vf_vlan(struct net_device *netdev,
-			       int vf, u16 vlan, u8 qos)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	int err = 0;
-
-	if ((vf >= adapter->vfs_allocated_count) || (vlan > 4095) || (qos > 7))
-		return -EINVAL;
-	if (vlan || qos) {
-		err = igb_vfta_set(hw, vlan, vf, !!vlan, false);
-		if (err)
-			goto out;
-		igb_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
-		igb_set_vmolr(adapter, vf, !vlan);
-		adapter->vf_data[vf].pf_vlan = vlan;
-		adapter->vf_data[vf].pf_qos = qos;
-		dev_info(&adapter->pdev->dev,
-			 "Setting VLAN %d, QOS 0x%x on VF %d\n", vlan, qos, vf);
-		if (test_bit(__IGB_DOWN, &adapter->state)) {
-			dev_warn(&adapter->pdev->dev,
-				 "The VF VLAN has been set, but the PF device is not up.\n");
-			dev_warn(&adapter->pdev->dev,
-				 "Bring the PF device up before attempting to use the VF device.\n");
-		}
-	} else {
-		igb_vfta_set(hw, adapter->vf_data[vf].pf_vlan, vf,
-			     false, false);
-		igb_set_vmvir(adapter, vlan, vf);
-		igb_set_vmolr(adapter, vf, true);
-		adapter->vf_data[vf].pf_vlan = 0;
-		adapter->vf_data[vf].pf_qos = 0;
-	}
-out:
-	return err;
-}
-
 static int igb_find_vlvf_entry(struct igb_adapter *adapter, int vid)
 {
 	struct e1000_hw *hw = &adapter->hw;
@@ -5853,23 +5806,25 @@ static int igb_find_vlvf_entry(struct igb_adapter *adapter, int vid)
 	return i;
 }
 
-static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
+static s32 igb_set_vf_vlan(struct igb_adapter *adapter, u32 vid,
+			   bool add, u32 vf)
 {
+	int pf_id = adapter->vfs_allocated_count;
 	struct e1000_hw *hw = &adapter->hw;
-	int add = (msgbuf[0] & E1000_VT_MSGINFO_MASK) >> E1000_VT_MSGINFO_SHIFT;
-	int vid = (msgbuf[1] & E1000_VLVF_VLANID_MASK);
-	int err = 0;
+	int err;
 
-	/* If in promiscuous mode we need to make sure the PF also has
-	 * the VLAN filter set.
+	/* If VLAN overlaps with one the PF is currently monitoring make
+	 * sure that we are able to allocate a VLVF entry.  This may be
+	 * redundant but it guarantees PF will maintain visibility to
+	 * the VLAN.
 	 */
-	if (add && (adapter->netdev->flags & IFF_PROMISC))
-		err = igb_vfta_set(hw, vid, adapter->vfs_allocated_count,
-				   true, false);
-	if (err)
-		goto out;
+	if (add && (adapter->netdev->flags & IFF_PROMISC)) {
+		err = igb_vfta_set(hw, vid, pf_id, true, false);
+		if (err)
+			return err;
+	}
 
-	err = igb_vfta_set(hw, vid, vf, !!add, false);
+	err = igb_vfta_set(hw, vid, vf, add, false);
 
 	if (err)
 		goto out;
@@ -5904,23 +5859,107 @@ out:
 	return err;
 }
 
+static void igb_set_vmvir(struct igb_adapter *adapter, u32 vid, u32 vf)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (vid)
+		wr32(E1000_VMVIR(vf), (vid | E1000_VMVIR_VLANA_DEFAULT));
+	else
+		wr32(E1000_VMVIR(vf), 0);
+}
+
+static int igb_enable_port_vlan(struct igb_adapter *adapter, int vf,
+				u16 vlan, u8 qos)
+{
+	int err;
+
+	err = igb_set_vf_vlan(adapter, vlan, true, vf);
+	if (err)
+		return err;
+
+	igb_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
+	igb_set_vmolr(adapter, vf, !vlan);
+
+	/* revoke access to previous VLAN */
+	if (vlan != adapter->vf_data[vf].pf_vlan)
+		igb_set_vf_vlan(adapter, adapter->vf_data[vf].pf_vlan,
+				false, vf);
+
+	adapter->vf_data[vf].pf_vlan = vlan;
+	adapter->vf_data[vf].pf_qos = qos;
+	dev_info(&adapter->pdev->dev,
+		 "Setting VLAN %d, QOS 0x%x on VF %d\n", vlan, qos, vf);
+	if (test_bit(__IGB_DOWN, &adapter->state)) {
+		dev_warn(&adapter->pdev->dev,
+			 "The VF VLAN has been set, but the PF device is not up.\n");
+		dev_warn(&adapter->pdev->dev,
+			 "Bring the PF device up before attempting to use the VF device.\n");
+	}
+
+	return err;
+}
+
+static int igb_disable_port_vlan(struct igb_adapter *adapter, int vf)
+{
+	/* Restore tagless access via VLAN 0 */
+	igb_set_vf_vlan(adapter, 0, true, vf);
+
+	igb_set_vmvir(adapter, 0, vf);
+	igb_set_vmolr(adapter, vf, true);
+
+	/* Remove any PF assigned VLAN */
+	if (adapter->vf_data[vf].pf_vlan)
+		igb_set_vf_vlan(adapter, adapter->vf_data[vf].pf_vlan,
+				false, vf);
+
+	adapter->vf_data[vf].pf_vlan = 0;
+	adapter->vf_data[vf].pf_qos = 0;
+
+	return 0;
+}
+
+static int igb_ndo_set_vf_vlan(struct net_device *netdev,
+			       int vf, u16 vlan, u8 qos)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	if ((vf >= adapter->vfs_allocated_count) || (vlan > 4095) || (qos > 7))
+		return -EINVAL;
+
+	return (vlan || qos) ? igb_enable_port_vlan(adapter, vf, vlan, qos) :
+			       igb_disable_port_vlan(adapter, vf);
+}
+
+static int igb_set_vf_vlan_msg(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
+{
+	int add = (msgbuf[0] & E1000_VT_MSGINFO_MASK) >> E1000_VT_MSGINFO_SHIFT;
+	int vid = (msgbuf[1] & E1000_VLVF_VLANID_MASK);
+
+	if (adapter->vf_data[vf].pf_vlan)
+		return -1;
+
+	/* VLAN 0 is a special case, don't allow it to be removed */
+	if (!vid && !add)
+		return 0;
+
+	return igb_set_vf_vlan(adapter, vid, !!add, vf);
+}
+
 static inline void igb_vf_reset(struct igb_adapter *adapter, u32 vf)
 {
-	/* clear flags - except flag that indicates PF has set the MAC */
-	adapter->vf_data[vf].flags &= IGB_VF_FLAG_PF_SET_MAC;
-	adapter->vf_data[vf].last_nack = jiffies;
+	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
 
-	/* reset offloads to defaults */
-	igb_set_vmolr(adapter, vf, true);
+	/* clear flags - except flag that indicates PF has set the MAC */
+	vf_data->flags &= IGB_VF_FLAG_PF_SET_MAC;
+	vf_data->last_nack = jiffies;
 
 	/* reset vlans for device */
 	igb_clear_vf_vfta(adapter, vf);
-	if (adapter->vf_data[vf].pf_vlan)
-		igb_ndo_set_vf_vlan(adapter->netdev, vf,
-				    adapter->vf_data[vf].pf_vlan,
-				    adapter->vf_data[vf].pf_qos);
-	else
-		igb_clear_vf_vfta(adapter, vf);
+	igb_set_vf_vlan(adapter, vf_data->pf_vlan, true, vf);
+	igb_set_vmvir(adapter, vf_data->pf_vlan |
+			       (vf_data->pf_qos << VLAN_PRIO_SHIFT), vf);
+	igb_set_vmolr(adapter, vf, !vf_data->pf_vlan);
 
 	/* reset multicast table array for vf */
 	adapter->vf_data[vf].num_vf_mc_hashes = 0;
@@ -6065,7 +6104,7 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 				 "VF %d attempted to override administratively set VLAN tag\nReload the VF driver to resume operations\n",
 				 vf);
 		else
-			retval = igb_set_vf_vlan(adapter, msgbuf, vf);
+			retval = igb_set_vf_vlan_msg(adapter, msgbuf, vf);
 		break;
 	default:
 		dev_err(&pdev->dev, "Unhandled Msg %08x\n", msgbuf[0]);
