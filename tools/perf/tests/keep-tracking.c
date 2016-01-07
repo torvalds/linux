@@ -55,7 +55,6 @@ int test__keep_tracking(int subtest __maybe_unused)
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
 		.target		     = {
 			.uses_mmap   = true,
 		},
