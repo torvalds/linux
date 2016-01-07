@@ -13,12 +13,8 @@
 #include "wilc_wlan.h"
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/etherdevice.h>
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 							BEACON_INTERVAL_LEN + CAP_INFO_LEN)
-#define ADDR1 4
-#define ADDR2 10
-#define ADDR3 16
 
 /* Basic Frame Type Codes (2-bit) */
 enum basic_frame_type {
@@ -175,32 +171,38 @@ static inline u8 get_from_ds(u8 *header)
 	return ((header[1] & 0x02) >> 1);
 }
 
+/* This function extracts the MAC Address in 'address1' field of the MAC     */
+/* header and updates the MAC Address in the allocated 'addr' variable.      */
+static inline void get_address1(u8 *pu8msa, u8 *addr)
+{
+	memcpy(addr, pu8msa + 4, 6);
+}
+
+/* This function extracts the MAC Address in 'address2' field of the MAC     */
+/* header and updates the MAC Address in the allocated 'addr' variable.      */
+static inline void get_address2(u8 *pu8msa, u8 *addr)
+{
+	memcpy(addr, pu8msa + 10, 6);
+}
+
+/* This function extracts the MAC Address in 'address3' field of the MAC     */
+/* header and updates the MAC Address in the allocated 'addr' variable.      */
+static inline void get_address3(u8 *pu8msa, u8 *addr)
+{
+	memcpy(addr, pu8msa + 16, 6);
+}
+
 /* This function extracts the BSSID from the incoming WLAN packet based on   */
-/* the 'from ds' bit, and updates the MAC Address in the allocated 'data'    */
+/* the 'from ds' bit, and updates the MAC Address in the allocated 'addr'    */
 /* variable.                                                                 */
 static inline void get_BSSID(u8 *data, u8 *bssid)
 {
 	if (get_from_ds(data) == 1)
-		/*
-		 * Extract the MAC Address in 'address2' field of the MAC
-		 * header and update the MAC Address in the allocated 'data'
-		 *  variable.
-		 */
-		ether_addr_copy(data, bssid + ADDR2);
+		get_address2(data, bssid);
 	else if (get_to_ds(data) == 1)
-		/*
-		 * Extract the MAC Address in 'address1' field of the MAC
-		 * header and update the MAC Address in the allocated 'data'
-		 * variable.
-		 */
-		ether_addr_copy(data, bssid + ADDR1);
+		get_address1(data, bssid);
 	else
-		/*
-		 * Extract the MAC Address in 'address3' field of the MAC
-		 * header and update the MAC Address in the allocated 'data'
-		 * variable.
-		 */
-		ether_addr_copy(data, bssid + ADDR3);
+		get_address3(data, bssid);
 }
 
 /* This function extracts the SSID from a beacon/probe response frame        */

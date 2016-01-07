@@ -48,7 +48,7 @@ static void prepare_fault32(struct kvm_vcpu *vcpu, u32 mode, u32 vect_offset)
 
 	/* Note: These now point to the banked copies */
 	*vcpu_spsr(vcpu) = new_spsr_value;
-	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) + return_offset;
+	*vcpu_reg32(vcpu, 14) = *vcpu_pc(vcpu) + return_offset;
 
 	/* Branch to exception vector */
 	if (sctlr & (1 << 13))

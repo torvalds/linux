@@ -58,7 +58,6 @@ enum {
 struct nvm_id_group {
 	u8	mtype;
 	u8	fmtype;
-	u16	res16;
 	u8	num_ch;
 	u8	num_lun;
 	u8	num_pln;
@@ -74,9 +73,9 @@ struct nvm_id_group {
 	u32	tbet;
 	u32	tbem;
 	u32	mpos;
+	u32	mccap;
 	u16	cpar;
-	u8	res[913];
-} __packed;
+};
 
 struct nvm_addr_format {
 	u8	ch_offset;
@@ -91,19 +90,15 @@ struct nvm_addr_format {
 	u8	pg_len;
 	u8	sect_offset;
 	u8	sect_len;
-	u8	res[4];
 };
 
 struct nvm_id {
 	u8	ver_id;
 	u8	vmnt;
 	u8	cgrps;
-	u8	res[5];
 	u32	cap;
 	u32	dom;
 	struct nvm_addr_format ppaf;
-	u8	ppat;
-	u8	resv[224];
 	struct nvm_id_group groups[4];
 } __packed;
 
@@ -123,39 +118,28 @@ struct nvm_tgt_instance {
 #define NVM_VERSION_MINOR 0
 #define NVM_VERSION_PATCH 0
 
-#define NVM_SEC_BITS (8)
-#define NVM_PL_BITS  (6)
-#define NVM_PG_BITS  (16)
 #define NVM_BLK_BITS (16)
-#define NVM_LUN_BITS (10)
+#define NVM_PG_BITS  (16)
+#define NVM_SEC_BITS (8)
+#define NVM_PL_BITS  (8)
+#define NVM_LUN_BITS (8)
 #define NVM_CH_BITS  (8)
 
 struct ppa_addr {
+	/* Generic structure for all addresses */
 	union {
-		/* Channel-based PPA format in nand 4x2x2x2x8x10 */
 		struct {
-			u64 ch		: 4;
-			u64 sec		: 2; /* 4 sectors per page */
-			u64 pl		: 2; /* 4 planes per LUN */
-			u64 lun		: 2; /* 4 LUNs per channel */
-			u64 pg		: 8; /* 256 pages per block */
-			u64 blk		: 10;/* 1024 blocks per plane */
-			u64 resved		: 36;
-		} chnl;
-
-		/* Generic structure for all addresses */
-		struct {
+			u64 blk		: NVM_BLK_BITS;
+			u64 pg		: NVM_PG_BITS;
 			u64 sec		: NVM_SEC_BITS;
 			u64 pl		: NVM_PL_BITS;
-			u64 pg		: NVM_PG_BITS;
-			u64 blk		: NVM_BLK_BITS;
 			u64 lun		: NVM_LUN_BITS;
 			u64 ch		: NVM_CH_BITS;
 		} g;
 
 		u64 ppa;
 	};
-} __packed;
+};
 
 struct nvm_rq {
 	struct nvm_tgt_instance *ins;
@@ -191,11 +175,11 @@ static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 struct nvm_block;
 
 typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
-typedef int (nvm_bb_update_fn)(u32, void *, unsigned int, void *);
+typedef int (nvm_bb_update_fn)(struct ppa_addr, int, u8 *, void *);
 typedef int (nvm_id_fn)(struct request_queue *, struct nvm_id *);
 typedef int (nvm_get_l2p_tbl_fn)(struct request_queue *, u64, u32,
 				nvm_l2p_update_fn *, void *);
-typedef int (nvm_op_bb_tbl_fn)(struct request_queue *, int, unsigned int,
+typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, int,
 				nvm_bb_update_fn *, void *);
 typedef int (nvm_op_set_bb_fn)(struct request_queue *, struct nvm_rq *, int);
 typedef int (nvm_submit_io_fn)(struct request_queue *, struct nvm_rq *);
@@ -210,7 +194,7 @@ struct nvm_dev_ops {
 	nvm_id_fn		*identity;
 	nvm_get_l2p_tbl_fn	*get_l2p_tbl;
 	nvm_op_bb_tbl_fn	*get_bb_tbl;
-	nvm_op_set_bb_fn	*set_bb;
+	nvm_op_set_bb_fn	*set_bb_tbl;
 
 	nvm_submit_io_fn	*submit_io;
 	nvm_erase_blk_fn	*erase_block;
@@ -220,7 +204,7 @@ struct nvm_dev_ops {
 	nvm_dev_dma_alloc_fn	*dev_dma_alloc;
 	nvm_dev_dma_free_fn	*dev_dma_free;
 
-	uint8_t			max_phys_sect;
+	unsigned int		max_phys_sect;
 };
 
 struct nvm_lun {
@@ -229,7 +213,9 @@ struct nvm_lun {
 	int lun_id;
 	int chnl_id;
 
+	unsigned int nr_inuse_blocks;	/* Number of used blocks */
 	unsigned int nr_free_blocks;	/* Number of unused blocks */
+	unsigned int nr_bad_blocks;	/* Number of bad blocks */
 	struct nvm_block *blocks;
 
 	spinlock_t lock;
@@ -263,8 +249,7 @@ struct nvm_dev {
 	int blks_per_lun;
 	int sec_size;
 	int oob_size;
-	int addr_mode;
-	struct nvm_addr_format addr_format;
+	struct nvm_addr_format ppaf;
 
 	/* Calculated/Cached values. These do not reflect the actual usable
 	 * blocks at run-time.
@@ -290,116 +275,43 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 };
 
-/* fallback conversion */
-static struct ppa_addr __generic_to_linear_addr(struct nvm_dev *dev,
-							struct ppa_addr r)
+static inline struct ppa_addr generic_to_dev_addr(struct nvm_dev *dev,
+						struct ppa_addr r)
 {
 	struct ppa_addr l;
 
-	l.ppa = r.g.sec +
-		r.g.pg  * dev->sec_per_pg +
-		r.g.blk * (dev->pgs_per_blk *
-				dev->sec_per_pg) +
-		r.g.lun * (dev->blks_per_lun *
-				dev->pgs_per_blk *
-				dev->sec_per_pg) +
-		r.g.ch * (dev->blks_per_lun *
-				dev->pgs_per_blk *
-				dev->luns_per_chnl *
-				dev->sec_per_pg);
+	l.ppa = ((u64)r.g.blk) << dev->ppaf.blk_offset;
+	l.ppa |= ((u64)r.g.pg) << dev->ppaf.pg_offset;
+	l.ppa |= ((u64)r.g.sec) << dev->ppaf.sect_offset;
+	l.ppa |= ((u64)r.g.pl) << dev->ppaf.pln_offset;
+	l.ppa |= ((u64)r.g.lun) << dev->ppaf.lun_offset;
+	l.ppa |= ((u64)r.g.ch) << dev->ppaf.ch_offset;
 
 	return l;
 }
 
-/* fallback conversion */
-static struct ppa_addr __linear_to_generic_addr(struct nvm_dev *dev,
-							struct ppa_addr r)
-{
-	struct ppa_addr l;
-	int secs, pgs, blks, luns;
-	sector_t ppa = r.ppa;
-
-	l.ppa = 0;
-
-	div_u64_rem(ppa, dev->sec_per_pg, &secs);
-	l.g.sec = secs;
-
-	sector_div(ppa, dev->sec_per_pg);
-	div_u64_rem(ppa, dev->sec_per_blk, &pgs);
-	l.g.pg = pgs;
-
-	sector_div(ppa, dev->pgs_per_blk);
-	div_u64_rem(ppa, dev->blks_per_lun, &blks);
-	l.g.blk = blks;
-
-	sector_div(ppa, dev->blks_per_lun);
-	div_u64_rem(ppa, dev->luns_per_chnl, &luns);
-	l.g.lun = luns;
-
-	sector_div(ppa, dev->luns_per_chnl);
-	l.g.ch = ppa;
-
-	return l;
-}
-
-static struct ppa_addr __generic_to_chnl_addr(struct ppa_addr r)
+static inline struct ppa_addr dev_to_generic_addr(struct nvm_dev *dev,
+						struct ppa_addr r)
 {
 	struct ppa_addr l;
 
-	l.ppa = 0;
-
-	l.chnl.sec = r.g.sec;
-	l.chnl.pl = r.g.pl;
-	l.chnl.pg = r.g.pg;
-	l.chnl.blk = r.g.blk;
-	l.chnl.lun = r.g.lun;
-	l.chnl.ch = r.g.ch;
-
-	return l;
-}
-
-static struct ppa_addr __chnl_to_generic_addr(struct ppa_addr r)
-{
-	struct ppa_addr l;
-
-	l.ppa = 0;
-
-	l.g.sec = r.chnl.sec;
-	l.g.pl = r.chnl.pl;
-	l.g.pg = r.chnl.pg;
-	l.g.blk = r.chnl.blk;
-	l.g.lun = r.chnl.lun;
-	l.g.ch = r.chnl.ch;
+	/*
+	 * (r.ppa << X offset) & X len bitmask. X eq. blk, pg, etc.
+	 */
+	l.g.blk = (r.ppa >> dev->ppaf.blk_offset) &
+					(((1 << dev->ppaf.blk_len) - 1));
+	l.g.pg |= (r.ppa >> dev->ppaf.pg_offset) &
+					(((1 << dev->ppaf.pg_len) - 1));
+	l.g.sec |= (r.ppa >> dev->ppaf.sect_offset) &
+					(((1 << dev->ppaf.sect_len) - 1));
+	l.g.pl |= (r.ppa >> dev->ppaf.pln_offset) &
+					(((1 << dev->ppaf.pln_len) - 1));
+	l.g.lun |= (r.ppa >> dev->ppaf.lun_offset) &
+					(((1 << dev->ppaf.lun_len) - 1));
+	l.g.ch |= (r.ppa >> dev->ppaf.ch_offset) &
+					(((1 << dev->ppaf.ch_len) - 1));
 
 	return l;
-}
-
-static inline struct ppa_addr addr_to_generic_mode(struct nvm_dev *dev,
-						struct ppa_addr gppa)
-{
-	switch (dev->addr_mode) {
-	case NVM_ADDRMODE_LINEAR:
-		return __linear_to_generic_addr(dev, gppa);
-	case NVM_ADDRMODE_CHANNEL:
-		return __chnl_to_generic_addr(gppa);
-	default:
-		BUG();
-	}
-	return gppa;
-}
-
-static inline struct ppa_addr generic_to_addr_mode(struct nvm_dev *dev,
-						struct ppa_addr gppa)
-{
-	switch (dev->addr_mode) {
-	case NVM_ADDRMODE_LINEAR:
-		return __generic_to_linear_addr(dev, gppa);
-	case NVM_ADDRMODE_CHANNEL:
-		return __generic_to_chnl_addr(gppa);
-	default:
-		BUG();
-	}
-	return gppa;
 }
 
 static inline int ppa_empty(struct ppa_addr ppa_addr)
@@ -468,7 +380,7 @@ typedef int (nvmm_end_io_fn)(struct nvm_rq *, int);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *,
 								unsigned long);
 typedef struct nvm_lun *(nvmm_get_lun_fn)(struct nvm_dev *, int);
-typedef void (nvmm_free_blocks_print_fn)(struct nvm_dev *);
+typedef void (nvmm_lun_info_print_fn)(struct nvm_dev *);
 
 struct nvmm_type {
 	const char *name;
@@ -492,7 +404,7 @@ struct nvmm_type {
 	nvmm_get_lun_fn *get_lun;
 
 	/* Statistics */
-	nvmm_free_blocks_print_fn *free_blocks_print;
+	nvmm_lun_info_print_fn *lun_info_print;
 	struct list_head list;
 };
 

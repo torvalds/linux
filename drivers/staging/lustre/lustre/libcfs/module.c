@@ -274,23 +274,6 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 		}
 		break;
 
-	case IOC_LIBCFS_PING_TEST: {
-		extern void (kping_client)(struct libcfs_ioctl_data *);
-		void (*ping)(struct libcfs_ioctl_data *);
-
-		CDEBUG(D_IOCTL, "doing %d pings to nid %s (%s)\n",
-		       data->ioc_count, libcfs_nid2str(data->ioc_nid),
-		       libcfs_nid2str(data->ioc_nid));
-		ping = symbol_get(kping_client);
-		if (!ping)
-			CERROR("symbol_get failed\n");
-		else {
-			ping(data);
-			symbol_put(kping_client);
-		}
-		return 0;
-	}
-
 	default: {
 		struct libcfs_ioctl_handler *hand;
 

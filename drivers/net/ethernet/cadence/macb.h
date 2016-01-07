@@ -215,12 +215,17 @@
 /* GEM specific NCFGR bitfields. */
 #define GEM_GBE_OFFSET		10 /* Gigabit mode enable */
 #define GEM_GBE_SIZE		1
+#define GEM_PCSSEL_OFFSET	11
+#define GEM_PCSSEL_SIZE		1
 #define GEM_CLK_OFFSET		18 /* MDC clock division */
 #define GEM_CLK_SIZE		3
 #define GEM_DBW_OFFSET		21 /* Data bus width */
 #define GEM_DBW_SIZE		2
 #define GEM_RXCOEN_OFFSET	24
 #define GEM_RXCOEN_SIZE		1
+#define GEM_SGMIIEN_OFFSET	27
+#define GEM_SGMIIEN_SIZE	1
+
 
 /* Constants for data bus width. */
 #define GEM_DBW32		0 /* 32 bit AMBA AHB data bus width */

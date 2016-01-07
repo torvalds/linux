@@ -7394,11 +7394,6 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 
 	switch (type) {
 	case VMX_VPID_EXTENT_ALL_CONTEXT:
-		if (get_vmcs12(vcpu)->virtual_processor_id == 0) {
-			nested_vmx_failValid(vcpu,
-				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
-			return 1;
-		}
 		__vmx_flush_tlb(vcpu, to_vmx(vcpu)->nested.vpid02);
 		nested_vmx_succeed(vcpu);
 		break;

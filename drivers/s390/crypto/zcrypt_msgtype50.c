@@ -513,6 +513,7 @@ static struct zcrypt_ops zcrypt_msgtype50_ops = {
 	.rsa_modexpo = zcrypt_cex2a_modexpo,
 	.rsa_modexpo_crt = zcrypt_cex2a_modexpo_crt,
 	.owner = THIS_MODULE,
+	.name = MSGTYPE50_NAME,
 	.variant = MSGTYPE50_VARIANT_DEFAULT,
 };
 

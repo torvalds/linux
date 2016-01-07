@@ -259,7 +259,6 @@ static struct platform_driver vc4_platform_driver = {
 	.remove		= vc4_platform_drm_remove,
 	.driver		= {
 		.name	= "vc4-drm",
-		.owner	= THIS_MODULE,
 		.of_match_table = vc4_of_match,
 	},
 };

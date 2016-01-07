@@ -896,19 +896,28 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 			goto retry_cmd;
 		}
 		if (blk_integrity_rq(req)) {
-			if (blk_rq_count_integrity_sg(req->q, req->bio) != 1)
+			if (blk_rq_count_integrity_sg(req->q, req->bio) != 1) {
+				dma_unmap_sg(dev->dev, iod->sg, iod->nents,
+						dma_dir);
 				goto error_cmd;
+			}
 
 			sg_init_table(iod->meta_sg, 1);
 			if (blk_rq_map_integrity_sg(
-					req->q, req->bio, iod->meta_sg) != 1)
+					req->q, req->bio, iod->meta_sg) != 1) {
+				dma_unmap_sg(dev->dev, iod->sg, iod->nents,
+						dma_dir);
 				goto error_cmd;
+			}
 
 			if (rq_data_dir(req))
 				nvme_dif_remap(req, nvme_dif_prep);
 
-			if (!dma_map_sg(nvmeq->q_dmadev, iod->meta_sg, 1, dma_dir))
+			if (!dma_map_sg(nvmeq->q_dmadev, iod->meta_sg, 1, dma_dir)) {
+				dma_unmap_sg(dev->dev, iod->sg, iod->nents,
+						dma_dir);
 				goto error_cmd;
+			}
 		}
 	}
 
@@ -968,7 +977,8 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return;
 
-	writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
+	if (likely(nvmeq->cq_vector >= 0))
+		writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
 	nvmeq->cq_head = head;
 	nvmeq->cq_phase = phase;
 
@@ -1727,9 +1737,13 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	u32 aqa;
 	u64 cap = lo_hi_readq(&dev->bar->cap);
 	struct nvme_queue *nvmeq;
-	unsigned page_shift = PAGE_SHIFT;
+	/*
+	 * default to a 4K page size, with the intention to update this
+	 * path in the future to accomodate architectures with differing
+	 * kernel and IO page sizes.
+	 */
+	unsigned page_shift = 12;
 	unsigned dev_page_min = NVME_CAP_MPSMIN(cap) + 12;
-	unsigned dev_page_max = NVME_CAP_MPSMAX(cap) + 12;
 
 	if (page_shift < dev_page_min) {
 		dev_err(dev->dev,
@@ -1737,13 +1751,6 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 				"host (%u)\n", 1 << dev_page_min,
 				1 << page_shift);
 		return -ENODEV;
-	}
-	if (page_shift > dev_page_max) {
-		dev_info(dev->dev,
-				"Device maximum page size (%u) smaller than "
-				"host (%u); enabling work-around\n",
-				1 << dev_page_max, 1 << page_shift);
-		page_shift = dev_page_max;
 	}
 
 	dev->subsystem = readl(&dev->bar->vs) >= NVME_VS(1, 1) ?
@@ -2268,7 +2275,7 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	if (dev->max_hw_sectors) {
 		blk_queue_max_hw_sectors(ns->queue, dev->max_hw_sectors);
 		blk_queue_max_segments(ns->queue,
-			((dev->max_hw_sectors << 9) / dev->page_size) + 1);
+			(dev->max_hw_sectors / (dev->page_size >> 9)) + 1);
 	}
 	if (dev->stripe_size)
 		blk_queue_chunk_sectors(ns->queue, dev->stripe_size >> 9);
@@ -2701,6 +2708,18 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	dev->q_depth = min_t(int, NVME_CAP_MQES(cap) + 1, NVME_Q_DEPTH);
 	dev->db_stride = 1 << NVME_CAP_STRIDE(cap);
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
+
+	/*
+	 * Temporary fix for the Apple controller found in the MacBook8,1 and
+	 * some MacBook7,1 to avoid controller resets and data loss.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_APPLE && pdev->device == 0x2001) {
+		dev->q_depth = 2;
+		dev_warn(dev->dev, "detected Apple NVMe controller, set "
+			"queue depth=%u to work around controller resets\n",
+			dev->q_depth);
+	}
+
 	if (readl(&dev->bar->vs) >= NVME_VS(1, 2))
 		dev->cmb = nvme_map_cmb(dev);
 
@@ -2787,6 +2806,10 @@ static void nvme_del_queue_end(struct nvme_queue *nvmeq)
 {
 	struct nvme_delq_ctx *dq = nvmeq->cmdinfo.ctx;
 	nvme_put_dq(dq);
+
+	spin_lock_irq(&nvmeq->q_lock);
+	nvme_process_cq(nvmeq);
+	spin_unlock_irq(&nvmeq->q_lock);
 }
 
 static int adapter_async_del_queue(struct nvme_queue *nvmeq, u8 opcode,

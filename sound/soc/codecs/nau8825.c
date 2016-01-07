@@ -1271,6 +1271,36 @@ static int nau8825_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int nau8825_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct nau8825 *nau8825 = dev_get_drvdata(dev);
+
+	disable_irq(client->irq);
+	regcache_cache_only(nau8825->regmap, true);
+	regcache_mark_dirty(nau8825->regmap);
+
+	return 0;
+}
+
+static int nau8825_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct nau8825 *nau8825 = dev_get_drvdata(dev);
+
+	regcache_cache_only(nau8825->regmap, false);
+	regcache_sync(nau8825->regmap);
+	enable_irq(client->irq);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops nau8825_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(nau8825_suspend, nau8825_resume)
+};
+
 static const struct i2c_device_id nau8825_i2c_ids[] = {
 	{ "nau8825", 0 },
 	{ }
@@ -1297,6 +1327,7 @@ static struct i2c_driver nau8825_driver = {
 		.name = "nau8825",
 		.of_match_table = of_match_ptr(nau8825_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8825_acpi_match),
+		.pm = &nau8825_pm,
 	},
 	.probe = nau8825_i2c_probe,
 	.remove = nau8825_i2c_remove,

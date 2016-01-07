@@ -1179,7 +1179,7 @@ static int knav_queue_setup_link_ram(struct knav_device *kdev)
 
 		block++;
 		if (!block->size)
-			return 0;
+			continue;
 
 		dev_dbg(kdev->dev, "linkram1: phys:%x, virt:%p, size:%x\n",
 			block->phys, block->virt, block->size);
@@ -1519,9 +1519,9 @@ static int knav_queue_load_pdsp(struct knav_device *kdev,
 
 	for (i = 0; i < ARRAY_SIZE(knav_acc_firmwares); i++) {
 		if (knav_acc_firmwares[i]) {
-			ret = request_firmware(&fw,
-					       knav_acc_firmwares[i],
-					       kdev->dev);
+			ret = request_firmware_direct(&fw,
+						      knav_acc_firmwares[i],
+						      kdev->dev);
 			if (!ret) {
 				found = true;
 				break;

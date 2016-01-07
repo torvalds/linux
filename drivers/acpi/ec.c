@@ -1103,7 +1103,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	}
 
 err_exit:
-	if (result && q)
+	if (result)
 		acpi_ec_delete_query(q);
 	if (data)
 		*data = value;

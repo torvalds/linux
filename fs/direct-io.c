@@ -1169,6 +1169,15 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		}
 	}
 
+	/* Once we sampled i_size check for reads beyond EOF */
+	dio->i_size = i_size_read(inode);
+	if (iov_iter_rw(iter) == READ && offset >= dio->i_size) {
+		if (dio->flags & DIO_LOCKING)
+			mutex_unlock(&inode->i_mutex);
+		kmem_cache_free(dio_cache, dio);
+		goto out;
+	}
+
 	/*
 	 * For file extending writes updating i_size before data writeouts
 	 * complete can expose uninitialized blocks in dumb filesystems.
@@ -1222,7 +1231,6 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	sdio.next_block_for_io = -1;
 
 	dio->iocb = iocb;
-	dio->i_size = i_size_read(inode);
 
 	spin_lock_init(&dio->bio_lock);
 	dio->refcount = 1;

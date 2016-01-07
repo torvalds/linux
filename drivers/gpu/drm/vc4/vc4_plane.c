@@ -70,7 +70,7 @@ static bool plane_enabled(struct drm_plane_state *state)
 	return state->fb && state->crtc;
 }
 
-struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)
+static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vc4_plane_state *vc4_state;
 
@@ -97,8 +97,8 @@ struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)
 	return &vc4_state->base;
 }
 
-void vc4_plane_destroy_state(struct drm_plane *plane,
-			     struct drm_plane_state *state)
+static void vc4_plane_destroy_state(struct drm_plane *plane,
+				    struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
@@ -108,7 +108,7 @@ void vc4_plane_destroy_state(struct drm_plane *plane,
 }
 
 /* Called during init to allocate the plane's atomic state. */
-void vc4_plane_reset(struct drm_plane *plane)
+static void vc4_plane_reset(struct drm_plane *plane)
 {
 	struct vc4_plane_state *vc4_state;
 
@@ -156,6 +156,16 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	int crtc_y = state->crtc_y;
 	int crtc_w = state->crtc_w;
 	int crtc_h = state->crtc_h;
+
+	if (state->crtc_w << 16 != state->src_w ||
+	    state->crtc_h << 16 != state->src_h) {
+		/* We don't support scaling yet, which involves
+		 * allocating the LBM memory for scaling temporary
+		 * storage, and putting filter kernels in the HVS
+		 * context.
+		 */
+		return -EINVAL;
+	}
 
 	if (crtc_x < 0) {
 		offset += drm_format_plane_cpp(fb->pixel_format, 0) * -crtc_x;

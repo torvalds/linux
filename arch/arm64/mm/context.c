@@ -76,13 +76,28 @@ static void flush_context(unsigned int cpu)
 		__flush_icache_all();
 }
 
-static int is_reserved_asid(u64 asid)
+static bool check_update_reserved_asid(u64 asid, u64 newasid)
 {
 	int cpu;
-	for_each_possible_cpu(cpu)
-		if (per_cpu(reserved_asids, cpu) == asid)
-			return 1;
-	return 0;
+	bool hit = false;
+
+	/*
+	 * Iterate over the set of reserved ASIDs looking for a match.
+	 * If we find one, then we can update our mm to use newasid
+	 * (i.e. the same ASID in the current generation) but we can't
+	 * exit the loop early, since we need to ensure that all copies
+	 * of the old ASID are updated to reflect the mm. Failure to do
+	 * so could result in us missing the reserved ASID in a future
+	 * generation.
+	 */
+	for_each_possible_cpu(cpu) {
+		if (per_cpu(reserved_asids, cpu) == asid) {
+			hit = true;
+			per_cpu(reserved_asids, cpu) = newasid;
+		}
+	}
+
+	return hit;
 }
 
 static u64 new_context(struct mm_struct *mm, unsigned int cpu)
@@ -92,12 +107,14 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 	u64 generation = atomic64_read(&asid_generation);
 
 	if (asid != 0) {
+		u64 newasid = generation | (asid & ~ASID_MASK);
+
 		/*
 		 * If our current ASID was active during a rollover, we
 		 * can continue to use it and this was just a false alarm.
 		 */
-		if (is_reserved_asid(asid))
-			return generation | (asid & ~ASID_MASK);
+		if (check_update_reserved_asid(asid, newasid))
+			return newasid;
 
 		/*
 		 * We had a valid ASID in a previous life, so try to re-use
@@ -105,7 +122,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 		 */
 		asid &= ~ASID_MASK;
 		if (!__test_and_set_bit(asid, asid_map))
-			goto bump_gen;
+			return newasid;
 	}
 
 	/*
@@ -129,10 +146,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 set_asid:
 	__set_bit(asid, asid_map);
 	cur_idx = asid;
-
-bump_gen:
-	asid |= generation;
-	return asid;
+	return asid | generation;
 }
 
 void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)

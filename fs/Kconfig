@@ -46,6 +46,12 @@ config FS_DAX
 	  or if unsure, say N.  Saying Y will increase the size of the kernel
 	  by about 5kB.
 
+config FS_DAX_PMD
+	bool
+	default FS_DAX
+	depends on FS_DAX
+	depends on BROKEN
+
 endif # BLOCK
 
 # Posix ACL utility routines

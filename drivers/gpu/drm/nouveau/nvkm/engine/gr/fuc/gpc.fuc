@@ -52,10 +52,12 @@ mmio_list_base:
 #endif
 
 #ifdef INCLUDE_CODE
+#define gpc_addr(reg,addr)                                                    /*
+*/	imm32(reg,addr)                                                       /*
+*/	or reg NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE
 #define gpc_wr32(addr,reg)                                                    /*
+*/	gpc_addr($r14,addr)                                                   /*
 */	mov b32 $r15 reg                                                      /*
-*/	imm32($r14, addr)                                                     /*
-*/	or $r14 NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE                    /*
 */	call(nv_wr32)
 
 // reports an exception to the host
@@ -161,7 +163,7 @@ init:
 
 #if NV_PGRAPH_GPCX_UNK__SIZE > 0
 	// figure out which, and how many, UNKs are actually present
-	imm32($r14, 0x500c30)
+	gpc_addr($r14, 0x500c30)
 	clear b32 $r2
 	clear b32 $r3
 	clear b32 $r4

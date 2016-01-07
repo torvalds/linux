@@ -27,8 +27,13 @@
 #include <linux/kfifo.h>
 #include <linux/fence.h>
 
+#define AMD_SCHED_FENCE_SCHEDULED_BIT	FENCE_FLAG_USER_BITS
+
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
+
+extern struct kmem_cache *sched_fence_slab;
+extern atomic_t sched_fence_slab_ref;
 
 /**
  * A scheduler entity is a wrapper around a job queue or a group
@@ -65,6 +70,7 @@ struct amd_sched_rq {
 struct amd_sched_fence {
 	struct fence                    base;
 	struct fence_cb                 cb;
+	struct list_head		scheduled_cb;
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
@@ -76,7 +82,6 @@ struct amd_sched_job {
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
-	void		                *owner;
 };
 
 extern const struct fence_ops amd_sched_fence_ops;
@@ -128,11 +133,11 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  uint32_t jobs);
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
-int amd_sched_entity_push_job(struct amd_sched_job *sched_job);
+void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);
+void amd_sched_fence_scheduled(struct amd_sched_fence *fence);
 void amd_sched_fence_signal(struct amd_sched_fence *fence);
-
 
 #endif

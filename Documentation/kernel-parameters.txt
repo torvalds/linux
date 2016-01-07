@@ -1583,9 +1583,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		hwp_only
 			Only load intel_pstate on systems which support
 			hardware P state control (HWP) if available.
-		no_acpi
-			Don't use ACPI processor performance control objects
-			_PSS and _PPC specified limits.
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)

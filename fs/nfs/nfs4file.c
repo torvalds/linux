@@ -7,6 +7,7 @@
 #include <linux/file.h>
 #include <linux/falloc.h>
 #include <linux/nfs_fs.h>
+#include <uapi/linux/btrfs.h>	/* BTRFS_IOC_CLONE/BTRFS_IOC_CLONE_RANGE */
 #include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
@@ -203,6 +204,7 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 	struct fd src_file;
 	struct inode *src_inode;
 	unsigned int bs = server->clone_blksize;
+	bool same_inode = false;
 	int ret;
 
 	/* dst file must be opened for writing */
@@ -221,10 +223,8 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 
 	src_inode = file_inode(src_file.file);
 
-	/* src and dst must be different files */
-	ret = -EINVAL;
 	if (src_inode == dst_inode)
-		goto out_fput;
+		same_inode = true;
 
 	/* src file must be opened for reading */
 	if (!(src_file.file->f_mode & FMODE_READ))
@@ -249,8 +249,16 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 			goto out_fput;
 	}
 
+	/* verify if ranges are overlapped within the same file */
+	if (same_inode) {
+		if (dst_off + count > src_off && dst_off < src_off + count)
+			goto out_fput;
+	}
+
 	/* XXX: do we lock at all? what if server needs CB_RECALL_LAYOUT? */
-	if (dst_inode < src_inode) {
+	if (same_inode) {
+		mutex_lock(&src_inode->i_mutex);
+	} else if (dst_inode < src_inode) {
 		mutex_lock_nested(&dst_inode->i_mutex, I_MUTEX_PARENT);
 		mutex_lock_nested(&src_inode->i_mutex, I_MUTEX_CHILD);
 	} else {
@@ -275,7 +283,9 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 		truncate_inode_pages_range(&dst_inode->i_data, dst_off, dst_off + count - 1);
 
 out_unlock:
-	if (dst_inode < src_inode) {
+	if (same_inode) {
+		mutex_unlock(&src_inode->i_mutex);
+	} else if (dst_inode < src_inode) {
 		mutex_unlock(&src_inode->i_mutex);
 		mutex_unlock(&dst_inode->i_mutex);
 	} else {
@@ -291,46 +301,31 @@ out_drop_write:
 
 static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
 {
-	struct nfs_ioctl_clone_range_args args;
+	struct btrfs_ioctl_clone_range_args args;
 
 	if (copy_from_user(&args, argp, sizeof(args)))
 		return -EFAULT;
 
-	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_off, args.dst_off, args.count);
+	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_offset,
+				 args.dest_offset, args.src_length);
 }
-#else
-static long nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
-		u64 src_off, u64 dst_off, u64 count)
-{
-	return -ENOTTY;
-}
-
-static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
-{
-	return -ENOTTY;
-}
-#endif /* CONFIG_NFS_V4_2 */
 
 long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-	case NFS_IOC_CLONE:
+	case BTRFS_IOC_CLONE:
 		return nfs42_ioctl_clone(file, arg, 0, 0, 0);
-	case NFS_IOC_CLONE_RANGE:
+	case BTRFS_IOC_CLONE_RANGE:
 		return nfs42_ioctl_clone_range(file, argp);
 	}
 
 	return -ENOTTY;
 }
+#endif /* CONFIG_NFS_V4_2 */
 
 const struct file_operations nfs4_file_operations = {
-#ifdef CONFIG_NFS_V4_2
-	.llseek		= nfs4_file_llseek,
-#else
-	.llseek		= nfs_file_llseek,
-#endif
 	.read_iter	= nfs_file_read,
 	.write_iter	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
@@ -342,14 +337,14 @@ const struct file_operations nfs4_file_operations = {
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
-#ifdef CONFIG_NFS_V4_2
-	.fallocate	= nfs42_fallocate,
-#endif /* CONFIG_NFS_V4_2 */
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NFS_V4_2
+	.llseek		= nfs4_file_llseek,
+	.fallocate	= nfs42_fallocate,
 	.unlocked_ioctl = nfs4_ioctl,
-#else
 	.compat_ioctl	= nfs4_ioctl,
-#endif /* CONFIG_COMPAT */
+#else
+	.llseek		= nfs_file_llseek,
+#endif
 };

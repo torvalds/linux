@@ -64,12 +64,35 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 */
 		goto free_htab;
 
-	err = -ENOMEM;
+	if (htab->map.value_size >= (1 << (KMALLOC_SHIFT_MAX - 1)) -
+	    MAX_BPF_STACK - sizeof(struct htab_elem))
+		/* if value_size is bigger, the user space won't be able to
+		 * access the elements via bpf syscall. This check also makes
+		 * sure that the elem_size doesn't overflow and it's
+		 * kmalloc-able later in htab_map_update_elem()
+		 */
+		goto free_htab;
+
+	htab->elem_size = sizeof(struct htab_elem) +
+			  round_up(htab->map.key_size, 8) +
+			  htab->map.value_size;
+
 	/* prevent zero size kmalloc and check for u32 overflow */
 	if (htab->n_buckets == 0 ||
 	    htab->n_buckets > U32_MAX / sizeof(struct hlist_head))
 		goto free_htab;
 
+	if ((u64) htab->n_buckets * sizeof(struct hlist_head) +
+	    (u64) htab->elem_size * htab->map.max_entries >=
+	    U32_MAX - PAGE_SIZE)
+		/* make sure page count doesn't overflow */
+		goto free_htab;
+
+	htab->map.pages = round_up(htab->n_buckets * sizeof(struct hlist_head) +
+				   htab->elem_size * htab->map.max_entries,
+				   PAGE_SIZE) >> PAGE_SHIFT;
+
+	err = -ENOMEM;
 	htab->buckets = kmalloc_array(htab->n_buckets, sizeof(struct hlist_head),
 				      GFP_USER | __GFP_NOWARN);
 
@@ -85,13 +108,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	raw_spin_lock_init(&htab->lock);
 	htab->count = 0;
 
-	htab->elem_size = sizeof(struct htab_elem) +
-			  round_up(htab->map.key_size, 8) +
-			  htab->map.value_size;
-
-	htab->map.pages = round_up(htab->n_buckets * sizeof(struct hlist_head) +
-				   htab->elem_size * htab->map.max_entries,
-				   PAGE_SIZE) >> PAGE_SHIFT;
 	return &htab->map;
 
 free_htab:
@@ -222,7 +238,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* allocate new element outside of lock */
-	l_new = kmalloc(htab->elem_size, GFP_ATOMIC);
+	l_new = kmalloc(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN);
 	if (!l_new)
 		return -ENOMEM;
 

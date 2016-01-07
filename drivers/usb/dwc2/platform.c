@@ -108,7 +108,8 @@ static const struct dwc2_core_params params_rk3066 = {
 	.host_ls_low_power_phy_clk	= -1,
 	.ts_dline			= -1,
 	.reload_ctl			= -1,
-	.ahbcfg				= 0x7, /* INCR16 */
+	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
+					  GAHBCFG_HBSTLEN_SHIFT,
 	.uframe_sched			= -1,
 	.external_id_pin_ctl		= -1,
 	.hibernation			= -1,

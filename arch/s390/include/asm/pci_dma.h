@@ -195,5 +195,7 @@ void zpci_dma_exit_device(struct zpci_dev *);
 void dma_free_seg_table(unsigned long);
 unsigned long *dma_alloc_cpu_table(void);
 void dma_cleanup_tables(unsigned long *);
-void dma_update_cpu_trans(unsigned long *, void *, dma_addr_t, int);
+unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr);
+void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags);
+
 #endif

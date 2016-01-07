@@ -304,7 +304,7 @@ EXPORT_SYMBOL_GPL(acpi_get_psd_map);
 
 static int register_pcc_channel(int pcc_subspace_idx)
 {
-	struct acpi_pcct_subspace *cppc_ss;
+	struct acpi_pcct_hw_reduced *cppc_ss;
 	unsigned int len;
 
 	if (pcc_subspace_idx >= 0) {
