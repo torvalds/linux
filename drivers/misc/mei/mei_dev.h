@@ -649,17 +649,6 @@ int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_cl_cb *complete_list);
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 
-/*
- * NFC functions
- */
-int mei_nfc_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
-void mei_nfc_host_exit(struct mei_device *dev);
-
-/*
- * NFC Client UUID
- */
-extern const uuid_le mei_nfc_guid;
-
 int mei_wd_send(struct mei_device *dev);
 int mei_wd_stop(struct mei_device *dev);
 int mei_wd_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
