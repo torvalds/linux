@@ -192,7 +192,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
 		IWL_DEBUG_ASSOC(mvm, "ADD_STA PASSED\n");
 		break;
@@ -362,7 +362,7 @@ int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
 		IWL_DEBUG_INFO(mvm, "Frames for staid %d will drained in fw\n",
 			       mvmsta->sta_id);
@@ -628,7 +628,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
 		IWL_DEBUG_INFO(mvm, "Internal station added.\n");
 		return 0;
@@ -851,7 +851,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
 		IWL_DEBUG_INFO(mvm, "RX BA Session %sed in fw\n",
 			       start ? "start" : "stopp");
@@ -909,7 +909,7 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
 		break;
 	default:
