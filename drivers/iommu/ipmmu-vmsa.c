@@ -295,7 +295,7 @@ static struct iommu_gather_ops ipmmu_gather_ops = {
 
 static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 {
-	phys_addr_t ttbr;
+	u64 ttbr;
 
 	/*
 	 * Allocate the page table operations.
