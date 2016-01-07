@@ -546,8 +546,7 @@ static int __allocate_data_blocks(struct inode *inode, loff_t offset,
 		f2fs_put_dnode(&dn);
 		f2fs_unlock_op(sbi);
 
-		if (dn.node_changed)
-			f2fs_balance_fs(sbi);
+		f2fs_balance_fs(sbi, dn.node_changed);
 	}
 	return err;
 
@@ -557,8 +556,7 @@ sync_out:
 	f2fs_put_dnode(&dn);
 out:
 	f2fs_unlock_op(sbi);
-	if (dn.node_changed)
-		f2fs_balance_fs(sbi);
+	f2fs_balance_fs(sbi, dn.node_changed);
 	return err;
 }
 
@@ -657,8 +655,7 @@ get_next:
 
 		if (create) {
 			f2fs_unlock_op(sbi);
-			if (dn.node_changed)
-				f2fs_balance_fs(sbi);
+			f2fs_balance_fs(sbi, dn.node_changed);
 			f2fs_lock_op(sbi);
 		}
 
@@ -718,8 +715,7 @@ put_out:
 unlock_out:
 	if (create) {
 		f2fs_unlock_op(sbi);
-		if (dn.node_changed)
-			f2fs_balance_fs(sbi);
+		f2fs_balance_fs(sbi, dn.node_changed);
 	}
 out:
 	trace_f2fs_map_blocks(inode, map, err);
@@ -1178,8 +1174,7 @@ out:
 	if (err)
 		ClearPageUptodate(page);
 	unlock_page(page);
-	if (need_balance_fs)
-		f2fs_balance_fs(sbi);
+	f2fs_balance_fs(sbi, need_balance_fs);
 	if (wbc->for_reclaim || unlikely(f2fs_cp_error(sbi))) {
 		f2fs_submit_merged_bio(sbi, DATA, WRITE);
 		remove_dirty_inode(inode);
@@ -1506,7 +1501,7 @@ repeat:
 
 	if (need_balance && has_not_enough_free_secs(sbi, 0)) {
 		unlock_page(page);
-		f2fs_balance_fs(sbi);
+		f2fs_balance_fs(sbi, true);
 		lock_page(page);
 		if (page->mapping != mapping) {
 			/* The page got truncated from under us */

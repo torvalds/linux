@@ -213,7 +213,7 @@ int commit_inmem_pages(struct inode *inode, bool abort)
 	 * inode becomes free by iget_locked in f2fs_iget.
 	 */
 	if (!abort) {
-		f2fs_balance_fs(sbi);
+		f2fs_balance_fs(sbi, true);
 		f2fs_lock_op(sbi);
 	}
 
@@ -262,8 +262,10 @@ int commit_inmem_pages(struct inode *inode, bool abort)
  * This function balances dirty node and dentry pages.
  * In addition, it controls garbage collection.
  */
-void f2fs_balance_fs(struct f2fs_sb_info *sbi)
+void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 {
+	if (!need)
+		return;
 	/*
 	 * We should do GC or end up with checkpoint, if there are so many dirty
 	 * dir/node pages without enough free segments.

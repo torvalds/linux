@@ -303,7 +303,7 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	 * during the urgent cleaning time when runing out of free sections.
 	 */
 	if (update_inode_page(inode))
-		f2fs_balance_fs(sbi);
+		f2fs_balance_fs(sbi, true);
 	return 0;
 }
 
