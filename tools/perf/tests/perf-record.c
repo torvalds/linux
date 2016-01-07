@@ -40,7 +40,6 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 			.uses_mmap = true,
 		},
 		.no_buffering = true,
-		.freq	      = 10,
 		.mmap_pages   = 256,
 	};
 	cpu_set_t cpu_mask;
