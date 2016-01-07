@@ -48,6 +48,9 @@ config COMPAT_NETLINK_MESSAGES
 config NET_INGRESS
 	bool
 
+config NET_EGRESS
+	bool
+
 menu "Networking options"
 
 source "net/packet/Kconfig"

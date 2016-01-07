@@ -1739,7 +1739,9 @@ struct net_device {
 #ifdef CONFIG_XPS
 	struct xps_dev_maps __rcu *xps_maps;
 #endif
-
+#ifdef CONFIG_NET_CLS_ACT
+	struct tcf_proto __rcu  *egress_cl_list;
+#endif
 #ifdef CONFIG_NET_SWITCHDEV
 	u32			offload_fwd_mark;
 #endif
