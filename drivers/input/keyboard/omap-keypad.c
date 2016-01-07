@@ -292,8 +292,8 @@ static int omap_kp_probe(struct platform_device *pdev)
 	setup_timer(&omap_kp->timer, omap_kp_timer, (unsigned long)omap_kp);
 
 	/* get the irq and init timer*/
-	tasklet_enable(&kp_tasklet);
 	kp_tasklet.data = (unsigned long) omap_kp;
+	tasklet_enable(&kp_tasklet);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_enable);
 	if (ret < 0)
