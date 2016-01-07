@@ -1007,9 +1007,8 @@ void hist_entry__delete(struct hist_entry *he)
  * collapse the histogram
  */
 
-static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
-					 struct rb_root *root,
-					 struct hist_entry *he)
+bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
+				  struct rb_root *root, struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -1049,7 +1048,7 @@ static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 	return true;
 }
 
-static struct rb_root *hists__get_rotate_entries_in(struct hists *hists)
+struct rb_root *hists__get_rotate_entries_in(struct hists *hists)
 {
 	struct rb_root *root;
 
@@ -1584,10 +1583,8 @@ int perf_hist_config(const char *var, const char *value)
 	return 0;
 }
 
-static int hists_evsel__init(struct perf_evsel *evsel)
+int __hists__init(struct hists *hists)
 {
-	struct hists *hists = evsel__hists(evsel);
-
 	memset(hists, 0, sizeof(*hists));
 	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
 	hists->entries_in = &hists->entries_in_array[0];
@@ -1625,6 +1622,14 @@ static void hists_evsel__exit(struct perf_evsel *evsel)
 	struct hists *hists = evsel__hists(evsel);
 
 	hists__delete_all_entries(hists);
+}
+
+static int hists_evsel__init(struct perf_evsel *evsel)
+{
+	struct hists *hists = evsel__hists(evsel);
+
+	__hists__init(hists);
+	return 0;
 }
 
 /*
