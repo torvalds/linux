@@ -481,6 +481,7 @@ struct igb_adapter {
 #define IGB_FLAG_MAS_ENABLE		(1 << 12)
 #define IGB_FLAG_HAS_MSIX		(1 << 13)
 #define IGB_FLAG_EEE			(1 << 14)
+#define IGB_FLAG_VLAN_PROMISC		BIT(15)
 
 /* Media Auto Sense */
 #define IGB_MAS_ENABLE_0		0X0001

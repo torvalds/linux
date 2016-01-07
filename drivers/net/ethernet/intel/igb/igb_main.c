@@ -1819,6 +1819,10 @@ void igb_down(struct igb_adapter *adapter)
 
 	if (!pci_channel_offline(adapter->pdev))
 		igb_reset(adapter);
+
+	/* clear VLAN promisc flag so VFTA will be updated if necessary */
+	adapter->flags &= ~IGB_FLAG_VLAN_PROMISC;
+
 	igb_clean_all_tx_rings(adapter);
 	igb_clean_all_rx_rings(adapter);
 #ifdef CONFIG_IGB_DCA
@@ -2050,7 +2054,7 @@ static int igb_set_features(struct net_device *netdev,
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		igb_vlan_mode(netdev, features);
 
-	if (!(changed & NETIF_F_RXALL))
+	if (!(changed & (NETIF_F_RXALL | NETIF_F_NTUPLE)))
 		return 0;
 
 	netdev->features = features;
@@ -3515,8 +3519,7 @@ void igb_setup_rctl(struct igb_adapter *adapter)
 			 E1000_RCTL_BAM | /* RX All Bcast Pkts */
 			 E1000_RCTL_PMCF); /* RX All MAC Ctrl Pkts */
 
-		rctl &= ~(E1000_RCTL_VFE | /* Disable VLAN filter */
-			  E1000_RCTL_DPF | /* Allow filtered pause */
+		rctl &= ~(E1000_RCTL_DPF | /* Allow filtered pause */
 			  E1000_RCTL_CFIEN); /* Dis VLAN CFIEN Filter */
 		/* Do not mess with E1000_CTRL_VME, it affects transmit as well,
 		 * and that breaks VLANs.
@@ -3967,6 +3970,130 @@ static int igb_write_uc_addr_list(struct net_device *netdev)
 	return count;
 }
 
+static int igb_vlan_promisc_enable(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 i, pf_id;
+
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i211:
+	case e1000_i350:
+		/* VLAN filtering needed for VLAN prio filter */
+		if (adapter->netdev->features & NETIF_F_NTUPLE)
+			break;
+		/* fall through */
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i354:
+		/* VLAN filtering needed for pool filtering */
+		if (adapter->vfs_allocated_count)
+			break;
+		/* fall through */
+	default:
+		return 1;
+	}
+
+	/* We are already in VLAN promisc, nothing to do */
+	if (adapter->flags & IGB_FLAG_VLAN_PROMISC)
+		return 0;
+
+	if (!adapter->vfs_allocated_count)
+		goto set_vfta;
+
+	/* Add PF to all active pools */
+	pf_id = adapter->vfs_allocated_count + E1000_VLVF_POOLSEL_SHIFT;
+
+	for (i = E1000_VLVF_ARRAY_SIZE; --i;) {
+		u32 vlvf = rd32(E1000_VLVF(i));
+
+		vlvf |= 1 << pf_id;
+		wr32(E1000_VLVF(i), vlvf);
+	}
+
+set_vfta:
+	/* Set all bits in the VLAN filter table array */
+	for (i = E1000_VLAN_FILTER_TBL_SIZE; i--;)
+		hw->mac.ops.write_vfta(hw, i, ~0U);
+
+	/* Set flag so we don't redo unnecessary work */
+	adapter->flags |= IGB_FLAG_VLAN_PROMISC;
+
+	return 0;
+}
+
+#define VFTA_BLOCK_SIZE 8
+static void igb_scrub_vfta(struct igb_adapter *adapter, u32 vfta_offset)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 vfta[VFTA_BLOCK_SIZE] = { 0 };
+	u32 vid_start = vfta_offset * 32;
+	u32 vid_end = vid_start + (VFTA_BLOCK_SIZE * 32);
+	u32 i, vid, word, bits, pf_id;
+
+	/* guarantee that we don't scrub out management VLAN */
+	vid = adapter->mng_vlan_id;
+	if (vid >= vid_start && vid < vid_end)
+		vfta[(vid - vid_start) / 32] |= 1 << (vid % 32);
+
+	if (!adapter->vfs_allocated_count)
+		goto set_vfta;
+
+	pf_id = adapter->vfs_allocated_count + E1000_VLVF_POOLSEL_SHIFT;
+
+	for (i = E1000_VLVF_ARRAY_SIZE; --i;) {
+		u32 vlvf = rd32(E1000_VLVF(i));
+
+		/* pull VLAN ID from VLVF */
+		vid = vlvf & VLAN_VID_MASK;
+
+		/* only concern ourselves with a certain range */
+		if (vid < vid_start || vid >= vid_end)
+			continue;
+
+		if (vlvf & E1000_VLVF_VLANID_ENABLE) {
+			/* record VLAN ID in VFTA */
+			vfta[(vid - vid_start) / 32] |= 1 << (vid % 32);
+
+			/* if PF is part of this then continue */
+			if (test_bit(vid, adapter->active_vlans))
+				continue;
+		}
+
+		/* remove PF from the pool */
+		bits = ~(1 << pf_id);
+		bits &= rd32(E1000_VLVF(i));
+		wr32(E1000_VLVF(i), bits);
+	}
+
+set_vfta:
+	/* extract values from active_vlans and write back to VFTA */
+	for (i = VFTA_BLOCK_SIZE; i--;) {
+		vid = (vfta_offset + i) * 32;
+		word = vid / BITS_PER_LONG;
+		bits = vid % BITS_PER_LONG;
+
+		vfta[i] |= adapter->active_vlans[word] >> bits;
+
+		hw->mac.ops.write_vfta(hw, vfta_offset + i, vfta[i]);
+	}
+}
+
+static void igb_vlan_promisc_disable(struct igb_adapter *adapter)
+{
+	u32 i;
+
+	/* We are not in VLAN promisc, nothing to do */
+	if (!(adapter->flags & IGB_FLAG_VLAN_PROMISC))
+		return;
+
+	/* Set flag so we don't redo unnecessary work */
+	adapter->flags &= ~IGB_FLAG_VLAN_PROMISC;
+
+	for (i = 0; i < E1000_VLAN_FILTER_TBL_SIZE; i += VFTA_BLOCK_SIZE)
+		igb_scrub_vfta(adapter, i);
+}
+
 /**
  *  igb_set_rx_mode - Secondary Unicast, Multicast and Promiscuous mode set
  *  @netdev: network interface device structure
@@ -3981,21 +4108,13 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	unsigned int vfn = adapter->vfs_allocated_count;
-	u32 rctl, vmolr = 0;
+	u32 rctl = 0, vmolr = 0;
 	int count;
 
 	/* Check for Promiscuous and All Multicast modes */
-	rctl = rd32(E1000_RCTL);
-
-	/* clear the effected bits */
-	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
-
 	if (netdev->flags & IFF_PROMISC) {
-		/* retain VLAN HW filtering if in VT mode */
-		if (adapter->vfs_allocated_count)
-			rctl |= E1000_RCTL_VFE;
-		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		vmolr |= (E1000_VMOLR_ROPE | E1000_VMOLR_MPME);
+		rctl |= E1000_RCTL_UPE | E1000_RCTL_MPE;
+		vmolr |= E1000_VMOLR_ROPE | E1000_VMOLR_MPME;
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
@@ -4022,8 +4141,24 @@ static void igb_set_rx_mode(struct net_device *netdev)
 			rctl |= E1000_RCTL_UPE;
 			vmolr |= E1000_VMOLR_ROPE;
 		}
-		rctl |= E1000_RCTL_VFE;
 	}
+
+	/* enable VLAN filtering by default */
+	rctl |= E1000_RCTL_VFE;
+
+	/* disable VLAN filtering for modes that require it */
+	if ((netdev->flags & IFF_PROMISC) ||
+	    (netdev->features & NETIF_F_RXALL)) {
+		/* if we fail to set all rules then just clear VFE */
+		if (igb_vlan_promisc_enable(adapter))
+			rctl &= ~E1000_RCTL_VFE;
+	} else {
+		igb_vlan_promisc_disable(adapter);
+	}
+
+	/* update state of unicast, multicast, and VLAN filtering modes */
+	rctl |= rd32(E1000_RCTL) & ~(E1000_RCTL_UPE | E1000_RCTL_MPE |
+				     E1000_RCTL_VFE);
 	wr32(E1000_RCTL, rctl);
 
 	/* In order to support SR-IOV and eventually VMDq it is necessary to set
@@ -5762,48 +5897,98 @@ static void igb_restore_vf_multicasts(struct igb_adapter *adapter)
 static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 pool_mask, reg, vid;
-	int i;
+	u32 pool_mask, vlvf_mask, i;
 
-	pool_mask = 1 << (E1000_VLVF_POOLSEL_SHIFT + vf);
+	/* create mask for VF and other pools */
+	pool_mask = E1000_VLVF_POOLSEL_MASK;
+	vlvf_mask = 1 << (E1000_VLVF_POOLSEL_SHIFT + vf);
+
+	/* drop PF from pool bits */
+	pool_mask &= ~(1 << (E1000_VLVF_POOLSEL_SHIFT +
+			     adapter->vfs_allocated_count));
 
 	/* Find the vlan filter for this id */
-	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
-		reg = rd32(E1000_VLVF(i));
+	for (i = E1000_VLVF_ARRAY_SIZE; i--;) {
+		u32 vlvf = rd32(E1000_VLVF(i));
+		u32 vfta_mask, vid, vfta;
 
 		/* remove the vf from the pool */
-		reg &= ~pool_mask;
+		if (!(vlvf & vlvf_mask))
+			continue;
 
-		/* if pool is empty then remove entry from vfta */
-		if (!(reg & E1000_VLVF_POOLSEL_MASK) &&
-		    (reg & E1000_VLVF_VLANID_ENABLE)) {
-			reg = 0;
-			vid = reg & E1000_VLVF_VLANID_MASK;
-			igb_vfta_set(hw, vid, vf, false, true);
-		}
+		/* clear out bit from VLVF */
+		vlvf ^= vlvf_mask;
 
-		wr32(E1000_VLVF(i), reg);
+		/* if other pools are present, just remove ourselves */
+		if (vlvf & pool_mask)
+			goto update_vlvfb;
+
+		/* if PF is present, leave VFTA */
+		if (vlvf & E1000_VLVF_POOLSEL_MASK)
+			goto update_vlvf;
+
+		vid = vlvf & E1000_VLVF_VLANID_MASK;
+		vfta_mask = 1 << (vid % 32);
+
+		/* clear bit from VFTA */
+		vfta = adapter->shadow_vfta[vid / 32];
+		if (vfta & vfta_mask)
+			hw->mac.ops.write_vfta(hw, vid / 32, vfta ^ vfta_mask);
+update_vlvf:
+		/* clear pool selection enable */
+		if (adapter->flags & IGB_FLAG_VLAN_PROMISC)
+			vlvf &= E1000_VLVF_POOLSEL_MASK;
+		else
+			vlvf = 0;
+update_vlvfb:
+		/* clear pool bits */
+		wr32(E1000_VLVF(i), vlvf);
 	}
 }
 
-static int igb_find_vlvf_entry(struct igb_adapter *adapter, int vid)
+static int igb_find_vlvf_entry(struct e1000_hw *hw, u32 vlan)
 {
-	struct e1000_hw *hw = &adapter->hw;
-	int i;
-	u32 reg;
+	u32 vlvf;
+	int idx;
 
-	/* Find the vlan filter for this id */
-	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
-		reg = rd32(E1000_VLVF(i));
-		if ((reg & E1000_VLVF_VLANID_ENABLE) &&
-		    vid == (reg & E1000_VLVF_VLANID_MASK))
+	/* short cut the special case */
+	if (vlan == 0)
+		return 0;
+
+	/* Search for the VLAN id in the VLVF entries */
+	for (idx = E1000_VLVF_ARRAY_SIZE; --idx;) {
+		vlvf = rd32(E1000_VLVF(idx));
+		if ((vlvf & VLAN_VID_MASK) == vlan)
 			break;
 	}
 
-	if (i >= E1000_VLVF_ARRAY_SIZE)
-		i = -1;
+	return idx;
+}
 
-	return i;
+void igb_update_pf_vlvf(struct igb_adapter *adapter, u32 vid)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 bits, pf_id;
+	int idx;
+
+	idx = igb_find_vlvf_entry(hw, vid);
+	if (!idx)
+		return;
+
+	/* See if any other pools are set for this VLAN filter
+	 * entry other than the PF.
+	 */
+	pf_id = adapter->vfs_allocated_count + E1000_VLVF_POOLSEL_SHIFT;
+	bits = ~(1 << pf_id) & E1000_VLVF_POOLSEL_MASK;
+	bits &= rd32(E1000_VLVF(idx));
+
+	/* Disable the filter so this falls into the default pool. */
+	if (!bits) {
+		if (adapter->flags & IGB_FLAG_VLAN_PROMISC)
+			wr32(E1000_VLVF(idx), 1 << pf_id);
+		else
+			wr32(E1000_VLVF(idx), 0);
+	}
 }
 
 static s32 igb_set_vf_vlan(struct igb_adapter *adapter, u32 vid,
@@ -5818,7 +6003,7 @@ static s32 igb_set_vf_vlan(struct igb_adapter *adapter, u32 vid,
 	 * redundant but it guarantees PF will maintain visibility to
 	 * the VLAN.
 	 */
-	if (add && (adapter->netdev->flags & IFF_PROMISC)) {
+	if (add && test_bit(vid, adapter->active_vlans)) {
 		err = igb_vfta_set(hw, vid, pf_id, true, false);
 		if (err)
 			return err;
@@ -5826,36 +6011,17 @@ static s32 igb_set_vf_vlan(struct igb_adapter *adapter, u32 vid,
 
 	err = igb_vfta_set(hw, vid, vf, add, false);
 
-	if (err)
-		goto out;
+	if (add && !err)
+		return err;
 
-	/* Go through all the checks to see if the VLAN filter should
-	 * be wiped completely.
+	/* If we failed to add the VF VLAN or we are removing the VF VLAN
+	 * we may need to drop the PF pool bit in order to allow us to free
+	 * up the VLVF resources.
 	 */
-	if (!add && (adapter->netdev->flags & IFF_PROMISC)) {
-		u32 vlvf, bits;
-		int regndx = igb_find_vlvf_entry(adapter, vid);
+	if (test_bit(vid, adapter->active_vlans) ||
+	    (adapter->flags & IGB_FLAG_VLAN_PROMISC))
+		igb_update_pf_vlvf(adapter, vid);
 
-		if (regndx < 0)
-			goto out;
-		/* See if any other pools are set for this VLAN filter
-		 * entry other than the PF.
-		 */
-		vlvf = bits = rd32(E1000_VLVF(regndx));
-		bits &= 1 << (E1000_VLVF_POOLSEL_SHIFT +
-			      adapter->vfs_allocated_count);
-		/* If the filter was removed then ensure PF pool bit
-		 * is cleared if the PF only added itself to the pool
-		 * because the PF is in promiscuous mode.
-		 */
-		if ((vlvf & VLAN_VID_MASK) == vid &&
-		    !test_bit(vid, adapter->active_vlans) &&
-		    !bits)
-			igb_vfta_set(hw, vid, adapter->vfs_allocated_count,
-				     false, false);
-	}
-
-out:
 	return err;
 }
 
@@ -7124,7 +7290,9 @@ static int igb_vlan_rx_add_vid(struct net_device *netdev,
 	int pf_id = adapter->vfs_allocated_count;
 
 	/* add the filter since PF can receive vlans w/o entry in vlvf */
-	igb_vfta_set(hw, vid, pf_id, true, true);
+	if (!vid || !(adapter->flags & IGB_FLAG_VLAN_PROMISC))
+		igb_vfta_set(hw, vid, pf_id, true, !!vid);
+
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -7138,7 +7306,8 @@ static int igb_vlan_rx_kill_vid(struct net_device *netdev,
 	struct e1000_hw *hw = &adapter->hw;
 
 	/* remove VID from filter table */
-	igb_vfta_set(hw, vid, pf_id, false, true);
+	if (vid && !(adapter->flags & IGB_FLAG_VLAN_PROMISC))
+		igb_vfta_set(hw, vid, pf_id, false, true);
 
 	clear_bit(vid, adapter->active_vlans);
 
