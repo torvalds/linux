@@ -2398,6 +2398,8 @@ described in a separate section.
 <li>	<a href="#Sched Flavor">Sched Flavor</a>
 <li>	<a href="#Sleepable RCU">Sleepable RCU</a>
 <li>	<a href="#Tasks RCU">Tasks RCU</a>
+<li>	<a href="#Waiting for Multiple Grace Periods">
+	Waiting for Multiple Grace Periods</a>
 </ol>
 
 <h3><a name="Bottom-Half Flavor">Bottom-Half Flavor</a></h3>
@@ -2646,6 +2648,86 @@ The tasks-RCU API is quite compact, consisting only of
 <tt>call_rcu_tasks()</tt>,
 <tt>synchronize_rcu_tasks()</tt>, and
 <tt>rcu_barrier_tasks()</tt>.
+
+<h3><a name="Waiting for Multiple Grace Periods">
+Waiting for Multiple Grace Periods</a></h3>
+
+<p>
+Perhaps you have an RCU protected data structure that is accessed from
+RCU read-side critical sections, from softirq handlers, and from
+hardware interrupt handlers.
+That is three flavors of RCU, the normal flavor, the bottom-half flavor,
+and the sched flavor.
+How to wait for a compound grace period?
+
+<p>
+The best approach is usually to &ldquo;just say no!&rdquo; and
+insert <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+around each RCU read-side critical section, regardless of what
+environment it happens to be in.
+But suppose that some of the RCU read-side critical sections are
+on extremely hot code paths, and that use of <tt>CONFIG_PREEMPT=n</tt>
+is not a viable option, so that <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> are not free.
+What then?
+
+<p>
+You <i>could</i> wait on all three grace periods in succession, as follows:
+
+<blockquote>
+<pre>
+ 1 synchronize_rcu();
+ 2 synchronize_rcu_bh();
+ 3 synchronize_sched();
+</pre>
+</blockquote>
+
+<p>
+This works, but triples the update-side latency penalty.
+In cases where this is not acceptable, <tt>synchronize_rcu_mult()</tt>
+may be used to wait on all three flavors of grace period concurrently:
+
+<blockquote>
+<pre>
+ 1 synchronize_rcu_mult(call_rcu, call_rcu_bh, call_rcu_sched);
+</pre>
+</blockquote>
+
+<p>
+But what if it is necessary to also wait on SRCU?
+This can be done as follows:
+
+<blockquote>
+<pre>
+ 1 static void call_my_srcu(struct rcu_head *head,
+ 2        void (*func)(struct rcu_head *head))
+ 3 {
+ 4   call_srcu(&amp;my_srcu, head, func);
+ 5 }
+ 6
+ 7 synchronize_rcu_mult(call_rcu, call_rcu_bh, call_rcu_sched, call_my_srcu);
+</pre>
+</blockquote>
+
+<p>
+If you needed to wait on multiple different flavors of SRCU
+(but why???), you would need to create a wrapper function resembling
+<tt>call_my_srcu()</tt> for each SRCU flavor.
+
+<p>@@QQ@@
+But what if I need to wait for multiple RCU flavors, but I also need
+the grace periods to be expedited?
+<p>@@QQA@@
+If you are using expedited grace periods, there should be less penalty
+for waiting on them in succession.
+But if that is nevertheless a problem, you can use workqueues or multiple
+kthreads to wait on the various expedited grace periods concurrently.
+<p>@@QQE@@
+
+<p>
+Again, it is usually better to adjust the RCU read-side critical sections
+to use a single flavor of RCU, but when this is not feasible, you can use
+<tt>synchronize_rcu_mult()</tt>.
 
 <h2><a name="Possible Future Changes">Possible Future Changes</a></h2>
 
