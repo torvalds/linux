@@ -128,3 +128,24 @@ void dev_pm_domain_detach(struct device *dev, bool power_off)
 		dev->pm_domain->detach(dev, power_off);
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
+
+/**
+ * dev_pm_domain_set - Set PM domain of a device.
+ * @dev: Device whose PM domain is to be set.
+ * @pd: PM domain to be set, or NULL.
+ *
+ * Sets the PM domain the device belongs to. The PM domain of a device needs
+ * to be set before its probe finishes (it's bound to a driver).
+ *
+ * This function must be called with the device lock held.
+ */
+void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd)
+{
+	if (dev->pm_domain == pd)
+		return;
+
+	WARN(device_is_bound(dev),
+	     "PM domains can only be changed for unbound devices\n");
+	dev->pm_domain = pd;
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_set);

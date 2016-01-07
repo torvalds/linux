@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
@@ -168,7 +169,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 			r->name = dev_name(&pdev->dev);
 	}
 
-	pdev->dev.pm_domain = &omap_device_pm_domain;
+	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
 
 	if (device_active) {
 		omap_device_enable(pdev);
@@ -180,7 +181,7 @@ odbfd_exit1:
 odbfd_exit:
 	/* if data/we are at fault.. load up a fail handler */
 	if (ret)
-		pdev->dev.pm_domain = &omap_device_fail_pm_domain;
+		dev_pm_domain_set(&pdev->dev, &omap_device_fail_pm_domain);
 
 	return ret;
 }
@@ -701,7 +702,7 @@ int omap_device_register(struct platform_device *pdev)
 {
 	pr_debug("omap_device: %s: registering\n", pdev->name);
 
-	pdev->dev.pm_domain = &omap_device_pm_domain;
+	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
 	return platform_device_add(pdev);
 }
 
