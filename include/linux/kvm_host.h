@@ -122,7 +122,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_UNHALT             6
 #define KVM_REQ_MMU_SYNC           7
 #define KVM_REQ_CLOCK_UPDATE       8
-#define KVM_REQ_KICK               9
+/* 9 is unused */
 #define KVM_REQ_DEACTIVATE_FPU    10
 #define KVM_REQ_EVENT             11
 #define KVM_REQ_APF_HALT          12
