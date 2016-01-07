@@ -71,24 +71,22 @@ static void hns_get_mdix_mode(struct net_device *net_dev,
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct phy_device *phy_dev = priv->phy;
 
-	if (!phy_dev || !phy_dev->bus) {
+	if (!phy_dev || !phy_dev->mdio.bus) {
 		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
 		cmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
 		return;
 	}
 
-	(void)mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_PHY_PAGE_REG,
-			    HNS_PHY_PAGE_MDIX);
+	phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_MDIX);
 
-	retval = mdiobus_read(phy_dev->bus, phy_dev->addr, HNS_PHY_CSC_REG);
+	retval = phy_read(phy_dev, HNS_PHY_CSC_REG);
 	mdix_ctrl = hnae_get_field(retval, PHY_MDIX_CTRL_M, PHY_MDIX_CTRL_S);
 
-	retval = mdiobus_read(phy_dev->bus, phy_dev->addr, HNS_PHY_CSS_REG);
+	retval = phy_read(phy_dev, HNS_PHY_CSS_REG);
 	mdix = hnae_get_bit(retval, PHY_MDIX_STATUS_B);
 	is_resolved = hnae_get_bit(retval, PHY_SPEED_DUP_RESOLVE_B);
 
-	(void)mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_PHY_PAGE_REG,
-			    HNS_PHY_PAGE_COPPER);
+	phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 
 	switch (mdix_ctrl) {
 	case 0x0:
@@ -253,53 +251,36 @@ static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 
 	if (en) {
 		/* speed : 1000M */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    HNS_PHY_PAGE_REG, 2);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    21, 0x1046);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 2);
+		phy_write(phy_dev, 21, 0x1046);
 		/* Force Master */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    9, 0x1F00);
+		phy_write(phy_dev, 9, 0x1F00);
 		/* Soft-reset */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    0, 0x9140);
+		phy_write(phy_dev, 0, 0x9140);
 		/* If autoneg disabled,two soft-reset operations */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    0, 0x9140);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0xFA);
+		phy_write(phy_dev, 0, 0x9140);
+		phy_write(phy_dev, 22, 0xFA);
 
 		/* Default is 0x0400 */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    1, 0x418);
+		phy_write(phy_dev, 1, 0x418);
 
 		/* Force 1000M Link, Default is 0x0200 */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    7, 0x20C);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0);
+		phy_write(phy_dev, 7, 0x20C);
+		phy_write(phy_dev, 22, 0);
 
 		/* Enable MAC loop-back */
-		val = (u16)mdiobus_read(phy_dev->bus, phy_dev->addr,
-					COPPER_CONTROL_REG);
+		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val |= PHY_LOOP_BACK;
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    COPPER_CONTROL_REG, val);
+		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	} else {
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0xFA);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    1, 0x400);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    7, 0x200);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0);
+		phy_write(phy_dev, 22, 0xFA);
+		phy_write(phy_dev, 1, 0x400);
+		phy_write(phy_dev, 7, 0x200);
+		phy_write(phy_dev, 22, 0);
 
-		val = (u16)mdiobus_read(phy_dev->bus, phy_dev->addr,
-					COPPER_CONTROL_REG);
+		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val &= ~PHY_LOOP_BACK;
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    COPPER_CONTROL_REG, val);
+		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	}
 	return 0;
 }
@@ -1018,16 +999,9 @@ int hns_phy_led_set(struct net_device *netdev, int value)
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct phy_device *phy_dev = priv->phy;
 
-	if (!phy_dev->bus) {
-		netdev_err(netdev, "phy_dev->bus is null!\n");
-		return -EINVAL;
-	}
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr,
-			       HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_LED_FC_REG,
-			       value);
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr,
-			       HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
+	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
+	retval = phy_write(phy_dev, HNS_LED_FC_REG, value);
+	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 	if (retval) {
 		netdev_err(netdev, "mdiobus_write fail !\n");
 		return retval;
@@ -1052,19 +1026,15 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 	if (phy_dev)
 		switch (state) {
 		case ETHTOOL_ID_ACTIVE:
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_LED);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_LED);
 			if (ret)
 				return ret;
 
-			priv->phy_led_val = (u16)mdiobus_read(phy_dev->bus,
-							      phy_dev->addr,
-							      HNS_LED_FC_REG);
+			priv->phy_led_val = phy_read(phy_dev, HNS_LED_FC_REG);
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_COPPER);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_COPPER);
 			if (ret)
 				return ret;
 			return 2;
@@ -1079,20 +1049,18 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 				return ret;
 			break;
 		case ETHTOOL_ID_INACTIVE:
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_LED);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_LED);
 			if (ret)
 				return ret;
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_LED_FC_REG, priv->phy_led_val);
+			ret = phy_write(phy_dev, HNS_LED_FC_REG,
+					priv->phy_led_val);
 			if (ret)
 				return ret;
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_COPPER);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_COPPER);
 			if (ret)
 				return ret;
 			break;

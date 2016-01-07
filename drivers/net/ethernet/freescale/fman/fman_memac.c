@@ -1054,15 +1054,15 @@ int memac_init(struct fman_mac *memac)
 			 * register address space and access each one of 4
 			 * ports inside QSGMII.
 			 */
-			phy_addr = memac->pcsphy->addr;
+			phy_addr = memac->pcsphy->mdio.addr;
 			qsmgii_phy_addr = (u8)((phy_addr << 2) | i);
-			memac->pcsphy->addr = qsmgii_phy_addr;
+			memac->pcsphy->mdio.addr = qsmgii_phy_addr;
 			if (memac->basex_if)
 				setup_sgmii_internal_phy_base_x(memac);
 			else
 				setup_sgmii_internal_phy(memac, fixed_link);
 
-			memac->pcsphy->addr = phy_addr;
+			memac->pcsphy->mdio.addr = phy_addr;
 		}
 	}
 

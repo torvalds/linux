@@ -190,7 +190,7 @@ static int at803x_resume(struct phy_device *phydev)
 
 static int at803x_probe(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct at803x_priv *priv;
 	struct gpio_desc *gpiod_reset;
 
@@ -281,8 +281,8 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 
 				at803x_context_restore(phydev, &context);
 
-				dev_dbg(&phydev->dev, "%s(): phy was reset\n",
-					__func__);
+				phydev_dbg(phydev, "%s(): phy was reset\n",
+					   __func__);
 				priv->phy_reset = true;
 			}
 		} else {
@@ -310,9 +310,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 }, {
 	/* ATHEROS 8030 */
 	.phy_id			= ATH8030_PHY_ID,
@@ -331,9 +328,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 }, {
 	/* ATHEROS 8031 */
 	.phy_id			= ATH8031_PHY_ID,
@@ -352,9 +346,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 } };
 
 module_phy_driver(at803x_driver);

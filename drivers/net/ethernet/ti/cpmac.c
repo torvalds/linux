@@ -316,8 +316,6 @@ static int cpmac_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-static int mii_irqs[PHY_MAX_ADDR] = { PHY_POLL, };
-
 static struct mii_bus *cpmac_mii;
 
 static void cpmac_set_multicast_list(struct net_device *dev)
@@ -1226,7 +1224,6 @@ int cpmac_init(void)
 	cpmac_mii->read = cpmac_mdio_read;
 	cpmac_mii->write = cpmac_mdio_write;
 	cpmac_mii->reset = cpmac_mdio_reset;
-	cpmac_mii->irq = mii_irqs;
 
 	cpmac_mii->priv = ioremap(AR7_REGS_MDIO, 256);
 

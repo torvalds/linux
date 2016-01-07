@@ -71,7 +71,6 @@ struct ftgmac100 {
 	struct napi_struct napi;
 
 	struct mii_bus *mii_bus;
-	int phy_irq[PHY_MAX_ADDR];
 	struct phy_device *phydev;
 	int old_speed;
 };
@@ -840,7 +839,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 
 	/* search for connect PHY device */
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *tmp = priv->mii_bus->phy_map[i];
+		struct phy_device *tmp = mdiobus_get_phy(priv->mii_bus, i);
 
 		if (tmp) {
 			phydev = tmp;
@@ -854,7 +853,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(netdev, dev_name(&phydev->dev),
+	phydev = phy_connect(netdev, phydev_name(phydev),
 			     &ftgmac100_adjust_link, PHY_INTERFACE_MODE_GMII);
 
 	if (IS_ERR(phydev)) {
@@ -1188,7 +1187,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
 	int err;
-	int i;
 
 	if (!pdev)
 		return -ENODEV;
@@ -1257,10 +1255,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->mii_bus->priv = netdev;
 	priv->mii_bus->read = ftgmac100_mdiobus_read;
 	priv->mii_bus->write = ftgmac100_mdiobus_write;
-	priv->mii_bus->irq = priv->phy_irq;
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		priv->mii_bus->irq[i] = PHY_POLL;
 
 	err = mdiobus_register(priv->mii_bus);
 	if (err) {
