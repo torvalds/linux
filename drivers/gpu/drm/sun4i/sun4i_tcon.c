@@ -488,8 +488,13 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	tcon->drm = drm;
 	tcon->dev = dev;
 
-	if (of_device_is_compatible(dev->of_node, "allwinner,sun5i-a13-tcon"))
+	if (of_device_is_compatible(dev->of_node, "allwinner,sun5i-a13-tcon")) {
 		tcon->has_mux = true;
+		tcon->has_channel_1 = true;
+	} else {
+		tcon->has_mux = false;
+		tcon->has_channel_1 = false;
+	}
 
 	tcon->lcd_rst = devm_reset_control_get(dev, "lcd");
 	if (IS_ERR(tcon->lcd_rst)) {
@@ -585,6 +590,7 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-tcon" },
+	{ .compatible = "allwinner,sun8i-a33-tcon" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);

@@ -345,6 +345,7 @@ static int sun4i_backend_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_backend_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-backend" },
+	{ .compatible = "allwinner,sun8i-a33-display-backend" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_backend_of_table);
