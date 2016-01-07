@@ -18,7 +18,6 @@
 #define _MEI_CLIENT_H_
 
 #include <linux/types.h>
-#include <linux/watchdog.h>
 #include <linux/poll.h>
 #include <linux/mei.h>
 
@@ -120,9 +119,6 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 				  enum mei_cb_file_ops type, struct file *fp);
 int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp);
 
-int mei_cl_flow_ctrl_creds(struct mei_cl *cl);
-
-int mei_cl_flow_ctrl_reduce(struct mei_cl *cl);
 /*
  *  MEI input output function prototype
  */

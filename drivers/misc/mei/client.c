@@ -648,7 +648,7 @@ int mei_cl_unlink(struct mei_cl *cl)
 	if (!cl)
 		return 0;
 
-	/* wd and amthif might not be initialized */
+	/* amthif might not be initialized */
 	if (!cl->dev)
 		return 0;
 
@@ -679,15 +679,9 @@ void mei_host_client_init(struct work_struct *work)
 
 	mutex_lock(&dev->device_lock);
 
-
 	me_cl = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (me_cl)
 		mei_amthif_host_init(dev, me_cl);
-	mei_me_cl_put(me_cl);
-
-	me_cl = mei_me_cl_by_uuid(dev, &mei_wd_guid);
-	if (me_cl)
-		mei_wd_host_init(dev, me_cl);
 	mei_me_cl_put(me_cl);
 
 	dev->dev_state = MEI_DEV_ENABLED;
@@ -1153,7 +1147,7 @@ err:
  *
  * Return: 1 if mei_flow_ctrl_creds >0, 0 - otherwise.
  */
-int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
+static int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 {
 	int rets;
 
@@ -1186,7 +1180,7 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
  *	0 on success
  *	-EINVAL when ctrl credits are <= 0
  */
-int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
+static int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 {
 	if (WARN_ON(!cl || !cl->me_cl))
 		return -EINVAL;

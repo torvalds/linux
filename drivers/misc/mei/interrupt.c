@@ -360,21 +360,6 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		list_move_tail(&cb->list, &cmpl_list->list);
 	}
 
-	if (dev->wd_state == MEI_WD_STOPPING) {
-		dev->wd_state = MEI_WD_IDLE;
-		wake_up(&dev->wait_stop_wd);
-	}
-
-	if (mei_cl_is_connected(&dev->wd_cl)) {
-		if (dev->wd_pending &&
-		    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
-			ret = mei_wd_send(dev);
-			if (ret)
-				return ret;
-			dev->wd_pending = false;
-		}
-	}
-
 	/* complete control write list CB */
 	dev_dbg(dev->dev, "complete control write list cb.\n");
 	list_for_each_entry_safe(cb, next, &dev->ctrl_wr_list.list, list) {

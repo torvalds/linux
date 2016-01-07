@@ -18,7 +18,7 @@
 #define _MEI_DEV_H_
 
 #include <linux/types.h>
-#include <linux/watchdog.h>
+#include <linux/cdev.h>
 #include <linux/poll.h>
 #include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
@@ -26,33 +26,13 @@
 #include "hw.h"
 #include "hbm.h"
 
-/*
- * watch dog definition
- */
-#define MEI_WD_HDR_SIZE       4
-#define MEI_WD_STOP_MSG_SIZE  MEI_WD_HDR_SIZE
-#define MEI_WD_START_MSG_SIZE (MEI_WD_HDR_SIZE + 16)
-
-#define MEI_WD_DEFAULT_TIMEOUT   120  /* seconds */
-#define MEI_WD_MIN_TIMEOUT       120  /* seconds */
-#define MEI_WD_MAX_TIMEOUT     65535  /* seconds */
-
-#define MEI_WD_STOP_TIMEOUT      10 /* msecs */
-
-#define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
-
-#define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
-
 
 /*
  * AMTHI Client UUID
  */
 extern const uuid_le mei_amthif_guid;
 
-/*
- * Watchdog Client UUID
- */
-extern const uuid_le mei_wd_guid;
+#define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
 
 /*
  * Number of Maximum MEI Clients
@@ -78,7 +58,6 @@ extern const uuid_le mei_wd_guid;
  */
 #define MEI_HOST_CLIENT_ID_ANY        (-1)
 #define MEI_HBM_HOST_CLIENT_ID         0 /* not used, just for documentation */
-#define MEI_WD_HOST_CLIENT_ID          1
 #define MEI_IAMTHIF_HOST_CLIENT_ID     2
 
 
@@ -121,12 +100,6 @@ enum mei_file_transaction_states {
 	MEI_FLOW_CONTROL,
 	MEI_READING,
 	MEI_READ_COMPLETE
-};
-
-enum mei_wd_states {
-	MEI_WD_IDLE,
-	MEI_WD_RUNNING,
-	MEI_WD_STOPPING,
 };
 
 /**
@@ -404,7 +377,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @wait_hw_ready : wait queue for receive HW ready message form FW
  * @wait_pg     : wait queue for receive PG message from FW
  * @wait_hbm_start : wait queue for receive HBM start message from FW
- * @wait_stop_wd : wait queue for receive WD stop message from FW
  *
  * @reset_count : number of consecutive resets
  * @dev_state   : device state
@@ -434,12 +406,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @me_client_index : last FW client index in enumeration
  *
  * @allow_fixed_address: allow user space to connect a fixed client
- *
- * @wd_cl       : watchdog client
- * @wd_state    : watchdog client state
- * @wd_pending  : watchdog command is pending
- * @wd_timeout  : watchdog expiration timeout
- * @wd_data     : watchdog message buffer
  *
  * @amthif_cmd_list : amthif list for cmd waiting
  * @amthif_rd_complete_list : amthif list for reading completed cmd data
@@ -486,7 +452,6 @@ struct mei_device {
 	wait_queue_head_t wait_hw_ready;
 	wait_queue_head_t wait_pg;
 	wait_queue_head_t wait_hbm_start;
-	wait_queue_head_t wait_stop_wd;
 
 	/*
 	 * mei device  states
@@ -530,13 +495,6 @@ struct mei_device {
 	unsigned long me_client_index;
 
 	bool allow_fixed_address;
-
-	struct mei_cl wd_cl;
-	enum mei_wd_states wd_state;
-	bool wd_pending;
-	u16 wd_timeout;
-	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
-
 
 	/* amthif list for cmd waiting */
 	struct mei_cl_cb amthif_cmd_list;
@@ -648,21 +606,6 @@ int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
 			    struct mei_cl_cb *complete_list);
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
-
-int mei_wd_send(struct mei_device *dev);
-int mei_wd_stop(struct mei_device *dev);
-int mei_wd_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
-/*
- * mei_watchdog_register  - Registering watchdog interface
- *   once we got connection to the WD Client
- * @dev: mei device
- */
-int mei_watchdog_register(struct mei_device *dev);
-/*
- * mei_watchdog_unregister  - Unregistering watchdog interface
- * @dev: mei device
- */
-void mei_watchdog_unregister(struct mei_device *dev);
 
 /*
  * Register Access Function
