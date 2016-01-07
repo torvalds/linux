@@ -2252,6 +2252,34 @@ static int setup_sort_order(struct perf_evlist *evlist)
 	return 0;
 }
 
+/*
+ * Adds 'pre,' prefix into 'str' is 'pre' is
+ * not already part of 'str'.
+ */
+static char *prefix_if_not_in(const char *pre, char *str)
+{
+	char *n;
+
+	if (!str || strstr(str, pre))
+		return str;
+
+	if (asprintf(&n, "%s,%s", pre, str) < 0)
+		return NULL;
+
+	free(str);
+	return n;
+}
+
+static char *setup_overhead(char *keys)
+{
+	keys = prefix_if_not_in("overhead", keys);
+
+	if (symbol_conf.cumulate_callchain)
+		keys = prefix_if_not_in("overhead_children", keys);
+
+	return keys;
+}
+
 static int __setup_sorting(struct perf_evlist *evlist)
 {
 	char *tmp, *tok, *str;
@@ -2279,6 +2307,17 @@ static int __setup_sorting(struct perf_evlist *evlist)
 	if (str == NULL) {
 		error("Not enough memory to setup sort keys");
 		return -ENOMEM;
+	}
+
+	/*
+	 * Prepend overhead fields for backward compatibility.
+	 */
+	if (!is_strict_order(field_order)) {
+		str = setup_overhead(str);
+		if (str == NULL) {
+			error("Not enough memory to setup overhead keys");
+			return -ENOMEM;
+		}
 	}
 
 	for (tok = strtok_r(str, ", ", &tmp);
