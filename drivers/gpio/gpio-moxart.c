@@ -57,7 +57,7 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	gc->label = "moxart-gpio";
 	gc->request = gpiochip_generic_request;
 	gc->free = gpiochip_generic_free;
-	gc->bgpio_data = bgc->read_reg(bgc->reg_set);
+	gc->bgpio_data = gc->read_reg(gc->reg_set);
 	gc->base = 0;
 	gc->ngpio = 32;
 	gc->parent = dev;
