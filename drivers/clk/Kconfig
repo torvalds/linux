@@ -187,11 +187,6 @@ config COMMON_CLK_PWM
 	  Adapter driver so that any PWM output can be (mis)used as clock signal
 	  at 50% duty cycle.
 
-config COMMON_CLK_NXP
-	def_bool COMMON_CLK && ARCH_LPC18XX
-	---help---
-	  Support for clock providers on NXP platforms.
-
 config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---
