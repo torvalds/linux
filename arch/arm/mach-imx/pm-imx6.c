@@ -67,7 +67,7 @@
 #define CCGR6				0x80
 
 #define MX6Q_SUSPEND_OCRAM_SIZE		0x1000
-#define MX6_MAX_MMDC_IO_NUM		33
+#define MX6_MAX_MMDC_IO_NUM		36
 #define MX6_MAX_MMDC_NUM		36
 
 #define ROMC_ROMPATCH0D			0xf0
@@ -316,10 +316,13 @@ static const u32 imx6q_mmdc_io_offset[] __initconst = {
 
 static const u32 imx6q_mmdc_io_lpddr2_offset[] __initconst = {
 	0x5ac, 0x5b4, 0x528, 0x520, /* DQM0 ~ DQM3 */
+	0x514, 0x510, 0x5bc, 0x5c4, /* DQM4 ~ DQM7 */
 	0x784, 0x788, 0x794, 0x79c, /* GPR_B0DS ~ GPR_B3DS */
+	0x7a0, 0x7a4, 0x7a8, 0x748, /* GPR_B4DS ~ GPR_B7DS */
 	0x56c, 0x578, 0x588, 0x594, /* CAS, RAS, SDCLK_0, SDCLK_1 */
-	0x59c, 0x5a0, 0x750, 0x774, /* SODT0, SODT1, MODE_CTL, MODE */
 	0x5a8, 0x5b0, 0x524, 0x51c, /* SDQS0 ~ SDQS3 */
+	0x518, 0x50c, 0x5b8, 0x5c0, /* SDQS4 ~ SDQS7 */
+	0x59c, 0x5a0, 0x750, 0x774, /* SODT0, SODT1, MODE_CTL, MODE */
 	0x74c, 0x590, 0x598, 0x57c, /* GRP_ADDS, SDCKE0, SDCKE1, RESET */
 };
 
@@ -549,7 +552,8 @@ struct imx6_cpu_pm_info {
 	phys_addr_t resume_addr; /* The physical resume address for asm code */
 	u32 ddr_type;
 	u32 pm_info_size; /* Size of pm_info. */
-	struct imx6_pm_base mmdc_base;
+	struct imx6_pm_base mmdc0_base;
+	struct imx6_pm_base mmdc1_base;
 	struct imx6_pm_base src_base;
 	struct imx6_pm_base iomuxc_base;
 	struct imx6_pm_base ccm_base;
@@ -1038,9 +1042,13 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	pm_info->ccm_base.vbase = (void __iomem *)
 				   IMX_IO_P2V(MX6Q_CCM_BASE_ADDR);
 
-	pm_info->mmdc_base.pbase = MX6Q_MMDC_P0_BASE_ADDR;
-	pm_info->mmdc_base.vbase = (void __iomem *)
+	pm_info->mmdc0_base.pbase = MX6Q_MMDC_P0_BASE_ADDR;
+	pm_info->mmdc0_base.vbase = (void __iomem *)
 				    IMX_IO_P2V(MX6Q_MMDC_P0_BASE_ADDR);
+
+	pm_info->mmdc1_base.pbase = MX6Q_MMDC_P1_BASE_ADDR;
+	pm_info->mmdc1_base.vbase = (void __iomem *)
+				    IMX_IO_P2V(MX6Q_MMDC_P1_BASE_ADDR);
 
 	pm_info->src_base.pbase = MX6Q_SRC_BASE_ADDR;
 	pm_info->src_base.vbase = (void __iomem *)
@@ -1081,7 +1089,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		pm_info->mmdc_val[i][0] =
 			mmdc_offset_array[i];
 		pm_info->mmdc_val[i][1] =
-			readl_relaxed(pm_info->mmdc_base.vbase +
+			readl_relaxed(pm_info->mmdc0_base.vbase +
 			mmdc_offset_array[i]);
 	}
 

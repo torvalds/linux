@@ -47,29 +47,32 @@
 #define PM_INFO_RESUME_ADDR_OFFSET		0x4
 #define PM_INFO_DDR_TYPE_OFFSET			0x8
 #define PM_INFO_PM_INFO_SIZE_OFFSET		0xC
-#define PM_INFO_MX6Q_MMDC_P_OFFSET		0x10
-#define PM_INFO_MX6Q_MMDC_V_OFFSET		0x14
-#define PM_INFO_MX6Q_SRC_P_OFFSET		0x18
-#define PM_INFO_MX6Q_SRC_V_OFFSET		0x1C
-#define PM_INFO_MX6Q_IOMUXC_P_OFFSET		0x20
-#define PM_INFO_MX6Q_IOMUXC_V_OFFSET		0x24
-#define PM_INFO_MX6Q_CCM_P_OFFSET		0x28
-#define PM_INFO_MX6Q_CCM_V_OFFSET		0x2C
-#define PM_INFO_MX6Q_GPC_P_OFFSET		0x30
-#define PM_INFO_MX6Q_GPC_V_OFFSET		0x34
-#define PM_INFO_MX6Q_L2_P_OFFSET		0x38
-#define PM_INFO_MX6Q_L2_V_OFFSET		0x3C
-#define PM_INFO_MX6Q_ANATOP_P_OFFSET		0x40
-#define PM_INFO_MX6Q_ANATOP_V_OFFSET		0x44
-#define	PM_INFO_MX6Q_TTBR1_V_OFFSET		0x48
-#define PM_INFO_MMDC_IO_NUM_OFFSET		0x4c
-#define PM_INFO_MMDC_IO_VAL_OFFSET		0x50
-/* below offsets depends on MX6_MAX_MMDC_IO_NUM(33) definition */
-#define PM_INFO_MMDC_NUM_OFFSET			0x158
-#define PM_INFO_MMDC_VAL_OFFSET			0x15c
+#define PM_INFO_MX6Q_MMDC0_P_OFFSET		0x10
+#define PM_INFO_MX6Q_MMDC0_V_OFFSET		0x14
+#define PM_INFO_MX6Q_MMDC1_P_OFFSET		0x18
+#define PM_INFO_MX6Q_MMDC1_V_OFFSET		0x1C
+#define PM_INFO_MX6Q_SRC_P_OFFSET		0x20
+#define PM_INFO_MX6Q_SRC_V_OFFSET		0x24
+#define PM_INFO_MX6Q_IOMUXC_P_OFFSET	0x28
+#define PM_INFO_MX6Q_IOMUXC_V_OFFSET	0x2C
+#define PM_INFO_MX6Q_CCM_P_OFFSET		0x30
+#define PM_INFO_MX6Q_CCM_V_OFFSET		0x34
+#define PM_INFO_MX6Q_GPC_P_OFFSET		0x38
+#define PM_INFO_MX6Q_GPC_V_OFFSET		0x3C
+#define PM_INFO_MX6Q_L2_P_OFFSET		0x40
+#define PM_INFO_MX6Q_L2_V_OFFSET		0x44
+#define PM_INFO_MX6Q_ANATOP_P_OFFSET	0x48
+#define PM_INFO_MX6Q_ANATOP_V_OFFSET	0x4C
+#define PM_INFO_MX6Q_TTBR1_V_OFFSET		0x50
+#define PM_INFO_MMDC_IO_NUM_OFFSET		0x54
+#define PM_INFO_MMDC_IO_VAL_OFFSET		0x58
+/* below offsets depends on MX6_MAX_MMDC_IO_NUM(36) definition */
+#define PM_INFO_MMDC_NUM_OFFSET			0x178
+#define PM_INFO_MMDC_VAL_OFFSET			0x17C
 
 #define MX6Q_SRC_GPR1	0x20
 #define MX6Q_SRC_GPR2	0x24
+#define MX6Q_MMDC_MISC	0x18
 #define MX6Q_MMDC_MAPSR	0x404
 #define MX6Q_MMDC_MPDGCTRL0	0x83c
 #define MX6Q_GPC_IMR1	0x08
@@ -157,6 +160,30 @@
 	ands	r6, r6, #(1 << 31)
 	bne	3b
 
+	/* check if lppdr2 2 channel mode is enabled */
+	ldr	r7, =MX6Q_MMDC_MISC
+	ldr	r6, [r11, r7]
+	ands	r6, r6, #(1 << 2)
+	beq	6f
+
+	ldr	r7, =MX6Q_MMDC_MPDGCTRL0
+	ldr	r6, [r12, r7]
+	orr     r6, r6, #(1 << 31)
+	str	r6, [r12, r7]
+4:
+	ldr	r6, [r12, r7]
+	ands	r6, r6, #(1 << 31)
+	bne	4b
+
+	ldr	r6, [r12, r7]
+	orr     r6, r6, #(1 << 31)
+	str	r6, [r12, r7]
+5:
+	ldr	r6, [r12, r7]
+	ands	r6, r6, #(1 << 31)
+	bne	5b
+
+6:
 	.endm
 
 	/* r11 must be MMDC base address */
@@ -166,16 +193,34 @@
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	bic	r7, r7, #(1 << 21)
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
-4:
+7:
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	ands	r7, r7, #(1 << 25)
-	bne	4b
+	bne	7b
 
 	/* enable DDR auto power saving */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	bic	r7, r7, #0x1
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
 
+	/* check if lppdr2 2 channel mode is enabled */
+	ldr	r7, =MX6Q_MMDC_MISC
+	ldr	r6, [r11, r7]
+	ands	r6, r6, #(1 << 2)
+	beq	9f
+
+	ldr	r7, [r12, #MX6Q_MMDC_MAPSR]
+	bic	r7, r7, #(1 << 21)
+	str	r7, [r12, #MX6Q_MMDC_MAPSR]
+8:
+	ldr	r7, [r12, #MX6Q_MMDC_MAPSR]
+	ands	r7, r7, #(1 << 25)
+	bne	8b
+
+	ldr	r7, [r12, #MX6Q_MMDC_MAPSR]
+	bic	r7, r7, #0x1
+	str	r7, [r12, #MX6Q_MMDC_MAPSR]
+9:
 	.endm
 
 	/* r10 must be iomuxc base address */
@@ -203,23 +248,21 @@
 	ldr	r6, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
 	ldr	r7, =PM_INFO_MMDC_IO_VAL_OFFSET
 	add	r7, r7, r0
-5:
+10:
 	ldr	r8, [r7], #0x4
 	ldr	r9, [r7], #0x4
 	str	r9, [r10, r8]
 	subs	r6, r6, #0x1
-	bne	5b
+	bne	10b
 
 	cmp	r5, #0x0
 	/* Here only MMDC0 is set */
-	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
-	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC_P_OFFSET]
-
-	cmp     r3, #IMX_DDR_TYPE_LPDDR2
-	bne     6f
+	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC0_V_OFFSET]
+	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC0_P_OFFSET]
+	ldreq	r12, [r0, #PM_INFO_MX6Q_MMDC1_V_OFFSET]
+	ldrne	r12, [r0, #PM_INFO_MX6Q_MMDC1_P_OFFSET]
 
 	reset_read_fifo
-6:
 	mmdc_out_and_auto_self_refresh
 
 	.endm
@@ -229,71 +272,71 @@
 	cmp	r5, #0x0
 	ldreq	r10, [r0, #PM_INFO_MX6Q_IOMUXC_V_OFFSET]
 	ldrne	r10, [r0, #PM_INFO_MX6Q_IOMUXC_P_OFFSET]
-	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
-	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC_P_OFFSET]
+	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC0_V_OFFSET]
+	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC0_P_OFFSET]
 
 	/* resume mmdc iomuxc settings */
 	ldr	r6, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
 	ldr	r7, =PM_INFO_MMDC_IO_VAL_OFFSET
 	add	r7, r7, r0
-7:
+11:
 	ldr	r8, [r7], #0x4
 	ldr	r9, [r7], #0x4
 	str	r9, [r10, r8]
 	subs	r6, r6, #0x1
-	bne	7b
+	bne	11b
 
 	/* check whether we need to restore MMDC */
 	cmp	r5, #0x0
-	beq	8f
+	beq	12f
 
 	/* check whether last suspend is with M/F mix off */
 	ldr	r9, [r0, #PM_INFO_MX6Q_GPC_P_OFFSET]
 	ldr	r6, [r9, #0x220]
 	cmp	r6, #0x0
-	bne	9f
-8:
+	bne	13f
+12:
 	resume_iomuxc_gpr
 
-	b	13f
-9:
+	b	17f
+13:
 	/* restore MMDC settings */
 	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]
 	ldr	r7, =PM_INFO_MMDC_VAL_OFFSET
 	add	r7, r7, r0
-10:
+14:
 	ldr	r8, [r7], #0x4
 	ldr	r9, [r7], #0x4
 	str	r9, [r11, r8]
 	subs	r6, r6, #0x1
-	bne	10b
+	bne	14b
 
 	/* let DDR enter self-refresh */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	orr	r7, r7, #(1 << 20)
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
-11:
+15:
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	ands	r7, r7, #(1 << 24)
-	beq	11b
+	beq	15b
 
 	resume_iomuxc_gpr
-
 	reset_read_fifo
 
 	/* let DDR out of self-refresh */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	bic	r7, r7, #(1 << 20)
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
-12:
+16:
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	ands	r7, r7, #(1 << 24)
-	bne	12b
+	bne	16b
 
 	/* kick off MMDC */
 	ldr	r4, =0x0
 	str	r4, [r11, #0x1c]
-13:
+
+17:
 	mmdc_out_and_auto_self_refresh
 
 	.endm
@@ -341,7 +384,7 @@
 	isb
 
 	is_cortex_a7
-	beq	14f
+	beq	17f
 
 #ifdef CONFIG_CACHE_L2X0
 	ldr	r8, [r0, #PM_INFO_MX6Q_L2_V_OFFSET]
@@ -351,13 +394,13 @@
 	dsb
 	isb
 #endif
-14:
+17:
 	.endm
 
 	.macro restore_ttbr1
 
 	is_cortex_a7
-	beq	15f
+	beq	18f
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Enable L2. */
@@ -366,7 +409,7 @@
 	str	r7, [r8, #0x100]
 #endif
 
-15:
+18:
 	/* Enable L1 data cache. */
 	mrc	p15, 0, r6, c1, c0, 0
 	orr	r6, r6, #0x4
@@ -454,7 +497,8 @@ a7_dache_flush:
 ttbr_store:
 	store_ttbr1
 
-	ldr	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
+	ldr	r11, [r0, #PM_INFO_MX6Q_MMDC0_V_OFFSET]
+	ldr	r12, [r0, #PM_INFO_MX6Q_MMDC1_V_OFFSET]
 	/*
 	 * put DDR explicitly into self-refresh and
 	 * disable automatic power savings.
@@ -473,6 +517,27 @@ poll_dvfs_set:
 	ands	r7, r7, #(1 << 25)
 	beq	poll_dvfs_set
 
+	/* check if lppdr2 2 channel mode is enabled */
+	ldr	r7, =MX6Q_MMDC_MISC
+	ldr	r6, [r11, r7]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_self_refresh_ch1
+
+	ldr	r7, [r12, #MX6Q_MMDC_MAPSR]
+	orr	r7, r7, #0x1
+	str	r7, [r12, #MX6Q_MMDC_MAPSR]
+
+	ldr	r7, [r12, #MX6Q_MMDC_MAPSR]
+	orr	r7, r7, #(1 << 21)
+	str	r7, [r12, #MX6Q_MMDC_MAPSR]
+
+poll_dvfs_set_ch1:
+	ldr	r7, [r12, #MX6Q_MMDC_MAPSR]
+	ands	r7, r7, #(1 << 25)
+	beq	poll_dvfs_set_ch1
+
+skip_self_refresh_ch1:
+	/* use r11 to store the IO address */
 	ldr	r11, [r0, #PM_INFO_MX6Q_IOMUXC_V_OFFSET]
 	ldr	r6, =0x0
 	ldr	r7, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
