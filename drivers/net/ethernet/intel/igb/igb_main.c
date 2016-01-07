@@ -7177,11 +7177,12 @@ static int igb_vlan_rx_kill_vid(struct net_device *netdev,
 
 static void igb_restore_vlan(struct igb_adapter *adapter)
 {
-	u16 vid;
+	u16 vid = 1;
 
 	igb_vlan_mode(adapter->netdev, adapter->netdev->features);
+	igb_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), 0);
 
-	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+	for_each_set_bit_from(vid, adapter->active_vlans, VLAN_N_VID)
 		igb_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
 
