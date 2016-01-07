@@ -4619,21 +4619,21 @@ static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
 		/* PFP */
 		fw_data = (const __be32 *)rdev->pfp_fw->data;
 		WREG32(CP_PFP_UCODE_ADDR, 0);
-		for (i = 0; i < CIK_PFP_UCODE_SIZE; i++)
+		for (i = 0; i < rdev->pfp_fw->size/4; i++)
 			WREG32(CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
 		WREG32(CP_PFP_UCODE_ADDR, 0);
 
 		/* CE */
 		fw_data = (const __be32 *)rdev->ce_fw->data;
 		WREG32(CP_CE_UCODE_ADDR, 0);
-		for (i = 0; i < CIK_CE_UCODE_SIZE; i++)
+		for (i = 0; i < rdev->ce_fw->size/4; i++)
 			WREG32(CP_CE_UCODE_DATA, be32_to_cpup(fw_data++));
 		WREG32(CP_CE_UCODE_ADDR, 0);
 
 		/* ME */
 		fw_data = (const __be32 *)rdev->me_fw->data;
 		WREG32(CP_ME_RAM_WADDR, 0);
-		for (i = 0; i < CIK_ME_UCODE_SIZE; i++)
+		for (i = 0; i < rdev->me_fw->size/4; i++)
 			WREG32(CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
 		WREG32(CP_ME_RAM_WADDR, 0);
 	}
