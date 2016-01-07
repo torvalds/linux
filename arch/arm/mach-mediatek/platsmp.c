@@ -53,6 +53,7 @@ static const struct mtk_smp_boot_info mtk_mt7623_boot = {
 static const struct of_device_id mtk_tz_smp_boot_infos[] __initconst = {
 	{ .compatible   = "mediatek,mt8135", .data = &mtk_mt8135_tz_boot },
 	{ .compatible   = "mediatek,mt8127", .data = &mtk_mt8135_tz_boot },
+	{ .compatible   = "mediatek,mt2701", .data = &mtk_mt8135_tz_boot },
 };
 
 static const struct of_device_id mtk_smp_boot_infos[] __initconst = {
