@@ -113,6 +113,7 @@ struct svc_rdma_fastreg_mr {
 	struct list_head frmr_list;
 };
 struct svc_rdma_req_map {
+	struct list_head free;
 	unsigned long count;
 	union {
 		struct kvec sge[RPCSVC_MAXPAGES];
@@ -145,6 +146,8 @@ struct svcxprt_rdma {
 	spinlock_t	     sc_ctxt_lock;
 	struct list_head     sc_ctxts;
 	int		     sc_ctxt_used;
+	spinlock_t	     sc_map_lock;
+	struct list_head     sc_maps;
 
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
@@ -223,8 +226,9 @@ extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
 extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
-extern struct svc_rdma_req_map *svc_rdma_get_req_map(void);
-extern void svc_rdma_put_req_map(struct svc_rdma_req_map *);
+extern struct svc_rdma_req_map *svc_rdma_get_req_map(struct svcxprt_rdma *);
+extern void svc_rdma_put_req_map(struct svcxprt_rdma *,
+				 struct svc_rdma_req_map *);
 extern struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *);
 extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
 			      struct svc_rdma_fastreg_mr *);

@@ -591,7 +591,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	/* Build an req vec for the XDR */
 	ctxt = svc_rdma_get_context(rdma);
 	ctxt->direction = DMA_TO_DEVICE;
-	vec = svc_rdma_get_req_map();
+	vec = svc_rdma_get_req_map(rdma);
 	ret = map_xdr(rdma, &rqstp->rq_res, vec);
 	if (ret)
 		goto err0;
@@ -630,14 +630,14 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 
 	ret = send_reply(rdma, rqstp, res_page, rdma_resp, ctxt, vec,
 			 inline_bytes);
-	svc_rdma_put_req_map(vec);
+	svc_rdma_put_req_map(rdma, vec);
 	dprintk("svcrdma: send_reply returns %d\n", ret);
 	return ret;
 
  err1:
 	put_page(res_page);
  err0:
-	svc_rdma_put_req_map(vec);
+	svc_rdma_put_req_map(rdma, vec);
 	svc_rdma_put_context(ctxt, 0);
 	return ret;
 }

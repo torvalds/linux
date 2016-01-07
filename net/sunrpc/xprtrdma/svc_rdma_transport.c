@@ -273,23 +273,83 @@ static void svc_rdma_destroy_ctxts(struct svcxprt_rdma *xprt)
 	}
 }
 
-/*
- * Temporary NFS req mappings are shared across all transport
- * instances. These are short lived and should be bounded by the number
- * of concurrent server threads * depth of the SQ.
- */
-struct svc_rdma_req_map *svc_rdma_get_req_map(void)
+static struct svc_rdma_req_map *alloc_req_map(gfp_t flags)
 {
 	struct svc_rdma_req_map *map;
-	map = kmem_cache_alloc(svc_rdma_map_cachep,
-			       GFP_KERNEL | __GFP_NOFAIL);
-	map->count = 0;
+
+	map = kmalloc(sizeof(*map), flags);
+	if (map)
+		INIT_LIST_HEAD(&map->free);
 	return map;
 }
 
-void svc_rdma_put_req_map(struct svc_rdma_req_map *map)
+static bool svc_rdma_prealloc_maps(struct svcxprt_rdma *xprt)
 {
-	kmem_cache_free(svc_rdma_map_cachep, map);
+	int i;
+
+	/* One for each receive buffer on this connection. */
+	i = xprt->sc_max_requests;
+
+	while (i--) {
+		struct svc_rdma_req_map *map;
+
+		map = alloc_req_map(GFP_KERNEL);
+		if (!map) {
+			dprintk("svcrdma: No memory for request map\n");
+			return false;
+		}
+		list_add(&map->free, &xprt->sc_maps);
+	}
+	return true;
+}
+
+struct svc_rdma_req_map *svc_rdma_get_req_map(struct svcxprt_rdma *xprt)
+{
+	struct svc_rdma_req_map *map = NULL;
+
+	spin_lock(&xprt->sc_map_lock);
+	if (list_empty(&xprt->sc_maps))
+		goto out_empty;
+
+	map = list_first_entry(&xprt->sc_maps,
+			       struct svc_rdma_req_map, free);
+	list_del_init(&map->free);
+	spin_unlock(&xprt->sc_map_lock);
+
+out:
+	map->count = 0;
+	return map;
+
+out_empty:
+	spin_unlock(&xprt->sc_map_lock);
+
+	/* Pre-allocation amount was incorrect */
+	map = alloc_req_map(GFP_NOIO);
+	if (map)
+		goto out;
+
+	WARN_ONCE(1, "svcrdma: empty request map list?\n");
+	return NULL;
+}
+
+void svc_rdma_put_req_map(struct svcxprt_rdma *xprt,
+			  struct svc_rdma_req_map *map)
+{
+	spin_lock(&xprt->sc_map_lock);
+	list_add(&map->free, &xprt->sc_maps);
+	spin_unlock(&xprt->sc_map_lock);
+}
+
+static void svc_rdma_destroy_maps(struct svcxprt_rdma *xprt)
+{
+	while (!list_empty(&xprt->sc_maps)) {
+		struct svc_rdma_req_map *map;
+
+		map = list_first_entry(&xprt->sc_maps,
+				       struct svc_rdma_req_map, free);
+		list_del(&map->free);
+		kfree(map);
+	}
 }
 
 /* ib_cq event handler */
@@ -593,12 +653,14 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	INIT_LIST_HEAD(&cma_xprt->sc_read_complete_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_frmr_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_ctxts);
+	INIT_LIST_HEAD(&cma_xprt->sc_maps);
 	init_waitqueue_head(&cma_xprt->sc_send_wait);
 
 	spin_lock_init(&cma_xprt->sc_lock);
 	spin_lock_init(&cma_xprt->sc_rq_dto_lock);
 	spin_lock_init(&cma_xprt->sc_frmr_q_lock);
 	spin_lock_init(&cma_xprt->sc_ctxt_lock);
+	spin_lock_init(&cma_xprt->sc_map_lock);
 
 	if (listener)
 		set_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
@@ -988,6 +1050,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	if (!svc_rdma_prealloc_ctxts(newxprt))
 		goto errout;
+	if (!svc_rdma_prealloc_maps(newxprt))
+		goto errout;
 
 	/*
 	 * Limit ORD based on client limit, local device limit, and
@@ -1259,6 +1323,7 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	rdma_dealloc_frmr_q(rdma);
 	svc_rdma_destroy_ctxts(rdma);
+	svc_rdma_destroy_maps(rdma);
 
 	/* Destroy the QP if present (not a listener) */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
