@@ -206,7 +206,7 @@ bool ath9k_hw_nvram_check_version(struct ath_hw *ah, int version, int minrev)
 		ath_err(common, "Bad EEPROM VER 0x%04x or REV 0x%04x\n",
 			ah->eep_ops->get_eeprom_ver(ah),
 			ah->eep_ops->get_eeprom_rev(ah));
-		return -EINVAL;
+		return false;
 	}
 
 	return true;
