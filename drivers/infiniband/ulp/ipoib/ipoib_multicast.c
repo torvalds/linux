@@ -723,12 +723,12 @@ void ipoib_check_and_add_mcast_sendonly(struct ipoib_dev_priv *priv, u8 *mgid,
 	}
 }
 
-void ipoib_mcast_remove_list(struct net_device *dev, struct list_head *remove_list)
+void ipoib_mcast_remove_list(struct list_head *remove_list)
 {
 	struct ipoib_mcast *mcast, *tmcast;
 
 	list_for_each_entry_safe(mcast, tmcast, remove_list, list) {
-		ipoib_mcast_leave(dev, mcast);
+		ipoib_mcast_leave(mcast->dev, mcast);
 		ipoib_mcast_free(mcast);
 	}
 }
@@ -839,7 +839,7 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
 			wait_for_completion(&mcast->done);
 
-	ipoib_mcast_remove_list(dev, &remove_list);
+	ipoib_mcast_remove_list(&remove_list);
 }
 
 static int ipoib_mcast_addr_is_valid(const u8 *addr, const u8 *broadcast)
@@ -965,7 +965,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
 			wait_for_completion(&mcast->done);
 
-	ipoib_mcast_remove_list(mcast->dev, &remove_list);
+	ipoib_mcast_remove_list(&remove_list);
 
 	/*
 	 * Double check that we are still up

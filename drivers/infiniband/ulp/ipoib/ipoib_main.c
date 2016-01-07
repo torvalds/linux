@@ -1150,7 +1150,6 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 	unsigned long flags;
 	int i;
 	LIST_HEAD(remove_list);
-	struct net_device *dev = priv->dev;
 
 	if (test_bit(IPOIB_STOP_NEIGH_GC, &priv->flags))
 		return;
@@ -1196,7 +1195,7 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 
 out_unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
-	ipoib_mcast_remove_list(dev, &remove_list);
+	ipoib_mcast_remove_list(&remove_list);
 }
 
 static void ipoib_reap_neigh(struct work_struct *work)
