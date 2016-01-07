@@ -465,7 +465,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	int ret;
 
 	/* Post a recv buffer to handle another request. */
-	ret = svc_rdma_post_recv(rdma);
+	ret = svc_rdma_post_recv(rdma, GFP_KERNEL);
 	if (ret) {
 		printk(KERN_INFO
 		       "svcrdma: could not post a receive buffer, err=%d."
