@@ -1161,6 +1161,29 @@ out_unlock:
 EXPORT_SYMBOL(drm_encoder_init);
 
 /**
+ * drm_encoder_index - find the index of a registered encoder
+ * @encoder: encoder to find index for
+ *
+ * Given a registered encoder, return the index of that encoder within a DRM
+ * device's list of encoders.
+ */
+unsigned int drm_encoder_index(struct drm_encoder *encoder)
+{
+	unsigned int index = 0;
+	struct drm_encoder *tmp;
+
+	drm_for_each_encoder(tmp, encoder->dev) {
+		if (tmp == encoder)
+			return index;
+
+		index++;
+	}
+
+	BUG();
+}
+EXPORT_SYMBOL(drm_encoder_index);
+
+/**
  * drm_encoder_cleanup - cleans up an initialised encoder
  * @encoder: encoder to cleanup
  *
