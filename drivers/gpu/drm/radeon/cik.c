@@ -3884,7 +3884,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		break;
 	case CHIP_LIVERPOOL:
 		rdev->config.cik.max_shader_engines = 2; // VERIFIED
-		rdev->config.cik.max_tile_pipes = 4; // ??
+		rdev->config.cik.max_tile_pipes = 8; // VERIFIED
 		rdev->config.cik.max_cu_per_sh = 10; // PROBABLY OK
 		rdev->config.cik.max_sh_per_se = 1; // VERIFIED
 		rdev->config.cik.max_backends_per_se = 2; // PROBABLY OK, >1?
@@ -7471,6 +7471,10 @@ void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 	case CHIP_HAWAII:
 		buffer[count++] = cpu_to_le32(0x3a00161a);
 		buffer[count++] = cpu_to_le32(0x0000002e);
+		break;
+	case CHIP_LIVERPOOL:
+		buffer[count++] = cpu_to_le32(0x2a00161a);
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	default:
 		buffer[count++] = cpu_to_le32(0x00000000);
