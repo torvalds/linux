@@ -1445,7 +1445,9 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	int length;
 	int ret;
 
-	p = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
+	p = alloc_page(GFP_KERNEL);
+	if (!p)
+		return;
 	va = page_address(p);
 
 	/* XDR encode error */
