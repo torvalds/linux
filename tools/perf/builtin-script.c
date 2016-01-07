@@ -617,9 +617,24 @@ struct perf_script {
 	bool			allocated;
 	struct cpu_map		*cpus;
 	struct thread_map	*threads;
+	int			name_width;
 };
 
-static void process_event(struct perf_script *script __maybe_unused, union perf_event *event,
+static int perf_evlist__max_name_len(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	int max = 0;
+
+	evlist__for_each(evlist, evsel) {
+		int len = strlen(perf_evsel__name(evsel));
+
+		max = MAX(len, max);
+	}
+
+	return max;
+}
+
+static void process_event(struct perf_script *script, union perf_event *event,
 			  struct perf_sample *sample, struct perf_evsel *evsel,
 			  struct addr_location *al)
 {
@@ -636,7 +651,12 @@ static void process_event(struct perf_script *script __maybe_unused, union perf_
 
 	if (PRINT_FIELD(EVNAME)) {
 		const char *evname = perf_evsel__name(evsel);
-		printf("%s: ", evname ? evname : "[unknown]");
+
+		if (!script->name_width)
+			script->name_width = perf_evlist__max_name_len(script->session->evlist);
+
+		printf("%*s: ", script->name_width,
+		       evname ? evname : "[unknown]");
 	}
 
 	if (print_flags)
