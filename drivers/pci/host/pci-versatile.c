@@ -125,9 +125,6 @@ out_release_res:
 	return err;
 }
 
-/* Unused, temporary to satisfy ARM arch code */
-struct pci_sys_data sys;
-
 static int versatile_pci_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -208,7 +205,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS);
 	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC);
 
-	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, &sys, &pci_res);
+	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, NULL, &pci_res);
 	if (!bus)
 		return -ENOMEM;
 
