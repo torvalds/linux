@@ -652,9 +652,6 @@ struct drm_i915_display_funcs {
 			  struct drm_i915_gem_object *obj,
 			  struct drm_i915_gem_request *req,
 			  uint32_t flags);
-	void (*update_primary_plane)(struct drm_crtc *crtc,
-				     struct drm_framebuffer *fb,
-				     int x, int y);
 	void (*hpd_irq_setup)(struct drm_device *dev);
 	/* clock updates for mode set */
 	/* cursor updates */

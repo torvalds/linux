@@ -2679,35 +2679,22 @@ valid_fb:
 	obj->frontbuffer_bits |= to_intel_plane(primary)->frontbuffer_bit;
 }
 
-static void i9xx_update_primary_plane(struct drm_crtc *crtc,
-				      struct drm_framebuffer *fb,
-				      int x, int y)
+static void i9xx_update_primary_plane(struct drm_plane *primary,
+				      const struct intel_crtc_state *crtc_state,
+				      const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = primary->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *primary = crtc->primary;
-	bool visible = to_intel_plane_state(primary->state)->visible;
-	struct drm_i915_gem_object *obj;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_framebuffer *fb = plane_state->base.fb;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
+	int x = plane_state->src.x1 >> 16;
+	int y = plane_state->src.y1 >> 16;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
 	int pixel_size;
-
-	if (!visible || !fb) {
-		I915_WRITE(reg, 0);
-		if (INTEL_INFO(dev)->gen >= 4)
-			I915_WRITE(DSPSURF(plane), 0);
-		else
-			I915_WRITE(DSPADDR(plane), 0);
-		POSTING_READ(reg);
-		return;
-	}
-
-	obj = intel_fb_obj(fb);
-	if (WARN_ON(obj == NULL))
-		return;
 
 	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
@@ -2723,13 +2710,13 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		 * which should always be the user's requested size.
 		 */
 		I915_WRITE(DSPSIZE(plane),
-			   ((intel_crtc->config->pipe_src_h - 1) << 16) |
-			   (intel_crtc->config->pipe_src_w - 1));
+			   ((crtc_state->pipe_src_h - 1) << 16) |
+			   (crtc_state->pipe_src_w - 1));
 		I915_WRITE(DSPPOS(plane), 0);
 	} else if (IS_CHERRYVIEW(dev) && plane == PLANE_B) {
 		I915_WRITE(PRIMSIZE(plane),
-			   ((intel_crtc->config->pipe_src_h - 1) << 16) |
-			   (intel_crtc->config->pipe_src_w - 1));
+			   ((crtc_state->pipe_src_h - 1) << 16) |
+			   (crtc_state->pipe_src_w - 1));
 		I915_WRITE(PRIMPOS(plane), 0);
 		I915_WRITE(PRIMCNSTALPHA(plane), 0);
 	}
@@ -2780,17 +2767,17 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		intel_crtc->dspaddr_offset = linear_offset;
 	}
 
-	if (crtc->primary->state->rotation == BIT(DRM_ROTATE_180)) {
+	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
-		x += (intel_crtc->config->pipe_src_w - 1);
-		y += (intel_crtc->config->pipe_src_h - 1);
+		x += (crtc_state->pipe_src_w - 1);
+		y += (crtc_state->pipe_src_h - 1);
 
 		/* Finding the last pixel of the last line of the display
 		data and adding to linear_offset*/
 		linear_offset +=
-			(intel_crtc->config->pipe_src_h - 1) * fb->pitches[0] +
-			(intel_crtc->config->pipe_src_w - 1) * pixel_size;
+			(crtc_state->pipe_src_h - 1) * fb->pitches[0] +
+			(crtc_state->pipe_src_w - 1) * pixel_size;
 	}
 
 	intel_crtc->adjusted_x = x;
@@ -2809,37 +2796,40 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	POSTING_READ(reg);
 }
 
-static void ironlake_update_primary_plane(struct drm_crtc *crtc,
-					  struct drm_framebuffer *fb,
-					  int x, int y)
+static void i9xx_disable_primary_plane(struct drm_plane *primary,
+				       struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *primary = crtc->primary;
-	bool visible = to_intel_plane_state(primary->state)->visible;
-	struct drm_i915_gem_object *obj;
+	int plane = intel_crtc->plane;
+
+	I915_WRITE(DSPCNTR(plane), 0);
+	if (INTEL_INFO(dev_priv)->gen >= 4)
+		I915_WRITE(DSPSURF(plane), 0);
+	else
+		I915_WRITE(DSPADDR(plane), 0);
+	POSTING_READ(DSPCNTR(plane));
+}
+
+static void ironlake_update_primary_plane(struct drm_plane *primary,
+					  const struct intel_crtc_state *crtc_state,
+					  const struct intel_plane_state *plane_state)
+{
+	struct drm_device *dev = primary->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_framebuffer *fb = plane_state->base.fb;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
-	int pixel_size;
-
-	if (!visible || !fb) {
-		I915_WRITE(reg, 0);
-		I915_WRITE(DSPSURF(plane), 0);
-		POSTING_READ(reg);
-		return;
-	}
-
-	obj = intel_fb_obj(fb);
-	if (WARN_ON(obj == NULL))
-		return;
-
-	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	int x = plane_state->src.x1 >> 16;
+	int y = plane_state->src.y1 >> 16;
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
-
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
@@ -2881,18 +2871,18 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 					       pixel_size,
 					       fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
-	if (crtc->primary->state->rotation == BIT(DRM_ROTATE_180)) {
+	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
-			x += (intel_crtc->config->pipe_src_w - 1);
-			y += (intel_crtc->config->pipe_src_h - 1);
+			x += (crtc_state->pipe_src_w - 1);
+			y += (crtc_state->pipe_src_h - 1);
 
 			/* Finding the last pixel of the last line of the display
 			data and adding to linear_offset*/
 			linear_offset +=
-				(intel_crtc->config->pipe_src_h - 1) * fb->pitches[0] +
-				(intel_crtc->config->pipe_src_w - 1) * pixel_size;
+				(crtc_state->pipe_src_h - 1) * fb->pitches[0] +
+				(crtc_state->pipe_src_w - 1) * pixel_size;
 		}
 	}
 
@@ -3083,36 +3073,30 @@ u32 skl_plane_ctl_rotation(unsigned int rotation)
 	return 0;
 }
 
-static void skylake_update_primary_plane(struct drm_crtc *crtc,
-					 struct drm_framebuffer *fb,
-					 int x, int y)
+static void skylake_update_primary_plane(struct drm_plane *plane,
+					 const struct intel_crtc_state *crtc_state,
+					 const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *plane = crtc->primary;
-	bool visible = to_intel_plane_state(plane->state)->visible;
-	struct drm_i915_gem_object *obj;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_framebuffer *fb = plane_state->base.fb;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int pipe = intel_crtc->pipe;
 	u32 plane_ctl, stride_div, stride;
 	u32 tile_height, plane_offset, plane_size;
-	unsigned int rotation;
+	unsigned int rotation = plane_state->base.rotation;
 	int x_offset, y_offset;
 	u32 surf_addr;
-	struct intel_crtc_state *crtc_state = intel_crtc->config;
-	struct intel_plane_state *plane_state;
-	int src_x = 0, src_y = 0, src_w = 0, src_h = 0;
-	int dst_x = 0, dst_y = 0, dst_w = 0, dst_h = 0;
-	int scaler_id = -1;
-
-	plane_state = to_intel_plane_state(plane->state);
-
-	if (!visible || !fb) {
-		I915_WRITE(PLANE_CTL(pipe, 0), 0);
-		I915_WRITE(PLANE_SURF(pipe, 0), 0);
-		POSTING_READ(PLANE_CTL(pipe, 0));
-		return;
-	}
+	int scaler_id = plane_state->scaler_id;
+	int src_x = plane_state->src.x1 >> 16;
+	int src_y = plane_state->src.y1 >> 16;
+	int src_w = drm_rect_width(&plane_state->src) >> 16;
+	int src_h = drm_rect_height(&plane_state->src) >> 16;
+	int dst_x = plane_state->dst.x1;
+	int dst_y = plane_state->dst.y1;
+	int dst_w = drm_rect_width(&plane_state->dst);
+	int dst_h = drm_rect_height(&plane_state->dst);
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		    PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -3121,41 +3105,26 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
-
-	rotation = plane->state->rotation;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
-	obj = intel_fb_obj(fb);
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
 	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj, 0);
 
 	WARN_ON(drm_rect_width(&plane_state->src) == 0);
 
-	scaler_id = plane_state->scaler_id;
-	src_x = plane_state->src.x1 >> 16;
-	src_y = plane_state->src.y1 >> 16;
-	src_w = drm_rect_width(&plane_state->src) >> 16;
-	src_h = drm_rect_height(&plane_state->src) >> 16;
-	dst_x = plane_state->dst.x1;
-	dst_y = plane_state->dst.y1;
-	dst_w = drm_rect_width(&plane_state->dst);
-	dst_h = drm_rect_height(&plane_state->dst);
-
-	WARN_ON(x != src_x || y != src_y);
-
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride = Surface height in tiles */
 		tile_height = intel_tile_height(dev, fb->pixel_format,
 						fb->modifier[0], 0);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
-		x_offset = stride * tile_height - y - src_h;
-		y_offset = x;
+		x_offset = stride * tile_height - src_y - src_h;
+		y_offset = src_x;
 		plane_size = (src_w - 1) << 16 | (src_h - 1);
 	} else {
 		stride = fb->pitches[0] / stride_div;
-		x_offset = x;
-		y_offset = y;
+		x_offset = src_x;
+		y_offset = src_y;
 		plane_size = (src_h - 1) << 16 | (src_w - 1);
 	}
 	plane_offset = y_offset << 16 | x_offset;
@@ -3188,20 +3157,30 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	POSTING_READ(PLANE_SURF(pipe, 0));
 }
 
+static void skylake_disable_primary_plane(struct drm_plane *primary,
+					  struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = to_intel_crtc(crtc)->pipe;
+
+	if (dev_priv->fbc.deactivate)
+		dev_priv->fbc.deactivate(dev_priv);
+
+	I915_WRITE(PLANE_CTL(pipe, 0), 0);
+	I915_WRITE(PLANE_SURF(pipe, 0), 0);
+	POSTING_READ(PLANE_SURF(pipe, 0));
+}
+
 /* Assume fb object is pinned & idle & fenced and just update base pointers */
 static int
 intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			   int x, int y, enum mode_set_atomic state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	/* Support for kgdboc is disabled, this needs a major rework. */
+	DRM_ERROR("legacy panic handler not supported any more.\n");
 
-	if (dev_priv->fbc.deactivate)
-		dev_priv->fbc.deactivate(dev_priv);
-
-	dev_priv->display.update_primary_plane(crtc, fb, x, y);
-
-	return 0;
+	return -ENODEV;
 }
 
 static void intel_complete_page_flips(struct drm_device *dev)
@@ -3228,8 +3207,10 @@ static void intel_update_primary_planes(struct drm_device *dev)
 		drm_modeset_lock_crtc(crtc, &plane->base);
 		plane_state = to_intel_plane_state(plane->base.state);
 
-		if (crtc->state->active && plane_state->base.fb)
-			plane->commit_plane(&plane->base, plane_state);
+		if (plane_state->visible)
+			plane->update_plane(&plane->base,
+					    to_intel_crtc_state(crtc->state),
+					    plane_state);
 
 		drm_modeset_unlock_crtc(crtc);
 	}
@@ -14037,32 +14018,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 					     &state->visible);
 }
 
-static void
-intel_commit_primary_plane(struct drm_plane *plane,
-			   struct intel_plane_state *state)
-{
-	struct drm_crtc *crtc = state->base.crtc;
-	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	crtc = crtc ? crtc : plane->crtc;
-
-	dev_priv->display.update_primary_plane(crtc, fb,
-					       state->src.x1 >> 16,
-					       state->src.y1 >> 16);
-}
-
-static void
-intel_disable_primary_plane(struct drm_plane *plane,
-			    struct drm_crtc *crtc)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	dev_priv->display.update_primary_plane(crtc, NULL, 0, 0);
-}
-
 static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_crtc_state)
 {
@@ -14147,20 +14102,33 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->plane = pipe;
 	primary->frontbuffer_bit = INTEL_FRONTBUFFER_PRIMARY(pipe);
 	primary->check_plane = intel_check_primary_plane;
-	primary->commit_plane = intel_commit_primary_plane;
-	primary->disable_plane = intel_disable_primary_plane;
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
 
 	if (INTEL_INFO(dev)->gen >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
+
+		primary->update_plane = skylake_update_primary_plane;
+		primary->disable_plane = skylake_disable_primary_plane;
+	} else if (HAS_PCH_SPLIT(dev)) {
+		intel_primary_formats = i965_primary_formats;
+		num_formats = ARRAY_SIZE(i965_primary_formats);
+
+		primary->update_plane = ironlake_update_primary_plane;
+		primary->disable_plane = i9xx_disable_primary_plane;
 	} else if (INTEL_INFO(dev)->gen >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
+
+		primary->update_plane = i9xx_update_primary_plane;
+		primary->disable_plane = i9xx_disable_primary_plane;
 	} else {
 		intel_primary_formats = i8xx_primary_formats;
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
+
+		primary->update_plane = i9xx_update_primary_plane;
+		primary->disable_plane = i9xx_disable_primary_plane;
 	}
 
 	drm_universal_plane_init(dev, &primary->base, 0,
@@ -14988,8 +14956,6 @@ static void intel_init_display(struct drm_device *dev)
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-		dev_priv->display.update_primary_plane =
-			skylake_update_primary_plane;
 	} else if (HAS_DDI(dev)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
@@ -14998,8 +14964,6 @@ static void intel_init_display(struct drm_device *dev)
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-		dev_priv->display.update_primary_plane =
-			ironlake_update_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
@@ -15008,8 +14972,6 @@ static void intel_init_display(struct drm_device *dev)
 			ironlake_crtc_compute_clock;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
-		dev_priv->display.update_primary_plane =
-			ironlake_update_primary_plane;
 	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
@@ -15017,8 +14979,6 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
-		dev_priv->display.update_primary_plane =
-			i9xx_update_primary_plane;
 	} else {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
@@ -15026,8 +14986,6 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
-		dev_priv->display.update_primary_plane =
-			i9xx_update_primary_plane;
 	}
 
 	/* Returns the core display clock speed */
