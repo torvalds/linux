@@ -607,11 +607,13 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PS_AWAKE:
 		mwifiex_dbg(adapter, EVENT, "info: EVENT: AWAKE\n");
-		if (!adapter->pps_uapsd_mode && priv->port_open &&
+		if (!adapter->pps_uapsd_mode &&
+		    (priv->port_open ||
+		     (priv->bss_mode == NL80211_IFTYPE_ADHOC)) &&
 		    priv->media_connected && adapter->sleep_period.period) {
-				adapter->pps_uapsd_mode = true;
-				mwifiex_dbg(adapter, EVENT,
-					    "event: PPS/UAPSD mode activated\n");
+			adapter->pps_uapsd_mode = true;
+			mwifiex_dbg(adapter, EVENT,
+				    "event: PPS/UAPSD mode activated\n");
 		}
 		adapter->tx_lock_flag = false;
 		if (adapter->pps_uapsd_mode && adapter->gen_null_pkt) {

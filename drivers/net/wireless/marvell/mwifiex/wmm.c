@@ -475,7 +475,8 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 		priv = adapter->priv[i];
 		if (!priv)
 			continue;
-		if (!priv->port_open)
+		if (!priv->port_open &&
+		    (priv->bss_mode != NL80211_IFTYPE_ADHOC))
 			continue;
 		if (adapter->if_ops.is_port_ready &&
 		    !adapter->if_ops.is_port_ready(priv))
@@ -1099,7 +1100,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
-			if (!priv_tmp->port_open ||
+			if (((priv_tmp->bss_mode != NL80211_IFTYPE_ADHOC) &&
+			     !priv_tmp->port_open) ||
 			    (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0))
 				continue;
 
