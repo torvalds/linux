@@ -4172,11 +4172,11 @@ static void ixgbe_vlan_promisc_disable(struct ixgbe_adapter *adapter)
 
 static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
 {
-	u16 vid;
+	u16 vid = 1;
 
 	ixgbe_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), 0);
 
-	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+	for_each_set_bit_from(vid, adapter->active_vlans, VLAN_N_VID)
 		ixgbe_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
 
