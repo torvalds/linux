@@ -7698,15 +7698,14 @@ static void igb_io_resume(struct pci_dev *pdev)
 static void igb_rar_set_qsel(struct igb_adapter *adapter, u8 *addr, u32 index,
 			     u8 qsel)
 {
-	u32 rar_low, rar_high;
 	struct e1000_hw *hw = &adapter->hw;
+	u32 rar_low, rar_high;
 
 	/* HW expects these in little endian so we reverse the byte order
-	 * from network order (big endian) to little endian
+	 * from network order (big endian) to CPU endian
 	 */
-	rar_low = ((u32) addr[0] | ((u32) addr[1] << 8) |
-		   ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
-	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
+	rar_low = le32_to_cpup((__be32 *)(addr));
+	rar_high = le16_to_cpup((__be16 *)(addr + 4));
 
 	/* Indicate to hardware the Address is Valid. */
 	rar_high |= E1000_RAH_AV;
