@@ -39,6 +39,10 @@
 #define KVM_IRQCHIP_NUM_PINS 4096
 #define KVM_HALT_POLL_NS_DEFAULT 0
 
+/* s390-specific vcpu->requests bit members */
+#define KVM_REQ_ENABLE_IBS         8
+#define KVM_REQ_DISABLE_IBS        9
+
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
 

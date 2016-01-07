@@ -46,6 +46,31 @@
 
 #define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
+/* x86-specific vcpu->requests bit members */
+#define KVM_REQ_MIGRATE_TIMER      8
+#define KVM_REQ_REPORT_TPR_ACCESS  9
+#define KVM_REQ_TRIPLE_FAULT      10
+#define KVM_REQ_MMU_SYNC          11
+#define KVM_REQ_CLOCK_UPDATE      12
+#define KVM_REQ_DEACTIVATE_FPU    13
+#define KVM_REQ_EVENT             14
+#define KVM_REQ_APF_HALT          15
+#define KVM_REQ_STEAL_UPDATE      16
+#define KVM_REQ_NMI               17
+#define KVM_REQ_PMU               18
+#define KVM_REQ_PMI               19
+#define KVM_REQ_SMI               20
+#define KVM_REQ_MASTERCLOCK_UPDATE 21
+#define KVM_REQ_MCLOCK_INPROGRESS 22
+#define KVM_REQ_SCAN_IOAPIC       23
+#define KVM_REQ_GLOBAL_CLOCK_UPDATE 24
+#define KVM_REQ_APIC_PAGE_RELOAD  25
+#define KVM_REQ_HV_CRASH          26
+#define KVM_REQ_IOAPIC_EOI_EXIT   27
+#define KVM_REQ_HV_RESET          28
+#define KVM_REQ_HV_EXIT           29
+#define KVM_REQ_HV_STIMER         30
+
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
 			  | X86_CR0_ET | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM \
@@ -1267,6 +1292,9 @@ u64 kvm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc);
 
 unsigned long kvm_get_linear_rip(struct kvm_vcpu *vcpu);
 bool kvm_is_linear_rip(struct kvm_vcpu *vcpu, unsigned long linear_rip);
+
+void kvm_make_mclock_inprogress_request(struct kvm *kvm);
+void kvm_make_scan_ioapic_request(struct kvm *kvm);
 
 void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work);

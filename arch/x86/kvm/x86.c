@@ -1686,6 +1686,11 @@ static void pvclock_update_vm_gtod_copy(struct kvm *kvm)
 #endif
 }
 
+void kvm_make_mclock_inprogress_request(struct kvm *kvm)
+{
+	kvm_make_all_cpus_request(kvm, KVM_REQ_MCLOCK_INPROGRESS);
+}
+
 static void kvm_gen_update_masterclock(struct kvm *kvm)
 {
 #ifdef CONFIG_X86_64
@@ -2697,6 +2702,11 @@ static void wbinvd_ipi(void *garbage)
 static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
 {
 	return kvm_arch_has_noncoherent_dma(vcpu->kvm);
+}
+
+static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
+{
+	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -6335,6 +6345,11 @@ static void process_smi(struct kvm_vcpu *vcpu)
 
 	kvm_update_cpuid(vcpu);
 	kvm_mmu_reset_context(vcpu);
+}
+
+void kvm_make_scan_ioapic_request(struct kvm *kvm)
+{
+	kvm_make_all_cpus_request(kvm, KVM_REQ_SCAN_IOAPIC);
 }
 
 static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)

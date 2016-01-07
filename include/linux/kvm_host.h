@@ -111,45 +111,13 @@ static inline bool is_error_page(struct page *page)
 }
 
 /*
- * vcpu->requests bit members
+ * Architecture-independent vcpu->requests bit members
+ * Bits 4-7 are reserved for more arch-independent bits.
  */
 #define KVM_REQ_TLB_FLUSH          0
 #define KVM_REQ_MMU_RELOAD         1
 #define KVM_REQ_PENDING_TIMER      2
 #define KVM_REQ_UNHALT             3
-
-/* x86-specific requests */
-#define KVM_REQ_MIGRATE_TIMER      8
-#define KVM_REQ_REPORT_TPR_ACCESS  9
-#define KVM_REQ_TRIPLE_FAULT      10
-#define KVM_REQ_MMU_SYNC          11
-#define KVM_REQ_CLOCK_UPDATE      12
-#define KVM_REQ_DEACTIVATE_FPU    13
-#define KVM_REQ_EVENT             14
-#define KVM_REQ_APF_HALT          15
-#define KVM_REQ_STEAL_UPDATE      16
-#define KVM_REQ_NMI               17
-#define KVM_REQ_PMU               18
-#define KVM_REQ_PMI               19
-#define KVM_REQ_SMI               20
-#define KVM_REQ_MASTERCLOCK_UPDATE 21
-#define KVM_REQ_MCLOCK_INPROGRESS 22
-#define KVM_REQ_SCAN_IOAPIC       23
-#define KVM_REQ_GLOBAL_CLOCK_UPDATE 24
-#define KVM_REQ_APIC_PAGE_RELOAD  25
-#define KVM_REQ_HV_CRASH          26
-#define KVM_REQ_IOAPIC_EOI_EXIT   27
-#define KVM_REQ_HV_RESET          28
-#define KVM_REQ_HV_EXIT           29
-#define KVM_REQ_HV_STIMER         30
-
-/* PPC-specific requests */
-#define KVM_REQ_WATCHDOG           8
-#define KVM_REQ_EPR_EXIT           9
-
-/* s390-specific requests */
-#define KVM_REQ_ENABLE_IBS         8
-#define KVM_REQ_DISABLE_IBS        9
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -689,8 +657,6 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
-void kvm_make_mclock_inprogress_request(struct kvm *kvm);
-void kvm_make_scan_ioapic_request(struct kvm *kvm);
 bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req);
 
 long kvm_arch_dev_ioctl(struct file *filp,
@@ -1009,11 +975,6 @@ static inline bool kvm_is_error_gpa(struct kvm *kvm, gpa_t gpa)
 	unsigned long hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));
 
 	return kvm_is_error_hva(hva);
-}
-
-static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
-{
-	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
 }
 
 enum kvm_stat_kind {
