@@ -78,6 +78,9 @@ struct ceph_osd_req_op {
 	u16 op;           /* CEPH_OSD_OP_* */
 	u32 flags;        /* CEPH_OSD_OP_FLAG_* */
 	u32 indata_len;   /* request */
+	u32 outdata_len;  /* reply */
+	s32 rval;
+
 	union {
 		struct ceph_osd_data raw_data_in;
 		struct {
@@ -148,8 +151,6 @@ struct ceph_osd_request {
 	struct ceph_eversion *r_request_reassert_version;
 
 	int               r_result;
-	int               r_reply_op_len[CEPH_OSD_MAX_OP];
-	s32               r_reply_op_result[CEPH_OSD_MAX_OP];
 	int               r_got_reply;
 	int		  r_linger;
 

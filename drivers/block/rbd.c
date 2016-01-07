@@ -1854,7 +1854,7 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	 * passed to the block layer, which just supports a 32-bit
 	 * length field.
 	 */
-	obj_request->xferred = osd_req->r_reply_op_len[0];
+	obj_request->xferred = osd_req->r_ops[0].outdata_len;
 	rbd_assert(obj_request->xferred < (u64)UINT_MAX);
 
 	opcode = osd_req->r_ops[0].op;

@@ -1821,7 +1821,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		int len;
 
 		len = le32_to_cpu(op->payload_len);
-		req->r_reply_op_len[i] = len;
+		req->r_ops[i].outdata_len = len;
 		dout(" op %d has %d bytes\n", i, len);
 		payload_len += len;
 		p += sizeof(*op);
@@ -1836,7 +1836,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	ceph_decode_need(&p, end, 4 + numops * 4, bad_put);
 	retry_attempt = ceph_decode_32(&p);
 	for (i = 0; i < numops; i++)
-		req->r_reply_op_result[i] = ceph_decode_32(&p);
+		req->r_ops[i].rval = ceph_decode_32(&p);
 
 	if (le16_to_cpu(msg->hdr.version) >= 6) {
 		p += 8 + 4; /* skip replay_version */
