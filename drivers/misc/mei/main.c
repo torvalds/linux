@@ -159,27 +159,22 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
+	if (ubuf == NULL) {
+		rets = -EMSGSIZE;
+		goto out;
+	}
+
 	if (cl == &dev->iamthif_cl) {
 		rets = mei_amthif_read(dev, file, ubuf, length, offset);
 		goto out;
 	}
 
 	cb = mei_cl_read_cb(cl, file);
-	if (cb) {
-		/* read what left */
-		if (cb->buf_idx > *offset)
-			goto copy_buffer;
-		/* offset is beyond buf_idx we have no more data return 0 */
-		if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
-			rets = 0;
-			goto free;
-		}
-		/* Offset needs to be cleaned for contiguous reads*/
-		if (cb->buf_idx == 0 && *offset > 0)
-			*offset = 0;
-	} else if (*offset > 0) {
+	if (cb)
+		goto copy_buffer;
+
+	if (*offset > 0)
 		*offset = 0;
-	}
 
 	err = mei_cl_read_start(cl, length, file);
 	if (err && err != -EBUSY) {
@@ -231,10 +226,10 @@ copy_buffer:
 		goto free;
 	}
 
-	cl_dbg(dev, cl, "buf.size = %d buf.idx = %ld\n",
-	    cb->buf.size, cb->buf_idx);
-	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
-		rets = -EMSGSIZE;
+	cl_dbg(dev, cl, "buf.size = %d buf.idx = %ld offset = %lld\n",
+	       cb->buf.size, cb->buf_idx, *offset);
+	if (*offset >= cb->buf_idx) {
+		rets = 0;
 		goto free;
 	}
 
@@ -255,6 +250,7 @@ copy_buffer:
 
 free:
 	mei_io_cb_free(cb);
+	*offset = 0;
 
 out:
 	cl_dbg(dev, cl, "end mei read rets = %d\n", rets);
