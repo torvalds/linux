@@ -91,7 +91,8 @@ static int ltq_mm_dir_out(struct gpio_chip *gc, unsigned offset, int value)
  */
 static void ltq_mm_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct ltq_mm *chip = gpiochip_get_data(&mm_gc->gc);
+	struct ltq_mm *chip =
+		container_of(mm_gc, struct ltq_mm, mmchip);
 
 	/* tell the ebu controller which memory address we will be using */
 	ltq_ebu_w32(CPHYSADDR(chip->mmchip.regs) | 0x1, LTQ_EBU_ADDRSEL1);
