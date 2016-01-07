@@ -270,7 +270,6 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 
 	chip = &nand->chip;
 	mtd = nand_to_mtd(chip);
-	mtd->priv = chip;
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev),
 				   cs->bank);
 	if (!mtd->name)
