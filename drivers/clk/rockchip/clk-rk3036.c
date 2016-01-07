@@ -133,7 +133,7 @@ PNAME(mux_spdif_p)	= { "spdif_src", "spdif_frac", "xin12m" };
 PNAME(mux_uart0_p)	= { "uart0_src", "uart0_frac", "xin24m" };
 PNAME(mux_uart1_p)	= { "uart1_src", "uart1_frac", "xin24m" };
 PNAME(mux_uart2_p)	= { "uart2_src", "uart2_frac", "xin24m" };
-PNAME(mux_mac_p)	= { "mac_pll_src", "ext_gmac" };
+PNAME(mux_mac_p)	= { "mac_pll_src", "rmii_clkin" };
 PNAME(mux_dclk_p)	= { "dclk_lcdc", "dclk_cru" };
 
 static struct rockchip_pll_clock rk3036_pll_clks[] __initdata = {

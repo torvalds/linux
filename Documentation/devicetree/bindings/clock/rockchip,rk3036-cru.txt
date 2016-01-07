@@ -30,7 +30,7 @@ that they are defined using standard clock bindings with following
 clock-output-names:
  - "xin24m" - crystal input - required,
  - "ext_i2s" - external I2S clock - optional,
- - "ext_gmac" - external GMAC clock - optional
+ - "rmii_clkin" - external EMAC clock - optional
 
 Example: Clock controller node:
 
