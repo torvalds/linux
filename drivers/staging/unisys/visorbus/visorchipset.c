@@ -2310,13 +2310,8 @@ visorchipset_init(struct acpi_device *acpi_device)
 	}
 	most_recent_message_jiffies = jiffies;
 	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-	rc = queue_delayed_work(periodic_controlvm_workqueue,
-				&periodic_controlvm_work, poll_jiffies);
-	if (rc < 0) {
-		POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
-				 DIAG_SEVERITY_ERR);
-		goto cleanup;
-	}
+	queue_delayed_work(periodic_controlvm_workqueue,
+			   &periodic_controlvm_work, poll_jiffies);
 
 	visorchipset_platform_device.dev.devt = major_dev;
 	if (platform_device_register(&visorchipset_platform_device) < 0) {
