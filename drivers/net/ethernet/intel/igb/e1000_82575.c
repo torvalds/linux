@@ -425,6 +425,8 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
+	/* Set uta register count */
+	mac->uta_reg_count = (hw->mac.type == e1000_82575) ? 0 : 128;
 	/* Set rar entry count */
 	switch (mac->type) {
 	case e1000_82576:

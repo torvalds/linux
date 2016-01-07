@@ -140,7 +140,7 @@ static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *dev,
 					  struct rtnl_link_stats64 *stats);
 static int igb_change_mtu(struct net_device *, int);
 static int igb_set_mac(struct net_device *, void *);
-static void igb_set_uta(struct igb_adapter *adapter);
+static void igb_set_uta(struct igb_adapter *adapter, bool set);
 static irqreturn_t igb_intr(int irq, void *);
 static irqreturn_t igb_intr_msi(int irq, void *);
 static irqreturn_t igb_msix_other(int irq, void *);
@@ -3670,9 +3670,6 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 {
 	int i;
 
-	/* set UTA to appropriate mode */
-	igb_set_uta(adapter);
-
 	/* set the correct pool for the PF default MAC address in entry 0 */
 	igb_rar_set_qsel(adapter, adapter->hw.mac.addr, 0,
 			 adapter->vfs_allocated_count);
@@ -4134,7 +4131,11 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	/* Check for Promiscuous and All Multicast modes */
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= E1000_RCTL_UPE | E1000_RCTL_MPE;
-		vmolr |= E1000_VMOLR_ROPE | E1000_VMOLR_MPME;
+		vmolr |= E1000_VMOLR_MPME;
+
+		/* enable use of UTA filter to force packets to default pool */
+		if (hw->mac.type == e1000_82576)
+			vmolr |= E1000_VMOLR_ROPE;
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
@@ -4189,6 +4190,9 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	 */
 	if ((hw->mac.type < e1000_82576) || (hw->mac.type > e1000_i350))
 		return;
+
+	/* set UTA to appropriate mode */
+	igb_set_uta(adapter, !!(vmolr & E1000_VMOLR_ROPE));
 
 	vmolr |= rd32(E1000_VMOLR(vfn)) &
 		 ~(E1000_VMOLR_ROPE | E1000_VMOLR_MPME | E1000_VMOLR_ROMPE);
@@ -6323,6 +6327,7 @@ static void igb_msg_task(struct igb_adapter *adapter)
 /**
  *  igb_set_uta - Set unicast filter table address
  *  @adapter: board private structure
+ *  @set: boolean indicating if we are setting or clearing bits
  *
  *  The unicast table address is a register array of 32-bit registers.
  *  The table is meant to be used in a way similar to how the MTA is used
@@ -6330,21 +6335,18 @@ static void igb_msg_task(struct igb_adapter *adapter)
  *  set all the hash bits to 1 and use the VMOLR ROPE bit as a promiscuous
  *  enable bit to allow vlan tag stripping when promiscuous mode is enabled
  **/
-static void igb_set_uta(struct igb_adapter *adapter)
+static void igb_set_uta(struct igb_adapter *adapter, bool set)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	u32 uta = set ? ~0 : 0;
 	int i;
-
-	/* The UTA table only exists on 82576 hardware and newer */
-	if (hw->mac.type < e1000_82576)
-		return;
 
 	/* we only need to do this if VMDq is enabled */
 	if (!adapter->vfs_allocated_count)
 		return;
 
-	for (i = 0; i < hw->mac.uta_reg_count; i++)
-		array_wr32(E1000_UTA, i, ~0);
+	for (i = hw->mac.uta_reg_count; i--;)
+		array_wr32(E1000_UTA, i, uta);
 }
 
 /**
