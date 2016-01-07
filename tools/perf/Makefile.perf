@@ -567,6 +567,9 @@ endif
 	$(call QUIET_INSTALL, perf_completion-script) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d'; \
 		$(INSTALL) perf-completion.sh '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d/perf'
+	$(call QUIET_INSTALL, perf-tip) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(tip_instdir_SQ)'; \
+		$(INSTALL) Documentation/tips.txt -t '$(DESTDIR_SQ)$(tip_instdir_SQ)'
 
 install-tests: all install-gtk
 	$(call QUIET_INSTALL, tests) \

@@ -19,6 +19,8 @@
 #include "util/debug.h"
 #include <api/fs/tracing_path.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <time.h>
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
@@ -541,6 +543,8 @@ int main(int argc, const char **argv)
 	cmd = extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
+
+	srandom(time(NULL));
 
 	/* get debugfs/tracefs mount point from /proc/mounts */
 	tracing_path_mount();

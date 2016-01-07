@@ -16,6 +16,8 @@
 #include <linux/kernel.h>
 #include <unistd.h>
 #include "callchain.h"
+#include "strlist.h"
+#include <subcmd/exec-cmd.h>
 
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_ABS,
@@ -662,4 +664,29 @@ fetch_kernel_version(unsigned int *puint, char *str,
 	if (puint)
 		*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	return 0;
+}
+
+const char *perf_tip(const char *dirpath)
+{
+	struct strlist *tips;
+	struct str_node *node;
+	char *tip = NULL;
+	struct strlist_config conf = {
+		.dirname = system_path(dirpath) ,
+	};
+
+	tips = strlist__new("tips.txt", &conf);
+	if (tips == NULL || strlist__nr_entries(tips) == 1) {
+		tip = (char *)"Cannot find tips.txt file";
+		goto out;
+	}
+
+	node = strlist__entry(tips, random() % strlist__nr_entries(tips));
+	if (asprintf(&tip, "Tip: %s", node->s) < 0)
+		tip = (char *)"Tip: get more memory! ;-)";
+
+out:
+	strlist__delete(tips);
+
+	return tip;
 }

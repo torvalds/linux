@@ -433,7 +433,7 @@ static int report__browse_hists(struct report *rep)
 	int ret;
 	struct perf_session *session = rep->session;
 	struct perf_evlist *evlist = session->evlist;
-	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+	const char *help = perf_tip(TIPDIR);
 
 	switch (use_browser) {
 	case 1:

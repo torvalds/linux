@@ -691,6 +691,7 @@ sharedir = $(prefix)/share
 template_dir = share/perf-core/templates
 STRACE_GROUPS_DIR = share/perf-core/strace/groups
 htmldir = share/doc/perf-doc
+tipdir = share/doc/perf-tip
 ifeq ($(prefix),/usr)
 sysconfdir = /etc
 ETC_PERFCONFIG = $(sysconfdir)/perfconfig
@@ -717,6 +718,7 @@ infodir_SQ = $(subst ','\'',$(infodir))
 perfexecdir_SQ = $(subst ','\'',$(perfexecdir))
 template_dir_SQ = $(subst ','\'',$(template_dir))
 htmldir_SQ = $(subst ','\'',$(htmldir))
+tipdir_SQ = $(subst ','\'',$(tipdir))
 prefix_SQ = $(subst ','\'',$(prefix))
 sysconfdir_SQ = $(subst ','\'',$(sysconfdir))
 libdir_SQ = $(subst ','\'',$(libdir))
@@ -724,12 +726,15 @@ libdir_SQ = $(subst ','\'',$(libdir))
 ifneq ($(filter /%,$(firstword $(perfexecdir))),)
 perfexec_instdir = $(perfexecdir)
 STRACE_GROUPS_INSTDIR = $(STRACE_GROUPS_DIR)
+tip_instdir = $(tipdir)
 else
 perfexec_instdir = $(prefix)/$(perfexecdir)
 STRACE_GROUPS_INSTDIR = $(prefix)/$(STRACE_GROUPS_DIR)
+tip_instdir = $(prefix)/$(tipdir)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
 STRACE_GROUPS_INSTDIR_SQ = $(subst ','\'',$(STRACE_GROUPS_INSTDIR))
+tip_instdir_SQ = $(subst ','\'',$(tip_instdir))
 
 # If we install to $(HOME) we keep the traceevent default:
 # $(HOME)/.traceevent/plugins
@@ -770,6 +775,7 @@ $(call detected_var,ETC_PERFCONFIG_SQ)
 $(call detected_var,STRACE_GROUPS_DIR_SQ)
 $(call detected_var,prefix_SQ)
 $(call detected_var,perfexecdir_SQ)
+$(call detected_var,tipdir_SQ)
 $(call detected_var,LIBDIR)
 $(call detected_var,GTK_CFLAGS)
 $(call detected_var,PERL_EMBED_CCOPTS)
