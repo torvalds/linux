@@ -192,7 +192,7 @@ static struct dma_buf *sti_gem_prime_export(struct drm_device *dev,
 
 static struct drm_driver sti_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET |
-	    DRIVER_GEM | DRIVER_PRIME,
+	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 	.load = sti_load,
 	.gem_free_object = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
