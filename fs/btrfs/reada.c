@@ -748,6 +748,8 @@ static void reada_start_machine_worker(struct btrfs_work *work)
 	set_task_ioprio(current, BTRFS_IOPRIO_READA);
 	__reada_start_machine(fs_info);
 	set_task_ioprio(current, old_ioprio);
+
+	atomic_dec(&fs_info->reada_works_cnt);
 }
 
 static void __reada_start_machine(struct btrfs_fs_info *fs_info)
@@ -779,8 +781,12 @@ static void __reada_start_machine(struct btrfs_fs_info *fs_info)
 	 * enqueue to workers to finish it. This will distribute the load to
 	 * the cores.
 	 */
-	for (i = 0; i < 2; ++i)
+	for (i = 0; i < 2; ++i) {
 		reada_start_machine(fs_info);
+		if (atomic_read(&fs_info->reada_works_cnt) >
+		    BTRFS_MAX_MIRRORS * 2)
+			break;
+	}
 }
 
 static void reada_start_machine(struct btrfs_fs_info *fs_info)
@@ -797,6 +803,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 	rmw->fs_info = fs_info;
 
 	btrfs_queue_work(fs_info->readahead_workers, &rmw->work);
+	atomic_inc(&fs_info->reada_works_cnt);
 }
 
 #ifdef DEBUG

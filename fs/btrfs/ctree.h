@@ -1822,6 +1822,9 @@ struct btrfs_fs_info {
 	spinlock_t reada_lock;
 	struct radix_tree_root reada_tree;
 
+	/* readahead works cnt */
+	atomic_t reada_works_cnt;
+
 	/* Extent buffer radix tree */
 	spinlock_t buffer_lock;
 	struct radix_tree_root buffer_radix;
