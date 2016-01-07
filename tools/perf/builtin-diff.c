@@ -1207,7 +1207,7 @@ static int ui_init(void)
 		BUG_ON(1);
 	}
 
-	list_add(&fmt->sort_list, &perf_hpp__sort_list);
+	perf_hpp__register_sort_field(fmt);
 	return 0;
 }
 
