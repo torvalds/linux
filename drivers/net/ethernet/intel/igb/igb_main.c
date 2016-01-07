@@ -1534,12 +1534,13 @@ static void igb_irq_enable(struct igb_adapter *adapter)
 static void igb_update_mng_vlan(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	u16 pf_id = adapter->vfs_allocated_count;
 	u16 vid = adapter->hw.mng_cookie.vlan_id;
 	u16 old_vid = adapter->mng_vlan_id;
 
 	if (hw->mng_cookie.status & E1000_MNG_DHCP_COOKIE_STATUS_VLAN) {
 		/* add VID to filter table */
-		igb_vfta_set(hw, vid, true);
+		igb_vfta_set(hw, vid, pf_id, true, true);
 		adapter->mng_vlan_id = vid;
 	} else {
 		adapter->mng_vlan_id = IGB_MNG_VLAN_NONE;
@@ -1549,7 +1550,7 @@ static void igb_update_mng_vlan(struct igb_adapter *adapter)
 	    (vid != old_vid) &&
 	    !test_bit(old_vid, adapter->active_vlans)) {
 		/* remove VID from filter table */
-		igb_vfta_set(hw, old_vid, false);
+		igb_vfta_set(hw, vid, pf_id, false, true);
 	}
 }
 
@@ -5778,73 +5779,11 @@ static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
 		    (reg & E1000_VLVF_VLANID_ENABLE)) {
 			reg = 0;
 			vid = reg & E1000_VLVF_VLANID_MASK;
-			igb_vfta_set(hw, vid, false);
+			igb_vfta_set(hw, vid, vf, false, true);
 		}
 
 		wr32(E1000_VLVF(i), reg);
 	}
-}
-
-static s32 igb_vlvf_set(struct igb_adapter *adapter, u32 vid, bool add, u32 vf)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	u32 reg, i;
-
-	/* The vlvf table only exists on 82576 hardware and newer */
-	if (hw->mac.type < e1000_82576)
-		return -1;
-
-	/* we only need to do this if VMDq is enabled */
-	if (!adapter->vfs_allocated_count)
-		return -1;
-
-	/* Find the vlan filter for this id */
-	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
-		reg = rd32(E1000_VLVF(i));
-		if ((reg & E1000_VLVF_VLANID_ENABLE) &&
-		    vid == (reg & E1000_VLVF_VLANID_MASK))
-			break;
-	}
-
-	if (add) {
-		if (i == E1000_VLVF_ARRAY_SIZE) {
-			/* Did not find a matching VLAN ID entry that was
-			 * enabled.  Search for a free filter entry, i.e.
-			 * one without the enable bit set
-			 */
-			for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
-				reg = rd32(E1000_VLVF(i));
-				if (!(reg & E1000_VLVF_VLANID_ENABLE))
-					break;
-			}
-		}
-		if (i < E1000_VLVF_ARRAY_SIZE) {
-			/* Found an enabled/available entry */
-			reg |= 1 << (E1000_VLVF_POOLSEL_SHIFT + vf);
-
-			/* if !enabled we need to set this up in vfta */
-			if (!(reg & E1000_VLVF_VLANID_ENABLE)) {
-				/* add VID to filter table */
-				igb_vfta_set(hw, vid, true);
-				reg |= E1000_VLVF_VLANID_ENABLE;
-			}
-			reg &= ~E1000_VLVF_VLANID_MASK;
-			reg |= vid;
-			wr32(E1000_VLVF(i), reg);
-		}
-	} else {
-		if (i < E1000_VLVF_ARRAY_SIZE) {
-			/* remove vf from the pool */
-			reg &= ~(1 << (E1000_VLVF_POOLSEL_SHIFT + vf));
-			/* if pool is empty then remove entry from vfta */
-			if (!(reg & E1000_VLVF_POOLSEL_MASK)) {
-				reg = 0;
-				igb_vfta_set(hw, vid, false);
-			}
-			wr32(E1000_VLVF(i), reg);
-		}
-	}
-	return 0;
 }
 
 static void igb_set_vmvir(struct igb_adapter *adapter, u32 vid, u32 vf)
@@ -5860,13 +5799,14 @@ static void igb_set_vmvir(struct igb_adapter *adapter, u32 vid, u32 vf)
 static int igb_ndo_set_vf_vlan(struct net_device *netdev,
 			       int vf, u16 vlan, u8 qos)
 {
-	int err = 0;
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	int err = 0;
 
 	if ((vf >= adapter->vfs_allocated_count) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
 	if (vlan || qos) {
-		err = igb_vlvf_set(adapter, vlan, !!vlan, vf);
+		err = igb_vfta_set(hw, vlan, vf, !!vlan, false);
 		if (err)
 			goto out;
 		igb_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
@@ -5882,8 +5822,8 @@ static int igb_ndo_set_vf_vlan(struct net_device *netdev,
 				 "Bring the PF device up before attempting to use the VF device.\n");
 		}
 	} else {
-		igb_vlvf_set(adapter, adapter->vf_data[vf].pf_vlan,
-			     false, vf);
+		igb_vfta_set(hw, adapter->vf_data[vf].pf_vlan, vf,
+			     false, false);
 		igb_set_vmvir(adapter, vlan, vf);
 		igb_set_vmolr(adapter, vf, true);
 		adapter->vf_data[vf].pf_vlan = 0;
@@ -5924,12 +5864,12 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 	 * the VLAN filter set.
 	 */
 	if (add && (adapter->netdev->flags & IFF_PROMISC))
-		err = igb_vlvf_set(adapter, vid, add,
-				   adapter->vfs_allocated_count);
+		err = igb_vfta_set(hw, vid, adapter->vfs_allocated_count,
+				   true, false);
 	if (err)
 		goto out;
 
-	err = igb_vlvf_set(adapter, vid, add, vf);
+	err = igb_vfta_set(hw, vid, vf, !!add, false);
 
 	if (err)
 		goto out;
@@ -5956,8 +5896,8 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 		if ((vlvf & VLAN_VID_MASK) == vid &&
 		    !test_bit(vid, adapter->active_vlans) &&
 		    !bits)
-			igb_vlvf_set(adapter, vid, add,
-				     adapter->vfs_allocated_count);
+			igb_vfta_set(hw, vid, adapter->vfs_allocated_count,
+				     false, false);
 	}
 
 out:
@@ -7144,12 +7084,8 @@ static int igb_vlan_rx_add_vid(struct net_device *netdev,
 	struct e1000_hw *hw = &adapter->hw;
 	int pf_id = adapter->vfs_allocated_count;
 
-	/* attempt to add filter to vlvf array */
-	igb_vlvf_set(adapter, vid, true, pf_id);
-
 	/* add the filter since PF can receive vlans w/o entry in vlvf */
-	igb_vfta_set(hw, vid, true);
-
+	igb_vfta_set(hw, vid, pf_id, true, true);
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -7159,16 +7095,11 @@ static int igb_vlan_rx_kill_vid(struct net_device *netdev,
 				__be16 proto, u16 vid)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
 	int pf_id = adapter->vfs_allocated_count;
-	s32 err;
+	struct e1000_hw *hw = &adapter->hw;
 
-	/* remove vlan from VLVF table array */
-	err = igb_vlvf_set(adapter, vid, false, pf_id);
-
-	/* if vid was not present in VLVF just remove it from table */
-	if (err)
-		igb_vfta_set(hw, vid, false);
+	/* remove VID from filter table */
+	igb_vfta_set(hw, vid, pf_id, false, true);
 
 	clear_bit(vid, adapter->active_vlans);
 
