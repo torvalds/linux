@@ -21,21 +21,9 @@ adi,adt7490		+/-1C TDM Extended Temp Range I.C
 adi,adxl345		Three-Axis Digital Accelerometer
 adi,adxl346		Three-Axis Digital Accelerometer (backward-compatibility value "adi,adxl345" must be listed too)
 at,24c08		i2c serial eeprom  (24cxx)
-atmel,24c00		i2c serial eeprom  (24cxx)
-atmel,24c01		i2c serial eeprom  (24cxx)
-atmel,24c02		i2c serial eeprom  (24cxx)
-atmel,24c04		i2c serial eeprom  (24cxx)
-atmel,24c16		i2c serial eeprom  (24cxx)
-atmel,24c32		i2c serial eeprom  (24cxx)
-atmel,24c64		i2c serial eeprom  (24cxx)
-atmel,24c128		i2c serial eeprom  (24cxx)
-atmel,24c256		i2c serial eeprom  (24cxx)
-atmel,24c512		i2c serial eeprom  (24cxx)
-atmel,24c1024		i2c serial eeprom  (24cxx)
 atmel,at97sc3204t	i2c trusted platform module (TPM)
 capella,cm32181		CM32181: Ambient Light Sensor
 capella,cm3232		CM3232: Ambient Light Sensor
-catalyst,24c32		i2c serial eeprom
 cirrus,cs42l51		Cirrus Logic CS42L51 audio codec
 dallas,ds1307		64 x 8, Serial, I2C Real-Time Clock
 dallas,ds1338		I2C RTC with 56-Byte NV RAM
@@ -82,7 +70,6 @@ ovti,ov5642		OV5642: Color CMOS QSXGA (5-megapixel) Image Sensor with OmniBSI an
 pericom,pt7c4338	Real-time Clock Module
 plx,pex8648		48-Lane, 12-Port PCI Express Gen 2 (5.0 GT/s) Switch
 pulsedlight,lidar-lite-v2	Pulsedlight LIDAR range-finding sensor
-ramtron,24c64		i2c serial eeprom  (24cxx)
 ricoh,r2025sd		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
 ricoh,r2221tl		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
 ricoh,rs5c372a		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
