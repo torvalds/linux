@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -810,7 +810,7 @@ s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
 
 	return 0;
 }
-static struct ixgbe_mac_operations mac_ops_X540 = {
+static const struct ixgbe_mac_operations mac_ops_X540 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_X540,
 	.start_hw               = &ixgbe_start_hw_X540,
@@ -863,7 +863,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.init_params            = &ixgbe_init_eeprom_params_X540,
 	.read                   = &ixgbe_read_eerd_X540,
 	.read_buffer		= &ixgbe_read_eerd_buffer_X540,
@@ -874,7 +874,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.update_checksum        = &ixgbe_update_eeprom_checksum_X540,
 };
 
-static struct ixgbe_phy_operations phy_ops_X540 = {
+static const struct ixgbe_phy_operations phy_ops_X540 = {
 	.identify               = &ixgbe_identify_phy_generic,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
 	.init			= NULL,
@@ -897,7 +897,7 @@ static const u32 ixgbe_mvals_X540[IXGBE_MVALS_IDX_LIMIT] = {
 	IXGBE_MVALS_INIT(X540)
 };
 
-struct ixgbe_info ixgbe_X540_info = {
+const struct ixgbe_info ixgbe_X540_info = {
 	.mac                    = ixgbe_mac_X540,
 	.get_invariants         = &ixgbe_get_invariants_X540,
 	.mac_ops                = &mac_ops_X540,

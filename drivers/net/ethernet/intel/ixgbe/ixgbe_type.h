@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
+  Copyright(c) 1999 - 2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -3442,7 +3442,7 @@ struct ixgbe_mbx_stats {
 };
 
 struct ixgbe_mbx_info {
-	struct ixgbe_mbx_operations ops;
+	const struct ixgbe_mbx_operations *ops;
 	struct ixgbe_mbx_stats stats;
 	u32 timeout;
 	u32 usec_delay;
@@ -3475,10 +3475,10 @@ struct ixgbe_hw {
 struct ixgbe_info {
 	enum ixgbe_mac_type		mac;
 	s32 				(*get_invariants)(struct ixgbe_hw *);
-	struct ixgbe_mac_operations	*mac_ops;
-	struct ixgbe_eeprom_operations	*eeprom_ops;
-	struct ixgbe_phy_operations	*phy_ops;
-	struct ixgbe_mbx_operations	*mbx_ops;
+	const struct ixgbe_mac_operations	*mac_ops;
+	const struct ixgbe_eeprom_operations	*eeprom_ops;
+	const struct ixgbe_phy_operations	*phy_ops;
+	const struct ixgbe_mbx_operations	*mbx_ops;
 	const u32			*mvals;
 };
 

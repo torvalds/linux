@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  *  Intel 10 Gigabit PCI Express Linux driver
- *  Copyright(c) 1999 - 2015 Intel Corporation.
+ *  Copyright(c) 1999 - 2016 Intel Corporation.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -2342,7 +2342,7 @@ static void ixgbe_release_swfw_sync_X550em(struct ixgbe_hw *hw, u32 mask)
 	.enable_rx			= &ixgbe_enable_rx_generic, \
 	.disable_rx			= &ixgbe_disable_rx_x550, \
 
-static struct ixgbe_mac_operations mac_ops_X550 = {
+static const struct ixgbe_mac_operations mac_ops_X550 = {
 	X550_COMMON_MAC
 	.reset_hw		= &ixgbe_reset_hw_X540,
 	.get_media_type		= &ixgbe_get_media_type_X540,
@@ -2356,7 +2356,7 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.release_swfw_sync	= &ixgbe_release_swfw_sync_X540,
 };
 
-static struct ixgbe_mac_operations mac_ops_X550EM_x = {
+static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	X550_COMMON_MAC
 	.reset_hw		= &ixgbe_reset_hw_X550em,
 	.get_media_type		= &ixgbe_get_media_type_X550em,
@@ -2379,12 +2379,12 @@ static struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.update_checksum	= &ixgbe_update_eeprom_checksum_X550, \
 	.calc_checksum		= &ixgbe_calc_eeprom_checksum_X550, \
 
-static struct ixgbe_eeprom_operations eeprom_ops_X550 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X550 = {
 	X550_COMMON_EEP
 	.init_params		= &ixgbe_init_eeprom_params_X550,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	X550_COMMON_EEP
 	.init_params		= &ixgbe_init_eeprom_params_X540,
 };
@@ -2405,13 +2405,13 @@ static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
 	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
 
-static struct ixgbe_phy_operations phy_ops_X550 = {
+static const struct ixgbe_phy_operations phy_ops_X550 = {
 	X550_COMMON_PHY
 	.init			= NULL,
 	.identify		= &ixgbe_identify_phy_generic,
 };
 
-static struct ixgbe_phy_operations phy_ops_X550EM_x = {
+static const struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	X550_COMMON_PHY
 	.init			= &ixgbe_init_phy_ops_X550em,
 	.identify		= &ixgbe_identify_phy_x550em,
@@ -2430,7 +2430,7 @@ static const u32 ixgbe_mvals_X550EM_x[IXGBE_MVALS_IDX_LIMIT] = {
 	IXGBE_MVALS_INIT(X550EM_x)
 };
 
-struct ixgbe_info ixgbe_X550_info = {
+const struct ixgbe_info ixgbe_X550_info = {
 	.mac			= ixgbe_mac_X550,
 	.get_invariants		= &ixgbe_get_invariants_X540,
 	.mac_ops		= &mac_ops_X550,
@@ -2440,7 +2440,7 @@ struct ixgbe_info ixgbe_X550_info = {
 	.mvals			= ixgbe_mvals_X550,
 };
 
-struct ixgbe_info ixgbe_X550EM_x_info = {
+const struct ixgbe_info ixgbe_X550EM_x_info = {
 	.mac			= ixgbe_mac_X550EM_x,
 	.get_invariants		= &ixgbe_get_invariants_X550_x,
 	.mac_ops		= &mac_ops_X550EM_x,
