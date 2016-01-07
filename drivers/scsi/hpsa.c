@@ -8671,7 +8671,7 @@ static void hpsa_disable_rld_caching(struct ctlr_info *h)
 	if ((rc != 0)  || (c->err_info->CommandStatus != 0))
 		goto errout;
 
-	if (*options && HPSA_DIAG_OPTS_DISABLE_RLD_CACHING)
+	if (*options & HPSA_DIAG_OPTS_DISABLE_RLD_CACHING)
 		goto out;
 
 errout:

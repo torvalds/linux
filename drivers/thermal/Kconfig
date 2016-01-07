@@ -382,7 +382,7 @@ endmenu
 
 config QCOM_SPMI_TEMP_ALARM
 	tristate "Qualcomm SPMI PMIC Temperature Alarm"
-	depends on OF && (SPMI || COMPILE_TEST) && IIO
+	depends on OF && SPMI && IIO
 	select REGMAP_SPMI
 	help
 	  This enables a thermal sysfs driver for Qualcomm plug-and-play (QPNP)

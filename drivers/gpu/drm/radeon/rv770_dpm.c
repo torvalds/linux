@@ -193,7 +193,7 @@ void rv770_stop_dpm(struct radeon_device *rdev)
 	result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_TwoLevelsDisabled);
 
 	if (result != PPSMC_Result_OK)
-		DRM_ERROR("Could not force DPM to low.\n");
+		DRM_DEBUG("Could not force DPM to low.\n");
 
 	WREG32_P(GENERAL_PWRMGT, 0, ~GLOBAL_PWRMGT_EN);
 
@@ -1418,7 +1418,7 @@ int rv770_resume_smc(struct radeon_device *rdev)
 int rv770_set_sw_state(struct radeon_device *rdev)
 {
 	if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_SwitchToSwState) != PPSMC_Result_OK)
-		return -EINVAL;
+		DRM_DEBUG("rv770_set_sw_state failed\n");
 	return 0;
 }
 

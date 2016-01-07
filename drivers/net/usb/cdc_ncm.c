@@ -691,7 +691,6 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting, int drvflags)
 {
-	const struct usb_cdc_union_desc *union_desc = NULL;
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *driver;
 	u8 *buf;
@@ -725,15 +724,16 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	/* parse through descriptors associated with control interface */
 	cdc_parse_cdc_header(&hdr, intf, buf, len);
 
-	ctx->data = usb_ifnum_to_if(dev->udev,
-				    hdr.usb_cdc_union_desc->bSlaveInterface0);
+	if (hdr.usb_cdc_union_desc)
+		ctx->data = usb_ifnum_to_if(dev->udev,
+					    hdr.usb_cdc_union_desc->bSlaveInterface0);
 	ctx->ether_desc = hdr.usb_cdc_ether_desc;
 	ctx->func_desc = hdr.usb_cdc_ncm_desc;
 	ctx->mbim_desc = hdr.usb_cdc_mbim_desc;
 	ctx->mbim_extended_desc = hdr.usb_cdc_mbim_extended_desc;
 
 	/* some buggy devices have an IAD but no CDC Union */
-	if (!union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
+	if (!hdr.usb_cdc_union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
 		ctx->data = usb_ifnum_to_if(dev->udev, intf->cur_altsetting->desc.bInterfaceNumber + 1);
 		dev_dbg(&intf->dev, "CDC Union missing - got slave from IAD\n");
 	}

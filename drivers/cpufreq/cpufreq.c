@@ -976,10 +976,14 @@ static int cpufreq_init_policy(struct cpufreq_policy *policy)
 
 	new_policy.governor = gov;
 
-	/* Use the default policy if its valid. */
-	if (cpufreq_driver->setpolicy)
-		cpufreq_parse_governor(gov->name, &new_policy.policy, NULL);
-
+	/* Use the default policy if there is no last_policy. */
+	if (cpufreq_driver->setpolicy) {
+		if (policy->last_policy)
+			new_policy.policy = policy->last_policy;
+		else
+			cpufreq_parse_governor(gov->name, &new_policy.policy,
+					       NULL);
+	}
 	/* set default policy */
 	return cpufreq_set_policy(policy, &new_policy);
 }
@@ -1330,6 +1334,8 @@ static void cpufreq_offline_prepare(unsigned int cpu)
 		if (has_target())
 			strncpy(policy->last_governor, policy->governor->name,
 				CPUFREQ_NAME_LEN);
+		else
+			policy->last_policy = policy->policy;
 	} else if (cpu == policy->cpu) {
 		/* Nominate new CPU */
 		policy->cpu = cpumask_any(policy->cpus);
@@ -1401,13 +1407,10 @@ static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 	}
 
 	cpumask_clear_cpu(cpu, policy->real_cpus);
-
-	if (cpumask_empty(policy->real_cpus)) {
-		cpufreq_policy_free(policy, true);
-		return;
-	}
-
 	remove_cpu_dev_symlink(policy, cpu);
+
+	if (cpumask_empty(policy->real_cpus))
+		cpufreq_policy_free(policy, true);
 }
 
 static void handle_update(struct work_struct *work)

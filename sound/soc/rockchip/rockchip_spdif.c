@@ -280,7 +280,7 @@ static int rk_spdif_probe(struct platform_device *pdev)
 	int ret;
 
 	match = of_match_node(rk_spdif_match, np);
-	if ((int) match->data == RK_SPDIF_RK3288) {
+	if (match->data == (void *)RK_SPDIF_RK3288) {
 		struct regmap *grf;
 
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");

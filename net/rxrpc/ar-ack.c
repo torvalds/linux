@@ -723,8 +723,10 @@ process_further:
 
 			if ((call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY ||
 			     call->state == RXRPC_CALL_SERVER_AWAIT_ACK) &&
-			    hard > tx)
+			    hard > tx) {
+				call->acks_hard = tx;
 				goto all_acked;
+			}
 
 			smp_rmb();
 			rxrpc_rotate_tx_window(call, hard - 1);

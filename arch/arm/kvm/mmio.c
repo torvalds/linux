@@ -115,7 +115,7 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ, len, run->mmio.phys_addr,
 			       data);
 		data = vcpu_data_host_to_guest(vcpu, data, len);
-		*vcpu_reg(vcpu, vcpu->arch.mmio_decode.rt) = data;
+		vcpu_set_reg(vcpu, vcpu->arch.mmio_decode.rt, data);
 	}
 
 	return 0;
@@ -186,7 +186,8 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	rt = vcpu->arch.mmio_decode.rt;
 
 	if (is_write) {
-		data = vcpu_data_guest_to_host(vcpu, *vcpu_reg(vcpu, rt), len);
+		data = vcpu_data_guest_to_host(vcpu, vcpu_get_reg(vcpu, rt),
+					       len);
 
 		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, len, fault_ipa, data);
 		mmio_write_buf(data_buf, len, data);
@@ -209,8 +210,11 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	if (!ret) {
 		/* We handled the access successfully in the kernel. */
+		vcpu->stat.mmio_exit_kernel++;
 		kvm_handle_mmio_return(vcpu, run);
 		return 1;
+	} else {
+		vcpu->stat.mmio_exit_user++;
 	}
 
 	run->exit_reason	= KVM_EXIT_MMIO;

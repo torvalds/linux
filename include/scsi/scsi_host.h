@@ -668,6 +668,9 @@ struct Scsi_Host {
 	unsigned use_blk_mq:1;
 	unsigned use_cmd_list:1;
 
+	/* Host responded with short (<36 bytes) INQUIRY result */
+	unsigned short_inquiry:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */

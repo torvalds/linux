@@ -483,7 +483,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
-	intel_aux_display_runtime_get(dev_priv);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	if (bus->force_bit) {
@@ -595,7 +595,9 @@ timeout:
 
 out:
 	mutex_unlock(&dev_priv->gmbus_mutex);
-	intel_aux_display_runtime_put(dev_priv);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+
 	return ret;
 }
 

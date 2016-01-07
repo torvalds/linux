@@ -496,6 +496,7 @@ struct amdgpu_bo_va_mapping {
 
 /* bo virtual addresses in a specific vm */
 struct amdgpu_bo_va {
+	struct mutex		        mutex;
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
 	struct fence		        *last_pt_update;
@@ -538,6 +539,7 @@ struct amdgpu_bo {
 	/* Constant after initialization */
 	struct amdgpu_device		*adev;
 	struct drm_gem_object		gem_base;
+	struct amdgpu_bo		*parent;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
@@ -928,8 +930,6 @@ struct amdgpu_vm_id {
 };
 
 struct amdgpu_vm {
-	struct mutex		mutex;
-
 	struct rb_root		va;
 
 	/* protecting invalidated */
@@ -956,6 +956,8 @@ struct amdgpu_vm {
 	struct amdgpu_vm_id	ids[AMDGPU_MAX_RINGS];
 	/* for interval tree */
 	spinlock_t		it_lock;
+	/* protecting freed */
+	spinlock_t		freed_lock;
 };
 
 struct amdgpu_vm_manager {

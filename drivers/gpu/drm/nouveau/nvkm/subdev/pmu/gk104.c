@@ -81,9 +81,7 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	nvkm_mask(device, 0x000200, 0x00001000, 0x00001000);
 	nvkm_rd32(device, 0x000200);
 
-	if ( nvkm_boolopt(device->cfgopt, "War00C800_0",
-	    device->quirk ? device->quirk->War00C800_0 : false)) {
-		nvkm_info(&pmu->subdev, "hw bug workaround enabled\n");
+	if (nvkm_boolopt(device->cfgopt, "War00C800_0", true)) {
 		switch (device->chipset) {
 		case 0xe4:
 			magic(device, 0x04000000);

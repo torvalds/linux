@@ -11,6 +11,10 @@ Required properties:
       0 = active high
       1 = active low
 
+Optional properties:
+- little-endian : GPIO registers are used as little endian. If not
+                  present registers are used as big endian by default.
+
 Example:
 
 gpio0: gpio@1100 {

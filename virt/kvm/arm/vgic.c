@@ -878,7 +878,7 @@ static int vgic_handle_mmio_write(struct kvm_vcpu *vcpu,
 				       true);
 }
 
-struct kvm_io_device_ops vgic_io_ops = {
+static struct kvm_io_device_ops vgic_io_ops = {
 	.read	= vgic_handle_mmio_read,
 	.write	= vgic_handle_mmio_write,
 };

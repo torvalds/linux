@@ -1234,13 +1234,32 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 	if (r < 0)
 		return connector_status_disconnected;
 
+	if (radeon_connector->detected_hpd_without_ddc) {
+		force = true;
+		radeon_connector->detected_hpd_without_ddc = false;
+	}
+
 	if (!force && radeon_check_hpd_status_unchanged(connector)) {
 		ret = connector->status;
 		goto exit;
 	}
 
-	if (radeon_connector->ddc_bus)
+	if (radeon_connector->ddc_bus) {
 		dret = radeon_ddc_probe(radeon_connector, false);
+
+		/* Sometimes the pins required for the DDC probe on DVI
+		 * connectors don't make contact at the same time that the ones
+		 * for HPD do. If the DDC probe fails even though we had an HPD
+		 * signal, try again later */
+		if (!dret && !force &&
+		    connector->status != connector_status_connected) {
+			DRM_DEBUG_KMS("hpd detected without ddc, retrying in 1 second\n");
+			radeon_connector->detected_hpd_without_ddc = true;
+			schedule_delayed_work(&rdev->hotplug_work,
+					      msecs_to_jiffies(1000));
+			goto exit;
+		}
+	}
 	if (dret) {
 		radeon_connector->detected_by_load = false;
 		radeon_connector_free_edid(connector);

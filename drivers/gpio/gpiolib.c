@@ -233,7 +233,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 		for (i = 0; i != chip->ngpio; ++i) {
 			struct gpio_desc *gpio = &chip->desc[i];
 
-			if (!gpio->name)
+			if (!gpio->name || !name)
 				continue;
 
 			if (!strcmp(gpio->name, name)) {
