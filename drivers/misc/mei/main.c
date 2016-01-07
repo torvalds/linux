@@ -657,7 +657,9 @@ out:
  * @file: pointer to file structure
  * @band: band bitmap
  *
- * Return: poll mask
+ * Return: negative on error,
+ *         0 if it did no changes,
+ *         and positive a process was added or deleted
  */
 static int mei_fasync(int fd, struct file *file, int band)
 {
@@ -665,7 +667,7 @@ static int mei_fasync(int fd, struct file *file, int band)
 	struct mei_cl *cl = file->private_data;
 
 	if (!mei_cl_is_connected(cl))
-		return POLLERR;
+		return -ENODEV;
 
 	return fasync_helper(fd, file, band, &cl->ev_async);
 }
