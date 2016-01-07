@@ -125,6 +125,7 @@ void device_pm_add(struct device *dev)
 {
 	pr_debug("PM: Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
+	device_pm_check_callbacks(dev);
 	mutex_lock(&dpm_list_mtx);
 	if (dev->parent && dev->parent->power.is_prepared)
 		dev_warn(dev, "parent %s should not be sleeping\n",
@@ -147,6 +148,7 @@ void device_pm_remove(struct device *dev)
 	mutex_unlock(&dpm_list_mtx);
 	device_wakeup_disable(dev);
 	pm_runtime_remove(dev);
+	device_pm_check_callbacks(dev);
 }
 
 /**
@@ -1572,6 +1574,11 @@ static int device_prepare(struct device *dev, pm_message_t state)
 
 	dev->power.wakeup_path = device_may_wakeup(dev);
 
+	if (dev->power.no_pm_callbacks) {
+		ret = 1;	/* Let device go direct_complete */
+		goto unlock;
+	}
+
 	if (dev->pm_domain) {
 		info = "preparing power domain ";
 		callback = dev->pm_domain->ops.prepare;
@@ -1594,6 +1601,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	if (callback)
 		ret = callback(dev);
 
+unlock:
 	device_unlock(dev);
 
 	if (ret < 0) {
@@ -1736,3 +1744,30 @@ void dpm_for_each_dev(void *data, void (*fn)(struct device *, void *))
 	device_pm_unlock();
 }
 EXPORT_SYMBOL_GPL(dpm_for_each_dev);
+
+static bool pm_ops_is_empty(const struct dev_pm_ops *ops)
+{
+	if (!ops)
+		return true;
+
+	return !ops->prepare &&
+	       !ops->suspend &&
+	       !ops->suspend_late &&
+	       !ops->suspend_noirq &&
+	       !ops->resume_noirq &&
+	       !ops->resume_early &&
+	       !ops->resume &&
+	       !ops->complete;
+}
+
+void device_pm_check_callbacks(struct device *dev)
+{
+	spin_lock_irq(&dev->power.lock);
+	dev->power.no_pm_callbacks =
+		(!dev->bus || pm_ops_is_empty(dev->bus->pm)) &&
+		(!dev->class || pm_ops_is_empty(dev->class->pm)) &&
+		(!dev->type || pm_ops_is_empty(dev->type->pm)) &&
+		(!dev->pm_domain || pm_ops_is_empty(&dev->pm_domain->ops)) &&
+		(!dev->driver || pm_ops_is_empty(dev->driver->pm));
+	spin_unlock_irq(&dev->power.lock);
+}
