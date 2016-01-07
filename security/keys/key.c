@@ -430,8 +430,7 @@ static int __key_instantiate_and_link(struct key *key,
 
 			/* and link it into the destination keyring */
 			if (keyring) {
-				if (test_bit(KEY_FLAG_KEEP, &keyring->flags))
-					set_bit(KEY_FLAG_KEEP, &key->flags);
+				set_bit(KEY_FLAG_KEEP, &key->flags);
 
 				__key_link(key, _edit);
 			}
