@@ -644,8 +644,10 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 				     sizeof(struct gb_power_supply),
 				     GFP_KERNEL);
 
-	if (!supplies->supply)
-		return -ENOMEM;
+	if (!supplies->supply) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	for (i = 0; i < supplies->supplies_count; i++) {
 		ret = gb_power_supply_config(supplies, i);
