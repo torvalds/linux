@@ -15,3 +15,9 @@ shall have the following properties.
 
 Required root node properties:
     - compatible = "xlnx,zynqmp";
+
+
+Additional compatible strings:
+
+- Xilinx 96boards compatible board zcu100
+  "xlnx,zynqmp-zcu100-revC", "xlnx,zynqmp-zcu100"
