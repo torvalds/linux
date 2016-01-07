@@ -2067,6 +2067,25 @@ static int igb_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static int igb_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			   struct net_device *dev,
+			   const unsigned char *addr, u16 vid,
+			   u16 flags)
+{
+	/* guarantee we can provide a unique filter for the unicast address */
+	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr)) {
+		struct igb_adapter *adapter = netdev_priv(dev);
+		struct e1000_hw *hw = &adapter->hw;
+		int vfn = adapter->vfs_allocated_count;
+		int rar_entries = hw->mac.rar_entry_count - (vfn + 1);
+
+		if (netdev_uc_count(dev) >= rar_entries)
+			return -ENOMEM;
+	}
+
+	return ndo_dflt_fdb_add(ndm, tb, dev, addr, vid, flags);
+}
+
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
@@ -2090,6 +2109,7 @@ static const struct net_device_ops igb_netdev_ops = {
 #endif
 	.ndo_fix_features	= igb_fix_features,
 	.ndo_set_features	= igb_set_features,
+	.ndo_fdb_add		= igb_ndo_fdb_add,
 	.ndo_features_check	= passthru_features_check,
 };
 
@@ -4132,15 +4152,16 @@ static void igb_set_rx_mode(struct net_device *netdev)
 				vmolr |= E1000_VMOLR_ROMPE;
 			}
 		}
-		/* Write addresses to available RAR registers, if there is not
-		 * sufficient space to store all the addresses then enable
-		 * unicast promiscuous mode
-		 */
-		count = igb_write_uc_addr_list(netdev);
-		if (count < 0) {
-			rctl |= E1000_RCTL_UPE;
-			vmolr |= E1000_VMOLR_ROPE;
-		}
+	}
+
+	/* Write addresses to available RAR registers, if there is not
+	 * sufficient space to store all the addresses then enable
+	 * unicast promiscuous mode
+	 */
+	count = igb_write_uc_addr_list(netdev);
+	if (count < 0) {
+		rctl |= E1000_RCTL_UPE;
+		vmolr |= E1000_VMOLR_ROPE;
 	}
 
 	/* enable VLAN filtering by default */
