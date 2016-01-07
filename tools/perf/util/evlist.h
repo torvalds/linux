@@ -155,10 +155,6 @@ void perf_evlist__disable(struct perf_evlist *evlist);
 void perf_evlist__enable(struct perf_evlist *evlist);
 void perf_evlist__toggle_enable(struct perf_evlist *evlist);
 
-int perf_evlist__disable_event(struct perf_evlist *evlist,
-			       struct perf_evsel *evsel);
-int perf_evlist__enable_event(struct perf_evlist *evlist,
-			      struct perf_evsel *evsel);
 int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
 				  struct perf_evsel *evsel, int idx);
 

@@ -393,48 +393,6 @@ void perf_evlist__toggle_enable(struct perf_evlist *evlist)
 	(evlist->enabled ? perf_evlist__disable : perf_evlist__enable)(evlist);
 }
 
-int perf_evlist__disable_event(struct perf_evlist *evlist,
-			       struct perf_evsel *evsel)
-{
-	int cpu, thread, err;
-	int nr_cpus = cpu_map__nr(evlist->cpus);
-	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
-
-	if (!evsel->fd)
-		return 0;
-
-	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		for (thread = 0; thread < nr_threads; thread++) {
-			err = ioctl(FD(evsel, cpu, thread),
-				    PERF_EVENT_IOC_DISABLE, 0);
-			if (err)
-				return err;
-		}
-	}
-	return 0;
-}
-
-int perf_evlist__enable_event(struct perf_evlist *evlist,
-			      struct perf_evsel *evsel)
-{
-	int cpu, thread, err;
-	int nr_cpus = cpu_map__nr(evlist->cpus);
-	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
-
-	if (!evsel->fd)
-		return -EINVAL;
-
-	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		for (thread = 0; thread < nr_threads; thread++) {
-			err = ioctl(FD(evsel, cpu, thread),
-				    PERF_EVENT_IOC_ENABLE, 0);
-			if (err)
-				return err;
-		}
-	}
-	return 0;
-}
-
 static int perf_evlist__enable_event_cpu(struct perf_evlist *evlist,
 					 struct perf_evsel *evsel, int cpu)
 {
