@@ -1862,7 +1862,7 @@ void igb_reset(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_fc_info *fc = &hw->fc;
-	u32 pba = 0, tx_space, min_tx_space, min_rx_space, hwm;
+	u32 pba, hwm;
 
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
@@ -1886,9 +1886,10 @@ void igb_reset(struct igb_adapter *adapter)
 		break;
 	}
 
-	if ((adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) &&
-	    (mac->type < e1000_82576)) {
-		/* adjust PBA for jumbo frames */
+	if (mac->type == e1000_82575) {
+		u32 min_rx_space, min_tx_space, needed_tx_space;
+
+		/* write Rx PBA so that hardware can report correct Tx PBA */
 		wr32(E1000_PBA, pba);
 
 		/* To maintain wire speed transmits, the Tx FIFO should be
@@ -1898,31 +1899,26 @@ void igb_reset(struct igb_adapter *adapter)
 		 * one full receive packet and is similarly rounded up and
 		 * expressed in KB.
 		 */
-		pba = rd32(E1000_PBA);
-		/* upper 16 bits has Tx packet buffer allocation size in KB */
-		tx_space = pba >> 16;
-		/* lower 16 bits has Rx packet buffer allocation size in KB */
-		pba &= 0xffff;
-		/* the Tx fifo also stores 16 bytes of information about the Tx
-		 * but don't include ethernet FCS because hardware appends it
+		min_rx_space = DIV_ROUND_UP(MAX_JUMBO_FRAME_SIZE, 1024);
+
+		/* The Tx FIFO also stores 16 bytes of information about the Tx
+		 * but don't include Ethernet FCS because hardware appends it.
+		 * We only need to round down to the nearest 512 byte block
+		 * count since the value we care about is 2 frames, not 1.
 		 */
-		min_tx_space = (adapter->max_frame_size +
-				sizeof(union e1000_adv_tx_desc) -
-				ETH_FCS_LEN) * 2;
-		min_tx_space = ALIGN(min_tx_space, 1024);
-		min_tx_space >>= 10;
-		/* software strips receive CRC, so leave room for it */
-		min_rx_space = adapter->max_frame_size;
-		min_rx_space = ALIGN(min_rx_space, 1024);
-		min_rx_space >>= 10;
+		min_tx_space = adapter->max_frame_size;
+		min_tx_space += sizeof(union e1000_adv_tx_desc) - ETH_FCS_LEN;
+		min_tx_space = DIV_ROUND_UP(min_tx_space, 512);
+
+		/* upper 16 bits has Tx packet buffer allocation size in KB */
+		needed_tx_space = min_tx_space - (rd32(E1000_PBA) >> 16);
 
 		/* If current Tx allocation is less than the min Tx FIFO size,
 		 * and the min Tx FIFO size is less than the current Rx FIFO
-		 * allocation, take space away from current Rx allocation
+		 * allocation, take space away from current Rx allocation.
 		 */
-		if (tx_space < min_tx_space &&
-		    ((min_tx_space - tx_space) < pba)) {
-			pba = pba - (min_tx_space - tx_space);
+		if (needed_tx_space < pba) {
+			pba -= needed_tx_space;
 
 			/* if short on Rx space, Rx wins and must trump Tx
 			 * adjustment
@@ -1930,18 +1926,20 @@ void igb_reset(struct igb_adapter *adapter)
 			if (pba < min_rx_space)
 				pba = min_rx_space;
 		}
+
+		/* adjust PBA for jumbo frames */
 		wr32(E1000_PBA, pba);
 	}
 
-	/* flow control settings */
-	/* The high water mark must be low enough to fit one full frame
-	 * (or the size used for early receive) above it in the Rx FIFO.
-	 * Set it to the lower of:
-	 * - 90% of the Rx FIFO size, or
-	 * - the full Rx FIFO size minus one full frame
+	/* flow control settings
+	 * The high water mark must be low enough to fit one full frame
+	 * after transmitting the pause frame.  As such we must have enough
+	 * space to allow for us to complete our current transmit and then
+	 * receive the frame that is in progress from the link partner.
+	 * Set it to:
+	 * - the full Rx FIFO size minus one full Tx plus one full Rx frame
 	 */
-	hwm = min(((pba << 10) * 9 / 10),
-			((pba << 10) - 2 * adapter->max_frame_size));
+	hwm = (pba << 10) - (adapter->max_frame_size + MAX_JUMBO_FRAME_SIZE);
 
 	fc->high_water = hwm & 0xFFFFFFF0;	/* 16-byte granularity */
 	fc->low_water = fc->high_water - 16;
@@ -3492,7 +3490,7 @@ void igb_setup_rctl(struct igb_adapter *adapter)
 	/* disable store bad packets and clear size bits. */
 	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_SZ_256);
 
-	/* enable LPE to prevent packets larger than max_frame_size */
+	/* enable LPE to allow for reception of jumbo frames */
 	rctl |= E1000_RCTL_LPE;
 
 	/* disable queue 0 to prevent tail write w/o re-config */
@@ -3546,32 +3544,6 @@ static inline int igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
 	wr32(E1000_VMOLR(vfn), vmolr);
 
 	return 0;
-}
-
-/**
- *  igb_rlpml_set - set maximum receive packet size
- *  @adapter: board private structure
- *
- *  Configure maximum receivable packet size.
- **/
-static void igb_rlpml_set(struct igb_adapter *adapter)
-{
-	u32 max_frame_size = adapter->max_frame_size;
-	struct e1000_hw *hw = &adapter->hw;
-	u16 pf_id = adapter->vfs_allocated_count;
-
-	if (pf_id) {
-		igb_set_vf_rlpml(adapter, max_frame_size, pf_id);
-		/* If we're in VMDQ or SR-IOV mode, then set global RLPML
-		 * to our max jumbo frame size, in case we need to enable
-		 * jumbo frames on one of the rings later.
-		 * This will not pass over-length frames into the default
-		 * queue because it's gated by the VMOLR.RLPML.
-		 */
-		max_frame_size = MAX_JUMBO_FRAME_SIZE;
-	}
-
-	wr32(E1000_RLPML, max_frame_size);
 }
 
 static inline void igb_set_vmolr(struct igb_adapter *adapter,
@@ -4067,7 +4039,14 @@ static void igb_set_rx_mode(struct net_device *netdev)
 
 	vmolr |= rd32(E1000_VMOLR(vfn)) &
 		 ~(E1000_VMOLR_ROPE | E1000_VMOLR_MPME | E1000_VMOLR_ROMPE);
+
+	/* enable Rx jumbo frames, no need for restriction */
+	vmolr &= ~E1000_VMOLR_RLPML_MASK;
+	vmolr |= MAX_JUMBO_FRAME_SIZE | E1000_VMOLR_LPE;
+
 	wr32(E1000_VMOLR(vfn), vmolr);
+	wr32(E1000_RLPML, MAX_JUMBO_FRAME_SIZE);
+
 	igb_restore_vf_multicasts(adapter);
 }
 
@@ -7195,8 +7174,6 @@ static void igb_vlan_mode(struct net_device *netdev, netdev_features_t features)
 		ctrl &= ~E1000_CTRL_VME;
 		wr32(E1000_CTRL, ctrl);
 	}
-
-	igb_rlpml_set(adapter);
 }
 
 static int igb_vlan_rx_add_vid(struct net_device *netdev,
@@ -7952,9 +7929,7 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			 * than the Rx threshold. Set hwm to PBA - max frame
 			 * size in 16B units, capping it at PBA - 6KB.
 			 */
-			hwm = 64 * pba - adapter->max_frame_size / 16;
-			if (hwm < 64 * (pba - 6))
-				hwm = 64 * (pba - 6);
+			hwm = 64 * (pba - 6);
 			reg = rd32(E1000_FCRTC);
 			reg &= ~E1000_FCRTC_RTH_COAL_MASK;
 			reg |= ((hwm << E1000_FCRTC_RTH_COAL_SHIFT)
@@ -7964,9 +7939,7 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			/* Set the DMA Coalescing Rx threshold to PBA - 2 * max
 			 * frame size, capping it at PBA - 10KB.
 			 */
-			dmac_thr = pba - adapter->max_frame_size / 512;
-			if (dmac_thr < pba - 10)
-				dmac_thr = pba - 10;
+			dmac_thr = pba - 10;
 			reg = rd32(E1000_DMACR);
 			reg &= ~E1000_DMACR_DMACTHR_MASK;
 			reg |= ((dmac_thr << E1000_DMACR_DMACTHR_SHIFT)
