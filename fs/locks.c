@@ -234,8 +234,10 @@ out:
 }
 
 void
-locks_free_lock_context(struct file_lock_context *ctx)
+locks_free_lock_context(struct inode *inode)
 {
+	struct file_lock_context *ctx = inode->i_flctx;
+
 	if (ctx) {
 		WARN_ON_ONCE(!list_empty(&ctx->flc_flock));
 		WARN_ON_ONCE(!list_empty(&ctx->flc_posix));
