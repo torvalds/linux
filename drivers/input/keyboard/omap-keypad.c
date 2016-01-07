@@ -155,14 +155,6 @@ static void omap_kp_tasklet(unsigned long data)
 			       "pressed" : "released");
 #else
 			key = keycodes[MATRIX_SCAN_CODE(row, col, row_shift)];
-			if (key < 0) {
-				printk(KERN_WARNING
-				      "omap-keypad: Spurious key event %d-%d\n",
-				       col, row);
-				/* We scan again after a couple of seconds */
-				spurious = 1;
-				continue;
-			}
 
 			if (!(kp_cur_group == (key & GROUP_MASK) ||
 			      kp_cur_group == -1))
