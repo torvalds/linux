@@ -871,11 +871,6 @@ static void recover_worker(struct work_struct *work)
 		gpu->event[i].fence = NULL;
 		gpu->event[i].used = false;
 		complete(&gpu->event_free);
-		/*
-		 * Decrement the PM count for each stuck event. This is safe
-		 * even in atomic context as we use ASYNC RPM here.
-		 */
-		pm_runtime_put_autosuspend(gpu->dev);
 	}
 	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	gpu->completed_fence = gpu->active_fence;
@@ -1158,6 +1153,14 @@ static void retire_worker(struct work_struct *work)
 		}
 
 		etnaviv_gpu_cmdbuf_free(cmdbuf);
+		/*
+		 * We need to balance the runtime PM count caused by
+		 * each submission.  Upon submission, we increment
+		 * the runtime PM counter, and allocate one event.
+		 * So here, we put the runtime PM count for each
+		 * completed event.
+		 */
+		pm_runtime_put_autosuspend(gpu->dev);
 	}
 
 	gpu->retired_fence = fence;
@@ -1378,15 +1381,6 @@ static irqreturn_t irq_handler(int irq, void *data)
 				gpu->completed_fence = fence->seqno;
 
 			event_free(gpu, event);
-
-			/*
-			 * We need to balance the runtime PM count caused by
-			 * each submission.  Upon submission, we increment
-			 * the runtime PM counter, and allocate one event.
-			 * So here, we put the runtime PM count for each
-			 * completed event.
-			 */
-			pm_runtime_put_autosuspend(gpu->dev);
 		}
 
 		/* Retire the buffer objects in a work */
