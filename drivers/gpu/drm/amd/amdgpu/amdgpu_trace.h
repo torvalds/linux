@@ -100,18 +100,21 @@ TRACE_EVENT(amdgpu_sched_run_job,
 
 
 TRACE_EVENT(amdgpu_vm_grab_id,
-	    TP_PROTO(unsigned vmid, int ring),
-	    TP_ARGS(vmid, ring),
+	    TP_PROTO(struct amdgpu_vm *vm, unsigned vmid, int ring),
+	    TP_ARGS(vm, vmid, ring),
 	    TP_STRUCT__entry(
+			     __field(struct amdgpu_vm *, vm)
 			     __field(u32, vmid)
 			     __field(u32, ring)
 			     ),
 
 	    TP_fast_assign(
+			   __entry->vm = vm;
 			   __entry->vmid = vmid;
 			   __entry->ring = ring;
 			   ),
-	    TP_printk("vmid=%u, ring=%u", __entry->vmid, __entry->ring)
+	    TP_printk("vm=%p, id=%u, ring=%u", __entry->vm, __entry->vmid,
+		      __entry->ring)
 );
 
 TRACE_EVENT(amdgpu_vm_bo_map,

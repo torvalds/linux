@@ -174,7 +174,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 		owner = atomic_long_read(&adev->vm_manager.ids[id].owner);
 		if (owner == (long)vm) {
-			trace_amdgpu_vm_grab_id(vm_id->id, ring->idx);
+			trace_amdgpu_vm_grab_id(vm, vm_id->id, ring->idx);
 			return 0;
 		}
 	}
@@ -190,7 +190,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (fence == NULL) {
 			/* found a free one */
 			vm_id->id = i;
-			trace_amdgpu_vm_grab_id(i, ring->idx);
+			trace_amdgpu_vm_grab_id(vm, i, ring->idx);
 			return 0;
 		}
 
@@ -209,7 +209,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			fence  = adev->vm_manager.ids[choices[i]].active;
 			vm_id->id = choices[i];
 
-			trace_amdgpu_vm_grab_id(choices[i], ring->idx);
+			trace_amdgpu_vm_grab_id(vm, choices[i], ring->idx);
 			return amdgpu_sync_fence(ring->adev, sync, fence);
 		}
 	}
