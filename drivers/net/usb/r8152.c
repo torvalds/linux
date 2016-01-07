@@ -3525,6 +3525,14 @@ static int rtl8152_resume(struct usb_interface *intf)
 	return 0;
 }
 
+static int rtl8152_reset_resume(struct usb_interface *intf)
+{
+	struct r8152 *tp = usb_get_intfdata(intf);
+
+	clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+	return rtl8152_resume(intf);
+}
+
 static void rtl8152_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct r8152 *tp = netdev_priv(dev);
@@ -4276,7 +4284,7 @@ static struct usb_driver rtl8152_driver = {
 	.disconnect =	rtl8152_disconnect,
 	.suspend =	rtl8152_suspend,
 	.resume =	rtl8152_resume,
-	.reset_resume =	rtl8152_resume,
+	.reset_resume =	rtl8152_reset_resume,
 	.pre_reset =	rtl8152_pre_reset,
 	.post_reset =	rtl8152_post_reset,
 	.supports_autosuspend = 1,

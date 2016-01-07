@@ -683,6 +683,12 @@ static void sixpack_close(struct tty_struct *tty)
 	if (!atomic_dec_and_test(&sp->refcnt))
 		down(&sp->dead_sem);
 
+	/* We must stop the queue to avoid potentially scribbling
+	 * on the free buffers. The sp->dead_sem is not sufficient
+	 * to protect us from sp->xbuff access.
+	 */
+	netif_stop_queue(sp->dev);
+
 	del_timer_sync(&sp->tx_t);
 	del_timer_sync(&sp->resync_t);
 
