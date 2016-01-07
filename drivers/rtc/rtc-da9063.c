@@ -483,17 +483,6 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	irq_alarm = platform_get_irq_byname(pdev, "ALARM");
-	ret = devm_request_threaded_irq(&pdev->dev, irq_alarm, NULL,
-					da9063_alarm_event,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					"ALARM", rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
-			irq_alarm, ret);
-		return ret;
-	}
-
 	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, DA9063_DRVNAME_RTC,
 					   &da9063_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev))
@@ -501,6 +490,16 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 
 	da9063_data_to_tm(data, &rtc->alarm_time, rtc);
 	rtc->rtc_sync = false;
+
+	irq_alarm = platform_get_irq_byname(pdev, "ALARM");
+	ret = devm_request_threaded_irq(&pdev->dev, irq_alarm, NULL,
+					da9063_alarm_event,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					"ALARM", rtc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
+			irq_alarm, ret);
+
 	return ret;
 }
 

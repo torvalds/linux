@@ -39,7 +39,7 @@ void br_init_port(struct net_bridge_port *p)
 	struct switchdev_attr attr = {
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
 		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
-		.u.ageing_time = p->br->ageing_time,
+		.u.ageing_time = jiffies_to_clock_t(p->br->ageing_time),
 	};
 	int err;
 
@@ -142,7 +142,10 @@ static void br_stp_start(struct net_bridge *br)
 	char *envp[] = { NULL };
 	struct net_bridge_port *p;
 
-	r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
+	if (net_eq(dev_net(br->dev), &init_net))
+		r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
+	else
+		r = -ENOENT;
 
 	spin_lock_bh(&br->lock);
 

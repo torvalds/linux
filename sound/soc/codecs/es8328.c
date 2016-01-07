@@ -85,7 +85,15 @@ static const DECLARE_TLV_DB_SCALE(pga_tlv, 0, 300, 0);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 300, 0);
 
-static const int deemph_settings[] = { 0, 32000, 44100, 48000 };
+static const struct {
+	int rate;
+	unsigned int val;
+} deemph_settings[] = {
+	{ 0,     ES8328_DACCONTROL6_DEEMPH_OFF },
+	{ 32000, ES8328_DACCONTROL6_DEEMPH_32k },
+	{ 44100, ES8328_DACCONTROL6_DEEMPH_44_1k },
+	{ 48000, ES8328_DACCONTROL6_DEEMPH_48k },
+};
 
 static int es8328_set_deemph(struct snd_soc_codec *codec)
 {
@@ -97,21 +105,22 @@ static int es8328_set_deemph(struct snd_soc_codec *codec)
 	 * rate.
 	 */
 	if (es8328->deemph) {
-		best = 1;
-		for (i = 2; i < ARRAY_SIZE(deemph_settings); i++) {
-			if (abs(deemph_settings[i] - es8328->playback_fs) <
-			    abs(deemph_settings[best] - es8328->playback_fs))
+		best = 0;
+		for (i = 1; i < ARRAY_SIZE(deemph_settings); i++) {
+			if (abs(deemph_settings[i].rate - es8328->playback_fs) <
+			    abs(deemph_settings[best].rate - es8328->playback_fs))
 				best = i;
 		}
 
-		val = best << 1;
+		val = deemph_settings[best].val;
 	} else {
-		val = 0;
+		val = ES8328_DACCONTROL6_DEEMPH_OFF;
 	}
 
 	dev_dbg(codec->dev, "Set deemphasis %d\n", val);
 
-	return snd_soc_update_bits(codec, ES8328_DACCONTROL6, 0x6, val);
+	return snd_soc_update_bits(codec, ES8328_DACCONTROL6,
+			ES8328_DACCONTROL6_DEEMPH_MASK, val);
 }
 
 static int es8328_get_deemph(struct snd_kcontrol *kcontrol,
