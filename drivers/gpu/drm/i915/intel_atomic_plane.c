@@ -198,9 +198,7 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state =
 		drm_atomic_get_existing_crtc_state(old_state->state, crtc);
 
-	if (intel_plane->commit_plane)
-		intel_plane->commit_plane(plane, intel_state);
-	else if (intel_state->visible)
+	if (intel_state->visible)
 		intel_plane->update_plane(plane,
 					  to_intel_crtc_state(crtc_state),
 					  intel_state);
