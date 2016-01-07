@@ -1116,7 +1116,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_workarounds *w = &dev_priv->workarounds;
 
-	if (WARN_ON_ONCE(w->count == 0))
+	if (w->count == 0)
 		return 0;
 
 	ring->gpu_caches_dirty = true;
