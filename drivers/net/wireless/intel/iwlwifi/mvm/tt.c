@@ -120,7 +120,7 @@ static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
 	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
 
-	if (WARN_ON_ONCE(len != sizeof(*notif))) {
+	if (WARN_ON_ONCE(len < sizeof(*notif))) {
 		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
 		return -EINVAL;
 	}

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1452,7 +1454,7 @@ struct iwl_sf_cfg_cmd {
  ***********************************/
 
 /**
- * struct iwl_mcc_update_cmd - Request the device to update geographic
+ * struct iwl_mcc_update_cmd_v1 - Request the device to update geographic
  * regulatory profile according to the given MCC (Mobile Country Code).
  * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
  * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
@@ -1461,14 +1463,34 @@ struct iwl_sf_cfg_cmd {
  * @source_id: the source from where we got the MCC, see iwl_mcc_source
  * @reserved: reserved for alignment
  */
+struct iwl_mcc_update_cmd_v1 {
+	__le16 mcc;
+	u8 source_id;
+	u8 reserved;
+} __packed; /* LAR_UPDATE_MCC_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_mcc_update_cmd - Request the device to update geographic
+ * regulatory profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: the source from where we got the MCC, see iwl_mcc_source
+ * @reserved: reserved for alignment
+ * @key: integrity key for MCC API OEM testing
+ * @reserved2: reserved
+ */
 struct iwl_mcc_update_cmd {
 	__le16 mcc;
 	u8 source_id;
 	u8 reserved;
-} __packed; /* LAR_UPDATE_MCC_CMD_API_S */
+	__le32 key;
+	__le32 reserved2[5];
+} __packed; /* LAR_UPDATE_MCC_CMD_API_S_VER_2 */
 
 /**
- * iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * iwl_mcc_update_resp_v1  - response to MCC_UPDATE_CMD.
  * Contains the new channel control profile map, if changed, and the new MCC
  * (mobile country code).
  * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
@@ -1481,14 +1503,41 @@ struct iwl_mcc_update_cmd {
  * @channels: channel control data map, DWORD for each channel. Only the first
  *	16bits are used.
  */
-struct iwl_mcc_update_resp {
+struct iwl_mcc_update_resp_v1  {
 	__le32 status;
 	__le16 mcc;
 	u8 cap;
 	u8 source_id;
 	__le32 n_channels;
 	__le32 channels[0];
-} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S */
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_1 */
+
+/**
+ * iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * Contains the new channel control profile map, if changed, and the new MCC
+ * (mobile country code).
+ * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
+ * @status: see &enum iwl_mcc_update_status
+ * @mcc: the new applied MCC
+ * @cap: capabilities for all channels which matches the MCC
+ * @source_id: the MCC source, see iwl_mcc_source
+ * @time: time elapsed from the MCC test start (in 30 seconds TU)
+ * @reserved: reserved.
+ * @n_channels: number of channels in @channels_data (may be 14, 39, 50 or 51
+ *		channels, depending on platform)
+ * @channels: channel control data map, DWORD for each channel. Only the first
+ *	16bits are used.
+ */
+struct iwl_mcc_update_resp {
+	__le32 status;
+	__le16 mcc;
+	u8 cap;
+	u8 source_id;
+	__le16 time;
+	__le16 reserved;
+	__le32 n_channels;
+	__le32 channels[0];
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_2 */
 
 /**
  * struct iwl_mcc_chub_notif - chub notifies of mcc change
@@ -1518,6 +1567,9 @@ enum iwl_mcc_update_status {
 	MCC_RESP_NVM_DISABLED,
 	MCC_RESP_ILLEGAL,
 	MCC_RESP_LOW_PRIORITY,
+	MCC_RESP_TEST_MODE_ACTIVE,
+	MCC_RESP_TEST_MODE_NOT_ACTIVE,
+	MCC_RESP_TEST_MODE_DENIAL_OF_SERVICE,
 };
 
 enum iwl_mcc_source {
@@ -1530,7 +1582,9 @@ enum iwl_mcc_source {
 	MCC_SOURCE_RESERVED = 6,
 	MCC_SOURCE_DEFAULT = 7,
 	MCC_SOURCE_UNINITIALIZED = 8,
-	MCC_SOURCE_GET_CURRENT = 0x10
+	MCC_SOURCE_MCC_API = 9,
+	MCC_SOURCE_GET_CURRENT = 0x10,
+	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
 /* DTS measurements */
