@@ -55,6 +55,7 @@ unsigned int svcrdma_ord = RPCRDMA_ORD;
 static unsigned int min_ord = 1;
 static unsigned int max_ord = 4096;
 unsigned int svcrdma_max_requests = RPCRDMA_MAX_REQUESTS;
+unsigned int svcrdma_max_bc_requests = RPCRDMA_MAX_BC_REQUESTS;
 static unsigned int min_max_requests = 4;
 static unsigned int max_max_requests = 16384;
 unsigned int svcrdma_max_req_size = RPCRDMA_MAX_REQ_SIZE;
@@ -245,9 +246,10 @@ int svc_rdma_init(void)
 {
 	dprintk("SVCRDMA Module Init, register RPC RDMA transport\n");
 	dprintk("\tsvcrdma_ord      : %d\n", svcrdma_ord);
-	dprintk("\tmax_requests     : %d\n", svcrdma_max_requests);
-	dprintk("\tsq_depth         : %d\n",
+	dprintk("\tmax_requests     : %u\n", svcrdma_max_requests);
+	dprintk("\tsq_depth         : %u\n",
 		svcrdma_max_requests * RPCRDMA_SQ_DEPTH_MULT);
+	dprintk("\tmax_bc_requests  : %u\n", svcrdma_max_bc_requests);
 	dprintk("\tmax_inline       : %d\n", svcrdma_max_req_size);
 
 	svc_rdma_wq = alloc_workqueue("svc_rdma", 0, 0);

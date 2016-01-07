@@ -51,6 +51,7 @@
 /* RPC/RDMA parameters and stats */
 extern unsigned int svcrdma_ord;
 extern unsigned int svcrdma_max_requests;
+extern unsigned int svcrdma_max_bc_requests;
 extern unsigned int svcrdma_max_req_size;
 
 extern atomic_t rdma_stat_recv;
@@ -134,10 +135,11 @@ struct svcxprt_rdma {
 	int                  sc_max_sge;
 	int                  sc_max_sge_rd;	/* max sge for read target */
 
-	int                  sc_sq_depth;	/* Depth of SQ */
 	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
-
-	int                  sc_max_requests;	/* Depth of RQ */
+	unsigned int	     sc_sq_depth;	/* Depth of SQ */
+	unsigned int	     sc_rq_depth;	/* Depth of RQ */
+	u32		     sc_max_requests;	/* Forward credits */
+	u32		     sc_max_bc_requests;/* Backward credits */
 	int                  sc_max_req_size;	/* Size of each RQ WR buf */
 
 	struct ib_pd         *sc_pd;
@@ -185,6 +187,11 @@ struct svcxprt_rdma {
 #define RPCRDMA_SQ_DEPTH_MULT   8
 #define RPCRDMA_MAX_REQUESTS    32
 #define RPCRDMA_MAX_REQ_SIZE    4096
+
+/* Typical ULP usage of BC requests is NFSv4.1 backchannel. Our
+ * current NFSv4.1 implementation supports one backchannel slot.
+ */
+#define RPCRDMA_MAX_BC_REQUESTS	2
 
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
 

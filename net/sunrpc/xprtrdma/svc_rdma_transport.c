@@ -169,12 +169,12 @@ static struct svc_rdma_op_ctxt *alloc_ctxt(struct svcxprt_rdma *xprt,
 
 static bool svc_rdma_prealloc_ctxts(struct svcxprt_rdma *xprt)
 {
-	int i;
+	unsigned int i;
 
 	/* Each RPC/RDMA credit can consume a number of send
 	 * and receive WQEs. One ctxt is allocated for each.
 	 */
-	i = xprt->sc_sq_depth + xprt->sc_max_requests;
+	i = xprt->sc_sq_depth + xprt->sc_rq_depth;
 
 	while (i--) {
 		struct svc_rdma_op_ctxt *ctxt;
@@ -285,7 +285,7 @@ static struct svc_rdma_req_map *alloc_req_map(gfp_t flags)
 
 static bool svc_rdma_prealloc_maps(struct svcxprt_rdma *xprt)
 {
-	int i;
+	unsigned int i;
 
 	/* One for each receive buffer on this connection. */
 	i = xprt->sc_max_requests;
@@ -1016,8 +1016,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct ib_device *dev;
 	int uninitialized_var(dma_mr_acc);
 	int need_dma_mr = 0;
+	unsigned int i;
 	int ret = 0;
-	int i;
 
 	listen_rdma = container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	clear_bit(XPT_CONN, &xprt->xpt_flags);
@@ -1046,9 +1046,13 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	newxprt->sc_max_sge_rd = min_t(size_t, dev->attrs.max_sge_rd,
 				       RPCSVC_MAXPAGES);
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
-	newxprt->sc_max_requests = min((size_t)dev->attrs.max_qp_wr,
-				   (size_t)svcrdma_max_requests);
-	newxprt->sc_sq_depth = RPCRDMA_SQ_DEPTH_MULT * newxprt->sc_max_requests;
+	newxprt->sc_max_requests = min_t(u32, dev->attrs.max_qp_wr,
+					 svcrdma_max_requests);
+	newxprt->sc_max_bc_requests = min_t(u32, dev->attrs.max_qp_wr,
+					    svcrdma_max_bc_requests);
+	newxprt->sc_rq_depth = newxprt->sc_max_requests +
+			       newxprt->sc_max_bc_requests;
+	newxprt->sc_sq_depth = RPCRDMA_SQ_DEPTH_MULT * newxprt->sc_rq_depth;
 
 	if (!svc_rdma_prealloc_ctxts(newxprt))
 		goto errout;
@@ -1077,7 +1081,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		dprintk("svcrdma: error creating SQ CQ for connect request\n");
 		goto errout;
 	}
-	cq_attr.cqe = newxprt->sc_max_requests;
+	cq_attr.cqe = newxprt->sc_rq_depth;
 	newxprt->sc_rq_cq = ib_create_cq(dev,
 					 rq_comp_handler,
 					 cq_event_handler,
@@ -1092,7 +1096,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	qp_attr.event_handler = qp_event_handler;
 	qp_attr.qp_context = &newxprt->sc_xprt;
 	qp_attr.cap.max_send_wr = newxprt->sc_sq_depth;
-	qp_attr.cap.max_recv_wr = newxprt->sc_max_requests;
+	qp_attr.cap.max_recv_wr = newxprt->sc_rq_depth;
 	qp_attr.cap.max_send_sge = newxprt->sc_max_sge;
 	qp_attr.cap.max_recv_sge = newxprt->sc_max_sge;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
@@ -1183,7 +1187,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		newxprt->sc_dma_lkey = dev->local_dma_lkey;
 
 	/* Post receive buffers */
-	for (i = 0; i < newxprt->sc_max_requests; i++) {
+	for (i = 0; i < newxprt->sc_rq_depth; i++) {
 		ret = svc_rdma_post_recv(newxprt, GFP_KERNEL);
 		if (ret) {
 			dprintk("svcrdma: failure posting receive buffers\n");
