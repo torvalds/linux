@@ -961,7 +961,8 @@ out:
 	return error;
 }
 
-static int __posix_lock_file(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
+static int posix_lock_inode(struct inode *inode, struct file_lock *request,
+			    struct file_lock *conflock)
 {
 	struct file_lock *fl, *tmp;
 	struct file_lock *new_fl = NULL;
@@ -1191,7 +1192,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 int posix_lock_file(struct file *filp, struct file_lock *fl,
 			struct file_lock *conflock)
 {
-	return __posix_lock_file(file_inode(filp), fl, conflock);
+	return posix_lock_inode(file_inode(filp), fl, conflock);
 }
 EXPORT_SYMBOL(posix_lock_file);
 
@@ -1207,7 +1208,7 @@ static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 	int error;
 	might_sleep ();
 	for (;;) {
-		error = __posix_lock_file(inode, fl, NULL);
+		error = posix_lock_inode(inode, fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
 		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
@@ -1290,7 +1291,7 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 		if (filp) {
 			fl.fl_owner = filp;
 			fl.fl_flags &= ~FL_SLEEP;
-			error = __posix_lock_file(inode, &fl, NULL);
+			error = posix_lock_inode(inode, &fl, NULL);
 			if (!error)
 				break;
 		}
@@ -1298,7 +1299,7 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 		if (sleep)
 			fl.fl_flags |= FL_SLEEP;
 		fl.fl_owner = current->files;
-		error = __posix_lock_file(inode, &fl, NULL);
+		error = posix_lock_inode(inode, &fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
 		error = wait_event_interruptible(fl.fl_wait, !fl.fl_next);
