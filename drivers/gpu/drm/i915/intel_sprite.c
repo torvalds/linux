@@ -931,24 +931,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	return 0;
 }
 
-static void
-intel_commit_sprite_plane(struct drm_plane *plane,
-			  struct intel_plane_state *state)
-{
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-
-	if (state->visible) {
-		struct intel_crtc_state *crtc_state =
-			to_intel_crtc(state->base.crtc)->config;
-
-		intel_plane->update_plane(plane, crtc_state, state);
-	} else {
-		struct drm_crtc *crtc = state->base.crtc;
-
-		intel_plane->disable_plane(plane, crtc ?: plane->crtc);
-	}
-}
-
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
@@ -1130,7 +1112,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->plane = plane;
 	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER_SPRITE(pipe, plane);
 	intel_plane->check_plane = intel_check_sprite_plane;
-	intel_plane->commit_plane = intel_commit_sprite_plane;
 	possible_crtcs = (1 << pipe);
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 				       &intel_plane_funcs,

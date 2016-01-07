@@ -194,8 +194,18 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane->state);
+	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	struct drm_crtc_state *crtc_state =
+		drm_atomic_get_existing_crtc_state(old_state->state, crtc);
 
-	intel_plane->commit_plane(plane, intel_state);
+	if (intel_plane->commit_plane)
+		intel_plane->commit_plane(plane, intel_state);
+	else if (intel_state->visible)
+		intel_plane->update_plane(plane,
+					  to_intel_crtc_state(crtc_state),
+					  intel_state);
+	else
+		intel_plane->disable_plane(plane, crtc);
 }
 
 const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
