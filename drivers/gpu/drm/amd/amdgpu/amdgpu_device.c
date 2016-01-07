@@ -959,12 +959,6 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 			 amdgpu_sched_jobs);
 		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
 	}
-	/* vramlimit must be a power of two */
-	if (!amdgpu_check_pot_argument(amdgpu_vram_limit)) {
-		dev_warn(adev->dev, "vram limit (%d) must be a power of 2\n",
-				amdgpu_vram_limit);
-		amdgpu_vram_limit = 0;
-	}
 
 	if (amdgpu_gart_size != -1) {
 		/* gtt size must be power of two and greater or equal to 32M */
