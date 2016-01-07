@@ -1575,32 +1575,25 @@ static int vop_initial(struct vop *vop)
 		return PTR_ERR(vop->dclk);
 	}
 
-	ret = clk_prepare(vop->hclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare hclk\n");
-		return ret;
-	}
-
 	ret = clk_prepare(vop->dclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to prepare dclk\n");
-		goto err_unprepare_hclk;
+		return ret;
 	}
 
-	ret = clk_prepare(vop->aclk);
+	/* Enable both the hclk and aclk to setup the vop */
+	ret = clk_prepare_enable(vop->hclk);
 	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare aclk\n");
+		dev_err(vop->dev, "failed to prepare/enable hclk\n");
 		goto err_unprepare_dclk;
 	}
 
-	/*
-	 * enable hclk, so that we can config vop register.
-	 */
-	ret = clk_enable(vop->hclk);
+	ret = clk_prepare_enable(vop->aclk);
 	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare aclk\n");
-		goto err_unprepare_aclk;
+		dev_err(vop->dev, "failed to prepare/enable aclk\n");
+		goto err_disable_hclk;
 	}
+
 	/*
 	 * do hclk_reset, reset all vop registers.
 	 */
@@ -1608,7 +1601,7 @@ static int vop_initial(struct vop *vop)
 	if (IS_ERR(ahb_rst)) {
 		dev_err(vop->dev, "failed to get ahb reset\n");
 		ret = PTR_ERR(ahb_rst);
-		goto err_disable_hclk;
+		goto err_disable_aclk;
 	}
 	reset_control_assert(ahb_rst);
 	usleep_range(10, 20);
@@ -1634,26 +1627,25 @@ static int vop_initial(struct vop *vop)
 	if (IS_ERR(vop->dclk_rst)) {
 		dev_err(vop->dev, "failed to get dclk reset\n");
 		ret = PTR_ERR(vop->dclk_rst);
-		goto err_unprepare_aclk;
+		goto err_disable_aclk;
 	}
 	reset_control_assert(vop->dclk_rst);
 	usleep_range(10, 20);
 	reset_control_deassert(vop->dclk_rst);
 
 	clk_disable(vop->hclk);
+	clk_disable(vop->aclk);
 
 	vop->is_enabled = false;
 
 	return 0;
 
+err_disable_aclk:
+	clk_disable_unprepare(vop->aclk);
 err_disable_hclk:
-	clk_disable(vop->hclk);
-err_unprepare_aclk:
-	clk_unprepare(vop->aclk);
+	clk_disable_unprepare(vop->hclk);
 err_unprepare_dclk:
 	clk_unprepare(vop->dclk);
-err_unprepare_hclk:
-	clk_unprepare(vop->hclk);
 	return ret;
 }
 

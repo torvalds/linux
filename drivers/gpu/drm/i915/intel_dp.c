@@ -5153,7 +5153,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	enum intel_display_power_domain power_domain;
 	enum irqreturn ret = IRQ_NONE;
 
-	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
+	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP &&
+	    intel_dig_port->base.type != INTEL_OUTPUT_HDMI)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
 	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {

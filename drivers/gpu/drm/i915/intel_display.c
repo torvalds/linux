@@ -12460,7 +12460,6 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen < 8) {
 		PIPE_CONF_CHECK_M_N(dp_m_n);
 
-		PIPE_CONF_CHECK_I(has_drrs);
 		if (current_config->has_drrs)
 			PIPE_CONF_CHECK_M_N(dp_m2_n2);
 	} else
