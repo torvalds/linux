@@ -85,8 +85,6 @@ static const uint32_t intel_cursor_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
-
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config);
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
@@ -10237,25 +10235,13 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 	base = intel_crtc->cursor_addr;
 
-	if (x >= intel_crtc->config->pipe_src_w)
-		on = false;
-
-	if (y >= intel_crtc->config->pipe_src_h)
-		on = false;
-
 	if (x < 0) {
-		if (x + cursor_state->crtc_w <= 0)
-			on = false;
-
 		pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
 		x = -x;
 	}
 	pos |= x << CURSOR_X_SHIFT;
 
 	if (y < 0) {
-		if (y + cursor_state->crtc_h <= 0)
-			on = false;
-
 		pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
 		y = -y;
 	}
