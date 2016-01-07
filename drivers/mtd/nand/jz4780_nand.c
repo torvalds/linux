@@ -171,29 +171,33 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 	chip->ecc.bytes = fls((1 + 8) * chip->ecc.size)	*
 				(chip->ecc.strength / 8);
 
-	if (nfc->bch && chip->ecc.mode == NAND_ECC_HW) {
+	switch (chip->ecc.mode) {
+	case NAND_ECC_HW:
+		if (!nfc->bch) {
+			dev_err(dev, "HW BCH selected, but BCH controller not found\n");
+			return -ENODEV;
+		}
+
 		chip->ecc.hwctl = jz4780_nand_ecc_hwctl;
 		chip->ecc.calculate = jz4780_nand_ecc_calculate;
 		chip->ecc.correct = jz4780_nand_ecc_correct;
-	} else if (!nfc->bch && chip->ecc.mode == NAND_ECC_HW) {
-		dev_err(dev, "HW BCH selected, but BCH controller not found\n");
-		return -ENODEV;
-	}
-
-	if (chip->ecc.mode == NAND_ECC_HW_SYNDROME) {
-		dev_err(dev, "ECC HW syndrome not supported\n");
-		return -EINVAL;
-	}
-
-	if (chip->ecc.mode != NAND_ECC_NONE)
+		/* fall through */
+	case NAND_ECC_SOFT:
+	case NAND_ECC_SOFT_BCH:
 		dev_info(dev, "using %s (strength %d, size %d, bytes %d)\n",
 			(nfc->bch) ? "hardware BCH" : "software ECC",
 			chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);
-	else
+		break;
+	case NAND_ECC_NONE:
 		dev_info(dev, "not using ECC\n");
+		break;
+	default:
+		dev_err(dev, "ECC mode %d not supported\n", chip->ecc.mode);
+		return -EINVAL;
+	}
 
-	/* The NAND core will generate the ECC layout. */
-	if (chip->ecc.mode == NAND_ECC_SOFT || chip->ecc.mode == NAND_ECC_SOFT_BCH)
+	/* The NAND core will generate the ECC layout for SW ECC */
+	if (chip->ecc.mode != NAND_ECC_HW)
 		return 0;
 
 	/* Generate ECC layout. ECC codes are right aligned in the OOB area. */
