@@ -136,7 +136,7 @@ static int brb_push(struct bop_ring_buffer *brb,
 	return 0;
 }
 
-static int brb_pop(struct bop_ring_buffer *brb, struct block_op *result)
+static int brb_peek(struct bop_ring_buffer *brb, struct block_op *result)
 {
 	struct block_op *bop;
 
@@ -147,6 +147,17 @@ static int brb_pop(struct bop_ring_buffer *brb, struct block_op *result)
 	result->type = bop->type;
 	result->block = bop->block;
 
+	return 0;
+}
+
+static int brb_pop(struct bop_ring_buffer *brb)
+{
+	struct block_op *bop;
+
+	if (brb_empty(brb))
+		return -ENODATA;
+
+	bop = brb->bops + brb->begin;
 	brb->begin = brb_next(brb, brb->begin);
 
 	return 0;
@@ -211,7 +222,7 @@ static int apply_bops(struct sm_metadata *smm)
 	while (!brb_empty(&smm->uncommitted)) {
 		struct block_op bop;
 
-		r = brb_pop(&smm->uncommitted, &bop);
+		r = brb_peek(&smm->uncommitted, &bop);
 		if (r) {
 			DMERR("bug in bop ring buffer");
 			break;
@@ -220,6 +231,8 @@ static int apply_bops(struct sm_metadata *smm)
 		r = commit_bop(smm, &bop);
 		if (r)
 			break;
+
+		brb_pop(&smm->uncommitted);
 	}
 
 	return r;
@@ -683,7 +696,6 @@ static struct dm_space_map bootstrap_ops = {
 static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 {
 	int r, i;
-	enum allocation_event ev;
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 	dm_block_t old_len = smm->ll.nr_blocks;
 
@@ -705,11 +717,12 @@ static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 	 * allocate any new blocks.
 	 */
 	do {
-		for (i = old_len; !r && i < smm->begin; i++) {
-			r = sm_ll_inc(&smm->ll, i, &ev);
-			if (r)
-				goto out;
-		}
+		for (i = old_len; !r && i < smm->begin; i++)
+			r = add_bop(smm, BOP_INC, i);
+
+		if (r)
+			goto out;
+
 		old_len = smm->begin;
 
 		r = apply_bops(smm);
@@ -754,7 +767,6 @@ int dm_sm_metadata_create(struct dm_space_map *sm,
 {
 	int r;
 	dm_block_t i;
-	enum allocation_event ev;
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	smm->begin = superblock + 1;
@@ -782,7 +794,7 @@ int dm_sm_metadata_create(struct dm_space_map *sm,
 	 * allocated blocks that they were built from.
 	 */
 	for (i = superblock; !r && i < smm->begin; i++)
-		r = sm_ll_inc(&smm->ll, i, &ev);
+		r = add_bop(smm, BOP_INC, i);
 
 	if (r)
 		return r;

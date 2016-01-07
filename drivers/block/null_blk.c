@@ -18,6 +18,7 @@ struct nullb_cmd {
 	struct bio *bio;
 	unsigned int tag;
 	struct nullb_queue *nq;
+	struct hrtimer timer;
 };
 
 struct nullb_queue {
@@ -48,17 +49,6 @@ static struct mutex lock;
 static int null_major;
 static int nullb_indexes;
 static struct kmem_cache *ppa_cache;
-
-struct completion_queue {
-	struct llist_head list;
-	struct hrtimer timer;
-};
-
-/*
- * These are per-cpu for now, they will need to be configured by the
- * complete_queues parameter and appropriately mapped.
- */
-static DEFINE_PER_CPU(struct completion_queue, completion_queues);
 
 enum {
 	NULL_IRQ_NONE		= 0,
@@ -142,8 +132,8 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 device_param_cb(irqmode, &null_irqmode_param_ops, &irqmode, S_IRUGO);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
-static int completion_nsec = 10000;
-module_param(completion_nsec, int, S_IRUGO);
+static unsigned long completion_nsec = 10000;
+module_param(completion_nsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
 
 static int hw_queue_depth = 64;
@@ -180,6 +170,8 @@ static void free_cmd(struct nullb_cmd *cmd)
 	put_tag(cmd->nq, cmd->tag);
 }
 
+static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer);
+
 static struct nullb_cmd *__alloc_cmd(struct nullb_queue *nq)
 {
 	struct nullb_cmd *cmd;
@@ -190,6 +182,11 @@ static struct nullb_cmd *__alloc_cmd(struct nullb_queue *nq)
 		cmd = &nq->cmds[tag];
 		cmd->tag = tag;
 		cmd->nq = nq;
+		if (irqmode == NULL_IRQ_TIMER) {
+			hrtimer_init(&cmd->timer, CLOCK_MONOTONIC,
+				     HRTIMER_MODE_REL);
+			cmd->timer.function = null_cmd_timer_expired;
+		}
 		return cmd;
 	}
 
@@ -220,6 +217,8 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
+	struct request_queue *q = NULL;
+
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
 		blk_mq_end_request(cmd->rq, 0);
@@ -230,55 +229,37 @@ static void end_cmd(struct nullb_cmd *cmd)
 		break;
 	case NULL_Q_BIO:
 		bio_endio(cmd->bio);
-		break;
+		goto free_cmd;
 	}
 
+	if (cmd->rq)
+		q = cmd->rq->q;
+
+	/* Restart queue if needed, as we are freeing a tag */
+	if (q && !q->mq_ops && blk_queue_stopped(q)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(q->queue_lock, flags);
+		if (blk_queue_stopped(q))
+			blk_start_queue(q);
+		spin_unlock_irqrestore(q->queue_lock, flags);
+	}
+free_cmd:
 	free_cmd(cmd);
 }
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 {
-	struct completion_queue *cq;
-	struct llist_node *entry;
-	struct nullb_cmd *cmd;
-
-	cq = &per_cpu(completion_queues, smp_processor_id());
-
-	while ((entry = llist_del_all(&cq->list)) != NULL) {
-		entry = llist_reverse_order(entry);
-		do {
-			struct request_queue *q = NULL;
-
-			cmd = container_of(entry, struct nullb_cmd, ll_list);
-			entry = entry->next;
-			if (cmd->rq)
-				q = cmd->rq->q;
-			end_cmd(cmd);
-
-			if (q && !q->mq_ops && blk_queue_stopped(q)) {
-				spin_lock(q->queue_lock);
-				if (blk_queue_stopped(q))
-					blk_start_queue(q);
-				spin_unlock(q->queue_lock);
-			}
-		} while (entry);
-	}
+	end_cmd(container_of(timer, struct nullb_cmd, timer));
 
 	return HRTIMER_NORESTART;
 }
 
 static void null_cmd_end_timer(struct nullb_cmd *cmd)
 {
-	struct completion_queue *cq = &per_cpu(completion_queues, get_cpu());
+	ktime_t kt = ktime_set(0, completion_nsec);
 
-	cmd->ll_list.next = NULL;
-	if (llist_add(&cmd->ll_list, &cq->list)) {
-		ktime_t kt = ktime_set(0, completion_nsec);
-
-		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL_PINNED);
-	}
-
-	put_cpu();
+	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }
 
 static void null_softirq_done_fn(struct request *rq)
@@ -376,6 +357,10 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
 
+	if (irqmode == NULL_IRQ_TIMER) {
+		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		cmd->timer.function = null_cmd_timer_expired;
+	}
 	cmd->rq = bd->rq;
 	cmd->nq = hctx->driver_data;
 
@@ -459,8 +444,9 @@ static void null_lnvm_end_io(struct request *rq, int error)
 	blk_put_request(rq);
 }
 
-static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
+static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
+	struct request_queue *q = dev->q;
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
@@ -485,7 +471,7 @@ static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
 	return 0;
 }
 
-static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
+static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 {
 	sector_t size = gb * 1024 * 1024 * 1024ULL;
 	sector_t blksize;
@@ -538,7 +524,7 @@ static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
 	return 0;
 }
 
-static void *null_lnvm_create_dma_pool(struct request_queue *q, char *name)
+static void *null_lnvm_create_dma_pool(struct nvm_dev *dev, char *name)
 {
 	mempool_t *virtmem_pool;
 
@@ -556,7 +542,7 @@ static void null_lnvm_destroy_dma_pool(void *pool)
 	mempool_destroy(pool);
 }
 
-static void *null_lnvm_dev_dma_alloc(struct request_queue *q, void *pool,
+static void *null_lnvm_dev_dma_alloc(struct nvm_dev *dev, void *pool,
 				gfp_t mem_flags, dma_addr_t *dma_handler)
 {
 	return mempool_alloc(pool, mem_flags);
@@ -780,7 +766,9 @@ out:
 
 static int __init null_init(void)
 {
+	int ret = 0;
 	unsigned int i;
+	struct nullb *nullb;
 
 	if (bs > PAGE_SIZE) {
 		pr_warn("null_blk: invalid block size\n");
@@ -813,19 +801,6 @@ static int __init null_init(void)
 
 	mutex_init(&lock);
 
-	/* Initialize a separate list for each CPU for issuing softirqs */
-	for_each_possible_cpu(i) {
-		struct completion_queue *cq = &per_cpu(completion_queues, i);
-
-		init_llist_head(&cq->list);
-
-		if (irqmode != NULL_IRQ_TIMER)
-			continue;
-
-		hrtimer_init(&cq->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		cq->timer.function = null_cmd_timer_expired;
-	}
-
 	null_major = register_blkdev(0, "nullb");
 	if (null_major < 0)
 		return null_major;
@@ -835,22 +810,29 @@ static int __init null_init(void)
 								0, 0, NULL);
 		if (!ppa_cache) {
 			pr_err("null_blk: unable to create ppa cache\n");
-			return -ENOMEM;
-		}
-	}
-
-	for (i = 0; i < nr_devices; i++) {
-		if (null_add_dev()) {
-			unregister_blkdev(null_major, "nullb");
+			ret = -ENOMEM;
 			goto err_ppa;
 		}
 	}
 
+	for (i = 0; i < nr_devices; i++) {
+		ret = null_add_dev();
+		if (ret)
+			goto err_dev;
+	}
+
 	pr_info("null: module loaded\n");
 	return 0;
-err_ppa:
+
+err_dev:
+	while (!list_empty(&nullb_list)) {
+		nullb = list_entry(nullb_list.next, struct nullb, list);
+		null_del_dev(nullb);
+	}
 	kmem_cache_destroy(ppa_cache);
-	return -EINVAL;
+err_ppa:
+	unregister_blkdev(null_major, "nullb");
+	return ret;
 }
 
 static void __exit null_exit(void)

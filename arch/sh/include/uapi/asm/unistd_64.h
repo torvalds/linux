@@ -278,7 +278,7 @@
 #define __NR_fsetxattr		256
 #define __NR_getxattr		257
 #define __NR_lgetxattr		258
-#define __NR_fgetxattr		269
+#define __NR_fgetxattr		259
 #define __NR_listxattr		260
 #define __NR_llistxattr		261
 #define __NR_flistxattr		262

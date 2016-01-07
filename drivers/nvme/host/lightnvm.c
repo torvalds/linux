@@ -22,8 +22,6 @@
 
 #include "nvme.h"
 
-#ifdef CONFIG_NVM
-
 #include <linux/nvme.h>
 #include <linux/bitops.h>
 #include <linux/lightnvm.h>
@@ -273,9 +271,9 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 	return 0;
 }
 
-static int nvme_nvm_identity(struct request_queue *q, struct nvm_id *nvm_id)
+static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_id *nvme_nvm_id;
 	struct nvme_nvm_command c = {};
@@ -310,10 +308,10 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_l2p_tbl(struct request_queue *q, u64 slba, u32 nlb,
+static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 				nvm_l2p_update_fn *update_l2p, void *priv)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
 	u32 len = queue_max_hw_sectors(dev->admin_q) << 9;
@@ -357,10 +355,11 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
+static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 				int nr_blocks, nvm_bb_update_fn *update_bbtbl,
 				void *priv)
 {
+	struct request_queue *q = nvmdev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
@@ -404,6 +403,7 @@ static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
 		goto out;
 	}
 
+	ppa = dev_to_generic_addr(nvmdev, ppa);
 	ret = update_bbtbl(ppa, nr_blocks, bb_tbl->blk, priv);
 	if (ret) {
 		ret = -EINTR;
@@ -415,10 +415,10 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_set_bb_tbl(struct request_queue *q, struct nvm_rq *rqd,
+static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
 								int type)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
 	int ret = 0;
@@ -455,7 +455,7 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	struct nvm_rq *rqd = rq->end_io_data;
 	struct nvm_dev *dev = rqd->dev;
 
-	if (dev->mt->end_io(rqd, error))
+	if (dev->mt && dev->mt->end_io(rqd, error))
 		pr_err("nvme: err status: %x result: %lx\n",
 				rq->errors, (unsigned long)rq->special);
 
@@ -463,8 +463,9 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	blk_mq_free_request(rq);
 }
 
-static int nvme_nvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
+static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
+	struct request_queue *q = dev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct request *rq;
 	struct bio *bio = rqd->bio;
@@ -502,8 +503,9 @@ static int nvme_nvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
 	return 0;
 }
 
-static int nvme_nvm_erase_block(struct request_queue *q, struct nvm_rq *rqd)
+static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
+	struct request_queue *q = dev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_nvm_command c = {};
 
@@ -515,9 +517,9 @@ static int nvme_nvm_erase_block(struct request_queue *q, struct nvm_rq *rqd)
 	return nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
 }
 
-static void *nvme_nvm_create_dma_pool(struct request_queue *q, char *name)
+static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 
 	return dma_pool_create(name, dev->dev, PAGE_SIZE, PAGE_SIZE, 0);
@@ -530,7 +532,7 @@ static void nvme_nvm_destroy_dma_pool(void *pool)
 	dma_pool_destroy(dma_pool);
 }
 
-static void *nvme_nvm_dev_dma_alloc(struct request_queue *q, void *pool,
+static void *nvme_nvm_dev_dma_alloc(struct nvm_dev *dev, void *pool,
 				    gfp_t mem_flags, dma_addr_t *dma_handler)
 {
 	return dma_pool_alloc(pool, mem_flags, dma_handler);
@@ -571,31 +573,27 @@ void nvme_nvm_unregister(struct request_queue *q, char *disk_name)
 	nvm_unregister(disk_name);
 }
 
+/* move to shared place when used in multiple places. */
+#define PCI_VENDOR_ID_CNEX 0x1d1d
+#define PCI_DEVICE_ID_CNEX_WL 0x2807
+#define PCI_DEVICE_ID_CNEX_QEMU 0x1f1f
+
 int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	struct nvme_dev *dev = ns->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	/* QEMU NVMe simulator - PCI ID + Vendor specific bit */
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x5845 &&
+	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&
+				pdev->device == PCI_DEVICE_ID_CNEX_QEMU &&
 							id->vs[0] == 0x1)
 		return 1;
 
 	/* CNEX Labs - PCI ID + Vendor specific bit */
-	if (pdev->vendor == 0x1d1d && pdev->device == 0x2807 &&
+	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&
+				pdev->device == PCI_DEVICE_ID_CNEX_WL &&
 							id->vs[0] == 0x1)
 		return 1;
 
 	return 0;
 }
-#else
-int nvme_nvm_register(struct request_queue *q, char *disk_name)
-{
-	return 0;
-}
-void nvme_nvm_unregister(struct request_queue *q, char *disk_name) {};
-int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
-{
-	return 0;
-}
-#endif /* CONFIG_NVM */

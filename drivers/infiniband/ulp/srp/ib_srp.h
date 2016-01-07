@@ -300,10 +300,7 @@ struct srp_map_state {
 	dma_addr_t		base_dma_addr;
 	u32			dma_len;
 	u32			total_len;
-	union {
-		unsigned int	npages;
-		int		sg_nents;
-	};
+	unsigned int		npages;
 	unsigned int		nmdesc;
 	unsigned int		ndesc;
 };

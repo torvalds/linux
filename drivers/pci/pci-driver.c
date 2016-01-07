@@ -1146,9 +1146,21 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	pci_dev->state_saved = false;
 	pci_dev->no_d3cold = false;
 	error = pm->runtime_suspend(dev);
-	suspend_report_result(pm->runtime_suspend, error);
-	if (error)
+	if (error) {
+		/*
+		 * -EBUSY and -EAGAIN is used to request the runtime PM core
+		 * to schedule a new suspend, so log the event only with debug
+		 * log level.
+		 */
+		if (error == -EBUSY || error == -EAGAIN)
+			dev_dbg(dev, "can't suspend now (%pf returned %d)\n",
+				pm->runtime_suspend, error);
+		else
+			dev_err(dev, "can't suspend (%pf returned %d)\n",
+				pm->runtime_suspend, error);
+
 		return error;
+	}
 	if (!pci_dev->d3cold_allowed)
 		pci_dev->no_d3cold = true;
 

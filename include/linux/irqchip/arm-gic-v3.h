@@ -330,6 +330,7 @@ struct rdists {
 };
 
 struct irq_domain;
+struct device_node;
 int its_cpu_init(void);
 int its_init(struct device_node *node, struct rdists *rdists,
 	     struct irq_domain *domain);

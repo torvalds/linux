@@ -1747,9 +1747,9 @@ static int dn_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		}
 
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		sk_wait_event(sk, &timeo, dn_data_ready(sk, queue, flags, target));
-		clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		finish_wait(sk_sleep(sk), &wait);
 	}
 
@@ -2004,10 +2004,10 @@ static int dn_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 			}
 
 			prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-			set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+			sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 			sk_wait_event(sk, &timeo,
 				      !dn_queue_too_long(scp, queue, flags));
-			clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+			sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 			finish_wait(sk_sleep(sk), &wait);
 			continue;
 		}

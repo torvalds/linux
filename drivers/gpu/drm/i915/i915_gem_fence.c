@@ -642,11 +642,10 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		}
 
 		/* check for L-shaped memory aka modified enhanced addressing */
-		if (IS_GEN4(dev)) {
-			uint32_t ddc2 = I915_READ(DCC2);
-
-			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE))
-				dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
+		if (IS_GEN4(dev) &&
+		    !(I915_READ(DCC2) & DCC2_MODIFIED_ENHANCED_DISABLE)) {
+			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
+			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 		}
 
 		if (dcc == 0xffffffff) {
@@ -675,14 +674,33 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		 * matching, which was the case for the swizzling required in
 		 * the table above, or from the 1-ch value being less than
 		 * the minimum size of a rank.
+		 *
+		 * Reports indicate that the swizzling actually
+		 * varies depending upon page placement inside the
+		 * channels, i.e. we see swizzled pages where the
+		 * banks of memory are paired and unswizzled on the
+		 * uneven portion, so leave that as unknown.
 		 */
-		if (I915_READ16(C0DRB3) != I915_READ16(C1DRB3)) {
-			swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-			swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-		} else {
+		if (I915_READ16(C0DRB3) == I915_READ16(C1DRB3)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
+	}
+
+	if (swizzle_x == I915_BIT_6_SWIZZLE_UNKNOWN ||
+	    swizzle_y == I915_BIT_6_SWIZZLE_UNKNOWN) {
+		/* Userspace likes to explode if it sees unknown swizzling,
+		 * so lie. We will finish the lie when reporting through
+		 * the get-tiling-ioctl by reporting the physical swizzle
+		 * mode as unknown instead.
+		 *
+		 * As we don't strictly know what the swizzling is, it may be
+		 * bit17 dependent, and so we need to also prevent the pages
+		 * from being moved.
+		 */
+		dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
+		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	}
 
 	dev_priv->mm.bit_6_swizzle_x = swizzle_x;

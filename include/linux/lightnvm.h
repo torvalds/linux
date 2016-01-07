@@ -50,9 +50,16 @@ enum {
 	NVM_IO_DUAL_ACCESS	= 0x1,
 	NVM_IO_QUAD_ACCESS	= 0x2,
 
+	/* NAND Access Modes */
 	NVM_IO_SUSPEND		= 0x80,
 	NVM_IO_SLC_MODE		= 0x100,
 	NVM_IO_SCRAMBLE_DISABLE	= 0x200,
+
+	/* Block Types */
+	NVM_BLK_T_FREE		= 0x0,
+	NVM_BLK_T_BAD		= 0x1,
+	NVM_BLK_T_DEV		= 0x2,
+	NVM_BLK_T_HOST		= 0x4,
 };
 
 struct nvm_id_group {
@@ -176,17 +183,17 @@ struct nvm_block;
 
 typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
 typedef int (nvm_bb_update_fn)(struct ppa_addr, int, u8 *, void *);
-typedef int (nvm_id_fn)(struct request_queue *, struct nvm_id *);
-typedef int (nvm_get_l2p_tbl_fn)(struct request_queue *, u64, u32,
+typedef int (nvm_id_fn)(struct nvm_dev *, struct nvm_id *);
+typedef int (nvm_get_l2p_tbl_fn)(struct nvm_dev *, u64, u32,
 				nvm_l2p_update_fn *, void *);
-typedef int (nvm_op_bb_tbl_fn)(struct request_queue *, struct ppa_addr, int,
+typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, int,
 				nvm_bb_update_fn *, void *);
-typedef int (nvm_op_set_bb_fn)(struct request_queue *, struct nvm_rq *, int);
-typedef int (nvm_submit_io_fn)(struct request_queue *, struct nvm_rq *);
-typedef int (nvm_erase_blk_fn)(struct request_queue *, struct nvm_rq *);
-typedef void *(nvm_create_dma_pool_fn)(struct request_queue *, char *);
+typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct nvm_rq *, int);
+typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
+typedef int (nvm_erase_blk_fn)(struct nvm_dev *, struct nvm_rq *);
+typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
 typedef void (nvm_destroy_dma_pool_fn)(void *);
-typedef void *(nvm_dev_dma_alloc_fn)(struct request_queue *, void *, gfp_t,
+typedef void *(nvm_dev_dma_alloc_fn)(struct nvm_dev *, void *, gfp_t,
 								dma_addr_t *);
 typedef void (nvm_dev_dma_free_fn)(void *, void*, dma_addr_t);
 

@@ -647,9 +647,9 @@ static int gfar_parse_group(struct device_node *np,
 	if (model && strcasecmp(model, "FEC")) {
 		gfar_irq(grp, RX)->irq = irq_of_parse_and_map(np, 1);
 		gfar_irq(grp, ER)->irq = irq_of_parse_and_map(np, 2);
-		if (gfar_irq(grp, TX)->irq == NO_IRQ ||
-		    gfar_irq(grp, RX)->irq == NO_IRQ ||
-		    gfar_irq(grp, ER)->irq == NO_IRQ)
+		if (!gfar_irq(grp, TX)->irq ||
+		    !gfar_irq(grp, RX)->irq ||
+		    !gfar_irq(grp, ER)->irq)
 			return -EINVAL;
 	}
 

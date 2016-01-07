@@ -233,7 +233,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 		for (i = 0; i != chip->ngpio; ++i) {
 			struct gpio_desc *gpio = &chip->desc[i];
 
-			if (!gpio->name)
+			if (!gpio->name || !name)
 				continue;
 
 			if (!strcmp(gpio->name, name)) {
@@ -1868,6 +1868,9 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 
 	/* Then from plain _CRS GPIOs */
 	if (IS_ERR(desc)) {
+		if (!acpi_can_fallback_to_crs(adev, con_id))
+			return ERR_PTR(-ENOENT);
+
 		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
 		if (IS_ERR(desc))
 			return desc;

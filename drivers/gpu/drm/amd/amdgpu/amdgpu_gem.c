@@ -235,8 +235,9 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	    AMDGPU_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
-	if (!(args->flags & AMDGPU_GEM_USERPTR_ANONONLY) ||
-		   !(args->flags & AMDGPU_GEM_USERPTR_REGISTER)) {
+	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) && (
+	     !(args->flags & AMDGPU_GEM_USERPTR_ANONONLY) ||
+	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER))) {
 
 		/* if we want to write to it we must require anonymous
 		   memory and install a MMU notifier */
@@ -476,6 +477,14 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		if (domain == AMDGPU_GEM_DOMAIN_CPU)
 			goto error_unreserve;
 	}
+	list_for_each_entry(entry, &duplicates, head) {
+		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
+		/* if anything is swapped out don't swap it in here,
+		   just abort and wait for the next CS */
+		if (domain == AMDGPU_GEM_DOMAIN_CPU)
+			goto error_unreserve;
+	}
+
 	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
 	if (r)
 		goto error_unreserve;

@@ -381,7 +381,19 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 			}
 		}
 	} else if (ent->cur > 2 * ent->limit) {
-		if (!someone_adding(cache) &&
+		/*
+		 * The remove_keys() logic is performed as garbage collection
+		 * task. Such task is intended to be run when no other active
+		 * processes are running.
+		 *
+		 * The need_resched() will return TRUE if there are user tasks
+		 * to be activated in near future.
+		 *
+		 * In such case, we don't execute remove_keys() and postpone
+		 * the garbage collection work to try to run in next cycle,
+		 * in order to free CPU resources to other tasks.
+		 */
+		if (!need_resched() && !someone_adding(cache) &&
 		    time_after(jiffies, cache->last_add + 300 * HZ)) {
 			remove_keys(dev, i, 1);
 			if (ent->cur > ent->limit)

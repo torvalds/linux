@@ -288,6 +288,7 @@ amd_sched_entity_pop_job(struct amd_sched_entity *entity)
  */
 static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 {
+	struct amd_gpu_scheduler *sched = sched_job->sched;
 	struct amd_sched_entity *entity = sched_job->s_entity;
 	bool added, first = false;
 
@@ -302,7 +303,7 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 
 	/* first job wakes up scheduler */
 	if (first)
-		amd_sched_wakeup(sched_job->sched);
+		amd_sched_wakeup(sched);
 
 	return added;
 }
@@ -318,9 +319,9 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 {
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
+	trace_amd_sched_job(sched_job);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
-	trace_amd_sched_job(sched_job);
 }
 
 /**
