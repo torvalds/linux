@@ -164,6 +164,8 @@ struct sun4i_tcon {
 	bool				has_mux;
 
 	struct drm_panel		*panel;
+
+	bool				has_channel_1;
 };
 
 struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
