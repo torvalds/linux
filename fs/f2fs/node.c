@@ -543,7 +543,6 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 			set_nid(parent, offset[i - 1], nids[i], i == 1);
 			alloc_nid_done(sbi, nids[i]);
-			dn->node_changed = true;
 			done = true;
 		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
 			npage[i] = get_node_page_ra(parent, offset[i - 1]);
@@ -679,8 +678,8 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 			ret = truncate_dnode(&rdn);
 			if (ret < 0)
 				goto out_err;
-			set_nid(page, i, 0, false);
-			dn->node_changed = true;
+			if (set_nid(page, i, 0, false))
+				dn->node_changed = true;
 		}
 	} else {
 		child_nofs = nofs + ofs * (NIDS_PER_BLOCK + 1) + 1;
@@ -693,8 +692,8 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 			rdn.nid = child_nid;
 			ret = truncate_nodes(&rdn, child_nofs, 0, depth - 1);
 			if (ret == (NIDS_PER_BLOCK + 1)) {
-				set_nid(page, i, 0, false);
-				dn->node_changed = true;
+				if (set_nid(page, i, 0, false))
+					dn->node_changed = true;
 				child_nofs += ret;
 			} else if (ret < 0 && ret != -ENOENT) {
 				goto out_err;
@@ -755,8 +754,8 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		err = truncate_dnode(dn);
 		if (err < 0)
 			goto fail;
-		set_nid(pages[idx], i, 0, false);
-		dn->node_changed = true;
+		if (set_nid(pages[idx], i, 0, false))
+			dn->node_changed = true;
 	}
 
 	if (offset[idx + 1] == 0) {
@@ -981,7 +980,8 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
 	set_cold_node(dn->inode, page);
 	SetPageUptodate(page);
-	set_page_dirty(page);
+	if (set_page_dirty(page))
+		dn->node_changed = true;
 
 	if (f2fs_has_xattr_block(ofs))
 		F2FS_I(dn->inode)->i_xattr_nid = dn->nid;
@@ -1138,18 +1138,20 @@ struct page *get_node_page_ra(struct page *parent, int start)
 
 void sync_inode_page(struct dnode_of_data *dn)
 {
+	int ret = 0;
+
 	if (IS_INODE(dn->node_page) || dn->inode_page == dn->node_page) {
-		update_inode(dn->inode, dn->node_page);
+		ret = update_inode(dn->inode, dn->node_page);
 	} else if (dn->inode_page) {
 		if (!dn->inode_page_locked)
 			lock_page(dn->inode_page);
-		update_inode(dn->inode, dn->inode_page);
+		ret = update_inode(dn->inode, dn->inode_page);
 		if (!dn->inode_page_locked)
 			unlock_page(dn->inode_page);
 	} else {
-		update_inode_page(dn->inode);
+		ret = update_inode_page(dn->inode);
 	}
-	dn->node_changed = true;
+	dn->node_changed = ret ? true: false;
 }
 
 int sync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,

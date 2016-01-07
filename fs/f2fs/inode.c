@@ -222,7 +222,7 @@ bad_inode:
 	return ERR_PTR(ret);
 }
 
-void update_inode(struct inode *inode, struct page *node_page)
+int update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
 
@@ -260,15 +260,16 @@ void update_inode(struct inode *inode, struct page *node_page)
 
 	__set_inode_rdev(inode, ri);
 	set_cold_node(inode, node_page);
-	set_page_dirty(node_page);
-
 	clear_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
+
+	return set_page_dirty(node_page);
 }
 
-void update_inode_page(struct inode *inode)
+int update_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct page *node_page;
+	int ret = 0;
 retry:
 	node_page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(node_page)) {
@@ -279,10 +280,11 @@ retry:
 		} else if (err != -ENOENT) {
 			f2fs_stop_checkpoint(sbi);
 		}
-		return;
+		return 0;
 	}
-	update_inode(inode, node_page);
+	ret = update_inode(inode, node_page);
 	f2fs_put_page(node_page, 1);
+	return ret;
 }
 
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
@@ -300,9 +302,8 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	 * We need to balance fs here to prevent from producing dirty node pages
 	 * during the urgent cleaning time when runing out of free sections.
 	 */
-	update_inode_page(inode);
-
-	f2fs_balance_fs(sbi);
+	if (update_inode_page(inode))
+		f2fs_balance_fs(sbi);
 	return 0;
 }
 

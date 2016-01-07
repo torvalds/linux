@@ -317,7 +317,7 @@ static inline bool IS_DNODE(struct page *node_page)
 	return true;
 }
 
-static inline void set_nid(struct page *p, int off, nid_t nid, bool i)
+static inline int set_nid(struct page *p, int off, nid_t nid, bool i)
 {
 	struct f2fs_node *rn = F2FS_NODE(p);
 
@@ -327,7 +327,7 @@ static inline void set_nid(struct page *p, int off, nid_t nid, bool i)
 		rn->i.i_nid[off - NODE_DIR1_BLOCK] = cpu_to_le32(nid);
 	else
 		rn->in.nid[off] = cpu_to_le32(nid);
-	set_page_dirty(p);
+	return set_page_dirty(p);
 }
 
 static inline nid_t get_nid(struct page *p, int off, bool i)
