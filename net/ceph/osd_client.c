@@ -534,6 +534,28 @@ void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 }
 EXPORT_SYMBOL(osd_req_op_extent_update);
 
+void osd_req_op_extent_dup_last(struct ceph_osd_request *osd_req,
+				unsigned int which, u64 offset_inc)
+{
+	struct ceph_osd_req_op *op, *prev_op;
+
+	BUG_ON(which + 1 >= osd_req->r_num_ops);
+
+	prev_op = &osd_req->r_ops[which];
+	op = _osd_req_op_init(osd_req, which + 1, prev_op->op, prev_op->flags);
+	/* dup previous one */
+	op->indata_len = prev_op->indata_len;
+	op->outdata_len = prev_op->outdata_len;
+	op->extent = prev_op->extent;
+	/* adjust offset */
+	op->extent.offset += offset_inc;
+	op->extent.length -= offset_inc;
+
+	if (op->op == CEPH_OSD_OP_WRITE || op->op == CEPH_OSD_OP_WRITEFULL)
+		op->indata_len -= offset_inc;
+}
+EXPORT_SYMBOL(osd_req_op_extent_dup_last);
+
 void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 			u16 opcode, const char *class, const char *method)
 {
