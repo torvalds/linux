@@ -681,16 +681,12 @@ struct intel_plane {
 	/*
 	 * NOTE: Do not place new plane state fields here (e.g., when adding
 	 * new plane properties).  New runtime state should now be placed in
-	 * the intel_plane_state structure and accessed via drm_plane->state.
+	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
 	void (*update_plane)(struct drm_plane *plane,
-			     struct drm_crtc *crtc,
-			     struct drm_framebuffer *fb,
-			     int crtc_x, int crtc_y,
-			     unsigned int crtc_w, unsigned int crtc_h,
-			     uint32_t x, uint32_t y,
-			     uint32_t src_w, uint32_t src_h);
+			     const struct intel_crtc_state *crtc_state,
+			     const struct intel_plane_state *plane_state);
 	void (*disable_plane)(struct drm_plane *plane,
 			      struct drm_crtc *crtc);
 	int (*check_plane)(struct drm_plane *plane,
