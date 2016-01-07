@@ -145,6 +145,16 @@ config PCIE_IPROC_BCMA
 	  Say Y here if you want to use the Broadcom iProc PCIe controller
 	  through the BCMA bus interface
 
+config PCIE_IPROC_MSI
+	bool "Broadcom iProc PCIe MSI support"
+	depends on PCIE_IPROC_PLATFORM || PCIE_IPROC_BCMA
+	depends on PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+	default ARCH_BCM_IPROC
+	help
+	  Say Y here if you want to enable MSI support for Broadcom's iProc
+	  PCIe controller
+
 config PCIE_ALTERA
 	bool "Altera PCIe controller"
 	depends on ARM || NIOS2

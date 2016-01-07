@@ -440,6 +440,26 @@ static int iproc_pcie_map_ranges(struct iproc_pcie *pcie,
 	return 0;
 }
 
+static int iproc_pcie_msi_enable(struct iproc_pcie *pcie)
+{
+	struct device_node *msi_node;
+
+	msi_node = of_parse_phandle(pcie->dev->of_node, "msi-parent", 0);
+	if (!msi_node)
+		return -ENODEV;
+
+	/*
+	 * If another MSI controller is being used, the call below should fail
+	 * but that is okay
+	 */
+	return iproc_msi_init(pcie, msi_node);
+}
+
+static void iproc_pcie_msi_disable(struct iproc_pcie *pcie)
+{
+	iproc_msi_exit(pcie);
+}
+
 int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 {
 	int ret;
@@ -507,6 +527,10 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	iproc_pcie_enable(pcie);
 
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		if (iproc_pcie_msi_enable(pcie))
+			dev_info(pcie->dev, "not using iProc MSI\n");
+
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
 	pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
@@ -530,6 +554,8 @@ int iproc_pcie_remove(struct iproc_pcie *pcie)
 {
 	pci_stop_root_bus(pcie->root_bus);
 	pci_remove_root_bus(pcie->root_bus);
+
+	iproc_pcie_msi_disable(pcie);
 
 	phy_power_off(pcie->phy);
 	phy_exit(pcie->phy);

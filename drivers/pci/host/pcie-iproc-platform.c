@@ -71,6 +71,7 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		dev_err(pcie->dev, "unable to map controller registers\n");
 		return -ENOMEM;
 	}
+	pcie->base_addr = reg.start;
 
 	if (of_property_read_bool(np, "brcm,pcie-ob")) {
 		u32 val;
