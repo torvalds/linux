@@ -92,10 +92,8 @@ void igb_clear_vfta(struct e1000_hw *hw)
 {
 	u32 offset;
 
-	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
-		array_wr32(E1000_VFTA, offset, 0);
-		wrfl();
-	}
+	for (offset = E1000_VLAN_FILTER_TBL_SIZE; offset--;)
+		hw->mac.ops.write_vfta(hw, offset, 0);
 }
 
 /**
@@ -107,54 +105,14 @@ void igb_clear_vfta(struct e1000_hw *hw)
  *  Writes value at the given offset in the register array which stores
  *  the VLAN filter table.
  **/
-static void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
+void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 {
+	struct igb_adapter *adapter = hw->back;
+
 	array_wr32(E1000_VFTA, offset, value);
 	wrfl();
-}
 
-/* Due to a hw errata, if the host tries to  configure the VFTA register
- * while performing queries from the BMC or DMA, then the VFTA in some
- * cases won't be written.
- */
-
-/**
- *  igb_clear_vfta_i350 - Clear VLAN filter table
- *  @hw: pointer to the HW structure
- *
- *  Clears the register array which contains the VLAN filter table by
- *  setting all the values to 0.
- **/
-void igb_clear_vfta_i350(struct e1000_hw *hw)
-{
-	u32 offset;
-	int i;
-
-	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
-		for (i = 0; i < 10; i++)
-			array_wr32(E1000_VFTA, offset, 0);
-
-		wrfl();
-	}
-}
-
-/**
- *  igb_write_vfta_i350 - Write value to VLAN filter table
- *  @hw: pointer to the HW structure
- *  @offset: register offset in VLAN filter table
- *  @value: register value written to VLAN filter table
- *
- *  Writes value at the given offset in the register array which stores
- *  the VLAN filter table.
- **/
-static void igb_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value)
-{
-	int i;
-
-	for (i = 0; i < 10; i++)
-		array_wr32(E1000_VFTA, offset, value);
-
-	wrfl();
+	adapter->shadow_vfta[offset] = value;
 }
 
 /**
@@ -185,38 +143,42 @@ void igb_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 /**
  *  igb_vfta_set - enable or disable vlan in VLAN filter table
  *  @hw: pointer to the HW structure
- *  @vid: VLAN id to add or remove
- *  @add: if true add filter, if false remove
+ *  @vlan: VLAN id to add or remove
+ *  @vlan_on: if true add filter, if false remove
  *
  *  Sets or clears a bit in the VLAN filter table array based on VLAN id
  *  and if we are adding or removing the filter
  **/
-s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
+s32 igb_vfta_set(struct e1000_hw *hw, u32 vlan, bool vlan_on)
 {
-	u32 index = (vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
-	u32 mask = 1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
-	u32 vfta;
 	struct igb_adapter *adapter = hw->back;
-	s32 ret_val = 0;
+	u32 regidx, vfta_delta, vfta;
 
-	vfta = adapter->shadow_vfta[index];
+	if (vlan > 4095)
+		return E1000_ERR_PARAM;
+
+	/* Part 1
+	 * The VFTA is a bitstring made up of 128 32-bit registers
+	 * that enable the particular VLAN id, much like the MTA:
+	 *    bits[11-5]: which register
+	 *    bits[4-0]:  which bit in the register
+	 */
+	regidx = vlan / 32;
+	vfta_delta = 1 << (vlan % 32);
+	vfta = adapter->shadow_vfta[regidx];
+
+	/* vfta_delta represents the difference between the current value
+	 * of vfta and the value we want in the register.  Since the diff
+	 * is an XOR mask we can just update vfta using an XOR.
+	 */
+	vfta_delta &= vlan_on ? ~vfta : vfta;
+	vfta ^= vfta_delta;
 
 	/* bit was set/cleared before we started */
-	if ((!!(vfta & mask)) == add) {
-		ret_val = -E1000_ERR_CONFIG;
-	} else {
-		if (add)
-			vfta |= mask;
-		else
-			vfta &= ~mask;
-	}
-	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
-		igb_write_vfta_i350(hw, index, vfta);
-	else
-		igb_write_vfta(hw, index, vfta);
-	adapter->shadow_vfta[index] = vfta;
+	if (vfta_delta)
+		hw->mac.ops.write_vfta(hw, regidx, vfta);
 
-	return ret_val;
+	return 0;
 }
 
 /**
