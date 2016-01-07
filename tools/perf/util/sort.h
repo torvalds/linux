@@ -214,8 +214,6 @@ enum sort_type {
  */
 
 struct sort_entry {
-	struct list_head list;
-
 	const char *se_header;
 
 	int64_t (*se_cmp)(struct hist_entry *, struct hist_entry *);
