@@ -800,7 +800,7 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 }
 
 /* called under rcu_read_lock */
-static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
+static int vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 {
 	struct fib_result res = { .tclassid = 0 };
 	struct net *net = dev_net(dev);
@@ -808,9 +808,10 @@ static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	u8 flags = fl4->flowi4_flags;
 	u8 scope = fl4->flowi4_scope;
 	u8 tos = RT_FL_TOS(fl4);
+	int rc;
 
 	if (unlikely(!fl4->daddr))
-		return;
+		return 0;
 
 	fl4->flowi4_flags |= FLOWI_FLAG_SKIP_NH_OIF;
 	fl4->flowi4_iif = LOOPBACK_IFINDEX;
@@ -818,7 +819,8 @@ static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	fl4->flowi4_scope = ((tos & RTO_ONLINK) ?
 			     RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
-	if (!fib_lookup(net, fl4, &res, 0)) {
+	rc = fib_lookup(net, fl4, &res, 0);
+	if (!rc) {
 		if (res.type == RTN_LOCAL)
 			fl4->saddr = res.fi->fib_prefsrc ? : fl4->daddr;
 		else
@@ -828,6 +830,8 @@ static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	fl4->flowi4_flags = flags;
 	fl4->flowi4_tos = orig_tos;
 	fl4->flowi4_scope = scope;
+
+	return rc;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
