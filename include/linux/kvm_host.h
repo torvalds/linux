@@ -114,43 +114,42 @@ static inline bool is_error_page(struct page *page)
  * vcpu->requests bit members
  */
 #define KVM_REQ_TLB_FLUSH          0
-#define KVM_REQ_MMU_RELOAD         3
-#define KVM_REQ_PENDING_TIMER      5
-#define KVM_REQ_UNHALT             6
+#define KVM_REQ_MMU_RELOAD         1
+#define KVM_REQ_PENDING_TIMER      2
+#define KVM_REQ_UNHALT             3
 
 /* x86-specific requests */
-#define KVM_REQ_MIGRATE_TIMER      1
-#define KVM_REQ_REPORT_TPR_ACCESS  2
-#define KVM_REQ_TRIPLE_FAULT       4
-#define KVM_REQ_MMU_SYNC           7
-#define KVM_REQ_CLOCK_UPDATE       8
-/* 9 is unused */
-#define KVM_REQ_DEACTIVATE_FPU    10
-#define KVM_REQ_EVENT             11
-#define KVM_REQ_APF_HALT          12
-#define KVM_REQ_STEAL_UPDATE      13
-#define KVM_REQ_NMI               14
-#define KVM_REQ_PMU               15
-#define KVM_REQ_PMI               16
-#define KVM_REQ_MASTERCLOCK_UPDATE 18
-#define KVM_REQ_MCLOCK_INPROGRESS 19
-#define KVM_REQ_SCAN_IOAPIC       21
-#define KVM_REQ_GLOBAL_CLOCK_UPDATE 22
+#define KVM_REQ_MIGRATE_TIMER      8
+#define KVM_REQ_REPORT_TPR_ACCESS  9
+#define KVM_REQ_TRIPLE_FAULT      10
+#define KVM_REQ_MMU_SYNC          11
+#define KVM_REQ_CLOCK_UPDATE      12
+#define KVM_REQ_DEACTIVATE_FPU    13
+#define KVM_REQ_EVENT             14
+#define KVM_REQ_APF_HALT          15
+#define KVM_REQ_STEAL_UPDATE      16
+#define KVM_REQ_NMI               17
+#define KVM_REQ_PMU               18
+#define KVM_REQ_PMI               19
+#define KVM_REQ_SMI               20
+#define KVM_REQ_MASTERCLOCK_UPDATE 21
+#define KVM_REQ_MCLOCK_INPROGRESS 22
+#define KVM_REQ_SCAN_IOAPIC       23
+#define KVM_REQ_GLOBAL_CLOCK_UPDATE 24
 #define KVM_REQ_APIC_PAGE_RELOAD  25
-#define KVM_REQ_SMI               26
-#define KVM_REQ_HV_CRASH          27
-#define KVM_REQ_IOAPIC_EOI_EXIT   28
-#define KVM_REQ_HV_RESET          29
-#define KVM_REQ_HV_EXIT           30
-#define KVM_REQ_HV_STIMER         31
+#define KVM_REQ_HV_CRASH          26
+#define KVM_REQ_IOAPIC_EOI_EXIT   27
+#define KVM_REQ_HV_RESET          28
+#define KVM_REQ_HV_EXIT           29
+#define KVM_REQ_HV_STIMER         30
 
 /* PPC-specific requests */
-#define KVM_REQ_WATCHDOG          17
-#define KVM_REQ_EPR_EXIT          20
+#define KVM_REQ_WATCHDOG           8
+#define KVM_REQ_EPR_EXIT           9
 
 /* s390-specific requests */
-#define KVM_REQ_ENABLE_IBS        23
-#define KVM_REQ_DISABLE_IBS       24
+#define KVM_REQ_ENABLE_IBS         8
+#define KVM_REQ_DISABLE_IBS        9
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
