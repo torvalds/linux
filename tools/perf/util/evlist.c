@@ -1498,7 +1498,7 @@ int perf_evlist__open(struct perf_evlist *evlist)
 	perf_evlist__update_id_pos(evlist);
 
 	evlist__for_each(evlist, evsel) {
-		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads);
+		err = perf_evsel__open(evsel, evsel->cpus, evsel->threads);
 		if (err < 0)
 			goto out_err;
 	}
