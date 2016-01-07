@@ -295,6 +295,10 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
 
 	cl_list = t4_alloc_mem(clipt_size*sizeof(struct clip_entry));
+	if (!cl_list) {
+		t4_free_mem(ctbl);
+		return NULL;
+	}
 	ctbl->cl_list = (void *)cl_list;
 
 	for (i = 0; i < clipt_size; i++) {
