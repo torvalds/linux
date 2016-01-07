@@ -95,7 +95,6 @@ struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
 	u16 num_vf_mc_hashes;
-	u16 vlans_enabled;
 	u32 flags;
 	unsigned long last_nack;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
