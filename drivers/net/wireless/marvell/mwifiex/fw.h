@@ -96,7 +96,7 @@ enum KEY_TYPE_ID {
 #define WAPI_KEY_LEN			(WLAN_KEY_LEN_SMS4 + PN_LEN + 2)
 
 #define MAX_POLL_TRIES			100
-#define MAX_FIRMWARE_POLL_TRIES			100
+#define MAX_FIRMWARE_POLL_TRIES			150
 
 #define FIRMWARE_READY_SDIO				0xfedc
 #define FIRMWARE_READY_PCIE				0xfedcba00

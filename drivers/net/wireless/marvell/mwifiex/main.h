@@ -791,6 +791,7 @@ struct mwifiex_if_ops {
 	int (*init_if) (struct mwifiex_adapter *);
 	void (*cleanup_if) (struct mwifiex_adapter *);
 	int (*check_fw_status) (struct mwifiex_adapter *, u32);
+	int (*check_winner_status)(struct mwifiex_adapter *);
 	int (*prog_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
 	int (*register_dev) (struct mwifiex_adapter *);
 	void (*unregister_dev) (struct mwifiex_adapter *);

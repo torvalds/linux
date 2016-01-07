@@ -2007,14 +2007,12 @@ done:
 
 /*
  * This function checks the firmware status in card.
- *
- * The winner interface is also determined by this function.
  */
 static int
 mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 {
 	int ret = 0;
-	u32 firmware_stat, winner_status;
+	u32 firmware_stat;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	u32 tries;
@@ -2054,19 +2052,28 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 		}
 	}
 
-	if (ret) {
-		if (mwifiex_read_reg(adapter, reg->fw_status,
-				     &winner_status))
-			ret = -1;
-		else if (!winner_status) {
-			mwifiex_dbg(adapter, INFO,
-				    "PCI-E is the winner\n");
-			adapter->winner = 1;
-		} else {
-			mwifiex_dbg(adapter, ERROR,
-				    "PCI-E is not the winner <%#x,%d>, exit dnld\n",
-				    ret, adapter->winner);
-		}
+	return ret;
+}
+
+/* This function checks if WLAN is the winner.
+ */
+static int
+mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
+{
+	u32 winner = 0;
+	int ret = 0;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
+	if (mwifiex_read_reg(adapter, reg->fw_status, &winner)) {
+		ret = -1;
+	} else if (!winner) {
+		mwifiex_dbg(adapter, INFO, "PCI-E is the winner\n");
+		adapter->winner = 1;
+	} else {
+		mwifiex_dbg(adapter, ERROR,
+			    "PCI-E is not the winner <%#x,%d>, exit dnld\n",
+			    ret, adapter->winner);
 	}
 
 	return ret;
@@ -2675,6 +2682,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.init_if =			mwifiex_pcie_init,
 	.cleanup_if =			mwifiex_pcie_cleanup,
 	.check_fw_status =		mwifiex_check_fw_status,
+	.check_winner_status =          mwifiex_check_winner_status,
 	.prog_fw =			mwifiex_prog_fw_w_helper,
 	.register_dev =			mwifiex_register_dev,
 	.unregister_dev =		mwifiex_unregister_dev,
