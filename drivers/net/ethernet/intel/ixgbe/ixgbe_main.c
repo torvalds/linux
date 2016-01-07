@@ -3908,7 +3908,9 @@ static int ixgbe_vlan_rx_add_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* add VID to filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true, true);
+	if (!vid || !(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
+		hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true, !!vid);
+
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -3965,9 +3967,7 @@ static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* remove VID from filter table */
-	if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC)
-		ixgbe_update_pf_promisc_vlvf(adapter, vid);
-	else
+	if (vid && !(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
 		hw->mac.ops.set_vfta(hw, vid, VMDQ_P(0), false, true);
 
 	clear_bit(vid, adapter->active_vlans);
