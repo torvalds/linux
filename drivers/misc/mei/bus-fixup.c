@@ -48,8 +48,7 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
  */
 static void number_of_connections(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s on %pUl\n",
-			__func__, mei_me_cl_uuid(cldev->me_cl));
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	if (cldev->me_cl->props.max_number_of_connections > 1)
 		cldev->do_match = 0;
@@ -62,8 +61,8 @@ static void number_of_connections(struct mei_cl_device *cldev)
  */
 static void blacklist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s on %pUl\n",
-			__func__, mei_me_cl_uuid(cldev->me_cl));
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
+
 	cldev->do_match = 0;
 }
 
@@ -208,8 +207,7 @@ static void mei_nfc(struct mei_cl_device *cldev)
 
 	bus = cldev->bus;
 
-	dev_dbg(bus->dev, "running hook %s: %pUl match=%d\n",
-		__func__, mei_me_cl_uuid(cldev->me_cl), cldev->do_match);
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */
