@@ -1422,6 +1422,25 @@ out:
 }
 
 /**
+ * mei_cl_is_read_fc_cb - check if read cb is waiting for flow control
+ *                        for given host client
+ *
+ * @cl: host client
+ *
+ * Return: true, if found at least one cb.
+ */
+static bool mei_cl_is_read_fc_cb(struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+	struct mei_cl_cb *cb;
+
+	list_for_each_entry(cb, &dev->ctrl_wr_list.list, list)
+		if (cb->fop_type == MEI_FOP_READ && cb->cl == cl)
+			return true;
+	return false;
+}
+
+/**
  * mei_cl_read_start - the start read client message function.
  *
  * @cl: host client
@@ -1445,7 +1464,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
 		return -ENODEV;
 
 	/* HW currently supports only one pending read */
-	if (!list_empty(&cl->rd_pending))
+	if (!list_empty(&cl->rd_pending) || mei_cl_is_read_fc_cb(cl))
 		return -EBUSY;
 
 	if (!mei_me_cl_is_active(cl->me_cl)) {
