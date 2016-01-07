@@ -3857,11 +3857,9 @@ static struct irq_domain *get_irq_domain(struct irq_alloc_info *info)
 	case X86_IRQ_ALLOC_TYPE_MSI:
 	case X86_IRQ_ALLOC_TYPE_MSIX:
 		devid = get_device_id(&info->msi_dev->dev);
-		if (devid >= 0) {
-			iommu = amd_iommu_rlookup_table[devid];
-			if (iommu)
-				return iommu->msi_domain;
-		}
+		iommu = amd_iommu_rlookup_table[devid];
+		if (iommu)
+			return iommu->msi_domain;
 		break;
 	default:
 		break;
