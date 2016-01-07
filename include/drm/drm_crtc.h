@@ -2153,6 +2153,17 @@ struct drm_mode_config {
 	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
 		for_each_if ((plane_mask) & (1 << drm_plane_index(plane)))
 
+/**
+ * drm_for_each_encoder_mask - iterate over encoders specified by bitmask
+ * @encoder: the loop cursor
+ * @dev: the DRM device
+ * @encoder_mask: bitmask of encoder indices
+ *
+ * Iterate over all encoders specified by bitmask.
+ */
+#define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
+	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
+		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
