@@ -616,6 +616,7 @@ struct mwifiex_private {
 	spinlock_t curr_bcn_buf_lock;
 	struct wireless_dev wdev;
 	struct mwifiex_chan_freq_power cfp;
+	u32 versionstrsel;
 	char version_str[128];
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dfs_dev_dir;
@@ -1418,7 +1419,7 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
 
 int mwifiex_set_gen_ie(struct mwifiex_private *priv, const u8 *ie, int ie_len);
 
-int mwifiex_get_ver_ext(struct mwifiex_private *priv);
+int mwifiex_get_ver_ext(struct mwifiex_private *priv, u32 version_str_sel);
 
 int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 			       struct ieee80211_channel *chan,

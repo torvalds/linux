@@ -1114,11 +1114,12 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
  * with requisite parameters and calls the IOCTL handler.
  */
 int
-mwifiex_get_ver_ext(struct mwifiex_private *priv)
+mwifiex_get_ver_ext(struct mwifiex_private *priv, u32 version_str_sel)
 {
 	struct mwifiex_ver_ext ver_ext;
 
 	memset(&ver_ext, 0, sizeof(struct host_cmd_ds_version_ext));
+	ver_ext.version_str_sel = version_str_sel;
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_VERSION_EXT,
 			     HostCmd_ACT_GEN_GET, 0, &ver_ext, true))
 		return -1;
