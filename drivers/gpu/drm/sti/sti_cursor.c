@@ -205,7 +205,7 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	writel(cursor->height << 16 | cursor->width, cursor->regs + CUR_SIZE);
 
 	y = sti_vtg_get_line_number(*mode, dst_y);
-	x = sti_vtg_get_pixel_number(*mode, dst_y);
+	x = sti_vtg_get_pixel_number(*mode, dst_x);
 	writel((y << 16) | x, cursor->regs + CUR_VPO);
 
 	plane->status = STI_PLANE_UPDATED;
