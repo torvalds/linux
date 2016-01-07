@@ -68,6 +68,18 @@ struct perf_evlist *perf_evlist__new_default(void)
 	return evlist;
 }
 
+struct perf_evlist *perf_evlist__new_dummy(void)
+{
+	struct perf_evlist *evlist = perf_evlist__new();
+
+	if (evlist && perf_evlist__add_dummy(evlist)) {
+		perf_evlist__delete(evlist);
+		evlist = NULL;
+	}
+
+	return evlist;
+}
+
 /**
  * perf_evlist__set_id_pos - set the positions of event ids.
  * @evlist: selected event list
@@ -246,6 +258,22 @@ error_free:
 	perf_evsel__delete(evsel);
 error:
 	return -ENOMEM;
+}
+
+int perf_evlist__add_dummy(struct perf_evlist *evlist)
+{
+	struct perf_event_attr attr = {
+		.type	= PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_DUMMY,
+		.size	= sizeof(attr), /* to capture ABI version */
+	};
+	struct perf_evsel *evsel = perf_evsel__new(&attr);
+
+	if (evsel == NULL)
+		return -ENOMEM;
+
+	perf_evlist__add(evlist, evsel);
+	return 0;
 }
 
 static int perf_evlist__add_attrs(struct perf_evlist *evlist,
