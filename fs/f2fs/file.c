@@ -267,8 +267,6 @@ sync_nodes:
 	if (need_inode_block_update(sbi, ino)) {
 		mark_inode_dirty_sync(inode);
 		f2fs_write_inode(inode, NULL);
-
-		f2fs_balance_fs(sbi);
 		goto sync_nodes;
 	}
 
@@ -484,7 +482,6 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 						F2FS_I(dn->inode)) + ofs;
 		f2fs_update_extent_cache_range(dn, fofs, 0, len);
 		dec_valid_block_count(sbi, dn->inode, nr_free);
-		set_page_dirty(dn->node_page);
 		sync_inode_page(dn);
 	}
 	dn->ofs_in_node = ofs;
