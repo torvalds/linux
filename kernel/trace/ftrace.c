@@ -1658,6 +1658,9 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 		int in_hash = 0;
 		int match = 0;
 
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
+
 		if (all) {
 			/*
 			 * Only the filter_hash affects all records.
@@ -2022,6 +2025,9 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 	unsigned long flag = 0UL;
 
 	ftrace_bug_type = FTRACE_BUG_UNKNOWN;
+
+	if (rec->flags & FTRACE_FL_DISABLED)
+		return FTRACE_UPDATE_IGNORE;
 
 	/*
 	 * If we are updating calls:
@@ -2833,9 +2839,9 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
 		return 0;
 
-	/* If ops traces all mods, we already accounted for it */
+	/* If ops traces all then it includes this function */
 	if (ops_traces_mod(ops))
-		return 0;
+		return 1;
 
 	/* The function must be in the filter */
 	if (!ftrace_hash_empty(ops->func_hash->filter_hash) &&
@@ -2849,64 +2855,41 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 	return 1;
 }
 
-static int referenced_filters(struct dyn_ftrace *rec)
-{
-	struct ftrace_ops *ops;
-	int cnt = 0;
-
-	for (ops = ftrace_ops_list; ops != &ftrace_list_end; ops = ops->next) {
-		if (ops_references_rec(ops, rec))
-		    cnt++;
-	}
-
-	return cnt;
-}
-
 static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *p;
 	cycle_t start, stop;
 	unsigned long update_cnt = 0;
-	unsigned long ref = 0;
-	bool test = false;
+	unsigned long rec_flags = 0;
 	int i;
 
-	/*
-	 * When adding a module, we need to check if tracers are
-	 * currently enabled and if they are set to trace all functions.
-	 * If they are, we need to enable the module functions as well
-	 * as update the reference counts for those function records.
-	 */
-	if (mod) {
-		struct ftrace_ops *ops;
-
-		for (ops = ftrace_ops_list;
-		     ops != &ftrace_list_end; ops = ops->next) {
-			if (ops->flags & FTRACE_OPS_FL_ENABLED) {
-				if (ops_traces_mod(ops))
-					ref++;
-				else
-					test = true;
-			}
-		}
-	}
-
 	start = ftrace_now(raw_smp_processor_id());
+
+	/*
+	 * When a module is loaded, this function is called to convert
+	 * the calls to mcount in its text to nops, and also to create
+	 * an entry in the ftrace data. Now, if ftrace is activated
+	 * after this call, but before the module sets its text to
+	 * read-only, the modification of enabling ftrace can fail if
+	 * the read-only is done while ftrace is converting the calls.
+	 * To prevent this, the module's records are set as disabled
+	 * and will be enabled after the call to set the module's text
+	 * to read-only.
+	 */
+	if (mod)
+		rec_flags |= FTRACE_FL_DISABLED;
 
 	for (pg = new_pgs; pg; pg = pg->next) {
 
 		for (i = 0; i < pg->index; i++) {
-			int cnt = ref;
 
 			/* If something went wrong, bail without enabling anything */
 			if (unlikely(ftrace_disabled))
 				return -1;
 
 			p = &pg->records[i];
-			if (test)
-				cnt += referenced_filters(p);
-			p->flags = cnt;
+			p->flags = rec_flags;
 
 			/*
 			 * Do the initial record conversion from mcount jump
@@ -2916,21 +2899,6 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 				break;
 
 			update_cnt++;
-
-			/*
-			 * If the tracing is enabled, go ahead and enable the record.
-			 *
-			 * The reason not to enable the record immediatelly is the
-			 * inherent check of ftrace_make_nop/ftrace_make_call for
-			 * correct previous instructions.  Making first the NOP
-			 * conversion puts the module to the correct state, thus
-			 * passing the ftrace_make_call check.
-			 */
-			if (ftrace_start_up && cnt) {
-				int failed = __ftrace_replace_code(p, 1);
-				if (failed)
-					ftrace_bug(failed, p);
-			}
 		}
 	}
 
@@ -4938,6 +4906,19 @@ static int ftrace_process_locs(struct module *mod,
 
 #define next_to_ftrace_page(p) container_of(p, struct ftrace_page, next)
 
+static int referenced_filters(struct dyn_ftrace *rec)
+{
+	struct ftrace_ops *ops;
+	int cnt = 0;
+
+	for (ops = ftrace_ops_list; ops != &ftrace_list_end; ops = ops->next) {
+		if (ops_references_rec(ops, rec))
+		    cnt++;
+	}
+
+	return cnt;
+}
+
 void ftrace_release_mod(struct module *mod)
 {
 	struct dyn_ftrace *rec;
@@ -4980,6 +4961,75 @@ void ftrace_release_mod(struct module *mod)
 	mutex_unlock(&ftrace_lock);
 }
 
+static void ftrace_module_enable(struct module *mod)
+{
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+
+	mutex_lock(&ftrace_lock);
+
+	if (ftrace_disabled)
+		goto out_unlock;
+
+	/*
+	 * If the tracing is enabled, go ahead and enable the record.
+	 *
+	 * The reason not to enable the record immediatelly is the
+	 * inherent check of ftrace_make_nop/ftrace_make_call for
+	 * correct previous instructions.  Making first the NOP
+	 * conversion puts the module to the correct state, thus
+	 * passing the ftrace_make_call check.
+	 *
+	 * We also delay this to after the module code already set the
+	 * text to read-only, as we now need to set it back to read-write
+	 * so that we can modify the text.
+	 */
+	if (ftrace_start_up)
+		ftrace_arch_code_modify_prepare();
+
+	do_for_each_ftrace_rec(pg, rec) {
+		int cnt;
+		/*
+		 * do_for_each_ftrace_rec() is a double loop.
+		 * module text shares the pg. If a record is
+		 * not part of this module, then skip this pg,
+		 * which the "break" will do.
+		 */
+		if (!within_module_core(rec->ip, mod))
+			break;
+
+		cnt = 0;
+
+		/*
+		 * When adding a module, we need to check if tracers are
+		 * currently enabled and if they are, and can trace this record,
+		 * we need to enable the module functions as well as update the
+		 * reference counts for those function records.
+		 */
+		if (ftrace_start_up)
+			cnt += referenced_filters(rec);
+
+		/* This clears FTRACE_FL_DISABLED */
+		rec->flags = cnt;
+
+		if (ftrace_start_up && cnt) {
+			int failed = __ftrace_replace_code(rec, 1);
+			if (failed) {
+				ftrace_bug(failed, rec);
+				goto out_loop;
+			}
+		}
+
+	} while_for_each_ftrace_rec();
+
+ out_loop:
+	if (ftrace_start_up)
+		ftrace_arch_code_modify_post_process();
+
+ out_unlock:
+	mutex_unlock(&ftrace_lock);
+}
+
 void ftrace_module_init(struct module *mod)
 {
 	if (ftrace_disabled || !mod->num_ftrace_callsites)
@@ -4987,6 +5037,7 @@ void ftrace_module_init(struct module *mod)
 
 	ftrace_process_locs(mod, mod->ftrace_callsites,
 			    mod->ftrace_callsites + mod->num_ftrace_callsites);
+	ftrace_module_enable(mod);
 }
 
 static int ftrace_module_notify_exit(struct notifier_block *self,
