@@ -97,6 +97,7 @@ struct sti_gdp_node_list {
  * @vtg_field_nb:       callback for VTG FIELD (top or bottom) notification
  * @is_curr_top:        true if the current node processed is the top field
  * @node_list:          array of node list
+ * @vtg:                registered vtg
  */
 struct sti_gdp {
 	struct sti_plane plane;
@@ -108,6 +109,7 @@ struct sti_gdp {
 	struct notifier_block vtg_field_nb;
 	bool is_curr_top;
 	struct sti_gdp_node_list node_list[GDP_NODE_NB_BANK];
+	struct sti_vtg *vtg;
 };
 
 #define to_sti_gdp(x) container_of(x, struct sti_gdp, plane)
@@ -240,9 +242,6 @@ end:
  */
 static void sti_gdp_disable(struct sti_gdp *gdp)
 {
-	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
-	struct sti_mixer *mixer = to_sti_mixer(drm_plane->crtc);
-	struct sti_compositor *compo = dev_get_drvdata(gdp->dev);
 	unsigned int i;
 
 	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(&gdp->plane));
@@ -253,8 +252,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 		gdp->node_list[i].btm_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
 	}
 
-	if (sti_vtg_unregister_client(mixer->id == STI_MIXER_MAIN ?
-			compo->vtg_main : compo->vtg_aux, &gdp->vtg_field_nb))
+	if (sti_vtg_unregister_client(gdp->vtg, &gdp->vtg_field_nb))
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	if (gdp->clk_pix)
@@ -490,7 +488,10 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 
 	if (first_prepare) {
 		/* Register gdp callback */
-		if (sti_vtg_register_client(mixer->id == STI_MIXER_MAIN ?
+		gdp->vtg = mixer->id == STI_MIXER_MAIN ?
+					compo->vtg_main : compo->vtg_aux;
+
+		if (sti_vtg_register_client(gdp->vtg == STI_MIXER_MAIN ?
 				compo->vtg_main : compo->vtg_aux,
 				&gdp->vtg_field_nb, crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
