@@ -223,9 +223,23 @@ static int deferred_probe_initcall(void)
 }
 late_initcall(deferred_probe_initcall);
 
+/**
+ * device_is_bound() - Check if device is bound to a driver
+ * @dev: device to check
+ *
+ * Returns true if passed device has already finished probing successfully
+ * against a driver.
+ *
+ * This function must be called with the device lock held.
+ */
+bool device_is_bound(struct device *dev)
+{
+	return klist_node_attached(&dev->p->knode_driver);
+}
+
 static void driver_bound(struct device *dev)
 {
-	if (klist_node_attached(&dev->p->knode_driver)) {
+	if (device_is_bound(dev)) {
 		printk(KERN_WARNING "%s: device %s already bound\n",
 			__func__, kobject_name(&dev->kobj));
 		return;
@@ -601,7 +615,7 @@ static int __device_attach(struct device *dev, bool allow_async)
 
 	device_lock(dev);
 	if (dev->driver) {
-		if (klist_node_attached(&dev->p->knode_driver)) {
+		if (device_is_bound(dev)) {
 			ret = 1;
 			goto out_unlock;
 		}
