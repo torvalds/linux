@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
@@ -1175,6 +1176,36 @@ static int tvp5150_detect_version(struct tvp5150 *core)
 	return 0;
 }
 
+static int tvp5150_init(struct i2c_client *c)
+{
+	struct gpio_desc *pdn_gpio;
+	struct gpio_desc *reset_gpio;
+
+	pdn_gpio = devm_gpiod_get_optional(&c->dev, "pdn", GPIOD_OUT_HIGH);
+	if (IS_ERR(pdn_gpio))
+		return PTR_ERR(pdn_gpio);
+
+	if (pdn_gpio) {
+		gpiod_set_value_cansleep(pdn_gpio, 0);
+		/* Delay time between power supplies active and reset */
+		msleep(20);
+	}
+
+	reset_gpio = devm_gpiod_get_optional(&c->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return PTR_ERR(reset_gpio);
+
+	if (reset_gpio) {
+		/* RESETB pulse duration */
+		ndelay(500);
+		gpiod_set_value_cansleep(reset_gpio, 0);
+		/* Delay time between end of reset to I2C active */
+		usleep_range(200, 250);
+	}
+
+	return 0;
+}
+
 static int tvp5150_probe(struct i2c_client *c,
 			 const struct i2c_device_id *id)
 {
@@ -1186,6 +1217,10 @@ static int tvp5150_probe(struct i2c_client *c,
 	if (!i2c_check_functionality(c->adapter,
 	     I2C_FUNC_SMBUS_READ_BYTE | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -EIO;
+
+	res = tvp5150_init(c);
+	if (res)
+		return res;
 
 	core = devm_kzalloc(&c->dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
