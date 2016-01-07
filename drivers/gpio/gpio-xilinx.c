@@ -207,7 +207,8 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
  */
 static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct xgpio_instance *chip = gpiochip_get_data(&mm_gc->gc);
+	struct xgpio_instance *chip =
+		container_of(mm_gc, struct xgpio_instance, mmchip);
 
 	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET,	chip->gpio_state[0]);
 	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET, chip->gpio_dir[0]);
