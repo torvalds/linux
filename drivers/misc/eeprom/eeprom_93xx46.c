@@ -54,7 +54,7 @@ eeprom_93xx46_bin_read(struct file *filp, struct kobject *kobj,
 		cmd_addr |= off & 0x7f;
 		bits = 10;
 	} else {
-		cmd_addr |= off & 0x3f;
+		cmd_addr |= (off >> 1) & 0x3f;
 		bits = 9;
 	}
 
@@ -155,7 +155,7 @@ eeprom_93xx46_write_word(struct eeprom_93xx46_dev *edev,
 		bits = 10;
 		data_len = 1;
 	} else {
-		cmd_addr |= off & 0x3f;
+		cmd_addr |= (off >> 1) & 0x3f;
 		bits = 9;
 		data_len = 2;
 	}
