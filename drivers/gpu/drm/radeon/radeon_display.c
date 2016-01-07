@@ -693,7 +693,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	radeon_crtc->flip_queue = alloc_workqueue("radeon-crtc", WQ_HIGHPRI, 0);
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
-	if (rdev->family >= CHIP_BONAIRE) {
+	if (rdev->family >= CHIP_BONAIRE && rdev->family != CHIP_LIVERPOOL) {
 		radeon_crtc->max_cursor_width = CIK_CURSOR_WIDTH;
 		radeon_crtc->max_cursor_height = CIK_CURSOR_HEIGHT;
 	} else {
