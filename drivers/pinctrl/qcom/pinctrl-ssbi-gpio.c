@@ -667,16 +667,19 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	struct pinctrl_pin_desc *pins;
 	struct pm8xxx_gpio *pctrl;
 	int ret;
-	int i;
+	int i, npins;
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
 
 	pctrl->dev = &pdev->dev;
-	pctrl->npins = of_irq_count(pdev->dev.of_node);
-	if (!pctrl->npins)
+	npins = platform_irq_count(pdev);
+	if (!npins)
 		return -EINVAL;
+	if (npins < 0)
+		return npins;
+	pctrl->npins = npins;
 
 	pctrl->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pctrl->regmap) {

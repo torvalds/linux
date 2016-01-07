@@ -804,9 +804,11 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	npins = of_irq_count(dev->of_node);
+	npins = platform_irq_count(pdev);
 	if (!npins)
 		return -EINVAL;
+	if (npins < 0)
+		return npins;
 
 	BUG_ON(npins > ARRAY_SIZE(pmic_mpp_groups));
 
