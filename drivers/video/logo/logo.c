@@ -30,7 +30,7 @@ static bool logos_freed;
 
 static int __init fb_logo_late_init(void)
 {
-	logos_freed = true;
+	//logos_freed = true;
 	return 0;
 }
 
@@ -40,7 +40,7 @@ late_initcall(fb_logo_late_init);
  * modpost that it is intended that this function uses data
  * marked __initdata.
  */
-const struct linux_logo * __ref fb_find_logo(int depth)
+const struct linux_logo * fb_find_logo(int depth)
 {
 	const struct linux_logo *logo = NULL;
 
