@@ -1139,6 +1139,8 @@ static int tvp5150_detect_version(struct tvp5150 *core)
 
 		/* ITU-T BT.656.4 timing */
 		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
+	} else if (dev_id == 0x5151 && rom_ver == 0x0100) { /* TVP5151 */
+		v4l2_info(sd, "tvp5151 detected.\n");
 	} else {
 		v4l2_info(sd, "*** unknown tvp%04x chip detected.\n", dev_id);
 	}
