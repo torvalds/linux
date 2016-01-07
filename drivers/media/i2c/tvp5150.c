@@ -1105,13 +1105,53 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 			I2C Client & Driver
  ****************************************************************************/
 
+static int tvp5150_detect_version(struct tvp5150 *core)
+{
+	struct v4l2_subdev *sd = &core->sd;
+	struct i2c_client *c = v4l2_get_subdevdata(sd);
+	unsigned int i;
+	u16 dev_id;
+	u16 rom_ver;
+	u8 regs[4];
+	int res;
+
+	/*
+	 * Read consequent registers - TVP5150_MSB_DEV_ID, TVP5150_LSB_DEV_ID,
+	 * TVP5150_ROM_MAJOR_VER, TVP5150_ROM_MINOR_VER
+	 */
+	for (i = 0; i < 4; i++) {
+		res = tvp5150_read(sd, TVP5150_MSB_DEV_ID + i);
+		if (res < 0)
+			return res;
+		regs[i] = res;
+	}
+
+	dev_id = (regs[0] << 8) | regs[1];
+	rom_ver = (regs[2] << 8) | regs[3];
+
+	v4l2_info(sd, "tvp%04x (%u.%u) chip found @ 0x%02x (%s)\n",
+		  dev_id, regs[2], regs[3], c->addr << 1, c->adapter->name);
+
+	if (dev_id == 0x5150 && rom_ver == 0x0321) { /* TVP51510A */
+		v4l2_info(sd, "tvp5150a detected.\n");
+	} else if (dev_id == 0x5150 && rom_ver == 0x0400) { /* TVP5150AM1 */
+		v4l2_info(sd, "tvp5150am1 detected.\n");
+
+		/* ITU-T BT.656.4 timing */
+		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
+	} else {
+		v4l2_info(sd, "*** unknown tvp%04x chip detected.\n", dev_id);
+	}
+
+	return 0;
+}
+
 static int tvp5150_probe(struct i2c_client *c,
 			 const struct i2c_device_id *id)
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
-	int tvp5150_id[4];
-	int i, res;
+	int res;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(c->adapter,
@@ -1124,38 +1164,9 @@ static int tvp5150_probe(struct i2c_client *c,
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
 
-	/* 
-	 * Read consequent registers - TVP5150_MSB_DEV_ID, TVP5150_LSB_DEV_ID,
-	 * TVP5150_ROM_MAJOR_VER, TVP5150_ROM_MINOR_VER 
-	 */
-	for (i = 0; i < 4; i++) {
-		res = tvp5150_read(sd, TVP5150_MSB_DEV_ID + i);
-		if (res < 0)
-			return res;
-		tvp5150_id[i] = res;
-	}
-
-	v4l_info(c, "chip found @ 0x%02x (%s)\n",
-		 c->addr << 1, c->adapter->name);
-
-	if (tvp5150_id[2] == 4 && tvp5150_id[3] == 0) { /* Is TVP5150AM1 */
-		v4l2_info(sd, "tvp%02x%02xam1 detected.\n",
-			  tvp5150_id[0], tvp5150_id[1]);
-
-		/* ITU-T BT.656.4 timing */
-		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
-	} else {
-		/* Is TVP5150A */
-		if (tvp5150_id[2] == 3 || tvp5150_id[3] == 0x21) {
-			v4l2_info(sd, "tvp%02x%02xa detected.\n",
-				  tvp5150_id[0], tvp5150_id[1]);
-		} else {
-			v4l2_info(sd, "*** unknown tvp%02x%02x chip detected.\n",
-				  tvp5150_id[0], tvp5150_id[1]);
-			v4l2_info(sd, "*** Rom ver is %d.%d\n",
-				  tvp5150_id[2], tvp5150_id[3]);
-		}
-	}
+	res = tvp5150_detect_version(core);
+	if (res < 0)
+		return res;
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
 	core->input = TVP5150_COMPOSITE1;
