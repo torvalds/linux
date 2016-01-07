@@ -226,8 +226,10 @@ static int gpiochip_add_to_list(struct gpio_chip *chip)
 	 */
 
 	iterator = list_last_entry(&gpio_chips, struct gpio_chip, list);
-	if (iterator->base + iterator->ngpio <= chip->base)
-		goto found;
+	if (iterator->base + iterator->ngpio <= chip->base) {
+		list_add(&chip->list, &iterator->list);
+		return 0;
+	}
 
 	dev_err(chip->parent,
 	       "GPIO integer space overlap, cannot add chip\n");
