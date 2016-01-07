@@ -3651,7 +3651,6 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
 					const struct workqueue_attrs *attrs)
 {
 	struct apply_wqattrs_ctx *ctx;
-	int ret = -ENOMEM;
 
 	/* only unbound workqueues can change attributes */
 	if (WARN_ON(!(wq->flags & WQ_UNBOUND)))
@@ -3662,16 +3661,14 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
 		return -EINVAL;
 
 	ctx = apply_wqattrs_prepare(wq, attrs);
+	if (!ctx)
+		return -ENOMEM;
 
 	/* the ctx has been prepared successfully, let's commit it */
-	if (ctx) {
-		apply_wqattrs_commit(ctx);
-		ret = 0;
-	}
-
+	apply_wqattrs_commit(ctx);
 	apply_wqattrs_cleanup(ctx);
 
-	return ret;
+	return 0;
 }
 
 /**
