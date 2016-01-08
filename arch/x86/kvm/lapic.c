@@ -475,18 +475,12 @@ static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 {
-	int highest_irr;
-
 	/* This may race with setting of irr in __apic_accept_irq() and
 	 * value returned may be wrong, but kvm_vcpu_kick() in __apic_accept_irq
 	 * will cause vmexit immediately and the value will be recalculated
 	 * on the next vmentry.
 	 */
-	if (!kvm_vcpu_has_lapic(vcpu))
-		return 0;
-	highest_irr = apic_find_highest_irr(vcpu->arch.apic);
-
-	return highest_irr;
+	return apic_find_highest_irr(vcpu->arch.apic);
 }
 
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
@@ -1601,8 +1595,7 @@ static int apic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 
 void kvm_lapic_set_eoi(struct kvm_vcpu *vcpu)
 {
-	if (kvm_vcpu_has_lapic(vcpu))
-		apic_reg_write(vcpu->arch.apic, APIC_EOI, 0);
+	apic_reg_write(vcpu->arch.apic, APIC_EOI, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
 
@@ -1676,9 +1669,6 @@ void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	if (!kvm_vcpu_has_lapic(vcpu))
-		return;
-
 	apic_set_tpr(apic, ((cr8 & 0x0f) << 4)
 		     | (kvm_apic_get_reg(apic, APIC_TASKPRI) & 4));
 }
@@ -1686,9 +1676,6 @@ void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
 {
 	u64 tpr;
-
-	if (!kvm_vcpu_has_lapic(vcpu))
-		return 0;
 
 	tpr = (u64) kvm_apic_get_reg(vcpu->arch.apic, APIC_TASKPRI);
 
@@ -1912,7 +1899,7 @@ int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	int highest_irr;
 
-	if (!kvm_vcpu_has_lapic(vcpu) || !apic_enabled(apic))
+	if (!apic_enabled(apic))
 		return -1;
 
 	apic_update_ppr(apic);
