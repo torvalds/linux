@@ -10,7 +10,7 @@ util/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c
-util/bitmap.c
+../lib/bitmap.c
 ../lib/find_bit.c
 ../lib/hweight.c
 util/thread_map.c
