@@ -569,6 +569,9 @@ static void _gb_power_supplies_release(struct gb_power_supplies *supplies)
 {
 	int i;
 
+	if (!supplies->supply)
+		return;
+
 	mutex_lock(&supplies->supplies_lock);
 	for (i = 0; i < supplies->supplies_count; i++)
 		_gb_power_supply_release(&supplies->supply[i]);
