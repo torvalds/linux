@@ -89,7 +89,7 @@ static u8 crb_status(struct tpm_chip *chip)
 	struct crb_priv *priv = chip->vendor.priv;
 	u8 sts = 0;
 
-	if ((le32_to_cpu(ioread32(&priv->cca->start)) & CRB_START_INVOKE) !=
+	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
 	    CRB_START_INVOKE)
 		sts |= CRB_STS_COMPLETE;
 
@@ -105,7 +105,7 @@ static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	if (count < 6)
 		return -EIO;
 
-	if (le32_to_cpu(ioread32(&priv->cca->sts)) & CRB_CA_STS_ERROR)
+	if (ioread32(&priv->cca->sts) & CRB_CA_STS_ERROR)
 		return -EIO;
 
 	memcpy_fromio(buf, priv->rsp, 6);
@@ -141,11 +141,11 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct crb_priv *priv = chip->vendor.priv;
 	int rc = 0;
 
-	if (len > le32_to_cpu(ioread32(&priv->cca->cmd_size))) {
+	if (len > ioread32(&priv->cca->cmd_size)) {
 		dev_err(&chip->dev,
 			"invalid command count value %x %zx\n",
 			(unsigned int) len,
-			(size_t) le32_to_cpu(ioread32(&priv->cca->cmd_size)));
+			(size_t) ioread32(&priv->cca->cmd_size));
 		return -E2BIG;
 	}
 
@@ -181,7 +181,7 @@ static void crb_cancel(struct tpm_chip *chip)
 static bool crb_req_canceled(struct tpm_chip *chip, u8 status)
 {
 	struct crb_priv *priv = chip->vendor.priv;
-	u32 cancel = le32_to_cpu(ioread32(&priv->cca->cancel));
+	u32 cancel = ioread32(&priv->cca->cancel);
 
 	return (cancel & CRB_CANCEL_INVOKE) == CRB_CANCEL_INVOKE;
 }
@@ -251,10 +251,10 @@ static int crb_acpi_add(struct acpi_device *device)
 		return -ENOMEM;
 	}
 
-	pa = ((u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_high)) << 32) |
-		(u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_low));
-	priv->cmd = devm_ioremap_nocache(dev, pa,
-					 ioread32(&priv->cca->cmd_size));
+	pa = ((u64)ioread32(&priv->cca->cmd_pa_high) << 32) |
+	     (u64)ioread32(&priv->cca->cmd_pa_low);
+	priv->cmd =
+	    devm_ioremap_nocache(dev, pa, ioread32(&priv->cca->cmd_size));
 	if (!priv->cmd) {
 		dev_err(dev, "ioremap of the command buffer failed\n");
 		return -ENOMEM;
@@ -262,8 +262,8 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
 	pa = le64_to_cpu(pa);
-	priv->rsp = devm_ioremap_nocache(dev, pa,
-					 ioread32(&priv->cca->rsp_size));
+	priv->rsp =
+	    devm_ioremap_nocache(dev, pa, ioread32(&priv->cca->rsp_size));
 	if (!priv->rsp) {
 		dev_err(dev, "ioremap of the response buffer failed\n");
 		return -ENOMEM;
