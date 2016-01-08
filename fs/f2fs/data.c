@@ -830,9 +830,13 @@ next:
 		flags |= FIEMAP_EXTENT_LAST;
 	}
 
-	if (size)
+	if (size) {
+		if (f2fs_encrypted_inode(inode))
+			flags |= FIEMAP_EXTENT_DATA_ENCRYPTED;
+
 		ret = fiemap_fill_next_extent(fieinfo, logical,
 				phys, size, flags);
+	}
 
 	if (start_blk > last_blk || ret)
 		goto out;
