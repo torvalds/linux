@@ -570,9 +570,11 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 
 	/* 1. remove unreferenced extent tree */
 	list_for_each_entry_safe(et, next, &sbi->zombie_list, list) {
-		write_lock(&et->lock);
-		node_cnt += __free_extent_tree(sbi, et, true);
-		write_unlock(&et->lock);
+		if (atomic_read(&et->node_cnt)) {
+			write_lock(&et->lock);
+			node_cnt += __free_extent_tree(sbi, et, true);
+			write_unlock(&et->lock);
+		}
 
 		list_del_init(&et->list);
 		radix_tree_delete(&sbi->extent_tree_root, et->ino);
@@ -618,6 +620,9 @@ free_node:
 		for (i = 0; i < found; i++) {
 			struct extent_tree *et = treevec[i];
 
+			if (!atomic_read(&et->node_cnt))
+				continue;
+
 			if (write_trylock(&et->lock)) {
 				node_cnt += __free_extent_tree(sbi, et, false);
 				write_unlock(&et->lock);
@@ -641,7 +646,7 @@ unsigned int f2fs_destroy_extent_node(struct inode *inode)
 	struct extent_tree *et = F2FS_I(inode)->extent_tree;
 	unsigned int node_cnt = 0;
 
-	if (!et)
+	if (!et || !atomic_read(&et->node_cnt))
 		return 0;
 
 	write_lock(&et->lock);
