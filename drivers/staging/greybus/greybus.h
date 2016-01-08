@@ -72,6 +72,16 @@ struct greybus_driver {
 };
 #define to_greybus_driver(d) container_of(d, struct greybus_driver, driver)
 
+static inline void greybus_set_drvdata(struct gb_bundle *bundle, void *data)
+{
+	dev_set_drvdata(&bundle->dev, data);
+}
+
+static inline void *greybus_get_drvdata(struct gb_bundle *bundle)
+{
+	return dev_get_drvdata(&bundle->dev);
+}
+
 /* Don't call these directly, use the module_greybus_driver() macro instead */
 int greybus_register_driver(struct greybus_driver *driver,
 			    struct module *module, const char *mod_name);
