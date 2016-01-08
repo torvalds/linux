@@ -154,6 +154,21 @@ tui.*, gtk.*::
 	will make the TUI be the default for the 'top' subcommand. Those will be
 	available if the required libs were detected at tool build time.
 
+buildid.*::
+	buildid.dir::
+		Each executable and shared library in modern distributions comes with a
+		content based identifier that, if available, will be inserted in a
+		'perf.data' file header to, at analysis time find what is needed to do
+		symbol resolution, code annotation, etc.
+
+		The recording tools also stores a hard link or copy in a per-user
+		directory, $HOME/.debug/, of binaries, shared libraries, /proc/kallsyms
+		and /proc/kcore files to be used at analysis time.
+
+		The buildid.dir variable can be used to either change this directory
+		cache location, or to disable it altogether. If you want to disable it,
+		set buildid.dir to /dev/null. The default is $HOME/.debug
+
 SEE ALSO
 --------
 linkperf:perf[1]
