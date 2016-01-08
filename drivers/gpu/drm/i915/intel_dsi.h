@@ -126,8 +126,7 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 
 extern void intel_enable_dsi_pll(struct intel_encoder *encoder);
 extern void intel_disable_dsi_pll(struct intel_encoder *encoder);
-extern u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp);
-extern u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp);
+extern u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp);
 extern void intel_dsi_reset_clocks(struct intel_encoder *encoder,
 							enum port port);
 

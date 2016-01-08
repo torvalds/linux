@@ -322,7 +322,7 @@ static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
 	     bpp, pipe_bpp);
 }
 
-u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -384,7 +384,7 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
-u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 {
 	u32 pclk;
 	u32 dsi_clk;
@@ -417,6 +417,14 @@ u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 
 	DRM_DEBUG_DRIVER("Calculated pclk=%u\n", pclk);
 	return pclk;
+}
+
+u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
+{
+	if (IS_BROXTON(encoder->base.dev))
+		return bxt_dsi_get_pclk(encoder, pipe_bpp);
+	else
+		return vlv_dsi_get_pclk(encoder, pipe_bpp);
 }
 
 static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
