@@ -413,8 +413,8 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Left Boost Mixer", "LINPUT2 Switch", "LINPUT2" },
 	{ "Left Boost Mixer", "LINPUT3 Switch", "LINPUT3" },
 
-	{ "Left Input Mixer", "Boost Switch", "Left Boost Mixer", },
-	{ "Left Input Mixer", NULL, "LINPUT1", },  /* Really Boost Switch */
+	{ "Left Input Mixer", "Boost Switch", "Left Boost Mixer" },
+	{ "Left Input Mixer", "Boost Switch", "LINPUT1" },  /* Really Boost Switch */
 	{ "Left Input Mixer", NULL, "LINPUT2" },
 	{ "Left Input Mixer", NULL, "LINPUT3" },
 
@@ -422,8 +422,8 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Right Boost Mixer", "RINPUT2 Switch", "RINPUT2" },
 	{ "Right Boost Mixer", "RINPUT3 Switch", "RINPUT3" },
 
-	{ "Right Input Mixer", "Boost Switch", "Right Boost Mixer", },
-	{ "Right Input Mixer", NULL, "RINPUT1", },  /* Really Boost Switch */
+	{ "Right Input Mixer", "Boost Switch", "Right Boost Mixer" },
+	{ "Right Input Mixer", "Boost Switch", "RINPUT1" },  /* Really Boost Switch */
 	{ "Right Input Mixer", NULL, "RINPUT2" },
 	{ "Right Input Mixer", NULL, "RINPUT3" },
 
@@ -431,11 +431,11 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Right ADC", NULL, "Right Input Mixer" },
 
 	{ "Left Output Mixer", "LINPUT3 Switch", "LINPUT3" },
-	{ "Left Output Mixer", "Boost Bypass Switch", "Left Boost Mixer"} ,
+	{ "Left Output Mixer", "Boost Bypass Switch", "Left Boost Mixer" },
 	{ "Left Output Mixer", "PCM Playback Switch", "Left DAC" },
 
 	{ "Right Output Mixer", "RINPUT3 Switch", "RINPUT3" },
-	{ "Right Output Mixer", "Boost Bypass Switch", "Right Boost Mixer" } ,
+	{ "Right Output Mixer", "Boost Bypass Switch", "Right Boost Mixer" },
 	{ "Right Output Mixer", "PCM Playback Switch", "Right DAC" },
 
 	{ "LOUT1 PGA", NULL, "Left Output Mixer" },
