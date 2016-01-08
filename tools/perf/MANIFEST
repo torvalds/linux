@@ -1,6 +1,7 @@
 tools/perf
 tools/arch/alpha/include/asm/barrier.h
 tools/arch/arm/include/asm/barrier.h
+tools/arch/arm64/include/asm/barrier.h
 tools/arch/ia64/include/asm/barrier.h
 tools/arch/mips/include/asm/barrier.h
 tools/arch/powerpc/include/asm/barrier.h
@@ -30,6 +31,7 @@ tools/lib/find_bit.c
 tools/include/asm/atomic.h
 tools/include/asm/barrier.h
 tools/include/asm/bug.h
+tools/include/asm-generic/atomic-gcc.h
 tools/include/asm-generic/barrier.h
 tools/include/asm-generic/bitops/arch_hweight.h
 tools/include/asm-generic/bitops/atomic.h
