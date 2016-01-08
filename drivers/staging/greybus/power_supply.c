@@ -579,6 +579,7 @@ static void _gb_power_supplies_release(struct gb_power_supplies *supplies)
 	for (i = 0; i < supplies->supplies_count; i++)
 		_gb_power_supply_release(&supplies->supply[i]);
 	mutex_unlock(&supplies->supplies_lock);
+	kfree(supplies);
 }
 
 static int gb_power_supplies_get_count(struct gb_power_supplies *supplies)
