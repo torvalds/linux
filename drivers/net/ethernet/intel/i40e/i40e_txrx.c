@@ -1422,31 +1422,12 @@ checksum_fail:
 }
 
 /**
- * i40e_rx_hash - returns the hash value from the Rx descriptor
- * @ring: descriptor ring
- * @rx_desc: specific descriptor
- **/
-static inline u32 i40e_rx_hash(struct i40e_ring *ring,
-			       union i40e_rx_desc *rx_desc)
-{
-	const __le64 rss_mask =
-		cpu_to_le64((u64)I40E_RX_DESC_FLTSTAT_RSS_HASH <<
-			    I40E_RX_DESC_STATUS_FLTSTAT_SHIFT);
-
-	if ((ring->netdev->features & NETIF_F_RXHASH) &&
-	    (rx_desc->wb.qword1.status_error_len & rss_mask) == rss_mask)
-		return le32_to_cpu(rx_desc->wb.qword0.hi_dword.rss);
-	else
-		return 0;
-}
-
-/**
- * i40e_ptype_to_hash - get a hash type
+ * i40e_ptype_to_htype - get a hash type
  * @ptype: the ptype value from the descriptor
  *
  * Returns a hash type to be used by skb_set_hash
  **/
-static inline enum pkt_hash_types i40e_ptype_to_hash(u8 ptype)
+static inline enum pkt_hash_types i40e_ptype_to_htype(u8 ptype)
 {
 	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(ptype);
 
@@ -1461,6 +1442,30 @@ static inline enum pkt_hash_types i40e_ptype_to_hash(u8 ptype)
 		return PKT_HASH_TYPE_L3;
 	else
 		return PKT_HASH_TYPE_L2;
+}
+
+/**
+ * i40e_rx_hash - set the hash value in the skb
+ * @ring: descriptor ring
+ * @rx_desc: specific descriptor
+ **/
+static inline void i40e_rx_hash(struct i40e_ring *ring,
+				union i40e_rx_desc *rx_desc,
+				struct sk_buff *skb,
+				u8 rx_ptype)
+{
+	u32 hash;
+	const __le64 rss_mask  =
+		cpu_to_le64((u64)I40E_RX_DESC_FLTSTAT_RSS_HASH <<
+			    I40E_RX_DESC_STATUS_FLTSTAT_SHIFT);
+
+	if (ring->netdev->features & NETIF_F_RXHASH)
+		return;
+
+	if ((rx_desc->wb.qword1.status_error_len & rss_mask) == rss_mask) {
+		hash = le32_to_cpu(rx_desc->wb.qword0.hi_dword.rss);
+		skb_set_hash(skb, hash, i40e_ptype_to_htype(rx_ptype));
+	}
 }
 
 /**
@@ -1612,8 +1617,8 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 			continue;
 		}
 
-		skb_set_hash(skb, i40e_rx_hash(rx_ring, rx_desc),
-			     i40e_ptype_to_hash(rx_ptype));
+		i40e_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
+
 		if (unlikely(rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK)) {
 			i40e_ptp_rx_hwtstamp(vsi->back, skb, (rx_status &
 					   I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
@@ -1741,8 +1746,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 			continue;
 		}
 
-		skb_set_hash(skb, i40e_rx_hash(rx_ring, rx_desc),
-			     i40e_ptype_to_hash(rx_ptype));
+		i40e_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
 		if (unlikely(rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK)) {
 			i40e_ptp_rx_hwtstamp(vsi->back, skb, (rx_status &
 					   I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
