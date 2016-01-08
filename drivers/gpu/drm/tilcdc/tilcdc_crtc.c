@@ -43,6 +43,9 @@ struct tilcdc_crtc {
 
 	/* Only set if an external encoder is connected */
 	bool simulate_vesa_sync;
+
+	int sync_lost_count;
+	bool frame_intact;
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
 
@@ -662,6 +665,8 @@ out:
 	pm_runtime_put_sync(dev->dev);
 }
 
+#define SYNC_LOST_COUNT_LIMIT 50
+
 irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
@@ -707,6 +712,11 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 		}
+
+		if (tilcdc_crtc->frame_intact)
+			tilcdc_crtc->sync_lost_count = 0;
+		else
+			tilcdc_crtc->frame_intact = true;
 	}
 
 	if (priv->rev == 2) {
@@ -717,9 +727,18 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		tilcdc_write(dev, LCDC_END_OF_INT_IND_REG, 0);
 	}
 
-	if (stat & LCDC_SYNC_LOST)
+	if (stat & LCDC_SYNC_LOST) {
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
 				    __func__, stat);
+		tilcdc_crtc->frame_intact = false;
+		if (tilcdc_crtc->sync_lost_count++ > SYNC_LOST_COUNT_LIMIT) {
+			dev_err(dev->dev,
+				"%s(0x%08x): Sync lost flood detected, disabling the interrupt",
+				__func__, stat);
+			tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
+				     LCDC_SYNC_LOST);
+		}
+	}
 
 	if (stat & LCDC_FIFO_UNDERFLOW)
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underfow",
