@@ -133,7 +133,6 @@ static void omap_kp_tasklet(unsigned long data)
 	unsigned int row_shift = get_count_order(omap_kp_data->cols);
 	unsigned char new_state[8], changed, key_down = 0;
 	int col, row;
-	int spurious = 0;
 
 	/* check for any changes */
 	omap_kp_scan_keypad(omap_kp_data, new_state);
@@ -170,12 +169,9 @@ static void omap_kp_tasklet(unsigned long data)
 	memcpy(keypad_state, new_state, sizeof(keypad_state));
 
 	if (key_down) {
-		int delay = HZ / 20;
 		/* some key is pressed - keep irq disabled and use timer
 		 * to poll the keypad */
-		if (spurious)
-			delay = 2 * HZ;
-		mod_timer(&omap_kp_data->timer, jiffies + delay);
+		mod_timer(&omap_kp_data->timer, jiffies + HZ / 20);
 	} else {
 		/* enable interrupts */
 		omap_writew(0, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
