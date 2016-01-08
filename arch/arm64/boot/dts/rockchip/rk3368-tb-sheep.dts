@@ -68,3 +68,7 @@
 &rk_key {
 	status = "okay";
 };
+
+&rk818 {
+	status = "okay";
+};
