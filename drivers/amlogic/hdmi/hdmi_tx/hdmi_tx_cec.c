@@ -201,13 +201,7 @@ void cec_node_init(hdmitx_dev_t* hdmitx_device)
     if(hdmitx_device->config_data.vend_data)
         vend_data = hdmitx_device->config_data.vend_data;
 
-    if((vend_data) && (vend_data->cec_config))
-    {
-        hdmitx_device->cec_func_config = vend_data->cec_config;
-        aml_write_reg32(P_AO_DEBUG_REG0, vend_data->cec_config);
-    }
-    
-    hdmi_print(INF, CEC "cec_config: 0x%x; ao_cec:0x%x\n", vend_data->cec_config, vend_data->ao_cec);
+    hdmi_print(INF, CEC "ao_cec:0x%x\n", vend_data->ao_cec);
 
     if((vend_data) && (vend_data->cec_osd_string)) {
         i = strlen(vend_data->cec_osd_string);
