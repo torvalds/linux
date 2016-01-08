@@ -34,14 +34,6 @@ enum crb_defaults {
 	CRB_ACPI_START_INDEX = 1,
 };
 
-struct acpi_tpm2 {
-	struct acpi_table_header hdr;
-	u16 platform_class;
-	u16 reserved;
-	u64 control_area_pa;
-	u32 start_method;
-} __packed;
-
 enum crb_ca_request {
 	CRB_CA_REQ_GO_IDLE	= BIT(0),
 	CRB_CA_REQ_CMD_READY	= BIT(1),
@@ -207,7 +199,7 @@ static const struct tpm_class_ops tpm_crb = {
 static int crb_acpi_add(struct acpi_device *device)
 {
 	struct tpm_chip *chip;
-	struct acpi_tpm2 *buf;
+	struct acpi_table_tpm2 *buf;
 	struct crb_priv *priv;
 	struct device *dev = &device->dev;
 	acpi_status status;
@@ -217,13 +209,14 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	status = acpi_get_table(ACPI_SIG_TPM2, 1,
 				(struct acpi_table_header **) &buf);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "failed to get TPM2 ACPI table\n");
+	if (ACPI_FAILURE(status) || buf->header.length < sizeof(*buf)) {
+		dev_err(dev, FW_BUG "failed to get TPM2 ACPI table\n");
 		return -ENODEV;
 	}
 
 	/* Should the FIFO driver handle this? */
-	if (buf->start_method == TPM2_START_FIFO)
+	sm = buf->start_method;
+	if (sm == ACPI_TPM2_MEMORY_MAPPED)
 		return -ENODEV;
 
 	chip = tpmm_chip_alloc(dev, &tpm_crb);
@@ -232,11 +225,6 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	chip->flags = TPM_CHIP_FLAG_TPM2;
 
-	if (buf->hdr.length < sizeof(struct acpi_tpm2)) {
-		dev_err(dev, "TPM2 ACPI table has wrong size");
-		return -EINVAL;
-	}
-
 	priv = (struct crb_priv *) devm_kzalloc(dev, sizeof(struct crb_priv),
 						GFP_KERNEL);
 	if (!priv) {
@@ -244,21 +232,20 @@ static int crb_acpi_add(struct acpi_device *device)
 		return -ENOMEM;
 	}
 
-	sm = le32_to_cpu(buf->start_method);
-
 	/* The reason for the extra quirk is that the PTT in 4th Gen Core CPUs
 	 * report only ACPI start but in practice seems to require both
 	 * ACPI start and CRB start.
 	 */
-	if (sm == TPM2_START_CRB || sm == TPM2_START_FIFO ||
+	if (sm == ACPI_TPM2_COMMAND_BUFFER || sm == ACPI_TPM2_MEMORY_MAPPED ||
 	    !strcmp(acpi_device_hid(device), "MSFT0101"))
 		priv->flags |= CRB_FL_CRB_START;
 
-	if (sm == TPM2_START_ACPI || sm == TPM2_START_CRB_WITH_ACPI)
+	if (sm == ACPI_TPM2_START_METHOD ||
+	    sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD)
 		priv->flags |= CRB_FL_ACPI_START;
 
 	priv->cca = (struct crb_control_area __iomem *)
-		devm_ioremap_nocache(dev, buf->control_area_pa, 0x1000);
+		devm_ioremap_nocache(dev, buf->control_address, 0x1000);
 	if (!priv->cca) {
 		dev_err(dev, "ioremap of the control area failed\n");
 		return -ENOMEM;

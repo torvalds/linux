@@ -134,7 +134,7 @@ static inline int is_fifo(struct acpi_device *dev)
 		return 0;
 	}
 
-	if (le32_to_cpu(tbl->start_method) != TPM2_START_FIFO)
+	if (tbl->start_method != ACPI_TPM2_MEMORY_MAPPED)
 		return 0;
 
 	/* TPM 2.0 FIFO */
