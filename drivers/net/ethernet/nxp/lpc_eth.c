@@ -823,7 +823,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 
 static int lpc_mii_init(struct netdata_local *pldat)
 {
-	int err = -ENXIO, i;
+	int err = -ENXIO;
 
 	pldat->mii_bus = mdiobus_alloc();
 	if (!pldat->mii_bus) {
@@ -862,7 +862,6 @@ static int lpc_mii_init(struct netdata_local *pldat)
 
 err_out_unregister_bus:
 	mdiobus_unregister(pldat->mii_bus);
-err_out_1:
 	mdiobus_free(pldat->mii_bus);
 err_out:
 	return err;
