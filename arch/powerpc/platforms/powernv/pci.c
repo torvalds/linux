@@ -1,8 +1,6 @@
 /*
  * Support PCI/PCIe on PowerNV platforms
  *
- * Currently supports only P5IOC2
- *
  * Copyright 2011 Benjamin Herrenschmidt, IBM Corp.
  *
  * This program is free software; you can redistribute it and/or
