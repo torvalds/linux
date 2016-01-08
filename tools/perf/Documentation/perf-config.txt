@@ -98,6 +98,52 @@ Given a $HOME/.perfconfig like this:
 		order = caller
 		sort-key = function
 
+Variables
+~~~~~~~~~
+
+colors.*::
+	The variables for customizing the colors used in the output for the
+	'report', 'top' and 'annotate' in the TUI. They should specify the
+	foreground and background colors, separated by a comma, for example:
+
+		medium = green, lightgray
+
+	If you want to use the color configured for you terminal, just leave it
+	as 'default', for example:
+
+		medium = default, lightgray
+
+	Available colors:
+	red, yellow, green, cyan, gray, black, blue,
+	white, default, magenta, lightgray
+
+	colors.top::
+		'top' means a overhead percentage which is more than 5%.
+		And values of this variable specify percentage colors.
+		Basic key values are foreground-color 'red' and
+		background-color 'default'.
+	colors.medium::
+		'medium' means a overhead percentage which has more than 0.5%.
+		Default values are 'green' and 'default'.
+	colors.normal::
+		'normal' means the rest of overhead percentages
+		except 'top', 'medium', 'selected'.
+		Default values are 'lightgray' and 'default'.
+	colors.selected::
+		This selects the colors for the current entry in a list of entries
+		from sub-commands (top, report, annotate).
+		Default values are 'black' and 'lightgray'.
+	colors.jump_arrows::
+		Colors for jump arrows on assembly code listings
+		such as 'jns', 'jmp', 'jane', etc.
+		Default values are 'blue', 'default'.
+	colors.addr::
+		This selects colors for addresses from 'annotate'.
+		Default values are 'magenta', 'default'.
+	colors.root::
+		Colors for headers in the output of a sub-commands (top, report).
+		Default values are 'white', 'blue'.
+
 SEE ALSO
 --------
 linkperf:perf[1]
