@@ -866,7 +866,7 @@ static unsigned int get_paca_psize(unsigned long addr)
 #else
 unsigned int get_paca_psize(unsigned long addr)
 {
-	return get_paca()->context.user_psize;
+	return get_paca()->mm_ctx_user_psize;
 }
 #endif
 

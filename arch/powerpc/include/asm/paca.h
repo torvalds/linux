@@ -138,6 +138,7 @@ struct paca_struct {
 	u64 mm_ctx_low_slices_psize;
 	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
 #else
+	u16 mm_ctx_user_psize;
 	u16 mm_ctx_sllp;
 #endif
 #endif
@@ -212,6 +213,7 @@ static inline void copy_mm_to_paca(mm_context_t *context)
 	memcpy(&get_paca()->mm_ctx_high_slices_psize,
 	       &context->high_slices_psize, SLICE_ARRAY_SIZE);
 #else
+	get_paca()->mm_ctx_user_psize = context->user_psize;
 	get_paca()->mm_ctx_sllp = context->sllp;
 #endif
 }
