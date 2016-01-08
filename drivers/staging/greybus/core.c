@@ -65,8 +65,13 @@ greybus_match_id(struct gb_bundle *bundle, const struct greybus_bundle_id *id)
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(drv);
-	struct gb_bundle *bundle = to_gb_bundle(dev);
+	struct gb_bundle *bundle;
 	const struct greybus_bundle_id *id;
+
+	if (!is_gb_bundle(dev))
+		return 0;
+
+	bundle = to_gb_bundle(dev);
 
 	id = greybus_match_id(bundle, driver->id_table);
 	if (id)
