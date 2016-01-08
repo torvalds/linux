@@ -162,6 +162,7 @@ int greybus_register_driver(struct greybus_driver *driver, struct module *owner,
 	if (greybus_disabled())
 		return -ENODEV;
 
+	driver->driver.bus = &greybus_bus_type;
 	driver->driver.name = driver->name;
 	driver->driver.probe = greybus_probe;
 	driver->driver.remove = greybus_remove;
