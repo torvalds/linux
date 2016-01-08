@@ -325,9 +325,11 @@ xfs_check_block(
 
 /*
  * Check that the extents for the inode ip are in the right order in all
- * btree leaves.
+ * btree leaves. THis becomes prohibitively expensive for large extent count
+ * files, so don't bother with inodes that have more than 10,000 extents in
+ * them. The btree record ordering checks will still be done, so for such large
+ * bmapbt constructs that is going to catch most corruptions.
  */
-
 STATIC void
 xfs_bmap_check_leaf_extents(
 	xfs_btree_cur_t		*cur,	/* btree cursor or null */
@@ -351,6 +353,10 @@ xfs_bmap_check_leaf_extents(
 	if (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE) {
 		return;
 	}
+
+	/* skip large extent count inodes */
+	if (ip->i_d.di_nextents > 10000)
+		return;
 
 	bno = NULLFSBLOCK;
 	mp = ip->i_mount;
