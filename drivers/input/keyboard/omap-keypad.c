@@ -212,25 +212,6 @@ static ssize_t omap_kp_enable_store(struct device *dev, struct device_attribute 
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, omap_kp_enable_show, omap_kp_enable_store);
 
-#ifdef CONFIG_PM
-static int omap_kp_suspend(struct platform_device *dev, pm_message_t state)
-{
-	/* Nothing yet */
-
-	return 0;
-}
-
-static int omap_kp_resume(struct platform_device *dev)
-{
-	/* Nothing yet */
-
-	return 0;
-}
-#else
-#define omap_kp_suspend	NULL
-#define omap_kp_resume	NULL
-#endif
-
 static int omap_kp_probe(struct platform_device *pdev)
 {
 	struct omap_kp *omap_kp;
@@ -367,8 +348,6 @@ static int omap_kp_remove(struct platform_device *pdev)
 static struct platform_driver omap_kp_driver = {
 	.probe		= omap_kp_probe,
 	.remove		= omap_kp_remove,
-	.suspend	= omap_kp_suspend,
-	.resume		= omap_kp_resume,
 	.driver		= {
 		.name	= "omap-keypad",
 	},
