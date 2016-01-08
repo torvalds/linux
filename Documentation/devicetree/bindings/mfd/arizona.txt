@@ -51,6 +51,13 @@ Optional properties:
 
   - wlf,reset : GPIO specifier for the GPIO controlling /RESET
 
+  - clocks: Should reference the clocks supplied on MCLK1 and MCLK2
+  - clock-names: Should contains two strings:
+      "mclk1" for the clock supplied on MCLK1, recommended to be a high
+      quality audio reference clock
+      "mclk2" for the clock supplied on MCLK2, recommended to be an always on
+      32k clock
+
   - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
     for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
     absent, no configuration of these registers is performed. If any entry has
