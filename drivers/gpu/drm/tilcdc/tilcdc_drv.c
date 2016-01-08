@@ -439,11 +439,10 @@ static const struct {
 		/* new in revision 2: */
 		REG(2, false, LCDC_RAW_STAT_REG),
 		REG(2, false, LCDC_MASKED_STAT_REG),
-		REG(2, false, LCDC_INT_ENABLE_SET_REG),
+		REG(2, true, LCDC_INT_ENABLE_SET_REG),
 		REG(2, false, LCDC_INT_ENABLE_CLR_REG),
 		REG(2, false, LCDC_END_OF_INT_IND_REG),
 		REG(2, true,  LCDC_CLK_ENABLE_REG),
-		REG(2, true, LCDC_INT_ENABLE_SET_REG),
 #undef REG
 };
 
