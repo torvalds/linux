@@ -16,8 +16,6 @@
 #include <linux/slab.h>
 #include <linux/rational.h>
 
-#define to_clk_fd(_hw) container_of(_hw, struct clk_fractional_divider, hw)
-
 static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
 					unsigned long parent_rate)
 {

@@ -28,8 +28,6 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
-
 #define div_mask(width)	((1 << (width)) - 1)
 
 static unsigned int _get_table_maxdiv(const struct clk_div_table *table)
