@@ -187,10 +187,12 @@ int intel_punit_ipc_command(u32 cmd, u32 para1, u32 para2, u32 *in, u32 *out)
 
 	reinit_completion(&ipcdev->cmd_complete);
 	type = (cmd & IPC_PUNIT_CMD_TYPE_MASK) >> IPC_TYPE_OFFSET;
-	ipc_write_data_low(ipcdev, type, *in);
 
-	if (type == GTDRIVER_IPC || type == ISPDRIVER_IPC)
-		ipc_write_data_high(ipcdev, type, *++in);
+	if (in) {
+		ipc_write_data_low(ipcdev, type, *in);
+		if (type == GTDRIVER_IPC || type == ISPDRIVER_IPC)
+			ipc_write_data_high(ipcdev, type, *++in);
+	}
 
 	val = cmd & ~IPC_PUNIT_CMD_TYPE_MASK;
 	val |= CMD_RUN | para2 << CMD_PARA2_SHIFT | para1 << CMD_PARA1_SHIFT;
@@ -199,10 +201,12 @@ int intel_punit_ipc_command(u32 cmd, u32 para1, u32 para2, u32 *in, u32 *out)
 	ret = intel_punit_ipc_check_status(ipcdev, type);
 	if (ret)
 		goto out;
-	*out = ipc_read_data_low(ipcdev, type);
 
-	if (type == GTDRIVER_IPC || type == ISPDRIVER_IPC)
-		*++out = ipc_read_data_high(ipcdev, type);
+	if (out) {
+		*out = ipc_read_data_low(ipcdev, type);
+		if (type == GTDRIVER_IPC || type == ISPDRIVER_IPC)
+			*++out = ipc_read_data_high(ipcdev, type);
+	}
 
 out:
 	mutex_unlock(&ipcdev->lock);
