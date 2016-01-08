@@ -276,6 +276,8 @@ struct clk_fixed_rate {
 	u8		flags;
 };
 
+#define to_clk_fixed_rate(_hw) container_of(_hw, struct clk_fixed_rate, hw)
+
 extern const struct clk_ops clk_fixed_rate_ops;
 struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
@@ -313,6 +315,8 @@ struct clk_gate {
 	u8		flags;
 	spinlock_t	*lock;
 };
+
+#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
 #define CLK_GATE_SET_TO_DISABLE		BIT(0)
 #define CLK_GATE_HIWORD_MASK		BIT(1)
@@ -375,6 +379,8 @@ struct clk_divider {
 	const struct clk_div_table	*table;
 	spinlock_t	*lock;
 };
+
+#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
 
 #define CLK_DIVIDER_ONE_BASED		BIT(0)
 #define CLK_DIVIDER_POWER_OF_TWO	BIT(1)
@@ -441,6 +447,8 @@ struct clk_mux {
 	spinlock_t	*lock;
 };
 
+#define to_clk_mux(_hw) container_of(_hw, struct clk_mux, hw)
+
 #define CLK_MUX_INDEX_ONE		BIT(0)
 #define CLK_MUX_INDEX_BIT		BIT(1)
 #define CLK_MUX_HIWORD_MASK		BIT(2)
@@ -484,6 +492,8 @@ struct clk_fixed_factor {
 	unsigned int	div;
 };
 
+#define to_clk_fixed_factor(_hw) container_of(_hw, struct clk_fixed_factor, hw)
+
 extern const struct clk_ops clk_fixed_factor_ops;
 struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
@@ -514,6 +524,8 @@ struct clk_fractional_divider {
 	u8		flags;
 	spinlock_t	*lock;
 };
+
+#define to_clk_fd(_hw) container_of(_hw, struct clk_fractional_divider, hw)
 
 extern const struct clk_ops clk_fractional_divider_ops;
 struct clk *clk_register_fractional_divider(struct device *dev,
@@ -551,6 +563,8 @@ struct clk_multiplier {
 	spinlock_t	*lock;
 };
 
+#define to_clk_multiplier(_hw) container_of(_hw, struct clk_multiplier, hw)
+
 #define CLK_MULTIPLIER_ZERO_BYPASS		BIT(0)
 #define CLK_MULTIPLIER_ROUND_CLOSEST	BIT(1)
 
@@ -580,6 +594,8 @@ struct clk_composite {
 	const struct clk_ops	*gate_ops;
 };
 
+#define to_clk_composite(_hw) container_of(_hw, struct clk_composite, hw)
+
 struct clk *clk_register_composite(struct device *dev, const char *name,
 		const char * const *parent_names, int num_parents,
 		struct clk_hw *mux_hw, const struct clk_ops *mux_ops,
@@ -601,6 +617,8 @@ struct clk_gpio {
 	struct clk_hw	hw;
 	struct gpio_desc *gpiod;
 };
+
+#define to_clk_gpio(_hw) container_of(_hw, struct clk_gpio, hw)
 
 extern const struct clk_ops clk_gpio_gate_ops;
 struct clk *clk_register_gpio_gate(struct device *dev, const char *name,

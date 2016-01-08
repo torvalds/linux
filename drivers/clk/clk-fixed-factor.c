@@ -23,8 +23,6 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-#define to_clk_fixed_factor(_hw) container_of(_hw, struct clk_fixed_factor, hw)
-
 static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {

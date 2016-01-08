@@ -31,8 +31,6 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-#define to_clk_gpio(_hw) container_of(_hw, struct clk_gpio, hw)
-
 static int clk_gpio_gate_enable(struct clk_hw *hw)
 {
 	struct clk_gpio *clk = to_clk_gpio(hw);
