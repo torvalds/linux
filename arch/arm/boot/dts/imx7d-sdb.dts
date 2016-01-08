@@ -552,6 +552,14 @@
 			>;
 		};
 
+		pinctrl_epdc_elan_touch: epdc_elan_touch_grp {
+			fsl,pins = <
+				MX7D_PAD_SAI1_RX_DATA__GPIO6_IO12 0x59
+				MX7D_PAD_SAI1_TX_DATA__GPIO6_IO15 0x1b
+				MX7D_PAD_SAI1_TX_BCLK__GPIO6_IO13 0x80000000
+			>;
+		};
+
 		pinctrl_ecspi3_cs: ecspi3_cs_grp {
 			fsl,pins = <
 				MX7D_PAD_SD2_CD_B__GPIO5_IO9	0x80000000

@@ -33,3 +33,22 @@
 &sim1 {
 	status = "disabled";
 };
+
+&uart5 {
+	status = "disabled";
+};
+
+&i2c3 {
+	elan@10 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_epdc_elan_touch>;
+		compatible = "elan,elan-touch";
+		reg = <0x10>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+		gpio_elan_cs = <&gpio6 13 0>;
+		gpio_elan_rst = <&gpio6 15 0>;
+		gpio_intr = <&gpio6 12 0>;
+		status = "okay";
+	};
+};
