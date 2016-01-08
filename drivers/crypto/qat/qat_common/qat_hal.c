@@ -456,6 +456,9 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 	unsigned int csr_val;
 	int times = 30;
 
+	if (handle->pci_dev->device == ADF_C3XXX_PCI_DEVICE_ID)
+		return 0;
+
 	csr_val = ADF_CSR_RD(csr_addr, 0);
 	if ((csr_val & ESRAM_AUTO_TINIT) && (csr_val & ESRAM_AUTO_TINIT_DONE))
 		return 0;
