@@ -612,7 +612,7 @@
 
 		pinctrl_enet2_epdc0_en: enet2_epdc0_grp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO04__GPIO1_IO4		0x59
+				MX7D_PAD_GPIO1_IO04__GPIO1_IO4		0x80000000
 			>;
 		};
 
