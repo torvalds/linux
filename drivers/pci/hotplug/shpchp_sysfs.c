@@ -43,7 +43,7 @@ static ssize_t show_ctrl(struct device *dev, struct device_attribute *attr, char
 	struct resource *res;
 	struct pci_bus *bus;
 
-	pdev = container_of(dev, struct pci_dev, dev);
+	pdev = to_pci_dev(dev);
 	bus = pdev->subordinate;
 
 	out += sprintf(buf, "Free resources: memory\n");
