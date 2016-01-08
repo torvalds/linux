@@ -3491,11 +3491,13 @@ static void unaccount_event_cpu(struct perf_event *event, int cpu)
 
 static void unaccount_event(struct perf_event *event)
 {
+	bool dec = false;
+
 	if (event->parent)
 		return;
 
 	if (event->attach_state & PERF_ATTACH_TASK)
-		static_key_slow_dec_deferred(&perf_sched_events);
+		dec = true;
 	if (event->attr.mmap || event->attr.mmap_data)
 		atomic_dec(&nr_mmap_events);
 	if (event->attr.comm)
@@ -3505,12 +3507,15 @@ static void unaccount_event(struct perf_event *event)
 	if (event->attr.freq)
 		atomic_dec(&nr_freq_events);
 	if (event->attr.context_switch) {
-		static_key_slow_dec_deferred(&perf_sched_events);
+		dec = true;
 		atomic_dec(&nr_switch_events);
 	}
 	if (is_cgroup_event(event))
-		static_key_slow_dec_deferred(&perf_sched_events);
+		dec = true;
 	if (has_branch_stack(event))
+		dec = true;
+
+	if (dec)
 		static_key_slow_dec_deferred(&perf_sched_events);
 
 	unaccount_event_cpu(event, event->cpu);
@@ -7723,11 +7728,13 @@ static void account_event_cpu(struct perf_event *event, int cpu)
 
 static void account_event(struct perf_event *event)
 {
+	bool inc = false;
+
 	if (event->parent)
 		return;
 
 	if (event->attach_state & PERF_ATTACH_TASK)
-		static_key_slow_inc(&perf_sched_events.key);
+		inc = true;
 	if (event->attr.mmap || event->attr.mmap_data)
 		atomic_inc(&nr_mmap_events);
 	if (event->attr.comm)
@@ -7740,11 +7747,14 @@ static void account_event(struct perf_event *event)
 	}
 	if (event->attr.context_switch) {
 		atomic_inc(&nr_switch_events);
-		static_key_slow_inc(&perf_sched_events.key);
+		inc = true;
 	}
 	if (has_branch_stack(event))
-		static_key_slow_inc(&perf_sched_events.key);
+		inc = true;
 	if (is_cgroup_event(event))
+		inc = true;
+
+	if (inc)
 		static_key_slow_inc(&perf_sched_events.key);
 
 	account_event_cpu(event, event->cpu);
