@@ -61,6 +61,9 @@ static void firmware_es2_fixup_vid_pid(struct gb_firmware *firmware)
 
 	firmware->vendor_id = le32_to_cpu(response.vendor_id);
 	firmware->product_id = le32_to_cpu(response.product_id);
+
+	dev_dbg(&connection->bundle->dev, "Firmware got vid (0x%x)/pid (0x%x)\n",
+		firmware->vendor_id, firmware->product_id);
 }
 
 /* This returns path of the firmware blob on the disk */
@@ -69,6 +72,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	struct gb_connection *connection = firmware->connection;
 	struct gb_interface *intf = connection->bundle->intf;
 	char firmware_name[48];
+	int rc;
 
 	/* Already have a firmware, free it */
 	if (firmware->fw)
@@ -84,8 +88,11 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
 		 firmware->vendor_id, firmware->product_id, stage);
 
-	return request_firmware(&firmware->fw, firmware_name,
-				&connection->bundle->dev);
+	rc = request_firmware(&firmware->fw, firmware_name,
+		&connection->bundle->dev);
+	dev_dbg(&connection->bundle->dev, "Searched for TFTF %s: %d\n",
+		firmware_name, rc);
+	return rc;
 }
 
 static int gb_firmware_size_request(struct gb_operation *op)
@@ -120,6 +127,8 @@ static int gb_firmware_size_request(struct gb_operation *op)
 
 	size_response = op->response->payload;
 	size_response->size = cpu_to_le32(firmware->fw->size);
+
+	dev_dbg(dev, "%s: firmware size %d bytes\n", __func__, size_response->size);
 
 	return 0;
 }
@@ -165,6 +174,9 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 	firmware_response = op->response->payload;
 	memcpy(firmware_response->data, fw->data + offset, size);
 
+	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n", offset,
+		size);
+
 	return 0;
 }
 
@@ -192,6 +204,7 @@ static int gb_firmware_ready_to_boot(struct gb_operation *op)
 	/*
 	 * XXX Should we return error for insecure firmware?
 	 */
+	dev_dbg(dev, "ready to boot: 0x%x, 0\n", status);
 
 	return 0;
 }
@@ -245,6 +258,8 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 				"failed to send AP READY: %d\n", ret);
 	}
 
+	dev_dbg(&connection->bundle->dev, "%s: AP_READY sent\n", __func__);
+
 	return 0;
 }
 
@@ -258,6 +273,8 @@ static void gb_firmware_connection_exit(struct gb_connection *connection)
 
 	connection->private = NULL;
 	kfree(firmware);
+
+	dev_dbg(&connection->bundle->dev, "%s\n", __func__);
 }
 
 static struct gb_protocol firmware_protocol = {
