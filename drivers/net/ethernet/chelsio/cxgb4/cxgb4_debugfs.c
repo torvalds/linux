@@ -1726,13 +1726,13 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 				seq_printf(seq,
 					   "%3u %02x:%02x:%02x:%02x:%02x:%02x "
 					   "%012llx %06x %06x    -    -   %3c"
-					   "      %3c  %4x   "
+					   "      'I'  %4x   "
 					   "%3c   %#x%4u%4d", idx, addr[0],
 					   addr[1], addr[2], addr[3],
 					   addr[4], addr[5],
 					   (unsigned long long)mask,
 					   vniy, vnix, dip_hit ? 'Y' : 'N',
-					   lookup_type ? 'I' : 'O', port_num,
+					   port_num,
 					   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
 					   PORTMAP_G(cls_hi),
 					   T6_PF_G(cls_lo),
