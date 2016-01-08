@@ -144,6 +144,16 @@ colors.*::
 		Colors for headers in the output of a sub-commands (top, report).
 		Default values are 'white', 'blue'.
 
+tui.*, gtk.*::
+	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
+	These values are booleans, for example:
+
+	[tui]
+		top = true
+
+	will make the TUI be the default for the 'top' subcommand. Those will be
+	available if the required libs were detected at tool build time.
+
 SEE ALSO
 --------
 linkperf:perf[1]
