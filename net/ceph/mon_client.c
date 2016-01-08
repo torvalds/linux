@@ -255,12 +255,6 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 	seconds = le32_to_cpu(h->duration);
 
 	mutex_lock(&monc->mutex);
-	if (monc->hunting) {
-		pr_info("mon%d %s session established\n",
-			monc->cur_mon,
-			ceph_pr_addr(&monc->con.peer_addr.in_addr));
-		monc->hunting = false;
-	}
 	dout("handle_subscribe_ack after %d seconds\n", seconds);
 	monc->sub_renew_after = monc->sub_sent + (seconds >> 1)*HZ - 1;
 	monc->sub_sent = 0;
@@ -877,6 +871,14 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 }
 EXPORT_SYMBOL(ceph_monc_stop);
 
+static void finish_hunting(struct ceph_mon_client *monc)
+{
+	if (monc->hunting) {
+		dout("%s found mon%d\n", __func__, monc->cur_mon);
+		monc->hunting = false;
+	}
+}
+
 static void handle_auth_reply(struct ceph_mon_client *monc,
 			      struct ceph_msg *msg)
 {
@@ -890,11 +892,15 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 				     msg->front.iov_len,
 				     monc->m_auth->front.iov_base,
 				     monc->m_auth->front_alloc_len);
+	if (ret > 0) {
+		__send_prepared_auth_request(monc, ret);
+		goto out;
+	}
+
+	finish_hunting(monc);
+
 	if (ret < 0) {
 		monc->client->auth_err = ret;
-		wake_up_all(&monc->client->auth_wq);
-	} else if (ret > 0) {
-		__send_prepared_auth_request(monc, ret);
 	} else if (!was_auth && ceph_auth_is_authenticated(monc->auth)) {
 		dout("authenticated, starting session\n");
 
@@ -904,8 +910,15 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 
 		__send_subscribe(monc);
 		__resend_generic_request(monc);
+
+		pr_info("mon%d %s session established\n", monc->cur_mon,
+			ceph_pr_addr(&monc->con.peer_addr.in_addr));
 	}
+
+out:
 	mutex_unlock(&monc->mutex);
+	if (monc->client->auth_err < 0)
+		wake_up_all(&monc->client->auth_wq);
 }
 
 static int __validate_auth(struct ceph_mon_client *monc)
