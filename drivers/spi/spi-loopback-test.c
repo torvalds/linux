@@ -37,7 +37,7 @@ MODULE_PARM_DESC(simulate_only, "if not 0 do not execute the spi message");
 /* dump spi messages */
 int dump_messages;
 module_param(dump_messages, int, 0);
-MODULE_PARM_DESC(dump_message,
+MODULE_PARM_DESC(dump_messages,
 		 "=1 dump the basic spi_message_structure, " \
 		 "=2 dump the spi_message_structure including data, " \
 		 "=3 dump the spi_message structure before and after execution");
