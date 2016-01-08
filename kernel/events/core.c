@@ -1246,6 +1246,8 @@ ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 static void
 list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 {
+	lockdep_assert_held(&ctx->lock);
+
 	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
 	event->attach_state |= PERF_ATTACH_CONTEXT;
 
@@ -2342,8 +2344,10 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 			  struct perf_cpu_context *cpuctx,
 			  enum event_type_t event_type)
 {
-	struct perf_event *event;
 	int is_active = ctx->is_active;
+	struct perf_event *event;
+
+	lockdep_assert_held(&ctx->lock);
 
 	ctx->is_active &= ~event_type;
 	if (likely(!ctx->nr_events))
@@ -2725,8 +2729,10 @@ ctx_sched_in(struct perf_event_context *ctx,
 	     enum event_type_t event_type,
 	     struct task_struct *task)
 {
-	u64 now;
 	int is_active = ctx->is_active;
+	u64 now;
+
+	lockdep_assert_held(&ctx->lock);
 
 	ctx->is_active |= event_type;
 	if (likely(!ctx->nr_events))
