@@ -67,6 +67,11 @@ static void emac_rockchip_set_mac_speed(void *priv, unsigned int speed)
 		pr_err("unable to apply speed %u to grf (%d)\n", speed, err);
 }
 
+static const struct emac_rockchip_soc_data emac_rk3036_emac_data = {
+	.grf_offset = 0x140,   .grf_mode_offset = 8,
+	.grf_speed_offset = 9, .need_div_macclk = 1,
+};
+
 static const struct emac_rockchip_soc_data emac_rk3066_emac_data = {
 	.grf_offset = 0x154,   .grf_mode_offset = 0,
 	.grf_speed_offset = 1, .need_div_macclk = 0,
@@ -78,6 +83,7 @@ static const struct emac_rockchip_soc_data emac_rk3188_emac_data = {
 };
 
 static const struct of_device_id emac_rockchip_dt_ids[] = {
+	{ .compatible = "rockchip,rk3036-emac", .data = &emac_rk3036_emac_data },
 	{ .compatible = "rockchip,rk3066-emac", .data = &emac_rk3066_emac_data },
 	{ .compatible = "rockchip,rk3188-emac", .data = &emac_rk3188_emac_data },
 	{ /* Sentinel */ }
@@ -110,7 +116,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 
 	interface = of_get_phy_mode(dev->of_node);
 
-	/* RK3066 and RK3188 SoCs only support RMII */
+	/* RK3036/RK3066/RK3188 SoCs only support RMII */
 	if (interface != PHY_INTERFACE_MODE_RMII) {
 		dev_err(dev, "unsupported phy interface mode %d\n", interface);
 		err = -ENOTSUPP;
