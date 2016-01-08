@@ -158,9 +158,8 @@ static void sync_print_fence(struct seq_file *s, struct sync_fence *fence)
 	seq_printf(s, "[%p] %s: %s\n", fence, fence->name,
 		   sync_status_str(atomic_read(&fence->status)));
 
-	for (i = 0; i < fence->num_fences; ++i) {
+	for (i = 0; i < fence->num_fences; ++i)
 		sync_print_pt(s, fence->cbs[i].sync_pt, true);
-	}
 
 	spin_lock_irqsave(&fence->wq.lock, flags);
 	list_for_each_entry(pos, &fence->wq.task_list, task_list) {
