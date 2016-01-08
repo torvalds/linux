@@ -64,31 +64,6 @@ static DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
 static unsigned int *row_gpios;
 static unsigned int *col_gpios;
 
-#ifdef CONFIG_ARCH_OMAP2
-static void set_col_gpio_val(struct omap_kp *omap_kp, u8 value)
-{
-	int col;
-
-	for (col = 0; col < omap_kp->cols; col++)
-		gpio_set_value(col_gpios[col], value & (1 << col));
-}
-
-static u8 get_row_gpio_val(struct omap_kp *omap_kp)
-{
-	int row;
-	u8 value = 0;
-
-	for (row = 0; row < omap_kp->rows; row++) {
-		if (gpio_get_value(row_gpios[row]))
-			value |= (1 << row);
-	}
-	return value;
-}
-#else
-#define		set_col_gpio_val(x, y)	do {} while (0)
-#define		get_row_gpio_val(x)	0
-#endif
-
 static irqreturn_t omap_kp_interrupt(int irq, void *dev_id)
 {
 	/* disable keyboard interrupt and schedule for handling */
