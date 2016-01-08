@@ -22,11 +22,22 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/of_device.h>
 
 struct rk808_reg_data {
 	int addr;
 	int mask;
 	int value;
+};
+
+struct rk8xx_power_data {
+	char *name;
+	const struct rk808_reg_data *rk8xx_pre_init_reg;
+	int reg_num;
+	const struct regmap_config *rk8xx_regmap_config;
+	const struct mfd_cell *rk8xx_cell;
+	int cell_num;
+	struct regmap_irq_chip *rk8xx_irq_chip;
 };
 
 static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
@@ -148,6 +159,130 @@ static struct regmap_irq_chip rk808_irq_chip = {
 	.init_ack_masked = true,
 };
 
+static const struct regmap_config rk818_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = RK818_SAVE_DATA19,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = rk808_is_volatile_reg,
+};
+
+static const struct mfd_cell rk818s[] = {
+	{ .name = "rk808-clkout", },
+	{ .name = "rk818-regulator", },
+	{
+		.name = "rk808-rtc",
+		.num_resources = ARRAY_SIZE(rtc_resources),
+		.resources = &rtc_resources[0],
+	},
+};
+
+static const struct rk808_reg_data rk818_pre_init_reg[] = {
+	{ RK818_H5V_EN_REG, REF_RDY_CTRL_ENABLE | H5V_EN_MASK,
+					REF_RDY_CTRL_ENABLE | H5V_EN_ENABLE },
+	{ RK818_DCDC_EN_REG, BOOST_EN_MASK | SWITCH_EN_MASK,
+					BOOST_EN_ENABLE | SWITCH_EN_ENABLE },
+	{ RK818_SLEEP_SET_OFF_REG1, OTG_SLP_SET_MASK, OTG_SLP_SET_OFF },
+	{ RK818_BUCK4_CONFIG_REG, BUCK_ILMIN_MASK,  BUCK_ILMIN_250MA },
+};
+
+static const struct regmap_irq rk818_irqs[] = {
+	/* INT_STS */
+	[RK818_IRQ_VOUT_LO] = {
+		.mask = VOUT_LO_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_VB_LO] = {
+		.mask = VB_LO_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_PWRON] = {
+		.mask = PWRON_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_PWRON_LP] = {
+		.mask = PWRON_LP_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_HOTDIE] = {
+		.mask = HOTDIE_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_RTC_ALARM] = {
+		.mask = RTC_ALARM_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_RTC_PERIOD] = {
+		.mask = RTC_PERIOD_MASK,
+		.reg_offset = 0,
+	},
+	[RK818_IRQ_USB_OV] = {
+		.mask = USB_OV_MASK,
+		.reg_offset = 0,
+	},
+	/* INT_STS2 */
+	[RK818_IRQ_PLUG_IN] = {
+		.mask = PLUG_IN_MASK,
+		.reg_offset = 1,
+	},
+	[RK818_IRQ_PLUG_OUT] = {
+		.mask = PLUG_OUT_MASK,
+		.reg_offset = 1,
+	},
+	[RK818_IRQ_CHG_OK] = {
+		.mask = CHGOK_MASK,
+		.reg_offset = 1,
+	},
+	[RK818_IRQ_CHG_TE] = {
+		.mask = CHGTE_MASK,
+		.reg_offset = 1,
+	},
+	[RK818_IRQ_CHG_TS1] = {
+		.mask = CHGTS1_MASK,
+		.reg_offset = 1,
+	},
+	[RK818_IRQ_TS2] = {
+		.mask = TS2_MASK,
+		.reg_offset = 1,
+	},
+	[RK818_IRQ_DISCHG_ILIM] = {
+		.mask = DISCHG_ILIM_MASK,
+		.reg_offset = 1,
+	},
+};
+
+static struct regmap_irq_chip rk818_irq_chip = {
+	.name = "rk818",
+	.irqs = rk818_irqs,
+	.num_irqs = ARRAY_SIZE(rk818_irqs),
+	.num_regs = 2,
+	.irq_reg_stride = 2,
+	.status_base = RK808_INT_STS_REG1,
+	.mask_base = RK808_INT_STS_MSK_REG1,
+	.ack_base = RK808_INT_STS_REG1,
+	.init_ack_masked = true,
+};
+
+static struct rk8xx_power_data rk808_power_data = {
+	.name = "rk808",
+	.rk8xx_pre_init_reg = pre_init_reg,
+	.reg_num = ARRAY_SIZE(pre_init_reg),
+	.rk8xx_regmap_config = &rk808_regmap_config,
+	.rk8xx_cell = rk808s,
+	.cell_num = ARRAY_SIZE(rk808s),
+	.rk8xx_irq_chip = &rk808_irq_chip,
+};
+
+static struct rk8xx_power_data rk818_power_data = {
+	.name = "rk818",
+	.rk8xx_pre_init_reg = rk818_pre_init_reg,
+	.reg_num = ARRAY_SIZE(rk818_pre_init_reg),
+	.rk8xx_regmap_config = &rk818_regmap_config,
+	.rk8xx_cell = rk818s,
+	.cell_num = ARRAY_SIZE(rk818s),
+	.rk8xx_irq_chip = &rk818_irq_chip,
+};
+
 static struct i2c_client *rk808_i2c_client;
 static void rk808_device_shutdown(void)
 {
@@ -167,14 +302,35 @@ static void rk808_device_shutdown(void)
 		dev_err(&rk808_i2c_client->dev, "power off error!\n");
 }
 
+static const struct of_device_id rk808_of_match[] = {
+	{
+		.compatible = "rockchip,rk808",
+		.data = &rk808_power_data,
+	},
+	{
+		.compatible = "rockchip,rk818",
+		.data = &rk818_power_data,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rk808_of_match);
+
 static int rk808_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
+	const struct of_device_id *of_id =
+			of_match_device(rk808_of_match, &client->dev);
+	const struct rk8xx_power_data *pdata = of_id->data;
 	struct device_node *np = client->dev.of_node;
 	struct rk808 *rk808;
 	int pm_off = 0;
 	int ret;
 	int i;
+
+	if (!of_id) {
+		dev_err(&client->dev, "Failed to find matching dt id\n");
+		return -ENODEV;
+	}
 
 	if (!client->irq) {
 		dev_err(&client->dev, "No interrupt support, no core IRQ\n");
@@ -185,26 +341,29 @@ static int rk808_probe(struct i2c_client *client,
 	if (!rk808)
 		return -ENOMEM;
 
-	rk808->regmap = devm_regmap_init_i2c(client, &rk808_regmap_config);
+	rk808->regmap = devm_regmap_init_i2c(client,
+					     pdata->rk8xx_regmap_config);
 	if (IS_ERR(rk808->regmap)) {
 		dev_err(&client->dev, "regmap initialization failed\n");
 		return PTR_ERR(rk808->regmap);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(pre_init_reg); i++) {
-		ret = regmap_update_bits(rk808->regmap, pre_init_reg[i].addr,
-					 pre_init_reg[i].mask,
-					 pre_init_reg[i].value);
+	for (i = 0; i < pdata->reg_num; i++) {
+		ret = regmap_update_bits(rk808->regmap,
+					 pdata->rk8xx_pre_init_reg[i].addr,
+					 pdata->rk8xx_pre_init_reg[i].mask,
+					 pdata->rk8xx_pre_init_reg[i].value);
 		if (ret) {
 			dev_err(&client->dev,
-				"0x%x write err\n", pre_init_reg[i].addr);
+				"0x%x write err\n",
+				pdata->rk8xx_pre_init_reg[i].addr);
 			return ret;
 		}
 	}
 
 	ret = regmap_add_irq_chip(rk808->regmap, client->irq,
 				  IRQF_ONESHOT, -1,
-				  &rk808_irq_chip, &rk808->irq_data);
+				  pdata->rk8xx_irq_chip, &rk808->irq_data);
 	if (ret) {
 		dev_err(&client->dev, "Failed to add irq_chip %d\n", ret);
 		return ret;
@@ -214,7 +373,7 @@ static int rk808_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, rk808);
 
 	ret = mfd_add_devices(&client->dev, -1,
-			      rk808s, ARRAY_SIZE(rk808s),
+			      pdata->rk8xx_cell, pdata->cell_num,
 			      NULL, 0, regmap_irq_get_domain(rk808->irq_data));
 	if (ret) {
 		dev_err(&client->dev, "failed to add MFD devices %d\n", ret);
@@ -246,14 +405,9 @@ static int rk808_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct of_device_id rk808_of_match[] = {
-	{ .compatible = "rockchip,rk808" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, rk808_of_match);
-
 static const struct i2c_device_id rk808_ids[] = {
 	{ "rk808" },
+	{ "rk818" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, rk808_ids);
