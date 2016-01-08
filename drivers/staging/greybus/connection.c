@@ -378,8 +378,9 @@ static int gb_connection_protocol_get_version(struct gb_connection *connection)
 
 	ret = gb_protocol_get_version(connection);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to get protocol version: %d\n", ret);
+		dev_err(&connection->hd->dev,
+			"%s: failed to get protocol version: %d\n",
+			connection->name, ret);
 		return ret;
 	}
 
