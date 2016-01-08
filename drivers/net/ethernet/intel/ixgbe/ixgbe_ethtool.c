@@ -185,9 +185,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	ixgbe_link_speed supported_link;
-	u32 link_speed = 0;
 	bool autoneg = false;
-	bool link_up;
 
 	hw->mac.ops.get_link_capabilities(hw, &supported_link, &autoneg);
 
@@ -313,9 +311,8 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		break;
 	}
 
-	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
-	if (link_up) {
-		switch (link_speed) {
+	if (netif_carrier_ok(netdev)) {
+		switch (adapter->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 			break;
