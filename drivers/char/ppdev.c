@@ -69,6 +69,7 @@
 #include <linux/ppdev.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 
 #define PP_VERSION "ppdev: user-space parallel port driver"
 #define CHRDEV "ppdev"
@@ -670,6 +671,14 @@ static long pp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long pp_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	return pp_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 static int pp_open (struct inode * inode, struct file * file)
 {
 	unsigned int minor = iminor(inode);
@@ -779,6 +788,9 @@ static const struct file_operations pp_fops = {
 	.write		= pp_write,
 	.poll		= pp_poll,
 	.unlocked_ioctl	= pp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = pp_compat_ioctl,
+#endif
 	.open		= pp_open,
 	.release	= pp_release,
 };
