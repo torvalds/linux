@@ -1502,7 +1502,7 @@ static int intel_runtime_suspend(struct device *device)
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
 
-	if (intel_uncore_unclaimed_mmio(dev_priv))
+	if (intel_uncore_arm_unclaimed_mmio_detection(dev_priv))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
 
 	dev_priv->pm.suspended = true;
