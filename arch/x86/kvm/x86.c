@@ -3606,7 +3606,8 @@ static int kvm_vm_ioctl_set_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
 	       sizeof(kvm->arch.vpit->pit_state.channels));
 	kvm->arch.vpit->pit_state.flags = ps->flags;
 	for (i = 0; i < 3; i++)
-		kvm_pit_load_count(kvm, i, kvm->arch.vpit->pit_state.channels[i].count, start);
+		kvm_pit_load_count(kvm, i, kvm->arch.vpit->pit_state.channels[i].count,
+				   start && i == 0);
 	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 	return 0;
 }
