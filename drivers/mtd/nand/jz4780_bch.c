@@ -210,8 +210,8 @@ EXPORT_SYMBOL(jz4780_bch_calculate);
  * Given the raw data and the ECC read from the NAND device, detects and
  * corrects errors in the data.
  *
- * Return: the number of bit errors corrected, or -1 if there are too many
- * errors to correct or we timed out waiting for the controller.
+ * Return: the number of bit errors corrected, -EBADMSG if there are too many
+ * errors to correct or -ETIMEDOUT if we timed out waiting for the controller.
  */
 int jz4780_bch_correct(struct jz4780_bch *bch, struct jz4780_bch_params *params,
 		       u8 *buf, u8 *ecc_code)
@@ -227,13 +227,13 @@ int jz4780_bch_correct(struct jz4780_bch *bch, struct jz4780_bch_params *params,
 
 	if (!jz4780_bch_wait_complete(bch, BCH_BHINT_DECF, &reg)) {
 		dev_err(bch->dev, "timed out while correcting data\n");
-		ret = -1;
+		ret = -ETIMEDOUT;
 		goto out;
 	}
 
 	if (reg & BCH_BHINT_UNCOR) {
 		dev_warn(bch->dev, "uncorrectable ECC error\n");
-		ret = -1;
+		ret = -EBADMSG;
 		goto out;
 	}
 
