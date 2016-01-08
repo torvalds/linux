@@ -310,7 +310,7 @@ static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
 				 args.dest_offset, args.src_length);
 }
 
-long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 
