@@ -53,6 +53,10 @@
  #define SATA_TOP_CTRL_PHY_OFFS				0x8
  #define SATA_TOP_MAX_PHYS				2
 
+#define SATA_FIRST_PORT_CTRL				0x700
+#define SATA_NEXT_PORT_CTRL_OFFSET			0x80
+#define SATA_PORT_PCTRL6(reg_base)			(reg_base + 0x18)
+
 /* On big-endian MIPS, buses are reversed to big endian, so switch them back */
 #if defined(CONFIG_MIPS) && defined(__BIG_ENDIAN)
 #define DATA_ENDIAN			 2 /* AHCI->DDR inbound accesses */
@@ -109,6 +113,34 @@ static inline void brcm_sata_writereg(u32 val, void __iomem *addr)
 		__raw_writel(val, addr);
 	else
 		writel_relaxed(val, addr);
+}
+
+static void brcm_sata_alpm_init(struct ahci_host_priv *hpriv)
+{
+	struct brcm_ahci_priv *priv = hpriv->plat_data;
+	u32 bus_ctrl, port_ctrl, host_caps;
+	int i;
+
+	/* Enable support for ALPM */
+	bus_ctrl = brcm_sata_readreg(priv->top_ctrl +
+				     SATA_TOP_CTRL_BUS_CTRL);
+	brcm_sata_writereg(bus_ctrl | OVERRIDE_HWINIT,
+			   priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
+	host_caps = readl(hpriv->mmio + HOST_CAP);
+	writel(host_caps | HOST_CAP_ALPM, hpriv->mmio);
+	brcm_sata_writereg(bus_ctrl, priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
+
+	/*
+	 * Adjust timeout to allow PLL sufficient time to lock while waking
+	 * up from slumber mode.
+	 */
+	for (i = 0, port_ctrl = SATA_FIRST_PORT_CTRL;
+	     i < SATA_TOP_MAX_PHYS;
+	     i++, port_ctrl += SATA_NEXT_PORT_CTRL_OFFSET) {
+		if (priv->port_mask & BIT(i))
+			writel(0xff1003fc,
+			       hpriv->mmio + SATA_PORT_PCTRL6(port_ctrl));
+	}
 }
 
 static void brcm_sata_phy_enable(struct brcm_ahci_priv *priv, int port)
@@ -240,6 +272,7 @@ static int brcm_ahci_resume(struct device *dev)
 
 	brcm_sata_init(priv);
 	brcm_sata_phys_enable(priv);
+	brcm_sata_alpm_init(hpriv);
 	return ahci_platform_resume(dev);
 }
 #endif
@@ -283,6 +316,8 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 	hpriv->plat_data = priv;
+
+	brcm_sata_alpm_init(hpriv);
 
 	ret = ahci_platform_enable_resources(hpriv);
 	if (ret)
