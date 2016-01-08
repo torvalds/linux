@@ -76,6 +76,7 @@ struct gb_camera_stream_config {
 
 static int gb_camera_configure_streams(struct gb_camera *gcam,
 				       unsigned int nstreams,
+				       unsigned int flags,
 				       struct gb_camera_stream_config *streams)
 {
 	struct gb_camera_configure_streams_request *req;
@@ -99,7 +100,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
-	req->num_streams = cpu_to_le16(nstreams);
+	req->num_streams = nstreams;
+	req->flags = flags;
 	req->padding = 0;
 
 	for (i = 0; i < nstreams; ++i) {
@@ -117,9 +119,9 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (ret < 0)
 		goto done;
 
-	if (le16_to_cpu(resp->num_streams) > nstreams) {
+	if (resp->num_streams > nstreams) {
 		gcam_dbg(gcam, "got #streams %u > request %u\n",
-			 le16_to_cpu(resp->num_streams), nstreams);
+			 resp->num_streams, nstreams);
 		ret = -EIO;
 		goto done;
 	}
@@ -169,7 +171,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		gcam_err(gcam, "failed to %s the CSI transmitter\n",
 			 nstreams ? "start" : "stop");
 
-	ret = le16_to_cpu(resp->num_streams);
+	ret = resp->num_streams;
 
 done:
 	kfree(req);
@@ -266,13 +268,13 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_STREAMS];
 	struct gb_camera_stream_config *streams;
 	unsigned int nstreams;
-	const char *sep = ";";
+	unsigned int flags;
 	unsigned int i;
 	char *token;
 	int ret;
 
 	/* Retrieve number of streams to configure */
-	token = strsep(&buf, sep);
+	token = strsep(&buf, ";");
 	if (token == NULL)
 		return -EINVAL;
 
@@ -282,6 +284,14 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 	if (nstreams > GB_CAMERA_MAX_STREAMS)
 		return -EINVAL;
+
+	token = strsep(&buf, ";");
+	if (token == NULL)
+		return -EINVAL;
+
+	ret = kstrtouint(token, 10, &flags);
+	if (ret < 0)
+		return ret;
 
 	/* For each stream to configure parse width, height and format */
 	streams = kzalloc(nstreams * sizeof(*streams), GFP_KERNEL);
@@ -320,7 +330,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 			goto done;
 	}
 
-	ret = gb_camera_configure_streams(gcam, nstreams, streams);
+	ret = gb_camera_configure_streams(gcam, nstreams, flags, streams);
 	if (ret < 0)
 		goto done;
 

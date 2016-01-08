@@ -1173,7 +1173,9 @@ struct gb_camera_stream_config_request {
 } __packed;
 
 struct gb_camera_configure_streams_request {
-	__le16 num_streams;
+	__u8 num_streams;
+	__u8 flags;
+#define GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY	0x01
 	__le16 padding;
 	struct gb_camera_stream_config_request config[0];
 } __packed;
@@ -1190,10 +1192,10 @@ struct gb_camera_stream_config_response {
 } __packed;
 
 struct gb_camera_configure_streams_response {
-	__le16 num_streams;
-#define GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED	0x01
+	__u8 num_streams;
 	__u8 flags;
-	__u8 padding;
+#define GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED	0x01
+	__le16 padding;
 	struct gb_camera_stream_config_response config[0];
 } __packed;
 
