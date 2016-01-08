@@ -589,16 +589,6 @@ int iscsit_tpg_del_network_portal(
 	return iscsit_tpg_release_np(tpg_np, tpg, np);
 }
 
-int iscsit_tpg_set_initiator_node_queue_depth(
-	struct iscsi_portal_group *tpg,
-	unsigned char *initiatorname,
-	u32 queue_depth,
-	int force)
-{
-	return core_tpg_set_initiator_node_queue_depth(&tpg->tpg_se_tpg,
-		initiatorname, queue_depth, force);
-}
-
 int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)
 {
 	unsigned char buf1[256], buf2[256], *none = NULL;
