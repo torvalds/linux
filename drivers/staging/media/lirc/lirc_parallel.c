@@ -730,7 +730,7 @@ module_param(irq, int, S_IRUGO);
 MODULE_PARM_DESC(irq, "Interrupt (7 or 5)");
 
 module_param(tx_mask, int, S_IRUGO);
-MODULE_PARM_DESC(tx_maxk, "Transmitter mask (default: 0x01)");
+MODULE_PARM_DESC(tx_mask, "Transmitter mask (default: 0x01)");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging messages");
