@@ -25,6 +25,7 @@ struct gb_power_supply_prop {
 
 struct gb_power_supply {
 	u8				id;
+	bool				registered;
 #ifdef DRIVER_OWNS_PSY_STRUCT
 	struct power_supply		psy;
 #define to_gb_power_supply(x) container_of(x, struct gb_power_supply, psy)
@@ -557,9 +558,11 @@ static void _gb_power_supply_release(struct gb_power_supply *gbpsy)
 
 	cancel_delayed_work_sync(&gbpsy->work);
 #ifdef DRIVER_OWNS_PSY_STRUCT
-	power_supply_unregister(&gbpsy->psy);
+	if (gbpsy->registered)
+		power_supply_unregister(&gbpsy->psy);
 #else
-	power_supply_unregister(gbpsy->psy);
+	if (gbpsy->registered)
+		power_supply_unregister(gbpsy->psy);
 #endif
 
 	_gb_power_supply_free(gbpsy);
@@ -628,6 +631,9 @@ static int gb_power_supply_config(struct gb_power_supplies *supplies, int id)
 	schedule_delayed_work(&gbpsy->work, 0);
 
 out:
+	/* if everything went fine just mark it for release code to know */
+	if (ret == 0)
+		gbpsy->registered = true;
 	return ret;
 }
 
