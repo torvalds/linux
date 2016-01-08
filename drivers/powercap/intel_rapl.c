@@ -988,16 +988,16 @@ static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 	}
 
 	if (!power_ctrl_orig_val)
-		iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_PMC_READ,
-			rapl_defaults->floor_freq_reg_addr,
-				&power_ctrl_orig_val);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_CR_READ,
+			      rapl_defaults->floor_freq_reg_addr,
+			      &power_ctrl_orig_val);
 	mdata = power_ctrl_orig_val;
 	if (enable) {
 		mdata &= ~(0x7f << 8);
 		mdata |= 1 << 8;
 	}
-	iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_PMC_WRITE,
-		rapl_defaults->floor_freq_reg_addr, mdata);
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_CR_WRITE,
+		       rapl_defaults->floor_freq_reg_addr, mdata);
 }
 
 static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
