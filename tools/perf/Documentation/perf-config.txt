@@ -62,7 +62,7 @@ Given a $HOME/.perfconfig like this:
 		medium = green, default
 		normal = lightgray, default
 		selected = white, lightgray
-		code = blue, default
+		jump_arrows = blue, default
 		addr = magenta, default
 		root = white, blue
 
