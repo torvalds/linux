@@ -78,6 +78,7 @@
 #define BM_LPCR_A7_AD_EN_C0_WFI_PDN		0x1
 
 #define BM_CPU_PGC_SW_PDN_PUP_REQ_CORE1_A7	0x2
+#define BM_GPC_PGC_PCG				0x1
 
 #define BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK	0x80000000
 #define BM_GPC_PGC_ACK_SEL_A7_DUMMY_PDN_ACK	0x8000
@@ -280,7 +281,12 @@ void imx_gpcv2_set_plat_power_gate_by_lpm(bool pdn)
 
 void imx_gpcv2_set_m_core_pgc(bool enable, u32 offset)
 {
-	writel_relaxed(enable, gpc_base + offset);
+	u32 val = readl_relaxed(gpc_base + offset) & (~BM_GPC_PGC_PCG);
+
+	if (enable)
+		val |= BM_GPC_PGC_PCG;
+
+	writel_relaxed(val, gpc_base + offset);
 }
 
 void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn)
