@@ -449,6 +449,14 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 			goto fail;
 		}
 
+		if (i > 0 && pitch != mode_cmd->pitches[i - 1]) {
+			dev_err(dev->dev,
+				"pitches are not the same between framebuffer planes %d != %d\n",
+				pitch, mode_cmd->pitches[i - 1]);
+			ret = -EINVAL;
+			goto fail;
+		}
+
 		plane->bo     = bos[i];
 		plane->offset = mode_cmd->offsets[i];
 		plane->pitch  = pitch;
