@@ -2545,8 +2545,7 @@ unlock:
 
 	if (do_switch) {
 		raw_spin_lock(&ctx->lock);
-		ctx_sched_out(ctx, cpuctx, EVENT_ALL);
-		cpuctx->task_ctx = NULL;
+		task_ctx_sched_out(cpuctx, ctx);
 		raw_spin_unlock(&ctx->lock);
 	}
 }
