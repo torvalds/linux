@@ -50,6 +50,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/suspend.h>
@@ -6704,7 +6705,12 @@ void ata_msleep(struct ata_port *ap, unsigned int msecs)
 	if (owns_eh)
 		ata_eh_release(ap);
 
-	msleep(msecs);
+	if (msecs < 20) {
+		unsigned long usecs = msecs * USEC_PER_MSEC;
+		usleep_range(usecs, usecs + 50);
+	} else {
+		msleep(msecs);
+	}
 
 	if (owns_eh)
 		ata_eh_acquire(ap);
