@@ -584,6 +584,8 @@ struct mgmt_rp_get_adv_size_info {
 	__u8	max_scan_rsp_len;
 } __packed;
 
+#define MGMT_OP_START_LIMITED_DISCOVERY	0x0041
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

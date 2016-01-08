@@ -1112,7 +1112,8 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 	 */
 	if (btmrvl_sdio_verify_fw_download(card, pollnum)) {
 		BT_ERR("FW failed to be active in time!");
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto done;
 	}
 
 	sdio_release_host(card->func);
@@ -1544,10 +1545,10 @@ static int btmrvl_sdio_suspend(struct device *dev)
 	}
 
 	priv = card->priv;
+	priv->adapter->is_suspending = true;
 	hcidev = priv->btmrvl_dev.hcidev;
 	BT_DBG("%s: SDIO suspend", hcidev->name);
 	hci_suspend_dev(hcidev);
-	skb_queue_purge(&priv->adapter->tx_queue);
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
@@ -1556,6 +1557,7 @@ static int btmrvl_sdio_suspend(struct device *dev)
 		}
 	}
 
+	priv->adapter->is_suspending = false;
 	priv->adapter->is_suspended = true;
 
 	/* We will keep the power when hs enabled successfully */
