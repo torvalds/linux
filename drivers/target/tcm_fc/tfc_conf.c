@@ -220,31 +220,6 @@ static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
 	return 0;
 }
 
-struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
-{
-	struct ft_node_acl *found = NULL;
-	struct ft_node_acl *acl;
-	struct se_portal_group *se_tpg = &tpg->se_tpg;
-	struct se_node_acl *se_acl;
-
-	mutex_lock(&se_tpg->acl_node_mutex);
-	list_for_each_entry(se_acl, &se_tpg->acl_node_list, acl_list) {
-		acl = container_of(se_acl, struct ft_node_acl, se_node_acl);
-		pr_debug("acl %p port_name %llx\n",
-			acl, (unsigned long long)acl->node_auth.port_name);
-		if (acl->node_auth.port_name == rdata->ids.port_name ||
-		    acl->node_auth.node_name == rdata->ids.node_name) {
-			pr_debug("acl %p port_name %llx matched\n", acl,
-				    (unsigned long long)rdata->ids.port_name);
-			found = acl;
-			/* XXX need to hold onto ACL */
-			break;
-		}
-	}
-	mutex_unlock(&se_tpg->acl_node_mutex);
-	return found;
-}
-
 /*
  * local_port port_group (tpg) ops.
  */

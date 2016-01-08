@@ -166,7 +166,6 @@ void ft_aborted_task(struct se_cmd *);
  */
 void ft_recv_req(struct ft_sess *, struct fc_frame *);
 struct ft_tpg *ft_lport_find_tpg(struct fc_lport *);
-struct ft_node_acl *ft_acl_get(struct ft_tpg *, struct fc_rport_priv *);
 
 void ft_recv_write_data(struct ft_cmd *, struct fc_frame *);
 void ft_dump_cmd(struct ft_cmd *, const char *caller);

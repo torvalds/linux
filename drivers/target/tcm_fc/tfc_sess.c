@@ -191,10 +191,15 @@ out:
  * Caller holds ft_lport_lock.
  */
 static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
-				      struct ft_node_acl *acl)
+				      struct fc_rport_priv *rdata)
 {
+	struct se_portal_group *se_tpg = &tport->tpg->se_tpg;
+	struct se_node_acl *se_acl;
 	struct ft_sess *sess;
 	struct hlist_head *head;
+	unsigned char initiatorname[TRANSPORT_IQN_LEN];
+
+	ft_format_wwn(&initiatorname[0], TRANSPORT_IQN_LEN, rdata->ids.port_name);
 
 	head = &tport->hash[ft_sess_hash(port_id)];
 	hlist_for_each_entry_rcu(sess, head, hash)
@@ -212,7 +217,14 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 		kfree(sess);
 		return NULL;
 	}
-	sess->se_sess->se_node_acl = &acl->se_node_acl;
+
+	se_acl = core_tpg_get_initiator_node_acl(se_tpg, &initiatorname[0]);
+	if (!se_acl) {
+		transport_free_session(sess->se_sess);
+		kfree(sess);
+		return NULL;
+	}
+	sess->se_sess->se_node_acl = se_acl;
 	sess->tport = tport;
 	sess->port_id = port_id;
 	kref_init(&sess->kref);	/* ref for table entry */
@@ -221,7 +233,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 
 	pr_debug("port_id %x sess %p\n", port_id, sess);
 
-	transport_register_session(&tport->tpg->se_tpg, &acl->se_node_acl,
+	transport_register_session(&tport->tpg->se_tpg, se_acl,
 				   sess->se_sess, sess);
 	return sess;
 }
@@ -349,16 +361,11 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 {
 	struct ft_tport *tport;
 	struct ft_sess *sess;
-	struct ft_node_acl *acl;
 	u32 fcp_parm;
 
 	tport = ft_tport_get(rdata->local_port);
 	if (!tport)
 		goto not_target;	/* not a target for this local port */
-
-	acl = ft_acl_get(tport->tpg, rdata);
-	if (!acl)
-		goto not_target;	/* no target for this remote */
 
 	if (!rspp)
 		goto fill;
@@ -381,7 +388,7 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 		spp->spp_flags |= FC_SPP_EST_IMG_PAIR;
 		if (!(fcp_parm & FCP_SPPF_INIT_FCN))
 			return FC_SPP_RESP_CONF;
-		sess = ft_sess_create(tport, rdata->ids.port_id, acl);
+		sess = ft_sess_create(tport, rdata->ids.port_id, rdata);
 		if (!sess)
 			return FC_SPP_RESP_RES;
 		if (!sess->params)
