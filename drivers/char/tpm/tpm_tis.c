@@ -66,8 +66,7 @@ enum tis_defaults {
 };
 
 struct tpm_info {
-	unsigned long start;
-	unsigned long len;
+	struct resource res;
 	/* irq > 0 means: use irq $irq;
 	 * irq = 0 means: autoprobe for an irq;
 	 * irq = -1 means: no irq support
@@ -76,8 +75,11 @@ struct tpm_info {
 };
 
 static struct tpm_info tis_default_info = {
-	.start = TIS_MEM_BASE,
-	.len = TIS_MEM_LEN,
+	.res = {
+		.start = TIS_MEM_BASE,
+		.end = TIS_MEM_BASE + TIS_MEM_LEN - 1,
+		.flags = IORESOURCE_MEM,
+	},
 	.irq = 0,
 };
 
@@ -691,9 +693,9 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	chip->acpi_dev_handle = acpi_dev_handle;
 #endif
 
-	chip->vendor.iobase = devm_ioremap(dev, tpm_info->start, tpm_info->len);
-	if (!chip->vendor.iobase)
-		return -EIO;
+	chip->vendor.iobase = devm_ioremap_resource(dev, &tpm_info->res);
+	if (IS_ERR(chip->vendor.iobase))
+		return PTR_ERR(chip->vendor.iobase);
 
 	/* Maximum timeouts */
 	chip->vendor.timeout_a = TIS_TIMEOUT_A_MAX;
@@ -874,9 +876,12 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 {
 	struct tpm_info tpm_info = {};
 	acpi_handle acpi_dev_handle = NULL;
+	struct resource *res;
 
-	tpm_info.start = pnp_mem_start(pnp_dev, 0);
-	tpm_info.len = pnp_mem_len(pnp_dev, 0);
+	res = pnp_get_resource(pnp_dev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+	tpm_info.res = *res;
 
 	if (pnp_irq_valid(pnp_dev, 0))
 		tpm_info.irq = pnp_irq(pnp_dev, 0);
@@ -939,12 +944,10 @@ static int tpm_check_resource(struct acpi_resource *ares, void *data)
 	struct tpm_info *tpm_info = (struct tpm_info *) data;
 	struct resource res;
 
-	if (acpi_dev_resource_interrupt(ares, 0, &res)) {
+	if (acpi_dev_resource_interrupt(ares, 0, &res))
 		tpm_info->irq = res.start;
-	} else if (acpi_dev_resource_memory(ares, &res)) {
-		tpm_info->start = res.start;
-		tpm_info->len = resource_size(&res);
-	}
+	else if (acpi_dev_resource_memory(ares, &res))
+		tpm_info->res = res;
 
 	return 1;
 }
@@ -977,7 +980,7 @@ static int tpm_tis_acpi_init(struct acpi_device *acpi_dev)
 
 	acpi_dev_free_resource_list(&resources);
 
-	if (tpm_info.start == 0 && tpm_info.len == 0) {
+	if (resource_type(&tpm_info.res) != IORESOURCE_MEM) {
 		dev_err(&acpi_dev->dev,
 			FW_BUG "TPM2 ACPI table does not define a memory resource\n");
 		return -EINVAL;
