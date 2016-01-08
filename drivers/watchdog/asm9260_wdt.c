@@ -198,7 +198,7 @@ static struct watchdog_ops asm9260_wdt_ops = {
 	.set_timeout	= asm9260_wdt_settimeout,
 };
 
-static int __init asm9260_wdt_get_dt_clks(struct asm9260_wdt_priv *priv)
+static int asm9260_wdt_get_dt_clks(struct asm9260_wdt_priv *priv)
 {
 	int err;
 	unsigned long clk;
@@ -250,7 +250,7 @@ static int __init asm9260_wdt_get_dt_clks(struct asm9260_wdt_priv *priv)
 	return 0;
 }
 
-static void __init asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
+static void asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 {
 	const char *tmp;
 	int ret;
@@ -274,7 +274,7 @@ static void __init asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 			 tmp);
 }
 
-static int __init asm9260_wdt_probe(struct platform_device *pdev)
+static int asm9260_wdt_probe(struct platform_device *pdev)
 {
 	struct asm9260_wdt_priv *priv;
 	struct watchdog_device *wdd;
@@ -364,7 +364,7 @@ static void asm9260_wdt_shutdown(struct platform_device *pdev)
 	asm9260_wdt_disable(&priv->wdd);
 }
 
-static int __exit asm9260_wdt_remove(struct platform_device *pdev)
+static int asm9260_wdt_remove(struct platform_device *pdev)
 {
 	struct asm9260_wdt_priv *priv = platform_get_drvdata(pdev);
 
