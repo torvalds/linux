@@ -731,6 +731,7 @@ out_unlock:
 static int gb_power_supply_connection_init(struct gb_connection *connection)
 {
 	struct gb_power_supplies *supplies;
+	int ret;
 
 	supplies = kzalloc(sizeof(*supplies), GFP_KERNEL);
 	if (!supplies)
@@ -741,7 +742,11 @@ static int gb_power_supply_connection_init(struct gb_connection *connection)
 
 	mutex_init(&supplies->supplies_lock);
 
-	return gb_power_supplies_setup(supplies);
+	ret = gb_power_supplies_setup(supplies);
+	if (ret < 0)
+		_gb_power_supplies_release(supplies);
+
+	return ret;
 }
 
 static void gb_power_supply_connection_exit(struct gb_connection *connection)
