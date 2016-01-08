@@ -4204,12 +4204,12 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			return 0;
 		} else if (dev_drv->uboot_logo && uboot_logo_base) {
 			u32 start = uboot_logo_base;
-			u32 start_base = start;
 			int logo_len, i=0;
 			int y_mirror = 0;
 			unsigned int nr_pages;
 			struct page **pages;
 			char *vaddr;
+			int align = 0;
 
 			dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
 					              &yact, &format,
@@ -4224,7 +4224,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			if (y_mirror)
 				start -= logo_len;
 
-			nr_pages = uboot_logo_size >> PAGE_SHIFT;
+			align = start % PAGE_SIZE;
+			start -= align;
+			nr_pages = PAGE_ALIGN(logo_len + align) >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
 					GFP_KERNEL);
 			while (i < nr_pages) {
@@ -4236,11 +4238,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				     pgprot_writecombine(PAGE_KERNEL));
 			if (!vaddr) {
 				pr_err("failed to vmap phy addr 0x%x\n",
-				       start_base);
+				       start);
 				return -1;
 			}
 
-			memcpy(main_fbi->screen_base, vaddr, logo_len);
+			memcpy(main_fbi->screen_base, vaddr + align, logo_len);
 
 			kfree(pages);
 			vunmap(vaddr);
