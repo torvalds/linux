@@ -2130,13 +2130,6 @@ static int  __perf_install_in_context(void *info)
 
 /*
  * Attach a performance event to a context
- *
- * First we add the event to the list with the hardware enable bit
- * in event->hw_config cleared.
- *
- * If the event is attached to a task which is on a CPU we use a smp
- * call to enable it in the task context. The task might have been
- * scheduled away, but we check this in the smp call again.
  */
 static void
 perf_install_in_context(struct perf_event_context *ctx,
