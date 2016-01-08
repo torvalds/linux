@@ -2188,7 +2188,7 @@ static int __perf_event_enable(void *info)
 	struct perf_event_context *ctx = event->ctx;
 	struct perf_event *leader = event->group_leader;
 	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
-	int err;
+	struct perf_event_context *task_ctx = cpuctx->task_ctx;
 
 	/*
 	 * There's a time window between 'ctx->is_active' check
@@ -2202,7 +2202,8 @@ static int __perf_event_enable(void *info)
 	if (!ctx->is_active)
 		return -EINVAL;
 
-	raw_spin_lock(&ctx->lock);
+	perf_ctx_lock(cpuctx, task_ctx);
+	WARN_ON_ONCE(&cpuctx->ctx != ctx && task_ctx != ctx);
 	update_context_time(ctx);
 
 	if (event->state >= PERF_EVENT_STATE_INACTIVE)
@@ -2228,32 +2229,10 @@ static int __perf_event_enable(void *info)
 	if (leader != event && leader->state != PERF_EVENT_STATE_ACTIVE)
 		goto unlock;
 
-	if (!group_can_go_on(event, cpuctx, 1)) {
-		err = -EEXIST;
-	} else {
-		if (event == leader)
-			err = group_sched_in(event, cpuctx, ctx);
-		else
-			err = event_sched_in(event, cpuctx, ctx);
-	}
-
-	if (err) {
-		/*
-		 * If this event can't go on and it's part of a
-		 * group, then the whole group has to come off.
-		 */
-		if (leader != event) {
-			group_sched_out(leader, cpuctx, ctx);
-			perf_mux_hrtimer_restart(cpuctx);
-		}
-		if (leader->attr.pinned) {
-			update_group_times(leader);
-			leader->state = PERF_EVENT_STATE_ERROR;
-		}
-	}
+	ctx_resched(cpuctx, task_ctx);
 
 unlock:
-	raw_spin_unlock(&ctx->lock);
+	perf_ctx_unlock(cpuctx, task_ctx);
 
 	return 0;
 }
