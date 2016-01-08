@@ -168,6 +168,8 @@ void	core_allocate_nexus_loss_ua(struct se_node_acl *acl);
 
 struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
 		unsigned char *);
+bool	target_tpg_has_node_acl(struct se_portal_group *tpg,
+		const char *);
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
 		unsigned char *);
 int	core_tpg_set_initiator_node_queue_depth(struct se_portal_group *,
