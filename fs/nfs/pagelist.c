@@ -796,11 +796,8 @@ EXPORT_SYMBOL_GPL(nfs_generic_pgio);
 
 static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_pgio_mirror *mirror;
 	struct nfs_pgio_header *hdr;
 	int ret;
-
-	mirror = nfs_pgio_current_mirror(desc);
 
 	hdr = nfs_pgio_header_alloc(desc->pg_rw_ops);
 	if (!hdr) {
