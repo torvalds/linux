@@ -398,7 +398,8 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 
 	/* search for connected PHY device */
 	for (i = 0; i < PHY_MAX_ADDR; ++i) {
-		struct phy_device *const tmp_phydev = lp->mii_bus->phy_map[i];
+		struct phy_device *const tmp_phydev =
+			mdiobus_get_phy(lp->mii_bus, i);
 
 		if (!tmp_phydev)
 			continue; /* no PHY here... */
