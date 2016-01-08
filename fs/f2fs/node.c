@@ -1041,6 +1041,10 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	struct page *apage;
 	int err;
 
+	if (!nid)
+		return;
+	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
+
 	apage = find_get_page(NODE_MAPPING(sbi), nid);
 	if (apage && PageUptodate(apage)) {
 		f2fs_put_page(apage, 0);
@@ -1108,6 +1112,7 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	nid = get_nid(parent, start, false);
 	if (!nid)
 		return ERR_PTR(-ENOENT);
+	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
 repeat:
 	page = grab_cache_page(NODE_MAPPING(sbi), nid);
 	if (!page)
@@ -1127,9 +1132,9 @@ repeat:
 	end = start + MAX_RA_NODE;
 	end = min(end, NIDS_PER_BLOCK);
 	for (i = start + 1; i < end; i++) {
-		nid_t tnid = get_nid(parent, i, false);
-		if (!tnid)
-			continue;
+		nid_t tnid;
+
+		tnid = get_nid(parent, i, false);
 		ra_node_page(sbi, tnid);
 	}
 
