@@ -68,7 +68,11 @@ enum tis_defaults {
 struct tpm_info {
 	unsigned long start;
 	unsigned long len;
-	unsigned int irq;
+	/* irq > 0 means: use irq $irq;
+	 * irq = 0 means: autoprobe for an irq;
+	 * irq = -1 means: no irq support
+	 */
+	int irq;
 };
 
 static struct tpm_info tis_default_info = {
@@ -806,7 +810,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	/* INTERRUPT Setup */
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
-	if (interrupts) {
+	if (interrupts && tpm_info->irq != -1) {
 		if (tpm_info->irq) {
 			tpm_tis_probe_irq_single(chip, intmask, IRQF_SHARED,
 						 tpm_info->irq);
@@ -894,9 +898,9 @@ static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 
 #ifdef CONFIG_PNP
 static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
-				      const struct pnp_device_id *pnp_id)
+			    const struct pnp_device_id *pnp_id)
 {
-	struct tpm_info tpm_info = tis_default_info;
+	struct tpm_info tpm_info = {};
 	acpi_handle acpi_dev_handle = NULL;
 
 	tpm_info.start = pnp_mem_start(pnp_dev, 0);
@@ -905,7 +909,7 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	if (pnp_irq_valid(pnp_dev, 0))
 		tpm_info.irq = pnp_irq(pnp_dev, 0);
 	else
-		interrupts = false;
+		tpm_info.irq = -1;
 
 #ifdef CONFIG_ACPI
 	if (pnp_acpi_device(pnp_dev)) {
@@ -983,15 +987,13 @@ static int tpm_tis_acpi_init(struct acpi_device *acpi_dev)
 		return -ENODEV;
 
 	INIT_LIST_HEAD(&resources);
+	tpm_info.irq = -1;
 	ret = acpi_dev_get_resources(acpi_dev, &resources, tpm_check_resource,
 				     &tpm_info);
 	if (ret < 0)
 		return ret;
 
 	acpi_dev_free_resource_list(&resources);
-
-	if (!tpm_info.irq)
-		interrupts = false;
 
 	if (is_itpm(acpi_dev))
 		itpm = true;
