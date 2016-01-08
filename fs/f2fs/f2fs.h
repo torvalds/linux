@@ -361,7 +361,7 @@ struct extent_tree {
 	struct extent_info largest;	/* largested extent info */
 	struct list_head list;		/* to be used by sbi->zombie_list */
 	rwlock_t lock;			/* protect extent info rb-tree */
-	unsigned int count;		/* # of extent node in rb-tree*/
+	atomic_t node_cnt;		/* # of extent node in rb-tree*/
 };
 
 /*
