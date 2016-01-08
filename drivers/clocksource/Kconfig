@@ -257,6 +257,7 @@ config CLKSRC_SAMSUNG_PWM
 config FSL_FTM_TIMER
 	bool "Freescale FlexTimer Module driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
 	help
 	  Support for Freescale FlexTimer Module (FTM) timer.
 
