@@ -144,6 +144,7 @@ int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 
 		head->arg.pages[pg_no] = rqstp->rq_arg.pages[pg_no];
 		head->arg.page_len += len;
+
 		head->arg.len += len;
 		if (!pg_off)
 			head->count++;
@@ -160,8 +161,7 @@ int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 			goto err;
 		atomic_inc(&xprt->sc_dma_used);
 
-		/* The lkey here is either a local dma lkey or a dma_mr lkey */
-		ctxt->sge[pno].lkey = xprt->sc_dma_lkey;
+		ctxt->sge[pno].lkey = xprt->sc_pd->local_dma_lkey;
 		ctxt->sge[pno].length = len;
 		ctxt->count++;
 

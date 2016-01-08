@@ -232,11 +232,11 @@ void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 	for (i = 0; i < ctxt->count && ctxt->sge[i].length; i++) {
 		/*
 		 * Unmap the DMA addr in the SGE if the lkey matches
-		 * the sc_dma_lkey, otherwise, ignore it since it is
+		 * the local_dma_lkey, otherwise, ignore it since it is
 		 * an FRMR lkey and will be unmapped later when the
 		 * last WR that uses it completes.
 		 */
-		if (ctxt->sge[i].lkey == xprt->sc_dma_lkey) {
+		if (ctxt->sge[i].lkey == xprt->sc_pd->local_dma_lkey) {
 			atomic_dec(&xprt->sc_dma_used);
 			ib_dma_unmap_page(xprt->sc_cm_id->device,
 					    ctxt->sge[i].addr,
@@ -698,7 +698,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 		atomic_inc(&xprt->sc_dma_used);
 		ctxt->sge[sge_no].addr = pa;
 		ctxt->sge[sge_no].length = PAGE_SIZE;
-		ctxt->sge[sge_no].lkey = xprt->sc_dma_lkey;
+		ctxt->sge[sge_no].lkey = xprt->sc_pd->local_dma_lkey;
 		ctxt->count = sge_no + 1;
 		buflen += PAGE_SIZE;
 	}
@@ -1014,8 +1014,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct ib_cq_init_attr cq_attr = {};
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device *dev;
-	int uninitialized_var(dma_mr_acc);
-	int need_dma_mr = 0;
 	unsigned int i;
 	int ret = 0;
 
@@ -1160,31 +1158,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	    !rdma_ib_or_roce(dev, newxprt->sc_cm_id->port_num))
 		goto errout;
 
-	if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG) ||
-	    !(dev->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
-		need_dma_mr = 1;
-		dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		if (rdma_protocol_iwarp(dev, newxprt->sc_cm_id->port_num) &&
-		    !(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG))
-			dma_mr_acc |= IB_ACCESS_REMOTE_WRITE;
-	}
-
 	if (rdma_protocol_iwarp(dev, newxprt->sc_cm_id->port_num))
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
-
-	/* Create the DMA MR if needed, otherwise, use the DMA LKEY */
-	if (need_dma_mr) {
-		/* Register all of physical memory */
-		newxprt->sc_phys_mr =
-			ib_get_dma_mr(newxprt->sc_pd, dma_mr_acc);
-		if (IS_ERR(newxprt->sc_phys_mr)) {
-			dprintk("svcrdma: Failed to create DMA MR ret=%d\n",
-				ret);
-			goto errout;
-		}
-		newxprt->sc_dma_lkey = newxprt->sc_phys_mr->lkey;
-	} else
-		newxprt->sc_dma_lkey = dev->local_dma_lkey;
 
 	/* Post receive buffers */
 	for (i = 0; i < newxprt->sc_rq_depth; i++) {
@@ -1349,9 +1324,6 @@ static void __svc_rdma_free(struct work_struct *work)
 	if (rdma->sc_rq_cq && !IS_ERR(rdma->sc_rq_cq))
 		ib_destroy_cq(rdma->sc_rq_cq);
 
-	if (rdma->sc_phys_mr && !IS_ERR(rdma->sc_phys_mr))
-		ib_dereg_mr(rdma->sc_phys_mr);
-
 	if (rdma->sc_pd && !IS_ERR(rdma->sc_pd))
 		ib_dealloc_pd(rdma->sc_pd);
 
@@ -1479,7 +1451,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 		return;
 	}
 	atomic_inc(&xprt->sc_dma_used);
-	ctxt->sge[0].lkey = xprt->sc_dma_lkey;
+	ctxt->sge[0].lkey = xprt->sc_pd->local_dma_lkey;
 	ctxt->sge[0].length = length;
 
 	/* Prepare SEND WR */

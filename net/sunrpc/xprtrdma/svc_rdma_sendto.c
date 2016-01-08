@@ -265,7 +265,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 					 sge[sge_no].addr))
 			goto err;
 		atomic_inc(&xprt->sc_dma_used);
-		sge[sge_no].lkey = xprt->sc_dma_lkey;
+		sge[sge_no].lkey = xprt->sc_pd->local_dma_lkey;
 		ctxt->count++;
 		sge_off = 0;
 		sge_no++;
@@ -480,7 +480,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	ctxt->count = 1;
 
 	/* Prepare the SGE for the RPCRDMA Header */
-	ctxt->sge[0].lkey = rdma->sc_dma_lkey;
+	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
 	ctxt->sge[0].length = svc_rdma_xdr_get_reply_hdr_len(rdma_resp);
 	ctxt->sge[0].addr =
 	    ib_dma_map_page(rdma->sc_cm_id->device, page, 0,
@@ -504,7 +504,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 					 ctxt->sge[sge_no].addr))
 			goto err;
 		atomic_inc(&rdma->sc_dma_used);
-		ctxt->sge[sge_no].lkey = rdma->sc_dma_lkey;
+		ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
 		ctxt->sge[sge_no].length = sge_bytes;
 	}
 	if (byte_count != 0) {

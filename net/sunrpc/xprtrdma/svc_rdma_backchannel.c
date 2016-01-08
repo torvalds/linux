@@ -128,7 +128,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 
 	ctxt->wr_op = IB_WR_SEND;
 	ctxt->direction = DMA_TO_DEVICE;
-	ctxt->sge[0].lkey = rdma->sc_dma_lkey;
+	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
 	ctxt->sge[0].length = sndbuf->len;
 	ctxt->sge[0].addr =
 	    ib_dma_map_page(rdma->sc_cm_id->device, ctxt->pages[0], 0,
