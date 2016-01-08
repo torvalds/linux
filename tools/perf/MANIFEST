@@ -26,7 +26,7 @@ tools/lib/rbtree.c
 tools/lib/string.c
 tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
-tools/lib/util/find_next_bit.c
+tools/lib/find_bit.c
 tools/include/asm/atomic.h
 tools/include/asm/barrier.h
 tools/include/asm/bug.h

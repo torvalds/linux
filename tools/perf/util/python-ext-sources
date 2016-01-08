@@ -11,7 +11,7 @@ util/evlist.c
 util/evsel.c
 util/cpumap.c
 util/bitmap.c
-../lib/util/find_next_bit.c
+../lib/find_bit.c
 ../lib/hweight.c
 util/thread_map.c
 util/util.c

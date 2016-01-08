@@ -1,6 +1,6 @@
 /* find_next_bit.c: fallback find next bit implementation
  *
- * Copied from lib/find_next_bit.c to tools/lib/next_bit.c
+ * Copied from lib/find_next_bit.c to tools/lib/find_bit.c
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
