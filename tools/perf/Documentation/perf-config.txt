@@ -279,6 +279,23 @@ annotate.*::
 
 		99.93 │      mov    %eax,%eax
 
+hist.*::
+	hist.percentage::
+		This option control the way to calculate overhead of filtered entries -
+		that means the value of this option is effective only if there's a
+		filter (by comm, dso or symbol name). Suppose a following example:
+
+		       Overhead  Symbols
+		       ........  .......
+		        33.33%     foo
+		        33.33%     bar
+		        33.33%     baz
+
+	       This is an original overhead and we'll filter out the first 'foo'
+	       entry. The value of 'relative' would increase the overhead of 'bar'
+	       and 'baz' to 50.00% for each, while 'absolute' would show their
+	       current overhead (33.33%).
+
 SEE ALSO
 --------
 linkperf:perf[1]
