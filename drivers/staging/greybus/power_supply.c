@@ -544,13 +544,10 @@ static void _gb_power_supply_free(struct gb_power_supply *gbpsy)
 	kfree(gbpsy->manufacturer);
 	kfree(gbpsy->props_raw);
 	kfree(gbpsy->props);
-	kfree(gbpsy);
 }
 
 static void _gb_power_supply_release(struct gb_power_supply *gbpsy)
 {
-	if (!gbpsy)
-		return;
 
 	gbpsy->update_interval = 0;
 
@@ -576,6 +573,7 @@ static void _gb_power_supplies_release(struct gb_power_supplies *supplies)
 	mutex_lock(&supplies->supplies_lock);
 	for (i = 0; i < supplies->supplies_count; i++)
 		_gb_power_supply_release(&supplies->supply[i]);
+	kfree(supplies->supply);
 	mutex_unlock(&supplies->supplies_lock);
 	kfree(supplies);
 }
