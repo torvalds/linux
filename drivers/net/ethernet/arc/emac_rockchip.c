@@ -164,10 +164,6 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = arc_emac_probe(ndev, interface);
-	if (err)
-		goto out_regulator_disable;
-
 	/* write-enable bits */
 	data = GRF_MODE_ENABLE_BIT | GRF_SPEED_ENABLE_BIT;
 
@@ -184,6 +180,13 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	err = clk_set_rate(priv->refclk, 50000000);
 	if (err)
 		dev_err(dev, "failed to change reference clock rate (%d)\n", err);
+
+	err = arc_emac_probe(ndev, interface);
+	if (err) {
+		dev_err(dev, "failed to probe arc emac (%d)\n", err);
+		goto out_regulator_disable;
+	}
+
 	return 0;
 
 out_regulator_disable:
