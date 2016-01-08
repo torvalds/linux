@@ -579,13 +579,7 @@ static inline void perf_cgroup_sched_out(struct task_struct *task,
 	 * we are holding the rcu lock
 	 */
 	cgrp1 = perf_cgroup_from_task(task, NULL);
-
-	/*
-	 * next is NULL when called from perf_event_enable_on_exec()
-	 * that will systematically cause a cgroup_switch()
-	 */
-	if (next)
-		cgrp2 = perf_cgroup_from_task(next, NULL);
+	cgrp2 = perf_cgroup_from_task(next, NULL);
 
 	/*
 	 * only schedule out current cgroup events if we know
@@ -611,8 +605,6 @@ static inline void perf_cgroup_sched_in(struct task_struct *prev,
 	 * we are holding the rcu lock
 	 */
 	cgrp1 = perf_cgroup_from_task(task, NULL);
-
-	/* prev can never be NULL */
 	cgrp2 = perf_cgroup_from_task(prev, NULL);
 
 	/*
@@ -1450,11 +1442,14 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 
 	if (is_cgroup_event(event)) {
 		ctx->nr_cgroups--;
+		/*
+		 * Because cgroup events are always per-cpu events, this will
+		 * always be called from the right CPU.
+		 */
 		cpuctx = __get_cpu_context(ctx);
 		/*
-		 * if there are no more cgroup events
-		 * then cler cgrp to avoid stale pointer
-		 * in update_cgrp_time_from_cpuctx()
+		 * If there are no more cgroup events then clear cgrp to avoid
+		 * stale pointer in update_cgrp_time_from_cpuctx().
 		 */
 		if (!ctx->nr_cgroups)
 			cpuctx->cgrp = NULL;
@@ -3118,15 +3113,6 @@ static void perf_event_enable_on_exec(int ctxn)
 	if (!ctx || !ctx->nr_events)
 		goto out;
 
-	/*
-	 * We must ctxsw out cgroup events to avoid conflict
-	 * when invoking perf_task_event_sched_in() later on
-	 * in this function. Otherwise we end up trying to
-	 * ctxswin cgroup events which are already scheduled
-	 * in.
-	 */
-	perf_cgroup_sched_out(current, NULL);
-
 	raw_spin_lock(&ctx->lock);
 	task_ctx_sched_out(ctx);
 
@@ -3144,9 +3130,6 @@ static void perf_event_enable_on_exec(int ctxn)
 
 	raw_spin_unlock(&ctx->lock);
 
-	/*
-	 * Also calls ctxswin for cgroup events, if any:
-	 */
 	perf_event_context_sched_in(ctx, ctx->task);
 out:
 	local_irq_restore(flags);
