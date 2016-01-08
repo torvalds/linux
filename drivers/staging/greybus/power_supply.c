@@ -347,15 +347,13 @@ static int __gb_power_supply_property_strval_get(struct gb_power_supply *gbpsy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_MODEL_NAME:
-		val->strval = kstrndup(gbpsy->model_name, PROP_MAX, GFP_KERNEL);
+		val->strval = gbpsy->model_name;
 		break;
 	case POWER_SUPPLY_PROP_MANUFACTURER:
-		val->strval = kstrndup(gbpsy->manufacturer, PROP_MAX,
-				       GFP_KERNEL);
+		val->strval = gbpsy->manufacturer;
 		break;
 	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
-		val->strval = kstrndup(gbpsy->serial_number, PROP_MAX,
-				       GFP_KERNEL);
+		val->strval = gbpsy->serial_number;
 		break;
 	default:
 		break;
