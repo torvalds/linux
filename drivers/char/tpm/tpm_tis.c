@@ -121,38 +121,10 @@ static inline int is_itpm(struct acpi_device *dev)
 {
 	return has_hid(dev, "INTC0102");
 }
-
-static inline int is_fifo(struct acpi_device *dev)
-{
-	struct acpi_table_tpm2 *tbl;
-	acpi_status st;
-
-	/* TPM 1.2 FIFO */
-	if (!has_hid(dev, "MSFT0101"))
-		return 1;
-
-	st = acpi_get_table(ACPI_SIG_TPM2, 1,
-			    (struct acpi_table_header **) &tbl);
-	if (ACPI_FAILURE(st)) {
-		dev_err(&dev->dev, "failed to get TPM2 ACPI table\n");
-		return 0;
-	}
-
-	if (tbl->start_method != ACPI_TPM2_MEMORY_MAPPED)
-		return 0;
-
-	/* TPM 2.0 FIFO */
-	return 1;
-}
 #else
 static inline int is_itpm(struct acpi_device *dev)
 {
 	return 0;
-}
-
-static inline int is_fifo(struct acpi_device *dev)
-{
-	return 1;
 }
 #endif
 
@@ -979,11 +951,21 @@ static int tpm_check_resource(struct acpi_resource *ares, void *data)
 
 static int tpm_tis_acpi_init(struct acpi_device *acpi_dev)
 {
+	struct acpi_table_tpm2 *tbl;
+	acpi_status st;
 	struct list_head resources;
-	struct tpm_info tpm_info = tis_default_info;
+	struct tpm_info tpm_info = {};
 	int ret;
 
-	if (!is_fifo(acpi_dev))
+	st = acpi_get_table(ACPI_SIG_TPM2, 1,
+			    (struct acpi_table_header **) &tbl);
+	if (ACPI_FAILURE(st) || tbl->header.length < sizeof(*tbl)) {
+		dev_err(&acpi_dev->dev,
+			FW_BUG "failed to get TPM2 ACPI table\n");
+		return -EINVAL;
+	}
+
+	if (tbl->start_method != ACPI_TPM2_MEMORY_MAPPED)
 		return -ENODEV;
 
 	INIT_LIST_HEAD(&resources);
@@ -994,6 +976,12 @@ static int tpm_tis_acpi_init(struct acpi_device *acpi_dev)
 		return ret;
 
 	acpi_dev_free_resource_list(&resources);
+
+	if (tpm_info.start == 0 && tpm_info.len == 0) {
+		dev_err(&acpi_dev->dev,
+			FW_BUG "TPM2 ACPI table does not define a memory resource\n");
+		return -EINVAL;
+	}
 
 	if (is_itpm(acpi_dev))
 		itpm = true;
