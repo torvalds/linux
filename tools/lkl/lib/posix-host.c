@@ -242,7 +242,8 @@ static int net_poll(union lkl_netdev nd, int events)
 	if (events & LKL_DEV_NET_POLL_TX)
 		pfd.events |= POLLOUT;
 
-	poll(&pfd, 1, -1);
+	while (poll(&pfd, 1, -1) < 0 && errno == EINTR)
+		;
 
 	if (pfd.revents & (POLLHUP | POLLNVAL))
 		return -1;
