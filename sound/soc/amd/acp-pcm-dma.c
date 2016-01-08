@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/sizes.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
 
@@ -885,6 +886,10 @@ static int acp_audio_probe(struct platform_device *pdev)
 		return status;
 	}
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 10000);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	return status;
 }
 
@@ -894,15 +899,58 @@ static int acp_audio_remove(struct platform_device *pdev)
 
 	acp_deinit(adata->acp_mmio);
 	snd_soc_unregister_platform(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
+
+static int acp_pcm_resume(struct device *dev)
+{
+	struct audio_drv_data *adata = dev_get_drvdata(dev);
+
+	acp_init(adata->acp_mmio);
+
+	if (adata->play_stream && adata->play_stream->runtime)
+		config_acp_dma(adata->acp_mmio,
+				adata->play_stream->runtime->private_data);
+	if (adata->capture_stream && adata->capture_stream->runtime)
+		config_acp_dma(adata->acp_mmio,
+				adata->capture_stream->runtime->private_data);
+
+	acp_reg_write(1, adata->acp_mmio, mmACP_EXTERNAL_INTR_ENB);
+	return 0;
+}
+
+static int acp_pcm_runtime_suspend(struct device *dev)
+{
+	struct audio_drv_data *adata = dev_get_drvdata(dev);
+
+	acp_deinit(adata->acp_mmio);
+	acp_reg_write(0, adata->acp_mmio, mmACP_EXTERNAL_INTR_ENB);
+	return 0;
+}
+
+static int acp_pcm_runtime_resume(struct device *dev)
+{
+	struct audio_drv_data *adata = dev_get_drvdata(dev);
+
+	acp_init(adata->acp_mmio);
+	acp_reg_write(1, adata->acp_mmio, mmACP_EXTERNAL_INTR_ENB);
+	return 0;
+}
+
+static const struct dev_pm_ops acp_pm_ops = {
+	.resume = acp_pcm_resume,
+	.runtime_suspend = acp_pcm_runtime_suspend,
+	.runtime_resume = acp_pcm_runtime_resume,
+};
 
 static struct platform_driver acp_dma_driver = {
 	.probe = acp_audio_probe,
 	.remove = acp_audio_remove,
 	.driver = {
 		.name = "acp_audio_dma",
+		.pm = &acp_pm_ops,
 	},
 };
 
