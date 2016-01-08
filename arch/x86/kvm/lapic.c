@@ -1801,8 +1801,7 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	if (kvm_vcpu_has_lapic(vcpu) && apic_enabled(apic) &&
-			apic_lvt_enabled(apic, APIC_LVTT))
+	if (apic_enabled(apic) && apic_lvt_enabled(apic, APIC_LVTT))
 		return atomic_read(&apic->lapic_timer.pending);
 
 	return 0;
@@ -1926,9 +1925,6 @@ int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu)
 void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-
-	if (!kvm_vcpu_has_lapic(vcpu))
-		return;
 
 	if (atomic_read(&apic->lapic_timer.pending) > 0) {
 		kvm_apic_local_deliver(apic, APIC_LVTT);
