@@ -1612,7 +1612,10 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 
 	/* Update peer npu devices */
 	if (pe->flags & PNV_IODA_PE_PEER)
-		for (i = 0; pe->peers[i]; i++) {
+		for (i = 0; i < PNV_IODA_MAX_PEER_PES; i++) {
+			if (!pe->peers[i])
+				continue;
+
 			linked_npu_dev = pe->peers[i]->pdev;
 			if (dma_get_mask(&linked_npu_dev->dev) != dma_mask)
 				dma_set_mask(&linked_npu_dev->dev, dma_mask);
