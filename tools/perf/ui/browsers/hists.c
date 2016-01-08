@@ -298,6 +298,9 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 	struct callchain_list *cl = container_of(ms, struct callchain_list, ms);
 	bool has_children;
 
+	if (!he || !ms)
+		return false;
+
 	if (ms == &he->ms)
 		has_children = hist_entry__toggle_fold(he);
 	else
@@ -928,6 +931,8 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	}
 
 	ui_browser__hists_init_top(browser);
+	hb->he_selection = NULL;
+	hb->selection = NULL;
 
 	for (nd = browser->top; nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
@@ -1033,6 +1038,9 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 	 * and stop when we printed enough lines to fill the screen.
 	 */
 do_offset:
+	if (!nd)
+		return;
+
 	if (offset > 0) {
 		do {
 			h = rb_entry(nd, struct hist_entry, rb_node);
