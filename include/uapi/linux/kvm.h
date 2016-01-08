@@ -849,6 +849,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_SPLIT_IRQCHIP 121
 #define KVM_CAP_IOEVENTFD_ANY_LENGTH 122
 #define KVM_CAP_HYPERV_SYNIC 123
+#define KVM_CAP_S390_RI 124
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
