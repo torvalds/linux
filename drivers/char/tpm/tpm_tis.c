@@ -59,7 +59,6 @@ enum tis_int_flags {
 };
 
 enum tis_defaults {
-	TIS_MEM_BASE = 0xFED40000,
 	TIS_MEM_LEN = 0x5000,
 	TIS_SHORT_TIMEOUT = 750,	/* ms */
 	TIS_LONG_TIMEOUT = 2000,	/* 2 sec */
@@ -72,15 +71,6 @@ struct tpm_info {
 	 * irq = -1 means: no irq support
 	 */
 	int irq;
-};
-
-static struct tpm_info tis_default_info = {
-	.res = {
-		.start = TIS_MEM_BASE,
-		.end = TIS_MEM_BASE + TIS_MEM_LEN - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = 0,
 };
 
 /* Some timeout values are needed before it is known whether the chip is
@@ -824,7 +814,6 @@ out_err:
 	return rc;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 {
 	u32 intmask;
@@ -866,11 +855,9 @@ static int tpm_tis_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 
-#ifdef CONFIG_PNP
 static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 			    const struct pnp_device_id *pnp_id)
 {
@@ -888,14 +875,12 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	else
 		tpm_info.irq = -1;
 
-#ifdef CONFIG_ACPI
 	if (pnp_acpi_device(pnp_dev)) {
 		if (is_itpm(pnp_acpi_device(pnp_dev)))
 			itpm = true;
 
-		acpi_dev_handle = pnp_acpi_device(pnp_dev)->handle;
+		acpi_dev_handle = ACPI_HANDLE(&pnp_dev->dev);
 	}
-#endif
 
 	return tpm_tis_init(&pnp_dev->dev, &tpm_info, acpi_dev_handle);
 }
@@ -936,7 +921,6 @@ static struct pnp_driver tis_pnp_driver = {
 module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
-#endif
 
 #ifdef CONFIG_ACPI
 static int tpm_check_resource(struct acpi_resource *ares, void *data)
@@ -1023,80 +1007,135 @@ static struct acpi_driver tis_acpi_driver = {
 };
 #endif
 
+static struct platform_device *force_pdev;
+
+static int tpm_tis_plat_probe(struct platform_device *pdev)
+{
+	struct tpm_info tpm_info = {};
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no memory resource defined\n");
+		return -ENODEV;
+	}
+	tpm_info.res = *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (res) {
+		tpm_info.irq = res->start;
+	} else {
+		if (pdev == force_pdev)
+			tpm_info.irq = -1;
+		else
+			/* When forcing auto probe the IRQ */
+			tpm_info.irq = 0;
+	}
+
+	return tpm_tis_init(&pdev->dev, &tpm_info, NULL);
+}
+
+static int tpm_tis_plat_remove(struct platform_device *pdev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
+
+	tpm_chip_unregister(chip);
+	tpm_tis_remove(chip);
+
+	return 0;
+}
+
 static struct platform_driver tis_drv = {
+	.probe = tpm_tis_plat_probe,
+	.remove = tpm_tis_plat_remove,
 	.driver = {
 		.name		= "tpm_tis",
 		.pm		= &tpm_tis_pm,
 	},
 };
 
-static struct platform_device *pdev;
-
 static bool force;
+#ifdef CONFIG_X86
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "Force device probe rather than using ACPI entry");
-static int __init init_tis(void)
+#endif
+
+static int tpm_tis_force_device(void)
 {
-	int rc;
-#ifdef CONFIG_PNP
-	if (!force) {
-		rc = pnp_register_driver(&tis_pnp_driver);
-		if (rc)
-			return rc;
-	}
-#endif
-#ifdef CONFIG_ACPI
-	if (!force) {
-		rc = acpi_bus_register_driver(&tis_acpi_driver);
-		if (rc) {
-#ifdef CONFIG_PNP
-			pnp_unregister_driver(&tis_pnp_driver);
-#endif
-			return rc;
-		}
-	}
-#endif
+	struct platform_device *pdev;
+	static const struct resource x86_resources[] = {
+		{
+			.start = 0xFED40000,
+			.end = 0xFED40000 + TIS_MEM_LEN - 1,
+			.flags = IORESOURCE_MEM,
+		},
+	};
+
 	if (!force)
 		return 0;
 
-	rc = platform_driver_register(&tis_drv);
-	if (rc < 0)
-		return rc;
-	pdev = platform_device_register_simple("tpm_tis", -1, NULL, 0);
-	if (IS_ERR(pdev)) {
-		rc = PTR_ERR(pdev);
-		goto err_dev;
-	}
-	rc = tpm_tis_init(&pdev->dev, &tis_default_info, NULL);
-	if (rc)
-		goto err_init;
+	/* The driver core will match the name tpm_tis of the device to
+	 * the tpm_tis platform driver and complete the setup via
+	 * tpm_tis_plat_probe
+	 */
+	pdev = platform_device_register_simple("tpm_tis", -1, x86_resources,
+					       ARRAY_SIZE(x86_resources));
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+	force_pdev = pdev;
+
 	return 0;
-err_init:
-	platform_device_unregister(pdev);
-err_dev:
-	platform_driver_unregister(&tis_drv);
+}
+
+static int __init init_tis(void)
+{
+	int rc;
+
+	rc = tpm_tis_force_device();
+	if (rc)
+		goto err_force;
+
+	rc = platform_driver_register(&tis_drv);
+	if (rc)
+		goto err_platform;
+
+#ifdef CONFIG_ACPI
+	rc = acpi_bus_register_driver(&tis_acpi_driver);
+	if (rc)
+		goto err_acpi;
+#endif
+
+	if (IS_ENABLED(CONFIG_PNP)) {
+		rc = pnp_register_driver(&tis_pnp_driver);
+		if (rc)
+			goto err_pnp;
+	}
+
+	return 0;
+
+err_pnp:
+#ifdef CONFIG_ACPI
+	acpi_bus_unregister_driver(&tis_acpi_driver);
+err_acpi:
+#endif
+	platform_device_unregister(force_pdev);
+err_platform:
+	if (force_pdev)
+		platform_device_unregister(force_pdev);
+err_force:
 	return rc;
 }
 
 static void __exit cleanup_tis(void)
 {
-	struct tpm_chip *chip;
-#if defined(CONFIG_PNP) || defined(CONFIG_ACPI)
-	if (!force) {
+	pnp_unregister_driver(&tis_pnp_driver);
 #ifdef CONFIG_ACPI
-		acpi_bus_unregister_driver(&tis_acpi_driver);
+	acpi_bus_unregister_driver(&tis_acpi_driver);
 #endif
-#ifdef CONFIG_PNP
-		pnp_unregister_driver(&tis_pnp_driver);
-#endif
-		return;
-	}
-#endif
-	chip = dev_get_drvdata(&pdev->dev);
-	tpm_chip_unregister(chip);
-	tpm_tis_remove(chip);
-	platform_device_unregister(pdev);
 	platform_driver_unregister(&tis_drv);
+
+	if (force_pdev)
+		platform_device_unregister(force_pdev);
 }
 
 module_init(init_tis);
