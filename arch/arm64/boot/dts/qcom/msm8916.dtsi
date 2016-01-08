@@ -134,7 +134,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gcc: qcom,gcc@1800000 {
+		gcc: clock-controller@1800000 {
 			compatible = "qcom,gcc-msm8916";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
