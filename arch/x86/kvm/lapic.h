@@ -103,7 +103,7 @@ static inline u32 kvm_apic_get_reg(struct kvm_lapic *apic, int reg_off)
 
 extern struct static_key kvm_no_apic_vcpu;
 
-static inline bool kvm_vcpu_has_lapic(struct kvm_vcpu *vcpu)
+static inline bool lapic_in_kernel(struct kvm_vcpu *vcpu)
 {
 	if (static_key_false(&kvm_no_apic_vcpu))
 		return vcpu->arch.apic;
@@ -130,7 +130,7 @@ static inline bool kvm_apic_sw_enabled(struct kvm_lapic *apic)
 
 static inline bool kvm_apic_present(struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_has_lapic(vcpu) && kvm_apic_hw_enabled(vcpu->arch.apic);
+	return lapic_in_kernel(vcpu) && kvm_apic_hw_enabled(vcpu->arch.apic);
 }
 
 static inline int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
@@ -150,7 +150,7 @@ static inline bool kvm_vcpu_apicv_active(struct kvm_vcpu *vcpu)
 
 static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_has_lapic(vcpu) && vcpu->arch.apic->pending_events;
+	return lapic_in_kernel(vcpu) && vcpu->arch.apic->pending_events;
 }
 
 static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
@@ -161,7 +161,7 @@ static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
 
 static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_has_lapic(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
+	return lapic_in_kernel(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
 }
 
 static inline int kvm_apic_id(struct kvm_lapic *apic)
