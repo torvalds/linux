@@ -1139,7 +1139,7 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			"checkpoint: version = %llx", ckpt_ver);
 
 	/* do checkpoint periodically */
-	sbi->cp_expires = round_jiffies_up(jiffies + HZ * sbi->cp_interval);
+	f2fs_update_time(sbi, CP_TIME);
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish checkpoint");
 out:
 	mutex_unlock(&sbi->cp_mutex);

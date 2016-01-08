@@ -721,6 +721,11 @@ enum {
 	SBI_POR_DOING,				/* recovery is doing or not */
 };
 
+enum {
+	CP_TIME,
+	MAX_TIME,
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -747,7 +752,8 @@ struct f2fs_sb_info {
 	struct rw_semaphore node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
 	wait_queue_head_t cp_wait;
-	long cp_expires, cp_interval;		/* next expected periodic cp */
+	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
+	long interval_time[MAX_TIME];		/* to store thresholds */
 
 	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
 
@@ -836,6 +842,19 @@ struct f2fs_sb_info {
 	struct mutex umount_mutex;
 	unsigned int shrinker_run_no;
 };
+
+static inline void f2fs_update_time(struct f2fs_sb_info *sbi, int type)
+{
+	sbi->last_time[type] = jiffies;
+}
+
+static inline bool f2fs_time_over(struct f2fs_sb_info *sbi, int type)
+{
+	struct timespec ts = {sbi->interval_time[type], 0};
+	unsigned long interval = timespec_to_jiffies(&ts);
+
+	return time_after(jiffies, sbi->last_time[type] + interval);
+}
 
 /*
  * Inline functions
