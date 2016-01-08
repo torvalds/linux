@@ -626,20 +626,29 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 }
 
 static void
-hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv,
-			const i915_reg_t reg,
-			const bool read,
-			const bool before)
+__unclaimed_reg_debug(struct drm_i915_private *dev_priv,
+		      const i915_reg_t reg,
+		      const bool read,
+		      const bool before)
 {
-	if (likely(!i915.mmio_debug))
-		return;
-
 	if (WARN(check_for_unclaimed_mmio(dev_priv),
 		 "Unclaimed register detected %s %s register 0x%x\n",
 		 before ? "before" : "after",
 		 read ? "reading" : "writing to",
 		 i915_mmio_reg_offset(reg)))
 		i915.mmio_debug--; /* Only report the first N failures */
+}
+
+static inline void
+unclaimed_reg_debug(struct drm_i915_private *dev_priv,
+		    const i915_reg_t reg,
+		    const bool read,
+		    const bool before)
+{
+	if (likely(!i915.mmio_debug))
+		return;
+
+	__unclaimed_reg_debug(dev_priv, reg, read, before);
 }
 
 #define GEN2_READ_HEADER(x) \
@@ -687,9 +696,11 @@ __gen2_read(64)
 	unsigned long irqflags; \
 	u##x val = 0; \
 	assert_rpm_wakelock_held(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
+	unclaimed_reg_debug(dev_priv, reg, true, true)
 
 #define GEN6_READ_FOOTER \
+	unclaimed_reg_debug(dev_priv, reg, true, false); \
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
@@ -722,11 +733,9 @@ static inline void __force_wake_get(struct drm_i915_private *dev_priv,
 static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	GEN6_READ_HEADER(x); \
-	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
 	if (NEEDS_FORCE_WAKE(offset)) \
 		__force_wake_get(dev_priv, FORCEWAKE_RENDER); \
 	val = __raw_i915_read##x(dev_priv, reg); \
-	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
 	GEN6_READ_FOOTER; \
 }
 
@@ -774,7 +783,6 @@ static u##x \
 gen9_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
-	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
 	if (!SKL_NEEDS_FORCE_WAKE(offset)) \
 		fw_engine = 0; \
 	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(offset)) \
@@ -788,7 +796,6 @@ gen9_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	if (fw_engine) \
 		__force_wake_get(dev_priv, fw_engine); \
 	val = __raw_i915_read##x(dev_priv, reg); \
-	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
 	GEN6_READ_FOOTER; \
 }
 
@@ -887,9 +894,11 @@ __gen2_write(64)
 	unsigned long irqflags; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	assert_rpm_wakelock_held(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
+	unclaimed_reg_debug(dev_priv, reg, false, true)
 
 #define GEN6_WRITE_FOOTER \
+	unclaimed_reg_debug(dev_priv, reg, false, false); \
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
 
 #define __gen6_write(x) \
@@ -915,12 +924,10 @@ hsw_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool t
 	if (NEEDS_FORCE_WAKE(offset)) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
-	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -950,11 +957,9 @@ static bool is_gen8_shadowed(struct drm_i915_private *dev_priv,
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
 	GEN6_WRITE_HEADER; \
-	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	if (NEEDS_FORCE_WAKE(offset) && !is_gen8_shadowed(dev_priv, reg)) \
 		__force_wake_get(dev_priv, FORCEWAKE_RENDER); \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -1008,7 +1013,6 @@ gen9_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, \
 		bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
-	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	if (!SKL_NEEDS_FORCE_WAKE(offset) || \
 	    is_gen9_shadowed(dev_priv, reg)) \
 		fw_engine = 0; \
@@ -1023,7 +1027,6 @@ gen9_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, \
 	if (fw_engine) \
 		__force_wake_get(dev_priv, fw_engine); \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	GEN6_WRITE_FOOTER; \
 }
 
