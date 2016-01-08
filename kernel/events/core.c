@@ -2036,7 +2036,8 @@ static void add_event_to_ctx(struct perf_event *event,
 	event->tstamp_stopped = tstamp;
 }
 
-static void task_ctx_sched_out(struct perf_event_context *ctx);
+static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
+			       struct perf_event_context *ctx);
 static void
 ctx_sched_in(struct perf_event_context *ctx,
 	     struct perf_cpu_context *cpuctx,
@@ -2067,6 +2068,17 @@ static void ___perf_install_in_context(void *info)
 	add_event_to_ctx(event, ctx);
 }
 
+static void ctx_resched(struct perf_cpu_context *cpuctx,
+			struct perf_event_context *task_ctx)
+{
+	perf_pmu_disable(cpuctx->ctx.pmu);
+	if (task_ctx)
+		task_ctx_sched_out(cpuctx, task_ctx);
+	cpu_ctx_sched_out(cpuctx, EVENT_ALL);
+	perf_event_sched_in(cpuctx, task_ctx, current);
+	perf_pmu_enable(cpuctx->ctx.pmu);
+}
+
 /*
  * Cross CPU call to install and enable a performance event
  *
@@ -2087,7 +2099,7 @@ static int  __perf_install_in_context(void *info)
 	 * If there was an active task_ctx schedule it out.
 	 */
 	if (task_ctx)
-		task_ctx_sched_out(task_ctx);
+		task_ctx_sched_out(cpuctx, task_ctx);
 
 	/*
 	 * If the context we're installing events in is not the
@@ -2629,10 +2641,9 @@ void __perf_event_task_sched_out(struct task_struct *task,
 		perf_cgroup_sched_out(task, next);
 }
 
-static void task_ctx_sched_out(struct perf_event_context *ctx)
+static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
+			       struct perf_event_context *ctx)
 {
-	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
-
 	if (!cpuctx->task_ctx)
 		return;
 
@@ -3096,34 +3107,30 @@ static int event_enable_on_exec(struct perf_event *event,
 static void perf_event_enable_on_exec(int ctxn)
 {
 	struct perf_event_context *ctx, *clone_ctx = NULL;
+	struct perf_cpu_context *cpuctx;
 	struct perf_event *event;
 	unsigned long flags;
 	int enabled = 0;
-	int ret;
 
 	local_irq_save(flags);
 	ctx = current->perf_event_ctxp[ctxn];
 	if (!ctx || !ctx->nr_events)
 		goto out;
 
-	raw_spin_lock(&ctx->lock);
-	task_ctx_sched_out(ctx);
-
-	list_for_each_entry(event, &ctx->event_list, event_entry) {
-		ret = event_enable_on_exec(event, ctx);
-		if (ret)
-			enabled = 1;
-	}
+	cpuctx = __get_cpu_context(ctx);
+	perf_ctx_lock(cpuctx, ctx);
+	list_for_each_entry(event, &ctx->event_list, event_entry)
+		enabled |= event_enable_on_exec(event, ctx);
 
 	/*
-	 * Unclone this context if we enabled any event.
+	 * Unclone and reschedule this context if we enabled any event.
 	 */
-	if (enabled)
+	if (enabled) {
 		clone_ctx = unclone_ctx(ctx);
+		ctx_resched(cpuctx, ctx);
+	}
+	perf_ctx_unlock(cpuctx, ctx);
 
-	raw_spin_unlock(&ctx->lock);
-
-	perf_event_context_sched_in(ctx, ctx->task);
 out:
 	local_irq_restore(flags);
 
@@ -8737,7 +8744,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 * incremented the context's refcount before we do put_ctx below.
 	 */
 	raw_spin_lock(&child_ctx->lock);
-	task_ctx_sched_out(child_ctx);
+	task_ctx_sched_out(__get_cpu_context(child_ctx), child_ctx);
 	child->perf_event_ctxp[ctxn] = NULL;
 
 	/*
