@@ -9951,7 +9951,6 @@ S:	Supported
 F:	drivers/media/pci/solo6x10/
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
-M:	Neil Brown <neilb@suse.com>
 L:	linux-raid@vger.kernel.org
 S:	Supported
 F:	drivers/md/
