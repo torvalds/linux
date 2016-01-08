@@ -403,14 +403,13 @@ int gb_connection_init(struct gb_connection *connection)
 	if (ret)
 		goto err_hd_cport_disable;
 
-	ret = gb_connection_control_connected(connection);
-	if (ret)
-		goto err_svc_destroy;
-
-	/* Need to enable the connection to initialize it */
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_ENABLED;
 	spin_unlock_irq(&connection->lock);
+
+	ret = gb_connection_control_connected(connection);
+	if (ret)
+		goto err_svc_destroy;
 
 	ret = gb_connection_protocol_get_version(connection);
 	if (ret)
@@ -423,11 +422,11 @@ int gb_connection_init(struct gb_connection *connection)
 	return 0;
 
 err_disconnect:
-	spin_lock_irq(&connection->lock);
-	connection->state = GB_CONNECTION_STATE_ERROR;
-	spin_unlock_irq(&connection->lock);
-
 	gb_connection_control_disconnected(connection);
+
+	spin_lock_irq(&connection->lock);
+	connection->state = GB_CONNECTION_STATE_DISABLED;
+	spin_unlock_irq(&connection->lock);
 err_svc_destroy:
 	gb_connection_svc_connection_destroy(connection);
 err_hd_cport_disable:
@@ -451,7 +450,13 @@ void gb_connection_exit(struct gb_connection *connection)
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 
 	connection->protocol->connection_exit(connection);
+
 	gb_connection_control_disconnected(connection);
+
+	spin_lock_irq(&connection->lock);
+	connection->state = GB_CONNECTION_STATE_DISABLED;
+	spin_unlock_irq(&connection->lock);
+
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
 	gb_connection_unbind_protocol(connection);
