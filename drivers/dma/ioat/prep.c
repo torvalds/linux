@@ -26,7 +26,7 @@
 #include "hw.h"
 #include "dma.h"
 
-#define MAX_SCF	1024
+#define MAX_SCF	256
 
 /* provide a lookup table for setting the source address in the base or
  * extended descriptor of an xor or pq descriptor
