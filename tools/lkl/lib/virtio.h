@@ -43,6 +43,7 @@ struct virtio_dev {
 	int irq;
 	void *config_data;
 	int config_len;
+	void *base;
 };
 
 int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max);

@@ -321,7 +321,7 @@ static char *devs = lkl_virtio_devs;
 int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max)
 {
 	int qsize = queues * sizeof(*dev->queue);
-	int ret, avail, mmio_size;
+	int avail, mmio_size;
 	int i;
 
 	dev->irq = lkl_get_free_irq("virtio");
@@ -339,21 +339,23 @@ int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max)
 		dev->queue[i].num_max = num_max;
 
 	mmio_size = VIRTIO_MMIO_CONFIG + dev->config_len;
-	ret = register_iomem(dev, mmio_size, &virtio_ops);
-	if (ret)
+	dev->base = register_iomem(dev, mmio_size, &virtio_ops);
+	if (!dev->base) {
 		lkl_host_ops.mem_free(dev->queue);
+		return -LKL_ENOMEM;
+	}
 
 	avail = sizeof(lkl_virtio_devs) - (devs - lkl_virtio_devs);
 	devs += snprintf(devs, avail, " virtio_mmio.device=%d@0x%lx:%d",
-			 mmio_size, (uintptr_t)dev, dev->irq);
+			 mmio_size, (uintptr_t)dev->base, dev->irq);
 
-	return ret;
+	return 0;
 }
 
 void virtio_dev_cleanup(struct virtio_dev *dev)
 {
 	lkl_put_irq(dev->irq, "virtio");
-	unregister_iomem(dev);
+	unregister_iomem(dev->base);
 	lkl_host_ops.mem_free(dev->queue);
 }
 
