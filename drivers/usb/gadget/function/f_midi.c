@@ -56,6 +56,7 @@ static const char f_midi_longname[] = "MIDI Gadget";
  * USB <- IN endpoint  <- rawmidi
  */
 struct gmidi_in_port {
+	struct snd_rawmidi_substream *substream;
 	int active;
 	uint8_t cable;
 	uint8_t state;
@@ -77,7 +78,6 @@ struct f_midi {
 	struct snd_rawmidi	*rmidi;
 	u8			ms_id;
 
-	struct snd_rawmidi_substream *in_substream[MAX_PORTS];
 	struct snd_rawmidi_substream *out_substream[MAX_PORTS];
 
 	unsigned long		out_triggered;
@@ -520,7 +520,7 @@ static void f_midi_drop_out_substreams(struct f_midi *midi)
 
 	for (i = 0; i < midi->in_ports; i++) {
 		struct gmidi_in_port *port = midi->in_ports_array + i;
-		struct snd_rawmidi_substream *substream = midi->in_substream[i];
+		struct snd_rawmidi_substream *substream = port->substream;
 		if (port->active && substream)
 			snd_rawmidi_drop_output(substream);
 	}
@@ -554,7 +554,7 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 
 	for (i = midi->in_last_port; i < midi->in_ports; ++i) {
 		struct gmidi_in_port *port = midi->in_ports_array + i;
-		struct snd_rawmidi_substream *substream = midi->in_substream[i];
+		struct snd_rawmidi_substream *substream = port->substream;
 
 		if (!port->active || !substream)
 			continue;
@@ -623,13 +623,15 @@ static void f_midi_in_tasklet(unsigned long data)
 static int f_midi_in_open(struct snd_rawmidi_substream *substream)
 {
 	struct f_midi *midi = substream->rmidi->private_data;
+	struct gmidi_in_port *port;
 
 	if (substream->number >= midi->in_ports)
 		return -EINVAL;
 
 	VDBG(midi, "%s()\n", __func__);
-	midi->in_substream[substream->number] = substream;
-	midi->in_ports_array[substream->number].state = STATE_UNKNOWN;
+	port = midi->in_ports_array + substream->number;
+	port->substream = substream;
+	port->state = STATE_UNKNOWN;
 	return 0;
 }
 
