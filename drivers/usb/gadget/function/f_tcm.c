@@ -1579,55 +1579,46 @@ out:
 	return ret;
 }
 
+static int usbg_alloc_sess_cb(struct se_portal_group *se_tpg,
+			      struct se_session *se_sess, void *p)
+{
+	struct usbg_tpg *tpg = container_of(se_tpg,
+				struct usbg_tpg, se_tpg);
+
+	tpg->tpg_nexus = p;
+	return 0;
+}
+
 static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 {
-	struct se_portal_group *se_tpg;
 	struct tcm_usbg_nexus *tv_nexus;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&tpg->tpg_mutex);
 	if (tpg->tpg_nexus) {
 		ret = -EEXIST;
 		pr_debug("tpg->tpg_nexus already exists\n");
-		goto err_unlock;
+		goto out_unlock;
 	}
-	se_tpg = &tpg->se_tpg;
 
-	ret = -ENOMEM;
 	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
-	if (!tv_nexus)
-		goto err_unlock;
-	tv_nexus->tvn_se_sess = transport_init_session(TARGET_PROT_NORMAL);
-	if (IS_ERR(tv_nexus->tvn_se_sess))
-		goto err_free;
+	if (!tv_nexus) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
-	/*
-	 * Since we are running in 'demo mode' this call with generate a
-	 * struct se_node_acl for the tcm_vhost struct se_portal_group with
-	 * the SCSI Initiator port name of the passed configfs group 'name'.
-	 */
-	tv_nexus->tvn_se_sess->se_node_acl = core_tpg_check_initiator_node_acl(
-			se_tpg, name);
-	if (!tv_nexus->tvn_se_sess->se_node_acl) {
+	tv_nexus->tvn_se_sess = target_alloc_session(&tpg->se_tpg, 0, 0,
+						     TARGET_PROT_NORMAL, name,
+						     tv_nexus, usbg_alloc_sess_cb);
+	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 #define MAKE_NEXUS_MSG "core_tpg_check_initiator_node_acl() failed for %s\n"
 		pr_debug(MAKE_NEXUS_MSG, name);
 #undef MAKE_NEXUS_MSG
-		goto err_session;
+		ret = PTR_ERR(tv_nexus->tvn_se_sess);
+		kfree(tv_nexus);
 	}
-	/*
-	 * Now register the TCM vHost virtual I_T Nexus as active.
-	 */
-	transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
-			tv_nexus->tvn_se_sess, tv_nexus);
-	tpg->tpg_nexus = tv_nexus;
-	mutex_unlock(&tpg->tpg_mutex);
-	return 0;
 
-err_session:
-	transport_free_session(tv_nexus->tvn_se_sess);
-err_free:
-	kfree(tv_nexus);
-err_unlock:
+out_unlock:
 	mutex_unlock(&tpg->tpg_mutex);
 	return ret;
 }

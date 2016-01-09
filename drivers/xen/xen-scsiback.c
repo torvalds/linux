@@ -1482,61 +1482,47 @@ static struct configfs_attribute *scsiback_param_attrs[] = {
 	NULL,
 };
 
+static int scsiback_alloc_sess_cb(struct se_portal_group *se_tpg,
+				  struct se_session *se_sess, void *p)
+{
+	struct scsiback_tpg *tpg = container_of(se_tpg,
+				struct scsiback_tpg, se_tpg);
+
+	tpg->tpg_nexus = p;
+	return 0;
+}
+
 static int scsiback_make_nexus(struct scsiback_tpg *tpg,
 				const char *name)
 {
-	struct se_portal_group *se_tpg;
-	struct se_session *se_sess;
 	struct scsiback_nexus *tv_nexus;
+	int ret = 0;
 
 	mutex_lock(&tpg->tv_tpg_mutex);
 	if (tpg->tpg_nexus) {
-		mutex_unlock(&tpg->tv_tpg_mutex);
 		pr_debug("tpg->tpg_nexus already exists\n");
-		return -EEXIST;
+		ret = -EEXIST;
+		goto out_unlock;
 	}
-	se_tpg = &tpg->se_tpg;
 
 	tv_nexus = kzalloc(sizeof(struct scsiback_nexus), GFP_KERNEL);
 	if (!tv_nexus) {
-		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
-	/*
-	 * Initialize the struct se_session pointer
-	 */
-	tv_nexus->tvn_se_sess = transport_init_session(TARGET_PROT_NORMAL);
+
+	tv_nexus->tvn_se_sess = target_alloc_session(&tpg->se_tpg, 0, 0,
+						     TARGET_PROT_NORMAL, name,
+						     tv_nexus, scsiback_alloc_sess_cb);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
-		mutex_unlock(&tpg->tv_tpg_mutex);
 		kfree(tv_nexus);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
-	se_sess = tv_nexus->tvn_se_sess;
-	/*
-	 * Since we are running in 'demo mode' this call with generate a
-	 * struct se_node_acl for the scsiback struct se_portal_group with
-	 * the SCSI Initiator port name of the passed configfs group 'name'.
-	 */
-	tv_nexus->tvn_se_sess->se_node_acl = core_tpg_check_initiator_node_acl(
-				se_tpg, (unsigned char *)name);
-	if (!tv_nexus->tvn_se_sess->se_node_acl) {
-		mutex_unlock(&tpg->tv_tpg_mutex);
-		pr_debug("core_tpg_check_initiator_node_acl() failed for %s\n",
-			 name);
-		goto out;
-	}
-	/* Now register the TCM pvscsi virtual I_T Nexus as active. */
-	transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
-			tv_nexus->tvn_se_sess, tv_nexus);
-	tpg->tpg_nexus = tv_nexus;
 
+out_unlock:
 	mutex_unlock(&tpg->tv_tpg_mutex);
-	return 0;
-
-out:
-	transport_free_session(se_sess);
-	kfree(tv_nexus);
-	return -ENOMEM;
+	return ret;
 }
 
 static int scsiback_drop_nexus(struct scsiback_tpg *tpg)

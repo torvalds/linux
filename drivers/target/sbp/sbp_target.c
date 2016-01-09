@@ -196,44 +196,27 @@ static struct sbp_session *sbp_session_create(
 	struct sbp_session *sess;
 	int ret;
 	char guid_str[17];
-	struct se_node_acl *se_nacl;
+
+	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
 
 	sess = kmalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess) {
 		pr_err("failed to allocate session descriptor\n");
 		return ERR_PTR(-ENOMEM);
 	}
+	spin_lock_init(&sess->lock);
+	INIT_LIST_HEAD(&sess->login_list);
+	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
+	sess->guid = guid;
 
-	sess->se_sess = transport_init_session(TARGET_PROT_NORMAL);
+	sess->se_sess = target_alloc_session(&tpg->se_tpg, 0, 0, TARGET_PROT_NORMAL,
+					     guid_str, sess, NULL);
 	if (IS_ERR(sess->se_sess)) {
 		pr_err("failed to init se_session\n");
-
 		ret = PTR_ERR(sess->se_sess);
 		kfree(sess);
 		return ERR_PTR(ret);
 	}
-
-	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
-
-	se_nacl = core_tpg_check_initiator_node_acl(&tpg->se_tpg, guid_str);
-	if (!se_nacl) {
-		pr_warn("Node ACL not found for %s\n", guid_str);
-
-		transport_free_session(sess->se_sess);
-		kfree(sess);
-
-		return ERR_PTR(-EPERM);
-	}
-
-	sess->se_sess->se_node_acl = se_nacl;
-
-	spin_lock_init(&sess->lock);
-	INIT_LIST_HEAD(&sess->login_list);
-	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
-
-	sess->guid = guid;
-
-	transport_register_session(&tpg->se_tpg, se_nacl, sess->se_sess, sess);
 
 	return sess;
 }
