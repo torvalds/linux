@@ -1388,8 +1388,9 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 	dm_table_event(s->ti->table);
 }
 
-static void pending_complete(struct dm_snap_pending_exception *pe, int success)
+static void pending_complete(void *context, int success)
 {
+	struct dm_snap_pending_exception *pe = context;
 	struct dm_exception *e;
 	struct dm_snapshot *s = pe->snap;
 	struct bio *origin_bios = NULL;
@@ -1459,24 +1460,13 @@ out:
 	free_pending_exception(pe);
 }
 
-static void commit_callback(void *context, int success)
-{
-	struct dm_snap_pending_exception *pe = context;
-
-	pending_complete(pe, success);
-}
-
 static void complete_exception(struct dm_snap_pending_exception *pe)
 {
 	struct dm_snapshot *s = pe->snap;
 
-	if (unlikely(pe->copy_error))
-		pending_complete(pe, 0);
-
-	else
-		/* Update the metadata if we are persistent */
-		s->store->type->commit_exception(s->store, &pe->e,
-						 commit_callback, pe);
+	/* Update the metadata if we are persistent */
+	s->store->type->commit_exception(s->store, &pe->e, !pe->copy_error,
+					 pending_complete, pe);
 }
 
 /*
