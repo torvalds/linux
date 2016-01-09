@@ -41,6 +41,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/ctype.h>
+#include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
@@ -689,6 +690,33 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 	kfree(ctx);
 }
 
+/* we need to override the usbnet change_mtu ndo for two reasons:
+ *  - respect the negotiated maximum datagram size
+ *  - avoid unwanted changes to rx and tx buffers
+ */
+int cdc_ncm_change_mtu(struct net_device *net, int new_mtu)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	int maxmtu = ctx->max_datagram_size - cdc_ncm_eth_hlen(dev);
+
+	if (new_mtu <= 0 || new_mtu > maxmtu)
+		return -EINVAL;
+	net->mtu = new_mtu;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cdc_ncm_change_mtu);
+
+static const struct net_device_ops cdc_ncm_netdev_ops = {
+	.ndo_open	     = usbnet_open,
+	.ndo_stop	     = usbnet_stop,
+	.ndo_start_xmit	     = usbnet_start_xmit,
+	.ndo_tx_timeout	     = usbnet_tx_timeout,
+	.ndo_change_mtu	     = cdc_ncm_change_mtu,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr   = eth_validate_addr,
+};
+
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting, int drvflags)
 {
 	struct cdc_ncm_ctx *ctx;
@@ -822,6 +850,9 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 	/* add our sysfs attrs */
 	dev->net->sysfs_groups[0] = &cdc_ncm_sysfs_attr_group;
+
+	/* must handle MTU changes */
+	dev->net->netdev_ops = &cdc_ncm_netdev_ops;
 
 	return 0;
 
@@ -1556,6 +1587,24 @@ static const struct usb_device_id cdc_devs[] = {
 	  .bInterfaceSubClass = USB_CDC_SUBCLASS_NCM,
 	  .bInterfaceProtocol = USB_CDC_PROTO_NONE,
 	  .driver_info = (unsigned long) &wwan_info,
+	},
+
+	/* DW5812 LTE Verizon Mobile Broadband Card
+	 * Unlike DW5550 this device requires FLAG_NOARP
+	 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x81bb,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_noarp_info,
+	},
+
+	/* DW5813 LTE AT&T Mobile Broadband Card
+	 * Unlike DW5550 this device requires FLAG_NOARP
+	 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x81bc,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_noarp_info,
 	},
 
 	/* Dell branded MBM devices like DW5550 */
