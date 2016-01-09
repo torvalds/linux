@@ -220,13 +220,13 @@ static inline void *gpiochip_get_data(struct gpio_chip *chip)
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
-#if IS_ENABLED(CONFIG_GPIO_GENERIC)
-
 struct bgpio_pdata {
 	const char *label;
 	int base;
 	int ngpio;
 };
+
+#if IS_ENABLED(CONFIG_GPIO_GENERIC)
 
 int bgpio_init(struct gpio_chip *gc, struct device *dev,
 	       unsigned long sz, void __iomem *dat, void __iomem *set,
