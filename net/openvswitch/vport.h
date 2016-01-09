@@ -204,26 +204,6 @@ int __ovs_vport_ops_register(struct vport_ops *ops);
 	})
 
 void ovs_vport_ops_unregister(struct vport_ops *ops);
-
-static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
-						     const struct ip_tunnel_key *key,
-						     u32 mark,
-						     struct flowi4 *fl,
-						     u8 protocol)
-{
-	struct rtable *rt;
-
-	memset(fl, 0, sizeof(*fl));
-	fl->daddr = key->u.ipv4.dst;
-	fl->saddr = key->u.ipv4.src;
-	fl->flowi4_tos = RT_TOS(key->tos);
-	fl->flowi4_mark = mark;
-	fl->flowi4_proto = protocol;
-
-	rt = ip_route_output_key(net, fl);
-	return rt;
-}
-
 void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
 
 #endif /* vport.h */
