@@ -1775,4 +1775,25 @@ static struct platform_driver fman_port_driver = {
 	.probe = fman_port_probe,
 };
 
-builtin_platform_driver(fman_port_driver);
+static int __init fman_port_load(void)
+{
+	int err;
+
+	pr_debug("FSL DPAA FMan driver\n");
+
+	err = platform_driver_register(&fman_port_driver);
+	if (err < 0)
+		pr_err("Error, platform_driver_register() = %d\n", err);
+
+	return err;
+}
+module_init(fman_port_load);
+
+static void __exit fman_port_unload(void)
+{
+	platform_driver_unregister(&fman_port_driver);
+}
+module_exit(fman_port_unload);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("Freescale DPAA Frame Manager Port driver");

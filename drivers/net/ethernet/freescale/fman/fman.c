@@ -2115,6 +2115,7 @@ void fman_register_intr(struct fman *fman, enum fman_event_modules module,
 	fman->intr_mng[event].isr_cb = isr_cb;
 	fman->intr_mng[event].src_handle = src_arg;
 }
+EXPORT_SYMBOL(fman_register_intr);
 
 /**
  * fman_unregister_intr
@@ -2138,6 +2139,7 @@ void fman_unregister_intr(struct fman *fman, enum fman_event_modules module,
 	fman->intr_mng[event].isr_cb = NULL;
 	fman->intr_mng[event].src_handle = NULL;
 }
+EXPORT_SYMBOL(fman_unregister_intr);
 
 /**
  * fman_set_port_params
@@ -2241,6 +2243,7 @@ return_err:
 	spin_unlock_irqrestore(&fman->spinlock, flags);
 	return err;
 }
+EXPORT_SYMBOL(fman_set_port_params);
 
 /**
  * fman_reset_mac
@@ -2310,6 +2313,7 @@ int fman_reset_mac(struct fman *fman, u8 mac_id)
 
 	return 0;
 }
+EXPORT_SYMBOL(fman_reset_mac);
 
 /**
  * fman_set_mac_max_frame
@@ -2337,6 +2341,7 @@ int fman_set_mac_max_frame(struct fman *fman, u8 mac_id, u16 mfl)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(fman_set_mac_max_frame);
 
 /**
  * fman_get_clock_freq
@@ -2363,6 +2368,7 @@ u32 fman_get_bmi_max_fifo_size(struct fman *fman)
 {
 	return fman->state->bmi_max_fifo_size;
 }
+EXPORT_SYMBOL(fman_get_bmi_max_fifo_size);
 
 /**
  * fman_get_revision
@@ -2384,6 +2390,7 @@ void fman_get_revision(struct fman *fman, struct fman_rev_info *rev_info)
 				FPM_REV1_MAJOR_SHIFT);
 	rev_info->minor = tmp & FPM_REV1_MINOR_MASK;
 }
+EXPORT_SYMBOL(fman_get_revision);
 
 /**
  * fman_get_qman_channel_id
@@ -2419,6 +2426,7 @@ u32 fman_get_qman_channel_id(struct fman *fman, u32 port_id)
 
 	return fman->state->qman_channel_base + i;
 }
+EXPORT_SYMBOL(fman_get_qman_channel_id);
 
 /**
  * fman_get_mem_region
@@ -2432,6 +2440,7 @@ struct resource *fman_get_mem_region(struct fman *fman)
 {
 	return fman->state->res;
 }
+EXPORT_SYMBOL(fman_get_mem_region);
 
 /* Bootargs defines */
 /* Extra headroom for RX buffers - Default, min and max */
@@ -2538,6 +2547,7 @@ struct fman *fman_bind(struct device *fm_dev)
 {
 	return (struct fman *)(dev_get_drvdata(get_device(fm_dev)));
 }
+EXPORT_SYMBOL(fman_bind);
 
 static irqreturn_t fman_err_irq(int irq, void *handle)
 {
@@ -2930,7 +2940,7 @@ static const struct of_device_id fman_match[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(of, fm_match);
+MODULE_DEVICE_TABLE(of, fman_match);
 
 static struct platform_driver fman_driver = {
 	.driver = {
@@ -2940,4 +2950,25 @@ static struct platform_driver fman_driver = {
 	.probe = fman_probe,
 };
 
-builtin_platform_driver(fman_driver);
+static int __init fman_load(void)
+{
+	int err;
+
+	pr_debug("FSL DPAA FMan driver\n");
+
+	err = platform_driver_register(&fman_driver);
+	if (err < 0)
+		pr_err("Error, platform_driver_register() = %d\n", err);
+
+	return err;
+}
+module_init(fman_load);
+
+static void __exit fman_unload(void)
+{
+	platform_driver_unregister(&fman_driver);
+}
+module_exit(fman_unload);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("Freescale DPAA Frame Manager driver");
