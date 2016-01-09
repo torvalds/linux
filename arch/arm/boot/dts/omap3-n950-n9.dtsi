@@ -31,6 +31,14 @@
 		startup-delay-us = <150>;
 		enable-active-high;
 	};
+
+	vwlan_fixed: fixedregulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "VWLAN";
+		gpio = <&gpio2 3 GPIO_ACTIVE_HIGH>; /* gpio 35 */
+		enable-active-high;
+		regulator-boot-off;
+	};
 };
 
 &omap3_pmx_core {
@@ -42,6 +50,13 @@
 			OMAP3_CORE1_IOPAD(0x215e, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_dat1 */
 			OMAP3_CORE1_IOPAD(0x2160, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_dat2 */
 			OMAP3_CORE1_IOPAD(0x2162, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_dat3 */
+		>;
+	};
+
+	wlan_pins: pinmux_wlan_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x207c, PIN_OUTPUT | MUX_MODE4) /* gpio 35 - wlan enable */
+			OMAP3_CORE1_IOPAD(0x208a, PIN_INPUT | MUX_MODE4) /* gpio 42 - wlan irq */
 		>;
 	};
 };
