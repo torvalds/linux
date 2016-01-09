@@ -199,7 +199,7 @@ static u8 bq27541_regs[] = {
 	INVALID_REG_ADDR,	/* AE - NA	*/
 	0x2c,	/* SOC(RSOC)	*/
 	0x3c,	/* DCAP		*/
-	0x76,	/* AP		*/
+	0x24,	/* AP		*/
 };
 
 static u8 bq27545_regs[] = {
