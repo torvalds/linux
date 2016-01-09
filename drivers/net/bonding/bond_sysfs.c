@@ -480,7 +480,7 @@ static ssize_t bonding_show_mii_status(struct device *d,
 				       char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	bool active = !!rcu_access_pointer(bond->curr_active_slave);
+	bool active = netif_carrier_ok(bond->dev);
 
 	return sprintf(buf, "%s\n", active ? "up" : "down");
 }
