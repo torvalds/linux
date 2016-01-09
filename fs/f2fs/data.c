@@ -1596,6 +1596,7 @@ static int f2fs_write_end(struct file *file,
 	}
 
 	f2fs_put_page(page, 1);
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return copied;
 }
 

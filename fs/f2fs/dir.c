@@ -636,6 +636,7 @@ fail:
 	f2fs_put_page(dentry_page, 1);
 out:
 	f2fs_fname_free_filename(&fname);
+	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
 	return err;
 }
 
@@ -657,6 +658,7 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	clear_inode_flag(F2FS_I(inode), FI_NEW_INODE);
 fail:
 	up_write(&F2FS_I(inode)->i_sem);
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return err;
 }
 
@@ -700,6 +702,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	unsigned int bit_pos;
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	int i;
+
+	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
 
 	if (f2fs_has_inline_dentry(dir))
 		return f2fs_delete_inline_entry(dentry, page, dir, inode);

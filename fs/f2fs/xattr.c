@@ -618,5 +618,6 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 	up_write(&F2FS_I(inode)->i_sem);
 	f2fs_unlock_op(sbi);
 
+	f2fs_update_time(sbi, REQ_TIME);
 	return err;
 }

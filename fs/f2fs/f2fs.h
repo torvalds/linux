@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/bio.h>
+#include <linux/blkdev.h>
 
 #ifdef CONFIG_F2FS_CHECK_FS
 #define f2fs_bug_on(sbi, condition)	BUG_ON(condition)
@@ -126,6 +127,7 @@ enum {
 #define BATCHED_TRIM_BLOCKS(sbi)	\
 		(BATCHED_TRIM_SEGMENTS(sbi) << (sbi)->log_blocks_per_seg)
 #define DEF_CP_INTERVAL			60	/* 60 secs */
+#define DEF_IDLE_INTERVAL		120	/* 2 mins */
 
 struct cp_control {
 	int reason;
@@ -723,6 +725,7 @@ enum {
 
 enum {
 	CP_TIME,
+	REQ_TIME,
 	MAX_TIME,
 };
 
@@ -854,6 +857,18 @@ static inline bool f2fs_time_over(struct f2fs_sb_info *sbi, int type)
 	unsigned long interval = timespec_to_jiffies(&ts);
 
 	return time_after(jiffies, sbi->last_time[type] + interval);
+}
+
+static inline bool is_idle(struct f2fs_sb_info *sbi)
+{
+	struct block_device *bdev = sbi->sb->s_bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+	struct request_list *rl = &q->root_rl;
+
+	if (rl->count[BLK_RW_SYNC] || rl->count[BLK_RW_ASYNC])
+		return 0;
+
+	return f2fs_time_over(sbi, REQ_TIME);
 }
 
 /*

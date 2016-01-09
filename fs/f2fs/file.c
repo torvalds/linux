@@ -96,6 +96,7 @@ mapped:
 	clear_cold_data(page);
 out:
 	sb_end_pagefault(inode->i_sb);
+	f2fs_update_time(sbi, REQ_TIME);
 	return block_page_mkwrite_return(err);
 }
 
@@ -280,6 +281,7 @@ flush_out:
 	remove_ino_entry(sbi, ino, UPDATE_INO);
 	clear_inode_flag(fi, FI_UPDATE_WRITE);
 	ret = f2fs_issue_flush(sbi);
+	f2fs_update_time(sbi, REQ_TIME);
 out:
 	trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);
 	f2fs_trace_ios(NULL, 1);
@@ -485,6 +487,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	}
 	dn->ofs_in_node = ofs;
 
+	f2fs_update_time(sbi, REQ_TIME);
 	trace_f2fs_truncate_data_blocks_range(dn->inode, dn->nid,
 					 dn->ofs_in_node, nr_free);
 	return nr_free;
@@ -1236,6 +1239,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 	if (!ret) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
+		f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	}
 
 out:
@@ -1351,6 +1355,8 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 		return ret;
 
 	set_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
+
 	return 0;
 }
 
@@ -1398,6 +1404,7 @@ static int f2fs_ioc_start_volatile_write(struct file *filp)
 		return ret;
 
 	set_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return 0;
 }
 
@@ -1439,6 +1446,7 @@ static int f2fs_ioc_abort_volatile_write(struct file *filp)
 	}
 
 	mnt_drop_write_file(filp);
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return ret;
 }
 
@@ -1478,6 +1486,7 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 	default:
 		return -EINVAL;
 	}
+	f2fs_update_time(sbi, REQ_TIME);
 	return 0;
 }
 
@@ -1508,6 +1517,7 @@ static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 	if (copy_to_user((struct fstrim_range __user *)arg, &range,
 				sizeof(range)))
 		return -EFAULT;
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return 0;
 }
 
@@ -1531,6 +1541,7 @@ static int f2fs_ioc_set_encryption_policy(struct file *filp, unsigned long arg)
 				sizeof(policy)))
 		return -EFAULT;
 
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return f2fs_process_policy(&policy, inode);
 #else
 	return -EOPNOTSUPP;
@@ -1807,6 +1818,7 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
 	}
 
 	err = f2fs_defragment_range(sbi, filp, &range);
+	f2fs_update_time(sbi, REQ_TIME);
 	if (err < 0)
 		goto out;
 
