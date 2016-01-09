@@ -20,6 +20,7 @@
 #include <linux/idr.h>
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
+#include <linux/badblocks.h>
 
 #include "blk.h"
 
@@ -505,6 +506,16 @@ static int exact_lock(dev_t devt, void *data)
 	return 0;
 }
 
+int disk_alloc_badblocks(struct gendisk *disk)
+{
+	disk->bb = kzalloc(sizeof(*(disk->bb)), GFP_KERNEL);
+	if (!disk->bb)
+		return -ENOMEM;
+
+	return badblocks_init(disk->bb, 1);
+}
+EXPORT_SYMBOL(disk_alloc_badblocks);
+
 static void register_disk(struct gendisk *disk)
 {
 	struct device *ddev = disk_to_dev(disk);
@@ -659,6 +670,11 @@ void del_gendisk(struct gendisk *disk)
 	blk_unregister_queue(disk);
 	blk_unregister_region(disk_devt(disk), disk->minors);
 
+	if (disk->bb) {
+		badblocks_free(disk->bb);
+		kfree(disk->bb);
+	}
+
 	part_stat_set_all(&disk->part0, 0);
 	disk->part0.stamp = 0;
 
@@ -670,6 +686,63 @@ void del_gendisk(struct gendisk *disk)
 	device_del(disk_to_dev(disk));
 }
 EXPORT_SYMBOL(del_gendisk);
+
+/*
+ * The gendisk usage of badblocks does not track acknowledgements for
+ * badblocks. We always assume they are acknowledged.
+ */
+int disk_check_badblocks(struct gendisk *disk, sector_t s, int sectors,
+		   sector_t *first_bad, int *bad_sectors)
+{
+	if (!disk->bb)
+		return 0;
+
+	return badblocks_check(disk->bb, s, sectors, first_bad, bad_sectors);
+}
+EXPORT_SYMBOL(disk_check_badblocks);
+
+int disk_set_badblocks(struct gendisk *disk, sector_t s, int sectors)
+{
+	if (!disk->bb)
+		return 0;
+
+	return badblocks_set(disk->bb, s, sectors, 1);
+}
+EXPORT_SYMBOL(disk_set_badblocks);
+
+int disk_clear_badblocks(struct gendisk *disk, sector_t s, int sectors)
+{
+	if (!disk->bb)
+		return 0;
+
+	return badblocks_clear(disk->bb, s, sectors);
+}
+EXPORT_SYMBOL(disk_clear_badblocks);
+
+/* sysfs access to bad-blocks list. */
+static ssize_t disk_badblocks_show(struct device *dev,
+					struct device_attribute *attr,
+					char *page)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (!disk->bb)
+		return sprintf(page, "\n");
+
+	return badblocks_show(disk->bb, page, 0);
+}
+
+static ssize_t disk_badblocks_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *page, size_t len)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (!disk->bb)
+		return -ENXIO;
+
+	return badblocks_store(disk->bb, page, len, 0);
+}
 
 /**
  * get_gendisk - get partitioning information for a given device
@@ -989,6 +1062,8 @@ static DEVICE_ATTR(discard_alignment, S_IRUGO, disk_discard_alignment_show,
 static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
 static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
+static DEVICE_ATTR(badblocks, S_IRUGO | S_IWUSR, disk_badblocks_show,
+		disk_badblocks_store);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
@@ -1010,6 +1085,7 @@ static struct attribute *disk_attrs[] = {
 	&dev_attr_capability.attr,
 	&dev_attr_stat.attr,
 	&dev_attr_inflight.attr,
+	&dev_attr_badblocks.attr,
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	&dev_attr_fail.attr,
 #endif
