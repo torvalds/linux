@@ -613,6 +613,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x885: /* Intuos3 Marker Pen */
 		case 0x802: /* Intuos4/5 13HD/24HD General Pen */
 		case 0x804: /* Intuos4/5 13HD/24HD Marker Pen */
+		case 0x8e2: /* IntuosHT2 pen */
 		case 0x022:
 		case 0x100804: /* Intuos4/5 13HD/24HD Art Pen */
 		case 0x140802: /* Intuos4/5 13HD/24HD Classic Pen */
@@ -680,7 +681,8 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* in Range */
 	if ((data[1] & 0xfe) == 0x20) {
-		wacom->shared->stylus_in_proximity = true;
+		if (features->type != INTUOSHT2)
+			wacom->shared->stylus_in_proximity = true;
 
 		/* in Range while exiting */
 		if (wacom->reporting_data) {
