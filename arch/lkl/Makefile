@@ -8,6 +8,8 @@ else ifeq ($(OUTPUT_FORMAT),pe-i386)
 prefix=_
 # workaround for #include_next<stdarg.h> errors
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
+# workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
+KBUILD_CFLAGS += -mno-ms-bitfields
 else
 $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
