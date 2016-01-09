@@ -900,6 +900,9 @@ static int rtl2830_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&dev->stat_work);
+
 	i2c_del_mux_adapter(dev->adapter);
 	regmap_exit(dev->regmap);
 	kfree(dev);
