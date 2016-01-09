@@ -339,6 +339,7 @@ out:
 static int netdev_id = -1;
 union lkl_netdev netdev = { -1, };
 
+#ifndef __MINGW32__
 int test_netdev_add(char *str, int len)
 {
 	struct ifreq ifr = {
@@ -368,6 +369,7 @@ out:
 	snprintf(str, len, "%d %d %d", ret, netdev.fd, netdev_id);
 	return ret >= 0 ? 1 : 0;
 }
+#endif
 
 static char mnt_point[32];
 
@@ -567,7 +569,8 @@ int main(int argc, char **argv)
 
 	TEST(disk_add);
 #ifndef __MINGW32__
-	TEST(netdev_add);
+	if (cla.tap_ifname)
+		TEST(netdev_add);
 #endif
 	lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "");
 
