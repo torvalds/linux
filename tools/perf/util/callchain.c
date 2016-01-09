@@ -925,6 +925,34 @@ void free_callchain(struct callchain_root *root)
 	free_callchain_node(&root->node);
 }
 
+static u64 decay_callchain_node(struct callchain_node *node)
+{
+	struct callchain_node *child;
+	struct rb_node *n;
+	u64 child_hits = 0;
+
+	n = rb_first(&node->rb_root_in);
+	while (n) {
+		child = container_of(n, struct callchain_node, rb_node_in);
+
+		child_hits += decay_callchain_node(child);
+		n = rb_next(n);
+	}
+
+	node->hit = (node->hit * 7) / 8;
+	node->children_hit = child_hits;
+
+	return node->hit;
+}
+
+void decay_callchain(struct callchain_root *root)
+{
+	if (!symbol_conf.use_callchain)
+		return;
+
+	decay_callchain_node(&root->node);
+}
+
 int callchain_node__make_parent_list(struct callchain_node *node)
 {
 	struct callchain_node *parent = node->parent;

@@ -2298,6 +2298,29 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		printed += comma_fprintf(fp, &first, " %s=%" PRIu64,
 					 term, (u64)evsel->attr.sample_freq);
 	}
+
+	if (details->trace_fields) {
+		struct format_field *field;
+
+		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+			printed += comma_fprintf(fp, &first, " (not a tracepoint)");
+			goto out;
+		}
+
+		field = evsel->tp_format->format.fields;
+		if (field == NULL) {
+			printed += comma_fprintf(fp, &first, " (no trace field)");
+			goto out;
+		}
+
+		printed += comma_fprintf(fp, &first, " trace_fields: %s", field->name);
+
+		field = field->next;
+		while (field) {
+			printed += comma_fprintf(fp, &first, "%s", field->name);
+			field = field->next;
+		}
+	}
 out:
 	fputc('\n', fp);
 	return ++printed;

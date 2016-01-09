@@ -18,7 +18,11 @@
 #include "util/sort.h"
 #include "util/data.h"
 #include "util/auxtrace.h"
+#include "util/cpumap.h"
+#include "util/thread_map.h"
+#include "util/stat.h"
 #include <linux/bitmap.h>
+#include "asm/bug.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -32,6 +36,7 @@ static bool			print_flags;
 static bool			nanosecs;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+static struct perf_stat_config	stat_config;
 
 unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
@@ -215,6 +220,9 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	bool allow_user_set;
+
+	if (perf_header__has_feat(&session->header, HEADER_STAT))
+		return 0;
 
 	allow_user_set = perf_header__has_feat(&session->header,
 					       HEADER_AUXTRACE);
@@ -606,9 +614,27 @@ struct perf_script {
 	bool			show_task_events;
 	bool			show_mmap_events;
 	bool			show_switch_events;
+	bool			allocated;
+	struct cpu_map		*cpus;
+	struct thread_map	*threads;
+	int			name_width;
 };
 
-static void process_event(struct perf_script *script __maybe_unused, union perf_event *event,
+static int perf_evlist__max_name_len(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	int max = 0;
+
+	evlist__for_each(evlist, evsel) {
+		int len = strlen(perf_evsel__name(evsel));
+
+		max = MAX(len, max);
+	}
+
+	return max;
+}
+
+static void process_event(struct perf_script *script, union perf_event *event,
 			  struct perf_sample *sample, struct perf_evsel *evsel,
 			  struct addr_location *al)
 {
@@ -625,7 +651,12 @@ static void process_event(struct perf_script *script __maybe_unused, union perf_
 
 	if (PRINT_FIELD(EVNAME)) {
 		const char *evname = perf_evsel__name(evsel);
-		printf("%s: ", evname ? evname : "[unknown]");
+
+		if (!script->name_width)
+			script->name_width = perf_evlist__max_name_len(script->session->evlist);
+
+		printf("%*s: ", script->name_width,
+		       evname ? evname : "[unknown]");
 	}
 
 	if (print_flags)
@@ -665,6 +696,54 @@ static void process_event(struct perf_script *script __maybe_unused, union perf_
 }
 
 static struct scripting_ops	*scripting_ops;
+
+static void __process_stat(struct perf_evsel *counter, u64 tstamp)
+{
+	int nthreads = thread_map__nr(counter->threads);
+	int ncpus = perf_evsel__nr_cpus(counter);
+	int cpu, thread;
+	static int header_printed;
+
+	if (counter->system_wide)
+		nthreads = 1;
+
+	if (!header_printed) {
+		printf("%3s %8s %15s %15s %15s %15s %s\n",
+		       "CPU", "THREAD", "VAL", "ENA", "RUN", "TIME", "EVENT");
+		header_printed = 1;
+	}
+
+	for (thread = 0; thread < nthreads; thread++) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			struct perf_counts_values *counts;
+
+			counts = perf_counts(counter->counts, cpu, thread);
+
+			printf("%3d %8d %15" PRIu64 " %15" PRIu64 " %15" PRIu64 " %15" PRIu64 " %s\n",
+				counter->cpus->map[cpu],
+				thread_map__pid(counter->threads, thread),
+				counts->val,
+				counts->ena,
+				counts->run,
+				tstamp,
+				perf_evsel__name(counter));
+		}
+	}
+}
+
+static void process_stat(struct perf_evsel *counter, u64 tstamp)
+{
+	if (scripting_ops && scripting_ops->process_stat)
+		scripting_ops->process_stat(&stat_config, counter, tstamp);
+	else
+		__process_stat(counter, tstamp);
+}
+
+static void process_stat_interval(u64 tstamp)
+{
+	if (scripting_ops && scripting_ops->process_stat_interval)
+		scripting_ops->process_stat_interval(tstamp);
+}
 
 static void setup_scripting(void)
 {
@@ -1682,6 +1761,87 @@ static void script__setup_sample_type(struct perf_script *script)
 	}
 }
 
+static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
+				    union perf_event *event,
+				    struct perf_session *session)
+{
+	struct stat_round_event *round = &event->stat_round;
+	struct perf_evsel *counter;
+
+	evlist__for_each(session->evlist, counter) {
+		perf_stat_process_counter(&stat_config, counter);
+		process_stat(counter, round->time);
+	}
+
+	process_stat_interval(round->time);
+	return 0;
+}
+
+static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_session *session __maybe_unused)
+{
+	perf_event__read_stat_config(&stat_config, &event->stat_config);
+	return 0;
+}
+
+static int set_maps(struct perf_script *script)
+{
+	struct perf_evlist *evlist = script->session->evlist;
+
+	if (!script->cpus || !script->threads)
+		return 0;
+
+	if (WARN_ONCE(script->allocated, "stats double allocation\n"))
+		return -EINVAL;
+
+	perf_evlist__set_maps(evlist, script->cpus, script->threads);
+
+	if (perf_evlist__alloc_stats(evlist, true))
+		return -ENOMEM;
+
+	script->allocated = true;
+	return 0;
+}
+
+static
+int process_thread_map_event(struct perf_tool *tool,
+			     union perf_event *event,
+			     struct perf_session *session __maybe_unused)
+{
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+
+	if (script->threads) {
+		pr_warning("Extra thread map event, ignoring.\n");
+		return 0;
+	}
+
+	script->threads = thread_map__new_event(&event->thread_map);
+	if (!script->threads)
+		return -ENOMEM;
+
+	return set_maps(script);
+}
+
+static
+int process_cpu_map_event(struct perf_tool *tool __maybe_unused,
+			  union perf_event *event,
+			  struct perf_session *session __maybe_unused)
+{
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+
+	if (script->cpus) {
+		pr_warning("Extra cpu map event, ignoring.\n");
+		return 0;
+	}
+
+	script->cpus = cpu_map__new_data(&event->cpu_map.data);
+	if (!script->cpus)
+		return -ENOMEM;
+
+	return set_maps(script);
+}
+
 int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	bool show_full_info = false;
@@ -1710,6 +1870,11 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
 			.auxtrace_error	 = perf_event__process_auxtrace_error,
+			.stat		 = perf_event__process_stat_event,
+			.stat_round	 = process_stat_round_event,
+			.stat_config	 = process_stat_config_event,
+			.thread_map	 = process_thread_map_event,
+			.cpu_map	 = process_cpu_map_event,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -2063,6 +2228,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	flush_scripting();
 
 out_delete:
+	perf_evlist__free_stats(session->evlist);
 	perf_session__delete(session);
 
 	if (script_started)

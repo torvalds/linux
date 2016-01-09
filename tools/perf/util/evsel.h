@@ -369,6 +369,7 @@ struct perf_attr_details {
 	bool verbose;
 	bool event_group;
 	bool force;
+	bool trace_fields;
 };
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,

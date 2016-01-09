@@ -55,7 +55,6 @@ int test__keep_tracking(int subtest __maybe_unused)
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
 		.target		     = {
 			.uses_mmap   = true,
 		},
@@ -124,7 +123,7 @@ int test__keep_tracking(int subtest __maybe_unused)
 
 	evsel = perf_evlist__last(evlist);
 
-	CHECK__(perf_evlist__disable_event(evlist, evsel));
+	CHECK__(perf_evsel__disable(evsel));
 
 	comm = "Test COMM 2";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0));

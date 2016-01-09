@@ -1041,7 +1041,8 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		hist_browser__gotorc(browser, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
-			if (perf_hpp__should_skip(fmt) || column++ < browser->b.horiz_scroll)
+			if (perf_hpp__should_skip(fmt, entry->hists) ||
+			    column++ < browser->b.horiz_scroll)
 				continue;
 
 			if (current_entry && browser->b.navkeypressed) {
@@ -1144,7 +1145,7 @@ static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *
 	}
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt)  || column++ < browser->b.horiz_scroll)
+		if (perf_hpp__should_skip(fmt, hists)  || column++ < browser->b.horiz_scroll)
 			continue;
 
 		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
@@ -1414,7 +1415,7 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 		printed += fprintf(fp, "%c ", folded_sign);
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
 		if (!first) {

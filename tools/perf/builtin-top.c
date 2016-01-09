@@ -1210,6 +1210,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('j', "branch-filter", &opts->branch_stack,
 		     "branch filter mask", "branch stack filter modes",
 		     parse_branch_stack),
+	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
+		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1231,11 +1233,17 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (argc)
 		usage_with_options(top_usage, options);
 
+	if (!top.evlist->nr_entries &&
+	    perf_evlist__add_default(top.evlist) < 0) {
+		pr_err("Not enough memory for event selector list\n");
+		goto out_delete_evlist;
+	}
+
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */
 	sort__need_collapse = 1;
 
-	if (setup_sorting() < 0) {
+	if (setup_sorting(top.evlist) < 0) {
 		if (sort_order)
 			parse_options_usage(top_usage, options, "s", 1);
 		if (field_order)
@@ -1274,12 +1282,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (perf_evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
 			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
-		goto out_delete_evlist;
-	}
-
-	if (!top.evlist->nr_entries &&
-	    perf_evlist__add_default(top.evlist) < 0) {
-		ui__error("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
 	}
 

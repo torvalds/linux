@@ -433,7 +433,7 @@ static int report__browse_hists(struct report *rep)
 	int ret;
 	struct perf_session *session = rep->session;
 	struct perf_evlist *evlist = session->evlist;
-	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+	const char *help = perf_tip(TIPDIR);
 
 	switch (use_browser) {
 	case 1:
@@ -788,6 +788,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show callgraph from reference event"),
 	OPT_INTEGER(0, "socket-filter", &report.socket_filter,
 		    "only show processor socket that match with this filter"),
+	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
+		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -897,7 +899,7 @@ repeat:
 		symbol_conf.cumulate_callchain = false;
 	}
 
-	if (setup_sorting() < 0) {
+	if (setup_sorting(session->evlist) < 0) {
 		if (sort_order)
 			parse_options_usage(report_usage, options, "s", 1);
 		if (field_order)

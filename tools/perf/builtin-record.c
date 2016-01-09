@@ -815,8 +815,12 @@ int record_parse_callchain_opt(const struct option *opt,
 	}
 
 	ret = parse_callchain_record_opt(arg, &callchain_param);
-	if (!ret)
+	if (!ret) {
+		/* Enable data address sampling for DWARF unwind. */
+		if (callchain_param.record_mode == CALLCHAIN_DWARF)
+			record->sample_address = true;
 		callchain_debug();
+	}
 
 	return ret;
 }

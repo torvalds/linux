@@ -26,4 +26,4 @@ perf-stat			mainporcelain common
 perf-test			mainporcelain common
 perf-timechart			mainporcelain common
 perf-top			mainporcelain common
-perf-trace			mainporcelain common
+perf-trace			mainporcelain audit

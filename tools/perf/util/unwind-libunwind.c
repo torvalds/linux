@@ -319,6 +319,15 @@ static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 
 	thread__find_addr_map(ui->thread, PERF_RECORD_MISC_USER,
 			      MAP__FUNCTION, ip, &al);
+	if (!al.map) {
+		/*
+		 * We've seen cases (softice) where DWARF unwinder went
+		 * through non executable mmaps, which we need to lookup
+		 * in MAP__VARIABLE tree.
+		 */
+		thread__find_addr_map(ui->thread, PERF_RECORD_MISC_USER,
+				      MAP__VARIABLE, ip, &al);
+	}
 	return al.map;
 }
 
@@ -416,20 +425,19 @@ get_proc_name(unw_addr_space_t __maybe_unused as,
 static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 			  unw_word_t *data)
 {
-	struct addr_location al;
+	struct map *map;
 	ssize_t size;
 
-	thread__find_addr_map(ui->thread, PERF_RECORD_MISC_USER,
-			      MAP__FUNCTION, addr, &al);
-	if (!al.map) {
+	map = find_map(addr, ui);
+	if (!map) {
 		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
-	if (!al.map->dso)
+	if (!map->dso)
 		return -1;
 
-	size = dso__data_read_addr(al.map->dso, al.map, ui->machine,
+	size = dso__data_read_addr(map->dso, map, ui->machine,
 				   addr, (u8 *) data, sizeof(*data));
 
 	return !(size == sizeof(*data));

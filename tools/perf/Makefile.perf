@@ -436,7 +436,7 @@ $(LIBAPI)-clean:
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
 $(LIBBPF): fixdep FORCE
-	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(realpath $(OUTPUT)FEATURE-DUMP)
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
@@ -488,7 +488,7 @@ INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
 $(DOC_TARGETS):
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:doc=all)
 
-TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include ../lib/bpf
+TAG_FOLDERS= . ../lib ../include
 TAG_FILES= ../../include/uapi/linux/perf_event.h
 
 TAGS:
@@ -567,6 +567,9 @@ endif
 	$(call QUIET_INSTALL, perf_completion-script) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d'; \
 		$(INSTALL) perf-completion.sh '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d/perf'
+	$(call QUIET_INSTALL, perf-tip) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(tip_instdir_SQ)'; \
+		$(INSTALL) Documentation/tips.txt -t '$(DESTDIR_SQ)$(tip_instdir_SQ)'
 
 install-tests: all install-gtk
 	$(call QUIET_INSTALL, tests) \

@@ -39,6 +39,7 @@ struct symbol_conf symbol_conf = {
 	.cumulate_callchain	= true,
 	.show_hist_headers	= true,
 	.symfs			= "",
+	.event_group		= true,
 };
 
 static enum dso_binary_type binary_type_symtab[] = {
