@@ -879,7 +879,6 @@ static struct qla_tgt_sess *qlt_create_sess(
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt_sess *sess;
 	unsigned long flags;
-	unsigned char be_sid[3];
 
 	/* Check to avoid double sessions */
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
@@ -948,17 +947,14 @@ static struct qla_tgt_sess *qlt_create_sess(
 	    "Adding sess %p to tgt %p via ->check_initiator_node_acl()\n",
 	    sess, vha->vha_tgt.qla_tgt);
 
-	be_sid[0] = sess->s_id.b.domain;
-	be_sid[1] = sess->s_id.b.area;
-	be_sid[2] = sess->s_id.b.al_pa;
 	/*
 	 * Determine if this fc_port->port_name is allowed to access
 	 * target mode using explict NodeACLs+MappedLUNs, or using
 	 * TPG demo mode.  If this is successful a target mode FC nexus
 	 * is created.
 	 */
-	if (ha->tgt.tgt_ops->check_initiator_node_acl(vha,
-	    &fcport->port_name[0], sess, &be_sid[0], fcport->loop_id) < 0) {
+	if (ha->tgt.tgt_ops->check_initiator_node_acl(vha, &fcport->port_name[0],
+						      sess)) {
 		kfree(sess);
 		return NULL;
 	}
