@@ -217,6 +217,24 @@
 		>;
 	};
 
+	isp_pins: pinmux_isp_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x210c, PIN_INPUT | MUX_MODE0)   /* cam_hs.cam_hs */
+			OMAP3_CORE1_IOPAD(0x210e, PIN_INPUT | MUX_MODE0)   /* cam_vs.cam_vs */
+			OMAP3_CORE1_IOPAD(0x2110, PIN_INPUT | MUX_MODE0)   /* cam_xclka.cam_xclka */
+			OMAP3_CORE1_IOPAD(0x2112, PIN_INPUT | MUX_MODE0)   /* cam_pclk.cam_pclk */
+
+			OMAP3_CORE1_IOPAD(0x2114, PIN_INPUT | MUX_MODE0)   /* cam_d0.cam_d0 */
+			OMAP3_CORE1_IOPAD(0x2116, PIN_INPUT | MUX_MODE0)   /* cam_d1.cam_d1 */
+			OMAP3_CORE1_IOPAD(0x2118, PIN_INPUT | MUX_MODE0)   /* cam_d2.cam_d2 */
+			OMAP3_CORE1_IOPAD(0x211c, PIN_INPUT | MUX_MODE0)   /* cam_d3.cam_d3 */
+			OMAP3_CORE1_IOPAD(0x211e, PIN_INPUT | MUX_MODE0)   /* cam_d4.cam_d4 */
+			OMAP3_CORE1_IOPAD(0x2120, PIN_INPUT | MUX_MODE0)   /* cam_d5.cam_d5 */
+			OMAP3_CORE1_IOPAD(0x2122, PIN_INPUT | MUX_MODE0)   /* cam_d6.cam_d6 */
+			OMAP3_CORE1_IOPAD(0x2124, PIN_INPUT | MUX_MODE0)   /* cam_d7.cam_d7 */
+		>;
+	};
+
 	dss_dpi_pins1: pinmux_dss_dpi_pins1 {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d4, PIN_OUTPUT | MUX_MODE0)   /* dss_pclk.dss_pclk */
@@ -268,6 +286,24 @@
 	};
 };
 
+&i2c2 {
+	mt9p031@48 {
+		compatible = "aptina,mt9p031";
+		reg = <0x48>;
+		clocks = <&isp 0>;
+		vaa-supply = <&vaux4>;
+		vdd-supply = <&vaux4>;
+		vdd_io-supply = <&vaux4>;
+		port {
+			mt9p031_out: endpoint {
+				input-clock-frequency = <24000000>;
+				pixel-clock-frequency = <72000000>;
+				remote-endpoint = <&ccdc_ep>;
+			};
+		};
+	};
+};
+
 &i2c3 {
 	touchscreen: tsc2004@48 {
 		compatible = "ti,tsc2004";
@@ -286,6 +322,23 @@
 
 		ti,x-plate-ohms = <280>;
 		ti,esd-recovery-timeout-ms = <8000>;
+	};
+};
+
+&isp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&isp_pins>;
+	ports {
+		port@0 {
+			reg = <0>;
+			ccdc_ep: endpoint {
+				remote-endpoint = <&mt9p031_out>;
+				bus-width = <8>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+				pclk-sample = <0>;
+			};
+		};
 	};
 };
 
