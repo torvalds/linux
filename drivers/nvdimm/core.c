@@ -360,6 +360,18 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_bus_register);
 
+static void set_badblock(struct gendisk *disk, sector_t s, int num)
+{
+	struct device *dev = disk->driverfs_dev;
+
+	dev_dbg(dev, "Found a poison range (0x%llx, 0x%llx)\n",
+			(u64) s * 512, (u64) num * 512);
+	/* this isn't an error as the hardware will still throw an exception */
+	if (disk_set_badblocks(disk, s, num))
+		dev_info_once(dev, "%s: failed for sector %llx\n",
+				__func__, (u64) s);
+}
+
 /**
  * __add_badblock_range() - Convert a physical address range to bad sectors
  * @disk:	the disk associated with the namespace
@@ -396,15 +408,14 @@ static int __add_badblock_range(struct gendisk *disk, u64 ns_offset, u64 len)
 		while (remaining) {
 			int done = min_t(u64, remaining, INT_MAX);
 
-			rc = disk_set_badblocks(disk, s, done);
-			if (rc)
-				return rc;
+			set_badblock(disk, s, done);
 			remaining -= done;
 			s += done;
 		}
-		return 0;
 	} else
-		return disk_set_badblocks(disk, start_sector, num_sectors);
+		set_badblock(disk, start_sector, num_sectors);
+
+	return 0;
 }
 
 /**
@@ -463,9 +474,6 @@ int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
 			rc = __add_badblock_range(disk, start - ns_start, len);
 			if (rc)
 				return rc;
-			dev_info(&nvdimm_bus->dev,
-				"Found a poison range (0x%llx, 0x%llx)\n",
-				start, len);
 			continue;
 		}
 		/* Deal with overlap for poison starting before the namespace */
@@ -480,9 +488,6 @@ int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
 			rc = __add_badblock_range(disk, 0, len);
 			if (rc)
 				return rc;
-			dev_info(&nvdimm_bus->dev,
-				"Found a poison range (0x%llx, 0x%llx)\n",
-				pl->start, len);
 		}
 	}
 
