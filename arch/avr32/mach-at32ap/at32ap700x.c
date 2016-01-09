@@ -1321,6 +1321,21 @@ static struct clk atmel_mci0_pclk = {
 	.index		= 9,
 };
 
+static bool at32_mci_dma_filter(struct dma_chan *chan, void *pdata)
+{
+	struct mci_dma_data *sl = pdata;
+
+	if (!sl)
+		return false;
+
+	if (find_slave_dev(sl) == chan->device->dev) {
+		chan->private = slave_data_ptr(sl);
+		return true;
+	}
+
+	return false;
+}
+
 struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
@@ -1355,6 +1370,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	slave->sdata.dst_master = 0;
 
 	data->dma_slave = slave;
+	data->dma_filter = at32_mci_dma_filter;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
