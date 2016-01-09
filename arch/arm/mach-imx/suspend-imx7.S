@@ -309,7 +309,12 @@
 	ldr	r11, [r0, #PM_INFO_MX7_IOMUXC_GPR_V_OFFSET]
 	ldr	r7, =0x38000000
 	str	r7, [r11]
-	b	11f
+
+	/* LPSR mode need to use TO1.0 flow as IOMUX lost power */
+	ldr	r10, [r0, #PM_INFO_MX7_LPSR_V_OFFSET]
+	ldr	r7, [r10]
+	cmp	r7, #0x0
+	beq	11f
 10:
 	/* reset ddr_phy  */
 	ldr	r11, [r0, #PM_INFO_MX7_ANATOP_V_OFFSET]
