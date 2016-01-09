@@ -1116,7 +1116,7 @@ static int cpmac_probe(struct platform_device *pdev)
 		for (phy_id = 0; phy_id < PHY_MAX_ADDR; phy_id++) {
 			if (!(pdata->phy_mask & (1 << phy_id)))
 				continue;
-			if (!cpmac_mii->phy_map[phy_id])
+			if (!mdiobus_get_phy(cpmac_mii, phy_id))
 				continue;
 			strncpy(mdio_bus_id, cpmac_mii->id, MII_BUS_ID_SIZE);
 			break;
