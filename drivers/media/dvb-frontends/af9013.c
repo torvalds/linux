@@ -1344,6 +1344,10 @@ err:
 static void af9013_release(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&state->statistics_work);
+
 	kfree(state);
 }
 
