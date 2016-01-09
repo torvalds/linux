@@ -132,6 +132,7 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct net_device *ndev;
 	enum ib_mtu ndev_ib_mtu;
+	u16 qkey_viol_cntr;
 
 	memset(props, 0, sizeof(*props));
 
@@ -146,8 +147,8 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	props->state            = IB_PORT_DOWN;
 	props->phys_state       = 3;
 
-	mlx5_query_nic_vport_qkey_viol_cntr(dev->mdev,
-					    (u16 *)&props->qkey_viol_cntr);
+	mlx5_query_nic_vport_qkey_viol_cntr(dev->mdev, &qkey_viol_cntr);
+	props->qkey_viol_cntr = qkey_viol_cntr;
 
 	ndev = mlx5_ib_get_netdev(device, port_num);
 	if (!ndev)
