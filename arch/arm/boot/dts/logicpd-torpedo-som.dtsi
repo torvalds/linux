@@ -118,6 +118,11 @@
 
 &i2c3 {
 	clock-frequency = <400000>;
+	at24@50 {
+		compatible = "at24,24c02";
+		readonly;
+		reg = <0x50>;
+	};
 };
 
 /*
