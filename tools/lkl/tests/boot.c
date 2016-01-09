@@ -12,6 +12,9 @@
 #ifndef __MINGW32__
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <net/if.h>
+#include <linux/if_tun.h>
+#include <sys/ioctl.h>
 #else
 #include <windows.h>
 #endif
@@ -19,6 +22,7 @@
 static struct cl_args {
 	int printk;
 	const char *disk_filename;
+	const char *tap_ifname;
 	const char *fstype;
 } cla;
 
@@ -30,6 +34,7 @@ static struct cl_option {
 } options[] = {
 	{"enable-printk", 'p', "show Linux printks", 0},
 	{"disk-file", 'd', "disk file to use", 1},
+	{"net-tap", 'n', "tap interface to use", 1},
 	{"type", 't', "filesystem type", 1},
 	{0},
 };
@@ -42,6 +47,9 @@ static int parse_opt(int key, char *arg)
 		break;
 	case 'd':
 		cla.disk_filename = arg;
+		break;
+	case 'n':
+		cla.tap_ifname = arg;
 		break;
 	case 't':
 		cla.fstype = arg;
@@ -284,7 +292,6 @@ int test_stat(char *str, int len)
 	return 0;
 }
 
-static const char *tmp_file;
 static union lkl_disk disk;
 static int disk_id = -1;
 
@@ -327,6 +334,39 @@ out:
 		return 1;
 
 	return 0;
+}
+
+static int netdev_id = -1;
+union lkl_netdev netdev = { -1, };
+
+int test_netdev_add(char *str, int len)
+{
+	struct ifreq ifr = {
+		.ifr_flags = IFF_TAP | IFF_NO_PI,
+	};
+	int ret;
+
+	strncpy(ifr.ifr_name, cla.tap_ifname, IFNAMSIZ);
+
+	ret = open("/dev/net/tun", O_RDWR|O_NONBLOCK);
+	if (ret < 0)
+		goto out;
+
+	netdev.fd = ret;
+
+	ret = ioctl(netdev.fd, TUNSETIFF, &ifr);
+	if (ret < 0)
+		goto out;
+
+	ret = lkl_netdev_add(netdev, NULL);
+	if (ret < 0)
+		goto out;
+
+	netdev_id = ret;
+
+out:
+	snprintf(str, len, "%d %d %d", ret, netdev.fd, netdev_id);
+	return ret >= 0 ? 1 : 0;
 }
 
 static char mnt_point[32];
@@ -420,6 +460,39 @@ static int test_umount(char *str, int len)
 	return 0;
 }
 
+static int test_lo_ifup(char *str, int len)
+{
+	long ret;
+
+	ret = lkl_if_up(1);
+
+	snprintf(str, len, "%ld", ret);
+
+	if (!ret)
+		return 1;
+	return 0;
+}
+
+static int test_netdev_ifup(char *str, int len)
+{
+	long ret;
+	int ifindex = -1;
+
+	ret = lkl_netdev_get_ifindex(netdev_id);
+	if (ret < 0)
+		goto out;
+	ifindex = ret;
+
+	ret = lkl_if_up(ifindex);
+
+out:
+	snprintf(str, len, "%ld %d", ret, ifindex);
+
+	if (!ret)
+		return 1;
+	return 0;
+}
+
 static struct cl_option *find_short_opt(char name)
 {
 	struct cl_option *opt;
@@ -493,7 +566,9 @@ int main(int argc, char **argv)
 	lkl_host_ops.print = printk;
 
 	TEST(disk_add);
-
+#ifndef __MINGW32__
+	TEST(netdev_add);
+#endif
 	lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "");
 
 	TEST(getpid);
@@ -516,11 +591,13 @@ int main(int argc, char **argv)
 	TEST(opendir);
 	TEST(getdents64);
 	TEST(umount);
+	TEST(lo_ifup);
+	if (netdev_id >= 0)
+		TEST(netdev_ifup);
 
 	lkl_sys_halt();
 
 	close(disk.fd);
-	unlink(tmp_file);
 
 	return g_test_pass;
 }
