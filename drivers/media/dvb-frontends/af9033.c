@@ -1372,6 +1372,9 @@ static int af9033_remove(struct i2c_client *client)
 
 	dev_dbg(&dev->client->dev, "\n");
 
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&dev->stat_work);
+
 	dev->fe.ops.release = NULL;
 	dev->fe.demodulator_priv = NULL;
 	kfree(dev);
