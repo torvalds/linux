@@ -10,7 +10,10 @@
 / {
 	bl: backlight {
 		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_bl_on>;
 		pwms = <&pwm0 0 5000000 0>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 };
@@ -192,6 +195,12 @@
 				VF610_PAD_PTC15__ENET_RMII1_TXD1	0x30d2
 				VF610_PAD_PTC16__ENET_RMII1_TXD0	0x30d2
 				VF610_PAD_PTC17__ENET_RMII1_TXEN	0x30d2
+			>;
+		};
+
+		pinctrl_gpio_bl_on: gpio_bl_on {
+			fsl,pins = <
+				VF610_PAD_PTC0__GPIO_45		0x22ef
 			>;
 		};
 
