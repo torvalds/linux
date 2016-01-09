@@ -87,10 +87,10 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
 #define RADIX_TREE_INDEX_BITS_LOG2 (7 + 3)
 #endif
 /* log2(RADIX_TREE_MAX_PATH) will not above 9. */
-#if RADIX_TREE_MAP_SHIFT == 3
-#define RADIX_TREE_MAX_PATH_LOG2 (RADIX_TREE_INDEX_BITS_LOG2 - 1)
-#else
+#if RADIX_TREE_MAP_SHIFT == 6
 #define RADIX_TREE_MAX_PATH_LOG2 (RADIX_TREE_INDEX_BITS_LOG2 - 2)
+#else
+#define RADIX_TREE_MAX_PATH_LOG2 (RADIX_TREE_INDEX_BITS_LOG2 - 1)
 #endif
 
 /* Height component in node->path */
