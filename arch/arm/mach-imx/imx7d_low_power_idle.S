@@ -278,8 +278,8 @@
 	ldr	r7, =0xf0000
 	str	r7, [r10]
 
-	/* assume ARM @ 1GHz, about delay 20us */
-	ldr	r7, =10000
+	/* delay 20us, measured by gpio */
+	ldr	r7, =20
 12:
 	subs	r7, r7, #0x1
 	bne	12b
@@ -296,7 +296,7 @@
 	ldr	r7, =0x0
 	str	r7, [r10]
 
-	ldr	r7, =10000
+	ldr	r7, =20
 13:
 	subs	r7, r7, #0x1
 	bne	13b
