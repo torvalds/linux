@@ -750,13 +750,6 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		return 2;
 	}
 
-	/* don't report other events if we don't know the ID */
-	if (!wacom->id[idx]) {
-		/* but reschedule a read of the current tool */
-		wacom_intuos_schedule_prox_event(wacom);
-		return 1;
-	}
-
 	return 0;
 }
 
@@ -896,6 +889,13 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_CINTIQ &&
 		data[0] != WACOM_REPORT_INTUOS_PEN)
 		return 0;
+
+	/* don't report events if we don't know the tool ID */
+	if (!wacom->id[idx]) {
+		/* but reschedule a read of the current tool */
+		wacom_intuos_schedule_prox_event(wacom);
+		return 1;
+	}
 
 	x = (be16_to_cpup((__be16 *)&data[2]) << 1) | ((data[9] >> 1) & 1);
 	y = (be16_to_cpup((__be16 *)&data[4]) << 1) | (data[9] & 1);
