@@ -4,20 +4,21 @@ general:
 ## Customize dependencies
 dependencies:
   pre:
-    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind
-  post:
-    - make defconfig ARCH=lkl
-    - make ARCH=lkl -j8
+    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine
 
 test:
   override:
     - cd tools/lkl && make -j8
     - cd tools/lkl && make test
+    - cd tools/lkl && make clean
     - ? >
         if [ -n "${RUN_NIGHTLY_BUILD}" ]; then
           cd tools/lkl && make valgrind;
         fi
       : timeout: 1800 # timeout to 30mins
+    - sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin
+    - cd tools/lkl && CROSS_COMPILE=i686-w64-mingw32- make -j8
+    - cd tools/lkl && make test
 
   post:
     - mkdir -p $CIRCLE_TEST_REPORTS/junit/

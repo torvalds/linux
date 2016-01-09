@@ -21,7 +21,11 @@ if [ -c /dev/net/tun ]; then
     tap_args="-n lkl_boot"
 fi;
 
-${VALGRIND_CMD} ./boot -d $file -t $fstype $tap_args $LKL_TEST_DEBUG $@ || err=$?
+if file ./boot | grep PE32; then
+    WINE=wine
+fi
+
+${VALGRIND_CMD} $WINE ./boot -d $file -t $fstype $tap_args $LKL_TEST_DEBUG $@ || err=$?
 
 if [ -c /dev/net/tun ]; then
     sudo ip tuntap del dev lkl_boot mode tap || true
