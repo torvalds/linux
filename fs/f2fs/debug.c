@@ -272,7 +272,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->dirty_count);
 		seq_printf(s, "  - Prefree: %d\n  - Free: %d (%d)\n\n",
 			   si->prefree_count, si->free_segs, si->free_secs);
-		seq_printf(s, "CP calls: %d\n", si->cp_count);
+		seq_printf(s, "CP calls: %d (BG: %d)\n",
+				si->cp_count, si->bg_cp_count);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
