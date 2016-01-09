@@ -4037,7 +4037,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		goto out_err;
 
 	/*
-	 * Migrate tasks one-by-one until @form is empty.  This fails iff
+	 * Migrate tasks one-by-one until @from is empty.  This fails iff
 	 * ->can_attach() fails.
 	 */
 	do {
