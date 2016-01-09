@@ -206,7 +206,7 @@ replay:
 		}
 
 		if (nc->call_rcu) {
-			err = nc->call_rcu(net->nfnl, skb, nlh,
+			err = nc->call_rcu(net, net->nfnl, skb, nlh,
 					   (const struct nlattr **)cda);
 			rcu_read_unlock();
 		} else {
@@ -216,8 +216,8 @@ replay:
 			    nfnetlink_find_client(type, ss) != nc)
 				err = -EAGAIN;
 			else if (nc->call)
-				err = nc->call(net->nfnl, skb, nlh,
-						   (const struct nlattr **)cda);
+				err = nc->call(net, net->nfnl, skb, nlh,
+					       (const struct nlattr **)cda);
 			else
 				err = -EINVAL;
 			nfnl_unlock(subsys_id);
@@ -425,15 +425,15 @@ next:
 	}
 done:
 	if (status & NFNL_BATCH_REPLAY) {
-		ss->abort(oskb);
+		ss->abort(net, oskb);
 		nfnl_err_reset(&err_list);
 		nfnl_unlock(subsys_id);
 		kfree_skb(skb);
 		goto replay;
 	} else if (status == NFNL_BATCH_DONE) {
-		ss->commit(oskb);
+		ss->commit(net, oskb);
 	} else {
-		ss->abort(oskb);
+		ss->abort(net, oskb);
 	}
 
 	nfnl_err_deliver(&err_list, oskb);

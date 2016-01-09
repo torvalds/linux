@@ -291,6 +291,8 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@timeout: default timeout value in msecs
  * 	@gc_int: garbage collection interval in msecs
  *	@policy: set parameterization (see enum nft_set_policies)
+ *	@udlen: user data length
+ *	@udata: user data
  * 	@ops: set ops
  * 	@pnet: network namespace
  * 	@flags: set flags
@@ -310,6 +312,8 @@ struct nft_set {
 	u64				timeout;
 	u32				gc_int;
 	u16				policy;
+	u16				udlen;
+	unsigned char			*udata;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	possible_net_t			pnet;
@@ -821,10 +825,7 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
-int nft_register_basechain(struct nft_base_chain *basechain,
-			   unsigned int hook_nops);
-void nft_unregister_basechain(struct nft_base_chain *basechain,
-			      unsigned int hook_nops);
+int __nft_release_basechain(struct nft_ctx *ctx);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
 
@@ -880,7 +881,7 @@ struct nft_af_info {
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);
-void nft_unregister_afinfo(struct nft_af_info *);
+void nft_unregister_afinfo(struct net *, struct nft_af_info *);
 
 int nft_register_chain_type(const struct nf_chain_type *);
 void nft_unregister_chain_type(const struct nf_chain_type *);
