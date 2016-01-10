@@ -63,6 +63,7 @@ struct mlxsw_sp {
 	} fdb_notify;
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
+	struct mutex fdb_lock;	/* Make sure FDB sessions are atomic. */
 	struct {
 		struct net_device *dev;
 		unsigned int ref_count;

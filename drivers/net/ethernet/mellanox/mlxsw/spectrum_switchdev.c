@@ -650,6 +650,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!sfd_pl)
 		return -ENOMEM;
 
+	mutex_lock(&mlxsw_sp_port->mlxsw_sp->fdb_lock);
 	mlxsw_reg_sfd_pack(sfd_pl, MLXSW_REG_SFD_OP_QUERY_DUMP, 0);
 	do {
 		mlxsw_reg_sfd_num_rec_set(sfd_pl, MLXSW_REG_SFD_REC_MAX_COUNT);
@@ -684,6 +685,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	} while (num_rec == MLXSW_REG_SFD_REC_MAX_COUNT);
 
 out:
+	mutex_unlock(&mlxsw_sp_port->mlxsw_sp->fdb_lock);
 	kfree(sfd_pl);
 	return stored_err ? stored_err : err;
 }
@@ -812,6 +814,7 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 
 	mlxsw_sp = container_of(work, struct mlxsw_sp, fdb_notify.dw.work);
 
+	mutex_lock(&mlxsw_sp->fdb_lock);
 	do {
 		mlxsw_reg_sfn_pack(sfn_pl);
 		err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(sfn), sfn_pl);
@@ -824,6 +827,7 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 			mlxsw_sp_fdb_notify_rec_process(mlxsw_sp, sfn_pl, i);
 
 	} while (num_rec);
+	mutex_unlock(&mlxsw_sp->fdb_lock);
 
 	kfree(sfn_pl);
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
@@ -838,6 +842,7 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to set default ageing time\n");
 		return err;
 	}
+	mutex_init(&mlxsw_sp->fdb_lock);
 	INIT_DELAYED_WORK(&mlxsw_sp->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
 	mlxsw_sp->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
