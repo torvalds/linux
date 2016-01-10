@@ -211,6 +211,10 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 	unsigned int audit_tty;
 	dev_t dev;
 
+	audit_tty = READ_ONCE(current->signal->audit_tty);
+	if (~audit_tty & AUDIT_TTY_ENABLE)
+		return;
+
 	if (unlikely(size == 0))
 		return;
 
@@ -218,9 +222,6 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 	    && tty->driver->subtype == PTY_TYPE_MASTER)
 		return;
 
-	audit_tty = READ_ONCE(current->signal->audit_tty);
-	if (~audit_tty & AUDIT_TTY_ENABLE)
-		return;
 	if ((~audit_tty & AUDIT_TTY_LOG_PASSWD) && icanon && !L_ECHO(tty))
 		return;
 
