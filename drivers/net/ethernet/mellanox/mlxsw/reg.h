@@ -99,6 +99,55 @@ static const struct mlxsw_reg_info mlxsw_reg_spad = {
  */
 MLXSW_ITEM_BUF(reg, spad, base_mac, 0x02, 6);
 
+/* SMID - Switch Multicast ID
+ * --------------------------
+ * The MID record maps from a MID (Multicast ID), which is a unique identifier
+ * of the multicast group within the stacking domain, into a list of local
+ * ports into which the packet is replicated.
+ */
+#define MLXSW_REG_SMID_ID 0x2007
+#define MLXSW_REG_SMID_LEN 0x240
+
+static const struct mlxsw_reg_info mlxsw_reg_smid = {
+	.id = MLXSW_REG_SMID_ID,
+	.len = MLXSW_REG_SMID_LEN,
+};
+
+/* reg_smid_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid, swid, 0x00, 24, 8);
+
+/* reg_smid_mid
+ * Multicast identifier - global identifier that represents the multicast group
+ * across all devices.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid, mid, 0x00, 0, 16);
+
+/* reg_smid_port
+ * Local port memebership (1 bit per port).
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid, port, 0x20, 0x20, 1);
+
+/* reg_smid_port_mask
+ * Local port mask (1 bit per port).
+ * Access: W
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid, port_mask, 0x220, 0x20, 1);
+
+static inline void mlxsw_reg_smid_pack(char *payload, u16 mid,
+				       u8 port, bool set)
+{
+	MLXSW_REG_ZERO(smid, payload);
+	mlxsw_reg_smid_swid_set(payload, 0);
+	mlxsw_reg_smid_mid_set(payload, mid);
+	mlxsw_reg_smid_port_set(payload, port, set);
+	mlxsw_reg_smid_port_mask_set(payload, port, 1);
+}
+
 /* SSPR - Switch System Port Record Register
  * -----------------------------------------
  * Configures the system port to local port mapping.
@@ -3052,6 +3101,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SGCR";
 	case MLXSW_REG_SPAD_ID:
 		return "SPAD";
+	case MLXSW_REG_SMID_ID:
+		return "SMID";
 	case MLXSW_REG_SSPR_ID:
 		return "SSPR";
 	case MLXSW_REG_SFDAT_ID:
