@@ -1267,10 +1267,6 @@ static void ircomm_tty_line_info(struct ircomm_tty_cb *self, struct seq_file *m)
 		seq_printf(m, "%cASYNC_LOW_LATENCY", sep);
 		sep = '|';
 	}
-	if (self->port.flags & ASYNC_CLOSING) {
-		seq_printf(m, "%cASYNC_CLOSING", sep);
-		sep = '|';
-	}
 	if (self->port.flags & ASYNC_NORMAL_ACTIVE) {
 		seq_printf(m, "%cASYNC_NORMAL_ACTIVE", sep);
 		sep = '|';

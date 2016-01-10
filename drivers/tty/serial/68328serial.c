@@ -1028,7 +1028,6 @@ static void rs_close(struct tty_struct *tty, struct file *filp)
 		local_irq_restore(flags);
 		return;
 	}
-	port->flags |= ASYNC_CLOSING;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify 
 	 * the line discipline to only process XON/XOFF characters.
@@ -1058,7 +1057,7 @@ static void rs_close(struct tty_struct *tty, struct file *filp)
 			msleep_interruptible(jiffies_to_msecs(port->close_delay));
 		wake_up_interruptible(&port->open_wait);
 	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
+	port->flags &= ~ASYNC_NORMAL_ACTIVE;
 	local_irq_restore(flags);
 }
 
