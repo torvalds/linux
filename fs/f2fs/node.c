@@ -71,8 +71,8 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 				sizeof(struct extent_node)) >> PAGE_CACHE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else {
-		if (sbi->sb->s_bdi->wb.dirty_exceeded)
-			return false;
+		if (!sbi->sb->s_bdi->wb.dirty_exceeded)
+			return true;
 	}
 	return res;
 }
