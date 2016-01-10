@@ -130,19 +130,13 @@ void tty_audit_fork(struct signal_struct *sig)
  */
 void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
-	struct tty_audit_buf *buf;
 	dev_t dev;
 
 	dev = MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
-	buf = current->signal->tty_audit_buf;
-	if (buf) {
-		mutex_lock(&buf->mutex);
-		if (buf->dev == dev)
-			tty_audit_buf_push(buf);
-		mutex_unlock(&buf->mutex);
-	}
+	if (tty_audit_push())
+		return;
 
-	if (audit_enabled && (current->signal->audit_tty & AUDIT_TTY_ENABLE)) {
+	if (audit_enabled) {
 		kuid_t auid;
 		unsigned int sessionid;
 
