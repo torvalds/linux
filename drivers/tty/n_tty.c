@@ -261,8 +261,6 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY) {
 		if (chars_in_buffer(tty) > TTY_THRESHOLD_UNTHROTTLE)
 			return;
-		if (!tty->count)
-			return;
 		n_tty_kick_worker(tty);
 		tty_wakeup(tty->link);
 		return;
@@ -280,8 +278,6 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 		int unthrottled;
 		tty_set_flow_change(tty, TTY_UNTHROTTLE_SAFE);
 		if (chars_in_buffer(tty) > TTY_THRESHOLD_UNTHROTTLE)
-			break;
-		if (!tty->count)
 			break;
 		n_tty_kick_worker(tty);
 		unthrottled = tty_unthrottle_safe(tty);
