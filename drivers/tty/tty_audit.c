@@ -181,30 +181,22 @@ int tty_audit_push(void)
  */
 static struct tty_audit_buf *tty_audit_buf_get(void)
 {
-	struct tty_audit_buf *buf, *buf2;
-	unsigned long flags;
+	struct tty_audit_buf *buf;
 
 	buf = current->signal->tty_audit_buf;
 	if (buf)
 		return buf;
 
-	buf2 = tty_audit_buf_alloc();
-	if (buf2 == NULL) {
+	buf = tty_audit_buf_alloc();
+	if (buf == NULL) {
 		audit_log_lost("out of memory in TTY auditing");
 		return NULL;
 	}
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	buf = current->signal->tty_audit_buf;
-	if (!buf) {
-		current->signal->tty_audit_buf = buf2;
-		buf = buf2;
-		buf2 = NULL;
-	}
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-	if (buf2)
-		tty_audit_buf_free(buf2);
-	return buf;
+	/* Race to use this buffer, free it if another wins */
+	if (cmpxchg(&current->signal->tty_audit_buf, NULL, buf) != NULL)
+		tty_audit_buf_free(buf);
+	return current->signal->tty_audit_buf;
 }
 
 /**
