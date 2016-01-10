@@ -113,8 +113,6 @@ struct n_tty_data {
 	DECLARE_BITMAP(read_flags, N_TTY_BUF_SIZE);
 	unsigned char echo_buf[N_TTY_BUF_SIZE];
 
-	int minimum_to_wake;
-
 	/* consumer-published */
 	size_t read_tail;
 	size_t line_start;
@@ -1633,7 +1631,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	/* publish read_head to consumer */
 	smp_store_release(&ldata->commit_head, ldata->read_head);
 
-	if ((read_cnt(ldata) >= ldata->minimum_to_wake) || L_EXTPROC(tty)) {
+	if (read_cnt(ldata)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 	}
@@ -1900,7 +1898,6 @@ static int n_tty_open(struct tty_struct *tty)
 	reset_buffer_flags(tty->disc_data);
 	ldata->column = 0;
 	ldata->canon_column = 0;
-	ldata->minimum_to_wake = 1;
 	ldata->num_overrun = 0;
 	ldata->no_room = 0;
 	ldata->lnext = 0;
@@ -2163,14 +2160,9 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		minimum = MIN_CHAR(tty);
 		if (minimum) {
 			time = (HZ / 10) * TIME_CHAR(tty);
-			if (time)
-				ldata->minimum_to_wake = 1;
-			else if (!waitqueue_active(&tty->read_wait) ||
-				 (ldata->minimum_to_wake > minimum))
-				ldata->minimum_to_wake = minimum;
 		} else {
 			timeout = (HZ / 10) * TIME_CHAR(tty);
-			ldata->minimum_to_wake = minimum = 1;
+			minimum = 1;
 		}
 	}
 
@@ -2196,10 +2188,6 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			nr--;
 			break;
 		}
-
-		if (((minimum - (b - buf)) < ldata->minimum_to_wake) &&
-		    ((minimum - (b - buf)) >= 1))
-			ldata->minimum_to_wake = (minimum - (b - buf));
 
 		done = check_other_done(tty);
 
@@ -2266,9 +2254,6 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	up_read(&tty->termios_rwsem);
 
 	remove_wait_queue(&tty->read_wait, &wait);
-	if (!waitqueue_active(&tty->read_wait))
-		ldata->minimum_to_wake = minimum;
-
 	mutex_unlock(&ldata->atomic_read_lock);
 
 	if (b - buf)
@@ -2403,7 +2388,6 @@ break_out:
 static unsigned int n_tty_poll(struct tty_struct *tty, struct file *file,
 							poll_table *wait)
 {
-	struct n_tty_data *ldata = tty->disc_data;
 	unsigned int mask = 0;
 
 	poll_wait(file, &tty->read_wait, wait);
@@ -2416,12 +2400,6 @@ static unsigned int n_tty_poll(struct tty_struct *tty, struct file *file,
 		mask |= POLLPRI | POLLIN | POLLRDNORM;
 	if (tty_hung_up_p(file))
 		mask |= POLLHUP;
-	if (!(mask & (POLLHUP | POLLIN | POLLRDNORM))) {
-		if (MIN_CHAR(tty) && !TIME_CHAR(tty))
-			ldata->minimum_to_wake = MIN_CHAR(tty);
-		else
-			ldata->minimum_to_wake = 1;
-	}
 	if (tty->ops->write && !tty_is_writelocked(tty) &&
 			tty_chars_in_buffer(tty) < WAKEUP_CHARS &&
 			tty_write_room(tty) > 0)
@@ -2472,14 +2450,6 @@ static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 static void n_tty_fasync(struct tty_struct *tty, int on)
 {
-	struct n_tty_data *ldata = tty->disc_data;
-
-	if (!waitqueue_active(&tty->read_wait)) {
-		if (on)
-			ldata->minimum_to_wake = 1;
-		else if (!tty->fasync)
-			ldata->minimum_to_wake = N_TTY_BUF_SIZE;
-	}
 }
 
 static struct tty_ldisc_ops n_tty_ops = {
