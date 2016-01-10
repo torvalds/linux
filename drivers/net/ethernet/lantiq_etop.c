@@ -375,15 +375,9 @@ static int
 ltq_etop_mdio_probe(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
-	int phy_addr;
+	struct phy_device *phydev;
 
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (priv->mii_bus->phy_map[phy_addr]) {
-			phydev = priv->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
+	phydev = phy_find_first(priv->mii_bus);
 
 	if (!phydev) {
 		netdev_err(dev, "no PHY found\n");
