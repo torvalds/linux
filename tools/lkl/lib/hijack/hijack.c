@@ -68,6 +68,8 @@ static host_call host_calls[__lkl__NR_syscalls];
 	{								\
 		long p[6] = {p1, p2, p3, p4, p5, p6 };			\
 									\
+		if (!host_calls[__lkl__NR_##name])			\
+			host_calls[__lkl__NR_##name] = resolve_sym(#name); \
 		if (!is_lklfd(p1))					\
 			return host_calls[__lkl__NR_##name](p1, p2, p3,	\
 							    p4, p5, p6); \
@@ -96,6 +98,9 @@ static host_call host_calls[__lkl__NR_syscalls];
 	asm(".global " #name);						\
 	asm(".set " #name "," #name "_hook");				\
 
+#define CHECK_HOST_CALL(name)				\
+	if (!host_##name)				\
+		host_##name = resolve_sym(#name)
 
 static int lkl_call(int nr, int args, ...)
 {
@@ -136,6 +141,7 @@ HOST_CALL(setsockopt);
 int setsockopt(int fd, int level, int optname, const void *optval,
 	       socklen_t optlen)
 {
+	CHECK_HOST_CALL(setsockopt);
 	if (!is_lklfd(fd))
 		return host_setsockopt(fd, level, optname, optval, optlen);
 	return lkl_call(__lkl__NR_setsockopt, 5, fd, lkl_solevel_xlate(level),
@@ -145,6 +151,7 @@ int setsockopt(int fd, int level, int optname, const void *optval,
 HOST_CALL(getsockopt);
 int getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
 {
+	CHECK_HOST_CALL(getsockopt);
 	if (!is_lklfd(fd))
 		return host_setsockopt(fd, level, optname, optval, optlen);
 	return lkl_call(__lkl__NR_getsockopt, 5, fd, lkl_solevel_xlate(level),
@@ -154,6 +161,7 @@ int getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
 HOST_CALL(socket);
 int socket(int domain, int type, int protocol)
 {
+	CHECK_HOST_CALL(socket);
 	if (domain == AF_UNIX)
 		return host_socket(domain, type, protocol);
 
@@ -169,6 +177,8 @@ int ioctl(int fd, unsigned long req, ...)
 	va_start(vl, req);
 	arg = va_arg(vl, long);
 	va_end(vl);
+
+	CHECK_HOST_CALL(ioctl);
 
 	if (!is_lklfd(fd))
 		return host_ioctl(fd, req, arg);
@@ -186,6 +196,8 @@ int fcntl(int fd, int cmd, ...)
 	arg = va_arg(vl, long);
 	va_end(vl);
 
+	CHECK_HOST_CALL(fcntl);
+
 	if (!is_lklfd(fd))
 		return host_fcntl(fd, cmd, arg);
 	return lkl_call(__lkl__NR_fcntl, 3, fd, lkl_fcntl_cmd_xlate(cmd), arg);
@@ -195,6 +207,8 @@ HOST_CALL(poll);
 int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
 	unsigned int i, lklfds = 0, hostfds = 0;
+
+	CHECK_HOST_CALL(poll);
 
 	for (i = 0; i < nfds; i++) {
 		if (is_lklfd(fds[i].fd))
@@ -220,6 +234,8 @@ HOST_CALL(select);
 int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 {
 	int fd, hostfds = 0, lklfds = 0;
+
+	CHECK_HOST_CALL(select);
 
 	for (fd = 0; fd < nfds; fd++) {
 		if (r != 0 && FD_ISSET(fd, r)) {
@@ -257,9 +273,10 @@ HOOK_CALL(epoll_create)
 HOST_CALL(epoll_ctl);
 int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 {
+	CHECK_HOST_CALL(epoll_ctl);
+
 	if (is_lklfd(epollfd) != is_lklfd(fd))
 		return lkl_set_errno(LKL_EOPNOTSUPP);
-
 
 	if (!is_lklfd(epollfd))
 		return host_epoll_ctl(epollfd, op, fd, event);
