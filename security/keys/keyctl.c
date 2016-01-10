@@ -381,12 +381,11 @@ long keyctl_revoke_key(key_serial_t id)
 	}
 
 	key = key_ref_to_ptr(key_ref);
+	ret = 0;
 	if (test_bit(KEY_FLAG_KEEP, &key->flags))
-		return -EPERM;
-	else {
+		ret = -EPERM;
+	else
 		key_revoke(key);
-		ret = 0;
-	}
 
 	key_ref_put(key_ref);
 error:
@@ -432,12 +431,11 @@ long keyctl_invalidate_key(key_serial_t id)
 
 invalidate:
 	key = key_ref_to_ptr(key_ref);
+	ret = 0;
 	if (test_bit(KEY_FLAG_KEEP, &key->flags))
 		ret = -EPERM;
-	else {
+	else
 		key_invalidate(key);
-		ret = 0;
-	}
 error_put:
 	key_ref_put(key_ref);
 error:
@@ -1352,12 +1350,11 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 
 okay:
 	key = key_ref_to_ptr(key_ref);
+	ret = 0;
 	if (test_bit(KEY_FLAG_KEEP, &key->flags))
 		ret = -EPERM;
-	else {
+	else
 		key_set_timeout(key, timeout);
-		ret = 0;
-	}
 	key_put(key);
 
 error:
