@@ -501,39 +501,34 @@ server_unresponsive(struct TCP_Server_Info *server)
 	return false;
 }
 
-int
-cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
-		       unsigned int nr_segs, unsigned int to_read)
+static int
+cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 {
 	int length = 0;
 	int total_read;
-	struct msghdr smb_msg;
 
-	smb_msg.msg_control = NULL;
-	smb_msg.msg_controllen = 0;
-	iov_iter_kvec(&smb_msg.msg_iter, READ | ITER_KVEC,
-		      iov_orig, nr_segs, to_read);
+	smb_msg->msg_control = NULL;
+	smb_msg->msg_controllen = 0;
 
-	for (total_read = 0; msg_data_left(&smb_msg); total_read += length) {
+	for (total_read = 0; msg_data_left(smb_msg); total_read += length) {
 		try_to_freeze();
 
-		if (server_unresponsive(server)) {
-			total_read = -ECONNABORTED;
-			break;
+		if (server_unresponsive(server))
+			return -ECONNABORTED;
+
+		length = sock_recvmsg(server->ssocket, smb_msg, 0);
+
+		if (server->tcpStatus == CifsExiting)
+			return -ESHUTDOWN;
+
+		if (server->tcpStatus == CifsNeedReconnect) {
+			cifs_reconnect(server);
+			return -ECONNABORTED;
 		}
 
-		length = sock_recvmsg(server->ssocket, &smb_msg, 0);
-
-		if (server->tcpStatus == CifsExiting) {
-			total_read = -ESHUTDOWN;
-			break;
-		} else if (server->tcpStatus == CifsNeedReconnect) {
-			cifs_reconnect(server);
-			total_read = -ECONNABORTED;
-			break;
-		} else if (length == -ERESTARTSYS ||
-			   length == -EAGAIN ||
-			   length == -EINTR) {
+		if (length == -ERESTARTSYS ||
+		    length == -EAGAIN ||
+		    length == -EINTR) {
 			/*
 			 * Minimum sleep to prevent looping, allowing socket
 			 * to clear and app threads to set tcpStatus
@@ -542,11 +537,12 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 			usleep_range(1000, 2000);
 			length = 0;
 			continue;
-		} else if (length <= 0) {
+		}
+
+		if (length <= 0) {
 			cifs_dbg(FYI, "Received no data or error: %d\n", length);
 			cifs_reconnect(server);
-			total_read = -ECONNABORTED;
-			break;
+			return -ECONNABORTED;
 		}
 	}
 	return total_read;
@@ -556,12 +552,21 @@ int
 cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
 		      unsigned int to_read)
 {
-	struct kvec iov;
+	struct msghdr smb_msg;
+	struct kvec iov = {.iov_base = buf, .iov_len = to_read};
+	iov_iter_kvec(&smb_msg.msg_iter, READ | ITER_KVEC, &iov, 1, to_read);
 
-	iov.iov_base = buf;
-	iov.iov_len = to_read;
+	return cifs_readv_from_socket(server, &smb_msg);
+}
 
-	return cifs_readv_from_socket(server, &iov, 1, to_read);
+int
+cifs_read_page_from_socket(struct TCP_Server_Info *server, struct page *page,
+		      unsigned int to_read)
+{
+	struct msghdr smb_msg;
+	struct bio_vec bv = {.bv_page = page, .bv_len = to_read};
+	iov_iter_bvec(&smb_msg.msg_iter, READ | ITER_BVEC, &bv, 1, to_read);
+	return cifs_readv_from_socket(server, &smb_msg);
 }
 
 static bool
