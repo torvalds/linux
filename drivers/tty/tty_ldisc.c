@@ -797,7 +797,7 @@ void tty_ldisc_init(struct tty_struct *tty)
 }
 
 /**
- *	tty_ldisc_init		-	ldisc cleanup for new tty
+ *	tty_ldisc_deinit	-	ldisc cleanup for new tty
  *	@tty: tty that was allocated recently
  *
  *	The tty structure must not becompletely set up (tty_ldisc_setup) when
@@ -805,7 +805,8 @@ void tty_ldisc_init(struct tty_struct *tty)
  */
 void tty_ldisc_deinit(struct tty_struct *tty)
 {
-	tty_ldisc_put(tty->ldisc);
+	if (tty->ldisc)
+		tty_ldisc_put(tty->ldisc);
 	tty->ldisc = NULL;
 }
 
