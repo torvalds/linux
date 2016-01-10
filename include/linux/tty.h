@@ -597,8 +597,7 @@ extern void tty_audit_add_data(struct tty_struct *tty, const void *data,
 extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
-extern void tty_audit_push(void);
-extern int tty_audit_push_current(void);
+extern int tty_audit_push(void);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty, const void *data,
 				      size_t size)
@@ -613,10 +612,7 @@ static inline void tty_audit_exit(void)
 static inline void tty_audit_fork(struct signal_struct *sig)
 {
 }
-static inline void tty_audit_push(void)
-{
-}
-static inline int tty_audit_push_current(void)
+static inline int tty_audit_push(void)
 {
 	return 0;
 }

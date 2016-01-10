@@ -172,12 +172,11 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 }
 
 /**
- * tty_audit_push_current -	Flush current's pending audit data
+ *	tty_audit_push	-	Flush current's pending audit data
  *
- * Try to lock sighand and get a reference to the tty audit buffer if available.
- * Flush the buffer or return an appropriate error code.
+ *	Returns 0 if success, -EPERM if tty audit is disabled
  */
-int tty_audit_push_current(void)
+int tty_audit_push(void)
 {
 	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
 	unsigned long flags;
@@ -308,32 +307,4 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 	} while (size != 0);
 	mutex_unlock(&buf->mutex);
 	tty_audit_buf_put(buf);
-}
-
-/**
- *	tty_audit_push	-	Push buffered data out
- *
- *	Make sure no audit data is pending on the current process.
- */
-void tty_audit_push(void)
-{
-	struct tty_audit_buf *buf;
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	if (likely(!current->signal->audit_tty)) {
-		spin_unlock_irqrestore(&current->sighand->siglock, flags);
-		return;
-	}
-	buf = current->signal->tty_audit_buf;
-	if (buf)
-		atomic_inc(&buf->count);
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-
-	if (buf) {
-		mutex_lock(&buf->mutex);
-		tty_audit_buf_push(buf);
-		mutex_unlock(&buf->mutex);
-		tty_audit_buf_put(buf);
-	}
 }

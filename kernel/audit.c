@@ -920,7 +920,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (err == 1) { /* match or error */
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
-				err = tty_audit_push_current();
+				err = tty_audit_push();
 				if (err)
 					break;
 			}
