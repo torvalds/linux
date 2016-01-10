@@ -654,7 +654,6 @@ static int tc_mii_init(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	int err;
-	int i;
 
 	lp->mii_bus = mdiobus_alloc();
 	if (lp->mii_bus == NULL) {
