@@ -21,6 +21,15 @@ struct tty_audit_buf {
 	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
 };
 
+static struct tty_audit_buf *tty_audit_buf_ref(void)
+{
+	struct tty_audit_buf *buf;
+
+	buf = current->signal->tty_audit_buf;
+	WARN_ON(buf == ERR_PTR(-ESRCH));
+	return buf;
+}
+
 static struct tty_audit_buf *tty_audit_buf_alloc(void)
 {
 	struct tty_audit_buf *buf;
@@ -106,8 +115,7 @@ void tty_audit_exit(void)
 {
 	struct tty_audit_buf *buf;
 
-	buf = current->signal->tty_audit_buf;
-	current->signal->tty_audit_buf = NULL;
+	buf = xchg(&current->signal->tty_audit_buf, ERR_PTR(-ESRCH));
 	if (!buf)
 		return;
 
@@ -158,8 +166,8 @@ int tty_audit_push(void)
 	if (~current->signal->audit_tty & AUDIT_TTY_ENABLE)
 		return -EPERM;
 
-	buf = current->signal->tty_audit_buf;
-	if (buf) {
+	buf = tty_audit_buf_ref();
+	if (!IS_ERR_OR_NULL(buf)) {
 		mutex_lock(&buf->mutex);
 		tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
@@ -171,13 +179,14 @@ int tty_audit_push(void)
  *	tty_audit_buf_get	-	Get an audit buffer.
  *
  *	Get an audit buffer, allocate it if necessary.  Return %NULL
- *	if out of memory.  Otherwise, return a new reference to the buffer.
+ *	if out of memory or ERR_PTR(-ESRCH) if tty_audit_exit() has already
+ *	occurred.  Otherwise, return a new reference to the buffer.
  */
 static struct tty_audit_buf *tty_audit_buf_get(void)
 {
 	struct tty_audit_buf *buf;
 
-	buf = current->signal->tty_audit_buf;
+	buf = tty_audit_buf_ref();
 	if (buf)
 		return buf;
 
@@ -190,7 +199,7 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 	/* Race to use this buffer, free it if another wins */
 	if (cmpxchg(&current->signal->tty_audit_buf, NULL, buf) != NULL)
 		tty_audit_buf_free(buf);
-	return current->signal->tty_audit_buf;
+	return tty_audit_buf_ref();
 }
 
 /**
@@ -220,7 +229,7 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 		return;
 
 	buf = tty_audit_buf_get();
-	if (!buf)
+	if (IS_ERR_OR_NULL(buf))
 		return;
 
 	mutex_lock(&buf->mutex);
