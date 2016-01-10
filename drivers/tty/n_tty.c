@@ -2448,10 +2448,6 @@ static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 	}
 }
 
-static void n_tty_fasync(struct tty_struct *tty, int on)
-{
-}
-
 static struct tty_ldisc_ops n_tty_ops = {
 	.magic           = TTY_LDISC_MAGIC,
 	.name            = "n_tty",
@@ -2465,7 +2461,6 @@ static struct tty_ldisc_ops n_tty_ops = {
 	.poll            = n_tty_poll,
 	.receive_buf     = n_tty_receive_buf,
 	.write_wakeup    = n_tty_write_wakeup,
-	.fasync		 = n_tty_fasync,
 	.receive_buf2	 = n_tty_receive_buf2,
 };
 
