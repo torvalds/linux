@@ -168,7 +168,7 @@ static void release_tty(struct tty_struct *tty, int idx);
  *	Locking: none. Must be called after tty is definitely unused
  */
 
-void free_tty_struct(struct tty_struct *tty)
+static void free_tty_struct(struct tty_struct *tty)
 {
 	tty_ldisc_deinit(tty);
 	put_device(tty->dev);
@@ -1377,7 +1377,7 @@ static struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
  *	the tty_mutex currently so we can be relaxed about ordering.
  */
 
-int tty_init_termios(struct tty_struct *tty)
+void tty_init_termios(struct tty_struct *tty)
 {
 	struct ktermios *tp;
 	int idx = tty->index;
@@ -1395,16 +1395,12 @@ int tty_init_termios(struct tty_struct *tty)
 	/* Compatibility until drivers always set this */
 	tty->termios.c_ispeed = tty_termios_input_baud_rate(&tty->termios);
 	tty->termios.c_ospeed = tty_termios_baud_rate(&tty->termios);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(tty_init_termios);
 
 int tty_standard_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	int ret = tty_init_termios(tty);
-	if (ret)
-		return ret;
-
+	tty_init_termios(tty);
 	tty_driver_kref_get(driver);
 	tty->count++;
 	driver->ttys[tty->index] = tty;
@@ -1566,7 +1562,7 @@ err_release_tty:
 	return ERR_PTR(retval);
 }
 
-void tty_free_termios(struct tty_struct *tty)
+static void tty_free_termios(struct tty_struct *tty)
 {
 	struct ktermios *tp;
 	int idx = tty->index;
@@ -1585,7 +1581,6 @@ void tty_free_termios(struct tty_struct *tty)
 	}
 	*tp = tty->termios;
 }
-EXPORT_SYMBOL(tty_free_termios);
 
 /**
  *	tty_flush_works		-	flush all works of a tty/pty pair

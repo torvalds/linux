@@ -406,13 +406,8 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	if (legacy) {
 		/* We always use new tty termios data so we can do this
 		   the easy way .. */
-		retval = tty_init_termios(tty);
-		if (retval)
-			goto err_free_tty;
-
-		retval = tty_init_termios(o_tty);
-		if (retval)
-			goto err_free_termios;
+		tty_init_termios(tty);
+		tty_init_termios(o_tty);
 
 		driver->other->ttys[idx] = o_tty;
 		driver->ttys[idx] = tty;
@@ -444,11 +439,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	tty->count++;
 	o_tty->count++;
 	return 0;
-err_free_termios:
-	if (legacy)
-		tty_free_termios(tty);
-err_free_tty:
-	free_tty_struct(o_tty);
+
 err_put_module:
 	module_put(driver->other->owner);
 err:
