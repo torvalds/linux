@@ -1960,7 +1960,7 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
  *	Locking: tty_mutex protects get_tty_driver
  */
 static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
-		int *noctty, int *index)
+		int *index)
 {
 	struct tty_driver *driver;
 
@@ -1970,7 +1970,6 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
 		extern struct tty_driver *console_driver;
 		driver = tty_driver_kref_get(console_driver);
 		*index = fg_console;
-		*noctty = 1;
 		break;
 	}
 #endif
@@ -1981,7 +1980,6 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
 			if (driver) {
 				/* Don't let /dev/console block */
 				filp->f_flags |= O_NONBLOCK;
-				*noctty = 1;
 				break;
 			}
 		}
@@ -2036,14 +2034,13 @@ retry_open:
 	if (retval)
 		return -ENOMEM;
 
-	noctty = filp->f_flags & O_NOCTTY;
 	index  = -1;
 	retval = 0;
 
 	tty = tty_open_current_tty(device, filp);
 	if (!tty) {
 		mutex_lock(&tty_mutex);
-		driver = tty_lookup_driver(device, filp, &noctty, &index);
+		driver = tty_lookup_driver(device, filp, &index);
 		if (IS_ERR(driver)) {
 			retval = PTR_ERR(driver);
 			goto err_unlock;
@@ -2091,10 +2088,6 @@ retry_open:
 	tty_add_file(tty, filp);
 
 	check_tty_count(tty, __func__);
-	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
-	    tty->driver->subtype == PTY_TYPE_MASTER)
-		noctty = 1;
-
 	tty_debug_hangup(tty, "opening (count=%d)\n", tty->count);
 
 	if (tty->ops->open)
@@ -2127,6 +2120,12 @@ retry_open:
 
 	read_lock(&tasklist_lock);
 	spin_lock_irq(&current->sighand->siglock);
+	noctty = (filp->f_flags & O_NOCTTY) ||
+			device == MKDEV(TTY_MAJOR, 0) ||
+			device == MKDEV(TTYAUX_MAJOR, 1) ||
+			(tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+			 tty->driver->subtype == PTY_TYPE_MASTER);
+
 	if (!noctty &&
 	    current->signal->leader &&
 	    !current->signal->tty &&
