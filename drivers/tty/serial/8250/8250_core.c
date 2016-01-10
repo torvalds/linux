@@ -597,6 +597,7 @@ static void univ8250_console_write(struct console *co, const char *s,
 static int univ8250_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
+	int retval;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
@@ -609,7 +610,10 @@ static int univ8250_console_setup(struct console *co, char *options)
 	/* link port to console */
 	port->cons = co;
 
-	return serial8250_console_setup(port, options, false);
+	retval = serial8250_console_setup(port, options, false);
+	if (retval != 0)
+		port->cons = NULL;
+	return retval;
 }
 
 /**
