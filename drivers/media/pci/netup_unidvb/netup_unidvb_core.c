@@ -771,10 +771,9 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 
 	/* allocate device context */
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
-
 	if (!ndev)
 		goto dev_alloc_err;
-	memset(ndev, 0, sizeof(*ndev));
+
 	ndev->old_fw = old_firmware;
 	ndev->wq = create_singlethread_workqueue(NETUP_UNIDVB_NAME);
 	if (!ndev->wq) {
