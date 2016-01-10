@@ -40,19 +40,12 @@ static int _recv(struct socket *sock, void *buf, int size, unsigned flags)
 	return kernel_recvmsg(sock, &msg, &iov, 1, size, flags);
 }
 
-static inline int do_send(struct socket *sock, struct kvec *vec, int count,
-			  int len, unsigned flags)
-{
-	struct msghdr msg = { .msg_flags = flags };
-	return kernel_sendmsg(sock, &msg, vec, count, len);
-}
-
 static int _send(struct socket *sock, const void *buff, int len)
 {
-	struct kvec vec;
-	vec.iov_base = (void *) buff;
-	vec.iov_len = len;
-	return do_send(sock, &vec, 1, len, 0);
+	struct msghdr msg = { .msg_flags = 0 };
+	struct kvec vec = {.iov_base = (void *)buff, .iov_len = len};
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &vec, 1, len);
+	return sock_sendmsg(sock, &msg);
 }
 
 struct ncp_request_reply {
@@ -345,18 +338,17 @@ static void __ncp_next_request(struct ncp_server *server)
 static void info_server(struct ncp_server *server, unsigned int id, const void * data, size_t len)
 {
 	if (server->info_sock) {
-		struct kvec iov[2];
-		__be32 hdr[2];
-	
-		hdr[0] = cpu_to_be32(len + 8);
-		hdr[1] = cpu_to_be32(id);
-	
-		iov[0].iov_base = hdr;
-		iov[0].iov_len = 8;
-		iov[1].iov_base = (void *) data;
-		iov[1].iov_len = len;
+		struct msghdr msg = { .msg_flags = MSG_NOSIGNAL };
+		__be32 hdr[2] = {cpu_to_be32(len + 8), cpu_to_be32(id)};
+		struct kvec iov[2] = {
+			{.iov_base = hdr, .iov_len = 8},
+			{.iov_base = (void *)data, .iov_len = len},
+		};
 
-		do_send(server->info_sock, iov, 2, len + 8, MSG_NOSIGNAL);
+		iov_iter_kvec(&msg.msg_iter, ITER_KVEC | WRITE,
+				iov, 2, len + 8);
+
+		sock_sendmsg(server->info_sock, &msg);
 	}
 }
 
