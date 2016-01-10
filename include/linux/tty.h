@@ -446,8 +446,6 @@ extern void tty_unthrottle(struct tty_struct *tty);
 extern int tty_throttle_safe(struct tty_struct *tty);
 extern int tty_unthrottle_safe(struct tty_struct *tty);
 extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
-extern void tty_driver_remove_tty(struct tty_driver *driver,
-				  struct tty_struct *tty);
 extern int is_current_pgrp_orphaned(void);
 extern int is_ignored(int sig);
 extern int tty_signal(int sig, struct tty_struct *tty);
