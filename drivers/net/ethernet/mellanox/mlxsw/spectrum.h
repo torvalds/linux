@@ -54,6 +54,8 @@
 #define MLXSW_SP_LAG_MAX 64
 #define MLXSW_SP_PORT_PER_LAG_MAX 16
 
+#define MLXSW_SP_MID_MAX 7000
+
 struct mlxsw_sp_port;
 
 struct mlxsw_sp_upper {
