@@ -33,7 +33,12 @@
 #define _PAGE_F_GIX_SHIFT	12
 #define _PAGE_F_SECOND		0x08000 /* Whether to use secondary hash or not */
 #define _PAGE_SPECIAL		0x10000 /* software: special page */
+
+#ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SOFT_DIRTY	0x20000 /* software: software dirty tracking */
+#else
+#define _PAGE_SOFT_DIRTY	0x00000
+#endif
 
 /*
  * THP pages can't be special. So use the _PAGE_SPECIAL

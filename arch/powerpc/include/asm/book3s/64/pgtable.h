@@ -167,8 +167,13 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
 #define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
 
-#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+#ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SWP_SOFT_DIRTY   (1UL << (SWP_TYPE_BITS + _PAGE_BIT_SWAP_TYPE))
+#else
+#define _PAGE_SWP_SOFT_DIRTY	0UL
+#endif /* CONFIG_MEM_SOFT_DIRTY */
+
+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
 static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SWP_SOFT_DIRTY);
@@ -181,8 +186,6 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_SWP_SOFT_DIRTY);
 }
-#else
-#define _PAGE_SWP_SOFT_DIRTY	0
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
