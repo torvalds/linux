@@ -131,7 +131,6 @@ void tty_audit_exit(void)
 void tty_audit_fork(struct signal_struct *sig)
 {
 	sig->audit_tty = current->signal->audit_tty;
-	sig->audit_tty_log_passwd = current->signal->audit_tty_log_passwd;
 }
 
 /**
@@ -141,11 +140,9 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
 	struct tty_audit_buf *buf;
 	dev_t dev;
-	int should_audit;
 	unsigned long flags;
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
-	should_audit = current->signal->audit_tty;
 	buf = current->signal->tty_audit_buf;
 	if (buf)
 		atomic_inc(&buf->count);
@@ -160,7 +157,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 		tty_audit_buf_put(buf);
 	}
 
-	if (should_audit && audit_enabled) {
+	if (audit_enabled && (current->signal->audit_tty & AUDIT_TTY_ENABLE)) {
 		kuid_t auid;
 		unsigned int sessionid;
 
@@ -177,29 +174,25 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
  */
 int tty_audit_push(void)
 {
-	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
+	struct tty_audit_buf *buf;
 	unsigned long flags;
 
+	if (~current->signal->audit_tty & AUDIT_TTY_ENABLE)
+		return -EPERM;
+
 	spin_lock_irqsave(&current->sighand->siglock, flags);
-	if (current->signal->audit_tty) {
-		buf = current->signal->tty_audit_buf;
-		if (buf)
-			atomic_inc(&buf->count);
-	}
+	buf = current->signal->tty_audit_buf;
+	if (buf)
+		atomic_inc(&buf->count);
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
-	/*
-	 * Return 0 when signal->audit_tty set
-	 * but current->signal->tty_audit_buf == NULL.
-	 */
-	if (!buf || IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (buf) {
+		mutex_lock(&buf->mutex);
+		tty_audit_buf_push(buf);
+		mutex_unlock(&buf->mutex);
 
-	mutex_lock(&buf->mutex);
-	tty_audit_buf_push(buf);
-	mutex_unlock(&buf->mutex);
-
-	tty_audit_buf_put(buf);
+		tty_audit_buf_put(buf);
+	}
 	return 0;
 }
 
@@ -218,8 +211,6 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 	buf = NULL;
 	buf2 = NULL;
 	spin_lock_irqsave(&current->sighand->siglock, flags);
-	if (likely(!current->signal->audit_tty))
-		goto out;
 	buf = current->signal->tty_audit_buf;
 	if (buf) {
 		atomic_inc(&buf->count);
@@ -233,9 +224,10 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 		return NULL;
 	}
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	if (!current->signal->audit_tty)
+	if (~current->signal->audit_tty & AUDIT_TTY_ENABLE)
 		goto out;
+
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	buf = current->signal->tty_audit_buf;
 	if (!buf) {
 		current->signal->tty_audit_buf = buf2;
@@ -259,9 +251,8 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 {
 	struct tty_audit_buf *buf;
-	int audit_log_tty_passwd;
-	unsigned long flags;
 	unsigned int icanon = !!L_ICANON(tty);
+	unsigned int audit_tty;
 	dev_t dev;
 
 	if (unlikely(size == 0))
@@ -271,10 +262,10 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 	    && tty->driver->subtype == PTY_TYPE_MASTER)
 		return;
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	audit_log_tty_passwd = current->signal->audit_tty_log_passwd;
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-	if (!audit_log_tty_passwd && icanon && !L_ECHO(tty))
+	audit_tty = READ_ONCE(current->signal->audit_tty);
+	if (~audit_tty & AUDIT_TTY_ENABLE)
+		return;
+	if ((~audit_tty & AUDIT_TTY_LOG_PASSWD) && icanon && !L_ECHO(tty))
 		return;
 
 	buf = tty_audit_buf_get();
