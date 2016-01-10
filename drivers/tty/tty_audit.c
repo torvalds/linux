@@ -200,8 +200,7 @@ int tty_audit_push(void)
  *	tty_audit_buf_get	-	Get an audit buffer.
  *
  *	Get an audit buffer, allocate it if necessary.  Return %NULL
- *	if TTY auditing is disabled or out of memory.  Otherwise, return a new
- *	reference to the buffer.
+ *	if out of memory.  Otherwise, return a new reference to the buffer.
  */
 static struct tty_audit_buf *tty_audit_buf_get(void)
 {
@@ -223,9 +222,6 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 		audit_log_lost("out of memory in TTY auditing");
 		return NULL;
 	}
-
-	if (~current->signal->audit_tty & AUDIT_TTY_ENABLE)
-		goto out;
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	buf = current->signal->tty_audit_buf;
