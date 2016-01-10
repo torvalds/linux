@@ -153,15 +153,6 @@ static inline unsigned char *echo_buf_addr(struct n_tty_data *ldata, size_t i)
 	return &ldata->echo_buf[i & (N_TTY_BUF_SIZE - 1)];
 }
 
-static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
-			       unsigned char __user *ptr)
-{
-	struct n_tty_data *ldata = tty->disc_data;
-
-	tty_audit_add_data(tty, &x, 1, ldata->icanon);
-	return put_user(x, ptr);
-}
-
 static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
 			    size_t tail, size_t n)
 {
@@ -2197,11 +2188,11 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			cs = tty->link->ctrl_status;
 			tty->link->ctrl_status = 0;
 			spin_unlock_irq(&tty->link->ctrl_lock);
-			if (tty_put_user(tty, cs, b++)) {
+			if (put_user(cs, b)) {
 				retval = -EFAULT;
-				b--;
 				break;
 			}
+			b++;
 			nr--;
 			break;
 		}
@@ -2247,11 +2238,11 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 
 			/* Deal with packet mode. */
 			if (packet && b == buf) {
-				if (tty_put_user(tty, TIOCPKT_DATA, b++)) {
+				if (put_user(TIOCPKT_DATA, b)) {
 					retval = -EFAULT;
-					b--;
 					break;
 				}
+				b++;
 				nr--;
 			}
 
