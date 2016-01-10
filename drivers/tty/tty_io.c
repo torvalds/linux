@@ -468,6 +468,11 @@ static long hung_up_tty_compat_ioctl(struct file *file,
 	return cmd == TIOCSPGRP ? -ENOTTY : -EIO;
 }
 
+static int hung_up_tty_fasync(int fd, struct file *file, int on)
+{
+	return -ENOTTY;
+}
+
 static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
@@ -500,6 +505,7 @@ static const struct file_operations hung_up_tty_fops = {
 	.unlocked_ioctl	= hung_up_tty_ioctl,
 	.compat_ioctl	= hung_up_tty_compat_ioctl,
 	.release	= tty_release,
+	.fasync		= hung_up_tty_fasync,
 };
 
 static DEFINE_SPINLOCK(redirect_lock);
