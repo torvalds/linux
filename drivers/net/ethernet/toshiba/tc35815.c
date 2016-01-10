@@ -608,23 +608,10 @@ static void tc_handle_link_change(struct net_device *dev)
 static int tc_mii_probe(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
-	int phy_addr;
+	struct phy_device *phydev;
 	u32 dropmask;
 
-	/* find the first phy */
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (lp->mii_bus->phy_map[phy_addr]) {
-			if (phydev) {
-				printk(KERN_ERR "%s: multiple PHYs found\n",
-				       dev->name);
-				return -EINVAL;
-			}
-			phydev = lp->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
-
+	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
 		printk(KERN_ERR "%s: no PHY found\n", dev->name);
 		return -ENODEV;
