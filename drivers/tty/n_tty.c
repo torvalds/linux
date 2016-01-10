@@ -2072,7 +2072,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 			ldata->line_start = ldata->read_tail;
 		else
 			ldata->push = 0;
-		tty_audit_push(tty);
+		tty_audit_push();
 	}
 	return 0;
 }

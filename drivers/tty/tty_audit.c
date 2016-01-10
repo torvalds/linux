@@ -313,9 +313,9 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 /**
  *	tty_audit_push	-	Push buffered data out
  *
- *	Make sure no audit data is pending for @tty on the current process.
+ *	Make sure no audit data is pending on the current process.
  */
-void tty_audit_push(struct tty_struct *tty)
+void tty_audit_push(void)
 {
 	struct tty_audit_buf *buf;
 	unsigned long flags;
@@ -331,13 +331,8 @@ void tty_audit_push(struct tty_struct *tty)
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	if (buf) {
-		int major, minor;
-
-		major = tty->driver->major;
-		minor = tty->driver->minor_start + tty->index;
 		mutex_lock(&buf->mutex);
-		if (buf->major == major && buf->minor == minor)
-			tty_audit_buf_push(buf);
+		tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
 		tty_audit_buf_put(buf);
 	}
