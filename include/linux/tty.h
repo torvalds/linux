@@ -433,8 +433,6 @@ extern struct device *tty_register_device_attr(struct tty_driver *driver,
 				void *drvdata,
 				const struct attribute_group **attr_grp);
 extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
-extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
-			     int buflen);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
 extern int tty_send_xchar(struct tty_struct *tty, char ch);
 extern int tty_put_char(struct tty_struct *tty, unsigned char c);
@@ -448,7 +446,6 @@ extern int tty_unthrottle_safe(struct tty_struct *tty);
 extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern int is_current_pgrp_orphaned(void);
 extern int is_ignored(int sig);
-extern int tty_signal(int sig, struct tty_struct *tty);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
 extern int tty_hung_up_p(struct file *filp);
