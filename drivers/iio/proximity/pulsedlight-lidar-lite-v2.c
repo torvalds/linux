@@ -130,10 +130,10 @@ static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
 		if (ret < 0)
 			break;
 
-		/* return 0 since laser is likely pointed out of range */
+		/* return -EINVAL since laser is likely pointed out of range */
 		if (ret & LIDAR_REG_STATUS_INVALID) {
 			*reg = 0;
-			ret = 0;
+			ret = -EINVAL;
 			break;
 		}
 
@@ -197,7 +197,7 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 	if (!ret) {
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 						   iio_get_time_ns());
-	} else {
+	} else if (ret != -EINVAL) {
 		dev_err(&data->client->dev, "cannot read LIDAR measurement");
 	}
 

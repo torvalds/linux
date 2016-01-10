@@ -31,6 +31,12 @@ enum {
 	INT_LBASIZE_ALIGNMENT = 64,
 };
 
+struct nd_poison {
+	u64 start;
+	u64 length;
+	struct list_head list;
+};
+
 struct nvdimm_drvdata {
 	struct device *dev;
 	int nsindex_size;
@@ -256,6 +262,8 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns);
 int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns);
 const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name);
+void nvdimm_namespace_add_poison(struct nd_namespace_common *ndns,
+		struct badblocks *bb, resource_size_t offset);
 int nd_blk_region_init(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)

@@ -1175,6 +1175,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		if (dio->flags & DIO_LOCKING)
 			mutex_unlock(&inode->i_mutex);
 		kmem_cache_free(dio_cache, dio);
+		retval = 0;
 		goto out;
 	}
 

@@ -30,6 +30,7 @@ struct nvdimm_bus {
 	struct list_head list;
 	struct device dev;
 	int id, probe_active;
+	struct list_head poison_list;
 	struct mutex reconfig_mutex;
 };
 

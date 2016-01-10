@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2007-2008 Joern Engel <joern@logfs.org>
  * Bits and pieces stolen from Peter Zijlstra's code, which is
- * Copyright 2007, Red Hat Inc. Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright 2007, Red Hat Inc. Peter Zijlstra
  * GPLv2
  *
  * see http://programming.kicks-ass.net/kernel-patches/vma_lookup/btree.patch

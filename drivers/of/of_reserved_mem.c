@@ -206,7 +206,13 @@ static int __init __rmem_cmp(const void *a, const void *b)
 {
 	const struct reserved_mem *ra = a, *rb = b;
 
-	return ra->base - rb->base;
+	if (ra->base < rb->base)
+		return -1;
+
+	if (ra->base > rb->base)
+		return 1;
+
+	return 0;
 }
 
 static void __init __rmem_check_for_overlap(void)

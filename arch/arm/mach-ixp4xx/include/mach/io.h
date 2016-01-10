@@ -143,7 +143,7 @@ static inline void __indirect_writesl(volatile void __iomem *bus_addr,
 		writel(*vaddr++, bus_addr);
 }
 
-static inline unsigned char __indirect_readb(const volatile void __iomem *p)
+static inline u8 __indirect_readb(const volatile void __iomem *p)
 {
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
@@ -166,7 +166,7 @@ static inline void __indirect_readsb(const volatile void __iomem *bus_addr,
 		*vaddr++ = readb(bus_addr);
 }
 
-static inline unsigned short __indirect_readw(const volatile void __iomem *p)
+static inline u16 __indirect_readw(const volatile void __iomem *p)
 {
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
@@ -189,7 +189,7 @@ static inline void __indirect_readsw(const volatile void __iomem *bus_addr,
 		*vaddr++ = readw(bus_addr);
 }
 
-static inline unsigned long __indirect_readl(const volatile void __iomem *p)
+static inline u32 __indirect_readl(const volatile void __iomem *p)
 {
 	u32 addr = (__force u32)p;
 	u32 data;
@@ -350,7 +350,7 @@ static inline void insl(u32 io_addr, void *p, u32 count)
 					((unsigned long)p <= (PIO_MASK + PIO_OFFSET)))
 
 #define	ioread8(p)			ioread8(p)
-static inline unsigned int ioread8(const void __iomem *addr)
+static inline u8 ioread8(const void __iomem *addr)
 {
 	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
@@ -378,7 +378,7 @@ static inline void ioread8_rep(const void __iomem *addr, void *vaddr, u32 count)
 }
 
 #define	ioread16(p)			ioread16(p)
-static inline unsigned int ioread16(const void __iomem *addr)
+static inline u16 ioread16(const void __iomem *addr)
 {
 	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
@@ -407,7 +407,7 @@ static inline void ioread16_rep(const void __iomem *addr, void *vaddr,
 }
 
 #define	ioread32(p)			ioread32(p)
-static inline unsigned int ioread32(const void __iomem *addr)
+static inline u32 ioread32(const void __iomem *addr)
 {
 	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
