@@ -44,6 +44,7 @@
 #include <linux/list.h>
 #include <net/switchdev.h>
 
+#include "port.h"
 #include "core.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
@@ -53,6 +54,8 @@
 
 #define MLXSW_SP_LAG_MAX 64
 #define MLXSW_SP_PORT_PER_LAG_MAX 16
+
+#define MLXSW_SP_MID_MAX 7000
 
 struct mlxsw_sp_port;
 
@@ -67,6 +70,14 @@ struct mlxsw_sp_vfid {
 	u16 vfid;	/* Starting at 0 */
 	struct net_device *br_dev;
 	u16 vid;
+};
+
+struct mlxsw_sp_mid {
+	struct list_head list;
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	u16 mid;
+	unsigned int ref_count;
 };
 
 static inline u16 mlxsw_sp_vfid_to_fid(u16 vfid)
@@ -93,6 +104,10 @@ struct mlxsw_sp {
 		struct list_head list;
 		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_VFID_BR_MAX)];
 	} br_vfids;
+	struct {
+		struct list_head list;
+		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_MID_MAX)];
+	} br_mids;
 	unsigned long active_fids[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;

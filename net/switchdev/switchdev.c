@@ -345,6 +345,8 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 		return sizeof(struct switchdev_obj_ipv4_fib);
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		return sizeof(struct switchdev_obj_port_fdb);
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		return sizeof(struct switchdev_obj_port_mdb);
 	default:
 		BUG();
 	}

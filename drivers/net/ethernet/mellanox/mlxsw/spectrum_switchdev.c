@@ -51,6 +51,23 @@
 #include "core.h"
 #include "reg.h"
 
+static u16 mlxsw_sp_port_vid_to_fid_get(struct mlxsw_sp_port *mlxsw_sp_port,
+					u16 vid)
+{
+	u16 fid = vid;
+
+	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
+		u16 vfid = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
+
+		fid = mlxsw_sp_vfid_to_fid(vfid);
+	}
+
+	if (!fid)
+		fid = mlxsw_sp_port->pvid;
+
+	return fid;
+}
+
 static struct mlxsw_sp_port *
 mlxsw_sp_port_orig_get(struct net_device *dev,
 		       struct mlxsw_sp_port *mlxsw_sp_port)
@@ -641,21 +658,15 @@ mlxsw_sp_port_fdb_static_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_port_fdb *fdb,
 			     struct switchdev_trans *trans)
 {
-	u16 fid = fdb->vid;
+	u16 fid = mlxsw_sp_port_vid_to_fid_get(mlxsw_sp_port, fdb->vid);
 	u16 lag_vid = 0;
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		u16 vfid = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
-
-		fid = mlxsw_sp_vfid_to_fid(vfid);
 		lag_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
 	}
-
-	if (!fid)
-		fid = mlxsw_sp_port->pvid;
 
 	if (!mlxsw_sp_port->lagged)
 		return mlxsw_sp_port_fdb_uc_op(mlxsw_sp_port->mlxsw_sp,
@@ -666,6 +677,143 @@ mlxsw_sp_port_fdb_static_add(struct mlxsw_sp_port *mlxsw_sp_port,
 						   mlxsw_sp_port->lag_id,
 						   fdb->addr, fid, lag_vid,
 						   true, false);
+}
+
+static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
+				u16 fid, u16 mid, bool adding)
+{
+	char *sfd_pl;
+	int err;
+
+	sfd_pl = kmalloc(MLXSW_REG_SFD_LEN, GFP_KERNEL);
+	if (!sfd_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
+	mlxsw_reg_sfd_mc_pack(sfd_pl, 0, addr, fid,
+			      MLXSW_REG_SFD_REC_ACTION_NOP, mid);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
+	kfree(sfd_pl);
+	return err;
+}
+
+static int mlxsw_sp_port_smid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mid,
+				  bool add, bool clear_all_ports)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char *smid_pl;
+	int err, i;
+
+	smid_pl = kmalloc(MLXSW_REG_SMID_LEN, GFP_KERNEL);
+	if (!smid_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_smid_pack(smid_pl, mid, mlxsw_sp_port->local_port, add);
+	if (clear_all_ports) {
+		for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
+			if (mlxsw_sp->ports[i])
+				mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
+	}
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
+	kfree(smid_pl);
+	return err;
+}
+
+static struct mlxsw_sp_mid *__mlxsw_sp_mc_get(struct mlxsw_sp *mlxsw_sp,
+					      const unsigned char *addr,
+					      u16 vid)
+{
+	struct mlxsw_sp_mid *mid;
+
+	list_for_each_entry(mid, &mlxsw_sp->br_mids.list, list) {
+		if (ether_addr_equal(mid->addr, addr) && mid->vid == vid)
+			return mid;
+	}
+	return NULL;
+}
+
+static struct mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
+						const unsigned char *addr,
+						u16 vid)
+{
+	struct mlxsw_sp_mid *mid;
+	u16 mid_idx;
+
+	mid_idx = find_first_zero_bit(mlxsw_sp->br_mids.mapped,
+				      MLXSW_SP_MID_MAX);
+	if (mid_idx == MLXSW_SP_MID_MAX)
+		return NULL;
+
+	mid = kzalloc(sizeof(*mid), GFP_KERNEL);
+	if (!mid)
+		return NULL;
+
+	set_bit(mid_idx, mlxsw_sp->br_mids.mapped);
+	ether_addr_copy(mid->addr, addr);
+	mid->vid = vid;
+	mid->mid = mid_idx;
+	mid->ref_count = 0;
+	list_add_tail(&mid->list, &mlxsw_sp->br_mids.list);
+
+	return mid;
+}
+
+static int __mlxsw_sp_mc_dec_ref(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_mid *mid)
+{
+	if (--mid->ref_count == 0) {
+		list_del(&mid->list);
+		clear_bit(mid->mid, mlxsw_sp->br_mids.mapped);
+		kfree(mid);
+		return 1;
+	}
+	return 0;
+}
+
+static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
+				 const struct switchdev_obj_port_mdb *mdb,
+				 struct switchdev_trans *trans)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct net_device *dev = mlxsw_sp_port->dev;
+	struct mlxsw_sp_mid *mid;
+	u16 fid = mlxsw_sp_port_vid_to_fid_get(mlxsw_sp_port, mdb->vid);
+	int err = 0;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	mid = __mlxsw_sp_mc_get(mlxsw_sp, mdb->addr, mdb->vid);
+	if (!mid) {
+		mid = __mlxsw_sp_mc_alloc(mlxsw_sp, mdb->addr, mdb->vid);
+		if (!mid) {
+			netdev_err(dev, "Unable to allocate MC group\n");
+			return -ENOMEM;
+		}
+	}
+	mid->ref_count++;
+
+	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, true,
+				     mid->ref_count == 1);
+	if (err) {
+		netdev_err(dev, "Unable to set SMID\n");
+		goto err_out;
+	}
+
+	if (mid->ref_count == 1) {
+		err = mlxsw_sp_port_mdb_op(mlxsw_sp, mdb->addr, fid, mid->mid,
+					   true);
+		if (err) {
+			netdev_err(dev, "Unable to set MC SFD\n");
+			goto err_out;
+		}
+	}
+
+	return 0;
+
+err_out:
+	__mlxsw_sp_mc_dec_ref(mlxsw_sp, mid);
+	return err;
 }
 
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
@@ -692,6 +840,11 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 		err = mlxsw_sp_port_fdb_static_add(mlxsw_sp_port,
 						   SWITCHDEV_OBJ_PORT_FDB(obj),
 						   trans);
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		err = mlxsw_sp_port_mdb_add(mlxsw_sp_port,
+					    SWITCHDEV_OBJ_PORT_MDB(obj),
+					    trans);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -787,13 +940,10 @@ static int
 mlxsw_sp_port_fdb_static_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_port_fdb *fdb)
 {
-	u16 fid = fdb->vid;
+	u16 fid = mlxsw_sp_port_vid_to_fid_get(mlxsw_sp_port, fdb->vid);
 	u16 lag_vid = 0;
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		u16 vfid = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
-
-		fid = mlxsw_sp_vfid_to_fid(vfid);
 		lag_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
 	}
 
@@ -807,6 +957,37 @@ mlxsw_sp_port_fdb_static_del(struct mlxsw_sp_port *mlxsw_sp_port,
 						   mlxsw_sp_port->lag_id,
 						   fdb->addr, fid, lag_vid,
 						   false, false);
+}
+
+static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
+				 const struct switchdev_obj_port_mdb *mdb)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct net_device *dev = mlxsw_sp_port->dev;
+	struct mlxsw_sp_mid *mid;
+	u16 fid = mlxsw_sp_port_vid_to_fid_get(mlxsw_sp_port, mdb->vid);
+	u16 mid_idx;
+	int err = 0;
+
+	mid = __mlxsw_sp_mc_get(mlxsw_sp, mdb->addr, mdb->vid);
+	if (!mid) {
+		netdev_err(dev, "Unable to remove port from MC DB\n");
+		return -EINVAL;
+	}
+
+	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false, false);
+	if (err)
+		netdev_err(dev, "Unable to remove port from SMID\n");
+
+	mid_idx = mid->mid;
+	if (__mlxsw_sp_mc_dec_ref(mlxsw_sp, mid)) {
+		err = mlxsw_sp_port_mdb_op(mlxsw_sp, mdb->addr, fid, mid_idx,
+					   false);
+		if (err)
+			netdev_err(dev, "Unable to remove MC SFD\n");
+	}
+
+	return err;
 }
 
 static int mlxsw_sp_port_obj_del(struct net_device *dev,
@@ -831,6 +1012,9 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 		err = mlxsw_sp_port_fdb_static_del(mlxsw_sp_port,
 						   SWITCHDEV_OBJ_PORT_FDB(obj));
 		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		err = mlxsw_sp_port_mdb_del(mlxsw_sp_port,
+					    SWITCHDEV_OBJ_PORT_MDB(obj));
 	default:
 		err = -EOPNOTSUPP;
 		break;

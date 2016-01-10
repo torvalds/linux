@@ -1858,6 +1858,7 @@ static int mlxsw_sp_init(void *priv, struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 	INIT_LIST_HEAD(&mlxsw_sp->port_vfids.list);
 	INIT_LIST_HEAD(&mlxsw_sp->br_vfids.list);
+	INIT_LIST_HEAD(&mlxsw_sp->br_mids.list);
 
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
 	if (err) {
@@ -1939,7 +1940,7 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.used_max_port_per_lag		= 1,
 	.max_port_per_lag		= MLXSW_SP_PORT_PER_LAG_MAX,
 	.used_max_mid			= 1,
-	.max_mid			= 7000,
+	.max_mid			= MLXSW_SP_MID_MAX,
 	.used_max_pgt			= 1,
 	.max_pgt			= 0,
 	.used_max_system_port		= 1,

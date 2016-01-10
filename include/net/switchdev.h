@@ -68,6 +68,7 @@ enum switchdev_obj_id {
 	SWITCHDEV_OBJ_ID_PORT_VLAN,
 	SWITCHDEV_OBJ_ID_IPV4_FIB,
 	SWITCHDEV_OBJ_ID_PORT_FDB,
+	SWITCHDEV_OBJ_ID_PORT_MDB,
 };
 
 struct switchdev_obj {
@@ -112,6 +113,16 @@ struct switchdev_obj_port_fdb {
 
 #define SWITCHDEV_OBJ_PORT_FDB(obj) \
 	container_of(obj, struct switchdev_obj_port_fdb, obj)
+
+/* SWITCHDEV_OBJ_ID_PORT_MDB */
+struct switchdev_obj_port_mdb {
+	struct switchdev_obj obj;
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+};
+
+#define SWITCHDEV_OBJ_PORT_MDB(obj) \
+	container_of(obj, struct switchdev_obj_port_mdb, obj)
 
 void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
 				  void *data, void (*destructor)(void const *),
