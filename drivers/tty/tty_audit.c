@@ -180,22 +180,19 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 int tty_audit_push_current(void)
 {
 	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
-	struct task_struct *tsk = current;
 	unsigned long flags;
 
-	if (!lock_task_sighand(tsk, &flags))
-		return -ESRCH;
-
-	if (tsk->signal->audit_tty) {
-		buf = tsk->signal->tty_audit_buf;
+	spin_lock_irqsave(&current->sighand->siglock, flags);
+	if (current->signal->audit_tty) {
+		buf = current->signal->tty_audit_buf;
 		if (buf)
 			atomic_inc(&buf->count);
 	}
-	unlock_task_sighand(tsk, &flags);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	/*
 	 * Return 0 when signal->audit_tty set
-	 * but tsk->signal->tty_audit_buf == NULL.
+	 * but current->signal->tty_audit_buf == NULL.
 	 */
 	if (!buf || IS_ERR(buf))
 		return PTR_ERR(buf);
