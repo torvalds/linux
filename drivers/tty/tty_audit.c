@@ -16,7 +16,7 @@
 struct tty_audit_buf {
 	atomic_t count;
 	struct mutex mutex;	/* Protects all data below */
-	int major, minor;	/* The TTY which the data is from */
+	dev_t dev;		/* The TTY which the data is from */
 	unsigned icanon:1;
 	size_t valid;
 	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
@@ -34,8 +34,7 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 		goto err_buf;
 	atomic_set(&buf->count, 1);
 	mutex_init(&buf->mutex);
-	buf->major = 0;
-	buf->minor = 0;
+	buf->dev = MKDEV(0, 0);
 	buf->icanon = 0;
 	buf->valid = 0;
 	return buf;
@@ -59,7 +58,7 @@ static void tty_audit_buf_put(struct tty_audit_buf *buf)
 		tty_audit_buf_free(buf);
 }
 
-static void tty_audit_log(const char *description, int major, int minor,
+static void tty_audit_log(const char *description, dev_t dev,
 			  unsigned char *data, size_t size)
 {
 	struct audit_buffer *ab;
@@ -75,7 +74,7 @@ static void tty_audit_log(const char *description, int major, int minor,
 
 		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
 				 " minor=%d comm=", description, pid, uid,
-				 loginuid, sessionid, major, minor);
+				 loginuid, sessionid, MAJOR(dev), MINOR(dev));
 		get_task_comm(name, tsk);
 		audit_log_untrustedstring(ab, name);
 		audit_log_format(ab, " data=");
@@ -98,7 +97,7 @@ static void tty_audit_buf_push(struct tty_audit_buf *buf)
 		buf->valid = 0;
 		return;
 	}
-	tty_audit_log("tty", buf->major, buf->minor, buf->data, buf->valid);
+	tty_audit_log("tty", buf->dev, buf->data, buf->valid);
 	buf->valid = 0;
 }
 
@@ -141,7 +140,8 @@ void tty_audit_fork(struct signal_struct *sig)
 void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
 	struct tty_audit_buf *buf;
-	int major, minor, should_audit;
+	dev_t dev;
+	int should_audit;
 	unsigned long flags;
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
@@ -151,11 +151,10 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 		atomic_inc(&buf->count);
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
-	major = tty->driver->major;
-	minor = tty->driver->minor_start + tty->index;
+	dev = MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
 	if (buf) {
 		mutex_lock(&buf->mutex);
-		if (buf->major == major && buf->minor == minor)
+		if (buf->dev == dev)
 			tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
 		tty_audit_buf_put(buf);
@@ -167,7 +166,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 
 		auid = audit_get_loginuid(current);
 		sessionid = audit_get_sessionid(current);
-		tty_audit_log("ioctl=TIOCSTI", major, minor, &ch, 1);
+		tty_audit_log("ioctl=TIOCSTI", dev, &ch, 1);
 	}
 }
 
@@ -260,10 +259,10 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 {
 	struct tty_audit_buf *buf;
-	int major, minor;
 	int audit_log_tty_passwd;
 	unsigned long flags;
 	unsigned int icanon = !!L_ICANON(tty);
+	dev_t dev;
 
 	if (unlikely(size == 0))
 		return;
@@ -283,13 +282,10 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 		return;
 
 	mutex_lock(&buf->mutex);
-	major = tty->driver->major;
-	minor = tty->driver->minor_start + tty->index;
-	if (buf->major != major || buf->minor != minor
-	    || buf->icanon != icanon) {
+	dev = MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
+	if (buf->dev != dev || buf->icanon != icanon) {
 		tty_audit_buf_push(buf);
-		buf->major = major;
-		buf->minor = minor;
+		buf->dev = dev;
 		buf->icanon = icanon;
 	}
 	do {
