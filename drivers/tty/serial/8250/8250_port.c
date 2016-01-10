@@ -1412,6 +1412,67 @@ static void serial8250_enable_ms(struct uart_port *port)
 	serial8250_rpm_put(up);
 }
 
+static void serial8250_read_char(struct uart_8250_port *up, unsigned char lsr)
+{
+	struct uart_port *port = &up->port;
+	unsigned char ch;
+	char flag = TTY_NORMAL;
+
+	if (likely(lsr & UART_LSR_DR))
+		ch = serial_in(up, UART_RX);
+	else
+		/*
+		 * Intel 82571 has a Serial Over Lan device that will
+		 * set UART_LSR_BI without setting UART_LSR_DR when
+		 * it receives a break. To avoid reading from the
+		 * receive buffer without UART_LSR_DR bit set, we
+		 * just force the read character to be 0
+		 */
+		ch = 0;
+
+	port->icount.rx++;
+
+	lsr |= up->lsr_saved_flags;
+	up->lsr_saved_flags = 0;
+
+	if (unlikely(lsr & UART_LSR_BRK_ERROR_BITS)) {
+		if (lsr & UART_LSR_BI) {
+			lsr &= ~(UART_LSR_FE | UART_LSR_PE);
+			port->icount.brk++;
+			/*
+			 * We do the SysRQ and SAK checking
+			 * here because otherwise the break
+			 * may get masked by ignore_status_mask
+			 * or read_status_mask.
+			 */
+			if (uart_handle_break(port))
+				return;
+		} else if (lsr & UART_LSR_PE)
+			port->icount.parity++;
+		else if (lsr & UART_LSR_FE)
+			port->icount.frame++;
+		if (lsr & UART_LSR_OE)
+			port->icount.overrun++;
+
+		/*
+		 * Mask off conditions which should be ignored.
+		 */
+		lsr &= port->read_status_mask;
+
+		if (lsr & UART_LSR_BI) {
+			DEBUG_INTR("handling break....");
+			flag = TTY_BREAK;
+		} else if (lsr & UART_LSR_PE)
+			flag = TTY_PARITY;
+		else if (lsr & UART_LSR_FE)
+			flag = TTY_FRAME;
+	}
+	if (uart_handle_sysrq_char(port, ch))
+		return;
+
+	uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
+}
+
 /*
  * serial8250_rx_chars: processes according to the passed in LSR
  * value, and returns the remaining LSR bits not handled
@@ -1421,67 +1482,10 @@ unsigned char
 serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
 {
 	struct uart_port *port = &up->port;
-	unsigned char ch;
 	int max_count = 256;
-	char flag;
 
 	do {
-		if (likely(lsr & UART_LSR_DR))
-			ch = serial_in(up, UART_RX);
-		else
-			/*
-			 * Intel 82571 has a Serial Over Lan device that will
-			 * set UART_LSR_BI without setting UART_LSR_DR when
-			 * it receives a break. To avoid reading from the
-			 * receive buffer without UART_LSR_DR bit set, we
-			 * just force the read character to be 0
-			 */
-			ch = 0;
-
-		flag = TTY_NORMAL;
-		port->icount.rx++;
-
-		lsr |= up->lsr_saved_flags;
-		up->lsr_saved_flags = 0;
-
-		if (unlikely(lsr & UART_LSR_BRK_ERROR_BITS)) {
-			if (lsr & UART_LSR_BI) {
-				lsr &= ~(UART_LSR_FE | UART_LSR_PE);
-				port->icount.brk++;
-				/*
-				 * We do the SysRQ and SAK checking
-				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
-				 * or read_status_mask.
-				 */
-				if (uart_handle_break(port))
-					goto ignore_char;
-			} else if (lsr & UART_LSR_PE)
-				port->icount.parity++;
-			else if (lsr & UART_LSR_FE)
-				port->icount.frame++;
-			if (lsr & UART_LSR_OE)
-				port->icount.overrun++;
-
-			/*
-			 * Mask off conditions which should be ignored.
-			 */
-			lsr &= port->read_status_mask;
-
-			if (lsr & UART_LSR_BI) {
-				DEBUG_INTR("handling break....");
-				flag = TTY_BREAK;
-			} else if (lsr & UART_LSR_PE)
-				flag = TTY_PARITY;
-			else if (lsr & UART_LSR_FE)
-				flag = TTY_FRAME;
-		}
-		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
-
-		uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
-
-ignore_char:
+		serial8250_read_char(up, lsr);
 		lsr = serial_in(up, UART_LSR);
 	} while ((lsr & (UART_LSR_DR | UART_LSR_BI)) && (--max_count > 0));
 	spin_unlock(&port->lock);
