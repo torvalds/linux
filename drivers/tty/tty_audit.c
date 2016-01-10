@@ -22,7 +22,7 @@ struct tty_audit_buf {
 	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
 };
 
-static struct tty_audit_buf *tty_audit_buf_alloc(struct tty_struct *tty)
+static struct tty_audit_buf *tty_audit_buf_alloc(void)
 {
 	struct tty_audit_buf *buf;
 
@@ -34,9 +34,9 @@ static struct tty_audit_buf *tty_audit_buf_alloc(struct tty_struct *tty)
 		goto err_buf;
 	atomic_set(&buf->count, 1);
 	mutex_init(&buf->mutex);
-	buf->major = tty->driver->major;
-	buf->minor = tty->driver->minor_start + tty->index;
-	buf->icanon = !!L_ICANON(tty);
+	buf->major = 0;
+	buf->minor = 0;
+	buf->icanon = 0;
 	buf->valid = 0;
 	return buf;
 
@@ -211,11 +211,11 @@ int tty_audit_push_current(void)
 /**
  *	tty_audit_buf_get	-	Get an audit buffer.
  *
- *	Get an audit buffer for @tty, allocate it if necessary.  Return %NULL
+ *	Get an audit buffer, allocate it if necessary.  Return %NULL
  *	if TTY auditing is disabled or out of memory.  Otherwise, return a new
  *	reference to the buffer.
  */
-static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
+static struct tty_audit_buf *tty_audit_buf_get(void)
 {
 	struct tty_audit_buf *buf, *buf2;
 	unsigned long flags;
@@ -232,7 +232,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
 	}
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
-	buf2 = tty_audit_buf_alloc(tty);
+	buf2 = tty_audit_buf_alloc();
 	if (buf2 == NULL) {
 		audit_log_lost("out of memory in TTY auditing");
 		return NULL;
@@ -282,7 +282,7 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 	if (!audit_log_tty_passwd && icanon && !L_ECHO(tty))
 		return;
 
-	buf = tty_audit_buf_get(tty);
+	buf = tty_audit_buf_get();
 	if (!buf)
 		return;
 
