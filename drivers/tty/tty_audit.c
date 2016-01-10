@@ -22,8 +22,7 @@ struct tty_audit_buf {
 	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
 };
 
-static struct tty_audit_buf *tty_audit_buf_alloc(int major, int minor,
-						 unsigned icanon)
+static struct tty_audit_buf *tty_audit_buf_alloc(struct tty_struct *tty)
 {
 	struct tty_audit_buf *buf;
 
@@ -35,9 +34,9 @@ static struct tty_audit_buf *tty_audit_buf_alloc(int major, int minor,
 		goto err_buf;
 	atomic_set(&buf->count, 1);
 	mutex_init(&buf->mutex);
-	buf->major = major;
-	buf->minor = minor;
-	buf->icanon = icanon;
+	buf->major = tty->driver->major;
+	buf->minor = tty->driver->minor_start + tty->index;
+	buf->icanon = !!L_ICANON(tty);
 	buf->valid = 0;
 	return buf;
 
@@ -216,8 +215,7 @@ int tty_audit_push_current(void)
  *	if TTY auditing is disabled or out of memory.  Otherwise, return a new
  *	reference to the buffer.
  */
-static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
-		unsigned icanon)
+static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
 {
 	struct tty_audit_buf *buf, *buf2;
 	unsigned long flags;
@@ -234,9 +232,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
 	}
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
-	buf2 = tty_audit_buf_alloc(tty->driver->major,
-				   tty->driver->minor_start + tty->index,
-				   icanon);
+	buf2 = tty_audit_buf_alloc(tty);
 	if (buf2 == NULL) {
 		audit_log_lost("out of memory in TTY auditing");
 		return NULL;
@@ -265,13 +261,13 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
  *
  *	Audit @data of @size from @tty, if necessary.
  */
-void tty_audit_add_data(struct tty_struct *tty, const void *data,
-			size_t size, unsigned icanon)
+void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 {
 	struct tty_audit_buf *buf;
 	int major, minor;
 	int audit_log_tty_passwd;
 	unsigned long flags;
+	unsigned int icanon = !!L_ICANON(tty);
 
 	if (unlikely(size == 0))
 		return;
@@ -286,7 +282,7 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data,
 	if (!audit_log_tty_passwd && icanon && !L_ECHO(tty))
 		return;
 
-	buf = tty_audit_buf_get(tty, icanon);
+	buf = tty_audit_buf_get(tty);
 	if (!buf)
 		return;
 

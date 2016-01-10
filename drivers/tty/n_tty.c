@@ -162,7 +162,7 @@ static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
 	int uncopied;
 
 	if (n > size) {
-		tty_audit_add_data(tty, from, size, ldata->icanon);
+		tty_audit_add_data(tty, from, size);
 		uncopied = copy_to_user(to, from, size);
 		if (uncopied)
 			return uncopied;
@@ -171,7 +171,7 @@ static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
 		from = ldata->read_buf;
 	}
 
-	tty_audit_add_data(tty, from, n, ldata->icanon);
+	tty_audit_add_data(tty, from, n);
 	return copy_to_user(to, from, n);
 }
 
@@ -1978,7 +1978,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		retval = copy_to_user(*b, from, n);
 		n -= retval;
 		is_eof = n == 1 && *from == EOF_CHAR(tty);
-		tty_audit_add_data(tty, from, n, ldata->icanon);
+		tty_audit_add_data(tty, from, n);
 		smp_store_release(&ldata->read_tail, ldata->read_tail + n);
 		/* Turn single EOF into zero-length read */
 		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
