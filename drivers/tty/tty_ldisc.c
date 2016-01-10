@@ -304,13 +304,13 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 EXPORT_SYMBOL_GPL(tty_ldisc_deref);
 
 
-static inline int __lockfunc
+static inline int
 __tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 {
 	return ldsem_down_write(&tty->ldisc_sem, timeout);
 }
 
-static inline int __lockfunc
+static inline int
 __tty_ldisc_lock_nested(struct tty_struct *tty, unsigned long timeout)
 {
 	return ldsem_down_write_nested(&tty->ldisc_sem,
@@ -322,8 +322,7 @@ static inline void __tty_ldisc_unlock(struct tty_struct *tty)
 	ldsem_up_write(&tty->ldisc_sem);
 }
 
-static int __lockfunc
-tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
+static int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 {
 	int ret;
 
@@ -340,7 +339,7 @@ static void tty_ldisc_unlock(struct tty_struct *tty)
 	__tty_ldisc_unlock(tty);
 }
 
-static int __lockfunc
+static int
 tty_ldisc_lock_pair_timeout(struct tty_struct *tty, struct tty_struct *tty2,
 			    unsigned long timeout)
 {
@@ -376,14 +375,13 @@ tty_ldisc_lock_pair_timeout(struct tty_struct *tty, struct tty_struct *tty2,
 	return 0;
 }
 
-static void __lockfunc
-tty_ldisc_lock_pair(struct tty_struct *tty, struct tty_struct *tty2)
+static void tty_ldisc_lock_pair(struct tty_struct *tty, struct tty_struct *tty2)
 {
 	tty_ldisc_lock_pair_timeout(tty, tty2, MAX_SCHEDULE_TIMEOUT);
 }
 
-static void __lockfunc tty_ldisc_unlock_pair(struct tty_struct *tty,
-					     struct tty_struct *tty2)
+static void tty_ldisc_unlock_pair(struct tty_struct *tty,
+				  struct tty_struct *tty2)
 {
 	__tty_ldisc_unlock(tty);
 	if (tty2)
