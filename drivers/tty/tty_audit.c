@@ -276,14 +276,14 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data,
 	if (unlikely(size == 0))
 		return;
 
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY
+	    && tty->driver->subtype == PTY_TYPE_MASTER)
+		return;
+
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	audit_log_tty_passwd = current->signal->audit_tty_log_passwd;
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	if (!audit_log_tty_passwd && icanon && !L_ECHO(tty))
-		return;
-
-	if (tty->driver->type == TTY_DRIVER_TYPE_PTY
-	    && tty->driver->subtype == PTY_TYPE_MASTER)
 		return;
 
 	buf = tty_audit_buf_get(tty, icanon);
