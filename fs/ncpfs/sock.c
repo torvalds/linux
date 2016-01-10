@@ -63,9 +63,7 @@ struct ncp_request_reply {
 	size_t datalen;
 	int result;
 	enum { RQ_DONE, RQ_INPROGRESS, RQ_QUEUED, RQ_IDLE, RQ_ABANDONED } status;
-	struct kvec* tx_ciov;
-	size_t tx_totallen;
-	size_t tx_iovlen;
+	struct iov_iter from;
 	struct kvec tx_iov[3];
 	u_int16_t tx_type;
 	u_int32_t sign[6];
@@ -205,22 +203,22 @@ static inline void __ncptcp_abort(struct ncp_server *server)
 
 static int ncpdgram_send(struct socket *sock, struct ncp_request_reply *req)
 {
-	return do_send(sock, req->tx_ciov, req->tx_iovlen,
-		       req->tx_totallen, MSG_DONTWAIT);
+	struct msghdr msg = { .msg_iter = req->from, .msg_flags = MSG_DONTWAIT };
+	return sock_sendmsg(sock, &msg);
 }
 
 static void __ncptcp_try_send(struct ncp_server *server)
 {
 	struct ncp_request_reply *rq;
-	struct kvec *iov;
+	struct msghdr msg = { .msg_flags = MSG_NOSIGNAL | MSG_DONTWAIT };
 	int result;
 
 	rq = server->tx.creq;
 	if (!rq)
 		return;
 
-	result = do_send(server->ncp_sock, rq->tx_ciov, rq->tx_iovlen,
-			 rq->tx_totallen, MSG_NOSIGNAL | MSG_DONTWAIT);
+	msg.msg_iter = rq->from;
+	result = sock_sendmsg(server->ncp_sock, &msg);
 
 	if (result == -EAGAIN)
 		return;
@@ -230,21 +228,12 @@ static void __ncptcp_try_send(struct ncp_server *server)
 		__ncp_abort_request(server, rq, result);
 		return;
 	}
-	if (result >= rq->tx_totallen) {
+	if (!msg_data_left(&msg)) {
 		server->rcv.creq = rq;
 		server->tx.creq = NULL;
 		return;
 	}
-	rq->tx_totallen -= result;
-	iov = rq->tx_ciov;
-	while (iov->iov_len <= result) {
-		result -= iov->iov_len;
-		iov++;
-		rq->tx_iovlen--;
-	}
-	iov->iov_base += result;
-	iov->iov_len -= result;
-	rq->tx_ciov = iov;
+	rq->from = msg.msg_iter;
 }
 
 static inline void ncp_init_header(struct ncp_server *server, struct ncp_request_reply *req, struct ncp_request_header *h)
@@ -257,22 +246,21 @@ static inline void ncp_init_header(struct ncp_server *server, struct ncp_request
 	
 static void ncpdgram_start_request(struct ncp_server *server, struct ncp_request_reply *req)
 {
-	size_t signlen;
-	struct ncp_request_header* h;
+	size_t signlen, len = req->tx_iov[1].iov_len;
+	struct ncp_request_header *h = req->tx_iov[1].iov_base;
 	
-	req->tx_ciov = req->tx_iov + 1;
-
-	h = req->tx_iov[1].iov_base;
 	ncp_init_header(server, req, h);
-	signlen = sign_packet(server, req->tx_iov[1].iov_base + sizeof(struct ncp_request_header) - 1, 
-			req->tx_iov[1].iov_len - sizeof(struct ncp_request_header) + 1,
-			cpu_to_le32(req->tx_totallen), req->sign);
+	signlen = sign_packet(server,
+			req->tx_iov[1].iov_base + sizeof(struct ncp_request_header) - 1, 
+			len - sizeof(struct ncp_request_header) + 1,
+			cpu_to_le32(len), req->sign);
 	if (signlen) {
-		req->tx_ciov[1].iov_base = req->sign;
-		req->tx_ciov[1].iov_len = signlen;
-		req->tx_iovlen += 1;
-		req->tx_totallen += signlen;
+		/* NCP over UDP appends signature */
+		req->tx_iov[2].iov_base = req->sign;
+		req->tx_iov[2].iov_len = signlen;
 	}
+	iov_iter_kvec(&req->from, WRITE | ITER_KVEC,
+			req->tx_iov + 1, signlen ? 2 : 1, len + signlen);
 	server->rcv.creq = req;
 	server->timeout_last = server->m.time_out;
 	server->timeout_retries = server->m.retry_count;
@@ -286,24 +274,23 @@ static void ncpdgram_start_request(struct ncp_server *server, struct ncp_request
 
 static void ncptcp_start_request(struct ncp_server *server, struct ncp_request_reply *req)
 {
-	size_t signlen;
-	struct ncp_request_header* h;
+	size_t signlen, len = req->tx_iov[1].iov_len;
+	struct ncp_request_header *h = req->tx_iov[1].iov_base;
 
-	req->tx_ciov = req->tx_iov;
-	h = req->tx_iov[1].iov_base;
 	ncp_init_header(server, req, h);
 	signlen = sign_packet(server, req->tx_iov[1].iov_base + sizeof(struct ncp_request_header) - 1,
-			req->tx_iov[1].iov_len - sizeof(struct ncp_request_header) + 1,
-			cpu_to_be32(req->tx_totallen + 24), req->sign + 4) + 16;
+			len - sizeof(struct ncp_request_header) + 1,
+			cpu_to_be32(len + 24), req->sign + 4) + 16;
 
 	req->sign[0] = htonl(NCP_TCP_XMIT_MAGIC);
-	req->sign[1] = htonl(req->tx_totallen + signlen);
+	req->sign[1] = htonl(len + signlen);
 	req->sign[2] = htonl(NCP_TCP_XMIT_VERSION);
 	req->sign[3] = htonl(req->datalen + 8);
+	/* NCP over TCP prepends signature */
 	req->tx_iov[0].iov_base = req->sign;
 	req->tx_iov[0].iov_len = signlen;
-	req->tx_iovlen += 1;
-	req->tx_totallen += signlen;
+	iov_iter_kvec(&req->from, WRITE | ITER_KVEC,
+			req->tx_iov, 2, len + signlen);
 
 	server->tx.creq = req;
 	__ncptcp_try_send(server);
@@ -705,8 +692,6 @@ static int do_ncp_rpc_call(struct ncp_server *server, int size,
 	req->datalen = max_reply_size;
 	req->tx_iov[1].iov_base = server->packet;
 	req->tx_iov[1].iov_len = size;
-	req->tx_iovlen = 1;
-	req->tx_totallen = size;
 	req->tx_type = *(u_int16_t*)server->packet;
 
 	result = ncp_add_request(server, req);
