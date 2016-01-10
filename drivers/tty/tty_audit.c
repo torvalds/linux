@@ -14,7 +14,6 @@
 #include <linux/tty.h>
 
 struct tty_audit_buf {
-	atomic_t count;
 	struct mutex mutex;	/* Protects all data below */
 	dev_t dev;		/* The TTY which the data is from */
 	unsigned icanon:1;
@@ -32,7 +31,6 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 	buf->data = kmalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	if (!buf->data)
 		goto err_buf;
-	atomic_set(&buf->count, 1);
 	mutex_init(&buf->mutex);
 	buf->dev = MKDEV(0, 0);
 	buf->icanon = 0;
@@ -50,12 +48,6 @@ static void tty_audit_buf_free(struct tty_audit_buf *buf)
 	WARN_ON(buf->valid != 0);
 	kfree(buf->data);
 	kfree(buf);
-}
-
-static void tty_audit_buf_put(struct tty_audit_buf *buf)
-{
-	if (atomic_dec_and_test(&buf->count))
-		tty_audit_buf_free(buf);
 }
 
 static void tty_audit_log(const char *description, dev_t dev,
@@ -106,6 +98,9 @@ static void tty_audit_buf_push(struct tty_audit_buf *buf)
  *
  *	Make sure all buffered data is written out and deallocate the buffer.
  *	Only needs to be called if current->signal->tty_audit_buf != %NULL.
+ *
+ *	The process is single-threaded at this point; no other threads share
+ *	current->signal.
  */
 void tty_audit_exit(void)
 {
@@ -116,11 +111,8 @@ void tty_audit_exit(void)
 	if (!buf)
 		return;
 
-	mutex_lock(&buf->mutex);
 	tty_audit_buf_push(buf);
-	mutex_unlock(&buf->mutex);
-
-	tty_audit_buf_put(buf);
+	tty_audit_buf_free(buf);
 }
 
 /**
@@ -140,21 +132,14 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
 	struct tty_audit_buf *buf;
 	dev_t dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	buf = current->signal->tty_audit_buf;
-	if (buf)
-		atomic_inc(&buf->count);
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	dev = MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
+	buf = current->signal->tty_audit_buf;
 	if (buf) {
 		mutex_lock(&buf->mutex);
 		if (buf->dev == dev)
 			tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
-		tty_audit_buf_put(buf);
 	}
 
 	if (audit_enabled && (current->signal->audit_tty & AUDIT_TTY_ENABLE)) {
@@ -175,23 +160,15 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 int tty_audit_push(void)
 {
 	struct tty_audit_buf *buf;
-	unsigned long flags;
 
 	if (~current->signal->audit_tty & AUDIT_TTY_ENABLE)
 		return -EPERM;
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
 	buf = current->signal->tty_audit_buf;
-	if (buf)
-		atomic_inc(&buf->count);
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-
 	if (buf) {
 		mutex_lock(&buf->mutex);
 		tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
-
-		tty_audit_buf_put(buf);
 	}
 	return 0;
 }
@@ -207,15 +184,9 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 	struct tty_audit_buf *buf, *buf2;
 	unsigned long flags;
 
-	buf = NULL;
-	buf2 = NULL;
-	spin_lock_irqsave(&current->sighand->siglock, flags);
 	buf = current->signal->tty_audit_buf;
-	if (buf) {
-		atomic_inc(&buf->count);
-		goto out;
-	}
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	if (buf)
+		return buf;
 
 	buf2 = tty_audit_buf_alloc();
 	if (buf2 == NULL) {
@@ -230,9 +201,6 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 		buf = buf2;
 		buf2 = NULL;
 	}
-	atomic_inc(&buf->count);
-	/* Fall through */
- out:
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	if (buf2)
 		tty_audit_buf_free(buf2);
@@ -289,5 +257,4 @@ void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
 			tty_audit_buf_push(buf);
 	} while (size != 0);
 	mutex_unlock(&buf->mutex);
-	tty_audit_buf_put(buf);
 }
