@@ -2354,13 +2354,8 @@ static int sbmac_mii_probe(struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	struct phy_device *phy_dev;
-	int i;
 
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		phy_dev = sc->mii_bus->phy_map[i];
-		if (phy_dev)
-			break;
-	}
+	phy_dev = phy_find_first(sc->mii_bus);
 	if (!phy_dev) {
 		printk(KERN_ERR "%s: no PHY found\n", dev->name);
 		return -ENXIO;
@@ -2385,7 +2380,7 @@ static int sbmac_mii_probe(struct net_device *dev)
 			      SUPPORTED_Pause |
 			      SUPPORTED_Asym_Pause;
 
-	phy_attached_info(phydev);
+	phy_attached_info(phy_dev);
 
 	phy_dev->advertising = phy_dev->supported;
 
