@@ -332,6 +332,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status->freq = ieee80211_channel_to_frequency(desc->channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, desc, rx_status);
+	/* TSF as indicated by the firmware is at INA time */
+	rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
 
 	rcu_read_lock();
 

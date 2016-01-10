@@ -322,11 +322,9 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status->freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(phy_info->channel),
 					       rx_status->band);
-	/*
-	 * TSF as indicated by the fw is at INA time, but mac80211 expects the
-	 * TSF at the beginning of the MPDU.
-	 */
-	/*rx_status->flag |= RX_FLAG_MACTIME_MPDU;*/
+
+	/* TSF as indicated by the firmware  is at INA time */
+	rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
 
 	iwl_mvm_get_signal_strength(mvm, phy_info, rx_status);
 
