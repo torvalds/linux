@@ -170,8 +170,6 @@ static void release_tty(struct tty_struct *tty, int idx);
 
 void free_tty_struct(struct tty_struct *tty)
 {
-	if (!tty)
-		return;
 	tty_ldisc_deinit(tty);
 	put_device(tty->dev);
 	kfree(tty->write_buf);
