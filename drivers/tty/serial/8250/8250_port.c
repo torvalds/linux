@@ -1523,11 +1523,9 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
 			break;
-		if (up->capabilities & UART_CAP_HFIFO) {
-			if ((serial_port_in(port, UART_LSR) & BOTH_EMPTY) !=
-			    BOTH_EMPTY)
-				break;
-		}
+		if ((up->capabilities & UART_CAP_HFIFO) &&
+		    (serial_in(up, UART_LSR) & BOTH_EMPTY) != BOTH_EMPTY)
+			break;
 	} while (--count > 0);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -2753,8 +2751,7 @@ serial8250_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return 0;
 }
 
-static const char *
-serial8250_type(struct uart_port *port)
+static const char *serial8250_type(struct uart_port *port)
 {
 	int type = port->type;
 
