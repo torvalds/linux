@@ -43,4 +43,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     unsigned long desc_size, efi_memory_desc_t *runtime_map,
 		     int *count);
 
+efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table,
+				  unsigned long size, u8 *out);
+
 #endif
