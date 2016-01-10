@@ -45,6 +45,9 @@ do {									\
 	___p1;								\
 })
 
+#define __smp_mb__before_atomic()	barrier()
+#define __smp_mb__after_atomic()	barrier()
+
 #include <asm-generic/barrier.h>
 
 #endif /* __ASM_BARRIER_H */
