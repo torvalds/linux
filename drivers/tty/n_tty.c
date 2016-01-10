@@ -1763,12 +1763,6 @@ static int n_tty_receive_buf2(struct tty_struct *tty, const unsigned char *cp,
 	return n_tty_receive_buf_common(tty, cp, fp, count, 1);
 }
 
-int is_ignored(int sig)
-{
-	return (sigismember(&current->blocked, sig) ||
-		current->sighand->action[sig-1].sa.sa_handler == SIG_IGN);
-}
-
 /**
  *	n_tty_set_termios	-	termios data changed
  *	@tty: terminal
