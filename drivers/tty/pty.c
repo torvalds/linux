@@ -656,20 +656,13 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 	return tty;
 }
 
-/* We have no need to install and remove our tty objects as devpts does all
-   the work for us */
-
 static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	return pty_common_install(driver, tty, false);
 }
 
-static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
-{
-}
-
 /* this is called once with whichever end is closed last */
-static void pty_unix98_shutdown(struct tty_struct *tty)
+static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
 	devpts_kill_index(tty->driver_data, tty->index);
 }
@@ -687,7 +680,6 @@ static const struct tty_operations ptm_unix98_ops = {
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_unix98_ioctl,
 	.resize = pty_resize,
-	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup
 };
 
@@ -705,7 +697,6 @@ static const struct tty_operations pty_unix98_ops = {
 	.set_termios = pty_set_termios,
 	.start = pty_start,
 	.stop = pty_stop,
-	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup,
 };
 
