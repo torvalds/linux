@@ -1368,8 +1368,9 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 		/* skb_store_bits cannot return -EFAULT here */
 		skb_store_bits(skb, offset, ptr, len);
 
-	if (BPF_RECOMPUTE_CSUM(flags) && skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_add(skb->csum, csum_partial(ptr, len, 0));
+	if (BPF_RECOMPUTE_CSUM(flags))
+		skb_postpush_rcsum(skb, ptr, len);
+
 	return 0;
 }
 
@@ -1525,8 +1526,12 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	if (unlikely(!skb2))
 		return -ENOMEM;
 
-	if (BPF_IS_REDIRECT_INGRESS(flags))
+	if (BPF_IS_REDIRECT_INGRESS(flags)) {
+		if (skb_at_tc_ingress(skb2))
+			skb_postpush_rcsum(skb2, skb_mac_header(skb2),
+					   skb2->mac_len);
 		return dev_forward_skb(dev, skb2);
+	}
 
 	skb2->dev = dev;
 	skb_sender_cpu_clear(skb2);
@@ -1569,8 +1574,12 @@ int skb_do_redirect(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	if (BPF_IS_REDIRECT_INGRESS(ri->flags))
+	if (BPF_IS_REDIRECT_INGRESS(ri->flags)) {
+		if (skb_at_tc_ingress(skb))
+			skb_postpush_rcsum(skb, skb_mac_header(skb),
+					   skb->mac_len);
 		return dev_forward_skb(dev, skb);
+	}
 
 	skb->dev = dev;
 	skb_sender_cpu_clear(skb);
