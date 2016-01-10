@@ -834,20 +834,9 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
-	struct phy_device *phydev = NULL;
-	int i;
+	struct phy_device *phydev;
 
-	/* search for connect PHY device */
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *tmp = mdiobus_get_phy(priv->mii_bus, i);
-
-		if (tmp) {
-			phydev = tmp;
-			break;
-		}
-	}
-
-	/* now we are supposed to have a proper phydev, to attach to... */
+	phydev = phy_find_first(priv->mii_bus);
 	if (!phydev) {
 		netdev_info(netdev, "%s: no PHY found\n", netdev->name);
 		return -ENODEV;
