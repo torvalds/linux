@@ -205,10 +205,7 @@ static inline void __ncptcp_abort(struct ncp_server *server)
 
 static int ncpdgram_send(struct socket *sock, struct ncp_request_reply *req)
 {
-	struct kvec vec[3];
-	/* sock_sendmsg updates iov pointers for us :-( */
-	memcpy(vec, req->tx_ciov, req->tx_iovlen * sizeof(vec[0]));
-	return do_send(sock, vec, req->tx_iovlen,
+	return do_send(sock, req->tx_ciov, req->tx_iovlen,
 		       req->tx_totallen, MSG_DONTWAIT);
 }
 
@@ -216,16 +213,13 @@ static void __ncptcp_try_send(struct ncp_server *server)
 {
 	struct ncp_request_reply *rq;
 	struct kvec *iov;
-	struct kvec iovc[3];
 	int result;
 
 	rq = server->tx.creq;
 	if (!rq)
 		return;
 
-	/* sock_sendmsg updates iov pointers for us :-( */
-	memcpy(iovc, rq->tx_ciov, rq->tx_iovlen * sizeof(iov[0]));
-	result = do_send(server->ncp_sock, iovc, rq->tx_iovlen,
+	result = do_send(server->ncp_sock, rq->tx_ciov, rq->tx_iovlen,
 			 rq->tx_totallen, MSG_NOSIGNAL | MSG_DONTWAIT);
 
 	if (result == -EAGAIN)
