@@ -302,6 +302,7 @@ struct tty_struct {
 	struct work_struct hangup_work;
 	void *disc_data;
 	void *driver_data;
+	spinlock_t files_lock;		/* protects tty_files list */
 	struct list_head tty_files;
 
 #define N_TTY_BUF_SIZE 4096
@@ -508,7 +509,6 @@ extern int tty_standard_install(struct tty_driver *driver,
 		struct tty_struct *tty);
 
 extern struct mutex tty_mutex;
-extern spinlock_t tty_files_lock;
 
 #define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
 
