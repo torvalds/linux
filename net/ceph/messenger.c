@@ -583,18 +583,28 @@ static int __ceph_tcp_sendpage(struct socket *sock, struct page *page,
 static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 		     int offset, size_t size, bool more)
 {
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	struct bio_vec bvec;
 	int ret;
-	struct kvec iov;
 
 	/* sendpage cannot properly handle pages with page_count == 0,
 	 * we need to fallback to sendmsg if that's the case */
 	if (page_count(page) >= 1)
 		return __ceph_tcp_sendpage(sock, page, offset, size, more);
 
-	iov.iov_base = kmap(page) + offset;
-	iov.iov_len = size;
-	ret = ceph_tcp_sendmsg(sock, &iov, 1, size, more);
-	kunmap(page);
+	bvec.bv_page = page;
+	bvec.bv_offset = offset;
+	bvec.bv_len = size;
+
+	if (more)
+		msg.msg_flags |= MSG_MORE;
+	else
+		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
+
+	iov_iter_bvec(&msg.msg_iter, WRITE | ITER_BVEC, &bvec, 1, size);
+	ret = sock_sendmsg(sock, &msg);
+	if (ret == -EAGAIN)
+		ret = 0;
 
 	return ret;
 }
