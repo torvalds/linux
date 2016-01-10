@@ -3576,7 +3576,7 @@ void __init console_init(void)
 	initcall_t *call;
 
 	/* Setup the default TTY line discipline. */
-	tty_ldisc_begin();
+	n_tty_init();
 
 	/*
 	 * set up the console device so that later boot sequences can

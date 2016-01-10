@@ -2497,7 +2497,7 @@ static void n_tty_fasync(struct tty_struct *tty, int on)
 	}
 }
 
-struct tty_ldisc_ops tty_ldisc_N_TTY = {
+static struct tty_ldisc_ops n_tty_ops = {
 	.magic           = TTY_LDISC_MAGIC,
 	.name            = "n_tty",
 	.open            = n_tty_open,
@@ -2518,14 +2518,18 @@ struct tty_ldisc_ops tty_ldisc_N_TTY = {
  *	n_tty_inherit_ops	-	inherit N_TTY methods
  *	@ops: struct tty_ldisc_ops where to save N_TTY methods
  *
- *	Enables a 'subclass' line discipline to 'inherit' N_TTY
- *	methods.
+ *	Enables a 'subclass' line discipline to 'inherit' N_TTY methods.
  */
 
 void n_tty_inherit_ops(struct tty_ldisc_ops *ops)
 {
-	*ops = tty_ldisc_N_TTY;
+	*ops = n_tty_ops;
 	ops->owner = NULL;
 	ops->refcount = ops->flags = 0;
 }
 EXPORT_SYMBOL_GPL(n_tty_inherit_ops);
+
+void __init n_tty_init(void)
+{
+	tty_register_ldisc(N_TTY, &n_tty_ops);
+}

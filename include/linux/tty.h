@@ -576,7 +576,6 @@ extern int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_release(struct tty_struct *tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
-extern void tty_ldisc_begin(void);
 
 static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
 					char *f, int count)
@@ -593,8 +592,8 @@ static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
 
 
 /* n_tty.c */
-extern struct tty_ldisc_ops tty_ldisc_N_TTY;
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
+extern void __init n_tty_init(void);
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
