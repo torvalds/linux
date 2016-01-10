@@ -336,7 +336,6 @@ struct tty_file_private {
 #define TTY_IO_ERROR 		1	/* Cause an I/O error (may be no ldisc too) */
 #define TTY_OTHER_CLOSED 	2	/* Other side (if any) has closed */
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
-#define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
 #define TTY_OTHER_DONE		6	/* Closed pty has completed input processing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
