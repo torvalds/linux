@@ -757,8 +757,7 @@ static void tty_ldisc_kill(struct tty_struct *tty)
  *	@tty: tty being shut down (or one end of pty pair)
  *
  *	Called during the final close of a tty or a pty pair in order to shut
- *	down the line discpline layer. On exit, each ldisc assigned is N_TTY and
- *	each ldisc has not been opened.
+ *	down the line discpline layer. On exit, each tty's ldisc is NULL.
  */
 
 void tty_ldisc_release(struct tty_struct *tty)
