@@ -12445,7 +12445,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		 */
 		num_kernel_contexts = n_krcvqs + MIN_KERNEL_KCTXTS - 1;
 	else
-		num_kernel_contexts = num_online_nodes();
+		num_kernel_contexts = num_online_nodes() + 1;
 	num_kernel_contexts =
 		max_t(int, MIN_KERNEL_KCTXTS, num_kernel_contexts);
 	/*
