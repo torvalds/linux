@@ -147,21 +147,15 @@ config CAN_XILINXCAN
 	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
 	  Zynq CANPS IP.
 
-source "drivers/net/can/mscan/Kconfig"
-
-source "drivers/net/can/sja1000/Kconfig"
 
 source "drivers/net/can/c_can/Kconfig"
-
-source "drivers/net/can/m_can/Kconfig"
-
 source "drivers/net/can/cc770/Kconfig"
-
-source "drivers/net/can/spi/Kconfig"
-
-source "drivers/net/can/usb/Kconfig"
-
+source "drivers/net/can/m_can/Kconfig"
+source "drivers/net/can/mscan/Kconfig"
+source "drivers/net/can/sja1000/Kconfig"
 source "drivers/net/can/softing/Kconfig"
+source "drivers/net/can/spi/Kconfig"
+source "drivers/net/can/usb/Kconfig"
 
 endif
 
