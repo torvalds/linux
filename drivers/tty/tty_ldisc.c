@@ -641,26 +641,41 @@ static void tty_reset_termios(struct tty_struct *tty)
  *	@tty: tty to reinit
  *	@disc: line discipline to reinitialize
  *
- *	Switch the tty to a line discipline and leave the ldisc
- *	state closed
+ *	Completely reinitialize the line discipline state, by closing the
+ *	current instance and opening a new instance. If an error occurs opening
+ *	the new non-N_TTY instance, the instance is dropped and tty->ldisc reset
+ *	to NULL. The caller can then retry with N_TTY instead.
+ *
+ *	Returns 0 if successful, otherwise error code < 0
  */
 
 static int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 {
-	struct tty_ldisc *ld = tty_ldisc_get(tty, disc);
+	struct tty_ldisc *ld;
+	int retval;
 
-	if (IS_ERR(ld))
-		return -1;
+	ld = tty_ldisc_get(tty, disc);
+	if (IS_ERR(ld)) {
+		BUG_ON(disc == N_TTY);
+		return PTR_ERR(ld);
+	}
 
-	tty_ldisc_close(tty, tty->ldisc);
-	tty_ldisc_put(tty->ldisc);
-	/*
-	 *	Switch the line discipline back
-	 */
+	if (tty->ldisc) {
+		tty_ldisc_close(tty, tty->ldisc);
+		tty_ldisc_put(tty->ldisc);
+	}
+
+	/* switch the line discipline */
 	tty->ldisc = ld;
 	tty_set_termios_ldisc(tty, disc);
-
-	return 0;
+	retval = tty_ldisc_open(tty, tty->ldisc);
+	if (retval) {
+		if (!WARN_ON(disc == N_TTY)) {
+			tty_ldisc_put(tty->ldisc);
+			tty->ldisc = NULL;
+		}
+	}
+	return retval;
 }
 
 /**
@@ -716,19 +731,13 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 		   reopen a new ldisc. We could defer the reopen to the next
 		   open but it means auditing a lot of other paths so this is
 		   a FIXME */
-		if (reset == 0) {
+		if (reset == 0)
+			err = tty_ldisc_reinit(tty, tty->termios.c_line);
 
-			if (!tty_ldisc_reinit(tty, tty->termios.c_line))
-				err = tty_ldisc_open(tty, tty->ldisc);
-			else
-				err = 1;
-		}
 		/* If the re-open fails or we reset then go to N_TTY. The
 		   N_TTY open cannot fail */
-		if (reset || err) {
-			BUG_ON(tty_ldisc_reinit(tty, N_TTY));
-			WARN_ON(tty_ldisc_open(tty, tty->ldisc));
-		}
+		if (reset || err < 0)
+			tty_ldisc_reinit(tty, N_TTY);
 	}
 	tty_ldisc_unlock(tty);
 	if (reset)
