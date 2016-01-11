@@ -117,379 +117,380 @@ int GetRoundedValue(fInt);                         /* Incomplete function - Usef
  */
 fInt fExponential(fInt exponent)        /*Can be used to calculate e^exponent*/
 {
-    uint32_t i;
-    bool bNegated = false;
+	uint32_t i;
+	bool bNegated = false;
 
-    fInt fPositiveOne = ConvertToFraction(1);
-    fInt fZERO = ConvertToFraction(0);
+	fInt fPositiveOne = ConvertToFraction(1);
+	fInt fZERO = ConvertToFraction(0);
 
-    fInt lower_bound = Divide(78, 10000);
-    fInt solution = fPositiveOne; /*Starting off with baseline of 1 */
-    fInt error_term;
+	fInt lower_bound = Divide(78, 10000);
+	fInt solution = fPositiveOne; /*Starting off with baseline of 1 */
+	fInt error_term;
 
-    uint32_t k_array[11] = {55452, 27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
-    uint32_t expk_array[11] = {2560000, 160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
+	uint32_t k_array[11] = {55452, 27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
+	uint32_t expk_array[11] = {2560000, 160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
 
-    if (GreaterThan(fZERO, exponent)) {
-        exponent = fNegate(exponent);
-        bNegated = true;
-    }
+	if (GreaterThan(fZERO, exponent)) {
+		exponent = fNegate(exponent);
+		bNegated = true;
+	}
 
-    while (GreaterThan(exponent, lower_bound)) {
-        for (i = 0; i < 11; i++) {
-            if (GreaterThan(exponent, GetScaledFraction(k_array[i], 10000))) {
-                exponent = fSubtract(exponent, GetScaledFraction(k_array[i], 10000));
-                solution = fMultiply(solution, GetScaledFraction(expk_array[i], 10000));
-            }
-        }
-    }
+	while (GreaterThan(exponent, lower_bound)) {
+		for (i = 0; i < 11; i++) {
+			if (GreaterThan(exponent, GetScaledFraction(k_array[i], 10000))) {
+				exponent = fSubtract(exponent, GetScaledFraction(k_array[i], 10000));
+				solution = fMultiply(solution, GetScaledFraction(expk_array[i], 10000));
+			}
+		}
+	}
 
-    error_term = fAdd(fPositiveOne, exponent);
+	error_term = fAdd(fPositiveOne, exponent);
 
-    solution = fMultiply(solution, error_term);
+	solution = fMultiply(solution, error_term);
 
-    if (bNegated)
-        solution = fDivide(fPositiveOne, solution);
+	if (bNegated)
+		solution = fDivide(fPositiveOne, solution);
 
-    return solution;
+	return solution;
 }
 
 fInt fNaturalLog(fInt value)
 {
-    uint32_t i;
-    fInt upper_bound = Divide(8, 1000);
-    fInt fNegativeOne = ConvertToFraction(-1);
-    fInt solution = ConvertToFraction(0); /*Starting off with baseline of 0 */
-    fInt error_term;
+	uint32_t i;
+	fInt upper_bound = Divide(8, 1000);
+	fInt fNegativeOne = ConvertToFraction(-1);
+	fInt solution = ConvertToFraction(0); /*Starting off with baseline of 0 */
+	fInt error_term;
 
-    uint32_t k_array[10] = {160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
-    uint32_t logk_array[10] = {27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
+	uint32_t k_array[10] = {160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
+	uint32_t logk_array[10] = {27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
 
-    while (GreaterThan(fAdd(value, fNegativeOne), upper_bound)) {
-        for (i = 0; i < 10; i++) {
-            if (GreaterThan(value, GetScaledFraction(k_array[i], 10000))) {
-                value = fDivide(value, GetScaledFraction(k_array[i], 10000));
-                solution = fAdd(solution, GetScaledFraction(logk_array[i], 10000));
-            }
-        }
-    }
+	while (GreaterThan(fAdd(value, fNegativeOne), upper_bound)) {
+		for (i = 0; i < 10; i++) {
+			if (GreaterThan(value, GetScaledFraction(k_array[i], 10000))) {
+				value = fDivide(value, GetScaledFraction(k_array[i], 10000));
+				solution = fAdd(solution, GetScaledFraction(logk_array[i], 10000));
+			}
+		}
+	}
 
-    error_term = fAdd(fNegativeOne, value);
+	error_term = fAdd(fNegativeOne, value);
 
-    return (fAdd(solution, error_term));
+	return (fAdd(solution, error_term));
 }
 
 fInt fDecodeLinearFuse(uint32_t fuse_value, fInt f_min, fInt f_range, uint32_t bitlength)
 {
-    fInt f_fuse_value = Convert_ULONG_ToFraction(fuse_value);
-    fInt f_bit_max_value = Convert_ULONG_ToFraction((uPow(2, bitlength)) - 1);
+	fInt f_fuse_value = Convert_ULONG_ToFraction(fuse_value);
+	fInt f_bit_max_value = Convert_ULONG_ToFraction((uPow(2, bitlength)) - 1);
 
-    fInt f_decoded_value;
+	fInt f_decoded_value;
 
-    f_decoded_value = fDivide(f_fuse_value, f_bit_max_value);
-    f_decoded_value = fMultiply(f_decoded_value, f_range);
-    f_decoded_value = fAdd(f_decoded_value, f_min);
+	f_decoded_value = fDivide(f_fuse_value, f_bit_max_value);
+	f_decoded_value = fMultiply(f_decoded_value, f_range);
+	f_decoded_value = fAdd(f_decoded_value, f_min);
 
-    return f_decoded_value;
+	return f_decoded_value;
 }
 
 
 fInt fDecodeLogisticFuse(uint32_t fuse_value, fInt f_average, fInt f_range, uint32_t bitlength)
 {
-    fInt f_fuse_value = Convert_ULONG_ToFraction(fuse_value);
-    fInt f_bit_max_value = Convert_ULONG_ToFraction((uPow(2, bitlength)) - 1);
+	fInt f_fuse_value = Convert_ULONG_ToFraction(fuse_value);
+	fInt f_bit_max_value = Convert_ULONG_ToFraction((uPow(2, bitlength)) - 1);
 
-    fInt f_CONSTANT_NEG13 = ConvertToFraction(-13);
-    fInt f_CONSTANT1 = ConvertToFraction(1);
+	fInt f_CONSTANT_NEG13 = ConvertToFraction(-13);
+	fInt f_CONSTANT1 = ConvertToFraction(1);
 
-    fInt f_decoded_value;
+	fInt f_decoded_value;
 
-    f_decoded_value = fSubtract(fDivide(f_bit_max_value, f_fuse_value), f_CONSTANT1);
-    f_decoded_value = fNaturalLog(f_decoded_value);
-    f_decoded_value = fMultiply(f_decoded_value, fDivide(f_range, f_CONSTANT_NEG13));
-    f_decoded_value = fAdd(f_decoded_value, f_average);
+	f_decoded_value = fSubtract(fDivide(f_bit_max_value, f_fuse_value), f_CONSTANT1);
+	f_decoded_value = fNaturalLog(f_decoded_value);
+	f_decoded_value = fMultiply(f_decoded_value, fDivide(f_range, f_CONSTANT_NEG13));
+	f_decoded_value = fAdd(f_decoded_value, f_average);
 
-    return f_decoded_value;
+	return f_decoded_value;
 }
 
 fInt fDecodeLeakageID (uint32_t leakageID_fuse, fInt ln_max_div_min, fInt f_min, uint32_t bitlength)
 {
-    fInt fLeakage;
-    fInt f_bit_max_value = Convert_ULONG_ToFraction((uPow(2, bitlength)) - 1);
+	fInt fLeakage;
+	fInt f_bit_max_value = Convert_ULONG_ToFraction((uPow(2, bitlength)) - 1);
 
-    fLeakage = fMultiply(ln_max_div_min, Convert_ULONG_ToFraction(leakageID_fuse));
-    fLeakage = fDivide(fLeakage, f_bit_max_value);
-    fLeakage = fExponential(fLeakage);
-    fLeakage = fMultiply(fLeakage, f_min);
+	fLeakage = fMultiply(ln_max_div_min, Convert_ULONG_ToFraction(leakageID_fuse));
+	fLeakage = fDivide(fLeakage, f_bit_max_value);
+	fLeakage = fExponential(fLeakage);
+	fLeakage = fMultiply(fLeakage, f_min);
 
-    return fLeakage;
+	return fLeakage;
 }
 
 fInt ConvertToFraction(int X) /*Add all range checking here. Is it possible to make fInt a private declaration? */
 {
-    fInt temp;
+	fInt temp;
 
-    if (X <= MAX)
-        temp.full = (X << SHIFT_AMOUNT);
-    else
-        temp.full = 0;
+	if (X <= MAX)
+		temp.full = (X << SHIFT_AMOUNT);
+	else
+		temp.full = 0;
 
-    return temp;
+	return temp;
 }
 
 fInt fNegate(fInt X)
 {
-    fInt CONSTANT_NEGONE = ConvertToFraction(-1);
-    return (fMultiply(X, CONSTANT_NEGONE));
+	fInt CONSTANT_NEGONE = ConvertToFraction(-1);
+	return (fMultiply(X, CONSTANT_NEGONE));
 }
 
 fInt Convert_ULONG_ToFraction(uint32_t X)
 {
-    fInt temp;
+	fInt temp;
 
-    if (X <= MAX)
-        temp.full = (X << SHIFT_AMOUNT);
-    else
-        temp.full = 0;
+	if (X <= MAX)
+		temp.full = (X << SHIFT_AMOUNT);
+	else
+		temp.full = 0;
 
-    return temp;
+	return temp;
 }
 
 fInt GetScaledFraction(int X, int factor)
 {
-    int times_shifted, factor_shifted;
-    bool bNEGATED;
-    fInt fValue;
+	int times_shifted, factor_shifted;
+	bool bNEGATED;
+	fInt fValue;
 
-    times_shifted = 0;
-    factor_shifted = 0;
-    bNEGATED = false;
+	times_shifted = 0;
+	factor_shifted = 0;
+	bNEGATED = false;
 
-    if (X < 0) {
-        X = -1*X;
-        bNEGATED = true;
-    }
+	if (X < 0) {
+		X = -1*X;
+		bNEGATED = true;
+	}
 
-    if (factor < 0) {
-        factor = -1*factor;
+	if (factor < 0) {
+		factor = -1*factor;
+		bNEGATED = !bNEGATED; /*If bNEGATED = true due to X < 0, this will cover the case of negative cancelling negative */
+	}
 
-        bNEGATED = !bNEGATED; /*If bNEGATED = true due to X < 0, this will cover the case of negative cancelling negative */
-    }
+	if ((X > MAX) || factor > MAX) {
+		if ((X/factor) <= MAX) {
+			while (X > MAX) {
+				X = X >> 1;
+				times_shifted++;
+			}
 
-    if ((X > MAX) || factor > MAX) {
-        if ((X/factor) <= MAX) {
-            while (X > MAX) {
-                X = X >> 1;
-                times_shifted++;
-            }
+			while (factor > MAX) {
+				factor = factor >> 1;
+				factor_shifted++;
+			}
+		} else {
+			fValue.full = 0;
+			return fValue;
+		}
+	}
 
-            while (factor > MAX) {
-                factor = factor >> 1;
-                factor_shifted++;
-            }
-        } else {
-            fValue.full = 0;
-            return fValue;
-        }
-    }
+	if (factor == 1)
+	return (ConvertToFraction(X));
 
-    if (factor == 1)
-        return (ConvertToFraction(X));
+	fValue = fDivide(ConvertToFraction(X * uPow(-1, bNEGATED)), ConvertToFraction(factor));
 
-    fValue = fDivide(ConvertToFraction(X * uPow(-1, bNEGATED)), ConvertToFraction(factor));
+	fValue.full = fValue.full << times_shifted;
+	fValue.full = fValue.full >> factor_shifted;
 
-    fValue.full = fValue.full << times_shifted;
-    fValue.full = fValue.full >> factor_shifted;
-
-    return fValue;
+	return fValue;
 }
 
 /* Addition using two fInts */
 fInt fAdd (fInt X, fInt Y)
 {
-    fInt Sum;
+	fInt Sum;
 
-    Sum.full = X.full + Y.full;
+	Sum.full = X.full + Y.full;
 
-    return Sum;
+	return Sum;
 }
 
 /* Addition using two fInts */
 fInt fSubtract (fInt X, fInt Y)
 {
-    fInt Difference;
+	fInt Difference;
 
-    Difference.full = X.full - Y.full;
+	Difference.full = X.full - Y.full;
 
-    return Difference;
+	return Difference;
 }
 
 bool Equal(fInt A, fInt B)
 {
-    if (A.full == B.full)
-        return true;
-    else
-        return false;
+	if (A.full == B.full)
+		return true;
+	else
+		return false;
 }
 
 bool GreaterThan(fInt A, fInt B)
 {
-    if (A.full > B.full)
-        return true;
-    else
-        return false;
+	if (A.full > B.full)
+		return true;
+	else
+		return false;
 }
 
 fInt fMultiply (fInt X, fInt Y) /* Uses 64-bit integers (int64_t) */
 {
-    fInt Product;
-    int64_t tempProduct;
-    bool X_LessThanOne, Y_LessThanOne;
+	fInt Product;
+	int64_t tempProduct;
+	bool X_LessThanOne, Y_LessThanOne;
 
-    X_LessThanOne = (X.partial.real == 0 && X.partial.decimal != 0 && X.full >= 0);
-    Y_LessThanOne = (Y.partial.real == 0 && Y.partial.decimal != 0 && Y.full >= 0);
+	X_LessThanOne = (X.partial.real == 0 && X.partial.decimal != 0 && X.full >= 0);
+	Y_LessThanOne = (Y.partial.real == 0 && Y.partial.decimal != 0 && Y.full >= 0);
 
-    /*The following is for a very specific common case: Non-zero number with ONLY fractional portion*/
-    /* TEMPORARILY DISABLED - CAN BE USED TO IMPROVE PRECISION
+	/*The following is for a very specific common case: Non-zero number with ONLY fractional portion*/
+	/* TEMPORARILY DISABLED - CAN BE USED TO IMPROVE PRECISION
 
-    if (X_LessThanOne && Y_LessThanOne) {
-        Product.full = X.full * Y.full;
-        return Product
-    }*/
+	if (X_LessThanOne && Y_LessThanOne) {
+		Product.full = X.full * Y.full;
+		return Product
+	}*/
 
-    tempProduct = ((int64_t)X.full) * ((int64_t)Y.full); /*Q(16,16)*Q(16,16) = Q(32, 32) - Might become a negative number! */
-    tempProduct = tempProduct >> 16; /*Remove lagging 16 bits - Will lose some precision from decimal; */
-    Product.full = (int)tempProduct; /*The int64_t will lose the leading 16 bits that were part of the integer portion */
+	tempProduct = ((int64_t)X.full) * ((int64_t)Y.full); /*Q(16,16)*Q(16,16) = Q(32, 32) - Might become a negative number! */
+	tempProduct = tempProduct >> 16; /*Remove lagging 16 bits - Will lose some precision from decimal; */
+	Product.full = (int)tempProduct; /*The int64_t will lose the leading 16 bits that were part of the integer portion */
 
-    return Product;
+	return Product;
 }
 
 fInt fDivide (fInt X, fInt Y)
 {
-    fInt fZERO, fQuotient;
-    int64_t longlongX, longlongY;
+	fInt fZERO, fQuotient;
+	int64_t longlongX, longlongY;
 
-    fZERO = ConvertToFraction(0);
+	fZERO = ConvertToFraction(0);
 
-    if (Equal(Y, fZERO))
-        return fZERO;
+	if (Equal(Y, fZERO))
+	return fZERO;
 
-    longlongX = (int64_t)X.full;
-    longlongY = (int64_t)Y.full;
+	longlongX = (int64_t)X.full;
+	longlongY = (int64_t)Y.full;
 
-    longlongX = longlongX << 16; /*Q(16,16) -> Q(32,32) */
+	longlongX = longlongX << 16; /*Q(16,16) -> Q(32,32) */
 
-    do_div(longlongX, longlongY); /*Q(32,32) divided by Q(16,16) = Q(16,16) Back to original format */
+	div64_s64(longlongX, longlongY); /*Q(32,32) divided by Q(16,16) = Q(16,16) Back to original format */
 
-    fQuotient.full = (int)longlongX;
-    return fQuotient;
+	fQuotient.full = (int)longlongX;
+	return fQuotient;
 }
 
 int ConvertBackToInteger (fInt A) /*THIS is the function that will be used to check with the Golden settings table*/
 {
-    fInt fullNumber, scaledDecimal, scaledReal;
+	fInt fullNumber, scaledDecimal, scaledReal;
 
-    scaledReal.full = GetReal(A) * uPow(10, PRECISION-1); /* DOUBLE CHECK THISSSS!!! */
+	scaledReal.full = GetReal(A) * uPow(10, PRECISION-1); /* DOUBLE CHECK THISSSS!!! */
 
-    scaledDecimal.full = uGetScaledDecimal(A);
+	scaledDecimal.full = uGetScaledDecimal(A);
 
-    fullNumber = fAdd(scaledDecimal,scaledReal);
+	fullNumber = fAdd(scaledDecimal,scaledReal);
 
-    return fullNumber.full;
+	return fullNumber.full;
 }
 
 fInt fGetSquare(fInt A)
 {
-    return fMultiply(A,A);
+	return fMultiply(A,A);
 }
 
 /* x_new = x_old - (x_old^2 - C) / (2 * x_old) */
 fInt fSqrt(fInt num)
 {
-    fInt F_divide_Fprime, Fprime;
-    fInt test;
-    fInt twoShifted;
-    int seed, counter, error;
-    fInt x_new, x_old, C, y;
+	fInt F_divide_Fprime, Fprime;
+	fInt test;
+	fInt twoShifted;
+	int seed, counter, error;
+	fInt x_new, x_old, C, y;
 
-    fInt fZERO = ConvertToFraction(0);
-    /* (0 > num) is the same as (num < 0), i.e., num is negative */
-    if (GreaterThan(fZERO, num) || Equal(fZERO, num))
-        return fZERO;
+	fInt fZERO = ConvertToFraction(0);
 
-    C = num;
+	/* (0 > num) is the same as (num < 0), i.e., num is negative */
 
-    if (num.partial.real > 3000)
-        seed = 60;
-    else if (num.partial.real > 1000)
-        seed = 30;
-    else if (num.partial.real > 100)
-        seed = 10;
-    else
-        seed = 2;
+	if (GreaterThan(fZERO, num) || Equal(fZERO, num))
+		return fZERO;
 
-    counter = 0;
+	C = num;
 
-    if (Equal(num, fZERO)) /*Square Root of Zero is zero */
-        return fZERO;
+	if (num.partial.real > 3000)
+		seed = 60;
+	else if (num.partial.real > 1000)
+		seed = 30;
+	else if (num.partial.real > 100)
+		seed = 10;
+	else
+		seed = 2;
 
-    twoShifted = ConvertToFraction(2);
-    x_new = ConvertToFraction(seed);
+	counter = 0;
 
-    do {
-        counter++;
+	if (Equal(num, fZERO)) /*Square Root of Zero is zero */
+		return fZERO;
 
-        x_old.full = x_new.full;
+	twoShifted = ConvertToFraction(2);
+	x_new = ConvertToFraction(seed);
 
-        test = fGetSquare(x_old); /*1.75*1.75 is reverting back to 1 when shifted down */
-        y = fSubtract(test, C); /*y = f(x) = x^2 - C; */
+	do {
+		counter++;
 
-        Fprime = fMultiply(twoShifted, x_old);
-        F_divide_Fprime = fDivide(y, Fprime);
+		x_old.full = x_new.full;
 
-        x_new = fSubtract(x_old, F_divide_Fprime);
+		test = fGetSquare(x_old); /*1.75*1.75 is reverting back to 1 when shifted down */
+		y = fSubtract(test, C); /*y = f(x) = x^2 - C; */
 
-        error = ConvertBackToInteger(x_new) - ConvertBackToInteger(x_old);
+		Fprime = fMultiply(twoShifted, x_old);
+		F_divide_Fprime = fDivide(y, Fprime);
 
-        if (counter > 20) /*20 is already way too many iterations. If we dont have an answer by then, we never will*/
-            return x_new;
+		x_new = fSubtract(x_old, F_divide_Fprime);
 
-    } while (uAbs(error) > 0);
+		error = ConvertBackToInteger(x_new) - ConvertBackToInteger(x_old);
 
-    return (x_new);
+		if (counter > 20) /*20 is already way too many iterations. If we dont have an answer by then, we never will*/
+			return x_new;
+
+	} while (uAbs(error) > 0);
+
+	return (x_new);
 }
 
 void SolveQuadracticEqn(fInt A, fInt B, fInt C, fInt Roots[])
 {
-    fInt* pRoots = &Roots[0];
-    fInt temp, root_first, root_second;
-    fInt f_CONSTANT10, f_CONSTANT100;
+	fInt *pRoots = &Roots[0];
+	fInt temp, root_first, root_second;
+	fInt f_CONSTANT10, f_CONSTANT100;
 
-    f_CONSTANT100 = ConvertToFraction(100);
-    f_CONSTANT10 = ConvertToFraction(10);
+	f_CONSTANT100 = ConvertToFraction(100);
+	f_CONSTANT10 = ConvertToFraction(10);
 
-    while(GreaterThan(A, f_CONSTANT100) || GreaterThan(B, f_CONSTANT100) || GreaterThan(C, f_CONSTANT100)) {
-        A = fDivide(A, f_CONSTANT10);
-        B = fDivide(B, f_CONSTANT10);
-        C = fDivide(C, f_CONSTANT10);
-    }
+	while(GreaterThan(A, f_CONSTANT100) || GreaterThan(B, f_CONSTANT100) || GreaterThan(C, f_CONSTANT100)) {
+		A = fDivide(A, f_CONSTANT10);
+		B = fDivide(B, f_CONSTANT10);
+		C = fDivide(C, f_CONSTANT10);
+	}
 
-    temp = fMultiply(ConvertToFraction(4), A); /* root = 4*A */
-    temp = fMultiply(temp, C); /* root = 4*A*C */
-    temp = fSubtract(fGetSquare(B), temp); /* root = b^2 - 4AC */
-    temp = fSqrt(temp); /*root = Sqrt (b^2 - 4AC); */
+	temp = fMultiply(ConvertToFraction(4), A); /* root = 4*A */
+	temp = fMultiply(temp, C); /* root = 4*A*C */
+	temp = fSubtract(fGetSquare(B), temp); /* root = b^2 - 4AC */
+	temp = fSqrt(temp); /*root = Sqrt (b^2 - 4AC); */
 
-    root_first = fSubtract(fNegate(B), temp); /* b - Sqrt(b^2 - 4AC) */
-    root_second = fAdd(fNegate(B), temp); /* b + Sqrt(b^2 - 4AC) */
+	root_first = fSubtract(fNegate(B), temp); /* b - Sqrt(b^2 - 4AC) */
+	root_second = fAdd(fNegate(B), temp); /* b + Sqrt(b^2 - 4AC) */
 
-    root_first = fDivide(root_first, ConvertToFraction(2)); /* [b +- Sqrt(b^2 - 4AC)]/[2] */
-    root_first = fDivide(root_first, A); /*[b +- Sqrt(b^2 - 4AC)]/[2*A] */
+	root_first = fDivide(root_first, ConvertToFraction(2)); /* [b +- Sqrt(b^2 - 4AC)]/[2] */
+	root_first = fDivide(root_first, A); /*[b +- Sqrt(b^2 - 4AC)]/[2*A] */
 
-    root_second = fDivide(root_second, ConvertToFraction(2)); /* [b +- Sqrt(b^2 - 4AC)]/[2] */
-    root_second = fDivide(root_second, A); /*[b +- Sqrt(b^2 - 4AC)]/[2*A] */
+	root_second = fDivide(root_second, ConvertToFraction(2)); /* [b +- Sqrt(b^2 - 4AC)]/[2] */
+	root_second = fDivide(root_second, A); /*[b +- Sqrt(b^2 - 4AC)]/[2*A] */
 
-    *(pRoots + 0) = root_first;
-    *(pRoots + 1) = root_second;
+	*(pRoots + 0) = root_first;
+	*(pRoots + 1) = root_second;
 }
 
 /* -----------------------------------------------------------------------------
@@ -500,61 +501,58 @@ void SolveQuadracticEqn(fInt A, fInt B, fInt C, fInt Roots[])
 /* Addition using two normal ints - Temporary - Use only for testing purposes?. */
 fInt Add (int X, int Y)
 {
-    fInt A, B, Sum;
+	fInt A, B, Sum;
 
-    A.full = (X << SHIFT_AMOUNT);
-    B.full = (Y << SHIFT_AMOUNT);
+	A.full = (X << SHIFT_AMOUNT);
+	B.full = (Y << SHIFT_AMOUNT);
 
-    Sum.full = A.full + B.full;
+	Sum.full = A.full + B.full;
 
-    return Sum;
+	return Sum;
 }
 
 /* Conversion Functions */
 int GetReal (fInt A)
 {
-    return (A.full >> SHIFT_AMOUNT);
+	return (A.full >> SHIFT_AMOUNT);
 }
 
 /* Temporarily Disabled */
 int GetRoundedValue(fInt A) /*For now, round the 3rd decimal place */
 {
-    /* ROUNDING TEMPORARLY DISABLED
-    int temp = A.full;
+	/* ROUNDING TEMPORARLY DISABLED
+	int temp = A.full;
+	int decimal_cutoff, decimal_mask = 0x000001FF;
+	decimal_cutoff = temp & decimal_mask;
+	if (decimal_cutoff > 0x147) {
+		temp += 673;
+	}*/
 
-    int decimal_cutoff, decimal_mask = 0x000001FF;
-
-    decimal_cutoff = temp & decimal_mask;
-
-
-    if (decimal_cutoff > 0x147) {
-        temp += 673;
-    }*/
-
-    return ConvertBackToInteger(A)/10000; /*Temporary - in case this was used somewhere else */
+	return ConvertBackToInteger(A)/10000; /*Temporary - in case this was used somewhere else */
 }
 
 fInt Multiply (int X, int Y)
 {
-    fInt A, B, Product;
+	fInt A, B, Product;
 
-    A.full = X << SHIFT_AMOUNT;
-    B.full = Y << SHIFT_AMOUNT;
+	A.full = X << SHIFT_AMOUNT;
+	B.full = Y << SHIFT_AMOUNT;
 
-    Product = fMultiply(A, B);
+	Product = fMultiply(A, B);
 
-    return Product;
+	return Product;
 }
+
 fInt Divide (int X, int Y)
 {
-    fInt A, B, Quotient;
+	fInt A, B, Quotient;
 
-    A.full = X << SHIFT_AMOUNT;
-    B.full = Y << SHIFT_AMOUNT;
+	A.full = X << SHIFT_AMOUNT;
+	B.full = Y << SHIFT_AMOUNT;
 
-    Quotient = fDivide(A, B);
+	Quotient = fDivide(A, B);
 
-    return Quotient;
+	return Quotient;
 }
 
 int uGetScaledDecimal (fInt A) /*Converts the fractional portion to whole integers - Costly function */
@@ -563,16 +561,13 @@ int uGetScaledDecimal (fInt A) /*Converts the fractional portion to whole intege
 	int i, scaledDecimal = 0, tmp = A.partial.decimal;
 
 	for (i = 0; i < PRECISION; i++) {
-        dec[i] = tmp / (1 << SHIFT_AMOUNT);
+		dec[i] = tmp / (1 << SHIFT_AMOUNT);
+		tmp = tmp - ((1 << SHIFT_AMOUNT)*dec[i]);
+		tmp *= 10;
+		scaledDecimal = scaledDecimal + dec[i]*uPow(10, PRECISION - 1 -i);
+	}
 
-        tmp = tmp - ((1 << SHIFT_AMOUNT)*dec[i]);
-
-        tmp *= 10;
-
-        scaledDecimal = scaledDecimal + dec[i]*uPow(10, PRECISION - 1 -i);
-    }
-
-    return scaledDecimal;
+	return scaledDecimal;
 }
 
 int uPow(int base, int power)
@@ -601,17 +596,17 @@ int uAbs(int X)
 
 fInt fRoundUpByStepSize(fInt A, fInt fStepSize, bool error_term)
 {
-    fInt solution;
+	fInt solution;
 
-    solution = fDivide(A, fStepSize);
-    solution.partial.decimal = 0; /*All fractional digits changes to 0 */
+	solution = fDivide(A, fStepSize);
+	solution.partial.decimal = 0; /*All fractional digits changes to 0 */
 
-    if (error_term)
-        solution.partial.real += 1; /*Error term of 1 added */
+	if (error_term)
+		solution.partial.real += 1; /*Error term of 1 added */
 
-    solution = fMultiply(solution, fStepSize);
-    solution = fAdd(solution, fStepSize);
+	solution = fMultiply(solution, fStepSize);
+	solution = fAdd(solution, fStepSize);
 
-    return solution;
+	return solution;
 }
 

@@ -1150,7 +1150,7 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	}
 
 	if (radeon_vm_size < 1) {
-		dev_warn(rdev->dev, "VM size (%d) to small, min is 1GB\n",
+		dev_warn(rdev->dev, "VM size (%d) too small, min is 1GB\n",
 			 radeon_vm_size);
 		radeon_vm_size = 4;
 	}

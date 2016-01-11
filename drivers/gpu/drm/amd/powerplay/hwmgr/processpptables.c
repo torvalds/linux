@@ -735,8 +735,8 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 
 	ps->memory.dllOff = (0 != tmp);
 
-	ps->memory.m3arb = (uint8_t)(le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
-						ATOM_PPLIB_M3ARB_MASK) >> ATOM_PPLIB_M3ARB_SHIFT;
+	ps->memory.m3arb = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+			    ATOM_PPLIB_M3ARB_MASK) >> ATOM_PPLIB_M3ARB_SHIFT;
 
 	ps->temperatures.min = PP_TEMPERATURE_UNITS_PER_CENTIGRADES *
 				     pnon_clock_info->ucMinTemperature;
@@ -1322,10 +1322,16 @@ static int get_cac_leakage_table(struct pp_hwmgr *hwmgr,
 	struct phm_cac_leakage_table  *cac_leakage_table;
 	unsigned long            table_size, i;
 
+	if (hwmgr == NULL || table == NULL || ptable == NULL)
+		return -EINVAL;
+
 	table_size = sizeof(ULONG) +
 		(sizeof(struct phm_cac_leakage_table) * table->ucNumEntries);
 
 	cac_leakage_table = kzalloc(table_size, GFP_KERNEL);
+
+	if (cac_leakage_table == NULL)
+		return -ENOMEM;
 
 	cac_leakage_table->count = (ULONG)table->ucNumEntries;
 
@@ -1349,7 +1355,7 @@ static int get_cac_leakage_table(struct pp_hwmgr *hwmgr,
 static int get_platform_power_management_table(struct pp_hwmgr *hwmgr,
 			ATOM_PPLIB_PPM_Table *atom_ppm_table)
 {
-	struct phm_ppm_table *ptr = kzalloc(sizeof(ATOM_PPLIB_PPM_Table), GFP_KERNEL);
+	struct phm_ppm_table *ptr = kzalloc(sizeof(struct phm_ppm_table), GFP_KERNEL);
 
 	if (NULL == ptr)
 		return -ENOMEM;
@@ -1465,6 +1471,9 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 				ptable->ucNumEntries);
 
 			table = kzalloc(size, GFP_KERNEL);
+
+			if (table == NULL)
+				return -ENOMEM;
 
 			table->count = (unsigned long)ptable->ucNumEntries;
 

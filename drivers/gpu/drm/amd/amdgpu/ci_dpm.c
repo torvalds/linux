@@ -1395,7 +1395,6 @@ static void ci_thermal_stop_thermal_controller(struct amdgpu_device *adev)
 		ci_fan_ctrl_set_default_mode(adev);
 }
 
-#if 0
 static int ci_read_smc_soft_register(struct amdgpu_device *adev,
 				     u16 reg_offset, u32 *value)
 {
@@ -1405,7 +1404,6 @@ static int ci_read_smc_soft_register(struct amdgpu_device *adev,
 				      pi->soft_regs_start + reg_offset,
 				      value, pi->sram_end);
 }
-#endif
 
 static int ci_write_smc_soft_register(struct amdgpu_device *adev,
 				      u16 reg_offset, u32 value)
@@ -6084,11 +6082,23 @@ ci_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 	struct amdgpu_ps *rps = &pi->current_rps;
 	u32 sclk = ci_get_average_sclk_freq(adev);
 	u32 mclk = ci_get_average_mclk_freq(adev);
+	u32 activity_percent = 50;
+	int ret;
+
+	ret = ci_read_smc_soft_register(adev, offsetof(SMU7_SoftRegisters, AverageGraphicsA),
+					&activity_percent);
+
+	if (ret == 0) {
+		activity_percent += 0x80;
+		activity_percent >>= 8;
+		activity_percent = activity_percent > 100 ? 100 : activity_percent;
+	}
 
 	seq_printf(m, "uvd %sabled\n", pi->uvd_enabled ? "en" : "dis");
 	seq_printf(m, "vce %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
+	seq_printf(m, "GPU load: %u %%\n", activity_percent);
 }
 
 static void ci_dpm_print_power_state(struct amdgpu_device *adev,

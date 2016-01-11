@@ -66,7 +66,7 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 		temp_storage = kzalloc(rt_table->storage_size, GFP_KERNEL);
 		if (temp_storage == NULL) {
 			printk(KERN_ERR "[ powerplay ] Could not allocate table temporary storage\n");
-			return -1;
+			return -ENOMEM;
 		}
 	}
 
@@ -90,7 +90,7 @@ int phm_construct_table(struct pp_hwmgr *hwmgr,
 
 	if (hwmgr == NULL || master_table == NULL || rt_table == NULL) {
 		printk(KERN_ERR "[ powerplay ] Invalid Parameter!\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	for (table_item = master_table->master_list;
@@ -102,8 +102,9 @@ int phm_construct_table(struct pp_hwmgr *hwmgr,
 
 	size = (function_count + 1) * sizeof(phm_table_function);
 	run_time_list = kzalloc(size, GFP_KERNEL);
+
 	if (NULL == run_time_list)
-		return -1;
+		return -ENOMEM;
 
 	rtf = run_time_list;
 	for (table_item = master_table->master_list;
@@ -111,7 +112,7 @@ int phm_construct_table(struct pp_hwmgr *hwmgr,
 		if ((rtf - run_time_list) > function_count) {
 			printk(KERN_ERR "[ powerplay ] Check function results have changed\n");
 			kfree(run_time_list);
-			return -1;
+			return -EINVAL;
 		}
 
 		if ((NULL == table_item->isFunctionNeededInRuntimeTable) ||
@@ -123,7 +124,7 @@ int phm_construct_table(struct pp_hwmgr *hwmgr,
 	if ((rtf - run_time_list) > function_count) {
 		printk(KERN_ERR "[ powerplay ] Check function results have changed\n");
 		kfree(run_time_list);
-		return -1;
+		return -EINVAL;
 	}
 
 	*rtf = NULL;
@@ -138,7 +139,7 @@ int phm_destroy_table(struct pp_hwmgr *hwmgr,
 {
 	if (hwmgr == NULL || rt_table == NULL) {
 		printk(KERN_ERR "[ powerplay ] Invalid Parameter\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (NULL == rt_table->function_list)

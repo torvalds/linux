@@ -579,7 +579,7 @@ static int cz_tf_init_sclk_limit(struct pp_hwmgr *hwmgr, void *input,
 					hwmgr->dyn_state.vddc_dependency_on_sclk;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
@@ -606,7 +606,7 @@ static int cz_tf_init_uvd_limit(struct pp_hwmgr *hwmgr, void *input,
 				hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->uvd_dpm.soft_min_clk = 0;
@@ -634,7 +634,7 @@ static int cz_tf_init_vce_limit(struct pp_hwmgr *hwmgr, void *input,
 				hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->vce_dpm.soft_min_clk = 0;
@@ -662,7 +662,7 @@ static int cz_tf_init_acp_limit(struct pp_hwmgr *hwmgr, void *input,
 				hwmgr->dyn_state.acp_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->acp_dpm.soft_min_clk = 0;
@@ -925,6 +925,54 @@ static struct phm_master_table_header cz_setup_asic_master = {
 	cz_setup_asic_list
 };
 
+static int cz_tf_power_up_display_clock_sys_pll(struct pp_hwmgr *hwmgr,
+					void *input, void *output,
+					void *storage, int result)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	hw_data->disp_clk_bypass_pending = false;
+	hw_data->disp_clk_bypass = false;
+
+	return 0;
+}
+
+static int cz_tf_clear_nb_dpm_flag(struct pp_hwmgr *hwmgr,
+					void *input, void *output,
+					void *storage, int result)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	hw_data->is_nb_dpm_enabled = false;
+
+	return 0;
+}
+
+static int cz_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
+					void *input, void *output,
+					void *storage, int result)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+
+	hw_data->cc6_settings.cc6_setting_changed = false;
+	hw_data->cc6_settings.cpu_pstate_separation_time = 0;
+	hw_data->cc6_settings.cpu_cc6_disable = false;
+	hw_data->cc6_settings.cpu_pstate_disable = false;
+
+	return 0;
+}
+
+static struct phm_master_table_item cz_power_down_asic_list[] = {
+	{NULL, cz_tf_power_up_display_clock_sys_pll},
+	{NULL, cz_tf_clear_nb_dpm_flag},
+	{NULL, cz_tf_reset_cc6_data},
+	{NULL, NULL}
+};
+
+static struct phm_master_table_header cz_power_down_asic_master = {
+	0,
+	PHM_MasterTableFlag_None,
+	cz_power_down_asic_list
+};
+
 static int cz_tf_program_voting_clients(struct pp_hwmgr *hwmgr, void *input,
 				void *output, void *storage, int result)
 {
@@ -1126,6 +1174,13 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		return result;
 	}
 
+	result = phm_construct_table(hwmgr, &cz_power_down_asic_master,
+				&(hwmgr->power_down_asic));
+	if (result != 0) {
+		printk(KERN_ERR "[ powerplay ] Fail to construct power down ASIC\n");
+		return result;
+	}
+
 	result = phm_construct_table(hwmgr, &cz_disable_dpm_master,
 				&(hwmgr->disable_dynamic_state_management));
 	if (result != 0) {
@@ -1183,7 +1238,7 @@ int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 				hwmgr->dyn_state.vddc_dependency_on_sclk;
 	unsigned long clock = 0, level;
 
-	if (NULL == table && table->count <= 0)
+	if (NULL == table || table->count <= 0)
 		return -EINVAL;
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
@@ -1494,7 +1549,7 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 	uint32_t vce_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
 					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_VCE_INDEX);
 
-	uint32_t sclk, vclk, dclk, ecclk, tmp, active_percent;
+	uint32_t sclk, vclk, dclk, ecclk, tmp, activity_percent;
 	uint16_t vddnb, vddgfx;
 	int result;
 
@@ -1536,13 +1591,13 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 
 	result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
 	if (0 == result) {
-		active_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
-		active_percent = active_percent > 100 ? 100 : active_percent;
+		activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
+		activity_percent = activity_percent > 100 ? 100 : activity_percent;
 	} else {
-		active_percent = 50;
+		activity_percent = 50;
 	}
 
-	seq_printf(m, "\n [GPU load]: %u %%\n\n", active_percent);
+	seq_printf(m, "\n [GPU load]: %u %%\n\n", activity_percent);
 }
 
 static void cz_hw_print_display_cfg(

@@ -810,7 +810,7 @@ int tonga_smum_init(struct pp_smumgr *smumgr)
 	tonga_smu = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
 
 	if (tonga_smu == NULL)
-		return -1;
+		return -ENOMEM;
 
 	smumgr->backend = tonga_smu;
 	smumgr->smumgr_funcs = &tonga_smu_funcs;

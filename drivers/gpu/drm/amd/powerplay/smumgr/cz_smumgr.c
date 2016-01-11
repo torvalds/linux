@@ -818,7 +818,7 @@ static int cz_smu_fini(struct pp_smumgr *smumgr)
 		return -EINVAL;
 
 	cz_smu = (struct cz_smumgr *)smumgr->backend;
-	if (!cz_smu) {
+	if (cz_smu) {
 		cgs_free_gpu_mem(smumgr->device,
 				cz_smu->toc_buffer.handle);
 		cgs_free_gpu_mem(smumgr->device,

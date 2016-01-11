@@ -314,14 +314,11 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 {
 	u32 tmp;
-	unsigned ret;
 
 	/* Fiji, Stoney are single pipe */
 	if ((adev->asic_type == CHIP_FIJI) ||
-	    (adev->asic_type == CHIP_STONEY)){
-		ret = AMDGPU_VCE_HARVEST_VCE1;
-		return ret;
-	}
+	    (adev->asic_type == CHIP_STONEY))
+		return AMDGPU_VCE_HARVEST_VCE1;
 
 	/* Tonga and CZ are dual or single pipe */
 	if (adev->flags & AMD_IS_APU)
@@ -335,19 +332,14 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 
 	switch (tmp) {
 	case 1:
-		ret = AMDGPU_VCE_HARVEST_VCE0;
-		break;
+		return AMDGPU_VCE_HARVEST_VCE0;
 	case 2:
-		ret = AMDGPU_VCE_HARVEST_VCE1;
-		break;
+		return AMDGPU_VCE_HARVEST_VCE1;
 	case 3:
-		ret = AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
-		break;
+		return AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
 	default:
-		ret = 0;
+		return 0;
 	}
-
-	return ret;
 }
 
 static int vce_v3_0_early_init(void *handle)
@@ -422,28 +414,22 @@ static int vce_v3_0_sw_fini(void *handle)
 
 static int vce_v3_0_hw_init(void *handle)
 {
-	struct amdgpu_ring *ring;
-	int r;
+	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = vce_v3_0_start(adev);
 	if (r)
 		return r;
 
-	ring = &adev->vce.ring[0];
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
-		return r;
-	}
+	adev->vce.ring[0].ready = false;
+	adev->vce.ring[1].ready = false;
 
-	ring = &adev->vce.ring[1];
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
-		return r;
+	for (i = 0; i < 2; i++) {
+		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		if (r)
+			return r;
+		else
+			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -543,17 +529,9 @@ static bool vce_v3_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 mask = 0;
-	int idx;
 
-	for (idx = 0; idx < 2; ++idx) {
-		if (adev->vce.harvest_config & (1 << idx))
-			continue;
-
-		if (idx == 0)
-			mask |= SRBM_STATUS2__VCE0_BUSY_MASK;
-		else
-			mask |= SRBM_STATUS2__VCE1_BUSY_MASK;
-	}
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE0) ? 0 : SRBM_STATUS2__VCE0_BUSY_MASK;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE1) ? 0 : SRBM_STATUS2__VCE1_BUSY_MASK;
 
 	return !(RREG32(mmSRBM_STATUS2) & mask);
 }
@@ -562,23 +540,11 @@ static int vce_v3_0_wait_for_idle(void *handle)
 {
 	unsigned i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 mask = 0;
-	int idx;
 
-	for (idx = 0; idx < 2; ++idx) {
-		if (adev->vce.harvest_config & (1 << idx))
-			continue;
-
-		if (idx == 0)
-			mask |= SRBM_STATUS2__VCE0_BUSY_MASK;
-		else
-			mask |= SRBM_STATUS2__VCE1_BUSY_MASK;
-	}
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!(RREG32(mmSRBM_STATUS2) & mask))
+	for (i = 0; i < adev->usec_timeout; i++)
+		if (vce_v3_0_is_idle(handle))
 			return 0;
-	}
+
 	return -ETIMEDOUT;
 }
 
@@ -586,17 +552,10 @@ static int vce_v3_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 mask = 0;
-	int idx;
 
-	for (idx = 0; idx < 2; ++idx) {
-		if (adev->vce.harvest_config & (1 << idx))
-			continue;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE0) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE1) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
 
-		if (idx == 0)
-			mask |= SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
-		else
-			mask |= SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
-	}
 	WREG32_P(mmSRBM_SOFT_RESET, mask,
 		 ~(SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK |
 		   SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK));
@@ -698,10 +657,8 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 
 	switch (entry->src_data) {
 	case 0:
-		amdgpu_fence_process(&adev->vce.ring[0]);
-		break;
 	case 1:
-		amdgpu_fence_process(&adev->vce.ring[1]);
+		amdgpu_fence_process(&adev->vce.ring[entry->src_data]);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",

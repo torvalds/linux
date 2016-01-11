@@ -325,7 +325,8 @@ struct pp_hwmgr_func {
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
 	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_dal_clock_info*info);
+				   struct amd_pp_dal_clock_info *info);
+	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -576,9 +577,10 @@ struct pp_hwmgr {
 	void *pptable;
 	struct phm_platform_descriptor platform_descriptor;
 	void *backend;
-	enum PP_DAL_POWERLEVEL	dal_power_level;
+	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;
 	struct phm_runtime_table_header setup_asic;
+	struct phm_runtime_table_header power_down_asic;
 	struct phm_runtime_table_header disable_dynamic_state_management;
 	struct phm_runtime_table_header enable_dynamic_state_management;
 	struct phm_runtime_table_header set_power_state;

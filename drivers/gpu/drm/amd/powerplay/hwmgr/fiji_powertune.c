@@ -93,9 +93,9 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
  */
 static uint16_t scale_fan_gain_settings(uint16_t raw_setting)
 {
-    uint32_t tmp;
-    tmp = raw_setting * 4096 / 100;
-    return (uint16_t)tmp;
+	uint32_t tmp;
+	tmp = raw_setting * 4096 / 100;
+	return (uint16_t)tmp;
 }
 
 static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t* sda)
@@ -546,8 +546,8 @@ int fiji_power_control_set_level(struct pp_hwmgr *hwmgr)
 		 * but message to be 8 bit fraction for messages
 		 */
 		target_tdp = ((100 + adjust_percent) * (int)(cac_table->usTDP * 256)) / 100;
-        result = fiji_set_overdriver_target_tdp(hwmgr, (uint32_t)target_tdp);
-    }
+		result = fiji_set_overdriver_target_tdp(hwmgr, (uint32_t)target_tdp);
+	}
 
-    return result;
+	return result;
 }

@@ -914,7 +914,7 @@ static int fiji_trim_voltage_table(struct pp_hwmgr *hwmgr,
 			GFP_KERNEL);
 
 	if (NULL == table)
-		return -EINVAL;
+		return -ENOMEM;
 
 	table->mask_low = vol_table->mask_low;
 	table->phase_delay = vol_table->phase_delay;
@@ -941,8 +941,9 @@ static int fiji_trim_voltage_table(struct pp_hwmgr *hwmgr,
 	memcpy(vol_table, table, sizeof(struct pp_atomctrl_voltage_table));
 	kfree(table);
 
-    return 0;
+	return 0;
 }
+
 static int fiji_get_svi2_mvdd_voltage_table(struct pp_hwmgr *hwmgr,
 		phm_ppt_v1_clock_voltage_dependency_table *dep_table)
 {
@@ -1112,7 +1113,7 @@ static int fiji_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 			fiji_trim_voltage_table_to_fit_state_table(hwmgr,
 					SMU73_MAX_LEVELS_MVDD, &(data->mvdd_voltage_table)));
 
-    return 0;
+	return 0;
 }
 
 static int fiji_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
@@ -1158,7 +1159,7 @@ static int fiji_program_static_screen_threshold_parameters(
 			CG_STATIC_SCREEN_PARAMETER, STATIC_SCREEN_THRESHOLD,
 			data->static_screen_threshold);
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -1295,7 +1296,7 @@ static int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-    return error ? -1 : 0;
+	return error ? -1 : 0;
 }
 
 /* Copy one arb setting to another and then switch the active set.
@@ -1339,12 +1340,12 @@ static int fiji_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 	}
 
-    mc_cg_config = cgs_read_register(hwmgr->device, mmMC_CG_CONFIG);
-    mc_cg_config |= 0x0000000F;
-    cgs_write_register(hwmgr->device, mmMC_CG_CONFIG, mc_cg_config);
-    PHM_WRITE_FIELD(hwmgr->device, MC_ARB_CG, CG_ARB_REQ, arb_dest);
+	mc_cg_config = cgs_read_register(hwmgr->device, mmMC_CG_CONFIG);
+	mc_cg_config |= 0x0000000F;
+	cgs_write_register(hwmgr->device, mmMC_CG_CONFIG, mc_cg_config);
+	PHM_WRITE_FIELD(hwmgr->device, MC_ARB_CG, CG_ARB_REQ, arb_dest);
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -1927,17 +1928,17 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 
 	threshold = clock * data->fast_watermark_threshold / 100;
 
-    /*
-     * TODO: get minimum clocks from dal configaration
-     * PECI_GetMinClockSettings(hwmgr->pPECI, &minClocks);
-     */
-    /* data->DisplayTiming.minClockInSR = minClocks.engineClockInSR; */
+	/*
+	* TODO: get minimum clocks from dal configaration
+	* PECI_GetMinClockSettings(hwmgr->pPECI, &minClocks);
+	*/
+	/* data->DisplayTiming.minClockInSR = minClocks.engineClockInSR; */
 
-    /* get level->DeepSleepDivId
-    if (phm_cap_enabled(hwmgr->platformDescriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
-    {
-        level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
-    } */
+	/* get level->DeepSleepDivId
+	if (phm_cap_enabled(hwmgr->platformDescriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
+	{
+	level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
+	} */
 
 	/* Default to slow, highest DPM level will be
 	 * set to PPSMC_DISPLAY_WATERMARK_LOW later.
@@ -2756,7 +2757,7 @@ static int fiji_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 			SclkFrequency) / 100);
 	if (fiji_clock_stretcher_lookup_table[stretch_amount2][0] <
 			clock_freq_u16 &&
-        fiji_clock_stretcher_lookup_table[stretch_amount2][1] >
+	    fiji_clock_stretcher_lookup_table[stretch_amount2][1] >
 			clock_freq_u16) {
 		/* Program PWR_CKS_CNTL. CKS_USE_FOR_LOW_FREQ */
 		value |= (fiji_clock_stretcher_lookup_table[stretch_amount2][3]) << 16;
@@ -3172,9 +3173,9 @@ static int fiji_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	/* enable SCLK dpm */
 	if(!data->sclk_dpm_key_disabled)
 		PP_ASSERT_WITH_CODE(
-            (0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DPM_Enable)),
-            "Failed to enable SCLK DPM during DPM Start Function!",
-            return -1);
+		(0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DPM_Enable)),
+		"Failed to enable SCLK DPM during DPM Start Function!",
+		return -1);
 
 	/* enable MCLK dpm */
 	if(0 == data->mclk_dpm_key_disabled) {
@@ -3320,7 +3321,7 @@ static int fiji_start_dpm(struct pp_hwmgr *hwmgr)
 				return -1);
 	}
 
-    return 0;
+	return 0;
 }
 
 static void fiji_set_dpm_event_sources(struct pp_hwmgr *hwmgr,
@@ -3378,7 +3379,7 @@ static int fiji_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
 
 static int fiji_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
 {
-    return fiji_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+	return fiji_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
 }
 
 static int fiji_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
@@ -4865,7 +4866,9 @@ static int fiji_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 static void fiji_print_current_perforce_level(
 		struct pp_hwmgr *hwmgr, struct seq_file *m)
 {
-	uint32_t sclk, mclk;
+	uint32_t sclk, mclk, activity_percent = 0;
+	uint32_t offset;
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 
 	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
 
@@ -4876,6 +4879,13 @@ static void fiji_print_current_perforce_level(
 	mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
 	seq_printf(m, "\n [  mclk  ]: %u MHz\n\n [  sclk  ]: %u MHz\n",
 			mclk / 100, sclk / 100);
+
+	offset = data->soft_regs_start + offsetof(SMU73_SoftRegisters, AverageGraphicsActivity);
+	activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
+	activity_percent += 0x80;
+	activity_percent >>= 8;
+
+	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
 }
 
 static int fiji_program_display_gap(struct pp_hwmgr *hwmgr)

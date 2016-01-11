@@ -30,6 +30,12 @@
 #include "power_state.h"
 #include "eventmanager.h"
 
+#define PP_CHECK(handle)						\
+	do {								\
+		if ((handle) == NULL || (handle)->pp_valid != PP_VALID)	\
+			return -EINVAL;					\
+	} while (0)
+
 static int pp_early_init(void *handle)
 {
 	return 0;
@@ -197,13 +203,29 @@ static int pp_resume(void *handle)
 	struct pp_instance *pp_handle;
 	struct pp_eventmgr *eventmgr;
 	struct pem_event_data event_data = { {0} };
+	struct pp_smumgr *smumgr;
+	int ret;
 
 	if (handle == NULL)
 		return -EINVAL;
 
 	pp_handle = (struct pp_instance *)handle;
+	smumgr = pp_handle->smu_mgr;
+
+	if (smumgr == NULL || smumgr->smumgr_funcs == NULL ||
+		smumgr->smumgr_funcs->start_smu == NULL)
+		return -EINVAL;
+
+	ret = smumgr->smumgr_funcs->start_smu(smumgr);
+	if (ret) {
+		printk(KERN_ERR "[ powerplay ] smc start failed\n");
+		smumgr->smumgr_funcs->smu_fini(smumgr);
+		return ret;
+	}
+
 	eventmgr = pp_handle->eventmgr;
 	pem_handle_event(eventmgr, AMD_PP_EVENT_RESUME, &event_data);
+
 	return 0;
 }
 
@@ -537,6 +559,8 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (handle == NULL)
 		return -ENOMEM;
 
+	handle->pp_valid = PP_VALID;
+
 	ret = smum_init(pp_init, handle);
 	if (ret)
 		goto fail_smum;
@@ -611,12 +635,12 @@ int amd_powerplay_display_configuration_change(void *handle, const void *input)
 	struct pp_hwmgr  *hwmgr;
 	const struct amd_pp_display_configuration *display_config = input;
 
-	if (handle == NULL)
-		return -EINVAL;
+	PP_CHECK((struct pp_instance *)handle);
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
 	phm_store_dal_configuration_data(hwmgr, display_config);
+
 	return 0;
 }
 
@@ -625,7 +649,9 @@ int amd_powerplay_get_display_power_level(void *handle,
 {
 	struct pp_hwmgr  *hwmgr;
 
-	if (handle == NULL || output == NULL)
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (output == NULL)
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;

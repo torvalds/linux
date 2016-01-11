@@ -807,7 +807,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 				struct amdgpu_ring *ring = adev->rings[i];
 				if (ring && ring->ready)
 					amdgpu_fence_wait_empty(ring);
-				}
+			}
 		mutex_unlock(&adev->ring_lock);
 
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE, NULL, NULL);
