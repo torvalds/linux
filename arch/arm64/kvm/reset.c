@@ -77,6 +77,9 @@ int kvm_arch_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_GUEST_DEBUG_HW_WPS:
 		r = get_num_wrps();
 		break;
+	case KVM_CAP_ARM_PMU_V3:
+		r = kvm_arm_support_pmu_v3();
+		break;
 	case KVM_CAP_SET_GUEST_DEBUG:
 		r = 1;
 		break;
