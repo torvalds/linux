@@ -310,7 +310,7 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_gpio);
 
-const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
+const char * const arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
 	"Tone Generator 1",
 	"Tone Generator 2",
@@ -418,7 +418,7 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 };
 EXPORT_SYMBOL_GPL(arizona_mixer_texts);
 
-int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
+unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x00,  /* None */
 	0x04,  /* Tone */
 	0x05,
@@ -555,12 +555,12 @@ const char *arizona_sample_rate_val_to_name(unsigned int rate_val)
 }
 EXPORT_SYMBOL_GPL(arizona_sample_rate_val_to_name);
 
-const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE] = {
+const char * const arizona_rate_text[ARIZONA_RATE_ENUM_SIZE] = {
 	"SYNCCLK rate", "8kHz", "16kHz", "ASYNCCLK rate",
 };
 EXPORT_SYMBOL_GPL(arizona_rate_text);
 
-const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE] = {
+const unsigned int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE] = {
 	0, 1, 2, 8,
 };
 EXPORT_SYMBOL_GPL(arizona_rate_val);
@@ -701,6 +701,100 @@ const struct soc_enum arizona_in_dmic_osr[] = {
 			arizona_in_dmic_osr_text),
 };
 EXPORT_SYMBOL_GPL(arizona_in_dmic_osr);
+
+static const char * const arizona_anc_input_src_text[] = {
+	"None", "IN1", "IN2", "IN3", "IN4",
+};
+
+static const char * const arizona_anc_channel_src_text[] = {
+	"None", "Left", "Right", "Combine",
+};
+
+const struct soc_enum arizona_anc_input_src[] = {
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCL_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCL_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCR_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCR_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
+};
+EXPORT_SYMBOL_GPL(arizona_anc_input_src);
+
+static const char * const arizona_anc_ng_texts[] = {
+	"None",
+	"Internal",
+	"External",
+};
+
+SOC_ENUM_SINGLE_DECL(arizona_anc_ng_enum, SND_SOC_NOPM, 0,
+		     arizona_anc_ng_texts);
+EXPORT_SYMBOL_GPL(arizona_anc_ng_enum);
+
+static const char * const arizona_output_anc_src_text[] = {
+	"None", "RXANCL", "RXANCR",
+};
+
+const struct soc_enum arizona_output_anc_src[] = {
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_1L,
+			ARIZONA_OUT1L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_1R,
+			ARIZONA_OUT1R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_2L,
+			ARIZONA_OUT2L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_2R,
+			ARIZONA_OUT2R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_3L,
+			ARIZONA_OUT3L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_DAC_VOLUME_LIMIT_3R,
+			ARIZONA_OUT3R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_4L,
+			ARIZONA_OUT4L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_4R,
+			ARIZONA_OUT4R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_5L,
+			ARIZONA_OUT5L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_5R,
+			ARIZONA_OUT5R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_6L,
+			ARIZONA_OUT6L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_6R,
+			ARIZONA_OUT6R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+};
+EXPORT_SYMBOL_GPL(arizona_output_anc_src);
 
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
@@ -1023,6 +1117,31 @@ void arizona_init_dvfs(struct arizona_priv *priv)
 }
 EXPORT_SYMBOL_GPL(arizona_init_dvfs);
 
+int arizona_anc_ev(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol,
+		   int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	unsigned int mask = 0x3 << w->shift;
+	unsigned int val;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		val = 1 << w->shift;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		val = 1 << (w->shift + 1);
+		break;
+	default:
+		return 0;
+	}
+
+	snd_soc_update_bits(codec, ARIZONA_CLOCK_CONTROL, mask, val);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_anc_ev);
+
 static unsigned int arizona_opclk_ref_48k_rates[] = {
 	6144000,
 	12288000,
@@ -1095,7 +1214,7 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	unsigned int reg;
 	unsigned int mask = ARIZONA_SYSCLK_FREQ_MASK | ARIZONA_SYSCLK_SRC_MASK;
 	unsigned int val = source << ARIZONA_SYSCLK_SRC_SHIFT;
-	unsigned int *clk;
+	int *clk;
 
 	switch (clk_id) {
 	case ARIZONA_CLK_SYSCLK:
@@ -1901,18 +2020,18 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	}
 
 	switch (fll->arizona->type) {
+	case WM5102:
+	case WM8997:
+		return init_ratio;
 	case WM5110:
 	case WM8280:
 		if (fll->arizona->rev < 3 || sync)
 			return init_ratio;
 		break;
-	case WM8998:
-	case WM1814:
+	default:
 		if (sync)
 			return init_ratio;
 		break;
-	default:
-		return init_ratio;
 	}
 
 	cfg->fratio = init_ratio - 1;
@@ -2093,9 +2212,9 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		/* Facilitate smooth refclk across the transition */
 		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
 					 ARIZONA_FLL1_GAIN_MASK, 0);
-		regmap_update_bits_async(fll->arizona->regmap, fll->base + 1,
-					 ARIZONA_FLL1_FREERUN,
-					 ARIZONA_FLL1_FREERUN);
+		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
+				   ARIZONA_FLL1_FREERUN, ARIZONA_FLL1_FREERUN);
+		udelay(32);
 	}
 
 	/*

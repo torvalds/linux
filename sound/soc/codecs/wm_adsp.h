@@ -15,6 +15,7 @@
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <sound/compress_driver.h>
 
 #include "wmfw.h"
 
@@ -29,6 +30,9 @@ struct wm_adsp_alg_region {
 	int type;
 	unsigned int base;
 };
+
+struct wm_adsp_compr;
+struct wm_adsp_compr_buf;
 
 struct wm_adsp {
 	const char *part;
@@ -45,8 +49,8 @@ struct wm_adsp {
 
 	struct list_head alg_regions;
 
-	int fw_id;
-	int fw_id_version;
+	unsigned int fw_id;
+	unsigned int fw_id_version;
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
@@ -59,9 +63,13 @@ struct wm_adsp {
 
 	struct work_struct boot_work;
 
+	struct wm_adsp_compr *compr;
+	struct wm_adsp_compr_buf *buffer;
+
+	struct mutex pwr_lock;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
-	struct mutex debugfs_lock;
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif
@@ -95,5 +103,14 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
+
+extern int wm_adsp_compr_open(struct wm_adsp *dsp,
+			      struct snd_compr_stream *stream);
+extern int wm_adsp_compr_free(struct snd_compr_stream *stream);
+extern int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+				    struct snd_compr_params *params);
+extern int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+				  struct snd_compr_caps *caps);
+extern int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
 
 #endif

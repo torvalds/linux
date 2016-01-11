@@ -968,9 +968,10 @@ static const struct snd_soc_dapm_route da7219_audio_map[] = {
 	{"Mixin PGA", NULL, "Mic PGA"},
 	{"ADC", NULL, "Mixin PGA"},
 
-	{"Sidetone Filter", NULL, "ADC"},
 	{"Mixer In", NULL, "Mixer In Supply"},
 	{"Mixer In", "Mic Switch", "ADC"},
+
+	{"Sidetone Filter", NULL, "Mixer In"},
 
 	{"Tone Generator", NULL, "TONE"},
 
@@ -1073,11 +1074,8 @@ static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	u32 freq_ref;
 	u64 frac_div;
 
-	/* Verify 32KHz, 2MHz - 54MHz MCLK provided, and set input divider */
-	if (da7219->mclk_rate == 32768) {
-		indiv_bits = DA7219_PLL_INDIV_2_5_MHZ;
-		indiv = DA7219_PLL_INDIV_2_5_MHZ_VAL;
-	} else if (da7219->mclk_rate < 2000000) {
+	/* Verify 2MHz - 54MHz MCLK provided, and set input divider */
+	if (da7219->mclk_rate < 2000000) {
 		dev_err(codec->dev, "PLL input clock %d below valid range\n",
 			da7219->mclk_rate);
 		return -EINVAL;
@@ -1117,9 +1115,6 @@ static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		break;
 	case DA7219_SYSCLK_PLL_SRM:
 		pll_ctrl |= DA7219_PLL_MODE_SRM;
-		break;
-	case DA7219_SYSCLK_PLL_32KHZ:
-		pll_ctrl |= DA7219_PLL_MODE_32KHZ;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid PLL config\n");
@@ -1306,7 +1301,7 @@ static int da7219_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	channels = params_channels(params);
-	if ((channels < 1) | (channels > DA7219_DAI_CH_NUM_MAX)) {
+	if ((channels < 1) || (channels > DA7219_DAI_CH_NUM_MAX)) {
 		dev_err(codec->dev,
 			"Invalid number of channels, only 1 to %d supported\n",
 			DA7219_DAI_CH_NUM_MAX);
@@ -1405,28 +1400,12 @@ static const struct of_device_id da7219_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, da7219_of_match);
 
-static enum da7219_ldo_lvl_sel da7219_of_ldo_lvl(struct snd_soc_codec *codec,
-						 u32 val)
-{
-	switch (val) {
-	case 1050:
-		return DA7219_LDO_LVL_SEL_1_05V;
-	case 1100:
-		return DA7219_LDO_LVL_SEL_1_10V;
-	case 1200:
-		return DA7219_LDO_LVL_SEL_1_20V;
-	case 1400:
-		return DA7219_LDO_LVL_SEL_1_40V;
-	default:
-		dev_warn(codec->dev, "Invalid LDO level");
-		return DA7219_LDO_LVL_SEL_1_05V;
-	}
-}
-
 static enum da7219_micbias_voltage
 	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
+	case 1600:
+		return DA7219_MICBIAS_1_6V;
 	case 1800:
 		return DA7219_MICBIAS_1_8V;
 	case 2000:
@@ -1468,9 +1447,6 @@ static struct da7219_pdata *da7219_of_to_pdata(struct snd_soc_codec *codec)
 	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
-
-	if (of_property_read_u32(np, "dlg,ldo-lvl", &of_val32) >= 0)
-		pdata->ldo_lvl_sel = da7219_of_ldo_lvl(codec, of_val32);
 
 	if (of_property_read_u32(np, "dlg,micbias-lvl", &of_val32) >= 0)
 		pdata->micbias_lvl = da7219_of_micbias_lvl(codec, of_val32);
@@ -1516,24 +1492,13 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK,
 					    DA7219_BIAS_EN_MASK);
-
-			/* Enable Internal Digital LDO */
-			snd_soc_update_bits(codec, DA7219_LDO_CTRL,
-					    DA7219_LDO_EN_MASK,
-					    DA7219_LDO_EN_MASK);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable if jack detection not active */
-		if (!da7219->aad->jack) {
-			/* Bypass Internal Digital LDO */
-			snd_soc_update_bits(codec, DA7219_LDO_CTRL,
-					    DA7219_LDO_EN_MASK, 0);
-
-			/* Master bias */
+		/* Only disable master bias if jack detection not active */
+		if (!da7219->aad->jack)
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
-		}
 
 		/* MCLK */
 		if (da7219->mclk)
@@ -1600,21 +1565,9 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 	if (pdata) {
 		u8 micbias_lvl = 0;
 
-		/* Internal LDO */
-		switch (pdata->ldo_lvl_sel) {
-		case DA7219_LDO_LVL_SEL_1_05V:
-		case DA7219_LDO_LVL_SEL_1_10V:
-		case DA7219_LDO_LVL_SEL_1_20V:
-		case DA7219_LDO_LVL_SEL_1_40V:
-			snd_soc_update_bits(codec, DA7219_LDO_CTRL,
-					    DA7219_LDO_LEVEL_SELECT_MASK,
-					    (pdata->ldo_lvl_sel <<
-					     DA7219_LDO_LEVEL_SELECT_SHIFT));
-			break;
-		}
-
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
+		case DA7219_MICBIAS_1_6V:
 		case DA7219_MICBIAS_1_8V:
 		case DA7219_MICBIAS_2_0V:
 		case DA7219_MICBIAS_2_2V:
@@ -1662,10 +1615,12 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	/* Check if MCLK provided */
 	da7219->mclk = devm_clk_get(codec->dev, "mclk");
 	if (IS_ERR(da7219->mclk)) {
-		if (PTR_ERR(da7219->mclk) != -ENOENT)
-			return PTR_ERR(da7219->mclk);
-		else
+		if (PTR_ERR(da7219->mclk) != -ENOENT) {
+			ret = PTR_ERR(da7219->mclk);
+			goto err_disable_reg;
+		} else {
 			da7219->mclk = NULL;
+		}
 	}
 
 	/* Default PC counter to free-running */
@@ -1693,7 +1648,16 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
 
 	/* Initialise AAD block */
-	return da7219_aad_init(codec);
+	ret = da7219_aad_init(codec);
+	if (ret)
+		goto err_disable_reg;
+
+	return 0;
+
+err_disable_reg:
+	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
+
+	return ret;
 }
 
 static int da7219_remove(struct snd_soc_codec *codec)
@@ -1776,7 +1740,7 @@ static struct reg_default da7219_reg_defaults[] = {
 	{ DA7219_DIG_ROUTING_DAC, 0x32 },
 	{ DA7219_DAI_OFFSET_LOWER, 0x00 },
 	{ DA7219_DAI_OFFSET_UPPER, 0x00 },
-	{ DA7219_REFERENCES, 0x00 },
+	{ DA7219_REFERENCES, 0x08 },
 	{ DA7219_MIXIN_L_SELECT, 0x00 },
 	{ DA7219_MIXIN_L_GAIN, 0x03 },
 	{ DA7219_ADC_L_GAIN, 0x6F },
@@ -1811,7 +1775,6 @@ static struct reg_default da7219_reg_defaults[] = {
 	{ DA7219_CHIP_ID1, 0x23 },
 	{ DA7219_CHIP_ID2, 0x93 },
 	{ DA7219_CHIP_REVISION, 0x00 },
-	{ DA7219_LDO_CTRL, 0x00 },
 	{ DA7219_IO_CTRL, 0x00 },
 	{ DA7219_GAIN_RAMP_CTRL, 0x00 },
 	{ DA7219_PC_COUNT, 0x02 },

@@ -960,9 +960,22 @@ static struct snd_soc_dai *snd_soc_find_dai(
 	return NULL;
 }
 
-static int soc_bind_dai_link(struct snd_soc_card *card, int num)
+static bool soc_is_dai_link_bound(struct snd_soc_card *card,
+		struct snd_soc_dai_link *dai_link)
 {
-	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
+	struct snd_soc_pcm_runtime *rtd;
+
+	list_for_each_entry(rtd, &card->rtd_list, list) {
+		if (rtd->dai_link == dai_link)
+			return true;
+	}
+
+	return false;
+}
+
+static int soc_bind_dai_link(struct snd_soc_card *card,
+	struct snd_soc_dai_link *dai_link)
+{
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
 	struct snd_soc_dai_link_component cpu_dai_component;
@@ -971,11 +984,17 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	const char *platform_name;
 	int i;
 
-	dev_dbg(card->dev, "ASoC: binding %s at idx %d\n", dai_link->name, num);
+	dev_dbg(card->dev, "ASoC: binding %s\n", dai_link->name);
 
 	rtd = soc_new_pcm_runtime(card, dai_link);
 	if (!rtd)
 		return -ENOMEM;
+
+	if (soc_is_dai_link_bound(card, dai_link)) {
+		dev_dbg(card->dev, "ASoC: dai link %s already bound\n",
+			dai_link->name);
+		return 0;
+	}
 
 	cpu_dai_component.name = dai_link->cpu_name;
 	cpu_dai_component.of_node = dai_link->cpu_of_node;
@@ -1120,6 +1139,7 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 {
 	int order;
 	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai_link *link, *_link;
 
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 			order++) {
@@ -1132,7 +1152,184 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 		list_for_each_entry(rtd, &card->rtd_list, list)
 			soc_remove_link_components(card, rtd, order);
 	}
+
+	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
+		if (link->dobj.type == SND_SOC_DOBJ_DAI_LINK)
+			dev_warn(card->dev, "Topology forgot to remove link %s?\n",
+				link->name);
+
+		list_del(&link->list);
+		card->num_dai_links--;
+	}
 }
+
+static int snd_soc_init_multicodec(struct snd_soc_card *card,
+				   struct snd_soc_dai_link *dai_link)
+{
+	/* Legacy codec/codec_dai link is a single entry in multicodec */
+	if (dai_link->codec_name || dai_link->codec_of_node ||
+	    dai_link->codec_dai_name) {
+		dai_link->num_codecs = 1;
+
+		dai_link->codecs = devm_kzalloc(card->dev,
+				sizeof(struct snd_soc_dai_link_component),
+				GFP_KERNEL);
+		if (!dai_link->codecs)
+			return -ENOMEM;
+
+		dai_link->codecs[0].name = dai_link->codec_name;
+		dai_link->codecs[0].of_node = dai_link->codec_of_node;
+		dai_link->codecs[0].dai_name = dai_link->codec_dai_name;
+	}
+
+	if (!dai_link->codecs) {
+		dev_err(card->dev, "ASoC: DAI link has no CODECs\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int soc_init_dai_link(struct snd_soc_card *card,
+				   struct snd_soc_dai_link *link)
+{
+	int i, ret;
+
+	ret = snd_soc_init_multicodec(card, link);
+	if (ret) {
+		dev_err(card->dev, "ASoC: failed to init multicodec\n");
+		return ret;
+	}
+
+	for (i = 0; i < link->num_codecs; i++) {
+		/*
+		 * Codec must be specified by 1 of name or OF node,
+		 * not both or neither.
+		 */
+		if (!!link->codecs[i].name ==
+		    !!link->codecs[i].of_node) {
+			dev_err(card->dev, "ASoC: Neither/both codec name/of_node are set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
+		/* Codec DAI name must be specified */
+		if (!link->codecs[i].dai_name) {
+			dev_err(card->dev, "ASoC: codec_dai_name not set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Platform may be specified by either name or OF node, but
+	 * can be left unspecified, and a dummy platform will be used.
+	 */
+	if (link->platform_name && link->platform_of_node) {
+		dev_err(card->dev,
+			"ASoC: Both platform name/of_node are set for %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
+	/*
+	 * CPU device may be specified by either name or OF node, but
+	 * can be left unspecified, and will be matched based on DAI
+	 * name alone..
+	 */
+	if (link->cpu_name && link->cpu_of_node) {
+		dev_err(card->dev,
+			"ASoC: Neither/both cpu name/of_node are set for %s\n",
+			link->name);
+		return -EINVAL;
+	}
+	/*
+	 * At least one of CPU DAI name or CPU device name/node must be
+	 * specified
+	 */
+	if (!link->cpu_dai_name &&
+	    !(link->cpu_name || link->cpu_of_node)) {
+		dev_err(card->dev,
+			"ASoC: Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * snd_soc_add_dai_link - Add a DAI link dynamically
+ * @card: The ASoC card to which the DAI link is added
+ * @dai_link: The new DAI link to add
+ *
+ * This function adds a DAI link to the ASoC card's link list.
+ *
+ * Note: Topology can use this API to add DAI links when probing the
+ * topology component. And machine drivers can still define static
+ * DAI links in dai_link array.
+ */
+int snd_soc_add_dai_link(struct snd_soc_card *card,
+		struct snd_soc_dai_link *dai_link)
+{
+	if (dai_link->dobj.type
+	    && dai_link->dobj.type != SND_SOC_DOBJ_DAI_LINK) {
+		dev_err(card->dev, "Invalid dai link type %d\n",
+			dai_link->dobj.type);
+		return -EINVAL;
+	}
+
+	lockdep_assert_held(&client_mutex);
+	/* Notify the machine driver for extra initialization
+	 * on the link created by topology.
+	 */
+	if (dai_link->dobj.type && card->add_dai_link)
+		card->add_dai_link(card, dai_link);
+
+	list_add_tail(&dai_link->list, &card->dai_link_list);
+	card->num_dai_links++;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
+
+/**
+ * snd_soc_remove_dai_link - Remove a DAI link from the list
+ * @card: The ASoC card that owns the link
+ * @dai_link: The DAI link to remove
+ *
+ * This function removes a DAI link from the ASoC card's link list.
+ *
+ * For DAI links previously added by topology, topology should
+ * remove them by using the dobj embedded in the link.
+ */
+void snd_soc_remove_dai_link(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_link)
+{
+	struct snd_soc_dai_link *link, *_link;
+
+	if (dai_link->dobj.type
+	    && dai_link->dobj.type != SND_SOC_DOBJ_DAI_LINK) {
+		dev_err(card->dev, "Invalid dai link type %d\n",
+			dai_link->dobj.type);
+		return;
+	}
+
+	lockdep_assert_held(&client_mutex);
+	/* Notify the machine driver for extra destruction
+	 * on the link created by topology.
+	 */
+	if (dai_link->dobj.type && card->remove_dai_link)
+		card->remove_dai_link(card, dai_link);
+
+	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
+		if (link == dai_link) {
+			list_del(&link->list);
+			card->num_dai_links--;
+			return;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
 static void soc_set_name_prefix(struct snd_soc_card *card,
 				struct snd_soc_component *component)
@@ -1339,35 +1536,35 @@ static int soc_link_dai_widgets(struct snd_soc_card *card,
 {
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dapm_widget *play_w, *capture_w;
+	struct snd_soc_dapm_widget *sink, *source;
 	int ret;
 
 	if (rtd->num_codecs > 1)
 		dev_warn(card->dev, "ASoC: Multiple codecs not supported yet\n");
 
 	/* link the DAI widgets */
-	play_w = codec_dai->playback_widget;
-	capture_w = cpu_dai->capture_widget;
-	if (play_w && capture_w) {
+	sink = codec_dai->playback_widget;
+	source = cpu_dai->capture_widget;
+	if (sink && source) {
 		ret = snd_soc_dapm_new_pcm(card, dai_link->params,
-					   dai_link->num_params, capture_w,
-					   play_w);
+					   dai_link->num_params,
+					   source, sink);
 		if (ret != 0) {
 			dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
-				play_w->name, capture_w->name, ret);
+				sink->name, source->name, ret);
 			return ret;
 		}
 	}
 
-	play_w = cpu_dai->playback_widget;
-	capture_w = codec_dai->capture_widget;
-	if (play_w && capture_w) {
+	sink = cpu_dai->playback_widget;
+	source = codec_dai->capture_widget;
+	if (sink && source) {
 		ret = snd_soc_dapm_new_pcm(card, dai_link->params,
-					   dai_link->num_params, capture_w,
-					   play_w);
+					   dai_link->num_params,
+					   source, sink);
 		if (ret != 0) {
 			dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
-				play_w->name, capture_w->name, ret);
+				sink->name, source->name, ret);
 			return ret;
 		}
 	}
@@ -1609,6 +1806,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec;
 	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai_link *dai_link;
 	int ret, i, order;
 
 	mutex_lock(&client_mutex);
@@ -1616,7 +1814,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	/* bind DAIs */
 	for (i = 0; i < card->num_links; i++) {
-		ret = soc_bind_dai_link(card, i);
+		ret = soc_bind_dai_link(card, &card->dai_link[i]);
 		if (ret != 0)
 			goto base_error;
 	}
@@ -1627,6 +1825,10 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		if (ret != 0)
 			goto base_error;
 	}
+
+	/* add predefined DAI links to the list */
+	for (i = 0; i < card->num_links; i++)
+		snd_soc_add_dai_link(card, card->dai_link+i);
 
 	/* initialize the register cache for each available codec */
 	list_for_each_entry(codec, &codec_list, list) {
@@ -1690,6 +1892,21 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 				goto probe_dai_err;
 			}
 		}
+	}
+
+	/* Find new DAI links added during probing components and bind them.
+	 * Components with topology may bring new DAIs and DAI links.
+	 */
+	list_for_each_entry(dai_link, &card->dai_link_list, list) {
+		if (soc_is_dai_link_bound(card, dai_link))
+			continue;
+
+		ret = soc_init_dai_link(card, dai_link);
+		if (ret)
+			goto probe_dai_err;
+		ret = soc_bind_dai_link(card, dai_link);
+		if (ret)
+			goto probe_dai_err;
 	}
 
 	/* probe all DAI links on this card */
@@ -2356,33 +2573,6 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
 
-static int snd_soc_init_multicodec(struct snd_soc_card *card,
-				   struct snd_soc_dai_link *dai_link)
-{
-	/* Legacy codec/codec_dai link is a single entry in multicodec */
-	if (dai_link->codec_name || dai_link->codec_of_node ||
-	    dai_link->codec_dai_name) {
-		dai_link->num_codecs = 1;
-
-		dai_link->codecs = devm_kzalloc(card->dev,
-				sizeof(struct snd_soc_dai_link_component),
-				GFP_KERNEL);
-		if (!dai_link->codecs)
-			return -ENOMEM;
-
-		dai_link->codecs[0].name = dai_link->codec_name;
-		dai_link->codecs[0].of_node = dai_link->codec_of_node;
-		dai_link->codecs[0].dai_name = dai_link->codec_dai_name;
-	}
-
-	if (!dai_link->codecs) {
-		dev_err(card->dev, "ASoC: DAI link has no CODECs\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /**
  * snd_soc_register_card - Register a card with the ASoC core
  *
@@ -2391,7 +2581,7 @@ static int snd_soc_init_multicodec(struct snd_soc_card *card,
  */
 int snd_soc_register_card(struct snd_soc_card *card)
 {
-	int i, j, ret;
+	int i, ret;
 	struct snd_soc_pcm_runtime *rtd;
 
 	if (!card->name || !card->dev)
@@ -2400,69 +2590,20 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai_link *link = &card->dai_link[i];
 
-		ret = snd_soc_init_multicodec(card, link);
+		ret = soc_init_dai_link(card, link);
 		if (ret) {
-			dev_err(card->dev, "ASoC: failed to init multicodec\n");
+			dev_err(card->dev, "ASoC: failed to init link %s\n",
+				link->name);
 			return ret;
-		}
-
-		for (j = 0; j < link->num_codecs; j++) {
-			/*
-			 * Codec must be specified by 1 of name or OF node,
-			 * not both or neither.
-			 */
-			if (!!link->codecs[j].name ==
-			    !!link->codecs[j].of_node) {
-				dev_err(card->dev, "ASoC: Neither/both codec name/of_node are set for %s\n",
-					link->name);
-				return -EINVAL;
-			}
-			/* Codec DAI name must be specified */
-			if (!link->codecs[j].dai_name) {
-				dev_err(card->dev, "ASoC: codec_dai_name not set for %s\n",
-					link->name);
-				return -EINVAL;
-			}
-		}
-
-		/*
-		 * Platform may be specified by either name or OF node, but
-		 * can be left unspecified, and a dummy platform will be used.
-		 */
-		if (link->platform_name && link->platform_of_node) {
-			dev_err(card->dev,
-				"ASoC: Both platform name/of_node are set for %s\n",
-				link->name);
-			return -EINVAL;
-		}
-
-		/*
-		 * CPU device may be specified by either name or OF node, but
-		 * can be left unspecified, and will be matched based on DAI
-		 * name alone..
-		 */
-		if (link->cpu_name && link->cpu_of_node) {
-			dev_err(card->dev,
-				"ASoC: Neither/both cpu name/of_node are set for %s\n",
-				link->name);
-			return -EINVAL;
-		}
-		/*
-		 * At least one of CPU DAI name or CPU device name/node must be
-		 * specified
-		 */
-		if (!link->cpu_dai_name &&
-		    !(link->cpu_name || link->cpu_of_node)) {
-			dev_err(card->dev,
-				"ASoC: Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
-				link->name);
-			return -EINVAL;
 		}
 	}
 
 	dev_set_drvdata(card->dev, card);
 
 	snd_soc_initialize_card_lists(card);
+
+	INIT_LIST_HEAD(&card->dai_link_list);
+	card->num_dai_links = 0;
 
 	INIT_LIST_HEAD(&card->rtd_list);
 	card->num_rtd = 0;
