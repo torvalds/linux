@@ -1686,17 +1686,13 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 		seq_printf(m, " tx:%d rx:%d",
 				uport->icount.tx, uport->icount.rx);
 		if (uport->icount.frame)
-			seq_printf(m, " fe:%d",
-				uport->icount.frame);
+			seq_printf(m, " fe:%d",	uport->icount.frame);
 		if (uport->icount.parity)
-			seq_printf(m, " pe:%d",
-				uport->icount.parity);
+			seq_printf(m, " pe:%d",	uport->icount.parity);
 		if (uport->icount.brk)
-			seq_printf(m, " brk:%d",
-				uport->icount.brk);
+			seq_printf(m, " brk:%d", uport->icount.brk);
 		if (uport->icount.overrun)
-			seq_printf(m, " oe:%d",
-				uport->icount.overrun);
+			seq_printf(m, " oe:%d", uport->icount.overrun);
 
 #define INFOBIT(bit, str) \
 	if (uport->mctrl & (bit)) \
@@ -1731,8 +1727,7 @@ static int uart_proc_show(struct seq_file *m, void *v)
 	struct uart_driver *drv = ttydrv->driver_state;
 	int i;
 
-	seq_printf(m, "serinfo:1.0 driver%s%s revision:%s\n",
-			"", "", "");
+	seq_printf(m, "serinfo:1.0 driver%s%s revision:%s\n", "", "", "");
 	for (i = 0; i < drv->nr; i++)
 		uart_line_info(m, drv, i);
 	return 0;
