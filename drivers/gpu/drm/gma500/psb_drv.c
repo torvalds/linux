@@ -442,14 +442,6 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	/* FIXME: do we need to wrap the other side of this */
 }
 
-/*
- * When a client dies:
- *    - Check for and clean up flipped page state
- */
-static void psb_driver_preclose(struct drm_device *dev, struct drm_file *priv)
-{
-}
-
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	return drm_get_pci_dev(pdev, ent, &driver);
@@ -495,7 +487,6 @@ static struct drm_driver driver = {
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 	.lastclose = psb_driver_lastclose,
-	.preclose = psb_driver_preclose,
 	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
