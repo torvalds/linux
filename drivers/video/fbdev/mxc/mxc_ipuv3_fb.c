@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -2313,16 +2313,19 @@ static int mxcfb_blank(int blank, struct fb_info *info)
 
 	dev_dbg(info->device, "blank = %d\n", blank);
 
+	if (blank)
+		blank = FB_BLANK_POWERDOWN;
+
 	if (mxc_fbi->cur_blank == blank)
 		return 0;
 
 	mxc_fbi->next_blank = blank;
 
-	switch (blank) {
-	case FB_BLANK_POWERDOWN:
-	case FB_BLANK_VSYNC_SUSPEND:
-	case FB_BLANK_HSYNC_SUSPEND:
-	case FB_BLANK_NORMAL:
+	if (blank == FB_BLANK_UNBLANK) {
+		info->var.activate = (info->var.activate & ~FB_ACTIVATE_MASK) |
+				FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+		ret = fb_set_var(info, &info->var);
+	} else {
 		if (mxc_fbi->dispdrv && mxc_fbi->dispdrv->drv->disable)
 			mxc_fbi->dispdrv->drv->disable(mxc_fbi->dispdrv, info);
 		ipu_disable_channel(mxc_fbi->ipu, mxc_fbi->ipu_ch, true);
@@ -2334,12 +2337,6 @@ static int mxcfb_blank(int blank, struct fb_info *info)
 			ipu_pre_disable(mxc_fbi->pre_num);
 			ipu_pre_free(&mxc_fbi->pre_num);
 		}
-		break;
-	case FB_BLANK_UNBLANK:
-		info->var.activate = (info->var.activate & ~FB_ACTIVATE_MASK) |
-				FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-		ret = fb_set_var(info, &info->var);
-		break;
 	}
 	if (!ret)
 		mxc_fbi->cur_blank = blank;
