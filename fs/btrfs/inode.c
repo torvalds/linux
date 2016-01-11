@@ -3550,10 +3550,10 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 	int scanned = 0;
 
 	if (!xattr_access) {
-		xattr_access = btrfs_name_hash(POSIX_ACL_XATTR_ACCESS,
-					strlen(POSIX_ACL_XATTR_ACCESS));
-		xattr_default = btrfs_name_hash(POSIX_ACL_XATTR_DEFAULT,
-					strlen(POSIX_ACL_XATTR_DEFAULT));
+		xattr_access = btrfs_name_hash(XATTR_NAME_POSIX_ACL_ACCESS,
+					strlen(XATTR_NAME_POSIX_ACL_ACCESS));
+		xattr_default = btrfs_name_hash(XATTR_NAME_POSIX_ACL_DEFAULT,
+					strlen(XATTR_NAME_POSIX_ACL_DEFAULT));
 	}
 
 	slot++;
@@ -9996,7 +9996,7 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 	.setattr	= btrfs_setattr,
 	.mknod		= btrfs_mknod,
 	.setxattr	= btrfs_setxattr,
-	.getxattr	= btrfs_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
@@ -10073,7 +10073,7 @@ static const struct inode_operations btrfs_file_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
 	.setxattr	= btrfs_setxattr,
-	.getxattr	= btrfs_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr      = btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
@@ -10087,7 +10087,7 @@ static const struct inode_operations btrfs_special_inode_operations = {
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
 	.setxattr	= btrfs_setxattr,
-	.getxattr	= btrfs_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.get_acl	= btrfs_get_acl,
@@ -10101,7 +10101,7 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
 	.setxattr	= btrfs_setxattr,
-	.getxattr	= btrfs_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.update_time	= btrfs_update_time,
