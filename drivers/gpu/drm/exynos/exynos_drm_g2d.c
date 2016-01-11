@@ -880,7 +880,6 @@ static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
 	struct g2d_runqueue_node *runqueue_node = g2d->runqueue_node;
 	struct drm_exynos_pending_g2d_event *e;
 	struct timeval now;
-	unsigned long flags;
 
 	if (list_empty(&runqueue_node->event_list))
 		return;
@@ -893,10 +892,7 @@ static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
 	e->event.tv_usec = now.tv_usec;
 	e->event.cmdlist_no = cmdlist_no;
 
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-	list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-	wake_up_interruptible(&e->base.file_priv->event_wait);
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	drm_send_event(drm_dev, &e->base);
 }
 
 static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
