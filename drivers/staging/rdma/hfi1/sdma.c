@@ -1061,18 +1061,18 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		sde->desc_avail = sdma_descq_freecnt(sde);
 		sde->sdma_shift = ilog2(descq_cnt);
 		sde->sdma_mask = (1 << sde->sdma_shift) - 1;
-		sde->descq_full_count = 0;
 
-		/* Create a mask for all 3 chip interrupt sources */
-		sde->imask = (u64)1 << (0*TXE_NUM_SDMA_ENGINES + this_idx)
-			| (u64)1 << (1*TXE_NUM_SDMA_ENGINES + this_idx)
-			| (u64)1 << (2*TXE_NUM_SDMA_ENGINES + this_idx);
-		/* Create a mask specifically for sdma_idle */
-		sde->idle_mask =
-			(u64)1 << (2*TXE_NUM_SDMA_ENGINES + this_idx);
-		/* Create a mask specifically for sdma_progress */
-		sde->progress_mask =
-			(u64)1 << (TXE_NUM_SDMA_ENGINES + this_idx);
+		/* Create a mask specifically for each interrupt source */
+		sde->int_mask = (u64)1 << (0 * TXE_NUM_SDMA_ENGINES +
+					   this_idx);
+		sde->progress_mask = (u64)1 << (1 * TXE_NUM_SDMA_ENGINES +
+						this_idx);
+		sde->idle_mask = (u64)1 << (2 * TXE_NUM_SDMA_ENGINES +
+					    this_idx);
+		/* Create a combined mask to cover all 3 interrupt sources */
+		sde->imask = sde->int_mask | sde->progress_mask |
+			     sde->idle_mask;
+
 		spin_lock_init(&sde->tail_lock);
 		seqlock_init(&sde->head_lock);
 		spin_lock_init(&sde->senddmactrl_lock);
@@ -1552,6 +1552,12 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status)
 	trace_hfi1_sdma_engine_interrupt(sde, status);
 	write_seqlock(&sde->head_lock);
 	sdma_set_desc_cnt(sde, sdma_desct_intr);
+	if (status & sde->idle_mask)
+		sde->idle_int_cnt++;
+	else if (status & sde->progress_mask)
+		sde->progress_int_cnt++;
+	else if (status & sde->int_mask)
+		sde->sdma_int_cnt++;
 	sdma_make_progress(sde, status);
 	write_sequnlock(&sde->head_lock);
 }

@@ -409,6 +409,7 @@ struct sdma_engine {
 	u64 imask;			/* clear interrupt mask */
 	u64 idle_mask;
 	u64 progress_mask;
+	u64 int_mask;
 	/* private: */
 	volatile __le64      *head_dma; /* DMA'ed by chip */
 	/* private: */
@@ -465,6 +466,12 @@ struct sdma_engine {
 	u16                   tx_head;
 	/* private: */
 	u64                   last_status;
+	/* private */
+	u64                     err_cnt;
+	/* private */
+	u64                     sdma_int_cnt;
+	u64                     idle_int_cnt;
+	u64                     progress_int_cnt;
 
 	/* private: */
 	struct list_head      dmawait;

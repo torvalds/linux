@@ -490,6 +490,7 @@ struct hfi1_sge_state;
 #define CNTR_DISABLED		0x2 /* Disable this counter */
 #define CNTR_32BIT		0x4 /* Simulate 64 bits for this counter */
 #define CNTR_VL			0x8 /* Per VL counter */
+#define CNTR_SDMA              0x10
 #define CNTR_INVALID_VL		-1  /* Specifies invalid VL */
 #define CNTR_MODE_W		0x0
 #define CNTR_MODE_R		0x1

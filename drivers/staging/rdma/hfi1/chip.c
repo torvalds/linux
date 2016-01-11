@@ -1297,10 +1297,58 @@ static u64 dev_access_u32_csr(const struct cntr_entry *entry,
 			    void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_devdata *dd = context;
+	u64 csr = entry->csr;
 
-	if (vl != CNTR_INVALID_VL)
-		return 0;
-	return read_write_csr(dd, entry->csr, mode, data);
+	if (entry->flags & CNTR_SDMA) {
+		if (vl == CNTR_INVALID_VL)
+			return 0;
+		csr += 0x100 * vl;
+	} else {
+		if (vl != CNTR_INVALID_VL)
+			return 0;
+	}
+	return read_write_csr(dd, csr, mode, data);
+}
+
+static u64 access_sde_err_cnt(const struct cntr_entry *entry,
+			      void *context, int idx, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	if (dd->per_sdma && idx < dd->num_sdma)
+		return dd->per_sdma[idx].err_cnt;
+	return 0;
+}
+
+static u64 access_sde_int_cnt(const struct cntr_entry *entry,
+			      void *context, int idx, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	if (dd->per_sdma && idx < dd->num_sdma)
+		return dd->per_sdma[idx].sdma_int_cnt;
+	return 0;
+}
+
+static u64 access_sde_idle_int_cnt(const struct cntr_entry *entry,
+				   void *context, int idx, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	if (dd->per_sdma && idx < dd->num_sdma)
+		return dd->per_sdma[idx].idle_int_cnt;
+	return 0;
+}
+
+static u64 access_sde_progress_int_cnt(const struct cntr_entry *entry,
+				       void *context, int idx, int mode,
+				       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	if (dd->per_sdma && idx < dd->num_sdma)
+		return dd->per_sdma[idx].progress_int_cnt;
+	return 0;
 }
 
 static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
@@ -4070,6 +4118,22 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			    access_sw_kmem_wait),
 [C_SW_SEND_SCHED] = CNTR_ELEM("SendSched", 0, 0, CNTR_NORMAL,
 			    access_sw_send_schedule),
+[C_SDMA_DESC_FETCHED_CNT] = CNTR_ELEM("SDEDscFdCn",
+				      SEND_DMA_DESC_FETCHED_CNT, 0,
+				      CNTR_NORMAL | CNTR_32BIT | CNTR_SDMA,
+				      dev_access_u32_csr),
+[C_SDMA_INT_CNT] = CNTR_ELEM("SDMAInt", 0, 0,
+			     CNTR_NORMAL | CNTR_32BIT | CNTR_SDMA,
+			     access_sde_int_cnt),
+[C_SDMA_ERR_CNT] = CNTR_ELEM("SDMAErrCt", 0, 0,
+			     CNTR_NORMAL | CNTR_32BIT | CNTR_SDMA,
+			     access_sde_err_cnt),
+[C_SDMA_IDLE_INT_CNT] = CNTR_ELEM("SDMAIdInt", 0, 0,
+				  CNTR_NORMAL | CNTR_32BIT | CNTR_SDMA,
+				  access_sde_idle_int_cnt),
+[C_SDMA_PROGRESS_INT_CNT] = CNTR_ELEM("SDMAPrIntCn", 0, 0,
+				      CNTR_NORMAL | CNTR_32BIT | CNTR_SDMA,
+				      access_sde_progress_int_cnt),
 /* MISC_ERR_STATUS */
 [C_MISC_PLL_LOCK_FAIL_ERR] = CNTR_ELEM("MISC_PLL_LOCK_FAIL_ERR", 0, 0,
 				CNTR_NORMAL,
@@ -5707,6 +5771,7 @@ static void handle_sdma_eng_err(struct hfi1_devdata *dd,
 	dd_dev_err(sde->dd, "CONFIG SDMA(%u) source: %u status 0x%llx\n",
 		   sde->this_idx, source, (unsigned long long)status);
 #endif
+	sde->err_cnt++;
 	sdma_engine_error(sde, status);
 
 	/*
@@ -11150,6 +11215,20 @@ u32 hfi1_read_cntrs(struct hfi1_devdata *dd, loff_t pos, char **namep,
 						dd->cntrs[entry->offset + j] =
 									    val;
 					}
+				} else if (entry->flags & CNTR_SDMA) {
+					hfi1_cdbg(CNTR,
+						  "\t Per SDMA Engine\n");
+					for (j = 0; j < dd->chip_sdma_engines;
+					     j++) {
+						val =
+						entry->rw_cntr(entry, dd, j,
+							       CNTR_MODE_R, 0);
+						hfi1_cdbg(CNTR,
+							  "\t\tRead 0x%llx for %d\n",
+							  val, j);
+						dd->cntrs[entry->offset + j] =
+									val;
+					}
 				} else {
 					val = entry->rw_cntr(entry, dd,
 							CNTR_INVALID_VL,
@@ -11553,6 +11632,21 @@ static int init_cntrs(struct hfi1_devdata *dd)
 				dd->ndevcntrs++;
 				index++;
 			}
+		} else if (dev_cntrs[i].flags & CNTR_SDMA) {
+			hfi1_dbg_early(
+				       "\tProcessing per SDE counters chip enginers %u\n",
+				       dd->chip_sdma_engines);
+			dev_cntrs[i].offset = index;
+			for (j = 0; j < dd->chip_sdma_engines; j++) {
+				memset(name, '\0', C_MAX_NAME);
+				snprintf(name, C_MAX_NAME, "%s%d",
+					 dev_cntrs[i].name, j);
+				sz += strlen(name);
+				sz++;
+				hfi1_dbg_early("\t\t%s\n", name);
+				dd->ndevcntrs++;
+				index++;
+			}
 		} else {
 			/* +1 for newline  */
 			sz += strlen(dev_cntrs[i].name) + 1;
@@ -11590,6 +11684,16 @@ static int init_cntrs(struct hfi1_devdata *dd)
 					snprintf(name, C_MAX_NAME, "%s%d",
 						dev_cntrs[i].name,
 						vl_from_idx(j));
+					memcpy(p, name, strlen(name));
+					p += strlen(name);
+					*p++ = '\n';
+				}
+			} else if (dev_cntrs[i].flags & CNTR_SDMA) {
+				for (j = 0; j < TXE_NUM_SDMA_ENGINES;
+				     j++) {
+					memset(name, '\0', C_MAX_NAME);
+					snprintf(name, C_MAX_NAME, "%s%d",
+						 dev_cntrs[i].name, j);
 					memcpy(p, name, strlen(name));
 					p += strlen(name);
 					*p++ = '\n';
