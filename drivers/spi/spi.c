@@ -84,8 +84,7 @@ static ssize_t spi_device_##field##_show(struct device *dev,		\
 					 struct device_attribute *attr,	\
 					char *buf)			\
 {									\
-	struct spi_device *spi = container_of(dev,			\
-					      struct spi_device, dev);	\
+	struct spi_device *spi = to_spi_device(dev);			\
 	return spi_statistics_##field##_show(&spi->statistics, buf);	\
 }									\
 static struct device_attribute dev_attr_spi_device_##field = {		\
