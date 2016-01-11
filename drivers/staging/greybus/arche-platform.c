@@ -61,9 +61,8 @@ static void unexport_gpios(struct arche_platform_drvdata *arche_pdata)
 static void arche_platform_cleanup(struct arche_platform_drvdata *arche_pdata)
 {
 	/* As part of exit, put APB back in reset state */
-	if (gpio_is_valid(arche_pdata->svc_reset_gpio))
-		svc_reset_onoff(arche_pdata->svc_reset_gpio,
-				arche_pdata->is_reset_act_hi);
+	svc_reset_onoff(arche_pdata->svc_reset_gpio,
+			arche_pdata->is_reset_act_hi);
 }
 
 static int arche_platform_probe(struct platform_device *pdev)
