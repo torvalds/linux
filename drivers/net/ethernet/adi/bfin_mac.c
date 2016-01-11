@@ -380,9 +380,8 @@ static void bfin_mac_adjust_link(struct net_device *dev)
 static int mii_probe(struct net_device *dev, int phy_mode)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
+	struct phy_device *phydev;
 	unsigned short sysctl;
-	int i;
 	u32 sclk, mdc_div;
 
 	/* Enable PHY output early */
@@ -396,19 +395,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 	sysctl = (sysctl & ~MDCDIV) | SET_MDCDIV(mdc_div);
 	bfin_write_EMAC_SYSCTL(sysctl);
 
-	/* search for connected PHY device */
-	for (i = 0; i < PHY_MAX_ADDR; ++i) {
-		struct phy_device *const tmp_phydev =
-			mdiobus_get_phy(lp->mii_bus, i);
-
-		if (!tmp_phydev)
-			continue; /* no PHY here... */
-
-		phydev = tmp_phydev;
-		break; /* found it */
-	}
-
-	/* now we are supposed to have a proper phydev, to attach to... */
+	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
 		netdev_err(dev, "no phy device found\n");
 		return -ENODEV;
