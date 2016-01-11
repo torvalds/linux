@@ -8726,7 +8726,13 @@ __perf_event_exit_task(struct perf_event *child_event,
 	 * Do destroy all inherited groups, we don't care about those
 	 * and being thorough is better.
 	 */
-	perf_remove_from_context(child_event, !!child_event->parent);
+	raw_spin_lock_irq(&child_ctx->lock);
+	WARN_ON_ONCE(child_ctx->is_active);
+
+	if (!!child_event->parent)
+		perf_group_detach(child_event);
+	list_del_event(child_event, child_ctx);
+	raw_spin_unlock_irq(&child_ctx->lock);
 
 	/*
 	 * It can happen that the parent exits first, and has events
@@ -8746,17 +8752,15 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 {
 	struct perf_event *child_event, *next;
 	struct perf_event_context *child_ctx, *clone_ctx = NULL;
-	unsigned long flags;
 
 	if (likely(!child->perf_event_ctxp[ctxn]))
 		return;
 
-	local_irq_save(flags);
+	local_irq_disable();
+	WARN_ON_ONCE(child != current);
 	/*
 	 * We can't reschedule here because interrupts are disabled,
-	 * and either child is current or it is a task that can't be
-	 * scheduled, so we are now safe from rescheduling changing
-	 * our context.
+	 * and child must be current.
 	 */
 	child_ctx = rcu_dereference_raw(child->perf_event_ctxp[ctxn]);
 
@@ -8776,7 +8780,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 */
 	clone_ctx = unclone_ctx(child_ctx);
 	update_context_time(child_ctx);
-	raw_spin_unlock_irqrestore(&child_ctx->lock, flags);
+	raw_spin_unlock_irq(&child_ctx->lock);
 
 	if (clone_ctx)
 		put_ctx(clone_ctx);
