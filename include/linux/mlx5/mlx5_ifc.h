@@ -185,6 +185,7 @@ enum {
 	MLX5_CMD_OP_MODIFY_RQT                    = 0x917,
 	MLX5_CMD_OP_DESTROY_RQT                   = 0x918,
 	MLX5_CMD_OP_QUERY_RQT                     = 0x919,
+	MLX5_CMD_OP_SET_FLOW_TABLE_ROOT		  = 0x92f,
 	MLX5_CMD_OP_CREATE_FLOW_TABLE             = 0x930,
 	MLX5_CMD_OP_DESTROY_FLOW_TABLE            = 0x931,
 	MLX5_CMD_OP_QUERY_FLOW_TABLE              = 0x932,
@@ -258,7 +259,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         ft_support[0x1];
 	u8         reserved_0[0x2];
 	u8	   flow_modify_en[0x1];
-	u8         reserved_1[0x1c];
+	u8         modify_root[0x1];
+	u8         reserved_1[0x1b];
 
 	u8         reserved_2[0x2];
 	u8         log_max_ft_size[0x6];
@@ -6944,6 +6946,33 @@ union mlx5_ifc_debug_enhancements_document_bits {
 union mlx5_ifc_uplink_pci_interface_document_bits {
 	struct mlx5_ifc_initial_seg_bits initial_seg;
 	u8         reserved_0[0x20060];
+};
+
+struct mlx5_ifc_set_flow_table_root_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_1[0x40];
+};
+
+struct mlx5_ifc_set_flow_table_root_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_2[0x40];
+
+	u8         table_type[0x8];
+	u8         reserved_3[0x18];
+
+	u8         reserved_4[0x8];
+	u8         table_id[0x18];
+
+	u8         reserved_5[0x140];
 };
 
 #endif /* MLX5_IFC_H */

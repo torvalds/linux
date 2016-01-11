@@ -129,6 +129,9 @@ struct mlx5_flow_root_namespace {
 	struct mlx5_flow_namespace	ns;
 	enum   fs_flow_table_type	table_type;
 	struct mlx5_core_dev		*dev;
+	struct mlx5_flow_table		*root_ft;
+	/* Should be held when chaining flow tables */
+	struct mutex			chain_lock;
 };
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
@@ -147,6 +150,9 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define fs_for_each_prio(pos, ns)			\
 	fs_list_for_each_entry(pos, &(ns)->node.children)
+
+#define fs_for_each_ft(pos, prio)			\
+	fs_list_for_each_entry(pos, &(prio)->node.children)
 
 #define fs_for_each_fg(pos, ft)			\
 	fs_list_for_each_entry(pos, &(ft)->node.children)

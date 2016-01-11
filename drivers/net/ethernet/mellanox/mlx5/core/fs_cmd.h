@@ -62,4 +62,6 @@ int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
 			struct mlx5_flow_table *ft,
 			unsigned int index);
 
+int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
+			    struct mlx5_flow_table *ft);
 #endif
