@@ -229,12 +229,18 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
+static const u8 *mipi_exec_i2c_skip(struct intel_dsi *intel_dsi, const u8 *data)
+{
+	return data + *(data + 6) + 7;
+}
+
 typedef const u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi,
 					const u8 *data);
 static const fn_mipi_elem_exec exec_elem[] = {
 	[MIPI_SEQ_ELEM_SEND_PKT] = mipi_exec_send_packet,
 	[MIPI_SEQ_ELEM_DELAY] = mipi_exec_delay,
 	[MIPI_SEQ_ELEM_GPIO] = mipi_exec_gpio,
+	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c_skip,
 };
 
 /*
