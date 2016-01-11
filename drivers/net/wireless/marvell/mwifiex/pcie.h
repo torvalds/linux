@@ -135,6 +135,7 @@ struct mwifiex_pcie_card_reg {
 	u16 fw_dump_ctrl;
 	u16 fw_dump_start;
 	u16 fw_dump_end;
+	u8 msix_support;
 };
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
@@ -166,6 +167,7 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
 	.ring_tx_start_ptr = 0,
 	.pfu_enabled = 0,
 	.sleep_cookie = 1,
+	.msix_support = 0,
 };
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
@@ -200,6 +202,7 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
 	.fw_dump_ctrl = 0xcf4,
 	.fw_dump_start = 0xcf8,
 	.fw_dump_end = 0xcff,
+	.msix_support = 0,
 };
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
@@ -231,6 +234,7 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
+	.msix_support = 1,
 };
 
 struct mwifiex_pcie_device {
@@ -290,6 +294,13 @@ struct mwifiex_pfu_buf_desc {
 	u32 reserved;
 } __packed;
 
+#define MWIFIEX_NUM_MSIX_VECTORS   4
+
+struct mwifiex_msix_context {
+	struct pci_dev *dev;
+	u16 msg_id;
+};
+
 struct pcie_service_card {
 	struct pci_dev *dev;
 	struct mwifiex_adapter *adapter;
@@ -327,6 +338,12 @@ struct pcie_service_card {
 	void __iomem *pci_mmap;
 	void __iomem *pci_mmap1;
 	int msi_enable;
+	int msix_enable;
+#ifdef CONFIG_PCI
+	struct msix_entry msix_entries[MWIFIEX_NUM_MSIX_VECTORS];
+#endif
+	struct mwifiex_msix_context msix_ctx[MWIFIEX_NUM_MSIX_VECTORS];
+	struct mwifiex_msix_context share_irq_ctx;
 };
 
 static inline int
