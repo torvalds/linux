@@ -63,7 +63,7 @@ ENTRY(entry_SYSENTER_compat)
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
-	pushq	%rcx			/* pt_regs->sp */
+	pushq	%rbp			/* pt_regs->sp (stashed in bp) */
 
 	/*
 	 * Push flags.  This is nasty.  First, interrupts are currently
@@ -82,14 +82,14 @@ ENTRY(entry_SYSENTER_compat)
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
-	pushq	%rcx			/* pt_regs->cx (will be overwritten) */
+	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   %r8                     /* pt_regs->r8  = 0 */
 	pushq   %r8                     /* pt_regs->r9  = 0 */
 	pushq   %r8                     /* pt_regs->r10 = 0 */
 	pushq   %r8                     /* pt_regs->r11 = 0 */
 	pushq   %rbx                    /* pt_regs->rbx */
-	pushq   %rbp                    /* pt_regs->rbp */
+	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
 	pushq   %r8                     /* pt_regs->r12 = 0 */
 	pushq   %r8                     /* pt_regs->r13 = 0 */
 	pushq   %r8                     /* pt_regs->r14 = 0 */
@@ -121,8 +121,9 @@ sysenter_flags_fixed:
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
-	testl	%eax, %eax
-	jz	.Lsyscall_32_done
+	/* XEN PV guests always use IRET path */
+	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
+		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
 	jmp	sysret32_from_system_call
 
 sysenter_fix_flags:
@@ -178,7 +179,7 @@ ENTRY(entry_SYSCALL_compat)
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
-	pushq	%rcx			/* pt_regs->cx (will be overwritten) */
+	pushq	%rbp			/* pt_regs->cx (stashed in bp) */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	xorq    %r8,%r8
 	pushq   %r8                     /* pt_regs->r8  = 0 */
@@ -186,7 +187,7 @@ ENTRY(entry_SYSCALL_compat)
 	pushq   %r8                     /* pt_regs->r10 = 0 */
 	pushq   %r8                     /* pt_regs->r11 = 0 */
 	pushq   %rbx                    /* pt_regs->rbx */
-	pushq   %rbp                    /* pt_regs->rbp */
+	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
 	pushq   %r8                     /* pt_regs->r12 = 0 */
 	pushq   %r8                     /* pt_regs->r13 = 0 */
 	pushq   %r8                     /* pt_regs->r14 = 0 */
@@ -200,8 +201,9 @@ ENTRY(entry_SYSCALL_compat)
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
-	testl	%eax, %eax
-	jz	.Lsyscall_32_done
+	/* XEN PV guests always use IRET path */
+	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
+		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
 
 	/* Opportunistic SYSRET */
 sysret32_from_system_call:

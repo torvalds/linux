@@ -81,7 +81,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	struct bio *new = NULL;
 
 	bio_for_each_segment(bv, bio, iter) {
-		if (sectors + (bv.bv_len >> 9) > blk_max_size_offset(q, bio->bi_iter.bi_sector))
+		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
 			goto split;
 
 		/*

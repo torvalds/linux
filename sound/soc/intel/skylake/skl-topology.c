@@ -1240,7 +1240,6 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	 */
 	ret = snd_soc_tplg_component_load(&platform->component,
 					&skl_tplg_ops, fw, 0);
-	release_firmware(fw);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
 		return -EINVAL;
@@ -1248,6 +1247,8 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 
 	skl->resource.max_mcps = SKL_MAX_MCPS;
 	skl->resource.max_mem = SKL_FW_MAX_MEM;
+
+	skl->tplg = fw;
 
 	return 0;
 }

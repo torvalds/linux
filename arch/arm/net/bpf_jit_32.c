@@ -187,19 +187,6 @@ static inline int mem_words_used(struct jit_ctx *ctx)
 	return fls(ctx->seen & SEEN_MEM);
 }
 
-static inline bool is_load_to_a(u16 inst)
-{
-	switch (inst) {
-	case BPF_LD | BPF_W | BPF_LEN:
-	case BPF_LD | BPF_W | BPF_ABS:
-	case BPF_LD | BPF_H | BPF_ABS:
-	case BPF_LD | BPF_B | BPF_ABS:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static void jit_fill_hole(void *area, unsigned int size)
 {
 	u32 *ptr;
@@ -211,7 +198,6 @@ static void jit_fill_hole(void *area, unsigned int size)
 static void build_prologue(struct jit_ctx *ctx)
 {
 	u16 reg_set = saved_regs(ctx);
-	u16 first_inst = ctx->skf->insns[0].code;
 	u16 off;
 
 #ifdef CONFIG_FRAME_POINTER
@@ -241,7 +227,7 @@ static void build_prologue(struct jit_ctx *ctx)
 		emit(ARM_MOV_I(r_X, 0), ctx);
 
 	/* do not leak kernel data to userspace */
-	if ((first_inst != (BPF_RET | BPF_K)) && !(is_load_to_a(first_inst)))
+	if (bpf_needs_clear_a(&ctx->skf->insns[0]))
 		emit(ARM_MOV_I(r_A, 0), ctx);
 
 	/* stack space for the BPF_MEM words */
@@ -770,7 +756,8 @@ load_ind:
 		case BPF_ALU | BPF_RSH | BPF_K:
 			if (unlikely(k > 31))
 				return -1;
-			emit(ARM_LSR_I(r_A, r_A, k), ctx);
+			if (k)
+				emit(ARM_LSR_I(r_A, r_A, k), ctx);
 			break;
 		case BPF_ALU | BPF_RSH | BPF_X:
 			update_on_xread(ctx);

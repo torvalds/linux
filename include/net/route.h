@@ -283,7 +283,12 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 			      sport, dport, sk);
 
 	if (!src && oif) {
-		l3mdev_get_saddr(net, oif, fl4);
+		int rc;
+
+		rc = l3mdev_get_saddr(net, oif, fl4);
+		if (rc < 0)
+			return ERR_PTR(rc);
+
 		src = fl4->saddr;
 	}
 	if (!dst || !src) {
