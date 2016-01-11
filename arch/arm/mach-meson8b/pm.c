@@ -56,9 +56,8 @@ static int early_suspend_flag = 0;
 #define ON  1
 #define OFF 0
 
-static unsigned int  cec_config;       // 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
+static unsigned int  cec_config = 0;       // 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
 static struct meson_pm_config *pdata;
-static struct device_node *cec_np = NULL;
 
 #define CLK(addr)  \
 { \
@@ -246,7 +245,10 @@ int run_arc_program(void)
 	unsigned vaddr2,v;
 	unsigned* pbuffer;
 	vaddr2 = IO_SRAM_BASE;
-	
+
+	/* Get the cec_config from DEBUG register. */
+	cec_config = aml_read_reg32(P_AO_DEBUG_REG0);
+
 	if(cec_config & 0x1)// 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
     {
     	aml_write_reg32(P_AO_REMAP_REG0,0);
@@ -449,16 +451,6 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 	clk81 = clk_get_sys("clk81", NULL);
 	clkxtal = clk_get_sys("xtal", NULL);
 	
-	cec_np = of_find_node_by_name(NULL, "vend_data");
-	if(cec_np){
-	    if(of_property_read_u32(cec_np, "cec_config", &cec_config))
-	        cec_config = 0x0;
-	}
-	else
-	{
-	    cec_config = 0x0;
-	}
-
 #ifdef CONFIG_AO_TRIG_CLK
 	return run_arc_program();
 #else
