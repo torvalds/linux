@@ -623,7 +623,14 @@ static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 /* this is called once with whichever end is closed last */
 static void pty_unix98_shutdown(struct tty_struct *tty)
 {
-	devpts_kill_index(tty->driver_data, tty->index);
+	struct inode *ptmx_inode;
+
+	if (tty->driver->subtype == PTY_TYPE_MASTER)
+		ptmx_inode = tty->driver_data;
+	else
+		ptmx_inode = tty->link->driver_data;
+	devpts_kill_index(ptmx_inode, tty->index);
+	iput(ptmx_inode); /* drop reference we acquired at ptmx_open */
 }
 
 static const struct tty_operations ptm_unix98_ops = {
@@ -713,6 +720,15 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 	tty->driver_data = inode;
+
+	/*
+	 * In the case where all references to ptmx inode are dropped and we
+	 * still have /dev/tty opened pointing to the master/slave pair (ptmx
+	 * is closed/released before /dev/tty), we must make sure that the inode
+	 * is still valid when we call the final pty_unix98_shutdown, thus we
+	 * hold an additional reference to the ptmx inode
+	 */
+	ihold(inode);
 
 	tty_add_file(tty, filp);
 
