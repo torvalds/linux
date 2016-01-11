@@ -154,12 +154,12 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->num_apbs = of_get_child_count(np);
 	dev_dbg(dev, "Number of APB's available - %d\n", arche_pdata->num_apbs);
 
-	export_gpios(arche_pdata);
-
 	/* probe all childs here */
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret)
 		dev_err(dev, "no child node found\n");
+
+	export_gpios(arche_pdata);
 
 	dev_info(dev, "Device registered successfully\n");
 	return ret;
