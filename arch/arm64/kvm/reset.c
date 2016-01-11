@@ -81,6 +81,7 @@ int kvm_arch_dev_ioctl_check_extension(long ext)
 		r = kvm_arm_support_pmu_v3();
 		break;
 	case KVM_CAP_SET_GUEST_DEBUG:
+	case KVM_CAP_VCPU_ATTRIBUTES:
 		r = 1;
 		break;
 	default:

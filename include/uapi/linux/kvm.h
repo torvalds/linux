@@ -851,6 +851,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_HYPERV_SYNIC 123
 #define KVM_CAP_S390_RI 124
 #define KVM_CAP_ARM_PMU_V3 125
+#define KVM_CAP_VCPU_ATTRIBUTES 126
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
