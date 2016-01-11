@@ -1103,7 +1103,7 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 
 	key.objectid = device->devid;
 	key.offset = start;
@@ -1272,7 +1272,7 @@ again:
 		goto out;
 	}
 
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
@@ -3724,14 +3724,6 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		goto out;
 	}
 
-	/* allow dup'ed data chunks only in mixed mode */
-	if (!mixed && (bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (bctl->data.target & BTRFS_BLOCK_GROUP_DUP)) {
-		btrfs_err(fs_info, "dup for data is not allowed");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* allow to reduce meta or sys integrity only if force set */
 	allowed = BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
 			BTRFS_BLOCK_GROUP_RAID10 |
@@ -3756,6 +3748,13 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 			}
 		}
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
+
+	if (btrfs_get_num_tolerated_disk_barrier_failures(bctl->meta.target) <
+		btrfs_get_num_tolerated_disk_barrier_failures(bctl->data.target)) {
+		btrfs_warn(fs_info,
+	"metatdata profile 0x%llx has lower redundancy than data profile 0x%llx",
+			bctl->meta.target, bctl->data.target);
+	}
 
 	if (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
 		fs_info->num_tolerated_disk_barrier_failures = min(
@@ -4269,7 +4268,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 
 	lock_chunks(root);
 
@@ -6526,6 +6525,14 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 				goto out_short_read;
 
 			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
+			if (!num_stripes) {
+				printk(KERN_ERR
+	    "BTRFS: invalid number of stripes %u in sys_array at offset %u\n",
+					num_stripes, cur_offset);
+				ret = -EIO;
+				break;
+			}
+
 			len = btrfs_chunk_item_size(num_stripes);
 			if (cur_offset + len > array_size)
 				goto out_short_read;
@@ -6534,6 +6541,9 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 			if (ret)
 				break;
 		} else {
+			printk(KERN_ERR
+		"BTRFS: unexpected item type %u in sys_array at offset %u\n",
+				(u32)key.type, cur_offset);
 			ret = -EIO;
 			break;
 		}

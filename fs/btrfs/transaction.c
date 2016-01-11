@@ -1336,17 +1336,11 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	u64 root_flags;
 	uuid_le new_uuid;
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		pending->error = -ENOMEM;
-		return 0;
-	}
+	ASSERT(pending->path);
+	path = pending->path;
 
-	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
-	if (!new_root_item) {
-		pending->error = -ENOMEM;
-		goto root_item_alloc_fail;
-	}
+	ASSERT(pending->root_item);
+	new_root_item = pending->root_item;
 
 	pending->error = btrfs_find_free_objectid(tree_root, &objectid);
 	if (pending->error)
@@ -1579,8 +1573,10 @@ clear_skip_qgroup:
 	btrfs_clear_skip_qgroup(trans);
 no_free_objectid:
 	kfree(new_root_item);
-root_item_alloc_fail:
+	pending->root_item = NULL;
 	btrfs_free_path(path);
+	pending->path = NULL;
+
 	return ret;
 }
 

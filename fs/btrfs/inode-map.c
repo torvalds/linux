@@ -48,7 +48,7 @@ static int caching_kthread(void *data)
 	/* Since the commit root is read-only, we can safely skip locking. */
 	path->skip_locking = 1;
 	path->search_commit_root = 1;
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.offset = 0;
@@ -334,7 +334,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return true;
 }
 
-static struct btrfs_free_space_op free_ino_op = {
+static const struct btrfs_free_space_op free_ino_op = {
 	.recalc_thresholds	= recalculate_thresholds,
 	.use_bitmap		= use_bitmap,
 };
@@ -356,7 +356,7 @@ static bool pinned_use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return false;
 }
 
-static struct btrfs_free_space_op pinned_free_ino_op = {
+static const struct btrfs_free_space_op pinned_free_ino_op = {
 	.recalc_thresholds	= pinned_recalc_thresholds,
 	.use_bitmap		= pinned_use_bitmap,
 };

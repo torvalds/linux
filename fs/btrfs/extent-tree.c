@@ -437,7 +437,7 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	 */
 	path->skip_locking = 1;
 	path->search_commit_root = 1;
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 
 	key.objectid = last;
 	key.offset = 0;
@@ -2131,7 +2131,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 	path->leave_spinning = 1;
 	/* this will setup the path even if it fails to insert the back ref */
 	ret = insert_inline_extent_backref(trans, fs_info->extent_root, path,
@@ -2157,7 +2157,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
 
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 	path->leave_spinning = 1;
 	/* now insert the actual backref */
 	ret = insert_extent_backref(trans, root->fs_info->extent_root,
@@ -2270,7 +2270,7 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 	}
 
 again:
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 	path->leave_spinning = 1;
 	ret = btrfs_search_slot(trans, root->fs_info->extent_root, &key,
 				path, 0, 1);
@@ -3007,9 +3007,9 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	extent_op->flags_to_set = flags;
-	extent_op->update_flags = 1;
-	extent_op->update_key = 0;
-	extent_op->is_data = is_data ? 1 : 0;
+	extent_op->update_flags = true;
+	extent_op->update_key = false;
+	extent_op->is_data = is_data ? true : false;
 	extent_op->level = level;
 
 	ret = btrfs_add_delayed_extent_op(root->fs_info, trans, bytenr,
@@ -6472,7 +6472,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 	path->leave_spinning = 1;
 
 	is_data = owner_objectid >= BTRFS_FIRST_FREE_OBJECTID;
@@ -8031,12 +8031,9 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		else
 			memset(&extent_op->key, 0, sizeof(extent_op->key));
 		extent_op->flags_to_set = flags;
-		if (skinny_metadata)
-			extent_op->update_key = 0;
-		else
-			extent_op->update_key = 1;
-		extent_op->update_flags = 1;
-		extent_op->is_data = 0;
+		extent_op->update_key = skinny_metadata ? false : true;
+		extent_op->update_flags = true;
+		extent_op->is_data = false;
 		extent_op->level = level;
 
 		ret = btrfs_add_delayed_tree_ref(root->fs_info, trans,
@@ -9745,7 +9742,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 
 	cache_gen = btrfs_super_cache_generation(root->fs_info->super_copy);
 	if (btrfs_test_opt(root, SPACE_CACHE) &&

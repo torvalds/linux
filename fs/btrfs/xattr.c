@@ -283,7 +283,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 
 	/* search for our xattrs */
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);

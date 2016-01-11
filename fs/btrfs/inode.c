@@ -81,17 +81,16 @@ static const struct inode_operations btrfs_file_inode_operations;
 static const struct address_space_operations btrfs_aops;
 static const struct address_space_operations btrfs_symlink_aops;
 static const struct file_operations btrfs_dir_file_operations;
-static struct extent_io_ops btrfs_extent_io_ops;
+static const struct extent_io_ops btrfs_extent_io_ops;
 
 static struct kmem_cache *btrfs_inode_cachep;
-static struct kmem_cache *btrfs_delalloc_work_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
 struct kmem_cache *btrfs_path_cachep;
 struct kmem_cache *btrfs_free_space_cachep;
 
 #define S_SHIFT 12
-static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
+static const unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFREG >> S_SHIFT]	= BTRFS_FT_REG_FILE,
 	[S_IFDIR >> S_SHIFT]	= BTRFS_FT_DIR,
 	[S_IFCHR >> S_SHIFT]	= BTRFS_FT_CHRDEV,
@@ -3113,55 +3112,47 @@ static int btrfs_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 				      start, (size_t)(end - start + 1));
 }
 
-struct delayed_iput {
-	struct list_head list;
-	struct inode *inode;
-};
-
-/* JDM: If this is fs-wide, why can't we add a pointer to
- * btrfs_inode instead and avoid the allocation? */
 void btrfs_add_delayed_iput(struct inode *inode)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
-	struct delayed_iput *delayed;
+	struct btrfs_inode *binode = BTRFS_I(inode);
 
 	if (atomic_add_unless(&inode->i_count, -1, 1))
 		return;
 
-	delayed = kmalloc(sizeof(*delayed), GFP_NOFS | __GFP_NOFAIL);
-	delayed->inode = inode;
-
 	spin_lock(&fs_info->delayed_iput_lock);
-	list_add_tail(&delayed->list, &fs_info->delayed_iputs);
+	if (binode->delayed_iput_count == 0) {
+		ASSERT(list_empty(&binode->delayed_iput));
+		list_add_tail(&binode->delayed_iput, &fs_info->delayed_iputs);
+	} else {
+		binode->delayed_iput_count++;
+	}
 	spin_unlock(&fs_info->delayed_iput_lock);
 }
 
 void btrfs_run_delayed_iputs(struct btrfs_root *root)
 {
-	LIST_HEAD(list);
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct delayed_iput *delayed;
-	int empty;
-
-	spin_lock(&fs_info->delayed_iput_lock);
-	empty = list_empty(&fs_info->delayed_iputs);
-	spin_unlock(&fs_info->delayed_iput_lock);
-	if (empty)
-		return;
 
 	down_read(&fs_info->delayed_iput_sem);
-
 	spin_lock(&fs_info->delayed_iput_lock);
-	list_splice_init(&fs_info->delayed_iputs, &list);
-	spin_unlock(&fs_info->delayed_iput_lock);
+	while (!list_empty(&fs_info->delayed_iputs)) {
+		struct btrfs_inode *inode;
 
-	while (!list_empty(&list)) {
-		delayed = list_entry(list.next, struct delayed_iput, list);
-		list_del(&delayed->list);
-		iput(delayed->inode);
-		kfree(delayed);
+		inode = list_first_entry(&fs_info->delayed_iputs,
+				struct btrfs_inode, delayed_iput);
+		if (inode->delayed_iput_count) {
+			inode->delayed_iput_count--;
+			list_move_tail(&inode->delayed_iput,
+					&fs_info->delayed_iputs);
+		} else {
+			list_del_init(&inode->delayed_iput);
+		}
+		spin_unlock(&fs_info->delayed_iput_lock);
+		iput(&inode->vfs_inode);
+		spin_lock(&fs_info->delayed_iput_lock);
 	}
-
+	spin_unlock(&fs_info->delayed_iput_lock);
 	up_read(&root->fs_info->delayed_iput_sem);
 }
 
@@ -3358,7 +3349,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		ret = -ENOMEM;
 		goto out;
 	}
-	path->reada = -1;
+	path->reada = READA_BACK;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
 	key.type = BTRFS_ORPHAN_ITEM_KEY;
@@ -4324,7 +4315,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = -1;
+	path->reada = READA_BACK;
 
 	/*
 	 * We want to drop from the next block forward in case this new size is
@@ -5760,7 +5751,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 
 	if (key_type == BTRFS_DIR_INDEX_KEY) {
 		INIT_LIST_HEAD(&ins_list);
@@ -6791,7 +6782,7 @@ again:
 		 * Chances are we'll be called again, so go ahead and do
 		 * readahead
 		 */
-		path->reada = 1;
+		path->reada = READA_FORWARD;
 	}
 
 	ret = btrfs_lookup_file_extent(trans, root, path,
@@ -8563,15 +8554,28 @@ int btrfs_readpage(struct file *file, struct page *page)
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
-
+	struct inode *inode = page->mapping->host;
+	int ret;
 
 	if (current->flags & PF_MEMALLOC) {
 		redirty_page_for_writepage(wbc, page);
 		unlock_page(page);
 		return 0;
 	}
+
+	/*
+	 * If we are under memory pressure we will call this directly from the
+	 * VM, we need to make sure we have the inode referenced for the ordered
+	 * extent.  If not just return like we didn't do anything.
+	 */
+	if (!igrab(inode)) {
+		redirty_page_for_writepage(wbc, page);
+		return AOP_WRITEPAGE_ACTIVATE;
+	}
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	return extent_write_full_page(tree, page, btrfs_get_extent, wbc);
+	ret = extent_write_full_page(tree, page, btrfs_get_extent, wbc);
+	btrfs_add_delayed_iput(inode);
+	return ret;
 }
 
 static int btrfs_writepages(struct address_space *mapping,
@@ -9053,6 +9057,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->dir_index = 0;
 	ei->last_unlink_trans = 0;
 	ei->last_log_commit = 0;
+	ei->delayed_iput_count = 0;
 
 	spin_lock_init(&ei->lock);
 	ei->outstanding_extents = 0;
@@ -9077,6 +9082,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	mutex_init(&ei->delalloc_mutex);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->delalloc_inodes);
+	INIT_LIST_HEAD(&ei->delayed_iput);
 	RB_CLEAR_NODE(&ei->rb_node);
 
 	return inode;
@@ -9181,8 +9187,6 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_path_cachep);
 	if (btrfs_free_space_cachep)
 		kmem_cache_destroy(btrfs_free_space_cachep);
-	if (btrfs_delalloc_work_cachep)
-		kmem_cache_destroy(btrfs_delalloc_work_cachep);
 }
 
 int btrfs_init_cachep(void)
@@ -9215,13 +9219,6 @@ int btrfs_init_cachep(void)
 			sizeof(struct btrfs_free_space), 0,
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_free_space_cachep)
-		goto fail;
-
-	btrfs_delalloc_work_cachep = kmem_cache_create("btrfs_delalloc_work",
-			sizeof(struct btrfs_delalloc_work), 0,
-			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
-			NULL);
-	if (!btrfs_delalloc_work_cachep)
 		goto fail;
 
 	return 0;
@@ -9464,7 +9461,7 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 {
 	struct btrfs_delalloc_work *work;
 
-	work = kmem_cache_zalloc(btrfs_delalloc_work_cachep, GFP_NOFS);
+	work = kmalloc(sizeof(*work), GFP_NOFS);
 	if (!work)
 		return NULL;
 
@@ -9482,7 +9479,7 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work)
 {
 	wait_for_completion(&work->completion);
-	kmem_cache_free(btrfs_delalloc_work_cachep, work);
+	kfree(work);
 }
 
 /*
@@ -10047,7 +10044,7 @@ static const struct file_operations btrfs_dir_file_operations = {
 	.fsync		= btrfs_sync_file,
 };
 
-static struct extent_io_ops btrfs_extent_io_ops = {
+static const struct extent_io_ops btrfs_extent_io_ops = {
 	.fill_delalloc = run_delalloc_range,
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.merge_bio_hook = btrfs_merge_bio_hook,
