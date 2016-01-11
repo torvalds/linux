@@ -571,6 +571,10 @@
 	status = "disabled";
 };
 
+&rga {
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 };
