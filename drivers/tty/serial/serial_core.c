@@ -671,14 +671,18 @@ static void uart_unthrottle(struct tty_struct *tty)
 		uart_set_mctrl(port, TIOCM_RTS);
 }
 
-static void do_uart_get_info(struct tty_port *port,
-			struct serial_struct *retinfo)
+static void uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = state->uart_port;
 
 	memset(retinfo, 0, sizeof(*retinfo));
 
+	/*
+	 * Ensure the state we copy is consistent and no hardware changes
+	 * occur as we go
+	 */
+	mutex_lock(&port->mutex);
 	retinfo->type	    = uport->type;
 	retinfo->line	    = uport->line;
 	retinfo->port	    = uport->iobase;
@@ -697,15 +701,6 @@ static void do_uart_get_info(struct tty_port *port,
 	retinfo->io_type         = uport->iotype;
 	retinfo->iomem_reg_shift = uport->regshift;
 	retinfo->iomem_base      = (void *)(unsigned long)uport->mapbase;
-}
-
-static void uart_get_info(struct tty_port *port,
-			struct serial_struct *retinfo)
-{
-	/* Ensure the state we copy is consistent and no hardware changes
-	   occur as we go */
-	mutex_lock(&port->mutex);
-	do_uart_get_info(port, retinfo);
 	mutex_unlock(&port->mutex);
 }
 
@@ -713,6 +708,7 @@ static int uart_get_info_user(struct tty_port *port,
 			 struct serial_struct __user *retinfo)
 {
 	struct serial_struct tmp;
+
 	uart_get_info(port, &tmp);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
