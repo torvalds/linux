@@ -138,11 +138,11 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	if (gpio_is_valid(apb->clk_en_gpio)) {
 		ret = devm_gpio_request(dev, apb->clk_en_gpio, "apb_clk_en");
 		if (ret)
-			dev_err(dev, "Failed requesting APB clock en gpio %d\n",
+			dev_warn(dev, "Failed requesting APB clock en gpio %d\n",
 					apb->clk_en_gpio);
 		ret = gpio_direction_output(apb->clk_en_gpio, 1);
 		if (ret)
-			dev_err(dev, "failed to set APB clock en gpio dir:%d\n", ret);
+			dev_warn(dev, "failed to set APB clock en gpio dir:%d\n", ret);
 	}
 	/* Hold APB in reset state */
 	ret = devm_gpio_request(dev, apb->resetn_gpio, "apb-reset");
@@ -231,27 +231,27 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 	/* It's not mandatory to support power management interface */
 	apb->pwroff_gpio = of_get_named_gpio(np, "pwr-off-gpios", 0);
 	if (apb->pwroff_gpio < 0) {
-		dev_info(dev, "failed to get power off gpio\n");
+		dev_err(dev, "failed to get power off gpio\n");
 		return apb->pwroff_gpio;
 	}
 
 	/* Do not make clock mandatory as of now (for DB3) */
 	apb->clk_en_gpio = of_get_named_gpio(np, "clock-en-gpio", 0);
 	if (apb->clk_en_gpio < 0)
-		dev_err(dev, "failed to get clock en gpio\n");
+		dev_warn(dev, "failed to get clock en gpio\n");
 
 	apb->pwrdn_gpio = of_get_named_gpio(np, "pwr-down-gpios", 0);
 	if (apb->pwrdn_gpio < 0)
-		dev_info(dev, "failed to get power down gpio\n");
+		dev_warn(dev, "failed to get power down gpio\n");
 
 	/* Regulators are optional, as we may have fixed supply coming in */
 	apb->vcore = devm_regulator_get(dev, "vcore");
 	if (IS_ERR(apb->vcore))
-		dev_info(dev, "no core regulator found\n");
+		dev_warn(dev, "no core regulator found\n");
 
 	apb->vio = devm_regulator_get(dev, "vio");
 	if (IS_ERR(apb->vio))
-		dev_info(dev, "no IO regulator found\n");
+		dev_warn(dev, "no IO regulator found\n");
 
 	apb->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(apb->pinctrl)) {
