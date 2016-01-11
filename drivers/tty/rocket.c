@@ -1360,8 +1360,7 @@ static void rp_throttle(struct tty_struct *tty)
 	struct r_port *info = tty->driver_data;
 
 #ifdef ROCKET_DEBUG_THROTTLE
-	printk(KERN_INFO "throttle %s: %d....\n", tty->name,
-	       tty->ldisc.chars_in_buffer(tty));
+	printk(KERN_INFO "throttle %s ....\n", tty->name);
 #endif
 
 	if (rocket_paranoia_check(info, "rp_throttle"))
@@ -1377,8 +1376,7 @@ static void rp_unthrottle(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 #ifdef ROCKET_DEBUG_THROTTLE
-	printk(KERN_INFO "unthrottle %s: %d....\n", tty->name,
-	       tty->ldisc.chars_in_buffer(tty));
+	printk(KERN_INFO "unthrottle %s ....\n", tty->name);
 #endif
 
 	if (rocket_paranoia_check(info, "rp_unthrottle"))
