@@ -185,7 +185,7 @@ static int genl_allocate_reserve_groups(int n_groups, int *first_id)
 			}
 		}
 
-		if (id >= mc_groups_longs * BITS_PER_LONG) {
+		if (id + n_groups >= mc_groups_longs * BITS_PER_LONG) {
 			unsigned long new_longs = mc_groups_longs +
 						  BITS_TO_LONGS(n_groups);
 			size_t nlen = new_longs * sizeof(unsigned long);
