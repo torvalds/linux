@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
-#include <media/adp1653.h>
+#include <media/i2c/adp1653.h>
 #include <media/v4l2-device.h>
 
 #define TIMEOUT_MAX		820000

@@ -37,6 +37,7 @@ enum spi_direction {
 	SPI_DIR_RX,
 	SPI_DIR_TX
 };
+MODULE_DEVICE_TABLE(of, s5c73m3_spi_ids);
 
 static int spi_xmit(struct spi_device *spi_dev, void *addr, const int len,
 							enum spi_direction dir)

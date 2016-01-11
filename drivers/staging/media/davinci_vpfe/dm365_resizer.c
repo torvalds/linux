@@ -63,16 +63,11 @@ resizer_calculate_line_length(u32 pix, int width, int height,
 	if (pix == MEDIA_BUS_FMT_UYVY8_2X8 ||
 	    pix == MEDIA_BUS_FMT_SGRBG12_1X12) {
 		*line_len = width << 1;
-	} else if (pix == MEDIA_BUS_FMT_Y8_1X8 ||
-		   pix == MEDIA_BUS_FMT_UV8_1X8) {
-		*line_len = width;
-		*line_len_c = width;
 	} else {
-		/* YUV 420 */
-		/* round width to upper 32 byte boundary */
 		*line_len = width;
 		*line_len_c = width;
 	}
+
 	/* adjust the line len to be a multiple of 32 */
 	*line_len += 31;
 	*line_len &= ~0x1f;

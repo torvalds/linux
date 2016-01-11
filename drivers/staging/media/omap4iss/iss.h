@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/wait.h>
 
-#include <media/omap4iss.h>
+#include <linux/platform_data/media/omap4iss.h>
 
 #include "iss_regs.h"
 #include "iss_csiphy.h"

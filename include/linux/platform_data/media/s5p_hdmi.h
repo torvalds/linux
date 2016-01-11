@@ -34,4 +34,3 @@ struct s5p_hdmi_platform_data {
 };
 
 #endif /* S5P_HDMI_H */
-

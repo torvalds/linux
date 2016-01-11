@@ -23,9 +23,9 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 
-#include <linux/platform_data/camera-mx3.h>
+#include <linux/platform_data/media/camera-mx3.h>
 #include <linux/platform_data/dma-imx.h>
 
 #define MX3_CAM_DRV_NAME "mx3-camera"
@@ -155,7 +155,7 @@ static void mx3_cam_dma_done(void *arg)
 		struct mx3_camera_buffer *buf = to_mx3_vb(vb);
 
 		list_del_init(&buf->queue);
-		v4l2_get_timestamp(&vb->timestamp);
+		vb->vb2_buf.timestamp = ktime_get_ns();
 		vb->field = mx3_cam->field;
 		vb->sequence = mx3_cam->sequence++;
 		vb2_buffer_done(&vb->vb2_buf, VB2_BUF_STATE_DONE);
@@ -185,44 +185,15 @@ static void mx3_cam_dma_done(void *arg)
  * Calculate the __buffer__ (not data) size and number of buffers.
  */
 static int mx3_videobuf_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 
 	if (!mx3_cam->idmac_channel[0])
 		return -EINVAL;
-
-	if (fmt) {
-		const struct soc_camera_format_xlate *xlate = soc_camera_xlate_by_fourcc(icd,
-								fmt->fmt.pix.pixelformat);
-		unsigned int bytes_per_line;
-		int ret;
-
-		if (!xlate)
-			return -EINVAL;
-
-		ret = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
-					      xlate->host_fmt);
-		if (ret < 0)
-			return ret;
-
-		bytes_per_line = max_t(u32, fmt->fmt.pix.bytesperline, ret);
-
-		ret = soc_mbus_image_size(xlate->host_fmt, bytes_per_line,
-					  fmt->fmt.pix.height);
-		if (ret < 0)
-			return ret;
-
-		sizes[0] = max_t(u32, fmt->fmt.pix.sizeimage, ret);
-	} else {
-		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		sizes[0] = icd->sizeimage;
-	}
 
 	alloc_ctxs[0] = mx3_cam->alloc_ctx;
 
@@ -232,9 +203,14 @@ static int mx3_videobuf_setup(struct vb2_queue *vq,
 	if (!*count)
 		*count = 2;
 
+	/* Called from VIDIOC_REQBUFS or in compatibility mode */
+	if (!*num_planes)
+		sizes[0] = icd->sizeimage;
+	else if (sizes[0] < icd->sizeimage)
+		return -EINVAL;
+
 	/* If *num_planes != 0, we have already verified *count. */
-	if (!*num_planes &&
-	    sizes[0] * *count + mx3_cam->buf_total > MAX_VIDEO_MEM * 1024 * 1024)
+	if (sizes[0] * *count + mx3_cam->buf_total > MAX_VIDEO_MEM * 1024 * 1024)
 		*count = (MAX_VIDEO_MEM * 1024 * 1024 - mx3_cam->buf_total) /
 			sizes[0];
 

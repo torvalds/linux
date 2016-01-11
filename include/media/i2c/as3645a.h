@@ -1,5 +1,5 @@
 /*
- * include/media/as3645a.h
+ * include/media/i2c/as3645a.h
  *
  * Copyright (C) 2008-2011 Nokia Corporation
  *

@@ -42,7 +42,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-of.h>
-#include <media/tc358743.h>
+#include <media/i2c/tc358743.h>
 
 #include "tc358743_regs.h"
 
@@ -862,7 +862,7 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 		v4l2_dbg(1, debug, sd, "%s: Format changed. No signal\n",
 				__func__);
 	} else {
-		if (!v4l2_match_dv_timings(&state->timings, &timings, 0))
+		if (!v4l2_match_dv_timings(&state->timings, &timings, 0, false))
 			enable_stream(sd, false);
 
 		v4l2_print_dv_timings(sd->name,
@@ -1366,7 +1366,7 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 		v4l2_print_dv_timings(sd->name, "tc358743_s_dv_timings: ",
 				timings, false);
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
