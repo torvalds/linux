@@ -3155,8 +3155,6 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-	if (waitqueue_active(&tty->write_wait))
-		wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 
@@ -4953,10 +4951,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			ch->ch_pun.un_flags &= ~(UN_LOW | UN_EMPTY);
 			wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 		}
-		if (waitqueue_active(&tty->write_wait))
-			wake_up_interruptible(&tty->write_wait);
-
-		/* Can't hold any locks when calling tty_wakeup! */
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		tty_wakeup(tty);
