@@ -40,21 +40,23 @@ nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	struct nvkm_device *device = subdev->device;
 	u32 addr;
 
+	mutex_lock(&subdev->mutex);
 	/* wait for a free slot in the fifo */
 	addr  = nvkm_rd32(device, 0x10a4a0);
 	if (nvkm_msec(device, 2000,
 		u32 tmp = nvkm_rd32(device, 0x10a4b0);
 		if (tmp != (addr ^ 8))
 			break;
-	) < 0)
+	) < 0) {
+		mutex_unlock(&subdev->mutex);
 		return -EBUSY;
+	}
 
 	/* we currently only support a single process at a time waiting
 	 * on a synchronous reply, take the PMU mutex and tell the
 	 * receive handler what we're waiting for
 	 */
 	if (reply) {
-		mutex_lock(&subdev->mutex);
 		pmu->recv.message = message;
 		pmu->recv.process = process;
 	}
@@ -81,9 +83,9 @@ nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 		wait_event(pmu->recv.wait, (pmu->recv.process == 0));
 		reply[0] = pmu->recv.data[0];
 		reply[1] = pmu->recv.data[1];
-		mutex_unlock(&subdev->mutex);
 	}
 
+	mutex_unlock(&subdev->mutex);
 	return 0;
 }
 
