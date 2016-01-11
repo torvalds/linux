@@ -900,7 +900,7 @@ enum fb_op_origin {
 	ORIGIN_DIRTYFB,
 };
 
-struct i915_fbc {
+struct intel_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
 	 * it's the outer lock when overlapping with stolen_lock. */
 	struct mutex lock;
@@ -1781,7 +1781,7 @@ struct drm_i915_private {
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct i915_hotplug hotplug;
-	struct i915_fbc fbc;
+	struct intel_fbc fbc;
 	struct i915_drrs drrs;
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
