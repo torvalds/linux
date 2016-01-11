@@ -123,7 +123,8 @@ struct ktermios tty_std_termios = {	/* for the benefit of tty drivers  */
 		   ECHOCTL | ECHOKE | IEXTEN,
 	.c_cc = INIT_C_CC,
 	.c_ispeed = 38400,
-	.c_ospeed = 38400
+	.c_ospeed = 38400,
+	/* .c_line = N_TTY, */
 };
 
 EXPORT_SYMBOL(tty_std_termios);
