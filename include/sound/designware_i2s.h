@@ -46,6 +46,7 @@ struct i2s_platform_data {
 	u32 snd_rates;
 
 	#define DW_I2S_QUIRK_COMP_REG_OFFSET	(1 << 0)
+	#define DW_I2S_QUIRK_COMP_PARAM1	(1 << 1)
 	unsigned int quirks;
 	unsigned int i2s_reg_comp1;
 	unsigned int i2s_reg_comp2;

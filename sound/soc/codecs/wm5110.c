@@ -2173,10 +2173,23 @@ static int wm5110_open(struct snd_compr_stream *stream)
 	return wm_adsp_compr_open(&priv->core.adsp[n_adsp], stream);
 }
 
+static irqreturn_t wm5110_adsp2_irq(int irq, void *data)
+{
+	struct wm5110_priv *florida = data;
+	int ret;
+
+	ret = wm_adsp_compr_handle_irq(&florida->core.adsp[2]);
+	if (ret == -ENODEV)
+		return IRQ_NONE;
+
+	return IRQ_HANDLED;
+}
+
 static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int i, ret;
 
 	priv->core.arizona->dapm = dapm;
@@ -2184,6 +2197,14 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
+
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 Compressed IRQ", wm5110_adsp2_irq,
+				  priv);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
@@ -2205,18 +2226,23 @@ err_adsp2_codec_probe:
 	for (--i; i >= 0; --i)
 		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
+
 	return ret;
 }
 
 static int wm5110_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int i;
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i)
 		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
 	return 0;
 }
@@ -2269,6 +2295,8 @@ static struct snd_compr_ops wm5110_compr_ops = {
 	.set_params = wm_adsp_compr_set_params,
 	.get_caps = wm_adsp_compr_get_caps,
 	.trigger = wm_adsp_compr_trigger,
+	.pointer = wm_adsp_compr_pointer,
+	.copy = wm_adsp_compr_copy,
 };
 
 static struct snd_soc_platform_driver wm5110_compr_platform = {
