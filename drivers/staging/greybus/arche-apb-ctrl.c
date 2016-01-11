@@ -7,22 +7,18 @@
  * Released under the GPLv2 only.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/sched.h>
-#include <linux/pm.h>
-#include <linux/delay.h>
-#include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
-#include <linux/of_platform.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/interrupt.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
-#include <linux/spinlock.h>
-#include <linux/regulator/consumer.h>
+#include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
 #include "arche_platform.h"
 
 enum apb_state {
