@@ -571,20 +571,8 @@ extern int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_release(struct tty_struct *tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
-
-static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
-					char *f, int count)
-{
-	if (ld->ops->receive_buf2)
-		count = ld->ops->receive_buf2(ld->tty, p, f, count);
-	else {
-		count = min_t(int, count, ld->tty->receive_room);
-		if (count && ld->ops->receive_buf)
-			ld->ops->receive_buf(ld->tty, p, f, count);
-	}
-	return count;
-}
-
+extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
+				 char *f, int count);
 
 /* n_tty.c */
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
