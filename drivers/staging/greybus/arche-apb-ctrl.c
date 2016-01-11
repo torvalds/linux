@@ -352,9 +352,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
-	if (apb)
-		apb_ctrl_cleanup(apb);
-
+	apb_ctrl_cleanup(apb);
 	platform_set_drvdata(pdev, NULL);
 	unexport_gpios(apb);
 
