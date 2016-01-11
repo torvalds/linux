@@ -727,7 +727,7 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	while (refs--)
 		tty_kref_put(tty);
 
-	tty_ldisc_hangup(tty);
+	tty_ldisc_hangup(tty, cons_filp != NULL);
 
 	spin_lock_irq(&tty->ctrl_lock);
 	clear_bit(TTY_THROTTLED, &tty->flags);
@@ -752,10 +752,9 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	} else if (tty->ops->hangup)
 		tty->ops->hangup(tty);
 	/*
-	 * We don't want to have driver/ldisc interactions beyond
-	 * the ones we did here. The driver layer expects no
-	 * calls after ->hangup() from the ldisc side. However we
-	 * can't yet guarantee all that.
+	 * We don't want to have driver/ldisc interactions beyond the ones
+	 * we did here. The driver layer expects no calls after ->hangup()
+	 * from the ldisc side, which is now guaranteed.
 	 */
 	set_bit(TTY_HUPPED, &tty->flags);
 	tty_unlock(tty);
@@ -1475,7 +1474,8 @@ static int tty_reopen(struct tty_struct *tty)
 
 	tty->count++;
 
-	WARN_ON(!tty->ldisc);
+	if (!tty->ldisc)
+		return tty_ldisc_reinit(tty, tty->termios.c_line);
 
 	return 0;
 }

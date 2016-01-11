@@ -490,7 +490,8 @@ extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
 extern struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *);
-extern void tty_ldisc_hangup(struct tty_struct *tty);
+extern void tty_ldisc_hangup(struct tty_struct *tty, bool reset);
+extern int tty_ldisc_reinit(struct tty_struct *tty, int disc);
 extern const struct file_operations tty_ldiscs_proc_fops;
 
 extern void tty_wakeup(struct tty_struct *tty);

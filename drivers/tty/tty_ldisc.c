@@ -257,6 +257,9 @@ const struct file_operations tty_ldiscs_proc_fops = {
  *	reference to it. If the line discipline is in flux then
  *	wait patiently until it changes.
  *
+ *	Returns: NULL if the tty has been hungup and not re-opened with
+ *		 a new file descriptor, otherwise valid ldisc reference
+ *
  *	Note: Must not be called from an IRQ/timer context. The caller
  *	must also be careful not to hold other locks that will deadlock
  *	against a discipline change, such as an existing ldisc reference
@@ -642,14 +645,15 @@ static void tty_reset_termios(struct tty_struct *tty)
  *	@disc: line discipline to reinitialize
  *
  *	Completely reinitialize the line discipline state, by closing the
- *	current instance and opening a new instance. If an error occurs opening
- *	the new non-N_TTY instance, the instance is dropped and tty->ldisc reset
- *	to NULL. The caller can then retry with N_TTY instead.
+ *	current instance, if there is one, and opening a new instance. If
+ *	an error occurs opening the new non-N_TTY instance, the instance
+ *	is dropped and tty->ldisc reset to NULL. The caller can then retry
+ *	with N_TTY instead.
  *
  *	Returns 0 if successful, otherwise error code < 0
  */
 
-static int tty_ldisc_reinit(struct tty_struct *tty, int disc)
+int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 {
 	struct tty_ldisc *ld;
 	int retval;
@@ -693,11 +697,9 @@ static int tty_ldisc_reinit(struct tty_struct *tty, int disc)
  *	tty itself so we must be careful about locking rules.
  */
 
-void tty_ldisc_hangup(struct tty_struct *tty)
+void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 {
 	struct tty_ldisc *ld;
-	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
-	int err = 0;
 
 	tty_ldisc_debug(tty, "%p: hangup\n", tty->ldisc);
 
@@ -725,25 +727,17 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 */
 	tty_ldisc_lock(tty, MAX_SCHEDULE_TIMEOUT);
 
-	if (tty->ldisc) {
-
-		/* At this point we have a halted ldisc; we want to close it and
-		   reopen a new ldisc. We could defer the reopen to the next
-		   open but it means auditing a lot of other paths so this is
-		   a FIXME */
-		if (reset == 0)
-			err = tty_ldisc_reinit(tty, tty->termios.c_line);
-
-		/* If the re-open fails or we reset then go to N_TTY. The
-		   N_TTY open cannot fail */
-		if (reset || err < 0)
-			tty_ldisc_reinit(tty, N_TTY);
-	}
-	tty_ldisc_unlock(tty);
-	if (reset)
+	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
 		tty_reset_termios(tty);
 
-	tty_ldisc_debug(tty, "%p: re-opened\n", tty->ldisc);
+	if (tty->ldisc) {
+		if (reinit) {
+			if (tty_ldisc_reinit(tty, tty->termios.c_line) < 0)
+				tty_ldisc_reinit(tty, N_TTY);
+		} else
+			tty_ldisc_kill(tty);
+	}
+	tty_ldisc_unlock(tty);
 }
 
 /**
