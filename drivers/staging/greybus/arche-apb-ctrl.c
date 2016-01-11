@@ -137,12 +137,15 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	/* On DB3 clock was not mandatory */
 	if (gpio_is_valid(apb->clk_en_gpio)) {
 		ret = devm_gpio_request(dev, apb->clk_en_gpio, "apb_clk_en");
-		if (ret)
+		if (ret) {
 			dev_warn(dev, "Failed requesting APB clock en gpio %d\n",
-					apb->clk_en_gpio);
-		ret = gpio_direction_output(apb->clk_en_gpio, 1);
-		if (ret)
-			dev_warn(dev, "failed to set APB clock en gpio dir:%d\n", ret);
+				 apb->clk_en_gpio);
+		} else {
+			ret = gpio_direction_output(apb->clk_en_gpio, 1);
+			if (ret)
+				dev_warn(dev, "failed to set APB clock en gpio dir:%d\n",
+					 ret);
+		}
 	}
 	/* Hold APB in reset state */
 	ret = devm_gpio_request(dev, apb->resetn_gpio, "apb-reset");
