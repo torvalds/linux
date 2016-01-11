@@ -29,7 +29,6 @@ enum apb_state {
 
 struct arche_apb_ctrl_drvdata {
 	/* Control GPIO signals to and from AP <=> AP Bridges */
-	int wake_detect_gpio; /* bi-dir,maps to WAKE_MOD & WAKE_FRAME signals */
 	int resetn_gpio;
 	int boot_ret_gpio;
 	int pwroff_gpio;
@@ -37,7 +36,6 @@ struct arche_apb_ctrl_drvdata {
 	int wake_out_gpio;
 	int pwrdn_gpio;
 
-	unsigned int wake_detect_irq;
 	enum apb_state state;
 
 	struct regulator *vcore;
@@ -48,9 +46,6 @@ struct arche_apb_ctrl_drvdata {
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pin_default;
-
-	/* To protect concurrent access of GPIO registers, need protection */
-	spinlock_t lock;
 };
 
 /*
@@ -76,45 +71,6 @@ static void export_gpios(struct arche_apb_ctrl_drvdata *apb)
 static void unexport_gpios(struct arche_apb_ctrl_drvdata *apb)
 {
 	gpio_unexport(apb->resetn_gpio);
-}
-
-static irqreturn_t apb_ctrl_wake_detect_irq(int irq, void *devid)
-{
-	struct arche_apb_ctrl_drvdata *apb = devid;
-	unsigned long flags;
-
-	/*
-	 * TODO:
-	 * Since currently SoC GPIOs are being used we are safe here
-	 * But ideally we should create a workqueue and process the control
-	 * signals, especially when we start using GPIOs over slow
-	 * buses like I2C.
-	 */
-	spin_lock_irqsave(&apb->lock, flags);
-
-	if (apb->state != APB_STATE_ACTIVE) {
-		/* Bring bridge out of reset on this event */
-		gpio_set_value(apb->resetn_gpio, 1);
-		apb->state = APB_STATE_ACTIVE;
-	} else {
-		/*
-		 * Assert Wake_OUT signal to APB
-		 * It would resemble WakeDetect module's signal pass-through
-		 */
-		/*
-		 * We have to generate the pulse, so we may need to schedule
-		 * workqueue here.
-		 *
-		 * Also, since we are using both rising and falling edge for
-		 * interrupt trigger, we may not need workqueue. Just pass
-		 * through the value to bridge.
-		 * Just read GPIO value and pass it to the bridge
-		 */
-	}
-
-	spin_unlock_irqrestore(&apb->lock, flags);
-
-	return IRQ_HANDLED;
 }
 
 /*
@@ -190,14 +146,6 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	gpio_set_value(apb->boot_ret_gpio, 0);
 	udelay(50);
 
-	ret = devm_gpio_request_one(dev, apb->wake_detect_gpio,
-			GPIOF_INIT_LOW, "wake detect");
-	if (ret) {
-		dev_err(dev, "Failed requesting wake_detect gpio %d\n",
-				apb->wake_detect_gpio);
-		goto out_vio_disable;
-	}
-
 	return 0;
 
 out_vio_disable:
@@ -215,12 +163,6 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-
-	apb->wake_detect_gpio = of_get_named_gpio(np, "wake-detect-gpios", 0);
-	if (apb->wake_detect_gpio < 0) {
-		dev_err(dev, "failed to get wake detect gpio\n");
-		return apb->wake_detect_gpio;
-	}
 
 	apb->resetn_gpio = of_get_named_gpio(np, "reset-gpios", 0);
 	if (apb->resetn_gpio < 0) {
@@ -275,19 +217,15 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 
 static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
 {
-	unsigned long flags;
-
 	if (!IS_ERR(apb->vcore) && regulator_is_enabled(apb->vcore) > 0)
 		regulator_disable(apb->vcore);
 
 	if (!IS_ERR(apb->vio) && regulator_is_enabled(apb->vio) > 0)
 		regulator_disable(apb->vio);
 
-	spin_lock_irqsave(&apb->lock, flags);
 	/* As part of exit, put APB back in reset state */
 	gpio_set_value(apb->resetn_gpio, 0);
 	apb->state = APB_STATE_OFF;
-	spin_unlock_irqrestore(&apb->lock, flags);
 
 	/* TODO: May have to send an event to SVC about this exit */
 }
@@ -315,27 +253,8 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	spin_lock_init(&apb->lock);
-
 	apb->state = APB_STATE_OFF;
-	/*
-	 * Assert AP module detect signal by pulling wake_detect low
-	 */
-	assert_gpio(apb->wake_detect_gpio);
 
-	/*
-	 * In order to receive an interrupt, the GPIO must be set to input mode
-	 */
-	gpio_direction_input(apb->wake_detect_gpio);
-
-	ret = devm_request_irq(dev, gpio_to_irq(apb->wake_detect_gpio),
-			apb_ctrl_wake_detect_irq, IRQF_TRIGGER_FALLING,
-			"wake detect", apb);
-	if (ret) {
-		dev_err(dev, "failed to request wake detect IRQ\n");
-		apb_ctrl_cleanup(apb);
-		return ret;
-	}
 
 	platform_set_drvdata(pdev, apb);
 
