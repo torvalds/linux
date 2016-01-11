@@ -7,7 +7,7 @@
  *
  * Based on code from Freescale:
  *
- * Copyright 2004-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -1110,11 +1110,9 @@ static int sdma_config_channel(struct dma_chan *chan)
 	sdmac->shp_addr = 0;
 	sdmac->per_addr = 0;
 
-	if (sdmac->event_id0 >= 0) {
-		if (sdmac->event_id0 >= sdmac->sdma->drvdata->num_events)
-			return -EINVAL;
-		sdma_event_enable(sdmac, sdmac->event_id0);
-	}
+	if (sdmac->event_id0 >= sdmac->sdma->drvdata->num_events)
+		return -EINVAL;
+	sdma_event_enable(sdmac, sdmac->event_id0);
 
 	if (sdmac->event_id1) {
 		if (sdmac->event_id1 >= sdmac->sdma->drvdata->num_events)
@@ -1228,19 +1226,20 @@ static void sdma_free_bd(struct sdma_desc *desc)
 static int sdma_request_channel0(struct sdma_engine *sdma)
 {
 	int ret = 0;
+	u32 bd_size = sizeof(struct sdma_buffer_descriptor);
 
 	sdma->bd0_iram = true;
-	sdma->bd0 = gen_pool_dma_alloc(sdma->iram_pool, PAGE_SIZE, &sdma->bd0_phys);
+	sdma->bd0 = gen_pool_dma_alloc(sdma->iram_pool, bd_size, &sdma->bd0_phys);
 	if (!sdma->bd0) {
 		sdma->bd0_iram = false;
-		sdma->bd0 = dma_alloc_coherent(NULL, PAGE_SIZE, &sdma->bd0_phys, GFP_KERNEL);
+		sdma->bd0 = dma_alloc_coherent(NULL, bd_size, &sdma->bd0_phys, GFP_KERNEL);
 		if (!sdma->bd0) {
 			ret = -ENOMEM;
 			goto out;
 		}
 	}
 
-	memset(sdma->bd0, 0, PAGE_SIZE);
+	memset(sdma->bd0, 0, bd_size);
 
 	sdma->channel_control[0].base_bd_ptr = sdma->bd0_phys;
 	sdma->channel_control[0].current_bd_ptr = sdma->bd0_phys;
@@ -1404,8 +1403,7 @@ static void sdma_free_chan_resources(struct dma_chan *chan)
 
 	sdma_terminate_all(chan);
 
-	if (sdmac->event_id0 >= 0)
-		sdma_event_disable(sdmac, sdmac->event_id0);
+	sdma_event_disable(sdmac, sdmac->event_id0);
 	if (sdmac->event_id1)
 		sdma_event_disable(sdmac, sdmac->event_id1);
 
