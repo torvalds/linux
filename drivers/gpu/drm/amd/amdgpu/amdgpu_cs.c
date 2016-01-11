@@ -421,11 +421,11 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 
 	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
 	if (r)
 		goto error_validate;
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
 
 error_validate:
 	if (r) {
