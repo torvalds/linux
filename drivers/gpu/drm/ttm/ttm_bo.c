@@ -228,6 +228,27 @@ void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
+void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_mem_type_manager *man;
+
+	lockdep_assert_held(&bo->resv->lock.base);
+
+	if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT) {
+		list_del_init(&bo->swap);
+		list_del_init(&bo->lru);
+
+	} else {
+		if (bo->ttm && !(bo->ttm->page_flags & TTM_PAGE_FLAG_SG))
+			list_move_tail(&bo->swap, &bo->glob->swap_lru);
+
+		man = &bdev->man[bo->mem.mem_type];
+		list_move_tail(&bo->lru, &man->lru);
+	}
+}
+EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
+
 /*
  * Call bo->mutex locked.
  */
