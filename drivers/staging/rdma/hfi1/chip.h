@@ -690,6 +690,8 @@ u64 read_dev_cntr(struct hfi1_devdata *dd, int index, int vl);
 u64 write_dev_cntr(struct hfi1_devdata *dd, int index, int vl, u64 data);
 u64 read_port_cntr(struct hfi1_pportdata *ppd, int index, int vl);
 u64 write_port_cntr(struct hfi1_pportdata *ppd, int index, int vl, u64 data);
+u32 read_logical_state(struct hfi1_devdata *dd);
+void force_recv_intr(struct hfi1_ctxtdata *rcd);
 
 /* Per VL indexes */
 enum {

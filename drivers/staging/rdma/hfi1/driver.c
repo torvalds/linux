@@ -862,6 +862,37 @@ static inline void set_all_dma_rtail(struct hfi1_devdata *dd)
 			&handle_receive_interrupt_dma_rtail;
 }
 
+void set_all_slowpath(struct hfi1_devdata *dd)
+{
+	int i;
+
+	/* HFI1_CTRL_CTXT must always use the slow path interrupt handler */
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_user_ctxt; i++)
+		dd->rcd[i]->do_interrupt = &handle_receive_interrupt;
+}
+
+static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
+				      struct hfi1_packet packet,
+				      struct hfi1_devdata *dd)
+{
+	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
+	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet.rcd->dd,
+							     packet.rhf_addr);
+
+	if (hdr2sc(hdr, packet.rhf) != 0xf) {
+		int hwstate = read_logical_state(dd);
+
+		if (hwstate != LSTATE_ACTIVE) {
+			dd_dev_info(dd, "Unexpected link state %d\n", hwstate);
+			return 0;
+		}
+
+		queue_work(rcd->ppd->hfi1_wq, lsaw);
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * handle_receive_interrupt - receive a packet
  * @rcd: the context
@@ -929,6 +960,11 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			last = skip_rcv_packet(&packet, thread);
 			skip_pkt = 0;
 		} else {
+			/* Auto activate link on non-SC15 packet receive */
+			if (unlikely(rcd->ppd->host_link_state ==
+				     HLS_UP_ARMED) &&
+			    set_armed_to_active(rcd, packet, dd))
+				goto bail;
 			last = process_rcv_packet(&packet, thread);
 		}
 
@@ -981,6 +1017,42 @@ bail:
 	 */
 	finish_packet(&packet);
 	return last;
+}
+
+/*
+ * We may discover in the interrupt that the hardware link state has
+ * changed from ARMED to ACTIVE (due to the arrival of a non-SC15 packet),
+ * and we need to update the driver's notion of the link state.  We cannot
+ * run set_link_state from interrupt context, so we queue this function on
+ * a workqueue.
+ *
+ * We delay the regular interrupt processing until after the state changes
+ * so that the link will be in the correct state by the time any application
+ * we wake up attempts to send a reply to any message it received.
+ * (Subsequent receive interrupts may possibly force the wakeup before we
+ * update the link state.)
+ *
+ * The rcd is freed in hfi1_free_ctxtdata after hfi1_postinit_cleanup invokes
+ * dd->f_cleanup(dd) to disable the interrupt handler and flush workqueues,
+ * so we're safe from use-after-free of the rcd.
+ */
+void receive_interrupt_work(struct work_struct *work)
+{
+	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
+						  linkstate_active_work);
+	struct hfi1_devdata *dd = ppd->dd;
+	int i;
+
+	/* Received non-SC15 packet implies neighbor_normal */
+	ppd->neighbor_normal = 1;
+	set_link_state(ppd, HLS_UP_ACTIVE);
+
+	/*
+	 * Interrupt all kernel contexts that could have had an
+	 * interrupt during auto activation.
+	 */
+	for (i = HFI1_CTRL_CTXT; i < dd->first_user_ctxt; i++)
+		force_recv_intr(dd->rcd[i]);
 }
 
 /*

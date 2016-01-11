@@ -729,6 +729,7 @@ struct hfi1_pportdata {
 	u8 remote_link_down_reason;
 	/* Error events that will cause a port bounce. */
 	u32 port_error_action;
+	struct work_struct linkstate_active_work;
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
@@ -1177,6 +1178,7 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
 int handle_receive_interrupt(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
+void set_all_slowpath(struct hfi1_devdata *dd);
 
 /* receive packet handler dispositions */
 #define RCV_PKT_OK      0x0 /* keep going */
@@ -1195,6 +1197,15 @@ int hfi1_reset_device(int);
 static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 {
 	return ppd->lstate; /* use the cached value */
+}
+
+void receive_interrupt_work(struct work_struct *work);
+
+/* extract service channel from header and rhf */
+static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
+{
+	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
+	       ((!!(rhf & RHF_DC_INFO_MASK)) << 4);
 }
 
 static inline u16 generate_jkey(kuid_t uid)
