@@ -40,18 +40,19 @@
 #define INIT_TREE_NODE_ARRAY_SIZE(...)	(sizeof((struct init_tree_node[]){__VA_ARGS__}) /\
 					 sizeof(struct init_tree_node))
 
-#define ADD_PRIO(min_level_val, max_ft_val, caps_val,\
+#define ADD_PRIO(num_prios_val, min_level_val, max_ft_val, caps_val,\
 		 ...) {.type = FS_TYPE_PRIO,\
 	.min_ft_level = min_level_val,\
 	.max_ft = max_ft_val,\
+	.num_leaf_prios = num_prios_val,\
 	.caps = caps_val,\
 	.children = (struct init_tree_node[]) {__VA_ARGS__},\
 	.ar_size = INIT_TREE_NODE_ARRAY_SIZE(__VA_ARGS__) \
 }
 
-#define ADD_FT_PRIO(max_ft_val, ...)\
-	ADD_PRIO(0, max_ft_val, {},\
-		  __VA_ARGS__)\
+#define ADD_MULTIPLE_PRIO(num_prios_val, max_ft_val, ...)\
+	ADD_PRIO(num_prios_val, 0, max_ft_val, {},\
+		 __VA_ARGS__)\
 
 #define ADD_NS(...) {.type = FS_TYPE_NAMESPACE,\
 	.children = (struct init_tree_node[]) {__VA_ARGS__},\
@@ -66,7 +67,14 @@
 #define FS_REQUIRED_CAPS(...) {.arr_sz = INIT_CAPS_ARRAY_SIZE(__VA_ARGS__), \
 			       .caps = (long[]) {__VA_ARGS__} }
 
+#define LEFTOVERS_MAX_FT 1
+#define LEFTOVERS_NUM_PRIOS 1
+#define BY_PASS_PRIO_MAX_FT 1
+#define BY_PASS_MIN_LEVEL (KENREL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
+			   LEFTOVERS_MAX_FT)
+
 #define KERNEL_MAX_FT 2
+#define KERNEL_NUM_PRIOS 1
 #define KENREL_MIN_LEVEL 2
 
 struct node_caps {
@@ -79,14 +87,27 @@ static struct init_tree_node {
 	int ar_size;
 	struct node_caps caps;
 	int min_ft_level;
+	int num_leaf_prios;
 	int prio;
 	int max_ft;
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
-	.ar_size = 1,
+	.ar_size = 3,
 	.children = (struct init_tree_node[]) {
-		ADD_PRIO(KENREL_MIN_LEVEL, 0, {},
-			 ADD_NS(ADD_FT_PRIO(KERNEL_MAX_FT))),
+		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
+			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
+					  FS_CAP(flow_table_properties_nic_receive.modify_root),
+					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
+					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
+			 ADD_NS(ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS, BY_PASS_PRIO_MAX_FT))),
+		ADD_PRIO(0, KENREL_MIN_LEVEL, 0, {},
+			 ADD_NS(ADD_MULTIPLE_PRIO(KERNEL_NUM_PRIOS, KERNEL_MAX_FT))),
+		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
+			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
+					  FS_CAP(flow_table_properties_nic_receive.modify_root),
+					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
+					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
+			 ADD_NS(ADD_MULTIPLE_PRIO(LEFTOVERS_NUM_PRIOS, LEFTOVERS_MAX_FT))),
 	}
 };
 
@@ -1098,8 +1119,10 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 		return NULL;
 
 	switch (type) {
+	case MLX5_FLOW_NAMESPACE_BYPASS:
 	case MLX5_FLOW_NAMESPACE_KERNEL:
-		prio = 0;
+	case MLX5_FLOW_NAMESPACE_LEFTOVERS:
+		prio = type;
 		break;
 	case MLX5_FLOW_NAMESPACE_FDB:
 		if (dev->priv.fdb_root_ns)
@@ -1164,6 +1187,20 @@ static struct mlx5_flow_namespace *fs_create_namespace(struct fs_prio *prio)
 	return ns;
 }
 
+static int create_leaf_prios(struct mlx5_flow_namespace *ns, struct init_tree_node
+			     *prio_metadata)
+{
+	struct fs_prio *fs_prio;
+	int i;
+
+	for (i = 0; i < prio_metadata->num_leaf_prios; i++) {
+		fs_prio = fs_create_prio(ns, i, prio_metadata->max_ft);
+		if (IS_ERR(fs_prio))
+			return PTR_ERR(fs_prio);
+	}
+	return 0;
+}
+
 #define FLOW_TABLE_BIT_SZ 1
 #define GET_FLOW_TABLE_CAP(dev, offset) \
 	((be32_to_cpu(*((__be32 *)(dev->hca_caps_cur[MLX5_CAP_FLOW_TABLE]) +	\
@@ -1201,6 +1238,8 @@ static int init_root_tree_recursive(struct mlx5_core_dev *dev,
 			return 0;
 
 		fs_get_obj(fs_ns, fs_parent_node);
+		if (init_node->num_leaf_prios)
+			return create_leaf_prios(fs_ns, init_node);
 		fs_prio = fs_create_prio(fs_ns, index, init_node->max_ft);
 		if (IS_ERR(fs_prio))
 			return PTR_ERR(fs_prio);
