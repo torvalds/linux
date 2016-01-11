@@ -503,9 +503,6 @@ static int __init init_ops(void)
 	int rc;
 
 	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
-		if (!slot_cur)
-			return -ENODEV;
-
 		debug("BEFORE GETTING SLOT STATUS, slot # %x\n",
 							slot_cur->number);
 		if (slot_cur->ctrl->revision == 0xFF)
