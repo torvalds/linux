@@ -119,6 +119,33 @@ void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates)
 
 		list_add(&entry->tv.head, duplicates);
 	}
+
+}
+
+/**
+ * amdgpu_vm_move_pt_bos_in_lru - move the PT BOs to the LRU tail
+ *
+ * @adev: amdgpu device instance
+ * @vm: vm providing the BOs
+ *
+ * Move the PT BOs to the tail of the LRU.
+ */
+void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
+				  struct amdgpu_vm *vm)
+{
+	struct ttm_bo_global *glob = adev->mman.bdev.glob;
+	unsigned i;
+
+	spin_lock(&glob->lru_lock);
+	for (i = 0; i <= vm->max_pde_used; ++i) {
+		struct amdgpu_bo_list_entry *entry = &vm->page_tables[i].entry;
+
+		if (!entry->robj)
+			continue;
+
+		ttm_bo_move_to_lru_tail(&entry->robj->tbo);
+	}
+	spin_unlock(&glob->lru_lock);
 }
 
 /**
