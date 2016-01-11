@@ -249,13 +249,13 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 		goto Exit;
 	}
 	firmware_buf = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	fw_size = fw->size;
+	release_firmware(fw);
 	if (!firmware_buf) {
 		rtStatus = _FAIL;
 		goto Exit;
 	}
 	buf = firmware_buf;
-	fw_size = fw->size;
-	release_firmware(fw);
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	pFwHdr = (struct rt_8723a_firmware_hdr *)firmware_buf;
@@ -1396,7 +1396,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		/* value16 |= (APDM_HOST | FSM_HSUS |/PFM_ALDN); */
 		/*  2010/08/31 According to Filen description, we need to
 		    use HW to shut down 8051 automatically. */
-		/*  Becasue suspend operatione need the asistance of 8051
+		/*  Because suspend operation need the asistance of 8051
 		    to wait for 3ms. */
 		value16 = APDM_HOST | AFSM_HSUS | PFM_ALDN;
 	} else {
@@ -1485,7 +1485,7 @@ void Hal_EfuseParseIDCode(struct rtw_adapter *padapter, u8 *hwinfo)
 	u16 EEPROMId;
 
 	/*  Checl 0x8129 again for making sure autoload status!! */
-	EEPROMId = le16_to_cpu(*((u16 *) hwinfo));
+	EEPROMId = le16_to_cpu(*((__le16 *) hwinfo));
 	if (EEPROMId != RTL_EEPROM_ID) {
 		DBG_8723A("EEPROM ID(%#x) is invalid!!\n", EEPROMId);
 		pEEPROM->bautoload_fail_flag = true;
@@ -1495,29 +1495,6 @@ void Hal_EfuseParseIDCode(struct rtw_adapter *padapter, u8 *hwinfo)
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
 		 "EEPROM ID = 0x%04x\n", EEPROMId);
-}
-
-static void Hal_EEValueCheck(u8 EEType, void *pInValue, void *pOutValue)
-{
-	switch (EEType) {
-	case EETYPE_TX_PWR:
-	{
-		u8 *pIn, *pOut;
-		pIn = (u8 *) pInValue;
-		pOut = (u8 *) pOutValue;
-		if (*pIn <= 63)
-			*pOut = *pIn;
-		else {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 "EETYPE_TX_PWR, value =%d is invalid, set to default = 0x%x\n",
-				 *pIn, EEPROM_Default_TxPowerLevel);
-			*pOut = EEPROM_Default_TxPowerLevel;
-		}
-	}
-		break;
-	default:
-		break;
-	}
 }
 
 static void
@@ -1555,16 +1532,19 @@ Hal_ReadPowerValueFromPROM_8723A(struct txpowerinfo *pwrInfo,
 		for (group = 0; group < MAX_CHNL_GROUP; group++) {
 			eeAddr =
 			    EEPROM_CCK_TX_PWR_INX_8723A + (rfPath * 3) + group;
-			/* pwrInfo->CCKIndex[rfPath][group] =
-			   PROMContent[eeAddr]; */
-			Hal_EEValueCheck(EETYPE_TX_PWR, &PROMContent[eeAddr],
-					 &pwrInfo->CCKIndex[rfPath][group]);
+
+			pwrInfo->CCKIndex[rfPath][group] = PROMContent[eeAddr];
+			if (pwrInfo->CCKIndex[rfPath][group] > 63)
+				pwrInfo->CCKIndex[rfPath][group] =
+					EEPROM_Default_TxPowerLevel;
+
 			eeAddr = EEPROM_HT40_1S_TX_PWR_INX_8723A +
 				(rfPath * 3) + group;
-			/* pwrInfo->HT40_1SIndex[rfPath][group] =
-			   PROMContent[eeAddr]; */
-			Hal_EEValueCheck(EETYPE_TX_PWR, &PROMContent[eeAddr],
-					 &pwrInfo->HT40_1SIndex[rfPath][group]);
+			pwrInfo->HT40_1SIndex[rfPath][group] =
+				PROMContent[eeAddr];
+			if (pwrInfo->HT40_1SIndex[rfPath][group] > 63)
+				pwrInfo->HT40_1SIndex[rfPath][group] =
+					EEPROM_Default_TxPowerLevel;
 		}
 	}
 
@@ -1838,7 +1818,7 @@ Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter,
 
 static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 {
-	u16 *usPtr = (u16 *) ptxdesc;
+	__le16 *usPtr = (__le16 *)ptxdesc;
 	u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
 	u32 index;
 	u16 checksum = 0;
@@ -1847,7 +1827,7 @@ static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 	ptxdesc->txdw7 &= cpu_to_le32(0xffff0000);
 
 	for (index = 0; index < count; index++)
-		checksum ^= le16_to_cpu(*(usPtr + index));
+		checksum ^= le16_to_cpu(usPtr[index]);
 
 	ptxdesc->txdw7 |= cpu_to_le32(checksum & 0x0000ffff);
 }

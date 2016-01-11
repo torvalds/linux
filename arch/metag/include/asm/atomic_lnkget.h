@@ -3,7 +3,7 @@
 
 #define ATOMIC_INIT(i)	{ (i) }
 
-#define atomic_set(v, i)		((v)->counter = (i))
+#define atomic_set(v, i)		WRITE_ONCE((v)->counter, (i))
 
 #include <linux/compiler.h>
 
@@ -74,43 +74,13 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	int temp;
-
-	asm volatile (
-		"1:	LNKGETD %0, [%1]\n"
-		"	AND	%0, %0, %2\n"
-		"	LNKSETD	[%1] %0\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ	1b\n"
-		: "=&d" (temp)
-		: "da" (&v->counter), "bd" (~mask)
-		: "cc");
-}
-
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	int temp;
-
-	asm volatile (
-		"1:	LNKGETD %0, [%1]\n"
-		"	OR	%0, %0, %2\n"
-		"	LNKSETD	[%1], %0\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ	1b\n"
-		: "=&d" (temp)
-		: "da" (&v->counter), "bd" (mask)
-		: "cc");
-}
 
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {

@@ -129,13 +129,13 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 	} else {
 		/* step 1: classify ether frame, DIX or 802.3? */
 		proto = ntohs(e_hdr.type);
-		if (proto <= 1500) {
+		if (proto <= ETH_DATA_LEN) {
 			pr_debug("802.3 len: %d\n", skb->len);
 			/* codes <= 1500 reserved for 802.3 lengths */
 			/* it's 802.3, pass ether payload unchanged,  */
 
 			/* trim off ethernet header */
-			skb_pull(skb, WLAN_ETHHDR_LEN);
+			skb_pull(skb, ETH_HLEN);
 
 			/*   leave off any PAD octets.  */
 			skb_trim(skb, proto);
@@ -144,7 +144,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			/* it's DIXII, time for some conversion */
 
 			/* trim off ethernet header */
-			skb_pull(skb, WLAN_ETHHDR_LEN);
+			skb_pull(skb, ETH_HLEN);
 
 			/* tack on SNAP */
 			e_snap =
@@ -207,6 +207,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		/* XXXX need to pick keynum other than default? */
 
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
+		if (!p80211_wep->data)
+			return -ENOMEM;
 		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				  skb->len,
 				  (wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
@@ -279,8 +281,8 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	u16 fc;
 	unsigned int payload_length;
 	unsigned int payload_offset;
-	u8 daddr[WLAN_ETHADDR_LEN];
-	u8 saddr[WLAN_ETHADDR_LEN];
+	u8 daddr[ETH_ALEN];
+	u8 saddr[ETH_ALEN];
 	union p80211_hdr *w_hdr;
 	struct wlan_ethhdr *e_hdr;
 	struct wlan_llc *e_llc;
@@ -296,16 +298,16 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	/* setup some vars for convenience */
 	fc = le16_to_cpu(w_hdr->a3.fc);
 	if ((WLAN_GET_FC_TODS(fc) == 0) && (WLAN_GET_FC_FROMDS(fc) == 0)) {
-		memcpy(daddr, w_hdr->a3.a1, WLAN_ETHADDR_LEN);
-		memcpy(saddr, w_hdr->a3.a2, WLAN_ETHADDR_LEN);
+		ether_addr_copy(daddr, w_hdr->a3.a1);
+		ether_addr_copy(saddr, w_hdr->a3.a2);
 	} else if ((WLAN_GET_FC_TODS(fc) == 0)
 			&& (WLAN_GET_FC_FROMDS(fc) == 1)) {
-		memcpy(daddr, w_hdr->a3.a1, WLAN_ETHADDR_LEN);
-		memcpy(saddr, w_hdr->a3.a3, WLAN_ETHADDR_LEN);
+		ether_addr_copy(daddr, w_hdr->a3.a1);
+		ether_addr_copy(saddr, w_hdr->a3.a3);
 	} else if ((WLAN_GET_FC_TODS(fc) == 1)
 			&& (WLAN_GET_FC_FROMDS(fc) == 0)) {
-		memcpy(daddr, w_hdr->a3.a3, WLAN_ETHADDR_LEN);
-		memcpy(saddr, w_hdr->a3.a2, WLAN_ETHADDR_LEN);
+		ether_addr_copy(daddr, w_hdr->a3.a3);
+		ether_addr_copy(saddr, w_hdr->a3.a2);
 	} else {
 		payload_offset = WLAN_HDR_A4_LEN;
 		if (payload_length < WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN) {
@@ -313,8 +315,8 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			return 1;
 		}
 		payload_length -= (WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN);
-		memcpy(daddr, w_hdr->a4.a3, WLAN_ETHADDR_LEN);
-		memcpy(saddr, w_hdr->a4.a4, WLAN_ETHADDR_LEN);
+		ether_addr_copy(daddr, w_hdr->a4.a3);
+		ether_addr_copy(saddr, w_hdr->a4.a4);
 	}
 
 	/* perform de-wep if necessary.. */
@@ -358,16 +360,16 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	/* Test for the various encodings */
 	if ((payload_length >= sizeof(struct wlan_ethhdr)) &&
 	    (e_llc->dsap != 0xaa || e_llc->ssap != 0xaa) &&
-	    ((memcmp(daddr, e_hdr->daddr, WLAN_ETHADDR_LEN) == 0) ||
-	     (memcmp(saddr, e_hdr->saddr, WLAN_ETHADDR_LEN) == 0))) {
+	    ((!ether_addr_equal_unaligned(daddr, e_hdr->daddr)) ||
+	     (!ether_addr_equal_unaligned(saddr, e_hdr->saddr)))) {
 		pr_debug("802.3 ENCAP len: %d\n", payload_length);
 		/* 802.3 Encapsulated */
 		/* Test for an overlength frame */
-		if (payload_length > (netdev->mtu + WLAN_ETHHDR_LEN)) {
+		if (payload_length > (netdev->mtu + ETH_HLEN)) {
 			/* A bogus length ethfrm has been encap'd. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "ENCAP frame too large (%d > %d)\n",
-			       payload_length, netdev->mtu + WLAN_ETHHDR_LEN);
+			       payload_length, netdev->mtu + ETH_HLEN);
 			return 1;
 		}
 
@@ -404,9 +406,9 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		skb_pull(skb, payload_offset);
 
 		/* create 802.3 header at beginning of skb. */
-		e_hdr = (struct wlan_ethhdr *) skb_push(skb, WLAN_ETHHDR_LEN);
-		memcpy(e_hdr->daddr, daddr, WLAN_ETHADDR_LEN);
-		memcpy(e_hdr->saddr, saddr, WLAN_ETHADDR_LEN);
+		e_hdr = (struct wlan_ethhdr *)skb_push(skb, ETH_HLEN);
+		ether_addr_copy(e_hdr->daddr, daddr);
+		ether_addr_copy(e_hdr->saddr, saddr);
 		e_hdr->type = htons(payload_length);
 
 		/* chop off the 802.11 CRC */
@@ -444,10 +446,10 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		skb_pull(skb, sizeof(struct wlan_snap));
 
 		/* create 802.3 header at beginning of skb. */
-		e_hdr = (struct wlan_ethhdr *) skb_push(skb, WLAN_ETHHDR_LEN);
+		e_hdr = (struct wlan_ethhdr *)skb_push(skb, ETH_HLEN);
 		e_hdr->type = e_snap->type;
-		memcpy(e_hdr->daddr, daddr, WLAN_ETHADDR_LEN);
-		memcpy(e_hdr->saddr, saddr, WLAN_ETHADDR_LEN);
+		ether_addr_copy(e_hdr->daddr, daddr);
+		ether_addr_copy(e_hdr->saddr, saddr);
 
 		/* chop off the 802.11 CRC */
 		skb_trim(skb, skb->len - WLAN_CRC_LEN);
@@ -471,9 +473,9 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		skb_pull(skb, payload_offset);
 
 		/* create 802.3 header at beginning of skb. */
-		e_hdr = (struct wlan_ethhdr *) skb_push(skb, WLAN_ETHHDR_LEN);
-		memcpy(e_hdr->daddr, daddr, WLAN_ETHADDR_LEN);
-		memcpy(e_hdr->saddr, saddr, WLAN_ETHADDR_LEN);
+		e_hdr = (struct wlan_ethhdr *)skb_push(skb, ETH_HLEN);
+		ether_addr_copy(e_hdr->daddr, daddr);
+		ether_addr_copy(e_hdr->saddr, saddr);
 		e_hdr->type = htons(payload_length);
 
 		/* chop off the 802.11 CRC */
@@ -529,7 +531,7 @@ int p80211_stt_findproto(u16 proto)
 	   Need to do some testing to confirm.
 	 */
 
-	if (proto == 0x80f3)	/* APPLETALK */
+	if (proto == ETH_P_AARP)	/* APPLETALK */
 		return 1;
 
 	return 0;

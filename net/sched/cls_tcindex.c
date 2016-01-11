@@ -27,6 +27,7 @@
 struct tcindex_filter_result {
 	struct tcf_exts		exts;
 	struct tcf_result	res;
+	struct rcu_head		rcu;
 };
 
 struct tcindex_filter {
@@ -133,8 +134,23 @@ static int tcindex_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static int
-tcindex_delete(struct tcf_proto *tp, unsigned long arg)
+static void tcindex_destroy_rexts(struct rcu_head *head)
+{
+	struct tcindex_filter_result *r;
+
+	r = container_of(head, struct tcindex_filter_result, rcu);
+	tcf_exts_destroy(&r->exts);
+}
+
+static void tcindex_destroy_fexts(struct rcu_head *head)
+{
+	struct tcindex_filter *f = container_of(head, struct tcindex_filter, rcu);
+
+	tcf_exts_destroy(&f->result.exts);
+	kfree(f);
+}
+
+static int tcindex_delete(struct tcf_proto *tp, unsigned long arg)
 {
 	struct tcindex_data *p = rtnl_dereference(tp->root);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) arg;
@@ -162,9 +178,14 @@ found:
 		rcu_assign_pointer(*walk, rtnl_dereference(f->next));
 	}
 	tcf_unbind_filter(tp, &r->res);
-	tcf_exts_destroy(&r->exts);
+	/* all classifiers are required to call tcf_exts_destroy() after rcu
+	 * grace period, since converted-to-rcu actions are relying on that
+	 * in cleanup() callback
+	 */
 	if (f)
-		kfree_rcu(f, rcu);
+		call_rcu(&f->rcu, tcindex_destroy_fexts);
+	else
+		call_rcu(&r->rcu, tcindex_destroy_rexts);
 	return 0;
 }
 

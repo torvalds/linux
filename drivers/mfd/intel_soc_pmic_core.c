@@ -24,7 +24,24 @@
 #include <linux/acpi.h>
 #include <linux/regmap.h>
 #include <linux/mfd/intel_soc_pmic.h>
+#include <linux/gpio/machine.h>
+#include <linux/pwm.h>
 #include "intel_soc_pmic_core.h"
+
+/* Lookup table for the Panel Enable/Disable line as GPIO signals */
+static struct gpiod_lookup_table panel_gpio_table = {
+	/* Intel GFX is consumer */
+	.dev_id = "0000:00:02.0",
+	.table = {
+		/* Panel EN/DISABLE */
+		GPIO_LOOKUP("gpio_crystalcove", 94, "panel", GPIO_ACTIVE_HIGH),
+	},
+};
+
+/* PWM consumed by the Intel GFX */
+static struct pwm_lookup crc_pwm_lookup[] = {
+	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_backlight", 0, PWM_POLARITY_NORMAL),
+};
 
 static int intel_soc_pmic_find_gpio_irq(struct device *dev)
 {
@@ -85,6 +102,12 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		dev_warn(dev, "Can't enable IRQ as wake source: %d\n", ret);
 
+	/* Add lookup table binding for Panel Control to the GPIO Chip */
+	gpiod_add_lookup_table(&panel_gpio_table);
+
+	/* Add lookup table for crc-pwm */
+	pwm_add_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
+
 	ret = mfd_add_devices(dev, -1, config->cell_dev,
 			      config->n_cell_devs, NULL, 0,
 			      regmap_irq_get_domain(pmic->irq_chip_data));
@@ -103,6 +126,12 @@ static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
 	struct intel_soc_pmic *pmic = dev_get_drvdata(&i2c->dev);
 
 	regmap_del_irq_chip(pmic->irq, pmic->irq_chip_data);
+
+	/* Remove lookup table for Panel Control from the GPIO Chip */
+	gpiod_remove_lookup_table(&panel_gpio_table);
+
+	/* remove crc-pwm lookup table */
+	pwm_remove_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
 
 	mfd_remove_devices(&i2c->dev);
 
@@ -147,7 +176,7 @@ static const struct i2c_device_id intel_soc_pmic_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, intel_soc_pmic_i2c_id);
 
 #if defined(CONFIG_ACPI)
-static struct acpi_device_id intel_soc_pmic_acpi_match[] = {
+static const struct acpi_device_id intel_soc_pmic_acpi_match[] = {
 	{"INT33FD", (kernel_ulong_t)&intel_soc_pmic_config_crc},
 	{ },
 };
@@ -157,7 +186,6 @@ MODULE_DEVICE_TABLE(acpi, intel_soc_pmic_acpi_match);
 static struct i2c_driver intel_soc_pmic_i2c_driver = {
 	.driver = {
 		.name = "intel_soc_pmic_i2c",
-		.owner = THIS_MODULE,
 		.pm = &intel_soc_pmic_pm_ops,
 		.acpi_match_table = ACPI_PTR(intel_soc_pmic_acpi_match),
 	},

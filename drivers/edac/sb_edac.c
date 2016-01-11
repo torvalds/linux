@@ -34,7 +34,7 @@ static int probed;
 /*
  * Alter this version for the module when modifications are made
  */
-#define SBRIDGE_REVISION    " Ver: 1.1.0 "
+#define SBRIDGE_REVISION    " Ver: 1.1.1 "
 #define EDAC_MOD_STR      "sbridge_edac"
 
 /*
@@ -254,7 +254,7 @@ static const u32 correrrthrsld[] = {
  * sbridge structs
  */
 
-#define NUM_CHANNELS		4
+#define NUM_CHANNELS		8	/* 2MC per socket, four chan per MC */
 #define MAX_DIMMS		3	/* Max DIMMS per channel */
 #define CHANNEL_UNSPECIFIED	0xf	/* Intel IA32 SDM 15-14 */
 
@@ -280,6 +280,7 @@ struct sbridge_info {
 	u8		max_interleave;
 	u8		(*get_node_id)(struct sbridge_pvt *pvt);
 	enum mem_type	(*get_memory_type)(struct sbridge_pvt *pvt);
+	enum dev_type	(*get_width)(struct sbridge_pvt *pvt, u32 mtr);
 	struct pci_dev	*pci_vtd;
 };
 
@@ -393,6 +394,8 @@ static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
 #define PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS		0x0e79
 #define PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0	0x0e6a
 #define PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1	0x0e6b
+#define PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2	0x0e6c
+#define PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3	0x0e6d
 
 static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 		/* Processor Home Agent */
@@ -421,6 +424,8 @@ static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 #endif
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0, 1)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3, 1)	},
 
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0, 1)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0, 1)	},
@@ -467,6 +472,9 @@ static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2 0x2f6c
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3 0x2f6d
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0 0x2fbd
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1 0x2fbf
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2 0x2fb9
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3 0x2fbb
 static const struct pci_id_descr pci_dev_descr_haswell[] = {
 	/* first item must be the HA */
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0, 0)		},
@@ -484,6 +492,9 @@ static const struct pci_id_descr pci_dev_descr_haswell[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD3, 1)	},
 
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3, 1)		},
 
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA, 1)		},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_THERMAL, 1)	},
@@ -504,17 +515,35 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
  * DE processor:
  *	- 1 IMC
  *	- 2 DDR3 channels, 2 DPC per channel
+ * EP processor:
+ *	- 1 or 2 IMC
+ *	- 4 DDR4 channels, 3 DPC per channel
+ * EP 4S processor:
+ *	- 2 IMC
+ *	- 4 DDR4 channels, 3 DPC per channel
+ * EX processor:
+ *	- 2 IMC
+ *	- each IMC interfaces with a SMI 2 channel
+ *	- each SMI channel interfaces with a scalable memory buffer
+ *	- each scalable memory buffer supports 4 DDR3/DDR4 channels, 3 DPC
  */
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_VTD_MISC 0x6f28
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0	0x6fa0
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1	0x6f60
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA	0x6fa8
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL 0x6f71
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA	0x6f68
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_THERMAL 0x6f79
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0 0x6ffc
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1 0x6ffd
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0 0x6faa
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1 0x6fab
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2 0x6fac
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3 0x6fad
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0 0x6f6a
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1 0x6f6b
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2 0x6f6c
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3 0x6f6d
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0 0x6faf
 
 static const struct pci_id_descr pci_dev_descr_broadwell[] = {
@@ -524,13 +553,23 @@ static const struct pci_id_descr pci_dev_descr_broadwell[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1, 0)	},
 
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1, 1)		},
+
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3, 1)	},
+
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0, 1)	},
+
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_THERMAL, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3, 1)	},
 };
 
 static const struct pci_id_table pci_dev_descr_broadwell_table[] = {
@@ -559,7 +598,7 @@ static inline int numrank(enum type type, u32 mtr)
 	int ranks = (1 << RANK_CNT_BITS(mtr));
 	int max = 4;
 
-	if (type == HASWELL)
+	if (type == HASWELL || type == BROADWELL)
 		max = 8;
 
 	if (ranks > max) {
@@ -728,6 +767,49 @@ static enum mem_type haswell_get_memory_type(struct sbridge_pvt *pvt)
 
 out:
 	return mtype;
+}
+
+static enum dev_type sbridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/* there's no way to figure out */
+	return DEV_UNKNOWN;
+}
+
+static enum dev_type __ibridge_get_width(u32 mtr)
+{
+	enum dev_type type;
+
+	switch (mtr) {
+	case 3:
+		type = DEV_UNKNOWN;
+		break;
+	case 2:
+		type = DEV_X16;
+		break;
+	case 1:
+		type = DEV_X8;
+		break;
+	case 0:
+		type = DEV_X4;
+		break;
+	}
+
+	return type;
+}
+
+static enum dev_type ibridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/*
+	 * ddr3_width on the documentation but also valid for DDR4 on
+	 * Haswell
+	 */
+	return __ibridge_get_width(GET_BITFIELD(mtr, 7, 8));
+}
+
+static enum dev_type broadwell_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/* ddr3_width on the documentation but also valid for DDR4 */
+	return __ibridge_get_width(GET_BITFIELD(mtr, 8, 9));
 }
 
 static u8 get_node_id(struct sbridge_pvt *pvt)
@@ -909,6 +991,8 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	for (i = 0; i < NUM_CHANNELS; i++) {
 		u32 mtr;
 
+		if (!pvt->pci_tad[i])
+			continue;
 		for (j = 0; j < ARRAY_SIZE(mtr_regs); j++) {
 			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
 				       i, j, 0);
@@ -925,29 +1009,19 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				size = ((u64)rows * cols * banks * ranks) >> (20 - 3);
 				npages = MiB_TO_PAGES(size);
 
-				edac_dbg(0, "mc#%d: channel %d, dimm %d, %Ld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
-					 pvt->sbridge_dev->mc, i, j,
+				edac_dbg(0, "mc#%d: ha %d channel %d, dimm %d, %lld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
+					 pvt->sbridge_dev->mc, i/4, i%4, j,
 					 size, npages,
 					 banks, ranks, rows, cols);
 
 				dimm->nr_pages = npages;
 				dimm->grain = 32;
-				switch (banks) {
-				case 16:
-					dimm->dtype = DEV_X16;
-					break;
-				case 8:
-					dimm->dtype = DEV_X8;
-					break;
-				case 4:
-					dimm->dtype = DEV_X4;
-					break;
-				}
+				dimm->dtype = pvt->info.get_width(pvt, mtr);
 				dimm->mtype = mtype;
 				dimm->edac_mode = mode;
 				snprintf(dimm->label, sizeof(dimm->label),
-					 "CPU_SrcID#%u_Channel#%u_DIMM#%u",
-					 pvt->sbridge_dev->source_id, i, j);
+					 "CPU_SrcID#%u_Ha#%u_Chan#%u_DIMM#%u",
+					 pvt->sbridge_dev->source_id, i/4, i%4, j);
 			}
 		}
 	}
@@ -1128,7 +1202,7 @@ static struct mem_ctl_info *get_mci_for_node_id(u8 node_id)
 
 static int get_memory_error_data(struct mem_ctl_info *mci,
 				 u64 addr,
-				 u8 *socket,
+				 u8 *socket, u8 *ha,
 				 long *channel_mask,
 				 u8 *rank,
 				 char **area_type, char *msg)
@@ -1141,7 +1215,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	int			interleave_mode, shiftup = 0;
 	unsigned		sad_interleave[pvt->info.max_interleave];
 	u32			reg, dram_rule;
-	u8			ch_way, sck_way, pkg, sad_ha = 0;
+	u8			ch_way, sck_way, pkg, sad_ha = 0, ch_add = 0;
 	u32			tad_offset;
 	u32			rir_way;
 	u32			mb, gb;
@@ -1242,9 +1316,9 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			bits = GET_BITFIELD(addr, 7, 8) << 1;
 			bits |= GET_BITFIELD(addr, 9, 9);
 		} else
-			bits = GET_BITFIELD(addr, 7, 9);
+			bits = GET_BITFIELD(addr, 6, 8);
 
-		if (interleave_mode) {
+		if (interleave_mode == 0) {
 			/* interleave mode will XOR {8,7,6} with {18,17,16} */
 			idx = GET_BITFIELD(addr, 16, 18);
 			idx ^= bits;
@@ -1254,6 +1328,8 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		pkg = sad_pkg(pvt->info.interleave_pkg, reg, idx);
 		*socket = sad_pkg_socket(pkg);
 		sad_ha = sad_pkg_ha(pkg);
+		if (sad_ha)
+			ch_add = 4;
 
 		if (a7mode) {
 			/* MCChanShiftUpEnable */
@@ -1270,9 +1346,13 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		pkg = sad_pkg(pvt->info.interleave_pkg, reg, idx);
 		*socket = sad_pkg_socket(pkg);
 		sad_ha = sad_pkg_ha(pkg);
+		if (sad_ha)
+			ch_add = 4;
 		edac_dbg(0, "SAD interleave package: %d = CPU socket %d, HA %d\n",
 			 idx, *socket, sad_ha);
 	}
+
+	*ha = sad_ha;
 
 	/*
 	 * Move to the proper node structure, in order to access the
@@ -1346,7 +1426,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	}
 	*channel_mask = 1 << base_ch;
 
-	pci_read_config_dword(pvt->pci_tad[base_ch],
+	pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
 				tad_ch_nilv_offset[n_tads],
 				&tad_offset);
 
@@ -1405,7 +1485,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	 * Step 3) Decode rank
 	 */
 	for (n_rir = 0; n_rir < MAX_RIR_RANGES; n_rir++) {
-		pci_read_config_dword(pvt->pci_tad[base_ch],
+		pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
 				      rir_way_limit[n_rir],
 				      &reg);
 
@@ -1435,7 +1515,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		idx = (ch_addr >> 13);	/* FIXME: Datasheet says to shift by 15 */
 	idx %= 1 << rir_way;
 
-	pci_read_config_dword(pvt->pci_tad[base_ch],
+	pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
 			      rir_offset[n_rir][idx],
 			      &reg);
 	*rank = RIR_RNK_TGT(reg);
@@ -1608,6 +1688,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev;
+	u8 saw_chan_mask = 0;
 	int i;
 
 	for (i = 0; i < sbridge_dev->n_devs; i++) {
@@ -1641,6 +1722,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 		{
 			int id = pdev->device - PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0;
 			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
 		}
 			break;
 		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO:
@@ -1661,10 +1743,8 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 	    !pvt-> pci_tad || !pvt->pci_ras  || !pvt->pci_ta)
 		goto enodev;
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if (!pvt->pci_tad[i])
-			goto enodev;
-	}
+	if (saw_chan_mask != 0x0f)
+		goto enodev;
 	return 0;
 
 enodev:
@@ -1681,16 +1761,9 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 				 struct sbridge_dev *sbridge_dev)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
-	struct pci_dev *pdev, *tmp;
+	struct pci_dev *pdev;
+	u8 saw_chan_mask = 0;
 	int i;
-	bool mode_2ha = false;
-
-	tmp = pci_get_device(PCI_VENDOR_ID_INTEL,
-			     PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1, NULL);
-	if (tmp) {
-		mode_2ha = true;
-		pci_dev_put(tmp);
-	}
 
 	for (i = 0; i < sbridge_dev->n_devs; i++) {
 		pdev = sbridge_dev->pdev[i];
@@ -1706,26 +1779,21 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS:
 			pvt->pci_ras = pdev;
 			break;
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2:
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3:
-			/* if we have 2 HAs active, channels 2 and 3
-			 * are in other device */
-			if (mode_2ha)
-				break;
-			/* fall through */
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3:
 		{
 			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0;
 			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
 		}
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0:
 			pvt->pci_ddrio = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0:
-			if (!mode_2ha)
-				pvt->pci_ddrio = pdev;
+			pvt->pci_ddrio = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_SAD:
 			pvt->pci_sad0 = pdev;
@@ -1741,13 +1809,12 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0 + 2;
-
-			/* we shouldn't have this device if we have just one
-			 * HA present */
-			WARN_ON(!mode_2ha);
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0 + 4;
 			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
 		}
 			break;
 		default:
@@ -1766,10 +1833,10 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 	    !pvt->pci_ta)
 		goto enodev;
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if (!pvt->pci_tad[i])
-			goto enodev;
-	}
+	if (saw_chan_mask != 0x0f && /* -EN */
+	    saw_chan_mask != 0x33 && /* -EP */
+	    saw_chan_mask != 0xff)   /* -EX */
+		goto enodev;
 	return 0;
 
 enodev:
@@ -1787,16 +1854,9 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 				 struct sbridge_dev *sbridge_dev)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
-	struct pci_dev *pdev, *tmp;
+	struct pci_dev *pdev;
+	u8 saw_chan_mask = 0;
 	int i;
-	bool mode_2ha = false;
-
-	tmp = pci_get_device(PCI_VENDOR_ID_INTEL,
-			     PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1, NULL);
-	if (tmp) {
-		mode_2ha = true;
-		pci_dev_put(tmp);
-	}
 
 	/* there's only one device per system; not tied to any bus */
 	if (pvt->info.pci_vtd == NULL)
@@ -1827,35 +1887,39 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0:
-			pvt->pci_tad[0] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD1:
-			pvt->pci_tad[1] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD2:
-			if (!mode_2ha)
-				pvt->pci_tad[2] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD3:
-			if (!mode_2ha)
-				pvt->pci_tad[3] = pdev;
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0;
+
+			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
+		}
+			break;
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD1:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3:
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0 + 4;
+
+			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
+		}
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0:
-			pvt->pci_ddrio = pdev;
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3:
+			if (!pvt->pci_ddrio)
+				pvt->pci_ddrio = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1:
 			pvt->pci_ha1 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA:
 			pvt->pci_ha1_ta = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0:
-			if (mode_2ha)
-				pvt->pci_tad[2] = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD1:
-			if (mode_2ha)
-				pvt->pci_tad[3] = pdev;
 			break;
 		default:
 			break;
@@ -1872,10 +1936,10 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
 		goto enodev;
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if (!pvt->pci_tad[i])
-			goto enodev;
-	}
+	if (saw_chan_mask != 0x0f && /* -EN */
+	    saw_chan_mask != 0x33 && /* -EP */
+	    saw_chan_mask != 0xff)   /* -EX */
+		goto enodev;
 	return 0;
 
 enodev:
@@ -1888,6 +1952,7 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev;
+	u8 saw_chan_mask = 0;
 	int i;
 
 	/* there's only one device per system; not tied to any bus */
@@ -1919,19 +1984,33 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0:
-			pvt->pci_tad[0] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1:
-			pvt->pci_tad[1] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2:
-			pvt->pci_tad[2] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3:
-			pvt->pci_tad[3] = pdev;
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0;
+			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
+		}
+			break;
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3:
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0 + 4;
+			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
+		}
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0:
 			pvt->pci_ddrio = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1:
+			pvt->pci_ha1 = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA:
+			pvt->pci_ha1_ta = pdev;
 			break;
 		default:
 			break;
@@ -1948,10 +2027,10 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
 		goto enodev;
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if (!pvt->pci_tad[i])
-			goto enodev;
-	}
+	if (saw_chan_mask != 0x0f && /* -EN */
+	    saw_chan_mask != 0x33 && /* -EP */
+	    saw_chan_mask != 0xff)   /* -EX */
+		goto enodev;
 	return 0;
 
 enodev:
@@ -1986,11 +2065,11 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	u32 channel = GET_BITFIELD(m->status, 0, 3);
 	u32 optypenum = GET_BITFIELD(m->status, 4, 6);
 	long channel_mask, first_channel;
-	u8  rank, socket;
+	u8  rank, socket, ha;
 	int rc, dimm;
 	char *area_type = NULL;
 
-	if (pvt->info.type == IVY_BRIDGE)
+	if (pvt->info.type != SANDY_BRIDGE)
 		recoverable = true;
 	else
 		recoverable = GET_BITFIELD(m->status, 56, 56);
@@ -2048,7 +2127,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	if (!GET_BITFIELD(m->status, 58, 58))
 		return;
 
-	rc = get_memory_error_data(mci, m->addr, &socket,
+	rc = get_memory_error_data(mci, m->addr, &socket, &ha,
 				   &channel_mask, &rank, &area_type, msg);
 	if (rc < 0)
 		goto err_parsing;
@@ -2080,12 +2159,12 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		channel = first_channel;
 
 	snprintf(msg, sizeof(msg),
-		 "%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
+		 "%s%s area:%s err_code:%04x:%04x socket:%d ha:%d channel_mask:%ld rank:%d",
 		 overflow ? " OVERFLOW" : "",
 		 (uncorrected_error && recoverable) ? " recoverable" : "",
 		 area_type,
 		 mscod, errcode,
-		 socket,
+		 socket, ha,
 		 channel_mask,
 		 rank);
 
@@ -2099,7 +2178,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	/* Call the helper to output message */
 	edac_mc_handle_error(tp_event, mci, core_err_cnt,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
-			     channel, dimm, -1,
+			     4*ha+channel, dimm, -1,
 			     optype, msg);
 	return;
 err_parsing:
@@ -2326,6 +2405,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
+		pvt->info.get_width = ibridge_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Ivy Bridge Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
@@ -2345,6 +2425,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = sbridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
 		pvt->info.interleave_pkg = sbridge_interleave_pkg;
+		pvt->info.get_width = sbridge_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
@@ -2364,6 +2445,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
+		pvt->info.get_width = ibridge_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Haswell Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
@@ -2383,6 +2465,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
+		pvt->info.get_width = broadwell_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Broadwell Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */

@@ -105,11 +105,28 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 				  struct ssb_init_invariants *iv)
 {
 	char buf[20];
+	int len, err;
 
 	/* Fill boardinfo structure */
 	memset(&iv->boardinfo, 0 , sizeof(struct ssb_boardinfo));
 
-	bcm47xx_fill_ssb_boardinfo(&iv->boardinfo, NULL);
+	len = bcm47xx_nvram_getenv("boardvendor", buf, sizeof(buf));
+	if (len > 0) {
+		err = kstrtou16(strim(buf), 0, &iv->boardinfo.vendor);
+		if (err)
+			pr_warn("Couldn't parse nvram board vendor entry with value \"%s\"\n",
+				buf);
+	}
+	if (!iv->boardinfo.vendor)
+		iv->boardinfo.vendor = SSB_BOARDVENDOR_BCM;
+
+	len = bcm47xx_nvram_getenv("boardtype", buf, sizeof(buf));
+	if (len > 0) {
+		err = kstrtou16(strim(buf), 0, &iv->boardinfo.type);
+		if (err)
+			pr_warn("Couldn't parse nvram board type entry with value \"%s\"\n",
+				buf);
+	}
 
 	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
 	bcm47xx_fill_sprom(&iv->sprom, NULL, false);
@@ -206,9 +223,6 @@ void __init bcm47xx_bus_setup(void)
 		err = bcma_host_soc_init(&bcm47xx_bus.bcma);
 		if (err)
 			panic("Failed to initialize BCMA bus (err %d)", err);
-
-		bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo,
-					    NULL);
 	}
 #endif
 
@@ -266,7 +280,7 @@ static int __init bcm47xx_register_bus_complete(void)
 	bcm47xx_leds_register();
 	bcm47xx_workarounds();
 
-	fixed_phy_add(PHY_POLL, 0, &bcm47xx_fixed_phy_status);
+	fixed_phy_add(PHY_POLL, 0, &bcm47xx_fixed_phy_status, -1);
 	return 0;
 }
 device_initcall(bcm47xx_register_bus_complete);

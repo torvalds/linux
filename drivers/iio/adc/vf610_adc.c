@@ -34,8 +34,11 @@
 #include <linux/err.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/driver.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 /* This will be the driver name the kernel reports */
 #define DRIVER_NAME "vf610-adc"
@@ -68,6 +71,9 @@
 #define VF610_ADC_CLK_DIV8		0x60
 #define VF610_ADC_CLK_MASK		0x60
 #define VF610_ADC_ADLSMP_LONG		0x10
+#define VF610_ADC_ADSTS_SHORT   0x100
+#define VF610_ADC_ADSTS_NORMAL  0x200
+#define VF610_ADC_ADSTS_LONG    0x300
 #define VF610_ADC_ADSTS_MASK		0x300
 #define VF610_ADC_ADLPC_EN		0x80
 #define VF610_ADC_ADHSC_EN		0x400
@@ -98,6 +104,15 @@
 #define VF610_ADC_CALF			0x2
 #define VF610_ADC_TIMEOUT		msecs_to_jiffies(100)
 
+#define DEFAULT_SAMPLE_TIME		1000
+
+/* V at 25°C of 696 mV */
+#define VF610_VTEMP25_3V0		950
+/* V at 25°C of 699 mV */
+#define VF610_VTEMP25_3V3		867
+/* Typical sensor slope coefficient at all temperatures */
+#define VF610_TEMP_SLOPE_COEFF		1840
+
 enum clk_sel {
 	VF610_ADCIOC_BUSCLK_SET,
 	VF610_ADCIOC_ALTCLK_SET,
@@ -118,15 +133,34 @@ enum average_sel {
 	VF610_ADC_SAMPLE_32,
 };
 
+enum conversion_mode_sel {
+	VF610_ADC_CONV_NORMAL,
+	VF610_ADC_CONV_HIGH_SPEED,
+	VF610_ADC_CONV_LOW_POWER,
+};
+
+enum lst_adder_sel {
+	VF610_ADCK_CYCLES_3,
+	VF610_ADCK_CYCLES_5,
+	VF610_ADCK_CYCLES_7,
+	VF610_ADCK_CYCLES_9,
+	VF610_ADCK_CYCLES_13,
+	VF610_ADCK_CYCLES_17,
+	VF610_ADCK_CYCLES_21,
+	VF610_ADCK_CYCLES_25,
+};
+
 struct vf610_adc_feature {
 	enum clk_sel	clk_sel;
 	enum vol_ref	vol_ref;
+	enum conversion_mode_sel conv_mode;
 
 	int	clk_div;
 	int     sample_rate;
 	int	res_mode;
+	u32 lst_adder_index;
+	u32 default_sample_time;
 
-	bool	lpm;
 	bool	calibration;
 	bool	ovwren;
 };
@@ -139,55 +173,51 @@ struct vf610_adc {
 	u32 vref_uv;
 	u32 value;
 	struct regulator *vref;
+
+	u32 max_adck_rate[3];
 	struct vf610_adc_feature adc_feature;
 
 	u32 sample_freq_avail[5];
 
 	struct completion completion;
+	u16 buffer[8];
 };
 
 static const u32 vf610_hw_avgs[] = { 1, 4, 8, 16, 32 };
-
-#define VF610_ADC_CHAN(_idx, _chan_type) {			\
-	.type = (_chan_type),					\
-	.indexed = 1,						\
-	.channel = (_idx),					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
-				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
-}
-
-#define VF610_ADC_TEMPERATURE_CHAN(_idx, _chan_type) {	\
-	.type = (_chan_type),	\
-	.channel = (_idx),		\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
-}
-
-static const struct iio_chan_spec vf610_adc_iio_channels[] = {
-	VF610_ADC_CHAN(0, IIO_VOLTAGE),
-	VF610_ADC_CHAN(1, IIO_VOLTAGE),
-	VF610_ADC_CHAN(2, IIO_VOLTAGE),
-	VF610_ADC_CHAN(3, IIO_VOLTAGE),
-	VF610_ADC_CHAN(4, IIO_VOLTAGE),
-	VF610_ADC_CHAN(5, IIO_VOLTAGE),
-	VF610_ADC_CHAN(6, IIO_VOLTAGE),
-	VF610_ADC_CHAN(7, IIO_VOLTAGE),
-	VF610_ADC_CHAN(8, IIO_VOLTAGE),
-	VF610_ADC_CHAN(9, IIO_VOLTAGE),
-	VF610_ADC_CHAN(10, IIO_VOLTAGE),
-	VF610_ADC_CHAN(11, IIO_VOLTAGE),
-	VF610_ADC_CHAN(12, IIO_VOLTAGE),
-	VF610_ADC_CHAN(13, IIO_VOLTAGE),
-	VF610_ADC_CHAN(14, IIO_VOLTAGE),
-	VF610_ADC_CHAN(15, IIO_VOLTAGE),
-	VF610_ADC_TEMPERATURE_CHAN(26, IIO_TEMP),
-	/* sentinel */
-};
+static const u32 vf610_lst_adder[] = { 3, 5, 7, 9, 13, 17, 21, 25 };
 
 static inline void vf610_adc_calculate_rates(struct vf610_adc *info)
 {
+	struct vf610_adc_feature *adc_feature = &info->adc_feature;
 	unsigned long adck_rate, ipg_rate = clk_get_rate(info->clk);
-	int i;
+	u32 adck_period, lst_addr_min;
+	int divisor, i;
+
+	adck_rate = info->max_adck_rate[adc_feature->conv_mode];
+
+	if (adck_rate) {
+		/* calculate clk divider which is within specification */
+		divisor = ipg_rate / adck_rate;
+		adc_feature->clk_div = 1 << fls(divisor + 1);
+	} else {
+		/* fall-back value using a safe divisor */
+		adc_feature->clk_div = 8;
+	}
+
+	adck_rate = ipg_rate / adc_feature->clk_div;
+
+	/*
+	 * Determine the long sample time adder value to be used based
+	 * on the default minimum sample time provided.
+	 */
+	adck_period = NSEC_PER_SEC / adck_rate;
+	lst_addr_min = adc_feature->default_sample_time / adck_period;
+	for (i = 0; i < ARRAY_SIZE(vf610_lst_adder); i++) {
+		if (vf610_lst_adder[i] > lst_addr_min) {
+			adc_feature->lst_adder_index = i;
+			break;
+		}
+	}
 
 	/*
 	 * Calculate ADC sample frequencies
@@ -198,12 +228,12 @@ static inline void vf610_adc_calculate_rates(struct vf610_adc *info)
 	 * SFCAdder: fixed to 6 ADCK cycles
 	 * AverageNum: 1, 4, 8, 16, 32 samples for hardware average.
 	 * BCT (Base Conversion Time): fixed to 25 ADCK cycles for 12 bit mode
-	 * LSTAdder(Long Sample Time): fixed to 3 ADCK cycles
+	 * LSTAdder(Long Sample Time): 3, 5, 7, 9, 13, 17, 21, 25 ADCK cycles
 	 */
-	adck_rate = ipg_rate / info->adc_feature.clk_div;
 	for (i = 0; i < ARRAY_SIZE(vf610_hw_avgs); i++)
 		info->sample_freq_avail[i] =
-			adck_rate / (6 + vf610_hw_avgs[i] * (25 + 3));
+			adck_rate / (6 + vf610_hw_avgs[i] *
+			 (25 + vf610_lst_adder[adc_feature->lst_adder_index]));
 }
 
 static inline void vf610_adc_cfg_init(struct vf610_adc *info)
@@ -219,10 +249,8 @@ static inline void vf610_adc_cfg_init(struct vf610_adc *info)
 
 	adc_feature->res_mode = 12;
 	adc_feature->sample_rate = 1;
-	adc_feature->lpm = true;
 
-	/* Use a save ADCK which is below 20MHz on all devices */
-	adc_feature->clk_div = 8;
+	adc_feature->conv_mode = VF610_ADC_CONV_LOW_POWER;
 
 	vf610_adc_calculate_rates(info);
 }
@@ -304,10 +332,12 @@ static void vf610_adc_cfg_set(struct vf610_adc *info)
 	cfg_data = readl(info->regs + VF610_REG_ADC_CFG);
 
 	cfg_data &= ~VF610_ADC_ADLPC_EN;
-	if (adc_feature->lpm)
+	if (adc_feature->conv_mode == VF610_ADC_CONV_LOW_POWER)
 		cfg_data |= VF610_ADC_ADLPC_EN;
 
 	cfg_data &= ~VF610_ADC_ADHSC_EN;
+	if (adc_feature->conv_mode == VF610_ADC_CONV_HIGH_SPEED)
+		cfg_data |= VF610_ADC_ADHSC_EN;
 
 	writel(cfg_data, info->regs + VF610_REG_ADC_CFG);
 }
@@ -363,8 +393,40 @@ static void vf610_adc_sample_set(struct vf610_adc *info)
 		break;
 	}
 
-	/* Use the short sample mode */
-	cfg_data &= ~(VF610_ADC_ADLSMP_LONG | VF610_ADC_ADSTS_MASK);
+	/*
+	 * Set ADLSMP and ADSTS based on the Long Sample Time Adder value
+	 * determined.
+	 */
+	switch (adc_feature->lst_adder_index) {
+	case VF610_ADCK_CYCLES_3:
+		break;
+	case VF610_ADCK_CYCLES_5:
+		cfg_data |= VF610_ADC_ADSTS_SHORT;
+		break;
+	case VF610_ADCK_CYCLES_7:
+		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		break;
+	case VF610_ADCK_CYCLES_9:
+		cfg_data |= VF610_ADC_ADSTS_LONG;
+		break;
+	case VF610_ADCK_CYCLES_13:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		break;
+	case VF610_ADCK_CYCLES_17:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		cfg_data |= VF610_ADC_ADSTS_SHORT;
+		break;
+	case VF610_ADCK_CYCLES_21:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		break;
+	case VF610_ADCK_CYCLES_25:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		break;
+	default:
+		dev_err(info->dev, "error in sample time select\n");
+	}
 
 	/* update hardware average selection */
 	cfg_data &= ~VF610_ADC_AVGS_MASK;
@@ -409,6 +471,94 @@ static void vf610_adc_hw_init(struct vf610_adc *info)
 	vf610_adc_cfg_set(info);
 }
 
+static int vf610_set_conversion_mode(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     unsigned int mode)
+{
+	struct vf610_adc *info = iio_priv(indio_dev);
+
+	mutex_lock(&indio_dev->mlock);
+	info->adc_feature.conv_mode = mode;
+	vf610_adc_calculate_rates(info);
+	vf610_adc_hw_init(info);
+	mutex_unlock(&indio_dev->mlock);
+
+	return 0;
+}
+
+static int vf610_get_conversion_mode(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan)
+{
+	struct vf610_adc *info = iio_priv(indio_dev);
+
+	return info->adc_feature.conv_mode;
+}
+
+static const char * const vf610_conv_modes[] = { "normal", "high-speed",
+						 "low-power" };
+
+static const struct iio_enum vf610_conversion_mode = {
+	.items = vf610_conv_modes,
+	.num_items = ARRAY_SIZE(vf610_conv_modes),
+	.get = vf610_get_conversion_mode,
+	.set = vf610_set_conversion_mode,
+};
+
+static const struct iio_chan_spec_ext_info vf610_ext_info[] = {
+	IIO_ENUM("conversion_mode", IIO_SHARED_BY_DIR, &vf610_conversion_mode),
+	{},
+};
+
+#define VF610_ADC_CHAN(_idx, _chan_type) {			\
+	.type = (_chan_type),					\
+	.indexed = 1,						\
+	.channel = (_idx),					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
+				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.ext_info = vf610_ext_info,				\
+	.scan_index = (_idx),			\
+	.scan_type = {					\
+		.sign = 'u',				\
+		.realbits = 12,				\
+		.storagebits = 16,			\
+	},						\
+}
+
+#define VF610_ADC_TEMPERATURE_CHAN(_idx, _chan_type) {	\
+	.type = (_chan_type),	\
+	.channel = (_idx),		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
+	.scan_index = (_idx),					\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = 12,					\
+		.storagebits = 16,				\
+	},							\
+}
+
+static const struct iio_chan_spec vf610_adc_iio_channels[] = {
+	VF610_ADC_CHAN(0, IIO_VOLTAGE),
+	VF610_ADC_CHAN(1, IIO_VOLTAGE),
+	VF610_ADC_CHAN(2, IIO_VOLTAGE),
+	VF610_ADC_CHAN(3, IIO_VOLTAGE),
+	VF610_ADC_CHAN(4, IIO_VOLTAGE),
+	VF610_ADC_CHAN(5, IIO_VOLTAGE),
+	VF610_ADC_CHAN(6, IIO_VOLTAGE),
+	VF610_ADC_CHAN(7, IIO_VOLTAGE),
+	VF610_ADC_CHAN(8, IIO_VOLTAGE),
+	VF610_ADC_CHAN(9, IIO_VOLTAGE),
+	VF610_ADC_CHAN(10, IIO_VOLTAGE),
+	VF610_ADC_CHAN(11, IIO_VOLTAGE),
+	VF610_ADC_CHAN(12, IIO_VOLTAGE),
+	VF610_ADC_CHAN(13, IIO_VOLTAGE),
+	VF610_ADC_CHAN(14, IIO_VOLTAGE),
+	VF610_ADC_CHAN(15, IIO_VOLTAGE),
+	VF610_ADC_TEMPERATURE_CHAN(26, IIO_TEMP),
+	IIO_CHAN_SOFT_TIMESTAMP(32),
+	/* sentinel */
+};
+
 static int vf610_adc_read_data(struct vf610_adc *info)
 {
 	int result;
@@ -434,13 +584,20 @@ static int vf610_adc_read_data(struct vf610_adc *info)
 
 static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 {
-	struct vf610_adc *info = (struct vf610_adc *)dev_id;
+	struct iio_dev *indio_dev = (struct iio_dev *)dev_id;
+	struct vf610_adc *info = iio_priv(indio_dev);
 	int coco;
 
 	coco = readl(info->regs + VF610_REG_ADC_HS);
 	if (coco & VF610_ADC_HS_COCO0) {
 		info->value = vf610_adc_read_data(info);
-		complete(&info->completion);
+		if (iio_buffer_enabled(indio_dev)) {
+			info->buffer[0] = info->value;
+			iio_push_to_buffers_with_timestamp(indio_dev,
+					info->buffer, iio_get_time_ns());
+			iio_trigger_notify_done(indio_dev->trig);
+		} else
+			complete(&info->completion);
 	}
 
 	return IRQ_HANDLED;
@@ -488,8 +645,12 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
 		mutex_lock(&indio_dev->mlock);
-		reinit_completion(&info->completion);
+		if (iio_buffer_enabled(indio_dev)) {
+			mutex_unlock(&indio_dev->mlock);
+			return -EBUSY;
+		}
 
+		reinit_completion(&info->completion);
 		hc_cfg = VF610_ADC_ADCHC(chan->channel);
 		hc_cfg |= VF610_ADC_AIEN;
 		writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
@@ -510,11 +671,13 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_TEMP:
 			/*
-			* Calculate in degree Celsius times 1000
-			* Using sensor slope of 1.84 mV/°C and
-			* V at 25°C of 696 mV
-			*/
-			*val = 25000 - ((int)info->value - 864) * 1000000 / 1840;
+			 * Calculate in degree Celsius times 1000
+			 * Using the typical sensor slope of 1.84 mV/°C
+			 * and VREFH_ADC at 3.3V, V at 25°C of 699 mV
+			 */
+			*val = 25000 - ((int)info->value - VF610_VTEMP25_3V3) *
+					1000000 / VF610_TEMP_SLOPE_COEFF;
+
 			break;
 		default:
 			mutex_unlock(&indio_dev->mlock);
@@ -569,6 +732,56 @@ static int vf610_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int vf610_adc_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct vf610_adc *info = iio_priv(indio_dev);
+	unsigned int channel;
+	int ret;
+	int val;
+
+	ret = iio_triggered_buffer_postenable(indio_dev);
+	if (ret)
+		return ret;
+
+	val = readl(info->regs + VF610_REG_ADC_GC);
+	val |= VF610_ADC_ADCON;
+	writel(val, info->regs + VF610_REG_ADC_GC);
+
+	channel = find_first_bit(indio_dev->active_scan_mask,
+						indio_dev->masklength);
+
+	val = VF610_ADC_ADCHC(channel);
+	val |= VF610_ADC_AIEN;
+
+	writel(val, info->regs + VF610_REG_ADC_HC0);
+
+	return 0;
+}
+
+static int vf610_adc_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct vf610_adc *info = iio_priv(indio_dev);
+	unsigned int hc_cfg = 0;
+	int val;
+
+	val = readl(info->regs + VF610_REG_ADC_GC);
+	val &= ~VF610_ADC_ADCON;
+	writel(val, info->regs + VF610_REG_ADC_GC);
+
+	hc_cfg |= VF610_ADC_CONV_DISABLE;
+	hc_cfg &= ~VF610_ADC_AIEN;
+
+	writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
+
+	return iio_triggered_buffer_predisable(indio_dev);
+}
+
+static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
+	.postenable = &vf610_adc_buffer_postenable,
+	.predisable = &vf610_adc_buffer_predisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
+};
+
 static int vf610_adc_reg_access(struct iio_dev *indio_dev,
 			unsigned reg, unsigned writeval,
 			unsigned *readval)
@@ -576,7 +789,7 @@ static int vf610_adc_reg_access(struct iio_dev *indio_dev,
 	struct vf610_adc *info = iio_priv(indio_dev);
 
 	if ((readval == NULL) ||
-		(!(reg % 4) || (reg > VF610_REG_ADC_PCTL)))
+		((reg % 4) || (reg > VF610_REG_ADC_PCTL)))
 		return -EINVAL;
 
 	*readval = readl(info->regs + reg);
@@ -628,7 +841,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(info->dev, irq,
 				vf610_adc_isr, 0,
-				dev_name(&pdev->dev), info);
+				dev_name(&pdev->dev), indio_dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed requesting irq, irq = %d\n", irq);
 		return ret;
@@ -650,6 +863,14 @@ static int vf610_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	info->vref_uv = regulator_get_voltage(info->vref);
+
+	of_property_read_u32_array(pdev->dev.of_node, "fsl,adck-max-frequency",
+			info->max_adck_rate, 3);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "min-sample-time",
+			&info->adc_feature.default_sample_time);
+	if (ret)
+		info->adc_feature.default_sample_time = DEFAULT_SAMPLE_TIME;
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -673,15 +894,23 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	vf610_adc_cfg_init(info);
 	vf610_adc_hw_init(info);
 
+	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+					NULL, &iio_triggered_buffer_setup_ops);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Couldn't initialise the buffer\n");
+		goto error_iio_device_register;
+	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register the device.\n");
-		goto error_iio_device_register;
+		goto error_adc_buffer_init;
 	}
 
 	return 0;
 
-
+error_adc_buffer_init:
+	iio_triggered_buffer_cleanup(indio_dev);
 error_iio_device_register:
 	clk_disable_unprepare(info->clk);
 error_adc_clk_enable:
@@ -696,6 +925,7 @@ static int vf610_adc_remove(struct platform_device *pdev)
 	struct vf610_adc *info = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(info->vref);
 	clk_disable_unprepare(info->clk);
 

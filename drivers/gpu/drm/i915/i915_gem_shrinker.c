@@ -73,7 +73,7 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
  */
 unsigned long
 i915_gem_shrink(struct drm_i915_private *dev_priv,
-		long target, unsigned flags)
+		unsigned long target, unsigned flags)
 {
 	const struct {
 		struct list_head *list;
@@ -84,6 +84,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		{ NULL, 0 },
 	}, *phase;
 	unsigned long count = 0;
+
+	trace_i915_gem_shrink(dev_priv, target, flags);
+	i915_gem_retire_requests(dev_priv->dev);
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
@@ -123,6 +126,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			    obj->madv != I915_MADV_DONTNEED)
 				continue;
 
+			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
+				continue;
+
 			drm_gem_object_reference(&obj->base);
 
 			/* For the unbound phase, this should be a no-op! */
@@ -139,11 +145,13 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		list_splice(&still_in_list, phase->list);
 	}
 
+	i915_gem_retire_requests(dev_priv->dev);
+
 	return count;
 }
 
 /**
- * i915_gem_shrink - Shrink buffer object caches completely
+ * i915_gem_shrink_all - Shrink buffer object caches completely
  * @dev_priv: i915 device
  *
  * This is a simple wraper around i915_gem_shrink() to aggressively shrink all
@@ -158,9 +166,10 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
  */
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
-	i915_gem_evict_everything(dev_priv->dev);
-	return i915_gem_shrink(dev_priv, LONG_MAX,
-			       I915_SHRINK_BOUND | I915_SHRINK_UNBOUND);
+	return i915_gem_shrink(dev_priv, -1UL,
+			       I915_SHRINK_BOUND |
+			       I915_SHRINK_UNBOUND |
+			       I915_SHRINK_ACTIVE);
 }
 
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
@@ -184,9 +193,12 @@ static int num_vma_bound(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int count = 0;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
 		if (drm_mm_node_allocated(&vma->node))
 			count++;
+		if (vma->pin_count)
+			count++;
+	}
 
 	return count;
 }
@@ -210,8 +222,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!i915_gem_obj_is_pinned(obj) &&
-		    obj->pages_pin_count == num_vma_bound(obj))
+		if (!obj->active && obj->pages_pin_count == num_vma_bound(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 

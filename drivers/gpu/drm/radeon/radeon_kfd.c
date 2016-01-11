@@ -34,6 +34,13 @@
 
 #define CIK_PIPE_PER_MEC	(4)
 
+static const uint32_t watchRegs[MAX_WATCH_ADDRESSES * ADDRESS_WATCH_REG_MAX] = {
+	TCP_WATCH0_ADDR_H, TCP_WATCH0_ADDR_L, TCP_WATCH0_CNTL,
+	TCP_WATCH1_ADDR_H, TCP_WATCH1_ADDR_L, TCP_WATCH1_CNTL,
+	TCP_WATCH2_ADDR_H, TCP_WATCH2_ADDR_L, TCP_WATCH2_CNTL,
+	TCP_WATCH3_ADDR_H, TCP_WATCH3_ADDR_L, TCP_WATCH3_CNTL
+};
+
 struct kgd_mem {
 	struct radeon_bo *bo;
 	uint64_t gpu_addr;
@@ -66,7 +73,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
-
+static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
@@ -79,6 +86,23 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
 static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 				unsigned int timeout);
+static int kgd_address_watch_disable(struct kgd_dev *kgd);
+static int kgd_address_watch_execute(struct kgd_dev *kgd,
+					unsigned int watch_point_id,
+					uint32_t cntl_val,
+					uint32_t addr_hi,
+					uint32_t addr_lo);
+static int kgd_wave_control_execute(struct kgd_dev *kgd,
+					uint32_t gfx_index_val,
+					uint32_t sq_cmd);
+static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
+					unsigned int watch_point_id,
+					unsigned int reg_offset);
+
+static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd, uint8_t vmid);
+static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
+							uint8_t vmid);
+static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid);
 
 static const struct kfd2kgd_calls kfd2kgd = {
 	.init_gtt_mem_allocation = alloc_gtt_mem,
@@ -89,12 +113,20 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_pipeline = kgd_init_pipeline,
+	.init_interrupts = kgd_init_interrupts,
 	.hqd_load = kgd_hqd_load,
 	.hqd_sdma_load = kgd_hqd_sdma_load,
 	.hqd_is_occupied = kgd_hqd_is_occupied,
 	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
 	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
+	.address_watch_disable = kgd_address_watch_disable,
+	.address_watch_execute = kgd_address_watch_execute,
+	.wave_control_execute = kgd_wave_control_execute,
+	.address_watch_get_offset = kgd_address_watch_get_offset,
+	.get_atc_vmid_pasid_mapping_pasid = get_atc_vmid_pasid_mapping_pasid,
+	.get_atc_vmid_pasid_mapping_valid = get_atc_vmid_pasid_mapping_valid,
+	.write_vmid_invalidate_request = write_vmid_invalidate_request,
 	.get_fw_version = get_fw_version
 };
 
@@ -371,8 +403,8 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 	 * the SW cleared it.
 	 * So the protocol is to always wait & clear.
 	 */
-	uint32_t pasid_mapping = (pasid == 0) ? 0 :
-				(uint32_t)pasid | ATC_VMID_PASID_MAPPING_VALID;
+	uint32_t pasid_mapping = (pasid == 0) ? 0 : (uint32_t)pasid |
+					ATC_VMID_PASID_MAPPING_VALID_MASK;
 
 	write_register(kgd, ATC_VMID0_PASID_MAPPING + vmid*sizeof(uint32_t),
 			pasid_mapping);
@@ -402,6 +434,24 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 			upper_32_bits(hpd_gpu_addr >> 8));
 	write_register(kgd, CP_HPD_EOP_VMID, 0);
 	write_register(kgd, CP_HPD_EOP_CONTROL, hpd_size);
+	unlock_srbm(kgd);
+
+	return 0;
+}
+
+static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
+{
+	uint32_t mec;
+	uint32_t pipe;
+
+	mec = (pipe_id / CIK_PIPE_PER_MEC) + 1;
+	pipe = (pipe_id % CIK_PIPE_PER_MEC);
+
+	lock_srbm(kgd, mec, pipe, 0, 0);
+
+	write_register(kgd, CPC_INT_CNTL,
+			TIME_STAMP_INT_ENABLE | OPCODE_ERROR_INT_ENABLE);
+
 	unlock_srbm(kgd);
 
 	return 0;
@@ -646,6 +696,122 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
+static int kgd_address_watch_disable(struct kgd_dev *kgd)
+{
+	union TCP_WATCH_CNTL_BITS cntl;
+	unsigned int i;
+
+	cntl.u32All = 0;
+
+	cntl.bitfields.valid = 0;
+	cntl.bitfields.mask = ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK;
+	cntl.bitfields.atc = 1;
+
+	/* Turning off this address until we set all the registers */
+	for (i = 0; i < MAX_WATCH_ADDRESSES; i++)
+		write_register(kgd,
+				watchRegs[i * ADDRESS_WATCH_REG_MAX +
+					ADDRESS_WATCH_REG_CNTL],
+				cntl.u32All);
+
+	return 0;
+}
+
+static int kgd_address_watch_execute(struct kgd_dev *kgd,
+					unsigned int watch_point_id,
+					uint32_t cntl_val,
+					uint32_t addr_hi,
+					uint32_t addr_lo)
+{
+	union TCP_WATCH_CNTL_BITS cntl;
+
+	cntl.u32All = cntl_val;
+
+	/* Turning off this watch point until we set all the registers */
+	cntl.bitfields.valid = 0;
+	write_register(kgd,
+			watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
+				ADDRESS_WATCH_REG_CNTL],
+			cntl.u32All);
+
+	write_register(kgd,
+			watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
+				ADDRESS_WATCH_REG_ADDR_HI],
+			addr_hi);
+
+	write_register(kgd,
+			watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
+				ADDRESS_WATCH_REG_ADDR_LO],
+			addr_lo);
+
+	/* Enable the watch point */
+	cntl.bitfields.valid = 1;
+
+	write_register(kgd,
+			watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
+				ADDRESS_WATCH_REG_CNTL],
+			cntl.u32All);
+
+	return 0;
+}
+
+static int kgd_wave_control_execute(struct kgd_dev *kgd,
+					uint32_t gfx_index_val,
+					uint32_t sq_cmd)
+{
+	struct radeon_device *rdev = get_radeon_device(kgd);
+	uint32_t data;
+
+	mutex_lock(&rdev->grbm_idx_mutex);
+
+	write_register(kgd, GRBM_GFX_INDEX, gfx_index_val);
+	write_register(kgd, SQ_CMD, sq_cmd);
+
+	/*  Restore the GRBM_GFX_INDEX register  */
+
+	data = INSTANCE_BROADCAST_WRITES | SH_BROADCAST_WRITES |
+		SE_BROADCAST_WRITES;
+
+	write_register(kgd, GRBM_GFX_INDEX, data);
+
+	mutex_unlock(&rdev->grbm_idx_mutex);
+
+	return 0;
+}
+
+static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
+					unsigned int watch_point_id,
+					unsigned int reg_offset)
+{
+	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset];
+}
+
+static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd, uint8_t vmid)
+{
+	uint32_t reg;
+	struct radeon_device *rdev = (struct radeon_device *) kgd;
+
+	reg = RREG32(ATC_VMID0_PASID_MAPPING + vmid*4);
+	return reg & ATC_VMID_PASID_MAPPING_VALID_MASK;
+}
+
+static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
+							uint8_t vmid)
+{
+	uint32_t reg;
+	struct radeon_device *rdev = (struct radeon_device *) kgd;
+
+	reg = RREG32(ATC_VMID0_PASID_MAPPING + vmid*4);
+	return reg & ATC_VMID_PASID_MAPPING_PASID_MASK;
+}
+
+static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
+{
+	struct radeon_device *rdev = (struct radeon_device *) kgd;
+
+	return WREG32(VM_INVALIDATE_REQUEST, 1 << vmid);
+}
+
 static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 {
 	struct radeon_device *rdev = (struct radeon_device *) kgd;
@@ -679,7 +845,8 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 		hdr = (const union radeon_firmware_header *) rdev->rlc_fw->data;
 		break;
 
-	case KGD_ENGINE_SDMA:
+	case KGD_ENGINE_SDMA1:
+	case KGD_ENGINE_SDMA2:
 		hdr = (const union radeon_firmware_header *)
 							rdev->sdma_fw->data;
 		break;

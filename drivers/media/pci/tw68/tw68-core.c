@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/dma-mapping.h>
+#include <linux/pci_ids.h>
 #include <linux/pm.h>
 
 #include <media/v4l2-dev.h>
@@ -70,13 +71,13 @@ static atomic_t tw68_instance = ATOMIC_INIT(0);
  * added under vendor 0x1797 (Techwell Inc.) as subsystem IDs.
  */
 static const struct pci_device_id tw68_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6800)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6801)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6804)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6816_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6816_2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6816_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_6816_4)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6800)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6801)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6804)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6816_1)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6816_2)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6816_3)},
+	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6816_4)},
 	{0,}
 };
 
@@ -256,22 +257,22 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 		dev->name, pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 		dev->pci_lat, (u64)pci_resource_start(pci_dev, 0));
 	pci_set_master(pci_dev);
-	if (!pci_dma_supported(pci_dev, DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
+	if (err) {
 		pr_info("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
-		err = -EIO;
 		goto fail1;
 	}
 
 	switch (pci_id->device) {
-	case PCI_DEVICE_ID_6800:	/* TW6800 */
+	case PCI_DEVICE_ID_TECHWELL_6800:	/* TW6800 */
 		dev->vdecoder = TW6800;
 		dev->board_virqmask = TW68_VID_INTS;
 		break;
-	case PCI_DEVICE_ID_6801:	/* Video decoder for TW6802 */
+	case PCI_DEVICE_ID_TECHWELL_6801:	/* Video decoder for TW6802 */
 		dev->vdecoder = TW6801;
 		dev->board_virqmask = TW68_VID_INTS | TW68_VID_INTSX;
 		break;
-	case PCI_DEVICE_ID_6804:	/* Video decoder for TW6804 */
+	case PCI_DEVICE_ID_TECHWELL_6804:	/* Video decoder for TW6804 */
 		dev->vdecoder = TW6804;
 		dev->board_virqmask = TW68_VID_INTS | TW68_VID_INTSX;
 		break;

@@ -1,0 +1,161 @@
+/*
+ * PARISC64 Huge TLB page support.
+ *
+ * This parisc implementation is heavily based on the SPARC and x86 code.
+ *
+ * Copyright (C) 2015 Helge Deller <deller@gmx.de>
+ */
+
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/hugetlb.h>
+#include <linux/pagemap.h>
+#include <linux/sysctl.h>
+
+#include <asm/mman.h>
+#include <asm/pgalloc.h>
+#include <asm/tlb.h>
+#include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
+#include <asm/mmu_context.h>
+
+
+unsigned long
+hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	struct hstate *h = hstate_file(file);
+
+	if (len & ~huge_page_mask(h))
+		return -EINVAL;
+	if (len > TASK_SIZE)
+		return -ENOMEM;
+
+	if (flags & MAP_FIXED)
+		if (prepare_hugepage_range(file, addr, len))
+			return -EINVAL;
+
+	if (addr)
+		addr = ALIGN(addr, huge_page_size(h));
+
+	/* we need to make sure the colouring is OK */
+	return arch_get_unmapped_area(file, addr, len, pgoff, flags);
+}
+
+
+pte_t *huge_pte_alloc(struct mm_struct *mm,
+			unsigned long addr, unsigned long sz)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte = NULL;
+
+	/* We must align the address, because our caller will run
+	 * set_huge_pte_at() on whatever we return, which writes out
+	 * all of the sub-ptes for the hugepage range.  So we have
+	 * to give it the first such sub-pte.
+	 */
+	addr &= HPAGE_MASK;
+
+	pgd = pgd_offset(mm, addr);
+	pud = pud_alloc(mm, pgd, addr);
+	if (pud) {
+		pmd = pmd_alloc(mm, pud, addr);
+		if (pmd)
+			pte = pte_alloc_map(mm, NULL, pmd, addr);
+	}
+	return pte;
+}
+
+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte = NULL;
+
+	addr &= HPAGE_MASK;
+
+	pgd = pgd_offset(mm, addr);
+	if (!pgd_none(*pgd)) {
+		pud = pud_offset(pgd, addr);
+		if (!pud_none(*pud)) {
+			pmd = pmd_offset(pud, addr);
+			if (!pmd_none(*pmd))
+				pte = pte_offset_map(pmd, addr);
+		}
+	}
+	return pte;
+}
+
+/* Purge data and instruction TLB entries.  Must be called holding
+ * the pa_tlb_lock.  The TLB purge instructions are slow on SMP
+ * machines since the purge must be broadcast to all CPUs.
+ */
+static inline void purge_tlb_entries_huge(struct mm_struct *mm, unsigned long addr)
+{
+	int i;
+
+	/* We may use multiple physical huge pages (e.g. 2x1 MB) to emulate
+	 * Linux standard huge pages (e.g. 2 MB) */
+	BUILD_BUG_ON(REAL_HPAGE_SHIFT > HPAGE_SHIFT);
+
+	addr &= HPAGE_MASK;
+	addr |= _HUGE_PAGE_SIZE_ENCODING_DEFAULT;
+
+	for (i = 0; i < (1 << (HPAGE_SHIFT-REAL_HPAGE_SHIFT)); i++) {
+		mtsp(mm->context, 1);
+		pdtlb(addr);
+		if (unlikely(split_tlb))
+			pitlb(addr);
+		addr += (1UL << REAL_HPAGE_SHIFT);
+	}
+}
+
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t entry)
+{
+	unsigned long addr_start;
+	int i;
+
+	addr &= HPAGE_MASK;
+	addr_start = addr;
+
+	for (i = 0; i < (1 << HUGETLB_PAGE_ORDER); i++) {
+		/* Directly write pte entry.  We could call set_pte_at(mm, addr, ptep, entry)
+		 * instead, but then we get double locking on pa_tlb_lock. */
+		*ptep = entry;
+		ptep++;
+
+		/* Drop the PAGE_SIZE/non-huge tlb entry */
+		purge_tlb_entries(mm, addr);
+
+		addr += PAGE_SIZE;
+		pte_val(entry) += PAGE_SIZE;
+	}
+
+	purge_tlb_entries_huge(mm, addr_start);
+}
+
+
+pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep)
+{
+	pte_t entry;
+
+	entry = *ptep;
+	set_huge_pte_at(mm, addr, ptep, __pte(0));
+
+	return entry;
+}
+
+int pmd_huge(pmd_t pmd)
+{
+	return 0;
+}
+
+int pud_huge(pud_t pud)
+{
+	return 0;
+}

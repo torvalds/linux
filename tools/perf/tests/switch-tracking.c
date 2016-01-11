@@ -347,7 +347,7 @@ int test__switch_tracking(void)
 	perf_evlist__set_maps(evlist, cpus, threads);
 
 	/* First event */
-	err = parse_events(evlist, "cpu-clock:u");
+	err = parse_events(evlist, "cpu-clock:u", NULL);
 	if (err) {
 		pr_debug("Failed to parse event dummy:u\n");
 		goto out_err;
@@ -356,7 +356,7 @@ int test__switch_tracking(void)
 	cpu_clocks_evsel = perf_evlist__last(evlist);
 
 	/* Second event */
-	err = parse_events(evlist, "cycles:u");
+	err = parse_events(evlist, "cycles:u", NULL);
 	if (err) {
 		pr_debug("Failed to parse event cycles:u\n");
 		goto out_err;
@@ -366,12 +366,12 @@ int test__switch_tracking(void)
 
 	/* Third event */
 	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
-		fprintf(stderr, " (no sched_switch)");
+		pr_debug("No sched_switch\n");
 		err = 0;
 		goto out;
 	}
 
-	err = parse_events(evlist, sched_switch);
+	err = parse_events(evlist, sched_switch, NULL);
 	if (err) {
 		pr_debug("Failed to parse event %s\n", sched_switch);
 		goto out_err;
@@ -401,7 +401,7 @@ int test__switch_tracking(void)
 	perf_evsel__set_sample_bit(cycles_evsel, TIME);
 
 	/* Fourth event */
-	err = parse_events(evlist, "dummy:u");
+	err = parse_events(evlist, "dummy:u", NULL);
 	if (err) {
 		pr_debug("Failed to parse event dummy:u\n");
 		goto out_err;
@@ -442,7 +442,7 @@ int test__switch_tracking(void)
 	}
 
 	if (perf_evlist__open(evlist) < 0) {
-		fprintf(stderr, " (not supported)");
+		pr_debug("Not supported\n");
 		err = 0;
 		goto out;
 	}
@@ -560,8 +560,8 @@ out:
 		perf_evlist__disable(evlist);
 		perf_evlist__delete(evlist);
 	} else {
-		cpu_map__delete(cpus);
-		thread_map__delete(threads);
+		cpu_map__put(cpus);
+		thread_map__put(threads);
 	}
 
 	return err;

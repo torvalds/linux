@@ -148,6 +148,16 @@ int iwpm_add_mapping_cb(struct sk_buff *, struct netlink_callback *);
 int iwpm_add_and_query_mapping_cb(struct sk_buff *, struct netlink_callback *);
 
 /**
+ * iwpm_remote_info_cb - Process remote connecting peer address info, which
+ *                       the port mapper has received from the connecting peer
+ *
+ * @cb: Contains the received message (payload and netlink header)
+ *
+ * Stores the IPv4/IPv6 address info in a hash table
+ */
+int iwpm_remote_info_cb(struct sk_buff *, struct netlink_callback *);
+
+/**
  * iwpm_mapping_error_cb - Process port mapper notification for error
  *
  * @skb:
@@ -173,6 +183,21 @@ int iwpm_mapping_info_cb(struct sk_buff *, struct netlink_callback *);
  * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_ack_mapping_info_cb(struct sk_buff *, struct netlink_callback *);
+
+/**
+ * iwpm_get_remote_info - Get the remote connecting peer address info
+ *
+ * @mapped_loc_addr: Mapped local address of the listening peer
+ * @mapped_rem_addr: Mapped remote address of the connecting peer
+ * @remote_addr: To store the remote address of the connecting peer
+ * @nl_client: The index of the netlink client
+ *
+ * The remote address info is retrieved and provided to the client in
+ * the remote_addr. After that it is removed from the hash table
+ */
+int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
+			struct sockaddr_storage *mapped_rem_addr,
+			struct sockaddr_storage *remote_addr, u8 nl_client);
 
 /**
  * iwpm_create_mapinfo - Store local and mapped IPv4/IPv6 address

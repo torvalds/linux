@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -18,7 +18,20 @@
 #ifndef _NET_BATMAN_ADV_ORIGINATOR_H_
 #define _NET_BATMAN_ADV_ORIGINATOR_H_
 
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/compiler.h>
+#include <linux/if_ether.h>
+#include <linux/jhash.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+
 #include "hash.h"
+
+struct seq_file;
 
 int batadv_compare_orig(const struct hlist_node *node, const void *data2);
 int batadv_originator_init(struct batadv_priv *bat_priv);
@@ -27,15 +40,11 @@ void batadv_purge_orig_ref(struct batadv_priv *bat_priv);
 void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node);
 void batadv_orig_node_free_ref_now(struct batadv_orig_node *orig_node);
 struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
-					      const uint8_t *addr);
+					      const u8 *addr);
 struct batadv_neigh_node *
-batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
-		      const struct batadv_hard_iface *hard_iface,
-		      const uint8_t *addr);
-struct batadv_neigh_node *
-batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
-		      const uint8_t *neigh_addr,
-		      struct batadv_orig_node *orig_node);
+batadv_neigh_node_new(struct batadv_orig_node *orig_node,
+		      struct batadv_hard_iface *hard_iface,
+		      const u8 *neigh_addr);
 void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node);
 struct batadv_neigh_node *
 batadv_orig_router_get(struct batadv_orig_node *orig_node,
@@ -73,22 +82,11 @@ void batadv_orig_node_vlan_free_ref(struct batadv_orig_node_vlan *orig_vlan);
 /* hashfunction to choose an entry in a hash table of given size
  * hash algorithm from http://en.wikipedia.org/wiki/Hash_table
  */
-static inline uint32_t batadv_choose_orig(const void *data, uint32_t size)
+static inline u32 batadv_choose_orig(const void *data, u32 size)
 {
-	const unsigned char *key = data;
-	uint32_t hash = 0;
-	size_t i;
+	u32 hash = 0;
 
-	for (i = 0; i < 6; i++) {
-		hash += key[i];
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
-	}
-
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
-
+	hash = jhash(data, ETH_ALEN, hash);
 	return hash % size;
 }
 

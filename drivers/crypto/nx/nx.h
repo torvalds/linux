@@ -2,6 +2,8 @@
 #ifndef __NX_H__
 #define __NX_H__
 
+#include <crypto/ctr.h>
+
 #define NX_NAME		"nx-crypto"
 #define NX_STRING	"IBM Power7+ Nest Accelerator Crypto Driver"
 #define NX_VERSION	"1.0"
@@ -91,8 +93,11 @@ struct nx_crypto_driver {
 
 #define NX_GCM4106_NONCE_LEN		(4)
 #define NX_GCM_CTR_OFFSET		(12)
-struct nx_gcm_priv {
+struct nx_gcm_rctx {
 	u8 iv[16];
+};
+
+struct nx_gcm_priv {
 	u8 iauth_tag[16];
 	u8 nonce[NX_GCM4106_NONCE_LEN];
 };
@@ -100,8 +105,11 @@ struct nx_gcm_priv {
 #define NX_CCM_AES_KEY_LEN		(16)
 #define NX_CCM4309_AES_KEY_LEN		(19)
 #define NX_CCM4309_NONCE_LEN		(3)
-struct nx_ccm_priv {
+struct nx_ccm_rctx {
 	u8 iv[16];
+};
+
+struct nx_ccm_priv {
 	u8 b0[16];
 	u8 iauth_tag[16];
 	u8 oauth_tag[16];
@@ -113,7 +121,7 @@ struct nx_xcbc_priv {
 };
 
 struct nx_ctr_priv {
-	u8 iv[16];
+	u8 nonce[CTR_RFC3686_NONCE_SIZE];
 };
 
 struct nx_crypto_ctx {
@@ -141,20 +149,21 @@ struct nx_crypto_ctx {
 	} priv;
 };
 
+struct crypto_aead;
+
 /* prototypes */
-int nx_crypto_ctx_aes_ccm_init(struct crypto_tfm *tfm);
-int nx_crypto_ctx_aes_gcm_init(struct crypto_tfm *tfm);
+int nx_crypto_ctx_aes_ccm_init(struct crypto_aead *tfm);
+int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_ctr_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_cbc_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_ecb_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_sha_init(struct crypto_tfm *tfm);
 void nx_crypto_ctx_exit(struct crypto_tfm *tfm);
+void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm);
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function);
 int nx_hcall_sync(struct nx_crypto_ctx *ctx, struct vio_pfo_op *op,
 		  u32 may_sleep);
-int nx_sha_build_sg_list(struct nx_crypto_ctx *, struct nx_sg *,
-			 s64 *, unsigned int *, u8 *, u32);
 struct nx_sg *nx_build_sg_list(struct nx_sg *, u8 *, unsigned int *, u32);
 int nx_build_sg_lists(struct nx_crypto_ctx *, struct blkcipher_desc *,
 		      struct scatterlist *, struct scatterlist *, unsigned int *,
@@ -178,12 +187,11 @@ void nx_debugfs_fini(struct nx_crypto_driver *);
 
 extern struct crypto_alg nx_cbc_aes_alg;
 extern struct crypto_alg nx_ecb_aes_alg;
-extern struct crypto_alg nx_gcm_aes_alg;
-extern struct crypto_alg nx_gcm4106_aes_alg;
-extern struct crypto_alg nx_ctr_aes_alg;
+extern struct aead_alg nx_gcm_aes_alg;
+extern struct aead_alg nx_gcm4106_aes_alg;
 extern struct crypto_alg nx_ctr3686_aes_alg;
-extern struct crypto_alg nx_ccm_aes_alg;
-extern struct crypto_alg nx_ccm4309_aes_alg;
+extern struct aead_alg nx_ccm_aes_alg;
+extern struct aead_alg nx_ccm4309_aes_alg;
 extern struct shash_alg nx_shash_aes_xcbc_alg;
 extern struct shash_alg nx_shash_sha512_alg;
 extern struct shash_alg nx_shash_sha256_alg;

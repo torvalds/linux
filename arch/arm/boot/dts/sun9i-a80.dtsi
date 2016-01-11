@@ -18,11 +18,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -114,6 +109,16 @@
 		reg = <0 0x20000000 0x02 0>;
 	};
 
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		clock-frequency = <24000000>;
+		arm,cpu-registers-not-fw-configured;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -135,6 +140,28 @@
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;
 			clock-output-names = "osc32k";
+		};
+
+		usb_mod_clk: clk@00a08000 {
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			compatible = "allwinner,sun9i-a80-usb-mod-clk";
+			reg = <0x00a08000 0x4>;
+			clocks = <&ahb1_gates 1>;
+			clock-output-names = "usb0_ahb", "usb_ohci0",
+					     "usb1_ahb", "usb_ohci1",
+					     "usb2_ahb", "usb_ohci2";
+		};
+
+		usb_phy_clk: clk@00a08004 {
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			compatible = "allwinner,sun9i-a80-usb-phy-clk";
+			reg = <0x00a08004 0x4>;
+			clocks = <&ahb1_gates 1>;
+			clock-output-names = "usb_phy0", "usb_hsic1_480M",
+					     "usb_phy1", "usb_hsic2_480M",
+					     "usb_phy2", "usb_hsic_12M";
 		};
 
 		pll4: clk@0600000c {
@@ -250,14 +277,17 @@
 			compatible = "allwinner,sun9i-a80-ahb0-gates-clk";
 			reg = <0x06000580 0x4>;
 			clocks = <&ahb0>;
-			clock-indices = <0>, <1>, <3>, <5>, <8>, <12>, <13>,
-					<14>, <15>, <16>, <18>, <20>, <21>,
-					<22>, <23>;
+			clock-indices = <0>, <1>, <3>,
+					<5>, <8>, <12>,
+					<13>, <14>,
+					<15>, <16>, <18>,
+					<20>, <21>, <22>,
+					<23>;
 			clock-output-names = "ahb0_fd", "ahb0_ve", "ahb0_gpu",
 					"ahb0_ss", "ahb0_sd", "ahb0_nand1",
 					"ahb0_nand0", "ahb0_sdram",
 					"ahb0_mipi_hsi", "ahb0_sata", "ahb0_ts",
-					"ahb0_spi0","ahb0_spi1", "ahb0_spi2",
+					"ahb0_spi0", "ahb0_spi1", "ahb0_spi2",
 					"ahb0_spi3";
 		};
 
@@ -266,7 +296,10 @@
 			compatible = "allwinner,sun9i-a80-ahb1-gates-clk";
 			reg = <0x06000584 0x4>;
 			clocks = <&ahb1>;
-			clock-indices = <0>, <1>, <17>, <21>, <22>, <23>, <24>;
+			clock-indices = <0>, <1>,
+					<17>, <21>,
+					<22>, <23>,
+					<24>;
 			clock-output-names = "ahb1_usbotg", "ahb1_usbhci",
 					"ahb1_gmac", "ahb1_msgbox",
 					"ahb1_spinlock", "ahb1_hstimer",
@@ -278,8 +311,9 @@
 			compatible = "allwinner,sun9i-a80-ahb2-gates-clk";
 			reg = <0x06000588 0x4>;
 			clocks = <&ahb2>;
-			clock-indices = <0>, <1>, <2>, <4>, <5>, <7>, <8>,
-					<11>;
+			clock-indices = <0>, <1>,
+					<2>, <4>, <5>,
+					<7>, <8>, <11>;
 			clock-output-names = "ahb2_lcd0", "ahb2_lcd1",
 					"ahb2_edp", "ahb2_csi", "ahb2_hdmi",
 					"ahb2_de", "ahb2_mp", "ahb2_mipi_dsi";
@@ -290,8 +324,10 @@
 			compatible = "allwinner,sun9i-a80-apb0-gates-clk";
 			reg = <0x06000590 0x4>;
 			clocks = <&apb0>;
-			clock-indices = <1>, <5>, <11>, <12>, <13>, <15>,
-					<17>, <18>, <19>;
+			clock-indices = <1>, <5>,
+					<11>, <12>, <13>,
+					<15>, <17>, <18>,
+					<19>;
 			clock-output-names = "apb0_spdif", "apb0_pio",
 					"apb0_ac97", "apb0_i2s0", "apb0_i2s1",
 					"apb0_lradc", "apb0_gpadc", "apb0_twd",
@@ -303,8 +339,11 @@
 			compatible = "allwinner,sun9i-a80-apb1-gates-clk";
 			reg = <0x06000594 0x4>;
 			clocks = <&apb1>;
-			clock-indices = <0>, <1>, <2>, <3>, <4>,
-					<16>, <17>, <18>, <19>, <20>, <21>;
+			clock-indices = <0>, <1>,
+					<2>, <3>, <4>,
+					<16>, <17>,
+					<18>, <19>,
+					<20>, <21>;
 			clock-output-names = "apb1_i2c0", "apb1_i2c1",
 					"apb1_i2c2", "apb1_i2c3", "apb1_i2c4",
 					"apb1_uart0", "apb1_uart1",
@@ -323,6 +362,98 @@
 		 */
 		ranges = <0 0 0 0x20000000>;
 
+		ehci0: usb@00a00000 {
+			compatible = "allwinner,sun9i-a80-ehci", "generic-ehci";
+			reg = <0x00a00000 0x100>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_mod_clk 1>;
+			resets = <&usb_mod_clk 17>;
+			phys = <&usbphy1>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ohci0: usb@00a00400 {
+			compatible = "allwinner,sun9i-a80-ohci", "generic-ohci";
+			reg = <0x00a00400 0x100>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_mod_clk 1>, <&usb_mod_clk 2>;
+			resets = <&usb_mod_clk 17>;
+			phys = <&usbphy1>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		usbphy1: phy@00a00800 {
+			compatible = "allwinner,sun9i-a80-usb-phy";
+			reg = <0x00a00800 0x4>;
+			clocks = <&usb_phy_clk 1>;
+			clock-names = "phy";
+			resets = <&usb_phy_clk 17>;
+			reset-names = "phy";
+			status = "disabled";
+			#phy-cells = <0>;
+		};
+
+		ehci1: usb@00a01000 {
+			compatible = "allwinner,sun9i-a80-ehci", "generic-ehci";
+			reg = <0x00a01000 0x100>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_mod_clk 3>;
+			resets = <&usb_mod_clk 18>;
+			phys = <&usbphy2>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		usbphy2: phy@00a01800 {
+			compatible = "allwinner,sun9i-a80-usb-phy";
+			reg = <0x00a01800 0x4>;
+			clocks = <&usb_phy_clk 2>, <&usb_phy_clk 10>,
+				 <&usb_phy_clk 3>;
+			clock-names = "hsic_480M", "hsic_12M", "phy";
+			resets = <&usb_phy_clk 18>, <&usb_phy_clk 19>;
+			reset-names = "hsic", "phy";
+			status = "disabled";
+			#phy-cells = <0>;
+			/* usb1 is always used with HSIC */
+			phy_type = "hsic";
+		};
+
+		ehci2: usb@00a02000 {
+			compatible = "allwinner,sun9i-a80-ehci", "generic-ehci";
+			reg = <0x00a02000 0x100>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_mod_clk 5>;
+			resets = <&usb_mod_clk 19>;
+			phys = <&usbphy3>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ohci2: usb@00a02400 {
+			compatible = "allwinner,sun9i-a80-ohci", "generic-ohci";
+			reg = <0x00a02400 0x100>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_mod_clk 5>, <&usb_mod_clk 6>;
+			resets = <&usb_mod_clk 19>;
+			phys = <&usbphy3>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		usbphy3: phy@00a02800 {
+			compatible = "allwinner,sun9i-a80-usb-phy";
+			reg = <0x00a02800 0x4>;
+			clocks = <&usb_phy_clk 4>, <&usb_phy_clk 10>,
+				 <&usb_phy_clk 5>;
+			clock-names = "hsic_480M", "hsic_12M", "phy";
+			resets = <&usb_phy_clk 20>, <&usb_phy_clk 21>;
+			reset-names = "hsic", "phy";
+			status = "disabled";
+			#phy-cells = <0>;
+		};
+
 		mmc0: mmc@01c0f000 {
 			compatible = "allwinner,sun5i-a13-mmc";
 			reg = <0x01c0f000 0x1000>;
@@ -333,6 +464,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc1: mmc@01c10000 {
@@ -345,6 +478,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc2: mmc@01c11000 {
@@ -357,6 +492,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc3: mmc@01c12000 {
@@ -369,6 +506,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc_config_clk: clk@01c13000 {
@@ -438,6 +577,12 @@
 			clocks = <&osc24M>;
 		};
 
+		wdt: watchdog@06000ca0 {
+			compatible = "allwinner,sun6i-a31-wdt";
+			reg = <0x06000ca0 0x20>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		pio: pinctrl@06000800 {
 			compatible = "allwinner,sun9i-a80-pinctrl";
 			reg = <0x06000800 0x400>;
@@ -449,7 +594,7 @@
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			interrupt-controller;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <3>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 

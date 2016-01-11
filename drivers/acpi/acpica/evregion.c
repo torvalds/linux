@@ -626,8 +626,16 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 			    acpi_adr_space_type space_id)
 {
 	acpi_status status;
+	struct acpi_reg_walk_info info;
 
 	ACPI_FUNCTION_TRACE(ev_execute_reg_methods);
+
+	info.space_id = space_id;
+	info.reg_run_count = 0;
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES,
+			      "    Running _REG methods for SpaceId %s\n",
+			      acpi_ut_get_region_name(info.space_id)));
 
 	/*
 	 * Run all _REG methods for all Operation Regions for this space ID. This
@@ -637,13 +645,18 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	 */
 	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
 					ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run,
-					NULL, &space_id, NULL);
+					NULL, &info, NULL);
 
 	/* Special case for EC: handle "orphan" _REG methods with no region */
 
 	if (space_id == ACPI_ADR_SPACE_EC) {
 		acpi_ev_orphan_ec_reg_method(node);
 	}
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES,
+			      "    Executed %u _REG methods for SpaceId %s\n",
+			      info.reg_run_count,
+			      acpi_ut_get_region_name(info.space_id)));
 
 	return_ACPI_STATUS(status);
 }
@@ -664,10 +677,10 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 {
 	union acpi_operand_object *obj_desc;
 	struct acpi_namespace_node *node;
-	acpi_adr_space_type space_id;
 	acpi_status status;
+	struct acpi_reg_walk_info *info;
 
-	space_id = *ACPI_CAST_PTR(acpi_adr_space_type, context);
+	info = ACPI_CAST_PTR(struct acpi_reg_walk_info, context);
 
 	/* Convert and validate the device handle */
 
@@ -696,13 +709,14 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 
 	/* Object is a Region */
 
-	if (obj_desc->region.space_id != space_id) {
+	if (obj_desc->region.space_id != info->space_id) {
 
 		/* This region is for a different address space, just ignore it */
 
 		return (AE_OK);
 	}
 
+	info->reg_run_count++;
 	status = acpi_ev_execute_reg_method(obj_desc, ACPI_REG_CONNECT);
 	return (status);
 }

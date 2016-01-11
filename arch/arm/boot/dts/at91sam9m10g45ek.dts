@@ -15,7 +15,8 @@
 	compatible = "atmel,at91sam9m10g45ek", "atmel,at91sam9g45", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
+		bootargs = "mem=64M root=/dev/mtdblock1 rw rootfstype=jffs2";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -23,15 +24,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <12000000>;
-		};
-
 		slow_xtal {
 		      clock-frequency = <32768>;
 		};
@@ -62,6 +54,25 @@
 
 			i2c0: i2c@fff84000 {
 				status = "okay";
+				ov2640: camera@30 {
+					compatible = "ovti,ov2640";
+					reg = <0x30>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_pck1_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
+					resetb-gpios = <&pioD 12 GPIO_ACTIVE_LOW>;
+					pwdn-gpios = <&pioD 13 GPIO_ACTIVE_HIGH>;
+					clocks = <&pck1>;
+					clock-names = "xvclk";
+					assigned-clocks = <&pck1>;
+					assigned-clock-rates = <25000000>;
+
+					port {
+						ov2640_0: endpoint {
+							remote-endpoint = <&isi_0>;
+							bus-width = <8>;
+						};
+					};
+				};
 			};
 
 			i2c1: i2c@fff88000 {
@@ -100,6 +111,22 @@
 			};
 
 			pinctrl@fffff200 {
+				camera_sensor {
+					pinctrl_pck1_as_isi_mck: pck1_as_isi_mck-0 {
+						atmel,pins =
+							<AT91_PIOB 31 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_sensor_reset: sensor_reset-0 {
+						atmel,pins =
+							<AT91_PIOD 12 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_sensor_power: sensor_power-0 {
+						atmel,pins =
+							<AT91_PIOD 13 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+				};
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
@@ -152,6 +179,20 @@
 					&pinctrl_adc0_ad7>;
 				atmel,adc-ts-wires = <4>;
 				status = "okay";
+			};
+
+			isi@fffb4000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_isi_data_0_7>;
+				status = "okay";
+				port {
+					isi_0: endpoint {
+						remote-endpoint = <&ov2640_0>;
+						bus-width = <8>;
+						vsync-active = <1>;
+						hsync-active = <1>;
+					};
+				};
 			};
 
 			pwm0: pwm@fffb8000 {
@@ -273,14 +314,14 @@
 			label = "left_click";
 			gpios = <&pioB 6 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		right_click {
 			label = "right_click";
 			gpios = <&pioB 7 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left {

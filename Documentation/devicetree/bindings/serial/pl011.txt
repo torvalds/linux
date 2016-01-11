@@ -1,7 +1,7 @@
 * ARM AMBA Primecell PL011 serial UART
 
 Required properties:
-- compatible: must be "arm,primecell", "arm,pl011"
+- compatible: must be "arm,primecell", "arm,pl011", "zte,zx296702-uart"
 - reg: exactly one register range with length 0x1000
 - interrupts: exactly one interrupt specifier
 
@@ -19,7 +19,7 @@ Optional properties:
 	   must correspond to the PCLK clocking the internal logic
 	   of the block. Just listing one clock (the first one) is
 	   deprecated.
-- clocks-names:
+- clock-names:
 	   When present, the first clock listed must be named
 	   "uartclk" and the second clock listed must be named
 	   "apb_pclk"

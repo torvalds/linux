@@ -226,6 +226,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct rk_i2s_dev *i2s = to_info(dai);
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	unsigned int val = 0;
 
 	switch (params_format(params)) {
@@ -245,13 +246,46 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	regmap_update_bits(i2s->regmap, I2S_TXCR, I2S_TXCR_VDW_MASK, val);
-	regmap_update_bits(i2s->regmap, I2S_RXCR, I2S_RXCR_VDW_MASK, val);
+	switch (params_channels(params)) {
+	case 8:
+		val |= I2S_CHN_8;
+		break;
+	case 6:
+		val |= I2S_CHN_6;
+		break;
+	case 4:
+		val |= I2S_CHN_4;
+		break;
+	case 2:
+		val |= I2S_CHN_2;
+		break;
+	default:
+		dev_err(i2s->dev, "invalid channel: %d\n",
+			params_channels(params));
+		return -EINVAL;
+	}
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		regmap_update_bits(i2s->regmap, I2S_RXCR,
+				   I2S_RXCR_VDW_MASK | I2S_RXCR_CSR_MASK,
+				   val);
+	else
+		regmap_update_bits(i2s->regmap, I2S_TXCR,
+				   I2S_TXCR_VDW_MASK | I2S_TXCR_CSR_MASK,
+				   val);
+
 	regmap_update_bits(i2s->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
 			   I2S_DMACR_TDL(16));
 	regmap_update_bits(i2s->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
 			   I2S_DMACR_RDL(16));
 
+	val = I2S_CKR_TRCM_TXRX;
+	if (dai->driver->symmetric_rates || rtd->dai_link->symmetric_rates)
+		val = I2S_CKR_TRCM_TXSHARE;
+
+	regmap_update_bits(i2s->regmap, I2S_CKR,
+			   I2S_CKR_TRCM_MASK,
+			   val);
 	return 0;
 }
 
@@ -415,10 +449,12 @@ static const struct regmap_config rockchip_i2s_regmap_config = {
 
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
+	struct device_node *node = pdev->dev.of_node;
 	struct rk_i2s_dev *i2s;
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
+	int val;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s) {
@@ -475,6 +511,14 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
+	/* refine capture channels */
+	if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
+		if (val >= 2 && val <= 8)
+			rockchip_i2s_dai.capture.channels_max = val;
+		else
+			rockchip_i2s_dai.capture.channels_max = 2;
+	}
+
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_component,
 					      &rockchip_i2s_dai, 1);
@@ -483,16 +527,14 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err_suspend;
 	}
 
-	ret = snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
-		goto err_pcm_register;
+		return ret;
 	}
 
 	return 0;
 
-err_pcm_register:
-	snd_dmaengine_pcm_unregister(&pdev->dev);
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		i2s_runtime_suspend(&pdev->dev);
@@ -512,8 +554,6 @@ static int rockchip_i2s_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(i2s->mclk);
 	clk_disable_unprepare(i2s->hclk);
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }

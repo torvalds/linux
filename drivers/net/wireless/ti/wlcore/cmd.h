@@ -92,6 +92,8 @@ int wl12xx_cmd_remove_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
 				     enum ieee80211_band band);
 int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl);
+int wlcore_cmd_generic_cfg(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			   u8 feature, u8 enable, u8 value);
 int wl12xx_cmd_config_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_start_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl);
@@ -650,6 +652,19 @@ struct wl12xx_cmd_regdomain_dfs_config {
 	__le32 ch_bit_map2;
 	u8 dfs_region;
 	u8 padding[3];
+} __packed;
+
+enum wlcore_generic_cfg_feature {
+	WLCORE_CFG_FEATURE_RADAR_DEBUG = 2,
+};
+
+struct wlcore_cmd_generic_cfg {
+	struct wl1271_cmd_header header;
+
+	u8 role_id;
+	u8 feature;
+	u8 enable;
+	u8 value;
 } __packed;
 
 struct wl12xx_cmd_config_fwlog {

@@ -63,6 +63,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	struct regmap *map = d->map;
 	int i, ret;
 	u32 reg;
+	u32 unmask_offset;
 
 	if (d->chip->runtime_pm) {
 		ret = pm_runtime_get_sync(map->dev);
@@ -79,12 +80,28 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	for (i = 0; i < d->chip->num_regs; i++) {
 		reg = d->chip->mask_base +
 			(i * map->reg_stride * d->irq_reg_stride);
-		if (d->chip->mask_invert)
+		if (d->chip->mask_invert) {
 			ret = regmap_update_bits(d->map, reg,
 					 d->mask_buf_def[i], ~d->mask_buf[i]);
-		else
+		} else if (d->chip->unmask_base) {
+			/* set mask with mask_base register */
+			ret = regmap_update_bits(d->map, reg,
+					d->mask_buf_def[i], ~d->mask_buf[i]);
+			if (ret < 0)
+				dev_err(d->map->dev,
+					"Failed to sync unmasks in %x\n",
+					reg);
+			unmask_offset = d->chip->unmask_base -
+							d->chip->mask_base;
+			/* clear mask with unmask_base register */
+			ret = regmap_update_bits(d->map,
+					reg + unmask_offset,
+					d->mask_buf_def[i],
+					d->mask_buf[i]);
+		} else {
 			ret = regmap_update_bits(d->map, reg,
 					 d->mask_buf_def[i], d->mask_buf[i]);
+		}
 		if (ret != 0)
 			dev_err(d->map->dev, "Failed to sync masks in %x\n",
 				reg);
@@ -109,14 +126,18 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		if (!d->chip->init_ack_masked)
 			continue;
 		/*
-		 * Ack all the masked interrupts uncondictionly,
+		 * Ack all the masked interrupts unconditionally,
 		 * OR if there is masked interrupt which hasn't been Acked,
 		 * it'll be ignored in irq handler, then may introduce irq storm
 		 */
 		if (d->mask_buf[i] && (d->chip->ack_base || d->chip->use_ack)) {
 			reg = d->chip->ack_base +
 				(i * map->reg_stride * d->irq_reg_stride);
-			ret = regmap_write(map, reg, d->mask_buf[i]);
+			/* some chips ack by write 0 */
+			if (d->chip->ack_invert)
+				ret = regmap_write(map, reg, ~d->mask_buf[i]);
+			else
+				ret = regmap_write(map, reg, d->mask_buf[i]);
 			if (ret != 0)
 				dev_err(d->map->dev, "Failed to ack 0x%x: %d\n",
 					reg, ret);
@@ -209,7 +230,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	 * Read in the statuses, using a single bulk read if possible
 	 * in order to reduce the I/O overheads.
 	 */
-	if (!map->use_single_rw && map->reg_stride == 1 &&
+	if (!map->use_single_read && map->reg_stride == 1 &&
 	    data->irq_reg_stride == 1) {
 		u8 *buf8 = data->status_reg_buf;
 		u16 *buf16 = data->status_reg_buf;
@@ -306,19 +327,12 @@ static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, data);
 	irq_set_chip(virq, &data->irq_chip);
 	irq_set_nested_thread(virq, 1);
-
-	/* ARM needs us to explicitly flag the IRQ as valid
-	 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
-static struct irq_domain_ops regmap_domain_ops = {
+static const struct irq_domain_ops regmap_domain_ops = {
 	.map	= regmap_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
@@ -346,6 +360,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	int i;
 	int ret = -ENOMEM;
 	u32 reg;
+	u32 unmask_offset;
 
 	if (chip->num_regs <= 0)
 		return -EINVAL;
@@ -405,7 +420,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	else
 		d->irq_reg_stride = 1;
 
-	if (!map->use_single_rw && map->reg_stride == 1 &&
+	if (!map->use_single_read && map->reg_stride == 1 &&
 	    d->irq_reg_stride == 1) {
 		d->status_reg_buf = kmalloc(map->format.val_bytes *
 					    chip->num_regs, GFP_KERNEL);
@@ -427,7 +442,14 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		if (chip->mask_invert)
 			ret = regmap_update_bits(map, reg,
 					 d->mask_buf[i], ~d->mask_buf[i]);
-		else
+		else if (d->chip->unmask_base) {
+			unmask_offset = d->chip->unmask_base -
+					d->chip->mask_base;
+			ret = regmap_update_bits(d->map,
+					reg + unmask_offset,
+					d->mask_buf[i],
+					d->mask_buf[i]);
+		} else
 			ret = regmap_update_bits(map, reg,
 					 d->mask_buf[i], d->mask_buf[i]);
 		if (ret != 0) {
@@ -452,7 +474,11 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		if (d->status_buf[i] && (chip->ack_base || chip->use_ack)) {
 			reg = chip->ack_base +
 				(i * map->reg_stride * d->irq_reg_stride);
-			ret = regmap_write(map, reg,
+			if (chip->ack_invert)
+				ret = regmap_write(map, reg,
+					~(d->status_buf[i] & d->mask_buf[i]));
+			else
+				ret = regmap_write(map, reg,
 					d->status_buf[i] & d->mask_buf[i]);
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to ack 0x%x: %d\n",

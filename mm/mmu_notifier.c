@@ -123,6 +123,23 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 	return young;
 }
 
+int __mmu_notifier_clear_young(struct mm_struct *mm,
+			       unsigned long start,
+			       unsigned long end)
+{
+	struct mmu_notifier *mn;
+	int young = 0, id;
+
+	id = srcu_read_lock(&srcu);
+	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
+		if (mn->ops->clear_young)
+			young |= mn->ops->clear_young(mn, mm, start, end);
+	}
+	srcu_read_unlock(&srcu, id);
+
+	return young;
+}
+
 int __mmu_notifier_test_young(struct mm_struct *mm,
 			      unsigned long address)
 {

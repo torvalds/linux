@@ -85,7 +85,15 @@ static const DECLARE_TLV_DB_SCALE(pga_tlv, 0, 300, 0);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 300, 0);
 
-static const int deemph_settings[] = { 0, 32000, 44100, 48000 };
+static const struct {
+	int rate;
+	unsigned int val;
+} deemph_settings[] = {
+	{ 0,     ES8328_DACCONTROL6_DEEMPH_OFF },
+	{ 32000, ES8328_DACCONTROL6_DEEMPH_32k },
+	{ 44100, ES8328_DACCONTROL6_DEEMPH_44_1k },
+	{ 48000, ES8328_DACCONTROL6_DEEMPH_48k },
+};
 
 static int es8328_set_deemph(struct snd_soc_codec *codec)
 {
@@ -97,21 +105,22 @@ static int es8328_set_deemph(struct snd_soc_codec *codec)
 	 * rate.
 	 */
 	if (es8328->deemph) {
-		best = 1;
-		for (i = 2; i < ARRAY_SIZE(deemph_settings); i++) {
-			if (abs(deemph_settings[i] - es8328->playback_fs) <
-			    abs(deemph_settings[best] - es8328->playback_fs))
+		best = 0;
+		for (i = 1; i < ARRAY_SIZE(deemph_settings); i++) {
+			if (abs(deemph_settings[i].rate - es8328->playback_fs) <
+			    abs(deemph_settings[best].rate - es8328->playback_fs))
 				best = i;
 		}
 
-		val = best << 1;
+		val = deemph_settings[best].val;
 	} else {
-		val = 0;
+		val = ES8328_DACCONTROL6_DEEMPH_OFF;
 	}
 
 	dev_dbg(codec->dev, "Set deemphasis %d\n", val);
 
-	return snd_soc_update_bits(codec, ES8328_DACCONTROL6, 0x6, val);
+	return snd_soc_update_bits(codec, ES8328_DACCONTROL6,
+			ES8328_DACCONTROL6_DEEMPH_MASK, val);
 }
 
 static int es8328_get_deemph(struct snd_kcontrol *kcontrol,
@@ -129,7 +138,7 @@ static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct es8328_priv *es8328 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.integer.value[0];
+	unsigned int deemph = ucontrol->value.integer.value[0];
 	int ret;
 
 	if (deemph > 1)
@@ -205,18 +214,18 @@ static const struct snd_kcontrol_new es8328_right_line_controls =
 
 /* Left Mixer */
 static const struct snd_kcontrol_new es8328_left_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Playback Switch", ES8328_DACCONTROL17, 8, 1, 0),
-	SOC_DAPM_SINGLE("Left Bypass Switch", ES8328_DACCONTROL17, 7, 1, 0),
-	SOC_DAPM_SINGLE("Right Playback Switch", ES8328_DACCONTROL18, 8, 1, 0),
-	SOC_DAPM_SINGLE("Right Bypass Switch", ES8328_DACCONTROL18, 7, 1, 0),
+	SOC_DAPM_SINGLE("Playback Switch", ES8328_DACCONTROL17, 7, 1, 0),
+	SOC_DAPM_SINGLE("Left Bypass Switch", ES8328_DACCONTROL17, 6, 1, 0),
+	SOC_DAPM_SINGLE("Right Playback Switch", ES8328_DACCONTROL18, 7, 1, 0),
+	SOC_DAPM_SINGLE("Right Bypass Switch", ES8328_DACCONTROL18, 6, 1, 0),
 };
 
 /* Right Mixer */
 static const struct snd_kcontrol_new es8328_right_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left Playback Switch", ES8328_DACCONTROL19, 8, 1, 0),
-	SOC_DAPM_SINGLE("Left Bypass Switch", ES8328_DACCONTROL19, 7, 1, 0),
-	SOC_DAPM_SINGLE("Playback Switch", ES8328_DACCONTROL20, 8, 1, 0),
-	SOC_DAPM_SINGLE("Right Bypass Switch", ES8328_DACCONTROL20, 7, 1, 0),
+	SOC_DAPM_SINGLE("Left Playback Switch", ES8328_DACCONTROL19, 7, 1, 0),
+	SOC_DAPM_SINGLE("Left Bypass Switch", ES8328_DACCONTROL19, 6, 1, 0),
+	SOC_DAPM_SINGLE("Playback Switch", ES8328_DACCONTROL20, 7, 1, 0),
+	SOC_DAPM_SINGLE("Right Bypass Switch", ES8328_DACCONTROL20, 6, 1, 0),
 };
 
 static const char * const es8328_pga_sel[] = {
@@ -536,7 +545,7 @@ static int es8328_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_update_bits(codec, ES8328_CONTROL1,
 					ES8328_CONTROL1_VMIDSEL_MASK |
 					ES8328_CONTROL1_ENREF,
@@ -566,7 +575,6 @@ static int es8328_set_bias_level(struct snd_soc_codec *codec,
 				0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

@@ -632,7 +632,7 @@ int ipv6_parse_hopopts(struct sk_buff *skb)
 		return -1;
 	}
 
-	opt->hop = sizeof(struct ipv6hdr);
+	opt->flags |= IP6SKB_HOPBYHOP;
 	if (ip6_parse_tlv(tlvprochopopt_lst, skb)) {
 		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
@@ -727,6 +727,7 @@ ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
 			*((char **)&opt2->dst1opt) += dif;
 		if (opt2->srcrt)
 			*((char **)&opt2->srcrt) += dif;
+		atomic_set(&opt2->refcnt, 1);
 	}
 	return opt2;
 }
@@ -790,7 +791,7 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 		return ERR_PTR(-ENOBUFS);
 
 	memset(opt2, 0, tot_len);
-
+	atomic_set(&opt2->refcnt, 1);
 	opt2->tot_len = tot_len;
 	p = (char *)(opt2 + 1);
 

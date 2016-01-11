@@ -134,7 +134,7 @@ static ssize_t ds1742_nvram_read(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr_nvram;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < pdata->size_nvram; count++, size--)
+	for (count = 0; count < size; count++)
 		*buf++ = readb(ioaddr + pos++);
 	return count;
 }
@@ -149,7 +149,7 @@ static ssize_t ds1742_nvram_write(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr_nvram;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < pdata->size_nvram; count++, size--)
+	for (count = 0; count < size; count++)
 		writeb(*buf++, ioaddr + pos++);
 	return count;
 }

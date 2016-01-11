@@ -1837,7 +1837,7 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 	SET_RING_HEAD(dev_priv, 0);
 	dev_priv->ring.tail = 0;
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (dev_priv->flags & RADEON_IS_AGP) {
 		rptr_addr = dev_priv->ring_rptr->offset
 			- dev->agp->base +
@@ -1863,7 +1863,7 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 		     dev_priv->ring.size_l2qw);
 #endif
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (dev_priv->flags & RADEON_IS_AGP) {
 		/* XXX */
 		radeon_write_agp_base(dev_priv, dev->agp->base);
@@ -1946,7 +1946,7 @@ int r600_do_cleanup_cp(struct drm_device *dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (dev_priv->flags & RADEON_IS_AGP) {
 		if (dev_priv->cp_ring != NULL) {
 			drm_legacy_ioremapfree(dev_priv->cp_ring, dev);
@@ -2089,7 +2089,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 		}
 	}
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	/* XXX */
 	if (dev_priv->flags & RADEON_IS_AGP) {
 		drm_legacy_ioremap_wc(dev_priv->cp_ring, dev);
@@ -2148,7 +2148,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 		 * location in the card and on the bus, though we have to
 		 * align it down.
 		 */
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 		/* XXX */
 		if (dev_priv->flags & RADEON_IS_AGP) {
 			base = dev->agp->base;
@@ -2175,7 +2175,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 				 base, dev_priv->gart_vm_start);
 	}
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	/* XXX */
 	if (dev_priv->flags & RADEON_IS_AGP)
 		dev_priv->gart_buffers_offset = (dev->agp_buffer_map->offset
@@ -2212,7 +2212,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 
 	dev_priv->ring.high_mark = RADEON_RING_HIGH_MARK;
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (dev_priv->flags & RADEON_IS_AGP) {
 		/* XXX turn off pcie gart */
 	} else
@@ -2483,7 +2483,7 @@ int r600_cp_dispatch_texture(struct drm_device *dev,
 	struct drm_buf *buf;
 	u32 *buffer;
 	const u8 __user *data;
-	int size, pass_size;
+	unsigned int size, pass_size;
 	u64 src_offset, dst_offset;
 
 	if (!radeon_check_offset(dev_priv, tex->offset)) {

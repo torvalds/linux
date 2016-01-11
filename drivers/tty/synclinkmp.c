@@ -752,15 +752,6 @@ static int open(struct tty_struct *tty, struct file *filp)
 		printk("%s(%d):%s open(), old ref count = %d\n",
 			 __FILE__,__LINE__,tty->driver->name, info->port.count);
 
-	/* If port is closing, signal caller to try again */
-	if (info->port.flags & ASYNC_CLOSING){
-		wait_event_interruptible_tty(tty, info->port.close_wait,
-					     !(info->port.flags & ASYNC_CLOSING));
-		retval = ((info->port.flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
-		goto cleanup;
-	}
-
 	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
@@ -1655,7 +1646,8 @@ static int hdlcdev_open(struct net_device *dev)
 		printk("%s:hdlcdev_open(%s)\n",__FILE__,dev->name);
 
 	/* generic HDLC layer open processing */
-	if ((rc = hdlc_open(dev)))
+	rc = hdlc_open(dev);
+	if (rc)
 		return rc;
 
 	/* arbitrate between network and tty opens */
@@ -1922,7 +1914,8 @@ static int hdlcdev_init(SLMP_INFO *info)
 
 	/* allocate and initialize network and HDLC layer objects */
 
-	if (!(dev = alloc_hdlcdev(info))) {
+	dev = alloc_hdlcdev(info);
+	if (!dev) {
 		printk(KERN_ERR "%s:hdlc device allocation failure\n",__FILE__);
 		return -ENOMEM;
 	}
@@ -1943,7 +1936,8 @@ static int hdlcdev_init(SLMP_INFO *info)
 	hdlc->xmit   = hdlcdev_xmit;
 
 	/* register objects with HDLC layer */
-	if ((rc = register_hdlc_device(dev))) {
+	rc = register_hdlc_device(dev);
+	if (rc) {
 		printk(KERN_WARNING "%s:unable to register hdlc device\n",__FILE__);
 		free_netdev(dev);
 		return rc;
@@ -3338,9 +3332,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		}
 
 		cd = tty_port_carrier_raised(port);
-
- 		if (!(port->flags & ASYNC_CLOSING) && (do_clocal || cd))
- 			break;
+		if (do_clocal || cd)
+			break;
 
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -3920,7 +3913,8 @@ static void synclinkmp_cleanup(void)
 	printk("Unloading %s %s\n", driver_name, driver_version);
 
 	if (serial_driver) {
-		if ((rc = tty_unregister_driver(serial_driver)))
+		rc = tty_unregister_driver(serial_driver);
+		if (rc)
 			printk("%s(%d) failed to unregister tty driver err=%d\n",
 			       __FILE__,__LINE__,rc);
 		put_tty_driver(serial_driver);

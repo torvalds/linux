@@ -31,6 +31,7 @@
 #include "clk-rcg.h"
 #include "clk-branch.h"
 #include "reset.h"
+#include "gdsc.h"
 
 enum {
 	P_XO,
@@ -48,7 +49,7 @@ static const struct parent_map gcc_xo_gpll0_map[] = {
 	{ P_GPLL0, 1 }
 };
 
-static const char *gcc_xo_gpll0[] = {
+static const char * const gcc_xo_gpll0[] = {
 	"xo",
 	"gpll0_vote",
 };
@@ -59,7 +60,7 @@ static const struct parent_map gcc_xo_gpll0_gpll4_map[] = {
 	{ P_GPLL4, 5 }
 };
 
-static const char *gcc_xo_gpll0_gpll4[] = {
+static const char * const gcc_xo_gpll0_gpll4[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll4_vote",
@@ -70,7 +71,7 @@ static const struct parent_map gcc_xo_sata_asic0_map[] = {
 	{ P_SATA_ASIC0_CLK, 2 }
 };
 
-static const char *gcc_xo_sata_asic0[] = {
+static const char * const gcc_xo_sata_asic0[] = {
 	"xo",
 	"sata_asic0_clk",
 };
@@ -80,7 +81,7 @@ static const struct parent_map gcc_xo_sata_rx_map[] = {
 	{ P_SATA_RX_CLK, 2}
 };
 
-static const char *gcc_xo_sata_rx[] = {
+static const char * const gcc_xo_sata_rx[] = {
 	"xo",
 	"sata_rx_clk",
 };
@@ -90,7 +91,7 @@ static const struct parent_map gcc_xo_pcie_map[] = {
 	{ P_PCIE_0_1_PIPE_CLK, 2 }
 };
 
-static const char *gcc_xo_pcie[] = {
+static const char * const gcc_xo_pcie[] = {
 	"xo",
 	"pcie_pipe",
 };
@@ -100,7 +101,7 @@ static const struct parent_map gcc_xo_pcie_sleep_map[] = {
 	{ P_SLEEP_CLK, 6 }
 };
 
-static const char *gcc_xo_pcie_sleep[] = {
+static const char * const gcc_xo_pcie_sleep[] = {
 	"xo",
 	"sleep_clk_src",
 };
@@ -2105,6 +2106,7 @@ static struct clk_branch gcc_ce1_clk = {
 				"ce1_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3253,6 +3255,38 @@ static struct clk_branch gcc_usb_hsic_system_clk = {
 	},
 };
 
+static struct gdsc usb_hs_hsic_gdsc = {
+	.gdscr = 0x404,
+	.pd = {
+		.name = "usb_hs_hsic",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc pcie0_gdsc = {
+	.gdscr = 0x1ac4,
+	.pd = {
+		.name = "pcie0",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc pcie1_gdsc = {
+	.gdscr = 0x1b44,
+	.pd = {
+		.name = "pcie1",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc usb30_gdsc = {
+	.gdscr = 0x1e84,
+	.pd = {
+		.name = "usb30",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
 static struct clk_regmap *gcc_apq8084_clocks[] = {
 	[GPLL0] = &gpll0.clkr,
 	[GPLL0_VOTE] = &gpll0_vote,
@@ -3446,6 +3480,13 @@ static struct clk_regmap *gcc_apq8084_clocks[] = {
 	[GCC_USB_HSIC_SYSTEM_CLK] = &gcc_usb_hsic_system_clk.clkr,
 };
 
+static struct gdsc *gcc_apq8084_gdscs[] = {
+	[USB_HS_HSIC_GDSC] = &usb_hs_hsic_gdsc,
+	[PCIE0_GDSC] = &pcie0_gdsc,
+	[PCIE1_GDSC] = &pcie1_gdsc,
+	[USB30_GDSC] = &usb30_gdsc,
+};
+
 static const struct qcom_reset_map gcc_apq8084_resets[] = {
 	[GCC_SYSTEM_NOC_BCR] = { 0x0100 },
 	[GCC_CONFIG_NOC_BCR] = { 0x0140 },
@@ -3554,6 +3595,8 @@ static const struct qcom_cc_desc gcc_apq8084_desc = {
 	.num_clks = ARRAY_SIZE(gcc_apq8084_clocks),
 	.resets = gcc_apq8084_resets,
 	.num_resets = ARRAY_SIZE(gcc_apq8084_resets),
+	.gdscs = gcc_apq8084_gdscs,
+	.num_gdscs = ARRAY_SIZE(gcc_apq8084_gdscs),
 };
 
 static const struct of_device_id gcc_apq8084_match_table[] = {
@@ -3580,15 +3623,8 @@ static int gcc_apq8084_probe(struct platform_device *pdev)
 	return qcom_cc_probe(pdev, &gcc_apq8084_desc);
 }
 
-static int gcc_apq8084_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_apq8084_driver = {
 	.probe		= gcc_apq8084_probe,
-	.remove		= gcc_apq8084_remove,
 	.driver		= {
 		.name	= "gcc-apq8084",
 		.of_match_table = gcc_apq8084_match_table,

@@ -59,6 +59,7 @@ void *kmap_atomic(struct page *page)
 	void *kmap;
 	int type;
 
+	preempt_disable();
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
@@ -78,7 +79,7 @@ void *kmap_atomic(struct page *page)
 
 	type = kmap_atomic_idx_push();
 
-	idx = type + KM_TYPE_NR * smp_processor_id();
+	idx = FIX_KMAP_BEGIN + type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
 	/*
@@ -105,7 +106,7 @@ void __kunmap_atomic(void *kvaddr)
 
 	if (kvaddr >= (void *)FIXADDR_START) {
 		type = kmap_atomic_idx();
-		idx = type + KM_TYPE_NR * smp_processor_id();
+		idx = FIX_KMAP_BEGIN + type + KM_TYPE_NR * smp_processor_id();
 
 		if (cache_is_vivt())
 			__cpuc_flush_dcache_area((void *)vaddr, PAGE_SIZE);
@@ -121,6 +122,7 @@ void __kunmap_atomic(void *kvaddr)
 		kunmap_high(pte_page(pkmap_page_table[PKMAP_NR(vaddr)]));
 	}
 	pagefault_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
 
@@ -130,12 +132,13 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	int idx, type;
 	struct page *page = pfn_to_page(pfn);
 
+	preempt_disable();
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
 
 	type = kmap_atomic_idx_push();
-	idx = type + KM_TYPE_NR * smp_processor_id();
+	idx = FIX_KMAP_BEGIN + type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
 	BUG_ON(!pte_none(get_fixmap_pte(vaddr)));
@@ -143,14 +146,4 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	set_fixmap_pte(idx, pfn_pte(pfn, kmap_prot));
 
 	return (void *)vaddr;
-}
-
-struct page *kmap_atomic_to_page(const void *ptr)
-{
-	unsigned long vaddr = (unsigned long)ptr;
-
-	if (vaddr < FIXADDR_START)
-		return virt_to_page(ptr);
-
-	return pte_page(get_fixmap_pte(vaddr));
 }

@@ -31,6 +31,7 @@
 #include "clk-rcg.h"
 #include "clk-branch.h"
 #include "reset.h"
+#include "gdsc.h"
 
 enum {
 	P_XO,
@@ -56,7 +57,7 @@ static const struct parent_map mmcc_xo_mmpll0_mmpll1_gpll0_map[] = {
 	{ P_GPLL0, 5 }
 };
 
-static const char *mmcc_xo_mmpll0_mmpll1_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_mmpll1_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -72,7 +73,7 @@ static const struct parent_map mmcc_xo_mmpll0_dsi_hdmi_gpll0_map[] = {
 	{ P_DSI1PLL, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"hdmipll",
@@ -89,7 +90,7 @@ static const struct parent_map mmcc_xo_mmpll0_1_2_gpll0_map[] = {
 	{ P_MMPLL2, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_2_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_2_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -105,7 +106,7 @@ static const struct parent_map mmcc_xo_mmpll0_1_3_gpll0_map[] = {
 	{ P_MMPLL3, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_3_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_3_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -121,7 +122,7 @@ static const struct parent_map mmcc_xo_mmpll0_1_gpll1_0_map[] = {
 	{ P_GPLL1, 4 }
 };
 
-static const char *mmcc_xo_mmpll0_1_gpll1_0[] = {
+static const char * const mmcc_xo_mmpll0_1_gpll1_0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -138,7 +139,7 @@ static const struct parent_map mmcc_xo_dsi_hdmi_edp_map[] = {
 	{ P_DSI1PLL, 2 }
 };
 
-static const char *mmcc_xo_dsi_hdmi_edp[] = {
+static const char * const mmcc_xo_dsi_hdmi_edp[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -156,7 +157,7 @@ static const struct parent_map mmcc_xo_dsi_hdmi_edp_gpll0_map[] = {
 	{ P_DSI1PLL, 2 }
 };
 
-static const char *mmcc_xo_dsi_hdmi_edp_gpll0[] = {
+static const char * const mmcc_xo_dsi_hdmi_edp_gpll0[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -174,7 +175,7 @@ static const struct parent_map mmcc_xo_dsibyte_hdmi_edp_gpll0_map[] = {
 	{ P_DSI1PLL_BYTE, 2 }
 };
 
-static const char *mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
+static const char * const mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -522,17 +523,11 @@ static struct clk_rcg2 jpeg2_clk_src = {
 	},
 };
 
-static struct freq_tbl pixel_freq_tbl[] = {
-	{ .src = P_DSI0PLL },
-	{ }
-};
-
 static struct clk_rcg2 pclk0_clk_src = {
 	.cmd_rcgr = 0x2000,
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk0_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
@@ -547,7 +542,6 @@ static struct clk_rcg2 pclk1_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk1_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
@@ -785,7 +779,7 @@ static struct clk_rcg2 byte0_clk_src = {
 		.name = "byte0_clk_src",
 		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_byte_ops,
+		.ops = &clk_byte2_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -799,7 +793,7 @@ static struct clk_rcg2 byte1_clk_src = {
 		.name = "byte1_clk_src",
 		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_byte_ops,
+		.ops = &clk_byte2_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -2349,6 +2343,66 @@ static struct pll_config mmpll3_config = {
 	.aux_output_mask = BIT(1),
 };
 
+static struct gdsc venus0_gdsc = {
+	.gdscr = 0x1024,
+	.cxcs = (unsigned int []){ 0x1028 },
+	.cxc_count = 1,
+	.resets = (unsigned int []){ VENUS0_RESET },
+	.reset_count = 1,
+	.pd = {
+		.name = "venus0",
+	},
+	.pwrsts = PWRSTS_ON,
+};
+
+static struct gdsc mdss_gdsc = {
+	.gdscr = 0x2304,
+	.cxcs = (unsigned int []){ 0x231c, 0x2320 },
+	.cxc_count = 2,
+	.pd = {
+		.name = "mdss",
+	},
+	.pwrsts = PWRSTS_RET_ON,
+};
+
+static struct gdsc camss_jpeg_gdsc = {
+	.gdscr = 0x35a4,
+	.cxcs = (unsigned int []){ 0x35a8, 0x35ac, 0x35b0 },
+	.cxc_count = 3,
+	.pd = {
+		.name = "camss_jpeg",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc camss_vfe_gdsc = {
+	.gdscr = 0x36a4,
+	.cxcs = (unsigned int []){ 0x36a8, 0x36ac, 0x3704, 0x3714, 0x36b0 },
+	.cxc_count = 5,
+	.pd = {
+		.name = "camss_vfe",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc oxili_gdsc = {
+	.gdscr = 0x4024,
+	.cxcs = (unsigned int []){ 0x4028 },
+	.cxc_count = 1,
+	.pd = {
+		.name = "oxili",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc oxilicx_gdsc = {
+	.gdscr = 0x4034,
+	.pd = {
+		.name = "oxilicx",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
 static struct clk_regmap *mmcc_msm8974_clocks[] = {
 	[MMSS_AHB_CLK_SRC] = &mmss_ahb_clk_src.clkr,
 	[MMSS_AXI_CLK_SRC] = &mmss_axi_clk_src.clkr,
@@ -2525,6 +2579,15 @@ static const struct qcom_reset_map mmcc_msm8974_resets[] = {
 	[OCMEMNOC_RESET] = { 0x50b0 },
 };
 
+static struct gdsc *mmcc_msm8974_gdscs[] = {
+	[VENUS0_GDSC] = &venus0_gdsc,
+	[MDSS_GDSC] = &mdss_gdsc,
+	[CAMSS_JPEG_GDSC] = &camss_jpeg_gdsc,
+	[CAMSS_VFE_GDSC] = &camss_vfe_gdsc,
+	[OXILI_GDSC] = &oxili_gdsc,
+	[OXILICX_GDSC] = &oxilicx_gdsc,
+};
+
 static const struct regmap_config mmcc_msm8974_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
@@ -2539,6 +2602,8 @@ static const struct qcom_cc_desc mmcc_msm8974_desc = {
 	.num_clks = ARRAY_SIZE(mmcc_msm8974_clocks),
 	.resets = mmcc_msm8974_resets,
 	.num_resets = ARRAY_SIZE(mmcc_msm8974_resets),
+	.gdscs = mmcc_msm8974_gdscs,
+	.num_gdscs = ARRAY_SIZE(mmcc_msm8974_gdscs),
 };
 
 static const struct of_device_id mmcc_msm8974_match_table[] = {
@@ -2550,6 +2615,7 @@ MODULE_DEVICE_TABLE(of, mmcc_msm8974_match_table);
 static int mmcc_msm8974_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
+	int ret;
 
 	regmap = qcom_cc_map(pdev, &mmcc_msm8974_desc);
 	if (IS_ERR(regmap))
@@ -2558,12 +2624,16 @@ static int mmcc_msm8974_probe(struct platform_device *pdev)
 	clk_pll_configure_sr_hpm_lp(&mmpll1, regmap, &mmpll1_config, true);
 	clk_pll_configure_sr_hpm_lp(&mmpll3, regmap, &mmpll3_config, false);
 
-	return qcom_cc_really_probe(pdev, &mmcc_msm8974_desc, regmap);
+	ret = qcom_cc_really_probe(pdev, &mmcc_msm8974_desc, regmap);
+	if (ret)
+		return ret;
+
+	return pm_genpd_add_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
 }
 
 static int mmcc_msm8974_remove(struct platform_device *pdev)
 {
-	qcom_cc_remove(pdev);
+	pm_genpd_remove_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
 	return 0;
 }
 

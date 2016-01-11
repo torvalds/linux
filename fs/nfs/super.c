@@ -381,9 +381,12 @@ int __init register_nfs_fs(void)
 	ret = nfs_register_sysctl();
 	if (ret < 0)
 		goto error_2;
-	register_shrinker(&acl_shrinker);
+	ret = register_shrinker(&acl_shrinker);
+	if (ret < 0)
+		goto error_3;
 	return 0;
-
+error_3:
+	nfs_unregister_sysctl();
 error_2:
 	unregister_nfs4_fs();
 error_1:
@@ -2813,7 +2816,6 @@ out_invalid_transport_udp:
  * NFS client for backwards compatibility
  */
 unsigned int nfs_callback_set_tcpport;
-unsigned short nfs_callback_tcpport;
 /* Default cache timeout is 10 minutes */
 unsigned int nfs_idmap_cache_timeout = 600;
 /* Turn off NFSv4 uid/gid mapping when using AUTH_SYS */
@@ -2824,7 +2826,6 @@ char nfs4_client_id_uniquifier[NFS4_CLIENT_ID_UNIQ_LEN] = "";
 bool recover_lost_locks = false;
 
 EXPORT_SYMBOL_GPL(nfs_callback_set_tcpport);
-EXPORT_SYMBOL_GPL(nfs_callback_tcpport);
 EXPORT_SYMBOL_GPL(nfs_idmap_cache_timeout);
 EXPORT_SYMBOL_GPL(nfs4_disable_idmapping);
 EXPORT_SYMBOL_GPL(max_session_slots);
@@ -2847,7 +2848,7 @@ static int param_set_portnr(const char *val, const struct kernel_param *kp)
 	*((unsigned int *)kp->arg) = num;
 	return 0;
 }
-static struct kernel_param_ops param_ops_portnr = {
+static const struct kernel_param_ops param_ops_portnr = {
 	.set = param_set_portnr,
 	.get = param_get_uint,
 };

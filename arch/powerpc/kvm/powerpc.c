@@ -115,7 +115,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		kvm_guest_enter();
+		__kvm_guest_enter();
 		return 1;
 	}
 
@@ -559,6 +559,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		else
 			r = num_online_cpus();
 		break;
+	case KVM_CAP_NR_MEMSLOTS:
+		r = KVM_USER_MEM_SLOTS;
+		break;
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
 		break;
@@ -595,18 +598,19 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
-				   struct kvm_userspace_memory_region *mem,
+				   const struct kvm_userspace_memory_region *mem,
 				   enum kvm_mr_change change)
 {
 	return kvmppc_core_prepare_memory_region(kvm, memslot, mem);
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
-				   struct kvm_userspace_memory_region *mem,
+				   const struct kvm_userspace_memory_region *mem,
 				   const struct kvm_memory_slot *old,
+				   const struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
-	kvmppc_core_commit_memory_region(kvm, mem, old);
+	kvmppc_core_commit_memory_region(kvm, mem, old, new);
 }
 
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
@@ -659,7 +663,7 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return kvmppc_core_pending_dec(vcpu);
 }
 
-enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
+static enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
 

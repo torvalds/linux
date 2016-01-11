@@ -653,22 +653,20 @@ int cx231xx_demod_reset(struct cx231xx *dev)
 
 	cx231xx_coredbg("Enter cx231xx_demod_reset()\n");
 
-		value[1] = (u8) 0x3;
-		status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-						PWR_CTL_EN, value, 4);
-			msleep(10);
+	value[1] = (u8) 0x3;
+	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+					PWR_CTL_EN, value, 4);
+	msleep(10);
 
-		value[1] = (u8) 0x0;
-		status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-						PWR_CTL_EN, value, 4);
-			msleep(10);
+	value[1] = (u8) 0x0;
+	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+					PWR_CTL_EN, value, 4);
+	msleep(10);
 
-		value[1] = (u8) 0x3;
-		status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-						PWR_CTL_EN, value, 4);
-			msleep(10);
-
-
+	value[1] = (u8) 0x3;
+	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+					PWR_CTL_EN, value, 4);
+	msleep(10);
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN,
 				 value, 4);

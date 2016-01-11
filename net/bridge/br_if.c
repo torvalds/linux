@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/if_vlan.h>
+#include <net/switchdev.h>
 
 #include "br_private.h"
 
@@ -249,7 +250,9 @@ static void del_nbp(struct net_bridge_port *p)
 	list_del_rcu(&p->list);
 
 	nbp_vlan_flush(p);
-	br_fdb_delete_by_port(br, p, 1);
+	br_fdb_delete_by_port(br, p, 0, 1);
+	switchdev_deferred_process();
+
 	nbp_update_port_count(br);
 
 	netdev_upper_dev_unlink(dev, br->dev);
@@ -278,9 +281,10 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 		del_nbp(p);
 	}
 
-	br_fdb_delete_by_port(br, NULL, 1);
+	br_fdb_delete_by_port(br, NULL, 0, 1);
 
 	br_vlan_flush(br);
+	br_multicast_dev_del(br);
 	del_timer_sync(&br->gc_timer);
 
 	br_sysfs_delbr(br->dev);

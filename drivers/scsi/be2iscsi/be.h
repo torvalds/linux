@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,7 +8,7 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
  * Emulex
  * 3333 Susan Street

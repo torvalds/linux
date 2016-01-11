@@ -19,3 +19,10 @@ config PPC_POWERNV
 	select CPU_FREQ_GOV_CONSERVATIVE
 	select PPC_DOORBELL
 	default y
+
+config OPAL_PRD
+	tristate 'OPAL PRD driver'
+	depends on PPC_POWERNV
+	help
+	  This enables the opal-prd driver, a facility to run processor
+	  recovery diagnostics on OpenPower machines

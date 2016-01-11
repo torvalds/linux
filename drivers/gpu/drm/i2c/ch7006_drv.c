@@ -119,8 +119,8 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 	struct ch7006_encoder_params *params = &priv->params;
 	struct ch7006_state *state = &priv->state;
 	uint8_t *regs = state->regs;
-	struct ch7006_mode *mode = priv->mode;
-	struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_mode *mode = priv->mode;
+	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
 	int start_active;
 
 	ch7006_dbg(client, "\n");
@@ -226,7 +226,7 @@ static int ch7006_encoder_get_modes(struct drm_encoder *encoder,
 				    struct drm_connector *connector)
 {
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
-	struct ch7006_mode *mode;
+	const struct ch7006_mode *mode;
 	int n = 0;
 
 	for (mode = ch7006_modes; mode->mode.clock; mode++) {

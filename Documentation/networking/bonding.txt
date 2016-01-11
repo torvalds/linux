@@ -51,6 +51,7 @@ Table of Contents
 3.4	Configuring Bonding Manually via Sysfs
 3.5	Configuration with Interfaces Support
 3.6	Overriding Configuration for Special Cases
+3.7 Configuring LACP for 802.3ad mode in a more secure way
 
 4. Querying Bonding Configuration
 4.1	Bonding Configuration
@@ -178,6 +179,27 @@ active_slave
 	active slave, or the empty string if there is no active slave or
 	the current mode does not use an active slave.
 
+ad_actor_sys_prio
+
+	In an AD system, this specifies the system priority. The allowed range
+	is 1 - 65535. If the value is not specified, it takes 65535 as the
+	default value.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	SysFs interface.
+
+ad_actor_system
+
+	In an AD system, this specifies the mac-address for the actor in
+	protocol packet exchanges (LACPDUs). The value cannot be NULL or
+	multicast. It is preferred to have the local-admin bit set for this
+	mac but driver does not enforce it. If the value is not given then
+	system defaults to using the masters' mac address as actors' system
+	address.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	SysFs interface.
+
 ad_select
 
 	Specifies the 802.3ad aggregation selection logic to use.  The
@@ -219,6 +241,21 @@ ad_select
 	(either in bandwidth or in number of ports) active at all times.
 
 	This option was added in bonding version 3.4.0.
+
+ad_user_port_key
+
+	In an AD system, the port-key has three parts as shown below -
+
+	   Bits   Use
+	   00     Duplex
+	   01-05  Speed
+	   06-15  User-defined
+
+	This defines the upper 10 bits of the port key. The values can be
+	from 0 - 1023. If not given, the system defaults to 0.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	SysFs interface.
 
 all_slaves_active
 
@@ -1621,6 +1658,53 @@ output port selection.
 
 This feature first appeared in bonding driver version 3.7.0 and support for
 output slave selection was limited to round-robin and active-backup modes.
+
+3.7 Configuring LACP for 802.3ad mode in a more secure way
+----------------------------------------------------------
+
+When using 802.3ad bonding mode, the Actor (host) and Partner (switch)
+exchange LACPDUs.  These LACPDUs cannot be sniffed, because they are
+destined to link local mac addresses (which switches/bridges are not
+supposed to forward).  However, most of the values are easily predictable
+or are simply the machine's MAC address (which is trivially known to all
+other hosts in the same L2).  This implies that other machines in the L2
+domain can spoof LACPDU packets from other hosts to the switch and potentially
+cause mayhem by joining (from the point of view of the switch) another
+machine's aggregate, thus receiving a portion of that hosts incoming
+traffic and / or spoofing traffic from that machine themselves (potentially
+even successfully terminating some portion of flows). Though this is not
+a likely scenario, one could avoid this possibility by simply configuring
+few bonding parameters:
+
+   (a) ad_actor_system : You can set a random mac-address that can be used for
+       these LACPDU exchanges. The value can not be either NULL or Multicast.
+       Also it's preferable to set the local-admin bit. Following shell code
+       generates a random mac-address as described above.
+
+       # sys_mac_addr=$(printf '%02x:%02x:%02x:%02x:%02x:%02x' \
+                                $(( (RANDOM & 0xFE) | 0x02 )) \
+                                $(( RANDOM & 0xFF )) \
+                                $(( RANDOM & 0xFF )) \
+                                $(( RANDOM & 0xFF )) \
+                                $(( RANDOM & 0xFF )) \
+                                $(( RANDOM & 0xFF )))
+       # echo $sys_mac_addr > /sys/class/net/bond0/bonding/ad_actor_system
+
+   (b) ad_actor_sys_prio : Randomize the system priority. The default value
+       is 65535, but system can take the value from 1 - 65535. Following shell
+       code generates random priority and sets it.
+
+       # sys_prio=$(( 1 + RANDOM + RANDOM ))
+       # echo $sys_prio > /sys/class/net/bond0/bonding/ad_actor_sys_prio
+
+   (c) ad_user_port_key : Use the user portion of the port-key. The default
+       keeps this empty. These are the upper 10 bits of the port-key and value
+       ranges from 0 - 1023. Following shell code generates these 10 bits and
+       sets it.
+
+       # usr_port_key=$(( RANDOM & 0x3FF ))
+       # echo $usr_port_key > /sys/class/net/bond0/bonding/ad_user_port_key
+
 
 4 Querying Bonding Configuration
 =================================

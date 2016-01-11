@@ -179,6 +179,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	wdd->min_timeout	= 1;
 	wdd->max_timeout	= MAX_HEARTBEAT;
 	wdd->timeout		= DEFAULT_HEARTBEAT;
+	wdd->parent		= &pdev->dev;
 
 	watchdog_init_timeout(wdd, heartbeat, dev);
 

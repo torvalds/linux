@@ -1038,6 +1038,10 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 	int		 i, buflist_ent;
 	int		 sg_spill = MAX_FRAGS_SPILL1;
 	int		 dir;
+
+	if (bytes < 0)
+		return NULL;
+
 	/* initialization */
 	*frags = 0;
 	*blp = NULL;
@@ -1858,6 +1862,15 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 		return -EBUSY;
 	}
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+
+	/* Basic sanity checks to prevent underflows or integer overflows */
+	if (karg.maxReplyBytes < 0 ||
+	    karg.dataInSize < 0 ||
+	    karg.dataOutSize < 0 ||
+	    karg.dataSgeOffset < 0 ||
+	    karg.maxSenseBytes < 0 ||
+	    karg.dataSgeOffset > ioc->req_sz / 4)
+		return -EINVAL;
 
 	/* Verify that the final request frame will not be too large.
 	 */

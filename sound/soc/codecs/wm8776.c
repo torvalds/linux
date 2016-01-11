@@ -265,7 +265,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Set word length */
-	switch (snd_pcm_format_width(params_format(params))) {
+	switch (params_width(params)) {
 	case 16:
 		iface = 0;
 		break;
@@ -280,7 +280,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported sample size: %i\n",
-			snd_pcm_format_width(params_format(params)));
+			params_width(params));
 		return -EINVAL;
 	}
 
@@ -344,7 +344,7 @@ static int wm8776_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_sync(wm8776->regmap);
 
 			/* Disable the global powerdown; DAPM does the rest */
@@ -357,7 +357,6 @@ static int wm8776_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -489,7 +488,6 @@ static int wm8776_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8776_spi_driver = {
 	.driver = {
 		.name	= "wm8776",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8776_of_match,
 	},
 	.probe		= wm8776_spi_probe,
@@ -537,7 +535,6 @@ MODULE_DEVICE_TABLE(i2c, wm8776_i2c_id);
 static struct i2c_driver wm8776_i2c_driver = {
 	.driver = {
 		.name = "wm8776",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8776_of_match,
 	},
 	.probe =    wm8776_i2c_probe,

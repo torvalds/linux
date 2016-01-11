@@ -742,7 +742,6 @@ static int pm860x_charger_remove(struct platform_device *pdev)
 	int i;
 
 	power_supply_unregister(info->usb);
-	free_irq(info->irq[0], info);
 	for (i = 0; i < info->irq_nums; i++)
 		free_irq(info->irq[i], info);
 	return 0;

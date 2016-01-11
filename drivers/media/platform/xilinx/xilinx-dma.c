@@ -22,7 +22,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "xilinx-dma.h"
@@ -285,7 +285,7 @@ done:
  * @dma: DMA channel that uses the buffer
  */
 struct xvip_dma_buffer {
-	struct vb2_buffer buf;
+	struct vb2_v4l2_buffer buf;
 	struct list_head queue;
 	struct xvip_dma *dma;
 };
@@ -301,18 +301,19 @@ static void xvip_dma_complete(void *param)
 	list_del(&buf->queue);
 	spin_unlock(&dma->queued_lock);
 
-	buf->buf.v4l2_buf.field = V4L2_FIELD_NONE;
-	buf->buf.v4l2_buf.sequence = dma->sequence++;
-	v4l2_get_timestamp(&buf->buf.v4l2_buf.timestamp);
-	vb2_set_plane_payload(&buf->buf, 0, dma->format.sizeimage);
-	vb2_buffer_done(&buf->buf, VB2_BUF_STATE_DONE);
+	buf->buf.field = V4L2_FIELD_NONE;
+	buf->buf.sequence = dma->sequence++;
+	v4l2_get_timestamp(&buf->buf.timestamp);
+	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, dma->format.sizeimage);
+	vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
 static int
-xvip_dma_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+xvip_dma_queue_setup(struct vb2_queue *vq, const void *parg,
 		     unsigned int *nbuffers, unsigned int *nplanes,
 		     unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
 
 	/* Make sure the image size is large enough. */
@@ -329,8 +330,9 @@ xvip_dma_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 static int xvip_dma_buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct xvip_dma *dma = vb2_get_drv_priv(vb->vb2_queue);
-	struct xvip_dma_buffer *buf = to_xvip_dma_buffer(vb);
+	struct xvip_dma_buffer *buf = to_xvip_dma_buffer(vbuf);
 
 	buf->dma = dma;
 
@@ -339,8 +341,9 @@ static int xvip_dma_buffer_prepare(struct vb2_buffer *vb)
 
 static void xvip_dma_buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct xvip_dma *dma = vb2_get_drv_priv(vb->vb2_queue);
-	struct xvip_dma_buffer *buf = to_xvip_dma_buffer(vb);
+	struct xvip_dma_buffer *buf = to_xvip_dma_buffer(vbuf);
 	struct dma_async_tx_descriptor *desc;
 	dma_addr_t addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	u32 flags;
@@ -367,7 +370,7 @@ static void xvip_dma_buffer_queue(struct vb2_buffer *vb)
 	desc = dmaengine_prep_interleaved_dma(dma->dma, &dma->xt, flags);
 	if (!desc) {
 		dev_err(dma->xdev->dev, "Failed to prepare DMA transfer\n");
-		vb2_buffer_done(&buf->buf, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
 	}
 	desc->callback = xvip_dma_complete;
@@ -434,7 +437,7 @@ error:
 	/* Give back all queued buffers to videobuf2. */
 	spin_lock_irq(&dma->queued_lock);
 	list_for_each_entry_safe(buf, nbuf, &dma->queued_bufs, queue) {
-		vb2_buffer_done(&buf->buf, VB2_BUF_STATE_QUEUED);
+		vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_QUEUED);
 		list_del(&buf->queue);
 	}
 	spin_unlock_irq(&dma->queued_lock);
@@ -461,7 +464,7 @@ static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 	/* Give back all queued buffers to videobuf2. */
 	spin_lock_irq(&dma->queued_lock);
 	list_for_each_entry_safe(buf, nbuf, &dma->queued_bufs, queue) {
-		vb2_buffer_done(&buf->buf, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_ERROR);
 		list_del(&buf->queue);
 	}
 	spin_unlock_irq(&dma->queued_lock);
@@ -653,7 +656,7 @@ static const struct v4l2_file_operations xvip_dma_fops = {
 int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 		  enum v4l2_buf_type type, unsigned int port)
 {
-	char name[14];
+	char name[16];
 	int ret;
 
 	dma->xdev = xdev;
@@ -699,8 +702,10 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 
 	/* ... and the buffers queue... */
 	dma->alloc_ctx = vb2_dma_contig_init_ctx(dma->xdev->dev);
-	if (IS_ERR(dma->alloc_ctx))
+	if (IS_ERR(dma->alloc_ctx)) {
+		ret = PTR_ERR(dma->alloc_ctx);
 		goto error;
+	}
 
 	/* Don't enable VB2_READ and VB2_WRITE, as using the read() and write()
 	 * V4L2 APIs would be inefficient. Testing on the command line with a
@@ -725,7 +730,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	}
 
 	/* ... and the DMA channel. */
-	sprintf(name, "port%u", port);
+	snprintf(name, sizeof(name), "port%u", port);
 	dma->dma = dma_request_slave_channel(dma->xdev->dev, name);
 	if (dma->dma == NULL) {
 		dev_err(dma->xdev->dev, "no VDMA channel found\n");

@@ -1,12 +1,10 @@
-#define DRV_NAME "advansys"
-#define ASC_VERSION "3.4"	/* AdvanSys Driver Version */
-
 /*
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *
  * Copyright (c) 1995-2000 Advanced System Products, Inc.
  * Copyright (c) 2000-2001 ConnectCom Solutions, Inc.
  * Copyright (c) 2007 Matthew Wilcox <matthew@wil.cx>
+ * Copyright (c) 2014 Hannes Reinecke <hare@suse.de>
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -39,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/dmapool.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -49,26 +48,15 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
+#define DRV_NAME "advansys"
+#define ASC_VERSION "3.5"	/* AdvanSys Driver Version */
+
 /* FIXME:
  *
- *  1. Although all of the necessary command mapping places have the
- *     appropriate dma_map.. APIs, the driver still processes its internal
- *     queue using bus_to_virt() and virt_to_bus() which are illegal under
- *     the API.  The entire queue processing structure will need to be
- *     altered to fix this.
- *  2. Need to add memory mapping workaround. Test the memory mapping.
- *     If it doesn't work revert to I/O port access. Can a test be done
- *     safely?
- *  3. Handle an interrupt not working. Keep an interrupt counter in
- *     the interrupt handler. In the timeout function if the interrupt
- *     has not occurred then print a message and run in polled mode.
- *  4. Need to add support for target mode commands, cf. CAM XPT.
- *  5. check DMA mapping functions for failure
- *  6. Use scsi_transport_spi
- *  7. advansys_info is not safe against multiple simultaneous callers
- *  8. Add module_param to override ISA/VLB ioport array
+ *  1. Use scsi_transport_spi
+ *  2. advansys_info is not safe against multiple simultaneous callers
+ *  3. Add module_param to override ISA/VLB ioport array
  */
-#warning this driver is still not properly converted to the DMA API
 
 /* Enable driver /proc statistics. */
 #define ADVANSYS_STATS
@@ -76,31 +64,8 @@
 /* Enable driver tracing. */
 #undef ADVANSYS_DEBUG
 
-/*
- * Portable Data Types
- *
- * Any instance where a 32-bit long or pointer type is assumed
- * for precision or HW defined structures, the following define
- * types must be used. In Linux the char, short, and int types
- * are all consistent at 8, 16, and 32 bits respectively. Pointers
- * and long types are 64 bits on Alpha and UltraSPARC.
- */
-#define ASC_PADDR __u32		/* Physical/Bus address data type. */
-#define ASC_VADDR __u32		/* Virtual address data type. */
-#define ASC_DCNT  __u32		/* Unsigned Data count type. */
-#define ASC_SDCNT __s32		/* Signed Data count type. */
-
 typedef unsigned char uchar;
 
-#ifndef TRUE
-#define TRUE     (1)
-#endif
-#ifndef FALSE
-#define FALSE    (0)
-#endif
-
-#define ERR      (-1)
-#define UW_ERR   (uint)(0xFFFF)
 #define isodd_word(val)   ((((uint)val) & (uint)0x0001) != 0)
 
 #define PCI_VENDOR_ID_ASP		0x10cd
@@ -110,15 +75,6 @@ typedef unsigned char uchar;
 #define PCI_DEVICE_ID_ASP_ABP940UW	0x2300
 #define PCI_DEVICE_ID_38C0800_REV1	0x2500
 #define PCI_DEVICE_ID_38C1600_REV1	0x2700
-
-/*
- * Enable CC_VERY_LONG_SG_LIST to support up to 64K element SG lists.
- * The SRB structure will have to be changed and the ASC_SRB2SCSIQ()
- * macro re-defined to be able to obtain a ASC_SCSI_Q pointer from the
- * SRB structure.
- */
-#define CC_VERY_LONG_SG_LIST 0
-#define ASC_SRB2SCSIQ(srb_ptr)  (srb_ptr)
 
 #define PortAddr                 unsigned int	/* port address size  */
 #define inp(port)                inb(port)
@@ -307,15 +263,15 @@ typedef struct asc_scsiq_1 {
 	uchar sg_queue_cnt;
 	uchar target_id;
 	uchar target_lun;
-	ASC_PADDR data_addr;
-	ASC_DCNT data_cnt;
-	ASC_PADDR sense_addr;
+	__le32 data_addr;
+	__le32 data_cnt;
+	__le32 sense_addr;
 	uchar sense_len;
 	uchar extra_bytes;
 } ASC_SCSIQ_1;
 
 typedef struct asc_scsiq_2 {
-	ASC_VADDR srb_ptr;
+	u32 srb_tag;
 	uchar target_ix;
 	uchar flag;
 	uchar cdb_len;
@@ -338,8 +294,8 @@ typedef struct asc_scsiq_4 {
 	uchar y_res;
 	ushort x_req_count;
 	ushort x_reconnect_rtn;
-	ASC_PADDR x_saved_data_addr;
-	ASC_DCNT x_saved_data_cnt;
+	__le32 x_saved_data_addr;
+	__le32 x_saved_data_cnt;
 } ASC_SCSIQ_4;
 
 typedef struct asc_q_done_info {
@@ -351,12 +307,12 @@ typedef struct asc_q_done_info {
 	uchar sense_len;
 	uchar extra_bytes;
 	uchar res;
-	ASC_DCNT remain_bytes;
+	u32 remain_bytes;
 } ASC_QDONE_INFO;
 
 typedef struct asc_sg_list {
-	ASC_PADDR addr;
-	ASC_DCNT bytes;
+	__le32 addr;
+	__le32 bytes;
 } ASC_SG_LIST;
 
 typedef struct asc_sg_head {
@@ -375,17 +331,6 @@ typedef struct asc_scsi_q {
 	ushort remain_sg_entry_cnt;
 	ushort next_sg_index;
 } ASC_SCSI_Q;
-
-typedef struct asc_scsi_req_q {
-	ASC_SCSIQ_1 r1;
-	ASC_SCSIQ_2 r2;
-	uchar *cdbptr;
-	ASC_SG_HEAD *sg_head;
-	uchar *sense_ptr;
-	ASC_SCSIQ_3 r3;
-	uchar cdb[ASC_MAX_CDB_LEN];
-	uchar sense[ASC_MIN_SENSE_LEN];
-} ASC_SCSI_REQ_Q;
 
 typedef struct asc_scsi_bios_req_q {
 	ASC_SCSIQ_1 r1;
@@ -570,7 +515,7 @@ typedef struct asc_dvc_var {
 	dma_addr_t overrun_dma;
 	uchar scsi_reset_wait;
 	uchar chip_no;
-	char is_in_int;
+	bool is_in_int;
 	uchar max_total_qng;
 	uchar cur_total_qng;
 	uchar in_critical_cnt;
@@ -586,15 +531,13 @@ typedef struct asc_dvc_var {
 	char redo_scam;
 	ushort res2;
 	uchar dos_int13_table[ASC_MAX_TID + 1];
-	ASC_DCNT max_dma_count;
+	unsigned int max_dma_count;
 	ASC_SCSI_BIT_ID_TYPE no_scam;
 	ASC_SCSI_BIT_ID_TYPE pci_fix_asyn_xfer;
 	uchar min_sdtr_index;
 	uchar max_sdtr_index;
 	struct asc_board *drv_ptr;
-	int ptr_map_count;
-	void **ptr_map;
-	ASC_DCNT uc_break;
+	unsigned int uc_break;
 } ASC_DVC_VAR;
 
 typedef struct asc_dvc_inq_info {
@@ -602,8 +545,8 @@ typedef struct asc_dvc_inq_info {
 } ASC_DVC_INQ_INFO;
 
 typedef struct asc_cap_info {
-	ASC_DCNT lba;
-	ASC_DCNT blk_size;
+	u32 lba;
+	u32 blk_size;
 } ASC_CAP_INFO;
 
 typedef struct asc_cap_info_array {
@@ -929,31 +872,6 @@ typedef struct asc_mc_saved {
 #define AscReadChipDvcID(port)            (uchar)inp((port)+IOP_REG_ID)
 #define AscWriteChipDvcID(port, data)     outp((port)+IOP_REG_ID, data)
 
-/*
- * Portable Data Types
- *
- * Any instance where a 32-bit long or pointer type is assumed
- * for precision or HW defined structures, the following define
- * types must be used. In Linux the char, short, and int types
- * are all consistent at 8, 16, and 32 bits respectively. Pointers
- * and long types are 64 bits on Alpha and UltraSPARC.
- */
-#define ADV_PADDR __u32		/* Physical address data type. */
-#define ADV_VADDR __u32		/* Virtual address data type. */
-#define ADV_DCNT  __u32		/* Unsigned Data count type. */
-#define ADV_SDCNT __s32		/* Signed Data count type. */
-
-/*
- * These macros are used to convert a virtual address to a
- * 32-bit value. This currently can be used on Linux Alpha
- * which uses 64-bit virtual address but a 32-bit bus address.
- * This is likely to break in the future, but doing this now
- * will give us time to change the HW and FW to handle 64-bit
- * addresses.
- */
-#define ADV_VADDR_TO_U32   virt_to_bus
-#define ADV_U32_TO_VADDR   bus_to_virt
-
 #define AdvPortAddr  void __iomem *	/* Virtual memory address size */
 
 /*
@@ -964,8 +882,6 @@ typedef struct asc_mc_saved {
 #define ADV_MEM_WRITEB(addr, byte) writeb(byte, addr)
 #define ADV_MEM_WRITEW(addr, word) writew(word, addr)
 #define ADV_MEM_WRITEDW(addr, dword) writel(dword, addr)
-
-#define ADV_CARRIER_COUNT (ASC_DEF_MAX_HOST_QNG + 15)
 
 /*
  * Define total number of simultaneous maximum element scatter-gather
@@ -1747,44 +1663,37 @@ typedef struct adveep_38C1600_config {
  * little-endian.
  */
 typedef struct adv_carr_t {
-	ADV_VADDR carr_va;	/* Carrier Virtual Address */
-	ADV_PADDR carr_pa;	/* Carrier Physical Address */
-	ADV_VADDR areq_vpa;	/* ASC_SCSI_REQ_Q Virtual or Physical Address */
+	__le32 carr_va;	/* Carrier Virtual Address */
+	__le32 carr_pa;	/* Carrier Physical Address */
+	__le32 areq_vpa;	/* ADV_SCSI_REQ_Q Virtual or Physical Address */
 	/*
 	 * next_vpa [31:4]            Carrier Virtual or Physical Next Pointer
 	 *
 	 * next_vpa [3:1]             Reserved Bits
 	 * next_vpa [0]               Done Flag set in Response Queue.
 	 */
-	ADV_VADDR next_vpa;
+	__le32 next_vpa;
 } ADV_CARR_T;
 
 /*
  * Mask used to eliminate low 4 bits of carrier 'next_vpa' field.
  */
-#define ASC_NEXT_VPA_MASK       0xFFFFFFF0
+#define ADV_NEXT_VPA_MASK       0xFFFFFFF0
 
-#define ASC_RQ_DONE             0x00000001
-#define ASC_RQ_GOOD             0x00000002
-#define ASC_CQ_STOPPER          0x00000000
+#define ADV_RQ_DONE             0x00000001
+#define ADV_RQ_GOOD             0x00000002
+#define ADV_CQ_STOPPER          0x00000000
 
-#define ASC_GET_CARRP(carrp) ((carrp) & ASC_NEXT_VPA_MASK)
-
-#define ADV_CARRIER_NUM_PAGE_CROSSING \
-    (((ADV_CARRIER_COUNT * sizeof(ADV_CARR_T)) + (PAGE_SIZE - 1))/PAGE_SIZE)
-
-#define ADV_CARRIER_BUFSIZE \
-    ((ADV_CARRIER_COUNT + ADV_CARRIER_NUM_PAGE_CROSSING) * sizeof(ADV_CARR_T))
+#define ADV_GET_CARRP(carrp) ((carrp) & ADV_NEXT_VPA_MASK)
 
 /*
- * ASC_SCSI_REQ_Q 'a_flag' definitions
- *
- * The Adv Library should limit use to the lower nibble (4 bits) of
- * a_flag. Drivers are free to use the upper nibble (4 bits) of a_flag.
+ * Each carrier is 64 bytes, and we need three additional
+ * carrier for icq, irq, and the termination carrier.
  */
-#define ADV_POLL_REQUEST                0x01	/* poll for request completion */
-#define ADV_SCSIQ_DONE                  0x02	/* request done */
-#define ADV_DONT_RETRY                  0x08	/* don't do retry */
+#define ADV_CARRIER_COUNT (ASC_DEF_MAX_HOST_QNG + 3)
+
+#define ADV_CARRIER_BUFSIZE \
+	(ADV_CARRIER_COUNT * sizeof(ADV_CARR_T))
 
 #define ADV_CHIP_ASC3550          0x01	/* Ultra-Wide IC */
 #define ADV_CHIP_ASC38C0800       0x02	/* Ultra2-Wide/LVD IC */
@@ -1816,15 +1725,15 @@ typedef struct adv_dvc_cfg {
 struct adv_dvc_var;
 struct adv_scsi_req_q;
 
-typedef struct asc_sg_block {
+typedef struct adv_sg_block {
 	uchar reserved1;
 	uchar reserved2;
 	uchar reserved3;
 	uchar sg_cnt;		/* Valid entries in block. */
-	ADV_PADDR sg_ptr;	/* Pointer to next sg block. */
+	__le32 sg_ptr;	/* Pointer to next sg block. */
 	struct {
-		ADV_PADDR sg_addr;	/* SG element address. */
-		ADV_DCNT sg_count;	/* SG element count. */
+		__le32 sg_addr;	/* SG element address. */
+		__le32 sg_count;	/* SG element count. */
 	} sg_list[NO_OF_SG_PER_BLOCK];
 } ADV_SG_BLOCK;
 
@@ -1844,10 +1753,10 @@ typedef struct adv_scsi_req_q {
 	uchar target_cmd;
 	uchar target_id;	/* Device target identifier. */
 	uchar target_lun;	/* Device target logical unit number. */
-	ADV_PADDR data_addr;	/* Data buffer physical address. */
-	ADV_DCNT data_cnt;	/* Data count. Ucode sets to residual. */
-	ADV_PADDR sense_addr;
-	ADV_PADDR carr_pa;
+	__le32 data_addr;	/* Data buffer physical address. */
+	__le32 data_cnt;	/* Data count. Ucode sets to residual. */
+	__le32 sense_addr;
+	__le32 carr_pa;
 	uchar mflag;
 	uchar sense_len;
 	uchar cdb_len;		/* SCSI CDB length. Must <= 16 bytes. */
@@ -1857,29 +1766,26 @@ typedef struct adv_scsi_req_q {
 	uchar host_status;	/* Ucode host status. */
 	uchar sg_working_ix;
 	uchar cdb[12];		/* SCSI CDB bytes 0-11. */
-	ADV_PADDR sg_real_addr;	/* SG list physical address. */
-	ADV_PADDR scsiq_rptr;
+	__le32 sg_real_addr;	/* SG list physical address. */
+	__le32 scsiq_rptr;
 	uchar cdb16[4];		/* SCSI CDB bytes 12-15. */
-	ADV_VADDR scsiq_ptr;
-	ADV_VADDR carr_va;
+	__le32 scsiq_ptr;
+	__le32 carr_va;
 	/*
 	 * End of microcode structure - 60 bytes. The rest of the structure
 	 * is used by the Adv Library and ignored by the microcode.
 	 */
-	ADV_VADDR srb_ptr;
+	u32 srb_tag;
 	ADV_SG_BLOCK *sg_list_ptr;	/* SG list virtual address. */
-	char *vdata_addr;	/* Data buffer virtual address. */
-	uchar a_flag;
-	uchar pad[2];		/* Pad out to a word boundary. */
 } ADV_SCSI_REQ_Q;
 
 /*
  * The following two structures are used to process Wide Board requests.
  *
  * The ADV_SCSI_REQ_Q structure in adv_req_t is passed to the Adv Library
- * and microcode with the ADV_SCSI_REQ_Q field 'srb_ptr' pointing to the
- * adv_req_t. The adv_req_t structure 'cmndp' field in turn points to the
- * Mid-Level SCSI request structure.
+ * and microcode with the ADV_SCSI_REQ_Q field 'srb_tag' set to the
+ * SCSI request tag. The adv_req_t structure 'cmndp' field in turn points
+ * to the Mid-Level SCSI request structure.
  *
  * Zero or more ADV_SG_BLOCK are used with each ADV_SCSI_REQ_Q. Each
  * ADV_SG_BLOCK structure holds 15 scatter-gather elements. Under Linux
@@ -1890,17 +1796,17 @@ typedef struct adv_scsi_req_q {
  */
 typedef struct adv_sgblk {
 	ADV_SG_BLOCK sg_block;	/* Sgblock structure. */
-	uchar align[32];	/* Sgblock structure padding. */
+	dma_addr_t sg_addr;	/* Physical address */
 	struct adv_sgblk *next_sgblkp;	/* Next scatter-gather structure. */
 } adv_sgblk_t;
 
 typedef struct adv_req {
 	ADV_SCSI_REQ_Q scsi_req_q;	/* Adv Library request structure. */
-	uchar align[32];	/* Request structure padding. */
+	uchar align[24];	/* Request structure padding. */
 	struct scsi_cmnd *cmndp;	/* Mid-Level SCSI command pointer. */
+	dma_addr_t req_addr;
 	adv_sgblk_t *sgblkp;	/* Adv Library scatter-gather pointer. */
-	struct adv_req *next_reqp;	/* Next Request Structure. */
-} adv_req_t;
+} adv_req_t __aligned(32);
 
 /*
  * Adapter operation variable structure.
@@ -1937,12 +1843,12 @@ typedef struct adv_dvc_var {
 	uchar chip_scsi_id;	/* chip SCSI target ID */
 	uchar chip_type;
 	uchar bist_err_code;
-	ADV_CARR_T *carrier_buf;
+	ADV_CARR_T *carrier;
 	ADV_CARR_T *carr_freelist;	/* Carrier free list. */
+	dma_addr_t carrier_addr;
 	ADV_CARR_T *icq_sp;	/* Initiator command queue stopper pointer. */
 	ADV_CARR_T *irq_sp;	/* Initiator response queue stopper pointer. */
 	ushort carr_pending_cnt;	/* Count of pending carriers. */
-	struct adv_req *orig_reqp;	/* adv_req_t memory block. */
 	/*
 	 * Note: The following fields will not be used after initialization. The
 	 * driver may discard the buffer after initialization is done.
@@ -2068,8 +1974,8 @@ do { \
     AdvReadByteRegister((iop_base), IOPB_CHIP_TYPE_REV)
 
 /*
- * Abort an SRB in the chip's RISC Memory. The 'srb_ptr' argument must
- * match the ASC_SCSI_REQ_Q 'srb_ptr' field.
+ * Abort an SRB in the chip's RISC Memory. The 'srb_tag' argument must
+ * match the ADV_SCSI_REQ_Q 'srb_tag' field.
  *
  * If the request has not yet been sent to the device it will simply be
  * aborted from RISC memory. If the request is disconnected it will be
@@ -2079,9 +1985,9 @@ do { \
  *      ADV_TRUE(1) - Queue was successfully aborted.
  *      ADV_FALSE(0) - Queue was not found on the active queue list.
  */
-#define AdvAbortQueue(asc_dvc, scsiq) \
-        AdvSendIdleCmd((asc_dvc), (ushort) IDLE_CMD_ABORT, \
-                       (ADV_DCNT) (scsiq))
+#define AdvAbortQueue(asc_dvc, srb_tag) \
+     AdvSendIdleCmd((asc_dvc), (ushort) IDLE_CMD_ABORT, \
+		    (ADV_DCNT) (srb_tag))
 
 /*
  * Send a Bus Device Reset Message to the specified target ID.
@@ -2095,8 +2001,8 @@ do { \
  *                     are not purged.
  */
 #define AdvResetDevice(asc_dvc, target_id) \
-        AdvSendIdleCmd((asc_dvc), (ushort) IDLE_CMD_DEVICE_RESET, \
-                    (ADV_DCNT) (target_id))
+     AdvSendIdleCmd((asc_dvc), (ushort) IDLE_CMD_DEVICE_RESET,	\
+		    (ADV_DCNT) (target_id))
 
 /*
  * SCSI Wide Type definition.
@@ -2115,7 +2021,7 @@ do { \
 #define ADV_TID_TO_TIDMASK(tid)   (0x01 << ((tid) & ADV_MAX_TID))
 
 /*
- * ASC_SCSI_REQ_Q 'done_status' and 'host_status' return values.
+ * ADV_SCSI_REQ_Q 'done_status' and 'host_status' return values.
  */
 
 #define QD_NO_STATUS         0x00	/* Request not completed yet. */
@@ -2153,8 +2059,6 @@ do { \
 #define QHSTA_M_SGBACKUP_ERROR      0x47	/* Scatter-Gather backup error */
 
 /* Return the address that is aligned at the next doubleword >= to 'addr'. */
-#define ADV_8BALIGN(addr)      (((ulong) (addr) + 0x7) & ~0x7)
-#define ADV_16BALIGN(addr)     (((ulong) (addr) + 0xF) & ~0xF)
 #define ADV_32BALIGN(addr)     (((ulong) (addr) + 0x1F) & ~0x1F)
 
 /*
@@ -2315,24 +2219,24 @@ do { \
 /* Per board statistics structure */
 struct asc_stats {
 	/* Driver Entrypoint Statistics */
-	ADV_DCNT queuecommand;	/* # calls to advansys_queuecommand() */
-	ADV_DCNT reset;		/* # calls to advansys_eh_bus_reset() */
-	ADV_DCNT biosparam;	/* # calls to advansys_biosparam() */
-	ADV_DCNT interrupt;	/* # advansys_interrupt() calls */
-	ADV_DCNT callback;	/* # calls to asc/adv_isr_callback() */
-	ADV_DCNT done;		/* # calls to request's scsi_done function */
-	ADV_DCNT build_error;	/* # asc/adv_build_req() ASC_ERROR returns. */
-	ADV_DCNT adv_build_noreq;	/* # adv_build_req() adv_req_t alloc. fail. */
-	ADV_DCNT adv_build_nosg;	/* # adv_build_req() adv_sgblk_t alloc. fail. */
+	unsigned int queuecommand;	/* # calls to advansys_queuecommand() */
+	unsigned int reset;		/* # calls to advansys_eh_bus_reset() */
+	unsigned int biosparam;	/* # calls to advansys_biosparam() */
+	unsigned int interrupt;	/* # advansys_interrupt() calls */
+	unsigned int callback;	/* # calls to asc/adv_isr_callback() */
+	unsigned int done;		/* # calls to request's scsi_done function */
+	unsigned int build_error;	/* # asc/adv_build_req() ASC_ERROR returns. */
+	unsigned int adv_build_noreq;	/* # adv_build_req() adv_req_t alloc. fail. */
+	unsigned int adv_build_nosg;	/* # adv_build_req() adv_sgblk_t alloc. fail. */
 	/* AscExeScsiQueue()/AdvExeScsiQueue() Statistics */
-	ADV_DCNT exe_noerror;	/* # ASC_NOERROR returns. */
-	ADV_DCNT exe_busy;	/* # ASC_BUSY returns. */
-	ADV_DCNT exe_error;	/* # ASC_ERROR returns. */
-	ADV_DCNT exe_unknown;	/* # unknown returns. */
+	unsigned int exe_noerror;	/* # ASC_NOERROR returns. */
+	unsigned int exe_busy;	/* # ASC_BUSY returns. */
+	unsigned int exe_error;	/* # ASC_ERROR returns. */
+	unsigned int exe_unknown;	/* # unknown returns. */
 	/* Data Transfer Statistics */
-	ADV_DCNT xfer_cnt;	/* # I/O requests received */
-	ADV_DCNT xfer_elem;	/* # scatter-gather elements */
-	ADV_DCNT xfer_sect;	/* # 512-byte blocks */
+	unsigned int xfer_cnt;	/* # I/O requests received */
+	unsigned int xfer_elem;	/* # scatter-gather elements */
+	unsigned int xfer_sect;	/* # 512-byte blocks */
 };
 #endif /* ADVANSYS_STATS */
 
@@ -2345,6 +2249,7 @@ struct asc_stats {
  */
 struct asc_board {
 	struct device *dev;
+	struct Scsi_Host *shost;
 	uint flags;		/* Board flags */
 	unsigned int irq;
 	union {
@@ -2366,7 +2271,6 @@ struct asc_board {
 		ADVEEP_38C0800_CONFIG adv_38C0800_eep;	/* 38C0800 EEPROM config. */
 		ADVEEP_38C1600_CONFIG adv_38C1600_eep;	/* 38C1600 EEPROM config. */
 	} eep_config;
-	ulong last_reset;	/* Saved last reset time */
 	/* /proc/scsi/advansys/[0...] */
 #ifdef ADVANSYS_STATS
 	struct asc_stats asc_stats;	/* Board statistics */
@@ -2381,7 +2285,9 @@ struct asc_board {
 	void __iomem *ioremap_addr;	/* I/O Memory remap address. */
 	ushort ioport;		/* I/O Port address. */
 	adv_req_t *adv_reqp;	/* Request structures. */
-	adv_sgblk_t *adv_sgblkp;	/* Scatter-gather structures. */
+	dma_addr_t adv_reqp_addr;
+	size_t adv_reqp_size;
+	struct dma_pool *adv_sgblk_pool;	/* Scatter-gather structures. */
 	ushort bios_signature;	/* BIOS Signature. */
 	ushort bios_version;	/* BIOS Version. */
 	ushort bios_codeseg;	/* BIOS Code Segment. */
@@ -2470,12 +2376,11 @@ static void asc_prt_adv_dvc_var(ADV_DVC_VAR *h)
 	printk("  start_motor 0x%x, scsi_reset_wait 0x%x\n",
 	       (unsigned)h->start_motor, (unsigned)h->scsi_reset_wait);
 
-	printk("  max_host_qng %u, max_dvc_qng %u, carr_freelist 0x%lxn\n",
+	printk("  max_host_qng %u, max_dvc_qng %u, carr_freelist 0x%p\n",
 	       (unsigned)h->max_host_qng, (unsigned)h->max_dvc_qng,
-	       (ulong)h->carr_freelist);
+	       h->carr_freelist);
 
-	printk("  icq_sp 0x%lx, irq_sp 0x%lx\n",
-	       (ulong)h->icq_sp, (ulong)h->irq_sp);
+	printk("  icq_sp 0x%p, irq_sp 0x%p\n", h->icq_sp, h->irq_sp);
 
 	printk("  no_scam 0x%x, tagqng_able 0x%x\n",
 	       (unsigned)h->no_scam, (unsigned)h->tagqng_able);
@@ -2600,8 +2505,8 @@ static void asc_prt_asc_scsi_q(ASC_SCSI_Q *q)
 	printk("ASC_SCSI_Q at addr 0x%lx\n", (ulong)q);
 
 	printk
-	    (" target_ix 0x%x, target_lun %u, srb_ptr 0x%lx, tag_code 0x%x,\n",
-	     q->q2.target_ix, q->q1.target_lun, (ulong)q->q2.srb_ptr,
+	    (" target_ix 0x%x, target_lun %u, srb_tag 0x%x, tag_code 0x%x,\n",
+	     q->q2.target_ix, q->q1.target_lun, q->q2.srb_tag,
 	     q->q2.tag_code);
 
 	printk
@@ -2634,8 +2539,8 @@ static void asc_prt_asc_scsi_q(ASC_SCSI_Q *q)
 static void asc_prt_asc_qdone_info(ASC_QDONE_INFO *q)
 {
 	printk("ASC_QDONE_INFO at addr 0x%lx\n", (ulong)q);
-	printk(" srb_ptr 0x%lx, target_ix %u, cdb_len %u, tag_code %u,\n",
-	       (ulong)q->d2.srb_ptr, q->d2.target_ix, q->d2.cdb_len,
+	printk(" srb_tag 0x%x, target_ix %u, cdb_len %u, tag_code %u,\n",
+	       q->d2.srb_tag, q->d2.target_ix, q->d2.cdb_len,
 	       q->d2.tag_code);
 	printk
 	    (" done_stat 0x%x, host_stat 0x%x, scsi_stat 0x%x, scsi_msg 0x%x\n",
@@ -2651,17 +2556,17 @@ static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
 {
 	int i;
 
-	printk(" ASC_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
+	printk(" ADV_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
 	       (ulong)b, sgblockno);
-	printk("  sg_cnt %u, sg_ptr 0x%lx\n",
-	       b->sg_cnt, (ulong)le32_to_cpu(b->sg_ptr));
+	printk("  sg_cnt %u, sg_ptr 0x%x\n",
+	       b->sg_cnt, (u32)le32_to_cpu(b->sg_ptr));
 	BUG_ON(b->sg_cnt > NO_OF_SG_PER_BLOCK);
 	if (b->sg_ptr != 0)
 		BUG_ON(b->sg_cnt != NO_OF_SG_PER_BLOCK);
 	for (i = 0; i < b->sg_cnt; i++) {
-		printk("  [%u]: sg_addr 0x%lx, sg_count 0x%lx\n",
-		       i, (ulong)b->sg_list[i].sg_addr,
-		       (ulong)b->sg_list[i].sg_count);
+		printk("  [%u]: sg_addr 0x%x, sg_count 0x%x\n",
+		       i, (u32)le32_to_cpu(b->sg_list[i].sg_addr),
+		       (u32)le32_to_cpu(b->sg_list[i].sg_count));
 	}
 }
 
@@ -2673,15 +2578,16 @@ static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
 static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
 {
 	int sg_blk_cnt;
-	struct asc_sg_block *sg_ptr;
+	struct adv_sg_block *sg_ptr;
+	adv_sgblk_t *sgblkp;
 
 	printk("ADV_SCSI_REQ_Q at addr 0x%lx\n", (ulong)q);
 
-	printk("  target_id %u, target_lun %u, srb_ptr 0x%lx, a_flag 0x%x\n",
-	       q->target_id, q->target_lun, (ulong)q->srb_ptr, q->a_flag);
+	printk("  target_id %u, target_lun %u, srb_tag 0x%x\n",
+	       q->target_id, q->target_lun, q->srb_tag);
 
-	printk("  cntl 0x%x, data_addr 0x%lx, vdata_addr 0x%lx\n",
-	       q->cntl, (ulong)le32_to_cpu(q->data_addr), (ulong)q->vdata_addr);
+	printk("  cntl 0x%x, data_addr 0x%lx\n",
+	       q->cntl, (ulong)le32_to_cpu(q->data_addr));
 
 	printk("  data_cnt %lu, sense_addr 0x%lx, sense_len %u,\n",
 	       (ulong)le32_to_cpu(q->data_cnt),
@@ -2700,79 +2606,20 @@ static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
 
 	/* Display the request's ADV_SG_BLOCK structures. */
 	if (q->sg_list_ptr != NULL) {
+		sgblkp = container_of(q->sg_list_ptr, adv_sgblk_t, sg_block);
 		sg_blk_cnt = 0;
-		while (1) {
-			/*
-			 * 'sg_ptr' is a physical address. Convert it to a virtual
-			 * address by indexing 'sg_blk_cnt' into the virtual address
-			 * array 'sg_list_ptr'.
-			 *
-			 * XXX - Assumes all SG physical blocks are virtually contiguous.
-			 */
-			sg_ptr =
-			    &(((ADV_SG_BLOCK *)(q->sg_list_ptr))[sg_blk_cnt]);
+		while (sgblkp) {
+			sg_ptr = &sgblkp->sg_block;
 			asc_prt_adv_sgblock(sg_blk_cnt, sg_ptr);
 			if (sg_ptr->sg_ptr == 0) {
 				break;
 			}
+			sgblkp = sgblkp->next_sgblkp;
 			sg_blk_cnt++;
 		}
 	}
 }
 #endif /* ADVANSYS_DEBUG */
-
-/*
- * The advansys chip/microcode contains a 32-bit identifier for each command
- * known as the 'srb'.  I don't know what it stands for.  The driver used
- * to encode the scsi_cmnd pointer by calling virt_to_bus and retrieve it
- * with bus_to_virt.  Now the driver keeps a per-host map of integers to
- * pointers.  It auto-expands when full, unless it can't allocate memory.
- * Note that an srb of 0 is treated specially by the chip/firmware, hence
- * the return of i+1 in this routine, and the corresponding subtraction in
- * the inverse routine.
- */
-#define BAD_SRB 0
-static u32 advansys_ptr_to_srb(struct asc_dvc_var *asc_dvc, void *ptr)
-{
-	int i;
-	void **new_ptr;
-
-	for (i = 0; i < asc_dvc->ptr_map_count; i++) {
-		if (!asc_dvc->ptr_map[i])
-			goto out;
-	}
-
-	if (asc_dvc->ptr_map_count == 0)
-		asc_dvc->ptr_map_count = 1;
-	else
-		asc_dvc->ptr_map_count *= 2;
-
-	new_ptr = krealloc(asc_dvc->ptr_map,
-			asc_dvc->ptr_map_count * sizeof(void *), GFP_ATOMIC);
-	if (!new_ptr)
-		return BAD_SRB;
-	asc_dvc->ptr_map = new_ptr;
- out:
-	ASC_DBG(3, "Putting ptr %p into array offset %d\n", ptr, i);
-	asc_dvc->ptr_map[i] = ptr;
-	return i + 1;
-}
-
-static void * advansys_srb_to_ptr(struct asc_dvc_var *asc_dvc, u32 srb)
-{
-	void *ptr;
-
-	srb--;
-	if (srb >= asc_dvc->ptr_map_count) {
-		printk("advansys: bad SRB %u, max %u\n", srb,
-							asc_dvc->ptr_map_count);
-		return NULL;
-	}
-	ptr = asc_dvc->ptr_map[srb];
-	asc_dvc->ptr_map[srb] = NULL;
-	ASC_DBG(3, "Returning ptr %p from array offset %d\n", ptr, srb);
-	return ptr;
-}
 
 /*
  * advansys_info()
@@ -3350,7 +3197,7 @@ static void asc_prt_driver_conf(struct seq_file *m, struct Scsi_Host *shost)
 
 	seq_printf(m,
 		   " flags 0x%x, last_reset 0x%lx, jiffies 0x%lx, asc_n_io_port 0x%x\n",
-		   boardp->flags, boardp->last_reset, jiffies,
+		   boardp->flags, shost->last_reset, jiffies,
 		   boardp->asc_n_io_port);
 
 	seq_printf(m, " io_port 0x%lx\n", shost->io_port);
@@ -3844,7 +3691,7 @@ static int AscStartChip(PortAddr iop_base)
 	return (1);
 }
 
-static int AscStopChip(PortAddr iop_base)
+static bool AscStopChip(PortAddr iop_base)
 {
 	uchar cc_val;
 
@@ -3855,22 +3702,22 @@ static int AscStopChip(PortAddr iop_base)
 	AscSetChipIH(iop_base, INS_HALT);
 	AscSetChipIH(iop_base, INS_RFLAG_WTM);
 	if ((AscGetChipStatus(iop_base) & CSW_HALTED) == 0) {
-		return (0);
+		return false;
 	}
-	return (1);
+	return true;
 }
 
-static int AscIsChipHalted(PortAddr iop_base)
+static bool AscIsChipHalted(PortAddr iop_base)
 {
 	if ((AscGetChipStatus(iop_base) & CSW_HALTED) != 0) {
 		if ((AscGetChipControl(iop_base) & CC_HALT) != 0) {
-			return (1);
+			return true;
 		}
 	}
-	return (0);
+	return false;
 }
 
-static int AscResetChipAndScsiBus(ASC_DVC_VAR *asc_dvc)
+static bool AscResetChipAndScsiBus(ASC_DVC_VAR *asc_dvc)
 {
 	PortAddr iop_base;
 	int i = 10;
@@ -3952,20 +3799,6 @@ static ushort AscReadLramWord(PortAddr iop_base, ushort addr)
 	word_data = AscGetChipLramData(iop_base);
 	return (word_data);
 }
-
-#if CC_VERY_LONG_SG_LIST
-static ASC_DCNT AscReadLramDWord(PortAddr iop_base, ushort addr)
-{
-	ushort val_low, val_high;
-	ASC_DCNT dword_data;
-
-	AscSetChipLramAddr(iop_base, addr);
-	val_low = AscGetChipLramData(iop_base);
-	val_high = AscGetChipLramData(iop_base);
-	dword_data = ((ASC_DCNT) val_high << 16) | (ASC_DCNT) val_low;
-	return (dword_data);
-}
-#endif /* CC_VERY_LONG_SG_LIST */
 
 static void
 AscMemWordSetLram(PortAddr iop_base, ushort s_addr, ushort set_wval, int words)
@@ -4068,27 +3901,24 @@ AscMemWordCopyPtrFromLram(PortAddr iop_base,
 	}
 }
 
-static ASC_DCNT AscMemSumLramWord(PortAddr iop_base, ushort s_addr, int words)
+static u32 AscMemSumLramWord(PortAddr iop_base, ushort s_addr, int words)
 {
-	ASC_DCNT sum;
+	u32 sum = 0;
 	int i;
 
-	sum = 0L;
 	for (i = 0; i < words; i++, s_addr += 2) {
 		sum += AscReadLramWord(iop_base, s_addr);
 	}
 	return (sum);
 }
 
-static ushort AscInitLram(ASC_DVC_VAR *asc_dvc)
+static void AscInitLram(ASC_DVC_VAR *asc_dvc)
 {
 	uchar i;
 	ushort s_addr;
 	PortAddr iop_base;
-	ushort warn_code;
 
 	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
 	AscMemWordSetLram(iop_base, ASC_QADR_BEG, 0,
 			  (ushort)(((int)(asc_dvc->max_total_qng + 2 + 1) *
 				    64) >> 1));
@@ -4127,14 +3957,13 @@ static ushort AscInitLram(ASC_DVC_VAR *asc_dvc)
 		AscWriteLramByte(iop_base,
 				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_QNO), i);
 	}
-	return warn_code;
 }
 
-static ASC_DCNT
+static u32
 AscLoadMicroCode(PortAddr iop_base, ushort s_addr,
 		 const uchar *mcode_buf, ushort mcode_size)
 {
-	ASC_DCNT chksum;
+	u32 chksum;
 	ushort mcode_word_size;
 	ushort mcode_chksum;
 
@@ -4186,13 +4015,13 @@ static void AscInitQLinkVar(ASC_DVC_VAR *asc_dvc)
 	}
 }
 
-static ushort AscInitMicroCodeVar(ASC_DVC_VAR *asc_dvc)
+static int AscInitMicroCodeVar(ASC_DVC_VAR *asc_dvc)
 {
 	int i;
-	ushort warn_code;
+	int warn_code;
 	PortAddr iop_base;
-	ASC_PADDR phy_addr;
-	ASC_DCNT phy_size;
+	__le32 phy_addr;
+	__le32 phy_size;
 	struct asc_board *board = asc_dvc_to_board(asc_dvc);
 
 	iop_base = asc_dvc->iop_base;
@@ -4231,12 +4060,12 @@ static ushort AscInitMicroCodeVar(ASC_DVC_VAR *asc_dvc)
 	AscSetPCAddr(iop_base, ASC_MCODE_START_ADDR);
 	if (AscGetPCAddr(iop_base) != ASC_MCODE_START_ADDR) {
 		asc_dvc->err_code |= ASC_IERR_SET_PC_ADDR;
-		warn_code = UW_ERR;
+		warn_code = -EINVAL;
 		goto err_mcode_start;
 	}
 	if (AscStartChip(iop_base) != 1) {
 		asc_dvc->err_code |= ASC_IERR_START_STOP_CHIP;
-		warn_code = UW_ERR;
+		warn_code = -EIO;
 		goto err_mcode_start;
 	}
 
@@ -4250,13 +4079,13 @@ err_dma_map:
 	return warn_code;
 }
 
-static ushort AscInitAsc1000Driver(ASC_DVC_VAR *asc_dvc)
+static int AscInitAsc1000Driver(ASC_DVC_VAR *asc_dvc)
 {
 	const struct firmware *fw;
 	const char fwname[] = "advansys/mcode.bin";
 	int err;
 	unsigned long chksum;
-	ushort warn_code;
+	int warn_code;
 	PortAddr iop_base;
 
 	iop_base = asc_dvc->iop_base;
@@ -4268,15 +4097,13 @@ static ushort AscInitAsc1000Driver(ASC_DVC_VAR *asc_dvc)
 	}
 	asc_dvc->init_state |= ASC_INIT_STATE_BEG_LOAD_MC;
 	if (asc_dvc->err_code != 0)
-		return UW_ERR;
+		return ASC_ERROR;
 	if (!AscFindSignature(asc_dvc->iop_base)) {
 		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
 		return warn_code;
 	}
 	AscDisableInterrupt(iop_base);
-	warn_code |= AscInitLram(asc_dvc);
-	if (asc_dvc->err_code != 0)
-		return UW_ERR;
+	AscInitLram(asc_dvc);
 
 	err = request_firmware(&fw, fwname, asc_dvc->drv_ptr->dev);
 	if (err) {
@@ -4336,7 +4163,7 @@ static int AdvLoadMicrocode(AdvPortAddr iop_base, const unsigned char *buf,
 			    int size, int memsize, int chksum)
 {
 	int i, j, end, len = 0;
-	ADV_DCNT sum;
+	u32 sum;
 
 	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
 
@@ -4382,38 +4209,72 @@ static int AdvLoadMicrocode(AdvPortAddr iop_base, const unsigned char *buf,
 	return 0;
 }
 
-static void AdvBuildCarrierFreelist(struct adv_dvc_var *asc_dvc)
+static void AdvBuildCarrierFreelist(struct adv_dvc_var *adv_dvc)
 {
-	ADV_CARR_T *carrp;
-	ADV_SDCNT buf_size;
-	ADV_PADDR carr_paddr;
+	off_t carr_offset = 0, next_offset;
+	dma_addr_t carr_paddr;
+	int carr_num = ADV_CARRIER_BUFSIZE / sizeof(ADV_CARR_T), i;
 
-	carrp = (ADV_CARR_T *) ADV_16BALIGN(asc_dvc->carrier_buf);
-	asc_dvc->carr_freelist = NULL;
-	if (carrp == asc_dvc->carrier_buf) {
-		buf_size = ADV_CARRIER_BUFSIZE;
-	} else {
-		buf_size = ADV_CARRIER_BUFSIZE - sizeof(ADV_CARR_T);
+	for (i = 0; i < carr_num; i++) {
+		carr_offset = i * sizeof(ADV_CARR_T);
+		/* Get physical address of the carrier 'carrp'. */
+		carr_paddr = adv_dvc->carrier_addr + carr_offset;
+
+		adv_dvc->carrier[i].carr_pa = cpu_to_le32(carr_paddr);
+		adv_dvc->carrier[i].carr_va = cpu_to_le32(carr_offset);
+		adv_dvc->carrier[i].areq_vpa = 0;
+		next_offset = carr_offset + sizeof(ADV_CARR_T);
+		if (i == carr_num)
+			next_offset = ~0;
+		adv_dvc->carrier[i].next_vpa = cpu_to_le32(next_offset);
+	}
+	/*
+	 * We cannot have a carrier with 'carr_va' of '0', as
+	 * a reference to this carrier would be interpreted as
+	 * list termination.
+	 * So start at carrier 1 with the freelist.
+	 */
+	adv_dvc->carr_freelist = &adv_dvc->carrier[1];
+}
+
+static ADV_CARR_T *adv_get_carrier(struct adv_dvc_var *adv_dvc, u32 offset)
+{
+	int index;
+
+	BUG_ON(offset > ADV_CARRIER_BUFSIZE);
+
+	index = offset / sizeof(ADV_CARR_T);
+	return &adv_dvc->carrier[index];
+}
+
+static ADV_CARR_T *adv_get_next_carrier(struct adv_dvc_var *adv_dvc)
+{
+	ADV_CARR_T *carrp = adv_dvc->carr_freelist;
+	u32 next_vpa = le32_to_cpu(carrp->next_vpa);
+
+	if (next_vpa == 0 || next_vpa == ~0) {
+		ASC_DBG(1, "invalid vpa offset 0x%x\n", next_vpa);
+		return NULL;
 	}
 
-	do {
-		/* Get physical address of the carrier 'carrp'. */
-		carr_paddr = cpu_to_le32(virt_to_bus(carrp));
+	adv_dvc->carr_freelist = adv_get_carrier(adv_dvc, next_vpa);
+	/*
+	 * insert stopper carrier to terminate list
+	 */
+	carrp->next_vpa = cpu_to_le32(ADV_CQ_STOPPER);
 
-		buf_size -= sizeof(ADV_CARR_T);
+	return carrp;
+}
 
-		carrp->carr_pa = carr_paddr;
-		carrp->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(carrp));
+/*
+ * 'offset' is the index in the request pointer array
+ */
+static adv_req_t * adv_get_reqp(struct adv_dvc_var *adv_dvc, u32 offset)
+{
+	struct asc_board *boardp = adv_dvc->drv_ptr;
 
-		/*
-		 * Insert the carrier at the beginning of the freelist.
-		 */
-		carrp->next_vpa =
-			cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
-		asc_dvc->carr_freelist = carrp;
-
-		carrp++;
-	} while (buf_size > 0);
+	BUG_ON(offset > adv_dvc->max_host_qng);
+	return &boardp->adv_reqp[offset];
 }
 
 /*
@@ -4432,10 +4293,9 @@ static void AdvBuildCarrierFreelist(struct adv_dvc_var *asc_dvc)
  */
 static int
 AdvSendIdleCmd(ADV_DVC_VAR *asc_dvc,
-	       ushort idle_cmd, ADV_DCNT idle_cmd_parameter)
+	       ushort idle_cmd, u32 idle_cmd_parameter)
 {
-	int result;
-	ADV_DCNT i, j;
+	int result, i, j;
 	AdvPortAddr iop_base;
 
 	iop_base = asc_dvc->iop_base;
@@ -4902,17 +4762,11 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 	 * Set-up the Host->RISC Initiator Command Queue (ICQ).
 	 */
 
-	if ((asc_dvc->icq_sp = asc_dvc->carr_freelist) == NULL) {
+	asc_dvc->icq_sp = adv_get_next_carrier(asc_dvc);
+	if (!asc_dvc->icq_sp) {
 		asc_dvc->err_code |= ASC_IERR_NO_CARRIER;
 		return ADV_ERROR;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->icq_sp->next_vpa));
-
-	/*
-	 * The first command issued will be placed in the stopper carrier.
-	 */
-	asc_dvc->icq_sp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
 
 	/*
 	 * Set RISC ICQ physical address start value.
@@ -4922,21 +4776,11 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 	/*
 	 * Set-up the RISC->Host Initiator Response Queue (IRQ).
 	 */
-	if ((asc_dvc->irq_sp = asc_dvc->carr_freelist) == NULL) {
+	asc_dvc->irq_sp = adv_get_next_carrier(asc_dvc);
+	if (!asc_dvc->irq_sp) {
 		asc_dvc->err_code |= ASC_IERR_NO_CARRIER;
 		return ADV_ERROR;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->irq_sp->next_vpa));
-
-	/*
-	 * The first command completed by the RISC will be placed in
-	 * the stopper.
-	 *
-	 * Note: Set 'next_vpa' to ASC_CQ_STOPPER. When the request is
-	 * completed the RISC will set the ASC_RQ_STOPPER bit.
-	 */
-	asc_dvc->irq_sp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
 
 	/*
 	 * Set RISC IRQ physical address start value.
@@ -5399,17 +5243,12 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	 * Set-up the Host->RISC Initiator Command Queue (ICQ).
 	 */
 
-	if ((asc_dvc->icq_sp = asc_dvc->carr_freelist) == NULL) {
+	asc_dvc->icq_sp = adv_get_next_carrier(asc_dvc);
+	if (!asc_dvc->icq_sp) {
+		ASC_DBG(0, "Failed to get ICQ carrier\n");
 		asc_dvc->err_code |= ASC_IERR_NO_CARRIER;
 		return ADV_ERROR;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->icq_sp->next_vpa));
-
-	/*
-	 * The first command issued will be placed in the stopper carrier.
-	 */
-	asc_dvc->icq_sp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
 
 	/*
 	 * Set RISC ICQ physical address start value.
@@ -5420,21 +5259,12 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	/*
 	 * Set-up the RISC->Host Initiator Response Queue (IRQ).
 	 */
-	if ((asc_dvc->irq_sp = asc_dvc->carr_freelist) == NULL) {
+	asc_dvc->irq_sp = adv_get_next_carrier(asc_dvc);
+	if (!asc_dvc->irq_sp) {
+		ASC_DBG(0, "Failed to get IRQ carrier\n");
 		asc_dvc->err_code |= ASC_IERR_NO_CARRIER;
 		return ADV_ERROR;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->irq_sp->next_vpa));
-
-	/*
-	 * The first command completed by the RISC will be placed in
-	 * the stopper.
-	 *
-	 * Note: Set 'next_vpa' to ASC_CQ_STOPPER. When the request is
-	 * completed the RISC will set the ASC_RQ_STOPPER bit.
-	 */
-	asc_dvc->irq_sp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
 
 	/*
 	 * Set RISC IRQ physical address start value.
@@ -5909,17 +5739,11 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 	/*
 	 * Set-up the Host->RISC Initiator Command Queue (ICQ).
 	 */
-	if ((asc_dvc->icq_sp = asc_dvc->carr_freelist) == NULL) {
+	asc_dvc->icq_sp = adv_get_next_carrier(asc_dvc);
+	if (!asc_dvc->icq_sp) {
 		asc_dvc->err_code |= ASC_IERR_NO_CARRIER;
 		return ADV_ERROR;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->icq_sp->next_vpa));
-
-	/*
-	 * The first command issued will be placed in the stopper carrier.
-	 */
-	asc_dvc->icq_sp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
 
 	/*
 	 * Set RISC ICQ physical address start value. Initialize the
@@ -5933,21 +5757,11 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 	/*
 	 * Set-up the RISC->Host Initiator Response Queue (IRQ).
 	 */
-	if ((asc_dvc->irq_sp = asc_dvc->carr_freelist) == NULL) {
+	asc_dvc->irq_sp = adv_get_next_carrier(asc_dvc);
+	if (!asc_dvc->irq_sp) {
 		asc_dvc->err_code |= ASC_IERR_NO_CARRIER;
 		return ADV_ERROR;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->irq_sp->next_vpa));
-
-	/*
-	 * The first command completed by the RISC will be placed in
-	 * the stopper.
-	 *
-	 * Note: Set 'next_vpa' to ASC_CQ_STOPPER. When the request is
-	 * completed the RISC will set the ASC_RQ_STOPPER bit.
-	 */
-	asc_dvc->irq_sp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
 
 	/*
 	 * Set RISC IRQ physical address start value.
@@ -6134,15 +5948,16 @@ static void adv_async_callback(ADV_DVC_VAR *adv_dvc_varp, uchar code)
  */
 static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 {
-	struct asc_board *boardp;
+	struct asc_board *boardp = adv_dvc_varp->drv_ptr;
+	u32 srb_tag;
 	adv_req_t *reqp;
 	adv_sgblk_t *sgblkp;
 	struct scsi_cmnd *scp;
-	struct Scsi_Host *shost;
-	ADV_DCNT resid_cnt;
+	u32 resid_cnt;
+	dma_addr_t sense_addr;
 
-	ASC_DBG(1, "adv_dvc_varp 0x%lx, scsiqp 0x%lx\n",
-		 (ulong)adv_dvc_varp, (ulong)scsiqp);
+	ASC_DBG(1, "adv_dvc_varp 0x%p, scsiqp 0x%p\n",
+		adv_dvc_varp, scsiqp);
 	ASC_DBG_PRT_ADV_SCSI_REQ_Q(2, scsiqp);
 
 	/*
@@ -6150,22 +5965,9 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 	 * completed. The adv_req_t structure actually contains the
 	 * completed ADV_SCSI_REQ_Q structure.
 	 */
-	reqp = (adv_req_t *)ADV_U32_TO_VADDR(scsiqp->srb_ptr);
-	ASC_DBG(1, "reqp 0x%lx\n", (ulong)reqp);
-	if (reqp == NULL) {
-		ASC_PRINT("adv_isr_callback: reqp is NULL\n");
-		return;
-	}
+	srb_tag = le32_to_cpu(scsiqp->srb_tag);
+	scp = scsi_host_find_tag(boardp->shost, scsiqp->srb_tag);
 
-	/*
-	 * Get the struct scsi_cmnd structure and Scsi_Host structure for the
-	 * command that has been completed.
-	 *
-	 * Note: The adv_req_t request structure and adv_sgblk_t structure,
-	 * if any, are dropped, because a board structure pointer can not be
-	 * determined.
-	 */
-	scp = reqp->cmndp;
 	ASC_DBG(1, "scp 0x%p\n", scp);
 	if (scp == NULL) {
 		ASC_PRINT
@@ -6174,12 +5976,25 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 	}
 	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
 
-	shost = scp->device->host;
-	ASC_STATS(shost, callback);
-	ASC_DBG(1, "shost 0x%p\n", shost);
+	reqp = (adv_req_t *)scp->host_scribble;
+	ASC_DBG(1, "reqp 0x%lx\n", (ulong)reqp);
+	if (reqp == NULL) {
+		ASC_PRINT("adv_isr_callback: reqp is NULL\n");
+		return;
+	}
+	/*
+	 * Remove backreferences to avoid duplicate
+	 * command completions.
+	 */
+	scp->host_scribble = NULL;
+	reqp->cmndp = NULL;
 
-	boardp = shost_priv(shost);
-	BUG_ON(adv_dvc_varp != &boardp->dvc_var.adv_dvc_var);
+	ASC_STATS(boardp->shost, callback);
+	ASC_DBG(1, "shost 0x%p\n", boardp->shost);
+
+	sense_addr = le32_to_cpu(scsiqp->sense_addr);
+	dma_unmap_single(boardp->dev, sense_addr,
+			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 
 	/*
 	 * 'done_status' contains the command's ending status.
@@ -6272,17 +6087,9 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 		/* Remove 'sgblkp' from the request list. */
 		reqp->sgblkp = sgblkp->next_sgblkp;
 
-		/* Add 'sgblkp' to the board free list. */
-		sgblkp->next_sgblkp = boardp->adv_sgblkp;
-		boardp->adv_sgblkp = sgblkp;
+		dma_pool_free(boardp->adv_sgblk_pool, sgblkp,
+			      sgblkp->sg_addr);
 	}
-
-	/*
-	 * Free the adv_req_t structure used with the command by adding
-	 * it back to the board free list.
-	 */
-	reqp->next_reqp = boardp->adv_reqp;
-	boardp->adv_reqp = reqp;
 
 	ASC_DBG(1, "done\n");
 }
@@ -6312,8 +6119,9 @@ static int AdvISR(ADV_DVC_VAR *asc_dvc)
 	uchar int_stat;
 	ushort target_bit;
 	ADV_CARR_T *free_carrp;
-	ADV_VADDR irq_next_vpa;
+	__le32 irq_next_vpa;
 	ADV_SCSI_REQ_Q *scsiq;
+	adv_req_t *reqp;
 
 	iop_base = asc_dvc->iop_base;
 
@@ -6356,25 +6164,28 @@ static int AdvISR(ADV_DVC_VAR *asc_dvc)
 	 * Check if the IRQ stopper carrier contains a completed request.
 	 */
 	while (((irq_next_vpa =
-		 le32_to_cpu(asc_dvc->irq_sp->next_vpa)) & ASC_RQ_DONE) != 0) {
+		 le32_to_cpu(asc_dvc->irq_sp->next_vpa)) & ADV_RQ_DONE) != 0) {
 		/*
 		 * Get a pointer to the newly completed ADV_SCSI_REQ_Q structure.
 		 * The RISC will have set 'areq_vpa' to a virtual address.
 		 *
-		 * The firmware will have copied the ASC_SCSI_REQ_Q.scsiq_ptr
+		 * The firmware will have copied the ADV_SCSI_REQ_Q.scsiq_ptr
 		 * field to the carrier ADV_CARR_T.areq_vpa field. The conversion
-		 * below complements the conversion of ASC_SCSI_REQ_Q.scsiq_ptr'
+		 * below complements the conversion of ADV_SCSI_REQ_Q.scsiq_ptr'
 		 * in AdvExeScsiQueue().
 		 */
-		scsiq = (ADV_SCSI_REQ_Q *)
-		    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->irq_sp->areq_vpa));
+		u32 pa_offset = le32_to_cpu(asc_dvc->irq_sp->areq_vpa);
+		ASC_DBG(1, "irq_sp %p areq_vpa %u\n",
+			asc_dvc->irq_sp, pa_offset);
+		reqp = adv_get_reqp(asc_dvc, pa_offset);
+		scsiq = &reqp->scsi_req_q;
 
 		/*
 		 * Request finished with good status and the queue was not
 		 * DMAed to host memory by the firmware. Set all status fields
 		 * to indicate good status.
 		 */
-		if ((irq_next_vpa & ASC_RQ_GOOD) != 0) {
+		if ((irq_next_vpa & ADV_RQ_GOOD) != 0) {
 			scsiq->done_status = QD_NO_ERROR;
 			scsiq->host_status = scsiq->scsi_status = 0;
 			scsiq->data_cnt = 0L;
@@ -6386,11 +6197,10 @@ static int AdvISR(ADV_DVC_VAR *asc_dvc)
 		 * stopper carrier.
 		 */
 		free_carrp = asc_dvc->irq_sp;
-		asc_dvc->irq_sp = (ADV_CARR_T *)
-		    ADV_U32_TO_VADDR(ASC_GET_CARRP(irq_next_vpa));
+		asc_dvc->irq_sp = adv_get_carrier(asc_dvc,
+						  ADV_GET_CARRP(irq_next_vpa));
 
-		free_carrp->next_vpa =
-		    cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
+		free_carrp->next_vpa = asc_dvc->carr_freelist->carr_va;
 		asc_dvc->carr_freelist = free_carrp;
 		asc_dvc->carr_pending_cnt--;
 
@@ -6405,7 +6215,6 @@ static int AdvISR(ADV_DVC_VAR *asc_dvc)
 		 * Notify the driver of the completed request by passing
 		 * the ADV_SCSI_REQ_Q pointer to its callback function.
 		 */
-		scsiq->a_flag |= ADV_SCSIQ_DONE;
 		adv_isr_callback(asc_dvc, scsiq);
 		/*
 		 * Note: After the driver callback function is called, 'scsiq'
@@ -6521,11 +6330,11 @@ AscCalSDTRData(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar syn_offset)
 	return byte;
 }
 
-static int AscSetChipSynRegAtID(PortAddr iop_base, uchar id, uchar sdtr_data)
+static bool AscSetChipSynRegAtID(PortAddr iop_base, uchar id, uchar sdtr_data)
 {
 	ASC_SCSI_BIT_ID_TYPE org_id;
 	int i;
-	int sta = TRUE;
+	bool sta = true;
 
 	AscSetBank(iop_base, 1);
 	org_id = AscReadChipDvcID(iop_base);
@@ -6539,10 +6348,10 @@ static int AscSetChipSynRegAtID(PortAddr iop_base, uchar id, uchar sdtr_data)
 		AscSetBank(iop_base, 0);
 		AscSetChipSyn(iop_base, sdtr_data);
 		if (AscGetChipSyn(iop_base) != sdtr_data) {
-			sta = FALSE;
+			sta = false;
 		}
 	} else {
-		sta = FALSE;
+		sta = false;
 	}
 	AscSetBank(iop_base, 1);
 	AscWriteChipDvcID(iop_base, org_id);
@@ -6556,12 +6365,12 @@ static void AscSetChipSDTR(PortAddr iop_base, uchar sdtr_data, uchar tid_no)
 	AscPutMCodeSDTRDoneAtID(iop_base, tid_no, sdtr_data);
 }
 
-static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
+static void AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 {
 	EXT_MSG ext_msg;
 	EXT_MSG out_msg;
 	ushort halt_q_addr;
-	int sdtr_accept;
+	bool sdtr_accept;
 	ushort int_halt_code;
 	ASC_SCSI_BIT_ID_TYPE scsi_busy;
 	ASC_SCSI_BIT_ID_TYPE target_id;
@@ -6603,14 +6412,14 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 			boardp->sdtr_data[tid_no] = 0;
 		}
 		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
+		return;
 	} else if (int_halt_code == ASC_HALT_ENABLE_ASYN_USE_SYN_FIX) {
 		if (asc_dvc->pci_fix_asyn_xfer & target_id) {
 			AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
 			boardp->sdtr_data[tid_no] = asyn_sdtr;
 		}
 		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
+		return;
 	} else if (int_halt_code == ASC_HALT_EXTMSG_IN) {
 		AscMemWordCopyPtrFromLram(iop_base,
 					  ASCV_MSGIN_BEG,
@@ -6620,10 +6429,10 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 		if (ext_msg.msg_type == EXTENDED_MESSAGE &&
 		    ext_msg.msg_req == EXTENDED_SDTR &&
 		    ext_msg.msg_len == MS_SDTR_LEN) {
-			sdtr_accept = TRUE;
+			sdtr_accept = true;
 			if ((ext_msg.req_ack_offset > ASC_SYN_MAX_OFFSET)) {
 
-				sdtr_accept = FALSE;
+				sdtr_accept = false;
 				ext_msg.req_ack_offset = ASC_SYN_MAX_OFFSET;
 			}
 			if ((ext_msg.xfer_period <
@@ -6631,7 +6440,7 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 			    || (ext_msg.xfer_period >
 				asc_dvc->sdtr_period_tbl[asc_dvc->
 							 max_sdtr_index])) {
-				sdtr_accept = FALSE;
+				sdtr_accept = false;
 				ext_msg.xfer_period =
 				    asc_dvc->sdtr_period_tbl[asc_dvc->
 							     min_sdtr_index];
@@ -6696,7 +6505,7 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 						  (ushort)ASC_SCSIQ_B_CNTL),
 					 q_cntl);
 			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-			return (0);
+			return;
 		} else if (ext_msg.msg_type == EXTENDED_MESSAGE &&
 			   ext_msg.msg_req == EXTENDED_WDTR &&
 			   ext_msg.msg_len == MS_WDTR_LEN) {
@@ -6712,7 +6521,7 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 						  (ushort)ASC_SCSIQ_B_CNTL),
 					 q_cntl);
 			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-			return (0);
+			return;
 		} else {
 
 			ext_msg.msg_type = MESSAGE_REJECT;
@@ -6726,7 +6535,7 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 						  (ushort)ASC_SCSIQ_B_CNTL),
 					 q_cntl);
 			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-			return (0);
+			return;
 		}
 	} else if (int_halt_code == ASC_HALT_CHK_CONDITION) {
 
@@ -6783,7 +6592,7 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 		AscWriteLramByte(iop_base, (ushort)ASCV_SCSIBUSY_B, scsi_busy);
 
 		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
+		return;
 	} else if (int_halt_code == ASC_HALT_SDTR_REJECTED) {
 
 		AscMemWordCopyPtrFromLram(iop_base,
@@ -6805,7 +6614,7 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 				 (ushort)(halt_q_addr +
 					  (ushort)ASC_SCSIQ_B_CNTL), q_cntl);
 		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
+		return;
 	} else if (int_halt_code == ASC_HALT_SS_QUEUE_FULL) {
 
 		scsi_status = AscReadLramByte(iop_base,
@@ -6850,166 +6659,9 @@ static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 			}
 		}
 		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
+		return;
 	}
-#if CC_VERY_LONG_SG_LIST
-	else if (int_halt_code == ASC_HALT_HOST_COPY_SG_LIST_TO_RISC) {
-		uchar q_no;
-		ushort q_addr;
-		uchar sg_wk_q_no;
-		uchar first_sg_wk_q_no;
-		ASC_SCSI_Q *scsiq;	/* Ptr to driver request. */
-		ASC_SG_HEAD *sg_head;	/* Ptr to driver SG request. */
-		ASC_SG_LIST_Q scsi_sg_q;	/* Structure written to queue. */
-		ushort sg_list_dwords;
-		ushort sg_entry_cnt;
-		uchar next_qp;
-		int i;
-
-		q_no = AscReadLramByte(iop_base, (ushort)ASCV_REQ_SG_LIST_QP);
-		if (q_no == ASC_QLINK_END)
-			return 0;
-
-		q_addr = ASC_QNO_TO_QADDR(q_no);
-
-		/*
-		 * Convert the request's SRB pointer to a host ASC_SCSI_REQ
-		 * structure pointer using a macro provided by the driver.
-		 * The ASC_SCSI_REQ pointer provides a pointer to the
-		 * host ASC_SG_HEAD structure.
-		 */
-		/* Read request's SRB pointer. */
-		scsiq = (ASC_SCSI_Q *)
-		    ASC_SRB2SCSIQ(ASC_U32_TO_VADDR(AscReadLramDWord(iop_base,
-								    (ushort)
-								    (q_addr +
-								     ASC_SCSIQ_D_SRBPTR))));
-
-		/*
-		 * Get request's first and working SG queue.
-		 */
-		sg_wk_q_no = AscReadLramByte(iop_base,
-					     (ushort)(q_addr +
-						      ASC_SCSIQ_B_SG_WK_QP));
-
-		first_sg_wk_q_no = AscReadLramByte(iop_base,
-						   (ushort)(q_addr +
-							    ASC_SCSIQ_B_FIRST_SG_WK_QP));
-
-		/*
-		 * Reset request's working SG queue back to the
-		 * first SG queue.
-		 */
-		AscWriteLramByte(iop_base,
-				 (ushort)(q_addr +
-					  (ushort)ASC_SCSIQ_B_SG_WK_QP),
-				 first_sg_wk_q_no);
-
-		sg_head = scsiq->sg_head;
-
-		/*
-		 * Set sg_entry_cnt to the number of SG elements
-		 * that will be completed on this interrupt.
-		 *
-		 * Note: The allocated SG queues contain ASC_MAX_SG_LIST - 1
-		 * SG elements. The data_cnt and data_addr fields which
-		 * add 1 to the SG element capacity are not used when
-		 * restarting SG handling after a halt.
-		 */
-		if (scsiq->remain_sg_entry_cnt > (ASC_MAX_SG_LIST - 1)) {
-			sg_entry_cnt = ASC_MAX_SG_LIST - 1;
-
-			/*
-			 * Keep track of remaining number of SG elements that
-			 * will need to be handled on the next interrupt.
-			 */
-			scsiq->remain_sg_entry_cnt -= (ASC_MAX_SG_LIST - 1);
-		} else {
-			sg_entry_cnt = scsiq->remain_sg_entry_cnt;
-			scsiq->remain_sg_entry_cnt = 0;
-		}
-
-		/*
-		 * Copy SG elements into the list of allocated SG queues.
-		 *
-		 * Last index completed is saved in scsiq->next_sg_index.
-		 */
-		next_qp = first_sg_wk_q_no;
-		q_addr = ASC_QNO_TO_QADDR(next_qp);
-		scsi_sg_q.sg_head_qp = q_no;
-		scsi_sg_q.cntl = QCSG_SG_XFER_LIST;
-		for (i = 0; i < sg_head->queue_cnt; i++) {
-			scsi_sg_q.seq_no = i + 1;
-			if (sg_entry_cnt > ASC_SG_LIST_PER_Q) {
-				sg_list_dwords = (uchar)(ASC_SG_LIST_PER_Q * 2);
-				sg_entry_cnt -= ASC_SG_LIST_PER_Q;
-				/*
-				 * After very first SG queue RISC FW uses next
-				 * SG queue first element then checks sg_list_cnt
-				 * against zero and then decrements, so set
-				 * sg_list_cnt 1 less than number of SG elements
-				 * in each SG queue.
-				 */
-				scsi_sg_q.sg_list_cnt = ASC_SG_LIST_PER_Q - 1;
-				scsi_sg_q.sg_cur_list_cnt =
-				    ASC_SG_LIST_PER_Q - 1;
-			} else {
-				/*
-				 * This is the last SG queue in the list of
-				 * allocated SG queues. If there are more
-				 * SG elements than will fit in the allocated
-				 * queues, then set the QCSG_SG_XFER_MORE flag.
-				 */
-				if (scsiq->remain_sg_entry_cnt != 0) {
-					scsi_sg_q.cntl |= QCSG_SG_XFER_MORE;
-				} else {
-					scsi_sg_q.cntl |= QCSG_SG_XFER_END;
-				}
-				/* equals sg_entry_cnt * 2 */
-				sg_list_dwords = sg_entry_cnt << 1;
-				scsi_sg_q.sg_list_cnt = sg_entry_cnt - 1;
-				scsi_sg_q.sg_cur_list_cnt = sg_entry_cnt - 1;
-				sg_entry_cnt = 0;
-			}
-
-			scsi_sg_q.q_no = next_qp;
-			AscMemWordCopyPtrToLram(iop_base,
-						q_addr + ASC_SCSIQ_SGHD_CPY_BEG,
-						(uchar *)&scsi_sg_q,
-						sizeof(ASC_SG_LIST_Q) >> 1);
-
-			AscMemDWordCopyPtrToLram(iop_base,
-						 q_addr + ASC_SGQ_LIST_BEG,
-						 (uchar *)&sg_head->
-						 sg_list[scsiq->next_sg_index],
-						 sg_list_dwords);
-
-			scsiq->next_sg_index += ASC_SG_LIST_PER_Q;
-
-			/*
-			 * If the just completed SG queue contained the
-			 * last SG element, then no more SG queues need
-			 * to be written.
-			 */
-			if (scsi_sg_q.cntl & QCSG_SG_XFER_END) {
-				break;
-			}
-
-			next_qp = AscReadLramByte(iop_base,
-						  (ushort)(q_addr +
-							   ASC_SCSIQ_B_FWD));
-			q_addr = ASC_QNO_TO_QADDR(next_qp);
-		}
-
-		/*
-		 * Clear the halt condition so the RISC will be restarted
-		 * after the return.
-		 */
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	}
-#endif /* CC_VERY_LONG_SG_LIST */
-	return (0);
+	return;
 }
 
 /*
@@ -7043,7 +6695,7 @@ DvcGetQinfo(PortAddr iop_base, ushort s_addr, uchar *inbuf, int words)
 static uchar
 _AscCopyLramScsiDoneQ(PortAddr iop_base,
 		      ushort q_addr,
-		      ASC_QDONE_INFO *scsiq, ASC_DCNT max_dma_count)
+		      ASC_QDONE_INFO *scsiq, unsigned int max_dma_count)
 {
 	ushort _val;
 	uchar sg_queue_cnt;
@@ -7070,10 +6722,10 @@ _AscCopyLramScsiDoneQ(PortAddr iop_base,
 	/*
 	 * Read high word of remain bytes from alternate location.
 	 */
-	scsiq->remain_bytes = (((ADV_DCNT)AscReadLramWord(iop_base,
-							  (ushort)(q_addr +
-								   (ushort)
-								   ASC_SCSIQ_W_ALT_DC1)))
+	scsiq->remain_bytes = (((u32)AscReadLramWord(iop_base,
+						     (ushort)(q_addr +
+							      (ushort)
+							      ASC_SCSIQ_W_ALT_DC1)))
 			       << 16);
 	/*
 	 * Read low word of remain bytes from original location.
@@ -7093,25 +6745,24 @@ _AscCopyLramScsiDoneQ(PortAddr iop_base,
  */
 static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
 {
-	struct asc_board *boardp;
+	struct asc_board *boardp = asc_dvc_varp->drv_ptr;
+	u32 srb_tag;
 	struct scsi_cmnd *scp;
-	struct Scsi_Host *shost;
 
 	ASC_DBG(1, "asc_dvc_varp 0x%p, qdonep 0x%p\n", asc_dvc_varp, qdonep);
 	ASC_DBG_PRT_ASC_QDONE_INFO(2, qdonep);
 
-	scp = advansys_srb_to_ptr(asc_dvc_varp, qdonep->d2.srb_ptr);
+	/*
+	 * Decrease the srb_tag by 1 to find the SCSI command
+	 */
+	srb_tag = qdonep->d2.srb_tag - 1;
+	scp = scsi_host_find_tag(boardp->shost, srb_tag);
 	if (!scp)
 		return;
 
 	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
 
-	shost = scp->device->host;
-	ASC_STATS(shost, callback);
-	ASC_DBG(1, "shost 0x%p\n", shost);
-
-	boardp = shost_priv(shost);
-	BUG_ON(asc_dvc_varp != &boardp->dvc_var.asc_dvc_var);
+	ASC_STATS(boardp->shost, callback);
 
 	dma_unmap_single(boardp->dev, scp->SCp.dma_handle,
 			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
@@ -7220,7 +6871,7 @@ static int AscIsrQDone(ASC_DVC_VAR *asc_dvc)
 	uchar cur_target_qng;
 	ASC_QDONE_INFO scsiq_buf;
 	ASC_QDONE_INFO *scsiq;
-	int false_overrun;
+	bool false_overrun;
 
 	iop_base = asc_dvc->iop_base;
 	n_q_used = 1;
@@ -7294,14 +6945,17 @@ static int AscIsrQDone(ASC_DVC_VAR *asc_dvc)
 			scsiq->d3.done_stat = QD_WITH_ERROR;
 			goto FATAL_ERR_QDONE;
 		}
-		if ((scsiq->d2.srb_ptr == 0UL) ||
+		if ((scsiq->d2.srb_tag == 0UL) ||
 		    ((scsiq->q_status & QS_ABORTED) != 0)) {
 			return (0x11);
 		} else if (scsiq->q_status == QS_DONE) {
-			false_overrun = FALSE;
+			/*
+			 * This is also curious.
+			 * false_overrun will _always_ be set to 'false'
+			 */
+			false_overrun = false;
 			if (scsiq->extra_bytes != 0) {
-				scsiq->remain_bytes +=
-				    (ADV_DCNT)scsiq->extra_bytes;
+				scsiq->remain_bytes += scsiq->extra_bytes;
 			}
 			if (scsiq->d3.done_stat == QD_WITH_ERROR) {
 				if (scsiq->d3.host_stat ==
@@ -7372,23 +7026,23 @@ static int AscISR(ASC_DVC_VAR *asc_dvc)
 	uchar host_flag;
 
 	iop_base = asc_dvc->iop_base;
-	int_pending = FALSE;
+	int_pending = ASC_FALSE;
 
 	if (AscIsIntPending(iop_base) == 0)
 		return int_pending;
 
 	if ((asc_dvc->init_state & ASC_INIT_STATE_END_LOAD_MC) == 0) {
-		return ERR;
+		return ASC_ERROR;
 	}
 	if (asc_dvc->in_critical_cnt != 0) {
 		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_ISR_ON_CRITICAL);
-		return ERR;
+		return ASC_ERROR;
 	}
 	if (asc_dvc->is_in_int) {
 		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_ISR_RE_ENTRY);
-		return ERR;
+		return ASC_ERROR;
 	}
-	asc_dvc->is_in_int = TRUE;
+	asc_dvc->is_in_int = true;
 	ctrl_reg = AscGetChipControl(iop_base);
 	saved_ctrl_reg = ctrl_reg & (~(CC_SCSI_RESET | CC_CHIP_RESET |
 				       CC_SINGLE_STEP | CC_DIAG | CC_TEST));
@@ -7396,7 +7050,7 @@ static int AscISR(ASC_DVC_VAR *asc_dvc)
 	if (chipstat & CSW_SCSI_RESET_LATCH) {
 		if (!(asc_dvc->bus_type & (ASC_IS_VL | ASC_IS_EISA))) {
 			int i = 10;
-			int_pending = TRUE;
+			int_pending = ASC_TRUE;
 			asc_dvc->sdtr_done = 0;
 			saved_ctrl_reg &= (uchar)(~CC_HALT);
 			while ((AscGetChipStatus(iop_base) &
@@ -7418,15 +7072,11 @@ static int AscISR(ASC_DVC_VAR *asc_dvc)
 			 (uchar)(host_flag | (uchar)ASC_HOST_FLAG_IN_ISR));
 	if ((chipstat & CSW_INT_PENDING) || (int_pending)) {
 		AscAckInterrupt(iop_base);
-		int_pending = TRUE;
+		int_pending = ASC_TRUE;
 		if ((chipstat & CSW_HALTED) && (ctrl_reg & CC_SINGLE_STEP)) {
-			if (AscIsrChipHalted(asc_dvc) == ERR) {
-				goto ISR_REPORT_QDONE_FATAL_ERROR;
-			} else {
-				saved_ctrl_reg &= (uchar)(~CC_HALT);
-			}
+			AscIsrChipHalted(asc_dvc);
+			saved_ctrl_reg &= (uchar)(~CC_HALT);
 		} else {
- ISR_REPORT_QDONE_FATAL_ERROR:
 			if ((asc_dvc->dvc_cntl & ASC_CNTL_INT_MULTI_Q) != 0) {
 				while (((status =
 					 AscIsrQDone(asc_dvc)) & 0x01) != 0) {
@@ -7440,20 +7090,20 @@ static int AscISR(ASC_DVC_VAR *asc_dvc)
 				} while (status == 0x11);
 			}
 			if ((status & 0x80) != 0)
-				int_pending = ERR;
+				int_pending = ASC_ERROR;
 		}
 	}
 	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B, host_flag);
 	AscSetChipLramAddr(iop_base, saved_ram_addr);
 	AscSetChipControl(iop_base, saved_ctrl_reg);
-	asc_dvc->is_in_int = FALSE;
+	asc_dvc->is_in_int = false;
 	return int_pending;
 }
 
 /*
  * advansys_reset()
  *
- * Reset the bus associated with the command 'scp'.
+ * Reset the host associated with the command 'scp'.
  *
  * This function runs its own thread. Interrupts must be blocked but
  * sleeping is allowed and no locking other than for host structures is
@@ -7471,7 +7121,7 @@ static int advansys_reset(struct scsi_cmnd *scp)
 
 	ASC_STATS(shost, reset);
 
-	scmd_printk(KERN_INFO, scp, "SCSI bus reset started...\n");
+	scmd_printk(KERN_INFO, scp, "SCSI host reset started...\n");
 
 	if (ASC_NARROW_BOARD(boardp)) {
 		ASC_DVC_VAR *asc_dvc = &boardp->dvc_var.asc_dvc_var;
@@ -7482,20 +7132,19 @@ static int advansys_reset(struct scsi_cmnd *scp)
 
 		/* Refer to ASC_IERR_* definitions for meaning of 'err_code'. */
 		if (asc_dvc->err_code || !asc_dvc->overrun_dma) {
-			scmd_printk(KERN_INFO, scp, "SCSI bus reset error: "
+			scmd_printk(KERN_INFO, scp, "SCSI host reset error: "
 				    "0x%x, status: 0x%x\n", asc_dvc->err_code,
 				    status);
 			ret = FAILED;
 		} else if (status) {
-			scmd_printk(KERN_INFO, scp, "SCSI bus reset warning: "
+			scmd_printk(KERN_INFO, scp, "SCSI host reset warning: "
 				    "0x%x\n", status);
 		} else {
-			scmd_printk(KERN_INFO, scp, "SCSI bus reset "
+			scmd_printk(KERN_INFO, scp, "SCSI host reset "
 				    "successful\n");
 		}
 
 		ASC_DBG(1, "after AscInitAsc1000Driver()\n");
-		spin_lock_irqsave(shost->host_lock, flags);
 	} else {
 		/*
 		 * If the suggest reset bus flags are set, then reset the bus.
@@ -7504,27 +7153,24 @@ static int advansys_reset(struct scsi_cmnd *scp)
 		ADV_DVC_VAR *adv_dvc = &boardp->dvc_var.adv_dvc_var;
 
 		/*
-		 * Reset the target's SCSI bus.
+		 * Reset the chip and SCSI bus.
 		 */
 		ASC_DBG(1, "before AdvResetChipAndSB()\n");
 		switch (AdvResetChipAndSB(adv_dvc)) {
 		case ASC_TRUE:
-			scmd_printk(KERN_INFO, scp, "SCSI bus reset "
+			scmd_printk(KERN_INFO, scp, "SCSI host reset "
 				    "successful\n");
 			break;
 		case ASC_FALSE:
 		default:
-			scmd_printk(KERN_INFO, scp, "SCSI bus reset error\n");
+			scmd_printk(KERN_INFO, scp, "SCSI host reset error\n");
 			ret = FAILED;
 			break;
 		}
 		spin_lock_irqsave(shost->host_lock, flags);
 		AdvISR(adv_dvc);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 	}
-
-	/* Save the time of the most recently completed reset. */
-	boardp->last_reset = jiffies;
-	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	ASC_DBG(1, "ret %d\n", ret);
 
@@ -7584,9 +7230,10 @@ static irqreturn_t advansys_interrupt(int irq, void *dev_id)
 	struct Scsi_Host *shost = dev_id;
 	struct asc_board *boardp = shost_priv(shost);
 	irqreturn_t result = IRQ_NONE;
+	unsigned long flags;
 
 	ASC_DBG(2, "boardp 0x%p\n", boardp);
-	spin_lock(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, flags);
 	if (ASC_NARROW_BOARD(boardp)) {
 		if (AscIsIntPending(shost->io_port)) {
 			result = IRQ_HANDLED;
@@ -7601,38 +7248,38 @@ static irqreturn_t advansys_interrupt(int irq, void *dev_id)
 			ASC_STATS(shost, interrupt);
 		}
 	}
-	spin_unlock(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	ASC_DBG(1, "end\n");
 	return result;
 }
 
-static int AscHostReqRiscHalt(PortAddr iop_base)
+static bool AscHostReqRiscHalt(PortAddr iop_base)
 {
 	int count = 0;
-	int sta = 0;
+	bool sta = false;
 	uchar saved_stop_code;
 
 	if (AscIsChipHalted(iop_base))
-		return (1);
+		return true;
 	saved_stop_code = AscReadLramByte(iop_base, ASCV_STOP_CODE_B);
 	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B,
 			 ASC_STOP_HOST_REQ_RISC_HALT | ASC_STOP_REQ_RISC_STOP);
 	do {
 		if (AscIsChipHalted(iop_base)) {
-			sta = 1;
+			sta = true;
 			break;
 		}
 		mdelay(100);
 	} while (count++ < 20);
 	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B, saved_stop_code);
-	return (sta);
+	return sta;
 }
 
-static int
+static bool
 AscSetRunChipSynRegAtID(PortAddr iop_base, uchar tid_no, uchar sdtr_data)
 {
-	int sta = FALSE;
+	bool sta = false;
 
 	if (AscHostReqRiscHalt(iop_base)) {
 		sta = AscSetChipSynRegAtID(iop_base, tid_no, sdtr_data);
@@ -7851,13 +7498,17 @@ static int advansys_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static __le32 advansys_get_sense_buffer_dma(struct scsi_cmnd *scp)
+static __le32 asc_get_sense_buffer_dma(struct scsi_cmnd *scp)
 {
 	struct asc_board *board = shost_priv(scp->device->host);
+
 	scp->SCp.dma_handle = dma_map_single(board->dev, scp->sense_buffer,
-					     SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
-	dma_cache_sync(board->dev, scp->sense_buffer,
-		       SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+					     SCSI_SENSE_BUFFERSIZE,
+					     DMA_FROM_DEVICE);
+	if (dma_mapping_error(board->dev, scp->SCp.dma_handle)) {
+		ASC_DBG(1, "failed to map sense buffer\n");
+		return 0;
+	}
 	return cpu_to_le32(scp->SCp.dma_handle);
 }
 
@@ -7866,17 +7517,16 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 {
 	struct asc_dvc_var *asc_dvc = &boardp->dvc_var.asc_dvc_var;
 	int use_sg;
+	u32 srb_tag;
 
 	memset(asc_scsi_q, 0, sizeof(*asc_scsi_q));
 
 	/*
-	 * Point the ASC_SCSI_Q to the 'struct scsi_cmnd'.
+	 * Set the srb_tag to the command tag + 1, as
+	 * srb_tag '0' is used internally by the chip.
 	 */
-	asc_scsi_q->q2.srb_ptr = advansys_ptr_to_srb(asc_dvc, scp);
-	if (asc_scsi_q->q2.srb_ptr == BAD_SRB) {
-		scp->result = HOST_BYTE(DID_SOFT_ERROR);
-		return ASC_ERROR;
-	}
+	srb_tag = scp->request->tag + 1;
+	asc_scsi_q->q2.srb_tag = srb_tag;
 
 	/*
 	 * Build the ASC_SCSI_Q request.
@@ -7887,8 +7537,10 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	asc_scsi_q->q1.target_lun = scp->device->lun;
 	asc_scsi_q->q2.target_ix =
 	    ASC_TIDLUN_TO_IX(scp->device->id, scp->device->lun);
-	asc_scsi_q->q1.sense_addr = advansys_get_sense_buffer_dma(scp);
+	asc_scsi_q->q1.sense_addr = asc_get_sense_buffer_dma(scp);
 	asc_scsi_q->q1.sense_len = SCSI_SENSE_BUFFERSIZE;
+	if (!asc_scsi_q->q1.sense_addr)
+		return ASC_BUSY;
 
 	/*
 	 * If there are any outstanding requests for the current target,
@@ -7910,7 +7562,10 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 
 	/* Build ASC_SCSI_Q */
 	use_sg = scsi_dma_map(scp);
-	if (use_sg != 0) {
+	if (use_sg < 0) {
+		ASC_DBG(1, "failed to map sglist\n");
+		return ASC_BUSY;
+	} else if (use_sg > 0) {
 		int sgcnt;
 		struct scatterlist *slp;
 		struct asc_sg_head *asc_sg_head;
@@ -7975,20 +7630,19 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
  *      ADV_ERROR(-1) - SG List creation failed
  */
 static int
-adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
-	       int use_sg)
+adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
+	       ADV_SCSI_REQ_Q *scsiqp, struct scsi_cmnd *scp, int use_sg)
 {
-	adv_sgblk_t *sgblkp;
-	ADV_SCSI_REQ_Q *scsiqp;
+	adv_sgblk_t *sgblkp, *prev_sgblkp;
 	struct scatterlist *slp;
 	int sg_elem_cnt;
 	ADV_SG_BLOCK *sg_block, *prev_sg_block;
-	ADV_PADDR sg_block_paddr;
+	dma_addr_t sgblk_paddr;
 	int i;
 
-	scsiqp = (ADV_SCSI_REQ_Q *)ADV_32BALIGN(&reqp->scsi_req_q);
 	slp = scsi_sglist(scp);
 	sg_elem_cnt = use_sg;
+	prev_sgblkp = NULL;
 	prev_sg_block = NULL;
 	reqp->sgblkp = NULL;
 
@@ -7998,7 +7652,9 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
 		 * list. One 'adv_sgblk_t' structure holds NO_OF_SG_PER_BLOCK
 		 * (15) scatter-gather elements.
 		 */
-		if ((sgblkp = boardp->adv_sgblkp) == NULL) {
+		sgblkp = dma_pool_alloc(boardp->adv_sgblk_pool, GFP_ATOMIC,
+					&sgblk_paddr);
+		if (!sgblkp) {
 			ASC_DBG(1, "no free adv_sgblk_t\n");
 			ASC_STATS(scp->device->host, adv_build_nosg);
 
@@ -8009,24 +7665,16 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
 			while ((sgblkp = reqp->sgblkp) != NULL) {
 				/* Remove 'sgblkp' from the request list. */
 				reqp->sgblkp = sgblkp->next_sgblkp;
-
-				/* Add 'sgblkp' to the board free list. */
-				sgblkp->next_sgblkp = boardp->adv_sgblkp;
-				boardp->adv_sgblkp = sgblkp;
+				sgblkp->next_sgblkp = NULL;
+				dma_pool_free(boardp->adv_sgblk_pool, sgblkp,
+					      sgblkp->sg_addr);
 			}
 			return ASC_BUSY;
 		}
-
 		/* Complete 'adv_sgblk_t' board allocation. */
-		boardp->adv_sgblkp = sgblkp->next_sgblkp;
+		sgblkp->sg_addr = sgblk_paddr;
 		sgblkp->next_sgblkp = NULL;
-
-		/*
-		 * Get 8 byte aligned virtual and physical addresses
-		 * for the allocated ADV_SG_BLOCK structure.
-		 */
-		sg_block = (ADV_SG_BLOCK *)ADV_8BALIGN(&sgblkp->sg_block);
-		sg_block_paddr = virt_to_bus(sg_block);
+		sg_block = &sgblkp->sg_block;
 
 		/*
 		 * Check if this is the first 'adv_sgblk_t' for the
@@ -8041,17 +7689,16 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
 			 * address pointers.
 			 */
 			scsiqp->sg_list_ptr = sg_block;
-			scsiqp->sg_real_addr = cpu_to_le32(sg_block_paddr);
+			scsiqp->sg_real_addr = cpu_to_le32(sgblk_paddr);
 		} else {
 			/* Request's second or later scatter-gather block. */
-			sgblkp->next_sgblkp = reqp->sgblkp;
-			reqp->sgblkp = sgblkp;
+			prev_sgblkp->next_sgblkp = sgblkp;
 
 			/*
 			 * Point the previous ADV_SG_BLOCK structure to
 			 * the newly allocated ADV_SG_BLOCK structure.
 			 */
-			prev_sg_block->sg_ptr = cpu_to_le32(sg_block_paddr);
+			prev_sg_block->sg_ptr = cpu_to_le32(sgblk_paddr);
 		}
 
 		for (i = 0; i < NO_OF_SG_PER_BLOCK; i++) {
@@ -8062,15 +7709,19 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
 			ASC_STATS_ADD(scp->device->host, xfer_sect,
 				      DIV_ROUND_UP(sg_dma_len(slp), 512));
 
-			if (--sg_elem_cnt == 0) {	/* Last ADV_SG_BLOCK and scatter-gather entry. */
+			if (--sg_elem_cnt == 0) {
+				/*
+				 * Last ADV_SG_BLOCK and scatter-gather entry.
+				 */
 				sg_block->sg_cnt = i + 1;
-				sg_block->sg_ptr = 0L;	/* Last ADV_SG_BLOCK in list. */
+				sg_block->sg_ptr = 0L; /* Last ADV_SG_BLOCK in list. */
 				return ADV_SUCCESS;
 			}
 			slp++;
 		}
 		sg_block->sg_cnt = NO_OF_SG_PER_BLOCK;
 		prev_sg_block = sg_block;
+		prev_sgblkp = sgblkp;
 	}
 }
 
@@ -8080,38 +7731,35 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
  * If an adv_req_t can not be allocated to issue the request,
  * then return ASC_BUSY. If an error occurs, then return ASC_ERROR.
  *
- * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the
+ * Multi-byte fields in the ADV_SCSI_REQ_Q that are used by the
  * microcode for DMA addresses or math operations are byte swapped
  * to little-endian order.
  */
 static int
 adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
-	      ADV_SCSI_REQ_Q **adv_scsiqpp)
+	      adv_req_t **adv_reqpp)
 {
+	u32 srb_tag = scp->request->tag;
 	adv_req_t *reqp;
 	ADV_SCSI_REQ_Q *scsiqp;
-	int i;
 	int ret;
 	int use_sg;
+	dma_addr_t sense_addr;
 
 	/*
 	 * Allocate an adv_req_t structure from the board to execute
 	 * the command.
 	 */
-	if (boardp->adv_reqp == NULL) {
+	reqp = &boardp->adv_reqp[srb_tag];
+	if (reqp->cmndp && reqp->cmndp != scp ) {
 		ASC_DBG(1, "no free adv_req_t\n");
 		ASC_STATS(scp->device->host, adv_build_noreq);
 		return ASC_BUSY;
-	} else {
-		reqp = boardp->adv_reqp;
-		boardp->adv_reqp = reqp->next_reqp;
-		reqp->next_reqp = NULL;
 	}
 
-	/*
-	 * Get 32-byte aligned ADV_SCSI_REQ_Q and ADV_SG_BLOCK pointers.
-	 */
-	scsiqp = (ADV_SCSI_REQ_Q *)ADV_32BALIGN(&reqp->scsi_req_q);
+	reqp->req_addr = boardp->adv_reqp_addr + (srb_tag * sizeof(adv_req_t));
+
+	scsiqp = &reqp->scsi_req_q;
 
 	/*
 	 * Initialize the structure.
@@ -8119,14 +7767,15 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	scsiqp->cntl = scsiqp->scsi_cntl = scsiqp->done_status = 0;
 
 	/*
-	 * Set the ADV_SCSI_REQ_Q 'srb_ptr' to point to the adv_req_t structure.
+	 * Set the srb_tag to the command tag.
 	 */
-	scsiqp->srb_ptr = ADV_VADDR_TO_U32(reqp);
+	scsiqp->srb_tag = srb_tag;
 
 	/*
-	 * Set the adv_req_t 'cmndp' to point to the struct scsi_cmnd structure.
+	 * Set 'host_scribble' to point to the adv_req_t structure.
 	 */
 	reqp->cmndp = scp;
+	scp->host_scribble = (void *)reqp;
 
 	/*
 	 * Build the ADV_SCSI_REQ_Q request.
@@ -8135,28 +7784,38 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	/* Set CDB length and copy it to the request structure.  */
 	scsiqp->cdb_len = scp->cmd_len;
 	/* Copy first 12 CDB bytes to cdb[]. */
-	for (i = 0; i < scp->cmd_len && i < 12; i++) {
-		scsiqp->cdb[i] = scp->cmnd[i];
-	}
+	memcpy(scsiqp->cdb, scp->cmnd, scp->cmd_len < 12 ? scp->cmd_len : 12);
 	/* Copy last 4 CDB bytes, if present, to cdb16[]. */
-	for (; i < scp->cmd_len; i++) {
-		scsiqp->cdb16[i - 12] = scp->cmnd[i];
+	if (scp->cmd_len > 12) {
+		int cdb16_len = scp->cmd_len - 12;
+
+		memcpy(scsiqp->cdb16, &scp->cmnd[12], cdb16_len);
 	}
 
 	scsiqp->target_id = scp->device->id;
 	scsiqp->target_lun = scp->device->lun;
 
-	scsiqp->sense_addr = cpu_to_le32(virt_to_bus(&scp->sense_buffer[0]));
+	sense_addr = dma_map_single(boardp->dev, scp->sense_buffer,
+				    SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(boardp->dev, sense_addr)) {
+		ASC_DBG(1, "failed to map sense buffer\n");
+		ASC_STATS(scp->device->host, adv_build_noreq);
+		return ASC_BUSY;
+	}
+	scsiqp->sense_addr = cpu_to_le32(sense_addr);
 	scsiqp->sense_len = SCSI_SENSE_BUFFERSIZE;
 
 	/* Build ADV_SCSI_REQ_Q */
 
 	use_sg = scsi_dma_map(scp);
-	if (use_sg == 0) {
+	if (use_sg < 0) {
+		ASC_DBG(1, "failed to map SG list\n");
+		ASC_STATS(scp->device->host, adv_build_noreq);
+		return ASC_BUSY;
+	} else if (use_sg == 0) {
 		/* Zero-length transfer */
 		reqp->sgblkp = NULL;
 		scsiqp->data_cnt = 0;
-		scsiqp->vdata_addr = NULL;
 
 		scsiqp->data_addr = 0;
 		scsiqp->sg_list_ptr = NULL;
@@ -8168,27 +7827,20 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 				   scp->device->host->sg_tablesize);
 			scsi_dma_unmap(scp);
 			scp->result = HOST_BYTE(DID_ERROR);
-
-			/*
-			 * Free the 'adv_req_t' structure by adding it back
-			 * to the board free list.
-			 */
-			reqp->next_reqp = boardp->adv_reqp;
-			boardp->adv_reqp = reqp;
+			reqp->cmndp = NULL;
+			scp->host_scribble = NULL;
 
 			return ASC_ERROR;
 		}
 
 		scsiqp->data_cnt = cpu_to_le32(scsi_bufflen(scp));
 
-		ret = adv_get_sglist(boardp, reqp, scp, use_sg);
+		ret = adv_get_sglist(boardp, reqp, scsiqp, scp, use_sg);
 		if (ret != ADV_SUCCESS) {
-			/*
-			 * Free the adv_req_t structure by adding it back to
-			 * the board free list.
-			 */
-			reqp->next_reqp = boardp->adv_reqp;
-			boardp->adv_reqp = reqp;
+			scsi_dma_unmap(scp);
+			scp->result = HOST_BYTE(DID_ERROR);
+			reqp->cmndp = NULL;
+			scp->host_scribble = NULL;
 
 			return ret;
 		}
@@ -8201,7 +7853,7 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	ASC_DBG_PRT_ADV_SCSI_REQ_Q(2, scsiqp);
 	ASC_DBG_PRT_CDB(1, scp->cmnd, scp->cmd_len);
 
-	*adv_scsiqpp = scsiqp;
+	*adv_reqpp = reqp;
 
 	return ASC_NOERROR;
 }
@@ -8358,8 +8010,8 @@ AscPutReadySgListQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
 	int i;
 	ASC_SG_HEAD *sg_head;
 	ASC_SG_LIST_Q scsi_sg_q;
-	ASC_DCNT saved_data_addr;
-	ASC_DCNT saved_data_cnt;
+	__le32 saved_data_addr;
+	__le32 saved_data_cnt;
 	PortAddr iop_base;
 	ushort sg_list_dwords;
 	ushort sg_index;
@@ -8371,42 +8023,15 @@ AscPutReadySgListQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
 	sg_head = scsiq->sg_head;
 	saved_data_addr = scsiq->q1.data_addr;
 	saved_data_cnt = scsiq->q1.data_cnt;
-	scsiq->q1.data_addr = (ASC_PADDR) sg_head->sg_list[0].addr;
-	scsiq->q1.data_cnt = (ASC_DCNT) sg_head->sg_list[0].bytes;
-#if CC_VERY_LONG_SG_LIST
+	scsiq->q1.data_addr = cpu_to_le32(sg_head->sg_list[0].addr);
+	scsiq->q1.data_cnt = cpu_to_le32(sg_head->sg_list[0].bytes);
 	/*
-	 * If sg_head->entry_cnt is greater than ASC_MAX_SG_LIST
-	 * then not all SG elements will fit in the allocated queues.
-	 * The rest of the SG elements will be copied when the RISC
-	 * completes the SG elements that fit and halts.
+	 * Set sg_entry_cnt to be the number of SG elements that
+	 * will fit in the allocated SG queues. It is minus 1, because
+	 * the first SG element is handled above.
 	 */
-	if (sg_head->entry_cnt > ASC_MAX_SG_LIST) {
-		/*
-		 * Set sg_entry_cnt to be the number of SG elements that
-		 * will fit in the allocated SG queues. It is minus 1, because
-		 * the first SG element is handled above. ASC_MAX_SG_LIST is
-		 * already inflated by 1 to account for this. For example it
-		 * may be 50 which is 1 + 7 queues * 7 SG elements.
-		 */
-		sg_entry_cnt = ASC_MAX_SG_LIST - 1;
+	sg_entry_cnt = sg_head->entry_cnt - 1;
 
-		/*
-		 * Keep track of remaining number of SG elements that will
-		 * need to be handled from a_isr.c.
-		 */
-		scsiq->remain_sg_entry_cnt =
-		    sg_head->entry_cnt - ASC_MAX_SG_LIST;
-	} else {
-#endif /* CC_VERY_LONG_SG_LIST */
-		/*
-		 * Set sg_entry_cnt to be the number of SG elements that
-		 * will fit in the allocated SG queues. It is minus 1, because
-		 * the first SG element is handled above.
-		 */
-		sg_entry_cnt = sg_head->entry_cnt - 1;
-#if CC_VERY_LONG_SG_LIST
-	}
-#endif /* CC_VERY_LONG_SG_LIST */
 	if (sg_entry_cnt != 0) {
 		scsiq->q1.cntl |= QC_SG_HEAD;
 		q_addr = ASC_QNO_TO_QADDR(q_no);
@@ -8431,21 +8056,7 @@ AscPutReadySgListQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
 					    ASC_SG_LIST_PER_Q - 1;
 				}
 			} else {
-#if CC_VERY_LONG_SG_LIST
-				/*
-				 * This is the last SG queue in the list of
-				 * allocated SG queues. If there are more
-				 * SG elements than will fit in the allocated
-				 * queues, then set the QCSG_SG_XFER_MORE flag.
-				 */
-				if (sg_head->entry_cnt > ASC_MAX_SG_LIST) {
-					scsi_sg_q.cntl |= QCSG_SG_XFER_MORE;
-				} else {
-#endif /* CC_VERY_LONG_SG_LIST */
-					scsi_sg_q.cntl |= QCSG_SG_XFER_END;
-#if CC_VERY_LONG_SG_LIST
-				}
-#endif /* CC_VERY_LONG_SG_LIST */
+				scsi_sg_q.cntl |= QCSG_SG_XFER_END;
 				sg_list_dwords = sg_entry_cnt << 1;
 				if (i == 0) {
 					scsi_sg_q.sg_list_cnt = sg_entry_cnt;
@@ -8550,9 +8161,9 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 	PortAddr iop_base;
 	int sta;
 	int n_q_required;
-	int disable_syn_offset_one_fix;
+	bool disable_syn_offset_one_fix;
 	int i;
-	ASC_PADDR addr;
+	u32 addr;
 	ushort sg_entry_cnt = 0;
 	ushort sg_entry_cnt_minus_one = 0;
 	uchar target_ix;
@@ -8562,12 +8173,12 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 	uchar scsi_cmd;
 	uchar disable_cmd;
 	ASC_SG_HEAD *sg_head;
-	ASC_DCNT data_cnt;
+	unsigned long data_cnt;
 
 	iop_base = asc_dvc->iop_base;
 	sg_head = scsiq->sg_head;
 	if (asc_dvc->err_code != 0)
-		return (ERR);
+		return ASC_ERROR;
 	scsiq->q1.q_no = 0;
 	if ((scsiq->q2.tag_code & ASC_TAG_FLAG_EXTRA_BYTES) == 0) {
 		scsiq->q1.extra_bytes = 0;
@@ -8593,46 +8204,41 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 	}
 	if (asc_dvc->in_critical_cnt != 0) {
 		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_CRITICAL_RE_ENTRY);
-		return (ERR);
+		return ASC_ERROR;
 	}
 	asc_dvc->in_critical_cnt++;
 	if ((scsiq->q1.cntl & QC_SG_HEAD) != 0) {
 		if ((sg_entry_cnt = sg_head->entry_cnt) == 0) {
 			asc_dvc->in_critical_cnt--;
-			return (ERR);
+			return ASC_ERROR;
 		}
-#if !CC_VERY_LONG_SG_LIST
 		if (sg_entry_cnt > ASC_MAX_SG_LIST) {
 			asc_dvc->in_critical_cnt--;
-			return (ERR);
+			return ASC_ERROR;
 		}
-#endif /* !CC_VERY_LONG_SG_LIST */
 		if (sg_entry_cnt == 1) {
-			scsiq->q1.data_addr =
-			    (ADV_PADDR)sg_head->sg_list[0].addr;
-			scsiq->q1.data_cnt =
-			    (ADV_DCNT)sg_head->sg_list[0].bytes;
+			scsiq->q1.data_addr = cpu_to_le32(sg_head->sg_list[0].addr);
+			scsiq->q1.data_cnt = cpu_to_le32(sg_head->sg_list[0].bytes);
 			scsiq->q1.cntl &= ~(QC_SG_HEAD | QC_SG_SWAP_QUEUE);
 		}
 		sg_entry_cnt_minus_one = sg_entry_cnt - 1;
 	}
 	scsi_cmd = scsiq->cdbptr[0];
-	disable_syn_offset_one_fix = FALSE;
+	disable_syn_offset_one_fix = false;
 	if ((asc_dvc->pci_fix_asyn_xfer & scsiq->q1.target_id) &&
 	    !(asc_dvc->pci_fix_asyn_xfer_always & scsiq->q1.target_id)) {
 		if (scsiq->q1.cntl & QC_SG_HEAD) {
 			data_cnt = 0;
 			for (i = 0; i < sg_entry_cnt; i++) {
-				data_cnt +=
-				    (ADV_DCNT)le32_to_cpu(sg_head->sg_list[i].
-							  bytes);
+				data_cnt += le32_to_cpu(sg_head->sg_list[i].
+							bytes);
 			}
 		} else {
 			data_cnt = le32_to_cpu(scsiq->q1.data_cnt);
 		}
 		if (data_cnt != 0UL) {
 			if (data_cnt < 512UL) {
-				disable_syn_offset_one_fix = TRUE;
+				disable_syn_offset_one_fix = true;
 			} else {
 				for (i = 0; i < ASC_SYN_OFFSET_ONE_DISABLE_LIST;
 				     i++) {
@@ -8643,7 +8249,7 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 					}
 					if (scsi_cmd == disable_cmd) {
 						disable_syn_offset_one_fix =
-						    TRUE;
+						    true;
 						break;
 					}
 				}
@@ -8662,12 +8268,11 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
 				if ((scsi_cmd == READ_6) ||
 				    (scsi_cmd == READ_10)) {
-					addr =
-					    (ADV_PADDR)le32_to_cpu(sg_head->
+					addr = le32_to_cpu(sg_head->
 								   sg_list
 								   [sg_entry_cnt_minus_one].
 								   addr) +
-					    (ADV_DCNT)le32_to_cpu(sg_head->
+						le32_to_cpu(sg_head->
 								  sg_list
 								  [sg_entry_cnt_minus_one].
 								  bytes);
@@ -8688,8 +8293,7 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 								sg_list
 								[sg_entry_cnt_minus_one].
 								bytes);
-						data_cnt -=
-						    (ASC_DCNT) extra_bytes;
+						data_cnt -= extra_bytes;
 						sg_head->
 						    sg_list
 						    [sg_entry_cnt_minus_one].
@@ -8700,16 +8304,6 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 			}
 		}
 		sg_head->entry_to_copy = sg_head->entry_cnt;
-#if CC_VERY_LONG_SG_LIST
-		/*
-		 * Set the sg_entry_cnt to the maximum possible. The rest of
-		 * the SG elements will be copied when the RISC completes the
-		 * SG elements that fit and halts.
-		 */
-		if (sg_entry_cnt > ASC_MAX_SG_LIST) {
-			sg_entry_cnt = ASC_MAX_SG_LIST;
-		}
-#endif /* CC_VERY_LONG_SG_LIST */
 		n_q_required = AscSgListToQueue(sg_entry_cnt);
 		if ((AscGetNumOfFreeQueue(asc_dvc, target_ix, n_q_required) >=
 		     (uint) n_q_required)
@@ -8744,8 +8338,7 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 						    == 0) {
 							scsiq->q2.tag_code |=
 							    ASC_TAG_FLAG_EXTRA_BYTES;
-							data_cnt -= (ASC_DCNT)
-							    extra_bytes;
+							data_cnt -= extra_bytes;
 							scsiq->q1.data_cnt =
 							    cpu_to_le32
 							    (data_cnt);
@@ -8780,7 +8373,7 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
  * If 'done_status' is not set to QD_DO_RETRY, then 'error_retry' will be
  * set to SCSI_MAX_RETRY.
  *
- * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the microcode
+ * Multi-byte fields in the ADV_SCSI_REQ_Q that are used by the microcode
  * for DMA addresses or math operations are byte swapped to little-endian
  * order.
  *
@@ -8791,11 +8384,11 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
  *      ADV_ERROR(-1) -  Invalid ADV_SCSI_REQ_Q request structure
  *                       host IC error.
  */
-static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
+static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, adv_req_t *reqp)
 {
 	AdvPortAddr iop_base;
-	ADV_PADDR req_paddr;
 	ADV_CARR_T *new_carrp;
+	ADV_SCSI_REQ_Q *scsiq = &reqp->scsi_req_q;
 
 	/*
 	 * The ADV_SCSI_REQ_Q 'target_id' field should never exceed ADV_MAX_TID.
@@ -8812,39 +8405,19 @@ static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
 	 * Allocate a carrier ensuring at least one carrier always
 	 * remains on the freelist and initialize fields.
 	 */
-	if ((new_carrp = asc_dvc->carr_freelist) == NULL) {
+	new_carrp = adv_get_next_carrier(asc_dvc);
+	if (!new_carrp) {
+		ASC_DBG(1, "No free carriers\n");
 		return ADV_BUSY;
 	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(new_carrp->next_vpa));
+
 	asc_dvc->carr_pending_cnt++;
 
-	/*
-	 * Set the carrier to be a stopper by setting 'next_vpa'
-	 * to the stopper value. The current stopper will be changed
-	 * below to point to the new stopper.
-	 */
-	new_carrp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
-
-	/*
-	 * Clear the ADV_SCSI_REQ_Q done flag.
-	 */
-	scsiq->a_flag &= ~ADV_SCSIQ_DONE;
-
-	req_paddr = virt_to_bus(scsiq);
-	BUG_ON(req_paddr & 31);
-	/* Wait for assertion before making little-endian */
-	req_paddr = cpu_to_le32(req_paddr);
-
 	/* Save virtual and physical address of ADV_SCSI_REQ_Q and carrier. */
-	scsiq->scsiq_ptr = cpu_to_le32(ADV_VADDR_TO_U32(scsiq));
-	scsiq->scsiq_rptr = req_paddr;
+	scsiq->scsiq_ptr = cpu_to_le32(scsiq->srb_tag);
+	scsiq->scsiq_rptr = cpu_to_le32(reqp->req_addr);
 
-	scsiq->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->icq_sp));
-	/*
-	 * Every ADV_CARR_T.carr_pa is byte swapped to little-endian
-	 * order during initialization.
-	 */
+	scsiq->carr_va = asc_dvc->icq_sp->carr_va;
 	scsiq->carr_pa = asc_dvc->icq_sp->carr_pa;
 
 	/*
@@ -8852,7 +8425,7 @@ static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
 	 * the microcode. The newly allocated stopper will become the new
 	 * stopper.
 	 */
-	asc_dvc->icq_sp->areq_vpa = req_paddr;
+	asc_dvc->icq_sp->areq_vpa = scsiq->scsiq_rptr;
 
 	/*
 	 * Set the 'next_vpa' pointer for the old stopper to be the
@@ -8907,11 +8480,10 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
 		ASC_DVC_VAR *asc_dvc = &boardp->dvc_var.asc_dvc_var;
 		struct asc_scsi_q asc_scsi_q;
 
-		/* asc_build_req() can not return ASC_BUSY. */
 		ret = asc_build_req(boardp, scp, &asc_scsi_q);
-		if (ret == ASC_ERROR) {
+		if (ret != ASC_NOERROR) {
 			ASC_STATS(scp->device->host, build_error);
-			return ASC_ERROR;
+			return ret;
 		}
 
 		ret = AscExeScsiQueue(asc_dvc, &asc_scsi_q);
@@ -8919,9 +8491,9 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
 		err_code = asc_dvc->err_code;
 	} else {
 		ADV_DVC_VAR *adv_dvc = &boardp->dvc_var.adv_dvc_var;
-		ADV_SCSI_REQ_Q *adv_scsiqp;
+		adv_req_t *adv_reqp;
 
-		switch (adv_build_req(boardp, scp, &adv_scsiqp)) {
+		switch (adv_build_req(boardp, scp, &adv_reqp)) {
 		case ASC_NOERROR:
 			ASC_DBG(3, "adv_build_req ASC_NOERROR\n");
 			break;
@@ -8941,7 +8513,7 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
 			return ASC_ERROR;
 		}
 
-		ret = AdvExeScsiQueue(adv_dvc, adv_scsiqp);
+		ret = AdvExeScsiQueue(adv_dvc, adv_reqp);
 		err_code = adv_dvc->err_code;
 	}
 
@@ -8956,6 +8528,7 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
 		ASC_DBG(1, "ExeScsiQueue() ASC_NOERROR\n");
 		break;
 	case ASC_BUSY:
+		ASC_DBG(1, "ExeScsiQueue() ASC_BUSY\n");
 		ASC_STATS(scp->device->host, exe_busy);
 		break;
 	case ASC_ERROR:
@@ -9122,7 +8695,7 @@ static int AscStopQueueExe(PortAddr iop_base)
 	return (0);
 }
 
-static ASC_DCNT AscGetMaxDmaCount(ushort bus_type)
+static unsigned int AscGetMaxDmaCount(ushort bus_type)
 {
 	if (bus_type & ASC_IS_ISA)
 		return ASC_MAX_ISA_DMA_COUNT;
@@ -9183,15 +8756,13 @@ static uchar AscSetIsaDmaSpeed(PortAddr iop_base, uchar speed_value)
 }
 #endif /* CONFIG_ISA */
 
-static ushort AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
+static void AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
 {
 	int i;
 	PortAddr iop_base;
-	ushort warn_code;
 	uchar chip_version;
 
 	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
 	asc_dvc->err_code = 0;
 	if ((asc_dvc->bus_type &
 	     (ASC_IS_ISA | ASC_IS_PCI | ASC_IS_EISA | ASC_IS_VL)) == 0) {
@@ -9205,7 +8776,7 @@ static ushort AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
 	/* asc_dvc->init_state initialized in AscInitGetConfig(). */
 	asc_dvc->sdtr_done = 0;
 	asc_dvc->cur_total_qng = 0;
-	asc_dvc->is_in_int = 0;
+	asc_dvc->is_in_int = false;
 	asc_dvc->in_critical_cnt = 0;
 	asc_dvc->last_q_shortage = 0;
 	asc_dvc->use_tagged_qng = 0;
@@ -9267,7 +8838,6 @@ static ushort AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
 		asc_dvc->scsiq_busy_tail[i] = (ASC_SCSI_Q *)0L;
 		asc_dvc->cfg->max_tag_qng[i] = ASC_MAX_INRAM_TAG_QNG;
 	}
-	return warn_code;
 }
 
 static int AscWriteEEPCmdReg(PortAddr iop_base, uchar cmd_reg)
@@ -9385,7 +8955,7 @@ static int AscWriteEEPDataReg(PortAddr iop_base, ushort data_reg)
 	int retry;
 
 	retry = 0;
-	while (TRUE) {
+	while (true) {
 		AscSetChipEEPData(iop_base, data_reg);
 		mdelay(1);
 		read_back = AscGetChipEEPData(iop_base);
@@ -9521,7 +9091,7 @@ static int AscSetEEPConfig(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf,
 	int n_error;
 
 	retry = 0;
-	while (TRUE) {
+	while (true) {
 		if ((n_error = AscSetEEPConfigOnce(iop_base, cfg_buf,
 						   bus_type)) == 0) {
 			break;
@@ -9533,7 +9103,7 @@ static int AscSetEEPConfig(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf,
 	return n_error;
 }
 
-static ushort AscInitFromEEP(ASC_DVC_VAR *asc_dvc)
+static int AscInitFromEEP(ASC_DVC_VAR *asc_dvc)
 {
 	ASCEEP_CONFIG eep_config_buf;
 	ASCEEP_CONFIG *eep_config;
@@ -9548,13 +9118,13 @@ static ushort AscInitFromEEP(ASC_DVC_VAR *asc_dvc)
 	warn_code = 0;
 	AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0x00FE);
 	AscStopQueueExe(iop_base);
-	if ((AscStopChip(iop_base) == FALSE) ||
+	if ((AscStopChip(iop_base)) ||
 	    (AscGetChipScsiCtrl(iop_base) != 0)) {
 		asc_dvc->init_state |= ASC_INIT_RESET_SCSI_DONE;
 		AscResetChipAndScsiBus(asc_dvc);
 		mdelay(asc_dvc->scsi_reset_wait * 1000); /* XXX: msleep? */
 	}
-	if (AscIsChipHalted(iop_base) == FALSE) {
+	if (!AscIsChipHalted(iop_base)) {
 		asc_dvc->err_code |= ASC_IERR_START_STOP_CHIP;
 		return (warn_code);
 	}
@@ -9709,8 +9279,8 @@ static int AscInitGetConfig(struct Scsi_Host *shost)
 		return asc_dvc->err_code;
 
 	if (AscFindSignature(asc_dvc->iop_base)) {
-		warn_code |= AscInitAscDvcVar(asc_dvc);
-		warn_code |= AscInitFromEEP(asc_dvc);
+		AscInitAscDvcVar(asc_dvc);
+		warn_code = AscInitFromEEP(asc_dvc);
 		asc_dvc->init_state |= ASC_INIT_STATE_END_GET_CFG;
 		if (asc_dvc->scsi_reset_wait > ASC_MAX_SCSI_RESET_WAIT)
 			asc_dvc->scsi_reset_wait = ASC_MAX_SCSI_RESET_WAIT;
@@ -9866,6 +9436,7 @@ static int AscInitSetConfig(struct pci_dev *pdev, struct Scsi_Host *shost)
  * on big-endian platforms so char fields read as words are actually being
  * unswapped on big-endian platforms.
  */
+#ifdef CONFIG_PCI
 static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config = {
 	ADV_EEPROM_BIOS_ENABLE,	/* cfg_lsw */
 	0x0000,			/* cfg_msw */
@@ -10202,7 +9773,6 @@ static ADVEEP_38C1600_CONFIG ADVEEP_38C1600_Config_Field_IsChar = {
 	0			/* 63 reserved */
 };
 
-#ifdef CONFIG_PCI
 /*
  * Wait for EEPROM command to complete
  */
@@ -11232,7 +10802,7 @@ static struct scsi_host_template advansys_template = {
 	.name = DRV_NAME,
 	.info = advansys_info,
 	.queuecommand = advansys_queuecommand,
-	.eh_bus_reset_handler = advansys_reset,
+	.eh_host_reset_handler = advansys_reset,
 	.bios_param = advansys_biosparam,
 	.slave_configure = advansys_slave_configure,
 	/*
@@ -11240,7 +10810,7 @@ static struct scsi_host_template advansys_template = {
 	 * must be set. The flag will be cleared in advansys_board_found
 	 * for non-ISA adapters.
 	 */
-	.unchecked_isa_dma = 1,
+	.unchecked_isa_dma = true,
 	/*
 	 * All adapters controlled by this driver are capable of large
 	 * scatter-gather lists. According to the mid-level SCSI documentation
@@ -11255,20 +10825,18 @@ static int advansys_wide_init_chip(struct Scsi_Host *shost)
 {
 	struct asc_board *board = shost_priv(shost);
 	struct adv_dvc_var *adv_dvc = &board->dvc_var.adv_dvc_var;
-	int req_cnt = 0;
-	adv_req_t *reqp = NULL;
-	int sg_cnt = 0;
-	adv_sgblk_t *sgp;
+	size_t sgblk_pool_size;
 	int warn_code, err_code;
 
 	/*
 	 * Allocate buffer carrier structures. The total size
-	 * is about 4 KB, so allocate all at once.
+	 * is about 8 KB, so allocate all at once.
 	 */
-	adv_dvc->carrier_buf = kmalloc(ADV_CARRIER_BUFSIZE, GFP_KERNEL);
-	ASC_DBG(1, "carrier_buf 0x%p\n", adv_dvc->carrier_buf);
+	adv_dvc->carrier = dma_alloc_coherent(board->dev,
+		ADV_CARRIER_BUFSIZE, &adv_dvc->carrier_addr, GFP_KERNEL);
+	ASC_DBG(1, "carrier 0x%p\n", adv_dvc->carrier);
 
-	if (!adv_dvc->carrier_buf)
+	if (!adv_dvc->carrier)
 		goto kmalloc_failed;
 
 	/*
@@ -11276,53 +10844,33 @@ static int advansys_wide_init_chip(struct Scsi_Host *shost)
 	 * board. The total size is about 16 KB, so allocate all at once.
 	 * If the allocation fails decrement and try again.
 	 */
-	for (req_cnt = adv_dvc->max_host_qng; req_cnt > 0; req_cnt--) {
-		reqp = kmalloc(sizeof(adv_req_t) * req_cnt, GFP_KERNEL);
-
-		ASC_DBG(1, "reqp 0x%p, req_cnt %d, bytes %lu\n", reqp, req_cnt,
-			 (ulong)sizeof(adv_req_t) * req_cnt);
-
-		if (reqp)
-			break;
+	board->adv_reqp_size = adv_dvc->max_host_qng * sizeof(adv_req_t);
+	if (board->adv_reqp_size & 0x1f) {
+		ASC_DBG(1, "unaligned reqp %lu bytes\n", sizeof(adv_req_t));
+		board->adv_reqp_size = ADV_32BALIGN(board->adv_reqp_size);
 	}
+	board->adv_reqp = dma_alloc_coherent(board->dev, board->adv_reqp_size,
+		&board->adv_reqp_addr, GFP_KERNEL);
 
-	if (!reqp)
+	if (!board->adv_reqp)
 		goto kmalloc_failed;
 
-	adv_dvc->orig_reqp = reqp;
+	ASC_DBG(1, "reqp 0x%p, req_cnt %d, bytes %lu\n", board->adv_reqp,
+		adv_dvc->max_host_qng, board->adv_reqp_size);
 
 	/*
 	 * Allocate up to ADV_TOT_SG_BLOCK request structures for
 	 * the Wide board. Each structure is about 136 bytes.
 	 */
-	board->adv_sgblkp = NULL;
-	for (sg_cnt = 0; sg_cnt < ADV_TOT_SG_BLOCK; sg_cnt++) {
-		sgp = kmalloc(sizeof(adv_sgblk_t), GFP_KERNEL);
+	sgblk_pool_size = sizeof(adv_sgblk_t) * ADV_TOT_SG_BLOCK;
+	board->adv_sgblk_pool = dma_pool_create("adv_sgblk", board->dev,
+						sgblk_pool_size, 32, 0);
 
-		if (!sgp)
-			break;
+	ASC_DBG(1, "sg_cnt %d * %lu = %lu bytes\n", ADV_TOT_SG_BLOCK,
+		sizeof(adv_sgblk_t), sgblk_pool_size);
 
-		sgp->next_sgblkp = board->adv_sgblkp;
-		board->adv_sgblkp = sgp;
-
-	}
-
-	ASC_DBG(1, "sg_cnt %d * %lu = %lu bytes\n", sg_cnt, sizeof(adv_sgblk_t),
-		 sizeof(adv_sgblk_t) * sg_cnt);
-
-	if (!board->adv_sgblkp)
+	if (!board->adv_sgblk_pool)
 		goto kmalloc_failed;
-
-	/*
-	 * Point 'adv_reqp' to the request structures and
-	 * link them together.
-	 */
-	req_cnt--;
-	reqp[req_cnt].next_reqp = NULL;
-	for (; req_cnt > 0; req_cnt--) {
-		reqp[req_cnt - 1].next_reqp = &reqp[req_cnt];
-	}
-	board->adv_reqp = &reqp[0];
 
 	if (adv_dvc->chip_type == ADV_CHIP_ASC3550) {
 		ASC_DBG(2, "AdvInitAsc3550Driver()\n");
@@ -11353,14 +10901,20 @@ static int advansys_wide_init_chip(struct Scsi_Host *shost)
 static void advansys_wide_free_mem(struct asc_board *board)
 {
 	struct adv_dvc_var *adv_dvc = &board->dvc_var.adv_dvc_var;
-	kfree(adv_dvc->carrier_buf);
-	adv_dvc->carrier_buf = NULL;
-	kfree(adv_dvc->orig_reqp);
-	adv_dvc->orig_reqp = board->adv_reqp = NULL;
-	while (board->adv_sgblkp) {
-		adv_sgblk_t *sgp = board->adv_sgblkp;
-		board->adv_sgblkp = sgp->next_sgblkp;
-		kfree(sgp);
+
+	if (adv_dvc->carrier) {
+		dma_free_coherent(board->dev, ADV_CARRIER_BUFSIZE,
+				  adv_dvc->carrier, adv_dvc->carrier_addr);
+		adv_dvc->carrier = NULL;
+	}
+	if (board->adv_reqp) {
+		dma_free_coherent(board->dev, board->adv_reqp_size,
+				  board->adv_reqp, board->adv_reqp_addr);
+		board->adv_reqp = NULL;
+	}
+	if (board->adv_sgblk_pool) {
+		dma_pool_destroy(board->adv_sgblk_pool);
+		board->adv_sgblk_pool = NULL;
 	}
 }
 
@@ -11431,28 +10985,28 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 		switch (asc_dvc_varp->bus_type) {
 #ifdef CONFIG_ISA
 		case ASC_IS_ISA:
-			shost->unchecked_isa_dma = TRUE;
+			shost->unchecked_isa_dma = true;
 			share_irq = 0;
 			break;
 		case ASC_IS_VL:
-			shost->unchecked_isa_dma = FALSE;
+			shost->unchecked_isa_dma = false;
 			share_irq = 0;
 			break;
 		case ASC_IS_EISA:
-			shost->unchecked_isa_dma = FALSE;
+			shost->unchecked_isa_dma = false;
 			share_irq = IRQF_SHARED;
 			break;
 #endif /* CONFIG_ISA */
 #ifdef CONFIG_PCI
 		case ASC_IS_PCI:
-			shost->unchecked_isa_dma = FALSE;
+			shost->unchecked_isa_dma = false;
 			share_irq = IRQF_SHARED;
 			break;
 #endif /* CONFIG_PCI */
 		default:
 			shost_printk(KERN_ERR, shost, "unknown adapter type: "
 					"%d\n", asc_dvc_varp->bus_type);
-			shost->unchecked_isa_dma = TRUE;
+			shost->unchecked_isa_dma = false;
 			share_irq = 0;
 			break;
 		}
@@ -11471,7 +11025,7 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 		 * For Wide boards set PCI information before calling
 		 * AdvInitGetConfig().
 		 */
-		shost->unchecked_isa_dma = FALSE;
+		shost->unchecked_isa_dma = false;
 		share_irq = IRQF_SHARED;
 		ASC_DBG(2, "AdvInitGetConfig()\n");
 
@@ -11658,24 +11212,6 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 	}
 
 	/*
-	 * Following v1.3.89, 'cmd_per_lun' is no longer needed
-	 * and should be set to zero.
-	 *
-	 * But because of a bug introduced in v1.3.89 if the driver is
-	 * compiled as a module and 'cmd_per_lun' is zero, the Mid-Level
-	 * SCSI function 'allocate_device' will panic. To allow the driver
-	 * to work as a module in these kernels set 'cmd_per_lun' to 1.
-	 *
-	 * Note: This is wrong.  cmd_per_lun should be set to the depth
-	 * you want on untagged devices always.
-	 #ifdef MODULE
-	 */
-	shost->cmd_per_lun = 1;
-/* #else
-            shost->cmd_per_lun = 0;
-#endif */
-
-	/*
 	 * Set the maximum number of scatter-gather elements the
 	 * adapter can handle.
 	 */
@@ -11844,7 +11380,9 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
  err_unmap:
 	if (boardp->ioremap_addr)
 		iounmap(boardp->ioremap_addr);
+#ifdef CONFIG_PCI
  err_shost:
+#endif
 	return ret;
 }
 
@@ -11927,6 +11465,7 @@ static int advansys_isa_probe(struct device *dev, unsigned int id)
 	board = shost_priv(shost);
 	board->irq = advansys_isa_irq_no(iop_base);
 	board->dev = dev;
+	board->shost = shost;
 
 	err = advansys_board_found(shost, iop_base, ASC_IS_ISA);
 	if (err)
@@ -12009,6 +11548,7 @@ static int advansys_vlb_probe(struct device *dev, unsigned int id)
 	board = shost_priv(shost);
 	board->irq = advansys_vlb_irq_no(iop_base);
 	board->dev = dev;
+	board->shost = shost;
 
 	err = advansys_board_found(shost, iop_base, ASC_IS_VL);
 	if (err)
@@ -12116,6 +11656,7 @@ static int advansys_eisa_probe(struct device *dev)
 		board = shost_priv(shost);
 		board->irq = irq;
 		board->dev = dev;
+		board->shost = shost;
 
 		err = advansys_board_found(shost, ioport, ASC_IS_EISA);
 		if (!err) {
@@ -12232,6 +11773,7 @@ static int advansys_pci_probe(struct pci_dev *pdev,
 	board = shost_priv(shost);
 	board->irq = pdev->irq;
 	board->dev = &pdev->dev;
+	board->shost = shost;
 
 	if (pdev->device == PCI_DEVICE_ID_ASP_ABP940UW ||
 	    pdev->device == PCI_DEVICE_ID_38C0800_REV1 ||

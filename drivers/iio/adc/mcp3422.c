@@ -404,7 +404,6 @@ MODULE_DEVICE_TABLE(of, mcp3422_of_match);
 static struct i2c_driver mcp3422_driver = {
 	.driver = {
 		.name = "mcp3422",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mcp3422_of_match),
 	},
 	.probe = mcp3422_probe,

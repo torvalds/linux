@@ -270,4 +270,4 @@ static int __init lasat_register_sysctl(void)
 	return 0;
 }
 
-__initcall(lasat_register_sysctl);
+arch_initcall(lasat_register_sysctl);

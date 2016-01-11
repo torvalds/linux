@@ -78,8 +78,8 @@ int test__keep_tracking(void)
 
 	perf_evlist__set_maps(evlist, cpus, threads);
 
-	CHECK__(parse_events(evlist, "dummy:u"));
-	CHECK__(parse_events(evlist, "cycles:u"));
+	CHECK__(parse_events(evlist, "dummy:u", NULL));
+	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
 	perf_evlist__config(evlist, &opts);
 
@@ -90,8 +90,8 @@ int test__keep_tracking(void)
 	evsel->attr.enable_on_exec = 0;
 
 	if (perf_evlist__open(evlist) < 0) {
-		fprintf(stderr, " (not supported)");
-		err = 0;
+		pr_debug("Unable to open dummy and cycles event\n");
+		err = TEST_SKIP;
 		goto out_err;
 	}
 
@@ -144,8 +144,8 @@ out_err:
 		perf_evlist__disable(evlist);
 		perf_evlist__delete(evlist);
 	} else {
-		cpu_map__delete(cpus);
-		thread_map__delete(threads);
+		cpu_map__put(cpus);
+		thread_map__put(threads);
 	}
 
 	return err;

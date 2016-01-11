@@ -31,33 +31,33 @@
  * PCI BAR 0 register map (devpriv->amcc)
  * see amcc_s5933.h for register and bit defines
  */
-#define APCI3120_FIFO_ADVANCE_ON_BYTE_2		(1 << 29)
+#define APCI3120_FIFO_ADVANCE_ON_BYTE_2		BIT(29)
 
 /*
  * PCI BAR 1 register map (dev->iobase)
  */
 #define APCI3120_AI_FIFO_REG			0x00
 #define APCI3120_CTRL_REG			0x00
-#define APCI3120_CTRL_EXT_TRIG			(1 << 15)
-#define APCI3120_CTRL_GATE(x)			(1 << (12 + (x)))
+#define APCI3120_CTRL_EXT_TRIG			BIT(15)
+#define APCI3120_CTRL_GATE(x)			BIT(12 + (x))
 #define APCI3120_CTRL_PR(x)			(((x) & 0xf) << 8)
 #define APCI3120_CTRL_PA(x)			(((x) & 0xf) << 0)
 #define APCI3120_AI_SOFTTRIG_REG		0x02
 #define APCI3120_STATUS_REG			0x02
-#define APCI3120_STATUS_EOC_INT			(1 << 15)
-#define APCI3120_STATUS_AMCC_INT		(1 << 14)
-#define APCI3120_STATUS_EOS_INT			(1 << 13)
-#define APCI3120_STATUS_TIMER2_INT		(1 << 12)
+#define APCI3120_STATUS_EOC_INT			BIT(15)
+#define APCI3120_STATUS_AMCC_INT		BIT(14)
+#define APCI3120_STATUS_EOS_INT			BIT(13)
+#define APCI3120_STATUS_TIMER2_INT		BIT(12)
 #define APCI3120_STATUS_INT_MASK		(0xf << 12)
 #define APCI3120_STATUS_TO_DI_BITS(x)		(((x) >> 8) & 0xf)
 #define APCI3120_STATUS_TO_VERSION(x)		(((x) >> 4) & 0xf)
-#define APCI3120_STATUS_FIFO_FULL		(1 << 2)
-#define APCI3120_STATUS_FIFO_EMPTY		(1 << 1)
-#define APCI3120_STATUS_DA_READY		(1 << 0)
+#define APCI3120_STATUS_FIFO_FULL		BIT(2)
+#define APCI3120_STATUS_FIFO_EMPTY		BIT(1)
+#define APCI3120_STATUS_DA_READY		BIT(0)
 #define APCI3120_TIMER_REG			0x04
 #define APCI3120_CHANLIST_REG			0x06
 #define APCI3120_CHANLIST_INDEX(x)		(((x) & 0xf) << 8)
-#define APCI3120_CHANLIST_UNIPOLAR		(1 << 7)
+#define APCI3120_CHANLIST_UNIPOLAR		BIT(7)
 #define APCI3120_CHANLIST_GAIN(x)		(((x) & 0x3) << 4)
 #define APCI3120_CHANLIST_MUX(x)		(((x) & 0xf) << 0)
 #define APCI3120_AO_REG(x)			(0x08 + (((x) / 4) * 2))
@@ -74,19 +74,21 @@
 #define APCI3120_CTR0_DO_BITS(x)		((x) << 4)
 #define APCI3120_CTR0_TIMER_SEL(x)		((x) << 0)
 #define APCI3120_MODE_REG			0x0e
-#define APCI3120_MODE_TIMER2_CLK_OSC		(0 << 6)
-#define APCI3120_MODE_TIMER2_CLK_OUT1		(1 << 6)
-#define APCI3120_MODE_TIMER2_CLK_EOC		(2 << 6)
-#define APCI3120_MODE_TIMER2_CLK_EOS		(3 << 6)
-#define APCI3120_MODE_TIMER2_CLK_MASK		(3 << 6)
-#define APCI3120_MODE_TIMER2_AS_TIMER		(0 << 4)
-#define APCI3120_MODE_TIMER2_AS_COUNTER		(1 << 4)
-#define APCI3120_MODE_TIMER2_AS_WDOG		(2 << 4)
-#define APCI3120_MODE_TIMER2_AS_MASK		(3 << 4)  /* sets AS_TIMER */
-#define APCI3120_MODE_SCAN_ENA			(1 << 3)
-#define APCI3120_MODE_TIMER2_IRQ_ENA		(1 << 2)
-#define APCI3120_MODE_EOS_IRQ_ENA		(1 << 1)
-#define APCI3120_MODE_EOC_IRQ_ENA		(1 << 0)
+#define APCI3120_MODE_TIMER2_CLK(x)		(((x) & 0x3) << 6)
+#define APCI3120_MODE_TIMER2_CLK_OSC		APCI3120_MODE_TIMER2_CLK(0)
+#define APCI3120_MODE_TIMER2_CLK_OUT1		APCI3120_MODE_TIMER2_CLK(1)
+#define APCI3120_MODE_TIMER2_CLK_EOC		APCI3120_MODE_TIMER2_CLK(2)
+#define APCI3120_MODE_TIMER2_CLK_EOS		APCI3120_MODE_TIMER2_CLK(3)
+#define APCI3120_MODE_TIMER2_CLK_MASK		APCI3120_MODE_TIMER2_CLK(3)
+#define APCI3120_MODE_TIMER2_AS(x)		(((x) & 0x3) << 4)
+#define APCI3120_MODE_TIMER2_AS_TIMER		APCI3120_MODE_TIMER2_AS(0)
+#define APCI3120_MODE_TIMER2_AS_COUNTER		APCI3120_MODE_TIMER2_AS(1)
+#define APCI3120_MODE_TIMER2_AS_WDOG		APCI3120_MODE_TIMER2_AS(2)
+#define APCI3120_MODE_TIMER2_AS_MASK		APCI3120_MODE_TIMER2_AS(3)
+#define APCI3120_MODE_SCAN_ENA			BIT(3)
+#define APCI3120_MODE_TIMER2_IRQ_ENA		BIT(2)
+#define APCI3120_MODE_EOS_IRQ_ENA		BIT(1)
+#define APCI3120_MODE_EOC_IRQ_ENA		BIT(0)
 
 /*
  * PCI BAR 2 register map (devpriv->addon)
@@ -94,8 +96,8 @@
 #define APCI3120_ADDON_ADDR_REG			0x00
 #define APCI3120_ADDON_DATA_REG			0x02
 #define APCI3120_ADDON_CTRL_REG			0x04
-#define APCI3120_ADDON_CTRL_AMWEN_ENA		(1 << 1)
-#define APCI3120_ADDON_CTRL_A2P_FIFO_ENA	(1 << 0)
+#define APCI3120_ADDON_CTRL_AMWEN_ENA		BIT(1)
+#define APCI3120_ADDON_CTRL_A2P_FIFO_ENA	BIT(0)
 
 /*
  * Board revisions
@@ -501,11 +503,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
 	if (int_amcc & TARGET_ABORT_INT)
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
-
-	if ((status & APCI3120_STATUS_EOC_INT) == 0 &&
-	    (devpriv->mode & APCI3120_MODE_EOC_IRQ_ENA)) {
-		/* nothing to do... EOC mode is not currently used */
-	}
 
 	if ((status & APCI3120_STATUS_EOS_INT) &&
 	    (devpriv->mode & APCI3120_MODE_EOS_IRQ_ENA)) {
@@ -977,18 +974,18 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct apci3120_board *this_board = NULL;
+	const struct apci3120_board *board = NULL;
 	struct apci3120_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int status;
 	int ret;
 
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
-		this_board = &apci3120_boardtypes[context];
-	if (!this_board)
+		board = &apci3120_boardtypes[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1031,7 +1028,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 16;
-	s->maxdata	= this_board->ai_is_16bit ? 0xffff : 0x0fff;
+	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= &apci3120_ai_range;
 	s->insn_read	= apci3120_ai_insn_read;
 	if (dev->irq) {
@@ -1045,7 +1042,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 8;

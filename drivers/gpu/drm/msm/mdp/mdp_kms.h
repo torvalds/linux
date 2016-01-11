@@ -30,7 +30,8 @@ struct mdp_kms;
 
 struct mdp_kms_funcs {
 	struct msm_kms_funcs base;
-	void (*set_irqmask)(struct mdp_kms *mdp_kms, uint32_t irqmask);
+	void (*set_irqmask)(struct mdp_kms *mdp_kms, uint32_t irqmask,
+		uint32_t old_irqmask);
 };
 
 struct mdp_kms {
@@ -42,6 +43,7 @@ struct mdp_kms {
 	bool in_irq;
 	struct list_head irq_list;    /* list of mdp4_irq */
 	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
+	uint32_t cur_irq_mask;        /* current irq mask */
 };
 #define to_mdp_kms(x) container_of(x, struct mdp_kms, base)
 
@@ -88,14 +90,34 @@ struct mdp_format {
 	uint8_t unpack[4];
 	bool alpha_enable, unpack_tight;
 	uint8_t cpp, unpack_count;
-	enum mdp_sspp_fetch_type fetch_type;
+	enum mdp_fetch_type fetch_type;
 	enum mdp_chroma_samp_type chroma_sample;
+	bool is_yuv;
 };
 #define to_mdp_format(x) container_of(x, struct mdp_format, base)
-#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->chroma_sample > CHROMA_RGB)
+#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->is_yuv)
 
 uint32_t mdp_get_formats(uint32_t *formats, uint32_t max_formats, bool rgb_only);
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format);
+
+/* MDP capabilities */
+#define MDP_CAP_SMP		BIT(0)	/* Shared Memory Pool                 */
+#define MDP_CAP_DSC		BIT(1)	/* VESA Display Stream Compression    */
+#define MDP_CAP_CDM		BIT(2)	/* Chroma Down Module (HDMI 2.0 YUV)  */
+
+/* MDP pipe capabilities */
+#define MDP_PIPE_CAP_HFLIP			BIT(0)
+#define MDP_PIPE_CAP_VFLIP			BIT(1)
+#define MDP_PIPE_CAP_SCALE			BIT(2)
+#define MDP_PIPE_CAP_CSC			BIT(3)
+#define MDP_PIPE_CAP_DECIMATION			BIT(4)
+#define MDP_PIPE_CAP_SW_PIX_EXT			BIT(5)
+
+static inline bool pipe_supports_yuv(uint32_t pipe_caps)
+{
+	return (pipe_caps & MDP_PIPE_CAP_SCALE) &&
+		(pipe_caps & MDP_PIPE_CAP_CSC);
+}
 
 enum csc_type {
 	CSC_RGB2RGB = 0,

@@ -31,16 +31,9 @@
 #include <asm/ucontext.h>
 #include <asm/fpu.h>
 #include <asm/war.h>
-#include <asm/vdso.h>
 #include <asm/dsp.h>
 
 #include "signal-common.h"
-
-static int (*save_fp_context32)(struct sigcontext32 __user *sc);
-static int (*restore_fp_context32)(struct sigcontext32 __user *sc);
-
-extern asmlinkage int _save_fp_context32(struct sigcontext32 __user *sc);
-extern asmlinkage int _restore_fp_context32(struct sigcontext32 __user *sc);
 
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
@@ -74,99 +67,11 @@ struct rt_sigframe32 {
 	struct ucontext32 rs_uc;
 };
 
-/*
- * Thread saved context copy to/from a signal context presumed to be on the
- * user stack, and therefore accessed with appropriate macros from uaccess.h.
- */
-static int copy_fp_to_sigcontext32(struct sigcontext32 __user *sc)
-{
-	int i;
-	int err = 0;
-	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
-
-	for (i = 0; i < NUM_FPU_REGS; i += inc) {
-		err |=
-		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 0),
-			       &sc->sc_fpregs[i]);
-	}
-	err |= __put_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
-
-	return err;
-}
-
-static int copy_fp_from_sigcontext32(struct sigcontext32 __user *sc)
-{
-	int i;
-	int err = 0;
-	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
-	u64 fpr_val;
-
-	for (i = 0; i < NUM_FPU_REGS; i += inc) {
-		err |= __get_user(fpr_val, &sc->sc_fpregs[i]);
-		set_fpr64(&current->thread.fpu.fpr[i], 0, fpr_val);
-	}
-	err |= __get_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
-
-	return err;
-}
-
-/*
- * sigcontext handlers
- */
-static int protected_save_fp_context32(struct sigcontext32 __user *sc)
-{
-	int err;
-	while (1) {
-		lock_fpu_owner();
-		if (is_fpu_owner()) {
-			err = save_fp_context32(sc);
-			unlock_fpu_owner();
-		} else {
-			unlock_fpu_owner();
-			err = copy_fp_to_sigcontext32(sc);
-		}
-		if (likely(!err))
-			break;
-		/* touch the sigcontext and try again */
-		err = __put_user(0, &sc->sc_fpregs[0]) |
-			__put_user(0, &sc->sc_fpregs[31]) |
-			__put_user(0, &sc->sc_fpc_csr);
-		if (err)
-			break;	/* really bad sigcontext */
-	}
-	return err;
-}
-
-static int protected_restore_fp_context32(struct sigcontext32 __user *sc)
-{
-	int err, tmp __maybe_unused;
-	while (1) {
-		lock_fpu_owner();
-		if (is_fpu_owner()) {
-			err = restore_fp_context32(sc);
-			unlock_fpu_owner();
-		} else {
-			unlock_fpu_owner();
-			err = copy_fp_from_sigcontext32(sc);
-		}
-		if (likely(!err))
-			break;
-		/* touch the sigcontext and try again */
-		err = __get_user(tmp, &sc->sc_fpregs[0]) |
-			__get_user(tmp, &sc->sc_fpregs[31]) |
-			__get_user(tmp, &sc->sc_fpc_csr);
-		if (err)
-			break;	/* really bad sigcontext */
-	}
-	return err;
-}
-
 static int setup_sigcontext32(struct pt_regs *regs,
 			      struct sigcontext32 __user *sc)
 {
 	int err = 0;
 	int i;
-	u32 used_math;
 
 	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -186,35 +91,18 @@ static int setup_sigcontext32(struct pt_regs *regs,
 		err |= __put_user(mflo3(), &sc->sc_lo3);
 	}
 
-	used_math = !!used_math();
-	err |= __put_user(used_math, &sc->sc_used_math);
+	/*
+	 * Save FPU state to signal context.  Signal handler
+	 * will "inherit" current FPU state.
+	 */
+	err |= protected_save_fp_context(sc);
 
-	if (used_math) {
-		/*
-		 * Save FPU state to signal context.  Signal handler
-		 * will "inherit" current FPU state.
-		 */
-		err |= protected_save_fp_context32(sc);
-	}
 	return err;
-}
-
-static int
-check_and_restore_fp_context32(struct sigcontext32 __user *sc)
-{
-	int err, sig;
-
-	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
-	if (err > 0)
-		err = 0;
-	err |= protected_restore_fp_context32(sc);
-	return err ?: sig;
 }
 
 static int restore_sigcontext32(struct pt_regs *regs,
 				struct sigcontext32 __user *sc)
 {
-	u32 used_math;
 	int err = 0;
 	s32 treg;
 	int i;
@@ -238,70 +126,7 @@ static int restore_sigcontext32(struct pt_regs *regs,
 	for (i = 1; i < 32; i++)
 		err |= __get_user(regs->regs[i], &sc->sc_regs[i]);
 
-	err |= __get_user(used_math, &sc->sc_used_math);
-	conditional_used_math(used_math);
-
-	if (used_math) {
-		/* restore fpu context if we have used it before */
-		if (!err)
-			err = check_and_restore_fp_context32(sc);
-	} else {
-		/* signal handler may have used FPU.  Give it up. */
-		lose_fpu(0);
-	}
-
-	return err;
-}
-
-/*
- *
- */
-extern void __put_sigset_unknown_nsig(void);
-extern void __get_sigset_unknown_nsig(void);
-
-static inline int put_sigset(const sigset_t *kbuf, compat_sigset_t __user *ubuf)
-{
-	int err = 0;
-
-	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(*ubuf)))
-		return -EFAULT;
-
-	switch (_NSIG_WORDS) {
-	default:
-		__put_sigset_unknown_nsig();
-	case 2:
-		err |= __put_user(kbuf->sig[1] >> 32, &ubuf->sig[3]);
-		err |= __put_user(kbuf->sig[1] & 0xffffffff, &ubuf->sig[2]);
-	case 1:
-		err |= __put_user(kbuf->sig[0] >> 32, &ubuf->sig[1]);
-		err |= __put_user(kbuf->sig[0] & 0xffffffff, &ubuf->sig[0]);
-	}
-
-	return err;
-}
-
-static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
-{
-	int err = 0;
-	unsigned long sig[4];
-
-	if (!access_ok(VERIFY_READ, ubuf, sizeof(*ubuf)))
-		return -EFAULT;
-
-	switch (_NSIG_WORDS) {
-	default:
-		__get_sigset_unknown_nsig();
-	case 2:
-		err |= __get_user(sig[3], &ubuf->sig[3]);
-		err |= __get_user(sig[2], &ubuf->sig[2]);
-		kbuf->sig[1] = sig[2] | (sig[3] << 32);
-	case 1:
-		err |= __get_user(sig[1], &ubuf->sig[1]);
-		err |= __get_user(sig[0], &ubuf->sig[0]);
-		kbuf->sig[0] = sig[0] | (sig[1] << 32);
-	}
-
-	return err;
+	return err ?: protected_restore_fp_context(sc);
 }
 
 /*
@@ -409,8 +234,6 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 
 int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 {
-	memset(to, 0, sizeof *to);
-
 	if (copy_from_user(to, from, 3*sizeof(int)) ||
 	    copy_from_user(to->_sifields._pad,
 			   from->_sifields._pad, SI_PAD_SIZE32))
@@ -582,25 +405,12 @@ static int setup_rt_frame_32(void *sig_return, struct ksignal *ksig,
  */
 struct mips_abi mips_abi_32 = {
 	.setup_frame	= setup_frame_32,
-	.signal_return_offset =
-		offsetof(struct mips_vdso, o32_signal_trampoline),
 	.setup_rt_frame = setup_rt_frame_32,
-	.rt_signal_return_offset =
-		offsetof(struct mips_vdso, o32_rt_signal_trampoline),
-	.restart	= __NR_O32_restart_syscall
+	.restart	= __NR_O32_restart_syscall,
+
+	.off_sc_fpregs = offsetof(struct sigcontext32, sc_fpregs),
+	.off_sc_fpc_csr = offsetof(struct sigcontext32, sc_fpc_csr),
+	.off_sc_used_math = offsetof(struct sigcontext32, sc_used_math),
+
+	.vdso		= &vdso_image_o32,
 };
-
-static int signal32_init(void)
-{
-	if (cpu_has_fpu) {
-		save_fp_context32 = _save_fp_context32;
-		restore_fp_context32 = _restore_fp_context32;
-	} else {
-		save_fp_context32 = copy_fp_to_sigcontext32;
-		restore_fp_context32 = copy_fp_from_sigcontext32;
-	}
-
-	return 0;
-}
-
-arch_initcall(signal32_init);

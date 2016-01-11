@@ -32,6 +32,7 @@
 #include <linux/gfp.h>
 #include <linux/uio.h>
 #include <linux/hugetlb.h>
+#include <linux/page_idle.h>
 
 #include "internal.h"
 
@@ -131,7 +132,6 @@ void put_unrefcounted_compound_page(struct page *page_head, struct page *page)
 		 * here, see the comment above this function.
 		 */
 		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
-		VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
 		if (put_page_testzero(page_head)) {
 			/*
 			 * If this is the tail of a slab THP page,
@@ -201,7 +201,7 @@ out_put_single:
 				__put_single_page(page);
 			return;
 		}
-		VM_BUG_ON_PAGE(page_head != page->first_page, page);
+		VM_BUG_ON_PAGE(page_head != compound_head(page), page);
 		/*
 		 * We can release the refcount taken by
 		 * get_page_unless_zero() now that
@@ -262,7 +262,7 @@ static void put_compound_page(struct page *page)
 	 *  Case 3 is possible, as we may race with
 	 *  __split_huge_page_refcount tearing down a THP page.
 	 */
-	page_head = compound_head_by_tail(page);
+	page_head = compound_head(page);
 	if (!__compound_tail_refcounted(page_head))
 		put_unrefcounted_compound_page(page_head, page);
 	else
@@ -623,6 +623,8 @@ void mark_page_accessed(struct page *page)
 	} else if (!PageReferenced(page)) {
 		SetPageReferenced(page);
 	}
+	if (page_is_idle(page))
+		clear_page_idle(page);
 }
 EXPORT_SYMBOL(mark_page_accessed);
 

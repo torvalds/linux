@@ -184,9 +184,9 @@ unreference:
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
-	.fb_fillrect = sys_fillrect,
-	.fb_copyarea = sys_copyarea,
-	.fb_imageblit = sys_imageblit,
+	.fb_fillrect = drm_fb_helper_sys_fillrect,
+	.fb_copyarea = drm_fb_helper_sys_copyarea,
+	.fb_imageblit = drm_fb_helper_sys_imageblit,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_blank = drm_fb_helper_blank,
@@ -224,11 +224,11 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	info = framebuffer_alloc(0, drm->dev);
-	if (!info) {
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info)) {
 		dev_err(drm->dev, "failed to allocate framebuffer info\n");
 		drm_gem_object_unreference_unlocked(&bo->gem);
-		return -ENOMEM;
+		return PTR_ERR(info);
 	}
 
 	fbdev->fb = tegra_fb_alloc(drm, &cmd, &bo, 1);
@@ -247,12 +247,6 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	info->par = helper;
 	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &tegra_fb_ops;
-
-	err = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (err < 0) {
-		dev_err(drm->dev, "failed to allocate color map: %d\n", err);
-		goto destroy;
-	}
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, helper, fb->width, fb->height);
@@ -282,7 +276,7 @@ destroy:
 	drm_framebuffer_unregister_private(fb);
 	tegra_fb_destroy(fb);
 release:
-	framebuffer_release(info);
+	drm_fb_helper_release_fbi(helper);
 	return err;
 }
 
@@ -347,20 +341,8 @@ fini:
 
 static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
-	struct fb_info *info = fbdev->base.fbdev;
-
-	if (info) {
-		int err;
-
-		err = unregister_framebuffer(info);
-		if (err < 0)
-			DRM_DEBUG_KMS("failed to unregister framebuffer\n");
-
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(&fbdev->base);
+	drm_fb_helper_release_fbi(&fbdev->base);
 
 	if (fbdev->fb) {
 		drm_framebuffer_unregister_private(&fbdev->fb->base);

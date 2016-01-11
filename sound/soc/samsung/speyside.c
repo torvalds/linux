@@ -123,7 +123,7 @@ static void speyside_set_polarity(struct snd_soc_codec *codec,
 	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
 
 	/* Re-run DAPM to make sure we're using the correct mic bias */
-	snd_soc_dapm_sync(&codec->dapm);
+	snd_soc_dapm_sync(snd_soc_codec_get_dapm(codec));
 }
 
 static int speyside_wm0010_init(struct snd_soc_pcm_runtime *rtd)

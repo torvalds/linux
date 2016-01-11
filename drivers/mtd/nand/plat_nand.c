@@ -24,8 +24,6 @@ struct plat_nand_data {
 	void __iomem		*io_base;
 };
 
-static const char *part_probe_types[] = { "cmdlinepart", NULL };
-
 /*
  * Probe for the NAND device.
  */
@@ -61,8 +59,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 
 	data->chip.priv = &data;
 	data->mtd.priv = &data->chip;
-	data->mtd.owner = THIS_MODULE;
-	data->mtd.name = dev_name(&pdev->dev);
+	data->mtd.dev.parent = &pdev->dev;
 
 	data->chip.IO_ADDR_R = data->io_base;
 	data->chip.IO_ADDR_W = data->io_base;
@@ -95,7 +92,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	part_types = pdata->chip.part_probe_types ? : part_probe_types;
+	part_types = pdata->chip.part_probe_types;
 
 	ppdata.of_node = pdev->dev.of_node;
 	err = mtd_device_parse_register(&data->mtd, part_types, &ppdata,

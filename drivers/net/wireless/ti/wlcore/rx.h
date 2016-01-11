@@ -30,6 +30,9 @@
 #define WL1271_RX_MAX_RSSI -30
 #define WL1271_RX_MIN_RSSI -95
 
+#define RSSI_LEVEL_BITMASK	0x7F
+#define ANT_DIVERSITY_BITMASK	BIT(7)
+
 #define SHORT_PREAMBLE_BIT   BIT(0)
 #define OFDM_RATE_BIT        BIT(6)
 #define PBCC_RATE_BIT        BIT(7)

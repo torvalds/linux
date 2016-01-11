@@ -27,6 +27,10 @@
 #include <asm/insn.h>
 #include <linux/stop_machine.h>
 
+#define __ALT_PTR(a,f)		(u32 *)((void *)&(a)->f + (a)->f)
+#define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
+#define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
+
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
 struct alt_region {
@@ -35,56 +39,61 @@ struct alt_region {
 };
 
 /*
- * Decode the imm field of a b/bl instruction, and return the byte
- * offset as a signed value (so it can be used when computing a new
- * branch target).
+ * Check if the target PC is within an alternative block.
  */
-static s32 get_branch_offset(u32 insn)
+static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 {
-	s32 imm = aarch64_insn_decode_immediate(AARCH64_INSN_IMM_26, insn);
+	unsigned long replptr;
 
-	/* sign-extend the immediate before turning it into a byte offset */
-	return (imm << 6) >> 4;
+	if (kernel_text_address(pc))
+		return 1;
+
+	replptr = (unsigned long)ALT_REPL_PTR(alt);
+	if (pc >= replptr && pc <= (replptr + alt->alt_len))
+		return 0;
+
+	/*
+	 * Branching into *another* alternate sequence is doomed, and
+	 * we're not even trying to fix it up.
+	 */
+	BUG();
 }
 
-static u32 get_alt_insn(u8 *insnptr, u8 *altinsnptr)
+static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 {
 	u32 insn;
 
-	aarch64_insn_read(altinsnptr, &insn);
+	insn = le32_to_cpu(*altinsnptr);
 
-	/* Stop the world on instructions we don't support... */
-	BUG_ON(aarch64_insn_is_cbz(insn));
-	BUG_ON(aarch64_insn_is_cbnz(insn));
-	BUG_ON(aarch64_insn_is_bcond(insn));
-	/* ... and there is probably more. */
-
-	if (aarch64_insn_is_b(insn) || aarch64_insn_is_bl(insn)) {
-		enum aarch64_insn_branch_type type;
+	if (aarch64_insn_is_branch_imm(insn)) {
+		s32 offset = aarch64_get_branch_offset(insn);
 		unsigned long target;
 
-		if (aarch64_insn_is_b(insn))
-			type = AARCH64_INSN_BRANCH_NOLINK;
-		else
-			type = AARCH64_INSN_BRANCH_LINK;
+		target = (unsigned long)altinsnptr + offset;
 
-		target = (unsigned long)altinsnptr + get_branch_offset(insn);
-		insn = aarch64_insn_gen_branch_imm((unsigned long)insnptr,
-						   target, type);
+		/*
+		 * If we're branching inside the alternate sequence,
+		 * do not rewrite the instruction, as it is already
+		 * correct. Otherwise, generate the new instruction.
+		 */
+		if (branch_insn_requires_update(alt, target)) {
+			offset = target - (unsigned long)insnptr;
+			insn = aarch64_set_branch_offset(insn, offset);
+		}
 	}
 
 	return insn;
 }
 
-static int __apply_alternatives(void *alt_region)
+static void __apply_alternatives(void *alt_region)
 {
 	struct alt_instr *alt;
 	struct alt_region *region = alt_region;
-	u8 *origptr, *replptr;
+	u32 *origptr, *replptr;
 
 	for (alt = region->begin; alt < region->end; alt++) {
 		u32 insn;
-		int i;
+		int i, nr_inst;
 
 		if (!cpus_have_cap(alt->cpufeature))
 			continue;
@@ -93,30 +102,51 @@ static int __apply_alternatives(void *alt_region)
 
 		pr_info_once("patching kernel code\n");
 
-		origptr = (u8 *)&alt->orig_offset + alt->orig_offset;
-		replptr = (u8 *)&alt->alt_offset + alt->alt_offset;
+		origptr = ALT_ORIG_PTR(alt);
+		replptr = ALT_REPL_PTR(alt);
+		nr_inst = alt->alt_len / sizeof(insn);
 
-		for (i = 0; i < alt->alt_len; i += sizeof(insn)) {
-			insn = get_alt_insn(origptr + i, replptr + i);
-			aarch64_insn_write(origptr + i, insn);
+		for (i = 0; i < nr_inst; i++) {
+			insn = get_alt_insn(alt, origptr + i, replptr + i);
+			*(origptr + i) = cpu_to_le32(insn);
 		}
 
 		flush_icache_range((uintptr_t)origptr,
-				   (uintptr_t)(origptr + alt->alt_len));
+				   (uintptr_t)(origptr + nr_inst));
 	}
-
-	return 0;
 }
 
-void apply_alternatives_all(void)
+/*
+ * We might be patching the stop_machine state machine, so implement a
+ * really simple polling protocol here.
+ */
+static int __apply_alternatives_multi_stop(void *unused)
 {
+	static int patched = 0;
 	struct alt_region region = {
 		.begin	= __alt_instructions,
 		.end	= __alt_instructions_end,
 	};
 
+	/* We always have a CPU 0 at this point (__init) */
+	if (smp_processor_id()) {
+		while (!READ_ONCE(patched))
+			cpu_relax();
+		isb();
+	} else {
+		BUG_ON(patched);
+		__apply_alternatives(&region);
+		/* Barriers provided by the cache flushing */
+		WRITE_ONCE(patched, 1);
+	}
+
+	return 0;
+}
+
+void __init apply_alternatives_all(void)
+{
 	/* better not try code patching on a live SMP system */
-	stop_machine(__apply_alternatives, &region, NULL);
+	stop_machine(__apply_alternatives_multi_stop, NULL, cpu_online_mask);
 }
 
 void apply_alternatives(void *start, size_t length)

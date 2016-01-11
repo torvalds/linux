@@ -356,9 +356,9 @@ struct ndis_80211_pmkid {
 #define CAP_MODE_80211G		4
 #define CAP_MODE_MASK		7
 
-#define WORK_LINK_UP		(1<<0)
-#define WORK_LINK_DOWN		(1<<1)
-#define WORK_SET_MULTICAST_LIST	(1<<2)
+#define WORK_LINK_UP		0
+#define WORK_LINK_DOWN		1
+#define WORK_SET_MULTICAST_LIST	2
 
 #define RNDIS_WLAN_ALG_NONE	0
 #define RNDIS_WLAN_ALG_WEP	(1<<0)
@@ -1236,7 +1236,7 @@ static int set_rts_threshold(struct usbnet *usbdev, u32 rts_threshold)
 
 	netdev_dbg(usbdev->net, "%s(): %i\n", __func__, rts_threshold);
 
-	if (rts_threshold < 0 || rts_threshold > 2347)
+	if (rts_threshold == -1 || rts_threshold > 2347)
 		rts_threshold = 2347;
 
 	tmp = cpu_to_le32(rts_threshold);
@@ -2861,7 +2861,7 @@ static void rndis_wlan_do_link_down_work(struct usbnet *usbdev)
 
 		deauthenticate(usbdev);
 
-		cfg80211_disconnected(usbdev->net, 0, NULL, 0, GFP_KERNEL);
+		cfg80211_disconnected(usbdev->net, 0, NULL, 0, true, GFP_KERNEL);
 	}
 
 	netif_carrier_off(usbdev->net);

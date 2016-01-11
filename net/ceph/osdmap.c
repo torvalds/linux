@@ -89,7 +89,7 @@ static int crush_decode_tree_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_tree_bucket %p to %p\n", *p, end);
-	ceph_decode_32_safe(p, end, b->num_nodes, bad);
+	ceph_decode_8_safe(p, end, b->num_nodes, bad);
 	b->node_weights = kcalloc(b->num_nodes, sizeof(u32), GFP_NOFS);
 	if (b->node_weights == NULL)
 		return -ENOMEM;
@@ -1300,7 +1300,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		ceph_decode_addr(&addr);
 		pr_info("osd%d up\n", osd);
 		BUG_ON(osd >= map->max_osd);
-		map->osd_state[osd] |= CEPH_OSD_UP;
+		map->osd_state[osd] |= CEPH_OSD_UP | CEPH_OSD_EXISTS;
 		map->osd_addr[osd] = addr;
 	}
 

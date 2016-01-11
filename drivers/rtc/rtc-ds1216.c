@@ -144,15 +144,13 @@ static int __init ds1216_rtc_probe(struct platform_device *pdev)
 	struct ds1216_priv *priv;
 	u8 dummy[8];
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, priv);
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->ioaddr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->ioaddr))
 		return PTR_ERR(priv->ioaddr);

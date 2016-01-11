@@ -21,6 +21,7 @@
 #include <drm/drm_fb_helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
 
@@ -102,7 +103,8 @@ static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 	return NULL;
 }
 
-static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
+static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev,
+					   unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -114,7 +116,8 @@ static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
+static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
+					     unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -276,7 +279,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
 	.lastclose		= rockchip_drm_lastclose,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
 	.disable_vblank		= rockchip_drm_crtc_disable_vblank,
 	.gem_vm_ops		= &rockchip_drm_vm_ops,
@@ -554,7 +557,6 @@ static struct platform_driver rockchip_drm_platform_driver = {
 	.probe = rockchip_drm_platform_probe,
 	.remove = rockchip_drm_platform_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "rockchip-drm",
 		.of_match_table = rockchip_drm_dt_ids,
 		.pm = &rockchip_drm_pm_ops,

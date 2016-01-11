@@ -116,9 +116,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	 * the VM has canceled the dirty bit (eg ext3 journaling).
 	 * Hence dirty accounting check is placed after invalidation.
 	 */
-	if (TestClearPageDirty(page))
-		account_page_cleaned(page, mapping);
-
+	cancel_dirty_page(page);
 	ClearPageMappedToDisk(page);
 	delete_from_page_cache(page);
 	return 0;
@@ -512,19 +510,24 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
 static int
 invalidate_complete_page2(struct address_space *mapping, struct page *page)
 {
+	struct mem_cgroup *memcg;
+	unsigned long flags;
+
 	if (page->mapping != mapping)
 		return 0;
 
 	if (page_has_private(page) && !try_to_release_page(page, GFP_KERNEL))
 		return 0;
 
-	spin_lock_irq(&mapping->tree_lock);
+	memcg = mem_cgroup_begin_page_stat(page);
+	spin_lock_irqsave(&mapping->tree_lock, flags);
 	if (PageDirty(page))
 		goto failed;
 
 	BUG_ON(page_has_private(page));
-	__delete_from_page_cache(page, NULL);
-	spin_unlock_irq(&mapping->tree_lock);
+	__delete_from_page_cache(page, NULL, memcg);
+	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+	mem_cgroup_end_page_stat(memcg);
 
 	if (mapping->a_ops->freepage)
 		mapping->a_ops->freepage(page);
@@ -532,7 +535,8 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	page_cache_release(page);	/* pagecache ref */
 	return 1;
 failed:
-	spin_unlock_irq(&mapping->tree_lock);
+	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+	mem_cgroup_end_page_stat(memcg);
 	return 0;
 }
 

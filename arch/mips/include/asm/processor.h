@@ -36,12 +36,6 @@ extern unsigned int vced_count, vcei_count;
  */
 #define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 
-/*
- * A special page (the vdso) is mapped into all processes at the very
- * top of the virtual memory space.
- */
-#define SPECIAL_PAGES_SIZE PAGE_SIZE
-
 #ifdef CONFIG_32BIT
 #ifdef CONFIG_KVM_GUEST
 /* User space process size is limited to 1GB in KVM Guest Mode */
@@ -80,7 +74,7 @@ extern unsigned int vced_count, vcei_count;
 
 #endif
 
-#define STACK_TOP	((TASK_SIZE & PAGE_MASK) - SPECIAL_PAGES_SIZE)
+#define STACK_TOP	(TASK_SIZE & PAGE_MASK)
 
 /*
  * This decides where the kernel will search for a free chunk of vm
@@ -275,6 +269,7 @@ struct thread_struct {
 	unsigned long cp0_badvaddr;	/* Last user fault */
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
+	unsigned long trap_nr;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
 	struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
@@ -341,6 +336,7 @@ struct thread_struct {
 	.cp0_badvaddr		= 0,				\
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
+	.trap_nr		= 0,				\
 	/*							\
 	 * Platform specific cop2 registers(null if no COP2)	\
 	 */							\

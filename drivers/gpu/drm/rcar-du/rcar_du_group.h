@@ -25,9 +25,12 @@ struct rcar_du_device;
  * @dev: the DU device
  * @mmio_offset: registers offset in the device memory map
  * @index: group index
+ * @num_crtcs: number of CRTCs in this group (1 or 2)
  * @use_count: number of users of the group (rcar_du_group_(get|put))
  * @used_crtcs: number of CRTCs currently in use
- * @lock: protects the DPTSR register
+ * @lock: protects the dptsr_planes field and the DPTSR register
+ * @dptsr_planes: bitmask of planes driven by dot-clock and timing generator 1
+ * @num_planes: number of planes in the group
  * @planes: planes handled by the group
  */
 struct rcar_du_group {
@@ -35,12 +38,15 @@ struct rcar_du_group {
 	unsigned int mmio_offset;
 	unsigned int index;
 
+	unsigned int num_crtcs;
 	unsigned int use_count;
 	unsigned int used_crtcs;
 
 	struct mutex lock;
+	unsigned int dptsr_planes;
 
-	struct rcar_du_planes planes;
+	unsigned int num_planes;
+	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
 };
 
 u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg);

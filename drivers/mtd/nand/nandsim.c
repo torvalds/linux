@@ -729,8 +729,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	/* Fill the partition_info structure */
 	if (parts_num > ARRAY_SIZE(ns->partitions)) {
 		NS_ERR("too many partitions.\n");
-		ret = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 	remains = ns->geom.totsz;
 	next_offset = 0;
@@ -739,10 +738,13 @@ static int init_nandsim(struct mtd_info *mtd)
 
 		if (!part_sz || part_sz > remains) {
 			NS_ERR("bad partition size.\n");
-			ret = -EINVAL;
-			goto error;
+			return -EINVAL;
 		}
 		ns->partitions[i].name   = get_partition_name(i);
+		if (!ns->partitions[i].name) {
+			NS_ERR("unable to allocate memory.\n");
+			return -ENOMEM;
+		}
 		ns->partitions[i].offset = next_offset;
 		ns->partitions[i].size   = part_sz;
 		next_offset += ns->partitions[i].size;
@@ -752,10 +754,13 @@ static int init_nandsim(struct mtd_info *mtd)
 	if (remains) {
 		if (parts_num + 1 > ARRAY_SIZE(ns->partitions)) {
 			NS_ERR("too many partitions.\n");
-			ret = -EINVAL;
-			goto error;
+			return -EINVAL;
 		}
 		ns->partitions[i].name   = get_partition_name(i);
+		if (!ns->partitions[i].name) {
+			NS_ERR("unable to allocate memory.\n");
+			return -ENOMEM;
+		}
 		ns->partitions[i].offset = next_offset;
 		ns->partitions[i].size   = remains;
 		ns->nbparts += 1;
@@ -782,24 +787,18 @@ static int init_nandsim(struct mtd_info *mtd)
 	printk("options: %#x\n",                ns->options);
 
 	if ((ret = alloc_device(ns)) != 0)
-		goto error;
+		return ret;
 
 	/* Allocate / initialize the internal buffer */
 	ns->buf.byte = kmalloc(ns->geom.pgszoob, GFP_KERNEL);
 	if (!ns->buf.byte) {
 		NS_ERR("init_nandsim: unable to allocate %u bytes for the internal buffer\n",
 			ns->geom.pgszoob);
-		ret = -ENOMEM;
-		goto error;
+		return -ENOMEM;
 	}
 	memset(ns->buf.byte, 0xFF, ns->geom.pgszoob);
 
 	return 0;
-
-error:
-	free_device(ns);
-
-	return ret;
 }
 
 /*

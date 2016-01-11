@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -62,7 +63,7 @@ int fsl_ifc_find(phys_addr_t addr_base)
 		return -ENODEV;
 
 	for (i = 0; i < fsl_ifc_ctrl_dev->banks; i++) {
-		u32 cspr = in_be32(&fsl_ifc_ctrl_dev->regs->cspr_cs[i].cspr);
+		u32 cspr = ifc_in32(&fsl_ifc_ctrl_dev->regs->cspr_cs[i].cspr);
 		if (cspr & CSPR_V && (cspr & CSPR_BA) ==
 				convert_ifc_address(addr_base))
 			return i;
@@ -79,16 +80,16 @@ static int fsl_ifc_ctrl_init(struct fsl_ifc_ctrl *ctrl)
 	/*
 	 * Clear all the common status and event registers
 	 */
-	if (in_be32(&ifc->cm_evter_stat) & IFC_CM_EVTER_STAT_CSER)
-		out_be32(&ifc->cm_evter_stat, IFC_CM_EVTER_STAT_CSER);
+	if (ifc_in32(&ifc->cm_evter_stat) & IFC_CM_EVTER_STAT_CSER)
+		ifc_out32(IFC_CM_EVTER_STAT_CSER, &ifc->cm_evter_stat);
 
 	/* enable all error and events */
-	out_be32(&ifc->cm_evter_en, IFC_CM_EVTER_EN_CSEREN);
+	ifc_out32(IFC_CM_EVTER_EN_CSEREN, &ifc->cm_evter_en);
 
 	/* enable all error and event interrupts */
-	out_be32(&ifc->cm_evter_intr_en, IFC_CM_EVTER_INTR_EN_CSERIREN);
-	out_be32(&ifc->cm_erattr0, 0x0);
-	out_be32(&ifc->cm_erattr1, 0x0);
+	ifc_out32(IFC_CM_EVTER_INTR_EN_CSERIREN, &ifc->cm_evter_intr_en);
+	ifc_out32(0x0, &ifc->cm_erattr0);
+	ifc_out32(0x0, &ifc->cm_erattr1);
 
 	return 0;
 }
@@ -127,9 +128,9 @@ static u32 check_nand_stat(struct fsl_ifc_ctrl *ctrl)
 
 	spin_lock_irqsave(&nand_irq_lock, flags);
 
-	stat = in_be32(&ifc->ifc_nand.nand_evter_stat);
+	stat = ifc_in32(&ifc->ifc_nand.nand_evter_stat);
 	if (stat) {
-		out_be32(&ifc->ifc_nand.nand_evter_stat, stat);
+		ifc_out32(stat, &ifc->ifc_nand.nand_evter_stat);
 		ctrl->nand_stat = stat;
 		wake_up(&ctrl->nand_wait);
 	}
@@ -161,16 +162,16 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 	irqreturn_t ret = IRQ_NONE;
 
 	/* read for chip select error */
-	cs_err = in_be32(&ifc->cm_evter_stat);
+	cs_err = ifc_in32(&ifc->cm_evter_stat);
 	if (cs_err) {
 		dev_err(ctrl->dev, "transaction sent to IFC is not mapped to"
 				"any memory bank 0x%08X\n", cs_err);
 		/* clear the chip select error */
-		out_be32(&ifc->cm_evter_stat, IFC_CM_EVTER_STAT_CSER);
+		ifc_out32(IFC_CM_EVTER_STAT_CSER, &ifc->cm_evter_stat);
 
 		/* read error attribute registers print the error information */
-		status = in_be32(&ifc->cm_erattr0);
-		err_addr = in_be32(&ifc->cm_erattr1);
+		status = ifc_in32(&ifc->cm_erattr0);
+		err_addr = ifc_in32(&ifc->cm_erattr1);
 
 		if (status & IFC_CM_ERATTR0_ERTYP_READ)
 			dev_err(ctrl->dev, "Read transaction error"
@@ -229,6 +230,23 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "failed to get memory region\n");
 		ret = -ENODEV;
 		goto err;
+	}
+
+	version = ifc_in32(&fsl_ifc_ctrl_dev->regs->ifc_rev) &
+			FSL_IFC_VERSION_MASK;
+	banks = (version == FSL_IFC_VERSION_1_0_0) ? 4 : 8;
+	dev_info(&dev->dev, "IFC version %d.%d, %d banks\n",
+		version >> 24, (version >> 16) & 0xf, banks);
+
+	fsl_ifc_ctrl_dev->version = version;
+	fsl_ifc_ctrl_dev->banks = banks;
+
+	if (of_property_read_bool(dev->dev.of_node, "little-endian")) {
+		fsl_ifc_ctrl_dev->little_endian = true;
+		dev_dbg(&dev->dev, "IFC REGISTERS are LITTLE endian\n");
+	} else {
+		fsl_ifc_ctrl_dev->little_endian = false;
+		dev_dbg(&dev->dev, "IFC REGISTERS are BIG endian\n");
 	}
 
 	version = ioread32be(&fsl_ifc_ctrl_dev->regs->ifc_rev) &

@@ -94,7 +94,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm, dm_block_t b,
 			  struct dm_block_validator *v,
 			  struct dm_block **result);
 
-int dm_bm_unlock(struct dm_block *b);
+void dm_bm_unlock(struct dm_block *b);
 
 /*
  * It's a common idiom to have a superblock that should be committed last.
@@ -123,6 +123,7 @@ void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b);
  * Additionally you should not use dm_bm_unlock_move, however no error will
  * be returned if you do.
  */
+bool dm_bm_is_read_only(struct dm_block_manager *bm);
 void dm_bm_set_read_only(struct dm_block_manager *bm);
 void dm_bm_set_read_write(struct dm_block_manager *bm);
 

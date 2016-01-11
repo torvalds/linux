@@ -64,12 +64,6 @@ static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
 }
 
-static void rt_set_mode(enum clock_event_mode mode,
-		struct clock_event_device *evt)
-{
-	/* Nothing to do ...  */
-}
-
 unsigned int rt_timer_irq;
 
 static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
@@ -124,7 +118,6 @@ void hub_rt_clock_event_init(void)
 	cd->irq			= irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= rt_next_event;
-	cd->set_mode		= rt_set_mode;
 	clockevents_register_device(cd);
 }
 

@@ -39,17 +39,11 @@
 #include <linux/hash.h>
 #include <linux/ratelimit.h>
 #include <asm/unaligned.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
-#include <target/configfs_macros.h>
 
 #include "tcm_fc.h"
 

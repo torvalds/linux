@@ -11,10 +11,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
 
@@ -57,18 +53,19 @@
  *
  *
  * 802.11 frame_control for data frames - 2 bytes
- *      ,-----------------------------------------------------------------------------------------.
- * bits | 0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  a  |  b  |  c  |  d  |  e   |
- *      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
- * val  | 0  |  0  |  0  |  1  |  x  |  0  |  0  |  0  |  1  |  0  |  x  |  x  |  x  |  x  |  x   |
- *      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
- * desc | ^-ver-^  |  ^type-^  |  ^-----subtype-----^  | to  |from |more |retry| pwr |more |wep   |
- *      |          |           | x=0 data,x=1 data+ack | DS  | DS  |frag |     | mgm |data |      |
- *      '-----------------------------------------------------------------------------------------'
- *                                                   /\
- *                                                   |
- * 802.11 Data Frame                                 |
- *          ,--------- 'ctrl' expands to >-----------'
+ *      ,--------------------------------------------------------------------.
+ * bits | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |  9 |  a |  b  |  c  |  d  | e  |
+ *      |---|---|---|---|---|---|---|---|---|----|----|-----|-----|-----|----|
+ * val  | 0 | 0 | 0 | 1 | x | 0 | 0 | 0 | 1 |  0 |  x |  x  |  x  |  x  | x  |
+ *      |---|---|---|---|---|---|---|---|---|----|----|-----|-----|-----|----|
+ * desc |  ver  | type  |  ^-subtype-^  |to |from|more|retry| pwr |more |wep |
+ *      |       |       | x=0 data      |DS | DS |frag|     | mgm |data |    |
+ *      |       |       | x=1 data+ack  |   |    |    |     |     |     |    |
+ *      '--------------------------------------------------------------------'
+ *                                           /\
+ *                                           |
+ * 802.11 Data Frame                         |
+ *          ,--------- 'ctrl' expands to >---'
  *          |
  *       ,--'---,-------------------------------------------------------------.
  * Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
@@ -112,15 +109,15 @@
  *       `-----------------------------------------'
  * Total: 18 non-data bytes
  *
- * In the event that fragmentation is required, the incoming payload is split into
- * N parts of size ieee->fts.  The first fragment contains the SNAP header and the
- * remaining packets are just data.
+ * In the event that fragmentation is required, the incoming payload is split
+ * into N parts of size ieee->fts.  The first fragment contains the SNAP header
+ * and the remaining packets are just data.
  *
- * If encryption is enabled, each fragment payload size is reduced by enough space
- * to add the prefix and postfix (IV and ICV totalling 8 bytes in the case of WEP)
- * So if you have 1500 bytes of payload with ieee->fts set to 500 without
- * encryption it will take 3 frames.  With WEP it will take 4 frames as the
- * payload of each frame is reduced to 492 bytes.
+ * If encryption is enabled, each fragment payload size is reduced by enough
+ * space to add the prefix and postfix (IV and ICV totalling 8 bytes in
+ * the case of WEP) So if you have 1500 bytes of payload with ieee->fts set to
+ * 500 without encryption it will take 3 frames.  With WEP it will take 4 frames
+ * as the payload of each frame is reduced to 492 bytes.
  *
  * SKB visualization
  *
@@ -150,7 +147,7 @@
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-inline int rtllib_put_snap(u8 *data, u16 h_proto)
+static int rtllib_put_snap(u8 *data, u16 h_proto)
 {
 	struct rtllib_snap_hdr *snap;
 	u8 *oui;
@@ -204,7 +201,6 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	if (res < 0) {
 		netdev_info(ieee->dev, "%s: Encryption failed: len=%d.\n",
 			    ieee->dev->name, frag->len);
-		ieee->ieee_stats.tx_discards++;
 		return -1;
 	}
 
@@ -260,7 +256,10 @@ static int rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_classify(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	ip = ip_hdr(skb);
 	switch (ip->tos & 0xfc) {
 	case 0x20:
@@ -484,7 +483,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
 	if (ieee->iw_mode == IW_MODE_MASTER)
-			goto NO_PROTECTION;
+		goto NO_PROTECTION;
 	return;
 NO_PROTECTION:
 	tcb_desc->bRTSEnable	= false;
@@ -511,8 +510,8 @@ static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 	}
 }
 
-u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
-			u8 *dst)
+static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
+			       u8 *dst)
 {
 	u16 seqnum = 0;
 
@@ -562,7 +561,7 @@ static u8 rtllib_current_rate(struct rtllib_device *ieee)
 		return ieee->rate & 0x7F;
 }
 
-int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
+static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)
 				     netdev_priv_rsl(dev);
@@ -579,8 +578,9 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		.seq_ctl = 0,
 		.qos_ctl = 0
 	};
-	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	int qos_actived = ieee->current_network.qos_data.active;
+	u8 dest[ETH_ALEN];
+	u8 src[ETH_ALEN];
 	struct lib80211_crypt_data *crypt = NULL;
 	struct cb_desc *tcb_desc;
 	u8 bIsMulticast = false;
@@ -608,8 +608,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			goto success;
 		}
 		/* Save source and destination addresses */
-		memcpy(dest, skb->data, ETH_ALEN);
-		memcpy(src, skb->data+ETH_ALEN, ETH_ALEN);
+		ether_addr_copy(dest, skb->data);
+		ether_addr_copy(src, skb->data + ETH_ALEN);
 
 		memset(skb->cb, 0, sizeof(skb->cb));
 		ether_type = ntohs(((struct ethhdr *)skb->data)->h_proto);
@@ -631,10 +631,10 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (skb->len > 282) {
-			if (ETH_P_IP == ether_type) {
+			if (ether_type == ETH_P_IP) {
 				const struct iphdr *ip = (struct iphdr *)
 					((u8 *)skb->data+14);
-				if (IPPROTO_UDP == ip->protocol) {
+				if (ip->protocol == IPPROTO_UDP) {
 					struct udphdr *udp;
 
 					udp = (struct udphdr *)((u8 *)ip +
@@ -647,7 +647,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 						ieee->LPSDelayCnt = 200;
 					}
 				}
-			} else if (ETH_P_ARP == ether_type) {
+			} else if (ether_type == ETH_P_ARP) {
 				netdev_info(ieee->dev,
 					    "=================>DHCP Protocol start tx ARP pkt!!\n");
 				bdhcp = true;
@@ -669,8 +669,9 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			struct eapol *eap = (struct eapol *)(skb->data +
 				sizeof(struct ethhdr) - SNAP_SIZE -
 				sizeof(u16));
-			RTLLIB_DEBUG_EAP("TX: IEEE 802.11 EAPOL frame: %s\n",
-				eap_get_type(eap->type));
+			netdev_dbg(ieee->dev,
+				   "TX: IEEE 802.11 EAPOL frame: %s\n",
+				   eap_get_type(eap->type));
 		}
 
 		/* Advance the SKB to the start of the payload */
@@ -694,22 +695,22 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			/* To DS: Addr1 = BSSID, Addr2 = SA,
 			 * Addr3 = DA
 			 */
-			memcpy(&header.addr1, ieee->current_network.bssid,
-			       ETH_ALEN);
-			memcpy(&header.addr2, &src, ETH_ALEN);
+			ether_addr_copy(header.addr1,
+					ieee->current_network.bssid);
+			ether_addr_copy(header.addr2, src);
 			if (IsAmsdu)
-				memcpy(&header.addr3,
-				       ieee->current_network.bssid, ETH_ALEN);
+				ether_addr_copy(header.addr3,
+						ieee->current_network.bssid);
 			else
-				memcpy(&header.addr3, &dest, ETH_ALEN);
+				ether_addr_copy(header.addr3, dest);
 		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
 			/* not From/To DS: Addr1 = DA, Addr2 = SA,
 			 * Addr3 = BSSID
 			 */
-			memcpy(&header.addr1, dest, ETH_ALEN);
-			memcpy(&header.addr2, src, ETH_ALEN);
-			memcpy(&header.addr3, ieee->current_network.bssid,
-			       ETH_ALEN);
+			ether_addr_copy(header.addr1, dest);
+			ether_addr_copy(header.addr2, src);
+			ether_addr_copy(header.addr3,
+					ieee->current_network.bssid);
 		}
 
 		bIsMulticast = is_multicast_ether_addr(header.addr1);

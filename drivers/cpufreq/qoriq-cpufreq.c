@@ -27,11 +27,11 @@
 
 /**
  * struct cpu_data
- * @parent: the parent node of cpu clock
+ * @pclk: the parent clock of cpu
  * @table: frequency table
  */
 struct cpu_data {
-	struct device_node *parent;
+	struct clk **pclk;
 	struct cpufreq_frequency_table *table;
 };
 
@@ -196,7 +196,7 @@ static void freq_table_sort(struct cpufreq_frequency_table *freq_table,
 
 static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct device_node *np;
+	struct device_node *np, *pnode;
 	int i, count, ret;
 	u32 freq, mask;
 	struct clk *clk;
@@ -219,17 +219,23 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto err_nomem2;
 	}
 
-	data->parent = of_parse_phandle(np, "clocks", 0);
-	if (!data->parent) {
+	pnode = of_parse_phandle(np, "clocks", 0);
+	if (!pnode) {
 		pr_err("%s: could not get clock information\n", __func__);
 		goto err_nomem2;
 	}
 
-	count = of_property_count_strings(data->parent, "clock-names");
+	count = of_property_count_strings(pnode, "clock-names");
+	data->pclk = kcalloc(count, sizeof(struct clk *), GFP_KERNEL);
+	if (!data->pclk) {
+		pr_err("%s: no memory\n", __func__);
+		goto err_node;
+	}
+
 	table = kcalloc(count + 1, sizeof(*table), GFP_KERNEL);
 	if (!table) {
 		pr_err("%s: no memory\n", __func__);
-		goto err_node;
+		goto err_pclk;
 	}
 
 	if (fmask)
@@ -238,7 +244,8 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		mask = 0x0;
 
 	for (i = 0; i < count; i++) {
-		clk = of_clk_get(data->parent, i);
+		clk = of_clk_get(pnode, i);
+		data->pclk[i] = clk;
 		freq = clk_get_rate(clk);
 		/*
 		 * the clock is valid if its frequency is not masked
@@ -273,13 +280,16 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = u64temp + 1;
 
 	of_node_put(np);
+	of_node_put(pnode);
 
 	return 0;
 
 err_nomem1:
 	kfree(table);
+err_pclk:
+	kfree(data->pclk);
 err_node:
-	of_node_put(data->parent);
+	of_node_put(pnode);
 err_nomem2:
 	policy->driver_data = NULL;
 	kfree(data);
@@ -293,7 +303,7 @@ static int __exit qoriq_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct cpu_data *data = policy->driver_data;
 
-	of_node_put(data->parent);
+	kfree(data->pclk);
 	kfree(data->table);
 	kfree(data);
 	policy->driver_data = NULL;
@@ -307,7 +317,7 @@ static int qoriq_cpufreq_target(struct cpufreq_policy *policy,
 	struct clk *parent;
 	struct cpu_data *data = policy->driver_data;
 
-	parent = of_clk_get(data->parent, data->table[index].driver_data);
+	parent = data->pclk[data->table[index].driver_data];
 	return clk_set_parent(policy->clk, parent);
 }
 

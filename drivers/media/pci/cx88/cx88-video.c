@@ -370,7 +370,7 @@ static int start_video_dma(struct cx8800_dev    *dev,
 
 	/* reset counter */
 	cx_write(MO_VIDY_GPCNTRL,GP_COUNT_CONTROL_RESET);
-	q->count = 1;
+	q->count = 0;
 
 	/* enable irqs */
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_VIDINT);
@@ -410,7 +410,6 @@ static int stop_video_dma(struct cx8800_dev    *dev)
 	cx_clear(MO_VID_INTMSK, 0x0f0011);
 	return 0;
 }
-#endif
 
 static int restart_video_queue(struct cx8800_dev    *dev,
 			       struct cx88_dmaqueue *q)
@@ -421,17 +420,16 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 	if (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, list);
 		dprintk(2,"restart_queue [%p/%d]: restart dma\n",
-			buf, buf->vb.v4l2_buf.index);
+			buf, buf->vb.vb2_buf.index);
 		start_video_dma(dev, q, buf);
-		list_for_each_entry(buf, &q->active, list)
-			buf->count = q->count++;
 	}
 	return 0;
 }
+#endif
 
 /* ------------------------------------------------------------------ */
 
-static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *q, const void *parg,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -446,9 +444,10 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 
 static int buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_core *core = dev->core;
-	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_buffer *buf = container_of(vbuf, struct cx88_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
 	buf->bpl = core->width * dev->fmt->depth >> 3;
@@ -491,7 +490,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 		break;
 	}
 	dprintk(2,"[%p/%d] buffer_prepare - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
-		buf, buf->vb.v4l2_buf.index,
+		buf, buf->vb.vb2_buf.index,
 		core->width, core->height, dev->fmt->depth, dev->fmt->name,
 		(unsigned long)buf->risc.dma);
 	return 0;
@@ -499,8 +498,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 static void buffer_finish(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
-	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_buffer *buf = container_of(vbuf, struct cx88_buffer, vb);
 	struct cx88_riscmem *risc = &buf->risc;
 
 	if (risc->cpu)
@@ -510,8 +510,9 @@ static void buffer_finish(struct vb2_buffer *vb)
 
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
-	struct cx88_buffer    *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_buffer    *buf = container_of(vbuf, struct cx88_buffer, vb);
 	struct cx88_buffer    *prev;
 	struct cx88_core      *core = dev->core;
 	struct cx88_dmaqueue  *q    = &dev->vidq;
@@ -523,18 +524,16 @@ static void buffer_queue(struct vb2_buffer *vb)
 
 	if (list_empty(&q->active)) {
 		list_add_tail(&buf->list, &q->active);
-		buf->count    = q->count++;
 		dprintk(2,"[%p/%d] buffer_queue - first active\n",
-			buf, buf->vb.v4l2_buf.index);
+			buf, buf->vb.vb2_buf.index);
 
 	} else {
 		buf->risc.cpu[0] |= cpu_to_le32(RISC_IRQ1);
 		prev = list_entry(q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &q->active);
-		buf->count    = q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk(2, "[%p/%d] buffer_queue - append to active\n",
-			buf, buf->vb.v4l2_buf.index);
+			buf, buf->vb.vb2_buf.index);
 	}
 }
 
@@ -564,7 +563,7 @@ static void stop_streaming(struct vb2_queue *q)
 			struct cx88_buffer, list);
 
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
@@ -771,6 +770,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
 }
@@ -1314,9 +1314,9 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 
 	pci_set_master(pci_dev);
-	if (!pci_dma_supported(pci_dev,DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(pci_dev,DMA_BIT_MASK(32));
+	if (err) {
 		printk("%s/0: Oops: no 32bit PCI DMA ???\n",core->name);
-		err = -EIO;
 		goto fail_core;
 	}
 	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);

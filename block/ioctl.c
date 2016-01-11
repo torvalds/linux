@@ -7,6 +7,7 @@
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/blktrace_api.h>
+#include <linux/pr.h>
 #include <asm/uaccess.h>
 
 static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user *arg)
@@ -150,26 +151,63 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	}
 }
 
-static int blkdev_reread_part(struct block_device *bdev)
+/*
+ * This is an exported API for the block driver, and will not
+ * acquire bd_mutex. This API should be used in case that
+ * caller has held bd_mutex already.
+ */
+int __blkdev_reread_part(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int res;
 
 	if (!disk_part_scan_enabled(disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	if (!mutex_trylock(&bdev->bd_mutex))
-		return -EBUSY;
-	res = rescan_partitions(disk, bdev);
+
+	lockdep_assert_held(&bdev->bd_mutex);
+
+	return rescan_partitions(disk, bdev);
+}
+EXPORT_SYMBOL(__blkdev_reread_part);
+
+/*
+ * This is an exported API for the block driver, and will
+ * try to acquire bd_mutex. If bd_mutex has been held already
+ * in current context, please call __blkdev_reread_part().
+ *
+ * Make sure the held locks in current context aren't required
+ * in open()/close() handler and I/O path for avoiding ABBA deadlock:
+ * - bd_mutex is held before calling block driver's open/close
+ *   handler
+ * - reading partition table may submit I/O to the block device
+ */
+int blkdev_reread_part(struct block_device *bdev)
+{
+	int res;
+
+	mutex_lock(&bdev->bd_mutex);
+	res = __blkdev_reread_part(bdev);
 	mutex_unlock(&bdev->bd_mutex);
+
 	return res;
 }
+EXPORT_SYMBOL(blkdev_reread_part);
 
-static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
-			     uint64_t len, int secure)
+static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
+		unsigned long arg, unsigned long flags)
 {
-	unsigned long flags = 0;
+	uint64_t range[2];
+	uint64_t start, len;
+
+	if (!(mode & FMODE_WRITE))
+		return -EBADF;
+
+	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
+		return -EFAULT;
+
+	start = range[0];
+	len = range[1];
 
 	if (start & 511)
 		return -EINVAL;
@@ -180,14 +218,24 @@ static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 
 	if (start + len > (i_size_read(bdev->bd_inode) >> 9))
 		return -EINVAL;
-	if (secure)
-		flags |= BLKDEV_DISCARD_SECURE;
 	return blkdev_issue_discard(bdev, start, len, GFP_KERNEL, flags);
 }
 
-static int blk_ioctl_zeroout(struct block_device *bdev, uint64_t start,
-			     uint64_t len)
+static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
+		unsigned long arg)
 {
+	uint64_t range[2];
+	uint64_t start, len;
+
+	if (!(mode & FMODE_WRITE))
+		return -EBADF;
+
+	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
+		return -EFAULT;
+
+	start = range[0];
+	len = range[1];
+
 	if (start & 511)
 		return -EINVAL;
 	if (len & 511)
@@ -248,6 +296,96 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
  */
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
 
+static int blkdev_pr_register(struct block_device *bdev,
+		struct pr_registration __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_registration reg;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_register)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&reg, arg, sizeof(reg)))
+		return -EFAULT;
+
+	if (reg.flags & ~PR_FL_IGNORE_KEY)
+		return -EOPNOTSUPP;
+	return ops->pr_register(bdev, reg.old_key, reg.new_key, reg.flags);
+}
+
+static int blkdev_pr_reserve(struct block_device *bdev,
+		struct pr_reservation __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_reservation rsv;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_reserve)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&rsv, arg, sizeof(rsv)))
+		return -EFAULT;
+
+	if (rsv.flags & ~PR_FL_IGNORE_KEY)
+		return -EOPNOTSUPP;
+	return ops->pr_reserve(bdev, rsv.key, rsv.type, rsv.flags);
+}
+
+static int blkdev_pr_release(struct block_device *bdev,
+		struct pr_reservation __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_reservation rsv;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_release)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&rsv, arg, sizeof(rsv)))
+		return -EFAULT;
+
+	if (rsv.flags)
+		return -EOPNOTSUPP;
+	return ops->pr_release(bdev, rsv.key, rsv.type);
+}
+
+static int blkdev_pr_preempt(struct block_device *bdev,
+		struct pr_preempt __user *arg, bool abort)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_preempt p;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_preempt)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&p, arg, sizeof(p)))
+		return -EFAULT;
+
+	if (p.flags)
+		return -EOPNOTSUPP;
+	return ops->pr_preempt(bdev, p.old_key, p.new_key, p.type, abort);
+}
+
+static int blkdev_pr_clear(struct block_device *bdev,
+		struct pr_clear __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_clear c;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_clear)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&c, arg, sizeof(c)))
+		return -EFAULT;
+
+	if (c.flags)
+		return -EOPNOTSUPP;
+	return ops->pr_clear(bdev, c.key);
+}
+
 /*
  * Is it an unrecognized ioctl? The correct returns are either
  * ENOTTY (final) or ENOIOCTLCMD ("I don't know this one, try a
@@ -268,89 +406,115 @@ static inline int is_unrecognized_ioctl(int ret)
 		ret == -ENOIOCTLCMD;
 }
 
+static int blkdev_flushbuf(struct block_device *bdev, fmode_t mode,
+		unsigned cmd, unsigned long arg)
+{
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	if (!is_unrecognized_ioctl(ret))
+		return ret;
+
+	fsync_bdev(bdev);
+	invalidate_bdev(bdev);
+	return 0;
+}
+
+static int blkdev_roset(struct block_device *bdev, fmode_t mode,
+		unsigned cmd, unsigned long arg)
+{
+	int ret, n;
+
+	ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	if (!is_unrecognized_ioctl(ret))
+		return ret;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+	if (get_user(n, (int __user *)arg))
+		return -EFAULT;
+	set_device_ro(bdev, n);
+	return 0;
+}
+
+static int blkdev_getgeo(struct block_device *bdev,
+		struct hd_geometry __user *argp)
+{
+	struct gendisk *disk = bdev->bd_disk;
+	struct hd_geometry geo;
+	int ret;
+
+	if (!argp)
+		return -EINVAL;
+	if (!disk->fops->getgeo)
+		return -ENOTTY;
+
+	/*
+	 * We need to set the startsect first, the driver may
+	 * want to override it.
+	 */
+	memset(&geo, 0, sizeof(geo));
+	geo.start = get_start_sect(bdev);
+	ret = disk->fops->getgeo(bdev, &geo);
+	if (ret)
+		return ret;
+	if (copy_to_user(argp, &geo, sizeof(geo)))
+		return -EFAULT;
+	return 0;
+}
+
+/* set the logical block size */
+static int blkdev_bszset(struct block_device *bdev, fmode_t mode,
+		int __user *argp)
+{
+	int ret, n;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+	if (!argp)
+		return -EINVAL;
+	if (get_user(n, argp))
+		return -EFAULT;
+
+	if (!(mode & FMODE_EXCL)) {
+		bdgrab(bdev);
+		if (blkdev_get(bdev, mode | FMODE_EXCL, &bdev) < 0)
+			return -EBUSY;
+	}
+
+	ret = set_blocksize(bdev, n);
+	if (!(mode & FMODE_EXCL))
+		blkdev_put(bdev, mode | FMODE_EXCL);
+	return ret;
+}
+
 /*
  * always keep this in sync with compat_blkdev_ioctl()
  */
 int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			unsigned long arg)
 {
-	struct gendisk *disk = bdev->bd_disk;
 	struct backing_dev_info *bdi;
+	void __user *argp = (void __user *)arg;
 	loff_t size;
-	int ret, n;
 	unsigned int max_sectors;
 
-	switch(cmd) {
+	switch (cmd) {
 	case BLKFLSBUF:
-		if (!capable(CAP_SYS_ADMIN))
-			return -EACCES;
-
-		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-		if (!is_unrecognized_ioctl(ret))
-			return ret;
-
-		fsync_bdev(bdev);
-		invalidate_bdev(bdev);
-		return 0;
-
+		return blkdev_flushbuf(bdev, mode, cmd, arg);
 	case BLKROSET:
-		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-		if (!is_unrecognized_ioctl(ret))
-			return ret;
-		if (!capable(CAP_SYS_ADMIN))
-			return -EACCES;
-		if (get_user(n, (int __user *)(arg)))
-			return -EFAULT;
-		set_device_ro(bdev, n);
-		return 0;
-
+		return blkdev_roset(bdev, mode, cmd, arg);
 	case BLKDISCARD:
-	case BLKSECDISCARD: {
-		uint64_t range[2];
-
-		if (!(mode & FMODE_WRITE))
-			return -EBADF;
-
-		if (copy_from_user(range, (void __user *)arg, sizeof(range)))
-			return -EFAULT;
-
-		return blk_ioctl_discard(bdev, range[0], range[1],
-					 cmd == BLKSECDISCARD);
-	}
-	case BLKZEROOUT: {
-		uint64_t range[2];
-
-		if (!(mode & FMODE_WRITE))
-			return -EBADF;
-
-		if (copy_from_user(range, (void __user *)arg, sizeof(range)))
-			return -EFAULT;
-
-		return blk_ioctl_zeroout(bdev, range[0], range[1]);
-	}
-
-	case HDIO_GETGEO: {
-		struct hd_geometry geo;
-
-		if (!arg)
-			return -EINVAL;
-		if (!disk->fops->getgeo)
-			return -ENOTTY;
-
-		/*
-		 * We need to set the startsect first, the driver may
-		 * want to override it.
-		 */
-		memset(&geo, 0, sizeof(geo));
-		geo.start = get_start_sect(bdev);
-		ret = disk->fops->getgeo(bdev, &geo);
-		if (ret)
-			return ret;
-		if (copy_to_user((struct hd_geometry __user *)arg, &geo,
-					sizeof(geo)))
-			return -EFAULT;
-		return 0;
-	}
+		return blk_ioctl_discard(bdev, mode, arg, 0);
+	case BLKSECDISCARD:
+		return blk_ioctl_discard(bdev, mode, arg,
+				BLKDEV_DISCARD_SECURE);
+	case BLKZEROOUT:
+		return blk_ioctl_zeroout(bdev, mode, arg);
+	case HDIO_GETGEO:
+		return blkdev_getgeo(bdev, argp);
 	case BLKRAGET:
 	case BLKFRAGET:
 		if (!arg)
@@ -387,28 +551,11 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
 		return 0;
 	case BLKBSZSET:
-		/* set the logical block size */
-		if (!capable(CAP_SYS_ADMIN))
-			return -EACCES;
-		if (!arg)
-			return -EINVAL;
-		if (get_user(n, (int __user *) arg))
-			return -EFAULT;
-		if (!(mode & FMODE_EXCL)) {
-			bdgrab(bdev);
-			if (blkdev_get(bdev, mode | FMODE_EXCL, &bdev) < 0)
-				return -EBUSY;
-		}
-		ret = set_blocksize(bdev, n);
-		if (!(mode & FMODE_EXCL))
-			blkdev_put(bdev, mode | FMODE_EXCL);
-		return ret;
+		return blkdev_bszset(bdev, mode, argp);
 	case BLKPG:
-		ret = blkpg_ioctl(bdev, (struct blkpg_ioctl_arg __user *) arg);
-		break;
+		return blkpg_ioctl(bdev, argp);
 	case BLKRRPART:
-		ret = blkdev_reread_part(bdev);
-		break;
+		return blkdev_reread_part(bdev);
 	case BLKGETSIZE:
 		size = i_size_read(bdev->bd_inode);
 		if ((size >> 9) > ~0UL)
@@ -420,11 +567,21 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKTRACESTOP:
 	case BLKTRACESETUP:
 	case BLKTRACETEARDOWN:
-		ret = blk_trace_ioctl(bdev, cmd, (char __user *) arg);
-		break;
+		return blk_trace_ioctl(bdev, cmd, argp);
+	case IOC_PR_REGISTER:
+		return blkdev_pr_register(bdev, argp);
+	case IOC_PR_RESERVE:
+		return blkdev_pr_reserve(bdev, argp);
+	case IOC_PR_RELEASE:
+		return blkdev_pr_release(bdev, argp);
+	case IOC_PR_PREEMPT:
+		return blkdev_pr_preempt(bdev, argp, false);
+	case IOC_PR_PREEMPT_ABORT:
+		return blkdev_pr_preempt(bdev, argp, true);
+	case IOC_PR_CLEAR:
+		return blkdev_pr_clear(bdev, argp);
 	default:
-		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+		return __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 	}
-	return ret;
 }
 EXPORT_SYMBOL_GPL(blkdev_ioctl);

@@ -41,6 +41,8 @@
 #include <linux/gpio.h>
 #include <linux/atomic.h>
 
+#include <asm/mach-ar7/ar7.h>
+
 MODULE_AUTHOR("Eugene Konev <ejka@imfi.kspu.ru>");
 MODULE_DESCRIPTION("TI AR7 ethernet driver (CPMAC)");
 MODULE_LICENSE("GPL");
@@ -897,7 +899,6 @@ static void cpmac_get_drvinfo(struct net_device *dev,
 	strlcpy(info->driver, "cpmac", sizeof(info->driver));
 	strlcpy(info->version, CPMAC_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s", "cpmac");
-	info->regdump_len = 0;
 }
 
 static const struct ethtool_ops cpmac_ethtool_ops = {

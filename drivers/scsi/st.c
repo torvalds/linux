@@ -85,6 +85,7 @@ static int debug_flag;
 
 static struct class st_sysfs_class;
 static const struct attribute_group *st_dev_groups[];
+static const struct attribute_group *st_drv_groups[];
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI tape (st) driver");
@@ -198,15 +199,13 @@ static int sgl_unmap_user_pages(struct st_buffer *, const unsigned int, int);
 static int st_probe(struct device *);
 static int st_remove(struct device *);
 
-static int do_create_sysfs_files(void);
-static void do_remove_sysfs_files(void);
-
 static struct scsi_driver st_template = {
 	.gendrv = {
 		.name		= "st",
 		.owner		= THIS_MODULE,
 		.probe		= st_probe,
 		.remove		= st_remove,
+		.groups		= st_drv_groups,
 	},
 };
 
@@ -471,6 +470,47 @@ static void st_release_request(struct st_request *streq)
 	kfree(streq);
 }
 
+static void st_do_stats(struct scsi_tape *STp, struct request *req)
+{
+	ktime_t now;
+
+	now = ktime_get();
+	if (req->cmd[0] == WRITE_6) {
+		now = ktime_sub(now, STp->stats->write_time);
+		atomic64_add(ktime_to_ns(now), &STp->stats->tot_write_time);
+		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
+		atomic64_inc(&STp->stats->write_cnt);
+		if (req->errors) {
+			atomic64_add(atomic_read(&STp->stats->last_write_size)
+				- STp->buffer->cmdstat.residual,
+				&STp->stats->write_byte_cnt);
+			if (STp->buffer->cmdstat.residual > 0)
+				atomic64_inc(&STp->stats->resid_cnt);
+		} else
+			atomic64_add(atomic_read(&STp->stats->last_write_size),
+				&STp->stats->write_byte_cnt);
+	} else if (req->cmd[0] == READ_6) {
+		now = ktime_sub(now, STp->stats->read_time);
+		atomic64_add(ktime_to_ns(now), &STp->stats->tot_read_time);
+		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
+		atomic64_inc(&STp->stats->read_cnt);
+		if (req->errors) {
+			atomic64_add(atomic_read(&STp->stats->last_read_size)
+				- STp->buffer->cmdstat.residual,
+				&STp->stats->read_byte_cnt);
+			if (STp->buffer->cmdstat.residual > 0)
+				atomic64_inc(&STp->stats->resid_cnt);
+		} else
+			atomic64_add(atomic_read(&STp->stats->last_read_size),
+				&STp->stats->read_byte_cnt);
+	} else {
+		now = ktime_sub(now, STp->stats->other_time);
+		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
+		atomic64_inc(&STp->stats->other_cnt);
+	}
+	atomic64_dec(&STp->stats->in_flight);
+}
+
 static void st_scsi_execute_end(struct request *req, int uptodate)
 {
 	struct st_request *SRpnt = req->end_io_data;
@@ -479,6 +519,8 @@ static void st_scsi_execute_end(struct request *req, int uptodate)
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
 	STp->buffer->cmdstat.residual = req->resid_len;
+
+	st_do_stats(STp, req);
 
 	tmp = SRpnt->bio;
 	if (SRpnt->waiting)
@@ -496,6 +538,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
 	int err = 0;
 	int write = (data_direction == DMA_TO_DEVICE);
+	struct scsi_tape *STp = SRpnt->stp;
 
 	req = blk_get_request(SRpnt->stp->device->request_queue, write,
 			      GFP_KERNEL);
@@ -514,6 +557,17 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 			blk_put_request(req);
 			return DRIVER_ERROR << 24;
 		}
+	}
+
+	atomic64_inc(&STp->stats->in_flight);
+	if (cmd[0] == WRITE_6) {
+		atomic_set(&STp->stats->last_write_size, bufflen);
+		STp->stats->write_time = ktime_get();
+	} else if (cmd[0] == READ_6) {
+		atomic_set(&STp->stats->last_read_size, bufflen);
+		STp->stats->read_time = ktime_get();
+	} else {
+		STp->stats->other_time = ktime_get();
 	}
 
 	SRpnt->bio = req->bio;
@@ -1274,9 +1328,9 @@ static int st_open(struct inode *inode, struct file *filp)
 	spin_lock(&st_use_lock);
 	STp->in_use = 0;
 	spin_unlock(&st_use_lock);
-	scsi_tape_put(STp);
 	if (resumed)
 		scsi_autopm_put_device(STp->device);
+	scsi_tape_put(STp);
 	return retval;
 
 }
@@ -4029,6 +4083,7 @@ static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
 	}
 	cdev->owner = THIS_MODULE;
 	cdev->ops = &st_fops;
+	STm->cdevs[rew] = cdev;
 
 	error = cdev_add(cdev, cdev_devno, 1);
 	if (error) {
@@ -4037,7 +4092,6 @@ static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
 		pr_err("st%d: Device not attached.\n", dev_num);
 		goto out_free;
 	}
-	STm->cdevs[rew] = cdev;
 
 	i = mode << (4 - ST_NBR_MODE_BITS);
 	snprintf(name, 10, "%s%s%s", rew ? "n" : "",
@@ -4056,8 +4110,9 @@ static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
 	return 0;
 out_free:
 	cdev_del(STm->cdevs[rew]);
-	STm->cdevs[rew] = NULL;
 out:
+	STm->cdevs[rew] = NULL;
+	STm->devs[rew] = NULL;
 	return error;
 }
 
@@ -4222,6 +4277,12 @@ static int st_probe(struct device *dev)
 	}
 	tpnt->index = error;
 	sprintf(disk->disk_name, "st%d", tpnt->index);
+	tpnt->stats = kzalloc(sizeof(struct scsi_tape_stats), GFP_KERNEL);
+	if (tpnt->stats == NULL) {
+		sdev_printk(KERN_ERR, SDp,
+			    "st: Can't allocate statistics.\n");
+		goto out_idr_remove;
+	}
 
 	dev_set_drvdata(dev, tpnt);
 
@@ -4241,6 +4302,8 @@ static int st_probe(struct device *dev)
 
 out_remove_devs:
 	remove_cdevs(tpnt);
+	kfree(tpnt->stats);
+out_idr_remove:
 	spin_lock(&st_index_lock);
 	idr_remove(&st_index_idr, tpnt->index);
 	spin_unlock(&st_index_lock);
@@ -4298,6 +4361,7 @@ static void scsi_tape_release(struct kref *kref)
 
 	disk->private_data = NULL;
 	put_disk(disk);
+	kfree(tpnt->stats);
 	kfree(tpnt);
 	return;
 }
@@ -4340,14 +4404,8 @@ static int __init init_st(void)
 	if (err)
 		goto err_chrdev;
 
-	err = do_create_sysfs_files();
-	if (err)
-		goto err_scsidrv;
-
 	return 0;
 
-err_scsidrv:
-	scsi_unregister_driver(&st_template.gendrv);
 err_chrdev:
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
@@ -4358,11 +4416,11 @@ err_class:
 
 static void __exit exit_st(void)
 {
-	do_remove_sysfs_files();
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
 	class_unregister(&st_sysfs_class);
+	idr_destroy(&st_index_idr);
 	printk(KERN_INFO "st: Unloaded.\n");
 }
 
@@ -4371,68 +4429,68 @@ module_exit(exit_st);
 
 
 /* The sysfs driver interface. Read-only at the moment */
-static ssize_t st_try_direct_io_show(struct device_driver *ddp, char *buf)
+static ssize_t try_direct_io_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", try_direct_io);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", try_direct_io);
 }
-static DRIVER_ATTR(try_direct_io, S_IRUGO, st_try_direct_io_show, NULL);
+static DRIVER_ATTR_RO(try_direct_io);
 
-static ssize_t st_fixed_buffer_size_show(struct device_driver *ddp, char *buf)
+static ssize_t fixed_buffer_size_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", st_fixed_buffer_size);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", st_fixed_buffer_size);
 }
-static DRIVER_ATTR(fixed_buffer_size, S_IRUGO, st_fixed_buffer_size_show, NULL);
+static DRIVER_ATTR_RO(fixed_buffer_size);
 
-static ssize_t st_max_sg_segs_show(struct device_driver *ddp, char *buf)
+static ssize_t max_sg_segs_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", st_max_sg_segs);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", st_max_sg_segs);
 }
-static DRIVER_ATTR(max_sg_segs, S_IRUGO, st_max_sg_segs_show, NULL);
+static DRIVER_ATTR_RO(max_sg_segs);
 
-static ssize_t st_version_show(struct device_driver *ddd, char *buf)
+static ssize_t version_show(struct device_driver *ddd, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "[%s]\n", verstr);
+	return scnprintf(buf, PAGE_SIZE, "[%s]\n", verstr);
 }
-static DRIVER_ATTR(version, S_IRUGO, st_version_show, NULL);
+static DRIVER_ATTR_RO(version);
 
-static int do_create_sysfs_files(void)
+#if DEBUG
+static ssize_t debug_flag_store(struct device_driver *ddp,
+	const char *buf, size_t count)
 {
-	struct device_driver *sysfs = &st_template.gendrv;
-	int err;
-
-	err = driver_create_file(sysfs, &driver_attr_try_direct_io);
-	if (err)
-		return err;
-	err = driver_create_file(sysfs, &driver_attr_fixed_buffer_size);
-	if (err)
-		goto err_try_direct_io;
-	err = driver_create_file(sysfs, &driver_attr_max_sg_segs);
-	if (err)
-		goto err_attr_fixed_buf;
-	err = driver_create_file(sysfs, &driver_attr_version);
-	if (err)
-		goto err_attr_max_sg;
-
-	return 0;
-
-err_attr_max_sg:
-	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
-err_attr_fixed_buf:
-	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
-err_try_direct_io:
-	driver_remove_file(sysfs, &driver_attr_try_direct_io);
-	return err;
+/* We only care what the first byte of the data is the rest is unused.
+ * if it's a '1' we turn on debug and if it's a '0' we disable it. All
+ * other values have -EINVAL returned if they are passed in.
+ */
+	if (count > 0) {
+		if (buf[0] == '0') {
+			debugging = NO_DEBUG;
+			return count;
+		} else if (buf[0] == '1') {
+			debugging = 1;
+			return count;
+		}
+	}
+	return -EINVAL;
 }
 
-static void do_remove_sysfs_files(void)
+static ssize_t debug_flag_show(struct device_driver *ddp, char *buf)
 {
-	struct device_driver *sysfs = &st_template.gendrv;
-
-	driver_remove_file(sysfs, &driver_attr_version);
-	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
-	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
-	driver_remove_file(sysfs, &driver_attr_try_direct_io);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", debugging);
 }
+static DRIVER_ATTR_RW(debug_flag);
+#endif
+
+static struct attribute *st_drv_attrs[] = {
+	&driver_attr_try_direct_io.attr,
+	&driver_attr_fixed_buffer_size.attr,
+	&driver_attr_max_sg_segs.attr,
+	&driver_attr_version.attr,
+#if DEBUG
+	&driver_attr_debug_flag.attr,
+#endif
+	NULL,
+};
+ATTRIBUTE_GROUPS(st_drv);
 
 /* The sysfs simple class interface */
 static ssize_t
@@ -4513,6 +4571,184 @@ options_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(options);
 
+/* Support for tape stats */
+
+/**
+ * read_cnt_show - return read count - count of reads made from tape drive
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t read_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->read_cnt));
+}
+static DEVICE_ATTR_RO(read_cnt);
+
+/**
+ * read_byte_cnt_show - return read byte count - tape drives
+ * may use blocks less than 512 bytes this gives the raw byte count of
+ * of data read from the tape drive.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t read_byte_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->read_byte_cnt));
+}
+static DEVICE_ATTR_RO(read_byte_cnt);
+
+/**
+ * read_us_show - return read us - overall time spent waiting on reads in ns.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t read_ns_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->tot_read_time));
+}
+static DEVICE_ATTR_RO(read_ns);
+
+/**
+ * write_cnt_show - write count - number of user calls
+ * to write(2) that have written data to tape.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t write_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->write_cnt));
+}
+static DEVICE_ATTR_RO(write_cnt);
+
+/**
+ * write_byte_cnt_show - write byte count - raw count of
+ * bytes written to tape.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t write_byte_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->write_byte_cnt));
+}
+static DEVICE_ATTR_RO(write_byte_cnt);
+
+/**
+ * write_ns_show - write ns - number of nanoseconds waiting on write
+ * requests to complete.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t write_ns_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->tot_write_time));
+}
+static DEVICE_ATTR_RO(write_ns);
+
+/**
+ * in_flight_show - number of I/Os currently in flight -
+ * in most cases this will be either 0 or 1. It may be higher if someone
+ * has also issued other SCSI commands such as via an ioctl.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t in_flight_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->in_flight));
+}
+static DEVICE_ATTR_RO(in_flight);
+
+/**
+ * io_ns_show - io wait ns - this is the number of ns spent
+ * waiting on all I/O to complete. This includes tape movement commands
+ * such as rewinding, seeking to end of file or tape, it also includes
+ * read and write. To determine the time spent on tape movement
+ * subtract the read and write ns from this value.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t io_ns_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->tot_io_time));
+}
+static DEVICE_ATTR_RO(io_ns);
+
+/**
+ * other_cnt_show - other io count - this is the number of
+ * I/O requests other than read and write requests.
+ * Typically these are tape movement requests but will include driver
+ * tape movement. This includes only requests issued by the st driver.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t other_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->other_cnt));
+}
+static DEVICE_ATTR_RO(other_cnt);
+
+/**
+ * resid_cnt_show - A count of the number of times we get a residual
+ * count - this should indicate someone issuing reads larger than the
+ * block size on tape.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t resid_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld",
+		       (long long)atomic64_read(&STm->tape->stats->resid_cnt));
+}
+static DEVICE_ATTR_RO(resid_cnt);
+
 static struct attribute *st_dev_attrs[] = {
 	&dev_attr_defined.attr,
 	&dev_attr_default_blksize.attr,
@@ -4521,7 +4757,35 @@ static struct attribute *st_dev_attrs[] = {
 	&dev_attr_options.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(st_dev);
+
+static struct attribute *st_stats_attrs[] = {
+	&dev_attr_read_cnt.attr,
+	&dev_attr_read_byte_cnt.attr,
+	&dev_attr_read_ns.attr,
+	&dev_attr_write_cnt.attr,
+	&dev_attr_write_byte_cnt.attr,
+	&dev_attr_write_ns.attr,
+	&dev_attr_in_flight.attr,
+	&dev_attr_io_ns.attr,
+	&dev_attr_other_cnt.attr,
+	&dev_attr_resid_cnt.attr,
+	NULL,
+};
+
+static struct attribute_group stats_group = {
+	.name = "stats",
+	.attrs = st_stats_attrs,
+};
+
+static struct attribute_group st_group = {
+	.attrs = st_dev_attrs,
+};
+
+static const struct attribute_group *st_dev_groups[] = {
+	&st_group,
+	&stats_group,
+	NULL,
+};
 
 /* The following functions may be useful for a larger audience. */
 static int sgl_map_user_pages(struct st_buffer *STbp,

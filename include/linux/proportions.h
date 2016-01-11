@@ -1,7 +1,7 @@
 /*
  * FLoating proportions
  *
- *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  *
  * This file contains the public data structure and API definitions.
  */
@@ -33,7 +33,7 @@ struct prop_global {
 /*
  * global proportion descriptor
  *
- * this is needed to consitently flip prop_global structures.
+ * this is needed to consistently flip prop_global structures.
  */
 struct prop_descriptor {
 	int index;

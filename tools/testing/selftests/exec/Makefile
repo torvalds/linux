@@ -22,7 +22,5 @@ TEST_FILES := $(DEPS)
 
 include ../lib.mk
 
-override EMIT_TESTS := echo "mkdir -p subdir; (./execveat && echo \"selftests: execveat [PASS]\") || echo \"selftests: execveat [FAIL]\""
-
 clean:
 	rm -rf $(BINARIES) $(DEPS) subdir.moved execveat.moved xxxxx*

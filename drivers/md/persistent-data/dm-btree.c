@@ -63,6 +63,11 @@ int lower_bound(struct btree_node *n, uint64_t key)
 	return bsearch(n, key, 0);
 }
 
+static int upper_bound(struct btree_node *n, uint64_t key)
+{
+	return bsearch(n, key, 1);
+}
+
 void inc_children(struct dm_transaction_manager *tm, struct btree_node *n,
 		  struct dm_btree_value_type *vt)
 {
@@ -141,7 +146,9 @@ int dm_btree_empty(struct dm_btree_info *info, dm_block_t *root)
 	n->header.value_size = cpu_to_le32(info->value_type.size);
 
 	*root = dm_block_location(b);
-	return unlock_block(info, b);
+	unlock_block(info, b);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_btree_empty);
 
@@ -250,12 +257,22 @@ static void pop_frame(struct del_stack *s)
 	dm_tm_unlock(s->tm, f->b);
 }
 
+static void unlock_all_frames(struct del_stack *s)
+{
+	struct frame *f;
+
+	while (unprocessed_frames(s)) {
+		f = s->spine + s->top--;
+		dm_tm_unlock(s->tm, f->b);
+	}
+}
+
 int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 {
 	int r;
 	struct del_stack *s;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kmalloc(sizeof(*s), GFP_NOIO);
 	if (!s)
 		return -ENOMEM;
 	s->info = info;
@@ -306,9 +323,13 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 			pop_frame(s);
 		}
 	}
-
 out:
+	if (r) {
+		/* cleanup all frames of del_stack */
+		unlock_all_frames(s);
+	}
 	kfree(s);
+
 	return r;
 }
 EXPORT_SYMBOL_GPL(dm_btree_del);
@@ -390,6 +411,82 @@ int dm_btree_lookup(struct dm_btree_info *info, dm_block_t root,
 }
 EXPORT_SYMBOL_GPL(dm_btree_lookup);
 
+static int dm_btree_lookup_next_single(struct dm_btree_info *info, dm_block_t root,
+				       uint64_t key, uint64_t *rkey, void *value_le)
+{
+	int r, i;
+	uint32_t flags, nr_entries;
+	struct dm_block *node;
+	struct btree_node *n;
+
+	r = bn_read_lock(info, root, &node);
+	if (r)
+		return r;
+
+	n = dm_block_data(node);
+	flags = le32_to_cpu(n->header.flags);
+	nr_entries = le32_to_cpu(n->header.nr_entries);
+
+	if (flags & INTERNAL_NODE) {
+		i = lower_bound(n, key);
+		if (i < 0 || i >= nr_entries) {
+			r = -ENODATA;
+			goto out;
+		}
+
+		r = dm_btree_lookup_next_single(info, value64(n, i), key, rkey, value_le);
+		if (r == -ENODATA && i < (nr_entries - 1)) {
+			i++;
+			r = dm_btree_lookup_next_single(info, value64(n, i), key, rkey, value_le);
+		}
+
+	} else {
+		i = upper_bound(n, key);
+		if (i < 0 || i >= nr_entries) {
+			r = -ENODATA;
+			goto out;
+		}
+
+		*rkey = le64_to_cpu(n->keys[i]);
+		memcpy(value_le, value_ptr(n, i), info->value_type.size);
+	}
+out:
+	dm_tm_unlock(info->tm, node);
+	return r;
+}
+
+int dm_btree_lookup_next(struct dm_btree_info *info, dm_block_t root,
+			 uint64_t *keys, uint64_t *rkey, void *value_le)
+{
+	unsigned level;
+	int r = -ENODATA;
+	__le64 internal_value_le;
+	struct ro_spine spine;
+
+	init_ro_spine(&spine, info);
+	for (level = 0; level < info->levels - 1u; level++) {
+		r = btree_lookup_raw(&spine, root, keys[level],
+				     lower_bound, rkey,
+				     &internal_value_le, sizeof(uint64_t));
+		if (r)
+			goto out;
+
+		if (*rkey != keys[level]) {
+			r = -ENODATA;
+			goto out;
+		}
+
+		root = le64_to_cpu(internal_value_le);
+	}
+
+	r = dm_btree_lookup_next_single(info, root, keys[level], rkey, value_le);
+out:
+	exit_ro_spine(&spine);
+	return r;
+}
+
+EXPORT_SYMBOL_GPL(dm_btree_lookup_next);
+
 /*
  * Splits a node by creating a sibling node and shifting half the nodes
  * contents across.  Assumes there is a parent node, and it has room for
@@ -420,8 +517,8 @@ EXPORT_SYMBOL_GPL(dm_btree_lookup);
  *
  * Where A* is a shadow of A.
  */
-static int btree_split_sibling(struct shadow_spine *s, dm_block_t root,
-			       unsigned parent_index, uint64_t key)
+static int btree_split_sibling(struct shadow_spine *s, unsigned parent_index,
+			       uint64_t key)
 {
 	int r;
 	size_t size;
@@ -471,8 +568,10 @@ static int btree_split_sibling(struct shadow_spine *s, dm_block_t root,
 
 	r = insert_at(sizeof(__le64), pn, parent_index + 1,
 		      le64_to_cpu(rn->keys[0]), &location);
-	if (r)
+	if (r) {
+		unlock_block(s->info, right);
 		return r;
+	}
 
 	if (key < le64_to_cpu(rn->keys[0])) {
 		unlock_block(s->info, right);
@@ -523,7 +622,7 @@ static int btree_split_beneath(struct shadow_spine *s, uint64_t key)
 
 	r = new_block(s->info, &right);
 	if (r < 0) {
-		/* FIXME: put left */
+		unlock_block(s->info, left);
 		return r;
 	}
 
@@ -625,7 +724,7 @@ static int btree_insert_raw(struct shadow_spine *s, dm_block_t root,
 			if (top)
 				r = btree_split_beneath(s, key);
 			else
-				r = btree_split_sibling(s, root, i, key);
+				r = btree_split_sibling(s, i, key);
 
 			if (r < 0)
 				return r;
@@ -667,12 +766,7 @@ static int insert(struct dm_btree_info *info, dm_block_t root,
 	struct btree_node *n;
 	struct dm_btree_value_type le64_type;
 
-	le64_type.context = NULL;
-	le64_type.size = sizeof(__le64);
-	le64_type.inc = NULL;
-	le64_type.dec = NULL;
-	le64_type.equal = NULL;
-
+	init_le64_type(info->tm, &le64_type);
 	init_shadow_spine(&spine, info);
 
 	for (level = 0; level < (info->levels - 1); level++) {

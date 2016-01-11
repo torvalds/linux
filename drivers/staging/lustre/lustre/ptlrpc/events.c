@@ -53,7 +53,7 @@ lnet_handle_eq_t   ptlrpc_eq_h;
  */
 void request_out_callback(lnet_event_t *ev)
 {
-	struct ptlrpc_cb_id   *cbid = ev->md.user_ptr;
+	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
 
 	LASSERT(ev->type == LNET_EVENT_SEND ||
@@ -64,7 +64,7 @@ void request_out_callback(lnet_event_t *ev)
 
 	sptlrpc_request_out_callback(req);
 	spin_lock(&req->rq_lock);
-	req->rq_real_sent = get_seconds();
+	req->rq_real_sent = ktime_get_real_seconds();
 	if (ev->unlinked)
 		req->rq_req_unlink = 0;
 
@@ -86,7 +86,7 @@ void request_out_callback(lnet_event_t *ev)
  */
 void reply_in_callback(lnet_event_t *ev)
 {
-	struct ptlrpc_cb_id   *cbid = ev->md.user_ptr;
+	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
 
 	DEBUG_REQ(D_NET, req, "type %d, status %d", ev->type, ev->status);
@@ -158,7 +158,7 @@ void reply_in_callback(lnet_event_t *ev)
 			  ev->mlength, ev->offset, req->rq_replen);
 	}
 
-	req->rq_import->imp_last_reply_time = get_seconds();
+	req->rq_import->imp_last_reply_time = ktime_get_real_seconds();
 
 out_wake:
 	/* NB don't unlock till after wakeup; req can disappear under us
@@ -172,9 +172,9 @@ out_wake:
  */
 void client_bulk_callback(lnet_event_t *ev)
 {
-	struct ptlrpc_cb_id     *cbid = ev->md.user_ptr;
+	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_bulk_desc *desc = cbid->cbid_arg;
-	struct ptlrpc_request   *req;
+	struct ptlrpc_request *req;
 
 	LASSERT((desc->bd_type == BULK_PUT_SINK &&
 		 ev->type == LNET_EVENT_PUT) ||
@@ -245,9 +245,9 @@ void client_bulk_callback(lnet_event_t *ev)
 static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
 				   struct ptlrpc_request *req)
 {
-	__u64	sec = req->rq_arrival_time.tv_sec;
-	__u32	usec = req->rq_arrival_time.tv_usec >> 4; /* usec / 16 */
-	__u64	new_seq;
+	__u64 sec = req->rq_arrival_time.tv_sec;
+	__u32 usec = req->rq_arrival_time.tv_nsec / NSEC_PER_USEC / 16; /* usec / 16 */
+	__u64 new_seq;
 
 	/* set sequence ID for request and add it to history list,
 	 * it must be called with hold svcpt::scp_lock */
@@ -281,11 +281,11 @@ static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
  */
 void request_in_callback(lnet_event_t *ev)
 {
-	struct ptlrpc_cb_id		  *cbid = ev->md.user_ptr;
+	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request_buffer_desc *rqbd = cbid->cbid_arg;
-	struct ptlrpc_service_part	  *svcpt = rqbd->rqbd_svcpt;
-	struct ptlrpc_service	     *service = svcpt->scp_service;
-	struct ptlrpc_request	     *req;
+	struct ptlrpc_service_part *svcpt = rqbd->rqbd_svcpt;
+	struct ptlrpc_service *service = svcpt->scp_service;
+	struct ptlrpc_request *req;
 
 	LASSERT(ev->type == LNET_EVENT_PUT ||
 		ev->type == LNET_EVENT_UNLINK);
@@ -327,7 +327,7 @@ void request_in_callback(lnet_event_t *ev)
 	req->rq_reqbuf = ev->md.start + ev->offset;
 	if (ev->type == LNET_EVENT_PUT && ev->status == 0)
 		req->rq_reqdata_len = ev->mlength;
-	do_gettimeofday(&req->rq_arrival_time);
+	ktime_get_real_ts64(&req->rq_arrival_time);
 	req->rq_peer = ev->initiator;
 	req->rq_self = ev->target.nid;
 	req->rq_rqbd = rqbd;
@@ -380,7 +380,7 @@ void request_in_callback(lnet_event_t *ev)
  */
 void reply_out_callback(lnet_event_t *ev)
 {
-	struct ptlrpc_cb_id	  *cbid = ev->md.user_ptr;
+	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_reply_state *rs = cbid->cbid_arg;
 	struct ptlrpc_service_part *svcpt = rs->rs_svcpt;
 
@@ -415,7 +415,6 @@ void reply_out_callback(lnet_event_t *ev)
 	}
 }
 
-
 static void ptlrpc_master_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
@@ -433,17 +432,17 @@ static void ptlrpc_master_callback(lnet_event_t *ev)
 }
 
 int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			 lnet_process_id_t *peer, lnet_nid_t *self)
+			lnet_process_id_t *peer, lnet_nid_t *self)
 {
-	int	       best_dist = 0;
-	__u32	     best_order = 0;
-	int	       count = 0;
-	int	       rc = -ENOENT;
-	int	       portals_compatibility;
-	int	       dist;
-	__u32	     order;
-	lnet_nid_t	dst_nid;
-	lnet_nid_t	src_nid;
+	int best_dist = 0;
+	__u32 best_order = 0;
+	int count = 0;
+	int rc = -ENOENT;
+	int portals_compatibility;
+	int dist;
+	__u32 order;
+	lnet_nid_t dst_nid;
+	lnet_nid_t src_nid;
 
 	portals_compatibility = LNetCtl(IOC_LIBCFS_PORTALS_COMPATIBILITY, NULL);
 
@@ -485,12 +484,12 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 	return rc;
 }
 
-void ptlrpc_ni_fini(void)
+static void ptlrpc_ni_fini(void)
 {
-	wait_queue_head_t	 waitq;
-	struct l_wait_info  lwi;
-	int		 rc;
-	int		 retries;
+	wait_queue_head_t waitq;
+	struct l_wait_info lwi;
+	int rc;
+	int retries;
 
 	/* Wait for the event queue to become idle since there may still be
 	 * messages in flight with pending events (i.e. the fire-and-forget
@@ -521,18 +520,18 @@ void ptlrpc_ni_fini(void)
 	/* notreached */
 }
 
-lnet_pid_t ptl_get_pid(void)
+static lnet_pid_t ptl_get_pid(void)
 {
-	lnet_pid_t	pid;
+	lnet_pid_t pid;
 
 	pid = LUSTRE_SRV_LNET_PID;
 	return pid;
 }
 
-int ptlrpc_ni_init(void)
+static int ptlrpc_ni_init(void)
 {
-	int	      rc;
-	lnet_pid_t       pid;
+	int rc;
+	lnet_pid_t pid;
 
 	pid = ptl_get_pid();
 	CDEBUG(D_NET, "My pid is: %x\n", pid);
@@ -560,10 +559,9 @@ int ptlrpc_ni_init(void)
 	return -ENOMEM;
 }
 
-
 int ptlrpc_init_portals(void)
 {
-	int   rc = ptlrpc_ni_init();
+	int rc = ptlrpc_ni_init();
 
 	if (rc != 0) {
 		CERROR("network initialisation failed\n");

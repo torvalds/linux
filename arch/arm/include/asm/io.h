@@ -23,6 +23,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/blk_types.h>
 #include <asm/byteorder.h>
@@ -73,17 +74,16 @@ void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
 static inline void __raw_writew(u16 val, volatile void __iomem *addr)
 {
 	asm volatile("strh %1, %0"
-		     : "+Q" (*(volatile u16 __force *)addr)
-		     : "r" (val));
+		     : : "Q" (*(volatile u16 __force *)addr), "r" (val));
 }
 
 #define __raw_readw __raw_readw
 static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	u16 val;
-	asm volatile("ldrh %1, %0"
-		     : "+Q" (*(volatile u16 __force *)addr),
-		       "=r" (val));
+	asm volatile("ldrh %0, %1"
+		     : "=r" (val)
+		     : "Q" (*(volatile u16 __force *)addr));
 	return val;
 }
 #endif
@@ -92,25 +92,23 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 static inline void __raw_writeb(u8 val, volatile void __iomem *addr)
 {
 	asm volatile("strb %1, %0"
-		     : "+Qo" (*(volatile u8 __force *)addr)
-		     : "r" (val));
+		     : : "Qo" (*(volatile u8 __force *)addr), "r" (val));
 }
 
 #define __raw_writel __raw_writel
 static inline void __raw_writel(u32 val, volatile void __iomem *addr)
 {
 	asm volatile("str %1, %0"
-		     : "+Qo" (*(volatile u32 __force *)addr)
-		     : "r" (val));
+		     : : "Qo" (*(volatile u32 __force *)addr), "r" (val));
 }
 
 #define __raw_readb __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
 	u8 val;
-	asm volatile("ldrb %1, %0"
-		     : "+Qo" (*(volatile u8 __force *)addr),
-		       "=r" (val));
+	asm volatile("ldrb %0, %1"
+		     : "=r" (val)
+		     : "Qo" (*(volatile u8 __force *)addr));
 	return val;
 }
 
@@ -118,9 +116,9 @@ static inline u8 __raw_readb(const volatile void __iomem *addr)
 static inline u32 __raw_readl(const volatile void __iomem *addr)
 {
 	u32 val;
-	asm volatile("ldr %1, %0"
-		     : "+Qo" (*(volatile u32 __force *)addr),
-		       "=r" (val));
+	asm volatile("ldr %0, %1"
+		     : "=r" (val)
+		     : "Qo" (*(volatile u32 __force *)addr));
 	return val;
 }
 
@@ -142,16 +140,11 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
  * The _caller variety takes a __builtin_return_address(0) value for
  * /proc/vmalloc to use - and should only be used in non-inline functions.
  */
-extern void __iomem *__arm_ioremap_pfn_caller(unsigned long, unsigned long,
-	size_t, unsigned int, void *);
 extern void __iomem *__arm_ioremap_caller(phys_addr_t, size_t, unsigned int,
 	void *);
-
 extern void __iomem *__arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
-extern void __iomem *__arm_ioremap(phys_addr_t, size_t, unsigned int);
 extern void __iomem *__arm_ioremap_exec(phys_addr_t, size_t, bool cached);
 extern void __iounmap(volatile void __iomem *addr);
-extern void __arm_iounmap(volatile void __iomem *addr);
 
 extern void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t,
 	unsigned int, void *);
@@ -319,24 +312,95 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define writesw(p,d,l)		__raw_writesw(p,d,l)
 #define writesl(p,d,l)		__raw_writesl(p,d,l)
 
+#ifndef __ARMBE__
+static inline void memset_io(volatile void __iomem *dst, unsigned c,
+	size_t count)
+{
+	extern void mmioset(void *, unsigned int, size_t);
+	mmioset((void __force *)dst, c, count);
+}
+#define memset_io(dst,c,count) memset_io(dst,c,count)
+
+static inline void memcpy_fromio(void *to, const volatile void __iomem *from,
+	size_t count)
+{
+	extern void mmiocpy(void *, const void *, size_t);
+	mmiocpy(to, (const void __force *)from, count);
+}
+#define memcpy_fromio(to,from,count) memcpy_fromio(to,from,count)
+
+static inline void memcpy_toio(volatile void __iomem *to, const void *from,
+	size_t count)
+{
+	extern void mmiocpy(void *, const void *, size_t);
+	mmiocpy((void __force *)to, from, count);
+}
+#define memcpy_toio(to,from,count) memcpy_toio(to,from,count)
+
+#else
 #define memset_io(c,v,l)	_memset_io(c,(v),(l))
 #define memcpy_fromio(a,c,l)	_memcpy_fromio((a),c,(l))
 #define memcpy_toio(c,a,l)	_memcpy_toio(c,(a),(l))
+#endif
 
 #endif	/* readl */
 
 /*
- * ioremap and friends.
+ * ioremap() and friends.
  *
- * ioremap takes a PCI memory address, as specified in
- * Documentation/io-mapping.txt.
+ * ioremap() takes a resource address, and size.  Due to the ARM memory
+ * types, it is important to use the correct ioremap() function as each
+ * mapping has specific properties.
  *
+ * Function		Memory type	Cacheability	Cache hint
+ * ioremap()		Device		n/a		n/a
+ * ioremap_nocache()	Device		n/a		n/a
+ * ioremap_cache()	Normal		Writeback	Read allocate
+ * ioremap_wc()		Normal		Non-cacheable	n/a
+ * ioremap_wt()		Normal		Non-cacheable	n/a
+ *
+ * All device mappings have the following properties:
+ * - no access speculation
+ * - no repetition (eg, on return from an exception)
+ * - number, order and size of accesses are maintained
+ * - unaligned accesses are "unpredictable"
+ * - writes may be delayed before they hit the endpoint device
+ *
+ * ioremap_nocache() is the same as ioremap() as there are too many device
+ * drivers using this for device registers, and documentation which tells
+ * people to use it for such for this to be any different.  This is not a
+ * safe fallback for memory-like mappings, or memory regions where the
+ * compiler may generate unaligned accesses - eg, via inlining its own
+ * memcpy.
+ *
+ * All normal memory mappings have the following properties:
+ * - reads can be repeated with no side effects
+ * - repeated reads return the last value written
+ * - reads can fetch additional locations without side effects
+ * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be merged before accessing the target
+ * - unaligned accesses can be supported
+ * - ordering is not guaranteed without explicit dependencies or barrier
+ *   instructions
+ * - writes may be delayed before they hit the endpoint memory
+ *
+ * The cache hint is only a performance hint: CPUs may alias these hints.
+ * Eg, a CPU not implementing read allocate but implementing write allocate
+ * will provide a write allocate mapping instead.
  */
-#define ioremap(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE)
-#define ioremap_nocache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE)
-#define ioremap_cache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE_CACHED)
-#define ioremap_wc(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
-#define iounmap				__arm_iounmap
+void __iomem *ioremap(resource_size_t res_cookie, size_t size);
+#define ioremap ioremap
+#define ioremap_nocache ioremap
+
+void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
+#define ioremap_cache ioremap_cache
+
+void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
+#define ioremap_wc ioremap_wc
+#define ioremap_wt ioremap_wc
+
+void iounmap(volatile void __iomem *iomem_cookie);
+#define iounmap iounmap
 
 /*
  * io{read,write}{16,32}be() macros

@@ -26,6 +26,7 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/backing-dev.h>
 #include <trace/events/ext4.h>
 
 #ifdef CONFIG_EXT4_DEBUG
@@ -873,8 +874,10 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 			bh[i] = NULL;
 			continue;
 		}
-		if (!(bh[i] = ext4_read_block_bitmap_nowait(sb, group))) {
-			err = -ENOMEM;
+		bh[i] = ext4_read_block_bitmap_nowait(sb, group);
+		if (IS_ERR(bh[i])) {
+			err = PTR_ERR(bh[i]);
+			bh[i] = NULL;
 			goto out;
 		}
 		mb_debug(1, "read bitmap for group %u\n", group);
@@ -882,10 +885,13 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 
 	/* wait for I/O completion */
 	for (i = 0, group = first_group; i < groups_per_page; i++, group++) {
-		if (bh[i] && ext4_wait_block_bitmap(sb, group, bh[i])) {
-			err = -EIO;
-			goto out;
-		}
+		int err2;
+
+		if (!bh[i])
+			continue;
+		err2 = ext4_wait_block_bitmap(sb, group, bh[i]);
+		if (!err)
+			err = err2;
 	}
 
 	first_block = page->index * blocks_per_page;
@@ -897,6 +903,11 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 		if (!bh[group - first_group])
 			/* skip initialized uptodate buddy */
 			continue;
+
+		if (!buffer_verified(bh[group - first_group]))
+			/* Skip faulty bitmaps */
+			continue;
+		err = 0;
 
 		/*
 		 * data carry information regarding this
@@ -2008,7 +2019,12 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 	}
 }
 
-/* This is now called BEFORE we load the buddy bitmap. */
+/*
+ * This is now called BEFORE we load the buddy bitmap.
+ * Returns either 1 or 0 indicating that the group is either suitable
+ * for the allocation or not. In addition it can also return negative
+ * error code when something goes wrong.
+ */
 static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 				ext4_group_t group, int cr)
 {
@@ -2031,7 +2047,7 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
 		int ret = ext4_mb_init_group(ac->ac_sb, group);
 		if (ret)
-			return 0;
+			return ret;
 	}
 
 	fragments = grp->bb_fragments;
@@ -2078,7 +2094,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 {
 	ext4_group_t ngroups, group, i;
 	int cr;
-	int err = 0;
+	int err = 0, first_err = 0;
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	struct ext4_buddy e4b;
@@ -2145,6 +2161,7 @@ repeat:
 		group = ac->ac_g_ex.fe_group;
 
 		for (i = 0; i < ngroups; group++, i++) {
+			int ret = 0;
 			cond_resched();
 			/*
 			 * Artificially restricted ngroups for non-extent
@@ -2154,8 +2171,12 @@ repeat:
 				group = 0;
 
 			/* This now checks without needing the buddy page */
-			if (!ext4_mb_good_group(ac, group, cr))
+			ret = ext4_mb_good_group(ac, group, cr);
+			if (ret <= 0) {
+				if (!first_err)
+					first_err = ret;
 				continue;
+			}
 
 			err = ext4_mb_load_buddy(sb, group, &e4b);
 			if (err)
@@ -2167,9 +2188,12 @@ repeat:
 			 * We need to check again after locking the
 			 * block group
 			 */
-			if (!ext4_mb_good_group(ac, group, cr)) {
+			ret = ext4_mb_good_group(ac, group, cr);
+			if (ret <= 0) {
 				ext4_unlock_group(sb, group);
 				ext4_mb_unload_buddy(&e4b);
+				if (!first_err)
+					first_err = ret;
 				continue;
 			}
 
@@ -2216,6 +2240,8 @@ repeat:
 		}
 	}
 out:
+	if (!err && ac->ac_status != AC_STATUS_FOUND && first_err)
+		err = first_err;
 	return err;
 }
 
@@ -2257,12 +2283,9 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 
 	group--;
 	if (group == 0)
-		seq_printf(seq, "#%-5s: %-5s %-5s %-5s "
-				"[ %-5s %-5s %-5s %-5s %-5s %-5s %-5s "
-				  "%-5s %-5s %-5s %-5s %-5s %-5s %-5s ]\n",
-			   "group", "free", "frags", "first",
-			   "2^0", "2^1", "2^2", "2^3", "2^4", "2^5", "2^6",
-			   "2^7", "2^8", "2^9", "2^10", "2^11", "2^12", "2^13");
+		seq_puts(seq, "#group: free  frags first ["
+			      " 2^0   2^1   2^2   2^3   2^4   2^5   2^6  "
+			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]");
 
 	i = (sb->s_blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
 		sizeof(struct ext4_group_info);
@@ -2317,7 +2340,7 @@ static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
 
 }
 
-static const struct file_operations ext4_mb_seq_groups_fops = {
+const struct file_operations ext4_seq_mb_groups_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ext4_mb_seq_groups_open,
 	.read		= seq_read,
@@ -2431,7 +2454,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 			kmalloc(sb->s_blocksize, GFP_NOFS);
 		BUG_ON(meta_group_info[i]->bb_bitmap == NULL);
 		bh = ext4_read_block_bitmap(sb, group);
-		BUG_ON(bh == NULL);
+		BUG_ON(IS_ERR_OR_NULL(bh));
 		memcpy(meta_group_info[i]->bb_bitmap, bh->b_data,
 			sb->s_blocksize);
 		put_bh(bh);
@@ -2645,10 +2668,6 @@ int ext4_mb_init(struct super_block *sb)
 	if (ret != 0)
 		goto out_free_locality_groups;
 
-	if (sbi->s_proc)
-		proc_create_data("mb_groups", S_IRUGO, sbi->s_proc,
-				 &ext4_mb_seq_groups_fops, sb);
-
 	return 0;
 
 out_free_locality_groups:
@@ -2688,9 +2707,6 @@ int ext4_mb_release(struct super_block *sb)
 	struct ext4_group_info *grinfo;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct kmem_cache *cachep = get_groupinfo_cache(sb->s_blocksize_bits);
-
-	if (sbi->s_proc)
-		remove_proc_entry("mb_groups", sbi->s_proc);
 
 	if (sbi->s_group_info) {
 		for (i = 0; i < ngroups; i++) {
@@ -2880,10 +2896,12 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	sb = ac->ac_sb;
 	sbi = EXT4_SB(sb);
 
-	err = -EIO;
 	bitmap_bh = ext4_read_block_bitmap(sb, ac->ac_b_ex.fe_group);
-	if (!bitmap_bh)
+	if (IS_ERR(bitmap_bh)) {
+		err = PTR_ERR(bitmap_bh);
+		bitmap_bh = NULL;
 		goto out_err;
+	}
 
 	BUFFER_TRACE(bitmap_bh, "getting write access");
 	err = ext4_journal_get_write_access(handle, bitmap_bh);
@@ -3827,8 +3845,10 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 		return 0;
 
 	bitmap_bh = ext4_read_block_bitmap(sb, group);
-	if (bitmap_bh == NULL) {
-		ext4_error(sb, "Error reading block bitmap for %u", group);
+	if (IS_ERR(bitmap_bh)) {
+		err = PTR_ERR(bitmap_bh);
+		ext4_error(sb, "Error %d reading block bitmap for %u",
+			   err, group);
 		return 0;
 	}
 
@@ -3999,9 +4019,10 @@ repeat:
 		}
 
 		bitmap_bh = ext4_read_block_bitmap(sb, group);
-		if (bitmap_bh == NULL) {
-			ext4_error(sb, "Error reading block bitmap for %u",
-					group);
+		if (IS_ERR(bitmap_bh)) {
+			err = PTR_ERR(bitmap_bh);
+			ext4_error(sb, "Error %d reading block bitmap for %u",
+					err, group);
 			ext4_mb_unload_buddy(&e4b);
 			continue;
 		}
@@ -4666,22 +4687,11 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	ext4_debug("freeing block %llu\n", block);
 	trace_ext4_free_blocks(inode, block, count, flags);
 
-	if (flags & EXT4_FREE_BLOCKS_FORGET) {
-		struct buffer_head *tbh = bh;
-		int i;
+	if (bh && (flags & EXT4_FREE_BLOCKS_FORGET)) {
+		BUG_ON(count > 1);
 
-		BUG_ON(bh && (count > 1));
-
-		for (i = 0; i < count; i++) {
-			cond_resched();
-			if (!bh)
-				tbh = sb_find_get_block(inode->i_sb,
-							block + i);
-			if (!tbh)
-				continue;
-			ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA,
-				    inode, tbh, block + i);
-		}
+		ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA,
+			    inode, bh, block);
 	}
 
 	/*
@@ -4726,6 +4736,19 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			count += sbi->s_cluster_ratio - overflow;
 	}
 
+	if (!bh && (flags & EXT4_FREE_BLOCKS_FORGET)) {
+		int i;
+
+		for (i = 0; i < count; i++) {
+			cond_resched();
+			bh = sb_find_get_block(inode->i_sb, block + i);
+			if (!bh)
+				continue;
+			ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA,
+				    inode, bh, block + i);
+		}
+	}
+
 do_more:
 	overflow = 0;
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
@@ -4745,8 +4768,9 @@ do_more:
 	}
 	count_clusters = EXT4_NUM_B2C(sbi, count);
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
-	if (!bitmap_bh) {
-		err = -EIO;
+	if (IS_ERR(bitmap_bh)) {
+		err = PTR_ERR(bitmap_bh);
+		bitmap_bh = NULL;
 		goto error_return;
 	}
 	gdp = ext4_get_group_desc(sb, block_group, &gd_bh);
@@ -4800,18 +4824,12 @@ do_more:
 		/*
 		 * blocks being freed are metadata. these blocks shouldn't
 		 * be used until this transaction is committed
+		 *
+		 * We use __GFP_NOFAIL because ext4_free_blocks() is not allowed
+		 * to fail.
 		 */
-	retry:
-		new_entry = kmem_cache_alloc(ext4_free_data_cachep, GFP_NOFS);
-		if (!new_entry) {
-			/*
-			 * We use a retry loop because
-			 * ext4_free_blocks() is not allowed to fail.
-			 */
-			cond_resched();
-			congestion_wait(BLK_RW_ASYNC, HZ/50);
-			goto retry;
-		}
+		new_entry = kmem_cache_alloc(ext4_free_data_cachep,
+				GFP_NOFS|__GFP_NOFAIL);
 		new_entry->efd_start_cluster = bit;
 		new_entry->efd_group = block_group;
 		new_entry->efd_count = count_clusters;
@@ -4921,8 +4939,9 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	}
 
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
-	if (!bitmap_bh) {
-		err = -EIO;
+	if (IS_ERR(bitmap_bh)) {
+		err = PTR_ERR(bitmap_bh);
+		bitmap_bh = NULL;
 		goto error_return;
 	}
 

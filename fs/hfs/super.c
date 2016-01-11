@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/nls.h>
@@ -135,9 +136,9 @@ static int hfs_show_options(struct seq_file *seq, struct dentry *root)
 	struct hfs_sb_info *sbi = HFS_SB(root->d_sb);
 
 	if (sbi->s_creator != cpu_to_be32(0x3f3f3f3f))
-		seq_printf(seq, ",creator=%.4s", (char *)&sbi->s_creator);
+		seq_show_option_n(seq, "creator", (char *)&sbi->s_creator, 4);
 	if (sbi->s_type != cpu_to_be32(0x3f3f3f3f))
-		seq_printf(seq, ",type=%.4s", (char *)&sbi->s_type);
+		seq_show_option_n(seq, "type", (char *)&sbi->s_type, 4);
 	seq_printf(seq, ",uid=%u,gid=%u",
 			from_kuid_munged(&init_user_ns, sbi->s_uid),
 			from_kgid_munged(&init_user_ns, sbi->s_gid));

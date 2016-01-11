@@ -54,6 +54,7 @@
 #define MX53_USB_PHYCTRL1_PLLDIV_MASK	0x3
 #define MX53_USB_PLL_DIV_24_MHZ		0x01
 
+#define MX6_BM_NON_BURST_SETTING	BIT(1)
 #define MX6_BM_OVER_CUR_DIS		BIT(7)
 #define MX6_BM_WAKEUP_ENABLE		BIT(10)
 #define MX6_BM_ID_WAKEUP		BIT(16)
@@ -70,6 +71,14 @@
 #define MX6SX_USB_VBUS_WAKEUP_SOURCE_SESS_END	MX6SX_USB_VBUS_WAKEUP_SOURCE(3)
 
 #define VF610_OVER_CUR_DIS		BIT(7)
+
+#define MX7D_USBNC_USB_CTRL2		0x4
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_MASK	0x3
+#define MX7D_USB_VBUS_WAKEUP_SOURCE(v)		(v << 0)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_VBUS	MX7D_USB_VBUS_WAKEUP_SOURCE(0)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_AVALID	MX7D_USB_VBUS_WAKEUP_SOURCE(1)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID	MX7D_USB_VBUS_WAKEUP_SOURCE(2)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_SESS_END	MX7D_USB_VBUS_WAKEUP_SOURCE(3)
 
 struct usbmisc_ops {
 	/* It's called once when probe a usb device */
@@ -160,7 +169,7 @@ static int usbmisc_imx27_init(struct imx_usbmisc_data *data)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	spin_lock_irqsave(&usbmisc->lock, flags);
 	if (data->disable_oc)
@@ -255,13 +264,20 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 	if (data->index > 3)
 		return -EINVAL;
 
+	spin_lock_irqsave(&usbmisc->lock, flags);
+
 	if (data->disable_oc) {
-		spin_lock_irqsave(&usbmisc->lock, flags);
 		reg = readl(usbmisc->base + data->index * 4);
 		writel(reg | MX6_BM_OVER_CUR_DIS,
 			usbmisc->base + data->index * 4);
-		spin_unlock_irqrestore(&usbmisc->lock, flags);
 	}
+
+	/* SoC non-burst setting */
+	reg = readl(usbmisc->base + data->index * 4);
+	writel(reg | MX6_BM_NON_BURST_SETTING,
+			usbmisc->base + data->index * 4);
+
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
 
 	usbmisc_imx6q_set_wakeup(data, false);
 
@@ -316,6 +332,55 @@ static int usbmisc_vf610_init(struct imx_usbmisc_data *data)
 	return 0;
 }
 
+static int usbmisc_imx7d_set_wakeup
+	(struct imx_usbmisc_data *data, bool enabled)
+{
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	unsigned long flags;
+	u32 val;
+	u32 wakeup_setting = (MX6_BM_WAKEUP_ENABLE |
+		MX6_BM_VBUS_WAKEUP | MX6_BM_ID_WAKEUP);
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	val = readl(usbmisc->base);
+	if (enabled) {
+		writel(val | wakeup_setting, usbmisc->base);
+	} else {
+		if (val & MX6_BM_WAKEUP_INTR)
+			dev_dbg(data->dev, "wakeup int\n");
+		writel(val & ~wakeup_setting, usbmisc->base);
+	}
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	return 0;
+}
+
+static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
+{
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	unsigned long flags;
+	u32 reg;
+
+	if (data->index >= 1)
+		return -EINVAL;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	if (data->disable_oc) {
+		reg = readl(usbmisc->base);
+		writel(reg | MX6_BM_OVER_CUR_DIS, usbmisc->base);
+	}
+
+	reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	reg &= ~MX7D_USB_VBUS_WAKEUP_SOURCE_MASK;
+	writel(reg | MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID,
+		 usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	usbmisc_imx7d_set_wakeup(data, false);
+
+	return 0;
+}
+
 static const struct usbmisc_ops imx25_usbmisc_ops = {
 	.init = usbmisc_imx25_init,
 	.post = usbmisc_imx25_post,
@@ -341,6 +406,11 @@ static const struct usbmisc_ops vf610_usbmisc_ops = {
 static const struct usbmisc_ops imx6sx_usbmisc_ops = {
 	.set_wakeup = usbmisc_imx6q_set_wakeup,
 	.init = usbmisc_imx6sx_init,
+};
+
+static const struct usbmisc_ops imx7d_usbmisc_ops = {
+	.init = usbmisc_imx7d_init,
+	.set_wakeup = usbmisc_imx7d_set_wakeup,
 };
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data)
@@ -418,6 +488,10 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 		.compatible = "fsl,imx6sx-usbmisc",
 		.data = &imx6sx_usbmisc_ops,
 	},
+	{
+		.compatible = "fsl,imx6ul-usbmisc",
+		.data = &imx6sx_usbmisc_ops,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, usbmisc_imx_dt_ids);
@@ -426,7 +500,11 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	struct imx_usbmisc *data;
-	struct of_device_id *tmp_dev;
+	const struct of_device_id *of_id;
+
+	of_id = of_match_device(usbmisc_imx_dt_ids, &pdev->dev);
+	if (!of_id)
+		return -ENODEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -439,9 +517,7 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
-	tmp_dev = (struct of_device_id *)
-		of_match_device(usbmisc_imx_dt_ids, &pdev->dev);
-	data->ops = (const struct usbmisc_ops *)tmp_dev->data;
+	data->ops = (const struct usbmisc_ops *)of_id->data;
 	platform_set_drvdata(pdev, data);
 
 	return 0;

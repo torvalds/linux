@@ -197,6 +197,7 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 
 static struct snd_soc_card byt_rt5640_card = {
 	.name = "byt-rt5640",
+	.owner = THIS_MODULE,
 	.dai_link = byt_rt5640_dais,
 	.num_links = ARRAY_SIZE(byt_rt5640_dais),
 	.dapm_widgets = byt_rt5640_widgets,

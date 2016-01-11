@@ -12,20 +12,15 @@
 	model = "Atmel AT91RM9200 evaluation kit";
 	compatible = "atmel,at91rm9200ek", "atmel,at91rm9200";
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x20000000 0x4000000>;
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <18432000>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};

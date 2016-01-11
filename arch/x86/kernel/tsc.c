@@ -21,6 +21,7 @@
 #include <asm/hypervisor.h>
 #include <asm/nmi.h>
 #include <asm/x86_init.h>
+#include <asm/geode.h>
 
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -38,7 +39,7 @@ static int __read_mostly tsc_unstable;
    erroneous rdtsc usage on !cpu_has_tsc processors */
 static int __read_mostly tsc_disabled = -1;
 
-static struct static_key __use_tsc = STATIC_KEY_INIT;
+static DEFINE_STATIC_KEY_FALSE(__use_tsc);
 
 int tsc_clocksource_reliable;
 
@@ -167,21 +168,20 @@ static void cyc2ns_write_end(int cpu, struct cyc2ns_data *data)
  *              ns = cycles * cyc2ns_scale / SC
  *
  *      And since SC is a constant power of two, we can convert the div
- *  into a shift.
+ *  into a shift. The larger SC is, the more accurate the conversion, but
+ *  cyc2ns_scale needs to be a 32-bit value so that 32-bit multiplication
+ *  (64-bit result) can be used.
  *
- *  We can use khz divisor instead of mhz to keep a better precision, since
- *  cyc2ns_scale is limited to 10^6 * 2^10, which fits in 32 bits.
+ *  We can use khz divisor instead of mhz to keep a better precision.
  *  (mathieu.desnoyers@polymtl.ca)
  *
  *                      -johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 
-#define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
-
 static void cyc2ns_data_init(struct cyc2ns_data *data)
 {
 	data->cyc2ns_mul = 0;
-	data->cyc2ns_shift = CYC2NS_SCALE_FACTOR;
+	data->cyc2ns_shift = 0;
 	data->cyc2ns_offset = 0;
 	data->__count = 0;
 }
@@ -215,14 +215,14 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 
 	if (likely(data == tail)) {
 		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, CYC2NS_SCALE_FACTOR);
+		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
 	} else {
 		data->__count++;
 
 		barrier();
 
 		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, CYC2NS_SCALE_FACTOR);
+		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
 
 		barrier();
 
@@ -248,7 +248,7 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 
 	data = cyc2ns_write_begin(cpu);
 
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 	ns_now = cycles_2_ns(tsc_now);
 
 	/*
@@ -256,12 +256,22 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	 * time function is continuous; see the comment near struct
 	 * cyc2ns_data.
 	 */
-	data->cyc2ns_mul =
-		DIV_ROUND_CLOSEST(NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR,
-				  cpu_khz);
-	data->cyc2ns_shift = CYC2NS_SCALE_FACTOR;
+	clocks_calc_mult_shift(&data->cyc2ns_mul, &data->cyc2ns_shift, cpu_khz,
+			       NSEC_PER_MSEC, 0);
+
+	/*
+	 * cyc2ns_shift is exported via arch_perf_update_userpage() where it is
+	 * not expected to be greater than 31 due to the original published
+	 * conversion algorithm shifting a 32-bit value (now specifies a 64-bit
+	 * value) - refer perf_event_mmap_page documentation in perf_event.h.
+	 */
+	if (data->cyc2ns_shift == 32) {
+		data->cyc2ns_shift = 31;
+		data->cyc2ns_mul >>= 1;
+	}
+
 	data->cyc2ns_offset = ns_now -
-		mul_u64_u32_shr(tsc_now, data->cyc2ns_mul, CYC2NS_SCALE_FACTOR);
+		mul_u64_u32_shr(tsc_now, data->cyc2ns_mul, data->cyc2ns_shift);
 
 	cyc2ns_write_end(cpu, data);
 
@@ -274,7 +284,12 @@ done:
  */
 u64 native_sched_clock(void)
 {
-	u64 tsc_now;
+	if (static_branch_likely(&__use_tsc)) {
+		u64 tsc_now = rdtsc();
+
+		/* return the value in ns */
+		return cycles_2_ns(tsc_now);
+	}
 
 	/*
 	 * Fall back to jiffies if there's no TSC available:
@@ -284,16 +299,17 @@ u64 native_sched_clock(void)
 	 *   very important for it to be as fast as the platform
 	 *   can achieve it. )
 	 */
-	if (!static_key_false(&__use_tsc)) {
-		/* No locking but a rare wrong value is not a big deal: */
-		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
-	}
 
-	/* read the Time Stamp Counter: */
-	rdtscll(tsc_now);
+	/* No locking but a rare wrong value is not a big deal: */
+	return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
+}
 
-	/* return the value in ns */
-	return cycles_2_ns(tsc_now);
+/*
+ * Generate a sched_clock if you already have a TSC value.
+ */
+u64 native_sched_clock_from_tsc(u64 tsc)
+{
+	return cycles_2_ns(tsc);
 }
 
 /* We need to define a real function for sched_clock, to override the
@@ -307,12 +323,6 @@ unsigned long long sched_clock(void)
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
 #endif
-
-unsigned long long native_read_tsc(void)
-{
-	return __native_read_tsc();
-}
-EXPORT_SYMBOL(native_read_tsc);
 
 int check_tsc_unstable(void)
 {
@@ -598,10 +608,19 @@ static unsigned long quick_pit_calibrate(void)
 			if (!pit_expect_msb(0xff-i, &delta, &d2))
 				break;
 
+			delta -= tsc;
+
+			/*
+			 * Extrapolate the error and fail fast if the error will
+			 * never be below 500 ppm.
+			 */
+			if (i == 1 &&
+			    d1 + d2 >= (delta * MAX_QUICK_PIT_ITERATIONS) >> 11)
+				return 0;
+
 			/*
 			 * Iterate until the error is less than 500 ppm
 			 */
-			delta -= tsc;
 			if (d1+d2 >= delta >> 11)
 				continue;
 
@@ -967,7 +986,7 @@ static struct clocksource clocksource_tsc;
  */
 static cycle_t read_tsc(struct clocksource *cs)
 {
-	return (cycle_t)get_cycles();
+	return (cycle_t)rdtsc_ordered();
 }
 
 /*
@@ -1004,15 +1023,17 @@ EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
 static void __init check_system_tsc_reliable(void)
 {
-#ifdef CONFIG_MGEODE_LX
-	/* RTSC counts during suspend */
+#if defined(CONFIG_MGEODEGX1) || defined(CONFIG_MGEODE_LX) || defined(CONFIG_X86_GENERIC)
+	if (is_geode_lx()) {
+		/* RTSC counts during suspend */
 #define RTSC_SUSP 0x100
-	unsigned long res_low, res_high;
+		unsigned long res_low, res_high;
 
-	rdmsr_safe(MSR_GEODE_BUSCONT_CONF0, &res_low, &res_high);
-	/* Geode_LX - the OLPC CPU has a very reliable TSC */
-	if (res_low & RTSC_SUSP)
-		tsc_clocksource_reliable = 1;
+		rdmsr_safe(MSR_GEODE_BUSCONT_CONF0, &res_low, &res_high);
+		/* Geode_LX - the OLPC CPU has a very reliable TSC */
+		if (res_low & RTSC_SUSP)
+			tsc_clocksource_reliable = 1;
+	}
 #endif
 	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE))
 		tsc_clocksource_reliable = 1;
@@ -1201,7 +1222,7 @@ void __init tsc_init(void)
 	/* now allow native_sched_clock() to use rdtsc */
 
 	tsc_disabled = 0;
-	static_key_slow_inc(&__use_tsc);
+	static_branch_enable(&__use_tsc);
 
 	if (!no_sched_irq_time)
 		enable_sched_clock_irqtime();

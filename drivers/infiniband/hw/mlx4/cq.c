@@ -166,16 +166,23 @@ err_buf:
 	return err;
 }
 
-struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
+#define CQ_CREATE_FLAGS_SUPPORTED IB_CQ_FLAGS_TIMESTAMP_COMPLETION
+struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
+				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_cq *cq;
 	struct mlx4_uar *uar;
 	int err;
 
 	if (entries < 1 || entries > dev->dev->caps.max_cqes)
+		return ERR_PTR(-EINVAL);
+
+	if (attr->flags & ~CQ_CREATE_FLAGS_SUPPORTED)
 		return ERR_PTR(-EINVAL);
 
 	cq = kmalloc(sizeof *cq, GFP_KERNEL);
@@ -188,6 +195,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 	spin_lock_init(&cq->lock);
 	cq->resize_buf = NULL;
 	cq->resize_umem = NULL;
+	cq->create_flags = attr->flags;
 	INIT_LIST_HEAD(&cq->send_qp_list);
 	INIT_LIST_HEAD(&cq->recv_qp_list);
 
@@ -231,7 +239,8 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 		vector = dev->eq_table[vector % ibdev->num_comp_vectors];
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq, vector, 0, 0);
+			    cq->db.dma, &cq->mcq, vector, 0,
+			    !!(cq->create_flags & IB_CQ_FLAGS_TIMESTAMP_COMPLETION));
 	if (err)
 		goto err_dbmap;
 
@@ -629,7 +638,7 @@ static void mlx4_ib_poll_sw_comp(struct mlx4_ib_cq *cq, int num_entries,
 	 * simulated FLUSH_ERR completions
 	 */
 	list_for_each_entry(qp, &cq->send_qp_list, cq_send_list) {
-		mlx4_ib_qp_sw_comp(qp, num_entries, wc, npolled, 1);
+		mlx4_ib_qp_sw_comp(qp, num_entries, wc + *npolled, npolled, 1);
 		if (*npolled >= num_entries)
 			goto out;
 	}
@@ -809,7 +818,7 @@ repoll:
 			wc->opcode    = IB_WC_LSO;
 			break;
 		case MLX4_OPCODE_FMR:
-			wc->opcode    = IB_WC_FAST_REG_MR;
+			wc->opcode    = IB_WC_REG_MR;
 			break;
 		case MLX4_OPCODE_LOCAL_INVAL:
 			wc->opcode    = IB_WC_LOCAL_INV;
@@ -862,7 +871,7 @@ repoll:
 		if (is_eth) {
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
 			if (be32_to_cpu(cqe->vlan_my_qpn) &
-					MLX4_CQE_VLAN_PRESENT_MASK) {
+					MLX4_CQE_CVLAN_PRESENT_MASK) {
 				wc->vlan_id = be16_to_cpu(cqe->sl_vid) &
 					MLX4_CQE_VID_MASK;
 			} else {

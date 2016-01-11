@@ -13,6 +13,14 @@
  */
 
 #ifdef CONFIG_CPU_XSCALE
+
+#include <asm/cputype.h>
+#include <asm/irq_regs.h>
+
+#include <linux/of.h>
+#include <linux/perf/arm_pmu.h>
+#include <linux/platform_device.h>
+
 enum xscale_perf_types {
 	XSCALE_PERFCTR_ICACHE_MISS		= 0x00,
 	XSCALE_PERFCTR_ICACHE_NO_DELIVER	= 0x01,
@@ -740,14 +748,28 @@ static int xscale2pmu_init(struct arm_pmu *cpu_pmu)
 
 	return 0;
 }
-#else
-static inline int xscale1pmu_init(struct arm_pmu *cpu_pmu)
+
+static const struct pmu_probe_info xscale_pmu_probe_table[] = {
+	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V1, xscale1pmu_init),
+	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V2, xscale2pmu_init),
+	{ /* sentinel value */ }
+};
+
+static int xscale_pmu_device_probe(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return arm_pmu_device_probe(pdev, NULL, xscale_pmu_probe_table);
 }
 
-static inline int xscale2pmu_init(struct arm_pmu *cpu_pmu)
+static struct platform_driver xscale_pmu_driver = {
+	.driver		= {
+		.name	= "xscale-pmu",
+	},
+	.probe		= xscale_pmu_device_probe,
+};
+
+static int __init register_xscale_pmu_driver(void)
 {
-	return -ENODEV;
+	return platform_driver_register(&xscale_pmu_driver);
 }
+device_initcall(register_xscale_pmu_driver);
 #endif	/* CONFIG_CPU_XSCALE */

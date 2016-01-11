@@ -334,7 +334,7 @@ static int img_hash_dma_init(struct img_hash_dev *hdev)
 
 	hdev->dma_lch = dma_request_slave_channel(hdev->dev, "tx");
 	if (!hdev->dma_lch) {
-		dev_err(hdev->dev, "Couldn't aquire a slave DMA channel.\n");
+		dev_err(hdev->dev, "Couldn't acquire a slave DMA channel.\n");
 		return -EBUSY;
 	}
 	dma_conf.direction = DMA_MEM_TO_DEV;

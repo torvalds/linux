@@ -88,8 +88,8 @@ struct iucv_tty_buffer {
 };
 
 /* IUCV callback handler */
-static	int hvc_iucv_path_pending(struct iucv_path *, u8[8], u8[16]);
-static void hvc_iucv_path_severed(struct iucv_path *, u8[16]);
+static	int hvc_iucv_path_pending(struct iucv_path *, u8 *, u8 *);
+static void hvc_iucv_path_severed(struct iucv_path *, u8 *);
 static void hvc_iucv_msg_pending(struct iucv_path *, struct iucv_message *);
 static void hvc_iucv_msg_complete(struct iucv_path *, struct iucv_message *);
 
@@ -782,8 +782,8 @@ static int hvc_iucv_filter_connreq(u8 ipvmid[8])
  *
  * Locking:	struct hvc_iucv_private->lock
  */
-static	int hvc_iucv_path_pending(struct iucv_path *path,
-				  u8 ipvmid[8], u8 ipuser[16])
+static	int hvc_iucv_path_pending(struct iucv_path *path, u8 *ipvmid,
+				  u8 *ipuser)
 {
 	struct hvc_iucv_private *priv, *tmp;
 	u8 wildcard[9] = "lnxhvc  ";
@@ -881,7 +881,7 @@ out_path_handled:
  *
  * Locking:	struct hvc_iucv_private->lock
  */
-static void hvc_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
+static void hvc_iucv_path_severed(struct iucv_path *path, u8 *ipuser)
 {
 	struct hvc_iucv_private *priv = path->private;
 
@@ -1345,7 +1345,7 @@ static int param_get_vmidfilter(char *buffer, const struct kernel_param *kp)
 
 #define param_check_vmidfilter(name, p) __param_check(name, p, void)
 
-static struct kernel_param_ops param_ops_vmidfilter = {
+static const struct kernel_param_ops param_ops_vmidfilter = {
 	.set = param_set_vmidfilter,
 	.get = param_get_vmidfilter,
 };

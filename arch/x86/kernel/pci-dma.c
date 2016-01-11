@@ -58,17 +58,6 @@ EXPORT_SYMBOL(x86_dma_fallback_dev);
 /* Number of entries preallocated for DMA-API debugging */
 #define PREALLOC_DMA_DEBUG_ENTRIES       65536
 
-int dma_set_mask(struct device *dev, u64 mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-
-	return 0;
-}
-EXPORT_SYMBOL(dma_set_mask);
-
 void __init pci_iommu_alloc(void)
 {
 	struct iommu_table_entry *p;
@@ -101,7 +90,7 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 again:
 	page = NULL;
 	/* CMA can be used only in the context which permits sleeping */
-	if (flag & __GFP_WAIT) {
+	if (gfpflags_allow_blocking(flag)) {
 		page = dma_alloc_from_contiguous(dev, count, get_order(size));
 		if (page && page_to_phys(page) + size > dma_mask) {
 			dma_release_from_contiguous(dev, page, count);
@@ -139,6 +128,21 @@ void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
 	if (!dma_release_from_contiguous(dev, page, count))
 		free_pages((unsigned long)vaddr, get_order(size));
 }
+
+bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp)
+{
+	if (!*dev)
+		*dev = &x86_dma_fallback_dev;
+
+	*gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	*gfp = dma_alloc_coherent_gfp_flags(*dev, *gfp);
+
+	if (!is_device_dma_capable(*dev))
+		return false;
+	return true;
+
+}
+EXPORT_SYMBOL(arch_dma_alloc_attrs);
 
 /*
  * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel

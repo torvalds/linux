@@ -170,7 +170,7 @@ struct cx23885_riscmem {
 /* buffer for one video frame */
 struct cx23885_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
 
 	/* cx23885 specific */
@@ -304,11 +304,12 @@ struct cx23885_tsport {
 
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner;
+	struct i2c_client *i2c_client_sec;
 	struct i2c_client *i2c_client_ci;
 
 	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*fe_set_voltage)(struct dvb_frontend *fe,
-				fe_sec_voltage_t voltage);
+			      enum fe_sec_voltage voltage);
 };
 
 struct cx23885_kernel_ir {

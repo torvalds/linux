@@ -451,9 +451,14 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	dev_dbg(&hi->cl->device, "Read on control: %08X\n", cmd);
 	cs_release_cmd(msg);
 	if (hi->flags & CS_FEAT_TSTAMP_RX_CTRL) {
-		struct timespec *tstamp =
+		struct timespec tspec;
+		struct cs_timestamp *tstamp =
 			&hi->mmap_cfg->tstamp_rx_ctrl;
-		do_posix_clock_monotonic_gettime(tstamp);
+
+		ktime_get_ts(&tspec);
+
+		tstamp->tv_sec = (__u32) tspec.tv_sec;
+		tstamp->tv_nsec = (__u32) tspec.tv_nsec;
 	}
 	spin_unlock(&hi->lock);
 
@@ -1105,7 +1110,7 @@ static int cs_char_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct cs_char_vm_ops = {
+static const struct vm_operations_struct cs_char_vm_ops = {
 	.fault	= cs_char_vma_fault,
 };
 

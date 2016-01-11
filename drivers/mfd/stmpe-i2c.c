@@ -6,7 +6,7 @@
  *
  * License Terms: GNU General Public License, version 2
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
- * Author: Viresh Kumar <viresh.linux@gmail.com> for ST Microelectronics
+ * Author: Viresh Kumar <vireshk@kernel.org> for ST Microelectronics
  */
 
 #include <linux/i2c.h>
@@ -112,7 +112,6 @@ MODULE_DEVICE_TABLE(i2c, stmpe_id);
 static struct i2c_driver stmpe_i2c_driver = {
 	.driver = {
 		.name = "stmpe-i2c",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &stmpe_dev_pm_ops,
 #endif

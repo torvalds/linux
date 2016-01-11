@@ -13,6 +13,7 @@ void xen_arch_post_suspend(int suspend_cancelled);
 
 void xen_timer_resume(void);
 void xen_arch_resume(void);
+void xen_arch_suspend(void);
 
 void xen_resume_notifier_register(struct notifier_block *nb);
 void xen_resume_notifier_unregister(struct notifier_block *nb);
@@ -29,7 +30,7 @@ void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
 struct vm_area_struct;
 
 /*
- * xen_remap_domain_mfn_array() - map an array of foreign frames
+ * xen_remap_domain_gfn_array() - map an array of foreign frames
  * @vma:     VMA to map the pages into
  * @addr:    Address at which to map the pages
  * @gfn:     Array of GFNs to map
@@ -45,14 +46,14 @@ struct vm_area_struct;
  * Returns the number of successfully mapped frames, or a -ve error
  * code.
  */
-int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
 			       xen_pfn_t *gfn, int nr,
 			       int *err_ptr, pgprot_t prot,
 			       unsigned domid,
 			       struct page **pages);
 
-/* xen_remap_domain_mfn_range() - map a range of foreign frames
+/* xen_remap_domain_gfn_range() - map a range of foreign frames
  * @vma:     VMA to map the pages into
  * @addr:    Address at which to map the pages
  * @gfn:     First GFN to map.
@@ -64,12 +65,12 @@ int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
  * Returns the number of successfully mapped frames, or a -ve error
  * code.
  */
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
 			       unsigned long addr,
 			       xen_pfn_t gfn, int nr,
 			       pgprot_t prot, unsigned domid,
 			       struct page **pages);
-int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int numpgs, struct page **pages);
 int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      unsigned long addr,

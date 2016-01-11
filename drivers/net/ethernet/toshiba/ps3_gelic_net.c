@@ -102,6 +102,18 @@ static void gelic_card_get_ether_port_status(struct gelic_card *card,
 	}
 }
 
+/**
+ * gelic_descr_get_status -- returns the status of a descriptor
+ * @descr: descriptor to look at
+ *
+ * returns the status as in the dmac_cmd_status field of the descriptor
+ */
+static enum gelic_descr_dma_status
+gelic_descr_get_status(struct gelic_descr *descr)
+{
+	return be32_to_cpu(descr->dmac_cmd_status) & GELIC_DESCR_DMA_STAT_MASK;
+}
+
 static int gelic_card_set_link_mode(struct gelic_card *card, int mode)
 {
 	int status;
@@ -275,18 +287,6 @@ void gelic_card_down(struct gelic_card *card)
 	}
 	mutex_unlock(&card->updown_lock);
 	pr_debug("%s: done\n", __func__);
-}
-
-/**
- * gelic_descr_get_status -- returns the status of a descriptor
- * @descr: descriptor to look at
- *
- * returns the status as in the dmac_cmd_status field of the descriptor
- */
-static enum gelic_descr_dma_status
-gelic_descr_get_status(struct gelic_descr *descr)
-{
-	return be32_to_cpu(descr->dmac_cmd_status) & GELIC_DESCR_DMA_STAT_MASK;
 }
 
 /**

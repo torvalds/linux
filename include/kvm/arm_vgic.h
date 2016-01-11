@@ -35,11 +35,7 @@
 #define VGIC_V3_MAX_LRS		16
 #define VGIC_MAX_IRQS		1024
 #define VGIC_V2_MAX_CPUS	8
-
-/* Sanity checks... */
-#if (KVM_MAX_VCPUS > 255)
-#error Too many KVM VCPUs, the VGIC only supports up to 255 VCPUs for now
-#endif
+#define VGIC_V3_MAX_CPUS	255
 
 #if (VGIC_NR_IRQS_LEGACY & 31)
 #error "VGIC_NR_IRQS must be a multiple of 32"
@@ -95,11 +91,15 @@ enum vgic_type {
 #define LR_STATE_ACTIVE		(1 << 1)
 #define LR_STATE_MASK		(3 << 0)
 #define LR_EOI_INT		(1 << 2)
+#define LR_HW			(1 << 3)
 
 struct vgic_lr {
-	u16	irq;
-	u8	source;
-	u8	state;
+	unsigned irq:10;
+	union {
+		unsigned hwirq:10;
+		unsigned source:3;
+	};
+	unsigned state:4;
 };
 
 struct vgic_vmcr {
@@ -112,7 +112,6 @@ struct vgic_vmcr {
 struct vgic_ops {
 	struct vgic_lr	(*get_lr)(const struct kvm_vcpu *, int);
 	void	(*set_lr)(struct kvm_vcpu *, int, struct vgic_lr);
-	void	(*sync_lr_elrsr)(struct kvm_vcpu *, int, struct vgic_lr);
 	u64	(*get_elrsr)(const struct kvm_vcpu *vcpu);
 	u64	(*get_eisr)(const struct kvm_vcpu *vcpu);
 	void	(*clear_eisr)(struct kvm_vcpu *vcpu);
@@ -153,6 +152,18 @@ struct vgic_io_device {
 	const struct vgic_io_range *reg_ranges;
 	struct kvm_vcpu *redist_vcpu;
 	struct kvm_io_device dev;
+};
+
+struct irq_phys_map {
+	u32			virt_irq;
+	u32			phys_irq;
+	u32			irq;
+};
+
+struct irq_phys_map_entry {
+	struct list_head	entry;
+	struct rcu_head		rcu;
+	struct irq_phys_map	map;
 };
 
 struct vgic_dist {
@@ -252,6 +263,10 @@ struct vgic_dist {
 	struct vgic_vm_ops	vm_ops;
 	struct vgic_io_device	dist_iodev;
 	struct vgic_io_device	*redist_iodevs;
+
+	/* Virtual irq to hwirq mapping */
+	spinlock_t		irq_phys_map_lock;
+	struct list_head	irq_phys_map_list;
 };
 
 struct vgic_v2_cpu_if {
@@ -265,7 +280,7 @@ struct vgic_v2_cpu_if {
 };
 
 struct vgic_v3_cpu_if {
-#ifdef CONFIG_ARM_GIC_V3
+#ifdef CONFIG_KVM_ARM_VGIC_V3
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
 	u32		vgic_sre;	/* Restored only, change ignored */
@@ -279,21 +294,15 @@ struct vgic_v3_cpu_if {
 };
 
 struct vgic_cpu {
-	/* per IRQ to LR mapping */
-	u8		*vgic_irq_lr_map;
-
 	/* Pending/active/both interrupts on this VCPU */
-	DECLARE_BITMAP(	pending_percpu, VGIC_NR_PRIVATE_IRQS);
-	DECLARE_BITMAP(	active_percpu, VGIC_NR_PRIVATE_IRQS);
-	DECLARE_BITMAP(	pend_act_percpu, VGIC_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(pending_percpu, VGIC_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(active_percpu, VGIC_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(pend_act_percpu, VGIC_NR_PRIVATE_IRQS);
 
 	/* Pending/active/both shared interrupts, dynamically sized */
 	unsigned long	*pending_shared;
 	unsigned long   *active_shared;
 	unsigned long   *pend_act_shared;
-
-	/* Bitmap of used/free list registers */
-	DECLARE_BITMAP(	lr_used, VGIC_V2_MAX_LRS);
 
 	/* Number of list registers on this CPU */
 	int		nr_lr;
@@ -303,6 +312,9 @@ struct vgic_cpu {
 		struct vgic_v2_cpu_if	vgic_v2;
 		struct vgic_v3_cpu_if	vgic_v3;
 	};
+
+	/* Protected by the distributor's irq_phys_map_lock */
+	struct list_head	irq_phys_map_list;
 };
 
 #define LR_EMPTY	0xff
@@ -317,16 +329,23 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 int kvm_vgic_hyp_init(void);
 int kvm_vgic_map_resources(struct kvm *kvm);
 int kvm_vgic_get_max_vcpus(void);
+void kvm_vgic_early_init(struct kvm *kvm);
 int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
+void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 			bool level);
+int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid,
+			       struct irq_phys_map *map, bool level);
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
-int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu);
+struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
+					   int virt_irq, int irq);
+int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
+bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	(!!((k)->arch.vgic.nr_cpus))
@@ -335,7 +354,7 @@ int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu);
 int vgic_v2_probe(struct device_node *vgic_node,
 		  const struct vgic_ops **ops,
 		  const struct vgic_params **params);
-#ifdef CONFIG_ARM_GIC_V3
+#ifdef CONFIG_KVM_ARM_VGIC_V3
 int vgic_v3_probe(struct device_node *vgic_node,
 		  const struct vgic_ops **ops,
 		  const struct vgic_params **params);

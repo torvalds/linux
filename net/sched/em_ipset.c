@@ -92,9 +92,10 @@ static int em_ipset_match(struct sk_buff *skb, struct tcf_ematch *em,
 
 	rcu_read_lock();
 
-	if (dev && skb->skb_iif)
-		indev = dev_get_by_index_rcu(dev_net(dev), skb->skb_iif);
+	if (skb->skb_iif)
+		indev = dev_get_by_index_rcu(em->net, skb->skb_iif);
 
+	acpar.net     = em->net;
 	acpar.in      = indev ? indev : dev;
 	acpar.out     = dev;
 

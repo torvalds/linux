@@ -316,9 +316,9 @@ static void exynos_pcie_assert_reset(struct pcie_port *pp)
 
 static int exynos_pcie_establish_link(struct pcie_port *pp)
 {
-	u32 val;
-	int count = 0;
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+	u32 val;
+	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "Link already up\n");
@@ -357,27 +357,23 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 			  PCIE_APP_LTSSM_ENABLE);
 
 	/* check if the link is up or not */
-	while (!dw_pcie_link_up(pp)) {
-		mdelay(100);
-		count++;
-		if (count == 10) {
-			while (exynos_phy_readl(exynos_pcie,
-						PCIE_PHY_PLL_LOCKED) == 0) {
-				val = exynos_blk_readl(exynos_pcie,
-						       PCIE_PHY_PLL_LOCKED);
-				dev_info(pp->dev, "PLL Locked: 0x%x\n", val);
-			}
-			/* power off phy */
-			exynos_pcie_power_off_phy(pp);
-
-			dev_err(pp->dev, "PCIe Link Fail\n");
-			return -EINVAL;
+	for (retries = 0; retries < 10; retries++) {
+		if (dw_pcie_link_up(pp)) {
+			dev_info(pp->dev, "Link up\n");
+			return 0;
 		}
+		mdelay(100);
 	}
 
-	dev_info(pp->dev, "Link up\n");
+	while (exynos_phy_readl(exynos_pcie, PCIE_PHY_PLL_LOCKED) == 0) {
+		val = exynos_blk_readl(exynos_pcie, PCIE_PHY_PLL_LOCKED);
+		dev_info(pp->dev, "PLL Locked: 0x%x\n", val);
+	}
+	/* power off phy */
+	exynos_pcie_power_off_phy(pp);
 
-	return 0;
+	dev_err(pp->dev, "PCIe Link Fail\n");
+	return -EINVAL;
 }
 
 static void exynos_pcie_clear_irq_pulse(struct pcie_port *pp)
@@ -458,7 +454,7 @@ static int exynos_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_r_mode(pp, true);
-	ret = dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
+	ret = dw_pcie_cfg_read(pp->dbi_base + where, size, val);
 	exynos_pcie_sideband_dbi_r_mode(pp, false);
 	return ret;
 }
@@ -469,8 +465,7 @@ static int exynos_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
-	ret = dw_pcie_cfg_write(pp->dbi_base + (where & ~0x3),
-			where, size, val);
+	ret = dw_pcie_cfg_write(pp->dbi_base + where, size, val);
 	exynos_pcie_sideband_dbi_w_mode(pp, false);
 	return ret;
 }

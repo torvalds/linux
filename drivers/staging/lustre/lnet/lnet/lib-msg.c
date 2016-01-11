@@ -60,8 +60,8 @@ lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev)
 void
 lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
 {
-	lnet_hdr_t	*hdr = &msg->msg_hdr;
-	lnet_event_t	*ev  = &msg->msg_ev;
+	lnet_hdr_t *hdr = &msg->msg_hdr;
+	lnet_event_t *ev  = &msg->msg_ev;
 
 	LASSERT(!msg->msg_routing);
 
@@ -73,7 +73,7 @@ lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
 		ev->target.pid    = le32_to_cpu(hdr->dest_pid);
 		ev->initiator.nid = LNET_NID_ANY;
 		ev->initiator.pid = the_lnet.ln_pid;
-		ev->sender	  = LNET_NID_ANY;
+		ev->sender        = LNET_NID_ANY;
 
 	} else {
 		/* event for passive message */
@@ -82,9 +82,9 @@ lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
 		ev->initiator.pid = hdr->src_pid;
 		ev->initiator.nid = hdr->src_nid;
 		ev->rlength       = hdr->payload_length;
-		ev->sender	  = msg->msg_from;
-		ev->mlength	  = msg->msg_wanted;
-		ev->offset	  = msg->msg_offset;
+		ev->sender        = msg->msg_from;
+		ev->mlength       = msg->msg_wanted;
+		ev->offset        = msg->msg_offset;
 	}
 
 	switch (ev_type) {
@@ -137,7 +137,7 @@ void
 lnet_msg_commit(lnet_msg_t *msg, int cpt)
 {
 	struct lnet_msg_container *container = the_lnet.ln_msg_containers[cpt];
-	lnet_counters_t		  *counters  = the_lnet.ln_counters[cpt];
+	lnet_counters_t *counters  = the_lnet.ln_counters[cpt];
 
 	/* routed message can be committed for both receiving and sending */
 	LASSERT(!msg->msg_tx_committed);
@@ -170,7 +170,7 @@ static void
 lnet_msg_decommit_tx(lnet_msg_t *msg, int status)
 {
 	lnet_counters_t	*counters;
-	lnet_event_t	*ev = &msg->msg_ev;
+	lnet_event_t *ev = &msg->msg_ev;
 
 	LASSERT(msg->msg_tx_committed);
 	if (status != 0)
@@ -219,8 +219,8 @@ lnet_msg_decommit_tx(lnet_msg_t *msg, int status)
 static void
 lnet_msg_decommit_rx(lnet_msg_t *msg, int status)
 {
-	lnet_counters_t	*counters;
-	lnet_event_t	*ev = &msg->msg_ev;
+	lnet_counters_t *counters;
+	lnet_event_t *ev = &msg->msg_ev;
 
 	LASSERT(!msg->msg_tx_committed); /* decommitted or never committed */
 	LASSERT(msg->msg_rx_committed);
@@ -273,7 +273,7 @@ lnet_msg_decommit_rx(lnet_msg_t *msg, int status)
 void
 lnet_msg_decommit(lnet_msg_t *msg, int cpt, int status)
 {
-	int	cpt2 = cpt;
+	int cpt2 = cpt;
 
 	LASSERT(msg->msg_tx_committed || msg->msg_rx_committed);
 	LASSERT(msg->msg_onactivelist);
@@ -335,8 +335,8 @@ lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
 void
 lnet_msg_detach_md(lnet_msg_t *msg, int status)
 {
-	lnet_libmd_t	*md = msg->msg_md;
-	int		unlink;
+	lnet_libmd_t *md = msg->msg_md;
+	int unlink;
 
 	/* Now it's safe to drop my caller's ref */
 	md->md_refcount--;
@@ -359,8 +359,8 @@ static int
 lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 {
 	lnet_handle_wire_t ack_wmd;
-	int		rc;
-	int		status = msg->msg_ev.status;
+	int rc;
+	int status = msg->msg_ev.status;
 
 	LASSERT(msg->msg_onactivelist);
 
@@ -427,18 +427,18 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 	}
 
 	lnet_msg_decommit(msg, cpt, status);
-	lnet_msg_free_locked(msg);
+	lnet_msg_free(msg);
 	return 0;
 }
 
 void
 lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 {
-	struct lnet_msg_container	*container;
-	int				my_slot;
-	int				cpt;
-	int				rc;
-	int				i;
+	struct lnet_msg_container *container;
+	int my_slot;
+	int cpt;
+	int rc;
+	int i;
 
 	LASSERT(!in_interrupt());
 
@@ -534,7 +534,7 @@ EXPORT_SYMBOL(lnet_finalize);
 void
 lnet_msg_container_cleanup(struct lnet_msg_container *container)
 {
-	int     count = 0;
+	int count = 0;
 
 	if (container->msc_init == 0)
 		return;
@@ -568,7 +568,7 @@ lnet_msg_container_cleanup(struct lnet_msg_container *container)
 int
 lnet_msg_container_setup(struct lnet_msg_container *container, int cpt)
 {
-	int	rc;
+	int rc;
 
 	container->msc_init = 1;
 
@@ -608,7 +608,7 @@ void
 lnet_msg_containers_destroy(void)
 {
 	struct lnet_msg_container *container;
-	int     i;
+	int i;
 
 	if (the_lnet.ln_msg_containers == NULL)
 		return;
@@ -624,8 +624,8 @@ int
 lnet_msg_containers_create(void)
 {
 	struct lnet_msg_container *container;
-	int	rc;
-	int	i;
+	int rc;
+	int i;
 
 	the_lnet.ln_msg_containers = cfs_percpt_alloc(lnet_cpt_table(),
 						      sizeof(*container));

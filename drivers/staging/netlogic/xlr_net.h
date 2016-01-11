@@ -999,7 +999,8 @@
 #define MAC_CRC_LEN                     4
 #define MAX_NUM_MSGRNG_STN_CC           128
 #define MAX_MSG_SND_ATTEMPTS		100	/* 13 stns x 4 entry msg/stn +
-						   headroom */
+						 * headroom
+						 */
 
 #define MAC_FRIN_TO_BE_SENT_THRESHOLD   16
 
@@ -1102,4 +1103,4 @@ struct xlr_net_priv {
 	u64 *class_3_spill;
 };
 
-extern void xlr_set_gmac_speed(struct xlr_net_priv *priv);
+void xlr_set_gmac_speed(struct xlr_net_priv *priv);

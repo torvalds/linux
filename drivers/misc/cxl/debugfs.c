@@ -48,7 +48,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_io_x64, debugfs_io_u64_get, debugfs_io_u64_set, "0x
 static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 					    struct dentry *parent, u64 __iomem *value)
 {
-	return debugfs_create_file(name, mode, parent, (void *)value, &fops_io_x64);
+	return debugfs_create_file(name, mode, parent, (void __force *)value, &fops_io_x64);
 }
 
 int cxl_debugfs_adapter_add(struct cxl *adapter)

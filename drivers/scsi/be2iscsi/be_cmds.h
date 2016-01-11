@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,7 +8,7 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
  * Emulex
  * 3333 Susan Street
@@ -302,6 +302,17 @@ struct mgmt_auth_method_format {
 	u8	auth_method_type;
 	u8	padding[3];
 	struct	mgmt_chap_format chap;
+} __packed;
+
+struct be_cmd_req_logout_fw_sess {
+	struct be_cmd_req_hdr hdr;	/* dw[4] */
+	uint32_t session_handle;
+} __packed;
+
+struct be_cmd_resp_logout_fw_sess {
+	struct be_cmd_resp_hdr hdr;	/* dw[4] */
+#define BEISCSI_MGMT_SESSION_CLOSE 0x20
+	uint32_t session_status;
 } __packed;
 
 struct mgmt_conn_login_options {
@@ -1136,6 +1147,7 @@ struct be_cmd_get_all_if_id_req {
 #define OPCODE_ISCSI_INI_CFG_GET_HBA_NAME	6
 #define OPCODE_ISCSI_INI_CFG_SET_HBA_NAME	7
 #define OPCODE_ISCSI_INI_SESSION_GET_A_SESSION  14
+#define OPCODE_ISCSI_INI_SESSION_LOGOUT_TARGET	 24
 #define OPCODE_ISCSI_INI_DRIVER_REOPEN_ALL_SESSIONS 36
 #define OPCODE_ISCSI_INI_DRIVER_OFFLOAD_SESSION 41
 #define OPCODE_ISCSI_INI_DRIVER_INVALIDATE_CONNECTION 42

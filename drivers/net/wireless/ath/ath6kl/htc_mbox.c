@@ -1085,9 +1085,7 @@ static int htc_setup_tx_complete(struct htc_target *target)
 	send_pkt->completion = NULL;
 	ath6kl_htc_tx_prep_pkt(send_pkt, 0, 0, 0);
 	status = ath6kl_htc_tx_issue(target, send_pkt);
-
-	if (send_pkt != NULL)
-		htc_reclaim_txctrl_buf(target, send_pkt);
+	htc_reclaim_txctrl_buf(target, send_pkt);
 
 	return status;
 }

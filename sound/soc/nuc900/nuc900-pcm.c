@@ -308,13 +308,7 @@ static struct snd_soc_platform_driver nuc900_soc_platform = {
 
 static int nuc900_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&pdev->dev, &nuc900_soc_platform);
-}
-
-static int nuc900_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_platform(&pdev->dev, &nuc900_soc_platform);
 }
 
 static struct platform_driver nuc900_pcm_driver = {
@@ -323,7 +317,6 @@ static struct platform_driver nuc900_pcm_driver = {
 	},
 
 	.probe = nuc900_soc_platform_probe,
-	.remove = nuc900_soc_platform_remove,
 };
 
 module_platform_driver(nuc900_pcm_driver);

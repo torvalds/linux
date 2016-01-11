@@ -172,6 +172,7 @@ static s32 bmp280_compensate_temp(struct bmp280_data *data,
 	var2 = (((((adc_temp >> 4) - ((s32)le16_to_cpu(buf[T1]))) *
 		  ((adc_temp >> 4) - ((s32)le16_to_cpu(buf[T1])))) >> 12) *
 		((s32)(s16)le16_to_cpu(buf[T3]))) >> 14;
+	data->t_fine = var1 + var2;
 
 	return (data->t_fine * 5 + 128) >> 8;
 }

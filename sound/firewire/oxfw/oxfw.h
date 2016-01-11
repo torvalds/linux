@@ -28,7 +28,7 @@
 #include "../fcp.h"
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../cmp.h"
 
 struct device_info {
@@ -49,6 +49,7 @@ struct snd_oxfw {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool wrong_dbs;
 	bool has_output;
 	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	u8 *rx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];

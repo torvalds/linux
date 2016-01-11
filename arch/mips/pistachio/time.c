@@ -26,6 +26,12 @@ int get_c0_perfcount_int(void)
 {
 	return gic_get_c0_perfcount_int();
 }
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
+
+int get_c0_fdc_int(void)
+{
+	return gic_get_c0_fdc_int();
+}
 
 void __init plat_time_init(void)
 {
@@ -33,7 +39,7 @@ void __init plat_time_init(void)
 	struct clk *clk;
 
 	of_clk_init(NULL);
-	clocksource_of_init();
+	clocksource_probe();
 
 	np = of_get_cpu_node(0, NULL);
 	if (!np) {

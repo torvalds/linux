@@ -4,7 +4,11 @@ This node models the Maxim MAX98357A DAC.
 
 Required properties:
 - compatible   : "maxim,max98357a"
-- sdmode-gpios : GPIO specifier for the GPIO -> DAC SDMODE pin
+
+Optional properties:
+- sdmode-gpios : GPIO specifier for the chip's SD_MODE pin.
+        If this option is not specified then driver does not manage
+        the pin state (e.g. chip is always on).
 
 Example:
 

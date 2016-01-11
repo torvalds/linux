@@ -69,6 +69,17 @@
 			};
 		};
 
+		gpio: xlp_gpio@114100 {
+			compatible = "netlogic,xlp532-gpio";
+			reg = <0 0x114100 0x1000>;
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			#interrupt-cells = <2>;
+			interrupt-parent = <&pic>;
+			interrupts = <39>;
+			interrupt-controller;
+		};
 	};
 
 	chosen {

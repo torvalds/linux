@@ -12,6 +12,7 @@
 
 #include <linux/leds.h>
 #include <linux/mutex.h>
+#include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/fault-inject.h>
@@ -131,7 +132,9 @@ struct mmc_host_ops {
 
 	/* Prepare HS400 target operating frequency depending host driver */
 	int	(*prepare_hs400_tuning)(struct mmc_host *host, struct mmc_ios *ios);
-	int	(*select_drive_strength)(unsigned int max_dtr, int host_drv, int card_drv);
+	int	(*select_drive_strength)(struct mmc_card *card,
+					 unsigned int max_dtr, int host_drv,
+					 int card_drv, int *drv_type);
 	void	(*hw_reset)(struct mmc_host *host);
 	void	(*card_event)(struct mmc_host *host);
 
@@ -285,20 +288,9 @@ struct mmc_host {
 				 MMC_CAP2_HS400_1_2V)
 #define MMC_CAP2_HSX00_1_2V	(MMC_CAP2_HS200_1_2V_SDR | MMC_CAP2_HS400_1_2V)
 #define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
+#define MMC_CAP2_NO_WRITE_PROTECT (1 << 18)	/* No physical write protect pin, assume that card is always read-write */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
-
-#ifdef CONFIG_MMC_CLKGATE
-	int			clk_requests;	/* internal reference counter */
-	unsigned int		clk_delay;	/* number of MCI clk hold cycles */
-	bool			clk_gated;	/* clock gated */
-	struct delayed_work	clk_gate_work; /* delayed clock gate */
-	unsigned int		clk_old;	/* old clock value cache */
-	spinlock_t		clk_lock;	/* lock for clk fields */
-	struct mutex		clk_gate_mutex;	/* mutex for clock gating */
-	struct device_attribute clkgate_delay_attr;
-	unsigned long           clkgate_delay;
-#endif
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
@@ -321,9 +313,17 @@ struct mmc_host {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned int		removed:1;	/* host is being removed */
 #endif
+	unsigned int		can_retune:1;	/* re-tuning can be used */
+	unsigned int		doing_retune:1;	/* re-tuning in progress */
+	unsigned int		retune_now:1;	/* do re-tuning at next req */
 
 	int			rescan_disable;	/* disable card detection */
 	int			rescan_entered;	/* used with nonremovable devices */
+
+	int			need_retune;	/* re-tuning is needed */
+	int			hold_retune;	/* hold off re-tuning */
+	unsigned int		retune_period;	/* re-tuning period in secs */
+	struct timer_list	retune_timer;	/* for periodic re-tuning */
 
 	bool			trigger_card_event; /* card_event necessary */
 
@@ -400,7 +400,8 @@ static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 {
 	host->ops->enable_sdio_irq(host, 0);
 	host->sdio_irq_pending = true;
-	wake_up_process(host->sdio_irq_thread);
+	if (host->sdio_irq_thread)
+		wake_up_process(host->sdio_irq_thread);
 }
 
 void sdio_run_irqs(struct mmc_host *host);
@@ -410,6 +411,7 @@ int mmc_regulator_get_ocrmask(struct regulator *supply);
 int mmc_regulator_set_ocr(struct mmc_host *mmc,
 			struct regulator *supply,
 			unsigned short vdd_bit);
+int mmc_regulator_set_vqmmc(struct mmc_host *mmc, struct mmc_ios *ios);
 #else
 static inline int mmc_regulator_get_ocrmask(struct regulator *supply)
 {
@@ -421,6 +423,12 @@ static inline int mmc_regulator_set_ocr(struct mmc_host *mmc,
 				 unsigned short vdd_bit)
 {
 	return 0;
+}
+
+static inline int mmc_regulator_set_vqmmc(struct mmc_host *mmc,
+					  struct mmc_ios *ios)
+{
+	return -EINVAL;
 }
 #endif
 
@@ -466,26 +474,6 @@ static inline int mmc_host_packed_wr(struct mmc_host *host)
 	return host->caps2 & MMC_CAP2_PACKED_WR;
 }
 
-#ifdef CONFIG_MMC_CLKGATE
-void mmc_host_clk_hold(struct mmc_host *host);
-void mmc_host_clk_release(struct mmc_host *host);
-unsigned int mmc_host_clk_rate(struct mmc_host *host);
-
-#else
-static inline void mmc_host_clk_hold(struct mmc_host *host)
-{
-}
-
-static inline void mmc_host_clk_release(struct mmc_host *host)
-{
-}
-
-static inline unsigned int mmc_host_clk_rate(struct mmc_host *host)
-{
-	return host->ios.clock;
-}
-#endif
-
 static inline int mmc_card_hs(struct mmc_card *card)
 {
 	return card->host->ios.timing == MMC_TIMING_SD_HS ||
@@ -511,6 +499,20 @@ static inline bool mmc_card_ddr52(struct mmc_card *card)
 static inline bool mmc_card_hs400(struct mmc_card *card)
 {
 	return card->host->ios.timing == MMC_TIMING_MMC_HS400;
+}
+
+void mmc_retune_timer_stop(struct mmc_host *host);
+
+static inline void mmc_retune_needed(struct mmc_host *host)
+{
+	if (host->can_retune)
+		host->need_retune = 1;
+}
+
+static inline void mmc_retune_recheck(struct mmc_host *host)
+{
+	if (host->hold_retune <= 1)
+		host->retune_now = 1;
 }
 
 #endif /* LINUX_MMC_HOST_H */

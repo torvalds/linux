@@ -22,6 +22,7 @@
 #include <asm/asm.h>
 #include <asm/branch.h>
 #include <asm/break.h>
+#include <asm/debug.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
@@ -2363,7 +2364,6 @@ static const struct file_operations mipsr2_clear_fops = {
 
 static int __init mipsr2_init_debugfs(void)
 {
-	extern struct dentry	*mips_debugfs_dir;
 	struct dentry		*mipsr2_emul;
 
 	if (!mips_debugfs_dir)

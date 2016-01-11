@@ -51,25 +51,27 @@
 #define PCI1723_BOARD_ID_REG		0x10
 #define PCI1723_BOARD_ID_MASK		(0xf << 0)
 #define PCI1723_SYNC_CTRL_REG		0x12
-#define PCI1723_SYNC_CTRL_ASYNC		(0 << 0)
-#define PCI1723_SYNC_CTRL_SYNC		(1 << 0)
+#define PCI1723_SYNC_CTRL(x)		(((x) & 0x1) << 0)
+#define PCI1723_SYNC_CTRL_ASYNC		PCI1723_SYNC_CTRL(0)
+#define PCI1723_SYNC_CTRL_SYNC		PCI1723_SYNC_CTRL(1)
 #define PCI1723_CTRL_REG		0x14
-#define PCI1723_CTRL_BUSY		(1 << 15)
-#define PCI1723_CTRL_INIT		(1 << 14)
-#define PCI1723_CTRL_SELF		(1 << 8)
+#define PCI1723_CTRL_BUSY		BIT(15)
+#define PCI1723_CTRL_INIT		BIT(14)
+#define PCI1723_CTRL_SELF		BIT(8)
 #define PCI1723_CTRL_IDX(x)		(((x) & 0x3) << 6)
 #define PCI1723_CTRL_RANGE(x)		(((x) & 0x3) << 4)
-#define PCI1723_CTRL_GAIN		(0 << 3)
-#define PCI1723_CTRL_OFFSET		(1 << 3)
+#define PCI1723_CTRL_SEL(x)		(((x) & 0x1) << 3)
+#define PCI1723_CTRL_GAIN		PCI1723_CTRL_SEL(0)
+#define PCI1723_CTRL_OFFSET		PCI1723_CTRL_SEL(1)
 #define PCI1723_CTRL_CHAN(x)		(((x) & 0x7) << 0)
 #define PCI1723_CALIB_CTRL_REG		0x16
-#define PCI1723_CALIB_CTRL_CS		(1 << 2)
-#define PCI1723_CALIB_CTRL_DAT		(1 << 1)
-#define PCI1723_CALIB_CTRL_CLK		(1 << 0)
+#define PCI1723_CALIB_CTRL_CS		BIT(2)
+#define PCI1723_CALIB_CTRL_DAT		BIT(1)
+#define PCI1723_CALIB_CTRL_CLK		BIT(0)
 #define PCI1723_CALIB_STROBE_REG	0x18
 #define PCI1723_DIO_CTRL_REG		0x1a
-#define PCI1723_DIO_CTRL_HDIO		(1 << 1)
-#define PCI1723_DIO_CTRL_LDIO		(1 << 0)
+#define PCI1723_DIO_CTRL_HDIO		BIT(1)
+#define PCI1723_DIO_CTRL_LDIO		BIT(0)
 #define PCI1723_DIO_DATA_REG		0x1c
 #define PCI1723_CALIB_DATA_REG		0x1e
 #define PCI1723_SYNC_STROBE_REG		0x20
@@ -77,9 +79,10 @@
 #define PCI1723_RESET_CALIB_STROBE_REG	0x24
 #define PCI1723_RANGE_STROBE_REG	0x26
 #define PCI1723_VREF_REG		0x28
-#define PCI1723_VREF_NEG10V		(0 << 0)
-#define PCI1723_VREF_0V			(1 << 0)
-#define PCI1723_VREF_POS10V		(3 << 0)
+#define PCI1723_VREF(x)			(((x) & 0x3) << 0)
+#define PCI1723_VREF_NEG10V		PCI1723_VREF(0)
+#define PCI1723_VREF_0V			PCI1723_VREF(1)
+#define PCI1723_VREF_POS10V		PCI1723_VREF(3)
 
 static int pci1723_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,

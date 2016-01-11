@@ -9,9 +9,9 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/clk/shmobile.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 struct r8a7778_cpg {
 	struct clk_onecell_data data;
@@ -20,10 +20,10 @@ struct r8a7778_cpg {
 };
 
 /* PLL multipliers per bits 11, 12, and 18 of MODEMR */
-struct {
+static const struct {
 	unsigned long plla_mult;
 	unsigned long pllb_mult;
-} r8a7778_rates[] __initdata = {
+} r8a7778_rates[] __initconst = {
 	[0] = { 21, 21 },
 	[1] = { 24, 24 },
 	[2] = { 28, 28 },
@@ -34,10 +34,10 @@ struct {
 };
 
 /* Clock dividers per bits 1 and 2 of MODEMR */
-struct {
+static const struct {
 	const char *name;
 	unsigned int div[4];
-} r8a7778_divs[6] __initdata = {
+} r8a7778_divs[6] __initconst = {
 	{ "b",   { 12, 12, 16, 18 } },
 	{ "out", { 12, 12, 16, 18 } },
 	{ "p",   { 16, 12, 16, 12 } },
@@ -124,6 +124,8 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &cpg->data);
+
+	cpg_mstp_add_clk_domain(np);
 }
 
 CLK_OF_DECLARE(r8a7778_cpg_clks, "renesas,r8a7778-cpg-clocks",

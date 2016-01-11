@@ -95,13 +95,11 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 		(u16) (mdev->dev->caps.fw_ver & 0xffff));
 	strlcpy(drvinfo->bus_info, pci_name(mdev->dev->persist->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = 0;
-	drvinfo->regdump_len = 0;
-	drvinfo->eedump_len = 0;
 }
 
 static const char mlx4_en_priv_flags[][ETH_GSTRING_LEN] = {
 	"blueflame",
+	"phv-bit"
 };
 
 static const char main_strings[][ETH_GSTRING_LEN] = {
@@ -118,6 +116,12 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"xmit_more",
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
 	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
+
+	/* pf statistics */
+	"pf_rx_packets",
+	"pf_rx_bytes",
+	"pf_tx_packets",
+	"pf_tx_bytes",
 
 	/* priority flow control statistics rx */
 	"rx_pause_prio_0", "rx_pause_duration_prio_0",
@@ -368,6 +372,11 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 		if (bitmap_iterator_test(&it))
 			data[index++] = ((unsigned long *)&priv->port_stats)[i];
 
+	for (i = 0; i < NUM_PF_STATS; i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] =
+				((unsigned long *)&priv->pf_stats)[i];
+
 	for (i = 0; i < NUM_FLOW_PRIORITY_STATS_RX;
 	     i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
@@ -443,6 +452,12 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				       main_strings[strings]);
 
 		for (i = 0; i < NUM_PORT_STATS; i++, strings++,
+		     bitmap_iterator_inc(&it))
+			if (bitmap_iterator_test(&it))
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+				       main_strings[strings]);
+
+		for (i = 0; i < NUM_PF_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
 				strcpy(data + (index++) * ETH_GSTRING_LEN,
@@ -1780,35 +1795,49 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
 	bool bf_enabled_new = !!(flags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
 	bool bf_enabled_old = !!(priv->pflags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	bool phv_enabled_new = !!(flags & MLX4_EN_PRIV_FLAGS_PHV);
+	bool phv_enabled_old = !!(priv->pflags & MLX4_EN_PRIV_FLAGS_PHV);
 	int i;
+	int ret = 0;
 
-	if (bf_enabled_new == bf_enabled_old)
-		return 0; /* Nothing to do */
+	if (bf_enabled_new != bf_enabled_old) {
+		if (bf_enabled_new) {
+			bool bf_supported = true;
 
-	if (bf_enabled_new) {
-		bool bf_supported = true;
+			for (i = 0; i < priv->tx_ring_num; i++)
+				bf_supported &= priv->tx_ring[i]->bf_alloced;
 
-		for (i = 0; i < priv->tx_ring_num; i++)
-			bf_supported &= priv->tx_ring[i]->bf_alloced;
+			if (!bf_supported) {
+				en_err(priv, "BlueFlame is not supported\n");
+				return -EINVAL;
+			}
 
-		if (!bf_supported) {
-			en_err(priv, "BlueFlame is not supported\n");
-			return -EINVAL;
+			priv->pflags |= MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+		} else {
+			priv->pflags &= ~MLX4_EN_PRIV_FLAGS_BLUEFLAME;
 		}
 
-		priv->pflags |= MLX4_EN_PRIV_FLAGS_BLUEFLAME;
-	} else {
-		priv->pflags &= ~MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+		for (i = 0; i < priv->tx_ring_num; i++)
+			priv->tx_ring[i]->bf_enabled = bf_enabled_new;
+
+		en_info(priv, "BlueFlame %s\n",
+			bf_enabled_new ?  "Enabled" : "Disabled");
 	}
 
-	for (i = 0; i < priv->tx_ring_num; i++)
-		priv->tx_ring[i]->bf_enabled = bf_enabled_new;
-
-	en_info(priv, "BlueFlame %s\n",
-		bf_enabled_new ?  "Enabled" : "Disabled");
-
+	if (phv_enabled_new != phv_enabled_old) {
+		ret = set_phv_bit(mdev->dev, priv->port, (int)phv_enabled_new);
+		if (ret)
+			return ret;
+		else if (phv_enabled_new)
+			priv->pflags |= MLX4_EN_PRIV_FLAGS_PHV;
+		else
+			priv->pflags &= ~MLX4_EN_PRIV_FLAGS_PHV;
+		en_info(priv, "PHV bit %s\n",
+			phv_enabled_new ?  "Enabled" : "Disabled");
+	}
 	return 0;
 }
 

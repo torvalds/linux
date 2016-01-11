@@ -302,8 +302,7 @@ static int f_midi_start_ep(struct f_midi *midi,
 	int err;
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	if (ep->driver_data)
-		usb_ep_disable(ep);
+	usb_ep_disable(ep);
 
 	err = config_ep_by_speed(midi->gadget, f, ep);
 	if (err) {
@@ -329,6 +328,10 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	unsigned i;
 	int err;
 
+	/* For Control Device interface we do nothing */
+	if (intf == 0)
+		return 0;
+
 	err = f_midi_start_ep(midi, f, midi->in_ep);
 	if (err)
 		return err;
@@ -337,8 +340,7 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	if (err)
 		return err;
 
-	if (midi->out_ep->driver_data)
-		usb_ep_disable(midi->out_ep);
+	usb_ep_disable(midi->out_ep);
 
 	err = config_ep_by_speed(midi->gadget, f, midi->out_ep);
 	if (err) {
@@ -368,6 +370,7 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (err) {
 			ERROR(midi, "%s queue req: %d\n",
 				    midi->out_ep->name, err);
+			free_ep_req(midi->out_ep, req);
 		}
 	}
 
@@ -543,10 +546,16 @@ static void f_midi_transmit(struct f_midi *midi, struct usb_request *req)
 		}
 	}
 
-	if (req->length > 0)
-		usb_ep_queue(ep, req, GFP_ATOMIC);
-	else
+	if (req->length > 0 && ep->enabled) {
+		int err;
+
+		err = usb_ep_queue(ep, req, GFP_ATOMIC);
+		if (err < 0)
+			ERROR(midi, "%s queue req: %d\n",
+			      midi->in_ep->name, err);
+	} else {
 		free_ep_req(ep, req);
+	}
 }
 
 static void f_midi_in_tasklet(unsigned long data)
@@ -753,12 +762,10 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	midi->in_ep = usb_ep_autoconfig(cdev->gadget, &bulk_in_desc);
 	if (!midi->in_ep)
 		goto fail;
-	midi->in_ep->driver_data = cdev;	/* claim */
 
 	midi->out_ep = usb_ep_autoconfig(cdev->gadget, &bulk_out_desc);
 	if (!midi->out_ep)
 		goto fail;
-	midi->out_ep->driver_data = cdev;	/* claim */
 
 	/* allocate temporary function list */
 	midi_function = kcalloc((MAX_PORTS * 4) + 9, sizeof(*midi_function),
@@ -885,12 +892,6 @@ fail_f_midi:
 fail:
 	f_midi_unregister_card(midi);
 fail_register:
-	/* we might as well release our claims on endpoints */
-	if (midi->out_ep)
-		midi->out_ep->driver_data = NULL;
-	if (midi->in_ep)
-		midi->in_ep->driver_data = NULL;
-
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
 
 	return status;
@@ -902,9 +903,6 @@ static inline struct f_midi_opts *to_f_midi_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_midi_opts);
-CONFIGFS_ATTR_OPS(f_midi_opts);
-
 static void midi_attr_release(struct config_item *item)
 {
 	struct f_midi_opts *opts = to_f_midi_opts(item);
@@ -914,13 +912,12 @@ static void midi_attr_release(struct config_item *item)
 
 static struct configfs_item_operations midi_item_ops = {
 	.release	= midi_attr_release,
-	.show_attribute	= f_midi_opts_attr_show,
-	.store_attribute = f_midi_opts_attr_store,
 };
 
 #define F_MIDI_OPT(name, test_limit, limit)				\
-static ssize_t f_midi_opts_##name##_show(struct f_midi_opts *opts, char *page) \
+static ssize_t f_midi_opts_##name##_show(struct config_item *item, char *page) \
 {									\
+	struct f_midi_opts *opts = to_f_midi_opts(item);		\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
@@ -930,9 +927,10 @@ static ssize_t f_midi_opts_##name##_show(struct f_midi_opts *opts, char *page) \
 	return result;							\
 }									\
 									\
-static ssize_t f_midi_opts_##name##_store(struct f_midi_opts *opts,	\
+static ssize_t f_midi_opts_##name##_store(struct config_item *item,	\
 					 const char *page, size_t len)	\
 {									\
+	struct f_midi_opts *opts = to_f_midi_opts(item);		\
 	int ret;							\
 	u32 num;							\
 									\
@@ -958,9 +956,7 @@ end:									\
 	return ret;							\
 }									\
 									\
-static struct f_midi_opts_attribute f_midi_opts_##name =		\
-	__CONFIGFS_ATTR(name, S_IRUGO | S_IWUSR, f_midi_opts_##name##_show, \
-			f_midi_opts_##name##_store)
+CONFIGFS_ATTR(f_midi_opts_, name);
 
 F_MIDI_OPT(index, true, SNDRV_CARDS);
 F_MIDI_OPT(buflen, false, 0);
@@ -968,20 +964,28 @@ F_MIDI_OPT(qlen, false, 0);
 F_MIDI_OPT(in_ports, true, MAX_PORTS);
 F_MIDI_OPT(out_ports, true, MAX_PORTS);
 
-static ssize_t f_midi_opts_id_show(struct f_midi_opts *opts, char *page)
+static ssize_t f_midi_opts_id_show(struct config_item *item, char *page)
 {
+	struct f_midi_opts *opts = to_f_midi_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = strlcpy(page, opts->id, PAGE_SIZE);
+	if (opts->id) {
+		result = strlcpy(page, opts->id, PAGE_SIZE);
+	} else {
+		page[0] = 0;
+		result = 0;
+	}
+
 	mutex_unlock(&opts->lock);
 
 	return result;
 }
 
-static ssize_t f_midi_opts_id_store(struct f_midi_opts *opts,
+static ssize_t f_midi_opts_id_store(struct config_item *item,
 				    const char *page, size_t len)
 {
+	struct f_midi_opts *opts = to_f_midi_opts(item);
 	int ret;
 	char *c;
 
@@ -1006,17 +1010,15 @@ end:
 	return ret;
 }
 
-static struct f_midi_opts_attribute f_midi_opts_id =
-	__CONFIGFS_ATTR(id, S_IRUGO | S_IWUSR, f_midi_opts_id_show,
-			f_midi_opts_id_store);
+CONFIGFS_ATTR(f_midi_opts_, id);
 
 static struct configfs_attribute *midi_attrs[] = {
-	&f_midi_opts_index.attr,
-	&f_midi_opts_buflen.attr,
-	&f_midi_opts_qlen.attr,
-	&f_midi_opts_in_ports.attr,
-	&f_midi_opts_out_ports.attr,
-	&f_midi_opts_id.attr,
+	&f_midi_opts_attr_index,
+	&f_midi_opts_attr_buflen,
+	&f_midi_opts_attr_qlen,
+	&f_midi_opts_attr_in_ports,
+	&f_midi_opts_attr_out_ports,
+	&f_midi_opts_attr_id,
 	NULL,
 };
 
@@ -1139,7 +1141,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	if (opts->id && !midi->id) {
 		status = -ENOMEM;
 		mutex_unlock(&opts->lock);
-		goto kstrdup_fail;
+		goto setup_fail;
 	}
 	midi->in_ports = opts->in_ports;
 	midi->out_ports = opts->out_ports;
@@ -1158,8 +1160,6 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 
 	return &midi->func;
 
-kstrdup_fail:
-	f_midi_unregister_card(midi);
 setup_fail:
 	for (--i; i >= 0; i--)
 		kfree(midi->in_port[i]);

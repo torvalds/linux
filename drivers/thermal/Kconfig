@@ -42,6 +42,17 @@ config THERMAL_OF
 	  Say 'Y' here if you need to build thermal infrastructure
 	  based on device tree.
 
+config THERMAL_WRITABLE_TRIPS
+	bool "Enable writable trip points"
+	help
+	  This option allows the system integrator to choose whether
+	  trip temperatures can be changed from userspace. The
+	  writable trips need to be specified when setting up the
+	  thermal zone but the choice here takes precedence.
+
+	  Say 'Y' here if you would like to allow userspace tools to
+	  change trip temperatures.
+
 choice
 	prompt "Default Thermal governor"
 	default THERMAL_DEFAULT_GOV_STEP_WISE
@@ -71,6 +82,14 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	  Select this if you want to let the user space manage the
 	  platform thermals.
 
+config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
+	bool "power_allocator"
+	select THERMAL_GOV_POWER_ALLOCATOR
+	help
+	  Select this if you want to control temperature based on
+	  system and device power allocation. This governor can only
+	  operate on cooling devices that implement the power API.
+
 endchoice
 
 config THERMAL_GOV_FAIR_SHARE
@@ -99,6 +118,12 @@ config THERMAL_GOV_USER_SPACE
 	help
 	  Enable this to let the user space manage the platform thermals.
 
+config THERMAL_GOV_POWER_ALLOCATOR
+	bool "Power allocator thermal governor"
+	help
+	  Enable this to manage platform thermals by dynamically
+	  allocating and limiting power to devices.
+
 config CPU_THERMAL
 	bool "generic cpu cooling support"
 	depends on CPU_FREQ
@@ -122,6 +147,20 @@ config CLOCK_THERMAL
 	  device that is configured to use this cooling mechanism will be
 	  controlled to reduce clock frequency whenever temperature is high.
 
+config DEVFREQ_THERMAL
+	bool "Generic device cooling support"
+	depends on PM_DEVFREQ
+	depends on PM_OPP
+	help
+	  This implements the generic devfreq cooling mechanism through
+	  frequency reduction for devices using devfreq.
+
+	  This will throttle the device by limiting the maximum allowed DVFS
+	  frequency corresponding to the cooling level.
+
+	  In order to use the power extensions of the cooling device,
+	  devfreq should use the simple_ondemand governor.
+
 	  If you want this support, you should say Y here.
 
 config THERMAL_EMULATION
@@ -136,6 +175,14 @@ config THERMAL_EMULATION
 	  because userland can easily disable the thermal policy by simply
 	  flooding this sysfs node with low temperature values.
 
+config HISI_THERMAL
+	tristate "Hisilicon thermal driver"
+	depends on (ARCH_HISI && CPU_THERMAL && OF) || COMPILE_TEST
+	help
+	  Enable this to plug hisilicon's thermal sensor driver into the Linux
+	  thermal framework. cpufreq is used as the cooling device to throttle
+	  CPUs when the passive trip is crossed.
+
 config IMX_THERMAL
 	tristate "Temperature sensor driver for Freescale i.MX SoCs"
 	depends on CPU_THERMAL
@@ -149,7 +196,7 @@ config IMX_THERMAL
 
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
-	depends on PLAT_SPEAR
+	depends on PLAT_SPEAR || COMPILE_TEST
 	depends on OF
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
@@ -157,7 +204,7 @@ config SPEAR_THERMAL
 
 config ROCKCHIP_THERMAL
 	tristate "Rockchip thermal driver"
-	depends on ARCH_ROCKCHIP
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	help
 	  Rockchip thermal driver provides support for Temperature sensor
@@ -175,7 +222,7 @@ config RCAR_THERMAL
 
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || COMPILE_TEST
 	depends on OF
 	help
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
@@ -183,7 +230,7 @@ config KIRKWOOD_THERMAL
 
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
-	depends on ARCH_DOVE || MACH_DOVE
+	depends on ARCH_DOVE || MACH_DOVE || COMPILE_TEST
 	depends on OF
 	help
 	  Support for the Dove thermal sensor driver in the Linux thermal
@@ -201,7 +248,7 @@ config DB8500_THERMAL
 
 config ARMADA_THERMAL
 	tristate "Armada 370/XP thermal management"
-	depends on ARCH_MVEBU
+	depends on ARCH_MVEBU || COMPILE_TEST
 	depends on OF
 	help
 	  Enable this option if you want to have support for thermal management
@@ -242,6 +289,7 @@ config X86_PKG_TEMP_THERMAL
 	tristate "X86 package temperature thermal driver"
 	depends on X86_THERMAL_VECTOR
 	select THERMAL_GOV_USER_SPACE
+	select THERMAL_WRITABLE_TRIPS
 	default m
 	help
 	  Enable this to register CPU digital sensor for package temperature as
@@ -249,9 +297,21 @@ config X86_PKG_TEMP_THERMAL
 	  two trip points which can be set by user to get notifications via thermal
 	  notification methods.
 
+config INTEL_SOC_DTS_IOSF_CORE
+	tristate
+	depends on X86
+	select IOSF_MBI
+	help
+	  This is becoming a common feature for Intel SoCs to expose the additional
+	  digital temperature sensors (DTSs) using side band interface (IOSF). This
+	  implements the common set of helper functions to register, get temperature
+	  and get/set thresholds on DTSs.
+
 config INTEL_SOC_DTS_THERMAL
 	tristate "Intel SoCs DTS thermal driver"
-	depends on X86 && IOSF_MBI
+	depends on X86
+	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
 	help
 	  Enable this to register Intel SoCs (e.g. Bay Trail) platform digital
 	  temperature sensor (DTS). These SoCs have two additional DTSs in
@@ -261,12 +321,24 @@ config INTEL_SOC_DTS_THERMAL
 	  notification methods.The other trip is a critical trip point, which
 	  was set by the driver based on the TJ MAX temperature.
 
+config INTEL_QUARK_DTS_THERMAL
+	tristate "Intel Quark DTS thermal driver"
+	depends on X86_INTEL_QUARK
+	help
+	  Enable this to register Intel Quark SoC (e.g. X1000) platform digital
+	  temperature sensor (DTS). For X1000 SoC, it has one on-die DTS.
+	  The DTS will be registered as a thermal zone. There are two trip points:
+	  hot & critical. The critical trip point default value is set by
+	  underlying BIOS/Firmware.
+
 config INT340X_THERMAL
 	tristate "ACPI INT340X thermal drivers"
 	depends on X86 && ACPI
 	select THERMAL_GOV_USER_SPACE
 	select ACPI_THERMAL_REL
 	select ACPI_FAN
+	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and
 	  other devices with thermal control capabilities outside the core
@@ -285,12 +357,21 @@ config ACPI_THERMAL_REL
 	tristate
 	depends on ACPI
 
+config INTEL_PCH_THERMAL
+	tristate "Intel PCH Thermal Reporting Driver"
+	depends on X86 && PCI
+	help
+	  Enable this to support thermal reporting on certain intel PCHs.
+	  Thermal reporting device will provide temperature reading,
+	  programmable trip points and other information.
+
 menu "Texas Instruments thermal drivers"
+depends on ARCH_HAS_BANDGAP || COMPILE_TEST
 source "drivers/thermal/ti-soc-thermal/Kconfig"
 endmenu
 
 menu "Samsung thermal drivers"
-depends on ARCH_EXYNOS
+depends on ARCH_EXYNOS || COMPILE_TEST
 source "drivers/thermal/samsung/Kconfig"
 endmenu
 
@@ -298,5 +379,16 @@ menu "STMicroelectronics thermal drivers"
 depends on ARCH_STI && OF
 source "drivers/thermal/st/Kconfig"
 endmenu
+
+config QCOM_SPMI_TEMP_ALARM
+	tristate "Qualcomm SPMI PMIC Temperature Alarm"
+	depends on OF && SPMI && IIO
+	select REGMAP_SPMI
+	help
+	  This enables a thermal sysfs driver for Qualcomm plug-and-play (QPNP)
+	  PMIC devices. It shows up in sysfs as a thermal sensor with multiple
+	  trip points. The temperature reported by the thermal sensor reflects the
+	  real time die temperature if an ADC is present or an estimate of the
+	  temperature based upon the over temperature stage value.
 
 endif

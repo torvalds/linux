@@ -15,6 +15,7 @@
  */
 
 #include <linux/relay.h>
+#include <linux/random.h>
 #include "ath9k.h"
 
 static s8 fix_rssi_inv_only(u8 rssi_val)
@@ -36,21 +37,480 @@ static void ath_debug_send_fft_sample(struct ath_spec_scan_priv *spec_priv,
 	relay_write(spec_priv->rfs_chan_spec_scan, fft_sample_tlv, length);
 }
 
+typedef int (ath_cmn_fft_idx_validator) (u8 *sample_end, int bytes_read);
+
+static int
+ath_cmn_max_idx_verify_ht20_fft(u8 *sample_end, int bytes_read)
+{
+	struct ath_ht20_mag_info *mag_info;
+	u8 *sample;
+	u16 max_magnitude;
+	u8 max_index;
+	u8 max_exp;
+
+	/* Sanity check so that we don't read outside the read
+	 * buffer
+	 */
+	if (bytes_read < SPECTRAL_HT20_SAMPLE_LEN - 1)
+		return -1;
+
+	mag_info = (struct ath_ht20_mag_info *) (sample_end -
+				sizeof(struct ath_ht20_mag_info) + 1);
+
+	sample = sample_end - SPECTRAL_HT20_SAMPLE_LEN + 1;
+
+	max_index = spectral_max_index(mag_info->all_bins,
+				       SPECTRAL_HT20_NUM_BINS);
+	max_magnitude = spectral_max_magnitude(mag_info->all_bins);
+
+	max_exp = mag_info->max_exp & 0xf;
+
+	/* Don't try to read something outside the read buffer
+	 * in case of a missing byte (so bins[0] will be outside
+	 * the read buffer)
+	 */
+	if (bytes_read < SPECTRAL_HT20_SAMPLE_LEN && max_index < 1)
+		return -1;
+
+	if (sample[max_index] != (max_magnitude >> max_exp))
+		return -1;
+	else
+		return 0;
+}
+
+static int
+ath_cmn_max_idx_verify_ht20_40_fft(u8 *sample_end, int bytes_read)
+{
+	struct ath_ht20_40_mag_info *mag_info;
+	u8 *sample;
+	u16 lower_mag, upper_mag;
+	u8 lower_max_index, upper_max_index;
+	u8 max_exp;
+	int dc_pos = SPECTRAL_HT20_40_NUM_BINS / 2;
+
+	/* Sanity check so that we don't read outside the read
+	 * buffer
+	 */
+	if (bytes_read < SPECTRAL_HT20_40_SAMPLE_LEN - 1)
+		return -1;
+
+	mag_info = (struct ath_ht20_40_mag_info *) (sample_end -
+				sizeof(struct ath_ht20_40_mag_info) + 1);
+
+	sample = sample_end - SPECTRAL_HT20_40_SAMPLE_LEN + 1;
+
+	lower_mag = spectral_max_magnitude(mag_info->lower_bins);
+	lower_max_index = spectral_max_index(mag_info->lower_bins,
+					     SPECTRAL_HT20_40_NUM_BINS);
+
+	upper_mag = spectral_max_magnitude(mag_info->upper_bins);
+	upper_max_index = spectral_max_index(mag_info->upper_bins,
+					     SPECTRAL_HT20_40_NUM_BINS);
+
+	max_exp = mag_info->max_exp & 0xf;
+
+	/* Don't try to read something outside the read buffer
+	 * in case of a missing byte (so bins[0] will be outside
+	 * the read buffer)
+	 */
+	if (bytes_read < SPECTRAL_HT20_40_SAMPLE_LEN &&
+	   ((upper_max_index < 1) || (lower_max_index < 1)))
+		return -1;
+
+	/* Some time hardware messes up the index and adds
+	 * the index of the middle point (dc_pos). Try to fix it.
+	 */
+	if ((upper_max_index - dc_pos > 0) &&
+	   (sample[upper_max_index] == (upper_mag >> max_exp)))
+		upper_max_index -= dc_pos;
+
+	if ((lower_max_index - dc_pos > 0) &&
+	   (sample[lower_max_index - dc_pos] == (lower_mag >> max_exp)))
+		lower_max_index -= dc_pos;
+
+	if ((sample[upper_max_index + dc_pos] != (upper_mag >> max_exp)) ||
+	   (sample[lower_max_index] != (lower_mag >> max_exp)))
+		return -1;
+	else
+		return 0;
+}
+
+typedef int (ath_cmn_fft_sample_handler) (struct ath_rx_status *rs,
+			struct ath_spec_scan_priv *spec_priv,
+			u8 *sample_buf, u64 tsf, u16 freq, int chan_type);
+
+static int
+ath_cmn_process_ht20_fft(struct ath_rx_status *rs,
+			struct ath_spec_scan_priv *spec_priv,
+			u8 *sample_buf,
+			u64 tsf, u16 freq, int chan_type)
+{
+	struct fft_sample_ht20 fft_sample_20;
+	struct ath_common *common = ath9k_hw_common(spec_priv->ah);
+	struct ath_hw *ah = spec_priv->ah;
+	struct ath_ht20_mag_info *mag_info;
+	struct fft_sample_tlv *tlv;
+	int i = 0;
+	int ret = 0;
+	int dc_pos = SPECTRAL_HT20_NUM_BINS / 2;
+	u16 magnitude, tmp_mag, length;
+	u8 max_index, bitmap_w, max_exp;
+
+	length = sizeof(fft_sample_20) - sizeof(struct fft_sample_tlv);
+	fft_sample_20.tlv.type = ATH_FFT_SAMPLE_HT20;
+	fft_sample_20.tlv.length = __cpu_to_be16(length);
+	fft_sample_20.freq = __cpu_to_be16(freq);
+	fft_sample_20.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
+	fft_sample_20.noise = ah->noise;
+
+	mag_info = (struct ath_ht20_mag_info *) (sample_buf +
+					SPECTRAL_HT20_NUM_BINS);
+
+	magnitude = spectral_max_magnitude(mag_info->all_bins);
+	fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
+
+	max_index = spectral_max_index(mag_info->all_bins,
+					SPECTRAL_HT20_NUM_BINS);
+	fft_sample_20.max_index = max_index;
+
+	bitmap_w = spectral_bitmap_weight(mag_info->all_bins);
+	fft_sample_20.bitmap_weight = bitmap_w;
+
+	max_exp = mag_info->max_exp & 0xf;
+	fft_sample_20.max_exp = max_exp;
+
+	fft_sample_20.tsf = __cpu_to_be64(tsf);
+
+	memcpy(fft_sample_20.data, sample_buf, SPECTRAL_HT20_NUM_BINS);
+
+	ath_dbg(common, SPECTRAL_SCAN, "FFT HT20 frame: max mag 0x%X,"
+					"max_mag_idx %i\n",
+					magnitude >> max_exp,
+					max_index);
+
+	if (fft_sample_20.data[max_index] != (magnitude >> max_exp)) {
+		ath_dbg(common, SPECTRAL_SCAN, "Magnitude mismatch !\n");
+		ret = -1;
+	}
+
+	/* DC value (value in the middle) is the blind spot of the spectral
+	 * sample and invalid, interpolate it.
+	 */
+	fft_sample_20.data[dc_pos] = (fft_sample_20.data[dc_pos + 1] +
+					fft_sample_20.data[dc_pos - 1]) / 2;
+
+	/* Check if the maximum magnitude is indeed maximum,
+	 * also if the maximum value was at dc_pos, calculate
+	 * a new one (since value at dc_pos is invalid).
+	 */
+	if (max_index == dc_pos) {
+		tmp_mag = 0;
+		for (i = 0; i < dc_pos; i++) {
+			if (fft_sample_20.data[i] > tmp_mag) {
+				tmp_mag = fft_sample_20.data[i];
+				fft_sample_20.max_index = i;
+			}
+		}
+
+		magnitude = tmp_mag << max_exp;
+		fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
+
+		ath_dbg(common, SPECTRAL_SCAN,
+			"Calculated new lower max 0x%X at %i\n",
+			tmp_mag, fft_sample_20.max_index);
+	} else
+	for (i = 0; i < SPECTRAL_HT20_NUM_BINS; i++) {
+		if (fft_sample_20.data[i] == (magnitude >> max_exp))
+			ath_dbg(common, SPECTRAL_SCAN,
+				"Got max: 0x%X at index %i\n",
+				fft_sample_20.data[i], i);
+
+		if (fft_sample_20.data[i] > (magnitude >> max_exp)) {
+			ath_dbg(common, SPECTRAL_SCAN,
+				"Got bin %i greater than max: 0x%X\n",
+				i, fft_sample_20.data[i]);
+			ret = -1;
+		}
+	}
+
+	if (ret < 0)
+		return ret;
+
+	tlv = (struct fft_sample_tlv *)&fft_sample_20;
+
+	ath_debug_send_fft_sample(spec_priv, tlv);
+
+	return 0;
+}
+
+static int
+ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
+			struct ath_spec_scan_priv *spec_priv,
+			u8 *sample_buf,
+			u64 tsf, u16 freq, int chan_type)
+{
+	struct fft_sample_ht20_40 fft_sample_40;
+	struct ath_common *common = ath9k_hw_common(spec_priv->ah);
+	struct ath_hw *ah = spec_priv->ah;
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
+	struct ath_ht20_40_mag_info *mag_info;
+	struct fft_sample_tlv *tlv;
+	int dc_pos = SPECTRAL_HT20_40_NUM_BINS / 2;
+	int i = 0;
+	int ret = 0;
+	s16 ext_nf;
+	u16 lower_mag, upper_mag, tmp_mag, length;
+	s8 lower_rssi, upper_rssi;
+	u8 lower_max_index, upper_max_index;
+	u8 lower_bitmap_w, upper_bitmap_w, max_exp;
+
+	if (caldata)
+		ext_nf = ath9k_hw_getchan_noise(ah, ah->curchan,
+				caldata->nfCalHist[3].privNF);
+	else
+		ext_nf = ATH_DEFAULT_NOISE_FLOOR;
+
+	length = sizeof(fft_sample_40) - sizeof(struct fft_sample_tlv);
+	fft_sample_40.tlv.type = ATH_FFT_SAMPLE_HT20_40;
+	fft_sample_40.tlv.length = __cpu_to_be16(length);
+	fft_sample_40.freq = __cpu_to_be16(freq);
+	fft_sample_40.channel_type = chan_type;
+
+	if (chan_type == NL80211_CHAN_HT40PLUS) {
+		lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
+		upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ext[0]);
+
+		fft_sample_40.lower_noise = ah->noise;
+		fft_sample_40.upper_noise = ext_nf;
+	} else {
+		lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ext[0]);
+		upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
+
+		fft_sample_40.lower_noise = ext_nf;
+		fft_sample_40.upper_noise = ah->noise;
+	}
+
+	fft_sample_40.lower_rssi = lower_rssi;
+	fft_sample_40.upper_rssi = upper_rssi;
+
+	mag_info = (struct ath_ht20_40_mag_info *) (sample_buf +
+					SPECTRAL_HT20_40_NUM_BINS);
+
+	lower_mag = spectral_max_magnitude(mag_info->lower_bins);
+	fft_sample_40.lower_max_magnitude = __cpu_to_be16(lower_mag);
+
+	upper_mag = spectral_max_magnitude(mag_info->upper_bins);
+	fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
+
+	lower_max_index = spectral_max_index(mag_info->lower_bins,
+					SPECTRAL_HT20_40_NUM_BINS);
+	fft_sample_40.lower_max_index = lower_max_index;
+
+	upper_max_index = spectral_max_index(mag_info->upper_bins,
+					SPECTRAL_HT20_40_NUM_BINS);
+	fft_sample_40.upper_max_index = upper_max_index;
+
+	lower_bitmap_w = spectral_bitmap_weight(mag_info->lower_bins);
+	fft_sample_40.lower_bitmap_weight = lower_bitmap_w;
+
+	upper_bitmap_w = spectral_bitmap_weight(mag_info->upper_bins);
+	fft_sample_40.upper_bitmap_weight = upper_bitmap_w;
+
+	max_exp = mag_info->max_exp & 0xf;
+	fft_sample_40.max_exp = max_exp;
+
+	fft_sample_40.tsf = __cpu_to_be64(tsf);
+
+	memcpy(fft_sample_40.data, sample_buf, SPECTRAL_HT20_40_NUM_BINS);
+
+	ath_dbg(common, SPECTRAL_SCAN, "FFT HT20/40 frame: lower mag 0x%X,"
+					"lower_mag_idx %i, upper mag 0x%X,"
+					"upper_mag_idx %i\n",
+					lower_mag >> max_exp,
+					lower_max_index,
+					upper_mag >> max_exp,
+					upper_max_index);
+
+	/* Some time hardware messes up the index and adds
+	 * the index of the middle point (dc_pos). Try to fix it.
+	 */
+	if ((upper_max_index - dc_pos > 0) &&
+	   (fft_sample_40.data[upper_max_index] == (upper_mag >> max_exp))) {
+		upper_max_index -= dc_pos;
+		fft_sample_40.upper_max_index = upper_max_index;
+	}
+
+	if ((lower_max_index - dc_pos > 0) &&
+	   (fft_sample_40.data[lower_max_index - dc_pos] ==
+	   (lower_mag >> max_exp))) {
+		lower_max_index -= dc_pos;
+		fft_sample_40.lower_max_index = lower_max_index;
+	}
+
+	/* Check if we got the expected magnitude values at
+	 * the expected bins
+	 */
+	if ((fft_sample_40.data[upper_max_index + dc_pos]
+	    != (upper_mag >> max_exp)) ||
+	   (fft_sample_40.data[lower_max_index]
+	    != (lower_mag >> max_exp))) {
+		ath_dbg(common, SPECTRAL_SCAN, "Magnitude mismatch !\n");
+		ret = -1;
+	}
+
+	/* DC value (value in the middle) is the blind spot of the spectral
+	 * sample and invalid, interpolate it.
+	 */
+	fft_sample_40.data[dc_pos] = (fft_sample_40.data[dc_pos + 1] +
+					fft_sample_40.data[dc_pos - 1]) / 2;
+
+	/* Check if the maximum magnitudes are indeed maximum,
+	 * also if the maximum value was at dc_pos, calculate
+	 * a new one (since value at dc_pos is invalid).
+	 */
+	if (lower_max_index == dc_pos) {
+		tmp_mag = 0;
+		for (i = 0; i < dc_pos; i++) {
+			if (fft_sample_40.data[i] > tmp_mag) {
+				tmp_mag = fft_sample_40.data[i];
+				fft_sample_40.lower_max_index = i;
+			}
+		}
+
+		lower_mag = tmp_mag << max_exp;
+		fft_sample_40.lower_max_magnitude = __cpu_to_be16(lower_mag);
+
+		ath_dbg(common, SPECTRAL_SCAN,
+			"Calculated new lower max 0x%X at %i\n",
+			tmp_mag, fft_sample_40.lower_max_index);
+	} else
+	for (i = 0; i < dc_pos; i++) {
+		if (fft_sample_40.data[i] == (lower_mag >> max_exp))
+			ath_dbg(common, SPECTRAL_SCAN,
+				"Got lower mag: 0x%X at index %i\n",
+				fft_sample_40.data[i], i);
+
+		if (fft_sample_40.data[i] > (lower_mag >> max_exp)) {
+			ath_dbg(common, SPECTRAL_SCAN,
+				"Got lower bin %i higher than max: 0x%X\n",
+				i, fft_sample_40.data[i]);
+			ret = -1;
+		}
+	}
+
+	if (upper_max_index == dc_pos) {
+		tmp_mag = 0;
+		for (i = dc_pos; i < SPECTRAL_HT20_40_NUM_BINS; i++) {
+			if (fft_sample_40.data[i] > tmp_mag) {
+				tmp_mag = fft_sample_40.data[i];
+				fft_sample_40.upper_max_index = i;
+			}
+		}
+		upper_mag = tmp_mag << max_exp;
+		fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
+
+		ath_dbg(common, SPECTRAL_SCAN,
+			"Calculated new upper max 0x%X at %i\n",
+			tmp_mag, i);
+	} else
+	for (i = dc_pos; i < SPECTRAL_HT20_40_NUM_BINS; i++) {
+		if (fft_sample_40.data[i] == (upper_mag >> max_exp))
+			ath_dbg(common, SPECTRAL_SCAN,
+				"Got upper mag: 0x%X at index %i\n",
+				fft_sample_40.data[i], i);
+
+		if (fft_sample_40.data[i] > (upper_mag >> max_exp)) {
+			ath_dbg(common, SPECTRAL_SCAN,
+				"Got upper bin %i higher than max: 0x%X\n",
+				i, fft_sample_40.data[i]);
+
+			ret = -1;
+		}
+	}
+
+	if (ret < 0)
+		return ret;
+
+	tlv = (struct fft_sample_tlv *)&fft_sample_40;
+
+	ath_debug_send_fft_sample(spec_priv, tlv);
+
+	return 0;
+}
+
+static inline void
+ath_cmn_copy_fft_frame(u8 *in, u8 *out, int sample_len, int sample_bytes)
+{
+	switch (sample_bytes - sample_len) {
+	case -1:
+		/* First byte missing */
+		memcpy(&out[1], in,
+		       sample_len - 1);
+		break;
+	case 0:
+		/* Length correct, nothing to do. */
+		memcpy(out, in, sample_len);
+		break;
+	case 1:
+		/* MAC added 2 extra bytes AND first byte
+		 * is missing.
+		 */
+		memcpy(&out[1], in, 30);
+		out[31] = in[31];
+		memcpy(&out[32], &in[33],
+		       sample_len - 32);
+		break;
+	case 2:
+		/* MAC added 2 extra bytes at bin 30 and 32,
+		 * remove them.
+		 */
+		memcpy(out, in, 30);
+		out[30] = in[31];
+		memcpy(&out[31], &in[33],
+		       sample_len - 31);
+		break;
+	default:
+		break;
+	}
+}
+
+static int
+ath_cmn_is_fft_buf_full(struct ath_spec_scan_priv *spec_priv)
+{
+	int i = 0;
+	int ret = 0;
+	struct rchan *rc = spec_priv->rfs_chan_spec_scan;
+
+	for_each_online_cpu(i)
+		ret += relay_buf_full(rc->buf[i]);
+
+	i = num_online_cpus();
+
+	if (ret == i)
+		return 1;
+	else
+		return 0;
+}
+
 /* returns 1 if this was a spectral frame, even if not handled. */
 int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf)
 {
+	u8 sample_buf[SPECTRAL_SAMPLE_MAX_LEN] = {0};
 	struct ath_hw *ah = spec_priv->ah;
 	struct ath_common *common = ath9k_hw_common(spec_priv->ah);
-	u8 num_bins, *bins, *vdata = (u8 *)hdr;
-	struct fft_sample_ht20 fft_sample_20;
-	struct fft_sample_ht20_40 fft_sample_40;
-	struct fft_sample_tlv *tlv;
+	u8 num_bins, *vdata = (u8 *)hdr;
 	struct ath_radar_info *radar_info;
 	int len = rs->rs_datalen;
-	int dc_pos;
-	u16 fft_len, length, freq = ah->curchan->chan->center_freq;
+	int i;
+	int got_slen = 0;
+	u8  *sample_start;
+	int sample_bytes = 0;
+	int ret = 0;
+	u16 fft_len, sample_len, freq = ah->curchan->chan->center_freq;
 	enum nl80211_channel_type chan_type;
+	ath_cmn_fft_idx_validator *fft_idx_validator;
+	ath_cmn_fft_sample_handler *fft_handler;
 
 	/* AR9280 and before report via ATH9K_PHYERR_RADAR, AR93xx and newer
 	 * via ATH9K_PHYERR_SPECTRAL. Haven't seen ATH9K_PHYERR_FALSE_RADAR_EXT
@@ -68,140 +528,170 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
 		return 0;
 
+	/* Output buffers are full, no need to process anything
+	 * since there is no space to put the result anyway
+	 */
+	ret = ath_cmn_is_fft_buf_full(spec_priv);
+	if (ret == 1) {
+		ath_dbg(common, SPECTRAL_SCAN, "FFT report ignored, no space "
+						"left on output buffers\n");
+		return 1;
+	}
+
 	chan_type = cfg80211_get_chandef_type(&common->hw->conf.chandef);
 	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
 	    (chan_type == NL80211_CHAN_HT40PLUS)) {
 		fft_len = SPECTRAL_HT20_40_TOTAL_DATA_LEN;
+		sample_len = SPECTRAL_HT20_40_SAMPLE_LEN;
 		num_bins = SPECTRAL_HT20_40_NUM_BINS;
-		bins = (u8 *)fft_sample_40.data;
+		fft_idx_validator = &ath_cmn_max_idx_verify_ht20_40_fft;
+		fft_handler = &ath_cmn_process_ht20_40_fft;
 	} else {
 		fft_len = SPECTRAL_HT20_TOTAL_DATA_LEN;
+		sample_len = SPECTRAL_HT20_SAMPLE_LEN;
 		num_bins = SPECTRAL_HT20_NUM_BINS;
-		bins = (u8 *)fft_sample_20.data;
+		fft_idx_validator = ath_cmn_max_idx_verify_ht20_fft;
+		fft_handler = &ath_cmn_process_ht20_fft;
 	}
 
-	/* Variation in the data length is possible and will be fixed later */
-	if ((len > fft_len + 2) || (len < fft_len - 1))
-		return 1;
+	ath_dbg(common, SPECTRAL_SCAN, "Got radar dump bw_info: 0x%X,"
+					"len: %i fft_len: %i\n",
+					radar_info->pulse_bw_info,
+					len,
+					fft_len);
+	sample_start = vdata;
+	for (i = 0; i < len - 2; i++) {
+		sample_bytes++;
 
-	switch (len - fft_len) {
-	case 0:
-		/* length correct, nothing to do. */
-		memcpy(bins, vdata, num_bins);
-		break;
-	case -1:
-		/* first byte missing, duplicate it. */
-		memcpy(&bins[1], vdata, num_bins - 1);
-		bins[0] = vdata[0];
-		break;
-	case 2:
-		/* MAC added 2 extra bytes at bin 30 and 32, remove them. */
-		memcpy(bins, vdata, 30);
-		bins[30] = vdata[31];
-		memcpy(&bins[31], &vdata[33], num_bins - 31);
-		break;
-	case 1:
-		/* MAC added 2 extra bytes AND first byte is missing. */
-		bins[0] = vdata[0];
-		memcpy(&bins[1], vdata, 30);
-		bins[31] = vdata[31];
-		memcpy(&bins[32], &vdata[33], num_bins - 32);
-		break;
-	default:
-		return 1;
-	}
-
-	/* DC value (value in the middle) is the blind spot of the spectral
-	 * sample and invalid, interpolate it.
-	 */
-	dc_pos = num_bins / 2;
-	bins[dc_pos] = (bins[dc_pos + 1] + bins[dc_pos - 1]) / 2;
-
-	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
-	    (chan_type == NL80211_CHAN_HT40PLUS)) {
-		s8 lower_rssi, upper_rssi;
-		s16 ext_nf;
-		u8 lower_max_index, upper_max_index;
-		u8 lower_bitmap_w, upper_bitmap_w;
-		u16 lower_mag, upper_mag;
-		struct ath9k_hw_cal_data *caldata = ah->caldata;
-		struct ath_ht20_40_mag_info *mag_info;
-
-		if (caldata)
-			ext_nf = ath9k_hw_getchan_noise(ah, ah->curchan,
-					caldata->nfCalHist[3].privNF);
-		else
-			ext_nf = ATH_DEFAULT_NOISE_FLOOR;
-
-		length = sizeof(fft_sample_40) - sizeof(struct fft_sample_tlv);
-		fft_sample_40.tlv.type = ATH_FFT_SAMPLE_HT20_40;
-		fft_sample_40.tlv.length = __cpu_to_be16(length);
-		fft_sample_40.freq = __cpu_to_be16(freq);
-		fft_sample_40.channel_type = chan_type;
-
-		if (chan_type == NL80211_CHAN_HT40PLUS) {
-			lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
-			upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ext[0]);
-
-			fft_sample_40.lower_noise = ah->noise;
-			fft_sample_40.upper_noise = ext_nf;
-		} else {
-			lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ext[0]);
-			upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
-
-			fft_sample_40.lower_noise = ext_nf;
-			fft_sample_40.upper_noise = ah->noise;
+		/* Only a single sample received, no need to look
+		 * for the sample's end, do the correction based
+		 * on the packet's length instead. Note that hw
+		 * will always put the radar_info structure on
+		 * the end.
+		 */
+		if (len <= fft_len + 2) {
+			sample_bytes = len - sizeof(struct ath_radar_info);
+			got_slen = 1;
 		}
-		fft_sample_40.lower_rssi = lower_rssi;
-		fft_sample_40.upper_rssi = upper_rssi;
 
-		mag_info = ((struct ath_ht20_40_mag_info *)radar_info) - 1;
-		lower_mag = spectral_max_magnitude(mag_info->lower_bins);
-		upper_mag = spectral_max_magnitude(mag_info->upper_bins);
-		fft_sample_40.lower_max_magnitude = __cpu_to_be16(lower_mag);
-		fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
-		lower_max_index = spectral_max_index(mag_info->lower_bins);
-		upper_max_index = spectral_max_index(mag_info->upper_bins);
-		fft_sample_40.lower_max_index = lower_max_index;
-		fft_sample_40.upper_max_index = upper_max_index;
-		lower_bitmap_w = spectral_bitmap_weight(mag_info->lower_bins);
-		upper_bitmap_w = spectral_bitmap_weight(mag_info->upper_bins);
-		fft_sample_40.lower_bitmap_weight = lower_bitmap_w;
-		fft_sample_40.upper_bitmap_weight = upper_bitmap_w;
-		fft_sample_40.max_exp = mag_info->max_exp & 0xf;
+		/* Search for the end of the FFT frame between
+		 * sample_len - 1 and sample_len + 2. exp_max is 3
+		 * bits long and it's the only value on the last
+		 * byte of the frame so since it'll be smaller than
+		 * the next byte (the first bin of the next sample)
+		 * 90% of the time, we can use it as a separator.
+		 */
+		if (vdata[i] <= 0x7 && sample_bytes >= sample_len - 1) {
 
-		fft_sample_40.tsf = __cpu_to_be64(tsf);
+			/* Got a frame length within boundaries, there are
+			 * four scenarios here:
+			 *
+			 * a) sample_len -> We got the correct length
+			 * b) sample_len + 2 -> 2 bytes added around bin[31]
+			 * c) sample_len - 1 -> The first byte is missing
+			 * d) sample_len + 1 -> b + c at the same time
+			 *
+			 * When MAC adds 2 extra bytes, bin[31] and bin[32]
+			 * have the same value, so we can use that for further
+			 * verification in cases b and d.
+			 */
 
-		tlv = (struct fft_sample_tlv *)&fft_sample_40;
-	} else {
-		u8 max_index, bitmap_w;
-		u16 magnitude;
-		struct ath_ht20_mag_info *mag_info;
+			/* Did we go too far ? If so we couldn't determine
+			 * this sample's boundaries, discard any further
+			 * data
+			 */
+			if ((sample_bytes > sample_len + 2) ||
+			   ((sample_bytes > sample_len) &&
+			   (sample_start[31] != sample_start[32])))
+				break;
 
-		length = sizeof(fft_sample_20) - sizeof(struct fft_sample_tlv);
-		fft_sample_20.tlv.type = ATH_FFT_SAMPLE_HT20;
-		fft_sample_20.tlv.length = __cpu_to_be16(length);
-		fft_sample_20.freq = __cpu_to_be16(freq);
+			/* See if we got a valid frame by checking the
+			 * consistency of mag_info fields. This is to
+			 * prevent from "fixing" a correct frame.
+			 * Failure is non-fatal, later frames may
+			 * be valid.
+			 */
+			if (!fft_idx_validator(&vdata[i], i)) {
+				ath_dbg(common, SPECTRAL_SCAN,
+					"Found valid fft frame at %i\n", i);
+				got_slen = 1;
+			}
 
-		fft_sample_20.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
-		fft_sample_20.noise = ah->noise;
+			/* We expect 1 - 2 more bytes */
+			else if ((sample_start[31] == sample_start[32]) &&
+				(sample_bytes >= sample_len) &&
+				(sample_bytes < sample_len + 2) &&
+				(vdata[i + 1] <= 0x7))
+				continue;
 
-		mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
-		magnitude = spectral_max_magnitude(mag_info->all_bins);
-		fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
-		max_index = spectral_max_index(mag_info->all_bins);
-		fft_sample_20.max_index = max_index;
-		bitmap_w = spectral_bitmap_weight(mag_info->all_bins);
-		fft_sample_20.bitmap_weight = bitmap_w;
-		fft_sample_20.max_exp = mag_info->max_exp & 0xf;
+			/* Try to distinguish cases a and c */
+			else if ((sample_bytes == sample_len - 1) &&
+				(vdata[i + 1] <= 0x7))
+				continue;
 
-		fft_sample_20.tsf = __cpu_to_be64(tsf);
+			got_slen = 1;
+		}
 
-		tlv = (struct fft_sample_tlv *)&fft_sample_20;
+		if (got_slen) {
+			ath_dbg(common, SPECTRAL_SCAN, "FFT frame len: %i\n",
+				sample_bytes);
+
+			/* Only try to fix a frame if it's the only one
+			 * on the report, else just skip it.
+			 */
+			if (sample_bytes != sample_len && len <= fft_len + 2) {
+				ath_cmn_copy_fft_frame(sample_start,
+						       sample_buf, sample_len,
+						       sample_bytes);
+
+				fft_handler(rs, spec_priv, sample_buf,
+					    tsf, freq, chan_type);
+
+				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
+
+				/* Mix the received bins to the /dev/random
+				 * pool
+				 */
+				add_device_randomness(sample_buf, num_bins);
+			}
+
+			/* Process a normal frame */
+			if (sample_bytes == sample_len) {
+				ret = fft_handler(rs, spec_priv, sample_start,
+						  tsf, freq, chan_type);
+
+				/* Mix the received bins to the /dev/random
+				 * pool
+				 */
+				add_device_randomness(sample_start, num_bins);
+			}
+
+			/* Short report processed, break out of the
+			 * loop.
+			 */
+			if (len <= fft_len + 2)
+				break;
+
+			sample_start = &vdata[i + 1];
+
+			/* -1 to grab sample_len -1, -2 since
+			 * they 'll get increased by one. In case
+			 * of failure try to recover by going byte
+			 * by byte instead.
+			 */
+			if (ret == 0) {
+				i += num_bins - 2;
+				sample_bytes = num_bins - 2;
+			}
+			got_slen = 0;
+		}
 	}
 
-	ath_debug_send_fft_sample(spec_priv, tlv);
-
+	i -= num_bins - 2;
+	if (len - i != sizeof(struct ath_radar_info))
+		ath_dbg(common, SPECTRAL_SCAN, "FFT report truncated"
+						"(bytes left: %i)\n",
+						len - i);
 	return 1;
 }
 EXPORT_SYMBOL(ath_cmn_process_fft);

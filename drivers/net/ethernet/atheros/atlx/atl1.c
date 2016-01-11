@@ -3388,7 +3388,6 @@ static void atl1_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->eedump_len = ATL1_EEDUMP_LEN;
 }
 
 static void atl1_get_wol(struct net_device *netdev,

@@ -75,7 +75,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'e'     - Send a SIGTERM to all processes, except for init.
 
-'f'	- Will call oom_kill to kill a memory hog process.
+'f'	- Will call the oom killer to kill a memory hog process, but do not
+	  panic if nothing can be killed.
 
 'g'	- Used by kgdb (kernel debugger)
 
@@ -119,6 +120,7 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'x'	- Used by xmon interface on ppc/powerpc platforms.
           Show global PMU Registers on sparc64.
+          Dump all TLB entries on MIPS.
 
 'y'	- Show global CPU Registers [SPARC-64 specific]
 

@@ -20,15 +20,17 @@
 #include <arch/chip.h>
 
 /* PAGE_SHIFT and HPAGE_SHIFT determine the page sizes. */
-#if defined(CONFIG_PAGE_SIZE_16KB)
+#if defined(CONFIG_PAGE_SIZE_4KB)  /* tilepro only */
+#define PAGE_SHIFT	12
+#define CTX_PAGE_FLAG	HV_CTX_PG_SM_4K
+#elif defined(CONFIG_PAGE_SIZE_16KB)
 #define PAGE_SHIFT	14
 #define CTX_PAGE_FLAG	HV_CTX_PG_SM_16K
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 #define PAGE_SHIFT	16
 #define CTX_PAGE_FLAG	HV_CTX_PG_SM_64K
 #else
-#define PAGE_SHIFT	HV_LOG2_DEFAULT_PAGE_SIZE_SMALL
-#define CTX_PAGE_FLAG	0
+#error Page size not specified in Kconfig
 #endif
 #define HPAGE_SHIFT	HV_LOG2_DEFAULT_PAGE_SIZE_LARGE
 

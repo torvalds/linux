@@ -154,7 +154,7 @@ exuberant()
 {
 	all_target_sources | xargs $1 -a                        \
 	-I __initdata,__exitdata,__initconst,			\
-	-I __cpuinitdata,__initdata_memblock			\
+	-I __initdata_memblock					\
 	-I __refdata,__attribute,__maybe_unused,__always_unused \
 	-I __acquires,__releases,__deprecated			\
 	-I __read_mostly,__aligned,____cacheline_aligned        \
@@ -170,7 +170,9 @@ exuberant()
 	--regex-c='/^SYSCALL_DEFINE[[:digit:]]?\(([^,)]*).*/sys_\1/' \
 	--regex-c='/^COMPAT_SYSCALL_DEFINE[[:digit:]]?\(([^,)]*).*/compat_sys_\1/' \
 	--regex-c++='/^TRACE_EVENT\(([^,)]*).*/trace_\1/'		\
+	--regex-c++='/^TRACE_EVENT\(([^,)]*).*/trace_\1_rcuidle/'	\
 	--regex-c++='/^DEFINE_EVENT\([^,)]*, *([^,)]*).*/trace_\1/'	\
+	--regex-c++='/^DEFINE_EVENT\([^,)]*, *([^,)]*).*/trace_\1_rcuidle/' \
 	--regex-c++='/PAGEFLAG\(([^,)]*).*/Page\1/'			\
 	--regex-c++='/PAGEFLAG\(([^,)]*).*/SetPage\1/'			\
 	--regex-c++='/PAGEFLAG\(([^,)]*).*/ClearPage\1/'		\
@@ -196,6 +198,8 @@ exuberant()
 	--regex-c++='/TASK_PFA_TEST\([^,]*,\s*([^)]*)\)/task_\1/'	\
 	--regex-c++='/TASK_PFA_SET\([^,]*,\s*([^)]*)\)/task_set_\1/'	\
 	--regex-c++='/TASK_PFA_CLEAR\([^,]*,\s*([^)]*)\)/task_clear_\1/'\
+	--regex-c++='/DEF_MMIO_(IN|OUT)_(X|D)\(([^,]*),\s*[^)]*\)/\3/'	\
+	--regex-c++='/DEBUGGER_BOILERPLATE\(([^,]*)\)/\1/'		\
 	--regex-c='/PCI_OP_READ\((\w*).*[1-4]\)/pci_bus_read_config_\1/' \
 	--regex-c='/PCI_OP_WRITE\((\w*).*[1-4]\)/pci_bus_write_config_\1/' \
 	--regex-c='/DEFINE_(MUTEX|SEMAPHORE|SPINLOCK)\((\w*)/\2/v/'	\
@@ -233,7 +237,9 @@ emacs()
 	--regex='/^SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/sys_\1/'   \
 	--regex='/^COMPAT_SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/compat_sys_\1/' \
 	--regex='/^TRACE_EVENT(\([^,)]*\).*/trace_\1/'		\
+	--regex='/^TRACE_EVENT(\([^,)]*\).*/trace_\1_rcuidle/'	\
 	--regex='/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1/' \
+	--regex='/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1_rcuidle/' \
 	--regex='/PAGEFLAG(\([^,)]*\).*/Page\1/'			\
 	--regex='/PAGEFLAG(\([^,)]*\).*/SetPage\1/'		\
 	--regex='/PAGEFLAG(\([^,)]*\).*/ClearPage\1/'		\

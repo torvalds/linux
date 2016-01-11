@@ -1,0 +1,72 @@
+<refentry id="FE_DISEQC_SEND_MASTER_CMD">
+  <refmeta>
+    <refentrytitle>ioctl FE_DISEQC_SEND_MASTER_CMD</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>FE_DISEQC_SEND_MASTER_CMD</refname>
+    <refpurpose>Sends a DiSEqC command</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct dvb_diseqc_master_cmd *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_DISEQC_SEND_MASTER_CMD</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	    <para>pointer to &dvb-diseqc-master-cmd;</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Sends a DiSEqC command to the antenna subsystem.</para>
+&return-value-dvb;
+
+<table pgwide="1" frame="none" id="dvb-diseqc-master-cmd">
+    <title>struct <structname>dvb_diseqc_master_cmd</structname></title>
+    <tgroup cols="3">
+    &cs-str;
+    <tbody valign="top">
+	<row>
+	<entry>uint8_t</entry>
+	<entry>msg[6]</entry>
+	<entry>DiSEqC message (framing, address, command, data[3])</entry>
+	</row><row>
+	<entry>uint8_t</entry>
+	<entry>msg_len</entry>
+	<entry>Length of the DiSEqC message. Valid values are 3 to 6</entry>
+	</row>
+    </tbody>
+    </tgroup>
+</table>
+
+</refsect1>
+</refentry>

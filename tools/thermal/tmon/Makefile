@@ -12,10 +12,6 @@ TARGET=tmon
 INSTALL_PROGRAM=install -m 755 -p
 DEL_FILE=rm -f
 
-INSTALL_CONFIGFILE=install -m 644 -p
-CONFIG_FILE=
-CONFIG_PATH=
-
 # Static builds might require -ltinfo, for instance
 ifneq ($(findstring -static, $(LDFLAGS)),)
 STATIC := --static
@@ -25,6 +21,9 @@ TMON_LIBS=-lm -lpthread
 TMON_LIBS += $(shell pkg-config --libs $(STATIC) panelw ncursesw 2> /dev/null || \
 		     pkg-config --libs $(STATIC) panel ncurses 2> /dev/null || \
 		     echo -lpanel -lncurses)
+
+CFLAGS    += $(shell pkg-config --cflags $(STATIC) panelw ncursesw 2> /dev/null || \
+		     pkg-config --cflags $(STATIC) panel ncurses 2> /dev/null)
 
 OBJS = tmon.o tui.o sysfs.o pid.o
 OBJS +=
@@ -38,13 +37,9 @@ valgrind: tmon
 install:
 	- mkdir -p $(INSTALL_ROOT)/$(BINDIR)
 	- $(INSTALL_PROGRAM) "$(TARGET)" "$(INSTALL_ROOT)/$(BINDIR)/$(TARGET)"
-	- mkdir -p $(INSTALL_ROOT)/$(CONFIG_PATH)
-	- $(INSTALL_CONFIGFILE) "$(CONFIG_FILE)" "$(INSTALL_ROOT)/$(CONFIG_PATH)"
 
 uninstall:
 	$(DEL_FILE) "$(INSTALL_ROOT)/$(BINDIR)/$(TARGET)"
-	$(CONFIG_FILE) "$(CONFIG_PATH)"
-
 
 clean:
 	find . -name "*.o" | xargs $(DEL_FILE)

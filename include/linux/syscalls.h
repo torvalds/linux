@@ -111,14 +111,14 @@ union bpf_attr;
 #define __SC_STR_ADECL(t, a)	#a
 #define __SC_STR_TDECL(t, a)	#t
 
-extern struct ftrace_event_class event_class_syscall_enter;
-extern struct ftrace_event_class event_class_syscall_exit;
+extern struct trace_event_class event_class_syscall_enter;
+extern struct trace_event_class event_class_syscall_exit;
 extern struct trace_event_functions enter_syscall_print_funcs;
 extern struct trace_event_functions exit_syscall_print_funcs;
 
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static struct syscall_metadata __syscall_meta_##sname;		\
-	static struct ftrace_event_call __used				\
+	static struct trace_event_call __used				\
 	  event_enter_##sname = {					\
 		.class			= &event_class_syscall_enter,	\
 		{							\
@@ -128,13 +128,13 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 		.data			= (void *)&__syscall_meta_##sname,\
 		.flags                  = TRACE_EVENT_FL_CAP_ANY,	\
 	};								\
-	static struct ftrace_event_call __used				\
+	static struct trace_event_call __used				\
 	  __attribute__((section("_ftrace_events")))			\
 	 *__event_enter_##sname = &event_enter_##sname;
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
 	static struct syscall_metadata __syscall_meta_##sname;		\
-	static struct ftrace_event_call __used				\
+	static struct trace_event_call __used				\
 	  event_exit_##sname = {					\
 		.class			= &event_class_syscall_exit,	\
 		{							\
@@ -144,7 +144,7 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 		.data			= (void *)&__syscall_meta_##sname,\
 		.flags                  = TRACE_EVENT_FL_CAP_ANY,	\
 	};								\
-	static struct ftrace_event_call __used				\
+	static struct trace_event_call __used				\
 	  __attribute__((section("_ftrace_events")))			\
 	*__event_exit_##sname = &event_exit_##sname;
 
@@ -524,7 +524,7 @@ asmlinkage long sys_chown(const char __user *filename,
 asmlinkage long sys_lchown(const char __user *filename,
 				uid_t user, gid_t group);
 asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group);
-#ifdef CONFIG_UID16
+#ifdef CONFIG_HAVE_UID16
 asmlinkage long sys_chown16(const char __user *filename,
 				old_uid_t user, old_gid_t group);
 asmlinkage long sys_lchown16(const char __user *filename,
@@ -810,6 +810,7 @@ asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
 asmlinkage long sys_eventfd(unsigned int count);
 asmlinkage long sys_eventfd2(unsigned int count, int flags);
 asmlinkage long sys_memfd_create(const char __user *uname_ptr, unsigned int flags);
+asmlinkage long sys_userfaultfd(int flags);
 asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
 asmlinkage long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
 asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
@@ -827,15 +828,15 @@ asmlinkage long sys_syncfs(int fd);
 asmlinkage long sys_fork(void);
 asmlinkage long sys_vfork(void);
 #ifdef CONFIG_CLONE_BACKWARDS
-asmlinkage long sys_clone(unsigned long, unsigned long, int __user *, int,
+asmlinkage long sys_clone(unsigned long, unsigned long, int __user *, unsigned long,
 	       int __user *);
 #else
 #ifdef CONFIG_CLONE_BACKWARDS3
 asmlinkage long sys_clone(unsigned long, unsigned long, int, int __user *,
-			  int __user *, int);
+			  int __user *, unsigned long);
 #else
 asmlinkage long sys_clone(unsigned long, unsigned long, int __user *,
-	       int __user *, int);
+	       int __user *, unsigned long);
 #endif
 #endif
 
@@ -883,5 +884,9 @@ asmlinkage long sys_bpf(int cmd, union bpf_attr *attr, unsigned int size);
 asmlinkage long sys_execveat(int dfd, const char __user *filename,
 			const char __user *const __user *argv,
 			const char __user *const __user *envp, int flags);
+
+asmlinkage long sys_membarrier(int cmd, int flags);
+
+asmlinkage long sys_mlock2(unsigned long start, size_t len, int flags);
 
 #endif

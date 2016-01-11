@@ -14,12 +14,49 @@ Statistics for individual zram devices are exported through sysfs nodes at
 
 * Usage
 
+There are several ways to configure and manage zram device(-s):
+a) using zram and zram_control sysfs attributes
+b) using zramctl utility, provided by util-linux (util-linux@vger.kernel.org).
+
+In this document we will describe only 'manual' zram configuration steps,
+IOW, zram and zram_control sysfs attributes.
+
+In order to get a better idea about zramctl please consult util-linux
+documentation, zramctl man-page or `zramctl --help'. Please be informed
+that zram maintainers do not develop/maintain util-linux or zramctl, should
+you have any questions please contact util-linux@vger.kernel.org
+
 Following shows a typical sequence of steps for using zram.
+
+WARNING
+=======
+For the sake of simplicity we skip error checking parts in most of the
+examples below. However, it is your sole responsibility to handle errors.
+
+zram sysfs attributes always return negative values in case of errors.
+The list of possible return codes:
+-EBUSY	-- an attempt to modify an attribute that cannot be changed once
+the device has been initialised. Please reset device first;
+-ENOMEM	-- zram was not able to allocate enough memory to fulfil your
+needs;
+-EINVAL	-- invalid input has been provided.
+
+If you use 'echo', the returned value that is changed by 'echo' utility,
+and, in general case, something like:
+
+	echo 3 > /sys/block/zram0/max_comp_streams
+	if [ $? -ne 0 ];
+		handle_error
+	fi
+
+should suffice.
 
 1) Load Module:
 	modprobe zram num_devices=4
 	This creates 4 devices: /dev/zram{0,1,2,3}
-	(num_devices parameter is optional. Default: 1)
+
+num_devices parameter is optional and tells zram how many devices should be
+pre-created. Default: 1.
 
 2) Set max number of compression streams
 	Compression backend may use up to max_comp_streams compression streams,
@@ -45,7 +82,7 @@ max_comp_streams adjustment.
 
 3) Select compression algorithm
 	Using comp_algorithm device attribute one can see available and
-	currently selected (shown in square brackets) compression algortithms,
+	currently selected (shown in square brackets) compression algorithms,
 	change selected compression algorithm (once the device is initialised
 	there is no way to change compression algorithm).
 
@@ -97,10 +134,27 @@ size of the disk when not in use so a huge zram is wasteful.
 	mkfs.ext4 /dev/zram1
 	mount /dev/zram1 /tmp
 
-7) Stats:
+7) Add/remove zram devices
+
+zram provides a control interface, which enables dynamic (on-demand) device
+addition and removal.
+
+In order to add a new /dev/zramX device, perform read operation on hot_add
+attribute. This will return either new device's device id (meaning that you
+can use /dev/zram<id>) or error code.
+
+Example:
+	cat /sys/class/zram-control/hot_add
+	1
+
+To remove the existing /dev/zramX device (where X is a device id)
+execute
+	echo X > /sys/class/zram-control/hot_remove
+
+8) Stats:
 Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 
-A brief description of exported device attritbutes. For more details please
+A brief description of exported device attributes. For more details please
 read Documentation/ABI/testing/sysfs-block-zram.
 
 Name            access            description
@@ -121,12 +175,14 @@ zero_pages        RO    the number of zero filled pages written to this disk
 orig_data_size    RO    uncompressed size of data stored in this disk
 compr_data_size   RO    compressed size of data stored in this disk
 mem_used_total    RO    the amount of memory allocated for this disk
-mem_used_max      RW    the maximum amount memory zram have consumed to
-                        store compressed data
+mem_used_max      RW    the maximum amount of memory zram have consumed to
+                        store the data (to reset this counter to the actual
+                        current value, write 1 to this attribute)
 mem_limit         RW    the maximum amount of memory ZRAM can use to store
                         the compressed data
-num_migrated      RO    the number of objects migrated migrated by compaction
-
+pages_compacted   RO    the number of pages freed during compaction
+                        (available only via zram<id>/mm_stat node)
+compact           WO    trigger memory compaction
 
 WARNING
 =======
@@ -172,11 +228,11 @@ line of text and contains the following stats separated by whitespace:
 	zero_pages
 	num_migrated
 
-8) Deactivate:
+9) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1
 
-9) Reset:
+10) Reset:
 	Write any positive value to 'reset' sysfs node
 	echo 1 > /sys/block/zram0/reset
 	echo 1 > /sys/block/zram1/reset

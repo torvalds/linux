@@ -187,7 +187,7 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	/* Set up all the App TLVs if DCBx is negotiated */
 	for (i = 0; i < dcbxcfg->numapps; i++) {
 		prio = dcbxcfg->app[i].priority;
-		tc_map = (1 << dcbxcfg->etscfg.prioritytable[prio]);
+		tc_map = BIT(dcbxcfg->etscfg.prioritytable[prio]);
 
 		/* Add APP only if the TC is enabled for this VSI */
 		if (tc_map & vsi->tc_config.enabled_tc) {
@@ -236,14 +236,13 @@ static void i40e_dcbnl_del_app(struct i40e_pf *pf,
 			       struct i40e_dcb_app_priority_table *app)
 {
 	int v, err;
+
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] && pf->vsi[v]->netdev) {
 			err = i40e_dcbnl_vsi_del_app(pf->vsi[v], app);
-			if (err)
-				dev_info(&pf->pdev->dev, "%s: Failed deleting app for VSI seid=%d err=%d sel=%d proto=0x%x prio=%d\n",
-					 __func__, pf->vsi[v]->seid,
-					 err, app->selector,
-					 app->protocolid, app->priority);
+			dev_dbg(&pf->pdev->dev, "Deleting app for VSI seid=%d err=%d sel=%d proto=0x%x prio=%d\n",
+				pf->vsi[v]->seid, err, app->selector,
+				app->protocolid, app->priority);
 		}
 	}
 }

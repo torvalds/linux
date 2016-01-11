@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/topology.h>
 #include <linux/types.h>
-#include <asm/bL_switcher.h>
 
 #include "arm_big_little.h"
 
@@ -41,12 +40,16 @@
 #define MAX_CLUSTERS	2
 
 #ifdef CONFIG_BL_SWITCHER
+#include <asm/bL_switcher.h>
 static bool bL_switching_enabled;
 #define is_bL_switching_enabled()	bL_switching_enabled
 #define set_switching_enabled(x)	(bL_switching_enabled = (x))
 #else
 #define is_bL_switching_enabled()	false
 #define set_switching_enabled(x)	do { } while (0)
+#define bL_switch_request(...)		do { } while (0)
+#define bL_switcher_put_enabled()	do { } while (0)
+#define bL_switcher_get_enabled()	do { } while (0)
 #endif
 
 #define ACTUAL_FREQ(cluster, freq)  ((cluster == A7_CLUSTER) ? freq << 1 : freq)
@@ -146,6 +149,19 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 			__func__, cpu, old_cluster, new_cluster, new_rate);
 
 	ret = clk_set_rate(clk[new_cluster], new_rate * 1000);
+	if (!ret) {
+		/*
+		 * FIXME: clk_set_rate hasn't returned an error here however it
+		 * may be that clk_change_rate failed due to hardware or
+		 * firmware issues and wasn't able to report that due to the
+		 * current design of the clk core layer. To work around this
+		 * problem we will read back the clock rate and check it is
+		 * correct. This needs to be removed once clk core is fixed.
+		 */
+		if (clk_get_rate(clk[new_cluster]) != new_rate * 1000)
+			ret = -EIO;
+	}
+
 	if (WARN_ON(ret)) {
 		pr_err("clk_set_rate failed: %d, new cluster: %d\n", ret,
 				new_cluster);
@@ -322,7 +338,6 @@ static void put_cluster_clk_and_freq_table(struct device *cpu_dev)
 static int _get_cluster_clk_and_freq_table(struct device *cpu_dev)
 {
 	u32 cluster = raw_cpu_to_cluster(cpu_dev->id);
-	char name[14] = "cpu-cluster.";
 	int ret;
 
 	if (freq_table[cluster])
@@ -342,8 +357,7 @@ static int _get_cluster_clk_and_freq_table(struct device *cpu_dev)
 		goto free_opp_table;
 	}
 
-	name[12] = cluster + '0';
-	clk[cluster] = clk_get(cpu_dev, name);
+	clk[cluster] = clk_get(cpu_dev, NULL);
 	if (!IS_ERR(clk[cluster])) {
 		dev_dbg(cpu_dev, "%s: clk: %p & freq table: %p, cluster: %d\n",
 				__func__, clk[cluster], freq_table[cluster],
@@ -506,6 +520,7 @@ static struct cpufreq_driver bL_cpufreq_driver = {
 	.attr			= cpufreq_generic_attr,
 };
 
+#ifdef CONFIG_BL_SWITCHER
 static int bL_cpufreq_switcher_notifier(struct notifier_block *nfb,
 					unsigned long action, void *_arg)
 {
@@ -538,6 +553,20 @@ static struct notifier_block bL_switcher_notifier = {
 	.notifier_call = bL_cpufreq_switcher_notifier,
 };
 
+static int __bLs_register_notifier(void)
+{
+	return bL_switcher_register_notifier(&bL_switcher_notifier);
+}
+
+static int __bLs_unregister_notifier(void)
+{
+	return bL_switcher_unregister_notifier(&bL_switcher_notifier);
+}
+#else
+static int __bLs_register_notifier(void) { return 0; }
+static int __bLs_unregister_notifier(void) { return 0; }
+#endif
+
 int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 {
 	int ret, i;
@@ -555,8 +584,7 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 
 	arm_bL_ops = ops;
 
-	ret = bL_switcher_get_enabled();
-	set_switching_enabled(ret);
+	set_switching_enabled(bL_switcher_get_enabled());
 
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		mutex_init(&cluster_lock[i]);
@@ -567,7 +595,7 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 				__func__, ops->name, ret);
 		arm_bL_ops = NULL;
 	} else {
-		ret = bL_switcher_register_notifier(&bL_switcher_notifier);
+		ret = __bLs_register_notifier();
 		if (ret) {
 			cpufreq_unregister_driver(&bL_cpufreq_driver);
 			arm_bL_ops = NULL;
@@ -591,7 +619,7 @@ void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops)
 	}
 
 	bL_switcher_get_enabled();
-	bL_switcher_unregister_notifier(&bL_switcher_notifier);
+	__bLs_unregister_notifier();
 	cpufreq_unregister_driver(&bL_cpufreq_driver);
 	bL_switcher_put_enabled();
 	pr_info("%s: Un-registered platform driver: %s\n", __func__,

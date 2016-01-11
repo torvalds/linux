@@ -548,14 +548,16 @@ static int hym8563_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = devm_request_threaded_irq(&client->dev, client->irq,
-					NULL, hym8563_irq,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					client->name, hym8563);
-	if (ret < 0) {
-		dev_err(&client->dev, "irq %d request failed, %d\n",
-			client->irq, ret);
-		return ret;
+	if (client->irq > 0) {
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL, hym8563_irq,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						client->name, hym8563);
+		if (ret < 0) {
+			dev_err(&client->dev, "irq %d request failed, %d\n",
+				client->irq, ret);
+			return ret;
+		}
 	}
 
 	/* check state of calendar information */
@@ -597,7 +599,6 @@ MODULE_DEVICE_TABLE(of, hym8563_dt_idtable);
 static struct i2c_driver hym8563_driver = {
 	.driver		= {
 		.name	= "rtc-hym8563",
-		.owner	= THIS_MODULE,
 		.pm	= &hym8563_pm_ops,
 		.of_match_table	= hym8563_dt_idtable,
 	},

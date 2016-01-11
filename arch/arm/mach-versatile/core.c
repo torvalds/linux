@@ -41,8 +41,9 @@
 #include <linux/bitops.h>
 #include <linux/reboot.h>
 
+#include <clocksource/timer-sp804.h>
+
 #include <asm/irq.h>
-#include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
 #include <asm/mach-types.h>
 
@@ -52,7 +53,6 @@
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/hardware/timer-sp.h>
 
 #include <plat/sched_clock.h>
 
@@ -798,10 +798,10 @@ void __init versatile_timer_init(void)
 	/*
 	 * Initialise to a known state (all timers off)
 	 */
-	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
+	sp804_timer_disable(TIMER0_VA_BASE);
+	sp804_timer_disable(TIMER1_VA_BASE);
+	sp804_timer_disable(TIMER2_VA_BASE);
+	sp804_timer_disable(TIMER3_VA_BASE);
 
 	sp804_clocksource_init(TIMER3_VA_BASE, "timer3");
 	sp804_clockevents_init(TIMER0_VA_BASE, IRQ_TIMERINT0_1, "timer0");

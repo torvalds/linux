@@ -183,7 +183,8 @@ static bool twl4030_vibra_check_coexist(struct twl4030_vibra_data *pdata,
 	if (pdata && pdata->coexist)
 		return true;
 
-	if (of_find_node_by_name(node, "codec")) {
+	node = of_find_node_by_name(node, "codec");
+	if (node) {
 		of_node_put(node);
 		return true;
 	}

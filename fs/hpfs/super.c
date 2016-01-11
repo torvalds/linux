@@ -52,17 +52,20 @@ static void unmark_dirty(struct super_block *s)
 }
 
 /* Filesystem error... */
-static char err_buf[1024];
-
 void hpfs_error(struct super_block *s, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("filesystem error: %pV", &vaf);
+
 	va_end(args);
 
-	pr_err("filesystem error: %s", err_buf);
 	if (!hpfs_sb(s)->sb_was_error) {
 		if (hpfs_sb(s)->sb_err == 2) {
 			pr_cont("; crashing the system because you wanted it\n");
@@ -196,12 +199,39 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+
+long hpfs_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+{
+	switch (cmd) {
+		case FITRIM: {
+			struct fstrim_range range;
+			secno n_trimmed;
+			int r;
+			if (!capable(CAP_SYS_ADMIN))
+				return -EPERM;
+			if (copy_from_user(&range, (struct fstrim_range __user *)arg, sizeof(range)))
+				return -EFAULT;
+			r = hpfs_trim_fs(file_inode(file)->i_sb, range.start >> 9, (range.start + range.len) >> 9, (range.minlen + 511) >> 9, &n_trimmed);
+			if (r)
+				return r;
+			range.len = (u64)n_trimmed << 9;
+			if (copy_to_user((struct fstrim_range __user *)arg, &range, sizeof(range)))
+				return -EFAULT;
+			return 0;
+		}
+		default: {
+			return -ENOIOCTLCMD;
+		}
+	}
+}
+
+
 static struct kmem_cache * hpfs_inode_cachep;
 
 static struct inode *hpfs_alloc_inode(struct super_block *sb)
 {
 	struct hpfs_inode_info *ei;
-	ei = (struct hpfs_inode_info *)kmem_cache_alloc(hpfs_inode_cachep, GFP_NOFS);
+	ei = kmem_cache_alloc(hpfs_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 	ei->vfs_inode.i_version = 1;
@@ -424,11 +454,14 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	int o;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	char *new_opts = kstrdup(data, GFP_KERNEL);
-	
+
+	if (!new_opts)
+		return -ENOMEM;
+
 	sync_filesystem(s);
 
 	*flags |= MS_NOATIME;
-	
+
 	hpfs_lock(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
 	umask = 0777 & ~sbi->sb_mode;
@@ -595,6 +628,9 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		goto bail4;
 	}
 
+	if (spareblock->n_spares_used)
+		hpfs_load_hotfix_map(s, spareblock);
+
 	/* Load bitmap directory */
 	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, le32_to_cpu(superblock->bitmaps))))
 		goto bail4;
@@ -614,18 +650,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		mark_buffer_dirty(bh2);
 	}
 
-	if (spareblock->hotfixes_used || spareblock->n_spares_used) {
-		if (errs >= 2) {
-			pr_err("Hotfixes not supported here, try chkdsk\n");
-			mark_dirty(s, 0);
-			goto bail4;
-		}
-		hpfs_error(s, "hotfixes not supported here, try chkdsk");
-		if (errs == 0)
-			pr_err("Proceeding, but your filesystem will be probably corrupted by this driver...\n");
-		else
-			pr_err("This driver may read bad files or crash when operating on disk with hotfixes.\n");
-	}
 	if (le32_to_cpu(spareblock->n_dnode_spares) != le32_to_cpu(spareblock->n_dnode_spares_free)) {
 		if (errs >= 2) {
 			pr_err("Spare dnodes used, try chkdsk\n");

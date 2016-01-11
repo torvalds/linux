@@ -16,6 +16,7 @@
 #define _MD_MD_H
 
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -86,10 +87,16 @@ struct md_rdev {
 					 * array and could again if we did a partial
 					 * resync from the bitmap
 					 */
-	sector_t	recovery_offset;/* If this device has been partially
+	union {
+		sector_t recovery_offset;/* If this device has been partially
 					 * recovered, this is where we were
 					 * up to.
 					 */
+		sector_t journal_tail;	/* If this device is a journal device,
+					 * this is the journal tail (journal
+					 * recovery start point)
+					 */
+	};
 
 	atomic_t	nr_pending;	/* number of pending requests.
 					 * only maintained for arrays that
@@ -133,10 +140,6 @@ enum flag_bits {
 	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
 				 * bitmap-based recovery to get fully in sync
 				 */
-	Unmerged,		/* device is being added to array and should
-				 * be considerred for bvec_merge_fn but not
-				 * yet for actual IO
-				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
 	Blocked,		/* An error occurred but has not yet
@@ -174,6 +177,11 @@ enum flag_bits {
 	Candidate,		/* For clustered environments only:
 				 * This device is seen locally but not
 				 * by the whole cluster
+				 */
+	Journal,		/* This device is used as journal for
+				 * raid-5/6.
+				 * Usually, this device should be faster
+				 * than other devices in the array
 				 */
 };
 
@@ -224,6 +232,8 @@ struct mddev {
 #define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
 				 * md_ioctl checked on it.
 				 */
+#define MD_JOURNAL_CLEAN 5	/* A raid with journal is already clean */
+#define MD_HAS_JOURNAL	6	/* The raid array has journal feature set */
 
 	int				suspended;
 	atomic_t			active_io;
@@ -373,10 +383,6 @@ struct mddev {
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */
-	int				merge_check_needed; /* at least one
-							     * member device
-							     * has a
-							     * merge_bvec_fn */
 
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
@@ -531,10 +537,6 @@ struct md_personality
 	/* congested implements bdi.congested_fn().
 	 * Will not be called while array is 'suspended' */
 	int (*congested)(struct mddev *mddev, int bits);
-	/* mergeable_bvec is use to implement ->merge_bvec_fn */
-	int (*mergeable_bvec)(struct mddev *mddev,
-			      struct bvec_merge_data *bvm,
-			      struct bio_vec *biovec);
 };
 
 struct md_sysfs_entry {
@@ -564,7 +566,9 @@ static inline char * mdname (struct mddev * mddev)
 static inline int sysfs_link_rdev(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
-	if (!test_bit(Replacement, &rdev->flags) && mddev->kobj.sd) {
+	if (!test_bit(Replacement, &rdev->flags) &&
+	    !test_bit(Journal, &rdev->flags) &&
+	    mddev->kobj.sd) {
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		return sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
 	} else
@@ -574,7 +578,9 @@ static inline int sysfs_link_rdev(struct mddev *mddev, struct md_rdev *rdev)
 static inline void sysfs_unlink_rdev(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
-	if (!test_bit(Replacement, &rdev->flags) && mddev->kobj.sd) {
+	if (!test_bit(Replacement, &rdev->flags) &&
+	    !test_bit(Journal, &rdev->flags) &&
+	    mddev->kobj.sd) {
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		sysfs_remove_link(&mddev->kobj, nm);
 	}
@@ -669,7 +675,7 @@ extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
 
 extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
-extern void md_reload_sb(struct mddev *mddev);
+extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);

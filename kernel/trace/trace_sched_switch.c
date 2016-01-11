@@ -16,7 +16,8 @@ static int			sched_ref;
 static DEFINE_MUTEX(sched_register_mutex);
 
 static void
-probe_sched_switch(void *ignore, struct task_struct *prev, struct task_struct *next)
+probe_sched_switch(void *ignore, bool preempt,
+		   struct task_struct *prev, struct task_struct *next)
 {
 	if (unlikely(!sched_ref))
 		return;
@@ -26,7 +27,7 @@ probe_sched_switch(void *ignore, struct task_struct *prev, struct task_struct *n
 }
 
 static void
-probe_sched_wakeup(void *ignore, struct task_struct *wakee, int success)
+probe_sched_wakeup(void *ignore, struct task_struct *wakee)
 {
 	if (unlikely(!sched_ref))
 		return;

@@ -29,7 +29,7 @@
 
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../cmp.h"
 #include "../lib.h"
 
@@ -71,6 +71,7 @@ struct snd_efw {
 
 	/* for quirks */
 	bool is_af9;
+	bool is_fireworks3;
 	u32 firmware_version;
 
 	unsigned int midi_in_ports;

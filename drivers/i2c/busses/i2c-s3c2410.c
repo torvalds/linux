@@ -132,7 +132,7 @@ struct s3c24xx_i2c {
 	unsigned int		sys_i2c_cfg;
 };
 
-static struct platform_device_id s3c24xx_driver_ids[] = {
+static const struct platform_device_id s3c24xx_driver_ids[] = {
 	{
 		.name		= "s3c2410-i2c",
 		.driver_data	= 0,
@@ -1143,6 +1143,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	i2c->quirks = s3c24xx_get_device_quirks(pdev);
+	i2c->sysreg = ERR_PTR(-ENOENT);
 	if (pdata)
 		memcpy(i2c->pdata, pdata, sizeof(*pdata));
 	else
@@ -1242,17 +1243,19 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	i2c->adap.nr = i2c->pdata->bus_num;
 	i2c->adap.dev.of_node = pdev->dev.of_node;
 
+	platform_set_drvdata(pdev, i2c);
+
+	pm_runtime_enable(&pdev->dev);
+
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
+		pm_runtime_disable(&pdev->dev);
 		s3c24xx_i2c_deregister_cpufreq(i2c);
 		clk_unprepare(i2c->clk);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, i2c);
-
-	pm_runtime_enable(&pdev->dev);
 	pm_runtime_enable(&i2c->adap.dev);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));

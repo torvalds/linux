@@ -399,6 +399,8 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 
 	sdev = container_of(work, struct scsi_device, ew.work);
 
+	scsi_dh_release_device(sdev);
+
 	parent = sdev->sdev_gendev.parent;
 
 	spin_lock_irqsave(sdev->host->host_lock, flags);
@@ -773,6 +775,29 @@ static struct bin_attribute dev_attr_vpd_##_page = {		\
 sdev_vpd_pg_attr(pg83);
 sdev_vpd_pg_attr(pg80);
 
+static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
+			    struct bin_attribute *bin_attr,
+			    char *buf, loff_t off, size_t count)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	if (!sdev->inquiry)
+		return -EINVAL;
+
+	return memory_read_from_buffer(buf, count, &off, sdev->inquiry,
+				       sdev->inquiry_len);
+}
+
+static struct bin_attribute dev_attr_inquiry = {
+	.attr = {
+		.name = "inquiry",
+		.mode = S_IRUGO,
+	},
+	.size = 0,
+	.read = show_inquiry,
+};
+
 static ssize_t
 show_iostat_counterbits(struct device *dev, struct device_attribute *attr,
 			char *buf)
@@ -859,7 +884,7 @@ sdev_store_queue_depth(struct device *dev, struct device_attribute *attr,
 
 	depth = simple_strtoul(buf, NULL, 0);
 
-	if (depth < 1 || depth > sht->can_queue)
+	if (depth < 1 || depth > sdev->host->can_queue)
 		return -EINVAL;
 
 	retval = sht->change_queue_depth(sdev, depth);
@@ -898,7 +923,7 @@ sdev_store_queue_ramp_up_period(struct device *dev,
 		return -EINVAL;
 
 	sdev->queue_ramp_up_period = msecs_to_jiffies(period);
-	return period;
+	return count;
 }
 
 static DEVICE_ATTR(queue_ramp_up_period, S_IRUGO | S_IWUSR,
@@ -957,6 +982,7 @@ static struct attribute *scsi_sdev_attrs[] = {
 static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
+	&dev_attr_inquiry,
 	NULL
 };
 static struct attribute_group scsi_sdev_attr_group = {
@@ -1030,11 +1056,20 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 				"failed to add device: %d\n", error);
 		return error;
 	}
+
+	error = scsi_dh_add_device(sdev);
+	if (error) {
+		sdev_printk(KERN_INFO, sdev,
+				"failed to add device handler: %d\n", error);
+		return error;
+	}
+
 	device_enable_async_suspend(&sdev->sdev_dev);
 	error = device_add(&sdev->sdev_dev);
 	if (error) {
 		sdev_printk(KERN_INFO, sdev,
 				"failed to add class device: %d\n", error);
+		scsi_dh_remove_device(sdev);
 		device_del(&sdev->sdev_gendev);
 		return error;
 	}
@@ -1067,6 +1102,14 @@ void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
 
+	/*
+	 * This cleanup path is not reentrant and while it is impossible
+	 * to get a new reference with scsi_device_get() someone can still
+	 * hold a previously acquired one.
+	 */
+	if (sdev->sdev_state == SDEV_DEL)
+		return;
+
 	if (sdev->is_visible) {
 		if (scsi_device_set_state(sdev, SDEV_CANCEL) != 0)
 			return;
@@ -1074,6 +1117,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		bsg_unregister_queue(sdev->request_queue);
 		device_unregister(&sdev->sdev_dev);
 		transport_remove_device(dev);
+		scsi_dh_remove_device(sdev);
 		device_del(dev);
 	} else
 		put_device(&sdev->sdev_dev);
@@ -1148,31 +1192,23 @@ static void __scsi_remove_target(struct scsi_target *starget)
 void scsi_remove_target(struct device *dev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
-	struct scsi_target *starget, *last = NULL;
+	struct scsi_target *starget;
 	unsigned long flags;
 
-	/* remove targets being careful to lookup next entry before
-	 * deleting the last
-	 */
+restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
 		if (starget->state == STARGET_DEL)
 			continue;
 		if (starget->dev.parent == dev || &starget->dev == dev) {
-			/* assuming new targets arrive at the end */
 			kref_get(&starget->reap_ref);
 			spin_unlock_irqrestore(shost->host_lock, flags);
-			if (last)
-				scsi_target_reap(last);
-			last = starget;
 			__scsi_remove_target(starget);
-			spin_lock_irqsave(shost->host_lock, flags);
+			scsi_target_reap(starget);
+			goto restart;
 		}
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
-
-	if (last)
-		scsi_target_reap(last);
 }
 EXPORT_SYMBOL(scsi_remove_target);
 

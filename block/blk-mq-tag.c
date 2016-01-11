@@ -75,6 +75,10 @@ void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool include_reserve)
 	struct blk_mq_bitmap_tags *bt;
 	int i, wake_index;
 
+	/*
+	 * Make sure all changes prior to this are visible from other CPUs.
+	 */
+	smp_mb();
 	bt = &tags->bitmap_tags;
 	wake_index = atomic_read(&bt->wake_index);
 	for (i = 0; i < BT_WAIT_QUEUES; i++) {
@@ -264,7 +268,7 @@ static int bt_get(struct blk_mq_alloc_data *data,
 	if (tag != -1)
 		return tag;
 
-	if (!(data->gfp & __GFP_WAIT))
+	if (!gfpflags_allow_blocking(data->gfp))
 		return -1;
 
 	bs = bt_wait_ptr(bt, hctx);
@@ -429,7 +433,7 @@ static void bt_for_each(struct blk_mq_hw_ctx *hctx,
 		for (bit = find_first_bit(&bm->word, bm->depth);
 		     bit < bm->depth;
 		     bit = find_next_bit(&bm->word, bm->depth, bit + 1)) {
-		     	rq = blk_mq_tag_to_rq(hctx->tags, off + bit);
+			rq = hctx->tags->rqs[off + bit];
 			if (rq->q == hctx->queue)
 				fn(hctx, rq, data, reserved);
 		}
@@ -438,17 +442,63 @@ static void bt_for_each(struct blk_mq_hw_ctx *hctx,
 	}
 }
 
-void blk_mq_tag_busy_iter(struct blk_mq_hw_ctx *hctx, busy_iter_fn *fn,
+static void bt_tags_for_each(struct blk_mq_tags *tags,
+		struct blk_mq_bitmap_tags *bt, unsigned int off,
+		busy_tag_iter_fn *fn, void *data, bool reserved)
+{
+	struct request *rq;
+	int bit, i;
+
+	if (!tags->rqs)
+		return;
+	for (i = 0; i < bt->map_nr; i++) {
+		struct blk_align_bitmap *bm = &bt->map[i];
+
+		for (bit = find_first_bit(&bm->word, bm->depth);
+		     bit < bm->depth;
+		     bit = find_next_bit(&bm->word, bm->depth, bit + 1)) {
+			rq = tags->rqs[off + bit];
+			fn(rq, data, reserved);
+		}
+
+		off += (1 << bt->bits_per_word);
+	}
+}
+
+void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
 		void *priv)
 {
-	struct blk_mq_tags *tags = hctx->tags;
-
 	if (tags->nr_reserved_tags)
-		bt_for_each(hctx, &tags->breserved_tags, 0, fn, priv, true);
-	bt_for_each(hctx, &tags->bitmap_tags, tags->nr_reserved_tags, fn, priv,
+		bt_tags_for_each(tags, &tags->breserved_tags, 0, fn, priv, true);
+	bt_tags_for_each(tags, &tags->bitmap_tags, tags->nr_reserved_tags, fn, priv,
 			false);
 }
-EXPORT_SYMBOL(blk_mq_tag_busy_iter);
+EXPORT_SYMBOL(blk_mq_all_tag_busy_iter);
+
+void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
+		void *priv)
+{
+	struct blk_mq_hw_ctx *hctx;
+	int i;
+
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		struct blk_mq_tags *tags = hctx->tags;
+
+		/*
+		 * If not software queues are currently mapped to this
+		 * hardware queue, there's nothing to check
+		 */
+		if (!blk_mq_hw_queue_mapped(hctx))
+			continue;
+
+		if (tags->nr_reserved_tags)
+			bt_for_each(hctx, &tags->breserved_tags, 0, fn, priv, true);
+		bt_for_each(hctx, &tags->bitmap_tags, tags->nr_reserved_tags, fn, priv,
+		      false);
+	}
+
+}
 
 static unsigned int bt_unused_tags(struct blk_mq_bitmap_tags *bt)
 {
@@ -580,6 +630,11 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	if (!tags)
 		return NULL;
 
+	if (!zalloc_cpumask_var(&tags->cpumask, GFP_KERNEL)) {
+		kfree(tags);
+		return NULL;
+	}
+
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
 
@@ -590,6 +645,7 @@ void blk_mq_free_tags(struct blk_mq_tags *tags)
 {
 	bt_free(&tags->bitmap_tags);
 	bt_free(&tags->breserved_tags);
+	free_cpumask_var(tags->cpumask);
 	kfree(tags);
 }
 

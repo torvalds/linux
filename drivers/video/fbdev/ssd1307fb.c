@@ -6,15 +6,16 @@
  * Licensed under the GPLv2 or later.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/i2c.h>
+#include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/uaccess.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pwm.h>
-#include <linux/delay.h>
+#include <linux/uaccess.h>
 
 #define SSD1307FB_DATA			0x40
 #define SSD1307FB_COMMAND		0x80
@@ -38,22 +39,43 @@
 #define	SSD1307FB_SET_COM_PINS_CONFIG	0xda
 #define	SSD1307FB_SET_VCOMH		0xdb
 
+#define MAX_CONTRAST 255
+
+#define REFRESHRATE 1
+
+static u_int refreshrate = REFRESHRATE;
+module_param(refreshrate, uint, 0);
+
 struct ssd1307fb_par;
 
-struct ssd1307fb_ops {
-	int (*init)(struct ssd1307fb_par *);
-	int (*remove)(struct ssd1307fb_par *);
+struct ssd1307fb_deviceinfo {
+	u32 default_vcomh;
+	u32 default_dclk_div;
+	u32 default_dclk_frq;
+	int need_pwm;
+	int need_chargepump;
 };
 
 struct ssd1307fb_par {
+	u32 com_invdir;
+	u32 com_lrremap;
+	u32 com_offset;
+	u32 com_seq;
+	u32 contrast;
+	u32 dclk_div;
+	u32 dclk_frq;
+	struct ssd1307fb_deviceinfo *device_info;
 	struct i2c_client *client;
 	u32 height;
 	struct fb_info *info;
-	struct ssd1307fb_ops *ops;
 	u32 page_offset;
+	u32 prechargep1;
+	u32 prechargep2;
 	struct pwm_device *pwm;
 	u32 pwm_period;
 	int reset;
+	u32 seg_remap;
+	u32 vcomh;
 	u32 width;
 };
 
@@ -213,6 +235,16 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	return count;
 }
 
+static int ssd1307fb_blank(int blank_mode, struct fb_info *info)
+{
+	struct ssd1307fb_par *par = info->par;
+
+	if (blank_mode != FB_BLANK_UNBLANK)
+		return ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_OFF);
+	else
+		return ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
+}
+
 static void ssd1307fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct ssd1307fb_par *par = info->par;
@@ -238,6 +270,7 @@ static struct fb_ops ssd1307fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= fb_sys_read,
 	.fb_write	= ssd1307fb_write,
+	.fb_blank	= ssd1307fb_blank,
 	.fb_fillrect	= ssd1307fb_fillrect,
 	.fb_copyarea	= ssd1307fb_copyarea,
 	.fb_imageblit	= ssd1307fb_imageblit,
@@ -249,74 +282,46 @@ static void ssd1307fb_deferred_io(struct fb_info *info,
 	ssd1307fb_update_display(info->par);
 }
 
-static struct fb_deferred_io ssd1307fb_defio = {
-	.delay		= HZ,
-	.deferred_io	= ssd1307fb_deferred_io,
-};
-
-static int ssd1307fb_ssd1307_init(struct ssd1307fb_par *par)
+static int ssd1307fb_init(struct ssd1307fb_par *par)
 {
 	int ret;
+	u32 precharge, dclk, com_invdir, compins;
 
-	par->pwm = pwm_get(&par->client->dev, NULL);
-	if (IS_ERR(par->pwm)) {
-		dev_err(&par->client->dev, "Could not get PWM from device tree!\n");
-		return PTR_ERR(par->pwm);
-	}
+	if (par->device_info->need_pwm) {
+		par->pwm = pwm_get(&par->client->dev, NULL);
+		if (IS_ERR(par->pwm)) {
+			dev_err(&par->client->dev, "Could not get PWM from device tree!\n");
+			return PTR_ERR(par->pwm);
+		}
 
-	par->pwm_period = pwm_get_period(par->pwm);
-	/* Enable the PWM */
-	pwm_config(par->pwm, par->pwm_period / 2, par->pwm_period);
-	pwm_enable(par->pwm);
+		par->pwm_period = pwm_get_period(par->pwm);
+		/* Enable the PWM */
+		pwm_config(par->pwm, par->pwm_period / 2, par->pwm_period);
+		pwm_enable(par->pwm);
 
-	dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
-		par->pwm->pwm, par->pwm_period);
-
-	/* Map column 127 of the OLED to segment 0 */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
-	if (ret < 0)
-		return ret;
-
-	/* Turn on the display */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int ssd1307fb_ssd1307_remove(struct ssd1307fb_par *par)
-{
-	pwm_disable(par->pwm);
-	pwm_put(par->pwm);
-	return 0;
-}
-
-static struct ssd1307fb_ops ssd1307fb_ssd1307_ops = {
-	.init	= ssd1307fb_ssd1307_init,
-	.remove	= ssd1307fb_ssd1307_remove,
-};
-
-static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
-{
-	int ret;
+		dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
+			par->pwm->pwm, par->pwm_period);
+	};
 
 	/* Set initial contrast */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0x7f);
-	if (ret < 0)
-		return ret;
-
-	/* Set COM direction */
-	ret = ssd1307fb_write_cmd(par->client, 0xc8);
+	ret = ssd1307fb_write_cmd(par->client, par->contrast);
 	if (ret < 0)
 		return ret;
 
 	/* Set segment re-map */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
+	if (par->seg_remap) {
+		ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
+		if (ret < 0)
+			return ret;
+	};
+
+	/* Set COM direction */
+	com_invdir = 0xc0 | (par->com_invdir & 0x1) << 3;
+	ret = ssd1307fb_write_cmd(par->client,  com_invdir);
 	if (ret < 0)
 		return ret;
 
@@ -334,7 +339,7 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0x20);
+	ret = ssd1307fb_write_cmd(par->client, par->com_offset);
 	if (ret < 0)
 		return ret;
 
@@ -343,7 +348,8 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0xf0);
+	dclk = ((par->dclk_div - 1) & 0xf) | (par->dclk_frq & 0xf) << 4;
+	ret = ssd1307fb_write_cmd(par->client, dclk);
 	if (ret < 0)
 		return ret;
 
@@ -352,7 +358,8 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0x22);
+	precharge = (par->prechargep1 & 0xf) | (par->prechargep2 & 0xf) << 4;
+	ret = ssd1307fb_write_cmd(par->client, precharge);
 	if (ret < 0)
 		return ret;
 
@@ -361,7 +368,9 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0x22);
+	compins = 0x02 | !(par->com_seq & 0x1) << 4
+				   | (par->com_lrremap & 0x1) << 5;
+	ret = ssd1307fb_write_cmd(par->client, compins);
 	if (ret < 0)
 		return ret;
 
@@ -370,7 +379,7 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0x49);
+	ret = ssd1307fb_write_cmd(par->client, par->vcomh);
 	if (ret < 0)
 		return ret;
 
@@ -379,7 +388,8 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, 0x14);
+	ret = ssd1307fb_write_cmd(par->client,
+		(par->device_info->need_chargepump & 0x1 << 2) & 0x14);
 	if (ret < 0)
 		return ret;
 
@@ -393,6 +403,7 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
+	/* Set column range */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
 	if (ret < 0)
 		return ret;
@@ -405,6 +416,7 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
+	/* Set page range */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
 	if (ret < 0)
 		return ret;
@@ -426,18 +438,85 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	return 0;
 }
 
-static struct ssd1307fb_ops ssd1307fb_ssd1306_ops = {
-	.init	= ssd1307fb_ssd1306_init,
+static int ssd1307fb_update_bl(struct backlight_device *bdev)
+{
+	struct ssd1307fb_par *par = bl_get_data(bdev);
+	int ret;
+	int brightness = bdev->props.brightness;
+
+	par->contrast = brightness;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
+	if (ret < 0)
+		return ret;
+	ret = ssd1307fb_write_cmd(par->client, par->contrast);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
+static int ssd1307fb_get_brightness(struct backlight_device *bdev)
+{
+	struct ssd1307fb_par *par = bl_get_data(bdev);
+
+	return par->contrast;
+}
+
+static int ssd1307fb_check_fb(struct backlight_device *bdev,
+				   struct fb_info *info)
+{
+	return (info->bl_dev == bdev);
+}
+
+static const struct backlight_ops ssd1307fb_bl_ops = {
+	.options	= BL_CORE_SUSPENDRESUME,
+	.update_status	= ssd1307fb_update_bl,
+	.get_brightness	= ssd1307fb_get_brightness,
+	.check_fb	= ssd1307fb_check_fb,
+};
+
+static struct ssd1307fb_deviceinfo ssd1307fb_ssd1305_deviceinfo = {
+	.default_vcomh = 0x34,
+	.default_dclk_div = 1,
+	.default_dclk_frq = 7,
+};
+
+static struct ssd1307fb_deviceinfo ssd1307fb_ssd1306_deviceinfo = {
+	.default_vcomh = 0x20,
+	.default_dclk_div = 1,
+	.default_dclk_frq = 8,
+	.need_chargepump = 1,
+};
+
+static struct ssd1307fb_deviceinfo ssd1307fb_ssd1307_deviceinfo = {
+	.default_vcomh = 0x20,
+	.default_dclk_div = 2,
+	.default_dclk_frq = 12,
+	.need_pwm = 1,
+};
+
+static struct ssd1307fb_deviceinfo ssd1307fb_ssd1309_deviceinfo = {
+	.default_vcomh = 0x34,
+	.default_dclk_div = 1,
+	.default_dclk_frq = 10,
 };
 
 static const struct of_device_id ssd1307fb_of_match[] = {
 	{
+		.compatible = "solomon,ssd1305fb-i2c",
+		.data = (void *)&ssd1307fb_ssd1305_deviceinfo,
+	},
+	{
 		.compatible = "solomon,ssd1306fb-i2c",
-		.data = (void *)&ssd1307fb_ssd1306_ops,
+		.data = (void *)&ssd1307fb_ssd1306_deviceinfo,
 	},
 	{
 		.compatible = "solomon,ssd1307fb-i2c",
-		.data = (void *)&ssd1307fb_ssd1307_ops,
+		.data = (void *)&ssd1307fb_ssd1307_deviceinfo,
+	},
+	{
+		.compatible = "solomon,ssd1309fb-i2c",
+		.data = (void *)&ssd1307fb_ssd1309_deviceinfo,
 	},
 	{},
 };
@@ -446,8 +525,11 @@ MODULE_DEVICE_TABLE(of, ssd1307fb_of_match);
 static int ssd1307fb_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
+	struct backlight_device *bl;
+	char bl_name[12];
 	struct fb_info *info;
 	struct device_node *node = client->dev.of_node;
+	struct fb_deferred_io *ssd1307fb_defio;
 	u32 vmem_size;
 	struct ssd1307fb_par *par;
 	u8 *vmem;
@@ -468,8 +550,8 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	par->info = info;
 	par->client = client;
 
-	par->ops = (struct ssd1307fb_ops *)of_match_device(ssd1307fb_of_match,
-							   &client->dev)->data;
+	par->device_info = (struct ssd1307fb_deviceinfo *)of_match_device(
+			ssd1307fb_of_match, &client->dev)->data;
 
 	par->reset = of_get_named_gpio(client->dev.of_node,
 					 "reset-gpios", 0);
@@ -487,19 +569,51 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	if (of_property_read_u32(node, "solomon,page-offset", &par->page_offset))
 		par->page_offset = 1;
 
+	if (of_property_read_u32(node, "solomon,com-offset", &par->com_offset))
+		par->com_offset = 0;
+
+	if (of_property_read_u32(node, "solomon,prechargep1", &par->prechargep1))
+		par->prechargep1 = 2;
+
+	if (of_property_read_u32(node, "solomon,prechargep2", &par->prechargep2))
+		par->prechargep2 = 2;
+
+	par->seg_remap = !of_property_read_bool(node, "solomon,segment-no-remap");
+	par->com_seq = of_property_read_bool(node, "solomon,com-seq");
+	par->com_lrremap = of_property_read_bool(node, "solomon,com-lrremap");
+	par->com_invdir = of_property_read_bool(node, "solomon,com-invdir");
+
+	par->contrast = 127;
+	par->vcomh = par->device_info->default_vcomh;
+
+	/* Setup display timing */
+	par->dclk_div = par->device_info->default_dclk_div;
+	par->dclk_frq = par->device_info->default_dclk_frq;
+
 	vmem_size = par->width * par->height / 8;
 
-	vmem = devm_kzalloc(&client->dev, vmem_size, GFP_KERNEL);
+	vmem = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(vmem_size));
 	if (!vmem) {
 		dev_err(&client->dev, "Couldn't allocate graphical memory.\n");
 		ret = -ENOMEM;
 		goto fb_alloc_error;
 	}
 
+	ssd1307fb_defio = devm_kzalloc(&client->dev, sizeof(struct fb_deferred_io), GFP_KERNEL);
+	if (!ssd1307fb_defio) {
+		dev_err(&client->dev, "Couldn't allocate deferred io.\n");
+		ret = -ENOMEM;
+		goto fb_alloc_error;
+	}
+
+	ssd1307fb_defio->delay = HZ / refreshrate;
+	ssd1307fb_defio->deferred_io = ssd1307fb_deferred_io;
+
 	info->fbops = &ssd1307fb_ops;
 	info->fix = ssd1307fb_fix;
 	info->fix.line_length = par->width / 8;
-	info->fbdefio = &ssd1307fb_defio;
+	info->fbdefio = ssd1307fb_defio;
 
 	info->var = ssd1307fb_var;
 	info->var.xres = par->width;
@@ -515,7 +629,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	info->var.blue.offset = 0;
 
 	info->screen_base = (u8 __force __iomem *)vmem;
-	info->fix.smem_start = (unsigned long)vmem;
+	info->fix.smem_start = __pa(vmem);
 	info->fix.smem_len = vmem_size;
 
 	fb_deferred_io_init(info);
@@ -538,11 +652,9 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	gpio_set_value(par->reset, 1);
 	udelay(4);
 
-	if (par->ops->init) {
-		ret = par->ops->init(par);
-		if (ret)
-			goto reset_oled_error;
-	}
+	ret = ssd1307fb_init(par);
+	if (ret)
+		goto reset_oled_error;
 
 	ret = register_framebuffer(info);
 	if (ret) {
@@ -550,13 +662,31 @@ static int ssd1307fb_probe(struct i2c_client *client,
 		goto panel_init_error;
 	}
 
+	snprintf(bl_name, sizeof(bl_name), "ssd1307fb%d", info->node);
+	bl = backlight_device_register(bl_name, &client->dev, par,
+				       &ssd1307fb_bl_ops, NULL);
+	if (IS_ERR(bl)) {
+		ret = PTR_ERR(bl);
+		dev_err(&client->dev, "unable to register backlight device: %d\n",
+			ret);
+		goto bl_init_error;
+	}
+
+	bl->props.brightness = par->contrast;
+	bl->props.max_brightness = MAX_CONTRAST;
+	info->bl_dev = bl;
+
 	dev_info(&client->dev, "fb%d: %s framebuffer device registered, using %d bytes of video memory\n", info->node, info->fix.id, vmem_size);
 
 	return 0;
 
+bl_init_error:
+	unregister_framebuffer(info);
 panel_init_error:
-	if (par->ops->remove)
-		par->ops->remove(par);
+	if (par->device_info->need_pwm) {
+		pwm_disable(par->pwm);
+		pwm_put(par->pwm);
+	};
 reset_oled_error:
 	fb_deferred_io_cleanup(info);
 fb_alloc_error:
@@ -569,18 +699,27 @@ static int ssd1307fb_remove(struct i2c_client *client)
 	struct fb_info *info = i2c_get_clientdata(client);
 	struct ssd1307fb_par *par = info->par;
 
+	ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_OFF);
+
+	backlight_device_unregister(info->bl_dev);
+
 	unregister_framebuffer(info);
-	if (par->ops->remove)
-		par->ops->remove(par);
+	if (par->device_info->need_pwm) {
+		pwm_disable(par->pwm);
+		pwm_put(par->pwm);
+	};
 	fb_deferred_io_cleanup(info);
+	__free_pages(__va(info->fix.smem_start), get_order(info->fix.smem_len));
 	framebuffer_release(info);
 
 	return 0;
 }
 
 static const struct i2c_device_id ssd1307fb_i2c_id[] = {
+	{ "ssd1305fb", 0 },
 	{ "ssd1306fb", 0 },
 	{ "ssd1307fb", 0 },
+	{ "ssd1309fb", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssd1307fb_i2c_id);
@@ -592,7 +731,6 @@ static struct i2c_driver ssd1307fb_driver = {
 	.driver = {
 		.name = "ssd1307fb",
 		.of_match_table = ssd1307fb_of_match,
-		.owner = THIS_MODULE,
 	},
 };
 

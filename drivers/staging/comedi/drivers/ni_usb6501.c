@@ -166,13 +166,13 @@ enum commands {
 struct ni6501_private {
 	struct usb_endpoint_descriptor *ep_rx;
 	struct usb_endpoint_descriptor *ep_tx;
-	struct semaphore sem;
+	struct mutex mut;
 	u8 *usb_rx_buf;
 	u8 *usb_tx_buf;
 };
 
 static int ni6501_port_command(struct comedi_device *dev, int command,
-			       const u8 *port, u8 *bitmap)
+			       unsigned int val, u8 *bitmap)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct ni6501_private *devpriv = dev->private;
@@ -183,29 +183,29 @@ static int ni6501_port_command(struct comedi_device *dev, int command,
 	if (command != SET_PORT_DIR && !bitmap)
 		return -EINVAL;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (command) {
 	case READ_PORT:
 		request_size = sizeof(READ_PORT_REQUEST);
 		response_size = sizeof(READ_PORT_RESPONSE);
 		memcpy(tx, READ_PORT_REQUEST, request_size);
-		tx[14] = port[0];
+		tx[14] = val & 0xff;
 		break;
 	case WRITE_PORT:
 		request_size = sizeof(WRITE_PORT_REQUEST);
 		response_size = sizeof(GENERIC_RESPONSE);
 		memcpy(tx, WRITE_PORT_REQUEST, request_size);
-		tx[14] = port[0];
-		tx[17] = bitmap[0];
+		tx[14] = val & 0xff;
+		tx[17] = *bitmap;
 		break;
 	case SET_PORT_DIR:
 		request_size = sizeof(SET_PORT_DIR_REQUEST);
 		response_size = sizeof(GENERIC_RESPONSE);
 		memcpy(tx, SET_PORT_DIR_REQUEST, request_size);
-		tx[14] = port[0];
-		tx[15] = port[1];
-		tx[16] = port[2];
+		tx[14] = val & 0xff;
+		tx[15] = (val >> 8) & 0xff;
+		tx[16] = (val >> 16) & 0xff;
 		break;
 	default:
 		ret = -EINVAL;
@@ -235,7 +235,7 @@ static int ni6501_port_command(struct comedi_device *dev, int command,
 	/* Check if results are valid */
 
 	if (command == READ_PORT) {
-		bitmap[0] = devpriv->usb_rx_buf[14];
+		*bitmap = devpriv->usb_rx_buf[14];
 		/* mask bitmap for comparing */
 		devpriv->usb_rx_buf[14] = 0x00;
 
@@ -248,7 +248,7 @@ static int ni6501_port_command(struct comedi_device *dev, int command,
 		ret = -EINVAL;
 	}
 end:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -265,7 +265,7 @@ static int ni6501_counter_command(struct comedi_device *dev, int command,
 	if ((command == READ_COUNTER || command ==  WRITE_COUNTER) && !val)
 		return -EINVAL;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (command) {
 	case START_COUNTER:
@@ -338,7 +338,7 @@ static int ni6501_counter_command(struct comedi_device *dev, int command,
 		ret = -EINVAL;
 	}
 end:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -349,17 +349,12 @@ static int ni6501_dio_insn_config(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	int ret;
-	u8 port[3];
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
 		return ret;
 
-	port[0] = (s->io_bits) & 0xff;
-	port[1] = (s->io_bits >> 8) & 0xff;
-	port[2] = (s->io_bits >> 16) & 0xff;
-
-	ret = ni6501_port_command(dev, SET_PORT_DIR, port, NULL);
+	ret = ni6501_port_command(dev, SET_PORT_DIR, s->io_bits, NULL);
 	if (ret)
 		return ret;
 
@@ -382,7 +377,7 @@ static int ni6501_dio_insn_bits(struct comedi_device *dev,
 		if (mask & (0xFF << port * 8)) {
 			bitmap = (s->state >> port * 8) & 0xFF;
 			ret = ni6501_port_command(dev, WRITE_PORT,
-						  &port, &bitmap);
+						  port, &bitmap);
 			if (ret)
 				return ret;
 		}
@@ -391,7 +386,7 @@ static int ni6501_dio_insn_bits(struct comedi_device *dev,
 	data[1] = 0;
 
 	for (port = 0; port < 3; port++) {
-		ret = ni6501_port_command(dev, READ_PORT, &port, &bitmap);
+		ret = ni6501_port_command(dev, READ_PORT, port, &bitmap);
 		if (ret)
 			return ret;
 		data[1] |= bitmap << port * 8;
@@ -540,7 +535,7 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	sema_init(&devpriv->sem, 1);
+	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);
 
 	ret = comedi_alloc_subdevices(dev, 2);
@@ -578,14 +573,14 @@ static void ni6501_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
 	kfree(devpriv->usb_rx_buf);
 	kfree(devpriv->usb_tx_buf);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver ni6501_driver = {

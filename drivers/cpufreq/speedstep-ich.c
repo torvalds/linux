@@ -292,7 +292,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* only run on CPU to be set, or on its sibling */
 #ifdef CONFIG_SMP
-	cpumask_copy(policy->cpus, cpu_sibling_mask(policy->cpu));
+	cpumask_copy(policy->cpus, topology_sibling_cpumask(policy->cpu));
 #endif
 	policy_cpu = cpumask_any_and(policy->cpus, cpu_online_mask);
 

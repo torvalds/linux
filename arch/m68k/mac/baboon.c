@@ -45,7 +45,7 @@ void __init baboon_init(void)
  * Baboon interrupt handler. This works a lot like a VIA.
  */
 
-static void baboon_irq(unsigned int irq, struct irq_desc *desc)
+static void baboon_irq(struct irq_desc *desc)
 {
 	int irq_bit, irq_num;
 	unsigned char events;

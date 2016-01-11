@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/stat.h>
 
 #include <linux/power/sbs-battery.h>
 
@@ -170,6 +171,7 @@ struct sbs_info {
 
 static char model_name[I2C_SMBUS_BLOCK_MAX + 1];
 static char manufacturer[I2C_SMBUS_BLOCK_MAX + 1];
+static bool force_load;
 
 static int sbs_read_word_data(struct i2c_client *client, u8 address)
 {
@@ -885,14 +887,17 @@ static int sbs_probe(struct i2c_client *client,
 
 skip_gpio:
 	/*
-	 * Before we register, we need to make sure we can actually talk
+	 * Before we register, we might need to make sure we can actually talk
 	 * to the battery.
 	 */
-	rc = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
-	if (rc < 0) {
-		dev_err(&client->dev, "%s: Failed to get device status\n",
-			__func__);
-		goto exit_psupply;
+	if (!force_load) {
+		rc = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
+
+		if (rc < 0) {
+			dev_err(&client->dev, "%s: Failed to get device status\n",
+				__func__);
+			goto exit_psupply;
+		}
 	}
 
 	chip->power_supply = power_supply_register(&client->dev, sbs_desc,
@@ -991,3 +996,7 @@ module_i2c_driver(sbs_battery_driver);
 
 MODULE_DESCRIPTION("SBS battery monitor driver");
 MODULE_LICENSE("GPL");
+
+module_param(force_load, bool, S_IRUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(force_load,
+		 "Attempt to load the driver even if no battery is connected");

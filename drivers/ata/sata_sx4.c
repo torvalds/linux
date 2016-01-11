@@ -1238,8 +1238,12 @@ static unsigned int pdc20621_prog_dimm_global(struct ata_host *host)
 	readl(mmio + PDC_SDRAM_CONTROL);
 
 	/* Turn on for ECC */
-	pdc20621_i2c_read(host, PDC_DIMM0_SPD_DEV_ADDRESS,
-			  PDC_DIMM_SPD_TYPE, &spd0);
+	if (!pdc20621_i2c_read(host, PDC_DIMM0_SPD_DEV_ADDRESS,
+			       PDC_DIMM_SPD_TYPE, &spd0)) {
+		pr_err("Failed in i2c read: device=%#x, subaddr=%#x\n",
+		       PDC_DIMM0_SPD_DEV_ADDRESS, PDC_DIMM_SPD_TYPE);
+		return 1;
+	}
 	if (spd0 == 0x02) {
 		data |= (0x01 << 16);
 		writel(data, mmio + PDC_SDRAM_CONTROL);
@@ -1380,8 +1384,12 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 
 	/* ECC initiliazation. */
 
-	pdc20621_i2c_read(host, PDC_DIMM0_SPD_DEV_ADDRESS,
-			  PDC_DIMM_SPD_TYPE, &spd0);
+	if (!pdc20621_i2c_read(host, PDC_DIMM0_SPD_DEV_ADDRESS,
+			       PDC_DIMM_SPD_TYPE, &spd0)) {
+		pr_err("Failed in i2c read: device=%#x, subaddr=%#x\n",
+		       PDC_DIMM0_SPD_DEV_ADDRESS, PDC_DIMM_SPD_TYPE);
+		return 1;
+	}
 	if (spd0 == 0x02) {
 		void *buf;
 		VPRINTK("Start ECC initialization\n");

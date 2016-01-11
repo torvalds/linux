@@ -42,7 +42,7 @@ enum cea_edid_versions {
 	CEA_EDID_VER_RESERVED	= 4,
 };
 
-static char *cea_speaker_allocation_names[] = {
+static const char * const cea_speaker_allocation_names[] = {
 	/*  0 */ "FL/FR",
 	/*  1 */ "LFE",
 	/*  2 */ "FC",
@@ -56,7 +56,7 @@ static char *cea_speaker_allocation_names[] = {
 	/* 10 */ "FCH",
 };
 
-static char *eld_connection_type_names[4] = {
+static const char * const eld_connection_type_names[4] = {
 	"HDMI",
 	"DisplayPort",
 	"2-reserved",
@@ -94,7 +94,7 @@ enum cea_audio_coding_xtypes {
 	AUDIO_CODING_XTYPE_FIRST_RESERVED	= 4,
 };
 
-static char *cea_audio_coding_type_names[] = {
+static const char * const cea_audio_coding_type_names[] = {
 	/*  0 */ "undefined",
 	/*  1 */ "LPCM",
 	/*  2 */ "AC-3",
@@ -448,7 +448,7 @@ void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 		hdmi_show_short_audio_desc(codec, e->sad + i);
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 
 static void hdmi_print_sad_info(int i, struct cea_sad *a,
 				struct snd_info_buffer *buffer)
@@ -482,14 +482,14 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 	struct parsed_hdmi_eld *e = &eld->info;
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 	int i;
-	static char *eld_version_names[32] = {
+	static const char * const eld_version_names[32] = {
 		"reserved",
 		"reserved",
 		"CEA-861D or below",
 		[3 ... 30] = "reserved",
 		[31] = "partial"
 	};
-	static char *cea_edid_version_names[8] = {
+	static const char * const cea_edid_version_names[8] = {
 		"no CEA EDID Timing Extension block present",
 		"CEA-861",
 		"CEA-861-A",
@@ -586,7 +586,7 @@ void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
 		}
 	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 /* update PCM info based on ELD */
 void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,

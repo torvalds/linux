@@ -1,8 +1,8 @@
 /*
  * SMI (Serial Memory Controller) device driver for Serial NOR Flash on
  * SPEAr platform
- * The serial nor interface is largely based on drivers/mtd/m25p80.c,
- * however the SPI interface has been replaced by SMI.
+ * The serial nor interface is largely based on m25p80.c, however the SPI
+ * interface has been replaced by SMI.
  *
  * Copyright © 2010 STMicroelectronics.
  * Ashish Priyadarshi
@@ -854,6 +854,7 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 	else
 		flash->mtd.name = flash_devices[flash_index].name;
 
+	flash->mtd.dev.parent = &pdev->dev;
 	flash->mtd.type = MTD_NORFLASH;
 	flash->mtd.writesize = 1;
 	flash->mtd.flags = MTD_CAP_NORFLASH;

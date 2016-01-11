@@ -486,6 +486,7 @@ acpi_ex_create_method(u8 * aml_start,
 
 	obj_desc->method.aml_start = aml_start;
 	obj_desc->method.aml_length = aml_length;
+	obj_desc->method.node = operand[0];
 
 	/*
 	 * Disassemble the method flags. Split off the arg_count, Serialized

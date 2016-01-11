@@ -1,7 +1,7 @@
 #ifndef LINUX_HARDIRQ_H
 #define LINUX_HARDIRQ_H
 
-#include <linux/preempt_mask.h>
+#include <linux/preempt.h>
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
 #include <linux/vtime.h>

@@ -122,19 +122,17 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	while (1) {
 		address = UNW_PC(&frame_info);
 
-		if (address && __kernel_text_address(address)) {
-			if (consumer_fn(address, arg) == -1)
-				break;
-		}
+		if (!address || !__kernel_text_address(address))
+			break;
+
+		if (consumer_fn(address, arg) == -1)
+			break;
 
 		ret = arc_unwind(&frame_info);
-
-		if (ret == 0) {
-			frame_info.regs.r63 = frame_info.regs.r31;
-			continue;
-		} else {
+		if (ret)
 			break;
-		}
+
+		frame_info.regs.r63 = frame_info.regs.r31;
 	}
 
 	return address;		/* return the last address it saw */

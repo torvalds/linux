@@ -140,8 +140,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	posix_flags = cifs_posix_convert_flags(f_flags);
 	rc = CIFSPOSIXCreate(xid, tcon, posix_flags, mode, pnetfid, presp_data,
 			     poplock, full_path, cifs_sb->local_nls,
-			     cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+			     cifs_remap(cifs_sb));
 	cifs_put_tlink(tlink);
 
 	if (rc)
@@ -1553,8 +1552,8 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		rc = server->ops->mand_unlock_range(cfile, flock, xid);
 
 out:
-	if (flock->fl_flags & FL_POSIX)
-		posix_lock_file_wait(file, flock);
+	if (flock->fl_flags & FL_POSIX && !rc)
+		rc = locks_lock_file_wait(file, flock);
 	return rc;
 }
 
@@ -3217,7 +3216,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return VM_FAULT_LOCKED;
 }
 
-static struct vm_operations_struct cifs_file_vm_ops = {
+static const struct vm_operations_struct cifs_file_vm_ops = {
 	.fault = filemap_fault,
 	.map_pages = filemap_map_pages,
 	.page_mkwrite = cifs_page_mkwrite,
@@ -3381,6 +3380,7 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 	struct page *page, *tpage;
 	unsigned int expected_index;
 	int rc;
+	gfp_t gfp = mapping_gfp_constraint(mapping, GFP_KERNEL);
 
 	INIT_LIST_HEAD(tmplist);
 
@@ -3393,7 +3393,7 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 	 */
 	__set_page_locked(page);
 	rc = add_to_page_cache_locked(page, mapping,
-				      page->index, GFP_KERNEL);
+				      page->index, gfp);
 
 	/* give up if we can't stick it in the cache */
 	if (rc) {
@@ -3419,8 +3419,7 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 			break;
 
 		__set_page_locked(page);
-		if (add_to_page_cache_locked(page, mapping, page->index,
-								GFP_KERNEL)) {
+		if (add_to_page_cache_locked(page, mapping, page->index, gfp)) {
 			__clear_page_locked(page);
 			break;
 		}

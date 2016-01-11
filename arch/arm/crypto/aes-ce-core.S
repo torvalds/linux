@@ -101,15 +101,14 @@
 	\dround		q10, q11
 	blo		0f			@ AES-128: 10 rounds
 	vld1.8		{q10-q11}, [ip]!
-	beq		1f			@ AES-192: 12 rounds
 	\dround		q12, q13
+	beq		1f			@ AES-192: 12 rounds
 	vld1.8		{q12-q13}, [ip]
 	\dround		q10, q11
 0:	\fround		q12, q13, q14
 	bx		lr
 
-1:	\dround		q12, q13
-	\fround		q10, q11, q14
+1:	\fround		q10, q11, q14
 	bx		lr
 	.endm
 
@@ -122,8 +121,8 @@
 	 *   q2        : third in/output block (_3x version only)
 	 *   q8        : first round key
 	 *   q9        : secound round key
-	 *   ip        : address of 3rd round key
 	 *   q14       : final round key
+	 *   r2        : address of round key array
 	 *   r3        : number of rounds
 	 */
 	.align		6

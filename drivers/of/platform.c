@@ -25,6 +25,7 @@
 
 const struct of_device_id of_default_bus_match_table[] = {
 	{ .compatible = "simple-bus", },
+	{ .compatible = "simple-mfd", },
 #ifdef CONFIG_ARM_AMBA
 	{ .compatible = "arm,amba-bus", },
 #endif /* CONFIG_ARM_AMBA */
@@ -183,6 +184,7 @@ static struct platform_device *of_platform_device_create_pdata(
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
 	of_dma_configure(&dev->dev, dev->dev.of_node);
+	of_msi_configure(&dev->dev, dev->dev.of_node);
 
 	if (of_device_add(dev) != 0) {
 		of_dma_deconfigure(&dev->dev);
@@ -403,8 +405,10 @@ int of_platform_bus_probe(struct device_node *root,
 		if (!of_match_node(matches, child))
 			continue;
 		rc = of_platform_bus_create(child, matches, NULL, parent, false);
-		if (rc)
+		if (rc) {
+			of_node_put(child);
 			break;
+		}
 	}
 
 	of_node_put(root);
@@ -445,8 +449,10 @@ int of_platform_populate(struct device_node *root,
 
 	for_each_child_of_node(root, child) {
 		rc = of_platform_bus_create(child, matches, lookup, parent, true);
-		if (rc)
+		if (rc) {
+			of_node_put(child);
 			break;
+		}
 	}
 	of_node_set_flag(root, OF_POPULATED_BUS);
 
@@ -454,6 +460,15 @@ int of_platform_populate(struct device_node *root,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(of_platform_populate);
+
+int of_platform_default_populate(struct device_node *root,
+				 const struct of_dev_auxdata *lookup,
+				 struct device *parent)
+{
+	return of_platform_populate(root, of_default_bus_match_table, lookup,
+				    parent);
+}
+EXPORT_SYMBOL_GPL(of_platform_default_populate);
 
 static int of_platform_device_destroy(struct device *dev, void *data)
 {

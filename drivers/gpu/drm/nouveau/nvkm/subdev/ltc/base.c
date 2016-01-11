@@ -23,102 +23,124 @@
  */
 #include "priv.h"
 
-static int
+#include <subdev/fb.h>
+
+int
 nvkm_ltc_tags_alloc(struct nvkm_ltc *ltc, u32 n, struct nvkm_mm_node **pnode)
 {
-	struct nvkm_ltc_priv *priv = (void *)ltc;
-	int ret;
-
-	ret = nvkm_mm_head(&priv->tags, 0, 1, n, n, 1, pnode);
+	int ret = nvkm_mm_head(&ltc->tags, 0, 1, n, n, 1, pnode);
 	if (ret)
 		*pnode = NULL;
-
 	return ret;
 }
 
-static void
+void
 nvkm_ltc_tags_free(struct nvkm_ltc *ltc, struct nvkm_mm_node **pnode)
 {
-	struct nvkm_ltc_priv *priv = (void *)ltc;
-	nvkm_mm_free(&priv->tags, pnode);
+	nvkm_mm_free(&ltc->tags, pnode);
 }
 
-static void
+void
 nvkm_ltc_tags_clear(struct nvkm_ltc *ltc, u32 first, u32 count)
 {
-	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
-	struct nvkm_ltc_priv *priv = (void *)ltc;
 	const u32 limit = first + count - 1;
 
-	BUG_ON((first > limit) || (limit >= priv->num_tags));
+	BUG_ON((first > limit) || (limit >= ltc->num_tags));
 
-	impl->cbc_clear(priv, first, limit);
-	impl->cbc_wait(priv);
+	ltc->func->cbc_clear(ltc, first, limit);
+	ltc->func->cbc_wait(ltc);
 }
 
-static int
+int
 nvkm_ltc_zbc_color_get(struct nvkm_ltc *ltc, int index, const u32 color[4])
 {
-	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
-	struct nvkm_ltc_priv *priv = (void *)ltc;
-	memcpy(priv->zbc_color[index], color, sizeof(priv->zbc_color[index]));
-	impl->zbc_clear_color(priv, index, color);
-	return index;
-}
-
-static int
-nvkm_ltc_zbc_depth_get(struct nvkm_ltc *ltc, int index, const u32 depth)
-{
-	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
-	struct nvkm_ltc_priv *priv = (void *)ltc;
-	priv->zbc_depth[index] = depth;
-	impl->zbc_clear_depth(priv, index, depth);
+	memcpy(ltc->zbc_color[index], color, sizeof(ltc->zbc_color[index]));
+	ltc->func->zbc_clear_color(ltc, index, color);
 	return index;
 }
 
 int
-_nvkm_ltc_init(struct nvkm_object *object)
+nvkm_ltc_zbc_depth_get(struct nvkm_ltc *ltc, int index, const u32 depth)
 {
-	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(object);
-	struct nvkm_ltc_priv *priv = (void *)object;
-	int ret, i;
+	ltc->zbc_depth[index] = depth;
+	ltc->func->zbc_clear_depth(ltc, index, depth);
+	return index;
+}
 
-	ret = nvkm_subdev_init(&priv->base.base);
-	if (ret)
-		return ret;
+void
+nvkm_ltc_invalidate(struct nvkm_ltc *ltc)
+{
+	if (ltc->func->invalidate)
+		ltc->func->invalidate(ltc);
+}
 
-	for (i = priv->base.zbc_min; i <= priv->base.zbc_max; i++) {
-		impl->zbc_clear_color(priv, i, priv->zbc_color[i]);
-		impl->zbc_clear_depth(priv, i, priv->zbc_depth[i]);
+void
+nvkm_ltc_flush(struct nvkm_ltc *ltc)
+{
+	if (ltc->func->flush)
+		ltc->func->flush(ltc);
+}
+
+static void
+nvkm_ltc_intr(struct nvkm_subdev *subdev)
+{
+	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
+	ltc->func->intr(ltc);
+}
+
+static int
+nvkm_ltc_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
+	return ltc->func->oneinit(ltc);
+}
+
+static int
+nvkm_ltc_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
+	int i;
+
+	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+		ltc->func->zbc_clear_color(ltc, i, ltc->zbc_color[i]);
+		ltc->func->zbc_clear_depth(ltc, i, ltc->zbc_depth[i]);
 	}
 
+	ltc->func->init(ltc);
 	return 0;
 }
 
-int
-nvkm_ltc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+static void *
+nvkm_ltc_dtor(struct nvkm_subdev *subdev)
 {
-	const struct nvkm_ltc_impl *impl = (void *)oclass;
-	struct nvkm_ltc_priv *priv;
-	int ret;
+	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
+	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
+	nvkm_mm_fini(&ltc->tags);
+	if (ram)
+		nvkm_mm_free(&ram->vram, &ltc->tag_ram);
+	return ltc;
+}
 
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PLTCG",
-				  "l2c", length, pobject);
-	priv = *pobject;
-	if (ret)
-		return ret;
+static const struct nvkm_subdev_func
+nvkm_ltc = {
+	.dtor = nvkm_ltc_dtor,
+	.oneinit = nvkm_ltc_oneinit,
+	.init = nvkm_ltc_init,
+	.intr = nvkm_ltc_intr,
+};
 
-	memset(priv->zbc_color, 0x00, sizeof(priv->zbc_color));
-	memset(priv->zbc_depth, 0x00, sizeof(priv->zbc_depth));
+int
+nvkm_ltc_new_(const struct nvkm_ltc_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_ltc **pltc)
+{
+	struct nvkm_ltc *ltc;
 
-	priv->base.base.intr = impl->intr;
-	priv->base.tags_alloc = nvkm_ltc_tags_alloc;
-	priv->base.tags_free = nvkm_ltc_tags_free;
-	priv->base.tags_clear = nvkm_ltc_tags_clear;
-	priv->base.zbc_min = 1; /* reserve 0 for disabled */
-	priv->base.zbc_max = min(impl->zbc, NVKM_LTC_MAX_ZBC_CNT) - 1;
-	priv->base.zbc_color_get = nvkm_ltc_zbc_color_get;
-	priv->base.zbc_depth_get = nvkm_ltc_zbc_depth_get;
+	if (!(ltc = *pltc = kzalloc(sizeof(*ltc), GFP_KERNEL)))
+		return -ENOMEM;
+
+	nvkm_subdev_ctor(&nvkm_ltc, device, index, 0, &ltc->subdev);
+	ltc->func = func;
+	ltc->zbc_min = 1; /* reserve 0 for disabled */
+	ltc->zbc_max = min(func->zbc, NVKM_LTC_MAX_ZBC_CNT) - 1;
 	return 0;
 }

@@ -19,8 +19,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/g_printer.h>
 
-#include "gadget_chips.h"
-
 USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_DESC		"Printer Gadget"
@@ -82,16 +80,7 @@ static struct usb_device_descriptor device_desc = {
 	.bNumConfigurations =	1
 };
 
-static struct usb_otg_descriptor otg_descriptor = {
-	.bLength =              sizeof otg_descriptor,
-	.bDescriptorType =      USB_DT_OTG,
-	.bmAttributes =         USB_OTG_SRP,
-};
-
-static const struct usb_descriptor_header *otg_desc[] = {
-	(struct usb_descriptor_header *) &otg_descriptor,
-	NULL,
-};
+static const struct usb_descriptor_header *otg_desc[2];
 
 /*-------------------------------------------------------------------------*/
 
@@ -126,7 +115,7 @@ static struct usb_configuration printer_cfg_driver = {
 	.bmAttributes		= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int __init printer_do_config(struct usb_configuration *c)
+static int printer_do_config(struct usb_configuration *c)
 {
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			status = 0;
@@ -136,7 +125,6 @@ static int __init printer_do_config(struct usb_configuration *c)
 	usb_gadget_set_selfpowered(gadget);
 
 	if (gadget_is_otg(gadget)) {
-		otg_descriptor.bmAttributes |= USB_OTG_HNP;
 		printer_cfg_driver.descriptors = otg_desc;
 		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
@@ -152,7 +140,7 @@ static int __init printer_do_config(struct usb_configuration *c)
 	return status;
 }
 
-static int __init printer_bind(struct usb_composite_dev *cdev)
+static int printer_bind(struct usb_composite_dev *cdev)
 {
 	struct f_printer_opts *opts;
 	int ret, len;
@@ -174,32 +162,53 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 	opts->q_len = QLEN;
 
 	ret = usb_string_ids_tab(cdev, strings);
-	if (ret < 0) {
-		usb_put_function_instance(fi_printer);
-		return ret;
-	}
+	if (ret < 0)
+		goto fail_put_func_inst;
+
 	device_desc.iManufacturer = strings[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings[USB_GADGET_PRODUCT_IDX].id;
 	device_desc.iSerialNumber = strings[USB_GADGET_SERIAL_IDX].id;
 
-	ret = usb_add_config(cdev, &printer_cfg_driver, printer_do_config);
-	if (ret) {
-		usb_put_function_instance(fi_printer);
-		return ret;
+	if (gadget_is_otg(cdev->gadget) && !otg_desc[0]) {
+		struct usb_descriptor_header *usb_desc;
+
+		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
+		if (!usb_desc) {
+			ret = -ENOMEM;
+			goto fail_put_func_inst;
+		}
+		usb_otg_descriptor_init(cdev->gadget, usb_desc);
+		otg_desc[0] = usb_desc;
+		otg_desc[1] = NULL;
 	}
+
+	ret = usb_add_config(cdev, &printer_cfg_driver, printer_do_config);
+	if (ret)
+		goto fail_free_otg_desc;
+
 	usb_composite_overwrite_options(cdev, &coverwrite);
+	return ret;
+
+fail_free_otg_desc:
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+fail_put_func_inst:
+	usb_put_function_instance(fi_printer);
 	return ret;
 }
 
-static int __exit printer_unbind(struct usb_composite_dev *cdev)
+static int printer_unbind(struct usb_composite_dev *cdev)
 {
 	usb_put_function(f_printer);
 	usb_put_function_instance(fi_printer);
 
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+
 	return 0;
 }
 
-static __refdata struct usb_composite_driver printer_driver = {
+static struct usb_composite_driver printer_driver = {
 	.name           = shortname,
 	.dev            = &device_desc,
 	.strings        = dev_strings,

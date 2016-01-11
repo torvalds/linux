@@ -120,7 +120,7 @@ static	void	dm_ctstoself(struct net_device *dev);
  *		Prepare SW resource for HW dynamic mechanism.
  *
  *	Assumption:
- *		This function is only invoked at driver intialization once.
+ *		This function is only invoked at driver initialization once.
  */
 void init_hal_dm(struct net_device *dev)
 {
@@ -325,21 +325,26 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 			(!pHTInfo->bCurTxBW40MHz && pHTInfo->bCurShortGI20MHz);
 
 		pra->upper_rssi_threshold_ratr =
-				(pra->upper_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->upper_rssi_threshold_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		pra->middle_rssi_threshold_ratr =
-				(pra->middle_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->middle_rssi_threshold_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
 			pra->low_rssi_threshold_ratr =
-				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+			      (pra->low_rssi_threshold_ratr_40M & (~BIT(31))) |
+			      ((bshort_gi_enabled) ? BIT(31) : 0);
 		} else {
 			pra->low_rssi_threshold_ratr =
-			(pra->low_rssi_threshold_ratr_20M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+			(pra->low_rssi_threshold_ratr_20M & (~BIT(31))) |
+			((bshort_gi_enabled) ? BIT(31) : 0);
 		}
 		/* cosa add for test */
 		pra->ping_rssi_ratr =
-				(pra->ping_rssi_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->ping_rssi_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		/* 2007/10/08 MH We support RA smooth scheme now. When it is the first
 		   time to link with AP. We will not change upper/lower threshold. If
@@ -438,7 +443,7 @@ static void dm_bandwidth_autoswitch(struct net_device *dev)
 
 	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 || !priv->ieee80211->bandwidth_auto_switch.bautoswitch_enable)
 		return;
-	if (priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz == false) { /* If send packets in 40 Mhz in 20/40 */
+	if (!priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz) { /* If send packets in 40 Mhz in 20/40 */
 		if (priv->undecorated_smoothed_pwdb <= priv->ieee80211->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
 			priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = true;
 	} else { /* in force send packets in 20 Mhz in 20/40 */
@@ -563,7 +568,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 					break;
 				}
 			}
-			if (viviflag == true) {
+			if (viviflag) {
 				write_nic_byte(dev, 0x1ba, 0);
 				viviflag = false;
 				RT_TRACE(COMP_POWER_TRACKING, "we filtered the data\n");
@@ -766,7 +771,7 @@ void dm_txpower_trackingcallback(struct work_struct *work)
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, txpower_tracking_wq);
 	struct net_device *dev = priv->ieee80211->dev;
 
-	if (priv->bDcut == true)
+	if (priv->bDcut)
 		dm_TXPowerTrackingCallback_TSSI(dev);
 	else
 		dm_TXPowerTrackingCallback_ThermalMeter(dev);
@@ -1301,7 +1306,7 @@ void dm_initialize_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->bDcut == true)
+	if (priv->bDcut)
 		dm_InitializeTXPowerTracking_TSSI(dev);
 	else
 		dm_InitializeTXPowerTracking_ThermalMeter(dev);
@@ -1357,7 +1362,7 @@ static void dm_check_txpower_tracking(struct net_device *dev)
 #ifdef RTL8190P
 	dm_CheckTXPowerTracking_TSSI(dev);
 #else
-	if (priv->bDcut == true)
+	if (priv->bDcut)
 		dm_CheckTXPowerTracking_TSSI(dev);
 	else
 		dm_CheckTXPowerTracking_ThermalMeter(dev);
@@ -1467,7 +1472,7 @@ void dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {	/*  dm_CCKTxPowerAdjust */
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->bDcut == true)
+	if (priv->bDcut)
 		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 	else
 		dm_CCKTxPowerAdjust_ThermalMeter(dev, binch14);
@@ -1731,7 +1736,7 @@ static void dm_dig_init(struct net_device *dev)
  *---------------------------------------------------------------------------*/
 static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
-	if (dm_digtable.dig_enable_flag == false)
+	if (!dm_digtable.dig_enable_flag)
 		return;
 
 	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
@@ -1750,7 +1755,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	u8 i;
 	static u8	fw_dig;
 
-	if (dm_digtable.dig_enable_flag == false)
+	if (!dm_digtable.dig_enable_flag)
 		return;
 
 	/*DbgPrint("Dig by Sw Rssi\n");*/
@@ -1792,7 +1797,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	static u32 reset_cnt;
 	u8 i;
 
-	if (dm_digtable.dig_enable_flag == false)
+	if (!dm_digtable.dig_enable_flag)
 		return;
 
 	if (dm_digtable.dig_algorithm_switch) {
@@ -2378,7 +2383,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 	if (tmp1byte == 0xff)
 		return;
 
-	if (tmp1byte&BIT6 || tmp1byte&BIT0) {
+	if (tmp1byte & BIT(6) || tmp1byte & BIT(0)) {
 		/*
 		 * Here we only set bPbcPressed to TRUE
 		 * After trigger PBC, the variable will be set to FALSE
@@ -3062,7 +3067,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 			priv->bDynamicTxLowPower = false;
 		} else {
 			/* high power state check */
-			if (priv->undecorated_smoothed_pwdb < txlowpower_threshold && priv->bDynamicTxHighPower == true)
+			if (priv->undecorated_smoothed_pwdb < txlowpower_threshold && priv->bDynamicTxHighPower)
 				priv->bDynamicTxHighPower = false;
 
 			/* low power state check */

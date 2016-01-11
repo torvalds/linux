@@ -24,6 +24,7 @@
 
 #include "nouveau_drm.h"
 #include "nouveau_usif.h"
+#include "nouveau_abi16.h"
 
 #include <nvif/notify.h>
 #include <nvif/unpack.h>
@@ -312,15 +313,28 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	if (nvif_unpack(argv->v0, 0, 0, true)) {
 		/* block access to objects not created via this interface */
 		owner = argv->v0.owner;
-		argv->v0.owner = NVDRM_OBJECT_USIF;
+		if (argv->v0.object == 0ULL)
+			argv->v0.owner = NVDRM_OBJECT_ANY; /* except client */
+		else
+			argv->v0.owner = NVDRM_OBJECT_USIF;
 	} else
 		goto done;
 
+	/* USIF slightly abuses some return-only ioctl members in order
+	 * to provide interoperability with the older ABI16 objects
+	 */
 	mutex_lock(&cli->mutex);
+	if (argv->v0.route) {
+		if (ret = -EINVAL, argv->v0.route == 0xff)
+			ret = nouveau_abi16_usif(filp, argv, argc);
+		if (ret) {
+			mutex_unlock(&cli->mutex);
+			goto done;
+		}
+	}
+
 	switch (argv->v0.type) {
 	case NVIF_IOCTL_V0_NEW:
-		/* ... except if we're creating children */
-		argv->v0.owner = NVIF_IOCTL_V0_OWNER_ANY;
 		ret = usif_object_new(filp, data, size, argv, argc);
 		break;
 	case NVIF_IOCTL_V0_NTFY_NEW:

@@ -60,9 +60,9 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 }
 
 #define NVRAM_READ_VAL(type)						\
-static void nvram_read_ ## type (const char *prefix,			\
-				 const char *postfix, const char *name, \
-				 type *val, type allset, bool fallback) \
+static void nvram_read_ ## type(const char *prefix,			\
+				const char *postfix, const char *name,	\
+				type *val, type allset, bool fallback)	\
 {									\
 	char buf[100];							\
 	int err;							\
@@ -200,7 +200,13 @@ static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
 	const char *pre = prefix;
 	bool fb = fallback;
 
+	/* Broadcom extracts it for rev 8+ but it was found on 2 and 4 too */
+	ENTRY(0xfffffffe, u16, pre, "devid", dev_id, 0, fallback);
+
 	ENTRY(0xfffffffe, u16, pre, "boardrev", board_rev, 0, true);
+	ENTRY(0xfffffffe, u32, pre, "boardflags", boardflags, 0, fb);
+	ENTRY(0xfffffff0, u32, pre, "boardflags2", boardflags2, 0, fb);
+	ENTRY(0xfffff800, u32, pre, "boardflags3", boardflags3, 0, fb);
 	ENTRY(0x00000002, u16, pre, "boardflags", boardflags_lo, 0, fb);
 	ENTRY(0xfffffffc, u16, pre, "boardtype", board_type, 0, true);
 	ENTRY(0xfffffffe, u16, pre, "boardnum", board_num, 0, fb);
@@ -409,27 +415,6 @@ static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
 }
 #undef ENTRY /* It's specififc, uses local variable, don't use it (again). */
 
-static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
-					const char *prefix, bool fallback)
-{
-	nvram_read_u16(prefix, NULL, "devid", &sprom->dev_id, 0, fallback);
-	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
-}
-
-static void bcm47xx_fill_sprom_r3(struct ssb_sprom *sprom, const char *prefix,
-				  bool fallback)
-{
-	nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
-			 &sprom->leddc_off_time, fallback);
-}
-
-static void bcm47xx_fill_sprom_r4589(struct ssb_sprom *sprom,
-				     const char *prefix, bool fallback)
-{
-	nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
-			 &sprom->leddc_off_time, fallback);
-}
-
 static void bcm47xx_fill_sprom_path_r4589(struct ssb_sprom *sprom,
 					  const char *prefix, bool fallback)
 {
@@ -437,7 +422,10 @@ static void bcm47xx_fill_sprom_path_r4589(struct ssb_sprom *sprom,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sprom->core_pwr_info); i++) {
-		struct ssb_sprom_core_pwr_info *pwr_info = &sprom->core_pwr_info[i];
+		struct ssb_sprom_core_pwr_info *pwr_info;
+
+		pwr_info = &sprom->core_pwr_info[i];
+
 		snprintf(postfix, sizeof(postfix), "%i", i);
 		nvram_read_u8(prefix, postfix, "maxp2ga",
 			      &pwr_info->maxpwr_2g, 0, fallback);
@@ -485,7 +473,10 @@ static void bcm47xx_fill_sprom_path_r45(struct ssb_sprom *sprom,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sprom->core_pwr_info); i++) {
-		struct ssb_sprom_core_pwr_info *pwr_info = &sprom->core_pwr_info[i];
+		struct ssb_sprom_core_pwr_info *pwr_info;
+
+		pwr_info = &sprom->core_pwr_info[i];
+
 		snprintf(postfix, sizeof(postfix), "%i", i);
 		nvram_read_u16(prefix, postfix, "pa2gw3a",
 			       &pwr_info->pa_2g[3], 0, fallback);
@@ -528,6 +519,8 @@ static int mac_addr_used = 2;
 static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
+	bool fb = fallback;
+
 	nvram_read_macaddr(prefix, "et0macaddr", sprom->et0mac, fallback);
 	nvram_read_u8(prefix, NULL, "et0mdcport", &sprom->et0mdcport, 0,
 		      fallback);
@@ -540,14 +533,19 @@ static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 	nvram_read_u8(prefix, NULL, "et1phyaddr", &sprom->et1phyaddr, 0,
 		      fallback);
 
+	nvram_read_macaddr(prefix, "et2macaddr", sprom->et2mac, fb);
+	nvram_read_u8(prefix, NULL, "et2mdcport", &sprom->et2mdcport, 0, fb);
+	nvram_read_u8(prefix, NULL, "et2phyaddr", &sprom->et2phyaddr, 0, fb);
+
 	nvram_read_macaddr(prefix, "macaddr", sprom->il0mac, fallback);
 	nvram_read_macaddr(prefix, "il0macaddr", sprom->il0mac, fallback);
 
 	/* The address prefix 00:90:4C is used by Broadcom in their initial
-	   configuration. When a mac address with the prefix 00:90:4C is used
-	   all devices from the same series are sharing the same mac address.
-	   To prevent mac address collisions we replace them with a mac address
-	   based on the base address. */
+	 * configuration. When a mac address with the prefix 00:90:4C is used
+	 * all devices from the same series are sharing the same mac address.
+	 * To prevent mac address collisions we replace them with a mac address
+	 * based on the base address.
+	 */
 	if (!bcm47xx_is_valid_mac(sprom->il0mac)) {
 		u8 mac[6];
 
@@ -580,83 +578,44 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 
 	nvram_read_u8(prefix, NULL, "sromrev", &sprom->revision, 0, fallback);
 
+	/* Entries requiring custom functions */
+	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
+	if (sprom->revision >= 3)
+		nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
+				 &sprom->leddc_off_time, fallback);
+
 	switch (sprom->revision) {
-	case 1:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		break;
-	case 2:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		break;
-	case 3:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r3(sprom, prefix, fallback);
-		break;
 	case 4:
 	case 5:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r4589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_path_r45(sprom, prefix, fallback);
 		break;
 	case 8:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r4589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
-		break;
 	case 9:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r4589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
 		break;
-	default:
-		pr_warn("Unsupported SPROM revision %d detected. Will extract v1\n",
-			sprom->revision);
-		sprom->revision = 1;
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
 	}
 
 	bcm47xx_sprom_fill_auto(sprom, prefix, fallback);
 }
-
-#ifdef CONFIG_BCM47XX_SSB
-void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
-				const char *prefix)
-{
-	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0,
-		       true);
-	if (!boardinfo->vendor)
-		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
-
-	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0, true);
-}
-#endif
-
-#ifdef CONFIG_BCM47XX_BCMA
-void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
-				 const char *prefix)
-{
-	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0,
-		       true);
-	if (!boardinfo->vendor)
-		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
-
-	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0, true);
-}
-#endif
 
 #if defined(CONFIG_BCM47XX_SSB)
 static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 {
 	char prefix[10];
 
-	if (bus->bustype == SSB_BUSTYPE_PCI) {
+	switch (bus->bustype) {
+	case SSB_BUSTYPE_SSB:
+		bcm47xx_fill_sprom(out, NULL, false);
+		return 0;
+	case SSB_BUSTYPE_PCI:
 		memset(out, 0, sizeof(struct ssb_sprom));
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
 		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
-	} else {
+	default:
 		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
@@ -698,33 +657,46 @@ static void bcm47xx_sprom_apply_prefix_alias(char *prefix, size_t prefix_size)
 
 static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 {
-	char prefix[10];
+	struct bcma_boardinfo *binfo = &bus->boardinfo;
 	struct bcma_device *core;
+	char buf[10];
+	char *prefix;
+	bool fallback = false;
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
 		memset(out, 0, sizeof(struct ssb_sprom));
-		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
+		snprintf(buf, sizeof(buf), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
-		bcm47xx_sprom_apply_prefix_alias(prefix, sizeof(prefix));
-		bcm47xx_fill_sprom(out, prefix, false);
-		return 0;
+		bcm47xx_sprom_apply_prefix_alias(buf, sizeof(buf));
+		prefix = buf;
+		break;
 	case BCMA_HOSTTYPE_SOC:
 		memset(out, 0, sizeof(struct ssb_sprom));
 		core = bcma_find_core(bus, BCMA_CORE_80211);
 		if (core) {
-			snprintf(prefix, sizeof(prefix), "sb/%u/",
+			snprintf(buf, sizeof(buf), "sb/%u/",
 				 core->core_index);
-			bcm47xx_fill_sprom(out, prefix, true);
+			prefix = buf;
+			fallback = true;
 		} else {
-			bcm47xx_fill_sprom(out, NULL, false);
+			prefix = NULL;
 		}
-		return 0;
+		break;
 	default:
 		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
+
+	nvram_read_u16(prefix, NULL, "boardvendor", &binfo->vendor, 0, true);
+	if (!binfo->vendor)
+		binfo->vendor = SSB_BOARDVENDOR_BCM;
+	nvram_read_u16(prefix, NULL, "boardtype", &binfo->type, 0, true);
+
+	bcm47xx_fill_sprom(out, prefix, fallback);
+
+	return 0;
 }
 #endif
 

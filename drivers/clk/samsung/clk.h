@@ -13,9 +13,10 @@
 #ifndef __SAMSUNG_CLK_H
 #define __SAMSUNG_CLK_H
 
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include "clk-pll.h"
+
+struct clk;
 
 /**
  * struct samsung_clk_provider: information about clock provider
@@ -121,7 +122,7 @@ struct samsung_mux_clock {
 	unsigned int		id;
 	const char		*dev_name;
 	const char		*name;
-	const char		**parent_names;
+	const char		*const *parent_names;
 	u8			num_parents;
 	unsigned long		flags;
 	unsigned long		offset;
@@ -368,28 +369,28 @@ extern void __init samsung_clk_of_register_fixed_ext(
 extern void samsung_clk_add_lookup(struct samsung_clk_provider *ctx,
 			struct clk *clk, unsigned int id);
 
-extern void samsung_clk_register_alias(struct samsung_clk_provider *ctx,
-			struct samsung_clock_alias *list,
+extern void __init samsung_clk_register_alias(struct samsung_clk_provider *ctx,
+			const struct samsung_clock_alias *list,
 			unsigned int nr_clk);
 extern void __init samsung_clk_register_fixed_rate(
 			struct samsung_clk_provider *ctx,
-			struct samsung_fixed_rate_clock *clk_list,
+			const struct samsung_fixed_rate_clock *clk_list,
 			unsigned int nr_clk);
 extern void __init samsung_clk_register_fixed_factor(
 			struct samsung_clk_provider *ctx,
-			struct samsung_fixed_factor_clock *list,
+			const struct samsung_fixed_factor_clock *list,
 			unsigned int nr_clk);
 extern void __init samsung_clk_register_mux(struct samsung_clk_provider *ctx,
-			struct samsung_mux_clock *clk_list,
+			const struct samsung_mux_clock *clk_list,
 			unsigned int nr_clk);
 extern void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
-			struct samsung_div_clock *clk_list,
+			const struct samsung_div_clock *clk_list,
 			unsigned int nr_clk);
 extern void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
-			struct samsung_gate_clock *clk_list,
+			const struct samsung_gate_clock *clk_list,
 			unsigned int nr_clk);
 extern void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
-			struct samsung_pll_clock *pll_list,
+			const struct samsung_pll_clock *pll_list,
 			unsigned int nr_clk, void __iomem *base);
 
 extern struct samsung_clk_provider __init *samsung_cmu_register_one(

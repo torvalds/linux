@@ -152,24 +152,24 @@ free_and_exit:
 }
 
 /*
- * Proc firmware dump read handler.
+ * Proc device dump read handler.
  *
- * This function is called when the 'fw_dump' file is opened for
+ * This function is called when the 'device_dump' file is opened for
  * reading.
- * This function dumps firmware memory in different files
- * (ex. DTCM, ITCM, SQRAM etc.) based on the the segments for
+ * This function dumps driver information and firmware memory segments
+ * (ex. DTCM, ITCM, SQRAM etc.) for
  * debugging.
  */
 static ssize_t
-mwifiex_fw_dump_read(struct file *file, char __user *ubuf,
-		     size_t count, loff_t *ppos)
+mwifiex_device_dump_read(struct file *file, char __user *ubuf,
+			 size_t count, loff_t *ppos)
 {
 	struct mwifiex_private *priv = file->private_data;
 
-	if (!priv->adapter->if_ops.fw_dump)
+	if (!priv->adapter->if_ops.device_dump)
 		return -EIO;
 
-	priv->adapter->if_ops.fw_dump(priv->adapter);
+	priv->adapter->if_ops.device_dump(priv->adapter);
 
 	return 0;
 }
@@ -535,6 +535,144 @@ done:
 	return ret;
 }
 
+/* Proc debug_mask file read handler.
+ * This function is called when the 'debug_mask' file is opened for reading
+ * This function can be used read driver debugging mask value.
+ */
+static ssize_t
+mwifiex_debug_mask_read(struct file *file, char __user *ubuf,
+			size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv =
+		(struct mwifiex_private *)file->private_data;
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	char *buf = (char *)page;
+	size_t ret = 0;
+	int pos = 0;
+
+	if (!buf)
+		return -ENOMEM;
+
+	pos += snprintf(buf, PAGE_SIZE, "debug mask=0x%08x\n",
+			priv->adapter->debug_mask);
+	ret = simple_read_from_buffer(ubuf, count, ppos, buf, pos);
+
+	free_page(page);
+	return ret;
+}
+
+/* Proc debug_mask file read handler.
+ * This function is called when the 'debug_mask' file is opened for reading
+ * This function can be used read driver debugging mask value.
+ */
+static ssize_t
+mwifiex_debug_mask_write(struct file *file, const char __user *ubuf,
+			 size_t count, loff_t *ppos)
+{
+	int ret;
+	unsigned long debug_mask;
+	struct mwifiex_private *priv = (void *)file->private_data;
+	unsigned long addr = get_zeroed_page(GFP_KERNEL);
+	char *buf = (void *)addr;
+	size_t buf_size = min(count, (size_t)(PAGE_SIZE - 1));
+
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, ubuf, buf_size)) {
+		ret = -EFAULT;
+		goto done;
+	}
+
+	if (kstrtoul(buf, 0, &debug_mask)) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	priv->adapter->debug_mask = debug_mask;
+	ret = count;
+done:
+	free_page(addr);
+	return ret;
+}
+
+/* Proc memrw file write handler.
+ * This function is called when the 'memrw' file is opened for writing
+ * This function can be used to write to a memory location.
+ */
+static ssize_t
+mwifiex_memrw_write(struct file *file, const char __user *ubuf, size_t count,
+		    loff_t *ppos)
+{
+	int ret;
+	char cmd;
+	struct mwifiex_ds_mem_rw mem_rw;
+	u16 cmd_action;
+	struct mwifiex_private *priv = (void *)file->private_data;
+	unsigned long addr = get_zeroed_page(GFP_KERNEL);
+	char *buf = (void *)addr;
+	size_t buf_size = min(count, (size_t)(PAGE_SIZE - 1));
+
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, ubuf, buf_size)) {
+		ret = -EFAULT;
+		goto done;
+	}
+
+	ret = sscanf(buf, "%c %x %x", &cmd, &mem_rw.addr, &mem_rw.value);
+	if (ret != 3) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	if ((cmd == 'r') || (cmd == 'R')) {
+		cmd_action = HostCmd_ACT_GEN_GET;
+		mem_rw.value = 0;
+	} else if ((cmd == 'w') || (cmd == 'W')) {
+		cmd_action = HostCmd_ACT_GEN_SET;
+	} else {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	memcpy(&priv->mem_rw, &mem_rw, sizeof(mem_rw));
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_MEM_ACCESS, cmd_action, 0,
+			     &mem_rw, true))
+		ret = -1;
+	else
+		ret = count;
+
+done:
+	free_page(addr);
+	return ret;
+}
+
+/* Proc memrw file read handler.
+ * This function is called when the 'memrw' file is opened for reading
+ * This function can be used to read from a memory location.
+ */
+static ssize_t
+mwifiex_memrw_read(struct file *file, char __user *ubuf,
+		   size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = (void *)file->private_data;
+	unsigned long addr = get_zeroed_page(GFP_KERNEL);
+	char *buf = (char *)addr;
+	int ret, pos = 0;
+
+	if (!buf)
+		return -ENOMEM;
+
+	pos += snprintf(buf, PAGE_SIZE, "0x%x 0x%x\n", priv->mem_rw.addr,
+			priv->mem_rw.value);
+	ret = simple_read_from_buffer(ubuf, count, ppos, buf, pos);
+
+	free_page(addr);
+	return ret;
+}
+
 static u32 saved_offset = -1, saved_bytes = -1;
 
 /*
@@ -593,7 +731,7 @@ mwifiex_rdeeprom_read(struct file *file, char __user *ubuf,
 		(struct mwifiex_private *) file->private_data;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	int pos = 0, ret = 0, i;
+	int pos, ret, i;
 	u8 value[MAX_EEPROM_DATA];
 
 	if (!buf)
@@ -601,7 +739,7 @@ mwifiex_rdeeprom_read(struct file *file, char __user *ubuf,
 
 	if (saved_offset == -1) {
 		/* No command has been given */
-		pos += snprintf(buf, PAGE_SIZE, "0");
+		pos = snprintf(buf, PAGE_SIZE, "0");
 		goto done;
 	}
 
@@ -610,17 +748,17 @@ mwifiex_rdeeprom_read(struct file *file, char __user *ubuf,
 				  (u16) saved_bytes, value);
 	if (ret) {
 		ret = -EINVAL;
-		goto done;
+		goto out_free;
 	}
 
-	pos += snprintf(buf, PAGE_SIZE, "%d %d ", saved_offset, saved_bytes);
+	pos = snprintf(buf, PAGE_SIZE, "%d %d ", saved_offset, saved_bytes);
 
 	for (i = 0; i < saved_bytes; i++)
-		pos += snprintf(buf + strlen(buf), PAGE_SIZE, "%d ", value[i]);
-
-	ret = simple_read_from_buffer(ubuf, count, ppos, buf, pos);
+		pos += scnprintf(buf + pos, PAGE_SIZE - pos, "%d ", value[i]);
 
 done:
+	ret = simple_read_from_buffer(ubuf, count, ppos, buf, pos);
+out_free:
 	free_page(addr);
 	return ret;
 }
@@ -654,7 +792,8 @@ mwifiex_hscfg_write(struct file *file, const char __user *ubuf,
 	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
 
 	if (arg_num > 3) {
-		dev_err(priv->adapter->dev, "Too many arguments\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Too many arguments\n");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -717,6 +856,56 @@ mwifiex_hscfg_read(struct file *file, char __user *ubuf,
 	return ret;
 }
 
+static ssize_t
+mwifiex_timeshare_coex_read(struct file *file, char __user *ubuf,
+			    size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = file->private_data;
+	char buf[3];
+	bool timeshare_coex;
+	int ret;
+	unsigned int len;
+
+	if (priv->adapter->fw_api_ver != MWIFIEX_FW_V15)
+		return -EOPNOTSUPP;
+
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_ROBUST_COEX,
+			       HostCmd_ACT_GEN_GET, 0, &timeshare_coex, true);
+	if (ret)
+		return ret;
+
+	len = sprintf(buf, "%d\n", timeshare_coex);
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static ssize_t
+mwifiex_timeshare_coex_write(struct file *file, const char __user *ubuf,
+			     size_t count, loff_t *ppos)
+{
+	bool timeshare_coex;
+	struct mwifiex_private *priv = file->private_data;
+	char kbuf[16];
+	int ret;
+
+	if (priv->adapter->fw_api_ver != MWIFIEX_FW_V15)
+		return -EOPNOTSUPP;
+
+	memset(kbuf, 0, sizeof(kbuf));
+
+	if (copy_from_user(&kbuf, ubuf, min_t(size_t, sizeof(kbuf) - 1, count)))
+		return -EFAULT;
+
+	if (strtobool(kbuf, &timeshare_coex))
+		return -EINVAL;
+
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_ROBUST_COEX,
+			       HostCmd_ACT_GEN_SET, 0, &timeshare_coex, true);
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+
 #define MWIFIEX_DFS_ADD_FILE(name) do {                                 \
 	if (!debugfs_create_file(#name, 0644, priv->dfs_dev_dir,        \
 			priv, &mwifiex_dfs_##name##_fops))              \
@@ -746,11 +935,14 @@ static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 MWIFIEX_DFS_FILE_READ_OPS(info);
 MWIFIEX_DFS_FILE_READ_OPS(debug);
 MWIFIEX_DFS_FILE_READ_OPS(getlog);
-MWIFIEX_DFS_FILE_READ_OPS(fw_dump);
+MWIFIEX_DFS_FILE_READ_OPS(device_dump);
 MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
+MWIFIEX_DFS_FILE_OPS(memrw);
 MWIFIEX_DFS_FILE_OPS(hscfg);
 MWIFIEX_DFS_FILE_OPS(histogram);
+MWIFIEX_DFS_FILE_OPS(debug_mask);
+MWIFIEX_DFS_FILE_OPS(timeshare_coex);
 
 /*
  * This function creates the debug FS directory structure and the files.
@@ -772,9 +964,12 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
-	MWIFIEX_DFS_ADD_FILE(fw_dump);
+	MWIFIEX_DFS_ADD_FILE(device_dump);
+	MWIFIEX_DFS_ADD_FILE(memrw);
 	MWIFIEX_DFS_ADD_FILE(hscfg);
 	MWIFIEX_DFS_ADD_FILE(histogram);
+	MWIFIEX_DFS_ADD_FILE(debug_mask);
+	MWIFIEX_DFS_ADD_FILE(timeshare_coex);
 }
 
 /*

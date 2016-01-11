@@ -55,20 +55,21 @@
 
 #define DRV_NAME	"ib_srp"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"1.0"
-#define DRV_RELDATE	"July 1, 2013"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"July 26, 2015"
 
 MODULE_AUTHOR("Roland Dreier");
-MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator "
-		   "v" DRV_VERSION " (" DRV_RELDATE ")");
+MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_VERSION(DRV_VERSION);
+MODULE_INFO(release_date, DRV_RELDATE);
 
 static unsigned int srp_sg_tablesize;
 static unsigned int cmd_sg_entries;
 static unsigned int indirect_sg_entries;
 static bool allow_ext_sg;
-static bool prefer_fr;
-static bool register_always;
+static bool prefer_fr = true;
+static bool register_always = true;
 static int topspin_workarounds = 1;
 
 module_param(srp_sg_tablesize, uint, 0444);
@@ -98,7 +99,7 @@ module_param(register_always, bool, 0444);
 MODULE_PARM_DESC(register_always,
 		 "Use memory registration even for contiguous memory regions");
 
-static struct kernel_param_ops srp_tmo_ops;
+static const struct kernel_param_ops srp_tmo_ops;
 
 static int srp_reconnect_delay = 10;
 module_param_cb(reconnect_delay, &srp_tmo_ops, &srp_reconnect_delay,
@@ -130,7 +131,7 @@ MODULE_PARM_DESC(ch_count,
 		 "Number of RDMA channels to use for communication with an SRP target. Using more than one channel improves performance if the HCA supports multiple completion vectors. The default value is the minimum of four times the number of online CPU sockets and the number of completion vectors supported by the HCA.");
 
 static void srp_add_one(struct ib_device *device);
-static void srp_remove_one(struct ib_device *device);
+static void srp_remove_one(struct ib_device *device, void *client_data);
 static void srp_recv_completion(struct ib_cq *cq, void *ch_ptr);
 static void srp_send_completion(struct ib_cq *cq, void *ch_ptr);
 static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event);
@@ -160,13 +161,10 @@ static int srp_tmo_set(const char *val, const struct kernel_param *kp)
 {
 	int tmo, res;
 
-	if (strncmp(val, "off", 3) != 0) {
-		res = kstrtoint(val, 0, &tmo);
-		if (res)
-			goto out;
-	} else {
-		tmo = -1;
-	}
+	res = srp_parse_tmo(&tmo, val);
+	if (res)
+		goto out;
+
 	if (kp->arg == &srp_reconnect_delay)
 		res = srp_tmo_valid(tmo, srp_fast_io_fail_tmo,
 				    srp_dev_loss_tmo);
@@ -183,7 +181,7 @@ out:
 	return res;
 }
 
-static struct kernel_param_ops srp_tmo_ops = {
+static const struct kernel_param_ops srp_tmo_ops = {
 	.get = srp_tmo_get,
 	.set = srp_tmo_set,
 };
@@ -253,7 +251,8 @@ static void srp_free_iu(struct srp_host *host, struct srp_iu *iu)
 
 static void srp_qp_event(struct ib_event *event, void *context)
 {
-	pr_debug("QP event %d\n", event->event);
+	pr_debug("QP event %s (%d)\n",
+		 ib_event_msg(event->event), event->event);
 }
 
 static int srp_init_qp(struct srp_target_port *target,
@@ -341,8 +340,6 @@ static void srp_destroy_fr_pool(struct srp_fr_pool *pool)
 		return;
 
 	for (i = 0, d = &pool->desc[0]; i < pool->size; i++, d++) {
-		if (d->frpl)
-			ib_free_fast_reg_page_list(d->frpl);
 		if (d->mr)
 			ib_dereg_mr(d->mr);
 	}
@@ -363,7 +360,6 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	struct srp_fr_pool *pool;
 	struct srp_fr_desc *d;
 	struct ib_mr *mr;
-	struct ib_fast_reg_page_list *frpl;
 	int i, ret = -EINVAL;
 
 	if (pool_size <= 0)
@@ -379,18 +375,13 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	INIT_LIST_HEAD(&pool->free_list);
 
 	for (i = 0, d = &pool->desc[0]; i < pool->size; i++, d++) {
-		mr = ib_alloc_fast_reg_mr(pd, max_page_list_len);
+		mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+				 max_page_list_len);
 		if (IS_ERR(mr)) {
 			ret = PTR_ERR(mr);
 			goto destroy_pool;
 		}
 		d->mr = mr;
-		frpl = ib_alloc_fast_reg_page_list(device, max_page_list_len);
-		if (IS_ERR(frpl)) {
-			ret = PTR_ERR(frpl);
-			goto destroy_pool;
-		}
-		d->frpl = frpl;
 		list_add_tail(&d->entry, &pool->free_list);
 	}
 
@@ -465,14 +456,13 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
  */
 static void srp_destroy_qp(struct srp_rdma_ch *ch)
 {
-	struct srp_target_port *target = ch->target;
 	static struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	static struct ib_recv_wr wr = { .wr_id = SRP_LAST_WR_ID };
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
 	/* Destroying a QP and reusing ch->done is only safe if not connected */
-	WARN_ON_ONCE(target->connected);
+	WARN_ON_ONCE(ch->connected);
 
 	ret = ib_modify_qp(ch->qp, &attr, IB_QP_STATE);
 	WARN_ONCE(ret, "ib_cm_init_qp_attr() returned %d\n", ret);
@@ -498,7 +488,8 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	struct ib_qp *qp;
 	struct ib_fmr_pool *fmr_pool = NULL;
 	struct srp_fr_pool *fr_pool = NULL;
-	const int m = 1 + dev->use_fast_reg;
+	const int m = dev->use_fast_reg ? 3 : 1;
+	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	init_attr = kzalloc(sizeof *init_attr, GFP_KERNEL);
@@ -506,15 +497,19 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 		return -ENOMEM;
 
 	/* + 1 for SRP_LAST_WR_ID */
+	cq_attr.cqe = target->queue_size + 1;
+	cq_attr.comp_vector = ch->comp_vector;
 	recv_cq = ib_create_cq(dev->dev, srp_recv_completion, NULL, ch,
-			       target->queue_size + 1, ch->comp_vector);
+			       &cq_attr);
 	if (IS_ERR(recv_cq)) {
 		ret = PTR_ERR(recv_cq);
 		goto err;
 	}
 
+	cq_attr.cqe = m * target->queue_size;
+	cq_attr.comp_vector = ch->comp_vector;
 	send_cq = ib_create_cq(dev->dev, srp_send_completion, NULL, ch,
-			       m * target->queue_size, ch->comp_vector);
+			       &cq_attr);
 	if (IS_ERR(send_cq)) {
 		ret = PTR_ERR(send_cq);
 		goto err_recv_cq;
@@ -542,7 +537,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	if (ret)
 		goto err_qp;
 
-	if (dev->use_fast_reg && dev->has_fr) {
+	if (dev->use_fast_reg) {
 		fr_pool = srp_alloc_fr_pool(target);
 		if (IS_ERR(fr_pool)) {
 			ret = PTR_ERR(fr_pool);
@@ -550,10 +545,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 				     "FR pool allocation failed (%d)\n", ret);
 			goto err_qp;
 		}
-		if (ch->fr_pool)
-			srp_destroy_fr_pool(ch->fr_pool);
-		ch->fr_pool = fr_pool;
-	} else if (!dev->use_fast_reg && dev->has_fmr) {
+	} else if (dev->use_fmr) {
 		fmr_pool = srp_alloc_fmr_pool(target);
 		if (IS_ERR(fmr_pool)) {
 			ret = PTR_ERR(fmr_pool);
@@ -561,9 +553,6 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 				     "FMR pool allocation failed (%d)\n", ret);
 			goto err_qp;
 		}
-		if (ch->fmr_pool)
-			ib_destroy_fmr_pool(ch->fmr_pool);
-		ch->fmr_pool = fmr_pool;
 	}
 
 	if (ch->qp)
@@ -576,6 +565,16 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	ch->qp = qp;
 	ch->recv_cq = recv_cq;
 	ch->send_cq = send_cq;
+
+	if (dev->use_fast_reg) {
+		if (ch->fr_pool)
+			srp_destroy_fr_pool(ch->fr_pool);
+		ch->fr_pool = fr_pool;
+	} else if (dev->use_fmr) {
+		if (ch->fmr_pool)
+			ib_destroy_fmr_pool(ch->fmr_pool);
+		ch->fmr_pool = fmr_pool;
+	}
 
 	kfree(init_attr);
 	return 0;
@@ -619,7 +618,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 	if (dev->use_fast_reg) {
 		if (ch->fr_pool)
 			srp_destroy_fr_pool(ch->fr_pool);
-	} else {
+	} else if (dev->use_fmr) {
 		if (ch->fmr_pool)
 			ib_destroy_fmr_pool(ch->fmr_pool);
 	}
@@ -781,7 +780,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, bool multich)
 		shost_printk(KERN_DEBUG, target->scsi_host,
 			     PFX "Topspin/Cisco initiator port ID workaround "
 			     "activated for target GUID %016llx\n",
-			     (unsigned long long) be64_to_cpu(target->ioc_guid));
+			     be64_to_cpu(target->ioc_guid));
 		memset(req->priv.initiator_port_id, 0, 8);
 		memcpy(req->priv.initiator_port_id + 8,
 		       &target->srp_host->srp_dev->dev->node_guid, 8);
@@ -811,35 +810,19 @@ static bool srp_queue_remove_work(struct srp_target_port *target)
 	return changed;
 }
 
-static bool srp_change_conn_state(struct srp_target_port *target,
-				  bool connected)
-{
-	bool changed = false;
-
-	spin_lock_irq(&target->lock);
-	if (target->connected != connected) {
-		target->connected = connected;
-		changed = true;
-	}
-	spin_unlock_irq(&target->lock);
-
-	return changed;
-}
-
 static void srp_disconnect_target(struct srp_target_port *target)
 {
 	struct srp_rdma_ch *ch;
 	int i;
 
-	if (srp_change_conn_state(target, false)) {
-		/* XXX should send SRP_I_LOGOUT request */
+	/* XXX should send SRP_I_LOGOUT request */
 
-		for (i = 0; i < target->ch_count; i++) {
-			ch = &target->ch[i];
-			if (ch->cm_id && ib_send_cm_dreq(ch->cm_id, NULL, 0)) {
-				shost_printk(KERN_DEBUG, target->scsi_host,
-					     PFX "Sending CM DREQ failed\n");
-			}
+	for (i = 0; i < target->ch_count; i++) {
+		ch = &target->ch[i];
+		ch->connected = false;
+		if (ch->cm_id && ib_send_cm_dreq(ch->cm_id, NULL, 0)) {
+			shost_printk(KERN_DEBUG, target->scsi_host,
+				     PFX "Sending CM DREQ failed\n");
 		}
 	}
 }
@@ -852,16 +835,17 @@ static void srp_free_req_data(struct srp_target_port *target,
 	struct srp_request *req;
 	int i;
 
-	if (!ch->target || !ch->req_ring)
+	if (!ch->req_ring)
 		return;
 
 	for (i = 0; i < target->req_ring_size; ++i) {
 		req = &ch->req_ring[i];
-		if (dev->use_fast_reg)
+		if (dev->use_fast_reg) {
 			kfree(req->fr_list);
-		else
+		} else {
 			kfree(req->fmr_list);
-		kfree(req->map_page);
+			kfree(req->map_page);
+		}
 		if (req->indirect_dma_addr) {
 			ib_dma_unmap_single(ibdev, req->indirect_dma_addr,
 					    target->indirect_size,
@@ -895,14 +879,15 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
 				  GFP_KERNEL);
 		if (!mr_list)
 			goto out;
-		if (srp_dev->use_fast_reg)
+		if (srp_dev->use_fast_reg) {
 			req->fr_list = mr_list;
-		else
+		} else {
 			req->fmr_list = mr_list;
-		req->map_page = kmalloc(srp_dev->max_pages_per_mr *
-					sizeof(void *), GFP_KERNEL);
-		if (!req->map_page)
-			goto out;
+			req->map_page = kmalloc(srp_dev->max_pages_per_mr *
+						sizeof(void *), GFP_KERNEL);
+			if (!req->map_page)
+				goto out;
+		}
 		req->indirect_desc = kmalloc(target->indirect_size, GFP_KERNEL);
 		if (!req->indirect_desc)
 			goto out;
@@ -986,27 +971,39 @@ static void srp_rport_delete(struct srp_rport *rport)
 	srp_queue_remove_work(target);
 }
 
+/**
+ * srp_connected_ch() - number of connected channels
+ * @target: SRP target port.
+ */
+static int srp_connected_ch(struct srp_target_port *target)
+{
+	int i, c = 0;
+
+	for (i = 0; i < target->ch_count; i++)
+		c += target->ch[i].connected;
+
+	return c;
+}
+
 static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 {
 	struct srp_target_port *target = ch->target;
 	int ret;
 
-	WARN_ON_ONCE(!multich && target->connected);
-
-	target->qp_in_error = false;
+	WARN_ON_ONCE(!multich && srp_connected_ch(target) > 0);
 
 	ret = srp_lookup_path(ch);
 	if (ret)
-		return ret;
+		goto out;
 
 	while (1) {
 		init_completion(&ch->done);
 		ret = srp_send_req(ch, multich);
 		if (ret)
-			return ret;
+			goto out;
 		ret = wait_for_completion_interruptible(&ch->done);
 		if (ret < 0)
-			return ret;
+			goto out;
 
 		/*
 		 * The CM event handling code will set status to
@@ -1014,15 +1011,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		 * back, or SRP_DLID_REDIRECT if we get a lid/qp
 		 * redirect REJ back.
 		 */
-		switch (ch->status) {
+		ret = ch->status;
+		switch (ret) {
 		case 0:
-			srp_change_conn_state(target, true);
-			return 0;
+			ch->connected = true;
+			goto out;
 
 		case SRP_PORT_REDIRECT:
 			ret = srp_lookup_path(ch);
 			if (ret)
-				return ret;
+				goto out;
 			break;
 
 		case SRP_DLID_REDIRECT:
@@ -1031,13 +1029,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		case SRP_STALE_CONN:
 			shost_printk(KERN_ERR, target->scsi_host, PFX
 				     "giving up on stale connection\n");
-			ch->status = -ECONNRESET;
-			return ch->status;
+			ret = -ECONNRESET;
+			goto out;
 
 		default:
-			return ch->status;
+			goto out;
 		}
 	}
+
+out:
+	return ret <= 0 ? ret : -ENODEV;
 }
 
 static int srp_inv_rkey(struct srp_rdma_ch *ch, u32 rkey)
@@ -1085,7 +1086,7 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 		if (req->nmdesc)
 			srp_fr_pool_put(ch->fr_pool, req->fr_list,
 					req->nmdesc);
-	} else {
+	} else if (dev->use_fmr) {
 		struct ib_pool_fmr **pfmr;
 
 		for (i = req->nmdesc, pfmr = req->fmr_list; i > 0; i--, pfmr++)
@@ -1214,14 +1215,10 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	 */
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
-		if (!ch->target)
-			break;
 		ret += srp_new_cm_id(ch);
 	}
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
-		if (!ch->target)
-			break;
 		for (j = 0; j < target->req_ring_size; ++j) {
 			struct srp_request *req = &ch->req_ring[j];
 
@@ -1230,8 +1227,6 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	}
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
-		if (!ch->target)
-			break;
 		/*
 		 * Whether or not creating a new CM ID succeeded, create a new
 		 * QP. This guarantees that all completion callback function
@@ -1243,13 +1238,13 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 		for (j = 0; j < target->queue_size; ++j)
 			list_add(&ch->tx_ring[j]->list, &ch->free_tx);
 	}
+
+	target->qp_in_error = false;
+
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
-		if (ret || !ch->target) {
-			if (i > 1)
-				ret = 0;
+		if (ret)
 			break;
-		}
 		ret = srp_connect_ch(ch, multich);
 		multich = true;
 	}
@@ -1266,6 +1261,8 @@ static void srp_map_desc(struct srp_map_state *state, dma_addr_t dma_addr,
 {
 	struct srp_direct_buf *desc = state->desc;
 
+	WARN_ON_ONCE(!dma_len);
+
 	desc->va = cpu_to_be64(dma_addr);
 	desc->key = cpu_to_be32(rkey);
 	desc->len = cpu_to_be32(dma_len);
@@ -1278,31 +1275,68 @@ static void srp_map_desc(struct srp_map_state *state, dma_addr_t dma_addr,
 static int srp_map_finish_fmr(struct srp_map_state *state,
 			      struct srp_rdma_ch *ch)
 {
+	struct srp_target_port *target = ch->target;
+	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_pool_fmr *fmr;
 	u64 io_addr = 0;
+
+	if (state->fmr.next >= state->fmr.end)
+		return -ENOMEM;
+
+	WARN_ON_ONCE(!dev->use_fmr);
+
+	if (state->npages == 0)
+		return 0;
+
+	if (state->npages == 1 && target->global_mr) {
+		srp_map_desc(state, state->base_dma_addr, state->dma_len,
+			     target->global_mr->rkey);
+		goto reset_state;
+	}
 
 	fmr = ib_fmr_pool_map_phys(ch->fmr_pool, state->pages,
 				   state->npages, io_addr);
 	if (IS_ERR(fmr))
 		return PTR_ERR(fmr);
 
-	*state->next_fmr++ = fmr;
+	*state->fmr.next++ = fmr;
 	state->nmdesc++;
 
-	srp_map_desc(state, 0, state->dma_len, fmr->fmr->rkey);
+	srp_map_desc(state, state->base_dma_addr & ~dev->mr_page_mask,
+		     state->dma_len, fmr->fmr->rkey);
+
+reset_state:
+	state->npages = 0;
+	state->dma_len = 0;
 
 	return 0;
 }
 
 static int srp_map_finish_fr(struct srp_map_state *state,
-			     struct srp_rdma_ch *ch)
+			     struct srp_rdma_ch *ch, int sg_nents)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_send_wr *bad_wr;
-	struct ib_send_wr wr;
+	struct ib_reg_wr wr;
 	struct srp_fr_desc *desc;
 	u32 rkey;
+	int n, err;
+
+	if (state->fr.next >= state->fr.end)
+		return -ENOMEM;
+
+	WARN_ON_ONCE(!dev->use_fast_reg);
+
+	if (sg_nents == 0)
+		return 0;
+
+	if (sg_nents == 1 && target->global_mr) {
+		srp_map_desc(state, sg_dma_address(state->sg),
+			     sg_dma_len(state->sg),
+			     target->global_mr->rkey);
+		return 1;
+	}
 
 	desc = srp_fr_pool_get(ch->fr_pool);
 	if (!desc)
@@ -1311,125 +1345,54 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	rkey = ib_inc_rkey(desc->mr->rkey);
 	ib_update_fast_reg_key(desc->mr, rkey);
 
-	memcpy(desc->frpl->page_list, state->pages,
-	       sizeof(state->pages[0]) * state->npages);
+	n = ib_map_mr_sg(desc->mr, state->sg, sg_nents, dev->mr_page_size);
+	if (unlikely(n < 0))
+		return n;
 
-	memset(&wr, 0, sizeof(wr));
-	wr.opcode = IB_WR_FAST_REG_MR;
-	wr.wr_id = FAST_REG_WR_ID_MASK;
-	wr.wr.fast_reg.iova_start = state->base_dma_addr;
-	wr.wr.fast_reg.page_list = desc->frpl;
-	wr.wr.fast_reg.page_list_len = state->npages;
-	wr.wr.fast_reg.page_shift = ilog2(dev->mr_page_size);
-	wr.wr.fast_reg.length = state->dma_len;
-	wr.wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE |
-				       IB_ACCESS_REMOTE_READ |
-				       IB_ACCESS_REMOTE_WRITE);
-	wr.wr.fast_reg.rkey = desc->mr->lkey;
+	wr.wr.next = NULL;
+	wr.wr.opcode = IB_WR_REG_MR;
+	wr.wr.wr_id = FAST_REG_WR_ID_MASK;
+	wr.wr.num_sge = 0;
+	wr.wr.send_flags = 0;
+	wr.mr = desc->mr;
+	wr.key = desc->mr->rkey;
+	wr.access = (IB_ACCESS_LOCAL_WRITE |
+		     IB_ACCESS_REMOTE_READ |
+		     IB_ACCESS_REMOTE_WRITE);
 
-	*state->next_fr++ = desc;
+	*state->fr.next++ = desc;
 	state->nmdesc++;
 
-	srp_map_desc(state, state->base_dma_addr, state->dma_len,
-		     desc->mr->rkey);
+	srp_map_desc(state, desc->mr->iova,
+		     desc->mr->length, desc->mr->rkey);
 
-	return ib_post_send(ch->qp, &wr, &bad_wr);
-}
+	err = ib_post_send(ch->qp, &wr.wr, &bad_wr);
+	if (unlikely(err))
+		return err;
 
-static int srp_finish_mapping(struct srp_map_state *state,
-			      struct srp_rdma_ch *ch)
-{
-	struct srp_target_port *target = ch->target;
-	int ret = 0;
-
-	if (state->npages == 0)
-		return 0;
-
-	if (state->npages == 1 && !register_always)
-		srp_map_desc(state, state->base_dma_addr, state->dma_len,
-			     target->rkey);
-	else
-		ret = target->srp_host->srp_dev->use_fast_reg ?
-			srp_map_finish_fr(state, ch) :
-			srp_map_finish_fmr(state, ch);
-
-	if (ret == 0) {
-		state->npages = 0;
-		state->dma_len = 0;
-	}
-
-	return ret;
-}
-
-static void srp_map_update_start(struct srp_map_state *state,
-				 struct scatterlist *sg, int sg_index,
-				 dma_addr_t dma_addr)
-{
-	state->unmapped_sg = sg;
-	state->unmapped_index = sg_index;
-	state->unmapped_addr = dma_addr;
+	return n;
 }
 
 static int srp_map_sg_entry(struct srp_map_state *state,
 			    struct srp_rdma_ch *ch,
-			    struct scatterlist *sg, int sg_index,
-			    bool use_mr)
+			    struct scatterlist *sg, int sg_index)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_device *ibdev = dev->dev;
 	dma_addr_t dma_addr = ib_sg_dma_address(ibdev, sg);
 	unsigned int dma_len = ib_sg_dma_len(ibdev, sg);
-	unsigned int len;
+	unsigned int len = 0;
 	int ret;
 
-	if (!dma_len)
-		return 0;
-
-	if (!use_mr) {
-		/*
-		 * Once we're in direct map mode for a request, we don't
-		 * go back to FMR or FR mode, so no need to update anything
-		 * other than the descriptor.
-		 */
-		srp_map_desc(state, dma_addr, dma_len, target->rkey);
-		return 0;
-	}
-
-	/*
-	 * Since not all RDMA HW drivers support non-zero page offsets for
-	 * FMR, if we start at an offset into a page, don't merge into the
-	 * current FMR mapping. Finish it out, and use the kernel's MR for
-	 * this sg entry.
-	 */
-	if ((!dev->use_fast_reg && dma_addr & ~dev->mr_page_mask) ||
-	    dma_len > dev->mr_max_size) {
-		ret = srp_finish_mapping(state, ch);
-		if (ret)
-			return ret;
-
-		srp_map_desc(state, dma_addr, dma_len, target->rkey);
-		srp_map_update_start(state, NULL, 0, 0);
-		return 0;
-	}
-
-	/*
-	 * If this is the first sg that will be mapped via FMR or via FR, save
-	 * our position. We need to know the first unmapped entry, its index,
-	 * and the first unmapped address within that entry to be able to
-	 * restart mapping after an error.
-	 */
-	if (!state->unmapped_sg)
-		srp_map_update_start(state, sg, sg_index, dma_addr);
+	WARN_ON_ONCE(!dma_len);
 
 	while (dma_len) {
 		unsigned offset = dma_addr & ~dev->mr_page_mask;
 		if (state->npages == dev->max_pages_per_mr || offset != 0) {
-			ret = srp_finish_mapping(state, ch);
+			ret = srp_map_finish_fmr(state, ch);
 			if (ret)
 				return ret;
-
-			srp_map_update_start(state, sg, sg_index, dma_addr);
 		}
 
 		len = min_t(unsigned int, dma_len, dev->mr_page_size - offset);
@@ -1448,62 +1411,135 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	 * boundries.
 	 */
 	ret = 0;
-	if (len != dev->mr_page_size) {
-		ret = srp_finish_mapping(state, ch);
-		if (!ret)
-			srp_map_update_start(state, NULL, 0, 0);
-	}
+	if (len != dev->mr_page_size)
+		ret = srp_map_finish_fmr(state, ch);
 	return ret;
 }
 
-static int srp_map_sg(struct srp_map_state *state, struct srp_rdma_ch *ch,
-		      struct srp_request *req, struct scatterlist *scat,
-		      int count)
+static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
+			  struct srp_request *req, struct scatterlist *scat,
+			  int count)
+{
+	struct scatterlist *sg;
+	int i, ret;
+
+	state->desc = req->indirect_desc;
+	state->pages = req->map_page;
+	state->fmr.next = req->fmr_list;
+	state->fmr.end = req->fmr_list + ch->target->cmd_sg_cnt;
+
+	for_each_sg(scat, sg, count, i) {
+		ret = srp_map_sg_entry(state, ch, sg, i);
+		if (ret)
+			return ret;
+	}
+
+	ret = srp_map_finish_fmr(state, ch);
+	if (ret)
+		return ret;
+
+	req->nmdesc = state->nmdesc;
+
+	return 0;
+}
+
+static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
+			 struct srp_request *req, struct scatterlist *scat,
+			 int count)
+{
+	state->desc = req->indirect_desc;
+	state->fr.next = req->fr_list;
+	state->fr.end = req->fr_list + ch->target->cmd_sg_cnt;
+	state->sg = scat;
+
+	while (count) {
+		int i, n;
+
+		n = srp_map_finish_fr(state, ch, count);
+		if (unlikely(n < 0))
+			return n;
+
+		count -= n;
+		for (i = 0; i < n; i++)
+			state->sg = sg_next(state->sg);
+	}
+
+	req->nmdesc = state->nmdesc;
+
+	return 0;
+}
+
+static int srp_map_sg_dma(struct srp_map_state *state, struct srp_rdma_ch *ch,
+			  struct srp_request *req, struct scatterlist *scat,
+			  int count)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
-	struct ib_device *ibdev = dev->dev;
 	struct scatterlist *sg;
 	int i;
-	bool use_mr;
 
-	state->desc	= req->indirect_desc;
-	state->pages	= req->map_page;
-	if (dev->use_fast_reg) {
-		state->next_fr = req->fr_list;
-		use_mr = !!ch->fr_pool;
-	} else {
-		state->next_fmr = req->fmr_list;
-		use_mr = !!ch->fmr_pool;
-	}
-
+	state->desc = req->indirect_desc;
 	for_each_sg(scat, sg, count, i) {
-		if (srp_map_sg_entry(state, ch, sg, i, use_mr)) {
-			/*
-			 * Memory registration failed, so backtrack to the
-			 * first unmapped entry and continue on without using
-			 * memory registration.
-			 */
-			dma_addr_t dma_addr;
-			unsigned int dma_len;
-
-backtrack:
-			sg = state->unmapped_sg;
-			i = state->unmapped_index;
-
-			dma_addr = ib_sg_dma_address(ibdev, sg);
-			dma_len = ib_sg_dma_len(ibdev, sg);
-			dma_len -= (state->unmapped_addr - dma_addr);
-			dma_addr = state->unmapped_addr;
-			use_mr = false;
-			srp_map_desc(state, dma_addr, dma_len, target->rkey);
-		}
+		srp_map_desc(state, ib_sg_dma_address(dev->dev, sg),
+			     ib_sg_dma_len(dev->dev, sg),
+			     target->global_mr->rkey);
 	}
-
-	if (use_mr && srp_finish_mapping(state, ch))
-		goto backtrack;
 
 	req->nmdesc = state->nmdesc;
+
+	return 0;
+}
+
+/*
+ * Register the indirect data buffer descriptor with the HCA.
+ *
+ * Note: since the indirect data buffer descriptor has been allocated with
+ * kmalloc() it is guaranteed that this buffer is a physically contiguous
+ * memory buffer.
+ */
+static int srp_map_idb(struct srp_rdma_ch *ch, struct srp_request *req,
+		       void **next_mr, void **end_mr, u32 idb_len,
+		       __be32 *idb_rkey)
+{
+	struct srp_target_port *target = ch->target;
+	struct srp_device *dev = target->srp_host->srp_dev;
+	struct srp_map_state state;
+	struct srp_direct_buf idb_desc;
+	u64 idb_pages[1];
+	struct scatterlist idb_sg[1];
+	int ret;
+
+	memset(&state, 0, sizeof(state));
+	memset(&idb_desc, 0, sizeof(idb_desc));
+	state.gen.next = next_mr;
+	state.gen.end = end_mr;
+	state.desc = &idb_desc;
+	state.base_dma_addr = req->indirect_dma_addr;
+	state.dma_len = idb_len;
+
+	if (dev->use_fast_reg) {
+		state.sg = idb_sg;
+		sg_set_buf(idb_sg, req->indirect_desc, idb_len);
+		idb_sg->dma_address = req->indirect_dma_addr; /* hack! */
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		idb_sg->dma_length = idb_sg->length;	      /* hack^2 */
+#endif
+		ret = srp_map_finish_fr(&state, ch, 1);
+		if (ret < 0)
+			return ret;
+	} else if (dev->use_fmr) {
+		state.pages = idb_pages;
+		state.pages[0] = (req->indirect_dma_addr &
+				  dev->mr_page_mask);
+		state.npages = 1;
+		ret = srp_map_finish_fmr(&state, ch);
+		if (ret < 0)
+			return ret;
+	} else {
+		return -EINVAL;
+	}
+
+	*idb_rkey = idb_desc.key;
 
 	return 0;
 }
@@ -1514,12 +1550,13 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	struct srp_target_port *target = ch->target;
 	struct scatterlist *scat;
 	struct srp_cmd *cmd = req->cmd->buf;
-	int len, nents, count;
+	int len, nents, count, ret;
 	struct srp_device *dev;
 	struct ib_device *ibdev;
 	struct srp_map_state state;
 	struct srp_indirect_buf *indirect_hdr;
-	u32 table_len;
+	u32 idb_len, table_len;
+	__be32 idb_rkey;
 	u8 fmt;
 
 	if (!scsi_sglist(scmnd) || scmnd->sc_data_direction == DMA_NONE)
@@ -1546,7 +1583,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	fmt = SRP_DATA_DESC_DIRECT;
 	len = sizeof (struct srp_cmd) +	sizeof (struct srp_direct_buf);
 
-	if (count == 1 && !register_always) {
+	if (count == 1 && target->global_mr) {
 		/*
 		 * The midlayer only generated a single gather/scatter
 		 * entry, or DMA mapping coalesced everything to a
@@ -1556,7 +1593,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		struct srp_direct_buf *buf = (void *) cmd->add_data;
 
 		buf->va  = cpu_to_be64(ib_sg_dma_address(ibdev, scat));
-		buf->key = cpu_to_be32(target->rkey);
+		buf->key = cpu_to_be32(target->global_mr->rkey);
 		buf->len = cpu_to_be32(ib_sg_dma_len(ibdev, scat));
 
 		req->nmdesc = 0;
@@ -1573,7 +1610,12 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 				   target->indirect_size, DMA_TO_DEVICE);
 
 	memset(&state, 0, sizeof(state));
-	srp_map_sg(&state, ch, req, scat, count);
+	if (dev->use_fast_reg)
+		srp_map_sg_fr(&state, ch, req, scat, count);
+	else if (dev->use_fmr)
+		srp_map_sg_fmr(&state, ch, req, scat, count);
+	else
+		srp_map_sg_dma(&state, ch, req, scat, count);
 
 	/* We've mapped the request, now pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
@@ -1601,6 +1643,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 
 	count = min(state.ndesc, target->cmd_sg_cnt);
 	table_len = state.ndesc * sizeof (struct srp_direct_buf);
+	idb_len = sizeof(struct srp_indirect_buf) + table_len;
 
 	fmt = SRP_DATA_DESC_INDIRECT;
 	len = sizeof(struct srp_cmd) + sizeof (struct srp_indirect_buf);
@@ -1609,8 +1652,18 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	memcpy(indirect_hdr->desc_list, req->indirect_desc,
 	       count * sizeof (struct srp_direct_buf));
 
+	if (!target->global_mr) {
+		ret = srp_map_idb(ch, req, state.gen.next, state.gen.end,
+				  idb_len, &idb_rkey);
+		if (ret < 0)
+			return ret;
+		req->nmdesc++;
+	} else {
+		idb_rkey = cpu_to_be32(target->global_mr->rkey);
+	}
+
 	indirect_hdr->table_desc.va = cpu_to_be64(req->indirect_dma_addr);
-	indirect_hdr->table_desc.key = cpu_to_be32(target->rkey);
+	indirect_hdr->table_desc.key = idb_rkey;
 	indirect_hdr->table_desc.len = cpu_to_be32(table_len);
 	indirect_hdr->len = cpu_to_be32(state.total_len);
 
@@ -1842,7 +1895,7 @@ static void srp_process_aer_req(struct srp_rdma_ch *ch,
 	s32 delta = be32_to_cpu(req->req_lim_delta);
 
 	shost_printk(KERN_ERR, target->scsi_host, PFX
-		     "ignoring AER for LUN %llu\n", be64_to_cpu(req->lun));
+		     "ignoring AER for LUN %llu\n", scsilun_to_int(&req->lun));
 
 	if (srp_response_common(ch, delta, &rsp, sizeof(rsp)))
 		shost_printk(KERN_ERR, target->scsi_host, PFX
@@ -1929,20 +1982,21 @@ static void srp_handle_qp_err(u64 wr_id, enum ib_wc_status wc_status,
 		return;
 	}
 
-	if (target->connected && !target->qp_in_error) {
+	if (ch->connected && !target->qp_in_error) {
 		if (wr_id & LOCAL_INV_WR_ID_MASK) {
 			shost_printk(KERN_ERR, target->scsi_host, PFX
-				     "LOCAL_INV failed with status %d\n",
-				     wc_status);
+				     "LOCAL_INV failed with status %s (%d)\n",
+				     ib_wc_status_msg(wc_status), wc_status);
 		} else if (wr_id & FAST_REG_WR_ID_MASK) {
 			shost_printk(KERN_ERR, target->scsi_host, PFX
-				     "FAST_REG_MR failed status %d\n",
-				     wc_status);
+				     "FAST_REG_MR failed status %s (%d)\n",
+				     ib_wc_status_msg(wc_status), wc_status);
 		} else {
 			shost_printk(KERN_ERR, target->scsi_host,
-				     PFX "failed %s status %d for iu %p\n",
+				     PFX "failed %s status %s (%d) for iu %p\n",
 				     send_err ? "send" : "receive",
-				     wc_status, (void *)(uintptr_t)wr_id);
+				     ib_wc_status_msg(wc_status), wc_status,
+				     (void *)(uintptr_t)wr_id);
 		}
 		queue_work(system_long_wq, &target->tl_err_work);
 	}
@@ -2034,7 +2088,7 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	memset(cmd, 0, sizeof *cmd);
 
 	cmd->opcode = SRP_CMD;
-	cmd->lun    = cpu_to_be64((u64) scmnd->device->lun << 48);
+	int_to_scsilun(scmnd->device->lun, &cmd->lun);
 	cmd->tag    = tag;
 	memcpy(cmd->cdb, scmnd->cmnd, scmnd->cmd_len);
 
@@ -2177,7 +2231,7 @@ static uint32_t srp_compute_rq_tmo(struct ib_qp_attr *qp_attr, int attr_mask)
 }
 
 static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
-			       struct srp_login_rsp *lrsp,
+			       const struct srp_login_rsp *lrsp,
 			       struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
@@ -2367,7 +2421,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	case IB_CM_DREQ_RECEIVED:
 		shost_printk(KERN_WARNING, target->scsi_host,
 			     PFX "DREQ received - connection closed\n");
-		srp_change_conn_state(target, false);
+		ch->connected = false;
 		if (ib_send_cm_drep(cm_id, NULL, 0))
 			shost_printk(KERN_ERR, target->scsi_host,
 				     PFX "Sending CM DREP failed\n");
@@ -2414,8 +2468,8 @@ srp_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	return scsi_change_queue_depth(sdev, qdepth);
 }
 
-static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag,
-			     unsigned int lun, u8 func)
+static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag, u64 lun,
+			     u8 func)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_rport *rport = target->rport;
@@ -2423,7 +2477,7 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag,
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
 
-	if (!target->connected || target->qp_in_error)
+	if (!ch->connected || target->qp_in_error)
 		return -1;
 
 	init_completion(&ch->tsk_mgmt_done);
@@ -2449,7 +2503,7 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag,
 	memset(tsk_mgmt, 0, sizeof *tsk_mgmt);
 
 	tsk_mgmt->opcode 	= SRP_TSK_MGMT;
-	tsk_mgmt->lun		= cpu_to_be64((u64) lun << 48);
+	int_to_scsilun(lun, &tsk_mgmt->lun);
 	tsk_mgmt->tag		= req_tag | SRP_TAG_TSK_MGMT;
 	tsk_mgmt->tsk_mgmt_func = func;
 	tsk_mgmt->task_tag	= req_tag;
@@ -2563,8 +2617,7 @@ static ssize_t show_id_ext(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sprintf(buf, "0x%016llx\n",
-		       (unsigned long long) be64_to_cpu(target->id_ext));
+	return sprintf(buf, "0x%016llx\n", be64_to_cpu(target->id_ext));
 }
 
 static ssize_t show_ioc_guid(struct device *dev, struct device_attribute *attr,
@@ -2572,8 +2625,7 @@ static ssize_t show_ioc_guid(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sprintf(buf, "0x%016llx\n",
-		       (unsigned long long) be64_to_cpu(target->ioc_guid));
+	return sprintf(buf, "0x%016llx\n", be64_to_cpu(target->ioc_guid));
 }
 
 static ssize_t show_service_id(struct device *dev,
@@ -2581,8 +2633,7 @@ static ssize_t show_service_id(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sprintf(buf, "0x%016llx\n",
-		       (unsigned long long) be64_to_cpu(target->service_id));
+	return sprintf(buf, "0x%016llx\n", be64_to_cpu(target->service_id));
 }
 
 static ssize_t show_pkey(struct device *dev, struct device_attribute *attr,
@@ -2751,7 +2802,6 @@ static struct scsi_host_template srp_template = {
 	.cmd_per_lun			= SRP_DEFAULT_CMD_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= srp_host_attrs,
-	.use_blk_tags			= 1,
 	.track_queue_depth		= 1,
 };
 
@@ -2766,6 +2816,13 @@ static int srp_sdev_count(struct Scsi_Host *host)
 	return c;
 }
 
+/*
+ * Return values:
+ * < 0 upon failure. Caller is responsible for SRP target port cleanup.
+ * 0 and target->state == SRP_TARGET_REMOVED if asynchronous target port
+ *    removal has been scheduled.
+ * 0 and target->state != SRP_TARGET_REMOVED upon success.
+ */
 static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 {
 	struct srp_rport_identifiers ids;
@@ -2773,7 +2830,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 
 	target->state = SRP_TARGET_SCANNING;
 	sprintf(target->target_name, "SRP.T10:%016llX",
-		 (unsigned long long) be64_to_cpu(target->id_ext));
+		be64_to_cpu(target->id_ext));
 
 	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dma_device))
 		return -ENODEV;
@@ -2797,7 +2854,8 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	scsi_scan_target(&target->scsi_host->shost_gendev,
 			 0, target->scsi_id, SCAN_WILD_CARD, 0);
 
-	if (!target->connected || target->qp_in_error) {
+	if (srp_connected_ch(target) < target->ch_count ||
+	    target->qp_in_error) {
 		shost_printk(KERN_INFO, target->scsi_host,
 			     PFX "SCSI scan failed - removing SCSI host\n");
 		srp_queue_remove_work(target);
@@ -3146,7 +3204,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target_host->transportt  = ib_srp_transport_template;
 	target_host->max_channel = 0;
 	target_host->max_id      = 1;
-	target_host->max_lun     = SRP_MAX_LUN;
+	target_host->max_lun     = -1LL;
 	target_host->max_cmd_len = sizeof ((struct srp_cmd *) (void *) 0L)->cdb;
 
 	target = host_to_target(target_host);
@@ -3154,8 +3212,8 @@ static ssize_t srp_create_target(struct device *dev,
 	target->io_class	= SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host	= target_host;
 	target->srp_host	= host;
-	target->lkey		= host->srp_dev->mr->lkey;
-	target->rkey		= host->srp_dev->mr->rkey;
+	target->lkey		= host->srp_dev->pd->local_dma_lkey;
+	target->global_mr	= host->srp_dev->global_mr;
 	target->cmd_sg_cnt	= cmd_sg_entries;
 	target->sg_tablesize	= indirect_sg_entries ? : cmd_sg_entries;
 	target->allow_ext_sg	= allow_ext_sg;
@@ -3172,11 +3230,7 @@ static ssize_t srp_create_target(struct device *dev,
 
 	ret = srp_parse_options(buf, target);
 	if (ret)
-		goto err;
-
-	ret = scsi_init_shared_tag_map(target_host, target_host->can_queue);
-	if (ret)
-		goto err;
+		goto out;
 
 	target->req_ring_size = target->queue_size - SRP_TSK_MGMT_SQ_SIZE;
 
@@ -3187,7 +3241,7 @@ static ssize_t srp_create_target(struct device *dev,
 			     be64_to_cpu(target->ioc_guid),
 			     be64_to_cpu(target->initiator_ext));
 		ret = -EEXIST;
-		goto err;
+		goto out;
 	}
 
 	if (!srp_dev->has_fmr && !srp_dev->has_fr && !target->allow_ext_sg &&
@@ -3206,9 +3260,9 @@ static ssize_t srp_create_target(struct device *dev,
 	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);
 	spin_lock_init(&target->lock);
-	ret = ib_query_gid(ibdev, host->port, 0, &target->sgid);
+	ret = ib_query_gid(ibdev, host->port, 0, &target->sgid, NULL);
 	if (ret)
-		goto err;
+		goto out;
 
 	ret = -ENOMEM;
 	target->ch_count = max_t(unsigned, num_online_nodes(),
@@ -3219,7 +3273,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target->ch = kcalloc(target->ch_count, sizeof(*target->ch),
 			     GFP_KERNEL);
 	if (!target->ch)
-		goto err;
+		goto out;
 
 	node_idx = 0;
 	for_each_online_node(node) {
@@ -3270,7 +3324,7 @@ static ssize_t srp_create_target(struct device *dev,
 					srp_free_ch_ib(target, ch);
 					srp_free_req_data(target, ch);
 					target->ch_count = ch - target->ch;
-					break;
+					goto connected;
 				}
 			}
 
@@ -3280,6 +3334,7 @@ static ssize_t srp_create_target(struct device *dev,
 		node_idx++;
 	}
 
+connected:
 	target->scsi_host->nr_hw_queues = target->ch_count;
 
 	ret = srp_add_target(host, target);
@@ -3302,6 +3357,8 @@ out:
 	mutex_unlock(&host->add_target_mutex);
 
 	scsi_host_put(target->scsi_host);
+	if (ret < 0)
+		scsi_host_put(target->scsi_host);
 
 	return ret;
 
@@ -3315,9 +3372,6 @@ err_disconnect:
 	}
 
 	kfree(target->ch);
-
-err:
-	scsi_host_put(target_host);
 	goto out;
 }
 
@@ -3387,7 +3441,7 @@ static void srp_add_one(struct ib_device *device)
 	struct srp_device *srp_dev;
 	struct ib_device_attr *dev_attr;
 	struct srp_host *host;
-	int mr_page_shift, s, e, p;
+	int mr_page_shift, p;
 	u64 max_pages_per_mr;
 
 	dev_attr = kmalloc(sizeof *dev_attr, GFP_KERNEL);
@@ -3412,6 +3466,7 @@ static void srp_add_one(struct ib_device *device)
 
 	srp_dev->use_fast_reg = (srp_dev->has_fr &&
 				 (!srp_dev->has_fmr || prefer_fr));
+	srp_dev->use_fmr = !srp_dev->use_fast_reg && srp_dev->has_fmr;
 
 	/*
 	 * Use the smallest page size supported by the HCA, down to a
@@ -3444,22 +3499,18 @@ static void srp_add_one(struct ib_device *device)
 	if (IS_ERR(srp_dev->pd))
 		goto free_dev;
 
-	srp_dev->mr = ib_get_dma_mr(srp_dev->pd,
-				    IB_ACCESS_LOCAL_WRITE |
-				    IB_ACCESS_REMOTE_READ |
-				    IB_ACCESS_REMOTE_WRITE);
-	if (IS_ERR(srp_dev->mr))
-		goto err_pd;
-
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		s = 0;
-		e = 0;
+	if (!register_always || (!srp_dev->has_fmr && !srp_dev->has_fr)) {
+		srp_dev->global_mr = ib_get_dma_mr(srp_dev->pd,
+						   IB_ACCESS_LOCAL_WRITE |
+						   IB_ACCESS_REMOTE_READ |
+						   IB_ACCESS_REMOTE_WRITE);
+		if (IS_ERR(srp_dev->global_mr))
+			goto err_pd;
 	} else {
-		s = 1;
-		e = device->phys_port_cnt;
+		srp_dev->global_mr = NULL;
 	}
 
-	for (p = s; p <= e; ++p) {
+	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
 		host = srp_add_port(srp_dev, p);
 		if (host)
 			list_add_tail(&host->list, &srp_dev->dev_list);
@@ -3479,13 +3530,13 @@ free_attr:
 	kfree(dev_attr);
 }
 
-static void srp_remove_one(struct ib_device *device)
+static void srp_remove_one(struct ib_device *device, void *client_data)
 {
 	struct srp_device *srp_dev;
 	struct srp_host *host, *tmp_host;
 	struct srp_target_port *target;
 
-	srp_dev = ib_get_client_data(device, &srp_client);
+	srp_dev = client_data;
 	if (!srp_dev)
 		return;
 
@@ -3514,7 +3565,8 @@ static void srp_remove_one(struct ib_device *device)
 		kfree(host);
 	}
 
-	ib_dereg_mr(srp_dev->mr);
+	if (srp_dev->global_mr)
+		ib_dereg_mr(srp_dev->global_mr);
 	ib_dealloc_pd(srp_dev->pd);
 
 	kfree(srp_dev);

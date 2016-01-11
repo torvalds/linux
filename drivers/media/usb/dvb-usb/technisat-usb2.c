@@ -453,7 +453,7 @@ static struct stv090x_config technisat_usb2_stv090x_config;
 
 /* frontend attach */
 static int technisat_usb2_set_voltage(struct dvb_frontend *fe,
-		fe_sec_voltage_t voltage)
+				      enum fe_sec_voltage voltage)
 {
 	int i;
 	u8 gpio[3] = { 0 }; /* 0 = 2, 1 = 3, 2 = 4 */
@@ -707,7 +707,7 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 
 			.stream = {
 				.type = USB_ISOC,
-				.count = 8,
+				.count = 4,
 				.endpoint = 0x2,
 				.u = {
 					.isoc = {

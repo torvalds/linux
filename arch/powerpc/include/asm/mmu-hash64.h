@@ -14,6 +14,7 @@
 
 #include <asm/asm-compat.h>
 #include <asm/page.h>
+#include <asm/bug.h>
 
 /*
  * This is necessary to get the definition of PGTABLE_RANGE which we
@@ -535,6 +536,9 @@ typedef struct {
 #ifdef CONFIG_PPC_64K_PAGES
 	/* for 4K PTE fragment support */
 	void *pte_frag;
+#endif
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	struct list_head iommu_group_mem_list;
 #endif
 } mm_context_t;
 

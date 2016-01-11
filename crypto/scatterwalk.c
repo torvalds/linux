@@ -54,7 +54,11 @@ static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 		struct page *page;
 
 		page = sg_page(walk->sg) + ((walk->offset - 1) >> PAGE_SHIFT);
-		if (!PageSlab(page))
+		/* Test ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE first as
+		 * PageSlab cannot be optimised away per se due to
+		 * use of volatile pointer.
+		 */
+		if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE && !PageSlab(page))
 			flush_dcache_page(page);
 	}
 
@@ -104,22 +108,18 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 			      unsigned int start, unsigned int nbytes, int out)
 {
 	struct scatter_walk walk;
-	unsigned int offset = 0;
+	struct scatterlist tmp[2];
 
 	if (!nbytes)
 		return;
 
-	for (;;) {
-		scatterwalk_start(&walk, sg);
+	sg = scatterwalk_ffwd(tmp, sg, start);
 
-		if (start < offset + sg->length)
-			break;
+	if (sg_page(sg) == virt_to_page(buf) &&
+	    sg->offset == offset_in_page(buf))
+		return;
 
-		offset += sg->length;
-		sg = sg_next(sg);
-	}
-
-	scatterwalk_advance(&walk, start - offset);
+	scatterwalk_start(&walk, sg);
 	scatterwalk_copychunks(buf, &walk, nbytes, out);
 	scatterwalk_done(&walk, out, 0);
 }
@@ -146,3 +146,26 @@ int scatterwalk_bytes_sglen(struct scatterlist *sg, int num_bytes)
 	return n;
 }
 EXPORT_SYMBOL_GPL(scatterwalk_bytes_sglen);
+
+struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
+				     struct scatterlist *src,
+				     unsigned int len)
+{
+	for (;;) {
+		if (!len)
+			return src;
+
+		if (src->length > len)
+			break;
+
+		len -= src->length;
+		src = sg_next(src);
+	}
+
+	sg_init_table(dst, 2);
+	sg_set_page(dst, sg_page(src), src->length - len, src->offset + len);
+	scatterwalk_crypto_chain(dst, sg_next(src), 0, 2);
+
+	return dst;
+}
+EXPORT_SYMBOL_GPL(scatterwalk_ffwd);

@@ -74,6 +74,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 &dp {
 	samsung,color-space = <0>;
 	samsung,dynamic-range = <0>;
@@ -84,14 +88,6 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hpd>;
-	status = "okay";
-};
-
-&ehci {
-	samsung,vbus-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
-};
-
-&fimd {
 	status = "okay";
 
 	display-timings {
@@ -110,6 +106,14 @@
 			vsync-len = <4>;
 		};
 	};
+};
+
+&ehci {
+	samsung,vbus-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+};
+
+&fimd {
+	status = "okay";
 };
 
 &hdmi {
@@ -131,6 +135,9 @@
 		reg = <0x09>;
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_NONE>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max77686_irq>;
+		wakeup-source;
 
 		voltage-regulators {
 			ldo1_reg: LDO1 {
@@ -190,6 +197,7 @@
 				regulator-name = "P1.8V_LDO_OUT10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 			};
 
 			ldo11_reg: LDO11 {
@@ -408,5 +416,14 @@
 			label = "Kernel";
 			reg = <0x40000 0xc0000>;
 		};
+	};
+};
+
+&pinctrl_0 {
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx3-2";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
 	};
 };

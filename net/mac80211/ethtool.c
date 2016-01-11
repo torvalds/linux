@@ -38,9 +38,9 @@ static void ieee80211_get_ringparam(struct net_device *dev,
 static const char ieee80211_gstrings_sta_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets", "rx_bytes",
 	"rx_duplicates", "rx_fragments", "rx_dropped",
-	"tx_packets", "tx_bytes", "tx_fragments",
+	"tx_packets", "tx_bytes",
 	"tx_filtered", "tx_retry_failed", "tx_retries",
-	"beacon_loss", "sta_state", "txrate", "rxrate", "signal",
+	"sta_state", "txrate", "rxrate", "signal",
 	"channel", "noise", "ch_time", "ch_time_busy",
 	"ch_time_ext_busy", "ch_time_rx", "ch_time_tx"
 };
@@ -77,21 +77,19 @@ static void ieee80211_get_stats(struct net_device *dev,
 
 	memset(data, 0, sizeof(u64) * STA_STATS_LEN);
 
-#define ADD_STA_STATS(sta)				\
-	do {						\
-		data[i++] += sta->rx_packets;		\
-		data[i++] += sta->rx_bytes;		\
-		data[i++] += sta->num_duplicates;	\
-		data[i++] += sta->rx_fragments;		\
-		data[i++] += sta->rx_dropped;		\
-							\
-		data[i++] += sinfo.tx_packets;		\
-		data[i++] += sinfo.tx_bytes;		\
-		data[i++] += sta->tx_fragments;		\
-		data[i++] += sta->tx_filtered_count;	\
-		data[i++] += sta->tx_retry_failed;	\
-		data[i++] += sta->tx_retry_count;	\
-		data[i++] += sta->beacon_loss_count;	\
+#define ADD_STA_STATS(sta)					\
+	do {							\
+		data[i++] += sta->rx_stats.packets;		\
+		data[i++] += sta->rx_stats.bytes;		\
+		data[i++] += sta->rx_stats.num_duplicates;	\
+		data[i++] += sta->rx_stats.fragments;		\
+		data[i++] += sta->rx_stats.dropped;		\
+								\
+		data[i++] += sinfo.tx_packets;			\
+		data[i++] += sinfo.tx_bytes;			\
+		data[i++] += sta->status_stats.filtered;	\
+		data[i++] += sta->status_stats.retry_failed;	\
+		data[i++] += sta->status_stats.retry_count;	\
 	} while (0)
 
 	/* For Managed stations, find the single station based on BSSID

@@ -43,6 +43,14 @@
 		};
 	};
 
+	gpu@0,57000000 {
+		/*
+		 * Node left disabled on purpose - the bootloader will enable
+		 * it after having set the VPR up
+		 */
+		vdd-supply = <&vdd_gpu>;
+	};
+
 	pinmux: pinmux@0,70000868 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&pinmux_boot>;
@@ -735,7 +743,7 @@
 					regulator-always-on;
 				};
 
-				sd6 {
+				vdd_gpu: sd6 {
 					regulator-name = "+VDD_GPU_AP";
 					regulator-min-microvolt = <650000>;
 					regulator-max-microvolt = <1200000>;
@@ -899,6 +907,7 @@
 	sdhci@0,700b0600 {
 		status = "okay";
 		bus-width = <8>;
+		non-removable;
 	};
 
 	ahub@0,70300000 {
@@ -1040,6 +1049,8 @@
 			compatible = "regulator-fixed";
 			reg = <5>;
 			regulator-name = "+VDD_LED";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&vdd_mux>;

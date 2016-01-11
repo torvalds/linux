@@ -45,6 +45,7 @@ enum {
 	ATA_SECT_SIZE		= 512,
 	ATA_MAX_SECTORS_128	= 128,
 	ATA_MAX_SECTORS		= 256,
+	ATA_MAX_SECTORS_1024    = 1024,
 	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
 	ATA_MAX_SECTORS_TAPE	= 65535,
 
@@ -384,8 +385,6 @@ enum {
 	SATA_SSP		= 0x06,	/* Software Settings Preservation */
 	SATA_DEVSLP		= 0x09,	/* Device Sleep */
 
-	SETFEATURE_SENSE_DATA = 0xC3, /* Sense Data Reporting feature */
-
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,
 	ATA_SET_MAX_PASSWD	= 0x01,
@@ -529,8 +528,6 @@ struct ata_bmdma_prd {
 #define ata_id_cdb_intr(id)	(((id)[ATA_ID_CONFIG] & 0x60) == 0x20)
 #define ata_id_has_da(id)	((id)[ATA_ID_SATA_CAPABILITY_2] & (1 << 4))
 #define ata_id_has_devslp(id)	((id)[ATA_ID_FEATURE_SUPP] & (1 << 8))
-#define ata_id_has_ncq_autosense(id) \
-				((id)[ATA_ID_FEATURE_SUPP] & (1 << 7))
 
 static inline bool ata_id_has_hipm(const u16 *id)
 {
@@ -704,23 +701,19 @@ static inline bool ata_id_wcache_enabled(const u16 *id)
 
 static inline bool ata_id_has_read_log_dma_ext(const u16 *id)
 {
+	/* Word 86 must have bit 15 set */
 	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
 		return false;
-	return id[ATA_ID_COMMAND_SET_3] & (1 << 3);
-}
 
-static inline bool ata_id_has_sense_reporting(const u16 *id)
-{
-	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
-		return false;
-	return id[ATA_ID_COMMAND_SET_3] & (1 << 6);
-}
+	/* READ LOG DMA EXT support can be signaled either from word 119
+	 * or from word 120. The format is the same for both words: Bit
+	 * 15 must be cleared, bit 14 set and bit 3 set.
+	 */
+	if ((id[ATA_ID_COMMAND_SET_3] & 0xC008) == 0x4008 ||
+	    (id[ATA_ID_COMMAND_SET_4] & 0xC008) == 0x4008)
+		return true;
 
-static inline bool ata_id_sense_reporting_enabled(const u16 *id)
-{
-	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
-		return false;
-	return id[ATA_ID_COMMAND_SET_4] & (1 << 6);
+	return false;
 }
 
 /**

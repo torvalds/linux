@@ -145,6 +145,7 @@ enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
 	V4L2_BUF_TYPE_SDR_CAPTURE          = 11,
+	V4L2_BUF_TYPE_SDR_OUTPUT           = 12,
 	/* Deprecated, do not use */
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
@@ -159,15 +160,19 @@ enum v4l2_buf_type {
 	 || (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY		\
 	 || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY	\
 	 || (type) == V4L2_BUF_TYPE_VBI_OUTPUT			\
-	 || (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
+	 || (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT		\
+	 || (type) == V4L2_BUF_TYPE_SDR_OUTPUT)
 
 enum v4l2_tuner_type {
 	V4L2_TUNER_RADIO	     = 1,
 	V4L2_TUNER_ANALOG_TV	     = 2,
 	V4L2_TUNER_DIGITAL_TV	     = 3,
-	V4L2_TUNER_ADC               = 4,
+	V4L2_TUNER_SDR               = 4,
 	V4L2_TUNER_RF                = 5,
 };
+
+/* Deprecated, do not use */
+#define V4L2_TUNER_ADC  V4L2_TUNER_SDR
 
 enum v4l2_memory {
 	V4L2_MEMORY_MMAP             = 1,
@@ -178,6 +183,12 @@ enum v4l2_memory {
 
 /* see also http://vektor.theorem.ca/graphics/ycbcr/ */
 enum v4l2_colorspace {
+	/*
+	 * Default colorspace, i.e. let the driver figure it out.
+	 * Can only be used with video capture.
+	 */
+	V4L2_COLORSPACE_DEFAULT       = 0,
+
 	/* SMPTE 170M: used for broadcast NTSC/PAL SDTV */
 	V4L2_COLORSPACE_SMPTE170M     = 1,
 
@@ -220,7 +231,63 @@ enum v4l2_colorspace {
 
 	/* BT.2020 colorspace, used for UHDTV. */
 	V4L2_COLORSPACE_BT2020        = 10,
+
+	/* Raw colorspace: for RAW unprocessed images */
+	V4L2_COLORSPACE_RAW           = 11,
+
+	/* DCI-P3 colorspace, used by cinema projectors */
+	V4L2_COLORSPACE_DCI_P3        = 12,
 };
+
+/*
+ * Determine how COLORSPACE_DEFAULT should map to a proper colorspace.
+ * This depends on whether this is a SDTV image (use SMPTE 170M), an
+ * HDTV image (use Rec. 709), or something else (use sRGB).
+ */
+#define V4L2_MAP_COLORSPACE_DEFAULT(is_sdtv, is_hdtv) \
+	((is_sdtv) ? V4L2_COLORSPACE_SMPTE170M : \
+	 ((is_hdtv) ? V4L2_COLORSPACE_REC709 : V4L2_COLORSPACE_SRGB))
+
+enum v4l2_xfer_func {
+	/*
+	 * Mapping of V4L2_XFER_FUNC_DEFAULT to actual transfer functions
+	 * for the various colorspaces:
+	 *
+	 * V4L2_COLORSPACE_SMPTE170M, V4L2_COLORSPACE_470_SYSTEM_M,
+	 * V4L2_COLORSPACE_470_SYSTEM_BG, V4L2_COLORSPACE_REC709 and
+	 * V4L2_COLORSPACE_BT2020: V4L2_XFER_FUNC_709
+	 *
+	 * V4L2_COLORSPACE_SRGB, V4L2_COLORSPACE_JPEG: V4L2_XFER_FUNC_SRGB
+	 *
+	 * V4L2_COLORSPACE_ADOBERGB: V4L2_XFER_FUNC_ADOBERGB
+	 *
+	 * V4L2_COLORSPACE_SMPTE240M: V4L2_XFER_FUNC_SMPTE240M
+	 *
+	 * V4L2_COLORSPACE_RAW: V4L2_XFER_FUNC_NONE
+	 *
+	 * V4L2_COLORSPACE_DCI_P3: V4L2_XFER_FUNC_DCI_P3
+	 */
+	V4L2_XFER_FUNC_DEFAULT     = 0,
+	V4L2_XFER_FUNC_709         = 1,
+	V4L2_XFER_FUNC_SRGB        = 2,
+	V4L2_XFER_FUNC_ADOBERGB    = 3,
+	V4L2_XFER_FUNC_SMPTE240M   = 4,
+	V4L2_XFER_FUNC_NONE        = 5,
+	V4L2_XFER_FUNC_DCI_P3      = 6,
+	V4L2_XFER_FUNC_SMPTE2084   = 7,
+};
+
+/*
+ * Determine how XFER_FUNC_DEFAULT should map to a proper transfer function.
+ * This depends on the colorspace.
+ */
+#define V4L2_MAP_XFER_FUNC_DEFAULT(colsp) \
+	((colsp) == V4L2_COLORSPACE_ADOBERGB ? V4L2_XFER_FUNC_ADOBERGB : \
+	 ((colsp) == V4L2_COLORSPACE_SMPTE240M ? V4L2_XFER_FUNC_SMPTE240M : \
+	  ((colsp) == V4L2_COLORSPACE_DCI_P3 ? V4L2_XFER_FUNC_DCI_P3 : \
+	   ((colsp) == V4L2_COLORSPACE_RAW ? V4L2_XFER_FUNC_NONE : \
+	    ((colsp) == V4L2_COLORSPACE_SRGB || (colsp) == V4L2_COLORSPACE_JPEG ? \
+	     V4L2_XFER_FUNC_SRGB : V4L2_XFER_FUNC_709)))))
 
 enum v4l2_ycbcr_encoding {
 	/*
@@ -231,7 +298,7 @@ enum v4l2_ycbcr_encoding {
 	 * V4L2_COLORSPACE_470_SYSTEM_BG, V4L2_COLORSPACE_ADOBERGB and
 	 * V4L2_COLORSPACE_JPEG: V4L2_YCBCR_ENC_601
 	 *
-	 * V4L2_COLORSPACE_REC709: V4L2_YCBCR_ENC_709
+	 * V4L2_COLORSPACE_REC709 and V4L2_COLORSPACE_DCI_P3: V4L2_YCBCR_ENC_709
 	 *
 	 * V4L2_COLORSPACE_SRGB: V4L2_YCBCR_ENC_SYCC
 	 *
@@ -266,6 +333,17 @@ enum v4l2_ycbcr_encoding {
 	V4L2_YCBCR_ENC_SMPTE240M      = 8,
 };
 
+/*
+ * Determine how YCBCR_ENC_DEFAULT should map to a proper Y'CbCr encoding.
+ * This depends on the colorspace.
+ */
+#define V4L2_MAP_YCBCR_ENC_DEFAULT(colsp) \
+	(((colsp) == V4L2_COLORSPACE_REC709 || \
+	  (colsp) == V4L2_COLORSPACE_DCI_P3) ? V4L2_YCBCR_ENC_709 : \
+	 ((colsp) == V4L2_COLORSPACE_BT2020 ? V4L2_YCBCR_ENC_BT2020 : \
+	  ((colsp) == V4L2_COLORSPACE_SMPTE240M ? V4L2_YCBCR_ENC_SMPTE240M : \
+	   V4L2_YCBCR_ENC_601)))
+
 enum v4l2_quantization {
 	/*
 	 * The default for R'G'B' quantization is always full range, except
@@ -277,6 +355,17 @@ enum v4l2_quantization {
 	V4L2_QUANTIZATION_FULL_RANGE  = 1,
 	V4L2_QUANTIZATION_LIM_RANGE   = 2,
 };
+
+/*
+ * Determine how QUANTIZATION_DEFAULT should map to a proper quantization.
+ * This depends on whether the image is RGB or not, the colorspace and the
+ * Y'CbCr encoding.
+ */
+#define V4L2_MAP_QUANTIZATION_DEFAULT(is_rgb, colsp, ycbcr_enc) \
+	(((is_rgb) && (colsp) == V4L2_COLORSPACE_BT2020) ? V4L2_QUANTIZATION_LIM_RANGE : \
+	 (((is_rgb) || (ycbcr_enc) == V4L2_YCBCR_ENC_XV601 || \
+	  (ycbcr_enc) == V4L2_YCBCR_ENC_XV709 || (colsp) == V4L2_COLORSPACE_JPEG) ? \
+	 V4L2_QUANTIZATION_FULL_RANGE : V4L2_QUANTIZATION_LIM_RANGE))
 
 enum v4l2_priority {
 	V4L2_PRIORITY_UNSET       = 0,  /* not initialized */
@@ -348,6 +437,7 @@ struct v4l2_capability {
 
 #define V4L2_CAP_SDR_CAPTURE		0x00100000  /* Is a SDR capture device */
 #define V4L2_CAP_EXT_PIX_FORMAT		0x00200000  /* Supports the extended pixel format */
+#define V4L2_CAP_SDR_OUTPUT		0x00400000  /* Is a SDR output device */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -370,6 +460,7 @@ struct v4l2_pix_format {
 	__u32			flags;		/* format flags (V4L2_PIX_FMT_FLAG_*) */
 	__u32			ycbcr_enc;	/* enum v4l2_ycbcr_encoding */
 	__u32			quantization;	/* enum v4l2_quantization */
+	__u32			xfer_func;	/* enum v4l2_xfer_func */
 };
 
 /*      Pixel format         FOURCC                          depth  Description  */
@@ -404,6 +495,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_Y10     v4l2_fourcc('Y', '1', '0', ' ') /* 10  Greyscale     */
 #define V4L2_PIX_FMT_Y12     v4l2_fourcc('Y', '1', '2', ' ') /* 12  Greyscale     */
 #define V4L2_PIX_FMT_Y16     v4l2_fourcc('Y', '1', '6', ' ') /* 16  Greyscale     */
+#define V4L2_PIX_FMT_Y16_BE  v4l2_fourcc_be('Y', '1', '6', ' ') /* 16  Greyscale BE  */
 
 /* Grey bit-packed formats */
 #define V4L2_PIX_FMT_Y10BPACK    v4l2_fourcc('Y', '1', '0', 'B') /* 10  Greyscale bit-packed */
@@ -810,6 +902,8 @@ struct v4l2_buffer {
 #define V4L2_BUF_FLAG_TSTAMP_SRC_MASK		0x00070000
 #define V4L2_BUF_FLAG_TSTAMP_SRC_EOF		0x00000000
 #define V4L2_BUF_FLAG_TSTAMP_SRC_SOE		0x00010000
+/* mem2mem encoder/decoder */
+#define V4L2_BUF_FLAG_LAST			0x00100000
 
 /**
  * struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
@@ -1499,7 +1593,8 @@ struct v4l2_modulator {
 	__u32			rangelow;
 	__u32			rangehigh;
 	__u32			txsubchans;
-	__u32			reserved[4];
+	__u32			type;	/* enum v4l2_tuner_type */
+	__u32			reserved[3];
 };
 
 /*  Flags for the 'capability' field */
@@ -1865,6 +1960,7 @@ struct v4l2_plane_pix_format {
  * @flags:		format flags (V4L2_PIX_FMT_FLAG_*)
  * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
  * @quantization:	enum v4l2_quantization, colorspace quantization
+ * @xfer_func:		enum v4l2_xfer_func, colorspace transfer function
  */
 struct v4l2_pix_format_mplane {
 	__u32				width;
@@ -1878,7 +1974,8 @@ struct v4l2_pix_format_mplane {
 	__u8				flags;
 	__u8				ycbcr_enc;
 	__u8				quantization;
-	__u8				reserved[8];
+	__u8				xfer_func;
+	__u8				reserved[7];
 } __attribute__ ((packed));
 
 /**
@@ -2190,7 +2287,7 @@ struct v4l2_create_buffers {
 #define VIDIOC_QUERY_EXT_CTRL	_IOWR('V', 103, struct v4l2_query_ext_ctrl)
 
 /* Reminder: when adding new ioctls please add support for them to
-   drivers/media/video/v4l2-compat-ioctl32.c as well! */
+   drivers/media/v4l2-core/v4l2-compat-ioctl32.c as well! */
 
 #define BASE_VIDIOC_PRIVATE	192		/* 192-255 are private */
 

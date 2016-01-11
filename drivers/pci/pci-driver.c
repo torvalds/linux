@@ -172,7 +172,7 @@ static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
 	__u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
 	int fields = 0;
-	int retval = -ENODEV;
+	size_t retval = -ENODEV;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x",
 			&vendor, &device, &subvendor, &subdevice,
@@ -190,15 +190,13 @@ static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
 		    !((id->class ^ class) & class_mask)) {
 			list_del(&dynid->node);
 			kfree(dynid);
-			retval = 0;
+			retval = count;
 			break;
 		}
 	}
 	spin_unlock(&pdrv->dynids.lock);
 
-	if (retval)
-		return retval;
-	return count;
+	return retval;
 }
 static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
@@ -299,9 +297,10 @@ static long local_pci_probe(void *_ddi)
 	 * Unbound PCI devices are always put in D0, regardless of
 	 * runtime PM status.  During probe, the device is set to
 	 * active and the usage count is incremented.  If the driver
-	 * supports runtime PM, it should call pm_runtime_put_noidle()
-	 * in its probe routine and pm_runtime_get_noresume() in its
-	 * remove routine.
+	 * supports runtime PM, it should call pm_runtime_put_noidle(),
+	 * or any other runtime PM helper function decrementing the usage
+	 * count, in its probe routine and pm_runtime_get_noresume() in
+	 * its remove routine.
 	 */
 	pm_runtime_get_sync(dev);
 	pci_dev->driver = pci_drv;
@@ -388,18 +387,31 @@ static int __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 	return error;
 }
 
+int __weak pcibios_alloc_irq(struct pci_dev *dev)
+{
+	return 0;
+}
+
+void __weak pcibios_free_irq(struct pci_dev *dev)
+{
+}
+
 static int pci_device_probe(struct device *dev)
 {
-	int error = 0;
-	struct pci_driver *drv;
-	struct pci_dev *pci_dev;
+	int error;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = to_pci_driver(dev->driver);
 
-	drv = to_pci_driver(dev->driver);
-	pci_dev = to_pci_dev(dev);
+	error = pcibios_alloc_irq(pci_dev);
+	if (error < 0)
+		return error;
+
 	pci_dev_get(pci_dev);
 	error = __pci_device_probe(drv, pci_dev);
-	if (error)
+	if (error) {
+		pcibios_free_irq(pci_dev);
 		pci_dev_put(pci_dev);
+	}
 
 	return error;
 }
@@ -415,6 +427,7 @@ static int pci_device_remove(struct device *dev)
 			drv->remove(pci_dev);
 			pm_runtime_put_noidle(dev);
 		}
+		pcibios_free_irq(pci_dev);
 		pci_dev->driver = NULL;
 	}
 
@@ -453,7 +466,7 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msi_shutdown(pci_dev);
 	pci_msix_shutdown(pci_dev);
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	/*
 	 * If this is a kexec reboot, turn off Bus Master bit on the
 	 * device to tell it to not continue to do DMA. Don't touch
@@ -669,10 +682,16 @@ static int pci_pm_prepare(struct device *dev)
 	return pci_dev_keep_suspended(to_pci_dev(dev));
 }
 
+static void pci_pm_complete(struct device *dev)
+{
+	pci_dev_complete_resume(to_pci_dev(dev));
+	pm_complete_with_resume_check(dev);
+}
 
 #else /* !CONFIG_PM_SLEEP */
 
 #define pci_pm_prepare	NULL
+#define pci_pm_complete	NULL
 
 #endif /* !CONFIG_PM_SLEEP */
 
@@ -1127,9 +1146,21 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	pci_dev->state_saved = false;
 	pci_dev->no_d3cold = false;
 	error = pm->runtime_suspend(dev);
-	suspend_report_result(pm->runtime_suspend, error);
-	if (error)
+	if (error) {
+		/*
+		 * -EBUSY and -EAGAIN is used to request the runtime PM core
+		 * to schedule a new suspend, so log the event only with debug
+		 * log level.
+		 */
+		if (error == -EBUSY || error == -EAGAIN)
+			dev_dbg(dev, "can't suspend now (%pf returned %d)\n",
+				pm->runtime_suspend, error);
+		else
+			dev_err(dev, "can't suspend (%pf returned %d)\n",
+				pm->runtime_suspend, error);
+
 		return error;
+	}
 	if (!pci_dev->d3cold_allowed)
 		pci_dev->no_d3cold = true;
 
@@ -1203,6 +1234,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pci_dev_pm_ops = {
 	.prepare = pci_pm_prepare,
+	.complete = pci_pm_complete,
 	.suspend = pci_pm_suspend,
 	.resume = pci_pm_resume,
 	.freeze = pci_pm_freeze,

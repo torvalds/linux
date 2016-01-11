@@ -428,16 +428,19 @@ static void __assign_resources_sorted(struct list_head *head,
 		 * consistent.
 		 */
 		if (add_align > dev_res->res->start) {
+			resource_size_t r_size = resource_size(dev_res->res);
+
 			dev_res->res->start = add_align;
-			dev_res->res->end = add_align +
-				            resource_size(dev_res->res);
+			dev_res->res->end = add_align + r_size - 1;
 
 			list_for_each_entry(dev_res2, head, list) {
 				align = pci_resource_alignment(dev_res2->dev,
 							       dev_res2->res);
-				if (add_align > align)
+				if (add_align > align) {
 					list_move_tail(&dev_res->list,
 						       &dev_res2->list);
+					break;
+				}
 			}
                }
 
@@ -1034,9 +1037,10 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			struct resource *r = &dev->resource[i];
 			resource_size_t r_size;
 
-			if (r->parent || ((r->flags & mask) != type &&
-					  (r->flags & mask) != type2 &&
-					  (r->flags & mask) != type3))
+			if (r->parent || (r->flags & IORESOURCE_PCI_FIXED) ||
+			    ((r->flags & mask) != type &&
+			     (r->flags & mask) != type2 &&
+			     (r->flags & mask) != type3))
 				continue;
 			r_size = resource_size(r);
 #ifdef CONFIG_PCI_IOV
@@ -1337,6 +1341,47 @@ void pci_bus_size_bridges(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
+static void assign_fixed_resource_on_bus(struct pci_bus *b, struct resource *r)
+{
+	int i;
+	struct resource *parent_r;
+	unsigned long mask = IORESOURCE_IO | IORESOURCE_MEM |
+			     IORESOURCE_PREFETCH;
+
+	pci_bus_for_each_resource(b, parent_r, i) {
+		if (!parent_r)
+			continue;
+
+		if ((r->flags & mask) == (parent_r->flags & mask) &&
+		    resource_contains(parent_r, r))
+			request_resource(parent_r, r);
+	}
+}
+
+/*
+ * Try to assign any resources marked as IORESOURCE_PCI_FIXED, as they
+ * are skipped by pbus_assign_resources_sorted().
+ */
+static void pdev_assign_fixed_resources(struct pci_dev *dev)
+{
+	int i;
+
+	for (i = 0; i <  PCI_NUM_RESOURCES; i++) {
+		struct pci_bus *b;
+		struct resource *r = &dev->resource[i];
+
+		if (r->parent || !(r->flags & IORESOURCE_PCI_FIXED) ||
+		    !(r->flags & (IORESOURCE_IO | IORESOURCE_MEM)))
+			continue;
+
+		b = dev->bus;
+		while (b && !r->parent) {
+			assign_fixed_resource_on_bus(b, r);
+			b = b->parent;
+		}
+	}
+}
+
 void __pci_bus_assign_resources(const struct pci_bus *bus,
 				struct list_head *realloc_head,
 				struct list_head *fail_head)
@@ -1347,6 +1392,8 @@ void __pci_bus_assign_resources(const struct pci_bus *bus,
 	pbus_assign_resources_sorted(bus, realloc_head, fail_head);
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pdev_assign_fixed_resources(dev);
+
 		b = dev->subordinate;
 		if (!b)
 			continue;

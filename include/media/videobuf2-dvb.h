@@ -6,7 +6,13 @@
 #include <dvb_demux.h>
 #include <dvb_net.h>
 #include <dvb_frontend.h>
-#include <media/videobuf2-core.h>
+
+#include <media/videobuf2-v4l2.h>
+/*
+ * TODO: This header file should be replaced with videobuf2-core.h
+ * Currently, vb2_thread is not a stuff of videobuf2-core,
+ * since vb2_thread has many dependencies on videobuf2-v4l2.
+ */
 
 struct vb2_dvb {
 	/* filling that the job of the driver */

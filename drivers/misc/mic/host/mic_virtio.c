@@ -23,7 +23,6 @@
 #include <linux/uaccess.h>
 #include <linux/dmaengine.h>
 #include <linux/mic_common.h>
-
 #include "../common/mic_dev.h"
 #include "mic_device.h"
 #include "mic_smpt.h"
@@ -40,7 +39,7 @@ static int mic_sync_dma(struct mic_device *mdev, dma_addr_t dst,
 {
 	int err = 0;
 	struct dma_async_tx_descriptor *tx;
-	struct dma_chan *mic_ch = mdev->dma_ch;
+	struct dma_chan *mic_ch = mdev->dma_ch[0];
 
 	if (!mic_ch) {
 		err = -EBUSY;
@@ -62,7 +61,7 @@ static int mic_sync_dma(struct mic_device *mdev, dma_addr_t dst,
 	}
 error:
 	if (err)
-		dev_err(mdev->sdev->parent, "%s %d err %d\n",
+		dev_err(&mdev->pdev->dev, "%s %d err %d\n",
 			__func__, __LINE__, err);
 	return err;
 }
@@ -80,7 +79,7 @@ static int mic_virtio_copy_to_user(struct mic_vdev *mvdev, void __user *ubuf,
 	struct mic_device *mdev = mvdev->mdev;
 	void __iomem *dbuf = mdev->aper.va + daddr;
 	struct mic_vringh *mvr = &mvdev->mvr[vr_idx];
-	size_t dma_alignment = 1 << mdev->dma_ch->device->copy_align;
+	size_t dma_alignment = 1 << mdev->dma_ch[0]->device->copy_align;
 	size_t dma_offset;
 	size_t partlen;
 	int err;
@@ -129,7 +128,7 @@ static int mic_virtio_copy_from_user(struct mic_vdev *mvdev, void __user *ubuf,
 	struct mic_device *mdev = mvdev->mdev;
 	void __iomem *dbuf = mdev->aper.va + daddr;
 	struct mic_vringh *mvr = &mvdev->mvr[vr_idx];
-	size_t dma_alignment = 1 << mdev->dma_ch->device->copy_align;
+	size_t dma_alignment = 1 << mdev->dma_ch[0]->device->copy_align;
 	size_t partlen;
 	int err;
 
@@ -440,7 +439,7 @@ void mic_virtio_reset_devices(struct mic_device *mdev)
 	struct list_head *pos, *tmp;
 	struct mic_vdev *mvdev;
 
-	dev_dbg(mdev->sdev->parent, "%s\n",  __func__);
+	dev_dbg(&mdev->pdev->dev, "%s\n",  __func__);
 
 	list_for_each_safe(pos, tmp, &mdev->vdev_list) {
 		mvdev = list_entry(pos, struct mic_vdev, list);
@@ -686,7 +685,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 		mvr->head = USHRT_MAX;
 		mvr->mvdev = mvdev;
 		mvr->vrh.notify = mic_notify;
-		dev_dbg(mdev->sdev->parent,
+		dev_dbg(&mdev->pdev->dev,
 			"%s %d index %d va %p info %p vr_size 0x%x\n",
 			__func__, __LINE__, i, vr->va, vr->info, vr_size);
 		mvr->buf = (void *)__get_free_pages(GFP_KERNEL,
@@ -704,7 +703,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 					       mvdev->virtio_db, MIC_INTR_DB);
 	if (IS_ERR(mvdev->virtio_cookie)) {
 		ret = PTR_ERR(mvdev->virtio_cookie);
-		dev_dbg(mdev->sdev->parent, "request irq failed\n");
+		dev_dbg(&mdev->pdev->dev, "request irq failed\n");
 		goto err;
 	}
 
@@ -720,7 +719,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 	smp_wmb();
 	dd->type = type;
 
-	dev_dbg(mdev->sdev->parent, "Added virtio device id %d\n", dd->type);
+	dev_dbg(&mdev->pdev->dev, "Added virtio device id %d\n", dd->type);
 
 	db = bootparam->h2c_config_db;
 	if (db != -1)
@@ -755,7 +754,7 @@ void mic_virtio_del_device(struct mic_vdev *mvdev)
 	db = bootparam->h2c_config_db;
 	if (db == -1)
 		goto skip_hot_remove;
-	dev_dbg(mdev->sdev->parent,
+	dev_dbg(&mdev->pdev->dev,
 		"Requesting hot remove id %d\n", mvdev->virtio_id);
 	mvdev->dc->config_change = MIC_VIRTIO_PARAM_DEV_REMOVE;
 	mdev->ops->send_intr(mdev, db);
@@ -765,7 +764,7 @@ void mic_virtio_del_device(struct mic_vdev *mvdev)
 		if (ret)
 			break;
 	}
-	dev_dbg(mdev->sdev->parent,
+	dev_dbg(&mdev->pdev->dev,
 		"Device id %d config_change %d guest_ack %d retry %d\n",
 		mvdev->virtio_id, mvdev->dc->config_change,
 		mvdev->dc->guest_ack, retry);
@@ -794,7 +793,7 @@ skip_hot_remove:
 		tmp_mvdev = list_entry(pos, struct mic_vdev, list);
 		if (tmp_mvdev == mvdev) {
 			list_del(pos);
-			dev_dbg(mdev->sdev->parent,
+			dev_dbg(&mdev->pdev->dev,
 				"Removing virtio device id %d\n",
 				mvdev->virtio_id);
 			break;

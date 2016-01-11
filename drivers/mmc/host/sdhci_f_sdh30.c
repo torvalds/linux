@@ -49,7 +49,7 @@ struct f_sdhost_priv {
 	struct device *dev;
 };
 
-void sdhci_f_sdh30_soft_voltage_switch(struct sdhci_host *host)
+static void sdhci_f_sdh30_soft_voltage_switch(struct sdhci_host *host)
 {
 	struct f_sdhost_priv *priv = sdhci_priv(host);
 	u32 ctrl = 0;
@@ -77,12 +77,12 @@ void sdhci_f_sdh30_soft_voltage_switch(struct sdhci_host *host)
 	sdhci_writel(host, ctrl, F_SDH30_TUNING_SETTING);
 }
 
-unsigned int sdhci_f_sdh30_get_min_clock(struct sdhci_host *host)
+static unsigned int sdhci_f_sdh30_get_min_clock(struct sdhci_host *host)
 {
 	return F_SDH30_MIN_CLOCK;
 }
 
-void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
+static void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
 {
 	if (sdhci_readw(host, SDHCI_CLOCK_CONTROL) == 0)
 		sdhci_writew(host, 0xBC01, SDHCI_CLOCK_CONTROL);
@@ -114,8 +114,7 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	host = sdhci_alloc_host(dev, sizeof(struct sdhci_host) +
-						sizeof(struct f_sdhost_priv));
+	host = sdhci_alloc_host(dev, sizeof(struct f_sdhost_priv));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 

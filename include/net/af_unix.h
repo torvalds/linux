@@ -39,7 +39,6 @@ struct unix_skb_parms {
 };
 
 #define UNIXCB(skb) 	(*(struct unix_skb_parms *)&((skb)->cb))
-#define UNIXSID(skb)	(&UNIXCB((skb)).secid)
 
 #define unix_state_lock(s)	spin_lock(&unix_sk(s)->lock)
 #define unix_state_unlock(s)	spin_unlock(&unix_sk(s)->lock)
@@ -63,8 +62,13 @@ struct unix_sock {
 #define UNIX_GC_CANDIDATE	0
 #define UNIX_GC_MAYBE_CYCLE	1
 	struct socket_wq	peer_wq;
+	wait_queue_t		peer_wake;
 };
-#define unix_sk(__sk) ((struct unix_sock *)__sk)
+
+static inline struct unix_sock *unix_sk(const struct sock *sk)
+{
+	return (struct unix_sock *)sk;
+}
 
 #define peer_wait peer_wq.wait
 

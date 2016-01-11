@@ -44,5 +44,5 @@ void __init ux500_timer_init(void)
 
 dt_fail:
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
-	clocksource_of_init();
+	clocksource_probe();
 }

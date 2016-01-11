@@ -68,45 +68,34 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
 
 acpi_status acpi_tb_initialize_facs(void)
 {
-	acpi_status status;
+	struct acpi_table_facs *facs;
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
 	if (acpi_gbl_reduced_hardware) {
 		acpi_gbl_FACS = NULL;
 		return (AE_OK);
+	} else if (acpi_gbl_FADT.Xfacs &&
+		   (!acpi_gbl_FADT.facs
+		    || !acpi_gbl_use32_bit_facs_addresses)) {
+		(void)acpi_get_table_by_index(acpi_gbl_xfacs_index,
+					      ACPI_CAST_INDIRECT_PTR(struct
+								     acpi_table_header,
+								     &facs));
+		acpi_gbl_FACS = facs;
+	} else if (acpi_gbl_FADT.facs) {
+		(void)acpi_get_table_by_index(acpi_gbl_facs_index,
+					      ACPI_CAST_INDIRECT_PTR(struct
+								     acpi_table_header,
+								     &facs));
+		acpi_gbl_FACS = facs;
 	}
 
-	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-					 ACPI_CAST_INDIRECT_PTR(struct
-								acpi_table_header,
-								&acpi_gbl_FACS));
-	return (status);
+	/* If there is no FACS, just continue. There was already an error msg */
+
+	return (AE_OK);
 }
 #endif				/* !ACPI_REDUCED_HARDWARE */
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_tables_loaded
- *
- * PARAMETERS:  None
- *
- * RETURN:      TRUE if required ACPI tables are loaded
- *
- * DESCRIPTION: Determine if the minimum required ACPI tables are present
- *              (FADT, FACS, DSDT)
- *
- ******************************************************************************/
-
-u8 acpi_tb_tables_loaded(void)
-{
-
-	if (acpi_gbl_root_table_list.current_table_count >= 3) {
-		return (TRUE);
-	}
-
-	return (FALSE);
-}
 
 /*******************************************************************************
  *
@@ -175,11 +164,11 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 		return (NULL);
 	}
 
-	ACPI_MEMCPY(new_table, table_desc->pointer, table_desc->length);
+	memcpy(new_table, table_desc->pointer, table_desc->length);
 	acpi_tb_uninstall_table(table_desc);
 
 	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.
-				      tables[ACPI_TABLE_INDEX_DSDT],
+				      tables[acpi_gbl_dsdt_index],
 				      ACPI_PTR_TO_PHYSADDR(new_table),
 				      ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
 				      new_table);
@@ -356,13 +345,6 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 			    table_entry_size);
 	table_entry = ACPI_ADD_PTR(u8, table, sizeof(struct acpi_table_header));
 
-	/*
-	 * First two entries in the table array are reserved for the DSDT
-	 * and FACS, which are not actually present in the RSDT/XSDT - they
-	 * come from the FADT
-	 */
-	acpi_gbl_root_table_list.current_table_count = 2;
-
 	/* Initialize the root table array from the RSDT/XSDT */
 
 	for (i = 0; i < table_count; i++) {
@@ -387,7 +369,8 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.
 				      tables[table_index].signature,
 				      ACPI_SIG_FADT)) {
-			acpi_tb_parse_fadt(table_index);
+			acpi_gbl_fadt_index = table_index;
+			acpi_tb_parse_fadt();
 		}
 
 next_table:
@@ -398,4 +381,37 @@ next_table:
 	acpi_os_unmap_memory(table, length);
 
 	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_is_valid_signature
+ *
+ * PARAMETERS:  signature           - Sig string to be validated
+ *
+ * RETURN:      TRUE if signature is correct length and has valid characters
+ *
+ * DESCRIPTION: Validate an ACPI table signature.
+ *
+ ******************************************************************************/
+
+u8 acpi_is_valid_signature(char *signature)
+{
+	u32 i;
+
+	/* Validate the signature length */
+
+	if (strlen(signature) != ACPI_NAME_SIZE) {
+		return (FALSE);
+	}
+
+	/* Validate each character in the signature */
+
+	for (i = 0; i < ACPI_NAME_SIZE; i++) {
+		if (!acpi_ut_valid_acpi_char(signature[i], i)) {
+			return (FALSE);
+		}
+	}
+
+	return (TRUE);
 }

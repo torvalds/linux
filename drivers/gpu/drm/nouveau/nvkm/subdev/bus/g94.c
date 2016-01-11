@@ -22,37 +22,43 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 #include <subdev/timer.h>
 
 static int
-g94_bus_hwsq_exec(struct nvkm_bus *pbus, u32 *data, u32 size)
+g94_bus_hwsq_exec(struct nvkm_bus *bus, u32 *data, u32 size)
 {
-	struct nv50_bus_priv *priv = (void *)pbus;
+	struct nvkm_device *device = bus->subdev.device;
 	int i;
 
-	nv_mask(pbus, 0x001098, 0x00000008, 0x00000000);
-	nv_wr32(pbus, 0x001304, 0x00000000);
-	nv_wr32(pbus, 0x001318, 0x00000000);
+	nvkm_mask(device, 0x001098, 0x00000008, 0x00000000);
+	nvkm_wr32(device, 0x001304, 0x00000000);
+	nvkm_wr32(device, 0x001318, 0x00000000);
 	for (i = 0; i < size; i++)
-		nv_wr32(priv, 0x080000 + (i * 4), data[i]);
-	nv_mask(pbus, 0x001098, 0x00000018, 0x00000018);
-	nv_wr32(pbus, 0x00130c, 0x00000001);
+		nvkm_wr32(device, 0x080000 + (i * 4), data[i]);
+	nvkm_mask(device, 0x001098, 0x00000018, 0x00000018);
+	nvkm_wr32(device, 0x00130c, 0x00000001);
 
-	return nv_wait(pbus, 0x001308, 0x00000100, 0x00000000) ? 0 : -ETIMEDOUT;
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x001308) & 0x00000100))
+			break;
+	) < 0)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
-struct nvkm_oclass *
-g94_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0x94),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = nv50_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
+static const struct nvkm_bus_func
+g94_bus = {
+	.init = nv50_bus_init,
 	.intr = nv50_bus_intr,
 	.hwsq_exec = g94_bus_hwsq_exec,
 	.hwsq_size = 128,
-}.base;
+};
+
+int
+g94_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+{
+	return nvkm_bus_new_(&g94_bus, device, index, pbus);
+}

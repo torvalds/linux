@@ -90,11 +90,11 @@ patch.
 
 Make sure your patch does not include any extra files which do not
 belong in a patch submission.  Make sure to review your patch -after-
-generated it with diff(1), to ensure accuracy.
+generating it with diff(1), to ensure accuracy.
 
 If your changes produce a lot of deltas, you need to split them into
 individual patches which modify things in logical stages; see section
-#3.  This will facilitate easier reviewing by other kernel developers,
+#3.  This will facilitate review by other kernel developers,
 very important if you want your patch accepted.
 
 If you're using git, "git rebase -i" can help you with this process.  If
@@ -267,7 +267,7 @@ You should always copy the appropriate subsystem maintainer(s) on any patch
 to code that they maintain; look through the MAINTAINERS file and the
 source code revision history to see who those maintainers are.  The
 script scripts/get_maintainer.pl can be very useful at this step.  If you
-cannot find a maintainer for the subsystem your are working on, Andrew
+cannot find a maintainer for the subsystem you are working on, Andrew
 Morton (akpm@linux-foundation.org) serves as a maintainer of last resort.
 
 You should also normally choose at least one mailing list to receive a copy
@@ -291,7 +291,7 @@ sending him e-mail.
 
 If you have a patch that fixes an exploitable security bug, send that patch
 to security@kernel.org.  For severe bugs, a short embargo may be considered
-to allow distrbutors to get the patch out to users; in such cases,
+to allow distributors to get the patch out to users; in such cases,
 obviously, the patch should not be sent to any public lists.
 
 Patches that fix a severe bug in a released kernel should be directed
@@ -299,7 +299,9 @@ toward the stable maintainers by putting a line like this:
 
   Cc: stable@vger.kernel.org
 
-into your patch.
+into the sign-off area of your patch (note, NOT an email recipient).  You
+should also read Documentation/stable_kernel_rules.txt in addition to this
+file.
 
 Note, however, that some subsystem maintainers want to come to their own
 conclusions on which patches should go to the stable trees.  The networking
@@ -338,7 +340,7 @@ on the changes you are submitting.  It is important for a kernel
 developer to be able to "quote" your changes, using standard e-mail
 tools, so that they may comment on specific portions of your code.
 
-For this reason, all patches should be submitting e-mail "inline".
+For this reason, all patches should be submitted by e-mail "inline".
 WARNING:  Be wary of your editor's word-wrap corrupting your patch,
 if you choose to cut-n-paste your patch.
 
@@ -657,8 +659,8 @@ succinct and descriptive, but that is what a well-written summary
 should do.
 
 The "summary phrase" may be prefixed by tags enclosed in square
-brackets: "Subject: [PATCH tag] <summary phrase>".  The tags are not
-considered part of the summary phrase, but describe how the patch
+brackets: "Subject: [PATCH <tag>...] <summary phrase>".  The tags are
+not considered part of the summary phrase, but describe how the patch
 should be treated.  Common tags might include a version descriptor if
 the multiple versions of the patch have been sent out in response to
 comments (i.e., "v1, v2, v3"), or "RFC" to indicate a request for
@@ -670,8 +672,8 @@ the patch series.
 
 A couple of example Subjects:
 
-    Subject: [patch 2/5] ext2: improve scalability of bitmap searching
-    Subject: [PATCHv2 001/207] x86: fix eflags tracking
+    Subject: [PATCH 2/5] ext2: improve scalability of bitmap searching
+    Subject: [PATCH v2 01/27] x86: fix eflags tracking
 
 The "from" line must be the very first line in the message body,
 and has the form:
@@ -716,8 +718,21 @@ generates appropriate diffstats by default.)
 See more details on the proper patch format in the following
 references.
 
+15) Explicit In-Reply-To headers
+--------------------------------
 
-15) Sending "git pull" requests
+It can be helpful to manually add In-Reply-To: headers to a patch
+(e.g., when using "git send email") to associate the patch with
+previous relevant discussion, e.g. to link a bug fix to the email with
+the bug report.  However, for a multi-patch series, it is generally
+best to avoid using In-Reply-To: to link to older versions of the
+series.  This way multiple versions of the patch don't become an
+unmanageable forest of references in email clients.  If a link is
+helpful, you can use the https://lkml.kernel.org/ redirector (e.g., in
+the cover email text) to link to an earlier version of the patch series.
+
+
+16) Sending "git pull" requests
 -------------------------------
 
 If you have a series of patches, it may be most convenient to have the
@@ -737,7 +752,7 @@ interest on a single line; it should look something like:
 
       git://jdelvare.pck.nerim.net/jdelvare-2.6 i2c-for-linus
 
-  to get these changes:"
+  to get these changes:
 
 A pull request should also include an overall message saying what will be
 included in the request, a "git shortlog" listing of the patches
@@ -794,7 +809,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
 Kernel Documentation/CodingStyle:
-  <http://users.sosdg.org/~qiyong/lxr/source/Documentation/CodingStyle>
+  <Documentation/CodingStyle>
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

@@ -24,7 +24,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #include "coda_regs.h"
 
@@ -128,6 +128,8 @@ struct coda_params {
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
 	u32			framerate;
 	u16			bitrate;
+	u16			vbv_delay;
+	u32			vbv_size;
 	u32			slice_max_bits;
 	u32			slice_max_mb;
 };
@@ -165,15 +167,8 @@ struct coda_iram_info {
 	phys_addr_t	next_paddr;
 };
 
-struct gdi_tiled_map {
-	int xy2ca_map[16];
-	int xy2ba_map[16];
-	int xy2ra_map[16];
-	int rbc2axi_map[32];
-	int xy2rbc_config;
-	int map_type;
 #define GDI_LINEAR_FRAME_MAP 0
-};
+#define GDI_TILED_FRAME_MB_RASTER_MAP 1
 
 struct coda_ctx;
 
@@ -227,12 +222,14 @@ struct coda_ctx {
 	struct coda_buffer_meta		frame_metas[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_errors[CODA_MAX_FRAMEBUFFERS];
 	struct list_head		buffer_meta_list;
+	spinlock_t			buffer_meta_lock;
+	int				num_metas;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;
 	int				reg_idx;
 	struct coda_iram_info		iram_info;
-	struct gdi_tiled_map		tiled_map;
+	int				tiled_map_type;
 	u32				bit_stream_param;
 	u32				frm_dis_flg;
 	u32				frame_mem_ctrl;
@@ -246,7 +243,7 @@ extern int coda_debug;
 void coda_write(struct coda_dev *dev, u32 data, u32 reg);
 unsigned int coda_read(struct coda_dev *dev, u32 reg);
 void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,
-		     struct vb2_buffer *buf, unsigned int reg_y);
+		     struct vb2_v4l2_buffer *buf, unsigned int reg_y);
 
 int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent);
@@ -287,9 +284,12 @@ static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 
 void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
+void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
+		       enum vb2_buffer_state state);
+
 int coda_h264_padding(int size, char *p);
 
-bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
+bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_v4l2_buffer *vb);
 int coda_jpeg_write_tables(struct coda_ctx *ctx);
 void coda_set_jpeg_compression_quality(struct coda_ctx *ctx, int quality);
 

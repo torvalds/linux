@@ -8,13 +8,6 @@ Description:	(RW) Enable/disable tracing on this specific trace entiry.
 		of coresight components linking the source to the sink is
 		configured and managed automatically by the coresight framework.
 
-What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/status
-Date:		November 2014
-KernelVersion:	3.19
-Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description:	(R) List various control and status registers.  The specific
-		layout and content is driver specific.
-
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_idx
 Date:		November 2014
 KernelVersion:	3.19
@@ -112,7 +105,7 @@ KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Mask to apply to all the context ID comparator.
 
-What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_val
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_pid
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
@@ -251,3 +244,79 @@ Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Define the event that controls the trigger.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cpu
+Date:		October 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RO) Holds the cpu number this tracer is affined to.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmccr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Configuration Code register
+		(0x004).  The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmccer
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Configuration Code Extension
+		register (0x1e8).  The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmscr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM System Configuration
+		register (0x014).  The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmidr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM ID register (0x1e4).  The
+		value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmcr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Main Control register (0x000).
+		The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtraceidr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Trace ID register (0x200).
+		The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmteevr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Trace Enable Event register
+		(0x020). The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtsscr
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Trace Start/Stop Conrol
+		register (0x018). The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtecr1
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Enable Conrol #1
+		register (0x024). The value is read directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtecr2
+Date:		September 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RO) Print the content of the ETM Enable Conrol #2
+		register (0x01c). The value is read directly from the HW.

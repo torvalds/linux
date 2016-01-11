@@ -407,6 +407,9 @@ use_default_name:
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 	INIT_WORK(&rdev->sched_scan_results_wk, __cfg80211_sched_scan_results);
+	INIT_LIST_HEAD(&rdev->mlme_unreg);
+	spin_lock_init(&rdev->mlme_unreg_lock);
+	INIT_WORK(&rdev->mlme_unreg_wk, cfg80211_mlme_unreg_wk);
 	INIT_DELAYED_WORK(&rdev->dfs_update_channels_wk,
 			  cfg80211_dfs_channels_update_work);
 #ifdef CONFIG_CFG80211_WEXT
@@ -416,6 +419,7 @@ use_default_name:
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
+	device_enable_async_suspend(&rdev->wiphy.dev);
 
 	INIT_LIST_HEAD(&rdev->destroy_list);
 	spin_lock_init(&rdev->destroy_list_lock);
@@ -456,6 +460,9 @@ use_default_name:
 	rdev->wiphy.coverage_class = 0;
 
 	rdev->wiphy.max_num_csa_counters = 1;
+
+	rdev->wiphy.max_sched_scan_plans = 1;
+	rdev->wiphy.max_sched_scan_plan_interval = U32_MAX;
 
 	return &rdev->wiphy;
 }
@@ -632,7 +639,7 @@ int wiphy_register(struct wiphy *wiphy)
 		if (WARN_ON(!sband->n_channels))
 			return -EINVAL;
 		/*
-		 * on 60gHz band, there are no legacy rates, so
+		 * on 60GHz band, there are no legacy rates, so
 		 * n_bitrates is 0
 		 */
 		if (WARN_ON(band != IEEE80211_BAND_60GHZ &&
@@ -802,6 +809,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	cancel_delayed_work_sync(&rdev->dfs_update_channels_wk);
 	flush_work(&rdev->destroy_work);
 	flush_work(&rdev->sched_scan_stop_wk);
+	flush_work(&rdev->mlme_unreg_wk);
 
 #ifdef CONFIG_PM
 	if (rdev->wiphy.wowlan_config && rdev->ops->set_wakeup)
@@ -855,6 +863,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_P2P_DEVICE:
+		cfg80211_mlme_purge_registrations(wdev);
 		cfg80211_stop_p2p_device(rdev, wdev);
 		break;
 	default:

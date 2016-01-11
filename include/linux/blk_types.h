@@ -14,7 +14,7 @@ struct page;
 struct block_device;
 struct io_context;
 struct cgroup_subsys_state;
-typedef void (bio_end_io_t) (struct bio *, int);
+typedef void (bio_end_io_t) (struct bio *);
 typedef void (bio_destructor_t) (struct bio *);
 
 /*
@@ -46,7 +46,8 @@ struct bvec_iter {
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
-	unsigned long		bi_flags;	/* status, command, etc */
+	unsigned int		bi_flags;	/* status, command, etc */
+	int			bi_error;
 	unsigned long		bi_rw;		/* bottom bits READ/WRITE,
 						 * top bits priority
 						 */
@@ -65,7 +66,7 @@ struct bio {
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
 
-	atomic_t		bi_remaining;
+	atomic_t		__bi_remaining;
 
 	bio_end_io_t		*bi_end_io;
 
@@ -92,7 +93,7 @@ struct bio {
 
 	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
 
-	atomic_t		bi_cnt;		/* pin count */
+	atomic_t		__bi_cnt;	/* pin count */
 
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
@@ -111,17 +112,14 @@ struct bio {
 /*
  * bio flags
  */
-#define BIO_UPTODATE	0	/* ok after I/O completion */
-#define BIO_RW_BLOCK	1	/* RW_AHEAD set, and read/write would block */
-#define BIO_EOF		2	/* out-out-bounds error */
-#define BIO_SEG_VALID	3	/* bi_phys_segments valid */
-#define BIO_CLONED	4	/* doesn't own data */
-#define BIO_BOUNCED	5	/* bio is a bounce bio */
-#define BIO_USER_MAPPED 6	/* contains user pages */
-#define BIO_EOPNOTSUPP	7	/* not supported */
-#define BIO_NULL_MAPPED 8	/* contains invalid user pages */
-#define BIO_QUIET	9	/* Make BIO Quiet */
-#define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
+#define BIO_SEG_VALID	1	/* bi_phys_segments valid */
+#define BIO_CLONED	2	/* doesn't own data */
+#define BIO_BOUNCED	3	/* bio is a bounce bio */
+#define BIO_USER_MAPPED 4	/* contains user pages */
+#define BIO_NULL_MAPPED 5	/* contains invalid user pages */
+#define BIO_QUIET	6	/* Make BIO Quiet */
+#define BIO_CHAIN	7	/* chained bio, ->bi_remaining in effect */
+#define BIO_REFFED	8	/* bio has elevated ->bi_cnt */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
@@ -130,14 +128,12 @@ struct bio {
 #define BIO_RESET_BITS	13
 #define BIO_OWNS_VEC	13	/* bio_free() should free bvec */
 
-#define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
-
 /*
  * top 4 bits of bio flags indicate the pool this bio came from
  */
 #define BIO_POOL_BITS		(4)
 #define BIO_POOL_NONE		((1UL << BIO_POOL_BITS) - 1)
-#define BIO_POOL_OFFSET		(BITS_PER_LONG - BIO_POOL_BITS)
+#define BIO_POOL_OFFSET		(32 - BIO_POOL_BITS)
 #define BIO_POOL_MASK		(1UL << BIO_POOL_OFFSET)
 #define BIO_POOL_IDX(bio)	((bio)->bi_flags >> BIO_POOL_OFFSET)
 
@@ -220,7 +216,7 @@ enum rq_flag_bits {
 
 /* This mask is used for both bio and request merge checking */
 #define REQ_NOMERGE_FLAGS \
-	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA)
+	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA | REQ_FLUSH_SEQ)
 
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
 #define REQ_THROTTLED		(1ULL << __REQ_THROTTLED)
@@ -247,5 +243,29 @@ enum rq_flag_bits {
 #define REQ_HASHED		(1ULL << __REQ_HASHED)
 #define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
 #define REQ_NO_TIMEOUT		(1ULL << __REQ_NO_TIMEOUT)
+
+typedef unsigned int blk_qc_t;
+#define BLK_QC_T_NONE	-1U
+#define BLK_QC_T_SHIFT	16
+
+static inline bool blk_qc_t_valid(blk_qc_t cookie)
+{
+	return cookie != BLK_QC_T_NONE;
+}
+
+static inline blk_qc_t blk_tag_to_qc_t(unsigned int tag, unsigned int queue_num)
+{
+	return tag | (queue_num << BLK_QC_T_SHIFT);
+}
+
+static inline unsigned int blk_qc_t_to_queue_num(blk_qc_t cookie)
+{
+	return cookie >> BLK_QC_T_SHIFT;
+}
+
+static inline unsigned int blk_qc_t_to_tag(blk_qc_t cookie)
+{
+	return cookie & ((1u << BLK_QC_T_SHIFT) - 1);
+}
 
 #endif /* __LINUX_BLK_TYPES_H */

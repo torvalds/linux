@@ -253,6 +253,16 @@ static void sem_rcu_free(struct rcu_head *head)
 }
 
 /*
+ * spin_unlock_wait() and !spin_is_locked() are not memory barriers, they
+ * are only control barriers.
+ * The code must pair with spin_unlock(&sem->lock) or
+ * spin_unlock(&sem_perm.lock), thus just the control barrier is insufficient.
+ *
+ * smp_rmb() is sufficient, as writes cannot pass the control barrier.
+ */
+#define ipc_smp_acquire__after_spin_is_unlocked()	smp_rmb()
+
+/*
  * Wait until all currently ongoing simple ops have completed.
  * Caller must own sem_perm.lock.
  * New simple ops cannot start, because simple ops first check
@@ -275,6 +285,7 @@ static void sem_wait_array(struct sem_array *sma)
 		sem = sma->sem_base + i;
 		spin_unlock_wait(&sem->lock);
 	}
+	ipc_smp_acquire__after_spin_is_unlocked();
 }
 
 /*
@@ -327,13 +338,12 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 		/* Then check that the global lock is free */
 		if (!spin_is_locked(&sma->sem_perm.lock)) {
 			/*
-			 * The ipc object lock check must be visible on all
-			 * cores before rechecking the complex count.  Otherwise
-			 * we can race with  another thread that does:
+			 * We need a memory barrier with acquire semantics,
+			 * otherwise we can race with another thread that does:
 			 *	complex_count++;
 			 *	spin_unlock(sem_perm.lock);
 			 */
-			smp_rmb();
+			ipc_smp_acquire__after_spin_is_unlocked();
 
 			/*
 			 * Now repeat the test of complex_count:
@@ -391,7 +401,7 @@ static inline struct sem_array *sem_obtain_lock(struct ipc_namespace *ns,
 	struct kern_ipc_perm *ipcp;
 	struct sem_array *sma;
 
-	ipcp = ipc_obtain_object(&sem_ids(ns), id);
+	ipcp = ipc_obtain_object_idr(&sem_ids(ns), id);
 	if (IS_ERR(ipcp))
 		return ERR_CAST(ipcp);
 
@@ -410,7 +420,7 @@ static inline struct sem_array *sem_obtain_lock(struct ipc_namespace *ns,
 
 static inline struct sem_array *sem_obtain_object(struct ipc_namespace *ns, int id)
 {
-	struct kern_ipc_perm *ipcp = ipc_obtain_object(&sem_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_obtain_object_idr(&sem_ids(ns), id);
 
 	if (IS_ERR(ipcp))
 		return ERR_CAST(ipcp);
@@ -2074,17 +2084,28 @@ void exit_sem(struct task_struct *tsk)
 		rcu_read_lock();
 		un = list_entry_rcu(ulp->list_proc.next,
 				    struct sem_undo, list_proc);
-		if (&un->list_proc == &ulp->list_proc)
-			semid = -1;
-		 else
-			semid = un->semid;
-
-		if (semid == -1) {
+		if (&un->list_proc == &ulp->list_proc) {
+			/*
+			 * We must wait for freeary() before freeing this ulp,
+			 * in case we raced with last sem_undo. There is a small
+			 * possibility where we exit while freeary() didn't
+			 * finish unlocking sem_undo_list.
+			 */
+			spin_unlock_wait(&ulp->lock);
 			rcu_read_unlock();
 			break;
 		}
+		spin_lock(&ulp->lock);
+		semid = un->semid;
+		spin_unlock(&ulp->lock);
 
-		sma = sem_obtain_object_check(tsk->nsproxy->ipc_ns, un->semid);
+		/* exit_sem raced with IPC_RMID, nothing to do */
+		if (semid == -1) {
+			rcu_read_unlock();
+			continue;
+		}
+
+		sma = sem_obtain_object_check(tsk->nsproxy->ipc_ns, semid);
 		/* exit_sem raced with IPC_RMID, nothing to do */
 		if (IS_ERR(sma)) {
 			rcu_read_unlock();
@@ -2112,9 +2133,11 @@ void exit_sem(struct task_struct *tsk)
 		ipc_assert_locked_object(&sma->sem_perm);
 		list_del(&un->list_id);
 
-		spin_lock(&ulp->lock);
+		/* we are the last process using this ulp, acquiring ulp->lock
+		 * isn't required. Besides that, we are also protected against
+		 * IPC_RMID as we hold sma->sem_perm lock now
+		 */
 		list_del_rcu(&un->list_proc);
-		spin_unlock(&ulp->lock);
 
 		/* perform adjustments registered in un */
 		for (i = 0; i < sma->sem_nsems; i++) {

@@ -13,6 +13,7 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "FriendlyARM TINY4412 board based on Exynos4412";
@@ -31,56 +32,29 @@
 
 		led1 {
 			label = "led1";
-			gpios = <&gpm4 0 1>;
+			gpios = <&gpm4 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 			linux,default-trigger = "heartbeat";
 		};
 
 		led2 {
 			label = "led2";
-			gpios = <&gpm4 1 1>;
+			gpios = <&gpm4 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led3 {
 			label = "led3";
-			gpios = <&gpm4 2 1>;
+			gpios = <&gpm4 2 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led4 {
 			label = "led4";
-			gpios = <&gpm4 3 1>;
+			gpios = <&gpm4 3 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 			linux,default-trigger = "mmc0";
 		};
-	};
-
-	rtc@10070000 {
-		status = "okay";
-	};
-
-	sdhci@12530000 {
-		bus-width = <4>;
-		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
-		pinctrl-names = "default";
-		status = "okay";
-	};
-
-	serial@13800000 {
-		status = "okay";
-	};
-
-	serial@13810000 {
-		status = "okay";
-	};
-
-	serial@13820000 {
-		status = "okay";
-	};
-
-	serial@13830000 {
-		status = "okay";
 	};
 
 	fixed-rate-clocks {
@@ -94,4 +68,31 @@
 			clock-frequency = <24000000>;
 		};
 	};
+};
+
+&rtc {
+	status = "okay";
+};
+
+&sdhci_2 {
+	bus-width = <4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&serial_0 {
+	status = "okay";
+};
+
+&serial_1 {
+	status = "okay";
+};
+
+&serial_2 {
+	status = "okay";
+};
+
+&serial_3 {
+	status = "okay";
 };

@@ -341,7 +341,6 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, AK4535_PM1, 0x80, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -445,7 +444,6 @@ MODULE_DEVICE_TABLE(i2c, ak4535_i2c_id);
 static struct i2c_driver ak4535_i2c_driver = {
 	.driver = {
 		.name = "ak4535",
-		.owner = THIS_MODULE,
 	},
 	.probe =    ak4535_i2c_probe,
 	.remove =   ak4535_i2c_remove,

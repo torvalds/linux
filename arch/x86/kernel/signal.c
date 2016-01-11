@@ -26,16 +26,16 @@
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
 #include <asm/vdso.h>
 #include <asm/mce.h>
 #include <asm/sighandling.h>
+#include <asm/vm86.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
-#include <asm/sys_ia32.h>
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
@@ -63,6 +63,7 @@
 
 int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
+	unsigned long buf_val;
 	void __user *buf;
 	unsigned int tmpflags;
 	unsigned int err = 0;
@@ -93,17 +94,25 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		COPY(r15);
 #endif /* CONFIG_X86_64 */
 
+#ifdef CONFIG_X86_32
 		COPY_SEG_CPL3(cs);
 		COPY_SEG_CPL3(ss);
+#else /* !CONFIG_X86_32 */
+		/* Kernel saves and restores only the CS segment register on signals,
+		 * which is the bare minimum needed to allow mixed 32/64-bit code.
+		 * App's signal handler can save/restore other segments if needed. */
+		COPY_SEG_CPL3(cs);
+#endif /* CONFIG_X86_32 */
 
 		get_user_ex(tmpflags, &sc->flags);
 		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
 		regs->orig_ax = -1;		/* disable syscall checks */
 
-		get_user_ex(buf, &sc->fpstate);
+		get_user_ex(buf_val, &sc->fpstate);
+		buf = (void __user *)buf_val;
 	} get_user_catch(err);
 
-	err |= restore_xstate_sig(buf, config_enabled(CONFIG_X86_32));
+	err |= fpu__restore_sig(buf, config_enabled(CONFIG_X86_32));
 
 	force_iret();
 
@@ -154,9 +163,8 @@ int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 #else /* !CONFIG_X86_32 */
 		put_user_ex(regs->flags, &sc->flags);
 		put_user_ex(regs->cs, &sc->cs);
-		put_user_ex(0, &sc->__pad2);
-		put_user_ex(0, &sc->__pad1);
-		put_user_ex(regs->ss, &sc->ss);
+		put_user_ex(0, &sc->gs);
+		put_user_ex(0, &sc->fs);
 #endif /* CONFIG_X86_32 */
 
 		put_user_ex(fpstate, &sc->fpstate);
@@ -190,7 +198,7 @@ static unsigned long align_sigframe(unsigned long sp)
 	return sp;
 }
 
-static inline void __user *
+static void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	     void __user **fpstate)
 {
@@ -199,6 +207,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	unsigned long sp = regs->sp;
 	unsigned long buf_fx = 0;
 	int onsigstack = on_sig_stack(sp);
+	struct fpu *fpu = &current->thread.fpu;
 
 	/* redzone */
 	if (config_enabled(CONFIG_X86_64))
@@ -218,9 +227,9 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		}
 	}
 
-	if (used_math()) {
-		sp = alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
-				     &buf_fx, &math_size);
+	if (fpu->fpstate_active) {
+		sp = fpu__alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
+					  &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
 	}
 
@@ -234,8 +243,8 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		return (void __user *)-1L;
 
 	/* save i387 and extended state */
-	if (used_math() &&
-	    save_xstate_sig(*fpstate, (void __user *)buf_fx, math_size) < 0)
+	if (fpu->fpstate_active &&
+	    copy_fpstate_to_sigframe(*fpstate, (void __user *)buf_fx, math_size) < 0)
 		return (void __user *)-1L;
 
 	return (void __user *)sp;
@@ -292,7 +301,7 @@ __setup_frame(int sig, struct ksignal *ksig, sigset_t *set,
 
 	if (current->mm->context.vdso)
 		restorer = current->mm->context.vdso +
-			selected_vdso32->sym___kernel_sigreturn;
+			vdso_image_32.sym___kernel_sigreturn;
 	else
 		restorer = &frame->retcode;
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
@@ -356,7 +365,7 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 
 		/* Set up to return from userspace.  */
 		restorer = current->mm->context.vdso +
-			selected_vdso32->sym___kernel_rt_sigreturn;
+			vdso_image_32.sym___kernel_rt_sigreturn;
 		if (ksig->ka.sa.sa_flags & SA_RESTORER)
 			restorer = ksig->ka.sa.sa_restorer;
 		put_user_ex(restorer, &frame->pretcode);
@@ -450,19 +459,9 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 
 	regs->sp = (unsigned long)frame;
 
-	/*
-	 * Set up the CS and SS registers to run signal handlers in
-	 * 64-bit mode, even if the handler happens to be interrupting
-	 * 32-bit or 16-bit code.
-	 *
-	 * SS is subtle.  In 64-bit mode, we don't need any particular
-	 * SS descriptor, but we do need SS to be valid.  It's possible
-	 * that the old SS is entirely bogus -- this can happen if the
-	 * signal we're trying to deliver is #GP or #SS caused by a bad
-	 * SS value.
-	 */
+	/* Set up the CS register to run signal handlers in 64-bit mode,
+	   even if the handler happens to be interrupting 32-bit code. */
 	regs->cs = __USER_CS;
-	regs->ss = __USER_DS;
 
 	return 0;
 }
@@ -593,6 +592,22 @@ badframe:
 	return 0;
 }
 
+static inline int is_ia32_compat_frame(void)
+{
+	return config_enabled(CONFIG_IA32_EMULATION) &&
+	       test_thread_flag(TIF_IA32);
+}
+
+static inline int is_ia32_frame(void)
+{
+	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
+}
+
+static inline int is_x32_frame(void)
+{
+	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
+}
+
 static int
 setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
@@ -617,6 +632,10 @@ static void
 handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	bool stepping, failed;
+	struct fpu *fpu = &current->thread.fpu;
+
+	if (v8086_mode(regs))
+		save_v86_state((struct kernel_vm86_regs *) regs, VM86_SIGNAL);
 
 	/* Are we from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
@@ -665,25 +684,28 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/*
 		 * Ensure the signal handler starts with the new fpu state.
 		 */
-		if (used_math())
-			fpu_reset_state(current);
+		if (fpu->fpstate_active)
+			fpu__clear(fpu);
 	}
 	signal_setup_done(failed, ksig, stepping);
 }
 
-#ifdef CONFIG_X86_32
-#define NR_restart_syscall	__NR_restart_syscall
-#else /* !CONFIG_X86_32 */
-#define NR_restart_syscall	\
-	test_thread_flag(TIF_IA32) ? __NR_ia32_restart_syscall : __NR_restart_syscall
-#endif /* CONFIG_X86_32 */
+static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
+{
+#if defined(CONFIG_X86_32) || !defined(CONFIG_X86_64)
+	return __NR_restart_syscall;
+#else /* !CONFIG_X86_32 && CONFIG_X86_64 */
+	return test_thread_flag(TIF_IA32) ? __NR_ia32_restart_syscall :
+		__NR_restart_syscall | (regs->orig_ax & __X32_SYSCALL_BIT);
+#endif /* CONFIG_X86_32 || !CONFIG_X86_64 */
+}
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-static void do_signal(struct pt_regs *regs)
+void do_signal(struct pt_regs *regs)
 {
 	struct ksignal ksig;
 
@@ -705,7 +727,7 @@ static void do_signal(struct pt_regs *regs)
 			break;
 
 		case -ERESTART_RESTARTBLOCK:
-			regs->ax = NR_restart_syscall;
+			regs->ax = get_nr_restart_syscall(regs);
 			regs->ip -= 2;
 			break;
 		}
@@ -716,32 +738,6 @@ static void do_signal(struct pt_regs *regs)
 	 * back.
 	 */
 	restore_saved_sigmask();
-}
-
-/*
- * notification of userspace execution resumption
- * - triggered by the TIF_WORK_MASK flags
- */
-__visible void
-do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
-{
-	user_exit();
-
-	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
-
-	/* deal with pending signal delivery */
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
-	if (thread_info_flags & _TIF_USER_RETURN_NOTIFY)
-		fire_user_return_notifiers();
-
-	user_enter();
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)

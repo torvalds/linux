@@ -1511,11 +1511,11 @@ static const struct of_device_id mmc_spi_of_match_table[] = {
 	{ .compatible = "mmc-spi-slot", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mmc_spi_of_match_table);
 
 static struct spi_driver mmc_spi_driver = {
 	.driver = {
 		.name =		"mmc_spi",
-		.owner =	THIS_MODULE,
 		.of_match_table = mmc_spi_of_match_table,
 	},
 	.probe =	mmc_spi_probe,

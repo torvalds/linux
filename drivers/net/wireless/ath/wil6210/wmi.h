@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity .
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -253,8 +253,8 @@ struct wmi_set_passphrase_cmd {
  */
 enum wmi_key_usage {
 	WMI_KEY_USE_PAIRWISE	= 0,
-	WMI_KEY_USE_GROUP	= 1,
-	WMI_KEY_USE_TX		= 2,  /* default Tx Key - Static WEP only */
+	WMI_KEY_USE_RX_GROUP	= 1,
+	WMI_KEY_USE_TX_GROUP	= 2,
 };
 
 struct wmi_add_cipher_key_cmd {
@@ -495,10 +495,18 @@ struct wmi_power_mgmt_cfg_cmd {
 /*
  * WMI_PCP_START_CMDID
  */
+
+enum wmi_hidden_ssid {
+	WMI_HIDDEN_SSID_DISABLED	= 0,
+	WMI_HIDDEN_SSID_SEND_EMPTY	= 1,
+	WMI_HIDDEN_SSID_CLEAR	= 2,
+};
+
 struct wmi_pcp_start_cmd {
 	__le16 bcon_interval;
 	u8 pcp_max_assoc_sta;
-	u8 reserved0[9];
+	u8 hidden_ssid;
+	u8 reserved0[8];
 	u8 network_type;
 	u8 channel;
 	u8 disable_sec_offload;
@@ -836,6 +844,21 @@ struct wmi_temp_sense_cmd {
 } __packed;
 
 /*
+ * WMI_PMC_CMDID
+ */
+enum wmi_pmc_op_e {
+	WMI_PMC_ALLOCATE = 0,
+	WMI_PMC_RELEASE = 1,
+};
+
+struct wmi_pmc_cmd {
+	u8 op;		/* enum wmi_pmc_cmd_op_type */
+	u8 reserved;
+	__le16 ring_size;
+	__le64 mem_base;
+} __packed;
+
+/*
  * WMI Events
  */
 
@@ -870,7 +893,7 @@ enum wmi_event_id {
 	WMI_VRING_CFG_DONE_EVENTID		= 0x1821,
 	WMI_BA_STATUS_EVENTID			= 0x1823,
 	WMI_RCP_ADDBA_REQ_EVENTID		= 0x1824,
-	WMI_ADDBA_RESP_SENT_EVENTID		= 0x1825,
+	WMI_RCP_ADDBA_RESP_SENT_EVENTID		= 0x1825,
 	WMI_DELBA_EVENTID			= 0x1826,
 	WMI_GET_SSID_EVENTID			= 0x1828,
 	WMI_GET_PCP_CHANNEL_EVENTID		= 0x182a,
@@ -882,7 +905,7 @@ enum wmi_event_id {
 	WMI_WRITE_MAC_TXQ_EVENTID		= 0x1833,
 	WMI_WRITE_MAC_XQ_FIELD_EVENTID		= 0x1834,
 
-	WMI_BEAFORMING_MGMT_DONE_EVENTID	= 0x1836,
+	WMI_BEAMFORMING_MGMT_DONE_EVENTID	= 0x1836,
 	WMI_BF_TXSS_MGMT_DONE_EVENTID		= 0x1837,
 	WMI_BF_RXSS_MGMT_DONE_EVENTID		= 0x1839,
 	WMI_RS_MGMT_DONE_EVENTID		= 0x1852,
@@ -894,11 +917,12 @@ enum wmi_event_id {
 
 	/* Performance monitoring events */
 	WMI_DATA_PORT_OPEN_EVENTID		= 0x1860,
-	WMI_WBE_LINKDOWN_EVENTID		= 0x1861,
+	WMI_WBE_LINK_DOWN_EVENTID		= 0x1861,
 
 	WMI_BF_CTRL_DONE_EVENTID		= 0x1862,
 	WMI_NOTIFY_REQ_DONE_EVENTID		= 0x1863,
 	WMI_GET_STATUS_DONE_EVENTID		= 0x1864,
+	WMI_VRING_EN_EVENTID			= 0x1865,
 
 	WMI_UNIT_TEST_EVENTID			= 0x1900,
 	WMI_FLASH_READ_DONE_EVENTID		= 0x1902,
@@ -1147,7 +1171,7 @@ struct wmi_vring_cfg_done_event {
 } __packed;
 
 /*
- * WMI_ADDBA_RESP_SENT_EVENTID
+ * WMI_RCP_ADDBA_RESP_SENT_EVENTID
  */
 struct wmi_rcp_addba_resp_sent_event {
 	u8 cidxtid;
@@ -1179,7 +1203,7 @@ struct wmi_cfg_rx_chain_done_event {
 } __packed;
 
 /*
- * WMI_WBE_LINKDOWN_EVENTID
+ * WMI_WBE_LINK_DOWN_EVENTID
  */
 enum wmi_wbe_link_down_event_reason {
 	WMI_WBE_REASON_USER_REQUEST	= 0,
@@ -1198,6 +1222,14 @@ struct wmi_wbe_link_down_event {
  */
 struct wmi_data_port_open_event {
 	u8 cid;
+	u8 reserved[3];
+} __packed;
+
+/*
+ * WMI_VRING_EN_EVENTID
+ */
+struct wmi_vring_en_event {
+	u8 vring_index;
 	u8 reserved[3];
 } __packed;
 

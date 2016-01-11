@@ -73,13 +73,26 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 	}
 
 	if (grp->bin_attrs) {
-		for (bin_attr = grp->bin_attrs; *bin_attr; bin_attr++) {
+		for (i = 0, bin_attr = grp->bin_attrs; *bin_attr; i++, bin_attr++) {
+			umode_t mode = (*bin_attr)->attr.mode;
+
 			if (update)
 				kernfs_remove_by_name(parent,
 						(*bin_attr)->attr.name);
+			if (grp->is_bin_visible) {
+				mode = grp->is_bin_visible(kobj, *bin_attr, i);
+				if (!mode)
+					continue;
+			}
+
+			WARN(mode & ~(SYSFS_PREALLOC | 0664),
+			     "Attribute %s: Invalid permissions 0%o\n",
+			     (*bin_attr)->attr.name, mode);
+
+			mode &= SYSFS_PREALLOC | 0664;
 			error = sysfs_add_file_mode_ns(parent,
 					&(*bin_attr)->attr, true,
-					(*bin_attr)->attr.mode, NULL);
+					mode, NULL);
 			if (error)
 				break;
 		}
@@ -135,7 +148,7 @@ static int internal_create_group(struct kobject *kobj, int update,
  * This function creates a group for the first time.  It will explicitly
  * warn and error if any of the attribute files being created already exist.
  *
- * Returns 0 on success or error.
+ * Returns 0 on success or error code on failure.
  */
 int sysfs_create_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
@@ -155,7 +168,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_group);
  * It will explicitly warn and error if any of the attribute files being
  * created already exist.
  *
- * Returns 0 on success or error code from sysfs_create_group on error.
+ * Returns 0 on success or error code from sysfs_create_group on failure.
  */
 int sysfs_create_groups(struct kobject *kobj,
 			const struct attribute_group **groups)
@@ -193,7 +206,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_groups);
  * The primary use for this function is to call it after making a change
  * that affects group visibility.
  *
- * Returns 0 on success or error.
+ * Returns 0 on success or error code on failure.
  */
 int sysfs_update_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
@@ -352,3 +365,47 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_link_from_group);
+
+/**
+ * __compat_only_sysfs_link_entry_to_kobj - add a symlink to a kobject pointing
+ * to a group or an attribute
+ * @kobj:		The kobject containing the group.
+ * @target_kobj:	The target kobject.
+ * @target_name:	The name of the target group or attribute.
+ */
+int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+				      struct kobject *target_kobj,
+				      const char *target_name)
+{
+	struct kernfs_node *target;
+	struct kernfs_node *entry;
+	struct kernfs_node *link;
+
+	/*
+	 * We don't own @target_kobj and it may be removed at any time.
+	 * Synchronize using sysfs_symlink_target_lock. See sysfs_remove_dir()
+	 * for details.
+	 */
+	spin_lock(&sysfs_symlink_target_lock);
+	target = target_kobj->sd;
+	if (target)
+		kernfs_get(target);
+	spin_unlock(&sysfs_symlink_target_lock);
+	if (!target)
+		return -ENOENT;
+
+	entry = kernfs_find_and_get(target_kobj->sd, target_name);
+	if (!entry) {
+		kernfs_put(target);
+		return -ENOENT;
+	}
+
+	link = kernfs_create_link(kobj->sd, target_name, entry);
+	if (IS_ERR(link) && PTR_ERR(link) == -EEXIST)
+		sysfs_warn_dup(kobj->sd, target_name);
+
+	kernfs_put(entry);
+	kernfs_put(target);
+	return IS_ERR(link) ? PTR_ERR(link) : 0;
+}
+EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);

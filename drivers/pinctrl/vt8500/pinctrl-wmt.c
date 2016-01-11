@@ -486,16 +486,6 @@ static struct pinctrl_desc wmt_desc = {
 	.confops = &wmt_pinconf_ops,
 };
 
-static int wmt_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void wmt_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct wmt_pinctrl_data *data = dev_get_drvdata(chip->dev);
@@ -560,8 +550,8 @@ static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 static struct gpio_chip wmt_gpio_chip = {
 	.label = "gpio-wmt",
 	.owner = THIS_MODULE,
-	.request = wmt_gpio_request,
-	.free = wmt_gpio_free,
+	.request = gpiochip_generic_request,
+	.free = gpiochip_generic_free,
 	.get_direction = wmt_gpio_get_direction,
 	.direction_input = wmt_gpio_direction_input,
 	.direction_output = wmt_gpio_direction_output,
@@ -594,9 +584,9 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	data->dev = &pdev->dev;
 
 	data->pctl_dev = pinctrl_register(&wmt_desc, &pdev->dev, data);
-	if (!data->pctl_dev) {
+	if (IS_ERR(data->pctl_dev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl\n");
-		return -EINVAL;
+		return PTR_ERR(data->pctl_dev);
 	}
 
 	err = gpiochip_add(&data->gpio_chip);

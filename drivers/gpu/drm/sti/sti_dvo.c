@@ -329,7 +329,8 @@ struct drm_encoder *sti_dvo_best_encoder(struct drm_connector *connector)
 	return dvo_connector->encoder;
 }
 
-static struct drm_connector_helper_funcs sti_dvo_connector_helper_funcs = {
+static const
+struct drm_connector_helper_funcs sti_dvo_connector_helper_funcs = {
 	.get_modes = sti_dvo_connector_get_modes,
 	.mode_valid = sti_dvo_connector_mode_valid,
 	.best_encoder = sti_dvo_best_encoder,
@@ -364,7 +365,7 @@ static void sti_dvo_connector_destroy(struct drm_connector *connector)
 	kfree(dvo_connector);
 }
 
-static struct drm_connector_funcs sti_dvo_connector_funcs = {
+static const struct drm_connector_funcs sti_dvo_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_dvo_connector_detect,
@@ -499,8 +500,8 @@ static int sti_dvo_probe(struct platform_device *pdev)
 	}
 	dvo->regs = devm_ioremap_nocache(dev, res->start,
 			resource_size(res));
-	if (IS_ERR(dvo->regs))
-		return PTR_ERR(dvo->regs);
+	if (!dvo->regs)
+		return -ENOMEM;
 
 	dvo->clk_pix = devm_clk_get(dev, "dvo_pix");
 	if (IS_ERR(dvo->clk_pix)) {
@@ -556,8 +557,6 @@ struct platform_driver sti_dvo_driver = {
 	.probe = sti_dvo_probe,
 	.remove = sti_dvo_remove,
 };
-
-module_platform_driver(sti_dvo_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

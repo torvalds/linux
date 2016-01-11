@@ -1,6 +1,14 @@
 /* Nehalem/SandBridge/Haswell uncore support */
 #include "perf_event_intel_uncore.h"
 
+/* Uncore IMC PCI IDs */
+#define PCI_DEVICE_ID_INTEL_SNB_IMC	0x0100
+#define PCI_DEVICE_ID_INTEL_IVB_IMC	0x0154
+#define PCI_DEVICE_ID_INTEL_IVB_E3_IMC	0x0150
+#define PCI_DEVICE_ID_INTEL_HSW_IMC	0x0c00
+#define PCI_DEVICE_ID_INTEL_HSW_U_IMC	0x0a04
+#define PCI_DEVICE_ID_INTEL_BDW_IMC	0x1604
+
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
 #define SNB_UNC_CTL_UMASK_MASK			0x0000ff00
@@ -36,6 +44,11 @@
 #define SNB_UNC_CBO_0_PERFEVTSEL0               0x700
 #define SNB_UNC_CBO_0_PER_CTR0                  0x706
 #define SNB_UNC_CBO_MSR_OFFSET                  0x10
+
+/* SNB ARB register */
+#define SNB_UNC_ARB_PER_CTR0			0x3b0
+#define SNB_UNC_ARB_PERFEVTSEL0			0x3b2
+#define SNB_UNC_ARB_MSR_OFFSET			0x10
 
 /* NHM global control register */
 #define NHM_UNC_PERF_GLOBAL_CTL                 0x391
@@ -107,7 +120,7 @@ static struct intel_uncore_ops snb_uncore_msr_ops = {
 	.read_counter	= uncore_msr_read_counter,
 };
 
-static struct event_constraint snb_uncore_cbox_constraints[] = {
+static struct event_constraint snb_uncore_arb_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x80, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x83, 0x1),
 	EVENT_CONSTRAINT_END
@@ -126,14 +139,28 @@ static struct intel_uncore_type snb_uncore_cbox = {
 	.single_fixed	= 1,
 	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
 	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
-	.constraints	= snb_uncore_cbox_constraints,
 	.ops		= &snb_uncore_msr_ops,
 	.format_group	= &snb_uncore_format_group,
 	.event_descs	= snb_uncore_events,
 };
 
+static struct intel_uncore_type snb_uncore_arb = {
+	.name		= "arb",
+	.num_counters   = 2,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 44,
+	.perf_ctr	= SNB_UNC_ARB_PER_CTR0,
+	.event_ctl	= SNB_UNC_ARB_PERFEVTSEL0,
+	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_ARB_MSR_OFFSET,
+	.constraints	= snb_uncore_arb_constraints,
+	.ops		= &snb_uncore_msr_ops,
+	.format_group	= &snb_uncore_format_group,
+};
+
 static struct intel_uncore_type *snb_msr_uncores[] = {
 	&snb_uncore_cbox,
+	&snb_uncore_arb,
 	NULL,
 };
 
@@ -393,15 +420,25 @@ static void snb_uncore_imc_event_del(struct perf_event *event, int flags)
 static int snb_pci2phy_map_init(int devid)
 {
 	struct pci_dev *dev = NULL;
-	int bus;
+	struct pci2phy_map *map;
+	int bus, segment;
 
 	dev = pci_get_device(PCI_VENDOR_ID_INTEL, devid, dev);
 	if (!dev)
 		return -ENOTTY;
 
 	bus = dev->bus->number;
+	segment = pci_domain_nr(dev->bus);
 
-	uncore_pcibus_to_physid[bus] = 0;
+	raw_spin_lock(&pci2phy_map_lock);
+	map = __find_pci2phy_map(segment);
+	if (!map) {
+		raw_spin_unlock(&pci2phy_map_lock);
+		pci_dev_put(dev);
+		return -ENOMEM;
+	}
+	map->pbus_to_physid[bus] = 0;
+	raw_spin_unlock(&pci2phy_map_lock);
 
 	pci_dev_put(dev);
 
@@ -472,6 +509,18 @@ static const struct pci_device_id hsw_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HSW_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HSW_U_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* end: all zeroes */ },
+};
+
+static const struct pci_device_id bdw_uncore_pci_ids[] = {
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BDW_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
 	{ /* end: all zeroes */ },
 };
 
@@ -490,6 +539,11 @@ static struct pci_driver hsw_uncore_pci_driver = {
 	.id_table	= hsw_uncore_pci_ids,
 };
 
+static struct pci_driver bdw_uncore_pci_driver = {
+	.name		= "bdw_uncore",
+	.id_table	= bdw_uncore_pci_ids,
+};
+
 struct imc_uncore_pci_dev {
 	__u32 pci_id;
 	struct pci_driver *driver;
@@ -502,6 +556,8 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(IVB_IMC, &ivb_uncore_pci_driver),    /* 3rd Gen Core processor */
 	IMC_DEV(IVB_E3_IMC, &ivb_uncore_pci_driver), /* Xeon E3-1200 v2/3rd Gen Core processor */
 	IMC_DEV(HSW_IMC, &hsw_uncore_pci_driver),    /* 4th Gen Core Processor */
+	IMC_DEV(HSW_U_IMC, &hsw_uncore_pci_driver),  /* 4th Gen Core ULT Mobile Processor */
+	IMC_DEV(BDW_IMC, &bdw_uncore_pci_driver),    /* 5th Gen Core U */
 	{  /* end marker */ }
 };
 
@@ -545,6 +601,11 @@ int ivb_uncore_pci_init(void)
 	return imc_uncore_pci_init();
 }
 int hsw_uncore_pci_init(void)
+{
+	return imc_uncore_pci_init();
+}
+
+int bdw_uncore_pci_init(void)
 {
 	return imc_uncore_pci_init();
 }

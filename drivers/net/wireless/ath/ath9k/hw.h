@@ -332,14 +332,14 @@ enum ath9k_hw_hang_checks {
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
-	u32 cwm_ignore_extcca;
+	bool cwm_ignore_extcca;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
 	u32 ofdm_trig_low;
 	u32 ofdm_trig_high;
 	u32 cck_trig_high;
 	u32 cck_trig_low;
-	u32 enable_paprd;
+	bool enable_paprd;
 	int serialize_regmode;
 	bool rx_intr_mitigation;
 	bool tx_intr_mitigation;
@@ -919,7 +919,7 @@ struct ath_hw {
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
-	struct ar5416IniArray ini_modes_rxgain_5g_xlna;
+	struct ar5416IniArray ini_modes_rxgain_xlna;
 	struct ar5416IniArray ini_modes_rxgain_bb_core;
 	struct ar5416IniArray ini_modes_rxgain_bb_postamble;
 
@@ -1119,6 +1119,8 @@ bool ar9003_is_paprd_enabled(struct ath_hw *ah);
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 void ar9003_hw_init_rate_txpower(struct ath_hw *ah, u8 *rate_array,
 				 struct ath9k_channel *chan);
+void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
+				 struct ath9k_channel *chan, int bin);
 void ar5008_hw_init_rate_txpower(struct ath_hw *ah, int16_t *rate_array,
 				 struct ath9k_channel *chan, int ht40_delta);
 

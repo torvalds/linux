@@ -62,7 +62,7 @@ struct lgdt3306a_state {
 
 	struct dvb_frontend frontend;
 
-	fe_modulation_t current_modulation;
+	enum fe_modulation current_modulation;
 	u32 current_frequency;
 	u32 snr;
 };
@@ -1558,7 +1558,8 @@ lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 	return LG3306_UNLOCK;
 }
 
-static int lgdt3306a_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int lgdt3306a_read_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 	u16 strength = 0;
@@ -1705,7 +1706,7 @@ static int lgdt3306a_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 static int lgdt3306a_tune(struct dvb_frontend *fe, bool re_tune,
 			  unsigned int mode_flags, unsigned int *delay,
-			  fe_status_t *status)
+			  enum fe_status *status)
 {
 	int ret = 0;
 	struct lgdt3306a_state *state = fe->demodulator_priv;
@@ -1735,7 +1736,7 @@ static int lgdt3306a_get_tune_settings(struct dvb_frontend *fe,
 
 static int lgdt3306a_search(struct dvb_frontend *fe)
 {
-	fe_status_t status = 0;
+	enum fe_status status = 0;
 	int i, ret;
 
 	/* set frontend */
@@ -2101,7 +2102,7 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 		lgdt3306a_read_reg(state, regtab[i], &regval1[i]);
 		if (regval1[i] != regval2[i]) {
 			lg_debug(" %04X = %02X\n", regtab[i], regval1[i]);
-				 regval2[i] = regval1[i];
+			regval2[i] = regval1[i];
 		}
 	}
 	debug = sav_debug;

@@ -160,7 +160,7 @@ static BRPORT_ATTR(hold_timer, S_IRUGO, show_hold_timer, NULL);
 
 static int store_flush(struct net_bridge_port *p, unsigned long v)
 {
-	br_fdb_delete_by_port(p->br, p, 0); // Don't delete local entry
+	br_fdb_delete_by_port(p->br, p, 0, 0); // Don't delete local entry
 	return 0;
 }
 static BRPORT_ATTR(flush, S_IWUSR, NULL, store_flush);

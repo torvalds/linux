@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/cpufeature.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
@@ -125,7 +126,7 @@ static int generate_entropy(u8 *ebuf, size_t nbytes)
 		/* fill page with urandom bytes */
 		get_random_bytes(pg, PAGE_SIZE);
 		/* exor page with stckf values */
-		for (n = 0; n < sizeof(PAGE_SIZE/sizeof(u64)); n++) {
+		for (n = 0; n < PAGE_SIZE / sizeof(u64); n++) {
 			u64 *p = ((u64 *)pg) + n;
 			*p ^= get_tod_clock_fast();
 		}
@@ -914,6 +915,5 @@ static void __exit prng_exit(void)
 	}
 }
 
-
-module_init(prng_init);
+module_cpu_feature_match(MSA, prng_init);
 module_exit(prng_exit);

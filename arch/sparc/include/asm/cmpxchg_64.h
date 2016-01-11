@@ -65,8 +65,6 @@ static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
 
 #include <asm-generic/cmpxchg-local.h>
 
-#define __HAVE_ARCH_CMPXCHG 1
-
 static inline unsigned long
 __cmpxchg_u32(volatile int *m, int old, int new)
 {

@@ -14,14 +14,15 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #define SUN9I_MMC_WIDTH		4
@@ -203,6 +204,7 @@ static const struct of_device_id sun9i_a80_mmc_config_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun9i-a80-mmc-config-clk" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun9i_a80_mmc_config_clk_dt_ids);
 
 static struct platform_driver sun9i_a80_mmc_config_clk_driver = {
 	.driver = {

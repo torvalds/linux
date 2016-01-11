@@ -1,104 +1,57 @@
 /*
- *	Intel CPU Microcode Update Driver for Linux
+ * CPU Microcode Update Driver for Linux
  *
- *	Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
- *		      2006	Shaohua Li <shaohua.li@intel.com>
+ * Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
+ *	      2006	Shaohua Li <shaohua.li@intel.com>
+ *	      2013-2015	Borislav Petkov <bp@alien8.de>
  *
- *	This driver allows to upgrade microcode on Intel processors
- *	belonging to IA-32 family - PentiumPro, Pentium II,
- *	Pentium III, Xeon, Pentium 4, etc.
+ * X86 CPU microcode early update for Linux:
  *
- *	Reference: Section 8.11 of Volume 3a, IA-32 Intel? Architecture
- *	Software Developer's Manual
- *	Order Number 253668 or free download from:
+ *	Copyright (C) 2012 Fenghua Yu <fenghua.yu@intel.com>
+ *			   H Peter Anvin" <hpa@zytor.com>
+ *		  (C) 2015 Borislav Petkov <bp@alien8.de>
  *
- *	http://developer.intel.com/Assets/PDF/manual/253668.pdf	
+ * This driver allows to upgrade microcode on x86 processors.
  *
- *	For more information, go to http://www.urbanmyth.org/microcode
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
- *	1.0	16 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Initial release.
- *	1.01	18 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Added read() support + cleanups.
- *	1.02	21 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Added 'device trimming' support. open(O_WRONLY) zeroes
- *		and frees the saved copy of applied microcode.
- *	1.03	29 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Made to use devfs (/dev/cpu/microcode) + cleanups.
- *	1.04	06 Jun 2000, Simon Trimmer <simon@veritas.com>
- *		Added misc device support (now uses both devfs and misc).
- *		Added MICROCODE_IOCFREE ioctl to clear memory.
- *	1.05	09 Jun 2000, Simon Trimmer <simon@veritas.com>
- *		Messages for error cases (non Intel & no suitable microcode).
- *	1.06	03 Aug 2000, Tigran Aivazian <tigran@veritas.com>
- *		Removed ->release(). Removed exclusive open and status bitmap.
- *		Added microcode_rwsem to serialize read()/write()/ioctl().
- *		Removed global kernel lock usage.
- *	1.07	07 Sep 2000, Tigran Aivazian <tigran@veritas.com>
- *		Write 0 to 0x8B msr and then cpuid before reading revision,
- *		so that it works even if there were no update done by the
- *		BIOS. Otherwise, reading from 0x8B gives junk (which happened
- *		to be 0 on my machine which is why it worked even when I
- *		disabled update by the BIOS)
- *		Thanks to Eric W. Biederman <ebiederman@lnxi.com> for the fix.
- *	1.08	11 Dec 2000, Richard Schaal <richard.schaal@intel.com> and
- *			     Tigran Aivazian <tigran@veritas.com>
- *		Intel Pentium 4 processor support and bugfixes.
- *	1.09	30 Oct 2001, Tigran Aivazian <tigran@veritas.com>
- *		Bugfix for HT (Hyper-Threading) enabled processors
- *		whereby processor resources are shared by all logical processors
- *		in a single CPU package.
- *	1.10	28 Feb 2002 Asit K Mallick <asit.k.mallick@intel.com> and
- *		Tigran Aivazian <tigran@veritas.com>,
- *		Serialize updates as required on HT processors due to
- *		speculative nature of implementation.
- *	1.11	22 Mar 2002 Tigran Aivazian <tigran@veritas.com>
- *		Fix the panic when writing zero-length microcode chunk.
- *	1.12	29 Sep 2003 Nitin Kamble <nitin.a.kamble@intel.com>,
- *		Jun Nakajima <jun.nakajima@intel.com>
- *		Support for the microcode updates in the new format.
- *	1.13	10 Oct 2003 Tigran Aivazian <tigran@veritas.com>
- *		Removed ->read() method and obsoleted MICROCODE_IOCFREE ioctl
- *		because we no longer hold a copy of applied microcode
- *		in kernel memory.
- *	1.14	25 Jun 2004 Tigran Aivazian <tigran@veritas.com>
- *		Fix sigmatch() macro to handle old CPUs with pf == 0.
- *		Thanks to Stuart Swales for pointing out this bug.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "microcode: " fmt
 
 #include <linux/platform_device.h>
+#include <linux/syscore_ops.h>
 #include <linux/miscdevice.h>
 #include <linux/capability.h>
+#include <linux/firmware.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/syscore_ops.h>
 
+#include <asm/microcode_intel.h>
+#include <asm/cpu_device_id.h>
+#include <asm/microcode_amd.h>
+#include <asm/perf_event.h>
 #include <asm/microcode.h>
 #include <asm/processor.h>
-#include <asm/cpu_device_id.h>
-#include <asm/perf_event.h>
+#include <asm/cmdline.h>
 
-MODULE_DESCRIPTION("Microcode Update Driver");
-MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
-MODULE_LICENSE("GPL");
-
-#define MICROCODE_VERSION	"2.00"
+#define MICROCODE_VERSION	"2.01"
 
 static struct microcode_ops	*microcode_ops;
 
-bool dis_ucode_ldr;
-module_param(dis_ucode_ldr, bool, 0);
+static bool dis_ucode_ldr;
+
+static int __init disable_loader(char *str)
+{
+	dis_ucode_ldr = true;
+	return 1;
+}
+__setup("dis_ucode_ldr", disable_loader);
 
 /*
  * Synchronization.
@@ -125,6 +78,150 @@ struct cpu_info_ctx {
 	struct cpu_signature	*cpu_sig;
 	int			err;
 };
+
+static bool __init check_loader_disabled_bsp(void)
+{
+#ifdef CONFIG_X86_32
+	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
+	const char *opt	    = "dis_ucode_ldr";
+	const char *option  = (const char *)__pa_nodebug(opt);
+	bool *res = (bool *)__pa_nodebug(&dis_ucode_ldr);
+
+#else /* CONFIG_X86_64 */
+	const char *cmdline = boot_command_line;
+	const char *option  = "dis_ucode_ldr";
+	bool *res = &dis_ucode_ldr;
+#endif
+
+	if (cmdline_find_option_bool(cmdline, option))
+		*res = true;
+
+	return *res;
+}
+
+extern struct builtin_fw __start_builtin_fw[];
+extern struct builtin_fw __end_builtin_fw[];
+
+bool get_builtin_firmware(struct cpio_data *cd, const char *name)
+{
+#ifdef CONFIG_FW_LOADER
+	struct builtin_fw *b_fw;
+
+	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
+		if (!strcmp(name, b_fw->name)) {
+			cd->size = b_fw->size;
+			cd->data = b_fw->data;
+			return true;
+		}
+	}
+#endif
+	return false;
+}
+
+void __init load_ucode_bsp(void)
+{
+	int vendor;
+	unsigned int family;
+
+	if (check_loader_disabled_bsp())
+		return;
+
+	if (!have_cpuid_p())
+		return;
+
+	vendor = x86_vendor();
+	family = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (family >= 6)
+			load_ucode_intel_bsp();
+		break;
+	case X86_VENDOR_AMD:
+		if (family >= 0x10)
+			load_ucode_amd_bsp(family);
+		break;
+	default:
+		break;
+	}
+}
+
+static bool check_loader_disabled_ap(void)
+{
+#ifdef CONFIG_X86_32
+	return *((bool *)__pa_nodebug(&dis_ucode_ldr));
+#else
+	return dis_ucode_ldr;
+#endif
+}
+
+void load_ucode_ap(void)
+{
+	int vendor, family;
+
+	if (check_loader_disabled_ap())
+		return;
+
+	if (!have_cpuid_p())
+		return;
+
+	vendor = x86_vendor();
+	family = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (family >= 6)
+			load_ucode_intel_ap();
+		break;
+	case X86_VENDOR_AMD:
+		if (family >= 0x10)
+			load_ucode_amd_ap();
+		break;
+	default:
+		break;
+	}
+}
+
+int __init save_microcode_in_initrd(void)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_INTEL:
+		if (c->x86 >= 6)
+			save_microcode_in_initrd_intel();
+		break;
+	case X86_VENDOR_AMD:
+		if (c->x86 >= 0x10)
+			save_microcode_in_initrd_amd();
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+void reload_early_microcode(void)
+{
+	int vendor, family;
+
+	vendor = x86_vendor();
+	family = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (family >= 6)
+			reload_ucode_intel();
+		break;
+	case X86_VENDOR_AMD:
+		if (family >= 0x10)
+			reload_ucode_amd();
+		break;
+	default:
+		break;
+	}
+}
 
 static void collect_cpu_info_local(void *arg)
 {
@@ -268,9 +365,6 @@ static void __exit microcode_dev_exit(void)
 {
 	misc_deregister(&microcode_dev);
 }
-
-MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
-MODULE_ALIAS("devname:cpu/microcode");
 #else
 #define microcode_dev_init()	0
 #define microcode_dev_exit()	do { } while (0)
@@ -435,17 +529,16 @@ static int mc_device_add(struct device *dev, struct subsys_interface *sif)
 	return err;
 }
 
-static int mc_device_remove(struct device *dev, struct subsys_interface *sif)
+static void mc_device_remove(struct device *dev, struct subsys_interface *sif)
 {
 	int cpu = dev->id;
 
 	if (!cpu_online(cpu))
-		return 0;
+		return;
 
 	pr_debug("CPU%d removed\n", cpu);
 	microcode_fini_cpu(cpu);
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
-	return 0;
 }
 
 static struct subsys_interface mc_cpu_interface = {
@@ -518,23 +611,9 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __refdata mc_cpu_notifier = {
+static struct notifier_block mc_cpu_notifier = {
 	.notifier_call	= mc_cpu_callback,
 };
-
-#ifdef MODULE
-/* Autoload on Intel and AMD systems */
-static const struct x86_cpu_id __initconst microcode_id[] = {
-#ifdef CONFIG_MICROCODE_INTEL
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, },
-#endif
-#ifdef CONFIG_MICROCODE_AMD
-	{ X86_VENDOR_AMD, X86_FAMILY_ANY, X86_MODEL_ANY, },
-#endif
-	{}
-};
-MODULE_DEVICE_TABLE(x86cpu, microcode_id);
-#endif
 
 static struct attribute *cpu_root_microcode_attrs[] = {
 	&dev_attr_reload.attr,
@@ -546,9 +625,9 @@ static struct attribute_group cpu_root_microcode_group = {
 	.attrs = cpu_root_microcode_attrs,
 };
 
-static int __init microcode_init(void)
+int __init microcode_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int error;
 
 	if (paravirt_enabled() || dis_ucode_ldr)
@@ -619,35 +698,4 @@ static int __init microcode_init(void)
 	return error;
 
 }
-module_init(microcode_init);
-
-static void __exit microcode_exit(void)
-{
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	microcode_dev_exit();
-
-	unregister_hotcpu_notifier(&mc_cpu_notifier);
-	unregister_syscore_ops(&mc_syscore_ops);
-
-	sysfs_remove_group(&cpu_subsys.dev_root->kobj,
-			   &cpu_root_microcode_group);
-
-	get_online_cpus();
-	mutex_lock(&microcode_mutex);
-
-	subsys_interface_unregister(&mc_cpu_interface);
-
-	mutex_unlock(&microcode_mutex);
-	put_online_cpus();
-
-	platform_device_unregister(microcode_pdev);
-
-	microcode_ops = NULL;
-
-	if (c->x86_vendor == X86_VENDOR_AMD)
-		exit_amd_microcode();
-
-	pr_info("Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
-}
-module_exit(microcode_exit);
+late_initcall(microcode_init);

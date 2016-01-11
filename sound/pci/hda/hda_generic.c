@@ -671,7 +671,8 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 		}
 		for (i = 0; i < path->depth; i++) {
 			if (path->path[i] == nid) {
-				if (dir == HDA_OUTPUT || path->idx[i] == idx)
+				if (dir == HDA_OUTPUT || idx == -1 ||
+				    path->idx[i] == idx)
 					return true;
 				break;
 			}
@@ -682,7 +683,7 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 
 /* check whether the NID is referred by any active paths */
 #define is_active_nid_for_any(codec, nid) \
-	is_active_nid(codec, nid, HDA_OUTPUT, 0)
+	is_active_nid(codec, nid, HDA_OUTPUT, -1)
 
 /* get the default amp value for the target state */
 static int get_amp_val_to_activate(struct hda_codec *codec, hda_nid_t nid,
@@ -844,8 +845,16 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
+			/* all known codecs seem to be capable to handl
+			 * widgets state even in D3, so far.
+			 * if any new codecs need to restore the widget
+			 * states after D0 transition, call the function
+			 * below.
+			 */
+#if 0 /* disabled */
 			if (state == AC_PWRST_D0)
 				snd_hdac_regmap_sync_node(&codec->core, nid);
+#endif
 		}
 	}
 	return changed;
@@ -875,8 +884,7 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
 
-	if (!enable)
-		path->active = false;
+	path->active = enable;
 
 	/* make sure the widget is powered up */
 	if (enable && (spec->power_down_unused || codec->power_save_node))
@@ -894,9 +902,6 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		if (has_amp_out(codec, path, i))
 			activate_amp_out(codec, path, i, enable);
 	}
-
-	if (enable)
-		path->active = true;
 }
 EXPORT_SYMBOL_GPL(snd_hda_activate_path);
 
@@ -4918,9 +4923,12 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused || codec->power_save_node)
+	if (spec->power_down_unused || codec->power_save_node) {
 		if (!codec->power_filter)
 			codec->power_filter = snd_hda_gen_path_power_filter;
+		if (!codec->patch_ops.stream_pm)
+			codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;
+	}
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
@@ -5164,7 +5172,7 @@ static int alt_playback_pcm_open(struct hda_pcm_stream *hinfo,
 	int err = 0;
 
 	mutex_lock(&spec->pcm_mutex);
-	if (!spec->indep_hp_enabled)
+	if (spec->indep_hp && !spec->indep_hp_enabled)
 		err = -EBUSY;
 	else
 		spec->active_streams |= 1 << STREAM_INDEP_HP;
@@ -5869,13 +5877,14 @@ error:
 	return err;
 }
 
-static const struct hda_codec_preset snd_hda_preset_generic[] = {
-	{ .id = HDA_CODEC_ID_GENERIC, .patch = snd_hda_parse_generic_codec },
+static const struct hda_device_id snd_hda_id_generic[] = {
+	HDA_CODEC_ENTRY(HDA_CODEC_ID_GENERIC, "Generic", snd_hda_parse_generic_codec),
 	{} /* terminator */
 };
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_generic);
 
 static struct hda_codec_driver generic_driver = {
-	.preset = snd_hda_preset_generic,
+	.id = snd_hda_id_generic,
 };
 
 module_hda_codec_driver(generic_driver);

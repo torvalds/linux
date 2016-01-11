@@ -112,8 +112,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	int				rndis;
 	bool				android_rndis_quirk = false;
 	struct usb_driver		*driver = driver_of(intf);
-	struct usb_cdc_mdlm_desc	*desc = NULL;
-	struct usb_cdc_mdlm_detail_desc *detail = NULL;
+	struct usb_cdc_parsed_header header;
 
 	if (sizeof(dev->data) < sizeof(*info))
 		return -EDOM;
@@ -155,155 +154,88 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	memset(info, 0, sizeof(*info));
 	info->control = intf;
-	while (len > 3) {
-		if (buf[1] != USB_DT_CS_INTERFACE)
-			goto next_desc;
 
-		/* use bDescriptorSubType to identify the CDC descriptors.
-		 * We expect devices with CDC header and union descriptors.
-		 * For CDC Ethernet we need the ethernet descriptor.
-		 * For RNDIS, ignore two (pointless) CDC modem descriptors
-		 * in favor of a complicated OID-based RPC scheme doing what
-		 * CDC Ethernet achieves with a simple descriptor.
-		 */
-		switch (buf[2]) {
-		case USB_CDC_HEADER_TYPE:
-			if (info->header) {
-				dev_dbg(&intf->dev, "extra CDC header\n");
-				goto bad_desc;
-			}
-			info->header = (void *) buf;
-			if (info->header->bLength != sizeof(*info->header)) {
-				dev_dbg(&intf->dev, "CDC header len %u\n",
-					info->header->bLength);
-				goto bad_desc;
-			}
-			break;
-		case USB_CDC_ACM_TYPE:
-			/* paranoia:  disambiguate a "real" vendor-specific
-			 * modem interface from an RNDIS non-modem.
-			 */
-			if (rndis) {
-				struct usb_cdc_acm_descriptor *acm;
+	cdc_parse_cdc_header(&header, intf, buf, len);
 
-				acm = (void *) buf;
-				if (acm->bmCapabilities) {
-					dev_dbg(&intf->dev,
-						"ACM capabilities %02x, "
-						"not really RNDIS?\n",
-						acm->bmCapabilities);
-					goto bad_desc;
-				}
-			}
-			break;
-		case USB_CDC_UNION_TYPE:
-			if (info->u) {
-				dev_dbg(&intf->dev, "extra CDC union\n");
-				goto bad_desc;
-			}
-			info->u = (void *) buf;
-			if (info->u->bLength != sizeof(*info->u)) {
-				dev_dbg(&intf->dev, "CDC union len %u\n",
-					info->u->bLength);
-				goto bad_desc;
-			}
-
-			/* we need a master/control interface (what we're
-			 * probed with) and a slave/data interface; union
-			 * descriptors sort this all out.
-			 */
-			info->control = usb_ifnum_to_if(dev->udev,
-						info->u->bMasterInterface0);
-			info->data = usb_ifnum_to_if(dev->udev,
-						info->u->bSlaveInterface0);
-			if (!info->control || !info->data) {
-				dev_dbg(&intf->dev,
-					"master #%u/%p slave #%u/%p\n",
-					info->u->bMasterInterface0,
-					info->control,
-					info->u->bSlaveInterface0,
-					info->data);
-				/* fall back to hard-wiring for RNDIS */
-				if (rndis) {
-					android_rndis_quirk = true;
-					goto next_desc;
-				}
-				goto bad_desc;
-			}
-			if (info->control != intf) {
-				dev_dbg(&intf->dev, "bogus CDC Union\n");
-				/* Ambit USB Cable Modem (and maybe others)
-				 * interchanges master and slave interface.
-				 */
-				if (info->data == intf) {
-					info->data = info->control;
-					info->control = intf;
-				} else
-					goto bad_desc;
-			}
-
-			/* some devices merge these - skip class check */
-			if (info->control == info->data)
-				goto next_desc;
-
-			/* a data interface altsetting does the real i/o */
-			d = &info->data->cur_altsetting->desc;
-			if (d->bInterfaceClass != USB_CLASS_CDC_DATA) {
-				dev_dbg(&intf->dev, "slave class %u\n",
-					d->bInterfaceClass);
-				goto bad_desc;
-			}
-			break;
-		case USB_CDC_ETHERNET_TYPE:
-			if (info->ether) {
-				dev_dbg(&intf->dev, "extra CDC ether\n");
-				goto bad_desc;
-			}
-			info->ether = (void *) buf;
-			if (info->ether->bLength != sizeof(*info->ether)) {
-				dev_dbg(&intf->dev, "CDC ether len %u\n",
-					info->ether->bLength);
-				goto bad_desc;
-			}
-			dev->hard_mtu = le16_to_cpu(
-						info->ether->wMaxSegmentSize);
-			/* because of Zaurus, we may be ignoring the host
-			 * side link address we were given.
-			 */
-			break;
-		case USB_CDC_MDLM_TYPE:
-			if (desc) {
-				dev_dbg(&intf->dev, "extra MDLM descriptor\n");
-				goto bad_desc;
-			}
-
-			desc = (void *)buf;
-
-			if (desc->bLength != sizeof(*desc))
-				goto bad_desc;
-
-			if (memcmp(&desc->bGUID, mbm_guid, 16))
-				goto bad_desc;
-			break;
-		case USB_CDC_MDLM_DETAIL_TYPE:
-			if (detail) {
-				dev_dbg(&intf->dev, "extra MDLM detail descriptor\n");
-				goto bad_desc;
-			}
-
-			detail = (void *)buf;
-
-			if (detail->bGuidDescriptorType == 0) {
-				if (detail->bLength < (sizeof(*detail) + 1))
-					goto bad_desc;
-			} else
-				goto bad_desc;
-			break;
+	info->u = header.usb_cdc_union_desc;
+	info->header = header.usb_cdc_header_desc;
+	info->ether = header.usb_cdc_ether_desc;
+	/* we need a master/control interface (what we're
+	 * probed with) and a slave/data interface; union
+	 * descriptors sort this all out.
+	 */
+	info->control = usb_ifnum_to_if(dev->udev,
+	info->u->bMasterInterface0);
+	info->data = usb_ifnum_to_if(dev->udev,
+		info->u->bSlaveInterface0);
+	if (!info->control || !info->data) {
+		dev_dbg(&intf->dev,
+			"master #%u/%p slave #%u/%p\n",
+			info->u->bMasterInterface0,
+			info->control,
+			info->u->bSlaveInterface0,
+			info->data);
+		/* fall back to hard-wiring for RNDIS */
+		if (rndis) {
+			android_rndis_quirk = true;
+			goto skip;
 		}
-next_desc:
-		len -= buf[0];	/* bLength */
-		buf += buf[0];
+		goto bad_desc;
 	}
+	if (info->control != intf) {
+		dev_dbg(&intf->dev, "bogus CDC Union\n");
+		/* Ambit USB Cable Modem (and maybe others)
+		 * interchanges master and slave interface.
+		 */
+		if (info->data == intf) {
+			info->data = info->control;
+			info->control = intf;
+		} else
+			goto bad_desc;
+	}
+
+	/* some devices merge these - skip class check */
+	if (info->control == info->data)
+		goto skip;
+
+	/* a data interface altsetting does the real i/o */
+	d = &info->data->cur_altsetting->desc;
+	if (d->bInterfaceClass != USB_CLASS_CDC_DATA) {
+		dev_dbg(&intf->dev, "slave class %u\n",
+			d->bInterfaceClass);
+		goto bad_desc;
+	}
+skip:
+	if (	rndis &&
+		header.usb_cdc_acm_descriptor &&
+		header.usb_cdc_acm_descriptor->bmCapabilities) {
+			dev_dbg(&intf->dev,
+				"ACM capabilities %02x, not really RNDIS?\n",
+				header.usb_cdc_acm_descriptor->bmCapabilities);
+			goto bad_desc;
+	}
+
+	if (header.usb_cdc_ether_desc) {
+		dev->hard_mtu = le16_to_cpu(info->ether->wMaxSegmentSize);
+		/* because of Zaurus, we may be ignoring the host
+		 * side link address we were given.
+		 */
+	}
+
+	if (header.usb_cdc_mdlm_desc &&
+		memcmp(header.usb_cdc_mdlm_desc->bGUID, mbm_guid, 16)) {
+		dev_dbg(&intf->dev, "GUID doesn't match\n");
+		goto bad_desc;
+	}
+
+	if (header.usb_cdc_mdlm_detail_desc &&
+		header.usb_cdc_mdlm_detail_desc->bLength <
+			(sizeof(struct usb_cdc_mdlm_detail_desc) + 1)) {
+		dev_dbg(&intf->dev, "Descriptor too short\n");
+		goto bad_desc;
+	}
+
+
 
 	/* Microsoft ActiveSync based and some regular RNDIS devices lack the
 	 * CDC descriptors, so we'll hard-wire the interfaces and not check
@@ -523,6 +455,7 @@ static const struct driver_info wwan_info = {
 #define REALTEK_VENDOR_ID	0x0bda
 #define SAMSUNG_VENDOR_ID	0x04e8
 #define LENOVO_VENDOR_ID	0x17ef
+#define NVIDIA_VENDOR_ID	0x0955
 
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
@@ -710,6 +643,13 @@ static const struct usb_device_id	products[] = {
 	.driver_info = 0,
 },
 
+/* NVIDIA Tegra USB 3.0 Ethernet Adapters (based on Realtek RTL8153) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(NVIDIA_VENDOR_ID, 0x09ff, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
 /* WHITELIST!!!
  *
  * CDC Ether uses two interfaces, not necessarily consecutive.
@@ -755,6 +695,11 @@ static const struct usb_device_id	products[] = {
 	USB_VENDOR_AND_INTERFACE_INFO(0x1bc7, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = (kernel_ulong_t) &wwan_info,
+}, {
+	/* Dell DW5580 modules */
+	USB_DEVICE_AND_INTERFACE_INFO(DELL_VENDOR_ID, 0x81ba, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = (kernel_ulong_t)&wwan_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),

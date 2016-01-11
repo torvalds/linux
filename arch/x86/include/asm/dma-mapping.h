@@ -12,7 +12,6 @@
 #include <linux/dma-attrs.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
-#include <asm-generic/dma-coherent.h>
 #include <linux/dma-contiguous.h>
 
 #ifdef CONFIG_ISA
@@ -41,24 +40,13 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 #endif
 }
 
-#include <asm-generic/dma-mapping-common.h>
+bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp);
+#define arch_dma_alloc_attrs arch_dma_alloc_attrs
 
-/* Make sure we keep the same behaviour */
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	debug_dma_mapping_error(dev, dma_addr);
-	if (ops->mapping_error)
-		return ops->mapping_error(dev, dma_addr);
-
-	return (dma_addr == DMA_ERROR_CODE);
-}
-
-#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
-#define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
-
+#define HAVE_ARCH_DMA_SUPPORTED 1
 extern int dma_supported(struct device *hwdev, u64 mask);
-extern int dma_set_mask(struct device *dev, u64 mask);
+
+#include <asm-generic/dma-mapping-common.h>
 
 extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 					dma_addr_t *dma_addr, gfp_t flag,
@@ -123,54 +111,6 @@ static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
 		gfp |= GFP_DMA32;
 #endif
        return gfp;
-}
-
-#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-
-static inline void *
-dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *memory;
-
-	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
-
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
-		return memory;
-
-	if (!dev)
-		dev = &x86_dma_fallback_dev;
-
-	if (!is_device_dma_capable(dev))
-		return NULL;
-
-	if (!ops->alloc)
-		return NULL;
-
-	memory = ops->alloc(dev, size, dma_handle,
-			    dma_alloc_coherent_gfp_flags(dev, gfp), attrs);
-	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
-
-	return memory;
-}
-
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *vaddr, dma_addr_t bus,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	WARN_ON(irqs_disabled());       /* for portability */
-
-	if (dma_release_from_coherent(dev, get_order(size), vaddr))
-		return;
-
-	debug_dma_free_coherent(dev, size, vaddr, bus);
-	if (ops->free)
-		ops->free(dev, size, vaddr, bus, attrs);
 }
 
 #endif

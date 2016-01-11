@@ -50,7 +50,9 @@
 #define CP0_PAGEMASK $5
 #define CP0_WIRED $6
 #define CP0_INFO $7
+#define CP0_HWRENA $7, 0
 #define CP0_BADVADDR $8
+#define CP0_BADINSTR $8, 1
 #define CP0_COUNT $9
 #define CP0_ENTRYHI $10
 #define CP0_COMPARE $11
@@ -58,7 +60,11 @@
 #define CP0_CAUSE $13
 #define CP0_EPC $14
 #define CP0_PRID $15
+#define CP0_EBASE $15, 1
+#define CP0_CMGCRBASE $15, 3
 #define CP0_CONFIG $16
+#define CP0_CONFIG3 $16, 3
+#define CP0_CONFIG5 $16, 5
 #define CP0_LLADDR $17
 #define CP0_WATCHLO $18
 #define CP0_WATCHHI $19
@@ -111,6 +117,24 @@
  */
 #define CP0_TX39_CACHE	$7
 
+
+/* Generic EntryLo bit definitions */
+#define ENTRYLO_G		(_ULCAST_(1) << 0)
+#define ENTRYLO_V		(_ULCAST_(1) << 1)
+#define ENTRYLO_D		(_ULCAST_(1) << 2)
+#define ENTRYLO_C_SHIFT		3
+#define ENTRYLO_C		(_ULCAST_(7) << ENTRYLO_C_SHIFT)
+
+/* R3000 EntryLo bit definitions */
+#define R3K_ENTRYLO_G		(_ULCAST_(1) << 8)
+#define R3K_ENTRYLO_V		(_ULCAST_(1) << 9)
+#define R3K_ENTRYLO_D		(_ULCAST_(1) << 10)
+#define R3K_ENTRYLO_N		(_ULCAST_(1) << 11)
+
+/* MIPS32/64 EntryLo bit definitions */
+#define MIPS_ENTRYLO_PFN_SHIFT	6
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << (BITS_PER_LONG - 2))
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << (BITS_PER_LONG - 1))
 
 /*
  * Values for PageMask register
@@ -202,6 +226,9 @@
 #define PG_ELPA		(_ULCAST_(1) <<	 29)
 #define PG_ESP		(_ULCAST_(1) <<	 28)
 #define PG_IEC		(_ULCAST_(1) <<  27)
+
+/* MIPS32/64 EntryHI bit definitions */
+#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
 /*
  * R4x00 interrupt enable / cause bits
@@ -460,6 +487,8 @@
 
 /* Bits specific to the MIPS32/64 PRA.	*/
 #define MIPS_CONF_MT		(_ULCAST_(7) <<	 7)
+#define MIPS_CONF_MT_TLB	(_ULCAST_(1) <<  7)
+#define MIPS_CONF_MT_FTLB	(_ULCAST_(4) <<  7)
 #define MIPS_CONF_AR		(_ULCAST_(7) << 10)
 #define MIPS_CONF_AT		(_ULCAST_(3) << 13)
 #define MIPS_CONF_M		(_ULCAST_(1) << 31)
@@ -579,15 +608,14 @@
 
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+/* FTLB probability bits for R6 */
+#define MIPS_CONF7_FTLBP_SHIFT	(18)
 
 /* MAAR bit definitions */
 #define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
 #define MIPS_MAAR_ADDR_SHIFT	12
 #define MIPS_MAAR_S		(_ULCAST_(1) << 1)
 #define MIPS_MAAR_V		(_ULCAST_(1) << 0)
-
-/*  EntryHI bit definition */
-#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
 /* CMGCRBase bit definitions */
 #define MIPS_CMGCRB_BASE	11
@@ -685,6 +713,15 @@
 #define TX39_CONF_DRSIZE_SHIFT	0
 #define TX39_CONF_DRSIZE_MASK	0x00000003
 
+/*
+ * Interesting Bits in the R10K CP0 Branch Diagnostic Register
+ */
+/* Disable Branch Target Address Cache */
+#define R10K_DIAG_D_BTAC	(_ULCAST_(1) << 27)
+/* Enable Branch Prediction Global History */
+#define R10K_DIAG_E_GHIST	(_ULCAST_(1) << 26)
+/* Disable Branch Return Cache */
+#define R10K_DIAG_D_BRC		(_ULCAST_(1) << 22)
 
 /*
  * Coprocessor 1 (FPU) register names
@@ -901,7 +938,7 @@ do {								\
  */
 
 #define __read_32bit_c0_register(source, sel)				\
-({ int __res;								\
+({ unsigned int __res;							\
 	if (sel == 0)							\
 		__asm__ __volatile__(					\
 			"mfc0\t%0, " #source "\n\t"			\
@@ -983,7 +1020,7 @@ do {									\
  * On RM7000/RM9000 these are uses to access cop0 set 1 registers
  */
 #define __read_32bit_c0_ctrl_register(source)				\
-({ int __res;								\
+({ unsigned int __res;							\
 	__asm__ __volatile__(						\
 		"cfc0\t%0, " #source "\n\t"				\
 		: "=r" (__res));					\
@@ -1247,6 +1284,10 @@ do {									\
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
 
+/* R10K CP0 Branch Diagnostic register is 64bits wide */
+#define read_c0_r10k_diag()	__read_64bit_c0_register($22, 0)
+#define write_c0_r10k_diag(val)	__write_64bit_c0_register($22, 0, val)
+
 #define read_c0_diag1()		__read_32bit_c0_register($22, 1)
 #define write_c0_diag1(val)	__write_32bit_c0_register($22, 1, val)
 
@@ -1436,7 +1477,7 @@ do {									\
  */
 #define _read_32bit_cp1_register(source, gas_hardfloat)			\
 ({									\
-	int __res;							\
+	unsigned int __res;						\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\

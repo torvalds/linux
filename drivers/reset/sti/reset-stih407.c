@@ -11,7 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <dt-bindings/reset-controller/stih407-resets.h>
+#include <dt-bindings/reset/stih407-resets.h>
 #include "reset-syscfg.h"
 
 /* STiH407 Peripheral powerdown definitions. */
@@ -126,7 +126,7 @@ static const struct syscfg_reset_controller_data stih407_picophyreset_controller
 	.channels = stih407_picophyresets,
 };
 
-static struct of_device_id stih407_reset_match[] = {
+static const struct of_device_id stih407_reset_match[] = {
 	{
 		.compatible = "st,stih407-powerdown",
 		.data = &stih407_powerdown_controller,

@@ -44,23 +44,9 @@ config HOSTFS
           If you'd like to be able to work with files stored on the host,
           say Y or M here; otherwise say N.
 
-config HPPFS
-	tristate "HoneyPot ProcFS"
-	depends on PROC_FS
-	help
-	  hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
-	  entries to be overridden, removed, or fabricated from the host.
-	  Its purpose is to allow a UML to appear to be a physical machine
-	  by removing or changing anything in /proc which gives away the
-	  identity of a UML.
-
-	  See <http://user-mode-linux.sf.net/old/hppfs.html> for more information.
-
-	  You only need this if you are setting up a UML honeypot.  Otherwise,
-	  it is safe to say 'N' here.
-
 config MCONSOLE
 	bool "Management console"
+	depends on PROC_FS
 	default y
 	help
           The user mode linux management console is a low-level interface to

@@ -41,23 +41,6 @@ static __u16 const msstab[] = {
 	9000 - 60,
 };
 
-static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
-					   struct request_sock *req,
-					   struct dst_entry *dst)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct sock *child;
-
-	child = icsk->icsk_af_ops->syn_recv_sock(sk, skb, req, dst);
-	if (child) {
-		atomic_set(&req->rsk_refcnt, 1);
-		inet_csk_reqsk_queue_add(sk, req, child);
-	} else {
-		reqsk_free(req);
-	}
-	return child;
-}
-
 static DEFINE_PER_CPU(__u32 [16 + 5 + SHA_WORKSPACE_WORDS],
 		      ipv6_cookie_scratch);
 
@@ -131,13 +114,10 @@ u32 __cookie_v6_init_sequence(const struct ipv6hdr *iph,
 }
 EXPORT_SYMBOL_GPL(__cookie_v6_init_sequence);
 
-__u32 cookie_v6_init_sequence(struct sock *sk, const struct sk_buff *skb, __u16 *mssp)
+__u32 cookie_v6_init_sequence(const struct sk_buff *skb, __u16 *mssp)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	const struct tcphdr *th = tcp_hdr(skb);
-
-	tcp_synq_overflow(sk);
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
 
 	return __cookie_v6_init_sequence(iph, th, mssp);
 }
@@ -190,7 +170,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	ret = NULL;
-	req = inet_reqsk_alloc(&tcp6_request_sock_ops, sk);
+	req = inet_reqsk_alloc(&tcp6_request_sock_ops, sk, false);
 	if (!req)
 		goto out;
 
@@ -227,7 +207,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq->wscale_ok		= tcp_opt.wscale_ok;
 	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
 	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
-	treq->snt_synack	= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsecr : 0;
+	treq->snt_synack.v64	= 0;
 	treq->rcv_isn = ntohl(th->seq) - 1;
 	treq->snt_isn = cookie;
 
@@ -242,7 +222,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_proto = IPPROTO_TCP;
 		fl6.daddr = ireq->ir_v6_rmt_addr;
-		final_p = fl6_update_dst(&fl6, np->opt, &final);
+		final_p = fl6_update_dst(&fl6, rcu_dereference(np->opt), &final);
 		fl6.saddr = ireq->ir_v6_loc_addr;
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 		fl6.flowi6_mark = ireq->ir_mark;
@@ -255,16 +235,16 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 			goto out_free;
 	}
 
-	req->window_clamp = tp->window_clamp ? :dst_metric(dst, RTAX_WINDOW);
+	req->rsk_window_clamp = tp->window_clamp ? :dst_metric(dst, RTAX_WINDOW);
 	tcp_select_initial_window(tcp_full_space(sk), req->mss,
-				  &req->rcv_wnd, &req->window_clamp,
+				  &req->rsk_rcv_wnd, &req->rsk_window_clamp,
 				  ireq->wscale_ok, &rcv_wscale,
 				  dst_metric(dst, RTAX_INITRWND));
 
 	ireq->rcv_wscale = rcv_wscale;
 	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk), dst);
 
-	ret = get_cookie_sock(sk, skb, req, dst);
+	ret = tcp_get_cookie_sock(sk, skb, req, dst);
 out:
 	return ret;
 out_free:

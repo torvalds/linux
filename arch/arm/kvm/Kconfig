@@ -21,6 +21,7 @@ config KVM
 	depends on MMU && OF
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+	select ARM_GIC
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select HAVE_KVM_ARCH_TLB_FLUSH_ALL
 	select KVM_MMIO
@@ -28,6 +29,7 @@ config KVM
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select SRCU
 	select MMU_NOTIFIER
+	select KVM_VFIO
 	select HAVE_KVM_EVENTFD
 	select HAVE_KVM_IRQFD
 	depends on ARM_VIRT_EXT && ARM_LPAE && ARM_ARCH_TIMER
@@ -44,15 +46,6 @@ config KVM_ARM_HOST
 	---help---
 	  Provides host support for ARM processors.
 
-config KVM_ARM_MAX_VCPUS
-	int "Number maximum supported virtual CPUs per VM"
-	depends on KVM_ARM_HOST
-	default 4
-	help
-	  Static number of max supported virtual CPUs per VM.
-
-	  If you choose a high number, the vcpu structures will be quite
-	  large, so only choose a reasonable number that you expect to
-	  actually use.
+source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

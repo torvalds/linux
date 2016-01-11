@@ -362,18 +362,15 @@ fail:
 
 int dlm_device_deregister(struct dlm_ls *ls)
 {
-	int error;
-
 	/* The device is not registered.  This happens when the lockspace
 	   was never used from userspace, or when device_create_lockspace()
 	   calls dlm_release_lockspace() after the register fails. */
 	if (!ls->ls_device.name)
 		return 0;
 
-	error = misc_deregister(&ls->ls_device);
-	if (!error)
-		kfree(ls->ls_device.name);
-	return error;
+	misc_deregister(&ls->ls_device);
+	kfree(ls->ls_device.name);
+	return 0;
 }
 
 static int device_user_purge(struct dlm_user_proc *proc,
@@ -785,6 +782,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	DECLARE_WAITQUEUE(wait, current);
 	struct dlm_callback cb;
 	int rv, resid, copy_lvb = 0;
+	int old_mode, new_mode;
 
 	if (count == sizeof(struct dlm_device_version)) {
 		rv = copy_version_to_user(buf, count);
@@ -841,6 +839,9 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 
 	lkb = list_entry(proc->asts.next, struct dlm_lkb, lkb_cb_list);
 
+	/* rem_lkb_callback sets a new lkb_last_cast */
+	old_mode = lkb->lkb_last_cast.mode;
+
 	rv = dlm_rem_lkb_callback(lkb->lkb_resource->res_ls, lkb, &cb, &resid);
 	if (rv < 0) {
 		/* this shouldn't happen; lkb should have been removed from
@@ -864,9 +865,6 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	}
 
 	if (cb.flags & DLM_CB_CAST) {
-		int old_mode, new_mode;
-
-		old_mode = lkb->lkb_last_cast.mode;
 		new_mode = cb.mode;
 
 		if (!cb.sb_status && lkb->lkb_lksb->sb_lvbptr &&

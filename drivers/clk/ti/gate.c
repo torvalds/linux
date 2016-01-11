@@ -62,7 +62,7 @@ static const struct clk_ops omap_gate_clk_hsdiv_restore_ops = {
  * (Any other value different from the Read value) to the
  * corresponding CM_CLKSEL register will refresh the dividers.
  */
-static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *clk)
+static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *hw)
 {
 	struct clk_divider *parent;
 	struct clk_hw *parent_hw;
@@ -70,10 +70,10 @@ static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *clk)
 	int ret;
 
 	/* Clear PWRDN bit of HSDIVIDER */
-	ret = omap2_dflt_clk_enable(clk);
+	ret = omap2_dflt_clk_enable(hw);
 
 	/* Parent is the x2 node, get parent of parent for the m2 div */
-	parent_hw = __clk_get_hw(__clk_get_parent(__clk_get_parent(clk->clk)));
+	parent_hw = clk_hw_get_parent(clk_hw_get_parent(hw));
 	parent = to_clk_divider(parent_hw);
 
 	/* Restore the dividers */

@@ -189,7 +189,7 @@ void rxrpc_put_transport(struct rxrpc_transport *trans)
 
 	ASSERTCMP(atomic_read(&trans->usage), >, 0);
 
-	trans->put_time = get_seconds();
+	trans->put_time = ktime_get_seconds();
 	if (unlikely(atomic_dec_and_test(&trans->usage))) {
 		_debug("zombie");
 		/* let the reaper determine the timeout to avoid a race with
@@ -226,7 +226,7 @@ static void rxrpc_transport_reaper(struct work_struct *work)
 
 	_enter("");
 
-	now = get_seconds();
+	now = ktime_get_seconds();
 	earliest = ULONG_MAX;
 
 	/* extract all the transports that have been dead too long */

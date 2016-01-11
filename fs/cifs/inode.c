@@ -373,8 +373,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* could have done a find first instead but this returns more info */
 	rc = CIFSSMBUnixQPathInfo(xid, tcon, full_path, &find_data,
-				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+				  cifs_sb->local_nls, cifs_remap(cifs_sb));
 	cifs_put_tlink(tlink);
 
 	if (!rc) {
@@ -402,9 +401,25 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			rc = -ENOMEM;
 	} else {
 		/* we already have inode, update it */
+
+		/* if uniqueid is different, return error */
+		if (unlikely(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM &&
+		    CIFS_I(*pinode)->uniqueid != fattr.cf_uniqueid)) {
+			rc = -ESTALE;
+			goto cgiiu_exit;
+		}
+
+		/* if filetype is different, return error */
+		if (unlikely(((*pinode)->i_mode & S_IFMT) !=
+		    (fattr.cf_mode & S_IFMT))) {
+			rc = -ESTALE;
+			goto cgiiu_exit;
+		}
+
 		cifs_fattr_to_inode(*pinode, &fattr);
 	}
 
+cgiiu_exit:
 	return rc;
 }
 
@@ -839,6 +854,15 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 		if (!*inode)
 			rc = -ENOMEM;
 	} else {
+		/* we already have inode, update it */
+
+		/* if filetype is different, return error */
+		if (unlikely(((*inode)->i_mode & S_IFMT) !=
+		    (fattr.cf_mode & S_IFMT))) {
+			rc = -ESTALE;
+			goto cgii_exit;
+		}
+
 		cifs_fattr_to_inode(*inode, &fattr);
 	}
 
@@ -1807,11 +1831,11 @@ cifs_invalidate_mapping(struct inode *inode)
  * @word: long word containing the bit lock
  */
 static int
-cifs_wait_bit_killable(struct wait_bit_key *key)
+cifs_wait_bit_killable(struct wait_bit_key *key, int mode)
 {
-	if (fatal_signal_pending(current))
-		return -ERESTARTSYS;
 	freezable_schedule_unsafe();
+	if (signal_pending_state(mode, current))
+		return -ERESTARTSYS;
 	return 0;
 }
 
@@ -2010,7 +2034,6 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon = NULL;
 	struct TCP_Server_Info *server;
-	struct cifs_io_parms io_parms;
 
 	/*
 	 * To avoid spurious oplock breaks from server, in the case of
@@ -2032,18 +2055,6 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 			rc = -ENOSYS;
 		cifsFileInfo_put(open_file);
 		cifs_dbg(FYI, "SetFSize for attrs rc = %d\n", rc);
-		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-			unsigned int bytes_written;
-
-			io_parms.netfid = open_file->fid.netfid;
-			io_parms.pid = open_file->pid;
-			io_parms.tcon = tcon;
-			io_parms.offset = 0;
-			io_parms.length = attrs->ia_size;
-			rc = CIFSSMBWrite(xid, &io_parms, &bytes_written,
-					  NULL, NULL, 1);
-			cifs_dbg(FYI, "Wrt seteof rc %d\n", rc);
-		}
 	} else
 		rc = -EINVAL;
 
@@ -2069,28 +2080,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	else
 		rc = -ENOSYS;
 	cifs_dbg(FYI, "SetEOF by path (setattrs) rc = %d\n", rc);
-	if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-		__u16 netfid;
-		int oplock = 0;
 
-		rc = SMBLegacyOpen(xid, tcon, full_path, FILE_OPEN,
-				   GENERIC_WRITE, CREATE_NOT_DIR, &netfid,
-				   &oplock, NULL, cifs_sb->local_nls,
-				   cifs_remap(cifs_sb));
-		if (rc == 0) {
-			unsigned int bytes_written;
-
-			io_parms.netfid = netfid;
-			io_parms.pid = current->tgid;
-			io_parms.tcon = tcon;
-			io_parms.offset = 0;
-			io_parms.length = attrs->ia_size;
-			rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, NULL,
-					  NULL,  1);
-			cifs_dbg(FYI, "wrt seteof rc %d\n", rc);
-			CIFSSMBClose(xid, tcon, netfid);
-		}
-	}
 	if (tlink)
 		cifs_put_tlink(tlink);
 
@@ -2215,8 +2205,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		pTcon = tlink_tcon(tlink);
 		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
 				    cifs_sb->local_nls,
-				    cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+				    cifs_remap(cifs_sb));
 		cifs_put_tlink(tlink);
 	}
 

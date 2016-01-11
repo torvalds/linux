@@ -1,7 +1,7 @@
 /*
  * Digital Beep Input Interface for HD-audio codec
  *
- * Author: Matthew Ranostay <mranostay@embeddedalley.com>
+ * Author: Matt Ranostay <mranostay@gmail.com>
  * Copyright (c) 2008 Embedded Alley Solutions Inc
  *
  *  This driver is free software; you can redistribute it and/or modify

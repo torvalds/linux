@@ -388,8 +388,13 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
  */
 void gfs2_dir_hash_inval(struct gfs2_inode *ip)
 {
-	__be64 *hc = ip->i_hash_cache;
+	__be64 *hc;
+
+	spin_lock(&ip->i_inode.i_lock);
+	hc = ip->i_hash_cache;
 	ip->i_hash_cache = NULL;
+	spin_unlock(&ip->i_inode.i_lock);
+
 	kvfree(hc);
 }
 

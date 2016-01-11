@@ -170,7 +170,7 @@ static struct mxs_dma_type mxs_dma_types[] = {
 	}
 };
 
-static struct platform_device_id mxs_dma_ids[] = {
+static const struct platform_device_id mxs_dma_ids[] = {
 	{
 		.name = "imx23-dma-apbh",
 		.driver_data = (kernel_ulong_t) &mxs_dma_types[0],

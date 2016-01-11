@@ -112,7 +112,7 @@ static void TsAddBaProcess(unsigned long data)
 
 static void ResetTsCommonInfo(PTS_COMMON_INFO pTsCommonInfo)
 {
-	memset(pTsCommonInfo->Addr, 0, 6);
+	eth_zero_addr(pTsCommonInfo->Addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
@@ -584,7 +584,7 @@ void RemoveAllTS(struct ieee80211_device *ieee)
 
 void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTS)
 {
-	if(pTxTS->bAddBaReqInProgress == false)
+	if(!pTxTS->bAddBaReqInProgress)
 	{
 		pTxTS->bAddBaReqInProgress = true;
 		if(pTxTS->bAddBaReqDelayed)

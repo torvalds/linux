@@ -30,6 +30,7 @@
 #include <linux/quotaops.h>
 #include <linux/highmem.h>
 #include <linux/export.h>
+#include <linux/backing-dev.h>
 #include <linux/writeback.h>
 #include <linux/hash.h>
 #include <linux/suspend.h>
@@ -44,6 +45,9 @@
 #include <trace/events/block.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
+static int submit_bh_wbc(int rw, struct buffer_head *bh,
+			 unsigned long bio_flags,
+			 struct writeback_control *wbc);
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
 
@@ -623,21 +627,22 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
  *
  * If warn is true, then emit a warning if the page is not uptodate and has
  * not been truncated.
+ *
+ * The caller must hold mem_cgroup_begin_page_stat() lock.
  */
-static void __set_page_dirty(struct page *page,
-		struct address_space *mapping, int warn)
+static void __set_page_dirty(struct page *page, struct address_space *mapping,
+			     struct mem_cgroup *memcg, int warn)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&mapping->tree_lock, flags);
 	if (page->mapping) {	/* Race with truncate? */
 		WARN_ON_ONCE(warn && !PageUptodate(page));
-		account_page_dirtied(page, mapping);
+		account_page_dirtied(page, mapping, memcg);
 		radix_tree_tag_set(&mapping->page_tree,
 				page_index(page), PAGECACHE_TAG_DIRTY);
 	}
 	spin_unlock_irqrestore(&mapping->tree_lock, flags);
-	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 }
 
 /*
@@ -668,6 +673,7 @@ static void __set_page_dirty(struct page *page,
 int __set_page_dirty_buffers(struct page *page)
 {
 	int newly_dirty;
+	struct mem_cgroup *memcg;
 	struct address_space *mapping = page_mapping(page);
 
 	if (unlikely(!mapping))
@@ -683,11 +689,22 @@ int __set_page_dirty_buffers(struct page *page)
 			bh = bh->b_this_page;
 		} while (bh != head);
 	}
+	/*
+	 * Use mem_group_begin_page_stat() to keep PageDirty synchronized with
+	 * per-memcg dirty page counters.
+	 */
+	memcg = mem_cgroup_begin_page_stat(page);
 	newly_dirty = !TestSetPageDirty(page);
 	spin_unlock(&mapping->private_lock);
 
 	if (newly_dirty)
-		__set_page_dirty(page, mapping, 1);
+		__set_page_dirty(page, mapping, memcg, 1);
+
+	mem_cgroup_end_page_stat(memcg);
+
+	if (newly_dirty)
+		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+
 	return newly_dirty;
 }
 EXPORT_SYMBOL(__set_page_dirty_buffers);
@@ -982,7 +999,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 	int ret = 0;		/* Will call free_more_memory() */
 	gfp_t gfp_mask;
 
-	gfp_mask = (mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS) | gfp;
+	gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp;
 
 	/*
 	 * XXX: __getblk_slow() can not really deal with failure and
@@ -1158,11 +1175,18 @@ void mark_buffer_dirty(struct buffer_head *bh)
 
 	if (!test_set_buffer_dirty(bh)) {
 		struct page *page = bh->b_page;
+		struct address_space *mapping = NULL;
+		struct mem_cgroup *memcg;
+
+		memcg = mem_cgroup_begin_page_stat(page);
 		if (!TestSetPageDirty(page)) {
-			struct address_space *mapping = page_mapping(page);
+			mapping = page_mapping(page);
 			if (mapping)
-				__set_page_dirty(page, mapping, 0);
+				__set_page_dirty(page, mapping, memcg, 0);
 		}
+		mem_cgroup_end_page_stat(memcg);
+		if (mapping)
+			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	}
 }
 EXPORT_SYMBOL(mark_buffer_dirty);
@@ -1684,8 +1708,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	struct buffer_head *bh, *head;
 	unsigned int blocksize, bbits;
 	int nr_underway = 0;
-	int write_op = (wbc->sync_mode == WB_SYNC_ALL ?
-			WRITE_SYNC : WRITE);
+	int write_op = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
 
 	head = create_page_buffers(page, inode,
 					(1 << BH_Dirty)|(1 << BH_Uptodate));
@@ -1774,7 +1797,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh(write_op, bh);
+			submit_bh_wbc(write_op, bh, 0, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1828,7 +1851,7 @@ recover:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh(write_op, bh);
+			submit_bh_wbc(write_op, bh, 0, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -2397,9 +2420,9 @@ EXPORT_SYMBOL(block_commit_write);
  * unlock the page.
  *
  * Direct callers of this function should protect against filesystem freezing
- * using sb_start_write() - sb_end_write() functions.
+ * using sb_start_pagefault() - sb_end_pagefault() functions.
  */
-int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 			 get_block_t get_block)
 {
 	struct page *page = vmf->page;
@@ -2435,26 +2458,6 @@ int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 out_unlock:
 	unlock_page(page);
 	return ret;
-}
-EXPORT_SYMBOL(__block_page_mkwrite);
-
-int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
-		   get_block_t get_block)
-{
-	int ret;
-	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-
-	sb_start_pagefault(sb);
-
-	/*
-	 * Update file times before taking page lock. We may end up failing the
-	 * fault so this update may be superfluous but who really cares...
-	 */
-	file_update_time(vma->vm_file);
-
-	ret = __block_page_mkwrite(vma, vmf, get_block);
-	sb_end_pagefault(sb);
-	return block_page_mkwrite_return(ret);
 }
 EXPORT_SYMBOL(block_page_mkwrite);
 
@@ -2934,18 +2937,14 @@ sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 }
 EXPORT_SYMBOL(generic_block_bmap);
 
-static void end_bio_bh_io_sync(struct bio *bio, int err)
+static void end_bio_bh_io_sync(struct bio *bio)
 {
 	struct buffer_head *bh = bio->bi_private;
 
-	if (err == -EOPNOTSUPP) {
-		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-	}
-
-	if (unlikely (test_bit(BIO_QUIET,&bio->bi_flags)))
+	if (unlikely(bio_flagged(bio, BIO_QUIET)))
 		set_bit(BH_Quiet, &bh->b_state);
 
-	bh->b_end_io(bh, test_bit(BIO_UPTODATE, &bio->bi_flags));
+	bh->b_end_io(bh, !bio->bi_error);
 	bio_put(bio);
 }
 
@@ -2997,10 +2996,10 @@ void guard_bio_eod(int rw, struct bio *bio)
 	}
 }
 
-int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
+static int submit_bh_wbc(int rw, struct buffer_head *bh,
+			 unsigned long bio_flags, struct writeback_control *wbc)
 {
 	struct bio *bio;
-	int ret = 0;
 
 	BUG_ON(!buffer_locked(bh));
 	BUG_ON(!buffer_mapped(bh));
@@ -3020,14 +3019,16 @@ int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
 	 */
 	bio = bio_alloc(GFP_NOIO, 1);
 
+	if (wbc) {
+		wbc_init_bio(wbc, bio);
+		wbc_account_io(wbc, bh->b_page, bh->b_size);
+	}
+
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
-	bio->bi_io_vec[0].bv_page = bh->b_page;
-	bio->bi_io_vec[0].bv_len = bh->b_size;
-	bio->bi_io_vec[0].bv_offset = bh_offset(bh);
 
-	bio->bi_vcnt = 1;
-	bio->bi_iter.bi_size = bh->b_size;
+	bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+	BUG_ON(bio->bi_iter.bi_size != bh->b_size);
 
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;
@@ -3041,20 +3042,19 @@ int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
 	if (buffer_prio(bh))
 		rw |= REQ_PRIO;
 
-	bio_get(bio);
 	submit_bio(rw, bio);
+	return 0;
+}
 
-	if (bio_flagged(bio, BIO_EOPNOTSUPP))
-		ret = -EOPNOTSUPP;
-
-	bio_put(bio);
-	return ret;
+int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
+{
+	return submit_bh_wbc(rw, bh, bio_flags, NULL);
 }
 EXPORT_SYMBOL_GPL(_submit_bh);
 
 int submit_bh(int rw, struct buffer_head *bh)
 {
-	return _submit_bh(rw, bh, 0);
+	return submit_bh_wbc(rw, bh, 0, NULL);
 }
 EXPORT_SYMBOL(submit_bh);
 
@@ -3243,8 +3243,8 @@ int try_to_free_buffers(struct page *page)
 	 * to synchronise against __set_page_dirty_buffers and prevent the
 	 * dirty bit from being lost.
 	 */
-	if (ret && TestClearPageDirty(page))
-		account_page_cleaned(page, mapping);
+	if (ret)
+		cancel_dirty_page(page);
 	spin_unlock(&mapping->private_lock);
 out:
 	if (buffers_to_free) {

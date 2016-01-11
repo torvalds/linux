@@ -58,7 +58,7 @@
 	 * the whole bus hierarchy.
 	 */
 	ocp {
-		compatible = "ti,omap3-l3-smx", "simple-bus";
+		compatible = "simple-bus";
 		reg = <0x44000000 0x10000>;
 		interrupts = <9 10>;
 		#address-cells = <1>;
@@ -218,6 +218,7 @@
 			reg = <0x480c8000 0x2000>;
 			interrupts = <77>;
 			ti,hwmods = "mailbox";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			mbox_dsp: mbox_dsp {
@@ -279,8 +280,11 @@
 			ti,spi-num-cs = <4>;
 			ti,hwmods = "mcspi1";
 			dmas = <&edma 16 &edma 17
-				&edma 18 &edma 19>;
-			dma-names = "tx0", "rx0", "tx1", "rx1";
+				&edma 18 &edma 19
+				&edma 20 &edma 21
+				&edma 22 &edma 23>;
+			dma-names = "tx0", "rx0", "tx1", "rx1",
+				    "tx2", "rx2", "tx3", "rx3";
 		};
 
 		mmc1: mmc@48060000 {
@@ -382,7 +386,7 @@
 			ti,hwmods = "usb_otg_hs";
 
 			usb0: usb@47401000 {
-				compatible = "ti,musb-am33xx";
+				compatible = "ti,musb-dm816";
 				reg = <0x47401400 0x400
 				       0x47401000 0x200>;
 				reg-names = "mc", "control";
@@ -422,7 +426,7 @@
 			};
 
 			usb1: usb@47401800 {
-				compatible = "ti,musb-am33xx";
+				compatible = "ti,musb-dm816";
 				reg = <0x47401c00 0x400
 				       0x47401800 0x200>;
 				reg-names = "mc", "control";

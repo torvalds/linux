@@ -2,6 +2,7 @@
  * Copyright 2003-2005	Devicescape Software, Inc.
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2015	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,6 +35,14 @@ static const struct file_operations key_ ##name## _ops = {		\
 	.llseek = generic_file_llseek,					\
 }
 
+#define KEY_OPS_W(name)							\
+static const struct file_operations key_ ##name## _ops = {		\
+	.read = key_##name##_read,					\
+	.write = key_##name##_write,					\
+	.open = simple_open,						\
+	.llseek = generic_file_llseek,					\
+}
+
 #define KEY_FILE(name, format)						\
 		 KEY_READ_##format(name)				\
 		 KEY_OPS(name)
@@ -57,7 +66,6 @@ KEY_CONF_FILE(keylen, D);
 KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
 KEY_FILE(flags, X);
-KEY_FILE(tx_rx_count, D);
 KEY_READ(ifindex, sdata->name, "%s\n");
 KEY_OPS(ifindex);
 
@@ -74,6 +82,41 @@ static ssize_t key_algorithm_read(struct file *file,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
 }
 KEY_OPS(algorithm);
+
+static ssize_t key_tx_spec_write(struct file *file, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ieee80211_key *key = file->private_data;
+	u64 pn;
+	int ret;
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		return -EINVAL;
+	case WLAN_CIPHER_SUITE_TKIP:
+		/* not supported yet */
+		return -EOPNOTSUPP;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		ret = kstrtou64_from_user(userbuf, count, 16, &pn);
+		if (ret)
+			return ret;
+		/* PN is a 48-bit counter */
+		if (pn >= (1ULL << 48))
+			return -ERANGE;
+		atomic64_set(&key->conf.tx_pn, pn);
+		return count;
+	default:
+		return 0;
+	}
+}
 
 static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
@@ -95,28 +138,13 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-		pn = atomic64_read(&key->u.ccmp.tx_pn);
-		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
-				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
-				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
-		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		pn = atomic64_read(&key->u.aes_cmac.tx_pn);
-		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
-				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
-				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
-		break;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		pn = atomic64_read(&key->u.aes_gmac.tx_pn);
-		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
-				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
-				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
-		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		pn = atomic64_read(&key->u.gcmp.tx_pn);
+		pn = atomic64_read(&key->conf.tx_pn);
 		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
 				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
 				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
@@ -126,7 +154,7 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 	}
 	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
 }
-KEY_OPS(tx_spec);
+KEY_OPS_W(tx_spec);
 
 static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
@@ -294,6 +322,9 @@ KEY_OPS(key);
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, key->debugfs.dir, \
 			    key, &key_##name##_ops);
+#define DEBUGFS_ADD_W(name) \
+	debugfs_create_file(#name, 0600, key->debugfs.dir, \
+			    key, &key_##name##_ops);
 
 void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 {
@@ -325,9 +356,8 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(keyidx);
 	DEBUGFS_ADD(hw_key_idx);
-	DEBUGFS_ADD(tx_rx_count);
 	DEBUGFS_ADD(algorithm);
-	DEBUGFS_ADD(tx_spec);
+	DEBUGFS_ADD_W(tx_spec);
 	DEBUGFS_ADD(rx_spec);
 	DEBUGFS_ADD(replays);
 	DEBUGFS_ADD(icverrors);

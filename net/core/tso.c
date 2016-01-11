@@ -1,4 +1,5 @@
 #include <linux/export.h>
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/tso.h>
 #include <asm/unaligned.h>
@@ -14,18 +15,24 @@ EXPORT_SYMBOL(tso_count_descs);
 void tso_build_hdr(struct sk_buff *skb, char *hdr, struct tso_t *tso,
 		   int size, bool is_last)
 {
-	struct iphdr *iph;
 	struct tcphdr *tcph;
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	int mac_hdr_len = skb_network_offset(skb);
 
 	memcpy(hdr, skb->data, hdr_len);
-	iph = (struct iphdr *)(hdr + mac_hdr_len);
-	iph->id = htons(tso->ip_id);
-	iph->tot_len = htons(size + hdr_len - mac_hdr_len);
+	if (!tso->ipv6) {
+		struct iphdr *iph = (void *)(hdr + mac_hdr_len);
+
+		iph->id = htons(tso->ip_id);
+		iph->tot_len = htons(size + hdr_len - mac_hdr_len);
+		tso->ip_id++;
+	} else {
+		struct ipv6hdr *iph = (void *)(hdr + mac_hdr_len);
+
+		iph->payload_len = htons(size + tcp_hdrlen(skb));
+	}
 	tcph = (struct tcphdr *)(hdr + skb_transport_offset(skb));
 	put_unaligned_be32(tso->tcp_seq, &tcph->seq);
-	tso->ip_id++;
 
 	if (!is_last) {
 		/* Clear all special flags for not last packet */
@@ -61,6 +68,7 @@ void tso_start(struct sk_buff *skb, struct tso_t *tso)
 	tso->ip_id = ntohs(ip_hdr(skb)->id);
 	tso->tcp_seq = ntohl(tcp_hdr(skb)->seq);
 	tso->next_frag_idx = 0;
+	tso->ipv6 = vlan_get_protocol(skb) == htons(ETH_P_IPV6);
 
 	/* Build first data */
 	tso->size = skb_headlen(skb) - hdr_len;

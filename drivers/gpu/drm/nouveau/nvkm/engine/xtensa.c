@@ -20,153 +20,173 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <engine/xtensa.h>
-#include <core/device.h>
 
-#include <core/engctx.h>
+#include <core/gpuobj.h>
+#include <engine/fifo.h>
 
-u32
-_nvkm_xtensa_rd32(struct nvkm_object *object, u64 addr)
+static int
+nvkm_xtensa_oclass_get(struct nvkm_oclass *oclass, int index)
 {
-	struct nvkm_xtensa *xtensa = (void *)object;
-	return nv_rd32(xtensa, xtensa->addr + addr);
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(oclass->engine);
+	int c = 0;
+
+	while (xtensa->func->sclass[c].oclass) {
+		if (c++ == index) {
+			oclass->base = xtensa->func->sclass[index];
+			return index;
+		}
+	}
+
+	return c;
 }
 
-void
-_nvkm_xtensa_wr32(struct nvkm_object *object, u64 addr, u32 data)
+static int
+nvkm_xtensa_cclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+			int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct nvkm_xtensa *xtensa = (void *)object;
-	nv_wr32(xtensa, xtensa->addr + addr, data);
+	return nvkm_gpuobj_new(object->engine->subdev.device, 0x10000, align,
+			       true, parent, pgpuobj);
 }
 
-int
-_nvkm_xtensa_engctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-			 struct nvkm_oclass *oclass, void *data, u32 size,
-			 struct nvkm_object **pobject)
-{
-	struct nvkm_engctx *engctx;
-	int ret;
+static const struct nvkm_object_func
+nvkm_xtensa_cclass = {
+	.bind = nvkm_xtensa_cclass_bind,
+};
 
-	ret = nvkm_engctx_create(parent, engine, oclass, NULL, 0x10000, 0x1000,
-				 NVOBJ_FLAG_ZERO_ALLOC, &engctx);
-	*pobject = nv_object(engctx);
-	return ret;
-}
-
-void
-_nvkm_xtensa_intr(struct nvkm_subdev *subdev)
+static void
+nvkm_xtensa_intr(struct nvkm_engine *engine)
 {
-	struct nvkm_xtensa *xtensa = (void *)subdev;
-	u32 unk104 = nv_ro32(xtensa, 0xd04);
-	u32 intr = nv_ro32(xtensa, 0xc20);
-	u32 chan = nv_ro32(xtensa, 0xc28);
-	u32 unk10c = nv_ro32(xtensa, 0xd0c);
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(engine);
+	struct nvkm_subdev *subdev = &xtensa->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const u32 base = xtensa->addr;
+	u32 unk104 = nvkm_rd32(device, base + 0xd04);
+	u32 intr = nvkm_rd32(device, base + 0xc20);
+	u32 chan = nvkm_rd32(device, base + 0xc28);
+	u32 unk10c = nvkm_rd32(device, base + 0xd0c);
 
 	if (intr & 0x10)
-		nv_warn(xtensa, "Watchdog interrupt, engine hung.\n");
-	nv_wo32(xtensa, 0xc20, intr);
-	intr = nv_ro32(xtensa, 0xc20);
+		nvkm_warn(subdev, "Watchdog interrupt, engine hung.\n");
+	nvkm_wr32(device, base + 0xc20, intr);
+	intr = nvkm_rd32(device, base + 0xc20);
 	if (unk104 == 0x10001 && unk10c == 0x200 && chan && !intr) {
-		nv_debug(xtensa, "Enabling FIFO_CTRL\n");
-		nv_mask(xtensa, xtensa->addr + 0xd94, 0, xtensa->fifo_val);
+		nvkm_debug(subdev, "Enabling FIFO_CTRL\n");
+		nvkm_mask(device, xtensa->addr + 0xd94, 0, xtensa->func->fifo_val);
 	}
 }
 
-int
-nvkm_xtensa_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, u32 addr, bool enable,
-		    const char *iname, const char *fname,
-		    int length, void **pobject)
+static int
+nvkm_xtensa_fini(struct nvkm_engine *engine, bool suspend)
 {
-	struct nvkm_xtensa *xtensa;
-	int ret;
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(engine);
+	struct nvkm_device *device = xtensa->engine.subdev.device;
+	const u32 base = xtensa->addr;
 
-	ret = nvkm_engine_create_(parent, engine, oclass, enable, iname,
-				  fname, length, pobject);
-	xtensa = *pobject;
-	if (ret)
-		return ret;
+	nvkm_wr32(device, base + 0xd84, 0); /* INTR_EN */
+	nvkm_wr32(device, base + 0xd94, 0); /* FIFO_CTRL */
 
-	nv_subdev(xtensa)->intr = _nvkm_xtensa_intr;
-	xtensa->addr = addr;
+	if (!suspend)
+		nvkm_memory_del(&xtensa->gpu_fw);
 	return 0;
 }
 
-int
-_nvkm_xtensa_init(struct nvkm_object *object)
+static int
+nvkm_xtensa_init(struct nvkm_engine *engine)
 {
-	struct nvkm_device *device = nv_device(object);
-	struct nvkm_xtensa *xtensa = (void *)object;
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(engine);
+	struct nvkm_subdev *subdev = &xtensa->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const u32 base = xtensa->addr;
 	const struct firmware *fw;
 	char name[32];
 	int i, ret;
+	u64 addr, size;
 	u32 tmp;
-
-	ret = nvkm_engine_init(&xtensa->base);
-	if (ret)
-		return ret;
 
 	if (!xtensa->gpu_fw) {
 		snprintf(name, sizeof(name), "nouveau/nv84_xuc%03x",
 			 xtensa->addr >> 12);
 
-		ret = request_firmware(&fw, name, nv_device_base(device));
+		ret = request_firmware(&fw, name, device->dev);
 		if (ret) {
-			nv_warn(xtensa, "unable to load firmware %s\n", name);
+			nvkm_warn(subdev, "unable to load firmware %s\n", name);
 			return ret;
 		}
 
 		if (fw->size > 0x40000) {
-			nv_warn(xtensa, "firmware %s too large\n", name);
+			nvkm_warn(subdev, "firmware %s too large\n", name);
 			release_firmware(fw);
 			return -EINVAL;
 		}
 
-		ret = nvkm_gpuobj_new(object, NULL, 0x40000, 0x1000, 0,
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      0x40000, 0x1000, false,
 				      &xtensa->gpu_fw);
 		if (ret) {
 			release_firmware(fw);
 			return ret;
 		}
 
-		nv_debug(xtensa, "Loading firmware to address: 0x%llx\n",
-			 xtensa->gpu_fw->addr);
-
+		nvkm_kmap(xtensa->gpu_fw);
 		for (i = 0; i < fw->size / 4; i++)
-			nv_wo32(xtensa->gpu_fw, i * 4, *((u32 *)fw->data + i));
+			nvkm_wo32(xtensa->gpu_fw, i * 4, *((u32 *)fw->data + i));
+		nvkm_done(xtensa->gpu_fw);
 		release_firmware(fw);
 	}
 
-	nv_wo32(xtensa, 0xd10, 0x1fffffff); /* ?? */
-	nv_wo32(xtensa, 0xd08, 0x0fffffff); /* ?? */
+	addr = nvkm_memory_addr(xtensa->gpu_fw);
+	size = nvkm_memory_size(xtensa->gpu_fw);
 
-	nv_wo32(xtensa, 0xd28, xtensa->unkd28); /* ?? */
-	nv_wo32(xtensa, 0xc20, 0x3f); /* INTR */
-	nv_wo32(xtensa, 0xd84, 0x3f); /* INTR_EN */
+	nvkm_wr32(device, base + 0xd10, 0x1fffffff); /* ?? */
+	nvkm_wr32(device, base + 0xd08, 0x0fffffff); /* ?? */
 
-	nv_wo32(xtensa, 0xcc0, xtensa->gpu_fw->addr >> 8); /* XT_REGION_BASE */
-	nv_wo32(xtensa, 0xcc4, 0x1c); /* XT_REGION_SETUP */
-	nv_wo32(xtensa, 0xcc8, xtensa->gpu_fw->size >> 8); /* XT_REGION_LIMIT */
+	nvkm_wr32(device, base + 0xd28, xtensa->func->unkd28); /* ?? */
+	nvkm_wr32(device, base + 0xc20, 0x3f); /* INTR */
+	nvkm_wr32(device, base + 0xd84, 0x3f); /* INTR_EN */
 
-	tmp = nv_rd32(xtensa, 0x0);
-	nv_wo32(xtensa, 0xde0, tmp); /* SCRATCH_H2X */
+	nvkm_wr32(device, base + 0xcc0, addr >> 8); /* XT_REGION_BASE */
+	nvkm_wr32(device, base + 0xcc4, 0x1c); /* XT_REGION_SETUP */
+	nvkm_wr32(device, base + 0xcc8, size >> 8); /* XT_REGION_LIMIT */
 
-	nv_wo32(xtensa, 0xce8, 0xf); /* XT_REGION_SETUP */
+	tmp = nvkm_rd32(device, 0x0);
+	nvkm_wr32(device, base + 0xde0, tmp); /* SCRATCH_H2X */
 
-	nv_wo32(xtensa, 0xc20, 0x3f); /* INTR */
-	nv_wo32(xtensa, 0xd84, 0x3f); /* INTR_EN */
+	nvkm_wr32(device, base + 0xce8, 0xf); /* XT_REGION_SETUP */
+
+	nvkm_wr32(device, base + 0xc20, 0x3f); /* INTR */
+	nvkm_wr32(device, base + 0xd84, 0x3f); /* INTR_EN */
 	return 0;
 }
 
-int
-_nvkm_xtensa_fini(struct nvkm_object *object, bool suspend)
+static void *
+nvkm_xtensa_dtor(struct nvkm_engine *engine)
 {
-	struct nvkm_xtensa *xtensa = (void *)object;
+	return nvkm_xtensa(engine);
+}
 
-	nv_wo32(xtensa, 0xd84, 0); /* INTR_EN */
-	nv_wo32(xtensa, 0xd94, 0); /* FIFO_CTRL */
+static const struct nvkm_engine_func
+nvkm_xtensa = {
+	.dtor = nvkm_xtensa_dtor,
+	.init = nvkm_xtensa_init,
+	.fini = nvkm_xtensa_fini,
+	.intr = nvkm_xtensa_intr,
+	.fifo.sclass = nvkm_xtensa_oclass_get,
+	.cclass = &nvkm_xtensa_cclass,
+};
 
-	if (!suspend)
-		nvkm_gpuobj_ref(NULL, &xtensa->gpu_fw);
+int
+nvkm_xtensa_new_(const struct nvkm_xtensa_func *func,
+		 struct nvkm_device *device, int index, bool enable,
+		 u32 addr, struct nvkm_engine **pengine)
+{
+	struct nvkm_xtensa *xtensa;
 
-	return nvkm_engine_fini(&xtensa->base, suspend);
+	if (!(xtensa = kzalloc(sizeof(*xtensa), GFP_KERNEL)))
+		return -ENOMEM;
+	xtensa->func = func;
+	xtensa->addr = addr;
+	*pengine = &xtensa->engine;
+
+	return nvkm_engine_ctor(&nvkm_xtensa, device, index, func->pmc_enable,
+				enable, &xtensa->engine);
 }

@@ -1,21 +1,36 @@
-/*******************************************************************
- * This file is part of the Emulex RoCE Device Driver for          *
- * RoCE (RDMA over Converged Ethernet) adapters.                   *
- * Copyright (C) 2008-2012 Emulex. All rights reserved.            *
- * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
- *                                                                 *
- * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of version 2 of the GNU General       *
- * Public License as published by the Free Software Foundation.    *
- * This program is distributed in the hope that it will be useful. *
- * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
- * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
- * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
- * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
- * more details, a copy of which can be found in the file COPYING  *
- * included with this package.                                     *
+/* This file is part of the Emulex RoCE Device Driver for
+ * RoCE (RDMA over Converged Ethernet) adapters.
+ * Copyright (C) 2012-2015 Emulex. All rights reserved.
+ * EMULEX and SLI are trademarks of Emulex.
+ * www.emulex.com
+ *
+ * This software is available to you under a choice of one of two licenses.
+ * You may choose to be licensed under the terms of the GNU General Public
+ * License (GPL) Version 2, available from the file COPYING in the main
+ * directory of this source tree, or the BSD license below:
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ *
+ * - Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in
+ *   the documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Contact Information:
  * linux-drivers@emulex.com
@@ -23,7 +38,7 @@
  * Emulex
  * 3333 Susan Street
  * Costa Mesa, CA 92626
- *******************************************************************/
+ */
 
 #ifndef __OCRDMA_SLI_H__
 #define __OCRDMA_SLI_H__
@@ -124,6 +139,8 @@ enum {
 	OCRDMA_DB_SQ_SHIFT		= 16,
 	OCRDMA_DB_RQ_SHIFT		= 24
 };
+
+#define OCRDMA_ROUDP_FLAGS_SHIFT	0x03
 
 #define OCRDMA_DB_CQ_RING_ID_MASK       0x3FF	/* bits 0 - 9 */
 #define OCRDMA_DB_CQ_RING_ID_EXT_MASK  0x0C00	/* bits 10-11 of qid at 12-11 */
@@ -448,8 +465,11 @@ struct ocrdma_ae_qp_mcqe {
 	u32 valid_ae_event;
 };
 
-#define OCRDMA_ASYNC_RDMA_EVE_CODE 0x14
-#define OCRDMA_ASYNC_GRP5_EVE_CODE 0x5
+enum ocrdma_async_event_code {
+	OCRDMA_ASYNC_LINK_EVE_CODE	= 0x01,
+	OCRDMA_ASYNC_GRP5_EVE_CODE	= 0x05,
+	OCRDMA_ASYNC_RDMA_EVE_CODE	= 0x14
+};
 
 enum ocrdma_async_grp5_events {
 	OCRDMA_ASYNC_EVENT_QOS_VALUE	= 0x01,
@@ -470,6 +490,44 @@ enum OCRDMA_ASYNC_EVENT_TYPE {
 	OCRDMA_QP_LAST_WQE_EVENT	= 0x10,
 
 	OCRDMA_MAX_ASYNC_ERRORS
+};
+
+struct ocrdma_ae_lnkst_mcqe {
+	u32 speed_state_ptn;
+	u32 qos_reason_falut;
+	u32 evt_tag;
+	u32 valid_ae_event;
+};
+
+enum {
+	OCRDMA_AE_LSC_PORT_NUM_MASK	= 0x3F,
+	OCRDMA_AE_LSC_PT_SHIFT		= 0x06,
+	OCRDMA_AE_LSC_PT_MASK		= (0x03 <<
+			OCRDMA_AE_LSC_PT_SHIFT),
+	OCRDMA_AE_LSC_LS_SHIFT		= 0x08,
+	OCRDMA_AE_LSC_LS_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_LS_SHIFT),
+	OCRDMA_AE_LSC_LD_SHIFT		= 0x10,
+	OCRDMA_AE_LSC_LD_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_LD_SHIFT),
+	OCRDMA_AE_LSC_PPS_SHIFT		= 0x18,
+	OCRDMA_AE_LSC_PPS_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_PPS_SHIFT),
+	OCRDMA_AE_LSC_PPF_MASK		= 0xFF,
+	OCRDMA_AE_LSC_ER_SHIFT		= 0x08,
+	OCRDMA_AE_LSC_ER_MASK		= (0xFF <<
+			OCRDMA_AE_LSC_ER_SHIFT),
+	OCRDMA_AE_LSC_QOS_SHIFT		= 0x10,
+	OCRDMA_AE_LSC_QOS_MASK		= (0xFFFF <<
+			OCRDMA_AE_LSC_QOS_SHIFT)
+};
+
+enum {
+	OCRDMA_AE_LSC_PLINK_DOWN	= 0x00,
+	OCRDMA_AE_LSC_PLINK_UP		= 0x01,
+	OCRDMA_AE_LSC_LLINK_DOWN	= 0x02,
+	OCRDMA_AE_LSC_LLINK_MASK	= 0x02,
+	OCRDMA_AE_LSC_LLINK_UP		= 0x03
 };
 
 /* mailbox command request and responses */
@@ -659,7 +717,7 @@ enum {
 	OCRDMA_PHY_PFLT_SHIFT	= 0x18,
 	OCRDMA_QOS_LNKSP_MASK	= 0xFFFF0000,
 	OCRDMA_QOS_LNKSP_SHIFT	= 0x10,
-	OCRDMA_LLST_MASK	= 0xFF,
+	OCRDMA_LINK_ST_MASK	= 0x01,
 	OCRDMA_PLFC_MASK	= 0x00000400,
 	OCRDMA_PLFC_SHIFT	= 0x8,
 	OCRDMA_PLRFC_MASK	= 0x00000200,
@@ -674,7 +732,7 @@ struct ocrdma_get_link_speed_rsp {
 
 	u32 pflt_pps_ld_pnum;
 	u32 qos_lsp;
-	u32 res_lls;
+	u32 res_lnk_st;
 };
 
 enum {
@@ -1176,6 +1234,8 @@ struct ocrdma_query_qp_rsp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_rsp rsp;
 	struct ocrdma_qp_params params;
+	u32 dpp_credits_cqid;
+	u32 rbq_id;
 };
 
 enum {
@@ -1624,10 +1684,17 @@ struct ocrdma_delete_ah_tbl_rsp {
 enum {
 	OCRDMA_EQE_VALID_SHIFT		= 0,
 	OCRDMA_EQE_VALID_MASK		= BIT(0),
+	OCRDMA_EQE_MAJOR_CODE_MASK      = 0x0E,
+	OCRDMA_EQE_MAJOR_CODE_SHIFT     = 0x01,
 	OCRDMA_EQE_FOR_CQE_MASK		= 0xFFFE,
 	OCRDMA_EQE_RESOURCE_ID_SHIFT	= 16,
 	OCRDMA_EQE_RESOURCE_ID_MASK	= 0xFFFF <<
 				OCRDMA_EQE_RESOURCE_ID_SHIFT,
+};
+
+enum major_code {
+	OCRDMA_MAJOR_CODE_COMPLETION    = 0x00,
+	OCRDMA_MAJOR_CODE_SENTINAL      = 0x01
 };
 
 struct ocrdma_eqe {

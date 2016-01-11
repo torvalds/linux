@@ -1410,7 +1410,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 static int ipw2100_hw_phy_off(struct ipw2100_priv *priv)
 {
 
-#define HW_PHY_OFF_LOOP_DELAY (HZ / 5000)
+#define HW_PHY_OFF_LOOP_DELAY (msecs_to_jiffies(50))
 
 	struct host_command cmd = {
 		.host_command = CARD_DISABLE_PHY_OFF,

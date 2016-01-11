@@ -24,12 +24,12 @@
 
 #define TSL4531_DRV_NAME "tsl4531"
 
-#define TCS3472_COMMAND BIT(7)
+#define TSL4531_COMMAND BIT(7)
 
-#define TSL4531_CONTROL (TCS3472_COMMAND | 0x00)
-#define TSL4531_CONFIG (TCS3472_COMMAND | 0x01)
-#define TSL4531_DATA (TCS3472_COMMAND | 0x04)
-#define TSL4531_ID (TCS3472_COMMAND | 0x0a)
+#define TSL4531_CONTROL (TSL4531_COMMAND | 0x00)
+#define TSL4531_CONFIG (TSL4531_COMMAND | 0x01)
+#define TSL4531_DATA (TSL4531_COMMAND | 0x04)
+#define TSL4531_ID (TSL4531_COMMAND | 0x0a)
 
 /* operating modes in control register */
 #define TSL4531_MODE_POWERDOWN 0x00
@@ -158,9 +158,9 @@ static int tsl4531_check_id(struct i2c_client *client)
 	case TSL45313_ID:
 	case TSL45315_ID:
 	case TSL45317_ID:
-		return 1;
-	default:
 		return 0;
+	default:
+		return -ENODEV;
 	}
 }
 
@@ -180,9 +180,10 @@ static int tsl4531_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	if (!tsl4531_check_id(client)) {
+	ret = tsl4531_check_id(client);
+	if (ret) {
 		dev_err(&client->dev, "no TSL4531 sensor\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	ret = i2c_smbus_write_byte_data(data->client, TSL4531_CONTROL,
@@ -247,7 +248,6 @@ static struct i2c_driver tsl4531_driver = {
 	.driver = {
 		.name   = TSL4531_DRV_NAME,
 		.pm	= TSL4531_PM_OPS,
-		.owner  = THIS_MODULE,
 	},
 	.probe  = tsl4531_probe,
 	.remove = tsl4531_remove,

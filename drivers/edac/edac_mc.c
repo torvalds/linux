@@ -30,10 +30,15 @@
 #include <linux/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/page.h>
-#include <asm/edac.h>
 #include "edac_core.h"
 #include "edac_module.h"
 #include <ras/ras_event.h>
+
+#ifdef CONFIG_EDAC_ATOMIC_SCRUB
+#include <asm/edac.h>
+#else
+#define edac_atomic_scrub(va, size) do { } while (0)
+#endif
 
 /* lock to memory controller's control array */
 static DEFINE_MUTEX(mem_ctls_mutex);
@@ -874,7 +879,7 @@ static void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 	virt_addr = kmap_atomic(pg);
 
 	/* Perform architecture specific atomic scrub operation */
-	atomic_scrub(virt_addr + offset, size);
+	edac_atomic_scrub(virt_addr + offset, size);
 
 	/* Unmap and complete */
 	kunmap_atomic(virt_addr);
@@ -1297,7 +1302,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	grain_bits = fls_long(e->grain) + 1;
 	trace_mc_event(type, e->msg, e->label, e->error_count,
 		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
-		       PAGES_TO_MiB(e->page_frame_number) | e->offset_in_page,
+		       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
 		       grain_bits, e->syndrome, e->other_detail);
 
 	edac_raw_mc_handle_error(type, mci, e);

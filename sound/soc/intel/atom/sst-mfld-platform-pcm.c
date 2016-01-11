@@ -33,7 +33,6 @@
 
 struct sst_device *sst;
 static DEFINE_MUTEX(sst_lock);
-extern struct snd_compr_ops sst_platform_compr_ops;
 
 int sst_register_dsp(struct sst_device *dev)
 {
@@ -369,23 +368,6 @@ static void sst_media_close(struct snd_pcm_substream *substream,
 	kfree(stream);
 }
 
-static inline unsigned int get_current_pipe_id(struct snd_soc_dai *dai,
-					       struct snd_pcm_substream *substream)
-{
-	struct sst_data *sst = snd_soc_dai_get_drvdata(dai);
-	struct sst_dev_stream_map *map = sst->pdata->pdev_strm_map;
-	struct sst_runtime_stream *stream =
-			substream->runtime->private_data;
-	u32 str_id = stream->stream_info.str_id;
-	unsigned int pipe_id;
-
-	pipe_id = map[str_id].device_id;
-
-	dev_dbg(dai->dev, "got pipe_id = %#x for str_id = %d\n",
-			pipe_id, str_id);
-	return pipe_id;
-}
-
 static int sst_media_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -434,10 +416,48 @@ static int sst_enable_ssp(struct snd_pcm_substream *substream,
 
 	if (!dai->active) {
 		ret = sst_handle_vb_timer(dai, true);
-		if (ret)
-			return ret;
-		ret = send_ssp_cmd(dai, dai->name, 1);
+		sst_fill_ssp_defaults(dai);
 	}
+	return ret;
+}
+
+static int sst_be_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
+{
+	int ret = 0;
+
+	if (dai->active == 1)
+		ret = send_ssp_cmd(dai, dai->name, 1);
+	return ret;
+}
+
+static int sst_set_format(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	int ret = 0;
+
+	if (!dai->active)
+		return 0;
+
+	ret = sst_fill_ssp_config(dai, fmt);
+	if (ret < 0)
+		dev_err(dai->dev, "sst_set_format failed..\n");
+
+	return ret;
+}
+
+static int sst_platform_set_ssp_slot(struct snd_soc_dai *dai,
+			unsigned int tx_mask, unsigned int rx_mask,
+			int slots, int slot_width) {
+	int ret = 0;
+
+	if (!dai->active)
+		return ret;
+
+	ret = sst_fill_ssp_slot(dai, tx_mask, rx_mask, slots, slot_width);
+	if (ret < 0)
+		dev_err(dai->dev, "sst_fill_ssp_slot failed..%d\n", ret);
+
 	return ret;
 }
 
@@ -465,6 +485,9 @@ static struct snd_soc_dai_ops sst_compr_dai_ops = {
 
 static struct snd_soc_dai_ops sst_be_dai_ops = {
 	.startup = sst_enable_ssp,
+	.hw_params = sst_be_hw_params,
+	.set_fmt = sst_set_format,
+	.set_tdm_slot = sst_platform_set_ssp_slot,
 	.shutdown = sst_disable_ssp,
 };
 
@@ -489,7 +512,7 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 },
 {
 	.name = "compress-cpu-dai",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.ops = &sst_compr_dai_ops,
 	.playback = {
 		.stream_name = "Compress Playback",

@@ -10,6 +10,9 @@ Required properties:
         "wlf,wm5110"
         "wlf,wm8280"
         "wlf,wm8997"
+        "wlf,wm8998"
+        "wlf,wm1814"
+
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
 
@@ -31,17 +34,16 @@ Required properties:
     as covered in Documentation/devicetree/bindings/regulator/regulator.txt
 
   - DBVDD2-supply, DBVDD3-supply : Additional databus power supplies (wm5102,
-    wm5110, wm8280)
+    wm5110, wm8280, wm8998, wm1814)
 
   - SPKVDDL-supply, SPKVDDR-supply : Speaker driver power supplies (wm5102,
-    wm5110, wm8280)
+    wm5110, wm8280, wm8998, wm1814)
 
   - SPKVDD-supply : Speaker driver power supply (wm8997)
 
 Optional properties:
 
   - wlf,reset : GPIO specifier for the GPIO controlling /RESET
-  - wlf,ldoena : GPIO specifier for the GPIO controlling LDOENA
 
   - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
     for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
@@ -53,8 +55,10 @@ Optional properties:
     of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
     2 (Digital Microphone). If absent, INn_MODE registers set to 0 by default.
     If present, values must be specified less than or equal to the number of
-    input singals. If values less than the number of input signals, elements
-    that has not been specifed are set to 0 by default.
+    input signals. If values less than the number of input signals, elements
+    that have not been specified are set to 0 by default. Entries are:
+    <IN1, IN2, IN3, IN4> (wm5102, wm5110, wm8280, wm8997)
+    <IN1A, IN2A, IN1B, IN2B> (wm8998, wm1814)
 
   - wlf,dmic-ref : DMIC reference voltage source for each input, can be
     selected from either MICVDD or one of the MICBIAS's, defines
@@ -66,11 +70,9 @@ Optional properties:
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
 
-Optional subnodes:
-  - ldo1 : Initial data for the LDO1 regulator, as covered in
-    Documentation/devicetree/bindings/regulator/regulator.txt
-  - micvdd : Initial data for the MICVDD regulator, as covered in
-    Documentation/devicetree/bindings/regulator/regulator.txt
+Also see child specific device properties:
+  Regulator - ../regulator/arizona-regulator.txt
+  Extcon    - ../extcon/extcon-arizona.txt
 
 Example:
 

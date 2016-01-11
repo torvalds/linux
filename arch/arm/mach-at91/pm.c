@@ -41,8 +41,10 @@
  * implementation should be moved down into the pinctrl driver and get
  * called as part of the generic suspend/resume path.
  */
+#ifdef CONFIG_PINCTRL_AT91
 extern void at91_pinctrl_gpio_suspend(void);
 extern void at91_pinctrl_gpio_resume(void);
+#endif
 
 static struct {
 	unsigned long uhp_udp_mask;
@@ -151,8 +153,9 @@ static void at91_pm_suspend(suspend_state_t state)
 
 static int at91_pm_enter(suspend_state_t state)
 {
+#ifdef CONFIG_PINCTRL_AT91
 	at91_pinctrl_gpio_suspend();
-
+#endif
 	switch (state) {
 	/*
 	 * Suspend-to-RAM is like STANDBY plus slow clock mode, so
@@ -192,7 +195,9 @@ static int at91_pm_enter(suspend_state_t state)
 error:
 	target_state = PM_SUSPEND_ON;
 
+#ifdef CONFIG_PINCTRL_AT91
 	at91_pinctrl_gpio_resume();
+#endif
 	return 0;
 }
 
@@ -233,7 +238,7 @@ static void at91_pm_set_standby(void (*at91_standby)(void))
  */
 static void at91rm9200_standby(void)
 {
-	u32 lpr = at91_ramc_read(0, AT91RM9200_SDRAMC_LPR);
+	u32 lpr = at91_ramc_read(0, AT91_MC_SDRAMC_LPR);
 
 	asm volatile(
 		"b    1f\n\t"
@@ -244,8 +249,8 @@ static void at91rm9200_standby(void)
 		"    mcr    p15, 0, %0, c7, c0, 4\n\t"
 		"    str    %5, [%1, %2]"
 		:
-		: "r" (0), "r" (at91_ramc_base[0]), "r" (AT91RM9200_SDRAMC_LPR),
-		  "r" (1), "r" (AT91RM9200_SDRAMC_SRR),
+		: "r" (0), "r" (at91_ramc_base[0]), "r" (AT91_MC_SDRAMC_LPR),
+		  "r" (1), "r" (AT91_MC_SDRAMC_SRR),
 		  "r" (lpr));
 }
 
@@ -311,7 +316,7 @@ static void at91sam9_sdram_standby(void)
 		at91_ramc_write(1, AT91_SDRAMC_LPR, saved_lpr1);
 }
 
-static const struct of_device_id ramc_ids[] __initconst = {
+static const struct of_device_id const ramc_ids[] __initconst = {
 	{ .compatible = "atmel,at91rm9200-sdramc", .data = at91rm9200_standby },
 	{ .compatible = "atmel,at91sam9260-sdramc", .data = at91sam9_sdram_standby },
 	{ .compatible = "atmel,at91sam9g45-ddramc", .data = at91_ddr_standby },
@@ -369,7 +374,7 @@ static void __init at91_pm_sram_init(void)
 		return;
 	}
 
-	sram_pool = dev_get_gen_pool(&pdev->dev);
+	sram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!sram_pool) {
 		pr_warn("%s: sram pool unavailable!\n", __func__);
 		return;
@@ -414,7 +419,7 @@ void __init at91rm9200_pm_init(void)
 	/*
 	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
 	 */
-	at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
+	at91_ramc_write(0, AT91_MC_SDRAMC_LPR, 0);
 
 	at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP;
 	at91_pm_data.memctrl = AT91_MEMCTRL_MC;

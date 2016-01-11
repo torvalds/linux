@@ -20,15 +20,14 @@ userspace GPIO can be used to determine system configuration data that
 standard kernels won't know about. And for some tasks, simple userspace
 GPIO drivers could be all that the system really needs.
 
-Note that standard kernel drivers exist for common "LEDs and Buttons"
-GPIO tasks:  "leds-gpio" and "gpio_keys", respectively. Use those
-instead of talking directly to the GPIOs; they integrate with kernel
-frameworks better than your userspace code could.
-
+DO NOT ABUSE SYSFS TO CONTROL HARDWARE THAT HAS PROPER KERNEL DRIVERS.
+PLEASE READ THE DOCUMENT NAMED "drivers-on-gpio.txt" IN THIS DOCUMENTATION
+DIRECTORY TO AVOID REINVENTING KERNEL WHEELS IN USERSPACE. I MEAN IT.
+REALLY.
 
 Paths in Sysfs
 --------------
-There are three kinds of entry in /sys/class/gpio:
+There are three kinds of entries in /sys/class/gpio:
 
    -	Control interfaces used to get userspace control over GPIOs;
 
@@ -107,7 +106,7 @@ read-only attributes:
 
     	"label" ... provided for diagnostics (not always unique)
 
-    	"ngpio" ... how many GPIOs this manges (N to N + ngpio - 1)
+        "ngpio" ... how many GPIOs this manages (N to N + ngpio - 1)
 
 Board documentation should in most cases cover what GPIOs are used for
 what purposes. However, those numbers are not always stable; GPIOs on
@@ -132,9 +131,6 @@ requested using gpio_request():
 	int gpiod_export_link(struct device *dev, const char *name,
 		      struct gpio_desc *desc);
 
-	/* change the polarity of a GPIO node in sysfs */
-	int gpiod_sysfs_set_active_low(struct gpio_desc *desc, int value);
-
 After a kernel driver requests a GPIO, it may only be made available in
 the sysfs interface by gpiod_export(). The driver can control whether the
 signal direction may change. This helps drivers prevent userspace code
@@ -148,8 +144,3 @@ After the GPIO has been exported, gpiod_export_link() allows creating
 symlinks from elsewhere in sysfs to the GPIO sysfs node. Drivers can
 use this to provide the interface under their own device in sysfs with
 a descriptive name.
-
-Drivers can use gpiod_sysfs_set_active_low() to hide GPIO line polarity
-differences between boards from user space. Polarity change can be done both
-before and after gpiod_export(), and previously enabled poll(2) support for
-either rising or falling edge will be reconfigured to follow this setting.

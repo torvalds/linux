@@ -64,6 +64,7 @@
 #include <linux/i8042.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <acpi/video.h>
 
 #define MSI_DRIVER_VERSION "0.5"
 
@@ -1069,9 +1070,8 @@ static int __init msi_init(void)
 
 	/* Register backlight stuff */
 
-	if (!quirks->old_ec_model || acpi_video_backlight_support()) {
-		pr_info("Brightness ignored, must be controlled by ACPI video driver\n");
-	} else {
+	if (quirks->old_ec_model ||
+	    acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
 		props.type = BACKLIGHT_PLATFORM;

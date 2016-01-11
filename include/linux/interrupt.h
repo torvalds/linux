@@ -102,6 +102,7 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @flags:	flags (see IRQF_* above)
  * @thread_fn:	interrupt handler function for threaded interrupts
  * @thread:	thread pointer for threaded interrupts
+ * @secondary:	pointer to secondary irqaction (force threading)
  * @thread_flags:	flags related to @thread
  * @thread_mask:	bitmask for keeping track of @thread activity
  * @dir:	pointer to the proc/irq/NN/name entry
@@ -113,6 +114,7 @@ struct irqaction {
 	struct irqaction	*next;
 	irq_handler_t		thread_fn;
 	struct task_struct	*thread;
+	struct irqaction	*secondary;
 	unsigned int		irq;
 	unsigned int		flags;
 	unsigned long		thread_flags;
@@ -413,7 +415,8 @@ enum
 	BLOCK_IOPOLL_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
-	HRTIMER_SOFTIRQ,
+	HRTIMER_SOFTIRQ, /* Unused, but kept as tools rely on the
+			    numbering. Sigh! */
 	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS
@@ -592,10 +595,10 @@ tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
 		     clockid_t which_clock, enum hrtimer_mode mode);
 
 static inline
-int tasklet_hrtimer_start(struct tasklet_hrtimer *ttimer, ktime_t time,
-			  const enum hrtimer_mode mode)
+void tasklet_hrtimer_start(struct tasklet_hrtimer *ttimer, ktime_t time,
+			   const enum hrtimer_mode mode)
 {
-	return hrtimer_start(&ttimer->timer, time, mode);
+	hrtimer_start(&ttimer->timer, time, mode);
 }
 
 static inline

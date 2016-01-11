@@ -2360,8 +2360,8 @@ static int at76_init_new_device(struct at76_priv *priv,
 	priv->hw->wiphy->max_scan_ie_len = 0;
 	priv->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &at76_supported_band;
-	priv->hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-			  IEEE80211_HW_SIGNAL_UNSPEC;
+	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(priv->hw, SIGNAL_UNSPEC);
 	priv->hw->max_signal = 100;
 
 	SET_IEEE80211_DEV(priv->hw, &interface->dev);

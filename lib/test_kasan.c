@@ -65,7 +65,7 @@ static noinline void __init kmalloc_node_oob_right(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_large_oob_rigth(void)
+static noinline void __init kmalloc_large_oob_right(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
@@ -114,7 +114,7 @@ static noinline void __init kmalloc_oob_krealloc_less(void)
 		kfree(ptr1);
 		return;
 	}
-	ptr2[size1] = 'x';
+	ptr2[size2] = 'x';
 	kfree(ptr2);
 }
 
@@ -136,6 +136,71 @@ static noinline void __init kmalloc_oob_16(void)
 	*ptr1 = *ptr2;
 	kfree(ptr1);
 	kfree(ptr2);
+}
+
+static noinline void __init kmalloc_oob_memset_2(void)
+{
+	char *ptr;
+	size_t size = 8;
+
+	pr_info("out-of-bounds in memset2\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+7, 0, 2);
+	kfree(ptr);
+}
+
+static noinline void __init kmalloc_oob_memset_4(void)
+{
+	char *ptr;
+	size_t size = 8;
+
+	pr_info("out-of-bounds in memset4\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+5, 0, 4);
+	kfree(ptr);
+}
+
+
+static noinline void __init kmalloc_oob_memset_8(void)
+{
+	char *ptr;
+	size_t size = 8;
+
+	pr_info("out-of-bounds in memset8\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+1, 0, 8);
+	kfree(ptr);
+}
+
+static noinline void __init kmalloc_oob_memset_16(void)
+{
+	char *ptr;
+	size_t size = 16;
+
+	pr_info("out-of-bounds in memset16\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+1, 0, 16);
+	kfree(ptr);
 }
 
 static noinline void __init kmalloc_oob_in_memset(void)
@@ -259,11 +324,15 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_oob_right();
 	kmalloc_oob_left();
 	kmalloc_node_oob_right();
-	kmalloc_large_oob_rigth();
+	kmalloc_large_oob_right();
 	kmalloc_oob_krealloc_more();
 	kmalloc_oob_krealloc_less();
 	kmalloc_oob_16();
 	kmalloc_oob_in_memset();
+	kmalloc_oob_memset_2();
+	kmalloc_oob_memset_4();
+	kmalloc_oob_memset_8();
+	kmalloc_oob_memset_16();
 	kmalloc_uaf();
 	kmalloc_uaf_memset();
 	kmalloc_uaf2();

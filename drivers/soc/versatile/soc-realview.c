@@ -142,4 +142,4 @@ static struct platform_driver realview_soc_driver = {
 		.of_match_table = realview_soc_of_match,
 	},
 };
-module_platform_driver(realview_soc_driver);
+builtin_platform_driver(realview_soc_driver);

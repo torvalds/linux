@@ -13,6 +13,8 @@ enum severity_level {
 	MCE_PANIC_SEVERITY,
 };
 
+extern struct atomic_notifier_head x86_mce_decoder_chain;
+
 #define ATTR_LEN		16
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */
 
@@ -23,6 +25,16 @@ struct mce_bank {
 	struct device_attribute attr;			/* device attribute */
 	char			attrname[ATTR_LEN];	/* attribute name */
 };
+
+struct mce_evt_llist {
+	struct llist_node llnode;
+	struct mce mce;
+};
+
+void mce_gen_pool_process(void);
+bool mce_gen_pool_empty(void);
+int mce_gen_pool_add(struct mce *mce);
+int mce_gen_pool_init(void);
 
 extern int (*mce_severity)(struct mce *a, int tolerant, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
@@ -67,3 +79,5 @@ static inline int apei_clear_mce(u64 record_id)
 	return -EINVAL;
 }
 #endif
+
+void mce_inject_log(struct mce *m);

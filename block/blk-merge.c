@@ -9,12 +9,171 @@
 
 #include "blk.h"
 
+static struct bio *blk_bio_discard_split(struct request_queue *q,
+					 struct bio *bio,
+					 struct bio_set *bs,
+					 unsigned *nsegs)
+{
+	unsigned int max_discard_sectors, granularity;
+	int alignment;
+	sector_t tmp;
+	unsigned split_sectors;
+
+	*nsegs = 1;
+
+	/* Zero-sector (unknown) and one-sector granularities are the same.  */
+	granularity = max(q->limits.discard_granularity >> 9, 1U);
+
+	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+	max_discard_sectors -= max_discard_sectors % granularity;
+
+	if (unlikely(!max_discard_sectors)) {
+		/* XXX: warn */
+		return NULL;
+	}
+
+	if (bio_sectors(bio) <= max_discard_sectors)
+		return NULL;
+
+	split_sectors = max_discard_sectors;
+
+	/*
+	 * If the next starting sector would be misaligned, stop the discard at
+	 * the previous aligned sector.
+	 */
+	alignment = (q->limits.discard_alignment >> 9) % granularity;
+
+	tmp = bio->bi_iter.bi_sector + split_sectors - alignment;
+	tmp = sector_div(tmp, granularity);
+
+	if (split_sectors > tmp)
+		split_sectors -= tmp;
+
+	return bio_split(bio, split_sectors, GFP_NOIO, bs);
+}
+
+static struct bio *blk_bio_write_same_split(struct request_queue *q,
+					    struct bio *bio,
+					    struct bio_set *bs,
+					    unsigned *nsegs)
+{
+	*nsegs = 1;
+
+	if (!q->limits.max_write_same_sectors)
+		return NULL;
+
+	if (bio_sectors(bio) <= q->limits.max_write_same_sectors)
+		return NULL;
+
+	return bio_split(bio, q->limits.max_write_same_sectors, GFP_NOIO, bs);
+}
+
+static struct bio *blk_bio_segment_split(struct request_queue *q,
+					 struct bio *bio,
+					 struct bio_set *bs,
+					 unsigned *segs)
+{
+	struct bio_vec bv, bvprv, *bvprvp = NULL;
+	struct bvec_iter iter;
+	unsigned seg_size = 0, nsegs = 0, sectors = 0;
+	unsigned front_seg_size = bio->bi_seg_front_size;
+	bool do_split = true;
+	struct bio *new = NULL;
+
+	bio_for_each_segment(bv, bio, iter) {
+		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
+			goto split;
+
+		/*
+		 * If the queue doesn't support SG gaps and adding this
+		 * offset would create a gap, disallow it.
+		 */
+		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
+			goto split;
+
+		if (bvprvp && blk_queue_cluster(q)) {
+			if (seg_size + bv.bv_len > queue_max_segment_size(q))
+				goto new_segment;
+			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
+				goto new_segment;
+			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
+				goto new_segment;
+
+			seg_size += bv.bv_len;
+			bvprv = bv;
+			bvprvp = &bvprv;
+			sectors += bv.bv_len >> 9;
+
+			if (nsegs == 1 && seg_size > front_seg_size)
+				front_seg_size = seg_size;
+			continue;
+		}
+new_segment:
+		if (nsegs == queue_max_segments(q))
+			goto split;
+
+		nsegs++;
+		bvprv = bv;
+		bvprvp = &bvprv;
+		seg_size = bv.bv_len;
+		sectors += bv.bv_len >> 9;
+
+		if (nsegs == 1 && seg_size > front_seg_size)
+			front_seg_size = seg_size;
+	}
+
+	do_split = false;
+split:
+	*segs = nsegs;
+
+	if (do_split) {
+		new = bio_split(bio, sectors, GFP_NOIO, bs);
+		if (new)
+			bio = new;
+	}
+
+	bio->bi_seg_front_size = front_seg_size;
+	if (seg_size > bio->bi_seg_back_size)
+		bio->bi_seg_back_size = seg_size;
+
+	return do_split ? new : NULL;
+}
+
+void blk_queue_split(struct request_queue *q, struct bio **bio,
+		     struct bio_set *bs)
+{
+	struct bio *split, *res;
+	unsigned nsegs;
+
+	if ((*bio)->bi_rw & REQ_DISCARD)
+		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
+	else if ((*bio)->bi_rw & REQ_WRITE_SAME)
+		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
+	else
+		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+
+	/* physical segments can be figured out during splitting */
+	res = split ? split : *bio;
+	res->bi_phys_segments = nsegs;
+	bio_set_flag(res, BIO_SEG_VALID);
+
+	if (split) {
+		/* there isn't chance to merge the splitted bio */
+		split->bi_rw |= REQ_NOMERGE;
+
+		bio_chain(split, *bio);
+		generic_make_request(*bio);
+		*bio = split;
+	}
+}
+EXPORT_SYMBOL(blk_queue_split);
+
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio,
 					     bool no_sg_merge)
 {
 	struct bio_vec bv, bvprv = { NULL };
-	int cluster, high, highprv = 1;
+	int cluster, prev = 0;
 	unsigned int seg_size, nr_phys_segs;
 	struct bio *fbio, *bbio;
 	struct bvec_iter iter;
@@ -36,7 +195,6 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	cluster = blk_queue_cluster(q);
 	seg_size = 0;
 	nr_phys_segs = 0;
-	high = 0;
 	for_each_bio(bio) {
 		bio_for_each_segment(bv, bio, iter) {
 			/*
@@ -46,13 +204,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 			if (no_sg_merge)
 				goto new_segment;
 
-			/*
-			 * the trick here is making sure that a high page is
-			 * never considered part of another segment, since
-			 * that might change with the bounce page.
-			 */
-			high = page_to_pfn(bv.bv_page) > queue_bounce_pfn(q);
-			if (!high && !highprv && cluster) {
+			if (prev && cluster) {
 				if (seg_size + bv.bv_len
 				    > queue_max_segment_size(q))
 					goto new_segment;
@@ -72,8 +224,8 @@ new_segment:
 
 			nr_phys_segs++;
 			bvprv = bv;
+			prev = 1;
 			seg_size = bv.bv_len;
-			highprv = high;
 		}
 		bbio = bio;
 	}
@@ -116,7 +268,7 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 		bio->bi_next = nxt;
 	}
 
-	bio->bi_flags |= (1 << BIO_SEG_VALID);
+	bio_set_flag(bio, BIO_SEG_VALID);
 }
 EXPORT_SYMBOL(blk_recount_segments);
 
@@ -266,7 +418,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		if (rq->cmd_flags & REQ_WRITE)
 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
 
-		sg->page_link &= ~0x02;
+		sg_unmark_end(sg);
 		sg = sg_next(sg);
 		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
 			    q->dma_drain_size,
@@ -278,6 +430,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 
 	if (sg)
 		sg_mark_end(sg);
+
+	/*
+	 * Something must have been wrong if the figured number of
+	 * segment is bigger than number of req's physical segments
+	 */
+	WARN_ON(nsegs > rq->nr_phys_segments);
 
 	return nsegs;
 }
@@ -312,6 +470,11 @@ no_merge:
 int ll_back_merge_fn(struct request_queue *q, struct request *req,
 		     struct bio *bio)
 {
+	if (req_gap_back_merge(req, bio))
+		return 0;
+	if (blk_integrity_rq(req) &&
+	    integrity_req_gap_back_merge(req, bio))
+		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req)) {
 		req->cmd_flags |= REQ_NOMERGE;
@@ -330,6 +493,12 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 int ll_front_merge_fn(struct request_queue *q, struct request *req,
 		      struct bio *bio)
 {
+
+	if (req_gap_front_merge(req, bio))
+		return 0;
+	if (blk_integrity_rq(req) &&
+	    integrity_req_gap_front_merge(req, bio))
+		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req)) {
 		req->cmd_flags |= REQ_NOMERGE;
@@ -356,14 +525,6 @@ static bool req_no_special_merge(struct request *req)
 	return !q->mq_ops && req->special;
 }
 
-static int req_gap_to_prev(struct request *req, struct request *next)
-{
-	struct bio *prev = req->biotail;
-
-	return bvec_gap_to_prev(&prev->bi_io_vec[prev->bi_vcnt - 1],
-				next->bio->bi_io_vec[0].bv_offset);
-}
-
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 				struct request *next)
 {
@@ -378,8 +539,7 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	if (req_no_special_merge(req) || req_no_special_merge(next))
 		return 0;
 
-	if (test_bit(QUEUE_FLAG_SG_GAPS, &q->queue_flags) &&
-	    req_gap_to_prev(req, next))
+	if (req_gap_back_merge(req, next->bio))
 		return 0;
 
 	/*
@@ -564,8 +724,6 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 {
-	struct request_queue *q = rq->q;
-
 	if (!rq_mergeable(rq) || !bio_mergeable(bio))
 		return false;
 
@@ -588,14 +746,6 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (rq->cmd_flags & REQ_WRITE_SAME &&
 	    !blk_write_same_mergeable(rq->bio, bio))
 		return false;
-
-	if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS)) {
-		struct bio_vec *bprev;
-
-		bprev = &rq->biotail->bi_io_vec[rq->biotail->bi_vcnt - 1];
-		if (bvec_gap_to_prev(bprev, bio->bi_io_vec[0].bv_offset))
-			return false;
-	}
 
 	return true;
 }

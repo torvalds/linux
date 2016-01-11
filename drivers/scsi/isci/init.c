@@ -160,7 +160,6 @@ static struct scsi_host_template isci_sht = {
 	.change_queue_depth		= sas_change_queue_depth,
 	.bios_param			= sas_bios_param,
 	.can_queue			= ISCI_CAN_QUEUE_VAL,
-	.cmd_per_lun			= 1,
 	.this_id			= -1,
 	.sg_tablesize			= SG_ALL,
 	.max_sectors			= SCSI_DEFAULT_MAX_SECTORS,
@@ -171,7 +170,6 @@ static struct scsi_host_template isci_sht = {
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
 	.shost_attrs			= isci_host_attrs,
-	.use_blk_tags			= 1,
 	.track_queue_depth		= 1,
 };
 
@@ -273,11 +271,11 @@ static void isci_unregister(struct isci_host *isci_host)
 	if (!isci_host)
 		return;
 
+	shost = to_shost(isci_host);
+	scsi_remove_host(shost);
 	sas_unregister_ha(&isci_host->sas_ha);
 
-	shost = to_shost(isci_host);
 	sas_remove_host(shost);
-	scsi_remove_host(shost);
 	scsi_host_put(shost);
 }
 

@@ -92,7 +92,7 @@ static struct voltagedomain *voltagedomains_omap4[] __initdata = {
 	NULL,
 };
 
-static const char *sys_clk_name __initdata = "sys_clkin_ck";
+static const char *const sys_clk_name __initconst = "sys_clkin_ck";
 
 void __init omap44xx_voltagedomains_init(void)
 {

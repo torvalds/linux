@@ -1,7 +1,6 @@
 #ifndef _ASM_X86_PLATFORM_H
 #define _ASM_X86_PLATFORM_H
 
-#include <asm/pgtable_types.h>
 #include <asm/bootparam.h>
 
 struct mpc_bus;
@@ -171,38 +170,17 @@ struct x86_platform_ops {
 };
 
 struct pci_dev;
-struct msi_msg;
 
 struct x86_msi_ops {
 	int (*setup_msi_irqs)(struct pci_dev *dev, int nvec, int type);
-	void (*compose_msi_msg)(struct pci_dev *dev, unsigned int irq,
-				unsigned int dest, struct msi_msg *msg,
-			       u8 hpet_id);
 	void (*teardown_msi_irq)(unsigned int irq);
 	void (*teardown_msi_irqs)(struct pci_dev *dev);
 	void (*restore_msi_irqs)(struct pci_dev *dev);
-	int  (*setup_hpet_msi)(unsigned int irq, unsigned int id);
 };
 
-struct IO_APIC_route_entry;
-struct io_apic_irq_attr;
-struct irq_data;
-struct cpumask;
-
 struct x86_io_apic_ops {
-	void		(*init)   (void);
 	unsigned int	(*read)   (unsigned int apic, unsigned int reg);
-	void		(*write)  (unsigned int apic, unsigned int reg, unsigned int value);
-	void		(*modify) (unsigned int apic, unsigned int reg, unsigned int value);
 	void		(*disable)(void);
-	void		(*print_entries)(unsigned int apic, unsigned int nr_entries);
-	int		(*set_affinity)(struct irq_data *data,
-					const struct cpumask *mask,
-					bool force);
-	int		(*setup_entry)(int irq, struct IO_APIC_route_entry *entry,
-				       unsigned int destination, int vector,
-				       struct io_apic_irq_attr *attr);
-	void		(*eoi_ioapic_pin)(int apic, int pin, int vector);
 };
 
 extern struct x86_init_ops x86_init;

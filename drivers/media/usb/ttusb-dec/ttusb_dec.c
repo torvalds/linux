@@ -375,8 +375,7 @@ static int ttusb_dec_audio_pes2ts_cb(void *priv, unsigned char *data)
 	struct ttusb_dec *dec = priv;
 
 	dec->audio_filter->feed->cb.ts(data, 188, NULL, 0,
-				       &dec->audio_filter->feed->feed.ts,
-				       DMX_OK);
+				       &dec->audio_filter->feed->feed.ts);
 
 	return 0;
 }
@@ -386,8 +385,7 @@ static int ttusb_dec_video_pes2ts_cb(void *priv, unsigned char *data)
 	struct ttusb_dec *dec = priv;
 
 	dec->video_filter->feed->cb.ts(data, 188, NULL, 0,
-				       &dec->video_filter->feed->feed.ts,
-				       DMX_OK);
+				       &dec->video_filter->feed->feed.ts);
 
 	return 0;
 }
@@ -439,7 +437,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 
 		if (output_pva) {
 			dec->video_filter->feed->cb.ts(pva, length, NULL, 0,
-				&dec->video_filter->feed->feed.ts, DMX_OK);
+				&dec->video_filter->feed->feed.ts);
 			return;
 		}
 
@@ -500,7 +498,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 	case 0x02:		/* MainAudioStream */
 		if (output_pva) {
 			dec->audio_filter->feed->cb.ts(pva, length, NULL, 0,
-				&dec->audio_filter->feed->feed.ts, DMX_OK);
+				&dec->audio_filter->feed->feed.ts);
 			return;
 		}
 
@@ -538,7 +536,7 @@ static void ttusb_dec_process_filter(struct ttusb_dec *dec, u8 *packet,
 
 	if (filter)
 		filter->feed->cb.sec(&packet[2], length - 2, NULL, 0,
-				     &filter->filter, DMX_OK);
+				     &filter->filter);
 }
 
 static void ttusb_dec_process_packet(struct ttusb_dec *dec)
@@ -593,14 +591,9 @@ static void ttusb_dec_process_packet(struct ttusb_dec *dec)
 
 static void swap_bytes(u8 *b, int length)
 {
-	u8 c;
-
 	length -= length % 2;
-	for (; length; b += 2, length -= 2) {
-		c = *b;
-		*b = *(b + 1);
-		*(b + 1) = c;
-	}
+	for (; length; b += 2, length -= 2)
+		swap(*b, *(b + 1));
 }
 
 static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
@@ -1431,8 +1424,8 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			       __func__, model);
 			return -ENOENT;
 		}
-			if (version >= 0x01770000)
-				dec->can_playback = 1;
+		if (version >= 0x01770000)
+			dec->can_playback = 1;
 	}
 	return 0;
 }

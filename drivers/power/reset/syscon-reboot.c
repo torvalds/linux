@@ -88,4 +88,4 @@ static struct platform_driver syscon_reboot_driver = {
 		.of_match_table = syscon_reboot_of_match,
 	},
 };
-module_platform_driver(syscon_reboot_driver);
+builtin_platform_driver(syscon_reboot_driver);

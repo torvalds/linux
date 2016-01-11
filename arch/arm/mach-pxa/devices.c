@@ -17,6 +17,7 @@
 #include <linux/platform_data/camera-pxa.h>
 #include <mach/audio.h>
 #include <mach/hardware.h>
+#include <linux/platform_data/mmp_dma.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #include "devices.h"
@@ -394,6 +395,26 @@ static struct resource pxa_ir_resources[] = {
 		.end    = IRQ_ICP,
 		.flags  = IORESOURCE_IRQ,
 	},
+	[3] = {
+		.start  = 0x40800000,
+		.end	= 0x4080001b,
+		.flags  = IORESOURCE_MEM,
+	},
+	[4] = {
+		.start  = 0x40700000,
+		.end	= 0x40700023,
+		.flags  = IORESOURCE_MEM,
+	},
+	[5] = {
+		.start  = 17,
+		.end	= 17,
+		.flags  = IORESOURCE_DMA,
+	},
+	[6] = {
+		.start  = 18,
+		.end	= 18,
+		.flags  = IORESOURCE_DMA,
+	},
 };
 
 struct platform_device pxa_device_ficp = {
@@ -439,25 +460,11 @@ struct platform_device pxa_device_rtc = {
 	.resource       = pxa_rtc_resources,
 };
 
-static struct resource sa1100_rtc_resources[] = {
-	{
-		.start  = IRQ_RTC1Hz,
-		.end    = IRQ_RTC1Hz,
-		.name	= "rtc 1Hz",
-		.flags  = IORESOURCE_IRQ,
-	}, {
-		.start  = IRQ_RTCAlrm,
-		.end    = IRQ_RTCAlrm,
-		.name	= "rtc alarm",
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
 struct platform_device sa1100_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(sa1100_rtc_resources),
-	.resource	= sa1100_rtc_resources,
+	.num_resources  = ARRAY_SIZE(pxa_rtc_resources),
+	.resource       = pxa_rtc_resources,
 };
 
 static struct resource pxa_ac97_resources[] = {
@@ -1192,4 +1199,40 @@ void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info)
 
 	pd->dev.platform_data = info;
 	platform_device_add(pd);
+}
+
+static struct mmp_dma_platdata pxa_dma_pdata = {
+	.dma_channels	= 0,
+};
+
+static struct resource pxa_dma_resource[] = {
+	[0] = {
+		.start	= 0x40000000,
+		.end	= 0x4000ffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DMA,
+		.end	= IRQ_DMA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxadma_dmamask = 0xffffffffUL;
+
+static struct platform_device pxa2xx_pxa_dma = {
+	.name		= "pxa-dma",
+	.id		= 0,
+	.dev		= {
+		.dma_mask = &pxadma_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(pxa_dma_resource),
+	.resource	= pxa_dma_resource,
+};
+
+void __init pxa2xx_set_dmac_info(int nb_channels)
+{
+	pxa_dma_pdata.dma_channels = nb_channels;
+	pxa_register_device(&pxa2xx_pxa_dma, &pxa_dma_pdata);
 }

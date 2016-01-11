@@ -1075,11 +1075,10 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 
 	used = pvc_is_used(pvc);
 
-	if (type == ARPHRD_ETHER) {
+	if (type == ARPHRD_ETHER)
 		dev = alloc_netdev(0, "pvceth%d", NET_NAME_UNKNOWN,
 				   ether_setup);
-		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	} else
+	else
 		dev = alloc_netdev(0, "pvc%d", NET_NAME_UNKNOWN, pvc_setup);
 
 	if (!dev) {
@@ -1088,15 +1087,16 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		return -ENOBUFS;
 	}
 
-	if (type == ARPHRD_ETHER)
+	if (type == ARPHRD_ETHER) {
+		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		eth_hw_addr_random(dev);
-	else {
+	} else {
 		*(__be16*)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
 	dev->netdev_ops = &pvc_ops;
 	dev->mtu = HDLC_MAX_MTU;
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->ml_priv = pvc;
 
 	if (register_netdevice(dev) != 0) {

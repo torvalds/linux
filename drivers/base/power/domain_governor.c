@@ -77,13 +77,14 @@ static bool default_stop_ok(struct device *dev)
 				      dev_update_qos_constraint);
 
 	if (constraint_ns > 0) {
-		constraint_ns -= td->start_latency_ns;
+		constraint_ns -= td->suspend_latency_ns +
+				td->resume_latency_ns;
 		if (constraint_ns == 0)
 			return false;
 	}
 	td->effective_constraint_ns = constraint_ns;
-	td->cached_stop_ok = constraint_ns > td->stop_latency_ns ||
-				constraint_ns == 0;
+	td->cached_stop_ok = constraint_ns >= 0;
+
 	/*
 	 * The children have been suspended already, so we don't need to take
 	 * their stop latencies into account here.
@@ -126,18 +127,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 
 	off_on_time_ns = genpd->power_off_latency_ns +
 				genpd->power_on_latency_ns;
-	/*
-	 * It doesn't make sense to remove power from the domain if saving
-	 * the state of all devices in it and the power off/power on operations
-	 * take too much time.
-	 *
-	 * All devices in this domain have been stopped already at this point.
-	 */
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-		if (pdd->dev->driver)
-			off_on_time_ns +=
-				to_gpd_data(pdd)->td.save_state_latency_ns;
-	}
 
 	min_off_time_ns = -1;
 	/*
@@ -171,9 +160,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		struct gpd_timing_data *td;
 		s64 constraint_ns;
 
-		if (!pdd->dev->driver)
-			continue;
-
 		/*
 		 * Check if the device is allowed to be off long enough for the
 		 * domain to turn off and on (that's how much time it will
@@ -193,7 +179,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		 * constraint_ns cannot be negative here, because the device has
 		 * been suspended.
 		 */
-		constraint_ns -= td->restore_state_latency_ns;
 		if (constraint_ns <= off_on_time_ns)
 			return false;
 

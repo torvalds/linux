@@ -344,7 +344,8 @@
 #define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */
-#define E1000_RFCTL_LEF        0x00040000
+#define E1000_RFCTL_IPV6_EX_DIS         0x00010000
+#define E1000_RFCTL_LEF                 0x00040000
 
 /* Collision related configuration parameters */
 #define E1000_COLLISION_THRESHOLD       15
@@ -603,6 +604,10 @@
 #define E1000_M88E1112_MAC_CTRL_1_MODE_SHIFT	7
 #define E1000_M88E1112_PAGE_ADDR		0x16
 #define E1000_M88E1112_STATUS			0x01
+#define E1000_M88E1512_CFG_REG_1		0x0010
+#define E1000_M88E1512_CFG_REG_2		0x0011
+#define E1000_M88E1512_CFG_REG_3		0x0007
+#define E1000_M88E1512_MODE			0x0014
 
 /* PCI Express Control */
 #define E1000_GCR_CMPL_TMOUT_MASK       0x0000F000
@@ -860,6 +865,7 @@
 #define M88_VENDOR           0x0141
 #define I210_I_PHY_ID        0x01410C00
 #define M88E1543_E_PHY_ID    0x01410EA0
+#define M88E1512_E_PHY_ID    0x01410DD0
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */

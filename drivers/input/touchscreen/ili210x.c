@@ -216,7 +216,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	/* get panel info */
 	error = ili210x_read_reg(client, REG_PANEL_INFO, &panel, sizeof(panel));
 	if (error) {
-		dev_err(dev, "Failed to get panel informations, err: %d\n",
+		dev_err(dev, "Failed to get panel information, err: %d\n",
 			error);
 		return error;
 	}
@@ -276,7 +276,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 
 	error = input_register_device(priv->input);
 	if (error) {
-		dev_err(dev, "Cannot regiser input device, err: %d\n", error);
+		dev_err(dev, "Cannot register input device, err: %d\n", error);
 		goto err_remove_sysfs;
 	}
 
@@ -343,7 +343,6 @@ MODULE_DEVICE_TABLE(i2c, ili210x_i2c_id);
 static struct i2c_driver ili210x_ts_driver = {
 	.driver = {
 		.name = "ili210x_i2c",
-		.owner = THIS_MODULE,
 		.pm = &ili210x_i2c_pm,
 	},
 	.id_table = ili210x_i2c_id,

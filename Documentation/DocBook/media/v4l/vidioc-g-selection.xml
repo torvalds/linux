@@ -199,7 +199,7 @@ exist no rectangle</emphasis> that satisfies the constraints.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved[9]</structfield></entry>
-	    <entry>Reserved fields for future use.</entry>
+	    <entry>Reserved fields for future use. Drivers and applications must zero this array.</entry>
 	  </row>
 	</tbody>
       </tgroup>

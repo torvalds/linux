@@ -78,12 +78,29 @@ struct cpu_context {
 
 struct thread_struct {
 	struct cpu_context	cpu_context;	/* cpu context */
-	unsigned long		tp_value;
+	unsigned long		tp_value;	/* TLS register */
+#ifdef CONFIG_COMPAT
+	unsigned long		tp2_value;
+#endif
 	struct fpsimd_state	fpsimd_state;
 	unsigned long		fault_address;	/* fault info */
 	unsigned long		fault_code;	/* ESR_EL1 value */
 	struct debug_info	debug;		/* debugging */
 };
+
+#ifdef CONFIG_COMPAT
+#define task_user_tls(t)						\
+({									\
+	unsigned long *__tls;						\
+	if (is_compat_thread(task_thread_info(t)))			\
+		__tls = &(t)->thread.tp2_value;				\
+	else								\
+		__tls = &(t)->thread.tp_value;				\
+	__tls;								\
+ })
+#else
+#define task_user_tls(t)	(&(t)->thread.tp_value)
+#endif
 
 #define INIT_THREAD  {	}
 
@@ -168,5 +185,7 @@ static inline void spin_lock_prefetch(const void *x)
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 #endif
+
+void cpu_enable_pan(void *__unused);
 
 #endif /* __ASM_PROCESSOR_H */

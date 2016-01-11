@@ -24,8 +24,8 @@ struct watchdog_device;
  * @stop:	The routine for stopping the watchdog device.
  * @ping:	The routine that sends a keepalive ping to the watchdog device.
  * @status:	The routine that shows the status of the watchdog device.
- * @set_timeout:The routine for setting the watchdog devices timeout value.
- * @get_timeleft:The routine that get's the time that's left before a reset.
+ * @set_timeout:The routine for setting the watchdog devices timeout value (in seconds).
+ * @get_timeleft:The routine that gets the time left before a reset (in seconds).
  * @ref:	The ref operation for dyn. allocated watchdog_device structs
  * @unref:	The unref operation for dyn. allocated watchdog_device structs
  * @ioctl:	The routines that handles extra ioctl calls.
@@ -33,7 +33,7 @@ struct watchdog_device;
  * The watchdog_ops structure contains a list of low-level operations
  * that control a watchdog device. It also contains the module that owns
  * these operations. The start and stop function are mandatory, all other
- * functions are optonal.
+ * functions are optional.
  */
 struct watchdog_ops {
 	struct module *owner;
@@ -59,12 +59,14 @@ struct watchdog_ops {
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
  * @bootstatus:	Status of the watchdog device at boot.
- * @timeout:	The watchdog devices timeout value.
- * @min_timeout:The watchdog devices minimum timeout value.
- * @max_timeout:The watchdog devices maximum timeout value.
+ * @timeout:	The watchdog devices timeout value (in seconds).
+ * @min_timeout:The watchdog devices minimum timeout value (in seconds).
+ * @max_timeout:The watchdog devices maximum timeout value (in seconds).
  * @driver-data:Pointer to the drivers private data.
  * @lock:	Lock for watchdog core internal use only.
  * @status:	Field that contains the devices internal status bits.
+ * @deferred: entry in wtd_deferred_reg_list which is used to
+ *			   register early initialized watchdogs.
  *
  * The watchdog_device structure contains all information about a
  * watchdog timer device.
@@ -95,6 +97,7 @@ struct watchdog_device {
 #define WDOG_ALLOW_RELEASE	2	/* Did we receive the magic char ? */
 #define WDOG_NO_WAY_OUT		3	/* Is 'nowayout' feature set ? */
 #define WDOG_UNREGISTERED	4	/* Has the device been unregistered */
+	struct list_head deferred;
 };
 
 #define WATCHDOG_NOWAYOUT		IS_BUILTIN(CONFIG_WATCHDOG_NOWAYOUT)
@@ -116,8 +119,15 @@ static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool noway
 /* Use the following function to check if a timeout value is invalid */
 static inline bool watchdog_timeout_invalid(struct watchdog_device *wdd, unsigned int t)
 {
-	return ((wdd->max_timeout != 0) &&
-		(t < wdd->min_timeout || t > wdd->max_timeout));
+	/*
+	 * The timeout is invalid if
+	 * - the requested value is smaller than the configured minimum timeout,
+	 * or
+	 * - a maximum timeout is configured, and the requested value is larger
+	 *   than the maximum timeout.
+	 */
+	return t < wdd->min_timeout ||
+		(wdd->max_timeout && t > wdd->max_timeout);
 }
 
 /* Use the following functions to manipulate watchdog driver specific data */
@@ -136,13 +146,5 @@ extern int watchdog_init_timeout(struct watchdog_device *wdd,
 				  unsigned int timeout_parm, struct device *dev);
 extern int watchdog_register_device(struct watchdog_device *);
 extern void watchdog_unregister_device(struct watchdog_device *);
-
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
-void watchdog_nmi_disable_all(void);
-void watchdog_nmi_enable_all(void);
-#else
-static inline void watchdog_nmi_disable_all(void) {}
-static inline void watchdog_nmi_enable_all(void) {}
-#endif
 
 #endif  /* ifndef _LINUX_WATCHDOG_H */

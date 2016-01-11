@@ -124,6 +124,9 @@ config I2C_I801
 	    BayTrail (SOC)
 	    Sunrise Point-H (PCH)
 	    Sunrise Point-LP (PCH)
+	    DNV (SOC)
+	    Broxton (SOC)
+	    Lewisburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -392,6 +395,16 @@ config I2C_BCM_KONA
 
 	  If you do not need KONA I2C interface, say N.
 
+config I2C_BRCMSTB
+	tristate "BRCM Settop I2C controller"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	default y
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Broadcom Settop SoCs.
+
+	  If you do not need I2C interface, say N.
+
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
@@ -412,14 +425,14 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 
 config I2C_CADENCE
 	tristate "Cadence I2C Controller"
-	depends on ARCH_ZYNQ
+	depends on ARCH_ZYNQ || ARM64
 	help
 	  Say yes here to select Cadence I2C Host Controller. This controller is
 	  e.g. used by Xilinx Zynq.
 
 config I2C_CBUS_GPIO
 	tristate "CBUS I2C driver"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Support for CBUS access using I2C API. Mostly relevant for Nokia
 	  Internet Tablets (770, N800 and N810).
@@ -516,6 +529,13 @@ config I2C_EG20T
 	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
+config I2C_EMEV2
+	tristate "EMMA Mobile series I2C adapter"
+	depends on HAVE_CLK
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Renesas Electronics EM/EV family of processors.
+
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
 	depends on ARCH_EXYNOS && OF
@@ -525,7 +545,7 @@ config I2C_EXYNOS5
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select I2C_ALGOBIT
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
@@ -565,10 +585,10 @@ config I2C_IMG
 
 config I2C_IMX
 	tristate "IMX I2C interface"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || ARCH_LAYERSCAPE
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Freescale i.MX/MXC processors.
+	  the Freescale i.MX/MXC or Layerscape processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
@@ -602,6 +622,16 @@ config I2C_KEMPLD
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-kempld.
 
+config I2C_LPC2K
+	tristate "I2C bus support for NXP LPC2K/LPC178x/18xx/43xx"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	help
+	  This driver supports the I2C interface found several NXP
+	  devices including LPC2xxx, LPC178x/7x and LPC18xx/43xx.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-lpc2k.
+
 config I2C_MESON
 	tristate "Amlogic Meson I2C controller"
 	depends on ARCH_MESON
@@ -619,6 +649,16 @@ config I2C_MPC
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mpc.
+
+config I2C_MT65XX
+	tristate "MediaTek I2C adapter"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_DMA
+	help
+	  This selects the MediaTek(R) Integrated Inter Circuit bus driver
+	  for MT65xx and MT81xx.
+	  If you want to use MediaTek(R) I2C interface, say Y or M here.
+	  If unsure, say N.
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
@@ -865,6 +905,22 @@ config I2C_TEGRA
 	  If you say yes to this option, support will be included for the
 	  I2C controller embedded in NVIDIA Tegra SOCs
 
+config I2C_UNIPHIER
+	tristate "UniPhier FIFO-less I2C controller"
+	depends on ARCH_UNIPHIER
+	help
+	  If you say yes to this option, support will be included for
+	  the UniPhier FIFO-less I2C interface embedded in PH1-LD4, PH1-sLD8,
+	  or older UniPhier SoCs.
+
+config I2C_UNIPHIER_F
+	tristate "UniPhier FIFO-builtin I2C controller"
+	depends on ARCH_UNIPHIER
+	help
+	  If you say yes to this option, support will be included for
+	  the UniPhier FIFO-builtin I2C interface embedded in PH1-Pro4,
+	  PH1-Pro5, or newer UniPhier SoCs.
+
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
 	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
@@ -1109,6 +1165,15 @@ config I2C_CROS_EC_TUNNEL
 	  through to the other side of the ChromeOS EC to the i2c bus
 	  connected there. This will work whatever the interface used to
 	  talk to the EC (SPI, I2C or LPC).
+
+config I2C_XGENE_SLIMPRO
+	tristate "APM X-Gene SoC I2C SLIMpro devices support"
+	depends on ARCH_XGENE && MAILBOX
+	help
+	  Enable I2C bus access using the APM X-Gene SoC SLIMpro
+	  co-processor. The I2C device access the I2C bus via the X-Gene
+	  to SLIMpro (On chip coprocessor) mailbox mechanism.
+	  If unsure, say N.
 
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"

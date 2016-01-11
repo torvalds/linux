@@ -54,69 +54,101 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			   struct asix_rx_fixup_info *rx)
 {
 	int offset = 0;
+	u16 size;
+
+	/* When an Ethernet frame spans multiple URB socket buffers,
+	 * do a sanity test for the Data header synchronisation.
+	 * Attempt to detect the situation of the previous socket buffer having
+	 * been truncated or a socket buffer was missing. These situations
+	 * cause a discontinuity in the data stream and therefore need to avoid
+	 * appending bad data to the end of the current netdev socket buffer.
+	 * Also avoid unnecessarily discarding a good current netdev socket
+	 * buffer.
+	 */
+	if (rx->remaining && (rx->remaining + sizeof(u32) <= skb->len)) {
+		offset = ((rx->remaining + 1) & 0xfffe) + sizeof(u32);
+		rx->header = get_unaligned_le32(skb->data + offset);
+		offset = 0;
+
+		size = (u16)(rx->header & 0x7ff);
+		if (size != ((~rx->header >> 16) & 0x7ff)) {
+			netdev_err(dev->net, "asix_rx_fixup() Data Header synchronisation was lost, remaining %d\n",
+				   rx->remaining);
+			if (rx->ax_skb) {
+				kfree_skb(rx->ax_skb);
+				rx->ax_skb = NULL;
+				/* Discard the incomplete netdev Ethernet frame
+				 * and assume the Data header is at the start of
+				 * the current URB socket buffer.
+				 */
+			}
+			rx->remaining = 0;
+		}
+	}
 
 	while (offset + sizeof(u16) <= skb->len) {
-		u16 remaining = 0;
+		u16 copy_length;
 		unsigned char *data;
 
-		if (!rx->size) {
-			if ((skb->len - offset == sizeof(u16)) ||
-			    rx->split_head) {
-				if(!rx->split_head) {
-					rx->header = get_unaligned_le16(
-							skb->data + offset);
-					rx->split_head = true;
-					offset += sizeof(u16);
-					break;
-				} else {
-					rx->header |= (get_unaligned_le16(
-							skb->data + offset)
-							<< 16);
-					rx->split_head = false;
-					offset += sizeof(u16);
-				}
+		if (!rx->remaining) {
+			if (skb->len - offset == sizeof(u16)) {
+				rx->header = get_unaligned_le16(
+						skb->data + offset);
+				rx->split_head = true;
+				offset += sizeof(u16);
+				break;
+			}
+
+			if (rx->split_head == true) {
+				rx->header |= (get_unaligned_le16(
+						skb->data + offset) << 16);
+				rx->split_head = false;
+				offset += sizeof(u16);
 			} else {
 				rx->header = get_unaligned_le32(skb->data +
 								offset);
 				offset += sizeof(u32);
 			}
 
-			/* get the packet length */
-			rx->size = (u16) (rx->header & 0x7ff);
-			if (rx->size != ((~rx->header >> 16) & 0x7ff)) {
+			/* take frame length from Data header 32-bit word */
+			size = (u16)(rx->header & 0x7ff);
+			if (size != ((~rx->header >> 16) & 0x7ff)) {
 				netdev_err(dev->net, "asix_rx_fixup() Bad Header Length 0x%x, offset %d\n",
 					   rx->header, offset);
-				rx->size = 0;
 				return 0;
 			}
-			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net,
-							       rx->size);
-			if (!rx->ax_skb)
+			if (size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
+				netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
+					   size);
 				return 0;
+			}
+
+			/* Sometimes may fail to get a netdev socket buffer but
+			 * continue to process the URB socket buffer so that
+			 * synchronisation of the Ethernet frame Data header
+			 * word is maintained.
+			 */
+			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net, size);
+
+			rx->remaining = size;
 		}
 
-		if (rx->size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
-			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
-				   rx->size);
-			kfree_skb(rx->ax_skb);
-			rx->ax_skb = NULL;
-			rx->size = 0U;
-
-			return 0;
+		if (rx->remaining > skb->len - offset) {
+			copy_length = skb->len - offset;
+			rx->remaining -= copy_length;
+		} else {
+			copy_length = rx->remaining;
+			rx->remaining = 0;
 		}
 
-		if (rx->size > skb->len - offset) {
-			remaining = rx->size - (skb->len - offset);
-			rx->size = skb->len - offset;
+		if (rx->ax_skb) {
+			data = skb_put(rx->ax_skb, copy_length);
+			memcpy(data, skb->data + offset, copy_length);
+			if (!rx->remaining)
+				usbnet_skb_return(dev, rx->ax_skb);
 		}
 
-		data = skb_put(rx->ax_skb, rx->size);
-		memcpy(data, skb->data + offset, rx->size);
-		if (!remaining)
-			usbnet_skb_return(dev, rx->ax_skb);
-
-		offset += (rx->size + 1) & 0xfffe;
-		rx->size = remaining;
+		offset += (copy_length + 1) & 0xfffe;
 	}
 
 	if (skb->len != offset) {
@@ -556,7 +588,6 @@ void asix_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 	usbnet_get_drvinfo(net, info);
 	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
-	info->eedump_len = AX_EEPROM_LEN;
 }
 
 int asix_set_mac_address(struct net_device *net, void *p)

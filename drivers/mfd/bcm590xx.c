@@ -117,7 +117,6 @@ MODULE_DEVICE_TABLE(i2c, bcm590xx_i2c_id);
 static struct i2c_driver bcm590xx_i2c_driver = {
 	.driver = {
 		   .name = "bcm590xx",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(bcm590xx_of_match),
 	},
 	.probe = bcm590xx_i2c_probe,
@@ -129,4 +128,3 @@ module_i2c_driver(bcm590xx_i2c_driver);
 MODULE_AUTHOR("Matt Porter <mporter@linaro.org>");
 MODULE_DESCRIPTION("BCM590xx multi-function driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:bcm590xx");

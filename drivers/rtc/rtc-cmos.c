@@ -41,7 +41,6 @@
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/dmi.h>
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
 #include <asm-generic/rtc.h>
@@ -51,6 +50,7 @@ struct cmos_rtc {
 	struct device		*dev;
 	int			irq;
 	struct resource		*iomem;
+	time64_t		alarm_expires;
 
 	void			(*wake_on)(struct device *);
 	void			(*wake_off)(struct device *);
@@ -377,52 +377,10 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	spin_unlock_irq(&rtc_lock);
 
+	cmos->alarm_expires = rtc_tm_to_time64(&t->time);
+
 	return 0;
 }
-
-/*
- * Do not disable RTC alarm on shutdown - workaround for b0rked BIOSes.
- */
-static bool alarm_disable_quirk;
-
-static int __init set_alarm_disable_quirk(const struct dmi_system_id *id)
-{
-	alarm_disable_quirk = true;
-	pr_info("BIOS has alarm-disable quirk - RTC alarms disabled\n");
-	return 0;
-}
-
-static const struct dmi_system_id rtc_quirks[] __initconst = {
-	/* https://bugzilla.novell.com/show_bug.cgi?id=805740 */
-	{
-		.callback = set_alarm_disable_quirk,
-		.ident    = "IBM Truman",
-		.matches  = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "4852570"),
-		},
-	},
-	/* https://bugzilla.novell.com/show_bug.cgi?id=812592 */
-	{
-		.callback = set_alarm_disable_quirk,
-		.ident    = "Gigabyte GA-990XA-UD3",
-		.matches  = {
-			DMI_MATCH(DMI_SYS_VENDOR,
-					"Gigabyte Technology Co., Ltd."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "GA-990XA-UD3"),
-		},
-	},
-	/* http://permalink.gmane.org/gmane.linux.kernel/1604474 */
-	{
-		.callback = set_alarm_disable_quirk,
-		.ident    = "Toshiba Satellite L300",
-		.matches  = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
-		},
-	},
-	{}
-};
 
 static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
@@ -431,9 +389,6 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	if (!is_valid_irq(cmos->irq))
 		return -EINVAL;
-
-	if (alarm_disable_quirk)
-		return 0;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
@@ -512,13 +467,6 @@ cmos_nvram_read(struct file *filp, struct kobject *kobj,
 {
 	int	retval;
 
-	if (unlikely(off >= attr->size))
-		return 0;
-	if (unlikely(off < 0))
-		return -EINVAL;
-	if ((off + count) > attr->size)
-		count = attr->size - off;
-
 	off += NVRAM_OFFSET;
 	spin_lock_irq(&rtc_lock);
 	for (retval = 0; count; count--, off++, retval++) {
@@ -543,12 +491,6 @@ cmos_nvram_write(struct file *filp, struct kobject *kobj,
 	int		retval;
 
 	cmos = dev_get_drvdata(container_of(kobj, struct device, kobj));
-	if (unlikely(off >= attr->size))
-		return -EFBIG;
-	if (unlikely(off < 0))
-		return -EINVAL;
-	if ((off + count) > attr->size)
-		count = attr->size - off;
 
 	/* NOTE:  on at least PCs and Ataris, the boot firmware uses a
 	 * checksum on part of the NVRAM data.  That's currently ignored
@@ -860,6 +802,51 @@ static void __exit cmos_do_remove(struct device *dev)
 	cmos->dev = NULL;
 }
 
+static int cmos_aie_poweroff(struct device *dev)
+{
+	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
+	struct rtc_time now;
+	time64_t t_now;
+	int retval = 0;
+	unsigned char rtc_control;
+
+	if (!cmos->alarm_expires)
+		return -EINVAL;
+
+	spin_lock_irq(&rtc_lock);
+	rtc_control = CMOS_READ(RTC_CONTROL);
+	spin_unlock_irq(&rtc_lock);
+
+	/* We only care about the situation where AIE is disabled. */
+	if (rtc_control & RTC_AIE)
+		return -EBUSY;
+
+	cmos_read_time(dev, &now);
+	t_now = rtc_tm_to_time64(&now);
+
+	/*
+	 * When enabling "RTC wake-up" in BIOS setup, the machine reboots
+	 * automatically right after shutdown on some buggy boxes.
+	 * This automatic rebooting issue won't happen when the alarm
+	 * time is larger than now+1 seconds.
+	 *
+	 * If the alarm time is equal to now+1 seconds, the issue can be
+	 * prevented by cancelling the alarm.
+	 */
+	if (cmos->alarm_expires == t_now + 1) {
+		struct rtc_wkalrm alarm;
+
+		/* Cancel the AIE timer by configuring the past time. */
+		rtc_time64_to_tm(t_now - 1, &alarm.time);
+		alarm.enabled = 0;
+		retval = cmos_set_alarm(dev, &alarm);
+	} else if (cmos->alarm_expires > t_now + 1) {
+		retval = -EBUSY;
+	}
+
+	return retval;
+}
+
 #ifdef CONFIG_PM
 
 static int cmos_suspend(struct device *dev)
@@ -1094,8 +1081,12 @@ static void cmos_pnp_shutdown(struct pnp_dev *pnp)
 	struct device *dev = &pnp->dev;
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 
-	if (system_state == SYSTEM_POWER_OFF && !cmos_poweroff(dev))
-		return;
+	if (system_state == SYSTEM_POWER_OFF) {
+		int retval = cmos_poweroff(dev);
+
+		if (cmos_aie_poweroff(dev) < 0 && !retval)
+			return;
+	}
 
 	cmos_do_shutdown(cmos->irq);
 }
@@ -1200,8 +1191,12 @@ static void cmos_platform_shutdown(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 
-	if (system_state == SYSTEM_POWER_OFF && !cmos_poweroff(dev))
-		return;
+	if (system_state == SYSTEM_POWER_OFF) {
+		int retval = cmos_poweroff(dev);
+
+		if (cmos_aie_poweroff(dev) < 0 && !retval)
+			return;
+	}
 
 	cmos_do_shutdown(cmos->irq);
 }
@@ -1242,8 +1237,6 @@ static int __init cmos_init(void)
 		if (retval == 0)
 			platform_driver_registered = true;
 	}
-
-	dmi_check_system(rtc_quirks);
 
 	if (retval == 0)
 		return 0;

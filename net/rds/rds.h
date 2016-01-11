@@ -7,6 +7,7 @@
 #include <rdma/rdma_cm.h>
 #include <linux/mutex.h>
 #include <linux/rds.h>
+#include <linux/rhashtable.h>
 
 #include "info.h"
 
@@ -80,12 +81,15 @@ enum {
 #define RDS_LL_SEND_FULL	0
 #define RDS_RECONNECT_PENDING	1
 #define RDS_IN_XMIT		2
+#define RDS_RECV_REFILL		3
 
 struct rds_connection {
 	struct hlist_node	c_hash_node;
 	__be32			c_laddr;
 	__be32			c_faddr;
-	unsigned int		c_loopback:1;
+	unsigned int		c_loopback:1,
+				c_outgoing:1,
+				c_pad_to_32:30;
 	struct rds_connection	*c_passive;
 
 	struct rds_cong_map	*c_lcong;
@@ -128,7 +132,20 @@ struct rds_connection {
 
 	/* Protocol version */
 	unsigned int		c_version;
+	possible_net_t		c_net;
 };
+
+static inline
+struct net *rds_conn_net(struct rds_connection *conn)
+{
+	return read_pnet(&conn->c_net);
+}
+
+static inline
+void rds_conn_net_set(struct rds_connection *conn, struct net *net)
+{
+	write_pnet(&conn->c_net, net);
+}
 
 #define RDS_FLAG_CONG_BITMAP	0x01
 #define RDS_FLAG_ACK_REQUIRED	0x02
@@ -363,6 +380,8 @@ struct rds_message {
 			unsigned int		op_active:1;
 			unsigned int		op_nents;
 			unsigned int		op_count;
+			unsigned int		op_dmasg;
+			unsigned int		op_dmaoff;
 			struct scatterlist	*op_sg;
 		} data;
 	};
@@ -408,11 +427,6 @@ struct rds_notifier {
  *                 should try hard not to block.
  */
 
-#define RDS_TRANS_IB	0
-#define RDS_TRANS_IWARP	1
-#define RDS_TRANS_TCP	2
-#define RDS_TRANS_COUNT	3
-
 struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
 	struct list_head	t_item;
@@ -420,7 +434,7 @@ struct rds_transport {
 	unsigned int		t_prefer_loopback:1;
 	unsigned int		t_type;
 
-	int (*laddr_check)(__be32 addr);
+	int (*laddr_check)(struct net *net, __be32 addr);
 	int (*conn_alloc)(struct rds_connection *conn, gfp_t gfp);
 	void (*conn_free)(void *data);
 	int (*conn_connect)(struct rds_connection *conn);
@@ -461,7 +475,8 @@ struct rds_sock {
 	 * bound_addr used for both incoming and outgoing, no INADDR_ANY
 	 * support.
 	 */
-	struct hlist_node	rs_bound_node;
+	struct rhash_head	rs_bound_node;
+	u64			rs_bound_key;
 	__be32			rs_bound_addr;
 	__be32			rs_conn_addr;
 	__be16			rs_bound_port;
@@ -575,7 +590,6 @@ struct rds_statistics {
 };
 
 /* af_rds.c */
-char *rds_str_array(char **array, size_t elements, size_t index);
 void rds_sock_addref(struct rds_sock *rs);
 void rds_sock_put(struct rds_sock *rs);
 void rds_wake_sk_sleep(struct rds_sock *rs);
@@ -593,6 +607,8 @@ extern wait_queue_head_t rds_poll_waitq;
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 void rds_remove_bound(struct rds_sock *rs);
 struct rds_sock *rds_find_bound(__be32 addr, __be16 port);
+int rds_bind_lock_init(void);
+void rds_bind_lock_destroy(void);
 
 /* cong.c */
 int rds_cong_get_maps(struct rds_connection *conn);
@@ -612,9 +628,11 @@ struct rds_message *rds_cong_update_alloc(struct rds_connection *conn);
 /* conn.c */
 int rds_conn_init(void);
 void rds_conn_exit(void);
-struct rds_connection *rds_conn_create(__be32 laddr, __be32 faddr,
+struct rds_connection *rds_conn_create(struct net *net,
+				       __be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp);
-struct rds_connection *rds_conn_create_outgoing(__be32 laddr, __be32 faddr,
+struct rds_connection *rds_conn_create_outgoing(struct net *net,
+						__be32 laddr, __be32 faddr,
 			       struct rds_transport *trans, gfp_t gfp);
 void rds_conn_shutdown(struct rds_connection *conn);
 void rds_conn_destroy(struct rds_connection *conn);
@@ -799,10 +817,11 @@ void rds_connect_complete(struct rds_connection *conn);
 /* transport.c */
 int rds_trans_register(struct rds_transport *trans);
 void rds_trans_unregister(struct rds_transport *trans);
-struct rds_transport *rds_trans_get_preferred(__be32 addr);
+struct rds_transport *rds_trans_get_preferred(struct net *net, __be32 addr);
 void rds_trans_put(struct rds_transport *trans);
 unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 				       unsigned int avail);
+struct rds_transport *rds_trans_get(int t_type);
 int rds_trans_init(void);
 void rds_trans_exit(void);
 

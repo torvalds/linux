@@ -81,6 +81,7 @@ struct iommu_domain {
 	iommu_fault_handler_t handler;
 	void *handler_token;
 	struct iommu_domain_geometry geometry;
+	void *iova_cookie;
 };
 
 enum iommu_cap {
@@ -112,6 +113,20 @@ enum iommu_attr {
 	DOMAIN_ATTR_FSL_PAMUV1,
 	DOMAIN_ATTR_NESTING,	/* two stages of translation */
 	DOMAIN_ATTR_MAX,
+};
+
+/**
+ * struct iommu_dm_region - descriptor for a direct mapped memory region
+ * @list: Linked list pointers
+ * @start: System physical start address of the region
+ * @length: Length of the region in bytes
+ * @prot: IOMMU Protection flags (READ/WRITE/...)
+ */
+struct iommu_dm_region {
+	struct list_head	list;
+	phys_addr_t		start;
+	size_t			length;
+	int			prot;
 };
 
 #ifdef CONFIG_IOMMU_API
@@ -153,11 +168,15 @@ struct iommu_ops {
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	int (*add_device)(struct device *dev);
 	void (*remove_device)(struct device *dev);
-	int (*device_group)(struct device *dev, unsigned int *groupid);
+	struct iommu_group *(*device_group)(struct device *dev);
 	int (*domain_get_attr)(struct iommu_domain *domain,
 			       enum iommu_attr attr, void *data);
 	int (*domain_set_attr)(struct iommu_domain *domain,
 			       enum iommu_attr attr, void *data);
+
+	/* Request/Free a list of direct mapping requirements for a device */
+	void (*get_dm_regions)(struct device *dev, struct list_head *list);
+	void (*put_dm_regions)(struct device *dev, struct list_head *list);
 
 	/* Window handling functions */
 	int (*domain_window_enable)(struct iommu_domain *domain, u32 wnd_nr,
@@ -193,6 +212,7 @@ extern int iommu_attach_device(struct iommu_domain *domain,
 			       struct device *dev);
 extern void iommu_detach_device(struct iommu_domain *domain,
 				struct device *dev);
+extern struct iommu_domain *iommu_get_domain_for_dev(struct device *dev);
 extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		     phys_addr_t paddr, size_t size, int prot);
 extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
@@ -203,6 +223,10 @@ extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long io
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
+
+extern void iommu_get_dm_regions(struct device *dev, struct list_head *list);
+extern void iommu_put_dm_regions(struct device *dev, struct list_head *list);
+extern int iommu_request_dm_for_dev(struct device *dev);
 
 extern int iommu_attach_group(struct iommu_domain *domain,
 			      struct iommu_group *group);
@@ -227,6 +251,7 @@ extern int iommu_group_unregister_notifier(struct iommu_group *group,
 					   struct notifier_block *nb);
 extern int iommu_group_id(struct iommu_group *group);
 extern struct iommu_group *iommu_group_get_for_dev(struct device *dev);
+extern struct iommu_domain *iommu_group_default_domain(struct iommu_group *);
 
 extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
@@ -234,7 +259,7 @@ extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 struct device *iommu_device_create(struct device *parent, void *drvdata,
 				   const struct attribute_group **groups,
-				   const char *fmt, ...);
+				   const char *fmt, ...) __printf(4, 5);
 void iommu_device_destroy(struct device *dev);
 int iommu_device_link(struct device *dev, struct device *link);
 void iommu_device_unlink(struct device *dev, struct device *link);
@@ -292,6 +317,11 @@ static inline size_t iommu_map_sg(struct iommu_domain *domain,
 	return domain->ops->map_sg(domain, iova, sg, nents, prot);
 }
 
+/* PCI device grouping function */
+extern struct iommu_group *pci_device_group(struct device *dev);
+/* Generic device grouping function */
+extern struct iommu_group *generic_device_group(struct device *dev);
+
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
@@ -330,6 +360,11 @@ static inline int iommu_attach_device(struct iommu_domain *domain,
 static inline void iommu_detach_device(struct iommu_domain *domain,
 				       struct device *dev)
 {
+}
+
+static inline struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
+{
+	return NULL;
 }
 
 static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
@@ -371,6 +406,21 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 static inline void iommu_set_fault_handler(struct iommu_domain *domain,
 				iommu_fault_handler_t handler, void *token)
 {
+}
+
+static inline void iommu_get_dm_regions(struct device *dev,
+					struct list_head *list)
+{
+}
+
+static inline void iommu_put_dm_regions(struct device *dev,
+					struct list_head *list)
+{
+}
+
+static inline int iommu_request_dm_for_dev(struct device *dev)
+{
+	return -ENODEV;
 }
 
 static inline int iommu_attach_group(struct iommu_domain *domain,

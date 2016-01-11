@@ -155,6 +155,8 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 		list_add_tail(&kvg->node, &kv->group_list);
 		kvg->vfio_group = vfio_group;
 
+		kvm_arch_start_assignment(dev->kvm);
+
 		mutex_unlock(&kv->lock);
 
 		kvm_vfio_update_coherency(dev);
@@ -189,6 +191,8 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 			ret = 0;
 			break;
 		}
+
+		kvm_arch_end_assignment(dev->kvm);
 
 		mutex_unlock(&kv->lock);
 
@@ -239,6 +243,7 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
 		list_del(&kvg->node);
 		kfree(kvg);
+		kvm_arch_end_assignment(dev->kvm);
 	}
 
 	kvm_vfio_update_coherency(dev);

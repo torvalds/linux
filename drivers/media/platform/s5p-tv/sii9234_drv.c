@@ -397,7 +397,6 @@ MODULE_DEVICE_TABLE(i2c, sii9234_id);
 static struct i2c_driver sii9234_driver = {
 	.driver = {
 		.name	= "sii9234",
-		.owner	= THIS_MODULE,
 		.pm = &sii9234_pm_ops,
 	},
 	.probe		= sii9234_probe,

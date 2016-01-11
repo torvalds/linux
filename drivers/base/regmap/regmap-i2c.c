@@ -209,11 +209,60 @@ static struct regmap_bus regmap_i2c = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
+static int regmap_i2c_smbus_i2c_write(void *context, const void *data,
+				      size_t count)
+{
+	struct device *dev = context;
+	struct i2c_client *i2c = to_i2c_client(dev);
+
+	if (count < 1)
+		return -EINVAL;
+	if (count >= I2C_SMBUS_BLOCK_MAX)
+		return -E2BIG;
+
+	--count;
+	return i2c_smbus_write_i2c_block_data(i2c, ((u8 *)data)[0], count,
+					      ((u8 *)data + 1));
+}
+
+static int regmap_i2c_smbus_i2c_read(void *context, const void *reg,
+				     size_t reg_size, void *val,
+				     size_t val_size)
+{
+	struct device *dev = context;
+	struct i2c_client *i2c = to_i2c_client(dev);
+	int ret;
+
+	if (reg_size != 1 || val_size < 1)
+		return -EINVAL;
+	if (val_size >= I2C_SMBUS_BLOCK_MAX)
+		return -E2BIG;
+
+	ret = i2c_smbus_read_i2c_block_data(i2c, ((u8 *)reg)[0], val_size, val);
+	if (ret == val_size)
+		return 0;
+	else if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
+
+static struct regmap_bus regmap_i2c_smbus_i2c_block = {
+	.write = regmap_i2c_smbus_i2c_write,
+	.read = regmap_i2c_smbus_i2c_read,
+	.max_raw_read = I2C_SMBUS_BLOCK_MAX,
+	.max_raw_write = I2C_SMBUS_BLOCK_MAX,
+};
+
 static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 					const struct regmap_config *config)
 {
 	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return &regmap_i2c;
+	else if (config->reg_bits == 8 &&
+		 i2c_check_functionality(i2c->adapter,
+					 I2C_FUNC_SMBUS_I2C_BLOCK))
+		return &regmap_i2c_smbus_i2c_block;
 	else if (config->val_bits == 16 && config->reg_bits == 8 &&
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_WORD_DATA))
@@ -233,47 +282,34 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 	return ERR_PTR(-ENOTSUPP);
 }
 
-/**
- * regmap_init_i2c(): Initialise register map
- *
- * @i2c: Device that will be interacted with
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.
- */
-struct regmap *regmap_init_i2c(struct i2c_client *i2c,
-			       const struct regmap_config *config)
+struct regmap *__regmap_init_i2c(struct i2c_client *i2c,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name)
 {
 	const struct regmap_bus *bus = regmap_get_i2c_bus(i2c, config);
 
 	if (IS_ERR(bus))
 		return ERR_CAST(bus);
 
-	return regmap_init(&i2c->dev, bus, &i2c->dev, config);
+	return __regmap_init(&i2c->dev, bus, &i2c->dev, config,
+			     lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(regmap_init_i2c);
+EXPORT_SYMBOL_GPL(__regmap_init_i2c);
 
-/**
- * devm_regmap_init_i2c(): Initialise managed register map
- *
- * @i2c: Device that will be interacted with
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  The regmap will be automatically freed by the
- * device management code.
- */
-struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
-				    const struct regmap_config *config)
+struct regmap *__devm_regmap_init_i2c(struct i2c_client *i2c,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name)
 {
 	const struct regmap_bus *bus = regmap_get_i2c_bus(i2c, config);
 
 	if (IS_ERR(bus))
 		return ERR_CAST(bus);
 
-	return devm_regmap_init(&i2c->dev, bus, &i2c->dev, config);
+	return __devm_regmap_init(&i2c->dev, bus, &i2c->dev, config,
+				  lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init_i2c);
+EXPORT_SYMBOL_GPL(__devm_regmap_init_i2c);
 
 MODULE_LICENSE("GPL");

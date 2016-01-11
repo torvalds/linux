@@ -32,13 +32,11 @@
 
 ENTRY(compat_sys_sigreturn_wrapper)
 	mov	x0, sp
-	mov	x27, #0		// prevent syscall restart handling (why)
 	b	compat_sys_sigreturn
 ENDPROC(compat_sys_sigreturn_wrapper)
 
 ENTRY(compat_sys_rt_sigreturn_wrapper)
 	mov	x0, sp
-	mov	x27, #0		// prevent syscall restart handling (why)
 	b	compat_sys_rt_sigreturn
 ENDPROC(compat_sys_rt_sigreturn_wrapper)
 

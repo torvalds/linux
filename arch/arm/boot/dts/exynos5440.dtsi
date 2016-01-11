@@ -279,7 +279,7 @@
 		clock-names = "usbhost";
 	};
 
-	pcie@290000 {
+	pcie_0: pcie@290000 {
 		compatible = "samsung,exynos5440-pcie", "snps,dw-pcie";
 		reg = <0x290000 0x1000
 			0x270000 0x1000
@@ -300,7 +300,7 @@
 		status = "disabled";
 	};
 
-	pcie@2a0000 {
+	pcie_1: pcie@2a0000 {
 		compatible = "samsung,exynos5440-pcie", "snps,dw-pcie";
 		reg = <0x2a0000 0x1000
 			0x272000 0x1000

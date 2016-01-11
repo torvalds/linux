@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -35,7 +36,7 @@
 TRACE_EVENT(iwlwifi_dev_hcmd,
 	TP_PROTO(const struct device *dev,
 		 struct iwl_host_cmd *cmd, u16 total_size,
-		 struct iwl_cmd_header *hdr),
+		 struct iwl_cmd_header_wide *hdr),
 	TP_ARGS(dev, cmd, total_size, hdr),
 	TP_STRUCT__entry(
 		DEV_ENTRY
@@ -43,11 +44,14 @@ TRACE_EVENT(iwlwifi_dev_hcmd,
 		__field(u32, flags)
 	),
 	TP_fast_assign(
-		int i, offset = sizeof(*hdr);
+		int i, offset = sizeof(struct iwl_cmd_header);
+
+		if (hdr->group_id)
+			offset = sizeof(struct iwl_cmd_header_wide);
 
 		DEV_ASSIGN;
 		__entry->flags = cmd->flags;
-		memcpy(__get_dynamic_array(hcmd), hdr, sizeof(*hdr));
+		memcpy(__get_dynamic_array(hcmd), hdr, offset);
 
 		for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 			if (!cmd->len[i])
@@ -57,26 +61,29 @@ TRACE_EVENT(iwlwifi_dev_hcmd,
 			offset += cmd->len[i];
 		}
 	),
-	TP_printk("[%s] hcmd %#.2x (%ssync)",
-		  __get_str(dev), ((u8 *)__get_dynamic_array(hcmd))[0],
+	TP_printk("[%s] hcmd %#.2x.%#.2x (%ssync)",
+		  __get_str(dev), ((u8 *)__get_dynamic_array(hcmd))[1],
+		  ((u8 *)__get_dynamic_array(hcmd))[0],
 		  __entry->flags & CMD_ASYNC ? "a" : "")
 );
 
 TRACE_EVENT(iwlwifi_dev_rx,
 	TP_PROTO(const struct device *dev, const struct iwl_trans *trans,
-		 void *rxbuf, size_t len),
-	TP_ARGS(dev, trans, rxbuf, len),
+		 struct iwl_rx_packet *pkt, size_t len),
+	TP_ARGS(dev, trans, pkt, len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__dynamic_array(u8, rxbuf, iwl_rx_trace_len(trans, rxbuf, len))
+		__field(u8, cmd)
+		__dynamic_array(u8, rxbuf, iwl_rx_trace_len(trans, pkt, len))
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
-		memcpy(__get_dynamic_array(rxbuf), rxbuf,
-		       iwl_rx_trace_len(trans, rxbuf, len));
+		__entry->cmd = pkt->hdr.cmd;
+		memcpy(__get_dynamic_array(rxbuf), pkt,
+		       iwl_rx_trace_len(trans, pkt, len));
 	),
 	TP_printk("[%s] RX cmd %#.2x",
-		  __get_str(dev), ((u8 *)__get_dynamic_array(rxbuf))[4])
+		  __get_str(dev), __entry->cmd)
 );
 
 TRACE_EVENT(iwlwifi_dev_tx,

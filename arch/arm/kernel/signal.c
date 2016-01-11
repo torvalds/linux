@@ -343,15 +343,18 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		 */
 		thumb = handler & 1;
 
-#if __LINUX_ARM_ARCH__ >= 7
 		/*
-		 * Clear the If-Then Thumb-2 execution state
-		 * ARM spec requires this to be all 000s in ARM mode
-		 * Snapdragon S4/Krait misbehaves on a Thumb=>ARM
-		 * signal transition without this.
+		 * Clear the If-Then Thumb-2 execution state.  ARM spec
+		 * requires this to be all 000s in ARM mode.  Snapdragon
+		 * S4/Krait misbehaves on a Thumb=>ARM signal transition
+		 * without this.
+		 *
+		 * We must do this whenever we are running on a Thumb-2
+		 * capable CPU, which includes ARMv6T2.  However, we elect
+		 * to always do this to simplify the code; this field is
+		 * marked UNK/SBZP for older architectures.
 		 */
 		cpsr &= ~PSR_IT_MASK;
-#endif
 
 		if (thumb) {
 			cpsr |= PSR_T_BIT;
@@ -562,6 +565,12 @@ static int do_signal(struct pt_regs *regs, int syscall)
 asmlinkage int
 do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 {
+	/*
+	 * The assembly code enters us with IRQs off, but it hasn't
+	 * informed the tracing code of that for efficiency reasons.
+	 * Update the trace code with the current status.
+	 */
+	trace_hardirqs_off();
 	do {
 		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
 			schedule();

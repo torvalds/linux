@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -123,7 +124,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	__le32 old_filter = send->filter_flags;
 	u8 old_dev_type = send->dev_type;
 	int ret;
-	static const u8 deactivate_cmd[] = {
+	static const u16 deactivate_cmd[] = {
 		REPLY_WIPAN_DEACTIVATION_COMPLETE
 	};
 

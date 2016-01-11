@@ -881,10 +881,6 @@ static int fsl_edma_probe(struct platform_device *pdev)
 
 	}
 
-	ret = fsl_edma_irq_init(pdev, fsl_edma);
-	if (ret)
-		return ret;
-
 	fsl_edma->big_endian = of_property_read_bool(np, "big-endian");
 
 	INIT_LIST_HEAD(&fsl_edma->dma_dev.channels);
@@ -899,6 +895,11 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		edma_writew(fsl_edma, 0x0, fsl_edma->membase + EDMA_TCD_CSR(i));
 		fsl_edma_chan_mux(fsl_chan, 0, false);
 	}
+
+	edma_writel(fsl_edma, ~0, fsl_edma->membase + EDMA_INTR);
+	ret = fsl_edma_irq_init(pdev, fsl_edma);
+	if (ret)
+		return ret;
 
 	dma_cap_set(DMA_PRIVATE, fsl_edma->dma_dev.cap_mask);
 	dma_cap_set(DMA_SLAVE, fsl_edma->dma_dev.cap_mask);

@@ -375,7 +375,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		list_for_each_entry(flow, &p->flows, list) {
 			fl = rcu_dereference_bh(flow->filter_list);
 			if (fl) {
-				result = tc_classify_compat(skb, fl, &res);
+				result = tc_classify(skb, fl, &res, true);
 				if (result < 0)
 					continue;
 				flow = (struct atm_flow_data *)res.class;

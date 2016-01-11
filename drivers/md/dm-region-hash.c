@@ -193,7 +193,7 @@ struct dm_region_hash *dm_region_hash_create(
 	rh->max_recovery = max_recovery;
 	rh->log = log;
 	rh->region_size = region_size;
-	rh->region_shift = ffs(region_size) - 1;
+	rh->region_shift = __ffs(region_size);
 	rwlock_init(&rh->hash_lock);
 	rh->mask = nr_buckets - 1;
 	rh->nr_buckets = nr_buckets;
@@ -249,9 +249,7 @@ void dm_region_hash_destroy(struct dm_region_hash *rh)
 	if (rh->log)
 		dm_dirty_log_destroy(rh->log);
 
-	if (rh->region_pool)
-		mempool_destroy(rh->region_pool);
-
+	mempool_destroy(rh->region_pool);
 	vfree(rh->buckets);
 	kfree(rh);
 }

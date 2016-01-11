@@ -23,10 +23,9 @@
 #include <net/nfc/nci_core.h>
 #include "nfcmrvl.h"
 
-#define VERSION "1.0"
-
 static struct usb_device_id nfcmrvl_table[] = {
-	{ USB_DEVICE_INTERFACE_CLASS(0x1286, 0x2046, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1286, 0x2046,
+					USB_CLASS_VENDOR_SPEC, 4, 1) },
 	{ }	/* Terminating entry */
 };
 
@@ -69,18 +68,27 @@ static int nfcmrvl_inc_tx(struct nfcmrvl_usb_drv_data *drv_data)
 static void nfcmrvl_bulk_complete(struct urb *urb)
 {
 	struct nfcmrvl_usb_drv_data *drv_data = urb->context;
+	struct sk_buff *skb;
 	int err;
 
-	dev_dbg(&drv_data->udev->dev, "urb %p status %d count %d",
+	dev_dbg(&drv_data->udev->dev, "urb %p status %d count %d\n",
 		urb, urb->status, urb->actual_length);
 
 	if (!test_bit(NFCMRVL_NCI_RUNNING, &drv_data->flags))
 		return;
 
 	if (!urb->status) {
-		if (nfcmrvl_nci_recv_frame(drv_data->priv, urb->transfer_buffer,
-					   urb->actual_length) < 0)
-			nfc_err(&drv_data->udev->dev, "corrupted Rx packet\n");
+		skb = nci_skb_alloc(drv_data->priv->ndev, urb->actual_length,
+				    GFP_ATOMIC);
+		if (!skb) {
+			nfc_err(&drv_data->udev->dev, "failed to alloc mem\n");
+		} else {
+			memcpy(skb_put(skb, urb->actual_length),
+			       urb->transfer_buffer, urb->actual_length);
+			if (nfcmrvl_nci_recv_frame(drv_data->priv, skb) < 0)
+				nfc_err(&drv_data->udev->dev,
+					"corrupted Rx packet\n");
+		}
 	}
 
 	if (!test_bit(NFCMRVL_USB_BULK_RUNNING, &drv_data->flags))
@@ -292,6 +300,10 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	struct nfcmrvl_private *priv;
 	int i;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	struct nfcmrvl_platform_data config;
+
+	/* No configuration for USB */
+	memset(&config, 0, sizeof(config));
 
 	nfc_info(&udev->dev, "intf %p id %p\n", intf, id);
 
@@ -328,12 +340,14 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	init_usb_anchor(&drv_data->bulk_anchor);
 	init_usb_anchor(&drv_data->deferred);
 
-	priv = nfcmrvl_nci_register_dev(drv_data, &usb_ops,
-					&drv_data->udev->dev);
+	priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_USB, drv_data, &usb_ops,
+					&drv_data->udev->dev, &config);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
 	drv_data->priv = priv;
+	drv_data->priv->support_fw_dnld = false;
+
 	priv->dev = &drv_data->udev->dev;
 
 	usb_set_intfdata(intf, drv_data);
@@ -454,6 +468,5 @@ static struct usb_driver nfcmrvl_usb_driver = {
 module_usb_driver(nfcmrvl_usb_driver);
 
 MODULE_AUTHOR("Marvell International Ltd.");
-MODULE_DESCRIPTION("Marvell NFC-over-USB driver ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Marvell NFC-over-USB driver");
 MODULE_LICENSE("GPL v2");

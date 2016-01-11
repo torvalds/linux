@@ -25,6 +25,7 @@
 #endif
 
 #define THREAD_SIZE     (PAGE_SIZE << THREAD_SIZE_ORDER)
+#define THREAD_SHIFT	(PAGE_SHIFT << THREAD_SIZE_ORDER)
 
 #ifndef __ASSEMBLY__
 

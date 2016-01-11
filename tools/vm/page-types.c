@@ -42,7 +42,7 @@
 #include <sys/mman.h>
 #include "../../include/uapi/linux/magic.h"
 #include "../../include/uapi/linux/kernel-page-flags.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/fs.h>
 
 #ifndef MAX_PATH
 # define MAX_PATH 256
@@ -57,23 +57,15 @@
  * pagemap kernel ABI bits
  */
 
-#define PM_ENTRY_BYTES      sizeof(uint64_t)
-#define PM_STATUS_BITS      3
-#define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
-#define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
-#define PM_STATUS(nr)       (((nr) << PM_STATUS_OFFSET) & PM_STATUS_MASK)
-#define PM_PSHIFT_BITS      6
-#define PM_PSHIFT_OFFSET    (PM_STATUS_OFFSET - PM_PSHIFT_BITS)
-#define PM_PSHIFT_MASK      (((1LL << PM_PSHIFT_BITS) - 1) << PM_PSHIFT_OFFSET)
-#define __PM_PSHIFT(x)      (((uint64_t) (x) << PM_PSHIFT_OFFSET) & PM_PSHIFT_MASK)
-#define PM_PFRAME_MASK      ((1LL << PM_PSHIFT_OFFSET) - 1)
-#define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
-
-#define __PM_SOFT_DIRTY      (1LL)
-#define PM_PRESENT          PM_STATUS(4LL)
-#define PM_SWAP             PM_STATUS(2LL)
-#define PM_SOFT_DIRTY       __PM_PSHIFT(__PM_SOFT_DIRTY)
-
+#define PM_ENTRY_BYTES		8
+#define PM_PFRAME_BITS		55
+#define PM_PFRAME_MASK		((1LL << PM_PFRAME_BITS) - 1)
+#define PM_PFRAME(x)		((x) & PM_PFRAME_MASK)
+#define PM_SOFT_DIRTY		(1ULL << 55)
+#define PM_MMAP_EXCLUSIVE	(1ULL << 56)
+#define PM_FILE			(1ULL << 61)
+#define PM_SWAP			(1ULL << 62)
+#define PM_PRESENT		(1ULL << 63)
 
 /*
  * kernel page flags
@@ -100,6 +92,8 @@
 #define KPF_SLOB_FREE		49
 #define KPF_SLUB_FROZEN		50
 #define KPF_SLUB_DEBUG		51
+#define KPF_FILE		62
+#define KPF_MMAP_EXCLUSIVE	63
 
 #define KPF_ALL_BITS		((uint64_t)~0ULL)
 #define KPF_HACKERS_BITS	(0xffffULL << 32)
@@ -134,6 +128,7 @@ static const char * const page_flag_names[] = {
 	[KPF_THP]		= "t:thp",
 	[KPF_BALLOON]		= "o:balloon",
 	[KPF_ZERO_PAGE]		= "z:zero_page",
+	[KPF_IDLE]              = "i:idle_page",
 
 	[KPF_RESERVED]		= "r:reserved",
 	[KPF_MLOCKED]		= "m:mlocked",
@@ -149,6 +144,9 @@ static const char * const page_flag_names[] = {
 	[KPF_SLOB_FREE]		= "P:slob_free",
 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
+
+	[KPF_FILE]		= "F:file",
+	[KPF_MMAP_EXCLUSIVE]	= "1:mmap_exclusive",
 };
 
 
@@ -191,7 +189,7 @@ static int		kpageflags_fd;
 static int		opt_hwpoison;
 static int		opt_unpoison;
 
-static char		*hwpoison_debug_fs;
+static const char	*hwpoison_debug_fs;
 static int		hwpoison_inject_fd;
 static int		hwpoison_forget_fd;
 
@@ -452,6 +450,10 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 
 	if (pme & PM_SOFT_DIRTY)
 		flags |= BIT(SOFTDIRTY);
+	if (pme & PM_FILE)
+		flags |= BIT(FILE);
+	if (pme & PM_MMAP_EXCLUSIVE)
+		flags |= BIT(MMAP_EXCLUSIVE);
 
 	return flags;
 }
@@ -486,7 +488,7 @@ static void prepare_hwpoison_fd(void)
 {
 	char buf[MAX_PATH + 1];
 
-	hwpoison_debug_fs = debugfs_mount(NULL);
+	hwpoison_debug_fs = debugfs__mount();
 	if (!hwpoison_debug_fs) {
 		perror("mount debugfs");
 		exit(EXIT_FAILURE);

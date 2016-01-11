@@ -26,10 +26,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
 
-#ifndef CONFIG_ARCH_MULTIPLATFORM
-#include <mach/irqs.h>
-#endif
-
 #include "core.h"
 #include "sh_pfc.h"
 
@@ -3653,38 +3649,38 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {
-	PINMUX_IRQ(irq_pin(0), 11),
-	PINMUX_IRQ(irq_pin(1), 10),
-	PINMUX_IRQ(irq_pin(2), 149),
-	PINMUX_IRQ(irq_pin(3), 224),
-	PINMUX_IRQ(irq_pin(4), 159),
-	PINMUX_IRQ(irq_pin(5), 227),
-	PINMUX_IRQ(irq_pin(6), 147),
-	PINMUX_IRQ(irq_pin(7), 150),
-	PINMUX_IRQ(irq_pin(8), 223),
-	PINMUX_IRQ(irq_pin(9), 56, 308),
-	PINMUX_IRQ(irq_pin(10), 54),
-	PINMUX_IRQ(irq_pin(11), 238),
-	PINMUX_IRQ(irq_pin(12), 156),
-	PINMUX_IRQ(irq_pin(13), 239),
-	PINMUX_IRQ(irq_pin(14), 251),
-	PINMUX_IRQ(irq_pin(15), 0),
-	PINMUX_IRQ(irq_pin(16), 249),
-	PINMUX_IRQ(irq_pin(17), 234),
-	PINMUX_IRQ(irq_pin(18), 13),
-	PINMUX_IRQ(irq_pin(19), 9),
-	PINMUX_IRQ(irq_pin(20), 14),
-	PINMUX_IRQ(irq_pin(21), 15),
-	PINMUX_IRQ(irq_pin(22), 40),
-	PINMUX_IRQ(irq_pin(23), 53),
-	PINMUX_IRQ(irq_pin(24), 118),
-	PINMUX_IRQ(irq_pin(25), 164),
-	PINMUX_IRQ(irq_pin(26), 115),
-	PINMUX_IRQ(irq_pin(27), 116),
-	PINMUX_IRQ(irq_pin(28), 117),
-	PINMUX_IRQ(irq_pin(29), 28),
-	PINMUX_IRQ(irq_pin(30), 27),
-	PINMUX_IRQ(irq_pin(31), 26),
+	PINMUX_IRQ(11),		/* IRQ0 */
+	PINMUX_IRQ(10),		/* IRQ1 */
+	PINMUX_IRQ(149),	/* IRQ2 */
+	PINMUX_IRQ(224),	/* IRQ3 */
+	PINMUX_IRQ(159),	/* IRQ4 */
+	PINMUX_IRQ(227),	/* IRQ5 */
+	PINMUX_IRQ(147),	/* IRQ6 */
+	PINMUX_IRQ(150),	/* IRQ7 */
+	PINMUX_IRQ(223),	/* IRQ8 */
+	PINMUX_IRQ(56, 308),	/* IRQ9 */
+	PINMUX_IRQ(54),		/* IRQ10 */
+	PINMUX_IRQ(238),	/* IRQ11 */
+	PINMUX_IRQ(156),	/* IRQ12 */
+	PINMUX_IRQ(239),	/* IRQ13 */
+	PINMUX_IRQ(251),	/* IRQ14 */
+	PINMUX_IRQ(0),		/* IRQ15 */
+	PINMUX_IRQ(249),	/* IRQ16 */
+	PINMUX_IRQ(234),	/* IRQ17 */
+	PINMUX_IRQ(13),		/* IRQ18 */
+	PINMUX_IRQ(9),		/* IRQ19 */
+	PINMUX_IRQ(14),		/* IRQ20 */
+	PINMUX_IRQ(15),		/* IRQ21 */
+	PINMUX_IRQ(40),		/* IRQ22 */
+	PINMUX_IRQ(53),		/* IRQ23 */
+	PINMUX_IRQ(118),	/* IRQ24 */
+	PINMUX_IRQ(164),	/* IRQ25 */
+	PINMUX_IRQ(115),	/* IRQ26 */
+	PINMUX_IRQ(116),	/* IRQ27 */
+	PINMUX_IRQ(117),	/* IRQ28 */
+	PINMUX_IRQ(28),		/* IRQ29 */
+	PINMUX_IRQ(27),		/* IRQ30 */
+	PINMUX_IRQ(26),		/* IRQ31 */
 };
 
 /* -----------------------------------------------------------------------------
@@ -3869,8 +3865,8 @@ const struct sh_pfc_soc_info sh73a0_pinmux_info = {
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,
 
-	.gpio_data = pinmux_data,
-	.gpio_data_size = ARRAY_SIZE(pinmux_data),
+	.pinmux_data = pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 
 	.gpio_irq = pinmux_irqs,
 	.gpio_irq_size = ARRAY_SIZE(pinmux_irqs),

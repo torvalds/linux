@@ -154,7 +154,7 @@ static int exynos_sata_phy_init(struct phy *phy)
 	return ret;
 }
 
-static struct phy_ops exynos_sata_phy_ops = {
+static const struct phy_ops exynos_sata_phy_ops = {
 	.init		= exynos_sata_phy_init,
 	.power_on	= exynos_sata_phy_power_on,
 	.power_off	= exynos_sata_phy_power_off,

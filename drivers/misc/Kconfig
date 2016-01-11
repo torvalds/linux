@@ -271,6 +271,16 @@ config HP_ILO
 	  To compile this driver as a module, choose M here: the
 	  module will be called hpilo.
 
+config QCOM_COINCELL
+	tristate "Qualcomm coincell charger support"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	help
+	  This driver supports the coincell block found inside of
+	  Qualcomm PMICs.  The coincell charger provides a means to
+	  charge a coincell battery or backup capacitor which is used
+	  to maintain PMIC register and RTC state in the absence of
+	  external power.
+
 config SGI_GRU
 	tristate "SGI GRU driver"
 	depends on X86_UV && SMP
@@ -404,7 +414,7 @@ config TI_DAC7512
 
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
-	depends on X86 && HYPERVISOR_GUEST
+	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST
 	help
 	  This is VMware physical memory management driver which acts
 	  like a "balloon" that can be inflated to reclaim physical pages
@@ -520,7 +530,6 @@ source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
-source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mei/Kconfig"
 source "drivers/misc/vmw_vmci/Kconfig"

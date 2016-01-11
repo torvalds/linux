@@ -40,21 +40,11 @@
 
 #define DEBUG_SUBSYSTEM D_OTHER
 
-#include <linux/unaligned/access_ok.h>
+#include <asm/unaligned.h>
 
 #include "../include/obd_support.h"
 #include "../include/lustre_debug.h"
 #include "../include/lustre_net.h"
-
-void dump_lniobuf(struct niobuf_local *nb)
-{
-	CDEBUG(D_RPCTRACE,
-	       "niobuf_local: file_offset=%lld, len=%d, page=%p, rc=%d\n",
-	       nb->lnb_file_offset, nb->len, nb->page, nb->rc);
-	CDEBUG(D_RPCTRACE, "nb->page: index = %ld\n",
-			nb->page ? page_index(nb->page) : -1);
-}
-EXPORT_SYMBOL(dump_lniobuf);
 
 #define LPDS sizeof(__u64)
 int block_debug_setup(void *addr, int len, __u64 off, __u64 id)

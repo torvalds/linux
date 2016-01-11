@@ -17,6 +17,8 @@
  *
  */
 
+#define pr_fmt(fmt) "tegra-pmc: " fmt
+
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/clk/tegra.h>
@@ -377,13 +379,10 @@ int tegra_pmc_cpu_remove_clamping(int cpuid)
 }
 #endif /* CONFIG_SMP */
 
-/**
- * tegra_pmc_restart() - reboot the system
- * @mode: which mode to reboot in
- * @cmd: reboot command
- */
-void tegra_pmc_restart(enum reboot_mode mode, const char *cmd)
+static int tegra_pmc_restart_notify(struct notifier_block *this,
+				    unsigned long action, void *data)
 {
+	const char *cmd = data;
 	u32 value;
 
 	value = tegra_pmc_readl(PMC_SCRATCH0);
@@ -405,7 +404,14 @@ void tegra_pmc_restart(enum reboot_mode mode, const char *cmd)
 	value = tegra_pmc_readl(0);
 	value |= 0x10;
 	tegra_pmc_writel(value, 0);
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block tegra_pmc_restart_handler = {
+	.notifier_call = tegra_pmc_restart_notify,
+	.priority = 128,
+};
 
 static int powergate_show(struct seq_file *s, void *data)
 {
@@ -453,7 +459,6 @@ static int tegra_io_rail_prepare(int id, unsigned long *request,
 				 unsigned long *status, unsigned int *bit)
 {
 	unsigned long rate, value;
-	struct clk *clk;
 
 	*bit = id % 32;
 
@@ -472,12 +477,7 @@ static int tegra_io_rail_prepare(int id, unsigned long *request,
 		*request = IO_DPD2_REQ;
 	}
 
-	clk = clk_get_sys(NULL, "pclk");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	rate = clk_get_rate(clk);
-	clk_put(clk);
+	rate = clk_get_rate(pmc->clk);
 
 	tegra_pmc_writel(DPD_SAMPLE_ENABLE, DPD_SAMPLE);
 
@@ -531,8 +531,10 @@ int tegra_io_rail_power_on(int id)
 	tegra_pmc_writel(value, request);
 
 	err = tegra_io_rail_poll(status, mask, 0, 250);
-	if (err < 0)
+	if (err < 0) {
+		pr_info("tegra_io_rail_poll() failed: %d\n", err);
 		return err;
+	}
 
 	tegra_io_rail_unprepare();
 
@@ -547,8 +549,10 @@ int tegra_io_rail_power_off(int id)
 	int err;
 
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0)
+	if (err < 0) {
+		pr_info("tegra_io_rail_prepare() failed: %d\n", err);
 		return err;
+	}
 
 	mask = 1 << bit;
 
@@ -732,12 +736,12 @@ void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 	u32 value, checksum;
 
 	if (!pmc->soc->has_tsense_reset)
-		goto out;
+		return;
 
 	np = of_find_node_by_name(pmc->dev->of_node, "i2c-thermtrip");
 	if (!np) {
 		dev_warn(dev, "i2c-thermtrip node not found, %s.\n", disabled);
-		goto out;
+		return;
 	}
 
 	if (of_property_read_u32(np, "nvidia,i2c-controller-id", &ctrl_id)) {
@@ -797,7 +801,6 @@ void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 
 out:
 	of_node_put(np);
-	return;
 }
 
 static int tegra_pmc_probe(struct platform_device *pdev)
@@ -835,6 +838,13 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		err = tegra_powergate_debugfs_init();
 		if (err < 0)
 			return err;
+	}
+
+	err = register_restart_handler(&tegra_pmc_restart_handler);
+	if (err) {
+		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
+			err);
+		return err;
 	}
 
 	return 0;
@@ -991,7 +1001,56 @@ static const struct tegra_pmc_soc tegra124_pmc_soc = {
 	.has_gpu_clamps = true,
 };
 
+static const char * const tegra210_powergates[] = {
+	[TEGRA_POWERGATE_CPU] = "crail",
+	[TEGRA_POWERGATE_3D] = "3d",
+	[TEGRA_POWERGATE_VENC] = "venc",
+	[TEGRA_POWERGATE_PCIE] = "pcie",
+	[TEGRA_POWERGATE_L2] = "l2",
+	[TEGRA_POWERGATE_MPE] = "mpe",
+	[TEGRA_POWERGATE_HEG] = "heg",
+	[TEGRA_POWERGATE_SATA] = "sata",
+	[TEGRA_POWERGATE_CPU1] = "cpu1",
+	[TEGRA_POWERGATE_CPU2] = "cpu2",
+	[TEGRA_POWERGATE_CPU3] = "cpu3",
+	[TEGRA_POWERGATE_CELP] = "celp",
+	[TEGRA_POWERGATE_CPU0] = "cpu0",
+	[TEGRA_POWERGATE_C0NC] = "c0nc",
+	[TEGRA_POWERGATE_C1NC] = "c1nc",
+	[TEGRA_POWERGATE_SOR] = "sor",
+	[TEGRA_POWERGATE_DIS] = "dis",
+	[TEGRA_POWERGATE_DISB] = "disb",
+	[TEGRA_POWERGATE_XUSBA] = "xusba",
+	[TEGRA_POWERGATE_XUSBB] = "xusbb",
+	[TEGRA_POWERGATE_XUSBC] = "xusbc",
+	[TEGRA_POWERGATE_VIC] = "vic",
+	[TEGRA_POWERGATE_IRAM] = "iram",
+	[TEGRA_POWERGATE_NVDEC] = "nvdec",
+	[TEGRA_POWERGATE_NVJPG] = "nvjpg",
+	[TEGRA_POWERGATE_AUD] = "aud",
+	[TEGRA_POWERGATE_DFD] = "dfd",
+	[TEGRA_POWERGATE_VE2] = "ve2",
+};
+
+static const u8 tegra210_cpu_powergates[] = {
+	TEGRA_POWERGATE_CPU0,
+	TEGRA_POWERGATE_CPU1,
+	TEGRA_POWERGATE_CPU2,
+	TEGRA_POWERGATE_CPU3,
+};
+
+static const struct tegra_pmc_soc tegra210_pmc_soc = {
+	.num_powergates = ARRAY_SIZE(tegra210_powergates),
+	.powergates = tegra210_powergates,
+	.num_cpu_powergates = ARRAY_SIZE(tegra210_cpu_powergates),
+	.cpu_powergates = tegra210_cpu_powergates,
+	.has_tsense_reset = true,
+	.has_gpu_clamps = true,
+};
+
 static const struct of_device_id tegra_pmc_match[] = {
+	{ .compatible = "nvidia,tegra210-pmc", .data = &tegra210_pmc_soc },
+	{ .compatible = "nvidia,tegra132-pmc", .data = &tegra124_pmc_soc },
 	{ .compatible = "nvidia,tegra124-pmc", .data = &tegra124_pmc_soc },
 	{ .compatible = "nvidia,tegra114-pmc", .data = &tegra114_pmc_soc },
 	{ .compatible = "nvidia,tegra30-pmc", .data = &tegra30_pmc_soc },
@@ -1010,7 +1069,7 @@ static struct platform_driver tegra_pmc_driver = {
 	},
 	.probe = tegra_pmc_probe,
 };
-module_platform_driver(tegra_pmc_driver);
+builtin_platform_driver(tegra_pmc_driver);
 
 /*
  * Early initialization to allow access to registers in the very early boot
@@ -1024,25 +1083,44 @@ static int __init tegra_pmc_early_init(void)
 	bool invert;
 	u32 value;
 
-	if (!soc_is_tegra())
-		return 0;
-
 	np = of_find_matching_node_and_match(NULL, tegra_pmc_match, &match);
 	if (!np) {
-		pr_warn("PMC device node not found, disabling powergating\n");
+		/*
+		 * Fall back to legacy initialization for 32-bit ARM only. All
+		 * 64-bit ARM device tree files for Tegra are required to have
+		 * a PMC node.
+		 *
+		 * This is for backwards-compatibility with old device trees
+		 * that didn't contain a PMC node. Note that in this case the
+		 * SoC data can't be matched and therefore powergating is
+		 * disabled.
+		 */
+		if (IS_ENABLED(CONFIG_ARM) && soc_is_tegra()) {
+			pr_warn("DT node not found, powergating disabled\n");
 
-		regs.start = 0x7000e400;
-		regs.end = 0x7000e7ff;
-		regs.flags = IORESOURCE_MEM;
+			regs.start = 0x7000e400;
+			regs.end = 0x7000e7ff;
+			regs.flags = IORESOURCE_MEM;
 
-		pr_warn("Using memory region %pR\n", &regs);
+			pr_warn("Using memory region %pR\n", &regs);
+		} else {
+			/*
+			 * At this point we're not running on Tegra, so play
+			 * nice with multi-platform kernels.
+			 */
+			return 0;
+		}
 	} else {
-		pmc->soc = match->data;
-	}
+		/*
+		 * Extract information from the device tree if we've found a
+		 * matching node.
+		 */
+		if (of_address_to_resource(np, 0, &regs) < 0) {
+			pr_err("failed to get PMC registers\n");
+			return -ENXIO;
+		}
 
-	if (of_address_to_resource(np, 0, &regs) < 0) {
-		pr_err("failed to get PMC registers\n");
-		return -ENXIO;
+		pmc->soc = match->data;
 	}
 
 	pmc->base = ioremap_nocache(regs.start, resource_size(&regs));
@@ -1053,6 +1131,10 @@ static int __init tegra_pmc_early_init(void)
 
 	mutex_init(&pmc->powergates_lock);
 
+	/*
+	 * Invert the interrupt polarity if a PMC device tree node exists and
+	 * contains the nvidia,invert-interrupt property.
+	 */
 	invert = of_property_read_bool(np, "nvidia,invert-interrupt");
 
 	value = tegra_pmc_readl(PMC_CNTRL);

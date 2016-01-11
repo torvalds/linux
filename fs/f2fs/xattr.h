@@ -35,6 +35,10 @@
 #define F2FS_XATTR_INDEX_LUSTRE			5
 #define F2FS_XATTR_INDEX_SECURITY		6
 #define F2FS_XATTR_INDEX_ADVISE			7
+/* Should be same as EXT4_XATTR_INDEX_ENCRYPTION */
+#define F2FS_XATTR_INDEX_ENCRYPTION		9
+
+#define F2FS_XATTR_NAME_ENCRYPTION_CONTEXT	"c"
 
 struct f2fs_xattr_header {
 	__le32  h_magic;        /* magic number for identification */

@@ -103,7 +103,7 @@ struct cm_req_msg {
 	/* local ACK timeout:5, rsvd:3 */
 	u8 alt_offset139;
 
-	u8 private_data[IB_CM_REQ_PRIVATE_DATA_SIZE];
+	u32 private_data[IB_CM_REQ_PRIVATE_DATA_SIZE / sizeof(u32)];
 
 } __attribute__ ((packed));
 
@@ -801,7 +801,7 @@ struct cm_sidr_req_msg {
 	__be16 rsvd;
 	__be64 service_id;
 
-	u8 private_data[IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE];
+	u32 private_data[IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE / sizeof(u32)];
 } __attribute__ ((packed));
 
 struct cm_sidr_rep_msg {

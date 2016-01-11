@@ -77,10 +77,29 @@ config USB_OTG_BLACKLIST_HUB
 
 config USB_OTG_FSM
 	tristate "USB 2.0 OTG FSM implementation"
-	depends on USB
-	select USB_OTG
+	depends on USB && USB_OTG
 	select USB_PHY
 	help
 	  Implements OTG Finite State Machine as specified in On-The-Go
 	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
 
+config USB_ULPI_BUS
+	tristate "USB ULPI PHY interface support"
+	depends on USB_SUPPORT
+	help
+	  UTMI+ Low Pin Interface (ULPI) is specification for a commonly used
+	  USB 2.0 PHY interface. The ULPI specification defines a standard set
+	  of registers that can be used to detect the vendor and product which
+	  allows ULPI to be handled as a bus. This module is the driver for that
+	  bus.
+
+	  The ULPI interfaces (the buses) are registered by the drivers for USB
+	  controllers which support ULPI register access and have ULPI PHY
+	  attached to them. The ULPI PHY drivers themselves are normal PHY
+	  drivers.
+
+	  ULPI PHYs provide often functions such as ADP sensing/probing (OTG
+	  protocol) and USB charger detection.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ulpi.

@@ -795,6 +795,7 @@ static int stmpe24xx_get_altfunc(struct stmpe *stmpe, enum stmpe_block block)
 		return 2;
 
 	case STMPE_BLOCK_KEYPAD:
+	case STMPE_BLOCK_PWM:
 		return 1;
 
 	case STMPE_BLOCK_GPIO:
@@ -971,25 +972,18 @@ static int stmpe_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, stmpe);
 	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
 static void stmpe_irq_unmap(struct irq_domain *d, unsigned int virq)
 {
-#ifdef CONFIG_ARM
-		set_irq_flags(virq, 0);
-#endif
 		irq_set_chip_and_handler(virq, NULL, NULL);
 		irq_set_chip_data(virq, NULL);
 }
 
-static struct irq_domain_ops stmpe_irq_ops = {
+static const struct irq_domain_ops stmpe_irq_ops = {
         .map    = stmpe_irq_map,
         .unmap  = stmpe_irq_unmap,
         .xlate  = irq_domain_xlate_twocell,

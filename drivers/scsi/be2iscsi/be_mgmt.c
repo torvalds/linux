@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,10 +7,10 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@emulex.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
  * Emulex
  * 3333 Susan Street
@@ -1573,7 +1573,8 @@ beiscsi_phys_port_disp(struct device *dev, struct device_attribute *attr,
 
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
-			     struct be_mem_descriptor *mem_descr)
+			     struct be_mem_descriptor *mem_descr,
+			     struct hwi_wrb_context *pwrb_context)
 {
 	struct iscsi_wrb *pwrb = pwrb_handle->pwrb;
 
@@ -1617,7 +1618,14 @@ void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 		      max_burst_length) / 32]);
 
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, ptr2nextwrb,
-		      pwrb, pwrb_handle->nxt_wrb_index);
+		      pwrb, pwrb_handle->wrb_index);
+	if (pwrb_context->plast_wrb)
+		AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+			      ptr2nextwrb,
+			      pwrb_context->plast_wrb,
+			      pwrb_handle->wrb_index);
+	pwrb_context->plast_wrb = pwrb;
+
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
 		      session_state, pwrb, 0);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, compltonack,
@@ -1637,7 +1645,8 @@ void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 }
 
 void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
-			     struct wrb_handle *pwrb_handle)
+			     struct wrb_handle *pwrb_handle,
+			     struct hwi_wrb_context *pwrb_context)
 {
 	struct iscsi_wrb *pwrb = pwrb_handle->pwrb;
 
@@ -1652,7 +1661,14 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 		      BE_TGT_CTX_UPDT_CMD);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
 		      ptr2nextwrb,
-		      pwrb, pwrb_handle->nxt_wrb_index);
+		      pwrb, pwrb_handle->wrb_index);
+	if (pwrb_context->plast_wrb)
+		AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+			      ptr2nextwrb,
+			      pwrb_context->plast_wrb,
+			      pwrb_handle->wrb_index);
+	pwrb_context->plast_wrb = pwrb;
+
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, wrb_idx,
 		      pwrb, pwrb_handle->wrb_index);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
@@ -1706,4 +1722,73 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 		      pwrb,
 		     (params->dw[offsetof(struct amap_beiscsi_offload_params,
 		      exp_statsn) / 32] + 1));
+}
+
+/**
+ * beiscsi_logout_fw_sess()- Firmware Session Logout
+ * @phba: Device priv structure instance
+ * @fw_sess_handle: FW session handle
+ *
+ * Logout from the FW established sessions.
+ * returns
+ *  Success: 0
+ *  Failure: Non-Zero Value
+ *
+ */
+int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
+		uint32_t fw_sess_handle)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_logout_fw_sess *req;
+	struct be_cmd_resp_logout_fw_sess *resp;
+	unsigned int tag;
+	int rc;
+
+	beiscsi_log(phba, KERN_INFO,
+		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BG_%d : In bescsi_logout_fwboot_sess\n");
+
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		beiscsi_log(phba, KERN_INFO,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BG_%d : MBX Tag Failure\n");
+		return -EINVAL;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
+			   OPCODE_ISCSI_INI_SESSION_LOGOUT_TARGET,
+			   sizeof(struct be_cmd_req_logout_fw_sess));
+
+	/* Set the session handle */
+	req->session_handle = fw_sess_handle;
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+
+	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (rc) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+			    "BG_%d : MBX CMD FW_SESSION_LOGOUT_TARGET Failed\n");
+		return -EBUSY;
+	}
+
+	resp = embedded_payload(wrb);
+	if (resp->session_status !=
+		BEISCSI_MGMT_SESSION_CLOSE) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+			    "BG_%d : FW_SESSION_LOGOUT_TARGET resp : 0x%x\n",
+			    resp->session_status);
+		rc = -EINVAL;
+	}
+
+	return rc;
 }

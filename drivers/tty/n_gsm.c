@@ -161,7 +161,7 @@ struct gsm_dlci {
 	struct net_device *net; /* network interface, if created */
 };
 
-/* DLCI 0, 62/63 are special or reseved see gsmtty_open */
+/* DLCI 0, 62/63 are special or reserved see gsmtty_open */
 
 #define NUM_DLCI		64
 
@@ -2274,7 +2274,6 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	const unsigned char *dp;
 	char *f;
 	int i;
-	char buf[64];
 	char flags = TTY_NORMAL;
 
 	if (debug & 4)
@@ -2296,7 +2295,7 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			break;
 		default:
 			WARN_ONCE(1, "%s: unknown flag %d\n",
-			       tty_name(tty, buf), flags);
+			       tty_name(tty), flags);
 			break;
 		}
 	}
@@ -2713,7 +2712,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	memcpy(skb_put(skb, size), in_buf, size);
 
 	skb->dev = net;
-	skb->protocol = __constant_htons(ETH_P_IP);
+	skb->protocol = htons(ETH_P_IP);
 
 	/* Ship it off to the kernel */
 	netif_rx(skb);
@@ -3170,7 +3169,7 @@ static int gsmtty_break_ctl(struct tty_struct *tty, int state)
 	return gsmtty_modem_update(dlci, encode);
 }
 
-static void gsmtty_remove(struct tty_driver *driver, struct tty_struct *tty)
+static void gsmtty_cleanup(struct tty_struct *tty)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	struct gsm_mux *gsm = dlci->gsm;
@@ -3178,7 +3177,6 @@ static void gsmtty_remove(struct tty_driver *driver, struct tty_struct *tty)
 	dlci_put(dlci);
 	dlci_put(gsm->dlci[0]);
 	mux_put(gsm);
-	driver->ttys[tty->index] = NULL;
 }
 
 /* Virtual ttys for the demux */
@@ -3199,7 +3197,7 @@ static const struct tty_operations gsmtty_ops = {
 	.tiocmget		= gsmtty_tiocmget,
 	.tiocmset		= gsmtty_tiocmset,
 	.break_ctl		= gsmtty_break_ctl,
-	.remove			= gsmtty_remove,
+	.cleanup		= gsmtty_cleanup,
 };
 
 

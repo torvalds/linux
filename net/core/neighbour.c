@@ -274,8 +274,12 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 	    (entries >= tbl->gc_thresh2 &&
 	     time_after(now, tbl->last_flush + 5 * HZ))) {
 		if (!neigh_forced_gc(tbl) &&
-		    entries >= tbl->gc_thresh3)
+		    entries >= tbl->gc_thresh3) {
+			net_info_ratelimited("%s: neighbor table overflow!\n",
+					     tbl->id);
+			NEIGH_CACHE_STAT_INC(tbl, table_fulls);
 			goto out_entries;
+		}
 	}
 
 	n = kzalloc(tbl->entry_size + dev->neigh_priv_len, GFP_ATOMIC);
@@ -853,7 +857,7 @@ static void neigh_probe(struct neighbour *neigh)
 	struct sk_buff *skb = skb_peek_tail(&neigh->arp_queue);
 	/* keep skb alive even if arp_queue overflows */
 	if (skb)
-		skb = skb_copy(skb, GFP_ATOMIC);
+		skb = skb_clone(skb, GFP_ATOMIC);
 	write_unlock(&neigh->lock);
 	neigh->ops->solicit(neigh, skb);
 	atomic_inc(&neigh->probes);
@@ -913,6 +917,7 @@ static void neigh_timer_handler(unsigned long arg)
 			neigh->nud_state = NUD_PROBE;
 			neigh->updated = jiffies;
 			atomic_set(&neigh->probes, 0);
+			notify = 1;
 			next = now + NEIGH_VAR(neigh->parms, RETRANS_TIME);
 		}
 	} else {
@@ -957,6 +962,8 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 	rc = 0;
 	if (neigh->nud_state & (NUD_CONNECTED | NUD_DELAY | NUD_PROBE))
 		goto out_unlock_bh;
+	if (neigh->dead)
+		goto out_dead;
 
 	if (!(neigh->nud_state & (NUD_STALE | NUD_INCOMPLETE))) {
 		if (NEIGH_VAR(neigh->parms, MCAST_PROBES) +
@@ -1013,6 +1020,13 @@ out_unlock_bh:
 		write_unlock(&neigh->lock);
 	local_bh_enable();
 	return rc;
+
+out_dead:
+	if (neigh->nud_state & NUD_STALE)
+		goto out_unlock_bh;
+	write_unlock_bh(&neigh->lock);
+	kfree_skb(skb);
+	return 1;
 }
 EXPORT_SYMBOL(__neigh_event_send);
 
@@ -1075,6 +1089,8 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 
 	if (!(flags & NEIGH_UPDATE_F_ADMIN) &&
 	    (old & (NUD_NOARP | NUD_PERMANENT)))
+		goto out;
+	if (neigh->dead)
 		goto out;
 
 	if (!(new & NUD_VALID)) {
@@ -1144,6 +1160,8 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 
 	if (new != old) {
 		neigh_del_timer(neigh);
+		if (new & NUD_PROBE)
+			atomic_set(&neigh->probes, 0);
 		if (new & NUD_IN_TIMER)
 			neigh_add_timer(neigh, (jiffies +
 						((new & NUD_REACHABLE) ?
@@ -1225,6 +1243,8 @@ EXPORT_SYMBOL(neigh_update);
  */
 void __neigh_set_probe_once(struct neighbour *neigh)
 {
+	if (neigh->dead)
+		return;
 	neigh->updated = jiffies;
 	if (!(neigh->nud_state & NUD_FAILED))
 		return;
@@ -1833,6 +1853,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 			ndst.ndts_rcv_probes_ucast	+= st->rcv_probes_ucast;
 			ndst.ndts_periodic_gc_runs	+= st->periodic_gc_runs;
 			ndst.ndts_forced_gc_runs	+= st->forced_gc_runs;
+			ndst.ndts_table_fulls		+= st->table_fulls;
 		}
 
 		if (nla_put(skb, NDTA_STATS, sizeof(ndst), &ndst))
@@ -2194,7 +2215,7 @@ static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
 	ndm->ndm_pad2    = 0;
 	ndm->ndm_flags	 = pn->flags | NTF_PROXY;
 	ndm->ndm_type	 = RTN_UNICAST;
-	ndm->ndm_ifindex = pn->dev->ifindex;
+	ndm->ndm_ifindex = pn->dev ? pn->dev->ifindex : 0;
 	ndm->ndm_state	 = NUD_NONE;
 
 	if (nla_put(skb, NDA_DST, tbl->key_len, pn->key))
@@ -2214,14 +2235,53 @@ static void neigh_update_notify(struct neighbour *neigh)
 	__neigh_notify(neigh, RTM_NEWNEIGH, 0);
 }
 
+static bool neigh_master_filtered(struct net_device *dev, int master_idx)
+{
+	struct net_device *master;
+
+	if (!master_idx)
+		return false;
+
+	master = netdev_master_upper_dev_get(dev);
+	if (!master || master->ifindex != master_idx)
+		return true;
+
+	return false;
+}
+
+static bool neigh_ifindex_filtered(struct net_device *dev, int filter_idx)
+{
+	if (filter_idx && dev->ifindex != filter_idx)
+		return true;
+
+	return false;
+}
+
 static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 			    struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
+	const struct nlmsghdr *nlh = cb->nlh;
+	struct nlattr *tb[NDA_MAX + 1];
 	struct neighbour *n;
 	int rc, h, s_h = cb->args[1];
 	int idx, s_idx = idx = cb->args[2];
 	struct neigh_hash_table *nht;
+	int filter_master_idx = 0, filter_idx = 0;
+	unsigned int flags = NLM_F_MULTI;
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL);
+	if (!err) {
+		if (tb[NDA_IFINDEX])
+			filter_idx = nla_get_u32(tb[NDA_IFINDEX]);
+
+		if (tb[NDA_MASTER])
+			filter_master_idx = nla_get_u32(tb[NDA_MASTER]);
+
+		if (filter_idx || filter_master_idx)
+			flags |= NLM_F_DUMP_FILTERED;
+	}
 
 	rcu_read_lock_bh();
 	nht = rcu_dereference_bh(tbl->nht);
@@ -2234,12 +2294,16 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		     n = rcu_dereference_bh(n->next)) {
 			if (!net_eq(dev_net(n->dev), net))
 				continue;
+			if (neigh_ifindex_filtered(n->dev, filter_idx))
+				continue;
+			if (neigh_master_filtered(n->dev, filter_master_idx))
+				continue;
 			if (idx < s_idx)
 				goto next;
 			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
 					    RTM_NEWNEIGH,
-					    NLM_F_MULTI) < 0) {
+					    flags) < 0) {
 				rc = -1;
 				goto out;
 			}
@@ -2269,7 +2333,7 @@ static int pneigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		if (h > s_h)
 			s_idx = 0;
 		for (n = tbl->phash_buckets[h], idx = 0; n; n = n->next) {
-			if (dev_net(n->dev) != net)
+			if (pneigh_net(n) != net)
 				continue;
 			if (idx < s_idx)
 				goto next;
@@ -2701,12 +2765,12 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards\n");
+		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx %08lx\n",
+			"%08lx %08lx  %08lx %08lx %08lx %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,
@@ -2723,7 +2787,8 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 
 		   st->periodic_gc_runs,
 		   st->forced_gc_runs,
-		   st->unres_discards
+		   st->unres_discards,
+		   st->table_fulls
 		   );
 
 	return 0;

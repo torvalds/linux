@@ -323,6 +323,7 @@ static const struct of_device_id of_pwm_fan_match[] = {
 	{ .compatible = "pwm-fan", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_pwm_fan_match);
 
 static struct platform_driver pwm_fan_driver = {
 	.probe		= pwm_fan_probe,

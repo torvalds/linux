@@ -94,7 +94,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
@@ -248,7 +248,6 @@
 				MX6QDL_PAD_NANDF_WP_B__NAND_WP_B	0xb0b1
 				MX6QDL_PAD_NANDF_RB0__NAND_READY_B	0xb000
 				MX6QDL_PAD_NANDF_CS0__NAND_CE0_B	0xb0b1
-				MX6QDL_PAD_NANDF_CS1__NAND_CE1_B	0xb0b1
 				MX6QDL_PAD_SD4_CMD__NAND_RE_B		0xb0b1
 				MX6QDL_PAD_SD4_CLK__NAND_WE_B		0xb0b1
 				MX6QDL_PAD_NANDF_D0__NAND_DATA00	0xb0b1

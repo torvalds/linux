@@ -171,14 +171,14 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 	return -EINVAL;
 }
 
-static void end_bio_io_page(struct bio *bio, int error)
+static void end_bio_io_page(struct bio *bio)
 {
 	struct page *page = bio->bi_private;
 
-	if (!error)
+	if (!bio->bi_error)
 		SetPageUptodate(page);
 	else
-		pr_warn("error %d reading superblock\n", error);
+		pr_warn("error %d reading superblock\n", bio->bi_error);
 	unlock_page(page);
 }
 
@@ -756,6 +756,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		}
 	}
 
+	sdp->sd_log_idle = 1;
 	set_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags);
 	gfs2_glock_dq_uninit(&ji_gh);
 	jindex = 0;
@@ -1290,6 +1291,9 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		up_write(&s->s_umount);
 		blkdev_put(bdev, mode);
 		down_write(&s->s_umount);
+	} else {
+		/* s_mode must be set before deactivate_locked_super calls */
+		s->s_mode = mode;
 	}
 
 	memset(&args, 0, sizeof(args));
@@ -1313,7 +1317,6 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, &args, flags & MS_SILENT ? 1 : 0);

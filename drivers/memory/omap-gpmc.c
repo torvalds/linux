@@ -403,7 +403,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
 			   p->cycle2cyclediffcsen);
 }
 
-#ifdef DEBUG
+#ifdef CONFIG_OMAP_GPMC_DEBUG
 /**
  * get_gpmc_timing_reg - read a timing parameter and print DTS settings for it.
  * @cs:      Chip Select Region
@@ -612,7 +612,7 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 	}
 
 	l = gpmc_cs_read_reg(cs, reg);
-#ifdef DEBUG
+#ifdef CONFIG_OMAP_GPMC_DEBUG
 	pr_info(
 		"GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
 	       cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
@@ -696,7 +696,6 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 	int div;
 	u32 l;
 
-	gpmc_cs_show_timings(cs, "before gpmc_cs_set_timings");
 	div = gpmc_calc_divider(t->sync_clk);
 	if (div < 0)
 		return div;
@@ -767,7 +766,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 			    GPMC_CONFIG1_CLKACTIVATIONTIME_MAX,
 			    clk_activation, GPMC_CD_FCLK);
 
-#ifdef DEBUG
+#ifdef CONFIG_OMAP_GPMC_DEBUG
 	pr_info("GPMC CS%d CLK period is %lu ns (div %d)\n",
 			cs, (div * gpmc_get_fclk_period()) / 1000, div);
 #endif
@@ -1176,8 +1175,8 @@ static int gpmc_setup_irq(void)
 		gpmc_client_irq[i].irq = gpmc_irq_start + i;
 		irq_set_chip_and_handler(gpmc_client_irq[i].irq,
 					&gpmc_irq_chip, handle_simple_irq);
-		set_irq_flags(gpmc_client_irq[i].irq,
-				IRQF_VALID | IRQF_NOAUTOEN);
+		irq_modify_status(gpmc_client_irq[i].irq, IRQ_NOREQUEST,
+				  IRQ_NOAUTOEN);
 	}
 
 	/* Disable interrupts */
@@ -1200,7 +1199,6 @@ static int gpmc_free_irq(void)
 	for (i = 0; i < GPMC_NR_IRQ; i++) {
 		irq_set_handler(gpmc_client_irq[i].irq, NULL);
 		irq_set_chip(gpmc_client_irq[i].irq, &no_irq_chip);
-		irq_modify_status(gpmc_client_irq[i].irq, 0, 0);
 	}
 
 	irq_free_descs(gpmc_irq_start, GPMC_NR_IRQ);
@@ -1989,6 +1987,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	if (ret < 0)
 		goto err;
 
+	gpmc_cs_show_timings(cs, "before gpmc_cs_program_settings");
 	ret = gpmc_cs_program_settings(cs, &gpmc_s);
 	if (ret < 0)
 		goto err;
@@ -2074,14 +2073,8 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			ret = gpmc_probe_nand_child(pdev, child);
 		else if (of_node_cmp(child->name, "onenand") == 0)
 			ret = gpmc_probe_onenand_child(pdev, child);
-		else if (of_node_cmp(child->name, "ethernet") == 0 ||
-			 of_node_cmp(child->name, "nor") == 0 ||
-			 of_node_cmp(child->name, "uart") == 0)
+		else
 			ret = gpmc_probe_generic_child(pdev, child);
-
-		if (WARN(ret < 0, "%s: probing gpmc child %s failed\n",
-			 __func__, child->full_name))
-			of_node_put(child);
 	}
 
 	return 0;
@@ -2251,6 +2244,9 @@ void omap3_gpmc_save_context(void)
 {
 	int i;
 
+	if (!gpmc_base)
+		return;
+
 	gpmc_context.sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
 	gpmc_context.irqenable = gpmc_read_reg(GPMC_IRQENABLE);
 	gpmc_context.timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
@@ -2282,6 +2278,9 @@ void omap3_gpmc_save_context(void)
 void omap3_gpmc_restore_context(void)
 {
 	int i;
+
+	if (!gpmc_base)
+		return;
 
 	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context.sysconfig);
 	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context.irqenable);

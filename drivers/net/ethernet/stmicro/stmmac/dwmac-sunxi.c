@@ -18,7 +18,9 @@
 
 #include <linux/stmmac.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <linux/of_net.h>
 #include <linux/regulator/consumer.h>
 
@@ -30,35 +32,6 @@ struct sunxi_priv_data {
 	struct clk *tx_clk;
 	struct regulator *regulator;
 };
-
-static void *sun7i_gmac_setup(struct platform_device *pdev)
-{
-	struct sunxi_priv_data *gmac;
-	struct device *dev = &pdev->dev;
-
-	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
-	if (!gmac)
-		return ERR_PTR(-ENOMEM);
-
-	gmac->interface = of_get_phy_mode(dev->of_node);
-
-	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
-	if (IS_ERR(gmac->tx_clk)) {
-		dev_err(dev, "could not get tx clock\n");
-		return gmac->tx_clk;
-	}
-
-	/* Optional regulator for PHY */
-	gmac->regulator = devm_regulator_get_optional(dev, "phy");
-	if (IS_ERR(gmac->regulator)) {
-		if (PTR_ERR(gmac->regulator) == -EPROBE_DEFER)
-			return ERR_PTR(-EPROBE_DEFER);
-		dev_info(dev, "no regulator found\n");
-		gmac->regulator = NULL;
-	}
-
-	return gmac;
-}
 
 #define SUN7I_GMAC_GMII_RGMII_RATE	125000000
 #define SUN7I_GMAC_MII_RATE		25000000
@@ -130,13 +103,80 @@ static void sun7i_fix_speed(void *priv, unsigned int speed)
 	}
 }
 
-/* of_data specifying hardware features and callbacks.
- * hardware features were copied from Allwinner drivers. */
-const struct stmmac_of_data sun7i_gmac_data = {
-	.has_gmac = 1,
-	.tx_coe = 1,
-	.fix_mac_speed = sun7i_fix_speed,
-	.setup = sun7i_gmac_setup,
-	.init = sun7i_gmac_init,
-	.exit = sun7i_gmac_exit,
+static int sun7i_gmac_probe(struct platform_device *pdev)
+{
+	struct plat_stmmacenet_data *plat_dat;
+	struct stmmac_resources stmmac_res;
+	struct sunxi_priv_data *gmac;
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
+
+	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	if (IS_ERR(plat_dat))
+		return PTR_ERR(plat_dat);
+
+	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
+	if (!gmac)
+		return -ENOMEM;
+
+	gmac->interface = of_get_phy_mode(dev->of_node);
+
+	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
+	if (IS_ERR(gmac->tx_clk)) {
+		dev_err(dev, "could not get tx clock\n");
+		return PTR_ERR(gmac->tx_clk);
+	}
+
+	/* Optional regulator for PHY */
+	gmac->regulator = devm_regulator_get_optional(dev, "phy");
+	if (IS_ERR(gmac->regulator)) {
+		if (PTR_ERR(gmac->regulator) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_info(dev, "no regulator found\n");
+		gmac->regulator = NULL;
+	}
+
+	/* platform data specifying hardware features and callbacks.
+	 * hardware features were copied from Allwinner drivers. */
+	plat_dat->tx_coe = 1;
+	plat_dat->has_gmac = true;
+	plat_dat->bsp_priv = gmac;
+	plat_dat->init = sun7i_gmac_init;
+	plat_dat->exit = sun7i_gmac_exit;
+	plat_dat->fix_mac_speed = sun7i_fix_speed;
+
+	ret = sun7i_gmac_init(pdev, plat_dat->bsp_priv);
+	if (ret)
+		return ret;
+
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		sun7i_gmac_exit(pdev, plat_dat->bsp_priv);
+
+	return ret;
+}
+
+static const struct of_device_id sun7i_dwmac_match[] = {
+	{ .compatible = "allwinner,sun7i-a20-gmac" },
+	{ }
 };
+MODULE_DEVICE_TABLE(of, sun7i_dwmac_match);
+
+static struct platform_driver sun7i_dwmac_driver = {
+	.probe  = sun7i_gmac_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "sun7i-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = sun7i_dwmac_match,
+	},
+};
+module_platform_driver(sun7i_dwmac_driver);
+
+MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
+MODULE_DESCRIPTION("Allwinner sunxi DWMAC specific glue layer");
+MODULE_LICENSE("GPL");

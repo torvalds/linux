@@ -14,10 +14,11 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "clk-factors.h"
 
@@ -128,7 +129,7 @@ static struct platform_driver sun4i_a10_mod0_clk_driver = {
 	},
 	.probe = sun4i_a10_mod0_clk_probe,
 };
-module_platform_driver(sun4i_a10_mod0_clk_driver);
+builtin_platform_driver(sun4i_a10_mod0_clk_driver);
 
 static const struct factors_data sun9i_a80_mod0_data __initconst = {
 	.enable = 31,

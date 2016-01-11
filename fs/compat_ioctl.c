@@ -686,7 +686,7 @@ static int do_i2c_rdwr_ioctl(unsigned int fd, unsigned int cmd,
 
 	if (get_user(nmsgs, &udata->nmsgs))
 		return -EFAULT;
-	if (nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
+	if (nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
 	if (get_user(datap, &udata->msgs))
@@ -896,6 +896,7 @@ COMPATIBLE_IOCTL(FIGETBSZ)
 /* 'X' - originally XFS but some now in the VFS */
 COMPATIBLE_IOCTL(FIFREEZE)
 COMPATIBLE_IOCTL(FITHAW)
+COMPATIBLE_IOCTL(FITRIM)
 COMPATIBLE_IOCTL(KDGETKEYCODE)
 COMPATIBLE_IOCTL(KDSETKEYCODE)
 COMPATIBLE_IOCTL(KDGKBTYPE)

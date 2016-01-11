@@ -22,7 +22,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#define DEBUG
+
 #include <linux/platform_device.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -155,9 +155,6 @@ static int ti_st_open(struct hci_dev *hdev)
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
-
 	/* provide contexts for callbacks from ST */
 	hst = hci_get_drvdata(hdev);
 
@@ -181,7 +178,6 @@ static int ti_st_open(struct hci_dev *hdev)
 			goto done;
 
 		if (err != -EINPROGRESS) {
-			clear_bit(HCI_RUNNING, &hdev->flags);
 			BT_ERR("st_register failed %d", err);
 			return err;
 		}
@@ -195,7 +191,6 @@ static int ti_st_open(struct hci_dev *hdev)
 			(&hst->wait_reg_completion,
 			 msecs_to_jiffies(BT_REGISTER_TIMEOUT));
 		if (!timeleft) {
-			clear_bit(HCI_RUNNING, &hdev->flags);
 			BT_ERR("Timeout(%d sec),didn't get reg "
 					"completion signal from ST",
 					BT_REGISTER_TIMEOUT / 1000);
@@ -205,7 +200,6 @@ static int ti_st_open(struct hci_dev *hdev)
 		/* Is ST registration callback
 		 * called with ERROR status? */
 		if (hst->reg_status != 0) {
-			clear_bit(HCI_RUNNING, &hdev->flags);
 			BT_ERR("ST registration completed with invalid "
 					"status %d", hst->reg_status);
 			return -EAGAIN;
@@ -215,7 +209,6 @@ done:
 		hst->st_write = ti_st_proto[i].write;
 		if (!hst->st_write) {
 			BT_ERR("undefined ST write function");
-			clear_bit(HCI_RUNNING, &hdev->flags);
 			for (i = 0; i < MAX_BT_CHNL_IDS; i++) {
 				/* Undo registration with ST */
 				err = st_unregister(&ti_st_proto[i]);
@@ -236,9 +229,6 @@ static int ti_st_close(struct hci_dev *hdev)
 	int err, i;
 	struct ti_st *hst = hci_get_drvdata(hdev);
 
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	for (i = MAX_BT_CHNL_IDS-1; i >= 0; i--) {
 		err = st_unregister(&ti_st_proto[i]);
 		if (err)
@@ -255,9 +245,6 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct ti_st *hst;
 	long len;
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
 
 	hst = hci_get_drvdata(hdev);
 

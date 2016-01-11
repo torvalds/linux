@@ -1,52 +1,51 @@
 /*
-    comedi/drivers/mite.c
-    Hardware driver for NI Mite PCI interface chip
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * comedi/drivers/mite.c
+ * Hardware driver for NI Mite PCI interface chip
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-	The PCI-MIO E series driver was originally written by
-	Tomasz Motylewski <...>, and ported to comedi by ds.
-
-	References for specifications:
-
-	   321747b.pdf  Register Level Programmer Manual (obsolete)
-	   321747c.pdf  Register Level Programmer Manual (new)
-	   DAQ-STC reference manual
-
-	Other possibly relevant info:
-
-	   320517c.pdf  User manual (obsolete)
-	   320517f.pdf  User manual (new)
-	   320889a.pdf  delete
-	   320906c.pdf  maximum signal ratings
-	   321066a.pdf  about 16x
-	   321791a.pdf  discontinuation of at-mio-16e-10 rev. c
-	   321808a.pdf  about at-mio-16e-10 rev P
-	   321837a.pdf  discontinuation of at-mio-16de-10 rev d
-	   321838a.pdf  about at-mio-16de-10 rev N
-
-	ISSUES:
-
-*/
-
-/* #define USE_KMALLOC */
+ * The PCI-MIO E series driver was originally written by
+ * Tomasz Motylewski <...>, and ported to comedi by ds.
+ *
+ * References for specifications:
+ *
+ *    321747b.pdf  Register Level Programmer Manual (obsolete)
+ *    321747c.pdf  Register Level Programmer Manual (new)
+ *    DAQ-STC reference manual
+ *
+ * Other possibly relevant info:
+ *
+ *    320517c.pdf  User manual (obsolete)
+ *    320517f.pdf  User manual (new)
+ *    320889a.pdf  delete
+ *    320906c.pdf  maximum signal ratings
+ *    321066a.pdf  about 16x
+ *    321791a.pdf  discontinuation of at-mio-16e-10 rev. c
+ *    321808a.pdf  about at-mio-16e-10 rev P
+ *    321837a.pdf  discontinuation of at-mio-16de-10 rev d
+ *    321838a.pdf  about at-mio-16de-10 rev N
+ *
+ * ISSUES:
+ *
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "../comedi_pci.h"
 
@@ -132,7 +131,7 @@ int mite_setup2(struct comedi_device *dev,
 		       mite->mite_io_addr + MITE_IODWBSR);
 	}
 	/*
-	 * make sure dma bursts work. I got this from running a bus analyzer
+	 * Make sure dma bursts work. I got this from running a bus analyzer
 	 * on a pxi-6281 and a pxi-6713. 6713 powered up with register value
 	 * of 0x61f and bursts worked. 6281 powered up with register value of
 	 * 0x1f and bursts didn't work. The NI windows driver reads the
@@ -224,7 +223,8 @@ struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 	unsigned long flags;
 	struct mite_channel *channel = NULL;
 
-	/* spin lock so mite_release_channel can be called safely
+	/*
+	 * spin lock so mite_release_channel can be called safely
 	 * from interrupts
 	 */
 	spin_lock_irqsave(&mite->lock, flags);
@@ -246,15 +246,15 @@ void mite_release_channel(struct mite_channel *mite_chan)
 	struct mite_struct *mite = mite_chan->mite;
 	unsigned long flags;
 
-	/*  spin lock to prevent races with mite_request_channel */
+	/* spin lock to prevent races with mite_request_channel */
 	spin_lock_irqsave(&mite->lock, flags);
 	if (mite->channel_allocated[mite_chan->channel]) {
 		mite_dma_disarm(mite_chan);
 		mite_dma_reset(mite_chan);
-	/*
-	 * disable all channel's interrupts (do it after disarm/reset so
-	 * MITE_CHCR reg isn't changed while dma is still active!)
-	 */
+		/*
+		 * disable all channel's interrupts (do it after disarm/reset so
+		 * MITE_CHCR reg isn't changed while dma is still active!)
+		 */
 		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE |
 		       CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE |
 		       CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
@@ -286,7 +286,7 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 	mmiowb();
 	spin_unlock_irqrestore(&mite->lock, flags);
-/*       mite_dma_tcr(mite, channel); */
+	/* mite_dma_tcr(mite, channel); */
 }
 EXPORT_SYMBOL_GPL(mite_dma_arm);
 
@@ -529,8 +529,10 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 	}
 
 	count = nbytes - async->buf_write_count;
-	/* it's possible count will be negative due to
-	 * conservative value returned by mite_bytes_written_to_memory_lb */
+	/*
+	 * it's possible count will be negative due to conservative value
+	 * returned by mite_bytes_written_to_memory_lb
+	 */
 	if (count <= 0)
 		return 0;
 
@@ -551,7 +553,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 	u32 nbytes_ub, nbytes_lb;
 	int count;
 
-	/*  read alloc as much as we can */
+	/* read alloc as much as we can */
 	comedi_buf_read_alloc(s, async->prealloc_bufsz);
 	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
 	if (cmd->stop_src == TRIG_COUNT && (int)(nbytes_lb - stop_count) > 0)
@@ -622,5 +624,5 @@ module_init(mite_module_init);
 module_exit(mite_module_exit);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi helper for NI Mite PCI interface chip");
 MODULE_LICENSE("GPL");

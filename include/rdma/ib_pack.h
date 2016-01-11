@@ -76,6 +76,8 @@ enum {
 	IB_OPCODE_UC                                = 0x20,
 	IB_OPCODE_RD                                = 0x40,
 	IB_OPCODE_UD                                = 0x60,
+	/* per IBTA 1.3 vol 1 Table 38, A10.3.2 */
+	IB_OPCODE_CNP                               = 0x80,
 
 	/* operations -- just used to define real constants */
 	IB_OPCODE_SEND_FIRST                        = 0x00,

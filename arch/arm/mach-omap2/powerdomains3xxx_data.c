@@ -349,6 +349,41 @@ static struct powerdomain device_81xx_pwrdm = {
 	.voltdm		  = { .name = "core" },
 };
 
+static struct powerdomain gem_814x_pwrdm = {
+	.name		= "gem_pwrdm",
+	.prcm_offs	= TI814X_PRM_DSP_MOD,
+	.pwrsts		= PWRSTS_OFF_ON,
+	.voltdm		= { .name = "dsp" },
+};
+
+static struct powerdomain ivahd_814x_pwrdm = {
+	.name		= "ivahd_pwrdm",
+	.prcm_offs	= TI814X_PRM_HDVICP_MOD,
+	.pwrsts		= PWRSTS_OFF_ON,
+	.voltdm		= { .name = "iva" },
+};
+
+static struct powerdomain hdvpss_814x_pwrdm = {
+	.name		= "hdvpss_pwrdm",
+	.prcm_offs	= TI814X_PRM_HDVPSS_MOD,
+	.pwrsts		= PWRSTS_OFF_ON,
+	.voltdm		= { .name = "dsp" },
+};
+
+static struct powerdomain sgx_814x_pwrdm = {
+	.name		= "sgx_pwrdm",
+	.prcm_offs	= TI814X_PRM_GFX_MOD,
+	.pwrsts		= PWRSTS_OFF_ON,
+	.voltdm		= { .name = "core" },
+};
+
+static struct powerdomain isp_814x_pwrdm = {
+	.name		= "isp_pwrdm",
+	.prcm_offs	= TI814X_PRM_ISP_MOD,
+	.pwrsts		= PWRSTS_OFF_ON,
+	.voltdm		= { .name = "core" },
+};
+
 static struct powerdomain active_816x_pwrdm = {
 	.name		  = "active_pwrdm",
 	.prcm_offs	  = TI816X_PRM_ACTIVE_MOD,
@@ -448,7 +483,18 @@ static struct powerdomain *powerdomains_am35x[] __initdata = {
 	NULL
 };
 
-static struct powerdomain *powerdomains_ti81xx[] __initdata = {
+static struct powerdomain *powerdomains_ti814x[] __initdata = {
+	&alwon_81xx_pwrdm,
+	&device_81xx_pwrdm,
+	&gem_814x_pwrdm,
+	&ivahd_814x_pwrdm,
+	&hdvpss_814x_pwrdm,
+	&sgx_814x_pwrdm,
+	&isp_814x_pwrdm,
+	NULL
+};
+
+static struct powerdomain *powerdomains_ti816x[] __initdata = {
 	&alwon_81xx_pwrdm,
 	&device_81xx_pwrdm,
 	&active_816x_pwrdm,
@@ -460,6 +506,73 @@ static struct powerdomain *powerdomains_ti81xx[] __initdata = {
 	NULL
 };
 
+/* TI81XX specific ops */
+#define TI81XX_PM_PWSTCTRL				0x0000
+#define TI81XX_RM_RSTCTRL				0x0010
+#define TI81XX_PM_PWSTST				0x0004
+
+static int ti81xx_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
+				   (pwrst << OMAP_POWERSTATE_SHIFT),
+				   pwrdm->prcm_offs, TI81XX_PM_PWSTCTRL);
+	return 0;
+}
+
+static int ti81xx_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     TI81XX_PM_PWSTCTRL,
+					     OMAP_POWERSTATE_MASK);
+}
+
+static int ti81xx_pwrdm_read_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+		(pwrdm->prcm_offs == TI814X_PRM_GFX_MOD) ? TI81XX_RM_RSTCTRL :
+					     TI81XX_PM_PWSTST,
+					     OMAP_POWERSTATEST_MASK);
+}
+
+static int ti81xx_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+		(pwrdm->prcm_offs == TI814X_PRM_GFX_MOD) ? TI81XX_RM_RSTCTRL :
+					     TI81XX_PM_PWSTST,
+					     OMAP3430_LOGICSTATEST_MASK);
+}
+
+static int ti81xx_pwrdm_wait_transition(struct powerdomain *pwrdm)
+{
+	u32 c = 0;
+
+	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs,
+		(pwrdm->prcm_offs == TI814X_PRM_GFX_MOD) ? TI81XX_RM_RSTCTRL :
+				       TI81XX_PM_PWSTST) &
+		OMAP_INTRANSITION_MASK) &&
+		(c++ < PWRDM_TRANSITION_BAILOUT))
+			udelay(1);
+
+	if (c > PWRDM_TRANSITION_BAILOUT) {
+		pr_err("powerdomain: %s timeout waiting for transition\n",
+		       pwrdm->name);
+		return -EAGAIN;
+	}
+
+	pr_debug("powerdomain: completed transition in %d loops\n", c);
+
+	return 0;
+}
+
+/* For dm814x we need to fix up fix GFX pwstst and rstctrl reg offsets */
+static struct pwrdm_ops ti81xx_pwrdm_operations = {
+	.pwrdm_set_next_pwrst	= ti81xx_pwrdm_set_next_pwrst,
+	.pwrdm_read_next_pwrst	= ti81xx_pwrdm_read_next_pwrst,
+	.pwrdm_read_pwrst	= ti81xx_pwrdm_read_pwrst,
+	.pwrdm_read_logic_pwrst	= ti81xx_pwrdm_read_logic_pwrst,
+	.pwrdm_wait_transition	= ti81xx_pwrdm_wait_transition,
+};
+
 void __init omap3xxx_powerdomains_init(void)
 {
 	unsigned int rev;
@@ -467,15 +580,22 @@ void __init omap3xxx_powerdomains_init(void)
 	if (!cpu_is_omap34xx() && !cpu_is_ti81xx())
 		return;
 
-	pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
+	/* Only 81xx needs custom pwrdm_operations */
+	if (!cpu_is_ti81xx())
+		pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
 
 	rev = omap_rev();
 
 	if (rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1) {
 		pwrdm_register_pwrdms(powerdomains_am35x);
+	} else if (rev == TI8148_REV_ES1_0 || rev == TI8148_REV_ES2_0 ||
+		   rev == TI8148_REV_ES2_1) {
+		pwrdm_register_platform_funcs(&ti81xx_pwrdm_operations);
+		pwrdm_register_pwrdms(powerdomains_ti814x);
 	} else if (rev == TI8168_REV_ES1_0 || rev == TI8168_REV_ES1_1
 			|| rev == TI8168_REV_ES2_0 || rev == TI8168_REV_ES2_1) {
-		pwrdm_register_pwrdms(powerdomains_ti81xx);
+		pwrdm_register_platform_funcs(&ti81xx_pwrdm_operations);
+		pwrdm_register_pwrdms(powerdomains_ti816x);
 	} else {
 		pwrdm_register_pwrdms(powerdomains_omap3430_common);
 

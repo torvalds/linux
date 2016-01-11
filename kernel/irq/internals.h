@@ -18,6 +18,8 @@
 
 extern bool noirqdebug;
 
+extern struct irqaction chained_action;
+
 /*
  * Bits used by threaded handlers:
  * IRQTF_RUNTHREAD - signals that the interrupt handler thread should run
@@ -59,12 +61,9 @@ enum {
 #include "debug.h"
 #include "settings.h"
 
-#define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
-
-extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
-		unsigned long flags);
-extern void __disable_irq(struct irq_desc *desc, unsigned int irq);
-extern void __enable_irq(struct irq_desc *desc, unsigned int irq);
+extern int __irq_set_trigger(struct irq_desc *desc, unsigned long flags);
+extern void __disable_irq(struct irq_desc *desc);
+extern void __enable_irq(struct irq_desc *desc);
 
 extern int irq_startup(struct irq_desc *desc, bool resend);
 extern void irq_shutdown(struct irq_desc *desc);
@@ -78,21 +77,17 @@ extern void unmask_threaded_irq(struct irq_desc *desc);
 
 #ifdef CONFIG_SPARSE_IRQ
 static inline void irq_mark_irq(unsigned int irq) { }
-extern void irq_lock_sparse(void);
-extern void irq_unlock_sparse(void);
 #else
 extern void irq_mark_irq(unsigned int irq);
-static inline void irq_lock_sparse(void) { }
-static inline void irq_unlock_sparse(void) { }
 #endif
 
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
-irqreturn_t handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action);
+irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event(struct irq_desc *desc);
 
 /* Resending of interrupts :*/
-void check_irq_resend(struct irq_desc *desc, unsigned int irq);
+void check_irq_resend(struct irq_desc *desc);
 bool irq_wait_for_poll(struct irq_desc *desc);
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action);
 
@@ -170,33 +165,43 @@ irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
  */
 static inline void irqd_set_move_pending(struct irq_data *d)
 {
-	d->state_use_accessors |= IRQD_SETAFFINITY_PENDING;
+	__irqd_to_state(d) |= IRQD_SETAFFINITY_PENDING;
 }
 
 static inline void irqd_clr_move_pending(struct irq_data *d)
 {
-	d->state_use_accessors &= ~IRQD_SETAFFINITY_PENDING;
+	__irqd_to_state(d) &= ~IRQD_SETAFFINITY_PENDING;
 }
 
 static inline void irqd_clear(struct irq_data *d, unsigned int mask)
 {
-	d->state_use_accessors &= ~mask;
+	__irqd_to_state(d) &= ~mask;
 }
 
 static inline void irqd_set(struct irq_data *d, unsigned int mask)
 {
-	d->state_use_accessors |= mask;
+	__irqd_to_state(d) |= mask;
 }
 
 static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 {
-	return d->state_use_accessors & mask;
+	return __irqd_to_state(d) & mask;
 }
 
-static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *desc)
+static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {
 	__this_cpu_inc(*desc->kstat_irqs);
 	__this_cpu_inc(kstat.irqs_sum);
+}
+
+static inline int irq_desc_get_node(struct irq_desc *desc)
+{
+	return irq_common_data_get_node(&desc->irq_common_data);
+}
+
+static inline int irq_desc_is_chained(struct irq_desc *desc)
+{
+	return (desc->action && desc->action == &chained_action);
 }
 
 #ifdef CONFIG_PM_SLEEP

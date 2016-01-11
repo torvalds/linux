@@ -360,7 +360,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 		goto err_put_node;
 	}
 
-	ret = of_init_opp_table(dvfs_info->dev);
+	ret = dev_pm_opp_of_add_table(dvfs_info->dev);
 	if (ret) {
 		dev_err(dvfs_info->dev, "failed to init OPP table: %d\n", ret);
 		goto err_put_node;
@@ -424,7 +424,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 err_free_table:
 	dev_pm_opp_free_cpufreq_table(dvfs_info->dev, &dvfs_info->freq_table);
 err_free_opp:
-	of_free_opp_table(dvfs_info->dev);
+	dev_pm_opp_of_remove_table(dvfs_info->dev);
 err_put_node:
 	of_node_put(np);
 	dev_err(&pdev->dev, "%s: failed initialization\n", __func__);
@@ -435,7 +435,7 @@ static int exynos_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&exynos_driver);
 	dev_pm_opp_free_cpufreq_table(dvfs_info->dev, &dvfs_info->freq_table);
-	of_free_opp_table(dvfs_info->dev);
+	dev_pm_opp_of_remove_table(dvfs_info->dev);
 	return 0;
 }
 

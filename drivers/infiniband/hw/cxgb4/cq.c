@@ -55,7 +55,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			FW_RI_RES_WR_NRES_V(1) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_RESET;
@@ -125,7 +125,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			FW_RI_RES_WR_NRES_V(1) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
@@ -158,10 +158,15 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	cq->gen = 1;
 	cq->gts = rdev->lldi.gts_reg;
 	cq->rdev = rdev;
-	if (user) {
-		cq->ugts = (u64)pci_resource_start(rdev->lldi.pdev, 2) +
-					(cq->cqid << rdev->cqshift);
-		cq->ugts &= PAGE_MASK;
+
+	cq->bar2_va = c4iw_bar2_addrs(rdev, cq->cqid, T4_BAR2_QTYPE_INGRESS,
+				      &cq->bar2_qid,
+				      user ? &cq->bar2_pa : NULL);
+	if (user && !cq->bar2_va) {
+		pr_warn(MOD "%s: cqid %u not in BAR2 range.\n",
+			pci_name(rdev->lldi.pdev), cq->cqid);
+		ret = -EINVAL;
+		goto err4;
 	}
 	return 0;
 err4:
@@ -747,7 +752,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->opcode = IB_WC_LOCAL_INV;
 			break;
 		case FW_RI_FAST_REGISTER:
-			wc->opcode = IB_WC_FAST_REG_MR;
+			wc->opcode = IB_WC_REG_MR;
 			break;
 		default:
 			printk(KERN_ERR MOD "Unexpected opcode %d "
@@ -809,7 +814,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			printk(KERN_ERR MOD
 			       "Unexpected cqe_status 0x%x for QPID=0x%0x\n",
 			       CQE_STATUS(&cqe), CQE_QPID(&cqe));
-			ret = -EINVAL;
+			wc->status = IB_WC_FATAL_ERR;
 		}
 	}
 out:
@@ -859,10 +864,13 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
-			     int vector, struct ib_ucontext *ib_context,
+struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct c4iw_dev *rhp;
 	struct c4iw_cq *chp;
 	struct c4iw_create_cq_resp uresp;
@@ -872,6 +880,8 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	struct c4iw_mm_entry *mm, *mm2;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	rhp = to_c4iw_dev(ibdev);
 
@@ -964,14 +974,13 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 		insert_mmap(ucontext, mm);
 
 		mm2->key = uresp.gts_key;
-		mm2->addr = chp->cq.ugts;
+		mm2->addr = chp->cq.bar2_pa;
 		mm2->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm2);
 	}
 	PDBG("%s cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
 	     __func__, chp->cq.cqid, chp, chp->cq.size,
-	     chp->cq.memsize,
-	     (unsigned long long) chp->cq.dma_addr);
+	     chp->cq.memsize, (unsigned long long) chp->cq.dma_addr);
 	return &chp->ibcq;
 err5:
 	kfree(mm2);

@@ -24,10 +24,15 @@ config TILE
 	select MODULES_USE_ELF_RELA
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_SYSCALL_TRACEPOINTS
+	select USER_STACKTRACE_SUPPORT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_CONTEXT_TRACKING
+	select EDAC_SUPPORT
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
+	select HAVE_ARCH_SECCOMP_FILTER
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -124,8 +129,10 @@ config HVC_TILE
 	select HVC_IRQ if TILEGX
 	def_bool y
 
+# Building with ARCH=tilegx (or ARCH=tile) implies using the
+# 64-bit TILE-Gx toolchain, so force CONFIG_TILEGX on.
 config TILEGX
-	bool "Building for TILE-Gx (64-bit) processor"
+	def_bool ARCH != "tilepro"
 	select SPARSE_IRQ
 	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 	select HAVE_FUNCTION_TRACER
@@ -169,8 +176,6 @@ config NR_CPUS
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
 
-if TILEGX
-
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_64KB
@@ -181,8 +186,11 @@ choice
 	  connections, etc., it may be better to select 16KB, which uses
 	  memory more efficiently at some cost in TLB performance.
 
-	  Note that this option is TILE-Gx specific; currently
-	  TILEPro page size is set by rebuilding the hypervisor.
+	  Note that for TILEPro, you must also rebuild the hypervisor
+	  with a matching page size.
+
+config PAGE_SIZE_4KB
+	bool "4KB" if TILEPRO
 
 config PAGE_SIZE_16KB
 	bool "16KB"
@@ -192,12 +200,11 @@ config PAGE_SIZE_64KB
 
 endchoice
 
-endif
-
 source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call"
+	select KEXEC_CORE
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -214,6 +221,22 @@ config COMPAT
 	---help---
 	  If enabled, the kernel will support running TILE-Gx binaries
 	  that were built with the -m32 option.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl, it cannot be disabled and the task is only
+	  allowed to execute a few safe syscalls defined by each seccomp
+	  mode.
+
+	  If unsure, say N.
 
 config SYSVIPC_COMPAT
 	def_bool y

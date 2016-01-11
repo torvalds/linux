@@ -23,12 +23,21 @@
 #define to_ipu_plane(x)	container_of(x, struct ipu_plane, base)
 
 static const uint32_t ipu_plane_formats[] = {
+	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ABGR1555,
 	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_YUV420,
@@ -175,8 +184,15 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		ipu_dp_set_window_pos(ipu_plane->dp, crtc_x, crtc_y);
 		/* Enable local alpha on partial plane */
 		switch (fb->pixel_format) {
+		case DRM_FORMAT_ARGB1555:
+		case DRM_FORMAT_ABGR1555:
+		case DRM_FORMAT_RGBA5551:
+		case DRM_FORMAT_BGRA5551:
+		case DRM_FORMAT_ARGB4444:
 		case DRM_FORMAT_ARGB8888:
 		case DRM_FORMAT_ABGR8888:
+		case DRM_FORMAT_RGBA8888:
+		case DRM_FORMAT_BGRA8888:
 			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
 			break;
 		default:
@@ -365,7 +381,7 @@ static struct drm_plane_funcs ipu_plane_funcs = {
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,
-				 bool priv)
+				 enum drm_plane_type type)
 {
 	struct ipu_plane *ipu_plane;
 	int ret;
@@ -383,10 +399,9 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	ipu_plane->dma = dma;
 	ipu_plane->dp_flow = dp;
 
-	ret = drm_plane_init(dev, &ipu_plane->base, possible_crtcs,
-			     &ipu_plane_funcs, ipu_plane_formats,
-			     ARRAY_SIZE(ipu_plane_formats),
-			     priv);
+	ret = drm_universal_plane_init(dev, &ipu_plane->base, possible_crtcs,
+				       &ipu_plane_funcs, ipu_plane_formats,
+				       ARRAY_SIZE(ipu_plane_formats), type);
 	if (ret) {
 		DRM_ERROR("failed to initialize plane\n");
 		kfree(ipu_plane);

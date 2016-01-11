@@ -58,7 +58,9 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
-			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000>;
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
 
 		internal-regs {
 			spi@10600 {
@@ -69,7 +71,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "st,m25p128";
+					compatible = "st,m25p128", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <50000000>;
 					m25p,fast-read;
@@ -81,10 +83,6 @@
 				pinctrl-0 = <&i2c0_pins>;
 				status = "okay";
 				clock-frequency = <100000>;
-				/*
-				 * The EEPROM located at adresse 54 is needed
-				 * for the boot - DO NOT ERASE IT -
-				 */
 
 				expander0: pca9555@20 {
 					compatible = "nxp,pca9555";
@@ -111,6 +109,10 @@
 					reg = <0x21>;
 				};
 
+				eeprom@57 {
+					compatible = "atmel,24c64";
+					reg = <0x57>;
+				};
 			};
 
 			serial@12000 {
@@ -205,8 +207,21 @@
 			sdhci@d8000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&sdhci_pins>;
-				cd-gpios = <&expander0 5 GPIO_ACTIVE_LOW>;
 				no-1-8-v;
+				/*
+				 * A388-GP board v1.5 and higher replace
+				 * hitherto card detection method based on GPIO
+				 * with the one using DAT3 pin. As they are
+				 * incompatible, software-based polling is
+				 * enabled with 'broken-cd' property. For boards
+				 * older than v1.5 it can be replaced with:
+				 * 'cd-gpios = <&expander0 5 GPIO_ACTIVE_LOW>;',
+				 * whereas for the newer ones following can be
+				 * used instead:
+				 * 'dat3-cd;'
+				 * 'cd-inverted;'
+				 */
+				broken-cd;
 				wp-inverted;
 				bus-width = <8>;
 				status = "okay";
@@ -301,9 +316,11 @@
 	reg_sata0: pwr-sata0 {
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 		enable-active-high;
 		regulator-always-on;
-
+		gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_5v_sata0: v5-sata0 {

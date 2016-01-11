@@ -77,6 +77,10 @@
 # include "test-libnuma.c"
 #undef main
 
+#define main main_test_numa_num_possible_cpus
+# include "test-numa_num_possible_cpus.c"
+#undef main
+
 #define main main_test_timerfd
 # include "test-timerfd.c"
 #undef main
@@ -117,6 +121,10 @@
 # include "test-lzma.c"
 #undef main
 
+#define main main_test_get_cpuid
+# include "test-get_cpuid.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -136,6 +144,7 @@ int main(int argc, char *argv[])
 	main_test_libbfd();
 	main_test_backtrace();
 	main_test_libnuma();
+	main_test_numa_num_possible_cpus();
 	main_test_timerfd();
 	main_test_stackprotector_all();
 	main_test_libdw_dwarf_unwind();
@@ -143,6 +152,7 @@ int main(int argc, char *argv[])
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
 	main_test_lzma();
+	main_test_get_cpuid();
 
 	return 0;
 }

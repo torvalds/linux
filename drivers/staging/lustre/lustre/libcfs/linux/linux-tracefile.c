@@ -49,15 +49,13 @@ static unsigned int pages_factor[CFS_TCD_TYPE_MAX] = {
 
 char *cfs_trace_console_buffers[NR_CPUS][CFS_TCD_TYPE_MAX];
 
-struct rw_semaphore cfs_tracefile_sem;
+static DECLARE_RWSEM(cfs_tracefile_sem);
 
 int cfs_tracefile_init_arch(void)
 {
 	int    i;
 	int    j;
 	struct cfs_trace_cpu_data *tcd;
-
-	init_rwsem(&cfs_tracefile_sem);
 
 	/* initialize trace_data */
 	memset(cfs_trace_data, 0, sizeof(cfs_trace_data));
@@ -102,11 +100,10 @@ void cfs_tracefile_fini_arch(void)
 	int    j;
 
 	for (i = 0; i < num_possible_cpus(); i++)
-		for (j = 0; j < 3; j++)
-			if (cfs_trace_console_buffers[i][j] != NULL) {
-				kfree(cfs_trace_console_buffers[i][j]);
-				cfs_trace_console_buffers[i][j] = NULL;
-			}
+		for (j = 0; j < 3; j++) {
+			kfree(cfs_trace_console_buffers[i][j]);
+			cfs_trace_console_buffers[i][j] = NULL;
+		}
 
 	for (i = 0; cfs_trace_data[i] != NULL; i++) {
 		kfree(cfs_trace_data[i]);
@@ -194,16 +191,18 @@ cfs_set_ptldebug_header(struct ptldebug_header *header,
 			struct libcfs_debug_msg_data *msgdata,
 			unsigned long stack)
 {
-	struct timeval tv;
+	struct timespec64 ts;
 
-	do_gettimeofday(&tv);
+	ktime_get_real_ts64(&ts);
 
 	header->ph_subsys = msgdata->msg_subsys;
 	header->ph_mask = msgdata->msg_mask;
 	header->ph_cpu_id = smp_processor_id();
 	header->ph_type = cfs_trace_buf_idx_get();
-	header->ph_sec = (__u32)tv.tv_sec;
-	header->ph_usec = tv.tv_usec;
+	/* y2038 safe since all user space treats this as unsigned, but
+	 * will overflow in 2106 */
+	header->ph_sec = (u32)ts.tv_sec;
+	header->ph_usec = ts.tv_nsec / NSEC_PER_USEC;
 	header->ph_stack = stack;
 	header->ph_pid = current->pid;
 	header->ph_line_num = msgdata->msg_line;
@@ -215,12 +214,11 @@ static char *
 dbghdr_to_err_string(struct ptldebug_header *hdr)
 {
 	switch (hdr->ph_subsys) {
-
-		case S_LND:
-		case S_LNET:
-			return "LNetError";
-		default:
-			return "LustreError";
+	case S_LND:
+	case S_LNET:
+		return "LNetError";
+	default:
+		return "LustreError";
 	}
 }
 
@@ -228,12 +226,11 @@ static char *
 dbghdr_to_info_string(struct ptldebug_header *hdr)
 {
 	switch (hdr->ph_subsys) {
-
-		case S_LND:
-		case S_LNET:
-			return "LNet";
-		default:
-			return "Lustre";
+	case S_LND:
+	case S_LNET:
+		return "LNet";
+	default:
+		return "Lustre";
 	}
 }
 

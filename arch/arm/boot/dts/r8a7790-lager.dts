@@ -174,7 +174,14 @@
 			  1800000 0>;
 	};
 
-	sound {
+	audio_clock: clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <11289600>;
+		clock-output-names = "audio_clock";
+	};
+
+	rsnd_ak4643: sound {
 		compatible = "simple-audio-card";
 
 		simple-audio-card,format = "left_j";
@@ -187,7 +194,7 @@
 
 		sndcodec: simple-audio-card,codec {
 			sound-dai = <&ak4643>;
-			system-clock-frequency = <11289600>;
+			clocks = <&audio_clock>;
 		};
 	};
 
@@ -335,6 +342,11 @@
 		renesas,function = "msiof1";
 	};
 
+	iic0_pins: iic0 {
+		renesas,groups = "iic0";
+		renesas,function = "iic0";
+	};
+
 	iic1_pins: iic1 {
 		renesas,groups = "iic1";
 		renesas,function = "iic1";
@@ -429,7 +441,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,s25fl512s";
+		compatible = "spansion,s25fl512s", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;
@@ -510,6 +522,8 @@
 
 &iic0	{
 	status = "okay";
+	pinctrl-0 = <&iic0_pins>;
+	pinctrl-names = "default";
 };
 
 &iic1	{
@@ -525,7 +539,7 @@
 
 	clock-frequency = <100000>;
 
-	ak4643: sound-codec@12 {
+	ak4643: codec@12 {
 		compatible = "asahi-kasei,ak4643";
 		#sound-dai-cells = <0>;
 		reg = <0x12>;
@@ -548,7 +562,7 @@
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";

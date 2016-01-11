@@ -23,8 +23,6 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
-
 	if (qeth_card_hw_is_reachable(card) &&
 					card->options.sbp.supported_funcs)
 		rc = qeth_bridgeport_query_ports(card,
@@ -59,8 +57,6 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 			rc = sprintf(buf, "%s\n", word);
 	}
 
-	mutex_unlock(&card->conf_mutex);
-
 	return rc;
 }
 
@@ -90,7 +86,9 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 
 	mutex_lock(&card->conf_mutex);
 
-	if (qeth_card_hw_is_reachable(card)) {
+	if (card->options.sbp.reflect_promisc) /* Forbid direct manipulation */
+		rc = -EPERM;
+	else if (qeth_card_hw_is_reachable(card)) {
 		rc = qeth_bridgeport_setrole(card, role);
 		if (!rc)
 			card->options.sbp.role = role;
@@ -111,7 +109,7 @@ static ssize_t qeth_bridge_port_state_show(struct device *dev,
 	return qeth_bridge_port_role_state_show(dev, attr, buf, 1);
 }
 
-static DEVICE_ATTR(bridge_state, 0644, qeth_bridge_port_state_show,
+static DEVICE_ATTR(bridge_state, 0444, qeth_bridge_port_state_show,
 		   NULL);
 
 static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
@@ -123,11 +121,7 @@ static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
-
 	enabled = card->options.sbp.hostnotification;
-
-	mutex_unlock(&card->conf_mutex);
 
 	return sprintf(buf, "%d\n", enabled);
 }
@@ -167,10 +161,72 @@ static DEVICE_ATTR(bridge_hostnotify, 0644,
 			qeth_bridgeport_hostnotification_show,
 			qeth_bridgeport_hostnotification_store);
 
+static ssize_t qeth_bridgeport_reflect_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	char *state;
+
+	if (!card)
+		return -EINVAL;
+
+	if (card->options.sbp.reflect_promisc) {
+		if (card->options.sbp.reflect_promisc_primary)
+			state = "primary";
+		else
+			state = "secondary";
+	} else
+		state = "none";
+
+	return sprintf(buf, "%s\n", state);
+}
+
+static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	int enable, primary;
+	int rc = 0;
+
+	if (!card)
+		return -EINVAL;
+
+	if (sysfs_streq(buf, "none")) {
+		enable = 0;
+		primary = 0;
+	} else if (sysfs_streq(buf, "primary")) {
+		enable = 1;
+		primary = 1;
+	} else if (sysfs_streq(buf, "secondary")) {
+		enable = 1;
+		primary = 0;
+	} else
+		return -EINVAL;
+
+	mutex_lock(&card->conf_mutex);
+
+	if (card->options.sbp.role != QETH_SBP_ROLE_NONE)
+		rc = -EPERM;
+	else {
+		card->options.sbp.reflect_promisc = enable;
+		card->options.sbp.reflect_promisc_primary = primary;
+		rc = 0;
+	}
+
+	mutex_unlock(&card->conf_mutex);
+
+	return rc ? rc : count;
+}
+
+static DEVICE_ATTR(bridge_reflect_promisc, 0644,
+			qeth_bridgeport_reflect_show,
+			qeth_bridgeport_reflect_store);
+
 static struct attribute *qeth_l2_bridgeport_attrs[] = {
 	&dev_attr_bridge_role.attr,
 	&dev_attr_bridge_state.attr,
 	&dev_attr_bridge_hostnotify.attr,
+	&dev_attr_bridge_reflect_promisc.attr,
 	NULL,
 };
 

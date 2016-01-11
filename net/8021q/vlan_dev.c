@@ -791,10 +791,9 @@ void vlan_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
-	dev->priv_flags		|= IFF_802_1Q_VLAN;
+	dev->priv_flags		|= IFF_802_1Q_VLAN | IFF_NO_QUEUE;
 	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
 	netif_keep_dst(dev);
-	dev->tx_queue_len	= 0;
 
 	dev->netdev_ops		= &vlan_netdev_ops;
 	dev->destructor		= vlan_dev_free;

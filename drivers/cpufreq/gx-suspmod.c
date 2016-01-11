@@ -144,7 +144,7 @@ module_param(max_duration, int, 0444);
 
 
 /**
- * we can detect a core multipiler from dir0_lsb
+ * we can detect a core multiplier from dir0_lsb
  * from GX1 datasheet p.56,
  *	MULT[3:0]:
  *	0000 = SYSCLK multiplied by 4 (test only)
@@ -346,7 +346,7 @@ static int cpufreq_gx_verify(struct cpufreq_policy *policy)
 
 	/* it needs to be assured that at least one supported frequency is
 	 * within policy->min and policy->max. If it is not, policy->max
-	 * needs to be increased until one freuqency is supported.
+	 * needs to be increased until one frequency is supported.
 	 * policy->min may not be decreased, though. This way we guarantee a
 	 * specific processing capacity.
 	 */

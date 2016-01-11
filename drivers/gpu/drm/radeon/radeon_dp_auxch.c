@@ -30,8 +30,6 @@
 			    AUX_SW_RX_HPD_DISCON |	     \
 			    AUX_SW_RX_PARTIAL_BYTE |	     \
 			    AUX_SW_NON_AUX_MODE |	     \
-			    AUX_SW_RX_MIN_COUNT_VIOL |	     \
-			    AUX_SW_RX_INVALID_STOP |	     \
 			    AUX_SW_RX_SYNC_INVALID_L |	     \
 			    AUX_SW_RX_SYNC_INVALID_H |	     \
 			    AUX_SW_RX_INVALID_START |	     \
@@ -118,8 +116,8 @@ radeon_dp_aux_transfer_native(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg
 	       AUX_SW_WR_BYTES(bytes));
 
 	/* write the data header into the registers */
-	/* request, addres, msg size */
-	byte = (msg->request << 4);
+	/* request, address, msg size */
+	byte = (msg->request << 4) | ((msg->address >> 16) & 0xf);
 	WREG32(AUX_SW_DATA + aux_offset[instance],
 	       AUX_SW_DATA_MASK(byte) | AUX_SW_AUTOINCREMENT_DISABLE);
 

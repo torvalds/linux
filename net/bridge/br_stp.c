@@ -39,10 +39,15 @@ void br_log_state(const struct net_bridge_port *p)
 
 void br_set_state(struct net_bridge_port *p, unsigned int state)
 {
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_ID_PORT_STP_STATE,
+		.flags = SWITCHDEV_F_DEFER,
+		.u.stp_state = state,
+	};
 	int err;
 
 	p->state = state;
-	err = netdev_switch_port_stp_update(p->dev, state);
+	err = switchdev_port_attr_set(p->dev, &attr);
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
@@ -205,8 +210,9 @@ void br_transmit_config(struct net_bridge_port *p)
 		br_send_config_bpdu(p, &bpdu);
 		p->topology_change_ack = 0;
 		p->config_pending = 0;
-		mod_timer(&p->hold_timer,
-			  round_jiffies(jiffies + BR_HOLD_TIME));
+		if (p->br->stp_enabled == BR_KERNEL_STP)
+			mod_timer(&p->hold_timer,
+				  round_jiffies(jiffies + BR_HOLD_TIME));
 	}
 }
 
@@ -424,7 +430,6 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	else
 		br_set_state(p, BR_STATE_LEARNING);
 
-	br_multicast_enable_port(p);
 	br_log_state(p);
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
@@ -458,6 +463,12 @@ void br_port_state_selection(struct net_bridge *br)
 			}
 		}
 
+		if (p->state != BR_STATE_BLOCKING)
+			br_multicast_enable_port(p);
+		/* Multicast is not disabled for the port when it goes in
+		 * blocking state because the timers will expire and stop by
+		 * themselves without sending more queries.
+		 */
 		if (p->state == BR_STATE_FORWARDING)
 			++liveports;
 	}
@@ -554,6 +565,29 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 	spin_unlock_bh(&br->lock);
 	return 0;
 
+}
+
+int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
+{
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
+		.u.ageing_time = ageing_time,
+	};
+	unsigned long t = clock_t_to_jiffies(ageing_time);
+	int err;
+
+	if (t < BR_MIN_AGEING_TIME || t > BR_MAX_AGEING_TIME)
+		return -ERANGE;
+
+	err = switchdev_port_attr_set(br->dev, &attr);
+	if (err)
+		return err;
+
+	br->ageing_time = t;
+	mod_timer(&br->gc_timer, jiffies);
+
+	return 0;
 }
 
 void __br_set_forward_delay(struct net_bridge *br, unsigned long t)

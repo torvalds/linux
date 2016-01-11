@@ -20,13 +20,23 @@ config ANDROID_TIMED_OUTPUT
 
 config ANDROID_TIMED_GPIO
 	tristate "Android timed gpio driver"
-	depends on GPIOLIB && ANDROID_TIMED_OUTPUT
+	depends on GPIOLIB || COMPILE_TEST
+	depends on ANDROID_TIMED_OUTPUT
 	default n
+        ---help---
+	  Unlike generic gpio is to allow programs to access and manipulate gpio
+	  registers from user space, timed output/gpio is a system to allow changing
+	  a gpio pin and restore it automatically after a specified timeout.
 
 config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
 	---help---
-	  Registers processes to be killed when memory is low
+	  Registers processes to be killed when low memory conditions, this is useful
+	  as there is no particular swap space on android.
+
+	  The registered process will kills according to the priorities in android init
+	  scripts (/init.rc), and it defines priority values with minimum free memory size
+	  for each priority.
 
 config SYNC
 	bool "Synchronization framework"
@@ -44,7 +54,7 @@ config SW_SYNC
 	depends on SYNC
 	---help---
 	  A sync object driver that uses a 32bit counter to coordinate
-	  syncrhronization.  Useful when there is no hardware primitive backing
+	  synchronization.  Useful when there is no hardware primitive backing
 	  the synchronization.
 
 config SW_SYNC_USER

@@ -40,6 +40,7 @@
 unsigned long coherency_phys_base;
 void __iomem *coherency_base;
 static void __iomem *coherency_cpu_base;
+static void __iomem *cpu_config_base;
 
 /* Coherency fabric registers */
 #define IO_SYNC_BARRIER_CTL_OFFSET		   0x0
@@ -65,16 +66,29 @@ static const struct of_device_id of_coherency_table[] = {
 int ll_enable_coherency(void);
 void ll_add_cpu_to_smp_group(void);
 
-int set_cpu_coherent(void)
-{
-	if (!coherency_base) {
-		pr_warn("Can't make current CPU cache coherent.\n");
-		pr_warn("Coherency fabric is not initialized\n");
-		return 1;
-	}
+#define CPU_CONFIG_SHARED_L2 BIT(16)
 
-	ll_add_cpu_to_smp_group();
-	return ll_enable_coherency();
+/*
+ * Disable the "Shared L2 Present" bit in CPU Configuration register
+ * on Armada XP.
+ *
+ * The "Shared L2 Present" bit affects the "level of coherence" value
+ * in the clidr CP15 register.  Cache operation functions such as
+ * "flush all" and "invalidate all" operate on all the cache levels
+ * that included in the defined level of coherence. When HW I/O
+ * coherency is used, this bit causes unnecessary flushes of the L2
+ * cache.
+ */
+static void armada_xp_clear_shared_l2(void)
+{
+	u32 reg;
+
+	if (!cpu_config_base)
+		return;
+
+	reg = readl(cpu_config_base);
+	reg &= ~CPU_CONFIG_SHARED_L2;
+	writel(reg, cpu_config_base);
 }
 
 static int mvebu_hwcc_notifier(struct notifier_block *nb,
@@ -97,9 +111,24 @@ static struct notifier_block mvebu_hwcc_pci_nb = {
 	.notifier_call = mvebu_hwcc_notifier,
 };
 
+static int armada_xp_clear_shared_l2_notifier_func(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
+		armada_xp_clear_shared_l2();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block armada_xp_clear_shared_l2_notifier = {
+	.notifier_call = armada_xp_clear_shared_l2_notifier_func,
+	.priority = 100,
+};
+
 static void __init armada_370_coherency_init(struct device_node *np)
 {
 	struct resource res;
+	struct device_node *cpu_config_np;
 
 	of_address_to_resource(np, 0, &res);
 	coherency_phys_base = res.start;
@@ -112,6 +141,23 @@ static void __init armada_370_coherency_init(struct device_node *np)
 	sync_cache_w(&coherency_phys_base);
 	coherency_base = of_iomap(np, 0);
 	coherency_cpu_base = of_iomap(np, 1);
+
+	cpu_config_np = of_find_compatible_node(NULL, NULL,
+						"marvell,armada-xp-cpu-config");
+	if (!cpu_config_np)
+		goto exit;
+
+	cpu_config_base = of_iomap(cpu_config_np, 0);
+	if (!cpu_config_base) {
+		of_node_put(cpu_config_np);
+		goto exit;
+	}
+
+	of_node_put(cpu_config_np);
+
+	register_cpu_notifier(&armada_xp_clear_shared_l2_notifier);
+
+exit:
 	set_cpu_coherent();
 }
 
@@ -204,6 +250,25 @@ static int coherency_type(void)
 	of_node_put(np);
 
 	return type;
+}
+
+int set_cpu_coherent(void)
+{
+	int type = coherency_type();
+
+	if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP) {
+		if (!coherency_base) {
+			pr_warn("Can't make current CPU cache coherent.\n");
+			pr_warn("Coherency fabric is not initialized\n");
+			return 1;
+		}
+
+		armada_xp_clear_shared_l2();
+		ll_add_cpu_to_smp_group();
+		return ll_enable_coherency();
+	}
+
+	return 0;
 }
 
 int coherency_available(void)

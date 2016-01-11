@@ -19,6 +19,7 @@ FILES=					\
 	test-libelf-getphdrnum.bin	\
 	test-libelf-mmap.bin		\
 	test-libnuma.bin		\
+	test-numa_num_possible_cpus.bin	\
 	test-libperl.bin		\
 	test-libpython.bin		\
 	test-libpython-version.bin	\
@@ -33,7 +34,9 @@ FILES=					\
 	test-compile-32.bin		\
 	test-compile-x32.bin		\
 	test-zlib.bin			\
-	test-lzma.bin
+	test-lzma.bin			\
+	test-bpf.bin			\
+	test-get_cpuid.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -69,8 +72,13 @@ test-libelf.bin:
 test-glibc.bin:
 	$(BUILD)
 
+DWARFLIBS := -ldw
+ifeq ($(findstring -static,${LDFLAGS}),-static)
+DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
+endif
+
 test-dwarf.bin:
-	$(BUILD) -ldw
+	$(BUILD) $(DWARFLIBS)
 
 test-libelf-mmap.bin:
 	$(BUILD) -lelf
@@ -79,6 +87,9 @@ test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
 
 test-libnuma.bin:
+	$(BUILD) -lnuma
+
+test-numa_num_possible_cpus.bin:
 	$(BUILD) -lnuma
 
 test-libunwind.bin:
@@ -121,10 +132,10 @@ test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
 
 test-liberty.bin:
-	$(CC) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty
+	$(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty
 
 test-liberty-z.bin:
-	$(CC) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty -lz
+	$(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty -lz
 
 test-cplus-demangle.bin:
 	$(BUILD) -liberty
@@ -155,6 +166,12 @@ test-zlib.bin:
 
 test-lzma.bin:
 	$(BUILD) -llzma
+
+test-get_cpuid.bin:
+	$(BUILD)
+
+test-bpf.bin:
+	$(BUILD)
 
 -include *.d
 

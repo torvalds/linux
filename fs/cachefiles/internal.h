@@ -30,7 +30,7 @@ extern unsigned cachefiles_debug;
 #define CACHEFILES_DEBUG_KLEAVE	2
 #define CACHEFILES_DEBUG_KDEBUG	4
 
-#define cachefiles_gfp (__GFP_WAIT | __GFP_NORETRY | __GFP_NOMEMALLOC)
+#define cachefiles_gfp (__GFP_RECLAIM | __GFP_NORETRY | __GFP_NOMEMALLOC)
 
 /*
  * node records
@@ -43,7 +43,6 @@ struct cachefiles_object {
 	loff_t				i_size;		/* object size */
 	unsigned long			flags;
 #define CACHEFILES_OBJECT_ACTIVE	0		/* T if marked active */
-#define CACHEFILES_OBJECT_BURIED	1		/* T if preemptively buried */
 	atomic_t			usage;		/* object usage count */
 	uint8_t				type;		/* object type */
 	uint8_t				new;		/* T if object new */

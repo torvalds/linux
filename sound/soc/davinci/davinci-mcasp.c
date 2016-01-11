@@ -80,12 +80,13 @@ struct davinci_mcasp {
 
 	/* McASP specific data */
 	int	tdm_slots;
+	u32	tdm_mask[2];
+	int	slot_width;
 	u8	op_mode;
 	u8	num_serializer;
 	u8	*serial_dir;
 	u8	version;
 	u8	bclk_div;
-	u16	bclk_lrclk_ratio;
 	int	streams;
 	u32	irq_request[2];
 	int	dma_request[2];
@@ -107,6 +108,7 @@ struct davinci_mcasp {
 #endif
 
 	struct davinci_mcasp_ruledata ruledata[2];
+	struct snd_pcm_hw_constraint_list chconstr[2];
 };
 
 static inline void mcasp_set_bits(struct davinci_mcasp *mcasp, u32 offset,
@@ -221,8 +223,8 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 
 	/* wait for XDATA to be cleared */
 	cnt = 0;
-	while (!(mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) &
-		 ~XRDATA) && (cnt < 100000))
+	while ((mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) & XRDATA) &&
+	       (cnt < 100000))
 		cnt++;
 
 	/* Release TX state machine */
@@ -555,8 +557,21 @@ static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
 			mcasp->bclk_div = div;
 		break;
 
-	case 2:		/* BCLK/LRCLK ratio */
-		mcasp->bclk_lrclk_ratio = div;
+	case 2:	/*
+		 * BCLK/LRCLK ratio descries how many bit-clock cycles
+		 * fit into one frame. The clock ratio is given for a
+		 * full period of data (for I2S format both left and
+		 * right channels), so it has to be divided by number
+		 * of tdm-slots (for I2S - divided by 2).
+		 * Instead of storing this ratio, we calculate a new
+		 * tdm_slot width by dividing the the ratio by the
+		 * number of configured tdm slots.
+		 */
+		mcasp->slot_width = div / mcasp->tdm_slots;
+		if (div % mcasp->tdm_slots)
+			dev_warn(mcasp->dev,
+				 "%s(): BCLK/LRCLK %d is not divisible by %d tdm slots",
+				 __func__, div, mcasp->tdm_slots);
 		break;
 
 	default:
@@ -595,12 +610,92 @@ static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return 0;
 }
 
+/* All serializers must have equal number of channels */
+static int davinci_mcasp_ch_constraint(struct davinci_mcasp *mcasp, int stream,
+				       int serializers)
+{
+	struct snd_pcm_hw_constraint_list *cl = &mcasp->chconstr[stream];
+	unsigned int *list = (unsigned int *) cl->list;
+	int slots = mcasp->tdm_slots;
+	int i, count = 0;
+
+	if (mcasp->tdm_mask[stream])
+		slots = hweight32(mcasp->tdm_mask[stream]);
+
+	for (i = 2; i <= slots; i++)
+		list[count++] = i;
+
+	for (i = 2; i <= serializers; i++)
+		list[count++] = i*slots;
+
+	cl->count = count;
+
+	return 0;
+}
+
+static int davinci_mcasp_set_ch_constraints(struct davinci_mcasp *mcasp)
+{
+	int rx_serializers = 0, tx_serializers = 0, ret, i;
+
+	for (i = 0; i < mcasp->num_serializer; i++)
+		if (mcasp->serial_dir[i] == TX_MODE)
+			tx_serializers++;
+		else if (mcasp->serial_dir[i] == RX_MODE)
+			rx_serializers++;
+
+	ret = davinci_mcasp_ch_constraint(mcasp, SNDRV_PCM_STREAM_PLAYBACK,
+					  tx_serializers);
+	if (ret)
+		return ret;
+
+	ret = davinci_mcasp_ch_constraint(mcasp, SNDRV_PCM_STREAM_CAPTURE,
+					  rx_serializers);
+
+	return ret;
+}
+
+
+static int davinci_mcasp_set_tdm_slot(struct snd_soc_dai *dai,
+				      unsigned int tx_mask,
+				      unsigned int rx_mask,
+				      int slots, int slot_width)
+{
+	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
+
+	dev_dbg(mcasp->dev,
+		 "%s() tx_mask 0x%08x rx_mask 0x%08x slots %d width %d\n",
+		 __func__, tx_mask, rx_mask, slots, slot_width);
+
+	if (tx_mask >= (1<<slots) || rx_mask >= (1<<slots)) {
+		dev_err(mcasp->dev,
+			"Bad tdm mask tx: 0x%08x rx: 0x%08x slots %d\n",
+			tx_mask, rx_mask, slots);
+		return -EINVAL;
+	}
+
+	if (slot_width &&
+	    (slot_width < 8 || slot_width > 32 || slot_width % 4 != 0)) {
+		dev_err(mcasp->dev, "%s: Unsupported slot_width %d\n",
+			__func__, slot_width);
+		return -EINVAL;
+	}
+
+	mcasp->tdm_slots = slots;
+	mcasp->tdm_mask[SNDRV_PCM_STREAM_PLAYBACK] = tx_mask;
+	mcasp->tdm_mask[SNDRV_PCM_STREAM_CAPTURE] = rx_mask;
+	mcasp->slot_width = slot_width;
+
+	return davinci_mcasp_set_ch_constraints(mcasp);
+}
+
 static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
-				       int word_length)
+				       int sample_width)
 {
 	u32 fmt;
-	u32 tx_rotate = (word_length / 4) & 0x7;
-	u32 mask = (1ULL << word_length) - 1;
+	u32 tx_rotate = (sample_width / 4) & 0x7;
+	u32 mask = (1ULL << sample_width) - 1;
+	u32 slot_width = sample_width;
+
 	/*
 	 * For captured data we should not rotate, inversion and masking is
 	 * enoguh to get the data to the right position:
@@ -613,28 +708,23 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 	u32 rx_rotate = 0;
 
 	/*
-	 * if s BCLK-to-LRCLK ratio has been configured via the set_clkdiv()
-	 * callback, take it into account here. That allows us to for example
-	 * send 32 bits per channel to the codec, while only 16 of them carry
-	 * audio payload.
-	 * The clock ratio is given for a full period of data (for I2S format
-	 * both left and right channels), so it has to be divided by number of
-	 * tdm-slots (for I2S - divided by 2).
+	 * Setting the tdm slot width either with set_clkdiv() or
+	 * set_tdm_slot() allows us to for example send 32 bits per
+	 * channel to the codec, while only 16 of them carry audio
+	 * payload.
 	 */
-	if (mcasp->bclk_lrclk_ratio) {
-		u32 slot_length = mcasp->bclk_lrclk_ratio / mcasp->tdm_slots;
-
+	if (mcasp->slot_width) {
 		/*
-		 * When we have more bclk then it is needed for the data, we
-		 * need to use the rotation to move the received samples to have
-		 * correct alignment.
+		 * When we have more bclk then it is needed for the
+		 * data, we need to use the rotation to move the
+		 * received samples to have correct alignment.
 		 */
-		rx_rotate = (slot_length - word_length) / 4;
-		word_length = slot_length;
+		slot_width = mcasp->slot_width;
+		rx_rotate = (slot_width - sample_width) / 4;
 	}
 
 	/* mapping of the XSSZ bit-field as described in the datasheet */
-	fmt = (word_length >> 1) - 1;
+	fmt = (slot_width >> 1) - 1;
 
 	if (mcasp->op_mode != DAVINCI_MCASP_DIT_MODE) {
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMT_REG, RXSSZ(fmt),
@@ -662,7 +752,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	u8 rx_ser = 0;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
-	int active_serializers, numevt, n;
+	int active_serializers, numevt;
 	u32 reg;
 	/* Default configuration */
 	if (mcasp->version < MCASP_VERSION_3)
@@ -685,6 +775,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		if (mcasp->serial_dir[i] == TX_MODE &&
 					tx_ser < max_active_serializers) {
 			mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AXR(i));
+			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
+				       DISMOD_LOW, DISMOD_MASK);
 			tx_ser++;
 		} else if (mcasp->serial_dir[i] == RX_MODE &&
 					rx_ser < max_active_serializers) {
@@ -742,9 +834,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	 * The number of words for numevt need to be in steps of active
 	 * serializers.
 	 */
-	n = numevt % active_serializers;
-	if (n)
-		numevt += (active_serializers - n);
+	numevt = (numevt / active_serializers) * active_serializers;
+
 	while (period_words % numevt && numevt > 0)
 		numevt -= active_serializers;
 	if (numevt <= 0)
@@ -774,33 +865,58 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream,
 
 	/*
 	 * If more than one serializer is needed, then use them with
-	 * their specified tdm_slots count. Otherwise, one serializer
-	 * can cope with the transaction using as many slots as channels
-	 * in the stream, requires channels symmetry
+	 * all the specified tdm_slots. Otherwise, one serializer can
+	 * cope with the transaction using just as many slots as there
+	 * are channels in the stream.
 	 */
-	active_serializers = (channels + total_slots - 1) / total_slots;
-	if (active_serializers == 1)
-		active_slots = channels;
-	else
-		active_slots = total_slots;
+	if (mcasp->tdm_mask[stream]) {
+		active_slots = hweight32(mcasp->tdm_mask[stream]);
+		active_serializers = (channels + active_slots - 1) /
+			active_slots;
+		if (active_serializers == 1) {
+			active_slots = channels;
+			for (i = 0; i < total_slots; i++) {
+				if ((1 << i) & mcasp->tdm_mask[stream]) {
+					mask |= (1 << i);
+					if (--active_slots <= 0)
+						break;
+				}
+			}
+		}
+	} else {
+		active_serializers = (channels + total_slots - 1) / total_slots;
+		if (active_serializers == 1)
+			active_slots = channels;
+		else
+			active_slots = total_slots;
 
-	for (i = 0; i < active_slots; i++)
-		mask |= (1 << i);
-
+		for (i = 0; i < active_slots; i++)
+			mask |= (1 << i);
+	}
 	mcasp_clr_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, TX_ASYNC);
 
 	if (!mcasp->dat_port)
 		busel = TXSEL;
 
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXTDM_REG, mask);
-	mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMT_REG, busel | TXORD);
-	mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
-		       FSXMOD(total_slots), FSXMOD(0x1FF));
-
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXTDM_REG, mask);
-	mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMT_REG, busel | RXORD);
-	mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG,
-		       FSRMOD(total_slots), FSRMOD(0x1FF));
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		mcasp_set_reg(mcasp, DAVINCI_MCASP_TXTDM_REG, mask);
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMT_REG, busel | TXORD);
+		mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
+			       FSXMOD(total_slots), FSXMOD(0x1FF));
+	} else if (stream == SNDRV_PCM_STREAM_CAPTURE) {
+		mcasp_set_reg(mcasp, DAVINCI_MCASP_RXTDM_REG, mask);
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMT_REG, busel | RXORD);
+		mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG,
+			       FSRMOD(total_slots), FSRMOD(0x1FF));
+		/*
+		 * If McASP is set to be TX/RX synchronous and the playback is
+		 * not running already we need to configure the TX slots in
+		 * order to have correct FSX on the bus
+		 */
+		if (mcasp_is_synchronous(mcasp) && !mcasp->channels)
+			mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
+				       FSXMOD(total_slots), FSXMOD(0x1FF));
+	}
 
 	return 0;
 }
@@ -915,15 +1031,15 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	 * the machine driver, we need to calculate the ratio.
 	 */
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
-		int channels = params_channels(params);
+		int slots = mcasp->tdm_slots;
 		int rate = params_rate(params);
 		int sbits = params_width(params);
 		int ppm, div;
 
-		if (channels > mcasp->tdm_slots)
-			channels = mcasp->tdm_slots;
+		if (mcasp->slot_width)
+			sbits = mcasp->slot_width;
 
-		div = davinci_mcasp_calc_clk_div(mcasp, rate*sbits*channels,
+		div = davinci_mcasp_calc_clk_div(mcasp, rate*sbits*slots,
 						 &ppm);
 		if (ppm)
 			dev_info(mcasp->dev, "Sample-rate is off by %d PPM\n",
@@ -1024,31 +1140,39 @@ static int davinci_mcasp_hw_rule_rate(struct snd_pcm_hw_params *params,
 	struct snd_interval *ri =
 		hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	int sbits = params_width(params);
-	int channels = params_channels(params);
-	unsigned int list[ARRAY_SIZE(davinci_mcasp_dai_rates)];
-	int i, count = 0;
+	int slots = rd->mcasp->tdm_slots;
+	struct snd_interval range;
+	int i;
 
-	if (channels > rd->mcasp->tdm_slots)
-		channels = rd->mcasp->tdm_slots;
+	if (rd->mcasp->slot_width)
+		sbits = rd->mcasp->slot_width;
+
+	snd_interval_any(&range);
+	range.empty = 1;
 
 	for (i = 0; i < ARRAY_SIZE(davinci_mcasp_dai_rates); i++) {
-		if (ri->min <= davinci_mcasp_dai_rates[i] &&
-		    ri->max >= davinci_mcasp_dai_rates[i]) {
-			uint bclk_freq = sbits*channels*
+		if (snd_interval_test(ri, davinci_mcasp_dai_rates[i])) {
+			uint bclk_freq = sbits*slots*
 				davinci_mcasp_dai_rates[i];
 			int ppm;
 
 			davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
-			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM)
-				list[count++] = davinci_mcasp_dai_rates[i];
+			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
+				if (range.empty) {
+					range.min = davinci_mcasp_dai_rates[i];
+					range.empty = 0;
+				}
+				range.max = davinci_mcasp_dai_rates[i];
+			}
 		}
 	}
-	dev_dbg(rd->mcasp->dev,
-		"%d frequencies (%d-%d) for %d sbits and %d channels\n",
-		count, ri->min, ri->max, sbits, channels);
 
-	return snd_interval_list(hw_param_interval(params, rule->var),
-				 count, list, 0);
+	dev_dbg(rd->mcasp->dev,
+		"Frequencies %d-%d -> %d-%d for %d sbits and %d tdm slots\n",
+		ri->min, ri->max, range.min, range.max, sbits, slots);
+
+	return snd_interval_refine(hw_param_interval(params, rule->var),
+				   &range);
 }
 
 static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
@@ -1058,20 +1182,21 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_mask nfmt;
 	int rate = params_rate(params);
-	int channels = params_channels(params);
+	int slots = rd->mcasp->tdm_slots;
 	int i, count = 0;
 
 	snd_mask_none(&nfmt);
 
-	if (channels > rd->mcasp->tdm_slots)
-		channels = rd->mcasp->tdm_slots;
-
 	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
 		if (snd_mask_test(fmt, i)) {
-			uint bclk_freq = snd_pcm_format_width(i)*channels*rate;
+			uint sbits = snd_pcm_format_width(i);
 			int ppm;
 
-			davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
+			if (rd->mcasp->slot_width)
+				sbits = rd->mcasp->slot_width;
+
+			davinci_mcasp_calc_clk_div(rd->mcasp, sbits*slots*rate,
+						   &ppm);
 			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
 				snd_mask_set(&nfmt, i);
 				count++;
@@ -1079,49 +1204,10 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 		}
 	}
 	dev_dbg(rd->mcasp->dev,
-		"%d possible sample format for %d Hz and %d channels\n",
-		count, rate, channels);
+		"%d possible sample format for %d Hz and %d tdm slots\n",
+		count, rate, slots);
 
 	return snd_mask_refine(fmt, &nfmt);
-}
-
-static int davinci_mcasp_hw_rule_channels(struct snd_pcm_hw_params *params,
-					  struct snd_pcm_hw_rule *rule)
-{
-	struct davinci_mcasp_ruledata *rd = rule->private;
-	struct snd_interval *ci =
-		hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-	int sbits = params_width(params);
-	int rate = params_rate(params);
-	int max_chan_per_wire = rd->mcasp->tdm_slots < ci->max ?
-		rd->mcasp->tdm_slots : ci->max;
-	unsigned int list[ci->max - ci->min + 1];
-	int c1, c, count = 0;
-
-	for (c1 = ci->min; c1 <= max_chan_per_wire; c1++) {
-		uint bclk_freq = c1*sbits*rate;
-		int ppm;
-
-		davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
-		if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
-			/* If we can use all tdm_slots, we can put any
-			   amount of channels to remaining wires as
-			   long as they fit in. */
-			if (c1 == rd->mcasp->tdm_slots) {
-				for (c = c1; c <= rd->serializers*c1 &&
-					     c <= ci->max; c++)
-					list[count++] = c;
-			} else {
-				list[count++] = c1;
-			}
-		}
-	}
-	dev_dbg(rd->mcasp->dev,
-		"%d possible channel counts (%d-%d) for %d Hz and %d sbits\n",
-		count, ci->min, ci->max, rate, sbits);
-
-	return snd_interval_list(hw_param_interval(params, rule->var),
-				 count, list, 0);
 }
 
 static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
@@ -1132,6 +1218,10 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 					&mcasp->ruledata[substream->stream];
 	u32 max_channels = 0;
 	int i, dir;
+	int tdm_slots = mcasp->tdm_slots;
+
+	if (mcasp->tdm_mask[substream->stream])
+		tdm_slots = hweight32(mcasp->tdm_mask[substream->stream]);
 
 	mcasp->substreams[substream->stream] = substream;
 
@@ -1152,7 +1242,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 			max_channels++;
 	}
 	ruledata->serializers = max_channels;
-	max_channels *= mcasp->tdm_slots;
+	max_channels *= tdm_slots;
 	/*
 	 * If the already active stream has less channels than the calculated
 	 * limnit based on the seirializers * tdm_slots, we need to use that as
@@ -1162,10 +1252,25 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	 */
 	if (mcasp->channels && mcasp->channels < max_channels)
 		max_channels = mcasp->channels;
+	/*
+	 * But we can always allow channels upto the amount of
+	 * the available tdm_slots.
+	 */
+	if (max_channels < tdm_slots)
+		max_channels = tdm_slots;
 
 	snd_pcm_hw_constraint_minmax(substream->runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS,
 				     2, max_channels);
+
+	snd_pcm_hw_constraint_list(substream->runtime,
+				   0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &mcasp->chconstr[substream->stream]);
+
+	if (mcasp->slot_width)
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+					     8, mcasp->slot_width);
 
 	/*
 	 * If we rely on implicit BCLK divider setting we should
@@ -1180,24 +1285,14 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  davinci_mcasp_hw_rule_rate,
 					  ruledata,
-					  SNDRV_PCM_HW_PARAM_FORMAT,
-					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+					  SNDRV_PCM_HW_PARAM_FORMAT, -1);
 		if (ret)
 			return ret;
 		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_FORMAT,
 					  davinci_mcasp_hw_rule_format,
 					  ruledata,
-					  SNDRV_PCM_HW_PARAM_RATE,
-					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-		if (ret)
-			return ret;
-		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
-					  SNDRV_PCM_HW_PARAM_CHANNELS,
-					  davinci_mcasp_hw_rule_channels,
-					  ruledata,
-					  SNDRV_PCM_HW_PARAM_RATE,
-					  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+					  SNDRV_PCM_HW_PARAM_RATE, -1);
 		if (ret)
 			return ret;
 	}
@@ -1227,6 +1322,7 @@ static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
 	.set_fmt	= davinci_mcasp_set_dai_fmt,
 	.set_clkdiv	= davinci_mcasp_set_clkdiv,
 	.set_sysclk	= davinci_mcasp_set_sysclk,
+	.set_tdm_slot	= davinci_mcasp_set_tdm_slot,
 };
 
 static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
@@ -1247,7 +1343,7 @@ static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 	u32 reg;
 	int i;
 
-	context->pm_state = pm_runtime_enabled(mcasp->dev);
+	context->pm_state = pm_runtime_active(mcasp->dev);
 	if (!context->pm_state)
 		pm_runtime_get_sync(mcasp->dev);
 
@@ -1341,6 +1437,7 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 		.ops 		= &davinci_mcasp_dai_ops,
 
 		.symmetric_samplebits	= 1,
+		.symmetric_rates	= 1,
 	},
 	{
 		.name		= "davinci-mcasp.1",
@@ -1556,10 +1653,53 @@ nodata:
 	return  pdata;
 }
 
+enum {
+	PCM_EDMA,
+	PCM_SDMA,
+};
+static const char *sdma_prefix = "ti,omap";
+
+static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
+{
+	struct dma_chan *chan;
+	const char *tmp;
+	int ret = PCM_EDMA;
+
+	if (!mcasp->dev->of_node)
+		return PCM_EDMA;
+
+	tmp = mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data;
+	chan = dma_request_slave_channel_reason(mcasp->dev, tmp);
+	if (IS_ERR(chan)) {
+		if (PTR_ERR(chan) != -EPROBE_DEFER)
+			dev_err(mcasp->dev,
+				"Can't verify DMA configuration (%ld)\n",
+				PTR_ERR(chan));
+		return PTR_ERR(chan);
+	}
+	BUG_ON(!chan->device || !chan->device->dev);
+
+	if (chan->device->dev->of_node)
+		ret = of_property_read_string(chan->device->dev->of_node,
+					      "compatible", &tmp);
+	else
+		dev_dbg(mcasp->dev, "DMA controller has no of-node\n");
+
+	dma_release_channel(chan);
+	if (ret)
+		return ret;
+
+	dev_dbg(mcasp->dev, "DMA controller compatible = \"%s\"\n", tmp);
+	if (!strncmp(tmp, sdma_prefix, strlen(sdma_prefix)))
+		return PCM_SDMA;
+
+	return PCM_EDMA;
+}
+
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
-	struct resource *mem, *ioarea, *res, *dat;
+	struct resource *mem, *res, *dat;
 	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
 	char *irq_name;
@@ -1594,21 +1734,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		}
 	}
 
-	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
-			resource_size(mem), pdev->name);
-	if (!ioarea) {
-		dev_err(&pdev->dev, "Audio region already claimed\n");
-		return -EBUSY;
-	}
+	mcasp->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(mcasp->base))
+		return PTR_ERR(mcasp->base);
 
 	pm_runtime_enable(&pdev->dev);
-
-	mcasp->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!mcasp->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err;
-	}
 
 	mcasp->op_mode = pdata->op_mode;
 	/* sanity check for tdm slots parameter */
@@ -1641,7 +1771,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "common");
 	if (irq >= 0) {
-		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_common\n",
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_common",
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_common_irq_handler,
@@ -1658,7 +1788,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "rx");
 	if (irq >= 0) {
-		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_rx\n",
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_rx",
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_rx_irq_handler,
@@ -1673,7 +1803,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "tx");
 	if (irq >= 0) {
-		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_tx\n",
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_tx",
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_tx_irq_handler,
@@ -1739,6 +1869,31 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
 	}
 
+	/* Allocate memory for long enough list for all possible
+	 * scenarios. Maximum number tdm slots is 32 and there cannot
+	 * be more serializers than given in the configuration.  The
+	 * serializer directions could be taken into account, but it
+	 * would make code much more complex and save only couple of
+	 * bytes.
+	 */
+	mcasp->chconstr[SNDRV_PCM_STREAM_PLAYBACK].list =
+		devm_kzalloc(mcasp->dev, sizeof(unsigned int) *
+			     (32 + mcasp->num_serializer - 2),
+			     GFP_KERNEL);
+
+	mcasp->chconstr[SNDRV_PCM_STREAM_CAPTURE].list =
+		devm_kzalloc(mcasp->dev, sizeof(unsigned int) *
+			     (32 + mcasp->num_serializer - 2),
+			     GFP_KERNEL);
+
+	if (!mcasp->chconstr[SNDRV_PCM_STREAM_PLAYBACK].list ||
+	    !mcasp->chconstr[SNDRV_PCM_STREAM_CAPTURE].list)
+		return -ENOMEM;
+
+	ret = davinci_mcasp_set_ch_constraints(mcasp);
+	if (ret)
+		goto err;
+
 	dev_set_drvdata(&pdev->dev, mcasp);
 
 	mcasp_reparent_fck(pdev);
@@ -1750,27 +1905,34 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err;
 
-	switch (mcasp->version) {
+	ret = davinci_mcasp_get_dma_type(mcasp);
+	switch (ret) {
+	case PCM_EDMA:
 #if IS_BUILTIN(CONFIG_SND_EDMA_SOC) || \
 	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
 	 IS_MODULE(CONFIG_SND_EDMA_SOC))
-	case MCASP_VERSION_1:
-	case MCASP_VERSION_2:
-	case MCASP_VERSION_3:
 		ret = edma_pcm_platform_register(&pdev->dev);
-		break;
+#else
+		dev_err(&pdev->dev, "Missing SND_EDMA_SOC\n");
+		ret = -EINVAL;
+		goto err;
 #endif
+		break;
+	case PCM_SDMA:
 #if IS_BUILTIN(CONFIG_SND_OMAP_SOC) || \
 	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
 	 IS_MODULE(CONFIG_SND_OMAP_SOC))
-	case MCASP_VERSION_4:
 		ret = omap_pcm_platform_register(&pdev->dev);
-		break;
-#endif
-	default:
-		dev_err(&pdev->dev, "Invalid McASP version: %d\n",
-			mcasp->version);
+#else
+		dev_err(&pdev->dev, "Missing SND_SDMA_SOC\n");
 		ret = -EINVAL;
+		goto err;
+#endif
+		break;
+	default:
+		dev_err(&pdev->dev, "No DMA controller found (%d)\n", ret);
+	case -EPROBE_DEFER:
+		goto err;
 		break;
 	}
 

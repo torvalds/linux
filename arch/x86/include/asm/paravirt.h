@@ -19,6 +19,12 @@ static inline int paravirt_enabled(void)
 	return pv_info.paravirt_enabled;
 }
 
+static inline int paravirt_has_feature(unsigned int feature)
+{
+	WARN_ON_ONCE(!pv_info.paravirt_enabled);
+	return (pv_info.features & feature);
+}
+
 static inline void load_sp0(struct tss_struct *tss,
 			     struct thread_struct *thread)
 {
@@ -153,7 +159,11 @@ do {						\
 	val = paravirt_read_msr(msr, &_err);	\
 } while (0)
 
-#define wrmsrl(msr, val)	wrmsr(msr, (u32)((u64)(val)), ((u64)(val))>>32)
+static inline void wrmsrl(unsigned msr, u64 val)
+{
+	wrmsr(msr, (u32)val, (u32)(val>>32));
+}
+
 #define wrmsr_safe(msr, a, b)	paravirt_write_msr(msr, a, b)
 
 /* rdmsr with exception handling */
@@ -173,19 +183,6 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	*p = paravirt_read_msr(msr, &err);
 	return err;
 }
-
-static inline u64 paravirt_read_tsc(void)
-{
-	return PVOP_CALL0(u64, pv_cpu_ops.read_tsc);
-}
-
-#define rdtscl(low)				\
-do {						\
-	u64 _l = paravirt_read_tsc();		\
-	low = (int)_l;				\
-} while (0)
-
-#define rdtscll(val) (val = paravirt_read_tsc())
 
 static inline unsigned long long paravirt_sched_clock(void)
 {
@@ -214,27 +211,6 @@ do {						\
 } while (0)
 
 #define rdpmcl(counter, val) ((val) = paravirt_read_pmc(counter))
-
-static inline unsigned long long paravirt_rdtscp(unsigned int *aux)
-{
-	return PVOP_CALL1(u64, pv_cpu_ops.read_tscp, aux);
-}
-
-#define rdtscp(low, high, aux)				\
-do {							\
-	int __aux;					\
-	unsigned long __val = paravirt_rdtscp(&__aux);	\
-	(low) = (u32)__val;				\
-	(high) = (u32)(__val >> 32);			\
-	(aux) = __aux;					\
-} while (0)
-
-#define rdtscpll(val, aux)				\
-do {							\
-	unsigned long __aux; 				\
-	val = paravirt_rdtscp(&__aux);			\
-	(aux) = __aux;					\
-} while (0)
 
 static inline void paravirt_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 {
@@ -712,6 +688,31 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PARAVIRT_SPINLOCKS)
 
+#ifdef CONFIG_QUEUED_SPINLOCKS
+
+static __always_inline void pv_queued_spin_lock_slowpath(struct qspinlock *lock,
+							u32 val)
+{
+	PVOP_VCALL2(pv_lock_ops.queued_spin_lock_slowpath, lock, val);
+}
+
+static __always_inline void pv_queued_spin_unlock(struct qspinlock *lock)
+{
+	PVOP_VCALLEE1(pv_lock_ops.queued_spin_unlock, lock);
+}
+
+static __always_inline void pv_wait(u8 *ptr, u8 val)
+{
+	PVOP_VCALL2(pv_lock_ops.wait, ptr, val);
+}
+
+static __always_inline void pv_kick(int cpu)
+{
+	PVOP_VCALL1(pv_lock_ops.kick, cpu);
+}
+
+#else /* !CONFIG_QUEUED_SPINLOCKS */
+
 static __always_inline void __ticket_lock_spinning(struct arch_spinlock *lock,
 							__ticket_t ticket)
 {
@@ -724,7 +725,9 @@ static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,
 	PVOP_VCALL2(pv_lock_ops.unlock_kick, lock, ticket);
 }
 
-#endif
+#endif /* CONFIG_QUEUED_SPINLOCKS */
+
+#endif /* SMP && PARAVIRT_SPINLOCKS */
 
 #ifdef CONFIG_X86_32
 #define PV_SAVE_REGS "pushl %ecx; pushl %edx;"

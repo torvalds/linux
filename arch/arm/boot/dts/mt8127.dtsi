@@ -23,6 +23,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "mediatek,mt81xx-tz-smp";
 
 		cpu@0 {
 			device_type = "cpu";
@@ -45,6 +46,17 @@
 			reg = <0x3>;
 		};
 
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		trustzone-bootinfo@80002000 {
+			compatible = "mediatek,trustzone-bootinfo";
+			reg = <0 0x80002000 0 0x1000>;
+		};
 	};
 
 	clocks {
@@ -70,6 +82,21 @@
 			clock-frequency = <26000000>;
 			#clock-cells = <0>;
                 };
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) |
+					  IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) |
+					  IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) |
+					  IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) |
+					  IRQ_TYPE_LEVEL_LOW)>;
+		clock-frequency = <13000000>;
+		arm,cpu-registers-not-fw-configured;
 	};
 
 	soc {
@@ -107,7 +134,7 @@
 			      <0 0x10216000 0 0x2000>;
 		};
 
-		uart0: serial@11006000 {
+		uart0: serial@11002000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11002000 0 0x400>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
@@ -115,7 +142,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@11007000 {
+		uart1: serial@11003000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11003000 0 0x400>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_LOW>;
@@ -123,7 +150,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@11008000 {
+		uart2: serial@11004000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11004000 0 0x400>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_LOW>;
@@ -131,7 +158,7 @@
 			status = "disabled";
 		};
 
-		uart3: serial@11009000 {
+		uart3: serial@11005000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11005000 0 0x400>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;

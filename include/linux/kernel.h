@@ -200,28 +200,28 @@ extern int _cond_resched(void);
 
 #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
 
-/*
- * abs() handles unsigned and signed longs, ints, shorts and chars.  For all
- * input types abs() returns a signed long.
- * abs() should not be used for 64-bit types (s64, u64, long long) - use abs64()
- * for those.
+/**
+ * abs - return absolute value of an argument
+ * @x: the value.  If it is unsigned type, it is converted to signed type first
+ *   (s64, long or int depending on its size).
+ *
+ * Return: an absolute value of x.  If x is 64-bit, macro's return type is s64,
+ *   otherwise it is signed long.
  */
-#define abs(x) ({						\
-		long ret;					\
-		if (sizeof(x) == sizeof(long)) {		\
-			long __x = (x);				\
-			ret = (__x < 0) ? -__x : __x;		\
-		} else {					\
-			int __x = (x);				\
-			ret = (__x < 0) ? -__x : __x;		\
-		}						\
-		ret;						\
-	})
-
-#define abs64(x) ({				\
-		s64 __x = (x);			\
-		(__x < 0) ? -__x : __x;		\
-	})
+#define abs(x) __builtin_choose_expr(sizeof(x) == sizeof(s64), ({	\
+		s64 __x = (x);						\
+		(__x < 0) ? -__x : __x;					\
+	}), ({								\
+		long ret;						\
+		if (sizeof(x) == sizeof(long)) {			\
+			long __x = (x);					\
+			ret = (__x < 0) ? -__x : __x;			\
+		} else {						\
+			int __x = (x);					\
+			ret = (__x < 0) ? -__x : __x;			\
+		}							\
+		ret;							\
+	}))
 
 /**
  * reciprocal_scale - "scale" a value into range [0, ep_ro)
@@ -244,7 +244,8 @@ static inline u32 reciprocal_scale(u32 val, u32 ep_ro)
 
 #if defined(CONFIG_MMU) && \
 	(defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP))
-void might_fault(void);
+#define might_fault() __might_fault(__FILE__, __LINE__)
+void __might_fault(const char *file, int line);
 #else
 static inline void might_fault(void) { }
 #endif
@@ -410,7 +411,10 @@ extern __printf(3, 0)
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args);
 extern __printf(2, 3)
 char *kasprintf(gfp_t gfp, const char *fmt, ...);
-extern char *kvasprintf(gfp_t gfp, const char *fmt, va_list args);
+extern __printf(2, 0)
+char *kvasprintf(gfp_t gfp, const char *fmt, va_list args);
+extern __printf(2, 0)
+const char *kvasprintf_const(gfp_t gfp, const char *fmt, va_list args);
 
 extern __scanf(2, 3)
 int sscanf(const char *, const char *, ...);
@@ -438,6 +442,9 @@ extern int panic_on_unrecovered_nmi;
 extern int panic_on_io_nmi;
 extern int panic_on_warn;
 extern int sysctl_panic_on_stackoverflow;
+
+extern bool crash_kexec_post_notifiers;
+
 /*
  * Only to be used by arch init code. If the user over-wrote the default
  * CONFIG_PANIC_TIMEOUT, honor it.
@@ -532,12 +539,6 @@ bool mac_pton(const char *s, u8 *mac);
  *
  * Most likely, you want to use tracing_on/tracing_off.
  */
-#ifdef CONFIG_RING_BUFFER
-/* trace_off_permanent stops recording with no way to bring it back */
-void tracing_off_permanent(void);
-#else
-static inline void tracing_off_permanent(void) { }
-#endif
 
 enum ftrace_dump_mode {
 	DUMP_NONE,
@@ -681,10 +682,10 @@ do {									\
 		__ftrace_vprintk(_THIS_IP_, fmt, vargs);		\
 } while (0)
 
-extern int
+extern __printf(2, 0) int
 __ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap);
 
-extern int
+extern __printf(2, 0) int
 __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 
 extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
@@ -704,7 +705,7 @@ int trace_printk(const char *fmt, ...)
 {
 	return 0;
 }
-static inline int
+static __printf(1, 0) inline int
 ftrace_vprintk(const char *fmt, va_list ap)
 {
 	return 0;
@@ -818,13 +819,15 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #endif
 
 /* Permissions on a sysfs file: you didn't miss the 0 prefix did you? */
-#define VERIFY_OCTAL_PERMISSIONS(perms)					\
-	(BUILD_BUG_ON_ZERO((perms) < 0) +				\
-	 BUILD_BUG_ON_ZERO((perms) > 0777) +				\
-	 /* User perms >= group perms >= other perms */			\
-	 BUILD_BUG_ON_ZERO(((perms) >> 6) < (((perms) >> 3) & 7)) +	\
-	 BUILD_BUG_ON_ZERO((((perms) >> 3) & 7) < ((perms) & 7)) +	\
-	 /* Other writable?  Generally considered a bad idea. */	\
-	 BUILD_BUG_ON_ZERO((perms) & 2) +				\
+#define VERIFY_OCTAL_PERMISSIONS(perms)						\
+	(BUILD_BUG_ON_ZERO((perms) < 0) +					\
+	 BUILD_BUG_ON_ZERO((perms) > 0777) +					\
+	 /* USER_READABLE >= GROUP_READABLE >= OTHER_READABLE */		\
+	 BUILD_BUG_ON_ZERO((((perms) >> 6) & 4) < (((perms) >> 3) & 4)) +	\
+	 BUILD_BUG_ON_ZERO((((perms) >> 3) & 4) < ((perms) & 4)) +		\
+	 /* USER_WRITABLE >= GROUP_WRITABLE */					\
+	 BUILD_BUG_ON_ZERO((((perms) >> 6) & 2) < (((perms) >> 3) & 2)) +	\
+	 /* OTHER_WRITABLE?  Generally considered a bad idea. */		\
+	 BUILD_BUG_ON_ZERO((perms) & 2) +					\
 	 (perms))
 #endif

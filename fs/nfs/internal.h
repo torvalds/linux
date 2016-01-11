@@ -219,10 +219,6 @@ static inline void nfs_fs_proc_exit(void)
 }
 #endif
 
-#ifdef CONFIG_NFS_V4_1
-int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
-#endif
-
 /* callback_xdr.c */
 extern struct svc_version nfs4_callback_version1;
 extern struct svc_version nfs4_callback_version4;
@@ -296,6 +292,22 @@ extern struct rpc_procinfo nfs4_procedures[];
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 extern struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags);
+static inline struct nfs4_label *
+nfs4_label_copy(struct nfs4_label *dst, struct nfs4_label *src)
+{
+	if (!dst || !src)
+		return NULL;
+
+	if (src->len > NFS4_MAXLABELLEN)
+		return NULL;
+
+	dst->lfs = src->lfs;
+	dst->pi = src->pi;
+	dst->len = src->len;
+	memcpy(dst->label, src->label, src->len);
+
+	return dst;
+}
 static inline void nfs4_label_free(struct nfs4_label *label)
 {
 	if (label) {
@@ -315,6 +327,11 @@ static inline struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp
 static inline void nfs4_label_free(void *label) {}
 static inline void nfs_zap_label_cache_locked(struct nfs_inode *nfsi)
 {
+}
+static inline struct nfs4_label *
+nfs4_label_copy(struct nfs4_label *dst, struct nfs4_label *src)
+{
+	return NULL;
 }
 #endif /* CONFIG_NFS_V4_SECURITY_LABEL */
 
@@ -343,7 +360,6 @@ int nfs_rename(struct inode *, struct dentry *, struct inode *, struct dentry *)
 /* file.c */
 int nfs_file_fsync_commit(struct file *, loff_t, loff_t, int);
 loff_t nfs_file_llseek(struct file *, loff_t, int);
-int nfs_file_flush(struct file *, fl_owner_t);
 ssize_t nfs_file_read(struct kiocb *, struct iov_iter *);
 ssize_t nfs_file_splice_read(struct file *, loff_t *, struct pipe_inode_info *,
 			     size_t, unsigned int);
@@ -363,7 +379,7 @@ extern int nfs_drop_inode(struct inode *);
 extern void nfs_clear_inode(struct inode *);
 extern void nfs_evict_inode(struct inode *);
 void nfs_zap_acl_cache(struct inode *inode);
-extern int nfs_wait_bit_killable(struct wait_bit_key *key);
+extern int nfs_wait_bit_killable(struct wait_bit_key *key, int mode);
 
 /* super.c */
 extern const struct super_operations nfs_sops;
@@ -469,6 +485,9 @@ void nfs_retry_commit(struct list_head *page_list,
 void nfs_commitdata_release(struct nfs_commit_data *data);
 void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
 				 struct nfs_commit_info *cinfo);
+void nfs_request_add_commit_list_locked(struct nfs_page *req,
+		struct list_head *dst,
+		struct nfs_commit_info *cinfo);
 void nfs_request_remove_commit_list(struct nfs_page *req,
 				    struct nfs_commit_info *cinfo);
 void nfs_init_cinfo(struct nfs_commit_info *cinfo,
@@ -602,13 +621,15 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
  * Record the page as unstable and mark its inode as dirty.
  */
 static inline
-void nfs_mark_page_unstable(struct page *page)
+void nfs_mark_page_unstable(struct page *page, struct nfs_commit_info *cinfo)
 {
-	struct inode *inode = page_file_mapping(page)->host;
+	if (!cinfo->dreq) {
+		struct inode *inode = page_file_mapping(page)->host;
 
-	inc_zone_page_state(page, NR_UNSTABLE_NFS);
-	inc_bdi_stat(inode_to_bdi(inode), BDI_RECLAIMABLE);
-	 __mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		inc_zone_page_state(page, NR_UNSTABLE_NFS);
+		inc_wb_stat(&inode_to_bdi(inode)->wb, WB_RECLAIMABLE);
+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+	}
 }
 
 /*

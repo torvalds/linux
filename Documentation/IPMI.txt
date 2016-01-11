@@ -505,7 +505,10 @@ at module load time (for a module) with:
 
 The addresses are normal I2C addresses.  The adapter is the string
 name of the adapter, as shown in /sys/class/i2c-adapter/i2c-<n>/name.
-It is *NOT* i2c-<n> itself.
+It is *NOT* i2c-<n> itself.  Also, the comparison is done ignoring
+spaces, so if the name is "This is an I2C chip" you can say
+adapter_name=ThisisanI2cchip.  This is because it's hard to pass in
+spaces in kernel parameters.
 
 The debug flags are bit flags for each BMC found, they are:
 IPMI messages: 1, driver state: 2, timing: 4, I2C probe: 8
@@ -584,7 +587,7 @@ used to control it:
 
   modprobe ipmi_watchdog timeout=<t> pretimeout=<t> action=<action type>
       preaction=<preaction type> preop=<preop type> start_now=x
-      nowayout=x ifnum_to_use=n
+      nowayout=x ifnum_to_use=n panic_wdt_timeout=<t>
 
 ifnum_to_use specifies which interface the watchdog timer should use.
 The default is -1, which means to pick the first one registered.
@@ -594,7 +597,9 @@ is the amount of seconds before the reset that the pre-timeout panic will
 occur (if pretimeout is zero, then pretimeout will not be enabled).  Note
 that the pretimeout is the time before the final timeout.  So if the
 timeout is 50 seconds and the pretimeout is 10 seconds, then the pretimeout
-will occur in 40 second (10 seconds before the timeout).
+will occur in 40 second (10 seconds before the timeout). The panic_wdt_timeout
+is the value of timeout which is set on kernel panic, in order to let actions
+such as kdump to occur during panic.
 
 The action may be "reset", "power_cycle", or "power_off", and
 specifies what to do when the timer times out, and defaults to
@@ -631,6 +636,7 @@ for configuring the watchdog:
 	ipmi_watchdog.preop=<preop type>
 	ipmi_watchdog.start_now=x
 	ipmi_watchdog.nowayout=x
+	ipmi_watchdog.panic_wdt_timeout=<t>
 
 The options are the same as the module parameter options.
 

@@ -96,7 +96,7 @@ static int mhu_startup(struct mbox_chan *chan)
 			  IRQF_SHARED, "mhu_link", chan);
 	if (ret) {
 		dev_err(chan->mbox->dev,
-			"Unable to aquire IRQ %d\n", mlink->irq);
+			"Unable to acquire IRQ %d\n", mlink->irq);
 		return ret;
 	}
 
@@ -110,7 +110,7 @@ static void mhu_shutdown(struct mbox_chan *chan)
 	free_irq(mlink->irq, chan);
 }
 
-static struct mbox_chan_ops mhu_ops = {
+static const struct mbox_chan_ops mhu_ops = {
 	.send_data = mhu_send_data,
 	.startup = mhu_startup,
 	.shutdown = mhu_shutdown,
@@ -148,7 +148,7 @@ static int mhu_probe(struct amba_device *adev, const struct amba_id *id)
 	mhu->mbox.ops = &mhu_ops;
 	mhu->mbox.txdone_irq = false;
 	mhu->mbox.txdone_poll = true;
-	mhu->mbox.txpoll_period = 10;
+	mhu->mbox.txpoll_period = 1;
 
 	amba_set_drvdata(adev, mhu);
 

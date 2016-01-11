@@ -55,10 +55,10 @@ void xs_init(pTHX)
 
 INTERP my_perl;
 
-#define FTRACE_MAX_EVENT				\
+#define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, FTRACE_MAX_EVENT);
+static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
 extern struct scripting_context *scripting_context;
 
@@ -221,6 +221,7 @@ static void define_event_symbols(struct event_format *event,
 		break;
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_STRING:
 	case PRINT_BITMASK:
 		break;

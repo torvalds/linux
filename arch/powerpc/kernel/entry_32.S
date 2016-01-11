@@ -20,6 +20,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/sys.h>
 #include <linux/threads.h>
 #include <asm/reg.h>
@@ -354,7 +355,7 @@ ret_from_syscall:
 	SYNC
 	MTMSRD(r10)
 	lwz	r9,TI_FLAGS(r12)
-	li	r8,-_LAST_ERRNO
+	li	r8,-MAX_ERRNO
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
 	cmplw	0,r3,r8
@@ -457,6 +458,10 @@ syscall_dotrace:
 	lwz	r7,GPR7(r1)
 	lwz	r8,GPR8(r1)
 	REST_NVGPRS(r1)
+
+	cmplwi	r0,NR_syscalls
+	/* Return code is already in r3 thanks to do_syscall_trace_enter() */
+	bge-	ret_from_syscall
 	b	syscall_dotrace_cont
 
 syscall_exit_work:

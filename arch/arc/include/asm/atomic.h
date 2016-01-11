@@ -17,42 +17,89 @@
 #include <asm/barrier.h>
 #include <asm/smp.h>
 
-#define atomic_read(v)  ((v)->counter)
+#define atomic_read(v)  READ_ONCE((v)->counter)
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
-#define atomic_set(v, i) (((v)->counter) = (i))
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
+
+#ifdef CONFIG_ARC_STAR_9000923308
+
+#define SCOND_FAIL_RETRY_VAR_DEF						\
+	unsigned int delay = 1, tmp;						\
+
+#define SCOND_FAIL_RETRY_ASM							\
+	"	bz	4f			\n"				\
+	"   ; --- scond fail delay ---		\n"				\
+	"	mov	%[tmp], %[delay]	\n"	/* tmp = delay */	\
+	"2: 	brne.d	%[tmp], 0, 2b		\n"	/* while (tmp != 0) */	\
+	"	sub	%[tmp], %[tmp], 1	\n"	/* tmp-- */		\
+	"	rol	%[delay], %[delay]	\n"	/* delay *= 2 */	\
+	"	b	1b			\n"	/* start over */	\
+	"4: ; --- success ---			\n"				\
+
+#define SCOND_FAIL_RETRY_VARS							\
+	  ,[delay] "+&r" (delay),[tmp] "=&r"	(tmp)				\
+
+#else	/* !CONFIG_ARC_STAR_9000923308 */
+
+#define SCOND_FAIL_RETRY_VAR_DEF
+
+#define SCOND_FAIL_RETRY_ASM							\
+	"	bnz     1b			\n"				\
+
+#define SCOND_FAIL_RETRY_VARS
+
+#endif
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
-	unsigned int temp;						\
+	unsigned int val;				                \
+	SCOND_FAIL_RETRY_VAR_DEF                                        \
 									\
 	__asm__ __volatile__(						\
-	"1:	llock   %0, [%1]	\n"				\
-	"	" #asm_op " %0, %0, %2	\n"				\
-	"	scond   %0, [%1]	\n"				\
-	"	bnz     1b		\n"				\
-	: "=&r"(temp)	/* Early clobber, to prevent reg reuse */	\
-	: "r"(&v->counter), "ir"(i)					\
+	"1:	llock   %[val], [%[ctr]]		\n"		\
+	"	" #asm_op " %[val], %[val], %[i]	\n"		\
+	"	scond   %[val], [%[ctr]]		\n"		\
+	"						\n"		\
+	SCOND_FAIL_RETRY_ASM						\
+									\
+	: [val]	"=&r"	(val) /* Early clobber to prevent reg reuse */	\
+	  SCOND_FAIL_RETRY_VARS						\
+	: [ctr]	"r"	(&v->counter), /* Not "m": llock only supports reg direct addr mode */	\
+	  [i]	"ir"	(i)						\
 	: "cc");							\
 }									\
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
-	unsigned int temp;						\
+	unsigned int val;				                \
+	SCOND_FAIL_RETRY_VAR_DEF                                        \
+									\
+	/*								\
+	 * Explicit full memory barrier needed before/after as		\
+	 * LLOCK/SCOND thmeselves don't provide any such semantics	\
+	 */								\
+	smp_mb();							\
 									\
 	__asm__ __volatile__(						\
-	"1:	llock   %0, [%1]	\n"				\
-	"	" #asm_op " %0, %0, %2	\n"				\
-	"	scond   %0, [%1]	\n"				\
-	"	bnz     1b		\n"				\
-	: "=&r"(temp)							\
-	: "r"(&v->counter), "ir"(i)					\
+	"1:	llock   %[val], [%[ctr]]		\n"		\
+	"	" #asm_op " %[val], %[val], %[i]	\n"		\
+	"	scond   %[val], [%[ctr]]		\n"		\
+	"						\n"		\
+	SCOND_FAIL_RETRY_ASM						\
+									\
+	: [val]	"=&r"	(val)						\
+	  SCOND_FAIL_RETRY_VARS						\
+	: [ctr]	"r"	(&v->counter),					\
+	  [i]	"ir"	(i)						\
 	: "cc");							\
 									\
-	return temp;							\
+	smp_mb();							\
+									\
+	return val;							\
 }
 
 #else	/* !CONFIG_ARC_HAS_LLSC */
@@ -60,7 +107,7 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 #ifndef CONFIG_SMP
 
  /* violating atomic_xxx API locking protocol in UP for optimization sake */
-#define atomic_set(v, i) (((v)->counter) = (i))
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #else
 
@@ -78,7 +125,7 @@ static inline void atomic_set(atomic_t *v, int i)
 	unsigned long flags;
 
 	atomic_ops_lock(flags);
-	v->counter = i;
+	WRITE_ONCE(v->counter, i);
 	atomic_ops_unlock(flags);
 }
 
@@ -99,12 +146,15 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 	atomic_ops_unlock(flags);					\
 }
 
-#define ATOMIC_OP_RETURN(op, c_op)					\
+#define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\
 	unsigned long temp;						\
 									\
+	/*								\
+	 * spin lock/unlock provides the needed smp_mb() before/after	\
+	 */								\
 	atomic_ops_lock(flags);						\
 	temp = v->counter;						\
 	temp c_op i;							\
@@ -122,13 +172,20 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
-ATOMIC_OP(and, &=, and)
 
-#define atomic_clear_mask(mask, v) atomic_and(~(mask), (v))
+#define atomic_andnot atomic_andnot
+
+ATOMIC_OP(and, &=, and)
+ATOMIC_OP(andnot, &= ~, bic)
+ATOMIC_OP(or, |=, or)
+ATOMIC_OP(xor, ^=, xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
+#undef SCOND_FAIL_RETRY_VAR_DEF
+#undef SCOND_FAIL_RETRY_ASM
+#undef SCOND_FAIL_RETRY_VARS
 
 /**
  * __atomic_add_unless - add unless the number is a given value
@@ -142,9 +199,19 @@ ATOMIC_OP(and, &=, and)
 #define __atomic_add_unless(v, a, u)					\
 ({									\
 	int c, old;							\
+									\
+	/*								\
+	 * Explicit full memory barrier needed before/after as		\
+	 * LLOCK/SCOND thmeselves don't provide any such semantics	\
+	 */								\
+	smp_mb();							\
+									\
 	c = atomic_read(v);						\
 	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c)\
 		c = old;						\
+									\
+	smp_mb();							\
+									\
 	c;								\
 })
 

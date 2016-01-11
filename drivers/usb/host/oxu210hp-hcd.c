@@ -2670,7 +2670,6 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 static int oxu_reset(struct usb_hcd *hcd)
 {
 	struct oxu_hcd *oxu = hcd_to_oxu(hcd);
-	int ret;
 
 	spin_lock_init(&oxu->mem_lock);
 	INIT_LIST_HEAD(&oxu->urb_list);
@@ -2696,11 +2695,7 @@ static int oxu_reset(struct usb_hcd *hcd)
 	oxu->hcs_params = readl(&oxu->caps->hcs_params);
 	oxu->sbrn = 0x20;
 
-	ret = oxu_hcd_init(hcd);
-	if (ret)
-		return ret;
-
-	return 0;
+	return oxu_hcd_init(hcd);
 }
 
 static int oxu_run(struct usb_hcd *hcd)
@@ -2726,7 +2721,7 @@ static int oxu_run(struct usb_hcd *hcd)
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
-	 * NOTE:  the dma mask is visible through dma_supported(), so
+	 * NOTE:  the dma mask is visible through dev->dma_mask, so
 	 * drivers can pass this info along ... like NETIF_F_HIGHDMA,
 	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
 	 * host side drivers though.

@@ -22,13 +22,15 @@
 #include "rsnd.h"
 
 struct rsnd_gen {
-	void __iomem *base[RSND_BASE_MAX];
-
 	struct rsnd_gen_ops *ops;
 
+	/* RSND_BASE_MAX base */
+	void __iomem *base[RSND_BASE_MAX];
+	phys_addr_t res[RSND_BASE_MAX];
 	struct regmap *regmap[RSND_BASE_MAX];
+
+	/* RSND_REG_MAX base */
 	struct regmap_field *regs[RSND_REG_MAX];
-	phys_addr_t res[RSND_REG_MAX];
 };
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
@@ -79,10 +81,10 @@ u32 rsnd_read(struct rsnd_priv *priv,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return 0;
 
+	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
+
 	dev_dbg(dev, "r %s[%d] - %4d : %08x\n",
 		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, val);
-
-	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
 	return val;
 }
@@ -101,6 +103,22 @@ void rsnd_write(struct rsnd_priv *priv,
 		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
 
 	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
+}
+
+void rsnd_force_write(struct rsnd_priv *priv,
+		      struct rsnd_mod *mod,
+		      enum rsnd_reg reg, u32 data)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	if (!rsnd_is_accessible_reg(priv, gen, reg))
+		return;
+
+	dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+
+	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id(mod), data);
 }
 
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
@@ -166,6 +184,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	/* RSND_BASE_MAX base */
 	gen->base[reg_id] = base;
 	gen->regmap[reg_id] = regmap;
 	gen->res[reg_id] = res->start;
@@ -182,6 +201,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
+		/* RSND_REG_MAX base */
 		gen->regs[conf[i].idx] = regs;
 	}
 
@@ -200,12 +220,13 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		/* FIXME: it needs SSI_MODE2/3 in the future */
 		RSND_GEN_M_REG(SSI_BUSIF_MODE,	0x0,	0x80),
 		RSND_GEN_M_REG(SSI_BUSIF_ADINR,	0x4,	0x80),
-		RSND_GEN_M_REG(BUSIF_DALIGN,	0x8,	0x80),
+		RSND_GEN_M_REG(SSI_BUSIF_DALIGN,0x8,	0x80),
 		RSND_GEN_M_REG(SSI_CTRL,	0x10,	0x80),
-		RSND_GEN_M_REG(INT_ENABLE,	0x18,	0x80),
+		RSND_GEN_M_REG(SSI_INT_ENABLE,	0x18,	0x80),
 	};
 	struct rsnd_regmap_field_conf conf_scu[] = {
 		RSND_GEN_M_REG(SRC_BUSIF_MODE,	0x0,	0x20),
+		RSND_GEN_M_REG(SRC_BUSIF_DALIGN,0x8,	0x20),
 		RSND_GEN_M_REG(SRC_ROUTE_MODE0,	0xc,	0x20),
 		RSND_GEN_M_REG(SRC_CTRL,	0x10,	0x20),
 		RSND_GEN_M_REG(SRC_INT_ENABLE0,	0x18,	0x20),
@@ -214,7 +235,7 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_S_REG(SCU_SYS_STATUS0,	0x1c8),
 		RSND_GEN_S_REG(SCU_SYS_INT_EN0,	0x1cc),
 		RSND_GEN_S_REG(SCU_SYS_STATUS1,	0x1d0),
-		RSND_GEN_S_REG(SCU_SYS_INT_EN1,	0x1c4),
+		RSND_GEN_S_REG(SCU_SYS_INT_EN1,	0x1d4),
 		RSND_GEN_M_REG(SRC_SWRSR,	0x200,	0x40),
 		RSND_GEN_M_REG(SRC_SRCIR,	0x204,	0x40),
 		RSND_GEN_M_REG(SRC_ADINR,	0x214,	0x40),
@@ -223,6 +244,18 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_M_REG(SRC_SRCCR,	0x224,	0x40),
 		RSND_GEN_M_REG(SRC_BSDSR,	0x22c,	0x40),
 		RSND_GEN_M_REG(SRC_BSISR,	0x238,	0x40),
+		RSND_GEN_M_REG(CTU_CTUIR,	0x504,	0x100),
+		RSND_GEN_M_REG(CTU_ADINR,	0x508,	0x100),
+		RSND_GEN_M_REG(MIX_SWRSR,	0xd00,	0x40),
+		RSND_GEN_M_REG(MIX_MIXIR,	0xd04,	0x40),
+		RSND_GEN_M_REG(MIX_ADINR,	0xd08,	0x40),
+		RSND_GEN_M_REG(MIX_MIXMR,	0xd10,	0x40),
+		RSND_GEN_M_REG(MIX_MVPDR,	0xd14,	0x40),
+		RSND_GEN_M_REG(MIX_MDBAR,	0xd18,	0x40),
+		RSND_GEN_M_REG(MIX_MDBBR,	0xd1c,	0x40),
+		RSND_GEN_M_REG(MIX_MDBCR,	0xd20,	0x40),
+		RSND_GEN_M_REG(MIX_MDBDR,	0xd24,	0x40),
+		RSND_GEN_M_REG(MIX_MDBER,	0xd28,	0x40),
 		RSND_GEN_M_REG(DVC_SWRSR,	0xe00,	0x100),
 		RSND_GEN_M_REG(DVC_DVUIR,	0xe04,	0x100),
 		RSND_GEN_M_REG(DVC_ADINR,	0xe08,	0x100),

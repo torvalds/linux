@@ -674,16 +674,19 @@ EXPORT_SYMBOL(input_close_device);
  */
 static void input_dev_release_keys(struct input_dev *dev)
 {
+	bool need_sync = false;
 	int code;
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
-		for (code = 0; code <= KEY_MAX; code++) {
-			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
-			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, EV_KEY, code, 0);
-			}
+		for_each_set_bit(code, dev->key, KEY_CNT) {
+			input_pass_event(dev, EV_KEY, code, 0);
+			need_sync = true;
 		}
-		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+
+		if (need_sync)
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+
+		memset(dev->key, 0, sizeof(dev->key));
 	}
 }
 
@@ -1626,10 +1629,7 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		if (!test_bit(EV_##type, dev->evbit))			\
 			break;						\
 									\
-		for (i = 0; i < type##_MAX; i++) {			\
-			if (!test_bit(i, dev->bits##bit))		\
-				continue;				\
-									\
+		for_each_set_bit(i, dev->bits##bit, type##_CNT) {	\
 			active = test_bit(i, dev->bits);		\
 			if (!active && !on)				\
 				continue;				\
@@ -1980,22 +1980,12 @@ static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
 
 	events = mt_slots + 1; /* count SYN_MT_REPORT and SYN_REPORT */
 
-	if (test_bit(EV_ABS, dev->evbit)) {
-		for (i = 0; i < ABS_CNT; i++) {
-			if (test_bit(i, dev->absbit)) {
-				if (input_is_mt_axis(i))
-					events += mt_slots;
-				else
-					events++;
-			}
-		}
-	}
+	if (test_bit(EV_ABS, dev->evbit))
+		for_each_set_bit(i, dev->absbit, ABS_CNT)
+			events += input_is_mt_axis(i) ? mt_slots : 1;
 
-	if (test_bit(EV_REL, dev->evbit)) {
-		for (i = 0; i < REL_CNT; i++)
-			if (test_bit(i, dev->relbit))
-				events++;
-	}
+	if (test_bit(EV_REL, dev->evbit))
+		events += bitmap_weight(dev->relbit, REL_CNT);
 
 	/* Make room for KEY and MSC events */
 	events += 7;
@@ -2053,6 +2043,23 @@ static void devm_input_device_unregister(struct device *dev, void *res)
 		__func__, dev_name(&input->dev));
 	__input_unregister_device(input);
 }
+
+/**
+ * input_enable_softrepeat - enable software autorepeat
+ * @dev: input device
+ * @delay: repeat delay
+ * @period: repeat period
+ *
+ * Enable software autorepeat on the input device.
+ */
+void input_enable_softrepeat(struct input_dev *dev, int delay, int period)
+{
+	dev->timer.data = (unsigned long) dev;
+	dev->timer.function = input_repeat_key;
+	dev->rep[REP_DELAY] = delay;
+	dev->rep[REP_PERIOD] = period;
+}
+EXPORT_SYMBOL(input_enable_softrepeat);
 
 /**
  * input_register_device - register device with input core
@@ -2118,12 +2125,8 @@ int input_register_device(struct input_dev *dev)
 	 * If delay and period are pre-set by the driver, then autorepeating
 	 * is handled by the driver itself and we don't do it in input.c.
 	 */
-	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD]) {
-		dev->timer.data = (long) dev;
-		dev->timer.function = input_repeat_key;
-		dev->rep[REP_DELAY] = 250;
-		dev->rep[REP_PERIOD] = 33;
-	}
+	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD])
+		input_enable_softrepeat(dev, 250, 33);
 
 	if (!dev->getkeycode)
 		dev->getkeycode = input_default_getkeycode;
@@ -2262,7 +2265,7 @@ EXPORT_SYMBOL(input_unregister_handler);
  *
  * Iterate over @bus's list of devices, and call @fn for each, passing
  * it @data and stop when @fn returns a non-zero value. The function is
- * using RCU to traverse the list and therefore may be usind in atonic
+ * using RCU to traverse the list and therefore may be using in atomic
  * contexts. The @fn callback is invoked from RCU critical section and
  * thus must not sleep.
  */

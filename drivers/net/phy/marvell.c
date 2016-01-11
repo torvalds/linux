@@ -48,8 +48,11 @@
 #define MII_M1011_IMASK_CLEAR		0x0000
 
 #define MII_M1011_PHY_SCR		0x10
+#define MII_M1011_PHY_SCR_MDI		0x0000
+#define MII_M1011_PHY_SCR_MDI_X		0x0020
 #define MII_M1011_PHY_SCR_AUTO_CROSS	0x0060
 
+#define MII_M1145_PHY_EXT_ADDR_PAGE	0x16
 #define MII_M1145_PHY_EXT_SR		0x1b
 #define MII_M1145_PHY_EXT_CR		0x14
 #define MII_M1145_RGMII_RX_DELAY	0x0080
@@ -159,6 +162,43 @@ static int marvell_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+static int marvell_set_polarity(struct phy_device *phydev, int polarity)
+{
+	int reg;
+	int err;
+	int val;
+
+	/* get the current settings */
+	reg = phy_read(phydev, MII_M1011_PHY_SCR);
+	if (reg < 0)
+		return reg;
+
+	val = reg;
+	val &= ~MII_M1011_PHY_SCR_AUTO_CROSS;
+	switch (polarity) {
+	case ETH_TP_MDI:
+		val |= MII_M1011_PHY_SCR_MDI;
+		break;
+	case ETH_TP_MDI_X:
+		val |= MII_M1011_PHY_SCR_MDI_X;
+		break;
+	case ETH_TP_MDI_AUTO:
+	case ETH_TP_MDI_INVALID:
+	default:
+		val |= MII_M1011_PHY_SCR_AUTO_CROSS;
+		break;
+	}
+
+	if (val != reg) {
+		/* Set the new polarity value in the register */
+		err = phy_write(phydev, MII_M1011_PHY_SCR, val);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int marvell_config_aneg(struct phy_device *phydev)
 {
 	int err;
@@ -191,8 +231,7 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_M1011_PHY_SCR,
-			MII_M1011_PHY_SCR_AUTO_CROSS);
+	err = marvell_set_polarity(phydev, phydev->mdix);
 	if (err < 0)
 		return err;
 
@@ -317,10 +356,7 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
+	if (phy_interface_is_rgmii(phydev)) {
 
 		mscr = phy_read(phydev, MII_88E1121_PHY_MSCR_REG) &
 			MII_88E1121_PHY_MSCR_DELAY_MASK;
@@ -469,10 +505,7 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	int err;
 	int temp;
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
+	if (phy_interface_is_rgmii(phydev)) {
 
 		temp = phy_read(phydev, MII_M1111_PHY_EXT_CR);
 		if (temp < 0)
@@ -518,6 +551,16 @@ static int m88e1111_config_init(struct phy_device *phydev)
 		temp |= MII_M1111_HWCFG_FIBER_COPPER_AUTO;
 
 		err = phy_write(phydev, MII_M1111_PHY_EXT_SR, temp);
+		if (err < 0)
+			return err;
+
+		/* make sure copper is selected */
+		err = phy_read(phydev, MII_M1145_PHY_EXT_ADDR_PAGE);
+		if (err < 0)
+			return err;
+
+		err = phy_write(phydev, MII_M1145_PHY_EXT_ADDR_PAGE,
+				err & (~0xff));
 		if (err < 0)
 			return err;
 	}
@@ -742,6 +785,7 @@ static int marvell_read_status(struct phy_device *phydev)
 	int adv;
 	int err;
 	int lpa;
+	int lpagb;
 	int status = 0;
 
 	/* Update the link, but return if there
@@ -759,9 +803,16 @@ static int marvell_read_status(struct phy_device *phydev)
 		if (lpa < 0)
 			return lpa;
 
+		lpagb = phy_read(phydev, MII_STAT1000);
+		if (lpagb < 0)
+			return lpagb;
+
 		adv = phy_read(phydev, MII_ADVERTISE);
 		if (adv < 0)
 			return adv;
+
+		phydev->lp_advertising = mii_stat1000_to_ethtool_lpa_t(lpagb) |
+					 mii_lpa_to_ethtool_lpa_t(lpa);
 
 		lpa &= adv;
 
@@ -810,6 +861,7 @@ static int marvell_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_10;
 
 		phydev->pause = phydev->asym_pause = 0;
+		phydev->lp_advertising = 0;
 	}
 
 	return 0;
@@ -1102,6 +1154,21 @@ static struct phy_driver marvell_drivers[] = {
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
+		.phy_id = MARVELL_PHY_ID_88E1540,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
+		.name = "Marvell 88E1540",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_aneg = &m88e1510_config_aneg,
+		.read_status = &marvell_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.did_interrupt = &m88e1121_did_interrupt,
+		.resume = &genphy_resume,
+		.suspend = &genphy_suspend,
+		.driver = { .owner = THIS_MODULE },
+	},
+	{
 		.phy_id = MARVELL_PHY_ID_88E3016,
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E3016",
@@ -1134,6 +1201,7 @@ static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ MARVELL_PHY_ID_88E1318S, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1116R, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1510, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1540, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E3016, MARVELL_PHY_ID_MASK },
 	{ }
 };

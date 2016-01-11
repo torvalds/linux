@@ -138,11 +138,6 @@ static bool wm8753_volatile(struct device *dev, unsigned int reg)
 	return reg == WM8753_RESET;
 }
 
-static bool wm8753_writeable(struct device *dev, unsigned int reg)
-{
-	return reg <= WM8753_ADCTL2;
-}
-
 /* codec private data */
 struct wm8753_priv {
 	struct regmap *regmap;
@@ -276,12 +271,11 @@ static const DECLARE_TLV_DB_SCALE(rec_mix_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_preamp_tlv, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -9750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
-static const unsigned int out_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(out_tlv,
 	/* 0000000 - 0101111 = "Analogue mute" */
 	0, 48, TLV_DB_SCALE_ITEM(-25500, 0, 0),
-	48, 127, TLV_DB_SCALE_ITEM(-7300, 100, 0),
-};
+	48, 127, TLV_DB_SCALE_ITEM(-7300, 100, 0)
+);
 static const DECLARE_TLV_DB_SCALE(mix_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(voice_mix_tlv, -1200, 300, 0);
 static const DECLARE_TLV_DB_SCALE(pga_tlv, -1725, 75, 0);
@@ -1352,7 +1346,7 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
 		flush_delayed_work(&wm8753->charge_work);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* set vmid to 5k for quick power up */
 			snd_soc_write(codec, WM8753_PWR1, pwr_reg | 0x01c1);
 			schedule_delayed_work(&wm8753->charge_work,
@@ -1367,7 +1361,6 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8753_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1511,7 +1504,6 @@ static const struct regmap_config wm8753_regmap = {
 	.val_bits = 9,
 
 	.max_register = WM8753_ADCTL2,
-	.writeable_reg = wm8753_writeable,
 	.volatile_reg = wm8753_volatile,
 
 	.cache_type = REGCACHE_RBTREE,
@@ -1557,7 +1549,6 @@ static int wm8753_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8753_spi_driver = {
 	.driver = {
 		.name	= "wm8753",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8753_of_match,
 	},
 	.probe		= wm8753_spi_probe,
@@ -1610,7 +1601,6 @@ MODULE_DEVICE_TABLE(i2c, wm8753_i2c_id);
 static struct i2c_driver wm8753_i2c_driver = {
 	.driver = {
 		.name = "wm8753",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8753_of_match,
 	},
 	.probe =    wm8753_i2c_probe,

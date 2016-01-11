@@ -110,7 +110,6 @@ struct libcfs_ioctl_handler {
 #define IOC_LIBCFS_CLEAR_DEBUG	     _IOWR('e', 31, long)
 #define IOC_LIBCFS_MARK_DEBUG	      _IOWR('e', 32, long)
 #define IOC_LIBCFS_MEMHOG		  _IOWR('e', 36, long)
-#define IOC_LIBCFS_PING_TEST	       _IOWR('e', 37, long)
 /* lnet ioctls */
 #define IOC_LIBCFS_GET_NI		  _IOWR('e', 50, long)
 #define IOC_LIBCFS_FAIL_NID		_IOWR('e', 51, long)
@@ -134,7 +133,7 @@ struct libcfs_ioctl_handler {
 #define IOC_LIBCFS_DEL_PEER		_IOWR('e', 74, long)
 #define IOC_LIBCFS_ADD_PEER		_IOWR('e', 75, long)
 #define IOC_LIBCFS_GET_PEER		_IOWR('e', 76, long)
-#define IOC_LIBCFS_GET_TXDESC	      _IOWR('e', 77, long)
+/* ioctl 77 is free for use */
 #define IOC_LIBCFS_ADD_INTERFACE	   _IOWR('e', 78, long)
 #define IOC_LIBCFS_DEL_INTERFACE	   _IOWR('e', 79, long)
 #define IOC_LIBCFS_GET_INTERFACE	   _IOWR('e', 80, long)

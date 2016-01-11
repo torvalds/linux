@@ -15,7 +15,12 @@
 #include "filter.h"
 
 /* All controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
+/* All VFs use BAR 0/1 for memory */
 #define EFX_MEM_BAR 2
+#define EFX_MEM_VF_BAR 0
+
+int efx_net_open(struct net_device *net_dev);
+int efx_net_stop(struct net_device *net_dev);
 
 /* TX */
 int efx_probe_tx_queue(struct efx_tx_queue *tx_queue);
@@ -30,8 +35,10 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
 unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
 extern unsigned int efx_piobuf_size;
+extern bool efx_separate_tx_channels;
 
 /* RX */
+void efx_set_default_rx_indir_table(struct efx_nic *efx);
 void efx_rx_config_page_split(struct efx_nic *efx);
 int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
@@ -69,7 +76,14 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 #define EFX_TXQ_MAX_ENT(efx)	(EFX_WORKAROUND_35388(efx) ? \
 				 EFX_MAX_DMAQ_SIZE / 2 : EFX_MAX_DMAQ_SIZE)
 
+static inline bool efx_rss_enabled(struct efx_nic *efx)
+{
+	return efx->rss_spread > 1;
+}
+
 /* Filters */
+
+void efx_mac_reconfigure(struct efx_nic *efx);
 
 /**
  * efx_filter_insert_filter - add or replace a filter
@@ -218,6 +232,13 @@ void efx_mtd_remove(struct efx_nic *efx);
 static inline int efx_mtd_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_mtd_rename(struct efx_nic *efx) {}
 static inline void efx_mtd_remove(struct efx_nic *efx) {}
+#endif
+
+#ifdef CONFIG_SFC_SRIOV
+static inline unsigned int efx_vf_size(struct efx_nic *efx)
+{
+	return 1 << efx->vi_scale;
+}
 #endif
 
 static inline void efx_schedule_channel(struct efx_channel *channel)

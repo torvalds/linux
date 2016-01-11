@@ -14,15 +14,20 @@
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
-#define CPU_RESET		0x00
+/*
+ * There are two reset registers, one with self-clearing (SC)
+ * reset and one with non-self-clearing reset (NON_SC).
+ */
+#define CPU_RESET_SC		0x00
+#define CPU_RESET_NON_SC	0x20
 
 #define RESET_VECT		0x00
 #define SW_RESET_ADDR		0x94
 
-extern void berlin_secondary_startup(void);
 extern u32 boot_inst;
 
 static void __iomem *cpu_ctrl;
@@ -31,9 +36,11 @@ static inline void berlin_perform_reset_cpu(unsigned int cpu)
 {
 	u32 val;
 
-	val = readl(cpu_ctrl + CPU_RESET);
+	val = readl(cpu_ctrl + CPU_RESET_NON_SC);
+	val &= ~BIT(cpu_logical_map(cpu));
+	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
 	val |= BIT(cpu_logical_map(cpu));
-	writel(val, cpu_ctrl + CPU_RESET);
+	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
 }
 
 static int berlin_boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -85,15 +92,39 @@ static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 	 * Write the secondary startup address into the SW reset address
 	 * vector. This is used by boot_inst.
 	 */
-	writel(virt_to_phys(berlin_secondary_startup), vectors_base + SW_RESET_ADDR);
+	writel(virt_to_phys(secondary_startup), vectors_base + SW_RESET_ADDR);
 
 	iounmap(vectors_base);
 unmap_scu:
 	iounmap(scu_base);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static void berlin_cpu_die(unsigned int cpu)
+{
+	v7_exit_coherency_flush(louis);
+	while (1)
+		cpu_do_idle();
+}
+
+static int berlin_cpu_kill(unsigned int cpu)
+{
+	u32 val;
+
+	val = readl(cpu_ctrl + CPU_RESET_NON_SC);
+	val &= ~BIT(cpu_logical_map(cpu));
+	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
+
+	return 1;
+}
+#endif
+
 static struct smp_operations berlin_smp_ops __initdata = {
 	.smp_prepare_cpus	= berlin_smp_prepare_cpus,
 	.smp_boot_secondary	= berlin_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= berlin_cpu_die,
+	.cpu_kill		= berlin_cpu_kill,
+#endif
 };
 CPU_METHOD_OF_DECLARE(berlin_smp, "marvell,berlin-smp", &berlin_smp_ops);

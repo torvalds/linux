@@ -28,11 +28,7 @@
 void __init orion_clkdev_add(const char *con_id, const char *dev_id,
 			     struct clk *clk)
 {
-	struct clk_lookup *cl;
-
-	cl = clkdev_alloc(clk, con_id, dev_id);
-	if (cl)
-		clkdev_add(cl);
+	clkdev_create(clk, con_id, "%s", dev_id);
 }
 
 /* Create clkdev entries for all orion platforms except kirkwood.
@@ -499,7 +495,7 @@ void __init orion_ge00_switch_init(struct dsa_platform_data *d, int irq)
 
 	d->netdev = &orion_ge00.dev;
 	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].host_dev = &orion_ge00_shared.dev;
+		d->chip[i].host_dev = &orion_ge_mvmdio.dev;
 	orion_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion_switch_device);

@@ -18,7 +18,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
 #include <linux/platform_device.h>
-#include <linux/acpi.h>
 
 /*
  * Definition of buttons on the tablet. The ACPI index of each button

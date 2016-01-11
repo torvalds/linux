@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -57,7 +57,7 @@ struct vmw_legacy_display_unit {
 static void vmw_ldu_destroy(struct vmw_legacy_display_unit *ldu)
 {
 	list_del_init(&ldu->active);
-	vmw_display_unit_cleanup(&ldu->base);
+	vmw_du_cleanup(&ldu->base);
 	kfree(ldu);
 }
 
@@ -279,7 +279,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 		return -EINVAL;
 	}
 
-	vmw_fb_off(dev_priv);
+	vmw_svga_enable(dev_priv);
 
 	crtc->primary->fb = fb;
 	encoder->crtc = crtc;
@@ -297,7 +297,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 static struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.save = vmw_du_crtc_save,
 	.restore = vmw_du_crtc_restore,
-	.cursor_set = vmw_du_crtc_cursor_set,
+	.cursor_set2 = vmw_du_crtc_cursor_set2,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_ldu_crtc_destroy,
@@ -385,7 +385,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	return 0;
 }
 
-int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
+int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	int i, ret;
@@ -422,6 +422,10 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 	else
 		vmw_ldu_init(dev_priv, 0);
 
+	dev_priv->active_display_unit = vmw_du_legacy;
+
+	DRM_INFO("Legacy Display Unit initialized\n");
+
 	return 0;
 
 err_vblank_cleanup:
@@ -432,7 +436,7 @@ err_free:
 	return ret;
 }
 
-int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv)
+int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
@@ -445,5 +449,40 @@ int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv)
 
 	kfree(dev_priv->ldu_priv);
 
+	return 0;
+}
+
+
+int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
+				struct vmw_framebuffer *framebuffer,
+				unsigned flags, unsigned color,
+				struct drm_clip_rect *clips,
+				unsigned num_clips, int increment)
+{
+	size_t fifo_size;
+	int i;
+
+	struct {
+		uint32_t header;
+		SVGAFifoCmdUpdate body;
+	} *cmd;
+
+	fifo_size = sizeof(*cmd) * num_clips;
+	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Fifo reserve failed.\n");
+		return -ENOMEM;
+	}
+
+	memset(cmd, 0, fifo_size);
+	for (i = 0; i < num_clips; i++, clips += increment) {
+		cmd[i].header = SVGA_CMD_UPDATE;
+		cmd[i].body.x = clips->x1;
+		cmd[i].body.y = clips->y1;
+		cmd[i].body.width = clips->x2 - clips->x1;
+		cmd[i].body.height = clips->y2 - clips->y1;
+	}
+
+	vmw_fifo_commit(dev_priv, fifo_size);
 	return 0;
 }

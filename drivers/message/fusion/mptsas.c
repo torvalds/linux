@@ -1994,7 +1994,6 @@ static struct scsi_host_template mptsas_driver_template = {
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mptscsih_host_attrs,
-	.use_blk_tags			= 1,
 };
 
 static int mptsas_get_linkerrors(struct sas_phy *phy)
@@ -4090,7 +4089,7 @@ mptsas_handle_queue_full_event(struct fw_event_work *fw_event)
 					continue;
 				}
 				depth = scsi_track_queue_full(sdev,
-				    current_depth - 1);
+					sdev->queue_depth - 1);
 				if (depth > 0)
 					sdev_printk(KERN_INFO, sdev,
 					"Queue depth reduced to (%d)\n",
@@ -4100,7 +4099,7 @@ mptsas_handle_queue_full_event(struct fw_event_work *fw_event)
 					"Tagged Command Queueing is being "
 					"disabled\n");
 				else if (depth == 0)
-					sdev_printk(KERN_INFO, sdev,
+					sdev_printk(KERN_DEBUG, sdev,
 					"Queue depth not changed yet\n");
 			}
 		}

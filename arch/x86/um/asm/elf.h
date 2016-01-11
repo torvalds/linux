@@ -200,8 +200,6 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct user_i387_struct elf_fpregset_t;
 
-#define task_pt_regs(t) (&(t)->thread.regs)
-
 struct task_struct;
 
 extern int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu);

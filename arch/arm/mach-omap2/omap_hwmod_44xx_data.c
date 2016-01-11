@@ -1188,15 +1188,8 @@ static struct omap_hwmod omap44xx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &omap44xx_gpmc_hwmod_class,
 	.clkdm_name	= "l3_2_clkdm",
-	/*
-	 * XXX HWMOD_INIT_NO_RESET should not be needed for this IP
-	 * block.  It is not being added due to any known bugs with
-	 * resetting the GPMC IP block, but rather because any timings
-	 * set by the bootloader are not being correctly programmed by
-	 * the kernel from the board file or DT data.
-	 * HWMOD_INIT_NO_RESET should be removed ASAP.
-	 */
-	.flags		= HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET,
+	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
+	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_L3_2_GPMC_CLKCTRL_OFFSET,
@@ -4478,21 +4471,11 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__smartreflex_mpu = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap44xx_spinlock_addrs[] = {
-	{
-		.pa_start	= 0x4a0f6000,
-		.pa_end		= 0x4a0f6fff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> spinlock */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__spinlock = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_spinlock_hwmod,
 	.clk		= "l4_div_ck",
-	.addr		= omap44xx_spinlock_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

@@ -106,9 +106,9 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(IBMVSCSI_VERSION);
 
 module_param_named(max_id, max_id, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(max_id, "Largest ID value for each channel");
+MODULE_PARM_DESC(max_id, "Largest ID value for each channel [Default=64]");
 module_param_named(max_channel, max_channel, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(max_channel, "Largest channel value");
+MODULE_PARM_DESC(max_channel, "Largest channel value [Default=3]");
 module_param_named(init_timeout, init_timeout, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(init_timeout, "Initialization timeout in seconds");
 module_param_named(max_requests, max_requests, int, S_IRUGO);
@@ -1053,7 +1053,7 @@ static int ibmvscsi_queuecommand_lck(struct scsi_cmnd *cmnd,
 	memset(srp_cmd, 0x00, SRP_MAX_IU_LEN);
 	srp_cmd->opcode = SRP_CMD;
 	memcpy(srp_cmd->cdb, cmnd->cmnd, sizeof(srp_cmd->cdb));
-	srp_cmd->lun = cpu_to_be64(((u64)lun) << 48);
+	int_to_scsilun(lun, &srp_cmd->lun);
 
 	if (!map_data_for_srp_cmd(cmnd, evt_struct, srp_cmd, hostdata->dev)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
@@ -1529,7 +1529,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 		/* Set up an abort SRP command */
 		memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
 		tsk_mgmt->opcode = SRP_TSK_MGMT;
-		tsk_mgmt->lun = cpu_to_be64(((u64) lun) << 48);
+		int_to_scsilun(lun, &tsk_mgmt->lun);
 		tsk_mgmt->tsk_mgmt_func = SRP_TSK_ABORT_TASK;
 		tsk_mgmt->task_tag = (u64) found_evt;
 
@@ -1652,7 +1652,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		/* Set up a lun reset SRP command */
 		memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
 		tsk_mgmt->opcode = SRP_TSK_MGMT;
-		tsk_mgmt->lun = cpu_to_be64(((u64) lun) << 48);
+		int_to_scsilun(lun, &tsk_mgmt->lun);
 		tsk_mgmt->tsk_mgmt_func = SRP_TSK_LUN_RESET;
 
 		evt->sync_srp = &srp_rsp;
@@ -2289,10 +2289,14 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto init_pool_failed;
 	}
 
-	host->max_lun = 8;
+	host->max_lun = IBMVSCSI_MAX_LUN;
 	host->max_id = max_id;
 	host->max_channel = max_channel;
 	host->max_cmd_len = 16;
+
+	dev_info(dev,
+		 "Maximum ID: %d Maximum LUN: %llu Maximum Channel: %d\n",
+		 host->max_id, host->max_lun, host->max_channel);
 
 	if (scsi_add_host(hostdata->host, hostdata->dev))
 		goto add_host_failed;

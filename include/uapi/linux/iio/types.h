@@ -35,6 +35,8 @@ enum iio_chan_type {
 	IIO_ENERGY,
 	IIO_DISTANCE,
 	IIO_VELOCITY,
+	IIO_CONCENTRATION,
+	IIO_RESISTANCE,
 };
 
 enum iio_modifier {
@@ -70,6 +72,10 @@ enum iio_modifier {
 	IIO_MOD_WALKING,
 	IIO_MOD_STILL,
 	IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z,
+	IIO_MOD_I,
+	IIO_MOD_Q,
+	IIO_MOD_CO2,
+	IIO_MOD_VOC,
 };
 
 enum iio_event_type {

@@ -59,11 +59,20 @@ For all other submissions, choose one of the following procedures:
    changelog of your submission, as well as the kernel version you wish
    it to be applied to.
 
-Option 1 is probably the easiest and most common. Options 2 and 3 are more
-useful if the patch isn't deemed worthy at the time it is applied to a public
-git tree (for instance, because it deserves more regression testing first).
-Option 3 is especially useful if the patch needs some special handling to apply
-to an older kernel (e.g., if API's have changed in the meantime).
+Option 1 is *strongly* preferred, is the easiest and most common.  Options 2 and
+3 are more useful if the patch isn't deemed worthy at the time it is applied to
+a public git tree (for instance, because it deserves more regression testing
+first).  Option 3 is especially useful if the patch needs some special handling
+to apply to an older kernel (e.g., if API's have changed in the meantime).
+
+Note that for Option 3, if the patch deviates from the original upstream patch
+(for example because it had to be backported) this must be very clearly
+documented and justified in the patch description.
+
+The upstream commit ID must be specified with a separate line above the commit
+text, like this:
+
+    commit <sha1> upstream.
 
 Additionally, some patches submitted via Option 1 may have additional patch
 prerequisites which can be cherry-picked. This can be specified in the following

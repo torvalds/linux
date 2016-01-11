@@ -379,7 +379,7 @@ void rtw_cfg80211_indicate_disconnect(struct rtw_adapter *padapter)
 						GFP_ATOMIC);
 		} else {
 			cfg80211_disconnected(padapter->pnetdev, 0, NULL,
-					      0, GFP_ATOMIC);
+					      0, false, GFP_ATOMIC);
 		}
 	}
 }
@@ -1041,7 +1041,7 @@ static u16 rtw_get_cur_max_rate(struct rtw_adapter *adapter)
 		while (pcur_bss->SupportedRates[i] != 0 &&
 		       pcur_bss->SupportedRates[i] != 0xFF) {
 			rate = pcur_bss->SupportedRates[i] & 0x7F;
-			if (rate>max_rate)
+			if (rate > max_rate)
 				max_rate = rate;
 			i++;
 		}

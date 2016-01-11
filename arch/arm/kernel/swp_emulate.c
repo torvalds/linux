@@ -36,10 +36,10 @@
  */
 #define __user_swpX_asm(data, addr, res, temp, B)		\
 	__asm__ __volatile__(					\
-	"	mov		%2, %1\n"			\
-	"0:	ldrex"B"	%1, [%3]\n"			\
-	"1:	strex"B"	%0, %2, [%3]\n"			\
+	"0:	ldrex"B"	%2, [%3]\n"			\
+	"1:	strex"B"	%0, %1, [%3]\n"			\
 	"	cmp		%0, #0\n"			\
+	"	moveq		%1, %2\n"			\
 	"	movne		%0, %4\n"			\
 	"2:\n"							\
 	"	.section	 .text.fixup,\"ax\"\n"		\
@@ -141,11 +141,14 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	while (1) {
 		unsigned long temp;
+		unsigned int __ua_flags;
 
+		__ua_flags = uaccess_save_and_enable();
 		if (type == TYPE_SWPB)
 			__user_swpb_asm(*data, address, res, temp);
 		else
 			__user_swp_asm(*data, address, res, temp);
+		uaccess_restore(__ua_flags);
 
 		if (likely(res != -EAGAIN) || signal_pending(current))
 			break;

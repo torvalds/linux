@@ -39,6 +39,8 @@
 #include <linux/export.h>
 
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/hardware/cache-uniphier.h>
+#include <asm/outercache.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -78,26 +80,6 @@ asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	handle_IRQ(irq, regs);
 }
 
-void set_irq_flags(unsigned int irq, unsigned int iflags)
-{
-	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
-
-	if (irq >= nr_irqs) {
-		pr_err("Trying to set irq flags for IRQ%d\n", irq);
-		return;
-	}
-
-	if (iflags & IRQF_VALID)
-		clr |= IRQ_NOREQUEST;
-	if (iflags & IRQF_PROBE)
-		clr |= IRQ_NOPROBE;
-	if (!(iflags & IRQF_NOAUTOEN))
-		clr |= IRQ_NOAUTOEN;
-	/* Order is clear bits in "clr" then set bits in "set" */
-	irq_modify_status(irq, clr, set & ~clr);
-}
-EXPORT_SYMBOL_GPL(set_irq_flags);
-
 void __init init_IRQ(void)
 {
 	int ret;
@@ -116,6 +98,8 @@ void __init init_IRQ(void)
 		if (ret)
 			pr_err("L2C: failed to init: %d\n", ret);
 	}
+
+	uniphier_cache_init();
 }
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER
@@ -140,7 +124,7 @@ int __init arch_probe_nr_irqs(void)
 static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
-	const struct cpumask *affinity = d->affinity;
+	const struct cpumask *affinity = irq_data_get_affinity_mask(d);
 	struct irq_chip *c;
 	bool ret = false;
 
@@ -160,7 +144,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	if (!c->irq_set_affinity)
 		pr_debug("IRQ%u: unable to set affinity\n", d->irq);
 	else if (c->irq_set_affinity(d, affinity, false) == IRQ_SET_MASK_OK && ret)
-		cpumask_copy(d->affinity, affinity);
+		cpumask_copy(irq_data_get_affinity_mask(d), affinity);
 
 	return ret;
 }

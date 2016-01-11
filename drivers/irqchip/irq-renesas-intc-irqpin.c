@@ -283,6 +283,9 @@ static int intc_irqpin_irq_set_type(struct irq_data *d, unsigned int type)
 static int intc_irqpin_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct intc_irqpin_priv *p = irq_data_get_irq_chip_data(d);
+	int hw_irq = irqd_to_hwirq(d);
+
+	irq_set_irq_wake(p->irq[hw_irq].requested_irq, on);
 
 	if (!p->clk)
 		return 0;
@@ -332,6 +335,12 @@ static irqreturn_t intc_irqpin_shared_irq_handler(int irq, void *dev_id)
 	return status;
 }
 
+/*
+ * This lock class tells lockdep that INTC External IRQ Pin irqs are in a
+ * different category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key intc_irqpin_irq_lock_class;
+
 static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 				      irq_hw_number_t hw)
 {
@@ -342,24 +351,26 @@ static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 	intc_irqpin_dbg(&p->irq[hw], "map");
 	irq_set_chip_data(virq, h->host_data);
+	irq_set_lockdep_class(virq, &intc_irqpin_irq_lock_class);
 	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID); /* kill me now */
 	return 0;
 }
 
-static struct irq_domain_ops intc_irqpin_irq_domain_ops = {
+static const struct irq_domain_ops intc_irqpin_irq_domain_ops = {
 	.map	= intc_irqpin_irq_domain_map,
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static const struct intc_irqpin_irlm_config intc_irqpin_irlm_r8a7779 = {
+static const struct intc_irqpin_irlm_config intc_irqpin_irlm_r8a777x = {
 	.irlm_bit = 23, /* ICR0.IRLM0 */
 };
 
 static const struct of_device_id intc_irqpin_dt_ids[] = {
 	{ .compatible = "renesas,intc-irqpin", },
+	{ .compatible = "renesas,intc-irqpin-r8a7778",
+	  .data = &intc_irqpin_irlm_r8a777x },
 	{ .compatible = "renesas,intc-irqpin-r8a7779",
-	  .data = &intc_irqpin_irlm_r8a7779 },
+	  .data = &intc_irqpin_irlm_r8a777x },
 	{},
 };
 MODULE_DEVICE_TABLE(of, intc_irqpin_dt_ids);

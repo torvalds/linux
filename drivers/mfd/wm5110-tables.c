@@ -21,7 +21,7 @@
 #define WM5110_NUM_AOD_ISR 2
 #define WM5110_NUM_ISR 5
 
-static const struct reg_default wm5110_reva_patch[] = {
+static const struct reg_sequence wm5110_reva_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x44, 0x20 },
 	{ 0x45, 0x40 },
@@ -134,7 +134,7 @@ static const struct reg_default wm5110_reva_patch[] = {
 	{ 0x209, 0x002A },
 };
 
-static const struct reg_default wm5110_revb_patch[] = {
+static const struct reg_sequence wm5110_revb_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x36e, 0x0210 },
 	{ 0x370, 0x0210 },
@@ -224,7 +224,7 @@ static const struct reg_default wm5110_revb_patch[] = {
 	{ 0x80, 0x0 },
 };
 
-static const struct reg_default wm5110_revd_patch[] = {
+static const struct reg_sequence wm5110_revd_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x80, 0x3 },
 	{ 0x393, 0x27 },
@@ -249,6 +249,16 @@ static const struct reg_default wm5110_revd_patch[] = {
 	{ 0x80, 0x0 },
 };
 
+/* Add extra headphone write sequence locations */
+static const struct reg_sequence wm5110_reve_patch[] = {
+	{ 0x80, 0x3 },
+	{ 0x80, 0x3 },
+	{ 0x4b, 0x138 },
+	{ 0x4c, 0x13d },
+	{ 0x80, 0x0 },
+	{ 0x80, 0x0 },
+};
+
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5110_patch(struct arizona *arizona)
 {
@@ -266,7 +276,9 @@ int wm5110_patch(struct arizona *arizona)
 					     wm5110_revd_patch,
 					     ARRAY_SIZE(wm5110_revd_patch));
 	default:
-		return 0;
+		return regmap_register_patch(arizona->regmap,
+					     wm5110_reve_patch,
+					     ARRAY_SIZE(wm5110_reve_patch));
 	}
 }
 EXPORT_SYMBOL_GPL(wm5110_patch);
@@ -676,6 +688,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000032, 0x0100 },    /* R50    - PWM Drive 3 */
 	{ 0x00000040, 0x0000 },    /* R64    - Wake control */
 	{ 0x00000041, 0x0000 },    /* R65    - Sequence control */
+	{ 0x00000042, 0x0000 },    /* R66    - Spare Triggers */
 	{ 0x00000061, 0x01FF },    /* R97    - Sample Rate Sequence Select 1 */
 	{ 0x00000062, 0x01FF },    /* R98    - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01FF },    /* R99    - Sample Rate Sequence Select 3 */
@@ -754,11 +767,9 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000021A, 0x01A6 },    /* R538   - Mic Bias Ctrl 3 */
 	{ 0x00000293, 0x0000 },    /* R659   - Accessory Detect Mode 1 */
 	{ 0x0000029B, 0x0028 },    /* R667   - Headphone Detect 1 */
-	{ 0x0000029C, 0x0000 },    /* R668   - Headphone Detect 2 */
 	{ 0x000002A2, 0x0000 },    /* R674   - Micd clamp control */
 	{ 0x000002A3, 0x1102 },    /* R675   - Mic Detect 1 */
 	{ 0x000002A4, 0x009F },    /* R676   - Mic Detect 2 */
-	{ 0x000002A5, 0x0000 },    /* R677   - Mic Detect 3 */
 	{ 0x000002A6, 0x3737 },    /* R678   - Mic Detect Level 1 */
 	{ 0x000002A7, 0x372C },    /* R679   - Mic Detect Level 2 */
 	{ 0x000002A8, 0x1422 },    /* R680   - Mic Detect Level 3 */
@@ -848,8 +859,6 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000440, 0x8FFF },    /* R1088  - DRE Enable */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
 	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
-	{ 0x00000480, 0x0040 },    /* R1152  - Class W ANC Threshold 1 */
-	{ 0x00000481, 0x0040 },    /* R1153  - Class W ANC Threshold 2 */
 	{ 0x00000490, 0x0069 },    /* R1168  - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 },    /* R1169  - PDM SPK1 CTRL 2 */
 	{ 0x00000492, 0x0069 },    /* R1170  - PDM SPK2 CTRL 1 */
@@ -1472,6 +1481,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000C04, 0xA101 },    /* R3076  - GPIO5 CTRL */
 	{ 0x00000C0F, 0x0400 },    /* R3087  - IRQ CTRL 1 */
 	{ 0x00000C10, 0x1000 },    /* R3088  - GPIO Debounce Config */
+	{ 0x00000C18, 0x0000 },    /* R3096  - GP Switch 1 */
 	{ 0x00000C20, 0x8002 },    /* R3104  - Misc Pad Ctrl 1 */
 	{ 0x00000C21, 0x8001 },    /* R3105  - Misc Pad Ctrl 2 */
 	{ 0x00000C22, 0x0000 },    /* R3106  - Misc Pad Ctrl 3 */
@@ -1508,7 +1518,6 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000D54, 0xFFFF },    /* R3412  - AOD IRQ Mask IRQ2 */
 	{ 0x00000D56, 0x0000 },    /* R3414  - Jack detect debounce */
 	{ 0x00000E00, 0x0000 },    /* R3584  - FX_Ctrl1 */
-	{ 0x00000E01, 0x0000 },    /* R3585  - FX_Ctrl2 */
 	{ 0x00000E10, 0x6318 },    /* R3600  - EQ1_1 */
 	{ 0x00000E11, 0x6300 },    /* R3601  - EQ1_2 */
 	{ 0x00000E12, 0x0FC8 },    /* R3602  - EQ1_3 */
@@ -1624,15 +1633,189 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000EF8, 0x0000 },    /* R3832  - ISRC 3 CTRL 3 */
 	{ 0x00000F00, 0x0000 },    /* R3840  - Clock Control */
 	{ 0x00000F01, 0x0000 },    /* R3841  - ANC_SRC */
+	{ 0x00000F08, 0x001c },    /* R3848  - ANC Coefficient */
+	{ 0x00000F09, 0x0000 },    /* R3849  - ANC Coefficient */
+	{ 0x00000F0A, 0x0000 },    /* R3850  - ANC Coefficient */
+	{ 0x00000F0B, 0x0000 },    /* R3851  - ANC Coefficient */
+	{ 0x00000F0C, 0x0000 },    /* R3852  - ANC Coefficient */
+	{ 0x00000F0D, 0x0000 },    /* R3853  - ANC Coefficient */
+	{ 0x00000F0E, 0x0000 },    /* R3854  - ANC Coefficient */
+	{ 0x00000F0F, 0x0000 },    /* R3855  - ANC Coefficient */
+	{ 0x00000F10, 0x0000 },    /* R3856  - ANC Coefficient */
+	{ 0x00000F11, 0x0000 },    /* R3857  - ANC Coefficient */
+	{ 0x00000F12, 0x0000 },    /* R3858  - ANC Coefficient */
+	{ 0x00000F15, 0x0000 },    /* R3861  - FCL Filter Control */
+	{ 0x00000F17, 0x0004 },    /* R3863  - FCL ADC Reformatter Control */
+	{ 0x00000F18, 0x0004 },    /* R3864  - ANC Coefficient */
+	{ 0x00000F19, 0x0002 },    /* R3865  - ANC Coefficient */
+	{ 0x00000F1A, 0x0000 },    /* R3866  - ANC Coefficient */
+	{ 0x00000F1B, 0x0010 },    /* R3867  - ANC Coefficient */
+	{ 0x00000F1C, 0x0000 },    /* R3868  - ANC Coefficient */
+	{ 0x00000F1D, 0x0000 },    /* R3869  - ANC Coefficient */
+	{ 0x00000F1E, 0x0000 },    /* R3870  - ANC Coefficient */
+	{ 0x00000F1F, 0x0000 },    /* R3871  - ANC Coefficient */
+	{ 0x00000F20, 0x0000 },    /* R3872  - ANC Coefficient */
+	{ 0x00000F21, 0x0000 },    /* R3873  - ANC Coefficient */
+	{ 0x00000F22, 0x0000 },    /* R3874  - ANC Coefficient */
+	{ 0x00000F23, 0x0000 },    /* R3875  - ANC Coefficient */
+	{ 0x00000F24, 0x0000 },    /* R3876  - ANC Coefficient */
+	{ 0x00000F25, 0x0000 },    /* R3877  - ANC Coefficient */
+	{ 0x00000F26, 0x0000 },    /* R3878  - ANC Coefficient */
+	{ 0x00000F27, 0x0000 },    /* R3879  - ANC Coefficient */
+	{ 0x00000F28, 0x0000 },    /* R3880  - ANC Coefficient */
+	{ 0x00000F29, 0x0000 },    /* R3881  - ANC Coefficient */
+	{ 0x00000F2A, 0x0000 },    /* R3882  - ANC Coefficient */
+	{ 0x00000F2B, 0x0000 },    /* R3883  - ANC Coefficient */
+	{ 0x00000F2C, 0x0000 },    /* R3884  - ANC Coefficient */
+	{ 0x00000F2D, 0x0000 },    /* R3885  - ANC Coefficient */
+	{ 0x00000F2E, 0x0000 },    /* R3886  - ANC Coefficient */
+	{ 0x00000F2F, 0x0000 },    /* R3887  - ANC Coefficient */
+	{ 0x00000F30, 0x0000 },    /* R3888  - ANC Coefficient */
+	{ 0x00000F31, 0x0000 },    /* R3889  - ANC Coefficient */
+	{ 0x00000F32, 0x0000 },    /* R3890  - ANC Coefficient */
+	{ 0x00000F33, 0x0000 },    /* R3891  - ANC Coefficient */
+	{ 0x00000F34, 0x0000 },    /* R3892  - ANC Coefficient */
+	{ 0x00000F35, 0x0000 },    /* R3893  - ANC Coefficient */
+	{ 0x00000F36, 0x0000 },    /* R3894  - ANC Coefficient */
+	{ 0x00000F37, 0x0000 },    /* R3895  - ANC Coefficient */
+	{ 0x00000F38, 0x0000 },    /* R3896  - ANC Coefficient */
+	{ 0x00000F39, 0x0000 },    /* R3897  - ANC Coefficient */
+	{ 0x00000F3A, 0x0000 },    /* R3898  - ANC Coefficient */
+	{ 0x00000F3B, 0x0000 },    /* R3899  - ANC Coefficient */
+	{ 0x00000F3C, 0x0000 },    /* R3900  - ANC Coefficient */
+	{ 0x00000F3D, 0x0000 },    /* R3901  - ANC Coefficient */
+	{ 0x00000F3E, 0x0000 },    /* R3902  - ANC Coefficient */
+	{ 0x00000F3F, 0x0000 },    /* R3903  - ANC Coefficient */
+	{ 0x00000F40, 0x0000 },    /* R3904  - ANC Coefficient */
+	{ 0x00000F41, 0x0000 },    /* R3905  - ANC Coefficient */
+	{ 0x00000F42, 0x0000 },    /* R3906  - ANC Coefficient */
+	{ 0x00000F43, 0x0000 },    /* R3907  - ANC Coefficient */
+	{ 0x00000F44, 0x0000 },    /* R3908  - ANC Coefficient */
+	{ 0x00000F45, 0x0000 },    /* R3909  - ANC Coefficient */
+	{ 0x00000F46, 0x0000 },    /* R3910  - ANC Coefficient */
+	{ 0x00000F47, 0x0000 },    /* R3911  - ANC Coefficient */
+	{ 0x00000F48, 0x0000 },    /* R3912  - ANC Coefficient */
+	{ 0x00000F49, 0x0000 },    /* R3913  - ANC Coefficient */
+	{ 0x00000F4A, 0x0000 },    /* R3914  - ANC Coefficient */
+	{ 0x00000F4B, 0x0000 },    /* R3915  - ANC Coefficient */
+	{ 0x00000F4C, 0x0000 },    /* R3916  - ANC Coefficient */
+	{ 0x00000F4D, 0x0000 },    /* R3917  - ANC Coefficient */
+	{ 0x00000F4E, 0x0000 },    /* R3918  - ANC Coefficient */
+	{ 0x00000F4F, 0x0000 },    /* R3919  - ANC Coefficient */
+	{ 0x00000F50, 0x0000 },    /* R3920  - ANC Coefficient */
+	{ 0x00000F51, 0x0000 },    /* R3921  - ANC Coefficient */
+	{ 0x00000F52, 0x0000 },    /* R3922  - ANC Coefficient */
+	{ 0x00000F53, 0x0000 },    /* R3923  - ANC Coefficient */
+	{ 0x00000F54, 0x0000 },    /* R3924  - ANC Coefficient */
+	{ 0x00000F55, 0x0000 },    /* R3925  - ANC Coefficient */
+	{ 0x00000F56, 0x0000 },    /* R3926  - ANC Coefficient */
+	{ 0x00000F57, 0x0000 },    /* R3927  - ANC Coefficient */
+	{ 0x00000F58, 0x0000 },    /* R3928  - ANC Coefficient */
+	{ 0x00000F59, 0x0000 },    /* R3929  - ANC Coefficient */
+	{ 0x00000F5A, 0x0000 },    /* R3930  - ANC Coefficient */
+	{ 0x00000F5B, 0x0000 },    /* R3931  - ANC Coefficient */
+	{ 0x00000F5C, 0x0000 },    /* R3932  - ANC Coefficient */
+	{ 0x00000F5D, 0x0000 },    /* R3933  - ANC Coefficient */
+	{ 0x00000F5E, 0x0000 },    /* R3934  - ANC Coefficient */
+	{ 0x00000F5F, 0x0000 },    /* R3935  - ANC Coefficient */
+	{ 0x00000F60, 0x0000 },    /* R3936  - ANC Coefficient */
+	{ 0x00000F61, 0x0000 },    /* R3937  - ANC Coefficient */
+	{ 0x00000F62, 0x0000 },    /* R3938  - ANC Coefficient */
+	{ 0x00000F63, 0x0000 },    /* R3939  - ANC Coefficient */
+	{ 0x00000F64, 0x0000 },    /* R3940  - ANC Coefficient */
+	{ 0x00000F65, 0x0000 },    /* R3941  - ANC Coefficient */
+	{ 0x00000F66, 0x0000 },    /* R3942  - ANC Coefficient */
+	{ 0x00000F67, 0x0000 },    /* R3943  - ANC Coefficient */
+	{ 0x00000F68, 0x0000 },    /* R3944  - ANC Coefficient */
+	{ 0x00000F69, 0x0000 },    /* R3945  - ANC Coefficient */
+	{ 0x00000F70, 0x0000 },    /* R3952  - FCR Filter Control */
+	{ 0x00000F72, 0x0004 },    /* R3954  - FCR ADC Reformatter Control */
+	{ 0x00000F73, 0x0004 },    /* R3955  - ANC Coefficient */
+	{ 0x00000F74, 0x0002 },    /* R3956  - ANC Coefficient */
+	{ 0x00000F75, 0x0000 },    /* R3957  - ANC Coefficient */
+	{ 0x00000F76, 0x0010 },    /* R3958  - ANC Coefficient */
+	{ 0x00000F77, 0x0000 },    /* R3959  - ANC Coefficient */
+	{ 0x00000F78, 0x0000 },    /* R3960  - ANC Coefficient */
+	{ 0x00000F79, 0x0000 },    /* R3961  - ANC Coefficient */
+	{ 0x00000F7A, 0x0000 },    /* R3962  - ANC Coefficient */
+	{ 0x00000F7B, 0x0000 },    /* R3963  - ANC Coefficient */
+	{ 0x00000F7C, 0x0000 },    /* R3964  - ANC Coefficient */
+	{ 0x00000F7D, 0x0000 },    /* R3965  - ANC Coefficient */
+	{ 0x00000F7E, 0x0000 },    /* R3966  - ANC Coefficient */
+	{ 0x00000F7F, 0x0000 },    /* R3967  - ANC Coefficient */
+	{ 0x00000F80, 0x0000 },    /* R3968  - ANC Coefficient */
+	{ 0x00000F81, 0x0000 },    /* R3969  - ANC Coefficient */
+	{ 0x00000F82, 0x0000 },    /* R3970  - ANC Coefficient */
+	{ 0x00000F83, 0x0000 },    /* R3971  - ANC Coefficient */
+	{ 0x00000F84, 0x0000 },    /* R3972  - ANC Coefficient */
+	{ 0x00000F85, 0x0000 },    /* R3973  - ANC Coefficient */
+	{ 0x00000F86, 0x0000 },    /* R3974  - ANC Coefficient */
+	{ 0x00000F87, 0x0000 },    /* R3975  - ANC Coefficient */
+	{ 0x00000F88, 0x0000 },    /* R3976  - ANC Coefficient */
+	{ 0x00000F89, 0x0000 },    /* R3977  - ANC Coefficient */
+	{ 0x00000F8A, 0x0000 },    /* R3978  - ANC Coefficient */
+	{ 0x00000F8B, 0x0000 },    /* R3979  - ANC Coefficient */
+	{ 0x00000F8C, 0x0000 },    /* R3980  - ANC Coefficient */
+	{ 0x00000F8D, 0x0000 },    /* R3981  - ANC Coefficient */
+	{ 0x00000F8E, 0x0000 },    /* R3982  - ANC Coefficient */
+	{ 0x00000F8F, 0x0000 },    /* R3983  - ANC Coefficient */
+	{ 0x00000F90, 0x0000 },    /* R3984  - ANC Coefficient */
+	{ 0x00000F91, 0x0000 },    /* R3985  - ANC Coefficient */
+	{ 0x00000F92, 0x0000 },    /* R3986  - ANC Coefficient */
+	{ 0x00000F93, 0x0000 },    /* R3987  - ANC Coefficient */
+	{ 0x00000F94, 0x0000 },    /* R3988  - ANC Coefficient */
+	{ 0x00000F95, 0x0000 },    /* R3989  - ANC Coefficient */
+	{ 0x00000F96, 0x0000 },    /* R3990  - ANC Coefficient */
+	{ 0x00000F97, 0x0000 },    /* R3991  - ANC Coefficient */
+	{ 0x00000F98, 0x0000 },    /* R3992  - ANC Coefficient */
+	{ 0x00000F99, 0x0000 },    /* R3993  - ANC Coefficient */
+	{ 0x00000F9A, 0x0000 },    /* R3994  - ANC Coefficient */
+	{ 0x00000F9B, 0x0000 },    /* R3995  - ANC Coefficient */
+	{ 0x00000F9C, 0x0000 },    /* R3996  - ANC Coefficient */
+	{ 0x00000F9D, 0x0000 },    /* R3997  - ANC Coefficient */
+	{ 0x00000F9E, 0x0000 },    /* R3998  - ANC Coefficient */
+	{ 0x00000F9F, 0x0000 },    /* R3999  - ANC Coefficient */
+	{ 0x00000FA0, 0x0000 },    /* R4000  - ANC Coefficient */
+	{ 0x00000FA1, 0x0000 },    /* R4001  - ANC Coefficient */
+	{ 0x00000FA2, 0x0000 },    /* R4002  - ANC Coefficient */
+	{ 0x00000FA3, 0x0000 },    /* R4003  - ANC Coefficient */
+	{ 0x00000FA4, 0x0000 },    /* R4004  - ANC Coefficient */
+	{ 0x00000FA5, 0x0000 },    /* R4005  - ANC Coefficient */
+	{ 0x00000FA6, 0x0000 },    /* R4006  - ANC Coefficient */
+	{ 0x00000FA7, 0x0000 },    /* R4007  - ANC Coefficient */
+	{ 0x00000FA8, 0x0000 },    /* R4008  - ANC Coefficient */
+	{ 0x00000FA9, 0x0000 },    /* R4009  - ANC Coefficient */
+	{ 0x00000FAA, 0x0000 },    /* R4010  - ANC Coefficient */
+	{ 0x00000FAB, 0x0000 },    /* R4011  - ANC Coefficient */
+	{ 0x00000FAC, 0x0000 },    /* R4012  - ANC Coefficient */
+	{ 0x00000FAD, 0x0000 },    /* R4013  - ANC Coefficient */
+	{ 0x00000FAE, 0x0000 },    /* R4014  - ANC Coefficient */
+	{ 0x00000FAF, 0x0000 },    /* R4015  - ANC Coefficient */
+	{ 0x00000FB0, 0x0000 },    /* R4016  - ANC Coefficient */
+	{ 0x00000FB1, 0x0000 },    /* R4017  - ANC Coefficient */
+	{ 0x00000FB2, 0x0000 },    /* R4018  - ANC Coefficient */
+	{ 0x00000FB3, 0x0000 },    /* R4019  - ANC Coefficient */
+	{ 0x00000FB4, 0x0000 },    /* R4020  - ANC Coefficient */
+	{ 0x00000FB5, 0x0000 },    /* R4021  - ANC Coefficient */
+	{ 0x00000FB6, 0x0000 },    /* R4022  - ANC Coefficient */
+	{ 0x00000FB7, 0x0000 },    /* R4023  - ANC Coefficient */
+	{ 0x00000FB8, 0x0000 },    /* R4024  - ANC Coefficient */
+	{ 0x00000FB9, 0x0000 },    /* R4025  - ANC Coefficient */
+	{ 0x00000FBA, 0x0000 },    /* R4026  - ANC Coefficient */
+	{ 0x00000FBB, 0x0000 },    /* R4027  - ANC Coefficient */
+	{ 0x00000FBC, 0x0000 },    /* R4028  - ANC Coefficient */
+	{ 0x00000FBD, 0x0000 },    /* R4029  - ANC Coefficient */
+	{ 0x00000FBE, 0x0000 },    /* R4030  - ANC Coefficient */
+	{ 0x00000FBF, 0x0000 },    /* R4031  - ANC Coefficient */
+	{ 0x00000FC0, 0x0000 },    /* R4032  - ANC Coefficient */
+	{ 0x00000FC1, 0x0000 },    /* R4033  - ANC Coefficient */
+	{ 0x00000FC2, 0x0000 },    /* R4034  - ANC Coefficient */
+	{ 0x00000FC3, 0x0000 },    /* R4035  - ANC Coefficient */
+	{ 0x00000FC4, 0x0000 },    /* R4036  - ANC Coefficient */
 	{ 0x00001100, 0x0010 },    /* R4352  - DSP1 Control 1 */
-	{ 0x00001101, 0x0000 },    /* R4353  - DSP1 Clocking 1 */
 	{ 0x00001200, 0x0010 },    /* R4608  - DSP2 Control 1 */
-	{ 0x00001201, 0x0000 },    /* R4609  - DSP2 Clocking 1 */
 	{ 0x00001300, 0x0010 },    /* R4864  - DSP3 Control 1 */
-	{ 0x00001301, 0x0000 },    /* R4865  - DSP3 Clocking 1 */
 	{ 0x00001400, 0x0010 },    /* R5120  - DSP4 Control 1 */
-	{ 0x00001401, 0x0000 },    /* R5121  - DSP4 Clocking 1 */
-	{ 0x00001404, 0x0000 },    /* R5124  - DSP4 Status 1 */
 };
 
 static bool wm5110_is_rev_b_adsp_memory(unsigned int reg)
@@ -1716,6 +1899,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_PWM_DRIVE_3:
 	case ARIZONA_WAKE_CONTROL:
 	case ARIZONA_SEQUENCE_CONTROL:
+	case ARIZONA_SPARE_TRIGGERS:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_1:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_3:
@@ -1807,6 +1991,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_MIC_DETECT_4:
 	case ARIZONA_MIC_DETECT_LEVEL_1:
 	case ARIZONA_MIC_DETECT_LEVEL_2:
 	case ARIZONA_MIC_DETECT_LEVEL_3:
@@ -1906,6 +2091,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP2_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP3_SHORT_CIRCUIT_CTRL:
+	case ARIZONA_HP_TEST_CTRL_1:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
@@ -2523,6 +2709,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_GPIO5_CTRL:
 	case ARIZONA_IRQ_CTRL_1:
 	case ARIZONA_GPIO_DEBOUNCE_CONFIG:
+	case ARIZONA_GP_SWITCH_1:
 	case ARIZONA_MISC_PAD_CTRL_1:
 	case ARIZONA_MISC_PAD_CTRL_2:
 	case ARIZONA_MISC_PAD_CTRL_3:
@@ -2702,6 +2889,13 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_CLOCK_CONTROL:
 	case ARIZONA_ANC_SRC:
 	case ARIZONA_DSP_STATUS:
+	case ARIZONA_ANC_COEFF_START ... ARIZONA_ANC_COEFF_END:
+	case ARIZONA_FCL_FILTER_CONTROL:
+	case ARIZONA_FCL_ADC_REFORMATTER_CONTROL:
+	case ARIZONA_FCL_COEFF_START ... ARIZONA_FCL_COEFF_END:
+	case ARIZONA_FCR_FILTER_CONTROL:
+	case ARIZONA_FCR_ADC_REFORMATTER_CONTROL:
+	case ARIZONA_FCR_COEFF_START ... ARIZONA_FCR_COEFF_END:
 	case ARIZONA_DSP1_CONTROL_1:
 	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP1_STATUS_1:
@@ -2843,12 +3037,14 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_2_STATUS:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_MIC_DETECT_4:
 	case ARIZONA_HP_CTRL_1L:
 	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_HEADPHONE_DETECT_2:
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
+	case ARIZONA_HP_TEST_CTRL_1:
 	case ARIZONA_SLIMBUS_RX_PORT_STATUS:
 	case ARIZONA_SLIMBUS_TX_PORT_STATUS:
 	case ARIZONA_INTERRUPT_STATUS_1:
@@ -3007,6 +3203,8 @@ const struct regmap_config wm5110_spi_regmap = {
 	.reg_bits = 32,
 	.pad_bits = 16,
 	.val_bits = 16,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,
@@ -3021,6 +3219,8 @@ EXPORT_SYMBOL_GPL(wm5110_spi_regmap);
 const struct regmap_config wm5110_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,

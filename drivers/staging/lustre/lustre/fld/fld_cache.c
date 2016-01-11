@@ -53,7 +53,6 @@
 #include "../include/obd_support.h"
 #include "../include/lprocfs_status.h"
 
-#include "../include/dt_object.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
 #include "fld_internal.h"
@@ -69,8 +68,8 @@ struct fld_cache *fld_cache_init(const char *name,
 	LASSERT(name != NULL);
 	LASSERT(cache_threshold < cache_size);
 
-	OBD_ALLOC_PTR(cache);
-	if (cache == NULL)
+	cache = kzalloc(sizeof(*cache), GFP_NOFS);
+	if (!cache)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&cache->fci_entries_head);
@@ -116,7 +115,7 @@ void fld_cache_fini(struct fld_cache *cache)
 	CDEBUG(D_INFO, "  Cache reqs: %llu\n", cache->fci_stat.fst_cache);
 	CDEBUG(D_INFO, "  Cache hits: %llu%%\n", pct);
 
-	OBD_FREE_PTR(cache);
+	kfree(cache);
 }
 
 /**
@@ -128,7 +127,7 @@ void fld_cache_entry_delete(struct fld_cache *cache,
 	list_del(&node->fce_list);
 	list_del(&node->fce_lru);
 	cache->fci_cache_count--;
-	OBD_FREE_PTR(node);
+	kfree(node);
 }
 
 /**
@@ -266,9 +265,9 @@ static void fld_cache_punch_hole(struct fld_cache *cache,
 	const u64 new_end  = range->lsr_end;
 	struct fld_cache_entry *fldt;
 
-	OBD_ALLOC_GFP(fldt, sizeof(*fldt), GFP_ATOMIC);
+	fldt = kzalloc(sizeof(*fldt), GFP_ATOMIC);
 	if (!fldt) {
-		OBD_FREE_PTR(f_new);
+		kfree(f_new);
 		/* overlap is not allowed, so dont mess up list. */
 		return;
 	}
@@ -315,7 +314,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 		f_curr->fce_range.lsr_end = max(f_curr->fce_range.lsr_end,
 						new_end);
 
-		OBD_FREE_PTR(f_new);
+		kfree(f_new);
 		fld_fix_new_list(cache);
 
 	} else if (new_start <= f_curr->fce_range.lsr_start &&
@@ -324,7 +323,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 		 *	 e.g. whole range migrated. update fld cache entry */
 
 		f_curr->fce_range = *range;
-		OBD_FREE_PTR(f_new);
+		kfree(f_new);
 		fld_fix_new_list(cache);
 
 	} else if (f_curr->fce_range.lsr_start < new_start &&
@@ -364,7 +363,7 @@ struct fld_cache_entry
 
 	LASSERT(range_is_sane(range));
 
-	OBD_ALLOC_PTR(f_new);
+	f_new = kzalloc(sizeof(*f_new), GFP_NOFS);
 	if (!f_new)
 		return ERR_PTR(-ENOMEM);
 
@@ -440,7 +439,7 @@ int fld_cache_insert(struct fld_cache *cache,
 	rc = fld_cache_insert_nolock(cache, flde);
 	write_unlock(&cache->fci_lock);
 	if (rc)
-		OBD_FREE_PTR(flde);
+		kfree(flde);
 
 	return rc;
 }

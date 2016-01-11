@@ -176,6 +176,7 @@ struct acpi_object_method {
 	u8 param_count;
 	u8 sync_level;
 	union acpi_operand_object *mutex;
+	union acpi_operand_object *node;
 	u8 *aml_start;
 	union {
 		acpi_internal_method implementation;
@@ -335,6 +336,7 @@ struct acpi_object_reference {
 	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object */
 	struct acpi_namespace_node *node;	/* ref_of or Namepath */
 	union acpi_operand_object **where;	/* Target of Index */
+	u8 *index_pointer;	/* Used for Buffers and Strings */
 	u32 value;		/* Used for Local/Arg/Index/ddb_handle */
 };
 

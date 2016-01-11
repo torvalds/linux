@@ -354,6 +354,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		ret = -ENOMEM;
 		goto fail;
 	}
+	inode->i_link = f->target;
 
 	jffs2_dbg(1, "%s(): symlink's target '%s' cached\n",
 		  __func__, (char *)f->target);
@@ -619,9 +620,6 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, umode_t mode
 	int devlen = 0;
 	uint32_t alloclen;
 	int ret;
-
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
 
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)

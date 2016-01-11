@@ -22,7 +22,7 @@
 
 #include "fuse.h"
 
-#define CORE_PROCESS_CORNERS	2
+#define SOC_PROCESS_CORNERS	2
 #define CPU_PROCESS_CORNERS	2
 
 enum {
@@ -31,7 +31,7 @@ enum {
 	THRESHOLD_INDEX_COUNT,
 };
 
-static const u32 __initconst core_process_speedos[][CORE_PROCESS_CORNERS] = {
+static const u32 __initconst soc_process_speedos[][SOC_PROCESS_CORNERS] = {
 	{1123,     UINT_MAX},
 	{0,        UINT_MAX},
 };
@@ -74,8 +74,8 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info,
 	}
 
 	if (rev == TEGRA_REVISION_A01) {
-		tmp = tegra30_fuse_readl(0x270) << 1;
-		tmp |= tegra30_fuse_readl(0x26c);
+		tmp = tegra_fuse_read_early(0x270) << 1;
+		tmp |= tegra_fuse_read_early(0x26c);
 		if (!tmp)
 			sku_info->cpu_speedo_id = 0;
 	}
@@ -84,27 +84,27 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info,
 void __init tegra114_init_speedo_data(struct tegra_sku_info *sku_info)
 {
 	u32 cpu_speedo_val;
-	u32 core_speedo_val;
+	u32 soc_speedo_val;
 	int threshold;
 	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cpu_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(core_process_speedos) !=
+	BUILD_BUG_ON(ARRAY_SIZE(soc_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
 	rev_sku_to_speedo_ids(sku_info, &threshold);
 
-	cpu_speedo_val = tegra30_fuse_readl(0x12c) + 1024;
-	core_speedo_val = tegra30_fuse_readl(0x134);
+	cpu_speedo_val = tegra_fuse_read_early(0x12c) + 1024;
+	soc_speedo_val = tegra_fuse_read_early(0x134);
 
 	for (i = 0; i < CPU_PROCESS_CORNERS; i++)
 		if (cpu_speedo_val < cpu_process_speedos[threshold][i])
 			break;
 	sku_info->cpu_process_id = i;
 
-	for (i = 0; i < CORE_PROCESS_CORNERS; i++)
-		if (core_speedo_val < core_process_speedos[threshold][i])
+	for (i = 0; i < SOC_PROCESS_CORNERS; i++)
+		if (soc_speedo_val < soc_process_speedos[threshold][i])
 			break;
-	sku_info->core_process_id = i;
+	sku_info->soc_process_id = i;
 }

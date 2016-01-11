@@ -5,7 +5,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/machvec.h>
 #include <asm-generic/pci-bridge.h>
 
@@ -71,22 +71,6 @@ extern void pcibios_set_master(struct pci_dev *dev);
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
 #include <asm-generic/pci-dma-compat.h>
 
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	unsigned long cacheline_size;
-	u8 byte;
-
-	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
-	if (byte == 0)
-		cacheline_size = 1024;
-	else
-		cacheline_size = (int) byte * 4;
-
-	*strat = PCI_DMA_BURST_BOUNDARY;
-	*strategy_parameter = cacheline_size;
-}
 #endif
 
 /* TODO: integrate with include/asm-generic/pci.h ? */

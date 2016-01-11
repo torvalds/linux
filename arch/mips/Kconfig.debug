@@ -87,15 +87,6 @@ config SB1XXX_CORELIS
 	  Select compile flags that produce code that can be processed by the
 	  Corelis mksym utility and UDB Emulator.
 
-config RUNTIME_DEBUG
-	bool "Enable run-time debugging"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, some debugging macros will do run-time checking.
-	  If you say N here, those macros will mostly turn to no-ops.  See
-	  arch/mips/include/asm/debug.h for debugging macros.
-	  If unsure, say N.
-
 config DEBUG_ZBOOT
 	bool "Enable compressed kernel support debugging"
 	depends on DEBUG_KERNEL && SYS_SUPPORTS_ZBOOT
@@ -121,5 +112,77 @@ config SPINLOCK_TEST
 	default n
 	help
 	  Add several files to the debugfs to test spinlock speed.
+
+if CPU_MIPSR6
+
+choice
+	prompt "Compact branch policy"
+	default MIPS_COMPACT_BRANCHES_OPTIMAL
+
+config MIPS_COMPACT_BRANCHES_NEVER
+	bool "Never (force delay slot branches)"
+	help
+	  Pass the -mcompact-branches=never flag to the compiler in order to
+	  force it to always emit branches with delay slots, and make no use
+	  of the compact branch instructions introduced by MIPSr6. This is
+	  useful if you suspect there may be an issue with compact branches in
+	  either the compiler or the CPU.
+
+config MIPS_COMPACT_BRANCHES_OPTIMAL
+	bool "Optimal (use where beneficial)"
+	help
+	  Pass the -mcompact-branches=optimal flag to the compiler in order for
+	  it to make use of compact branch instructions where it deems them
+	  beneficial, and use branches with delay slots elsewhere. This is the
+	  default compiler behaviour, and should be used unless you have a
+	  reason to choose otherwise.
+
+config MIPS_COMPACT_BRANCHES_ALWAYS
+	bool "Always (force compact branches)"
+	help
+	  Pass the -mcompact-branches=always flag to the compiler in order to
+	  force it to always emit compact branches, making no use of branch
+	  instructions with delay slots. This can result in more compact code
+	  which may be beneficial in some scenarios.
+
+endchoice
+
+endif # CPU_MIPSR6
+
+config SCACHE_DEBUGFS
+	bool "L2 cache debugfs entries"
+	depends on DEBUG_FS
+	help
+	  Enable this to allow parts of the L2 cache configuration, such as
+	  whether or not prefetching is enabled, to be exposed to userland
+	  via debugfs.
+
+	  If unsure, say N.
+
+menuconfig MIPS_CPS_NS16550
+	bool "CPS SMP NS16550 UART output"
+	depends on MIPS_CPS
+	help
+	  Output debug information via an ns16550 compatible UART if exceptions
+	  occur early in the boot process of a secondary core.
+
+if MIPS_CPS_NS16550
+
+config MIPS_CPS_NS16550_BASE
+	hex "UART Base Address"
+	default 0x1b0003f8 if MIPS_MALTA
+	help
+	  The base address of the ns16550 compatible UART on which to output
+	  debug information from the early stages of core startup.
+
+config MIPS_CPS_NS16550_SHIFT
+	int "UART Register Shift"
+	default 0 if MIPS_MALTA
+	help
+	  The number of bits to shift ns16550 register indices by in order to
+	  form their addresses. That is, log base 2 of the span between
+	  adjacent ns16550 registers in the system.
+
+endif # MIPS_CPS_NS16550
 
 endmenu

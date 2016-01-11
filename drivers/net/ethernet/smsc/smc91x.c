@@ -2018,10 +2018,18 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	lp->cfg.flags |= SMC91X_USE_DMA;
 #  endif
 	if (lp->cfg.flags & SMC91X_USE_DMA) {
-		int dma = pxa_request_dma(dev->name, DMA_PRIO_LOW,
-					  smc_pxa_dma_irq, NULL);
-		if (dma >= 0)
-			dev->dma = dma;
+		dma_cap_mask_t mask;
+		struct pxad_param param;
+
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
+		param.prio = PXAD_PRIO_LOWEST;
+		param.drcmr = -1UL;
+
+		lp->dma_chan =
+			dma_request_slave_channel_compat(mask, pxad_filter_fn,
+							 &param, &dev->dev,
+							 "data");
 	}
 #endif
 
@@ -2032,8 +2040,8 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 			    version_string, revision_register & 0x0f,
 			    lp->base, dev->irq);
 
-		if (dev->dma != (unsigned char)-1)
-			pr_cont(" DMA %d", dev->dma);
+		if (lp->dma_chan)
+			pr_cont(" DMA %p", lp->dma_chan);
 
 		pr_cont("%s%s\n",
 			lp->cfg.flags & SMC91X_NOWAIT ? " [nowait]" : "",
@@ -2058,8 +2066,8 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 
 err_out:
 #ifdef CONFIG_ARCH_PXA
-	if (retval && dev->dma != (unsigned char)-1)
-		pxa_free_dma(dev->dma);
+	if (retval && lp->dma_chan)
+		dma_release_channel(lp->dma_chan);
 #endif
 	return retval;
 }
@@ -2238,9 +2246,10 @@ static int smc_drv_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	struct smc_local *lp;
 	struct net_device *ndev;
-	struct resource *res, *ires;
+	struct resource *res;
 	unsigned int __iomem *addr;
 	unsigned long irq_flags = SMC_IRQ_FLAGS;
+	unsigned long irq_resflags;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
@@ -2332,16 +2341,19 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_free_netdev;
 	}
 
-	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!ires) {
+	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq <= 0) {
 		ret = -ENODEV;
 		goto out_release_io;
 	}
-
-	ndev->irq = ires->start;
-
-	if (irq_flags == -1 || ires->flags & IRQF_TRIGGER_MASK)
-		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+	/*
+	 * If this platform does not specify any special irqflags, or if
+	 * the resource supplies a trigger, override the irqflags with
+	 * the trigger flags from the resource.
+	 */
+	irq_resflags = irqd_get_trigger_type(irq_get_irq_data(ndev->irq));
+	if (irq_flags == -1 || irq_resflags & IRQF_TRIGGER_MASK)
+		irq_flags = irq_resflags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev, ndev);
 	if (ret)
@@ -2366,6 +2378,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 		struct smc_local *lp = netdev_priv(ndev);
 		lp->device = &pdev->dev;
 		lp->physaddr = res->start;
+
 	}
 #endif
 
@@ -2402,8 +2415,8 @@ static int smc_drv_remove(struct platform_device *pdev)
 	free_irq(ndev->irq, ndev);
 
 #ifdef CONFIG_ARCH_PXA
-	if (ndev->dma != (unsigned char)-1)
-		pxa_free_dma(ndev->dma);
+	if (lp->dma_chan)
+		dma_release_channel(lp->dma_chan);
 #endif
 	iounmap(lp->base);
 

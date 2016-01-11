@@ -416,32 +416,24 @@ struct Qdisc noop_qdisc = {
 };
 EXPORT_SYMBOL(noop_qdisc);
 
-static struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
+static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt)
+{
+	/* register_qdisc() assigns a default of noop_enqueue if unset,
+	 * but __dev_queue_xmit() treats noqueue only as such
+	 * if this is NULL - so clear it here. */
+	qdisc->enqueue = NULL;
+	return 0;
+}
+
+struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
 	.id		=	"noqueue",
 	.priv_size	=	0,
+	.init		=	noqueue_init,
 	.enqueue	=	noop_enqueue,
 	.dequeue	=	noop_dequeue,
 	.peek		=	noop_dequeue,
 	.owner		=	THIS_MODULE,
 };
-
-static struct Qdisc noqueue_qdisc;
-static struct netdev_queue noqueue_netdev_queue = {
-	.qdisc		=	&noqueue_qdisc,
-	.qdisc_sleeping	=	&noqueue_qdisc,
-};
-
-static struct Qdisc noqueue_qdisc = {
-	.enqueue	=	NULL,
-	.dequeue	=	noop_dequeue,
-	.flags		=	TCQ_F_BUILTIN,
-	.ops		=	&noqueue_qdisc_ops,
-	.list		=	LIST_HEAD_INIT(noqueue_qdisc.list),
-	.q.lock		=	__SPIN_LOCK_UNLOCKED(noqueue_qdisc.q.lock),
-	.dev_queue	=	&noqueue_netdev_queue,
-	.busylock	=	__SPIN_LOCK_UNLOCKED(noqueue_qdisc.busylock),
-};
-
 
 static const u8 prio2band[TC_PRIO_MAX + 1] = {
 	1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1
@@ -666,8 +658,10 @@ static void qdisc_rcu_free(struct rcu_head *head)
 {
 	struct Qdisc *qdisc = container_of(head, struct Qdisc, rcu_head);
 
-	if (qdisc_is_percpu_stats(qdisc))
+	if (qdisc_is_percpu_stats(qdisc)) {
 		free_percpu(qdisc->cpu_bstats);
+		free_percpu(qdisc->cpu_qstats);
+	}
 
 	kfree((char *) qdisc - qdisc->padded);
 }
@@ -733,18 +727,19 @@ static void attach_one_default_qdisc(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
 				     void *_unused)
 {
-	struct Qdisc *qdisc = &noqueue_qdisc;
+	struct Qdisc *qdisc;
+	const struct Qdisc_ops *ops = default_qdisc_ops;
 
-	if (dev->tx_queue_len) {
-		qdisc = qdisc_create_dflt(dev_queue,
-					  default_qdisc_ops, TC_H_ROOT);
-		if (!qdisc) {
-			netdev_info(dev, "activation failed\n");
-			return;
-		}
-		if (!netif_is_multiqueue(dev))
-			qdisc->flags |= TCQ_F_ONETXQUEUE;
+	if (dev->priv_flags & IFF_NO_QUEUE)
+		ops = &noqueue_qdisc_ops;
+
+	qdisc = qdisc_create_dflt(dev_queue, ops, TC_H_ROOT);
+	if (!qdisc) {
+		netdev_info(dev, "activation failed\n");
+		return;
 	}
+	if (!netif_is_multiqueue(dev))
+		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 	dev_queue->qdisc_sleeping = qdisc;
 }
 
@@ -755,7 +750,8 @@ static void attach_default_qdiscs(struct net_device *dev)
 
 	txq = netdev_get_tx_queue(dev, 0);
 
-	if (!netif_is_multiqueue(dev) || dev->tx_queue_len == 0) {
+	if (!netif_is_multiqueue(dev) ||
+	    dev->priv_flags & IFF_NO_QUEUE) {
 		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
 		dev->qdisc = txq->qdisc_sleeping;
 		atomic_inc(&dev->qdisc->refcnt);
@@ -779,7 +775,7 @@ static void transition_one_qdisc(struct net_device *dev,
 		clear_bit(__QDISC_STATE_DEACTIVATED, &new_qdisc->state);
 
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
-	if (need_watchdog_p && new_qdisc != &noqueue_qdisc) {
+	if (need_watchdog_p) {
 		dev_queue->trans_start = 0;
 		*need_watchdog_p = 1;
 	}

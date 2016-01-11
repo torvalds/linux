@@ -167,7 +167,7 @@ err:
 	return ret;
 }
 
-static int mn88473_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int mn88473_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88473_dev *dev = i2c_get_clientdata(client);
@@ -507,7 +507,6 @@ MODULE_DEVICE_TABLE(i2c, mn88473_id_table);
 
 static struct i2c_driver mn88473_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "mn88473",
 	},
 	.probe		= mn88473_probe,

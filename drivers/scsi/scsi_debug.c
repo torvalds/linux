@@ -25,6 +25,9 @@
  *        module options to "modprobe scsi_debug num_tgts=2" [20021221]
  */
 
+
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -201,7 +204,6 @@ static const char *scsi_debug_version_date = "20141022";
 /* If REPORT LUNS has luns >= 256 it can choose "flat space" (value 1)
  * or "peripheral device" addressing (value 0) */
 #define SAM2_LUN_ADDRESS_METHOD 0
-#define SAM2_WLUN_REPORT_LUNS 0xc101
 
 /* SCSI_DEBUG_CANQUEUE is the maximum number of commands that can be queued
  * (for response) at one time. Can be reduced by max_queue option. Command
@@ -463,8 +465,9 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	     0} },
 	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* MAINT OUT */
 	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
-	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* VERIFY */
-	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
+	{0, 0x2f, 0, F_D_OUT_MAYBE | FF_DIRECT_IO, NULL, NULL, /* VERIFY(10) */
+	    {10,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc7,
+	     0, 0, 0, 0, 0, 0} },
 	{1, 0x7f, 0x9, F_SA_HIGH | F_D_IN | FF_DIRECT_IO, resp_read_dt0,
 	    vl_iarr, {32,  0xc7, 0, 0, 0, 0, 0x1f, 0x18, 0x0, 0x9, 0xfe, 0,
 		      0xff, 0xff, 0xff, 0xff} },/* VARIABLE LENGTH, READ(32) */
@@ -475,8 +478,8 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	    {10,  0x13, 0xff, 0xff, 0, 0, 0, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0,
 	     0} },
 /* 20 */
-	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* ALLOW REMOVAL */
-	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
+	{0, 0x1e, 0, 0, NULL, NULL, /* ALLOW REMOVAL */
+	    {6,  0, 0, 0, 0x3, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0x1, 0, 0, resp_start_stop, NULL, /* REWIND ?? */
 	    {6,  0x1, 0, 0, 0, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* ATA_PT */
@@ -698,7 +701,7 @@ static void sdebug_max_tgts_luns(void)
 		else
 			hpnt->max_id = scsi_debug_num_tgts;
 		/* scsi_debug_max_luns; */
-		hpnt->max_lun = SAM2_WLUN_REPORT_LUNS;
+		hpnt->max_lun = SCSI_W_LUN_REPORT_LUNS + 1;
 	}
 	spin_unlock(&sdebug_host_list_lock);
 }
@@ -1288,7 +1291,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	arr = kzalloc(SDEBUG_MAX_INQ_ARR_SZ, GFP_ATOMIC);
 	if (! arr)
 		return DID_REQUEUE << 16;
-	have_wlun = (scp->device->lun == SAM2_WLUN_REPORT_LUNS);
+	have_wlun = (scp->device->lun == SCSI_W_LUN_REPORT_LUNS);
 	if (have_wlun)
 		pq_pdt = 0x1e;	/* present, wlun */
 	else if (scsi_debug_no_lun_0 && (0 == devip->lun))
@@ -1427,12 +1430,11 @@ static int resp_requests(struct scsi_cmnd * scp,
 	unsigned char * sbuff;
 	unsigned char *cmd = scp->cmnd;
 	unsigned char arr[SCSI_SENSE_BUFFERSIZE];
-	bool dsense, want_dsense;
+	bool dsense;
 	int len = 18;
 
 	memset(arr, 0, sizeof(arr));
 	dsense = !!(cmd[1] & 1);
-	want_dsense = dsense || scsi_debug_dsense;
 	sbuff = scp->sense_buffer;
 	if ((iec_m_pg[2] & 0x4) && (6 == (iec_m_pg[3] & 0xf))) {
 		if (dsense) {
@@ -2363,17 +2365,13 @@ do_device_access(struct scsi_cmnd *scmd, u64 lba, u32 num, bool do_write)
 	u64 block, rest = 0;
 	struct scsi_data_buffer *sdb;
 	enum dma_data_direction dir;
-	size_t (*func)(struct scatterlist *, unsigned int, void *, size_t,
-		       off_t);
 
 	if (do_write) {
 		sdb = scsi_out(scmd);
 		dir = DMA_TO_DEVICE;
-		func = sg_pcopy_to_buffer;
 	} else {
 		sdb = scsi_in(scmd);
 		dir = DMA_FROM_DEVICE;
-		func = sg_pcopy_from_buffer;
 	}
 
 	if (!sdb->length)
@@ -2385,16 +2383,16 @@ do_device_access(struct scsi_cmnd *scmd, u64 lba, u32 num, bool do_write)
 	if (block + num > sdebug_store_sectors)
 		rest = block + num - sdebug_store_sectors;
 
-	ret = func(sdb->table.sgl, sdb->table.nents,
+	ret = sg_copy_buffer(sdb->table.sgl, sdb->table.nents,
 		   fake_storep + (block * scsi_debug_sector_size),
-		   (num - rest) * scsi_debug_sector_size, 0);
+		   (num - rest) * scsi_debug_sector_size, 0, do_write);
 	if (ret != (num - rest) * scsi_debug_sector_size)
 		return ret;
 
 	if (rest) {
-		ret += func(sdb->table.sgl, sdb->table.nents,
+		ret += sg_copy_buffer(sdb->table.sgl, sdb->table.nents,
 			    fake_storep, rest * scsi_debug_sector_size,
-			    (num - rest) * scsi_debug_sector_size);
+			    (num - rest) * scsi_debug_sector_size, do_write);
 	}
 
 	return ret;
@@ -2450,8 +2448,7 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 	__be16 csum = dif_compute_csum(data, scsi_debug_sector_size);
 
 	if (sdt->guard_tag != csum) {
-		pr_err("%s: GUARD check failed on sector %lu rcvd 0x%04x, data 0x%04x\n",
-			__func__,
+		pr_err("GUARD check failed on sector %lu rcvd 0x%04x, data 0x%04x\n",
 			(unsigned long)sector,
 			be16_to_cpu(sdt->guard_tag),
 			be16_to_cpu(csum));
@@ -2459,14 +2456,14 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 	}
 	if (scsi_debug_dif == SD_DIF_TYPE1_PROTECTION &&
 	    be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
-		pr_err("%s: REF check failed on sector %lu\n",
-			__func__, (unsigned long)sector);
+		pr_err("REF check failed on sector %lu\n",
+			(unsigned long)sector);
 		return 0x03;
 	}
 	if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
 	    be32_to_cpu(sdt->ref_tag) != ei_lba) {
-		pr_err("%s: REF check failed on sector %lu\n",
-			__func__, (unsigned long)sector);
+		pr_err("REF check failed on sector %lu\n",
+			(unsigned long)sector);
 		return 0x03;
 	}
 	return 0;
@@ -2684,7 +2681,7 @@ resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return 0;
 }
 
-void dump_sector(unsigned char *buf, int len)
+static void dump_sector(unsigned char *buf, int len)
 {
 	int i, j, n;
 
@@ -3369,8 +3366,8 @@ static int resp_report_luns(struct scsi_cmnd * scp,
 		one_lun[i].scsi_lun[1] = lun & 0xff;
 	}
 	if (want_wlun) {
-		one_lun[i].scsi_lun[0] = (SAM2_WLUN_REPORT_LUNS >> 8) & 0xff;
-		one_lun[i].scsi_lun[1] = SAM2_WLUN_REPORT_LUNS & 0xff;
+		one_lun[i].scsi_lun[0] = (SCSI_W_LUN_REPORT_LUNS >> 8) & 0xff;
+		one_lun[i].scsi_lun[1] = SCSI_W_LUN_REPORT_LUNS & 0xff;
 		i++;
 	}
 	alloc_len = (unsigned char *)(one_lun + i) - arr;
@@ -3453,7 +3450,7 @@ static void sdebug_q_cmd_complete(unsigned long indx)
 	atomic_inc(&sdebug_completions);
 	qa_indx = indx;
 	if ((qa_indx < 0) || (qa_indx >= SCSI_DEBUG_CANQUEUE)) {
-		pr_err("%s: wild qa_indx=%d\n", __func__, qa_indx);
+		pr_err("wild qa_indx=%d\n", qa_indx);
 		return;
 	}
 	spin_lock_irqsave(&queued_arr_lock, iflags);
@@ -3461,21 +3458,21 @@ static void sdebug_q_cmd_complete(unsigned long indx)
 	scp = sqcp->a_cmnd;
 	if (NULL == scp) {
 		spin_unlock_irqrestore(&queued_arr_lock, iflags);
-		pr_err("%s: scp is NULL\n", __func__);
+		pr_err("scp is NULL\n");
 		return;
 	}
 	devip = (struct sdebug_dev_info *)scp->device->hostdata;
 	if (devip)
 		atomic_dec(&devip->num_in_q);
 	else
-		pr_err("%s: devip=NULL\n", __func__);
+		pr_err("devip=NULL\n");
 	if (atomic_read(&retired_max_queue) > 0)
 		retiring = 1;
 
 	sqcp->a_cmnd = NULL;
 	if (!test_and_clear_bit(qa_indx, queued_in_use_bm)) {
 		spin_unlock_irqrestore(&queued_arr_lock, iflags);
-		pr_err("%s: Unexpected completion\n", __func__);
+		pr_err("Unexpected completion\n");
 		return;
 	}
 
@@ -3485,7 +3482,7 @@ static void sdebug_q_cmd_complete(unsigned long indx)
 		retval = atomic_read(&retired_max_queue);
 		if (qa_indx >= retval) {
 			spin_unlock_irqrestore(&queued_arr_lock, iflags);
-			pr_err("%s: index %d too large\n", __func__, retval);
+			pr_err("index %d too large\n", retval);
 			return;
 		}
 		k = find_last_bit(queued_in_use_bm, retval);
@@ -3513,7 +3510,7 @@ sdebug_q_cmd_hrt_complete(struct hrtimer *timer)
 	atomic_inc(&sdebug_completions);
 	qa_indx = sd_hrtp->qa_indx;
 	if ((qa_indx < 0) || (qa_indx >= SCSI_DEBUG_CANQUEUE)) {
-		pr_err("%s: wild qa_indx=%d\n", __func__, qa_indx);
+		pr_err("wild qa_indx=%d\n", qa_indx);
 		goto the_end;
 	}
 	spin_lock_irqsave(&queued_arr_lock, iflags);
@@ -3521,21 +3518,21 @@ sdebug_q_cmd_hrt_complete(struct hrtimer *timer)
 	scp = sqcp->a_cmnd;
 	if (NULL == scp) {
 		spin_unlock_irqrestore(&queued_arr_lock, iflags);
-		pr_err("%s: scp is NULL\n", __func__);
+		pr_err("scp is NULL\n");
 		goto the_end;
 	}
 	devip = (struct sdebug_dev_info *)scp->device->hostdata;
 	if (devip)
 		atomic_dec(&devip->num_in_q);
 	else
-		pr_err("%s: devip=NULL\n", __func__);
+		pr_err("devip=NULL\n");
 	if (atomic_read(&retired_max_queue) > 0)
 		retiring = 1;
 
 	sqcp->a_cmnd = NULL;
 	if (!test_and_clear_bit(qa_indx, queued_in_use_bm)) {
 		spin_unlock_irqrestore(&queued_arr_lock, iflags);
-		pr_err("%s: Unexpected completion\n", __func__);
+		pr_err("Unexpected completion\n");
 		goto the_end;
 	}
 
@@ -3545,7 +3542,7 @@ sdebug_q_cmd_hrt_complete(struct hrtimer *timer)
 		retval = atomic_read(&retired_max_queue);
 		if (qa_indx >= retval) {
 			spin_unlock_irqrestore(&queued_arr_lock, iflags);
-			pr_err("%s: index %d too large\n", __func__, retval);
+			pr_err("index %d too large\n", retval);
 			goto the_end;
 		}
 		k = find_last_bit(queued_in_use_bm, retval);
@@ -3584,7 +3581,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 		return devip;
 	sdbg_host = *(struct sdebug_host_info **)shost_priv(sdev->host);
 	if (!sdbg_host) {
-		pr_err("%s: Host info NULL\n", __func__);
+		pr_err("Host info NULL\n");
 		return NULL;
         }
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
@@ -3600,8 +3597,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 	if (!open_devip) { /* try and make a new one */
 		open_devip = sdebug_device_create(sdbg_host, GFP_ATOMIC);
 		if (!open_devip) {
-			printk(KERN_ERR "%s: out of memory at line %d\n",
-				__func__, __LINE__);
+			pr_err("out of memory at line %d\n", __LINE__);
 			return NULL;
 		}
 	}
@@ -3619,7 +3615,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 static int scsi_debug_slave_alloc(struct scsi_device *sdp)
 {
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: slave_alloc <%u %u %u %llu>\n",
+		pr_info("slave_alloc <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, sdp->request_queue);
 	return 0;
@@ -3630,7 +3626,7 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 	struct sdebug_dev_info *devip;
 
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: slave_configure <%u %u %u %llu>\n",
+		pr_info("slave_configure <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (sdp->host->max_cmd_len != SCSI_DEBUG_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = SCSI_DEBUG_MAX_CMD_LEN;
@@ -3650,7 +3646,7 @@ static void scsi_debug_slave_destroy(struct scsi_device *sdp)
 		(struct sdebug_dev_info *)sdp->hostdata;
 
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: slave_destroy <%u %u %u %llu>\n",
+		pr_info("slave_destroy <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (devip) {
 		/* make this slot available for re-use */
@@ -3901,8 +3897,7 @@ static void __init sdebug_build_parts(unsigned char *ramp,
 		return;
 	if (scsi_debug_num_parts > SDEBUG_MAX_PARTS) {
 		scsi_debug_num_parts = SDEBUG_MAX_PARTS;
-		pr_warn("%s: reducing partitions to %d\n", __func__,
-			SDEBUG_MAX_PARTS);
+		pr_warn("reducing partitions to %d\n", SDEBUG_MAX_PARTS);
 	}
 	num_sectors = (int)sdebug_store_sectors;
 	sectors_per_part = (num_sectors - sdebug_sectors_per)
@@ -3946,14 +3941,20 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	unsigned long iflags;
 	int k, num_in_q, qdepth, inject;
 	struct sdebug_queued_cmd *sqcp = NULL;
-	struct scsi_device *sdp = cmnd->device;
+	struct scsi_device *sdp;
 
-	if (NULL == cmnd || NULL == devip) {
-		pr_warn("%s: called with NULL cmnd or devip pointer\n",
-			__func__);
+	/* this should never happen */
+	if (WARN_ON(!cmnd))
+		return SCSI_MLQUEUE_HOST_BUSY;
+
+	if (NULL == devip) {
+		pr_warn("called devip == NULL\n");
 		/* no particularly good error to report back */
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
+
+	sdp = cmnd->device;
+
 	if ((scsi_result) && (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
 			    __func__, scsi_result);
@@ -4387,8 +4388,7 @@ static ssize_t fake_rw_store(struct device_driver *ddp, const char *buf,
 
 				fake_storep = vmalloc(sz);
 				if (NULL == fake_storep) {
-					pr_err("%s: out of memory, 9\n",
-					       __func__);
+					pr_err("out of memory, 9\n");
 					return -ENOMEM;
 				}
 				memset(fake_storep, 0, sz);
@@ -4788,8 +4788,7 @@ static int __init scsi_debug_init(void)
 	atomic_set(&retired_max_queue, 0);
 
 	if (scsi_debug_ndelay >= 1000000000) {
-		pr_warn("%s: ndelay must be less than 1 second, ignored\n",
-			__func__);
+		pr_warn("ndelay must be less than 1 second, ignored\n");
 		scsi_debug_ndelay = 0;
 	} else if (scsi_debug_ndelay > 0)
 		scsi_debug_delay = DELAY_OVERRIDDEN;
@@ -4801,8 +4800,7 @@ static int __init scsi_debug_init(void)
 	case 4096:
 		break;
 	default:
-		pr_err("%s: invalid sector_size %d\n", __func__,
-		       scsi_debug_sector_size);
+		pr_err("invalid sector_size %d\n", scsi_debug_sector_size);
 		return -EINVAL;
 	}
 
@@ -4815,29 +4813,28 @@ static int __init scsi_debug_init(void)
 		break;
 
 	default:
-		pr_err("%s: dif must be 0, 1, 2 or 3\n", __func__);
+		pr_err("dif must be 0, 1, 2 or 3\n");
 		return -EINVAL;
 	}
 
 	if (scsi_debug_guard > 1) {
-		pr_err("%s: guard must be 0 or 1\n", __func__);
+		pr_err("guard must be 0 or 1\n");
 		return -EINVAL;
 	}
 
 	if (scsi_debug_ato > 1) {
-		pr_err("%s: ato must be 0 or 1\n", __func__);
+		pr_err("ato must be 0 or 1\n");
 		return -EINVAL;
 	}
 
 	if (scsi_debug_physblk_exp > 15) {
-		pr_err("%s: invalid physblk_exp %u\n", __func__,
-		       scsi_debug_physblk_exp);
+		pr_err("invalid physblk_exp %u\n", scsi_debug_physblk_exp);
 		return -EINVAL;
 	}
 
 	if (scsi_debug_lowest_aligned > 0x3fff) {
-		pr_err("%s: lowest_aligned too big: %u\n", __func__,
-		       scsi_debug_lowest_aligned);
+		pr_err("lowest_aligned too big: %u\n",
+			scsi_debug_lowest_aligned);
 		return -EINVAL;
 	}
 
@@ -4867,7 +4864,7 @@ static int __init scsi_debug_init(void)
 	if (0 == scsi_debug_fake_rw) {
 		fake_storep = vmalloc(sz);
 		if (NULL == fake_storep) {
-			pr_err("%s: out of memory, 1\n", __func__);
+			pr_err("out of memory, 1\n");
 			return -ENOMEM;
 		}
 		memset(fake_storep, 0, sz);
@@ -4881,11 +4878,10 @@ static int __init scsi_debug_init(void)
 		dif_size = sdebug_store_sectors * sizeof(struct sd_dif_tuple);
 		dif_storep = vmalloc(dif_size);
 
-		pr_err("%s: dif_storep %u bytes @ %p\n", __func__, dif_size,
-			dif_storep);
+		pr_err("dif_storep %u bytes @ %p\n", dif_size, dif_storep);
 
 		if (dif_storep == NULL) {
-			pr_err("%s: out of mem. (DIX)\n", __func__);
+			pr_err("out of mem. (DIX)\n");
 			ret = -ENOMEM;
 			goto free_vm;
 		}
@@ -4907,18 +4903,17 @@ static int __init scsi_debug_init(void)
 		if (scsi_debug_unmap_alignment &&
 		    scsi_debug_unmap_granularity <=
 		    scsi_debug_unmap_alignment) {
-			pr_err("%s: ERR: unmap_granularity <= unmap_alignment\n",
-			       __func__);
+			pr_err("ERR: unmap_granularity <= unmap_alignment\n");
 			return -EINVAL;
 		}
 
 		map_size = lba_to_map_index(sdebug_store_sectors - 1) + 1;
 		map_storep = vmalloc(BITS_TO_LONGS(map_size) * sizeof(long));
 
-		pr_info("%s: %lu provisioning blocks\n", __func__, map_size);
+		pr_info("%lu provisioning blocks\n", map_size);
 
 		if (map_storep == NULL) {
-			pr_err("%s: out of mem. (MAP)\n", __func__);
+			pr_err("out of mem. (MAP)\n");
 			ret = -ENOMEM;
 			goto free_vm;
 		}
@@ -4932,18 +4927,18 @@ static int __init scsi_debug_init(void)
 
 	pseudo_primary = root_device_register("pseudo_0");
 	if (IS_ERR(pseudo_primary)) {
-		pr_warn("%s: root_device_register() error\n", __func__);
+		pr_warn("root_device_register() error\n");
 		ret = PTR_ERR(pseudo_primary);
 		goto free_vm;
 	}
 	ret = bus_register(&pseudo_lld_bus);
 	if (ret < 0) {
-		pr_warn("%s: bus_register error: %d\n", __func__, ret);
+		pr_warn("bus_register error: %d\n", ret);
 		goto dev_unreg;
 	}
 	ret = driver_register(&sdebug_driverfs_driver);
 	if (ret < 0) {
-		pr_warn("%s: driver_register error: %d\n", __func__, ret);
+		pr_warn("driver_register error: %d\n", ret);
 		goto bus_unreg;
 	}
 
@@ -4952,16 +4947,14 @@ static int __init scsi_debug_init(void)
 
         for (k = 0; k < host_to_add; k++) {
                 if (sdebug_add_adapter()) {
-			pr_err("%s: sdebug_add_adapter failed k=%d\n",
-				__func__, k);
+			pr_err("sdebug_add_adapter failed k=%d\n", k);
                         break;
                 }
         }
 
-	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts) {
-		pr_info("%s: built %d host(s)\n", __func__,
-			scsi_debug_add_host);
-	}
+	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
+		pr_info("built %d host(s)\n", scsi_debug_add_host);
+
 	return 0;
 
 bus_unreg:
@@ -4969,10 +4962,8 @@ bus_unreg:
 dev_unreg:
 	root_device_unregister(pseudo_primary);
 free_vm:
-	if (map_storep)
-		vfree(map_storep);
-	if (dif_storep)
-		vfree(dif_storep);
+	vfree(map_storep);
+	vfree(dif_storep);
 	vfree(fake_storep);
 
 	return ret;
@@ -4990,9 +4981,7 @@ static void __exit scsi_debug_exit(void)
 	bus_unregister(&pseudo_lld_bus);
 	root_device_unregister(pseudo_primary);
 
-	if (dif_storep)
-		vfree(dif_storep);
-
+	vfree(dif_storep);
 	vfree(fake_storep);
 }
 
@@ -5016,8 +5005,7 @@ static int sdebug_add_adapter(void)
 
         sdbg_host = kzalloc(sizeof(*sdbg_host),GFP_KERNEL);
         if (NULL == sdbg_host) {
-                printk(KERN_ERR "%s: out of memory at line %d\n",
-                       __func__, __LINE__);
+		pr_err("out of memory at line %d\n", __LINE__);
                 return -ENOMEM;
         }
 
@@ -5027,8 +5015,7 @@ static int sdebug_add_adapter(void)
         for (k = 0; k < devs_per_host; k++) {
 		sdbg_devinfo = sdebug_device_create(sdbg_host, GFP_KERNEL);
 		if (!sdbg_devinfo) {
-                        printk(KERN_ERR "%s: out of memory at line %d\n",
-                               __func__, __LINE__);
+			pr_err("out of memory at line %d\n", __LINE__);
                         error = -ENOMEM;
 			goto clean;
                 }
@@ -5182,7 +5169,7 @@ scsi_debug_queuecommand(struct scsi_cmnd *scp)
 		}
 		sdev_printk(KERN_INFO, sdp, "%s: cmd %s\n", my_name, b);
 	}
-	has_wlun_rl = (sdp->lun == SAM2_WLUN_REPORT_LUNS);
+	has_wlun_rl = (sdp->lun == SCSI_W_LUN_REPORT_LUNS);
 	if ((sdp->lun >= scsi_debug_max_luns) && !has_wlun_rl)
 		return schedule_resp(scp, NULL, errsts_no_connect, 0);
 
@@ -5342,7 +5329,7 @@ static int sdebug_driver_probe(struct device * dev)
 		sdebug_driver_template.use_clustering = ENABLE_CLUSTERING;
 	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
 	if (NULL == hpnt) {
-		pr_err("%s: scsi_host_alloc failed\n", __func__);
+		pr_err("scsi_host_alloc failed\n");
 		error = -ENODEV;
 		return error;
 	}
@@ -5353,7 +5340,8 @@ static int sdebug_driver_probe(struct device * dev)
 		hpnt->max_id = scsi_debug_num_tgts + 1;
 	else
 		hpnt->max_id = scsi_debug_num_tgts;
-	hpnt->max_lun = SAM2_WLUN_REPORT_LUNS;	/* = scsi_debug_max_luns; */
+	/* = scsi_debug_max_luns; */
+	hpnt->max_lun = SCSI_W_LUN_REPORT_LUNS + 1;
 
 	host_prot = 0;
 
@@ -5385,7 +5373,7 @@ static int sdebug_driver_probe(struct device * dev)
 
 	scsi_host_set_prot(hpnt, host_prot);
 
-	printk(KERN_INFO "scsi_debug: host protection%s%s%s%s%s%s%s\n",
+	pr_info("host protection%s%s%s%s%s%s%s\n",
 	       (host_prot & SHOST_DIF_TYPE1_PROTECTION) ? " DIF1" : "",
 	       (host_prot & SHOST_DIF_TYPE2_PROTECTION) ? " DIF2" : "",
 	       (host_prot & SHOST_DIF_TYPE3_PROTECTION) ? " DIF3" : "",
@@ -5413,7 +5401,7 @@ static int sdebug_driver_probe(struct device * dev)
 
         error = scsi_add_host(hpnt, &sdbg_host->dev);
         if (error) {
-                printk(KERN_ERR "%s: scsi_add_host failed\n", __func__);
+		pr_err("scsi_add_host failed\n");
                 error = -ENODEV;
 		scsi_host_put(hpnt);
         } else
@@ -5430,8 +5418,7 @@ static int sdebug_driver_remove(struct device * dev)
 	sdbg_host = to_sdebug_host(dev);
 
 	if (!sdbg_host) {
-		printk(KERN_ERR "%s: Unable to locate host info\n",
-		       __func__);
+		pr_err("Unable to locate host info\n");
 		return -ENODEV;
 	}
 

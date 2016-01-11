@@ -881,9 +881,7 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
 	if (err)
 		goto out_err;
 
-	sg_init_table(sg, 1);
-	sg_set_buf(sg, &zeroconstant, 4);
-
+	sg_init_one(sg, &zeroconstant, 4);
 	err = crypto_hash_digest(&desc, sg, 4, Kseq);
 	if (err)
 		goto out_err;
@@ -951,9 +949,7 @@ krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
 	if (err)
 		goto out_err;
 
-	sg_init_table(sg, 1);
-	sg_set_buf(sg, zeroconstant, 4);
-
+	sg_init_one(sg, zeroconstant, 4);
 	err = crypto_hash_digest(&desc, sg, 4, Kcrypt);
 	if (err)
 		goto out_err;

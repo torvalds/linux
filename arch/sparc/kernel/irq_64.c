@@ -210,21 +210,21 @@ struct irq_handler_data {
 
 static inline unsigned int irq_data_to_handle(struct irq_data *data)
 {
-	struct irq_handler_data *ihd = data->handler_data;
+	struct irq_handler_data *ihd = irq_data_get_irq_handler_data(data);
 
 	return ihd->dev_handle;
 }
 
 static inline unsigned int irq_data_to_ino(struct irq_data *data)
 {
-	struct irq_handler_data *ihd = data->handler_data;
+	struct irq_handler_data *ihd = irq_data_get_irq_handler_data(data);
 
 	return ihd->dev_ino;
 }
 
 static inline unsigned long irq_data_to_sysino(struct irq_data *data)
 {
-	struct irq_handler_data *ihd = data->handler_data;
+	struct irq_handler_data *ihd = irq_data_get_irq_handler_data(data);
 
 	return ihd->sysino;
 }
@@ -370,13 +370,15 @@ static int irq_choose_cpu(unsigned int irq, const struct cpumask *affinity)
 
 static void sun4u_irq_enable(struct irq_data *data)
 {
-	struct irq_handler_data *handler_data = data->handler_data;
+	struct irq_handler_data *handler_data;
 
+	handler_data = irq_data_get_irq_handler_data(data);
 	if (likely(handler_data)) {
 		unsigned long cpuid, imap, val;
 		unsigned int tid;
 
-		cpuid = irq_choose_cpu(data->irq, data->affinity);
+		cpuid = irq_choose_cpu(data->irq,
+				       irq_data_get_affinity_mask(data));
 		imap = handler_data->imap;
 
 		tid = sun4u_compute_tid(imap, cpuid);
@@ -393,8 +395,9 @@ static void sun4u_irq_enable(struct irq_data *data)
 static int sun4u_set_affinity(struct irq_data *data,
 			       const struct cpumask *mask, bool force)
 {
-	struct irq_handler_data *handler_data = data->handler_data;
+	struct irq_handler_data *handler_data;
 
+	handler_data = irq_data_get_irq_handler_data(data);
 	if (likely(handler_data)) {
 		unsigned long cpuid, imap, val;
 		unsigned int tid;
@@ -438,15 +441,17 @@ static void sun4u_irq_disable(struct irq_data *data)
 
 static void sun4u_irq_eoi(struct irq_data *data)
 {
-	struct irq_handler_data *handler_data = data->handler_data;
+	struct irq_handler_data *handler_data;
 
+	handler_data = irq_data_get_irq_handler_data(data);
 	if (likely(handler_data))
 		upa_writeq(ICLR_IDLE, handler_data->iclr);
 }
 
 static void sun4v_irq_enable(struct irq_data *data)
 {
-	unsigned long cpuid = irq_choose_cpu(data->irq, data->affinity);
+	unsigned long cpuid = irq_choose_cpu(data->irq,
+					     irq_data_get_affinity_mask(data));
 	unsigned int ino = irq_data_to_sysino(data);
 	int err;
 
@@ -508,7 +513,7 @@ static void sun4v_virq_enable(struct irq_data *data)
 	unsigned long cpuid;
 	int err;
 
-	cpuid = irq_choose_cpu(data->irq, data->affinity);
+	cpuid = irq_choose_cpu(data->irq, irq_data_get_affinity_mask(data));
 
 	err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
 	if (err != HV_EOK)
@@ -881,8 +886,8 @@ void fixup_irqs(void)
 		if (desc->action && !irqd_is_per_cpu(data)) {
 			if (data->chip->irq_set_affinity)
 				data->chip->irq_set_affinity(data,
-							     data->affinity,
-							     false);
+					irq_data_get_affinity_mask(data),
+					false);
 		}
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}

@@ -18,6 +18,8 @@ source "drivers/pnp/Kconfig"
 
 source "drivers/block/Kconfig"
 
+source "drivers/nvme/Kconfig"
+
 # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
 
 source "drivers/misc/Kconfig"
@@ -41,6 +43,8 @@ source "drivers/macintosh/Kconfig"
 source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
+
+source "drivers/lightnvm/Kconfig"
 
 # input before char - char/joystick depends on it. As does USB.
 
@@ -176,10 +180,22 @@ source "drivers/powercap/Kconfig"
 
 source "drivers/mcb/Kconfig"
 
+source "drivers/perf/Kconfig"
+
 source "drivers/ras/Kconfig"
 
 source "drivers/thunderbolt/Kconfig"
 
 source "drivers/android/Kconfig"
+
+source "drivers/nvdimm/Kconfig"
+
+source "drivers/nvmem/Kconfig"
+
+source "drivers/hwtracing/stm/Kconfig"
+
+source "drivers/hwtracing/intel_th/Kconfig"
+
+source "drivers/fpga/Kconfig"
 
 endmenu

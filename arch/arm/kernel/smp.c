@@ -21,6 +21,7 @@
 #include <linux/cpu.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
+#include <linux/nmi.h>
 #include <linux/percpu.h>
 #include <linux/clockchips.h>
 #include <linux/completion.h>
@@ -72,13 +73,14 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
+	IPI_CPU_BACKTRACE = 15,
 };
 
 static DECLARE_COMPLETION(cpu_running);
 
 static struct smp_operations smp_ops;
 
-void __init smp_set_ops(struct smp_operations *ops)
+void __init smp_set_ops(const struct smp_operations *ops)
 {
 	if (ops)
 		smp_ops = *ops;
@@ -86,9 +88,11 @@ void __init smp_set_ops(struct smp_operations *ops)
 
 static unsigned long get_arch_pgd(pgd_t *pgd)
 {
-	phys_addr_t pgdir = virt_to_idmap(pgd);
-	BUG_ON(pgdir & ARCH_PGD_MASK);
-	return pgdir >> ARCH_PGD_SHIFT;
+#ifdef CONFIG_ARM_LPAE
+	return __phys_to_pfn(virt_to_phys(pgd));
+#else
+	return virt_to_phys(pgd);
+#endif
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *idle)
@@ -108,7 +112,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 #endif
 
 #ifdef CONFIG_MMU
-	secondary_data.pgdir = get_arch_pgd(idmap_pgd);
+	secondary_data.pgdir = virt_to_phys(idmap_pgd);
 	secondary_data.swapper_pg_dir = get_arch_pgd(swapper_pg_dir);
 #endif
 	sync_cache_w(&secondary_data);
@@ -173,13 +177,26 @@ static int platform_cpu_disable(unsigned int cpu)
 	if (smp_ops.cpu_disable)
 		return smp_ops.cpu_disable(cpu);
 
+	return 0;
+}
+
+int platform_can_hotplug_cpu(unsigned int cpu)
+{
+	/* cpu_die must be specified to support hotplug */
+	if (!smp_ops.cpu_die)
+		return 0;
+
+	if (smp_ops.cpu_can_disable)
+		return smp_ops.cpu_can_disable(cpu);
+
 	/*
 	 * By default, allow disabling all CPUs except the first one,
 	 * since this is special on a lot of platforms, e.g. because
 	 * of clock tick interrupts.
 	 */
-	return cpu == 0 ? -EPERM : 0;
+	return cpu != 0;
 }
+
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
@@ -251,7 +268,7 @@ void __cpu_die(unsigned int cpu)
  * of the other hotplug-cpu capable cores, so presumably coming
  * out of idle fixes this.
  */
-void __ref cpu_die(void)
+void arch_cpu_idle_dead(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -383,6 +400,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	local_irq_enable();
 	local_fiq_enable();
+	local_abt_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -576,7 +594,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	if ((unsigned)ipinr < NR_IPI) {
-		trace_ipi_entry(ipi_types[ipinr]);
+		trace_ipi_entry_rcuidle(ipi_types[ipinr]);
 		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
 	}
 
@@ -628,6 +646,12 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		irq_exit();
 		break;
 
+	case IPI_CPU_BACKTRACE:
+		irq_enter();
+		nmi_cpu_backtrace(regs);
+		irq_exit();
+		break;
+
 	default:
 		pr_crit("CPU%u: Unknown IPI message 0x%x\n",
 		        cpu, ipinr);
@@ -635,7 +659,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	}
 
 	if ((unsigned)ipinr < NR_IPI)
-		trace_ipi_exit(ipi_types[ipinr]);
+		trace_ipi_exit_rcuidle(ipi_types[ipinr]);
 	set_irq_regs(old_regs);
 }
 
@@ -722,3 +746,22 @@ static int __init register_cpufreq_notifier(void)
 core_initcall(register_cpufreq_notifier);
 
 #endif
+
+static void raise_nmi(cpumask_t *mask)
+{
+	/*
+	 * Generate the backtrace directly if we are running in a calling
+	 * context that is not preemptible by the backtrace IPI. Note
+	 * that nmi_cpu_backtrace() automatically removes the current cpu
+	 * from mask.
+	 */
+	if (cpumask_test_cpu(smp_processor_id(), mask) && irqs_disabled())
+		nmi_cpu_backtrace(NULL);
+
+	smp_cross_call(mask, IPI_CPU_BACKTRACE);
+}
+
+void arch_trigger_all_cpu_backtrace(bool include_self)
+{
+	nmi_trigger_all_cpu_backtrace(include_self, raise_nmi);
+}

@@ -1,4 +1,4 @@
 ccflags-y := -Iinclude/drm
-vgem-y := vgem_drv.o vgem_dma_buf.o
+vgem-y := vgem_drv.o
 
 obj-$(CONFIG_DRM_VGEM)	+= vgem.o

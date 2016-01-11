@@ -457,7 +457,6 @@ static struct i2c_driver jsa1212_driver = {
 	.driver = {
 		.name	= JSA1212_DRIVER_NAME,
 		.pm	= JSA1212_PM_OPS,
-		.owner	= THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(jsa1212_acpi_match),
 	},
 	.probe		= jsa1212_probe,

@@ -574,11 +574,14 @@ static inline void sctp_v6_map_v4(union sctp_addr *addr)
 /* Map v4 address to v4-mapped v6 address */
 static inline void sctp_v4_map_v6(union sctp_addr *addr)
 {
+	__be16 port;
+
+	port = addr->v4.sin_port;
+	addr->v6.sin6_addr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
+	addr->v6.sin6_port = port;
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_flowinfo = 0;
 	addr->v6.sin6_scope_id = 0;
-	addr->v6.sin6_port = addr->v4.sin_port;
-	addr->v6.sin6_addr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
 	addr->v6.sin6_addr.s6_addr32[0] = 0;
 	addr->v6.sin6_addr.s6_addr32[1] = 0;
 	addr->v6.sin6_addr.s6_addr32[2] = htonl(0x0000ffff);

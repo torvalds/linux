@@ -3,7 +3,6 @@
  * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
@@ -149,8 +148,10 @@ static int receive_chars_read(struct uart_port *port)
 			uart_handle_dcd_change(port, 1);
 		}
 
-		for (i = 0; i < bytes_read; i++)
-			uart_handle_sysrq_char(port, con_read_page[i]);
+		if (port->sysrq != 0 &&  *con_read_page) {
+			for (i = 0; i < bytes_read; i++)
+				uart_handle_sysrq_char(port, con_read_page[i]);
+		}
 
 		if (port->state == NULL)
 			continue;
@@ -169,17 +170,17 @@ struct sunhv_ops {
 	int (*receive_chars)(struct uart_port *port);
 };
 
-static struct sunhv_ops bychar_ops = {
+static const struct sunhv_ops bychar_ops = {
 	.transmit_chars = transmit_chars_putchar,
 	.receive_chars = receive_chars_getchar,
 };
 
-static struct sunhv_ops bywrite_ops = {
+static const struct sunhv_ops bywrite_ops = {
 	.transmit_chars = transmit_chars_write,
 	.receive_chars = receive_chars_read,
 };
 
-static struct sunhv_ops *sunhv_ops = &bychar_ops;
+static const struct sunhv_ops *sunhv_ops = &bychar_ops;
 
 static struct tty_port *receive_chars(struct uart_port *port)
 {
@@ -621,7 +622,6 @@ static const struct of_device_id hv_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, hv_match);
 
 static struct platform_driver hv_driver = {
 	.driver = {
@@ -639,16 +639,11 @@ static int __init sunhv_init(void)
 
 	return platform_driver_register(&hv_driver);
 }
+device_initcall(sunhv_init);
 
-static void __exit sunhv_exit(void)
-{
-	platform_driver_unregister(&hv_driver);
-}
-
-module_init(sunhv_init);
-module_exit(sunhv_exit);
-
+#if 0 /* ...def MODULE ; never supported as such */
 MODULE_AUTHOR("David S. Miller");
 MODULE_DESCRIPTION("SUN4V Hypervisor console driver");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");
+#endif

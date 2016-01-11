@@ -35,7 +35,7 @@
 #define HCIUARTGETFLAGS		_IOR('U', 204, int)
 
 /* UART protocols */
-#define HCI_UART_MAX_PROTO	8
+#define HCI_UART_MAX_PROTO	9
 
 #define HCI_UART_H4	0
 #define HCI_UART_BCSP	1
@@ -45,6 +45,7 @@
 #define HCI_UART_ATH3K	5
 #define HCI_UART_INTEL	6
 #define HCI_UART_BCM	7
+#define HCI_UART_QCA	8
 
 #define HCI_UART_RAW_DEVICE	0
 #define HCI_UART_RESET_ON_INIT	1
@@ -58,10 +59,14 @@ struct hci_uart;
 struct hci_uart_proto {
 	unsigned int id;
 	const char *name;
+	unsigned int manufacturer;
+	unsigned int init_speed;
+	unsigned int oper_speed;
 	int (*open)(struct hci_uart *hu);
 	int (*close)(struct hci_uart *hu);
 	int (*flush)(struct hci_uart *hu);
 	int (*setup)(struct hci_uart *hu);
+	int (*set_baudrate)(struct hci_uart *hu, unsigned int speed);
 	int (*recv)(struct hci_uart *hu, const void *data, int len);
 	int (*enqueue)(struct hci_uart *hu, struct sk_buff *skb);
 	struct sk_buff *(*dequeue)(struct hci_uart *hu);
@@ -81,7 +86,9 @@ struct hci_uart {
 
 	struct sk_buff		*tx_skb;
 	unsigned long		tx_state;
-	spinlock_t		rx_lock;
+
+	unsigned int init_speed;
+	unsigned int oper_speed;
 };
 
 /* HCI_UART proto flag bits */
@@ -96,6 +103,11 @@ int hci_uart_register_proto(const struct hci_uart_proto *p);
 int hci_uart_unregister_proto(const struct hci_uart_proto *p);
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
+void hci_uart_init_tty(struct hci_uart *hu);
+void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed);
+void hci_uart_set_flow_control(struct hci_uart *hu, bool enable);
+void hci_uart_set_speeds(struct hci_uart *hu, unsigned int init_speed,
+			 unsigned int oper_speed);
 
 #ifdef CONFIG_BT_HCIUART_H4
 int h4_init(void);
@@ -156,7 +168,17 @@ int h5_init(void);
 int h5_deinit(void);
 #endif
 
+#ifdef CONFIG_BT_HCIUART_INTEL
+int intel_init(void);
+int intel_deinit(void);
+#endif
+
 #ifdef CONFIG_BT_HCIUART_BCM
 int bcm_init(void);
 int bcm_deinit(void);
+#endif
+
+#ifdef CONFIG_BT_HCIUART_QCA
+int qca_init(void);
+int qca_deinit(void);
 #endif

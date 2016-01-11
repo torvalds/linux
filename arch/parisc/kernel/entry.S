@@ -45,7 +45,7 @@
 	.level 2.0
 #endif
 
-	.import         pa_dbit_lock,data
+	.import		pa_tlb_lock,data
 
 	/* space_to_prot macro creates a prot id from a space id */
 
@@ -420,8 +420,8 @@
 	SHLREG		%r9,PxD_VALUE_SHIFT,\pmd
 	extru		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
-	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd
-	LDREG		%r0(\pmd),\pte		/* pmd is now pte */
+	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is now pte */
+	LDREG		%r0(\pmd),\pte
 	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
 	.endm
 
@@ -453,74 +453,87 @@
 	L2_ptep		\pgd,\pte,\index,\va,\fault
 	.endm
 
-	/* Acquire pa_dbit_lock lock. */
-	.macro		dbit_lock	spc,tmp,tmp1
+	/* Acquire pa_tlb_lock lock and recheck page is still present. */
+	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
 	cmpib,COND(=),n	0,\spc,2f
-	load32		PA(pa_dbit_lock),\tmp
+	load32		PA(pa_tlb_lock),\tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
+	LDREG		0(\ptp),\pte
+	bb,<,n		\pte,_PAGE_PRESENT_BIT,2f
+	b		\fault
+	stw		 \spc,0(\tmp)
 2:
 #endif
 	.endm
 
-	/* Release pa_dbit_lock lock without reloading lock address. */
-	.macro		dbit_unlock0	spc,tmp
+	/* Release pa_tlb_lock lock without reloading lock address. */
+	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
 	or,COND(=)	%r0,\spc,%r0
 	stw             \spc,0(\tmp)
 #endif
 	.endm
 
-	/* Release pa_dbit_lock lock. */
-	.macro		dbit_unlock1	spc,tmp
+	/* Release pa_tlb_lock lock. */
+	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load32		PA(pa_dbit_lock),\tmp
-	dbit_unlock0	\spc,\tmp
+	load32		PA(pa_tlb_lock),\tmp
+	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
 
 	/* Set the _PAGE_ACCESSED bit of the PTE.  Be clever and
 	 * don't needlessly dirty the cache line if it was already set */
-	.macro		update_ptep	spc,ptep,pte,tmp,tmp1
-#ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
-	LDREG		0(\ptep),\pte
-#endif
+	.macro		update_accessed	ptp,pte,tmp,tmp1
 	ldi		_PAGE_ACCESSED,\tmp1
 	or		\tmp1,\pte,\tmp
 	and,COND(<>)	\tmp1,\pte,%r0
-	STREG		\tmp,0(\ptep)
+	STREG		\tmp,0(\ptp)
 	.endm
 
 	/* Set the dirty bit (and accessed bit).  No need to be
 	 * clever, this is only used from the dirty fault */
-	.macro		update_dirty	spc,ptep,pte,tmp
-#ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
-	LDREG		0(\ptep),\pte
-#endif
+	.macro		update_dirty	ptp,pte,tmp
 	ldi		_PAGE_ACCESSED|_PAGE_DIRTY,\tmp
 	or		\tmp,\pte,\pte
-	STREG		\pte,0(\ptep)
+	STREG		\pte,0(\ptp)
 	.endm
 
+	/* We have (depending on the page size):
+	 * - 38 to 52-bit Physical Page Number
+	 * - 12 to 26-bit page offset
+	 */
 	/* bitshift difference between a PFN (based on kernel's PAGE_SIZE)
 	 * to a CPU TLB 4k PFN (4k => 12 bits to shift) */
-	#define PAGE_ADD_SHIFT  (PAGE_SHIFT-12)
+	#define PAGE_ADD_SHIFT		(PAGE_SHIFT-12)
+	#define PAGE_ADD_HUGE_SHIFT	(REAL_HPAGE_SHIFT-12)
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	.macro		convert_for_tlb_insert20 pte
+	.macro		convert_for_tlb_insert20 pte,tmp
+#ifdef CONFIG_HUGETLB_PAGE
+	copy		\pte,\tmp
+	extrd,u		\tmp,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
+				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
+
+	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_SHIFT,\pte
+	extrd,u,*=	\tmp,_PAGE_HPAGE_BIT+32,1,%r0
+	depdi		_HUGE_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_HUGE_SHIFT,\pte
+#else /* Huge pages disabled */
 	extrd,u		\pte,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
 				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
 	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
 				(63-58)+PAGE_ADD_SHIFT,\pte
+#endif
 	.endm
 
 	/* Convert the pte and prot to tlb insertion values.  How
 	 * this happens is quite subtle, read below */
-	.macro		make_insert_tlb	spc,pte,prot
+	.macro		make_insert_tlb	spc,pte,prot,tmp
 	space_to_prot   \spc \prot        /* create prot id from space */
 	/* The following is the real subtlety.  This is depositing
 	 * T <-> _PAGE_REFTRAP
@@ -557,7 +570,7 @@
 	depdi		1,12,1,\prot
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	convert_for_tlb_insert20 \pte
+	convert_for_tlb_insert20 \pte \tmp
 	.endm
 
 	/* Identical macro to make_insert_tlb above, except it
@@ -650,17 +663,12 @@
 
 
 	/*
-	 * Align fault_vector_20 on 4K boundary so that both
-	 * fault_vector_11 and fault_vector_20 are on the
-	 * same page. This is only necessary as long as we
-	 * write protect the kernel text, which we may stop
-	 * doing once we use large page translations to cover
-	 * the static part of the kernel address space.
+	 * Fault_vectors are architecturally required to be aligned on a 2K
+	 * boundary
 	 */
 
 	.text
-
-	.align 4096
+	.align 2048
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */
@@ -1148,14 +1156,14 @@ dtlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,dtlb_check_alias_20w
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_20w
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 	
 	idtlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1174,14 +1182,14 @@ nadtlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,nadtlb_check_alias_20w
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_20w
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	idtlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1202,20 +1210,20 @@ dtlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,dtlb_check_alias_11
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_11
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	idtlba		pte,(%sr1,va)
 	idtlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1235,21 +1243,20 @@ nadtlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_11
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_11
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	idtlba		pte,(%sr1,va)
 	idtlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1269,16 +1276,16 @@ dtlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,dtlb_check_alias_20
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_20
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0
+	f_extend	pte,t1
 
 	idtlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1297,16 +1304,16 @@ nadtlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_20
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_20
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0
+	f_extend	pte,t1
 	
-        idtlbt          pte,prot
-	dbit_unlock1	spc,t0
+	idtlbt		pte,prot
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1406,14 +1413,14 @@ itlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,itlb_fault
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 	
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1430,14 +1437,14 @@ naitlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,naitlb_check_alias_20w
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_20w
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1458,20 +1465,20 @@ itlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,itlb_fault
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	iitlba		pte,(%sr1,va)
 	iitlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1482,20 +1489,20 @@ naitlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_11
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_11
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	iitlba		pte,(%sr1,va)
 	iitlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1516,16 +1523,16 @@ itlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,itlb_fault
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0	
+	f_extend	pte,t1
 
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1536,16 +1543,16 @@ naitlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_20
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_20
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0
+	f_extend	pte,t1
 
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1568,14 +1575,14 @@ dbit_trap_20w:
 
 	L3_ptep		ptp,pte,t0,va,dbit_fault
 
-	dbit_lock	spc,t0,t1
-	update_dirty	spc,ptp,pte,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
+	update_dirty	ptp,pte,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 		
 	idtlbt          pte,prot
-	dbit_unlock0	spc,t0
 
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #else
@@ -1588,8 +1595,8 @@ dbit_trap_11:
 
 	L2_ptep		ptp,pte,t0,va,dbit_fault
 
-	dbit_lock	spc,t0,t1
-	update_dirty	spc,ptp,pte,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
+	update_dirty	ptp,pte,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1600,8 +1607,8 @@ dbit_trap_11:
 	idtlbp		prot,(%sr1,va)
 
 	mtsp            t1, %sr1     /* Restore sr1 */
-	dbit_unlock0	spc,t0
 
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 
@@ -1612,16 +1619,16 @@ dbit_trap_20:
 
 	L2_ptep		ptp,pte,t0,va,dbit_fault
 
-	dbit_lock	spc,t0,t1
-	update_dirty	spc,ptp,pte,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
+	update_dirty	ptp,pte,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 	
-        idtlbt          pte,prot
-	dbit_unlock0	spc,t0
+	idtlbt		pte,prot
 
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #endif

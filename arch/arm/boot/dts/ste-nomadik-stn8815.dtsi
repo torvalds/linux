@@ -21,6 +21,13 @@
 		interrupts = <30>;
 		cache-unified;
 		cache-level = <2>;
+		cache-size = <131072>;
+		cache-sets = <512>;
+		cache-line-size = <32>;
+		/* At full speed latency must be >=2 */
+		arm,tag-latency = <8>;
+		arm,data-latency = <8 8>;
+		arm,dirty-latency = <8>;
 	};
 
 	mtu0: mtu@101e2000 {
@@ -52,6 +59,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <0>;
+		gpio-ranges = <&pinctrl 0 0 32>;
 		clocks = <&pclk>;
 	};
 
@@ -65,6 +73,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <1>;
+		gpio-ranges = <&pinctrl 0 32 32>;
 		clocks = <&pclk>;
 	};
 
@@ -78,12 +87,14 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <2>;
+		gpio-ranges = <&pinctrl 0 64 32>;
 		clocks = <&pclk>;
 	};
 
 	gpio3: gpio@101e7000 {
 		compatible = "st,nomadik-gpio";
 		reg =  <0x101e7000 0x80>;
+		ngpio = <28>;
 		interrupt-parent = <&vica>;
 		interrupts = <9>;
 		interrupt-controller;
@@ -91,20 +102,14 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <3>;
+		gpio-ranges = <&pinctrl 0 96 28>;
 		clocks = <&pclk>;
 	};
 
-	pinctrl {
+	pinctrl: pinctrl {
 		compatible = "stericsson,stn8815-pinctrl";
+		nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>;
 		/* Pin configurations */
-		uart0 {
-			uart0_default_mux: uart0_mux {
-				u0_default_mux {
-					function = "u0";
-					groups = "u0_a_1";
-				};
-			};
-		};
 		uart1 {
 			uart1_default_mux: uart1_mux {
 				u1_default_mux {
@@ -721,10 +726,6 @@
 			   compatible = "st,stw5095";
 			   reg = <0x1a>;
 		};
-		lis3lv02dl@1d {
-			   compatible = "st,lis3lv02dl";
-			   reg = <0x1d>;
-		};
 	};
 
 	amba {
@@ -754,8 +755,7 @@
 			interrupts = <12>;
 			clocks = <&uart0clk>, <&pclkuart0>;
 			clock-names = "uartclk", "apb_pclk";
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_default_mux>;
+			status = "disabled";
 		};
 
 		uart1: uart@101fb000 {

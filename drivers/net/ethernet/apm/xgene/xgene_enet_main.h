@@ -35,12 +35,17 @@
 #include <linux/if_vlan.h>
 #include <linux/phy.h>
 #include "xgene_enet_hw.h"
+#include "xgene_enet_ring2.h"
 
 #define XGENE_DRV_VERSION	"v1.0"
 #define XGENE_ENET_MAX_MTU	1536
 #define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
+#define BUFLEN_16K	(16 * 1024)
 #define NUM_PKT_BUF	64
 #define NUM_BUFPOOL	32
+#define MAX_EXP_BUFFS	256
+#define XGENE_ENET_MSS	1448
+#define XGENE_MIN_ENET_FRAME_SIZE	60
 
 #define START_CPU_BUFNUM_0	0
 #define START_ETH_BUFNUM_0	2
@@ -51,11 +56,30 @@
 #define START_BP_BUFNUM_1	0x2A
 #define START_RING_NUM_1	264
 
+#define XG_START_CPU_BUFNUM_1	12
+#define XG_START_ETH_BUFNUM_1	2
+#define XG_START_BP_BUFNUM_1	0x22
+#define XG_START_RING_NUM_1	264
+
+#define X2_START_CPU_BUFNUM_0	0
+#define X2_START_ETH_BUFNUM_0	0
+#define X2_START_BP_BUFNUM_0	0x20
+#define X2_START_RING_NUM_0	0
+#define X2_START_CPU_BUFNUM_1	0xc
+#define X2_START_ETH_BUFNUM_1	0
+#define X2_START_BP_BUFNUM_1	0x20
+#define X2_START_RING_NUM_1	256
+
 #define IRQ_ID_SIZE		16
 #define XGENE_MAX_TXC_RINGS	1
 
 #define PHY_POLL_LINK_ON	(10 * HZ)
 #define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
+
+enum xgene_enet_id {
+	XGENE_ENET1 = 1,
+	XGENE_ENET2
+};
 
 /* software context of a descriptor ring */
 struct xgene_enet_desc_ring {
@@ -64,18 +88,22 @@ struct xgene_enet_desc_ring {
 	u16 num;
 	u16 head;
 	u16 tail;
+	u16 exp_buf_tail;
 	u16 slots;
 	u16 irq;
 	char irq_name[IRQ_ID_SIZE];
 	u32 size;
-	u32 state[NUM_RING_CONFIG];
+	u32 state[X2_NUM_RING_CONFIG];
 	void __iomem *cmd_base;
 	void __iomem *cmd;
 	dma_addr_t dma;
+	dma_addr_t irq_mbox_dma;
+	void *irq_mbox_addr;
 	u16 dst_ring_num;
 	u8 nbufpool;
 	struct sk_buff *(*rx_skb);
 	struct sk_buff *(*cp_skb);
+	dma_addr_t *frag_dma_addr;
 	enum xgene_enet_ring_cfgsize cfgsize;
 	struct xgene_enet_desc_ring *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool;
@@ -85,6 +113,7 @@ struct xgene_enet_desc_ring {
 		struct xgene_enet_raw_desc *raw_desc;
 		struct xgene_enet_raw_desc16 *raw_desc16;
 	};
+	__le64 *exp_bufs;
 };
 
 struct xgene_mac_ops {
@@ -95,6 +124,7 @@ struct xgene_mac_ops {
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*set_mss)(struct xgene_enet_pdata *pdata);
 	void (*link_state)(struct work_struct *work);
 };
 
@@ -105,6 +135,15 @@ struct xgene_port_ops {
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
 };
 
+struct xgene_ring_ops {
+	u8 num_ring_config;
+	u8 num_ring_id_shift;
+	struct xgene_enet_desc_ring * (*setup)(struct xgene_enet_desc_ring *);
+	void (*clear)(struct xgene_enet_desc_ring *);
+	void (*wr_cmd)(struct xgene_enet_desc_ring *, int);
+	u32 (*len)(struct xgene_enet_desc_ring *);
+};
+
 /* ethernet private data */
 struct xgene_enet_pdata {
 	struct net_device *ndev;
@@ -113,13 +152,14 @@ struct xgene_enet_pdata {
 	int phy_speed;
 	struct clk *clk;
 	struct platform_device *pdev;
+	enum xgene_enet_id enet_id;
 	struct xgene_enet_desc_ring *tx_ring;
 	struct xgene_enet_desc_ring *rx_ring;
+	u16 tx_level;
+	u16 txc_level;
 	char *dev_name;
 	u32 rx_buff_cnt;
 	u32 tx_qcnt_hi;
-	u32 cp_qcnt_hi;
-	u32 cp_qcnt_low;
 	u32 rx_irq;
 	u32 txc_irq;
 	u8 cq_cnt;
@@ -136,12 +176,16 @@ struct xgene_enet_pdata {
 	struct rtnl_link_stats64 stats;
 	struct xgene_mac_ops *mac_ops;
 	struct xgene_port_ops *port_ops;
+	struct xgene_ring_ops *ring_ops;
 	struct delayed_work link_work;
 	u32 port_id;
 	u8 cpu_bufnum;
 	u8 eth_bufnum;
 	u8 bp_bufnum;
 	u16 ring_num;
+	u32 mss;
+	u8 tx_delay;
+	u8 rx_delay;
 };
 
 struct xgene_indirect_ctl {
@@ -175,6 +219,9 @@ static inline u64 xgene_enet_get_field_value(int pos, int len, u64 src)
 
 #define GET_VAL(field, src) \
 		xgene_enet_get_field_value(field ## _POS, field ## _LEN, src)
+
+#define GET_BIT(field, src) \
+		xgene_enet_get_field_value(field ## _POS, 1, src)
 
 static inline struct device *ndev_to_dev(struct net_device *ndev)
 {

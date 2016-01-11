@@ -835,7 +835,8 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 
-	if (qib_wc_pat)
+	/* We used PAT if wc_cookie == 0 */
+	if (!dd->wc_cookie)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	ret = io_remap_pfn_range(vma, vma->vm_start, phys >> PAGE_SHIFT,
@@ -907,7 +908,7 @@ static int qib_file_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct qib_file_vm_ops = {
+static const struct vm_operations_struct qib_file_vm_ops = {
 	.fault = qib_file_vma_fault,
 };
 

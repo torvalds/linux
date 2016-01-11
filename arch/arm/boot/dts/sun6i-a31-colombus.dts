@@ -18,11 +18,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -58,79 +53,117 @@
 	model = "WITS A31 Colombus Evaluation Board";
 	compatible = "wits,colombus", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 
-	soc@01c00000 {
-		mmc0: mmc@01c0f000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
-			vmmc-supply = <&reg_vcc3v0>;
-			bus-width = <4>;
-			cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
-			cd-inverted;
-			status = "okay";
-		};
-
-		usbphy: phy@01c19400 {
-			usb2_vbus-supply = <&reg_usb2_vbus>;
-			status = "okay";
-		};
-
-		ehci1: usb@01c1b000 {
-			status = "okay";
-		};
-
-		pio: pinctrl@01c20800 {
-			mmc0_pins_a: mmc0@0 {
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-			};
-
-			mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
-				allwinner,pins = "PA8";
-				allwinner,function = "gpio_in";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-			};
-
-			usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
-				allwinner,pins = "PH24";
-				allwinner,function = "gpio_out";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-		};
-
-		uart0: serial@01c28000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins_a>;
-			status = "okay";
-		};
-
-		i2c0: i2c@01c2ac00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
-			status = "fail";
-		};
-
-		i2c1: i2c@01c2b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
-
-		i2c2: i2c@01c2b400 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c2_pins_a>;
-			status = "okay";
-		};
-	};
-
-	reg_usb2_vbus: usb2-vbus {
+	i2c_lcd: i2c@0 {
+		/* The lcd panel i2c interface is hooked up via gpios */
+		compatible = "i2c-gpio";
 		pinctrl-names = "default";
-		pinctrl-0 = <&usb2_vbus_pin_colombus>;
-		gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+		pinctrl-0 = <&i2c_lcd_pins>;
+		gpios = <&pio 0 23 GPIO_ACTIVE_HIGH>, /* PA23, sda */
+			<&pio 0 24 GPIO_ACTIVE_HIGH>; /* PA24, scl */
+		i2c-gpio,delay-us = <5>;
 	};
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&gmac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	phy = <&phy1>;
+	phy-mode = "rgmii";
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	status = "fail";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
+	status = "okay";
+
+	mma8452: mma8452@1d {
+		compatible = "fsl,mma8452";
+		reg = <0x1d>;
+		interrupt-parent = <&pio>;
+		interrupts = <0 9 IRQ_TYPE_LEVEL_LOW>; /* PA9 */
+	};
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
+	vmmc-supply = <&reg_vcc3v0>;
+	bus-width = <4>;
+	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
+	cd-inverted;
+	status = "okay";
+};
+
+&mmc0_pins_a {
+	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+};
+
+&pio {
+	mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
+		allwinner,pins = "PA8";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+
+	usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
+		allwinner,pins = "PH24";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	i2c_lcd_pins: i2c_lcd_pin@0 {
+		allwinner,pins = "PA23", "PA24";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+};
+
+&reg_usb2_vbus {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_vbus_pin_colombus>;
+	gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usbphy {
+	usb2_vbus-supply = <&reg_usb2_vbus>;
+	status = "okay";
 };

@@ -40,6 +40,7 @@
 #define HSA_CAP_WATCH_POINTS_TOTALBITS_MASK	0x00000f00
 #define HSA_CAP_WATCH_POINTS_TOTALBITS_SHIFT	8
 #define HSA_CAP_RESERVED			0xfffff000
+#define HSA_CAP_DOORBELL_PACKET_TYPE		0x00001000
 
 struct kfd_node_properties {
 	uint32_t cpu_cores_count;

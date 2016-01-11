@@ -1,0 +1,60 @@
+* Qualcomm Technologies APQ8016 SBC ASoC machine driver
+
+This node models the Qualcomm Technologies APQ8016 SBC ASoC machine driver
+
+Required properties:
+
+- compatible		: "qcom,apq8016-sbc-sndcard"
+
+- pinctrl-N		: One property must exist for each entry in
+			  pinctrl-names.  See ../pinctrl/pinctrl-bindings.txt
+			  for details of the property values.
+- pinctrl-names		: Must contain a "default" entry.
+- reg			: Must contain an address for each entry in reg-names.
+- reg-names		: A list which must include the following entries:
+				* "mic-iomux"
+				* "spkr-iomux"
+- qcom,model		: Name of the sound card.
+
+Dai-link subnode properties and subnodes:
+
+Required dai-link subnodes:
+
+- cpu					: CPU   sub-node
+- codec					: CODEC sub-node
+
+Required CPU/CODEC subnodes properties:
+
+-link-name		: Name of the dai link.
+-sound-dai		: phandle and port of CPU/CODEC
+-capture-dai		: phandle and port of CPU/CODEC
+
+Example:
+
+sound: sound {
+	compatible = "qcom,apq8016-sbc-sndcard";
+	reg = <0x07702000 0x4>, <0x07702004 0x4>;
+	reg-names = "mic-iomux", "spkr-iomux";
+	qcom,model = "DB410c";
+
+	/* I2S - Internal codec */
+	internal-dai-link@0 {
+		cpu { /* PRIMARY */
+			sound-dai = <&lpass MI2S_PRIMARY>;
+		};
+		codec {
+			sound-dai = <&wcd_codec 0>;
+		};
+	};
+
+	/* External Primary or External Secondary -ADV7533 HDMI */
+	external-dai-link@0 {
+		link-name = "ADV7533";
+		cpu { /* QUAT */
+			sound-dai = <&lpass MI2S_QUATERNARY>;
+		};
+		codec {
+			sound-dai = <&adv_bridge 0>;
+		};
+	};
+};

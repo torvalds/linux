@@ -9,6 +9,9 @@
  */
 
 / {
+	compatible = "ti,k2l", "ti,keystone";
+	model = "Texas Instruments Keystone 2 Lamarr SoC";
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -29,7 +32,6 @@
 	};
 
 	soc {
-
 		/include/ "k2l-clocks.dtsi"
 
 		uart2: serial@02348400 {
@@ -79,6 +81,18 @@
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x24c>;
 		};
+
+		mdio: mdio@26200f00 {
+			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x26200f00 0x100>;
+			status = "disabled";
+			clocks = <&clkcpgmac>;
+			clock-names = "fck";
+			bus_freq	= <2500000>;
+		};
+		/include/ "k2l-netcp.dtsi"
 	};
 };
 
@@ -94,8 +108,4 @@
        ti,davinci-spi-num-cs = <5>;
        /* Pin muxed. Enabled and configured by Bootloader */
        status = "disabled";
-};
-
-&mdio {
-	reg = <0x26200f00 0x100>;
 };

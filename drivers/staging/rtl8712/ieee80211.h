@@ -120,12 +120,13 @@ struct ieee_param {
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
-   6.2.1.1.2.
-
-   The figure in section 7.1.2 suggests a body size of up to 2312
-   bytes is allowed, which is a bit confusing, I suspect this
-   represents the 2304 bytes of real data, plus a possible 8 bytes of
-   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+ * 6.2.1.1.2.
+ *
+ * The figure in section 7.1.2 suggests a body size of up to 2312
+ * bytes is allowed, which is a bit confusing, I suspect this
+ * represents the 2304 bytes of real data, plus a possible 8 bytes of
+ * WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro)
+ */
 
 #define IEEE80211_HLEN			30
 #define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
@@ -314,35 +315,6 @@ struct ieee80211_snap_hdr {
 #define WLAN_CAPABILITY_CHANNEL_AGILITY (1<<7)
 #define WLAN_CAPABILITY_SHORT_SLOT (1<<10)
 
-/* Status codes */
-#define WLAN_STATUS_SUCCESS 0
-#define WLAN_STATUS_UNSPECIFIED_FAILURE 1
-#define WLAN_STATUS_CAPS_UNSUPPORTED 10
-#define WLAN_STATUS_REASSOC_NO_ASSOC 11
-#define WLAN_STATUS_ASSOC_DENIED_UNSPEC 12
-#define WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG 13
-#define WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION 14
-#define WLAN_STATUS_CHALLENGE_FAIL 15
-#define WLAN_STATUS_AUTH_TIMEOUT 16
-#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
-#define WLAN_STATUS_ASSOC_DENIED_RATES 18
-/* 802.11b */
-#define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
-#define WLAN_STATUS_ASSOC_DENIED_NOPBCC 20
-#define WLAN_STATUS_ASSOC_DENIED_NOAGILITY 21
-
-/* Reason codes */
-#define WLAN_REASON_UNSPECIFIED 1
-#define WLAN_REASON_PREV_AUTH_NOT_VALID 2
-#define WLAN_REASON_DEAUTH_LEAVING 3
-#define WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY 4
-#define WLAN_REASON_DISASSOC_AP_BUSY 5
-#define WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA 6
-#define WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA 7
-#define WLAN_REASON_DISASSOC_STA_HAS_LEFT 8
-#define WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH 9
-
-
 /* Information Element IDs */
 #define WLAN_EID_SSID 0
 #define WLAN_EID_SUPP_RATES 1
@@ -434,7 +406,8 @@ struct ieee80211_snap_hdr {
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
+ *       any adverse affects.
+ */
 struct ieee80211_rx_stats {
 	s8 rssi;
 	u8 signal;
@@ -449,7 +422,8 @@ struct ieee80211_rx_stats {
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
  * concurrent frames, but it should be noted that each entry can consume about
- * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
+ * 2 kB of RAM and increasing cache size will slow down frame reassembly.
+ */
 #define IEEE80211_FRAG_CACHE_LEN 4
 
 struct ieee80211_frag_entry {
@@ -539,19 +513,19 @@ struct ieee80211_security {
 } __packed;
 
 /*
-
- 802.11 data frame from AP
-
-      ,-------------------------------------------------------------------.
-Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
-      |------|------|---------|---------|---------|------|---------|------|
-Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
-      |      | tion | (BSSID) |         |         | ence |  data   |      |
-      `-------------------------------------------------------------------'
-
-Total: 28-2340 bytes
-
-*/
+ *
+ * 802.11 data frame from AP
+ *
+ *       ,-------------------------------------------------------------------.
+ * Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
+ *       |------|------|---------|---------|---------|------|---------|------|
+ * Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
+ *       |      | tion | (BSSID) |         |         | ence |  data   |      |
+ *       `-------------------------------------------------------------------'
+ *
+ * Total: 28-2340 bytes
+ *
+ */
 
 struct ieee80211_header_data {
 	u16 frame_ctl;
@@ -657,7 +631,8 @@ struct ieee80211_txb {
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
  * only use 8, and then use extended rates for the remaining supported
  * rates.  Other APs, however, stick all of their supported rates on the
- * main rates information element... */
+ * main rates information element...
+ */
 #define MAX_RATES_LENGTH                  ((u8)12)
 #define MAX_RATES_EX_LENGTH               ((u8)16)
 #define MAX_NETWORK_COUNT                  128

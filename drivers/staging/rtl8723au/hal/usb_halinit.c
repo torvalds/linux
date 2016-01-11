@@ -360,7 +360,7 @@ static void _InitWMACSetting(struct rtw_adapter *Adapter)
 	/*  2010.09.08 hpfan */
 	/*  Since ADF is removed from RCR, ps-poll will not be indicate
 	    to driver, */
-	/*  RxFilterMap should mask ps-poll to gurantee AP mode can
+	/*  RxFilterMap should mask ps-poll to guarantee AP mode can
 	    rx ps-poll. */
 	/* value16 = 0x400; */
 	/* rtl8723au_write16(Adapter, REG_RXFLTMAP1, value16); */
@@ -834,12 +834,11 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 			rtl8723au_read32(Adapter, rOFDM0_TRxPathEnable);
 		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
 			rtl8723au_read32(Adapter, rFPGA0_RFMOD);
-		if (pHalData->rf_type ==  RF_2T2R) {
+		if (pHalData->rf_type ==  RF_2T2R)
 			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
 				     0x380038, 0);
-		} else if (pHalData->rf_type ==  RF_1T1R) {
+		else if (pHalData->rf_type ==  RF_1T1R)
 			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, 0x38, 0);
-		}
 		PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
 

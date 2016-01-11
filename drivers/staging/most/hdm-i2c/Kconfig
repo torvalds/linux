@@ -1,0 +1,12 @@
+#
+# MOST I2C configuration
+#
+
+config HDM_I2C
+	tristate "I2C HDM"
+	depends on I2C
+	---help---
+	  Say Y here if you want to connect via I2C to network tranceiver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hdm_i2c.

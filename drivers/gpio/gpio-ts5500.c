@@ -440,7 +440,7 @@ static int ts5500_dio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id ts5500_dio_ids[] = {
+static const struct platform_device_id ts5500_dio_ids[] = {
 	{ "ts5500-dio1", TS5500_DIO1 },
 	{ "ts5500-dio2", TS5500_DIO2 },
 	{ "ts5500-dio-lcd", TS5500_LCD },

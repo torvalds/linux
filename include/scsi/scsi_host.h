@@ -406,11 +406,6 @@ struct scsi_host_template {
 	int tag_alloc_policy;
 
 	/*
-	 * Let the block layer assigns tags to all commands.
-	 */
-	unsigned use_blk_tags:1;
-
-	/*
 	 * Track QUEUE_FULL events and reduce queue depth on demand.
 	 */
 	unsigned track_queue_depth:1;
@@ -672,6 +667,9 @@ struct Scsi_Host {
 
 	unsigned use_blk_mq:1;
 	unsigned use_cmd_list:1;
+
+	/* Host responded with short (<36 bytes) INQUIRY result */
+	unsigned short_inquiry:1;
 
 	/*
 	 * Optional work queue to be utilized by the transport

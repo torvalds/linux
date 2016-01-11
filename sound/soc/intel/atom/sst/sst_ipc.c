@@ -352,10 +352,9 @@ void sst_process_reply_mrfld(struct intel_sst_drv *sst_drv_ctx,
 	 * copy from mailbox
 	 **/
 	if (msg_high.part.large) {
-		data = kzalloc(msg_low, GFP_KERNEL);
+		data = kmemdup((void *)msg->mailbox_data, msg_low, GFP_KERNEL);
 		if (!data)
 			return;
-		memcpy(data, (void *) msg->mailbox_data, msg_low);
 		/* Copy command id so that we can use to put sst to reset */
 		dsp_hdr = (struct ipc_dsp_hdr *)data;
 		cmd_id = dsp_hdr->cmd_id;

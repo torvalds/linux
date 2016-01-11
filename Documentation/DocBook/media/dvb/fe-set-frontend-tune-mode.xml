@@ -1,0 +1,64 @@
+<refentry id="FE_SET_FRONTEND_TUNE_MODE">
+  <refmeta>
+    <refentrytitle>ioctl FE_SET_FRONTEND_TUNE_MODE</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>FE_SET_FRONTEND_TUNE_MODE</refname>
+    <refpurpose>Allow setting tuner mode flags to the frontend.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>unsigned int <parameter>flags</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_SET_FRONTEND_TUNE_MODE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>flags</parameter></term>
+	<listitem>
+	    <para>Valid flags:</para>
+	    <itemizedlist>
+		<listitem><para>0 - normal tune mode</para></listitem>
+		<listitem><para>FE_TUNE_MODE_ONESHOT - When set, this flag will
+		    disable any zigzagging or other "normal" tuning behaviour.
+		    Additionally, there will be no automatic monitoring of the
+		    lock status, and hence no frontend events will be
+		    generated. If a frontend device is closed, this flag will
+		    be automatically turned off when the device is reopened
+		    read-write.</para></listitem>
+	    </itemizedlist>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Allow setting tuner mode flags to the frontend, between 0 (normal)
+	or FE_TUNE_MODE_ONESHOT mode</para>
+&return-value-dvb;
+</refsect1>
+</refentry>

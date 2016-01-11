@@ -5,6 +5,7 @@
  * Author:  Maxime Coquelin <maxime.coquelin@st.com> for ST-Microelectronics.
  * License terms:  GNU General Public License (GPL), version 2  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -44,7 +45,7 @@ static int flexgen_enable(struct clk_hw *hw)
 
 	clk_gate_ops.enable(fgate_hw);
 
-	pr_debug("%s: flexgen output enabled\n", __clk_get_name(hw->clk));
+	pr_debug("%s: flexgen output enabled\n", clk_hw_get_name(hw));
 	return 0;
 }
 
@@ -58,7 +59,7 @@ static void flexgen_disable(struct clk_hw *hw)
 
 	clk_gate_ops.disable(fgate_hw);
 
-	pr_debug("%s: flexgen output disabled\n", __clk_get_name(hw->clk));
+	pr_debug("%s: flexgen output disabled\n", clk_hw_get_name(hw));
 }
 
 static int flexgen_is_enabled(struct clk_hw *hw)
@@ -108,7 +109,7 @@ static long flexgen_round_rate(struct clk_hw *hw, unsigned long rate,
 	/* Round div according to exact prate and wished rate */
 	div = clk_best_div(*prate, rate);
 
-	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		*prate = rate * div;
 		return rate;
 	}
@@ -116,7 +117,7 @@ static long flexgen_round_rate(struct clk_hw *hw, unsigned long rate,
 	return *prate / div;
 }
 
-unsigned long flexgen_recalc_rate(struct clk_hw *hw,
+static unsigned long flexgen_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct flexgen *flexgen = to_flexgen(hw);
@@ -174,7 +175,7 @@ static const struct clk_ops flexgen_ops = {
 	.set_rate = flexgen_set_rate,
 };
 
-struct clk *clk_register_flexgen(const char *name,
+static struct clk *clk_register_flexgen(const char *name,
 				const char **parent_names, u8 num_parents,
 				void __iomem *reg, spinlock_t *lock, u32 idx,
 				unsigned long flexgen_flags) {
@@ -190,7 +191,7 @@ struct clk *clk_register_flexgen(const char *name,
 
 	init.name = name;
 	init.ops = &flexgen_ops;
-	init.flags = CLK_IS_BASIC | flexgen_flags;
+	init.flags = CLK_IS_BASIC | CLK_GET_RATE_NOCACHE | flexgen_flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -243,9 +244,9 @@ static const char ** __init flexgen_get_parents(struct device_node *np,
 						       int *num_parents)
 {
 	const char **parents;
-	int nparents, i;
+	int nparents;
 
-	nparents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	nparents = of_clk_get_parent_count(np);
 	if (WARN_ON(nparents <= 0))
 		return NULL;
 
@@ -253,14 +254,12 @@ static const char ** __init flexgen_get_parents(struct device_node *np,
 	if (!parents)
 		return NULL;
 
-	for (i = 0; i < nparents; i++)
-		parents[i] = of_clk_get_parent_name(np, i);
+	*num_parents = of_clk_parent_fill(np, parents, nparents);
 
-	*num_parents = nparents;
 	return parents;
 }
 
-void __init st_of_flexgen_setup(struct device_node *np)
+static void __init st_of_flexgen_setup(struct device_node *np)
 {
 	struct device_node *pnode;
 	void __iomem *reg;
@@ -269,6 +268,7 @@ void __init st_of_flexgen_setup(struct device_node *np)
 	int num_parents, i;
 	spinlock_t *rlock = NULL;
 	unsigned long flex_flags = 0;
+	int ret;
 
 	pnode = of_get_parent(np);
 	if (!pnode)
@@ -286,13 +286,13 @@ void __init st_of_flexgen_setup(struct device_node *np)
 	if (!clk_data)
 		goto err;
 
-	clk_data->clk_num = of_property_count_strings(np ,
-			"clock-output-names");
-	if (clk_data->clk_num <= 0) {
+	ret = of_property_count_strings(np, "clock-output-names");
+	if (ret <= 0) {
 		pr_err("%s: Failed to get number of output clocks (%d)",
 				__func__, clk_data->clk_num);
 		goto err;
 	}
+	clk_data->clk_num = ret;
 
 	clk_data->clks = kcalloc(clk_data->clk_num, sizeof(struct clk *),
 			GFP_KERNEL);
@@ -302,6 +302,8 @@ void __init st_of_flexgen_setup(struct device_node *np)
 	rlock = kzalloc(sizeof(spinlock_t), GFP_KERNEL);
 	if (!rlock)
 		goto err;
+
+	spin_lock_init(rlock);
 
 	for (i = 0; i < clk_data->clk_num; i++) {
 		struct clk *clk;

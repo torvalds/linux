@@ -148,12 +148,7 @@ struct nvidia_par {
 	u32 forceCRTC;
 	u32 open_count;
 	u8 DDCBase;
-#ifdef CONFIG_MTRR
-	struct {
-		int vram;
-		int vram_valid;
-	} mtrr;
-#endif
+	int wc_cookie;
 	struct nvidia_i2c_chan chan[3];
 
 	volatile u32 __iomem *REGS;

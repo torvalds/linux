@@ -23,7 +23,7 @@ config IOMMU_IO_PGTABLE
 config IOMMU_IO_PGTABLE_LPAE
 	bool "ARMv7/v8 Long Descriptor Format"
 	select IOMMU_IO_PGTABLE
-	depends on ARM || ARM64 || COMPILE_TEST
+	depends on HAS_DMA && (ARM || ARM64 || COMPILE_TEST)
 	help
 	  Enable support for the ARM long descriptor pagetable format.
 	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
@@ -42,11 +42,18 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST
 endmenu
 
 config IOMMU_IOVA
-	bool
+	tristate
 
 config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
+
+# IOMMU-agnostic DMA-mapping layer
+config IOMMU_DMA
+	bool
+	depends on NEED_SG_DMA_LENGTH
+	select IOMMU_API
+	select IOMMU_IOVA
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
@@ -134,6 +141,16 @@ config INTEL_IOMMU
 	  and include PCI device scope covered by these DMA
 	  remapping devices.
 
+config INTEL_IOMMU_SVM
+	bool "Support for Shared Virtual Memory with Intel IOMMU"
+	depends on INTEL_IOMMU && X86
+	select PCI_PASID
+	select MMU_NOTIFIER
+	help
+	  Shared Virtual Memory (SVM) provides a facility for devices
+	  to access DMA resources through process address space by
+	  means of a Process Address Space ID (PASID).
+
 config INTEL_IOMMU_DEFAULT_ON
 	def_bool y
 	prompt "Enable Intel DMA Remapping Devices by default"
@@ -178,6 +195,9 @@ config OMAP_IOMMU
 	depends on ARM && MMU
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
+	---help---
+	  The OMAP3 media platform drivers depend on iommu support,
+	  if you need them say Y here.
 
 config OMAP_IOMMU_DEBUG
 	bool "Export OMAP IOMMU internals in DebugFS"
@@ -219,7 +239,7 @@ config TEGRA_IOMMU_SMMU
 	select IOMMU_API
 	help
 	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
-	  SoCs (Tegra30 up to Tegra124).
+	  SoCs (Tegra30 up to Tegra210).
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
@@ -339,6 +359,7 @@ config SPAPR_TCE_IOMMU
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
 	  is not implemented as it is not necessary for VFIO.
 
+# ARM IOMMU support
 config ARM_SMMU
 	bool "ARM Ltd. System MMU (SMMU) Support"
 	depends on (ARM64 || ARM) && MMU
@@ -351,5 +372,25 @@ config ARM_SMMU
 
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.
+
+config ARM_SMMU_V3
+	bool "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
+	depends on ARM64 && PCI
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select GENERIC_MSI_IRQ_DOMAIN
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  version 3 providing translation support to a PCIe root complex.
+
+	  Say Y here if your system includes an IOMMU device implementing
+	  the ARM SMMUv3 architecture.
+
+config S390_IOMMU
+	def_bool y if S390 && PCI
+	depends on S390 && PCI
+	select IOMMU_API
+	help
+	  Support for the IOMMU API for s390 PCI devices.
 
 endif # IOMMU_SUPPORT

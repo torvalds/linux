@@ -18,6 +18,7 @@
 #ifndef __ASM_ARCH_MSM_HSUSB_H
 #define __ASM_ARCH_MSM_HSUSB_H
 
+#include <linux/extcon.h>
 #include <linux/types.h>
 #include <linux/usb/otg.h>
 #include <linux/clk.h>
@@ -120,6 +121,17 @@ struct msm_otg_platform_data {
 };
 
 /**
+ * struct msm_usb_cable - structure for exteternal connector cable
+ *			  state tracking
+ * @nb: hold event notification callback
+ * @conn: used for notification registration
+ */
+struct msm_usb_cable {
+	struct notifier_block		nb;
+	struct extcon_dev		*extcon;
+};
+
+/**
  * struct msm_otg: OTG driver data. Shared by HCD and DCD.
  * @otg: USB OTG Transceiver structure.
  * @pdata: otg device platform data.
@@ -138,6 +150,15 @@ struct msm_otg_platform_data {
  * @chg_type: The type of charger attached.
  * @dcd_retires: The retry count used to track Data contact
  *               detection process.
+ * @manual_pullup: true if VBUS is not routed to USB controller/phy
+ *	and controller driver therefore enables pull-up explicitly before
+ *	starting controller using usbcmd run/stop bit.
+ * @vbus: VBUS signal state trakining, using extcon framework
+ * @id: ID signal state trakining, using extcon framework
+ * @switch_gpio: Descriptor for GPIO used to control external Dual
+ *               SPDT USB Switch.
+ * @reboot: Used to inform the driver to route USB D+/D- line to Device
+ *	    connector
  */
 struct msm_otg {
 	struct usb_phy phy;
@@ -166,6 +187,14 @@ struct msm_otg {
 	struct reset_control *phy_rst;
 	struct reset_control *link_rst;
 	int vdd_levels[3];
+
+	bool manual_pullup;
+
+	struct msm_usb_cable vbus;
+	struct msm_usb_cable id;
+
+	struct gpio_desc *switch_gpio;
+	struct notifier_block reboot;
 };
 
 #endif

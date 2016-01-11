@@ -44,6 +44,7 @@ struct blk_mq_tags {
 	struct list_head page_list;
 
 	int alloc_policy;
+	cpumask_var_t cpumask;
 };
 
 
@@ -57,6 +58,8 @@ extern ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page);
 extern void blk_mq_tag_init_last_tag(struct blk_mq_tags *tags, unsigned int *last_tag);
 extern int blk_mq_tag_update_depth(struct blk_mq_tags *tags, unsigned int depth);
 extern void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
+void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
+		void *priv);
 
 enum {
 	BLK_MQ_TAG_CACHE_MIN	= 1,
@@ -86,6 +89,18 @@ static inline void blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 		return;
 
 	__blk_mq_tag_idle(hctx);
+}
+
+/*
+ * This helper should only be used for flush request to share tag
+ * with the request cloned from, and both the two requests can't be
+ * in flight at the same time. The caller has to make sure the tag
+ * can't be freed.
+ */
+static inline void blk_mq_tag_set_rq(struct blk_mq_hw_ctx *hctx,
+		unsigned int tag, struct request *rq)
+{
+	hctx->tags->rqs[tag] = rq;
 }
 
 #endif

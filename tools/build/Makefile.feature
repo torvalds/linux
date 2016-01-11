@@ -27,7 +27,7 @@ endef
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
-FEATURE_TESTS =			\
+FEATURE_TESTS ?=			\
 	backtrace			\
 	dwarf				\
 	fortify-source			\
@@ -41,6 +41,7 @@ FEATURE_TESTS =			\
 	libelf-getphdrnum		\
 	libelf-mmap			\
 	libnuma				\
+	numa_num_possible_cpus		\
 	libperl				\
 	libpython			\
 	libpython-version		\
@@ -51,9 +52,11 @@ FEATURE_TESTS =			\
 	timerfd				\
 	libdw-dwarf-unwind		\
 	zlib				\
-	lzma
+	lzma				\
+	get_cpuid			\
+	bpf
 
-FEATURE_DISPLAY =			\
+FEATURE_DISPLAY ?=			\
 	dwarf				\
 	glibc				\
 	gtk2				\
@@ -61,13 +64,16 @@ FEATURE_DISPLAY =			\
 	libbfd				\
 	libelf				\
 	libnuma				\
+	numa_num_possible_cpus		\
 	libperl				\
 	libpython			\
 	libslang			\
 	libunwind			\
 	libdw-dwarf-unwind		\
 	zlib				\
-	lzma
+	lzma				\
+	get_cpuid			\
+	bpf
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
@@ -117,8 +123,9 @@ define feature_print_text_code
     MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
 
+FEATURE_DUMP_FILENAME = $(OUTPUT)FEATURE-DUMP$(FEATURE_USER)
 FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
-FEATURE_DUMP_FILE := $(shell touch $(OUTPUT)FEATURE-DUMP; cat $(OUTPUT)FEATURE-DUMP)
+FEATURE_DUMP_FILE := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
 
 ifeq ($(dwarf-post-unwind),1)
   FEATURE_DUMP += dwarf-post-unwind($(dwarf-post-unwind-text))
@@ -127,16 +134,16 @@ endif
 # The $(feature_display) controls the default detection message
 # output. It's set if:
 # - detected features differes from stored features from
-#   last build (in FEATURE-DUMP file)
+#   last build (in $(FEATURE_DUMP_FILENAME) file)
 # - one of the $(FEATURE_DISPLAY) is not detected
 # - VF is enabled
 
 ifneq ("$(FEATURE_DUMP)","$(FEATURE_DUMP_FILE)")
-  $(shell echo "$(FEATURE_DUMP)" > $(OUTPUT)FEATURE-DUMP)
+  $(shell echo "$(FEATURE_DUMP)" > $(FEATURE_DUMP_FILENAME))
   feature_display := 1
 endif
 
-feature_display_check = $(eval $(feature_check_code))
+feature_display_check = $(eval $(feature_check_display_code))
 define feature_display_check_code
   ifneq ($(feature-$(1)), 1)
     feature_display := 1

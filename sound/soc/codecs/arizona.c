@@ -147,6 +147,8 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 						   0x4f5, 0x0da);
 		}
 		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -208,11 +210,12 @@ static const struct snd_soc_dapm_widget arizona_spkr =
 
 int arizona_init_spk(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&codec->dapm, &arizona_spkl, 1);
+	ret = snd_soc_dapm_new_controls(dapm, &arizona_spkl, 1);
 	if (ret != 0)
 		return ret;
 
@@ -220,8 +223,7 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 	case WM8997:
 		break;
 	default:
-		ret = snd_soc_dapm_new_controls(&codec->dapm,
-						&arizona_spkr, 1);
+		ret = snd_soc_dapm_new_controls(dapm, &arizona_spkr, 1);
 		if (ret != 0)
 			return ret;
 		break;
@@ -258,13 +260,14 @@ static const struct snd_soc_dapm_route arizona_mono_routes[] = {
 
 int arizona_init_mono(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int i;
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; ++i) {
 		if (arizona->pdata.out_mono[i])
-			snd_soc_dapm_add_routes(&codec->dapm,
+			snd_soc_dapm_add_routes(dapm,
 						&arizona_mono_routes[i], 1);
 	}
 
@@ -274,6 +277,7 @@ EXPORT_SYMBOL_GPL(arizona_init_mono);
 
 int arizona_init_gpio(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int i;
@@ -281,23 +285,21 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		snd_soc_dapm_disable_pin(&codec->dapm, "DRC2 Signal Activity");
+		snd_soc_dapm_disable_pin(dapm, "DRC2 Signal Activity");
 		break;
 	default:
 		break;
 	}
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "DRC1 Signal Activity");
+	snd_soc_dapm_disable_pin(dapm, "DRC1 Signal Activity");
 
 	for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
 		switch (arizona->pdata.gpio_defaults[i] & ARIZONA_GPN_FN_MASK) {
 		case ARIZONA_GP_FN_DRC1_SIGNAL_DETECT:
-			snd_soc_dapm_enable_pin(&codec->dapm,
-						"DRC1 Signal Activity");
+			snd_soc_dapm_enable_pin(dapm, "DRC1 Signal Activity");
 			break;
 		case ARIZONA_GP_FN_DRC2_SIGNAL_DETECT:
-			snd_soc_dapm_enable_pin(&codec->dapm,
-						"DRC2 Signal Activity");
+			snd_soc_dapm_enable_pin(dapm, "DRC2 Signal Activity");
 			break;
 		default:
 			break;
@@ -314,6 +316,7 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"Tone Generator 2",
 	"Haptics",
 	"AEC",
+	"AEC2",
 	"Mic Mute Mixer",
 	"Noise Generator",
 	"IN1L",
@@ -421,6 +424,7 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x05,
 	0x06,  /* Haptics */
 	0x08,  /* AEC */
+	0x09,  /* AEC2 */
 	0x0c,  /* Noise mixer */
 	0x0d,  /* Comfort noise */
 	0x10,  /* IN1L */
@@ -524,6 +528,32 @@ EXPORT_SYMBOL_GPL(arizona_mixer_values);
 
 const DECLARE_TLV_DB_SCALE(arizona_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(arizona_mixer_tlv);
+
+const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+	"12kHz", "24kHz", "48kHz", "96kHz", "192kHz",
+	"11.025kHz", "22.05kHz", "44.1kHz", "88.2kHz", "176.4kHz",
+	"4kHz", "8kHz", "16kHz", "32kHz",
+};
+EXPORT_SYMBOL_GPL(arizona_sample_rate_text);
+
+const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+	0x10, 0x11, 0x12, 0x13,
+};
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val);
+
+const char *arizona_sample_rate_val_to_name(unsigned int rate_val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arizona_sample_rate_val); ++i) {
+		if (arizona_sample_rate_val[i] == rate_val)
+			return arizona_sample_rate_text[i];
+	}
+
+	return "Illegal";
+}
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val_to_name);
 
 const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE] = {
 	"SYNCCLK rate", "8kHz", "16kHz", "ASYNCCLK rate",
@@ -689,6 +719,15 @@ static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 				    ARIZONA_IN_VU, val);
 }
 
+bool arizona_input_analog(struct snd_soc_codec *codec, int shift)
+{
+	unsigned int reg = ARIZONA_IN1L_CONTROL + ((shift / 2) * 8);
+	unsigned int val = snd_soc_read(codec, reg);
+
+	return !(val & ARIZONA_IN1_MODE_MASK);
+}
+EXPORT_SYMBOL_GPL(arizona_input_analog);
+
 int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
@@ -725,6 +764,9 @@ int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
 		if (reg == 0)
 			arizona_in_set_vu(codec, 0);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -806,6 +848,8 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			break;
 		}
 		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -851,24 +895,146 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(arizona_hp_ev);
 
-static unsigned int arizona_sysclk_48k_rates[] = {
+static int arizona_dvfs_enable(struct snd_soc_codec *codec)
+{
+	const struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+	int ret;
+
+	ret = regulator_set_voltage(arizona->dcvdd, 1800000, 1800000);
+	if (ret) {
+		dev_err(codec->dev, "Failed to boost DCVDD: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_DYNAMIC_FREQUENCY_SCALING_1,
+				 ARIZONA_SUBSYS_MAX_FREQ,
+				 ARIZONA_SUBSYS_MAX_FREQ);
+	if (ret) {
+		dev_err(codec->dev, "Failed to enable subsys max: %d\n", ret);
+		regulator_set_voltage(arizona->dcvdd, 1200000, 1800000);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int arizona_dvfs_disable(struct snd_soc_codec *codec)
+{
+	const struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+	int ret;
+
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_DYNAMIC_FREQUENCY_SCALING_1,
+				 ARIZONA_SUBSYS_MAX_FREQ, 0);
+	if (ret) {
+		dev_err(codec->dev, "Failed to disable subsys max: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_set_voltage(arizona->dcvdd, 1200000, 1800000);
+	if (ret) {
+		dev_err(codec->dev, "Failed to unboost DCVDD: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+
+	mutex_lock(&priv->dvfs_lock);
+
+	if (!priv->dvfs_cached && !priv->dvfs_reqs) {
+		ret = arizona_dvfs_enable(codec);
+		if (ret)
+			goto err;
+	}
+
+	priv->dvfs_reqs |= flags;
+err:
+	mutex_unlock(&priv->dvfs_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arizona_dvfs_up);
+
+int arizona_dvfs_down(struct snd_soc_codec *codec, unsigned int flags)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int old_reqs;
+	int ret = 0;
+
+	mutex_lock(&priv->dvfs_lock);
+
+	old_reqs = priv->dvfs_reqs;
+	priv->dvfs_reqs &= ~flags;
+
+	if (!priv->dvfs_cached && old_reqs && !priv->dvfs_reqs)
+		ret = arizona_dvfs_disable(codec);
+
+	mutex_unlock(&priv->dvfs_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arizona_dvfs_down);
+
+int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+
+	mutex_lock(&priv->dvfs_lock);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (priv->dvfs_reqs)
+			ret = arizona_dvfs_enable(codec);
+
+		priv->dvfs_cached = false;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		/* We must ensure DVFS is disabled before the codec goes into
+		 * suspend so that we are never in an illegal state of DVFS
+		 * enabled without enough DCVDD
+		 */
+		priv->dvfs_cached = true;
+
+		if (priv->dvfs_reqs)
+			ret = arizona_dvfs_disable(codec);
+		break;
+	default:
+		break;
+	}
+
+	mutex_unlock(&priv->dvfs_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arizona_dvfs_sysclk_ev);
+
+void arizona_init_dvfs(struct arizona_priv *priv)
+{
+	mutex_init(&priv->dvfs_lock);
+}
+EXPORT_SYMBOL_GPL(arizona_init_dvfs);
+
+static unsigned int arizona_opclk_ref_48k_rates[] = {
 	6144000,
 	12288000,
 	24576000,
 	49152000,
-	73728000,
-	98304000,
-	147456000,
 };
 
-static unsigned int arizona_sysclk_44k1_rates[] = {
+static unsigned int arizona_opclk_ref_44k1_rates[] = {
 	5644800,
 	11289600,
 	22579200,
 	45158400,
-	67737600,
-	90316800,
-	135475200,
 };
 
 static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
@@ -893,11 +1059,11 @@ static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 	}
 
 	if (refclk % 8000)
-		rates = arizona_sysclk_44k1_rates;
+		rates = arizona_opclk_ref_44k1_rates;
 	else
-		rates = arizona_sysclk_48k_rates;
+		rates = arizona_opclk_ref_48k_rates;
 
-	for (ref = 0; ref < ARRAY_SIZE(arizona_sysclk_48k_rates) &&
+	for (ref = 0; ref < ARRAY_SIZE(arizona_opclk_ref_48k_rates) &&
 		     rates[ref] <= refclk; ref++) {
 		div = 1;
 		while (rates[ref] / div >= freq && div < 32) {
@@ -1238,7 +1404,7 @@ static void arizona_wm5102_set_dac_comp(struct snd_soc_codec *codec,
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
-	struct reg_default dac_comp[] = {
+	struct reg_sequence dac_comp[] = {
 		{ 0x80, 0x3 },
 		{ ARIZONA_DAC_COMP_1, 0 },
 		{ ARIZONA_DAC_COMP_2, 0 },
@@ -1266,7 +1432,7 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
 	int base = dai->driver->base;
-	int i, sr_val;
+	int i, sr_val, ret;
 
 	/*
 	 * We will need to be more flexible than this in future,
@@ -1281,6 +1447,23 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 	sr_val = i;
+
+	switch (priv->arizona->type) {
+	case WM5102:
+	case WM8997:
+		if (arizona_sr_vals[sr_val] >= 88200)
+			ret = arizona_dvfs_up(codec, ARIZONA_DVFS_SR1_RQ);
+		else
+			ret = arizona_dvfs_down(codec, ARIZONA_DVFS_SR1_RQ);
+
+		if (ret) {
+			arizona_aif_err(dai, "Failed to change DVFS %d\n", ret);
+			return ret;
+		}
+		break;
+	default:
+		break;
+	}
 
 	switch (dai_priv->clk) {
 	case ARIZONA_CLK_SYSCLK:
@@ -1354,12 +1537,12 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	bool reconfig;
 	unsigned int aif_tx_state, aif_rx_state;
 
-	if (params_rate(params) % 8000)
+	if (params_rate(params) % 4000)
 		rates = &arizona_44k1_bclk_rates[0];
 	else
 		rates = &arizona_48k_bclk_rates[0];
 
-	wl = snd_pcm_format_width(params_format(params));
+	wl = params_width(params);
 
 	if (tdm_slots) {
 		arizona_aif_dbg(dai, "Configuring for %d %d bit TDM slots\n",
@@ -1474,6 +1657,7 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
 	struct snd_soc_dapm_route routes[2];
@@ -1504,15 +1688,15 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 
 	routes[0].source = arizona_dai_clk_str(dai_priv->clk);
 	routes[1].source = arizona_dai_clk_str(dai_priv->clk);
-	snd_soc_dapm_del_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+	snd_soc_dapm_del_routes(dapm, routes, ARRAY_SIZE(routes));
 
 	routes[0].source = arizona_dai_clk_str(clk_id);
 	routes[1].source = arizona_dai_clk_str(clk_id);
-	snd_soc_dapm_add_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+	snd_soc_dapm_add_routes(dapm, routes, ARRAY_SIZE(routes));
 
 	dai_priv->clk = clk_id;
 
-	return snd_soc_dapm_sync(&codec->dapm);
+	return snd_soc_dapm_sync(dapm);
 }
 
 static int arizona_set_tristate(struct snd_soc_dai *dai, int tristate)
@@ -1609,17 +1793,6 @@ int arizona_init_dai(struct arizona_priv *priv, int id)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_init_dai);
-
-static irqreturn_t arizona_fll_clock_ok(int irq, void *data)
-{
-	struct arizona_fll *fll = data;
-
-	arizona_fll_dbg(fll, "clock OK\n");
-
-	complete(&fll->ok);
-
-	return IRQ_HANDLED;
-}
 
 static struct {
 	unsigned int min;
@@ -1731,6 +1904,11 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	case WM5110:
 	case WM8280:
 		if (fll->arizona->rev < 3 || sync)
+			return init_ratio;
+		break;
+	case WM8998:
+	case WM1814:
+		if (sync)
 			return init_ratio;
 		break;
 	default:
@@ -1902,17 +2080,18 @@ static int arizona_is_enabled_fll(struct arizona_fll *fll)
 static int arizona_enable_fll(struct arizona_fll *fll)
 {
 	struct arizona *arizona = fll->arizona;
-	unsigned long time_left;
 	bool use_sync = false;
 	int already_enabled = arizona_is_enabled_fll(fll);
 	struct arizona_fll_cfg cfg;
+	int i;
+	unsigned int val;
 
 	if (already_enabled < 0)
 		return already_enabled;
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x7,
+		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
 					 ARIZONA_FLL1_GAIN_MASK, 0);
 		regmap_update_bits_async(fll->arizona->regmap, fll->base + 1,
 					 ARIZONA_FLL1_FREERUN,
@@ -1964,9 +2143,6 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	if (!already_enabled)
 		pm_runtime_get(arizona->dev);
 
-	/* Clear any pending completions */
-	try_wait_for_completion(&fll->ok);
-
 	regmap_update_bits_async(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
 	if (use_sync)
@@ -1978,10 +2154,24 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		regmap_update_bits_async(arizona->regmap, fll->base + 1,
 					 ARIZONA_FLL1_FREERUN, 0);
 
-	time_left = wait_for_completion_timeout(&fll->ok,
-					  msecs_to_jiffies(250));
-	if (time_left == 0)
+	arizona_fll_dbg(fll, "Waiting for FLL lock...\n");
+	val = 0;
+	for (i = 0; i < 15; i++) {
+		if (i < 5)
+			usleep_range(200, 400);
+		else
+			msleep(20);
+
+		regmap_read(arizona->regmap,
+			    ARIZONA_INTERRUPT_RAW_STATUS_5,
+			    &val);
+		if (val & (ARIZONA_FLL1_CLOCK_OK_STS << (fll->id - 1)))
+			break;
+	}
+	if (i == 15)
 		arizona_fll_warn(fll, "Timed out waiting for lock\n");
+	else
+		arizona_fll_dbg(fll, "FLL locked (%d polls)\n", i);
 
 	return 0;
 }
@@ -2066,10 +2256,7 @@ EXPORT_SYMBOL_GPL(arizona_set_fll);
 int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		     int ok_irq, struct arizona_fll *fll)
 {
-	int ret;
 	unsigned int val;
-
-	init_completion(&fll->ok);
 
 	fll->id = id;
 	fll->base = base;
@@ -2091,13 +2278,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 	snprintf(fll->lock_name, sizeof(fll->lock_name), "FLL%d lock", id);
 	snprintf(fll->clock_ok_name, sizeof(fll->clock_ok_name),
 		 "FLL%d clock OK", id);
-
-	ret = arizona_request_irq(arizona, ok_irq, fll->clock_ok_name,
-				  arizona_fll_clock_ok, fll);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to get FLL%d clock OK IRQ: %d\n",
-			id, ret);
-	}
 
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   ARIZONA_FLL1_FREERUN, 0);
@@ -2139,6 +2319,109 @@ int arizona_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 	return snd_soc_update_bits(codec, reg, ARIZONA_OUT1_MONO, val);
 }
 EXPORT_SYMBOL_GPL(arizona_set_output_mode);
+
+static const struct soc_enum arizona_adsp2_rate_enum[] = {
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP1_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP2_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP3_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP4_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+};
+
+const struct snd_kcontrol_new arizona_adsp2_rate_controls[] = {
+	SOC_ENUM("DSP1 Rate", arizona_adsp2_rate_enum[0]),
+	SOC_ENUM("DSP2 Rate", arizona_adsp2_rate_enum[1]),
+	SOC_ENUM("DSP3 Rate", arizona_adsp2_rate_enum[2]),
+	SOC_ENUM("DSP4 Rate", arizona_adsp2_rate_enum[3]),
+};
+EXPORT_SYMBOL_GPL(arizona_adsp2_rate_controls);
+
+static bool arizona_eq_filter_unstable(bool mode, __be16 _a, __be16 _b)
+{
+	s16 a = be16_to_cpu(_a);
+	s16 b = be16_to_cpu(_b);
+
+	if (!mode) {
+		return abs(a) >= 4096;
+	} else {
+		if (abs(b) >= 4096)
+			return true;
+
+		return (abs((a << 16) / (4096 - b)) >= 4096 << 4);
+	}
+}
+
+int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct soc_bytes *params = (void *)kcontrol->private_value;
+	unsigned int val;
+	__be16 *data;
+	int len;
+	int ret;
+
+	len = params->num_regs * regmap_get_val_bytes(arizona->regmap);
+
+	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
+
+	data[0] &= cpu_to_be16(ARIZONA_EQ1_B1_MODE);
+
+	if (arizona_eq_filter_unstable(!!data[0], data[1], data[2]) ||
+	    arizona_eq_filter_unstable(true, data[4], data[5]) ||
+	    arizona_eq_filter_unstable(true, data[8], data[9]) ||
+	    arizona_eq_filter_unstable(true, data[12], data[13]) ||
+	    arizona_eq_filter_unstable(false, data[16], data[17])) {
+		dev_err(arizona->dev, "Rejecting unstable EQ coefficients\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = regmap_read(arizona->regmap, params->base, &val);
+	if (ret != 0)
+		goto out;
+
+	val &= ~ARIZONA_EQ1_B1_MODE;
+	data[0] |= cpu_to_be16(val);
+
+	ret = regmap_raw_write(arizona->regmap, params->base, data, len);
+
+out:
+	kfree(data);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arizona_eq_coeff_put);
+
+int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	__be16 *data = (__be16 *)ucontrol->value.bytes.data;
+	s16 val = be16_to_cpu(*data);
+
+	if (abs(val) >= 4096) {
+		dev_err(arizona->dev, "Rejecting unstable LHPF coefficients\n");
+		return -EINVAL;
+	}
+
+	return snd_soc_bytes_put(kcontrol, ucontrol);
+}
+EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

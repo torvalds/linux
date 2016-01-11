@@ -22,11 +22,12 @@
 #include <linux/if_vlan.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <net/inet_sock.h>
 
 #include <net/pkt_cls.h>
 #include <net/ip.h>
 #include <net/route.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netfilter/nf_conntrack.h>
@@ -68,35 +69,41 @@ static inline u32 addr_fold(void *addr)
 
 static u32 flow_get_src(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->src)
-		return ntohl(flow->src);
+	__be32 src = flow_get_u32_src(flow);
+
+	if (src)
+		return ntohl(src);
+
 	return addr_fold(skb->sk);
 }
 
 static u32 flow_get_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->dst)
-		return ntohl(flow->dst);
+	__be32 dst = flow_get_u32_dst(flow);
+
+	if (dst)
+		return ntohl(dst);
+
 	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
 
 static u32 flow_get_proto(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	return flow->ip_proto;
+	return flow->basic.ip_proto;
 }
 
 static u32 flow_get_proto_src(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->ports)
-		return ntohs(flow->port16[0]);
+	if (flow->ports.ports)
+		return ntohs(flow->ports.src);
 
 	return addr_fold(skb->sk);
 }
 
 static u32 flow_get_proto_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->ports)
-		return ntohs(flow->port16[1]);
+	if (flow->ports.ports)
+		return ntohs(flow->ports.dst);
 
 	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
@@ -191,8 +198,11 @@ static u32 flow_get_rtclassid(const struct sk_buff *skb)
 
 static u32 flow_get_skuid(const struct sk_buff *skb)
 {
-	if (skb->sk && skb->sk->sk_socket && skb->sk->sk_socket->file) {
-		kuid_t skuid = skb->sk->sk_socket->file->f_cred->fsuid;
+	struct sock *sk = skb_to_full_sk(skb);
+
+	if (sk && sk->sk_socket && sk->sk_socket->file) {
+		kuid_t skuid = sk->sk_socket->file->f_cred->fsuid;
+
 		return from_kuid(&init_user_ns, skuid);
 	}
 	return 0;
@@ -200,8 +210,11 @@ static u32 flow_get_skuid(const struct sk_buff *skb)
 
 static u32 flow_get_skgid(const struct sk_buff *skb)
 {
-	if (skb->sk && skb->sk->sk_socket && skb->sk->sk_socket->file) {
-		kgid_t skgid = skb->sk->sk_socket->file->f_cred->fsgid;
+	struct sock *sk = skb_to_full_sk(skb);
+
+	if (sk && sk->sk_socket && sk->sk_socket->file) {
+		kgid_t skgid = sk->sk_socket->file->f_cred->fsgid;
+
 		return from_kgid(&init_user_ns, skgid);
 	}
 	return 0;
@@ -295,7 +308,7 @@ static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 		keymask = f->keymask;
 		if (keymask & FLOW_KEYS_NEEDED)
-			skb_flow_dissect(skb, &flow_keys);
+			skb_flow_dissect_flow_keys(skb, &flow_keys, 0);
 
 		for (n = 0; n < f->nkeys; n++) {
 			key = ffs(keymask) - 1;
@@ -419,6 +432,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (!fnew)
 		goto err2;
 
+	tcf_exts_init(&fnew->exts, TCA_FLOW_ACT, TCA_FLOW_POLICE);
+
 	fold = (struct flow_filter *)*arg;
 	if (fold) {
 		err = -EINVAL;
@@ -480,7 +495,6 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 		fnew->mask  = ~0U;
 		fnew->tp = tp;
 		get_random_bytes(&fnew->hashrnd, 4);
-		tcf_exts_init(&fnew->exts, TCA_FLOW_ACT, TCA_FLOW_POLICE);
 	}
 
 	fnew->perturb_timer.function = flow_perturbation;
@@ -520,7 +534,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (*arg == 0)
 		list_add_tail_rcu(&fnew->list, &head->filters);
 	else
-		list_replace_rcu(&fnew->list, &fold->list);
+		list_replace_rcu(&fold->list, &fnew->list);
 
 	*arg = (unsigned long)fnew;
 

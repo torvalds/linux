@@ -1,4 +1,4 @@
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
@@ -91,7 +91,8 @@ void __init setup_bios_corruption_check(void)
 
 	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
 
-	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL) {
+	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+				NULL) {
 		start = clamp_t(phys_addr_t, round_up(start, PAGE_SIZE),
 				PAGE_SIZE, corruption_check_size);
 		end = clamp_t(phys_addr_t, round_down(end, PAGE_SIZE),
@@ -162,6 +163,5 @@ static int start_periodic_check_for_corruption(void)
 	schedule_delayed_work(&bios_check_work, 0);
 	return 0;
 }
-
-module_init(start_periodic_check_for_corruption);
+device_initcall(start_periodic_check_for_corruption);
 

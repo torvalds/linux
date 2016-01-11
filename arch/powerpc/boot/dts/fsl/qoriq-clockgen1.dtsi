@@ -32,13 +32,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-global-utilities@e1000 {
+clockgen: global-utilities@e1000 {
 	compatible = "fsl,qoriq-clockgen-1.0";
 	ranges = <0x0 0xe1000 0x1000>;
 	reg = <0xe1000 0x1000>;
 	clock-frequency = <0>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	#clock-cells = <2>;
 
 	sysclk: sysclk {
 		#clock-cells = <0>;

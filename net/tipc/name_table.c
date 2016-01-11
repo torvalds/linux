@@ -330,13 +330,9 @@ static struct publication *tipc_nameseq_insert_publ(struct net *net,
 
 	/* Any subscriptions waiting for notification?  */
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
-		tipc_subscr_report_overlap(s,
-					   publ->lower,
-					   publ->upper,
-					   TIPC_PUBLISHED,
-					   publ->ref,
-					   publ->node,
-					   created_subseq);
+		tipc_subscrp_report_overlap(s, publ->lower, publ->upper,
+					    TIPC_PUBLISHED, publ->ref,
+					    publ->node, created_subseq);
 	}
 	return publ;
 }
@@ -404,13 +400,9 @@ found:
 
 	/* Notify any waiting subscriptions */
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
-		tipc_subscr_report_overlap(s,
-					   publ->lower,
-					   publ->upper,
-					   TIPC_WITHDRAWN,
-					   publ->ref,
-					   publ->node,
-					   removed_subseq);
+		tipc_subscrp_report_overlap(s, publ->lower, publ->upper,
+					    TIPC_WITHDRAWN, publ->ref,
+					    publ->node, removed_subseq);
 	}
 
 	return publ;
@@ -432,19 +424,17 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 		return;
 
 	while (sseq != &nseq->sseqs[nseq->first_free]) {
-		if (tipc_subscr_overlap(s, sseq->lower, sseq->upper)) {
+		if (tipc_subscrp_check_overlap(s, sseq->lower, sseq->upper)) {
 			struct publication *crs;
 			struct name_info *info = sseq->info;
 			int must_report = 1;
 
 			list_for_each_entry(crs, &info->zone_list, zone_list) {
-				tipc_subscr_report_overlap(s,
-							   sseq->lower,
-							   sseq->upper,
-							   TIPC_PUBLISHED,
-							   crs->ref,
-							   crs->node,
-							   must_report);
+				tipc_subscrp_report_overlap(s, sseq->lower,
+							    sseq->upper,
+							    TIPC_PUBLISHED,
+							    crs->ref, crs->node,
+							    must_report);
 				must_report = 0;
 			}
 		}

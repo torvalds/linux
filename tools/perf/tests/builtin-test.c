@@ -14,21 +14,24 @@
 #include "parse-options.h"
 #include "symbol.h"
 
-static struct test {
-	const char *desc;
-	int (*func)(void);
-} tests[] = {
+struct test __weak arch_tests[] = {
+	{
+		.func = NULL,
+	},
+};
+
+static struct test generic_tests[] = {
 	{
 		.desc = "vmlinux symtab matches kallsyms",
 		.func = test__vmlinux_matches_kallsyms,
 	},
 	{
-		.desc = "detect open syscall event",
-		.func = test__open_syscall_event,
+		.desc = "detect openat syscall event",
+		.func = test__openat_syscall_event,
 	},
 	{
-		.desc = "detect open syscall event on all cpus",
-		.func = test__open_syscall_event_on_all_cpus,
+		.desc = "detect openat syscall event on all cpus",
+		.func = test__openat_syscall_event_on_all_cpus,
 	},
 	{
 		.desc = "read samples using the mmap interface",
@@ -38,12 +41,6 @@ static struct test {
 		.desc = "parse events tests",
 		.func = test__parse_events,
 	},
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "x86 rdpmc test",
-		.func = test__rdpmc,
-	},
-#endif
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
@@ -73,8 +70,8 @@ static struct test {
 		.func = test__perf_evsel__tp_sched_test,
 	},
 	{
-		.desc = "Generate and check syscalls:sys_enter_open event fields",
-		.func = test__syscall_open_tp_fields,
+		.desc = "Generate and check syscalls:sys_enter_openat event fields",
+		.func = test__syscall_openat_tp_fields,
 	},
 	{
 		.desc = "struct perf_event_attr setup",
@@ -104,12 +101,6 @@ static struct test {
 		.desc = "Test software clock events have valid period values",
 		.func = test__sw_clock_freq,
 	},
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "Test converting perf time to TSC",
-		.func = test__perf_time_to_tsc,
-	},
-#endif
 	{
 		.desc = "Test object code reading",
 		.func = test__code_reading,
@@ -126,14 +117,6 @@ static struct test {
 		.desc = "Test parsing with no sample_id_all bit set",
 		.func = test__parse_no_sample_id_all,
 	},
-#if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-	{
-		.desc = "Test dwarf unwind",
-		.func = test__dwarf_unwind,
-	},
-#endif
-#endif
 	{
 		.desc = "Test filtering hist entries",
 		.func = test__hists_filter,
@@ -171,11 +154,32 @@ static struct test {
 		.func = test__kmod_path__parse,
 	},
 	{
+		.desc = "Test thread map",
+		.func = test__thread_map,
+	},
+	{
+		.desc = "Test LLVM searching and compiling",
+		.func = test__llvm,
+	},
+	{
+		.desc = "Test topology in session",
+		.func = test_session_topology,
+	},
+	{
+		.desc = "Test BPF filter",
+		.func = test__bpf,
+	},
+	{
 		.func = NULL,
 	},
 };
 
-static bool perf_test__matches(int curr, int argc, const char *argv[])
+static struct test *tests[] = {
+	generic_tests,
+	arch_tests,
+};
+
+static bool perf_test__matches(struct test *test, int curr, int argc, const char *argv[])
 {
 	int i;
 
@@ -192,7 +196,7 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 			continue;
 		}
 
-		if (strstr(tests[curr].desc, argv[i]))
+		if (strcasestr(test->desc, argv[i]))
 			return true;
 	}
 
@@ -219,7 +223,7 @@ static int run_test(struct test *test)
 	wait(&status);
 
 	if (WIFEXITED(status)) {
-		err = WEXITSTATUS(status);
+		err = (signed char)WEXITSTATUS(status);
 		pr_debug("test child finished with %d\n", err);
 	} else if (WIFSIGNALED(status)) {
 		err = -1;
@@ -229,27 +233,31 @@ static int run_test(struct test *test)
 	return err;
 }
 
+#define for_each_test(j, t)	 				\
+	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
+		for (t = &tests[j][0]; t->func; t++)
+
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
+	struct test *t;
+	unsigned int j;
 	int i = 0;
 	int width = 0;
 
-	while (tests[i].func) {
-		int len = strlen(tests[i].desc);
+	for_each_test(j, t) {
+		int len = strlen(t->desc);
 
 		if (width < len)
 			width = len;
-		++i;
 	}
 
-	i = 0;
-	while (tests[i].func) {
+	for_each_test(j, t) {
 		int curr = i++, err;
 
-		if (!perf_test__matches(curr, argc, argv))
+		if (!perf_test__matches(t, curr, argc, argv))
 			continue;
 
-		pr_info("%2d: %-*s:", i, width, tests[curr].desc);
+		pr_info("%2d: %-*s:", i, width, t->desc);
 
 		if (intlist__find(skiplist, i)) {
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
@@ -257,8 +265,8 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 
 		pr_debug("\n--- start ---\n");
-		err = run_test(&tests[curr]);
-		pr_debug("---- end ----\n%s:", tests[curr].desc);
+		err = run_test(t);
+		pr_debug("---- end ----\n%s:", t->desc);
 
 		switch (err) {
 		case TEST_OK:
@@ -279,15 +287,15 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 static int perf_test__list(int argc, const char **argv)
 {
+	unsigned int j;
+	struct test *t;
 	int i = 0;
 
-	while (tests[i].func) {
-		int curr = i++;
-
-		if (argc > 1 && !strstr(tests[curr].desc, argv[1]))
+	for_each_test(j, t) {
+		if (argc > 1 && !strstr(t->desc, argv[1]))
 			continue;
 
-		pr_info("%2d: %s\n", i, tests[curr].desc);
+		pr_info("%2d: %s\n", ++i, t->desc);
 	}
 
 	return 0;

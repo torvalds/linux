@@ -61,8 +61,6 @@ static int wm1250_ev1_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
-
 	return 0;
 }
 
@@ -253,7 +251,6 @@ MODULE_DEVICE_TABLE(i2c, wm1250_ev1_i2c_id);
 static struct i2c_driver wm1250_ev1_i2c_driver = {
 	.driver = {
 		.name = "wm1250-ev1",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm1250_ev1_probe,
 	.remove =   wm1250_ev1_remove,

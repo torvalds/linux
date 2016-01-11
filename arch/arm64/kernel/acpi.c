@@ -29,18 +29,17 @@
 #include <asm/cpu_ops.h>
 #include <asm/smp_plat.h>
 
+#ifdef CONFIG_ACPI_APEI
+# include <linux/efi.h>
+# include <asm/pgtable.h>
+#endif
+
 int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
 int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
 int acpi_pci_disabled = 1;	/* skip ACPI PCI scan and IRQ initialization */
 EXPORT_SYMBOL(acpi_pci_disabled);
-
-/* Processors with enabled flag and sane MPIDR */
-static int enabled_cpus;
-
-/* Boot CPU is valid or not in MADT */
-static bool bootcpu_valid  __initdata;
 
 static bool param_acpi_off __initdata;
 static bool param_acpi_force __initdata;
@@ -95,122 +94,15 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
 	early_memunmap(map, size);
 }
 
-/**
- * acpi_map_gic_cpu_interface - generates a logical cpu number
- * and map to MPIDR represented by GICC structure
- */
-static void __init
-acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
+bool __init acpi_psci_present(void)
 {
-	int i;
-	u64 mpidr = processor->arm_mpidr & MPIDR_HWID_BITMASK;
-	bool enabled = !!(processor->flags & ACPI_MADT_ENABLED);
-
-	if (mpidr == INVALID_HWID) {
-		pr_info("Skip MADT cpu entry with invalid MPIDR\n");
-		return;
-	}
-
-	total_cpus++;
-	if (!enabled)
-		return;
-
-	if (enabled_cpus >=  NR_CPUS) {
-		pr_warn("NR_CPUS limit of %d reached, Processor %d/0x%llx ignored.\n",
-			NR_CPUS, total_cpus, mpidr);
-		return;
-	}
-
-	/* Check if GICC structure of boot CPU is available in the MADT */
-	if (cpu_logical_map(0) == mpidr) {
-		if (bootcpu_valid) {
-			pr_err("Firmware bug, duplicate CPU MPIDR: 0x%llx in MADT\n",
-			       mpidr);
-			return;
-		}
-
-		bootcpu_valid = true;
-	}
-
-	/*
-	 * Duplicate MPIDRs are a recipe for disaster. Scan
-	 * all initialized entries and check for
-	 * duplicates. If any is found just ignore the CPU.
-	 */
-	for (i = 1; i < enabled_cpus; i++) {
-		if (cpu_logical_map(i) == mpidr) {
-			pr_err("Firmware bug, duplicate CPU MPIDR: 0x%llx in MADT\n",
-			       mpidr);
-			return;
-		}
-	}
-
-	if (!acpi_psci_present())
-		return;
-
-	cpu_ops[enabled_cpus] = cpu_get_ops("psci");
-	/* CPU 0 was already initialized */
-	if (enabled_cpus) {
-		if (!cpu_ops[enabled_cpus])
-			return;
-
-		if (cpu_ops[enabled_cpus]->cpu_init(NULL, enabled_cpus))
-			return;
-
-		/* map the logical cpu id to cpu MPIDR */
-		cpu_logical_map(enabled_cpus) = mpidr;
-	}
-
-	enabled_cpus++;
+	return acpi_gbl_FADT.arm_boot_flags & ACPI_FADT_PSCI_COMPLIANT;
 }
 
-static int __init
-acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
-				const unsigned long end)
+/* Whether HVC must be used instead of SMC as the PSCI conduit */
+bool __init acpi_psci_use_hvc(void)
 {
-	struct acpi_madt_generic_interrupt *processor;
-
-	processor = (struct acpi_madt_generic_interrupt *)header;
-
-	if (BAD_MADT_ENTRY(processor, end))
-		return -EINVAL;
-
-	acpi_table_print_madt_entry(header);
-	acpi_map_gic_cpu_interface(processor);
-	return 0;
-}
-
-/* Parse GIC cpu interface entries in MADT for SMP init */
-void __init acpi_init_cpus(void)
-{
-	int count, i;
-
-	/*
-	 * do a partial walk of MADT to determine how many CPUs
-	 * we have including disabled CPUs, and get information
-	 * we need for SMP init
-	 */
-	count = acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
-			acpi_parse_gic_cpu_interface, 0);
-
-	if (!count) {
-		pr_err("No GIC CPU interface entries present\n");
-		return;
-	} else if (count < 0) {
-		pr_err("Error parsing GIC CPU interface entry\n");
-		return;
-	}
-
-	if (!bootcpu_valid) {
-		pr_err("MADT missing boot CPU MPIDR, not enabling secondaries\n");
-		return;
-	}
-
-	for (i = 0; i < enabled_cpus; i++)
-		set_cpu_possible(i, true);
-
-	/* Make boot-up look pretty */
-	pr_info("%d CPUs enabled, %d CPUs total\n", enabled_cpus, total_cpus);
+	return acpi_gbl_FADT.arm_boot_flags & ACPI_FADT_PSCI_USE_HVC;
 }
 
 /*
@@ -319,27 +211,26 @@ void __init acpi_boot_table_init(void)
 	}
 }
 
-void __init acpi_gic_init(void)
+#ifdef CONFIG_ACPI_APEI
+pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 {
-	struct acpi_table_header *table;
-	acpi_status status;
-	acpi_size tbl_size;
-	int err;
+	/*
+	 * According to "Table 8 Map: EFI memory types to AArch64 memory
+	 * types" of UEFI 2.5 section 2.3.6.1, each EFI memory type is
+	 * mapped to a corresponding MAIR attribute encoding.
+	 * The EFI memory attribute advises all possible capabilities
+	 * of a memory region. We use the most efficient capability.
+	 */
 
-	if (acpi_disabled)
-		return;
+	u64 attr;
 
-	status = acpi_get_table_with_size(ACPI_SIG_MADT, 0, &table, &tbl_size);
-	if (ACPI_FAILURE(status)) {
-		const char *msg = acpi_format_exception(status);
-
-		pr_err("Failed to get MADT table, %s\n", msg);
-		return;
-	}
-
-	err = gic_v2_acpi_init(table);
-	if (err)
-		pr_err("Failed to initialize GIC IRQ controller");
-
-	early_acpi_os_unmap_memory((char *)table, tbl_size);
+	attr = efi_mem_attributes(addr);
+	if (attr & EFI_MEMORY_WB)
+		return PAGE_KERNEL;
+	if (attr & EFI_MEMORY_WT)
+		return __pgprot(PROT_NORMAL_WT);
+	if (attr & EFI_MEMORY_WC)
+		return __pgprot(PROT_NORMAL_NC);
+	return __pgprot(PROT_DEVICE_nGnRnE);
 }
+#endif

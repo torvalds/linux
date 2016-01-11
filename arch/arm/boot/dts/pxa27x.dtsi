@@ -1,39 +1,108 @@
 /* The pxa3xx skeleton simply augments the 2xx version */
 #include "pxa2xx.dtsi"
-#include "dt-bindings/clock/pxa2xx-clock.h"
+#include "dt-bindings/clock/pxa-clock.h"
 
 / {
 	model = "Marvell PXA27x familiy SoC";
 	compatible = "marvell,pxa27x";
 
 	pxabus {
+		pdma: dma-controller@40000000 {
+			compatible = "marvell,pdma-1.0";
+			reg = <0x40000000 0x10000>;
+			interrupts = <25>;
+			#dma-channels = <32>;
+			#dma-cells = <2>;
+			status = "okay";
+		};
+
 		pxairq: interrupt-controller@40d00000 {
 			marvell,intc-priority;
 			marvell,intc-nr-irqs = <34>;
+		};
+
+		gpio: gpio@40e00000 {
+			compatible = "intel,pxa27x-gpio";
+			clocks = <&clks CLK_NONE>;
+		};
+
+		pxa27x_ohci: usb@4c000000 {
+			compatible = "marvell,pxa-ohci";
+			reg = <0x4c000000 0x10000>;
+			interrupts = <3>;
+			clocks = <&clks CLK_USBHOST>;
+			status = "disabled";
 		};
 
 		pwm0: pwm@40b00000 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40b00000 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM0>;
 		};
 
 		pwm1: pwm@40b00010 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40b00010 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM1>;
 		};
 
 		pwm2: pwm@40c00000 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40c00000 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM0>;
 		};
 
 		pwm3: pwm@40c00010 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40c00010 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM1>;
+		};
+
+		pwri2c: i2c@40f000180 {
+			compatible = "mrvl,pxa-i2c";
+			reg = <0x40f00180 0x24>;
+			interrupts = <6>;
+			clocks = <&clks CLK_PWRI2C>;
+			#address-cells = <0x1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		pxa27x_udc: udc@40600000 {
+			compatible = "marvell,pxa270-udc";
+			reg = <0x40600000 0x10000>;
+			interrupts = <11>;
+			clocks = <&clks CLK_USB>;
+			status = "disabled";
+		};
+
+		keypad: keypad@41500000 {
+			compatible = "marvell,pxa27x-keypad";
+			reg = <0x41500000 0x4c>;
+			interrupts = <4>;
+			clocks = <&clks CLK_KEYPAD>;
+			status = "disabled";
+		};
+
+		pxa_camera: imaging@50000000 {
+			compatible = "marvell,pxa270-qci";
+			reg = <0x50000000 0x1000>;
+			interrupts = <33>;
+			dmas = <&pdma 68 0	/* Y channel */
+				&pdma 69 0	/* U channel */
+				&pdma 70 0>;	/* V channel */
+			dma-names = "CI_Y", "CI_U", "CI_V";
+
+			clocks = <&clks CLK_CAMERA>;
+			clock-names = "ciclk";
+			clock-frequency = <5000000>;
+			clock-output-names = "qci_mclk";
+
+			status = "disabled";
 		};
 	};
 
@@ -46,11 +115,18 @@
 		#size-cells = <1>;
 		ranges;
 
-		pxa2xx_clks: pxa2xx_clks@41300004 {
-			compatible = "marvell,pxa-clocks";
+		clks: pxa2xx_clks@41300004 {
+			compatible = "marvell,pxa270-clocks";
 			#clock-cells = <1>;
 			status = "okay";
 		};
 	};
 
+	timer@40a00000 {
+		compatible = "marvell,pxa-timer";
+		reg = <0x40a00000 0x20>;
+		interrupts = <26>;
+		clocks = <&clks CLK_OSTIMER>;
+		status = "okay";
+	};
 };

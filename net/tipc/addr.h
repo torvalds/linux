@@ -41,9 +41,17 @@
 #include <linux/tipc.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include "core.h"
 
 #define TIPC_ZONE_MASK		0xff000000u
 #define TIPC_CLUSTER_MASK	0xfffff000u
+
+static inline u32 tipc_own_addr(struct net *net)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
+	return tn->own_addr;
+}
 
 static inline u32 tipc_zone_mask(u32 addr)
 {

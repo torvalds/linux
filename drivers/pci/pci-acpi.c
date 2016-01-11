@@ -420,7 +420,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
 		[PCI_D2] = ACPI_STATE_D2,
-		[PCI_D3hot] = ACPI_STATE_D3_COLD,
+		[PCI_D3hot] = ACPI_STATE_D3_HOT,
 		[PCI_D3cold] = ACPI_STATE_D3_COLD,
 	};
 	int error = -EINVAL;
@@ -594,7 +594,7 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 /**
  * pci_acpi_optimize_delay - optimize PCI D3 and D3cold delay from ACPI
  * @pdev: the PCI device whose delay is to be updated
- * @adev: the companion ACPI device of this PCI device
+ * @handle: ACPI handle of this device
  *
  * Update the d3_delay and d3cold_delay of a PCI device from the ACPI _DSM
  * control method of either the device itself or the PCI host bridge.

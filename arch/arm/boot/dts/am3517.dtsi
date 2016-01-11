@@ -60,6 +60,17 @@
 			dma-names = "tx", "rx";
 			clock-frequency = <48000000>;
 		};
+
+		omap3_pmx_core2: pinmux@480025d8 {
+			compatible = "ti,omap3-padconf", "pinctrl-single";
+			reg = <0x480025d8 0x24>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0xff1f>;
+		};
 	};
 };
 

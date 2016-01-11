@@ -292,7 +292,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	u64 mtt_addr;
 	int err;
 
-	if (vector > dev->caps.num_comp_vectors + dev->caps.comp_pool)
+	if (vector >= dev->caps.num_comp_vectors)
 		return -EINVAL;
 
 	cq->vector = vector;
@@ -319,7 +319,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 		cq_context->flags  |= cpu_to_be32(1 << 19);
 
 	cq_context->logsize_usrpage = cpu_to_be32((ilog2(nent) << 24) | uar->index);
-	cq_context->comp_eqn	    = priv->eq_table.eq[vector].eqn;
+	cq_context->comp_eqn	    = priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].eqn;
 	cq_context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;
 
 	mtt_addr = mlx4_mtt_addr(dev, mtt);
@@ -339,11 +339,11 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	init_completion(&cq->free);
 	cq->comp = mlx4_add_cq_to_tasklet;
 	cq->tasklet_ctx.priv =
-		&priv->eq_table.eq[cq->vector].tasklet_ctx;
+		&priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].tasklet_ctx;
 	INIT_LIST_HEAD(&cq->tasklet_ctx.list);
 
 
-	cq->irq = priv->eq_table.eq[cq->vector].irq;
+	cq->irq = priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].irq;
 	return 0;
 
 err_radix:
@@ -368,7 +368,10 @@ void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq)
 	if (err)
 		mlx4_warn(dev, "HW2SW_CQ failed (%d) for CQN %06x\n", err, cq->cqn);
 
-	synchronize_irq(priv->eq_table.eq[cq->vector].irq);
+	synchronize_irq(priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(cq->vector)].irq);
+	if (priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(cq->vector)].irq !=
+	    priv->eq_table.eq[MLX4_EQ_ASYNC].irq)
+		synchronize_irq(priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, cq->cqn);

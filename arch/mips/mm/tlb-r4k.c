@@ -423,7 +423,7 @@ int __init has_transparent_hugepage(void)
  * lifetime of the system
  */
 
-int temp_tlb_entry __cpuinitdata;
+int temp_tlb_entry;
 
 __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 			       unsigned long entryhi, unsigned long pagemask)
@@ -495,7 +495,7 @@ static void r4k_tlb_configure(void)
 
 	if (cpu_has_rixi) {
 		/*
-		 * Enable the no read, no exec bits, and enable large virtual
+		 * Enable the no read, no exec bits, and enable large physical
 		 * address.
 		 */
 #ifdef CONFIG_64BIT

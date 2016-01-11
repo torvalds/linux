@@ -44,10 +44,10 @@
 
 PyMODINIT_FUNC initperf_trace_context(void);
 
-#define FTRACE_MAX_EVENT				\
+#define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, FTRACE_MAX_EVENT);
+static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
 #define MAX_FIELDS	64
 #define N_COMMON_FIELDS	7
@@ -251,6 +251,7 @@ static void define_event_symbols(struct event_format *event,
 		/* gcc warns for these? */
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_FUNC:
 	case PRINT_BITMASK:
 		/* we should warn... */
@@ -318,7 +319,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 	if (thread__resolve_callchain(al->thread, evsel,
 				      sample, NULL, NULL,
-				      PERF_MAX_STACK_DEPTH) != 0) {
+				      scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}

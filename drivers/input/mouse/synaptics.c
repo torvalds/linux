@@ -151,6 +151,11 @@ static const struct min_max_quirk min_max_pnpid_table[] = {
 		1024, 5112, 2024, 4832
 	},
 	{
+		(const char * const []){"LEN2000", NULL},
+		{ANY_BOARD_ID, ANY_BOARD_ID},
+		1024, 5113, 2021, 4832
+	},
+	{
 		(const char * const []){"LEN2001", NULL},
 		{ANY_BOARD_ID, ANY_BOARD_ID},
 		1024, 5022, 2508, 4832
@@ -191,7 +196,7 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0045",
 	"LEN0047",
 	"LEN0049",
-	"LEN2000",
+	"LEN2000", /* S540 */
 	"LEN2001", /* Edge E431 */
 	"LEN2002", /* Edge E531 */
 	"LEN2003",
@@ -1194,7 +1199,7 @@ static void set_input_params(struct psmouse *psmouse,
 					ABS_MT_POSITION_Y);
 		/* Image sensors can report per-contact pressure */
 		input_set_abs_params(dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
-		input_mt_init_slots(dev, 3, INPUT_MT_POINTER | INPUT_MT_TRACK);
+		input_mt_init_slots(dev, 2, INPUT_MT_POINTER | INPUT_MT_TRACK);
 
 		/* Image sensors can signal 4 and 5 finger clicks */
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
@@ -1479,12 +1484,12 @@ static int __synaptics_init(struct psmouse *psmouse, bool absolute_mode)
 	priv->pkt_type = SYN_MODEL_NEWABS(priv->model_id) ? SYN_NEWABS : SYN_OLDABS;
 
 	psmouse_info(psmouse,
-		     "Touchpad model: %ld, fw: %ld.%ld, id: %#lx, caps: %#lx/%#lx/%#lx, board id: %lu, fw id: %lu\n",
+		     "Touchpad model: %ld, fw: %ld.%ld, id: %#lx, caps: %#lx/%#lx/%#lx/%#lx, board id: %lu, fw id: %lu\n",
 		     SYN_ID_MODEL(priv->identity),
 		     SYN_ID_MAJOR(priv->identity), SYN_ID_MINOR(priv->identity),
 		     priv->model_id,
 		     priv->capabilities, priv->ext_cap, priv->ext_cap_0c,
-		     priv->board_id, priv->firmware_id);
+		     priv->ext_cap_10, priv->board_id, priv->firmware_id);
 
 	set_input_params(psmouse, priv);
 

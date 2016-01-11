@@ -102,12 +102,8 @@ void sb_audio_close(int dev)
 	if(devc->duplex
 	   && !devc->fullduplex
 	   && (devc->opened & OPEN_READ) && (devc->opened & OPEN_WRITE))
-	{
-		struct dma_buffparms *dmap_temp;
-		dmap_temp = audio_devs[dev]->dmap_out;
-		audio_devs[dev]->dmap_out = audio_devs[dev]->dmap_in;
-		audio_devs[dev]->dmap_in = dmap_temp;
-	}
+		swap(audio_devs[dev]->dmap_out, audio_devs[dev]->dmap_in);
+
 	audio_devs[dev]->dmap_out->dma = devc->dma8;
 	audio_devs[dev]->dmap_in->dma = ( devc->duplex ) ?
 		devc->dma16 : devc->dma8;

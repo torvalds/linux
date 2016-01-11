@@ -21,7 +21,7 @@ bool irq_pm_check_wakeup(struct irq_desc *desc)
 		desc->istate |= IRQS_SUSPENDED | IRQS_PENDING;
 		desc->depth++;
 		irq_disable(desc);
-		pm_system_wakeup();
+		pm_system_irq_wakeup(irq_desc_get_irq(desc));
 		return true;
 	}
 	return false;
@@ -68,9 +68,10 @@ void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
 		desc->cond_suspend_depth--;
 }
 
-static bool suspend_device_irq(struct irq_desc *desc, int irq)
+static bool suspend_device_irq(struct irq_desc *desc)
 {
-	if (!desc->action || desc->no_suspend_depth)
+	if (!desc->action || irq_desc_is_chained(desc) ||
+	    desc->no_suspend_depth)
 		return false;
 
 	if (irqd_is_wakeup_set(&desc->irq_data)) {
@@ -85,7 +86,7 @@ static bool suspend_device_irq(struct irq_desc *desc, int irq)
 	}
 
 	desc->istate |= IRQS_SUSPENDED;
-	__disable_irq(desc, irq);
+	__disable_irq(desc);
 
 	/*
 	 * Hardware which has no wakeup source configuration facility
@@ -123,8 +124,10 @@ void suspend_device_irqs(void)
 		unsigned long flags;
 		bool sync;
 
+		if (irq_settings_is_nested_thread(desc))
+			continue;
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		sync = suspend_device_irq(desc, irq);
+		sync = suspend_device_irq(desc);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 		if (sync)
@@ -133,7 +136,7 @@ void suspend_device_irqs(void)
 }
 EXPORT_SYMBOL_GPL(suspend_device_irqs);
 
-static void resume_irq(struct irq_desc *desc, int irq)
+static void resume_irq(struct irq_desc *desc)
 {
 	irqd_clear(&desc->irq_data, IRQD_WAKEUP_ARMED);
 
@@ -148,7 +151,7 @@ static void resume_irq(struct irq_desc *desc, int irq)
 	desc->depth++;
 resume:
 	desc->istate &= ~IRQS_SUSPENDED;
-	__enable_irq(desc, irq);
+	__enable_irq(desc);
 }
 
 static void resume_irqs(bool want_early)
@@ -163,9 +166,11 @@ static void resume_irqs(bool want_early)
 
 		if (!is_early && want_early)
 			continue;
+		if (irq_settings_is_nested_thread(desc))
+			continue;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		resume_irq(desc, irq);
+		resume_irq(desc);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }

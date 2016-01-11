@@ -1430,7 +1430,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	trace_ath5k_rx(ah, skb);
 
 	if (ath_is_mybeacon(common, (struct ieee80211_hdr *)skb->data)) {
-		ewma_add(&ah->ah_beacon_rssi_avg, rs->rs_rssi);
+		ewma_beacon_rssi_add(&ah->ah_beacon_rssi_avg, rs->rs_rssi);
 
 		/* check beacons in IBSS mode */
 		if (ah->opmode == NL80211_IFTYPE_ADHOC)
@@ -2537,12 +2537,12 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 
 	/* Initialize driver private data */
 	SET_IEEE80211_DEV(hw, ah->dev);
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-			IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-			IEEE80211_HW_SIGNAL_DBM |
-			IEEE80211_HW_MFP_CAPABLE |
-			IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-			IEEE80211_HW_SUPPORTS_RC_TABLE;
+	ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, MFP_CAPABLE);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
@@ -2936,7 +2936,7 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 	ah->ah_cal_next_short = jiffies +
 		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT);
 
-	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
+	ewma_beacon_rssi_init(&ah->ah_beacon_rssi_avg);
 
 	/* clear survey data and cycle counters */
 	memset(&ah->survey, 0, sizeof(ah->survey));

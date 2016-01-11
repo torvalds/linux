@@ -3,20 +3,51 @@
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
  *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "skeleton.dtsi"
 
-#include <dt-bindings/thermal/thermal.h>
+#include "sun5i.dtsi"
 
-#include <dt-bindings/dma/sun4i-a10.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -32,31 +63,6 @@
 			allwinner,pipeline = "de_be0-lcd0";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 44>;
 			status = "disabled";
-		};
-	};
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a8";
-			reg = <0x0>;
-			clocks = <&cpu>;
-			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
-				/* kHz    uV */
-				1008000 1400000
-				912000  1350000
-				864000  1300000
-				624000  1200000
-				576000  1200000
-				432000  1200000
-				>;
-			#cooling-cells = <2>;
-			cooling-min-level = <0>;
-			cooling-max-level = <5>;
 		};
 	};
 
@@ -92,126 +98,32 @@
 		};
 	};
 
-	memory {
-		reg = <0x40000000 0x20000000>;
-	};
-
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		/*
-		 * This is a dummy clock, to be used as placeholder on
-		 * other mux clocks when a specific parent clock is not
-		 * yet implemented. It should be dropped when the driver
-		 * is complete.
-		 */
-		dummy: dummy {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <0>;
-		};
-
-		osc24M: clk@01c20050 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-osc-clk";
-			reg = <0x01c20050 0x4>;
-			clock-frequency = <24000000>;
-			clock-output-names = "osc24M";
-		};
-
-		osc32k: clk@0 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <32768>;
-			clock-output-names = "osc32k";
-		};
-
-		pll1: clk@01c20000 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-pll1-clk";
-			reg = <0x01c20000 0x4>;
-			clocks = <&osc24M>;
-			clock-output-names = "pll1";
-		};
-
-		pll4: clk@01c20018 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-pll1-clk";
-			reg = <0x01c20018 0x4>;
-			clocks = <&osc24M>;
-			clock-output-names = "pll4";
-		};
-
-		pll5: clk@01c20020 {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-a10-pll5-clk";
-			reg = <0x01c20020 0x4>;
-			clocks = <&osc24M>;
-			clock-output-names = "pll5_ddr", "pll5_other";
-		};
-
-		pll6: clk@01c20028 {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-a10-pll6-clk";
-			reg = <0x01c20028 0x4>;
-			clocks = <&osc24M>;
-			clock-output-names = "pll6_sata", "pll6_other", "pll6";
-		};
-
-		/* dummy is 200M */
-		cpu: cpu@01c20054 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-cpu-clk";
-			reg = <0x01c20054 0x4>;
-			clocks = <&osc32k>, <&osc24M>, <&pll1>, <&dummy>;
-			clock-output-names = "cpu";
-		};
-
-		axi: axi@01c20054 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-axi-clk";
-			reg = <0x01c20054 0x4>;
-			clocks = <&cpu>;
-			clock-output-names = "axi";
-		};
-
-		axi_gates: clk@01c2005c {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-a10-axi-gates-clk";
-			reg = <0x01c2005c 0x4>;
-			clocks = <&axi>;
-			clock-output-names = "axi_dram";
-		};
-
-		ahb: ahb@01c20054 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-ahb-clk";
-			reg = <0x01c20054 0x4>;
-			clocks = <&axi>;
-			clock-output-names = "ahb";
-		};
-
 		ahb_gates: clk@01c20060 {
 			#clock-cells = <1>;
 			compatible = "allwinner,sun5i-a13-ahb-gates-clk";
 			reg = <0x01c20060 0x8>;
 			clocks = <&ahb>;
-			clock-output-names = "ahb_usbotg", "ahb_ehci", "ahb_ohci",
-				"ahb_ss", "ahb_dma", "ahb_bist", "ahb_mmc0",
-				"ahb_mmc1", "ahb_mmc2", "ahb_nand", "ahb_sdram",
-				"ahb_spi0", "ahb_spi1", "ahb_spi2", "ahb_stimer",
-				"ahb_ve", "ahb_lcd", "ahb_csi", "ahb_de_be",
-				"ahb_de_fe", "ahb_iep", "ahb_mali400";
-		};
-
-		apb0: apb0@01c20054 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-apb0-clk";
-			reg = <0x01c20054 0x4>;
-			clocks = <&ahb>;
-			clock-output-names = "apb0";
+			clock-indices = <0>, <1>,
+					<2>, <5>, <6>,
+					<7>, <8>, <9>,
+					<10>, <13>,
+					<14>, <20>,
+					<21>, <22>,
+				        <28>, <32>, <36>,
+				        <40>, <44>,
+					<46>, <51>,
+					<52>;
+			clock-output-names = "ahb_usbotg", "ahb_ehci",
+					     "ahb_ohci", "ahb_ss", "ahb_dma",
+					     "ahb_bist", "ahb_mmc0", "ahb_mmc1",
+					     "ahb_mmc2", "ahb_nand",
+					     "ahb_sdram", "ahb_spi0",
+					     "ahb_spi1", "ahb_spi2",
+					     "ahb_stimer", "ahb_ve", "ahb_lcd",
+					     "ahb_csi", "ahb_de_be",
+					     "ahb_de_fe", "ahb_iep",
+					     "ahb_mali400";
 		};
 
 		apb0_gates: clk@01c20068 {
@@ -219,15 +131,10 @@
 			compatible = "allwinner,sun5i-a13-apb0-gates-clk";
 			reg = <0x01c20068 0x4>;
 			clocks = <&apb0>;
-			clock-output-names = "apb0_codec", "apb0_pio", "apb0_ir";
-		};
-
-		apb1: clk@01c20058 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-apb1-clk";
-			reg = <0x01c20058 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&osc32k>;
-			clock-output-names = "apb1";
+			clock-indices = <0>, <5>,
+					<6>;
+			clock-output-names = "apb0_codec", "apb0_pio",
+					     "apb0_ir";
 		};
 
 		apb1_gates: clk@01c2006c {
@@ -235,387 +142,56 @@
 			compatible = "allwinner,sun5i-a13-apb1-gates-clk";
 			reg = <0x01c2006c 0x4>;
 			clocks = <&apb1>;
+			clock-indices = <0>, <1>,
+					<2>, <17>,
+					<19>;
 			clock-output-names = "apb1_i2c0", "apb1_i2c1",
-				"apb1_i2c2", "apb1_uart1", "apb1_uart3";
-		};
-
-		nand_clk: clk@01c20080 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c20080 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "nand";
-		};
-
-		ms_clk: clk@01c20084 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c20084 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "ms";
-		};
-
-		mmc0_clk: clk@01c20088 {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-a10-mmc-clk";
-			reg = <0x01c20088 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mmc0",
-					     "mmc0_output",
-					     "mmc0_sample";
-		};
-
-		mmc1_clk: clk@01c2008c {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-a10-mmc-clk";
-			reg = <0x01c2008c 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mmc1",
-					     "mmc1_output",
-					     "mmc1_sample";
-		};
-
-		mmc2_clk: clk@01c20090 {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-a10-mmc-clk";
-			reg = <0x01c20090 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mmc2",
-					     "mmc2_output",
-					     "mmc2_sample";
-		};
-
-		ts_clk: clk@01c20098 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c20098 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "ts";
-		};
-
-		ss_clk: clk@01c2009c {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c2009c 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "ss";
-		};
-
-		spi0_clk: clk@01c200a0 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c200a0 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "spi0";
-		};
-
-		spi1_clk: clk@01c200a4 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c200a4 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "spi1";
-		};
-
-		spi2_clk: clk@01c200a8 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c200a8 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "spi2";
-		};
-
-		ir0_clk: clk@01c200b0 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c200b0 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "ir0";
-		};
-
-		usb_clk: clk@01c200cc {
-			#clock-cells = <1>;
-		        #reset-cells = <1>;
-			compatible = "allwinner,sun5i-a13-usb-clk";
-			reg = <0x01c200cc 0x4>;
-			clocks = <&pll6 1>;
-			clock-output-names = "usb_ohci0", "usb_phy";
-		};
-
-		mbus_clk: clk@01c2015c {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun5i-a13-mbus-clk";
-			reg = <0x01c2015c 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mbus";
+					     "apb1_i2c2", "apb1_uart1",
+					     "apb1_uart3";
 		};
 	};
 
 	soc@01c00000 {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		dma: dma-controller@01c02000 {
-			compatible = "allwinner,sun4i-a10-dma";
-			reg = <0x01c02000 0x1000>;
-			interrupts = <27>;
-			clocks = <&ahb_gates 6>;
-			#dma-cells = <2>;
-		};
-
-		spi0: spi@01c05000 {
-			compatible = "allwinner,sun4i-a10-spi";
-			reg = <0x01c05000 0x1000>;
-			interrupts = <10>;
-			clocks = <&ahb_gates 20>, <&spi0_clk>;
-			clock-names = "ahb", "mod";
-			dmas = <&dma SUN4I_DMA_DEDICATED 27>,
-			       <&dma SUN4I_DMA_DEDICATED 26>;
-			dma-names = "rx", "tx";
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		spi1: spi@01c06000 {
-			compatible = "allwinner,sun4i-a10-spi";
-			reg = <0x01c06000 0x1000>;
-			interrupts = <11>;
-			clocks = <&ahb_gates 21>, <&spi1_clk>;
-			clock-names = "ahb", "mod";
-			dmas = <&dma SUN4I_DMA_DEDICATED 9>,
-			       <&dma SUN4I_DMA_DEDICATED 8>;
-			dma-names = "rx", "tx";
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		mmc0: mmc@01c0f000 {
-			compatible = "allwinner,sun5i-a13-mmc";
-			reg = <0x01c0f000 0x1000>;
-			clocks = <&ahb_gates 8>,
-				 <&mmc0_clk 0>,
-				 <&mmc0_clk 1>,
-				 <&mmc0_clk 2>;
-			clock-names = "ahb",
-				      "mmc",
-				      "output",
-				      "sample";
-			interrupts = <32>;
-			status = "disabled";
-		};
-
-		mmc2: mmc@01c11000 {
-			compatible = "allwinner,sun5i-a13-mmc";
-			reg = <0x01c11000 0x1000>;
-			clocks = <&ahb_gates 10>,
-				 <&mmc2_clk 0>,
-				 <&mmc2_clk 1>,
-				 <&mmc2_clk 2>;
-			clock-names = "ahb",
-				      "mmc",
-				      "output",
-				      "sample";
-			interrupts = <34>;
-			status = "disabled";
-		};
-
-		usbphy: phy@01c13400 {
-			#phy-cells = <1>;
-			compatible = "allwinner,sun5i-a13-usb-phy";
-			reg = <0x01c13400 0x10 0x01c14800 0x4>;
-			reg-names = "phy_ctrl", "pmu1";
-			clocks = <&usb_clk 8>;
-			clock-names = "usb_phy";
-			resets = <&usb_clk 0>, <&usb_clk 1>;
-			reset-names = "usb0_reset", "usb1_reset";
-			status = "disabled";
-		};
-
-		ehci0: usb@01c14000 {
-			compatible = "allwinner,sun5i-a13-ehci", "generic-ehci";
-			reg = <0x01c14000 0x100>;
-			interrupts = <39>;
-			clocks = <&ahb_gates 1>;
-			phys = <&usbphy 1>;
-			phy-names = "usb";
-			status = "disabled";
-		};
-
-		ohci0: usb@01c14400 {
-			compatible = "allwinner,sun5i-a13-ohci", "generic-ohci";
-			reg = <0x01c14400 0x100>;
-			interrupts = <40>;
-			clocks = <&usb_clk 6>, <&ahb_gates 2>;
-			phys = <&usbphy 1>;
-			phy-names = "usb";
-			status = "disabled";
-		};
-
-		spi2: spi@01c17000 {
-			compatible = "allwinner,sun4i-a10-spi";
-			reg = <0x01c17000 0x1000>;
-			interrupts = <12>;
-			clocks = <&ahb_gates 22>, <&spi2_clk>;
-			clock-names = "ahb", "mod";
-			dmas = <&dma SUN4I_DMA_DEDICATED 29>,
-			       <&dma SUN4I_DMA_DEDICATED 28>;
-			dma-names = "rx", "tx";
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		intc: interrupt-controller@01c20400 {
-			compatible = "allwinner,sun4i-a10-ic";
-			reg = <0x01c20400 0x400>;
-			interrupt-controller;
-			#interrupt-cells = <1>;
-		};
-
-		pio: pinctrl@01c20800 {
-			compatible = "allwinner,sun5i-a13-pinctrl";
-			reg = <0x01c20800 0x400>;
-			interrupts = <28>;
-			clocks = <&apb0_gates 5>;
-			gpio-controller;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			#size-cells = <0>;
-			#gpio-cells = <3>;
-
-			uart1_pins_a: uart1@0 {
-				allwinner,pins = "PE10", "PE11";
-				allwinner,function = "uart1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			uart1_pins_b: uart1@1 {
-				allwinner,pins = "PG3", "PG4";
-				allwinner,function = "uart1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			i2c0_pins_a: i2c0@0 {
-				allwinner,pins = "PB0", "PB1";
-				allwinner,function = "i2c0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			i2c1_pins_a: i2c1@0 {
-				allwinner,pins = "PB15", "PB16";
-				allwinner,function = "i2c1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			i2c2_pins_a: i2c2@0 {
-				allwinner,pins = "PB17", "PB18";
-				allwinner,function = "i2c2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
-				allwinner,function = "mmc0";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-		};
-
-		timer@01c20c00 {
-			compatible = "allwinner,sun4i-a10-timer";
-			reg = <0x01c20c00 0x90>;
-			interrupts = <22>;
+		pwm: pwm@01c20e00 {
+			compatible = "allwinner,sun5i-a13-pwm";
+			reg = <0x01c20e00 0xc>;
 			clocks = <&osc24M>;
-		};
-
-		wdt: watchdog@01c20c90 {
-			compatible = "allwinner,sun4i-a10-wdt";
-			reg = <0x01c20c90 0x10>;
-		};
-
-		lradc: lradc@01c22800 {
-			compatible = "allwinner,sun4i-a10-lradc-keys";
-			reg = <0x01c22800 0x100>;
-			interrupts = <31>;
+			#pwm-cells = <3>;
 			status = "disabled";
 		};
+	};
+};
 
-		sid: eeprom@01c23800 {
-			compatible = "allwinner,sun4i-a10-sid";
-			reg = <0x01c23800 0x10>;
-		};
+&cpu0 {
+	clock-latency = <244144>; /* 8 32k periods */
+	operating-points = <
+		/* kHz	  uV */
+		1008000 1400000
+		912000	1350000
+		864000	1300000
+		624000	1200000
+		576000	1200000
+		432000	1200000
+		>;
+	#cooling-cells = <2>;
+	cooling-min-level = <0>;
+	cooling-max-level = <5>;
+};
 
-		rtp: rtp@01c25000 {
-			compatible = "allwinner,sun4i-a10-ts";
-			reg = <0x01c25000 0x100>;
-			interrupts = <29>;
-			#thermal-sensor-cells = <0>;
-		};
+&pio {
+	compatible = "allwinner,sun5i-a13-pinctrl";
 
-		uart1: serial@01c28400 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x01c28400 0x400>;
-			interrupts = <2>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clocks = <&apb1_gates 17>;
-			status = "disabled";
-		};
+	uart1_pins_a: uart1@0 {
+		allwinner,pins = "PE10", "PE11";
+		allwinner,function = "uart1";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
 
-		uart3: serial@01c28c00 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x01c28c00 0x400>;
-			interrupts = <4>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clocks = <&apb1_gates 19>;
-			status = "disabled";
-		};
-
-		i2c0: i2c@01c2ac00 {
-			compatible = "allwinner,sun5i-a13-i2c", "allwinner,sun4i-a10-i2c";
-			reg = <0x01c2ac00 0x400>;
-			interrupts = <7>;
-			clocks = <&apb1_gates 0>;
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		i2c1: i2c@01c2b000 {
-			compatible = "allwinner,sun5i-a13-i2c", "allwinner,sun4i-a10-i2c";
-			reg = <0x01c2b000 0x400>;
-			interrupts = <8>;
-			clocks = <&apb1_gates 1>;
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		i2c2: i2c@01c2b400 {
-			compatible = "allwinner,sun5i-a13-i2c", "allwinner,sun4i-a10-i2c";
-			reg = <0x01c2b400 0x400>;
-			interrupts = <9>;
-			clocks = <&apb1_gates 2>;
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		timer@01c60000 {
-			compatible = "allwinner,sun5i-a13-hstimer";
-			reg = <0x01c60000 0x1000>;
-			interrupts = <82>, <83>;
-			clocks = <&ahb_gates 28>;
-		};
+	uart1_pins_b: uart1@1 {
+		allwinner,pins = "PG3", "PG4";
+		allwinner,function = "uart1";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };

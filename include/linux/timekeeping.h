@@ -18,9 +18,16 @@ extern int do_sys_settimeofday(const struct timespec *tv,
  * Kernel time accessors
  */
 unsigned long get_seconds(void);
-struct timespec current_kernel_time(void);
+struct timespec64 current_kernel_time64(void);
 /* does not take xtime_lock */
 struct timespec __current_kernel_time(void);
+
+static inline struct timespec current_kernel_time(void)
+{
+	struct timespec64 now = current_kernel_time64();
+
+	return timespec64_to_timespec(now);
+}
 
 /*
  * timespec based interfaces
@@ -145,7 +152,6 @@ static inline void getboottime(struct timespec *ts)
 }
 #endif
 
-#define do_posix_clock_monotonic_gettime(ts) ktime_get_ts(ts)
 #define ktime_get_real_ts64(ts)	getnstimeofday64(ts)
 
 /*
@@ -163,6 +169,7 @@ extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
 extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
 extern ktime_t ktime_get_raw(void);
+extern u32 ktime_get_resolution_ns(void);
 
 /**
  * ktime_get_real - get the real (wall-) time in ktime_t format
@@ -256,8 +263,8 @@ extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
 /*
  * PPS accessor
  */
-extern void getnstime_raw_and_real(struct timespec *ts_raw,
-				   struct timespec *ts_real);
+extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
+				        struct timespec64 *ts_real);
 
 /*
  * Persistent clock related interfaces
@@ -266,7 +273,6 @@ extern int persistent_clock_is_local;
 
 extern void read_persistent_clock(struct timespec *ts);
 extern void read_persistent_clock64(struct timespec64 *ts);
-extern void read_boot_clock(struct timespec *ts);
 extern void read_boot_clock64(struct timespec64 *ts);
 extern int update_persistent_clock(struct timespec now);
 extern int update_persistent_clock64(struct timespec64 now);

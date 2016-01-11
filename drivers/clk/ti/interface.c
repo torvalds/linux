@@ -63,7 +63,7 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 	if (IS_ERR(clk))
 		kfree(clk_hw);
 	else
-		omap2_init_clk_hw_omap_clocks(clk);
+		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 
 	return clk;
 }

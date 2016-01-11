@@ -57,7 +57,8 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (!tcf_hash_check(parm->index, a, bind)) {
 		if (!parm->nkeys)
 			return -EINVAL;
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p),
+				      bind, false);
 		if (ret)
 			return ret;
 		p = to_pedit(a);
@@ -68,13 +69,12 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		}
 		ret = ACT_P_CREATED;
 	} else {
-		p = to_pedit(a);
-		tcf_hash_release(a, bind);
 		if (bind)
 			return 0;
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
-
+		p = to_pedit(a);
 		if (p->tcfp_nkeys && p->tcfp_nkeys != parm->nkeys) {
 			keys = kmalloc(ksize, GFP_KERNEL);
 			if (keys == NULL)
@@ -108,7 +108,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 		     struct tcf_result *res)
 {
 	struct tcf_pedit *p = a->priv;
-	int i, munged = 0;
+	int i;
 	unsigned int off;
 
 	if (skb_unclone(skb, GFP_ATOMIC))
@@ -156,11 +156,8 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 			*ptr = ((*ptr & tkey->mask) ^ tkey->val);
 			if (ptr == &_data)
 				skb_store_bits(skb, off + offset, ptr, 4);
-			munged++;
 		}
 
-		if (munged)
-			skb->tc_verd = SET_TC_MUNGED(skb->tc_verd);
 		goto done;
 	} else
 		WARN(1, "pedit BUG: index %d\n", p->tcf_index);

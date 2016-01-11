@@ -20,6 +20,7 @@
 #include <linux/input.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/usb.h>
 
 #include "hid-ids.h"
 
@@ -57,10 +58,34 @@ static int ch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 1;
 }
 
+static __u8 *ch_switch12_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
+{
+	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	
+	if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
+		/* Change usage maximum and logical maximum from 0x7fff to
+		 * 0x2fff, so they don't exceed HID_MAX_USAGES */
+		switch (hdev->product) {
+		case USB_DEVICE_ID_CHICONY_ACER_SWITCH12:
+			if (*rsize >= 128 && rdesc[64] == 0xff && rdesc[65] == 0x7f
+					&& rdesc[69] == 0xff && rdesc[70] == 0x7f) {
+				hid_info(hdev, "Fixing up report descriptor\n");
+				rdesc[65] = rdesc[70] = 0x2f;
+			}
+			break;
+		}
+
+	}
+	return rdesc;
+}
+
+
 static const struct hid_device_id ch_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_TACTICAL_PAD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_WIRELESS2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_AK1D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_ACER_SWITCH12) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ch_devices);
@@ -68,6 +93,7 @@ MODULE_DEVICE_TABLE(hid, ch_devices);
 static struct hid_driver ch_driver = {
 	.name = "chicony",
 	.id_table = ch_devices,
+	.report_fixup = ch_switch12_report_fixup,
 	.input_mapping = ch_input_mapping,
 };
 module_hid_driver(ch_driver);

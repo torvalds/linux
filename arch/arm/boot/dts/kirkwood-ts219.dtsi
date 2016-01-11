@@ -40,7 +40,7 @@
 		};
 		poweroff@12100 {
 			compatible = "qnap,power-off";
-			reg = <0x12000 0x100>;
+			reg = <0x12100 0x100>;
 			clocks = <&gate_clk 7>;
 		};
 		spi@10600 {
@@ -49,7 +49,7 @@
 			m25p128@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "m25p128";
+				compatible = "m25p128", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;

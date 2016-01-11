@@ -65,15 +65,21 @@ static struct pt_cap_desc {
 } pt_caps[] = {
 	PT_CAP(max_subleaf,		0, CR_EAX, 0xffffffff),
 	PT_CAP(cr3_filtering,		0, CR_EBX, BIT(0)),
+	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
+	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
 	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
 	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
+	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
 	PT_CAP(payloads_lip,		0, CR_ECX, BIT(31)),
+	PT_CAP(mtc_periods,		1, CR_EAX, 0xffff0000),
+	PT_CAP(cycle_thresholds,	1, CR_EBX, 0xffff),
+	PT_CAP(psb_periods,		1, CR_EBX, 0xffff0000),
 };
 
 static u32 pt_cap_get(enum pt_capabilities cap)
 {
 	struct pt_cap_desc *cd = &pt_caps[cap];
-	u32 c = pt_pmu.caps[cd->leaf * 4 + cd->reg];
+	u32 c = pt_pmu.caps[cd->leaf * PT_CPUID_REGS_NUM + cd->reg];
 	unsigned int shift = __ffs(cd->mask);
 
 	return (c & cd->mask) >> shift;
@@ -94,12 +100,22 @@ static struct attribute_group pt_cap_group = {
 	.name	= "caps",
 };
 
+PMU_FORMAT_ATTR(cyc,		"config:1"	);
+PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
 PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
+PMU_FORMAT_ATTR(cyc_thresh,	"config:19-22"	);
+PMU_FORMAT_ATTR(psb_period,	"config:24-27"	);
 
 static struct attribute *pt_formats_attr[] = {
+	&format_attr_cyc.attr,
+	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
 	&format_attr_noretcomp.attr,
+	&format_attr_mtc_period.attr,
+	&format_attr_cyc_thresh.attr,
+	&format_attr_psb_period.attr,
 	NULL,
 };
 
@@ -123,16 +139,13 @@ static int __init pt_pmu_hw_init(void)
 	long i;
 
 	attrs = NULL;
-	ret = -ENODEV;
-	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT))
-		goto fail;
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
-			    &pt_pmu.caps[CR_EAX + i*4],
-			    &pt_pmu.caps[CR_EBX + i*4],
-			    &pt_pmu.caps[CR_ECX + i*4],
-			    &pt_pmu.caps[CR_EDX + i*4]);
+			    &pt_pmu.caps[CR_EAX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CR_EBX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CR_ECX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CR_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
 	ret = -ENOMEM;
@@ -151,7 +164,7 @@ static int __init pt_pmu_hw_init(void)
 
 		de_attr->attr.attr.name = pt_caps[i].name;
 
-		sysfs_attr_init(&de_attrs->attr.attr);
+		sysfs_attr_init(&de_attr->attr.attr);
 
 		de_attr->attr.attr.mode		= S_IRUGO;
 		de_attr->attr.show		= pt_cap_show;
@@ -170,14 +183,64 @@ fail:
 	return ret;
 }
 
-#define PT_CONFIG_MASK (RTIT_CTL_TSC_EN | RTIT_CTL_DISRETC)
+#define RTIT_CTL_CYC_PSB (RTIT_CTL_CYCLEACC	| \
+			  RTIT_CTL_CYC_THRESH	| \
+			  RTIT_CTL_PSB_FREQ)
+
+#define RTIT_CTL_MTC	(RTIT_CTL_MTC_EN	| \
+			 RTIT_CTL_MTC_RANGE)
+
+#define PT_CONFIG_MASK (RTIT_CTL_TSC_EN		| \
+			RTIT_CTL_DISRETC	| \
+			RTIT_CTL_CYC_PSB	| \
+			RTIT_CTL_MTC)
 
 static bool pt_event_valid(struct perf_event *event)
 {
 	u64 config = event->attr.config;
+	u64 allowed, requested;
 
 	if ((config & PT_CONFIG_MASK) != config)
 		return false;
+
+	if (config & RTIT_CTL_CYC_PSB) {
+		if (!pt_cap_get(PT_CAP_psb_cyc))
+			return false;
+
+		allowed = pt_cap_get(PT_CAP_psb_periods);
+		requested = (config & RTIT_CTL_PSB_FREQ) >>
+			RTIT_CTL_PSB_FREQ_OFFSET;
+		if (requested && (!(allowed & BIT(requested))))
+			return false;
+
+		allowed = pt_cap_get(PT_CAP_cycle_thresholds);
+		requested = (config & RTIT_CTL_CYC_THRESH) >>
+			RTIT_CTL_CYC_THRESH_OFFSET;
+		if (requested && (!(allowed & BIT(requested))))
+			return false;
+	}
+
+	if (config & RTIT_CTL_MTC) {
+		/*
+		 * In the unlikely case that CPUID lists valid mtc periods,
+		 * but not the mtc capability, drop out here.
+		 *
+		 * Spec says that setting mtc period bits while mtc bit in
+		 * CPUID is 0 will #GP, so better safe than sorry.
+		 */
+		if (!pt_cap_get(PT_CAP_mtc))
+			return false;
+
+		allowed = pt_cap_get(PT_CAP_mtc_periods);
+		if (!allowed)
+			return false;
+
+		requested = (config & RTIT_CTL_MTC_RANGE) >>
+			RTIT_CTL_MTC_RANGE_OFFSET;
+
+		if (!(allowed & BIT(requested)))
+			return false;
+	}
 
 	return true;
 }
@@ -187,18 +250,14 @@ static bool pt_event_valid(struct perf_event *event)
  * These all are cpu affine and operate on a local PT
  */
 
-static bool pt_is_running(void)
-{
-	u64 ctl;
-
-	rdmsrl(MSR_IA32_RTIT_CTL, ctl);
-
-	return !!(ctl & RTIT_CTL_TRACEEN);
-}
-
 static void pt_config(struct perf_event *event)
 {
 	u64 reg;
+
+	if (!event->hw.itrace_started) {
+		event->hw.itrace_started = 1;
+		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
+	}
 
 	reg = RTIT_CTL_TOPA | RTIT_CTL_BRANCH_EN | RTIT_CTL_TRACEEN;
 
@@ -609,16 +668,19 @@ static unsigned int pt_topa_next_entry(struct pt_buffer *buf, unsigned int pg)
  * @handle:	Current output handle.
  *
  * Place INT and STOP marks to prevent overwriting old data that the consumer
- * hasn't yet collected.
+ * hasn't yet collected and waking up the consumer after a certain fraction of
+ * the buffer has filled up. Only needed and sensible for non-snapshot counters.
+ *
+ * This obviously relies on buf::head to figure out buffer markers, so it has
+ * to be called after pt_buffer_reset_offsets() and before the hardware tracing
+ * is enabled.
  */
 static int pt_buffer_reset_markers(struct pt_buffer *buf,
 				   struct perf_output_handle *handle)
 
 {
-	unsigned long idx, npages, end;
-
-	if (buf->snapshot)
-		return 0;
+	unsigned long head = local64_read(&buf->head);
+	unsigned long idx, npages, wakeup;
 
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 <
@@ -634,17 +696,26 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 	buf->topa_index[buf->stop_pos]->stop = 0;
 	buf->topa_index[buf->intr_pos]->intr = 0;
 
-	if (pt_cap_get(PT_CAP_topa_multiple_entries)) {
-		npages = (handle->size + 1) >> PAGE_SHIFT;
-		end = (local64_read(&buf->head) >> PAGE_SHIFT) + npages;
-		/*if (end > handle->wakeup >> PAGE_SHIFT)
-		  end = handle->wakeup >> PAGE_SHIFT;*/
-		idx = end & (buf->nr_pages - 1);
-		buf->stop_pos = idx;
-		idx = (local64_read(&buf->head) >> PAGE_SHIFT) + npages - 1;
-		idx &= buf->nr_pages - 1;
-		buf->intr_pos = idx;
-	}
+	/* how many pages till the STOP marker */
+	npages = handle->size >> PAGE_SHIFT;
+
+	/* if it's on a page boundary, fill up one more page */
+	if (!offset_in_page(head + handle->size + 1))
+		npages++;
+
+	idx = (head >> PAGE_SHIFT) + npages;
+	idx &= buf->nr_pages - 1;
+	buf->stop_pos = idx;
+
+	wakeup = handle->wakeup >> PAGE_SHIFT;
+
+	/* in the worst case, wake up the consumer one page before hard stop */
+	idx = (head >> PAGE_SHIFT) + npages - 1;
+	if (idx > wakeup)
+		idx = wakeup;
+
+	idx &= buf->nr_pages - 1;
+	buf->intr_pos = idx;
 
 	buf->topa_index[buf->stop_pos]->stop = 1;
 	buf->topa_index[buf->intr_pos]->intr = 1;
@@ -664,7 +735,7 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 	struct topa *cur = buf->first, *prev = buf->last;
 	struct topa_entry *te_cur = TOPA_ENTRY(cur, 0),
 		*te_prev = TOPA_ENTRY(prev, prev->last - 1);
-	int pg = 0, idx = 0, ntopa = 0;
+	int pg = 0, idx = 0;
 
 	while (pg < buf->nr_pages) {
 		int tidx;
@@ -679,9 +750,9 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 			/* advance to next topa table */
 			idx = 0;
 			cur = list_entry(cur->list.next, struct topa, list);
-			ntopa++;
-		} else
+		} else {
 			idx++;
+		}
 		te_cur = TOPA_ENTRY(cur, idx);
 	}
 
@@ -693,7 +764,14 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
  * @head:	Write pointer (aux_head) from AUX buffer.
  *
  * Find the ToPA table and entry corresponding to given @head and set buffer's
- * "current" pointers accordingly.
+ * "current" pointers accordingly. This is done after we have obtained the
+ * current aux_head position from a successful call to perf_aux_output_begin()
+ * to make sure the hardware is writing to the right place.
+ *
+ * This function modifies buf::{cur,cur_idx,output_off} that will be programmed
+ * into PT msrs when the tracing is enabled and buf::head and buf::data_size,
+ * which are used to determine INT and STOP markers' locations by a subsequent
+ * call to pt_buffer_reset_markers().
  */
 static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 {
@@ -891,6 +969,7 @@ void intel_pt_interrupt(void)
 		}
 
 		pt_buffer_reset_offsets(buf, pt->handle.head);
+		/* snapshot counters don't use PMI, so it's safe */
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
 		if (ret) {
 			perf_aux_output_end(&pt->handle, 0, true);
@@ -899,7 +978,6 @@ void intel_pt_interrupt(void)
 
 		pt_config_buffer(buf->cur->table, buf->cur_idx,
 				 buf->output_off);
-		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 		pt_config(event);
 	}
 }
@@ -913,7 +991,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct pt_buffer *buf = perf_get_aux(&pt->handle);
 
-	if (pt_is_running() || !buf || pt_buffer_is_full(buf, pt)) {
+	if (!buf || pt_buffer_is_full(buf, pt)) {
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
@@ -923,7 +1001,6 @@ static void pt_event_start(struct perf_event *event, int mode)
 
 	pt_config_buffer(buf->cur->table, buf->cur_idx,
 			 buf->output_off);
-	wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 	pt_config(event);
 }
 
@@ -944,7 +1021,6 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	event->hw.state = PERF_HES_STOPPED;
 
 	if (mode & PERF_EF_UPDATE) {
-		struct pt *pt = this_cpu_ptr(&pt_ctx);
 		struct pt_buffer *buf = perf_get_aux(&pt->handle);
 
 		if (!buf)
@@ -1051,6 +1127,10 @@ static __init int pt_init(void)
 	int ret, cpu, prior_warn = 0;
 
 	BUILD_BUG_ON(sizeof(struct topa) > PAGE_SIZE);
+
+	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT))
+		return -ENODEV;
+
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		u64 ctl;
@@ -1096,5 +1176,4 @@ static __init int pt_init(void)
 
 	return ret;
 }
-
-module_init(pt_init);
+arch_initcall(pt_init);

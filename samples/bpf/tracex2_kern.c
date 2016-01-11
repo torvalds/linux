@@ -27,10 +27,10 @@ int bpf_prog2(struct pt_regs *ctx)
 	long init_val = 1;
 	long *value;
 
-	/* x64 specific: read ip of kfree_skb caller.
+	/* x64/s390x specific: read ip of kfree_skb caller.
 	 * non-portable version of __builtin_return_address(0)
 	 */
-	bpf_probe_read(&loc, sizeof(loc), (void *)ctx->sp);
+	bpf_probe_read(&loc, sizeof(loc), (void *)PT_REGS_RET(ctx));
 
 	value = bpf_map_lookup_elem(&my_map, &loc);
 	if (value)
@@ -62,24 +62,38 @@ static unsigned int log2l(unsigned long v)
 		return log2(v);
 }
 
+struct hist_key {
+	char comm[16];
+	u64 pid_tgid;
+	u64 uid_gid;
+	u32 index;
+};
+
 struct bpf_map_def SEC("maps") my_hist_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(struct hist_key),
 	.value_size = sizeof(long),
-	.max_entries = 64,
+	.max_entries = 1024,
 };
 
 SEC("kprobe/sys_write")
 int bpf_prog3(struct pt_regs *ctx)
 {
-	long write_size = ctx->dx; /* arg3 */
+	long write_size = PT_REGS_PARM3(ctx);
 	long init_val = 1;
 	long *value;
-	u32 index = log2l(write_size);
+	struct hist_key key = {};
 
-	value = bpf_map_lookup_elem(&my_hist_map, &index);
+	key.index = log2l(write_size);
+	key.pid_tgid = bpf_get_current_pid_tgid();
+	key.uid_gid = bpf_get_current_uid_gid();
+	bpf_get_current_comm(&key.comm, sizeof(key.comm));
+
+	value = bpf_map_lookup_elem(&my_hist_map, &key);
 	if (value)
 		__sync_fetch_and_add(value, 1);
+	else
+		bpf_map_update_elem(&my_hist_map, &key, &init_val, BPF_ANY);
 	return 0;
 }
 char _license[] SEC("license") = "GPL";

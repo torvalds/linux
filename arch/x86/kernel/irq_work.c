@@ -1,7 +1,7 @@
 /*
  * x86 specific code for irq_work
  *
- * Copyright (C) 2010 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2010 Red Hat, Inc., Peter Zijlstra
  */
 
 #include <linux/kernel.h>
@@ -9,12 +9,6 @@
 #include <linux/hardirq.h>
 #include <asm/apic.h>
 #include <asm/trace/irq_vectors.h>
-
-static inline void irq_work_entering_irq(void)
-{
-	irq_enter();
-	ack_APIC_irq();
-}
 
 static inline void __smp_irq_work_interrupt(void)
 {
@@ -24,14 +18,14 @@ static inline void __smp_irq_work_interrupt(void)
 
 __visible void smp_irq_work_interrupt(struct pt_regs *regs)
 {
-	irq_work_entering_irq();
+	ipi_entering_ack_irq();
 	__smp_irq_work_interrupt();
 	exiting_irq();
 }
 
 __visible void smp_trace_irq_work_interrupt(struct pt_regs *regs)
 {
-	irq_work_entering_irq();
+	ipi_entering_ack_irq();
 	trace_irq_work_entry(IRQ_WORK_VECTOR);
 	__smp_irq_work_interrupt();
 	trace_irq_work_exit(IRQ_WORK_VECTOR);

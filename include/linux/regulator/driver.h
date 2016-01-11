@@ -91,6 +91,7 @@ struct regulator_linear_range {
  * @set_current_limit: Configure a limit for a current-limited regulator.
  *                     The driver should select the current closest to max_uA.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
+ * @set_input_current_limit: Configure an input limit.
  *
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
@@ -111,6 +112,7 @@ struct regulator_linear_range {
  *               to stabilise after being set to a new value, in microseconds.
  *               The function provides the from and to voltage selector, the
  *               function should return the worst case.
+ * @set_soft_start: Enable soft start for the regulator.
  *
  * @set_suspend_voltage: Set the voltage for the regulator when the system
  *                       is suspended.
@@ -120,6 +122,9 @@ struct regulator_linear_range {
  *                       suspended.
  * @set_suspend_mode: Set the operating mode for the regulator when the
  *                    system is suspended.
+ *
+ * @set_pull_down: Configure the regulator to pull down when the regulator
+ *		   is disabled.
  *
  * This struct describes regulator operations which can be implemented by
  * regulator chip drivers.
@@ -142,6 +147,9 @@ struct regulator_ops {
 				 int min_uA, int max_uA);
 	int (*get_current_limit) (struct regulator_dev *);
 
+	int (*set_input_current_limit) (struct regulator_dev *, int lim_uA);
+	int (*set_over_current_protection) (struct regulator_dev *);
+
 	/* enable/disable regulator */
 	int (*enable) (struct regulator_dev *);
 	int (*disable) (struct regulator_dev *);
@@ -157,6 +165,8 @@ struct regulator_ops {
 	int (*set_voltage_time_sel) (struct regulator_dev *,
 				     unsigned int old_selector,
 				     unsigned int new_selector);
+
+	int (*set_soft_start) (struct regulator_dev *);
 
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
@@ -187,6 +197,8 @@ struct regulator_ops {
 
 	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
+
+	int (*set_pull_down) (struct regulator_dev *);
 };
 
 /*
@@ -233,6 +245,7 @@ enum regulator_type {
  * @linear_min_sel: Minimal selector for starting linear mapping
  * @fixed_uV: Fixed voltage of rails.
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
+ * @min_dropout_uV: The minimum dropout voltage this regulator can handle
  * @linear_ranges: A constant table of possible voltage ranges.
  * @n_linear_ranges: Number of entries in the @linear_ranges table.
  * @volt_table: Voltage mapping table (if table based mapping)
@@ -280,6 +293,7 @@ struct regulator_desc {
 	unsigned int linear_min_sel;
 	int fixed_uV;
 	unsigned int ramp_delay;
+	int min_dropout_uV;
 
 	const struct regulator_linear_range *linear_ranges;
 	int n_linear_ranges;

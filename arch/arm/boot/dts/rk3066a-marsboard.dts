@@ -48,6 +48,7 @@
 	compatible = "haoyu,marsboard-rk3066", "rockchip,rk3066a";
 
 	memory {
+		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};
 
@@ -177,6 +178,14 @@
 	};
 };
 
+&mmc0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;
+	vmmc-supply = <&vcc_sd0>;
+};
+
 &pinctrl {
 	lan8720a {
 		phy_int: phy-int {
@@ -198,6 +207,18 @@
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&usb_host {
+	status = "okay";
+};
+
+&usb_otg {
 	status = "okay";
 };
 

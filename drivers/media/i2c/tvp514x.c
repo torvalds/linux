@@ -747,54 +747,6 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 /**
- * tvp514x_enum_mbus_fmt() - V4L2 decoder interface handler for enum_mbus_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @index: index of pixelcode to retrieve
- * @code: receives the pixelcode
- *
- * Enumerates supported mediabus formats
- */
-static int
-tvp514x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					u32 *code)
-{
-	if (index)
-		return -EINVAL;
-
-	*code = MEDIA_BUS_FMT_YUYV10_2X10;
-	return 0;
-}
-
-/**
- * tvp514x_mbus_fmt() - V4L2 decoder interface handler for try/s/g_mbus_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to the mediabus format structure
- *
- * Negotiates the image capture size and mediabus format.
- */
-static int
-tvp514x_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
-{
-	struct tvp514x_decoder *decoder = to_decoder(sd);
-	enum tvp514x_std current_std;
-
-	if (f == NULL)
-		return -EINVAL;
-
-	/* Calculate height and width based on current standard */
-	current_std = decoder->current_std;
-
-	f->code = MEDIA_BUS_FMT_YUYV8_2X8;
-	f->width = decoder->std_list[current_std].width;
-	f->height = decoder->std_list[current_std].height;
-	f->field = V4L2_FIELD_INTERLACED;
-	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d\n",
-			f->width, f->height);
-	return 0;
-}
-
-/**
  * tvp514x_g_parm() - V4L2 decoder interface handler for g_parm
  * @sd: pointer to standard V4L2 sub-device structure
  * @a: pointer to standard V4L2 VIDIOC_G_PARM ioctl structure
@@ -962,6 +914,9 @@ static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 	__u32 which = format->which;
 
+	if (format->pad)
+		return -EINVAL;
+
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		format->format = decoder->format;
 		return 0;
@@ -1002,24 +957,10 @@ static int tvp514x_set_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct v4l2_subdev_core_ops tvp514x_core_ops = {
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
-};
-
 static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
-	.enum_mbus_fmt = tvp514x_enum_mbus_fmt,
-	.g_mbus_fmt = tvp514x_mbus_fmt,
-	.try_mbus_fmt = tvp514x_mbus_fmt,
-	.s_mbus_fmt = tvp514x_mbus_fmt,
 	.g_parm = tvp514x_g_parm,
 	.s_parm = tvp514x_s_parm,
 	.s_stream = tvp514x_s_stream,
@@ -1032,7 +973,6 @@ static const struct v4l2_subdev_pad_ops tvp514x_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops tvp514x_ops = {
-	.core = &tvp514x_core_ops,
 	.video = &tvp514x_video_ops,
 	.pad = &tvp514x_pad_ops,
 };

@@ -766,6 +766,13 @@ UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
 
+/* Reported by Christian Schaller <cschalle@redhat.com> */
+UNUSUAL_DEV(  0x059f, 0x0651, 0x0000, 0x0000,
+		"LaCie",
+		"External HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_WP_DETECT ),
+
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
  * while others don't.
@@ -1980,7 +1987,7 @@ UNUSUAL_DEV(  0x14cd, 0x6600, 0x0201, 0x0201,
 		US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Michael Büsch <m@bues.ch> */
-UNUSUAL_DEV(  0x152d, 0x0567, 0x0114, 0x0114,
+UNUSUAL_DEV(  0x152d, 0x0567, 0x0114, 0x0116,
 		"JMicron",
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
@@ -2058,6 +2065,18 @@ UNUSUAL_DEV( 0x1908, 0x3335, 0x0200, 0x0200,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_READ_DISC_INFO ),
 
+/* Reported by Oliver Neukum <oneukum@suse.com>
+ * This device morphes spontaneously into another device if the access
+ * pattern of Windows isn't followed. Thus writable media would be dirty
+ * if the initial instance is used. So the device is limited to its
+ * virtual CD.
+ * And yes, the concept that BCD goes up to 9 is not heeded */
+UNUSUAL_DEV( 0x19d2, 0x1225, 0x0000, 0xffff,
+		"ZTE,Incorporated",
+		"ZTE WCDMA Technologies MSM",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Reported by Sven Geggus <sven-usbst@geggus.net>
  * This encrypted pen drive returns bogus data for the initial READ(10).
  */
@@ -2066,6 +2085,17 @@ UNUSUAL_DEV(  0x1b1c, 0x1ab5, 0x0200, 0x0200,
 		"Padlock v2",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_INITIAL_READ10 ),
+
+/* Reported by Hans de Goede <hdegoede@redhat.com>
+ * These are mini projectors using USB for both power and video data transport
+ * The usb-storage interface is a virtual windows driver CD, which the gm12u320
+ * driver automatically converts into framebuffer & kms dri device nodes.
+ */
+UNUSUAL_DEV( 0x1de1, 0xc102, 0x0000, 0xffff,
+		"Grain-media Technology Corp.",
+		"USB3.0 Device GM12U320",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE ),
 
 /* Patch by Richard Schütz <r.schtz@t-online.de>
  * This external hard drive enclosure uses a JMicron chip which

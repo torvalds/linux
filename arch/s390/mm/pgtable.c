@@ -10,11 +10,7 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/smp.h>
-#include <linux/highmem.h>
-#include <linux/pagemap.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
-#include <linux/quicklist.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/swapops.h>
@@ -28,12 +24,9 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 
-#define ALLOC_ORDER	2
-#define FRAG_MASK	0x03
-
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
-	struct page *page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
+	struct page *page = alloc_pages(GFP_KERNEL, 2);
 
 	if (!page)
 		return NULL;
@@ -42,7 +35,7 @@ unsigned long *crst_table_alloc(struct mm_struct *mm)
 
 void crst_table_free(struct mm_struct *mm, unsigned long *table)
 {
-	free_pages((unsigned long) table, ALLOC_ORDER);
+	free_pages((unsigned long) table, 2);
 }
 
 static void __crst_table_upgrade(void *arg)
@@ -176,7 +169,7 @@ struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit)
 	INIT_RADIX_TREE(&gmap->host_to_guest, GFP_ATOMIC);
 	spin_lock_init(&gmap->guest_table_lock);
 	gmap->mm = mm;
-	page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL, 2);
 	if (!page)
 		goto out_free;
 	page->index = 0;
@@ -247,7 +240,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Free all segment & region tables. */
 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru)
-		__free_pages(page, ALLOC_ORDER);
+		__free_pages(page, 2);
 	gmap_radix_tree_free(&gmap->guest_to_host);
 	gmap_radix_tree_free(&gmap->host_to_guest);
 	down_write(&gmap->mm->mmap_sem);
@@ -287,7 +280,7 @@ static int gmap_alloc_table(struct gmap *gmap, unsigned long *table,
 	unsigned long *new;
 
 	/* since we dont free the gmap table until gmap_free we can unlock */
-	page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL, 2);
 	if (!page)
 		return -ENOMEM;
 	new = (unsigned long *) page_to_phys(page);
@@ -302,7 +295,7 @@ static int gmap_alloc_table(struct gmap *gmap, unsigned long *table,
 	}
 	spin_unlock(&gmap->mm->page_table_lock);
 	if (page)
-		__free_pages(page, ALLOC_ORDER);
+		__free_pages(page, 2);
 	return 0;
 }
 
@@ -795,40 +788,6 @@ void gmap_do_ipte_notify(struct mm_struct *mm, unsigned long vmaddr, pte_t *pte)
 }
 EXPORT_SYMBOL_GPL(gmap_do_ipte_notify);
 
-static inline int page_table_with_pgste(struct page *page)
-{
-	return atomic_read(&page->_mapcount) == 0;
-}
-
-static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm)
-{
-	struct page *page;
-	unsigned long *table;
-
-	page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
-	if (!page)
-		return NULL;
-	if (!pgtable_page_ctor(page)) {
-		__free_page(page);
-		return NULL;
-	}
-	atomic_set(&page->_mapcount, 0);
-	table = (unsigned long *) page_to_phys(page);
-	clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
-	clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
-	return table;
-}
-
-static inline void page_table_free_pgste(unsigned long *table)
-{
-	struct page *page;
-
-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	pgtable_page_dtor(page);
-	atomic_set(&page->_mapcount, -1);
-	__free_page(page);
-}
-
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned long key, bool nq)
 {
@@ -957,20 +916,6 @@ __initcall(page_table_register_sysctl);
 
 #else /* CONFIG_PGSTE */
 
-static inline int page_table_with_pgste(struct page *page)
-{
-	return 0;
-}
-
-static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm)
-{
-	return NULL;
-}
-
-static inline void page_table_free_pgste(unsigned long *table)
-{
-}
-
 static inline void gmap_unlink(struct mm_struct *mm, unsigned long *table,
 			unsigned long vmaddr)
 {
@@ -994,44 +939,55 @@ static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
  */
 unsigned long *page_table_alloc(struct mm_struct *mm)
 {
-	unsigned long *uninitialized_var(table);
-	struct page *uninitialized_var(page);
+	unsigned long *table;
+	struct page *page;
 	unsigned int mask, bit;
 
-	if (mm_alloc_pgste(mm))
-		return page_table_alloc_pgste(mm);
-	/* Allocate fragments of a 4K page as 1K/2K page table */
-	spin_lock_bh(&mm->context.list_lock);
-	mask = FRAG_MASK;
-	if (!list_empty(&mm->context.pgtable_list)) {
-		page = list_first_entry(&mm->context.pgtable_list,
-					struct page, lru);
-		table = (unsigned long *) page_to_phys(page);
-		mask = atomic_read(&page->_mapcount);
-		mask = mask | (mask >> 4);
-	}
-	if ((mask & FRAG_MASK) == FRAG_MASK) {
-		spin_unlock_bh(&mm->context.list_lock);
-		page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
-		if (!page)
-			return NULL;
-		if (!pgtable_page_ctor(page)) {
-			__free_page(page);
-			return NULL;
+	/* Try to get a fragment of a 4K page as a 2K page table */
+	if (!mm_alloc_pgste(mm)) {
+		table = NULL;
+		spin_lock_bh(&mm->context.list_lock);
+		if (!list_empty(&mm->context.pgtable_list)) {
+			page = list_first_entry(&mm->context.pgtable_list,
+						struct page, lru);
+			mask = atomic_read(&page->_mapcount);
+			mask = (mask | (mask >> 4)) & 3;
+			if (mask != 3) {
+				table = (unsigned long *) page_to_phys(page);
+				bit = mask & 1;		/* =1 -> second 2K */
+				if (bit)
+					table += PTRS_PER_PTE;
+				atomic_xor_bits(&page->_mapcount, 1U << bit);
+				list_del(&page->lru);
+			}
 		}
+		spin_unlock_bh(&mm->context.list_lock);
+		if (table)
+			return table;
+	}
+	/* Allocate a fresh page */
+	page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
+	if (!page)
+		return NULL;
+	if (!pgtable_page_ctor(page)) {
+		__free_page(page);
+		return NULL;
+	}
+	/* Initialize page table */
+	table = (unsigned long *) page_to_phys(page);
+	if (mm_alloc_pgste(mm)) {
+		/* Return 4K page table with PGSTEs */
+		atomic_set(&page->_mapcount, 3);
+		clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
+		clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
+	} else {
+		/* Return the first 2K fragment of the page */
 		atomic_set(&page->_mapcount, 1);
-		table = (unsigned long *) page_to_phys(page);
 		clear_table(table, _PAGE_INVALID, PAGE_SIZE);
 		spin_lock_bh(&mm->context.list_lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
-	} else {
-		for (bit = 1; mask & bit; bit <<= 1)
-			table += PTRS_PER_PTE;
-		mask = atomic_xor_bits(&page->_mapcount, bit);
-		if ((mask & FRAG_MASK) == FRAG_MASK)
-			list_del(&page->lru);
+		spin_unlock_bh(&mm->context.list_lock);
 	}
-	spin_unlock_bh(&mm->context.list_lock);
 	return table;
 }
 
@@ -1041,37 +997,23 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	unsigned int bit, mask;
 
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	if (page_table_with_pgste(page))
-		return page_table_free_pgste(table);
-	/* Free 1K/2K page table fragment of a 4K page */
-	bit = 1 << ((__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t)));
-	spin_lock_bh(&mm->context.list_lock);
-	if ((atomic_read(&page->_mapcount) & FRAG_MASK) != FRAG_MASK)
-		list_del(&page->lru);
-	mask = atomic_xor_bits(&page->_mapcount, bit);
-	if (mask & FRAG_MASK)
-		list_add(&page->lru, &mm->context.pgtable_list);
-	spin_unlock_bh(&mm->context.list_lock);
-	if (mask == 0) {
-		pgtable_page_dtor(page);
-		atomic_set(&page->_mapcount, -1);
-		__free_page(page);
+	if (!mm_alloc_pgste(mm)) {
+		/* Free 2K page table fragment of a 4K page */
+		bit = (__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t));
+		spin_lock_bh(&mm->context.list_lock);
+		mask = atomic_xor_bits(&page->_mapcount, 1U << bit);
+		if (mask & 3)
+			list_add(&page->lru, &mm->context.pgtable_list);
+		else
+			list_del(&page->lru);
+		spin_unlock_bh(&mm->context.list_lock);
+		if (mask != 0)
+			return;
 	}
-}
 
-static void __page_table_free_rcu(void *table, unsigned bit)
-{
-	struct page *page;
-
-	if (bit == FRAG_MASK)
-		return page_table_free_pgste(table);
-	/* Free 1K/2K page table fragment of a 4K page */
-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	if (atomic_xor_bits(&page->_mapcount, bit) == 0) {
-		pgtable_page_dtor(page);
-		atomic_set(&page->_mapcount, -1);
-		__free_page(page);
-	}
+	pgtable_page_dtor(page);
+	atomic_set(&page->_mapcount, -1);
+	__free_page(page);
 }
 
 void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
@@ -1083,34 +1025,45 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 
 	mm = tlb->mm;
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	if (page_table_with_pgste(page)) {
+	if (mm_alloc_pgste(mm)) {
 		gmap_unlink(mm, table, vmaddr);
-		table = (unsigned long *) (__pa(table) | FRAG_MASK);
+		table = (unsigned long *) (__pa(table) | 3);
 		tlb_remove_table(tlb, table);
 		return;
 	}
-	bit = 1 << ((__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t)));
+	bit = (__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t));
 	spin_lock_bh(&mm->context.list_lock);
-	if ((atomic_read(&page->_mapcount) & FRAG_MASK) != FRAG_MASK)
-		list_del(&page->lru);
-	mask = atomic_xor_bits(&page->_mapcount, bit | (bit << 4));
-	if (mask & FRAG_MASK)
+	mask = atomic_xor_bits(&page->_mapcount, 0x11U << bit);
+	if (mask & 3)
 		list_add_tail(&page->lru, &mm->context.pgtable_list);
+	else
+		list_del(&page->lru);
 	spin_unlock_bh(&mm->context.list_lock);
-	table = (unsigned long *) (__pa(table) | (bit << 4));
+	table = (unsigned long *) (__pa(table) | (1U << bit));
 	tlb_remove_table(tlb, table);
 }
 
 static void __tlb_remove_table(void *_table)
 {
-	const unsigned long mask = (FRAG_MASK << 4) | FRAG_MASK;
-	void *table = (void *)((unsigned long) _table & ~mask);
-	unsigned type = (unsigned long) _table & mask;
+	unsigned int mask = (unsigned long) _table & 3;
+	void *table = (void *)((unsigned long) _table ^ mask);
+	struct page *page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
 
-	if (type)
-		__page_table_free_rcu(table, type);
-	else
-		free_pages((unsigned long) table, ALLOC_ORDER);
+	switch (mask) {
+	case 0:		/* pmd or pud */
+		free_pages((unsigned long) table, 2);
+		break;
+	case 1:		/* lower 2K of a 4K page table */
+	case 2:		/* higher 2K of a 4K page table */
+		if (atomic_xor_bits(&page->_mapcount, mask << 4) != 0)
+			break;
+		/* fallthrough */
+	case 3:		/* 4K page table with pgstes */
+		pgtable_page_dtor(page);
+		atomic_set(&page->_mapcount, -1);
+		__free_page(page);
+		break;
+	}
 }
 
 static void tlb_remove_table_smp_sync(void *arg)

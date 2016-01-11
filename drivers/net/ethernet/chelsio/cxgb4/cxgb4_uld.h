@@ -40,6 +40,7 @@
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/atomic.h>
+#include "cxgb4.h"
 
 /* CPL message priority levels */
 enum {
@@ -96,6 +97,7 @@ struct tid_info {
 	unsigned long *stid_bmap;
 	unsigned int nstids;
 	unsigned int stid_base;
+	unsigned int hash_base;
 
 	union aopen_entry *atid_tab;
 	unsigned int natids;
@@ -116,8 +118,12 @@ struct tid_info {
 
 	spinlock_t stid_lock;
 	unsigned int stids_in_use;
+	unsigned int sftids_in_use;
 
+	/* TIDs in the TCAM */
 	atomic_t tids_in_use;
+	/* TIDs in the HASH */
+	atomic_t hash_tids_in_use;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
@@ -147,7 +153,10 @@ static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 				    unsigned int tid)
 {
 	t->tid_tab[tid] = data;
-	atomic_inc(&t->tids_in_use);
+	if (t->hash_base && (tid >= t->hash_base))
+		atomic_inc(&t->hash_tids_in_use);
+	else
+		atomic_inc(&t->tids_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -264,6 +273,7 @@ struct cxgb4_lld_info {
 	unsigned int max_ordird_qp;          /* Max ORD/IRD depth per RDMA QP */
 	unsigned int max_ird_adapter;        /* Max IRD memory per adapter */
 	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
+	int nodeid;			     /* device numa node id */
 };
 
 struct cxgb4_uld_info {
@@ -281,6 +291,7 @@ int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
+unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid);
 unsigned int cxgb4_port_idx(const struct net_device *dev);
 unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 			    unsigned int *idx);
@@ -297,8 +308,6 @@ struct sk_buff *cxgb4_pktgl_to_skb(const struct pkt_gl *gl,
 				   unsigned int skb_len, unsigned int pull_len);
 int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
 int cxgb4_flush_eq_cache(struct net_device *dev);
-void cxgb4_disable_db_coalescing(struct net_device *dev);
-void cxgb4_enable_db_coalescing(struct net_device *dev);
 int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte);
 u64 cxgb4_read_sge_timestamp(struct net_device *dev);
 
@@ -306,6 +315,7 @@ enum cxgb4_bar2_qtype { CXGB4_BAR2_QTYPE_EGRESS, CXGB4_BAR2_QTYPE_INGRESS };
 int cxgb4_bar2_sge_qregs(struct net_device *dev,
 			 unsigned int qid,
 			 enum cxgb4_bar2_qtype qtype,
+			 int user,
 			 u64 *pbar2_qoffset,
 			 unsigned int *pbar2_qid);
 

@@ -1,9 +1,37 @@
 /*
  * Copyright (C) 2014 Antoine Ténart <antoine.tenart@free-electrons.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is licensed under the terms of the GNU General Public
+ *     License version 2. This program is licensed "as is" without any
+ *     warranty of any kind, whether express or implied.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <dt-bindings/clock/berlin2q.h>
@@ -15,6 +43,11 @@
 	model = "Marvell Armada 1500 pro (BG2-Q) SoC";
 	compatible = "marvell,berlin2q", "marvell,berlin";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -25,6 +58,17 @@
 			device_type = "cpu";
 			next-level-cache = <&l2>;
 			reg = <0>;
+
+			clocks = <&chip_clk CLKID_CPU>;
+			clock-latency = <100000>;
+			/* Can be modified by the bootloader */
+			operating-points = <
+				/* kHz    uV */
+				1200000 1200000
+				1000000 1200000
+				800000  1200000
+				600000  1200000
+			>;
 		};
 
 		cpu@1 {
@@ -74,7 +118,8 @@
 		sdhci0: sdhci@ab0000 {
 			compatible = "mrvl,pxav3-mmc";
 			reg = <0xab0000 0x200>;
-			clocks = <&chip CLKID_SDIO1XIN>;
+			clocks = <&chip_clk CLKID_SDIO1XIN>, <&chip_clk CLKID_SDIO>;
+			clock-names = "io", "core";
 			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
@@ -82,7 +127,8 @@
 		sdhci1: sdhci@ab0800 {
 			compatible = "mrvl,pxav3-mmc";
 			reg = <0xab0800 0x200>;
-			clocks = <&chip CLKID_SDIO1XIN>;
+			clocks = <&chip_clk CLKID_SDIO1XIN>, <&chip_clk CLKID_SDIO>;
+			clock-names = "io", "core";
 			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
@@ -91,7 +137,7 @@
 			compatible = "mrvl,pxav3-mmc";
 			reg = <0xab1000 0x200>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&chip CLKID_NFC_ECC>, <&chip CLKID_NFC>;
+			clocks = <&chip_clk CLKID_NFC_ECC>, <&chip_clk CLKID_SDIO>;
 			clock-names = "io", "core";
 			status = "disabled";
 		};
@@ -112,7 +158,7 @@
 		local-timer@ad0600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xad0600 0x20>;
-			clocks = <&chip CLKID_TWD>;
+			clocks = <&chip_clk CLKID_TWD>;
 			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
@@ -124,10 +170,10 @@
 		};
 
 		usb_phy2: phy@a2f400 {
-			compatible = "marvell,berlin2-usb-phy";
+			compatible = "marvell,berlin2cd-usb-phy";
 			reg = <0xa2f400 0x128>;
 			#phy-cells = <0>;
-			resets = <&chip 0x104 14>;
+			resets = <&chip_rst 0x104 14>;
 			status = "disabled";
 		};
 
@@ -135,32 +181,32 @@
 			compatible = "chipidea,usb2";
 			reg = <0xa30000 0x10000>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&chip CLKID_USB2>;
+			clocks = <&chip_clk CLKID_USB2>;
 			phys = <&usb_phy2>;
 			phy-names = "usb-phy";
 			status = "disabled";
 		};
 
 		usb_phy0: phy@b74000 {
-			compatible = "marvell,berlin2-usb-phy";
+			compatible = "marvell,berlin2cd-usb-phy";
 			reg = <0xb74000 0x128>;
 			#phy-cells = <0>;
-			resets = <&chip 0x104 12>;
+			resets = <&chip_rst 0x104 12>;
 			status = "disabled";
 		};
 
 		usb_phy1: phy@b78000 {
-			compatible = "marvell,berlin2-usb-phy";
+			compatible = "marvell,berlin2cd-usb-phy";
 			reg = <0xb78000 0x128>;
 			#phy-cells = <0>;
-			resets = <&chip 0x104 13>;
+			resets = <&chip_rst 0x104 13>;
 			status = "disabled";
 		};
 
 		eth0: ethernet@b90000 {
 			compatible = "marvell,pxa168-eth";
 			reg = <0xb90000 0x10000>;
-			clocks = <&chip CLKID_GETH0>;
+			clocks = <&chip_clk CLKID_GETH0>;
 			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 			/* set by bootloader */
 			local-mac-address = [00 00 00 00 00 00];
@@ -267,7 +313,7 @@
 				reg = <0x1400 0x100>;
 				interrupt-parent = <&aic>;
 				interrupts = <4>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				pinctrl-0 = <&twsi0_pmux>;
 				pinctrl-names = "default";
 				status = "disabled";
@@ -280,7 +326,7 @@
 				reg = <0x1800 0x100>;
 				interrupt-parent = <&aic>;
 				interrupts = <5>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				pinctrl-0 = <&twsi1_pmux>;
 				pinctrl-names = "default";
 				status = "disabled";
@@ -289,7 +335,7 @@
 			timer0: timer@2c00 {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c00 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				interrupts = <8>;
 			};
@@ -297,14 +343,14 @@
 			timer1: timer@2c14 {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c14 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 			};
 
 			timer2: timer@2c28 {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c28 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				status = "disabled";
 			};
@@ -312,7 +358,7 @@
 			timer3: timer@2c3c {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c3c 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				status = "disabled";
 			};
@@ -320,7 +366,7 @@
 			timer4: timer@2c50 {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c50 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				status = "disabled";
 			};
@@ -328,7 +374,7 @@
 			timer5: timer@2c64 {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c64 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				status = "disabled";
 			};
@@ -336,7 +382,7 @@
 			timer6: timer@2c78 {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c78 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				status = "disabled";
 			};
@@ -344,7 +390,7 @@
 			timer7: timer@2c8c {
 				compatible = "snps,dw-apb-timer";
 				reg = <0x2c8c 0x14>;
-				clocks = <&chip CLKID_CFG>;
+				clocks = <&chip_clk CLKID_CFG>;
 				clock-names = "timer";
 				status = "disabled";
 			};
@@ -360,21 +406,33 @@
 		};
 
 		chip: chip-control@ea0000 {
-			compatible = "marvell,berlin2q-chip-ctrl";
-			#clock-cells = <1>;
-			#reset-cells = <2>;
+			compatible = "simple-mfd", "syscon";
 			reg = <0xea0000 0x400>, <0xdd0170 0x10>;
-			clocks = <&refclk>;
-			clock-names = "refclk";
 
-			twsi0_pmux: twsi0-pmux {
-				groups = "G6";
-				function = "twsi0";
+			chip_clk: clock {
+				compatible = "marvell,berlin2q-clk";
+				#clock-cells = <1>;
+				clocks = <&refclk>;
+				clock-names = "refclk";
 			};
 
-			twsi1_pmux: twsi1-pmux {
-				groups = "G7";
-				function = "twsi1";
+			soc_pinctrl: pin-controller {
+				compatible = "marvell,berlin2q-soc-pinctrl";
+
+				twsi0_pmux: twsi0-pmux {
+					groups = "G6";
+					function = "twsi0";
+				};
+
+				twsi1_pmux: twsi1-pmux {
+					groups = "G7";
+					function = "twsi1";
+				};
+			};
+
+			chip_rst: reset {
+				compatible = "marvell,berlin2-reset";
+				#reset-cells = <2>;
 			};
 		};
 
@@ -382,7 +440,7 @@
 			compatible = "marvell,berlin2q-ahci", "generic-ahci";
 			reg = <0xe90000 0x1000>;
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&chip CLKID_SATA>;
+			clocks = <&chip_clk CLKID_SATA>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -402,7 +460,7 @@
 		sata_phy: phy@e900a0 {
 			compatible = "marvell,berlin2q-sata-phy";
 			reg = <0xe900a0 0x200>;
-			clocks = <&chip CLKID_SATA>;
+			clocks = <&chip_clk CLKID_SATA>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#phy-cells = <1>;
@@ -421,7 +479,7 @@
 			compatible = "chipidea,usb2";
 			reg = <0xed0000 0x10000>;
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&chip CLKID_USB0>;
+			clocks = <&chip_clk CLKID_USB0>;
 			phys = <&usb_phy0>;
 			phy-names = "usb-phy";
 			status = "disabled";
@@ -431,10 +489,17 @@
 			compatible = "chipidea,usb2";
 			reg = <0xee0000 0x10000>;
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&chip CLKID_USB1>;
+			clocks = <&chip_clk CLKID_USB1>;
 			phys = <&usb_phy1>;
 			phy-names = "usb-phy";
 			status = "disabled";
+		};
+
+		pwm: pwm@f20000 {
+			compatible = "marvell,berlin-pwm";
+			reg = <0xf20000 0x40>;
+			clocks = <&chip_clk CLKID_CFG>;
+			#pwm-cells = <3>;
 		};
 
 		apb@fc0000 {
@@ -526,27 +591,37 @@
 			};
 
 			sysctrl: pin-controller@d000 {
-				compatible = "marvell,berlin2q-system-ctrl";
+				compatible = "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 
-				uart0_pmux: uart0-pmux {
-					groups = "GSM12";
-					function = "uart0";
+				sys_pinctrl: pin-controller {
+					compatible = "marvell,berlin2q-system-pinctrl";
+
+					uart0_pmux: uart0-pmux {
+						groups = "GSM12";
+						function = "uart0";
+					};
+
+					uart1_pmux: uart1-pmux {
+						groups = "GSM14";
+						function = "uart1";
+					};
+
+					twsi2_pmux: twsi2-pmux {
+						groups = "GSM13";
+						function = "twsi2";
+					};
+
+					twsi3_pmux: twsi3-pmux {
+						groups = "GSM14";
+						function = "twsi3";
+					};
 				};
 
-				uart1_pmux: uart1-pmux {
-					groups = "GSM14";
-					function = "uart1";
-				};
-
-				twsi2_pmux: twsi2-pmux {
-					groups = "GSM13";
-					function = "twsi2";
-				};
-
-				twsi3_pmux: twsi3-pmux {
-					groups = "GSM14";
-					function = "twsi3";
+				adc: adc {
+					compatible = "marvell,berlin2-adc";
+					interrupts = <12>, <14>;
+					interrupt-names = "adc", "tsen";
 				};
 			};
 

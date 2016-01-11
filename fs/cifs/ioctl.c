@@ -31,12 +31,12 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
-
-#define CIFS_IOCTL_MAGIC	0xCF
-#define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
+#include "cifs_ioctl.h"
+#include <linux/btrfs.h>
 
 static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
-			unsigned long srcfd, u64 off, u64 len, u64 destoff)
+			unsigned long srcfd, u64 off, u64 len, u64 destoff,
+			bool dup_extents)
 {
 	int rc;
 	struct cifsFileInfo *smb_file_target = dst_file->private_data;
@@ -67,6 +67,12 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 		goto out_drop_write;
 	}
 
+	if (src_file.file->f_op->unlocked_ioctl != cifs_ioctl) {
+		rc = -EBADF;
+		cifs_dbg(VFS, "src file seems to be from a different filesystem type\n");
+		goto out_fput;
+	}
+
 	if ((!src_file.file->private_data) || (!dst_file->private_data)) {
 		rc = -EBADF;
 		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
@@ -79,9 +85,14 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	src_tcon = tlink_tcon(smb_file_src->tlink);
 	target_tcon = tlink_tcon(smb_file_target->tlink);
 
-	/* check if source and target are on same tree connection */
-	if (src_tcon != target_tcon) {
-		cifs_dbg(VFS, "file copy src and target on different volume\n");
+	/* check source and target on same server (or volume if dup_extents) */
+	if (dup_extents && (src_tcon != target_tcon)) {
+		cifs_dbg(VFS, "source and target of copy not on same share\n");
+		goto out_fput;
+	}
+
+	if (!dup_extents && (src_tcon->ses != target_tcon->ses)) {
+		cifs_dbg(VFS, "source and target of copy not on same server\n");
 		goto out_fput;
 	}
 
@@ -109,9 +120,14 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	truncate_inode_pages_range(&target_inode->i_data, destoff,
 				   PAGE_CACHE_ALIGN(destoff + len)-1);
 
-	if (target_tcon->ses->server->ops->clone_range)
+	if (dup_extents && target_tcon->ses->server->ops->duplicate_extents)
+		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
+			smb_file_src, smb_file_target, off, len, destoff);
+	else if (!dup_extents && target_tcon->ses->server->ops->clone_range)
 		rc = target_tcon->ses->server->ops->clone_range(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
+	else
+		rc = -EOPNOTSUPP;
 
 	/* force revalidate of size and timestamps of target file now
 	   that target is updated on the server */
@@ -127,6 +143,43 @@ out_drop_write:
 	return rc;
 }
 
+static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
+				void __user *arg)
+{
+	int rc = 0;
+	struct smb_mnt_fs_info *fsinf;
+
+	fsinf = kzalloc(sizeof(struct smb_mnt_fs_info), GFP_KERNEL);
+	if (fsinf == NULL)
+		return -ENOMEM;
+
+	fsinf->version = 1;
+	fsinf->protocol_id = tcon->ses->server->vals->protocol_id;
+	fsinf->device_characteristics =
+			le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics);
+	fsinf->device_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
+	fsinf->fs_attributes = le32_to_cpu(tcon->fsAttrInfo.Attributes);
+	fsinf->max_path_component =
+		le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength);
+#ifdef CONFIG_CIFS_SMB2
+	fsinf->vol_serial_number = tcon->vol_serial_number;
+	fsinf->vol_create_time = le64_to_cpu(tcon->vol_create_time);
+	fsinf->share_flags = tcon->share_flags;
+	fsinf->share_caps = le32_to_cpu(tcon->capabilities);
+	fsinf->sector_flags = tcon->ss_flags;
+	fsinf->optimal_sector_size = tcon->perf_sector_size;
+	fsinf->max_bytes_chunk = tcon->max_bytes_chunk;
+	fsinf->maximal_access = tcon->maximal_access;
+#endif /* SMB2 */
+	fsinf->cifs_posix_caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
+
+	if (copy_to_user(arg, fsinf, sizeof(struct smb_mnt_fs_info)))
+		rc = -EFAULT;
+
+	kfree(fsinf);
+	return rc;
+}
+
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = file_inode(filep);
@@ -139,8 +192,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	__u64   caps;
 
 	xid = get_xid();
-
-	cifs_dbg(FYI, "ioctl file %p  cmd %u  arg %lu\n", filep, command, arg);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -205,7 +256,24 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 			break;
 		case CIFS_IOC_COPYCHUNK_FILE:
-			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0);
+			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, false);
+			break;
+		case BTRFS_IOC_CLONE:
+			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, true);
+			break;
+		case CIFS_IOC_SET_INTEGRITY:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			if (tcon->ses->server->ops->set_integrity)
+				rc = tcon->ses->server->ops->set_integrity(xid,
+						tcon, pSMBFile);
+			else
+				rc = -EOPNOTSUPP;
+			break;
+		case CIFS_IOC_GET_MNT_INFO:
+			tcon = tlink_tcon(pSMBFile->tlink);
+			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

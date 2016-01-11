@@ -183,10 +183,12 @@ struct nfs4_state {
 
 
 struct nfs4_exception {
-	long timeout;
-	int retry;
 	struct nfs4_state *state;
 	struct inode *inode;
+	long timeout;
+	unsigned char delay : 1,
+		      recovering : 1,
+		      retry : 1;
 };
 
 struct nfs4_state_recovery_ops {
@@ -233,6 +235,7 @@ extern int nfs4_handle_exception(struct nfs_server *, int, struct nfs4_exception
 extern int nfs4_call_sync(struct rpc_clnt *, struct nfs_server *,
 			  struct rpc_message *, struct nfs4_sequence_args *,
 			  struct nfs4_sequence_res *, int);
+extern void nfs4_init_sequence(struct nfs4_sequence_args *, struct nfs4_sequence_res *, int);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
 extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *, bool);
@@ -404,9 +407,7 @@ int nfs40_discover_server_trunking(struct nfs_client *clp,
 int nfs41_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **, struct rpc_cred *);
 extern void nfs4_schedule_session_recovery(struct nfs4_session *, int);
-extern void nfs41_server_notify_target_slotid_update(struct nfs_client *clp);
-extern void nfs41_server_notify_highest_slotid_update(struct nfs_client *clp);
-
+extern void nfs41_notify_server(struct nfs_client *);
 #else
 static inline void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {

@@ -227,6 +227,10 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 	if (!drv || !drv->state_count)
 		return -EINVAL;
 
+	ret = cpuidle_coupled_state_verify(drv);
+	if (ret)
+		return ret;
+
 	if (cpuidle_disabled())
 		return -ENODEV;
 

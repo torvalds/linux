@@ -15,8 +15,7 @@
  * Based from clk-highbank.c
  *
  */
-#include <linux/clk.h>
-#include <linux/clkdev.h>
+#include <linux/slab.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -36,7 +35,7 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 	} else {
 		if (socfpgaclk->div_reg) {
 			val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
-			val &= div_mask(socfpgaclk->width);
+			val &= GENMASK(socfpgaclk->width - 1, 0);
 			parent_rate /= (val + 1);
 		}
 		div = ((readl(socfpgaclk->hw.reg) & 0x1ff) + 1);
@@ -45,8 +44,17 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 	return parent_rate / div;
 }
 
+static u8 clk_periclk_get_parent(struct clk_hw *hwclk)
+{
+	u32 clk_src;
+
+	clk_src = readl(clk_mgr_base_addr + CLKMGR_DBCTRL);
+	return clk_src & 0x1;
+}
+
 static const struct clk_ops periclk_ops = {
 	.recalc_rate = clk_periclk_recalc_rate,
+	.get_parent = clk_periclk_get_parent,
 };
 
 static __init void __socfpga_periph_init(struct device_node *node,
@@ -56,7 +64,7 @@ static __init void __socfpga_periph_init(struct device_node *node,
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
 	const char *clk_name = node->name;
-	const char *parent_name;
+	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
 	u32 fixed_div;
@@ -76,7 +84,7 @@ static __init void __socfpga_periph_init(struct device_node *node,
 		periph_clk->shift = div_reg[1];
 		periph_clk->width = div_reg[2];
 	} else {
-		periph_clk->div_reg = 0;
+		periph_clk->div_reg = NULL;
 	}
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
@@ -90,9 +98,10 @@ static __init void __socfpga_periph_init(struct device_node *node,
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
-	init.parent_names = &parent_name;
-	init.num_parents = 1;
+
+	init.num_parents = of_clk_parent_fill(node, parent_name,
+					      SOCFPGA_MAX_PARENTS);
+	init.parent_names = parent_name;
 
 	periph_clk->hw.hw.init = &init;
 

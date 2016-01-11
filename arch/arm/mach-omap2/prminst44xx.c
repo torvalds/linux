@@ -87,12 +87,6 @@ u32 omap4_prminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
 	return v;
 }
 
-/*
- * Address offset (in bytes) between the reset control and the reset
- * status registers: 4 bytes on OMAP4
- */
-#define OMAP4_RST_CTRL_ST_OFFSET		4
-
 /**
  * omap4_prminst_is_hardreset_asserted - read the HW reset line state of
  * submodules contained in the hwmod module
@@ -141,11 +135,11 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
  * omap4_prminst_deassert_hardreset - deassert a submodule hardreset line and
  * wait
  * @shift: register bit shift corresponding to the reset line to deassert
- * @st_shift: status bit offset, not used for OMAP4+
+ * @st_shift: status bit offset corresponding to the reset line
  * @part: PRM partition
  * @inst: PRM instance offset
  * @rstctrl_offs: reset register offset
- * @st_offs: reset status register offset, not used for OMAP4+
+ * @rstst_offs: reset status register offset
  *
  * Some IPs like dsp, ipu or iva contain processors that require an HW
  * reset line to be asserted / deasserted in order to fully enable the
@@ -157,11 +151,11 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
  * of reset, or -EBUSY if the submodule did not exit reset promptly.
  */
 int omap4_prminst_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 inst,
-				     u16 rstctrl_offs, u16 st_offs)
+				     u16 rstctrl_offs, u16 rstst_offs)
 {
 	int c;
 	u32 mask = 1 << shift;
-	u16 rstst_offs = rstctrl_offs + OMAP4_RST_CTRL_ST_OFFSET;
+	u32 st_mask = 1 << st_shift;
 
 	/* Check the current status to avoid de-asserting the line twice */
 	if (omap4_prminst_is_hardreset_asserted(shift, part, inst,
@@ -169,13 +163,13 @@ int omap4_prminst_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 inst,
 		return -EEXIST;
 
 	/* Clear the reset status by writing 1 to the status bit */
-	omap4_prminst_rmw_inst_reg_bits(0xffffffff, mask, part, inst,
+	omap4_prminst_rmw_inst_reg_bits(0xffffffff, st_mask, part, inst,
 					rstst_offs);
 	/* de-assert the reset control line */
 	omap4_prminst_rmw_inst_reg_bits(mask, 0, part, inst, rstctrl_offs);
 	/* wait the status to be set */
-	omap_test_timeout(omap4_prminst_is_hardreset_asserted(shift, part, inst,
-							      rstst_offs),
+	omap_test_timeout(omap4_prminst_is_hardreset_asserted(st_shift, part,
+							      inst, rstst_offs),
 			  MAX_MODULE_HARDRESET_WAIT, c);
 
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;

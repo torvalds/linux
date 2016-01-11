@@ -40,6 +40,7 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/of.h>
+#include <linux/of_pci.h>
 #include <linux/kexec.h>
 
 #include <asm/mmu.h>
@@ -111,7 +112,7 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-static void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void pseries_8259_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
@@ -254,19 +255,26 @@ static void __init pseries_discover_pic(void)
 static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
-	struct device_node *np = rd->dn;
-	struct pci_dn *pci = NULL;
+	struct device_node *parent, *np = rd->dn;
+	struct pci_dn *pdn;
 	int err = NOTIFY_OK;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		pci = np->parent->data;
-		if (pci) {
-			update_dn_pci_info(np, pci->phb);
-
-			/* Create EEH device for the OF node */
-			eeh_dev_init(PCI_DN(np), pci->phb);
+		parent = of_get_parent(np);
+		pdn = parent ? PCI_DN(parent) : NULL;
+		if (pdn) {
+			/* Create pdn and EEH device */
+			update_dn_pci_info(np, pdn->phb);
+			eeh_dev_init(PCI_DN(np), pdn->phb);
 		}
+
+		of_node_put(parent);
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		pdn = PCI_DN(np);
+		if (pdn)
+			list_del(&pdn->list);
 		break;
 	default:
 		err = NOTIFY_DONE;
@@ -488,18 +496,7 @@ static void __init find_and_init_phbs(void)
 	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
 	 * in chosen.
 	 */
-	if (of_chosen) {
-		const int *prop;
-
-		prop = of_get_property(of_chosen,
-				"linux,pci-probe-only", NULL);
-		if (prop) {
-			if (*prop)
-				pci_add_flags(PCI_PROBE_ONLY);
-			else
-				pci_clear_flags(PCI_PROBE_ONLY);
-		}
-	}
+	of_pci_check_probe_only();
 }
 
 static void __init pSeries_setup_arch(void)
@@ -829,10 +826,6 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
 }
-
-#ifndef CONFIG_PCI
-void pSeries_final_fixup(void) { }
-#endif
 
 struct pci_controller_ops pseries_pci_controller_ops = {
 	.probe_mode		= pSeries_pci_probe_mode,

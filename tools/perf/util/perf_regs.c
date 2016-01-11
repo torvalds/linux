@@ -2,6 +2,11 @@
 #include "perf_regs.h"
 #include "event.h"
 
+const struct sample_reg __weak sample_reg_masks[] = {
+	SMPL_REG_END
+};
+
+#ifdef HAVE_PERF_REGS_SUPPORT
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)
 {
 	int i, idx = 0;
@@ -25,3 +30,4 @@ out:
 	*valp = regs->cache_regs[id];
 	return 0;
 }
+#endif

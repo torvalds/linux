@@ -288,9 +288,10 @@ static int kszphy_config_init(struct phy_device *phydev)
 }
 
 static int ksz9021_load_values_from_of(struct phy_device *phydev,
-				       struct device_node *of_node, u16 reg,
-				       char *field1, char *field2,
-				       char *field3, char *field4)
+				       const struct device_node *of_node,
+				       u16 reg,
+				       const char *field1, const char *field2,
+				       const char *field3, const char *field4)
 {
 	int val1 = -1;
 	int val2 = -2;
@@ -336,11 +337,20 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 
 static int ksz9021_config_init(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
-	struct device_node *of_node = dev->of_node;
+	const struct device *dev = &phydev->dev;
+	const struct device_node *of_node = dev->of_node;
+	const struct device *dev_walker;
 
-	if (!of_node && dev->parent->of_node)
-		of_node = dev->parent->of_node;
+	/* The Micrel driver has a deprecated option to place phy OF
+	 * properties in the MAC node. Walk up the tree of devices to
+	 * find a device with an OF node.
+	 */
+	dev_walker = &phydev->dev;
+	do {
+		of_node = dev_walker->of_node;
+		dev_walker = dev_walker->parent;
+
+	} while (!of_node && dev_walker);
 
 	if (of_node) {
 		ksz9021_load_values_from_of(phydev, of_node,
@@ -365,6 +375,11 @@ static int ksz9021_config_init(struct phy_device *phydev)
 #define KSZ9031_PS_TO_REG		60
 
 /* Extended registers */
+/* MMD Address 0x0 */
+#define MII_KSZ9031RN_FLP_BURST_TX_LO	3
+#define MII_KSZ9031RN_FLP_BURST_TX_HI	4
+
+/* MMD Address 0x2 */
 #define MII_KSZ9031RN_CONTROL_PAD_SKEW	4
 #define MII_KSZ9031RN_RX_DATA_PAD_SKEW	5
 #define MII_KSZ9031RN_TX_DATA_PAD_SKEW	6
@@ -389,9 +404,9 @@ static int ksz9031_extended_read(struct phy_device *phydev,
 }
 
 static int ksz9031_of_load_skew_values(struct phy_device *phydev,
-				       struct device_node *of_node,
+				       const struct device_node *of_node,
 				       u16 reg, size_t field_sz,
-				       char *field[], u8 numfields)
+				       const char *field[], u8 numfields)
 {
 	int val[4] = {-1, -2, -3, -4};
 	int matches = 0;
@@ -425,20 +440,36 @@ static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 	return ksz9031_extended_write(phydev, OP_DATA, 2, reg, newval);
 }
 
+static int ksz9031_center_flp_timing(struct phy_device *phydev)
+{
+	int result;
+
+	/* Center KSZ9031RNX FLP timing at 16ms. */
+	result = ksz9031_extended_write(phydev, OP_DATA, 0,
+					MII_KSZ9031RN_FLP_BURST_TX_HI, 0x0006);
+	result = ksz9031_extended_write(phydev, OP_DATA, 0,
+					MII_KSZ9031RN_FLP_BURST_TX_LO, 0x1A80);
+
+	if (result)
+		return result;
+
+	return genphy_restart_aneg(phydev);
+}
+
 static int ksz9031_config_init(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
-	struct device_node *of_node = dev->of_node;
-	char *clk_skews[2] = {"rxc-skew-ps", "txc-skew-ps"};
-	char *rx_data_skews[4] = {
+	const struct device *dev = &phydev->dev;
+	const struct device_node *of_node = dev->of_node;
+	static const char *clk_skews[2] = {"rxc-skew-ps", "txc-skew-ps"};
+	static const char *rx_data_skews[4] = {
 		"rxd0-skew-ps", "rxd1-skew-ps",
 		"rxd2-skew-ps", "rxd3-skew-ps"
 	};
-	char *tx_data_skews[4] = {
+	static const char *tx_data_skews[4] = {
 		"txd0-skew-ps", "txd1-skew-ps",
 		"txd2-skew-ps", "txd3-skew-ps"
 	};
-	char *control_skews[2] = {"txen-skew-ps", "rxdv-skew-ps"};
+	static const char *control_skews[2] = {"txen-skew-ps", "rxdv-skew-ps"};
 
 	if (!of_node && dev->parent->of_node)
 		of_node = dev->parent->of_node;
@@ -460,7 +491,8 @@ static int ksz9031_config_init(struct phy_device *phydev)
 				MII_KSZ9031RN_TX_DATA_PAD_SKEW, 4,
 				tx_data_skews, 4);
 	}
-	return 0;
+
+	return ksz9031_center_flp_timing(phydev);
 }
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
@@ -487,6 +519,27 @@ static int ksz8873mll_read_status(struct phy_device *phydev)
 
 	phydev->link = 1;
 	phydev->pause = phydev->asym_pause = 0;
+
+	return 0;
+}
+
+static int ksz9031_read_status(struct phy_device *phydev)
+{
+	int err;
+	int regval;
+
+	err = genphy_read_status(phydev);
+	if (err)
+		return err;
+
+	/* Make sure the PHY is not broken. Read idle error count,
+	 * and reset the PHY if it is maxed out.
+	 */
+	regval = phy_read(phydev, MII_STAT1000);
+	if ((regval & 0xFF) == 0xFF) {
+		phy_init_hw(phydev);
+		phydev->link = 0;
+	}
 
 	return 0;
 }
@@ -519,7 +572,7 @@ ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
 static int kszphy_probe(struct phy_device *phydev)
 {
 	const struct kszphy_type *type = phydev->drv->driver_data;
-	struct device_node *np = phydev->dev.of_node;
+	const struct device_node *np = phydev->dev.of_node;
 	struct kszphy_priv *priv;
 	struct clk *clk;
 	int ret;
@@ -548,7 +601,8 @@ static int kszphy_probe(struct phy_device *phydev)
 	}
 
 	clk = devm_clk_get(&phydev->dev, "rmii-ref");
-	if (!IS_ERR(clk)) {
+	/* NOTE: clk may be NULL if building without CONFIG_HAVE_CLK */
+	if (!IS_ERR_OR_NULL(clk)) {
 		unsigned long rate = clk_get_rate(clk);
 		bool rmii_ref_clk_sel_25_mhz;
 
@@ -748,7 +802,7 @@ static struct phy_driver ksphy_driver[] = {
 	.driver_data	= &ksz9021_type,
 	.config_init	= ksz9031_config_init,
 	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
+	.read_status	= ksz9031_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= kszphy_config_intr,
 	.suspend	= genphy_suspend,

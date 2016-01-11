@@ -57,6 +57,10 @@ config DT_BCM97425SVMB
 	bool "BCM97425SVMB"
 	select BUILTIN_DTB
 
+config DT_BCM97435SVMB
+	bool "BCM97435SVMB"
+	select BUILTIN_DTB
+
 endchoice
 
 endif

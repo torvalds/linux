@@ -341,7 +341,7 @@ long wait_woken(wait_queue_t *wait, unsigned mode, long timeout)
 	 * condition being true _OR_ WQ_FLAG_WOKEN such that we will not miss
 	 * an event.
 	 */
-	set_mb(wait->flags, wait->flags & ~WQ_FLAG_WOKEN); /* B */
+	smp_store_mb(wait->flags, wait->flags & ~WQ_FLAG_WOKEN); /* B */
 
 	return timeout;
 }
@@ -354,7 +354,7 @@ int woken_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	 * doesn't imply write barrier and the users expects write
 	 * barrier semantics on wakeup functions.  The following
 	 * smp_wmb() is equivalent to smp_wmb() in try_to_wake_up()
-	 * and is paired with set_mb() in wait_woken().
+	 * and is paired with smp_store_mb() in wait_woken().
 	 */
 	smp_wmb(); /* C */
 	wait->flags |= WQ_FLAG_WOKEN;
@@ -392,7 +392,7 @@ __wait_on_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
 	do {
 		prepare_to_wait(wq, &q->wait, mode);
 		if (test_bit(q->key.bit_nr, q->key.flags))
-			ret = (*action)(&q->key);
+			ret = (*action)(&q->key, mode);
 	} while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
 	finish_wait(wq, &q->wait);
 	return ret;
@@ -431,7 +431,7 @@ __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
 		prepare_to_wait_exclusive(wq, &q->wait, mode);
 		if (!test_bit(q->key.bit_nr, q->key.flags))
 			continue;
-		ret = action(&q->key);
+		ret = action(&q->key, mode);
 		if (!ret)
 			continue;
 		abort_exclusive_wait(wq, &q->wait, mode, &q->key);
@@ -581,44 +581,44 @@ void wake_up_atomic_t(atomic_t *p)
 }
 EXPORT_SYMBOL(wake_up_atomic_t);
 
-__sched int bit_wait(struct wait_bit_key *word)
+__sched int bit_wait(struct wait_bit_key *word, int mode)
 {
-	if (signal_pending_state(current->state, current))
-		return 1;
 	schedule();
+	if (signal_pending_state(mode, current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL(bit_wait);
 
-__sched int bit_wait_io(struct wait_bit_key *word)
+__sched int bit_wait_io(struct wait_bit_key *word, int mode)
 {
-	if (signal_pending_state(current->state, current))
-		return 1;
 	io_schedule();
+	if (signal_pending_state(mode, current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL(bit_wait_io);
 
-__sched int bit_wait_timeout(struct wait_bit_key *word)
+__sched int bit_wait_timeout(struct wait_bit_key *word, int mode)
 {
-	unsigned long now = ACCESS_ONCE(jiffies);
-	if (signal_pending_state(current->state, current))
-		return 1;
+	unsigned long now = READ_ONCE(jiffies);
 	if (time_after_eq(now, word->timeout))
 		return -EAGAIN;
 	schedule_timeout(word->timeout - now);
+	if (signal_pending_state(mode, current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bit_wait_timeout);
 
-__sched int bit_wait_io_timeout(struct wait_bit_key *word)
+__sched int bit_wait_io_timeout(struct wait_bit_key *word, int mode)
 {
-	unsigned long now = ACCESS_ONCE(jiffies);
-	if (signal_pending_state(current->state, current))
-		return 1;
+	unsigned long now = READ_ONCE(jiffies);
 	if (time_after_eq(now, word->timeout))
 		return -EAGAIN;
 	io_schedule_timeout(word->timeout - now);
+	if (signal_pending_state(mode, current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bit_wait_io_timeout);

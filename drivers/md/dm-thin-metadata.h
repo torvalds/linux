@@ -147,6 +147,15 @@ int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
 		       int can_issue_io, struct dm_thin_lookup_result *result);
 
 /*
+ * Retrieve the next run of contiguously mapped blocks.  Useful for working
+ * out where to break up IO.  Returns 0 on success, < 0 on error.
+ */
+int dm_thin_find_mapped_range(struct dm_thin_device *td,
+			      dm_block_t begin, dm_block_t end,
+			      dm_block_t *thin_begin, dm_block_t *thin_end,
+			      dm_block_t *pool_begin, bool *maybe_shared);
+
+/*
  * Obtain an unused block.
  */
 int dm_pool_alloc_data_block(struct dm_pool_metadata *pmd, dm_block_t *result);
@@ -158,6 +167,8 @@ int dm_thin_insert_block(struct dm_thin_device *td, dm_block_t block,
 			 dm_block_t data_block);
 
 int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
+int dm_thin_remove_range(struct dm_thin_device *td,
+			 dm_block_t begin, dm_block_t end);
 
 /*
  * Queries.

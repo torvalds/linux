@@ -444,6 +444,48 @@ find_domain_name(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	return 0;
 }
 
+/* Server has provided av pairs/target info in the type 2 challenge
+ * packet and we have plucked it and stored within smb session.
+ * We parse that blob here to find the server given timestamp
+ * as part of ntlmv2 authentication (or local current time as
+ * default in case of failure)
+ */
+static __le64
+find_timestamp(struct cifs_ses *ses)
+{
+	unsigned int attrsize;
+	unsigned int type;
+	unsigned int onesize = sizeof(struct ntlmssp2_name);
+	unsigned char *blobptr;
+	unsigned char *blobend;
+	struct ntlmssp2_name *attrptr;
+
+	if (!ses->auth_key.len || !ses->auth_key.response)
+		return 0;
+
+	blobptr = ses->auth_key.response;
+	blobend = blobptr + ses->auth_key.len;
+
+	while (blobptr + onesize < blobend) {
+		attrptr = (struct ntlmssp2_name *) blobptr;
+		type = le16_to_cpu(attrptr->type);
+		if (type == NTLMSSP_AV_EOL)
+			break;
+		blobptr += 2; /* advance attr type */
+		attrsize = le16_to_cpu(attrptr->length);
+		blobptr += 2; /* advance attr size */
+		if (blobptr + attrsize > blobend)
+			break;
+		if (type == NTLMSSP_AV_TIMESTAMP) {
+			if (attrsize == sizeof(u64))
+				return *((__le64 *)blobptr);
+		}
+		blobptr += attrsize; /* advance attr value */
+	}
+
+	return cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+}
+
 static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 			    const struct nls_table *nls_cp)
 {
@@ -641,6 +683,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	struct ntlmv2_resp *ntlmv2;
 	char ntlmv2_hash[16];
 	unsigned char *tiblob = NULL; /* target info blob */
+	__le64 rsp_timestamp;
 
 	if (ses->server->negflavor == CIFS_NEGFLAVOR_EXTENDED) {
 		if (!ses->domainName) {
@@ -659,6 +702,12 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 		}
 	}
 
+	/* Must be within 5 minutes of the server (or in range +/-2h
+	 * in case of Mac OS X), so simply carry over server timestamp
+	 * (as Windows 7 does)
+	 */
+	rsp_timestamp = find_timestamp(ses);
+
 	baselen = CIFS_SESS_KEY_SIZE + sizeof(struct ntlmv2_resp);
 	tilen = ses->auth_key.len;
 	tiblob = ses->auth_key.response;
@@ -675,8 +724,8 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 			(ses->auth_key.response + CIFS_SESS_KEY_SIZE);
 	ntlmv2->blob_signature = cpu_to_le32(0x00000101);
 	ntlmv2->reserved = 0;
-	/* Must be within 5 minutes of the server */
-	ntlmv2->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	ntlmv2->time = rsp_timestamp;
+
 	get_random_bytes(&ntlmv2->client_chal, sizeof(ntlmv2->client_chal));
 	ntlmv2->reserved2 = 0;
 

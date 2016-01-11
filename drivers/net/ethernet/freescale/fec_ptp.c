@@ -112,9 +112,8 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 	unsigned long flags;
 	u32 val, tempval;
 	int inc;
-	struct timespec ts;
+	struct timespec64 ts;
 	u64 ns;
-	u32 remainder;
 	val = 0;
 
 	if (!(fep->hwts_tx_en || fep->hwts_rx_en)) {
@@ -163,8 +162,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		tempval = readl(fep->hwp + FEC_ATIME);
 		/* Convert the ptp local counter to 1588 timestamp */
 		ns = timecounter_cyc2time(&fep->tc, tempval);
-		ts.tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
-		ts.tv_nsec = remainder;
+		ts = ns_to_timespec64(ns);
 
 		/* The tempval is  less than 3 seconds, and  so val is less than
 		 * 4 seconds. No overflow for 32bit calculation.
@@ -353,6 +351,7 @@ static int fec_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	tmp = readl(fep->hwp + FEC_ATIME_INC) & FEC_T_INC_MASK;
 	tmp |= corr_ns << FEC_T_INC_CORR_OFFSET;
 	writel(tmp, fep->hwp + FEC_ATIME_INC);
+	corr_period = corr_period > 1 ? corr_period - 1 : corr_period;
 	writel(corr_period, fep->hwp + FEC_ATIME_CORR);
 	/* dummy read to update the timer. */
 	timecounter_read(&fep->tc);
@@ -505,12 +504,6 @@ int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 		break;
 
 	default:
-		/*
-		 * register RXMTRL must be set in order to do V1 packets,
-		 * therefore it is not possible to time stamp both V1 Sync and
-		 * Delay_Req messages and hardware does not support
-		 * timestamping all packets => return error
-		 */
 		fep->hwts_rx_en = 1;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
@@ -601,6 +594,16 @@ void fec_ptp_init(struct platform_device *pdev)
 	}
 
 	schedule_delayed_work(&fep->time_keep, HZ);
+}
+
+void fec_ptp_stop(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	cancel_delayed_work_sync(&fep->time_keep);
+	if (fep->ptp_clock)
+		ptp_clock_unregister(fep->ptp_clock);
 }
 
 /**

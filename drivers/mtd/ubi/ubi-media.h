@@ -500,7 +500,7 @@ struct ubi_fm_volhdr {
 /* struct ubi_fm_volhdr is followed by one struct ubi_fm_eba records */
 
 /**
- * struct ubi_fm_eba - denotes an association beween a PEB and LEB
+ * struct ubi_fm_eba - denotes an association between a PEB and LEB
  * @magic: EBA table magic number
  * @reserved_pebs: number of table entries
  * @pnum: PEB number of LEB (LEB is the index)

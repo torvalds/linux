@@ -34,6 +34,7 @@ struct voltagedomain;
  * @cmd_ret_shift: RET field shift in PRM_VC_CMD_VAL_* register
  * @cmd_off_shift: OFF field shift in PRM_VC_CMD_VAL_* register
  * @i2c_cfg_reg: I2C configuration register offset
+ * @i2c_cfg_clear_mask: high-speed mode bit clear mask in I2C config register
  * @i2c_cfg_hsen_mask: high-speed mode bit field mask in I2C config register
  * @i2c_mcode_mask: MCODE field mask for I2C config register
  *
@@ -52,6 +53,7 @@ struct omap_vc_common {
 	u8 cmd_ret_shift;
 	u8 cmd_off_shift;
 	u8 i2c_cfg_reg;
+	u8 i2c_cfg_clear_mask;
 	u8 i2c_cfg_hsen_mask;
 	u8 i2c_mcode_mask;
 };

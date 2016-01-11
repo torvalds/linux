@@ -630,6 +630,11 @@ void symsrc__destroy(struct symsrc *ss)
 	close(ss->fd);
 }
 
+bool __weak elf__needs_adjust_symbols(GElf_Ehdr ehdr)
+{
+	return ehdr.e_type == ET_EXEC || ehdr.e_type == ET_REL;
+}
+
 int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		 enum dso_binary_type type)
 {
@@ -678,6 +683,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		}
 
 		if (!dso__build_id_equal(dso, build_id)) {
+			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
 			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;
 		}
@@ -711,8 +717,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 						     ".gnu.prelink_undo",
 						     NULL) != NULL);
 	} else {
-		ss->adjust_symbols = ehdr.e_type == ET_EXEC ||
-				     ehdr.e_type == ET_REL;
+		ss->adjust_symbols = elf__needs_adjust_symbols(ehdr);
 	}
 
 	ss->name   = strdup(name);
@@ -770,6 +775,8 @@ static bool want_demangle(bool is_kernel_sym)
 {
 	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
 }
+
+void __weak arch__elf_sym_adjust(GElf_Sym *sym __maybe_unused) { }
 
 int dso__load_sym(struct dso *dso, struct map *map,
 		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
@@ -868,6 +875,17 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		}
 	}
 
+	/*
+	 * Handle any relocation of vdso necessary because older kernels
+	 * attempted to prelink vdso to its virtual address.
+	 */
+	if (dso__is_vdso(dso)) {
+		GElf_Shdr tshdr;
+
+		if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
+			map->reloc = map->start - tshdr.sh_addr + tshdr.sh_offset;
+	}
+
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
 	 * Initial kernel and module mappings do not map to the dso.  For
@@ -935,6 +953,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		    (sym.st_value & 1))
 			--sym.st_value;
 
+		arch__elf_sym_adjust(&sym);
+
 		if (dso->kernel || kmodule) {
 			char dso_name[PATH_MAX];
 
@@ -963,8 +983,10 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					map->unmap_ip = map__unmap_ip;
 					/* Ensure maps are correctly ordered */
 					if (kmaps) {
+						map__get(map);
 						map_groups__remove(kmaps, map);
 						map_groups__insert(kmaps, map);
+						map__put(map);
 					}
 				}
 
@@ -1005,7 +1027,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				curr_map = map__new2(start, curr_dso,
 						     map->type);
 				if (curr_map == NULL) {
-					dso__delete(curr_dso);
+					dso__put(curr_dso);
 					goto out_elf_end;
 				}
 				if (adjust_kernel_syms) {
@@ -1020,11 +1042,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				}
 				curr_dso->symtab_type = dso->symtab_type;
 				map_groups__insert(kmaps, curr_map);
-				/*
-				 * The new DSO should go to the kernel DSOS
-				 */
-				dsos__add(&map->groups->machine->kernel_dsos,
-					  curr_dso);
+				dsos__add(&map->groups->machine->dsos, curr_dso);
 				dso__set_loaded(curr_dso, map->type);
 			} else
 				curr_dso = curr_map->dso;
@@ -1253,8 +1271,6 @@ out_close:
 static int kcore__init(struct kcore *kcore, char *filename, int elfclass,
 		       bool temp)
 {
-	GElf_Ehdr *ehdr;
-
 	kcore->elfclass = elfclass;
 
 	if (temp)
@@ -1271,9 +1287,7 @@ static int kcore__init(struct kcore *kcore, char *filename, int elfclass,
 	if (!gelf_newehdr(kcore->elf, elfclass))
 		goto out_end;
 
-	ehdr = gelf_getehdr(kcore->elf, &kcore->ehdr);
-	if (!ehdr)
-		goto out_end;
+	memset(&kcore->ehdr, 0, sizeof(GElf_Ehdr));
 
 	return 0;
 
@@ -1330,23 +1344,18 @@ static int kcore__copy_hdr(struct kcore *from, struct kcore *to, size_t count)
 static int kcore__add_phdr(struct kcore *kcore, int idx, off_t offset,
 			   u64 addr, u64 len)
 {
-	GElf_Phdr gphdr;
-	GElf_Phdr *phdr;
+	GElf_Phdr phdr = {
+		.p_type		= PT_LOAD,
+		.p_flags	= PF_R | PF_W | PF_X,
+		.p_offset	= offset,
+		.p_vaddr	= addr,
+		.p_paddr	= 0,
+		.p_filesz	= len,
+		.p_memsz	= len,
+		.p_align	= page_size,
+	};
 
-	phdr = gelf_getphdr(kcore->elf, idx, &gphdr);
-	if (!phdr)
-		return -1;
-
-	phdr->p_type	= PT_LOAD;
-	phdr->p_flags	= PF_R | PF_W | PF_X;
-	phdr->p_offset	= offset;
-	phdr->p_vaddr	= addr;
-	phdr->p_paddr	= 0;
-	phdr->p_filesz	= len;
-	phdr->p_memsz	= len;
-	phdr->p_align	= page_size;
-
-	if (!gelf_update_phdr(kcore->elf, idx, phdr))
+	if (!gelf_update_phdr(kcore->elf, idx, &phdr))
 		return -1;
 
 	return 0;

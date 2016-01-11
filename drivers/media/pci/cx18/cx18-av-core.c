@@ -945,14 +945,17 @@ static int cx18_av_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
+static int cx18_av_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
-	if (fmt->code != MEDIA_BUS_FMT_FIXED)
+	if (format->pad || fmt->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 
 	fmt->field = V4L2_FIELD_INTERLACED;
@@ -986,6 +989,9 @@ static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 			     fmt->width, fmt->height);
 		return -ERANGE;
 	}
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
 
 	HSC = (Hsrc * (1 << 20)) / fmt->width - (1 << 20);
 	VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
@@ -1285,7 +1291,6 @@ static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_std = cx18_av_s_std,
 	.s_routing = cx18_av_s_video_routing,
 	.s_stream = cx18_av_s_stream,
-	.s_mbus_fmt = cx18_av_s_mbus_fmt,
 };
 
 static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
@@ -1295,12 +1300,17 @@ static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
 	.s_raw_fmt = cx18_av_s_raw_fmt,
 };
 
+static const struct v4l2_subdev_pad_ops cx18_av_pad_ops = {
+	.set_fmt = cx18_av_set_fmt,
+};
+
 static const struct v4l2_subdev_ops cx18_av_ops = {
 	.core = &cx18_av_general_ops,
 	.tuner = &cx18_av_tuner_ops,
 	.audio = &cx18_av_audio_ops,
 	.video = &cx18_av_video_ops,
 	.vbi = &cx18_av_vbi_ops,
+	.pad = &cx18_av_pad_ops,
 };
 
 int cx18_av_probe(struct cx18 *cx)

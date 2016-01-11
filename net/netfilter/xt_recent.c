@@ -237,7 +237,7 @@ static void recent_table_flush(struct recent_table *t)
 static bool
 recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	struct net *net = dev_net(par->in ? par->in : par->out);
+	struct net *net = par->net;
 	struct recent_net *recent_net = recent_pernet(net);
 	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;

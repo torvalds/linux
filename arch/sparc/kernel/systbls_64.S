@@ -37,15 +37,15 @@ sys_call_table32:
 /*80*/	.word sys_setgroups16, sys_getpgrp, sys_setgroups, compat_sys_setitimer, sys32_ftruncate64
 	.word sys_swapon, compat_sys_getitimer, sys_setuid, sys_sethostname, sys_setgid
 /*90*/	.word sys_dup2, sys_setfsuid, compat_sys_fcntl, sys32_select, sys_setfsgid
-	.word sys_fsync, sys_setpriority, sys_nis_syscall, sys_nis_syscall, sys_nis_syscall
+	.word sys_fsync, sys_setpriority, sys_socket, sys_connect, sys_accept
 /*100*/ .word sys_getpriority, sys32_rt_sigreturn, compat_sys_rt_sigaction, compat_sys_rt_sigprocmask, compat_sys_rt_sigpending
 	.word compat_sys_rt_sigtimedwait, compat_sys_rt_sigqueueinfo, compat_sys_rt_sigsuspend, sys_setresuid, sys_getresuid
-/*110*/	.word sys_setresgid, sys_getresgid, sys_setregid, sys_nis_syscall, sys_nis_syscall
-	.word sys_getgroups, compat_sys_gettimeofday, compat_sys_getrusage, sys_nis_syscall, sys_getcwd
+/*110*/	.word sys_setresgid, sys_getresgid, sys_setregid, compat_sys_recvmsg, compat_sys_sendmsg
+	.word sys_getgroups, compat_sys_gettimeofday, compat_sys_getrusage, compat_sys_getsockopt, sys_getcwd
 /*120*/	.word compat_sys_readv, compat_sys_writev, compat_sys_settimeofday, sys_fchown16, sys_fchmod
-	.word sys_nis_syscall, sys_setreuid16, sys_setregid16, sys_rename, compat_sys_truncate
-/*130*/	.word compat_sys_ftruncate, sys_flock, compat_sys_lstat64, sys_nis_syscall, sys_nis_syscall
-	.word sys_nis_syscall, sys_mkdir, sys_rmdir, compat_sys_utimes, compat_sys_stat64
+	.word sys_recvfrom, sys_setreuid16, sys_setregid16, sys_rename, compat_sys_truncate
+/*130*/	.word compat_sys_ftruncate, sys_flock, compat_sys_lstat64, sys_sendto, sys_shutdown
+	.word sys_socketpair, sys_mkdir, sys_rmdir, compat_sys_utimes, compat_sys_stat64
 /*140*/	.word sys_sendfile64, sys_nis_syscall, sys32_futex, sys_gettid, compat_sys_getrlimit
 	.word compat_sys_setrlimit, sys_pivot_root, sys_prctl, sys_pciconfig_read, sys_pciconfig_write
 /*150*/	.word sys_nis_syscall, sys_inotify_init, sys_inotify_add_watch, sys_poll, sys_getdents64
@@ -88,7 +88,8 @@ sys_call_table32:
 	.word sys_syncfs, compat_sys_sendmmsg, sys_setns, compat_sys_process_vm_readv, compat_sys_process_vm_writev
 /*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module, sys_sched_setattr, sys_sched_getattr
 	.word sys32_renameat2, sys_seccomp, sys_getrandom, sys_memfd_create, sys_bpf
-/*350*/	.word sys32_execveat
+/*350*/	.word sys32_execveat, sys_membarrier, sys_userfaultfd, sys_bind, sys_listen
+	.word compat_sys_setsockopt, sys_mlock2
 
 #endif /* CONFIG_COMPAT */
 
@@ -168,4 +169,5 @@ sys_call_table:
 	.word sys_syncfs, sys_sendmmsg, sys_setns, sys_process_vm_readv, sys_process_vm_writev
 /*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module, sys_sched_setattr, sys_sched_getattr
 	.word sys_renameat2, sys_seccomp, sys_getrandom, sys_memfd_create, sys_bpf
-/*350*/	.word sys64_execveat
+/*350*/	.word sys64_execveat, sys_membarrier, sys_userfaultfd, sys_bind, sys_listen
+	.word sys_setsockopt, sys_mlock2

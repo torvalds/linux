@@ -698,8 +698,8 @@ struct hid_driver {
 	int (*input_mapped)(struct hid_device *hdev,
 			struct hid_input *hidinput, struct hid_field *field,
 			struct hid_usage *usage, unsigned long **bit, int *max);
-	void (*input_configured)(struct hid_device *hdev,
-				 struct hid_input *hidinput);
+	int (*input_configured)(struct hid_device *hdev,
+				struct hid_input *hidinput);
 	void (*feature_mapping)(struct hid_device *hdev,
 			struct hid_field *field,
 			struct hid_usage *usage);
@@ -815,6 +815,8 @@ void hid_disconnect(struct hid_device *hid);
 const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 					 const struct hid_device_id *id);
 s32 hid_snto32(__u32 value, unsigned n);
+__u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
+		     unsigned offset, unsigned n);
 
 /**
  * hid_device_io_start - enable HID input during probe, remove

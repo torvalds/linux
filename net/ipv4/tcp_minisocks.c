@@ -147,8 +147,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		if (!th->fin ||
 		    TCP_SKB_CB(skb)->end_seq != tcptw->tw_rcv_nxt + 1) {
 kill_with_rst:
-			inet_twsk_deschedule(tw);
-			inet_twsk_put(tw);
+			inet_twsk_deschedule_put(tw);
 			return TCP_TW_RST;
 		}
 
@@ -163,9 +162,9 @@ kill_with_rst:
 		if (tcp_death_row.sysctl_tw_recycle &&
 		    tcptw->tw_ts_recent_stamp &&
 		    tcp_tw_remember_stamp(tw))
-			inet_twsk_schedule(tw, tw->tw_timeout);
+			inet_twsk_reschedule(tw, tw->tw_timeout);
 		else
-			inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
+			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 		return TCP_TW_ACK;
 	}
 
@@ -198,12 +197,11 @@ kill_with_rst:
 			 */
 			if (sysctl_tcp_rfc1337 == 0) {
 kill:
-				inet_twsk_deschedule(tw);
-				inet_twsk_put(tw);
+				inet_twsk_deschedule_put(tw);
 				return TCP_TW_SUCCESS;
 			}
 		}
-		inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
+		inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 
 		if (tmp_opt.saw_tstamp) {
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
@@ -253,7 +251,7 @@ kill:
 		 * Do not reschedule in the last case.
 		 */
 		if (paws_reject || th->ack)
-			inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
+			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 
 		return tcp_timewait_check_oow_rate_limit(
 			tw, skb, LINUX_MIB_TCPACKSKIPPEDTIMEWAIT);
@@ -300,7 +298,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_daddr = sk->sk_v6_daddr;
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
-			tw->tw_flowlabel = np->flow_label >> 12;
+			tw->tw_flowlabel = be32_to_cpu(np->flow_label & IPV6_FLOWLABEL_MASK);
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
@@ -324,9 +322,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		} while (0);
 #endif
 
-		/* Linkage updates. */
-		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
-
 		/* Get the TIME_WAIT timeout firing. */
 		if (timeo < rto)
 			timeo = rto;
@@ -340,6 +335,8 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		}
 
 		inet_twsk_schedule(tw, timeo);
+		/* Linkage updates. */
+		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
 		inet_twsk_put(tw);
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this
@@ -364,30 +361,38 @@ void tcp_twsk_destructor(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
+/* Warning : This function is called without sk_listener being locked.
+ * Be sure to read socket fields once, as their value could change under us.
+ */
 void tcp_openreq_init_rwin(struct request_sock *req,
-			   struct sock *sk, struct dst_entry *dst)
+			   const struct sock *sk_listener,
+			   const struct dst_entry *dst)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
-	struct tcp_sock *tp = tcp_sk(sk);
-	__u8 rcv_wscale;
+	const struct tcp_sock *tp = tcp_sk(sk_listener);
+	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
+	int full_space = tcp_full_space(sk_listener);
 	int mss = dst_metric_advmss(dst);
+	u32 window_clamp;
+	__u8 rcv_wscale;
 
-	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)
-		mss = tp->rx_opt.user_mss;
+	if (user_mss && user_mss < mss)
+		mss = user_mss;
 
+	window_clamp = READ_ONCE(tp->window_clamp);
 	/* Set this up on the first call only */
-	req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+	req->rsk_window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
 
 	/* limit the window selection if the user enforce a smaller rx buffer */
-	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
-	    (req->window_clamp > tcp_full_space(sk) || req->window_clamp == 0))
-		req->window_clamp = tcp_full_space(sk);
+	if (sk_listener->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (req->rsk_window_clamp > full_space || req->rsk_window_clamp == 0))
+		req->rsk_window_clamp = full_space;
 
 	/* tcp_full_space because it is guaranteed to be the first packet */
-	tcp_select_initial_window(tcp_full_space(sk),
+	tcp_select_initial_window(full_space,
 		mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
-		&req->rcv_wnd,
-		&req->window_clamp,
+		&req->rsk_rcv_wnd,
+		&req->rsk_window_clamp,
 		ireq->wscale_ok,
 		&rcv_wscale,
 		dst_metric(dst, RTAX_INITRWND));
@@ -420,7 +425,10 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 		rcu_read_unlock();
 	}
 
-	if (!ca_got_dst && !try_module_get(icsk->icsk_ca_ops->owner))
+	/* If no valid choice made yet, assign current system default ca. */
+	if (!ca_got_dst &&
+	    (!icsk->icsk_ca_setsockopt ||
+	     !try_module_get(icsk->icsk_ca_ops->owner)))
 		tcp_assign_congestion_control(sk);
 
 	tcp_set_ca_state(sk, TCP_CA_Open);
@@ -433,7 +441,9 @@ EXPORT_SYMBOL_GPL(tcp_ca_openreq_child);
  * Actually, we could lots of memory writes here. tp of listening
  * socket contains all necessary default parameters.
  */
-struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req, struct sk_buff *skb)
+struct sock *tcp_create_openreq_child(const struct sock *sk,
+				      struct request_sock *req,
+				      struct sk_buff *skb)
 {
 	struct sock *newsk = inet_csk_clone_lock(sk, req, GFP_ATOMIC);
 
@@ -448,6 +458,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		newtp->rcv_wup = newtp->copied_seq =
 		newtp->rcv_nxt = treq->rcv_isn + 1;
+		newtp->segs_in = 0;
 
 		newtp->snd_sml = newtp->snd_una =
 		newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
@@ -459,6 +470,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		newtp->srtt_us = 0;
 		newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
+		newtp->rtt_min[0].rtt = ~0U;
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 
 		newtp->packets_out = 0;
@@ -468,7 +480,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 		tcp_enable_early_retrans(newtp);
 		newtp->tlp_high_seq = 0;
-		newtp->lsndtime = treq->snt_synack;
+		newtp->lsndtime = treq->snt_synack.stamp_jiffies;
+		newsk->sk_txhash = treq->txhash;
 		newtp->last_oow_ack_time = 0;
 		newtp->total_retrans = req->num_retrans;
 
@@ -500,9 +513,9 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 			if (sysctl_tcp_fack)
 				tcp_enable_fack(newtp);
 		}
-		newtp->window_clamp = req->window_clamp;
-		newtp->rcv_ssthresh = req->rcv_wnd;
-		newtp->rcv_wnd = req->rcv_wnd;
+		newtp->window_clamp = req->rsk_window_clamp;
+		newtp->rcv_ssthresh = req->rsk_rcv_wnd;
+		newtp->rcv_wnd = req->rsk_rcv_wnd;
 		newtp->rx_opt.wscale_ok = ireq->wscale_ok;
 		if (newtp->rx_opt.wscale_ok) {
 			newtp->rx_opt.snd_wscale = ireq->snd_wscale;
@@ -535,6 +548,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		tcp_ecn_openreq_child(newtp, req);
 		newtp->fastopen_rsk = NULL;
 		newtp->syn_data_acked = 0;
+		newtp->rack.mstamp.v64 = 0;
+		newtp->rack.advanced = 0;
 
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}
@@ -562,8 +577,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	const struct tcphdr *th = tcp_hdr(skb);
 	__be32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
 	bool paws_reject = false;
-
-	BUG_ON(fastopen == (sk->sk_state == TCP_LISTEN));
+	bool own_req;
 
 	tmp_opt.saw_tstamp = 0;
 	if (th->doff > (sizeof(struct tcphdr)>>2)) {
@@ -694,7 +708,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* RFC793: "first check sequence number". */
 
 	if (paws_reject || !tcp_in_window(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq,
-					  tcp_rsk(req)->rcv_nxt, tcp_rsk(req)->rcv_nxt + req->rcv_wnd)) {
+					  tcp_rsk(req)->rcv_nxt, tcp_rsk(req)->rcv_nxt + req->rsk_rcv_wnd)) {
 		/* Out of window: send ACK and drop. */
 		if (!(flg & TCP_FLAG_RST))
 			req->rsk_ops->send_ack(sk, skb, req);
@@ -751,16 +765,14 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	 * ESTABLISHED STATE. If it will be dropped after
 	 * socket is created, wait for troubles.
 	 */
-	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
+	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL,
+							 req, &own_req);
 	if (!child)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_drop(sk, req);
-	inet_csk_reqsk_queue_add(sk, req, child);
-	/* Warning: caller must not call reqsk_put(req);
-	 * child stole last reference on it.
-	 */
-	return child;
+	sock_rps_save_rxhash(child, skb);
+	tcp_synack_rtt_meas(child, req);
+	return inet_csk_complete_hashdance(sk, child, req, own_req);
 
 listen_overflow:
 	if (!sysctl_tcp_abort_on_overflow) {
@@ -807,8 +819,7 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 	int state = child->sk_state;
 
 	if (!sock_owned_by_user(child)) {
-		ret = tcp_rcv_state_process(child, skb, tcp_hdr(skb),
-					    skb->len);
+		ret = tcp_rcv_state_process(child, skb);
 		/* Wakeup parent, send SIGIO */
 		if (state == TCP_SYN_RECV && child->sk_state != state)
 			parent->sk_data_ready(parent);

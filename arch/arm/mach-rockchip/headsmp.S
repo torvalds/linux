@@ -15,14 +15,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-ENTRY(rockchip_secondary_startup)
-	mrc	p15, 0, r0, c0, c0, 0	@ read main ID register
-	ldr	r1, =0x00000c09		@ Cortex-A9 primary part number
-	teq	r0, r1
-	beq	v7_invalidate_l1
-	b	secondary_startup
-ENDPROC(rockchip_secondary_startup)
-
 ENTRY(rockchip_secondary_trampoline)
 	ldr	pc, 1f
 ENDPROC(rockchip_secondary_trampoline)

@@ -130,7 +130,11 @@ Required properties:
 
 Optional properties:
 - efuse-mac:	If this is 1, then the MAC address for the interface is
-		obtained from the device efuse mac address register
+		obtained from the device efuse mac address register.
+		If this is 2, the two DWORDs occupied by the MAC address
+		are swapped.  The netcp driver will swap the two DWORDs
+		back to the proper order when this property is set to 2
+		when it obtains the mac address from efuse.
 - local-mac-address:	the driver is designed to use the of_get_mac_address api
 			only if efuse-mac is 0. When efuse-mac is 0, the MAC
 			address is obtained from local-mac-address. If this

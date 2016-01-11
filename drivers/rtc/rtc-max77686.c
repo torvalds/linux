@@ -511,6 +511,7 @@ static const struct platform_device_id rtc_id[] = {
 	{ "max77686-rtc", 0 },
 	{},
 };
+MODULE_DEVICE_TABLE(platform, rtc_id);
 
 static struct platform_driver max77686_rtc_driver = {
 	.driver		= {

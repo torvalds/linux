@@ -16,6 +16,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <poll.h>
+#include <ctype.h>
 #include "libbpf.h"
 #include "bpf_helpers.h"
 #include "bpf_load.h"
@@ -29,6 +30,19 @@ int map_fd[MAX_MAPS];
 int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
 int prog_cnt;
+int prog_array_fd = -1;
+
+static int populate_prog_array(const char *event, int prog_fd)
+{
+	int ind = atoi(event), err;
+
+	err = bpf_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
+	if (err < 0) {
+		printf("failed to store prog_fd in prog_array\n");
+		return -1;
+	}
+	return 0;
+}
 
 static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 {
@@ -54,11 +68,39 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		return -1;
 	}
 
+	fd = bpf_prog_load(prog_type, prog, size, license, kern_version);
+	if (fd < 0) {
+		printf("bpf_prog_load() err=%d\n%s", errno, bpf_log_buf);
+		return -1;
+	}
+
+	prog_fd[prog_cnt++] = fd;
+
+	if (is_socket) {
+		event += 6;
+		if (*event != '/')
+			return 0;
+		event++;
+		if (!isdigit(*event)) {
+			printf("invalid prog number\n");
+			return -1;
+		}
+		return populate_prog_array(event, fd);
+	}
+
 	if (is_kprobe || is_kretprobe) {
 		if (is_kprobe)
 			event += 7;
 		else
 			event += 10;
+
+		if (*event == 0) {
+			printf("event name cannot be empty\n");
+			return -1;
+		}
+
+		if (isdigit(*event))
+			return populate_prog_array(event, fd);
 
 		snprintf(buf, sizeof(buf),
 			 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
@@ -70,18 +112,6 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 			return -1;
 		}
 	}
-
-	fd = bpf_prog_load(prog_type, prog, size, license, kern_version);
-
-	if (fd < 0) {
-		printf("bpf_prog_load() err=%d\n%s", errno, bpf_log_buf);
-		return -1;
-	}
-
-	prog_fd[prog_cnt++] = fd;
-
-	if (is_socket)
-		return 0;
 
 	strcpy(buf, DEBUGFS);
 	strcat(buf, "events/kprobes/");
@@ -130,6 +160,9 @@ static int load_maps(struct bpf_map_def *maps, int len)
 					   maps[i].max_entries);
 		if (map_fd[i] < 0)
 			return 1;
+
+		if (maps[i].type == BPF_MAP_TYPE_PROG_ARRAY)
+			prog_array_fd = map_fd[i];
 	}
 	return 0;
 }

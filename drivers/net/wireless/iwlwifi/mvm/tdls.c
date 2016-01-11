@@ -169,18 +169,11 @@ static void iwl_mvm_tdls_config(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from TDLS_CONFIG_COMMAND (0x%08X)\n",
-			pkt->hdr.flags);
-		goto exit;
-	}
 
-	if (WARN_ON_ONCE(iwl_rx_packet_payload_len(pkt) != sizeof(*resp)))
-		goto exit;
+	WARN_ON_ONCE(iwl_rx_packet_payload_len(pkt) != sizeof(*resp));
 
 	/* we don't really care about the response at this point */
 
-exit:
 	iwl_free_resp(&cmd);
 }
 
@@ -261,8 +254,7 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 		mvm->tdls_cs.cur_sta_id = IWL_MVM_STATION_COUNT;
 }
 
-int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_tdls_channel_switch_notif *notif = (void *)pkt->data;
@@ -277,17 +269,17 @@ int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	/* can fail sometimes */
 	if (!le32_to_cpu(notif->status)) {
 		iwl_mvm_tdls_update_cs_state(mvm, IWL_MVM_TDLS_SW_IDLE);
-		goto out;
+		return;
 	}
 
 	if (WARN_ON(sta_id >= IWL_MVM_STATION_COUNT))
-		goto out;
+		return;
 
 	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 					lockdep_is_held(&mvm->mutex));
 	/* the station may not be here, but if it is, it must be a TDLS peer */
 	if (IS_ERR_OR_NULL(sta) || WARN_ON(!sta->tdls))
-		goto out;
+		return;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	vif = mvmsta->vif;
@@ -301,9 +293,6 @@ int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			 msecs_to_jiffies(delay));
 
 	iwl_mvm_tdls_update_cs_state(mvm, IWL_MVM_TDLS_SW_ACTIVE);
-
-out:
-	return 0;
 }
 
 static int
@@ -471,13 +460,19 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	cmd.frame.switch_time_offset = cpu_to_le32(ch_sw_tm_ie + 2);
 
 	info = IEEE80211_SKB_CB(skb);
-	if (info->control.hw_key)
-		iwl_mvm_set_tx_cmd_crypto(mvm, info, &cmd.frame.tx_cmd, skb);
+	hdr = (void *)skb->data;
+	if (info->control.hw_key) {
+		if (info->control.hw_key->cipher != WLAN_CIPHER_SUITE_CCMP) {
+			rcu_read_unlock();
+			ret = -EINVAL;
+			goto out;
+		}
+		iwl_mvm_set_tx_cmd_ccmp(info, &cmd.frame.tx_cmd);
+	}
 
 	iwl_mvm_set_tx_cmd(mvm, skb, &cmd.frame.tx_cmd, info,
 			   mvmsta->sta_id);
 
-	hdr = (void *)skb->data;
 	iwl_mvm_set_tx_cmd_rate(mvm, &cmd.frame.tx_cmd, info, sta,
 				hdr->frame_control);
 	rcu_read_unlock();

@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("AMD Family 15h CPU processor power monitor");
 MODULE_AUTHOR("Andreas Herrmann <herrmann.der.user@googlemail.com>");
@@ -41,11 +42,21 @@ MODULE_LICENSE("GPL");
 #define REG_TDP_RUNNING_AVERAGE		0xe0
 #define REG_TDP_LIMIT3			0xe8
 
+#define FAM15H_MIN_NUM_ATTRS		2
+#define FAM15H_NUM_GROUPS		2
+
+#define MSR_F15H_CU_MAX_PWR_ACCUMULATOR	0xc001007b
+
 struct fam15h_power_data {
 	struct pci_dev *pdev;
 	unsigned int tdp_to_watts;
 	unsigned int base_tdp;
 	unsigned int processor_pwr_watts;
+	unsigned int cpu_pwr_sample_ratio;
+	const struct attribute_group *groups[FAM15H_NUM_GROUPS];
+	struct attribute_group group;
+	/* maximum accumulated power of a compute unit */
+	u64 max_cu_acc_power;
 };
 
 static ssize_t show_power(struct device *dev,
@@ -59,8 +70,19 @@ static ssize_t show_power(struct device *dev,
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_RUNNING_AVERAGE, &val);
-	running_avg_capture = (val >> 4) & 0x3fffff;
-	running_avg_capture = sign_extend32(running_avg_capture, 21);
+
+	/*
+	 * On Carrizo and later platforms, TdpRunAvgAccCap bit field
+	 * is extended to 4:31 from 4:25.
+	 */
+	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60) {
+		running_avg_capture = val >> 4;
+		running_avg_capture = sign_extend32(running_avg_capture, 27);
+	} else {
+		running_avg_capture = (val >> 4) & 0x3fffff;
+		running_avg_capture = sign_extend32(running_avg_capture, 21);
+	}
+
 	running_avg_range = (val & 0xf) + 1;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
@@ -93,31 +115,38 @@ static ssize_t show_power_crit(struct device *dev,
 }
 static DEVICE_ATTR(power1_crit, S_IRUGO, show_power_crit, NULL);
 
-static umode_t fam15h_power_is_visible(struct kobject *kobj,
-				       struct attribute *attr,
-				       int index)
+static int fam15h_power_init_attrs(struct pci_dev *pdev,
+				   struct fam15h_power_data *data)
 {
-	/* power1_input is only reported for Fam15h, Models 00h-0fh */
-	if (attr == &dev_attr_power1_input.attr &&
-	   (boot_cpu_data.x86 != 0x15 || boot_cpu_data.x86_model > 0xf))
-		return 0;
+	int n = FAM15H_MIN_NUM_ATTRS;
+	struct attribute **fam15h_power_attrs;
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 
-	return attr->mode;
+	if (c->x86 == 0x15 &&
+	    (c->x86_model <= 0xf ||
+	     (c->x86_model >= 0x60 && c->x86_model <= 0x6f)))
+		n += 1;
+
+	fam15h_power_attrs = devm_kcalloc(&pdev->dev, n,
+					  sizeof(*fam15h_power_attrs),
+					  GFP_KERNEL);
+
+	if (!fam15h_power_attrs)
+		return -ENOMEM;
+
+	n = 0;
+	fam15h_power_attrs[n++] = &dev_attr_power1_crit.attr;
+	if (c->x86 == 0x15 &&
+	    (c->x86_model <= 0xf ||
+	     (c->x86_model >= 0x60 && c->x86_model <= 0x6f)))
+		fam15h_power_attrs[n++] = &dev_attr_power1_input.attr;
+
+	data->group.attrs = fam15h_power_attrs;
+
+	return 0;
 }
 
-static struct attribute *fam15h_power_attrs[] = {
-	&dev_attr_power1_input.attr,
-	&dev_attr_power1_crit.attr,
-	NULL
-};
-
-static const struct attribute_group fam15h_power_group = {
-	.attrs = fam15h_power_attrs,
-	.is_visible = fam15h_power_is_visible,
-};
-__ATTRIBUTE_GROUPS(fam15h_power);
-
-static bool fam15h_power_is_internal_node0(struct pci_dev *f4)
+static bool should_load_on_this_node(struct pci_dev *f4)
 {
 	u32 val;
 
@@ -174,11 +203,12 @@ static int fam15h_power_resume(struct pci_dev *pdev)
 #define fam15h_power_resume NULL
 #endif
 
-static void fam15h_power_init_data(struct pci_dev *f4,
-					     struct fam15h_power_data *data)
+static int fam15h_power_init_data(struct pci_dev *f4,
+				  struct fam15h_power_data *data)
 {
-	u32 val;
+	u32 val, eax, ebx, ecx, edx;
 	u64 tmp;
+	int ret;
 
 	pci_read_config_dword(f4, REG_PROCESSOR_TDP, &val);
 	data->base_tdp = val >> 16;
@@ -198,14 +228,41 @@ static void fam15h_power_init_data(struct pci_dev *f4,
 
 	/* convert to microWatt */
 	data->processor_pwr_watts = (tmp * 15625) >> 10;
+
+	ret = fam15h_power_init_attrs(f4, data);
+	if (ret)
+		return ret;
+
+	cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+
+	/* CPUID Fn8000_0007:EDX[12] indicates to support accumulated power */
+	if (!(edx & BIT(12)))
+		return 0;
+
+	/*
+	 * determine the ratio of the compute unit power accumulator
+	 * sample period to the PTSC counter period by executing CPUID
+	 * Fn8000_0007:ECX
+	 */
+	data->cpu_pwr_sample_ratio = ecx;
+
+	if (rdmsrl_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &tmp)) {
+		pr_err("Failed to read max compute unit power accumulator MSR\n");
+		return -ENODEV;
+	}
+
+	data->max_cu_acc_power = tmp;
+
+	return 0;
 }
 
 static int fam15h_power_probe(struct pci_dev *pdev,
-					const struct pci_device_id *id)
+			      const struct pci_device_id *id)
 {
 	struct fam15h_power_data *data;
 	struct device *dev = &pdev->dev;
 	struct device *hwmon_dev;
+	int ret;
 
 	/*
 	 * though we ignore every other northbridge, we still have to
@@ -214,25 +271,31 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev))
+	if (!should_load_on_this_node(pdev))
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	fam15h_power_init_data(pdev, data);
+	ret = fam15h_power_init_data(pdev, data);
+	if (ret)
+		return ret;
+
 	data->pdev = pdev;
+
+	data->groups[0] = &data->group;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, "fam15h_power",
 							   data,
-							   fam15h_power_groups);
+							   &data->groups[0]);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct pci_device_id fam15h_power_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M30H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F4) },
 	{}

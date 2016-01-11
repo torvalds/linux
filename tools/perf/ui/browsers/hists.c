@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include "../libslang.h"
 #include <stdlib.h>
 #include <string.h>
 #include <linux/rbtree.h>
@@ -25,6 +24,9 @@ struct hist_browser {
 	struct hists	    *hists;
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
+	struct hist_browser_timer *hbt;
+	struct pstack	    *pstack;
+	struct perf_env *env;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
@@ -45,7 +47,7 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 
 static bool hist_browser__has_filter(struct hist_browser *hb)
 {
-	return hists__has_filter(hb->hists) || hb->min_pcnt;
+	return hists__has_filter(hb->hists) || hb->min_pcnt || symbol_conf.has_filter;
 }
 
 static int hist_browser__get_folding(struct hist_browser *browser)
@@ -60,7 +62,7 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 		struct hist_entry *he =
 			rb_entry(nd, struct hist_entry, rb_node);
 
-		if (he->ms.unfolded)
+		if (he->unfolded)
 			unfolded_rows += he->nr_rows;
 	}
 	return unfolded_rows;
@@ -136,24 +138,19 @@ static char tree__folded_sign(bool unfolded)
 	return unfolded ? '-' : '+';
 }
 
-static char map_symbol__folded(const struct map_symbol *ms)
-{
-	return ms->has_children ? tree__folded_sign(ms->unfolded) : ' ';
-}
-
 static char hist_entry__folded(const struct hist_entry *he)
 {
-	return map_symbol__folded(&he->ms);
+	return he->has_children ? tree__folded_sign(he->unfolded) : ' ';
 }
 
 static char callchain_list__folded(const struct callchain_list *cl)
 {
-	return map_symbol__folded(&cl->ms);
+	return cl->has_children ? tree__folded_sign(cl->unfolded) : ' ';
 }
 
-static void map_symbol__set_folding(struct map_symbol *ms, bool unfold)
+static void callchain_list__set_folding(struct callchain_list *cl, bool unfold)
 {
-	ms->unfolded = unfold ? ms->has_children : false;
+	cl->unfolded = unfold ? cl->has_children : false;
 }
 
 static int callchain_node__count_rows_rb_tree(struct callchain_node *node)
@@ -189,7 +186,7 @@ static int callchain_node__count_rows(struct callchain_node *node)
 
 	list_for_each_entry(chain, &node->val, list) {
 		++n;
-		unfolded = chain->ms.unfolded;
+		unfolded = chain->unfolded;
 	}
 
 	if (unfolded)
@@ -211,15 +208,27 @@ static int callchain__count_rows(struct rb_root *chain)
 	return n;
 }
 
-static bool map_symbol__toggle_fold(struct map_symbol *ms)
+static bool hist_entry__toggle_fold(struct hist_entry *he)
 {
-	if (!ms)
+	if (!he)
 		return false;
 
-	if (!ms->has_children)
+	if (!he->has_children)
 		return false;
 
-	ms->unfolded = !ms->unfolded;
+	he->unfolded = !he->unfolded;
+	return true;
+}
+
+static bool callchain_list__toggle_fold(struct callchain_list *cl)
+{
+	if (!cl)
+		return false;
+
+	if (!cl->has_children)
+		return false;
+
+	cl->unfolded = !cl->unfolded;
 	return true;
 }
 
@@ -235,10 +244,10 @@ static void callchain_node__init_have_children_rb_tree(struct callchain_node *no
 		list_for_each_entry(chain, &child->val, list) {
 			if (first) {
 				first = false;
-				chain->ms.has_children = chain->list.next != &child->val ||
+				chain->has_children = chain->list.next != &child->val ||
 							 !RB_EMPTY_ROOT(&child->rb_root);
 			} else
-				chain->ms.has_children = chain->list.next == &child->val &&
+				chain->has_children = chain->list.next == &child->val &&
 							 !RB_EMPTY_ROOT(&child->rb_root);
 		}
 
@@ -252,11 +261,11 @@ static void callchain_node__init_have_children(struct callchain_node *node,
 	struct callchain_list *chain;
 
 	chain = list_entry(node->val.next, struct callchain_list, list);
-	chain->ms.has_children = has_sibling;
+	chain->has_children = has_sibling;
 
 	if (!list_empty(&node->val)) {
 		chain = list_entry(node->val.prev, struct callchain_list, list);
-		chain->ms.has_children = !RB_EMPTY_ROOT(&node->rb_root);
+		chain->has_children = !RB_EMPTY_ROOT(&node->rb_root);
 	}
 
 	callchain_node__init_have_children_rb_tree(node);
@@ -276,7 +285,7 @@ static void callchain__init_have_children(struct rb_root *root)
 static void hist_entry__init_have_children(struct hist_entry *he)
 {
 	if (!he->init_have_children) {
-		he->ms.has_children = !RB_EMPTY_ROOT(&he->sorted_chain);
+		he->has_children = !RB_EMPTY_ROOT(&he->sorted_chain);
 		callchain__init_have_children(&he->sorted_chain);
 		he->init_have_children = true;
 	}
@@ -284,14 +293,25 @@ static void hist_entry__init_have_children(struct hist_entry *he)
 
 static bool hist_browser__toggle_fold(struct hist_browser *browser)
 {
-	if (map_symbol__toggle_fold(browser->selection)) {
-		struct hist_entry *he = browser->he_selection;
+	struct hist_entry *he = browser->he_selection;
+	struct map_symbol *ms = browser->selection;
+	struct callchain_list *cl = container_of(ms, struct callchain_list, ms);
+	bool has_children;
 
+	if (!he || !ms)
+		return false;
+
+	if (ms == &he->ms)
+		has_children = hist_entry__toggle_fold(he);
+	else
+		has_children = callchain_list__toggle_fold(cl);
+
+	if (has_children) {
 		hist_entry__init_have_children(he);
 		browser->b.nr_entries -= he->nr_rows;
 		browser->nr_callchain_rows -= he->nr_rows;
 
-		if (he->ms.unfolded)
+		if (he->unfolded)
 			he->nr_rows = callchain__count_rows(&he->sorted_chain);
 		else
 			he->nr_rows = 0;
@@ -318,8 +338,8 @@ static int callchain_node__set_folding_rb_tree(struct callchain_node *node, bool
 
 		list_for_each_entry(chain, &child->val, list) {
 			++n;
-			map_symbol__set_folding(&chain->ms, unfold);
-			has_children = chain->ms.has_children;
+			callchain_list__set_folding(chain, unfold);
+			has_children = chain->has_children;
 		}
 
 		if (has_children)
@@ -337,8 +357,8 @@ static int callchain_node__set_folding(struct callchain_node *node, bool unfold)
 
 	list_for_each_entry(chain, &node->val, list) {
 		++n;
-		map_symbol__set_folding(&chain->ms, unfold);
-		has_children = chain->ms.has_children;
+		callchain_list__set_folding(chain, unfold);
+		has_children = chain->has_children;
 	}
 
 	if (has_children)
@@ -363,9 +383,9 @@ static int callchain__set_folding(struct rb_root *chain, bool unfold)
 static void hist_entry__set_folding(struct hist_entry *he, bool unfold)
 {
 	hist_entry__init_have_children(he);
-	map_symbol__set_folding(&he->ms, unfold);
+	he->unfolded = unfold ? he->has_children : false;
 
-	if (he->ms.has_children) {
+	if (he->has_children) {
 		int n = callchain__set_folding(&he->sorted_chain, unfold);
 		he->nr_rows = unfold ? n : 0;
 	} else
@@ -406,11 +426,11 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 		"Or reduce the sampling frequency.");
 }
 
-static int hist_browser__run(struct hist_browser *browser,
-			     struct hist_browser_timer *hbt)
+static int hist_browser__run(struct hist_browser *browser, const char *help)
 {
 	int key;
 	char title[160];
+	struct hist_browser_timer *hbt = browser->hbt;
 	int delay_secs = hbt ? hbt->refresh : 0;
 
 	browser->b.entries = &browser->hists->entries;
@@ -418,8 +438,7 @@ static int hist_browser__run(struct hist_browser *browser,
 
 	hists__browser_title(browser->hists, hbt, title, sizeof(title));
 
-	if (ui_browser__show(&browser->b, title,
-			     "Press '?' for help on key bindings") < 0)
+	if (ui_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
 	while (1) {
@@ -523,10 +542,10 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 
 	ui_browser__set_color(&browser->b, color);
 	hist_browser__gotorc(browser, row, 0);
-	slsmg_write_nstring(" ", offset);
-	slsmg_printf("%c", folded_sign);
+	ui_browser__write_nstring(&browser->b, " ", offset);
+	ui_browser__printf(&browser->b, "%c", folded_sign);
 	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
-	slsmg_write_nstring(str, width);
+	ui_browser__write_nstring(&browser->b, str, width);
 }
 
 static void hist_browser__fprintf_callchain_entry(struct hist_browser *b __maybe_unused,
@@ -663,7 +682,7 @@ static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 	ui_browser__set_percent_color(arg->b, percent, arg->current_entry);
 
 	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
-	slsmg_printf("%s", hpp->buf);
+	ui_browser__printf(arg->b, "%s", hpp->buf);
 
 	advance_hpp(hpp, ret);
 	return ret;
@@ -696,10 +715,11 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				struct hist_entry *he)			\
 {									\
 	if (!symbol_conf.cumulate_callchain) {				\
+		struct hpp_arg *arg = hpp->ptr;				\
 		int len = fmt->user_len ?: fmt->len;			\
 		int ret = scnprintf(hpp->buf, hpp->size,		\
 				    "%*s", len, "N/A");			\
-		slsmg_printf("%s", hpp->buf);				\
+		ui_browser__printf(arg->b, "%s", hpp->buf);		\
 									\
 		return ret;						\
 	}								\
@@ -767,11 +787,12 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.size		= sizeof(s),
 			.ptr		= &arg,
 		};
+		int column = 0;
 
 		hist_browser__gotorc(browser, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
-			if (perf_hpp__should_skip(fmt))
+			if (perf_hpp__should_skip(fmt) || column++ < browser->b.horiz_scroll)
 				continue;
 
 			if (current_entry && browser->b.navkeypressed) {
@@ -784,12 +805,12 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 
 			if (first) {
 				if (symbol_conf.use_callchain) {
-					slsmg_printf("%c ", folded_sign);
+					ui_browser__printf(&browser->b, "%c ", folded_sign);
 					width -= 2;
 				}
 				first = false;
 			} else {
-				slsmg_printf("  ");
+				ui_browser__printf(&browser->b, "  ");
 				width -= 2;
 			}
 
@@ -797,7 +818,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 				width -= fmt->color(fmt, &hpp, entry);
 			} else {
 				width -= fmt->entry(fmt, &hpp, entry);
-				slsmg_printf("%s", s);
+				ui_browser__printf(&browser->b, "%s", s);
 			}
 		}
 
@@ -805,7 +826,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		if (!browser->b.navkeypressed)
 			width += 1;
 
-		slsmg_write_nstring("", width);
+		ui_browser__write_nstring(&browser->b, "", width);
 
 		++row;
 		++printed;
@@ -844,14 +865,16 @@ static int advance_hpp_check(struct perf_hpp *hpp, int inc)
 	return hpp->size <= 0;
 }
 
-static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
+static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf, size_t size)
 {
+	struct hists *hists = browser->hists;
 	struct perf_hpp dummy_hpp = {
 		.buf    = buf,
 		.size   = size,
 	};
 	struct perf_hpp_fmt *fmt;
 	size_t ret = 0;
+	int column = 0;
 
 	if (symbol_conf.use_callchain) {
 		ret = scnprintf(buf, size, "  ");
@@ -860,7 +883,7 @@ static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
 	}
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt)  || column++ < browser->b.horiz_scroll)
 			continue;
 
 		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
@@ -879,10 +902,10 @@ static void hist_browser__show_headers(struct hist_browser *browser)
 {
 	char headers[1024];
 
-	hists__scnprintf_headers(headers, sizeof(headers), browser->hists);
+	hists_browser__scnprintf_headers(browser, headers, sizeof(headers));
 	ui_browser__gotorc(&browser->b, 0, 0);
 	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
-	slsmg_write_nstring(headers, browser->b.width + 1);
+	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
 }
 
 static void ui_browser__hists_init_top(struct ui_browser *browser)
@@ -908,6 +931,8 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	}
 
 	ui_browser__hists_init_top(browser);
+	hb->he_selection = NULL;
+	hb->selection = NULL;
 
 	for (nd = browser->top; nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
@@ -1013,10 +1038,13 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 	 * and stop when we printed enough lines to fill the screen.
 	 */
 do_offset:
+	if (!nd)
+		return;
+
 	if (offset > 0) {
 		do {
 			h = rb_entry(nd, struct hist_entry, rb_node);
-			if (h->ms.unfolded) {
+			if (h->unfolded) {
 				u16 remaining = h->nr_rows - h->row_offset;
 				if (offset > remaining) {
 					offset -= remaining;
@@ -1037,7 +1065,7 @@ do_offset:
 	} else if (offset < 0) {
 		while (1) {
 			h = rb_entry(nd, struct hist_entry, rb_node);
-			if (h->ms.unfolded) {
+			if (h->unfolded) {
 				if (first) {
 					if (-offset > h->row_offset) {
 						offset += h->row_offset;
@@ -1074,7 +1102,7 @@ do_offset:
 				 * row_offset at its last entry.
 				 */
 				h = rb_entry(nd, struct hist_entry, rb_node);
-				if (h->ms.unfolded)
+				if (h->unfolded)
 					h->row_offset = h->nr_rows;
 				break;
 			}
@@ -1195,7 +1223,9 @@ static int hist_browser__dump(struct hist_browser *browser)
 	return 0;
 }
 
-static struct hist_browser *hist_browser__new(struct hists *hists)
+static struct hist_browser *hist_browser__new(struct hists *hists,
+					      struct hist_browser_timer *hbt,
+					      struct perf_env *env)
 {
 	struct hist_browser *browser = zalloc(sizeof(*browser));
 
@@ -1206,6 +1236,8 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		browser->b.seek = ui_browser__hists_seek;
 		browser->b.use_navkeypressed = true;
 		browser->show_headers = symbol_conf.show_hist_headers;
+		browser->hbt = hbt;
+		browser->env = env;
 	}
 
 	return browser;
@@ -1240,12 +1272,15 @@ static int hists__browser_title(struct hists *hists,
 	int printed;
 	const struct dso *dso = hists->dso_filter;
 	const struct thread *thread = hists->thread_filter;
+	int socket_id = hists->socket_filter;
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	const char *ev_name = perf_evsel__name(evsel);
 	char buf[512];
 	size_t buflen = sizeof(buf);
+	char ref[30] = " show reference callgraph, ";
+	bool enable_ref = false;
 
 	if (symbol_conf.filter_relative) {
 		nr_samples = hists->stats.nr_non_filtered_samples;
@@ -1271,10 +1306,13 @@ static int hists__browser_title(struct hists *hists,
 		}
 	}
 
+	if (symbol_conf.show_ref_callgraph &&
+	    strstr(ev_name, "call-graph=no"))
+		enable_ref = true;
 	nr_samples = convert_unit(nr_samples, &unit);
 	printed = scnprintf(bf, size,
-			   "Samples: %lu%c of event '%s', Event count (approx.): %" PRIu64,
-			   nr_samples, unit, ev_name, nr_events);
+			   "Samples: %lu%c of event '%s',%sEvent count (approx.): %" PRIu64,
+			   nr_samples, unit, ev_name, enable_ref ? ref : " ", nr_events);
 
 
 	if (hists->uid_filter_str)
@@ -1288,6 +1326,9 @@ static int hists__browser_title(struct hists *hists,
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
+	if (socket_id > -1)
+		printed += scnprintf(bf + printed, size - printed,
+				    ", Processor Socket: %d", socket_id);
 	if (!is_report_browser(hbt)) {
 		struct perf_top *top = hbt->arg;
 
@@ -1395,6 +1436,292 @@ close_file_and_continue:
 	return ret;
 }
 
+struct popup_action {
+	struct thread 		*thread;
+	struct map_symbol 	ms;
+	int			socket;
+
+	int (*fn)(struct hist_browser *browser, struct popup_action *act);
+};
+
+static int
+do_annotate(struct hist_browser *browser, struct popup_action *act)
+{
+	struct perf_evsel *evsel;
+	struct annotation *notes;
+	struct hist_entry *he;
+	int err;
+
+	if (!objdump_path && perf_env__lookup_objdump(browser->env))
+		return 0;
+
+	notes = symbol__annotation(act->ms.sym);
+	if (!notes->src)
+		return 0;
+
+	evsel = hists_to_evsel(browser->hists);
+	err = map_symbol__tui_annotate(&act->ms, evsel, browser->hbt);
+	he = hist_browser__selected_entry(browser);
+	/*
+	 * offer option to annotate the other branch source or target
+	 * (if they exists) when returning from annotate
+	 */
+	if ((err == 'q' || err == CTRL('c')) && he->branch_info)
+		return 1;
+
+	ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
+	if (err)
+		ui_browser__handle_resize(&browser->b);
+	return 0;
+}
+
+static int
+add_annotate_opt(struct hist_browser *browser __maybe_unused,
+		 struct popup_action *act, char **optstr,
+		 struct map *map, struct symbol *sym)
+{
+	if (sym == NULL || map->dso->annotate_warned)
+		return 0;
+
+	if (asprintf(optstr, "Annotate %s", sym->name) < 0)
+		return 0;
+
+	act->ms.map = map;
+	act->ms.sym = sym;
+	act->fn = do_annotate;
+	return 1;
+}
+
+static int
+do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
+{
+	struct thread *thread = act->thread;
+
+	if (browser->hists->thread_filter) {
+		pstack__remove(browser->pstack, &browser->hists->thread_filter);
+		perf_hpp__set_elide(HISTC_THREAD, false);
+		thread__zput(browser->hists->thread_filter);
+		ui_helpline__pop();
+	} else {
+		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
+				   thread->comm_set ? thread__comm_str(thread) : "",
+				   thread->tid);
+		browser->hists->thread_filter = thread__get(thread);
+		perf_hpp__set_elide(HISTC_THREAD, false);
+		pstack__push(browser->pstack, &browser->hists->thread_filter);
+	}
+
+	hists__filter_by_thread(browser->hists);
+	hist_browser__reset(browser);
+	return 0;
+}
+
+static int
+add_thread_opt(struct hist_browser *browser, struct popup_action *act,
+	       char **optstr, struct thread *thread)
+{
+	if (thread == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Zoom %s %s(%d) thread",
+		     browser->hists->thread_filter ? "out of" : "into",
+		     thread->comm_set ? thread__comm_str(thread) : "",
+		     thread->tid) < 0)
+		return 0;
+
+	act->thread = thread;
+	act->fn = do_zoom_thread;
+	return 1;
+}
+
+static int
+do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
+{
+	struct map *map = act->ms.map;
+
+	if (browser->hists->dso_filter) {
+		pstack__remove(browser->pstack, &browser->hists->dso_filter);
+		perf_hpp__set_elide(HISTC_DSO, false);
+		browser->hists->dso_filter = NULL;
+		ui_helpline__pop();
+	} else {
+		if (map == NULL)
+			return 0;
+		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s DSO\"",
+				   __map__is_kernel(map) ? "the Kernel" : map->dso->short_name);
+		browser->hists->dso_filter = map->dso;
+		perf_hpp__set_elide(HISTC_DSO, true);
+		pstack__push(browser->pstack, &browser->hists->dso_filter);
+	}
+
+	hists__filter_by_dso(browser->hists);
+	hist_browser__reset(browser);
+	return 0;
+}
+
+static int
+add_dso_opt(struct hist_browser *browser, struct popup_action *act,
+	    char **optstr, struct map *map)
+{
+	if (map == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Zoom %s %s DSO",
+		     browser->hists->dso_filter ? "out of" : "into",
+		     __map__is_kernel(map) ? "the Kernel" : map->dso->short_name) < 0)
+		return 0;
+
+	act->ms.map = map;
+	act->fn = do_zoom_dso;
+	return 1;
+}
+
+static int
+do_browse_map(struct hist_browser *browser __maybe_unused,
+	      struct popup_action *act)
+{
+	map__browse(act->ms.map);
+	return 0;
+}
+
+static int
+add_map_opt(struct hist_browser *browser __maybe_unused,
+	    struct popup_action *act, char **optstr, struct map *map)
+{
+	if (map == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Browse map details") < 0)
+		return 0;
+
+	act->ms.map = map;
+	act->fn = do_browse_map;
+	return 1;
+}
+
+static int
+do_run_script(struct hist_browser *browser __maybe_unused,
+	      struct popup_action *act)
+{
+	char script_opt[64];
+	memset(script_opt, 0, sizeof(script_opt));
+
+	if (act->thread) {
+		scnprintf(script_opt, sizeof(script_opt), " -c %s ",
+			  thread__comm_str(act->thread));
+	} else if (act->ms.sym) {
+		scnprintf(script_opt, sizeof(script_opt), " -S %s ",
+			  act->ms.sym->name);
+	}
+
+	script_browse(script_opt);
+	return 0;
+}
+
+static int
+add_script_opt(struct hist_browser *browser __maybe_unused,
+	       struct popup_action *act, char **optstr,
+	       struct thread *thread, struct symbol *sym)
+{
+	if (thread) {
+		if (asprintf(optstr, "Run scripts for samples of thread [%s]",
+			     thread__comm_str(thread)) < 0)
+			return 0;
+	} else if (sym) {
+		if (asprintf(optstr, "Run scripts for samples of symbol [%s]",
+			     sym->name) < 0)
+			return 0;
+	} else {
+		if (asprintf(optstr, "Run scripts for all samples") < 0)
+			return 0;
+	}
+
+	act->thread = thread;
+	act->ms.sym = sym;
+	act->fn = do_run_script;
+	return 1;
+}
+
+static int
+do_switch_data(struct hist_browser *browser __maybe_unused,
+	       struct popup_action *act __maybe_unused)
+{
+	if (switch_data_file()) {
+		ui__warning("Won't switch the data files due to\n"
+			    "no valid data file get selected!\n");
+		return 0;
+	}
+
+	return K_SWITCH_INPUT_DATA;
+}
+
+static int
+add_switch_opt(struct hist_browser *browser,
+	       struct popup_action *act, char **optstr)
+{
+	if (!is_report_browser(browser->hbt))
+		return 0;
+
+	if (asprintf(optstr, "Switch to another data file in PWD") < 0)
+		return 0;
+
+	act->fn = do_switch_data;
+	return 1;
+}
+
+static int
+do_exit_browser(struct hist_browser *browser __maybe_unused,
+		struct popup_action *act __maybe_unused)
+{
+	return 0;
+}
+
+static int
+add_exit_opt(struct hist_browser *browser __maybe_unused,
+	     struct popup_action *act, char **optstr)
+{
+	if (asprintf(optstr, "Exit") < 0)
+		return 0;
+
+	act->fn = do_exit_browser;
+	return 1;
+}
+
+static int
+do_zoom_socket(struct hist_browser *browser, struct popup_action *act)
+{
+	if (browser->hists->socket_filter > -1) {
+		pstack__remove(browser->pstack, &browser->hists->socket_filter);
+		browser->hists->socket_filter = -1;
+		perf_hpp__set_elide(HISTC_SOCKET, false);
+	} else {
+		browser->hists->socket_filter = act->socket;
+		perf_hpp__set_elide(HISTC_SOCKET, true);
+		pstack__push(browser->pstack, &browser->hists->socket_filter);
+	}
+
+	hists__filter_by_socket(browser->hists);
+	hist_browser__reset(browser);
+	return 0;
+}
+
+static int
+add_socket_opt(struct hist_browser *browser, struct popup_action *act,
+	       char **optstr, int socket_id)
+{
+	if (socket_id < 0)
+		return 0;
+
+	if (asprintf(optstr, "Zoom %s Processor Socket %d",
+		     (browser->hists->socket_filter > -1) ? "out of" : "into",
+		     socket_id) < 0)
+		return 0;
+
+	act->socket = socket_id;
+	act->fn = do_zoom_socket;
+	return 1;
+}
+
 static void hist_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
@@ -1418,17 +1745,17 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    bool left_exits,
 				    struct hist_browser_timer *hbt,
 				    float min_pcnt,
-				    struct perf_session_env *env)
+				    struct perf_env *env)
 {
 	struct hists *hists = evsel__hists(evsel);
-	struct hist_browser *browser = hist_browser__new(hists);
+	struct hist_browser *browser = hist_browser__new(hists, hbt, env);
 	struct branch_info *bi;
-	struct pstack *fstack;
-	char *options[16];
+#define MAX_OPTIONS  16
+	char *options[MAX_OPTIONS];
+	struct popup_action actions[MAX_OPTIONS];
 	int nr_options = 0;
 	int key = -1;
 	char buf[64];
-	char script_opt[64];
 	int delay_secs = hbt ? hbt->refresh : 0;
 	struct perf_hpp_fmt *fmt;
 
@@ -1440,14 +1767,16 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"For multiple event sessions:\n\n"				\
 	"TAB/UNTAB     Switch events\n\n"				\
 	"For symbolic views (--sort has sym):\n\n"			\
-	"->            Zoom into DSO/Threads & Annotate current symbol\n" \
-	"<-            Zoom out\n"					\
+	"ENTER         Zoom into DSO/Threads & Annotate current symbol\n" \
+	"ESC           Zoom out\n"					\
 	"a             Annotate current symbol\n"			\
 	"C             Collapse all callchains\n"			\
 	"d             Zoom into current DSO\n"				\
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
 	"H             Display column headers\n"			\
+	"m             Display context menu\n"				\
+	"S             Zoom into current Processor Socket\n"		\
 
 	/* help messages are sorted by lexical order of the hotkey */
 	const char report_help[] = HIST_BROWSER_HELP_COMMON
@@ -1463,46 +1792,59 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
 	"z             Toggle zeroing of samples\n"
+	"f             Enable/Disable events\n"
 	"/             Filter symbol by name";
 
 	if (browser == NULL)
 		return -1;
+
+	/* reset abort key so that it can get Ctrl-C as a key */
+	SLang_reset_tty();
+	SLang_init_tty(0, 0, 0);
 
 	if (min_pcnt) {
 		browser->min_pcnt = min_pcnt;
 		hist_browser__update_nr_entries(browser);
 	}
 
-	fstack = pstack__new(2);
-	if (fstack == NULL)
+	browser->pstack = pstack__new(3);
+	if (browser->pstack == NULL)
 		goto out;
 
 	ui_helpline__push(helpline);
 
 	memset(options, 0, sizeof(options));
+	memset(actions, 0, sizeof(actions));
 
-	perf_hpp__for_each_format(fmt)
+	perf_hpp__for_each_format(fmt) {
 		perf_hpp__reset_width(fmt, hists);
+		/*
+		 * This is done just once, and activates the horizontal scrolling
+		 * code in the ui_browser code, it would be better to have a the
+		 * counter in the perf_hpp code, but I couldn't find doing it here
+		 * works, FIXME by setting this in hist_browser__new, for now, be
+		 * clever 8-)
+		 */
+		++browser->b.columns;
+	}
 
 	if (symbol_conf.col_width_list_str)
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
 
 	while (1) {
 		struct thread *thread = NULL;
-		const struct dso *dso = NULL;
-		int choice = 0,
-		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
-		    annotate_f = -2, annotate_t = -2, browse_map = -2;
-		int scripts_comm = -2, scripts_symbol = -2,
-		    scripts_all = -2, switch_data = -2;
+		struct map *map = NULL;
+		int choice = 0;
+		int socked_id = -1;
 
 		nr_options = 0;
 
-		key = hist_browser__run(browser, hbt);
+		key = hist_browser__run(browser, helpline);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
-			dso = browser->selection->map ? browser->selection->map->dso : NULL;
+			map = browser->selection->map;
+			socked_id = browser->he_selection->socket;
 		}
 		switch (key) {
 		case K_TAB:
@@ -1526,20 +1868,33 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			    browser->selection->sym == NULL ||
 			    browser->selection->map->dso->annotate_warned)
 				continue;
-			goto do_annotate;
+
+			actions->ms.map = browser->selection->map;
+			actions->ms.sym = browser->selection->sym;
+			do_annotate(browser, actions);
+			continue;
 		case 'P':
 			hist_browser__dump(browser);
 			continue;
 		case 'd':
-			goto zoom_dso;
+			actions->ms.map = map;
+			do_zoom_dso(browser, actions);
+			continue;
 		case 'V':
 			browser->show_dso = !browser->show_dso;
 			continue;
 		case 't':
-			goto zoom_thread;
+			actions->thread = thread;
+			do_zoom_thread(browser, actions);
+			continue;
+		case 'S':
+			actions->socket = socked_id;
+			do_zoom_socket(browser, actions);
+			continue;
 		case '/':
 			if (ui_browser__input_window("Symbol to show",
-					"Please enter the name of symbol you want to see",
+					"Please enter the name of symbol you want to see.\n"
+					"To remove the filter later, press / + ENTER.",
 					buf, "ENTER: OK, ESC: Cancel",
 					delay_secs * 2) == K_ENTER) {
 				hists->symbol_filter_str = *buf ? buf : NULL;
@@ -1548,12 +1903,18 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			}
 			continue;
 		case 'r':
-			if (is_report_browser(hbt))
-				goto do_scripts;
+			if (is_report_browser(hbt)) {
+				actions->thread = NULL;
+				actions->ms.sym = NULL;
+				do_run_script(browser, actions);
+			}
 			continue;
 		case 's':
-			if (is_report_browser(hbt))
-				goto do_data_switch;
+			if (is_report_browser(hbt)) {
+				key = do_switch_data(browser, actions);
+				if (key == K_SWITCH_INPUT_DATA)
+					goto out_free_stack;
+			}
 			continue;
 		case 'i':
 			/* env->arch is NULL for live-mode (i.e. perf top) */
@@ -1578,36 +1939,66 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
+		case 'm':
 			/* menu */
 			break;
+		case K_ESC:
 		case K_LEFT: {
 			const void *top;
 
-			if (pstack__empty(fstack)) {
+			if (pstack__empty(browser->pstack)) {
 				/*
 				 * Go back to the perf_evsel_menu__run or other user
 				 */
 				if (left_exits)
 					goto out_free_stack;
+
+				if (key == K_ESC &&
+				    ui_browser__dialog_yesno(&browser->b,
+							     "Do you really want to exit?"))
+					goto out_free_stack;
+
 				continue;
 			}
-			top = pstack__pop(fstack);
-			if (top == &browser->hists->dso_filter)
-				goto zoom_out_dso;
-			if (top == &browser->hists->thread_filter)
-				goto zoom_out_thread;
+			top = pstack__peek(browser->pstack);
+			if (top == &browser->hists->dso_filter) {
+				/*
+				 * No need to set actions->dso here since
+				 * it's just to remove the current filter.
+				 * Ditto for thread below.
+				 */
+				do_zoom_dso(browser, actions);
+			} else if (top == &browser->hists->thread_filter) {
+				do_zoom_thread(browser, actions);
+			} else if (top == &browser->hists->socket_filter) {
+				do_zoom_socket(browser, actions);
+			}
 			continue;
 		}
-		case K_ESC:
-			if (!left_exits &&
-			    !ui_browser__dialog_yesno(&browser->b,
-					       "Do you really want to exit?"))
-				continue;
-			/* Fall thru */
 		case 'q':
 		case CTRL('c'):
 			goto out_free_stack;
+		case 'f':
+			if (!is_report_browser(hbt)) {
+				struct perf_top *top = hbt->arg;
+
+				perf_evlist__toggle_enable(top->evlist);
+				/*
+				 * No need to refresh, resort/decay histogram
+				 * entries if we are not collecting samples:
+				 */
+				if (top->evlist->enabled) {
+					helpline = "Press 'f' to disable the events or 'h' to see other hotkeys";
+					hbt->refresh = delay_secs;
+				} else {
+					helpline = "Press 'f' again to re-enable the events";
+					hbt->refresh = 0;
+				}
+				continue;
+			}
+			/* Fall thru */
 		default:
+			helpline = "Press '?' for help on key bindings";
 			continue;
 		}
 
@@ -1623,196 +2014,83 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			if (bi == NULL)
 				goto skip_annotation;
 
-			if (bi->from.sym != NULL &&
-			    !bi->from.map->dso->annotate_warned &&
-			    asprintf(&options[nr_options], "Annotate %s", bi->from.sym->name) > 0) {
-				annotate_f = nr_options++;
-			}
-
-			if (bi->to.sym != NULL &&
-			    !bi->to.map->dso->annotate_warned &&
-			    (bi->to.sym != bi->from.sym ||
-			     bi->to.map->dso != bi->from.map->dso) &&
-			    asprintf(&options[nr_options], "Annotate %s", bi->to.sym->name) > 0) {
-				annotate_t = nr_options++;
-			}
+			nr_options += add_annotate_opt(browser,
+						       &actions[nr_options],
+						       &options[nr_options],
+						       bi->from.map,
+						       bi->from.sym);
+			if (bi->to.sym != bi->from.sym)
+				nr_options += add_annotate_opt(browser,
+							&actions[nr_options],
+							&options[nr_options],
+							bi->to.map,
+							bi->to.sym);
 		} else {
-			if (browser->selection->sym != NULL &&
-			    !browser->selection->map->dso->annotate_warned) {
-				struct annotation *notes;
-
-				notes = symbol__annotation(browser->selection->sym);
-
-				if (notes->src &&
-				    asprintf(&options[nr_options], "Annotate %s",
-						 browser->selection->sym->name) > 0) {
-					annotate = nr_options++;
-				}
-			}
+			nr_options += add_annotate_opt(browser,
+						       &actions[nr_options],
+						       &options[nr_options],
+						       browser->selection->map,
+						       browser->selection->sym);
 		}
 skip_annotation:
-		if (thread != NULL &&
-		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
-			     (browser->hists->thread_filter ? "out of" : "into"),
-			     (thread->comm_set ? thread__comm_str(thread) : ""),
-			     thread->tid) > 0)
-			zoom_thread = nr_options++;
-
-		if (dso != NULL &&
-		    asprintf(&options[nr_options], "Zoom %s %s DSO",
-			     (browser->hists->dso_filter ? "out of" : "into"),
-			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
-			zoom_dso = nr_options++;
-
-		if (browser->selection != NULL &&
-		    browser->selection->map != NULL &&
-		    asprintf(&options[nr_options], "Browse map details") > 0)
-			browse_map = nr_options++;
-
+		nr_options += add_thread_opt(browser, &actions[nr_options],
+					     &options[nr_options], thread);
+		nr_options += add_dso_opt(browser, &actions[nr_options],
+					  &options[nr_options], map);
+		nr_options += add_map_opt(browser, &actions[nr_options],
+					  &options[nr_options],
+					  browser->selection ?
+						browser->selection->map : NULL);
+		nr_options += add_socket_opt(browser, &actions[nr_options],
+					     &options[nr_options],
+					     socked_id);
 		/* perf script support */
 		if (browser->he_selection) {
-			struct symbol *sym;
-
-			if (asprintf(&options[nr_options], "Run scripts for samples of thread [%s]",
-				     thread__comm_str(browser->he_selection->thread)) > 0)
-				scripts_comm = nr_options++;
-
-			sym = browser->he_selection->ms.sym;
-			if (sym && sym->namelen &&
-				asprintf(&options[nr_options], "Run scripts for samples of symbol [%s]",
-						sym->name) > 0)
-				scripts_symbol = nr_options++;
-		}
-
-		if (asprintf(&options[nr_options], "Run scripts for all samples") > 0)
-			scripts_all = nr_options++;
-
-		if (is_report_browser(hbt) && asprintf(&options[nr_options],
-				"Switch to another data file in PWD") > 0)
-			switch_data = nr_options++;
-add_exit_option:
-		options[nr_options++] = (char *)"Exit";
-retry_popup_menu:
-		choice = ui__popup_menu(nr_options, options);
-
-		if (choice == nr_options - 1)
-			break;
-
-		if (choice == -1) {
-			free_popup_options(options, nr_options - 1);
-			continue;
-		}
-
-		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
-			struct hist_entry *he;
-			struct annotation *notes;
-			struct map_symbol ms;
-			int err;
-do_annotate:
-			if (!objdump_path && perf_session_env__lookup_objdump(env))
-				continue;
-
-			he = hist_browser__selected_entry(browser);
-			if (he == NULL)
-				continue;
-
-			if (choice == annotate_f) {
-				ms.map = he->branch_info->from.map;
-				ms.sym = he->branch_info->from.sym;
-			} else if (choice == annotate_t) {
-				ms.map = he->branch_info->to.map;
-				ms.sym = he->branch_info->to.sym;
-			} else {
-				ms = *browser->selection;
-			}
-
-			notes = symbol__annotation(ms.sym);
-			if (!notes->src)
-				continue;
-
-			err = map_symbol__tui_annotate(&ms, evsel, hbt);
+			nr_options += add_script_opt(browser,
+						     &actions[nr_options],
+						     &options[nr_options],
+						     thread, NULL);
 			/*
-			 * offer option to annotate the other branch source or target
-			 * (if they exists) when returning from annotate
+			 * Note that browser->selection != NULL
+			 * when browser->he_selection is not NULL,
+			 * so we don't need to check browser->selection
+			 * before fetching browser->selection->sym like what
+			 * we do before fetching browser->selection->map.
+			 *
+			 * See hist_browser__show_entry.
 			 */
-			if ((err == 'q' || err == CTRL('c'))
-			    && annotate_t != -2 && annotate_f != -2)
-				goto retry_popup_menu;
-
-			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
-			if (err)
-				ui_browser__handle_resize(&browser->b);
-
-		} else if (choice == browse_map)
-			map__browse(browser->selection->map);
-		else if (choice == zoom_dso) {
-zoom_dso:
-			if (browser->hists->dso_filter) {
-				pstack__remove(fstack, &browser->hists->dso_filter);
-zoom_out_dso:
-				ui_helpline__pop();
-				browser->hists->dso_filter = NULL;
-				perf_hpp__set_elide(HISTC_DSO, false);
-			} else {
-				if (dso == NULL)
-					continue;
-				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
-						   dso->kernel ? "the Kernel" : dso->short_name);
-				browser->hists->dso_filter = dso;
-				perf_hpp__set_elide(HISTC_DSO, true);
-				pstack__push(fstack, &browser->hists->dso_filter);
-			}
-			hists__filter_by_dso(hists);
-			hist_browser__reset(browser);
-		} else if (choice == zoom_thread) {
-zoom_thread:
-			if (browser->hists->thread_filter) {
-				pstack__remove(fstack, &browser->hists->thread_filter);
-zoom_out_thread:
-				ui_helpline__pop();
-				thread__zput(browser->hists->thread_filter);
-				perf_hpp__set_elide(HISTC_THREAD, false);
-			} else {
-				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
-						   thread->comm_set ? thread__comm_str(thread) : "",
-						   thread->tid);
-				browser->hists->thread_filter = thread__get(thread);
-				perf_hpp__set_elide(HISTC_THREAD, false);
-				pstack__push(fstack, &browser->hists->thread_filter);
-			}
-			hists__filter_by_thread(hists);
-			hist_browser__reset(browser);
+			nr_options += add_script_opt(browser,
+						     &actions[nr_options],
+						     &options[nr_options],
+						     NULL, browser->selection->sym);
 		}
-		/* perf scripts support */
-		else if (choice == scripts_all || choice == scripts_comm ||
-				choice == scripts_symbol) {
-do_scripts:
-			memset(script_opt, 0, 64);
+		nr_options += add_script_opt(browser, &actions[nr_options],
+					     &options[nr_options], NULL, NULL);
+		nr_options += add_switch_opt(browser, &actions[nr_options],
+					     &options[nr_options]);
+add_exit_option:
+		nr_options += add_exit_opt(browser, &actions[nr_options],
+					   &options[nr_options]);
 
-			if (choice == scripts_comm)
-				sprintf(script_opt, " -c %s ", thread__comm_str(browser->he_selection->thread));
+		do {
+			struct popup_action *act;
 
-			if (choice == scripts_symbol)
-				sprintf(script_opt, " -S %s ", browser->he_selection->ms.sym->name);
-
-			script_browse(script_opt);
-		}
-		/* Switch to another data file */
-		else if (choice == switch_data) {
-do_data_switch:
-			if (!switch_data_file()) {
-				key = K_SWITCH_INPUT_DATA;
+			choice = ui__popup_menu(nr_options, options);
+			if (choice == -1 || choice >= nr_options)
 				break;
-			} else
-				ui__warning("Won't switch the data files due to\n"
-					"no valid data file get selected!\n");
-		}
+
+			act = &actions[choice];
+			key = act->fn(browser, act);
+		} while (key == 1);
+
+		if (key == K_SWITCH_INPUT_DATA)
+			break;
 	}
 out_free_stack:
-	pstack__delete(fstack);
+	pstack__delete(browser->pstack);
 out:
 	hist_browser__delete(browser);
-	free_popup_options(options, nr_options - 1);
+	free_popup_options(options, MAX_OPTIONS);
 	return key;
 }
 
@@ -1821,7 +2099,7 @@ struct perf_evsel_menu {
 	struct perf_evsel *selection;
 	bool lost_events, lost_events_warned;
 	float min_pcnt;
-	struct perf_session_env *env;
+	struct perf_env *env;
 };
 
 static void perf_evsel_menu__write(struct ui_browser *browser,
@@ -1855,7 +2133,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	nr_events = convert_unit(nr_events, &unit);
 	printed = scnprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
 			   unit, unit == ' ' ? "" : " ", ev_name);
-	slsmg_printf("%s", bf);
+	ui_browser__printf(browser, "%s", bf);
 
 	nr_events = hists->stats.nr_events[PERF_RECORD_LOST];
 	if (nr_events != 0) {
@@ -1868,7 +2146,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		warn = bf;
 	}
 
-	slsmg_write_nstring(warn, browser->width - printed);
+	ui_browser__write_nstring(browser, warn, browser->width - printed);
 
 	if (current_entry)
 		menu->selection = evsel;
@@ -1931,15 +2209,11 @@ browse_hists:
 				else
 					pos = perf_evsel__prev(pos);
 				goto browse_hists;
-			case K_ESC:
-				if (!ui_browser__dialog_yesno(&menu->b,
-						"Do you really want to exit?"))
-					continue;
-				/* Fall thru */
 			case K_SWITCH_INPUT_DATA:
 			case 'q':
 			case CTRL('c'):
 				goto out;
+			case K_ESC:
 			default:
 				continue;
 			}
@@ -1978,7 +2252,7 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 					   int nr_entries, const char *help,
 					   struct hist_browser_timer *hbt,
 					   float min_pcnt,
-					   struct perf_session_env *env)
+					   struct perf_env *env)
 {
 	struct perf_evsel *pos;
 	struct perf_evsel_menu menu = {
@@ -2011,7 +2285,7 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
-				  struct perf_session_env *env)
+				  struct perf_env *env)
 {
 	int nr_entries = evlist->nr_entries;
 

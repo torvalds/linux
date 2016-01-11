@@ -714,6 +714,7 @@ static struct pinmux_ops foo_pmxops = {
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
 	.set_mux = foo_set_mux,
+	.strict = true,
 };
 
 /* Pinmux operations are handled by some pin controller */
@@ -830,6 +831,11 @@ separate memory range only intended for GPIO driving, and the register
 range dealing with pin config and pin multiplexing get placed into a
 different memory range and a separate section of the data sheet.
 
+A flag "strict" in struct pinctrl_desc is available to check and deny
+simultaneous access to the same pin from GPIO and pin multiplexing
+consumers on hardware of this type. The pinctrl driver should set this flag
+accordingly.
+
 (B)
 
                        pin config
@@ -849,6 +855,11 @@ wrong things on the GPIO block, as it is never really disconnected. It is
 possible that the GPIO, pin config and pin multiplex registers are placed into
 the same memory range and the same section of the data sheet, although that
 need not be the case.
+
+In some pin controllers, although the physical pins are designed in the same
+way as (B), the GPIO function still can't be enabled at the same time as the
+peripheral functions. So again the "strict" flag should be set, denying
+simultaneous activation by GPIO and other muxed in devices.
 
 From a kernel point of view, however, these are different aspects of the
 hardware and shall be put into different subsystems:

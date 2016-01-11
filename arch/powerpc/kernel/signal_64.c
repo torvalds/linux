@@ -74,6 +74,19 @@ static const char fmt64[] = KERN_INFO \
 	"%s[%d]: bad frame in %s: %016lx nip %016lx lr %016lx\n";
 
 /*
+ * This computes a quad word aligned pointer inside the vmx_reserve array
+ * element. For historical reasons sigcontext might not be quad word aligned,
+ * but the location we write the VMX regs to must be. See the comment in
+ * sigcontext for more detail.
+ */
+#ifdef CONFIG_ALTIVEC
+static elf_vrreg_t __user *sigcontext_vmx_regs(struct sigcontext __user *sc)
+{
+	return (elf_vrreg_t __user *) (((unsigned long)sc->vmx_reserve + 15) & ~0xful);
+}
+#endif
+
+/*
  * Set up the sigcontext for the signal frame.
  */
 
@@ -90,7 +103,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	 * v_regs pointer or not
 	 */
 #ifdef CONFIG_ALTIVEC
-	elf_vrreg_t __user *v_regs = (elf_vrreg_t __user *)(((unsigned long)sc->vmx_reserve + 15) & ~0xful);
+	elf_vrreg_t __user *v_regs = sigcontext_vmx_regs(sc);
 #endif
 	unsigned long msr = regs->msr;
 	long err = 0;
@@ -181,10 +194,8 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	 * v_regs pointer or not.
 	 */
 #ifdef CONFIG_ALTIVEC
-	elf_vrreg_t __user *v_regs = (elf_vrreg_t __user *)
-		(((unsigned long)sc->vmx_reserve + 15) & ~0xful);
-	elf_vrreg_t __user *tm_v_regs = (elf_vrreg_t __user *)
-		(((unsigned long)tm_sc->vmx_reserve + 15) & ~0xful);
+	elf_vrreg_t __user *v_regs = sigcontext_vmx_regs(sc);
+	elf_vrreg_t __user *tm_v_regs = sigcontext_vmx_regs(tm_sc);
 #endif
 	unsigned long msr = regs->msr;
 	long err = 0;
@@ -427,6 +438,10 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 
 	/* get MSR separately, transfer the LE bit if doing signal return */
 	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
+	/* Don't allow reserved mode. */
+	if (MSR_TM_RESV(msr))
+		return -EINVAL;
+
 	/* pull in MSR TM from user context */
 	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr & MSR_TS_MASK);
 

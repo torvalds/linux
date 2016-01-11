@@ -94,7 +94,7 @@ static void rce_free(struct rmtacl_ctl_entry *rce)
 	if (!list_empty(&rce->rce_list))
 		list_del(&rce->rce_list);
 
-	OBD_FREE_PTR(rce);
+	kfree(rce);
 }
 
 static struct rmtacl_ctl_entry *__rct_search(struct rmtacl_ctl_table *rct,
@@ -178,7 +178,6 @@ void rct_fini(struct rmtacl_ctl_table *rct)
 	spin_unlock(&rct->rct_lock);
 }
 
-
 static struct eacl_entry *ee_alloc(pid_t key, struct lu_fid *fid, int type,
 				   ext_acl_xattr_header *header)
 {
@@ -205,7 +204,7 @@ void ee_free(struct eacl_entry *ee)
 	if (ee->ee_acl)
 		lustre_ext_acl_xattr_free(ee->ee_acl);
 
-	OBD_FREE_PTR(ee);
+	kfree(ee);
 }
 
 static struct eacl_entry *__et_search_del(struct eacl_table *et, pid_t key,

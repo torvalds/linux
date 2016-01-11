@@ -126,6 +126,60 @@ static int drm_cpu_valid(void)
 }
 
 /**
+ * drm_new_set_master - Allocate a new master object and become master for the
+ * associated master realm.
+ *
+ * @dev: The associated device.
+ * @fpriv: File private identifying the client.
+ *
+ * This function must be called with dev::struct_mutex held.
+ * Returns negative error code on failure. Zero on success.
+ */
+int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
+{
+	struct drm_master *old_master;
+	int ret;
+
+	lockdep_assert_held_once(&dev->master_mutex);
+
+	/* create a new master */
+	fpriv->minor->master = drm_master_create(fpriv->minor);
+	if (!fpriv->minor->master)
+		return -ENOMEM;
+
+	/* take another reference for the copy in the local file priv */
+	old_master = fpriv->master;
+	fpriv->master = drm_master_get(fpriv->minor->master);
+
+	if (dev->driver->master_create) {
+		ret = dev->driver->master_create(dev, fpriv->master);
+		if (ret)
+			goto out_err;
+	}
+	if (dev->driver->master_set) {
+		ret = dev->driver->master_set(dev, fpriv, true);
+		if (ret)
+			goto out_err;
+	}
+
+	fpriv->is_master = 1;
+	fpriv->allowed_master = 1;
+	fpriv->authenticated = 1;
+	if (old_master)
+		drm_master_put(&old_master);
+
+	return 0;
+
+out_err:
+	/* drop both references and restore old master on failure */
+	drm_master_put(&fpriv->minor->master);
+	drm_master_put(&fpriv->master);
+	fpriv->master = old_master;
+
+	return ret;
+}
+
+/**
  * Called whenever a process opens /dev/drm.
  *
  * \param filp file pointer.
@@ -167,6 +221,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	INIT_LIST_HEAD(&priv->lhead);
 	INIT_LIST_HEAD(&priv->fbs);
 	mutex_init(&priv->fbs_lock);
+	INIT_LIST_HEAD(&priv->blobs);
 	INIT_LIST_HEAD(&priv->event_list);
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
@@ -188,35 +243,9 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	mutex_lock(&dev->master_mutex);
 	if (drm_is_primary_client(priv) && !priv->minor->master) {
 		/* create a new master */
-		priv->minor->master = drm_master_create(priv->minor);
-		if (!priv->minor->master) {
-			ret = -ENOMEM;
+		ret = drm_new_set_master(dev, priv);
+		if (ret)
 			goto out_close;
-		}
-
-		priv->is_master = 1;
-		/* take another reference for the copy in the local file priv */
-		priv->master = drm_master_get(priv->minor->master);
-		priv->authenticated = 1;
-
-		if (dev->driver->master_create) {
-			ret = dev->driver->master_create(dev, priv->master);
-			if (ret) {
-				/* drop both references if this fails */
-				drm_master_put(&priv->minor->master);
-				drm_master_put(&priv->master);
-				goto out_close;
-			}
-		}
-		if (dev->driver->master_set) {
-			ret = dev->driver->master_set(dev, priv, true);
-			if (ret) {
-				/* drop both references if this fails */
-				drm_master_put(&priv->minor->master);
-				drm_master_put(&priv->master);
-				goto out_close;
-			}
-		}
 	} else if (drm_is_primary_client(priv)) {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
@@ -380,6 +409,8 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->struct_mutex);
 	list_del(&file_priv->lhead);
+	if (file_priv->magic)
+		idr_remove(&file_priv->master->magic_map, file_priv->magic);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->preclose)
@@ -394,11 +425,6 @@ int drm_release(struct inode *inode, struct file *filp)
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
-	/* Release any auth tokens that might point to this file_priv,
-	   (do that under the drm_global_mutex) */
-	if (file_priv->magic)
-		(void) drm_remove_magic(file_priv->master, file_priv->magic);
-
 	/* if the master has gone away we can't do anything with the lock */
 	if (file_priv->minor->master)
 		drm_master_release(dev, filp);
@@ -408,8 +434,10 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	drm_events_release(file_priv);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_fb_release(file_priv);
+		drm_property_destroy_user_blobs(dev, file_priv);
+	}
 
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, file_priv);

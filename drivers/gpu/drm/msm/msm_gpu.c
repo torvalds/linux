@@ -24,7 +24,7 @@
  * Power Management:
  */
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
 static void bs_init(struct msm_gpu *gpu)
 {
@@ -265,6 +265,8 @@ static void inactive_start(struct msm_gpu *gpu)
  * Hangcheck detection for locked gpu:
  */
 
+static void retire_submits(struct msm_gpu *gpu, uint32_t fence);
+
 static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
@@ -274,8 +276,19 @@ static void recover_worker(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 	if (msm_gpu_active(gpu)) {
+		struct msm_gem_submit *submit;
+		uint32_t fence = gpu->funcs->last_fence(gpu);
+
+		/* retire completed submits, plus the one that hung: */
+		retire_submits(gpu, fence + 1);
+
 		inactive_cancel(gpu);
 		gpu->funcs->recover(gpu);
+
+		/* replay the remaining submits after the one that hung: */
+		list_for_each_entry(submit, &gpu->submit_list, node) {
+			gpu->funcs->submit(gpu, submit, NULL);
+		}
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -418,6 +431,27 @@ out:
  * Cmdstream submission/retirement:
  */
 
+static void retire_submits(struct msm_gpu *gpu, uint32_t fence)
+{
+	struct drm_device *dev = gpu->dev;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	while (!list_empty(&gpu->submit_list)) {
+		struct msm_gem_submit *submit;
+
+		submit = list_first_entry(&gpu->submit_list,
+				struct msm_gem_submit, node);
+
+		if (submit->fence <= fence) {
+			list_del(&submit->node);
+			kfree(submit);
+		} else {
+			break;
+		}
+	}
+}
+
 static void retire_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, retire_work);
@@ -427,6 +461,8 @@ static void retire_worker(struct work_struct *work)
 	msm_update_fence(gpu->dev, fence);
 
 	mutex_lock(&dev->struct_mutex);
+
+	retire_submits(gpu, fence);
 
 	while (!list_empty(&gpu->active_list)) {
 		struct msm_gem_object *obj;
@@ -467,20 +503,21 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_drm_private *priv = dev->dev_private;
 	int i, ret;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	submit->fence = ++priv->next_fence;
 
 	gpu->submitted_fence = submit->fence;
 
 	inactive_cancel(gpu);
 
+	list_add_tail(&submit->node, &gpu->submit_list);
+
 	msm_rd_dump_submit(submit);
 
 	gpu->submitted_fence = submit->fence;
 
 	update_sw_cntrs(gpu);
-
-	ret = gpu->funcs->submit(gpu, submit, ctx);
-	priv->lastctx = ctx;
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
@@ -505,6 +542,10 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
 			msm_gem_move_to_active(&msm_obj->base, gpu, true, submit->fence);
 	}
+
+	ret = gpu->funcs->submit(gpu, submit, ctx);
+	priv->lastctx = ctx;
+
 	hangcheck_timer_reset(gpu);
 
 	return ret;
@@ -522,6 +563,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 static const char *clk_names[] = {
 		"src_clk", "core_clk", "iface_clk", "mem_clk", "mem_iface_clk",
+		"alt_mem_iface_clk",
 };
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
@@ -543,6 +585,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	INIT_WORK(&gpu->retire_work, retire_worker);
 	INIT_WORK(&gpu->inactive_work, inactive_worker);
 	INIT_WORK(&gpu->recover_work, recover_worker);
+
+	INIT_LIST_HEAD(&gpu->submit_list);
 
 	setup_timer(&gpu->inactive_timer, inactive_handler,
 			(unsigned long)gpu);
@@ -607,6 +651,14 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	if (iommu) {
 		dev_info(drm->dev, "%s: using IOMMU\n", name);
 		gpu->mmu = msm_iommu_new(&pdev->dev, iommu);
+		if (IS_ERR(gpu->mmu)) {
+			ret = PTR_ERR(gpu->mmu);
+			dev_err(drm->dev, "failed to init iommu: %d\n", ret);
+			gpu->mmu = NULL;
+			iommu_domain_free(iommu);
+			goto fail;
+		}
+
 	} else {
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	}

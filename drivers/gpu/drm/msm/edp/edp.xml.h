@@ -8,19 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2014-12-05 15:34:49)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20908 bytes, from 2014-12-08 16:13:00)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2014-12-08 16:13:00)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  27208 bytes, from 2015-01-13 23:56:11)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-10-31 16:48:57)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  26848 bytes, from 2015-01-13 23:55:57)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (   8253 bytes, from 2014-12-08 16:13:00)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2015-09-18 12:07:28)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  37194 bytes, from 2015-09-18 12:07:28)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  27887 bytes, from 2015-10-22 16:34:52)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2015-10-22 16:35:02)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  29154 bytes, from 2015-08-10 21:25:43)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
 
-Copyright (C) 2013-2014 by the following authors:
+Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -287,6 +287,93 @@ static inline uint32_t REG_EDP_PHY_LN_PD_CTL(uint32_t i0) { return 0x00000404 + 
 #define REG_EDP_PHY_GLB_PD_CTL					0x0000052c
 
 #define REG_EDP_PHY_GLB_PHY_STATUS				0x00000598
+
+#define REG_EDP_28nm_PHY_PLL_REFCLK_CFG				0x00000000
+
+#define REG_EDP_28nm_PHY_PLL_POSTDIV1_CFG			0x00000004
+
+#define REG_EDP_28nm_PHY_PLL_CHGPUMP_CFG			0x00000008
+
+#define REG_EDP_28nm_PHY_PLL_VCOLPF_CFG				0x0000000c
+
+#define REG_EDP_28nm_PHY_PLL_VREG_CFG				0x00000010
+
+#define REG_EDP_28nm_PHY_PLL_PWRGEN_CFG				0x00000014
+
+#define REG_EDP_28nm_PHY_PLL_DMUX_CFG				0x00000018
+
+#define REG_EDP_28nm_PHY_PLL_AMUX_CFG				0x0000001c
+
+#define REG_EDP_28nm_PHY_PLL_GLB_CFG				0x00000020
+#define EDP_28nm_PHY_PLL_GLB_CFG_PLL_PWRDN_B			0x00000001
+#define EDP_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B		0x00000002
+#define EDP_28nm_PHY_PLL_GLB_CFG_PLL_PWRGEN_PWRDN_B		0x00000004
+#define EDP_28nm_PHY_PLL_GLB_CFG_PLL_ENABLE			0x00000008
+
+#define REG_EDP_28nm_PHY_PLL_POSTDIV2_CFG			0x00000024
+
+#define REG_EDP_28nm_PHY_PLL_POSTDIV3_CFG			0x00000028
+
+#define REG_EDP_28nm_PHY_PLL_LPFR_CFG				0x0000002c
+
+#define REG_EDP_28nm_PHY_PLL_LPFC1_CFG				0x00000030
+
+#define REG_EDP_28nm_PHY_PLL_LPFC2_CFG				0x00000034
+
+#define REG_EDP_28nm_PHY_PLL_SDM_CFG0				0x00000038
+
+#define REG_EDP_28nm_PHY_PLL_SDM_CFG1				0x0000003c
+
+#define REG_EDP_28nm_PHY_PLL_SDM_CFG2				0x00000040
+
+#define REG_EDP_28nm_PHY_PLL_SDM_CFG3				0x00000044
+
+#define REG_EDP_28nm_PHY_PLL_SDM_CFG4				0x00000048
+
+#define REG_EDP_28nm_PHY_PLL_SSC_CFG0				0x0000004c
+
+#define REG_EDP_28nm_PHY_PLL_SSC_CFG1				0x00000050
+
+#define REG_EDP_28nm_PHY_PLL_SSC_CFG2				0x00000054
+
+#define REG_EDP_28nm_PHY_PLL_SSC_CFG3				0x00000058
+
+#define REG_EDP_28nm_PHY_PLL_LKDET_CFG0				0x0000005c
+
+#define REG_EDP_28nm_PHY_PLL_LKDET_CFG1				0x00000060
+
+#define REG_EDP_28nm_PHY_PLL_LKDET_CFG2				0x00000064
+
+#define REG_EDP_28nm_PHY_PLL_TEST_CFG				0x00000068
+#define EDP_28nm_PHY_PLL_TEST_CFG_PLL_SW_RESET			0x00000001
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG0				0x0000006c
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG1				0x00000070
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG2				0x00000074
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG3				0x00000078
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG4				0x0000007c
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG5				0x00000080
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG6				0x00000084
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG7				0x00000088
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG8				0x0000008c
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG9				0x00000090
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG10				0x00000094
+
+#define REG_EDP_28nm_PHY_PLL_CAL_CFG11				0x00000098
+
+#define REG_EDP_28nm_PHY_PLL_EFUSE_CFG				0x0000009c
+
+#define REG_EDP_28nm_PHY_PLL_DEBUG_BUS_SEL			0x000000a0
 
 
 #endif /* EDP_XML */

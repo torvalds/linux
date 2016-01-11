@@ -1,4 +1,5 @@
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/msm
+ccflags-$(CONFIG_DRM_MSM_DSI) += -Idrivers/gpu/drm/msm/dsi
 
 msm-y := \
 	adreno/adreno_device.o \
@@ -9,6 +10,7 @@ msm-y := \
 	hdmi/hdmi_audio.o \
 	hdmi/hdmi_bridge.o \
 	hdmi/hdmi_connector.o \
+	hdmi/hdmi_hdcp.o \
 	hdmi/hdmi_i2c.o \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
@@ -48,12 +50,22 @@ msm-y := \
 	msm_rd.o \
 	msm_ringbuffer.o
 
-msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o
+msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
+
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
+			dsi/dsi_cfg.o \
 			dsi/dsi_host.o \
 			dsi/dsi_manager.o \
-			dsi/dsi_phy.o \
+			dsi/phy/dsi_phy.o \
 			mdp/mdp5/mdp5_cmd_encoder.o
+
+msm-$(CONFIG_DRM_MSM_DSI_28NM_PHY) += dsi/phy/dsi_phy_28nm.o
+msm-$(CONFIG_DRM_MSM_DSI_20NM_PHY) += dsi/phy/dsi_phy_20nm.o
+
+ifeq ($(CONFIG_DRM_MSM_DSI_PLL),y)
+msm-y += dsi/pll/dsi_pll.o
+msm-$(CONFIG_DRM_MSM_DSI_28NM_PHY) += dsi/pll/dsi_pll_28nm.o
+endif
 
 obj-$(CONFIG_DRM_MSM)	+= msm.o

@@ -624,10 +624,10 @@ static int ipic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	irqd_set_trigger_type(d, flow_type);
 	if (flow_type & IRQ_TYPE_LEVEL_LOW)  {
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 		d->chip = &ipic_level_irq_chip;
 	} else {
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 		d->chip = &ipic_edge_irq_chip;
 	}
 
@@ -671,10 +671,12 @@ static struct irq_chip ipic_edge_irq_chip = {
 	.irq_set_type	= ipic_set_irq_type,
 };
 
-static int ipic_host_match(struct irq_domain *h, struct device_node *node)
+static int ipic_host_match(struct irq_domain *h, struct device_node *node,
+			   enum irq_domain_bus_token bus_token)
 {
 	/* Exact match, unless ipic node is NULL */
-	return h->of_node == NULL || h->of_node == node;
+	struct device_node *of_node = irq_domain_get_of_node(h);
+	return of_node == NULL || of_node == node;
 }
 
 static int ipic_host_map(struct irq_domain *h, unsigned int virq,
@@ -691,7 +693,7 @@ static int ipic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops ipic_host_ops = {
+static const struct irq_domain_ops ipic_host_ops = {
 	.match	= ipic_host_match,
 	.map	= ipic_host_map,
 	.xlate	= irq_domain_xlate_onetwocell,

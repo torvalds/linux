@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/gfp.h>
 #include <linux/anon_inodes.h>
+#include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
 #include <asm/kvm_book3s.h>
@@ -20,7 +21,6 @@
 #include <asm/xics.h>
 #include <asm/debug.h>
 #include <asm/time.h>
-#include <asm/spinlock.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -41,7 +41,7 @@
  * =======
  *
  * Each ICS has a spin lock protecting the information about the IRQ
- * sources and avoiding simultaneous deliveries if the same interrupt.
+ * sources and avoiding simultaneous deliveries of the same interrupt.
  *
  * ICP operations are done via a single compare & swap transaction
  * (most ICP state fits in the union kvmppc_icp_state)

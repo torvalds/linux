@@ -10,6 +10,10 @@ typedef u32 uint32_t;
 typedef u64 uint64_t;
 typedef unsigned long uintptr_t;
 
+typedef __be16 fdt16_t;
+typedef __be32 fdt32_t;
+typedef __be64 fdt64_t;
+
 #define fdt16_to_cpu(x)		be16_to_cpu(x)
 #define cpu_to_fdt16(x)		cpu_to_be16(x)
 #define fdt32_to_cpu(x)		be32_to_cpu(x)

@@ -197,6 +197,7 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(&a21_wdt, 30, &pdev->dev);
 	watchdog_set_nowayout(&a21_wdt, nowayout);
 	watchdog_set_drvdata(&a21_wdt, drv);
+	a21_wdt.parent = &pdev->dev;
 
 	reset = a21_wdt_get_bootstatus(drv);
 	if (reset == 2)
@@ -208,13 +209,14 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	else if (reset == 7)
 		a21_wdt.bootstatus |= WDIOF_EXTERN2;
 
+	drv->wdt = a21_wdt;
+	dev_set_drvdata(&pdev->dev, drv);
+
 	ret = watchdog_register_device(&a21_wdt);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register watchdog device\n");
 		goto err_register_wd;
 	}
-
-	dev_set_drvdata(&pdev->dev, drv);
 
 	dev_info(&pdev->dev, "MEN A21 watchdog timer driver enabled\n");
 
@@ -251,6 +253,7 @@ static const struct of_device_id a21_wdt_ids[] = {
 	{ .compatible = "men,a021-wdt" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, a21_wdt_ids);
 
 static struct platform_driver a21_wdt_driver = {
 	.probe = a21_wdt_probe,

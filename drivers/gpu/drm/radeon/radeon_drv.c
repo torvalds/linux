@@ -90,9 +90,10 @@
  *            CS to GPU on >= r600
  *   2.41.0 - evergreen/cayman: Add SET_BASE/DRAW_INDIRECT command parsing support
  *   2.42.0 - Add VCE/VUI (Video Usability Information) support
+ *   2.43.0 - RADEON_INFO_GPU_RESET_COUNTER
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	42
+#define KMS_DRIVER_MINOR	43
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -104,10 +105,10 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv);
 int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon);
 int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
-u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc);
-int radeon_enable_vblank_kms(struct drm_device *dev, int crtc);
-void radeon_disable_vblank_kms(struct drm_device *dev, int crtc);
-int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe);
+int radeon_enable_vblank_kms(struct drm_device *dev, unsigned int pipe);
+void radeon_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
+int radeon_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 				    int *max_error,
 				    struct timeval *vblank_time,
 				    unsigned flags);
@@ -123,10 +124,10 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
 					struct drm_gem_object *gobj,
 					int flags);
-extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
-				      unsigned int flags,
-				      int *vpos, int *hpos, ktime_t *stime,
-				      ktime_t *etime);
+extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int crtc,
+				      unsigned int flags, int *vpos, int *hpos,
+				      ktime_t *stime, ktime_t *etime,
+				      const struct drm_display_mode *mode);
 extern bool radeon_is_px(struct drm_device *dev);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;

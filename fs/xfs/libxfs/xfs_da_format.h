@@ -680,8 +680,15 @@ typedef struct xfs_attr_leaf_name_remote {
 typedef struct xfs_attr_leafblock {
 	xfs_attr_leaf_hdr_t	hdr;	/* constant-structure header block */
 	xfs_attr_leaf_entry_t	entries[1];	/* sorted on key, not name */
-	xfs_attr_leaf_name_local_t namelist;	/* grows from bottom of buf */
-	xfs_attr_leaf_name_remote_t valuelist;	/* grows from bottom of buf */
+	/*
+	 * The rest of the block contains the following structures after the
+	 * leaf entries, growing from the bottom up. The variables are never
+	 * referenced and definining them can actually make gcc optimize away
+	 * accesses to the 'entries' array above index 0 so don't do that.
+	 *
+	 * xfs_attr_leaf_name_local_t namelist;
+	 * xfs_attr_leaf_name_remote_t valuelist;
+	 */
 } xfs_attr_leafblock_t;
 
 /*

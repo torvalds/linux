@@ -118,7 +118,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 
 	cmd->val = value;
 
-	if (!permissive && (!dev_data || !dev_data->permissive))
+	if (!xen_pcibk_permissive && (!dev_data || !dev_data->permissive))
 		return 0;
 
 	/* Only allow the guest to control certain bits. */

@@ -25,15 +25,6 @@
 
 #ifdef CONFIG_MMU
 
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && defined(CONFIG_OF)
-extern unsigned long xtensa_kio_paddr;
-
-static inline unsigned long xtensa_get_kio_paddr(void)
-{
-	return xtensa_kio_paddr;
-}
-#endif
-
 /*
  * Return the virtual address for the specified bus memory.
  * Note that we currently don't support any address outside the KIO segment.
@@ -57,8 +48,10 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
 	else
 		BUG();
 }
+#define ioremap_cache ioremap_cache
 
 #define ioremap_wc ioremap_nocache
+#define ioremap_wt ioremap_nocache
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {

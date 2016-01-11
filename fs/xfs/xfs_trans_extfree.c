@@ -25,6 +25,7 @@
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_extfree_item.h"
+#include "xfs_alloc.h"
 
 /*
  * This routine is called to allocate an "extent free intention"
@@ -108,19 +109,30 @@ xfs_trans_get_efd(xfs_trans_t		*tp,
 }
 
 /*
- * This routine is called to indicate that the described
- * extent is to be logged as having been freed.  It should
- * be called once for each extent freed.
+ * Free an extent and log it to the EFD. Note that the transaction is marked
+ * dirty regardless of whether the extent free succeeds or fails to support the
+ * EFI/EFD lifecycle rules.
  */
-void
-xfs_trans_log_efd_extent(xfs_trans_t		*tp,
-			 xfs_efd_log_item_t	*efdp,
-			 xfs_fsblock_t		start_block,
-			 xfs_extlen_t		ext_len)
+int
+xfs_trans_free_extent(
+	struct xfs_trans	*tp,
+	struct xfs_efd_log_item	*efdp,
+	xfs_fsblock_t		start_block,
+	xfs_extlen_t		ext_len)
 {
 	uint			next_extent;
-	xfs_extent_t		*extp;
+	struct xfs_extent	*extp;
+	int			error;
 
+	error = xfs_free_extent(tp, start_block, ext_len);
+
+	/*
+	 * Mark the transaction dirty, even on error. This ensures the
+	 * transaction is aborted, which:
+	 *
+	 * 1.) releases the EFI and frees the EFD
+	 * 2.) shuts down the filesystem
+	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	efdp->efd_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 
@@ -130,4 +142,6 @@ xfs_trans_log_efd_extent(xfs_trans_t		*tp,
 	extp->ext_start = start_block;
 	extp->ext_len = ext_len;
 	efdp->efd_next_extent++;
+
+	return error;
 }

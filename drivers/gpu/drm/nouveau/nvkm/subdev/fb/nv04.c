@@ -21,67 +21,39 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
+#include "ram.h"
 #include "regsnv04.h"
 
 bool
-nv04_fb_memtype_valid(struct nvkm_fb *pfb, u32 tile_flags)
+nv04_fb_memtype_valid(struct nvkm_fb *fb, u32 tile_flags)
 {
 	if (!(tile_flags & 0xff00))
 		return true;
-
 	return false;
 }
 
-static int
-nv04_fb_init(struct nvkm_object *object)
+static void
+nv04_fb_init(struct nvkm_fb *fb)
 {
-	struct nv04_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_fb_init(&priv->base);
-	if (ret)
-		return ret;
+	struct nvkm_device *device = fb->subdev.device;
 
 	/* This is what the DDX did for NV_ARCH_04, but a mmio-trace shows
 	 * nvidia reading PFB_CFG_0, then writing back its original value.
 	 * (which was 0x701114 in this case)
 	 */
-	nv_wr32(priv, NV04_PFB_CFG0, 0x1114);
-	return 0;
+	nvkm_wr32(device, NV04_PFB_CFG0, 0x1114);
 }
+
+static const struct nvkm_fb_func
+nv04_fb = {
+	.init = nv04_fb_init,
+	.ram_new = nv04_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
 
 int
-nv04_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+nv04_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	struct nv04_fb_impl *impl = (void *)oclass;
-	struct nv04_fb_priv *priv;
-	int ret;
-
-	ret = nvkm_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.tile.regions = impl->tile.regions;
-	priv->base.tile.init = impl->tile.init;
-	priv->base.tile.comp = impl->tile.comp;
-	priv->base.tile.fini = impl->tile.fini;
-	priv->base.tile.prog = impl->tile.prog;
-	return 0;
+	return nvkm_fb_new_(&nv04_fb, device, index, pfb);
 }
-
-struct nvkm_oclass *
-nv04_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x04),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv04_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv04_ram_oclass,
-}.base.base;

@@ -245,7 +245,7 @@ static inline void print_dropped_signal(int sig)
  * RETURNS:
  * %true if @mask is set, %false if made noop because @task was dying.
  */
-bool task_set_jobctl_pending(struct task_struct *task, unsigned int mask)
+bool task_set_jobctl_pending(struct task_struct *task, unsigned long mask)
 {
 	BUG_ON(mask & ~(JOBCTL_PENDING_MASK | JOBCTL_STOP_CONSUME |
 			JOBCTL_STOP_SIGMASK | JOBCTL_TRAPPING));
@@ -297,7 +297,7 @@ void task_clear_jobctl_trapping(struct task_struct *task)
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
-void task_clear_jobctl_pending(struct task_struct *task, unsigned int mask)
+void task_clear_jobctl_pending(struct task_struct *task, unsigned long mask)
 {
 	BUG_ON(mask & ~JOBCTL_PENDING_MASK);
 
@@ -414,21 +414,16 @@ void flush_sigqueue(struct sigpending *queue)
 }
 
 /*
- * Flush all pending signals for a task.
+ * Flush all pending signals for this kthread.
  */
-void __flush_signals(struct task_struct *t)
-{
-	clear_tsk_thread_flag(t, TIF_SIGPENDING);
-	flush_sigqueue(&t->pending);
-	flush_sigqueue(&t->signal->shared_pending);
-}
-
 void flush_signals(struct task_struct *t)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&t->sighand->siglock, flags);
-	__flush_signals(t);
+	clear_tsk_thread_flag(t, TIF_SIGPENDING);
+	flush_sigqueue(&t->pending);
+	flush_sigqueue(&t->signal->shared_pending);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 }
 
@@ -508,41 +503,6 @@ int unhandled_signal(struct task_struct *tsk, int sig)
 	return !tsk->ptrace;
 }
 
-/*
- * Notify the system that a driver wants to block all signals for this
- * process, and wants to be notified if any signals at all were to be
- * sent/acted upon.  If the notifier routine returns non-zero, then the
- * signal will be acted upon after all.  If the notifier routine returns 0,
- * then then signal will be blocked.  Only one block per process is
- * allowed.  priv is a pointer to private data that the notifier routine
- * can use to determine if the signal should be blocked or not.
- */
-void
-block_all_signals(int (*notifier)(void *priv), void *priv, sigset_t *mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->notifier_mask = mask;
-	current->notifier_data = priv;
-	current->notifier = notifier;
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-}
-
-/* Notify the system that blocking has ended. */
-
-void
-unblock_all_signals(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->notifier = NULL;
-	current->notifier_data = NULL;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-}
-
 static void collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 {
 	struct sigqueue *q, *first = NULL;
@@ -585,19 +545,8 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 {
 	int sig = next_signal(pending, mask);
 
-	if (sig) {
-		if (current->notifier) {
-			if (sigismember(current->notifier_mask, sig)) {
-				if (!(current->notifier)(current->notifier_data)) {
-					clear_thread_flag(TIF_SIGPENDING);
-					return 0;
-				}
-			}
-		}
-
+	if (sig)
 		collect_signal(sig, pending, info);
-	}
-
 	return sig;
 }
 
@@ -839,7 +788,7 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 	sigset_t flush;
 
 	if (signal->flags & (SIGNAL_GROUP_EXIT | SIGNAL_GROUP_COREDUMP)) {
-		if (signal->flags & SIGNAL_GROUP_COREDUMP)
+		if (!(signal->flags & SIGNAL_GROUP_EXIT))
 			return sig == SIGKILL;
 		/*
 		 * The process is in the middle of dying, nothing to do.
@@ -2000,7 +1949,7 @@ static bool do_signal_stop(int signr)
 	struct signal_struct *sig = current->signal;
 
 	if (!(current->jobctl & JOBCTL_STOP_PENDING)) {
-		unsigned int gstop = JOBCTL_STOP_PENDING | JOBCTL_STOP_CONSUME;
+		unsigned long gstop = JOBCTL_STOP_PENDING | JOBCTL_STOP_CONSUME;
 		struct task_struct *t;
 
 		/* signr will be recorded in task->jobctl for retries */
@@ -2488,9 +2437,6 @@ EXPORT_SYMBOL(force_sig);
 EXPORT_SYMBOL(send_sig);
 EXPORT_SYMBOL(send_sig_info);
 EXPORT_SYMBOL(sigprocmask);
-EXPORT_SYMBOL(block_all_signals);
-EXPORT_SYMBOL(unblock_all_signals);
-
 
 /*
  * System call entry points.
@@ -2753,12 +2699,15 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 		 * Other callers might not initialize the si_lsb field,
 		 * so check explicitly for the right codes here.
 		 */
-		if (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO)
+		if (from->si_signo == SIGBUS &&
+		    (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO))
 			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
 #endif
 #ifdef SEGV_BNDERR
-		err |= __put_user(from->si_lower, &to->si_lower);
-		err |= __put_user(from->si_upper, &to->si_upper);
+		if (from->si_signo == SIGSEGV && from->si_code == SEGV_BNDERR) {
+			err |= __put_user(from->si_lower, &to->si_lower);
+			err |= __put_user(from->si_upper, &to->si_upper);
+		}
 #endif
 		break;
 	case __SI_CHLD:
@@ -3022,7 +2971,7 @@ COMPAT_SYSCALL_DEFINE3(rt_sigqueueinfo,
 			int, sig,
 			struct compat_siginfo __user *, uinfo)
 {
-	siginfo_t info;
+	siginfo_t info = {};
 	int ret = copy_siginfo_from_user32(&info, uinfo);
 	if (unlikely(ret))
 		return ret;
@@ -3066,7 +3015,7 @@ COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
 			int, sig,
 			struct compat_siginfo __user *, uinfo)
 {
-	siginfo_t info;
+	siginfo_t info = {};
 
 	if (copy_siginfo_from_user32(&info, uinfo))
 		return -EFAULT;
@@ -3554,7 +3503,7 @@ SYSCALL_DEFINE0(pause)
 
 #endif
 
-int sigsuspend(sigset_t *set)
+static int sigsuspend(sigset_t *set)
 {
 	current->saved_sigmask = current->blocked;
 	set_current_blocked(set);

@@ -112,12 +112,14 @@
 #include <net/raw.h>
 #include <net/icmp.h>
 #include <net/inet_common.h>
+#include <net/ip_tunnels.h>
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
 #include <net/secure_seq.h>
 #ifdef CONFIG_IP_MROUTE
 #include <linux/mroute.h>
 #endif
+#include <net/l3mdev.h>
 
 
 /* The inetsw table contains everything that inet_create needs to
@@ -217,17 +219,15 @@ int inet_listen(struct socket *sock, int backlog)
 		 * shutdown() (rather than close()).
 		 */
 		if ((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) != 0 &&
-		    !inet_csk(sk)->icsk_accept_queue.fastopenq) {
+		    !inet_csk(sk)->icsk_accept_queue.fastopenq.max_qlen) {
 			if ((sysctl_tcp_fastopen & TFO_SERVER_WO_SOCKOPT1) != 0)
-				err = fastopen_init_queue(sk, backlog);
+				fastopen_queue_tune(sk, backlog);
 			else if ((sysctl_tcp_fastopen &
 				  TFO_SERVER_WO_SOCKOPT2) != 0)
-				err = fastopen_init_queue(sk,
+				fastopen_queue_tune(sk,
 				    ((uint)sysctl_tcp_fastopen) >> 16);
-			else
-				err = 0;
-			if (err)
-				goto out;
+
+			tcp_fastopen_init_key_once(true);
 		}
 		err = inet_csk_listen_start(sk, backlog);
 		if (err)
@@ -256,6 +256,9 @@ static int inet_create(struct net *net, struct socket *sock, int protocol,
 	unsigned char answer_flags;
 	int try_loading_module = 0;
 	int err;
+
+	if (protocol < 0 || protocol >= IPPROTO_MAX)
+		return -EINVAL;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -317,7 +320,7 @@ lookup_protocol:
 	WARN_ON(!answer_prot->slab);
 
 	err = -ENOBUFS;
-	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot);
+	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot, kern);
 	if (!sk)
 		goto out;
 
@@ -424,6 +427,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct net *net = sock_net(sk);
 	unsigned short snum;
 	int chk_addr_ret;
+	u32 tb_id = RT_TABLE_LOCAL;
 	int err;
 
 	/* If the socket has its own bind function then use it. (RAW) */
@@ -445,7 +449,8 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			goto out;
 	}
 
-	chk_addr_ret = inet_addr_type(net, addr->sin_addr.s_addr);
+	tb_id = l3mdev_fib_table_by_index(net, sk->sk_bound_dev_if) ? : tb_id;
+	chk_addr_ret = inet_addr_type_table(net, addr->sin_addr.s_addr, tb_id);
 
 	/* Not specified by any standard per-se, however it breaks too
 	 * many applications when removed.  It is unfortunate since
@@ -488,7 +493,8 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		inet->inet_saddr = 0;  /* Use device */
 
 	/* Make sure we are allowed to bind here. */
-	if (sk->sk_prot->get_port(sk, snum)) {
+	if ((snum || !inet->bind_address_no_port) &&
+	    sk->sk_prot->get_port(sk, snum)) {
 		inet->inet_saddr = inet->inet_rcv_saddr = 0;
 		err = -EADDRINUSE;
 		goto out_release_sock;
@@ -1036,22 +1042,16 @@ void inet_register_protosw(struct inet_protosw *p)
 		goto out_illegal;
 
 	/* If we are trying to override a permanent protocol, bail. */
-	answer = NULL;
 	last_perm = &inetsw[p->type];
 	list_for_each(lh, &inetsw[p->type]) {
 		answer = list_entry(lh, struct inet_protosw, list);
-
 		/* Check only the non-wild match. */
-		if (INET_PROTOSW_PERMANENT & answer->flags) {
-			if (protocol == answer->protocol)
-				break;
-			last_perm = lh;
-		}
-
-		answer = NULL;
+		if ((INET_PROTOSW_PERMANENT & answer->flags) == 0)
+			break;
+		if (protocol == answer->protocol)
+			goto out_permanent;
+		last_perm = lh;
 	}
-	if (answer)
-		goto out_permanent;
 
 	/* Add the new entry after the last permanent entry if any, so that
 	 * the new entry does not override a permanent entry when matched with
@@ -1430,7 +1430,7 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 			 struct net *net)
 {
 	struct socket *sock;
-	int rc = sock_create_kern(family, type, protocol, &sock);
+	int rc = sock_create_kern(net, family, type, protocol, &sock);
 
 	if (rc == 0) {
 		*sk = sock->sk;
@@ -1440,12 +1440,16 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 		 * we do not wish this socket to see incoming packets.
 		 */
 		(*sk)->sk_prot->unhash(*sk);
-
-		sk_change_net(*sk, net);
 	}
 	return rc;
 }
 EXPORT_SYMBOL_GPL(inet_ctl_sock_create);
+
+u64 snmp_get_cpu_field(void __percpu *mib, int cpu, int offt)
+{
+	return  *(((unsigned long *)per_cpu_ptr(mib, cpu)) + offt);
+}
+EXPORT_SYMBOL_GPL(snmp_get_cpu_field);
 
 unsigned long snmp_fold_field(void __percpu *mib, int offt)
 {
@@ -1453,12 +1457,31 @@ unsigned long snmp_fold_field(void __percpu *mib, int offt)
 	int i;
 
 	for_each_possible_cpu(i)
-		res += *(((unsigned long *) per_cpu_ptr(mib, i)) + offt);
+		res += snmp_get_cpu_field(mib, i, offt);
 	return res;
 }
 EXPORT_SYMBOL_GPL(snmp_fold_field);
 
 #if BITS_PER_LONG==32
+
+u64 snmp_get_cpu_field64(void __percpu *mib, int cpu, int offt,
+			 size_t syncp_offset)
+{
+	void *bhptr;
+	struct u64_stats_sync *syncp;
+	u64 v;
+	unsigned int start;
+
+	bhptr = per_cpu_ptr(mib, cpu);
+	syncp = (struct u64_stats_sync *)(bhptr + syncp_offset);
+	do {
+		start = u64_stats_fetch_begin_irq(syncp);
+		v = *(((u64 *)bhptr) + offt);
+	} while (u64_stats_fetch_retry_irq(syncp, start));
+
+	return v;
+}
+EXPORT_SYMBOL_GPL(snmp_get_cpu_field64);
 
 u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_offset)
 {
@@ -1466,19 +1489,7 @@ u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_offset)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		void *bhptr;
-		struct u64_stats_sync *syncp;
-		u64 v;
-		unsigned int start;
-
-		bhptr = per_cpu_ptr(mib, cpu);
-		syncp = (struct u64_stats_sync *)(bhptr + syncp_offset);
-		do {
-			start = u64_stats_fetch_begin_irq(syncp);
-			v = *(((u64 *) bhptr) + offt);
-		} while (u64_stats_fetch_retry_irq(syncp, start));
-
-		res += v;
+		res += snmp_get_cpu_field64(mib, cpu, offt, syncp_offset);
 	}
 	return res;
 }
@@ -1597,7 +1608,7 @@ static __net_init int inet_init_net(struct net *net)
 	 */
 	seqlock_init(&net->ipv4.ip_local_ports.lock);
 	net->ipv4.ip_local_ports.range[0] =  32768;
-	net->ipv4.ip_local_ports.range[1] =  61000;
+	net->ipv4.ip_local_ports.range[1] =  60999;
 
 	seqlock_init(&net->ipv4.ping_group_range.lock);
 	/*
@@ -1778,6 +1789,8 @@ static int __init inet_init(void)
 	ipfrag_init();
 
 	dev_add_pack(&ip_packet_type);
+
+	ip_tunnel_core_init();
 
 	rc = 0;
 out:

@@ -98,7 +98,7 @@ WM8804_REGULATOR_EVENT(0)
 WM8804_REGULATOR_EVENT(1)
 
 static const char *txsrc_text[] = { "S/PDIF RX", "AIF" };
-static const SOC_ENUM_SINGLE_DECL(txsrc, WM8804_SPDTX4, 6, txsrc_text);
+static SOC_ENUM_SINGLE_DECL(txsrc, WM8804_SPDTX4, 6, txsrc_text);
 
 static const struct snd_kcontrol_new wm8804_tx_source_mux[] = {
 	SOC_DAPM_ENUM_EXT("Input Source", txsrc,
@@ -162,7 +162,7 @@ static int txsrc_put(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val = ucontrol->value.enumerated.item[0] << e->shift_l;
 	unsigned int mask = 1 << e->shift_l;

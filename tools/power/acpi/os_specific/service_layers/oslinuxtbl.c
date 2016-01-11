@@ -222,7 +222,7 @@ acpi_os_get_table_by_address(acpi_physical_address address,
 		goto exit;
 	}
 
-	ACPI_MEMCPY(local_table, mapped_table, table_length);
+	memcpy(local_table, mapped_table, table_length);
 
 exit:
 	osl_unmap_table(mapped_table);
@@ -531,7 +531,7 @@ static acpi_status osl_load_rsdp(void)
 	gbl_rsdp_address =
 	    rsdp_base + (ACPI_CAST8(mapped_table) - rsdp_address);
 
-	ACPI_MEMCPY(&gbl_rsdp, mapped_table, sizeof(struct acpi_table_rsdp));
+	memcpy(&gbl_rsdp, mapped_table, sizeof(struct acpi_table_rsdp));
 	acpi_os_unmap_memory(rsdp_address, rsdp_size);
 
 	return (AE_OK);
@@ -582,64 +582,67 @@ static acpi_status osl_table_initialize(void)
 		return (AE_OK);
 	}
 
-	/* Get RSDP from memory */
-
-	status = osl_load_rsdp();
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	/* Get XSDT from memory */
-
-	if (gbl_rsdp.revision && !gbl_do_not_dump_xsdt) {
-		if (gbl_xsdt) {
-			free(gbl_xsdt);
-			gbl_xsdt = NULL;
-		}
-
-		gbl_revision = 2;
-		status = osl_get_bios_table(ACPI_SIG_XSDT, 0,
-					    ACPI_CAST_PTR(struct
-							  acpi_table_header *,
-							  &gbl_xsdt), &address);
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
-	}
-
-	/* Get RSDT from memory */
-
-	if (gbl_rsdp.rsdt_physical_address) {
-		if (gbl_rsdt) {
-			free(gbl_rsdt);
-			gbl_rsdt = NULL;
-		}
-
-		status = osl_get_bios_table(ACPI_SIG_RSDT, 0,
-					    ACPI_CAST_PTR(struct
-							  acpi_table_header *,
-							  &gbl_rsdt), &address);
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
-	}
-
-	/* Get FADT from memory */
-
-	if (gbl_fadt) {
-		free(gbl_fadt);
-		gbl_fadt = NULL;
-	}
-
-	status = osl_get_bios_table(ACPI_SIG_FADT, 0,
-				    ACPI_CAST_PTR(struct acpi_table_header *,
-						  &gbl_fadt),
-				    &gbl_fadt_address);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
 	if (!gbl_dump_customized_tables) {
+
+		/* Get RSDP from memory */
+
+		status = osl_load_rsdp();
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+
+		/* Get XSDT from memory */
+
+		if (gbl_rsdp.revision && !gbl_do_not_dump_xsdt) {
+			if (gbl_xsdt) {
+				free(gbl_xsdt);
+				gbl_xsdt = NULL;
+			}
+
+			gbl_revision = 2;
+			status = osl_get_bios_table(ACPI_SIG_XSDT, 0,
+						    ACPI_CAST_PTR(struct
+								  acpi_table_header
+								  *, &gbl_xsdt),
+						    &address);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+		}
+
+		/* Get RSDT from memory */
+
+		if (gbl_rsdp.rsdt_physical_address) {
+			if (gbl_rsdt) {
+				free(gbl_rsdt);
+				gbl_rsdt = NULL;
+			}
+
+			status = osl_get_bios_table(ACPI_SIG_RSDT, 0,
+						    ACPI_CAST_PTR(struct
+								  acpi_table_header
+								  *, &gbl_rsdt),
+						    &address);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+		}
+
+		/* Get FADT from memory */
+
+		if (gbl_fadt) {
+			free(gbl_fadt);
+			gbl_fadt = NULL;
+		}
+
+		status = osl_get_bios_table(ACPI_SIG_FADT, 0,
+					    ACPI_CAST_PTR(struct
+							  acpi_table_header *,
+							  &gbl_fadt),
+					    &gbl_fadt_address);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
 
 		/* Add mandatory tables to global table list first */
 
@@ -961,7 +964,7 @@ osl_get_bios_table(char *signature,
 		goto exit;
 	}
 
-	ACPI_MEMCPY(local_table, mapped_table, table_length);
+	memcpy(local_table, mapped_table, table_length);
 	*address = table_address;
 	*table = local_table;
 

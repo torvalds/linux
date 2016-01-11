@@ -31,7 +31,7 @@
  * arch_phys_wc_add and arch_phys_wc_del.
  */
 # ifdef CONFIG_MTRR
-extern u8 mtrr_type_lookup(u64 addr, u64 end);
+extern u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform);
 extern void mtrr_save_fixed_ranges(void *);
 extern void mtrr_save_state(void);
 extern int mtrr_add(unsigned long base, unsigned long size,
@@ -48,14 +48,13 @@ extern void mtrr_aps_init(void);
 extern void mtrr_bp_restore(void);
 extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
 extern int amd_special_default_mtrr(void);
-extern int phys_wc_to_mtrr_index(int handle);
 #  else
-static inline u8 mtrr_type_lookup(u64 addr, u64 end)
+static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
 {
 	/*
 	 * Return no-MTRRs:
 	 */
-	return 0xff;
+	return MTRR_TYPE_INVALID;
 }
 #define mtrr_save_fixed_ranges(arg) do {} while (0)
 #define mtrr_save_state() do {} while (0)
@@ -83,10 +82,6 @@ static inline int mtrr_trim_uncached_memory(unsigned long end_pfn)
 }
 static inline void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
 {
-}
-static inline int phys_wc_to_mtrr_index(int handle)
-{
-	return -1;
 }
 
 #define mtrr_ap_init() do {} while (0)
@@ -126,5 +121,9 @@ struct mtrr_gentry32 {
 #define MTRRIOC32_KILL_PAGE_ENTRY		\
 				 _IOW(MTRR_IOCTL_BASE,  9, struct mtrr_sentry32)
 #endif /* CONFIG_COMPAT */
+
+/* Bit fields for enabled in struct mtrr_state_type */
+#define MTRR_STATE_MTRR_FIXED_ENABLED	0x01
+#define MTRR_STATE_MTRR_ENABLED		0x02
 
 #endif /* _ASM_X86_MTRR_H */

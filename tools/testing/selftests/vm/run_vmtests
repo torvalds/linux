@@ -20,13 +20,26 @@ done < /proc/meminfo
 if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
 	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
 	needpgs=`expr $needmem / $pgsize`
-	if [ $freepgs -lt $needpgs ]; then
+	tries=2
+	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
 		lackpgs=$(( $needpgs - $freepgs ))
+		echo 3 > /proc/sys/vm/drop_caches
 		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
 		if [ $? -ne 0 ]; then
 			echo "Please run this test as root"
 			exit 1
 		fi
+		while read name size unit; do
+			if [ "$name" = "HugePages_Free:" ]; then
+				freepgs=$size
+			fi
+		done < /proc/meminfo
+		tries=$((tries - 1))
+	done
+	if [ $freepgs -lt $needpgs ]; then
+		printf "Not enough huge pages available (%d < %d)\n" \
+		       $freepgs $needpgs
+		exit 1
 	fi
 else
 	echo "no hugetlbfs support in kernel?"
@@ -75,10 +88,14 @@ else
 	echo "[PASS]"
 fi
 
+echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
+echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
+echo "      hugetlb regression testing."
+
 echo "--------------------"
-echo "running hugetlbfstest"
+echo "running userfaultfd"
 echo "--------------------"
-./hugetlbfstest
+./userfaultfd 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -90,4 +107,38 @@ fi
 umount $mnt
 rm -rf $mnt
 echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
+
+echo "-----------------------"
+echo "running compaction_test"
+echo "-----------------------"
+./compaction_test
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "--------------------"
+echo "running on-fault-limit"
+echo "--------------------"
+sudo -u nobody ./on-fault-limit
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "--------------------"
+echo "running mlock2-tests"
+echo "--------------------"
+./mlock2-tests
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
 exit $exitcode

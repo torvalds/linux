@@ -37,12 +37,13 @@ struct snd_usb_audio {
 	struct usb_interface *pm_intf;
 	u32 usb_id;
 	struct mutex mutex;
-	struct rw_semaphore shutdown_rwsem;
-	unsigned int shutdown:1;
-	unsigned int probing:1;
-	unsigned int in_pm:1;
 	unsigned int autosuspended:1;	
+	atomic_t active;
+	atomic_t shutdown;
+	atomic_t usage_count;
+	wait_queue_head_t shutdown_wait;
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
+	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
 	
 	int num_interfaces;
 	int num_suspended_intf;
@@ -94,6 +95,7 @@ enum quirk_type {
 	QUIRK_MIDI_AKAI,
 	QUIRK_MIDI_US122L,
 	QUIRK_MIDI_FTDI,
+	QUIRK_MIDI_CH345,
 	QUIRK_AUDIO_STANDARD_INTERFACE,
 	QUIRK_AUDIO_FIXED_ENDPOINT,
 	QUIRK_AUDIO_EDIROL_UAXX,
@@ -114,5 +116,8 @@ struct snd_usb_audio_quirk {
 #define combine_word(s)    ((*(s)) | ((unsigned int)(s)[1] << 8))
 #define combine_triple(s)  (combine_word(s) | ((unsigned int)(s)[2] << 16))
 #define combine_quad(s)    (combine_triple(s) | ((unsigned int)(s)[3] << 24))
+
+int snd_usb_lock_shutdown(struct snd_usb_audio *chip);
+void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
 #endif /* __USBAUDIO_H */

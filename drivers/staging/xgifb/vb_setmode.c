@@ -940,7 +940,7 @@ static void XGI_SetCRT1FIFO(struct xgi_hw_device_info *HwDeviceExtension,
 
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x3D);
 	data &= 0xfe;
-	xgifb_reg_set(pVBInfo->P3c4, 0x3D, data); /* diable auto-threshold */
+	xgifb_reg_set(pVBInfo->P3c4, 0x3D, data); /* disable auto-threshold */
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x08, 0x34);
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x09);
@@ -1081,24 +1081,17 @@ static void XGI_WriteDAC(unsigned short dl,
 			 unsigned short dh,
 			 struct vb_device_info *pVBInfo)
 {
-	unsigned short temp, bh, bl;
+	unsigned short bh, bl;
 
 	bh = ah;
 	bl = al;
 
 	if (dl != 0) {
-		temp = bh;
-		bh = dh;
-		dh = temp;
-		if (dl == 1) {
-			temp = bl;
-			bl = dh;
-			dh = temp;
-		} else {
-			temp = bl;
-			bl = bh;
-			bh = temp;
-		}
+		swap(bh, dh);
+		if (dl == 1)
+			swap(bl, dh);
+		else
+			swap(bl, bh);
 	}
 	outb((unsigned short) dh, pVBInfo->P3c9);
 	outb((unsigned short) bh, pVBInfo->P3c9);

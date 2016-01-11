@@ -14,6 +14,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
@@ -22,7 +23,7 @@
 #include <linux/of.h>
 #include <linux/err.h>
 
-#define DRV_VERSION "0.4.3"
+#define DRV_VERSION "0.4.4"
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
@@ -40,7 +41,14 @@
 
 #define PCF8563_REG_AMN		0x09 /* alarm */
 
-#define PCF8563_REG_CLKO	0x0D /* clock out */
+#define PCF8563_REG_CLKO		0x0D /* clock out */
+#define PCF8563_REG_CLKO_FE		0x80 /* clock out enabled */
+#define PCF8563_REG_CLKO_F_MASK		0x03 /* frequenc mask */
+#define PCF8563_REG_CLKO_F_32768HZ	0x00
+#define PCF8563_REG_CLKO_F_1024HZ	0x01
+#define PCF8563_REG_CLKO_F_32HZ		0x02
+#define PCF8563_REG_CLKO_F_1HZ		0x03
+
 #define PCF8563_REG_TMRC	0x0E /* timer control */
 #define PCF8563_TMRC_ENABLE	BIT(7)
 #define PCF8563_TMRC_4096	0
@@ -76,6 +84,9 @@ struct pcf8563 {
 	int voltage_low; /* incicates if a low_voltage was detected */
 
 	struct i2c_client *client;
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw		clkout_hw;
+#endif
 };
 
 static int pcf8563_read_block_data(struct i2c_client *client, unsigned char reg,
@@ -202,8 +213,9 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
 		pcf8563->voltage_low = 1;
-		dev_info(&client->dev,
+		dev_err(&client->dev,
 			"low voltage detected, date/time is not reliable.\n");
+		return -EINVAL;
 	}
 
 	dev_dbg(&client->dev,
@@ -233,12 +245,6 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
-
-	/* the clock can give out invalid datetime, but we cannot return
-	 * -EINVAL otherwise hwclock will refuse to set the time on bootup.
-	 */
-	if (rtc_valid_tm(tm) < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
 
 	return 0;
 }
@@ -363,13 +369,13 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char buf[4];
 	int err;
-	unsigned long alarm_time;
 
 	/* The alarm has no seconds, round up to nearest minute */
 	if (tm->time.tm_sec) {
-		rtc_tm_to_time(&tm->time, &alarm_time);
-		alarm_time += 60-tm->time.tm_sec;
-		rtc_time_to_tm(alarm_time, &tm->time);
+		time64_t alarm_time = rtc_tm_to_time64(&tm->time);
+
+		alarm_time += 60 - tm->time.tm_sec;
+		rtc_time64_to_tm(alarm_time, &tm->time);
 	}
 
 	dev_dbg(dev, "%s, min=%d hour=%d wday=%d mday=%d "
@@ -394,6 +400,158 @@ static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
 	dev_dbg(dev, "%s: en=%d\n", __func__, enabled);
 	return pcf8563_set_alarm_mode(to_i2c_client(dev), !!enabled);
 }
+
+#ifdef CONFIG_COMMON_CLK
+/*
+ * Handling of the clkout
+ */
+
+#define clkout_hw_to_pcf8563(_hw) container_of(_hw, struct pcf8563, clkout_hw)
+
+static int clkout_rates[] = {
+	32768,
+	1024,
+	32,
+	1,
+};
+
+static unsigned long pcf8563_clkout_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
+{
+	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
+	struct i2c_client *client = pcf8563->client;
+	unsigned char buf;
+	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+
+	if (ret < 0)
+		return 0;
+
+	buf &= PCF8563_REG_CLKO_F_MASK;
+	return clkout_rates[ret];
+}
+
+static long pcf8563_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long *prate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] <= rate)
+			return clkout_rates[i];
+
+	return 0;
+}
+
+static int pcf8563_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long parent_rate)
+{
+	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
+	struct i2c_client *client = pcf8563->client;
+	unsigned char buf;
+	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	int i;
+
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] == rate) {
+			buf &= ~PCF8563_REG_CLKO_F_MASK;
+			buf |= i;
+			ret = pcf8563_write_block_data(client,
+						       PCF8563_REG_CLKO, 1,
+						       &buf);
+			return ret;
+		}
+
+	return -EINVAL;
+}
+
+static int pcf8563_clkout_control(struct clk_hw *hw, bool enable)
+{
+	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
+	struct i2c_client *client = pcf8563->client;
+	unsigned char buf;
+	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+
+	if (ret < 0)
+		return ret;
+
+	if (enable)
+		buf |= PCF8563_REG_CLKO_FE;
+	else
+		buf &= ~PCF8563_REG_CLKO_FE;
+
+	ret = pcf8563_write_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	return ret;
+}
+
+static int pcf8563_clkout_prepare(struct clk_hw *hw)
+{
+	return pcf8563_clkout_control(hw, 1);
+}
+
+static void pcf8563_clkout_unprepare(struct clk_hw *hw)
+{
+	pcf8563_clkout_control(hw, 0);
+}
+
+static int pcf8563_clkout_is_prepared(struct clk_hw *hw)
+{
+	struct pcf8563 *pcf8563 = clkout_hw_to_pcf8563(hw);
+	struct i2c_client *client = pcf8563->client;
+	unsigned char buf;
+	int ret = pcf8563_read_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+
+	if (ret < 0)
+		return ret;
+
+	return !!(buf & PCF8563_REG_CLKO_FE);
+}
+
+static const struct clk_ops pcf8563_clkout_ops = {
+	.prepare = pcf8563_clkout_prepare,
+	.unprepare = pcf8563_clkout_unprepare,
+	.is_prepared = pcf8563_clkout_is_prepared,
+	.recalc_rate = pcf8563_clkout_recalc_rate,
+	.round_rate = pcf8563_clkout_round_rate,
+	.set_rate = pcf8563_clkout_set_rate,
+};
+
+static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
+{
+	struct i2c_client *client = pcf8563->client;
+	struct device_node *node = client->dev.of_node;
+	struct clk *clk;
+	struct clk_init_data init;
+	int ret;
+	unsigned char buf;
+
+	/* disable the clkout output */
+	buf = 0;
+	ret = pcf8563_write_block_data(client, PCF8563_REG_CLKO, 1, &buf);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	init.name = "pcf8563-clkout";
+	init.ops = &pcf8563_clkout_ops;
+	init.flags = CLK_IS_ROOT;
+	init.parent_names = NULL;
+	init.num_parents = 0;
+	pcf8563->clkout_hw.init = &init;
+
+	/* optional override of the clockname */
+	of_property_read_string(node, "clock-output-names", &init.name);
+
+	/* register the clock */
+	clk = devm_clk_register(&client->dev, &pcf8563->clkout_hw);
+
+	if (!IS_ERR(clk))
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+
+	return clk;
+}
+#endif
 
 static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.ioctl		= pcf8563_rtc_ioctl,
@@ -437,7 +595,7 @@ static int pcf8563_probe(struct i2c_client *client,
 	}
 
 	err = pcf8563_get_alarm_mode(client, NULL, &alm_pending);
-	if (err < 0) {
+	if (err) {
 		dev_err(&client->dev, "%s: read error\n", __func__);
 		return err;
 	}
@@ -464,6 +622,11 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	}
 
+#ifdef CONFIG_COMMON_CLK
+	/* register clk in common clk framework */
+	pcf8563_clkout_register_clk(pcf8563);
+#endif
+
 	/* the pcf8563 alarm only supports a minute accuracy */
 	pcf8563->rtc->uie_unsupported = 1;
 
@@ -488,7 +651,6 @@ MODULE_DEVICE_TABLE(of, pcf8563_of_match);
 static struct i2c_driver pcf8563_driver = {
 	.driver		= {
 		.name	= "rtc-pcf8563",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcf8563_of_match),
 	},
 	.probe		= pcf8563_probe,

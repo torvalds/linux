@@ -753,7 +753,7 @@ static inline int led_feedback(struct smsdvb_client_t *client)
 				     SMS_LED_HI : SMS_LED_LO);
 }
 
-static int smsdvb_read_status(struct dvb_frontend *fe, fe_status_t *stat)
+static int smsdvb_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	int rc;
 	struct smsdvb_client_t *client;
@@ -900,7 +900,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 	/* Disable LNA, if any. An error is returned if no LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
-		fe_status_t status;
+		enum fe_status status;
 
 		/* tune with LNA off at first */
 		ret = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
@@ -971,7 +971,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 	/* Disable LNA, if any. An error is returned if no LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
-		fe_status_t status;
+		enum fe_status status;
 
 		/* tune with LNA off at first */
 		ret = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),

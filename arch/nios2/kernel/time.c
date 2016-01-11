@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
@@ -18,7 +19,9 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#define ALTERA_TIMER_STATUS_REG		0
+#define ALTR_TIMER_COMPATIBLE		"altr,timer-1.0"
+
+#define ALTERA_TIMER_STATUS_REG	0
 #define ALTERA_TIMER_CONTROL_REG	4
 #define ALTERA_TIMER_PERIODL_REG	8
 #define ALTERA_TIMER_PERIODH_REG	12
@@ -106,6 +109,7 @@ cycles_t get_cycles(void)
 {
 	return nios2_timer_read(&nios2_cs.cs);
 }
+EXPORT_SYMBOL(get_cycles);
 
 static void nios2_timer_start(struct nios2_timer *timer)
 {
@@ -126,7 +130,7 @@ static void nios2_timer_stop(struct nios2_timer *timer)
 }
 
 static void nios2_timer_config(struct nios2_timer *timer, unsigned long period,
-	enum clock_event_mode mode)
+			       bool periodic)
 {
 	u16 ctrl;
 
@@ -144,7 +148,7 @@ static void nios2_timer_config(struct nios2_timer *timer, unsigned long period,
 	timer_writew(timer, period >> 16, ALTERA_TIMER_PERIODH_REG);
 
 	ctrl |= ALTERA_TIMER_CONTROL_START_MSK | ALTERA_TIMER_CONTROL_ITO_MSK;
-	if (mode == CLOCK_EVT_MODE_PERIODIC)
+	if (periodic)
 		ctrl |= ALTERA_TIMER_CONTROL_CONT_MSK;
 	else
 		ctrl &= ~ALTERA_TIMER_CONTROL_CONT_MSK;
@@ -156,32 +160,38 @@ static int nios2_timer_set_next_event(unsigned long delta,
 {
 	struct nios2_clockevent_dev *nios2_ced = to_nios2_clkevent(evt);
 
-	nios2_timer_config(&nios2_ced->timer, delta, evt->mode);
+	nios2_timer_config(&nios2_ced->timer, delta, false);
 
 	return 0;
 }
 
-static void nios2_timer_set_mode(enum clock_event_mode mode,
-	struct clock_event_device *evt)
+static int nios2_timer_shutdown(struct clock_event_device *evt)
+{
+	struct nios2_clockevent_dev *nios2_ced = to_nios2_clkevent(evt);
+	struct nios2_timer *timer = &nios2_ced->timer;
+
+	nios2_timer_stop(timer);
+	return 0;
+}
+
+static int nios2_timer_set_periodic(struct clock_event_device *evt)
 {
 	unsigned long period;
 	struct nios2_clockevent_dev *nios2_ced = to_nios2_clkevent(evt);
 	struct nios2_timer *timer = &nios2_ced->timer;
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		period = DIV_ROUND_UP(timer->freq, HZ);
-		nios2_timer_config(timer, period, CLOCK_EVT_MODE_PERIODIC);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		nios2_timer_stop(timer);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		nios2_timer_start(timer);
-		break;
-	}
+	period = DIV_ROUND_UP(timer->freq, HZ);
+	nios2_timer_config(timer, period, true);
+	return 0;
+}
+
+static int nios2_timer_resume(struct clock_event_device *evt)
+{
+	struct nios2_clockevent_dev *nios2_ced = to_nios2_clkevent(evt);
+	struct nios2_timer *timer = &nios2_ced->timer;
+
+	nios2_timer_start(timer);
+	return 0;
 }
 
 irqreturn_t timer_interrupt(int irq, void *dev_id)
@@ -214,7 +224,10 @@ static struct nios2_clockevent_dev nios2_ce = {
 		.rating = 250,
 		.shift = 32,
 		.set_next_event = nios2_timer_set_next_event,
-		.set_mode = nios2_timer_set_mode,
+		.set_state_shutdown = nios2_timer_shutdown,
+		.set_state_periodic = nios2_timer_set_periodic,
+		.set_state_oneshot = nios2_timer_shutdown,
+		.tick_resume = nios2_timer_resume,
 	},
 };
 
@@ -302,7 +315,16 @@ void read_persistent_clock(struct timespec *ts)
 
 void __init time_init(void)
 {
-	clocksource_of_init();
+	struct device_node *np;
+	int count = 0;
+
+	for_each_compatible_node(np, NULL,  ALTR_TIMER_COMPATIBLE)
+		count++;
+
+	if (count < 2)
+		panic("%d timer is found, it needs 2 timers in system\n", count);
+
+	clocksource_probe();
 }
 
-CLOCKSOURCE_OF_DECLARE(nios2_timer, "altr,timer-1.0", nios2_time_init);
+CLOCKSOURCE_OF_DECLARE(nios2_timer, ALTR_TIMER_COMPATIBLE, nios2_time_init);

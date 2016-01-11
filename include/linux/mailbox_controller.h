@@ -9,7 +9,7 @@
 
 #include <linux/of.h>
 #include <linux/types.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/device.h>
 #include <linux/completion.h>
 
@@ -67,12 +67,13 @@ struct mbox_chan_ops {
  * @txpoll_period:	If 'txdone_poll' is in effect, the API polls for
  *			last TX's status after these many millisecs
  * @of_xlate:		Controller driver specific mapping of channel via DT
- * @poll:		API private. Used to poll for TXDONE on all channels.
+ * @poll_hrt:		API private. hrtimer used to poll for TXDONE on all
+ *			channels.
  * @node:		API private. To hook into list of controllers.
  */
 struct mbox_controller {
 	struct device *dev;
-	struct mbox_chan_ops *ops;
+	const struct mbox_chan_ops *ops;
 	struct mbox_chan *chans;
 	int num_chans;
 	bool txdone_irq;
@@ -81,7 +82,7 @@ struct mbox_controller {
 	struct mbox_chan *(*of_xlate)(struct mbox_controller *mbox,
 				      const struct of_phandle_args *sp);
 	/* Internal to API */
-	struct timer_list poll;
+	struct hrtimer poll_hrt;
 	struct list_head node;
 };
 

@@ -33,7 +33,11 @@ extern int bench_mem_memcpy(int argc, const char **argv,
 extern int bench_mem_memset(int argc, const char **argv, const char *prefix);
 extern int bench_futex_hash(int argc, const char **argv, const char *prefix);
 extern int bench_futex_wake(int argc, const char **argv, const char *prefix);
+extern int bench_futex_wake_parallel(int argc, const char **argv,
+				     const char *prefix);
 extern int bench_futex_requeue(int argc, const char **argv, const char *prefix);
+/* pi futexes */
+extern int bench_futex_lock_pi(int argc, const char **argv, const char *prefix);
 
 #define BENCH_FORMAT_DEFAULT_STR	"default"
 #define BENCH_FORMAT_DEFAULT		0

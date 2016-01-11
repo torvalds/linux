@@ -235,8 +235,8 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
-		DECLARE_BITMAP(active, entity->num_pads);
-		DECLARE_BITMAP(has_no_links, entity->num_pads);
+		DECLARE_BITMAP(active, MEDIA_ENTITY_MAX_PADS);
+		DECLARE_BITMAP(has_no_links, MEDIA_ENTITY_MAX_PADS);
 		unsigned int i;
 
 		entity->stream_count++;
@@ -282,9 +282,9 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 			if (ret < 0 && ret != -ENOIOCTLCMD) {
 				dev_dbg(entity->parent->dev,
 					"link validation failed for \"%s\":%u -> \"%s\":%u, error %d\n",
-					entity->name, link->source->index,
-					link->sink->entity->name,
-					link->sink->index, ret);
+					link->source->entity->name,
+					link->source->index,
+					entity->name, link->sink->index, ret);
 				goto error;
 			}
 		}

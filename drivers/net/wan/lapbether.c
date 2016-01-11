@@ -40,7 +40,6 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/stat.h>
-#include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/lapb.h>
 #include <linux/init.h>

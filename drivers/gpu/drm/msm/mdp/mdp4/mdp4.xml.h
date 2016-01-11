@@ -8,19 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2014-12-05 15:34:49)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20908 bytes, from 2014-12-08 16:13:00)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2014-12-08 16:13:00)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  27208 bytes, from 2015-01-13 23:56:11)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-10-31 16:48:57)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  26848 bytes, from 2015-01-13 23:55:57)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (   8253 bytes, from 2014-12-08 16:13:00)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2015-09-18 12:07:28)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  37194 bytes, from 2015-09-18 12:07:28)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  27887 bytes, from 2015-10-22 16:34:52)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2015-10-22 16:35:02)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  29154 bytes, from 2015-08-10 21:25:43)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
 
-Copyright (C) 2013-2014 by the following authors:
+Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -680,18 +680,18 @@ static inline uint32_t MDP4_PIPE_SRC_STRIDE_B_P3(uint32_t val)
 	return ((val) << MDP4_PIPE_SRC_STRIDE_B_P3__SHIFT) & MDP4_PIPE_SRC_STRIDE_B_P3__MASK;
 }
 
-static inline uint32_t REG_MDP4_PIPE_FRAME_SIZE(enum mdp4_pipe i0) { return 0x00020048 + 0x10000*i0; }
-#define MDP4_PIPE_FRAME_SIZE_HEIGHT__MASK			0xffff0000
-#define MDP4_PIPE_FRAME_SIZE_HEIGHT__SHIFT			16
-static inline uint32_t MDP4_PIPE_FRAME_SIZE_HEIGHT(uint32_t val)
+static inline uint32_t REG_MDP4_PIPE_SSTILE_FRAME_SIZE(enum mdp4_pipe i0) { return 0x00020048 + 0x10000*i0; }
+#define MDP4_PIPE_SSTILE_FRAME_SIZE_HEIGHT__MASK		0xffff0000
+#define MDP4_PIPE_SSTILE_FRAME_SIZE_HEIGHT__SHIFT		16
+static inline uint32_t MDP4_PIPE_SSTILE_FRAME_SIZE_HEIGHT(uint32_t val)
 {
-	return ((val) << MDP4_PIPE_FRAME_SIZE_HEIGHT__SHIFT) & MDP4_PIPE_FRAME_SIZE_HEIGHT__MASK;
+	return ((val) << MDP4_PIPE_SSTILE_FRAME_SIZE_HEIGHT__SHIFT) & MDP4_PIPE_SSTILE_FRAME_SIZE_HEIGHT__MASK;
 }
-#define MDP4_PIPE_FRAME_SIZE_WIDTH__MASK			0x0000ffff
-#define MDP4_PIPE_FRAME_SIZE_WIDTH__SHIFT			0
-static inline uint32_t MDP4_PIPE_FRAME_SIZE_WIDTH(uint32_t val)
+#define MDP4_PIPE_SSTILE_FRAME_SIZE_WIDTH__MASK			0x0000ffff
+#define MDP4_PIPE_SSTILE_FRAME_SIZE_WIDTH__SHIFT		0
+static inline uint32_t MDP4_PIPE_SSTILE_FRAME_SIZE_WIDTH(uint32_t val)
 {
-	return ((val) << MDP4_PIPE_FRAME_SIZE_WIDTH__SHIFT) & MDP4_PIPE_FRAME_SIZE_WIDTH__MASK;
+	return ((val) << MDP4_PIPE_SSTILE_FRAME_SIZE_WIDTH__SHIFT) & MDP4_PIPE_SSTILE_FRAME_SIZE_WIDTH__MASK;
 }
 
 static inline uint32_t REG_MDP4_PIPE_SRC_FORMAT(enum mdp4_pipe i0) { return 0x00020050 + 0x10000*i0; }

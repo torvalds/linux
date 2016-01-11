@@ -1,5 +1,5 @@
 #ifndef __NVKM_SEC_H__
 #define __NVKM_SEC_H__
-#include <core/engine.h>
-extern struct nvkm_oclass g98_sec_oclass;
+#include <engine/falcon.h>
+int g98_sec_new(struct nvkm_device *, int, struct nvkm_engine **);
 #endif

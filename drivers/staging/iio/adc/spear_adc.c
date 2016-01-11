@@ -191,8 +191,8 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 
 	if ((val < SPEAR_ADC_CLK_MIN) ||
-		(val > SPEAR_ADC_CLK_MAX) ||
-		(val2 != 0)) {
+	    (val > SPEAR_ADC_CLK_MAX) ||
+	    (val2 != 0)) {
 		ret = -EINVAL;
 		goto out;
 	}

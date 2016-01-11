@@ -81,14 +81,46 @@ DEFINE_EVENT(filelock_lease, break_lease_block, TP_PROTO(struct inode *inode, st
 DEFINE_EVENT(filelock_lease, break_lease_unblock, TP_PROTO(struct inode *inode, struct file_lock *fl),
 		TP_ARGS(inode, fl));
 
-DEFINE_EVENT(filelock_lease, generic_add_lease, TP_PROTO(struct inode *inode, struct file_lock *fl),
-		TP_ARGS(inode, fl));
-
 DEFINE_EVENT(filelock_lease, generic_delete_lease, TP_PROTO(struct inode *inode, struct file_lock *fl),
 		TP_ARGS(inode, fl));
 
 DEFINE_EVENT(filelock_lease, time_out_leases, TP_PROTO(struct inode *inode, struct file_lock *fl),
 		TP_ARGS(inode, fl));
+
+TRACE_EVENT(generic_add_lease,
+	TP_PROTO(struct inode *inode, struct file_lock *fl),
+
+	TP_ARGS(inode, fl),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, i_ino)
+		__field(int, wcount)
+		__field(int, dcount)
+		__field(int, icount)
+		__field(dev_t, s_dev)
+		__field(fl_owner_t, fl_owner)
+		__field(unsigned int, fl_flags)
+		__field(unsigned char, fl_type)
+	),
+
+	TP_fast_assign(
+		__entry->s_dev = inode->i_sb->s_dev;
+		__entry->i_ino = inode->i_ino;
+		__entry->wcount = atomic_read(&inode->i_writecount);
+		__entry->dcount = d_count(fl->fl_file->f_path.dentry);
+		__entry->icount = atomic_read(&inode->i_count);
+		__entry->fl_owner = fl ? fl->fl_owner : NULL;
+		__entry->fl_flags = fl ? fl->fl_flags : 0;
+		__entry->fl_type = fl ? fl->fl_type : 0;
+	),
+
+	TP_printk("dev=0x%x:0x%x ino=0x%lx wcount=%d dcount=%d icount=%d fl_owner=0x%p fl_flags=%s fl_type=%s",
+		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
+		__entry->i_ino, __entry->wcount, __entry->dcount,
+		__entry->icount, __entry->fl_owner,
+		show_fl_flags(__entry->fl_flags),
+		show_fl_type(__entry->fl_type))
+);
 
 #endif /* _TRACE_FILELOCK_H */
 

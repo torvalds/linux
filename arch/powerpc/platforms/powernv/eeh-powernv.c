@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -40,18 +41,13 @@
 #include "pci.h"
 
 static bool pnv_eeh_nb_init = false;
+static int eeh_event_irq = -EINVAL;
 
-/**
- * pnv_eeh_init - EEH platform dependent initialization
- *
- * EEH platform dependent initialization on powernv
- */
 static int pnv_eeh_init(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	/* We require OPALv3 */
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
 		pr_warn("%s: OPALv3 is required !\n",
 			__func__);
@@ -75,9 +71,9 @@ static int pnv_eeh_init(void)
 		/*
 		 * PE#0 should be regarded as valid by EEH core
 		 * if it's not the reserved one. Currently, we
-		 * have the reserved PE#0 and PE#127 for PHB3
+		 * have the reserved PE#255 and PE#127 for PHB3
 		 * and P7IOC separately. So we should regard
-		 * PE#0 as valid for P7IOC.
+		 * PE#0 as valid for PHB3 and P7IOC.
 		 */
 		if (phb->ioda.reserved_pe != 0)
 			eeh_add_flag(EEH_VALID_PE_ZERO);
@@ -88,33 +84,21 @@ static int pnv_eeh_init(void)
 	return 0;
 }
 
-static int pnv_eeh_event(struct notifier_block *nb,
-			 unsigned long events, void *change)
+static irqreturn_t pnv_eeh_event(int irq, void *data)
 {
-	uint64_t changed_evts = (uint64_t)change;
-
 	/*
-	 * We simply send special EEH event if EEH has
-	 * been enabled, or clear pending events in
-	 * case that we enable EEH soon
+	 * We simply send a special EEH event if EEH has been
+	 * enabled. We don't care about EEH events until we've
+	 * finished processing the outstanding ones. Event processing
+	 * gets unmasked in next_error() if EEH is enabled.
 	 */
-	if (!(changed_evts & OPAL_EVENT_PCI_ERROR) ||
-	    !(events & OPAL_EVENT_PCI_ERROR))
-		return 0;
+	disable_irq_nosync(irq);
 
 	if (eeh_enabled())
 		eeh_send_failure_event(NULL);
-	else
-		opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
-	return 0;
+	return IRQ_HANDLED;
 }
-
-static struct notifier_block pnv_eeh_nb = {
-	.notifier_call	= pnv_eeh_event,
-	.next		= NULL,
-	.priority	= 0
-};
 
 #ifdef CONFIG_DEBUG_FS
 static ssize_t pnv_eeh_ei_write(struct file *filp,
@@ -237,15 +221,27 @@ static int pnv_eeh_post_init(void)
 
 	/* Register OPAL event notifier */
 	if (!pnv_eeh_nb_init) {
-		ret = opal_notifier_register(&pnv_eeh_nb);
-		if (ret) {
-			pr_warn("%s: Can't register OPAL event notifier (%d)\n",
-				__func__, ret);
+		eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
+		if (eeh_event_irq < 0) {
+			pr_err("%s: Can't register OPAL event interrupt (%d)\n",
+			       __func__, eeh_event_irq);
+			return eeh_event_irq;
+		}
+
+		ret = request_irq(eeh_event_irq, pnv_eeh_event,
+				IRQ_TYPE_LEVEL_HIGH, "opal-eeh", NULL);
+		if (ret < 0) {
+			irq_dispose_mapping(eeh_event_irq);
+			pr_err("%s: Can't request OPAL event interrupt (%d)\n",
+			       __func__, eeh_event_irq);
 			return ret;
 		}
 
 		pnv_eeh_nb_init = true;
 	}
+
+	if (!eeh_enabled())
+		disable_irq(eeh_event_irq);
 
 	list_for_each_entry(hose, &hose_list, list_node) {
 		phb = hose->private_data;
@@ -282,31 +278,21 @@ static int pnv_eeh_post_init(void)
 #endif /* CONFIG_DEBUG_FS */
 	}
 
-
 	return ret;
-}
-
-static int pnv_eeh_cap_start(struct pci_dn *pdn)
-{
-	u32 status;
-
-	if (!pdn)
-		return 0;
-
-	pnv_pci_cfg_read(pdn, PCI_STATUS, 2, &status);
-	if (!(status & PCI_STATUS_CAP_LIST))
-		return 0;
-
-	return PCI_CAPABILITY_LIST;
 }
 
 static int pnv_eeh_find_cap(struct pci_dn *pdn, int cap)
 {
-	int pos = pnv_eeh_cap_start(pdn);
+	int pos = PCI_CAPABILITY_LIST;
 	int cnt = 48;   /* Maximal number of capabilities */
-	u32 id;
+	u32 status, id;
 
-	if (!pos)
+	if (!pdn)
+		return 0;
+
+	/* Check if the device supports capabilities */
+	pnv_pci_cfg_read(pdn, PCI_STATUS, 2, &status);
+	if (!(status & PCI_STATUS_CAP_LIST))
 		return 0;
 
 	while (cnt--) {
@@ -441,10 +427,13 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * that PE to block its config space.
 	 *
 	 * Broadcom Austin 4-ports NICs (14e4:1657)
+	 * Broadcom Shiner 4-ports 1G NICs (14e4:168a)
 	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
 	 */
 	if ((pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x1657) ||
+	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
+	     pdn->device_id == 0x168a) ||
 	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x168e))
 		edev->pe->state |= EEH_PE_CFG_RESTRICTED;
@@ -485,10 +474,9 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
 	bool freeze_pe = false;
-	int opt, ret = 0;
+	int opt;
 	s64 rc;
 
-	/* Sanity check on option */
 	switch (option) {
 	case EEH_OPT_DISABLE:
 		return -EPERM;
@@ -509,38 +497,37 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 		return -EINVAL;
 	}
 
-	/* If PHB supports compound PE, to handle it */
+	/* Freeze master and slave PEs if PHB supports compound PEs */
 	if (freeze_pe) {
 		if (phb->freeze_pe) {
 			phb->freeze_pe(phb, pe->addr);
-		} else {
-			rc = opal_pci_eeh_freeze_set(phb->opal_id,
-						     pe->addr, opt);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld freezing "
-					"PHB#%x-PE#%x\n",
-					__func__, rc,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
+			return 0;
 		}
-	} else {
-		if (phb->unfreeze_pe) {
-			ret = phb->unfreeze_pe(phb, pe->addr, opt);
-		} else {
-			rc = opal_pci_eeh_freeze_clear(phb->opal_id,
-						       pe->addr, opt);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld enable %d "
-					"for PHB#%x-PE#%x\n",
-					__func__, rc, option,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
+
+		rc = opal_pci_eeh_freeze_set(phb->opal_id, pe->addr, opt);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld freezing PHB#%x-PE#%x\n",
+				__func__, rc, phb->hose->global_number,
+				pe->addr);
+			return -EIO;
 		}
+
+		return 0;
 	}
 
-	return ret;
+	/* Unfreeze master and slave PEs if PHB supports */
+	if (phb->unfreeze_pe)
+		return phb->unfreeze_pe(phb, pe->addr, opt);
+
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe->addr, opt);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld enable %d for PHB#%x-PE#%x\n",
+			__func__, rc, option, phb->hose->global_number,
+			pe->addr);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
@@ -979,7 +966,7 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 /**
  * pnv_eeh_wait_state - Wait for PE state
  * @pe: EEH PE
- * @max_wait: maximal period in microsecond
+ * @max_wait: maximal period in millisecond
  *
  * Wait for the state of associated PE. It might take some time
  * to retrieve the PE's state.
@@ -1000,13 +987,13 @@ static int pnv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 		if (ret != EEH_STATE_UNAVAILABLE)
 			return ret;
 
-		max_wait -= mwait;
 		if (max_wait <= 0) {
 			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
 				__func__, pe->addr, max_wait);
 			return EEH_STATE_NOT_SUPPORT;
 		}
 
+		max_wait -= mwait;
 		msleep(mwait);
 	}
 
@@ -1063,7 +1050,6 @@ static int pnv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
 	struct pnv_phb *phb = hose->private_data;
 	s64 rc;
 
-	/* Sanity check on error type */
 	if (type != OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR &&
 	    type != OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR64) {
 		pr_warn("%s: Invalid error type %d\n",
@@ -1303,12 +1289,10 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	int state, ret = EEH_NEXT_ERR_NONE;
 
 	/*
-	 * While running here, it's safe to purge the event queue.
-	 * And we should keep the cached OPAL notifier event sychronized
-	 * between the kernel and firmware.
+	 * While running here, it's safe to purge the event queue. The
+	 * event should still be masked.
 	 */
 	eeh_remove_event(NULL, false);
-	opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
 	list_for_each_entry(hose, &hose_list, list_node) {
 		/*
@@ -1394,11 +1378,19 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 			 */
 			if (pnv_eeh_get_pe(hose,
 				be64_to_cpu(frozen_pe_no), pe)) {
-				/* Try best to clear it */
 				pr_info("EEH: Clear non-existing PHB#%x-PE#%llx\n",
-					hose->global_number, frozen_pe_no);
+					hose->global_number, be64_to_cpu(frozen_pe_no));
 				pr_info("EEH: PHB location: %s\n",
 					eeh_pe_loc_get(phb_pe));
+
+				/* Dump PHB diag-data */
+				rc = opal_pci_get_phb_diag_data2(phb->opal_id,
+					phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+				if (rc == OPAL_SUCCESS)
+					pnv_pci_dump_phb_diag_data(hose,
+							phb->diag.blob);
+
+				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
 					frozen_pe_no,
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
@@ -1476,6 +1468,10 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 		if (ret > EEH_NEXT_ERR_INF)
 			break;
 	}
+
+	/* Unmask the event */
+	if (ret == EEH_NEXT_ERR_NONE && eeh_enabled())
+		enable_irq(eeh_event_irq);
 
 	return ret;
 }

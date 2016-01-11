@@ -14,6 +14,7 @@
 #include <linux/device-mapper.h>
 #include <linux/list.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/hdreg.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
@@ -76,8 +77,6 @@ bool dm_table_request_based(struct dm_table *t);
 bool dm_table_mq_request_based(struct dm_table *t);
 void dm_table_free_md_mempools(struct dm_table *t);
 struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
-
-int dm_queue_merge_is_compulsory(struct request_queue *q);
 
 void dm_lock_md_type(struct mapped_device *md);
 void dm_unlock_md_type(struct mapped_device *md);

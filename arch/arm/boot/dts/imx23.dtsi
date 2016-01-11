@@ -308,6 +308,39 @@
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
+
+				i2c_pins_a: i2c@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX23_PAD_I2C_SCL__I2C_SCL
+						MX23_PAD_I2C_SDA__I2C_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				i2c_pins_b: i2c@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX23_PAD_LCD_ENABLE__I2C_SCL
+						MX23_PAD_LCD_HSYNC__I2C_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				i2c_pins_c: i2c@2 {
+					reg = <2>;
+					fsl,pinmux-ids = <
+						MX23_PAD_SSP1_DATA1__I2C_SCL
+						MX23_PAD_SSP1_DATA2__I2C_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -350,9 +383,11 @@
 			};
 
 			ocotp@8002c000 {
-				compatible = "fsl,ocotp";
+				compatible = "fsl,imx23-ocotp", "fsl,ocotp";
+				#address-cells = <1>;
+				#size-cells = <1>;
 				reg = <0x8002c000 0x2000>;
-				status = "disabled";
+				clocks = <&clks 15>;
 			};
 
 			axi-ahb@8002e000 {
@@ -435,6 +470,7 @@
 				interrupts = <36 37 38 39 40 41 42 43 44>;
 				status = "disabled";
 				clocks = <&clks 26>;
+				#io-channel-cells = <1>;
 			};
 
 			spdif@80054000 {
@@ -444,8 +480,13 @@
 				status = "disabled";
 			};
 
-			i2c@80058000 {
+			i2c: i2c@80058000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx23-i2c";
 				reg = <0x80058000 0x2000>;
+				interrupts = <27>;
+				clock-frequency = <100000>;
 				dmas = <&dma_apbx 3>;
 				dma-names = "rx-tx";
 				status = "disabled";

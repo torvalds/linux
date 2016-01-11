@@ -109,9 +109,15 @@ DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
 static inline void __tlb_entry_erase(void)
 {
 	write_aux_reg(ARC_REG_TLBPD1, 0);
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_TLBPD1HI, 0);
+
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
+
+#if (CONFIG_ARC_MMU_VER < 4)
 
 static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
 {
@@ -180,7 +186,7 @@ static void utlb_invalidate(void)
 
 }
 
-static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
+static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 {
 	unsigned int idx;
 
@@ -210,26 +216,69 @@ static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
+#else	/* CONFIG_ARC_MMU_VER >= 4) */
+
+static void utlb_invalidate(void)
+{
+	/* No need since uTLB is always in sync with JTLB */
+}
+
+static void tlb_entry_erase(unsigned int vaddr_n_asid)
+{
+	write_aux_reg(ARC_REG_TLBPD0, vaddr_n_asid | _PAGE_PRESENT);
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBDeleteEntry);
+}
+
+static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
+{
+	write_aux_reg(ARC_REG_TLBPD0, pd0);
+	write_aux_reg(ARC_REG_TLBPD1, pd1);
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_TLBPD1HI, (u64)pd1 >> 32);
+
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBInsertEntry);
+}
+
+#endif
+
 /*
  * Un-conditionally (without lookup) erase the entire MMU contents
  */
 
 noinline void local_flush_tlb_all(void)
 {
+	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 	unsigned long flags;
 	unsigned int entry;
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	int num_tlb = mmu->sets * mmu->ways;
 
 	local_irq_save(flags);
 
 	/* Load PD0 and PD1 with template for a Blank Entry */
 	write_aux_reg(ARC_REG_TLBPD1, 0);
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_TLBPD1HI, 0);
+
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 
-	for (entry = 0; entry < mmu->num_tlb; entry++) {
+	for (entry = 0; entry < num_tlb; entry++) {
 		/* write this entry to the TLB */
 		write_aux_reg(ARC_REG_TLBINDEX, entry);
 		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+	}
+
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
+		const int stlb_idx = 0x800;
+
+		/* Blank sTLB entry */
+		write_aux_reg(ARC_REG_TLBPD0, _PAGE_HW_SZ);
+
+		for (entry = stlb_idx; entry < stlb_idx + 16; entry++) {
+			write_aux_reg(ARC_REG_TLBINDEX, entry);
+			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+		}
 	}
 
 	utlb_invalidate();
@@ -385,6 +434,15 @@ static inline void ipi_flush_tlb_range(void *arg)
 	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static inline void ipi_flush_pmd_tlb_range(void *arg)
+{
+	struct tlb_args *ta = arg;
+
+	local_flush_pmd_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+#endif
+
 static inline void ipi_flush_tlb_kernel_range(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
@@ -425,6 +483,20 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_tlb_range, &ta, 1);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			 unsigned long end)
+{
+	struct tlb_args ta = {
+		.ta_vma = vma,
+		.ta_start = start,
+		.ta_end = end
+	};
+
+	on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_pmd_tlb_range, &ta, 1);
+}
+#endif
+
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	struct tlb_args ta = {
@@ -439,11 +511,12 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 /*
  * Routine to create a TLB entry
  */
-void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
+void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 {
 	unsigned long flags;
 	unsigned int asid_or_sasid, rwx;
-	unsigned long pd0, pd1;
+	unsigned long pd0;
+	pte_t pd1;
 
 	/*
 	 * create_tlb() assumes that current->mm == vma->mm, since
@@ -475,9 +548,9 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 
 	local_irq_save(flags);
 
-	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), address);
+	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), vaddr);
 
-	address &= PAGE_MASK;
+	vaddr &= PAGE_MASK;
 
 	/* update this PTE credentials */
 	pte_val(*ptep) |= (_PAGE_PRESENT | _PAGE_ACCESSED);
@@ -487,7 +560,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	/* ASID for this task */
 	asid_or_sasid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	pd0 = address | asid_or_sasid | (pte_val(*ptep) & PTE_BITS_IN_PD0);
+	pd0 = vaddr | asid_or_sasid | (pte_val(*ptep) & PTE_BITS_IN_PD0);
 
 	/*
 	 * ARC MMU provides fully orthogonal access bits for K/U mode,
@@ -523,7 +596,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
 {
 	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
-	unsigned long paddr = pte_val(*ptep) & PAGE_MASK;
+	phys_addr_t paddr = pte_val(*ptep) & PAGE_MASK;
 	struct page *page = pfn_to_page(pte_pfn(*ptep));
 
 	create_tlb(vma, vaddr, ptep);
@@ -546,15 +619,104 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 
 		int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
 		if (dirty) {
-			/* wback + inv dcache lines */
+			/* wback + inv dcache lines (K-mapping) */
 			__flush_dcache_page(paddr, paddr);
 
-			/* invalidate any existing icache lines */
+			/* invalidate any existing icache lines (U-mapping) */
 			if (vma->vm_flags & VM_EXEC)
 				__inv_icache_page(paddr, vaddr);
 		}
 	}
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+/*
+ * MMUv4 in HS38x cores supports Super Pages which are basis for Linux THP
+ * support.
+ *
+ * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
+ * new bit "SZ" in TLB page desciptor to distinguish between them.
+ * Super Page size is configurable in hardware (4K to 16M), but fixed once
+ * RTL builds.
+ *
+ * The exact THP size a Linx configuration will support is a function of:
+ *  - MMU page size (typical 8K, RTL fixed)
+ *  - software page walker address split between PGD:PTE:PFN (typical
+ *    11:8:13, but can be changed with 1 line)
+ * So for above default, THP size supported is 8K * (2^8) = 2M
+ *
+ * Default Page Walker is 2 levels, PGD:PTE:PFN, which in THP regime
+ * reduces to 1 level (as PTE is folded into PGD and canonically referred
+ * to as PMD).
+ * Thus THP PMD accessors are implemented in terms of PTE (just like sparc)
+ */
+
+void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+				 pmd_t *pmd)
+{
+	pte_t pte = __pte(pmd_val(*pmd));
+	update_mmu_cache(vma, addr, &pte);
+}
+
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable)
+{
+	struct list_head *lh = (struct list_head *) pgtable;
+
+	assert_spin_locked(&mm->page_table_lock);
+
+	/* FIFO */
+	if (!pmd_huge_pte(mm, pmdp))
+		INIT_LIST_HEAD(lh);
+	else
+		list_add(lh, (struct list_head *) pmd_huge_pte(mm, pmdp));
+	pmd_huge_pte(mm, pmdp) = pgtable;
+}
+
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+{
+	struct list_head *lh;
+	pgtable_t pgtable;
+
+	assert_spin_locked(&mm->page_table_lock);
+
+	pgtable = pmd_huge_pte(mm, pmdp);
+	lh = (struct list_head *) pgtable;
+	if (list_empty(lh))
+		pmd_huge_pte(mm, pmdp) = NULL;
+	else {
+		pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
+		list_del(lh);
+	}
+
+	pte_val(pgtable[0]) = 0;
+	pte_val(pgtable[1]) = 0;
+
+	return pgtable;
+}
+
+void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			       unsigned long end)
+{
+	unsigned int cpu;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	cpu = smp_processor_id();
+
+	if (likely(asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID)) {
+		unsigned int asid = hw_pid(vma->vm_mm, cpu);
+
+		/* No need to loop here: this will always be for 1 Huge Page */
+		tlb_entry_erase(start | _PAGE_HW_SZ | asid);
+	}
+
+	local_irq_restore(flags);
+}
+
+#endif
 
 /* Read the Cache Build Confuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
@@ -574,47 +736,73 @@ void read_decode_mmu_bcr(void)
 
 	struct bcr_mmu_3 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ver:8, ways:4, sets:4, osm:1, reserv:3, pg_sz:4,
+	unsigned int ver:8, ways:4, sets:4, res:3, sasid:1, pg_sz:4,
 		     u_itlb:4, u_dtlb:4;
 #else
-	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, reserv:3, osm:1, sets:4,
+	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, sasid:1, res:3, sets:4,
 		     ways:4, ver:8;
 #endif
 	} *mmu3;
+
+	struct bcr_mmu_4 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, sasid:1, sz1:4, sz0:4, res:2, pae:1,
+		     n_ways:2, n_entry:2, n_super:2, u_itlb:3, u_dtlb:3;
+#else
+	/*           DTLB      ITLB      JES        JE         JA      */
+	unsigned int u_dtlb:3, u_itlb:3, n_super:2, n_entry:2, n_ways:2,
+		     pae:1, res:2, sz0:4, sz1:4, sasid:1, ver:8;
+#endif
+	} *mmu4;
 
 	tmp = read_aux_reg(ARC_REG_MMU_BCR);
 	mmu->ver = (tmp >> 24);
 
 	if (mmu->ver <= 2) {
 		mmu2 = (struct bcr_mmu_1_2 *)&tmp;
-		mmu->pg_sz = PAGE_SIZE;
+		mmu->pg_sz_k = TO_KB(0x2000);
 		mmu->sets = 1 << mmu2->sets;
 		mmu->ways = 1 << mmu2->ways;
 		mmu->u_dtlb = mmu2->u_dtlb;
 		mmu->u_itlb = mmu2->u_itlb;
-	} else {
+	} else if (mmu->ver == 3) {
 		mmu3 = (struct bcr_mmu_3 *)&tmp;
-		mmu->pg_sz = 512 << mmu3->pg_sz;
+		mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
 		mmu->sets = 1 << mmu3->sets;
 		mmu->ways = 1 << mmu3->ways;
 		mmu->u_dtlb = mmu3->u_dtlb;
 		mmu->u_itlb = mmu3->u_itlb;
+		mmu->sasid = mmu3->sasid;
+	} else {
+		mmu4 = (struct bcr_mmu_4 *)&tmp;
+		mmu->pg_sz_k = 1 << (mmu4->sz0 - 1);
+		mmu->s_pg_sz_m = 1 << (mmu4->sz1 - 11);
+		mmu->sets = 64 << mmu4->n_entry;
+		mmu->ways = mmu4->n_ways * 2;
+		mmu->u_dtlb = mmu4->u_dtlb * 4;
+		mmu->u_itlb = mmu4->u_itlb * 4;
+		mmu->sasid = mmu4->sasid;
+		mmu->pae = mmu4->pae;
 	}
-
-	mmu->num_tlb = mmu->sets * mmu->ways;
 }
 
 char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
 	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[cpu_id].mmu;
+	char super_pg[64] = "";
+
+	if (p_mmu->s_pg_sz_m)
+		scnprintf(super_pg, 64, "%dM Super Page%s, ",
+			  p_mmu->s_pg_sz_m,
+			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
 
 	n += scnprintf(buf + n, len - n,
-		      "MMU [v%x]\t: %dk PAGE, JTLB %d (%dx%d), uDTLB %d, uITLB %d %s\n",
-		       p_mmu->ver, TO_KB(p_mmu->pg_sz),
-		       p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
+		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s%s\n",
+		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,
+		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
 		       p_mmu->u_dtlb, p_mmu->u_itlb,
-		       IS_ENABLED(CONFIG_ARC_MMU_SASID) ? ",SASID" : "");
+		       IS_AVAIL2(p_mmu->pae, "PAE40 ", CONFIG_ARC_HAS_PAE40));
 
 	return buf;
 }
@@ -639,8 +827,16 @@ void arc_mmu_init(void)
 		      mmu->ver, CONFIG_ARC_MMU_VER);
 	}
 
-	if (mmu->pg_sz != PAGE_SIZE)
+	if (mmu->pg_sz_k != TO_KB(PAGE_SIZE))
 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
+
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
+	    mmu->s_pg_sz_m != TO_MB(HPAGE_PMD_SIZE))
+		panic("MMU Super pg size != Linux HPAGE_PMD_SIZE (%luM)\n",
+		      (unsigned long)TO_MB(HPAGE_PMD_SIZE));
+
+	if (IS_ENABLED(CONFIG_ARC_HAS_PAE40) && !mmu->pae)
+		panic("Hardware doesn't support PAE40\n");
 
 	/* Enable the MMU */
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
@@ -677,15 +873,15 @@ void arc_mmu_init(void)
  *      the duplicate one.
  * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
  */
-volatile int dup_pd_verbose = 1;/* Be slient abt it or complain (default) */
+volatile int dup_pd_silent; /* Be slient abt it or complain (default) */
 
 void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
-	int set, way, n;
-	unsigned long flags, is_valid;
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	unsigned int pd0[mmu->ways], pd1[mmu->ways];
+	unsigned int pd0[mmu->ways];
+	unsigned long flags;
+	int set;
 
 	local_irq_save(flags);
 
@@ -695,14 +891,16 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 	/* loop thru all sets of TLB */
 	for (set = 0; set < mmu->sets; set++) {
 
+		int is_valid, way;
+
 		/* read out all the ways of current set */
 		for (way = 0, is_valid = 0; way < mmu->ways; way++) {
 			write_aux_reg(ARC_REG_TLBINDEX,
 					  SET_WAY_TO_IDX(mmu, set, way));
 			write_aux_reg(ARC_REG_TLBCOMMAND, TLBRead);
 			pd0[way] = read_aux_reg(ARC_REG_TLBPD0);
-			pd1[way] = read_aux_reg(ARC_REG_TLBPD1);
 			is_valid |= pd0[way] & _PAGE_PRESENT;
+			pd0[way] &= PAGE_MASK;
 		}
 
 		/* If all the WAYS in SET are empty, skip to next SET */
@@ -711,30 +909,28 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 
 		/* Scan the set for duplicate ways: needs a nested loop */
 		for (way = 0; way < mmu->ways - 1; way++) {
+
+			int n;
+
 			if (!pd0[way])
 				continue;
 
 			for (n = way + 1; n < mmu->ways; n++) {
-				if ((pd0[way] & PAGE_MASK) ==
-				    (pd0[n] & PAGE_MASK)) {
+				if (pd0[way] != pd0[n])
+					continue;
 
-					if (dup_pd_verbose) {
-						pr_info("Duplicate PD's @"
-							"[%d:%d]/[%d:%d]\n",
-						     set, way, set, n);
-						pr_info("TLBPD0[%u]: %08x\n",
-						     way, pd0[way]);
-					}
+				if (!dup_pd_silent)
+					pr_info("Dup TLB PD0 %08x @ set %d ways %d,%d\n",
+						pd0[way], set, way, n);
 
-					/*
-					 * clear entry @way and not @n. This is
-					 * critical to our optimised loop
-					 */
-					pd0[way] = pd1[way] = 0;
-					write_aux_reg(ARC_REG_TLBINDEX,
+				/*
+				 * clear entry @way and not @n.
+				 * This is critical to our optimised loop
+				 */
+				pd0[way] = 0;
+				write_aux_reg(ARC_REG_TLBINDEX,
 						SET_WAY_TO_IDX(mmu, set, way));
-					__tlb_entry_erase();
-				}
+				__tlb_entry_erase();
 			}
 		}
 	}

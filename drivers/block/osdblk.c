@@ -271,7 +271,7 @@ static struct bio *bio_chain_clone(struct bio *old_chain, gfp_t gfpmask)
 			goto err_out;
 
 		tmp->bi_bdev = NULL;
-		gfpmask &= ~__GFP_WAIT;
+		gfpmask &= ~__GFP_DIRECT_RECLAIM;
 		tmp->bi_next = NULL;
 
 		if (!new_chain)

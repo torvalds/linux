@@ -128,7 +128,10 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 	if (err)
 		goto out_ino;
 
-	inode->i_flags |= (S_NOCMTIME | S_NOATIME);
+	inode->i_flags |= S_NOCMTIME;
+#ifndef CONFIG_UBIFS_ATIME_SUPPORT
+	inode->i_flags |= S_NOATIME;
+#endif
 	set_nlink(inode, le32_to_cpu(ino->nlink));
 	i_uid_write(inode, le32_to_cpu(ino->uid));
 	i_gid_write(inode, le32_to_cpu(ino->gid));
@@ -195,6 +198,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		}
 		memcpy(ui->data, ino->data, ui->data_len);
 		((char *)ui->data)[ui->data_len] = '\0';
+		inode->i_link = ui->data;
 		break;
 	case S_IFBLK:
 	case S_IFCHR:
@@ -2036,7 +2040,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	if (c->max_inode_sz > MAX_LFS_FILESIZE)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
-	sb->s_xattr = ubifs_xattr_handlers;
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2138,7 +2141,12 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 		if (err)
 			goto out_deact;
 		/* We do not support atime */
-		sb->s_flags |= MS_ACTIVE | MS_NOATIME;
+		sb->s_flags |= MS_ACTIVE;
+#ifndef CONFIG_UBIFS_ATIME_SUPPORT
+		sb->s_flags |= MS_NOATIME;
+#else
+		ubifs_msg(c, "full atime support is enabled.");
+#endif
 	}
 
 	/* 'fill_super()' opens ubi again so we must close it here */
@@ -2245,7 +2253,9 @@ static int __init ubifs_init(void)
 	if (!ubifs_inode_slab)
 		return -ENOMEM;
 
-	register_shrinker(&ubifs_shrinker_info);
+	err = register_shrinker(&ubifs_shrinker_info);
+	if (err)
+		goto out_slab;
 
 	err = ubifs_compressors_init();
 	if (err)
@@ -2269,6 +2279,7 @@ out_compr:
 	ubifs_compressors_exit();
 out_shrinker:
 	unregister_shrinker(&ubifs_shrinker_info);
+out_slab:
 	kmem_cache_destroy(ubifs_inode_slab);
 	return err;
 }

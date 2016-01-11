@@ -28,6 +28,8 @@
 #include <net/inetpeer.h>
 #include <net/flow.h>
 #include <net/inet_sock.h>
+#include <net/ip_fib.h>
+#include <net/l3mdev.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -63,6 +65,8 @@ struct rtable {
 
 	/* Miscellaneous cached information */
 	u32			rt_pmtu;
+
+	u32			rt_table_id;
 
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
@@ -110,9 +114,17 @@ struct in_device;
 int ip_rt_init(void);
 void rt_cache_flush(struct net *net);
 void rt_flush_dev(struct net_device *dev);
-struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
+struct rtable *__ip_route_output_key_hash(struct net *, struct flowi4 *flp,
+					  int mp_hash);
+
+static inline struct rtable *__ip_route_output_key(struct net *net,
+						   struct flowi4 *flp)
+{
+	return __ip_route_output_key_hash(net, flp, -1);
+}
+
 struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
-				    struct sock *sk);
+				    const struct sock *sk);
 struct dst_entry *ipv4_blackhole_route(struct net *net,
 				       struct dst_entry *dst_orig);
 
@@ -188,8 +200,12 @@ void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
 void ip_rt_send_redirect(struct sk_buff *skb);
 
 unsigned int inet_addr_type(struct net *net, __be32 addr);
+unsigned int inet_addr_type_table(struct net *net, __be32 addr, u32 tb_id);
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr);
+unsigned int inet_addr_type_dev_table(struct net *net,
+				      const struct net_device *dev,
+				      __be32 addr);
 void ip_rt_multicast_event(struct in_device *);
 int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
@@ -266,6 +282,15 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 	ip_route_connect_init(fl4, dst, src, tos, oif, protocol,
 			      sport, dport, sk);
 
+	if (!src && oif) {
+		int rc;
+
+		rc = l3mdev_get_saddr(net, oif, fl4);
+		if (rc < 0)
+			return ERR_PTR(rc);
+
+		src = fl4->saddr;
+	}
 	if (!dst || !src) {
 		rt = __ip_route_output_key(net, fl4);
 		if (IS_ERR(rt))

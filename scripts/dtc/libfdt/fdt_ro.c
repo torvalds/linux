@@ -154,9 +154,9 @@ int fdt_subnode_offset(const void *fdt, int parentoffset,
 	return fdt_subnode_offset_namelen(fdt, parentoffset, name, strlen(name));
 }
 
-int fdt_path_offset(const void *fdt, const char *path)
+int fdt_path_offset_namelen(const void *fdt, const char *path, int namelen)
 {
-	const char *end = path + strlen(path);
+	const char *end = path + namelen;
 	const char *p = path;
 	int offset = 0;
 
@@ -164,7 +164,7 @@ int fdt_path_offset(const void *fdt, const char *path)
 
 	/* see if we have an alias */
 	if (*path != '/') {
-		const char *q = strchr(path, '/');
+		const char *q = memchr(path, '/', end - p);
 
 		if (!q)
 			q = end;
@@ -177,14 +177,15 @@ int fdt_path_offset(const void *fdt, const char *path)
 		p = q;
 	}
 
-	while (*p) {
+	while (p < end) {
 		const char *q;
 
-		while (*p == '/')
+		while (*p == '/') {
 			p++;
-		if (! *p)
-			return offset;
-		q = strchr(p, '/');
+			if (p == end)
+				return offset;
+		}
+		q = memchr(p, '/', end - p);
 		if (! q)
 			q = end;
 
@@ -196,6 +197,11 @@ int fdt_path_offset(const void *fdt, const char *path)
 	}
 
 	return offset;
+}
+
+int fdt_path_offset(const void *fdt, const char *path)
+{
+	return fdt_path_offset_namelen(fdt, path, strlen(path));
 }
 
 const char *fdt_get_name(const void *fdt, int nodeoffset, int *len)
@@ -322,7 +328,7 @@ const void *fdt_getprop(const void *fdt, int nodeoffset,
 
 uint32_t fdt_get_phandle(const void *fdt, int nodeoffset)
 {
-	const uint32_t *php;
+	const fdt32_t *php;
 	int len;
 
 	/* FIXME: This is a bit sub-optimal, since we potentially scan
@@ -515,8 +521,7 @@ int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle)
 	return offset; /* error from fdt_next_node() */
 }
 
-static int _fdt_stringlist_contains(const char *strlist, int listlen,
-				    const char *str)
+int fdt_stringlist_contains(const char *strlist, int listlen, const char *str)
 {
 	int len = strlen(str);
 	const char *p;
@@ -542,7 +547,7 @@ int fdt_node_check_compatible(const void *fdt, int nodeoffset,
 	prop = fdt_getprop(fdt, nodeoffset, "compatible", &len);
 	if (!prop)
 		return len;
-	if (_fdt_stringlist_contains(prop, len, compatible))
+	if (fdt_stringlist_contains(prop, len, compatible))
 		return 0;
 	else
 		return 1;

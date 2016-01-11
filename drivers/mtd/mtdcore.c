@@ -48,14 +48,34 @@
 static struct backing_dev_info mtd_bdi = {
 };
 
-static int mtd_cls_suspend(struct device *dev, pm_message_t state);
-static int mtd_cls_resume(struct device *dev);
+#ifdef CONFIG_PM_SLEEP
+
+static int mtd_cls_suspend(struct device *dev)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	return mtd ? mtd_suspend(mtd) : 0;
+}
+
+static int mtd_cls_resume(struct device *dev)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	if (mtd)
+		mtd_resume(mtd);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(mtd_cls_pm_ops, mtd_cls_suspend, mtd_cls_resume);
+#define MTD_CLS_PM_OPS (&mtd_cls_pm_ops)
+#else
+#define MTD_CLS_PM_OPS NULL
+#endif
 
 static struct class mtd_class = {
 	.name = "mtd",
 	.owner = THIS_MODULE,
-	.suspend = mtd_cls_suspend,
-	.resume = mtd_cls_resume,
+	.pm = MTD_CLS_PM_OPS,
 };
 
 static DEFINE_IDR(mtd_idr);
@@ -86,22 +106,6 @@ static void mtd_release(struct device *dev)
 
 	/* remove /dev/mtdXro node */
 	device_destroy(&mtd_class, index + 1);
-}
-
-static int mtd_cls_suspend(struct device *dev, pm_message_t state)
-{
-	struct mtd_info *mtd = dev_get_drvdata(dev);
-
-	return mtd ? mtd_suspend(mtd) : 0;
-}
-
-static int mtd_cls_resume(struct device *dev)
-{
-	struct mtd_info *mtd = dev_get_drvdata(dev);
-
-	if (mtd)
-		mtd_resume(mtd);
-	return 0;
 }
 
 static ssize_t mtd_type_show(struct device *dev,
@@ -375,8 +379,7 @@ static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
  *
  *	Add a device to the list of MTD devices present in the system, and
  *	notify each currently active MTD 'user' of its arrival. Returns
- *	zero on success or 1 on failure, which currently will only happen
- *	if there is insufficient memory or a sysfs error.
+ *	zero on success or non-zero on failure.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
@@ -384,14 +387,24 @@ int add_mtd_device(struct mtd_info *mtd)
 	struct mtd_notifier *not;
 	int i, error;
 
+	/*
+	 * May occur, for instance, on buggy drivers which call
+	 * mtd_device_parse_register() multiple times on the same master MTD,
+	 * especially with CONFIG_MTD_PARTITIONED_MASTER=y.
+	 */
+	if (WARN_ONCE(mtd->backing_dev_info, "MTD already registered\n"))
+		return -EEXIST;
+
 	mtd->backing_dev_info = &mtd_bdi;
 
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
 
 	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
-	if (i < 0)
+	if (i < 0) {
+		error = i;
 		goto fail_locked;
+	}
 
 	mtd->index = i;
 	mtd->usecount = 0;
@@ -420,17 +433,20 @@ int add_mtd_device(struct mtd_info *mtd)
 			printk(KERN_WARNING
 			       "%s: unlock failed, writes may not work\n",
 			       mtd->name);
+		/* Ignore unlock failures? */
+		error = 0;
 	}
 
 	/* Caller should have set dev.parent to match the
-	 * physical device.
+	 * physical device, if appropriate.
 	 */
 	mtd->dev.type = &mtd_devtype;
 	mtd->dev.class = &mtd_class;
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
-	if (device_register(&mtd->dev) != 0)
+	error = device_register(&mtd->dev);
+	if (error)
 		goto fail_added;
 
 	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
@@ -454,7 +470,7 @@ fail_added:
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
-	return 1;
+	return error;
 }
 
 /**
@@ -510,8 +526,8 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 
 	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
 		ret = add_mtd_device(mtd);
-		if (ret == 1)
-			return -ENODEV;
+		if (ret)
+			return ret;
 	}
 
 	if (nbparts > 0) {
@@ -524,6 +540,21 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 	return 0;
 }
 
+/*
+ * Set a few defaults based on the parent devices, if not provided by the
+ * driver
+ */
+static void mtd_set_dev_defaults(struct mtd_info *mtd)
+{
+	if (mtd->dev.parent) {
+		if (!mtd->owner && mtd->dev.parent->driver)
+			mtd->owner = mtd->dev.parent->driver->owner;
+		if (!mtd->name)
+			mtd->name = dev_name(mtd->dev.parent);
+	} else {
+		pr_debug("mtd device won't show a device symlink in sysfs\n");
+	}
+}
 
 /**
  * mtd_device_parse_register - parse partitions and register an MTD device.
@@ -562,6 +593,8 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	int ret;
 	struct mtd_partition *real_parts = NULL;
 
+	mtd_set_dev_defaults(mtd);
+
 	ret = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
 	if (ret <= 0 && nr_parts && parts) {
 		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
@@ -571,9 +604,17 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 		else
 			ret = nr_parts;
 	}
+	/* Didn't come up with either parsed OR fallback partitions */
+	if (ret < 0) {
+		pr_info("mtd: failed to find partitions; one or more parsers reports errors (%d)\n",
+			ret);
+		/* Don't abort on errors; we can still use unpartitioned MTD */
+		ret = 0;
+	}
 
-	if (ret >= 0)
-		ret = mtd_add_device_partitions(mtd, real_parts, ret);
+	ret = mtd_add_device_partitions(mtd, real_parts, ret);
+	if (ret)
+		goto out;
 
 	/*
 	 * FIXME: some drivers unfortunately call this function more than once.
@@ -583,11 +624,14 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	 * does cause problems with parse_mtd_partitions() above (e.g.,
 	 * cmdlineparts will register partitions more than once).
 	 */
+	WARN_ONCE(mtd->_reboot && mtd->reboot_notifier.notifier_call,
+		  "MTD already registered\n");
 	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
 		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
 		register_reboot_notifier(&mtd->reboot_notifier);
 	}
 
+out:
 	kfree(real_parts);
 	return ret;
 }
@@ -1180,8 +1224,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
  */
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
 {
-	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
-		       __GFP_NORETRY | __GFP_NO_KSWAPD;
+	gfp_t flags = __GFP_NOWARN | __GFP_DIRECT_RECLAIM | __GFP_NORETRY;
 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
 	void *kbuf;
 
@@ -1293,6 +1336,7 @@ static void __exit cleanup_mtd(void)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
 	bdi_destroy(&mtd_bdi);
+	idr_destroy(&mtd_idr);
 }
 
 module_init(init_mtd);

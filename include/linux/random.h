@@ -6,7 +6,16 @@
 #ifndef _LINUX_RANDOM_H
 #define _LINUX_RANDOM_H
 
+#include <linux/list.h>
+#include <linux/once.h>
+
 #include <uapi/linux/random.h>
+
+struct random_ready_callback {
+	struct list_head list;
+	void (*func)(struct random_ready_callback *rdy);
+	struct module *owner;
+};
 
 extern void add_device_randomness(const void *, unsigned int);
 extern void add_input_randomness(unsigned int type, unsigned int code,
@@ -14,6 +23,8 @@ extern void add_input_randomness(unsigned int type, unsigned int code,
 extern void add_interrupt_randomness(int irq, int irq_flags);
 
 extern void get_random_bytes(void *buf, int nbytes);
+extern int add_random_ready_callback(struct random_ready_callback *rdy);
+extern void del_random_ready_callback(struct random_ready_callback *rdy);
 extern void get_random_bytes_arch(void *buf, int nbytes);
 void generate_random_uuid(unsigned char uuid_out[16]);
 extern int random_int_secret_init(void);
@@ -36,6 +47,10 @@ struct rnd_state {
 
 u32 prandom_u32_state(struct rnd_state *state);
 void prandom_bytes_state(struct rnd_state *state, void *buf, size_t nbytes);
+void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state);
+
+#define prandom_init_once(pcpu_state)			\
+	DO_ONCE(prandom_seed_full_state, (pcpu_state))
 
 /**
  * prandom_u32_max - returns a pseudo-random number in interval [0, ep_ro)

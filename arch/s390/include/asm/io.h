@@ -29,6 +29,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 #define ioremap_nocache(addr, size)	ioremap(addr, size)
 #define ioremap_wc			ioremap_nocache
+#define ioremap_wt			ioremap_nocache
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
@@ -56,6 +57,8 @@ static inline void ioport_unmap(void __iomem *p)
  */
 #define pci_iomap pci_iomap
 #define pci_iounmap pci_iounmap
+#define pci_iomap_wc pci_iomap
+#define pci_iomap_wc_range pci_iomap_range
 
 #define memcpy_fromio(dst, src, count)	zpci_memcpy_fromio(dst, src, count)
 #define memcpy_toio(dst, src, count)	zpci_memcpy_toio(dst, src, count)

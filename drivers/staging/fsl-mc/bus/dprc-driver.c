@@ -126,7 +126,7 @@ static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
 				       struct dprc_obj_desc *obj_desc)
 {
 	int error;
-	uint32_t plugged_flag_at_mc =
+	u32 plugged_flag_at_mc =
 			(obj_desc->state & DPRC_OBJ_STATE_PLUGGED);
 
 	if (plugged_flag_at_mc !=
@@ -262,6 +262,7 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev)
 	struct dprc_obj_desc *child_obj_desc_array = NULL;
 
 	error = dprc_get_obj_count(mc_bus_dev->mc_io,
+				   0,
 				   mc_bus_dev->mc_handle,
 				   &num_child_objects);
 	if (error < 0) {
@@ -289,6 +290,7 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev)
 			    &child_obj_desc_array[i];
 
 			error = dprc_get_obj(mc_bus_dev->mc_io,
+					     0,
 					     mc_bus_dev->mc_handle,
 					     i, obj_desc);
 			if (error < 0) {
@@ -399,7 +401,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 			return error;
 	}
 
-	error = dprc_open(mc_dev->mc_io, mc_dev->obj_desc.id,
+	error = dprc_open(mc_dev->mc_io, 0, mc_dev->obj_desc.id,
 			  &mc_dev->mc_handle);
 	if (error < 0) {
 		dev_err(&mc_dev->dev, "dprc_open() failed: %d\n", error);
@@ -419,7 +421,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	return 0;
 
 error_cleanup_open:
-	(void)dprc_close(mc_dev->mc_io, mc_dev->mc_handle);
+	(void)dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 
 error_cleanup_mc_io:
 	fsl_destroy_mc_io(mc_dev->mc_io);
@@ -447,7 +449,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 
 	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
 	dprc_cleanup_all_resource_pools(mc_dev);
-	error = dprc_close(mc_dev->mc_io, mc_dev->mc_handle);
+	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	if (error < 0)
 		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
 
@@ -480,7 +482,7 @@ int __init dprc_driver_init(void)
 	return fsl_mc_driver_register(&dprc_driver);
 }
 
-void __exit dprc_driver_exit(void)
+void dprc_driver_exit(void)
 {
 	fsl_mc_driver_unregister(&dprc_driver);
 }

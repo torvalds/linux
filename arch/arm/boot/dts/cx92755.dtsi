@@ -82,6 +82,26 @@
 		clocks = <&main_clk>;
 	};
 
+	rtc@f0000c30 {
+		compatible = "cnxt,cx92755-rtc";
+		reg = <0xf0000c30 0x18>;
+		interrupts = <25>;
+	};
+
+	watchdog@f0000fc0 {
+		compatible = "cnxt,cx92755-wdt";
+		reg = <0xf0000fc0 0x8>;
+		clocks = <&main_clk>;
+		timeout-sec = <15>;
+	};
+
+	pinctrl: pinctrl@f0000e20 {
+		compatible = "cnxt,cx92755-pinctrl";
+		reg = <0xf0000e20 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
 	uc_regs: syscon@f00003a0 {
 		compatible = "cnxt,cx92755-uc", "syscon";
 		reg = <0xf00003a0 0x10>;
@@ -108,6 +128,17 @@
 		reg = <0xf0000780 0x20>;
 		clocks = <&main_clk>;
 		interrupts = <46>;
+		status = "disabled";
+	};
+
+	i2c: i2c@f0000120 {
+		compatible = "cnxt,cx92755-i2c";
+		reg = <0xf0000120 0x10>;
+		interrupts = <28>;
+		clocks = <&main_clk>;
+		clock-frequency = <100000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 };

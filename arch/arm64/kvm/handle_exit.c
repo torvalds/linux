@@ -37,7 +37,7 @@ static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	int ret;
 
-	trace_kvm_hvc_arm64(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
+	trace_kvm_hvc_arm64(*vcpu_pc(vcpu), vcpu_get_reg(vcpu, 0),
 			    kvm_vcpu_hvc_get_imm(vcpu));
 
 	ret = kvm_psci_call(vcpu);
@@ -82,6 +82,45 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
+/**
+ * kvm_handle_guest_debug - handle a debug exception instruction
+ *
+ * @vcpu:	the vcpu pointer
+ * @run:	access to the kvm_run structure for results
+ *
+ * We route all debug exceptions through the same handler. If both the
+ * guest and host are using the same debug facilities it will be up to
+ * userspace to re-inject the correct exception for guest delivery.
+ *
+ * @return: 0 (while setting run->exit_reason), -1 for error
+ */
+static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	u32 hsr = kvm_vcpu_get_hsr(vcpu);
+	int ret = 0;
+
+	run->exit_reason = KVM_EXIT_DEBUG;
+	run->debug.arch.hsr = hsr;
+
+	switch (hsr >> ESR_ELx_EC_SHIFT) {
+	case ESR_ELx_EC_WATCHPT_LOW:
+		run->debug.arch.far = vcpu->arch.fault.far_el2;
+		/* fall through */
+	case ESR_ELx_EC_SOFTSTP_LOW:
+	case ESR_ELx_EC_BREAKPT_LOW:
+	case ESR_ELx_EC_BKPT32:
+	case ESR_ELx_EC_BRK64:
+		break;
+	default:
+		kvm_err("%s: un-handled case hsr: %#08x\n",
+			__func__, (unsigned int) hsr);
+		ret = -1;
+		break;
+	}
+
+	return ret;
+}
+
 static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_WFx]	= kvm_handle_wfx,
 	[ESR_ELx_EC_CP15_32]	= kvm_handle_cp15_32,
@@ -96,6 +135,11 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_SYS64]	= kvm_handle_sys_reg,
 	[ESR_ELx_EC_IABT_LOW]	= kvm_handle_guest_abort,
 	[ESR_ELx_EC_DABT_LOW]	= kvm_handle_guest_abort,
+	[ESR_ELx_EC_SOFTSTP_LOW]= kvm_handle_guest_debug,
+	[ESR_ELx_EC_WATCHPT_LOW]= kvm_handle_guest_debug,
+	[ESR_ELx_EC_BREAKPT_LOW]= kvm_handle_guest_debug,
+	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_debug,
+	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_debug,
 };
 
 static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)

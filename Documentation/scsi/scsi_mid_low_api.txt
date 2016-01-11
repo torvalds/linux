@@ -1269,7 +1269,7 @@ Members of interest:
     request_buffer - either contains data buffer or scatter gather list
                      depending on the setting of use_sg. Scatter gather
                      elements are defined by 'struct scatterlist' found
-                     in include/asm/scatterlist.h .
+                     in include/linux/scatterlist.h .
     done         - function pointer that should be invoked by LLD when the
                    SCSI command is completed (successfully or otherwise).
                    Should only be called by an LLD if the LLD has accepted

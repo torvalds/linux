@@ -23,6 +23,13 @@
 #include <linux/iio/common/st_sensors.h>
 #include "st_magn.h"
 
+int st_magn_trig_set_state(struct iio_trigger *trig, bool state)
+{
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+
+	return st_sensors_set_dataready_irq(indio_dev, state);
+}
+
 static int st_magn_buffer_preenable(struct iio_dev *indio_dev)
 {
 	return st_sensors_set_enable(indio_dev, true);

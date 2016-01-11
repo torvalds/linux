@@ -42,10 +42,6 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 			    XT_CONNLABEL_OP_SET;
 	struct xt_connlabel_mtinfo *info = par->matchinfo;
 	int ret;
-	size_t words;
-
-	if (info->bit > XT_CONNLABEL_MAXBIT)
-		return -ERANGE;
 
 	if (info->options & ~options) {
 		pr_err("Unknown options in mask %x\n", info->options);
@@ -59,19 +55,15 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 		return ret;
 	}
 
-	par->net->ct.labels_used++;
-	words = BITS_TO_LONGS(info->bit+1);
-	if (words > par->net->ct.label_words)
-		par->net->ct.label_words = words;
-
+	ret = nf_connlabels_get(par->net, info->bit + 1);
+	if (ret < 0)
+		nf_ct_l3proto_module_put(par->family);
 	return ret;
 }
 
 static void connlabel_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	par->net->ct.labels_used--;
-	if (par->net->ct.labels_used == 0)
-		par->net->ct.label_words = 0;
+	nf_connlabels_put(par->net);
 	nf_ct_l3proto_module_put(par->family);
 }
 

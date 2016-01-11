@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/leds.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
@@ -129,7 +130,7 @@ static char rep;					/* flag telling character repeat */
 
 static int shift_state = 0;
 
-static unsigned char ledstate = 0xff;			/* undefined */
+static unsigned int ledstate = -1U;			/* undefined */
 static unsigned char ledioctl;
 
 /*
@@ -961,6 +962,122 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 	}
 }
 
+#if IS_ENABLED(CONFIG_INPUT_LEDS) && IS_ENABLED(CONFIG_LEDS_TRIGGERS)
+
+struct kbd_led_trigger {
+	struct led_trigger trigger;
+	unsigned int mask;
+};
+
+static void kbd_led_trigger_activate(struct led_classdev *cdev)
+{
+	struct kbd_led_trigger *trigger =
+		container_of(cdev->trigger, struct kbd_led_trigger, trigger);
+
+	tasklet_disable(&keyboard_tasklet);
+	if (ledstate != -1U)
+		led_trigger_event(&trigger->trigger,
+				  ledstate & trigger->mask ?
+					LED_FULL : LED_OFF);
+	tasklet_enable(&keyboard_tasklet);
+}
+
+#define KBD_LED_TRIGGER(_led_bit, _name) {			\
+		.trigger = {					\
+			.name = _name,				\
+			.activate = kbd_led_trigger_activate,	\
+		},						\
+		.mask	= BIT(_led_bit),			\
+	}
+
+#define KBD_LOCKSTATE_TRIGGER(_led_bit, _name)		\
+	KBD_LED_TRIGGER((_led_bit) + 8, _name)
+
+static struct kbd_led_trigger kbd_led_triggers[] = {
+	KBD_LED_TRIGGER(VC_SCROLLOCK, "kbd-scrollock"),
+	KBD_LED_TRIGGER(VC_NUMLOCK,   "kbd-numlock"),
+	KBD_LED_TRIGGER(VC_CAPSLOCK,  "kbd-capslock"),
+	KBD_LED_TRIGGER(VC_KANALOCK,  "kbd-kanalock"),
+
+	KBD_LOCKSTATE_TRIGGER(VC_SHIFTLOCK,  "kbd-shiftlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_ALTGRLOCK,  "kbd-altgrlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_CTRLLOCK,   "kbd-ctrllock"),
+	KBD_LOCKSTATE_TRIGGER(VC_ALTLOCK,    "kbd-altlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_SHIFTLLOCK, "kbd-shiftllock"),
+	KBD_LOCKSTATE_TRIGGER(VC_SHIFTRLOCK, "kbd-shiftrlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_CTRLLLOCK,  "kbd-ctrlllock"),
+	KBD_LOCKSTATE_TRIGGER(VC_CTRLRLOCK,  "kbd-ctrlrlock"),
+};
+
+static void kbd_propagate_led_state(unsigned int old_state,
+				    unsigned int new_state)
+{
+	struct kbd_led_trigger *trigger;
+	unsigned int changed = old_state ^ new_state;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(kbd_led_triggers); i++) {
+		trigger = &kbd_led_triggers[i];
+
+		if (changed & trigger->mask)
+			led_trigger_event(&trigger->trigger,
+					  new_state & trigger->mask ?
+						LED_FULL : LED_OFF);
+	}
+}
+
+static int kbd_update_leds_helper(struct input_handle *handle, void *data)
+{
+	unsigned int led_state = *(unsigned int *)data;
+
+	if (test_bit(EV_LED, handle->dev->evbit))
+		kbd_propagate_led_state(~led_state, led_state);
+
+	return 0;
+}
+
+static void kbd_init_leds(void)
+{
+	int error;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(kbd_led_triggers); i++) {
+		error = led_trigger_register(&kbd_led_triggers[i].trigger);
+		if (error)
+			pr_err("error %d while registering trigger %s\n",
+			       error, kbd_led_triggers[i].trigger.name);
+	}
+}
+
+#else
+
+static int kbd_update_leds_helper(struct input_handle *handle, void *data)
+{
+	unsigned int leds = *(unsigned int *)data;
+
+	if (test_bit(EV_LED, handle->dev->evbit)) {
+		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
+	}
+
+	return 0;
+}
+
+static void kbd_propagate_led_state(unsigned int old_state,
+				    unsigned int new_state)
+{
+	input_handler_for_each_handle(&kbd_handler, &new_state,
+				      kbd_update_leds_helper);
+}
+
+static void kbd_init_leds(void)
+{
+}
+
+#endif
+
 /*
  * The leds display either (i) the status of NumLock, CapsLock, ScrollLock,
  * or (ii) whatever pattern of lights people want to show using KDSETLED,
@@ -968,7 +1085,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
  */
 static unsigned char getledstate(void)
 {
-	return ledstate;
+	return ledstate & 0xff;
 }
 
 void setledstate(struct kbd_struct *kb, unsigned int led)
@@ -993,20 +1110,6 @@ static inline unsigned char getleds(void)
 		return ledioctl;
 
 	return kb->ledflagstate;
-}
-
-static int kbd_update_leds_helper(struct input_handle *handle, void *data)
-{
-	unsigned char leds = *(unsigned char *)data;
-
-	if (test_bit(EV_LED, handle->dev->evbit)) {
-		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
-	}
-
-	return 0;
 }
 
 /**
@@ -1085,24 +1188,23 @@ void vt_kbd_con_stop(int console)
 }
 
 /*
- * This is the tasklet that updates LED state on all keyboards
- * attached to the box. The reason we use tasklet is that we
- * need to handle the scenario when keyboard handler is not
- * registered yet but we already getting updates from the VT to
- * update led state.
+ * This is the tasklet that updates LED state of LEDs using standard
+ * keyboard triggers. The reason we use tasklet is that we need to
+ * handle the scenario when keyboard handler is not registered yet
+ * but we already getting updates from the VT to update led state.
  */
 static void kbd_bh(unsigned long dummy)
 {
-	unsigned char leds;
+	unsigned int leds;
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&led_lock, flags);
 	leds = getleds();
+	leds |= (unsigned int)kbd->lockstate << 8;
 	spin_unlock_irqrestore(&led_lock, flags);
 
 	if (leds != ledstate) {
-		input_handler_for_each_handle(&kbd_handler, &leds,
-					      kbd_update_leds_helper);
+		kbd_propagate_led_state(ledstate, leds);
 		ledstate = leds;
 	}
 }
@@ -1450,7 +1552,7 @@ static void kbd_start(struct input_handle *handle)
 {
 	tasklet_disable(&keyboard_tasklet);
 
-	if (ledstate != 0xff)
+	if (ledstate != -1U)
 		kbd_update_leds_helper(handle, &ledstate);
 
 	tasklet_enable(&keyboard_tasklet);
@@ -1496,6 +1598,8 @@ int __init kbd_init(void)
 		kbd_table[i].modeflags = KBD_DEFMODE;
 		kbd_table[i].kbdmode = default_utf8 ? VC_UNICODE : VC_XLATE;
 	}
+
+	kbd_init_leds();
 
 	error = input_register_handler(&kbd_handler);
 	if (error)

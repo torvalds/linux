@@ -19,12 +19,12 @@
 	compatible = "renesas,marzen", "renesas,r8a7779";
 
 	aliases {
-		serial2 = &scif2;
-		serial4 = &scif4;
+		serial0 = &scif2;
+		serial1 = &scif4;
 	};
 
 	chosen {
-		bootargs = "console=ttySC2,115200 ignore_loglevel root=/dev/nfs ip=on";
+		bootargs = "ignore_loglevel root=/dev/nfs ip=on";
 		stdout-path = &scif2;
 	};
 
@@ -42,10 +42,10 @@
 		regulator-always-on;
 	};
 
-	lan0@18000000 {
+	ethernet@18000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
-		pinctrl-0 = <&lan0_pins>;
+		pinctrl-0 = <&ethernet_pins>;
 		pinctrl-names = "default";
 
 		phy-mode = "mii";
@@ -176,7 +176,7 @@
 		};
 	};
 
-	lan0_pins: lan0 {
+	ethernet_pins: ethernet {
 		intc {
 			renesas,groups = "intc_irq1_b";
 			renesas,function = "intc";

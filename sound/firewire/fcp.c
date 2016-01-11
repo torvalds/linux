@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include "fcp.h"
 #include "lib.h"
-#include "amdtp.h"
+#include "amdtp-stream.h"
 
 #define CTS_AVC 0x00
 

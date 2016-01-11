@@ -97,9 +97,9 @@ static u32 rf_serial_read(struct adapter *adapt,
 	udelay(10);
 
 	if (rfpath == RF_PATH_A)
-		rfpi_enable = (u8)phy_query_bb_reg(adapt, rFPGA0_XA_HSSIParameter1, BIT8);
+		rfpi_enable = (u8)phy_query_bb_reg(adapt, rFPGA0_XA_HSSIParameter1, BIT(8));
 	else if (rfpath == RF_PATH_B)
-		rfpi_enable = (u8)phy_query_bb_reg(adapt, rFPGA0_XB_HSSIParameter1, BIT8);
+		rfpi_enable = (u8)phy_query_bb_reg(adapt, rFPGA0_XB_HSSIParameter1, BIT(8));
 
 	if (rfpi_enable)
 		ret = phy_query_bb_reg(adapt, phyreg->rfLSSIReadBackPi,
@@ -293,7 +293,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 		    (hal_data->nCur40MhzPrimeSC>>1));
 		phy_set_bb_reg(adapt, rOFDM1_LSTF, 0xC00,
 			       hal_data->nCur40MhzPrimeSC);
-		phy_set_bb_reg(adapt, 0x818, (BIT26 | BIT27),
+		phy_set_bb_reg(adapt, 0x818, (BIT(26) | BIT(27)),
 		   (hal_data->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
@@ -629,7 +629,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 
 static u8 phy_path_a_iqk(struct adapter *adapt, bool config_pathb)
 {
-	u32 reg_eac, reg_e94, reg_e9c, reg_ea4;
+	u32 reg_eac, reg_e94, reg_e9c;
 	u8 result = 0x00;
 
 	/* 1 Tx IQK */
@@ -651,9 +651,8 @@ static u8 phy_path_a_iqk(struct adapter *adapt, bool config_pathb)
 	reg_eac = phy_query_bb_reg(adapt, rRx_Power_After_IQK_A_2, bMaskDWord);
 	reg_e94 = phy_query_bb_reg(adapt, rTx_Power_Before_IQK_A, bMaskDWord);
 	reg_e9c = phy_query_bb_reg(adapt, rTx_Power_After_IQK_A, bMaskDWord);
-	reg_ea4 = phy_query_bb_reg(adapt, rRx_Power_Before_IQK_A_2, bMaskDWord);
 
-	if (!(reg_eac & BIT28) &&
+	if (!(reg_eac & BIT(28)) &&
 	    (((reg_e94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
@@ -706,7 +705,7 @@ static u8 phy_path_a_rx_iqk(struct adapter *adapt, bool configPathB)
 	reg_e94 = phy_query_bb_reg(adapt, rTx_Power_Before_IQK_A, bMaskDWord);
 	reg_e9c = phy_query_bb_reg(adapt, rTx_Power_After_IQK_A, bMaskDWord);
 
-	if (!(reg_eac & BIT28) &&
+	if (!(reg_eac & BIT(28)) &&
 	    (((reg_e94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
@@ -754,7 +753,7 @@ static u8 phy_path_a_rx_iqk(struct adapter *adapt, bool configPathB)
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
 	phy_set_rf_reg(adapt, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x180);
 
-	if (!(reg_eac & BIT27) && /* if Tx is OK, check whether Rx is OK */
+	if (!(reg_eac & BIT(27)) && /* if Tx is OK, check whether Rx is OK */
 	    (((reg_ea4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((reg_eac & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -784,14 +783,14 @@ static u8 phy_path_b_iqk(struct adapter *adapt)
 	regec4 = phy_query_bb_reg(adapt, rRx_Power_Before_IQK_B_2, bMaskDWord);
 	regecc = phy_query_bb_reg(adapt, rRx_Power_After_IQK_B_2, bMaskDWord);
 
-	if (!(regeac & BIT31) &&
+	if (!(regeac & BIT(31)) &&
 	    (((regeb4 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regebc & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
 	else
 		return result;
 
-	if (!(regeac & BIT30) &&
+	if (!(regeac & BIT(30)) &&
 	    (((regec4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regecc & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -960,9 +959,9 @@ static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *ba
 	usb_write8(adapt, mac_reg[i], 0x3F);
 
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT3)));
+		usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT(3))));
 	}
-	usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT5)));
+	usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT(5))));
 }
 
 static void path_a_standby(struct adapter *adapt)
@@ -1014,7 +1013,7 @@ static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
 			tmp2 = resulta[c2][i];
 		}
 
-		diff = (tmp1 > tmp2) ? (tmp1 - tmp2) : (tmp2 - tmp1);
+		diff = abs(tmp1 - tmp2);
 
 		if (diff > MAX_TOLERANCE) {
 			if ((i == 2 || i == 6) && !sim_bitmap) {
@@ -1118,15 +1117,15 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 	}
 
 	/* BB setting */
-	phy_set_bb_reg(adapt, rFPGA0_RFMOD, BIT24, 0x00);
+	phy_set_bb_reg(adapt, rFPGA0_RFMOD, BIT(24), 0x00);
 	phy_set_bb_reg(adapt, rOFDM0_TRxPathEnable, bMaskDWord, 0x03a05600);
 	phy_set_bb_reg(adapt, rOFDM0_TRMuxPar, bMaskDWord, 0x000800e4);
 	phy_set_bb_reg(adapt, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22204000);
 
-	phy_set_bb_reg(adapt, rFPGA0_XAB_RFInterfaceSW, BIT10, 0x01);
-	phy_set_bb_reg(adapt, rFPGA0_XAB_RFInterfaceSW, BIT26, 0x01);
-	phy_set_bb_reg(adapt, rFPGA0_XA_RFInterfaceOE, BIT10, 0x00);
-	phy_set_bb_reg(adapt, rFPGA0_XB_RFInterfaceOE, BIT10, 0x00);
+	phy_set_bb_reg(adapt, rFPGA0_XAB_RFInterfaceSW, BIT(10), 0x01);
+	phy_set_bb_reg(adapt, rFPGA0_XAB_RFInterfaceSW, BIT(26), 0x01);
+	phy_set_bb_reg(adapt, rFPGA0_XA_RFInterfaceOE, BIT(10), 0x00);
+	phy_set_bb_reg(adapt, rFPGA0_XB_RFInterfaceOE, BIT(10), 0x00);
 
 	if (is2t) {
 		phy_set_bb_reg(adapt, rFPGA0_XA_LSSIParameter, bMaskDWord,
@@ -1316,8 +1315,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 	s32 result[4][8];
 	u8 i, final, chn_index;
 	bool pathaok, pathbok;
-	s32 reg_e94, reg_e9c, reg_ea4, reg_eac, reg_eb4, reg_ebc, reg_ec4,
-	    reg_ecc;
+	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_ec4;
 	bool is12simular, is13simular, is23simular;
 	bool singletone = false, carrier_sup = false;
 	u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
@@ -1389,18 +1387,15 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		reg_e94 = result[i][0];
 		reg_e9c = result[i][1];
 		reg_ea4 = result[i][2];
-		reg_eac = result[i][3];
 		reg_eb4 = result[i][4];
 		reg_ebc = result[i][5];
 		reg_ec4 = result[i][6];
-		reg_ecc = result[i][7];
 	}
 
 	if (final != 0xff) {
 		reg_e94 = result[final][0];
 		reg_e9c = result[final][1];
 		reg_ea4 = result[final][2];
-		reg_eac = result[final][3];
 		reg_eb4 = result[final][4];
 		reg_ebc = result[final][5];
 		dm_odm->RFCalibrateInfo.RegE94 = reg_e94;
@@ -1408,7 +1403,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		dm_odm->RFCalibrateInfo.RegEB4 = reg_eb4;
 		dm_odm->RFCalibrateInfo.RegEBC = reg_ebc;
 		reg_ec4 = result[final][6];
-		reg_ecc = result[final][7];
 		pathaok = true;
 		pathbok = true;
 	} else {

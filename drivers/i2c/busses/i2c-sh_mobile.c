@@ -150,6 +150,7 @@ struct sh_mobile_i2c_data {
 
 struct sh_mobile_dt_config {
 	int clks_per_count;
+	void (*setup)(struct sh_mobile_i2c_data *pd);
 };
 
 #define IIC_FLAG_HAS_ICIC67	(1 << 0)
@@ -164,6 +165,7 @@ struct sh_mobile_dt_config {
 #define ICIC			0x0c
 #define ICCL			0x10
 #define ICCH			0x14
+#define ICSTART			0x70
 
 /* Register bits */
 #define ICCR_ICE		0x80
@@ -189,6 +191,8 @@ struct sh_mobile_dt_config {
 #define ICIC_TACKE		0x04
 #define ICIC_WAITE		0x02
 #define ICIC_DTEE		0x01
+
+#define ICSTART_ICSTART		0x10
 
 static void iic_wr(struct sh_mobile_i2c_data *pd, int offs, unsigned char data)
 {
@@ -726,7 +730,8 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 	struct sh_mobile_i2c_data *pd = i2c_get_adapdata(adapter);
 	struct i2c_msg	*msg;
 	int err = 0;
-	int i, k;
+	int i;
+	long timeout;
 
 	activate_ch(pd);
 
@@ -745,10 +750,10 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 			i2c_op(pd, OP_START, 0);
 
 		/* The interrupt handler takes care of the rest... */
-		k = wait_event_timeout(pd->wait,
+		timeout = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
-				       5 * HZ);
-		if (!k) {
+				       adapter->timeout);
+		if (!timeout) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
 				sh_mobile_i2c_cleanup_dma(pd);
@@ -782,6 +787,33 @@ static struct i2c_algorithm sh_mobile_i2c_algorithm = {
 	.master_xfer	= sh_mobile_i2c_xfer,
 };
 
+/*
+ * r8a7740 chip has lasting errata on I2C I/O pad reset.
+ * this is work-around for it.
+ */
+static void sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
+{
+	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
+	iic_rd(pd, ICCR); /* dummy read */
+
+	iic_set_clr(pd, ICSTART, ICSTART_ICSTART, 0);
+	iic_rd(pd, ICSTART); /* dummy read */
+
+	udelay(10);
+
+	iic_wr(pd, ICCR, ICCR_SCP);
+	iic_wr(pd, ICSTART, 0);
+
+	udelay(10);
+
+	iic_wr(pd, ICCR, ICCR_TRS);
+	udelay(10);
+	iic_wr(pd, ICCR, 0);
+	udelay(10);
+	iic_wr(pd, ICCR, ICCR_TRS);
+	udelay(10);
+}
+
 static const struct sh_mobile_dt_config default_dt_config = {
 	.clks_per_count = 1,
 };
@@ -790,14 +822,21 @@ static const struct sh_mobile_dt_config fast_clock_dt_config = {
 	.clks_per_count = 2,
 };
 
+static const struct sh_mobile_dt_config r8a7740_dt_config = {
+	.clks_per_count = 1,
+	.setup = sh_mobile_i2c_r8a7740_workaround,
+};
+
 static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
 	{ .compatible = "renesas,rmobile-iic", .data = &default_dt_config },
 	{ .compatible = "renesas,iic-r8a73a4", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7740", .data = &r8a7740_dt_config },
 	{ .compatible = "renesas,iic-r8a7790", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7791", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7792", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7793", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7794", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7795", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-sh73a0", .data = &fast_clock_dt_config },
 	{},
 };
@@ -885,6 +924,9 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 			config = match->data;
 			pd->clks_per_count = config->clks_per_count;
+
+			if (config->setup)
+				config->setup(pd);
 		}
 	} else {
 		if (pdata && pdata->bus_speed)

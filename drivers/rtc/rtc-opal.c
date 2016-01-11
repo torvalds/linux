@@ -152,10 +152,10 @@ exit:
 /* Set Timed Power-On */
 static int opal_set_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	u64 h_m_s_ms = 0, token;
+	u64 h_m_s_ms = 0;
 	struct opal_msg msg;
 	u32 y_m_d = 0;
-	int rc;
+	int token, rc;
 
 	tm_to_opal(&alarm->time, &y_m_d, &h_m_s_ms);
 
@@ -190,20 +190,22 @@ exit:
 	return rc;
 }
 
-static const struct rtc_class_ops opal_rtc_ops = {
+static struct rtc_class_ops opal_rtc_ops = {
 	.read_time	= opal_get_rtc_time,
 	.set_time	= opal_set_rtc_time,
-	.read_alarm	= opal_get_tpo_time,
-	.set_alarm	= opal_set_tpo_time,
 };
 
 static int opal_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	if (pdev->dev.of_node && of_get_property(pdev->dev.of_node, "has-tpo",
-						 NULL))
+	if (pdev->dev.of_node &&
+	    (of_property_read_bool(pdev->dev.of_node, "wakeup-source") ||
+	     of_property_read_bool(pdev->dev.of_node, "has-tpo")/* legacy */)) {
 		device_set_wakeup_capable(&pdev->dev, true);
+		opal_rtc_ops.read_alarm	= opal_get_tpo_time;
+		opal_rtc_ops.set_alarm = opal_set_tpo_time;
+	}
 
 	rtc = devm_rtc_device_register(&pdev->dev, DRVNAME, &opal_rtc_ops,
 				       THIS_MODULE);
@@ -236,7 +238,6 @@ static struct platform_driver opal_rtc_driver = {
 	.id_table	= opal_rtc_driver_ids,
 	.driver		= {
 		.name		= DRVNAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= opal_rtc_match,
 	},
 };

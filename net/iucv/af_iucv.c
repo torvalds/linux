@@ -95,11 +95,10 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *, enum iucv_tx_notify);
 /* Call Back functions */
 static void iucv_callback_rx(struct iucv_path *, struct iucv_message *);
 static void iucv_callback_txdone(struct iucv_path *, struct iucv_message *);
-static void iucv_callback_connack(struct iucv_path *, u8 ipuser[16]);
-static int iucv_callback_connreq(struct iucv_path *, u8 ipvmid[8],
-				 u8 ipuser[16]);
-static void iucv_callback_connrej(struct iucv_path *, u8 ipuser[16]);
-static void iucv_callback_shutdown(struct iucv_path *, u8 ipuser[16]);
+static void iucv_callback_connack(struct iucv_path *, u8 *);
+static int iucv_callback_connreq(struct iucv_path *, u8 *, u8 *);
+static void iucv_callback_connrej(struct iucv_path *, u8 *);
+static void iucv_callback_shutdown(struct iucv_path *, u8 *);
 
 static struct iucv_sock_list iucv_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(iucv_sk_list.lock),
@@ -535,12 +534,12 @@ static void iucv_sock_init(struct sock *sk, struct sock *parent)
 		sk->sk_type = parent->sk_type;
 }
 
-static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
+static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio, int kern)
 {
 	struct sock *sk;
 	struct iucv_sock *iucv;
 
-	sk = sk_alloc(&init_net, PF_IUCV, prio, &iucv_proto);
+	sk = sk_alloc(&init_net, PF_IUCV, prio, &iucv_proto, kern);
 	if (!sk)
 		return NULL;
 	iucv = iucv_sk(sk);
@@ -602,7 +601,7 @@ static int iucv_sock_create(struct net *net, struct socket *sock, int protocol,
 		return -ESOCKTNOSUPPORT;
 	}
 
-	sk = iucv_sock_alloc(sock, protocol, GFP_KERNEL);
+	sk = iucv_sock_alloc(sock, protocol, GFP_KERNEL, kern);
 	if (!sk)
 		return -ENOMEM;
 
@@ -1484,7 +1483,7 @@ unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 	if (sock_writeable(sk) && iucv_below_msglim(sk))
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 	else
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	return mask;
 }
@@ -1723,7 +1722,7 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	}
 
 	/* Create the new socket */
-	nsk = iucv_sock_alloc(NULL, sk->sk_type, GFP_ATOMIC);
+	nsk = iucv_sock_alloc(NULL, sk->sk_type, GFP_ATOMIC, 0);
 	if (!nsk) {
 		err = pr_iucv->path_sever(path, user_data);
 		iucv_path_free(path);
@@ -1933,7 +1932,7 @@ static int afiucv_hs_callback_syn(struct sock *sk, struct sk_buff *skb)
 		goto out;
 	}
 
-	nsk = iucv_sock_alloc(NULL, sk->sk_type, GFP_ATOMIC);
+	nsk = iucv_sock_alloc(NULL, sk->sk_type, GFP_ATOMIC, 0);
 	bh_lock_sock(sk);
 	if ((sk->sk_state != IUCV_LISTEN) ||
 	    sk_acceptq_is_full(sk) ||

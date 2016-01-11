@@ -92,7 +92,6 @@ static inline void lustre_posix_acl_cpu_to_le(posix_acl_xattr_entry *d,
 	d->e_id	 = cpu_to_le32(s->e_id);
 }
 
-
 /* if "new_count == 0", then "new = {a_version, NULL}", NOT NULL. */
 static int lustre_posix_acl_xattr_reduce_space(posix_acl_xattr_header **header,
 					       int old_count, int new_count)
@@ -104,12 +103,11 @@ static int lustre_posix_acl_xattr_reduce_space(posix_acl_xattr_header **header,
 	if (unlikely(old_count <= new_count))
 		return old_size;
 
-	OBD_ALLOC(new, new_size);
+	new = kmemdup(*header, new_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
-	memcpy(new, *header, new_size);
-	OBD_FREE(*header, old_size);
+	kfree(*header);
 	*header = new;
 	return new_size;
 }
@@ -120,18 +118,16 @@ static int lustre_ext_acl_xattr_reduce_space(ext_acl_xattr_header **header,
 {
 	int ext_count = le32_to_cpu((*header)->a_count);
 	int ext_size = CFS_ACL_XATTR_SIZE(ext_count, ext_acl_xattr);
-	int old_size = CFS_ACL_XATTR_SIZE(old_count, ext_acl_xattr);
 	ext_acl_xattr_header *new;
 
 	if (unlikely(old_count <= ext_count))
 		return 0;
 
-	OBD_ALLOC(new, ext_size);
+	new = kmemdup(*header, ext_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
-	memcpy(new, *header, ext_size);
-	OBD_FREE(*header, old_size);
+	kfree(*header);
 	*header = new;
 	return 0;
 }
@@ -152,7 +148,7 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 	else
 		count = CFS_ACL_XATTR_COUNT(size, posix_acl_xattr);
 	esize = CFS_ACL_XATTR_SIZE(count, ext_acl_xattr);
-	OBD_ALLOC(new, esize);
+	new = kzalloc(esize, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return ERR_PTR(-ENOMEM);
 
@@ -183,7 +179,7 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 	if (size < sizeof(*new))
 		return -EINVAL;
 
-	OBD_ALLOC(new, size);
+	new = kzalloc(size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
@@ -232,7 +228,7 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 
 _out:
 	if (rc) {
-		OBD_FREE(new, size);
+		kfree(new);
 		size = rc;
 	}
 	return size;
@@ -244,7 +240,7 @@ EXPORT_SYMBOL(lustre_posix_acl_xattr_filter);
  */
 void lustre_posix_acl_xattr_free(posix_acl_xattr_header *header, int size)
 {
-	OBD_FREE(header, size);
+	kfree(header);
 }
 EXPORT_SYMBOL(lustre_posix_acl_xattr_free);
 
@@ -253,8 +249,7 @@ EXPORT_SYMBOL(lustre_posix_acl_xattr_free);
  */
 void lustre_ext_acl_xattr_free(ext_acl_xattr_header *header)
 {
-	OBD_FREE(header, CFS_ACL_XATTR_SIZE(le32_to_cpu(header->a_count), \
-					    ext_acl_xattr));
+	kfree(header);
 }
 EXPORT_SYMBOL(lustre_ext_acl_xattr_free);
 
@@ -291,125 +286,6 @@ again:
 }
 
 /*
- * Merge the posix ACL and the extended ACL into new posix ACL.
- */
-int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
-				 ext_acl_xattr_header *ext_header,
-				 posix_acl_xattr_header **out)
-{
-	int posix_count, posix_size, i, j;
-	int ext_count = le32_to_cpu(ext_header->a_count), pos = 0, rc = 0;
-	posix_acl_xattr_entry pe = {ACL_MASK, 0, ACL_UNDEFINED_ID};
-	posix_acl_xattr_header *new;
-	ext_acl_xattr_entry *ee, ae;
-
-	lustre_posix_acl_cpu_to_le(&pe, &pe);
-	ee = lustre_ext_acl_xattr_search(ext_header, &pe, &pos);
-	if (ee == NULL || le32_to_cpu(ee->e_stat) == ES_DEL) {
-		/* there are only base ACL entries at most. */
-		posix_count = 3;
-		posix_size = CFS_ACL_XATTR_SIZE(posix_count, posix_acl_xattr);
-		OBD_ALLOC(new, posix_size);
-		if (unlikely(new == NULL))
-			return -ENOMEM;
-
-		new->a_version = cpu_to_le32(CFS_ACL_XATTR_VERSION);
-		for (i = 0, j = 0; i < ext_count; i++) {
-			lustre_ext_acl_le_to_cpu(&ae,
-						 &ext_header->a_entries[i]);
-			switch (ae.e_tag) {
-			case ACL_USER_OBJ:
-			case ACL_GROUP_OBJ:
-			case ACL_OTHER:
-				if (ae.e_id != ACL_UNDEFINED_ID) {
-					rc = -EIO;
-					goto _out;
-				}
-
-				if (ae.e_stat != ES_DEL) {
-					new->a_entries[j].e_tag =
-						ext_header->a_entries[i].e_tag;
-					new->a_entries[j].e_perm =
-						ext_header->a_entries[i].e_perm;
-					new->a_entries[j++].e_id =
-						ext_header->a_entries[i].e_id;
-				}
-				break;
-			case ACL_MASK:
-			case ACL_USER:
-			case ACL_GROUP:
-				if (ae.e_stat == ES_DEL)
-					break;
-			default:
-				rc = -EIO;
-				goto _out;
-			}
-		}
-	} else {
-		/* maybe there are valid ACL_USER or ACL_GROUP entries in the
-		 * original server-side ACL, they are regarded as ES_UNC stat.*/
-		int ori_posix_count;
-
-		if (unlikely(size < 0))
-			return -EINVAL;
-		else if (!size)
-			ori_posix_count = 0;
-		else
-			ori_posix_count =
-				CFS_ACL_XATTR_COUNT(size, posix_acl_xattr);
-		posix_count = ori_posix_count + ext_count;
-		posix_size =
-			CFS_ACL_XATTR_SIZE(posix_count, posix_acl_xattr);
-		OBD_ALLOC(new, posix_size);
-		if (unlikely(new == NULL))
-			return -ENOMEM;
-
-		new->a_version = cpu_to_le32(CFS_ACL_XATTR_VERSION);
-		/* 1. process the unchanged ACL entries
-		 *    in the original server-side ACL. */
-		pos = 0;
-		for (i = 0, j = 0; i < ori_posix_count; i++) {
-			ee = lustre_ext_acl_xattr_search(ext_header,
-					&posix_header->a_entries[i], &pos);
-			if (ee == NULL)
-				memcpy(&new->a_entries[j++],
-				       &posix_header->a_entries[i],
-				       sizeof(posix_acl_xattr_entry));
-		}
-
-		/* 2. process the non-deleted entries
-		 *    from client-side extended ACL. */
-		for (i = 0; i < ext_count; i++) {
-			if (le16_to_cpu(ext_header->a_entries[i].e_stat) !=
-			    ES_DEL) {
-				new->a_entries[j].e_tag =
-						ext_header->a_entries[i].e_tag;
-				new->a_entries[j].e_perm =
-						ext_header->a_entries[i].e_perm;
-				new->a_entries[j++].e_id =
-						ext_header->a_entries[i].e_id;
-			}
-		}
-	}
-
-	/* free unused space. */
-	rc = lustre_posix_acl_xattr_reduce_space(&new, posix_count, j);
-	if (rc >= 0) {
-		posix_size = rc;
-		*out = new;
-		rc = 0;
-	}
-
-_out:
-	if (rc) {
-		OBD_FREE(new, posix_size);
-		posix_size = rc;
-	}
-	return posix_size;
-}
-EXPORT_SYMBOL(lustre_acl_xattr_merge2posix);
-
-/*
  * Merge the posix ACL and the extended ACL into new extended ACL.
  */
 ext_acl_xattr_header *
@@ -432,7 +308,7 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	ext_count = posix_count + ori_ext_count;
 	ext_size = CFS_ACL_XATTR_SIZE(ext_count, ext_acl_xattr);
 
-	OBD_ALLOC(new, ext_size);
+	new = kzalloc(ext_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return ERR_PTR(-ENOMEM);
 
@@ -538,7 +414,7 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 
 out:
 	if (rc) {
-		OBD_FREE(new, ext_size);
+		kfree(new);
 		new = ERR_PTR(rc);
 	}
 	return new;

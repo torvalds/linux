@@ -30,7 +30,7 @@
  *
  * Atomically reads the value of @v.
  */
-#define atomic_read(v)		ACCESS_ONCE((v)->counter)
+#define atomic_read(v)		READ_ONCE((v)->counter)
 
 /*
  * atomic_set - set atomic variable
@@ -39,7 +39,7 @@
  *
  * Atomically sets the value of @v to @i.
  */
-#define atomic_set(v, i)		((v)->counter = (i))
+#define atomic_set(v, i)	WRITE_ONCE((v)->counter, (i))
 
 #define ATOMIC_OP(op, c_op, asm_op)					      \
 static __inline__ void atomic_##op(int i, atomic_t * v)			      \
@@ -136,6 +136,10 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)		      \
 
 ATOMIC_OPS(add, +=, addu)
 ATOMIC_OPS(sub, -=, subu)
+
+ATOMIC_OP(and, &=, and)
+ATOMIC_OP(or, |=, or)
+ATOMIC_OP(xor, ^=, xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
@@ -311,14 +315,14 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
  * @v: pointer of type atomic64_t
  *
  */
-#define atomic64_read(v)	ACCESS_ONCE((v)->counter)
+#define atomic64_read(v)	READ_ONCE((v)->counter)
 
 /*
  * atomic64_set - set atomic variable
  * @v: pointer of type atomic64_t
  * @i: required value
  */
-#define atomic64_set(v, i)	((v)->counter = (i))
+#define atomic64_set(v, i)	WRITE_ONCE((v)->counter, (i))
 
 #define ATOMIC64_OP(op, c_op, asm_op)					      \
 static __inline__ void atomic64_##op(long i, atomic64_t * v)		      \
@@ -416,6 +420,9 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	      \
 
 ATOMIC64_OPS(add, +=, daddu)
 ATOMIC64_OPS(sub, -=, dsubu)
+ATOMIC64_OP(and, &=, and)
+ATOMIC64_OP(or, |=, or)
+ATOMIC64_OP(xor, ^=, xor)
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_OP_RETURN
@@ -500,7 +507,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
+ * Returns true iff @v was not @u.
  */
 static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 {

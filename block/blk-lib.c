@@ -11,16 +11,16 @@
 
 struct bio_batch {
 	atomic_t		done;
-	unsigned long		flags;
+	int			error;
 	struct completion	*wait;
 };
 
-static void bio_batch_end_io(struct bio *bio, int err)
+static void bio_batch_end_io(struct bio *bio)
 {
 	struct bio_batch *bb = bio->bi_private;
 
-	if (err && (err != -EOPNOTSUPP))
-		clear_bit(BIO_UPTODATE, &bb->flags);
+	if (bio->bi_error && bio->bi_error != -EOPNOTSUPP)
+		bb->error = bio->bi_error;
 	if (atomic_dec_and_test(&bb->done))
 		complete(bb->wait);
 	bio_put(bio);
@@ -43,7 +43,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
 	int type = REQ_WRITE | REQ_DISCARD;
-	unsigned int max_discard_sectors, granularity;
+	unsigned int granularity;
 	int alignment;
 	struct bio_batch bb;
 	struct bio *bio;
@@ -60,17 +60,6 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	granularity = max(q->limits.discard_granularity >> 9, 1U);
 	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
 
-	/*
-	 * Ensure that max_discard_sectors is of the proper
-	 * granularity, so that requests stay aligned after a split.
-	 */
-	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
-	max_discard_sectors -= max_discard_sectors % granularity;
-	if (unlikely(!max_discard_sectors)) {
-		/* Avoid infinite loop below. Being cautious never hurts. */
-		return -EOPNOTSUPP;
-	}
-
 	if (flags & BLKDEV_DISCARD_SECURE) {
 		if (!blk_queue_secdiscard(q))
 			return -EOPNOTSUPP;
@@ -78,7 +67,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	}
 
 	atomic_set(&bb.done, 1);
-	bb.flags = 1 << BIO_UPTODATE;
+	bb.error = 0;
 	bb.wait = &wait;
 
 	blk_start_plug(&plug);
@@ -92,7 +81,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			break;
 		}
 
-		req_sects = min_t(sector_t, nr_sects, max_discard_sectors);
+		/* Make sure bi_size doesn't overflow */
+		req_sects = min_t(sector_t, nr_sects, UINT_MAX >> 9);
 
 		/*
 		 * If splitting a request, and the next starting sector would be
@@ -134,9 +124,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion_io(&wait);
 
-	if (!test_bit(BIO_UPTODATE, &bb.flags))
-		ret = -EIO;
-
+	if (bb.error)
+		return bb.error;
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
@@ -166,13 +155,11 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	if (!q)
 		return -ENXIO;
 
-	max_write_same_sectors = q->limits.max_write_same_sectors;
-
-	if (max_write_same_sectors == 0)
-		return -EOPNOTSUPP;
+	/* Ensure that max_write_same_sectors doesn't overflow bi_size */
+	max_write_same_sectors = UINT_MAX >> 9;
 
 	atomic_set(&bb.done, 1);
-	bb.flags = 1 << BIO_UPTODATE;
+	bb.error = 0;
 	bb.wait = &wait;
 
 	while (nr_sects) {
@@ -208,9 +195,8 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion_io(&wait);
 
-	if (!test_bit(BIO_UPTODATE, &bb.flags))
-		ret = -ENOTSUPP;
-
+	if (bb.error)
+		return bb.error;
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_write_same);
@@ -236,7 +222,7 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	atomic_set(&bb.done, 1);
-	bb.flags = 1 << BIO_UPTODATE;
+	bb.error = 0;
 	bb.wait = &wait;
 
 	ret = 0;
@@ -270,10 +256,8 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion_io(&wait);
 
-	if (!test_bit(BIO_UPTODATE, &bb.flags))
-		/* One of bios in the batch was completed with error.*/
-		ret = -EIO;
-
+	if (bb.error)
+		return bb.error;
 	return ret;
 }
 

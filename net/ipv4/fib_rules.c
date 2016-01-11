@@ -47,11 +47,12 @@ struct fib4_rule {
 #endif
 };
 
-int __fib_lookup(struct net *net, struct flowi4 *flp, struct fib_result *res)
+int __fib_lookup(struct net *net, struct flowi4 *flp,
+		 struct fib_result *res, unsigned int flags)
 {
 	struct fib_lookup_arg arg = {
 		.result = res,
-		.flags = FIB_LOOKUP_NOREF,
+		.flags = flags,
 	};
 	int err;
 
@@ -317,7 +318,6 @@ static const struct fib_rules_ops __net_initconst fib4_rules_ops_template = {
 	.delete		= fib4_rule_delete,
 	.compare	= fib4_rule_compare,
 	.fill		= fib4_rule_fill,
-	.default_pref	= fib_default_rule_pref,
 	.nlmsg_payload	= fib4_rule_nlmsg_payload,
 	.flush_cache	= fib4_rule_flush_cache,
 	.nlgroup	= RTNLGRP_IPV4_RULE,

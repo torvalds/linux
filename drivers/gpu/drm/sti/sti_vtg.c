@@ -62,7 +62,7 @@
 #define VTG_IRQ_MASK        (VTG_IRQ_TOP | VTG_IRQ_BOTTOM)
 
 /* Delay introduced by the HDMI in nb of pixel */
-#define HDMI_DELAY          (6)
+#define HDMI_DELAY          (5)
 
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
@@ -79,7 +79,7 @@ LIST_HEAD(vtg_lookup);
  * @irq: VTG irq
  * @type: VTG type (main or aux)
  * @notifier_list: notifier callback
- * @crtc_id: the crtc id for vblank event
+ * @crtc: the CRTC for vblank event
  * @slave: slave vtg
  * @link: List node to link the structure in lookup list
  */
@@ -90,7 +90,7 @@ struct sti_vtg {
 	int irq;
 	u32 irq_status;
 	struct raw_notifier_head notifier_list;
-	int crtc_id;
+	struct drm_crtc *crtc;
 	struct sti_vtg *slave;
 	struct list_head link;
 };
@@ -110,7 +110,6 @@ struct sti_vtg *of_vtg_find(struct device_node *np)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(of_vtg_find);
 
 static void vtg_reset(struct sti_vtg *vtg)
 {
@@ -121,6 +120,32 @@ static void vtg_reset(struct sti_vtg *vtg)
 	writel(1, vtg->regs + VTG_DRST_AUTOC);
 }
 
+static void vtg_set_output_window(void __iomem *regs,
+				  const struct drm_display_mode *mode)
+{
+	u32 video_top_field_start;
+	u32 video_top_field_stop;
+	u32 video_bottom_field_start;
+	u32 video_bottom_field_stop;
+	u32 xstart = sti_vtg_get_pixel_number(*mode, 0);
+	u32 ystart = sti_vtg_get_line_number(*mode, 0);
+	u32 xstop = sti_vtg_get_pixel_number(*mode, mode->hdisplay - 1);
+	u32 ystop = sti_vtg_get_line_number(*mode, mode->vdisplay - 1);
+
+	/* Set output window to fit the display mode selected */
+	video_top_field_start = (ystart << 16) | xstart;
+	video_top_field_stop = (ystop << 16) | xstop;
+
+	/* Only progressive supported for now */
+	video_bottom_field_start = video_top_field_start;
+	video_bottom_field_stop = video_top_field_stop;
+
+	writel(video_top_field_start, regs + VTG_VID_TFO);
+	writel(video_top_field_stop, regs + VTG_VID_TFS);
+	writel(video_bottom_field_start, regs + VTG_VID_BFO);
+	writel(video_bottom_field_stop, regs + VTG_VID_BFS);
+}
+
 static void vtg_set_mode(struct sti_vtg *vtg,
 			 int type, const struct drm_display_mode *mode)
 {
@@ -129,18 +154,14 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	if (vtg->slave)
 		vtg_set_mode(vtg->slave, VTG_TYPE_SLAVE_BY_EXT0, mode);
 
+	/* Set the number of clock cycles per line */
 	writel(mode->htotal, vtg->regs + VTG_CLKLN);
+
+	/* Set Half Line Per Field (only progressive supported for now) */
 	writel(mode->vtotal * 2, vtg->regs + VTG_HLFLN);
 
-	tmp = (mode->vtotal - mode->vsync_start + 1) << 16;
-	tmp |= mode->htotal - mode->hsync_start;
-	writel(tmp, vtg->regs + VTG_VID_TFO);
-	writel(tmp, vtg->regs + VTG_VID_BFO);
-
-	tmp = (mode->vdisplay + mode->vtotal - mode->vsync_start + 1) << 16;
-	tmp |= mode->hdisplay + mode->htotal - mode->hsync_start;
-	writel(tmp, vtg->regs + VTG_VID_TFS);
-	writel(tmp, vtg->regs + VTG_VID_BFS);
+	/* Program output window */
+	vtg_set_output_window(vtg->regs, mode);
 
 	/* prepare VTG set 1 for HDMI */
 	tmp = (mode->hsync_end - mode->hsync_start + HDMI_DELAY) << 16;
@@ -151,8 +172,11 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	tmp |= 1;
 	writel(tmp, vtg->regs + VTG_TOP_V_VD_1);
 	writel(tmp, vtg->regs + VTG_BOT_V_VD_1);
-	writel(0, vtg->regs + VTG_TOP_V_HD_1);
-	writel(0, vtg->regs + VTG_BOT_V_HD_1);
+
+	tmp = HDMI_DELAY << 16;
+	tmp |= HDMI_DELAY;
+	writel(tmp, vtg->regs + VTG_TOP_V_HD_1);
+	writel(tmp, vtg->regs + VTG_BOT_V_HD_1);
 
 	/* prepare VTG set 2 for for HD DCS */
 	tmp = (mode->hsync_end - mode->hsync_start) << 16;
@@ -217,7 +241,6 @@ void sti_vtg_set_config(struct sti_vtg *vtg,
 	else
 		vtg_enable_irq(vtg);
 }
-EXPORT_SYMBOL(sti_vtg_set_config);
 
 /**
  * sti_vtg_get_line_number
@@ -240,7 +263,6 @@ u32 sti_vtg_get_line_number(struct drm_display_mode mode, int y)
 
 	return start_line + y;
 }
-EXPORT_SYMBOL(sti_vtg_get_line_number);
 
 /**
  * sti_vtg_get_pixel_number
@@ -256,18 +278,16 @@ u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x)
 {
 	return mode.htotal - mode.hsync_start + x;
 }
-EXPORT_SYMBOL(sti_vtg_get_pixel_number);
 
-int sti_vtg_register_client(struct sti_vtg *vtg,
-		struct notifier_block *nb, int crtc_id)
+int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
+			    struct drm_crtc *crtc)
 {
 	if (vtg->slave)
-		return sti_vtg_register_client(vtg->slave, nb, crtc_id);
+		return sti_vtg_register_client(vtg->slave, nb, crtc);
 
-	vtg->crtc_id = crtc_id;
+	vtg->crtc = crtc;
 	return raw_notifier_chain_register(&vtg->notifier_list, nb);
 }
-EXPORT_SYMBOL(sti_vtg_register_client);
 
 int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
 {
@@ -276,7 +296,6 @@ int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
 
 	return raw_notifier_chain_unregister(&vtg->notifier_list, nb);
 }
-EXPORT_SYMBOL(sti_vtg_unregister_client);
 
 static irqreturn_t vtg_irq_thread(int irq, void *arg)
 {
@@ -286,7 +305,7 @@ static irqreturn_t vtg_irq_thread(int irq, void *arg)
 	event = (vtg->irq_status & VTG_IRQ_TOP) ?
 		VTG_TOP_FIELD_EVENT : VTG_BOTTOM_FIELD_EVENT;
 
-	raw_notifier_call_chain(&vtg->notifier_list, event, &vtg->crtc_id);
+	raw_notifier_call_chain(&vtg->notifier_list, event, vtg->crtc);
 
 	return IRQ_HANDLED;
 }
@@ -311,7 +330,6 @@ static int vtg_probe(struct platform_device *pdev)
 	struct device_node *np;
 	struct sti_vtg *vtg;
 	struct resource *res;
-	char irq_name[32];
 	int ret;
 
 	vtg = devm_kzalloc(dev, sizeof(*vtg), GFP_KERNEL);
@@ -342,13 +360,11 @@ static int vtg_probe(struct platform_device *pdev)
 			return vtg->irq;
 		}
 
-		snprintf(irq_name, sizeof(irq_name), "vsync-%s",
-				dev_name(vtg->dev));
-
 		RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
 
 		ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
-				vtg_irq_thread, IRQF_ONESHOT, irq_name, vtg);
+				vtg_irq_thread, IRQF_ONESHOT,
+				dev_name(dev), vtg);
 		if (IS_ERR_VALUE(ret)) {
 			DRM_ERROR("Failed to register VTG interrupt\n");
 			return ret;
@@ -383,8 +399,6 @@ struct platform_driver sti_vtg_driver = {
 	.probe	= vtg_probe,
 	.remove = vtg_remove,
 };
-
-module_platform_driver(sti_vtg_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

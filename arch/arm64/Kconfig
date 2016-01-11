@@ -1,5 +1,6 @@
 config ARM64
 	def_bool y
+	select ACPI_CCA_REQUIRED if ACPI
 	select ACPI_GENERIC_GSI if ACPI
 	select ACPI_REDUCED_HARDWARE_ONLY if ACPI
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
@@ -19,16 +20,20 @@ config ARM64
 	select ARM_GIC_V2M if PCI_MSI
 	select ARM_GIC_V3
 	select ARM_GIC_V3_ITS if PCI_MSI
+	select ARM_PSCI_FW
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select DCACHE_WORD_ACCESS
+	select EDAC_SUPPORT
+	select FRAME_POINTER
 	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_EARLY_IOREMAP
+	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
@@ -44,6 +49,7 @@ config ARM64
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
@@ -51,6 +57,7 @@ config ARM64
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
+	select HAVE_CMPXCHG_LOCAL
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
@@ -70,7 +77,9 @@ config ARM64
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE
 	select HAVE_SYSCALL_TRACEPOINTS
+	select IOMMU_DMA if IOMMU_SUPPORT
 	select IRQ_DOMAIN
+	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA
 	select NO_BOOTMEM
 	select OF
@@ -101,6 +110,10 @@ config NO_IOPORT_MAP
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config ILLEGAL_POINTER_VALUE
+	hex
+	default 0xdead000000000000
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -109,6 +122,14 @@ config TRACE_IRQFLAGS_SUPPORT
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
+
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+	depends on GENERIC_BUG
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -134,6 +155,9 @@ config NEED_DMA_MAP_STATE
 config NEED_SG_DMA_LENGTH
 	def_bool y
 
+config SMP
+	def_bool y
+
 config SWIOTLB
 	def_bool y
 
@@ -148,114 +172,18 @@ config FIX_EARLYCON_MEM
 
 config PGTABLE_LEVELS
 	int
+	default 2 if ARM64_16K_PAGES && ARM64_VA_BITS_36
 	default 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42
 	default 3 if ARM64_64K_PAGES && ARM64_VA_BITS_48
 	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
-	default 4 if ARM64_4K_PAGES && ARM64_VA_BITS_48
+	default 3 if ARM64_16K_PAGES && ARM64_VA_BITS_47
+	default 4 if !ARM64_64K_PAGES && ARM64_VA_BITS_48
 
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-menu "Platform selection"
-
-config ARCH_EXYNOS
-	bool
-	help
-	  This enables support for Samsung Exynos SoC family
-
-config ARCH_EXYNOS7
-	bool "ARMv8 based Samsung Exynos7"
-	select ARCH_EXYNOS
-	select COMMON_CLK_SAMSUNG
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select HAVE_S3C_RTC if RTC_CLASS
-	select PINCTRL
-	select PINCTRL_EXYNOS
-
-	help
-	  This enables support for Samsung Exynos7 SoC family
-
-config ARCH_FSL_LS2085A
-	bool "Freescale LS2085A SOC"
-	help
-	  This enables support for Freescale LS2085A SOC.
-
-config ARCH_MEDIATEK
-	bool "Mediatek MT65xx & MT81xx ARMv8 SoC"
-	select ARM_GIC
-	select PINCTRL
-	help
-	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
-
-config ARCH_QCOM
-	bool "Qualcomm Platforms"
-	select PINCTRL
-	help
-	  This enables support for the ARMv8 based Qualcomm chipsets.
-
-config ARCH_SEATTLE
-	bool "AMD Seattle SoC Family"
-	help
-	  This enables support for AMD Seattle SOC Family
-
-config ARCH_TEGRA
-	bool "NVIDIA Tegra SoC Family"
-	select ARCH_HAS_RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	select PINCTRL
-	select RESET_CONTROLLER
-	help
-	  This enables support for the NVIDIA Tegra SoC family.
-
-config ARCH_TEGRA_132_SOC
-	bool "NVIDIA Tegra132 SoC"
-	depends on ARCH_TEGRA
-	select PINCTRL_TEGRA124
-	select USB_ULPI if USB_PHY
-	select USB_ULPI_VIEWPORT if USB_PHY
-	help
-	  Enable support for NVIDIA Tegra132 SoC, based on the Denver
-	  ARMv8 CPU.  The Tegra132 SoC is similar to the Tegra124 SoC,
-	  but contains an NVIDIA Denver CPU complex in place of
-	  Tegra124's "4+1" Cortex-A15 CPU complex.
-
-config ARCH_SPRD
-	bool "Spreadtrum SoC platform"
-	help
-	  Support for Spreadtrum ARM based SoCs
-
-config ARCH_THUNDER
-	bool "Cavium Inc. Thunder SoC Family"
-	help
-	  This enables support for Cavium's Thunder Family of SoCs.
-
-config ARCH_VEXPRESS
-	bool "ARMv8 software model (Versatile Express)"
-	select ARCH_REQUIRE_GPIOLIB
-	select COMMON_CLK_VERSATILE
-	select POWER_RESET_VEXPRESS
-	select VEXPRESS_CONFIG
-	help
-	  This enables support for the ARMv8 software model (Versatile
-	  Express).
-
-config ARCH_XGENE
-	bool "AppliedMicro X-Gene SOC Family"
-	help
-	  This enables support for AppliedMicro X-Gene SOC Family
-
-config ARCH_ZYNQMP
-	bool "Xilinx ZynqMP Family"
-	help
-	  This enables support for Xilinx ZynqMP Family
-
-endmenu
+source "arch/arm64/Kconfig.platforms"
 
 menu "Bus support"
 
@@ -388,6 +316,27 @@ config ARM64_ERRATUM_832075
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_834220
+	bool "Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault"
+	depends on KVM
+	default y
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 834220 on Cortex-A57 parts up to r1p2.
+
+	  Affected Cortex-A57 parts might report a Stage 2 translation
+	  fault as the result of a Stage 1 fault for load crossing a
+	  page boundary when there is a permission or device memory
+	  alignment fault at Stage 1 and a translation fault at Stage 2.
+
+	  The workaround is to verify that the Stage 1 translation
+	  doesn't generate a fault before handling the Stage 2 fault.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
 config ARM64_ERRATUM_845719
 	bool "Cortex-A53: 845719: a load might read incorrect data"
 	depends on COMPAT
@@ -409,6 +358,49 @@ config ARM64_ERRATUM_845719
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_843419
+	bool "Cortex-A53: 843419: A load or store might access an incorrect address"
+	depends on MODULES
+	default y
+	help
+	  This option builds kernel modules using the large memory model in
+	  order to avoid the use of the ADRP instruction, which can cause
+	  a subsequent memory access to use an incorrect address on Cortex-A53
+	  parts up to r0p4.
+
+	  Note that the kernel itself must be linked with a version of ld
+	  which fixes potentially affected ADRP instructions through the
+	  use of veneers.
+
+	  If unsure, say Y.
+
+config CAVIUM_ERRATUM_22375
+	bool "Cavium erratum 22375, 24313"
+	default y
+	help
+	  Enable workaround for erratum 22375, 24313.
+
+	  This implements two gicv3-its errata workarounds for ThunderX. Both
+	  with small impact affecting only ITS table allocation.
+
+	    erratum 22375: only alloc 8MB table size
+	    erratum 24313: ignore memory access type
+
+	  The fixes are in ITS initialization and basically ignore memory access
+	  type and table size provided by the TYPER and BASER registers.
+
+	  If unsure, say Y.
+
+config CAVIUM_ERRATUM_23154
+	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is not sync'ed"
+	default y
+	help
+	  The gicv3 of ThunderX requires a modified version for
+	  reading the IAR status to ensure data synchronization
+	  (access to icc_iar1_el1 is not sync'ed before and after).
+
+	  If unsure, say Y.
+
 endmenu
 
 
@@ -423,24 +415,36 @@ config ARM64_4K_PAGES
 	help
 	  This feature enables 4KB pages support.
 
+config ARM64_16K_PAGES
+	bool "16KB"
+	help
+	  The system will use 16KB pages support. AArch32 emulation
+	  requires applications compiled with 16K (or a multiple of 16K)
+	  aligned segments.
+
 config ARM64_64K_PAGES
 	bool "64KB"
 	help
 	  This feature enables 64KB pages support (4KB by default)
 	  allowing only two levels of page tables and faster TLB
-	  look-up. AArch32 emulation is not available when this feature
-	  is enabled.
+	  look-up. AArch32 emulation requires applications compiled
+	  with 64K aligned segments.
 
 endchoice
 
 choice
 	prompt "Virtual address space size"
 	default ARM64_VA_BITS_39 if ARM64_4K_PAGES
+	default ARM64_VA_BITS_47 if ARM64_16K_PAGES
 	default ARM64_VA_BITS_42 if ARM64_64K_PAGES
 	help
 	  Allows choosing one of multiple possible virtual address
 	  space sizes. The level of translation table is determined by
 	  a combination of page size and virtual address space size.
+
+config ARM64_VA_BITS_36
+	bool "36-bit" if EXPERT
+	depends on ARM64_16K_PAGES
 
 config ARM64_VA_BITS_39
 	bool "39-bit"
@@ -450,6 +454,10 @@ config ARM64_VA_BITS_42
 	bool "42-bit"
 	depends on ARM64_64K_PAGES
 
+config ARM64_VA_BITS_47
+	bool "47-bit"
+	depends on ARM64_16K_PAGES
+
 config ARM64_VA_BITS_48
 	bool "48-bit"
 
@@ -457,8 +465,10 @@ endchoice
 
 config ARM64_VA_BITS
 	int
+	default 36 if ARM64_VA_BITS_36
 	default 39 if ARM64_VA_BITS_39
 	default 42 if ARM64_VA_BITS_42
+	default 47 if ARM64_VA_BITS_47
 	default 48 if ARM64_VA_BITS_48
 
 config CPU_BIG_ENDIAN
@@ -466,22 +476,8 @@ config CPU_BIG_ENDIAN
        help
          Say Y if you plan on running a kernel in big-endian mode.
 
-config SMP
-	bool "Symmetric Multi-Processing"
-	help
-	  This enables support for systems with more than one CPU.  If
-	  you say N here, the kernel will run on single and
-	  multiprocessor machines, but will use only one CPU of a
-	  multiprocessor machine. If you say Y here, the kernel will run
-	  on many, but not all, single processor machines. On a single
-	  processor machine, the kernel will run faster if you say N
-	  here.
-
-	  If you don't know what to do here, say N.
-
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on SMP
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
@@ -489,7 +485,6 @@ config SCHED_MC
 
 config SCHED_SMT
 	bool "SMT scheduler support"
-	depends on SMP
 	help
 	  Improves the CPU scheduler's decision making when dealing with
 	  MultiThreading at a cost of slightly increased overhead in some
@@ -498,26 +493,18 @@ config SCHED_SMT
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	depends on SMP
 	# These have to remain sorted largest to smallest
 	default "64"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP
+	select GENERIC_IRQ_MIGRATION
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
 source kernel/Kconfig.preempt
-
-config UP_LATE_INIT
-       def_bool y
-       depends on !SMP
-
-config HZ
-	int
-	default 100
+source kernel/Kconfig.hz
 
 config ARCH_HAS_HOLES_MEMORYMODEL
 	def_bool y if SPARSEMEM
@@ -536,12 +523,8 @@ config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
 
 config HW_PERF_EVENTS
-	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS
-	default y
-	help
-	  Enable hardware performance counter support for perf events. If
-	  disabled, perf events will use software events only.
+	def_bool y
+	depends on ARM_PMU
 
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
@@ -550,7 +533,7 @@ config ARCH_WANT_GENERAL_HUGETLB
 	def_bool y
 
 config ARCH_WANT_HUGE_PMD_SHARE
-	def_bool y if !ARM64_64K_PAGES
+	def_bool y if ARM64_4K_PAGES || (ARM64_16K_PAGES && !ARM64_VA_BITS_36)
 
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	def_bool y
@@ -587,7 +570,25 @@ config XEN
 config FORCE_MAX_ZONEORDER
 	int
 	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "12" if (ARM64_16K_PAGES && TRANSPARENT_HUGEPAGE)
 	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  We make sure that we can allocate upto a HugePage size for each configuration.
+	  Hence we have :
+		MAX_ORDER = (PMD_SHIFT - PAGE_SHIFT) + 1 => PAGE_SHIFT - 2
+
+	  However for 4K, we choose a higher default value, 11 as opposed to 10, giving us
+	  4M allocations matching the default size used by generic code.
 
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
@@ -656,6 +657,53 @@ config SETEND_EMULATION
 	  If unsure, say Y
 endif
 
+menu "ARMv8.1 architectural features"
+
+config ARM64_HW_AFDBM
+	bool "Support for hardware updates of the Access and Dirty page flags"
+	default y
+	help
+	  The ARMv8.1 architecture extensions introduce support for
+	  hardware updates of the access and dirty information in page
+	  table entries. When enabled in TCR_EL1 (HA and HD bits) on
+	  capable processors, accesses to pages with PTE_AF cleared will
+	  set this bit instead of raising an access flag fault.
+	  Similarly, writes to read-only pages with the DBM bit set will
+	  clear the read-only bit (AP[2]) instead of raising a
+	  permission fault.
+
+	  Kernels built with this configuration option enabled continue
+	  to work on pre-ARMv8.1 hardware and the performance impact is
+	  minimal. If unsure, say Y.
+
+config ARM64_PAN
+	bool "Enable support for Privileged Access Never (PAN)"
+	default y
+	help
+	 Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
+	 prevents the kernel or hypervisor from accessing user-space (EL0)
+	 memory directly.
+
+	 Choosing this option will cause any unprotected (not using
+	 copy_to_user et al) memory access to fail with a permission fault.
+
+	 The feature is detected at runtime, and will remain as a 'nop'
+	 instruction if the cpu does not implement the feature.
+
+config ARM64_LSE_ATOMICS
+	bool "Atomic instructions"
+	help
+	  As part of the Large System Extensions, ARMv8.1 introduces new
+	  atomic instructions that are designed specifically to scale in
+	  very large systems.
+
+	  Say Y here to make use of these instructions for the in-kernel
+	  atomic routines. This incurs a small overhead on CPUs that do
+	  not support these instructions and requires the kernel to be
+	  built with binutils >= 2.25.
+
+endmenu
+
 endmenu
 
 menu "Boot options"
@@ -715,7 +763,7 @@ source "fs/Kconfig.binfmt"
 
 config COMPAT
 	bool "Kernel support for 32-bit EL0"
-	depends on !ARM64_64K_PAGES || EXPERT
+	depends on ARM64_4K_PAGES || EXPERT
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
 	select OLD_SIGSUSPEND3
@@ -726,9 +774,9 @@ config COMPAT
 	  the user helper functions, VFP support and the ptrace interface are
 	  handled appropriately by the kernel.
 
-	  If you also enabled CONFIG_ARM64_64K_PAGES, please be aware that you
-	  will only be able to execute AArch32 binaries that were compiled with
-	  64k aligned segments.
+	  If you use a page size other than 4KB (i.e, 16KB or 64KB), please be aware
+	  that you will only be able to execute AArch32 binaries that were compiled
+	  with page size aligned segments.
 
 	  If you want to execute 32-bit userspace applications, say Y.
 

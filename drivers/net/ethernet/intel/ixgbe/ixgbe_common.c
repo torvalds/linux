@@ -57,6 +57,11 @@ static s32 ixgbe_detect_eeprom_page_size_generic(struct ixgbe_hw *hw,
 						 u16 offset);
 static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
 
+/* Base table for registers values that change by MAC */
+const u32 ixgbe_mvals_8259X[IXGBE_MVALS_IDX_LIMIT] = {
+	IXGBE_MVALS_INIT(8259X)
+};
+
 /**
  *  ixgbe_device_supports_autoneg_fc - Check if phy supports autoneg flow
  *  control
@@ -91,6 +96,8 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_82599_T3_LOM:
 		case IXGBE_DEV_ID_X540T:
 		case IXGBE_DEV_ID_X540T1:
+		case IXGBE_DEV_ID_X550T:
+		case IXGBE_DEV_ID_X550EM_X_10G_T:
 			supported = true;
 			break;
 		default:
@@ -290,13 +297,13 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 
 	/* Setup flow control */
 	ret_val = ixgbe_setup_fc(hw);
-	if (!ret_val)
-		return 0;
+	if (ret_val)
+		return ret_val;
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
 
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -463,7 +470,7 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 		}
 	}
 
-	if (hw->mac.type == ixgbe_mac_X540) {
+	if (hw->mac.type == ixgbe_mac_X550 || hw->mac.type == ixgbe_mac_X540) {
 		if (hw->phy.id == 0)
 			hw->phy.ops.identify(hw);
 		hw->phy.ops.read_reg(hw, IXGBE_PCRC8ECL, MDIO_MMD_PCS, &i);
@@ -681,7 +688,7 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 	bus->lan_id = bus->func;
 
 	/* check for a port swap */
-	reg = IXGBE_READ_REG(hw, IXGBE_FACTPS);
+	reg = IXGBE_READ_REG(hw, IXGBE_FACTPS(hw));
 	if (reg & IXGBE_FACTPS_LFS)
 		bus->func ^= 0x1;
 }
@@ -799,7 +806,7 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 		 * Check for EEPROM present first.
 		 * If not present leave as none
 		 */
-		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		if (eec & IXGBE_EEC_PRES) {
 			eeprom->type = ixgbe_eeprom_spi;
 
@@ -1283,14 +1290,14 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) != 0)
 		return IXGBE_ERR_SWFW_SYNC;
 
-	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 	/* Request EEPROM Access */
 	eec |= IXGBE_EEC_REQ;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 
 	for (i = 0; i < IXGBE_EEPROM_GRANT_ATTEMPTS; i++) {
-		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		if (eec & IXGBE_EEC_GNT)
 			break;
 		udelay(5);
@@ -1299,7 +1306,7 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 	/* Release if grant not acquired */
 	if (!(eec & IXGBE_EEC_GNT)) {
 		eec &= ~IXGBE_EEC_REQ;
-		IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+		IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 		hw_dbg(hw, "Could not acquire EEPROM grant\n");
 
 		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
@@ -1309,7 +1316,7 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 	/* Setup EEPROM for Read/Write */
 	/* Clear CS and SK */
 	eec &= ~(IXGBE_EEC_CS | IXGBE_EEC_SK);
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(1);
 	return 0;
@@ -1333,7 +1340,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 * If the SMBI bit is 0 when we read it, then the bit will be
 		 * set and we have the semaphore
 		 */
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 		if (!(swsm & IXGBE_SWSM_SMBI))
 			break;
 		usleep_range(50, 100);
@@ -1353,7 +1360,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 * If the SMBI bit is 0 when we read it, then the bit will be
 		 * set and we have the semaphore
 		 */
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 		if (swsm & IXGBE_SWSM_SMBI) {
 			hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
 			return IXGBE_ERR_EEPROM;
@@ -1362,16 +1369,16 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 
 	/* Now get the semaphore between SW/FW through the SWESMBI bit */
 	for (i = 0; i < timeout; i++) {
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 
 		/* Set the SW EEPROM semaphore bit to request access */
 		swsm |= IXGBE_SWSM_SWESMBI;
-		IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
+		IXGBE_WRITE_REG(hw, IXGBE_SWSM(hw), swsm);
 
 		/* If we set the bit successfully then we got the
 		 * semaphore.
 		 */
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 		if (swsm & IXGBE_SWSM_SWESMBI)
 			break;
 
@@ -1400,11 +1407,11 @@ static void ixgbe_release_eeprom_semaphore(struct ixgbe_hw *hw)
 {
 	u32 swsm;
 
-	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 
 	/* Release both semaphores by writing 0 to the bits SWESMBI and SMBI */
 	swsm &= ~(IXGBE_SWSM_SWESMBI | IXGBE_SWSM_SMBI);
-	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
+	IXGBE_WRITE_REG(hw, IXGBE_SWSM(hw), swsm);
 	IXGBE_WRITE_FLUSH(hw);
 }
 
@@ -1454,15 +1461,15 @@ static void ixgbe_standby_eeprom(struct ixgbe_hw *hw)
 {
 	u32 eec;
 
-	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 	/* Toggle CS to flush commands */
 	eec |= IXGBE_EEC_CS;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(1);
 	eec &= ~IXGBE_EEC_CS;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(1);
 }
@@ -1480,7 +1487,7 @@ static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
 	u32 mask;
 	u32 i;
 
-	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 	/*
 	 * Mask is used to shift "count" bits of "data" out to the EEPROM
@@ -1501,7 +1508,7 @@ static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
 		else
 			eec &= ~IXGBE_EEC_DI;
 
-		IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+		IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 		IXGBE_WRITE_FLUSH(hw);
 
 		udelay(1);
@@ -1518,7 +1525,7 @@ static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
 
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
 	eec &= ~IXGBE_EEC_DI;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 	IXGBE_WRITE_FLUSH(hw);
 }
 
@@ -1539,7 +1546,7 @@ static u16 ixgbe_shift_in_eeprom_bits(struct ixgbe_hw *hw, u16 count)
 	 * the value of the "DO" bit.  During this "shifting in" process the
 	 * "DI" bit should always be clear.
 	 */
-	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 	eec &= ~(IXGBE_EEC_DO | IXGBE_EEC_DI);
 
@@ -1547,7 +1554,7 @@ static u16 ixgbe_shift_in_eeprom_bits(struct ixgbe_hw *hw, u16 count)
 		data = data << 1;
 		ixgbe_raise_eeprom_clk(hw, &eec);
 
-		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 		eec &= ~(IXGBE_EEC_DI);
 		if (eec & IXGBE_EEC_DO)
@@ -1571,7 +1578,7 @@ static void ixgbe_raise_eeprom_clk(struct ixgbe_hw *hw, u32 *eec)
 	 * (setting the SK bit), then delay
 	 */
 	*eec = *eec | IXGBE_EEC_SK;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, *eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), *eec);
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(1);
 }
@@ -1588,7 +1595,7 @@ static void ixgbe_lower_eeprom_clk(struct ixgbe_hw *hw, u32 *eec)
 	 * delay
 	 */
 	*eec = *eec & ~IXGBE_EEC_SK;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, *eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), *eec);
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(1);
 }
@@ -1601,19 +1608,19 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
 {
 	u32 eec;
 
-	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 	eec |= IXGBE_EEC_CS;  /* Pull CS high */
 	eec &= ~IXGBE_EEC_SK; /* Lower SCK */
 
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 	IXGBE_WRITE_FLUSH(hw);
 
 	udelay(1);
 
 	/* Stop requesting EEPROM access */
 	eec &= ~IXGBE_EEC_REQ;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
 
 	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 
@@ -2157,10 +2164,11 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 			/*
 			 * In order to prevent Tx hangs when the internal Tx
 			 * switch is enabled we must set the high water mark
-			 * to the maximum FCRTH value.  This allows the Tx
-			 * switch to function even under heavy Rx workloads.
+			 * to the Rx packet buffer size - 24KB.  This allows
+			 * the Tx switch to function even under heavy Rx
+			 * workloads.
 			 */
-			fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 32;
+			fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 24576;
 		}
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), fcrth);
@@ -2468,6 +2476,9 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	 */
 	hw_dbg(hw, "GIO Master Disable bit didn't clear - requesting resets\n");
 	hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+
+	if (hw->mac.type >= ixgbe_mac_X550)
+		return 0;
 
 	/*
 	 * Before proceeding, make sure that the PCIe block does not have
@@ -3896,5 +3907,230 @@ void ixgbe_enable_rx_generic(struct ixgbe_hw *hw)
 			IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
 			hw->mac.set_lben = false;
 		}
+	}
+}
+
+/** ixgbe_mng_present - returns true when management capability is present
+ * @hw: pointer to hardware structure
+ **/
+bool ixgbe_mng_present(struct ixgbe_hw *hw)
+{
+	u32 fwsm;
+
+	if (hw->mac.type < ixgbe_mac_82599EB)
+		return false;
+
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
+	fwsm &= IXGBE_FWSM_MODE_MASK;
+	return fwsm == IXGBE_FWSM_FW_MODE_PT;
+}
+
+/**
+ *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
+ *  @hw: pointer to hardware structure
+ *  @speed: new link speed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ *
+ *  Set the link speed in the MAC and/or PHY register and restarts link.
+ */
+s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+					  ixgbe_link_speed speed,
+					  bool autoneg_wait_to_complete)
+{
+	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
+	ixgbe_link_speed highest_link_speed = IXGBE_LINK_SPEED_UNKNOWN;
+	s32 status = 0;
+	u32 speedcnt = 0;
+	u32 i = 0;
+	bool autoneg, link_up = false;
+
+	/* Mask off requested but non-supported speeds */
+	status = hw->mac.ops.get_link_capabilities(hw, &link_speed, &autoneg);
+	if (status)
+		return status;
+
+	speed &= link_speed;
+
+	/* Try each speed one by one, highest priority first.  We do this in
+	 * software because 10Gb fiber doesn't support speed autonegotiation.
+	 */
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL) {
+		speedcnt++;
+		highest_link_speed = IXGBE_LINK_SPEED_10GB_FULL;
+
+		/* If we already have link at this speed, just jump out */
+		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
+						false);
+		if (status)
+			return status;
+
+		if (link_speed == IXGBE_LINK_SPEED_10GB_FULL && link_up)
+			goto out;
+
+		/* Set the module link speed */
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber:
+			hw->mac.ops.set_rate_select_speed(hw,
+						    IXGBE_LINK_SPEED_10GB_FULL);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects MAC link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type\n");
+			break;
+		}
+
+		/* Allow module to change analog characteristics (1G->10G) */
+		msleep(40);
+
+		status = hw->mac.ops.setup_mac_link(hw,
+						    IXGBE_LINK_SPEED_10GB_FULL,
+						    autoneg_wait_to_complete);
+		if (status)
+			return status;
+
+		/* Flap the Tx laser if it has not already been done */
+		if (hw->mac.ops.flap_tx_laser)
+			hw->mac.ops.flap_tx_laser(hw);
+
+		/* Wait for the controller to acquire link.  Per IEEE 802.3ap,
+		 * Section 73.10.2, we may have to wait up to 500ms if KR is
+		 * attempted.  82599 uses the same timing for 10g SFI.
+		 */
+		for (i = 0; i < 5; i++) {
+			/* Wait for the link partner to also set speed */
+			msleep(100);
+
+			/* If we have link, just jump out */
+			status = hw->mac.ops.check_link(hw, &link_speed,
+							&link_up, false);
+			if (status)
+				return status;
+
+			if (link_up)
+				goto out;
+		}
+	}
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
+		speedcnt++;
+		if (highest_link_speed == IXGBE_LINK_SPEED_UNKNOWN)
+			highest_link_speed = IXGBE_LINK_SPEED_1GB_FULL;
+
+		/* If we already have link at this speed, just jump out */
+		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
+						false);
+		if (status)
+			return status;
+
+		if (link_speed == IXGBE_LINK_SPEED_1GB_FULL && link_up)
+			goto out;
+
+		/* Set the module link speed */
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber:
+			hw->mac.ops.set_rate_select_speed(hw,
+						     IXGBE_LINK_SPEED_1GB_FULL);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type\n");
+			break;
+		}
+
+		/* Allow module to change analog characteristics (10G->1G) */
+		msleep(40);
+
+		status = hw->mac.ops.setup_mac_link(hw,
+						    IXGBE_LINK_SPEED_1GB_FULL,
+						    autoneg_wait_to_complete);
+		if (status)
+			return status;
+
+		/* Flap the Tx laser if it has not already been done */
+		if (hw->mac.ops.flap_tx_laser)
+			hw->mac.ops.flap_tx_laser(hw);
+
+		/* Wait for the link partner to also set speed */
+		msleep(100);
+
+		/* If we have link, just jump out */
+		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
+						false);
+		if (status)
+			return status;
+
+		if (link_up)
+			goto out;
+	}
+
+	/* We didn't get link.  Configure back to the highest speed we tried,
+	 * (if there was more than one).  We call ourselves back with just the
+	 * single highest speed that the user requested.
+	 */
+	if (speedcnt > 1)
+		status = ixgbe_setup_mac_link_multispeed_fiber(hw,
+						      highest_link_speed,
+						      autoneg_wait_to_complete);
+
+out:
+	/* Set autoneg_advertised value based on input link speed */
+	hw->phy.autoneg_advertised = 0;
+
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+	return status;
+}
+
+/**
+ *  ixgbe_set_soft_rate_select_speed - Set module link speed
+ *  @hw: pointer to hardware structure
+ *  @speed: link speed to set
+ *
+ *  Set module link speed via the soft rate select.
+ */
+void ixgbe_set_soft_rate_select_speed(struct ixgbe_hw *hw,
+				      ixgbe_link_speed speed)
+{
+	s32 status;
+	u8 rs, eeprom_data;
+
+	switch (speed) {
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		/* one bit mask same as setting on */
+		rs = IXGBE_SFF_SOFT_RS_SELECT_10G;
+		break;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		rs = IXGBE_SFF_SOFT_RS_SELECT_1G;
+		break;
+	default:
+		hw_dbg(hw, "Invalid fixed module speed\n");
+		return;
+	}
+
+	/* Set RS0 */
+	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
+					   IXGBE_I2C_EEPROM_DEV_ADDR2,
+					   &eeprom_data);
+	if (status) {
+		hw_dbg(hw, "Failed to read Rx Rate Select RS0\n");
+		return;
+	}
+
+	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) | rs;
+
+	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
+					    IXGBE_I2C_EEPROM_DEV_ADDR2,
+					    eeprom_data);
+	if (status) {
+		hw_dbg(hw, "Failed to write Rx Rate Select RS0\n");
+		return;
 	}
 }

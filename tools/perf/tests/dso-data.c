@@ -99,6 +99,17 @@ struct test_data_offset offsets[] = {
 	},
 };
 
+/* move it from util/dso.c for compatibility */
+static int dso__data_fd(struct dso *dso, struct machine *machine)
+{
+	int fd = dso__data_get_fd(dso, machine);
+
+	if (fd >= 0)
+		dso__data_put_fd(dso);
+
+	return fd;
+}
+
 int test__dso_data(void)
 {
 	struct machine machine;
@@ -155,7 +166,7 @@ int test__dso_data(void)
 		free(buf);
 	}
 
-	dso__delete(dso);
+	dso__put(dso);
 	unlink(file);
 	return 0;
 }
@@ -215,7 +226,7 @@ static void dsos__delete(int cnt)
 		struct dso *dso = dsos[i];
 
 		unlink(dso->name);
-		dso__delete(dso);
+		dso__put(dso);
 	}
 
 	free(dsos);

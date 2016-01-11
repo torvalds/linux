@@ -1,9 +1,24 @@
 /*
  * Copyright (c) 2013, Cisco Systems, Inc. All rights reserved.
  *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -248,7 +263,8 @@ enum rdma_link_layer usnic_ib_port_link_layer(struct ib_device *device,
 }
 
 int usnic_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+			  struct ib_device_attr *props,
+			  struct ib_udata *uhw)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
 	union ib_gid gid;
@@ -257,6 +273,9 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	int qp_per_vf;
 
 	usnic_dbg("\n");
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
+
 	mutex_lock(&us_ibdev->usdev_lock);
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
 	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
@@ -570,13 +589,17 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return status;
 }
 
-struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev, int entries,
-					int vector, struct ib_ucontext *context,
-					struct ib_udata *udata)
+struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
+				 const struct ib_cq_init_attr *attr,
+				 struct ib_ucontext *context,
+				 struct ib_udata *udata)
 {
 	struct ib_cq *cq;
 
 	usnic_dbg("\n");
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
 		return ERR_PTR(-EBUSY);

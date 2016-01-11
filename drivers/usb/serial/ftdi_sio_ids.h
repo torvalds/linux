@@ -155,6 +155,7 @@
 #define XSENS_AWINDA_STATION_PID 0x0101
 #define XSENS_AWINDA_DONGLE_PID 0x0102
 #define XSENS_MTW_PID		0x0200	/* Xsens MTw */
+#define XSENS_MTDEVBOARD_PID	0x0300	/* Motion Tracker Development Board */
 #define XSENS_CONVERTER_PID	0xD00D	/* Xsens USB-serial converter */
 
 /* Xsens devices using FTDI VID */
@@ -566,6 +567,14 @@
  * http://www.synapse-wireless.com
  */
 #define FTDI_SYNAPSE_SS200_PID 0x9090 /* SS200 - SNAP Stick 200 */
+
+/*
+ * CustomWare / ShipModul NMEA multiplexers product ids (FTDI_VID)
+ */
+#define FTDI_CUSTOMWARE_MINIPLEX_PID	0xfd48	/* MiniPlex first generation NMEA Multiplexer */
+#define FTDI_CUSTOMWARE_MINIPLEX2_PID	0xfd49	/* MiniPlex-USB and MiniPlex-2 series */
+#define FTDI_CUSTOMWARE_MINIPLEX2WI_PID	0xfd4a	/* MiniPlex-2Wi */
+#define FTDI_CUSTOMWARE_MINIPLEX3_PID	0xfd4b	/* MiniPlex-3 series */
 
 
 /********************************/
@@ -1364,7 +1373,7 @@
 #define FTDI_CTI_NANO_PID	0xF60B
 
 /*
- * ZeitControl cardsystems GmbH rfid-readers http://zeitconrol.de
+ * ZeitControl cardsystems GmbH rfid-readers http://zeitcontrol.de
  */
 /* TagTracer MIFARE*/
 #define FTDI_ZEITCONTROL_TAGTRACE_MIFARE_PID	0xF7C0

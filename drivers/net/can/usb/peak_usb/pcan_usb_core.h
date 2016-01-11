@@ -48,8 +48,8 @@ struct peak_usb_adapter {
 	u32 device_id;
 	u32 ctrlmode_supported;
 	struct can_clock clock;
-	const struct can_bittiming_const bittiming_const;
-	const struct can_bittiming_const data_bittiming_const;
+	const struct can_bittiming_const * const bittiming_const;
+	const struct can_bittiming_const * const data_bittiming_const;
 	unsigned int ctrl_count;
 
 	int (*intf_probe)(struct usb_interface *intf);

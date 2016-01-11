@@ -318,7 +318,6 @@ static int htcpld_setup_chip_irq(
 	struct htcpld_data *htcpld;
 	struct htcpld_chip *chip;
 	unsigned int irq, irq_end;
-	int ret = 0;
 
 	/* Get the platform and driver data */
 	htcpld = platform_get_drvdata(pdev);
@@ -330,14 +329,10 @@ static int htcpld_setup_chip_irq(
 		irq_set_chip_and_handler(irq, &htcpld_muxed_chip,
 					 handle_simple_irq);
 		irq_set_chip_data(irq, chip);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-#else
-		irq_set_probe(irq);
-#endif
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int htcpld_register_chip_i2c(
@@ -564,7 +559,8 @@ static int htcpld_core_probe(struct platform_device *pdev)
 		htcpld->chained_irq = res->start;
 
 		/* Setup the chained interrupt handler */
-		flags = IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING;
+		flags = IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT;
 		ret = request_threaded_irq(htcpld->chained_irq,
 					   NULL, htcpld_handler,
 					   flags, pdev->name, htcpld);

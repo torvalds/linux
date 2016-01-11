@@ -675,7 +675,8 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&mon_lock);
-	if ((mbus = mon_bus_lookup(iminor(inode))) == NULL) {
+	mbus = mon_bus_lookup(iminor(inode));
+	if (mbus == NULL) {
 		mutex_unlock(&mon_lock);
 		return -ENODEV;
 	}
@@ -1018,8 +1019,8 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 			return -EINVAL;
 
 		size = CHUNK_ALIGN(arg);
-		if ((vec = kzalloc(sizeof(struct mon_pgmap) * (size/CHUNK_SIZE),
-		    GFP_KERNEL)) == NULL) {
+		vec = kzalloc(sizeof(struct mon_pgmap) * (size / CHUNK_SIZE), GFP_KERNEL);
+		if (vec == NULL) {
 			ret = -ENOMEM;
 			break;
 		}

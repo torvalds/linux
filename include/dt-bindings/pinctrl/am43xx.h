@@ -14,6 +14,7 @@
 #define MUX_MODE6	6
 #define MUX_MODE7	7
 #define MUX_MODE8	8
+#define MUX_MODE9	9
 
 #define PULL_DISABLE		(1 << 16)
 #define PULL_UP			(1 << 17)
@@ -21,6 +22,7 @@
 #define SLEWCTRL_SLOW		(1 << 19)
 #define SLEWCTRL_FAST		0
 #define DS0_PULL_UP_DOWN_EN	(1 << 27)
+#define WAKEUP_ENABLE		(1 << 29)
 
 #define PIN_OUTPUT		(PULL_DISABLE)
 #define PIN_OUTPUT_PULLUP	(PULL_UP)

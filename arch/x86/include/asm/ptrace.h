@@ -88,7 +88,6 @@ extern long syscall_trace_enter_phase2(struct pt_regs *, u32 arch,
 				       unsigned long phase1_result);
 
 extern long syscall_trace_enter(struct pt_regs *);
-extern void syscall_trace_leave(struct pt_regs *);
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
@@ -107,7 +106,7 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 static inline int user_mode(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
-	return (regs->cs & SEGMENT_RPL_MASK) == USER_RPL;
+	return ((regs->cs & SEGMENT_RPL_MASK) | (regs->flags & X86_VM_MASK)) >= USER_RPL;
 #else
 	return !!(regs->cs & 3);
 #endif

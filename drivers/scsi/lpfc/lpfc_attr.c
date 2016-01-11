@@ -1642,8 +1642,6 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
 	struct lpfc_hba   *phba = vport->phba;\
-	uint val = 0;\
-	val = phba->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%d\n",\
 			phba->cfg_##attr);\
 }
@@ -1808,8 +1806,6 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 { \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
-	uint val = 0;\
-	val = vport->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%d\n", vport->cfg_##attr);\
 }
 
@@ -1835,8 +1831,6 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 { \
 	struct Scsi_Host  *shost = class_to_shost(dev);\
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
-	uint val = 0;\
-	val = vport->cfg_##attr;\
 	return snprintf(buf, PAGE_SIZE, "%#x\n", vport->cfg_##attr);\
 }
 
@@ -3282,15 +3276,20 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 
 	if (val >= 0 && val <= 6) {
 		prev_val = phba->cfg_topology;
-		phba->cfg_topology = val;
 		if (phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G &&
 			val == 4) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 				"3113 Loop mode not supported at speed %d\n",
-				phba->cfg_link_speed);
-			phba->cfg_topology = prev_val;
+				val);
 			return -EINVAL;
 		}
+		if (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
+			val == 4) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"3114 Loop mode not supported\n");
+			return -EINVAL;
+		}
+		phba->cfg_topology = val;
 		if (nolip)
 			return strlen(buf);
 
@@ -3731,7 +3730,8 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 	    ((val == LPFC_USER_LINK_SPEED_4G) && !(phba->lmt & LMT_4Gb)) ||
 	    ((val == LPFC_USER_LINK_SPEED_8G) && !(phba->lmt & LMT_8Gb)) ||
 	    ((val == LPFC_USER_LINK_SPEED_10G) && !(phba->lmt & LMT_10Gb)) ||
-	    ((val == LPFC_USER_LINK_SPEED_16G) && !(phba->lmt & LMT_16Gb))) {
+	    ((val == LPFC_USER_LINK_SPEED_16G) && !(phba->lmt & LMT_16Gb)) ||
+	    ((val == LPFC_USER_LINK_SPEED_32G) && !(phba->lmt & LMT_32Gb))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2879 lpfc_link_speed attribute cannot be set "
 				"to %d. Speed is not supported by this port.\n",
@@ -5266,6 +5266,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 			break;
 		case LPFC_LINK_SPEED_16GHZ:
 			fc_host_speed(shost) = FC_PORTSPEED_16GBIT;
+			break;
+		case LPFC_LINK_SPEED_32GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_32GBIT;
 			break;
 		default:
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;

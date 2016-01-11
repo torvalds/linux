@@ -18,10 +18,10 @@ Part I - dma_ API
 To get the dma_ API, you must #include <linux/dma-mapping.h>.  This
 provides dma_addr_t and the interfaces described below.
 
-A dma_addr_t can hold any valid DMA or bus address for the platform.  It
-can be given to a device to use as a DMA source or target.  A CPU cannot
-reference a dma_addr_t directly because there may be translation between
-its physical address space and the bus address space.
+A dma_addr_t can hold any valid DMA address for the platform.  It can be
+given to a device to use as a DMA source or target.  A CPU cannot reference
+a dma_addr_t directly because there may be translation between its physical
+address space and the DMA address space.
 
 Part Ia - Using large DMA-coherent buffers
 ------------------------------------------
@@ -42,7 +42,7 @@ It returns a pointer to the allocated region (in the processor's virtual
 address space) or NULL if the allocation failed.
 
 It also returns a <dma_handle> which may be cast to an unsigned integer the
-same width as the bus and given to the device as the bus address base of
+same width as the bus and given to the device as the DMA address base of
 the region.
 
 Note: consistent memory can be expensive on some platforms, and the
@@ -104,6 +104,13 @@ crossing restrictions, pass 0 for alloc; passing 4096 says memory allocated
 from this pool must not cross 4KByte boundaries.
 
 
+	void *dma_pool_zalloc(struct dma_pool *pool, gfp_t mem_flags,
+			      dma_addr_t *handle)
+
+Wraps dma_pool_alloc() and also zeroes the returned memory if the
+allocation attempt succeeded.
+
+
 	void *dma_pool_alloc(struct dma_pool *pool, gfp_t gfp_flags,
 			dma_addr_t *dma_handle);
 
@@ -133,19 +140,6 @@ memory back to the pool before you destroy it.
 
 Part Ic - DMA addressing limitations
 ------------------------------------
-
-int
-dma_supported(struct device *dev, u64 mask)
-
-Checks to see if the device can support DMA to the memory described by
-mask.
-
-Returns: 1 if it can and 0 if it can't.
-
-Notes: This routine merely tests to see if the mask is possible.  It
-won't change the current mask settings.  It is more intended as an
-internal API for use by the platform than an external API for use by
-driver writers.
 
 int
 dma_set_mask_and_coherent(struct device *dev, u64 mask)
@@ -193,7 +187,7 @@ dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 		      enum dma_data_direction direction)
 
 Maps a piece of processor virtual memory so it can be accessed by the
-device and returns the bus address of the memory.
+device and returns the DMA address of the memory.
 
 The direction for both APIs may be converted freely by casting.
 However the dma_ API uses a strongly typed enumerator for its
@@ -212,20 +206,20 @@ contiguous piece of memory.  For this reason, memory to be mapped by
 this API should be obtained from sources which guarantee it to be
 physically contiguous (like kmalloc).
 
-Further, the bus address of the memory must be within the
+Further, the DMA address of the memory must be within the
 dma_mask of the device (the dma_mask is a bit mask of the
-addressable region for the device, i.e., if the bus address of
-the memory ANDed with the dma_mask is still equal to the bus
+addressable region for the device, i.e., if the DMA address of
+the memory ANDed with the dma_mask is still equal to the DMA
 address, then the device can perform DMA to the memory).  To
 ensure that the memory allocated by kmalloc is within the dma_mask,
 the driver may specify various platform-dependent flags to restrict
-the bus address range of the allocation (e.g., on x86, GFP_DMA
-guarantees to be within the first 16MB of available bus addresses,
+the DMA address range of the allocation (e.g., on x86, GFP_DMA
+guarantees to be within the first 16MB of available DMA addresses,
 as required by ISA devices).
 
 Note also that the above constraints on physical contiguity and
 dma_mask may not apply if the platform has an IOMMU (a device which
-maps an I/O bus address to a physical memory address).  However, to be
+maps an I/O DMA address to a physical memory address).  However, to be
 portable, device driver writers may *not* assume that such an IOMMU
 exists.
 
@@ -296,7 +290,7 @@ reduce current DMA mapping usage or delay and try again later).
 	dma_map_sg(struct device *dev, struct scatterlist *sg,
 		int nents, enum dma_data_direction direction)
 
-Returns: the number of bus address segments mapped (this may be shorter
+Returns: the number of DMA address segments mapped (this may be shorter
 than <nents> passed in if some elements of the scatter/gather list are
 physically or virtually adjacent and an IOMMU maps them with a single
 entry).
@@ -333,14 +327,14 @@ accessed sg->address and sg->length as shown above.
 
 	void
 	dma_unmap_sg(struct device *dev, struct scatterlist *sg,
-		int nhwentries, enum dma_data_direction direction)
+		int nents, enum dma_data_direction direction)
 
 Unmap the previously mapped scatter/gather list.  All the parameters
 must be the same as those and passed in to the scatter/gather mapping
 API.
 
 Note: <nents> must be the number you passed in, *not* the number of
-bus address entries returned.
+DMA address entries returned.
 
 void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
@@ -349,10 +343,10 @@ void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
 			   enum dma_data_direction direction)
 void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 		    enum dma_data_direction direction)
 void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 		       enum dma_data_direction direction)
 
 Synchronise a single contiguous or scatter/gather mapping for the CPU
@@ -507,7 +501,7 @@ it's asked for coherent memory for this device.
 phys_addr is the CPU physical address to which the memory is currently
 assigned (this will be ioremapped so the CPU can access the region).
 
-device_addr is the bus address the device needs to be programmed
+device_addr is the DMA address the device needs to be programmed
 with to actually address this memory (this will be handed out as the
 dma_addr_t in dma_alloc_coherent()).
 

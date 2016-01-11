@@ -17,11 +17,15 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <2>;
+			/* u-boot puts hpen in SBC dmem at 0xa4 offset */
+			cpu-release-addr = <0x94100A4>;
 		};
 		cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <3>;
+			/* u-boot puts hpen in SBC dmem at 0xa4 offset */
+			cpu-release-addr = <0x94100A4>;
 		};
 	};
 
@@ -94,6 +98,12 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy2>;
 			phy-names = "usb";
+		};
+
+		mmc0: sdhci@09060000 {
+			assigned-clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
+			assigned-clock-parents = <&clk_s_c0_pll1 0>;
+			assigned-clock-rates = <200000000>;
 		};
 	};
 };

@@ -1,0 +1,15 @@
+#
+# Chemical sensors
+#
+
+menu "Chemical Sensors"
+
+config VZ89X
+	tristate "SGX Sensortech MiCS VZ89X VOC sensor"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the SGX
+	  Sensortech MiCS VZ89X VOC (Volatile Organic Compounds)
+	  sensors
+
+endmenu

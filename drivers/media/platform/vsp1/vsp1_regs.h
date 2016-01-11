@@ -238,7 +238,7 @@
 #define VI6_WPF_SZCLIP_EN		(1 << 28)
 #define VI6_WPF_SZCLIP_OFST_MASK	(0xff << 16)
 #define VI6_WPF_SZCLIP_OFST_SHIFT	16
-#define VI6_WPF_SZCLIP_SIZE_MASK	(0x1fff << 0)
+#define VI6_WPF_SZCLIP_SIZE_MASK	(0xfff << 0)
 #define VI6_WPF_SZCLIP_SIZE_SHIFT	0
 
 #define VI6_WPF_OUTFMT			0x100c
@@ -304,9 +304,9 @@
 #define VI6_DPR_HST_ROUTE		0x2044
 #define VI6_DPR_HSI_ROUTE		0x2048
 #define VI6_DPR_BRU_ROUTE		0x204c
-#define VI6_DPR_ROUTE_FXA_MASK		(0xff << 8)
+#define VI6_DPR_ROUTE_FXA_MASK		(0xff << 16)
 #define VI6_DPR_ROUTE_FXA_SHIFT		16
-#define VI6_DPR_ROUTE_FP_MASK		(0xff << 8)
+#define VI6_DPR_ROUTE_FP_MASK		(0x3f << 8)
 #define VI6_DPR_ROUTE_FP_SHIFT		8
 #define VI6_DPR_ROUTE_RT_MASK		(0x3f << 0)
 #define VI6_DPR_ROUTE_RT_SHIFT		0

@@ -53,7 +53,8 @@ static struct device *vpif_dev;
 static void vpif_calculate_offsets(struct channel_obj *ch);
 static void vpif_config_addr(struct channel_obj *ch, int muxmode);
 
-static inline struct vpif_disp_buffer *to_vpif_buffer(struct vb2_buffer *vb)
+static inline
+struct vpif_disp_buffer *to_vpif_buffer(struct vb2_v4l2_buffer *vb)
 {
 	return container_of(vb, struct vpif_disp_buffer, vb);
 }
@@ -68,6 +69,7 @@ static inline struct vpif_disp_buffer *to_vpif_buffer(struct vb2_buffer *vb)
  */
 static int vpif_buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct channel_obj *ch = vb2_get_drv_priv(vb->vb2_queue);
 	struct common_obj *common;
 
@@ -77,7 +79,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 	if (vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
 		return -EINVAL;
 
-	vb->v4l2_buf.field = common->fmt.fmt.pix.field;
+	vbuf->field = common->fmt.fmt.pix.field;
 
 	if (vb->vb2_queue->type != V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
 		unsigned long addr = vb2_dma_contig_plane_dma_addr(vb, 0);
@@ -107,10 +109,11 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * the buffer count and buffer size
  */
 static int vpif_buffer_queue_setup(struct vb2_queue *vq,
-				const struct v4l2_format *fmt,
+				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
@@ -138,7 +141,8 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
  */
 static void vpif_buffer_queue(struct vb2_buffer *vb)
 {
-	struct vpif_disp_buffer *buf = to_vpif_buffer(vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct vpif_disp_buffer *buf = to_vpif_buffer(vbuf);
 	struct channel_obj *ch = vb2_get_drv_priv(vb->vb2_queue);
 	struct common_obj *common;
 	unsigned long flags;
@@ -197,7 +201,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	list_del(&common->cur_frm->list);
 	spin_unlock_irqrestore(&common->irqlock, flags);
 
-	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb.vb2_buf, 0);
 	common->set_addr((addr + common->ytop_off),
 			    (addr + common->ybtm_off),
 			    (addr + common->ctop_off),
@@ -229,7 +233,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 err:
 	list_for_each_entry_safe(buf, tmp, &common->dma_queue, list) {
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
 	spin_unlock_irqrestore(&common->irqlock, flags);
 
@@ -264,13 +268,14 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 	/* release all active buffers */
 	spin_lock_irqsave(&common->irqlock, flags);
 	if (common->cur_frm == common->next_frm) {
-		vb2_buffer_done(&common->cur_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	} else {
 		if (common->cur_frm != NULL)
-			vb2_buffer_done(&common->cur_frm->vb,
+			vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 		if (common->next_frm != NULL)
-			vb2_buffer_done(&common->next_frm->vb,
+			vb2_buffer_done(&common->next_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 	}
 
@@ -278,7 +283,8 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 		common->next_frm = list_entry(common->dma_queue.next,
 						struct vpif_disp_buffer, list);
 		list_del(&common->next_frm->list);
-		vb2_buffer_done(&common->next_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&common->next_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&common->irqlock, flags);
 }
@@ -306,7 +312,7 @@ static void process_progressive_mode(struct common_obj *common)
 	spin_unlock(&common->irqlock);
 
 	/* Set top and bottom field addrs in VPIF registers */
-	addr = vb2_dma_contig_plane_dma_addr(&common->next_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&common->next_frm->vb.vb2_buf, 0);
 	common->set_addr(addr + common->ytop_off,
 				 addr + common->ybtm_off,
 				 addr + common->ctop_off,
@@ -324,10 +330,10 @@ static void process_interlaced_mode(int fid, struct common_obj *common)
 		/* one frame is displayed If next frame is
 		 *  available, release cur_frm and move on */
 		/* Copy frame display time */
-		v4l2_get_timestamp(&common->cur_frm->vb.v4l2_buf.timestamp);
+		v4l2_get_timestamp(&common->cur_frm->vb.timestamp);
 		/* Change status of the cur_frm */
-		vb2_buffer_done(&common->cur_frm->vb,
-					    VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
+					VB2_BUF_STATE_DONE);
 		/* Make cur_frm pointing to next_frm */
 		common->cur_frm = common->next_frm;
 
@@ -380,10 +386,10 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 			if (!channel_first_int[i][channel_id]) {
 				/* Mark status of the cur_frm to
 				 * done and unlock semaphore on it */
-				v4l2_get_timestamp(&common->cur_frm->vb.
-						   v4l2_buf.timestamp);
-				vb2_buffer_done(&common->cur_frm->vb,
-					    VB2_BUF_STATE_DONE);
+				v4l2_get_timestamp(
+					&common->cur_frm->vb.timestamp);
+				vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
+						VB2_BUF_STATE_DONE);
 				/* Make cur_frm pointing to next_frm */
 				common->cur_frm = common->next_frm;
 			}

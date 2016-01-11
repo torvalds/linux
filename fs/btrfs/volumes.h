@@ -253,6 +253,12 @@ struct btrfs_fs_devices {
 	 * nonrot flag set
 	 */
 	int rotating;
+
+	struct btrfs_fs_info *fs_info;
+	/* sysfs kobjects */
+	struct kobject fsid_kobj;
+	struct kobject *device_dir_kobj;
+	struct completion kobj_unregister;
 };
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
@@ -292,8 +298,6 @@ struct btrfs_bio_stripe {
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
-#define BTRFS_BIO_ORIG_BIO_SUBMITTED	(1 << 0)
-
 struct btrfs_bio {
 	atomic_t refs;
 	atomic_t stripes_pending;
@@ -330,9 +334,14 @@ struct btrfs_raid_attr {
 	int dev_stripes;	/* stripes per dev */
 	int devs_max;		/* max devs to use */
 	int devs_min;		/* min devs needed */
+	int tolerated_failures; /* max tolerated fail devs */
 	int devs_increment;	/* ndevs has to be a multiple of this */
 	int ncopies;		/* how many copies to data has */
 };
+
+extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
+
+extern const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES];
 
 struct map_lookup {
 	u64 type;
@@ -371,6 +380,20 @@ struct map_lookup {
 #define BTRFS_BALANCE_ARGS_DRANGE	(1ULL << 3)
 #define BTRFS_BALANCE_ARGS_VRANGE	(1ULL << 4)
 #define BTRFS_BALANCE_ARGS_LIMIT	(1ULL << 5)
+#define BTRFS_BALANCE_ARGS_LIMIT_RANGE	(1ULL << 6)
+#define BTRFS_BALANCE_ARGS_STRIPES_RANGE (1ULL << 7)
+#define BTRFS_BALANCE_ARGS_USAGE_RANGE	(1ULL << 10)
+
+#define BTRFS_BALANCE_ARGS_MASK			\
+	(BTRFS_BALANCE_ARGS_PROFILES |		\
+	 BTRFS_BALANCE_ARGS_USAGE |		\
+	 BTRFS_BALANCE_ARGS_DEVID | 		\
+	 BTRFS_BALANCE_ARGS_DRANGE |		\
+	 BTRFS_BALANCE_ARGS_VRANGE |		\
+	 BTRFS_BALANCE_ARGS_LIMIT |		\
+	 BTRFS_BALANCE_ARGS_LIMIT_RANGE |	\
+	 BTRFS_BALANCE_ARGS_STRIPES_RANGE |	\
+	 BTRFS_BALANCE_ARGS_USAGE_RANGE)
 
 /*
  * Profile changing flags.  When SOFT is set we won't relocate chunk if
@@ -449,6 +472,9 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
+int find_free_dev_extent_start(struct btrfs_transaction *transaction,
+			 struct btrfs_device *device, u64 num_bytes,
+			 u64 search_start, u64 *start, u64 *max_avail);
 int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
@@ -467,7 +493,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				      struct btrfs_device *tgtdev);
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev);
-int btrfs_scratch_superblock(struct btrfs_device *device);
+void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path);
 int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 			   u64 logical, u64 len, int mirror_num);
 unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
@@ -537,5 +563,9 @@ static inline void unlock_chunks(struct btrfs_root *root)
 	mutex_unlock(&root->fs_info->chunk_mutex);
 }
 
+struct list_head *btrfs_get_fs_uuids(void);
+void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
+void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
+void btrfs_close_one_device(struct btrfs_device *device);
 
 #endif

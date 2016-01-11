@@ -63,6 +63,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "dec",        VCPU_STAT(dec_exits) },
 	{ "ext_intr",   VCPU_STAT(ext_intr_exits) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll) },
+	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "doorbell", VCPU_STAT(dbell_exits) },
 	{ "guest doorbell", VCPU_STAT(gdbell_exits) },
@@ -933,6 +934,7 @@ static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 #endif
 		break;
 	case BOOKE_INTERRUPT_CRITICAL:
+		kvmppc_fill_pt_regs(&regs);
 		unknown_exception(&regs);
 		break;
 	case BOOKE_INTERRUPT_DEBUG:
@@ -1004,10 +1006,10 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	local_irq_enable();
-
 	trace_kvm_exit(exit_nr, vcpu);
-	kvm_guest_exit();
+	__kvm_guest_exit();
+
+	local_irq_enable();
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
@@ -1784,14 +1786,15 @@ int kvmppc_core_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				      struct kvm_memory_slot *memslot,
-				      struct kvm_userspace_memory_region *mem)
+				      const struct kvm_userspace_memory_region *mem)
 {
 	return 0;
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem,
-				const struct kvm_memory_slot *old)
+				const struct kvm_userspace_memory_region *mem,
+				const struct kvm_memory_slot *old,
+				const struct kvm_memory_slot *new)
 {
 }
 

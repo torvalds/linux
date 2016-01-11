@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/tracehook.h>
 #include <asm/uaccess.h>
+#include <asm/ptrace-abi.h>
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -131,7 +132,7 @@ static void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
  * XXX Check PT_DTRACE vs TIF_SINGLESTEP for singlestepping check and
  * PT_PTRACED vs TIF_SYSCALL_TRACE for syscall tracing check
  */
-void syscall_trace_enter(struct pt_regs *regs)
+int syscall_trace_enter(struct pt_regs *regs)
 {
 	audit_syscall_entry(UPT_SYSCALL_NR(&regs->regs),
 			    UPT_SYSCALL_ARG1(&regs->regs),
@@ -140,9 +141,9 @@ void syscall_trace_enter(struct pt_regs *regs)
 			    UPT_SYSCALL_ARG4(&regs->regs));
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		return 0;
 
-	tracehook_report_syscall_entry(regs);
+	return tracehook_report_syscall_entry(regs);
 }
 
 void syscall_trace_leave(struct pt_regs *regs)

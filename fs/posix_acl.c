@@ -547,51 +547,45 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 		struct posix_acl **default_acl, struct posix_acl **acl)
 {
 	struct posix_acl *p;
+	struct posix_acl *clone;
 	int ret;
 
+	*acl = NULL;
+	*default_acl = NULL;
+
 	if (S_ISLNK(*mode) || !IS_POSIXACL(dir))
-		goto no_acl;
+		return 0;
 
 	p = get_acl(dir, ACL_TYPE_DEFAULT);
-	if (IS_ERR(p)) {
-		if (p == ERR_PTR(-EOPNOTSUPP))
-			goto apply_umask;
-		return PTR_ERR(p);
+	if (!p || p == ERR_PTR(-EOPNOTSUPP)) {
+		*mode &= ~current_umask();
+		return 0;
 	}
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 
-	if (!p)
-		goto apply_umask;
-
-	*acl = posix_acl_clone(p, GFP_NOFS);
-	if (!*acl)
+	clone = posix_acl_clone(p, GFP_NOFS);
+	if (!clone)
 		goto no_mem;
 
-	ret = posix_acl_create_masq(*acl, mode);
+	ret = posix_acl_create_masq(clone, mode);
 	if (ret < 0)
 		goto no_mem_clone;
 
-	if (ret == 0) {
-		posix_acl_release(*acl);
-		*acl = NULL;
-	}
+	if (ret == 0)
+		posix_acl_release(clone);
+	else
+		*acl = clone;
 
-	if (!S_ISDIR(*mode)) {
+	if (!S_ISDIR(*mode))
 		posix_acl_release(p);
-		*default_acl = NULL;
-	} else {
+	else
 		*default_acl = p;
-	}
-	return 0;
 
-apply_umask:
-	*mode &= ~current_umask();
-no_acl:
-	*default_acl = NULL;
-	*acl = NULL;
 	return 0;
 
 no_mem_clone:
-	posix_acl_release(*acl);
+	posix_acl_release(clone);
 no_mem:
 	posix_acl_release(p);
 	return -ENOMEM;
@@ -768,18 +762,21 @@ posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
 EXPORT_SYMBOL (posix_acl_to_xattr);
 
 static int
-posix_acl_xattr_get(struct dentry *dentry, const char *name,
-		void *value, size_t size, int type)
+posix_acl_xattr_get(const struct xattr_handler *handler,
+		    struct dentry *dentry, const char *name,
+		    void *value, size_t size)
 {
 	struct posix_acl *acl;
 	int error;
 
+	if (strcmp(name, "") != 0)
+		return -EINVAL;
 	if (!IS_POSIXACL(d_backing_inode(dentry)))
 		return -EOPNOTSUPP;
 	if (d_is_symlink(dentry))
 		return -EOPNOTSUPP;
 
-	acl = get_acl(d_backing_inode(dentry), type);
+	acl = get_acl(d_backing_inode(dentry), handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -792,19 +789,22 @@ posix_acl_xattr_get(struct dentry *dentry, const char *name,
 }
 
 static int
-posix_acl_xattr_set(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags, int type)
+posix_acl_xattr_set(const struct xattr_handler *handler,
+		    struct dentry *dentry, const char *name,
+		    const void *value, size_t size, int flags)
 {
 	struct inode *inode = d_backing_inode(dentry);
 	struct posix_acl *acl = NULL;
 	int ret;
 
+	if (strcmp(name, "") != 0)
+		return -EINVAL;
 	if (!IS_POSIXACL(inode))
 		return -EOPNOTSUPP;
 	if (!inode->i_op->set_acl)
 		return -EOPNOTSUPP;
 
-	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
+	if (handler->flags == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
 		return value ? -EACCES : 0;
 	if (!inode_owner_or_capable(inode))
 		return -EPERM;
@@ -821,28 +821,22 @@ posix_acl_xattr_set(struct dentry *dentry, const char *name,
 		}
 	}
 
-	ret = inode->i_op->set_acl(inode, acl, type);
+	ret = inode->i_op->set_acl(inode, acl, handler->flags);
 out:
 	posix_acl_release(acl);
 	return ret;
 }
 
 static size_t
-posix_acl_xattr_list(struct dentry *dentry, char *list, size_t list_size,
-		const char *name, size_t name_len, int type)
+posix_acl_xattr_list(const struct xattr_handler *handler,
+		     struct dentry *dentry, char *list, size_t list_size,
+		     const char *name, size_t name_len)
 {
-	const char *xname;
+	const char *xname = handler->prefix;
 	size_t size;
 
 	if (!IS_POSIXACL(d_backing_inode(dentry)))
-		return -EOPNOTSUPP;
-	if (d_is_symlink(dentry))
-		return -EOPNOTSUPP;
-
-	if (type == ACL_TYPE_ACCESS)
-		xname = POSIX_ACL_XATTR_ACCESS;
-	else
-		xname = POSIX_ACL_XATTR_DEFAULT;
+		return 0;
 
 	size = strlen(xname) + 1;
 	if (list && size <= list_size)

@@ -216,7 +216,7 @@ static void fm10k_reuse_rx_page(struct fm10k_ring *rx_ring,
 
 static inline bool fm10k_page_is_reserved(struct page *page)
 {
-	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
+	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
 static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
@@ -269,16 +269,19 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 			      struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
+	unsigned char *va = page_address(page) + rx_buffer->page_offset;
 	unsigned int size = le16_to_cpu(rx_desc->w.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = FM10K_RX_BUFSZ;
 #else
-	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+	unsigned int truesize = SKB_DATA_ALIGN(size);
 #endif
+	unsigned int pull_len;
 
-	if ((size <= FM10K_RX_HDR_LEN) && !skb_is_nonlinear(skb)) {
-		unsigned char *va = page_address(page) + rx_buffer->page_offset;
+	if (unlikely(skb_is_nonlinear(skb)))
+		goto add_tail_frag;
 
+	if (likely(size <= FM10K_RX_HDR_LEN)) {
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
 		/* page is not reserved, we can reuse buffer as-is */
@@ -290,8 +293,21 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 		return false;
 	}
 
+	/* we need the header to contain the greater of either ETH_HLEN or
+	 * 60 bytes if the skb->len is less than 60 for skb_pad.
+	 */
+	pull_len = eth_get_headlen(va, FM10K_RX_HDR_LEN);
+
+	/* align pull length to size of long to optimize memcpy performance */
+	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
+
+	/* update all of the pointers */
+	va += pull_len;
+	size -= pull_len;
+
+add_tail_frag:
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, truesize);
+			(unsigned long)va & ~PAGE_MASK, size, truesize);
 
 	return fm10k_can_reuse_rx_page(rx_buffer, page, truesize);
 }
@@ -382,6 +398,8 @@ static inline void fm10k_rx_checksum(struct fm10k_ring *ring,
 		return;
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	ring->rx_stats.csum_good++;
 }
 
 #define FM10K_RSS_L4_TYPES_MASK \
@@ -481,8 +499,11 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	if (rx_desc->w.vlan) {
 		u16 vid = le16_to_cpu(rx_desc->w.vlan);
 
-		if (vid != rx_ring->vid)
+		if ((vid & VLAN_VID_MASK) != rx_ring->vid)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
+		else if (vid & VLAN_PRIO_MASK)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       vid & VLAN_PRIO_MASK);
 	}
 
 	fm10k_type_trans(rx_ring, rx_desc, skb);
@@ -518,44 +539,6 @@ static bool fm10k_is_non_eop(struct fm10k_ring *rx_ring,
 }
 
 /**
- * fm10k_pull_tail - fm10k specific version of skb_pull_tail
- * @skb: pointer to current skb being adjusted
- *
- * This function is an fm10k specific version of __pskb_pull_tail.  The
- * main difference between this version and the original function is that
- * this function can make several assumptions about the state of things
- * that allow for significant optimizations versus the standard function.
- * As a result we can do things like drop a frag and maintain an accurate
- * truesize for the skb.
- */
-static void fm10k_pull_tail(struct sk_buff *skb)
-{
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
-	unsigned char *va;
-	unsigned int pull_len;
-
-	/* it is valid to use page_address instead of kmap since we are
-	 * working with pages allocated out of the lomem pool per
-	 * alloc_page(GFP_ATOMIC)
-	 */
-	va = skb_frag_address(frag);
-
-	/* we need the header to contain the greater of either ETH_HLEN or
-	 * 60 bytes if the skb->len is less than 60 for skb_pad.
-	 */
-	pull_len = eth_get_headlen(va, FM10K_RX_HDR_LEN);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
-
-	/* update all of the pointers */
-	skb_frag_size_sub(frag, pull_len);
-	frag->page_offset += pull_len;
-	skb->data_len -= pull_len;
-	skb->tail += pull_len;
-}
-
-/**
  * fm10k_cleanup_headers - Correct corrupted or empty headers
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
@@ -575,14 +558,22 @@ static bool fm10k_cleanup_headers(struct fm10k_ring *rx_ring,
 {
 	if (unlikely((fm10k_test_staterr(rx_desc,
 					 FM10K_RXD_STATUS_RXE)))) {
+#define FM10K_TEST_RXD_BIT(rxd, bit) \
+	((rxd)->w.csum_err & cpu_to_le16(bit))
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_SWITCH_ERROR))
+			rx_ring->rx_stats.switch_errors++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_NO_DESCRIPTOR))
+			rx_ring->rx_stats.drops++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_PP_ERROR))
+			rx_ring->rx_stats.pp_errors++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_SWITCH_READY))
+			rx_ring->rx_stats.link_errors++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_TOO_BIG))
+			rx_ring->rx_stats.length_errors++;
 		dev_kfree_skb_any(skb);
 		rx_ring->rx_stats.errors++;
 		return true;
 	}
-
-	/* place header in linear portion of buffer */
-	if (skb_is_nonlinear(skb))
-		fm10k_pull_tail(skb);
 
 	/* if eth_skb_pad returns an error the skb was freed */
 	if (eth_skb_pad(skb))
@@ -602,15 +593,15 @@ static void fm10k_receive_skb(struct fm10k_q_vector *q_vector,
 	napi_gro_receive(&q_vector->napi, skb);
 }
 
-static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
-			       struct fm10k_ring *rx_ring,
-			       int budget)
+static int fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
+			      struct fm10k_ring *rx_ring,
+			      int budget)
 {
 	struct sk_buff *skb = rx_ring->skb;
 	unsigned int total_bytes = 0, total_packets = 0;
 	u16 cleaned_count = fm10k_desc_unused(rx_ring);
 
-	do {
+	while (likely(total_packets < budget)) {
 		union fm10k_rx_desc *rx_desc;
 
 		/* return some buffers to hardware, one at a time is too slow */
@@ -659,7 +650,7 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 
 		/* update budget accounting */
 		total_packets++;
-	} while (likely(total_packets < budget));
+	}
 
 	/* place incomplete frames back on ring for completion */
 	rx_ring->skb = skb;
@@ -671,7 +662,7 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 	q_vector->rx.total_packets += total_packets;
 	q_vector->rx.total_bytes += total_bytes;
 
-	return total_packets < budget;
+	return total_packets;
 }
 
 #define VXLAN_HLEN (sizeof(struct udphdr) + 8)
@@ -904,6 +895,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 
 	/* update TX checksum flag */
 	first->tx_flags |= FM10K_TX_FLAGS_CSUM;
+	tx_ring->tx_stats.csum_good++;
 
 no_csum:
 	/* populate Tx descriptor header size and mss */
@@ -1105,9 +1097,7 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 	struct fm10k_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
-#if PAGE_SIZE > FM10K_MAX_DATA_PER_TXD
 	unsigned short f;
-#endif
 	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 
 	/* need: 1 descriptor per page * PAGE_SIZE/FM10K_MAX_DATA_PER_TXD,
@@ -1115,12 +1105,9 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 	 *       + 2 desc gap to keep tail from touching head
 	 * otherwise try next time
 	 */
-#if PAGE_SIZE > FM10K_MAX_DATA_PER_TXD
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
 		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
-#else
-	count += skb_shinfo(skb)->nr_frags;
-#endif
+
 	if (fm10k_maybe_stop_tx(tx_ring, count + 3)) {
 		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
@@ -1435,7 +1422,7 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	struct fm10k_q_vector *q_vector =
 			       container_of(napi, struct fm10k_q_vector, napi);
 	struct fm10k_ring *ring;
-	int per_ring_budget;
+	int per_ring_budget, work_done = 0;
 	bool clean_complete = true;
 
 	fm10k_for_each_ring(ring, q_vector->tx)
@@ -1449,16 +1436,19 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	else
 		per_ring_budget = budget;
 
-	fm10k_for_each_ring(ring, q_vector->rx)
-		clean_complete &= fm10k_clean_rx_irq(q_vector, ring,
-						     per_ring_budget);
+	fm10k_for_each_ring(ring, q_vector->rx) {
+		int work = fm10k_clean_rx_irq(q_vector, ring, per_ring_budget);
+
+		work_done += work;
+		clean_complete &= !!(work < per_ring_budget);
+	}
 
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
 	/* all work done, exit the polling mode */
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 
 	/* re-enable the q_vector */
 	fm10k_qv_enable(q_vector);
@@ -1918,7 +1908,7 @@ static void fm10k_init_reta(struct fm10k_intfc *interface)
 	u32 reta, base;
 
 	/* If the netdev is initialized we have to maintain table if possible */
-	if (interface->netdev->reg_state) {
+	if (interface->netdev->reg_state != NETREG_UNINITIALIZED) {
 		for (i = FM10K_RETA_SIZE; i--;) {
 			reta = interface->reta[i];
 			if ((((reta << 24) >> 24) < rss_i) &&

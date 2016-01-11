@@ -137,7 +137,7 @@ static int omap_usb_init(struct phy *x)
 	return 0;
 }
 
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.init		= omap_usb_init,
 	.power_on	= omap_usb_power_on,
 	.power_off	= omap_usb_power_off,
@@ -275,6 +275,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		phy->wkupclk = devm_clk_get(phy->dev, "usb_phy_cm_clk32k");
 		if (IS_ERR(phy->wkupclk)) {
 			dev_err(&pdev->dev, "unable to get usb_phy_cm_clk32k\n");
+			pm_runtime_disable(phy->dev);
 			return PTR_ERR(phy->wkupclk);
 		} else {
 			dev_warn(&pdev->dev,

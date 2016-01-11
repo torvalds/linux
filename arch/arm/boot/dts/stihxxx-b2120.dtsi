@@ -27,6 +27,14 @@
 			};
 		};
 
+		pwm0: pwm@9810000 {
+			status = "okay";
+		};
+
+		pwm1: pwm@9510000 {
+			status = "okay";
+		};
+
 		i2c@9842000 {
 			status = "okay";
 		};
@@ -44,6 +52,14 @@
 		};
 
 		i2c@9540000 {
+			status = "okay";
+		};
+
+		mmc0: sdhci@09060000 {
+			status = "okay";
+		};
+
+		mmc1: sdhci@09080000 {
 			status = "okay";
 		};
 
@@ -65,6 +81,17 @@
 			phy_port1: port@9b2a000 {
 				st,osc-force-ext;
 			};
+		};
+
+		st_dwc3: dwc3@8f94000 {
+			status = "okay";
+		};
+
+		ethernet0: dwmac@9630000 {
+			st,tx-retime-src = "clkgen";
+			status = "okay";
+			phy-mode = "rgmii";
+			fixed-link = <0 1 1000 0 0>;
 		};
 	};
 };

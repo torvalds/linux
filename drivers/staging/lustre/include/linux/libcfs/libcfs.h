@@ -37,33 +37,10 @@
 #ifndef __LIBCFS_LIBCFS_H__
 #define __LIBCFS_LIBCFS_H__
 
-#if !__GNUC__
-#define __attribute__(x)
-#endif
-
 #include "linux/libcfs.h"
 #include <linux/gfp.h>
 
 #include "curproc.h"
-
-#ifndef offsetof
-# define offsetof(typ, memb) ((long)(long_ptr_t)((char *)&(((typ *)0)->memb)))
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) ((sizeof(a)) / (sizeof((a)[0])))
-#endif
-
-#if !defined(swap)
-#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
-#endif
-
-#if !defined(container_of)
-/* given a pointer @ptr to the field @member embedded into type (usually
- * struct) @type, return pointer to the embedding instance of @type. */
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr)-(char *)(&((type *)0)->member)))
-#endif
 
 static inline int __is_po2(unsigned long long val)
 {
@@ -84,26 +61,6 @@ static inline int __is_po2(unsigned long long val)
 #define LUSTRE_SRV_LNET_PID      LUSTRE_LNET_PID
 
 #include <linux/list.h>
-
-int libcfs_arch_init(void);
-void libcfs_arch_cleanup(void);
-
-/* libcfs tcpip */
-int libcfs_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask);
-int libcfs_ipif_enumerate(char ***names);
-void libcfs_ipif_free_enumeration(char **names, int n);
-int libcfs_sock_listen(struct socket **sockp, __u32 ip, int port, int backlog);
-int libcfs_sock_accept(struct socket **newsockp, struct socket *sock);
-void libcfs_sock_abort_accept(struct socket *sock);
-int libcfs_sock_connect(struct socket **sockp, int *fatal,
-			__u32 local_ip, int local_port,
-			__u32 peer_ip, int peer_port);
-int libcfs_sock_setbuf(struct socket *socket, int txbufsize, int rxbufsize);
-int libcfs_sock_getbuf(struct socket *socket, int *txbufsize, int *rxbufsize);
-int libcfs_sock_getaddr(struct socket *socket, int remote, __u32 *ip, int *port);
-int libcfs_sock_write(struct socket *sock, void *buffer, int nob, int timeout);
-int libcfs_sock_read(struct socket *sock, void *buffer, int nob, int timeout);
-void libcfs_sock_release(struct socket *sock);
 
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
@@ -174,7 +131,7 @@ void cfs_get_random_bytes(void *buf, int size);
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
 {
-	if (unlikely(IS_ERR(ptr) || ptr == NULL))
+	if (IS_ERR_OR_NULL(ptr))
 		return ptr;
 	return (char *)ptr - shift;
 }
@@ -183,5 +140,28 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 	((type *)__container_of((void *)(ptr), offsetof(type, member)))
 
 #define _LIBCFS_H
+
+void *libcfs_kvzalloc(size_t size, gfp_t flags);
+void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
+			  gfp_t flags);
+
+extern struct miscdevice libcfs_dev;
+/**
+ * The path of debug log dump upcall script.
+ */
+extern char lnet_upcall[1024];
+extern char lnet_debug_log_upcall[1024];
+
+extern struct cfs_psdev_ops libcfs_psdev_ops;
+
+extern struct cfs_wi_sched *cfs_sched_rehash;
+
+struct lnet_debugfs_symlink_def {
+	char *name;
+	char *target;
+};
+
+void lustre_insert_debugfs(struct ctl_table *table,
+			   const struct lnet_debugfs_symlink_def *symlinks);
 
 #endif /* _LIBCFS_H */

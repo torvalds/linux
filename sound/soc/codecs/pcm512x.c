@@ -242,7 +242,7 @@ static int pcm512x_overclock_pll_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
 
-	switch (codec->dapm.bias_level) {
+	switch (snd_soc_codec_get_bias_level(codec)) {
 	case SND_SOC_BIAS_OFF:
 	case SND_SOC_BIAS_STANDBY:
 		break;
@@ -270,7 +270,7 @@ static int pcm512x_overclock_dsp_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
 
-	switch (codec->dapm.bias_level) {
+	switch (snd_soc_codec_get_bias_level(codec)) {
 	case SND_SOC_BIAS_OFF:
 	case SND_SOC_BIAS_STANDBY:
 		break;
@@ -298,7 +298,7 @@ static int pcm512x_overclock_dac_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
 
-	switch (codec->dapm.bias_level) {
+	switch (snd_soc_codec_get_bias_level(codec)) {
 	case SND_SOC_BIAS_OFF:
 	case SND_SOC_BIAS_STANDBY:
 		break;
@@ -640,8 +640,6 @@ static int pcm512x_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1119,7 +1117,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		params_rate(params),
 		params_channels(params));
 
-	switch (snd_pcm_format_width(params_format(params))) {
+	switch (params_width(params)) {
 	case 16:
 		alen = PCM512x_ALEN_16;
 		break;
@@ -1134,7 +1132,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(codec->dev, "Bad frame size: %d\n",
-			snd_pcm_format_width(params_format(params)));
+			params_width(params));
 		return -EINVAL;
 	}
 

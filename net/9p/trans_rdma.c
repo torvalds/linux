@@ -94,8 +94,6 @@ struct p9_trans_rdma {
 	struct ib_pd *pd;
 	struct ib_qp *qp;
 	struct ib_cq *cq;
-	struct ib_mr *dma_mr;
-	u32 lkey;
 	long timeout;
 	int sq_depth;
 	struct semaphore sq_sem;
@@ -382,9 +380,6 @@ static void rdma_destroy_trans(struct p9_trans_rdma *rdma)
 	if (!rdma)
 		return;
 
-	if (rdma->dma_mr && !IS_ERR(rdma->dma_mr))
-		ib_dereg_mr(rdma->dma_mr);
-
 	if (rdma->qp && !IS_ERR(rdma->qp))
 		ib_destroy_qp(rdma->qp);
 
@@ -415,7 +410,7 @@ post_recv(struct p9_client *client, struct p9_rdma_context *c)
 
 	sge.addr = c->busa;
 	sge.length = client->msize;
-	sge.lkey = rdma->lkey;
+	sge.lkey = rdma->pd->local_dma_lkey;
 
 	wr.next = NULL;
 	c->wc_op = IB_WC_RECV;
@@ -506,7 +501,7 @@ dont_need_post_recv:
 
 	sge.addr = c->busa;
 	sge.length = c->req->tc->size;
-	sge.lkey = rdma->lkey;
+	sge.lkey = rdma->pd->local_dma_lkey;
 
 	wr.next = NULL;
 	c->wc_op = IB_WC_SEND;
@@ -647,7 +642,7 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	struct p9_trans_rdma *rdma;
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
-	struct ib_device_attr devattr;
+	struct ib_cq_init_attr cq_attr = {};
 
 	/* Parse the transport specific mount options */
 	err = parse_opts(args, &opts);
@@ -660,8 +655,8 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		return -ENOMEM;
 
 	/* Create the RDMA CM ID */
-	rdma->cm_id = rdma_create_id(p9_cm_event_handler, client, RDMA_PS_TCP,
-				     IB_QPT_RC);
+	rdma->cm_id = rdma_create_id(&init_net, p9_cm_event_handler, client,
+				     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(rdma->cm_id))
 		goto error;
 
@@ -699,15 +694,11 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	if (err || (rdma->state != P9_RDMA_ROUTE_RESOLVED))
 		goto error;
 
-	/* Query the device attributes */
-	err = ib_query_device(rdma->cm_id->device, &devattr);
-	if (err)
-		goto error;
-
 	/* Create the Completion Queue */
+	cq_attr.cqe = opts.sq_depth + opts.rq_depth + 1;
 	rdma->cq = ib_create_cq(rdma->cm_id->device, cq_comp_handler,
 				cq_event_handler, client,
-				opts.sq_depth + opts.rq_depth + 1, 0);
+				&cq_attr);
 	if (IS_ERR(rdma->cq))
 		goto error;
 	ib_req_notify_cq(rdma->cq, IB_CQ_NEXT_COMP);
@@ -716,17 +707,6 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	rdma->pd = ib_alloc_pd(rdma->cm_id->device);
 	if (IS_ERR(rdma->pd))
 		goto error;
-
-	/* Cache the DMA lkey in the transport */
-	rdma->dma_mr = NULL;
-	if (devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
-		rdma->lkey = rdma->cm_id->device->local_dma_lkey;
-	else {
-		rdma->dma_mr = ib_get_dma_mr(rdma->pd, IB_ACCESS_LOCAL_WRITE);
-		if (IS_ERR(rdma->dma_mr))
-			goto error;
-		rdma->lkey = rdma->dma_mr->lkey;
-	}
 
 	/* Create the Queue Pair */
 	memset(&qp_attr, 0, sizeof qp_attr);

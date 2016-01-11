@@ -49,9 +49,10 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
 
 	/* The DEFR8 register for the first group also controls RGB output
-	 * routing to DPAD0
+	 * routing to DPAD0 for DU instances that support it.
 	 */
-	if (rgrp->index == 0)
+	if (rgrp->dev->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs > 1 &&
+	    rgrp->index == 0)
 		defr8 |= DEFR8_DRGBS_DU(rgrp->dev->dpad0_source);
 
 	rcar_du_group_write(rgrp, DEFR8, defr8);
@@ -85,6 +86,12 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
 	 */
 	rcar_du_group_write(rgrp, DORCR, DORCR_PG1D_DS1 | DORCR_DPRS);
+
+	/* Apply planes to CRTCs association. */
+	mutex_lock(&rgrp->lock);
+	rcar_du_group_write(rgrp, DPTSR, (rgrp->dptsr_planes << 16) |
+			    rgrp->dptsr_planes);
+	mutex_unlock(&rgrp->lock);
 }
 
 /*

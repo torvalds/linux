@@ -13,7 +13,6 @@
  */
 #include <linux/linkage.h>
 #include <linux/clk/at91_pmc.h>
-#include <mach/at91_ramc.h>
 #include "pm.h"
 
 #define	SRAMC_SELF_FRESH_ACTIVE		0x01
@@ -81,6 +80,8 @@ tmp2	.req	r5
  *	@r2: base address of second SDRAM Controller or 0 if not present
  *	@r3: pm information
  */
+/* at91_pm_suspend_in_sram must be 8-byte aligned per the requirements of fncpy() */
+	.align 3
 ENTRY(at91_pm_suspend_in_sram)
 	/* Save registers on stack */
 	stmfd	sp!, {r4 - r12, lr}
@@ -216,7 +217,7 @@ ENTRY(at91_sramc_self_refresh)
 
 	/* Active SDRAM self-refresh mode */
 	mov	r3, #1
-	str	r3, [r2, #AT91RM9200_SDRAMC_SRR]
+	str	r3, [r2, #AT91_MC_SDRAMC_SRR]
 	b	exit_sramc_sf
 
 ddrc_sf:

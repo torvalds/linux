@@ -11,6 +11,7 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
+#include <linux/clkdev.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -714,7 +715,7 @@ const short da850_lcdcntl_pins[] __initconst = {
 	-1
 };
 
-const short da850_vpif_capture_pins[] __initdata = {
+const short da850_vpif_capture_pins[] __initconst = {
 	DA850_VPIF_DIN0, DA850_VPIF_DIN1, DA850_VPIF_DIN2, DA850_VPIF_DIN3,
 	DA850_VPIF_DIN4, DA850_VPIF_DIN5, DA850_VPIF_DIN6, DA850_VPIF_DIN7,
 	DA850_VPIF_DIN8, DA850_VPIF_DIN9, DA850_VPIF_DIN10, DA850_VPIF_DIN11,
@@ -724,7 +725,7 @@ const short da850_vpif_capture_pins[] __initdata = {
 	-1
 };
 
-const short da850_vpif_display_pins[] __initdata = {
+const short da850_vpif_display_pins[] __initconst = {
 	DA850_VPIF_DOUT0, DA850_VPIF_DOUT1, DA850_VPIF_DOUT2, DA850_VPIF_DOUT3,
 	DA850_VPIF_DOUT4, DA850_VPIF_DOUT5, DA850_VPIF_DOUT6, DA850_VPIF_DOUT7,
 	DA850_VPIF_DOUT8, DA850_VPIF_DOUT9, DA850_VPIF_DOUT10,

@@ -36,7 +36,6 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_net.h"
@@ -48,10 +47,8 @@ extern spinlock_t ptlrpc_last_xid_lock;
 #if RS_DEBUG
 extern spinlock_t ptlrpc_rs_debug_lock;
 #endif
-extern struct mutex pinger_mutex;
-extern struct mutex ptlrpcd_mutex;
 
-__init int ptlrpc_init(void)
+static int __init ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
 
@@ -143,7 +140,8 @@ cleanup:
 		ptlrpc_hr_fini();
 		req_layout_fini();
 		/* Fall through */
-	default: ;
+	default:
+		;
 	}
 
 	return rc;

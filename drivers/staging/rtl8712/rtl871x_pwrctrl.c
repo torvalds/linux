@@ -44,8 +44,7 @@ void r8712_set_rpwm(struct _adapter *padapter, u8 val8)
 		if (pwrpriv->rpwm_retry == 0)
 			return;
 	}
-	if ((padapter->bDriverStopped == true) ||
-	    (padapter->bSurpriseRemoved == true))
+	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 		return;
 	rpwm = val8 | pwrpriv->tog;
 	switch (val8) {
@@ -103,7 +102,7 @@ void r8712_cpwm_int_hdl(struct _adapter *padapter,
 
 	if (pwrpriv->cpwm_tog == ((preportpwrstate->state) & 0x80))
 		return;
-	del_timer_sync(&padapter->pwrctrlpriv.rpwm_check_timer);
+	del_timer(&padapter->pwrctrlpriv.rpwm_check_timer);
 	_enter_pwrlock(&pwrpriv->lock);
 	pwrpriv->cpwm = (preportpwrstate->state) & 0xf;
 	if (pwrpriv->cpwm >= PS_STATE_S2) {
@@ -129,8 +128,7 @@ static void _rpwm_check_handler (struct _adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
-	if (padapter->bDriverStopped == true ||
-	    padapter->bSurpriseRemoved == true)
+	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 		return;
 	if (pwrpriv->cpwm != pwrpriv->rpwm)
 		schedule_work(&pwrpriv->rpwm_workitem);

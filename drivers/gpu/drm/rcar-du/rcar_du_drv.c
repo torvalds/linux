@@ -84,16 +84,17 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.num_lvds = 2,
 };
 
+/* M2-W (r8a7791) and M2-N (r8a7793) are identical */
 static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A7791 has one RGB output, one LVDS output and one
+		/* R8A779[13] has one RGB output, one LVDS output and one
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
-			.possible_crtcs = BIT(1),
+			.possible_crtcs = BIT(1) | BIT(0),
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 			.port = 0,
 		},
@@ -106,19 +107,34 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	.num_lvds = 1,
 };
 
-static const struct platform_device_id rcar_du_id_table[] = {
-	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
-	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
-	{ "rcar-du-r8a7791", (kernel_ulong_t)&rcar_du_r8a7791_info },
-	{ }
+static const struct rcar_du_device_info rcar_du_r8a7794_info = {
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7794 has two RGB outputs and one (currently unsupported)
+		 * TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_DPAD1] = {
+			.possible_crtcs = BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 1,
+		},
+	},
+	.num_lvds = 0,
 };
-
-MODULE_DEVICE_TABLE(platform, rcar_du_id_table);
 
 static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
 	{ .compatible = "renesas,du-r8a7790", .data = &rcar_du_r8a7790_info },
 	{ .compatible = "renesas,du-r8a7791", .data = &rcar_du_r8a7791_info },
+	{ .compatible = "renesas,du-r8a7793", .data = &rcar_du_r8a7791_info },
+	{ .compatible = "renesas,du-r8a7794", .data = &rcar_du_r8a7794_info },
 	{ }
 };
 
@@ -167,8 +183,7 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	init_waitqueue_head(&rcdu->commit.wait);
 
 	rcdu->dev = &pdev->dev;
-	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
-		   : (void *)platform_get_device_id(pdev)->driver_data;
+	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 
@@ -190,7 +205,7 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize DRM/KMS\n");
+		dev_err(&pdev->dev, "failed to initialize DRM/KMS (%d)\n", ret);
 		goto done;
 	}
 
@@ -221,20 +236,20 @@ static void rcar_du_lastclose(struct drm_device *dev)
 	drm_fbdev_cma_restore_mode(rcdu->fbdev);
 }
 
-static int rcar_du_enable_vblank(struct drm_device *dev, int crtc)
+static int rcar_du_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 
-	rcar_du_crtc_enable_vblank(&rcdu->crtcs[crtc], true);
+	rcar_du_crtc_enable_vblank(&rcdu->crtcs[pipe], true);
 
 	return 0;
 }
 
-static void rcar_du_disable_vblank(struct drm_device *dev, int crtc)
+static void rcar_du_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 
-	rcar_du_crtc_enable_vblank(&rcdu->crtcs[crtc], false);
+	rcar_du_crtc_enable_vblank(&rcdu->crtcs[pipe], false);
 }
 
 static const struct file_operations rcar_du_fops = {
@@ -259,7 +274,7 @@ static struct drm_driver rcar_du_driver = {
 	.preclose		= rcar_du_preclose,
 	.lastclose		= rcar_du_lastclose,
 	.set_busid		= drm_platform_set_busid,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rcar_du_enable_vblank,
 	.disable_vblank		= rcar_du_disable_vblank,
 	.gem_free_object	= drm_gem_cma_free_object,
@@ -340,7 +355,6 @@ static struct platform_driver rcar_du_platform_driver = {
 		.pm	= &rcar_du_pm_ops,
 		.of_match_table = rcar_du_of_table,
 	},
-	.id_table	= rcar_du_id_table,
 };
 
 module_platform_driver(rcar_du_platform_driver);

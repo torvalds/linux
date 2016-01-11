@@ -87,7 +87,7 @@ static void cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
 /* return cpumask of HTs in the same core */
 static void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
 {
-	cpumask_copy(mask, topology_thread_cpumask(cpu));
+	cpumask_copy(mask, topology_sibling_cpumask(cpu));
 }
 
 static void cfs_node_to_cpumask(int node, cpumask_t *mask)
@@ -699,7 +699,8 @@ cfs_cpt_num_estimate(void)
 	/* generate reasonable number of CPU partitions based on total number
 	 * of CPUs, Preferred N should be power2 and match this condition:
 	 * 2 * (N - 1)^2 < NCPUS <= 2 * N^2 */
-	for (ncpt = 2; ncpu > 2 * ncpt * ncpt; ncpt <<= 1) {}
+	for (ncpt = 2; ncpu > 2 * ncpt * ncpt; ncpt <<= 1)
+		;
 
 	if (ncpt <= nnode) { /* fat numa system */
 		while (nnode > ncpt)

@@ -13,7 +13,7 @@
  *
  */
 
-#ifndef __LINUX_FBTFT__INTERNAL_H
+#ifndef __LINUX_FBTFT_INTERNAL_H
 #define __LINUX_FBTFT_INTERNAL_H
 
 void fbtft_sysfs_init(struct fbtft_par *par);

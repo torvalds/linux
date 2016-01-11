@@ -329,6 +329,8 @@ struct qib_sge {
 struct qib_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
+	u64 *pages;
+	u32 npages;
 	struct qib_mregion mr;  /* must be last */
 };
 
@@ -338,7 +340,13 @@ struct qib_mr {
  * in qp->s_max_sge.
  */
 struct qib_swqe {
-	struct ib_send_wr wr;   /* don't use wr.sg_list */
+	union {
+		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_ud_wr ud_wr;
+		struct ib_reg_wr reg_wr;
+		struct ib_rdma_wr rdma_wr;
+		struct ib_atomic_wr atomic_wr;
+	};
 	u32 psn;                /* first packet sequence number */
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
@@ -647,6 +655,8 @@ struct qib_qpn_table {
 	struct qpn_map map[QPNMAP_ENTRIES];
 };
 
+#define MAX_LKEY_TABLE_BITS 23
+
 struct qib_lkey_table {
 	spinlock_t lock; /* protect changes in this struct */
 	u32 next;               /* next unused index (speeds search) */
@@ -872,8 +882,10 @@ void qib_cap_mask_chg(struct qib_ibport *ibp);
 void qib_sys_guid_chg(struct qib_ibport *ibp);
 void qib_node_desc_chg(struct qib_ibport *ibp);
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		    struct ib_wc *in_wc, struct ib_grh *in_grh,
-		    struct ib_mad *in_mad, struct ib_mad *out_mad);
+		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		    const struct ib_mad_hdr *in, size_t in_mad_size,
+		    struct ib_mad_hdr *out, size_t *out_mad_size,
+		    u16 *out_mad_pkey_index);
 int qib_create_agents(struct qib_ibdev *dev);
 void qib_free_agents(struct qib_ibdev *dev);
 
@@ -1007,8 +1019,9 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int sig);
 
 int qib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
-struct ib_cq *qib_create_cq(struct ib_device *ibdev, int entries,
-			    int comp_vector, struct ib_ucontext *context,
+struct ib_cq *qib_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *context,
 			    struct ib_udata *udata);
 
 int qib_destroy_cq(struct ib_cq *ibcq);
@@ -1029,14 +1042,15 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 int qib_dereg_mr(struct ib_mr *ibmr);
 
-struct ib_mr *qib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len);
+struct ib_mr *qib_alloc_mr(struct ib_pd *pd,
+			   enum ib_mr_type mr_type,
+			   u32 max_entries);
 
-struct ib_fast_reg_page_list *qib_alloc_fast_reg_page_list(
-				struct ib_device *ibdev, int page_list_len);
+int qib_map_mr_sg(struct ib_mr *ibmr,
+		  struct scatterlist *sg,
+		  int sg_nents);
 
-void qib_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl);
-
-int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr);
+int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr);
 
 struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 			     struct ib_fmr_attr *fmr_attr);

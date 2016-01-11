@@ -967,7 +967,7 @@ static struct gsc_driverdata gsc_v_100_drvdata = {
 	.lclk_frequency = 266000000UL,
 };
 
-static struct platform_device_id gsc_driver_ids[] = {
+static const struct platform_device_id gsc_driver_ids[] = {
 	{
 		.name		= "exynos-gsc",
 		.driver_data	= (unsigned long)&gsc_v_100_drvdata,

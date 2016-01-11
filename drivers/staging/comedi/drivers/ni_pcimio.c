@@ -1085,26 +1085,25 @@ static void init_6143(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 
 	/*  Disable interrupts */
-	ni_stc_writew(dev, 0, Interrupt_Control_Register);
+	ni_stc_writew(dev, 0, NISTC_INT_CTRL_REG);
 
 	/*  Initialise 6143 AI specific bits */
 
 	/* Set G0,G1 DMA mode to E series version */
-	ni_writeb(dev, 0x00, Magic_6143);
+	ni_writeb(dev, 0x00, NI6143_MAGIC_REG);
 	/* Set EOCMode, ADCMode and pipelinedelay */
-	ni_writeb(dev, 0x80, PipelineDelay_6143);
+	ni_writeb(dev, 0x80, NI6143_PIPELINE_DELAY_REG);
 	/* Set EOC Delay */
-	ni_writeb(dev, 0x00, EOC_Set_6143);
+	ni_writeb(dev, 0x00, NI6143_EOC_SET_REG);
 
 	/* Set the FIFO half full level */
-	ni_writel(dev, board->ai_fifo_depth / 2, AIFIFO_Flag_6143);
+	ni_writel(dev, board->ai_fifo_depth / 2, NI6143_AI_FIFO_FLAG_REG);
 
 	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
-	ni_writew(dev, devpriv->ai_calib_source |
-		       Calibration_Channel_6143_RelayOff,
-		  Calibration_Channel_6143);
-	ni_writew(dev, devpriv->ai_calib_source, Calibration_Channel_6143);
+	ni_writew(dev, devpriv->ai_calib_source | NI6143_CALIB_CHAN_RELAY_OFF,
+		  NI6143_CALIB_CHAN_REG);
+	ni_writew(dev, devpriv->ai_calib_source, NI6143_CALIB_CHAN_REG);
 }
 
 static void pcimio_detach(struct comedi_device *dev)

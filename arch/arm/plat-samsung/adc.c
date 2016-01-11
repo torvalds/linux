@@ -389,7 +389,7 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	clk_enable(adc->clk);
+	clk_prepare_enable(adc->clk);
 
 	tmp = adc->prescale | S3C2410_ADCCON_PRSCEN;
 
@@ -413,7 +413,7 @@ static int s3c_adc_remove(struct platform_device *pdev)
 {
 	struct adc_device *adc = platform_get_drvdata(pdev);
 
-	clk_disable(adc->clk);
+	clk_disable_unprepare(adc->clk);
 	regulator_disable(adc->vdd);
 
 	return 0;
@@ -475,7 +475,7 @@ static int s3c_adc_resume(struct device *dev)
 #define s3c_adc_resume NULL
 #endif
 
-static struct platform_device_id s3c_adc_driver_ids[] = {
+static const struct platform_device_id s3c_adc_driver_ids[] = {
 	{
 		.name           = "s3c24xx-adc",
 		.driver_data    = TYPE_ADCV1,

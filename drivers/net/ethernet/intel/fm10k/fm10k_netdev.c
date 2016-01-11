@@ -627,8 +627,10 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		/* verify the skb head is not shared */
 		err = skb_cow_head(skb, 0);
-		if (err)
+		if (err) {
+			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
+		}
 
 		/* locate vlan header */
 		vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
@@ -758,6 +760,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_hw *hw = &interface->hw;
 	s32 err;
+	int i;
 
 	/* updates do not apply to VLAN 0 */
 	if (!vid)
@@ -775,8 +778,25 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (!set)
 		clear_bit(vid, interface->active_vlans);
 
-	/* if default VLAN is already present do nothing */
-	if (vid == hw->mac.default_vid)
+	/* disable the default VID on ring if we have an active VLAN */
+	for (i = 0; i < interface->num_rx_queues; i++) {
+		struct fm10k_ring *rx_ring = interface->rx_ring[i];
+		u16 rx_vid = rx_ring->vid & (VLAN_N_VID - 1);
+
+		if (test_bit(rx_vid, interface->active_vlans))
+			rx_ring->vid |= FM10K_VLAN_CLEAR;
+		else
+			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
+	}
+
+	/* Do not remove default VID related entries from VLAN and MAC tables */
+	if (!set && vid == hw->mac.default_vid)
+		return 0;
+
+	/* Do not throw an error if the interface is down. We will sync once
+	 * we come up
+	 */
+	if (test_bit(__FM10K_DOWN, &interface->state))
 		return 0;
 
 	fm10k_mbx_lock(interface);
@@ -923,18 +943,12 @@ static int __fm10k_mc_sync(struct net_device *dev,
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	struct fm10k_hw *hw = &interface->hw;
 	u16 vid, glort = interface->glort;
-	s32 err;
-
-	if (!is_multicast_ether_addr(addr))
-		return -EADDRNOTAVAIL;
 
 	/* update table with current entries */
 	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 0;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
-		err = hw->mac.ops.update_mc_addr(hw, glort, addr, vid, sync);
-		if (err)
-			return err;
+		hw->mac.ops.update_mc_addr(hw, glort, addr, vid, sync);
 	}
 
 	return 0;
@@ -1002,21 +1016,6 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	int xcast_mode;
 	u16 vid, glort;
 
-	/* restore our address if perm_addr is set */
-	if (hw->mac.type == fm10k_mac_vf) {
-		if (is_valid_ether_addr(hw->mac.perm_addr)) {
-			ether_addr_copy(hw->mac.addr, hw->mac.perm_addr);
-			ether_addr_copy(netdev->perm_addr, hw->mac.perm_addr);
-			ether_addr_copy(netdev->dev_addr, hw->mac.perm_addr);
-			netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
-		}
-
-		if (hw->mac.vlan_override)
-			netdev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
-		else
-			netdev->features |= NETIF_F_HW_VLAN_CTAG_RX;
-	}
-
 	/* record glort for this interface */
 	glort = interface->glort;
 
@@ -1051,7 +1050,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
-	/* update xcast mode before syncronizing addresses */
+	/* update xcast mode before synchronizing addresses */
 	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
 
 	/* synchronize all of the addresses */
@@ -1339,8 +1338,7 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 	dglort.rss_l = fls(interface->ring_feature[RING_F_RSS].mask);
 	dglort.pc_l = fls(interface->ring_feature[RING_F_QOS].mask);
 	dglort.glort = interface->glort;
-	if (l2_accel)
-		dglort.shared_l = fls(l2_accel->size);
+	dglort.shared_l = fls(l2_accel->size);
 	hw->mac.ops.configure_dglort_map(hw, &dglort);
 
 	/* If table is empty remove it */

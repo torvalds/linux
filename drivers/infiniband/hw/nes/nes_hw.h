@@ -1200,12 +1200,6 @@ struct nes_fast_mr_wqe_pbl {
 	dma_addr_t	paddr;
 };
 
-struct nes_ib_fast_reg_page_list {
-	struct ib_fast_reg_page_list	ibfrpl;
-	struct nes_fast_mr_wqe_pbl 	nes_wqe_pbl;
-	u64 				pbl;
-};
-
 struct nes_listener {
 	struct work_struct      work;
 	struct workqueue_struct *wq;

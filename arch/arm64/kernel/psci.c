@@ -15,183 +15,32 @@
 
 #define pr_fmt(fmt) "psci: " fmt
 
-#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/smp.h>
-#include <linux/reboot.h>
-#include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/psci.h>
 #include <linux/slab.h>
+
 #include <uapi/linux/psci.h>
 
-#include <asm/acpi.h>
 #include <asm/compiler.h>
 #include <asm/cpu_ops.h>
 #include <asm/errno.h>
-#include <asm/psci.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
-#include <asm/system_misc.h>
 
-#define PSCI_POWER_STATE_TYPE_STANDBY		0
-#define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
+static DEFINE_PER_CPU_READ_MOSTLY(u32 *, psci_power_state);
 
-struct psci_power_state {
-	u16	id;
-	u8	type;
-	u8	affinity_level;
-};
-
-struct psci_operations {
-	int (*cpu_suspend)(struct psci_power_state state,
-			   unsigned long entry_point);
-	int (*cpu_off)(struct psci_power_state state);
-	int (*cpu_on)(unsigned long cpuid, unsigned long entry_point);
-	int (*migrate)(unsigned long cpuid);
-	int (*affinity_info)(unsigned long target_affinity,
-			unsigned long lowest_affinity_level);
-	int (*migrate_info_type)(void);
-};
-
-static struct psci_operations psci_ops;
-
-static int (*invoke_psci_fn)(u64, u64, u64, u64);
-typedef int (*psci_initcall_t)(const struct device_node *);
-
-asmlinkage int __invoke_psci_fn_hvc(u64, u64, u64, u64);
-asmlinkage int __invoke_psci_fn_smc(u64, u64, u64, u64);
-
-enum psci_function {
-	PSCI_FN_CPU_SUSPEND,
-	PSCI_FN_CPU_ON,
-	PSCI_FN_CPU_OFF,
-	PSCI_FN_MIGRATE,
-	PSCI_FN_AFFINITY_INFO,
-	PSCI_FN_MIGRATE_INFO_TYPE,
-	PSCI_FN_MAX,
-};
-
-static DEFINE_PER_CPU_READ_MOSTLY(struct psci_power_state *, psci_power_state);
-
-static u32 psci_function_id[PSCI_FN_MAX];
-
-static int psci_to_linux_errno(int errno)
-{
-	switch (errno) {
-	case PSCI_RET_SUCCESS:
-		return 0;
-	case PSCI_RET_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
-	case PSCI_RET_INVALID_PARAMS:
-		return -EINVAL;
-	case PSCI_RET_DENIED:
-		return -EPERM;
-	};
-
-	return -EINVAL;
-}
-
-static u32 psci_power_state_pack(struct psci_power_state state)
-{
-	return ((state.id << PSCI_0_2_POWER_STATE_ID_SHIFT)
-			& PSCI_0_2_POWER_STATE_ID_MASK) |
-		((state.type << PSCI_0_2_POWER_STATE_TYPE_SHIFT)
-		 & PSCI_0_2_POWER_STATE_TYPE_MASK) |
-		((state.affinity_level << PSCI_0_2_POWER_STATE_AFFL_SHIFT)
-		 & PSCI_0_2_POWER_STATE_AFFL_MASK);
-}
-
-static void psci_power_state_unpack(u32 power_state,
-				    struct psci_power_state *state)
-{
-	state->id = (power_state & PSCI_0_2_POWER_STATE_ID_MASK) >>
-			PSCI_0_2_POWER_STATE_ID_SHIFT;
-	state->type = (power_state & PSCI_0_2_POWER_STATE_TYPE_MASK) >>
-			PSCI_0_2_POWER_STATE_TYPE_SHIFT;
-	state->affinity_level =
-			(power_state & PSCI_0_2_POWER_STATE_AFFL_MASK) >>
-			PSCI_0_2_POWER_STATE_AFFL_SHIFT;
-}
-
-static int psci_get_version(void)
-{
-	int err;
-
-	err = invoke_psci_fn(PSCI_0_2_FN_PSCI_VERSION, 0, 0, 0);
-	return err;
-}
-
-static int psci_cpu_suspend(struct psci_power_state state,
-			    unsigned long entry_point)
-{
-	int err;
-	u32 fn, power_state;
-
-	fn = psci_function_id[PSCI_FN_CPU_SUSPEND];
-	power_state = psci_power_state_pack(state);
-	err = invoke_psci_fn(fn, power_state, entry_point, 0);
-	return psci_to_linux_errno(err);
-}
-
-static int psci_cpu_off(struct psci_power_state state)
-{
-	int err;
-	u32 fn, power_state;
-
-	fn = psci_function_id[PSCI_FN_CPU_OFF];
-	power_state = psci_power_state_pack(state);
-	err = invoke_psci_fn(fn, power_state, 0, 0);
-	return psci_to_linux_errno(err);
-}
-
-static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
-{
-	int err;
-	u32 fn;
-
-	fn = psci_function_id[PSCI_FN_CPU_ON];
-	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
-	return psci_to_linux_errno(err);
-}
-
-static int psci_migrate(unsigned long cpuid)
-{
-	int err;
-	u32 fn;
-
-	fn = psci_function_id[PSCI_FN_MIGRATE];
-	err = invoke_psci_fn(fn, cpuid, 0, 0);
-	return psci_to_linux_errno(err);
-}
-
-static int psci_affinity_info(unsigned long target_affinity,
-		unsigned long lowest_affinity_level)
-{
-	int err;
-	u32 fn;
-
-	fn = psci_function_id[PSCI_FN_AFFINITY_INFO];
-	err = invoke_psci_fn(fn, target_affinity, lowest_affinity_level, 0);
-	return err;
-}
-
-static int psci_migrate_info_type(void)
-{
-	int err;
-	u32 fn;
-
-	fn = psci_function_id[PSCI_FN_MIGRATE_INFO_TYPE];
-	err = invoke_psci_fn(fn, 0, 0, 0);
-	return err;
-}
-
-static int __maybe_unused cpu_psci_cpu_init_idle(struct device_node *cpu_node,
-						 unsigned int cpu)
+static int __maybe_unused cpu_psci_cpu_init_idle(unsigned int cpu)
 {
 	int i, ret, count = 0;
-	struct psci_power_state *psci_states;
-	struct device_node *state_node;
+	u32 *psci_states;
+	struct device_node *state_node, *cpu_node;
+
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		return -ENODEV;
 
 	/*
 	 * If the PSCI cpu_suspend function hook has not been initialized
@@ -215,13 +64,13 @@ static int __maybe_unused cpu_psci_cpu_init_idle(struct device_node *cpu_node,
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++) {
-		u32 psci_power_state;
+		u32 state;
 
 		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
 
 		ret = of_property_read_u32(state_node,
 					   "arm,psci-suspend-param",
-					   &psci_power_state);
+					   &state);
 		if (ret) {
 			pr_warn(" * %s missing arm,psci-suspend-param property\n",
 				state_node->full_name);
@@ -230,9 +79,13 @@ static int __maybe_unused cpu_psci_cpu_init_idle(struct device_node *cpu_node,
 		}
 
 		of_node_put(state_node);
-		pr_debug("psci-power-state %#x index %d\n", psci_power_state,
-							    i);
-		psci_power_state_unpack(psci_power_state, &psci_states[i]);
+		pr_debug("psci-power-state %#x index %d\n", state, i);
+		if (!psci_power_state_is_valid(state)) {
+			pr_warn("Invalid PSCI power state %#x\n", state);
+			ret = -EINVAL;
+			goto free_mem;
+		}
+		psci_states[i] = state;
 	}
 	/* Idle states parsed correctly, initialize per-cpu pointer */
 	per_cpu(psci_power_state, cpu) = psci_states;
@@ -243,208 +96,7 @@ free_mem:
 	return ret;
 }
 
-static int get_set_conduit_method(struct device_node *np)
-{
-	const char *method;
-
-	pr_info("probing for conduit method from DT.\n");
-
-	if (of_property_read_string(np, "method", &method)) {
-		pr_warn("missing \"method\" property\n");
-		return -ENXIO;
-	}
-
-	if (!strcmp("hvc", method)) {
-		invoke_psci_fn = __invoke_psci_fn_hvc;
-	} else if (!strcmp("smc", method)) {
-		invoke_psci_fn = __invoke_psci_fn_smc;
-	} else {
-		pr_warn("invalid \"method\" property: %s\n", method);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
-{
-	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_RESET, 0, 0, 0);
-}
-
-static void psci_sys_poweroff(void)
-{
-	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_OFF, 0, 0, 0);
-}
-
-static void __init psci_0_2_set_functions(void)
-{
-	pr_info("Using standard PSCI v0.2 function IDs\n");
-	psci_function_id[PSCI_FN_CPU_SUSPEND] = PSCI_0_2_FN64_CPU_SUSPEND;
-	psci_ops.cpu_suspend = psci_cpu_suspend;
-
-	psci_function_id[PSCI_FN_CPU_OFF] = PSCI_0_2_FN_CPU_OFF;
-	psci_ops.cpu_off = psci_cpu_off;
-
-	psci_function_id[PSCI_FN_CPU_ON] = PSCI_0_2_FN64_CPU_ON;
-	psci_ops.cpu_on = psci_cpu_on;
-
-	psci_function_id[PSCI_FN_MIGRATE] = PSCI_0_2_FN64_MIGRATE;
-	psci_ops.migrate = psci_migrate;
-
-	psci_function_id[PSCI_FN_AFFINITY_INFO] = PSCI_0_2_FN64_AFFINITY_INFO;
-	psci_ops.affinity_info = psci_affinity_info;
-
-	psci_function_id[PSCI_FN_MIGRATE_INFO_TYPE] =
-		PSCI_0_2_FN_MIGRATE_INFO_TYPE;
-	psci_ops.migrate_info_type = psci_migrate_info_type;
-
-	arm_pm_restart = psci_sys_reset;
-
-	pm_power_off = psci_sys_poweroff;
-}
-
-/*
- * Probe function for PSCI firmware versions >= 0.2
- */
-static int __init psci_probe(void)
-{
-	int ver = psci_get_version();
-
-	if (ver == PSCI_RET_NOT_SUPPORTED) {
-		/*
-		 * PSCI versions >=0.2 mandates implementation of
-		 * PSCI_VERSION.
-		 */
-		pr_err("PSCI firmware does not comply with the v0.2 spec.\n");
-		return -EOPNOTSUPP;
-	} else {
-		pr_info("PSCIv%d.%d detected in firmware.\n",
-				PSCI_VERSION_MAJOR(ver),
-				PSCI_VERSION_MINOR(ver));
-
-		if (PSCI_VERSION_MAJOR(ver) == 0 &&
-				PSCI_VERSION_MINOR(ver) < 2) {
-			pr_err("Conflicting PSCI version detected.\n");
-			return -EINVAL;
-		}
-	}
-
-	psci_0_2_set_functions();
-
-	return 0;
-}
-
-/*
- * PSCI init function for PSCI versions >=0.2
- *
- * Probe based on PSCI PSCI_VERSION function
- */
-static int __init psci_0_2_init(struct device_node *np)
-{
-	int err;
-
-	err = get_set_conduit_method(np);
-
-	if (err)
-		goto out_put_node;
-	/*
-	 * Starting with v0.2, the PSCI specification introduced a call
-	 * (PSCI_VERSION) that allows probing the firmware version, so
-	 * that PSCI function IDs and version specific initialization
-	 * can be carried out according to the specific version reported
-	 * by firmware
-	 */
-	err = psci_probe();
-
-out_put_node:
-	of_node_put(np);
-	return err;
-}
-
-/*
- * PSCI < v0.2 get PSCI Function IDs via DT.
- */
-static int __init psci_0_1_init(struct device_node *np)
-{
-	u32 id;
-	int err;
-
-	err = get_set_conduit_method(np);
-
-	if (err)
-		goto out_put_node;
-
-	pr_info("Using PSCI v0.1 Function IDs from DT\n");
-
-	if (!of_property_read_u32(np, "cpu_suspend", &id)) {
-		psci_function_id[PSCI_FN_CPU_SUSPEND] = id;
-		psci_ops.cpu_suspend = psci_cpu_suspend;
-	}
-
-	if (!of_property_read_u32(np, "cpu_off", &id)) {
-		psci_function_id[PSCI_FN_CPU_OFF] = id;
-		psci_ops.cpu_off = psci_cpu_off;
-	}
-
-	if (!of_property_read_u32(np, "cpu_on", &id)) {
-		psci_function_id[PSCI_FN_CPU_ON] = id;
-		psci_ops.cpu_on = psci_cpu_on;
-	}
-
-	if (!of_property_read_u32(np, "migrate", &id)) {
-		psci_function_id[PSCI_FN_MIGRATE] = id;
-		psci_ops.migrate = psci_migrate;
-	}
-
-out_put_node:
-	of_node_put(np);
-	return err;
-}
-
-static const struct of_device_id psci_of_match[] __initconst = {
-	{ .compatible = "arm,psci",	.data = psci_0_1_init},
-	{ .compatible = "arm,psci-0.2",	.data = psci_0_2_init},
-	{},
-};
-
-int __init psci_dt_init(void)
-{
-	struct device_node *np;
-	const struct of_device_id *matched_np;
-	psci_initcall_t init_fn;
-
-	np = of_find_matching_node_and_match(NULL, psci_of_match, &matched_np);
-
-	if (!np)
-		return -ENODEV;
-
-	init_fn = (psci_initcall_t)matched_np->data;
-	return init_fn(np);
-}
-
-/*
- * We use PSCI 0.2+ when ACPI is deployed on ARM64 and it's
- * explicitly clarified in SBBR
- */
-int __init psci_acpi_init(void)
-{
-	if (!acpi_psci_present()) {
-		pr_info("is not implemented in ACPI.\n");
-		return -EOPNOTSUPP;
-	}
-
-	pr_info("probing for conduit method from ACPI.\n");
-
-	if (acpi_psci_use_hvc())
-		invoke_psci_fn = __invoke_psci_fn_hvc;
-	else
-		invoke_psci_fn = __invoke_psci_fn_smc;
-
-	return psci_probe();
-}
-
-#ifdef CONFIG_SMP
-
-static int __init cpu_psci_cpu_init(struct device_node *dn, unsigned int cpu)
+static int __init cpu_psci_cpu_init(unsigned int cpu)
 {
 	return 0;
 }
@@ -474,6 +126,11 @@ static int cpu_psci_cpu_disable(unsigned int cpu)
 	/* Fail early if we don't have CPU_OFF support */
 	if (!psci_ops.cpu_off)
 		return -EOPNOTSUPP;
+
+	/* Trusted OS will deny CPU_OFF */
+	if (psci_tos_resident_on(cpu))
+		return -EPERM;
+
 	return 0;
 }
 
@@ -484,9 +141,8 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 	 * There are no known implementations of PSCI actually using the
 	 * power state field, pass a sensible default for now.
 	 */
-	struct psci_power_state state = {
-		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
-	};
+	u32 state = PSCI_POWER_STATE_TYPE_POWER_DOWN <<
+		    PSCI_0_2_POWER_STATE_TYPE_SHIFT;
 
 	ret = psci_ops.cpu_off(state);
 
@@ -498,7 +154,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 	int err, i;
 
 	if (!psci_ops.affinity_info)
-		return 1;
+		return 0;
 	/*
 	 * cpu_kill could race with cpu_die and we can
 	 * potentially end up declaring this cpu undead
@@ -509,7 +165,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 		err = psci_ops.affinity_info(cpu_logical_map(cpu), 0);
 		if (err == PSCI_0_2_AFFINITY_LEVEL_OFF) {
 			pr_info("CPU%d killed.\n", cpu);
-			return 1;
+			return 0;
 		}
 
 		msleep(10);
@@ -518,15 +174,13 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 
 	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
 			cpu, err);
-	/* Make op_cpu_kill() fail. */
-	return 0;
+	return -ETIMEDOUT;
 }
-#endif
 #endif
 
 static int psci_suspend_finisher(unsigned long index)
 {
-	struct psci_power_state *state = __this_cpu_read(psci_power_state);
+	u32 *state = __this_cpu_read(psci_power_state);
 
 	return psci_ops.cpu_suspend(state[index - 1],
 				    virt_to_phys(cpu_resume));
@@ -535,7 +189,7 @@ static int psci_suspend_finisher(unsigned long index)
 static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
 {
 	int ret;
-	struct psci_power_state *state = __this_cpu_read(psci_power_state);
+	u32 *state = __this_cpu_read(psci_power_state);
 	/*
 	 * idle state index 0 corresponds to wfi, should never be called
 	 * from the cpu_suspend operations
@@ -543,10 +197,10 @@ static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
 	if (WARN_ON_ONCE(!index))
 		return -EINVAL;
 
-	if (state[index - 1].type == PSCI_POWER_STATE_TYPE_STANDBY)
+	if (!psci_power_state_loses_context(state[index - 1]))
 		ret = psci_ops.cpu_suspend(state[index - 1], 0);
 	else
-		ret = __cpu_suspend(index, psci_suspend_finisher);
+		ret = cpu_suspend(index, psci_suspend_finisher);
 
 	return ret;
 }
@@ -557,7 +211,6 @@ const struct cpu_operations cpu_psci_ops = {
 	.cpu_init_idle	= cpu_psci_cpu_init_idle,
 	.cpu_suspend	= cpu_psci_cpu_suspend,
 #endif
-#ifdef CONFIG_SMP
 	.cpu_init	= cpu_psci_cpu_init,
 	.cpu_prepare	= cpu_psci_cpu_prepare,
 	.cpu_boot	= cpu_psci_cpu_boot,
@@ -565,7 +218,6 @@ const struct cpu_operations cpu_psci_ops = {
 	.cpu_disable	= cpu_psci_cpu_disable,
 	.cpu_die	= cpu_psci_cpu_die,
 	.cpu_kill	= cpu_psci_cpu_kill,
-#endif
 #endif
 };
 

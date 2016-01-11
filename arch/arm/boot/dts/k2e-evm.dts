@@ -13,7 +13,7 @@
 #include "k2e.dtsi"
 
 / {
-	compatible =  "ti,k2e-evm","ti,keystone";
+	compatible = "ti,k2e-evm", "ti,k2e", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Edison EVM";
 
 	soc {
@@ -141,6 +141,7 @@
 };
 
 &mdio {
+	status = "ok";
 	ethphy0: ethernet-phy@0 {
 		compatible = "marvell,88E1514", "marvell,88E1510", "ethernet-phy-ieee802.3-c22";
 		reg = <0>;

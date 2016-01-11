@@ -46,8 +46,11 @@ struct thermal_instance {
 	unsigned long target;	/* expected cooling state */
 	char attr_name[THERMAL_NAME_LENGTH];
 	struct device_attribute attr;
+	char weight_attr_name[THERMAL_NAME_LENGTH];
+	struct device_attribute weight_attr;
 	struct list_head tz_node; /* node in tz->thermal_instances */
 	struct list_head cdev_node; /* node in cdev->thermal_instances */
+	unsigned int weight; /* The weight of the cooling device */
 };
 
 int thermal_register_governor(struct thermal_governor *);
@@ -85,6 +88,14 @@ static inline int thermal_gov_user_space_register(void) { return 0; }
 static inline void thermal_gov_user_space_unregister(void) {}
 #endif /* CONFIG_THERMAL_GOV_USER_SPACE */
 
+#ifdef CONFIG_THERMAL_GOV_POWER_ALLOCATOR
+int thermal_gov_power_allocator_register(void);
+void thermal_gov_power_allocator_unregister(void);
+#else
+static inline int thermal_gov_power_allocator_register(void) { return 0; }
+static inline void thermal_gov_power_allocator_unregister(void) {}
+#endif /* CONFIG_THERMAL_GOV_POWER_ALLOCATOR */
+
 /* device tree support */
 #ifdef CONFIG_THERMAL_OF
 int of_parse_thermal_zones(void);
@@ -103,7 +114,7 @@ static inline int of_thermal_get_ntrips(struct thermal_zone_device *tz)
 static inline bool of_thermal_is_trip_valid(struct thermal_zone_device *tz,
 					    int trip)
 {
-	return 0;
+	return false;
 }
 static inline const struct thermal_trip *
 of_thermal_get_trip_points(struct thermal_zone_device *tz)

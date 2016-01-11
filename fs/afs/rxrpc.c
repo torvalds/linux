@@ -85,7 +85,7 @@ int afs_open_socket(void)
 		return -ENOMEM;
 	}
 
-	ret = sock_create_kern(AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
+	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
 	if (ret < 0) {
 		destroy_workqueue(afs_async_calls);
 		_leave(" = %d [socket]", ret);

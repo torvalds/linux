@@ -38,11 +38,6 @@ static int crypto_pcomp_init(struct crypto_tfm *tfm, u32 type, u32 mask)
 	return 0;
 }
 
-static unsigned int crypto_pcomp_extsize(struct crypto_alg *alg)
-{
-	return alg->cra_ctxsize;
-}
-
 static int crypto_pcomp_init_tfm(struct crypto_tfm *tfm)
 {
 	return 0;
@@ -77,7 +72,7 @@ static void crypto_pcomp_show(struct seq_file *m, struct crypto_alg *alg)
 }
 
 static const struct crypto_type crypto_pcomp_type = {
-	.extsize	= crypto_pcomp_extsize,
+	.extsize	= crypto_alg_extsize,
 	.init		= crypto_pcomp_init,
 	.init_tfm	= crypto_pcomp_init_tfm,
 #ifdef CONFIG_PROC_FS

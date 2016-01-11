@@ -244,7 +244,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 	}
 
 	regmap_st = syscon_node_to_regmap(parent->of_node);
-	if (!regmap_st)
+	if (IS_ERR(regmap_st))
 		return -ENODEV;
 
 	res = misc_register(&at91wdt_miscdev);
@@ -269,9 +269,8 @@ static int at91wdt_remove(struct platform_device *pdev)
 	if (res)
 		dev_warn(dev, "failed to unregister restart handler\n");
 
-	res = misc_deregister(&at91wdt_miscdev);
-	if (!res)
-		at91wdt_miscdev.parent = NULL;
+	misc_deregister(&at91wdt_miscdev);
+	at91wdt_miscdev.parent = NULL;
 
 	return res;
 }

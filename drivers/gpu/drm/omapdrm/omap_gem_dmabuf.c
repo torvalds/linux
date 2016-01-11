@@ -17,9 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
-
 #include <linux/dma-buf.h>
+
+#include "omap_drv.h"
 
 static struct sg_table *omap_gem_map_dma_buf(
 		struct dma_buf_attachment *attachment,
@@ -140,15 +140,12 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 		struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = buffer->priv;
-	struct drm_device *dev = obj->dev;
 	int ret = 0;
 
 	if (WARN_ON(!obj->filp))
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
 	ret = drm_gem_mmap_obj(obj, omap_gem_mmap_size(obj), vma);
-	mutex_unlock(&dev->struct_mutex);
 	if (ret < 0)
 		return ret;
 

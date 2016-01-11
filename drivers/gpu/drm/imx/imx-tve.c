@@ -301,7 +301,7 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 
 	switch (tve->mode) {
 	case TVE_MODE_VGA:
-		imx_drm_set_bus_format_pins(encoder, MEDIA_BUS_FMT_YUV8_1X24,
+		imx_drm_set_bus_format_pins(encoder, MEDIA_BUS_FMT_GBR888_1X24,
 					    tve->hsync_pin, tve->vsync_pin);
 		break;
 	case TVE_MODE_TVOUT:
@@ -721,6 +721,7 @@ static const struct of_device_id imx_tve_dt_ids[] = {
 	{ .compatible = "fsl,imx53-tve", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx_tve_dt_ids);
 
 static struct platform_driver imx_tve_driver = {
 	.probe		= imx_tve_probe,

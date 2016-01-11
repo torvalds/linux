@@ -85,9 +85,17 @@
 			};
 
 			spi0: spi@10600 {
+				compatible = "marvell,armada-xp-spi",
+						"marvell,orion-spi";
 				pinctrl-0 = <&spi0_pins>;
 				pinctrl-names = "default";
 			};
+
+			spi1: spi@10680 {
+				compatible = "marvell,armada-xp-spi",
+						"marvell,orion-spi";
+			};
+
 
 			i2c0: i2c@11000 {
 				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
@@ -176,8 +184,13 @@
 				reg = <0x20800 0x20>;
 			};
 
+			cpu-config@21000 {
+				compatible = "marvell,armada-xp-cpu-config";
+				reg = <0x21000 0x8>;
+			};
+
 			eth2: ethernet@30000 {
-				compatible = "marvell,armada-370-neta";
+				compatible = "marvell,armada-xp-neta";
 				reg = <0x30000 0x4000>;
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
@@ -220,6 +233,26 @@
 				};
 			};
 
+			ethernet@70000 {
+				compatible = "marvell,armada-xp-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-xp-neta";
+			};
+
+			crypto@90000 {
+				compatible = "marvell,armada-xp-crypto";
+				reg = <0x90000 0x10000>;
+				reg-names = "regs";
+				interrupts = <48>, <49>;
+				clocks = <&gateclk 23>, <&gateclk 23>;
+				clock-names = "cesa0", "cesa1";
+				marvell,crypto-srams = <&crypto_sram0>,
+						       <&crypto_sram1>;
+				marvell,crypto-sram-size = <0x800>;
+			};
+
 			xor@f0900 {
 				compatible = "marvell,orion-xor";
 				reg = <0xF0900 0x100
@@ -239,6 +272,24 @@
 					dmacap,memset;
 				};
 			};
+		};
+
+		crypto_sram0: sa-sram0 {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x09, 0x09) 0 0x800>;
+			clocks = <&gateclk 23>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 MBUS_ID(0x09, 0x09) 0 0x800>;
+		};
+
+		crypto_sram1: sa-sram1 {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x09, 0x05) 0 0x800>;
+			clocks = <&gateclk 23>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 MBUS_ID(0x09, 0x05) 0 0x800>;
 		};
 	};
 
@@ -289,7 +340,7 @@
 	spi0_pins: spi0-pins {
 		marvell,pins = "mpp36", "mpp37",
 			       "mpp38", "mpp39";
-		marvell,function = "spi";
+		marvell,function = "spi0";
 	};
 
 	uart2_pins: uart2-pins {

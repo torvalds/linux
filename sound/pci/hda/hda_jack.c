@@ -132,11 +132,11 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 
 	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
 		struct hda_jack_callback *cb, *next;
-#ifdef CONFIG_SND_HDA_INPUT_JACK
+
 		/* free jack instances manually when clearing/reconfiguring */
 		if (!codec->bus->shutdown && jack->jack)
 			snd_device_free(codec->card, jack->jack);
-#endif
+
 		for (cb = jack->callback; cb; cb = next) {
 			next = cb->next;
 			kfree(cb);
@@ -337,20 +337,15 @@ void snd_hda_jack_report_sync(struct hda_codec *codec)
 	jack = codec->jacktbl.list;
 	for (i = 0; i < codec->jacktbl.used; i++, jack++)
 		if (jack->nid) {
-			if (!jack->kctl || jack->block_report)
+			if (!jack->jack || jack->block_report)
 				continue;
 			state = get_jack_plug_state(jack->pin_sense);
-			snd_kctl_jack_report(codec->card, jack->kctl, state);
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-			if (jack->jack)
-				snd_jack_report(jack->jack,
-						state ? jack->type : 0);
-#endif
+			snd_jack_report(jack->jack,
+					state ? jack->type : 0);
 		}
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_report_sync);
 
-#ifdef CONFIG_SND_HDA_INPUT_JACK
 /* guess the jack type from the pin-config */
 static int get_input_jack_type(struct hda_codec *codec, hda_nid_t nid)
 {
@@ -377,92 +372,45 @@ static void hda_free_jack_priv(struct snd_jack *jack)
 	jacks->nid = 0;
 	jacks->jack = NULL;
 }
-#endif
 
 /**
  * snd_hda_jack_add_kctl - Add a kctl for the given pin
  * @codec: the HDA codec
  * @nid: pin NID to assign
  * @name: string name for the jack
- * @idx: index number for the jack
  * @phantom_jack: flag to deal as a phantom jack
  *
  * This assigns a jack-detection kctl to the given pin.  The kcontrol
  * will have the given name and index.
  */
-static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name, int idx, bool phantom_jack)
+int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
+			  const char *name, bool phantom_jack)
 {
 	struct hda_jack_tbl *jack;
-	struct snd_kcontrol *kctl;
-	int err, state;
+	int err, state, type;
 
 	jack = snd_hda_jack_tbl_new(codec, nid);
 	if (!jack)
 		return 0;
-	if (jack->kctl)
+	if (jack->jack)
 		return 0; /* already created */
-	kctl = snd_kctl_jack_new(name, idx, codec);
-	if (!kctl)
-		return -ENOMEM;
-	err = snd_hda_ctl_add(codec, nid, kctl);
+
+	type = get_input_jack_type(codec, nid);
+	err = snd_jack_new(codec->card, name, type,
+			   &jack->jack, true, phantom_jack);
 	if (err < 0)
 		return err;
-	jack->kctl = kctl;
-	jack->phantom_jack = !!phantom_jack;
 
+	jack->phantom_jack = !!phantom_jack;
+	jack->type = type;
+	jack->jack->private_data = jack;
+	jack->jack->private_free = hda_free_jack_priv;
 	state = snd_hda_jack_detect(codec, nid);
-	snd_kctl_jack_report(codec->card, kctl, state);
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-	if (!phantom_jack) {
-		jack->type = get_input_jack_type(codec, nid);
-		err = snd_jack_new(codec->card, name, jack->type,
-				   &jack->jack);
-		if (err < 0)
-			return err;
-		jack->jack->private_data = jack;
-		jack->jack->private_free = hda_free_jack_priv;
-		snd_jack_report(jack->jack, state ? jack->type : 0);
-	}
-#endif
+	snd_jack_report(jack->jack, state ? jack->type : 0);
+
 	return 0;
 }
-
-/**
- * snd_hda_jack_add_kctl - Add a jack kctl for the given pin
- * @codec: the HDA codec
- * @nid: pin NID
- * @name: the name string for the jack ctl
- * @idx: the ctl index for the jack ctl
- *
- * This is a simple helper calling __snd_hda_jack_add_kctl().
- */
-int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name, int idx)
-{
-	return __snd_hda_jack_add_kctl(codec, nid, name, idx, false);
-}
 EXPORT_SYMBOL_GPL(snd_hda_jack_add_kctl);
-
-/* get the unique index number for the given kctl name */
-static int get_unique_index(struct hda_codec *codec, const char *name, int idx)
-{
-	struct hda_jack_tbl *jack;
-	int i, len = strlen(name);
- again:
-	jack = codec->jacktbl.list;
-	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
-		/* jack->kctl.id contains "XXX Jack" name string with index */
-		if (jack->kctl &&
-		    !strncmp(name, jack->kctl->id.name, len) &&
-		    !strcmp(" Jack", jack->kctl->id.name + len) &&
-		    jack->kctl->id.index == idx) {
-			idx++;
-			goto again;
-		}
-	}
-	return idx;
-}
 
 static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 			 const struct auto_pin_cfg *cfg,
@@ -470,7 +418,7 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int def_conf, conn;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-	int idx, err;
+	int err;
 	bool phantom_jack;
 
 	if (!nid)
@@ -482,16 +430,14 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 	phantom_jack = (conn != AC_JACK_PORT_COMPLEX) ||
 		       !is_jack_detectable(codec, nid);
 
-	if (base_name) {
+	if (base_name)
 		strlcpy(name, base_name, sizeof(name));
-		idx = 0;
-	} else
-		snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), &idx);
+	else
+		snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), NULL);
 	if (phantom_jack)
 		/* Example final name: "Internal Mic Phantom Jack" */
 		strncat(name, " Phantom", sizeof(name) - strlen(name) - 1);
-	idx = get_unique_index(codec, name, idx);
-	err = __snd_hda_jack_add_kctl(codec, nid, name, idx, phantom_jack);
+	err = snd_hda_jack_add_kctl(codec, nid, name, phantom_jack);
 	if (err < 0)
 		return err;
 

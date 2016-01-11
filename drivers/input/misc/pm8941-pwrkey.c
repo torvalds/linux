@@ -93,7 +93,7 @@ static int pm8941_reboot_notify(struct notifier_block *nb,
 	default:
 		reset_type = PON_PS_HOLD_TYPE_HARD_RESET;
 		break;
-	};
+	}
 
 	error = regmap_update_bits(pwrkey->regmap,
 				   pwrkey->baseaddr + PON_PS_HOLD_RST_CTL,

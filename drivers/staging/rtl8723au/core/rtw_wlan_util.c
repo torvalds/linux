@@ -525,7 +525,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	else
 		aSifsTime = 16;
 
-		for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++) {
 		ACI = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN >> 5) & 0x03;
 		ACM = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN >> 4) & 0x01;
 
@@ -573,7 +573,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	inx[0] = 0; inx[1] = 1; inx[2] = 2; inx[3] = 3;
 
 	if (pregpriv->wifi_spec == 1) {
-		u32 j, tmp, change_inx = false;
+		u32 j, change_inx = false;
 
 		/* entry indx: 0->vo, 1->vi, 2->be, 3->bk. */
 		for (i = 0; i < 4; i++) {
@@ -589,14 +589,8 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 				}
 
 				if (change_inx) {
-					tmp = edca[i];
-					edca[i] = edca[j];
-					edca[j] = tmp;
-
-					tmp = inx[i];
-					inx[i] = inx[j];
-					inx[j] = tmp;
-
+					swap(edca[i], edca[j]);
+					swap(inx[i], inx[j]);
 					change_inx = false;
 				}
 			}
@@ -1218,7 +1212,7 @@ unsigned int update_supported_rate23a(unsigned char *ptn, unsigned int ptn_sz)
 
 unsigned int update_MSC_rate23a(struct ieee80211_ht_cap *pHT_caps)
 {
-	unsigned int mask = 0;
+	unsigned int mask;
 
 	mask = pHT_caps->mcs.rx_mask[0] << 12 |
 		pHT_caps->mcs.rx_mask[1] << 20;

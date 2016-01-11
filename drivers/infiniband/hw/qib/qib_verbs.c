@@ -40,6 +40,7 @@
 #include <linux/rculist.h>
 #include <linux/mm.h>
 #include <linux/random.h>
+#include <linux/vmalloc.h>
 
 #include "qib.h"
 #include "qib_common.h"
@@ -361,8 +362,8 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	 * undefined operations.
 	 * Make sure buffer is large enough to hold the result for atomics.
 	 */
-	if (wr->opcode == IB_WR_FAST_REG_MR) {
-		if (qib_fast_reg_mr(qp, wr))
+	if (wr->opcode == IB_WR_REG_MR) {
+		if (qib_reg_mr(qp, reg_wr(wr)))
 			goto bail_inval;
 	} else if (qp->ibqp.qp_type == IB_QPT_UC) {
 		if ((unsigned) wr->opcode >= IB_WR_RDMA_READ)
@@ -373,7 +374,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 		    wr->opcode != IB_WR_SEND_WITH_IMM)
 			goto bail_inval;
 		/* Check UD destination address PD */
-		if (qp->ibqp.pd != wr->wr.ud.ah->pd)
+		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
 			goto bail_inval;
 	} else if ((unsigned) wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD)
 		goto bail_inval;
@@ -396,7 +397,23 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	rkt = &to_idev(qp->ibqp.device)->lk_table;
 	pd = to_ipd(qp->ibqp.pd);
 	wqe = get_swqe_ptr(qp, qp->s_head);
-	wqe->wr = *wr;
+
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC)
+		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
+	else if (wr->opcode == IB_WR_REG_MR)
+		memcpy(&wqe->reg_wr, reg_wr(wr),
+			sizeof(wqe->reg_wr));
+	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+		 wr->opcode == IB_WR_RDMA_WRITE ||
+		 wr->opcode == IB_WR_RDMA_READ)
+		memcpy(&wqe->rdma_wr, rdma_wr(wr), sizeof(wqe->rdma_wr));
+	else if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+		 wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+		memcpy(&wqe->atomic_wr, atomic_wr(wr), sizeof(wqe->atomic_wr));
+	else
+		memcpy(&wqe->wr, wr, sizeof(wqe->wr));
+
 	wqe->length = 0;
 	j = 0;
 	if (wr->num_sge) {
@@ -425,7 +442,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 				  qp->port_num - 1)->ibmtu)
 		goto bail_inval_free;
 	else
-		atomic_inc(&to_iah(wr->wr.ud.ah)->refcount);
+		atomic_inc(&to_iah(ud_wr(wr)->ah)->refcount);
 	wqe->ssn = qp->s_ssn++;
 	qp->s_head = next;
 
@@ -1550,12 +1567,14 @@ full:
 	}
 }
 
-static int qib_query_device(struct ib_device *ibdev,
-			    struct ib_device_attr *props)
+static int qib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			    struct ib_udata *uhw)
 {
 	struct qib_devdata *dd = dd_from_ibdev(ibdev);
 	struct qib_ibdev *dev = to_idev(ibdev);
 
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 	memset(props, 0, sizeof(*props));
 
 	props->device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
@@ -1572,6 +1591,7 @@ static int qib_query_device(struct ib_device *ibdev,
 	props->max_qp = ib_qib_max_qps;
 	props->max_qp_wr = ib_qib_max_qp_wrs;
 	props->max_sge = ib_qib_max_sges;
+	props->max_sge_rd = ib_qib_max_sges;
 	props->max_cq = ib_qib_max_cqs;
 	props->max_ah = ib_qib_max_ahs;
 	props->max_cqe = ib_qib_max_cqes;
@@ -2040,6 +2060,24 @@ static void init_ibport(struct qib_pportdata *ppd)
 	RCU_INIT_POINTER(ibp->qp1, NULL);
 }
 
+static int qib_port_immutable(struct ib_device *ibdev, u8 port_num,
+			      struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = qib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 /**
  * qib_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -2089,10 +2127,16 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	 * the LKEY).  The remaining bits act as a generation number or tag.
 	 */
 	spin_lock_init(&dev->lk_table.lock);
+	/* insure generation is at least 4 bits see keys.c */
+	if (ib_qib_lkey_table_size > MAX_LKEY_TABLE_BITS) {
+		qib_dev_warn(dd, "lkey bits %u too large, reduced to %u\n",
+			ib_qib_lkey_table_size, MAX_LKEY_TABLE_BITS);
+		ib_qib_lkey_table_size = MAX_LKEY_TABLE_BITS;
+	}
 	dev->lk_table.max = 1 << ib_qib_lkey_table_size;
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
 	dev->lk_table.table = (struct qib_mregion __rcu **)
-		__get_free_pages(GFP_KERNEL, get_order(lk_tab_size));
+		vmalloc(lk_tab_size);
 	if (dev->lk_table.table == NULL) {
 		ret = -ENOMEM;
 		goto err_lk;
@@ -2215,9 +2259,8 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->reg_phys_mr = qib_reg_phys_mr;
 	ibdev->reg_user_mr = qib_reg_user_mr;
 	ibdev->dereg_mr = qib_dereg_mr;
-	ibdev->alloc_fast_reg_mr = qib_alloc_fast_reg_mr;
-	ibdev->alloc_fast_reg_page_list = qib_alloc_fast_reg_page_list;
-	ibdev->free_fast_reg_page_list = qib_free_fast_reg_page_list;
+	ibdev->alloc_mr = qib_alloc_mr;
+	ibdev->map_mr_sg = qib_map_mr_sg;
 	ibdev->alloc_fmr = qib_alloc_fmr;
 	ibdev->map_phys_fmr = qib_map_phys_fmr;
 	ibdev->unmap_fmr = qib_unmap_fmr;
@@ -2227,6 +2270,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->process_mad = qib_process_mad;
 	ibdev->mmap = qib_mmap;
 	ibdev->dma_ops = &qib_dma_mapping_ops;
+	ibdev->get_port_immutable = qib_port_immutable;
 
 	snprintf(ibdev->node_desc, sizeof(ibdev->node_desc),
 		 "Intel Infiniband HCA %s", init_utsname()->nodename);
@@ -2265,7 +2309,7 @@ err_tx:
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 err_hdrs:
-	free_pages((unsigned long) dev->lk_table.table, get_order(lk_tab_size));
+	vfree(dev->lk_table.table);
 err_lk:
 	kfree(dev->qp_table);
 err_qpt:
@@ -2319,8 +2363,7 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
-	free_pages((unsigned long) dev->lk_table.table,
-		   get_order(lk_tab_size));
+	vfree(dev->lk_table.table);
 	kfree(dev->qp_table);
 }
 

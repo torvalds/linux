@@ -367,13 +367,21 @@ static struct phy *_of_phy_get(struct device_node *np, int index)
 	phy_provider = of_phy_provider_lookup(args.np);
 	if (IS_ERR(phy_provider) || !try_module_get(phy_provider->owner)) {
 		phy = ERR_PTR(-EPROBE_DEFER);
-		goto err0;
+		goto out_unlock;
+	}
+
+	if (!of_device_is_available(args.np)) {
+		dev_warn(phy_provider->dev, "Requested PHY is disabled\n");
+		phy = ERR_PTR(-ENODEV);
+		goto out_put_module;
 	}
 
 	phy = phy_provider->of_xlate(phy_provider->dev, &args);
+
+out_put_module:
 	module_put(phy_provider->owner);
 
-err0:
+out_unlock:
 	mutex_unlock(&phy_provider_mutex);
 	of_node_put(args.np);
 
@@ -530,7 +538,7 @@ struct phy *phy_optional_get(struct device *dev, const char *string)
 {
 	struct phy *phy = phy_get(dev, string);
 
-	if (PTR_ERR(phy) == -ENODEV)
+	if (IS_ERR(phy) && (PTR_ERR(phy) == -ENODEV))
 		phy = NULL;
 
 	return phy;
@@ -584,7 +592,7 @@ struct phy *devm_phy_optional_get(struct device *dev, const char *string)
 {
 	struct phy *phy = devm_phy_get(dev, string);
 
-	if (PTR_ERR(phy) == -ENODEV)
+	if (IS_ERR(phy) && (PTR_ERR(phy) == -ENODEV))
 		phy = NULL;
 
 	return phy;
@@ -623,6 +631,47 @@ struct phy *devm_of_phy_get(struct device *dev, struct device_node *np,
 EXPORT_SYMBOL_GPL(devm_of_phy_get);
 
 /**
+ * devm_of_phy_get_by_index() - lookup and obtain a reference to a phy by index.
+ * @dev: device that requests this phy
+ * @np: node containing the phy
+ * @index: index of the phy
+ *
+ * Gets the phy using _of_phy_get(), then gets a refcount to it,
+ * and associates a device with it using devres. On driver detach,
+ * release function is invoked on the devres data,
+ * then, devres data is freed.
+ *
+ */
+struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_node *np,
+				     int index)
+{
+	struct phy **ptr, *phy;
+
+	ptr = devres_alloc(devm_phy_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	phy = _of_phy_get(np, index);
+	if (IS_ERR(phy)) {
+		devres_free(ptr);
+		return phy;
+	}
+
+	if (!try_module_get(phy->ops->owner)) {
+		devres_free(ptr);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	get_device(&phy->dev);
+
+	*ptr = phy;
+	devres_add(dev, ptr);
+
+	return phy;
+}
+EXPORT_SYMBOL_GPL(devm_of_phy_get_by_index);
+
+/**
  * phy_create() - create a new phy
  * @dev: device that is creating the new phy
  * @node: device node of the phy
@@ -651,16 +700,6 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 		goto free_phy;
 	}
 
-	/* phy-supply */
-	phy->pwr = regulator_get_optional(dev, "phy");
-	if (IS_ERR(phy->pwr)) {
-		if (PTR_ERR(phy->pwr) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto free_ida;
-		}
-		phy->pwr = NULL;
-	}
-
 	device_initialize(&phy->dev);
 	mutex_init(&phy->mutex);
 
@@ -673,6 +712,16 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	ret = dev_set_name(&phy->dev, "phy-%s.%d", dev_name(dev), id);
 	if (ret)
 		goto put_dev;
+
+	/* phy-supply */
+	phy->pwr = regulator_get_optional(&phy->dev, "phy");
+	if (IS_ERR(phy->pwr)) {
+		ret = PTR_ERR(phy->pwr);
+		if (ret == -EPROBE_DEFER)
+			goto put_dev;
+
+		phy->pwr = NULL;
+	}
 
 	ret = device_add(&phy->dev);
 	if (ret)
@@ -688,9 +737,6 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 put_dev:
 	put_device(&phy->dev);  /* calls phy_release() which frees resources */
 	return ERR_PTR(ret);
-
-free_ida:
-	ida_simple_remove(&phy_ida, phy->id);
 
 free_phy:
 	kfree(phy);

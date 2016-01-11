@@ -7,9 +7,7 @@ config NET_VENDOR_MICROCHIP
 	default y
 	depends on SPI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -34,5 +32,14 @@ config ENC28J60_WRITEVERIFY
 	---help---
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
+
+config ENCX24J600
+    tristate "ENCX24J600 support"
+    depends on SPI
+    ---help---
+      Support for the Microchip ENC424J600/624J600 ethernet chip.
+
+      To compile this driver as a module, choose M here. The module will be
+      called encx24j600.
 
 endif # NET_VENDOR_MICROCHIP

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,10 +7,10 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@emulex.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
  * Emulex
  * 3333 Susan Street
@@ -330,12 +330,18 @@ ssize_t beiscsi_phys_port_disp(struct device *dev,
 
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
-			     struct be_mem_descriptor *mem_descr);
+			     struct be_mem_descriptor *mem_descr,
+			     struct hwi_wrb_context *pwrb_context);
 
 void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
-			     struct wrb_handle *pwrb_handle);
+			     struct wrb_handle *pwrb_handle,
+			     struct hwi_wrb_context *pwrb_context);
+
 void beiscsi_ue_detect(struct beiscsi_hba *phba);
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 			 struct be_set_eqd *, int num);
+
+int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
+			    uint32_t fw_sess_handle);
 
 #endif

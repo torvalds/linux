@@ -8,9 +8,22 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <asm/pci_insn.h>
+#include <asm/pci_debug.h>
 #include <asm/processor.h>
 
 #define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */
+
+static inline void zpci_err_insn(u8 cc, u8 status, u64 req, u64 offset)
+{
+	struct {
+		u64 req;
+		u64 offset;
+		u8 cc;
+		u8 status;
+	} __packed data = {req, offset, cc, status};
+
+	zpci_err_hex(&data, sizeof(data));
+}
 
 /* Modify PCI Function Controls */
 static inline u8 __mpcifc(u64 req, struct zpci_fib *fib, u8 *status)
@@ -38,8 +51,8 @@ int zpci_mod_fc(u64 req, struct zpci_fib *fib)
 	} while (cc == 2);
 
 	if (cc)
-		printk_once(KERN_ERR "%s: error cc: %d  status: %d\n",
-			     __func__, cc, status);
+		zpci_err_insn(cc, status, req, 0);
+
 	return (cc) ? -EIO : 0;
 }
 
@@ -72,8 +85,8 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
 	} while (cc == 2);
 
 	if (cc)
-		printk_once(KERN_ERR "%s: error cc: %d  status: %d  dma_addr: %Lx  size: %Lx\n",
-			    __func__, cc, status, addr, range);
+		zpci_err_insn(cc, status, addr, range);
+
 	return (cc) ? -EIO : 0;
 }
 
@@ -121,8 +134,8 @@ int zpci_load(u64 *data, u64 req, u64 offset)
 	} while (cc == 2);
 
 	if (cc)
-		printk_once(KERN_ERR "%s: error cc: %d  status: %d  req: %Lx  offset: %Lx\n",
-			    __func__, cc, status, req, offset);
+		zpci_err_insn(cc, status, req, offset);
+
 	return (cc > 0) ? -EIO : cc;
 }
 EXPORT_SYMBOL_GPL(zpci_load);
@@ -159,8 +172,8 @@ int zpci_store(u64 data, u64 req, u64 offset)
 	} while (cc == 2);
 
 	if (cc)
-		printk_once(KERN_ERR "%s: error cc: %d  status: %d  req: %Lx  offset: %Lx\n",
-			__func__, cc, status, req, offset);
+		zpci_err_insn(cc, status, req, offset);
+
 	return (cc > 0) ? -EIO : cc;
 }
 EXPORT_SYMBOL_GPL(zpci_store);
@@ -195,8 +208,8 @@ int zpci_store_block(const u64 *data, u64 req, u64 offset)
 	} while (cc == 2);
 
 	if (cc)
-		printk_once(KERN_ERR "%s: error cc: %d  status: %d  req: %Lx  offset: %Lx\n",
-			    __func__, cc, status, req, offset);
+		zpci_err_insn(cc, status, req, offset);
+
 	return (cc > 0) ? -EIO : cc;
 }
 EXPORT_SYMBOL_GPL(zpci_store_block);

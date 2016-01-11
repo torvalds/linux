@@ -293,7 +293,7 @@ static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 
 static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 {
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 	return IRQ_HANDLED;
 }
 
@@ -369,8 +369,8 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		if (of_address_to_resource(node, i, &res))
 			panic("Failed to get icu memory range");
 
-		if (request_mem_region(res.start, resource_size(&res),
-					res.name) < 0)
+		if (!request_mem_region(res.start, resource_size(&res),
+					res.name))
 			pr_err("Failed to request icu memory");
 
 		ltq_icu_membase[i] = ioremap_nocache(res.start,
@@ -449,8 +449,8 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		if (ret != exin_avail)
 			panic("failed to load external irq resources");
 
-		if (request_mem_region(res.start, resource_size(&res),
-							res.name) < 0)
+		if (!request_mem_region(res.start, resource_size(&res),
+							res.name))
 			pr_err("Failed to request eiu memory");
 
 		ltq_eiu_membase = ioremap_nocache(res.start,
@@ -466,6 +466,7 @@ int get_c0_perfcount_int(void)
 {
 	return ltq_perfcount_irq;
 }
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {

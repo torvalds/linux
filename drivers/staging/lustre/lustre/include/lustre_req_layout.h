@@ -80,9 +80,6 @@ void req_capsule_init(struct req_capsule *pill, struct ptlrpc_request *req,
 void req_capsule_fini(struct req_capsule *pill);
 
 void req_capsule_set(struct req_capsule *pill, const struct req_format *fmt);
-void req_capsule_client_dump(struct req_capsule *pill);
-void req_capsule_server_dump(struct req_capsule *pill);
-void req_capsule_init_area(struct req_capsule *pill);
 int req_capsule_filled_sizes(struct req_capsule *pill, enum req_location loc);
 int  req_capsule_server_pack(struct req_capsule *pill);
 
@@ -105,8 +102,6 @@ void *req_capsule_server_swab_get(struct req_capsule *pill,
 void *req_capsule_server_sized_swab_get(struct req_capsule *pill,
 					const struct req_msg_field *field,
 					int len, void *swabber);
-const void *req_capsule_other_get(struct req_capsule *pill,
-				  const struct req_msg_field *field);
 
 void req_capsule_set_size(struct req_capsule *pill,
 			  const struct req_msg_field *field,
@@ -122,16 +117,10 @@ void req_capsule_extend(struct req_capsule *pill, const struct req_format *fmt);
 int req_capsule_has_field(const struct req_capsule *pill,
 			  const struct req_msg_field *field,
 			  enum req_location loc);
-int req_capsule_field_present(const struct req_capsule *pill,
-			      const struct req_msg_field *field,
-			      enum req_location loc);
 void req_capsule_shrink(struct req_capsule *pill,
 			const struct req_msg_field *field,
 			unsigned int newlen,
 			enum req_location loc);
-int req_capsule_server_grow(struct req_capsule *pill,
-			    const struct req_msg_field *field,
-			    unsigned int newlen);
 int  req_layout_init(void);
 void req_layout_fini(void);
 

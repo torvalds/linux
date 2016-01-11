@@ -103,10 +103,9 @@ static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
  *    there is room for the producer to send the pending packet.
  */
 
-static bool hv_need_to_signal_on_read(u32 old_rd,
-					 struct hv_ring_buffer_info *rbi)
+static bool hv_need_to_signal_on_read(u32 prev_write_sz,
+				      struct hv_ring_buffer_info *rbi)
 {
-	u32 prev_write_sz;
 	u32 cur_write_sz;
 	u32 r_size;
 	u32 write_loc = rbi->ring_buffer->write_index;
@@ -122,10 +121,6 @@ static bool hv_need_to_signal_on_read(u32 old_rd,
 	r_size = rbi->ring_datasize;
 	cur_write_sz = write_loc >= read_loc ? r_size - (write_loc - read_loc) :
 			read_loc - write_loc;
-
-	prev_write_sz = write_loc >= old_rd ? r_size - (write_loc - old_rd) :
-			old_rd - write_loc;
-
 
 	if ((prev_write_sz < pending_sz) && (cur_write_sz >= pending_sz))
 		return true;
@@ -517,7 +512,6 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 	u32 next_read_location = 0;
 	u64 prev_indices = 0;
 	unsigned long flags;
-	u32 old_read;
 
 	if (buflen <= 0)
 		return -EINVAL;
@@ -527,8 +521,6 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 	hv_get_ringbuffer_availbytes(inring_info,
 				&bytes_avail_toread,
 				&bytes_avail_towrite);
-
-	old_read = bytes_avail_toread;
 
 	/* Make sure there is something to read */
 	if (bytes_avail_toread < buflen) {
@@ -560,7 +552,7 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 
 	spin_unlock_irqrestore(&inring_info->ring_lock, flags);
 
-	*signal = hv_need_to_signal_on_read(old_read, inring_info);
+	*signal = hv_need_to_signal_on_read(bytes_avail_towrite, inring_info);
 
 	return 0;
 }

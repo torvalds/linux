@@ -343,7 +343,6 @@ struct ipu_client_platformdata {
 	int di;
 	int dc;
 	int dp;
-	int dmfc;
 	int dma[2];
 };
 

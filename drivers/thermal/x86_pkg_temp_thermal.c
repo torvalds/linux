@@ -68,7 +68,7 @@ struct phy_dev_entry {
 	struct thermal_zone_device *tzone;
 };
 
-static const struct thermal_zone_params pkg_temp_tz_params = {
+static struct thermal_zone_params pkg_temp_tz_params = {
 	.no_hwmon	= true,
 };
 
@@ -164,7 +164,7 @@ err_ret:
 	return err;
 }
 
-static int sys_get_curr_temp(struct thermal_zone_device *tzd, unsigned long *temp)
+static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 {
 	u32 eax, edx;
 	struct phy_dev_entry *phy_dev_entry;
@@ -175,7 +175,7 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, unsigned long *tem
 	if (eax & 0x80000000) {
 		*temp = phy_dev_entry->tj_max -
 				((eax >> 16) & 0x7f) * 1000;
-		pr_debug("sys_get_curr_temp %ld\n", *temp);
+		pr_debug("sys_get_curr_temp %d\n", *temp);
 		return 0;
 	}
 
@@ -183,7 +183,7 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, unsigned long *tem
 }
 
 static int sys_get_trip_temp(struct thermal_zone_device *tzd,
-		int trip, unsigned long *temp)
+		int trip, int *temp)
 {
 	u32 eax, edx;
 	struct phy_dev_entry *phy_dev_entry;
@@ -214,13 +214,13 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd,
 		*temp = phy_dev_entry->tj_max - thres_reg_value * 1000;
 	else
 		*temp = 0;
-	pr_debug("sys_get_trip_temp %ld\n", *temp);
+	pr_debug("sys_get_trip_temp %d\n", *temp);
 
 	return 0;
 }
 
 static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
-							unsigned long temp)
+							int temp)
 {
 	u32 l, h;
 	struct phy_dev_entry *phy_dev_entry;

@@ -272,12 +272,9 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	mutex_lock(&f->sem);
 
 	ret = jffs2_do_read_inode(c, f, inode->i_ino, &latest_node);
+	if (ret)
+		goto error;
 
-	if (ret) {
-		mutex_unlock(&f->sem);
-		iget_failed(inode);
-		return ERR_PTR(ret);
-	}
 	inode->i_mode = jemode_to_cpu(latest_node.mode);
 	i_uid_write(inode, je16_to_cpu(latest_node.uid));
 	i_gid_write(inode, je16_to_cpu(latest_node.gid));
@@ -294,6 +291,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 
 	case S_IFLNK:
 		inode->i_op = &jffs2_symlink_inode_operations;
+		inode->i_link = f->target;
 		break;
 
 	case S_IFDIR:

@@ -26,6 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/can/platform/mcp251x.h>
+#include <linux/regulator/machine.h>
 
 #include "generic.h"
 
@@ -115,13 +116,11 @@ static struct spi_board_info mcp251x_board_info[] = {
 };
 
 static struct pxa2xx_spi_master pxa_ssp3_spi_master_info = {
-	.clock_enable   = CKEN_SSP3,
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };
 
 static struct pxa2xx_spi_master pxa_ssp4_spi_master_info = {
-	.clock_enable   = CKEN_SSP4,
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };
@@ -185,6 +184,8 @@ static void __init icontrol_init(void)
 	mxm_8x10_mmc_init();
 
 	icontrol_can_init();
+
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(ICONTROL, "iControl/SafeTcam boards using Embedian MXM-8x10 CoM")

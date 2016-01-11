@@ -841,9 +841,59 @@ struct fsl_ifc_ctrl {
 
 	u32 nand_stat;
 	wait_queue_head_t nand_wait;
+	bool little_endian;
 };
 
 extern struct fsl_ifc_ctrl *fsl_ifc_ctrl_dev;
 
+static inline u32 ifc_in32(void __iomem *addr)
+{
+	u32 val;
+
+	if (fsl_ifc_ctrl_dev->little_endian)
+		val = ioread32(addr);
+	else
+		val = ioread32be(addr);
+
+	return val;
+}
+
+static inline u16 ifc_in16(void __iomem *addr)
+{
+	u16 val;
+
+	if (fsl_ifc_ctrl_dev->little_endian)
+		val = ioread16(addr);
+	else
+		val = ioread16be(addr);
+
+	return val;
+}
+
+static inline u8 ifc_in8(void __iomem *addr)
+{
+	return ioread8(addr);
+}
+
+static inline void ifc_out32(u32 val, void __iomem *addr)
+{
+	if (fsl_ifc_ctrl_dev->little_endian)
+		iowrite32(val, addr);
+	else
+		iowrite32be(val, addr);
+}
+
+static inline void ifc_out16(u16 val, void __iomem *addr)
+{
+	if (fsl_ifc_ctrl_dev->little_endian)
+		iowrite16(val, addr);
+	else
+		iowrite16be(val, addr);
+}
+
+static inline void ifc_out8(u8 val, void __iomem *addr)
+{
+	iowrite8(val, addr);
+}
 
 #endif /* __ASM_FSL_IFC_H */

@@ -637,10 +637,6 @@ static ssize_t ds2780_read_param_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 
-	count = min_t(loff_t, count,
-		DS2780_EEPROM_BLOCK1_END -
-		DS2780_EEPROM_BLOCK1_START + 1 - off);
-
 	return ds2780_read_block(dev_info, buf,
 				DS2780_EEPROM_BLOCK1_START + off, count);
 }
@@ -654,10 +650,6 @@ static ssize_t ds2780_write_param_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 	int ret;
-
-	count = min_t(loff_t, count,
-		DS2780_EEPROM_BLOCK1_END -
-		DS2780_EEPROM_BLOCK1_START + 1 - off);
 
 	ret = ds2780_write(dev_info, buf,
 				DS2780_EEPROM_BLOCK1_START + off, count);
@@ -676,7 +668,7 @@ static struct bin_attribute ds2780_param_eeprom_bin_attr = {
 		.name = "param_eeprom",
 		.mode = S_IRUGO | S_IWUSR,
 	},
-	.size = DS2780_EEPROM_BLOCK1_END - DS2780_EEPROM_BLOCK1_START + 1,
+	.size = DS2780_PARAM_EEPROM_SIZE,
 	.read = ds2780_read_param_eeprom_bin,
 	.write = ds2780_write_param_eeprom_bin,
 };
@@ -689,10 +681,6 @@ static ssize_t ds2780_read_user_eeprom_bin(struct file *filp,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
-
-	count = min_t(loff_t, count,
-		DS2780_EEPROM_BLOCK0_END -
-		DS2780_EEPROM_BLOCK0_START + 1 - off);
 
 	return ds2780_read_block(dev_info, buf,
 				DS2780_EEPROM_BLOCK0_START + off, count);
@@ -707,10 +695,6 @@ static ssize_t ds2780_write_user_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 	int ret;
-
-	count = min_t(loff_t, count,
-		DS2780_EEPROM_BLOCK0_END -
-		DS2780_EEPROM_BLOCK0_START + 1 - off);
 
 	ret = ds2780_write(dev_info, buf,
 				DS2780_EEPROM_BLOCK0_START + off, count);
@@ -729,7 +713,7 @@ static struct bin_attribute ds2780_user_eeprom_bin_attr = {
 		.name = "user_eeprom",
 		.mode = S_IRUGO | S_IWUSR,
 	},
-	.size = DS2780_EEPROM_BLOCK0_END - DS2780_EEPROM_BLOCK0_START + 1,
+	.size = DS2780_USER_EEPROM_SIZE,
 	.read = ds2780_read_user_eeprom_bin,
 	.write = ds2780_write_user_eeprom_bin,
 };

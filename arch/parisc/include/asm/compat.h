@@ -206,10 +206,10 @@ struct compat_ipc64_perm {
 
 struct compat_semid64_ds {
 	struct compat_ipc64_perm sem_perm;
-	compat_time_t sem_otime;
 	unsigned int __unused1;
-	compat_time_t sem_ctime;
+	compat_time_t sem_otime;
 	unsigned int __unused2;
+	compat_time_t sem_ctime;
 	compat_ulong_t sem_nsems;
 	compat_ulong_t __unused3;
 	compat_ulong_t __unused4;

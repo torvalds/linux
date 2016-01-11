@@ -29,11 +29,13 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/cputype.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
-#include <asm/thread_info.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/sysreg.h>
+#include <asm/thread_info.h>
 #include <asm/virt.h>
 
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
@@ -46,35 +48,8 @@
 #error TEXT_OFFSET must be less than 2MB
 #endif
 
-#ifdef CONFIG_ARM64_64K_PAGES
-#define BLOCK_SHIFT	PAGE_SHIFT
-#define BLOCK_SIZE	PAGE_SIZE
-#define TABLE_SHIFT	PMD_SHIFT
-#else
-#define BLOCK_SHIFT	SECTION_SHIFT
-#define BLOCK_SIZE	SECTION_SIZE
-#define TABLE_SHIFT	PUD_SHIFT
-#endif
-
 #define KERNEL_START	_text
 #define KERNEL_END	_end
-
-/*
- * Initial memory map attributes.
- */
-#ifndef CONFIG_SMP
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF
-#else
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF | PTE_SHARED
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S
-#endif
-
-#ifdef CONFIG_ARM64_64K_PAGES
-#define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
-#else
-#define MM_MMUFLAGS	PMD_ATTRINDX(MT_NORMAL) | PMD_FLAGS
-#endif
 
 /*
  * Kernel startup entry point.
@@ -125,8 +100,8 @@ efi_head:
 #endif
 
 #ifdef CONFIG_EFI
-	.globl	stext_offset
-	.set	stext_offset, stext - efi_head
+	.globl	__efistub_stext_offset
+	.set	__efistub_stext_offset, stext - efi_head
 	.align 3
 pe_header:
 	.ascii	"PE"
@@ -149,8 +124,8 @@ optional_header:
 	.long	_end - stext			// SizeOfCode
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
-	.long	efi_stub_entry - efi_head	// AddressOfEntryPoint
-	.long	stext_offset			// BaseOfCode
+	.long	__efistub_entry - efi_head	// AddressOfEntryPoint
+	.long	__efistub_stext_offset		// BaseOfCode
 
 extra_header_fields:
 	.quad	0				// ImageBase
@@ -167,7 +142,7 @@ extra_header_fields:
 	.long	_end - efi_head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
-	.long	stext_offset			// SizeOfHeaders
+	.long	__efistub_stext_offset		// SizeOfHeaders
 	.long	0				// CheckSum
 	.short	0xa				// Subsystem (EFI application)
 	.short	0				// DllCharacteristics
@@ -212,9 +187,9 @@ section_table:
 	.byte	0
 	.byte	0        		// end of 0 padding of section name
 	.long	_end - stext		// VirtualSize
-	.long	stext_offset		// VirtualAddress
+	.long	__efistub_stext_offset	// VirtualAddress
 	.long	_edata - stext		// SizeOfRawData
-	.long	stext_offset		// PointerToRawData
+	.long	__efistub_stext_offset	// PointerToRawData
 
 	.long	0		// PointerToRelocations (0 for executables)
 	.long	0		// PointerToLineNumbers (0 for executables)
@@ -237,8 +212,6 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
-
-	bl	__vet_fdt
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
@@ -270,24 +243,6 @@ preserve_boot_args:
 ENDPROC(preserve_boot_args)
 
 /*
- * Determine validity of the x21 FDT pointer.
- * The dtb must be 8-byte aligned and live in the first 512M of memory.
- */
-__vet_fdt:
-	tst	x21, #0x7
-	b.ne	1f
-	cmp	x21, x24
-	b.lt	1f
-	mov	x0, #(1 << 29)
-	add	x0, x0, x24
-	cmp	x21, x0
-	b.ge	1f
-	ret
-1:
-	mov	x21, #0
-	ret
-ENDPROC(__vet_fdt)
-/*
  * Macro to create a table entry to the next page.
  *
  *	tbl:	page table address
@@ -317,8 +272,11 @@ ENDPROC(__vet_fdt)
  */
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
-#if SWAPPER_PGTABLE_LEVELS == 3
-	create_table_entry \tbl, \virt, TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
+#if SWAPPER_PGTABLE_LEVELS > 3
+	create_table_entry \tbl, \virt, PUD_SHIFT, PTRS_PER_PUD, \tmp1, \tmp2
+#endif
+#if SWAPPER_PGTABLE_LEVELS > 2
+	create_table_entry \tbl, \virt, SWAPPER_TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
 #endif
 	.endm
 
@@ -330,15 +288,15 @@ ENDPROC(__vet_fdt)
  * Corrupts:	phys, start, end, pstate
  */
 	.macro	create_block_map, tbl, flags, phys, start, end
-	lsr	\phys, \phys, #BLOCK_SHIFT
-	lsr	\start, \start, #BLOCK_SHIFT
+	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
+	lsr	\start, \start, #SWAPPER_BLOCK_SHIFT
 	and	\start, \start, #PTRS_PER_PTE - 1	// table index
-	orr	\phys, \flags, \phys, lsl #BLOCK_SHIFT	// table entry
-	lsr	\end, \end, #BLOCK_SHIFT
+	orr	\phys, \flags, \phys, lsl #SWAPPER_BLOCK_SHIFT	// table entry
+	lsr	\end, \end, #SWAPPER_BLOCK_SHIFT
 	and	\end, \end, #PTRS_PER_PTE - 1		// table end index
 9999:	str	\phys, [\tbl, \start, lsl #3]		// store the entry
 	add	\start, \start, #1			// next entry
-	add	\phys, \phys, #BLOCK_SIZE		// next block
+	add	\phys, \phys, #SWAPPER_BLOCK_SIZE		// next block
 	cmp	\start, \end
 	b.ls	9999b
 	.endm
@@ -348,8 +306,7 @@ ENDPROC(__vet_fdt)
  * required to get the kernel running. The following sections are required:
  *   - identity mapping to enable the MMU (low address, TTBR0)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
- *     been enabled, including the FDT blob (TTBR1)
- *   - pgd entry for fixed mappings (TTBR1)
+ *     been enabled
  */
 __create_page_tables:
 	adrp	x25, idmap_pg_dir
@@ -376,13 +333,13 @@ __create_page_tables:
 	cmp	x0, x6
 	b.lo	1b
 
-	ldr	x7, =MM_MMUFLAGS
+	ldr	x7, =SWAPPER_MM_MMUFLAGS
 
 	/*
 	 * Create the identity mapping.
 	 */
 	mov	x0, x25				// idmap_pg_dir
-	adrp	x3, KERNEL_START		// __pa(KERNEL_START)
+	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
 
 #ifndef CONFIG_ARM64_VA_BITS_48
 #define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
@@ -405,11 +362,11 @@ __create_page_tables:
 
 	/*
 	 * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
-	 * entire kernel image can be ID mapped. As T0SZ == (64 - #bits used),
+	 * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
 	 * this number conveniently equals the number of leading zeroes in
-	 * the physical address of KERNEL_END.
+	 * the physical address of __idmap_text_end.
 	 */
-	adrp	x5, KERNEL_END
+	adrp	x5, __idmap_text_end
 	clz	x5, x5
 	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small enough?
 	b.ge	1f			// .. then skip additional level
@@ -424,8 +381,8 @@ __create_page_tables:
 #endif
 
 	create_pgd_entry x0, x3, x5, x6
-	mov	x5, x3				// __pa(KERNEL_START)
-	adr_l	x6, KERNEL_END			// __pa(KERNEL_END)
+	mov	x5, x3				// __pa(__idmap_text_start)
+	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 	create_block_map x0, x7, x3, x5, x6
 
 	/*
@@ -438,22 +395,6 @@ __create_page_tables:
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
 
-	/*
-	 * Map the FDT blob (maximum 2MB; must be within 512MB of
-	 * PHYS_OFFSET).
-	 */
-	mov	x3, x21				// FDT phys address
-	and	x3, x3, #~((1 << 21) - 1)	// 2MB aligned
-	mov	x6, #PAGE_OFFSET
-	sub	x5, x3, x24			// subtract PHYS_OFFSET
-	tst	x5, #~((1 << 29) - 1)		// within 512MB?
-	csel	x21, xzr, x21, ne		// zero the FDT pointer
-	b.ne	1f
-	add	x5, x5, x6			// __va(FDT blob)
-	add	x6, x5, #1 << 21		// 2MB for the FDT blob
-	sub	x6, x6, #1			// inclusive range
-	create_block_map x0, x7, x3, x5, x6
-1:
 	/*
 	 * Since the page tables have been populated with non-cacheable
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
@@ -486,6 +427,9 @@ __mmap_switched:
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 	str_l	x24, memstart_addr, x6		// Save PHYS_OFFSET
 	mov	x29, #0
+#ifdef CONFIG_KASAN
+	bl	kasan_early_init
+#endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
 
@@ -540,6 +484,8 @@ CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
 	msr_s	ICC_SRE_EL2, x0
 	isb					// Make sure SRE is now set
+	mrs_s	x0, ICC_SRE_EL2			// Read SRE back,
+	tbz	x0, #0, 3f			// and check that it sticks
 	msr_s	ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
 
 3:
@@ -564,6 +510,11 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 #ifdef CONFIG_COMPAT
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
+
+	/* EL2 debug */
+	mrs	x0, pmcr_el0			// Disable debug access traps
+	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
+	msr	mdcr_el2, x0			// all PMU counters from EL1
 
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
@@ -611,7 +562,6 @@ ENTRY(__boot_cpu_mode)
 	.long	BOOT_CPU_MODE_EL1
 	.popsection
 
-#ifdef CONFIG_SMP
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
 	 * cores are held until we're ready for them to initialise.
@@ -659,7 +609,6 @@ ENTRY(__secondary_switched)
 	mov	x29, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
-#endif	/* CONFIG_SMP */
 
 /*
  * Enable the MMU.
@@ -667,9 +616,17 @@ ENDPROC(__secondary_switched)
  *  x0  = SCTLR_EL1 value for turning on the MMU.
  *  x27 = *virtual* address to jump to upon completion
  *
- * other registers depend on the function called upon completion
+ * Other registers depend on the function called upon completion.
+ *
+ * Checks if the selected granule size is supported by the CPU.
+ * If it isn't, park the CPU
  */
+	.section	".idmap.text", "ax"
 __enable_mmu:
+	mrs	x1, ID_AA64MMFR0_EL1
+	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
+	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
+	b.ne	__no_granule_support
 	ldr	x5, =vectors
 	msr	vbar_el1, x5
 	msr	ttbr0_el1, x25			// load TTBR0
@@ -677,5 +634,18 @@ __enable_mmu:
 	isb
 	msr	sctlr_el1, x0
 	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
 	br	x27
 ENDPROC(__enable_mmu)
+
+__no_granule_support:
+	wfe
+	b __no_granule_support
+ENDPROC(__no_granule_support)

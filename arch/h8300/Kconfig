@@ -1,0 +1,77 @@
+config H8300
+        def_bool y
+	select GENERIC_ATOMIC64
+	select HAVE_UID16
+	select VIRT_TO_BUS
+	select GENERIC_IRQ_SHOW
+	select FRAME_POINTER
+	select GENERIC_CPU_DEVICES
+	select MODULES_USE_ELF_RELA
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select ARCH_WANT_FRAME_POINTERS
+	select OF
+	select OF_IRQ
+	select OF_EARLY_FLATTREE
+	select HAVE_MEMBLOCK
+	select HAVE_DMA_ATTRS
+	select CLKSRC_OF
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config NO_IOPORT_MAP
+	def_bool y
+
+config GENERIC_CSUM
+        def_bool y
+
+config HZ
+	int
+	default 100
+
+config NR_CPUS
+	int
+	default 1
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+source "arch/h8300/Kconfig.cpu"
+
+menu "Kernel Features"
+
+source "kernel/Kconfig.preempt"
+
+source "mm/Kconfig"
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+endmenu
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

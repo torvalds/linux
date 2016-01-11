@@ -474,11 +474,18 @@ static const struct platform_device_id opal_sensor_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, opal_sensor_driver_ids);
 
+static const struct of_device_id opal_sensor_match[] = {
+	{ .compatible	= "ibm,opal-sensor" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, opal_sensor_match);
+
 static struct platform_driver ibmpowernv_driver = {
 	.probe		= ibmpowernv_probe,
 	.id_table	= opal_sensor_driver_ids,
 	.driver		= {
 		.name	= DRVNAME,
+		.of_match_table	= opal_sensor_match,
 	},
 };
 

@@ -141,17 +141,12 @@ static int lp8788_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, irqd);
 	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
-static struct irq_domain_ops lp8788_domain_ops = {
+static const struct irq_domain_ops lp8788_domain_ops = {
 	.map = lp8788_irq_map,
 };
 

@@ -27,11 +27,12 @@
 /* Some fake data */
 
 static const s16 fakedata[] = {
-	[voltage0] = 7,
-	[diffvoltage1m2] = -33,
-	[diffvoltage3m4] = -2,
-	[accelx] = 344,
+	[DUMMY_INDEX_VOLTAGE_0] = 7,
+	[DUMMY_INDEX_DIFFVOLTAGE_1M2] = -33,
+	[DUMMY_INDEX_DIFFVOLTAGE_3M4] = -2,
+	[DUMMY_INDEX_ACCELX] = 344,
 };
+
 /**
  * iio_simple_dummy_trigger_h() - the trigger handler function
  * @irq: the interrupt number
@@ -178,7 +179,6 @@ error_free_buffer:
 	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
-
 }
 
 /**

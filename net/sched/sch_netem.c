@@ -440,9 +440,9 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (count > 1 && (skb2 = skb_clone(skb, GFP_ATOMIC)) != NULL) {
 		struct Qdisc *rootq = qdisc_root(sch);
 		u32 dupsave = q->duplicate; /* prevent duplicating a dup... */
-		q->duplicate = 0;
 
-		qdisc_enqueue_root(skb2, rootq);
+		q->duplicate = 0;
+		rootq->enqueue(skb2, rootq);
 		q->duplicate = dupsave;
 	}
 

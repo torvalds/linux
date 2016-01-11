@@ -223,8 +223,10 @@ struct ufs_clk_info {
 	bool enabled;
 };
 
-#define PRE_CHANGE      0
-#define POST_CHANGE     1
+enum ufs_notify_change_status {
+	PRE_CHANGE,
+	POST_CHANGE,
+};
 
 struct ufs_pa_layer_attr {
 	u32 gear_rx;
@@ -246,6 +248,7 @@ struct ufs_pwr_mode_info {
  * @name: variant name
  * @init: called when the driver is initialized
  * @exit: called to cleanup everything done in init
+ * @get_ufs_hci_version: called to get UFS HCI version
  * @clk_scale_notify: notifies that clks are scaled up/down
  * @setup_clocks: called before touching any of the controller registers
  * @setup_regulators: called before accessing the host controller
@@ -258,21 +261,28 @@ struct ufs_pwr_mode_info {
  *			to be set.
  * @suspend: called during host controller PM callback
  * @resume: called during host controller PM callback
+ * @dbg_register_dump: used to dump controller debug information
  */
 struct ufs_hba_variant_ops {
 	const char *name;
 	int	(*init)(struct ufs_hba *);
 	void    (*exit)(struct ufs_hba *);
-	void    (*clk_scale_notify)(struct ufs_hba *);
-	int     (*setup_clocks)(struct ufs_hba *, bool);
+	u32	(*get_ufs_hci_version)(struct ufs_hba *);
+	int	(*clk_scale_notify)(struct ufs_hba *, bool,
+				    enum ufs_notify_change_status);
+	int	(*setup_clocks)(struct ufs_hba *, bool);
 	int     (*setup_regulators)(struct ufs_hba *, bool);
-	int     (*hce_enable_notify)(struct ufs_hba *, bool);
-	int     (*link_startup_notify)(struct ufs_hba *, bool);
+	int	(*hce_enable_notify)(struct ufs_hba *,
+				     enum ufs_notify_change_status);
+	int	(*link_startup_notify)(struct ufs_hba *,
+				       enum ufs_notify_change_status);
 	int	(*pwr_change_notify)(struct ufs_hba *,
-					bool, struct ufs_pa_layer_attr *,
+					enum ufs_notify_change_status status,
+					struct ufs_pa_layer_attr *,
 					struct ufs_pa_layer_attr *);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
+	void	(*dbg_register_dump)(struct ufs_hba *hba);
 };
 
 /* clock gating state  */
@@ -417,11 +427,45 @@ struct ufs_hba {
 	unsigned int irq;
 	bool is_irq_enabled;
 
+	/* Interrupt aggregation support is broken */
+	#define UFSHCD_QUIRK_BROKEN_INTR_AGGR			UFS_BIT(0)
+
 	/*
 	 * delay before each dme command is required as the unipro
 	 * layer has shown instabilities
 	 */
-	#define UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS		UFS_BIT(0)
+	#define UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS		UFS_BIT(1)
+
+	/*
+	 * If UFS host controller is having issue in processing LCC (Line
+	 * Control Command) coming from device then enable this quirk.
+	 * When this quirk is enabled, host controller driver should disable
+	 * the LCC transmission on UFS device (by clearing TX_LCC_ENABLE
+	 * attribute of device to 0).
+	 */
+	#define UFSHCD_QUIRK_BROKEN_LCC				UFS_BIT(2)
+
+	/*
+	 * The attribute PA_RXHSUNTERMCAP specifies whether or not the
+	 * inbound Link supports unterminated line in HS mode. Setting this
+	 * attribute to 1 fixes moving to HS gear.
+	 */
+	#define UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP		UFS_BIT(3)
+
+	/*
+	 * This quirk needs to be enabled if the host contoller only allows
+	 * accessing the peer dme attributes in AUTO mode (FAST AUTO or
+	 * SLOW AUTO).
+	 */
+	#define UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE		UFS_BIT(4)
+
+	/*
+	 * This quirk needs to be enabled if the host contoller doesn't
+	 * advertise the correct version in UFS_VER register. If this quirk
+	 * is enabled, standard UFS host driver will call the vendor specific
+	 * ops (get_ufs_hci_version) to get the correct version.
+	 */
+	#define UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION		UFS_BIT(5)
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
@@ -478,6 +522,12 @@ struct ufs_hba {
 #define UFSHCD_CAP_CLK_SCALING	(1 << 2)
 	/* Allow auto bkops to enabled during runtime suspend */
 #define UFSHCD_CAP_AUTO_BKOPS_SUSPEND (1 << 3)
+	/*
+	 * This capability allows host controller driver to use the UFS HCI's
+	 * interrupt aggregation capability.
+	 * CAUTION: Enabling this might reduce overall UFS throughput.
+	 */
+#define UFSHCD_CAP_INTR_AGGR (1 << 4)
 
 	struct devfreq *devfreq;
 	struct ufs_clk_scaling clk_scaling;
@@ -500,6 +550,15 @@ static inline int ufshcd_is_clkscaling_enabled(struct ufs_hba *hba)
 static inline bool ufshcd_can_autobkops_during_suspend(struct ufs_hba *hba)
 {
 	return hba->caps & UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
+}
+
+static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
+{
+	if ((hba->caps & UFSHCD_CAP_INTR_AGGR) &&
+	    !(hba->quirks & UFSHCD_QUIRK_BROKEN_INTR_AGGR))
+		return true;
+	else
+		return false;
 }
 
 #define ufshcd_writel(hba, val, reg)	\
@@ -525,6 +584,7 @@ static inline void ufshcd_rmwl(struct ufs_hba *hba, u32 mask, u32 val, u32 reg)
 }
 
 int ufshcd_alloc_host(struct device *, struct ufs_hba **);
+void ufshcd_dealloc_host(struct ufs_hba *);
 int ufshcd_init(struct ufs_hba * , void __iomem * , unsigned int);
 void ufshcd_remove(struct ufs_hba *);
 
@@ -541,6 +601,27 @@ static inline void check_upiu_size(void)
 {
 	BUILD_BUG_ON(ALIGNED_UPIU_SIZE <
 		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
+}
+
+/**
+ * ufshcd_set_variant - set variant specific data to the hba
+ * @hba - per adapter instance
+ * @variant - pointer to variant specific data
+ */
+static inline void ufshcd_set_variant(struct ufs_hba *hba, void *variant)
+{
+	BUG_ON(!hba);
+	hba->priv = variant;
+}
+
+/**
+ * ufshcd_get_variant - get variant specific data from the hba
+ * @hba - per adapter instance
+ */
+static inline void *ufshcd_get_variant(struct ufs_hba *hba)
+{
+	BUG_ON(!hba);
+	return hba->priv;
 }
 
 extern int ufshcd_runtime_suspend(struct ufs_hba *hba);
@@ -602,4 +683,109 @@ static inline int ufshcd_dme_peer_get(struct ufs_hba *hba,
 
 int ufshcd_hold(struct ufs_hba *hba, bool async);
 void ufshcd_release(struct ufs_hba *hba);
+
+/* Wrapper functions for safely calling variant operations */
+static inline const char *ufshcd_get_var_name(struct ufs_hba *hba)
+{
+	if (hba->vops)
+		return hba->vops->name;
+	return "";
+}
+
+static inline int ufshcd_vops_init(struct ufs_hba *hba)
+{
+	if (hba->vops && hba->vops->init)
+		return hba->vops->init(hba);
+
+	return 0;
+}
+
+static inline void ufshcd_vops_exit(struct ufs_hba *hba)
+{
+	if (hba->vops && hba->vops->exit)
+		return hba->vops->exit(hba);
+}
+
+static inline u32 ufshcd_vops_get_ufs_hci_version(struct ufs_hba *hba)
+{
+	if (hba->vops && hba->vops->get_ufs_hci_version)
+		return hba->vops->get_ufs_hci_version(hba);
+
+	return ufshcd_readl(hba, REG_UFS_VERSION);
+}
+
+static inline int ufshcd_vops_clk_scale_notify(struct ufs_hba *hba,
+			bool up, enum ufs_notify_change_status status)
+{
+	if (hba->vops && hba->vops->clk_scale_notify)
+		return hba->vops->clk_scale_notify(hba, up, status);
+	return 0;
+}
+
+static inline int ufshcd_vops_setup_clocks(struct ufs_hba *hba, bool on)
+{
+	if (hba->vops && hba->vops->setup_clocks)
+		return hba->vops->setup_clocks(hba, on);
+	return 0;
+}
+
+static inline int ufshcd_vops_setup_regulators(struct ufs_hba *hba, bool status)
+{
+	if (hba->vops && hba->vops->setup_regulators)
+		return hba->vops->setup_regulators(hba, status);
+
+	return 0;
+}
+
+static inline int ufshcd_vops_hce_enable_notify(struct ufs_hba *hba,
+						bool status)
+{
+	if (hba->vops && hba->vops->hce_enable_notify)
+		return hba->vops->hce_enable_notify(hba, status);
+
+	return 0;
+}
+static inline int ufshcd_vops_link_startup_notify(struct ufs_hba *hba,
+						bool status)
+{
+	if (hba->vops && hba->vops->link_startup_notify)
+		return hba->vops->link_startup_notify(hba, status);
+
+	return 0;
+}
+
+static inline int ufshcd_vops_pwr_change_notify(struct ufs_hba *hba,
+				  bool status,
+				  struct ufs_pa_layer_attr *dev_max_params,
+				  struct ufs_pa_layer_attr *dev_req_params)
+{
+	if (hba->vops && hba->vops->pwr_change_notify)
+		return hba->vops->pwr_change_notify(hba, status,
+					dev_max_params, dev_req_params);
+
+	return -ENOTSUPP;
+}
+
+static inline int ufshcd_vops_suspend(struct ufs_hba *hba, enum ufs_pm_op op)
+{
+	if (hba->vops && hba->vops->suspend)
+		return hba->vops->suspend(hba, op);
+
+	return 0;
+}
+
+static inline int ufshcd_vops_resume(struct ufs_hba *hba, enum ufs_pm_op op)
+{
+	if (hba->vops && hba->vops->resume)
+		return hba->vops->resume(hba, op);
+
+	return 0;
+}
+
+static inline void ufshcd_vops_dbg_register_dump(struct ufs_hba *hba)
+{
+	if (hba->vops && hba->vops->dbg_register_dump)
+		hba->vops->dbg_register_dump(hba);
+}
+
 #endif /* End of Header */

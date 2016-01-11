@@ -5,20 +5,16 @@
 
 #ifdef CONFIG_CPU_IDLE
 extern int arm_cpuidle_init(unsigned int cpu);
-extern int cpu_suspend(unsigned long arg);
+extern int arm_cpuidle_suspend(int index);
 #else
 static inline int arm_cpuidle_init(unsigned int cpu)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int cpu_suspend(unsigned long arg)
+static inline int arm_cpuidle_suspend(int index)
 {
 	return -EOPNOTSUPP;
 }
 #endif
-static inline int arm_cpuidle_suspend(int index)
-{
-	return cpu_suspend(index);
-}
 #endif

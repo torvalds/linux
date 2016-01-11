@@ -14,9 +14,89 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/inst.h>
+
 extern void _save_msa(struct task_struct *);
 extern void _restore_msa(struct task_struct *);
 extern void _init_msa_upper(void);
+
+extern void read_msa_wr_b(unsigned idx, union fpureg *to);
+extern void read_msa_wr_h(unsigned idx, union fpureg *to);
+extern void read_msa_wr_w(unsigned idx, union fpureg *to);
+extern void read_msa_wr_d(unsigned idx, union fpureg *to);
+
+/**
+ * read_msa_wr() - Read a single MSA vector register
+ * @idx:	The index of the vector register to read
+ * @to:		The FPU register union to store the registers value in
+ * @fmt:	The format of the data in the vector register
+ *
+ * Read the value of MSA vector register idx into the FPU register
+ * union to, using the format fmt.
+ */
+static inline void read_msa_wr(unsigned idx, union fpureg *to,
+			       enum msa_2b_fmt fmt)
+{
+	switch (fmt) {
+	case msa_fmt_b:
+		read_msa_wr_b(idx, to);
+		break;
+
+	case msa_fmt_h:
+		read_msa_wr_h(idx, to);
+		break;
+
+	case msa_fmt_w:
+		read_msa_wr_w(idx, to);
+		break;
+
+	case msa_fmt_d:
+		read_msa_wr_d(idx, to);
+		break;
+
+	default:
+		BUG();
+	}
+}
+
+extern void write_msa_wr_b(unsigned idx, union fpureg *from);
+extern void write_msa_wr_h(unsigned idx, union fpureg *from);
+extern void write_msa_wr_w(unsigned idx, union fpureg *from);
+extern void write_msa_wr_d(unsigned idx, union fpureg *from);
+
+/**
+ * write_msa_wr() - Write a single MSA vector register
+ * @idx:	The index of the vector register to write
+ * @from:	The FPU register union to take the registers value from
+ * @fmt:	The format of the data in the vector register
+ *
+ * Write the value from the FPU register union from into MSA vector
+ * register idx, using the format fmt.
+ */
+static inline void write_msa_wr(unsigned idx, union fpureg *from,
+				enum msa_2b_fmt fmt)
+{
+	switch (fmt) {
+	case msa_fmt_b:
+		write_msa_wr_b(idx, from);
+		break;
+
+	case msa_fmt_h:
+		write_msa_wr_h(idx, from);
+		break;
+
+	case msa_fmt_w:
+		write_msa_wr_w(idx, from);
+		break;
+
+	case msa_fmt_d:
+		write_msa_wr_d(idx, from);
+		break;
+
+	default:
+		BUG();
+	}
+}
 
 static inline void enable_msa(void)
 {

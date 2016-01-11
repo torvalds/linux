@@ -19,7 +19,6 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/g_hid.h>
 
-#include "gadget_chips.h"
 #define DRIVER_DESC		"HID Gadget"
 #define DRIVER_VERSION		"2010/03/16"
 
@@ -68,21 +67,7 @@ static struct usb_device_descriptor device_desc = {
 	.bNumConfigurations =	1,
 };
 
-static struct usb_otg_descriptor otg_descriptor = {
-	.bLength =		sizeof otg_descriptor,
-	.bDescriptorType =	USB_DT_OTG,
-
-	/* REVISIT SRP-only hardware is possible, although
-	 * it would not be called "OTG" ...
-	 */
-	.bmAttributes =		USB_OTG_SRP | USB_OTG_HNP,
-};
-
-static const struct usb_descriptor_header *otg_desc[] = {
-	(struct usb_descriptor_header *) &otg_descriptor,
-	NULL,
-};
-
+static const struct usb_descriptor_header *otg_desc[2];
 
 /* string IDs are assigned dynamically */
 static struct usb_string strings_dev[] = {
@@ -106,7 +91,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 
 /****************************** Configurations ******************************/
 
-static int __init do_config(struct usb_configuration *c)
+static int do_config(struct usb_configuration *c)
 {
 	struct hidg_func_node *e, *n;
 	int status = 0;
@@ -147,7 +132,7 @@ static struct usb_configuration config_driver = {
 
 /****************************** Gadget Bind ******************************/
 
-static int __init hid_bind(struct usb_composite_dev *cdev)
+static int hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct list_head *tmp;
@@ -186,16 +171,30 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
+	if (gadget_is_otg(gadget) && !otg_desc[0]) {
+		struct usb_descriptor_header *usb_desc;
+
+		usb_desc = usb_otg_descriptor_alloc(gadget);
+		if (!usb_desc)
+			goto put;
+		usb_otg_descriptor_init(gadget, usb_desc);
+		otg_desc[0] = usb_desc;
+		otg_desc[1] = NULL;
+	}
+
 	/* register our configuration */
 	status = usb_add_config(cdev, &config_driver, do_config);
 	if (status < 0)
-		goto put;
+		goto free_otg_desc;
 
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
 
 	return 0;
 
+free_otg_desc:
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
 put:
 	list_for_each_entry(m, &hidg_func_list, node) {
 		if (m == n)
@@ -205,7 +204,7 @@ put:
 	return status;
 }
 
-static int __exit hid_unbind(struct usb_composite_dev *cdev)
+static int hid_unbind(struct usb_composite_dev *cdev)
 {
 	struct hidg_func_node *n;
 
@@ -213,10 +212,14 @@ static int __exit hid_unbind(struct usb_composite_dev *cdev)
 		usb_put_function(n->f);
 		usb_put_function_instance(n->fi);
 	}
+
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+
 	return 0;
 }
 
-static int __init hidg_plat_driver_probe(struct platform_device *pdev)
+static int hidg_plat_driver_probe(struct platform_device *pdev)
 {
 	struct hidg_func_descriptor *func = dev_get_platdata(&pdev->dev);
 	struct hidg_func_node *entry;
@@ -252,13 +255,13 @@ static int hidg_plat_driver_remove(struct platform_device *pdev)
 /****************************** Some noise ******************************/
 
 
-static __refdata struct usb_composite_driver hidg_driver = {
+static struct usb_composite_driver hidg_driver = {
 	.name		= "g_hid",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
 	.bind		= hid_bind,
-	.unbind		= __exit_p(hid_unbind),
+	.unbind		= hid_unbind,
 };
 
 static struct platform_driver hidg_plat_driver = {

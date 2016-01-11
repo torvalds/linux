@@ -121,6 +121,9 @@ extern s32 i2c_smbus_read_i2c_block_data(const struct i2c_client *client,
 extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 					  u8 command, u8 length,
 					  const u8 *values);
+extern s32
+i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
+					  u8 command, u8 length, u8 *values);
 #endif /* I2C */
 
 /**
@@ -550,11 +553,12 @@ void i2c_lock_adapter(struct i2c_adapter *);
 void i2c_unlock_adapter(struct i2c_adapter *);
 
 /*flags for the client struct: */
-#define I2C_CLIENT_PEC	0x04		/* Use Packet Error Checking */
-#define I2C_CLIENT_TEN	0x10		/* we have a ten bit chip address */
+#define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
+#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
 					/* Must equal I2C_M_TEN below */
-#define I2C_CLIENT_WAKE	0x80		/* for board_info; true iff can wake */
-#define I2C_CLIENT_SCCB	0x9000		/* Use Omnivision SCCB protocol */
+#define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
+#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
+#define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
 					/* Must match I2C_M_STOP|IGNORE_NAK */
 
 /* i2c adapter classes (bitmask) */
@@ -638,6 +642,8 @@ extern struct i2c_client *of_find_i2c_device_by_node(struct device_node *node);
 /* must call put_device() when done with returned i2c_adapter device */
 extern struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node);
 
+/* must call i2c_put_adapter() when done with returned i2c_adapter device */
+struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node);
 #else
 
 static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
@@ -646,6 +652,11 @@ static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *
 }
 
 static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+{
+	return NULL;
+}
+
+static inline struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
 {
 	return NULL;
 }

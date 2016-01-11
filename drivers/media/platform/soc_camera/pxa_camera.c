@@ -1253,17 +1253,20 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	struct device *dev = icd->parent;
 	int formats = 0, ret;
 	struct pxa_cam *cam;
-	u32 code;
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.index = idx,
+	};
 	const struct soc_mbus_pixelfmt *fmt;
 
-	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
+	ret = v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code);
 	if (ret < 0)
 		/* No more formats */
 		return 0;
 
-	fmt = soc_mbus_get_fmtdesc(code);
+	fmt = soc_mbus_get_fmtdesc(code.code);
 	if (!fmt) {
-		dev_err(dev, "Invalid format code #%u: %d\n", idx, code);
+		dev_err(dev, "Invalid format code #%u: %d\n", idx, code.code);
 		return 0;
 	}
 
@@ -1282,15 +1285,15 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 		cam = icd->host_priv;
 	}
 
-	switch (code) {
+	switch (code.code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &pxa_camera_formats[0];
-			xlate->code	= code;
+			xlate->code	= code.code;
 			xlate++;
 			dev_dbg(dev, "Providing format %s using code %d\n",
-				pxa_camera_formats[0].name, code);
+				pxa_camera_formats[0].name, code.code);
 		}
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
@@ -1314,7 +1317,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	formats++;
 	if (xlate) {
 		xlate->host_fmt	= fmt;
-		xlate->code	= code;
+		xlate->code	= code.code;
 		xlate++;
 	}
 
@@ -1346,7 +1349,10 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 		.master_clock = pcdev->mclk,
 		.pixel_clock_max = pcdev->ciclk / 4,
 	};
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	struct pxa_cam *cam = icd->host_priv;
 	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
 	int ret;
@@ -1365,23 +1371,23 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
-	if (pxa_camera_check_frame(mf.width, mf.height)) {
+	if (pxa_camera_check_frame(mf->width, mf->height)) {
 		/*
 		 * Camera cropping produced a frame beyond our capabilities.
 		 * FIXME: just extract a subframe, that we can process.
 		 */
-		v4l_bound_align_image(&mf.width, 48, 2048, 1,
-			&mf.height, 32, 2048, 0,
+		v4l_bound_align_image(&mf->width, 48, 2048, 1,
+			&mf->height, 32, 2048, 0,
 			fourcc == V4L2_PIX_FMT_YUV422P ? 4 : 0);
-		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+		ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &fmt);
 		if (ret < 0)
 			return ret;
 
-		if (pxa_camera_check_frame(mf.width, mf.height)) {
+		if (pxa_camera_check_frame(mf->width, mf->height)) {
 			dev_warn(icd->parent,
 				 "Inconsistent state. Use S_FMT to repair\n");
 			return -EINVAL;
@@ -1398,8 +1404,8 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 		recalculate_fifo_timeout(pcdev, sense.pixel_clock);
 	}
 
-	icd->user_width		= mf.width;
-	icd->user_height	= mf.height;
+	icd->user_width		= mf->width;
+	icd->user_height	= mf->height;
 
 	pxa_camera_setup_cicr(icd, cam->flags, fourcc);
 
@@ -1419,7 +1425,10 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 		.pixel_clock_max = pcdev->ciclk / 4,
 	};
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
@@ -1433,15 +1442,15 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 		/* The caller holds a mutex. */
 		icd->sense = &sense;
 
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &format);
 
-	if (mf.code != xlate->code)
+	if (mf->code != xlate->code)
 		return -EINVAL;
 
 	icd->sense = NULL;
@@ -1449,10 +1458,10 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 	if (ret < 0) {
 		dev_warn(dev, "Failed to configure for format %x\n",
 			 pix->pixelformat);
-	} else if (pxa_camera_check_frame(mf.width, mf.height)) {
+	} else if (pxa_camera_check_frame(mf->width, mf->height)) {
 		dev_warn(dev,
 			 "Camera driver produced an unsupported frame %dx%d\n",
-			 mf.width, mf.height);
+			 mf->width, mf->height);
 		ret = -EINVAL;
 	} else if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {
 		if (sense.pixel_clock > sense.pixel_clock_max) {
@@ -1467,10 +1476,10 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	pix->width		= mf.width;
-	pix->height		= mf.height;
-	pix->field		= mf.field;
-	pix->colorspace		= mf.colorspace;
+	pix->width		= mf->width;
+	pix->height		= mf->height;
+	pix->field		= mf->field;
+	pix->colorspace		= mf->colorspace;
 	icd->current_fmt	= xlate;
 
 	return ret;
@@ -1482,7 +1491,11 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	__u32 pixfmt = pix->pixelformat;
 	int ret;
 
@@ -1503,22 +1516,22 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 			      pixfmt == V4L2_PIX_FMT_YUV422P ? 4 : 0);
 
 	/* limit to sensor capabilities */
-	mf.width	= pix->width;
-	mf.height	= pix->height;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
 	/* Only progressive video supported so far */
-	mf.field	= V4L2_FIELD_NONE;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->field	= V4L2_FIELD_NONE;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, &pad_cfg, &format);
 	if (ret < 0)
 		return ret;
 
-	pix->width	= mf.width;
-	pix->height	= mf.height;
-	pix->colorspace	= mf.colorspace;
+	pix->width	= mf->width;
+	pix->height	= mf->height;
+	pix->colorspace	= mf->colorspace;
 
-	switch (mf.field) {
+	switch (mf->field) {
 	case V4L2_FIELD_ANY:
 	case V4L2_FIELD_NONE:
 		pix->field	= V4L2_FIELD_NONE;
@@ -1526,7 +1539,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	default:
 		/* TODO: support interlaced at least in pass-through mode */
 		dev_err(icd->parent, "Field type %d unsupported.\n",
-			mf.field);
+			mf->field);
 		return -EINVAL;
 	}
 

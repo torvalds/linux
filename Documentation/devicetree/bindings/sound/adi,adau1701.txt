@@ -20,6 +20,8 @@ Optional properties:
 			pin configurations as described in the datasheet,
 			table 53. Note that the value of this property has
 			to be prefixed with '/bits/ 8'.
+ - avdd-supply: 	Power supply for AVDD, providing 3.3V
+ - dvdd-supply: 	Power supply for DVDD, providing 3.3V
 
 Examples:
 
@@ -28,6 +30,8 @@ Examples:
 			compatible = "adi,adau1701";
 			reg = <0x34>;
 			reset-gpio = <&gpio 23 0>;
+			avdd-supply = <&vdd_3v3_reg>;
+			dvdd-supply = <&vdd_3v3_reg>;
 			adi,pll-mode-gpios = <&gpio 24 0 &gpio 25 0>;
 			adi,pin-config = /bits/ 8 <0x4 0x7 0x5 0x5 0x4 0x4
                                                    0x4 0x4 0x4 0x4 0x4 0x4>;

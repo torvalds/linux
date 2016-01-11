@@ -45,13 +45,10 @@
  * it does.
  */
 
-#define _GNU_SOURCE
-
-#include <byteswap.h>
 #include <elf.h>
 #include <errno.h>
-#include <error.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +57,16 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define swab16(x) \
+	((((x) & 0x00ff) << 8) | \
+	 (((x) & 0xff00) >> 8))
+
+#define swab32(x) \
+	((((x) & 0x000000ff) << 24) | \
+	 (((x) & 0x0000ff00) <<  8) | \
+	 (((x) & 0x00ff0000) >>  8) | \
+	 (((x) & 0xff000000) >> 24))
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define HOST_ORDER ELFDATA2LSB
@@ -82,27 +89,41 @@
 #define EF_ARM_ABI_FLOAT_HARD 0x400
 #endif
 
+static int failed;
+static const char *argv0;
 static const char *outfile;
+
+static void fail(const char *fmt, ...)
+{
+	va_list ap;
+
+	failed = 1;
+	fprintf(stderr, "%s: ", argv0);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	exit(EXIT_FAILURE);
+}
 
 static void cleanup(void)
 {
-	if (error_message_count > 0 && outfile != NULL)
+	if (failed && outfile != NULL)
 		unlink(outfile);
 }
 
 static Elf32_Word read_elf_word(Elf32_Word word, bool swap)
 {
-	return swap ? bswap_32(word) : word;
+	return swap ? swab32(word) : word;
 }
 
 static Elf32_Half read_elf_half(Elf32_Half half, bool swap)
 {
-	return swap ? bswap_16(half) : half;
+	return swap ? swab16(half) : half;
 }
 
 static void write_elf_word(Elf32_Word val, Elf32_Word *dst, bool swap)
 {
-	*dst = swap ? bswap_32(val) : val;
+	*dst = swap ? swab32(val) : val;
 }
 
 int main(int argc, char **argv)
@@ -119,68 +140,66 @@ int main(int argc, char **argv)
 	int infd;
 
 	atexit(cleanup);
+	argv0 = argv[0];
 
 	if (argc != 3)
-		error(EXIT_FAILURE, 0, "Usage: %s [infile] [outfile]", argv[0]);
+		fail("Usage: %s [infile] [outfile]\n", argv[0]);
 
 	infile = argv[1];
 	outfile = argv[2];
 
 	infd = open(infile, O_RDONLY);
 	if (infd < 0)
-		error(EXIT_FAILURE, errno, "Cannot open %s", infile);
+		fail("Cannot open %s: %s\n", infile, strerror(errno));
 
 	if (fstat(infd, &stat) != 0)
-		error(EXIT_FAILURE, errno, "Failed stat for %s", infile);
+		fail("Failed stat for %s: %s\n", infile, strerror(errno));
 
 	inbuf = mmap(NULL, stat.st_size, PROT_READ, MAP_PRIVATE, infd, 0);
 	if (inbuf == MAP_FAILED)
-		error(EXIT_FAILURE, errno, "Failed to map %s", infile);
+		fail("Failed to map %s: %s\n", infile, strerror(errno));
 
 	close(infd);
 
 	inhdr = inbuf;
 
 	if (memcmp(&inhdr->e_ident, ELFMAG, SELFMAG) != 0)
-		error(EXIT_FAILURE, 0, "Not an ELF file");
+		fail("Not an ELF file\n");
 
 	if (inhdr->e_ident[EI_CLASS] != ELFCLASS32)
-		error(EXIT_FAILURE, 0, "Unsupported ELF class");
+		fail("Unsupported ELF class\n");
 
 	swap = inhdr->e_ident[EI_DATA] != HOST_ORDER;
 
 	if (read_elf_half(inhdr->e_type, swap) != ET_DYN)
-		error(EXIT_FAILURE, 0, "Not a shared object");
+		fail("Not a shared object\n");
 
-	if (read_elf_half(inhdr->e_machine, swap) != EM_ARM) {
-		error(EXIT_FAILURE, 0, "Unsupported architecture %#x",
-		      inhdr->e_machine);
-	}
+	if (read_elf_half(inhdr->e_machine, swap) != EM_ARM)
+		fail("Unsupported architecture %#x\n", inhdr->e_machine);
 
 	e_flags = read_elf_word(inhdr->e_flags, swap);
 
 	if (EF_ARM_EABI_VERSION(e_flags) != EF_ARM_EABI_VER5) {
-		error(EXIT_FAILURE, 0, "Unsupported EABI version %#x",
-		      EF_ARM_EABI_VERSION(e_flags));
+		fail("Unsupported EABI version %#x\n",
+		     EF_ARM_EABI_VERSION(e_flags));
 	}
 
 	if (e_flags & EF_ARM_ABI_FLOAT_HARD)
-		error(EXIT_FAILURE, 0,
-		      "Unexpected hard-float flag set in e_flags");
+		fail("Unexpected hard-float flag set in e_flags\n");
 
 	clear_soft_float = !!(e_flags & EF_ARM_ABI_FLOAT_SOFT);
 
 	outfd = open(outfile, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (outfd < 0)
-		error(EXIT_FAILURE, errno, "Cannot open %s", outfile);
+		fail("Cannot open %s: %s\n", outfile, strerror(errno));
 
 	if (ftruncate(outfd, stat.st_size) != 0)
-		error(EXIT_FAILURE, errno, "Cannot truncate %s", outfile);
+		fail("Cannot truncate %s: %s\n", outfile, strerror(errno));
 
 	outbuf = mmap(NULL, stat.st_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 		      outfd, 0);
 	if (outbuf == MAP_FAILED)
-		error(EXIT_FAILURE, errno, "Failed to map %s", outfile);
+		fail("Failed to map %s: %s\n", outfile, strerror(errno));
 
 	close(outfd);
 
@@ -195,7 +214,7 @@ int main(int argc, char **argv)
 	}
 
 	if (msync(outbuf, stat.st_size, MS_SYNC) != 0)
-		error(EXIT_FAILURE, errno, "Failed to sync %s", outfile);
+		fail("Failed to sync %s: %s\n", outfile, strerror(errno));
 
 	return EXIT_SUCCESS;
 }

@@ -1726,6 +1726,7 @@ vortex_up(struct net_device *dev)
 	if (vp->cb_fn_base)			/* The PCMCIA people are idiots.  */
 		iowrite32(0x8000, vp->cb_fn_base + 4);
 	netif_start_queue (dev);
+	netdev_reset_queue(dev);
 err_out:
 	return err;
 }
@@ -1763,16 +1764,9 @@ vortex_open(struct net_device *dev)
 			vp->rx_ring[i].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, PKT_BUF_SZ, PCI_DMA_FROMDEVICE));
 		}
 		if (i != RX_RING_SIZE) {
-			int j;
 			pr_emerg("%s: no memory for rx ring\n", dev->name);
-			for (j = 0; j < i; j++) {
-				if (vp->rx_skbuff[j]) {
-					dev_kfree_skb(vp->rx_skbuff[j]);
-					vp->rx_skbuff[j] = NULL;
-				}
-			}
 			retval = -ENOMEM;
-			goto err_free_irq;
+			goto err_free_skb;
 		}
 		/* Wrap the ring. */
 		vp->rx_ring[i-1].next = cpu_to_le32(vp->rx_ring_dma);
@@ -1782,7 +1776,13 @@ vortex_open(struct net_device *dev)
 	if (!retval)
 		goto out;
 
-err_free_irq:
+err_free_skb:
+	for (i = 0; i < RX_RING_SIZE; i++) {
+		if (vp->rx_skbuff[i]) {
+			dev_kfree_skb(vp->rx_skbuff[i]);
+			vp->rx_skbuff[i] = NULL;
+		}
+	}
 	free_irq(dev->irq, dev);
 err:
 	if (vortex_debug > 1)
@@ -1936,16 +1936,18 @@ static void vortex_tx_timeout(struct net_device *dev)
 		if (vp->cur_tx - vp->dirty_tx > 0  &&  ioread32(ioaddr + DownListPtr) == 0)
 			iowrite32(vp->tx_ring_dma + (vp->dirty_tx % TX_RING_SIZE) * sizeof(struct boom_tx_desc),
 				 ioaddr + DownListPtr);
-		if (vp->cur_tx - vp->dirty_tx < TX_RING_SIZE)
+		if (vp->cur_tx - vp->dirty_tx < TX_RING_SIZE) {
 			netif_wake_queue (dev);
+			netdev_reset_queue (dev);
+		}
 		if (vp->drv_flags & IS_BOOMERANG)
 			iowrite8(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold);
 		iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	} else {
 		dev->stats.tx_dropped++;
 		netif_wake_queue(dev);
+		netdev_reset_queue(dev);
 	}
-
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
 	dev->trans_start = jiffies; /* prevent tx timeout */
@@ -2064,6 +2066,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
+	int skblen = skb->len;
 
 	/* Put out the doubleword header... */
 	iowrite32(skb->len, ioaddr + TX_FIFO);
@@ -2095,6 +2098,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	netdev_sent_queue(dev, skblen);
 
 	/* Clear the Tx status stack. */
 	{
@@ -2126,6 +2130,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	void __iomem *ioaddr = vp->ioaddr;
 	/* Calculate the next Tx descriptor entry. */
 	int entry = vp->cur_tx % TX_RING_SIZE;
+	int skblen = skb->len;
 	struct boom_tx_desc *prev_entry = &vp->tx_ring[(vp->cur_tx-1) % TX_RING_SIZE];
 	unsigned long flags;
 	dma_addr_t dma_addr;
@@ -2231,6 +2236,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	vp->cur_tx++;
+	netdev_sent_queue(dev, skblen);
+
 	if (vp->cur_tx - vp->dirty_tx > TX_RING_SIZE - 1) {
 		netif_stop_queue (dev);
 	} else {					/* Clear previous interrupt enable. */
@@ -2268,6 +2275,7 @@ vortex_interrupt(int irq, void *dev_id)
 	int status;
 	int work_done = max_interrupt_work;
 	int handled = 0;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	ioaddr = vp->ioaddr;
 	spin_lock(&vp->lock);
@@ -2315,6 +2323,8 @@ vortex_interrupt(int irq, void *dev_id)
 			if (ioread16(ioaddr + Wn7_MasterStatus) & 0x1000) {
 				iowrite16(0x1000, ioaddr + Wn7_MasterStatus); /* Ack the event. */
 				pci_unmap_single(VORTEX_PCI(vp), vp->tx_skb_dma, (vp->tx_skb->len + 3) & ~3, PCI_DMA_TODEVICE);
+				pkts_compl++;
+				bytes_compl += vp->tx_skb->len;
 				dev_kfree_skb_irq(vp->tx_skb); /* Release the transferred buffer */
 				if (ioread16(ioaddr + TxFree) > 1536) {
 					/*
@@ -2359,6 +2369,7 @@ vortex_interrupt(int irq, void *dev_id)
 		iowrite16(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	} while ((status = ioread16(ioaddr + EL3_STATUS)) & (IntLatch | RxComplete));
 
+	netdev_completed_queue(dev, pkts_compl, bytes_compl);
 	spin_unlock(&vp->window_lock);
 
 	if (vortex_debug > 4)
@@ -2382,6 +2393,8 @@ boomerang_interrupt(int irq, void *dev_id)
 	void __iomem *ioaddr;
 	int status;
 	int work_done = max_interrupt_work;
+	int handled = 0;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	ioaddr = vp->ioaddr;
 
@@ -2400,6 +2413,7 @@ boomerang_interrupt(int irq, void *dev_id)
 
 	if ((status & IntLatch) == 0)
 		goto handler_exit;		/* No interrupt: shared IRQs can cause this */
+	handled = 1;
 
 	if (status == 0xffff) {		/* h/w no longer present (hotplug)? */
 		if (vortex_debug > 1)
@@ -2454,6 +2468,8 @@ boomerang_interrupt(int irq, void *dev_id)
 					pci_unmap_single(VORTEX_PCI(vp),
 						le32_to_cpu(vp->tx_ring[entry].addr), skb->len, PCI_DMA_TODEVICE);
 #endif
+					pkts_compl++;
+					bytes_compl += skb->len;
 					dev_kfree_skb_irq(skb);
 					vp->tx_skbuff[entry] = NULL;
 				} else {
@@ -2494,6 +2510,7 @@ boomerang_interrupt(int irq, void *dev_id)
 			iowrite32(0x8000, vp->cb_fn_base + 4);
 
 	} while ((status = ioread16(ioaddr + EL3_STATUS)) & IntLatch);
+	netdev_completed_queue(dev, pkts_compl, bytes_compl);
 
 	if (vortex_debug > 4)
 		pr_debug("%s: exiting interrupt, status %4.4x.\n",
@@ -2501,7 +2518,7 @@ boomerang_interrupt(int irq, void *dev_id)
 handler_exit:
 	vp->handling_irq = 0;
 	spin_unlock(&vp->lock);
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(handled);
 }
 
 static int vortex_rx(struct net_device *dev)
@@ -2695,7 +2712,8 @@ vortex_down(struct net_device *dev, int final_down)
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
 
-	netif_stop_queue (dev);
+	netdev_reset_queue(dev);
+	netif_stop_queue(dev);
 
 	del_timer_sync(&vp->rx_oom_timer);
 	del_timer_sync(&vp->timer);

@@ -205,16 +205,20 @@ static int __init of_unittest_check_node_linkage(struct device_node *np)
 		if (child->parent != np) {
 			pr_err("Child node %s links to wrong parent %s\n",
 				 child->name, np->name);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto put_child;
 		}
 
 		rc = of_unittest_check_node_linkage(child);
 		if (rc < 0)
-			return rc;
+			goto put_child;
 		count += rc;
 	}
 
 	return count + 1;
+put_child:
+	of_node_put(child);
+	return rc;
 }
 
 static void __init of_unittest_check_tree_linkage(void)
@@ -979,7 +983,6 @@ static struct platform_driver unittest_driver = {
 	.remove			= unittest_remove,
 	.driver = {
 		.name		= "unittest",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(unittest_match),
 	},
 };
@@ -1666,7 +1669,6 @@ static const struct i2c_device_id unittest_i2c_dev_id[] = {
 static struct i2c_driver unittest_i2c_dev_driver = {
 	.driver = {
 		.name = "unittest-i2c-dev",
-		.owner = THIS_MODULE,
 	},
 	.probe = unittest_i2c_dev_probe,
 	.remove = unittest_i2c_dev_remove,
@@ -1761,7 +1763,6 @@ static const struct i2c_device_id unittest_i2c_mux_id[] = {
 static struct i2c_driver unittest_i2c_mux_driver = {
 	.driver = {
 		.name = "unittest-i2c-mux",
-		.owner = THIS_MODULE,
 	},
 	.probe = unittest_i2c_mux_probe,
 	.remove = unittest_i2c_mux_remove,

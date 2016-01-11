@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 Jana Saout <jana@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2006-2009 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2013 Milan Broz <gmazyland@gmail.com>
  *
  * This file is released under the GPL.
@@ -112,7 +112,8 @@ struct iv_tcw_private {
  * and encrypts / decrypts at the same time.
  */
 enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
-	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD };
+	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD,
+	     DM_CRYPT_EXIT_THREAD};
 
 /*
  * The fields in here must be read only after initialization.
@@ -891,6 +892,11 @@ static void crypt_alloc_req(struct crypt_config *cc,
 		ctx->req = mempool_alloc(cc->req_pool, GFP_NOIO);
 
 	ablkcipher_request_set_tfm(ctx->req, cc->tfms[key_index]);
+
+	/*
+	 * Use REQ_MAY_BACKLOG so a cipher driver internally backlogs
+	 * requests if driver request queue is full.
+	 */
 	ablkcipher_request_set_callback(ctx->req,
 	    CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 	    kcryptd_async_done, dmreq_of_req(cc, ctx->req));
@@ -924,23 +930,32 @@ static int crypt_convert(struct crypt_config *cc,
 		r = crypt_convert_block(cc, ctx, ctx->req);
 
 		switch (r) {
-		/* async */
-		case -EINPROGRESS:
+		/*
+		 * The request was queued by a crypto driver
+		 * but the driver request queue is full, let's wait.
+		 */
 		case -EBUSY:
 			wait_for_completion(&ctx->restart);
 			reinit_completion(&ctx->restart);
+			/* fall through */
+		/*
+		 * The request is queued and processed asynchronously,
+		 * completion function kcryptd_async_done() will be called.
+		 */
+		case -EINPROGRESS:
 			ctx->req = NULL;
 			ctx->cc_sector++;
 			continue;
-
-		/* sync */
+		/*
+		 * The request was already processed (synchronously).
+		 */
 		case 0:
 			atomic_dec(&ctx->cc_pending);
 			ctx->cc_sector++;
 			cond_resched();
 			continue;
 
-		/* error */
+		/* There was an error while processing the request. */
 		default:
 			atomic_dec(&ctx->cc_pending);
 			return r;
@@ -954,7 +969,8 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone);
 
 /*
  * Generate a new unfragmented bio with the given size
- * This should never violate the device limitations
+ * This should never violate the device limitations (but only because
+ * max_segment_size is being constrained to PAGE_SIZE).
  *
  * This function may be called concurrently. If we allocate from the mempool
  * concurrently, there is a possibility of deadlock. For example, if we have
@@ -979,7 +995,7 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 	struct bio_vec *bvec;
 
 retry:
-	if (unlikely(gfp_mask & __GFP_WAIT))
+	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_lock(&cc->bio_alloc_lock);
 
 	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, cc->bs);
@@ -995,7 +1011,7 @@ retry:
 		if (!page) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
-			gfp_mask |= __GFP_WAIT;
+			gfp_mask |= __GFP_DIRECT_RECLAIM;
 			goto retry;
 		}
 
@@ -1012,7 +1028,7 @@ retry:
 	}
 
 return_clone:
-	if (unlikely(gfp_mask & __GFP_WAIT))
+	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_unlock(&cc->bio_alloc_lock);
 
 	return clone;
@@ -1062,7 +1078,8 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 	if (io->ctx.req)
 		crypt_free_req(cc, io->ctx.req, base_bio);
 
-	bio_endio(base_bio, error);
+	base_bio->bi_error = error;
+	bio_endio(base_bio);
 }
 
 /*
@@ -1082,14 +1099,12 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
  * The work is done per CPU global for all dm-crypt instances.
  * They should not depend on each other and do not block.
  */
-static void crypt_endio(struct bio *clone, int error)
+static void crypt_endio(struct bio *clone)
 {
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->cc;
 	unsigned rw = bio_data_dir(clone);
-
-	if (unlikely(!bio_flagged(clone, BIO_UPTODATE) && !error))
-		error = -EIO;
+	int error;
 
 	/*
 	 * free the processed pages
@@ -1097,6 +1112,7 @@ static void crypt_endio(struct bio *clone, int error)
 	if (rw == WRITE)
 		crypt_free_buffer_pages(cc, clone);
 
+	error = clone->bi_error;
 	bio_put(clone);
 
 	if (rw == READ && !error) {
@@ -1188,20 +1204,18 @@ continue_locked:
 		if (!RB_EMPTY_ROOT(&cc->write_tree))
 			goto pop_from_list;
 
+		if (unlikely(test_bit(DM_CRYPT_EXIT_THREAD, &cc->flags))) {
+			spin_unlock_irq(&cc->write_thread_wait.lock);
+			break;
+		}
+
 		__set_current_state(TASK_INTERRUPTIBLE);
 		__add_wait_queue(&cc->write_thread_wait, &wait);
 
 		spin_unlock_irq(&cc->write_thread_wait.lock);
 
-		if (unlikely(kthread_should_stop())) {
-			set_task_state(current, TASK_RUNNING);
-			remove_wait_queue(&cc->write_thread_wait, &wait);
-			break;
-		}
-
 		schedule();
 
-		set_task_state(current, TASK_RUNNING);
 		spin_lock_irq(&cc->write_thread_wait.lock);
 		__remove_wait_queue(&cc->write_thread_wait, &wait);
 		goto continue_locked;
@@ -1345,8 +1359,15 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	struct dm_crypt_io *io = container_of(ctx, struct dm_crypt_io, ctx);
 	struct crypt_config *cc = io->cc;
 
-	if (error == -EINPROGRESS)
+	/*
+	 * A request from crypto driver backlog is going to be processed now,
+	 * finish the completion and continue in crypt_convert().
+	 * (Callback will be called for the second time for this request.)
+	 */
+	if (error == -EINPROGRESS) {
+		complete(&ctx->restart);
 		return;
+	}
 
 	if (!error && cc->iv_gen_ops && cc->iv_gen_ops->post)
 		error = cc->iv_gen_ops->post(cc, iv_of_dmreq(cc, dmreq), dmreq);
@@ -1357,15 +1378,12 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	crypt_free_req(cc, req_of_dmreq(cc, dmreq), io->base_bio);
 
 	if (!atomic_dec_and_test(&ctx->cc_pending))
-		goto done;
+		return;
 
 	if (bio_data_dir(io->base_bio) == READ)
 		kcryptd_crypt_read_done(io);
 	else
 		kcryptd_crypt_write_io_submit(io, 1);
-done:
-	if (!completion_done(&ctx->restart))
-		complete(&ctx->restart);
 }
 
 static void kcryptd_crypt(struct work_struct *work)
@@ -1512,8 +1530,13 @@ static void crypt_dtr(struct dm_target *ti)
 	if (!cc)
 		return;
 
-	if (cc->write_thread)
+	if (cc->write_thread) {
+		spin_lock_irq(&cc->write_thread_wait.lock);
+		set_bit(DM_CRYPT_EXIT_THREAD, &cc->flags);
+		wake_up_locked(&cc->write_thread_wait);
+		spin_unlock_irq(&cc->write_thread_wait.lock);
 		kthread_stop(cc->write_thread);
+	}
 
 	if (cc->io_queue)
 		destroy_workqueue(cc->io_queue);
@@ -1525,10 +1548,8 @@ static void crypt_dtr(struct dm_target *ti)
 	if (cc->bs)
 		bioset_free(cc->bs);
 
-	if (cc->page_pool)
-		mempool_destroy(cc->page_pool);
-	if (cc->req_pool)
-		mempool_destroy(cc->req_pool);
+	mempool_destroy(cc->page_pool);
+	mempool_destroy(cc->req_pool);
 
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
@@ -1793,11 +1814,13 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	cc->iv_offset = tmpll;
 
-	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev)) {
+	ret = dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev);
+	if (ret) {
 		ti->error = "Device lookup failed";
 		goto bad;
 	}
 
+	ret = -EINVAL;
 	if (sscanf(argv[4], "%llu%c", &tmpll, &dummy) != 1) {
 		ti->error = "Invalid device sector";
 		goto bad;
@@ -2017,21 +2040,6 @@ error:
 	return -EINVAL;
 }
 
-static int crypt_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-		       struct bio_vec *biovec, int max_size)
-{
-	struct crypt_config *cc = ti->private;
-	struct request_queue *q = bdev_get_queue(cc->dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = cc->dev->bdev;
-	bvm->bi_sector = cc->start + dm_target_offset(ti, bvm->bi_sector);
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int crypt_iterate_devices(struct dm_target *ti,
 				 iterate_devices_callout_fn fn, void *data)
 {
@@ -2040,9 +2048,20 @@ static int crypt_iterate_devices(struct dm_target *ti,
 	return fn(ti, cc->dev, cc->start, ti->len, data);
 }
 
+static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
+{
+	/*
+	 * Unfortunate constraint that is required to avoid the potential
+	 * for exceeding underlying device's max_segments limits -- due to
+	 * crypt_alloc_buffer() possibly allocating pages for the encryption
+	 * bio that are not as physically contiguous as the original bio.
+	 */
+	limits->max_segment_size = PAGE_SIZE;
+}
+
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 14, 0},
+	.version = {1, 14, 1},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
@@ -2052,8 +2071,8 @@ static struct target_type crypt_target = {
 	.preresume = crypt_preresume,
 	.resume = crypt_resume,
 	.message = crypt_message,
-	.merge  = crypt_merge,
 	.iterate_devices = crypt_iterate_devices,
+	.io_hints = crypt_io_hints,
 };
 
 static int __init dm_crypt_init(void)

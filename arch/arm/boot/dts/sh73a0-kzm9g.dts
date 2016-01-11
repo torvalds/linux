@@ -147,6 +147,7 @@
 			gpios = <&pcf8575 14 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 			label = "SW1";
+			gpio-key,wakeup;
 		};
 	};
 
@@ -205,7 +206,7 @@
 	};
 
 	accelerometer@1d {
-		compatible = "adi,adxl34x";
+		compatible = "adi,adxl345";
 		reg = <0x1d>;
 		interrupt-parent = <&irqpin3>;
 		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,

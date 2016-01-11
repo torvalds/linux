@@ -64,11 +64,23 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 };
 
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-names = "default";
+};
+
+&i2c {
+	status = "okay";
+};
+
+&pinctrl {
+	uart0_default: uart0_active {
+		pins = "GP_O0", "GP_O1";
+		function = "client_b";
+	};
 };

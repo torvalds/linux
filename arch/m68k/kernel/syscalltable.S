@@ -376,4 +376,23 @@ ENTRY(sys_call_table)
 	.long sys_memfd_create
 	.long sys_bpf
 	.long sys_execveat		/* 355 */
-
+	.long sys_socket
+	.long sys_socketpair
+	.long sys_bind
+	.long sys_connect
+	.long sys_listen		/* 360 */
+	.long sys_accept4
+	.long sys_getsockopt
+	.long sys_setsockopt
+	.long sys_getsockname
+	.long sys_getpeername		/* 365 */
+	.long sys_sendto
+	.long sys_sendmsg
+	.long sys_recvfrom
+	.long sys_recvmsg
+	.long sys_shutdown		/* 370 */
+	.long sys_recvmmsg
+	.long sys_sendmmsg
+	.long sys_userfaultfd
+	.long sys_membarrier
+	.long sys_mlock2		/* 375 */

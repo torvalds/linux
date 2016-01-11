@@ -152,8 +152,7 @@ static void __init init_hardware(char *command, int size)
 
 	printk(KERN_INFO "uCdimm serial string [%s]\n", getserialnum());
 	p = cs8900a_hwaddr = gethwaddr(0);
-	printk(KERN_INFO "uCdimm hwaddr %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		p[0], p[1], p[2], p[3], p[4], p[5]);
+	printk(KERN_INFO "uCdimm hwaddr %pM\n", p);
 	p = getbenv("APPEND");
 	if (p)
 		strcpy(p, command);

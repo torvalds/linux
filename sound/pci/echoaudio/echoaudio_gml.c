@@ -48,7 +48,7 @@ static int check_asic_status(struct echoaudio *chip)
 	if (read_dsp(chip, &asic_status) < 0) {
 		dev_err(chip->card->dev,
 			"check_asic_status: failed on read_dsp\n");
-		chip->asic_loaded = FALSE;
+		chip->asic_loaded = false;
 		return -EIO;
 	}
 
@@ -192,7 +192,7 @@ static int set_professional_spdif(struct echoaudio *chip, char prof)
 		}
 	}
 
-	if ((err = write_control_reg(chip, control_reg, FALSE)))
+	if ((err = write_control_reg(chip, control_reg, false)))
 		return err;
 	chip->professional_spdif = prof;
 	dev_dbg(chip->card->dev, "set_professional_spdif to %s\n",

@@ -91,6 +91,8 @@ enum {
 
 enum {
 	IB_USER_VERBS_EX_CMD_QUERY_DEVICE = IB_USER_VERBS_CMD_QUERY_DEVICE,
+	IB_USER_VERBS_EX_CMD_CREATE_CQ = IB_USER_VERBS_CMD_CREATE_CQ,
+	IB_USER_VERBS_EX_CMD_CREATE_QP = IB_USER_VERBS_CMD_CREATE_QP,
 	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
 	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
 };
@@ -222,6 +224,8 @@ struct ib_uverbs_ex_query_device_resp {
 	__u32 comp_mask;
 	__u32 response_length;
 	struct ib_uverbs_odp_caps odp_caps;
+	__u64 timestamp_mask;
+	__u64 hca_core_clock; /* in KHZ */
 };
 
 struct ib_uverbs_query_port {
@@ -353,9 +357,25 @@ struct ib_uverbs_create_cq {
 	__u64 driver_data[0];
 };
 
+struct ib_uverbs_ex_create_cq {
+	__u64 user_handle;
+	__u32 cqe;
+	__u32 comp_vector;
+	__s32 comp_channel;
+	__u32 comp_mask;
+	__u32 flags;
+	__u32 reserved;
+};
+
 struct ib_uverbs_create_cq_resp {
 	__u32 cq_handle;
 	__u32 cqe;
+};
+
+struct ib_uverbs_ex_create_cq_resp {
+	struct ib_uverbs_create_cq_resp base;
+	__u32 comp_mask;
+	__u32 response_length;
 };
 
 struct ib_uverbs_resize_cq {
@@ -497,6 +517,25 @@ struct ib_uverbs_create_qp {
 	__u64 driver_data[0];
 };
 
+struct ib_uverbs_ex_create_qp {
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 send_cq_handle;
+	__u32 recv_cq_handle;
+	__u32 srq_handle;
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
+	__u8  sq_sig_all;
+	__u8  qp_type;
+	__u8  is_srq;
+	__u8 reserved;
+	__u32 comp_mask;
+	__u32 create_flags;
+};
+
 struct ib_uverbs_open_qp {
 	__u64 response;
 	__u64 user_handle;
@@ -517,6 +556,12 @@ struct ib_uverbs_create_qp_resp {
 	__u32 max_recv_sge;
 	__u32 max_inline_data;
 	__u32 reserved;
+};
+
+struct ib_uverbs_ex_create_qp_resp {
+	struct ib_uverbs_create_qp_resp base;
+	__u32 comp_mask;
+	__u32 response_length;
 };
 
 /*

@@ -110,7 +110,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	cma_obj->vaddr = dma_alloc_writecombine(drm->dev, size,
 			&cma_obj->paddr, GFP_KERNEL | __GFP_NOWARN);
 	if (!cma_obj->vaddr) {
-		dev_err(drm->dev, "failed to allocate buffer with size %d\n",
+		dev_err(drm->dev, "failed to allocate buffer with size %zu\n",
 			size);
 		ret = -ENOMEM;
 		goto error;
@@ -289,20 +289,15 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct drm_gem_object *gem_obj;
 
-	mutex_lock(&drm->struct_mutex);
-
 	gem_obj = drm_gem_object_lookup(drm, file_priv, handle);
 	if (!gem_obj) {
 		dev_err(drm->dev, "failed to lookup GEM object\n");
-		mutex_unlock(&drm->struct_mutex);
 		return -EINVAL;
 	}
 
 	*offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
-	drm_gem_object_unreference(gem_obj);
-
-	mutex_unlock(&drm->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem_obj);
 
 	return 0;
 }
@@ -381,14 +376,11 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj,
 			  struct seq_file *m)
 {
 	struct drm_gem_object *obj = &cma_obj->base;
-	struct drm_device *dev = obj->dev;
 	uint64_t off;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	off = drm_vma_node_start(&obj->vma_node);
 
-	seq_printf(m, "%2d (%2d) %08llx %pad %p %d",
+	seq_printf(m, "%2d (%2d) %08llx %pad %p %zu",
 			obj->name, obj->refcount.refcount.counter,
 			off, &cma_obj->paddr, cma_obj->vaddr, obj->size);
 
@@ -489,12 +481,9 @@ int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
 			   struct vm_area_struct *vma)
 {
 	struct drm_gem_cma_object *cma_obj;
-	struct drm_device *dev = obj->dev;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
 	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	mutex_unlock(&dev->struct_mutex);
 	if (ret < 0)
 		return ret;
 

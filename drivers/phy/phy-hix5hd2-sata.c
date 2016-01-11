@@ -129,7 +129,7 @@ static int hix5hd2_sata_phy_init(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops hix5hd2_sata_phy_ops = {
+static const struct phy_ops hix5hd2_sata_phy_ops = {
 	.init		= hix5hd2_sata_phy_init,
 	.owner		= THIS_MODULE,
 };

@@ -1,21 +1,36 @@
-/*******************************************************************
- * This file is part of the Emulex RoCE Device Driver for          *
- * RoCE (RDMA over Converged Ethernet) adapters.                   *
- * Copyright (C) 2008-2012 Emulex. All rights reserved.            *
- * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
- *                                                                 *
- * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of version 2 of the GNU General       *
- * Public License as published by the Free Software Foundation.    *
- * This program is distributed in the hope that it will be useful. *
- * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
- * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
- * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
- * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
- * more details, a copy of which can be found in the file COPYING  *
- * included with this package.                                     *
+/* This file is part of the Emulex RoCE Device Driver for
+ * RoCE (RDMA over Converged Ethernet) adapters.
+ * Copyright (C) 2012-2015 Emulex. All rights reserved.
+ * EMULEX and SLI are trademarks of Emulex.
+ * www.emulex.com
+ *
+ * This software is available to you under a choice of one of two licenses.
+ * You may choose to be licensed under the terms of the GNU General Public
+ * License (GPL) Version 2, available from the file COPYING in the main
+ * directory of this source tree, or the BSD license below:
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ *
+ * - Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in
+ *   the documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Contact Information:
  * linux-drivers@emulex.com
@@ -23,7 +38,7 @@
  * Emulex
  * 3333 Susan Street
  * Costa Mesa, CA 92626
- *******************************************************************/
+ */
 
 #ifndef __OCRDMA_H__
 #define __OCRDMA_H__
@@ -40,7 +55,7 @@
 #include <be_roce.h>
 #include "ocrdma_sli.h"
 
-#define OCRDMA_ROCE_DRV_VERSION "10.4.205.0u"
+#define OCRDMA_ROCE_DRV_VERSION "11.0.0.0"
 
 #define OCRDMA_ROCE_DRV_DESC "Emulex OneConnect RoCE Driver"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
@@ -178,6 +193,8 @@ struct ocrdma_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct ocrdma_hw_mr hwmr;
+	u64 *pages;
+	u32 npages;
 };
 
 struct ocrdma_stats {
@@ -215,6 +232,10 @@ struct phy_info {
 	u16 interface_type;
 };
 
+enum ocrdma_flags {
+	OCRDMA_FLAGS_LINK_STATUS_INIT = 0x01
+};
+
 struct ocrdma_dev {
 	struct ib_device ibdev;
 	struct ocrdma_dev_attr attr;
@@ -231,7 +252,6 @@ struct ocrdma_dev {
 	u16 base_eqid;
 	u16 max_eq;
 
-	union ib_gid *sgid_tbl;
 	/* provided synchronization to sgid table for
 	 * updating gid entries triggered by notifier.
 	 */
@@ -264,7 +284,6 @@ struct ocrdma_dev {
 	u32 hba_port_num;
 
 	struct list_head entry;
-	struct rcu_head rcu;
 	int id;
 	u64 *stag_arr;
 	u8 sl; /* service level */
@@ -272,6 +291,7 @@ struct ocrdma_dev {
 	atomic_t update_sl;
 	u16 pvid;
 	u32 asic_id;
+	u32 flags;
 
 	ulong last_stats_time;
 	struct mutex stats_lock; /* provide synch for debugfs operations */
@@ -515,6 +535,8 @@ static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
 	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
 	if (rdma_is_multicast_addr(&in6))
 		rdma_get_mcast_mac(&in6, mac_addr);
+	else if (rdma_link_local_addr(&in6))
+		rdma_get_ll_mac(&in6, mac_addr);
 	else
 		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
 	return 0;
@@ -572,6 +594,11 @@ static inline u8 ocrdma_is_enabled_and_synced(u32 state)
 	 */
 	return (state & OCRDMA_STATE_FLAG_ENABLED) &&
 		(state & OCRDMA_STATE_FLAG_SYNC);
+}
+
+static inline u8 ocrdma_get_ae_link_state(u32 ae_state)
+{
+	return ((ae_state & OCRDMA_AE_LSC_LS_MASK) >> OCRDMA_AE_LSC_LS_SHIFT);
 }
 
 #endif

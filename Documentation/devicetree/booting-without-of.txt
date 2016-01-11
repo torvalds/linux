@@ -856,6 +856,10 @@ address which can extend beyond that limit.
   name may clash with standard defined ones, you prefix them with your
   vendor name and a comma.
 
+  Additional properties for the root node:
+
+    - serial-number : a string representing the device's serial number
+
   b) The /cpus node
 
   This node is the parent of all individual CPU nodes. It doesn't

@@ -75,6 +75,9 @@ static int sha256_ce_finup(struct shash_desc *desc, const u8 *data,
 
 static int sha256_ce_final(struct shash_desc *desc, u8 *out)
 {
+	struct sha256_ce_state *sctx = shash_desc_ctx(desc);
+
+	sctx->finalize = 0;
 	kernel_neon_begin_partial(28);
 	sha256_base_do_finalize(desc, (sha256_block_fn *)sha2_ce_transform);
 	kernel_neon_end();

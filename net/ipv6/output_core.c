@@ -8,9 +8,11 @@
 #include <net/ip6_fib.h>
 #include <net/addrconf.h>
 #include <net/secure_seq.h>
+#include <linux/netfilter.h>
 
 static u32 __ipv6_select_ident(struct net *net, u32 hashrnd,
-			       struct in6_addr *dst, struct in6_addr *src)
+			       const struct in6_addr *dst,
+			       const struct in6_addr *src)
 {
 	u32 hash, id;
 
@@ -60,17 +62,17 @@ void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(ipv6_proxy_select_ident);
 
-void ipv6_select_ident(struct net *net, struct frag_hdr *fhdr,
-		       struct rt6_info *rt)
+__be32 ipv6_select_ident(struct net *net,
+			 const struct in6_addr *daddr,
+			 const struct in6_addr *saddr)
 {
 	static u32 ip6_idents_hashrnd __read_mostly;
 	u32 id;
 
 	net_get_random_once(&ip6_idents_hashrnd, sizeof(ip6_idents_hashrnd));
 
-	id = __ipv6_select_ident(net, ip6_idents_hashrnd, &rt->rt6i_dst.addr,
-				 &rt->rt6i_src.addr);
-	fhdr->identification = htonl(id);
+	id = __ipv6_select_ident(net, ip6_idents_hashrnd, daddr, saddr);
+	return htonl(id);
 }
 EXPORT_SYMBOL(ipv6_select_ident);
 
@@ -136,7 +138,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 EXPORT_SYMBOL(ip6_dst_hoplimit);
 #endif
 
-static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
+int __ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	int len;
 
@@ -146,30 +148,20 @@ static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 	ipv6_hdr(skb)->payload_len = htons(len);
 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
-	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
-		       NULL, skb_dst(skb)->dev, dst_output_sk);
-}
-
-int __ip6_local_out(struct sk_buff *skb)
-{
-	return __ip6_local_out_sk(skb->sk, skb);
+	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
+		       net, sk, skb, NULL, skb_dst(skb)->dev,
+		       dst_output);
 }
 EXPORT_SYMBOL_GPL(__ip6_local_out);
 
-int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
+int ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 
-	err = __ip6_local_out_sk(sk, skb);
+	err = __ip6_local_out(net, sk, skb);
 	if (likely(err == 1))
-		err = dst_output_sk(sk, skb);
+		err = dst_output(net, sk, skb);
 
 	return err;
-}
-EXPORT_SYMBOL_GPL(ip6_local_out_sk);
-
-int ip6_local_out(struct sk_buff *skb)
-{
-	return ip6_local_out_sk(skb->sk, skb);
 }
 EXPORT_SYMBOL_GPL(ip6_local_out);

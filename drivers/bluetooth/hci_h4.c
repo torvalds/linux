@@ -133,6 +133,7 @@ static int h4_recv(struct hci_uart *hu, const void *data, int count)
 	if (IS_ERR(h4->rx_skb)) {
 		int err = PTR_ERR(h4->rx_skb);
 		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		h4->rx_skb = NULL;
 		return err;
 	}
 
@@ -222,8 +223,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			switch ((&pkts[i])->lsize) {
 			case 0:
 				/* No variable data length */
-				(&pkts[i])->recv(hdev, skb);
-				skb = NULL;
+				dlen = 0;
 				break;
 			case 1:
 				/* Single octet variable length */
@@ -251,6 +251,12 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 				kfree_skb(skb);
 				return ERR_PTR(-EILSEQ);
 			}
+
+			if (!dlen) {
+				/* No more data, complete frame */
+				(&pkts[i])->recv(hdev, skb);
+				skb = NULL;
+			}
 		} else {
 			/* Complete frame */
 			(&pkts[i])->recv(hdev, skb);
@@ -260,3 +266,4 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 
 	return skb;
 }
+EXPORT_SYMBOL_GPL(h4_recv_buf);

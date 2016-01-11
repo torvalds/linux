@@ -478,6 +478,9 @@ _DoubleExceptionVector_handle_exception:
 
 ENDPROC(_DoubleExceptionVector)
 
+	.end literal_prefix
+
+	.text
 /*
  * Fixup handler for TLB miss in double exception handler for window owerflow.
  * We get here with windowbase set to the window that was being spilled and
@@ -587,7 +590,6 @@ ENTRY(window_overflow_restore_a0_fixup)
 
 ENDPROC(window_overflow_restore_a0_fixup)
 
-	.end literal_prefix
 /*
  * Debug interrupt vector
  *
@@ -627,7 +629,11 @@ ENTRY(_Level\level\()InterruptVector)
 	wsr	a0, excsave2
 	rsr	a0, epc\level
 	wsr	a0, epc1
+	.if	\level <= LOCKLEVEL
 	movi	a0, EXCCAUSE_LEVEL1_INTERRUPT
+	.else
+	movi	a0, EXCCAUSE_MAPPED_NMI
+	.endif
 	wsr	a0, exccause
 	rsr	a0, eps\level
 					# branch to user or kernel vector
@@ -682,11 +688,13 @@ ENDPROC(_WindowOverflow4)
 	.align 4
 _SimulateUserKernelVectorException:
 	addi	a0, a0, (1 << PS_EXCM_BIT)
+#if !XTENSA_FAKE_NMI
 	wsr	a0, ps
+#endif
 	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
-	rsr	a0, excsave2		# restore a0
+	xsr	a0, excsave2		# restore a0
 	j	_KernelExceptionVector	# simulate kernel vector exception
-1:	rsr	a0, excsave2		# restore a0
+1:	xsr	a0, excsave2		# restore a0
 	j	_UserExceptionVector	# simulate user vector exception
 #endif
 

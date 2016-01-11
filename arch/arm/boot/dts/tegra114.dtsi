@@ -214,9 +214,9 @@
 		#dma-cells = <1>;
 	};
 
-	ahb: ahb@6000c004 {
+	ahb: ahb@6000c000 {
 		compatible = "nvidia,tegra114-ahb", "nvidia,tegra30-ahb";
-		reg = <0x6000c004 0x14c>;
+		reg = <0x6000c000 0x150>;
 	};
 
 	gpio: gpio@6000d000 {
@@ -234,6 +234,9 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		/*
+		gpio-ranges = <&pinmux 0 0 246>;
+		*/
 	};
 
 	apbmisc@70000800 {

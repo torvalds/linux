@@ -11,6 +11,8 @@
 #ifndef __MIPS_ASM_MIPS_CM_H__
 #define __MIPS_ASM_MIPS_CM_H__
 
+#include <linux/bitops.h>
+#include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/types.h>
 
@@ -31,6 +33,29 @@ extern void __iomem *mips_cm_l2sync_base;
  * name mips_cm_phys_base (without underscores).
  */
 extern phys_addr_t __mips_cm_phys_base(void);
+
+/*
+ * mips_cm_is64 - determine CM register width
+ *
+ * The CM register width is determined by the version of the CM, with CM3
+ * introducing 64 bit GCRs and all prior CM versions having 32 bit GCRs.
+ * However we may run a kernel built for MIPS32 on a system with 64 bit GCRs,
+ * or vice-versa. This variable indicates the width of the memory accesses
+ * that the kernel will perform to GCRs, which may differ from the actual
+ * width of the GCRs.
+ *
+ * It's set to 0 for 32-bit accesses and 1 for 64-bit accesses.
+ */
+extern int mips_cm_is64;
+
+/**
+ * mips_cm_error_report - Report CM cache errors
+ */
+#ifdef CONFIG_MIPS_CM
+extern void mips_cm_error_report(void);
+#else
+static inline void mips_cm_error_report(void) {}
+#endif
 
 /**
  * mips_cm_probe - probe for a Coherence Manager
@@ -89,20 +114,56 @@ static inline bool mips_cm_has_l2sync(void)
 
 /* Macros to ease the creation of register access functions */
 #define BUILD_CM_R_(name, off)					\
-static inline u32 __iomem *addr_gcr_##name(void)		\
+static inline unsigned long __iomem *addr_gcr_##name(void)	\
 {								\
-	return (u32 __iomem *)(mips_cm_base + (off));		\
+	return (unsigned long __iomem *)(mips_cm_base + (off));	\
 }								\
 								\
-static inline u32 read_gcr_##name(void)				\
+static inline u32 read32_gcr_##name(void)			\
 {								\
 	return __raw_readl(addr_gcr_##name());			\
+}								\
+								\
+static inline u64 read64_gcr_##name(void)			\
+{								\
+	void __iomem *addr = addr_gcr_##name();			\
+	u64 ret;						\
+								\
+	if (mips_cm_is64) {					\
+		ret = __raw_readq(addr);			\
+	} else {						\
+		ret = __raw_readl(addr);			\
+		ret |= (u64)__raw_readl(addr + 0x4) << 32;	\
+	}							\
+								\
+	return ret;						\
+}								\
+								\
+static inline unsigned long read_gcr_##name(void)		\
+{								\
+	if (mips_cm_is64)					\
+		return read64_gcr_##name();			\
+	else							\
+		return read32_gcr_##name();			\
 }
 
 #define BUILD_CM__W(name, off)					\
-static inline void write_gcr_##name(u32 value)			\
+static inline void write32_gcr_##name(u32 value)		\
 {								\
 	__raw_writel(value, addr_gcr_##name());			\
+}								\
+								\
+static inline void write64_gcr_##name(u64 value)		\
+{								\
+	__raw_writeq(value, addr_gcr_##name());			\
+}								\
+								\
+static inline void write_gcr_##name(unsigned long value)	\
+{								\
+	if (mips_cm_is64)					\
+		write64_gcr_##name(value);			\
+	else							\
+		write32_gcr_##name(value);			\
 }
 
 #define BUILD_CM_RW(name, off)					\
@@ -143,6 +204,10 @@ BUILD_CM_RW(reg3_base,		MIPS_CM_GCB_OFS + 0xc0)
 BUILD_CM_RW(reg3_mask,		MIPS_CM_GCB_OFS + 0xc8)
 BUILD_CM_R_(gic_status,		MIPS_CM_GCB_OFS + 0xd0)
 BUILD_CM_R_(cpc_status,		MIPS_CM_GCB_OFS + 0xf0)
+BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
+BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
+BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
+BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
 
 /* Core Local & Core Other register accessor functions */
 BUILD_CM_Cx_RW(reset_release,	0x00)
@@ -188,9 +253,19 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_REV_MINOR_SHF			0
 #define CM_GCR_REV_MINOR_MSK			(_ULCAST_(0xff) << 0)
 
+#define CM_ENCODE_REV(major, minor) \
+		(((major) << CM_GCR_REV_MAJOR_SHF) | \
+		 ((minor) << CM_GCR_REV_MINOR_SHF))
+
+#define CM_REV_CM2				CM_ENCODE_REV(6, 0)
+#define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
+#define CM_REV_CM3				CM_ENCODE_REV(8, 0)
+
 /* GCR_ERROR_CAUSE register fields */
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_SHF		27
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_MSK		(_ULCAST_(0x1f) << 27)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_SHF		58
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MSK		GENMASK_ULL(63, 58)
 #define CM_GCR_ERROR_CAUSE_ERRINFO_SHF		0
 #define CM_GCR_ERROR_CAUSE_ERRINGO_MSK		(_ULCAST_(0x7ffffff) << 0)
 
@@ -215,6 +290,10 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_CPC_BASE_CPCBASE_MSK		(_ULCAST_(0x7fff) << 17)
 #define CM_GCR_CPC_BASE_CPCEN_SHF		0
 #define CM_GCR_CPC_BASE_CPCEN_MSK		(_ULCAST_(0x1) << 0)
+
+/* GCR_GIC_STATUS register fields */
+#define CM_GCR_GIC_STATUS_GICEX_SHF		0
+#define CM_GCR_GIC_STATUS_GICEX_MSK		(_ULCAST_(0x1) << 0)
 
 /* GCR_REGn_BASE register fields */
 #define CM_GCR_REGn_BASE_BASEADDR_SHF		16
@@ -244,6 +323,34 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_CPC_STATUS_EX_SHF		0
 #define CM_GCR_CPC_STATUS_EX_MSK		(_ULCAST_(0x1) << 0)
 
+/* GCR_L2_CONFIG register fields */
+#define CM_GCR_L2_CONFIG_BYPASS_SHF		20
+#define CM_GCR_L2_CONFIG_BYPASS_MSK		(_ULCAST_(0x1) << 20)
+#define CM_GCR_L2_CONFIG_SET_SIZE_SHF		12
+#define CM_GCR_L2_CONFIG_SET_SIZE_MSK		(_ULCAST_(0xf) << 12)
+#define CM_GCR_L2_CONFIG_LINE_SIZE_SHF		8
+#define CM_GCR_L2_CONFIG_LINE_SIZE_MSK		(_ULCAST_(0xf) << 8)
+#define CM_GCR_L2_CONFIG_ASSOC_SHF		0
+#define CM_GCR_L2_CONFIG_ASSOC_MSK		(_ULCAST_(0xff) << 0)
+
+/* GCR_SYS_CONFIG2 register fields */
+#define CM_GCR_SYS_CONFIG2_MAXVPW_SHF		0
+#define CM_GCR_SYS_CONFIG2_MAXVPW_MSK		(_ULCAST_(0xf) << 0)
+
+/* GCR_L2_PFT_CONTROL register fields */
+#define CM_GCR_L2_PFT_CONTROL_PAGEMASK_SHF	12
+#define CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK	(_ULCAST_(0xfffff) << 12)
+#define CM_GCR_L2_PFT_CONTROL_PFTEN_SHF		8
+#define CM_GCR_L2_PFT_CONTROL_PFTEN_MSK		(_ULCAST_(0x1) << 8)
+#define CM_GCR_L2_PFT_CONTROL_NPFT_SHF		0
+#define CM_GCR_L2_PFT_CONTROL_NPFT_MSK		(_ULCAST_(0xff) << 0)
+
+/* GCR_L2_PFT_CONTROL_B register fields */
+#define CM_GCR_L2_PFT_CONTROL_B_CEN_SHF		8
+#define CM_GCR_L2_PFT_CONTROL_B_CEN_MSK		(_ULCAST_(0x1) << 8)
+#define CM_GCR_L2_PFT_CONTROL_B_PORTID_SHF	0
+#define CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK	(_ULCAST_(0xff) << 0)
+
 /* GCR_Cx_COHERENCE register fields */
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK	(_ULCAST_(0xff) << 0)
@@ -252,11 +359,15 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_Cx_CONFIG_IOCUTYPE_SHF		10
 #define CM_GCR_Cx_CONFIG_IOCUTYPE_MSK		(_ULCAST_(0x3) << 10)
 #define CM_GCR_Cx_CONFIG_PVPE_SHF		0
-#define CM_GCR_Cx_CONFIG_PVPE_MSK		(_ULCAST_(0x1ff) << 0)
+#define CM_GCR_Cx_CONFIG_PVPE_MSK		(_ULCAST_(0x3ff) << 0)
 
 /* GCR_Cx_OTHER register fields */
 #define CM_GCR_Cx_OTHER_CORENUM_SHF		16
 #define CM_GCR_Cx_OTHER_CORENUM_MSK		(_ULCAST_(0xffff) << 16)
+#define CM3_GCR_Cx_OTHER_CORE_SHF		8
+#define CM3_GCR_Cx_OTHER_CORE_MSK		(_ULCAST_(0x3f) << 8)
+#define CM3_GCR_Cx_OTHER_VP_SHF			0
+#define CM3_GCR_Cx_OTHER_VP_MSK			(_ULCAST_(0x7) << 0)
 
 /* GCR_Cx_RESET_BASE register fields */
 #define CM_GCR_Cx_RESET_BASE_BEVEXCBASE_SHF	12
@@ -318,5 +429,81 @@ static inline int mips_cm_l2sync(void)
 	writel(0, mips_cm_l2sync_base);
 	return 0;
 }
+
+/**
+ * mips_cm_revision() - return CM revision
+ *
+ * Return: The revision of the CM, from GCR_REV, or 0 if no CM is present. The
+ * return value should be checked against the CM_REV_* macros.
+ */
+static inline int mips_cm_revision(void)
+{
+	if (!mips_cm_present())
+		return 0;
+
+	return read_gcr_rev();
+}
+
+/**
+ * mips_cm_max_vp_width() - return the width in bits of VP indices
+ *
+ * Return: the width, in bits, of VP indices in fields that combine core & VP
+ * indices.
+ */
+static inline unsigned int mips_cm_max_vp_width(void)
+{
+	extern int smp_num_siblings;
+
+	if (mips_cm_revision() >= CM_REV_CM3)
+		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW_MSK;
+
+	return smp_num_siblings;
+}
+
+/**
+ * mips_cm_vp_id() - calculate the hardware VP ID for a CPU
+ * @cpu: the CPU whose VP ID to calculate
+ *
+ * Hardware such as the GIC uses identifiers for VPs which may not match the
+ * CPU numbers used by Linux. This function calculates the hardware VP
+ * identifier corresponding to a given CPU.
+ *
+ * Return: the VP ID for the CPU.
+ */
+static inline unsigned int mips_cm_vp_id(unsigned int cpu)
+{
+	unsigned int core = cpu_data[cpu].core;
+	unsigned int vp = cpu_vpe_id(&cpu_data[cpu]);
+
+	return (core * mips_cm_max_vp_width()) + vp;
+}
+
+#ifdef CONFIG_MIPS_CM
+
+/**
+ * mips_cm_lock_other - lock access to another core
+ * @core: the other core to be accessed
+ * @vp: the VP within the other core to be accessed
+ *
+ * Call before operating upon a core via the 'other' register region in
+ * order to prevent the region being moved during access. Must be followed
+ * by a call to mips_cm_unlock_other.
+ */
+extern void mips_cm_lock_other(unsigned int core, unsigned int vp);
+
+/**
+ * mips_cm_unlock_other - unlock access to another core
+ *
+ * Call after operating upon another core via the 'other' register region.
+ * Must be called after mips_cm_lock_other.
+ */
+extern void mips_cm_unlock_other(void);
+
+#else /* !CONFIG_MIPS_CM */
+
+static inline void mips_cm_lock_other(unsigned int core) { }
+static inline void mips_cm_unlock_other(void) { }
+
+#endif /* !CONFIG_MIPS_CM */
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */

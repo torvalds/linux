@@ -7,6 +7,7 @@
  */
 
 #include "at91sam9x5.dtsi"
+#include "at91sam9x5_lcd.dtsi"
 #include "at91sam9x5_macb0.dtsi"
 #include "at91sam9x5_can.dtsi"
 

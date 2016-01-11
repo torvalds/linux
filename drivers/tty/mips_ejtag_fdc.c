@@ -174,13 +174,13 @@ struct mips_ejtag_fdc_tty {
 static inline void mips_ejtag_fdc_write(struct mips_ejtag_fdc_tty *priv,
 					unsigned int offs, unsigned int data)
 {
-	iowrite32(data, priv->reg + offs);
+	__raw_writel(data, priv->reg + offs);
 }
 
 static inline unsigned int mips_ejtag_fdc_read(struct mips_ejtag_fdc_tty *priv,
 					       unsigned int offs)
 {
-	return ioread32(priv->reg + offs);
+	return __raw_readl(priv->reg + offs);
 }
 
 /* Encoding of byte stream in FDC words */
@@ -347,9 +347,9 @@ static void mips_ejtag_fdc_console_write(struct console *c, const char *s,
 		s += inc[word.bytes - 1];
 
 		/* Busy wait until there's space in fifo */
-		while (ioread32(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
+		while (__raw_readl(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
 			;
-		iowrite32(word.word, regs + REG_FDTX(c->index));
+		__raw_writel(word.word, regs + REG_FDTX(c->index));
 	}
 out:
 	local_irq_restore(flags);
@@ -879,6 +879,11 @@ static const struct tty_operations mips_ejtag_fdc_tty_ops = {
 	.chars_in_buffer	= mips_ejtag_fdc_tty_chars_in_buffer,
 };
 
+int __weak get_c0_fdc_int(void)
+{
+	return -1;
+}
+
 static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 {
 	int ret, nport;
@@ -967,14 +972,12 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	wake_up_process(priv->thread);
 
 	/* Look for an FDC IRQ */
-	priv->irq = -1;
-	if (get_c0_fdc_int)
-		priv->irq = get_c0_fdc_int();
+	priv->irq = get_c0_fdc_int();
 
 	/* Try requesting the IRQ */
 	if (priv->irq >= 0) {
 		/*
-		 * IRQF_SHARED, IRQF_NO_SUSPEND: The FDC IRQ may be shared with
+		 * IRQF_SHARED, IRQF_COND_SUSPEND: The FDC IRQ may be shared with
 		 * other local interrupts such as the timer which sets
 		 * IRQF_TIMER (including IRQF_NO_SUSPEND).
 		 *
@@ -984,7 +987,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		 */
 		ret = devm_request_irq(priv->dev, priv->irq, mips_ejtag_fdc_isr,
 				       IRQF_PERCPU | IRQF_SHARED |
-				       IRQF_NO_THREAD | IRQF_NO_SUSPEND,
+				       IRQF_NO_THREAD | IRQF_COND_SUSPEND,
 				       priv->fdc_name, priv);
 		if (ret)
 			priv->irq = -1;
@@ -1043,38 +1046,6 @@ err_destroy_ports:
 	}
 	put_tty_driver(priv->driver);
 	return ret;
-}
-
-static int mips_ejtag_fdc_tty_remove(struct mips_cdmm_device *dev)
-{
-	struct mips_ejtag_fdc_tty *priv = mips_cdmm_get_drvdata(dev);
-	struct mips_ejtag_fdc_tty_port *dport;
-	int nport;
-	unsigned int cfg;
-
-	if (priv->irq >= 0) {
-		raw_spin_lock_irq(&priv->lock);
-		cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
-		/* Disable interrupts */
-		cfg &= ~(REG_FDCFG_TXINTTHRES | REG_FDCFG_RXINTTHRES);
-		cfg |= REG_FDCFG_TXINTTHRES_DISABLED;
-		cfg |= REG_FDCFG_RXINTTHRES_DISABLED;
-		mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
-		raw_spin_unlock_irq(&priv->lock);
-	} else {
-		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
-	}
-	kthread_stop(priv->thread);
-	if (dev->cpu == 0)
-		mips_ejtag_fdc_con.tty_drv = NULL;
-	tty_unregister_driver(priv->driver);
-	for (nport = 0; nport < NUM_TTY_CHANNELS; nport++) {
-		dport = &priv->ports[nport];
-		tty_port_destroy(&dport->port);
-	}
-	put_tty_driver(priv->driver);
-	return 0;
 }
 
 static int mips_ejtag_fdc_tty_cpu_down(struct mips_cdmm_device *dev)
@@ -1149,12 +1120,11 @@ static struct mips_cdmm_driver mips_ejtag_fdc_tty_driver = {
 		.name	= "mips_ejtag_fdc",
 	},
 	.probe		= mips_ejtag_fdc_tty_probe,
-	.remove		= mips_ejtag_fdc_tty_remove,
 	.cpu_down	= mips_ejtag_fdc_tty_cpu_down,
 	.cpu_up		= mips_ejtag_fdc_tty_cpu_up,
 	.id_table	= mips_ejtag_fdc_tty_ids,
 };
-module_mips_cdmm_driver(mips_ejtag_fdc_tty_driver);
+builtin_mips_cdmm_driver(mips_ejtag_fdc_tty_driver);
 
 static int __init mips_ejtag_fdc_init_console(void)
 {
@@ -1227,7 +1197,7 @@ static int kgdbfdc_read_char(void)
 
 		/* Read next word from KGDB channel */
 		do {
-			stat = ioread32(regs + REG_FDSTAT);
+			stat = __raw_readl(regs + REG_FDSTAT);
 
 			/* No data waiting? */
 			if (stat & REG_FDSTAT_RXE)
@@ -1236,7 +1206,7 @@ static int kgdbfdc_read_char(void)
 			/* Read next word */
 			channel = (stat & REG_FDSTAT_RXCHAN) >>
 					REG_FDSTAT_RXCHAN_SHIFT;
-			data = ioread32(regs + REG_FDRX);
+			data = __raw_readl(regs + REG_FDRX);
 		} while (channel != CONFIG_MIPS_EJTAG_FDC_KGDB_CHAN);
 
 		/* Decode into rbuf */
@@ -1266,9 +1236,10 @@ static void kgdbfdc_push_one(void)
 		return;
 
 	/* Busy wait until there's space in fifo */
-	while (ioread32(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
+	while (__raw_readl(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
 		;
-	iowrite32(word.word, regs + REG_FDTX(CONFIG_MIPS_EJTAG_FDC_KGDB_CHAN));
+	__raw_writel(word.word,
+		     regs + REG_FDTX(CONFIG_MIPS_EJTAG_FDC_KGDB_CHAN));
 }
 
 /* flush the whole write buffer to the TX FIFO */

@@ -51,7 +51,6 @@
 #include <linux/sunrpc/clnt.h> 		/* rpc_xprt */
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
-#include <linux/sunrpc/svc.h>		/* RPCSVC_MAXPAYLOAD */
 
 #define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
 #define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
@@ -62,14 +61,12 @@
 struct rpcrdma_ia {
 	const struct rpcrdma_memreg_ops	*ri_ops;
 	rwlock_t		ri_qplock;
+	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
-	struct ib_mr		*ri_bind_mem;
-	u32			ri_dma_lkey;
-	int			ri_have_dma_lkey;
+	struct ib_mr		*ri_dma_mr;
 	struct completion	ri_done;
 	int			ri_async_rc;
-	enum rpcrdma_memreg	ri_memreg_strategy;
 	unsigned int		ri_max_frmr_depth;
 	struct ib_device_attr	ri_devattr;
 	struct ib_qp_attr	ri_qp_attr;
@@ -80,21 +77,15 @@ struct rpcrdma_ia {
  * RDMA Endpoint -- one per transport instance
  */
 
-#define RPCRDMA_WC_BUDGET	(128)
-#define RPCRDMA_POLLSIZE	(16)
-
 struct rpcrdma_ep {
 	atomic_t		rep_cqcount;
 	int			rep_cqinit;
 	int			rep_connected;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
-	struct rpcrdma_regbuf	*rep_padbuf;
 	struct rdma_conn_param	rep_remote_cma;
 	struct sockaddr_storage	rep_remote_addr;
 	struct delayed_work	rep_connect_worker;
-	struct ib_wc		rep_send_wcs[RPCRDMA_POLLSIZE];
-	struct ib_wc		rep_recv_wcs[RPCRDMA_POLLSIZE];
 };
 
 /*
@@ -110,6 +101,16 @@ struct rpcrdma_ep {
  */
 #define RPCRDMA_IGNORE_COMPLETION	(0ULL)
 
+/* Pre-allocate extra Work Requests for handling backward receives
+ * and sends. This is a fixed value because the Work Queues are
+ * allocated when the forward channel is set up.
+ */
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+#define RPCRDMA_BACKWARD_WRS		(8)
+#else
+#define RPCRDMA_BACKWARD_WRS		(0)
+#endif
+
 /* Registered buffer -- registered kmalloc'd memory for RDMA SEND/RECV
  *
  * The below structure appears at the front of a large region of kmalloc'd
@@ -119,7 +120,6 @@ struct rpcrdma_ep {
 struct rpcrdma_regbuf {
 	size_t			rg_size;
 	struct rpcrdma_req	*rg_owner;
-	struct ib_mr		*rg_mr;
 	struct ib_sge		rg_iov;
 	__be32			rg_base[0] __attribute__ ((aligned(256)));
 };
@@ -165,20 +165,21 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
  * struct rpcrdma_buffer. N is the max number of outstanding requests.
  */
 
-/* temporary static scatter/gather max */
-#define RPCRDMA_MAX_DATA_SEGS	(64)	/* max scatter/gather */
+#define RPCRDMA_MAX_DATA_SEGS	((1 * 1024 * 1024) / PAGE_SIZE)
 #define RPCRDMA_MAX_SEGS 	(RPCRDMA_MAX_DATA_SEGS + 2) /* head+tail = 2 */
 
 struct rpcrdma_buffer;
 
 struct rpcrdma_rep {
 	unsigned int		rr_len;
-	struct rpcrdma_buffer	*rr_buffer;
-	struct rpc_xprt		*rr_xprt;
-	void			(*rr_func)(struct rpcrdma_rep *);
+	struct ib_device	*rr_device;
+	struct rpcrdma_xprt	*rr_rxprt;
+	struct work_struct	rr_work;
 	struct list_head	rr_list;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
+
+#define RPCRDMA_BAD_LEN		(~0U)
 
 /*
  * struct rpcrdma_mw - external memory region metadata
@@ -200,14 +201,22 @@ enum rpcrdma_frmr_state {
 };
 
 struct rpcrdma_frmr {
-	struct ib_fast_reg_page_list	*fr_pgl;
+	struct scatterlist		*sg;
+	int				sg_nents;
 	struct ib_mr			*fr_mr;
 	enum rpcrdma_frmr_state		fr_state;
+	struct work_struct		fr_work;
+	struct rpcrdma_xprt		*fr_xprt;
+};
+
+struct rpcrdma_fmr {
+	struct ib_fmr		*fmr;
+	u64			*physaddrs;
 };
 
 struct rpcrdma_mw {
 	union {
-		struct ib_fmr		*fmr;
+		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
 	} r;
 	void			(*mw_sendcompletion)(struct ib_wc *);
@@ -252,16 +261,22 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 	char		*mr_offset;	/* kva if no page, else offset */
 };
 
+#define RPCRDMA_MAX_IOVS	(2)
+
 struct rpcrdma_req {
-	unsigned int	rl_niovs;	/* 0, 2 or 4 */
-	unsigned int	rl_nchunks;	/* non-zero if chunks */
-	unsigned int	rl_connect_cookie;	/* retry detection */
-	struct rpcrdma_buffer *rl_buffer; /* home base for this structure */
+	struct list_head	rl_free;
+	unsigned int		rl_niovs;
+	unsigned int		rl_nchunks;
+	unsigned int		rl_connect_cookie;
+	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
-	struct ib_sge	rl_send_iov[4];	/* for active requests */
-	struct rpcrdma_regbuf *rl_rdmabuf;
-	struct rpcrdma_regbuf *rl_sendbuf;
-	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];
+	struct ib_sge		rl_send_iov[RPCRDMA_MAX_IOVS];
+	struct rpcrdma_regbuf	*rl_rdmabuf;
+	struct rpcrdma_regbuf	*rl_sendbuf;
+	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
+
+	struct list_head	rl_all;
+	bool			rl_backchannel;
 };
 
 static inline struct rpcrdma_req *
@@ -281,15 +296,19 @@ rpcr_to_rdmar(struct rpc_rqst *rqst)
  * One of these is associated with a transport instance
  */
 struct rpcrdma_buffer {
-	spinlock_t	rb_lock;	/* protects indexes */
-	u32		rb_max_requests;/* client max requests */
-	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
-	struct list_head rb_all;
-	int		rb_send_index;
-	struct rpcrdma_req	**rb_send_bufs;
-	int		rb_recv_index;
-	struct rpcrdma_rep	**rb_recv_bufs;
-	char		*rb_pool;
+	spinlock_t		rb_mwlock;	/* protect rb_mws list */
+	struct list_head	rb_mws;
+	struct list_head	rb_all;
+	char			*rb_pool;
+
+	spinlock_t		rb_lock;	/* protect buf lists */
+	struct list_head	rb_send_bufs;
+	struct list_head	rb_recv_bufs;
+	u32			rb_max_requests;
+
+	u32			rb_bc_srv_max_requests;
+	spinlock_t		rb_reqslock;	/* protect rb_allreqs */
+	struct list_head	rb_allreqs;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
 
@@ -334,6 +353,8 @@ struct rpcrdma_stats {
 	unsigned long		hardway_register_count;
 	unsigned long		failed_marshal_count;
 	unsigned long		bad_reply_count;
+	unsigned long		nomsg_call_count;
+	unsigned long		bcall_count;
 };
 
 /*
@@ -350,7 +371,6 @@ struct rpcrdma_memreg_ops {
 				   struct rpcrdma_create_data_internal *);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
 	int		(*ro_init)(struct rpcrdma_xprt *);
-	void		(*ro_reset)(struct rpcrdma_xprt *);
 	void		(*ro_destroy)(struct rpcrdma_buffer *);
 	const char	*ro_displayname;
 };
@@ -410,9 +430,14 @@ int rpcrdma_ep_post_recv(struct rpcrdma_ia *, struct rpcrdma_ep *,
 /*
  * Buffer calls - xprtrdma/verbs.c
  */
+struct rpcrdma_req *rpcrdma_create_req(struct rpcrdma_xprt *);
+struct rpcrdma_rep *rpcrdma_create_rep(struct rpcrdma_xprt *);
+void rpcrdma_destroy_req(struct rpcrdma_ia *, struct rpcrdma_req *);
 int rpcrdma_buffer_create(struct rpcrdma_xprt *);
 void rpcrdma_buffer_destroy(struct rpcrdma_buffer *);
 
+struct rpcrdma_mw *rpcrdma_get_mw(struct rpcrdma_xprt *);
+void rpcrdma_put_mw(struct rpcrdma_xprt *, struct rpcrdma_mw *);
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);
 void rpcrdma_buffer_put(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_get(struct rpcrdma_req *);
@@ -424,6 +449,13 @@ void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
 unsigned int rpcrdma_max_segments(struct rpcrdma_xprt *);
+int rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *, unsigned int);
+
+int frwr_alloc_recovery_wq(void);
+void frwr_destroy_recovery_wq(void);
+
+int rpcrdma_alloc_wq(void);
+void rpcrdma_destroy_wq(void);
 
 /*
  * Wrappers for chunk registration, shared by read/write chunk code.
@@ -480,17 +512,28 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *);
  */
 int rpcrdma_marshal_req(struct rpc_rqst *);
 
+/* RPC/RDMA module init - xprtrdma/transport.c
+ */
+int xprt_rdma_init(void);
+void xprt_rdma_cleanup(void);
+
+/* Backchannel calls - xprtrdma/backchannel.c
+ */
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+int xprt_rdma_bc_setup(struct rpc_xprt *, unsigned int);
+int xprt_rdma_bc_up(struct svc_serv *, struct net *);
+int rpcrdma_bc_post_recv(struct rpcrdma_xprt *, unsigned int);
+void rpcrdma_bc_receive_call(struct rpcrdma_xprt *, struct rpcrdma_rep *);
+int rpcrdma_bc_marshal_reply(struct rpc_rqst *);
+void xprt_rdma_bc_free_rqst(struct rpc_rqst *);
+void xprt_rdma_bc_destroy(struct rpc_xprt *, unsigned int);
+#endif	/* CONFIG_SUNRPC_BACKCHANNEL */
+
 /* Temporary NFS request map cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_map_cachep;
 /* WR context cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_ctxt_cachep;
 /* Workqueue created in svc_rdma.c */
 extern struct workqueue_struct *svc_rdma_wq;
-
-#if RPCSVC_MAXPAYLOAD < (RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT)
-#define RPCSVC_MAXPAYLOAD_RDMA RPCSVC_MAXPAYLOAD
-#else
-#define RPCSVC_MAXPAYLOAD_RDMA (RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT)
-#endif
 
 #endif				/* _LINUX_SUNRPC_XPRT_RDMA_H */

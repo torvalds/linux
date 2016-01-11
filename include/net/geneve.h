@@ -63,34 +63,8 @@ struct genevehdr {
 };
 
 #ifdef CONFIG_INET
-struct geneve_sock;
-
-typedef void (geneve_rcv_t)(struct geneve_sock *gs, struct sk_buff *skb);
-
-struct geneve_sock {
-	struct list_head	list;
-	geneve_rcv_t		*rcv;
-	void			*rcv_data;
-	struct socket		*sock;
-	struct rcu_head		rcu;
-	int			refcnt;
-	struct udp_offload	udp_offloads;
-};
-
-#define GENEVE_VER 0
-#define GENEVE_BASE_HLEN (sizeof(struct udphdr) + sizeof(struct genevehdr))
-
-struct geneve_sock *geneve_sock_add(struct net *net, __be16 port,
-				    geneve_rcv_t *rcv, void *data,
-				    bool no_share, bool ipv6);
-
-void geneve_sock_release(struct geneve_sock *vs);
-
-int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
-		    struct sk_buff *skb, __be32 src, __be32 dst, __u8 tos,
-		    __u8 ttl, __be16 df, __be16 src_port, __be16 dst_port,
-		    __be16 tun_flags, u8 vni[3], u8 opt_len, u8 *opt,
-		    bool csum, bool xnet);
+struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
+					u8 name_assign_type, u16 dst_port);
 #endif /*ifdef CONFIG_INET */
 
 #endif /*ifdef__NET_GENEVE_H */

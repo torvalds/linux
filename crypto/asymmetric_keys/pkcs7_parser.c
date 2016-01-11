@@ -33,6 +33,9 @@ struct pkcs7_parse_context {
 	unsigned	raw_serial_size;
 	unsigned	raw_issuer_size;
 	const void	*raw_issuer;
+	const void	*raw_skid;
+	unsigned	raw_skid_size;
+	bool		expect_skid;
 };
 
 /*
@@ -78,6 +81,30 @@ void pkcs7_free_message(struct pkcs7_message *pkcs7)
 }
 EXPORT_SYMBOL_GPL(pkcs7_free_message);
 
+/*
+ * Check authenticatedAttributes are provided or not provided consistently.
+ */
+static int pkcs7_check_authattrs(struct pkcs7_message *msg)
+{
+	struct pkcs7_signed_info *sinfo;
+	bool want;
+
+	sinfo = msg->signed_infos;
+	if (sinfo->authattrs) {
+		want = true;
+		msg->have_authattrs = true;
+	}
+
+	for (sinfo = sinfo->next; sinfo; sinfo = sinfo->next)
+		if (!!sinfo->authattrs != want)
+			goto inconsistent;
+	return 0;
+
+inconsistent:
+	pr_warn("Inconsistently supplied authAttrs\n");
+	return -EINVAL;
+}
+
 /**
  * pkcs7_parse_message - Parse a PKCS#7 message
  * @data: The raw binary ASN.1 encoded message to be parsed
@@ -109,6 +136,10 @@ struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 		msg = ERR_PTR(ret);
 		goto out;
 	}
+
+	ret = pkcs7_check_authattrs(ctx->msg);
+	if (ret < 0)
+		goto out;
 
 	msg = ctx->msg;
 	ctx->msg = NULL;
@@ -198,6 +229,14 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 	case OID_sha256:
 		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA256;
 		break;
+	case OID_sha384:
+		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA384;
+		break;
+	case OID_sha512:
+		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA512;
+		break;
+	case OID_sha224:
+		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA224;
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
 		return -ENOPKG;
@@ -223,6 +262,100 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 		return -ENOPKG;
 	}
 	return 0;
+}
+
+/*
+ * We only support signed data [RFC2315 sec 9].
+ */
+int pkcs7_check_content_type(void *context, size_t hdrlen,
+			     unsigned char tag,
+			     const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+
+	if (ctx->last_oid != OID_signed_data) {
+		pr_warn("Only support pkcs7_signedData type\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * Note the SignedData version
+ */
+int pkcs7_note_signeddata_version(void *context, size_t hdrlen,
+				  unsigned char tag,
+				  const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+	unsigned version;
+
+	if (vlen != 1)
+		goto unsupported;
+
+	ctx->msg->version = version = *(const u8 *)value;
+	switch (version) {
+	case 1:
+		/* PKCS#7 SignedData [RFC2315 sec 9.1]
+		 * CMS ver 1 SignedData [RFC5652 sec 5.1]
+		 */
+		break;
+	case 3:
+		/* CMS ver 3 SignedData [RFC2315 sec 5.1] */
+		break;
+	default:
+		goto unsupported;
+	}
+
+	return 0;
+
+unsupported:
+	pr_warn("Unsupported SignedData version\n");
+	return -EINVAL;
+}
+
+/*
+ * Note the SignerInfo version
+ */
+int pkcs7_note_signerinfo_version(void *context, size_t hdrlen,
+				  unsigned char tag,
+				  const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+	unsigned version;
+
+	if (vlen != 1)
+		goto unsupported;
+
+	version = *(const u8 *)value;
+	switch (version) {
+	case 1:
+		/* PKCS#7 SignerInfo [RFC2315 sec 9.2]
+		 * CMS ver 1 SignerInfo [RFC5652 sec 5.3]
+		 */
+		if (ctx->msg->version != 1)
+			goto version_mismatch;
+		ctx->expect_skid = false;
+		break;
+	case 3:
+		/* CMS ver 3 SignerInfo [RFC2315 sec 5.3] */
+		if (ctx->msg->version == 1)
+			goto version_mismatch;
+		ctx->expect_skid = true;
+		break;
+	default:
+		goto unsupported;
+	}
+
+	return 0;
+
+unsupported:
+	pr_warn("Unsupported SignerInfo version\n");
+	return -EINVAL;
+version_mismatch:
+	pr_warn("SignedData-SignerInfo version mismatch\n");
+	return -EBADMSG;
 }
 
 /*
@@ -284,6 +417,25 @@ int pkcs7_note_certificate_list(void *context, size_t hdrlen,
 }
 
 /*
+ * Note the content type.
+ */
+int pkcs7_note_content(void *context, size_t hdrlen,
+		       unsigned char tag,
+		       const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+
+	if (ctx->last_oid != OID_data &&
+	    ctx->last_oid != OID_msIndirectData) {
+		pr_warn("Unsupported data type %d\n", ctx->last_oid);
+		return -EINVAL;
+	}
+
+	ctx->msg->data_type = ctx->last_oid;
+	return 0;
+}
+
+/*
  * Extract the data from the message and store that and its content type OID in
  * the context.
  */
@@ -298,45 +450,119 @@ int pkcs7_note_data(void *context, size_t hdrlen,
 	ctx->msg->data = value;
 	ctx->msg->data_len = vlen;
 	ctx->msg->data_hdrlen = hdrlen;
-	ctx->msg->data_type = ctx->last_oid;
 	return 0;
 }
 
 /*
- * Parse authenticated attributes
+ * Parse authenticated attributes.
  */
 int pkcs7_sig_note_authenticated_attr(void *context, size_t hdrlen,
 				      unsigned char tag,
 				      const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
+	struct pkcs7_signed_info *sinfo = ctx->sinfo;
+	enum OID content_type;
 
 	pr_devel("AuthAttr: %02x %zu [%*ph]\n", tag, vlen, (unsigned)vlen, value);
 
 	switch (ctx->last_oid) {
+	case OID_contentType:
+		if (__test_and_set_bit(sinfo_has_content_type, &sinfo->aa_set))
+			goto repeated;
+		content_type = look_up_OID(value, vlen);
+		if (content_type != ctx->msg->data_type) {
+			pr_warn("Mismatch between global data type (%d) and sinfo %u (%d)\n",
+				ctx->msg->data_type, sinfo->index,
+				content_type);
+			return -EBADMSG;
+		}
+		return 0;
+
+	case OID_signingTime:
+		if (__test_and_set_bit(sinfo_has_signing_time, &sinfo->aa_set))
+			goto repeated;
+		/* Should we check that the signing time is consistent
+		 * with the signer's X.509 cert?
+		 */
+		return x509_decode_time(&sinfo->signing_time,
+					hdrlen, tag, value, vlen);
+
 	case OID_messageDigest:
+		if (__test_and_set_bit(sinfo_has_message_digest, &sinfo->aa_set))
+			goto repeated;
 		if (tag != ASN1_OTS)
 			return -EBADMSG;
-		ctx->sinfo->msgdigest = value;
-		ctx->sinfo->msgdigest_len = vlen;
+		sinfo->msgdigest = value;
+		sinfo->msgdigest_len = vlen;
+		return 0;
+
+	case OID_smimeCapabilites:
+		if (__test_and_set_bit(sinfo_has_smime_caps, &sinfo->aa_set))
+			goto repeated;
+		if (ctx->msg->data_type != OID_msIndirectData) {
+			pr_warn("S/MIME Caps only allowed with Authenticode\n");
+			return -EKEYREJECTED;
+		}
+		return 0;
+
+		/* Microsoft SpOpusInfo seems to be contain cont[0] 16-bit BE
+		 * char URLs and cont[1] 8-bit char URLs.
+		 *
+		 * Microsoft StatementType seems to contain a list of OIDs that
+		 * are also used as extendedKeyUsage types in X.509 certs.
+		 */
+	case OID_msSpOpusInfo:
+		if (__test_and_set_bit(sinfo_has_ms_opus_info, &sinfo->aa_set))
+			goto repeated;
+		goto authenticode_check;
+	case OID_msStatementType:
+		if (__test_and_set_bit(sinfo_has_ms_statement_type, &sinfo->aa_set))
+			goto repeated;
+	authenticode_check:
+		if (ctx->msg->data_type != OID_msIndirectData) {
+			pr_warn("Authenticode AuthAttrs only allowed with Authenticode\n");
+			return -EKEYREJECTED;
+		}
+		/* I'm not sure how to validate these */
 		return 0;
 	default:
 		return 0;
 	}
+
+repeated:
+	/* We permit max one item per AuthenticatedAttribute and no repeats */
+	pr_warn("Repeated/multivalue AuthAttrs not permitted\n");
+	return -EKEYREJECTED;
 }
 
 /*
- * Note the set of auth attributes for digestion purposes [RFC2315 9.3]
+ * Note the set of auth attributes for digestion purposes [RFC2315 sec 9.3]
  */
 int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 				    unsigned char tag,
 				    const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
+	struct pkcs7_signed_info *sinfo = ctx->sinfo;
+
+	if (!test_bit(sinfo_has_content_type, &sinfo->aa_set) ||
+	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set) ||
+	    (ctx->msg->data_type == OID_msIndirectData &&
+	     !test_bit(sinfo_has_ms_opus_info, &sinfo->aa_set))) {
+		pr_warn("Missing required AuthAttr\n");
+		return -EBADMSG;
+	}
+
+	if (ctx->msg->data_type != OID_msIndirectData &&
+	    test_bit(sinfo_has_ms_opus_info, &sinfo->aa_set)) {
+		pr_warn("Unexpected Authenticode AuthAttr\n");
+		return -EBADMSG;
+	}
 
 	/* We need to switch the 'CONT 0' to a 'SET OF' when we digest */
-	ctx->sinfo->authattrs = value - (hdrlen - 1);
-	ctx->sinfo->authattrs_len = vlen + (hdrlen - 1);
+	sinfo->authattrs = value - (hdrlen - 1);
+	sinfo->authattrs_len = vlen + (hdrlen - 1);
 	return 0;
 }
 
@@ -363,6 +589,22 @@ int pkcs7_sig_note_issuer(void *context, size_t hdrlen,
 	struct pkcs7_parse_context *ctx = context;
 	ctx->raw_issuer = value;
 	ctx->raw_issuer_size = vlen;
+	return 0;
+}
+
+/*
+ * Note the issuing cert's subjectKeyIdentifier
+ */
+int pkcs7_sig_note_skid(void *context, size_t hdrlen,
+			unsigned char tag,
+			const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+
+	pr_devel("SKID: %02x %zu [%*ph]\n", tag, vlen, (unsigned)vlen, value);
+
+	ctx->raw_skid = value;
+	ctx->raw_skid_size = vlen;
 	return 0;
 }
 
@@ -398,13 +640,26 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 	struct pkcs7_signed_info *sinfo = ctx->sinfo;
 	struct asymmetric_key_id *kid;
 
+	if (ctx->msg->data_type == OID_msIndirectData && !sinfo->authattrs) {
+		pr_warn("Authenticode requires AuthAttrs\n");
+		return -EBADMSG;
+	}
+
 	/* Generate cert issuer + serial number key ID */
-	kid = asymmetric_key_generate_id(ctx->raw_serial,
-					 ctx->raw_serial_size,
-					 ctx->raw_issuer,
-					 ctx->raw_issuer_size);
+	if (!ctx->expect_skid) {
+		kid = asymmetric_key_generate_id(ctx->raw_serial,
+						 ctx->raw_serial_size,
+						 ctx->raw_issuer,
+						 ctx->raw_issuer_size);
+	} else {
+		kid = asymmetric_key_generate_id(ctx->raw_skid,
+						 ctx->raw_skid_size,
+						 "", 0);
+	}
 	if (IS_ERR(kid))
 		return PTR_ERR(kid);
+
+	pr_devel("SINFO KID: %u [%*phN]\n", kid->len, kid->len, kid->data);
 
 	sinfo->signing_cert_id = kid;
 	sinfo->index = ++ctx->sinfo_index;

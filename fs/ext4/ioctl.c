@@ -31,14 +31,11 @@
 static void memswap(void *a, void *b, size_t len)
 {
 	unsigned char *ap, *bp;
-	unsigned char tmp;
 
 	ap = (unsigned char *)a;
 	bp = (unsigned char *)b;
 	while (len-- > 0) {
-		tmp = *ap;
-		*ap = *bp;
-		*bp = tmp;
+		swap(*ap, *bp);
 		ap++;
 		bp++;
 	}
@@ -148,8 +145,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 		inode_bl->i_version = 1;
 		i_size_write(inode_bl, 0);
 		inode_bl->i_mode = S_IFREG;
-		if (EXT4_HAS_INCOMPAT_FEATURE(sb,
-					      EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+		if (ext4_has_feature_extents(sb)) {
 			ext4_set_inode_flag(inode_bl, EXT4_INODE_EXTENTS);
 			ext4_ext_tree_init(handle, inode_bl);
 		} else
@@ -386,8 +382,7 @@ setversion_out:
 			goto group_extend_out;
 		}
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online resizing not supported with bigalloc");
 			err = -EOPNOTSUPP;
@@ -435,8 +430,7 @@ group_extend_out:
 			goto mext_out;
 		}
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online defrag not supported with bigalloc");
 			err = -EOPNOTSUPP;
@@ -473,8 +467,7 @@ mext_out:
 			goto group_add_out;
 		}
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online resizing not supported with bigalloc");
 			err = -EOPNOTSUPP;
@@ -556,8 +549,7 @@ group_add_out:
 		int err = 0, err2 = 0;
 		ext4_group_t o_group = EXT4_SB(sb)->s_groups_count;
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online resizing not (yet) supported with bigalloc");
 			return -EOPNOTSUPP;
@@ -675,8 +667,8 @@ encryption_policy_out:
 			if (err)
 				return err;
 		}
-		if (copy_to_user((void *) arg, sbi->s_es->s_encrypt_pw_salt,
-				 16))
+		if (copy_to_user((void __user *) arg,
+				 sbi->s_es->s_encrypt_pw_salt, 16))
 			return -EFAULT;
 		return 0;
 	}
@@ -690,7 +682,7 @@ encryption_policy_out:
 		err = ext4_get_policy(inode, &policy);
 		if (err)
 			return err;
-		if (copy_to_user((void *)arg, &policy, sizeof(policy)))
+		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))
 			return -EFAULT;
 		return 0;
 #else
@@ -758,7 +750,6 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 	}
 	case EXT4_IOC_MOVE_EXT:
-	case FITRIM:
 	case EXT4_IOC_RESIZE_FS:
 	case EXT4_IOC_PRECACHE_EXTENTS:
 	case EXT4_IOC_SET_ENCRYPTION_POLICY:

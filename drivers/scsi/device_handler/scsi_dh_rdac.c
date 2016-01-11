@@ -181,7 +181,6 @@ struct c2_inquiry {
 };
 
 struct rdac_dh_data {
-	struct scsi_dh_data	dh_data;
 	struct rdac_controller	*ctlr;
 #define UNINITIALIZED_LUN	(1 << 8)
 	unsigned		lun;
@@ -259,11 +258,6 @@ do { \
 	if (unlikely(RDAC_LOG_LEVEL(SHIFT))) \
 		sdev_printk(KERN_INFO, sdev, RDAC_NAME ": " f "\n", ## arg); \
 } while (0);
-
-static inline struct rdac_dh_data *get_rdac_data(struct scsi_device *sdev)
-{
-	return container_of(sdev->scsi_dh_data, struct rdac_dh_data, dh_data);
-}
 
 static struct request *get_rdac_req(struct scsi_device *sdev,
 			void *buffer, unsigned buflen, int rw)
@@ -544,7 +538,7 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 {
 	struct scsi_sense_hdr sense_hdr;
 	int err = SCSI_DH_IO, ret;
-	struct rdac_dh_data *h = get_rdac_data(sdev);
+	struct rdac_dh_data *h = sdev->handler_data;
 
 	ret = scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE, &sense_hdr);
 	if (!ret)
@@ -589,7 +583,7 @@ static void send_mode_select(struct work_struct *work)
 		container_of(work, struct rdac_controller, ms_work);
 	struct request *rq;
 	struct scsi_device *sdev = ctlr->ms_sdev;
-	struct rdac_dh_data *h = get_rdac_data(sdev);
+	struct rdac_dh_data *h = sdev->handler_data;
 	struct request_queue *q = sdev->request_queue;
 	int err, retry_cnt = RDAC_RETRY_COUNT;
 	struct rdac_queue_data *tmp, *qdata;
@@ -648,7 +642,7 @@ static int queue_mode_select(struct scsi_device *sdev,
 	if (!qdata)
 		return SCSI_DH_RETRY;
 
-	qdata->h = get_rdac_data(sdev);
+	qdata->h = sdev->handler_data;
 	qdata->callback_fn = fn;
 	qdata->callback_data = data;
 
@@ -667,7 +661,7 @@ static int queue_mode_select(struct scsi_device *sdev,
 static int rdac_activate(struct scsi_device *sdev,
 			activate_complete fn, void *data)
 {
-	struct rdac_dh_data *h = get_rdac_data(sdev);
+	struct rdac_dh_data *h = sdev->handler_data;
 	int err = SCSI_DH_OK;
 	int act = 0;
 
@@ -702,7 +696,7 @@ done:
 
 static int rdac_prep_fn(struct scsi_device *sdev, struct request *req)
 {
-	struct rdac_dh_data *h = get_rdac_data(sdev);
+	struct rdac_dh_data *h = sdev->handler_data;
 	int ret = BLKPREP_OK;
 
 	if (h->state != RDAC_STATE_ACTIVE) {
@@ -716,7 +710,7 @@ static int rdac_prep_fn(struct scsi_device *sdev, struct request *req)
 static int rdac_check_sense(struct scsi_device *sdev,
 				struct scsi_sense_hdr *sense_hdr)
 {
-	struct rdac_dh_data *h = get_rdac_data(sdev);
+	struct rdac_dh_data *h = sdev->handler_data;
 
 	RDAC_LOG(RDAC_LOG_SENSE, sdev, "array %s, ctlr %d, "
 			"I/O returned with sense %02x/%02x/%02x",
@@ -778,56 +772,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-static const struct {
-	char *vendor;
-	char *model;
-} rdac_dev_list[] = {
-	{"IBM", "1722"},
-	{"IBM", "1724"},
-	{"IBM", "1726"},
-	{"IBM", "1742"},
-	{"IBM", "1745"},
-	{"IBM", "1746"},
-	{"IBM", "1813"},
-	{"IBM", "1814"},
-	{"IBM", "1815"},
-	{"IBM", "1818"},
-	{"IBM", "3526"},
-	{"SGI", "TP9"},
-	{"SGI", "IS"},
-	{"STK", "OPENstorage D280"},
-	{"STK", "FLEXLINE 380"},
-	{"SUN", "CSM"},
-	{"SUN", "LCSM100"},
-	{"SUN", "STK6580_6780"},
-	{"SUN", "SUN_6180"},
-	{"SUN", "ArrayStorage"},
-	{"DELL", "MD3"},
-	{"NETAPP", "INF-01-00"},
-	{"LSI", "INF-01-00"},
-	{"ENGENIO", "INF-01-00"},
-	{NULL, NULL},
-};
-
-static bool rdac_match(struct scsi_device *sdev)
-{
-	int i;
-
-	if (scsi_device_tpgs(sdev))
-		return false;
-
-	for (i = 0; rdac_dev_list[i].vendor; i++) {
-		if (!strncmp(sdev->vendor, rdac_dev_list[i].vendor,
-			strlen(rdac_dev_list[i].vendor)) &&
-		    !strncmp(sdev->model, rdac_dev_list[i].model,
-			strlen(rdac_dev_list[i].model))) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static struct scsi_dh_data *rdac_bus_attach(struct scsi_device *sdev)
+static int rdac_bus_attach(struct scsi_device *sdev)
 {
 	struct rdac_dh_data *h;
 	int err;
@@ -836,7 +781,7 @@ static struct scsi_dh_data *rdac_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h) , GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
@@ -861,7 +806,8 @@ static struct scsi_dh_data *rdac_bus_attach(struct scsi_device *sdev)
 		    RDAC_NAME, h->lun, mode[(int)h->mode],
 		    lun_state[(int)h->lun_state]);
 
-	return &h->dh_data;
+	sdev->handler_data = h;
+	return 0;
 
 clean_ctlr:
 	spin_lock(&list_lock);
@@ -870,12 +816,12 @@ clean_ctlr:
 
 failed:
 	kfree(h);
-	return ERR_PTR(-EINVAL);
+	return -EINVAL;
 }
 
 static void rdac_bus_detach( struct scsi_device *sdev )
 {
-	struct rdac_dh_data *h = get_rdac_data(sdev);
+	struct rdac_dh_data *h = sdev->handler_data;
 
 	if (h->ctlr && h->ctlr->ms_queued)
 		flush_workqueue(kmpath_rdacd);
@@ -884,6 +830,7 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 	if (h->ctlr)
 		kref_put(&h->ctlr->kref, release_controller);
 	spin_unlock(&list_lock);
+	sdev->handler_data = NULL;
 	kfree(h);
 }
 
@@ -895,7 +842,6 @@ static struct scsi_device_handler rdac_dh = {
 	.attach = rdac_bus_attach,
 	.detach = rdac_bus_detach,
 	.activate = rdac_activate,
-	.match = rdac_match,
 };
 
 static int __init rdac_init(void)

@@ -355,25 +355,6 @@ static const struct pinctrl_pin_desc nmk_db8500_pins[] = {
 	PINCTRL_PIN(DB8500_PIN_AC27, "GPIO267_AC27"),
 };
 
-#define DB8500_GPIO_RANGE(a, b, c) { .name = "DB8500", .id = a, .base = b, \
-			.pin_base = b, .npins = c }
-
-/*
- * This matches the 32-pin gpio chips registered by the GPIO portion. This
- * cannot be const since we assign the struct gpio_chip * pointer at runtime.
- */
-static struct pinctrl_gpio_range nmk_db8500_ranges[] = {
-	DB8500_GPIO_RANGE(0, 0, 32),
-	DB8500_GPIO_RANGE(1, 32, 5),
-	DB8500_GPIO_RANGE(2, 64, 32),
-	DB8500_GPIO_RANGE(3, 96, 2),
-	DB8500_GPIO_RANGE(4, 128, 32),
-	DB8500_GPIO_RANGE(5, 160, 12),
-	DB8500_GPIO_RANGE(6, 192, 32),
-	DB8500_GPIO_RANGE(7, 224, 7),
-	DB8500_GPIO_RANGE(8, 256, 12),
-};
-
 /*
  * Read the pin group names like this:
  * u0_a_1    = first groups of pins for uart0 on alt function a
@@ -1238,8 +1219,6 @@ static const u16 db8500_prcm_gpiocr_regs[] = {
 };
 
 static const struct nmk_pinctrl_soc_data nmk_db8500_soc = {
-	.gpio_ranges = nmk_db8500_ranges,
-	.gpio_num_ranges = ARRAY_SIZE(nmk_db8500_ranges),
 	.pins = nmk_db8500_pins,
 	.npins = ARRAY_SIZE(nmk_db8500_pins),
 	.functions = nmk_db8500_functions,

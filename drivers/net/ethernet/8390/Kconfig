@@ -7,9 +7,7 @@ config NET_VENDOR_8390
 	default y
 	depends on NET_VENDOR_NATSEMI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -66,14 +64,12 @@ config ARM_ETHERH
 	  should say Y to this option if you wish to use it with Linux.
 
 config MAC8390
-	bool "Macintosh NS 8390 based ethernet cards"
+	tristate "Macintosh NS 8390 based ethernet cards"
 	depends on MAC
 	select CRC32
 	---help---
 	  If you want to include a driver to support Nubus or LC-PDS
-	  Ethernet cards using an NS8390 chipset or its equivalent, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  Ethernet cards using an NS8390 chipset or its equivalent, say Y.
 
 config MCF8390
 	tristate "ColdFire NS8390 based Ethernet support"
@@ -95,10 +91,9 @@ config NE2000
 		    ATARI_ETHERNEC)
 	select CRC32
 	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Many Ethernet cards
-	  without a specific driver are compatible with NE2000.
+	  If you have a network (Ethernet) card of this type, say Y here.
+	  Many Ethernet cards without a specific driver are compatible with
+	  the NE2000.
 
 	  If you have a PCI NE2000 card however, say N here and Y to "PCI
 	  NE2000 and clone support" below.
@@ -114,8 +109,7 @@ config NE2K_PCI
 	  This driver is for NE2000 compatible PCI cards. It will not work
 	  with ISA NE2000 cards (they have their own driver, "NE2000/NE1000
 	  support" below). If you have a PCI NE2000 network (Ethernet) card,
-	  say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  say Y here.
 
 	  This driver also works for the following NE2000 clone cards:
 	  RealTek RTL-8029  Winbond 89C940  Compex RL2000  KTI ET32P2
@@ -164,9 +158,7 @@ config ULTRA
 	depends on ISA
 	select CRC32
 	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card of this type, say Y here.
 
 	  Important: There have been many reports that, with some motherboards
 	  mixing an SMC Ultra and an Adaptec AHA154x SCSI card (or compatible,
@@ -183,9 +175,7 @@ config WD80x3
 	depends on ISA
 	select CRC32
 	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card of this type, say Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called wd.

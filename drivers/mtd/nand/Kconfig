@@ -42,23 +42,20 @@ config MTD_SM_COMMON
 	default n
 
 config MTD_NAND_DENALI
-        tristate "Support Denali NAND controller"
-        depends on HAS_DMA
-        help
-	  Enable support for the Denali NAND controller.  This should be
-	  combined with either the PCI or platform drivers to provide device
-	  registration.
+	tristate
 
 config MTD_NAND_DENALI_PCI
         tristate "Support Denali NAND controller on Intel Moorestown"
-	depends on PCI && MTD_NAND_DENALI
+	select MTD_NAND_DENALI
+	depends on HAS_DMA && PCI
         help
           Enable the driver for NAND flash on Intel Moorestown, using the
           Denali NAND controller core.
 
 config MTD_NAND_DENALI_DT
 	tristate "Support Denali NAND controller as a DT device"
-	depends on HAVE_CLK && MTD_NAND_DENALI
+	select MTD_NAND_DENALI
+	depends on HAS_DMA && HAVE_CLK
 	help
 	  Enable the driver for NAND flash on platforms using a Denali NAND
 	  controller as a DT device.
@@ -76,7 +73,7 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
 
 config MTD_NAND_GPIO
 	tristate "GPIO assisted NAND Flash driver"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This enables a NAND flash driver where control signals are
 	  connected to GPIO pins, and commands and data are communicated
@@ -394,6 +391,14 @@ config MTD_NAND_GPMI_NAND
 	 block, such as SD card. So pay attention to it when you enable
 	 the GPMI.
 
+config MTD_NAND_BRCMNAND
+	tristate "Broadcom STB NAND controller"
+	depends on ARM || ARM64 || MIPS
+	help
+	  Enables the Broadcom NAND controller driver. The controller was
+	  originally designed for Set-Top Box but is used on various BCM7xxx,
+	  BCM3xxx, BCM63xxx, iProc/Cygnus and more.
+
 config MTD_NAND_BCM47XXNFLASH
 	tristate "Support for NAND flash on BCM4706 BCMA bus"
 	depends on BCMA_NFLASH
@@ -454,6 +459,17 @@ config MTD_NAND_MPC5121_NFC
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MPC5121 SoC.
+
+config MTD_NAND_VF610_NFC
+	tristate "Support for Freescale NFC for VF610/MPC5125"
+	depends on (SOC_VF610 || COMPILE_TEST)
+	help
+	  Enables support for NAND Flash Controller on some Freescale
+	  processors like the VF610, MPC5125, MCF54418 or Kinetis K70.
+	  The driver supports a maximum 2k page size. With 2k pages and
+	  64 bytes or more of OOB, hardware ECC with up to 32-bit error
+	  correction is supported. Hardware ECC is only enabled through
+	  device tree.
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"

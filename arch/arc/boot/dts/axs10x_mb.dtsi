@@ -1,0 +1,225 @@
+/*
+ * Support for peripherals on the AXS10x mainboard
+ *
+ * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	axs10x_mb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0xe0000000 0x10000000>;
+		interrupt-parent = <&mb_intc>;
+
+		clocks {
+			i2cclk: i2cclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
+			apbclk: apbclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
+			mmcclk: mmcclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+		};
+
+		ethernet@0x18000 {
+			#interrupt-cells = <1>;
+			compatible = "snps,dwmac";
+			reg = < 0x18000 0x2000 >;
+			interrupts = < 4 >;
+			interrupt-names = "macirq";
+			phy-mode = "rgmii";
+			snps,pbl = < 32 >;
+			clocks = <&apbclk>;
+			clock-names = "stmmaceth";
+			max-speed = <100>;
+		};
+
+		ehci@0x40000 {
+			compatible = "generic-ehci";
+			reg = < 0x40000 0x100 >;
+			interrupts = < 8 >;
+		};
+
+		ohci@0x60000 {
+			compatible = "generic-ohci";
+			reg = < 0x60000 0x100 >;
+			interrupts = < 8 >;
+		};
+
+		/*
+		 * According to DW Mobile Storage databook it is required
+		 * to use  "Hold Register" if card is enumerated in SDR12 or
+		 * SDR25 modes.
+		 *
+		 * Utilization of "Hold Register" is already implemented via
+		 * dw_mci_pltfm_prepare_command() which in its turn gets
+		 * used through dw_mci_drv_data->prepare_command call-back.
+		 * This call-back is used in Altera Socfpga platform and so
+		 * we may reuse it saying that we're compatible with their
+		 * "altr,socfpga-dw-mshc".
+		 *
+		 * Most probably "Hold Register" utilization is platform-
+		 * independent requirement which means that single unified
+		 * "snps,dw-mshc" should be enough for all users of DW MMC once
+		 * dw_mci_pltfm_prepare_command() is used in generic platform
+		 * code.
+		 */
+		mmc@0x15000 {
+			compatible = "altr,socfpga-dw-mshc";
+			reg = < 0x15000 0x400 >;
+			num-slots = < 1 >;
+			fifo-depth = < 16 >;
+			card-detect-delay = < 200 >;
+			clocks = <&apbclk>, <&mmcclk>;
+			clock-names = "biu", "ciu";
+			interrupts = < 7 >;
+			bus-width = < 4 >;
+		};
+
+		uart@0x20000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20000 0x100>;
+			clock-frequency = <33333333>;
+			interrupts = <17>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		uart@0x21000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x21000 0x100>;
+			clock-frequency = <33333333>;
+			interrupts = <18>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		/* UART muxed with USB data port (ttyS3) */
+		uart@0x22000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x22000 0x100>;
+			clock-frequency = <33333333>;
+			interrupts = <19>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		i2c@0x1d000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x1d000 0x100>;
+			clock-frequency = <400000>;
+			clocks = <&i2cclk>;
+			interrupts = <14>;
+		};
+
+		i2c@0x1e000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x1e000 0x100>;
+			clock-frequency = <400000>;
+			clocks = <&i2cclk>;
+			interrupts = <15>;
+		};
+
+		i2c@0x1f000 {
+			compatible = "snps,designware-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1f000 0x100>;
+			clock-frequency = <400000>;
+			clocks = <&i2cclk>;
+			interrupts = <16>;
+
+			eeprom@0x54{
+				compatible = "24c01";
+				reg = <0x54>;
+				pagesize = <0x8>;
+			};
+
+			eeprom@0x57{
+				compatible = "24c04";
+				reg = <0x57>;
+				pagesize = <0x8>;
+			};
+		};
+
+		gpio0:gpio@13000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x13000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpio0_banka: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+			};
+
+			gpio0_bankb: gpio-controller@1 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <1>;
+			};
+
+			gpio0_bankc: gpio-controller@2 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <2>;
+			};
+		};
+
+		gpio1:gpio@14000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x14000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpio1_banka: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <30>;
+				reg = <0>;
+			};
+
+			gpio1_bankb: gpio-controller@1 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <10>;
+				reg = <1>;
+			};
+
+			gpio1_bankc: gpio-controller@2 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <2>;
+			};
+		};
+	};
+};

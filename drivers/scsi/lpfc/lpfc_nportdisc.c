@@ -661,7 +661,13 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_destroy_vport_work_array(phba, vports);
 		}
 
-		if (active_vlink_present) {
+		/*
+		 * Don't re-instantiate if vport is marked for deletion.
+		 * If we are here first then vport_delete is going to wait
+		 * for discovery to complete.
+		 */
+		if (!(vport->load_flag & FC_UNLOADING) &&
+					active_vlink_present) {
 			/*
 			 * If there are other active VLinks present,
 			 * re-instantiate the Vlink using FDISC.
@@ -814,7 +820,6 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_hba *phba;
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
-	MAILBOX_t *mb;
 	uint16_t rpi;
 
 	phba = vport->phba;
@@ -822,7 +827,6 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!(phba->pport->load_flag & FC_UNLOADING) &&
 		(evt == NLP_EVT_CMPL_REG_LOGIN) &&
 		(!pmb->u.mb.mbxStatus)) {
-		mb = &pmb->u.mb;
 		rpi = pmb->u.mb.un.varWords[0];
 		lpfc_release_rpi(phba, vport, rpi);
 	}
@@ -1868,7 +1872,7 @@ lpfc_rcv_logo_logo_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *)arg;
 
 	spin_lock_irq(shost->host_lock);
-	ndlp->nlp_flag &= NLP_LOGO_ACC;
+	ndlp->nlp_flag |= NLP_LOGO_ACC;
 	spin_unlock_irq(shost->host_lock);
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 	return ndlp->nlp_state;

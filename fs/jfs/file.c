@@ -76,7 +76,7 @@ static int jfs_open(struct inode *inode, struct file *file)
 		if (ji->active_ag == -1) {
 			struct jfs_sb_info *jfs_sb = JFS_SBI(inode->i_sb);
 			ji->active_ag = BLKTOAG(addressPXD(&ji->ixpxd), jfs_sb);
-			atomic_inc( &jfs_sb->bmap->db_active[ji->active_ag]);
+			atomic_inc(&jfs_sb->bmap->db_active[ji->active_ag]);
 		}
 		spin_unlock_irq(&ji->ag_lock);
 	}
@@ -107,8 +107,11 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (rc)
 		return rc;
 
-	if (is_quota_modification(inode, iattr))
-		dquot_initialize(inode);
+	if (is_quota_modification(inode, iattr)) {
+		rc = dquot_initialize(inode);
+		if (rc)
+			return rc;
+	}
 	if ((iattr->ia_valid & ATTR_UID && !uid_eq(iattr->ia_uid, inode->i_uid)) ||
 	    (iattr->ia_valid & ATTR_GID && !gid_eq(iattr->ia_gid, inode->i_gid))) {
 		rc = dquot_transfer(inode, iattr);

@@ -15,6 +15,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/module.h>
 
 #include <brcm_hw_ids.h>
 #include "core.h"
@@ -22,6 +23,12 @@
 #include "debug.h"
 #include "fwil.h"
 #include "feature.h"
+
+
+/* Module param feature_disable (global for all devices) */
+static int brcmf_feature_disable;
+module_param_named(feature_disable, brcmf_feature_disable, int, 0);
+MODULE_PARM_DESC(feature_disable, "Disable features");
 
 /*
  * expand feature list to array of feature strings.
@@ -121,13 +128,21 @@ static void brcmf_feat_iovar_int_set(struct brcmf_if *ifp,
 
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
-	struct brcmf_if *ifp = drvr->iflist[0];
+	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_MCHAN, "mchan");
+	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
 	if (drvr->bus_if->wowl_supported)
 		brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_WOWL, "wowl");
 	if (drvr->bus_if->chip != BRCM_CC_43362_CHIP_ID)
 		brcmf_feat_iovar_int_set(ifp, BRCMF_FEAT_MBSS, "mbss", 0);
+	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_P2P, "p2p");
+
+	if (brcmf_feature_disable) {
+		brcmf_dbg(INFO, "Features: 0x%02x, disable: 0x%02x\n",
+			  ifp->drvr->feat_flags, brcmf_feature_disable);
+		ifp->drvr->feat_flags &= ~brcmf_feature_disable;
+	}
 
 	/* set chip related quirks */
 	switch (drvr->bus_if->chip) {

@@ -42,7 +42,6 @@ int klp_write_module_reloc(struct module *mod, unsigned long type,
 	bool readonly;
 	unsigned long val;
 	unsigned long core = (unsigned long)mod->module_core;
-	unsigned long core_ro_size = mod->core_ro_size;
 	unsigned long core_size = mod->core_size;
 
 	switch (type) {
@@ -70,10 +69,12 @@ int klp_write_module_reloc(struct module *mod, unsigned long type,
 		/* loc does not point to any symbol inside the module */
 		return -EINVAL;
 
-	if (loc < core + core_ro_size)
+	readonly = false;
+
+#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+	if (loc < core + mod->core_ro_size)
 		readonly = true;
-	else
-		readonly = false;
+#endif
 
 	/* determine if the relocation spans a page boundary */
 	numpages = ((loc & PAGE_MASK) == ((loc + size) & PAGE_MASK)) ? 1 : 2;

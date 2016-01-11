@@ -534,7 +534,7 @@ static int wm8904_put_deemph(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.integer.value[0];
+	unsigned int deemph = ucontrol->value.integer.value[0];
 
 	if (deemph > 1)
 		return -EINVAL;
@@ -1168,7 +1168,7 @@ static const struct snd_soc_dapm_route wm8912_intercon[] = {
 static int wm8904_add_widgets(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	snd_soc_dapm_new_controls(dapm, wm8904_core_dapm_widgets,
 				  ARRAY_SIZE(wm8904_core_dapm_widgets));
@@ -1837,7 +1837,9 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		clk_prepare_enable(wm8904->mclk);
+		ret = clk_prepare_enable(wm8904->mclk);
+		if (ret)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -1852,7 +1854,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8904->supplies),
 						    wm8904->supplies);
 			if (ret != 0) {
@@ -1907,7 +1909,6 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 		clk_disable_unprepare(wm8904->mclk);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -2293,7 +2294,6 @@ MODULE_DEVICE_TABLE(i2c, wm8904_i2c_id);
 static struct i2c_driver wm8904_i2c_driver = {
 	.driver = {
 		.name = "wm8904",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(wm8904_of_match),
 	},
 	.probe =    wm8904_i2c_probe,

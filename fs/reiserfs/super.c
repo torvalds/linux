@@ -21,6 +21,7 @@
 #include "xattr.h"
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/quotaops.h>
@@ -588,8 +589,7 @@ static struct kmem_cache *reiserfs_inode_cachep;
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
 	struct reiserfs_inode_info *ei;
-	ei = (struct reiserfs_inode_info *)
-	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	atomic_set(&ei->openers, 0);
@@ -714,18 +714,20 @@ static int reiserfs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",acl");
 
 	if (REISERFS_SB(s)->s_jdev)
-		seq_printf(seq, ",jdev=%s", REISERFS_SB(s)->s_jdev);
+		seq_show_option(seq, "jdev", REISERFS_SB(s)->s_jdev);
 
 	if (journal->j_max_commit_age != journal->j_default_max_commit_age)
 		seq_printf(seq, ",commit=%d", journal->j_max_commit_age);
 
 #ifdef CONFIG_QUOTA
 	if (REISERFS_SB(s)->s_qf_names[USRQUOTA])
-		seq_printf(seq, ",usrjquota=%s", REISERFS_SB(s)->s_qf_names[USRQUOTA]);
+		seq_show_option(seq, "usrjquota",
+				REISERFS_SB(s)->s_qf_names[USRQUOTA]);
 	else if (opts & (1 << REISERFS_USRQUOTA))
 		seq_puts(seq, ",usrquota");
 	if (REISERFS_SB(s)->s_qf_names[GRPQUOTA])
-		seq_printf(seq, ",grpjquota=%s", REISERFS_SB(s)->s_qf_names[GRPQUOTA]);
+		seq_show_option(seq, "grpjquota",
+				REISERFS_SB(s)->s_qf_names[GRPQUOTA]);
 	else if (opts & (1 << REISERFS_GRPQUOTA))
 		seq_puts(seq, ",grpquota");
 	if (REISERFS_SB(s)->s_jquota_fmt) {

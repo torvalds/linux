@@ -121,7 +121,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	int len, i;
 	int err = -ENOMEM;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return err;
 

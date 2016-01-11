@@ -542,8 +542,8 @@ interrupt_base_book3e:					/* fake trap */
 	EXCEPTION_STUB(0x320, ehpriv)
 	EXCEPTION_STUB(0x340, lrat_error)
 
-	.globl interrupt_end_book3e
-interrupt_end_book3e:
+	.globl __end_interrupts
+__end_interrupts:
 
 /* Critical Input Interrupt */
 	START_EXCEPTION(critical_input);
@@ -736,7 +736,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	beq+	1f
 
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
-	LOAD_REG_IMMEDIATE(r15,interrupt_end_book3e)
+	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 	blt+	cr0,1f
@@ -800,7 +800,7 @@ kernel_dbg_exc:
 	beq+	1f
 
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
-	LOAD_REG_IMMEDIATE(r15,interrupt_end_book3e)
+	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 	blt+	cr0,1f
@@ -1313,11 +1313,14 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	sync
 	isync
 
-/* The mapping only needs to be cache-coherent on SMP */
-#ifdef CONFIG_SMP
-#define M_IF_SMP	MAS2_M
+/*
+ * The mapping only needs to be cache-coherent on SMP, except on
+ * Freescale e500mc derivatives where it's also needed for coherent DMA.
+ */
+#if defined(CONFIG_SMP) || defined(CONFIG_PPC_E500MC)
+#define M_IF_NEEDED	MAS2_M
 #else
-#define M_IF_SMP	0
+#define M_IF_NEEDED	0
 #endif
 
 /* 6. Setup KERNELBASE mapping in TLB[0]
@@ -1332,7 +1335,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	ori	r6,r6,(MAS1_TSIZE(BOOK3E_PAGESZ_1GB))@l
 	mtspr	SPRN_MAS1,r6
 
-	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET | M_IF_SMP)
+	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET | M_IF_NEEDED)
 	mtspr	SPRN_MAS2,r6
 
 	rlwinm	r5,r5,0,0,25
@@ -1348,7 +1351,10 @@ skpinv:	addi	r6,r6,1				/* Increment */
  * r4 = MAS0 w/TLBSEL & ESEL for the temp mapping
  */
 	/* Now we branch the new virtual address mapped by this entry */
-	LOAD_REG_IMMEDIATE(r6,2f)
+	bl	1f		/* Find our address */
+1:	mflr	r6
+	addi	r6,r6,(2f - 1b)
+	tovirt(r6,r6)
 	lis	r7,MSR_KERNEL@h
 	ori	r7,r7,MSR_KERNEL@l
 	mtspr	SPRN_SRR0,r6
@@ -1580,9 +1586,11 @@ _GLOBAL(book3e_secondary_thread_init)
 	mflr	r28
 	b	3b
 
+	.globl init_core_book3e
 init_core_book3e:
 	/* Establish the interrupt vector base */
-	LOAD_REG_IMMEDIATE(r3, interrupt_base_book3e)
+	tovirt(r2,r2)
+	LOAD_REG_ADDR(r3, interrupt_base_book3e)
 	mtspr	SPRN_IVPR,r3
 	sync
 	blr

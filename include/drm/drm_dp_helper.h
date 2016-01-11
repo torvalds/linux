@@ -46,7 +46,7 @@
 
 #define DP_AUX_I2C_WRITE		0x0
 #define DP_AUX_I2C_READ			0x1
-#define DP_AUX_I2C_STATUS		0x2
+#define DP_AUX_I2C_WRITE_STATUS_UPDATE	0x2
 #define DP_AUX_I2C_MOT			0x4
 #define DP_AUX_NATIVE_WRITE		0x8
 #define DP_AUX_NATIVE_READ		0x9
@@ -420,7 +420,7 @@
 
 #define DP_TEST_SINK_MISC		    0x246
 # define DP_TEST_CRC_SUPPORTED		    (1 << 5)
-# define DP_TEST_COUNT_MASK		    0x7
+# define DP_TEST_COUNT_MASK		    0xf
 
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
@@ -568,6 +568,10 @@
 #define MODE_I2C_READ	4
 #define MODE_I2C_STOP	8
 
+/* DP 1.2 MST PORTs - Section 2.5.1 v1.2a spec */
+#define DP_MST_PHYSICAL_PORT_0 0
+#define DP_MST_LOGICAL_PORT_0 8
+
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 			  int lane_count);
@@ -578,6 +582,7 @@ u8 drm_dp_get_adjust_request_voltage(const u8 link_status[DP_LINK_STATUS_SIZE],
 u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane);
 
+#define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 
@@ -633,6 +638,13 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		(dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP);
 }
 
+static inline bool
+drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x12 &&
+		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
+}
+
 /*
  * DisplayPort AUX channel
  */
@@ -679,9 +691,9 @@ struct drm_dp_aux_msg {
  * An AUX channel can also be used to transport I2C messages to a sink. A
  * typical application of that is to access an EDID that's present in the
  * sink device. The .transfer() function can also be used to execute such
- * transactions. The drm_dp_aux_register_i2c_bus() function registers an
- * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
- * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ * transactions. The drm_dp_aux_register() function registers an I2C
+ * adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
+ * should call drm_dp_aux_unregister() to remove the I2C adapter.
  * The I2C adapter uses long transfers by default; if a partial response is
  * received, the adapter will drop down to the size given by the partial
  * response for this transaction only.

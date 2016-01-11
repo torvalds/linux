@@ -75,7 +75,6 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	bo = container_of(tbo, struct radeon_bo, tbo);
 
 	radeon_update_memory_usage(bo, bo->tbo.mem.mem_type, -1);
-	radeon_mn_unregister(bo);
 
 	mutex_lock(&bo->rdev->gem.mutex);
 	list_del_init(&bo->list);
@@ -222,11 +221,17 @@ int radeon_bo_create(struct radeon_device *rdev,
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
+	/* Write-combined CPU mappings of GTT cause GPU hangs with RV6xx
+	 * See https://bugs.freedesktop.org/show_bug.cgi?id=91268
+	 */
+	if (rdev->family >= CHIP_RV610 && rdev->family <= CHIP_RV635)
+		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
+
 #ifdef CONFIG_X86_32
 	/* XXX: Write-combined CPU mappings of GTT seem broken on 32-bit
 	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
 	 */
-	bo->flags &= ~RADEON_GEM_GTT_WC;
+	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 #elif defined(CONFIG_X86) && !defined(CONFIG_X86_PAT)
 	/* Don't try to enable write-combining when it can't work, or things
 	 * may be slow
@@ -236,9 +241,10 @@ int radeon_bo_create(struct radeon_device *rdev,
 #warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
 	 thanks to write-combining
 
-	DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
-		      "better performance thanks to write-combining\n");
-	bo->flags &= ~RADEON_GEM_GTT_WC;
+	if (bo->flags & RADEON_GEM_GTT_WC)
+		DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
+			      "better performance thanks to write-combining\n");
+	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 #endif
 
 	radeon_ttm_placement_from_domain(bo, domain);
@@ -420,7 +426,6 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 	}
 	dev_err(rdev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &rdev->gem.objects, list) {
-		mutex_lock(&rdev->ddev->struct_mutex);
 		dev_err(rdev->dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
@@ -428,8 +433,7 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference(&bo->gem_base);
-		mutex_unlock(&rdev->ddev->struct_mutex);
+		drm_gem_object_unreference_unlocked(&bo->gem_base);
 	}
 }
 

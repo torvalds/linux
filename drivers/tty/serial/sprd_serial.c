@@ -716,7 +716,7 @@ static int sprd_probe(struct platform_device *pdev)
 	up->flags = UPF_BOOT_AUTOCONF;
 
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk))
+	if (!IS_ERR_OR_NULL(clk))
 		up->uartclk = clk_get_rate(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -782,6 +782,7 @@ static const struct of_device_id serial_ids[] = {
 	{.compatible = "sprd,sc9836-uart",},
 	{}
 };
+MODULE_DEVICE_TABLE(of, serial_ids);
 
 static struct platform_driver sprd_platform_driver = {
 	.probe		= sprd_probe,

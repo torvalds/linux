@@ -236,8 +236,10 @@ void dm_cell_error(struct dm_bio_prison *prison,
 	bio_list_init(&bios);
 	dm_cell_release(prison, cell, &bios);
 
-	while ((bio = bio_list_pop(&bios)))
-		bio_endio(bio, error);
+	while ((bio = bio_list_pop(&bios))) {
+		bio->bi_error = error;
+		bio_endio(bio);
+	}
 }
 EXPORT_SYMBOL_GPL(dm_cell_error);
 
@@ -254,6 +256,32 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 	spin_unlock_irqrestore(&prison->lock, flags);
 }
 EXPORT_SYMBOL_GPL(dm_cell_visit_release);
+
+static int __promote_or_release(struct dm_bio_prison *prison,
+				struct dm_bio_prison_cell *cell)
+{
+	if (bio_list_empty(&cell->bios)) {
+		rb_erase(&cell->node, &prison->cells);
+		return 1;
+	}
+
+	cell->holder = bio_list_pop(&cell->bios);
+	return 0;
+}
+
+int dm_cell_promote_or_release(struct dm_bio_prison *prison,
+			       struct dm_bio_prison_cell *cell)
+{
+	int r;
+	unsigned long flags;
+
+	spin_lock_irqsave(&prison->lock, flags);
+	r = __promote_or_release(prison, cell);
+	spin_unlock_irqrestore(&prison->lock, flags);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_cell_promote_or_release);
 
 /*----------------------------------------------------------------*/
 

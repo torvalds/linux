@@ -24,6 +24,10 @@ struct bpf_map_ops {
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
 	int (*map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags);
 	int (*map_delete_elem)(struct bpf_map *map, void *key);
+
+	/* funcs called by prog_array and perf_event_array map */
+	void *(*map_fd_get_ptr) (struct bpf_map *map, int fd);
+	void (*map_fd_put_ptr) (void *ptr);
 };
 
 struct bpf_map {
@@ -32,8 +36,11 @@ struct bpf_map {
 	u32 key_size;
 	u32 value_size;
 	u32 max_entries;
+	u32 pages;
+	struct user_struct *user;
 	const struct bpf_map_ops *ops;
 	struct work_struct work;
+	atomic_t usercnt;
 };
 
 struct bpf_map_type_list {
@@ -96,6 +103,8 @@ enum bpf_access_type {
 	BPF_WRITE = 2
 };
 
+struct bpf_prog;
+
 struct bpf_verifier_ops {
 	/* return eBPF function prototype for verification */
 	const struct bpf_func_proto *(*get_func_proto)(enum bpf_func_id func_id);
@@ -105,8 +114,9 @@ struct bpf_verifier_ops {
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type);
 
-	u32 (*convert_ctx_access)(int dst_reg, int src_reg, int ctx_off,
-				  struct bpf_insn *insn);
+	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
+				  int src_reg, int ctx_off,
+				  struct bpf_insn *insn, struct bpf_prog *prog);
 };
 
 struct bpf_prog_type_list {
@@ -115,16 +125,40 @@ struct bpf_prog_type_list {
 	enum bpf_prog_type type;
 };
 
-struct bpf_prog;
-
 struct bpf_prog_aux {
 	atomic_t refcnt;
 	u32 used_map_cnt;
 	const struct bpf_verifier_ops *ops;
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
-	struct work_struct work;
+	struct user_struct *user;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 };
+
+struct bpf_array {
+	struct bpf_map map;
+	u32 elem_size;
+	/* 'ownership' of prog_array is claimed by the first program that
+	 * is going to use this map or by the first program which FD is stored
+	 * in the map to make sure that all callers and callees have the same
+	 * prog_type and JITed flag
+	 */
+	enum bpf_prog_type owner_prog_type;
+	bool owner_jited;
+	union {
+		char value[0] __aligned(8);
+		void *ptrs[0] __aligned(8);
+	};
+};
+#define MAX_TAIL_CALL_CNT 32
+
+u64 bpf_tail_call(u64 ctx, u64 r2, u64 index, u64 r4, u64 r5);
+void bpf_fd_array_map_clear(struct bpf_map *map);
+bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *fp);
+const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 
 #ifdef CONFIG_BPF_SYSCALL
 void bpf_register_prog_type(struct bpf_prog_type_list *tl);
@@ -132,9 +166,21 @@ void bpf_register_map_type(struct bpf_map_type_list *tl);
 
 struct bpf_prog *bpf_prog_get(u32 ufd);
 void bpf_prog_put(struct bpf_prog *prog);
+void bpf_prog_put_rcu(struct bpf_prog *prog);
 
-struct bpf_map *bpf_map_get(struct fd f);
+struct bpf_map *bpf_map_get_with_uref(u32 ufd);
+struct bpf_map *__bpf_map_get(struct fd f);
+void bpf_map_inc(struct bpf_map *map, bool uref);
+void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
+
+extern int sysctl_unprivileged_bpf_disabled;
+
+int bpf_map_new_fd(struct bpf_map *map);
+int bpf_prog_new_fd(struct bpf_prog *prog);
+
+int bpf_obj_pin_user(u32 ufd, const char __user *pathname);
+int bpf_obj_get_user(const char __user *pathname);
 
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
@@ -160,5 +206,16 @@ extern const struct bpf_func_proto bpf_map_delete_elem_proto;
 
 extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
 extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
+extern const struct bpf_func_proto bpf_tail_call_proto;
+extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
+extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
+extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
+extern const struct bpf_func_proto bpf_get_current_comm_proto;
+extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
+extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
+
+/* Shared helpers among cBPF and eBPF. */
+void bpf_user_rnd_init_once(void);
+u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 
 #endif /* _LINUX_BPF_H */

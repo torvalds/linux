@@ -141,11 +141,13 @@ static const struct comedi_lrange cb_pcimdas_ai_uni_range = {
  * jumper-settable on the board. The settings are not software-readable.
  */
 static const struct comedi_lrange cb_pcimdas_ao_range = {
-	4, {
+	6, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
 		UNI_RANGE(10),
-		UNI_RANGE(5)
+		UNI_RANGE(5),
+		RANGE_ext(-1, 1),
+		RANGE_ext(0, 1)
 	}
 };
 
@@ -243,7 +245,7 @@ static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int cb_pcimdas_di_insn_read(struct comedi_device *dev,
+static int cb_pcimdas_di_insn_bits(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
@@ -258,7 +260,7 @@ static int cb_pcimdas_di_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int cb_pcimdas_do_insn_write(struct comedi_device *dev,
+static int cb_pcimdas_do_insn_bits(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
@@ -424,7 +426,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_read	= cb_pcimdas_di_insn_read;
+	s->insn_bits	= cb_pcimdas_di_insn_bits;
 
 	/* Digital Output subdevice (main connector) */
 	s = &dev->subdevices[4];
@@ -433,7 +435,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_write	= cb_pcimdas_do_insn_write;
+	s->insn_bits	= cb_pcimdas_do_insn_bits;
 
 	/* Counter subdevice (8254) */
 	s = &dev->subdevices[5];

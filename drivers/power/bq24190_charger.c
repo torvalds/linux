@@ -902,7 +902,7 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 }
 
 static enum power_supply_property bq24190_charger_properties[] = {
-	POWER_SUPPLY_PROP_TYPE,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
@@ -1258,10 +1258,13 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	 * register reset so we should ignore that one (the very first
 	 * interrupt received).
 	 */
-	if (alert_userspace && !bdi->first_time) {
-		power_supply_changed(bdi->charger);
-		power_supply_changed(bdi->battery);
-		bdi->first_time = false;
+	if (alert_userspace) {
+		if (!bdi->first_time) {
+			power_supply_changed(bdi->charger);
+			power_supply_changed(bdi->battery);
+		} else {
+			bdi->first_time = false;
+		}
 	}
 
 out:
@@ -1512,6 +1515,7 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24190", BQ24190_REG_VPRS_PN_24190 },
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id bq24190_of_match[] = {
@@ -1531,7 +1535,6 @@ static struct i2c_driver bq24190_driver = {
 	.id_table	= bq24190_i2c_ids,
 	.driver = {
 		.name		= "bq24190-charger",
-		.owner		= THIS_MODULE,
 		.pm		= &bq24190_pm_ops,
 		.of_match_table	= of_match_ptr(bq24190_of_match),
 	},
@@ -1540,5 +1543,4 @@ module_i2c_driver(bq24190_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mark A. Greer <mgreer@animalcreek.com>");
-MODULE_ALIAS("i2c:bq24190-charger");
 MODULE_DESCRIPTION("TI BQ24190 Charger Driver");

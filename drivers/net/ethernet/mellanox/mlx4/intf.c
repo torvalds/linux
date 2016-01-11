@@ -63,8 +63,11 @@ static void mlx4_add_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
 		spin_lock_irq(&priv->ctx_lock);
 		list_add_tail(&dev_ctx->list, &priv->ctx_list);
 		spin_unlock_irq(&priv->ctx_lock);
+		if (intf->activate)
+			intf->activate(&priv->dev, dev_ctx->context);
 	} else
 		kfree(dev_ctx);
+
 }
 
 static void mlx4_remove_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
@@ -93,8 +96,14 @@ int mlx4_register_interface(struct mlx4_interface *intf)
 	mutex_lock(&intf_mutex);
 
 	list_add_tail(&intf->list, &intf_list);
-	list_for_each_entry(priv, &dev_list, dev_list)
+	list_for_each_entry(priv, &dev_list, dev_list) {
+		if (mlx4_is_mfunc(&priv->dev) && (intf->flags & MLX4_INTFF_BONDING)) {
+			mlx4_dbg(&priv->dev,
+				 "SRIOV, disabling HA mode for intf proto %d\n", intf->protocol);
+			intf->flags &= ~MLX4_INTFF_BONDING;
+		}
 		mlx4_add_device(intf, priv);
+	}
 
 	mutex_unlock(&intf_mutex);
 

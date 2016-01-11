@@ -29,7 +29,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/pm_runtime.h>
 
 #define IRQC_IRQ_MAX	32	/* maximum 32 interrupts per driver instance */
@@ -54,7 +53,6 @@
 struct irqc_irq {
 	int hw_irq;
 	int requested_irq;
-	int domain_irq;
 	struct irqc_priv *p;
 };
 
@@ -62,36 +60,22 @@ struct irqc_priv {
 	void __iomem *iomem;
 	void __iomem *cpu_int_base;
 	struct irqc_irq irq[IRQC_IRQ_MAX];
-	struct renesas_irqc_config config;
 	unsigned int number_of_irqs;
 	struct platform_device *pdev;
-	struct irq_chip irq_chip;
+	struct irq_chip_generic *gc;
 	struct irq_domain *irq_domain;
 	struct clk *clk;
 };
 
+static struct irqc_priv *irq_data_to_priv(struct irq_data *data)
+{
+	return data->domain->host_data;
+}
+
 static void irqc_dbg(struct irqc_irq *i, char *str)
 {
-	dev_dbg(&i->p->pdev->dev, "%s (%d:%d:%d)\n",
-		str, i->requested_irq, i->hw_irq, i->domain_irq);
-}
-
-static void irqc_irq_enable(struct irq_data *d)
-{
-	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
-	int hw_irq = irqd_to_hwirq(d);
-
-	irqc_dbg(&p->irq[hw_irq], "enable");
-	iowrite32(BIT(hw_irq), p->cpu_int_base + IRQC_EN_SET);
-}
-
-static void irqc_irq_disable(struct irq_data *d)
-{
-	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
-	int hw_irq = irqd_to_hwirq(d);
-
-	irqc_dbg(&p->irq[hw_irq], "disable");
-	iowrite32(BIT(hw_irq), p->cpu_int_base + IRQC_EN_STS);
+	dev_dbg(&i->p->pdev->dev, "%s (%d:%d)\n",
+		str, i->requested_irq, i->hw_irq);
 }
 
 static unsigned char irqc_sense[IRQ_TYPE_SENSE_MASK + 1] = {
@@ -104,7 +88,7 @@ static unsigned char irqc_sense[IRQ_TYPE_SENSE_MASK + 1] = {
 
 static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
+	struct irqc_priv *p = irq_data_to_priv(d);
 	int hw_irq = irqd_to_hwirq(d);
 	unsigned char value = irqc_sense[type & IRQ_TYPE_SENSE_MASK];
 	u32 tmp;
@@ -123,7 +107,10 @@ static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 
 static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
+	struct irqc_priv *p = irq_data_to_priv(d);
+	int hw_irq = irqd_to_hwirq(d);
+
+	irq_set_irq_wake(p->irq[hw_irq].requested_irq, on);
 
 	if (!p->clk)
 		return 0;
@@ -147,39 +134,17 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 	if (ioread32(p->iomem + DETECT_STATUS) & bit) {
 		iowrite32(bit, p->iomem + DETECT_STATUS);
 		irqc_dbg(i, "demux2");
-		generic_handle_irq(i->domain_irq);
+		generic_handle_irq(irq_find_mapping(p->irq_domain, i->hw_irq));
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
 }
 
-static int irqc_irq_domain_map(struct irq_domain *h, unsigned int virq,
-			       irq_hw_number_t hw)
-{
-	struct irqc_priv *p = h->host_data;
-
-	p->irq[hw].domain_irq = virq;
-	p->irq[hw].hw_irq = hw;
-
-	irqc_dbg(&p->irq[hw], "map");
-	irq_set_chip_data(virq, h->host_data);
-	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID); /* kill me now */
-	return 0;
-}
-
-static struct irq_domain_ops irqc_irq_domain_ops = {
-	.map	= irqc_irq_domain_map,
-	.xlate  = irq_domain_xlate_twocell,
-};
-
 static int irqc_probe(struct platform_device *pdev)
 {
-	struct renesas_irqc_config *pdata = pdev->dev.platform_data;
 	struct irqc_priv *p;
 	struct resource *io;
 	struct resource *irq;
-	struct irq_chip *irq_chip;
 	const char *name = dev_name(&pdev->dev);
 	int ret;
 	int k;
@@ -190,10 +155,6 @@ static int irqc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err0;
 	}
-
-	/* deal with driver instance configuration */
-	if (pdata)
-		memcpy(&p->config, pdata, sizeof(*pdata));
 
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
@@ -222,6 +183,7 @@ static int irqc_probe(struct platform_device *pdev)
 			break;
 
 		p->irq[k].p = p;
+		p->irq[k].hw_irq = k;
 		p->irq[k].requested_irq = irq->start;
 	}
 
@@ -242,23 +204,32 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->cpu_int_base = p->iomem + IRQC_INT_CPU_BASE(0); /* SYS-SPI */
 
-	irq_chip = &p->irq_chip;
-	irq_chip->name = name;
-	irq_chip->irq_mask = irqc_irq_disable;
-	irq_chip->irq_unmask = irqc_irq_enable;
-	irq_chip->irq_set_type = irqc_irq_set_type;
-	irq_chip->irq_set_wake = irqc_irq_set_wake;
-	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
-
-	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
+	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
 					      p->number_of_irqs,
-					      p->config.irq_base,
-					      &irqc_irq_domain_ops, p);
+					      &irq_generic_chip_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
 		dev_err(&pdev->dev, "cannot initialize irq domain\n");
 		goto err2;
 	}
+
+	ret = irq_alloc_domain_generic_chips(p->irq_domain, p->number_of_irqs,
+					     1, name, handle_level_irq,
+					     0, 0, IRQ_GC_INIT_NESTED_LOCK);
+	if (ret) {
+		dev_err(&pdev->dev, "cannot allocate generic chip\n");
+		goto err3;
+	}
+
+	p->gc = irq_get_domain_generic_chip(p->irq_domain, 0);
+	p->gc->reg_base = p->cpu_int_base;
+	p->gc->chip_types[0].regs.enable = IRQC_EN_SET;
+	p->gc->chip_types[0].regs.disable = IRQC_EN_STS;
+	p->gc->chip_types[0].chip.irq_mask = irq_gc_mask_disable_reg;
+	p->gc->chip_types[0].chip.irq_unmask = irq_gc_unmask_enable_reg;
+	p->gc->chip_types[0].chip.irq_set_type	= irqc_irq_set_type;
+	p->gc->chip_types[0].chip.irq_set_wake	= irqc_irq_set_wake;
+	p->gc->chip_types[0].chip.flags	= IRQCHIP_MASK_ON_SUSPEND;
 
 	/* request interrupts one by one */
 	for (k = 0; k < p->number_of_irqs; k++) {
@@ -266,24 +237,18 @@ static int irqc_probe(struct platform_device *pdev)
 				0, name, &p->irq[k])) {
 			dev_err(&pdev->dev, "failed to request IRQ\n");
 			ret = -ENOENT;
-			goto err3;
+			goto err4;
 		}
 	}
 
 	dev_info(&pdev->dev, "driving %d irqs\n", p->number_of_irqs);
 
-	/* warn in case of mismatch if irq base is specified */
-	if (p->config.irq_base) {
-		if (p->config.irq_base != p->irq[0].domain_irq)
-			dev_warn(&pdev->dev, "irq base mismatch (%d/%d)\n",
-				 p->config.irq_base, p->irq[0].domain_irq);
-	}
-
 	return 0;
-err3:
+err4:
 	while (--k >= 0)
 		free_irq(p->irq[k].requested_irq, &p->irq[k]);
 
+err3:
 	irq_domain_remove(p->irq_domain);
 err2:
 	iounmap(p->iomem);

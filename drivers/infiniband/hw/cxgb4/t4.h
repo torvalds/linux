@@ -33,6 +33,7 @@
 
 #include "t4_hw.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
@@ -290,8 +291,10 @@ struct t4_sq {
 	unsigned long phys_addr;
 	struct t4_swsqe *sw_sq;
 	struct t4_swsqe *oldest_read;
-	u64 __iomem *udb;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
 	size_t memsize;
+	u32 bar2_qid;
 	u32 qid;
 	u16 in_use;
 	u16 size;
@@ -314,8 +317,10 @@ struct t4_rq {
 	dma_addr_t dma_addr;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swrqe *sw_rq;
-	u64 __iomem *udb;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
 	size_t memsize;
+	u32 bar2_qid;
 	u32 qid;
 	u32 msn;
 	u32 rqt_hwaddr;
@@ -332,7 +337,6 @@ struct t4_wq {
 	struct t4_sq sq;
 	struct t4_rq rq;
 	void __iomem *db;
-	void __iomem *gts;
 	struct c4iw_rdev *rdev;
 	int flushed;
 };
@@ -451,21 +455,23 @@ static inline void pio_copy(u64 __iomem *dst, u64 *src)
 	}
 }
 
-static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
-				 union t4_wr *wqe)
+static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe)
 {
 
 	/* Flush host queue memory writes. */
 	wmb();
-	if (t5) {
-		if (inc == 1 && wqe) {
+	if (wq->sq.bar2_va) {
+		if (inc == 1 && wq->sq.bar2_qid == 0 && wqe) {
 			PDBG("%s: WC wq->sq.pidx = %d\n",
 			     __func__, wq->sq.pidx);
-			pio_copy(wq->sq.udb + 7, (void *)wqe);
+			pio_copy((u64 __iomem *)
+				 (wq->sq.bar2_va + SGE_UDB_WCDOORBELL),
+				 (u64 *)wqe);
 		} else {
 			PDBG("%s: DB wq->sq.pidx = %d\n",
 			     __func__, wq->sq.pidx);
-			writel(PIDX_T5_V(inc), wq->sq.udb);
+			writel(PIDX_T5_V(inc) | QID_V(wq->sq.bar2_qid),
+			       wq->sq.bar2_va + SGE_UDB_KDOORBELL);
 		}
 
 		/* Flush user doorbell area writes. */
@@ -475,21 +481,24 @@ static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
 	writel(QID_V(wq->sq.qid) | PIDX_V(inc), wq->db);
 }
 
-static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
+static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc,
 				 union t4_recv_wr *wqe)
 {
 
 	/* Flush host queue memory writes. */
 	wmb();
-	if (t5) {
-		if (inc == 1 && wqe) {
+	if (wq->rq.bar2_va) {
+		if (inc == 1 && wq->rq.bar2_qid == 0 && wqe) {
 			PDBG("%s: WC wq->rq.pidx = %d\n",
 			     __func__, wq->rq.pidx);
-			pio_copy(wq->rq.udb + 7, (void *)wqe);
+			pio_copy((u64 __iomem *)
+				 (wq->rq.bar2_va + SGE_UDB_WCDOORBELL),
+				 (void *)wqe);
 		} else {
 			PDBG("%s: DB wq->rq.pidx = %d\n",
 			     __func__, wq->rq.pidx);
-			writel(PIDX_T5_V(inc), wq->rq.udb);
+			writel(PIDX_T5_V(inc) | QID_V(wq->rq.bar2_qid),
+			       wq->rq.bar2_va + SGE_UDB_KDOORBELL);
 		}
 
 		/* Flush user doorbell area writes. */
@@ -534,11 +543,14 @@ struct t4_cq {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_cqe *sw_queue;
 	void __iomem *gts;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
+	u32 bar2_qid;
 	struct c4iw_rdev *rdev;
-	u64 ugts;
 	size_t memsize;
 	__be64 bits_type_ts;
 	u32 cqid;
+	u32 qid_mask;
 	int vector;
 	u16 size; /* including status page */
 	u16 cidx;
@@ -551,6 +563,15 @@ struct t4_cq {
 	unsigned long flags;
 };
 
+static inline void write_gts(struct t4_cq *cq, u32 val)
+{
+	if (cq->bar2_va)
+		writel(val | INGRESSQID_V(cq->bar2_qid),
+		       cq->bar2_va + SGE_UDB_GTS);
+	else
+		writel(val | INGRESSQID_V(cq->cqid), cq->gts);
+}
+
 static inline int t4_clear_cq_armed(struct t4_cq *cq)
 {
 	return test_and_clear_bit(CQ_ARMED, &cq->flags);
@@ -562,14 +583,12 @@ static inline int t4_arm_cq(struct t4_cq *cq, int se)
 
 	set_bit(CQ_ARMED, &cq->flags);
 	while (cq->cidx_inc > CIDXINC_M) {
-		val = SEINTARM_V(0) | CIDXINC_V(CIDXINC_M) | TIMERREG_V(7) |
-		      INGRESSQID_V(cq->cqid);
-		writel(val, cq->gts);
+		val = SEINTARM_V(0) | CIDXINC_V(CIDXINC_M) | TIMERREG_V(7);
+		write_gts(cq, val);
 		cq->cidx_inc -= CIDXINC_M;
 	}
-	val = SEINTARM_V(se) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(6) |
-	      INGRESSQID_V(cq->cqid);
-	writel(val, cq->gts);
+	val = SEINTARM_V(se) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(6);
+	write_gts(cq, val);
 	cq->cidx_inc = 0;
 	return 0;
 }
@@ -600,9 +619,8 @@ static inline void t4_hwcq_consume(struct t4_cq *cq)
 	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == CIDXINC_M) {
 		u32 val;
 
-		val = SEINTARM_V(0) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(7) |
-		      INGRESSQID_V(cq->cqid);
-		writel(val, cq->gts);
+		val = SEINTARM_V(0) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(7);
+		write_gts(cq, val);
 		cq->cidx_inc = 0;
 	}
 	if (++cq->cidx == cq->size) {

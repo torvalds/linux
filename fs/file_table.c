@@ -20,12 +20,12 @@
 #include <linux/cdev.h>
 #include <linux/fsnotify.h>
 #include <linux/sysctl.h>
-#include <linux/lglock.h>
 #include <linux/percpu_counter.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/task_work.h>
 #include <linux/ima.h>
+#include <linux/swap.h>
 
 #include <linux/atomic.h>
 
@@ -309,19 +309,24 @@ void put_filp(struct file *file)
 	}
 }
 
-void __init files_init(unsigned long mempages)
+void __init files_init(void)
 { 
-	unsigned long n;
-
 	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
 			SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-
-	/*
-	 * One file with associated inode and dcache is very roughly 1K.
-	 * Per default don't use more than 10% of our memory for files. 
-	 */ 
-
-	n = (mempages * (PAGE_SIZE / 1024)) / 10;
-	files_stat.max_files = max_t(unsigned long, n, NR_FILE);
 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
+}
+
+/*
+ * One file with associated inode and dcache is very roughly 1K. Per default
+ * do not use more than 10% of our memory for files.
+ */
+void __init files_maxfiles_init(void)
+{
+	unsigned long n;
+	unsigned long memreserve = (totalram_pages - nr_free_pages()) * 3/2;
+
+	memreserve = min(memreserve, totalram_pages - 1);
+	n = ((totalram_pages - memreserve) * (PAGE_SIZE / 1024)) / 10;
+
+	files_stat.max_files = max_t(unsigned long, n, NR_FILE);
 } 

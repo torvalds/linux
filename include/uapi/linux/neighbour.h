@@ -106,6 +106,7 @@ struct ndt_stats {
 	__u64		ndts_rcv_probes_ucast;
 	__u64		ndts_periodic_gc_runs;
 	__u64		ndts_forced_gc_runs;
+	__u64		ndts_table_fulls;
 };
 
 enum {

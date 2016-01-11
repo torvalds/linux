@@ -29,13 +29,15 @@
 #include <linux/tty.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <asm/io.h>
 #include <asm/serial.h>
 
-unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offset)
+static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -51,7 +53,7 @@ unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offse
 	}
 }
 
-void __weak __init serial8250_early_out(struct uart_port *port, int offset, int value)
+static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -131,7 +133,7 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
 }
 
-static int __init early_serial8250_setup(struct earlycon_device *device,
+int __init early_serial8250_setup(struct earlycon_device *device,
 					 const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
@@ -152,3 +154,5 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 }
 EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
+OF_EARLYCON_DECLARE(ns16550, "ns16550", early_serial8250_setup);
+OF_EARLYCON_DECLARE(ns16550a, "ns16550a", early_serial8250_setup);

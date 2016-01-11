@@ -20,6 +20,9 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -30,9 +33,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
 #include <media/saa6588.h>
-
-#include "saa7134-reg.h"
-#include "saa7134.h"
 
 /* ------------------------------------------------------------------ */
 
@@ -52,8 +52,10 @@ module_param_string(secam, secam, sizeof(secam), 0644);
 MODULE_PARM_DESC(secam, "force SECAM variant, either DK,L or Lc");
 
 
-#define dprintk(fmt, arg...)	if (video_debug&0x04) \
-	printk(KERN_DEBUG "%s/video: " fmt, dev->name , ## arg)
+#define video_dbg(fmt, arg...) do { \
+	if (video_debug & 0x04) \
+		printk(KERN_DEBUG pr_fmt("video: " fmt), ## arg); \
+	} while (0)
 
 /* ------------------------------------------------------------------ */
 /* Defines for Video Output Port Register at address 0x191            */
@@ -385,7 +387,7 @@ static struct saa7134_format* format_by_fourcc(unsigned int fourcc)
 
 static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 {
-	dprintk("set tv norm = %s\n",norm->name);
+	video_dbg("set tv norm = %s\n", norm->name);
 	dev->tvnorm = norm;
 
 	/* setup cropping */
@@ -407,7 +409,7 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 
 static void video_mux(struct saa7134_dev *dev, int input)
 {
-	dprintk("video input = %d [%s]\n", input, card_in(dev, input).name);
+	video_dbg("video input = %d [%s]\n", input, card_in(dev, input).name);
 	dev->ctl_input = input;
 	set_tvnorm(dev, dev->tvnorm);
 	saa7134_tvaudio_setinput(dev, &card_in(dev, input));
@@ -531,14 +533,14 @@ static void set_v_scale(struct saa7134_dev *dev, int task, int yscale)
 	mirror = (dev->ctl_mirror) ? 0x02 : 0x00;
 	if (yscale < 2048) {
 		/* LPI */
-		dprintk("yscale LPI yscale=%d\n",yscale);
+		video_dbg("yscale LPI yscale=%d\n", yscale);
 		saa_writeb(SAA7134_V_FILTER(task), 0x00 | mirror);
 		saa_writeb(SAA7134_LUMA_CONTRAST(task), 0x40);
 		saa_writeb(SAA7134_CHROMA_SATURATION(task), 0x40);
 	} else {
 		/* ACM */
 		val = 0x40 * 1024 / yscale;
-		dprintk("yscale ACM yscale=%d val=0x%x\n",yscale,val);
+		video_dbg("yscale ACM yscale=%d val=0x%x\n", yscale, val);
 		saa_writeb(SAA7134_V_FILTER(task), 0x01 | mirror);
 		saa_writeb(SAA7134_LUMA_CONTRAST(task), val);
 		saa_writeb(SAA7134_CHROMA_SATURATION(task), val);
@@ -573,7 +575,8 @@ static void set_size(struct saa7134_dev *dev, int task,
 		prescale = 1;
 	xscale = 1024 * dev->crop_current.width / prescale / width;
 	yscale = 512 * div * dev->crop_current.height / height;
-	dprintk("prescale=%d xscale=%d yscale=%d\n",prescale,xscale,yscale);
+	video_dbg("prescale=%d xscale=%d yscale=%d\n",
+		  prescale, xscale, yscale);
 	set_h_prescale(dev,task,prescale);
 	saa_writeb(SAA7134_H_SCALE_INC1(task),      xscale &  0xff);
 	saa_writeb(SAA7134_H_SCALE_INC2(task),      xscale >> 8);
@@ -615,7 +618,7 @@ static void set_cliplist(struct saa7134_dev *dev, int reg,
 		saa_writeb(reg + 0, winbits);
 		saa_writeb(reg + 2, cl[i].position & 0xff);
 		saa_writeb(reg + 3, cl[i].position >> 8);
-		dprintk("clip: %s winbits=%02x pos=%d\n",
+		video_dbg("clip: %s winbits=%02x pos=%d\n",
 			name,winbits,cl[i].position);
 		reg += 8;
 	}
@@ -730,7 +733,7 @@ static int start_preview(struct saa7134_dev *dev)
 		return err;
 
 	dev->ovfield = dev->win.field;
-	dprintk("start_preview %dx%d+%d+%d %s field=%s\n",
+	video_dbg("start_preview %dx%d+%d+%d %s field=%s\n",
 		dev->win.w.width, dev->win.w.height,
 		dev->win.w.left, dev->win.w.top,
 		dev->ovfmt->name, v4l2_field_names[dev->ovfield]);
@@ -788,11 +791,11 @@ static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *buf,
 			   struct saa7134_buf *next)
 {
-	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_queue->drv_priv;
+	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_buf.vb2_queue->drv_priv;
 	unsigned long base,control,bpl;
 	unsigned long bpl_uv,lines_uv,base2,base3,tmp; /* planar */
 
-	dprintk("buffer_activate buf=%p\n",buf);
+	video_dbg("buffer_activate buf=%p\n", buf);
 	buf->top_seen = 0;
 
 	set_size(dev, TASK_A, dev->width, dev->height,
@@ -837,7 +840,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 		base3    = base2 + bpl_uv * lines_uv;
 		if (dev->fmt->uvswap)
 			tmp = base2, base2 = base3, base3 = tmp;
-		dprintk("uv: bpl=%ld lines=%ld base2/3=%ld/%ld\n",
+		video_dbg("uv: bpl=%ld lines=%ld base2/3=%ld/%ld\n",
 			bpl_uv,lines_uv,base2,base3);
 		if (V4L2_FIELD_HAS_BOTH(dev->field)) {
 			/* interlaced */
@@ -869,7 +872,8 @@ static int buffer_activate(struct saa7134_dev *dev,
 static int buffer_init(struct vb2_buffer *vb2)
 {
 	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
-	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2);
+	struct saa7134_buf *buf = container_of(vbuf, struct saa7134_buf, vb2);
 
 	dmaq->curr = NULL;
 	buf->activate = buffer_activate;
@@ -880,8 +884,9 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 {
 	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
-	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2);
+	struct saa7134_buf *buf = container_of(vbuf, struct saa7134_buf, vb2);
+	struct sg_table *dma = vb2_dma_sg_plane_desc(vb2, 0);
 	unsigned int size;
 
 	if (dma->sgl->offset) {
@@ -893,13 +898,13 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 		return -EINVAL;
 
 	vb2_set_plane_payload(vb2, 0, size);
-	vb2->v4l2_buf.field = dev->field;
+	vbuf->field = dev->field;
 
 	return saa7134_pgtable_build(dev->pci, &dmaq->pt, dma->sgl, dma->nents,
 				    saa7134_buffer_startpage(buf));
 }
 
-static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *q, const void *parg,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -929,7 +934,8 @@ void saa7134_vb2_buffer_queue(struct vb2_buffer *vb)
 {
 	struct saa7134_dmaqueue *dmaq = vb->vb2_queue->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb, struct saa7134_buf, vb2);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct saa7134_buf *buf = container_of(vbuf, struct saa7134_buf, vb2);
 
 	saa7134_buffer_queue(dev, dmaq, buf);
 }
@@ -950,10 +956,12 @@ int saa7134_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 		list_for_each_entry_safe(buf, tmp, &dmaq->queue, entry) {
 			list_del(&buf->entry);
-			vb2_buffer_done(&buf->vb2, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb2.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 		if (dmaq->curr) {
-			vb2_buffer_done(&dmaq->curr->vb2, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&dmaq->curr->vb2.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 			dmaq->curr = NULL;
 		}
 		return -EBUSY;
@@ -1229,7 +1237,7 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 	int i;
 
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 	f->fmt.win = dev->win;
@@ -1305,7 +1313,7 @@ static int saa7134_try_fmt_vid_overlay(struct file *file, void *priv,
 	struct saa7134_dev *dev = video_drvdata(file);
 
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 
@@ -1339,7 +1347,7 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 	unsigned long flags;
 
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 	if (f->fmt.win.clips == NULL)
@@ -1738,7 +1746,7 @@ static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 
@@ -1795,7 +1803,7 @@ static int saa7134_overlay(struct file *file, void *priv, unsigned int on)
 
 	if (on) {
 		if (saa7134_no_overlay > 0) {
-			dprintk("no_overlay\n");
+			video_dbg("no_overlay\n");
 			return -EINVAL;
 		}
 
@@ -2184,7 +2192,7 @@ void saa7134_irq_video_signalchange(struct saa7134_dev *dev)
 
 	st1 = saa_readb(SAA7134_STATUS_VIDEO1);
 	st2 = saa_readb(SAA7134_STATUS_VIDEO2);
-	dprintk("DCSDT: pll: %s, sync: %s, norm: %s\n",
+	video_dbg("DCSDT: pll: %s, sync: %s, norm: %s\n",
 		(st1 & 0x40) ? "not locked" : "locked",
 		(st2 & 0x40) ? "no"         : "yes",
 		st[st1 & 0x03]);

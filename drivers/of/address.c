@@ -330,6 +330,12 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 		}
 		res->start = port;
 	} else {
+		if ((sizeof(resource_size_t) < 8) &&
+		    upper_32_bits(range->cpu_addr)) {
+			err = -EINVAL;
+			goto invalid_range;
+		}
+
 		res->start = range->cpu_addr;
 	}
 	res->end = res->start + range->size - 1;
@@ -479,9 +485,10 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	int rone;
 	u64 offset = OF_BAD_ADDR;
 
-	/* Normally, an absence of a "ranges" property means we are
+	/*
+	 * Normally, an absence of a "ranges" property means we are
 	 * crossing a non-translatable boundary, and thus the addresses
-	 * below the current not cannot be converted to CPU physical ones.
+	 * below the current cannot be converted to CPU physical ones.
 	 * Unfortunately, while this is very clear in the spec, it's not
 	 * what Apple understood, and they do have things like /uni-n or
 	 * /ht nodes with no "ranges" property and a lot of perfectly
@@ -712,7 +719,7 @@ int __weak pci_register_io_range(phys_addr_t addr, resource_size_t size)
 	}
 
 	/* add the range to the list */
-	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	range = kzalloc(sizeof(*range), GFP_ATOMIC);
 	if (!range) {
 		err = -ENOMEM;
 		goto end_register;
@@ -765,7 +772,7 @@ unsigned long __weak pci_address_to_pio(phys_addr_t address)
 	spin_lock(&io_range_lock);
 	list_for_each_entry(res, &io_range_list, list) {
 		if (address >= res->start && address < res->start + res->size) {
-			addr = res->start - address + offset;
+			addr = address - res->start + offset;
 			break;
 		}
 		offset += res->size;
@@ -845,10 +852,10 @@ struct device_node *of_find_matching_node_by_address(struct device_node *from,
 	struct resource res;
 
 	while (dn) {
-		if (of_address_to_resource(dn, 0, &res))
-			continue;
-		if (res.start == base_address)
+		if (!of_address_to_resource(dn, 0, &res) &&
+		    res.start == base_address)
 			return dn;
+
 		dn = of_find_matching_node(dn, matches);
 	}
 

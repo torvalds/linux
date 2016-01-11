@@ -600,7 +600,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 
 	case blezl_op: /* not really i_format */
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r6;
 	case blez_op:
 		/*
@@ -635,7 +635,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 
 	case bgtzl_op:
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r6;
 	case bgtz_op:
 		/*

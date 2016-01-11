@@ -136,6 +136,9 @@ struct bond_params {
 	int packets_per_slave;
 	int tlb_dynamic_lb;
 	struct reciprocal_value reciprocal_packets_per_slave;
+	u16 ad_actor_sys_prio;
+	u16 ad_user_port_key;
+	u8 ad_actor_system[ETH_ALEN];
 };
 
 struct bond_parm_tbl {
@@ -305,6 +308,13 @@ static inline bool bond_mode_uses_primary(int mode)
 static inline bool bond_uses_primary(struct bonding *bond)
 {
 	return bond_mode_uses_primary(BOND_MODE(bond));
+}
+
+static inline struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
+{
+	struct slave *slave = rcu_dereference(bond->curr_active_slave);
+
+	return bond_uses_primary(bond) && slave ? slave->dev : NULL;
 }
 
 static inline bool bond_slave_is_up(struct slave *slave)

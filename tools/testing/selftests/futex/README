@@ -1,0 +1,62 @@
+Futex Test
+==========
+Futex Test is intended to thoroughly test the Linux kernel futex system call
+API.
+
+Functional tests shall test the documented behavior of the futex operation
+code under test. This includes checking for proper behavior under normal use,
+odd corner cases, regression tests, and abject abuse and misuse.
+
+Futextest will also provide example implementation of mutual exclusion
+primitives. These can be used as is in user applications or can serve as
+examples for system libraries. These will likely be added to either a new lib/
+directory or purely as header files under include/, I'm leaning toward the
+latter.
+
+Quick Start
+-----------
+# make
+# ./run.sh
+
+Design and Implementation Goals
+-------------------------------
+o Tests should be as self contained as is practical so as to facilitate sharing
+  the individual tests on mailing list discussions and bug reports.
+o The build system shall remain as simple as possible, avoiding any archive or
+  shared object building and linking.
+o Where possible, any helper functions or other package-wide code shall be
+  implemented in header files, avoiding the need to compile intermediate object
+  files.
+o External dependencies shall remain as minimal as possible. Currently gcc
+  and glibc are the only dependencies.
+o Tests return 0 for success and < 0 for failure.
+
+Output Formatting
+-----------------
+Test output shall be easily parsable by both human and machine. Title and
+results are printed to stdout, while intermediate ERROR or FAIL messages are
+sent to stderr. Tests shall support the -c option to print PASS, FAIL, and
+ERROR strings in color for easy visual parsing. Output shall conform to the
+following format:
+
+test_name: Description of the test
+	Arguments: arg1=val1 #units specified for clarity where appropriate
+	ERROR: Description of unexpected error
+	 FAIL: Reason for test failure
+	# FIXME: Perhaps an " INFO: informational message" option would be
+	#        useful here. Using -v to toggle it them on and off, as with -c.
+	# there may be multiple ERROR or FAIL messages
+Result: (PASS|FAIL|ERROR)
+
+Naming
+------
+o FIXME: decide on a sane test naming scheme.  Currently the tests are named
+  based on the primary futex operation they test. Eventually this will become a
+  problem as we intend to write multiple tests which collide in this namespace.
+  Perhaps something like "wait-wake-1" "wait-wake-2" is adequate, leaving the
+  detailed description in the test source and the output.
+
+Coding Style
+------------
+o The Futex Test project adheres to the coding standards set forth by Linux
+  kernel as defined in the Linux source Documentation/CodingStyle.

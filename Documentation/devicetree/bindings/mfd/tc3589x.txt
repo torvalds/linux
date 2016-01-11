@@ -55,7 +55,8 @@ Optional nodes:
  - linux,keymap: the definition can be found in
    bindings/input/matrix-keymap.txt
  - linux,no-autorepeat: do no enable autorepeat feature.
- - linux,wakeup: use any event on keypad as wakeup event.
+ - wakeup-source: use any event on keypad as wakeup event.
+		  (Legacy property supported: "linux,wakeup")
 
 Example:
 
@@ -84,7 +85,6 @@ tc35893@44 {
 		keypad,num-columns = <8>;
 		keypad,num-rows = <8>;
 		linux,no-autorepeat;
-		linux,wakeup;
 		linux,keymap = <0x0301006b
 				0x04010066
 				0x06040072
@@ -103,5 +103,6 @@ tc35893@44 {
 				0x01030039
 				0x07060069
 				0x050500d9>;
+		wakeup-source;
 	};
 };

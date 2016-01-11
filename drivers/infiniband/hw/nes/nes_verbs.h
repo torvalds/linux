@@ -79,6 +79,10 @@ struct nes_mr {
 	u16               pbls_used;
 	u8                mode;
 	u8                pbl_4k;
+	__le64            *pages;
+	dma_addr_t        paddr;
+	u32               max_pages;
+	u32		  npages;
 };
 
 struct nes_hw_pb {

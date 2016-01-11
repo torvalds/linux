@@ -369,7 +369,7 @@ tracesys_exit:
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 	ldo	TASK_REGS(%r1),%r26
-	bl	do_syscall_trace_exit,%r2
+	BL	do_syscall_trace_exit,%r2
 	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value now */
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
 	LDREG	TI_TASK(%r1), %r1
@@ -390,7 +390,7 @@ tracesys_sigexit:
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
-	bl	do_syscall_trace_exit,%r2
+	BL	do_syscall_trace_exit,%r2
 	ldo	TASK_REGS(%r1),%r26
 
 	ldil	L%syscall_exit_rfi,%r1
@@ -821,7 +821,7 @@ cas2_action:
 	/* 64bit CAS */
 #ifdef CONFIG_64BIT
 19:	ldd,ma	0(%sr3,%r26), %r29
-	sub,=	%r29, %r25, %r0
+	sub,*=	%r29, %r25, %r0
 	b,n	cas2_end
 20:	std,ma	%r24, 0(%sr3,%r26)
 	copy	%r0, %r28

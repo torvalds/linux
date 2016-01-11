@@ -370,10 +370,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 }
 
 /* INMIX dB values */
-static const unsigned int in_mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0,7, TLV_DB_SCALE_ITEM(-1200, 600, 0),
-};
+static const DECLARE_TLV_DB_SCALE(in_mix_tlv, -1200, 600, 0);
 
 /* Left In PGA Connections */
 static const struct snd_kcontrol_new wm8400_dapm_lin12_pga_controls[] = {
@@ -1145,7 +1142,7 @@ static int wm8400_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(power),
 						    &power[0]);
 			if (ret != 0) {
@@ -1232,7 +1229,6 @@ static int wm8400_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

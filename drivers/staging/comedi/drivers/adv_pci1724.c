@@ -54,16 +54,17 @@
  * PCI bar 2 Register I/O map (dev->iobase)
  */
 #define PCI1724_DAC_CTRL_REG		0x00
-#define PCI1724_DAC_CTRL_GX(x)		(1 << (20 + ((x) / 8)))
+#define PCI1724_DAC_CTRL_GX(x)		BIT(20 + ((x) / 8))
 #define PCI1724_DAC_CTRL_CX(x)		(((x) % 8) << 16)
-#define PCI1724_DAC_CTRL_MODE_GAIN	(1 << 14)
-#define PCI1724_DAC_CTRL_MODE_OFFSET	(2 << 14)
-#define PCI1724_DAC_CTRL_MODE_NORMAL	(3 << 14)
-#define PCI1724_DAC_CTRL_MODE_MASK	(3 << 14)
+#define PCI1724_DAC_CTRL_MODE(x)	(((x) & 0x3) << 14)
+#define PCI1724_DAC_CTRL_MODE_GAIN	PCI1724_DAC_CTRL_MODE(1)
+#define PCI1724_DAC_CTRL_MODE_OFFSET	PCI1724_DAC_CTRL_MODE(2)
+#define PCI1724_DAC_CTRL_MODE_NORMAL	PCI1724_DAC_CTRL_MODE(3)
+#define PCI1724_DAC_CTRL_MODE_MASK	PCI1724_DAC_CTRL_MODE(3)
 #define PCI1724_DAC_CTRL_DATA(x)	(((x) & 0x3fff) << 0)
 #define PCI1724_SYNC_CTRL_REG		0x04
-#define PCI1724_SYNC_CTRL_DACSTAT	(1 << 1)
-#define PCI1724_SYNC_CTRL_SYN		(1 << 0)
+#define PCI1724_SYNC_CTRL_DACSTAT	BIT(1)
+#define PCI1724_SYNC_CTRL_SYN		BIT(0)
 #define PCI1724_EEPROM_CTRL_REG		0x08
 #define PCI1724_SYNC_TRIG_REG		0x0c  /* any value works */
 #define PCI1724_BOARD_ID_REG		0x10
@@ -180,11 +181,7 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 	s->insn_write	= adv_pci1724_insn_write;
 	s->private	= (void *)PCI1724_DAC_CTRL_MODE_GAIN;
 
-	ret = comedi_alloc_subdev_readback(s);
-	if (ret)
-		return ret;
-
-	return 0;
+	return comedi_alloc_subdev_readback(s);
 }
 
 static struct comedi_driver adv_pci1724_driver = {

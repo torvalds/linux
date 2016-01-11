@@ -199,7 +199,6 @@
 #define HAS_FONTCACHE               8 
 
 /* driver flags */
-#define HAS_MTRR                    1
 #define HAS_ACCELERATION            2
 #define ALWAYS_SYNC                 4
 #define LOCKUP                      8
@@ -281,7 +280,7 @@ struct i810fb_par {
 	u32 ovract;
 	u32 cur_state;
 	u32 ddc_num;
-	int mtrr_reg;
+	int wc_cookie;
 	u16 bltcntl;
 	u8 interlace;
 };

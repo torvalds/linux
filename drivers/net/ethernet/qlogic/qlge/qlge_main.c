@@ -3871,9 +3871,6 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 		return status;
 	}
 
-	end_jiffies = jiffies +
-		max((unsigned long)1, usecs_to_jiffies(30));
-
 	/* Check if bit is set then skip the mailbox command and
 	 * clear the bit, else we are in normal reset process.
 	 */
@@ -3888,6 +3885,7 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
+	end_jiffies = jiffies + usecs_to_jiffies(30);
 	do {
 		value = ql_read32(qdev, RST_FO);
 		if ((value & RST_FO_FR) == 0)
@@ -4213,8 +4211,9 @@ static int ql_change_rx_buffers(struct ql_adapter *qdev)
 
 	/* Wait for an outstanding reset to complete. */
 	if (!test_bit(QL_ADAPTER_UP, &qdev->flags)) {
-		int i = 3;
-		while (i-- && !test_bit(QL_ADAPTER_UP, &qdev->flags)) {
+		int i = 4;
+
+		while (--i && !test_bit(QL_ADAPTER_UP, &qdev->flags)) {
 			netif_err(qdev, ifup, qdev->ndev,
 				  "Waiting for adapter UP...\n");
 			ssleep(1);

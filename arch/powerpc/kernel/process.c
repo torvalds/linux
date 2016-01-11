@@ -86,7 +86,7 @@ void giveup_fpu_maybe_transactional(struct task_struct *tsk)
 	if (tsk == current && tsk->thread.regs &&
 	    MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
 	    !test_thread_flag(TIF_RESTORE_TM)) {
-		tsk->thread.tm_orig_msr = tsk->thread.regs->msr;
+		tsk->thread.ckpt_regs.msr = tsk->thread.regs->msr;
 		set_thread_flag(TIF_RESTORE_TM);
 	}
 
@@ -104,7 +104,7 @@ void giveup_altivec_maybe_transactional(struct task_struct *tsk)
 	if (tsk == current && tsk->thread.regs &&
 	    MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
 	    !test_thread_flag(TIF_RESTORE_TM)) {
-		tsk->thread.tm_orig_msr = tsk->thread.regs->msr;
+		tsk->thread.ckpt_regs.msr = tsk->thread.regs->msr;
 		set_thread_flag(TIF_RESTORE_TM);
 	}
 
@@ -204,8 +204,6 @@ EXPORT_SYMBOL_GPL(flush_altivec_to_thread);
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_VSX
-#if 0
-/* not currently used, but some crazy RAID module might want to later */
 void enable_kernel_vsx(void)
 {
 	WARN_ON(preemptible());
@@ -220,7 +218,6 @@ void enable_kernel_vsx(void)
 #endif /* CONFIG_SMP */
 }
 EXPORT_SYMBOL(enable_kernel_vsx);
-#endif
 
 void giveup_vsx(struct task_struct *tsk)
 {
@@ -543,7 +540,7 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	 * the thread will no longer be transactional.
 	 */
 	if (test_ti_thread_flag(ti, TIF_RESTORE_TM)) {
-		msr_diff = thr->tm_orig_msr & ~thr->regs->msr;
+		msr_diff = thr->ckpt_regs.msr & ~thr->regs->msr;
 		if (msr_diff & MSR_FP)
 			memcpy(&thr->transact_fp, &thr->fp_state,
 			       sizeof(struct thread_fp_state));
@@ -553,6 +550,24 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 		clear_ti_thread_flag(ti, TIF_RESTORE_TM);
 		msr_diff &= MSR_FP | MSR_VEC | MSR_VSX | MSR_FE0 | MSR_FE1;
 	}
+
+	/*
+	 * Use the current MSR TM suspended bit to track if we have
+	 * checkpointed state outstanding.
+	 * On signal delivery, we'd normally reclaim the checkpointed
+	 * state to obtain stack pointer (see:get_tm_stackpointer()).
+	 * This will then directly return to userspace without going
+	 * through __switch_to(). However, if the stack frame is bad,
+	 * we need to exit this thread which calls __switch_to() which
+	 * will again attempt to reclaim the already saved tm state.
+	 * Hence we need to check that we've not already reclaimed
+	 * this state.
+	 * We do this using the current MSR, rather tracking it in
+	 * some specific thread_struct bit, as it has the additional
+	 * benifit of checking for a potential TM bad thing exception.
+	 */
+	if (!MSR_TM_SUSPENDED(mfmsr()))
+		return;
 
 	tm_reclaim(thr, thr->regs->msr, cause);
 
@@ -594,10 +609,10 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 	/* Stash the original thread MSR, as giveup_fpu et al will
 	 * modify it.  We hold onto it to see whether the task used
 	 * FP & vector regs.  If the TIF_RESTORE_TM flag is set,
-	 * tm_orig_msr is already set.
+	 * ckpt_regs.msr is already set.
 	 */
 	if (!test_ti_thread_flag(task_thread_info(tsk), TIF_RESTORE_TM))
-		thr->tm_orig_msr = thr->regs->msr;
+		thr->ckpt_regs.msr = thr->regs->msr;
 
 	TM_DEBUG("--- tm_reclaim on pid %d (NIP=%lx, "
 		 "ccr=%lx, msr=%lx, trap=%lx)\n",
@@ -666,7 +681,7 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 		tm_restore_sprs(&new->thread);
 		return;
 	}
-	msr = new->thread.tm_orig_msr;
+	msr = new->thread.ckpt_regs.msr;
 	/* Recheckpoint to restore original checkpointed register state. */
 	TM_DEBUG("*** tm_recheckpoint of pid %d "
 		 "(new->msr 0x%lx, new->origmsr 0x%lx)\n",
@@ -726,7 +741,7 @@ void restore_tm_state(struct pt_regs *regs)
 	if (!MSR_TM_ACTIVE(regs->msr))
 		return;
 
-	msr_diff = current->thread.tm_orig_msr & ~regs->msr;
+	msr_diff = current->thread.ckpt_regs.msr & ~regs->msr;
 	msr_diff &= MSR_FP | MSR_VEC | MSR_VSX;
 	if (msr_diff & MSR_FP) {
 		fp_enable();
@@ -1112,7 +1127,6 @@ static void setup_ksp_vsid(struct task_struct *p, unsigned long sp)
 /*
  * Copy a thread..
  */
-extern unsigned long dscr_default; /* defined in arch/powerpc/kernel/sysfs.c */
 
 /*
  * Copy architecture-specific thread state

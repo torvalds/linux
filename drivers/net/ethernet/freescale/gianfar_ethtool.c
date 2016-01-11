@@ -61,6 +61,8 @@ static void gfar_gdrvinfo(struct net_device *dev,
 			  struct ethtool_drvinfo *drvinfo);
 
 static const char stat_gstrings[][ETH_GSTRING_LEN] = {
+	/* extra stats */
+	"rx-allocation-errors",
 	"rx-large-frame-errors",
 	"rx-short-frame-errors",
 	"rx-non-octet-errors",
@@ -72,8 +74,8 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"ethernet-bus-error",
 	"tx-babbling-errors",
 	"tx-underrun-errors",
-	"rx-skb-missing-errors",
 	"tx-timeout-errors",
+	/* rmon stats */
 	"tx-rx-64-frames",
 	"tx-rx-65-127-frames",
 	"tx-rx-128-255-frames",
@@ -180,8 +182,6 @@ static void gfar_gdrvinfo(struct net_device *dev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
-	drvinfo->regdump_len = 0;
-	drvinfo->eedump_len = 0;
 }
 
 
@@ -642,31 +642,49 @@ static void gfar_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
-		wol->supported = WAKE_MAGIC;
-		wol->wolopts = priv->wol_en ? WAKE_MAGIC : 0;
-	} else {
-		wol->supported = wol->wolopts = 0;
-	}
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (priv->wol_supported & GFAR_WOL_MAGIC)
+		wol->supported |= WAKE_MAGIC;
+
+	if (priv->wol_supported & GFAR_WOL_FILER_UCAST)
+		wol->supported |= WAKE_UCAST;
+
+	if (priv->wol_opts & GFAR_WOL_MAGIC)
+		wol->wolopts |= WAKE_MAGIC;
+
+	if (priv->wol_opts & GFAR_WOL_FILER_UCAST)
+		wol->wolopts |= WAKE_UCAST;
 }
 
 static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	unsigned long flags;
+	u16 wol_opts = 0;
+	int err;
 
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
-	    wol->wolopts != 0)
+	if (!priv->wol_supported && wol->wolopts)
 		return -EINVAL;
 
-	if (wol->wolopts & ~WAKE_MAGIC)
+	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_UCAST))
 		return -EINVAL;
 
-	device_set_wakeup_enable(&dev->dev, wol->wolopts & WAKE_MAGIC);
+	if (wol->wolopts & WAKE_MAGIC) {
+		wol_opts |= GFAR_WOL_MAGIC;
+	} else {
+		if (wol->wolopts & WAKE_UCAST)
+			wol_opts |= GFAR_WOL_FILER_UCAST;
+	}
 
-	spin_lock_irqsave(&priv->bflock, flags);
-	priv->wol_en =  !!device_may_wakeup(&dev->dev);
-	spin_unlock_irqrestore(&priv->bflock, flags);
+	wol_opts &= priv->wol_supported;
+	priv->wol_opts = 0;
+
+	err = device_set_wakeup_enable(priv->dev, wol_opts);
+	if (err)
+		return err;
+
+	priv->wol_opts = wol_opts;
 
 	return 0;
 }
@@ -677,14 +695,14 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	u32 fcr = 0x0, fpr = FPR_FILER_MASK;
 
 	if (ethflow & RXH_L2DA) {
-		fcr = RQFCR_PID_DAH |RQFCR_CMP_NOMATCH |
+		fcr = RQFCR_PID_DAH | RQFCR_CMP_NOMATCH |
 		      RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 
-		fcr = RQFCR_PID_DAL | RQFCR_AND | RQFCR_CMP_NOMATCH |
+		fcr = RQFCR_PID_DAL | RQFCR_CMP_NOMATCH |
 		      RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -901,27 +919,6 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 	 */
 	gfar_write(&regs->rbifx, 0xC0C1C2C3);
 	return 0;
-}
-
-static int gfar_comp_asc(const void *a, const void *b)
-{
-	return memcmp(a, b, 4);
-}
-
-static int gfar_comp_desc(const void *a, const void *b)
-{
-	return -memcmp(a, b, 4);
-}
-
-static void gfar_swap(void *a, void *b, int size)
-{
-	u32 *_a = a;
-	u32 *_b = b;
-
-	swap(_a[0], _b[0]);
-	swap(_a[1], _b[1]);
-	swap(_a[2], _b[2]);
-	swap(_a[3], _b[3]);
 }
 
 /* Write a mask to filer cache */
@@ -1273,310 +1270,6 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 	return 0;
 }
 
-/* Copy size filer entries */
-static void gfar_copy_filer_entries(struct gfar_filer_entry dst[0],
-				    struct gfar_filer_entry src[0], s32 size)
-{
-	while (size > 0) {
-		size--;
-		dst[size].ctrl = src[size].ctrl;
-		dst[size].prop = src[size].prop;
-	}
-}
-
-/* Delete the contents of the filer-table between start and end
- * and collapse them
- */
-static int gfar_trim_filer_entries(u32 begin, u32 end, struct filer_table *tab)
-{
-	int length;
-
-	if (end > MAX_FILER_CACHE_IDX || end < begin)
-		return -EINVAL;
-
-	end++;
-	length = end - begin;
-
-	/* Copy */
-	while (end < tab->index) {
-		tab->fe[begin].ctrl = tab->fe[end].ctrl;
-		tab->fe[begin++].prop = tab->fe[end++].prop;
-
-	}
-	/* Fill up with don't cares */
-	while (begin < tab->index) {
-		tab->fe[begin].ctrl = 0x60;
-		tab->fe[begin].prop = 0xFFFFFFFF;
-		begin++;
-	}
-
-	tab->index -= length;
-	return 0;
-}
-
-/* Make space on the wanted location */
-static int gfar_expand_filer_entries(u32 begin, u32 length,
-				     struct filer_table *tab)
-{
-	if (length == 0 || length + tab->index > MAX_FILER_CACHE_IDX ||
-	    begin > MAX_FILER_CACHE_IDX)
-		return -EINVAL;
-
-	gfar_copy_filer_entries(&(tab->fe[begin + length]), &(tab->fe[begin]),
-				tab->index - length + 1);
-
-	tab->index += length;
-	return 0;
-}
-
-static int gfar_get_next_cluster_start(int start, struct filer_table *tab)
-{
-	for (; (start < tab->index) && (start < MAX_FILER_CACHE_IDX - 1);
-	     start++) {
-		if ((tab->fe[start].ctrl & (RQFCR_AND | RQFCR_CLE)) ==
-		    (RQFCR_AND | RQFCR_CLE))
-			return start;
-	}
-	return -1;
-}
-
-static int gfar_get_next_cluster_end(int start, struct filer_table *tab)
-{
-	for (; (start < tab->index) && (start < MAX_FILER_CACHE_IDX - 1);
-	     start++) {
-		if ((tab->fe[start].ctrl & (RQFCR_AND | RQFCR_CLE)) ==
-		    (RQFCR_CLE))
-			return start;
-	}
-	return -1;
-}
-
-/* Uses hardwares clustering option to reduce
- * the number of filer table entries
- */
-static void gfar_cluster_filer(struct filer_table *tab)
-{
-	s32 i = -1, j, iend, jend;
-
-	while ((i = gfar_get_next_cluster_start(++i, tab)) != -1) {
-		j = i;
-		while ((j = gfar_get_next_cluster_start(++j, tab)) != -1) {
-			/* The cluster entries self and the previous one
-			 * (a mask) must be identical!
-			 */
-			if (tab->fe[i].ctrl != tab->fe[j].ctrl)
-				break;
-			if (tab->fe[i].prop != tab->fe[j].prop)
-				break;
-			if (tab->fe[i - 1].ctrl != tab->fe[j - 1].ctrl)
-				break;
-			if (tab->fe[i - 1].prop != tab->fe[j - 1].prop)
-				break;
-			iend = gfar_get_next_cluster_end(i, tab);
-			jend = gfar_get_next_cluster_end(j, tab);
-			if (jend == -1 || iend == -1)
-				break;
-
-			/* First we make some free space, where our cluster
-			 * element should be. Then we copy it there and finally
-			 * delete in from its old location.
-			 */
-			if (gfar_expand_filer_entries(iend, (jend - j), tab) ==
-			    -EINVAL)
-				break;
-
-			gfar_copy_filer_entries(&(tab->fe[iend + 1]),
-						&(tab->fe[jend + 1]), jend - j);
-
-			if (gfar_trim_filer_entries(jend - 1,
-						    jend + (jend - j),
-						    tab) == -EINVAL)
-				return;
-
-			/* Mask out cluster bit */
-			tab->fe[iend].ctrl &= ~(RQFCR_CLE);
-		}
-	}
-}
-
-/* Swaps the masked bits of a1<>a2 and b1<>b2 */
-static void gfar_swap_bits(struct gfar_filer_entry *a1,
-			   struct gfar_filer_entry *a2,
-			   struct gfar_filer_entry *b1,
-			   struct gfar_filer_entry *b2, u32 mask)
-{
-	u32 temp[4];
-	temp[0] = a1->ctrl & mask;
-	temp[1] = a2->ctrl & mask;
-	temp[2] = b1->ctrl & mask;
-	temp[3] = b2->ctrl & mask;
-
-	a1->ctrl &= ~mask;
-	a2->ctrl &= ~mask;
-	b1->ctrl &= ~mask;
-	b2->ctrl &= ~mask;
-
-	a1->ctrl |= temp[1];
-	a2->ctrl |= temp[0];
-	b1->ctrl |= temp[3];
-	b2->ctrl |= temp[2];
-}
-
-/* Generate a list consisting of masks values with their start and
- * end of validity and block as indicator for parts belonging
- * together (glued by ANDs) in mask_table
- */
-static u32 gfar_generate_mask_table(struct gfar_mask_entry *mask_table,
-				    struct filer_table *tab)
-{
-	u32 i, and_index = 0, block_index = 1;
-
-	for (i = 0; i < tab->index; i++) {
-
-		/* LSByte of control = 0 sets a mask */
-		if (!(tab->fe[i].ctrl & 0xF)) {
-			mask_table[and_index].mask = tab->fe[i].prop;
-			mask_table[and_index].start = i;
-			mask_table[and_index].block = block_index;
-			if (and_index >= 1)
-				mask_table[and_index - 1].end = i - 1;
-			and_index++;
-		}
-		/* cluster starts and ends will be separated because they should
-		 * hold their position
-		 */
-		if (tab->fe[i].ctrl & RQFCR_CLE)
-			block_index++;
-		/* A not set AND indicates the end of a depended block */
-		if (!(tab->fe[i].ctrl & RQFCR_AND))
-			block_index++;
-	}
-
-	mask_table[and_index - 1].end = i - 1;
-
-	return and_index;
-}
-
-/* Sorts the entries of mask_table by the values of the masks.
- * Important: The 0xFF80 flags of the first and last entry of a
- * block must hold their position (which queue, CLusterEnable, ReJEct,
- * AND)
- */
-static void gfar_sort_mask_table(struct gfar_mask_entry *mask_table,
-				 struct filer_table *temp_table, u32 and_index)
-{
-	/* Pointer to compare function (_asc or _desc) */
-	int (*gfar_comp)(const void *, const void *);
-
-	u32 i, size = 0, start = 0, prev = 1;
-	u32 old_first, old_last, new_first, new_last;
-
-	gfar_comp = &gfar_comp_desc;
-
-	for (i = 0; i < and_index; i++) {
-		if (prev != mask_table[i].block) {
-			old_first = mask_table[start].start + 1;
-			old_last = mask_table[i - 1].end;
-			sort(mask_table + start, size,
-			     sizeof(struct gfar_mask_entry),
-			     gfar_comp, &gfar_swap);
-
-			/* Toggle order for every block. This makes the
-			 * thing more efficient!
-			 */
-			if (gfar_comp == gfar_comp_desc)
-				gfar_comp = &gfar_comp_asc;
-			else
-				gfar_comp = &gfar_comp_desc;
-
-			new_first = mask_table[start].start + 1;
-			new_last = mask_table[i - 1].end;
-
-			gfar_swap_bits(&temp_table->fe[new_first],
-				       &temp_table->fe[old_first],
-				       &temp_table->fe[new_last],
-				       &temp_table->fe[old_last],
-				       RQFCR_QUEUE | RQFCR_CLE |
-				       RQFCR_RJE | RQFCR_AND);
-
-			start = i;
-			size = 0;
-		}
-		size++;
-		prev = mask_table[i].block;
-	}
-}
-
-/* Reduces the number of masks needed in the filer table to save entries
- * This is done by sorting the masks of a depended block. A depended block is
- * identified by gluing ANDs or CLE. The sorting order toggles after every
- * block. Of course entries in scope of a mask must change their location with
- * it.
- */
-static int gfar_optimize_filer_masks(struct filer_table *tab)
-{
-	struct filer_table *temp_table;
-	struct gfar_mask_entry *mask_table;
-
-	u32 and_index = 0, previous_mask = 0, i = 0, j = 0, size = 0;
-	s32 ret = 0;
-
-	/* We need a copy of the filer table because
-	 * we want to change its order
-	 */
-	temp_table = kmemdup(tab, sizeof(*temp_table), GFP_KERNEL);
-	if (temp_table == NULL)
-		return -ENOMEM;
-
-	mask_table = kcalloc(MAX_FILER_CACHE_IDX / 2 + 1,
-			     sizeof(struct gfar_mask_entry), GFP_KERNEL);
-
-	if (mask_table == NULL) {
-		ret = -ENOMEM;
-		goto end;
-	}
-
-	and_index = gfar_generate_mask_table(mask_table, tab);
-
-	gfar_sort_mask_table(mask_table, temp_table, and_index);
-
-	/* Now we can copy the data from our duplicated filer table to
-	 * the real one in the order the mask table says
-	 */
-	for (i = 0; i < and_index; i++) {
-		size = mask_table[i].end - mask_table[i].start + 1;
-		gfar_copy_filer_entries(&(tab->fe[j]),
-				&(temp_table->fe[mask_table[i].start]), size);
-		j += size;
-	}
-
-	/* And finally we just have to check for duplicated masks and drop the
-	 * second ones
-	 */
-	for (i = 0; i < tab->index && i < MAX_FILER_CACHE_IDX; i++) {
-		if (tab->fe[i].ctrl == 0x80) {
-			previous_mask = i++;
-			break;
-		}
-	}
-	for (; i < tab->index && i < MAX_FILER_CACHE_IDX; i++) {
-		if (tab->fe[i].ctrl == 0x80) {
-			if (tab->fe[i].prop == tab->fe[previous_mask].prop) {
-				/* Two identical ones found!
-				 * So drop the second one!
-				 */
-				gfar_trim_filer_entries(i, i, tab);
-			} else
-				/* Not identical! */
-				previous_mask = i;
-		}
-	}
-
-	kfree(mask_table);
-end:	kfree(temp_table);
-	return ret;
-}
-
 /* Write the bit-pattern from software's buffer to hardware registers */
 static int gfar_write_filer_table(struct gfar_private *priv,
 				  struct filer_table *tab)
@@ -1586,11 +1279,10 @@ static int gfar_write_filer_table(struct gfar_private *priv,
 		return -EBUSY;
 
 	/* Fill regular entries */
-	for (; i < MAX_FILER_IDX - 1 && (tab->fe[i].ctrl | tab->fe[i].prop);
-	     i++)
+	for (; i < MAX_FILER_IDX && (tab->fe[i].ctrl | tab->fe[i].prop); i++)
 		gfar_write_filer(priv, i, tab->fe[i].ctrl, tab->fe[i].prop);
 	/* Fill the rest with fall-troughs */
-	for (; i < MAX_FILER_IDX - 1; i++)
+	for (; i < MAX_FILER_IDX; i++)
 		gfar_write_filer(priv, i, 0x60, 0xFFFFFFFF);
 	/* Last entry must be default accept
 	 * because that's what people expect
@@ -1624,7 +1316,6 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 {
 	struct ethtool_flow_spec_container *j;
 	struct filer_table *tab;
-	s32 i = 0;
 	s32 ret = 0;
 
 	/* So index is set to zero, too! */
@@ -1648,17 +1339,6 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 			goto end;
 		}
 	}
-
-	i = tab->index;
-
-	/* Optimizations to save entries */
-	gfar_cluster_filer(tab);
-	gfar_optimize_filer_masks(tab);
-
-	pr_debug("\tSummary:\n"
-		 "\tData on hardware: %d\n"
-		 "\tCompression rate: %d%%\n",
-		 tab->index, 100 - (100 * tab->index) / i);
 
 	/* Write everything to hardware */
 	ret = gfar_write_filer_table(priv, tab);
@@ -1725,13 +1405,14 @@ static int gfar_add_cls(struct gfar_private *priv,
 	}
 
 process:
+	priv->rx_list.count++;
 	ret = gfar_process_filer_changes(priv);
 	if (ret)
 		goto clean_list;
-	priv->rx_list.count++;
 	return ret;
 
 clean_list:
+	priv->rx_list.count--;
 	list_del(&temp->list);
 clean_mem:
 	kfree(temp);

@@ -671,7 +671,6 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 #define ICP_DH895XCC_CAP_OFFSET     (ICP_DH895XCC_AE_OFFSET + 0x10000)
 #define LOCAL_TO_XFER_REG_OFFSET    0x800
 #define ICP_DH895XCC_EP_OFFSET      0x3a000
-#define ICP_DH895XCC_PMISC_BAR 1
 int qat_hal_init(struct adf_accel_dev *accel_dev)
 {
 	unsigned char ae;
@@ -679,21 +678,24 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_loader_handle *handle;
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *bar =
+	struct adf_bar *misc_bar =
 			&pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)];
+	struct adf_bar *sram_bar =
+			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
 
-	handle->hal_cap_g_ctl_csr_addr_v = bar->virt_addr +
+	handle->hal_cap_g_ctl_csr_addr_v = misc_bar->virt_addr +
 						ICP_DH895XCC_CAP_OFFSET;
-	handle->hal_cap_ae_xfer_csr_addr_v = bar->virt_addr +
+	handle->hal_cap_ae_xfer_csr_addr_v = misc_bar->virt_addr +
 						ICP_DH895XCC_AE_OFFSET;
-	handle->hal_ep_csr_addr_v = bar->virt_addr + ICP_DH895XCC_EP_OFFSET;
+	handle->hal_ep_csr_addr_v = misc_bar->virt_addr +
+				    ICP_DH895XCC_EP_OFFSET;
 	handle->hal_cap_ae_local_csr_addr_v =
 		handle->hal_cap_ae_xfer_csr_addr_v + LOCAL_TO_XFER_REG_OFFSET;
-
+	handle->hal_sram_addr_v = sram_bar->virt_addr;
 	handle->hal_handle = kzalloc(sizeof(*handle->hal_handle), GFP_KERNEL);
 	if (!handle->hal_handle)
 		goto out_hal_handle;
@@ -1032,7 +1034,7 @@ static int qat_hal_concat_micro_code(uint64_t *micro_inst,
 				     unsigned int inst_num, unsigned int size,
 				     unsigned int addr, unsigned int *value)
 {
-	int i, val_indx;
+	int i;
 	unsigned int cur_value;
 	const uint64_t *inst_arr;
 	int fixup_offset;
@@ -1040,8 +1042,7 @@ static int qat_hal_concat_micro_code(uint64_t *micro_inst,
 	int orig_num;
 
 	orig_num = inst_num;
-	val_indx = 0;
-	cur_value = value[val_indx++];
+	cur_value = value[0];
 	inst_arr = inst_4b;
 	usize = ARRAY_SIZE(inst_4b);
 	fixup_offset = inst_num;

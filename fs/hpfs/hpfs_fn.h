@@ -18,6 +18,8 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/blkdev.h>
 #include <asm/unaligned.h>
 
 #include "hpfs.h"
@@ -86,6 +88,10 @@ struct hpfs_sb_info {
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
 	int sb_timeshift;
 	struct rcu_head rcu;
+
+	unsigned n_hotfixes;
+	secno hotfix_from[256];
+	secno hotfix_to[256];
 };
 
 /* Four 512-byte buffers and the 2k block obtained by concatenating them */
@@ -200,6 +206,7 @@ void hpfs_free_dnode(struct super_block *, secno);
 struct dnode *hpfs_alloc_dnode(struct super_block *, secno, dnode_secno *, struct quad_buffer_head *);
 struct fnode *hpfs_alloc_fnode(struct super_block *, secno, fnode_secno *, struct buffer_head **);
 struct anode *hpfs_alloc_anode(struct super_block *, secno, anode_secno *, struct buffer_head **);
+int hpfs_trim_fs(struct super_block *, u64, u64, u64, unsigned *);
 
 /* anode.c */
 
@@ -214,6 +221,8 @@ void hpfs_remove_fnode(struct super_block *, fnode_secno fno);
 
 /* buffer.c */
 
+secno hpfs_search_hotfix_map(struct super_block *s, secno sec);
+unsigned hpfs_search_hotfix_map_for_range(struct super_block *s, secno sec, unsigned n);
 void hpfs_prefetch_sectors(struct super_block *, unsigned, int);
 void *hpfs_map_sector(struct super_block *, unsigned, struct buffer_head **, int);
 void *hpfs_get_sector(struct super_block *, unsigned, struct buffer_head **);
@@ -282,6 +291,7 @@ __le32 *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head 
 void hpfs_prefetch_bitmap(struct super_block *, unsigned);
 unsigned char *hpfs_load_code_page(struct super_block *, secno);
 __le32 *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
+void hpfs_load_hotfix_map(struct super_block *s, struct hpfs_spare_block *spareblock);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);
 struct anode *hpfs_map_anode(struct super_block *s, anode_secno, struct buffer_head **);
 struct dnode *hpfs_map_dnode(struct super_block *s, dnode_secno, struct quad_buffer_head *);
@@ -304,7 +314,7 @@ extern const struct address_space_operations hpfs_symlink_aops;
 
 static inline struct hpfs_inode_info *hpfs_i(struct inode *inode)
 {
-	return list_entry(inode, struct hpfs_inode_info, vfs_inode);
+	return container_of(inode, struct hpfs_inode_info, vfs_inode);
 }
 
 static inline struct hpfs_sb_info *hpfs_sb(struct super_block *sb)
@@ -318,6 +328,7 @@ __printf(2, 3)
 void hpfs_error(struct super_block *, const char *, ...);
 int hpfs_stop_cycles(struct super_block *, int, int *, int *, char *);
 unsigned hpfs_get_free_dnodes(struct super_block *);
+long hpfs_ioctl(struct file *file, unsigned cmd, unsigned long arg);
 
 /*
  * local time (HPFS) to GMT (Unix)

@@ -9,7 +9,7 @@ config VME_CA91CX42
 
 config VME_TSI148
 	tristate "Tempe"
-	depends on VIRT_TO_BUS
+	depends on HAS_DMA
 	help
 	 If you say Y here you get support for the Tundra TSI148 VME bridge
 	 chip.

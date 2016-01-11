@@ -1052,7 +1052,7 @@ static void set_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 				tmp = m66592_read(m66592, M66592_INTSTS0) &
 								M66592_CTSQ;
 				udelay(1);
-			} while (tmp != M66592_CS_IDST || timeout-- > 0);
+			} while (tmp != M66592_CS_IDST && timeout-- > 0);
 
 			if (tmp == M66592_CS_IDST)
 				m66592_bset(m66592,
@@ -1528,7 +1528,7 @@ static const struct usb_gadget_ops m66592_gadget_ops = {
 	.pullup			= m66592_pullup,
 };
 
-static int __exit m66592_remove(struct platform_device *pdev)
+static int m66592_remove(struct platform_device *pdev)
 {
 	struct m66592		*m66592 = platform_get_drvdata(pdev);
 
@@ -1644,6 +1644,17 @@ static int m66592_probe(struct platform_device *pdev)
 		ep->ep.name = m66592_ep_name[i];
 		ep->ep.ops = &m66592_ep_ops;
 		usb_ep_set_maxpacket_limit(&ep->ep, 512);
+
+		if (i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 	}
 	usb_ep_set_maxpacket_limit(&m66592->ep[0].ep, 64);
 	m66592->ep[0].pipenum = 0;
@@ -1695,7 +1706,7 @@ clean_up:
 
 /*-------------------------------------------------------------------------*/
 static struct platform_driver m66592_driver = {
-	.remove =	__exit_p(m66592_remove),
+	.remove =	m66592_remove,
 	.driver		= {
 		.name =	(char *) udc_name,
 	},

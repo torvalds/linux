@@ -939,7 +939,6 @@ MODULE_DEVICE_TABLE(i2c,tas_i2c_id);
 static struct i2c_driver tas_driver = {
 	.driver = {
 		.name = "aoa_codec_tas",
-		.owner = THIS_MODULE,
 	},
 	.probe = tas_i2c_probe,
 	.remove = tas_i2c_remove,

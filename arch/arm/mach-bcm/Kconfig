@@ -14,7 +14,7 @@ config ARCH_BCM_IPROC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ARM_GLOBAL_TIMER
-
+	select COMMON_CLK_IPROC
 	select CLKSRC_MMIO
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
@@ -34,6 +34,20 @@ config ARCH_BCM_CYGNUS
 	  which includes the following variants:
 	  BCM11300, BCM11320, BCM11350, BCM11360,
 	  BCM58300, BCM58302, BCM58303, BCM58305.
+
+config ARCH_BCM_NSP
+	bool "Broadcom Northstar Plus SoC Support" if ARCH_MULTI_V7
+	select ARCH_BCM_IPROC
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	help
+	  Support for Broadcom Northstar Plus SoC.
+	  Broadcom Northstar Plus family of SoCs are used for switching control
+	  and management applications as well as residential router/gateway
+	  applications. The SoC features dual core Cortex A9 ARM CPUs,
+	  integrating several peripheral interfaces including multiple Gigabit
+	  Ethernet PHYs, DDR3 memory, PCIE Gen-2, USB 2.0 and USB 3.0, serial and
+	  NAND flash, SATA and several other IO controllers.
 
 config ARCH_BCM_5301X
 	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
@@ -140,10 +154,14 @@ config ARCH_BCM_63XX
 config ARCH_BRCMSTB
 	bool "Broadcom BCM7XXX based boards" if ARCH_MULTI_V7
 	select ARM_GIC
+	select ARM_ERRATA_798181 if SMP
 	select HAVE_ARM_ARCH_TIMER
 	select BRCMSTB_GISB_ARB
 	select BRCMSTB_L2_IRQ
 	select BCM7120_L2_IRQ
+	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select SOC_BRCMSTB
 	help
 	  Say Y if you intend to run the kernel on a Broadcom ARM-based STB
 	  chipset.

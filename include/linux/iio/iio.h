@@ -32,6 +32,7 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW,
 	IIO_CHAN_INFO_AVERAGE_RAW,
 	IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY,
+	IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY,
 	IIO_CHAN_INFO_SAMP_FREQ,
 	IIO_CHAN_INFO_FREQUENCY,
 	IIO_CHAN_INFO_PHASE,
@@ -43,6 +44,8 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_CALIBWEIGHT,
 	IIO_CHAN_INFO_DEBOUNCE_COUNT,
 	IIO_CHAN_INFO_DEBOUNCE_TIME,
+	IIO_CHAN_INFO_CALIBEMISSIVITY,
+	IIO_CHAN_INFO_OVERSAMPLING_RATIO,
 };
 
 enum iio_shared_by {
@@ -291,6 +294,7 @@ static inline s64 iio_get_time_ns(void)
 #define INDIO_BUFFER_TRIGGERED		0x02
 #define INDIO_BUFFER_SOFTWARE		0x04
 #define INDIO_BUFFER_HARDWARE		0x08
+#define INDIO_EVENT_TRIGGERED		0x10
 
 #define INDIO_ALL_BUFFER_MODES					\
 	(INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE | INDIO_BUFFER_SOFTWARE)
@@ -454,6 +458,7 @@ struct iio_buffer_setup_ops {
  * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
+ * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of channels specified in @channels.
  * @channel_attr_list:	[INTERN] keep track of automatically created channel
@@ -492,6 +497,7 @@ struct iio_dev {
 	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
+	struct iio_poll_func		*pollfunc_event;
 
 	struct iio_chan_spec const	*channels;
 	int				num_channels;
@@ -642,11 +648,28 @@ int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
 #define IIO_DEGREE_TO_RAD(deg) (((deg) * 314159ULL + 9000000ULL) / 18000000ULL)
 
 /**
+ * IIO_RAD_TO_DEGREE() - Convert rad to degree
+ * @rad: A value in rad
+ *
+ * Returns the given value converted from rad to degree
+ */
+#define IIO_RAD_TO_DEGREE(rad) \
+	(((rad) * 18000000ULL + 314159ULL / 2) / 314159ULL)
+
+/**
  * IIO_G_TO_M_S_2() - Convert g to meter / second**2
  * @g: A value in g
  *
  * Returns the given value converted from g to meter / second**2
  */
 #define IIO_G_TO_M_S_2(g) ((g) * 980665ULL / 100000ULL)
+
+/**
+ * IIO_M_S_2_TO_G() - Convert meter / second**2 to g
+ * @ms2: A value in meter / second**2
+ *
+ * Returns the given value converted from meter / second**2 to g
+ */
+#define IIO_M_S_2_TO_G(ms2) (((ms2) * 100000ULL + 980665ULL / 2) / 980665ULL)
 
 #endif /* _INDUSTRIAL_IO_H_ */

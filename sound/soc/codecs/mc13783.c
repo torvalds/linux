@@ -623,14 +623,14 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 				AUDIO_SSI_SEL, 0);
 	else
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_CODEC,
-				0, AUDIO_SSI_SEL);
+				AUDIO_SSI_SEL, AUDIO_SSI_SEL);
 
 	if (priv->dac_ssi_port == MC13783_SSI1_PORT)
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_DAC,
 				AUDIO_SSI_SEL, 0);
 	else
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_DAC,
-				0, AUDIO_SSI_SEL);
+				AUDIO_SSI_SEL, AUDIO_SSI_SEL);
 
 	return 0;
 }
@@ -650,14 +650,14 @@ static int mc13783_remove(struct snd_soc_codec *codec)
 #define MC13783_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops mc13783_ops_dac = {
+static const struct snd_soc_dai_ops mc13783_ops_dac = {
 	.hw_params	= mc13783_pcm_hw_params_dac,
 	.set_fmt	= mc13783_set_fmt_async,
 	.set_sysclk	= mc13783_set_sysclk_dac,
 	.set_tdm_slot	= mc13783_set_tdm_slot_dac,
 };
 
-static struct snd_soc_dai_ops mc13783_ops_codec = {
+static const struct snd_soc_dai_ops mc13783_ops_codec = {
 	.hw_params	= mc13783_pcm_hw_params_codec,
 	.set_fmt	= mc13783_set_fmt_async,
 	.set_sysclk	= mc13783_set_sysclk_codec,
@@ -698,7 +698,7 @@ static struct snd_soc_dai_driver mc13783_dai_async[] = {
 	},
 };
 
-static struct snd_soc_dai_ops mc13783_ops_sync = {
+static const struct snd_soc_dai_ops mc13783_ops_sync = {
 	.hw_params	= mc13783_pcm_hw_params_sync,
 	.set_fmt	= mc13783_set_fmt_sync,
 	.set_sysclk	= mc13783_set_sysclk_sync,

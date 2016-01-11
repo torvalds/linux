@@ -154,7 +154,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
@@ -316,10 +316,13 @@
 };
 
 &usdhc3 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	cd-gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
+	no-1-8-v; /* firmware will remove if board revision supports */
 	status = "okay";
 };
 
@@ -380,7 +383,6 @@
 				MX6QDL_PAD_NANDF_WP_B__NAND_WP_B	0xb0b1
 				MX6QDL_PAD_NANDF_RB0__NAND_READY_B	0xb000
 				MX6QDL_PAD_NANDF_CS0__NAND_CE0_B	0xb0b1
-				MX6QDL_PAD_NANDF_CS1__NAND_CE1_B	0xb0b1
 				MX6QDL_PAD_SD4_CMD__NAND_RE_B		0xb0b1
 				MX6QDL_PAD_SD4_CLK__NAND_WE_B		0xb0b1
 				MX6QDL_PAD_NANDF_D0__NAND_DATA00	0xb0b1
@@ -469,7 +471,34 @@
 				MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x17059
 				MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x17059
 				MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x17059
-				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00	0x1b0b0 /* CD */
+				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00		0x17059 /* CD */
+				MX6QDL_PAD_NANDF_CS1__SD3_VSELECT	0x17059
+			>;
+		};
+
+		pinctrl_usdhc3_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x170b9
+				MX6QDL_PAD_SD3_CLK__SD3_CLK		0x170b9
+				MX6QDL_PAD_SD3_DAT0__SD3_DATA0		0x170b9
+				MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x170b9
+				MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x170b9
+				MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x170b9
+				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00		0x170b9 /* CD */
+				MX6QDL_PAD_NANDF_CS1__SD3_VSELECT	0x170b9
+			>;
+		};
+
+		pinctrl_usdhc3_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x170f9
+				MX6QDL_PAD_SD3_CLK__SD3_CLK		0x100f9
+				MX6QDL_PAD_SD3_DAT0__SD3_DATA0		0x170f9
+				MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x170f9
+				MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x170f9
+				MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x170f9
+				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00		0x170f9 /* CD */
+				MX6QDL_PAD_NANDF_CS1__SD3_VSELECT	0x170f9
 			>;
 		};
 	};

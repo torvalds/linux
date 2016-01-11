@@ -45,13 +45,18 @@
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/err.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
+
+#define TWL4030_USB_SEL_MADC_MCPC	(1<<3)
+#define TWL4030_USB_CARKIT_ANA_CTRL	0xBB
 
 /**
  * struct twl4030_madc_data - a container for madc info
  * @dev:		Pointer to device structure for madc
  * @lock:		Mutex protecting this data structure
+ * @regulator:		Pointer to bias regulator for madc
  * @requests:		Array of request struct corresponding to SW1, SW2 and RT
  * @use_second_irq:	IRQ selection (main or co-processor)
  * @imr:		Interrupt mask register of MADC
@@ -60,6 +65,7 @@
 struct twl4030_madc_data {
 	struct device *dev;
 	struct mutex lock;	/* mutex protecting this data structure */
+	struct regulator *usb3v1;
 	struct twl4030_madc_request requests[TWL4030_MADC_NUM_METHODS];
 	bool use_second_irq;
 	u8 imr;
@@ -235,7 +241,7 @@ static int twl4030battery_temperature(int raw_volt)
 	if (ret < 0)
 		return ret;
 
-	curr = ((val & TWL4030_BCI_ITHEN) + 1) * 10;
+	curr = ((val & TWL4030_BCI_ITHSENS) + 1) * 10;
 	/* Getting and calculating the thermistor resistance in ohms */
 	res = volt * 1000 / curr;
 	/* calculating temperature */
@@ -662,10 +668,8 @@ EXPORT_SYMBOL_GPL(twl4030_get_madc_conversion);
  *
  * @madc:	pointer to twl4030_madc_data struct
  * @chan:	can be one of the two values:
- *		TWL4030_BCI_ITHEN
- *		Enables bias current for main battery type reading
- *		TWL4030_BCI_TYPEN
- *		Enables bias current for main battery temperature sensing
+ *		0 - Enables bias current for main battery type reading
+ *		1 - Enables bias current for main battery temperature sensing
  * @on:		enable or disable chan.
  *
  * Function to enable or disable bias current for
@@ -835,12 +839,39 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				   twl4030_madc_threaded_irq_handler,
-				   IRQF_TRIGGER_RISING, "twl4030_madc", madc);
+				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				   "twl4030_madc", madc);
 	if (ret) {
 		dev_err(&pdev->dev, "could not request irq\n");
 		goto err_i2c;
 	}
 	twl4030_madc = madc;
+
+	/* Configure MADC[3:6] */
+	ret = twl_i2c_read_u8(TWL_MODULE_USB, &regval,
+			TWL4030_USB_CARKIT_ANA_CTRL);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to read reg CARKIT_ANA_CTRL  0x%X\n",
+				TWL4030_USB_CARKIT_ANA_CTRL);
+		goto err_i2c;
+	}
+	regval |= TWL4030_USB_SEL_MADC_MCPC;
+	ret = twl_i2c_write_u8(TWL_MODULE_USB, regval,
+				 TWL4030_USB_CARKIT_ANA_CTRL);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to write reg CARKIT_ANA_CTRL 0x%X\n",
+				TWL4030_USB_CARKIT_ANA_CTRL);
+		goto err_i2c;
+	}
+
+	/* Enable 3v1 bias regulator for MADC[3:6] */
+	madc->usb3v1 = devm_regulator_get(madc->dev, "vusb3v1");
+	if (IS_ERR(madc->usb3v1))
+		return -ENODEV;
+
+	ret = regulator_enable(madc->usb3v1);
+	if (ret)
+		dev_err(madc->dev, "could not enable 3v1 bias regulator\n");
 
 	ret = iio_device_register(iio_dev);
 	if (ret) {
@@ -866,6 +897,8 @@ static int twl4030_madc_remove(struct platform_device *pdev)
 
 	twl4030_madc_set_current_generator(madc, 0, 0);
 	twl4030_madc_set_power(madc, 0);
+
+	regulator_disable(madc->usb3v1);
 
 	return 0;
 }

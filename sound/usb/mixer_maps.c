@@ -341,6 +341,13 @@ static const struct usbmix_name_map scms_usb3318_map[] = {
 	{ 0 }
 };
 
+/* Bose companion 5, the dB conversion factor is 16 instead of 256 */
+static struct usbmix_dB_map bose_companion5_dB = {-5006, -6};
+static struct usbmix_name_map bose_companion5_map[] = {
+	{ 3, NULL, .dB = &bose_companion5_dB },
+	{ 0 }	/* terminator */
+};
+
 /*
  * Control map entries
  */
@@ -437,6 +444,11 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = ebox44_map,
 	},
 	{
+		/* MAYA44 USB+ */
+		.id = USB_ID(0x2573, 0x0008),
+		.map = maya44_map,
+	},
+	{
 		/* KEF X300A */
 		.id = USB_ID(0x27ac, 0x1000),
 		.map = scms_usb3318_map,
@@ -445,6 +457,11 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* Arcam rPAC */
 		.id = USB_ID(0x25c4, 0x0003),
 		.map = scms_usb3318_map,
+	},
+	{
+		/* Bose Companion 5 */
+		.id = USB_ID(0x05a7, 0x1020),
+		.map = bose_companion5_map,
 	},
 	{ 0 } /* terminator */
 };

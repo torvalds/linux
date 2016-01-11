@@ -478,8 +478,9 @@ unsigned int rtas_busy_delay_time(int status)
 
 	if (status == RTAS_BUSY) {
 		ms = 1;
-	} else if (status >= 9900 && status <= 9905) {
-		order = status - 9900;
+	} else if (status >= RTAS_EXTENDED_DELAY_MIN &&
+		   status <= RTAS_EXTENDED_DELAY_MAX) {
+		order = status - RTAS_EXTENDED_DELAY_MIN;
 		for (ms = 1; order > 0; order--)
 			ms *= 10;
 	}
@@ -584,6 +585,23 @@ int rtas_get_sensor(int sensor, int index, int *state)
 }
 EXPORT_SYMBOL(rtas_get_sensor);
 
+int rtas_get_sensor_fast(int sensor, int index, int *state)
+{
+	int token = rtas_token("get-sensor-state");
+	int rc;
+
+	if (token == RTAS_UNKNOWN_SERVICE)
+		return -ENOENT;
+
+	rc = rtas_call(token, 2, 2, state, sensor, index);
+	WARN_ON(rc == RTAS_BUSY || (rc >= RTAS_EXTENDED_DELAY_MIN &&
+				    rc <= RTAS_EXTENDED_DELAY_MAX));
+
+	if (rc < 0)
+		return rtas_error_rc(rc);
+	return rc;
+}
+
 bool rtas_indicator_present(int token, int *maxindex)
 {
 	int proplen, count, i;
@@ -641,7 +659,8 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
 
 	rc = rtas_call(token, 3, 1, NULL, indicator, index, new_value);
 
-	WARN_ON(rc == -2 || (rc >= 9900 && rc <= 9905));
+	WARN_ON(rc == RTAS_BUSY || (rc >= RTAS_EXTENDED_DELAY_MIN &&
+				    rc <= RTAS_EXTENDED_DELAY_MAX));
 
 	if (rc < 0)
 		return rtas_error_rc(rc);
@@ -1023,6 +1042,9 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	if (!rtas.entry)
+		return -EINVAL;
 
 	if (copy_from_user(&args, uargs, 3 * sizeof(u32)) != 0)
 		return -EFAULT;

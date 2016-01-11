@@ -53,15 +53,6 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
 int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
 void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
-void adf_update_ring_arb_enable(struct adf_etr_ring_data *ring);
 void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 			     uint32_t const **arb_map_config);
-int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
-void adf_exit_admin_comms(struct adf_accel_dev *accel_dev);
-int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev,
-			   uint32_t ae, void *in, void *out);
-int qat_admin_register(void);
-int qat_admin_unregister(void);
-int adf_init_arb(struct adf_accel_dev *accel_dev);
-void adf_exit_arb(struct adf_accel_dev *accel_dev);
 #endif

@@ -321,13 +321,12 @@ struct cx88_riscmem {
 /* buffer for one video frame */
 struct cx88_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head       list;
 
 	/* cx88 specific */
 	unsigned int           bpl;
 	struct cx88_riscmem    risc;
-	u32                    count;
 };
 
 struct cx88_dmaqueue {
@@ -376,9 +375,10 @@ struct cx88_core {
 
 	/* config info -- dvb */
 #if IS_ENABLED(CONFIG_VIDEO_CX88_DVB)
-	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int	(*prev_set_voltage)(struct dvb_frontend *fe,
+				    enum fe_sec_voltage voltage);
 #endif
-	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
+	void	(*gate_ctrl)(struct cx88_core *core, int open);
 
 	/* state info */
 	struct task_struct         *kthread;

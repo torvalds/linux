@@ -108,7 +108,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 		return -1;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
-		struct net *net = dev_net(par->in ? par->in : par->out);
+		struct net *net = par->net;
 		unsigned int in_mtu = tcpmss_reverse_mtu(net, skb, family);
 
 		if (dst_mtu(skb_dst(skb)) <= minlen) {
@@ -144,7 +144,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 
 			inet_proto_csum_replace2(&tcph->check, skb,
 						 htons(oldmss), htons(newmss),
-						 0);
+						 false);
 			return 0;
 		}
 	}
@@ -185,18 +185,18 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	memmove(opt + TCPOLEN_MSS, opt, len - sizeof(struct tcphdr));
 
 	inet_proto_csum_replace2(&tcph->check, skb,
-				 htons(len), htons(len + TCPOLEN_MSS), 1);
+				 htons(len), htons(len + TCPOLEN_MSS), true);
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
 	opt[3] = newmss & 0x00ff;
 
-	inet_proto_csum_replace4(&tcph->check, skb, 0, *((__be32 *)opt), 0);
+	inet_proto_csum_replace4(&tcph->check, skb, 0, *((__be32 *)opt), false);
 
 	oldval = ((__be16 *)tcph)[6];
 	tcph->doff += TCPOLEN_MSS/4;
 	inet_proto_csum_replace2(&tcph->check, skb,
-				 oldval, ((__be16 *)tcph)[6], 0);
+				 oldval, ((__be16 *)tcph)[6], false);
 	return TCPOLEN_MSS;
 }
 
@@ -277,6 +277,9 @@ static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 			"FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return -EINVAL;
 	}
+	if (par->nft_compat)
+		return 0;
+
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
 			return 0;
@@ -299,6 +302,9 @@ static int tcpmss_tg6_check(const struct xt_tgchk_param *par)
 			"FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return -EINVAL;
 	}
+	if (par->nft_compat)
+		return 0;
+
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
 			return 0;

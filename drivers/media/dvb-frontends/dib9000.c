@@ -1893,7 +1893,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	u8 index_frontend, sub_index_frontend;
-	fe_status_t stat;
+	enum fe_status stat;
 	int ret = 0;
 
 	if (state->get_frontend_internal == 0) {
@@ -2161,7 +2161,7 @@ static u16 dib9000_read_lock(struct dvb_frontend *fe)
 	return dib9000_read_word(state, 535);
 }
 
-static int dib9000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
+static int dib9000_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	u8 index_frontend;

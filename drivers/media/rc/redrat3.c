@@ -322,7 +322,7 @@ static u32 redrat3_us_to_len(u32 microsec)
 	u32 result;
 	u32 divisor;
 
-	microsec &= IR_MAX_DURATION;
+	microsec = (microsec > IR_MAX_DURATION) ? IR_MAX_DURATION : microsec;
 	divisor = (RR3_CLK_CONV_FACTOR / 1000);
 	result = (u32)(microsec * divisor) / 1000;
 
@@ -380,7 +380,8 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		if (i == 0)
 			trailer = rawir.duration;
 		/* cap the value to IR_MAX_DURATION */
-		rawir.duration &= IR_MAX_DURATION;
+		rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
+				 IR_MAX_DURATION : rawir.duration;
 
 		dev_dbg(dev, "storing %s with duration %d (i: %d)\n",
 			rawir.pulse ? "pulse" : "space", rawir.duration, i);
@@ -405,7 +406,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 }
 
 /* Util fn to send rr3 cmds */
-static u8 redrat3_send_cmd(int cmd, struct redrat3_dev *rr3)
+static int redrat3_send_cmd(int cmd, struct redrat3_dev *rr3)
 {
 	struct usb_device *udev;
 	u8 *data;
