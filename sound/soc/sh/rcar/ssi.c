@@ -403,28 +403,29 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	if (rsnd_ssi_is_parent(mod, io))
-		goto rsnd_ssi_quit_end;
+	if (!ssi->usrcnt) {
+		dev_err(dev, "%s[%d] usrcnt error\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+		return -EIO;
+	}
 
-	if (ssi->err > 0)
-		dev_warn(dev, "%s[%d] under/over flow err = %d\n",
-			 rsnd_mod_name(mod), rsnd_mod_id(mod), ssi->err);
+	if (!rsnd_ssi_is_parent(mod, io)) {
+		if (ssi->err > 0)
+			dev_warn(dev, "%s[%d] under/over flow err = %d\n",
+				 rsnd_mod_name(mod), rsnd_mod_id(mod),
+				 ssi->err);
 
-	ssi->cr_own	= 0;
-	ssi->err	= 0;
+		ssi->cr_own	= 0;
+		ssi->err	= 0;
 
-	rsnd_ssi_irq_disable(mod);
+		rsnd_ssi_irq_disable(mod);
+	}
 
-rsnd_ssi_quit_end:
 	rsnd_ssi_master_clk_stop(ssi, io);
 
 	rsnd_mod_power_off(mod);
 
 	ssi->usrcnt--;
-
-	if (ssi->usrcnt < 0)
-		dev_err(dev, "%s[%d] usrcnt error\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return 0;
 }

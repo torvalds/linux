@@ -1,5 +1,5 @@
 /*
- * definitions for PCM1792A
+ * definitions for PCM179X
  *
  * Copyright 2013 Amarula Solutions
  *
@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __PCM1792A_H__
-#define __PCM1792A_H__
+#ifndef __PCM179X_H__
+#define __PCM179X_H__
 
 #define PCM1792A_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_8000_48000 | \
 			SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | \

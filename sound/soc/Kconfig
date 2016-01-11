@@ -38,6 +38,7 @@ config SND_SOC_TOPOLOGY
 
 # All the supported SoCs
 source "sound/soc/adi/Kconfig"
+source "sound/soc/amd/Kconfig"
 source "sound/soc/atmel/Kconfig"
 source "sound/soc/au1x/Kconfig"
 source "sound/soc/bcm/Kconfig"
