@@ -55,7 +55,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)
 	unsigned long entry;
 	int flush;
 
-	BUG_ON(limit > (1UL << 53));
+	BUG_ON(limit > TASK_MAX_SIZE);
 	flush = 0;
 repeat:
 	table = crst_table_alloc(mm);
