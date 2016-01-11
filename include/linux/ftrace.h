@@ -586,6 +586,7 @@ extern int ftrace_arch_read_dyn_info(char *buf, int size);
 
 extern int skip_trace(unsigned long ip);
 extern void ftrace_module_init(struct module *mod);
+extern void ftrace_release_mod(struct module *mod);
 
 extern void ftrace_disable_daemon(void);
 extern void ftrace_enable_daemon(void);

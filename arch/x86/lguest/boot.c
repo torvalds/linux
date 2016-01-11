@@ -1414,6 +1414,7 @@ __init void lguest_init(void)
 	pv_info.kernel_rpl = 1;
 	/* Everyone except Xen runs with this set. */
 	pv_info.shared_kernel_pmd = 1;
+	pv_info.features = 0;
 
 	/*
 	 * We set up all the lguest overrides for sensitive operations.  These
