@@ -51,13 +51,13 @@ struct arche_apb_ctrl_drvdata {
 /*
  * Note that these low level api's are active high
  */
-static inline void assert_gpio(unsigned int gpio)
+static inline void deassert_reset(unsigned int gpio)
 {
 	gpio_set_value(gpio, 1);
 	msleep(500);
 }
 
-static inline void deassert_gpio(unsigned int gpio)
+static inline void assert_reset(unsigned int gpio)
 {
 	gpio_set_value(gpio, 0);
 }
@@ -224,7 +224,7 @@ static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
 		regulator_disable(apb->vio);
 
 	/* As part of exit, put APB back in reset state */
-	gpio_set_value(apb->resetn_gpio, 0);
+	assert_reset(apb->resetn_gpio);
 	apb->state = APB_STATE_OFF;
 
 	/* TODO: May have to send an event to SVC about this exit */
@@ -253,8 +253,9 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	apb->state = APB_STATE_OFF;
-
+	/* deassert reset to APB : Active-low signal */
+	deassert_reset(apb->resetn_gpio);
+	apb->state = APB_STATE_ACTIVE;
 
 	platform_set_drvdata(pdev, apb);
 
