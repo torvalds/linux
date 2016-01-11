@@ -583,6 +583,11 @@ static void audio_disable(struct usb_function *f)
 	usb_ep_disable(audio->in_ep);
 }
 
+static void audio_free_func(struct usb_function *f)
+{
+	/* no-op */
+}
+
 /*-------------------------------------------------------------------------*/
 
 static void audio_build_desc(struct audio_dev *audio)
@@ -827,6 +832,7 @@ static struct audio_dev _audio_dev = {
 		.set_alt = audio_set_alt,
 		.setup = audio_setup,
 		.disable = audio_disable,
+		.free_func = audio_free_func,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(_audio_dev.lock),
 	.idle_reqs = LIST_HEAD_INIT(_audio_dev.idle_reqs),
