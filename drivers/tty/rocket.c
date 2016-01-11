@@ -643,7 +643,6 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	info->chan = chan;
 	tty_port_init(&info->port);
 	info->port.ops = &rocket_port_ops;
-	init_completion(&info->close_wait);
 	info->flags &= ~ROCKET_MODE_MASK;
 	switch (pc104[board][line]) {
 	case 422:
@@ -1049,7 +1048,6 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
-	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
 
 #ifdef ROCKET_DEBUG_OPEN
