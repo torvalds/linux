@@ -246,13 +246,13 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 
 	/* Regulators are optional, as we may have fixed supply coming in */
 	apb->vcore = devm_regulator_get(dev, "vcore");
-	if (IS_ERR_OR_NULL(apb->vcore)) {
+	if (IS_ERR(apb->vcore)) {
 		dev_info(dev, "no core regulator found\n");
 		apb->vcore = NULL;
 	}
 
 	apb->vio = devm_regulator_get(dev, "vio");
-	if (IS_ERR_OR_NULL(apb->vio)) {
+	if (IS_ERR(apb->vio)) {
 		dev_info(dev, "no IO regulator found\n");
 		apb->vio = NULL;
 	}
