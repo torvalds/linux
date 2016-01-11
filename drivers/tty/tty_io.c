@@ -2662,13 +2662,13 @@ static int tiocgsid(struct tty_struct *tty, struct tty_struct *real_tty, pid_t _
 
 static int tiocsetd(struct tty_struct *tty, int __user *p)
 {
-	int ldisc;
+	int disc;
 	int ret;
 
-	if (get_user(ldisc, p))
+	if (get_user(disc, p))
 		return -EFAULT;
 
-	ret = tty_set_ldisc(tty, ldisc);
+	ret = tty_set_ldisc(tty, disc);
 
 	return ret;
 }

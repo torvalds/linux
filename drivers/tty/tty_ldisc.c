@@ -417,7 +417,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
 /**
  *	tty_set_termios_ldisc		-	set ldisc field
  *	@tty: tty structure
- *	@num: line discipline number
+ *	@disc: line discipline number
  *
  *	This is probably overkill for real world processors but
  *	they are not on hot paths so a little discipline won't do
@@ -430,10 +430,10 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  *	Locking: takes termios_rwsem
  */
 
-static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
+static void tty_set_termios_ldisc(struct tty_struct *tty, int disc)
 {
 	down_write(&tty->termios_rwsem);
-	tty->termios.c_line = num;
+	tty->termios.c_line = disc;
 	up_write(&tty->termios_rwsem);
 
 	tty->disc_data = NULL;
@@ -531,12 +531,12 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
  *	the close of one side of a tty/pty pair, and eventually hangup.
  */
 
-int tty_set_ldisc(struct tty_struct *tty, int ldisc)
+int tty_set_ldisc(struct tty_struct *tty, int disc)
 {
 	int retval;
 	struct tty_ldisc *old_ldisc, *new_ldisc;
 
-	new_ldisc = tty_ldisc_get(tty, ldisc);
+	new_ldisc = tty_ldisc_get(tty, disc);
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
@@ -551,7 +551,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	}
 
 	/* Check the no-op case */
-	if (tty->ldisc->ops->num == ldisc)
+	if (tty->ldisc->ops->num == disc)
 		goto out;
 
 	if (test_bit(TTY_HUPPED, &tty->flags)) {
@@ -567,7 +567,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 	/* Now set up the new line discipline. */
 	tty->ldisc = new_ldisc;
-	tty_set_termios_ldisc(tty, ldisc);
+	tty_set_termios_ldisc(tty, disc);
 
 	retval = tty_ldisc_open(tty, new_ldisc);
 	if (retval < 0) {
@@ -639,15 +639,15 @@ static void tty_reset_termios(struct tty_struct *tty)
 /**
  *	tty_ldisc_reinit	-	reinitialise the tty ldisc
  *	@tty: tty to reinit
- *	@ldisc: line discipline to reinitialize
+ *	@disc: line discipline to reinitialize
  *
  *	Switch the tty to a line discipline and leave the ldisc
  *	state closed
  */
 
-static int tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
+static int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 {
-	struct tty_ldisc *ld = tty_ldisc_get(tty, ldisc);
+	struct tty_ldisc *ld = tty_ldisc_get(tty, disc);
 
 	if (IS_ERR(ld))
 		return -1;
@@ -658,7 +658,7 @@ static int tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
 	 *	Switch the line discipline back
 	 */
 	tty->ldisc = ld;
-	tty_set_termios_ldisc(tty, ldisc);
+	tty_set_termios_ldisc(tty, disc);
 
 	return 0;
 }
