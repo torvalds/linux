@@ -1622,15 +1622,12 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * If we succeeded, wait until the port is ready.
 	 */
+err_unlock:
 	mutex_unlock(&port->mutex);
 	if (retval == 0)
 		retval = tty_port_block_til_ready(port, tty, filp);
-
 end:
 	return retval;
-err_unlock:
-	mutex_unlock(&port->mutex);
-	goto end;
 }
 
 static const char *uart_type(struct uart_port *port)
