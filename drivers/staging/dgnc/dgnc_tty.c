@@ -541,7 +541,7 @@ void dgnc_input(struct channel_t *ch)
 	 */
 	if (!tp || (tp->magic != TTY_MAGIC) ||
 	    !(ch->ch_tun.un_flags & UN_ISOPEN) ||
-	    !(tp->termios.c_cflag & CREAD) ||
+	    !C_CREAD(tp) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
 		ch->ch_r_head = tail;
 

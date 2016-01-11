@@ -1530,7 +1530,7 @@ static void dgap_input(struct channel_t *ch)
 	if ((bd->state != BOARD_READY) || !tp  ||
 	    (tp->magic != TTY_MAGIC) ||
 	    !(ch->ch_tun.un_flags & UN_ISOPEN) ||
-	    !(tp->termios.c_cflag & CREAD) ||
+	    !C_CREAD(tp) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
 		writew(head, &bs->rx_tail);
 		writeb(1, &bs->idata);

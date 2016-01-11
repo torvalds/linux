@@ -171,14 +171,12 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		 */
 		uart_change_speed(tty, state, NULL);
 
-		if (init_hw) {
-			/*
-			 * Setup the RTS and DTR signals once the
-			 * port is open and ready to respond.
-			 */
-			if (tty->termios.c_cflag & CBAUD)
-				uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
-		}
+		/*
+		 * Setup the RTS and DTR signals once the
+		 * port is open and ready to respond.
+		 */
+		if (init_hw && C_BAUD(tty))
+			uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 	}
 
 	/*
@@ -240,7 +238,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 		if (uart_console(uport) && tty)
 			uport->cons->cflag = tty->termios.c_cflag;
 
-		if (!tty || (tty->termios.c_cflag & HUPCL))
+		if (!tty || C_HUPCL(tty))
 			uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 
 		uart_port_shutdown(port);
@@ -639,7 +637,7 @@ static void uart_throttle(struct tty_struct *tty)
 
 	if (I_IXOFF(tty))
 		mask |= UPSTAT_AUTOXOFF;
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		mask |= UPSTAT_AUTORTS;
 
 	if (port->status & mask) {
@@ -662,7 +660,7 @@ static void uart_unthrottle(struct tty_struct *tty)
 
 	if (I_IXOFF(tty))
 		mask |= UPSTAT_AUTOXOFF;
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		mask |= UPSTAT_AUTORTS;
 
 	if (port->status & mask) {
