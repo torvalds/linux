@@ -2235,8 +2235,11 @@ static int isp_of_parse_node(struct device *dev, struct device_node *node,
 	struct isp_bus_cfg *buscfg = &isd->bus;
 	struct v4l2_of_endpoint vep;
 	unsigned int i;
+	int ret;
 
-	v4l2_of_parse_endpoint(node, &vep);
+	ret = v4l2_of_parse_endpoint(node, &vep);
+	if (ret)
+		return ret;
 
 	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
 		vep.base.port);
