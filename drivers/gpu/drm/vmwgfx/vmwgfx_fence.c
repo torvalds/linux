@@ -1025,38 +1025,26 @@ static int vmw_event_fence_action_create(struct drm_file *file_priv,
 	struct vmw_event_fence_pending *event;
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	struct drm_device *dev = fman->dev_priv->dev;
-	unsigned long irq_flags;
 	int ret;
-
-	spin_lock_irqsave(&dev->event_lock, irq_flags);
-
-	ret = (file_priv->event_space < sizeof(event->event)) ? -EBUSY : 0;
-	if (likely(ret == 0))
-		file_priv->event_space -= sizeof(event->event);
-
-	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
-
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Failed to allocate event space for this file.\n");
-		goto out_no_space;
-	}
-
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (unlikely(event == NULL)) {
 		DRM_ERROR("Failed to allocate an event.\n");
 		ret = -ENOMEM;
-		goto out_no_event;
+		goto out_no_space;
 	}
 
 	event->event.base.type = DRM_VMW_EVENT_FENCE_SIGNALED;
 	event->event.base.length = sizeof(*event);
 	event->event.user_data = user_data;
 
-	event->base.event = &event->event.base;
-	event->base.file_priv = file_priv;
-	event->base.destroy = (void (*) (struct drm_pending_event *)) kfree;
+	ret = drm_event_reserve_init(dev, file_priv, &event->base, &event->event.base);
 
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed to allocate event space for this file.\n");
+		kfree(event);
+		goto out_no_space;
+	}
 
 	if (flags & DRM_VMW_FE_FLAG_REQ_TIME)
 		ret = vmw_event_fence_action_queue(file_priv, fence,
@@ -1076,11 +1064,7 @@ static int vmw_event_fence_action_create(struct drm_file *file_priv,
 	return 0;
 
 out_no_queue:
-	event->base.destroy(&event->base);
-out_no_event:
-	spin_lock_irqsave(&dev->event_lock, irq_flags);
-	file_priv->event_space += sizeof(*event);
-	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
+	drm_event_cancel_free(dev, &event->base);
 out_no_space:
 	return ret;
 }
