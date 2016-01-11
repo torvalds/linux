@@ -1673,8 +1673,8 @@ There are some more advanced barrier functions:
  (*) smp_store_mb(var, value)
 
      This assigns the value to the variable and then inserts a full memory
-     barrier after it, depending on the function.  It isn't guaranteed to
-     insert anything more than a compiler barrier in a UP compilation.
+     barrier after it.  It isn't guaranteed to insert anything more than a
+     compiler barrier in a UP compilation.
 
 
  (*) smp_mb__before_atomic();

@@ -299,6 +299,23 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	__u.__val;					\
 })
 
+/**
+ * smp_cond_acquire() - Spin wait for cond with ACQUIRE ordering
+ * @cond: boolean expression to wait for
+ *
+ * Equivalent to using smp_load_acquire() on the condition variable but employs
+ * the control dependency of the wait to reduce the barrier on many platforms.
+ *
+ * The control dependency provides a LOAD->STORE order, the additional RMB
+ * provides LOAD->LOAD order, together they provide LOAD->{LOAD,STORE} order,
+ * aka. ACQUIRE.
+ */
+#define smp_cond_acquire(cond)	do {		\
+	while (!(cond))				\
+		cpu_relax();			\
+	smp_rmb(); /* ctrl + rmb := acquire */	\
+} while (0)
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
