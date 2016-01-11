@@ -142,6 +142,14 @@ Description:
 		defined by the Endo layout scheme, documented in
 		the ARA Module Developer Kit.
 
+What:		/sys/bus/greybus/device/N-svc/intf_eject
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Write the number of the interface that you wish to
+		forcibly eject from the system.
+
 What:		/sys/bus/greybus/device/N-svc/unique_id
 Date:		October 2015
 KernelVersion:	4.XX

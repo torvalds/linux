@@ -40,9 +40,38 @@ static ssize_t ap_intf_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(ap_intf_id);
 
+
+// FIXME
+// This is a hack, we need to do this "right" and clean the interface up
+// properly, not just forcibly yank the thing out of the system and hope for the
+// best.  But for now, people want their modules to come out without having to
+// throw the thing to the ground or get out a screwdriver.
+static ssize_t intf_eject_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t len)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+	unsigned short intf_id;
+	int ret;
+
+	ret = kstrtou16(buf, 10, &intf_id);
+	if (ret < 0)
+		return ret;
+
+	dev_warn(dev, "Forcibly trying to eject interface %d\n", intf_id);
+
+	ret = gb_svc_intf_eject(svc, intf_id);
+	if (ret < 0)
+		return ret;
+
+	return len;
+}
+static DEVICE_ATTR_WO(intf_eject);
+
 static struct attribute *svc_attrs[] = {
 	&dev_attr_endo_id.attr,
 	&dev_attr_ap_intf_id.attr,
+	&dev_attr_intf_eject.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(svc);
