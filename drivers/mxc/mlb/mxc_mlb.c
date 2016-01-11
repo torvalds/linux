@@ -1831,7 +1831,7 @@ static irqreturn_t mlb_isr(int irq, void *dev_id)
 					cdt_val[1], cdt_val[0]);
 			switch (ctype) {
 			case MLB_CTYPE_SYNC:
-				tx_cis = (cdt_val[2] & ~CDT_SYNC_WSTS_MASK)
+				tx_cis = (cdt_val[2] & CDT_SYNC_WSTS_MASK)
 					>> CDT_SYNC_WSTS_SHIFT;
 				/*
 				 * Clear RSTS/WSTS errors to resume
@@ -1843,7 +1843,7 @@ static irqreturn_t mlb_isr(int irq, void *dev_id)
 			case MLB_CTYPE_CTRL:
 			case MLB_CTYPE_ASYNC:
 				tx_cis = (cdt_val[2] &
-					~CDT_CTRL_ASYNC_WSTS_MASK)
+					CDT_CTRL_ASYNC_WSTS_MASK)
 					>> CDT_CTRL_ASYNC_WSTS_SHIFT;
 				tx_cis = (cdt_val[3] & CDT_CTRL_ASYNC_WSTS_1) ?
 					(tx_cis | (0x1 << 4)) : tx_cis;
@@ -1857,7 +1857,7 @@ static irqreturn_t mlb_isr(int irq, void *dev_id)
 					~(0x4 << CDT_CTRL_ASYNC_WSTS_SHIFT);
 				break;
 			case MLB_CTYPE_ISOC:
-				tx_cis = (cdt_val[2] & ~CDT_ISOC_WSTS_MASK)
+				tx_cis = (cdt_val[2] & CDT_ISOC_WSTS_MASK)
 					>> CDT_ISOC_WSTS_SHIFT;
 				/* c. For isoc channels: WSTS[2:1] = 0x00 */
 				cdt_val[2] &= ~(0x6 << CDT_ISOC_WSTS_SHIFT);
@@ -1879,23 +1879,23 @@ static irqreturn_t mlb_isr(int irq, void *dev_id)
 					cdt_val[1], cdt_val[0]);
 			switch (ctype) {
 			case MLB_CTYPE_SYNC:
-				tx_cis = (cdt_val[2] & ~CDT_SYNC_RSTS_MASK)
+				rx_cis = (cdt_val[2] & CDT_SYNC_RSTS_MASK)
 					>> CDT_SYNC_RSTS_SHIFT;
 				cdt_val[2] &= ~(0x8 << CDT_SYNC_WSTS_SHIFT);
 				break;
 			case MLB_CTYPE_CTRL:
 			case MLB_CTYPE_ASYNC:
-				tx_cis =
-					(cdt_val[2] & ~CDT_CTRL_ASYNC_RSTS_MASK)
+				rx_cis =
+					(cdt_val[2] & CDT_CTRL_ASYNC_RSTS_MASK)
 					>> CDT_CTRL_ASYNC_RSTS_SHIFT;
-				tx_cis = (cdt_val[3] & CDT_CTRL_ASYNC_RSTS_1) ?
-					(tx_cis | (0x1 << 4)) : tx_cis;
+				rx_cis = (cdt_val[3] & CDT_CTRL_ASYNC_RSTS_1) ?
+					(rx_cis | (0x1 << 4)) : rx_cis;
 				cdt_val[3] &= ~CDT_CTRL_ASYNC_RSTS_1;
 				cdt_val[2] &=
 					~(0x4 << CDT_CTRL_ASYNC_RSTS_SHIFT);
 				break;
 			case MLB_CTYPE_ISOC:
-				tx_cis = (cdt_val[2] & ~CDT_ISOC_RSTS_MASK)
+				rx_cis = (cdt_val[2] & CDT_ISOC_RSTS_MASK)
 					>> CDT_ISOC_RSTS_SHIFT;
 				cdt_val[2] &= ~(0x6 << CDT_ISOC_WSTS_SHIFT);
 				break;
