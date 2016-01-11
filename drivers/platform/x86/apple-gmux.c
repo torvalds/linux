@@ -705,7 +705,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	init_completion(&gmux_data->powerchange_done);
 	gmux_enable_interrupts(gmux_data);
 
-	if (vga_switcheroo_register_handler(&gmux_handler)) {
+	if (vga_switcheroo_register_handler(&gmux_handler, 0)) {
 		ret = -ENODEV;
 		goto err_register_handler;
 	}
