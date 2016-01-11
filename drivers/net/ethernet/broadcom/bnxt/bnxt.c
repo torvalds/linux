@@ -2614,6 +2614,9 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 	/* Write request msg to hwrm channel */
 	__iowrite32_copy(bp->bar0, data, msg_len / 4);
 
+	for (i = msg_len; i < HWRM_MAX_REQ_LEN; i += 4)
+		writel(0, bp->bar0 + i);
+
 	/* currently supports only one outstanding message */
 	if (intr_process)
 		bp->hwrm_intr_seq_id = le32_to_cpu(req->target_id_seq_id) &
