@@ -2824,7 +2824,7 @@ int open_ctree(struct super_block *sb,
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
-				    4 * 1024 * 1024 / PAGE_CACHE_SIZE);
+				    SZ_4M / PAGE_CACHE_SIZE);
 
 	tree_root->nodesize = nodesize;
 	tree_root->sectorsize = sectorsize;
@@ -3996,7 +3996,6 @@ static void __btrfs_btree_balance_dirty(struct btrfs_root *root,
 		balance_dirty_pages_ratelimited(
 				   root->fs_info->btree_inode->i_mapping);
 	}
-	return;
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root)

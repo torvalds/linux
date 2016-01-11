@@ -19,6 +19,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/sizes.h>
 #include "btrfs-tests.h"
 #include "../extent_io.h"
 
@@ -71,8 +72,8 @@ static int test_find_delalloc(void)
 	struct page *page;
 	struct page *locked_page = NULL;
 	unsigned long index = 0;
-	u64 total_dirty = 256 * 1024 * 1024;
-	u64 max_bytes = 128 * 1024 * 1024;
+	u64 total_dirty = SZ_256M;
+	u64 max_bytes = SZ_128M;
 	u64 start, end, test_start;
 	u64 found;
 	int ret = -EINVAL;
@@ -136,7 +137,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 *           |--- search ---|
 	 */
-	test_start = 64 * 1024 * 1024;
+	test_start = SZ_64M;
 	locked_page = find_lock_page(inode->i_mapping,
 				     test_start >> PAGE_CACHE_SHIFT);
 	if (!locked_page) {
@@ -223,8 +224,8 @@ static int test_find_delalloc(void)
 	 * Now to test where we run into a page that is no longer dirty in the
 	 * range we want to find.
 	 */
-	page = find_get_page(inode->i_mapping, (max_bytes + (1 * 1024 * 1024))
-			     >> PAGE_CACHE_SHIFT);
+	page = find_get_page(inode->i_mapping,
+			     (max_bytes + SZ_1M) >> PAGE_CACHE_SHIFT);
 	if (!page) {
 		test_msg("Couldn't find our page\n");
 		goto out_bits;

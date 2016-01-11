@@ -1555,7 +1555,7 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
-	search_start = buf->start & ~((u64)(1024 * 1024 * 1024) - 1);
+	search_start = buf->start & ~((u64)SZ_1G - 1);
 
 	if (parent)
 		btrfs_set_lock_blocking(parent);

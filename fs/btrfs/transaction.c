@@ -651,17 +651,20 @@ struct btrfs_trans_handle *btrfs_start_transaction_lflush(
 
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root)
 {
-	return start_transaction(root, 0, TRANS_JOIN, 0);
+	return start_transaction(root, 0, TRANS_JOIN,
+				 BTRFS_RESERVE_NO_FLUSH);
 }
 
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root)
 {
-	return start_transaction(root, 0, TRANS_JOIN_NOLOCK, 0);
+	return start_transaction(root, 0, TRANS_JOIN_NOLOCK,
+				 BTRFS_RESERVE_NO_FLUSH);
 }
 
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root)
 {
-	return start_transaction(root, 0, TRANS_USERSPACE, 0);
+	return start_transaction(root, 0, TRANS_USERSPACE,
+				 BTRFS_RESERVE_NO_FLUSH);
 }
 
 /*
@@ -679,7 +682,8 @@ struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root
  */
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root)
 {
-	return start_transaction(root, 0, TRANS_ATTACH, 0);
+	return start_transaction(root, 0, TRANS_ATTACH,
+				 BTRFS_RESERVE_NO_FLUSH);
 }
 
 /*
@@ -694,7 +698,8 @@ btrfs_attach_transaction_barrier(struct btrfs_root *root)
 {
 	struct btrfs_trans_handle *trans;
 
-	trans = start_transaction(root, 0, TRANS_ATTACH, 0);
+	trans = start_transaction(root, 0, TRANS_ATTACH,
+				  BTRFS_RESERVE_NO_FLUSH);
 	if (IS_ERR(trans) && PTR_ERR(trans) == -ENOENT)
 		btrfs_wait_for_commit(root, 0);
 

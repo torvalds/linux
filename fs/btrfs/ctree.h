@@ -35,6 +35,7 @@
 #include <linux/btrfs.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
+#include <linux/sizes.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -199,9 +200,9 @@ static const int btrfs_csum_sizes[] = { 4 };
 /* ioprio of readahead is set to idle */
 #define BTRFS_IOPRIO_READA (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0))
 
-#define BTRFS_DIRTY_METADATA_THRESH	(32 * 1024 * 1024)
+#define BTRFS_DIRTY_METADATA_THRESH	SZ_32M
 
-#define BTRFS_MAX_EXTENT_SIZE (128 * 1024 * 1024)
+#define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
@@ -4347,7 +4348,7 @@ static inline void __btrfs_clear_fs_incompat(struct btrfs_fs_info *fs_info,
 #define btrfs_fs_incompat(fs_info, opt) \
 	__btrfs_fs_incompat((fs_info), BTRFS_FEATURE_INCOMPAT_##opt)
 
-static inline int __btrfs_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag)
+static inline bool __btrfs_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag)
 {
 	struct btrfs_super_block *disk_super;
 	disk_super = fs_info->super_copy;

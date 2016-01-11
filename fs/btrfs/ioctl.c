@@ -1025,7 +1025,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em)
 	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE)
 		ret = false;
 	else if ((em->block_start + em->block_len == next->block_start) &&
-		 (em->block_len > 128 * 1024 && next->block_len > 128 * 1024))
+		 (em->block_len > SZ_128K && next->block_len > SZ_128K))
 		ret = false;
 
 	free_extent_map(next);
@@ -1271,9 +1271,9 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	int defrag_count = 0;
 	int compress_type = BTRFS_COMPRESS_ZLIB;
 	u32 extent_thresh = range->extent_thresh;
-	unsigned long max_cluster = (256 * 1024) >> PAGE_CACHE_SHIFT;
+	unsigned long max_cluster = SZ_256K >> PAGE_CACHE_SHIFT;
 	unsigned long cluster = max_cluster;
-	u64 new_align = ~((u64)128 * 1024 - 1);
+	u64 new_align = ~((u64)SZ_128K - 1);
 	struct page **pages = NULL;
 
 	if (isize == 0)
@@ -1290,7 +1290,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	}
 
 	if (extent_thresh == 0)
-		extent_thresh = 256 * 1024;
+		extent_thresh = SZ_256K;
 
 	/*
 	 * if we were not given a file, allocate a readahead
@@ -1322,7 +1322,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 	if (newer_than) {
 		ret = find_new_extents(root, inode, newer_than,
-				       &newer_off, 64 * 1024);
+				       &newer_off, SZ_64K);
 		if (!ret) {
 			range->start = newer_off;
 			/*
@@ -1412,9 +1412,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			newer_off = max(newer_off + 1,
 					(u64)i << PAGE_CACHE_SHIFT);
 
-			ret = find_new_extents(root, inode,
-					       newer_than, &newer_off,
-					       64 * 1024);
+			ret = find_new_extents(root, inode, newer_than,
+					       &newer_off, SZ_64K);
 			if (!ret) {
 				range->start = newer_off;
 				i = (newer_off & new_align) >> PAGE_CACHE_SHIFT;
@@ -1580,7 +1579,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		new_size = old_size + new_size;
 	}
 
-	if (new_size < 256 * 1024 * 1024) {
+	if (new_size < SZ_256M) {
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -2169,7 +2168,7 @@ static noinline int btrfs_ioctl_tree_search_v2(struct file *file,
 	struct inode *inode;
 	int ret;
 	size_t buf_size;
-	const size_t buf_limit = 16 * 1024 * 1024;
+	const size_t buf_limit = SZ_16M;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -3105,7 +3104,7 @@ out_unlock:
 	return ret;
 }
 
-#define BTRFS_MAX_DEDUPE_LEN	(16 * 1024 * 1024)
+#define BTRFS_MAX_DEDUPE_LEN	SZ_16M
 
 static long btrfs_ioctl_file_extent_same(struct file *file,
 			struct btrfs_ioctl_same_args __user *argp)
@@ -4533,7 +4532,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_root *root,
 		goto out;
 	}
 
-	size = min_t(u32, loi->size, 64 * 1024);
+	size = min_t(u32, loi->size, SZ_64K);
 	inodes = init_data_container(size);
 	if (IS_ERR(inodes)) {
 		ret = PTR_ERR(inodes);

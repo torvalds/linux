@@ -1900,7 +1900,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 		 * btrfs starts at an offset of at least 1MB when doing chunk
 		 * allocation.
 		 */
-		skip_space = 1024 * 1024;
+		skip_space = SZ_1M;
 
 		/* user can set the offset in fs_info->alloc_start. */
 		if (fs_info->alloc_start &&
