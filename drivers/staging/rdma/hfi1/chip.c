@@ -11592,7 +11592,7 @@ mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
 #define C_MAX_NAME 13 /* 12 chars + one for /0 */
 static int init_cntrs(struct hfi1_devdata *dd)
 {
-	int i, rcv_ctxts, index, j;
+	int i, rcv_ctxts, j;
 	size_t sz;
 	char *p;
 	char name[C_MAX_NAME];
@@ -11609,7 +11609,6 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	/* size names and determine how many we have*/
 	dd->ndevcntrs = 0;
 	sz = 0;
-	index = 0;
 
 	for (i = 0; i < DEV_CNTR_LAST; i++) {
 		hfi1_dbg_early("Init cntr %s\n", dev_cntrs[i].name);
@@ -11620,7 +11619,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 
 		if (dev_cntrs[i].flags & CNTR_VL) {
 			hfi1_dbg_early("\tProcessing VL cntr\n");
-			dev_cntrs[i].offset = index;
+			dev_cntrs[i].offset = dd->ndevcntrs;
 			for (j = 0; j < C_VL_COUNT; j++) {
 				memset(name, '\0', C_MAX_NAME);
 				snprintf(name, C_MAX_NAME, "%s%d",
@@ -11630,13 +11629,12 @@ static int init_cntrs(struct hfi1_devdata *dd)
 				sz++;
 				hfi1_dbg_early("\t\t%s\n", name);
 				dd->ndevcntrs++;
-				index++;
 			}
 		} else if (dev_cntrs[i].flags & CNTR_SDMA) {
 			hfi1_dbg_early(
 				       "\tProcessing per SDE counters chip enginers %u\n",
 				       dd->chip_sdma_engines);
-			dev_cntrs[i].offset = index;
+			dev_cntrs[i].offset = dd->ndevcntrs;
 			for (j = 0; j < dd->chip_sdma_engines; j++) {
 				memset(name, '\0', C_MAX_NAME);
 				snprintf(name, C_MAX_NAME, "%s%d",
@@ -11645,24 +11643,22 @@ static int init_cntrs(struct hfi1_devdata *dd)
 				sz++;
 				hfi1_dbg_early("\t\t%s\n", name);
 				dd->ndevcntrs++;
-				index++;
 			}
 		} else {
 			/* +1 for newline  */
 			sz += strlen(dev_cntrs[i].name) + 1;
+			dev_cntrs[i].offset = dd->ndevcntrs;
 			dd->ndevcntrs++;
-			dev_cntrs[i].offset = index;
-			index++;
 			hfi1_dbg_early("\tAdding %s\n", dev_cntrs[i].name);
 		}
 	}
 
 	/* allocate space for the counter values */
-	dd->cntrs = kcalloc(index, sizeof(u64), GFP_KERNEL);
+	dd->cntrs = kcalloc(dd->ndevcntrs, sizeof(u64), GFP_KERNEL);
 	if (!dd->cntrs)
 		goto bail;
 
-	dd->scntrs = kcalloc(index, sizeof(u64), GFP_KERNEL);
+	dd->scntrs = kcalloc(dd->ndevcntrs, sizeof(u64), GFP_KERNEL);
 	if (!dd->scntrs)
 		goto bail;
 
@@ -11674,7 +11670,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 		goto bail;
 
 	/* fill in the names */
-	for (p = dd->cntrnames, i = 0, index = 0; i < DEV_CNTR_LAST; i++) {
+	for (p = dd->cntrnames, i = 0; i < DEV_CNTR_LAST; i++) {
 		if (dev_cntrs[i].flags & CNTR_DISABLED) {
 			/* Nothing */
 		} else {
@@ -11704,7 +11700,6 @@ static int init_cntrs(struct hfi1_devdata *dd)
 				p += strlen(dev_cntrs[i].name);
 				*p++ = '\n';
 			}
-			index++;
 		}
 	}
 
