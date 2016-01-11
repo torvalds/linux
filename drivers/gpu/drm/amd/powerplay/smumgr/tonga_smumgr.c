@@ -199,7 +199,7 @@ static int tonga_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	PP_ASSERT_WITH_CODE(
 		1 == SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP),
 		"Failed to send Previous Message.",
-		return 1);
+		);
 
 	cgs_write_register(smumgr->device, mmSMC_MESSAGE_0, msg);
 
@@ -207,7 +207,7 @@ static int tonga_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	PP_ASSERT_WITH_CODE(
 		1 == SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP),
 		"Failed to send Message.",
-		return 1);
+		);
 
 	return 0;
 }
@@ -229,7 +229,7 @@ static int tonga_send_msg_to_smc_without_waiting
 	PP_ASSERT_WITH_CODE(
 		1 == SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP),
 		"Failed to send Previous Message.",
-		return 0);
+		);
 	cgs_write_register(smumgr->device, mmSMC_MESSAGE_0, msg);
 
 	return 0;
