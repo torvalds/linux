@@ -383,7 +383,7 @@ static void s5p_set_aes(struct s5p_aes_dev *dev,
 	void __iomem *keystart;
 
 	if (iv)
-		memcpy(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv, 0x10);
+		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv, 0x10);
 
 	if (keylen == AES_KEYSIZE_256)
 		keystart = dev->aes_ioaddr + SSS_REG_AES_KEY_DATA(0);
@@ -392,7 +392,7 @@ static void s5p_set_aes(struct s5p_aes_dev *dev,
 	else
 		keystart = dev->aes_ioaddr + SSS_REG_AES_KEY_DATA(4);
 
-	memcpy(keystart, key, keylen);
+	memcpy_toio(keystart, key, keylen);
 }
 
 static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
