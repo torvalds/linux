@@ -1245,7 +1245,6 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 int dw_dma_cyclic_start(struct dma_chan *chan)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	struct dw_dma		*dw = to_dw_dma(dwc->chan.device);
 	unsigned long		flags;
 
 	if (!test_bit(DW_DMA_IS_CYCLIC, &dwc->flags)) {
@@ -1254,27 +1253,7 @@ int dw_dma_cyclic_start(struct dma_chan *chan)
 	}
 
 	spin_lock_irqsave(&dwc->lock, flags);
-
-	/* Assert channel is idle */
-	if (dma_readl(dw, CH_EN) & dwc->mask) {
-		dev_err(chan2dev(&dwc->chan),
-			"%s: BUG: Attempted to start non-idle channel\n",
-			__func__);
-		dwc_dump_chan_regs(dwc);
-		spin_unlock_irqrestore(&dwc->lock, flags);
-		return -EBUSY;
-	}
-
-	dma_writel(dw, CLEAR.ERROR, dwc->mask);
-	dma_writel(dw, CLEAR.XFER, dwc->mask);
-
-	/* Setup DMAC channel registers */
-	channel_writel(dwc, LLP, dwc->cdesc->desc[0]->txd.phys);
-	channel_writel(dwc, CTL_LO, DWC_CTLL_LLP_D_EN | DWC_CTLL_LLP_S_EN);
-	channel_writel(dwc, CTL_HI, 0);
-
-	channel_set_bit(dw, CH_EN, dwc->mask);
-
+	dwc_dostart(dwc, dwc->cdesc->desc[0]);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
