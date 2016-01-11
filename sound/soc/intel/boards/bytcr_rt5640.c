@@ -30,6 +30,7 @@
 #include <sound/jack.h>
 #include "../../codecs/rt5640.h"
 #include "../atom/sst-atom-controls.h"
+#include "../common/sst-acpi.h"
 
 static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
@@ -140,6 +141,14 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 		.driver_data = (unsigned long *)(BYT_RT5640_DMIC2_MAP |
 						 BYT_RT5640_DMIC_EN),
 	},
+	{
+		.callback = byt_rt5640_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP ElitePad 1000 G2"),
+		},
+		.driver_data = (unsigned long *)BYT_RT5640_IN1_MAP,
+	},
 	{}
 };
 
@@ -152,6 +161,11 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	int num_routes;
 
 	card->dapm.idle_bias_off = true;
+
+	rt5640_sel_asrc_clk_src(codec,
+				RT5640_DA_STEREO_FILTER |
+				RT5640_AD_STEREO_FILTER,
+				RT5640_CLK_SEL_ASRC);
 
 	ret = snd_soc_add_card_controls(card, byt_rt5640_controls,
 					ARRAY_SIZE(byt_rt5640_controls));
@@ -296,7 +310,7 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,
 		.codec_dai_name = "rt5640-aif1",
-		.codec_name = "i2c-10EC5640:00",
+		.codec_name = "i2c-10EC5640:00", /* overwritten with HID */
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = byt_rt5640_codec_fixup,
@@ -321,12 +335,21 @@ static struct snd_soc_card byt_rt5640_card = {
 	.fully_routed = true,
 };
 
+static char byt_rt5640_codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
+
 static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
+	struct sst_acpi_mach *mach;
 
 	/* register the soc card */
 	byt_rt5640_card.dev = &pdev->dev;
+	mach = byt_rt5640_card.dev->platform_data;
+
+	/* fixup codec name based on HID */
+	snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
+		 "%s%s%s", "i2c-", mach->id, ":00");
+	byt_rt5640_dais[MERR_DPCM_COMPR+1].codec_name = byt_rt5640_codec_name;
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5640_card);
 

@@ -25,6 +25,8 @@
 #include <sound/soc.h>
 #include "skl.h"
 #include "skl-topology.h"
+#include "skl-sst-dsp.h"
+#include "skl-sst-ipc.h"
 
 #define HDA_MONO 1
 #define HDA_STEREO 2
@@ -36,6 +38,7 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_SYNC_START |
 				 SNDRV_PCM_INFO_HAS_WALL_CLOCK | /* legacy */
 				 SNDRV_PCM_INFO_HAS_LINK_ATIME |
@@ -272,6 +275,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
+	struct skl *skl = ebus_to_skl(ebus);
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -284,6 +288,16 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
 	skl_set_suspend_active(substream, dai, false);
+
+	/*
+	 * check if close is for "Reference Pin" and set back the
+	 * CGCTL.MISCBDCGE if disabled by driver
+	 */
+	if (!strncmp(dai->name, "Reference Pin", 13) &&
+			skl->skl_sst->miscbdcg_disabled) {
+		skl->skl_sst->enable_miscbdcge(dai->dev, true);
+		skl->skl_sst->miscbdcg_disabled = false;
+	}
 
 	kfree(dma_params);
 }
@@ -380,6 +394,15 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		skl_pcm_prepare(substream, dai);
+		/*
+		 * enable DMA Resume enable bit for the stream, set the dpib
+		 * & lpib position to resune before starting the DMA
+		 */
+		snd_hdac_ext_stream_drsm_enable(ebus, true,
+					hdac_stream(stream)->index);
+		snd_hdac_ext_stream_set_dpibr(ebus, stream, stream->dpib);
+		snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/*
@@ -408,8 +431,17 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			return ret;
 
 		ret = skl_decoupled_trigger(substream, cmd);
-		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
+		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND) {
+			/* save the dpib and lpib positions */
+			stream->dpib = readl(ebus->bus.remap_addr +
+					AZX_REG_VS_SDXDPIB_XBASE +
+					(AZX_REG_VS_SDXDPIB_XINTERVAL *
+					hdac_stream(stream)->index));
+
+			stream->lpib = snd_hdac_stream_get_pos_lpib(
+							hdac_stream(stream));
 			snd_hdac_ext_stream_decouple(ebus, stream, false);
+		}
 		break;
 
 	default:
@@ -465,11 +497,6 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct hdac_ext_link *link;
 
-	if (link_dev->link_prepared) {
-		dev_dbg(dai->dev, "already stream is prepared - returning\n");
-		return 0;
-	}
-
 	dma_params  = (struct skl_dma_params *)
 			snd_soc_dai_get_dma_data(codec_dai, substream);
 	if (dma_params)
@@ -477,13 +504,14 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d codec_dai_name=%s\n",
 			hdac_stream(link_dev)->stream_tag, format_val, codec_dai->name);
 
-	snd_hdac_ext_link_stream_reset(link_dev);
-
-	snd_hdac_ext_link_stream_setup(link_dev, format_val);
-
 	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
 	if (!link)
 		return -EINVAL;
+
+	snd_hdac_ext_bus_link_power_up(link);
+	snd_hdac_ext_link_stream_reset(link_dev);
+
+	snd_hdac_ext_link_stream_setup(link_dev, format_val);
 
 	snd_hdac_ext_link_set_stream_id(link, hdac_stream(link_dev)->stream_tag);
 	link_dev->link_prepared = 1;
@@ -496,12 +524,16 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_RESUME:
+		skl_link_pcm_prepare(substream, dai);
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	case SNDRV_PCM_TRIGGER_RESUME:
+		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		snd_hdac_ext_link_stream_start(link_dev);
 		break;
 
@@ -509,6 +541,8 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_hdac_ext_link_stream_clear(link_dev);
+		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
+			snd_hdac_ext_stream_decouple(ebus, stream, false);
 		break;
 
 	default:

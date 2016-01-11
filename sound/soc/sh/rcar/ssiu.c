@@ -73,7 +73,7 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 		switch (multi_ssi_slaves) {
 		case 0x0206: /* SSI0/1/2/9 */
 			val2 = (1 << 4) | /* SSI0129 sync */
-				rsnd_rdai_is_clk_master(rdai) ? 0x2 : 0x1;
+				(rsnd_rdai_is_clk_master(rdai) ? 0x2 : 0x1);
 			/* fall through */
 		case 0x0006: /* SSI0/1/2 */
 			val1 = rsnd_rdai_is_clk_master(rdai) ?

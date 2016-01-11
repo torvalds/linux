@@ -16,8 +16,10 @@
 
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
+#include "skl.h"
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
+#include "sound/hdaudio_ext.h"
 
 
 #define IPC_IXC_STATUS_BITS		24
@@ -320,6 +322,19 @@ static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		case IPC_GLB_NOTIFY_FW_READY:
 			skl->boot_complete = true;
 			wake_up(&skl->boot_wait);
+			break;
+
+		case IPC_GLB_NOTIFY_PHRASE_DETECTED:
+			dev_dbg(ipc->dev, "***** Phrase Detected **********\n");
+
+			/*
+			 * Per HW recomendation, After phrase detection,
+			 * clear the CGCTL.MISCBDCGE.
+			 *
+			 * This will be set back on stream closure
+			 */
+			skl->enable_miscbdcge(ipc->dev, false);
+			skl->miscbdcg_disabled = true;
 			break;
 
 		default:
