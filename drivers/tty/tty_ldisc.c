@@ -269,7 +269,8 @@ const struct file_operations tty_ldiscs_proc_fops = {
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 {
 	ldsem_down_read(&tty->ldisc_sem, MAX_SCHEDULE_TIMEOUT);
-	WARN_ON(!tty->ldisc);
+	if (!tty->ldisc)
+		ldsem_up_read(&tty->ldisc_sem);
 	return tty->ldisc;
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
@@ -460,7 +461,7 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 		if (ret)
 			clear_bit(TTY_LDISC_OPEN, &tty->flags);
 
-		tty_ldisc_debug(tty, "%p: opened\n", tty->ldisc);
+		tty_ldisc_debug(tty, "%p: opened\n", ld);
 		return ret;
 	}
 	return 0;
@@ -481,7 +482,7 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 	clear_bit(TTY_LDISC_OPEN, &tty->flags);
 	if (ld->ops->close)
 		ld->ops->close(tty);
-	tty_ldisc_debug(tty, "%p: closed\n", tty->ldisc);
+	tty_ldisc_debug(tty, "%p: closed\n", ld);
 }
 
 /**
@@ -543,6 +544,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	retval = tty_ldisc_lock(tty, 5 * HZ);
 	if (retval)
 		goto err;
+
+	if (!tty->ldisc) {
+		retval = -EIO;
+		goto out;
+	}
 
 	/* Check the no-op case */
 	if (tty->ldisc->ops->num == ldisc)
@@ -659,7 +665,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
 	int err = 0;
 
-	tty_ldisc_debug(tty, "%p: closing\n", tty->ldisc);
+	tty_ldisc_debug(tty, "%p: hangup\n", tty->ldisc);
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
@@ -743,6 +749,8 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 static void tty_ldisc_kill(struct tty_struct *tty)
 {
+	if (!tty->ldisc)
+		return;
 	/*
 	 * Now kill off the ldisc
 	 */
