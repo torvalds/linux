@@ -118,6 +118,8 @@
 #define M4_PC_OFF		0x04
 #define M4_RCR_HALT		0xAB
 #define M4_RCR_GO		0xAA
+#define M4_OCRAMS_RESERVED_SIZE	0xc
+
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
 
@@ -747,12 +749,6 @@ static int imx7_pm_enter(suspend_state_t state)
 				/* restore M4 image */
 				memcpy(lpm_m4tcm_base,
 				    lpm_m4tcm_saved_in_ddr, SZ_32K);
-				/* set sp from word in the image */
-				writel(*(lpm_m4tcm_saved_in_ddr),
-				    m4_bootrom_base + M4_SP_OFF);
-				/* set PC from next word */
-				writel(*(lpm_m4tcm_saved_in_ddr+1),
-				    m4_bootrom_base + M4_PC_OFF);
 				/* kick m4 to enable */
 				writel(M4_RCR_GO,
 					pm_info->src_base.vbase + M4RCR);
@@ -835,8 +831,9 @@ void __init imx7_pm_map_io(void)
 		return;
 	}
 
-	/* Set all entries to 0. */
-	memset((void *)iram_tlb_base_addr, 0, MX7_IRAM_TLB_SIZE);
+	/* Set all entries to 0 except first 3 words reserved for M4. */
+	memset((void *)(iram_tlb_base_addr + M4_OCRAMS_RESERVED_SIZE),
+		0, MX7_IRAM_TLB_SIZE - M4_OCRAMS_RESERVED_SIZE);
 
 	/*
 	 * Make sure the IRAM virtual address has a mapping in the IRAM
