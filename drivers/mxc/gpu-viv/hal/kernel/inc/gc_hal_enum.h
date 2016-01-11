@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2015 Vivante Corporation
+*    Copyright (c) 2014 - 2016 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2015 Vivante Corporation
+*    Copyright (C) 2014 - 2016 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -323,6 +323,8 @@ typedef enum _gceFEATURE
     gcvFEATURE_LOD_FIX_FOR_BASELEVEL,
 
     gcvFEATURE_MSAA_OQ_FIX,
+
+    gcvFEATURE_PE_ENHANCEMENTS2,
 
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */
