@@ -344,9 +344,6 @@ static void au1000_mdio_write(struct net_device *dev, int phy_addr,
 
 static int au1000_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
-	/* WARNING: bus->phy_map[phy_addr].attached_dev == dev does
-	 * _NOT_ hold (e.g. when PHY is accessed through other MAC's MII bus)
-	 */
 	struct net_device *const dev = bus->priv;
 
 	/* make sure the MAC associated with this
