@@ -1,6 +1,12 @@
-#include "cache.h"
+#include <sys/select.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
+#include "pager.h"
 #include "run-command.h"
 #include "sigchain.h"
+#include "subcmd-config.h"
 
 /*
  * This is split up from the rest of git so that we can do
@@ -8,6 +14,11 @@
  */
 
 static int spawned_pager;
+
+void pager_init(const char *pager_env)
+{
+	subcmd_config.pager_env = pager_env;
+}
 
 static void pager_preexec(void)
 {
@@ -46,7 +57,7 @@ static void wait_for_pager_signal(int signo)
 
 void setup_pager(void)
 {
-	const char *pager = getenv("PERF_PAGER");
+	const char *pager = getenv(subcmd_config.pager_env);
 
 	if (!isatty(1))
 		return;
@@ -85,11 +96,5 @@ void setup_pager(void)
 
 int pager_in_use(void)
 {
-	const char *env;
-
-	if (spawned_pager)
-		return 1;
-
-	env = getenv("PERF_PAGER_IN_USE");
-	return env ? perf_config_bool("PERF_PAGER_IN_USE", env) : 0;
+	return spawned_pager;
 }

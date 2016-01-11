@@ -724,7 +724,7 @@ static int write_numa_topology(int fd, struct perf_header *h __maybe_unused,
 done:
 	free(buf);
 	fclose(fp);
-	free(node_map);
+	cpu_map__put(node_map);
 	return ret;
 }
 
@@ -866,6 +866,13 @@ static int write_auxtrace(int fd, struct perf_header *h,
 	if (err < 0)
 		pr_err("Failed to write auxtrace index\n");
 	return err;
+}
+
+static int write_stat(int fd __maybe_unused,
+		      struct perf_header *h __maybe_unused,
+		      struct perf_evlist *evlist __maybe_unused)
+{
+	return 0;
 }
 
 static void print_hostname(struct perf_header *ph, int fd __maybe_unused,
@@ -1157,6 +1164,12 @@ static void print_auxtrace(struct perf_header *ph __maybe_unused,
 			   int fd __maybe_unused, FILE *fp)
 {
 	fprintf(fp, "# contains AUX area data (e.g. instruction trace)\n");
+}
+
+static void print_stat(struct perf_header *ph __maybe_unused,
+		       int fd __maybe_unused, FILE *fp)
+{
+	fprintf(fp, "# contains stat data\n");
 }
 
 static void print_pmu_mappings(struct perf_header *ph, int fd __maybe_unused,
@@ -1948,6 +1961,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPP(HEADER_PMU_MAPPINGS,	pmu_mappings),
 	FEAT_OPP(HEADER_GROUP_DESC,	group_desc),
 	FEAT_OPP(HEADER_AUXTRACE,	auxtrace),
+	FEAT_OPA(HEADER_STAT,		stat),
 };
 
 struct header_print_data {
@@ -2686,6 +2700,152 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 	return err;
 }
 
+static struct event_update_event *
+event_update_event__new(size_t size, u64 type, u64 id)
+{
+	struct event_update_event *ev;
+
+	size += sizeof(*ev);
+	size  = PERF_ALIGN(size, sizeof(u64));
+
+	ev = zalloc(size);
+	if (ev) {
+		ev->header.type = PERF_RECORD_EVENT_UPDATE;
+		ev->header.size = (u16)size;
+		ev->type = type;
+		ev->id = id;
+	}
+	return ev;
+}
+
+int
+perf_event__synthesize_event_update_unit(struct perf_tool *tool,
+					 struct perf_evsel *evsel,
+					 perf_event__handler_t process)
+{
+	struct event_update_event *ev;
+	size_t size = strlen(evsel->unit);
+	int err;
+
+	ev = event_update_event__new(size + 1, PERF_EVENT_UPDATE__UNIT, evsel->id[0]);
+	if (ev == NULL)
+		return -ENOMEM;
+
+	strncpy(ev->data, evsel->unit, size);
+	err = process(tool, (union perf_event *)ev, NULL, NULL);
+	free(ev);
+	return err;
+}
+
+int
+perf_event__synthesize_event_update_scale(struct perf_tool *tool,
+					  struct perf_evsel *evsel,
+					  perf_event__handler_t process)
+{
+	struct event_update_event *ev;
+	struct event_update_event_scale *ev_data;
+	int err;
+
+	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->id[0]);
+	if (ev == NULL)
+		return -ENOMEM;
+
+	ev_data = (struct event_update_event_scale *) ev->data;
+	ev_data->scale = evsel->scale;
+	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	free(ev);
+	return err;
+}
+
+int
+perf_event__synthesize_event_update_name(struct perf_tool *tool,
+					 struct perf_evsel *evsel,
+					 perf_event__handler_t process)
+{
+	struct event_update_event *ev;
+	size_t len = strlen(evsel->name);
+	int err;
+
+	ev = event_update_event__new(len + 1, PERF_EVENT_UPDATE__NAME, evsel->id[0]);
+	if (ev == NULL)
+		return -ENOMEM;
+
+	strncpy(ev->data, evsel->name, len);
+	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	free(ev);
+	return err;
+}
+
+int
+perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
+					struct perf_evsel *evsel,
+					perf_event__handler_t process)
+{
+	size_t size = sizeof(struct event_update_event);
+	struct event_update_event *ev;
+	int max, err;
+	u16 type;
+
+	if (!evsel->own_cpus)
+		return 0;
+
+	ev = cpu_map_data__alloc(evsel->own_cpus, &size, &type, &max);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->header.type = PERF_RECORD_EVENT_UPDATE;
+	ev->header.size = (u16)size;
+	ev->type = PERF_EVENT_UPDATE__CPUS;
+	ev->id   = evsel->id[0];
+
+	cpu_map_data__synthesize((struct cpu_map_data *) ev->data,
+				 evsel->own_cpus,
+				 type, max);
+
+	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	free(ev);
+	return err;
+}
+
+size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
+{
+	struct event_update_event *ev = &event->event_update;
+	struct event_update_event_scale *ev_scale;
+	struct event_update_event_cpus *ev_cpus;
+	struct cpu_map *map;
+	size_t ret;
+
+	ret = fprintf(fp, "\n... id:    %" PRIu64 "\n", ev->id);
+
+	switch (ev->type) {
+	case PERF_EVENT_UPDATE__SCALE:
+		ev_scale = (struct event_update_event_scale *) ev->data;
+		ret += fprintf(fp, "... scale: %f\n", ev_scale->scale);
+		break;
+	case PERF_EVENT_UPDATE__UNIT:
+		ret += fprintf(fp, "... unit:  %s\n", ev->data);
+		break;
+	case PERF_EVENT_UPDATE__NAME:
+		ret += fprintf(fp, "... name:  %s\n", ev->data);
+		break;
+	case PERF_EVENT_UPDATE__CPUS:
+		ev_cpus = (struct event_update_event_cpus *) ev->data;
+		ret += fprintf(fp, "... ");
+
+		map = cpu_map__new_data(&ev_cpus->cpus);
+		if (map)
+			ret += cpu_map__fprintf(map, fp);
+		else
+			ret += fprintf(fp, "failed to get cpus\n");
+		break;
+	default:
+		ret += fprintf(fp, "... unknown type\n");
+		break;
+	}
+
+	return ret;
+}
+
 int perf_event__synthesize_attrs(struct perf_tool *tool,
 				   struct perf_session *session,
 				   perf_event__handler_t process)
@@ -2741,6 +2901,51 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	}
 
 	symbol_conf.nr_events = evlist->nr_entries;
+
+	return 0;
+}
+
+int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_evlist **pevlist)
+{
+	struct event_update_event *ev = &event->event_update;
+	struct event_update_event_scale *ev_scale;
+	struct event_update_event_cpus *ev_cpus;
+	struct perf_evlist *evlist;
+	struct perf_evsel *evsel;
+	struct cpu_map *map;
+
+	if (!pevlist || *pevlist == NULL)
+		return -EINVAL;
+
+	evlist = *pevlist;
+
+	evsel = perf_evlist__id2evsel(evlist, ev->id);
+	if (evsel == NULL)
+		return -EINVAL;
+
+	switch (ev->type) {
+	case PERF_EVENT_UPDATE__UNIT:
+		evsel->unit = strdup(ev->data);
+		break;
+	case PERF_EVENT_UPDATE__NAME:
+		evsel->name = strdup(ev->data);
+		break;
+	case PERF_EVENT_UPDATE__SCALE:
+		ev_scale = (struct event_update_event_scale *) ev->data;
+		evsel->scale = ev_scale->scale;
+	case PERF_EVENT_UPDATE__CPUS:
+		ev_cpus = (struct event_update_event_cpus *) ev->data;
+
+		map = cpu_map__new_data(&ev_cpus->cpus);
+		if (map)
+			evsel->own_cpus = map;
+		else
+			pr_err("failed to get event_update cpus\n");
+	default:
+		break;
+	}
 
 	return 0;
 }

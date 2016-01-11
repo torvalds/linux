@@ -1,0 +1,14 @@
+For a higher level overview, try: perf report --sort comm,dso
+Sample related events with: perf record -e '{cycles,instructions}:S'
+Compare performance results with: perf diff [<old file> <new file>]
+Boolean options have negative forms, e.g.: perf report --no-children
+Customize output of perf script with: perf script -F event,ip,sym
+Generate a script for your data: perf script -g <lang>
+Save output of perf stat using: perf stat record <target workload>
+Create an archive with symtabs to analyse on other machine: perf archive
+Search options using a keyword: perf report -h <keyword>
+Use parent filter to see specific call path: perf report -p <regex>
+List events using substring match: perf list <keyword>
+To see list of saved events and attributes: perf evlist -v
+Use --symfs <dir> if your symbol files are in non-standard locations
+To see callchains in a more compact form: perf report -g folded

@@ -17,25 +17,11 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/rcupdate.h>
-#include <linux/static_key.h>
+#include <linux/tracepoint-defs.h>
 
 struct module;
 struct tracepoint;
 struct notifier_block;
-
-struct tracepoint_func {
-	void *func;
-	void *data;
-	int prio;
-};
-
-struct tracepoint {
-	const char *name;		/* Tracepoint name */
-	struct static_key key;
-	void (*regfunc)(void);
-	void (*unregfunc)(void);
-	struct tracepoint_func __rcu *funcs;
-};
 
 struct trace_enum_map {
 	const char		*system;

@@ -4,9 +4,9 @@
 #include "../perf.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 #include "parse-events.h"
-#include "exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "string.h"
 #include "symbol.h"
 #include "cache.h"

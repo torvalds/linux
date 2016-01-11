@@ -57,11 +57,34 @@ static inline unsigned long long native_read_tscp(unsigned int *aux)
 #define EAX_EDX_RET(val, low, high)	"=A" (val)
 #endif
 
+#ifdef CONFIG_TRACEPOINTS
+/*
+ * Be very careful with includes. This header is prone to include loops.
+ */
+#include <asm/atomic.h>
+#include <linux/tracepoint-defs.h>
+
+extern struct tracepoint __tracepoint_read_msr;
+extern struct tracepoint __tracepoint_write_msr;
+extern struct tracepoint __tracepoint_rdpmc;
+#define msr_tracepoint_active(t) static_key_false(&(t).key)
+extern void do_trace_write_msr(unsigned msr, u64 val, int failed);
+extern void do_trace_read_msr(unsigned msr, u64 val, int failed);
+extern void do_trace_rdpmc(unsigned msr, u64 val, int failed);
+#else
+#define msr_tracepoint_active(t) false
+static inline void do_trace_write_msr(unsigned msr, u64 val, int failed) {}
+static inline void do_trace_read_msr(unsigned msr, u64 val, int failed) {}
+static inline void do_trace_rdpmc(unsigned msr, u64 val, int failed) {}
+#endif
+
 static inline unsigned long long native_read_msr(unsigned int msr)
 {
 	DECLARE_ARGS(val, low, high);
 
 	asm volatile("rdmsr" : EAX_EDX_RET(val, low, high) : "c" (msr));
+	if (msr_tracepoint_active(__tracepoint_read_msr))
+		do_trace_read_msr(msr, EAX_EDX_VAL(val, low, high), 0);
 	return EAX_EDX_VAL(val, low, high);
 }
 
@@ -78,6 +101,8 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 		     _ASM_EXTABLE(2b, 3b)
 		     : [err] "=r" (*err), EAX_EDX_RET(val, low, high)
 		     : "c" (msr), [fault] "i" (-EIO));
+	if (msr_tracepoint_active(__tracepoint_read_msr))
+		do_trace_read_msr(msr, EAX_EDX_VAL(val, low, high), *err);
 	return EAX_EDX_VAL(val, low, high);
 }
 
@@ -85,6 +110,8 @@ static inline void native_write_msr(unsigned int msr,
 				    unsigned low, unsigned high)
 {
 	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high) : "memory");
+	if (msr_tracepoint_active(__tracepoint_read_msr))
+		do_trace_write_msr(msr, ((u64)high << 32 | low), 0);
 }
 
 /* Can be uninlined because referenced by paravirt */
@@ -102,6 +129,8 @@ notrace static inline int native_write_msr_safe(unsigned int msr,
 		     : "c" (msr), "0" (low), "d" (high),
 		       [fault] "i" (-EIO)
 		     : "memory");
+	if (msr_tracepoint_active(__tracepoint_read_msr))
+		do_trace_write_msr(msr, ((u64)high << 32 | low), err);
 	return err;
 }
 
@@ -160,6 +189,8 @@ static inline unsigned long long native_read_pmc(int counter)
 	DECLARE_ARGS(val, low, high);
 
 	asm volatile("rdpmc" : EAX_EDX_RET(val, low, high) : "c" (counter));
+	if (msr_tracepoint_active(__tracepoint_rdpmc))
+		do_trace_rdpmc(counter, EAX_EDX_VAL(val, low, high), 0);
 	return EAX_EDX_VAL(val, low, high);
 }
 

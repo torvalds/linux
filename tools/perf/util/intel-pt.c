@@ -1744,7 +1744,7 @@ static void intel_pt_free(struct perf_session *session)
 	auxtrace_heap__free(&pt->heap);
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
-	thread__delete(pt->unknown_thread);
+	thread__put(pt->unknown_thread);
 	free(pt);
 }
 
@@ -2153,7 +2153,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	return 0;
 
 err_delete_thread:
-	thread__delete(pt->unknown_thread);
+	thread__zput(pt->unknown_thread);
 err_free_queues:
 	intel_pt_log_disable();
 	auxtrace_queues__free(&pt->queues);
