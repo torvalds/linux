@@ -94,10 +94,6 @@ static irqreturn_t apb_ctrl_wake_detect_irq(int irq, void *devid)
 	 * signals, especially when we start using GPIOs over slow
 	 * buses like I2C.
 	 */
-	if (!gpio_is_valid(apb->wake_detect_gpio) &&
-			!gpio_is_valid(apb->resetn_gpio))
-		return IRQ_HANDLED; /* Should it be IRQ_NONE ?? */
-
 	spin_lock_irqsave(&apb->lock, flags);
 
 	if (apb->state != APB_STATE_ACTIVE) {
@@ -293,9 +289,7 @@ static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
 
 	spin_lock_irqsave(&apb->lock, flags);
 	/* As part of exit, put APB back in reset state */
-	if (gpio_is_valid(apb->resetn_gpio))
-		gpio_set_value(apb->resetn_gpio, 0);
-
+	gpio_set_value(apb->resetn_gpio, 0);
 	apb->state = APB_STATE_OFF;
 	spin_unlock_irqrestore(&apb->lock, flags);
 
