@@ -151,6 +151,9 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 #define fs_for_each_prio(pos, ns)			\
 	fs_list_for_each_entry(pos, &(ns)->node.children)
 
+#define fs_for_each_ns(pos, prio)			\
+	fs_list_for_each_entry(pos, &(prio)->node.children)
+
 #define fs_for_each_ft(pos, prio)			\
 	fs_list_for_each_entry(pos, &(prio)->node.children)
 

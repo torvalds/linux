@@ -41,20 +41,19 @@
 					 sizeof(struct init_tree_node))
 
 #define INIT_PRIO(min_level_val, max_ft_val,\
-		  start_level_val, ...) {.type = FS_TYPE_PRIO,\
+		  ...) {.type = FS_TYPE_PRIO,\
 	.min_ft_level = min_level_val,\
-	.start_level = start_level_val,\
 	.max_ft = max_ft_val,\
 	.children = (struct init_tree_node[]) {__VA_ARGS__},\
 	.ar_size = INIT_TREE_NODE_ARRAY_SIZE(__VA_ARGS__) \
 }
 
-#define ADD_PRIO(min_level_val, max_ft_val, start_level_val, ...)\
-	INIT_PRIO(min_level_val, max_ft_val, start_level_val,\
+#define ADD_PRIO(min_level_val, max_ft_val, ...)\
+	INIT_PRIO(min_level_val, max_ft_val,\
 		  __VA_ARGS__)\
 
-#define ADD_FT_PRIO(max_ft_val, start_level_val, ...)\
-	INIT_PRIO(0, max_ft_val, start_level_val,\
+#define ADD_FT_PRIO(max_ft_val, ...)\
+	INIT_PRIO(0, max_ft_val,\
 		  __VA_ARGS__)\
 
 #define ADD_NS(...) {.type = FS_TYPE_NAMESPACE,\
@@ -62,8 +61,6 @@
 	.ar_size = INIT_TREE_NODE_ARRAY_SIZE(__VA_ARGS__) \
 }
 
-#define KERNEL_START_LEVEL 0
-#define KERNEL_P0_START_LEVEL KERNEL_START_LEVEL
 #define KERNEL_MAX_FT 2
 #define KENREL_MIN_LEVEL 2
 static struct init_tree_node {
@@ -73,15 +70,12 @@ static struct init_tree_node {
 	int min_ft_level;
 	int prio;
 	int max_ft;
-	int start_level;
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
 	.ar_size = 1,
 	.children = (struct init_tree_node[]) {
-		ADD_PRIO(KENREL_MIN_LEVEL, KERNEL_MAX_FT,
-			 KERNEL_START_LEVEL,
-			 ADD_NS(ADD_FT_PRIO(KERNEL_MAX_FT,
-					    KERNEL_P0_START_LEVEL))),
+		ADD_PRIO(KENREL_MIN_LEVEL, 0,
+			 ADD_NS(ADD_FT_PRIO(KERNEL_MAX_FT))),
 	}
 };
 
@@ -1117,8 +1111,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 }
 
 static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
-				      unsigned prio, int max_ft,
-				      int start_level)
+				      unsigned prio, int max_ft)
 {
 	struct fs_prio *fs_prio;
 
@@ -1131,7 +1124,6 @@ static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
 	tree_add_node(&fs_prio->node, &ns->node);
 	fs_prio->max_ft = max_ft;
 	fs_prio->prio = prio;
-	fs_prio->start_level = start_level;
 	list_add_tail(&fs_prio->node.list, &ns->node.children);
 
 	return fs_prio;
@@ -1177,8 +1169,7 @@ static int init_root_tree_recursive(int max_ft_level, struct init_tree_node *ini
 			return -ENOTSUPP;
 
 		fs_get_obj(fs_ns, fs_parent_node);
-		fs_prio = fs_create_prio(fs_ns, index, init_node->max_ft,
-					 init_node->start_level);
+		fs_prio = fs_create_prio(fs_ns, index, init_node->max_ft);
 		if (IS_ERR(fs_prio))
 			return PTR_ERR(fs_prio);
 		base = &fs_prio->node;
@@ -1245,6 +1236,46 @@ static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_core_dev *dev
 	return root_ns;
 }
 
+static void set_prio_attrs_in_prio(struct fs_prio *prio, int acc_level);
+
+static int set_prio_attrs_in_ns(struct mlx5_flow_namespace *ns, int acc_level)
+{
+	struct fs_prio *prio;
+
+	fs_for_each_prio(prio, ns) {
+		 /* This updates prio start_level and max_ft */
+		set_prio_attrs_in_prio(prio, acc_level);
+		acc_level += prio->max_ft;
+	}
+	return acc_level;
+}
+
+static void set_prio_attrs_in_prio(struct fs_prio *prio, int acc_level)
+{
+	struct mlx5_flow_namespace *ns;
+	int acc_level_ns = acc_level;
+
+	prio->start_level = acc_level;
+	fs_for_each_ns(ns, prio)
+		/* This updates start_level and max_ft of ns's priority descendants */
+		acc_level_ns = set_prio_attrs_in_ns(ns, acc_level);
+	if (!prio->max_ft)
+		prio->max_ft = acc_level_ns - prio->start_level;
+	WARN_ON(prio->max_ft < acc_level_ns - prio->start_level);
+}
+
+static void set_prio_attrs(struct mlx5_flow_root_namespace *root_ns)
+{
+	struct mlx5_flow_namespace *ns = &root_ns->ns;
+	struct fs_prio *prio;
+	int start_level = 0;
+
+	fs_for_each_prio(prio, ns) {
+		set_prio_attrs_in_prio(prio, start_level);
+		start_level += prio->max_ft;
+	}
+}
+
 static int init_root_ns(struct mlx5_core_dev *dev)
 {
 	int max_ft_level = MLX5_CAP_FLOWTABLE(dev,
@@ -1257,6 +1288,8 @@ static int init_root_ns(struct mlx5_core_dev *dev)
 
 	if (init_root_tree(max_ft_level, &root_fs, &dev->priv.root_ns->ns.node))
 		goto cleanup;
+
+	set_prio_attrs(dev->priv.root_ns);
 
 	return 0;
 
@@ -1381,7 +1414,7 @@ static int init_fdb_root_ns(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	/* Create single prio */
-	prio = fs_create_prio(&dev->priv.fdb_root_ns->ns, 0, 1, 0);
+	prio = fs_create_prio(&dev->priv.fdb_root_ns->ns, 0, 1);
 	if (IS_ERR(prio)) {
 		cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
 		return PTR_ERR(prio);
