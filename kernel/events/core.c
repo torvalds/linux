@@ -126,6 +126,38 @@ static int cpu_function_call(int cpu, remote_function_f func, void *info)
 	return data.ret;
 }
 
+/*
+ * On task ctx scheduling...
+ *
+ * When !ctx->nr_events a task context will not be scheduled. This means
+ * we can disable the scheduler hooks (for performance) without leaving
+ * pending task ctx state.
+ *
+ * This however results in two special cases:
+ *
+ *  - removing the last event from a task ctx; this is relatively straight
+ *    forward and is done in __perf_remove_from_context.
+ *
+ *  - adding the first event to a task ctx; this is tricky because we cannot
+ *    rely on ctx->is_active and therefore cannot use event_function_call().
+ *    See perf_install_in_context().
+ *
+ * This is because we need a ctx->lock serialized variable (ctx->is_active)
+ * to reliably determine if a particular task/context is scheduled in. The
+ * task_curr() use in task_function_call() is racy in that a remote context
+ * switch is not a single atomic operation.
+ *
+ * As is, the situation is 'safe' because we set rq->curr before we do the
+ * actual context switch. This means that task_curr() will fail early, but
+ * we'll continue spinning on ctx->is_active until we've passed
+ * perf_event_task_sched_out().
+ *
+ * Without this ctx->lock serialized variable we could have race where we find
+ * the task (and hence the context) would not be active while in fact they are.
+ *
+ * If ctx->nr_events, then ctx->is_active and cpuctx->task_ctx are set.
+ */
+
 static void event_function_call(struct perf_event *event,
 				int (*active)(void *),
 				void (*inactive)(void *),
@@ -1686,9 +1718,13 @@ static int __perf_remove_from_context(void *info)
 	if (re->detach_group)
 		perf_group_detach(event);
 	list_del_event(event, ctx);
-	if (!ctx->nr_events && cpuctx->task_ctx == ctx) {
+
+	if (!ctx->nr_events && ctx->is_active) {
 		ctx->is_active = 0;
-		cpuctx->task_ctx = NULL;
+		if (ctx->task) {
+			WARN_ON_ONCE(cpuctx->task_ctx != ctx);
+			cpuctx->task_ctx = NULL;
+		}
 	}
 	raw_spin_unlock(&ctx->lock);
 
@@ -2056,18 +2092,6 @@ static void perf_event_sched_in(struct perf_cpu_context *cpuctx,
 		ctx_sched_in(ctx, cpuctx, EVENT_FLEXIBLE, task);
 }
 
-static void ___perf_install_in_context(void *info)
-{
-	struct perf_event *event = info;
-	struct perf_event_context *ctx = event->ctx;
-
-	/*
-	 * Since the task isn't running, its safe to add the event, us holding
-	 * the ctx->lock ensures the task won't get scheduled in.
-	 */
-	add_event_to_ctx(event, ctx);
-}
-
 static void ctx_resched(struct perf_cpu_context *cpuctx,
 			struct perf_event_context *task_ctx)
 {
@@ -2086,55 +2110,27 @@ static void ctx_resched(struct perf_cpu_context *cpuctx,
  */
 static int  __perf_install_in_context(void *info)
 {
-	struct perf_event *event = info;
-	struct perf_event_context *ctx = event->ctx;
+	struct perf_event_context *ctx = info;
 	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
 	struct perf_event_context *task_ctx = cpuctx->task_ctx;
-	struct task_struct *task = current;
 
-	perf_ctx_lock(cpuctx, task_ctx);
-	perf_pmu_disable(cpuctx->ctx.pmu);
+	if (ctx->task) {
+		/*
+		 * If we hit the 'wrong' task, we've since scheduled and
+		 * everything should be sorted, nothing to do!
+		 */
+		if (ctx->task != current)
+			return 0;
 
-	/*
-	 * If there was an active task_ctx schedule it out.
-	 */
-	if (task_ctx)
-		task_ctx_sched_out(cpuctx, task_ctx);
-
-	/*
-	 * If the context we're installing events in is not the
-	 * active task_ctx, flip them.
-	 */
-	if (ctx->task && task_ctx != ctx) {
-		if (task_ctx)
-			raw_spin_unlock(&task_ctx->lock);
-		raw_spin_lock(&ctx->lock);
+		/*
+		 * If task_ctx is set, it had better be to us.
+		 */
+		WARN_ON_ONCE(cpuctx->task_ctx != ctx && cpuctx->task_ctx);
 		task_ctx = ctx;
 	}
 
-	if (task_ctx) {
-		cpuctx->task_ctx = task_ctx;
-		task = task_ctx->task;
-	}
-
-	cpu_ctx_sched_out(cpuctx, EVENT_ALL);
-
-	update_context_time(ctx);
-	/*
-	 * update cgrp time only if current cgrp
-	 * matches event->cgrp. Must be done before
-	 * calling add_event_to_ctx()
-	 */
-	update_cgrp_time_from_event(event);
-
-	add_event_to_ctx(event, ctx);
-
-	/*
-	 * Schedule everything back in
-	 */
-	perf_event_sched_in(cpuctx, task_ctx, task);
-
-	perf_pmu_enable(cpuctx->ctx.pmu);
+	perf_ctx_lock(cpuctx, task_ctx);
+	ctx_resched(cpuctx, task_ctx);
 	perf_ctx_unlock(cpuctx, task_ctx);
 
 	return 0;
@@ -2148,14 +2144,38 @@ perf_install_in_context(struct perf_event_context *ctx,
 			struct perf_event *event,
 			int cpu)
 {
+	struct task_struct *task = NULL;
+
 	lockdep_assert_held(&ctx->mutex);
 
 	event->ctx = ctx;
 	if (event->cpu != -1)
 		event->cpu = cpu;
 
-	event_function_call(event, __perf_install_in_context,
-			    ___perf_install_in_context, event);
+	/*
+	 * Installing events is tricky because we cannot rely on ctx->is_active
+	 * to be set in case this is the nr_events 0 -> 1 transition.
+	 *
+	 * So what we do is we add the event to the list here, which will allow
+	 * a future context switch to DTRT and then send a racy IPI. If the IPI
+	 * fails to hit the right task, this means a context switch must have
+	 * happened and that will have taken care of business.
+	 */
+	raw_spin_lock_irq(&ctx->lock);
+	update_context_time(ctx);
+	/*
+	 * Update cgrp time only if current cgrp matches event->cgrp.
+	 * Must be done before calling add_event_to_ctx().
+	 */
+	update_cgrp_time_from_event(event);
+	add_event_to_ctx(event, ctx);
+	task = ctx->task;
+	raw_spin_unlock_irq(&ctx->lock);
+
+	if (task)
+		task_function_call(task, __perf_install_in_context, ctx);
+	else
+		cpu_function_call(cpu, __perf_install_in_context, ctx);
 }
 
 /*
@@ -2328,15 +2348,22 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 
 	lockdep_assert_held(&ctx->lock);
 
+	if (likely(!ctx->nr_events)) {
+		/*
+		 * See __perf_remove_from_context().
+		 */
+		WARN_ON_ONCE(ctx->is_active);
+		if (ctx->task)
+			WARN_ON_ONCE(cpuctx->task_ctx);
+		return;
+	}
+
 	ctx->is_active &= ~event_type;
 	if (ctx->task) {
 		WARN_ON_ONCE(cpuctx->task_ctx != ctx);
 		if (!ctx->is_active)
 			cpuctx->task_ctx = NULL;
 	}
-
-	if (likely(!ctx->nr_events))
-		return;
 
 	update_context_time(ctx);
 	update_cgrp_time_from_cpuctx(cpuctx);
@@ -2716,6 +2743,9 @@ ctx_sched_in(struct perf_event_context *ctx,
 
 	lockdep_assert_held(&ctx->lock);
 
+	if (likely(!ctx->nr_events))
+		return;
+
 	ctx->is_active |= event_type;
 	if (ctx->task) {
 		if (!is_active)
@@ -2723,9 +2753,6 @@ ctx_sched_in(struct perf_event_context *ctx,
 		else
 			WARN_ON_ONCE(cpuctx->task_ctx != ctx);
 	}
-
-	if (likely(!ctx->nr_events))
-		return;
 
 	now = perf_clock();
 	ctx->timestamp = now;
