@@ -687,7 +687,9 @@ EXPORT_SYMBOL(drm_poll);
  * This function prepares the passed in event for eventual delivery. If the event
  * doesn't get delivered (because the IOCTL fails later on, before queuing up
  * anything) then the even must be cancelled and freed using
- * drm_event_cancel_free().
+ * drm_event_cancel_free(). Successfully initialized events should be sent out
+ * using drm_send_event() or drm_send_event_locked() to signal completion of the
+ * asynchronous event to userspace.
  *
  * If callers embedded @p into a larger structure it must be allocated with
  * kmalloc and @p must be the first member element.
@@ -743,3 +745,41 @@ void drm_event_cancel_free(struct drm_device *dev,
 	p->destroy(p);
 }
 EXPORT_SYMBOL(drm_event_cancel_free);
+
+/**
+ * drm_send_event_locked - send DRM event to file descriptor
+ * @dev: DRM device
+ * @e: DRM event to deliver
+ *
+ * This function sends the event @e, initialized with drm_event_reserve_init(),
+ * to its associated userspace DRM file. Callers must already hold
+ * dev->event_lock, see drm_send_event() for the unlocked version.
+ */
+void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
+{
+	assert_spin_locked(&dev->event_lock);
+
+	list_add_tail(&e->link,
+		      &e->file_priv->event_list);
+	wake_up_interruptible(&e->file_priv->event_wait);
+}
+EXPORT_SYMBOL(drm_send_event_locked);
+
+/**
+ * drm_send_event - send DRM event to file descriptor
+ * @dev: DRM device
+ * @e: DRM event to deliver
+ *
+ * This function sends the event @e, initialized with drm_event_reserve_init(),
+ * to its associated userspace DRM file. This function acquires dev->event_lock,
+ * see drm_send_event_locked() for callers which already hold this lock.
+ */
+void drm_send_event(struct drm_device *dev, struct drm_pending_event *e)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev->event_lock, irqflags);
+	drm_send_event_locked(dev, e);
+	spin_unlock_irqrestore(&dev->event_lock, irqflags);
+}
+EXPORT_SYMBOL(drm_send_event);

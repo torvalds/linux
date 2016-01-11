@@ -932,6 +932,8 @@ int drm_event_reserve_init(struct drm_device *dev,
 			   struct drm_event *e);
 void drm_event_cancel_free(struct drm_device *dev,
 			   struct drm_pending_event *p);
+void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e);
+void drm_send_event(struct drm_device *dev, struct drm_pending_event *e);
 
 /* Misc. IOCTL support (drm_ioctl.c) */
 int drm_noop(struct drm_device *dev, void *data,
