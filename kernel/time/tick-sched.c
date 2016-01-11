@@ -387,7 +387,7 @@ void __init tick_nohz_init(void)
 /*
  * NO HZ enabled ?
  */
-static int tick_nohz_enabled __read_mostly  = 1;
+int tick_nohz_enabled __read_mostly = 1;
 unsigned long tick_nohz_active  __read_mostly;
 /*
  * Enable / Disable tickless mode
