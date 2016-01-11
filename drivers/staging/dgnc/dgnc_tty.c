@@ -933,14 +933,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	}
 
 	if (ch->ch_tun.un_flags & UN_ISOPEN) {
-		if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-		    ch->ch_tun.un_tty->ldisc->ops->write_wakeup) {
-			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			ch->ch_tun.un_tty->ldisc->ops->write_wakeup(ch->ch_tun.un_tty);
-			spin_lock_irqsave(&ch->ch_lock, flags);
-		}
-
-		wake_up_interruptible(&ch->ch_tun.un_tty->write_wait);
+		tty_wakeup(ch->ch_tun.un_tty);
 
 		/*
 		 * If unit is set to wait until empty, check to make sure
@@ -975,14 +968,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	}
 
 	if (ch->ch_pun.un_flags & UN_ISOPEN) {
-		if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-		    ch->ch_pun.un_tty->ldisc->ops->write_wakeup) {
-			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			ch->ch_pun.un_tty->ldisc->ops->write_wakeup(ch->ch_pun.un_tty);
-			spin_lock_irqsave(&ch->ch_lock, flags);
-		}
-
-		wake_up_interruptible(&ch->ch_pun.un_tty->write_wait);
+		tty_wakeup(ch->ch_pun.un_tty);
 
 		/*
 		 * If unit is set to wait until empty, check to make sure

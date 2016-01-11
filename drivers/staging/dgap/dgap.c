@@ -1665,9 +1665,7 @@ static void dgap_input(struct channel_t *ch)
 }
 
 static void dgap_write_wakeup(struct board_t *bd, struct channel_t *ch,
-			      struct un_t *un, u32 mask,
-			      unsigned long *irq_flags1,
-			      unsigned long *irq_flags2)
+			      struct un_t *un, u32 mask)
 {
 	if (!(un->un_flags & mask))
 		return;
@@ -1677,17 +1675,7 @@ static void dgap_write_wakeup(struct board_t *bd, struct channel_t *ch,
 	if (!(un->un_flags & UN_ISOPEN))
 		return;
 
-	if ((un->un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-	    un->un_tty->ldisc->ops->write_wakeup) {
-		spin_unlock_irqrestore(&ch->ch_lock, *irq_flags2);
-		spin_unlock_irqrestore(&bd->bd_lock, *irq_flags1);
-
-		(un->un_tty->ldisc->ops->write_wakeup)(un->un_tty);
-
-		spin_lock_irqsave(&bd->bd_lock, *irq_flags1);
-		spin_lock_irqsave(&ch->ch_lock, *irq_flags2);
-	}
-	wake_up_interruptible(&un->un_tty->write_wait);
+	tty_wakeup(un->un_tty);
 	wake_up_interruptible(&un->un_flags_wait);
 }
 
@@ -1952,10 +1940,8 @@ static int dgap_event(struct board_t *bd)
 		 * Process Transmit low.
 		 */
 		if (reason & IFTLW) {
-			dgap_write_wakeup(bd, ch, &ch->ch_tun, UN_LOW,
-					  &lock_flags, &lock_flags2);
-			dgap_write_wakeup(bd, ch, &ch->ch_pun, UN_LOW,
-					  &lock_flags, &lock_flags2);
+			dgap_write_wakeup(bd, ch, &ch->ch_tun, UN_LOW);
+			dgap_write_wakeup(bd, ch, &ch->ch_pun, UN_LOW);
 			if (ch->ch_flags & CH_WLOW) {
 				ch->ch_flags &= ~CH_WLOW;
 				wake_up_interruptible(&ch->ch_flags_wait);
@@ -1966,10 +1952,8 @@ static int dgap_event(struct board_t *bd)
 		 * Process Transmit empty.
 		 */
 		if (reason & IFTEM) {
-			dgap_write_wakeup(bd, ch, &ch->ch_tun, UN_EMPTY,
-					  &lock_flags, &lock_flags2);
-			dgap_write_wakeup(bd, ch, &ch->ch_pun, UN_EMPTY,
-					  &lock_flags, &lock_flags2);
+			dgap_write_wakeup(bd, ch, &ch->ch_tun, UN_EMPTY);
+			dgap_write_wakeup(bd, ch, &ch->ch_pun, UN_EMPTY);
 			if (ch->ch_flags & CH_WEMPTY) {
 				ch->ch_flags &= ~CH_WEMPTY;
 				wake_up_interruptible(&ch->ch_flags_wait);
