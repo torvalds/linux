@@ -267,6 +267,7 @@ static const char *sequence_name(enum mipi_seq seq_id)
 
 static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	fn_mipi_elem_exec mipi_elem_exec;
 
 	if (!data)
@@ -278,6 +279,10 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 	/* go to the first element of the sequence */
 	data++;
 
+	/* Skip Size of Sequence. */
+	if (dev_priv->vbt.dsi.seq_version >= 3)
+		data += 4;
+
 	/* parse each byte till we reach end of sequence byte - 0x00 */
 	while (1) {
 		u8 operation_byte = *data++;
@@ -288,6 +293,10 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 			return;
 		}
 		mipi_elem_exec = exec_elem[operation_byte];
+
+		/* Skip Size of Operation. */
+		if (dev_priv->vbt.dsi.seq_version >= 3)
+			data++;
 
 		/* execute the element specific rotines */
 		data = mipi_elem_exec(intel_dsi, data);

@@ -754,21 +754,33 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 /* Find the sequence block and size for the given panel. */
 static const u8 *
 find_panel_sequence_block(const struct bdb_mipi_sequence *sequence,
-			  u16 panel_id, u16 *seq_size)
+			  u16 panel_id, u32 *seq_size)
 {
 	u32 total = get_blocksize(sequence);
 	const u8 *data = &sequence->data[0];
 	u8 current_id;
-	u16 current_size;
+	u32 current_size;
+	int header_size = sequence->version >= 3 ? 5 : 3;
 	int index = 0;
 	int i;
 
-	for (i = 0; i < MAX_MIPI_CONFIGURATIONS && index + 3 < total; i++) {
-		current_id = *(data + index);
-		index++;
+	/* skip new block size */
+	if (sequence->version >= 3)
+		data += 4;
 
-		current_size = *((const u16 *)(data + index));
-		index += 2;
+	for (i = 0; i < MAX_MIPI_CONFIGURATIONS && index < total; i++) {
+		if (index + header_size > total) {
+			DRM_ERROR("Invalid sequence block (header)\n");
+			return NULL;
+		}
+
+		current_id = *(data + index);
+		if (sequence->version >= 3)
+			current_size = *((const u32 *)(data + index + 1));
+		else
+			current_size = *((const u16 *)(data + index + 1));
+
+		index += header_size;
 
 		if (index + current_size > total) {
 			DRM_ERROR("Invalid sequence block\n");
@@ -826,13 +838,71 @@ static int goto_next_sequence(const u8 *data, int index, int total)
 	return 0;
 }
 
+static int goto_next_sequence_v3(const u8 *data, int index, int total)
+{
+	int seq_end;
+	u16 len;
+
+	/*
+	 * Could skip sequence based on Size of Sequence alone, but also do some
+	 * checking on the structure.
+	 */
+	if (total < 5) {
+		DRM_ERROR("Too small sequence size\n");
+		return 0;
+	}
+
+	seq_end = index + *((const u32 *)(data + 1));
+	if (seq_end > total) {
+		DRM_ERROR("Invalid sequence size\n");
+		return 0;
+	}
+
+	/* Skip Sequence Byte and Size of Sequence. */
+	for (index = index + 5; index < total; index += len) {
+		u8 operation_byte = *(data + index);
+		index++;
+
+		if (operation_byte == MIPI_SEQ_ELEM_END) {
+			if (index != seq_end) {
+				DRM_ERROR("Invalid element structure\n");
+				return 0;
+			}
+			return index;
+		}
+
+		len = *(data + index);
+		index++;
+
+		/*
+		 * FIXME: Would be nice to check elements like for v1/v2 in
+		 * goto_next_sequence() above.
+		 */
+		switch (operation_byte) {
+		case MIPI_SEQ_ELEM_SEND_PKT:
+		case MIPI_SEQ_ELEM_DELAY:
+		case MIPI_SEQ_ELEM_GPIO:
+		case MIPI_SEQ_ELEM_I2C:
+		case MIPI_SEQ_ELEM_SPI:
+		case MIPI_SEQ_ELEM_PMIC:
+			break;
+		default:
+			DRM_ERROR("Unknown operation byte %u\n",
+				  operation_byte);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static void
 parse_mipi_sequence(struct drm_i915_private *dev_priv,
 		    const struct bdb_header *bdb)
 {
 	const struct bdb_mipi_sequence *sequence;
 	const u8 *seq_data;
-	u16 seq_size;
+	u32 seq_size;
 	u8 *data;
 	int index = 0;
 
@@ -847,12 +917,13 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 	}
 
 	/* Fail gracefully for forward incompatible sequence block. */
-	if (sequence->version >= 3) {
-		DRM_ERROR("Unable to parse MIPI Sequence Block v3+\n");
+	if (sequence->version >= 4) {
+		DRM_ERROR("Unable to parse MIPI Sequence Block v%u\n",
+			  sequence->version);
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("Found MIPI sequence block\n");
+	DRM_DEBUG_DRIVER("Found MIPI sequence block v%u\n", sequence->version);
 
 	seq_data = find_panel_sequence_block(sequence, panel_type, &seq_size);
 	if (!seq_data)
@@ -875,7 +946,10 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 
 		dev_priv->vbt.dsi.sequence[seq_id] = data + index;
 
-		index = goto_next_sequence(data, index, seq_size);
+		if (sequence->version >= 3)
+			index = goto_next_sequence_v3(data, index, seq_size);
+		else
+			index = goto_next_sequence(data, index, seq_size);
 		if (!index) {
 			DRM_ERROR("Invalid sequence %u\n", seq_id);
 			goto err;
