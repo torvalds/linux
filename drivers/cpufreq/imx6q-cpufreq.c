@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -137,7 +137,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 		if (freq_hz > clk_get_rate(pll2_pfd2_396m_clk))
 			clk_set_parent(secondary_sel, pll2_bus);
 		else
-			ret = clk_set_parent(secondary_sel, pll2_pfd2_396m_clk);
+			clk_set_parent(secondary_sel, pll2_pfd2_396m_clk);
 		clk_set_parent(step_clk, secondary_sel);
 		clk_set_parent(pll1_sw_clk, step_clk);
 	} else {
