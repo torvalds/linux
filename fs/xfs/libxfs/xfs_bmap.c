@@ -1117,7 +1117,6 @@ xfs_bmap_add_attrfork(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	int			blks;		/* space reservation */
 	int			version = 1;	/* superblock attr version */
-	int			committed;	/* xaction was committed */
 	int			logflags;	/* logging flags */
 	int			error;		/* error return value */
 
@@ -1220,7 +1219,7 @@ xfs_bmap_add_attrfork(
 			xfs_log_sb(tp);
 	}
 
-	error = xfs_bmap_finish(&tp, &flist, &committed);
+	error = xfs_bmap_finish(&tp, &flist, NULL);
 	if (error)
 		goto bmap_cancel;
 	error = xfs_trans_commit(tp);
@@ -5957,7 +5956,6 @@ xfs_bmap_split_extent(
 	struct xfs_trans        *tp;
 	struct xfs_bmap_free    free_list;
 	xfs_fsblock_t           firstfsb;
-	int                     committed;
 	int                     error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
@@ -5978,7 +5976,7 @@ xfs_bmap_split_extent(
 	if (error)
 		goto out;
 
-	error = xfs_bmap_finish(&tp, &free_list, &committed);
+	error = xfs_bmap_finish(&tp, &free_list, NULL);
 	if (error)
 		goto out;
 
