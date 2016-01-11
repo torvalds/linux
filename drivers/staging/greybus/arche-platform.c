@@ -156,13 +156,16 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	/* probe all childs here */
 	ret = of_platform_populate(np, NULL, NULL, dev);
-	if (ret)
+	if (ret) {
+		arche_platform_cleanup(arche_pdata);
 		dev_err(dev, "no child node found\n");
+		return ret;
+	}
 
 	export_gpios(arche_pdata);
 
 	dev_info(dev, "Device registered successfully\n");
-	return ret;
+	return 0;
 }
 
 static int arche_remove_child(struct device *dev, void *unused)
