@@ -431,9 +431,8 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 			/* Same ctx: ignore first request, as second request
 			 * will update tail past first request's workload */
 			cursor->elsp_submitted = req0->elsp_submitted;
-			list_del(&req0->execlist_link);
-			list_add_tail(&req0->execlist_link,
-				&ring->execlist_retired_req_list);
+			list_move_tail(&req0->execlist_link,
+				       &ring->execlist_retired_req_list);
 			req0 = cursor;
 		} else {
 			req1 = cursor;
@@ -485,9 +484,8 @@ static bool execlists_check_remove_request(struct intel_engine_cs *ring,
 			     "Never submitted head request\n");
 
 			if (--head_req->elsp_submitted <= 0) {
-				list_del(&head_req->execlist_link);
-				list_add_tail(&head_req->execlist_link,
-					&ring->execlist_retired_req_list);
+				list_move_tail(&head_req->execlist_link,
+					       &ring->execlist_retired_req_list);
 				return true;
 			}
 		}
@@ -608,9 +606,8 @@ static int execlists_context_queue(struct drm_i915_gem_request *request)
 		if (request->ctx == tail_req->ctx) {
 			WARN(tail_req->elsp_submitted != 0,
 				"More than 2 already-submitted reqs queued\n");
-			list_del(&tail_req->execlist_link);
-			list_add_tail(&tail_req->execlist_link,
-				&ring->execlist_retired_req_list);
+			list_move_tail(&tail_req->execlist_link,
+				       &ring->execlist_retired_req_list);
 		}
 	}
 
