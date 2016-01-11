@@ -332,13 +332,19 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
 	struct v4l2_of_endpoint endpoint;
+	int ret;
 
 	/* Assume here a port node can have only one endpoint node. */
 	ep = of_get_next_child(port, NULL);
 	if (!ep)
 		return 0;
 
-	v4l2_of_parse_endpoint(ep, &endpoint);
+	ret = v4l2_of_parse_endpoint(ep, &endpoint);
+	if (ret) {
+		of_node_put(ep);
+		return ret;
+	}
+
 	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS)
 		return -EINVAL;
 
