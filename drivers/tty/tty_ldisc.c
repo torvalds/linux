@@ -262,8 +262,8 @@ const struct file_operations tty_ldiscs_proc_fops = {
  *	against a discipline change, such as an existing ldisc reference
  *	(which we check for)
  *
- *	Note: only callable from a file_operations routine (which
- *	guarantees tty->ldisc != NULL when the lock is acquired).
+ *	Note: a file_operations routine (read/poll/write) should use this
+ *	function to wait for any ldisc lifetime events to finish.
  */
 
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
