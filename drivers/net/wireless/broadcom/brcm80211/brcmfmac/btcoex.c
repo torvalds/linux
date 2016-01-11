@@ -29,7 +29,7 @@
 #include "cfg80211.h"
 
 /* T1 start SCO/eSCO priority suppression */
-#define BRCMF_BTCOEX_OPPR_WIN_TIME   2000
+#define BRCMF_BTCOEX_OPPR_WIN_TIME   msecs_to_jiffies(2000)
 
 /* BT registers values during DHCP */
 #define BRCMF_BT_DHCP_REG50 0x8022
@@ -314,8 +314,7 @@ static void brcmf_btcoex_handler(struct work_struct *work)
 		} else {
 			btci->timeout -= BRCMF_BTCOEX_OPPR_WIN_TIME;
 			mod_timer(&btci->timer,
-				  jiffies +
-				  msecs_to_jiffies(BRCMF_BTCOEX_OPPR_WIN_TIME));
+				  jiffies + BRCMF_BTCOEX_OPPR_WIN_TIME);
 		}
 		btci->timer_on = true;
 		break;
@@ -328,12 +327,11 @@ static void brcmf_btcoex_handler(struct work_struct *work)
 
 		/* DHCP is not over yet, start lowering BT priority */
 		brcmf_dbg(INFO, "DHCP T1:%d expired\n",
-			  BRCMF_BTCOEX_OPPR_WIN_TIME);
+			  jiffies_to_msecs(BRCMF_BTCOEX_OPPR_WIN_TIME));
 		brcmf_btcoex_boost_wifi(btci, true);
 
 		btci->bt_state = BRCMF_BT_DHCP_FLAG_FORCE_TIMEOUT;
-		mod_timer(&btci->timer,
-			  jiffies + msecs_to_jiffies(btci->timeout));
+		mod_timer(&btci->timer, jiffies + btci->timeout);
 		btci->timer_on = true;
 		break;
 
@@ -477,7 +475,7 @@ int brcmf_btcoex_set_mode(struct brcmf_cfg80211_vif *vif,
 			return -EBUSY;
 		/* Start BT timer only for SCO connection */
 		if (brcmf_btcoex_is_sco_active(ifp)) {
-			btci->timeout = duration;
+			btci->timeout = msecs_to_jiffies(duration);
 			btci->vif = vif;
 			brcmf_btcoex_dhcp_start(btci);
 		}

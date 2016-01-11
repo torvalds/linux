@@ -987,7 +987,7 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 	mutex_lock(&wil->mutex);
 
-	if (!iter)
+	if (iter < 0)
 		wil_err(wil, "timeout waiting for idle FW/HW\n");
 
 	wil_reset(wil, false);

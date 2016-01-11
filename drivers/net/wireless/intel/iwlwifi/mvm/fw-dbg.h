@@ -72,11 +72,11 @@
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
 void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
 int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
-				struct iwl_mvm_dump_desc *desc,
-				struct iwl_fw_dbg_trigger_tlv *trigger);
+				const struct iwl_mvm_dump_desc *desc,
+				const struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
 			   const char *str, size_t len,
-			   struct iwl_fw_dbg_trigger_tlv *trigger);
+			   const struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 				struct iwl_fw_dbg_trigger_tlv *trigger,
 				const char *fmt, ...) __printf(3, 4);
@@ -118,12 +118,36 @@ iwl_fw_dbg_trigger_stop_conf_match(struct iwl_mvm *mvm,
 }
 
 static inline bool
+iwl_fw_dbg_no_trig_window(struct iwl_mvm *mvm,
+			  struct iwl_fw_dbg_trigger_tlv *trig)
+{
+	unsigned long wind_jiff =
+		msecs_to_jiffies(le16_to_cpu(trig->trig_dis_ms));
+	u32 id = le32_to_cpu(trig->id);
+
+	/* If this is the first event checked, jump to update start ts */
+	if (mvm->fw_dbg_non_collect_ts_start[id] &&
+	    (time_after(mvm->fw_dbg_non_collect_ts_start[id] + wind_jiff,
+			jiffies)))
+		return true;
+
+	mvm->fw_dbg_non_collect_ts_start[id] = jiffies;
+	return false;
+}
+
+static inline bool
 iwl_fw_dbg_trigger_check_stop(struct iwl_mvm *mvm,
 			      struct ieee80211_vif *vif,
 			      struct iwl_fw_dbg_trigger_tlv *trig)
 {
 	if (vif && !iwl_fw_dbg_trigger_vif_match(trig, vif))
 		return false;
+
+	if (iwl_fw_dbg_no_trig_window(mvm, trig)) {
+		IWL_WARN(mvm, "Trigger %d occurred while no-collect window.\n",
+			 trig->id);
+		return false;
+	}
 
 	return iwl_fw_dbg_trigger_stop_conf_match(mvm, trig);
 }

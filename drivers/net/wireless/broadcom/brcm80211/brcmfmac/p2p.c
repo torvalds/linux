@@ -71,10 +71,10 @@
 #define P2P_AF_MED_DWELL_TIME		400
 #define P2P_AF_LONG_DWELL_TIME		1000
 #define P2P_AF_TX_MAX_RETRY		1
-#define P2P_AF_MAX_WAIT_TIME		2000
+#define P2P_AF_MAX_WAIT_TIME		msecs_to_jiffies(2000)
 #define P2P_INVALID_CHANNEL		-1
 #define P2P_CHANNEL_SYNC_RETRY		5
-#define P2P_AF_FRM_SCAN_MAX_WAIT	1500
+#define P2P_AF_FRM_SCAN_MAX_WAIT	msecs_to_jiffies(1500)
 #define P2P_DEFAULT_SLEEP_TIME_VSDB	200
 
 /* WiFi P2P Public Action Frame OUI Subtypes */
@@ -102,6 +102,7 @@
 #define P2PSD_ACTION_ID_GAS_CREQ	0x0c	/* GAS Comback Request AF */
 #define P2PSD_ACTION_ID_GAS_CRESP	0x0d	/* GAS Comback Response AF */
 
+#define BRCMF_P2P_DISABLE_TIMEOUT	msecs_to_jiffies(500)
 /**
  * struct brcmf_p2p_disc_st_le - set discovery state in firmware.
  *
@@ -1514,7 +1515,7 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 	p2p->af_tx_sent_jiffies = jiffies;
 
 	timeout = wait_for_completion_timeout(&p2p->send_af_done,
-					msecs_to_jiffies(P2P_AF_MAX_WAIT_TIME));
+					      P2P_AF_MAX_WAIT_TIME);
 
 	if (test_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status)) {
 		brcmf_dbg(TRACE, "TX action frame operation is success\n");
@@ -1988,7 +1989,7 @@ int brcmf_p2p_ifchange(struct brcmf_cfg80211_info *cfg,
 		return err;
 	}
 	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_CHANGE,
-						    msecs_to_jiffies(1500));
+						    BRCMF_VIF_EVENT_TIMEOUT);
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	if (!err)  {
 		brcmf_err("No BRCMF_E_IF_CHANGE event received\n");
@@ -2090,7 +2091,7 @@ static struct wireless_dev *brcmf_p2p_create_p2pdev(struct brcmf_p2p_info *p2p,
 
 	/* wait for firmware event */
 	err = brcmf_cfg80211_wait_vif_event_timeout(p2p->cfg, BRCMF_E_IF_ADD,
-						    msecs_to_jiffies(1500));
+						    BRCMF_VIF_EVENT_TIMEOUT);
 	brcmf_cfg80211_arm_vif_event(p2p->cfg, NULL);
 	brcmf_fweh_p2pdev_setup(pri_ifp, false);
 	if (!err) {
@@ -2180,7 +2181,7 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 
 	/* wait for firmware event */
 	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_ADD,
-						    msecs_to_jiffies(1500));
+						    BRCMF_VIF_EVENT_TIMEOUT);
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	if (!err) {
 		brcmf_err("timeout occurred\n");
@@ -2230,7 +2231,6 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
 	struct brcmf_cfg80211_vif *vif;
-	unsigned long jiffie_timeout = msecs_to_jiffies(1500);
 	bool wait_for_disable = false;
 	int err;
 
@@ -2263,7 +2263,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	if (wait_for_disable)
 		wait_for_completion_timeout(&cfg->vif_disabled,
-					    msecs_to_jiffies(500));
+					    BRCMF_P2P_DISABLE_TIMEOUT);
 
 	err = 0;
 	if (vif->wdev.iftype != NL80211_IFTYPE_P2P_DEVICE) {
@@ -2273,7 +2273,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (!err) {
 		/* wait for firmware event */
 		err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_DEL,
-							    jiffie_timeout);
+							BRCMF_VIF_EVENT_TIMEOUT);
 		if (!err)
 			err = -EIO;
 		else

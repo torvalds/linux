@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+#include <linux/inetdevice.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include <brcmu_utils.h>
@@ -39,7 +40,7 @@ MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define MAX_WAIT_FOR_8021X_TX		50	/* msecs */
+#define MAX_WAIT_FOR_8021X_TX			msecs_to_jiffies(50)
 
 /* AMPDU rx reordering definitions */
 #define BRCMF_RXREORDER_FLOWID_OFFSET		0
@@ -55,16 +56,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define BRCMF_RXREORDER_NEW_HOLE		0x10
 
 #define BRCMF_BSSIDX_INVALID			-1
-
-/* Error bits */
-int brcmf_msg_level;
-module_param_named(debug, brcmf_msg_level, int, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(debug, "level of debug output");
-
-/* P2P0 enable */
-static int brcmf_p2p_enable;
-module_param_named(p2pon, brcmf_p2p_enable, int, 0);
-MODULE_PARM_DESC(p2pon, "enable legacy p2p management functionality");
 
 char *brcmf_ifname(struct brcmf_if *ifp)
 {
@@ -620,6 +611,8 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 
 	brcmf_cfg80211_down(ndev);
 
+	brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear", NULL, 0);
+
 	brcmf_net_setcarrier(ifp, false);
 
 	return 0;
@@ -824,7 +817,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 		}
 	}
 
-	if (!brcmf_p2p_enable && is_p2pdev) {
+	if (!drvr->settings->p2p_enable && is_p2pdev) {
 		/* this is P2P_DEVICE interface */
 		brcmf_dbg(INFO, "allocate non-netdev interface\n");
 		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
@@ -940,6 +933,98 @@ int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
 	return available ? bsscfgidx : -ENOMEM;
 }
 
+#ifdef CONFIG_INET
+#define ARPOL_MAX_ENTRIES	8
+static int brcmf_inetaddr_changed(struct notifier_block *nb,
+				  unsigned long action, void *data)
+{
+	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
+					      inetaddr_notifier);
+	struct in_ifaddr *ifa = data;
+	struct net_device *ndev = ifa->ifa_dev->dev;
+	struct brcmf_if *ifp;
+	int idx, i, ret;
+	u32 val;
+	__be32 addr_table[ARPOL_MAX_ENTRIES] = {0};
+
+	/* Find out if the notification is meant for us */
+	for (idx = 0; idx < BRCMF_MAX_IFS; idx++) {
+		ifp = drvr->iflist[idx];
+		if (ifp && ifp->ndev == ndev)
+			break;
+		if (idx == BRCMF_MAX_IFS - 1)
+			return NOTIFY_DONE;
+	}
+
+	/* check if arp offload is supported */
+	ret = brcmf_fil_iovar_int_get(ifp, "arpoe", &val);
+	if (ret)
+		return NOTIFY_OK;
+
+	/* old version only support primary index */
+	ret = brcmf_fil_iovar_int_get(ifp, "arp_version", &val);
+	if (ret)
+		val = 1;
+	if (val == 1)
+		ifp = drvr->iflist[0];
+
+	/* retrieve the table from firmware */
+	ret = brcmf_fil_iovar_data_get(ifp, "arp_hostip", addr_table,
+				       sizeof(addr_table));
+	if (ret) {
+		brcmf_err("fail to get arp ip table err:%d\n", ret);
+		return NOTIFY_OK;
+	}
+
+	for (i = 0; i < ARPOL_MAX_ENTRIES; i++)
+		if (ifa->ifa_address == addr_table[i])
+			break;
+
+	switch (action) {
+	case NETDEV_UP:
+		if (i == ARPOL_MAX_ENTRIES) {
+			brcmf_dbg(TRACE, "add %pI4 to arp table\n",
+				  &ifa->ifa_address);
+			/* set it directly */
+			ret = brcmf_fil_iovar_data_set(ifp, "arp_hostip",
+				&ifa->ifa_address, sizeof(ifa->ifa_address));
+			if (ret)
+				brcmf_err("add arp ip err %d\n", ret);
+		}
+		break;
+	case NETDEV_DOWN:
+		if (i < ARPOL_MAX_ENTRIES) {
+			addr_table[i] = 0;
+			brcmf_dbg(TRACE, "remove %pI4 from arp table\n",
+				  &ifa->ifa_address);
+			/* clear the table in firmware */
+			ret = brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear",
+						       NULL, 0);
+			if (ret) {
+				brcmf_err("fail to clear arp ip table err:%d\n",
+					  ret);
+				return NOTIFY_OK;
+			}
+			for (i = 0; i < ARPOL_MAX_ENTRIES; i++) {
+				if (addr_table[i] != 0) {
+					brcmf_fil_iovar_data_set(ifp,
+						"arp_hostip", &addr_table[i],
+						sizeof(addr_table[i]));
+					if (ret)
+						brcmf_err("add arp ip err %d\n",
+							  ret);
+				}
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+#endif
+
 int brcmf_attach(struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
@@ -962,6 +1047,10 @@ int brcmf_attach(struct device *dev)
 	drvr->hdrlen = 0;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
+
+	/* Initialize device specific settings */
+	if (brcmf_mp_device_attach(drvr))
+		goto fail;
 
 	/* attach debug facilities */
 	brcmf_debug_attach(drvr);
@@ -1055,7 +1144,7 @@ int brcmf_bus_start(struct device *dev)
 	brcmf_fws_add_interface(ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev,
-					     brcmf_p2p_enable);
+					     drvr->settings->p2p_enable);
 	if (drvr->config == NULL) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1063,11 +1152,20 @@ int brcmf_bus_start(struct device *dev)
 
 	ret = brcmf_net_attach(ifp, false);
 
-	if ((!ret) && (brcmf_p2p_enable)) {
+	if ((!ret) && (drvr->settings->p2p_enable)) {
 		p2p_ifp = drvr->iflist[1];
 		if (p2p_ifp)
 			ret = brcmf_net_p2p_attach(p2p_ifp);
 	}
+
+	if (ret)
+		goto fail;
+
+#ifdef CONFIG_INET
+	drvr->inetaddr_notifier.notifier_call = brcmf_inetaddr_changed;
+	ret = register_inetaddr_notifier(&drvr->inetaddr_notifier);
+#endif
+
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);
@@ -1085,6 +1183,8 @@ fail:
 			brcmf_net_detach(p2p_ifp->ndev);
 		drvr->iflist[0] = NULL;
 		drvr->iflist[1] = NULL;
+		if (brcmf_ignoring_probe_fail(drvr))
+			ret = 0;
 		return ret;
 	}
 	return 0;
@@ -1133,6 +1233,10 @@ void brcmf_detach(struct device *dev)
 	if (drvr == NULL)
 		return;
 
+#ifdef CONFIG_INET
+	unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+#endif
+
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
 	if (drvr->config)
@@ -1151,6 +1255,8 @@ void brcmf_detach(struct device *dev)
 	brcmf_bus_detach(drvr);
 
 	brcmf_proto_detach(drvr);
+
+	brcmf_mp_device_detach(drvr);
 
 	brcmf_debug_detach(drvr);
 	bus_if->drvr = NULL;
@@ -1176,7 +1282,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 
 	err = wait_event_timeout(ifp->pend_8021x_wait,
 				 !brcmf_get_pend_8021x_cnt(ifp),
-				 msecs_to_jiffies(MAX_WAIT_FOR_8021X_TX));
+				 MAX_WAIT_FOR_8021X_TX);
 
 	WARN_ON(!err);
 

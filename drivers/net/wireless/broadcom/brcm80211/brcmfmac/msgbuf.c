@@ -34,7 +34,7 @@
 #include "tracepoint.h"
 
 
-#define MSGBUF_IOCTL_RESP_TIMEOUT		2000
+#define MSGBUF_IOCTL_RESP_TIMEOUT		msecs_to_jiffies(2000)
 
 #define MSGBUF_TYPE_GEN_STATUS			0x1
 #define MSGBUF_TYPE_RING_STATUS			0x2
@@ -466,7 +466,7 @@ static int brcmf_msgbuf_ioctl_resp_wait(struct brcmf_msgbuf *msgbuf)
 {
 	return wait_event_timeout(msgbuf->ioctl_resp_wait,
 				  msgbuf->ctl_completed,
-				  msecs_to_jiffies(MSGBUF_IOCTL_RESP_TIMEOUT));
+				  MSGBUF_IOCTL_RESP_TIMEOUT);
 }
 
 

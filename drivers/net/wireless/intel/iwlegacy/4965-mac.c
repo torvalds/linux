@@ -6416,7 +6416,7 @@ il4965_hw_detect(struct il_priv *il)
 	D_INFO("HW Revision ID = 0x%X\n", il->rev_id);
 }
 
-static struct il_sensitivity_ranges il4965_sensitivity = {
+static const struct il_sensitivity_ranges il4965_sensitivity = {
 	.min_nrg_cck = 97,
 	.max_nrg_cck = 0,	/* not used, set to 0 */
 

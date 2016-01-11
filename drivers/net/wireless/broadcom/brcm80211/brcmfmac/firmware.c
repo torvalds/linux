@@ -23,14 +23,12 @@
 
 #include "debug.h"
 #include "firmware.h"
+#include "core.h"
+#include "common.h"
 
 #define BRCMF_FW_MAX_NVRAM_SIZE			64000
 #define BRCMF_FW_NVRAM_DEVPATH_LEN		19	/* devpath0=pcie/1/4/ */
 #define BRCMF_FW_NVRAM_PCIEDEV_LEN		10	/* pcie/1/4/ + \0 */
-
-static char brcmf_firmware_path[BRCMF_FW_NAME_LEN];
-module_param_string(alternative_fw_path, brcmf_firmware_path,
-		    BRCMF_FW_NAME_LEN, 0440);
 
 enum nvram_parser_state {
 	IDLE,
@@ -559,13 +557,15 @@ int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 	}
 
 	/* check if firmware path is provided by module parameter */
-	if (brcmf_firmware_path[0] != '\0') {
-		strlcpy(fw_name, brcmf_firmware_path, BRCMF_FW_NAME_LEN);
+	if (brcmf_mp_global.firmware_path[0] != '\0') {
+		strlcpy(fw_name, brcmf_mp_global.firmware_path,
+			BRCMF_FW_NAME_LEN);
 		if ((nvram_name) && (mapping_table[i].nvram))
-			strlcpy(nvram_name, brcmf_firmware_path,
+			strlcpy(nvram_name, brcmf_mp_global.firmware_path,
 				BRCMF_FW_NAME_LEN);
 
-		end = brcmf_firmware_path[strlen(brcmf_firmware_path) - 1];
+		end = brcmf_mp_global.firmware_path[
+				strlen(brcmf_mp_global.firmware_path) - 1];
 		if (end != '/') {
 			strlcat(fw_name, "/", BRCMF_FW_NAME_LEN);
 			if ((nvram_name) && (mapping_table[i].nvram))

@@ -763,7 +763,7 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 
 		spin_lock_irqsave(&priv->ack_status_lock, flags);
 		id = idr_alloc(&priv->ack_status_frames, orig_skb,
-			       1, 0xff, GFP_ATOMIC);
+			       1, 0x10, GFP_ATOMIC);
 		spin_unlock_irqrestore(&priv->ack_status_lock, flags);
 
 		if (id >= 0) {

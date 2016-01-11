@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -309,6 +311,9 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
+ * @IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION: firmware will decide on what
+ *	antenna the beacon should be transmitted
+ * @IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2: support LAR API V2
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -336,6 +341,8 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,
 	IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS		= (__force iwl_ucode_tlv_capa_t)65,
 	IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)67,
+	IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION		= (__force iwl_ucode_tlv_capa_t)71,
+	IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2		= (__force iwl_ucode_tlv_capa_t)73,
 
 	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__
@@ -550,6 +557,8 @@ enum iwl_fw_dbg_trigger_vif_type {
  * @start_conf_id: if mode is %IWL_FW_DBG_TRIGGER_START, this defines what
  *	configuration should be applied when the triggers kicks in.
  * @occurrences: number of occurrences. 0 means the trigger will never fire.
+ * @trig_dis_ms: the time, in milliseconds, after an occurrence of this
+ *	trigger in which another occurrence should be ignored.
  */
 struct iwl_fw_dbg_trigger_tlv {
 	__le32 id;
@@ -559,7 +568,8 @@ struct iwl_fw_dbg_trigger_tlv {
 	u8 mode;
 	u8 start_conf_id;
 	__le16 occurrences;
-	__le32 reserved[2];
+	__le16 trig_dis_ms;
+	__le16 reserved[3];
 
 	u8 data[0];
 } __packed;

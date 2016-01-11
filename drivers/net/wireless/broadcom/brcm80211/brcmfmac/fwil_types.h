@@ -110,6 +110,8 @@
 #define BRCMF_WOWL_UNASSOC		(1 << 24)
 /* Wakeup if received matched secured pattern: */
 #define BRCMF_WOWL_SECURE		(1 << 25)
+/* Wakeup on finding preferred network */
+#define BRCMF_WOWL_PFN_FOUND		(1 << 26)
 /* Link Down indication in WoWL mode: */
 #define BRCMF_WOWL_LINKDOWN		(1 << 31)
 
@@ -127,6 +129,10 @@
 #define BRCMF_TXBF_MU_BFR_CAP		BIT(1)
 
 #define	BRCMF_MAXPMKID			16	/* max # PMKID cache entries */
+
+#define BRCMF_PFN_MACADDR_CFG_VER	1
+#define BRCMF_PFN_MAC_OUI_ONLY		BIT(0)
+#define BRCMF_PFN_SET_MAC_UNASSOC	BIT(1)
 
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
@@ -749,6 +755,36 @@ struct brcmf_pno_scanresults_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
+};
+
+/**
+ * struct brcmf_pno_macaddr_le - to configure PNO macaddr randomization.
+ *
+ * @version: PNO version identifier.
+ * @flags: Flags defining how mac addrss should be used.
+ * @mac: MAC address.
+ */
+struct brcmf_pno_macaddr_le {
+	u8 version;
+	u8 flags;
+	u8 mac[ETH_ALEN];
+};
+
+/**
+ * struct brcmf_pktcnt_le - packet counters.
+ *
+ * @rx_good_pkt: packets (MSDUs & MMPDUs) received from this station
+ * @rx_bad_pkt: failed rx packets
+ * @tx_good_pkt: packets (MSDUs & MMPDUs) transmitted to this station
+ * @tx_bad_pkt: failed tx packets
+ * @rx_ocast_good_pkt: unicast packets destined for others
+ */
+struct brcmf_pktcnt_le {
+	__le32 rx_good_pkt;
+	__le32 rx_bad_pkt;
+	__le32 tx_good_pkt;
+	__le32 tx_bad_pkt;
+	__le32 rx_ocast_good_pkt;
 };
 
 #endif /* FWIL_TYPES_H_ */
