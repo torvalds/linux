@@ -40,6 +40,10 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 int mlx5_cmd_destroy_flow_table(struct mlx5_core_dev *dev,
 				struct mlx5_flow_table *ft);
 
+int mlx5_cmd_modify_flow_table(struct mlx5_core_dev *dev,
+			       struct mlx5_flow_table *ft,
+			       struct mlx5_flow_table *next_ft);
+
 int mlx5_cmd_create_flow_group(struct mlx5_core_dev *dev,
 			       struct mlx5_flow_table *ft,
 			       u32 *in, unsigned int *group_id);

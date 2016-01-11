@@ -194,7 +194,8 @@ enum {
 	MLX5_CMD_OP_QUERY_FLOW_GROUP              = 0x935,
 	MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY          = 0x936,
 	MLX5_CMD_OP_QUERY_FLOW_TABLE_ENTRY        = 0x937,
-	MLX5_CMD_OP_DELETE_FLOW_TABLE_ENTRY       = 0x938
+	MLX5_CMD_OP_DELETE_FLOW_TABLE_ENTRY       = 0x938,
+	MLX5_CMD_OP_MODIFY_FLOW_TABLE             = 0x93c
 };
 
 struct mlx5_ifc_flow_table_fields_supported_bits {
@@ -260,7 +261,9 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reserved_0[0x2];
 	u8	   flow_modify_en[0x1];
 	u8         modify_root[0x1];
-	u8         reserved_1[0x1b];
+	u8         identified_miss_table_mode[0x1];
+	u8         flow_table_modify[0x1];
+	u8         reserved_1[0x19];
 
 	u8         reserved_2[0x2];
 	u8         log_max_ft_size[0x6];
@@ -5669,12 +5672,16 @@ struct mlx5_ifc_create_flow_table_in_bits {
 
 	u8         reserved_4[0x20];
 
-	u8         reserved_5[0x8];
+	u8         reserved_5[0x4];
+	u8         table_miss_mode[0x4];
 	u8         level[0x8];
 	u8         reserved_6[0x8];
 	u8         log_size[0x8];
 
-	u8         reserved_7[0x120];
+	u8         reserved_7[0x8];
+	u8         table_miss_id[0x18];
+
+	u8         reserved_8[0x100];
 };
 
 struct mlx5_ifc_create_flow_group_out_bits {
@@ -6973,6 +6980,47 @@ struct mlx5_ifc_set_flow_table_root_in_bits {
 	u8         table_id[0x18];
 
 	u8         reserved_5[0x140];
+};
+
+enum {
+	MLX5_MODIFY_FLOW_TABLE_MISS_TABLE_ID = 0x1,
+};
+
+struct mlx5_ifc_modify_flow_table_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_1[0x40];
+};
+
+struct mlx5_ifc_modify_flow_table_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_2[0x20];
+
+	u8         reserved_3[0x10];
+	u8         modify_field_select[0x10];
+
+	u8         table_type[0x8];
+	u8         reserved_4[0x18];
+
+	u8         reserved_5[0x8];
+	u8         table_id[0x18];
+
+	u8         reserved_6[0x4];
+	u8         table_miss_mode[0x4];
+	u8         reserved_7[0x18];
+
+	u8         reserved_8[0x8];
+	u8         table_miss_id[0x18];
+
+	u8         reserved_9[0x100];
 };
 
 #endif /* MLX5_IFC_H */

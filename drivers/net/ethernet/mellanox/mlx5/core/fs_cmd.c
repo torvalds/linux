@@ -101,6 +101,33 @@ int mlx5_cmd_destroy_flow_table(struct mlx5_core_dev *dev,
 					  sizeof(out));
 }
 
+int mlx5_cmd_modify_flow_table(struct mlx5_core_dev *dev,
+			       struct mlx5_flow_table *ft,
+			       struct mlx5_flow_table *next_ft)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_flow_table_in)];
+	u32 out[MLX5_ST_SZ_DW(modify_flow_table_out)];
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(modify_flow_table_in, in, opcode,
+		 MLX5_CMD_OP_MODIFY_FLOW_TABLE);
+	MLX5_SET(modify_flow_table_in, in, table_type, ft->type);
+	MLX5_SET(modify_flow_table_in, in, table_id, ft->id);
+	MLX5_SET(modify_flow_table_in, in, modify_field_select,
+		 MLX5_MODIFY_FLOW_TABLE_MISS_TABLE_ID);
+	if (next_ft) {
+		MLX5_SET(modify_flow_table_in, in, table_miss_mode, 1);
+		MLX5_SET(modify_flow_table_in, in, table_miss_id, next_ft->id);
+	} else {
+		MLX5_SET(modify_flow_table_in, in, table_miss_mode, 0);
+	}
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
+					  sizeof(out));
+}
+
 int mlx5_cmd_create_flow_group(struct mlx5_core_dev *dev,
 			       struct mlx5_flow_table *ft,
 			       u32 *in,
