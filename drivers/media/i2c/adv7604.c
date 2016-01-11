@@ -2820,6 +2820,7 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	struct device_node *endpoint;
 	struct device_node *np;
 	unsigned int flags;
+	int ret;
 	u32 v;
 
 	np = state->i2c_clients[ADV76XX_PAGE_IO]->dev.of_node;
@@ -2829,7 +2830,11 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	if (!endpoint)
 		return -EINVAL;
 
-	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
+	ret = v4l2_of_parse_endpoint(endpoint, &bus_cfg);
+	if (ret) {
+		of_node_put(endpoint);
+		return ret;
+	}
 
 	if (!of_property_read_u32(endpoint, "default-input", &v))
 		state->pdata.default_input = v;
