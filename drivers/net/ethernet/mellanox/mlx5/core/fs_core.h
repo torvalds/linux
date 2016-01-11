@@ -77,6 +77,11 @@ struct mlx5_flow_table {
 	unsigned int			max_fte;
 	unsigned int			level;
 	enum fs_flow_table_type		type;
+	struct {
+		bool			active;
+		unsigned int		required_groups;
+		unsigned int		num_groups;
+	} autogroup;
 };
 
 /* Type of children is mlx5_flow_rule */
