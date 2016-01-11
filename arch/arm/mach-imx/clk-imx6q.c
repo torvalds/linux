@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2015 Freescale Semiconductor, Inc.
+ * Copyright 2011-2016 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -836,9 +836,6 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		/* for mx6dl, change gpu3d_core parent to 594_PFD*/
 		imx_clk_set_parent(clk[IMX6QDL_CLK_GPU3D_CORE_SEL], clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
 		imx_clk_set_rate(clk[IMX6QDL_CLK_GPU3D_CORE], 528000000);
-		/* for mx6dl, change gpu2d_core parent to 594_PFD*/
-		imx_clk_set_parent(clk[IMX6QDL_CLK_GPU2D_CORE_SEL], clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
-		imx_clk_set_rate(clk[IMX6QDL_CLK_GPU2D_CORE], 528000000);
 	} else if (cpu_is_imx6q()) {
 		if (imx_get_soc_revision() == IMX_CHIP_REVISION_2_0) {
 			imx_clk_set_parent(clk[IMX6QDL_CLK_GPU3D_SHADER_SEL], clk[IMX6QDL_CLK_PLL3_PFD0_720M]);
