@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/sizes.h>
 #include <linux/pm_runtime.h>
 
