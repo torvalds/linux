@@ -273,14 +273,14 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((phys_addr_t)(pfn) << PAGE_SHIFT)
 
-extern phys_addr_t (*arch_virt_to_idmap)(unsigned long x);
+extern unsigned long (*arch_virt_to_idmap)(unsigned long x);
 
 /*
  * These are for systems that have a hardware interconnect supported alias of
  * physical memory for idmap purposes.  Most cases should leave these
- * untouched.
+ * untouched.  Note: this can only return addresses less than 4GiB.
  */
-static inline phys_addr_t __virt_to_idmap(unsigned long x)
+static inline unsigned long __virt_to_idmap(unsigned long x)
 {
 	if (IS_ENABLED(CONFIG_MMU) && arch_virt_to_idmap)
 		return arch_virt_to_idmap(x);
