@@ -361,6 +361,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		    break;
 	    case S_IFLNK:
 		    inode->i_op = &ocfs2_symlink_inode_operations;
+		    inode_nohighmem(inode);
 		    i_size_write(inode, le64_to_cpu(fe->i_size));
 		    break;
 	    default:

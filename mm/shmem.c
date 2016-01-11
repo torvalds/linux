@@ -2438,7 +2438,6 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	int len;
 	struct inode *inode;
 	struct page *page;
-	char *kaddr;
 	struct shmem_inode_info *info;
 
 	len = strlen(symname) + 1;
@@ -2477,9 +2476,8 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 		}
 		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
-		kaddr = kmap_atomic(page);
-		memcpy(kaddr, symname, len);
-		kunmap_atomic(kaddr);
+		inode_nohighmem(inode);
+		memcpy(page_address(page), symname, len);
 		SetPageUptodate(page);
 		set_page_dirty(page);
 		unlock_page(page);
@@ -2492,23 +2490,34 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	return 0;
 }
 
-static const char *shmem_follow_link(struct dentry *dentry, void **cookie)
+static void shmem_put_link(void *arg)
 {
-	struct page *page = NULL;
-	int error = shmem_getpage(d_inode(dentry), 0, &page, SGP_READ, NULL);
-	if (error)
-		return ERR_PTR(error);
-	unlock_page(page);
-	*cookie = page;
-	return kmap(page);
+	mark_page_accessed(arg);
+	put_page(arg);
 }
 
-static void shmem_put_link(struct inode *unused, void *cookie)
+static const char *shmem_get_link(struct dentry *dentry,
+				  struct inode *inode,
+				  struct delayed_call *done)
 {
-	struct page *page = cookie;
-	kunmap(page);
-	mark_page_accessed(page);
-	page_cache_release(page);
+	struct page *page = NULL;
+	int error;
+	if (!dentry) {
+		page = find_get_page(inode->i_mapping, 0);
+		if (!page)
+			return ERR_PTR(-ECHILD);
+		if (!PageUptodate(page)) {
+			put_page(page);
+			return ERR_PTR(-ECHILD);
+		}
+	} else {
+		error = shmem_getpage(inode, 0, &page, SGP_READ, NULL);
+		if (error)
+			return ERR_PTR(error);
+		unlock_page(page);
+	}
+	set_delayed_call(done, shmem_put_link, page);
+	return page_address(page);
 }
 
 #ifdef CONFIG_TMPFS_XATTR
@@ -2653,7 +2662,7 @@ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 static const struct inode_operations shmem_short_symlink_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= simple_follow_link,
+	.get_link	= simple_get_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
 	.getxattr	= shmem_getxattr,
@@ -2664,8 +2673,7 @@ static const struct inode_operations shmem_short_symlink_operations = {
 
 static const struct inode_operations shmem_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= shmem_follow_link,
-	.put_link	= shmem_put_link,
+	.get_link	= shmem_get_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
 	.getxattr	= shmem_getxattr,

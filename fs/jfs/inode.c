@@ -60,6 +60,7 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (inode->i_size >= IDATASIZE) {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &jfs_aops;
 		} else {
 			inode->i_op = &jfs_fast_symlink_inode_operations;
