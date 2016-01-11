@@ -521,19 +521,6 @@ static inline u16 align_sp(unsigned int num)
 	return num;
 }
 
-static bool is_load_to_a(u16 inst)
-{
-	switch (inst) {
-	case BPF_LD | BPF_W | BPF_LEN:
-	case BPF_LD | BPF_W | BPF_ABS:
-	case BPF_LD | BPF_H | BPF_ABS:
-	case BPF_LD | BPF_B | BPF_ABS:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 {
 	int i = 0, real_off = 0;
@@ -614,7 +601,6 @@ static unsigned int get_stack_depth(struct jit_ctx *ctx)
 
 static void build_prologue(struct jit_ctx *ctx)
 {
-	u16 first_inst = ctx->skf->insns[0].code;
 	int sp_off;
 
 	/* Calculate the total offset for the stack pointer */
@@ -641,7 +627,7 @@ static void build_prologue(struct jit_ctx *ctx)
 		emit_jit_reg_move(r_X, r_zero, ctx);
 
 	/* Do not leak kernel data to userspace */
-	if ((first_inst != (BPF_RET | BPF_K)) && !(is_load_to_a(first_inst)))
+	if (bpf_needs_clear_a(&ctx->skf->insns[0]))
 		emit_jit_reg_move(r_A, r_zero, ctx);
 }
 
