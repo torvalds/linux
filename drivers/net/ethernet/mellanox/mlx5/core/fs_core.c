@@ -702,6 +702,7 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 
 	return ft;
 }
+EXPORT_SYMBOL(mlx5_create_auto_grouped_flow_table);
 
 /* Flow table should be locked */
 static struct mlx5_flow_group *create_flow_group_common(struct mlx5_flow_table *ft,
@@ -1013,11 +1014,13 @@ unlock:
 	unlock_ref_node(&ft->node);
 	return rule;
 }
+EXPORT_SYMBOL(mlx5_add_flow_rule);
 
 void mlx5_del_flow_rule(struct mlx5_flow_rule *rule)
 {
 	tree_remove_node(&rule->node);
 }
+EXPORT_SYMBOL(mlx5_del_flow_rule);
 
 /* Assuming prio->node.children(flow tables) is sorted by level */
 static struct mlx5_flow_table *find_next_ft(struct mlx5_flow_table *ft)
@@ -1099,6 +1102,7 @@ int mlx5_destroy_flow_table(struct mlx5_flow_table *ft)
 
 	return err;
 }
+EXPORT_SYMBOL(mlx5_destroy_flow_table);
 
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg)
 {
@@ -1143,6 +1147,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 
 	return ns;
 }
+EXPORT_SYMBOL(mlx5_get_flow_namespace);
 
 static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
 				      unsigned prio, int max_ft)
