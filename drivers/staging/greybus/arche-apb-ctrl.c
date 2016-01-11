@@ -184,7 +184,7 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 		ret = regulator_enable(apb->vio);
 		if (ret) {
 			dev_err(dev, "failed to enable IO regulator\n");
-			return ret;
+			goto out_vcore_disable;
 		}
 	}
 
@@ -193,16 +193,27 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	if (ret) {
 		dev_err(dev, "Failed requesting bootret gpio %d\n",
 				apb->boot_ret_gpio);
-		return ret;
+		goto out_vio_disable;
 	}
 	gpio_set_value(apb->boot_ret_gpio, 0);
 	udelay(50);
 
 	ret = devm_gpio_request_one(dev, apb->wake_detect_gpio,
 			GPIOF_INIT_LOW, "wake detect");
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Failed requesting wake_detect gpio %d\n",
 				apb->wake_detect_gpio);
+		goto out_vio_disable;
+	}
+
+	return 0;
+
+out_vio_disable:
+	if (!IS_ERR(apb->vio))
+		regulator_disable(apb->vio);
+out_vcore_disable:
+	if (!IS_ERR(apb->vcore))
+		regulator_disable(apb->vcore);
 
 	return ret;
 }
@@ -311,7 +322,7 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "failed to set init state of control signal %d\n",
 				ret);
-		goto exit;
+		return ret;
 	}
 
 	spin_lock_init(&apb->lock);
@@ -332,7 +343,8 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 			"wake detect", apb);
 	if (ret) {
 		dev_err(dev, "failed to request wake detect IRQ\n");
-		goto exit;
+		apb_ctrl_cleanup(apb);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, apb);
@@ -341,10 +353,6 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Device registered successfully\n");
 	return 0;
-
-exit:
-	apb_ctrl_cleanup(apb);
-	return ret;
 }
 
 int arche_apb_ctrl_remove(struct platform_device *pdev)
