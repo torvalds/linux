@@ -82,6 +82,7 @@ static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card */
 static bool ignore_ctl_error;
 static bool autoclock = true;
+static char *quirk_alias[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the USB audio adapter.");
@@ -100,6 +101,8 @@ MODULE_PARM_DESC(ignore_ctl_error,
 		 "Ignore errors from USB controller for mixer interfaces.");
 module_param(autoclock, bool, 0444);
 MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (default: yes).");
+module_param_array(quirk_alias, charp, NULL, 0444);
+MODULE_PARM_DESC(quirk_alias, "Quirk aliases, e.g. 0123abcd:5678beef.");
 
 /*
  * we keep the snd_usb_audio_t instances by ourselves for merging
@@ -457,6 +460,48 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	return 0;
 }
 
+/* look for a matching quirk alias id */
+static bool get_alias_id(struct usb_device *dev, unsigned int *id)
+{
+	int i;
+	unsigned int src, dst;
+
+	for (i = 0; i < ARRAY_SIZE(quirk_alias); i++) {
+		if (!quirk_alias[i] ||
+		    sscanf(quirk_alias[i], "%x:%x", &src, &dst) != 2 ||
+		    src != *id)
+			continue;
+		dev_info(&dev->dev,
+			 "device (%04x:%04x): applying quirk alias %04x:%04x\n",
+			 USB_ID_VENDOR(*id), USB_ID_PRODUCT(*id),
+			 USB_ID_VENDOR(dst), USB_ID_PRODUCT(dst));
+		*id = dst;
+		return true;
+	}
+
+	return false;
+}
+
+static struct usb_device_id usb_audio_ids[]; /* defined below */
+
+/* look for the corresponding quirk */
+static const struct snd_usb_audio_quirk *
+get_alias_quirk(struct usb_device *dev, unsigned int id)
+{
+	const struct usb_device_id *p;
+
+	for (p = usb_audio_ids; p->match_flags; p++) {
+		/* FIXME: this checks only vendor:product pair in the list */
+		if ((p->match_flags & USB_DEVICE_ID_MATCH_DEVICE) ==
+		    USB_DEVICE_ID_MATCH_DEVICE &&
+		    p->idVendor == USB_ID_VENDOR(id) &&
+		    p->idProduct == USB_ID_PRODUCT(id))
+			return (const struct snd_usb_audio_quirk *)p->driver_info;
+	}
+
+	return NULL;
+}
+
 /*
  * probe the active usb device
  *
@@ -483,6 +528,8 @@ static int usb_audio_probe(struct usb_interface *intf,
 	ifnum = get_iface_desc(alts)->bInterfaceNumber;
 	id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
 		    le16_to_cpu(dev->descriptor.idProduct));
+	if (get_alias_id(dev, &id))
+		quirk = get_alias_quirk(dev, id);
 	if (quirk && quirk->ifnum >= 0 && ifnum != quirk->ifnum)
 		return -ENXIO;
 
