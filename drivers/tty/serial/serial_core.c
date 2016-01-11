@@ -641,11 +641,11 @@ static void uart_throttle(struct tty_struct *tty)
 		mask &= ~port->status;
 	}
 
-	if (mask & UPSTAT_AUTOXOFF)
-		uart_send_xchar(tty, STOP_CHAR(tty));
-
 	if (mask & UPSTAT_AUTORTS)
 		uart_clear_mctrl(port, TIOCM_RTS);
+
+	if (mask & UPSTAT_AUTOXOFF)
+		uart_send_xchar(tty, STOP_CHAR(tty));
 }
 
 static void uart_unthrottle(struct tty_struct *tty)
@@ -664,11 +664,11 @@ static void uart_unthrottle(struct tty_struct *tty)
 		mask &= ~port->status;
 	}
 
-	if (mask & UPSTAT_AUTOXOFF)
-		uart_send_xchar(tty, START_CHAR(tty));
-
 	if (mask & UPSTAT_AUTORTS)
 		uart_set_mctrl(port, TIOCM_RTS);
+
+	if (mask & UPSTAT_AUTOXOFF)
+		uart_send_xchar(tty, START_CHAR(tty));
 }
 
 static void uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
