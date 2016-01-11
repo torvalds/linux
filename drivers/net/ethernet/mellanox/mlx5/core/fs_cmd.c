@@ -38,9 +38,28 @@
 #include "fs_cmd.h"
 #include "mlx5_core.h"
 
+int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
+			    struct mlx5_flow_table *ft)
+{
+	u32 in[MLX5_ST_SZ_DW(set_flow_table_root_in)];
+	u32 out[MLX5_ST_SZ_DW(set_flow_table_root_out)];
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(set_flow_table_root_in, in, opcode,
+		 MLX5_CMD_OP_SET_FLOW_TABLE_ROOT);
+	MLX5_SET(set_flow_table_root_in, in, table_type, ft->type);
+	MLX5_SET(set_flow_table_root_in, in, table_id, ft->id);
+
+	memset(out, 0, sizeof(out));
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
+					  sizeof(out));
+}
+
 int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 			       enum fs_flow_table_type type, unsigned int level,
-			       unsigned int log_size, unsigned int *table_id)
+			       unsigned int log_size, struct mlx5_flow_table
+			       *next_ft, unsigned int *table_id)
 {
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)];
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)];
@@ -51,6 +70,10 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 	MLX5_SET(create_flow_table_in, in, opcode,
 		 MLX5_CMD_OP_CREATE_FLOW_TABLE);
 
+	if (next_ft) {
+		MLX5_SET(create_flow_table_in, in, table_miss_mode, 1);
+		MLX5_SET(create_flow_table_in, in, table_miss_id, next_ft->id);
+	}
 	MLX5_SET(create_flow_table_in, in, table_type, type);
 	MLX5_SET(create_flow_table_in, in, level, level);
 	MLX5_SET(create_flow_table_in, in, log_size, log_size);
@@ -78,6 +101,33 @@ int mlx5_cmd_destroy_flow_table(struct mlx5_core_dev *dev,
 		 MLX5_CMD_OP_DESTROY_FLOW_TABLE);
 	MLX5_SET(destroy_flow_table_in, in, table_type, ft->type);
 	MLX5_SET(destroy_flow_table_in, in, table_id, ft->id);
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
+					  sizeof(out));
+}
+
+int mlx5_cmd_modify_flow_table(struct mlx5_core_dev *dev,
+			       struct mlx5_flow_table *ft,
+			       struct mlx5_flow_table *next_ft)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_flow_table_in)];
+	u32 out[MLX5_ST_SZ_DW(modify_flow_table_out)];
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(modify_flow_table_in, in, opcode,
+		 MLX5_CMD_OP_MODIFY_FLOW_TABLE);
+	MLX5_SET(modify_flow_table_in, in, table_type, ft->type);
+	MLX5_SET(modify_flow_table_in, in, table_id, ft->id);
+	MLX5_SET(modify_flow_table_in, in, modify_field_select,
+		 MLX5_MODIFY_FLOW_TABLE_MISS_TABLE_ID);
+	if (next_ft) {
+		MLX5_SET(modify_flow_table_in, in, table_miss_mode, 1);
+		MLX5_SET(modify_flow_table_in, in, table_miss_id, next_ft->id);
+	} else {
+		MLX5_SET(modify_flow_table_in, in, table_miss_mode, 0);
+	}
 
 	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
 					  sizeof(out));

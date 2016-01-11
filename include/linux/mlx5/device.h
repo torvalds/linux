@@ -1258,4 +1258,6 @@ static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
 	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
 }
 
+#define MLX5_BY_PASS_NUM_PRIOS 9
+
 #endif /* MLX5_DEVICE_H */

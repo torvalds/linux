@@ -38,8 +38,20 @@
 
 #define MLX5_FS_DEFAULT_FLOW_TAG 0x0
 
+#define LEFTOVERS_RULE_NUM	 2
+static inline void build_leftovers_ft_param(int *priority,
+					    int *n_ent,
+					    int *n_grp)
+{
+	*priority = 0; /* Priority of leftovers_prio-0 */
+	*n_ent = LEFTOVERS_RULE_NUM;
+	*n_grp = LEFTOVERS_RULE_NUM;
+}
+
 enum mlx5_flow_namespace_type {
+	MLX5_FLOW_NAMESPACE_BYPASS,
 	MLX5_FLOW_NAMESPACE_KERNEL,
+	MLX5_FLOW_NAMESPACE_LEFTOVERS,
 	MLX5_FLOW_NAMESPACE_FDB,
 };
 
@@ -60,6 +72,12 @@ struct mlx5_flow_destination {
 struct mlx5_flow_namespace *
 mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 			enum mlx5_flow_namespace_type type);
+
+struct mlx5_flow_table *
+mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
+				    int prio,
+				    int num_flow_table_entries,
+				    int max_num_groups);
 
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
