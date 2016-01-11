@@ -42,14 +42,12 @@ import subprocess
 allowed_warnings = set([
     "core.c:142", # drivers/regulator/core.c:142:6: warning: unused variable 'i'
     "posix-cpu-timers.c:1268", # kernel/time/posix-cpu-timers.c:1268:13: warning: 'now' may be used uninitialized in this function
-    "af_unix.c:1026", # net/unix/af_unix.c:1026:20: warning: 'hash' may be used uninitialized in this function
+    "af_unix.c:1036", # net/unix/af_unix.c:1036:20: warning: 'hash' may be used uninitialized in this function
     "sunxi_sram.c:214", # drivers/soc/sunxi/sunxi_sram.c:214:24: warning: 'device' may be used uninitialized in this function
     "ks8851.c:298", # drivers/net/ethernet/micrel/ks8851.c:298:2: warning: 'rxb[0]' may be used uninitialized in this function
     "ks8851.c:421", # drivers/net/ethernet/micrel/ks8851.c:421:20: warning: 'rxb[0]' may be used uninitialized in this function
-    "rockchip_drm_vop.c:581", # drivers/gpu/drm/rockchip/rockchip_drm_vop.c:581:49: warning: 'vskiplines' may be used uninitialized in this function
     "compat_binfmt_elf.c:58", # fs/compat_binfmt_elf.c:58:13: warning: 'cputime_to_compat_timeval' defined but not used
     "cgroup.c:2132", # kernel/cgroup.c:2132:13: warning: 'root' may be used uninitialized in this function
-    "mdp5.xml.h:1038", # drivers/gpu/drm/msm/mdp/mdp5/mdp5.xml.h:1038:16: warning: 'uv_filter' may be used uninitialized in this function
  ])
 
 # Capture the name of the object file, can find it.
