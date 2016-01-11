@@ -140,9 +140,16 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
  *	@disc: ldisc number
  *
  *	Takes a reference to a line discipline. Deals with refcounts and
- *	module locking counts. Returns NULL if the discipline is not available.
- *	Returns a pointer to the discipline and bumps the ref count if it is
- *	available
+ *	module locking counts.
+ *
+ *	Returns: -EINVAL if the discipline index is not [N_TTY..NR_LDISCS] or
+ *			 if the discipline is not registered
+ *		 -EAGAIN if request_module() failed to load or register the
+ *			 the discipline
+ *		 -ENOMEM if allocation failure
+ *
+ *		 Otherwise, returns a pointer to the discipline and bumps the
+ *		 ref count
  *
  *	Locking:
  *		takes tty_ldiscs_lock to guard against ldisc races
