@@ -349,10 +349,10 @@ struct hfi1_message_header {
 #define HFI1_QPN_MASK 0xFFFFFF
 #define HFI1_FECN_SHIFT 31
 #define HFI1_FECN_MASK 1
-#define HFI1_FECN_SMASK (1 << HFI1_FECN_SHIFT)
+#define HFI1_FECN_SMASK BIT(HFI1_FECN_SHIFT)
 #define HFI1_BECN_SHIFT 30
 #define HFI1_BECN_MASK 1
-#define HFI1_BECN_SMASK (1 << HFI1_BECN_SHIFT)
+#define HFI1_BECN_SMASK BIT(HFI1_BECN_SHIFT)
 #define HFI1_MULTICAST_LID_BASE 0xC000
 
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)

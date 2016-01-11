@@ -242,18 +242,18 @@
 #define HCMD_SUCCESS 2
 
 /* DC_DC8051_DBG_ERR_INFO_SET_BY_8051.ERROR - error flags */
-#define SPICO_ROM_FAILED		    (1 <<  0)
-#define UNKNOWN_FRAME		    (1 <<  1)
-#define TARGET_BER_NOT_MET		    (1 <<  2)
-#define FAILED_SERDES_INTERNAL_LOOPBACK (1 <<  3)
-#define FAILED_SERDES_INIT		    (1 <<  4)
-#define FAILED_LNI_POLLING		    (1 <<  5)
-#define FAILED_LNI_DEBOUNCE		    (1 <<  6)
-#define FAILED_LNI_ESTBCOMM		    (1 <<  7)
-#define FAILED_LNI_OPTEQ		    (1 <<  8)
-#define FAILED_LNI_VERIFY_CAP1	    (1 <<  9)
-#define FAILED_LNI_VERIFY_CAP2	    (1 << 10)
-#define FAILED_LNI_CONFIGLT		    (1 << 11)
+#define SPICO_ROM_FAILED		BIT(0)
+#define UNKNOWN_FRAME			BIT(1)
+#define TARGET_BER_NOT_MET		BIT(2)
+#define FAILED_SERDES_INTERNAL_LOOPBACK	BIT(3)
+#define FAILED_SERDES_INIT		BIT(4)
+#define FAILED_LNI_POLLING		BIT(5)
+#define FAILED_LNI_DEBOUNCE		BIT(6)
+#define FAILED_LNI_ESTBCOMM		BIT(7)
+#define FAILED_LNI_OPTEQ		BIT(8)
+#define FAILED_LNI_VERIFY_CAP1		BIT(9)
+#define FAILED_LNI_VERIFY_CAP2		BIT(10)
+#define FAILED_LNI_CONFIGLT		BIT(11)
 
 #define FAILED_LNI (FAILED_LNI_POLLING | FAILED_LNI_DEBOUNCE \
 			| FAILED_LNI_ESTBCOMM | FAILED_LNI_OPTEQ \
@@ -262,16 +262,16 @@
 			| FAILED_LNI_CONFIGLT)
 
 /* DC_DC8051_DBG_ERR_INFO_SET_BY_8051.HOST_MSG - host message flags */
-#define HOST_REQ_DONE	   (1 << 0)
-#define BC_PWR_MGM_MSG	   (1 << 1)
-#define BC_SMA_MSG		   (1 << 2)
-#define BC_BCC_UNKOWN_MSG	   (1 << 3)
-#define BC_IDLE_UNKNOWN_MSG	   (1 << 4)
-#define EXT_DEVICE_CFG_REQ	   (1 << 5)
-#define VERIFY_CAP_FRAME	   (1 << 6)
-#define LINKUP_ACHIEVED	   (1 << 7)
-#define LINK_GOING_DOWN	   (1 << 8)
-#define LINK_WIDTH_DOWNGRADED  (1 << 9)
+#define HOST_REQ_DONE		BIT(0)
+#define BC_PWR_MGM_MSG		BIT(1)
+#define BC_SMA_MSG		BIT(2)
+#define BC_BCC_UNKNOWN_MSG	BIT(3)
+#define BC_IDLE_UNKNOWN_MSG	BIT(4)
+#define EXT_DEVICE_CFG_REQ	BIT(5)
+#define VERIFY_CAP_FRAME	BIT(6)
+#define LINKUP_ACHIEVED		BIT(7)
+#define LINK_GOING_DOWN		BIT(8)
+#define LINK_WIDTH_DOWNGRADED	BIT(9)
 
 /* DC_DC8051_CFG_EXT_DEV_1.REQ_TYPE - 8051 host requests */
 #define HREQ_LOAD_CONFIG	0x01
@@ -335,14 +335,14 @@
  * the CSR fields hold multiples of this value.
  */
 #define RCV_SHIFT 3
-#define RCV_INCREMENT (1 << RCV_SHIFT)
+#define RCV_INCREMENT BIT(RCV_SHIFT)
 
 /*
  * Receive header queue entry increment - the CSR holds multiples of
  * this value.
  */
 #define HDRQ_SIZE_SHIFT 5
-#define HDRQ_INCREMENT (1 << HDRQ_SIZE_SHIFT)
+#define HDRQ_INCREMENT BIT(HDRQ_SIZE_SHIFT)
 
 /*
  * Freeze handling flags

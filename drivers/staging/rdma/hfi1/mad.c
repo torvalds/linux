@@ -1782,7 +1782,7 @@ static int __subn_get_opa_cable_info(struct opa_smp *smp, u32 am, u8 *data,
 	u32 len = OPA_AM_CI_LEN(am) + 1;
 	int ret;
 
-#define __CI_PAGE_SIZE (1 << 7) /* 128 bytes */
+#define __CI_PAGE_SIZE BIT(7) /* 128 bytes */
 #define __CI_PAGE_MASK ~(__CI_PAGE_SIZE - 1)
 #define __CI_PAGE_NUM(a) ((a) & __CI_PAGE_MASK)
 
@@ -3402,7 +3402,7 @@ struct opa_led_info {
 };
 
 #define OPA_LED_SHIFT	31
-#define OPA_LED_MASK	(1 << OPA_LED_SHIFT)
+#define OPA_LED_MASK	BIT(OPA_LED_SHIFT)
 
 static int __subn_get_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 				   struct ib_device *ibdev, u8 port,

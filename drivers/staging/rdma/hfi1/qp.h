@@ -54,7 +54,7 @@
 #include "verbs.h"
 #include "sdma.h"
 
-#define QPN_MAX                 (1 << 24)
+#define QPN_MAX                 BIT(24)
 #define QPNMAP_ENTRIES          (QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
 
 /*

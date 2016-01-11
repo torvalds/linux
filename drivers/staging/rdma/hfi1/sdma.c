@@ -112,10 +112,10 @@ MODULE_PARM_DESC(desct_intr, "Number of SDMA descriptor before interrupt");
 	| SD(ENG_ERR_STATUS_SDMA_HEADER_REQUEST_FIFO_UNC_ERR_SMASK))
 
 /* sdma_sendctrl operations */
-#define SDMA_SENDCTRL_OP_ENABLE    (1U << 0)
-#define SDMA_SENDCTRL_OP_INTENABLE (1U << 1)
-#define SDMA_SENDCTRL_OP_HALT      (1U << 2)
-#define SDMA_SENDCTRL_OP_CLEANUP   (1U << 3)
+#define SDMA_SENDCTRL_OP_ENABLE    BIT(0)
+#define SDMA_SENDCTRL_OP_INTENABLE BIT(1)
+#define SDMA_SENDCTRL_OP_HALT      BIT(2)
+#define SDMA_SENDCTRL_OP_CLEANUP   BIT(3)
 
 /* handle long defines */
 #define SDMA_EGRESS_PACKET_OCCUPANCY_SMASK \

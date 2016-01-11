@@ -59,11 +59,11 @@
  * Below are masks for QSFP pins.  Pins are the same for HFI0 and HFI1.
  * _N means asserted low
  */
-#define QSFP_HFI0_I2CCLK    (1 << 0)
-#define QSFP_HFI0_I2CDAT    (1 << 1)
-#define QSFP_HFI0_RESET_N   (1 << 2)
-#define QSFP_HFI0_INT_N	    (1 << 3)
-#define QSFP_HFI0_MODPRST_N (1 << 4)
+#define QSFP_HFI0_I2CCLK    BIT(0)
+#define QSFP_HFI0_I2CDAT    BIT(1)
+#define QSFP_HFI0_RESET_N   BIT(2)
+#define QSFP_HFI0_INT_N	    BIT(3)
+#define QSFP_HFI0_MODPRST_N BIT(4)
 
 /* QSFP is paged at 256 bytes */
 #define QSFP_PAGESIZE 256

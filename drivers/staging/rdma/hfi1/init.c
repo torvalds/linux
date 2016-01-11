@@ -260,7 +260,7 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		/* Validate and initialize Rcv Hdr Q variables */
 		if (rcvhdrcnt % HDRQ_INCREMENT) {
 			dd_dev_err(dd,
-				   "ctxt%u: header queue count %d must be divisible by %d\n",
+				   "ctxt%u: header queue count %d must be divisible by %lu\n",
 				   rcd->ctxt, rcvhdrcnt, HDRQ_INCREMENT);
 			goto bail;
 		}
