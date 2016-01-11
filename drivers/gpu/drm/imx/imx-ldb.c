@@ -247,8 +247,9 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 		else if (imx_ldb_ch == &ldb->channel[1])
 			lvds_mux = &ldb->lvds_mux[1];
 
-		regmap_update_bits(ldb->regmap, lvds_mux->reg, lvds_mux->mask,
-				   mux << lvds_mux->shift);
+		if (lvds_mux)
+			regmap_update_bits(ldb->regmap, lvds_mux->reg, lvds_mux->mask,
+					   mux << lvds_mux->shift);
 	}
 
 	regmap_write(ldb->regmap, IOMUXC_GPR2, ldb->ldb_ctrl);
@@ -266,6 +267,12 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	unsigned long serial_clk;
 	unsigned long di_clk = mode->clock * 1000;
 	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
+
+	if (mux < 0) {
+		dev_warn(ldb->dev,
+			 "%s: cannot get valid mux id\n", __func__);
+		return;
+	}
 
 	if (mode->clock > 170000) {
 		dev_warn(ldb->dev,
