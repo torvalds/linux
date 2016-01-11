@@ -364,7 +364,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 static int arche_apb_ctrl_suspend(struct device *dev)
 {
 	/*
-	 * If timing profile premits, we may shutdown bridge
+	 * If timing profile permits, we may shutdown bridge
 	 * completely
 	 *
 	 * TODO: sequence ??
@@ -392,5 +392,3 @@ static int arche_apb_ctrl_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops,
 		  arche_apb_ctrl_suspend,
 		  arche_apb_ctrl_resume);
-
-
