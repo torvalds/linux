@@ -8,6 +8,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -23,6 +24,7 @@ struct arche_platform_drvdata {
 	int svc_reset_gpio;
 	bool is_reset_act_hi;
 	int svc_sysboot_gpio;
+	int wake_detect_gpio; /* bi-dir,maps to WAKE_MOD & WAKE_FRAME signals */
 
 	unsigned int svc_refclk_req;
 	struct clk *svc_ref_clk;
@@ -31,11 +33,60 @@ struct arche_platform_drvdata {
 	struct pinctrl_state *pin_default;
 
 	int num_apbs;
+
+	struct delayed_work delayed_work;
+	struct device *dev;
 };
 
 static inline void svc_reset_onoff(unsigned int gpio, bool onoff)
 {
 	gpio_set_value(gpio, onoff);
+}
+
+/**
+ * svc_delayed_work - Time to give SVC to boot.
+ */
+static void svc_delayed_work(struct work_struct *work)
+{
+	struct arche_platform_drvdata *arche_pdata =
+		container_of(work, struct arche_platform_drvdata, delayed_work.work);
+	struct device *dev = arche_pdata->dev;
+	struct device_node *np = dev->of_node;
+	int timeout = 10;
+	int ret;
+
+	/*
+	 * 1.   SVC and AP boot independently, with AP<-->SVC wake/detect pin
+	 *      deasserted (LOW in this case)
+	 * 2.1. SVC allows 360 milliseconds to elapse after switch boots to work
+	 *      around bug described in ENG-330.
+	 * 2.2. AP asserts wake/detect pin (HIGH) (this can proceed in parallel with 2.1)
+	 * 3.   SVC detects assertion of wake/detect pin, and sends "wake out" signal to AP
+	 * 4.   AP receives "wake out" signal, takes AP Bridges through their power
+	 *      on reset sequence as defined in the bridge ASIC reference manuals
+	 * 5. AP takes USB3613 through its power on reset sequence
+	 * 6. AP enumerates AP Bridges
+	 */
+	gpio_set_value(arche_pdata->wake_detect_gpio, 1);
+	gpio_direction_input(arche_pdata->wake_detect_gpio);
+	do {
+		/* Read the wake_detect GPIO, for WAKE_OUT event from SVC */
+		if (gpio_get_value(arche_pdata->wake_detect_gpio) == 0)
+			break;
+
+		msleep(500);
+	} while(timeout--);
+
+	if (timeout >= 0) {
+		ret = of_platform_populate(np, NULL, NULL, dev);
+		if (!ret)
+			/* Should we set wake_detect gpio to output again? */
+			return;
+	}
+
+	/* FIXME: We may want to limit retries here */
+	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
+	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 }
 
 /* Export gpio's to user space */
@@ -146,18 +197,32 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->num_apbs = of_get_child_count(np);
 	dev_dbg(dev, "Number of APB's available - %d\n", arche_pdata->num_apbs);
 
-	/* probe all childs here */
-	ret = of_platform_populate(np, NULL, NULL, dev);
-	if (ret) {
-		arche_platform_cleanup(arche_pdata);
-		dev_err(dev, "no child node found\n");
-		return ret;
+	arche_pdata->wake_detect_gpio = of_get_named_gpio(np, "svc,wake-detect-gpio", 0);
+	if (arche_pdata->wake_detect_gpio < 0) {
+		dev_err(dev, "failed to get wake detect gpio\n");
+		ret = arche_pdata->wake_detect_gpio;
+		goto exit;
 	}
+
+	ret = devm_gpio_request(dev, arche_pdata->wake_detect_gpio, "wake detect");
+	if (ret) {
+		dev_err(dev, "Failed requesting wake_detect gpio %d\n",
+				arche_pdata->wake_detect_gpio);
+		goto exit;
+	}
+
+	arche_pdata->dev = &pdev->dev;
+	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
+	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 
 	export_gpios(arche_pdata);
 
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
+
+exit:
+	arche_platform_cleanup(arche_pdata);
+	return ret;
 }
 
 static int arche_remove_child(struct device *dev, void *unused)
