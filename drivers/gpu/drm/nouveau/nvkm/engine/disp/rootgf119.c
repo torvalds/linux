@@ -29,6 +29,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl5070.h>
 #include <nvif/unpack.h>
 
 int
@@ -39,12 +40,12 @@ gf119_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 	const u32 blanke = nvkm_rd32(device, 0x64041c + (head * 0x300));
 	const u32 blanks = nvkm_rd32(device, 0x640420 + (head * 0x300));
 	union {
-		struct nv04_disp_scanoutpos_v0 v0;
+		struct nv50_disp_scanoutpos_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "disp scanoutpos vers %d\n",
 			   args->v0.version);
 		args->v0.vblanke = (blanke & 0xffff0000) >> 16;
