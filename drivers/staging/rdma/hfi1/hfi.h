@@ -1741,7 +1741,7 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
 	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 erratum */
+		/* turn off send-side job key checks - A0 */
 		return base_sc_integrity &
 		       ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
 	return base_sc_integrity;
@@ -1768,7 +1768,7 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	| SEND_DMA_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
 	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 erratum */
+		/* turn off send-side job key checks - A0 */
 		return base_sdma_integrity &
 		       ~SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
 	return base_sdma_integrity;
