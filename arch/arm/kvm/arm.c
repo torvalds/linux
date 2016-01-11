@@ -835,6 +835,7 @@ static int kvm_arm_vcpu_set_attr(struct kvm_vcpu *vcpu,
 
 	switch (attr->group) {
 	default:
+		ret = kvm_arm_vcpu_arch_set_attr(vcpu, attr);
 		break;
 	}
 
@@ -848,6 +849,7 @@ static int kvm_arm_vcpu_get_attr(struct kvm_vcpu *vcpu,
 
 	switch (attr->group) {
 	default:
+		ret = kvm_arm_vcpu_arch_get_attr(vcpu, attr);
 		break;
 	}
 
@@ -861,6 +863,7 @@ static int kvm_arm_vcpu_has_attr(struct kvm_vcpu *vcpu,
 
 	switch (attr->group) {
 	default:
+		ret = kvm_arm_vcpu_arch_has_attr(vcpu, attr);
 		break;
 	}
 
