@@ -483,12 +483,15 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 	spin_unlock_irq(&uport->lock);
 }
 
-static inline int __uart_put_char(struct uart_port *port,
-				struct circ_buf *circ, unsigned char c)
+static int uart_put_char(struct tty_struct *tty, unsigned char c)
 {
+	struct uart_state *state = tty->driver_data;
+	struct uart_port *port = state->uart_port;
+	struct circ_buf *circ;
 	unsigned long flags;
 	int ret = 0;
 
+	circ = &state->xmit;
 	if (!circ->buf)
 		return 0;
 
@@ -500,13 +503,6 @@ static inline int __uart_put_char(struct uart_port *port,
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
 	return ret;
-}
-
-static int uart_put_char(struct tty_struct *tty, unsigned char ch)
-{
-	struct uart_state *state = tty->driver_data;
-
-	return __uart_put_char(state->uart_port, &state->xmit, ch);
 }
 
 static void uart_flush_chars(struct tty_struct *tty)
