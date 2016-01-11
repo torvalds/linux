@@ -1170,8 +1170,14 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	if (likely(!ret))
 		ret = ttm_bo_validate(bo, placement, interruptible, false);
 
-	if (!resv)
+	if (!resv) {
 		ttm_bo_unreserve(bo);
+
+	} else if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+		spin_lock(&bo->glob->lru_lock);
+		ttm_bo_add_to_lru(bo);
+		spin_unlock(&bo->glob->lru_lock);
+	}
 
 	if (unlikely(ret))
 		ttm_bo_unref(&bo);
