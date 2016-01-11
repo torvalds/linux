@@ -273,6 +273,22 @@ enum bpf_func_id {
 	__BPF_FUNC_MAX_ID,
 };
 
+/* All flags used by eBPF helper functions, placed here. */
+
+/* BPF_FUNC_skb_store_bytes flags. */
+#define BPF_F_RECOMPUTE_CSUM		(1ULL << 0)
+
+/* BPF_FUNC_l3_csum_replace and BPF_FUNC_l4_csum_replace flags.
+ * First 4 bits are for passing the header field size.
+ */
+#define BPF_F_HDR_FIELD_MASK		0xfULL
+
+/* BPF_FUNC_l4_csum_replace flags. */
+#define BPF_F_PSEUDO_HDR		(1ULL << 4)
+
+/* BPF_FUNC_clone_redirect and BPF_FUNC_redirect flags. */
+#define BPF_F_INGRESS			(1ULL << 0)
+
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
  */
