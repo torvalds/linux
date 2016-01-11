@@ -2296,6 +2296,8 @@ extern void drm_property_destroy_user_blobs(struct drm_device *dev,
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
+extern struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+					    struct i2c_adapter *adapter);
 extern struct edid *drm_edid_duplicate(const struct edid *edid);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_config_init(struct drm_device *dev);

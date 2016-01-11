@@ -32,6 +32,7 @@
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
@@ -1393,6 +1394,31 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	return edid;
 }
 EXPORT_SYMBOL(drm_get_edid);
+
+/**
+ * drm_get_edid_switcheroo - get EDID data for a vga_switcheroo output
+ * @connector: connector we're probing
+ * @adapter: I2C adapter to use for DDC
+ *
+ * Wrapper around drm_get_edid() for laptops with dual GPUs using one set of
+ * outputs. The wrapper adds the requisite vga_switcheroo calls to temporarily
+ * switch DDC to the GPU which is retrieving EDID.
+ *
+ * Return: Pointer to valid EDID or %NULL if we couldn't find any.
+ */
+struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+				     struct i2c_adapter *adapter)
+{
+	struct pci_dev *pdev = connector->dev->pdev;
+	struct edid *edid;
+
+	vga_switcheroo_lock_ddc(pdev);
+	edid = drm_get_edid(connector, adapter);
+	vga_switcheroo_unlock_ddc(pdev);
+
+	return edid;
+}
+EXPORT_SYMBOL(drm_get_edid_switcheroo);
 
 /**
  * drm_edid_duplicate - duplicate an EDID and the extensions
