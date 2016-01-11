@@ -510,6 +510,48 @@ static struct mlx5_flow_table *find_prev_chained_ft(struct fs_prio *prio)
 	return find_closest_ft(prio, true);
 }
 
+static int connect_fts_in_prio(struct mlx5_core_dev *dev,
+			       struct fs_prio *prio,
+			       struct mlx5_flow_table *ft)
+{
+	struct mlx5_flow_table *iter;
+	int i = 0;
+	int err;
+
+	fs_for_each_ft(iter, prio) {
+		i++;
+		err = mlx5_cmd_modify_flow_table(dev,
+						 iter,
+						 ft);
+		if (err) {
+			mlx5_core_warn(dev, "Failed to modify flow table %d\n",
+				       iter->id);
+			/* The driver is out of sync with the FW */
+			if (i > 1)
+				WARN_ON(true);
+			return err;
+		}
+	}
+	return 0;
+}
+
+/* Connect flow tables from previous priority of prio to ft */
+static int connect_prev_fts(struct mlx5_core_dev *dev,
+			    struct mlx5_flow_table *ft,
+			    struct fs_prio *prio)
+{
+	struct mlx5_flow_table *prev_ft;
+
+	prev_ft = find_prev_chained_ft(prio);
+	if (prev_ft) {
+		struct fs_prio *prev_prio;
+
+		fs_get_obj(prev_prio, prev_ft->node.parent);
+		return connect_fts_in_prio(dev, prev_prio, ft);
+	}
+	return 0;
+}
+
 static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 				 *prio)
 {
@@ -533,10 +575,30 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 	return err;
 }
 
+static int connect_flow_table(struct mlx5_core_dev *dev, struct mlx5_flow_table *ft,
+			      struct fs_prio *prio)
+{
+	int err = 0;
+
+	/* Connect_prev_fts and update_root_ft_create are mutually exclusive */
+
+	if (list_empty(&prio->node.children)) {
+		err = connect_prev_fts(dev, ft, prio);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_FLOWTABLE(dev,
+			       flow_table_properties_nic_receive.modify_root))
+		err = update_root_ft_create(ft, prio);
+	return err;
+}
+
 struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 					       int prio,
 					       int max_fte)
 {
+	struct mlx5_flow_table *next_ft = NULL;
 	struct mlx5_flow_table *ft;
 	int err;
 	int log_table_sz;
@@ -570,17 +632,15 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 
 	tree_init_node(&ft->node, 1, del_flow_table);
 	log_table_sz = ilog2(ft->max_fte);
+	next_ft = find_next_chained_ft(fs_prio);
 	err = mlx5_cmd_create_flow_table(root->dev, ft->type, ft->level,
-					 log_table_sz, &ft->id);
+					 log_table_sz, next_ft, &ft->id);
 	if (err)
 		goto free_ft;
 
-	if (MLX5_CAP_FLOWTABLE(root->dev,
-			       flow_table_properties_nic_receive.modify_root)) {
-		err = update_root_ft_create(ft, fs_prio);
-		if (err)
-			goto destroy_ft;
-	}
+	err = connect_flow_table(root->dev, ft, fs_prio);
+	if (err)
+		goto destroy_ft;
 	lock_ref_node(&fs_prio->node);
 	tree_add_node(&ft->node, &fs_prio->node);
 	list_add_tail(&ft->node.list, &fs_prio->node.children);
@@ -967,13 +1027,41 @@ static int update_root_ft_destroy(struct mlx5_flow_table *ft)
 	return 0;
 }
 
+/* Connect flow table from previous priority to
+ * the next flow table.
+ */
+static int disconnect_flow_table(struct mlx5_flow_table *ft)
+{
+	struct mlx5_core_dev *dev = get_dev(&ft->node);
+	struct mlx5_flow_table *next_ft;
+	struct fs_prio *prio;
+	int err = 0;
+
+	err = update_root_ft_destroy(ft);
+	if (err)
+		return err;
+
+	fs_get_obj(prio, ft->node.parent);
+	if  (!(list_first_entry(&prio->node.children,
+				struct mlx5_flow_table,
+				node.list) == ft))
+		return 0;
+
+	next_ft = find_next_chained_ft(prio);
+	err = connect_prev_fts(dev, next_ft, prio);
+	if (err)
+		mlx5_core_warn(dev, "Failed to disconnect flow table %d\n",
+			       ft->id);
+	return err;
+}
+
 int mlx5_destroy_flow_table(struct mlx5_flow_table *ft)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	int err = 0;
 
 	mutex_lock(&root->chain_lock);
-	err = update_root_ft_destroy(ft);
+	err = disconnect_flow_table(ft);
 	if (err) {
 		mutex_unlock(&root->chain_lock);
 		return err;
