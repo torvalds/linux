@@ -440,18 +440,18 @@ static irqreturn_t lpass_platform_lpaif_irq(int irq, void *data)
 }
 
 static int lpass_platform_alloc_buffer(struct snd_pcm_substream *substream,
-		struct snd_soc_pcm_runtime *soc_runtime)
+		struct snd_soc_pcm_runtime *rt)
 {
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size = lpass_platform_pcm_hardware.buffer_bytes_max;
 
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = soc_runtime->dev;
+	buf->dev.dev = rt->platform->dev;
 	buf->private_data = NULL;
-	buf->area = dma_alloc_coherent(soc_runtime->dev, size, &buf->addr,
+	buf->area = dma_alloc_coherent(rt->platform->dev, size, &buf->addr,
 			GFP_KERNEL);
 	if (!buf->area) {
-		dev_err(soc_runtime->dev, "%s: Could not allocate DMA buffer\n",
+		dev_err(rt->platform->dev, "%s: Could not allocate DMA buffer\n",
 				__func__);
 		return -ENOMEM;
 	}
@@ -461,12 +461,12 @@ static int lpass_platform_alloc_buffer(struct snd_pcm_substream *substream,
 }
 
 static void lpass_platform_free_buffer(struct snd_pcm_substream *substream,
-		struct snd_soc_pcm_runtime *soc_runtime)
+		struct snd_soc_pcm_runtime *rt)
 {
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 
 	if (buf->area) {
-		dma_free_coherent(soc_runtime->dev, buf->bytes, buf->area,
+		dma_free_coherent(rt->dev, buf->bytes, buf->area,
 				buf->addr);
 	}
 	buf->area = NULL;
@@ -498,9 +498,6 @@ static int lpass_platform_pcm_new(struct snd_soc_pcm_runtime *soc_runtime)
 	data->i2s_port = cpu_dai->driver->id;
 
 	snd_soc_pcm_set_drvdata(soc_runtime, data);
-
-	soc_runtime->dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	soc_runtime->dev->dma_mask = &soc_runtime->dev->coherent_dma_mask;
 
 	ret = lpass_platform_alloc_buffer(substream, soc_runtime);
 	if (ret)
