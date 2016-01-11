@@ -48,6 +48,7 @@ __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 		(__force u64)saddr + (__force u64)daddr +
 		(__force u64)sum + ((len + proto) << 8));
 }
+EXPORT_SYMBOL(csum_tcpudp_magic);
 
 __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum)
@@ -144,6 +145,7 @@ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	return (__force __sum16)~do_csum(iph,ihl*4);
 }
+EXPORT_SYMBOL(ip_fast_csum);
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -178,3 +180,4 @@ __sum16 ip_compute_csum(const void *buff, int len)
 {
 	return (__force __sum16)~from64to16(do_csum(buff,len));
 }
+EXPORT_SYMBOL(ip_compute_csum);

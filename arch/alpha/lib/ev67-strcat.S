@@ -19,7 +19,7 @@
  * string once.
  */
 
-
+#include <asm/export.h>
 	.text
 
 	.align 4
@@ -52,3 +52,4 @@ $found:	cttz	$2, $3		# U0 :
 	br	__stxcpy	# L0 :
 
 	.end strcat
+	EXPORT_SYMBOL(strcat)
