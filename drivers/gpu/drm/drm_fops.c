@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_fops.c
  * File operations for DRM
  *
@@ -44,6 +44,46 @@
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
 
+/**
+ * DOC: file operations
+ *
+ * Drivers must define the file operations structure that forms the DRM
+ * userspace API entry point, even though most of those operations are
+ * implemented in the DRM core. The mandatory functions are drm_open(),
+ * drm_read(), drm_ioctl() and drm_compat_ioctl if CONFIG_COMPAT is enabled.
+ * Drivers which implement private ioctls that require 32/64 bit compatibility
+ * support must provided their onw .compat_ioctl() handler that processes
+ * private ioctls and calls drm_compat_ioctl() for core ioctls.
+ *
+ * In addition drm_read() and drm_poll() provide support for DRM events. DRM
+ * events are a generic and extensible means to send asynchronous events to
+ * userspace through the file descriptor. They are used to send vblank event and
+ * page flip completions by the KMS API. But drivers can also use it for their
+ * own needs, e.g. to signal completion of rendering.
+ *
+ * The memory mapping implementation will vary depending on how the driver
+ * manages memory. Legacy drivers will use the deprecated drm_legacy_mmap()
+ * function, modern drivers should use one of the provided memory-manager
+ * specific implementations. For GEM-based drivers this is drm_gem_mmap().
+ *
+ * No other file operations are supported by the DRM userspace API. Overall the
+ * following is an example #file_operations structure:
+ *
+ *     static const example_drm_fops = {
+ *             .owner = THIS_MODULE,
+ *             .open = drm_open,
+ *             .release = drm_release,
+ *             .unlocked_ioctl = drm_ioctl,
+ *     #ifdef CONFIG_COMPAT
+ *             .compat_ioctl = drm_compat_ioctl,
+ *     #endif
+ *             .poll = drm_poll,
+ *             .read = drm_read,
+ *             .llseek = no_llseek,
+ *             .mmap = drm_gem_mmap,
+ *     };
+ */
+
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);
 
 static int drm_setup(struct drm_device * dev)
@@ -67,15 +107,17 @@ static int drm_setup(struct drm_device * dev)
 }
 
 /**
- * Open file.
+ * drm_open - open method for DRM file
+ * @inode: device inode
+ * @filp: file pointer.
  *
- * \param inode device inode
- * \param filp file pointer.
- * \return zero on success or a negative number on failure.
+ * This function must be used by drivers as their .open() #file_operations
+ * method. It looks up the correct DRM device and instantiates all the per-file
+ * resources for it.
  *
- * Searches the DRM device with the same minor number, calls open_helper(), and
- * increments the device open count. If the open count was previous at zero,
- * i.e., it's the first that the device is open, then calls setup().
+ * RETURNS:
+ *
+ * 0 on success or negative errno value on falure.
  */
 int drm_open(struct inode *inode, struct file *filp)
 {
@@ -112,7 +154,7 @@ err_undo:
 }
 EXPORT_SYMBOL(drm_open);
 
-/**
+/*
  * Check whether DRI will run on this CPU.
  *
  * \return non-zero if the DRI will run on this CPU, or zero otherwise.
@@ -125,7 +167,7 @@ static int drm_cpu_valid(void)
 	return 1;
 }
 
-/**
+/*
  * drm_new_set_master - Allocate a new master object and become master for the
  * associated master realm.
  *
@@ -179,7 +221,7 @@ out_err:
 	return ret;
 }
 
-/**
+/*
  * Called whenever a process opens /dev/drm.
  *
  * \param filp file pointer.
@@ -333,7 +375,7 @@ static void drm_events_release(struct drm_file *file_priv)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-/**
+/*
  * drm_legacy_dev_reinit
  *
  * Reinitializes a legacy/ums drm device in it's lastclose function.
@@ -350,7 +392,7 @@ static void drm_legacy_dev_reinit(struct drm_device *dev)
 	dev->if_version = 0;
 }
 
-/**
+/*
  * Take down the DRM device.
  *
  * \param dev DRM device structure.
@@ -387,16 +429,17 @@ int drm_lastclose(struct drm_device * dev)
 }
 
 /**
- * Release file.
+ * drm_release - release method for DRM file
+ * @inode: device inode
+ * @filp: file pointer.
  *
- * \param inode device inode
- * \param file_priv DRM file private.
- * \return zero on success or a negative number on failure.
+ * This function must be used by drivers as their .release() #file_operations
+ * method. It frees any resources associated with the open file, and if this is
+ * the last open file for the DRM device also proceeds to call drm_lastclose().
  *
- * If the hardware lock is held then free it, and take it again for the kernel
- * context since it's necessary to reclaim buffers. Unlink the file private
- * data from its list and free it. Decreases the open count and if it reaches
- * zero calls drm_lastclose().
+ * RETURNS:
+ *
+ * Always succeeds and returns 0.
  */
 int drm_release(struct inode *inode, struct file *filp)
 {
@@ -451,7 +494,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (file_priv->is_master) {
 		struct drm_master *master = file_priv->master;
 
-		/**
+		/*
 		 * Since the master is disappearing, so is the
 		 * possibility to lock.
 		 */
@@ -508,6 +551,32 @@ int drm_release(struct inode *inode, struct file *filp)
 }
 EXPORT_SYMBOL(drm_release);
 
+/**
+ * drm_read - read method for DRM file
+ * @filp: file pointer
+ * @buffer: userspace destination pointer for the read
+ * @count: count in bytes to read
+ * @offset: offset to read
+ *
+ * This function must be used by drivers as their .read() #file_operations
+ * method iff they use DRM events for asynchronous signalling to userspace.
+ * Since events are used by the KMS API for vblank and page flip completion this
+ * means all modern display drivers must use it.
+ *
+ * @offset is ignore, DRM events are read like a pipe. Therefore drivers also
+ * must set the .llseek() #file_operation to no_llseek(). Polling support is
+ * provided by drm_poll().
+ *
+ * This function will only ever read a full event. Therefore userspace must
+ * supply a big enough buffer to fit any event to ensure forward progress. Since
+ * the maximum event space is currently 4K it's recommended to just use that for
+ * safety.
+ *
+ * RETURNS:
+ *
+ * Number of bytes read (always aligned to full events, and can be 0) or a
+ * negative error code on failure.
+ */
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset)
 {
@@ -578,6 +647,22 @@ put_back_event:
 }
 EXPORT_SYMBOL(drm_read);
 
+/**
+ * drm_poll - poll method for DRM file
+ * @filp: file pointer
+ * @wait: poll waiter table
+ *
+ * This function must be used by drivers as their .read() #file_operations
+ * method iff they use DRM events for asynchronous signalling to userspace.
+ * Since events are used by the KMS API for vblank and page flip completion this
+ * means all modern display drivers must use it.
+ *
+ * See also drm_read().
+ *
+ * RETURNS:
+ *
+ * Mask of POLL flags indicating the current status of the file.
+ */
 unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct drm_file *file_priv = filp->private_data;

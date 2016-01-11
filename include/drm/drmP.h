@@ -919,15 +919,14 @@ extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
 extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
-				/* Device support (drm_fops.h) */
-extern int drm_open(struct inode *inode, struct file *filp);
-extern ssize_t drm_read(struct file *filp, char __user *buffer,
-			size_t count, loff_t *offset);
-extern int drm_release(struct inode *inode, struct file *filp);
-extern int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv);
+/* File Operations (drm_fops.c) */
+int drm_open(struct inode *inode, struct file *filp);
+ssize_t drm_read(struct file *filp, char __user *buffer,
+		 size_t count, loff_t *offset);
+int drm_release(struct inode *inode, struct file *filp);
+int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv);
 
-				/* Mapping support (drm_vm.h) */
-extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
+unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 /* Misc. IOCTL support (drm_ioctl.c) */
 int drm_noop(struct drm_device *dev, void *data,
