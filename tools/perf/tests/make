@@ -280,5 +280,5 @@ all: $(run) $(run_O) tarpkg make_kernelsrc make_kernelsrc_tools
 out: $(run_O)
 	@echo OK
 
-.PHONY: all $(run) $(run_O) tarpkg clean
+.PHONY: all $(run) $(run_O) tarpkg clean make_kernelsrc make_kernelsrc_tools
 endif # ifndef MK
