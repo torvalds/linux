@@ -1381,8 +1381,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 
 	uport = state->uart_port;
 	port = &state->port;
-
-	pr_debug("uart_close(%d) called\n", uport ? uport->line : -1);
+	pr_debug("uart_close(%d) called\n", tty->index);
 
 	if (!port->count || tty_port_close_start(port, tty, filp) == 0)
 		return;
@@ -1500,7 +1499,7 @@ static void uart_hangup(struct tty_struct *tty)
 	struct tty_port *port = &state->port;
 	unsigned long flags;
 
-	pr_debug("uart_hangup(%d)\n", state->uart_port->line);
+	pr_debug("uart_hangup(%d)\n", tty->index);
 
 	mutex_lock(&port->mutex);
 	if (port->flags & ASYNC_NORMAL_ACTIVE) {
