@@ -211,37 +211,37 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 	struct device_node *np = dev->of_node;
 
 	apb->wake_detect_gpio = of_get_named_gpio(np, "wake-detect-gpios", 0);
-	if (!gpio_is_valid(apb->wake_detect_gpio)) {
+	if (apb->wake_detect_gpio < 0) {
 		dev_err(dev, "failed to get wake detect gpio\n");
 		return apb->wake_detect_gpio;
 	}
 
 	apb->resetn_gpio = of_get_named_gpio(np, "reset-gpios", 0);
-	if (!gpio_is_valid(apb->resetn_gpio)) {
+	if (apb->resetn_gpio < 0) {
 		dev_err(dev, "failed to get reset gpio\n");
 		return apb->resetn_gpio;
 	}
 
 	apb->boot_ret_gpio = of_get_named_gpio(np, "boot-ret-gpios", 0);
-	if (!gpio_is_valid(apb->boot_ret_gpio)) {
+	if (apb->boot_ret_gpio < 0) {
 		dev_err(dev, "failed to get boot retention gpio\n");
 		return apb->boot_ret_gpio;
 	}
 
 	/* It's not mandatory to support power management interface */
 	apb->pwroff_gpio = of_get_named_gpio(np, "pwr-off-gpios", 0);
-	if (!gpio_is_valid(apb->pwroff_gpio)) {
+	if (apb->pwroff_gpio < 0) {
 		dev_info(dev, "failed to get power off gpio\n");
 		return apb->pwroff_gpio;
 	}
 
 	/* Do not make clock mandatory as of now (for DB3) */
 	apb->clk_en_gpio = of_get_named_gpio(np, "clock-en-gpio", 0);
-	if (!gpio_is_valid(apb->clk_en_gpio))
+	if (apb->clk_en_gpio < 0)
 		dev_err(dev, "failed to get clock en gpio\n");
 
 	apb->pwrdn_gpio = of_get_named_gpio(np, "pwr-down-gpios", 0);
-	if (!gpio_is_valid(apb->pwrdn_gpio))
+	if (apb->pwrdn_gpio < 0)
 		dev_info(dev, "failed to get power down gpio\n");
 
 	/* Regulators are optional, as we may have fixed supply coming in */
