@@ -45,6 +45,10 @@
 	reg = <0x00901000 0xf000>;
 };
 
+&reg_can2_3v3 {
+	status = "disabled";
+};
+
 &rpmsg{
 	status = "okay";
 };
