@@ -1413,6 +1413,16 @@ static int soc_probe_component(struct snd_soc_card *card,
 			component->name);
 	}
 
+	/* machine specific init */
+	if (component->init) {
+		ret = component->init(component);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"Failed to do machine specific init %d\n", ret);
+			goto err_probe;
+		}
+	}
+
 	if (component->controls)
 		snd_soc_add_component_controls(component, component->controls,
 				     component->num_controls);
@@ -1657,65 +1667,81 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 
 static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 {
-	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
-	const char *name = aux_dev->codec_name;
+	struct snd_soc_component *component;
+	const char *name;
+	struct device_node *codec_of_node;
 
-	rtd->component = soc_find_component(aux_dev->codec_of_node, name);
-	if (!rtd->component) {
-		if (aux_dev->codec_of_node)
-			name = of_node_full_name(aux_dev->codec_of_node);
-
-		dev_err(card->dev, "ASoC: %s not registered\n", name);
-		return -EPROBE_DEFER;
+	if (aux_dev->codec_of_node || aux_dev->codec_name) {
+		/* codecs, usually analog devices */
+		name = aux_dev->codec_name;
+		codec_of_node = aux_dev->codec_of_node;
+		component = soc_find_component(codec_of_node, name);
+		if (!component) {
+			if (codec_of_node)
+				name = of_node_full_name(codec_of_node);
+			goto err_defer;
+		}
+	} else if (aux_dev->name) {
+		/* generic components */
+		name = aux_dev->name;
+		component = soc_find_component(NULL, name);
+		if (!component)
+			goto err_defer;
+	} else {
+		dev_err(card->dev, "ASoC: Invalid auxiliary device\n");
+		return -EINVAL;
 	}
 
-	/*
-	 * Some places still reference rtd->codec, so we have to keep that
-	 * initialized if the component is a CODEC. Once all those references
-	 * have been removed, this code can be removed as well.
-	 */
-	 rtd->codec = rtd->component->codec;
+	component->init = aux_dev->init;
+	list_add(&component->list_aux, &card->aux_comp_list);
+	return 0;
+
+err_defer:
+	dev_err(card->dev, "ASoC: %s not registered\n", name);
+	return -EPROBE_DEFER;
+}
+
+static int soc_probe_aux_devices(struct snd_soc_card *card)
+{
+	struct snd_soc_component *comp;
+	int order;
+	int ret;
+
+	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
+		order++) {
+		list_for_each_entry(comp, &card->aux_comp_list, list_aux) {
+			if (comp->driver->probe_order == order) {
+				ret = soc_probe_component(card,	comp);
+				if (ret < 0) {
+					dev_err(card->dev,
+						"ASoC: failed to probe aux component %s %d\n",
+						comp->name, ret);
+					return ret;
+				}
+			}
+		}
+	}
 
 	return 0;
 }
 
-static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
+static void soc_remove_aux_devices(struct snd_soc_card *card)
 {
-	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
-	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
-	int ret;
+	struct snd_soc_component *comp, *_comp;
+	int order;
 
-	ret = soc_probe_component(card, rtd->component);
-	if (ret < 0)
-		return ret;
-
-	/* do machine specific initialization */
-	if (aux_dev->init) {
-		ret = aux_dev->init(rtd->component);
-		if (ret < 0) {
-			dev_err(card->dev, "ASoC: failed to init %s: %d\n",
-				aux_dev->name, ret);
-			return ret;
+	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
+		order++) {
+		list_for_each_entry_safe(comp, _comp,
+			&card->aux_comp_list, list_aux) {
+			if (comp->driver->remove_order == order) {
+				soc_remove_component(comp);
+				/* remove it from the card's aux_comp_list */
+				list_del(&comp->list_aux);
+			}
 		}
 	}
-
-	return soc_post_component_init(rtd, aux_dev->name);
-}
-
-static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
-{
-	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
-	struct snd_soc_component *component = rtd->component;
-
-	/* unregister the rtd device */
-	if (rtd->dev_registered) {
-		device_unregister(rtd->dev);
-		rtd->dev_registered = 0;
-	}
-
-	if (component)
-		soc_remove_component(component);
 }
 
 static int snd_soc_init_codec_cache(struct snd_soc_codec *codec)
@@ -1894,6 +1920,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		}
 	}
 
+	/* probe auxiliary components */
+	ret = soc_probe_aux_devices(card);
+	if (ret < 0)
+		goto probe_dai_err;
+
 	/* Find new DAI links added during probing components and bind them.
 	 * Components with topology may bring new DAIs and DAI links.
 	 */
@@ -1920,16 +1951,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 					ret);
 				goto probe_dai_err;
 			}
-		}
-	}
-
-	for (i = 0; i < card->num_aux_devs; i++) {
-		ret = soc_probe_aux_dev(card, i);
-		if (ret < 0) {
-			dev_err(card->dev,
-				"ASoC: failed to add auxiliary devices %d\n",
-				ret);
-			goto probe_aux_dev_err;
 		}
 	}
 
@@ -1992,8 +2013,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	return 0;
 
 probe_aux_dev_err:
-	for (i = 0; i < card->num_aux_devs; i++)
-		soc_remove_aux_dev(card, i);
+	soc_remove_aux_devices(card);
 
 probe_dai_err:
 	soc_remove_dai_links(card);
@@ -2039,19 +2059,17 @@ static int soc_probe(struct platform_device *pdev)
 static int soc_cleanup_card_resources(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	int i;
 
 	/* make sure any delayed work runs */
 	list_for_each_entry(rtd, &card->rtd_list, list)
 		flush_delayed_work(&rtd->delayed_work);
 
-	/* remove auxiliary devices */
-	for (i = 0; i < card->num_aux_devs; i++)
-		soc_remove_aux_dev(card, i);
-
 	/* remove and free each DAI */
 	soc_remove_dai_links(card);
 	soc_remove_pcm_runtimes(card);
+
+	/* remove auxiliary devices */
+	soc_remove_aux_devices(card);
 
 	soc_cleanup_card_debugfs(card);
 
@@ -2608,16 +2626,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->rtd_list);
 	card->num_rtd = 0;
 
-	card->rtd_aux = devm_kzalloc(card->dev,
-				 sizeof(struct snd_soc_pcm_runtime) *
-				 card->num_aux_devs,
-				 GFP_KERNEL);
-	if (card->rtd_aux == NULL)
-		return -ENOMEM;
-
-	for (i = 0; i < card->num_aux_devs; i++)
-		card->rtd_aux[i].card = card;
-
 	INIT_LIST_HEAD(&card->dapm_dirty);
 	INIT_LIST_HEAD(&card->dobj_list);
 	card->instantiated = 0;
@@ -2744,6 +2752,56 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
 	}
 }
 
+/* Create a DAI and add it to the component's DAI list */
+static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
+	struct snd_soc_dai_driver *dai_drv,
+	bool legacy_dai_naming)
+{
+	struct device *dev = component->dev;
+	struct snd_soc_dai *dai;
+
+	dev_dbg(dev, "ASoC: dynamically register DAI %s\n", dev_name(dev));
+
+	dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
+	if (dai == NULL)
+		return NULL;
+
+	/*
+	 * Back in the old days when we still had component-less DAIs,
+	 * instead of having a static name, component-less DAIs would
+	 * inherit the name of the parent device so it is possible to
+	 * register multiple instances of the DAI. We still need to keep
+	 * the same naming style even though those DAIs are not
+	 * component-less anymore.
+	 */
+	if (legacy_dai_naming &&
+	   (dai_drv->id == 0 || dai_drv->name == NULL)) {
+		dai->name = fmt_single_name(dev, &dai->id);
+	} else {
+		dai->name = fmt_multiple_name(dev, dai_drv);
+		if (dai_drv->id)
+			dai->id = dai_drv->id;
+		else
+			dai->id = component->num_dai;
+	}
+	if (dai->name == NULL) {
+		kfree(dai);
+		return NULL;
+	}
+
+	dai->component = component;
+	dai->dev = dev;
+	dai->driver = dai_drv;
+	if (!dai->driver->ops)
+		dai->driver->ops = &null_dai_ops;
+
+	list_add(&dai->list, &component->dai_list);
+	component->num_dai++;
+
+	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
+	return dai;
+}
+
 /**
  * snd_soc_register_dais - Register a DAI with the ASoC core
  *
@@ -2765,49 +2823,15 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: dai register %s #%Zu\n", dev_name(dev), count);
 
 	component->dai_drv = dai_drv;
-	component->num_dai = count;
 
 	for (i = 0; i < count; i++) {
 
-		dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
+		dai = soc_add_dai(component, dai_drv + i,
+				count == 1 && legacy_dai_naming);
 		if (dai == NULL) {
 			ret = -ENOMEM;
 			goto err;
 		}
-
-		/*
-		 * Back in the old days when we still had component-less DAIs,
-		 * instead of having a static name, component-less DAIs would
-		 * inherit the name of the parent device so it is possible to
-		 * register multiple instances of the DAI. We still need to keep
-		 * the same naming style even though those DAIs are not
-		 * component-less anymore.
-		 */
-		if (count == 1 && legacy_dai_naming &&
-			(dai_drv[i].id == 0 || dai_drv[i].name == NULL)) {
-			dai->name = fmt_single_name(dev, &dai->id);
-		} else {
-			dai->name = fmt_multiple_name(dev, &dai_drv[i]);
-			if (dai_drv[i].id)
-				dai->id = dai_drv[i].id;
-			else
-				dai->id = i;
-		}
-		if (dai->name == NULL) {
-			kfree(dai);
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		dai->component = component;
-		dai->dev = dev;
-		dai->driver = &dai_drv[i];
-		if (!dai->driver->ops)
-			dai->driver->ops = &null_dai_ops;
-
-		list_add(&dai->list, &component->dai_list);
-
-		dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	}
 
 	return 0;
@@ -2817,6 +2841,48 @@ err:
 
 	return ret;
 }
+
+/**
+ * snd_soc_register_dai - Register a DAI dynamically & create its widgets
+ *
+ * @component: The component the DAIs are registered for
+ * @dai_drv: DAI driver to use for the DAI
+ *
+ * Topology can use this API to register DAIs when probing a component.
+ * These DAIs's widgets will be freed in the card cleanup and the DAIs
+ * will be freed in the component cleanup.
+ */
+int snd_soc_register_dai(struct snd_soc_component *component,
+	struct snd_soc_dai_driver *dai_drv)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	struct snd_soc_dai *dai;
+	int ret;
+
+	if (dai_drv->dobj.type != SND_SOC_DOBJ_PCM) {
+		dev_err(component->dev, "Invalid dai type %d\n",
+			dai_drv->dobj.type);
+		return -EINVAL;
+	}
+
+	lockdep_assert_held(&client_mutex);
+	dai = soc_add_dai(component, dai_drv, false);
+	if (!dai)
+		return -ENOMEM;
+
+	/* Create the DAI widgets here. After adding DAIs, topology may
+	 * also add routes that need these widgets as source or sink.
+	 */
+	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create DAI widgets %d\n", ret);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
 static void snd_soc_component_seq_notifier(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_dapm_type type, int subseq)
