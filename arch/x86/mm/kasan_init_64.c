@@ -121,11 +121,16 @@ void __init kasan_init(void)
 	kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_END),
 			(void *)KASAN_SHADOW_END);
 
-	memset(kasan_zero_page, 0, PAGE_SIZE);
-
 	load_cr3(init_level4_pgt);
 	__flush_tlb_all();
-	init_task.kasan_depth = 0;
 
+	/*
+	 * kasan_zero_page has been used as early shadow memory, thus it may
+	 * contain some garbage. Now we can clear it, since after the TLB flush
+	 * no one should write to it.
+	 */
+	memset(kasan_zero_page, 0, PAGE_SIZE);
+
+	init_task.kasan_depth = 0;
 	pr_info("KernelAddressSanitizer initialized\n");
 }
