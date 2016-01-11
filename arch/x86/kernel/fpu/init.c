@@ -143,9 +143,18 @@ static void __init fpu__init_system_generic(void)
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
 
-/* Enforce that 'MEMBER' is the last field of 'TYPE': */
+/* Get alignment of the TYPE. */
+#define TYPE_ALIGN(TYPE) offsetof(struct { char x; TYPE test; }, test)
+
+/*
+ * Enforce that 'MEMBER' is the last field of 'TYPE'.
+ *
+ * Align the computed size with alignment of the TYPE,
+ * because that's how C aligns structs.
+ */
 #define CHECK_MEMBER_AT_END_OF(TYPE, MEMBER) \
-	BUILD_BUG_ON(sizeof(TYPE) != offsetofend(TYPE, MEMBER))
+	BUILD_BUG_ON(sizeof(TYPE) != ALIGN(offsetofend(TYPE, MEMBER), \
+					   TYPE_ALIGN(TYPE)))
 
 /*
  * We append the 'struct fpu' to the task_struct:

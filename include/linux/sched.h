@@ -177,9 +177,9 @@ extern void get_iowait_load(unsigned long *nr_waiters, unsigned long *load);
 extern void calc_global_load(unsigned long ticks);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-extern void update_cpu_load_nohz(void);
+extern void update_cpu_load_nohz(int active);
 #else
-static inline void update_cpu_load_nohz(void) { }
+static inline void update_cpu_load_nohz(int active) { }
 #endif
 
 extern unsigned long get_parent_ip(unsigned long addr);
@@ -1268,8 +1268,13 @@ struct sched_entity {
 #endif
 
 #ifdef CONFIG_SMP
-	/* Per entity load average tracking */
-	struct sched_avg	avg;
+	/*
+	 * Per entity load average tracking.
+	 *
+	 * Put into separate cache line so it does not
+	 * collide with read-mostly values above.
+	 */
+	struct sched_avg	avg ____cacheline_aligned_in_smp;
 #endif
 };
 
@@ -1520,11 +1525,14 @@ struct task_struct {
 	cputime_t gtime;
 	struct prev_cputime prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-	seqlock_t vtime_seqlock;
+	seqcount_t vtime_seqcount;
 	unsigned long long vtime_snap;
 	enum {
-		VTIME_SLEEPING = 0,
+		/* Task is sleeping or running in a CPU with VTIME inactive */
+		VTIME_INACTIVE = 0,
+		/* Task runs in userspace in a CPU with VTIME active */
 		VTIME_USER,
+		/* Task runs in kernelspace in a CPU with VTIME active */
 		VTIME_SYS,
 	} vtime_snap_whence;
 #endif

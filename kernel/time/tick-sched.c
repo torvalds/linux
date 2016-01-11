@@ -694,11 +694,11 @@ out:
 	return tick;
 }
 
-static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
+static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now, int active)
 {
 	/* Update jiffies first */
 	tick_do_update_jiffies64(now);
-	update_cpu_load_nohz();
+	update_cpu_load_nohz(active);
 
 	calc_load_exit_idle();
 	touch_softlockup_watchdog();
@@ -725,7 +725,7 @@ static void tick_nohz_full_update_tick(struct tick_sched *ts)
 	if (can_stop_full_tick())
 		tick_nohz_stop_sched_tick(ts, ktime_get(), cpu);
 	else if (ts->tick_stopped)
-		tick_nohz_restart_sched_tick(ts, ktime_get());
+		tick_nohz_restart_sched_tick(ts, ktime_get(), 1);
 #endif
 }
 
@@ -875,7 +875,7 @@ static void tick_nohz_account_idle_ticks(struct tick_sched *ts)
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	unsigned long ticks;
 
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		return;
 	/*
 	 * We stopped the tick in idle. Update process times would miss the
@@ -916,7 +916,7 @@ void tick_nohz_idle_exit(void)
 		tick_nohz_stop_idle(ts, now);
 
 	if (ts->tick_stopped) {
-		tick_nohz_restart_sched_tick(ts, now);
+		tick_nohz_restart_sched_tick(ts, now, 0);
 		tick_nohz_account_idle_ticks(ts);
 	}
 
