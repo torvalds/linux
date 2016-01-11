@@ -325,9 +325,11 @@ xfs_check_block(
 
 /*
  * Check that the extents for the inode ip are in the right order in all
- * btree leaves.
+ * btree leaves. THis becomes prohibitively expensive for large extent count
+ * files, so don't bother with inodes that have more than 10,000 extents in
+ * them. The btree record ordering checks will still be done, so for such large
+ * bmapbt constructs that is going to catch most corruptions.
  */
-
 STATIC void
 xfs_bmap_check_leaf_extents(
 	xfs_btree_cur_t		*cur,	/* btree cursor or null */
@@ -351,6 +353,10 @@ xfs_bmap_check_leaf_extents(
 	if (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE) {
 		return;
 	}
+
+	/* skip large extent count inodes */
+	if (ip->i_d.di_nextents > 10000)
+		return;
 
 	bno = NULLFSBLOCK;
 	mp = ip->i_mount;
@@ -1111,7 +1117,6 @@ xfs_bmap_add_attrfork(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	int			blks;		/* space reservation */
 	int			version = 1;	/* superblock attr version */
-	int			committed;	/* xaction was committed */
 	int			logflags;	/* logging flags */
 	int			error;		/* error return value */
 
@@ -1214,7 +1219,7 @@ xfs_bmap_add_attrfork(
 			xfs_log_sb(tp);
 	}
 
-	error = xfs_bmap_finish(&tp, &flist, &committed);
+	error = xfs_bmap_finish(&tp, &flist, NULL);
 	if (error)
 		goto bmap_cancel;
 	error = xfs_trans_commit(tp);
@@ -5951,7 +5956,6 @@ xfs_bmap_split_extent(
 	struct xfs_trans        *tp;
 	struct xfs_bmap_free    free_list;
 	xfs_fsblock_t           firstfsb;
-	int                     committed;
 	int                     error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
@@ -5972,7 +5976,7 @@ xfs_bmap_split_extent(
 	if (error)
 		goto out;
 
-	error = xfs_bmap_finish(&tp, &free_list, &committed);
+	error = xfs_bmap_finish(&tp, &free_list, NULL);
 	if (error)
 		goto out;
 
