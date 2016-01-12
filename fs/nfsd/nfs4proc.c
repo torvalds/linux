@@ -102,6 +102,9 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_attrnotsupp;
 	if (writable && !bmval_is_subset(bmval, writable))
 		return nfserr_inval;
+	if (writable && (bmval[2] & FATTR4_WORD2_MODE_UMASK) &&
+			(bmval[1] & FATTR4_WORD1_MODE))
+		return nfserr_inval;
 	return nfs_ok;
 }
 
