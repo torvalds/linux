@@ -254,7 +254,6 @@ enum rdma_ch_state {
  * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
  * @ioctx_ring:    Send ring.
- * @wc:            IB work completion array for srpt_process_completion().
  * @list:          Node for insertion in the srpt_device.rch_list list.
  * @cmd_wait_list: List of SCSI commands that arrived before the RTU event. This
  *                 list contains struct srpt_ioctx elements and is protected
@@ -281,7 +280,6 @@ struct srpt_rdma_ch {
 	struct list_head	free_list;
 	enum rdma_ch_state	state;
 	struct srpt_send_ioctx	**ioctx_ring;
-	struct ib_wc		wc[16];
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
 	struct se_session	*sess;
