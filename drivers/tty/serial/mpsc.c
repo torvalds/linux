@@ -1870,12 +1870,12 @@ static int mpsc_shared_map_regs(struct platform_device *pd)
 
 static void mpsc_shared_unmap_regs(void)
 {
-	if (!mpsc_shared_regs.mpsc_routing_base) {
+	if (mpsc_shared_regs.mpsc_routing_base) {
 		iounmap(mpsc_shared_regs.mpsc_routing_base);
 		release_mem_region(mpsc_shared_regs.mpsc_routing_base_p,
 				MPSC_ROUTING_REG_BLOCK_SIZE);
 	}
-	if (!mpsc_shared_regs.sdma_intr_base) {
+	if (mpsc_shared_regs.sdma_intr_base) {
 		iounmap(mpsc_shared_regs.sdma_intr_base);
 		release_mem_region(mpsc_shared_regs.sdma_intr_base_p,
 				MPSC_SDMA_INTR_REG_BLOCK_SIZE);
@@ -2011,15 +2011,15 @@ err:
 
 static void mpsc_drv_unmap_regs(struct mpsc_port_info *pi)
 {
-	if (!pi->mpsc_base) {
+	if (pi->mpsc_base) {
 		iounmap(pi->mpsc_base);
 		release_mem_region(pi->mpsc_base_p, MPSC_REG_BLOCK_SIZE);
 	}
-	if (!pi->sdma_base) {
+	if (pi->sdma_base) {
 		iounmap(pi->sdma_base);
 		release_mem_region(pi->sdma_base_p, MPSC_SDMA_REG_BLOCK_SIZE);
 	}
-	if (!pi->brg_base) {
+	if (pi->brg_base) {
 		iounmap(pi->brg_base);
 		release_mem_region(pi->brg_base_p, MPSC_BRG_REG_BLOCK_SIZE);
 	}
