@@ -40,7 +40,7 @@
 			pinctrl-0 = <&pmx_select28 &pmx_sdio_cd &pmx_select34>;
 			pinctrl-names = "default";
 
-			pmx_select28: pmx-select-uart-sd {
+			pmx_select28: pmx-select-rs232-rs484 {
 				marvell,pins = "mpp28";
 				marvell,function = "gpio";
 			};
@@ -48,7 +48,7 @@
 				marvell,pins = "mpp29";
 				marvell,function = "gpio";
 			};
-			pmx_select34: pmx-select-rs232-rs484 {
+			pmx_select34: pmx-select-uart-sd {
 				marvell,pins = "mpp34";
 				marvell,function = "gpio";
 			};
