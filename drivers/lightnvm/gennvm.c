@@ -396,7 +396,7 @@ static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
 {
 	struct ppa_addr addr = block_to_ppa(dev, blk);
 
-	return nvm_erase_ppa(dev, addr);
+	return nvm_erase_ppa(dev, &addr, 1);
 }
 
 static struct nvm_lun *gennvm_get_lun(struct nvm_dev *dev, int lunid)

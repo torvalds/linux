@@ -265,7 +265,7 @@ void nvm_free_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_free_rqd_ppalist);
 
-int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr ppa)
+int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas)
 {
 	struct nvm_rq rqd;
 	int ret;
@@ -275,7 +275,7 @@ int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr ppa)
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	ret = nvm_set_rqd_ppalist(dev, &rqd, &ppa, 1);
+	ret = nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas);
 	if (ret)
 		return ret;
 
