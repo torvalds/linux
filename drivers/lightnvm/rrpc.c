@@ -330,6 +330,10 @@ try:
 			goto finished;
 		}
 		wait_for_completion_io(&wait);
+		if (bio->bi_error) {
+			rrpc_inflight_laddr_release(rrpc, rqd);
+			goto finished;
+		}
 
 		bio_reset(bio);
 		reinit_completion(&wait);
@@ -352,6 +356,8 @@ try:
 		wait_for_completion_io(&wait);
 
 		rrpc_inflight_laddr_release(rrpc, rqd);
+		if (bio->bi_error)
+			goto finished;
 
 		bio_reset(bio);
 	}
