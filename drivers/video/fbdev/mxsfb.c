@@ -1024,6 +1024,8 @@ static int mxsfb_restore_mode(struct mxsfb_info *host)
 	if (!(ctrl & CTRL_RUN))
 		return -EINVAL;
 
+	memset(&vmode, 0, sizeof(vmode));
+
 	vdctrl0 = readl(host->base + LCDC_VDCTRL0);
 	vdctrl2 = readl(host->base + LCDC_VDCTRL2);
 	vdctrl3 = readl(host->base + LCDC_VDCTRL3);
