@@ -167,6 +167,20 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
+struct nvm_block *nvm_get_blk_unlocked(struct nvm_dev *dev, struct nvm_lun *lun,
+							unsigned long flags)
+{
+	return dev->mt->get_blk_unlocked(dev, lun, flags);
+}
+EXPORT_SYMBOL(nvm_get_blk_unlocked);
+
+/* Assumes that all valid pages have already been moved on release to bm */
+void nvm_put_blk_unlocked(struct nvm_dev *dev, struct nvm_block *blk)
+{
+	return dev->mt->put_blk_unlocked(dev, blk);
+}
+EXPORT_SYMBOL(nvm_put_blk_unlocked);
+
 struct nvm_block *nvm_get_blk(struct nvm_dev *dev, struct nvm_lun *lun,
 							unsigned long flags)
 {

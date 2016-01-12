@@ -229,12 +229,25 @@ struct nvm_lun {
 	int lun_id;
 	int chnl_id;
 
-	unsigned int nr_inuse_blocks;	/* Number of used blocks */
+	/* It is up to the target to mark blocks as closed. If the target does
+	 * not do it, all blocks are marked as open, and nr_open_blocks
+	 * represents the number of blocks in use
+	 */
+	unsigned int nr_open_blocks;	/* Number of used, writable blocks */
+	unsigned int nr_closed_blocks;	/* Number of used, read-only blocks */
 	unsigned int nr_free_blocks;	/* Number of unused blocks */
 	unsigned int nr_bad_blocks;	/* Number of bad blocks */
-	struct nvm_block *blocks;
 
 	spinlock_t lock;
+
+	struct nvm_block *blocks;
+};
+
+enum {
+	NVM_BLK_ST_FREE =	0x1,	/* Free block */
+	NVM_BLK_ST_OPEN =	0x2,	/* Open block - read-write */
+	NVM_BLK_ST_CLOSED =	0x4,	/* Closed block - read-only */
+	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
 };
 
 struct nvm_block {
@@ -243,7 +256,7 @@ struct nvm_block {
 	unsigned long id;
 
 	void *priv;
-	int type;
+	int state;
 };
 
 struct nvm_dev {
@@ -404,6 +417,8 @@ struct nvmm_type {
 	nvmm_unregister_fn *unregister_mgr;
 
 	/* Block administration callbacks */
+	nvmm_get_blk_fn *get_blk_unlocked;
+	nvmm_put_blk_fn *put_blk_unlocked;
 	nvmm_get_blk_fn *get_blk;
 	nvmm_put_blk_fn *put_blk;
 	nvmm_open_blk_fn *open_blk;
@@ -423,6 +438,10 @@ struct nvmm_type {
 
 extern int nvm_register_mgr(struct nvmm_type *);
 extern void nvm_unregister_mgr(struct nvmm_type *);
+
+extern struct nvm_block *nvm_get_blk_unlocked(struct nvm_dev *,
+					struct nvm_lun *, unsigned long);
+extern void nvm_put_blk_unlocked(struct nvm_dev *, struct nvm_block *);
 
 extern struct nvm_block *nvm_get_blk(struct nvm_dev *, struct nvm_lun *,
 								unsigned long);
