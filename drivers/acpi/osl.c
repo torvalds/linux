@@ -366,6 +366,19 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
 		iounmap(vaddr);
 }
 
+/**
+ * acpi_os_map_iomem - Get a virtual address for a given physical address range.
+ * @phys: Start of the physical address range to map.
+ * @size: Size of the physical address range to map.
+ *
+ * Look up the given physical address range in the list of existing ACPI memory
+ * mappings.  If found, get a reference to it and return a pointer to it (its
+ * virtual address).  If not found, map it, add it to that list and return a
+ * pointer to it.
+ *
+ * During early init (when acpi_gbl_permanent_mmap has not been set yet) this
+ * routine simply calls __acpi_map_table() to get the job done.
+ */
 void __iomem *__init_refok
 acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
 {
@@ -441,6 +454,20 @@ static void acpi_os_map_cleanup(struct acpi_ioremap *map)
 	}
 }
 
+/**
+ * acpi_os_unmap_iomem - Drop a memory mapping reference.
+ * @virt: Start of the address range to drop a reference to.
+ * @size: Size of the address range to drop a reference to.
+ *
+ * Look up the given virtual address range in the list of existing ACPI memory
+ * mappings, drop a reference to it and unmap it if there are no more active
+ * references to it.
+ *
+ * During early init (when acpi_gbl_permanent_mmap has not been set yet) this
+ * routine simply calls __acpi_unmap_table() to get the job done.  Since
+ * __acpi_unmap_table() is an __init function, the __ref annotation is needed
+ * here.
+ */
 void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
