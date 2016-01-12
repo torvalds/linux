@@ -479,7 +479,7 @@ static void exynos_cpu_die(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct smp_operations exynos_smp_ops __initdata = {
+const struct smp_operations exynos_smp_ops __initconst = {
 	.smp_init_cpus		= exynos_smp_init_cpus,
 	.smp_prepare_cpus	= exynos_smp_prepare_cpus,
 	.smp_secondary_init	= exynos_secondary_init,

@@ -120,7 +120,7 @@ static void __init spear13xx_smp_prepare_cpus(unsigned int max_cpus)
 	__raw_writel(virt_to_phys(spear13xx_secondary_startup), SYS_LOCATION);
 }
 
-struct smp_operations spear13xx_smp_ops __initdata = {
+const struct smp_operations spear13xx_smp_ops __initconst = {
        .smp_init_cpus		= spear13xx_smp_init_cpus,
        .smp_prepare_cpus	= spear13xx_smp_prepare_cpus,
        .smp_secondary_init	= spear13xx_secondary_init,

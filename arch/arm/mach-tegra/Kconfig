@@ -1,5 +1,6 @@
 menuconfig ARCH_TEGRA
-	bool "NVIDIA Tegra" if ARCH_MULTI_V7
+	bool "NVIDIA Tegra"
+	depends on ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SUPPORTS_TRUSTED_FOUNDATIONS
 	select ARM_AMBA

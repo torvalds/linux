@@ -120,7 +120,7 @@ bool __init psci_smp_available(void)
 	return (psci_ops.cpu_on != NULL);
 }
 
-struct smp_operations __initdata psci_smp_ops = {
+const struct smp_operations psci_smp_ops __initconst = {
 	.smp_boot_secondary	= psci_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= psci_cpu_disable,

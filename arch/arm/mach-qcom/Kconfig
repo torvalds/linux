@@ -1,5 +1,6 @@
 menuconfig ARCH_QCOM
-	bool "Qualcomm Support" if ARCH_MULTI_V7
+	bool "Qualcomm Support"
+	depends on ARCH_MULTI_V7
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_GIC
 	select ARM_AMBA

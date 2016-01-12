@@ -117,7 +117,7 @@ static int r8a7779_cpu_kill(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct smp_operations r8a7779_smp_ops  __initdata = {
+const struct smp_operations r8a7779_smp_ops  __initconst = {
 	.smp_prepare_cpus	= r8a7779_smp_prepare_cpus,
 	.smp_boot_secondary	= r8a7779_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

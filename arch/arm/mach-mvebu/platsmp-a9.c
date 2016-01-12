@@ -93,11 +93,11 @@ static int armada_38x_cpu_kill(unsigned int cpu)
 }
 #endif
 
-static struct smp_operations mvebu_cortex_a9_smp_ops __initdata = {
+static const struct smp_operations mvebu_cortex_a9_smp_ops __initconst = {
 	.smp_boot_secondary	= mvebu_cortex_a9_boot_secondary,
 };
 
-static struct smp_operations armada_38x_smp_ops __initdata = {
+static const struct smp_operations armada_38x_smp_ops __initconst = {
 	.smp_boot_secondary	= mvebu_cortex_a9_boot_secondary,
 	.smp_secondary_init     = armada_38x_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU

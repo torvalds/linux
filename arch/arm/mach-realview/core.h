@@ -54,7 +54,7 @@ extern int realview_usb_register(struct resource *res);
 extern void realview_init_early(void);
 extern void realview_fixup(struct tag *tags, char **from);
 
-extern struct smp_operations realview_smp_ops;
+extern const struct smp_operations realview_smp_ops;
 extern void realview_cpu_die(unsigned int cpu);
 
 #endif

@@ -1,5 +1,6 @@
 config ARCH_ZYNQ
-	bool "Xilinx Zynq ARM Cortex A9 Platform" if ARCH_MULTI_V7
+	bool "Xilinx Zynq ARM Cortex A9 Platform"
+	depends on ARCH_MULTI_V7
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
 	select ARM_GIC

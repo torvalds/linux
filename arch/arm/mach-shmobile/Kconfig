@@ -30,8 +30,8 @@ config ARCH_RMOBILE
 	select SYS_SUPPORTS_SH_TMU
 
 menuconfig ARCH_SHMOBILE_MULTI
-	bool "Renesas ARM SoCs" if ARCH_MULTI_V7
-	depends on MMU
+	bool "Renesas ARM SoCs"
+	depends on ARCH_MULTI_V7 && MMU
 	select ARCH_SHMOBILE
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
