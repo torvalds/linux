@@ -534,9 +534,6 @@ void transport_deregister_session(struct se_session *se_sess)
 }
 EXPORT_SYMBOL(transport_deregister_session);
 
-/*
- * Called with cmd->t_state_lock held.
- */
 static void target_remove_from_state_list(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -561,10 +558,6 @@ static int transport_cmd_check_stop(struct se_cmd *cmd, bool remove_from_lists,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (write_pending)
-		cmd->t_state = TRANSPORT_WRITE_PENDING;
-
 	if (remove_from_lists) {
 		target_remove_from_state_list(cmd);
 
@@ -573,6 +566,10 @@ static int transport_cmd_check_stop(struct se_cmd *cmd, bool remove_from_lists,
 		 */
 		cmd->se_lun = NULL;
 	}
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	if (write_pending)
+		cmd->t_state = TRANSPORT_WRITE_PENDING;
 
 	/*
 	 * Determine if frontend context caller is requesting the stopping of
@@ -627,6 +624,8 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
+	bool ack_kref = (cmd->se_cmd_flags & SCF_ACK_KREF);
+
 	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD)
 		transport_lun_remove_cmd(cmd);
 	/*
@@ -638,7 +637,7 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
-	if (remove)
+	if (remove && ack_kref)
 		transport_put_cmd(cmd);
 }
 
@@ -706,7 +705,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 	 * Check for case where an explicit ABORT_TASK has been received
 	 * and transport_wait_for_tasks() will be waiting for completion..
 	 */
-	if (cmd->transport_state & CMD_T_ABORTED &&
+	if (cmd->transport_state & CMD_T_ABORTED ||
 	    cmd->transport_state & CMD_T_STOP) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		complete_all(&cmd->t_transport_stop_comp);
@@ -2222,28 +2221,6 @@ static inline void transport_free_pages(struct se_cmd *cmd)
 }
 
 /**
- * transport_release_cmd - free a command
- * @cmd:       command to free
- *
- * This routine unconditionally frees a command, and reference counting
- * or list removal must be done in the caller.
- */
-static int transport_release_cmd(struct se_cmd *cmd)
-{
-	BUG_ON(!cmd->se_tfo);
-
-	if (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
-		core_tmr_release_req(cmd->se_tmr_req);
-	if (cmd->t_task_cdb != cmd->__t_task_cdb)
-		kfree(cmd->t_task_cdb);
-	/*
-	 * If this cmd has been setup with target_get_sess_cmd(), drop
-	 * the kref and call ->release_cmd() in kref callback.
-	 */
-	return target_put_sess_cmd(cmd);
-}
-
-/**
  * transport_put_cmd - release a reference to a command
  * @cmd:       command to release
  *
@@ -2251,8 +2228,12 @@ static int transport_release_cmd(struct se_cmd *cmd)
  */
 static int transport_put_cmd(struct se_cmd *cmd)
 {
-	transport_free_pages(cmd);
-	return transport_release_cmd(cmd);
+	BUG_ON(!cmd->se_tfo);
+	/*
+	 * If this cmd has been setup with target_get_sess_cmd(), drop
+	 * the kref and call ->release_cmd() in kref callback.
+	 */
+	return target_put_sess_cmd(cmd);
 }
 
 void *transport_kmap_data_sg(struct se_cmd *cmd)
@@ -2452,14 +2433,13 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
-	unsigned long flags;
 	int ret = 0;
 
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
 		if (wait_for_tasks && (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
-			 transport_wait_for_tasks(cmd);
+			transport_wait_for_tasks(cmd);
 
-		ret = transport_release_cmd(cmd);
+		ret = transport_put_cmd(cmd);
 	} else {
 		if (wait_for_tasks)
 			transport_wait_for_tasks(cmd);
@@ -2468,11 +2448,8 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		 * has already added se_cmd to state_list, but fabric has
 		 * failed command before I/O submission.
 		 */
-		if (cmd->state_active) {
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
+		if (cmd->state_active)
 			target_remove_from_state_list(cmd);
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		}
 
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
@@ -2517,6 +2494,16 @@ out:
 }
 EXPORT_SYMBOL(target_get_sess_cmd);
 
+static void target_free_cmd_mem(struct se_cmd *cmd)
+{
+	transport_free_pages(cmd);
+
+	if (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
+		core_tmr_release_req(cmd->se_tmr_req);
+	if (cmd->t_task_cdb != cmd->__t_task_cdb)
+		kfree(cmd->t_task_cdb);
+}
+
 static void target_release_cmd_kref(struct kref *kref)
 {
 	struct se_cmd *se_cmd = container_of(kref, struct se_cmd, cmd_kref);
@@ -2526,17 +2513,20 @@ static void target_release_cmd_kref(struct kref *kref)
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (list_empty(&se_cmd->se_cmd_list)) {
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+		target_free_cmd_mem(se_cmd);
 		se_cmd->se_tfo->release_cmd(se_cmd);
 		return;
 	}
 	if (se_sess->sess_tearing_down && se_cmd->cmd_wait_set) {
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+		target_free_cmd_mem(se_cmd);
 		complete(&se_cmd->cmd_wait_comp);
 		return;
 	}
 	list_del(&se_cmd->se_cmd_list);
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
+	target_free_cmd_mem(se_cmd);
 	se_cmd->se_tfo->release_cmd(se_cmd);
 }
 
@@ -2548,6 +2538,7 @@ int target_put_sess_cmd(struct se_cmd *se_cmd)
 	struct se_session *se_sess = se_cmd->se_sess;
 
 	if (!se_sess) {
+		target_free_cmd_mem(se_cmd);
 		se_cmd->se_tfo->release_cmd(se_cmd);
 		return 1;
 	}
