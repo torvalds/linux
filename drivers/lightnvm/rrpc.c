@@ -1150,6 +1150,7 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 			struct nvm_block *blk = &lun->blocks[j];
 
 			rblk->parent = blk;
+			rblk->rlun = rlun;
 			INIT_LIST_HEAD(&rblk->prio);
 			spin_lock_init(&rblk->lock);
 		}

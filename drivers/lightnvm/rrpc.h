@@ -54,6 +54,7 @@ struct rrpc_rq {
 
 struct rrpc_block {
 	struct nvm_block *parent;
+	struct rrpc_lun *rlun;
 	struct list_head prio;
 
 #define MAX_INVALID_PAGES_STORAGE 8
