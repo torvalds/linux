@@ -74,16 +74,6 @@ void __init default_banner(void)
 /* Undefined instruction for dealing with missing ops pointers. */
 static const unsigned char ud2a[] = { 0x0f, 0x0b };
 
-unsigned paravirt_patch_nop(void)
-{
-	return 0;
-}
-
-unsigned paravirt_patch_ignore(unsigned len)
-{
-	return len;
-}
-
 struct branch {
 	unsigned char opcode;
 	u32 delta;
@@ -133,7 +123,6 @@ static void *get_call_destination(u8 type)
 		.pv_time_ops = pv_time_ops,
 		.pv_cpu_ops = pv_cpu_ops,
 		.pv_irq_ops = pv_irq_ops,
-		.pv_apic_ops = pv_apic_ops,
 		.pv_mmu_ops = pv_mmu_ops,
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 		.pv_lock_ops = pv_lock_ops,
@@ -152,8 +141,7 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 		/* If there's no function, patch it with a ud2a (BUG) */
 		ret = paravirt_patch_insns(insnbuf, len, ud2a, ud2a+sizeof(ud2a));
 	else if (opfunc == _paravirt_nop)
-		/* If the operation is a nop, then nop the callsite */
-		ret = paravirt_patch_nop();
+		ret = 0;
 
 	/* identity functions just return their single argument */
 	else if (opfunc == _paravirt_ident_32)
@@ -391,12 +379,6 @@ NOKPROBE_SYMBOL(native_get_debugreg);
 NOKPROBE_SYMBOL(native_set_debugreg);
 NOKPROBE_SYMBOL(native_load_idt);
 
-struct pv_apic_ops pv_apic_ops = {
-#ifdef CONFIG_X86_LOCAL_APIC
-	.startup_ipi_hook = paravirt_nop,
-#endif
-};
-
 #if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
 /* 32-bit pagetable entries */
 #define PTE_IDENT	__PV_IS_CALLEE_SAVE(_paravirt_ident_32)
@@ -432,9 +414,6 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.set_pmd = native_set_pmd,
 	.set_pmd_at = native_set_pmd_at,
 	.pte_update = paravirt_nop,
-	.pte_update_defer = paravirt_nop,
-	.pmd_update = paravirt_nop,
-	.pmd_update_defer = paravirt_nop,
 
 	.ptep_modify_prot_start = __ptep_modify_prot_start,
 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
@@ -480,6 +459,5 @@ struct pv_mmu_ops pv_mmu_ops = {
 EXPORT_SYMBOL_GPL(pv_time_ops);
 EXPORT_SYMBOL    (pv_cpu_ops);
 EXPORT_SYMBOL    (pv_mmu_ops);
-EXPORT_SYMBOL_GPL(pv_apic_ops);
 EXPORT_SYMBOL_GPL(pv_info);
 EXPORT_SYMBOL    (pv_irq_ops);

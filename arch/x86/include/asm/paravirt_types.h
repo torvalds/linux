@@ -203,14 +203,6 @@ struct pv_irq_ops {
 #endif
 };
 
-struct pv_apic_ops {
-#ifdef CONFIG_X86_LOCAL_APIC
-	void (*startup_ipi_hook)(int phys_apicid,
-				 unsigned long start_eip,
-				 unsigned long start_esp);
-#endif
-};
-
 struct pv_mmu_ops {
 	unsigned long (*read_cr2)(void);
 	void (*write_cr2)(unsigned long);
@@ -262,12 +254,6 @@ struct pv_mmu_ops {
 			   pmd_t *pmdp, pmd_t pmdval);
 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
 			   pte_t *ptep);
-	void (*pte_update_defer)(struct mm_struct *mm,
-				 unsigned long addr, pte_t *ptep);
-	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
-			   pmd_t *pmdp);
-	void (*pmd_update_defer)(struct mm_struct *mm,
-				 unsigned long addr, pmd_t *pmdp);
 
 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
 					pte_t *ptep);
@@ -342,7 +328,6 @@ struct paravirt_patch_template {
 	struct pv_time_ops pv_time_ops;
 	struct pv_cpu_ops pv_cpu_ops;
 	struct pv_irq_ops pv_irq_ops;
-	struct pv_apic_ops pv_apic_ops;
 	struct pv_mmu_ops pv_mmu_ops;
 	struct pv_lock_ops pv_lock_ops;
 };
@@ -352,7 +337,6 @@ extern struct pv_init_ops pv_init_ops;
 extern struct pv_time_ops pv_time_ops;
 extern struct pv_cpu_ops pv_cpu_ops;
 extern struct pv_irq_ops pv_irq_ops;
-extern struct pv_apic_ops pv_apic_ops;
 extern struct pv_mmu_ops pv_mmu_ops;
 extern struct pv_lock_ops pv_lock_ops;
 
@@ -390,10 +374,8 @@ extern struct pv_lock_ops pv_lock_ops;
 	__visible extern const char start_##ops##_##name[], end_##ops##_##name[];	\
 	asm(NATIVE_LABEL("start_", ops, name) code NATIVE_LABEL("end_", ops, name))
 
-unsigned paravirt_patch_nop(void);
 unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len);
 unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len);
-unsigned paravirt_patch_ignore(unsigned len);
 unsigned paravirt_patch_call(void *insnbuf,
 			     const void *target, u16 tgt_clobbers,
 			     unsigned long addr, u16 site_clobbers,

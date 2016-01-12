@@ -1262,12 +1262,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.end_context_switch = xen_end_context_switch,
 };
 
-static const struct pv_apic_ops xen_apic_ops __initconst = {
-#ifdef CONFIG_X86_LOCAL_APIC
-	.startup_ipi_hook = paravirt_nop,
-#endif
-};
-
 static void xen_reboot(int reason)
 {
 	struct sched_shutdown r = { .reason = reason };
@@ -1535,7 +1529,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	if (xen_initial_domain())
 		pv_info.features |= PV_SUPPORTED_RTC;
 	pv_init_ops = xen_init_ops;
-	pv_apic_ops = xen_apic_ops;
 	if (!xen_pvh_domain()) {
 		pv_cpu_ops = xen_cpu_ops;
 

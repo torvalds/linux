@@ -68,7 +68,6 @@ struct x86_init_ops x86_init __initdata = {
 
 	.timers = {
 		.setup_percpu_clockev	= setup_boot_APIC_clock,
-		.tsc_pre_init		= x86_init_noop,
 		.timer_init		= hpet_time_init,
 		.wallclock_init		= x86_init_noop,
 	},

@@ -12,7 +12,7 @@
 #include <asm/disabled-features.h>
 #endif
 
-#define NCAPINTS	14	/* N 32-bit words worth of info */
+#define NCAPINTS	16	/* N 32-bit words worth of info */
 #define NBUGINTS	1	/* N 32-bit bug flags */
 
 /*
@@ -181,22 +181,17 @@
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
- * CPUID levels like 0x6, 0xA etc, word 7
+ * CPUID levels like 0x6, 0xA etc, word 7.
+ *
+ * Reuse free bits when adding new feature flags!
  */
-#define X86_FEATURE_IDA		( 7*32+ 0) /* Intel Dynamic Acceleration */
-#define X86_FEATURE_ARAT	( 7*32+ 1) /* Always Running APIC Timer */
+
 #define X86_FEATURE_CPB		( 7*32+ 2) /* AMD Core Performance Boost */
 #define X86_FEATURE_EPB		( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
-#define X86_FEATURE_PLN		( 7*32+ 5) /* Intel Power Limit Notification */
-#define X86_FEATURE_PTS		( 7*32+ 6) /* Intel Package Thermal Status */
-#define X86_FEATURE_DTHERM	( 7*32+ 7) /* Digital Thermal Sensor */
+
 #define X86_FEATURE_HW_PSTATE	( 7*32+ 8) /* AMD HW-PState */
 #define X86_FEATURE_PROC_FEEDBACK ( 7*32+ 9) /* AMD ProcFeedbackInterface */
-#define X86_FEATURE_HWP		( 7*32+ 10) /* "hwp" Intel HWP */
-#define X86_FEATURE_HWP_NOTIFY	( 7*32+ 11) /* Intel HWP_NOTIFY */
-#define X86_FEATURE_HWP_ACT_WINDOW ( 7*32+ 12) /* Intel HWP_ACT_WINDOW */
-#define X86_FEATURE_HWP_EPP	( 7*32+13) /* Intel HWP_EPP */
-#define X86_FEATURE_HWP_PKG_REQ ( 7*32+14) /* Intel HWP_PKG_REQ */
+
 #define X86_FEATURE_INTEL_PT	( 7*32+15) /* Intel Processor Trace */
 
 /* Virtualization flags: Linux defined, word 8 */
@@ -205,16 +200,7 @@
 #define X86_FEATURE_FLEXPRIORITY ( 8*32+ 2) /* Intel FlexPriority */
 #define X86_FEATURE_EPT         ( 8*32+ 3) /* Intel Extended Page Table */
 #define X86_FEATURE_VPID        ( 8*32+ 4) /* Intel Virtual Processor ID */
-#define X86_FEATURE_NPT		( 8*32+ 5) /* AMD Nested Page Table support */
-#define X86_FEATURE_LBRV	( 8*32+ 6) /* AMD LBR Virtualization support */
-#define X86_FEATURE_SVML	( 8*32+ 7) /* "svm_lock" AMD SVM locking MSR */
-#define X86_FEATURE_NRIPS	( 8*32+ 8) /* "nrip_save" AMD SVM next_rip save */
-#define X86_FEATURE_TSCRATEMSR  ( 8*32+ 9) /* "tsc_scale" AMD TSC scaling support */
-#define X86_FEATURE_VMCBCLEAN   ( 8*32+10) /* "vmcb_clean" AMD VMCB clean bits support */
-#define X86_FEATURE_FLUSHBYASID ( 8*32+11) /* AMD flush-by-ASID support */
-#define X86_FEATURE_DECODEASSISTS ( 8*32+12) /* AMD Decode Assists support */
-#define X86_FEATURE_PAUSEFILTER ( 8*32+13) /* AMD filtered pause intercept */
-#define X86_FEATURE_PFTHRESHOLD ( 8*32+14) /* AMD pause filter threshold */
+
 #define X86_FEATURE_VMMCALL     ( 8*32+15) /* Prefer vmmcall to vmcall */
 #define X86_FEATURE_XENPV       ( 8*32+16) /* "" Xen paravirtual guest */
 
@@ -259,6 +245,30 @@
 /* AMD-defined CPU features, CPUID level 0x80000008 (ebx), word 13 */
 #define X86_FEATURE_CLZERO	(13*32+0) /* CLZERO instruction */
 
+/* Thermal and Power Management Leaf, CPUID level 0x00000006 (eax), word 14 */
+#define X86_FEATURE_DTHERM	(14*32+ 0) /* Digital Thermal Sensor */
+#define X86_FEATURE_IDA		(14*32+ 1) /* Intel Dynamic Acceleration */
+#define X86_FEATURE_ARAT	(14*32+ 2) /* Always Running APIC Timer */
+#define X86_FEATURE_PLN		(14*32+ 4) /* Intel Power Limit Notification */
+#define X86_FEATURE_PTS		(14*32+ 6) /* Intel Package Thermal Status */
+#define X86_FEATURE_HWP		(14*32+ 7) /* Intel Hardware P-states */
+#define X86_FEATURE_HWP_NOTIFY	(14*32+ 8) /* HWP Notification */
+#define X86_FEATURE_HWP_ACT_WINDOW (14*32+ 9) /* HWP Activity Window */
+#define X86_FEATURE_HWP_EPP	(14*32+10) /* HWP Energy Perf. Preference */
+#define X86_FEATURE_HWP_PKG_REQ (14*32+11) /* HWP Package Level Request */
+
+/* AMD SVM Feature Identification, CPUID level 0x8000000a (edx), word 15 */
+#define X86_FEATURE_NPT		(15*32+ 0) /* Nested Page Table support */
+#define X86_FEATURE_LBRV	(15*32+ 1) /* LBR Virtualization support */
+#define X86_FEATURE_SVML	(15*32+ 2) /* "svm_lock" SVM locking MSR */
+#define X86_FEATURE_NRIPS	(15*32+ 3) /* "nrip_save" SVM next_rip save */
+#define X86_FEATURE_TSCRATEMSR  (15*32+ 4) /* "tsc_scale" TSC scaling support */
+#define X86_FEATURE_VMCBCLEAN   (15*32+ 5) /* "vmcb_clean" VMCB clean bits support */
+#define X86_FEATURE_FLUSHBYASID (15*32+ 6) /* flush-by-ASID support */
+#define X86_FEATURE_DECODEASSISTS (15*32+ 7) /* Decode Assists support */
+#define X86_FEATURE_PAUSEFILTER (15*32+10) /* filtered pause intercept */
+#define X86_FEATURE_PFTHRESHOLD (15*32+12) /* pause filter threshold */
+
 /*
  * BUG word(s)
  */
@@ -278,6 +288,26 @@
 
 #include <asm/asm.h>
 #include <linux/bitops.h>
+
+enum cpuid_leafs
+{
+	CPUID_1_EDX		= 0,
+	CPUID_8000_0001_EDX,
+	CPUID_8086_0001_EDX,
+	CPUID_LNX_1,
+	CPUID_1_ECX,
+	CPUID_C000_0001_EDX,
+	CPUID_8000_0001_ECX,
+	CPUID_LNX_2,
+	CPUID_LNX_3,
+	CPUID_7_0_EBX,
+	CPUID_D_1_EAX,
+	CPUID_F_0_EDX,
+	CPUID_F_1_EDX,
+	CPUID_8000_0008_EBX,
+	CPUID_6_EAX,
+	CPUID_8000_000A_EDX,
+};
 
 #ifdef CONFIG_X86_FEATURE_NAMES
 extern const char * const x86_cap_flags[NCAPINTS*32];
@@ -356,60 +386,31 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 } while (0)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
-#define cpu_has_de		boot_cpu_has(X86_FEATURE_DE)
 #define cpu_has_pse		boot_cpu_has(X86_FEATURE_PSE)
 #define cpu_has_tsc		boot_cpu_has(X86_FEATURE_TSC)
 #define cpu_has_pge		boot_cpu_has(X86_FEATURE_PGE)
 #define cpu_has_apic		boot_cpu_has(X86_FEATURE_APIC)
-#define cpu_has_sep		boot_cpu_has(X86_FEATURE_SEP)
-#define cpu_has_mtrr		boot_cpu_has(X86_FEATURE_MTRR)
-#define cpu_has_mmx		boot_cpu_has(X86_FEATURE_MMX)
 #define cpu_has_fxsr		boot_cpu_has(X86_FEATURE_FXSR)
 #define cpu_has_xmm		boot_cpu_has(X86_FEATURE_XMM)
 #define cpu_has_xmm2		boot_cpu_has(X86_FEATURE_XMM2)
-#define cpu_has_xmm3		boot_cpu_has(X86_FEATURE_XMM3)
-#define cpu_has_ssse3		boot_cpu_has(X86_FEATURE_SSSE3)
 #define cpu_has_aes		boot_cpu_has(X86_FEATURE_AES)
 #define cpu_has_avx		boot_cpu_has(X86_FEATURE_AVX)
 #define cpu_has_avx2		boot_cpu_has(X86_FEATURE_AVX2)
-#define cpu_has_ht		boot_cpu_has(X86_FEATURE_HT)
-#define cpu_has_nx		boot_cpu_has(X86_FEATURE_NX)
-#define cpu_has_xstore		boot_cpu_has(X86_FEATURE_XSTORE)
-#define cpu_has_xstore_enabled	boot_cpu_has(X86_FEATURE_XSTORE_EN)
-#define cpu_has_xcrypt		boot_cpu_has(X86_FEATURE_XCRYPT)
-#define cpu_has_xcrypt_enabled	boot_cpu_has(X86_FEATURE_XCRYPT_EN)
-#define cpu_has_ace2		boot_cpu_has(X86_FEATURE_ACE2)
-#define cpu_has_ace2_enabled	boot_cpu_has(X86_FEATURE_ACE2_EN)
-#define cpu_has_phe		boot_cpu_has(X86_FEATURE_PHE)
-#define cpu_has_phe_enabled	boot_cpu_has(X86_FEATURE_PHE_EN)
-#define cpu_has_pmm		boot_cpu_has(X86_FEATURE_PMM)
-#define cpu_has_pmm_enabled	boot_cpu_has(X86_FEATURE_PMM_EN)
-#define cpu_has_ds		boot_cpu_has(X86_FEATURE_DS)
-#define cpu_has_pebs		boot_cpu_has(X86_FEATURE_PEBS)
 #define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLUSH)
-#define cpu_has_bts		boot_cpu_has(X86_FEATURE_BTS)
 #define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 #define cpu_has_arch_perfmon	boot_cpu_has(X86_FEATURE_ARCH_PERFMON)
 #define cpu_has_pat		boot_cpu_has(X86_FEATURE_PAT)
-#define cpu_has_xmm4_1		boot_cpu_has(X86_FEATURE_XMM4_1)
-#define cpu_has_xmm4_2		boot_cpu_has(X86_FEATURE_XMM4_2)
 #define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 #define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
-#define cpu_has_xsaveopt	boot_cpu_has(X86_FEATURE_XSAVEOPT)
 #define cpu_has_xsaves		boot_cpu_has(X86_FEATURE_XSAVES)
 #define cpu_has_osxsave		boot_cpu_has(X86_FEATURE_OSXSAVE)
 #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
-#define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
-#define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
-#define cpu_has_perfctr_nb	boot_cpu_has(X86_FEATURE_PERFCTR_NB)
-#define cpu_has_perfctr_l2	boot_cpu_has(X86_FEATURE_PERFCTR_L2)
-#define cpu_has_cx8		boot_cpu_has(X86_FEATURE_CX8)
-#define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
-#define cpu_has_eager_fpu	boot_cpu_has(X86_FEATURE_EAGER_FPU)
-#define cpu_has_topoext		boot_cpu_has(X86_FEATURE_TOPOEXT)
-#define cpu_has_bpext		boot_cpu_has(X86_FEATURE_BPEXT)
+/*
+ * Do not add any more of those clumsy macros - use static_cpu_has_safe() for
+ * fast paths and boot_cpu_has() otherwise!
+ */
 
-#if __GNUC__ >= 4
+#if __GNUC__ >= 4 && defined(CONFIG_X86_FAST_FEATURE_TESTS)
 extern void warn_pre_alternatives(void);
 extern bool __static_cpu_has_safe(u16 bit);
 
