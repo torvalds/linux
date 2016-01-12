@@ -465,7 +465,7 @@ static int mxsfb_check_var(struct fb_var_screeninfo *var,
 		switch (host->ld_intf_width) {
 		case STMLCDIF_8BIT:
 			pr_debug("Unsupported LCD bus width mapping\n");
-			break;
+			return -EINVAL;
 		case STMLCDIF_16BIT:
 			/* 24 bit to 18 bit mapping */
 			rgb = def_rgb666;
