@@ -672,6 +672,13 @@
 					linux,keycode = <KEY_POWER>;
 					wakeup;
 				};
+
+				snvs_poweroff: snvs-poweroff {
+					compatible = "syscon-poweroff";
+					regmap = <&snvs>;
+					offset = <0x38>;
+					mask = <0x60>;
+				};
 			};
 
 			clks: ccm@30380000 {
