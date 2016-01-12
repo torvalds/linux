@@ -1,0 +1,45 @@
+#include "tegra210.dtsi"
+
+/ {
+	model = "NVIDIA Jetson TX1";
+	compatible = "nvidia,p2180", "nvidia,tegra210";
+
+	aliases {
+		rtc1 = "/rtc@0,7000e000";
+		serial0 = &uarta;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x1 0x0>;
+	};
+
+	/* debug port */
+	serial@0,70006000 {
+		status = "okay";
+	};
+
+	pmc@0,7000e400 {
+		nvidia,invert-interrupt;
+	};
+
+	/* eMMC */
+	sdhci@0,700b0600 {
+		status = "okay";
+		bus-width = <8>;
+		non-removable;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+};
