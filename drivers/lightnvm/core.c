@@ -1019,6 +1019,54 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 	return __nvm_configure_remove(&remove);
 }
 
+static void nvm_setup_nvm_sb_info(struct nvm_sb_info *info)
+{
+	info->seqnr = 1;
+	info->erase_cnt = 0;
+	info->version = 1;
+}
+
+static long __nvm_ioctl_dev_init(struct nvm_ioctl_dev_init *init)
+{
+	struct nvm_dev *dev;
+	struct nvm_sb_info info;
+
+	down_write(&nvm_lock);
+	dev = nvm_find_nvm_dev(init->dev);
+	up_write(&nvm_lock);
+	if (!dev) {
+		pr_err("nvm: device not found\n");
+		return -EINVAL;
+	}
+
+	nvm_setup_nvm_sb_info(&info);
+
+	strncpy(info.mmtype, init->mmtype, NVM_MMTYPE_LEN);
+	info.fs_ppa.ppa = -1;
+
+	return nvm_init_sysblock(dev, &info);
+}
+
+static long nvm_ioctl_dev_init(struct file *file, void __user *arg)
+{
+	struct nvm_ioctl_dev_init init;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(&init, arg, sizeof(struct nvm_ioctl_dev_init)))
+		return -EFAULT;
+
+	if (init.flags != 0) {
+		pr_err("nvm: no flags supported\n");
+		return -EINVAL;
+	}
+
+	init.dev[DISK_NAME_LEN - 1] = '\0';
+
+	return __nvm_ioctl_dev_init(&init);
+}
+
 static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -1032,6 +1080,8 @@ static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)
 		return nvm_ioctl_dev_create(file, argp);
 	case NVM_DEV_REMOVE:
 		return nvm_ioctl_dev_remove(file, argp);
+	case NVM_DEV_INIT:
+		return nvm_ioctl_dev_init(file, argp);
 	}
 	return 0;
 }
