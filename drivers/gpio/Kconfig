@@ -281,12 +281,14 @@ config GPIO_MPC5200
 	depends on PPC_MPC52xx
 
 config GPIO_MPC8XXX
-	bool "MPC512x/MPC8xxx GPIO support"
+	bool "MPC512x/MPC8xxx/QorIQ GPIO support"
 	depends on PPC_MPC512x || PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || \
-		   FSL_SOC_BOOKE || PPC_86xx
+		   FSL_SOC_BOOKE || PPC_86xx || ARCH_LAYERSCAPE || ARM || \
+		   COMPILE_TEST
+	select GPIO_GENERIC
 	help
 	  Say Y here if you're going to use hardware that connects to the
-	  MPC512x/831x/834x/837x/8572/8610 GPIOs.
+	  MPC512x/831x/834x/837x/8572/8610/QorIQ GPIOs.
 
 config GPIO_MVEBU
 	def_bool y
