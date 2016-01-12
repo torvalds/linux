@@ -3985,7 +3985,6 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 	if (rt5659 == NULL)
 		return -ENOMEM;
 
-	rt5659->i2c = i2c;
 	i2c_set_clientdata(i2c, rt5659);
 
 	if (pdata)
@@ -4157,24 +4156,17 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 
 	INIT_DELAYED_WORK(&rt5659->jack_detect_work, rt5659_jack_detect_work);
 
-	if (rt5659->i2c->irq) {
-		ret = request_threaded_irq(rt5659->i2c->irq, NULL, rt5659_irq,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
+	if (i2c->irq) {
+		ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
+			rt5659_irq, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, "rt5659", rt5659);
 		if (ret)
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
 
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5659,
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5659,
 			rt5659_dai, ARRAY_SIZE(rt5659_dai));
-
-	if (ret) {
-		if (rt5659->i2c->irq)
-			free_irq(rt5659->i2c->irq, rt5659);
-	}
-
-	return 0;
 }
 
 static int rt5659_i2c_remove(struct i2c_client *i2c)
