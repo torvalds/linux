@@ -1756,7 +1756,7 @@ retry:
  */
 static const struct inode_operations ceph_symlink_iops = {
 	.readlink = generic_readlink,
-	.follow_link = simple_follow_link,
+	.get_link = simple_get_link,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
 	.setxattr = ceph_setxattr,

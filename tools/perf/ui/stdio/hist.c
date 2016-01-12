@@ -34,10 +34,10 @@ static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask,
 	return ret;
 }
 
-static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
+static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
+				     struct callchain_list *chain,
 				     int depth, int depth_mask, int period,
-				     u64 total_samples, u64 hits,
-				     int left_margin)
+				     u64 total_samples, int left_margin)
 {
 	int i;
 	size_t ret = 0;
@@ -50,10 +50,9 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
 		else
 			ret += fprintf(fp, " ");
 		if (!period && i == depth - 1) {
-			double percent;
-
-			percent = hits * 100.0 / total_samples;
-			ret += percent_color_fprintf(fp, "--%2.2f%%-- ", percent);
+			ret += fprintf(fp, "--");
+			ret += callchain_node__fprintf_value(node, fp, total_samples);
+			ret += fprintf(fp, "--");
 		} else
 			ret += fprintf(fp, "%s", "          ");
 	}
@@ -82,13 +81,14 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 					 int depth_mask, int left_margin)
 {
 	struct rb_node *node, *next;
-	struct callchain_node *child;
+	struct callchain_node *child = NULL;
 	struct callchain_list *chain;
 	int new_depth_mask = depth_mask;
 	u64 remaining;
 	size_t ret = 0;
 	int i;
 	uint entries_printed = 0;
+	int cumul_count = 0;
 
 	remaining = total_samples;
 
@@ -100,6 +100,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 		child = rb_entry(node, struct callchain_node, rb_node);
 		cumul = callchain_cumul_hits(child);
 		remaining -= cumul;
+		cumul_count += callchain_cumul_counts(child);
 
 		/*
 		 * The depth mask manages the output of pipes that show
@@ -120,10 +121,9 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 						   left_margin);
 		i = 0;
 		list_for_each_entry(chain, &child->val, list) {
-			ret += ipchain__fprintf_graph(fp, chain, depth,
+			ret += ipchain__fprintf_graph(fp, child, chain, depth,
 						      new_depth_mask, i++,
 						      total_samples,
-						      cumul,
 						      left_margin);
 		}
 
@@ -143,14 +143,23 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL &&
 		remaining && remaining != total_samples) {
+		struct callchain_node rem_node = {
+			.hit = remaining,
+		};
 
 		if (!rem_sq_bracket)
 			return ret;
 
+		if (callchain_param.value == CCVAL_COUNT && child && child->parent) {
+			rem_node.count = child->parent->children_count - cumul_count;
+			if (rem_node.count <= 0)
+				return ret;
+		}
+
 		new_depth_mask &= ~(1 << (depth - 1));
-		ret += ipchain__fprintf_graph(fp, &rem_hits, depth,
+		ret += ipchain__fprintf_graph(fp, &rem_node, &rem_hits, depth,
 					      new_depth_mask, 0, total_samples,
-					      remaining, left_margin);
+					      left_margin);
 	}
 
 	return ret;
@@ -243,13 +252,63 @@ static size_t callchain__fprintf_flat(FILE *fp, struct rb_root *tree,
 	struct rb_node *rb_node = rb_first(tree);
 
 	while (rb_node) {
-		double percent;
+		chain = rb_entry(rb_node, struct callchain_node, rb_node);
+
+		ret += fprintf(fp, "           ");
+		ret += callchain_node__fprintf_value(chain, fp, total_samples);
+		ret += fprintf(fp, "\n");
+		ret += __callchain__fprintf_flat(fp, chain, total_samples);
+		ret += fprintf(fp, "\n");
+		if (++entries_printed == callchain_param.print_limit)
+			break;
+
+		rb_node = rb_next(rb_node);
+	}
+
+	return ret;
+}
+
+static size_t __callchain__fprintf_folded(FILE *fp, struct callchain_node *node)
+{
+	const char *sep = symbol_conf.field_sep ?: ";";
+	struct callchain_list *chain;
+	size_t ret = 0;
+	char bf[1024];
+	bool first;
+
+	if (!node)
+		return 0;
+
+	ret += __callchain__fprintf_folded(fp, node->parent);
+
+	first = (ret == 0);
+	list_for_each_entry(chain, &node->val, list) {
+		if (chain->ip >= PERF_CONTEXT_MAX)
+			continue;
+		ret += fprintf(fp, "%s%s", first ? "" : sep,
+			       callchain_list__sym_name(chain,
+						bf, sizeof(bf), false));
+		first = false;
+	}
+
+	return ret;
+}
+
+static size_t callchain__fprintf_folded(FILE *fp, struct rb_root *tree,
+					u64 total_samples)
+{
+	size_t ret = 0;
+	u32 entries_printed = 0;
+	struct callchain_node *chain;
+	struct rb_node *rb_node = rb_first(tree);
+
+	while (rb_node) {
 
 		chain = rb_entry(rb_node, struct callchain_node, rb_node);
-		percent = chain->hit * 100.0 / total_samples;
 
-		ret = percent_color_fprintf(fp, "           %6.2f%%\n", percent);
-		ret += __callchain__fprintf_flat(fp, chain, total_samples);
+		ret += callchain_node__fprintf_value(chain, fp, total_samples);
+		ret += fprintf(fp, " ");
+		ret += __callchain__fprintf_folded(fp, chain);
 		ret += fprintf(fp, "\n");
 		if (++entries_printed == callchain_param.print_limit)
 			break;
@@ -277,6 +336,9 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 		break;
 	case CHAIN_FLAT:
 		return callchain__fprintf_flat(fp, &he->sorted_chain, total_samples);
+		break;
+	case CHAIN_FOLDED:
+		return callchain__fprintf_folded(fp, &he->sorted_chain, total_samples);
 		break;
 	case CHAIN_NONE:
 		break;
@@ -323,7 +385,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 		return 0;
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
 		/*
@@ -402,7 +464,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	fprintf(fp, "# ");
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
 		if (!first)
@@ -428,7 +490,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	perf_hpp__for_each_format(fmt) {
 		unsigned int i;
 
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
 		if (!first)

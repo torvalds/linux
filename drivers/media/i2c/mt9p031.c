@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
-#include <media/mt9p031.h>
+#include <media/i2c/mt9p031.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -817,7 +817,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9p031_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9p031_ctrl_ops = {
 	.s_ctrl = mt9p031_s_ctrl,
 };
 

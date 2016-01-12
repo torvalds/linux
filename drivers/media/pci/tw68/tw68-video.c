@@ -376,28 +376,28 @@ static int tw68_buffer_count(unsigned int size, unsigned int count)
 /* ------------------------------------------------------------- */
 /* vb2 queue operations                                          */
 
-static int tw68_queue_setup(struct vb2_queue *q, const void *parg,
+static int tw68_queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct tw68_dev *dev = vb2_get_drv_priv(q);
 	unsigned tot_bufs = q->num_buffers + *num_buffers;
+	unsigned size = (dev->fmt->depth * dev->width * dev->height) >> 3;
 
-	sizes[0] = (dev->fmt->depth * dev->width * dev->height) >> 3;
+	if (tot_bufs < 2)
+		tot_bufs = 2;
+	tot_bufs = tw68_buffer_count(size, tot_bufs);
+	*num_buffers = tot_bufs - q->num_buffers;
 	alloc_ctxs[0] = dev->alloc_ctx;
 	/*
-	 * We allow create_bufs, but only if the sizeimage is the same as the
+	 * We allow create_bufs, but only if the sizeimage is >= as the
 	 * current sizeimage. The tw68_buffer_count calculation becomes quite
 	 * difficult otherwise.
 	 */
-	if (fmt && fmt->fmt.pix.sizeimage < sizes[0])
-		return -EINVAL;
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
 	*num_planes = 1;
-	if (tot_bufs < 2)
-		tot_bufs = 2;
-	tot_bufs = tw68_buffer_count(sizes[0], tot_bufs);
-	*num_buffers = tot_bufs - q->num_buffers;
+	sizes[0] = size;
 
 	return 0;
 }
@@ -1016,7 +1016,7 @@ void tw68_irq_video_done(struct tw68_dev *dev, unsigned long status)
 		buf = list_entry(dev->active.next, struct tw68_buf, list);
 		list_del(&buf->list);
 		spin_unlock(&dev->slock);
-		v4l2_get_timestamp(&buf->vb.timestamp);
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 		buf->vb.field = dev->field;
 		buf->vb.sequence = dev->seqnr++;
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);

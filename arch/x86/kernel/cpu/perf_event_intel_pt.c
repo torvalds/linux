@@ -27,6 +27,7 @@
 #include <asm/perf_event.h>
 #include <asm/insn.h>
 #include <asm/io.h>
+#include <asm/intel_pt.h>
 
 #include "perf_event.h"
 #include "intel_pt.h"
@@ -1120,6 +1121,14 @@ static int pt_event_init(struct perf_event *event)
 	event->destroy = pt_event_destroy;
 
 	return 0;
+}
+
+void cpu_emergency_stop_pt(void)
+{
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
+
+	if (pt->handle.event)
+		pt_event_stop(pt->handle.event, PERF_EF_UPDATE);
 }
 
 static __init int pt_init(void)

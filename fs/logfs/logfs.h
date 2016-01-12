@@ -495,7 +495,6 @@ static inline int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr)
 #endif
 
 /* dir.c */
-extern const struct inode_operations logfs_symlink_iops;
 extern const struct inode_operations logfs_dir_iops;
 extern const struct file_operations logfs_dir_fops;
 int logfs_replay_journal(struct super_block *sb);

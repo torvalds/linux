@@ -11,7 +11,7 @@
 
 #include "util/build-id.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 
 #include "util/callchain.h"
@@ -452,6 +452,8 @@ static void record__init_features(struct record *rec)
 
 	if (!rec->opts.full_auxtrace)
 		perf_header__clear_feat(&session->header, HEADER_AUXTRACE);
+
+	perf_header__clear_feat(&session->header, HEADER_STAT);
 }
 
 static volatile int workload_exec_errno;
@@ -813,8 +815,12 @@ int record_parse_callchain_opt(const struct option *opt,
 	}
 
 	ret = parse_callchain_record_opt(arg, &callchain_param);
-	if (!ret)
+	if (!ret) {
+		/* Enable data address sampling for DWARF unwind. */
+		if (callchain_param.record_mode == CALLCHAIN_DWARF)
+			record->sample_address = true;
 		callchain_debug();
+	}
 
 	return ret;
 }
@@ -837,6 +843,19 @@ int record_callchain_opt(const struct option *opt,
 
 static int perf_record_config(const char *var, const char *value, void *cb)
 {
+	struct record *rec = cb;
+
+	if (!strcmp(var, "record.build-id")) {
+		if (!strcmp(value, "cache"))
+			rec->no_buildid_cache = false;
+		else if (!strcmp(value, "no-cache"))
+			rec->no_buildid_cache = true;
+		else if (!strcmp(value, "skip"))
+			rec->no_buildid = true;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(var, "record.call-graph"))
 		var = "call-graph.record-mode"; /* fall-through */
 
@@ -1113,12 +1132,12 @@ struct option __record_options[] = {
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
-#ifdef HAVE_LIBBPF_SUPPORT
 	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
 		   "clang binary to use for compiling BPF scriptlets"),
 	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
 		   "options passed to clang when compiling BPF scriptlets"),
-#endif
+	OPT_STRING(0, "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 	OPT_END()
 };
 
@@ -1129,6 +1148,27 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	int err;
 	struct record *rec = &record;
 	char errbuf[BUFSIZ];
+
+#ifndef HAVE_LIBBPF_SUPPORT
+# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, "NO_LIBBPF=1", c)
+	set_nobuild('\0', "clang-path", true);
+	set_nobuild('\0', "clang-opt", true);
+# undef set_nobuild
+#endif
+
+#ifndef HAVE_BPF_PROLOGUE
+# if !defined (HAVE_DWARF_SUPPORT)
+#  define REASON  "NO_DWARF=1"
+# elif !defined (HAVE_LIBBPF_SUPPORT)
+#  define REASON  "NO_LIBBPF=1"
+# else
+#  define REASON  "this architecture doesn't support BPF prologue"
+# endif
+# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, REASON, c)
+	set_nobuild('\0', "vmlinux", true);
+# undef set_nobuild
+# undef REASON
+#endif
 
 	rec->evlist = perf_evlist__new();
 	if (rec->evlist == NULL)

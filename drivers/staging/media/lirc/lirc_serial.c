@@ -59,7 +59,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>
-#include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -204,7 +204,7 @@ static struct lirc_serial hardware[] = {
 
 #define RBUF_LEN 256
 
-static struct timeval lasttv = {0, 0};
+static ktime_t lastkt;
 
 static struct lirc_buffer rbuf;
 
@@ -542,10 +542,10 @@ static void frbwrite(int l)
 
 static irqreturn_t lirc_irq_handler(int i, void *blah)
 {
-	struct timeval tv;
+	ktime_t kt;
 	int counter, dcd;
 	u8 status;
-	long deltv;
+	ktime_t delkt;
 	int data;
 	static int last_dcd = -1;
 
@@ -565,7 +565,7 @@ static irqreturn_t lirc_irq_handler(int i, void *blah)
 		if ((status & hardware[type].signal_pin_change)
 		    && sense != -1) {
 			/* get current time */
-			do_gettimeofday(&tv);
+			kt = ktime_get();
 
 			/* New mode, written by Trent Piepho
 			   <xyzzy@u.washington.edu>. */
@@ -594,34 +594,20 @@ static irqreturn_t lirc_irq_handler(int i, void *blah)
 			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
 
 			if (dcd == last_dcd) {
-				pr_warn("ignoring spike: %d %d %lx %lx %lx %lx\n",
-					dcd, sense,
-					tv.tv_sec, lasttv.tv_sec,
-					(unsigned long)tv.tv_usec,
-					(unsigned long)lasttv.tv_usec);
+				pr_warn("ignoring spike: %d %d %llx %llx\n",
+					dcd, sense, ktime_to_us(kt),
+					ktime_to_us(lastkt));
 				continue;
 			}
 
-			deltv = tv.tv_sec-lasttv.tv_sec;
-			if (tv.tv_sec < lasttv.tv_sec ||
-			    (tv.tv_sec == lasttv.tv_sec &&
-			     tv.tv_usec < lasttv.tv_usec)) {
-				pr_warn("AIEEEE: your clock just jumped backwards\n");
-				pr_warn("%d %d %lx %lx %lx %lx\n",
-					dcd, sense,
-					tv.tv_sec, lasttv.tv_sec,
-					(unsigned long)tv.tv_usec,
-					(unsigned long)lasttv.tv_usec);
-				data = PULSE_MASK;
-			} else if (deltv > 15) {
+			delkt = ktime_sub(kt, lastkt);
+			if (ktime_compare(delkt, ktime_set(15, 0)) > 0) {
 				data = PULSE_MASK; /* really long time */
 				if (!(dcd^sense)) {
 					/* sanity check */
-					pr_warn("AIEEEE: %d %d %lx %lx %lx %lx\n",
-						dcd, sense,
-						tv.tv_sec, lasttv.tv_sec,
-						(unsigned long)tv.tv_usec,
-						(unsigned long)lasttv.tv_usec);
+					pr_warn("AIEEEE: %d %d %llx %llx\n",
+						dcd, sense, ktime_to_us(kt),
+						ktime_to_us(lastkt));
 					/*
 					 * detecting pulse while this
 					 * MUST be a space!
@@ -629,11 +615,9 @@ static irqreturn_t lirc_irq_handler(int i, void *blah)
 					sense = sense ? 0 : 1;
 				}
 			} else
-				data = (int) (deltv*1000000 +
-					       tv.tv_usec -
-					       lasttv.tv_usec);
+				data = (int) ktime_to_us(delkt);
 			frbwrite(dcd^sense ? data : (data|PULSE_BIT));
-			lasttv = tv;
+			lastkt = kt;
 			last_dcd = dcd;
 			wake_up_interruptible(&rbuf.wait_poll);
 		}
@@ -790,7 +774,7 @@ static int set_use_inc(void *data)
 	unsigned long flags;
 
 	/* initialize timestamp */
-	do_gettimeofday(&lasttv);
+	lastkt = ktime_get();
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 
@@ -979,7 +963,7 @@ static int lirc_serial_resume(struct platform_device *dev)
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	/* Enable Interrupt */
-	do_gettimeofday(&lasttv);
+	lastkt = ktime_get();
 	soutp(UART_IER, sinp(UART_IER)|UART_IER_MSI);
 	off();
 

@@ -1,4 +1,3 @@
-
 FILES=					\
 	test-all.bin			\
 	test-backtrace.bin		\
@@ -38,38 +37,40 @@ FILES=					\
 	test-bpf.bin			\
 	test-get_cpuid.bin
 
+FILES := $(addprefix $(OUTPUT),$(FILES))
+
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
 
 all: $(FILES)
 
-__BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
-  BUILD = $(__BUILD) > $(OUTPUT)$(@:.bin=.make.output) 2>&1
+__BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
+  BUILD = $(__BUILD) > $(@:.bin=.make.output) 2>&1
 
 ###############################
 
-test-all.bin:
+$(OUTPUT)test-all.bin:
 	$(BUILD) -fstack-protector-all -O2 -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl -lz -llzma
 
-test-hello.bin:
+$(OUTPUT)test-hello.bin:
 	$(BUILD)
 
-test-pthread-attr-setaffinity-np.bin:
+$(OUTPUT)test-pthread-attr-setaffinity-np.bin:
 	$(BUILD) -D_GNU_SOURCE -lpthread
 
-test-stackprotector-all.bin:
+$(OUTPUT)test-stackprotector-all.bin:
 	$(BUILD) -fstack-protector-all
 
-test-fortify-source.bin:
+$(OUTPUT)test-fortify-source.bin:
 	$(BUILD) -O2 -D_FORTIFY_SOURCE=2
 
-test-bionic.bin:
+$(OUTPUT)test-bionic.bin:
 	$(BUILD)
 
-test-libelf.bin:
+$(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
 
-test-glibc.bin:
+$(OUTPUT)test-glibc.bin:
 	$(BUILD)
 
 DWARFLIBS := -ldw
@@ -77,37 +78,37 @@ ifeq ($(findstring -static,${LDFLAGS}),-static)
 DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
 endif
 
-test-dwarf.bin:
+$(OUTPUT)test-dwarf.bin:
 	$(BUILD) $(DWARFLIBS)
 
-test-libelf-mmap.bin:
+$(OUTPUT)test-libelf-mmap.bin:
 	$(BUILD) -lelf
 
-test-libelf-getphdrnum.bin:
+$(OUTPUT)test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
 
-test-libnuma.bin:
+$(OUTPUT)test-libnuma.bin:
 	$(BUILD) -lnuma
 
-test-numa_num_possible_cpus.bin:
+$(OUTPUT)test-numa_num_possible_cpus.bin:
 	$(BUILD) -lnuma
 
-test-libunwind.bin:
+$(OUTPUT)test-libunwind.bin:
 	$(BUILD) -lelf
 
-test-libunwind-debug-frame.bin:
+$(OUTPUT)test-libunwind-debug-frame.bin:
 	$(BUILD) -lelf
 
-test-libaudit.bin:
+$(OUTPUT)test-libaudit.bin:
 	$(BUILD) -laudit
 
-test-libslang.bin:
+$(OUTPUT)test-libslang.bin:
 	$(BUILD) -I/usr/include/slang -lslang
 
-test-gtk2.bin:
+$(OUTPUT)test-gtk2.bin:
 	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null)
 
-test-gtk2-infobar.bin:
+$(OUTPUT)test-gtk2-infobar.bin:
 	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null)
 
 grep-libs  = $(filter -l%,$(1))
@@ -119,63 +120,63 @@ PERL_EMBED_LIBADD = $(call grep-libs,$(PERL_EMBED_LDOPTS))
 PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts 2>/dev/null`
 FLAGS_PERL_EMBED=$(PERL_EMBED_CCOPTS) $(PERL_EMBED_LDOPTS)
 
-test-libperl.bin:
+$(OUTPUT)test-libperl.bin:
 	$(BUILD) $(FLAGS_PERL_EMBED)
 
-test-libpython.bin:
+$(OUTPUT)test-libpython.bin:
 	$(BUILD)
 
-test-libpython-version.bin:
+$(OUTPUT)test-libpython-version.bin:
 	$(BUILD)
 
-test-libbfd.bin:
+$(OUTPUT)test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
 
-test-liberty.bin:
-	$(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty
+$(OUTPUT)test-liberty.bin:
+	$(CC) $(CFLAGS) -Wall -Werror -o $@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty
 
-test-liberty-z.bin:
-	$(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty -lz
+$(OUTPUT)test-liberty-z.bin:
+	$(CC) $(CFLAGS) -Wall -Werror -o $@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty -lz
 
-test-cplus-demangle.bin:
+$(OUTPUT)test-cplus-demangle.bin:
 	$(BUILD) -liberty
 
-test-backtrace.bin:
+$(OUTPUT)test-backtrace.bin:
 	$(BUILD)
 
-test-timerfd.bin:
+$(OUTPUT)test-timerfd.bin:
 	$(BUILD)
 
-test-libdw-dwarf-unwind.bin:
+$(OUTPUT)test-libdw-dwarf-unwind.bin:
 	$(BUILD) # -ldw provided by $(FEATURE_CHECK_LDFLAGS-libdw-dwarf-unwind)
 
-test-libbabeltrace.bin:
+$(OUTPUT)test-libbabeltrace.bin:
 	$(BUILD) # -lbabeltrace provided by $(FEATURE_CHECK_LDFLAGS-libbabeltrace)
 
-test-sync-compare-and-swap.bin:
+$(OUTPUT)test-sync-compare-and-swap.bin:
 	$(BUILD)
 
-test-compile-32.bin:
-	$(CC) -m32 -o $(OUTPUT)$@ test-compile.c
+$(OUTPUT)test-compile-32.bin:
+	$(CC) -m32 -o $@ test-compile.c
 
-test-compile-x32.bin:
-	$(CC) -mx32 -o $(OUTPUT)$@ test-compile.c
+$(OUTPUT)test-compile-x32.bin:
+	$(CC) -mx32 -o $@ test-compile.c
 
-test-zlib.bin:
+$(OUTPUT)test-zlib.bin:
 	$(BUILD) -lz
 
-test-lzma.bin:
+$(OUTPUT)test-lzma.bin:
 	$(BUILD) -llzma
 
-test-get_cpuid.bin:
+$(OUTPUT)test-get_cpuid.bin:
 	$(BUILD)
 
-test-bpf.bin:
+$(OUTPUT)test-bpf.bin:
 	$(BUILD)
 
--include *.d
+-include $(OUTPUT)*.d
 
 ###############################
 
 clean:
-	rm -f $(FILES) *.d $(FILES:.bin=.make.output)
+	rm -f $(FILES) $(OUTPUT)*.d $(FILES:.bin=.make.output)

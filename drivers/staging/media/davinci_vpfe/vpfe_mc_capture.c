@@ -227,7 +227,7 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 		return 0;
 
 	vpfe_dev->clks = kcalloc(vpfe_cfg->num_clocks,
-				 sizeof(struct clock *), GFP_KERNEL);
+				 sizeof(*vpfe_dev->clks), GFP_KERNEL);
 	if (vpfe_dev->clks == NULL)
 		return -ENOMEM;
 

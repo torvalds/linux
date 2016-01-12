@@ -274,35 +274,6 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	return 0;
 }
 
-static bool
-vsp1_video_format_adjust(struct vsp1_video *video,
-			 const struct v4l2_pix_format_mplane *format,
-			 struct v4l2_pix_format_mplane *adjust)
-{
-	unsigned int i;
-
-	*adjust = *format;
-	__vsp1_video_try_format(video, adjust, NULL);
-
-	if (format->width != adjust->width ||
-	    format->height != adjust->height ||
-	    format->pixelformat != adjust->pixelformat ||
-	    format->num_planes != adjust->num_planes)
-		return false;
-
-	for (i = 0; i < format->num_planes; ++i) {
-		if (format->plane_fmt[i].bytesperline !=
-		    adjust->plane_fmt[i].bytesperline)
-			return false;
-
-		adjust->plane_fmt[i].sizeimage =
-			max(adjust->plane_fmt[i].sizeimage,
-			    format->plane_fmt[i].sizeimage);
-	}
-
-	return true;
-}
-
 /* -----------------------------------------------------------------------------
  * Pipeline Management
  */
@@ -611,7 +582,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	spin_unlock_irqrestore(&video->irqlock, flags);
 
 	done->buf.sequence = video->sequence++;
-	v4l2_get_timestamp(&done->buf.timestamp);
+	done->buf.vb2_buf.timestamp = ktime_get_ns();
 	for (i = 0; i < done->buf.vb2_buf.num_planes; ++i)
 		vb2_set_plane_payload(&done->buf.vb2_buf, i, done->length[i]);
 	vb2_buffer_done(&done->buf.vb2_buf, VB2_BUF_STATE_DONE);
@@ -787,26 +758,24 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
  */
 
 static int
-vsp1_video_queue_setup(struct vb2_queue *vq, const void *parg,
+vsp1_video_queue_setup(struct vb2_queue *vq,
 		     unsigned int *nbuffers, unsigned int *nplanes,
 		     unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
-	const struct v4l2_pix_format_mplane *format;
-	struct v4l2_pix_format_mplane pix_mp;
+	const struct v4l2_pix_format_mplane *format = &video->format;
 	unsigned int i;
 
-	if (fmt) {
-		/* Make sure the format is valid and adjust the sizeimage field
-		 * if needed.
-		 */
-		if (!vsp1_video_format_adjust(video, &fmt->fmt.pix_mp, &pix_mp))
+	if (*nplanes) {
+		if (*nplanes != format->num_planes)
 			return -EINVAL;
 
-		format = &pix_mp;
-	} else {
-		format = &video->format;
+		for (i = 0; i < *nplanes; i++) {
+			if (sizes[i] < format->plane_fmt[i].sizeimage)
+				return -EINVAL;
+			alloc_ctxs[i] = video->alloc_ctx;
+		}
+		return 0;
 	}
 
 	*nplanes = format->num_planes;

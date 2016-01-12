@@ -96,8 +96,8 @@ static irq_hw_number_t pci_msi_get_hwirq(struct msi_domain_info *info,
 	return arg->msi_hwirq;
 }
 
-static int pci_msi_prepare(struct irq_domain *domain, struct device *dev,
-			   int nvec, msi_alloc_info_t *arg)
+int pci_msi_prepare(struct irq_domain *domain, struct device *dev, int nvec,
+		    msi_alloc_info_t *arg)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct msi_desc *desc = first_pci_msi_entry(pdev);
@@ -113,11 +113,13 @@ static int pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_msi_prepare);
 
-static void pci_msi_set_desc(msi_alloc_info_t *arg, struct msi_desc *desc)
+void pci_msi_set_desc(msi_alloc_info_t *arg, struct msi_desc *desc)
 {
 	arg->msi_hwirq = pci_msi_domain_calc_hwirq(arg->msi_dev, desc);
 }
+EXPORT_SYMBOL_GPL(pci_msi_set_desc);
 
 static struct msi_domain_ops pci_msi_domain_ops = {
 	.get_hwirq	= pci_msi_get_hwirq,
