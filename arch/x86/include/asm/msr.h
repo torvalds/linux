@@ -221,7 +221,7 @@ static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 
 static inline void wrmsrl(unsigned msr, u64 val)
 {
-	native_write_msr(msr, (u32)val, (u32)(val >> 32));
+	native_write_msr(msr, (u32)(val & 0xffffffffULL), (u32)(val >> 32));
 }
 
 /* wrmsr with exception handling */

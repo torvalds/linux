@@ -678,9 +678,9 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	 * Disable it on the affected CPUs.
 	 */
 	if ((c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
-		if (!rdmsrl_safe(0xc0011021, &value) && !(value & 0x1E)) {
+		if (!rdmsrl_safe(MSR_F15H_IC_CFG, &value) && !(value & 0x1E)) {
 			value |= 0x1E;
-			wrmsrl_safe(0xc0011021, value);
+			wrmsrl_safe(MSR_F15H_IC_CFG, value);
 		}
 	}
 }
