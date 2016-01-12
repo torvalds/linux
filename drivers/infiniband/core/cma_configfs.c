@@ -158,6 +158,7 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	unsigned int i;
 	unsigned int ports_num;
 	struct cma_dev_port_group *ports;
+	struct config_group **ports_group;
 	int err;
 
 	ibdev = cma_get_ib_dev(cma_dev);
@@ -168,12 +169,9 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	ports_num = ibdev->phys_port_cnt;
 	ports = kcalloc(ports_num, sizeof(*cma_dev_group->ports),
 			GFP_KERNEL);
+	ports_group = kcalloc(ports_num + 1, sizeof(*ports_group), GFP_KERNEL);
 
-	cma_dev_group->default_ports_group = kcalloc(ports_num + 1,
-						     sizeof(*cma_dev_group->ports),
-						     GFP_KERNEL);
-
-	if (!ports || !cma_dev_group->default_ports_group) {
+	if (!ports || !ports_group) {
 		err = -ENOMEM;
 		goto free;
 	}
@@ -187,15 +185,16 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 		config_group_init_type_name(&ports[i].group,
 					    port_str,
 					    &cma_port_group_type);
-		cma_dev_group->default_ports_group[i] = &ports[i].group;
+		ports_group[i] = &ports[i].group;
 	}
-	cma_dev_group->default_ports_group[i] = NULL;
+	ports_group[i] = NULL;
+	cma_dev_group->default_ports_group = ports_group;
 	cma_dev_group->ports = ports;
 
 	return 0;
 free:
 	kfree(ports);
-	kfree(cma_dev_group->default_ports_group);
+	kfree(ports_group);
 	cma_dev_group->ports = NULL;
 	cma_dev_group->default_ports_group = NULL;
 	return err;
