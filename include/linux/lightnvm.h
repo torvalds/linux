@@ -61,6 +61,12 @@ enum {
 	NVM_BLK_T_GRWN_BAD	= 0x2,
 	NVM_BLK_T_DEV		= 0x4,
 	NVM_BLK_T_HOST		= 0x8,
+
+	/* Memory capabilities */
+	NVM_ID_CAP_SLC		= 0x1,
+	NVM_ID_CAP_CMD_SUSPEND	= 0x2,
+	NVM_ID_CAP_SCRAMBLE	= 0x4,
+	NVM_ID_CAP_ENCRYPT	= 0x8,
 };
 
 struct nvm_id_group {
@@ -278,6 +284,7 @@ struct nvm_dev {
 	int blks_per_lun;
 	int sec_size;
 	int oob_size;
+	int mccap;
 	struct nvm_addr_format ppaf;
 
 	/* Calculated/Cached values. These do not reflect the actual usable
