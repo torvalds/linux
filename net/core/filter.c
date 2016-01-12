@@ -777,6 +777,11 @@ static int bpf_check_classic(const struct sock_filter *filter,
 			if (ftest->k == 0)
 				return -EINVAL;
 			break;
+		case BPF_ALU | BPF_LSH | BPF_K:
+		case BPF_ALU | BPF_RSH | BPF_K:
+			if (ftest->k >= 32)
+				return -EINVAL;
+			break;
 		case BPF_LD | BPF_MEM:
 		case BPF_LDX | BPF_MEM:
 		case BPF_ST:
