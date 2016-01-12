@@ -8989,7 +8989,8 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
 
-	vmcs_set_secondary_exec_control(secondary_exec_ctl);
+	if (cpu_has_secondary_exec_ctrls())
+		vmcs_set_secondary_exec_control(secondary_exec_ctl);
 
 	if (static_cpu_has(X86_FEATURE_PCOMMIT) && nested) {
 		if (guest_cpuid_has_pcommit(vcpu))
