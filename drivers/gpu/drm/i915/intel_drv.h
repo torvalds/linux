@@ -1070,8 +1070,8 @@ unsigned int intel_fb_align_height(struct drm_device *dev,
 				   uint64_t fb_format_modifier);
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire,
 			enum fb_op_origin origin);
-u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
-			      uint32_t pixel_format);
+u32 intel_fb_stride_alignment(const struct drm_i915_private *dev_priv,
+			      uint64_t fb_modifier, uint32_t pixel_format);
 
 /* intel_audio.c */
 void intel_init_audio(struct drm_device *dev);
