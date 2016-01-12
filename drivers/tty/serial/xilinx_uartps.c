@@ -220,20 +220,8 @@ static void cdns_uart_handle_rx(struct uart_port *port, unsigned int isrstatus)
 				continue;
 		}
 
-#ifdef SUPPORT_SYSRQ
-		/*
-		 * uart_handle_sysrq_char() doesn't work if
-		 * spinlocked, for some reason
-		 */
-		 if (port->sysrq) {
-			spin_unlock(&port->lock);
-			if (uart_handle_sysrq_char(port, data)) {
-				spin_lock(&port->lock);
-				continue;
-			}
-			spin_lock(&port->lock);
-		}
-#endif
+		if (uart_handle_sysrq_char(port, data))
+			continue;
 
 		port->icount.rx++;
 
@@ -1128,7 +1116,9 @@ static void cdns_uart_console_write(struct console *co, const char *s,
 	unsigned int imr, ctrl;
 	int locked = 1;
 
-	if (oops_in_progress)
+	if (port->sysrq)
+		locked = 0;
+	else if (oops_in_progress)
 		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
 		spin_lock_irqsave(&port->lock, flags);
