@@ -514,6 +514,14 @@ config REGULATOR_PFUZE100
 	  Say y here to support the regulators found on the Freescale
 	  PFUZE100/PFUZE200 PMIC.
 
+config REGULATOR_PV88060
+	tristate "Powerventure Semiconductor PV88060 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the voltage regulators and convertors
+	  PV88060
+
 config REGULATOR_PWM
 	tristate "PWM voltage regulator"
 	depends on PWM
