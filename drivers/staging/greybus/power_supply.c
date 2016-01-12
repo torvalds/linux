@@ -697,7 +697,8 @@ static int gb_power_supply_event_recv(u8 type, struct gb_operation *op)
 	payload = request->payload;
 	psy_id = payload->psy_id;
 	mutex_lock(&supplies->supplies_lock);
-	if (psy_id >= supplies->supplies_count || !&supplies->supply[psy_id]) {
+	if (psy_id >= supplies->supplies_count ||
+	    !supplies->supply[psy_id].registered) {
 		dev_err(&connection->bundle->dev,
 			"Event received for unconfigured power_supply id: %d\n",
 			psy_id);
