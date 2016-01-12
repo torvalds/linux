@@ -407,6 +407,7 @@ struct amdgpu_crtc {
 	u32 line_time;
 	u32 wm_low;
 	u32 wm_high;
+	u32 lb_vblank_lead_lines;
 	struct drm_display_mode hw_mode;
 };
 
@@ -527,6 +528,10 @@ struct amdgpu_framebuffer {
 
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
 				((em) == ATOM_ENCODER_MODE_DP_MST))
+
+/* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
+#define USE_REAL_VBLANKSTART 		(1 << 30)
+#define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
 void amdgpu_link_encoder_connector(struct drm_device *dev);
 

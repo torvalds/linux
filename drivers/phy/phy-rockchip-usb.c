@@ -108,13 +108,16 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(dev->of_node, child) {
 		rk_phy = devm_kzalloc(dev, sizeof(*rk_phy), GFP_KERNEL);
-		if (!rk_phy)
-			return -ENOMEM;
+		if (!rk_phy) {
+			err = -ENOMEM;
+			goto put_child;
+		}
 
 		if (of_property_read_u32(child, "reg", &reg_offset)) {
 			dev_err(dev, "missing reg property in node %s\n",
 				child->name);
-			return -EINVAL;
+			err = -EINVAL;
+			goto put_child;
 		}
 
 		rk_phy->reg_offset = reg_offset;
@@ -127,18 +130,22 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 		rk_phy->phy = devm_phy_create(dev, child, &ops);
 		if (IS_ERR(rk_phy->phy)) {
 			dev_err(dev, "failed to create PHY\n");
-			return PTR_ERR(rk_phy->phy);
+			err = PTR_ERR(rk_phy->phy);
+			goto put_child;
 		}
 		phy_set_drvdata(rk_phy->phy, rk_phy);
 
 		/* only power up usb phy when it use, so disable it when init*/
 		err = rockchip_usb_phy_power(rk_phy, 1);
 		if (err)
-			return err;
+			goto put_child;
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	return PTR_ERR_OR_ZERO(phy_provider);
+put_child:
+	of_node_put(child);
+	return err;
 }
 
 static const struct of_device_id rockchip_usb_phy_dt_ids[] = {

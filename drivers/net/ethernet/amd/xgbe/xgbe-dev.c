@@ -1849,7 +1849,7 @@ static int xgbe_exit(struct xgbe_prv_data *pdata)
 	usleep_range(10, 15);
 
 	/* Poll Until Poll Condition */
-	while (count-- && XGMAC_IOREAD_BITS(pdata, DMA_MR, SWR))
+	while (--count && XGMAC_IOREAD_BITS(pdata, DMA_MR, SWR))
 		usleep_range(500, 600);
 
 	if (!count)
@@ -1873,7 +1873,7 @@ static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
 	/* Poll Until Poll Condition */
 	for (i = 0; i < pdata->tx_q_count; i++) {
 		count = 2000;
-		while (count-- && XGMAC_MTL_IOREAD_BITS(pdata, i,
+		while (--count && XGMAC_MTL_IOREAD_BITS(pdata, i,
 							MTL_Q_TQOMR, FTQ))
 			usleep_range(500, 600);
 

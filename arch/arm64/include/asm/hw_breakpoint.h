@@ -138,16 +138,18 @@ extern struct pmu perf_ops_bp;
 /* Determine number of BRP registers available. */
 static inline int get_num_brps(void)
 {
+	u64 dfr0 = read_system_reg(SYS_ID_AA64DFR0_EL1);
 	return 1 +
-		cpuid_feature_extract_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+		cpuid_feature_extract_unsigned_field(dfr0,
 						ID_AA64DFR0_BRPS_SHIFT);
 }
 
 /* Determine number of WRP registers available. */
 static inline int get_num_wrps(void)
 {
+	u64 dfr0 = read_system_reg(SYS_ID_AA64DFR0_EL1);
 	return 1 +
-		cpuid_feature_extract_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+		cpuid_feature_extract_unsigned_field(dfr0,
 						ID_AA64DFR0_WRPS_SHIFT);
 }
 

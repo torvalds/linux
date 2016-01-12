@@ -74,7 +74,7 @@ EXPORT_SYMBOL(nvm_unregister_target);
 void *nvm_dev_dma_alloc(struct nvm_dev *dev, gfp_t mem_flags,
 							dma_addr_t *dma_handler)
 {
-	return dev->ops->dev_dma_alloc(dev->q, dev->ppalist_pool, mem_flags,
+	return dev->ops->dev_dma_alloc(dev, dev->ppalist_pool, mem_flags,
 								dma_handler);
 }
 EXPORT_SYMBOL(nvm_dev_dma_alloc);
@@ -97,15 +97,47 @@ static struct nvmm_type *nvm_find_mgr_type(const char *name)
 	return NULL;
 }
 
+struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
+{
+	struct nvmm_type *mt;
+	int ret;
+
+	lockdep_assert_held(&nvm_lock);
+
+	list_for_each_entry(mt, &nvm_mgrs, list) {
+		ret = mt->register_mgr(dev);
+		if (ret < 0) {
+			pr_err("nvm: media mgr failed to init (%d) on dev %s\n",
+								ret, dev->name);
+			return NULL; /* initialization failed */
+		} else if (ret > 0)
+			return mt;
+	}
+
+	return NULL;
+}
+
 int nvm_register_mgr(struct nvmm_type *mt)
 {
+	struct nvm_dev *dev;
 	int ret = 0;
 
 	down_write(&nvm_lock);
-	if (nvm_find_mgr_type(mt->name))
+	if (nvm_find_mgr_type(mt->name)) {
 		ret = -EEXIST;
-	else
+		goto finish;
+	} else {
 		list_add(&mt->list, &nvm_mgrs);
+	}
+
+	/* try to register media mgr if any device have none configured */
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		if (dev->mt)
+			continue;
+
+		dev->mt = nvm_init_mgr(dev);
+	}
+finish:
 	up_write(&nvm_lock);
 
 	return ret;
@@ -160,11 +192,6 @@ int nvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk)
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
-static void nvm_core_free(struct nvm_dev *dev)
-{
-	kfree(dev);
-}
-
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
@@ -179,11 +206,20 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->sec_size = grp->csecs;
 	dev->oob_size = grp->sos;
 	dev->sec_per_pg = grp->fpg_sz / grp->csecs;
-	dev->addr_mode = id->ppat;
-	dev->addr_format = id->ppaf;
+	memcpy(&dev->ppaf, &id->ppaf, sizeof(struct nvm_addr_format));
 
 	dev->plane_mode = NVM_PLANE_SINGLE;
 	dev->max_rq_size = dev->ops->max_phys_sect * dev->sec_size;
+
+	if (grp->mtype != 0) {
+		pr_err("nvm: memory type not supported\n");
+		return -EINVAL;
+	}
+
+	if (grp->fmtype != 0 && grp->fmtype != 1) {
+		pr_err("nvm: flash type not supported\n");
+		return -EINVAL;
+	}
 
 	if (grp->mpos & 0x020202)
 		dev->plane_mode = NVM_PLANE_DOUBLE;
@@ -213,21 +249,17 @@ static void nvm_free(struct nvm_dev *dev)
 
 	if (dev->mt)
 		dev->mt->unregister_mgr(dev);
-
-	nvm_core_free(dev);
 }
 
 static int nvm_init(struct nvm_dev *dev)
 {
-	struct nvmm_type *mt;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (!dev->q || !dev->ops)
-		return -EINVAL;
+		return ret;
 
-	if (dev->ops->identity(dev->q, &dev->identity)) {
+	if (dev->ops->identity(dev, &dev->identity)) {
 		pr_err("nvm: device could not be identified\n");
-		ret = -EINVAL;
 		goto err;
 	}
 
@@ -251,29 +283,12 @@ static int nvm_init(struct nvm_dev *dev)
 		goto err;
 	}
 
-	/* register with device with a supported manager */
-	list_for_each_entry(mt, &nvm_mgrs, list) {
-		ret = mt->register_mgr(dev);
-		if (ret < 0)
-			goto err; /* initialization failed */
-		if (ret > 0) {
-			dev->mt = mt;
-			break; /* successfully initialized */
-		}
-	}
-
-	if (!ret) {
-		pr_info("nvm: no compatible manager found.\n");
-		return 0;
-	}
-
 	pr_info("nvm: registered %s [%u/%u/%u/%u/%u/%u]\n",
 			dev->name, dev->sec_per_pg, dev->nr_planes,
 			dev->pgs_per_blk, dev->blks_per_lun, dev->nr_luns,
 			dev->nr_chnls);
 	return 0;
 err:
-	nvm_free(dev);
 	pr_err("nvm: failed to initialize nvm\n");
 	return ret;
 }
@@ -308,21 +323,26 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	if (ret)
 		goto err_init;
 
-	down_write(&nvm_lock);
-	list_add(&dev->devices, &nvm_devices);
-	up_write(&nvm_lock);
+	if (dev->ops->max_phys_sect > 256) {
+		pr_info("nvm: max sectors supported is 256.\n");
+		ret = -EINVAL;
+		goto err_init;
+	}
 
 	if (dev->ops->max_phys_sect > 1) {
-		dev->ppalist_pool = dev->ops->create_dma_pool(dev->q,
-								"ppalist");
+		dev->ppalist_pool = dev->ops->create_dma_pool(dev, "ppalist");
 		if (!dev->ppalist_pool) {
 			pr_err("nvm: could not create ppa pool\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_init;
 		}
-	} else if (dev->ops->max_phys_sect > 256) {
-		pr_info("nvm: max sectors supported is 256.\n");
-		return -EINVAL;
 	}
+
+	/* register device with a supported media manager */
+	down_write(&nvm_lock);
+	dev->mt = nvm_init_mgr(dev);
+	list_add(&dev->devices, &nvm_devices);
+	up_write(&nvm_lock);
 
 	return 0;
 err_init:
@@ -333,19 +353,22 @@ EXPORT_SYMBOL(nvm_register);
 
 void nvm_unregister(char *disk_name)
 {
-	struct nvm_dev *dev = nvm_find_nvm_dev(disk_name);
+	struct nvm_dev *dev;
 
+	down_write(&nvm_lock);
+	dev = nvm_find_nvm_dev(disk_name);
 	if (!dev) {
 		pr_err("nvm: could not find device %s to unregister\n",
 								disk_name);
+		up_write(&nvm_lock);
 		return;
 	}
 
-	nvm_exit(dev);
-
-	down_write(&nvm_lock);
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
+
+	nvm_exit(dev);
+	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
 
@@ -358,38 +381,24 @@ static int nvm_create_target(struct nvm_dev *dev,
 {
 	struct nvm_ioctl_create_simple *s = &create->conf.s;
 	struct request_queue *tqueue;
-	struct nvmm_type *mt;
 	struct gendisk *tdisk;
 	struct nvm_tgt_type *tt;
 	struct nvm_target *t;
 	void *targetdata;
-	int ret = 0;
 
 	if (!dev->mt) {
-		/* register with device with a supported NVM manager */
-		list_for_each_entry(mt, &nvm_mgrs, list) {
-			ret = mt->register_mgr(dev);
-			if (ret < 0)
-				return ret; /* initialization failed */
-			if (ret > 0) {
-				dev->mt = mt;
-				break; /* successfully initialized */
-			}
-		}
-
-		if (!ret) {
-			pr_info("nvm: no compatible nvm manager found.\n");
-			return -ENODEV;
-		}
-	}
-
-	tt = nvm_find_target_type(create->tgttype);
-	if (!tt) {
-		pr_err("nvm: target type %s not found\n", create->tgttype);
-		return -EINVAL;
+		pr_info("nvm: device has no media manager registered.\n");
+		return -ENODEV;
 	}
 
 	down_write(&nvm_lock);
+	tt = nvm_find_target_type(create->tgttype);
+	if (!tt) {
+		pr_err("nvm: target type %s not found\n", create->tgttype);
+		up_write(&nvm_lock);
+		return -EINVAL;
+	}
+
 	list_for_each_entry(t, &dev->online_targets, list) {
 		if (!strcmp(create->tgtname, t->disk->disk_name)) {
 			pr_err("nvm: target name already exists.\n");
@@ -457,10 +466,10 @@ static void nvm_remove_target(struct nvm_target *t)
 	lockdep_assert_held(&nvm_lock);
 
 	del_gendisk(tdisk);
+	blk_cleanup_queue(q);
+
 	if (tt->exit)
 		tt->exit(tdisk->private_data);
-
-	blk_cleanup_queue(q);
 
 	put_disk(tdisk);
 
@@ -473,7 +482,9 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 	struct nvm_dev *dev;
 	struct nvm_ioctl_create_simple *s;
 
+	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(create->dev);
+	up_write(&nvm_lock);
 	if (!dev) {
 		pr_err("nvm: device not found\n");
 		return -EINVAL;
@@ -532,7 +543,9 @@ static int nvm_configure_show(const char *val)
 		return -EINVAL;
 	}
 
+	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(devname);
+	up_write(&nvm_lock);
 	if (!dev) {
 		pr_err("nvm: device not found\n");
 		return -EINVAL;
@@ -541,7 +554,7 @@ static int nvm_configure_show(const char *val)
 	if (!dev->mt)
 		return 0;
 
-	dev->mt->free_blocks_print(dev);
+	dev->mt->lun_info_print(dev);
 
 	return 0;
 }
@@ -677,8 +690,10 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	info->tgtsize = tgt_iter;
 	up_write(&nvm_lock);
 
-	if (copy_to_user(arg, info, sizeof(struct nvm_ioctl_info)))
+	if (copy_to_user(arg, info, sizeof(struct nvm_ioctl_info))) {
+		kfree(info);
 		return -EFAULT;
+	}
 
 	kfree(info);
 	return 0;
@@ -721,8 +736,11 @@ static long nvm_ioctl_get_devices(struct file *file, void __user *arg)
 
 	devices->nr_devices = i;
 
-	if (copy_to_user(arg, devices, sizeof(struct nvm_ioctl_get_devices)))
+	if (copy_to_user(arg, devices,
+			 sizeof(struct nvm_ioctl_get_devices))) {
+		kfree(devices);
 		return -EFAULT;
+	}
 
 	kfree(devices);
 	return 0;

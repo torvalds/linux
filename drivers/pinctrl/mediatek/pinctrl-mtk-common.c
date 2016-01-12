@@ -747,7 +747,7 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
-	return !!(read_val & bit);
+	return !(read_val & bit);
 }
 
 static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -757,12 +757,8 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned int read_val = 0;
 	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->dev);
 
-	if (mtk_gpio_get_direction(chip, offset))
-		reg_addr = mtk_get_port(pctl, offset) +
-			pctl->devdata->dout_offset;
-	else
-		reg_addr = mtk_get_port(pctl, offset) +
-			pctl->devdata->din_offset;
+	reg_addr = mtk_get_port(pctl, offset) +
+		pctl->devdata->din_offset;
 
 	bit = BIT(offset & 0xf);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
@@ -997,6 +993,7 @@ static struct gpio_chip mtk_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
+	.get_direction		= mtk_gpio_get_direction,
 	.direction_input	= mtk_gpio_direction_input,
 	.direction_output	= mtk_gpio_direction_output,
 	.get			= mtk_gpio_get,

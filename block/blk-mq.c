@@ -1291,15 +1291,16 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_bio_to_request(rq, bio);
 
 		/*
-		 * we do limited pluging. If bio can be merged, do merge.
+		 * We do limited pluging. If the bio can be merged, do that.
 		 * Otherwise the existing request in the plug list will be
 		 * issued. So the plug list will have one request at most
 		 */
 		if (plug) {
 			/*
 			 * The plug list might get flushed before this. If that
-			 * happens, same_queue_rq is invalid and plug list is empty
-			 **/
+			 * happens, same_queue_rq is invalid and plug list is
+			 * empty
+			 */
 			if (same_queue_rq && !list_empty(&plug->mq_list)) {
 				old_rq = same_queue_rq;
 				list_del_init(&old_rq->queuelist);
@@ -1380,12 +1381,15 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_bio_to_request(rq, bio);
 		if (!request_count)
 			trace_block_plug(q);
-		else if (request_count >= BLK_MAX_REQUEST_COUNT) {
+
+		blk_mq_put_ctx(data.ctx);
+
+		if (request_count >= BLK_MAX_REQUEST_COUNT) {
 			blk_flush_plug_list(plug, false);
 			trace_block_plug(q);
 		}
+
 		list_add_tail(&rq->queuelist, &plug->mq_list);
-		blk_mq_put_ctx(data.ctx);
 		return cookie;
 	}
 

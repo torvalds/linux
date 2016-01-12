@@ -269,6 +269,7 @@
 			clock-frequency = <0>;	/* Updated by bootloader */
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
+			little-endian;
 			bus-width = <4>;
 		};
 
@@ -277,6 +278,7 @@
 			reg = <0x0 0x2300000 0x0 0x10000>;
 			interrupts = <0 36 0x4>; /* Level high type */
 			gpio-controller;
+			little-endian;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -287,6 +289,7 @@
 			reg = <0x0 0x2310000 0x0 0x10000>;
 			interrupts = <0 36 0x4>; /* Level high type */
 			gpio-controller;
+			little-endian;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -297,6 +300,7 @@
 			reg = <0x0 0x2320000 0x0 0x10000>;
 			interrupts = <0 37 0x4>; /* Level high type */
 			gpio-controller;
+			little-endian;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -307,6 +311,7 @@
 			reg = <0x0 0x2330000 0x0 0x10000>;
 			interrupts = <0 37 0x4>; /* Level high type */
 			gpio-controller;
+			little-endian;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

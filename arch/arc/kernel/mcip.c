@@ -132,7 +132,7 @@ static void mcip_probe_n_setup(void)
 struct plat_smp_ops plat_smp_ops = {
 	.info		= smp_cpuinfo_buf,
 	.init_early_smp	= mcip_probe_n_setup,
-	.init_irq_cpu	= mcip_setup_per_cpu,
+	.init_per_cpu	= mcip_setup_per_cpu,
 	.ipi_send	= mcip_ipi_send,
 	.ipi_clear	= mcip_ipi_clear,
 };

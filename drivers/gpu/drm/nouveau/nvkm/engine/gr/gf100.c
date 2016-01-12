@@ -143,7 +143,7 @@ gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 static int
 gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 {
-	struct gf100_gr *gr = (void *)object->engine;
+	struct gf100_gr *gr = gf100_gr(nvkm_gr(object->engine));
 	union {
 		struct fermi_a_zbc_color_v0 v0;
 	} *args = data;
@@ -189,7 +189,7 @@ gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 static int
 gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 {
-	struct gf100_gr *gr = (void *)object->engine;
+	struct gf100_gr *gr = gf100_gr(nvkm_gr(object->engine));
 	union {
 		struct fermi_a_zbc_depth_v0 v0;
 	} *args = data;
@@ -1530,6 +1530,8 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 		gr->ppc_nr[i]  = gr->func->ppc_nr;
 		for (j = 0; j < gr->ppc_nr[i]; j++) {
 			u8 mask = nvkm_rd32(device, GPC_UNIT(i, 0x0c30 + (j * 4)));
+			if (mask)
+				gr->ppc_mask[i] |= (1 << j);
 			gr->ppc_tpc_nr[i][j] = hweight8(mask);
 		}
 	}

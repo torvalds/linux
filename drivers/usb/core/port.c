@@ -206,7 +206,7 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 		else
 			method = "default";
 
-		pr_warn("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
+		pr_debug("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
 			dev_name(&left->dev), dev_name(&right->dev), method,
 			dev_name(&left->dev),
 			lpeer ? dev_name(&lpeer->dev) : "none",
@@ -265,7 +265,7 @@ static void link_peers_report(struct usb_port *left, struct usb_port *right)
 	if (rc == 0) {
 		dev_dbg(&left->dev, "peered to %s\n", dev_name(&right->dev));
 	} else {
-		dev_warn(&left->dev, "failed to peer to %s (%d)\n",
+		dev_dbg(&left->dev, "failed to peer to %s (%d)\n",
 				dev_name(&right->dev), rc);
 		pr_warn_once("usb: port power management may be unreliable\n");
 		usb_port_block_power_off = 1;

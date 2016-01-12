@@ -27,6 +27,8 @@
 #include <linux/kfifo.h>
 #include <linux/fence.h>
 
+#define AMD_SCHED_FENCE_SCHEDULED_BIT	FENCE_FLAG_USER_BITS
+
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
 
@@ -68,6 +70,7 @@ struct amd_sched_rq {
 struct amd_sched_fence {
 	struct fence                    base;
 	struct fence_cb                 cb;
+	struct list_head		scheduled_cb;
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
@@ -134,7 +137,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);
+void amd_sched_fence_scheduled(struct amd_sched_fence *fence);
 void amd_sched_fence_signal(struct amd_sched_fence *fence);
-
 
 #endif

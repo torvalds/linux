@@ -96,7 +96,8 @@ struct nfit_mem {
 
 struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
-	struct acpi_table_nfit *nfit;
+	struct acpi_table_header acpi_header;
+	struct acpi_nfit_header *nfit;
 	struct mutex spa_map_mutex;
 	struct mutex init_mutex;
 	struct list_head spa_maps;

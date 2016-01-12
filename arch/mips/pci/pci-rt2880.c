@@ -11,6 +11,7 @@
  *  by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/io.h>
@@ -220,7 +221,6 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 static int rt288x_pci_probe(struct platform_device *pdev)
 {
 	void __iomem *io_map_base;
-	int i;
 
 	rt2880_pci_base = ioremap_nocache(RT2880_PCI_BASE, PAGE_SIZE);
 
@@ -232,8 +232,7 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 	ioport_resource.end = RT2880_PCI_IO_BASE + RT2880_PCI_IO_SIZE - 1;
 
 	rt2880_pci_reg_write(0, RT2880_PCI_REG_PCICFG_ADDR);
-	for (i = 0; i < 0xfffff; i++)
-		;
+	udelay(1);
 
 	rt2880_pci_reg_write(0x79, RT2880_PCI_REG_ARBCTL);
 	rt2880_pci_reg_write(0x07FF0001, RT2880_PCI_REG_BAR0SETUP_ADDR);

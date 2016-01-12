@@ -450,7 +450,7 @@ receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
 		count = disc->ops->receive_buf2(tty, p, f, count);
 	else {
 		count = min_t(int, count, tty->receive_room);
-		if (count)
+		if (count && disc->ops->receive_buf)
 			disc->ops->receive_buf(tty, p, f, count);
 	}
 	return count;

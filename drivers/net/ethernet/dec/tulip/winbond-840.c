@@ -907,7 +907,7 @@ static void init_registers(struct net_device *dev)
 #elif defined(CONFIG_SPARC) || defined (CONFIG_PARISC) || defined(CONFIG_ARM)
 	i |= 0x4800;
 #else
-#warning Processor architecture undefined
+	dev_warn(&dev->dev, "unknown CPU architecture, using default csr0 setting\n");
 	i |= 0x4800;
 #endif
 	iowrite32(i, ioaddr + PCIBusCfg);

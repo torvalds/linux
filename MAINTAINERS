@@ -318,7 +318,7 @@ M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
 S:	Supported
-F:	drivers/acpi/video.c
+F:	drivers/acpi/acpi_video.c
 
 ACPI WMI DRIVER
 L:	platform-driver-x86@vger.kernel.org
@@ -1847,7 +1847,7 @@ S:	Supported
 F:	drivers/net/wireless/ath/ath6kl/
 
 WILOCITY WIL6210 WIRELESS DRIVER
-M:	Vladimir Kondratiev <qca_vkondrat@qca.qualcomm.com>
+M:	Maya Erez <qca_merez@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 L:	wil6210@qca.qualcomm.com
 S:	Supported
@@ -1931,7 +1931,7 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-at91.c
 
 ATMEL ISI DRIVER
-M:	Josh Wu <josh.wu@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/platform/soc_camera/atmel-isi.c
@@ -1950,7 +1950,8 @@ S:	Supported
 F:	drivers/net/ethernet/cadence/
 
 ATMEL NAND DRIVER
-M:	Josh Wu <josh.wu@atmel.com>
+M:	Wenyou Yang <wenyou.yang@atmel.com>
+M:	Josh Wu <rainyfeeling@outlook.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
 F:	drivers/mtd/nand/atmel_nand*
@@ -2974,6 +2975,7 @@ F:	kernel/cpuset.c
 CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
 M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Michal Hocko <mhocko@kernel.org>
+M:	Vladimir Davydov <vdavydov@virtuozzo.com>
 L:	cgroups@vger.kernel.org
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -5576,7 +5578,7 @@ R:	Jesse Brandeburg <jesse.brandeburg@intel.com>
 R:	Shannon Nelson <shannon.nelson@intel.com>
 R:	Carolyn Wyborny <carolyn.wyborny@intel.com>
 R:	Don Skidmore <donald.c.skidmore@intel.com>
-R:	Matthew Vick <matthew.vick@intel.com>
+R:	Bruce Allan <bruce.w.allan@intel.com>
 R:	John Ronciak <john.ronciak@intel.com>
 R:	Mitch Williams <mitch.a.williams@intel.com>
 L:	intel-wired-lan@lists.osuosl.org
@@ -6366,6 +6368,7 @@ F:	arch/*/include/asm/pmem.h
 LIGHTNVM PLATFORM SUPPORT
 M:	Matias Bjorling <mb@lightnvm.io>
 W:	http://github/OpenChannelSSD
+L:	linux-block@vger.kernel.org
 S:	Maintained
 F:	drivers/lightnvm/
 F:	include/linux/lightnvm.h
@@ -8284,7 +8287,7 @@ F:	include/linux/delayacct.h
 F:	kernel/delayacct.c
 
 PERFORMANCE EVENTS SUBSYSTEM
-M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
+M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -8376,6 +8379,14 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/pinctrl/samsung/
+
+PIN CONTROLLER - SINGLE
+M:	Tony Lindgren <tony@atomide.com>
+M:	Haojian Zhuang <haojian.zhuang@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-single.c
 
 PIN CONTROLLER - ST SPEAR
 M:	Viresh Kumar <vireshk@kernel.org>
@@ -8943,6 +8954,13 @@ F:	drivers/rpmsg/
 F:	Documentation/rpmsg.txt
 F:	include/linux/rpmsg.h
 
+RENESAS ETHERNET DRIVERS
+R:	Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+L:	netdev@vger.kernel.org
+L:	linux-sh@vger.kernel.org
+F:	drivers/net/ethernet/renesas/
+F:	include/linux/sh_eth.h
+
 RESET CONTROLLER FRAMEWORK
 M:	Philipp Zabel <p.zabel@pengutronix.de>
 S:	Maintained
@@ -9426,8 +9444,10 @@ F:	include/scsi/sg.h
 
 SCSI SUBSYSTEM
 M:	"James E.J. Bottomley" <JBottomley@odin.com>
-L:	linux-scsi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/scsi.git
+M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
+L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/
 F:	include/scsi/
@@ -10902,9 +10922,9 @@ S:	Maintained
 F:	drivers/media/tuners/tua9001*
 
 TULIP NETWORK DRIVERS
-M:	Grant Grundler <grundler@parisc-linux.org>
 L:	netdev@vger.kernel.org
-S:	Maintained
+L:	linux-parisc@vger.kernel.org
+S:	Orphan
 F:	drivers/net/ethernet/dec/tulip/
 
 TUN/TAP driver

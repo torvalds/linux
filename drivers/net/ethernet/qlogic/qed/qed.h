@@ -299,6 +299,7 @@ struct qed_hwfn {
 
 	/* Flag indicating whether interrupts are enabled or not*/
 	bool				b_int_enabled;
+	bool				b_int_requested;
 
 	struct qed_mcp_info		*mcp_info;
 
@@ -490,6 +491,8 @@ void qed_link_update(struct qed_hwfn *hwfn);
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 input_len, u8 *input_buf,
 		   u32 max_size, u8 *unzip_buf);
+
+int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
 
 #define QED_ETH_INTERFACE_VERSION       300
 

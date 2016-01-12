@@ -905,6 +905,9 @@ static int ravb_phy_init(struct net_device *ndev)
 		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
 	}
 
+	/* 10BASE is not supported */
+	phydev->supported &= ~PHY_10BT_FEATURES;
+
 	netdev_info(ndev, "attached PHY %d (IRQ %d) to driver %s\n",
 		    phydev->addr, phydev->irq, phydev->drv->name);
 
@@ -1037,7 +1040,7 @@ static const char ravb_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"rx_queue_1_mcast_packets",
 	"rx_queue_1_errors",
 	"rx_queue_1_crc_errors",
-	"rx_queue_1_frame_errors_",
+	"rx_queue_1_frame_errors",
 	"rx_queue_1_length_errors",
 	"rx_queue_1_missed_errors",
 	"rx_queue_1_over_errors",
@@ -1225,7 +1228,7 @@ static int ravb_open(struct net_device *ndev)
 	/* Device init */
 	error = ravb_dmac_init(ndev);
 	if (error)
-		goto out_free_irq;
+		goto out_free_irq2;
 	ravb_emac_init(ndev);
 
 	/* Initialise PTP Clock driver */
@@ -1243,9 +1246,11 @@ static int ravb_open(struct net_device *ndev)
 out_ptp_stop:
 	/* Stop PTP Clock driver */
 	ravb_ptp_stop(ndev);
+out_free_irq2:
+	if (priv->chip_id == RCAR_GEN3)
+		free_irq(priv->emac_irq, ndev);
 out_free_irq:
 	free_irq(ndev->irq, ndev);
-	free_irq(priv->emac_irq, ndev);
 out_napi_off:
 	napi_disable(&priv->napi[RAVB_NC]);
 	napi_disable(&priv->napi[RAVB_BE]);
