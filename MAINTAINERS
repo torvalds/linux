@@ -5622,9 +5622,7 @@ F:	Documentation/trace/intel_th.txt
 F:	drivers/hwtracing/intel_th/
 
 INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
-M:	Richard L Maliszewski <richard.l.maliszewski@intel.com>
-M:	Gang Wei <gang.wei@intel.com>
-M:	Shane Wang <shane.wang@intel.com>
+M:	Ning Sun <ning.sun@intel.com>
 L:	tboot-devel@lists.sourceforge.net
 W:	http://tboot.sourceforge.net
 T:	hg http://tboot.hg.sourceforge.net:8000/hgroot/tboot/tboot
@@ -9366,7 +9364,7 @@ M:	Andreas Noever <andreas.noever@gmail.com>
 S:	Maintained
 F:	drivers/thunderbolt/
 
-TIMEKEEPING, CLOCKSOURCE CORE, NTP
+TIMEKEEPING, CLOCKSOURCE CORE, NTP, ALARMTIMER
 M:	John Stultz <john.stultz@linaro.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
@@ -9379,6 +9377,7 @@ F:	include/uapi/linux/time.h
 F:	include/uapi/linux/timex.h
 F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
+F:	kernel/time/alarmtimer.c
 F:	kernel/time/ntp.c
 F:	tools/testing/selftests/timers/
 

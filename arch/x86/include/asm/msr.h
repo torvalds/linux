@@ -32,6 +32,16 @@ struct msr_regs_info {
 	int err;
 };
 
+struct saved_msr {
+	bool valid;
+	struct msr_info info;
+};
+
+struct saved_msrs {
+	unsigned int num;
+	struct saved_msr *array;
+};
+
 static inline unsigned long long native_read_tscp(unsigned int *aux)
 {
 	unsigned long low, high;
@@ -221,7 +231,7 @@ static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 
 static inline void wrmsrl(unsigned msr, u64 val)
 {
-	native_write_msr(msr, (u32)val, (u32)(val >> 32));
+	native_write_msr(msr, (u32)(val & 0xffffffffULL), (u32)(val >> 32));
 }
 
 /* wrmsr with exception handling */
