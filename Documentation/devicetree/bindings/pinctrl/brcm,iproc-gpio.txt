@@ -1,4 +1,4 @@
-Broadcom Cygnus GPIO/PINCONF Controller
+Broadcom iProc GPIO/PINCONF Controller
 
 Required properties:
 
@@ -7,8 +7,11 @@ Required properties:
     "brcm,cygnus-crmu-gpio" or "brcm,iproc-gpio"
 
 - reg:
-    Define the base and range of the I/O address space that contains the Cygnus
+    Define the base and range of the I/O address space that contains SoC
 GPIO/PINCONF controller registers
+
+- ngpios:
+    Total number of in-use slots in GPIO controller
 
 - #gpio-cells:
     Must be two. The first cell is the GPIO pin number (within the
@@ -57,6 +60,7 @@ Example:
 		compatible = "brcm,cygnus-ccm-gpio";
 		reg = <0x1800a000 0x50>,
 		      <0x0301d164 0x20>;
+		ngpios = <24>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
@@ -78,6 +82,7 @@ Example:
 	gpio_asiu: gpio@180a5000 {
 		compatible = "brcm,cygnus-asiu-gpio";
 		reg = <0x180a5000 0x668>;
+		ngpios = <146>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
