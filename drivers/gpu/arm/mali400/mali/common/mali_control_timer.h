@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012, 2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2012, 2014-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -20,6 +20,7 @@ void mali_control_timer_term(void);
 mali_bool mali_control_timer_resume(u64 time_now);
 
 void mali_control_timer_suspend(mali_bool suspend);
+void mali_control_timer_pause(void);
 
 void mali_control_timer_add(u32 timeout);
 

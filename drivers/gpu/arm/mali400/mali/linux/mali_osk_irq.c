@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -153,7 +153,7 @@ _mali_osk_irq_t *_mali_osk_irq_init(u32 irqnum, _mali_osk_irq_uhandler_t uhandle
 #if defined(DEBUG)
 	/* Verify that the configured interrupt settings are working */
 	if (_MALI_OSK_ERR_OK != test_interrupt(irqnum, trigger_func, ack_func, probe_data, description)) {
-		MALI_DEBUG_PRINT(2, ("Test of IRQ handler for core '%s' failed\n", description));
+		MALI_DEBUG_PRINT(2, ("Test of IRQ(%d) handler for core '%s' failed\n", irqnum, description));
 		kfree(irq_object);
 		return NULL;
 	}

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -526,13 +526,13 @@ static const struct file_operations power_always_on_fops = {
 
 static ssize_t power_power_events_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *ppos)
 {
-	if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_SUSPEND], strlen(mali_power_events[_MALI_DEVICE_SUSPEND])-1)) {
+	if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_SUSPEND], strlen(mali_power_events[_MALI_DEVICE_SUSPEND]) - 1)) {
 		mali_pm_os_suspend(MALI_TRUE);
-	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_RESUME], strlen(mali_power_events[_MALI_DEVICE_RESUME])-1)) {
+	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_RESUME], strlen(mali_power_events[_MALI_DEVICE_RESUME]) - 1)) {
 		mali_pm_os_resume();
-	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_DVFS_PAUSE], strlen(mali_power_events[_MALI_DEVICE_DVFS_PAUSE])-1)) {
+	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_DVFS_PAUSE], strlen(mali_power_events[_MALI_DEVICE_DVFS_PAUSE]) - 1)) {
 		mali_dev_pause();
-	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_DVFS_RESUME], strlen(mali_power_events[_MALI_DEVICE_DVFS_RESUME])-1)) {
+	} else if (!strncmp(ubuf, mali_power_events[_MALI_DEVICE_DVFS_RESUME], strlen(mali_power_events[_MALI_DEVICE_DVFS_RESUME]) - 1)) {
 		mali_dev_resume();
 	}
 	*ppos += cnt;
@@ -880,10 +880,17 @@ static const struct file_operations profiling_events_human_readable_fops = {
 
 static int memory_debugfs_show(struct seq_file *s, void *private_data)
 {
-	seq_printf(s, "  %-25s  %-10s  %-10s  %-15s  %-15s  %-10s  %-10s\n"\
-		   "==============================================================================================================\n",
+#ifdef MALI_MEM_SWAP_TRACKING
+	seq_printf(s, "  %-25s  %-10s  %-10s  %-15s  %-15s  %-10s  %-10s %-10s \n"\
+		   "=================================================================================================================================\n",
+		   "Name (:bytes)", "pid", "mali_mem", "max_mali_mem",
+		   "external_mem", "ump_mem", "dma_mem", "swap_mem");
+#else
+	seq_printf(s, "  %-25s  %-10s  %-10s  %-15s  %-15s  %-10s  %-10s \n"\
+		   "========================================================================================================================\n",
 		   "Name (:bytes)", "pid", "mali_mem", "max_mali_mem",
 		   "external_mem", "ump_mem", "dma_mem");
+#endif
 	mali_session_memory_tracking(s);
 	return 0;
 }
@@ -1135,6 +1142,9 @@ static ssize_t version_read(struct file *filp, char __user *buf, size_t count, l
 		break;
 	case _MALI_PRODUCT_ID_MALI450:
 		r = snprintf(buffer, 64, "Mali-450 MP\n");
+		break;
+	case _MALI_PRODUCT_ID_MALI470:
+		r = snprintf(buffer, 64, "Mali-470 MP\n");
 		break;
 	case _MALI_PRODUCT_ID_UNKNOWN:
 		return -EINVAL;

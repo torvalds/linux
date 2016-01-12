@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -20,6 +20,7 @@ struct mali_scheduler_job_queue {
 	_MALI_OSK_LIST_HEAD(normal_pri); /* Queued jobs with normal priority */
 	_MALI_OSK_LIST_HEAD(high_pri);   /* Queued jobs with high priority */
 	u32 depth;                       /* Depth of combined queues. */
+	u32 big_job_num;
 };
 
 extern _mali_osk_spinlock_irq_t *mali_scheduler_lock_obj;
@@ -53,6 +54,10 @@ MALI_STATIC_INLINE void mali_scheduler_unlock(void)
 MALI_STATIC_INLINE u32 mali_scheduler_job_gp_count(void)
 {
 	return job_queue_gp.depth;
+}
+MALI_STATIC_INLINE u32 mali_scheduler_job_gp_big_job_count(void)
+{
+	return job_queue_gp.big_job_num;
 }
 
 u32 mali_scheduler_job_physical_head_count(void);
@@ -113,8 +118,13 @@ void mali_scheduler_complete_pp_job(struct mali_pp_job *job,
 
 void mali_scheduler_abort_session(struct mali_session_data *session);
 
+void mali_scheduler_return_pp_job_to_user(struct mali_pp_job *job,
+		u32 num_cores_in_virtual);
+
 #if MALI_STATE_TRACKING
 u32 mali_scheduler_dump_state(char *buf, u32 size);
 #endif
+
+void mali_scheduler_gp_pp_job_queue_print(void);
 
 #endif /* __MALI_SCHEDULER_H__ */

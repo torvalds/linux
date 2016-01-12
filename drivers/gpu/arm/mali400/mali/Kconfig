@@ -1,6 +1,6 @@
 config MALI400
 	tristate "Mali-300/400/450 support"
-	depends on ARM
+	depends on ARM || ARM64
 	select DMA_SHARED_BUFFER
 	---help---
 	  This enables support for the ARM Mali-300, Mali-400, and Mali-450
@@ -14,6 +14,12 @@ config MALI450
 	depends on MALI400
 	---help---
 	  This enables support for Mali-450 specific features.
+
+config MALI470
+	bool "Enable Mali-470 support"
+	depends on MALI400
+	---help---
+	  This enables support for Mali-470 specific features.
 
 config MALI400_DEBUG
 	bool "Enable debug in Mali driver"

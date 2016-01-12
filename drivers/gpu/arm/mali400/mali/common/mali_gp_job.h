@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -21,6 +21,7 @@
 #include "mali_executor.h"
 #include "mali_timeline.h"
 
+struct mali_defer_mem;
 /**
  * This structure represents a GP job
  *
@@ -64,9 +65,25 @@ struct mali_gp_job {
 	 * returning job to user. Hold executor lock when setting,
 	 * no lock needed when reading
 	 */
+	u32 heap_base_addr;                                /** < Holds the base mali addr of mem handle which is used for new heap*/
 	u32 heap_current_addr;                             /**< Holds the current HEAP address when the job has completed */
+	u32 heap_grow_size;                                /** < Holds the HEAP grow size when HEAP oom */
 	u32 perf_counter_value0;                           /**< Value of performance counter 0 (to be returned to user space) */
 	u32 perf_counter_value1;                           /**< Value of performance counter 1 (to be returned to user space) */
+	struct mali_defer_mem *dmem;                                          /** < used for defer bind to store dmem info */
+	struct list_head varying_alloc;                    /**< hold the list of varying allocations */
+	u32 bind_flag;                                     /** < flag for deferbind*/
+	u32 *varying_list;                                 /**< varying memory list need to to defer bind*/
+	struct list_head vary_todo;                        /**< list of backend list need to do defer bind*/
+	u32 big_job;                                       /** < if the gp job have large varying output and may take long time*/
+};
+
+#define MALI_DEFER_BIND_MEMORY_PREPARED (0x1 << 0)
+#define MALI_DEFER_BIND_MEMORY_BINDED (0x1 << 2)
+
+struct mali_gp_allocation_node {
+	struct list_head node;
+	mali_mem_allocation *alloc;
 };
 
 struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_uk_gp_start_job_s *uargs, u32 id, struct mali_timeline_tracker *pp_tracker);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -25,12 +25,11 @@ enum mali200_mgmt_reg {
 	MALI200_REG_ADDR_MGMT_INT_MASK                             = 0x1028,
 	MALI200_REG_ADDR_MGMT_INT_STATUS                           = 0x102c,
 
-	MALI200_REG_ADDR_MGMT_WRITE_BOUNDARY_LOW                   = 0x1044,
-
 	MALI200_REG_ADDR_MGMT_BUS_ERROR_STATUS                     = 0x1050,
 
 	MALI200_REG_ADDR_MGMT_PERF_CNT_0_ENABLE                    = 0x1080,
 	MALI200_REG_ADDR_MGMT_PERF_CNT_0_SRC                       = 0x1084,
+	MALI200_REG_ADDR_MGMT_PERF_CNT_0_LIMIT                     = 0x1088,
 	MALI200_REG_ADDR_MGMT_PERF_CNT_0_VALUE                     = 0x108c,
 
 	MALI200_REG_ADDR_MGMT_PERF_CNT_1_ENABLE                    = 0x10a0,
@@ -125,6 +124,8 @@ enum mali200_wb_unit_regs {
 #define MALI300_PP_PRODUCT_ID 0xCE07
 #define MALI400_PP_PRODUCT_ID 0xCD07
 #define MALI450_PP_PRODUCT_ID 0xCF07
+#define MALI470_PP_PRODUCT_ID 0xCF08
+
 
 
 #endif /* _MALI200_REGS_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -47,18 +47,7 @@ static unsigned long mali_mem_os_shrink_count(struct shrinker *shrinker, struct 
 #endif
 static void mali_mem_os_trim_pool(struct work_struct *work);
 
-static struct mali_mem_os_allocator {
-	spinlock_t pool_lock;
-	struct list_head pool_pages;
-	size_t pool_count;
-
-	atomic_t allocated_pages;
-	size_t allocation_limit;
-
-	struct shrinker shrinker;
-	struct delayed_work timed_shrinker;
-	struct workqueue_struct *wq;
-} mali_mem_os_allocator = {
+struct mali_mem_os_allocator mali_mem_os_allocator = {
 	.pool_lock = __SPIN_LOCK_UNLOCKED(pool_lock),
 	.pool_pages = LIST_HEAD_INIT(mali_mem_os_allocator.pool_pages),
 	.pool_count = 0,
@@ -82,43 +71,109 @@ static struct mali_mem_os_allocator {
 #endif
 };
 
-static void mali_mem_os_free(mali_mem_allocation *descriptor)
+u32 mali_mem_os_free(struct list_head *os_pages, u32 pages_count, mali_bool cow_flag)
 {
 	LIST_HEAD(pages);
+	struct mali_page_node *m_page, *m_tmp;
+	u32 free_pages_nr = 0;
 
-	MALI_DEBUG_ASSERT(MALI_MEM_OS == descriptor->type);
-
-	atomic_sub(descriptor->os_mem.count, &mali_mem_os_allocator.allocated_pages);
+	if (MALI_TRUE == cow_flag) {
+		list_for_each_entry_safe(m_page, m_tmp, os_pages, list) {
+			/*only handle OS node here */
+			if (m_page->type == MALI_PAGE_NODE_OS) {
+				if (1 == _mali_page_node_get_ref_count(m_page)) {
+					list_move(&m_page->list, &pages);
+					atomic_sub(1, &mali_mem_os_allocator.allocated_pages);
+					free_pages_nr ++;
+				} else {
+					_mali_page_node_unref(m_page);
+					m_page->page = NULL;
+					list_del(&m_page->list);
+					kfree(m_page);
+				}
+			}
+		}
+	} else {
+		list_cut_position(&pages, os_pages, os_pages->prev);
+		atomic_sub(pages_count, &mali_mem_os_allocator.allocated_pages);
+		free_pages_nr = pages_count;
+	}
 
 	/* Put pages on pool. */
-	list_cut_position(&pages, &descriptor->os_mem.pages, descriptor->os_mem.pages.prev);
-
 	spin_lock(&mali_mem_os_allocator.pool_lock);
-
 	list_splice(&pages, &mali_mem_os_allocator.pool_pages);
-	mali_mem_os_allocator.pool_count += descriptor->os_mem.count;
-
+	mali_mem_os_allocator.pool_count += free_pages_nr;
 	spin_unlock(&mali_mem_os_allocator.pool_lock);
 
 	if (MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES < mali_mem_os_allocator.pool_count) {
 		MALI_DEBUG_PRINT(5, ("OS Mem: Starting pool trim timer %u\n", mali_mem_os_allocator.pool_count));
 		queue_delayed_work(mali_mem_os_allocator.wq, &mali_mem_os_allocator.timed_shrinker, MALI_OS_MEMORY_POOL_TRIM_JIFFIES);
 	}
+	return free_pages_nr;
 }
 
-static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
+/**
+* put page without put it into page pool
+*/
+_mali_osk_errcode_t mali_mem_os_put_page(struct page *page)
 {
-	struct page *new_page, *tmp;
-	LIST_HEAD(pages);
+	MALI_DEBUG_ASSERT_POINTER(page);
+	if (1 == page_count(page)) {
+		atomic_sub(1, &mali_mem_os_allocator.allocated_pages);
+		dma_unmap_page(&mali_platform_device->dev, page_private(page),
+			       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+		ClearPagePrivate(page);
+	}
+	put_page(page);
+	return _MALI_OSK_ERR_OK;
+}
+
+_mali_osk_errcode_t mali_mem_os_resize_pages(mali_mem_os_mem *mem_from, mali_mem_os_mem *mem_to, u32 start_page, u32 page_count)
+{
+	struct mali_page_node *m_page, *m_tmp;
+	u32 i = 0;
+
+	MALI_DEBUG_ASSERT_POINTER(mem_from);
+	MALI_DEBUG_ASSERT_POINTER(mem_to);
+
+	if (mem_from->count < start_page + page_count) {
+		return _MALI_OSK_ERR_INVALID_ARGS;
+	}
+
+	list_for_each_entry_safe(m_page, m_tmp, &mem_from->pages, list) {
+		if (i >= start_page && i < start_page + page_count) {
+			list_move_tail(&m_page->list, &mem_to->pages);
+			mem_from->count--;
+			mem_to->count++;
+		}
+		i++;
+	}
+
+	return _MALI_OSK_ERR_OK;
+}
+
+
+int mali_mem_os_alloc_pages(mali_mem_os_mem *os_mem, u32 size)
+{
+	struct page *new_page;
+	LIST_HEAD(pages_list);
 	size_t page_count = PAGE_ALIGN(size) / _MALI_OSK_MALI_PAGE_SIZE;
 	size_t remaining = page_count;
+	struct mali_page_node *m_page, *m_tmp;
 	u32 i;
 
-	MALI_DEBUG_ASSERT_POINTER(descriptor);
-	MALI_DEBUG_ASSERT(MALI_MEM_OS == descriptor->type);
+	MALI_DEBUG_ASSERT_POINTER(os_mem);
 
-	INIT_LIST_HEAD(&descriptor->os_mem.pages);
-	descriptor->os_mem.count = page_count;
+	if (atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE + size > mali_mem_os_allocator.allocation_limit) {
+		MALI_DEBUG_PRINT(2, ("Mali Mem: Unable to allocate %u bytes. Currently allocated: %lu, max limit %lu\n",
+				     size,
+				     atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE,
+				     mali_mem_os_allocator.allocation_limit));
+		return -ENOMEM;
+	}
+
+	INIT_LIST_HEAD(&os_mem->pages);
+	os_mem->count = page_count;
 
 	/* Grab pages from pool. */
 	{
@@ -127,7 +182,7 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 		pool_pages = min(remaining, mali_mem_os_allocator.pool_count);
 		for (i = pool_pages; i > 0; i--) {
 			BUG_ON(list_empty(&mali_mem_os_allocator.pool_pages));
-			list_move(mali_mem_os_allocator.pool_pages.next, &pages);
+			list_move(mali_mem_os_allocator.pool_pages.next, &pages_list);
 		}
 		mali_mem_os_allocator.pool_count -= pool_pages;
 		remaining -= pool_pages;
@@ -136,26 +191,32 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 
 	/* Process pages from pool. */
 	i = 0;
-	list_for_each_entry_safe(new_page, tmp, &pages, lru) {
-		BUG_ON(NULL == new_page);
+	list_for_each_entry_safe(m_page, m_tmp, &pages_list, list) {
+		BUG_ON(NULL == m_page);
 
-		list_move_tail(&new_page->lru, &descriptor->os_mem.pages);
+		list_move_tail(&m_page->list, &os_mem->pages);
 	}
 
 	/* Allocate new pages, if needed. */
 	for (i = 0; i < remaining; i++) {
 		dma_addr_t dma_addr;
-		gfp_t flags = __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN | __GFP_COLD;
+		gfp_t flags = __GFP_ZERO | __GFP_NORETRY | __GFP_NOWARN | __GFP_COLD;
 		int err;
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_ARM_LPAE)
 		flags |= GFP_HIGHUSER;
 #else
-	/* After 3.15.0 kernel use ZONE_DMA replace ZONE_DMA32 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
+#ifdef CONFIG_ZONE_DMA32
 		flags |= GFP_DMA32;
 #else
+#ifdef CONFIG_ZONE_DMA
 		flags |= GFP_DMA;
+#else
+		/* arm64 utgard only work on < 4G, but the kernel
+		 * didn't provide method to allocte memory < 4G
+		 */
+		MALI_DEBUG_ASSERT(0);
+#endif
 #endif
 #endif
 
@@ -163,9 +224,9 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 
 		if (unlikely(NULL == new_page)) {
 			/* Calculate the number of pages actually allocated, and free them. */
-			descriptor->os_mem.count = (page_count - remaining) + i;
-			atomic_add(descriptor->os_mem.count, &mali_mem_os_allocator.allocated_pages);
-			mali_mem_os_free(descriptor);
+			os_mem->count = (page_count - remaining) + i;
+			atomic_add(os_mem->count, &mali_mem_os_allocator.allocated_pages);
+			mali_mem_os_free(&os_mem->pages, os_mem->count, MALI_FALSE);
 			return -ENOMEM;
 		}
 
@@ -178,9 +239,9 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 			MALI_DEBUG_PRINT_ERROR(("OS Mem: Failed to DMA map page %p: %u",
 						new_page, err));
 			__free_page(new_page);
-			descriptor->os_mem.count = (page_count - remaining) + i;
-			atomic_add(descriptor->os_mem.count, &mali_mem_os_allocator.allocated_pages);
-			mali_mem_os_free(descriptor);
+			os_mem->count = (page_count - remaining) + i;
+			atomic_add(os_mem->count, &mali_mem_os_allocator.allocated_pages);
+			mali_mem_os_free(&os_mem->pages, os_mem->count, MALI_FALSE);
 			return -EFAULT;
 		}
 
@@ -188,7 +249,21 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 		SetPagePrivate(new_page);
 		set_page_private(new_page, dma_addr);
 
-		list_add_tail(&new_page->lru, &descriptor->os_mem.pages);
+		m_page = _mali_page_node_allocate(MALI_PAGE_NODE_OS);
+		if (unlikely(NULL == m_page)) {
+			MALI_PRINT_ERROR(("OS Mem: Can't allocate mali_page node! \n"));
+			dma_unmap_page(&mali_platform_device->dev, page_private(new_page),
+				       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+			ClearPagePrivate(new_page);
+			__free_page(new_page);
+			os_mem->count = (page_count - remaining) + i;
+			atomic_add(os_mem->count, &mali_mem_os_allocator.allocated_pages);
+			mali_mem_os_free(&os_mem->pages, os_mem->count, MALI_FALSE);
+			return -EFAULT;
+		}
+		m_page->page = new_page;
+
+		list_add_tail(&m_page->list, &os_mem->pages);
 	}
 
 	atomic_add(page_count, &mali_mem_os_allocator.allocated_pages);
@@ -201,54 +276,94 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 	return 0;
 }
 
-static int mali_mem_os_mali_map(mali_mem_allocation *descriptor, struct mali_session_data *session)
+
+_mali_osk_errcode_t mali_mem_os_mali_map(mali_mem_os_mem *os_mem, struct mali_session_data *session, u32 vaddr, u32 start_page, u32 mapping_pgae_num, u32 props)
 {
 	struct mali_page_directory *pagedir = session->page_directory;
-	struct page *page;
-	_mali_osk_errcode_t err;
-	u32 virt = descriptor->mali_mapping.addr;
-	u32 prop = descriptor->mali_mapping.properties;
+	struct mali_page_node *m_page;
+	u32 virt;
+	u32 prop = props;
 
-	MALI_DEBUG_ASSERT(MALI_MEM_OS == descriptor->type);
+	MALI_DEBUG_ASSERT_POINTER(session);
+	MALI_DEBUG_ASSERT_POINTER(os_mem);
 
-	err = mali_mem_mali_map_prepare(descriptor);
-	if (_MALI_OSK_ERR_OK != err) {
-		return -ENOMEM;
-	}
+	MALI_DEBUG_ASSERT(start_page <= os_mem->count);
+	MALI_DEBUG_ASSERT((start_page + mapping_pgae_num) <= os_mem->count);
 
-	list_for_each_entry(page, &descriptor->os_mem.pages, lru) {
-		dma_addr_t phys = page_private(page);
+	if ((start_page + mapping_pgae_num) == os_mem->count) {
+
+		virt = vaddr + MALI_MMU_PAGE_SIZE * (start_page + mapping_pgae_num);
+
+		list_for_each_entry_reverse(m_page, &os_mem->pages, list) {
+
+			virt -= MALI_MMU_PAGE_SIZE;
+			if (mapping_pgae_num > 0) {
+				dma_addr_t phys = page_private(m_page->page);
+#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT)
+				/* Verify that the "physical" address is 32-bit and
+				* usable for Mali, when on a system with bus addresses
+				* wider than 32-bit. */
+				MALI_DEBUG_ASSERT(0 == (phys >> 32));
+#endif
+				mali_mmu_pagedir_update(pagedir, virt, (mali_dma_addr)phys, MALI_MMU_PAGE_SIZE, prop);
+			} else {
+				break;
+			}
+			mapping_pgae_num--;
+		}
+
+	} else {
+		u32 i = 0;
+		virt = vaddr;
+		list_for_each_entry(m_page, &os_mem->pages, list) {
+
+			if (i >= start_page) {
+				dma_addr_t phys = page_private(m_page->page);
 
 #if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT)
-		/* Verify that the "physical" address is 32-bit and
-		 * usable for Mali, when on a system with bus addresses
-		 * wider than 32-bit. */
-		MALI_DEBUG_ASSERT(0 == (phys >> 32));
+				/* Verify that the "physical" address is 32-bit and
+				* usable for Mali, when on a system with bus addresses
+				* wider than 32-bit. */
+				MALI_DEBUG_ASSERT(0 == (phys >> 32));
 #endif
-
-		mali_mmu_pagedir_update(pagedir, virt, (mali_dma_addr)phys, MALI_MMU_PAGE_SIZE, prop);
-		virt += MALI_MMU_PAGE_SIZE;
+				mali_mmu_pagedir_update(pagedir, virt, (mali_dma_addr)phys, MALI_MMU_PAGE_SIZE, prop);
+			}
+			i++;
+			virt += MALI_MMU_PAGE_SIZE;
+		}
 	}
-
-	return 0;
+	return _MALI_OSK_ERR_OK;
 }
 
-static void mali_mem_os_mali_unmap(struct mali_session_data *session, mali_mem_allocation *descriptor)
+
+void mali_mem_os_mali_unmap(mali_mem_allocation *alloc)
 {
-	mali_mem_mali_map_free(descriptor);
+	struct mali_session_data *session;
+	MALI_DEBUG_ASSERT_POINTER(alloc);
+	session = alloc->session;
+	MALI_DEBUG_ASSERT_POINTER(session);
+
+	mali_session_memory_lock(session);
+	mali_mem_mali_map_free(session, alloc->psize, alloc->mali_vma_node.vm_node.start,
+			       alloc->flags);
+	mali_session_memory_unlock(session);
 }
 
-static int mali_mem_os_cpu_map(mali_mem_allocation *descriptor, struct vm_area_struct *vma)
+int mali_mem_os_cpu_map(mali_mem_backend *mem_bkend, struct vm_area_struct *vma)
 {
+	mali_mem_os_mem *os_mem = &mem_bkend->os_mem;
+	struct mali_page_node *m_page;
 	struct page *page;
 	int ret;
 	unsigned long addr = vma->vm_start;
+	MALI_DEBUG_ASSERT(MALI_MEM_OS == mem_bkend->type);
 
-	list_for_each_entry(page, &descriptor->os_mem.pages, lru) {
+	list_for_each_entry(m_page, &os_mem->pages, list) {
 		/* We should use vm_insert_page, but it does a dcache
 		 * flush which makes it way slower than remap_pfn_range or vm_insert_pfn.
 		ret = vm_insert_page(vma, addr, page);
 		*/
+		page = m_page->page;
 		ret = vm_insert_pfn(vma, addr, page_to_pfn(page));
 
 		if (unlikely(0 != ret)) {
@@ -260,70 +375,103 @@ static int mali_mem_os_cpu_map(mali_mem_allocation *descriptor, struct vm_area_s
 	return 0;
 }
 
-mali_mem_allocation *mali_mem_os_alloc(u32 mali_addr, u32 size, struct vm_area_struct *vma, struct mali_session_data *session)
+_mali_osk_errcode_t mali_mem_os_resize_cpu_map_locked(mali_mem_backend *mem_bkend, struct vm_area_struct *vma, unsigned long start_vaddr, u32 mappig_size)
 {
-	mali_mem_allocation *descriptor;
-	int err;
+	mali_mem_os_mem *os_mem = &mem_bkend->os_mem;
+	struct mali_page_node *m_page;
+	int ret;
+	int offset;
+	int mapping_page_num;
+	int count ;
 
-	if (atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE + size > mali_mem_os_allocator.allocation_limit) {
-		MALI_DEBUG_PRINT(2, ("Mali Mem: Unable to allocate %u bytes. Currently allocated: %lu, max limit %lu\n",
-				     size,
-				     atomic_read(&mali_mem_os_allocator.allocated_pages) * _MALI_OSK_MALI_PAGE_SIZE,
-				     mali_mem_os_allocator.allocation_limit));
-		return NULL;
-	}
+	unsigned long vstart = vma->vm_start;
+	count = 0;
+	MALI_DEBUG_ASSERT(mem_bkend->type == MALI_MEM_OS);
+	MALI_DEBUG_ASSERT(0 == start_vaddr % _MALI_OSK_MALI_PAGE_SIZE);
+	MALI_DEBUG_ASSERT(0 == vstart % _MALI_OSK_MALI_PAGE_SIZE);
+	offset = (start_vaddr - vstart) / _MALI_OSK_MALI_PAGE_SIZE;
+	MALI_DEBUG_ASSERT(offset <= os_mem->count);
+	mapping_page_num = mappig_size / _MALI_OSK_MALI_PAGE_SIZE;
+	MALI_DEBUG_ASSERT((offset + mapping_page_num) <= os_mem->count);
 
-	descriptor = mali_mem_descriptor_create(session, MALI_MEM_OS);
-	if (NULL == descriptor) return NULL;
+	if ((offset + mapping_page_num) == os_mem->count) {
 
-	descriptor->mali_mapping.addr = mali_addr;
-	descriptor->size = size;
-	descriptor->cpu_mapping.addr = (void __user *)vma->vm_start;
-	descriptor->cpu_mapping.ref = 1;
+		unsigned long vm_end = start_vaddr + mappig_size;
 
-	if (VM_SHARED == (VM_SHARED & vma->vm_flags)) {
-		descriptor->mali_mapping.properties = MALI_MMU_FLAGS_DEFAULT;
+		list_for_each_entry_reverse(m_page, &os_mem->pages, list) {
+
+			vm_end -= _MALI_OSK_MALI_PAGE_SIZE;
+			if (mapping_page_num > 0) {
+				ret = vm_insert_pfn(vma, vm_end, page_to_pfn(m_page->page));
+
+				if (unlikely(0 != ret)) {
+					/*will return -EBUSY If the page has already been mapped into table, but it's OK*/
+					if (-EBUSY == ret) {
+						break;
+					} else {
+						MALI_DEBUG_PRINT(1, ("OS Mem: mali_mem_os_resize_cpu_map_locked failed, ret = %d, offset is %d,page_count is %d\n",
+								     ret,  offset + mapping_page_num, os_mem->count));
+					}
+					return _MALI_OSK_ERR_FAULT;
+				}
+			} else {
+				break;
+			}
+			mapping_page_num--;
+
+		}
 	} else {
-		/* Cached Mali memory mapping */
-		descriptor->mali_mapping.properties = MALI_MMU_FLAGS_FORCE_GP_READ_ALLOCATE;
-		vma->vm_flags |= VM_SHARED;
+
+		list_for_each_entry(m_page, &os_mem->pages, list) {
+			if (count >= offset) {
+
+				ret = vm_insert_pfn(vma, vstart, page_to_pfn(m_page->page));
+
+				if (unlikely(0 != ret)) {
+					/*will return -EBUSY If the page has already been mapped into table, but it's OK*/
+					if (-EBUSY == ret) {
+						break;
+					} else {
+						MALI_DEBUG_PRINT(1, ("OS Mem: mali_mem_os_resize_cpu_map_locked failed, ret = %d, count is %d, offset is %d,page_count is %d\n",
+								     ret, count, offset, os_mem->count));
+					}
+					return _MALI_OSK_ERR_FAULT;
+				}
+			}
+			count++;
+			vstart += _MALI_OSK_MALI_PAGE_SIZE;
+		}
 	}
-
-	err = mali_mem_os_alloc_pages(descriptor, size); /* Allocate pages */
-	if (0 != err) goto alloc_failed;
-
-	/* Take session memory lock */
-	_mali_osk_mutex_wait(session->memory_lock);
-
-	err = mali_mem_os_mali_map(descriptor, session); /* Map on Mali */
-	if (0 != err) goto mali_map_failed;
-
-	err = mali_mem_os_cpu_map(descriptor, vma); /* Map on CPU */
-	if (0 != err) goto cpu_map_failed;
-
-	_mali_osk_mutex_signal(session->memory_lock);
-	return descriptor;
-
-cpu_map_failed:
-	mali_mem_os_mali_unmap(session, descriptor);
-mali_map_failed:
-	_mali_osk_mutex_signal(session->memory_lock);
-	mali_mem_os_free(descriptor);
-alloc_failed:
-	mali_mem_descriptor_destroy(descriptor);
-	MALI_DEBUG_PRINT(2, ("OS allocator: Failed to allocate memory (%d)\n", err));
-	return NULL;
+	return _MALI_OSK_ERR_OK;
 }
 
-void mali_mem_os_release(mali_mem_allocation *descriptor)
+u32 mali_mem_os_release(mali_mem_backend *mem_bkend)
 {
-	struct mali_session_data *session = descriptor->session;
+
+	mali_mem_allocation *alloc;
+	u32 free_pages_nr = 0;
+	MALI_DEBUG_ASSERT_POINTER(mem_bkend);
+	MALI_DEBUG_ASSERT(MALI_MEM_OS == mem_bkend->type);
+
+	alloc = mem_bkend->mali_allocation;
+	MALI_DEBUG_ASSERT_POINTER(alloc);
 
 	/* Unmap the memory from the mali virtual address space. */
-	mali_mem_os_mali_unmap(session, descriptor);
-
+	mali_mem_os_mali_unmap(alloc);
+	mutex_lock(&mem_bkend->mutex);
 	/* Free pages */
-	mali_mem_os_free(descriptor);
+	if (MALI_MEM_BACKEND_FLAG_COWED & mem_bkend->flags) {
+		free_pages_nr = mali_mem_os_free(&mem_bkend->os_mem.pages, mem_bkend->os_mem.count, MALI_TRUE);
+	} else {
+		free_pages_nr = mali_mem_os_free(&mem_bkend->os_mem.pages, mem_bkend->os_mem.count, MALI_FALSE);
+	}
+	mutex_unlock(&mem_bkend->mutex);
+
+	MALI_DEBUG_PRINT(4, ("OS Mem free : allocated size = 0x%x, free size = 0x%x\n", mem_bkend->os_mem.count * _MALI_OSK_MALI_PAGE_SIZE,
+			     free_pages_nr * _MALI_OSK_MALI_PAGE_SIZE));
+
+	mem_bkend->os_mem.count = 0;
+	return free_pages_nr;
 }
 
 
@@ -406,16 +554,20 @@ void mali_mem_os_release_table_page(mali_dma_addr phys, void *virt)
 	}
 }
 
-static void mali_mem_os_free_page(struct page *page)
+void mali_mem_os_free_page_node(struct mali_page_node *m_page)
 {
-	BUG_ON(page_count(page) != 1);
+	struct page *page = m_page->page;
+	MALI_DEBUG_ASSERT(m_page->type == MALI_PAGE_NODE_OS);
 
-	dma_unmap_page(&mali_platform_device->dev, page_private(page),
-		       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
-
-	ClearPagePrivate(page);
-
+	if (1  == page_count(page)) {
+		dma_unmap_page(&mali_platform_device->dev, page_private(page),
+			       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+		ClearPagePrivate(page);
+	}
 	__free_page(page);
+	m_page->page = NULL;
+	list_del(&m_page->list);
+	kfree(m_page);
 }
 
 /* The maximum number of page table pool pages to free in one go. */
@@ -498,7 +650,7 @@ static unsigned long mali_mem_os_shrink(struct shrinker *shrinker, struct shrink
 #endif /* Linux < 3.12.0 */
 #endif /* Linux < 3.0.0 */
 {
-	struct page *page, *tmp;
+	struct mali_page_node *m_page, *m_tmp;
 	unsigned long flags;
 	struct list_head *le, pages;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
@@ -532,8 +684,8 @@ static unsigned long mali_mem_os_shrink(struct shrinker *shrinker, struct shrink
 	list_cut_position(&pages, &mali_mem_os_allocator.pool_pages, le);
 	spin_unlock_irqrestore(&mali_mem_os_allocator.pool_lock, flags);
 
-	list_for_each_entry_safe(page, tmp, &pages, lru) {
-		mali_mem_os_free_page(page);
+	list_for_each_entry_safe(m_page, m_tmp, &pages, list) {
+		mali_mem_os_free_page_node(m_page);
 	}
 
 	if (MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES > mali_mem_os_allocator.pool_count) {
@@ -551,7 +703,7 @@ static unsigned long mali_mem_os_shrink(struct shrinker *shrinker, struct shrink
 
 static void mali_mem_os_trim_pool(struct work_struct *data)
 {
-	struct page *page, *tmp;
+	struct mali_page_node *m_page, *m_tmp;
 	struct list_head *le;
 	LIST_HEAD(pages);
 	size_t nr_to_free;
@@ -578,8 +730,8 @@ static void mali_mem_os_trim_pool(struct work_struct *data)
 	}
 	spin_unlock(&mali_mem_os_allocator.pool_lock);
 
-	list_for_each_entry_safe(page, tmp, &pages, lru) {
-		mali_mem_os_free_page(page);
+	list_for_each_entry_safe(m_page, m_tmp, &pages, list) {
+		mali_mem_os_free_page_node(m_page);
 	}
 
 	/* Release some pages from page table page pool */
@@ -609,8 +761,7 @@ _mali_osk_errcode_t mali_mem_os_init(void)
 
 void mali_mem_os_term(void)
 {
-	struct page *page, *tmp;
-
+	struct mali_page_node *m_page, *m_tmp;
 	unregister_shrinker(&mali_mem_os_allocator.shrinker);
 	cancel_delayed_work_sync(&mali_mem_os_allocator.timed_shrinker);
 
@@ -620,8 +771,8 @@ void mali_mem_os_term(void)
 	}
 
 	spin_lock(&mali_mem_os_allocator.pool_lock);
-	list_for_each_entry_safe(page, tmp, &mali_mem_os_allocator.pool_pages, lru) {
-		mali_mem_os_free_page(page);
+	list_for_each_entry_safe(m_page, m_tmp, &mali_mem_os_allocator.pool_pages, list) {
+		mali_mem_os_free_page_node(m_page);
 
 		--mali_mem_os_allocator.pool_count;
 	}

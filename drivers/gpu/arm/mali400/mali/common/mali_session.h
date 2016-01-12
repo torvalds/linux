@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -12,10 +12,10 @@
 #define __MALI_SESSION_H__
 
 #include "mali_mmu_page_directory.h"
-#include "mali_kernel_descriptor_mapping.h"
 #include "mali_osk.h"
 #include "mali_osk_list.h"
 #include "mali_memory_types.h"
+#include "mali_memory_manager.h"
 
 struct mali_timeline_system;
 struct mali_soft_system;
@@ -23,14 +23,16 @@ struct mali_soft_system;
 /* Number of frame builder job lists per session. */
 #define MALI_PP_JOB_FB_LOOKUP_LIST_SIZE 16
 #define MALI_PP_JOB_FB_LOOKUP_LIST_MASK (MALI_PP_JOB_FB_LOOKUP_LIST_SIZE - 1)
+/*Max pending big job allowed in kernel*/
+#define MALI_MAX_PENDING_BIG_JOB (2)
 
 struct mali_session_data {
 	_mali_osk_notification_queue_t *ioctl_queue;
 
 	_mali_osk_mutex_t *memory_lock; /**< Lock protecting the vm manipulation */
-	mali_descriptor_mapping *descriptor_mapping;  /**< Mapping between userspace descriptors and our pointers */
+#if 0
 	_mali_osk_list_t memory_head; /**< Track all the memory allocated in this session, for freeing on abnormal termination */
-
+#endif
 	struct mali_page_directory *page_directory; /**< MMU page directory for this session */
 
 	_MALI_OSK_LIST_HEAD(link); /**< Link for list of all sessions */
@@ -49,8 +51,11 @@ struct mali_session_data {
 	mali_bool use_high_priority_job_queue; /**< If MALI_TRUE, jobs added from this session will use the high priority job queues. */
 	u32 pid;
 	char *comm;
-	size_t mali_mem_array[MALI_MEM_TYPE_MAX]; /**< The array to record all mali mem types' usage for this session. */
-	size_t max_mali_mem_allocated; /**< The past max mali memory usage for this session. */
+	atomic_t mali_mem_array[MALI_MEM_TYPE_MAX]; /**< The array to record mem types' usage for this session. */
+	atomic_t mali_mem_allocated_pages; /** The current allocated mali memory pages, which include mali os memory and mali dedicated memory.*/
+	size_t max_mali_mem_allocated_size; /**< The past max mali memory allocated size, which include mali os memory and mali dedicated memory. */
+	/* Added for new memroy system */
+	struct mali_allocation_manager allocation_mgr;
 };
 
 _mali_osk_errcode_t mali_session_initialize(void);
@@ -74,6 +79,7 @@ MALI_STATIC_INLINE void mali_session_unlock(void)
 void mali_session_add(struct mali_session_data *session);
 void mali_session_remove(struct mali_session_data *session);
 u32 mali_session_get_count(void);
+wait_queue_head_t *mali_session_get_wait_queue(void);
 
 #define MALI_SESSION_FOREACH(session, tmp, link) \
 	_MALI_OSK_LIST_FOREACHENTRY(session, tmp, &mali_sessions, struct mali_session_data, link)

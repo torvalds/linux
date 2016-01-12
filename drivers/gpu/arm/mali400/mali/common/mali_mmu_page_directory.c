@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -120,8 +120,8 @@ _mali_osk_errcode_t mali_mmu_pagedir_map(struct mali_page_directory *pagedir, u3
 	_mali_osk_errcode_t err;
 	mali_io_address pde_mapping;
 	mali_dma_addr pde_phys;
-	int i;
-
+	int i, page_count;
+	u32 start_address;
 	if (last_pde < first_pde)
 		return _MALI_OSK_ERR_INVALID_ARGS;
 
@@ -144,9 +144,20 @@ _mali_osk_errcode_t mali_mmu_pagedir_map(struct mali_page_directory *pagedir, u3
 							pde_phys | MALI_MMU_FLAGS_PRESENT);
 
 			MALI_DEBUG_ASSERT(0 == pagedir->page_entries_usage_count[i]);
-			pagedir->page_entries_usage_count[i] = 1;
+		}
+
+		if (first_pde == last_pde) {
+			pagedir->page_entries_usage_count[i] += size / MALI_MMU_PAGE_SIZE;
+		} else if (i == first_pde) {
+			start_address = i * MALI_MMU_VIRTUAL_PAGE_SIZE;
+			page_count = (start_address + MALI_MMU_VIRTUAL_PAGE_SIZE - mali_address) / MALI_MMU_PAGE_SIZE;
+			pagedir->page_entries_usage_count[i] += page_count;
+		} else if (i == last_pde) {
+			start_address = i * MALI_MMU_VIRTUAL_PAGE_SIZE;
+			page_count = (mali_address + size - start_address) / MALI_MMU_PAGE_SIZE;
+			pagedir->page_entries_usage_count[i] += page_count;
 		} else {
-			pagedir->page_entries_usage_count[i]++;
+			pagedir->page_entries_usage_count[i] = 1024;
 		}
 	}
 	_mali_osk_write_mem_barrier();
@@ -198,7 +209,7 @@ _mali_osk_errcode_t mali_mmu_pagedir_unmap(struct mali_page_directory *pagedir, 
 			size_in_pde = MALI_MMU_VIRTUAL_PAGE_SIZE - offset;
 		}
 
-		pagedir->page_entries_usage_count[i]--;
+		pagedir->page_entries_usage_count[i] -= size_in_pde / MALI_MMU_PAGE_SIZE;
 
 		/* If entire page table is unused, free it */
 		if (0 == pagedir->page_entries_usage_count[i]) {

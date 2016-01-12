@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -31,13 +31,13 @@ typedef enum {
 	MALIGP2_REG_ADDR_MGMT_INT_CLEAR                 = 0x28,
 	MALIGP2_REG_ADDR_MGMT_INT_MASK                  = 0x2C,
 	MALIGP2_REG_ADDR_MGMT_INT_STAT                  = 0x30,
-	MALIGP2_REG_ADDR_MGMT_WRITE_BOUND_LOW           = 0x34,
 	MALIGP2_REG_ADDR_MGMT_PERF_CNT_0_ENABLE         = 0x3C,
 	MALIGP2_REG_ADDR_MGMT_PERF_CNT_1_ENABLE         = 0x40,
 	MALIGP2_REG_ADDR_MGMT_PERF_CNT_0_SRC            = 0x44,
 	MALIGP2_REG_ADDR_MGMT_PERF_CNT_1_SRC            = 0x48,
 	MALIGP2_REG_ADDR_MGMT_PERF_CNT_0_VALUE          = 0x4C,
 	MALIGP2_REG_ADDR_MGMT_PERF_CNT_1_VALUE          = 0x50,
+	MALIGP2_REG_ADDR_MGMT_PERF_CNT_0_LIMIT          = 0x54,
 	MALIGP2_REG_ADDR_MGMT_STATUS                    = 0x68,
 	MALIGP2_REG_ADDR_MGMT_VERSION                   = 0x6C,
 	MALIGP2_REG_ADDR_MGMT_VSCL_START_ADDR_READ      = 0x80,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -115,6 +115,11 @@ static void mali_timeline_sync_fence_callback(struct sync_fence *sync_fence, str
 
 	mali_spinlock_reentrant_signal(system->spinlock, tid);
 
+	/*
+	 * Older versions of Linux, before 3.5, doesn't support fput() in interrupt
+	 * context. For those older kernels, allocate a list object and put the
+	 * fence object on that and defer the call to sync_fence_put() to a workqueue.
+	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
 	{
 		struct mali_deferred_fence_put_entry *obj;
@@ -243,7 +248,9 @@ static void mali_timeline_destroy(struct mali_timeline *timeline)
 			_mali_osk_wq_delayed_delete_work_nonflush(timeline->delayed_work);
 		}
 
+#ifndef CONFIG_SYNC
 		_mali_osk_free(timeline);
+#endif
 	}
 }
 
@@ -301,8 +308,16 @@ static struct mali_timeline *mali_timeline_create(struct mali_timeline_system *s
 			return NULL;
 		}
 
+		timeline->destroyed = MALI_FALSE;
+
 		timeline->sync_tl = mali_sync_timeline_create(timeline, timeline_name);
 		if (NULL == timeline->sync_tl) {
+			mali_timeline_destroy(timeline);
+			return NULL;
+		}
+
+		timeline->spinlock = mali_spinlock_reentrant_init(_MALI_OSK_LOCK_ORDER_TIMELINE_SYSTEM);
+		if (NULL == timeline->spinlock) {
 			mali_timeline_destroy(timeline);
 			return NULL;
 		}
@@ -642,19 +657,18 @@ static mali_scheduler_mask mali_timeline_tracker_activate(struct mali_timeline_t
 		_mali_osk_atomic_dec(&gp_tracker_count);
 		break;
 	case MALI_TIMELINE_TRACKER_PP:
-		schedule_mask = mali_scheduler_activate_pp_job((struct mali_pp_job *) tracker->job);
-
 		if (mali_pp_job_is_virtual((struct mali_pp_job *)tracker->job)) {
 			_mali_osk_atomic_dec(&virt_pp_tracker_count);
 		} else {
 			_mali_osk_atomic_dec(&phy_pp_tracker_count);
 		}
+		schedule_mask = mali_scheduler_activate_pp_job((struct mali_pp_job *) tracker->job);
 		break;
 	case MALI_TIMELINE_TRACKER_SOFT:
 		timeline = tracker->timeline;
 		MALI_DEBUG_ASSERT_POINTER(timeline);
 
-		mali_soft_job_system_activate_job((struct mali_soft_job *) tracker->job);
+		schedule_mask |= mali_soft_job_system_activate_job((struct mali_soft_job *) tracker->job);
 
 		/* Start a soft timer to make sure the soft job be released in a limited time */
 		mali_spinlock_reentrant_wait(system->spinlock, tid);
@@ -898,6 +912,9 @@ void mali_timeline_system_destroy(struct mali_timeline_system *system)
 {
 	u32 i;
 	struct mali_timeline_waiter *waiter, *next;
+#if defined(CONFIG_SYNC)
+	u32 tid = _mali_osk_get_tid();
+#endif
 
 	MALI_DEBUG_ASSERT_POINTER(system);
 	MALI_DEBUG_ASSERT_POINTER(system->session);
@@ -905,6 +922,7 @@ void mali_timeline_system_destroy(struct mali_timeline_system *system)
 	MALI_DEBUG_PRINT(4, ("Mali Timeline: destroying timeline system\n"));
 
 	if (NULL != system) {
+
 		/* There should be no waiters left on this queue. */
 		if (NULL != system->wait_queue) {
 			_mali_osk_wait_queue_term(system->wait_queue);
@@ -923,6 +941,14 @@ void mali_timeline_system_destroy(struct mali_timeline_system *system)
 		if (NULL != system->signaled_sync_tl) {
 			sync_timeline_destroy(system->signaled_sync_tl);
 		}
+
+		for (i = 0; i < MALI_TIMELINE_MAX; ++i) {
+			if ((NULL != system->timelines[i]) && (NULL != system->timelines[i]->spinlock)) {
+				mali_spinlock_reentrant_wait(system->timelines[i]->spinlock, tid);
+				system->timelines[i]->destroyed = MALI_TRUE;
+				mali_spinlock_reentrant_signal(system->timelines[i]->spinlock, tid);
+			}
+		}
 #endif /* defined(CONFIG_SYNC) */
 
 		for (i = 0; i < MALI_TIMELINE_MAX; ++i) {
@@ -930,6 +956,7 @@ void mali_timeline_system_destroy(struct mali_timeline_system *system)
 				mali_timeline_destroy(system->timelines[i]);
 			}
 		}
+
 		if (NULL != system->spinlock) {
 			mali_spinlock_reentrant_term(system->spinlock);
 		}
@@ -1467,6 +1494,62 @@ void mali_timeline_debug_print_timeline(struct mali_timeline *timeline, _mali_os
 		tracker = tracker->timeline_next;
 	}
 }
+
+#if !(LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0))
+void mali_timeline_debug_direct_print_tracker(struct mali_timeline_tracker *tracker)
+{
+	const char *tracker_state = "IWAF";
+	char state_char = 'I';
+	char tracker_type[32] = {0};
+
+	MALI_DEBUG_ASSERT_POINTER(tracker);
+
+	state_char = *(tracker_state + mali_timeline_debug_get_tracker_state(tracker));
+	_mali_osk_snprintf(tracker_type, sizeof(tracker_type), "%s", timeline_tracker_type_to_string(tracker->type));
+
+#if defined(CONFIG_SYNC)
+	if (0 != tracker->trigger_ref_count) {
+		MALI_PRINT(("TL:  %s %u %c - ref_wait:%u [%s(%u),%s(%u),%s(%u), fd:%d, fence:(0x%08X)]  job:(0x%08X)\n",
+			    tracker_type, tracker->point, state_char, tracker->trigger_ref_count,
+			    is_waiting_on_timeline(tracker, MALI_TIMELINE_GP) ? "WaitGP" : " ", tracker->fence.points[0],
+			    is_waiting_on_timeline(tracker, MALI_TIMELINE_PP) ? "WaitPP" : " ", tracker->fence.points[1],
+			    is_waiting_on_timeline(tracker, MALI_TIMELINE_SOFT) ? "WaitSOFT" : " ", tracker->fence.points[2],
+			    tracker->fence.sync_fd, tracker->sync_fence, tracker->job));
+	} else {
+		MALI_PRINT(("TL:  %s %u %c  fd:%d  fence:(0x%08X)  job:(0x%08X)\n",
+			    tracker_type, tracker->point, state_char,
+			    tracker->fence.sync_fd, tracker->sync_fence, tracker->job));
+	}
+#else
+	if (0 != tracker->trigger_ref_count) {
+		MALI_PRINT(("TL:  %s %u %c - ref_wait:%u [%s(%u),%s(%u),%s(%u)]  job:(0x%08X)\n",
+			    tracker_type, tracker->point, state_char, tracker->trigger_ref_count,
+			    is_waiting_on_timeline(tracker, MALI_TIMELINE_GP) ? "WaitGP" : " ", tracker->fence.points[0],
+			    is_waiting_on_timeline(tracker, MALI_TIMELINE_PP) ? "WaitPP" : " ", tracker->fence.points[1],
+			    is_waiting_on_timeline(tracker, MALI_TIMELINE_SOFT) ? "WaitSOFT" : " ", tracker->fence.points[2],
+			    tracker->job));
+	} else {
+		MALI_PRINT(("TL:  %s %u %c  job:(0x%08X)\n",
+			    tracker_type, tracker->point, state_char,
+			    tracker->job));
+	}
+#endif
+}
+
+void mali_timeline_debug_direct_print_timeline(struct mali_timeline *timeline)
+{
+	struct mali_timeline_tracker *tracker = NULL;
+
+	MALI_DEBUG_ASSERT_POINTER(timeline);
+
+	tracker = timeline->tracker_tail;
+	while (NULL != tracker) {
+		mali_timeline_debug_direct_print_tracker(tracker);
+		tracker = tracker->timeline_next;
+	}
+}
+
+#endif
 
 void mali_timeline_debug_print_system(struct mali_timeline_system *system, _mali_osk_print_ctx *print_ctx)
 {

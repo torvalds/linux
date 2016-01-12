@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -709,7 +709,7 @@ static void mali_pm_update_sync_internal(void)
 		struct mali_group *groups_up[MALI_MAX_NUMBER_OF_GROUPS];
 		u32 num_groups_up = 0;
 		struct mali_l2_cache_core *
-				l2_up[MALI_MAX_NUMBER_OF_L2_CACHE_CORES];
+			l2_up[MALI_MAX_NUMBER_OF_L2_CACHE_CORES];
 		u32 num_l2_up = 0;
 		u32 i;
 
@@ -779,7 +779,7 @@ static void mali_pm_update_sync_internal(void)
 		struct mali_group *groups_down[MALI_MAX_NUMBER_OF_GROUPS];
 		u32 num_groups_down = 0;
 		struct mali_l2_cache_core *
-				l2_down[MALI_MAX_NUMBER_OF_L2_CACHE_CORES];
+			l2_down[MALI_MAX_NUMBER_OF_L2_CACHE_CORES];
 		u32 num_l2_down = 0;
 		u32 i;
 
@@ -883,7 +883,7 @@ static mali_bool mali_pm_common_suspend(void)
 		struct mali_group *groups_down[MALI_MAX_NUMBER_OF_GROUPS];
 		u32 num_groups_down = 0;
 		struct mali_l2_cache_core *
-				l2_down[MALI_MAX_NUMBER_OF_L2_CACHE_CORES];
+			l2_down[MALI_MAX_NUMBER_OF_L2_CACHE_CORES];
 		u32 num_l2_down = 0;
 		u32 i;
 
@@ -974,6 +974,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP0] = 0x01 << 2;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP0] = 0x01 << 1;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP0] = 0x01 << 0;
 		}
 	}
 
@@ -983,6 +985,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP1] = 0x01 << 3;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP1] = 0x01 << 2;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP1] = 0x01 << 1;
 		}
 	}
 
@@ -992,6 +996,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP2] = 0x01 << 4;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP2] = 0x01 << 2;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP2] = 0x01 << 1;
 		}
 	}
 
@@ -1001,6 +1007,8 @@ static void mali_pm_set_default_pm_domain_config(void)
 			domain_config[MALI_DOMAIN_INDEX_PP3] = 0x01 << 5;
 		} else if (mali_is_mali450()) {
 			domain_config[MALI_DOMAIN_INDEX_PP3] = 0x01 << 2;
+		} else if (mali_is_mali470()) {
+			domain_config[MALI_DOMAIN_INDEX_PP3] = 0x01 << 1;
 		}
 	}
 
@@ -1028,23 +1036,28 @@ static void mali_pm_set_default_pm_domain_config(void)
 	/* L2gp/L2PP0/L2PP4 */
 	if (mali_is_mali400()) {
 		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
-					MALI400_OFFSET_L2_CACHE0, NULL)) {
-				domain_config[MALI_DOMAIN_INDEX_L20] = 0x01 << 1;
+			    MALI400_OFFSET_L2_CACHE0, NULL)) {
+			domain_config[MALI_DOMAIN_INDEX_L20] = 0x01 << 1;
 		}
 	} else if (mali_is_mali450()) {
 		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
-					MALI450_OFFSET_L2_CACHE0, NULL)) {
+			    MALI450_OFFSET_L2_CACHE0, NULL)) {
 			domain_config[MALI_DOMAIN_INDEX_L20] = 0x01 << 0;
 		}
 
 		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
-					MALI450_OFFSET_L2_CACHE1, NULL)) {
+			    MALI450_OFFSET_L2_CACHE1, NULL)) {
 			domain_config[MALI_DOMAIN_INDEX_L21] = 0x01 << 1;
 		}
 
 		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
-					MALI450_OFFSET_L2_CACHE2, NULL)) {
+			    MALI450_OFFSET_L2_CACHE2, NULL)) {
 			domain_config[MALI_DOMAIN_INDEX_L22] = 0x01 << 3;
+		}
+	} else if (mali_is_mali470()) {
+		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(
+			    MALI470_OFFSET_L2_CACHE1, NULL)) {
+			domain_config[MALI_DOMAIN_INDEX_L21] = 0x01 << 0;
 		}
 	}
 }
@@ -1069,14 +1082,21 @@ static void mali_pm_set_pmu_domain_config(void)
 
 	for (i = 0; i < MALI_MAX_NUMBER_OF_DOMAINS - 1; i++) {
 		if (0 != domain_config[i]) {
+			MALI_DEBUG_PRINT(2, ("Using customer pmu config:\n"));
 			break;
 		}
 	}
 
 	if (MALI_MAX_NUMBER_OF_DOMAINS - 1 == i) {
+		MALI_DEBUG_PRINT(2, ("Using hw detect pmu config:\n"));
 		mali_pm_set_default_pm_domain_config();
 	}
 
+	for (i = 0; i < MALI_MAX_NUMBER_OF_DOMAINS - 1; i++) {
+		if (domain_config[i]) {
+			MALI_DEBUG_PRINT(2, ("domain_config[%d] = 0x%x \n", i, domain_config[i]));
+		}
+	}
 	/* Can't override dummy domain mask */
 	domain_config[MALI_DOMAIN_INDEX_DUMMY] =
 		1 << MALI_DOMAIN_INDEX_DUMMY;
@@ -1329,4 +1349,14 @@ void mali_pm_get_best_power_cost_mask(int num_requested, int *dst)
 	MALI_DEBUG_ASSERT((mali_executor_get_num_cores_total() >= num_requested) && (0 <= num_requested));
 
 	_mali_osk_memcpy(dst, mali_pm_domain_power_cost_result[num_requested], MALI_MAX_NUMBER_OF_DOMAINS * sizeof(int));
+}
+
+u32 mali_pm_get_current_mask(void)
+{
+	return pd_mask_current;
+}
+
+u32 mali_pm_get_wanted_mask(void)
+{
+	return pd_mask_wanted;
 }

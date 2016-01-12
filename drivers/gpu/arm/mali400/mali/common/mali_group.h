@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -84,6 +84,7 @@ struct mali_group {
 	_mali_osk_wq_work_t         *bottom_half_work_gp;
 	_mali_osk_wq_work_t         *bottom_half_work_pp;
 
+	_mali_osk_wq_work_t         *oom_work_handler;
 	_mali_osk_timer_t           *timeout_timer;
 };
 
@@ -95,6 +96,8 @@ struct mali_group *mali_group_create(struct mali_l2_cache_core *core,
 				     struct mali_dlbu_core *dlbu,
 				     struct mali_bcast_unit *bcast,
 				     u32 domain_index);
+
+void mali_group_dump_status(struct mali_group *group);
 
 void mali_group_delete(struct mali_group *group);
 
@@ -126,7 +129,7 @@ MALI_STATIC_INLINE mali_bool mali_group_is_virtual(struct mali_group *group)
 {
 	MALI_DEBUG_ASSERT_POINTER(group);
 
-#if defined(CONFIG_MALI450)
+#if (defined(CONFIG_MALI450) || defined(CONFIG_MALI470))
 	return (NULL != group->dlbu_core);
 #else
 	return MALI_FALSE;
@@ -140,7 +143,7 @@ MALI_STATIC_INLINE mali_bool mali_group_is_in_virtual(struct mali_group *group)
 	MALI_DEBUG_ASSERT_POINTER(group);
 	MALI_DEBUG_ASSERT_EXECUTOR_LOCK_HELD();
 
-#if defined(CONFIG_MALI450)
+#if (defined(CONFIG_MALI450) || defined(CONFIG_MALI470))
 	return (NULL != group->parent_group) ? MALI_TRUE : MALI_FALSE;
 #else
 	return MALI_FALSE;
@@ -407,6 +410,13 @@ MALI_STATIC_INLINE void mali_group_schedule_bottom_half_gp(struct mali_group *gr
 	MALI_DEBUG_ASSERT_POINTER(group);
 	MALI_DEBUG_ASSERT_POINTER(group->gp_core);
 	_mali_osk_wq_schedule_work(group->bottom_half_work_gp);
+}
+
+MALI_STATIC_INLINE void mali_group_schedule_oom_work_handler(struct mali_group *group)
+{
+	MALI_DEBUG_ASSERT_POINTER(group);
+	MALI_DEBUG_ASSERT_POINTER(group->gp_core);
+	_mali_osk_wq_schedule_work(group->oom_work_handler);
 }
 
 MALI_STATIC_INLINE void mali_group_schedule_bottom_half_pp(struct mali_group *group)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -165,8 +165,9 @@ _mali_osk_errcode_t mali_soft_job_system_signal_job(struct mali_soft_job_system 
  * Used by the Timeline system to activate a soft job.
  *
  * @param job The soft job that is being activated.
+ * @return A scheduling bitmask.
  */
-void mali_soft_job_system_activate_job(struct mali_soft_job *job);
+mali_scheduler_mask mali_soft_job_system_activate_job(struct mali_soft_job *job);
 
 /**
  * Used by the Timeline system to timeout a soft job.

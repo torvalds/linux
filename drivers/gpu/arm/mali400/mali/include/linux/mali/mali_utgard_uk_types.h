@@ -1,11 +1,21 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
  * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+ * Class Path Exception
+ * Linking this library statically or dynamically with other modules is making a combined work based on this library. 
+ * Thus, the terms and conditions of the GNU General Public License cover the whole combination.
+ * As a special exception, the copyright holders of this library give you permission to link this library with independent modules 
+ * to produce an executable, regardless of the license terms of these independent modules, and to copy and distribute the resulting 
+ * executable under terms of your choice, provided that you also meet, for each linked independent module, the terms and conditions 
+ * of the license of that module. An independent module is a module which is not derived from or based on this library. If you modify 
+ * this library, you may extend this exception to your version of the library, but you are not obligated to do so. 
+ * If you do not wish to do so, delete this exception statement from your version.
  */
 
 /**
@@ -25,6 +35,8 @@ extern "C" {
 #define MALI_UK_TIMELINE_PP   1
 #define MALI_UK_TIMELINE_SOFT 2
 #define MALI_UK_TIMELINE_MAX  3
+
+#define MALI_UK_BIG_VARYING_SIZE  (1024*1024*2)
 
 typedef struct {
 	u32 points[MALI_UK_TIMELINE_MAX];
@@ -81,23 +93,23 @@ typedef enum {
 	_MALI_UK_TIMELINE_CREATE_SYNC_FENCE,  /**< _mali_ukk_timeline_create_sync_fence() */
 	_MALI_UK_SOFT_JOB_START,              /**< _mali_ukk_soft_job_start() */
 	_MALI_UK_SOFT_JOB_SIGNAL,             /**< _mali_ukk_soft_job_signal() */
-    _MALI_GET_RK_KO_VERSION,                /* rk_ext */
+	_MALI_UK_PENDING_SUBMIT,             /**< _mali_ukk_pending_submit() */
+
+	_MALI_GET_RK_KO_VERSION,                /* rk_ext */
 	_MALI_UK_GET_MALI_VERSION_IN_RK30,
+
 	/** Memory functions */
 
-	_MALI_UK_INIT_MEM                = 0,    /**< _mali_ukk_init_mem() */
-	_MALI_UK_TERM_MEM,                       /**< _mali_ukk_term_mem() */
-	_MALI_UK_MAP_MEM,                        /**< _mali_ukk_mem_mmap() */
-	_MALI_UK_UNMAP_MEM,                      /**< _mali_ukk_mem_munmap() */
+	_MALI_UK_ALLOC_MEM                = 0,   /**< _mali_ukk_alloc_mem() */
+	_MALI_UK_FREE_MEM,                       /**< _mali_ukk_free_mem() */
+	_MALI_UK_BIND_MEM,                       /**< _mali_ukk_mem_bind() */
+	_MALI_UK_UNBIND_MEM,                     /**< _mali_ukk_mem_unbind() */
+	_MALI_UK_COW_MEM,                        /**< _mali_ukk_mem_cow() */
+	_MALI_UK_COW_MODIFY_RANGE,               /**< _mali_ukk_mem_cow_modify_range() */
+	_MALI_UK_RESIZE_MEM,                     /**<._mali_ukk_mem_resize() */
 	_MALI_UK_QUERY_MMU_PAGE_TABLE_DUMP_SIZE, /**< _mali_ukk_mem_get_mmu_page_table_dump_size() */
 	_MALI_UK_DUMP_MMU_PAGE_TABLE,            /**< _mali_ukk_mem_dump_mmu_page_table() */
-	_MALI_UK_ATTACH_DMA_BUF,                 /**< _mali_ukk_attach_dma_buf() */
-	_MALI_UK_RELEASE_DMA_BUF,                /**< _mali_ukk_release_dma_buf() */
 	_MALI_UK_DMA_BUF_GET_SIZE,               /**< _mali_ukk_dma_buf_get_size() */
-	_MALI_UK_ATTACH_UMP_MEM,                 /**< _mali_ukk_attach_ump_mem() */
-	_MALI_UK_RELEASE_UMP_MEM,                /**< _mali_ukk_release_ump_mem() */
-	_MALI_UK_MAP_EXT_MEM,                    /**< _mali_uku_map_external_mem() */
-	_MALI_UK_UNMAP_EXT_MEM,                  /**< _mali_uku_unmap_external_mem() */
 	_MALI_UK_MEM_WRITE_SAFE,                 /**< _mali_uku_mem_write_safe() */
 
 	/** Common functions for each core */
@@ -126,6 +138,8 @@ typedef enum {
 	_MALI_UK_PROFILING_ADD_EVENT     = 0, /**< __mali_uku_profiling_add_event() */
 	_MALI_UK_PROFILING_REPORT_SW_COUNTERS,/**< __mali_uku_profiling_report_sw_counters() */
 	_MALI_UK_PROFILING_MEMORY_USAGE_GET,  /**< __mali_uku_profiling_memory_usage_get() */
+	_MALI_UK_PROFILING_STREAM_FD_GET, /** < __mali_uku_profiling_stream_fd_get() */
+	_MALI_UK_PROFILING_CONTROL_SET, /** < __mali_uku_profiling_control_set() */
 
 	/** VSYNC reporting fuctions */
 	_MALI_UK_VSYNC_EVENT_REPORT      = 0, /**< _mali_ukk_vsync_event_report() */
@@ -261,6 +275,7 @@ typedef struct {
 	u64 user_job_ptr;                   /**< [in] identifier for the job in user space, a @c mali_gp_job_info* */
 	u32 priority;                       /**< [in] job priority. A lower number means higher priority */
 	u32 frame_registers[MALIGP2_NUM_REGS_FRAME]; /**< [in] core specific registers associated with this job */
+	u32 heap_grow_size;     /** <[in] the grow size of the plbu heap when out of memory */
 	u32 perf_counter_flag;              /**< [in] bitmask indicating which performance counters to enable, see \ref _MALI_PERFORMANCE_COUNTER_FLAG_SRC0_ENABLE and related macro definitions */
 	u32 perf_counter_src0;              /**< [in] source id for performance counter 0 (see ARM DDI0415A, Table 3-60) */
 	u32 perf_counter_src1;              /**< [in] source id for performance counter 1 (see ARM DDI0415A, Table 3-60) */
@@ -268,6 +283,9 @@ typedef struct {
 	u32 flush_id;                       /**< [in] flush id within the originating frame builder */
 	_mali_uk_fence_t fence;             /**< [in] fence this job must wait on */
 	u64 timeline_point_ptr;            /**< [in,out] pointer to u32: location where point on gp timeline for this job will be written */
+	u32 varying_memsize;            /** < [in] size of varying memory to use deffer bind*/
+	u32 varying_alloc_num;
+	u64 varying_alloc_list;         /** < [in] memory hanlde list of varying buffer to use deffer bind */
 } _mali_uk_gp_start_job_s;
 
 #define _MALI_PERFORMANCE_COUNTER_FLAG_SRC0_ENABLE (1<<0) /**< Enable performance counter SRC0 for a job */
@@ -282,11 +300,13 @@ typedef struct {
 	u32 heap_current_addr;          /**< [out] value of the GP PLB PL heap start address register */
 	u32 perf_counter0;              /**< [out] value of performance counter 0 (see ARM DDI0415A) */
 	u32 perf_counter1;              /**< [out] value of performance counter 1 (see ARM DDI0415A) */
+	u32 pending_big_job_num;
 } _mali_uk_gp_job_finished_s;
 
 typedef struct {
 	u64 user_job_ptr;                    /**< [out] identifier for the job in user space */
 	u32 cookie;                          /**< [out] identifier for the core in kernel space on which the job stalled */
+	u32 heap_added_size;
 } _mali_uk_gp_job_suspended_s;
 
 /** @} */ /* end group _mali_uk_gp */
@@ -444,6 +464,18 @@ typedef struct {
 
 /** @} */ /* end group _mali_uk_soft_job */
 
+typedef struct {
+	u32 counter_id;
+	u32 key;
+	int enable;
+} _mali_uk_annotate_profiling_mem_counter_s;
+
+typedef struct {
+	u32 sampling_rate;
+	int enable;
+} _mali_uk_annotate_profiling_enable_s;
+
+
 /** @addtogroup _mali_uk_core U/K Core
  * @{ */
 
@@ -478,6 +510,9 @@ typedef enum {
 	_MALI_NOTIFICATION_GP_FINISHED = (_MALI_UK_GP_SUBSYSTEM << 16) | 0x10,
 	_MALI_NOTIFICATION_GP_STALLED = (_MALI_UK_GP_SUBSYSTEM << 16) | 0x20,
 
+	/** Profiling notifications */
+	_MALI_NOTIFICATION_ANNOTATE_PROFILING_MEM_COUNTER = (_MALI_UK_PROFILING_SUBSYSTEM << 16) | 0x10,
+	_MALI_NOTIFICATION_ANNOTATE_PROFILING_ENABLE = (_MALI_UK_PROFILING_SUBSYSTEM << 16) | 0x20,
 } _mali_uk_notification_type;
 
 /** to assist in splitting up 32-bit notification value in subsystem and id value */
@@ -582,6 +617,8 @@ typedef struct {
 		_mali_uk_pp_job_finished_s  pp_job_finished; /**< [out] Notification data for _MALI_NOTIFICATION_PP_FINISHED notification type */
 		_mali_uk_settings_changed_s setting_changed;/**< [out] Notification data for _MALI_NOTIFICAATION_SETTINGS_CHANGED notification type */
 		_mali_uk_soft_job_activated_s soft_job_activated; /**< [out] Notification data for _MALI_NOTIFICATION_SOFT_ACTIVATED notification type */
+		_mali_uk_annotate_profiling_mem_counter_s profiling_mem_counter;
+		_mali_uk_annotate_profiling_enable_s profiling_enable;
 	} data;
 } _mali_uk_wait_for_notification_s;
 
@@ -629,7 +666,7 @@ typedef struct {
  * The 16bit integer is stored twice in a 32bit integer
  * For example, for version 1 the value would be 0x00010001
  */
-#define _MALI_API_VERSION 600
+#define _MALI_API_VERSION 800
 #define _MALI_UK_API_VERSION _MAKE_VERSION_ID(_MALI_API_VERSION)
 
 /**
@@ -720,40 +757,117 @@ typedef struct {
 	u64 ctx;                       /**< [in,out] user-kernel context (trashed on output) */
 } _mali_uk_request_high_priority_s;
 
+/** @brief Arguments for _mali_ukk_pending_submit() */
+typedef struct {
+	u64 ctx;                       /**< [in,out] user-kernel context (trashed on output) */
+} _mali_uk_pending_submit_s;
+
 /** @} */ /* end group _mali_uk_core */
 
 
 /** @defgroup _mali_uk_memory U/K Memory
  * @{ */
 
-/** Flag for _mali_uk_map_external_mem_s, _mali_uk_attach_ump_mem_s and _mali_uk_attach_dma_buf_s */
-#define _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE (1<<0)
+#define _MALI_MEMORY_ALLOCATE_RESIZEABLE  (1<<4) /* BUFFER can trim dow/grow*/
+#define _MALI_MEMORY_ALLOCATE_NO_BIND_GPU (1<<5) /*Not map to GPU when allocate, must call bind later*/
+#define _MALI_MEMORY_ALLOCATE_SWAPPABLE   (1<<6) /* Allocate swappale memory. */
+#define _MALI_MEMORY_ALLOCATE_DEFER_BIND (1<<7) /*Not map to GPU when allocate, must call bind later*/
+
+
+typedef struct {
+	u64 ctx;                                          /**< [in,out] user-kernel context (trashed on output) */
+	u32 gpu_vaddr;                                    /**< [in] GPU virtual address */
+	u32 vsize;                                        /**< [in] vitrual size of the allocation */
+	u32 psize;                                        /**< [in] physical size of the allocation */
+	u32 flags;
+	u64 backend_handle;                               /**< [out] backend handle */
+	struct {
+		/* buffer types*/
+		/* CPU read/write info*/
+	} buffer_info;
+} _mali_uk_alloc_mem_s;
+
 
 typedef struct {
 	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-	u32 phys_addr;                  /**< [in] physical address */
-	u32 size;                       /**< [in] size */
-	u32 mali_address;               /**< [in] mali address to map the physical memory to */
-	u32 rights;                     /**< [in] rights necessary for accessing memory */
-	u32 flags;                      /**< [in] flags, see \ref _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE */
-	u32 cookie;                     /**< [out] identifier for mapped memory object in kernel space  */
-} _mali_uk_map_external_mem_s;
+	u32 gpu_vaddr;                /**< [in] use as handle to free allocation */
+	u32 free_pages_nr;      /** < [out] record the number of free pages */
+} _mali_uk_free_mem_s;
+
+
+#define _MALI_MEMORY_BIND_BACKEND_UMP             (1<<8)
+#define _MALI_MEMORY_BIND_BACKEND_DMA_BUF         (1<<9)
+#define _MALI_MEMORY_BIND_BACKEND_MALI_MEMORY     (1<<10)
+#define _MALI_MEMORY_BIND_BACKEND_EXTERNAL_MEMORY (1<<11)
+#define _MALI_MEMORY_BIND_BACKEND_EXT_COW         (1<<12)
+#define _MALI_MEMORY_BIND_BACKEND_HAVE_ALLOCATION (1<<13)
+
+
+#define _MALI_MEMORY_BIND_BACKEND_MASK (_MALI_MEMORY_BIND_BACKEND_UMP| \
+					_MALI_MEMORY_BIND_BACKEND_DMA_BUF |\
+					_MALI_MEMORY_BIND_BACKEND_MALI_MEMORY |\
+					_MALI_MEMORY_BIND_BACKEND_EXTERNAL_MEMORY |\
+					_MALI_MEMORY_BIND_BACKEND_EXT_COW |\
+					_MALI_MEMORY_BIND_BACKEND_HAVE_ALLOCATION)
+
+
+#define _MALI_MEMORY_GPU_READ_ALLOCATE            (1<<16)
+
 
 typedef struct {
-	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-	u32 cookie;                     /**< [out] identifier for mapped memory object in kernel space  */
-} _mali_uk_unmap_external_mem_s;
+	u64 ctx;                                        /**< [in,out] user-kernel context (trashed on output) */
+	u32 vaddr;                                      /**< [in] mali address to map the physical memory to */
+	u32 size;                                       /**< [in] size */
+	u32 flags;                                      /**< [in] see_MALI_MEMORY_BIND_BACKEND_* */
+	u32 padding;                                    /** padding for 32/64 struct alignment */
+	union {
+		struct {
+			u32 secure_id;                  /**< [in] secure id */
+			u32 rights;                     /**< [in] rights necessary for accessing memory */
+			u32 flags;                      /**< [in] flags, see \ref _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE */
+		} bind_ump;
+		struct {
+			u32 mem_fd;                     /**< [in] Memory descriptor */
+			u32 rights;                     /**< [in] rights necessary for accessing memory */
+			u32 flags;                      /**< [in] flags, see \ref _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE */
+		} bind_dma_buf;
+		struct {
+			/**/
+		} bind_mali_memory;
+		struct {
+			u32 phys_addr;                  /**< [in] physical address */
+			u32 rights;                     /**< [in] rights necessary for accessing memory */
+			u32 flags;                      /**< [in] flags, see \ref _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE */
+		} bind_ext_memory;
+	} mem_union;
+} _mali_uk_bind_mem_s;
 
-/** @note This is identical to _mali_uk_map_external_mem_s above, however phys_addr is replaced by memory descriptor */
 typedef struct {
-	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-	u32 mem_fd;                     /**< [in] Memory descriptor */
-	u32 size;                       /**< [in] size */
-	u32 mali_address;               /**< [in] mali address to map the physical memory to */
-	u32 rights;                     /**< [in] rights necessary for accessing memory */
-	u32 flags;                      /**< [in] flags, see \ref _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE */
-	u32 cookie;                     /**< [out] identifier for mapped memory object in kernel space  */
-} _mali_uk_attach_dma_buf_s;
+	u64 ctx;                                        /**< [in,out] user-kernel context (trashed on output) */
+	u32 flags;                                      /**< [in] see_MALI_MEMORY_BIND_BACKEND_* */
+	u32 vaddr;                                      /**<  [in] identifier for mapped memory object in kernel space  */
+} _mali_uk_unbind_mem_s;
+
+typedef struct {
+	u64 ctx;                                        /**< [in,out] user-kernel context (trashed on output) */
+	u32 target_handle;                              /**< [in] handle of allocation need to do COW */
+	u32 target_offset;                              /**< [in] offset in target allocation to do COW(for support COW  a memory allocated from memory_bank, PAGE_SIZE align)*/
+	u32 target_size;                                /**< [in] size of target allocation to do COW (for support memory bank, PAGE_SIZE align)(in byte) */
+	u32 range_start;                                /**< [in] re allocate range start offset, offset from the start of allocation (PAGE_SIZE align)*/
+	u32 range_size;                                 /**< [in] re allocate size (PAGE_SIZE align)*/
+	u32 vaddr;                                      /**< [in] mali address for the new allocaiton */
+	u32 backend_handle;                             /**< [out] backend handle */
+	u32 flags;
+} _mali_uk_cow_mem_s;
+
+typedef struct {
+	u64 ctx;                                        /**< [in,out] user-kernel context (trashed on output) */
+	u32 range_start;                                /**< [in] re allocate range start offset, offset from the start of allocation */
+	u32 size;                                       /**< [in] re allocate size*/
+	u32 vaddr;                                      /**< [in] mali address for the new allocaiton */
+	s32 change_pages_nr;                            /**< [out] record the page number change for cow operation */
+} _mali_uk_cow_modify_range_s;
+
 
 typedef struct {
 	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
@@ -761,26 +875,15 @@ typedef struct {
 	u32 size;                       /**< [out] size */
 } _mali_uk_dma_buf_get_size_s;
 
-typedef struct {
-	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-	u64 cookie;                     /**< [in] identifier for mapped memory object in kernel space  */
-} _mali_uk_release_dma_buf_s;
+/** Flag for _mali_uk_map_external_mem_s, _mali_uk_attach_ump_mem_s and _mali_uk_attach_dma_buf_s */
+#define _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE (1<<0)
 
-/** @note This is identical to _mali_uk_map_external_mem_s above, however phys_addr is replaced by secure_id */
-typedef struct {
-	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-	u32 secure_id;                  /**< [in] secure id */
-	u32 size;                       /**< [in] size */
-	u32 mali_address;               /**< [in] mali address to map the physical memory to */
-	u32 rights;                     /**< [in] rights necessary for accessing memory */
-	u32 flags;                      /**< [in] flags, see \ref _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE */
-	u32 cookie;                     /**< [out] identifier for mapped memory object in kernel space  */
-} _mali_uk_attach_ump_mem_s;
 
 typedef struct {
-	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-	u32 cookie;                     /**< [in] identifier for mapped memory object in kernel space  */
-} _mali_uk_release_ump_mem_s;
+	u64 ctx;                                /**< [in,out] user-kernel context (trashed on output) */
+	u64 vaddr;                              /* the buffer to do resize*/
+	u32 psize;                              /* wanted physical size of this memory */
+} _mali_uk_mem_resize_s;
 
 /**
  * @brief Arguments for _mali_uk[uk]_mem_write_safe()
@@ -876,6 +979,8 @@ typedef struct {
 typedef struct {
 	u64 ctx;                     /**< [in,out] user-kernel context (trashed on output) */
 	u32 memory_usage;              /**< [out] total memory usage */
+	u32 vaddr;                                      /**< [in] mali address for the cow allocaiton */
+	s32 change_pages_nr;            /**< [out] record the page number change for cow operation */
 } _mali_uk_profiling_memory_usage_get_s;
 
 
@@ -913,7 +1018,7 @@ typedef struct {
 	void *mapping;                  /**< [out] Returns user-space virtual address for the mapping */
 	u32 size;                       /**< [in] Size of the requested mapping */
 	u32 phys_addr;                  /**< [in] Physical address - could be offset, depending on caller+callee convention */
-	u32 cookie;                     /**< [out] Returns a cookie for use in munmap calls */
+	mali_bool writeable;
 } _mali_uk_mem_mmap_s;
 
 /** @brief Arguments to _mali_ukk_mem_munmap()
@@ -930,7 +1035,6 @@ typedef struct {
 	u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
 	void *mapping;                  /**< [in] The mapping returned from mmap call */
 	u32 size;                       /**< [in] The size passed to mmap call */
-	u32 cookie;                     /**< [in] Cookie from mmap call */
 } _mali_uk_mem_munmap_s;
 /** @} */ /* end group _mali_uk_memory */
 
@@ -999,6 +1103,19 @@ typedef struct {
 /** @} */ /* end group u_k_api */
 
 /** @} */ /* end group uddapi */
+
+typedef struct {
+	u64 ctx;                 /**< [in,out] user-kernel context (trashed on output) */
+	s32 stream_fd;   /**< [in] The profiling kernel base stream fd handle */
+} _mali_uk_profiling_stream_fd_get_s;
+
+typedef struct {
+	u64 ctx;        /**< [in,out] user-kernel context (trashed on output) */
+	u64 control_packet_data; /**< [in] the control packet data for control settings */
+	u32 control_packet_size;  /**< [in] The control packet size */
+	u64 response_packet_data; /** < [out] The response packet data */
+	u32 response_packet_size; /** < [in,out] The response packet data */
+} _mali_uk_profiling_control_set_s;
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -49,6 +49,22 @@ static struct resource mali_gpu_resources_m450_mp6[] = {
 	MALI_GPU_RESOURCES_MALI450_MP6_PMU(0x6F040000, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200)
 };
 
+static struct resource mali_gpu_resources_m470_mp4[] = {
+	MALI_GPU_RESOURCES_MALI470_MP4_PMU(0x6F040000, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200)
+};
+
+static struct resource mali_gpu_resources_m470_mp3[] = {
+	MALI_GPU_RESOURCES_MALI470_MP3_PMU(0x6F040000, 200, 200, 200, 200, 200, 200, 200, 200, 200)
+};
+
+static struct resource mali_gpu_resources_m470_mp2[] = {
+	MALI_GPU_RESOURCES_MALI470_MP2_PMU(0x6F040000, 200, 200, 200, 200, 200, 200, 200)
+};
+
+static struct resource mali_gpu_resources_m470_mp1[] = {
+	MALI_GPU_RESOURCES_MALI470_MP1_PMU(0x6F040000, 200, 200, 200, 200, 200)
+};
+
 #else
 static struct resource mali_gpu_resources_m450_mp8[] = {
 	MALI_GPU_RESOURCES_MALI450_MP8_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
@@ -60,6 +76,10 @@ static struct resource mali_gpu_resources_m450_mp6[] = {
 
 static struct resource mali_gpu_resources_m450_mp4[] = {
 	MALI_GPU_RESOURCES_MALI450_MP4_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
+};
+
+static struct resource mali_gpu_resources_m470_mp4[] = {
+	MALI_GPU_RESOURCES_MALI470_MP4_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
 };
 #endif /* CONFIG_ARM64 */
 
@@ -94,8 +114,11 @@ static struct mali_gpu_device_data mali_gpu_data = {
 	.dedicated_mem_size = 0x10000000, /* 256MB */
 #endif
 #if defined(CONFIG_ARM64)
-	.fb_start = 0x5f000000,
-	.fb_size = 0x91000000,
+	/* Some framebuffer drivers get the framebuffer dynamically, such as through GEM,
+	* in which the memory resource can't be predicted in advance.
+	*/
+	.fb_start = 0x0,
+	.fb_size = 0xFFFFF000,
 #else
 	.fb_start = 0xe0000000,
 	.fb_size = 0x01000000,
@@ -116,9 +139,6 @@ static struct platform_device mali_gpu_device = {
 	.dev.coherent_dma_mask = DMA_BIT_MASK(32),
 
 	.dev.platform_data = &mali_gpu_data,
-#if defined(CONFIG_ARM64)
-	.dev.archdata.dma_ops = &noncoherent_swiotlb_dma_ops,
-#endif
 };
 
 int mali_platform_device_register(void)
@@ -135,11 +155,32 @@ int mali_platform_device_register(void)
 #if defined(CONFIG_ARCH_VEXPRESS)
 
 #if defined(CONFIG_ARM64)
-	if (mali_read_phys(0x6F000000) == 0x40601450) {
+	mali_gpu_device.dev.archdata.dma_ops = dma_ops;
+	if ((mali_read_phys(0x6F000000) & 0x00600450) == 0x00600450) {
 		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
 		num_pp_cores = 6;
 		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp6);
 		mali_gpu_device.resource = mali_gpu_resources_m450_mp6;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00400430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP4 device\n"));
+		num_pp_cores = 4;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m470_mp4);
+		mali_gpu_device.resource = mali_gpu_resources_m470_mp4;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00300430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP3 device\n"));
+		num_pp_cores = 3;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m470_mp3);
+		mali_gpu_device.resource = mali_gpu_resources_m470_mp3;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00200430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP2 device\n"));
+		num_pp_cores = 2;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m470_mp2);
+		mali_gpu_device.resource = mali_gpu_resources_m470_mp2;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00100430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP1 device\n"));
+		num_pp_cores = 1;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m470_mp1);
+		mali_gpu_device.resource = mali_gpu_resources_m470_mp1;
 	}
 #else
 	if (mali_read_phys(0xFC000000) == 0x00000450) {
@@ -157,6 +198,11 @@ int mali_platform_device_register(void)
 		num_pp_cores = 4;
 		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp4);
 		mali_gpu_device.resource = mali_gpu_resources_m450_mp4;
+	} else if (mali_read_phys(0xFC000000) == 0xFFFFFFFF) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP4 device\n"));
+		num_pp_cores = 4;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m470_mp4);
+		mali_gpu_device.resource = mali_gpu_resources_m470_mp4;
 	}
 #endif /* CONFIG_ARM64 */
 
@@ -230,7 +276,7 @@ static void mali_platform_device_release(struct device *device)
 #else /* CONFIG_MALI_DT */
 int mali_platform_device_init(struct platform_device *device)
 {
-	int num_pp_cores;
+	int num_pp_cores = 0;
 	int err = -1;
 #if defined(CONFIG_ARCH_REALVIEW)
 	u32 m400_gp_version;
@@ -240,42 +286,69 @@ int mali_platform_device_init(struct platform_device *device)
 #if defined(CONFIG_ARCH_VEXPRESS)
 
 #if defined(CONFIG_ARM64)
-		if (mali_read_phys(0x6F000000) == 0x40601450) {
-			MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
-			num_pp_cores = 6;
-		}
+	if ((mali_read_phys(0x6F000000) & 0x00600450) == 0x00600450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
+		num_pp_cores = 6;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00400430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP4 device\n"));
+		num_pp_cores = 4;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00300430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP3 device\n"));
+		num_pp_cores = 3;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00200430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP2 device\n"));
+		num_pp_cores = 2;
+	} else if ((mali_read_phys(0x6F000000) & 0x00F00430) == 0x00100430) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP1 device\n"));
+		num_pp_cores = 1;
+	}
 #else
-		if (mali_read_phys(0xFC000000) == 0x00000450) {
-			MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP8 device\n"));
-			num_pp_cores = 8;
-		} else if (mali_read_phys(0xFC000000) == 0x40400450) {
-			MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
-			num_pp_cores = 4;
-		}
+	if (mali_read_phys(0xFC000000) == 0x00000450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP8 device\n"));
+		num_pp_cores = 8;
+	} else if (mali_read_phys(0xFC000000) == 0x40400450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
+		num_pp_cores = 4;
+	} else if (mali_read_phys(0xFC000000) == 0xFFFFFFFF) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-470 MP4 device\n"));
+		num_pp_cores = 4;
+	}
 #endif
 
 #elif defined(CONFIG_ARCH_REALVIEW)
 
-		m400_gp_version = mali_read_phys(0xC000006C);
-		if ((m400_gp_version & 0xFFFF0000) == 0x0C070000) {
-			MALI_DEBUG_PRINT(4, ("Registering Mali-300 device\n"));
+	m400_gp_version = mali_read_phys(0xC000006C);
+	if ((m400_gp_version & 0xFFFF0000) == 0x0C070000) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-300 device\n"));
+		num_pp_cores = 1;
+		mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
+	} else if ((m400_gp_version & 0xFFFF0000) == 0x0B070000) {
+		u32 fpga_fw_version = mali_read_phys(0xC0010000);
+		if (fpga_fw_version == 0x130C008F || fpga_fw_version == 0x110C008F) {
+			/* Mali-400 MP1 r1p0 or r1p1 */
+			MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP1 device\n"));
 			num_pp_cores = 1;
 			mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
-		} else if ((m400_gp_version & 0xFFFF0000) == 0x0B070000) {
-			u32 fpga_fw_version = mali_read_phys(0xC0010000);
-			if (fpga_fw_version == 0x130C008F || fpga_fw_version == 0x110C008F) {
-				/* Mali-400 MP1 r1p0 or r1p1 */
-				MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP1 device\n"));
-				num_pp_cores = 1;
-				mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
-			} else if (fpga_fw_version == 0x130C000F) {
-				/* Mali-400 MP2 r1p1 */
-				MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP2 device\n"));
-				num_pp_cores = 2;
-				mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
-			}
+		} else if (fpga_fw_version == 0x130C000F) {
+			/* Mali-400 MP2 r1p1 */
+			MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP2 device\n"));
+			num_pp_cores = 2;
+			mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
 		}
+	}
 #endif
+
+	/* After kernel 3.15 device tree will default set dev
+	 * related parameters in of_platform_device_create_pdata.
+	 * But kernel changes from version to version,
+	 * For example 3.10 didn't include device->dev.dma_mask parameter setting,
+	 * if we didn't include here will cause dma_mapping error,
+	 * but in kernel 3.15 it include  device->dev.dma_mask parameter setting,
+	 * so it's better to set must need paramter by DDK itself.
+	 */
+	if (!device->dev.dma_mask)
+		device->dev.dma_mask = &device->dev.coherent_dma_mask;
+	device->dev.archdata.dma_ops = dma_ops;
 
 	err = platform_device_add_data(device, &mali_gpu_data, sizeof(mali_gpu_data));
 

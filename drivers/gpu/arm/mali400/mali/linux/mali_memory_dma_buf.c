@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -26,83 +26,66 @@
 
 #include "mali_memory.h"
 #include "mali_memory_dma_buf.h"
-
+#include "mali_memory_virtual.h"
 #include "mali_pp_job.h"
-
-static void mali_dma_buf_unmap(struct mali_dma_buf_attachment *mem);
-
-struct mali_dma_buf_attachment {
-	struct dma_buf *buf;
-	struct dma_buf_attachment *attachment;
-	struct sg_table *sgt;
-	struct mali_session_data *session;
-	int map_ref;
-	struct mutex map_lock;
-	mali_bool is_mapped;
-	wait_queue_head_t wait_queue;
-};
-
-static void mali_dma_buf_release(struct mali_dma_buf_attachment *mem)
-{
-	MALI_DEBUG_PRINT(3, ("Mali DMA-buf: release attachment %p\n", mem));
-
-	MALI_DEBUG_ASSERT_POINTER(mem);
-	MALI_DEBUG_ASSERT_POINTER(mem->attachment);
-	MALI_DEBUG_ASSERT_POINTER(mem->buf);
-
-#if defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
-	/* We mapped implicitly on attach, so we need to unmap on release */
-	mali_dma_buf_unmap(mem);
-#endif
-
-	/* Wait for buffer to become unmapped */
-	wait_event(mem->wait_queue, !mem->is_mapped);
-	MALI_DEBUG_ASSERT(!mem->is_mapped);
-
-	dma_buf_detach(mem->buf, mem->attachment);
-	dma_buf_put(mem->buf);
-
-	_mali_osk_free(mem);
-}
-
-void mali_mem_dma_buf_release(mali_mem_allocation *descriptor)
-{
-	struct mali_dma_buf_attachment *mem = descriptor->dma_buf.attachment;
-
-	mali_dma_buf_release(mem);
-}
 
 /*
  * Map DMA buf attachment \a mem into \a session at virtual address \a virt.
  */
-static int mali_dma_buf_map(struct mali_dma_buf_attachment *mem, struct mali_session_data *session, u32 virt, u32 flags)
+static int mali_dma_buf_map(mali_mem_backend *mem_backend)
 {
+	mali_mem_allocation *alloc;
+	struct mali_dma_buf_attachment *mem;
+	struct  mali_session_data *session;
 	struct mali_page_directory *pagedir;
+	_mali_osk_errcode_t err;
 	struct scatterlist *sg;
+	u32 virt, flags;
 	int i;
 
+	MALI_DEBUG_ASSERT_POINTER(mem_backend);
+
+	alloc = mem_backend->mali_allocation;
+	MALI_DEBUG_ASSERT_POINTER(alloc);
+
+	mem = mem_backend->dma_buf.attachment;
 	MALI_DEBUG_ASSERT_POINTER(mem);
+
+	session = alloc->session;
 	MALI_DEBUG_ASSERT_POINTER(session);
 	MALI_DEBUG_ASSERT(mem->session == session);
 
-	mutex_lock(&mem->map_lock);
+	virt = alloc->mali_vma_node.vm_node.start;
+	flags = alloc->flags;
 
+	mali_session_memory_lock(session);
 	mem->map_ref++;
 
 	MALI_DEBUG_PRINT(5, ("Mali DMA-buf: map attachment %p, new map_ref = %d\n", mem, mem->map_ref));
 
 	if (1 == mem->map_ref) {
+
 		/* First reference taken, so we need to map the dma buf */
 		MALI_DEBUG_ASSERT(!mem->is_mapped);
-
-		pagedir = mali_session_get_page_directory(session);
-		MALI_DEBUG_ASSERT_POINTER(pagedir);
 
 		mem->sgt = dma_buf_map_attachment(mem->attachment, DMA_BIDIRECTIONAL);
 		if (IS_ERR_OR_NULL(mem->sgt)) {
 			MALI_DEBUG_PRINT_ERROR(("Failed to map dma-buf attachment\n"));
+			mem->map_ref--;
+			mali_session_memory_unlock(session);
 			return -EFAULT;
 		}
+
+		err = mali_mem_mali_map_prepare(alloc);
+		if (_MALI_OSK_ERR_OK != err) {
+			MALI_DEBUG_PRINT(1, ("Mapping of DMA memory failed\n"));
+			mem->map_ref--;
+			mali_session_memory_unlock(session);
+			return -ENOMEM;
+		}
+
+		pagedir = mali_session_get_page_directory(session);
+		MALI_DEBUG_ASSERT_POINTER(pagedir);
 
 		for_each_sg(mem->sgt->sgl, sg, mem->sgt->nents, i) {
 			u32 size = sg_dma_len(sg);
@@ -126,38 +109,39 @@ static int mali_dma_buf_map(struct mali_dma_buf_attachment *mem, struct mali_ses
 		}
 
 		mem->is_mapped = MALI_TRUE;
-		mutex_unlock(&mem->map_lock);
-
+		mali_session_memory_unlock(session);
 		/* Wake up any thread waiting for buffer to become mapped */
 		wake_up_all(&mem->wait_queue);
 	} else {
 		MALI_DEBUG_ASSERT(mem->is_mapped);
-		mutex_unlock(&mem->map_lock);
+		mali_session_memory_unlock(session);
 	}
 
 	return 0;
 }
 
-static void mali_dma_buf_unmap(struct mali_dma_buf_attachment *mem)
+static void mali_dma_buf_unmap(mali_mem_allocation *alloc, struct mali_dma_buf_attachment *mem)
 {
+	MALI_DEBUG_ASSERT_POINTER(alloc);
 	MALI_DEBUG_ASSERT_POINTER(mem);
 	MALI_DEBUG_ASSERT_POINTER(mem->attachment);
 	MALI_DEBUG_ASSERT_POINTER(mem->buf);
+	MALI_DEBUG_ASSERT_POINTER(alloc->session);
 
-	mutex_lock(&mem->map_lock);
-
+	mali_session_memory_lock(alloc->session);
 	mem->map_ref--;
 
 	MALI_DEBUG_PRINT(5, ("Mali DMA-buf: unmap attachment %p, new map_ref = %d\n", mem, mem->map_ref));
 
 	if (0 == mem->map_ref) {
 		dma_buf_unmap_attachment(mem->attachment, mem->sgt, DMA_BIDIRECTIONAL);
-
+		if (MALI_TRUE == mem->is_mapped) {
+			mali_mem_mali_map_free(alloc->session, alloc->psize, alloc->mali_vma_node.vm_node.start,
+					       alloc->flags);
+		}
 		mem->is_mapped = MALI_FALSE;
 	}
-
-	mutex_unlock(&mem->map_lock);
-
+	mali_session_memory_unlock(alloc->session);
 	/* Wake up any thread waiting for buffer to become unmapped */
 	wake_up_all(&mem->wait_queue);
 }
@@ -165,13 +149,15 @@ static void mali_dma_buf_unmap(struct mali_dma_buf_attachment *mem)
 #if !defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
 int mali_dma_buf_map_job(struct mali_pp_job *job)
 {
-	mali_mem_allocation *descriptor;
 	struct mali_dma_buf_attachment *mem;
 	_mali_osk_errcode_t err;
 	int i;
 	int ret = 0;
 	u32 num_memory_cookies;
 	struct mali_session_data *session;
+	struct mali_vma_node *mali_vma_node = NULL;
+	mali_mem_allocation *mali_alloc = NULL;
+	mali_mem_backend *mem_bkend = NULL;
 
 	MALI_DEBUG_ASSERT_POINTER(job);
 
@@ -181,248 +167,79 @@ int mali_dma_buf_map_job(struct mali_pp_job *job)
 
 	MALI_DEBUG_ASSERT_POINTER(session);
 
-	mali_session_memory_lock(session);
-
 	for (i = 0; i < num_memory_cookies; i++) {
-		u32 cookie = mali_pp_job_get_memory_cookie(job, i);
-
-		if (0 == cookie) {
-			/* 0 is not a valid cookie */
-			MALI_DEBUG_ASSERT(NULL ==
-					  mali_pp_job_get_dma_buf(job, i));
+		u32 mali_addr  = mali_pp_job_get_memory_cookie(job, i);
+		mali_vma_node = mali_vma_offset_search(&session->allocation_mgr, mali_addr, 0);
+		MALI_DEBUG_ASSERT(NULL != mali_vma_node);
+		mali_alloc = container_of(mali_vma_node, struct mali_mem_allocation, mali_vma_node);
+		MALI_DEBUG_ASSERT(NULL != mali_alloc);
+		if (MALI_MEM_DMA_BUF != mali_alloc->type) {
 			continue;
 		}
 
-		MALI_DEBUG_ASSERT(0 < cookie);
+		/* Get backend memory & Map on CPU */
+		mutex_lock(&mali_idr_mutex);
+		mem_bkend = idr_find(&mali_backend_idr, mali_alloc->backend_handle);
+		mutex_unlock(&mali_idr_mutex);
+		MALI_DEBUG_ASSERT(NULL != mem_bkend);
 
-		err = mali_descriptor_mapping_get(
-			      mali_pp_job_get_session(job)->descriptor_mapping,
-			      cookie, (void **)&descriptor);
-
-		if (_MALI_OSK_ERR_OK != err) {
-			MALI_DEBUG_PRINT_ERROR(("Mali DMA-buf: Failed to get descriptor for cookie %d\n", cookie));
-			ret = -EFAULT;
-			MALI_DEBUG_ASSERT(NULL ==
-					  mali_pp_job_get_dma_buf(job, i));
-			continue;
-		}
-
-		if (MALI_MEM_DMA_BUF != descriptor->type) {
-			/* Not a DMA-buf */
-			MALI_DEBUG_ASSERT(NULL ==
-					  mali_pp_job_get_dma_buf(job, i));
-			continue;
-		}
-
-		mem = descriptor->dma_buf.attachment;
+		mem = mem_bkend->dma_buf.attachment;
 
 		MALI_DEBUG_ASSERT_POINTER(mem);
 		MALI_DEBUG_ASSERT(mem->session == mali_pp_job_get_session(job));
 
-		err = mali_dma_buf_map(mem, mem->session, descriptor->mali_mapping.addr, descriptor->flags);
+		err = mali_dma_buf_map(mem_bkend);
 		if (0 != err) {
-			MALI_DEBUG_PRINT_ERROR(("Mali DMA-buf: Failed to map dma-buf for cookie %d at mali address %x\b",
-						cookie, descriptor->mali_mapping.addr));
+			MALI_DEBUG_PRINT_ERROR(("Mali DMA-buf: Failed to map dma-buf for mali address %x\n", mali_addr));
 			ret = -EFAULT;
-			MALI_DEBUG_ASSERT(NULL ==
-					  mali_pp_job_get_dma_buf(job, i));
 			continue;
 		}
-
-		/* Add mem to list of DMA-bufs mapped for this job */
-		mali_pp_job_set_dma_buf(job, i, mem);
 	}
-
-	mali_session_memory_unlock(session);
-
 	return ret;
 }
 
 void mali_dma_buf_unmap_job(struct mali_pp_job *job)
 {
-	u32 i;
-	u32 num_dma_bufs = mali_pp_job_num_dma_bufs(job);
+	struct mali_dma_buf_attachment *mem;
+	int i;
+	u32 num_memory_cookies;
+	struct mali_session_data *session;
+	struct mali_vma_node *mali_vma_node = NULL;
+	mali_mem_allocation *mali_alloc = NULL;
+	mali_mem_backend *mem_bkend = NULL;
 
-	for (i = 0; i < num_dma_bufs; i++) {
-		struct mali_dma_buf_attachment *mem;
+	MALI_DEBUG_ASSERT_POINTER(job);
 
-		mem = mali_pp_job_get_dma_buf(job, i);
-		if (NULL != mem) {
-			mali_dma_buf_unmap(mem);
-			mali_pp_job_set_dma_buf(job, i, NULL);
+	num_memory_cookies = mali_pp_job_num_memory_cookies(job);
+
+	session = mali_pp_job_get_session(job);
+
+	MALI_DEBUG_ASSERT_POINTER(session);
+
+	for (i = 0; i < num_memory_cookies; i++) {
+		u32 mali_addr  = mali_pp_job_get_memory_cookie(job, i);
+		mali_vma_node = mali_vma_offset_search(&session->allocation_mgr, mali_addr, 0);
+		MALI_DEBUG_ASSERT(NULL != mali_vma_node);
+		mali_alloc = container_of(mali_vma_node, struct mali_mem_allocation, mali_vma_node);
+		MALI_DEBUG_ASSERT(NULL != mali_alloc);
+		if (MALI_MEM_DMA_BUF != mali_alloc->type) {
+			continue;
 		}
+
+		/* Get backend memory & Map on CPU */
+		mutex_lock(&mali_idr_mutex);
+		mem_bkend = idr_find(&mali_backend_idr, mali_alloc->backend_handle);
+		mutex_unlock(&mali_idr_mutex);
+		MALI_DEBUG_ASSERT(NULL != mem_bkend);
+
+		mem = mem_bkend->dma_buf.attachment;
+
+		MALI_DEBUG_ASSERT_POINTER(mem);
+		MALI_DEBUG_ASSERT(mem->session == mali_pp_job_get_session(job));
+		mali_dma_buf_unmap(mem_bkend->mali_allocation, mem);
 	}
 }
 #endif /* !CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH */
-
-int mali_attach_dma_buf(struct mali_session_data *session, _mali_uk_attach_dma_buf_s __user *user_arg)
-{
-	struct dma_buf *buf;
-	struct mali_dma_buf_attachment *mem;
-	_mali_uk_attach_dma_buf_s args;
-	mali_mem_allocation *descriptor;
-	int md;
-	int fd;
-
-	/* Get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if (0 != copy_from_user(&args, (void __user *)user_arg, sizeof(_mali_uk_attach_dma_buf_s))) {
-		return -EFAULT;
-	}
-
-	if (args.mali_address & ~PAGE_MASK) {
-		MALI_DEBUG_PRINT_ERROR(("Requested address (0x%08x) is not page aligned\n", args.mali_address));
-		return -EINVAL;
-	}
-
-	if (args.mali_address >= args.mali_address + args.size) {
-		MALI_DEBUG_PRINT_ERROR(("Requested address and size (0x%08x + 0x%08x) is too big\n", args.mali_address, args.size));
-		return -EINVAL;
-	}
-
-	fd = args.mem_fd;
-
-	buf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(buf)) {
-		MALI_DEBUG_PRINT_ERROR(("Failed to get dma-buf from fd: %d\n", fd));
-		return PTR_RET(buf);
-	}
-
-	/* Currently, mapping of the full buffer are supported. */
-	if (args.size != buf->size) {
-		MALI_DEBUG_PRINT_ERROR(("dma-buf size doesn't match mapping size.\n"));
-		dma_buf_put(buf);
-		return -EINVAL;
-	}
-
-	mem = _mali_osk_calloc(1, sizeof(struct mali_dma_buf_attachment));
-	if (NULL == mem) {
-		MALI_DEBUG_PRINT_ERROR(("Failed to allocate dma-buf tracing struct\n"));
-		dma_buf_put(buf);
-		return -ENOMEM;
-	}
-
-	mem->buf = buf;
-	mem->session = session;
-	mem->map_ref = 0;
-	mutex_init(&mem->map_lock);
-	init_waitqueue_head(&mem->wait_queue);
-
-	mem->attachment = dma_buf_attach(mem->buf, &mali_platform_device->dev);
-	if (NULL == mem->attachment) {
-		MALI_DEBUG_PRINT_ERROR(("Failed to attach to dma-buf %d\n", fd));
-		dma_buf_put(mem->buf);
-		_mali_osk_free(mem);
-		return -EFAULT;
-	}
-
-	/* Set up Mali memory descriptor */
-	descriptor = mali_mem_descriptor_create(session, MALI_MEM_DMA_BUF);
-	if (NULL == descriptor) {
-		MALI_DEBUG_PRINT_ERROR(("Failed to allocate descriptor dma-buf %d\n", fd));
-		mali_dma_buf_release(mem);
-		return -ENOMEM;
-	}
-
-	descriptor->size = args.size;
-	descriptor->mali_mapping.addr = args.mali_address;
-
-	descriptor->dma_buf.attachment = mem;
-
-	descriptor->flags |= MALI_MEM_FLAG_DONT_CPU_MAP;
-	if (args.flags & _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE) {
-		descriptor->flags = MALI_MEM_FLAG_MALI_GUARD_PAGE;
-	}
-
-	mali_session_memory_lock(session);
-
-	/* Map dma-buf into this session's page tables */
-	if (_MALI_OSK_ERR_OK != mali_mem_mali_map_prepare(descriptor)) {
-		mali_session_memory_unlock(session);
-		MALI_DEBUG_PRINT_ERROR(("Failed to map dma-buf on Mali\n"));
-		mali_mem_descriptor_destroy(descriptor);
-		mali_dma_buf_release(mem);
-		return -ENOMEM;
-	}
-
-#if defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
-	/* Map memory into session's Mali virtual address space. */
-
-	if (0 != mali_dma_buf_map(mem, session, descriptor->mali_mapping.addr, descriptor->flags)) {
-		mali_mem_mali_map_free(descriptor);
-		mali_session_memory_unlock(session);
-
-		MALI_DEBUG_PRINT_ERROR(("Failed to map dma-buf %d into Mali address space\n", fd));
-		mali_mem_descriptor_destroy(descriptor);
-		mali_dma_buf_release(mem);
-		return -ENOMEM;
-	}
-
-#endif
-
-	mali_session_memory_unlock(session);
-
-	/* Get descriptor mapping for memory. */
-	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_allocate_mapping(session->descriptor_mapping, descriptor, &md)) {
-		mali_session_memory_lock(session);
-		mali_mem_mali_map_free(descriptor);
-		mali_session_memory_unlock(session);
-
-		MALI_DEBUG_PRINT_ERROR(("Failed to create descriptor mapping for dma-buf %d\n", fd));
-		mali_mem_descriptor_destroy(descriptor);
-		mali_dma_buf_release(mem);
-		return -EFAULT;
-	}
-
-	/* Return stuff to user space */
-	if (0 != put_user(md, &user_arg->cookie)) {
-		mali_session_memory_lock(session);
-		mali_mem_mali_map_free(descriptor);
-		mali_session_memory_unlock(session);
-
-		MALI_DEBUG_PRINT_ERROR(("Failed to return descriptor to user space for dma-buf %d\n", fd));
-		mali_descriptor_mapping_free(session->descriptor_mapping, md);
-		mali_dma_buf_release(mem);
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
-int mali_release_dma_buf(struct mali_session_data *session, _mali_uk_release_dma_buf_s __user *user_arg)
-{
-	int ret = 0;
-	_mali_uk_release_dma_buf_s args;
-	mali_mem_allocation *descriptor;
-
-	/* get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if (0 != copy_from_user(&args, (void __user *)user_arg, sizeof(_mali_uk_release_dma_buf_s))) {
-		return -EFAULT;
-	}
-
-	MALI_DEBUG_PRINT(3, ("Mali DMA-buf: release descriptor cookie %ld\n", args.cookie));
-
-	mali_session_memory_lock(session);
-
-	descriptor = mali_descriptor_mapping_free(session->descriptor_mapping, (u32)args.cookie);
-
-	if (NULL != descriptor) {
-		MALI_DEBUG_PRINT(3, ("Mali DMA-buf: Releasing dma-buf at mali address %x\n", descriptor->mali_mapping.addr));
-
-		mali_mem_mali_map_free(descriptor);
-
-		mali_dma_buf_release(descriptor->dma_buf.attachment);
-
-		mali_mem_descriptor_destroy(descriptor);
-	} else {
-		MALI_DEBUG_PRINT_ERROR(("Invalid memory descriptor %ld used to release dma-buf\n", args.cookie));
-		ret = -EINVAL;
-	}
-
-	mali_session_memory_unlock(session);
-
-	/* Return the error that _mali_ukk_map_external_ump_mem produced */
-	return ret;
-}
 
 int mali_dma_buf_get_size(struct mali_session_data *session, _mali_uk_dma_buf_get_size_s __user *user_arg)
 {
@@ -452,4 +269,101 @@ int mali_dma_buf_get_size(struct mali_session_data *session, _mali_uk_dma_buf_ge
 	dma_buf_put(buf);
 
 	return 0;
+}
+
+_mali_osk_errcode_t mali_mem_bind_dma_buf(mali_mem_allocation *alloc,
+		mali_mem_backend *mem_backend,
+		int fd, u32 flags)
+{
+	struct dma_buf *buf;
+	struct mali_dma_buf_attachment *dma_mem;
+	struct  mali_session_data *session = alloc->session;
+
+	MALI_DEBUG_ASSERT_POINTER(session);
+	MALI_DEBUG_ASSERT_POINTER(mem_backend);
+	MALI_DEBUG_ASSERT_POINTER(alloc);
+
+	/* get dma buffer */
+	buf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(buf)) {
+		return _MALI_OSK_ERR_FAULT;
+	}
+
+	/* Currently, mapping of the full buffer are supported. */
+	if (alloc->psize != buf->size) {
+		goto failed_alloc_mem;
+	}
+
+	dma_mem = _mali_osk_calloc(1, sizeof(struct mali_dma_buf_attachment));
+	if (NULL == dma_mem) {
+		goto failed_alloc_mem;
+	}
+
+	dma_mem->buf = buf;
+	dma_mem->session = session;
+	dma_mem->map_ref = 0;
+	init_waitqueue_head(&dma_mem->wait_queue);
+
+	dma_mem->attachment = dma_buf_attach(dma_mem->buf, &mali_platform_device->dev);
+	if (NULL == dma_mem->attachment) {
+		goto failed_dma_attach;
+	}
+
+	mem_backend->dma_buf.attachment = dma_mem;
+
+	alloc->flags |= MALI_MEM_FLAG_DONT_CPU_MAP;
+	if (flags & _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE) {
+		alloc->flags |= MALI_MEM_FLAG_MALI_GUARD_PAGE;
+	}
+
+
+#if defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
+	/* Map memory into session's Mali virtual address space. */
+	if (0 != mali_dma_buf_map(mem_backend)) {
+		goto Failed_dma_map;
+	}
+#endif
+
+	return _MALI_OSK_ERR_OK;
+
+#if defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
+Failed_dma_map:
+	mali_dma_buf_unmap(alloc, dma_mem);
+#endif
+	/* Wait for buffer to become unmapped */
+	wait_event(dma_mem->wait_queue, !dma_mem->is_mapped);
+	MALI_DEBUG_ASSERT(!dma_mem->is_mapped);
+	dma_buf_detach(dma_mem->buf, dma_mem->attachment);
+failed_dma_attach:
+	_mali_osk_free(dma_mem);
+failed_alloc_mem:
+	dma_buf_put(buf);
+	return _MALI_OSK_ERR_FAULT;
+}
+
+void mali_mem_unbind_dma_buf(mali_mem_backend *mem_backend)
+{
+	struct mali_dma_buf_attachment *mem;
+	MALI_DEBUG_ASSERT_POINTER(mem_backend);
+	MALI_DEBUG_ASSERT(MALI_MEM_DMA_BUF == mem_backend->type);
+
+	mem = mem_backend->dma_buf.attachment;
+	MALI_DEBUG_ASSERT_POINTER(mem);
+	MALI_DEBUG_ASSERT_POINTER(mem->attachment);
+	MALI_DEBUG_ASSERT_POINTER(mem->buf);
+	MALI_DEBUG_PRINT(3, ("Mali DMA-buf: release attachment %p\n", mem));
+
+#if defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
+	MALI_DEBUG_ASSERT_POINTER(mem_backend->mali_allocation);
+	/* We mapped implicitly on attach, so we need to unmap on release */
+	mali_dma_buf_unmap(mem_backend->mali_allocation, mem);
+#endif
+	/* Wait for buffer to become unmapped */
+	wait_event(mem->wait_queue, !mem->is_mapped);
+	MALI_DEBUG_ASSERT(!mem->is_mapped);
+
+	dma_buf_detach(mem->buf, mem->attachment);
+	dma_buf_put(mem->buf);
+
+	_mali_osk_free(mem);
 }

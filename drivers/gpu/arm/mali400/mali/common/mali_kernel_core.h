@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -19,9 +19,11 @@ typedef enum {
 	_MALI_PRODUCT_ID_MALI300,
 	_MALI_PRODUCT_ID_MALI400,
 	_MALI_PRODUCT_ID_MALI450,
+	_MALI_PRODUCT_ID_MALI470,
 } _mali_product_id_t;
 
 extern mali_bool mali_gpu_class_is_mali450;
+extern mali_bool mali_gpu_class_is_mali470;
 
 _mali_osk_errcode_t mali_initialize_subsystems(void);
 
@@ -35,22 +37,21 @@ u32 mali_kernel_core_get_gpu_minor_version(void);
 
 u32 _mali_kernel_core_dump_state(char *buf, u32 size);
 
+MALI_STATIC_INLINE mali_bool mali_is_mali470(void)
+{
+	return mali_gpu_class_is_mali470;
+}
+
 MALI_STATIC_INLINE mali_bool mali_is_mali450(void)
 {
-#if defined(CONFIG_MALI450)
 	return mali_gpu_class_is_mali450;
-#else
-	return MALI_FALSE;
-#endif
 }
 
 MALI_STATIC_INLINE mali_bool mali_is_mali400(void)
 {
-#if !defined(CONFIG_MALI450)
-	return MALI_TRUE;
-#else
-	return !mali_gpu_class_is_mali450;
-#endif
-}
+	if (mali_gpu_class_is_mali450 || mali_gpu_class_is_mali470)
+		return MALI_FALSE;
 
+	return MALI_TRUE;
+}
 #endif /* __MALI_KERNEL_CORE_H__ */

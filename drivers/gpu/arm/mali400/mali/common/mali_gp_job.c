@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -12,35 +12,86 @@
 #include "mali_osk.h"
 #include "mali_osk_list.h"
 #include "mali_uk_types.h"
+#include "mali_memory_virtual.h"
+#include "mali_memory_defer_bind.h"
 
 static u32 gp_counter_src0 = MALI_HW_CORE_NO_COUNTER;      /**< Performance counter 0, MALI_HW_CORE_NO_COUNTER for disabled */
 static u32 gp_counter_src1 = MALI_HW_CORE_NO_COUNTER;           /**< Performance counter 1, MALI_HW_CORE_NO_COUNTER for disabled */
+static void _mali_gp_del_varying_allocations(struct mali_gp_job *job);
+
+
+static int _mali_gp_add_varying_allocations(struct mali_session_data *session,
+		struct mali_gp_job *job,
+		u32 *alloc,
+		u32 num)
+{
+	int i = 0;
+	struct mali_gp_allocation_node *alloc_node;
+	mali_mem_allocation *mali_alloc = NULL;
+	struct mali_vma_node *mali_vma_node = NULL;
+
+	for (i = 0 ; i < num ; i++) {
+		MALI_DEBUG_ASSERT(alloc[i]);
+		alloc_node = _mali_osk_calloc(1, sizeof(struct mali_gp_allocation_node));
+		if (alloc_node) {
+			INIT_LIST_HEAD(&alloc_node->node);
+			/* find mali allocation structure by vaddress*/
+			mali_vma_node = mali_vma_offset_search(&session->allocation_mgr, alloc[i], 0);
+
+			if (likely(mali_vma_node)) {
+				mali_alloc = container_of(mali_vma_node, struct mali_mem_allocation, mali_vma_node);
+				MALI_DEBUG_ASSERT(alloc[i] == mali_vma_node->vm_node.start);
+			} else {
+				MALI_DEBUG_PRINT(1, ("ERROE!_mali_gp_add_varying_allocations,can't find allocation %d by address =0x%x, num=%d\n", i, alloc[i], num));
+				MALI_DEBUG_ASSERT(0);
+			}
+			alloc_node->alloc = mali_alloc;
+			/* add to gp job varying alloc list*/
+			list_move(&alloc_node->node, &job->varying_alloc);
+		} else
+			goto fail;
+	}
+
+	return 0;
+fail:
+	MALI_DEBUG_PRINT(1, ("ERROE!_mali_gp_add_varying_allocations,failed to alloc memory!\n"));
+	_mali_gp_del_varying_allocations(job);
+	return -1;
+}
+
+
+static void _mali_gp_del_varying_allocations(struct mali_gp_job *job)
+{
+	struct mali_gp_allocation_node *alloc_node, *tmp_node;
+
+	list_for_each_entry_safe(alloc_node, tmp_node, &job->varying_alloc, node) {
+		list_del(&alloc_node->node);
+		kfree(alloc_node);
+	}
+	INIT_LIST_HEAD(&job->varying_alloc);
+}
 
 struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_uk_gp_start_job_s *uargs, u32 id, struct mali_timeline_tracker *pp_tracker)
 {
 	struct mali_gp_job *job;
 	u32 perf_counter_flag;
+	u32 __user *memory_list = NULL;
+	struct mali_gp_allocation_node *alloc_node, *tmp_node;
 
-	job = _mali_osk_malloc(sizeof(struct mali_gp_job));
+	job = _mali_osk_calloc(1, sizeof(struct mali_gp_job));
 	if (NULL != job) {
 		job->finished_notification = _mali_osk_notification_create(_MALI_NOTIFICATION_GP_FINISHED, sizeof(_mali_uk_gp_job_finished_s));
 		if (NULL == job->finished_notification) {
-			_mali_osk_free(job);
-			return NULL;
+			goto fail3;
 		}
 
 		job->oom_notification = _mali_osk_notification_create(_MALI_NOTIFICATION_GP_STALLED, sizeof(_mali_uk_gp_job_suspended_s));
 		if (NULL == job->oom_notification) {
-			_mali_osk_notification_delete(job->finished_notification);
-			_mali_osk_free(job);
-			return NULL;
+			goto fail2;
 		}
 
 		if (0 != _mali_osk_copy_from_user(&job->uargs, uargs, sizeof(_mali_uk_gp_start_job_s))) {
-			_mali_osk_notification_delete(job->finished_notification);
-			_mali_osk_notification_delete(job->oom_notification);
-			_mali_osk_free(job);
-			return NULL;
+			goto fail1;
 		}
 
 		perf_counter_flag = mali_gp_job_get_perf_counter_flag(job);
@@ -56,12 +107,71 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 		_mali_osk_list_init(&job->list);
 		job->session = session;
 		job->id = id;
+		job->heap_base_addr = job->uargs.frame_registers[4];
 		job->heap_current_addr = job->uargs.frame_registers[4];
+		job->heap_grow_size = job->uargs.heap_grow_size;
 		job->perf_counter_value0 = 0;
 		job->perf_counter_value1 = 0;
 		job->pid = _mali_osk_get_pid();
 		job->tid = _mali_osk_get_tid();
 
+
+		INIT_LIST_HEAD(&job->varying_alloc);
+		INIT_LIST_HEAD(&job->vary_todo);
+		job->dmem = NULL;
+		/* add varying allocation list*/
+		if (uargs->varying_alloc_num) {
+			/* copy varying list from user space*/
+			job->varying_list = _mali_osk_calloc(1, sizeof(u32) * uargs->varying_alloc_num);
+			if (!job->varying_list) {
+				MALI_PRINT_ERROR(("Mali GP job: allocate varying_list failed varying_alloc_num = %d !\n", uargs->varying_alloc_num));
+				goto fail1;
+			}
+
+			memory_list = (u32 __user *)(uintptr_t)uargs->varying_alloc_list;
+
+			if (0 != _mali_osk_copy_from_user(job->varying_list, memory_list, sizeof(u32)*uargs->varying_alloc_num)) {
+				MALI_PRINT_ERROR(("Mali GP job: Failed to copy varying list from user space!\n"));
+				goto fail;
+			}
+
+			if (unlikely(_mali_gp_add_varying_allocations(session, job, job->varying_list,
+					uargs->varying_alloc_num))) {
+				MALI_PRINT_ERROR(("Mali GP job: _mali_gp_add_varying_allocations failed!\n"));
+				goto fail;
+			}
+
+			/* do preparetion for each allocation */
+			list_for_each_entry_safe(alloc_node, tmp_node, &job->varying_alloc, node) {
+				if (unlikely(_MALI_OSK_ERR_OK != mali_mem_defer_bind_allocation_prepare(alloc_node->alloc, &job->vary_todo))) {
+					MALI_PRINT_ERROR(("Mali GP job: mali_mem_defer_bind_allocation_prepare failed!\n"));
+					goto fail;
+				}
+			}
+
+			_mali_gp_del_varying_allocations(job);
+
+			/* bind varying here, to avoid memory latency issue. */
+			{
+				struct mali_defer_mem_block dmem_block;
+
+				INIT_LIST_HEAD(&dmem_block.free_pages);
+				atomic_set(&dmem_block.num_free_pages, 0);
+
+				if (mali_mem_prepare_mem_for_job(job, &dmem_block)) {
+					MALI_PRINT_ERROR(("Mali GP job: mali_mem_prepare_mem_for_job failed!\n"));
+					goto fail;
+				}
+				if (_MALI_OSK_ERR_OK != mali_mem_defer_bind(job->uargs.varying_memsize / _MALI_OSK_MALI_PAGE_SIZE, job, &dmem_block)) {
+					MALI_PRINT_ERROR(("gp job create, mali_mem_defer_bind failed! GP %x fail!", job));
+					goto fail;
+				}
+			}
+
+			if (uargs->varying_memsize > MALI_UK_BIG_VARYING_SIZE) {
+				job->big_job = 1;
+			}
+		}
 		job->pp_tracker = pp_tracker;
 		if (NULL != job->pp_tracker) {
 			/* Take a reference on PP job's tracker that will be released when the GP
@@ -73,16 +183,50 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 		mali_timeline_fence_copy_uk_fence(&(job->tracker.fence), &(job->uargs.fence));
 
 		return job;
+	} else {
+		MALI_PRINT_ERROR(("Mali GP job: _mali_osk_calloc failed!\n"));
+		return NULL;
 	}
 
+
+fail:
+	_mali_osk_free(job->varying_list);
+	/* Handle allocate fail here, free all varying node */
+	{
+		struct mali_backend_bind_list *bkn, *bkn_tmp;
+		list_for_each_entry_safe(bkn, bkn_tmp , &job->vary_todo, node) {
+			list_del(&bkn->node);
+			_mali_osk_free(bkn);
+		}
+	}
+fail1:
+	_mali_osk_notification_delete(job->oom_notification);
+fail2:
+	_mali_osk_notification_delete(job->finished_notification);
+fail3:
+	_mali_osk_free(job);
 	return NULL;
 }
 
 void mali_gp_job_delete(struct mali_gp_job *job)
 {
+	struct mali_backend_bind_list *bkn, *bkn_tmp;
 	MALI_DEBUG_ASSERT_POINTER(job);
 	MALI_DEBUG_ASSERT(NULL == job->pp_tracker);
 	MALI_DEBUG_ASSERT(_mali_osk_list_empty(&job->list));
+	_mali_osk_free(job->varying_list);
+
+	/* Handle allocate fail here, free all varying node */
+	list_for_each_entry_safe(bkn, bkn_tmp , &job->vary_todo, node) {
+		list_del(&bkn->node);
+		_mali_osk_free(bkn);
+	}
+
+	if (!list_empty(&job->vary_todo)) {
+		MALI_DEBUG_ASSERT(0);
+	}
+
+	mali_mem_defer_dmem_free(job);
 
 	/* de-allocate the pre-allocated oom notifications */
 	if (NULL != job->oom_notification) {

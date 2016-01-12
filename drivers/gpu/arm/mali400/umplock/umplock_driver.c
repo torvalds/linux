@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -29,6 +29,7 @@ typedef struct lock_cmd_priv {
 typedef struct lock_ref {
 	int ref_count;
 	u32 pid;
+	u32 down_count;
 } _lock_ref;
 
 typedef struct umplock_item {
@@ -141,6 +142,7 @@ static int do_umplock_create_locked(_lock_cmd_priv *lock_cmd)
 		if (ref_index < MAX_PIDS) {
 			device.items[i_index].references[ref_index].pid = lock_cmd->pid;
 			device.items[i_index].references[ref_index].ref_count = 0;
+			device.items[i_index].references[ref_index].down_count = 0;
 		} else {
 			PERROR("whoops, item ran out of available reference slots\n");
 			return -EINVAL;
@@ -155,6 +157,7 @@ static int do_umplock_create_locked(_lock_cmd_priv *lock_cmd)
 			device.items[i_index].usage = lock_item->usage;
 			device.items[i_index].references[0].pid = lock_cmd->pid;
 			device.items[i_index].references[0].ref_count = 0;
+			device.items[i_index].references[0].down_count = 0;
 			sema_init(&device.items[i_index].item_lock, 1);
 		} else {
 			PERROR("whoops, ran out of available slots\n");
@@ -207,12 +210,14 @@ static int do_umplock_process(_lock_cmd_priv *lock_cmd)
 		return 0;
 	}
 
+	device.items[i_index].references[ref_index].down_count++;
 	mutex_unlock(&device.item_list_lock);
 	if (down_interruptible(&device.items[i_index].item_lock)) {
 		/*wait up without hold the umplock. restore previous state and return*/
 		mutex_lock(&device.item_list_lock);
 		device.items[i_index].references[ref_index].ref_count--;
 		device.items[i_index].id_ref_count--;
+		device.items[i_index].references[ref_index].down_count--;
 		if (0 == device.items[i_index].references[ref_index].ref_count) {
 			device.items[i_index].references[ref_index].pid = 0;
 			if (0 == device.items[i_index].id_ref_count) {
@@ -237,7 +242,7 @@ static int do_umplock_process(_lock_cmd_priv *lock_cmd)
 
 static int do_umplock_release(_lock_cmd_priv *lock_cmd)
 {
-	int ret, i_index, ref_index;
+	int ret, i_index, ref_index, call_up;
 	_lock_item_s *lock_item = (_lock_item_s *)&lock_cmd->msg;
 
 	mutex_lock(&device.item_list_lock);
@@ -281,6 +286,11 @@ static int do_umplock_release(_lock_cmd_priv *lock_cmd)
 	device.items[i_index].id_ref_count--;
 	PDEBUG(1, "unlock, pid: %d, secure_id: 0x%x, ref_count: %d\n", lock_cmd->pid, lock_item->secure_id, device.items[i_index].references[ref_index].ref_count);
 
+	call_up = 0;
+	if (device.items[i_index].references[ref_index].down_count > 1) {
+		call_up = 1;
+		device.items[i_index].references[ref_index].down_count--;
+	}
 	if (0 == device.items[i_index].references[ref_index].ref_count) {
 		device.items[i_index].references[ref_index].pid = 0;
 		if (0 == device.items[i_index].id_ref_count) {
@@ -288,6 +298,10 @@ static int do_umplock_release(_lock_cmd_priv *lock_cmd)
 			device.items[i_index].secure_id = 0;
 		}
 		device.items[i_index].owner = 0;
+		call_up = 1;
+	}
+	if (call_up) {
+		PDEBUG(1, "call up, pid: %d, secure_id: 0x%x\n", lock_cmd->pid, lock_item->secure_id);
 		up(&device.items[i_index].item_lock);
 	}
 	mutex_unlock(&device.item_list_lock);

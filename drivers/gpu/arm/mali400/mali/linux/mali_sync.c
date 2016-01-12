@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -13,6 +13,7 @@
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
 #include "mali_timeline.h"
+#include "mali_executor.h"
 
 #include <linux/file.h>
 #include <linux/seq_file.h>
@@ -120,6 +121,24 @@ static void timeline_free_pt(struct sync_pt *pt)
 
 static void timeline_release(struct sync_timeline *sync_timeline)
 {
+	struct mali_sync_timeline_container *mali_sync_tl = NULL;
+	struct mali_timeline *mali_tl = NULL;
+
+	MALI_DEBUG_ASSERT_POINTER(sync_timeline);
+
+	mali_sync_tl = to_mali_sync_tl_container(sync_timeline);
+	MALI_DEBUG_ASSERT_POINTER(mali_sync_tl);
+
+	mali_tl = mali_sync_tl->timeline;
+
+	/* always signaled timeline didn't have mali container */
+	if (mali_tl) {
+		if (NULL != mali_tl->spinlock) {
+			mali_spinlock_reentrant_term(mali_tl->spinlock);
+		}
+		_mali_osk_free(mali_tl);
+	}
+
 	module_put(THIS_MODULE);
 }
 
@@ -143,6 +162,42 @@ static void timeline_print_pt(struct seq_file *s, struct sync_pt *sync_pt)
 	}
 }
 
+static void timeline_print_obj(struct seq_file *s, struct sync_timeline *sync_tl)
+{
+	struct mali_sync_timeline_container *mali_sync_tl = NULL;
+	struct mali_timeline *mali_tl = NULL;
+
+	MALI_DEBUG_ASSERT_POINTER(sync_tl);
+
+	mali_sync_tl = to_mali_sync_tl_container(sync_tl);
+	MALI_DEBUG_ASSERT_POINTER(mali_sync_tl);
+
+	mali_tl = mali_sync_tl->timeline;
+
+	if (NULL != mali_tl) {
+		seq_printf(s, "oldest (%u) ", mali_tl->point_oldest);
+		seq_printf(s, "next (%u)", mali_tl->point_next);
+		seq_printf(s, "\n");
+
+#if defined(MALI_TIMELINE_DEBUG_FUNCTIONS)
+		{
+			u32 tid = _mali_osk_get_tid();
+			struct mali_timeline_system *system = mali_tl->system;
+
+			mali_spinlock_reentrant_wait(mali_tl->spinlock, tid);
+			if (!mali_tl->destroyed) {
+				mali_spinlock_reentrant_wait(system->spinlock, tid);
+				mali_timeline_debug_print_timeline(mali_tl, s);
+				mali_spinlock_reentrant_signal(system->spinlock, tid);
+			}
+			mali_spinlock_reentrant_signal(mali_tl->spinlock, tid);
+
+			/* dump job queue status and group running status */
+			mali_executor_status_dump();
+		}
+#endif
+	}
+}
 #else
 static void timeline_pt_value_str(struct sync_pt *pt, char *str, int size)
 {
@@ -165,21 +220,42 @@ static void timeline_pt_value_str(struct sync_pt *pt, char *str, int size)
 
 static void timeline_value_str(struct sync_timeline *timeline, char *str, int size)
 {
-	struct mali_sync_timeline_container *mali_sync_tl;
+	struct mali_sync_timeline_container *mali_sync_tl = NULL;
+	struct mali_timeline *mali_tl = NULL;
 
 	MALI_DEBUG_ASSERT_POINTER(timeline);
-	MALI_DEBUG_ASSERT_POINTER(str);
 
 	mali_sync_tl = to_mali_sync_tl_container(timeline);
-
 	MALI_DEBUG_ASSERT_POINTER(mali_sync_tl);
 
-	if (NULL != mali_sync_tl->timeline) {
-		_mali_osk_snprintf(str, size, "oldest (%u)  next (%u)\n", mali_sync_tl->timeline->point_oldest,
-			mali_sync_tl->timeline->point_next);
+	mali_tl = mali_sync_tl->timeline;
+
+	if (NULL != mali_tl) {
+		_mali_osk_snprintf(str, size, "oldest (%u) ", mali_tl->point_oldest);
+		_mali_osk_snprintf(str, size, "next (%u)", mali_tl->point_next);
+		_mali_osk_snprintf(str, size, "\n");
+
+#if defined(MALI_TIMELINE_DEBUG_FUNCTIONS)
+		{
+			u32 tid = _mali_osk_get_tid();
+			struct mali_timeline_system *system = mali_tl->system;
+
+			mali_spinlock_reentrant_wait(mali_tl->spinlock, tid);
+			if (!mali_tl->destroyed) {
+				mali_spinlock_reentrant_wait(system->spinlock, tid);
+				mali_timeline_debug_direct_print_timeline(mali_tl);
+				mali_spinlock_reentrant_signal(system->spinlock, tid);
+			}
+			mali_spinlock_reentrant_signal(mali_tl->spinlock, tid);
+
+			/* dump job queue status and group running status */
+			mali_executor_status_dump();
+		}
+#endif
 	}
 }
 #endif
+
 
 static struct sync_timeline_ops mali_timeline_ops = {
 	.driver_name    = "Mali",
@@ -190,6 +266,7 @@ static struct sync_timeline_ops mali_timeline_ops = {
 	.release_obj    = timeline_release,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 	.print_pt       = timeline_print_pt,
+	.print_obj      = timeline_print_obj,
 #else
 	.pt_value_str = timeline_pt_value_str,
 	.timeline_value_str = timeline_value_str,
@@ -215,12 +292,6 @@ struct sync_timeline *mali_sync_timeline_create(struct mali_timeline *timeline, 
 	__module_get(THIS_MODULE);
 
 	return sync_tl;
-}
-
-mali_bool mali_sync_timeline_is_ours(struct sync_timeline *sync_tl)
-{
-	MALI_DEBUG_ASSERT_POINTER(sync_tl);
-	return (sync_tl->ops == &mali_timeline_ops) ? MALI_TRUE : MALI_FALSE;
 }
 
 s32 mali_sync_fence_fd_alloc(struct sync_fence *sync_fence)

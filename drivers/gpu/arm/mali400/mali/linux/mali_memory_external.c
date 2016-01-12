@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -12,114 +12,78 @@
 #include "mali_osk.h"
 #include "mali_ukk.h"
 #include "mali_memory.h"
-#include "mali_kernel_descriptor_mapping.h"
 #include "mali_mem_validation.h"
 #include "mali_uk_types.h"
 
-void mali_mem_external_release(mali_mem_allocation *descriptor)
+void mali_mem_unbind_ext_buf(mali_mem_backend *mem_backend)
 {
-	MALI_DEBUG_ASSERT(MALI_MEM_EXTERNAL == descriptor->type);
+	mali_mem_allocation *alloc;
+	struct mali_session_data *session;
+	MALI_DEBUG_ASSERT_POINTER(mem_backend);
+	alloc = mem_backend->mali_allocation;
+	MALI_DEBUG_ASSERT_POINTER(alloc);
+	MALI_DEBUG_ASSERT(MALI_MEM_EXTERNAL == mem_backend->type);
 
-	mali_mem_mali_map_free(descriptor);
+	session = alloc->session;
+	MALI_DEBUG_ASSERT_POINTER(session);
+	mali_session_memory_lock(session);
+	mali_mem_mali_map_free(session, alloc->psize, alloc->mali_vma_node.vm_node.start,
+			       alloc->flags);
+	mali_session_memory_unlock(session);
 }
 
-_mali_osk_errcode_t _mali_ukk_map_external_mem(_mali_uk_map_external_mem_s *args)
+_mali_osk_errcode_t mali_mem_bind_ext_buf(mali_mem_allocation *alloc,
+		mali_mem_backend *mem_backend,
+		u32 phys_addr,
+		u32 flag)
 {
 	struct mali_session_data *session;
-	mali_mem_allocation *descriptor;
-	int md;
 	_mali_osk_errcode_t err;
-
-	MALI_DEBUG_ASSERT_POINTER(args);
-
-	session = (struct mali_session_data *)(uintptr_t)args->ctx;
+	u32 virt, phys, size;
+	MALI_DEBUG_ASSERT_POINTER(mem_backend);
+	MALI_DEBUG_ASSERT_POINTER(alloc);
+	size = alloc->psize;
+	session = (struct mali_session_data *)(uintptr_t)alloc->session;
 	MALI_CHECK_NON_NULL(session, _MALI_OSK_ERR_INVALID_ARGS);
 
 	/* check arguments */
 	/* NULL might be a valid Mali address */
-	if (! args->size) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
+	if (!size) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
 
 	/* size must be a multiple of the system page size */
-	if (args->size % _MALI_OSK_MALI_PAGE_SIZE) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
-
-	MALI_DEBUG_PRINT(3,
-			 ("Requested to map physical memory 0x%x-0x%x into virtual memory 0x%x\n",
-			  args->phys_addr, (args->phys_addr + args->size - 1),
-			  args->mali_address));
+	if (size % _MALI_OSK_MALI_PAGE_SIZE) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
 
 	/* Validate the mali physical range */
-	if (_MALI_OSK_ERR_OK != mali_mem_validation_check(args->phys_addr, args->size)) {
+	if (_MALI_OSK_ERR_OK != mali_mem_validation_check(phys_addr, size)) {
 		return _MALI_OSK_ERR_FAULT;
 	}
 
-	descriptor = mali_mem_descriptor_create(session, MALI_MEM_EXTERNAL);
-	if (NULL == descriptor) MALI_ERROR(_MALI_OSK_ERR_NOMEM);
-
-	descriptor->mali_mapping.addr = args->mali_address;
-	descriptor->size = args->size;
-
-	if (args->flags & _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE) {
-		descriptor->flags = MALI_MEM_FLAG_MALI_GUARD_PAGE;
+	if (flag & _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE) {
+		alloc->flags |= MALI_MEM_FLAG_MALI_GUARD_PAGE;
 	}
 
-	_mali_osk_mutex_wait(session->memory_lock);
-	{
-		u32 virt = descriptor->mali_mapping.addr;
-		u32 phys = args->phys_addr;
-		u32 size = args->size;
+	mali_session_memory_lock(session);
 
-		err = mali_mem_mali_map_prepare(descriptor);
-		if (_MALI_OSK_ERR_OK != err) {
-			_mali_osk_mutex_signal(session->memory_lock);
-			mali_mem_descriptor_destroy(descriptor);
-			return _MALI_OSK_ERR_NOMEM;
-		}
+	virt = alloc->mali_vma_node.vm_node.start;
+	phys = phys_addr;
 
-		mali_mmu_pagedir_update(session->page_directory, virt, phys, size, MALI_MMU_FLAGS_DEFAULT);
-
-		if (descriptor->flags & MALI_MEM_FLAG_MALI_GUARD_PAGE) {
-			mali_mmu_pagedir_update(session->page_directory, virt + size, phys, _MALI_OSK_MALI_PAGE_SIZE, MALI_MMU_FLAGS_DEFAULT);
-		}
-	}
-	_mali_osk_mutex_signal(session->memory_lock);
-
-	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_allocate_mapping(session->descriptor_mapping, descriptor, &md)) {
-		_mali_osk_mutex_wait(session->memory_lock);
-		mali_mem_external_release(descriptor);
-		_mali_osk_mutex_signal(session->memory_lock);
-		mali_mem_descriptor_destroy(descriptor);
-		MALI_ERROR(_MALI_OSK_ERR_FAULT);
+	err = mali_mem_mali_map_prepare(alloc);
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_session_memory_unlock(session);
+		return _MALI_OSK_ERR_NOMEM;
 	}
 
-	args->cookie = md;
+	mali_mmu_pagedir_update(session->page_directory, virt, phys, size, MALI_MMU_FLAGS_DEFAULT);
+
+	if (alloc->flags & MALI_MEM_FLAG_MALI_GUARD_PAGE) {
+		mali_mmu_pagedir_update(session->page_directory, virt + size, phys, _MALI_OSK_MALI_PAGE_SIZE, MALI_MMU_FLAGS_DEFAULT);
+	}
+	MALI_DEBUG_PRINT(3,
+			 ("Requested to map physical memory 0x%x-0x%x into virtual memory 0x%x\n",
+			  phys_addr, (phys_addr + size - 1),
+			  virt));
+	mali_session_memory_unlock(session);
 
 	MALI_SUCCESS;
 }
 
-_mali_osk_errcode_t _mali_ukk_unmap_external_mem(_mali_uk_unmap_external_mem_s *args)
-{
-	mali_mem_allocation *descriptor;
-	void *old_value;
-	struct mali_session_data *session;
-
-	MALI_DEBUG_ASSERT_POINTER(args);
-
-	session = (struct mali_session_data *)(uintptr_t)args->ctx;
-	MALI_CHECK_NON_NULL(session, _MALI_OSK_ERR_INVALID_ARGS);
-
-	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_get(session->descriptor_mapping, args->cookie, (void **)&descriptor)) {
-		MALI_DEBUG_PRINT(1, ("Invalid memory descriptor %d used to unmap external memory\n", args->cookie));
-		MALI_ERROR(_MALI_OSK_ERR_FAULT);
-	}
-
-	old_value = mali_descriptor_mapping_free(session->descriptor_mapping, args->cookie);
-
-	if (NULL != old_value) {
-		_mali_osk_mutex_wait(session->memory_lock);
-		mali_mem_external_release(descriptor);
-		_mali_osk_mutex_signal(session->memory_lock);
-		mali_mem_descriptor_destroy(descriptor);
-	}
-
-	MALI_SUCCESS;
-}

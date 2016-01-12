@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -36,6 +36,11 @@ _mali_osk_errcode_t _mali_osk_profiling_init(mali_bool auto_start);
 void _mali_osk_profiling_term(void);
 
 /**
+ * Stop the profile sampling operation.
+ */
+void _mali_osk_profiling_stop_sampling(u32 pid);
+
+/**
  * Start recording profiling data
  *
  * The specified limit will determine how large the capture buffer is.
@@ -55,10 +60,8 @@ _mali_osk_errcode_t _mali_osk_profiling_start(u32 *limit);
  * @param data2 Third data parameter, depending on event_id specified.
  * @param data3 Fourth data parameter, depending on event_id specified.
  * @param data4 Fifth data parameter, depending on event_id specified.
- * @return _MALI_OSK_ERR_OK on success, otherwise failure.
  */
-/* Call Linux tracepoint directly */
-#define _mali_osk_profiling_add_event(event_id, data0, data1, data2, data3, data4) trace_mali_timeline_event((event_id), (data0), (data1), (data2), (data3), (data4))
+void    _mali_osk_profiling_add_event(u32 event_id, u32 data0, u32 data1, u32 data2, u32 data3, u32 data4);
 
 /**
  * Report a hardware counter event.
@@ -76,6 +79,8 @@ _mali_osk_errcode_t _mali_osk_profiling_start(u32 *limit);
  * @param counters array of counter values
  */
 void _mali_osk_profiling_report_sw_counters(u32 *counters);
+
+void _mali_osk_profiling_record_global_counters(int counter_id, u32 value);
 
 /**
  * Stop recording profiling data
