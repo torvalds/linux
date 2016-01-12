@@ -50,6 +50,10 @@
 #define KVM_NR_IRQCHIPS          1
 #define KVM_IRQCHIP_NUM_PINS     256
 
+/* PPC-specific vcpu->requests bit members */
+#define KVM_REQ_WATCHDOG           8
+#define KVM_REQ_EPR_EXIT           9
+
 #include <linux/mmu_notifier.h>
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
