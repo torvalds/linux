@@ -341,6 +341,20 @@
 	};
 };
 
+&mcspi1 {
+	at25@0 {
+		compatible = "atmel,at25";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		spi-cpha;
+		spi-cpol;
+
+		pagesize = <64>;
+		size = <32768>;
+		address-width = <16>;
+	};
+};
+
 &isp {
 	pinctrl-names = "default";
 	pinctrl-0 = <&isp_pins>;
