@@ -353,6 +353,32 @@
 		#gpio-cells = <2>;
 		resets = <&max7310_reset>;
 	};
+
+	mma8451@1c {
+		compatible = "fsl,mma8451";
+		reg = <0x1c>;
+		position = <7>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <24 8>;
+		interrupt-route = <1>;
+	};
+
+	mag3110@0e {
+		compatible = "fsl,mag3110";
+		reg = <0x0e>;
+		position = <2>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <6 1>;
+	};
+
+	isl29023@44 {
+		compatible = "fsl,isl29023";
+		reg = <0x44>;
+		rext = <499>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <23 2>;
+	};
+
 };
 
 &lcdif2 {
