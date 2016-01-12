@@ -527,6 +527,8 @@ struct nvm_system_block {
 extern int nvm_get_sysblock(struct nvm_dev *, struct nvm_sb_info *);
 extern int nvm_update_sysblock(struct nvm_dev *, struct nvm_sb_info *);
 extern int nvm_init_sysblock(struct nvm_dev *, struct nvm_sb_info *);
+
+extern int nvm_dev_factory(struct nvm_dev *, int flags);
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;
 

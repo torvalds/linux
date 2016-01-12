@@ -108,6 +108,20 @@ struct nvm_ioctl_dev_init {
 	__u32 flags;
 };
 
+enum {
+	NVM_FACTORY_ERASE_ONLY_USER	= 1 << 0, /* erase only blocks used as
+						   * host blks or grown blks */
+	NVM_FACTORY_RESET_HOST_BLKS	= 1 << 1, /* remove host blk marks */
+	NVM_FACTORY_RESET_GRWN_BBLKS	= 1 << 2, /* remove grown blk marks */
+	NVM_FACTORY_NR_BITS		= 1 << 3, /* stops here */
+};
+
+struct nvm_ioctl_dev_factory {
+	char dev[DISK_NAME_LEN];
+
+	__u32 flags;
+};
+
 /* The ioctl type, 'L', 0x20 - 0x2F documented in ioctl-number.txt */
 enum {
 	/* top level cmds */
@@ -120,6 +134,9 @@ enum {
 
 	/* Init a device to support LightNVM media managers */
 	NVM_DEV_INIT_CMD,
+
+	/* Factory reset device */
+	NVM_DEV_FACTORY_CMD,
 };
 
 #define NVM_IOCTL 'L' /* 0x4c */
@@ -134,6 +151,8 @@ enum {
 						struct nvm_ioctl_remove)
 #define NVM_DEV_INIT		_IOW(NVM_IOCTL, NVM_DEV_INIT_CMD, \
 						struct nvm_ioctl_dev_init)
+#define NVM_DEV_FACTORY		_IOW(NVM_IOCTL, NVM_DEV_FACTORY_CMD, \
+						struct nvm_ioctl_dev_factory)
 
 #define NVM_VERSION_MAJOR	1
 #define NVM_VERSION_MINOR	0
