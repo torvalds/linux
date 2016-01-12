@@ -43,8 +43,8 @@
 
 #define REG_SET(x, base, reg, v, mode) \
 		__REG_SET_##mode(x, base + reg.offset, reg.mask, reg.shift, v)
-#define REG_SET_MASK(x, base, reg, v, mode) \
-		__REG_SET_##mode(x, base + reg.offset, reg.mask, reg.shift, v)
+#define REG_SET_MASK(x, base, reg, mask, v, mode) \
+		__REG_SET_##mode(x, base + reg.offset, mask, reg.shift, v)
 
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->name, v, RELAXED)
@@ -58,16 +58,18 @@
 #define VOP_INTR_GET(vop, name) \
 		vop_read_reg(vop, 0, &vop->data->ctrl->name)
 
-#define VOP_INTR_SET(vop, name, v) \
-		REG_SET(vop, 0, vop->data->intr->name, v, NORMAL)
+#define VOP_INTR_SET(vop, name, mask, v) \
+		REG_SET_MASK(vop, 0, vop->data->intr->name, mask, v, NORMAL)
 #define VOP_INTR_SET_TYPE(vop, name, type, v) \
 	do { \
-		int i, reg = 0; \
+		int i, reg = 0, mask = 0; \
 		for (i = 0; i < vop->data->intr->nintrs; i++) { \
-			if (vop->data->intr->intrs[i] & type) \
+			if (vop->data->intr->intrs[i] & type) { \
 				reg |= (v) << i; \
+				mask |= 1 << i; \
+			} \
 		} \
-		VOP_INTR_SET(vop, name, reg); \
+		VOP_INTR_SET(vop, name, mask, reg); \
 	} while (0)
 #define VOP_INTR_GET_TYPE(vop, name, type) \
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
