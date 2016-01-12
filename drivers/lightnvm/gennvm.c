@@ -317,39 +317,13 @@ static void gennvm_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 	spin_unlock(&vlun->lock);
 }
 
-static void gennvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	int i;
-
-	if (rqd->nr_pages > 1) {
-		for (i = 0; i < rqd->nr_pages; i++)
-			rqd->ppa_list[i] = dev_to_generic_addr(dev,
-							rqd->ppa_list[i]);
-	} else {
-		rqd->ppa_addr = dev_to_generic_addr(dev, rqd->ppa_addr);
-	}
-}
-
-static void gennvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	int i;
-
-	if (rqd->nr_pages > 1) {
-		for (i = 0; i < rqd->nr_pages; i++)
-			rqd->ppa_list[i] = generic_to_dev_addr(dev,
-							rqd->ppa_list[i]);
-	} else {
-		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
-	}
-}
-
 static int gennvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	if (!dev->ops->submit_io)
 		return -ENODEV;
 
 	/* Convert address space */
-	gennvm_generic_to_addr_mode(dev, rqd);
+	nvm_generic_to_addr_mode(dev, rqd);
 
 	rqd->dev = dev;
 	return dev->ops->submit_io(dev, rqd);
@@ -391,7 +365,7 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 	if (dev->ops->set_bb_tbl(dev, rqd, 1))
 		return;
 
-	gennvm_addr_to_generic_mode(dev, rqd);
+	nvm_addr_to_generic_mode(dev, rqd);
 
 	/* look up blocks and mark them as bad */
 	if (rqd->nr_pages > 1)
@@ -425,43 +399,9 @@ static int gennvm_end_io(struct nvm_rq *rqd, int error)
 static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
 							unsigned long flags)
 {
-	int plane_cnt = 0, pl_idx, ret;
-	struct ppa_addr addr;
-	struct nvm_rq rqd;
+	struct ppa_addr addr = block_to_ppa(dev, blk);
 
-	if (!dev->ops->erase_block)
-		return 0;
-
-	addr = block_to_ppa(dev, blk);
-
-	if (dev->plane_mode == NVM_PLANE_SINGLE) {
-		rqd.nr_pages = 1;
-		rqd.ppa_addr = addr;
-	} else {
-		plane_cnt = (1 << dev->plane_mode);
-		rqd.nr_pages = plane_cnt;
-
-		rqd.ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL,
-							&rqd.dma_ppa_list);
-		if (!rqd.ppa_list) {
-			pr_err("gennvm: failed to allocate dma memory\n");
-			return -ENOMEM;
-		}
-
-		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-			addr.g.pl = pl_idx;
-			rqd.ppa_list[pl_idx] = addr;
-		}
-	}
-
-	gennvm_generic_to_addr_mode(dev, &rqd);
-
-	ret = dev->ops->erase_block(dev, &rqd);
-
-	if (plane_cnt)
-		nvm_dev_dma_free(dev, rqd.ppa_list, rqd.dma_ppa_list);
-
-	return ret;
+	return nvm_erase_ppa(dev, addr);
 }
 
 static struct nvm_lun *gennvm_get_lun(struct nvm_dev *dev, int lunid)

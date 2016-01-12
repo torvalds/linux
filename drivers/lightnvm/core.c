@@ -192,6 +192,73 @@ int nvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk)
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
+void nvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	int i;
+
+	if (rqd->nr_pages > 1) {
+		for (i = 0; i < rqd->nr_pages; i++)
+			rqd->ppa_list[i] = dev_to_generic_addr(dev,
+							rqd->ppa_list[i]);
+	} else {
+		rqd->ppa_addr = dev_to_generic_addr(dev, rqd->ppa_addr);
+	}
+}
+EXPORT_SYMBOL(nvm_addr_to_generic_mode);
+
+void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	int i;
+
+	if (rqd->nr_pages > 1) {
+		for (i = 0; i < rqd->nr_pages; i++)
+			rqd->ppa_list[i] = generic_to_dev_addr(dev,
+							rqd->ppa_list[i]);
+	} else {
+		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
+	}
+}
+EXPORT_SYMBOL(nvm_generic_to_addr_mode);
+
+int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr ppa)
+{
+	int plane_cnt = 0, pl_idx, ret;
+	struct nvm_rq rqd;
+
+	if (!dev->ops->erase_block)
+		return 0;
+
+	if (dev->plane_mode == NVM_PLANE_SINGLE) {
+		rqd.nr_pages = 1;
+		rqd.ppa_addr = ppa;
+	} else {
+		plane_cnt = (1 << dev->plane_mode);
+		rqd.nr_pages = plane_cnt;
+
+		rqd.ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL,
+							&rqd.dma_ppa_list);
+		if (!rqd.ppa_list) {
+			pr_err("nvm: failed to allocate dma memory\n");
+			return -ENOMEM;
+		}
+
+		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+			ppa.g.pl = pl_idx;
+			rqd.ppa_list[pl_idx] = ppa;
+		}
+	}
+
+	nvm_generic_to_addr_mode(dev, &rqd);
+
+	ret = dev->ops->erase_block(dev, &rqd);
+
+	if (plane_cnt)
+		nvm_dev_dma_free(dev, rqd.ppa_list, rqd.dma_ppa_list);
+
+	return ret;
+}
+EXPORT_SYMBOL(nvm_erase_ppa);
+
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
