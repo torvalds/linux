@@ -2900,7 +2900,16 @@ static void target_tmr_work(struct work_struct *work)
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
 	struct se_device *dev = cmd->se_dev;
 	struct se_tmr_req *tmr = cmd->se_tmr_req;
+	unsigned long flags;
 	int ret;
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	if (cmd->transport_state & CMD_T_ABORTED) {
+		tmr->response = TMR_FUNCTION_REJECTED;
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		goto check_stop;
+	}
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	switch (tmr->function) {
 	case TMR_ABORT_TASK:
@@ -2934,9 +2943,17 @@ static void target_tmr_work(struct work_struct *work)
 		break;
 	}
 
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	if (cmd->transport_state & CMD_T_ABORTED) {
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		goto check_stop;
+	}
 	cmd->t_state = TRANSPORT_ISTATE_PROCESSING;
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
 	cmd->se_tfo->queue_tm_rsp(cmd);
 
+check_stop:
 	transport_cmd_check_stop_to_fabric(cmd);
 }
 
