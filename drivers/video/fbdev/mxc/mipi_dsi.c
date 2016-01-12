@@ -334,7 +334,7 @@ static void mipi_dsi_dphy_init(struct mipi_dsi_info *mipi_dsi,
 static void mipi_dsi_enable_controller(struct mipi_dsi_info *mipi_dsi,
 				bool init)
 {
-	u32		val;
+	u32		val = 0;
 	u32		lane_byte_clk_period;
 	struct  fb_videomode *mode = mipi_dsi->mode;
 	struct  mipi_lcd_config *lcd_config = mipi_dsi->lcd_config;
