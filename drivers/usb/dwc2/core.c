@@ -572,12 +572,6 @@ static bool dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
 	set = host ? GUSBCFG_FORCEHOSTMODE : GUSBCFG_FORCEDEVMODE;
 	clear = host ? GUSBCFG_FORCEDEVMODE : GUSBCFG_FORCEHOSTMODE;
 
-	/*
-	 * If the force mode bit is already set, don't set it.
-	 */
-	if ((gusbcfg & set) && !(gusbcfg & clear))
-		return false;
-
 	gusbcfg &= ~clear;
 	gusbcfg |= set;
 	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
