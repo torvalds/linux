@@ -363,7 +363,7 @@ static void stop(struct net_device *dev)
 	const struct fs_platform_info *fpi = fep->fpi;
 	struct fec __iomem *fecp = fep->fec.fecp;
 
-	struct fec_info* feci= fep->phydev->bus->priv;
+	struct fec_info *feci = fep->phydev->mdio.bus->priv;
 
 	int i;
 
