@@ -8,21 +8,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Copyright (C) 2015 ARM Limited
+ * Copyright (C) 2013 Citrix Systems
  *
- * Author: Will Deacon <will.deacon@arm.com>
+ * Author: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
  */
 
-#include <linux/linkage.h>
+#include <linux/export.h>
+#include <linux/jump_label.h>
+#include <linux/types.h>
+#include <asm/paravirt.h>
 
-/* int __invoke_psci_fn_hvc(u64 function_id, u64 arg0, u64 arg1, u64 arg2) */
-ENTRY(__invoke_psci_fn_hvc)
-	hvc	#0
-	ret
-ENDPROC(__invoke_psci_fn_hvc)
+struct static_key paravirt_steal_enabled;
+struct static_key paravirt_steal_rq_enabled;
 
-/* int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg2) */
-ENTRY(__invoke_psci_fn_smc)
-	smc	#0
-	ret
-ENDPROC(__invoke_psci_fn_smc)
+struct pv_time_ops pv_time_ops;
+EXPORT_SYMBOL_GPL(pv_time_ops);

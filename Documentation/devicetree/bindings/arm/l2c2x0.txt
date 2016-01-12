@@ -1,7 +1,8 @@
 * ARM L2 Cache Controller
 
-ARM cores often have a separate level 2 cache controller. There are various
-implementations of the L2 cache controller with compatible programming models.
+ARM cores often have a separate L2C210/L2C220/L2C310 (also known as PL210/PL220/
+PL310 and variants) based level 2 cache controller. All these various implementations
+of the L2 cache controller have compatible programming models (Note 1).
 Some of the properties that are just prefixed "cache-*" are taken from section
 3.7.3 of the ePAPR v1.1 specification which can be found at:
 https://www.power.org/wp-content/uploads/2012/06/Power_ePAPR_APPROVED_v1.1.pdf
@@ -67,12 +68,17 @@ Optional properties:
   disable if zero.
 - arm,prefetch-offset : Override prefetch offset value. Valid values are
   0-7, 15, 23, and 31.
-- arm,shared-override : The default behavior of the pl310 cache controller with
-  respect to the shareable attribute is to transform "normal memory
-  non-cacheable transactions" into "cacheable no allocate" (for reads) or
-  "write through no write allocate" (for writes).
+- arm,shared-override : The default behavior of the L220 or PL310 cache
+  controllers with respect to the shareable attribute is to transform "normal
+  memory non-cacheable transactions" into "cacheable no allocate" (for reads)
+  or "write through no write allocate" (for writes).
   On systems where this may cause DMA buffer corruption, this property must be
   specified to indicate that such transforms are precluded.
+- arm,parity-enable : enable parity checking on the L2 cache (L220 or PL310).
+- arm,parity-disable : disable parity checking on the L2 cache (L220 or PL310).
+- arm,outer-sync-disable : disable the outer sync operation on the L2 cache.
+  Some core tiles, especially ARM PB11MPCore have a faulty L220 cache that
+  will randomly hang unless outer sync operations are disabled.
 - prefetch-data : Data prefetch. Value: <0> (forcibly disable), <1>
   (forcibly enable), property absent (retain settings set by firmware)
 - prefetch-instr : Instruction prefetch. Value: <0> (forcibly disable),
@@ -91,3 +97,9 @@ L2: cache-controller {
         cache-level = <2>;
 	interrupts = <45>;
 };
+
+Note 1: The description in this document doesn't apply to integrated L2
+	cache controllers as found in e.g. Cortex-A15/A7/A57/A53. These
+	integrated L2 controllers are assumed to be all preconfigured by
+	early secure boot code. Thus no need to deal with their configuration
+	in the kernel at all.

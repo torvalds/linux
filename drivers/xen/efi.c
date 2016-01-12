@@ -42,7 +42,7 @@ static efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_time);
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	if (tm) {
@@ -67,7 +67,7 @@ static efi_status_t xen_efi_set_time(efi_time_t *tm)
 	BUILD_BUG_ON(sizeof(*tm) != sizeof(efi_data(op).u.set_time));
 	memcpy(&efi_data(op).u.set_time, tm, sizeof(*tm));
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	return efi_data(op).status;
@@ -79,7 +79,7 @@ static efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled,
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_wakeup_time);
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	if (tm) {
@@ -108,7 +108,7 @@ static efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 	else
 		efi_data(op).misc |= XEN_EFI_SET_WAKEUP_TIME_ENABLE_ONLY;
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	return efi_data(op).status;
@@ -129,7 +129,7 @@ static efi_status_t xen_efi_get_variable(efi_char16_t *name,
 	efi_data(op).u.get_variable.size = *data_size;
 	set_xen_guest_handle(efi_data(op).u.get_variable.data, data);
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	*data_size = efi_data(op).u.get_variable.size;
@@ -152,7 +152,7 @@ static efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
 	memcpy(&efi_data(op).u.get_next_variable_name.vendor_guid, vendor,
 	       sizeof(*vendor));
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	*name_size = efi_data(op).u.get_next_variable_name.size;
@@ -178,7 +178,7 @@ static efi_status_t xen_efi_set_variable(efi_char16_t *name,
 	efi_data(op).u.set_variable.size = data_size;
 	set_xen_guest_handle(efi_data(op).u.set_variable.data, data);
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	return efi_data(op).status;
@@ -196,7 +196,7 @@ static efi_status_t xen_efi_query_variable_info(u32 attr,
 
 	efi_data(op).u.query_variable_info.attr = attr;
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	*storage_space = efi_data(op).u.query_variable_info.max_store_size;
@@ -210,7 +210,7 @@ static efi_status_t xen_efi_get_next_high_mono_count(u32 *count)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_next_high_monotonic_count);
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	*count = efi_data(op).misc;
@@ -232,7 +232,7 @@ static efi_status_t xen_efi_update_capsule(efi_capsule_header_t **capsules,
 	efi_data(op).u.update_capsule.capsule_count = count;
 	efi_data(op).u.update_capsule.sg_list = sg_list;
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	return efi_data(op).status;
@@ -252,7 +252,7 @@ static efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
 					capsules);
 	efi_data(op).u.query_capsule_capabilities.capsule_count = count;
 
-	if (HYPERVISOR_dom0_op(&op) < 0)
+	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
 
 	*max_size = efi_data(op).u.query_capsule_capabilities.max_capsule_size;
@@ -331,7 +331,7 @@ efi_system_table_t __init *xen_efi_probe(void)
 	};
 	union xenpf_efi_info *info = &op.u.firmware_info.u.efi_info;
 
-	if (!xen_initial_domain() || HYPERVISOR_dom0_op(&op) < 0)
+	if (!xen_initial_domain() || HYPERVISOR_platform_op(&op) < 0)
 		return NULL;
 
 	/* Here we know that Xen runs on EFI platform. */
@@ -347,7 +347,7 @@ efi_system_table_t __init *xen_efi_probe(void)
 	info->vendor.bufsz = sizeof(vendor);
 	set_xen_guest_handle(info->vendor.name, vendor);
 
-	if (HYPERVISOR_dom0_op(&op) == 0) {
+	if (HYPERVISOR_platform_op(&op) == 0) {
 		efi_systab_xen.fw_vendor = __pa_symbol(vendor);
 		efi_systab_xen.fw_revision = info->vendor.revision;
 	} else
@@ -357,14 +357,14 @@ efi_system_table_t __init *xen_efi_probe(void)
 	op.u.firmware_info.type = XEN_FW_EFI_INFO;
 	op.u.firmware_info.index = XEN_FW_EFI_VERSION;
 
-	if (HYPERVISOR_dom0_op(&op) == 0)
+	if (HYPERVISOR_platform_op(&op) == 0)
 		efi_systab_xen.hdr.revision = info->version;
 
 	op.cmd = XENPF_firmware_info;
 	op.u.firmware_info.type = XEN_FW_EFI_INFO;
 	op.u.firmware_info.index = XEN_FW_EFI_RT_VERSION;
 
-	if (HYPERVISOR_dom0_op(&op) == 0)
+	if (HYPERVISOR_platform_op(&op) == 0)
 		efi.runtime_version = info->version;
 
 	return &efi_systab_xen;
