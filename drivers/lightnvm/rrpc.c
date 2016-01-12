@@ -642,7 +642,7 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 	}
 }
 
-static int rrpc_end_io(struct nvm_rq *rqd, int error)
+static void rrpc_end_io(struct nvm_rq *rqd, int error)
 {
 	struct rrpc *rrpc = container_of(rqd->ins, struct rrpc, instance);
 	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);
@@ -655,7 +655,7 @@ static int rrpc_end_io(struct nvm_rq *rqd, int error)
 	bio_put(rqd->bio);
 
 	if (rrqd->flags & NVM_IOTYPE_GC)
-		return 0;
+		return;
 
 	rrpc_unlock_rq(rrpc, rqd);
 
@@ -665,8 +665,6 @@ static int rrpc_end_io(struct nvm_rq *rqd, int error)
 		nvm_dev_dma_free(rrpc->dev, rqd->metadata, rqd->dma_metadata);
 
 	mempool_free(rqd, rrpc->rq_pool);
-
-	return 0;
 }
 
 static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,

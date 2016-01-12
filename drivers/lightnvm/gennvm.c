@@ -317,18 +317,6 @@ static void gennvm_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 	spin_unlock(&vlun->lock);
 }
 
-static int gennvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	if (!dev->ops->submit_io)
-		return -ENODEV;
-
-	/* Convert address space */
-	nvm_generic_to_addr_mode(dev, rqd);
-
-	rqd->dev = dev;
-	return dev->ops->submit_io(dev, rqd);
-}
-
 static void gennvm_blk_set_type(struct nvm_dev *dev, struct ppa_addr *ppa,
 								int type)
 {
@@ -375,25 +363,32 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 		gennvm_blk_set_type(dev, &rqd->ppa_addr, 2);
 }
 
-static int gennvm_end_io(struct nvm_rq *rqd, int error)
+static void gennvm_end_io(struct nvm_rq *rqd, int error)
 {
 	struct nvm_tgt_instance *ins = rqd->ins;
-	int ret = 0;
 
 	switch (error) {
 	case NVM_RSP_SUCCESS:
-		break;
 	case NVM_RSP_ERR_EMPTYPAGE:
 		break;
 	case NVM_RSP_ERR_FAILWRITE:
 		gennvm_mark_blk_bad(rqd->dev, rqd);
-	default:
-		ret++;
 	}
 
-	ret += ins->tt->end_io(rqd, error);
+	ins->tt->end_io(rqd, error);
+}
 
-	return ret;
+static int gennvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	if (!dev->ops->submit_io)
+		return -ENODEV;
+
+	/* Convert address space */
+	nvm_generic_to_addr_mode(dev, rqd);
+
+	rqd->dev = dev;
+	rqd->end_io = gennvm_end_io;
+	return dev->ops->submit_io(dev, rqd);
 }
 
 static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
@@ -442,7 +437,6 @@ static struct nvmm_type gennvm = {
 	.put_blk	= gennvm_put_blk,
 
 	.submit_io	= gennvm_submit_io,
-	.end_io		= gennvm_end_io,
 	.erase_blk	= gennvm_erase_blk,
 
 	.get_lun	= gennvm_get_lun,

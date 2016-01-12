@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
+#include <linux/sched/sysctl.h>
 #include <uapi/linux/lightnvm.h>
 
 static LIST_HEAD(nvm_targets);
@@ -287,6 +288,21 @@ int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr ppa)
 	return ret;
 }
 EXPORT_SYMBOL(nvm_erase_ppa);
+
+void nvm_end_io(struct nvm_rq *rqd, int error)
+{
+	rqd->end_io(rqd, error);
+}
+EXPORT_SYMBOL(nvm_end_io);
+
+static void nvm_end_io_sync(struct nvm_rq *rqd, int errors)
+{
+	struct completion *waiting = rqd->wait;
+
+	rqd->wait = NULL;
+
+	complete(waiting);
+}
 
 static int nvm_core_init(struct nvm_dev *dev)
 {
