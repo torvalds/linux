@@ -497,6 +497,7 @@ static int ath3k_probe(struct usb_interface *intf,
 	/* match device ID in ath3k blacklist table */
 	if (!id->driver_info) {
 		const struct usb_device_id *match;
+
 		match = usb_match_id(intf, ath3k_blist_tbl);
 		if (match)
 			id = match;
