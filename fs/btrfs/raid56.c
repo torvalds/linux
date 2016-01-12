@@ -901,6 +901,7 @@ static void raid_write_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 	int err = bio->bi_error;
+	int max_errors;
 
 	if (err)
 		fail_bio_stripe(rbio, bio);
@@ -913,7 +914,9 @@ static void raid_write_end_io(struct bio *bio)
 	err = 0;
 
 	/* OK, we have read all the stripes we need to. */
-	if (atomic_read(&rbio->error) > rbio->bbio->max_errors)
+	max_errors = (rbio->operation == BTRFS_RBIO_PARITY_SCRUB) ?
+		     0 : rbio->bbio->max_errors;
+	if (atomic_read(&rbio->error) > max_errors)
 		err = -EIO;
 
 	rbio_orig_end_io(rbio, err);
@@ -2277,31 +2280,6 @@ static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 	return 0;
 }
 
-/*
- * end io function used by finish_rmw.  When we finally
- * get here, we've written a full stripe
- */
-static void raid_write_parity_end_io(struct bio *bio)
-{
-	struct btrfs_raid_bio *rbio = bio->bi_private;
-	int err = bio->bi_error;
-
-	if (bio->bi_error)
-		fail_bio_stripe(rbio, bio);
-
-	bio_put(bio);
-
-	if (!atomic_dec_and_test(&rbio->stripes_pending))
-		return;
-
-	err = 0;
-
-	if (atomic_read(&rbio->error))
-		err = -EIO;
-
-	rbio_orig_end_io(rbio, err);
-}
-
 static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check)
 {
@@ -2454,7 +2432,7 @@ submit_write:
 			break;
 
 		bio->bi_private = rbio;
-		bio->bi_end_io = raid_write_parity_end_io;
+		bio->bi_end_io = raid_write_end_io;
 		submit_bio(WRITE, bio);
 	}
 	return;
