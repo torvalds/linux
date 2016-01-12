@@ -8447,6 +8447,17 @@ F:	fs/timerfd.c
 F:	include/linux/timer*
 F:	kernel/time/*timer*
 
+POWER MANAGEMENT CORE
+M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+L:	linux-pm@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+S:	Supported
+F:	drivers/base/power/
+F:	include/linux/pm.h
+F:	include/linux/pm_*
+F:	include/linux/powercap.h
+F:	drivers/powercap/
+
 POWER SUPPLY CLASS/SUBSYSTEM and DRIVERS
 M:	Sebastian Reichel <sre@kernel.org>
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
