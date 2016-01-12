@@ -2330,7 +2330,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	}
 }
 
-static unsigned int intel_linear_alignment(struct drm_i915_private *dev_priv)
+static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_priv)
 {
 	if (INTEL_INFO(dev_priv)->gen >= 9)
 		return 256 * 1024;
@@ -2341,6 +2341,25 @@ static unsigned int intel_linear_alignment(struct drm_i915_private *dev_priv)
 		return 4 * 1024;
 	else
 		return 0;
+}
+
+static unsigned int intel_surf_alignment(const struct drm_i915_private *dev_priv,
+					 uint64_t fb_modifier)
+{
+	switch (fb_modifier) {
+	case DRM_FORMAT_MOD_NONE:
+		return intel_linear_alignment(dev_priv);
+	case I915_FORMAT_MOD_X_TILED:
+		if (INTEL_INFO(dev_priv)->gen >= 9)
+			return 256 * 1024;
+		return 0;
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		return 1 * 1024 * 1024;
+	default:
+		MISSING_CASE(fb_modifier);
+		return 0;
+	}
 }
 
 int
@@ -2357,29 +2376,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	switch (fb->modifier[0]) {
-	case DRM_FORMAT_MOD_NONE:
-		alignment = intel_linear_alignment(dev_priv);
-		break;
-	case I915_FORMAT_MOD_X_TILED:
-		if (INTEL_INFO(dev)->gen >= 9)
-			alignment = 256 * 1024;
-		else {
-			/* pin() will align the object as required by fence */
-			alignment = 0;
-		}
-		break;
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_Yf_TILED:
-		if (WARN_ONCE(INTEL_INFO(dev)->gen < 9,
-			  "Y tiling bo slipped through, driver bug!\n"))
-			return -EINVAL;
-		alignment = 1 * 1024 * 1024;
-		break;
-	default:
-		MISSING_CASE(fb->modifier[0]);
-		return -EINVAL;
-	}
+	alignment = intel_surf_alignment(dev_priv, fb->modifier[0]);
 
 	intel_fill_fb_ggtt_view(&view, fb, plane_state);
 
