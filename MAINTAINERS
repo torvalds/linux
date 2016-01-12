@@ -5707,6 +5707,7 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel_telemetry_core.c
 F:	arch/x86/include/asm/intel_telemetry.h
+F:	drivers/platform/x86/intel_telemetry_pltdrv.c
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
