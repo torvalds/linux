@@ -158,6 +158,7 @@ void mxc_hdmi_cec_handle(u16 cec_stat)
 		event->msg_len = hdmi_readb(HDMI_CEC_RX_CNT);
 		if (!event->msg_len) {
 			pr_err("%s: Invalid CEC message length!\n", __func__);
+			vfree(event);
 			return;
 		}
 		event->event_type = MESSAGE_TYPE_RECEIVE_SUCCESS;
