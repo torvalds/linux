@@ -1942,7 +1942,28 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 	ring->dev = NULL;
 }
 
-static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
+static void
+logical_ring_default_vfuncs(struct drm_device *dev,
+			    struct intel_engine_cs *ring)
+{
+	/* Default vfuncs which can be overriden by each engine. */
+	ring->init_hw = gen8_init_common_ring;
+	ring->emit_request = gen8_emit_request;
+	ring->emit_flush = gen8_emit_flush;
+	ring->irq_get = gen8_logical_ring_get_irq;
+	ring->irq_put = gen8_logical_ring_put_irq;
+	ring->emit_bb_start = gen8_emit_bb_start;
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+		ring->get_seqno = bxt_a_get_seqno;
+		ring->set_seqno = bxt_a_set_seqno;
+	} else {
+		ring->get_seqno = gen8_get_seqno;
+		ring->set_seqno = gen8_set_seqno;
+	}
+}
+
+static int
+logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
 {
 	int ret;
 
@@ -2003,24 +2024,16 @@ static int logical_render_ring_init(struct drm_device *dev)
 	if (HAS_L3_DPF(dev))
 		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
+	logical_ring_default_vfuncs(dev, ring);
+
+	/* Override some for render ring. */
 	if (INTEL_INFO(dev)->gen >= 9)
 		ring->init_hw = gen9_init_render_ring;
 	else
 		ring->init_hw = gen8_init_render_ring;
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
-		ring->get_seqno = bxt_a_get_seqno;
-		ring->set_seqno = bxt_a_set_seqno;
-	} else {
-		ring->get_seqno = gen8_get_seqno;
-		ring->set_seqno = gen8_set_seqno;
-	}
-	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush_render;
-	ring->irq_get = gen8_logical_ring_get_irq;
-	ring->irq_put = gen8_logical_ring_put_irq;
-	ring->emit_bb_start = gen8_emit_bb_start;
 
 	ring->dev = dev;
 
@@ -2060,19 +2073,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
-	ring->init_hw = gen8_init_common_ring;
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
-		ring->get_seqno = bxt_a_get_seqno;
-		ring->set_seqno = bxt_a_set_seqno;
-	} else {
-		ring->get_seqno = gen8_get_seqno;
-		ring->set_seqno = gen8_set_seqno;
-	}
-	ring->emit_request = gen8_emit_request;
-	ring->emit_flush = gen8_emit_flush;
-	ring->irq_get = gen8_logical_ring_get_irq;
-	ring->irq_put = gen8_logical_ring_put_irq;
-	ring->emit_bb_start = gen8_emit_bb_start;
+	logical_ring_default_vfuncs(dev, ring);
 
 	return logical_ring_init(dev, ring);
 }
@@ -2090,14 +2091,7 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
 
-	ring->init_hw = gen8_init_common_ring;
-	ring->get_seqno = gen8_get_seqno;
-	ring->set_seqno = gen8_set_seqno;
-	ring->emit_request = gen8_emit_request;
-	ring->emit_flush = gen8_emit_flush;
-	ring->irq_get = gen8_logical_ring_get_irq;
-	ring->irq_put = gen8_logical_ring_put_irq;
-	ring->emit_bb_start = gen8_emit_bb_start;
+	logical_ring_default_vfuncs(dev, ring);
 
 	return logical_ring_init(dev, ring);
 }
@@ -2115,19 +2109,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
-	ring->init_hw = gen8_init_common_ring;
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
-		ring->get_seqno = bxt_a_get_seqno;
-		ring->set_seqno = bxt_a_set_seqno;
-	} else {
-		ring->get_seqno = gen8_get_seqno;
-		ring->set_seqno = gen8_set_seqno;
-	}
-	ring->emit_request = gen8_emit_request;
-	ring->emit_flush = gen8_emit_flush;
-	ring->irq_get = gen8_logical_ring_get_irq;
-	ring->irq_put = gen8_logical_ring_put_irq;
-	ring->emit_bb_start = gen8_emit_bb_start;
+	logical_ring_default_vfuncs(dev, ring);
 
 	return logical_ring_init(dev, ring);
 }
@@ -2145,19 +2127,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
-	ring->init_hw = gen8_init_common_ring;
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
-		ring->get_seqno = bxt_a_get_seqno;
-		ring->set_seqno = bxt_a_set_seqno;
-	} else {
-		ring->get_seqno = gen8_get_seqno;
-		ring->set_seqno = gen8_set_seqno;
-	}
-	ring->emit_request = gen8_emit_request;
-	ring->emit_flush = gen8_emit_flush;
-	ring->irq_get = gen8_logical_ring_get_irq;
-	ring->irq_put = gen8_logical_ring_put_irq;
-	ring->emit_bb_start = gen8_emit_bb_start;
+	logical_ring_default_vfuncs(dev, ring);
 
 	return logical_ring_init(dev, ring);
 }
