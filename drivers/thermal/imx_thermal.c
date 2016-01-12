@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2015 Freescale Semiconductor, Inc.
+ * Copyright 2013-2016 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -888,6 +888,10 @@ static int imx_thermal_remove(struct platform_device *pdev)
 		     data->socdata->power_down_mask);
 	if (!IS_ERR(data->thermal_clk))
 		clk_disable_unprepare(data->thermal_clk);
+
+	/* unregister the busfreq notifier called in low bus freq */
+	if (data->socdata->version != TEMPMON_IMX7)
+		unregister_busfreq_notifier(&thermal_notifier);
 
 	thermal_zone_device_unregister(data->tz);
 	cpufreq_cooling_unregister(data->cdev[0]);
