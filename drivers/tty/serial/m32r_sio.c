@@ -75,19 +75,7 @@ struct uart_sio_port {
 	struct uart_port	port;
 	struct timer_list	timer;		/* "no irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
-	unsigned short		rev;
-	unsigned char		acr;
 	unsigned char		ier;
-	unsigned char		lcr;
-	unsigned char		mcr_mask;	/* mask of user bits */
-	unsigned char		mcr_force;	/* mask of forced bits */
-	unsigned char		lsr_break_flag;
-
-	/*
-	 * We provide a per-port pm hook.
-	 */
-	void			(*pm)(struct uart_port *port,
-				      unsigned int state, unsigned int old);
 };
 
 struct irq_info {
@@ -311,12 +299,6 @@ static void receive_chars(struct uart_sio_port *up, int *status)
 			 * Mask off conditions which should be ingored.
 			 */
 			*status &= up->port.read_status_mask;
-
-			if (up->port.line == up->port.cons->index) {
-				/* Recover the break flag from console xmit */
-				*status |= up->lsr_break_flag;
-				up->lsr_break_flag = 0;
-			}
 
 			if (*status & UART_LSR_BI) {
 				pr_debug("handling break....\n");
@@ -749,18 +731,7 @@ static void m32r_sio_set_termios(struct uart_port *port,
 
 	serial_out(up, UART_IER, up->ier);
 
-	up->lcr = cval;					/* Save LCR */
 	spin_unlock_irqrestore(&up->port.lock, flags);
-}
-
-static void m32r_sio_pm(struct uart_port *port, unsigned int state,
-	unsigned int oldstate)
-{
-	struct uart_sio_port *up =
-		container_of(port, struct uart_sio_port, port);
-
-	if (up->pm)
-		up->pm(port, state, oldstate);
 }
 
 /*
@@ -899,7 +870,6 @@ static struct uart_ops m32r_sio_pops = {
 	.startup	= m32r_sio_startup,
 	.shutdown	= m32r_sio_shutdown,
 	.set_termios	= m32r_sio_set_termios,
-	.pm		= m32r_sio_pm,
 	.release_port	= m32r_sio_release_port,
 	.request_port	= m32r_sio_request_port,
 	.config_port	= m32r_sio_config_port,
@@ -943,9 +913,6 @@ static void __init m32r_sio_register_ports(struct uart_driver *drv)
 		up->port.ops = &m32r_sio_pops;
 		init_timer(&up->timer);
 		up->timer.function = m32r_sio_timeout;
-
-		up->mcr_mask = ~0;
-		up->mcr_force = 0;
 
 		uart_add_one_port(drv, &up->port);
 	}
