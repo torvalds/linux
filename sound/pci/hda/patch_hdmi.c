@@ -87,7 +87,6 @@ struct hdmi_spec_per_pin {
 	struct mutex lock;
 	struct delayed_work work;
 	struct snd_kcontrol *eld_ctl;
-	struct snd_jack *acomp_jack; /* jack via audio component */
 	struct hdmi_pcm *pcm; /* pointer to spec->pcm_rec[n] dynamically*/
 	int pcm_idx; /* which pcm is attached. -1 means no pcm is attached */
 	int repoll_count;
@@ -1948,6 +1947,7 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld = &spec->temp_eld;
+	struct snd_jack *jack = NULL;
 	int size;
 
 	mutex_lock(&per_pin->lock);
@@ -1971,8 +1971,17 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 		eld->eld_size = 0;
 	}
 
+	/* pcm_idx >=0 before update_eld() means it is in monitor
+	 * disconnected event. Jack must be fetched before update_eld()
+	 */
+	if (per_pin->pcm_idx >= 0)
+		jack = spec->pcm_rec[per_pin->pcm_idx].jack;
 	update_eld(codec, per_pin, eld);
-	snd_jack_report(per_pin->acomp_jack,
+	if (jack == NULL && per_pin->pcm_idx >= 0)
+		jack = spec->pcm_rec[per_pin->pcm_idx].jack;
+	if (jack == NULL)
+		goto unlock;
+	snd_jack_report(jack,
 			eld->monitor_present ? SND_JACK_AVOUT : 0);
  unlock:
 	mutex_unlock(&per_pin->lock);
@@ -2476,15 +2485,16 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
-static void free_acomp_jack_priv(struct snd_jack *jack)
+static void free_hdmi_jack_priv(struct snd_jack *jack)
 {
-	struct hdmi_spec_per_pin *per_pin = jack->private_data;
+	struct hdmi_pcm *pcm = jack->private_data;
 
-	per_pin->acomp_jack = NULL;
+	pcm->jack = NULL;
 }
 
-static int add_acomp_jack_kctl(struct hda_codec *codec,
-			       struct hdmi_spec_per_pin *per_pin,
+static int add_hdmi_jack_kctl(struct hda_codec *codec,
+			       struct hdmi_spec *spec,
+			       int pcm_idx,
 			       const char *name)
 {
 	struct snd_jack *jack;
@@ -2494,45 +2504,68 @@ static int add_acomp_jack_kctl(struct hda_codec *codec,
 			   true, false);
 	if (err < 0)
 		return err;
-	per_pin->acomp_jack = jack;
-	jack->private_data = per_pin;
-	jack->private_free = free_acomp_jack_priv;
+
+	spec->pcm_rec[pcm_idx].jack = jack;
+	jack->private_data = &spec->pcm_rec[pcm_idx];
+	jack->private_free = free_hdmi_jack_priv;
 	return 0;
 }
 
-static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
+static int generic_hdmi_build_jack(struct hda_codec *codec, int pcm_idx)
 {
 	char hdmi_str[32] = "HDMI/DP";
 	struct hdmi_spec *spec = codec->spec;
-	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
-	int pcmdev = get_pcm_rec(spec, pin_idx)->device;
+	struct hdmi_spec_per_pin *per_pin;
+	struct hda_jack_tbl *jack;
+	int pcmdev = get_pcm_rec(spec, pcm_idx)->device;
 	bool phantom_jack;
+	int ret;
 
 	if (pcmdev > 0)
 		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
-	if (codec_has_acomp(codec))
-		return add_acomp_jack_kctl(codec, per_pin, hdmi_str);
+
+	if (spec->dyn_pcm_assign)
+		return add_hdmi_jack_kctl(codec, spec, pcm_idx, hdmi_str);
+
+	/* for !dyn_pcm_assign, we still use hda_jack for compatibility */
+	/* if !dyn_pcm_assign, it must be non-MST mode.
+	 * This means pcms and pins are statically mapped.
+	 * And pcm_idx is pin_idx.
+	 */
+	per_pin = get_pin(spec, pcm_idx);
 	phantom_jack = !is_jack_detectable(codec, per_pin->pin_nid);
 	if (phantom_jack)
 		strncat(hdmi_str, " Phantom",
 			sizeof(hdmi_str) - strlen(hdmi_str) - 1);
-
-	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str,
-				     phantom_jack);
+	ret = snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str,
+				    phantom_jack);
+	if (ret < 0)
+		return ret;
+	jack = snd_hda_jack_tbl_get(codec, per_pin->pin_nid);
+	if (jack == NULL)
+		return 0;
+	/* assign jack->jack to pcm_rec[].jack to
+	 * align with dyn_pcm_assign mode
+	 */
+	spec->pcm_rec[pcm_idx].jack = jack->jack;
+	return 0;
 }
 
 static int generic_hdmi_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	int err;
-	int pin_idx;
+	int pin_idx, pcm_idx;
+
+
+	for (pcm_idx = 0; pcm_idx < spec->pcm_used; pcm_idx++) {
+		err = generic_hdmi_build_jack(codec, pcm_idx);
+		if (err < 0)
+			return err;
+	}
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
-
-		err = generic_hdmi_build_jack(codec, pin_idx);
-		if (err < 0)
-			return err;
 
 		err = snd_hda_create_dig_out_ctls(codec,
 						  per_pin->pin_nid,
@@ -2631,18 +2664,25 @@ static void hdmi_array_free(struct hdmi_spec *spec)
 static void generic_hdmi_free(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int pin_idx;
+	int pin_idx, pcm_idx;
 
 	if (codec_has_acomp(codec))
 		snd_hdac_i915_register_notifier(NULL);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
-
 		cancel_delayed_work_sync(&per_pin->work);
 		eld_proc_free(per_pin);
-		if (per_pin->acomp_jack)
-			snd_device_free(codec->card, per_pin->acomp_jack);
+	}
+
+	for (pcm_idx = 0; pcm_idx < spec->pcm_used; pcm_idx++) {
+		if (spec->pcm_rec[pcm_idx].jack == NULL)
+			continue;
+		if (spec->dyn_pcm_assign)
+			snd_device_free(codec->card,
+					spec->pcm_rec[pcm_idx].jack);
+		else
+			spec->pcm_rec[pcm_idx].jack = NULL;
 	}
 
 	if (spec->i915_bound)
@@ -2844,6 +2884,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 
 	init_channel_allocations();
 
+	WARN_ON(spec->dyn_pcm_assign && !codec_has_acomp(codec));
 	return 0;
 }
 
