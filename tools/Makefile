@@ -127,6 +127,12 @@ liblockdep_clean:
 libapi_clean:
 	$(call descend,lib/api,clean)
 
+libbpf_clean:
+	$(call descend,lib/bpf,clean)
+
+libsubcmd_clean:
+	$(call descend,lib/subcmd,clean)
+
 perf_clean:
 	$(call descend,$(@:_clean=),clean)
 
@@ -142,9 +148,12 @@ tmon_clean:
 freefall_clean:
 	$(call descend,laptop/freefall,clean)
 
+build_clean:
+	$(call descend,build,clean)
+
 clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean lguest_clean \
 		perf_clean selftests_clean turbostat_clean usb_clean virtio_clean \
 		vm_clean net_clean iio_clean x86_energy_perf_policy_clean tmon_clean \
-		freefall_clean
+		freefall_clean build_clean libbpf_clean libsubcmd_clean liblockdep_clean
 
 .PHONY: FORCE
