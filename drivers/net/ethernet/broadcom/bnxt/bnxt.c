@@ -5711,21 +5711,23 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 {
 	int max_ring_grps = 0;
 
-	if (BNXT_PF(bp)) {
-		*max_tx = bp->pf.max_tx_rings;
-		*max_rx = bp->pf.max_rx_rings;
-		*max_cp = min_t(int, bp->pf.max_irqs, bp->pf.max_cp_rings);
-		*max_cp = min_t(int, *max_cp, bp->pf.max_stat_ctxs);
-		max_ring_grps = bp->pf.max_hw_ring_grps;
-	} else {
 #ifdef CONFIG_BNXT_SRIOV
+	if (!BNXT_PF(bp)) {
 		*max_tx = bp->vf.max_tx_rings;
 		*max_rx = bp->vf.max_rx_rings;
 		*max_cp = min_t(int, bp->vf.max_irqs, bp->vf.max_cp_rings);
 		*max_cp = min_t(int, *max_cp, bp->vf.max_stat_ctxs);
 		max_ring_grps = bp->vf.max_hw_ring_grps;
+	} else
 #endif
+	{
+		*max_tx = bp->pf.max_tx_rings;
+		*max_rx = bp->pf.max_rx_rings;
+		*max_cp = min_t(int, bp->pf.max_irqs, bp->pf.max_cp_rings);
+		*max_cp = min_t(int, *max_cp, bp->pf.max_stat_ctxs);
+		max_ring_grps = bp->pf.max_hw_ring_grps;
 	}
+
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
 	*max_rx = min_t(int, *max_rx, max_ring_grps);
