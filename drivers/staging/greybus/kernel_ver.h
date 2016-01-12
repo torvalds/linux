@@ -267,6 +267,15 @@ static inline size_t sg_pcopy_from_buffer(struct scatterlist *sgl,
 #include <linux/led-class-flash.h>
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+/*
+ * New change in LED api, the set_sync operation was renamed to set_blocking and
+ * the workqueue is now handle by core. So, only one set operation is need.
+ */
+#undef LED_HAVE_SET_SYNC
+#define LED_HAVE_SET_BLOCKING
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 /*
  * From this version upper it was introduced the possibility to disable led
