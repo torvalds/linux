@@ -653,32 +653,21 @@ static struct platform_driver wm831x_alive_ldo_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&wm831x_gp_ldo_driver,
+	&wm831x_aldo_driver,
+	&wm831x_alive_ldo_driver,
+};
+
 static int __init wm831x_ldo_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&wm831x_gp_ldo_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x GP LDO driver: %d\n", ret);
-
-	ret = platform_driver_register(&wm831x_aldo_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x ALDO driver: %d\n", ret);
-
-	ret = platform_driver_register(&wm831x_alive_ldo_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x alive LDO driver: %d\n",
-		       ret);
-
-	return 0;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 subsys_initcall(wm831x_ldo_init);
 
 static void __exit wm831x_ldo_exit(void)
 {
-	platform_driver_unregister(&wm831x_alive_ldo_driver);
-	platform_driver_unregister(&wm831x_aldo_driver);
-	platform_driver_unregister(&wm831x_gp_ldo_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(wm831x_ldo_exit);
 
