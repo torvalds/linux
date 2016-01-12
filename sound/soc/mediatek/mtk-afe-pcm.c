@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include "mtk-afe-common.h"
@@ -35,6 +36,7 @@
 #define AFE_I2S_CON1		0x0034
 #define AFE_I2S_CON2		0x0038
 #define AFE_CONN_24BIT		0x006c
+#define AFE_MEMIF_MSB		0x00cc
 
 #define AFE_CONN1		0x0024
 #define AFE_CONN2		0x0028
@@ -592,6 +594,7 @@ static int mtk_afe_dais_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct mtk_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	struct mtk_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
+	int msb_at_bit33 = 0;
 	int ret;
 
 	dev_dbg(afe->dev,
@@ -603,7 +606,8 @@ static int mtk_afe_dais_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	memif->phys_buf_addr = substream->runtime->dma_addr;
+	msb_at_bit33 = upper_32_bits(substream->runtime->dma_addr) ? 1 : 0;
+	memif->phys_buf_addr = lower_32_bits(substream->runtime->dma_addr);
 	memif->buffer_size = substream->runtime->dma_bytes;
 
 	/* start */
@@ -613,6 +617,11 @@ static int mtk_afe_dais_hw_params(struct snd_pcm_substream *substream,
 	regmap_write(afe->regmap,
 		     memif->data->reg_ofs_base + AFE_BASE_END_OFFSET,
 		     memif->phys_buf_addr + memif->buffer_size - 1);
+
+	/* set MSB to 33-bit */
+	regmap_update_bits(afe->regmap, AFE_MEMIF_MSB,
+			   1 << memif->data->msb_shift,
+			   msb_at_bit33 << memif->data->msb_shift);
 
 	/* set channel */
 	if (memif->data->mono_shift >= 0) {
@@ -978,6 +987,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 0,
 		.irq_fs_shift = 4,
 		.irq_clr_shift = 0,
+		.msb_shift = 0,
 	}, {
 		.name = "DL2",
 		.id = MTK_AFE_MEMIF_DL2,
@@ -991,6 +1001,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 2,
 		.irq_fs_shift = 16,
 		.irq_clr_shift = 2,
+		.msb_shift = 1,
 	}, {
 		.name = "VUL",
 		.id = MTK_AFE_MEMIF_VUL,
@@ -1004,6 +1015,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 1,
 		.irq_fs_shift = 8,
 		.irq_clr_shift = 1,
+		.msb_shift = 6,
 	}, {
 		.name = "DAI",
 		.id = MTK_AFE_MEMIF_DAI,
@@ -1017,6 +1029,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 3,
 		.irq_fs_shift = 20,
 		.irq_clr_shift = 3,
+		.msb_shift = 5,
 	}, {
 		.name = "AWB",
 		.id = MTK_AFE_MEMIF_AWB,
@@ -1030,6 +1043,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 14,
 		.irq_fs_shift = 24,
 		.irq_clr_shift = 6,
+		.msb_shift = 3,
 	}, {
 		.name = "MOD_DAI",
 		.id = MTK_AFE_MEMIF_MOD_DAI,
@@ -1043,6 +1057,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 3,
 		.irq_fs_shift = 20,
 		.irq_clr_shift = 3,
+		.msb_shift = 4,
 	}, {
 		.name = "HDMI",
 		.id = MTK_AFE_MEMIF_HDMI,
@@ -1056,6 +1071,7 @@ static const struct mtk_afe_memif_data memif_data[MTK_AFE_MEMIF_NUM] = {
 		.irq_en_shift = 12,
 		.irq_fs_shift = -1,
 		.irq_clr_shift = 4,
+		.msb_shift = 8,
 	},
 };
 
@@ -1188,6 +1204,10 @@ static int mtk_afe_pcm_dev_probe(struct platform_device *pdev)
 	unsigned int irq_id;
 	struct mtk_afe *afe;
 	struct resource *res;
+
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(33));
+	if (ret)
+		return ret;
 
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
