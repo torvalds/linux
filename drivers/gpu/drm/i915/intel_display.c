@@ -15355,17 +15355,17 @@ static void sanitize_watermarks(struct drm_device *dev)
 	 */
 	drm_modeset_acquire_init(&ctx, 0);
 retry:
-	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	} else if (WARN_ON(ret)) {
-		return;
+		goto fail;
 	}
 
 	state = drm_atomic_helper_duplicate_state(dev, &ctx);
 	if (WARN_ON(IS_ERR(state)))
-		return;
+		goto fail;
 
 	/*
 	 * Hardware readout is the only time we don't want to calculate
@@ -15388,7 +15388,7 @@ retry:
 		 * BIOS-programmed watermarks untouched and hope for the best.
 		 */
 		WARN(true, "Could not determine valid watermarks for inherited state\n");
-		return;
+		goto fail;
 	}
 
 	/* Write calculated watermark values back */
@@ -15401,6 +15401,7 @@ retry:
 	}
 
 	drm_atomic_state_free(state);
+fail:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 }
