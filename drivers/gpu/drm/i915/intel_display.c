@@ -2464,15 +2464,20 @@ unsigned long intel_gen4_compute_page_offset(struct drm_i915_private *dev_priv,
 					     unsigned int pitch)
 {
 	if (fb_modifier != DRM_FORMAT_MOD_NONE) {
+		unsigned int tile_size, tile_width, tile_height;
 		unsigned int tile_rows, tiles;
 
-		tile_rows = *y / 8;
-		*y %= 8;
+		tile_size = intel_tile_size(dev_priv);
+		tile_width = intel_tile_width(dev_priv, fb_modifier, cpp);
+		tile_height = tile_size / tile_width;
 
-		tiles = *x / (512/cpp);
-		*x %= 512/cpp;
+		tile_rows = *y / tile_height;
+		*y %= tile_height;
 
-		return tile_rows * pitch * 8 + tiles * 4096;
+		tiles = *x / (tile_width/cpp);
+		*x %= tile_width/cpp;
+
+		return tile_rows * pitch * tile_height + tiles * tile_size;
 	} else {
 		unsigned int alignment = intel_linear_alignment(dev_priv) - 1;
 		unsigned int offset;
