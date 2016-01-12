@@ -201,6 +201,41 @@
 				label = "versatile:7";
 				default-state = "off";
 			};
+			oscclk0: osc0@0c {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x0C>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk1: osc1@10 {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x10>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk2: osc2@14 {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x14>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk3: osc3@18 {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x18>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk4: osc4@1c {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x1c>;
+				clocks = <&xtal24mhz>;
+			};
 		};
 
 		/* Primary DevChip GIC synthesized with the CPU */
