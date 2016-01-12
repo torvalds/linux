@@ -58,14 +58,16 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		 * be sent, and CPU 0's TLB will contain a stale entry.)
 		 *
 		 * The bad outcome can occur if either CPU's load is
-		 * reordered before that CPU's store, so both CPUs much
+		 * reordered before that CPU's store, so both CPUs must
 		 * execute full barriers to prevent this from happening.
 		 *
 		 * Thus, switch_mm needs a full barrier between the
 		 * store to mm_cpumask and any operation that could load
-		 * from next->pgd.  This barrier synchronizes with
-		 * remote TLB flushers.  Fortunately, load_cr3 is
-		 * serializing and thus acts as a full barrier.
+		 * from next->pgd.  TLB fills are special and can happen
+		 * due to instruction fetches or for no reason at all,
+		 * and neither LOCK nor MFENCE orders them.
+		 * Fortunately, load_cr3() is serializing and gives the
+		 * ordering guarantee we need.
 		 *
 		 */
 		load_cr3(next->pgd);
@@ -96,9 +98,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			 * tlb flush IPI delivery. We must reload CR3
 			 * to make sure to use no freed page tables.
 			 *
-			 * As above, this is a barrier that forces
-			 * TLB repopulation to be ordered after the
-			 * store to mm_cpumask.
+			 * As above, load_cr3() is serializing and orders TLB
+			 * fills with respect to the mm_cpumask write.
 			 */
 			load_cr3(next->pgd);
 			load_LDT_nolock(&next->context);
