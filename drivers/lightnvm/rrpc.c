@@ -650,11 +650,12 @@ static int rrpc_end_io(struct nvm_rq *rqd, int error)
 	if (bio_data_dir(rqd->bio) == WRITE)
 		rrpc_end_io_write(rrpc, rrqd, laddr, npages);
 
+	bio_put(rqd->bio);
+
 	if (rrqd->flags & NVM_IOTYPE_GC)
 		return 0;
 
 	rrpc_unlock_rq(rrpc, rqd);
-	bio_put(rqd->bio);
 
 	if (npages > 1)
 		nvm_dev_dma_free(rrpc->dev, rqd->ppa_list, rqd->dma_ppa_list);
@@ -841,6 +842,7 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 	err = nvm_submit_io(rrpc->dev, rqd);
 	if (err) {
 		pr_err("rrpc: I/O submission failed: %d\n", err);
+		bio_put(bio);
 		return NVM_IO_ERR;
 	}
 
