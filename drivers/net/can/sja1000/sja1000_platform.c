@@ -27,6 +27,7 @@
 #include <linux/can/platform/sja1000.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 
 #include "sja1000.h"
@@ -39,6 +40,11 @@ MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 MODULE_DESCRIPTION("Socket-CAN driver for SJA1000 on the platform bus");
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_LICENSE("GPL v2");
+
+struct sja1000_of_data {
+	size_t  priv_sz;
+	int     (*init)(struct sja1000_priv *priv, struct device_node *of);
+};
 
 static u8 sp_read_reg8(const struct sja1000_priv *priv, int reg)
 {
@@ -154,6 +160,12 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 		priv->cdr |= CDR_CBP; /* default */
 }
 
+static const struct of_device_id sp_of_table[] = {
+	{ .compatible = "nxp,sja1000", .data = NULL, },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, sp_of_table);
+
 static int sp_probe(struct platform_device *pdev)
 {
 	int err, irq = 0;
@@ -163,6 +175,9 @@ static int sp_probe(struct platform_device *pdev)
 	struct resource *res_mem, *res_irq = NULL;
 	struct sja1000_platform_data *pdata;
 	struct device_node *of = pdev->dev.of_node;
+	const struct of_device_id *of_id;
+	const struct sja1000_of_data *of_data = NULL;
+	size_t priv_sz = 0;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata && !of) {
@@ -191,7 +206,13 @@ static int sp_probe(struct platform_device *pdev)
 	if (!irq && !res_irq)
 		return -ENODEV;
 
-	dev = alloc_sja1000dev(0);
+	of_id = of_match_device(sp_of_table, &pdev->dev);
+	if (of_id && of_id->data) {
+		of_data = of_id->data;
+		priv_sz = of_data->priv_sz;
+	}
+
+	dev = alloc_sja1000dev(priv_sz);
 	if (!dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
@@ -208,10 +229,17 @@ static int sp_probe(struct platform_device *pdev)
 	dev->irq = irq;
 	priv->reg_base = addr;
 
-	if (of)
+	if (of) {
 		sp_populate_of(priv, of);
-	else
+
+		if (of_data && of_data->init) {
+			err = of_data->init(priv, of);
+			if (err)
+				goto exit_free;
+		}
+	} else {
 		sp_populate(priv, pdata, res_mem->flags);
+	}
 
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -241,12 +269,6 @@ static int sp_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id sp_of_table[] = {
-	{.compatible = "nxp,sja1000"},
-	{},
-};
-MODULE_DEVICE_TABLE(of, sp_of_table);
 
 static struct platform_driver sp_driver = {
 	.probe = sp_probe,
