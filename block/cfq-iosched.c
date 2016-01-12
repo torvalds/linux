@@ -3959,6 +3959,13 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (cfq_slice_used(cfqq))
 		return true;
 
+	/*
+	 * Allow an RT request to pre-empt an ongoing non-RT cfqq timeslice.
+	 */
+	if (cfq_class_rt(new_cfqq) && !cfq_class_rt(cfqq))
+		return true;
+
+	WARN_ON_ONCE(cfqq->ioprio_class != new_cfqq->ioprio_class);
 	/* Allow preemption only if we are idling on sync-noidle tree */
 	if (cfqd->serving_wl_type == SYNC_NOIDLE_WORKLOAD &&
 	    cfqq_type(new_cfqq) == SYNC_NOIDLE_WORKLOAD &&
@@ -3971,12 +3978,6 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * it's a metadata request and the current queue is doing regular IO.
 	 */
 	if ((rq->cmd_flags & REQ_PRIO) && !cfqq->prio_pending)
-		return true;
-
-	/*
-	 * Allow an RT request to pre-empt an ongoing non-RT cfqq timeslice.
-	 */
-	if (cfq_class_rt(new_cfqq) && !cfq_class_rt(cfqq))
 		return true;
 
 	/* An idle queue should not be idle now for some reason */
