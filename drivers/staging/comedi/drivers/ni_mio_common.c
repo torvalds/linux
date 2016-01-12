@@ -2428,7 +2428,8 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 		break;
 	case TRIG_EXT:
-		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 + cmd->convert_arg);
+		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 +
+						    CR_CHAN(cmd->convert_arg));
 		if ((cmd->convert_arg & CR_INVERT) == 0)
 			mode1 |= NISTC_AI_MODE1_CONVERT_POLARITY;
 		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
