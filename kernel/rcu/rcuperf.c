@@ -328,8 +328,10 @@ rcu_perf_reader(void *arg)
 {
 	unsigned long flags;
 	int idx;
+	long me = (long)arg;
 
 	VERBOSE_PERFOUT_STRING("rcu_perf_reader task started");
+	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	set_user_nice(current, MAX_NICE);
 	atomic_inc(&n_rcu_perf_reader_started);
 
@@ -362,6 +364,7 @@ rcu_perf_writer(void *arg)
 	WARN_ON(rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp);
 	WARN_ON(rcu_gp_is_normal() && gp_exp);
 	WARN_ON(!wdpp);
+	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	t = ktime_get_mono_fast_ns();
 	if (atomic_inc_return(&n_rcu_perf_writer_started) >= nrealwriters) {
 		t_rcu_perf_writer_started = t;
@@ -594,7 +597,7 @@ rcu_perf_init(void)
 		goto unwind;
 	}
 	for (i = 0; i < nrealreaders; i++) {
-		firsterr = torture_create_kthread(rcu_perf_reader, NULL,
+		firsterr = torture_create_kthread(rcu_perf_reader, (void *)i,
 						  reader_tasks[i]);
 		if (firsterr)
 			goto unwind;
