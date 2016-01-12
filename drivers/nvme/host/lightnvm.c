@@ -405,11 +405,6 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 
 	ppa = dev_to_generic_addr(nvmdev, ppa);
 	ret = update_bbtbl(ppa, nr_blocks, bb_tbl->blk, priv);
-	if (ret) {
-		ret = -EINTR;
-		goto out;
-	}
-
 out:
 	kfree(bb_tbl);
 	return ret;
