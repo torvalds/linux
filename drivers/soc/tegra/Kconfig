@@ -1,0 +1,83 @@
+if ARCH_TEGRA
+
+# 32-bit ARM SoCs
+if ARM
+
+config ARCH_TEGRA_2x_SOC
+	bool "Enable support for Tegra20 family"
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_754327 if SMP
+	select ARM_ERRATA_764369 if SMP
+	select PINCTRL_TEGRA20
+	select PL310_ERRATA_727915 if CACHE_L2X0
+	select PL310_ERRATA_769419 if CACHE_L2X0
+	select TEGRA_TIMER
+	help
+	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
+	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
+
+config ARCH_TEGRA_3x_SOC
+	bool "Enable support for Tegra30 family"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select PINCTRL_TEGRA30
+	select PL310_ERRATA_769419 if CACHE_L2X0
+	select TEGRA_TIMER
+	help
+	  Support for NVIDIA Tegra T30 processor family, based on the
+	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
+
+config ARCH_TEGRA_114_SOC
+	bool "Enable support for Tegra114 family"
+	select ARM_ERRATA_798181 if SMP
+	select ARM_L1_CACHE_SHIFT_6
+	select HAVE_ARM_ARCH_TIMER
+	select PINCTRL_TEGRA114
+	select TEGRA_TIMER
+	help
+	  Support for NVIDIA Tegra T114 processor family, based on the
+	  ARM CortexA15MP CPU
+
+config ARCH_TEGRA_124_SOC
+	bool "Enable support for Tegra124 family"
+	select ARM_L1_CACHE_SHIFT_6
+	select HAVE_ARM_ARCH_TIMER
+	select PINCTRL_TEGRA124
+	select TEGRA_TIMER
+	help
+	  Support for NVIDIA Tegra T124 processor family, based on the
+	  ARM CortexA15MP CPU
+
+endif
+
+# 64-bit ARM SoCs
+if ARM64
+
+config ARCH_TEGRA_132_SOC
+	bool "NVIDIA Tegra132 SoC"
+	select PINCTRL_TEGRA124
+	help
+	  Enable support for NVIDIA Tegra132 SoC, based on the Denver
+	  ARMv8 CPU.  The Tegra132 SoC is similar to the Tegra124 SoC,
+	  but contains an NVIDIA Denver CPU complex in place of
+	  Tegra124's "4+1" Cortex-A15 CPU complex.
+
+config ARCH_TEGRA_210_SOC
+	bool "NVIDIA Tegra210 SoC"
+	select PINCTRL_TEGRA210
+	help
+	  Enable support for the NVIDIA Tegra210 SoC. Also known as Tegra X1,
+	  the Tegra210 has four Cortex-A57 cores paired with four Cortex-A53
+	  cores in a switched configuration. It features a GPU of the Maxwell
+	  architecture with support for DX11, SM4, OpenGL 4.5, OpenGL ES 3.1
+	  and providing 256 CUDA cores. It supports hardware-accelerated en-
+	  and decoding of various video standards including H.265, H.264 and
+	  VP8 at 4K resolution and up to 60 fps.
+
+	  Besides the multimedia features it also comes with a variety of I/O
+	  controllers, such as GPIO, I2C, SPI, SDHCI, PCIe, SATA and XHCI, to
+	  name only a few.
+
+endif
+endif
