@@ -340,7 +340,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	dev->phy_id = phy_id;
 	if (c45_ids)
 		dev->c45_ids = *c45_ids;
-	dev->irq = bus->irq ? bus->irq[addr] : PHY_POLL;
+	dev->irq = bus->irq[addr];
 	dev_set_name(&mdiodev->dev, PHY_ID_FMT, bus->id, addr);
 
 	dev->state = PHY_DOWN;
