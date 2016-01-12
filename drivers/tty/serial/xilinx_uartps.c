@@ -126,6 +126,10 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_IXR_RXEMPTY	0x00000002 /* RX FIFO empty interrupt. */
 #define CDNS_UART_IXR_MASK	0x00001FFF /* Valid bit mask */
 
+#define CDNS_UART_RX_IRQS	(CDNS_UART_IXR_PARITY | CDNS_UART_IXR_FRAMING | \
+				 CDNS_UART_IXR_OVERRUN | CDNS_UART_IXR_RXTRIG | \
+				 CDNS_UART_IXR_TOUT)
+
 /* Goes in read_status_mask for break detection as the HW doesn't do it*/
 #define CDNS_UART_IXR_BRK	0x80000000
 
@@ -272,7 +276,8 @@ static irqreturn_t cdns_uart_isr(int irq, void *dev_id)
 	 */
 	isrstatus = readl(port->membase + CDNS_UART_ISR_OFFSET);
 
-	cdns_uart_handle_rx(port, isrstatus);
+	if (isrstatus & CDNS_UART_RX_IRQS)
+		cdns_uart_handle_rx(port, isrstatus);
 
 	/* Dispatch an appropriate handler */
 	if ((isrstatus & CDNS_UART_IXR_TXEMPTY) == CDNS_UART_IXR_TXEMPTY) {
@@ -580,9 +585,12 @@ static void cdns_uart_stop_rx(struct uart_port *port)
 {
 	unsigned int regval;
 
+	/* Disable RX IRQs */
+	writel(CDNS_UART_RX_IRQS, port->membase + CDNS_UART_IDR_OFFSET);
+
+	/* Disable the receiver */
 	regval = readl(port->membase + CDNS_UART_CR_OFFSET);
 	regval |= CDNS_UART_CR_RX_DIS;
-	/* Disable the receiver */
 	writel(regval, port->membase + CDNS_UART_CR_OFFSET);
 }
 
@@ -820,10 +828,7 @@ static int cdns_uart_startup(struct uart_port *port)
 	}
 
 	/* Set the Interrupt Registers with desired interrupts */
-	writel(CDNS_UART_IXR_TXEMPTY | CDNS_UART_IXR_PARITY |
-		CDNS_UART_IXR_FRAMING | CDNS_UART_IXR_OVERRUN |
-		CDNS_UART_IXR_RXTRIG | CDNS_UART_IXR_TOUT,
-		port->membase + CDNS_UART_IER_OFFSET);
+	writel(CDNS_UART_RX_IRQS, port->membase + CDNS_UART_IER_OFFSET);
 
 	return 0;
 }
