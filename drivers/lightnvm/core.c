@@ -296,7 +296,7 @@ void nvm_end_io(struct nvm_rq *rqd, int error)
 }
 EXPORT_SYMBOL(nvm_end_io);
 
-static void nvm_end_io_sync(struct nvm_rq *rqd, int errors)
+static void nvm_end_io_sync(struct nvm_rq *rqd)
 {
 	struct completion *waiting = rqd->wait;
 
@@ -304,6 +304,49 @@ static void nvm_end_io_sync(struct nvm_rq *rqd, int errors)
 
 	complete(waiting);
 }
+
+int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
+				int opcode, int flags, void *buf, int len)
+{
+	DECLARE_COMPLETION_ONSTACK(wait);
+	struct nvm_rq rqd;
+	struct bio *bio;
+	int ret;
+	unsigned long hang_check;
+
+	bio = bio_map_kern(dev->q, buf, len, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(bio))
+		return -ENOMEM;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+	ret = nvm_set_rqd_ppalist(dev, &rqd, ppa, nr_ppas);
+	if (ret) {
+		bio_put(bio);
+		return ret;
+	}
+
+	rqd.opcode = opcode;
+	rqd.bio = bio;
+	rqd.wait = &wait;
+	rqd.dev = dev;
+	rqd.end_io = nvm_end_io_sync;
+	rqd.flags = flags;
+	nvm_generic_to_addr_mode(dev, &rqd);
+
+	ret = dev->ops->submit_io(dev, &rqd);
+
+	/* Prevent hang_check timer from firing at us during very long I/O */
+	hang_check = sysctl_hung_task_timeout_secs;
+	if (hang_check)
+		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
+	else
+		wait_for_completion_io(&wait);
+
+	nvm_free_rqd_ppalist(dev, &rqd);
+
+	return rqd.error;
+}
+EXPORT_SYMBOL(nvm_submit_ppa);
 
 static int nvm_core_init(struct nvm_dev *dev)
 {
