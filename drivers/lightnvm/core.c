@@ -362,6 +362,51 @@ int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
 }
 EXPORT_SYMBOL(nvm_submit_ppa);
 
+static int nvm_init_slc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
+{
+	int i;
+
+	dev->lps_per_blk = dev->pgs_per_blk;
+	dev->lptbl = kcalloc(dev->lps_per_blk, sizeof(int), GFP_KERNEL);
+	if (!dev->lptbl)
+		return -ENOMEM;
+
+	/* Just a linear array */
+	for (i = 0; i < dev->lps_per_blk; i++)
+		dev->lptbl[i] = i;
+
+	return 0;
+}
+
+static int nvm_init_mlc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
+{
+	int i, p;
+	struct nvm_id_lp_mlc *mlc = &grp->lptbl.mlc;
+
+	if (!mlc->num_pairs)
+		return 0;
+
+	dev->lps_per_blk = mlc->num_pairs;
+	dev->lptbl = kcalloc(dev->lps_per_blk, sizeof(int), GFP_KERNEL);
+	if (!dev->lptbl)
+		return -ENOMEM;
+
+	/* The lower page table encoding consists of a list of bytes, where each
+	 * has a lower and an upper half. The first half byte maintains the
+	 * increment value and every value after is an offset added to the
+	 * previous incrementation value */
+	dev->lptbl[0] = mlc->pairs[0] & 0xF;
+	for (i = 1; i < dev->lps_per_blk; i++) {
+		p = mlc->pairs[i >> 1];
+		if (i & 0x1) /* upper */
+			dev->lptbl[i] = dev->lptbl[i - 1] + ((p & 0xF0) >> 4);
+		else /* lower */
+			dev->lptbl[i] = dev->lptbl[i - 1] + (p & 0xF);
+	}
+
+	return 0;
+}
+
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
@@ -387,10 +432,22 @@ static int nvm_core_init(struct nvm_dev *dev)
 		return -EINVAL;
 	}
 
-	if (grp->fmtype != 0 && grp->fmtype != 1) {
+	switch (grp->fmtype) {
+	case NVM_ID_FMTYPE_SLC:
+		if (nvm_init_slc_tbl(dev, grp))
+			return -ENOMEM;
+		break;
+	case NVM_ID_FMTYPE_MLC:
+		if (nvm_init_mlc_tbl(dev, grp))
+			return -ENOMEM;
+		break;
+	default:
 		pr_err("nvm: flash type not supported\n");
 		return -EINVAL;
 	}
+
+	if (!dev->lps_per_blk)
+		pr_info("nvm: lower page programming table missing\n");
 
 	if (grp->mpos & 0x020202)
 		dev->plane_mode = NVM_PLANE_DOUBLE;
@@ -420,6 +477,8 @@ static void nvm_free(struct nvm_dev *dev)
 
 	if (dev->mt)
 		dev->mt->unregister_mgr(dev);
+
+	kfree(dev->lptbl);
 }
 
 static int nvm_init(struct nvm_dev *dev)

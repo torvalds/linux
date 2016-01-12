@@ -146,6 +146,16 @@ struct nvme_nvm_command {
 	};
 };
 
+struct nvme_nvm_lp_mlc {
+	__u16			num_pairs;
+	__u8			pairs[886];
+};
+
+struct nvme_nvm_lp_tbl {
+	__u8			id[8];
+	struct nvme_nvm_lp_mlc	mlc;
+};
+
 struct nvme_nvm_id_group {
 	__u8			mtype;
 	__u8			fmtype;
@@ -169,7 +179,8 @@ struct nvme_nvm_id_group {
 	__le32			mpos;
 	__le32			mccap;
 	__le16			cpar;
-	__u8			reserved[906];
+	__u8			reserved[10];
+	struct nvme_nvm_lp_tbl lptbl;
 } __packed;
 
 struct nvme_nvm_addr_format {
@@ -266,6 +277,15 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 		dst->mccap = le32_to_cpu(src->mccap);
 
 		dst->cpar = le16_to_cpu(src->cpar);
+
+		if (dst->fmtype == NVM_ID_FMTYPE_MLC) {
+			memcpy(dst->lptbl.id, src->lptbl.id, 8);
+			dst->lptbl.mlc.num_pairs =
+					le16_to_cpu(src->lptbl.mlc.num_pairs);
+			/* 4 bits per pair */
+			memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
+						dst->lptbl.mlc.num_pairs >> 1);
+		}
 	}
 
 	return 0;

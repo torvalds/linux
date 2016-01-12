@@ -67,6 +67,20 @@ enum {
 	NVM_ID_CAP_CMD_SUSPEND	= 0x2,
 	NVM_ID_CAP_SCRAMBLE	= 0x4,
 	NVM_ID_CAP_ENCRYPT	= 0x8,
+
+	/* Memory types */
+	NVM_ID_FMTYPE_SLC	= 0,
+	NVM_ID_FMTYPE_MLC	= 1,
+};
+
+struct nvm_id_lp_mlc {
+	u16	num_pairs;
+	u8	pairs[886];
+};
+
+struct nvm_id_lp_tbl {
+	__u8	id[8];
+	struct nvm_id_lp_mlc mlc;
 };
 
 struct nvm_id_group {
@@ -89,6 +103,8 @@ struct nvm_id_group {
 	u32	mpos;
 	u32	mccap;
 	u16	cpar;
+
+	struct nvm_id_lp_tbl lptbl;
 };
 
 struct nvm_addr_format {
@@ -296,6 +312,10 @@ struct nvm_dev {
 	int sec_per_pl; /* all sectors across planes */
 	int sec_per_blk;
 	int sec_per_lun;
+
+	/* lower page table */
+	int lps_per_blk;
+	int *lptbl;
 
 	unsigned long total_pages;
 	unsigned long total_blocks;
