@@ -107,6 +107,34 @@ static int target_check_cdb_and_preempt(struct list_head *list,
 	return 1;
 }
 
+static bool __target_check_io_state(struct se_cmd *se_cmd)
+{
+	struct se_session *sess = se_cmd->se_sess;
+
+	assert_spin_locked(&sess->sess_cmd_lock);
+	WARN_ON_ONCE(!irqs_disabled());
+	/*
+	 * If command already reached CMD_T_COMPLETE state within
+	 * target_complete_cmd(), this se_cmd has been passed to
+	 * fabric driver and will not be aborted.
+	 *
+	 * Otherwise, obtain a local se_cmd->cmd_kref now for TMR
+	 * ABORT_TASK + LUN_RESET for CMD_T_ABORTED processing as
+	 * long as se_cmd->cmd_kref is still active unless zero.
+	 */
+	spin_lock(&se_cmd->t_state_lock);
+	if (se_cmd->transport_state & CMD_T_COMPLETE) {
+		pr_debug("Attempted to abort io tag: %llu already complete,"
+			" skipping\n", se_cmd->tag);
+		spin_unlock(&se_cmd->t_state_lock);
+		return false;
+	}
+	se_cmd->transport_state |= CMD_T_ABORTED;
+	spin_unlock(&se_cmd->t_state_lock);
+
+	return kref_get_unless_zero(&se_cmd->cmd_kref);
+}
+
 void core_tmr_abort_task(
 	struct se_device *dev,
 	struct se_tmr_req *tmr,
@@ -130,34 +158,22 @@ void core_tmr_abort_task(
 		if (tmr->ref_task_tag != ref_tag)
 			continue;
 
-		if (!kref_get_unless_zero(&se_cmd->cmd_kref))
-			continue;
-
 		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
 			se_cmd->se_tfo->get_fabric_name(), ref_tag);
 
-		spin_lock(&se_cmd->t_state_lock);
-		if (se_cmd->transport_state & CMD_T_COMPLETE) {
-			printk("ABORT_TASK: ref_tag: %llu already complete,"
-			       " skipping\n", ref_tag);
-			spin_unlock(&se_cmd->t_state_lock);
+		if (!__target_check_io_state(se_cmd)) {
 			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-
 			target_put_sess_cmd(se_cmd);
-
 			goto out;
 		}
-		se_cmd->transport_state |= CMD_T_ABORTED;
-		spin_unlock(&se_cmd->t_state_lock);
-
 		list_del_init(&se_cmd->se_cmd_list);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 		cancel_work_sync(&se_cmd->work);
 		transport_wait_for_tasks(se_cmd);
 
-		target_put_sess_cmd(se_cmd);
 		transport_cmd_finish_abort(se_cmd, true);
+		target_put_sess_cmd(se_cmd);
 
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
 				" ref_tag: %llu\n", ref_tag);
@@ -242,8 +258,10 @@ static void core_tmr_drain_state_list(
 	struct list_head *preempt_and_abort_list)
 {
 	LIST_HEAD(drain_task_list);
+	struct se_session *sess;
 	struct se_cmd *cmd, *next;
 	unsigned long flags;
+	int rc;
 
 	/*
 	 * Complete outstanding commands with TASK_ABORTED SAM status.
@@ -282,6 +300,16 @@ static void core_tmr_drain_state_list(
 		if (prout_cmd == cmd)
 			continue;
 
+		sess = cmd->se_sess;
+		if (WARN_ON_ONCE(!sess))
+			continue;
+
+		spin_lock(&sess->sess_cmd_lock);
+		rc = __target_check_io_state(cmd);
+		spin_unlock(&sess->sess_cmd_lock);
+		if (!rc)
+			continue;
+
 		list_move_tail(&cmd->state_list, &drain_task_list);
 		cmd->state_active = false;
 	}
@@ -289,7 +317,7 @@ static void core_tmr_drain_state_list(
 
 	while (!list_empty(&drain_task_list)) {
 		cmd = list_entry(drain_task_list.next, struct se_cmd, state_list);
-		list_del(&cmd->state_list);
+		list_del_init(&cmd->state_list);
 
 		pr_debug("LUN_RESET: %s cmd: %p"
 			" ITT/CmdSN: 0x%08llx/0x%08x, i_state: %d, t_state: %d"
@@ -313,16 +341,11 @@ static void core_tmr_drain_state_list(
 		 * loop above, but we do it down here given that
 		 * cancel_work_sync may block.
 		 */
-		if (cmd->t_state == TRANSPORT_COMPLETE)
-			cancel_work_sync(&cmd->work);
-
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		target_stop_cmd(cmd, &flags);
-
-		cmd->transport_state |= CMD_T_ABORTED;
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		cancel_work_sync(&cmd->work);
+		transport_wait_for_tasks(cmd);
 
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas);
+		target_put_sess_cmd(cmd);
 	}
 }
 
