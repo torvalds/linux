@@ -1950,7 +1950,7 @@ static int snd_seq_ioctl_remove_events(struct snd_seq_client *client,
 		 * No restrictions so for a user client we can clear
 		 * the whole fifo
 		 */
-		if (client->type == USER_CLIENT)
+		if (client->type == USER_CLIENT && client->data.user.fifo)
 			snd_seq_fifo_clear(client->data.user.fifo);
 	}
 
