@@ -149,7 +149,7 @@ struct ppa_addr {
 };
 
 struct nvm_rq;
-typedef void (nvm_end_io_fn)(struct nvm_rq *, int);
+typedef void (nvm_end_io_fn)(struct nvm_rq *);
 
 struct nvm_rq {
 	struct nvm_tgt_instance *ins;
@@ -173,6 +173,8 @@ struct nvm_rq {
 	uint8_t opcode;
 	uint16_t nr_pages;
 	uint16_t flags;
+
+	int error;
 };
 
 static inline struct nvm_rq *nvm_rq_from_pdu(void *pdu)

@@ -658,7 +658,7 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 	}
 }
 
-static void rrpc_end_io(struct nvm_rq *rqd, int error)
+static void rrpc_end_io(struct nvm_rq *rqd)
 {
 	struct rrpc *rrpc = container_of(rqd->ins, struct rrpc, instance);
 	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);

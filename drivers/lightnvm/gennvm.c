@@ -363,11 +363,11 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 		gennvm_blk_set_type(dev, &rqd->ppa_addr, 2);
 }
 
-static void gennvm_end_io(struct nvm_rq *rqd, int error)
+static void gennvm_end_io(struct nvm_rq *rqd)
 {
 	struct nvm_tgt_instance *ins = rqd->ins;
 
-	switch (error) {
+	switch (rqd->error) {
 	case NVM_RSP_SUCCESS:
 	case NVM_RSP_ERR_EMPTYPAGE:
 		break;
@@ -375,7 +375,7 @@ static void gennvm_end_io(struct nvm_rq *rqd, int error)
 		gennvm_mark_blk_bad(rqd->dev, rqd);
 	}
 
-	ins->tt->end_io(rqd, error);
+	ins->tt->end_io(rqd);
 }
 
 static int gennvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)

@@ -291,7 +291,8 @@ EXPORT_SYMBOL(nvm_erase_ppa);
 
 void nvm_end_io(struct nvm_rq *rqd, int error)
 {
-	rqd->end_io(rqd, error);
+	rqd->error = error;
+	rqd->end_io(rqd);
 }
 EXPORT_SYMBOL(nvm_end_io);
 
