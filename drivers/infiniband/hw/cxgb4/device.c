@@ -850,14 +850,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	}
 	rdev->status_page = (struct t4_dev_status_page *)
 			    __get_free_page(GFP_KERNEL);
+	if (!rdev->status_page)
+		goto destroy_ocqp_pool;
 	rdev->status_page->qp_start = rdev->lldi.vr->qp.start;
 	rdev->status_page->qp_size = rdev->lldi.vr->qp.size;
 	rdev->status_page->cq_start = rdev->lldi.vr->cq.start;
 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
-	if (!rdev->status_page) {
-		pr_err(MOD "error allocating status page\n");
-		goto err4;
-	}
 
 	if (c4iw_wr_log) {
 		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
@@ -873,6 +871,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->db_off = 0;
 
 	return 0;
+destroy_ocqp_pool:
+	c4iw_ocqp_pool_destroy(rdev);
 err4:
 	c4iw_rqtpool_destroy(rdev);
 err3:
