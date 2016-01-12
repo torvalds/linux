@@ -762,13 +762,9 @@ static void cdns_uart_set_termios(struct uart_port *port,
  */
 static int cdns_uart_startup(struct uart_port *port)
 {
+	int ret;
 	unsigned long flags;
-	unsigned int retval = 0, status = 0;
-
-	retval = request_irq(port->irq, cdns_uart_isr, 0, CDNS_UART_NAME,
-								(void *)port);
-	if (retval)
-		return retval;
+	unsigned int status = 0;
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -814,15 +810,22 @@ static int cdns_uart_startup(struct uart_port *port)
 	writel(readl(port->membase + CDNS_UART_ISR_OFFSET),
 			port->membase + CDNS_UART_ISR_OFFSET);
 
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	ret = request_irq(port->irq, cdns_uart_isr, 0, CDNS_UART_NAME, port);
+	if (ret) {
+		dev_err(port->dev, "request_irq '%d' failed with %d\n",
+			port->irq, ret);
+		return ret;
+	}
+
 	/* Set the Interrupt Registers with desired interrupts */
 	writel(CDNS_UART_IXR_TXEMPTY | CDNS_UART_IXR_PARITY |
 		CDNS_UART_IXR_FRAMING | CDNS_UART_IXR_OVERRUN |
 		CDNS_UART_IXR_RXTRIG | CDNS_UART_IXR_TOUT,
 		port->membase + CDNS_UART_IER_OFFSET);
 
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	return retval;
+	return 0;
 }
 
 /**
