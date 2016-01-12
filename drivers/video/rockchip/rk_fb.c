@@ -1348,7 +1348,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 
 	/* x y mirror ,jump line */
 	if ((screen->y_mirror == 1) ||
-	    (win->mirror_en == 1)) {
+	    (win->xmirror && win->ymirror)) {
 		if (screen->interlace == 1) {
 			win->area[0].y_offset = yoffset * stride * 2 +
 			    ((win->area[0].yact - 1) * 2 + 1) * stride +
@@ -1369,7 +1369,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	}
 	if (is_pic_yuv == 1) {
 		if ((screen->y_mirror == 1) ||
-		    (win->mirror_en == 1)) {
+		    (win->xmirror && win->ymirror)) {
 			if (screen->interlace == 1) {
 				win->area[0].c_offset =
 				    uv_y_off * uv_stride * 2 +
@@ -1577,7 +1577,12 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 		win->alpha_en = reg_win_data->alpha_en;
 		win->alpha_mode = reg_win_data->alpha_mode;
 		win->g_alpha_val = reg_win_data->g_alpha_val;
-		win->mirror_en = reg_win_data->mirror_en;
+		/*
+		 * reg_win_data mirror_en means that xmirror ymirror all
+		 * enabled.
+		 */
+		win->xmirror = reg_win_data->mirror_en ? 1 : 0;
+		win->ymirror = reg_win_data->mirror_en ? 1 : 0;
 		win->colorspace = reg_win_data->colorspace;
 		win->area[0].fbdc_en =
 			reg_win_data->reg_area_data[0].fbdc_en;
@@ -3157,6 +3162,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->area[0].yvir = var->yres_virtual;
 	win->area[0].xoff = xoffset;
 	win->area[0].yoff = yoffset;
+	win->ymirror = 0;
 	win->state = 1;
 	win->last_state = 1;
 

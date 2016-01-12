@@ -422,9 +422,10 @@ struct rk_lcdc_win {
 	u8 alpha_en;
 	u8 alpha_mode;
 	u16 g_alpha_val;
-	u8  mirror_en;
 	u32 color_key_val;
 	u8 csc_mode;
+	u8 xmirror;
+	u8 ymirror;
 
 	struct rk_lcdc_win_area area[RK_WIN_MAX_AREA];
 	struct rk_lcdc_post_cfg post_cfg;
