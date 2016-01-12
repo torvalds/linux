@@ -387,28 +387,28 @@ static const char *modem_names[] = {
 	"33600", "28800", "14400", "V.90", "V.34", "V.32", NULL
 };
 
-static int check_name(const char *name)
+static bool check_name(const char *name)
 {
 	const char **tmp;
 
 	for (tmp = modem_names; *tmp; tmp++)
 		if (strstr(name, *tmp))
-			return 1;
+			return true;
 
-	return 0;
+	return false;
 }
 
-static int check_resources(struct pnp_dev *dev)
+static bool check_resources(struct pnp_dev *dev)
 {
 	static const resource_size_t base[] = {0x2f8, 0x3f8, 0x2e8, 0x3e8};
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(base); i++) {
 		if (pnp_possible_config(dev, IORESOURCE_IO, base[i], 8))
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /*
