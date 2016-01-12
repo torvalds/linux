@@ -1229,10 +1229,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.iret = xen_iret,
 #ifdef CONFIG_X86_64
-	.usergs_sysret32 = xen_sysret32,
 	.usergs_sysret64 = xen_sysret64,
-#else
-	.irq_enable_sysexit = xen_sysexit,
 #endif
 
 	.load_tr_desc = paravirt_nop,
@@ -1263,12 +1260,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.start_context_switch = paravirt_start_context_switch,
 	.end_context_switch = xen_end_context_switch,
-};
-
-static const struct pv_apic_ops xen_apic_ops __initconst = {
-#ifdef CONFIG_X86_LOCAL_APIC
-	.startup_ipi_hook = paravirt_nop,
-#endif
 };
 
 static void xen_reboot(int reason)
@@ -1538,7 +1529,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	if (xen_initial_domain())
 		pv_info.features |= PV_SUPPORTED_RTC;
 	pv_init_ops = xen_init_ops;
-	pv_apic_ops = xen_apic_ops;
 	if (!xen_pvh_domain()) {
 		pv_cpu_ops = xen_cpu_ops;
 

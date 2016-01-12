@@ -174,6 +174,7 @@ struct msi_controller {
 #include <asm/msi.h>
 
 struct irq_domain;
+struct irq_domain_ops;
 struct irq_chip;
 struct device_node;
 struct fwnode_handle;
@@ -279,6 +280,23 @@ struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
 				   irq_write_msi_msg_t write_msi_msg);
 void platform_msi_domain_free_irqs(struct device *dev);
+
+/* When an MSI domain is used as an intermediate domain */
+int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
+			    int nvec, msi_alloc_info_t *args);
+int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
+			     int virq, int nvec, msi_alloc_info_t *args);
+struct irq_domain *
+platform_msi_create_device_domain(struct device *dev,
+				  unsigned int nvec,
+				  irq_write_msi_msg_t write_msi_msg,
+				  const struct irq_domain_ops *ops,
+				  void *host_data);
+int platform_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
+			      unsigned int nr_irqs);
+void platform_msi_domain_free(struct irq_domain *domain, unsigned int virq,
+			      unsigned int nvec);
+void *platform_msi_get_host_data(struct irq_domain *domain);
 #endif /* CONFIG_GENERIC_MSI_IRQ_DOMAIN */
 
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN

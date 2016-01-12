@@ -12,7 +12,7 @@
  */
 static void fpu__init_cpu_ctx_switch(void)
 {
-	if (!cpu_has_eager_fpu)
+	if (!boot_cpu_has(X86_FEATURE_EAGER_FPU))
 		stts();
 	else
 		clts();
@@ -197,7 +197,7 @@ static void __init fpu__init_task_struct_size(void)
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
-	static int on_boot_cpu = 1;
+	static int on_boot_cpu __initdata = 1;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -287,7 +287,7 @@ __setup("eagerfpu=", eager_fpu_setup);
  */
 static void __init fpu__init_system_ctx_switch(void)
 {
-	static bool on_boot_cpu = 1;
+	static bool on_boot_cpu __initdata = 1;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -296,7 +296,7 @@ static void __init fpu__init_system_ctx_switch(void)
 	current_thread_info()->status = 0;
 
 	/* Auto enable eagerfpu for xsaveopt */
-	if (cpu_has_xsaveopt && eagerfpu != DISABLE)
+	if (boot_cpu_has(X86_FEATURE_XSAVEOPT) && eagerfpu != DISABLE)
 		eagerfpu = ENABLE;
 
 	if (xfeatures_mask & XFEATURE_MASK_EAGER) {
