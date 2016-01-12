@@ -137,8 +137,6 @@ struct mpsc_port_info {
 	/* Internal driver state for this ctlr */
 	u8 ready;
 	u8 rcv_data;
-	tcflag_t c_iflag;	/* save termios->c_iflag */
-	tcflag_t c_cflag;	/* save termios->c_cflag */
 
 	/* Info passed in from platform */
 	u8 mirror_regs;		/* Need to mirror regs? */
@@ -1406,9 +1404,6 @@ static void mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 	u32 baud;
 	ulong flags;
 	u32 chr_bits, stop_bits, par;
-
-	pi->c_iflag = termios->c_iflag;
-	pi->c_cflag = termios->c_cflag;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
