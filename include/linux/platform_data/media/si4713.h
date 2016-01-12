@@ -1,5 +1,5 @@
 /*
- * include/media/si4713.h
+ * include/linux/platform_data/media/si4713.h
  *
  * Board related data definitions for Si4713 i2c device driver.
  *

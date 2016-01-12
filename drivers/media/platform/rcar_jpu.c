@@ -1015,28 +1015,33 @@ error_free:
  * ============================================================================
  */
 static int jpu_queue_setup(struct vb2_queue *vq,
-			   const void *parg,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct jpu_ctx *ctx = vb2_get_drv_priv(vq);
 	struct jpu_q_data *q_data;
 	unsigned int i;
 
 	q_data = jpu_get_q_data(ctx, vq->type);
 
+	if (*nplanes) {
+		if (*nplanes != q_data->format.num_planes)
+			return -EINVAL;
+
+		for (i = 0; i < *nplanes; i++) {
+			unsigned int q_size = q_data->format.plane_fmt[i].sizeimage;
+
+			if (sizes[i] < q_size)
+				return -EINVAL;
+			alloc_ctxs[i] = ctx->jpu->alloc_ctx;
+		}
+		return 0;
+	}
+
 	*nplanes = q_data->format.num_planes;
 
 	for (i = 0; i < *nplanes; i++) {
-		unsigned int q_size = q_data->format.plane_fmt[i].sizeimage;
-		unsigned int f_size = fmt ?
-			fmt->fmt.pix_mp.plane_fmt[i].sizeimage : 0;
-
-		if (fmt && f_size < q_size)
-			return -EINVAL;
-
-		sizes[i] = fmt ? f_size : q_size;
+		sizes[i] = q_data->format.plane_fmt[i].sizeimage;
 		alloc_ctxs[i] = ctx->jpu->alloc_ctx;
 	}
 
@@ -1300,16 +1305,16 @@ static int jpu_release(struct file *file)
 	struct jpu *jpu = video_drvdata(file);
 	struct jpu_ctx *ctx = fh_to_ctx(file->private_data);
 
-	mutex_lock(&jpu->mutex);
-	if (--jpu->ref_count == 0)
-		clk_disable_unprepare(jpu->clk);
-	mutex_unlock(&jpu->mutex);
-
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
+
+	mutex_lock(&jpu->mutex);
+	if (--jpu->ref_count == 0)
+		clk_disable_unprepare(jpu->clk);
+	mutex_unlock(&jpu->mutex);
 
 	return 0;
 }
@@ -1560,12 +1565,9 @@ static irqreturn_t jpu_irq_handler(int irq, void *dev_id)
 		}
 
 		dst_buf->field = src_buf->field;
-		dst_buf->timestamp = src_buf->timestamp;
+		dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 		if (src_buf->flags & V4L2_BUF_FLAG_TIMECODE)
 			dst_buf->timecode = src_buf->timecode;
-		dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-		dst_buf->flags |= src_buf->flags &
-					V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 		dst_buf->flags = src_buf->flags &
 			(V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_KEYFRAME |
 			 V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME |

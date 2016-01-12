@@ -47,7 +47,7 @@ Tested platforms
 File list
 ---------
 drivers/staging/media/omap4iss/
-include/media/omap4iss.h
+include/linux/platform_data/media/omap4iss.h
 
 References
 ----------

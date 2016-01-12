@@ -1,5 +1,5 @@
 /*
- * include/media/lm3560.h
+ * include/media/i2c/lm3560.h
  *
  * Copyright (C) 2013 Texas Instruments
  *

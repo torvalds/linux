@@ -27,10 +27,10 @@
 #include <linux/videodev2.h>
 #include <linux/sh_intc.h>
 #include <video/sh_mobile_lcdc.h>
-#include <media/sh_mobile_ceu.h>
-#include <media/ov772x.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
+#include <media/i2c/ov772x.h>
 #include <media/soc_camera.h>
-#include <media/tw9910.h>
+#include <media/i2c/tw9910.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
