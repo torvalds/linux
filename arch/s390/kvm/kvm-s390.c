@@ -2163,7 +2163,10 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 
 static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 {
-	u8 opcode;
+	struct kvm_s390_pgm_info pgm_info = {
+		.code = PGM_ADDRESSING,
+	};
+	u8 opcode, ilen;
 	int rc;
 
 	VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
@@ -2180,9 +2183,10 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	rc = read_guest_instr(vcpu, &opcode, 1);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
-	kvm_s390_forward_psw(vcpu, insn_length(opcode));
-
-	return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	ilen = insn_length(opcode);
+	pgm_info.flags = ilen | KVM_S390_PGM_FLAGS_ILC_VALID;
+	kvm_s390_forward_psw(vcpu, ilen);
+	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 }
 
 static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
