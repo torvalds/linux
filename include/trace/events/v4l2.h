@@ -184,7 +184,7 @@ DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
 		__field(int, minor)
 		__field(u32, flags)
 		__field(u32, field)
-		__field(s64, timestamp)
+		__field(u64, timestamp)
 		__field(u32, timecode_type)
 		__field(u32, timecode_flags)
 		__field(u8, timecode_frames)
@@ -205,7 +205,7 @@ DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
 		__entry->minor = owner ? owner->vdev->minor : -1;
 		__entry->flags = vbuf->flags;
 		__entry->field = vbuf->field;
-		__entry->timestamp = timeval_to_ns(&vbuf->timestamp);
+		__entry->timestamp = vb->timestamp;
 		__entry->timecode_type = vbuf->timecode.type;
 		__entry->timecode_flags = vbuf->timecode.flags;
 		__entry->timecode_frames = vbuf->timecode.frames;

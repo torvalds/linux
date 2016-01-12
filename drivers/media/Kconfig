@@ -9,7 +9,7 @@ menuconfig MEDIA_SUPPORT
 	  If you want to use Webcams, Video grabber devices and/or TV devices
 	  enable this option and other options below.
 	  Additional info and docs are available on the web at
-	  <http://linuxtv.org>
+	  <https://linuxtv.org>
 
 if MEDIA_SUPPORT
 
@@ -51,7 +51,7 @@ config MEDIA_RADIO_SUPPORT
 	  Enable AM/FM radio support.
 
 	  Additional info and docs are available on the web at
-	  <http://linuxtv.org>
+	  <https://linuxtv.org>
 
 	  Say Y when you have a board with radio support.
 

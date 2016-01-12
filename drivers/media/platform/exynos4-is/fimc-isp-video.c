@@ -30,7 +30,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #include "common.h"
 #include "media-dev.h"
@@ -39,39 +39,36 @@
 #include "fimc-is-param.h"
 
 static int isp_video_capture_queue_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *num_buffers, unsigned int *num_planes,
 			unsigned int sizes[], void *allocators[])
 {
-	const struct v4l2_format *pfmt = parg;
 	struct fimc_isp *isp = vb2_get_drv_priv(vq);
 	struct v4l2_pix_format_mplane *vid_fmt = &isp->video_capture.pixfmt;
-	const struct v4l2_pix_format_mplane *pixm = NULL;
-	const struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt = isp->video_capture.format;
 	unsigned int wh, i;
 
-	if (pfmt) {
-		pixm = &pfmt->fmt.pix_mp;
-		fmt = fimc_isp_find_format(&pixm->pixelformat, NULL, -1);
-		wh = pixm->width * pixm->height;
-	} else {
-		fmt = isp->video_capture.format;
-		wh = vid_fmt->width * vid_fmt->height;
-	}
+	wh = vid_fmt->width * vid_fmt->height;
 
 	if (fmt == NULL)
 		return -EINVAL;
 
 	*num_buffers = clamp_t(u32, *num_buffers, FIMC_ISP_REQ_BUFS_MIN,
 						FIMC_ISP_REQ_BUFS_MAX);
+	if (*num_planes) {
+		if (*num_planes != fmt->memplanes)
+			return -EINVAL;
+		for (i = 0; i < *num_planes; i++) {
+			if (sizes[i] < (wh * fmt->depth[i]) / 8)
+				return -EINVAL;
+			allocators[i] = isp->alloc_ctx;
+		}
+		return 0;
+	}
+
 	*num_planes = fmt->memplanes;
 
 	for (i = 0; i < fmt->memplanes; i++) {
-		unsigned int size = (wh * fmt->depth[i]) / 8;
-		if (pixm)
-			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
-		else
-			sizes[i] = size;
+		sizes[i] = (wh * fmt->depth[i]) / 8;
 		allocators[i] = isp->alloc_ctx;
 	}
 
@@ -254,7 +251,7 @@ void fimc_isp_video_irq_handler(struct fimc_is *is)
 	buf_index = (is->i2h_cmd.args[1] - 1) % video->buf_count;
 	vbuf = &video->buffers[buf_index]->vb;
 
-	v4l2_get_timestamp(&vbuf->timestamp);
+	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
 
 	video->buf_mask &= ~BIT(buf_index);

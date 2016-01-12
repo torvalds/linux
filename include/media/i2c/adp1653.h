@@ -1,5 +1,5 @@
 /*
- * include/media/adp1653.h
+ * include/media/i2c/adp1653.h
  *
  * Copyright (C) 2008--2011 Nokia Corporation
  *

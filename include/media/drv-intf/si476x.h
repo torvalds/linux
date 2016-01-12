@@ -1,5 +1,5 @@
 /*
- * include/media/si476x.h -- Common definitions for si476x driver
+ * include/media/drv-intf/si476x.h -- Common definitions for si476x driver
  *
  * Copyright (C) 2012 Innovative Converged Devices(ICD)
  * Copyright (C) 2013 Andrey Smirnov

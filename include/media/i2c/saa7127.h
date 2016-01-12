@@ -38,4 +38,3 @@ enum saa7127_output_type {
 };
 
 #endif
-

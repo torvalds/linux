@@ -1,5 +1,5 @@
 /*
- * include/media/smiapp.h
+ * include/media/i2c/smiapp.h
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
