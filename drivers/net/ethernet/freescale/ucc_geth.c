@@ -1716,7 +1716,7 @@ static void uec_configure_serdes(struct net_device *dev)
 
 	phy_write(tbiphy, ENET_TBI_MII_CR, TBICR_SETTINGS);
 
-	put_device(&tbiphy->dev);
+	put_device(&tbiphy->mdio.dev);
 }
 
 /* Configure the PHY for dev.
