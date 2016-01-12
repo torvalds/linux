@@ -89,6 +89,7 @@ static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
 
 		list_move_tail(&blk->list, &lun->bb_list);
 		lun->vlun.nr_bad_blocks++;
+		lun->vlun.nr_free_blocks--;
 	}
 
 	return 0;
