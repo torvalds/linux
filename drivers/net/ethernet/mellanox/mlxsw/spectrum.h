@@ -120,6 +120,7 @@ struct mlxsw_sp {
 	} fdb_notify;
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
+	struct mutex fdb_lock;	/* Make sure FDB sessions are atomic. */
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
 };

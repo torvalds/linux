@@ -621,7 +621,7 @@ static void vxlan_notify_add_rx_port(struct vxlan_sock *vs)
 	int err;
 
 	if (sa_family == AF_INET) {
-		err = udp_add_offload(&vs->udp_offloads);
+		err = udp_add_offload(net, &vs->udp_offloads);
 		if (err)
 			pr_warn("vxlan: udp_add_offload failed with status %d\n", err);
 	}
@@ -2750,7 +2750,7 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 			       struct vxlan_config *conf)
 {
 	struct vxlan_net *vn = net_generic(src_net, vxlan_net_id);
-	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_dev *vxlan = netdev_priv(dev), *tmp;
 	struct vxlan_rdst *dst = &vxlan->default_dst;
 	unsigned short needed_headroom = ETH_HLEN;
 	int err;
@@ -2816,9 +2816,15 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	if (!vxlan->cfg.age_interval)
 		vxlan->cfg.age_interval = FDB_AGE_DEFAULT;
 
-	if (vxlan_find_vni(src_net, conf->vni, use_ipv6 ? AF_INET6 : AF_INET,
-			   vxlan->cfg.dst_port, vxlan->flags))
+	list_for_each_entry(tmp, &vn->vxlan_list, next) {
+		if (tmp->cfg.vni == conf->vni &&
+		    (tmp->default_dst.remote_ip.sa.sa_family == AF_INET6 ||
+		     tmp->cfg.saddr.sa.sa_family == AF_INET6) == use_ipv6 &&
+		    tmp->cfg.dst_port == vxlan->cfg.dst_port &&
+		    (tmp->flags & VXLAN_F_RCV_FLAGS) ==
+		    (vxlan->flags & VXLAN_F_RCV_FLAGS))
 		return -EEXIST;
+	}
 
 	dev->ethtool_ops = &vxlan_ethtool_ops;
 

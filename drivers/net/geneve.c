@@ -388,7 +388,7 @@ static void geneve_notify_add_rx_port(struct geneve_sock *gs)
 	int err;
 
 	if (sa_family == AF_INET) {
-		err = udp_add_offload(&gs->udp_offloads);
+		err = udp_add_offload(sock_net(sk), &gs->udp_offloads);
 		if (err)
 			pr_warn("geneve: udp_add_offload failed with status %d\n",
 				err);
