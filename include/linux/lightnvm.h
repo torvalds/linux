@@ -301,6 +301,9 @@ struct nvm_dev {
 	struct nvmm_type *mt;
 	void *mp;
 
+	/* System blocks */
+	struct nvm_sb_info sb;
+
 	/* Device information */
 	int nr_chnls;
 	int nr_planes;

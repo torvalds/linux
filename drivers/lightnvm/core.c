@@ -106,6 +106,9 @@ struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
 	lockdep_assert_held(&nvm_lock);
 
 	list_for_each_entry(mt, &nvm_mgrs, list) {
+		if (strncmp(dev->sb.mmtype, mt->name, NVM_MMTYPE_LEN))
+			continue;
+
 		ret = mt->register_mgr(dev);
 		if (ret < 0) {
 			pr_err("nvm: media mgr failed to init (%d) on dev %s\n",
@@ -569,9 +572,16 @@ int nvm_register(struct request_queue *q, char *disk_name,
 		}
 	}
 
+	ret = nvm_get_sysblock(dev, &dev->sb);
+	if (!ret)
+		pr_err("nvm: device not initialized.\n");
+	else if (ret < 0)
+		pr_err("nvm: err (%d) on device initialization\n", ret);
+
 	/* register device with a supported media manager */
 	down_write(&nvm_lock);
-	dev->mt = nvm_init_mgr(dev);
+	if (ret > 0)
+		dev->mt = nvm_init_mgr(dev);
 	list_add(&dev->devices, &nvm_devices);
 	up_write(&nvm_lock);
 
@@ -1030,6 +1040,7 @@ static long __nvm_ioctl_dev_init(struct nvm_ioctl_dev_init *init)
 {
 	struct nvm_dev *dev;
 	struct nvm_sb_info info;
+	int ret;
 
 	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(init->dev);
@@ -1044,7 +1055,17 @@ static long __nvm_ioctl_dev_init(struct nvm_ioctl_dev_init *init)
 	strncpy(info.mmtype, init->mmtype, NVM_MMTYPE_LEN);
 	info.fs_ppa.ppa = -1;
 
-	return nvm_init_sysblock(dev, &info);
+	ret = nvm_init_sysblock(dev, &info);
+	if (ret)
+		return ret;
+
+	memcpy(&dev->sb, &info, sizeof(struct nvm_sb_info));
+
+	down_write(&nvm_lock);
+	dev->mt = nvm_init_mgr(dev);
+	up_write(&nvm_lock);
+
+	return 0;
 }
 
 static long nvm_ioctl_dev_init(struct file *file, void __user *arg)
