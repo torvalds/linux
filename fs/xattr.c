@@ -208,25 +208,6 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 	return error;
 }
 
-/* Compare an extended attribute value with the given value */
-int vfs_xattr_cmp(struct dentry *dentry, const char *xattr_name,
-		  const char *value, size_t size, gfp_t flags)
-{
-	char *xattr_value = NULL;
-	int rc;
-
-	rc = vfs_getxattr_alloc(dentry, xattr_name, &xattr_value, 0, flags);
-	if (rc < 0)
-		return rc;
-
-	if ((rc != size) || (memcmp(xattr_value, value, rc) != 0))
-		rc = -EINVAL;
-	else
-		rc = 0;
-	kfree(xattr_value);
-	return rc;
-}
-
 ssize_t
 vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
 {
@@ -700,13 +681,20 @@ xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
 		return NULL;
 
 	for_each_xattr_handler(handlers, handler) {
-		const char *n = strcmp_prefix(*name, handler->prefix);
+		const char *n;
+
+		n = strcmp_prefix(*name, xattr_prefix(handler));
 		if (n) {
+			if (!handler->prefix ^ !*n) {
+				if (*n)
+					continue;
+				return ERR_PTR(-EINVAL);
+			}
 			*name = n;
-			break;
+			return handler;
 		}
 	}
-	return handler;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 /*
@@ -718,8 +706,8 @@ generic_getxattr(struct dentry *dentry, const char *name, void *buffer, size_t s
 	const struct xattr_handler *handler;
 
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
-	if (!handler)
-		return -EOPNOTSUPP;
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
 	return handler->get(handler, dentry, name, buffer, size);
 }
 
@@ -735,19 +723,25 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 	if (!buffer) {
 		for_each_xattr_handler(handlers, handler) {
-			size += handler->list(handler, dentry, NULL, 0,
-					      NULL, 0);
+			if (!handler->name ||
+			    (handler->list && !handler->list(dentry)))
+				continue;
+			size += strlen(handler->name) + 1;
 		}
 	} else {
 		char *buf = buffer;
+		size_t len;
 
 		for_each_xattr_handler(handlers, handler) {
-			size = handler->list(handler, dentry, buf, buffer_size,
-					     NULL, 0);
-			if (size > buffer_size)
+			if (!handler->name ||
+			    (handler->list && !handler->list(dentry)))
+				continue;
+			len = strlen(handler->name);
+			if (len + 1 > buffer_size)
 				return -ERANGE;
-			buf += size;
-			buffer_size -= size;
+			memcpy(buf, handler->name, len + 1);
+			buf += len + 1;
+			buffer_size -= len + 1;
 		}
 		size = buf - buffer;
 	}
@@ -765,8 +759,8 @@ generic_setxattr(struct dentry *dentry, const char *name, const void *value, siz
 	if (size == 0)
 		value = "";  /* empty EA, do not remove */
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
-	if (!handler)
-		return -EOPNOTSUPP;
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
 	return handler->set(handler, dentry, name, value, size, flags);
 }
 
@@ -780,8 +774,8 @@ generic_removexattr(struct dentry *dentry, const char *name)
 	const struct xattr_handler *handler;
 
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
-	if (!handler)
-		return -EOPNOTSUPP;
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
 	return handler->set(handler, dentry, name, NULL, 0, XATTR_REPLACE);
 }
 
@@ -808,7 +802,7 @@ EXPORT_SYMBOL(generic_removexattr);
 const char *xattr_full_name(const struct xattr_handler *handler,
 			    const char *name)
 {
-	size_t prefix_len = strlen(handler->prefix);
+	size_t prefix_len = strlen(xattr_prefix(handler));
 
 	return name - prefix_len;
 }
@@ -863,8 +857,22 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 	return ret;
 }
 
-static int __simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
-			      const void *value, size_t size, int flags)
+/**
+ * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
+ * @xattrs: target simple_xattr list
+ * @name: name of the extended attribute
+ * @value: value of the xattr. If %NULL, will remove the attribute.
+ * @size: size of the new xattr
+ * @flags: %XATTR_{CREATE|REPLACE}
+ *
+ * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
+ * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
+ * otherwise, fails with -ENODATA.
+ *
+ * Returns 0 on success, -errno on failure.
+ */
+int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+		     const void *value, size_t size, int flags)
 {
 	struct simple_xattr *xattr;
 	struct simple_xattr *new_xattr = NULL;
@@ -914,73 +922,64 @@ out:
 
 }
 
-/**
- * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
- * @xattrs: target simple_xattr list
- * @name: name of the new extended attribute
- * @value: value of the new xattr. If %NULL, will remove the attribute
- * @size: size of the new xattr
- * @flags: %XATTR_{CREATE|REPLACE}
- *
- * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
- * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
- * otherwise, fails with -ENODATA.
- *
- * Returns 0 on success, -errno on failure.
- */
-int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
-		     const void *value, size_t size, int flags)
-{
-	if (size == 0)
-		value = ""; /* empty EA, do not remove */
-	return __simple_xattr_set(xattrs, name, value, size, flags);
-}
-
-/*
- * xattr REMOVE operation for in-memory/pseudo filesystems
- */
-int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name)
-{
-	return __simple_xattr_set(xattrs, name, NULL, 0, XATTR_REPLACE);
-}
-
 static bool xattr_is_trusted(const char *name)
 {
 	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
 }
 
+static int xattr_list_one(char **buffer, ssize_t *remaining_size,
+			  const char *name)
+{
+	size_t len = strlen(name) + 1;
+	if (*buffer) {
+		if (*remaining_size < len)
+			return -ERANGE;
+		memcpy(*buffer, name, len);
+		*buffer += len;
+	}
+	*remaining_size -= len;
+	return 0;
+}
+
 /*
  * xattr LIST operation for in-memory/pseudo filesystems
  */
-ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
-			  size_t size)
+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
+			  char *buffer, size_t size)
 {
 	bool trusted = capable(CAP_SYS_ADMIN);
 	struct simple_xattr *xattr;
-	size_t used = 0;
+	ssize_t remaining_size = size;
+	int err;
+
+#ifdef CONFIG_FS_POSIX_ACL
+	if (inode->i_acl) {
+		err = xattr_list_one(&buffer, &remaining_size,
+				     XATTR_NAME_POSIX_ACL_ACCESS);
+		if (err)
+			return err;
+	}
+	if (inode->i_default_acl) {
+		err = xattr_list_one(&buffer, &remaining_size,
+				     XATTR_NAME_POSIX_ACL_DEFAULT);
+		if (err)
+			return err;
+	}
+#endif
 
 	spin_lock(&xattrs->lock);
 	list_for_each_entry(xattr, &xattrs->head, list) {
-		size_t len;
-
 		/* skip "trusted." attributes for unprivileged callers */
 		if (!trusted && xattr_is_trusted(xattr->name))
 			continue;
 
-		len = strlen(xattr->name) + 1;
-		used += len;
-		if (buffer) {
-			if (size < used) {
-				used = -ERANGE;
-				break;
-			}
-			memcpy(buffer, xattr->name, len);
-			buffer += len;
-		}
+		err = xattr_list_one(&buffer, &remaining_size, xattr->name);
+		if (err)
+			return err;
 	}
 	spin_unlock(&xattrs->lock);
 
-	return used;
+	return size - remaining_size;
 }
 
 /*

@@ -745,5 +745,14 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 #undef __copy_from_user_overflow
 #undef __copy_to_user_overflow
 
+/*
+ * We rely on the nested NMI work to allow atomic faults from the NMI path; the
+ * nested NMI paths are careful to preserve CR2.
+ *
+ * Caller must use pagefault_enable/disable, or run in interrupt context,
+ * and also do a uaccess_ok() check
+ */
+#define __copy_from_user_nmi __copy_from_user_inatomic
+
 #endif /* _ASM_X86_UACCESS_H */
 

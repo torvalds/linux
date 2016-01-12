@@ -8,6 +8,7 @@
 
 #include <linux/coda.h>
 #include <linux/coda_psdev.h>
+#include <linux/pagemap.h>
 #include "coda_linux.h"
 
 static inline int coda_fideq(struct CodaFid *fid1, struct CodaFid *fid2)
@@ -17,8 +18,7 @@ static inline int coda_fideq(struct CodaFid *fid1, struct CodaFid *fid2)
 
 static const struct inode_operations coda_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
-	.put_link	= page_put_link,
+	.get_link	= page_get_link,
 	.setattr	= coda_setattr,
 };
 
@@ -35,6 +35,7 @@ static void coda_fill_inode(struct inode *inode, struct coda_vattr *attr)
                 inode->i_fop = &coda_dir_operations;
         } else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &coda_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_data.a_ops = &coda_symlink_aops;
 		inode->i_mapping = &inode->i_data;
 	} else

@@ -315,12 +315,15 @@ fail:
 	return err;
 }
 
-static const char *f2fs_follow_link(struct dentry *dentry, void **cookie)
+static const char *f2fs_get_link(struct dentry *dentry,
+				 struct inode *inode,
+				 struct delayed_call *done)
 {
-	const char *link = page_follow_link_light(dentry, cookie);
+	const char *link = page_get_link(dentry, inode, done);
 	if (!IS_ERR(link) && !*link) {
 		/* this is broken symlink case */
-		page_put_link(NULL, *cookie);
+		do_delayed_call(done);
+		clear_delayed_call(done);
 		link = ERR_PTR(-ENOENT);
 	}
 	return link;
@@ -351,6 +354,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &f2fs_encrypted_symlink_inode_operations;
 	else
 		inode->i_op = &f2fs_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
 
 	f2fs_lock_op(sbi);
@@ -923,17 +927,21 @@ static int f2fs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 }
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
-static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cookie)
+static const char *f2fs_encrypted_get_link(struct dentry *dentry,
+					   struct inode *inode,
+					   struct delayed_call *done)
 {
 	struct page *cpage = NULL;
 	char *caddr, *paddr = NULL;
 	struct f2fs_str cstr;
 	struct f2fs_str pstr = FSTR_INIT(NULL, 0);
-	struct inode *inode = d_inode(dentry);
 	struct f2fs_encrypted_symlink_data *sd;
 	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	u32 max_size = inode->i_sb->s_blocksize;
 	int res;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	res = f2fs_get_encryption_info(inode);
 	if (res)
@@ -942,7 +950,7 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	cpage = read_mapping_page(inode->i_mapping, 0, NULL);
 	if (IS_ERR(cpage))
 		return ERR_CAST(cpage);
-	caddr = kmap(cpage);
+	caddr = page_address(cpage);
 	caddr[size] = 0;
 
 	/* Symlink is encrypted */
@@ -982,21 +990,19 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	/* Null-terminate the name */
 	paddr[res] = '\0';
 
-	kunmap(cpage);
 	page_cache_release(cpage);
-	return *cookie = paddr;
+	set_delayed_call(done, kfree_link, paddr);
+	return paddr;
 errout:
 	kfree(cstr.name);
 	f2fs_fname_crypto_free_buffer(&pstr);
-	kunmap(cpage);
 	page_cache_release(cpage);
 	return ERR_PTR(res);
 }
 
 const struct inode_operations f2fs_encrypted_symlink_inode_operations = {
 	.readlink       = generic_readlink,
-	.follow_link    = f2fs_encrypted_follow_link,
-	.put_link       = kfree_put_link,
+	.get_link       = f2fs_encrypted_get_link,
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
 	.setxattr	= generic_setxattr,
@@ -1031,8 +1037,7 @@ const struct inode_operations f2fs_dir_inode_operations = {
 
 const struct inode_operations f2fs_symlink_inode_operations = {
 	.readlink       = generic_readlink,
-	.follow_link    = f2fs_follow_link,
-	.put_link       = page_put_link,
+	.get_link       = f2fs_get_link,
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
 #ifdef CONFIG_F2FS_FS_XATTR

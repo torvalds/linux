@@ -45,7 +45,7 @@
 #include "event.h"
 #include "session.h"
 #include "debug.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 
 #include "intel-pt.h"
 #include "intel-bts.h"

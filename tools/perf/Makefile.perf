@@ -145,9 +145,10 @@ BISON   = bison
 STRIP   = strip
 AWK     = awk
 
-LIB_DIR          = $(srctree)/tools/lib/api/
+LIB_DIR		= $(srctree)/tools/lib/api/
 TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
-BPF_DIR = $(srctree)/tools/lib/bpf/
+BPF_DIR		= $(srctree)/tools/lib/bpf/
+SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
 
 # include config/Makefile by default and rule out
 # non-config cases
@@ -184,15 +185,17 @@ strip-libs = $(filter-out -l%,$(1))
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
   BPF_PATH=$(OUTPUT)
+  SUBCMD_PATH=$(OUTPUT)
 ifneq ($(subdir),)
-  LIB_PATH=$(OUTPUT)/../lib/api/
+  API_PATH=$(OUTPUT)/../lib/api/
 else
-  LIB_PATH=$(OUTPUT)
+  API_PATH=$(OUTPUT)
 endif
 else
   TE_PATH=$(TRACE_EVENT_DIR)
-  LIB_PATH=$(LIB_DIR)
+  API_PATH=$(LIB_DIR)
   BPF_PATH=$(BPF_DIR)
+  SUBCMD_PATH=$(SUBCMD_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
@@ -201,10 +204,12 @@ export LIBTRACEEVENT
 LIBTRACEEVENT_DYNAMIC_LIST = $(TE_PATH)libtraceevent-dynamic-list
 LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS = -Xlinker --dynamic-list=$(LIBTRACEEVENT_DYNAMIC_LIST)
 
-LIBAPI = $(LIB_PATH)libapi.a
+LIBAPI = $(API_PATH)libapi.a
 export LIBAPI
 
 LIBBPF = $(BPF_PATH)libbpf.a
+
+LIBSUBCMD = $(SUBCMD_PATH)libsubcmd.a
 
 # python extension build directories
 PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
@@ -257,7 +262,7 @@ export PERL_PATH
 
 LIB_FILE=$(OUTPUT)libperf.a
 
-PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT)
+PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT) $(LIBSUBCMD)
 ifndef NO_LIBBPF
   PERFLIBS += $(LIBBPF)
 endif
@@ -420,7 +425,7 @@ $(LIBTRACEEVENT)-clean:
 	$(call QUIET_CLEAN, libtraceevent)
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) O=$(OUTPUT) clean >/dev/null
 
-install-traceevent-plugins: $(LIBTRACEEVENT)
+install-traceevent-plugins: libtraceevent_plugins
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
 $(LIBAPI): fixdep FORCE
@@ -431,11 +436,18 @@ $(LIBAPI)-clean:
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
 $(LIBBPF): fixdep FORCE
-	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(realpath $(OUTPUT)FEATURE-DUMP)
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
 	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
+
+$(LIBSUBCMD): fixdep FORCE
+	$(Q)$(MAKE) -C $(SUBCMD_DIR) O=$(OUTPUT) $(OUTPUT)libsubcmd.a
+
+$(LIBSUBCMD)-clean:
+	$(call QUIET_CLEAN, libsubcmd)
+	$(Q)$(MAKE) -C $(SUBCMD_DIR) O=$(OUTPUT) clean
 
 help:
 	@echo 'Perf make targets:'
@@ -476,7 +488,7 @@ INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
 $(DOC_TARGETS):
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:doc=all)
 
-TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include ../lib/bpf
+TAG_FOLDERS= . ../lib ../include
 TAG_FILES= ../../include/uapi/linux/perf_event.h
 
 TAGS:
@@ -555,6 +567,9 @@ endif
 	$(call QUIET_INSTALL, perf_completion-script) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d'; \
 		$(INSTALL) perf-completion.sh '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d/perf'
+	$(call QUIET_INSTALL, perf-tip) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(tip_instdir_SQ)'; \
+		$(INSTALL) Documentation/tips.txt -t '$(DESTDIR_SQ)$(tip_instdir_SQ)'
 
 install-tests: all install-gtk
 	$(call QUIET_INSTALL, tests) \
@@ -582,15 +597,16 @@ $(INSTALL_DOC_TARGETS):
 #
 config-clean:
 	$(call QUIET_CLEAN, config)
-	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
+	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ $(if $(OUTPUT),OUTPUT=$(OUTPUT)feature/,) clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean config-clean
+clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
-	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
-		$(OUTPUT)util/intel-pt-decoder/inat-tables.c
+		$(OUTPUT)util/intel-pt-decoder/inat-tables.c $(OUTPUT)fixdep \
+		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue}.c
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 	$(python-clean)
 
