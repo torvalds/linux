@@ -192,14 +192,26 @@ struct dma_buf *ion_share_dma_buf(struct ion_client *client,
 int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
 
 /**
- * ion_import_dma_buf() - given an dma-buf fd from the ion exporter get handle
+ * ion_import_dma_buf() - get ion_handle from dma-buf
+ * @client:	the client
+ * @dmabuf:	the dma-buf
+ *
+ * Get the ion_buffer associated with the dma-buf and return the ion_handle.
+ * If no ion_handle exists for this buffer, return newly created ion_handle.
+ * If dma-buf from another exporter is passed, return ERR_PTR(-EINVAL)
+ */
+struct ion_handle *ion_import_dma_buf(struct ion_client *client,
+				      struct dma_buf *dmabuf);
+
+/**
+ * ion_import_dma_buf_fd() - given a dma-buf fd from the ion exporter get handle
  * @client:	the client
  * @fd:		the dma-buf fd
  *
- * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf,
- * import that fd and return a handle representing it.  If a dma-buf from
+ * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf_fd,
+ * import that fd and return a handle representing it. If a dma-buf from
  * another exporter is passed in this function will return ERR_PTR(-EINVAL)
  */
-struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
+struct ion_handle *ion_import_dma_buf_fd(struct ion_client *client, int fd);
 
 #endif /* _LINUX_ION_H */
