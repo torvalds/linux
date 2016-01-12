@@ -1,8 +1,8 @@
-#ifndef __PERF_PARSE_OPTIONS_H
-#define __PERF_PARSE_OPTIONS_H
+#ifndef __SUBCMD_PARSE_OPTIONS_H
+#define __SUBCMD_PARSE_OPTIONS_H
 
-#include <linux/kernel.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 enum parse_opt_type {
 	/* special types */
@@ -41,6 +41,8 @@ enum parse_opt_option_flags {
 	PARSE_OPT_DISABLED = 32,
 	PARSE_OPT_EXCLUSIVE = 64,
 	PARSE_OPT_NOEMPTY  = 128,
+	PARSE_OPT_NOBUILD  = 256,
+	PARSE_OPT_CANSKIP  = 512,
 };
 
 struct option;
@@ -96,6 +98,7 @@ struct option {
 	void *value;
 	const char *argh;
 	const char *help;
+	const char *build_opt;
 
 	int flags;
 	parse_opt_cb *callback;
@@ -149,6 +152,9 @@ struct option {
 /* parse_options() will filter out the processed options and leave the
  * non-option argments in argv[].
  * Returns the number of arguments left in argv[].
+ *
+ * NOTE: parse_options() and parse_options_subcommand() may call exit() in the
+ * case of an error (or for 'special' options like --list-cmds or --list-opts).
  */
 extern int parse_options(int argc, const char **argv,
                          const struct option *options,
@@ -195,15 +201,6 @@ extern int parse_options_usage(const char * const *usagestr,
 			       const char *optstr,
 			       bool short_opt);
 
-extern void parse_options_start(struct parse_opt_ctx_t *ctx,
-				int argc, const char **argv, int flags);
-
-extern int parse_options_step(struct parse_opt_ctx_t *ctx,
-			      const struct option *options,
-			      const char * const usagestr[]);
-
-extern int parse_options_end(struct parse_opt_ctx_t *ctx);
-
 
 /*----- some often used options -----*/
 extern int parse_opt_abbrev_cb(const struct option *, const char *, int);
@@ -226,4 +223,7 @@ extern int parse_opt_verbosity_cb(const struct option *, const char *, int);
 extern const char *parse_options_fix_filename(const char *prefix, const char *file);
 
 void set_option_flag(struct option *opts, int sopt, const char *lopt, int flag);
-#endif /* __PERF_PARSE_OPTIONS_H */
+void set_option_nobuild(struct option *opts, int shortopt, const char *longopt,
+			const char *build_opt, bool can_skip);
+
+#endif /* __SUBCMD_PARSE_OPTIONS_H */

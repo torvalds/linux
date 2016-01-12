@@ -297,7 +297,7 @@ static void __init setup_xstate_comp(void)
  */
 static void __init setup_init_fpu_buf(void)
 {
-	static int on_boot_cpu = 1;
+	static int on_boot_cpu __initdata = 1;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -608,7 +608,7 @@ static void fpu__init_disable_system_xstate(void)
 void __init fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
-	static int on_boot_cpu = 1;
+	static int on_boot_cpu __initdata = 1;
 	int err;
 
 	WARN_ON_FPU(!on_boot_cpu);

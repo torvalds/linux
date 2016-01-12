@@ -1,9 +1,15 @@
-#include "cache.h"
-#include "../builtin.h"
-#include "exec_cmd.h"
-#include "levenshtein.h"
-#include "help.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <termios.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include "subcmd-util.h"
+#include "help.h"
+#include "exec-cmd.h"
 
 void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {
@@ -17,7 +23,7 @@ void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 	cmds->names[cmds->cnt++] = ent;
 }
 
-static void clean_cmdnames(struct cmdnames *cmds)
+void clean_cmdnames(struct cmdnames *cmds)
 {
 	unsigned int i;
 
@@ -28,14 +34,14 @@ static void clean_cmdnames(struct cmdnames *cmds)
 	cmds->alloc = 0;
 }
 
-static int cmdname_compare(const void *a_, const void *b_)
+int cmdname_compare(const void *a_, const void *b_)
 {
 	struct cmdname *a = *(struct cmdname **)a_;
 	struct cmdname *b = *(struct cmdname **)b_;
 	return strcmp(a->name, b->name);
 }
 
-static void uniq(struct cmdnames *cmds)
+void uniq(struct cmdnames *cmds)
 {
 	unsigned int i, j;
 
@@ -69,6 +75,28 @@ void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes)
 		cmds->names[cj++] = cmds->names[ci++];
 
 	cmds->cnt = cj;
+}
+
+static void get_term_dimensions(struct winsize *ws)
+{
+	char *s = getenv("LINES");
+
+	if (s != NULL) {
+		ws->ws_row = atoi(s);
+		s = getenv("COLUMNS");
+		if (s != NULL) {
+			ws->ws_col = atoi(s);
+			if (ws->ws_row && ws->ws_col)
+				return;
+		}
+	}
+#ifdef TIOCGWINSZ
+	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
+	    ws->ws_row && ws->ws_col)
+		return;
+#endif
+	ws->ws_row = 25;
+	ws->ws_col = 80;
 }
 
 static void pretty_print_string_list(struct cmdnames *cmds, int longest)
@@ -114,6 +142,14 @@ static int is_executable(const char *name)
 	return st.st_mode & S_IXUSR;
 }
 
+static int has_extension(const char *filename, const char *ext)
+{
+	size_t len = strlen(filename);
+	size_t extlen = strlen(ext);
+
+	return len > extlen && !memcmp(filename + len - extlen, ext, extlen);
+}
+
 static void list_commands_in_dir(struct cmdnames *cmds,
 					 const char *path,
 					 const char *prefix)
@@ -121,8 +157,7 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 	int prefix_len;
 	DIR *dir = opendir(path);
 	struct dirent *de;
-	struct strbuf buf = STRBUF_INIT;
-	int len;
+	char *buf = NULL;
 
 	if (!dir)
 		return;
@@ -130,8 +165,7 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 		prefix = "perf-";
 	prefix_len = strlen(prefix);
 
-	strbuf_addf(&buf, "%s/", path);
-	len = buf.len;
+	astrcatf(&buf, "%s/", path);
 
 	while ((de = readdir(dir)) != NULL) {
 		int entlen;
@@ -139,9 +173,8 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 		if (prefixcmp(de->d_name, prefix))
 			continue;
 
-		strbuf_setlen(&buf, len);
-		strbuf_addstr(&buf, de->d_name);
-		if (!is_executable(buf.buf))
+		astrcat(&buf, de->d_name);
+		if (!is_executable(buf))
 			continue;
 
 		entlen = strlen(de->d_name) - prefix_len;
@@ -151,7 +184,7 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 		add_cmdname(cmds, de->d_name + prefix_len, entlen);
 	}
 	closedir(dir);
-	strbuf_release(&buf);
+	free(buf);
 }
 
 void load_command_list(const char *prefix,
@@ -159,7 +192,7 @@ void load_command_list(const char *prefix,
 		struct cmdnames *other_cmds)
 {
 	const char *env_path = getenv("PATH");
-	const char *exec_path = perf_exec_path();
+	char *exec_path = get_argv_exec_path();
 
 	if (exec_path) {
 		list_commands_in_dir(main_cmds, exec_path, prefix);
@@ -172,7 +205,7 @@ void load_command_list(const char *prefix,
 		char *paths, *path, *colon;
 		path = paths = strdup(env_path);
 		while (1) {
-			if ((colon = strchr(path, PATH_SEP)))
+			if ((colon = strchr(path, ':')))
 				*colon = 0;
 			if (!exec_path || strcmp(path, exec_path))
 				list_commands_in_dir(other_cmds, path, prefix);
@@ -187,6 +220,7 @@ void load_command_list(const char *prefix,
 		      sizeof(*other_cmds->names), cmdname_compare);
 		uniq(other_cmds);
 	}
+	free(exec_path);
 	exclude_cmds(other_cmds, main_cmds);
 }
 
@@ -203,13 +237,14 @@ void list_commands(const char *title, struct cmdnames *main_cmds,
 			longest = other_cmds->names[i]->len;
 
 	if (main_cmds->cnt) {
-		const char *exec_path = perf_exec_path();
+		char *exec_path = get_argv_exec_path();
 		printf("available %s in '%s'\n", title, exec_path);
 		printf("----------------");
 		mput_char('-', strlen(title) + strlen(exec_path));
 		putchar('\n');
 		pretty_print_string_list(main_cmds, longest);
 		putchar('\n');
+		free(exec_path);
 	}
 
 	if (other_cmds->cnt) {
@@ -229,111 +264,5 @@ int is_in_cmdlist(struct cmdnames *c, const char *s)
 	for (i = 0; i < c->cnt; i++)
 		if (!strcmp(s, c->names[i]->name))
 			return 1;
-	return 0;
-}
-
-static int autocorrect;
-static struct cmdnames aliases;
-
-static int perf_unknown_cmd_config(const char *var, const char *value, void *cb)
-{
-	if (!strcmp(var, "help.autocorrect"))
-		autocorrect = perf_config_int(var,value);
-	/* Also use aliases for command lookup */
-	if (!prefixcmp(var, "alias."))
-		add_cmdname(&aliases, var + 6, strlen(var + 6));
-
-	return perf_default_config(var, value, cb);
-}
-
-static int levenshtein_compare(const void *p1, const void *p2)
-{
-	const struct cmdname *const *c1 = p1, *const *c2 = p2;
-	const char *s1 = (*c1)->name, *s2 = (*c2)->name;
-	int l1 = (*c1)->len;
-	int l2 = (*c2)->len;
-	return l1 != l2 ? l1 - l2 : strcmp(s1, s2);
-}
-
-static void add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
-{
-	unsigned int i;
-
-	ALLOC_GROW(cmds->names, cmds->cnt + old->cnt, cmds->alloc);
-
-	for (i = 0; i < old->cnt; i++)
-		cmds->names[cmds->cnt++] = old->names[i];
-	zfree(&old->names);
-	old->cnt = 0;
-}
-
-const char *help_unknown_cmd(const char *cmd)
-{
-	unsigned int i, n = 0, best_similarity = 0;
-	struct cmdnames main_cmds, other_cmds;
-
-	memset(&main_cmds, 0, sizeof(main_cmds));
-	memset(&other_cmds, 0, sizeof(main_cmds));
-	memset(&aliases, 0, sizeof(aliases));
-
-	perf_config(perf_unknown_cmd_config, NULL);
-
-	load_command_list("perf-", &main_cmds, &other_cmds);
-
-	add_cmd_list(&main_cmds, &aliases);
-	add_cmd_list(&main_cmds, &other_cmds);
-	qsort(main_cmds.names, main_cmds.cnt,
-	      sizeof(main_cmds.names), cmdname_compare);
-	uniq(&main_cmds);
-
-	if (main_cmds.cnt) {
-		/* This reuses cmdname->len for similarity index */
-		for (i = 0; i < main_cmds.cnt; ++i)
-			main_cmds.names[i]->len =
-				levenshtein(cmd, main_cmds.names[i]->name, 0, 2, 1, 4);
-
-		qsort(main_cmds.names, main_cmds.cnt,
-		      sizeof(*main_cmds.names), levenshtein_compare);
-
-		best_similarity = main_cmds.names[0]->len;
-		n = 1;
-		while (n < main_cmds.cnt && best_similarity == main_cmds.names[n]->len)
-			++n;
-	}
-
-	if (autocorrect && n == 1) {
-		const char *assumed = main_cmds.names[0]->name;
-
-		main_cmds.names[0] = NULL;
-		clean_cmdnames(&main_cmds);
-		fprintf(stderr, "WARNING: You called a perf program named '%s', "
-			"which does not exist.\n"
-			"Continuing under the assumption that you meant '%s'\n",
-			cmd, assumed);
-		if (autocorrect > 0) {
-			fprintf(stderr, "in %0.1f seconds automatically...\n",
-				(float)autocorrect/10.0);
-			poll(NULL, 0, autocorrect * 100);
-		}
-		return assumed;
-	}
-
-	fprintf(stderr, "perf: '%s' is not a perf-command. See 'perf --help'.\n", cmd);
-
-	if (main_cmds.cnt && best_similarity < 6) {
-		fprintf(stderr, "\nDid you mean %s?\n",
-			n < 2 ? "this": "one of these");
-
-		for (i = 0; i < n; i++)
-			fprintf(stderr, "\t%s\n", main_cmds.names[i]->name);
-	}
-
-	exit(1);
-}
-
-int cmd_version(int argc __maybe_unused, const char **argv __maybe_unused,
-		const char *prefix __maybe_unused)
-{
-	printf("perf version %s\n", perf_version_string);
 	return 0;
 }

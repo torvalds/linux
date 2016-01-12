@@ -69,7 +69,7 @@ config X86_PTDUMP_CORE
 	def_bool n
 
 config X86_PTDUMP
-	bool "Export kernel pagetable layout to userspace via debugfs"
+	tristate "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
 	select DEBUG_FS
 	select X86_PTDUMP_CORE

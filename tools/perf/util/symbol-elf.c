@@ -1026,8 +1026,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				curr_dso->long_name_len = dso->long_name_len;
 				curr_map = map__new2(start, curr_dso,
 						     map->type);
+				dso__put(curr_dso);
 				if (curr_map == NULL) {
-					dso__put(curr_dso);
 					goto out_elf_end;
 				}
 				if (adjust_kernel_syms) {
@@ -1042,7 +1042,14 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				}
 				curr_dso->symtab_type = dso->symtab_type;
 				map_groups__insert(kmaps, curr_map);
+				/*
+				 * Add it before we drop the referece to curr_map,
+				 * i.e. while we still are sure to have a reference
+				 * to this DSO via curr_map->dso.
+				 */
 				dsos__add(&map->groups->machine->dsos, curr_dso);
+				/* kmaps already got it */
+				map__put(curr_map);
 				dso__set_loaded(curr_dso, map->type);
 			} else
 				curr_dso = curr_map->dso;

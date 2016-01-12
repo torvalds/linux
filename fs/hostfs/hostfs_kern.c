@@ -892,9 +892,14 @@ static const struct inode_operations hostfs_dir_iops = {
 	.setattr	= hostfs_setattr,
 };
 
-static const char *hostfs_follow_link(struct dentry *dentry, void **cookie)
+static const char *hostfs_get_link(struct dentry *dentry,
+				   struct inode *inode,
+				   struct delayed_call *done)
 {
-	char *link = __getname();
+	char *link;
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+	link = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (link) {
 		char *path = dentry_name(dentry);
 		int err = -ENOMEM;
@@ -905,25 +910,20 @@ static const char *hostfs_follow_link(struct dentry *dentry, void **cookie)
 			__putname(path);
 		}
 		if (err < 0) {
-			__putname(link);
+			kfree(link);
 			return ERR_PTR(err);
 		}
 	} else {
 		return ERR_PTR(-ENOMEM);
 	}
 
-	return *cookie = link;
-}
-
-static void hostfs_put_link(struct inode *unused, void *cookie)
-{
-	__putname(cookie);
+	set_delayed_call(done, kfree_link, link);
+	return link;
 }
 
 static const struct inode_operations hostfs_link_iops = {
 	.readlink	= generic_readlink,
-	.follow_link	= hostfs_follow_link,
-	.put_link	= hostfs_put_link,
+	.get_link	= hostfs_get_link,
 };
 
 static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)

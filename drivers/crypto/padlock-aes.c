@@ -515,7 +515,7 @@ static int __init padlock_init(void)
 	if (!x86_match_cpu(padlock_cpu_id))
 		return -ENODEV;
 
-	if (!cpu_has_xcrypt_enabled) {
+	if (!boot_cpu_has(X86_FEATURE_XCRYPT_EN)) {
 		printk(KERN_NOTICE PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
