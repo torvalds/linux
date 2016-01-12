@@ -45,6 +45,10 @@
 #include "accommon.h"
 #include "acdebug.h"
 
+#ifdef ACPI_APPLICATION
+#include "acapps.h"
+#endif
+
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbinput")
 
@@ -621,9 +625,7 @@ static u32 acpi_db_get_line(char *input_buffer)
 
 	/* Uppercase the actual command */
 
-	if (acpi_gbl_db_args[0]) {
-		acpi_ut_strupr(acpi_gbl_db_args[0]);
-	}
+	acpi_ut_strupr(acpi_gbl_db_args[0]);
 
 	count = i;
 	if (count) {
@@ -1048,11 +1050,17 @@ acpi_db_command_dispatch(char *input_buffer,
 		acpi_db_close_debug_file();
 		break;
 
-	case CMD_LOAD:
+	case CMD_LOAD:{
+			struct acpi_new_table_desc *list_head = NULL;
 
-		status =
-		    acpi_db_get_table_from_file(acpi_gbl_db_args[1], NULL,
-						FALSE);
+			status =
+			    ac_get_all_tables_from_file(acpi_gbl_db_args[1],
+							ACPI_GET_ALL_TABLES,
+							&list_head);
+			if (ACPI_SUCCESS(status)) {
+				acpi_db_load_tables(list_head);
+			}
+		}
 		break;
 
 	case CMD_OPEN:

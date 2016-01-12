@@ -117,6 +117,7 @@ acpi_exception(const char *module_name,
 		acpi_os_printf(ACPI_MSG_EXCEPTION "%s, ",
 			       acpi_format_exception(status));
 	}
+
 	va_start(arg_list, format);
 	acpi_os_vprintf(format, arg_list);
 	ACPI_MSG_SUFFIX;

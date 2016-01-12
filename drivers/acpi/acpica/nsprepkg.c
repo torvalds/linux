@@ -233,8 +233,9 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 		/* First element is the (Integer) revision */
 
-		status = acpi_ns_check_object_type(info, elements,
-						   ACPI_RTYPE_INTEGER, 0);
+		status =
+		    acpi_ns_check_object_type(info, elements,
+					      ACPI_RTYPE_INTEGER, 0);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
@@ -252,8 +253,9 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 		/* First element is the (Integer) count of subpackages to follow */
 
-		status = acpi_ns_check_object_type(info, elements,
-						   ACPI_RTYPE_INTEGER, 0);
+		status =
+		    acpi_ns_check_object_type(info, elements,
+					      ACPI_RTYPE_INTEGER, 0);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}

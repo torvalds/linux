@@ -145,6 +145,7 @@ ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_operand_cache);
 
 ACPI_INIT_GLOBAL(u32, acpi_gbl_startup_flags, 0);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_shutdown, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_early_initialization, TRUE);
 
 /* Global handlers */
 
@@ -164,7 +165,7 @@ ACPI_GLOBAL(u8, acpi_gbl_next_owner_id_offset);
 
 /* Initialization sequencing */
 
-ACPI_GLOBAL(u8, acpi_gbl_reg_methods_executed);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_reg_methods_enabled, FALSE);
 
 /* Misc */
 
