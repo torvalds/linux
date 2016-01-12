@@ -220,40 +220,69 @@ void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_generic_to_addr_mode);
 
+int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
+					struct ppa_addr *ppas, int nr_ppas)
+{
+	int i, plane_cnt, pl_idx;
+
+	if (dev->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
+		rqd->nr_pages = 1;
+		rqd->ppa_addr = ppas[0];
+
+		return 0;
+	}
+
+	plane_cnt = (1 << dev->plane_mode);
+	rqd->nr_pages = plane_cnt * nr_ppas;
+
+	if (dev->ops->max_phys_sect < rqd->nr_pages)
+		return -EINVAL;
+
+	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
+	if (!rqd->ppa_list) {
+		pr_err("nvm: failed to allocate dma memory\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nr_ppas; i++) {
+		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+			ppas[i].g.pl = pl_idx;
+			rqd->ppa_list[(i * plane_cnt) + pl_idx] = ppas[i];
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nvm_set_rqd_ppalist);
+
+void nvm_free_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	if (!rqd->ppa_list)
+		return;
+
+	nvm_dev_dma_free(dev, rqd->ppa_list, rqd->dma_ppa_list);
+}
+EXPORT_SYMBOL(nvm_free_rqd_ppalist);
+
 int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr ppa)
 {
-	int plane_cnt = 0, pl_idx, ret;
 	struct nvm_rq rqd;
+	int ret;
 
 	if (!dev->ops->erase_block)
 		return 0;
 
-	if (dev->plane_mode == NVM_PLANE_SINGLE) {
-		rqd.nr_pages = 1;
-		rqd.ppa_addr = ppa;
-	} else {
-		plane_cnt = (1 << dev->plane_mode);
-		rqd.nr_pages = plane_cnt;
+	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-		rqd.ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL,
-							&rqd.dma_ppa_list);
-		if (!rqd.ppa_list) {
-			pr_err("nvm: failed to allocate dma memory\n");
-			return -ENOMEM;
-		}
-
-		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-			ppa.g.pl = pl_idx;
-			rqd.ppa_list[pl_idx] = ppa;
-		}
-	}
+	ret = nvm_set_rqd_ppalist(dev, &rqd, &ppa, 1);
+	if (ret)
+		return ret;
 
 	nvm_generic_to_addr_mode(dev, &rqd);
 
 	ret = dev->ops->erase_block(dev, &rqd);
 
-	if (plane_cnt)
-		nvm_dev_dma_free(dev, rqd.ppa_list, rqd.dma_ppa_list);
+	nvm_free_rqd_ppalist(dev, &rqd);
 
 	return ret;
 }

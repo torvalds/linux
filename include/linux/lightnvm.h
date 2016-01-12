@@ -429,6 +429,9 @@ extern void nvm_unregister(char *);
 extern int nvm_submit_io(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_addr_to_generic_mode(struct nvm_dev *, struct nvm_rq *);
+extern int nvm_set_rqd_ppalist(struct nvm_dev *, struct nvm_rq *,
+							struct ppa_addr *, int);
+extern void nvm_free_rqd_ppalist(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_erase_ppa(struct nvm_dev *, struct ppa_addr);
 extern int nvm_erase_blk(struct nvm_dev *, struct nvm_block *);
 #else /* CONFIG_NVM */
