@@ -1352,7 +1352,7 @@ most_c_obj *get_channel_by_iface(struct most_interface *iface, int id)
 	return i->channel[id];
 }
 
-int channel_has_mbo(struct most_interface *iface, int id)
+int channel_has_mbo(struct most_interface *iface, int id, struct most_aim *aim)
 {
 	struct most_c_obj *c = get_channel_by_iface(iface, id);
 	unsigned long flags;
@@ -1360,6 +1360,11 @@ int channel_has_mbo(struct most_interface *iface, int id)
 
 	if (unlikely(!c))
 		return -EINVAL;
+
+	if (c->aim0.refs && c->aim1.refs &&
+	    ((aim == c->aim0.ptr && c->aim0.num_buffers <= 0) ||
+	     (aim == c->aim1.ptr && c->aim1.num_buffers <= 0)))
+		return 0;
 
 	spin_lock_irqsave(&c->fifo_lock, flags);
 	empty = list_empty(&c->fifo);

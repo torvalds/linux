@@ -50,6 +50,11 @@ struct aim_channel {
 static struct list_head channel_list;
 static spinlock_t ch_list_lock;
 
+static inline bool ch_has_mbo(struct aim_channel *c)
+{
+	return channel_has_mbo(c->iface, c->channel_id, &cdev_aim) > 0;
+}
+
 static struct aim_channel *get_channel(struct most_interface *iface, int id)
 {
 	struct aim_channel *channel, *tmp;
@@ -279,11 +284,6 @@ start_copy:
 	return copied;
 }
 
-static inline bool __must_check IS_ERR_OR_FALSE(int x)
-{
-	return x <= 0;
-}
-
 static unsigned int aim_poll(struct file *filp, poll_table *wait)
 {
 	struct aim_channel *c = filp->private_data;
@@ -295,7 +295,7 @@ static unsigned int aim_poll(struct file *filp, poll_table *wait)
 		if (!kfifo_is_empty(&c->fifo))
 			mask |= POLLIN | POLLRDNORM;
 	} else {
-		if (!IS_ERR_OR_FALSE(channel_has_mbo(c->iface, c->channel_id)))
+		if (ch_has_mbo(c))
 			mask |= POLLOUT | POLLWRNORM;
 	}
 	return mask;
