@@ -2085,7 +2085,7 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring = &dev_priv->ring[VCS2];
 
-	ring->name = "bds2 ring";
+	ring->name = "bsd2 ring";
 	ring->id = VCS2;
 	ring->mmio_base = GEN8_BSD2_RING_BASE;
 
