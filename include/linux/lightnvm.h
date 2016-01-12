@@ -58,8 +58,9 @@ enum {
 	/* Block Types */
 	NVM_BLK_T_FREE		= 0x0,
 	NVM_BLK_T_BAD		= 0x1,
-	NVM_BLK_T_DEV		= 0x2,
-	NVM_BLK_T_HOST		= 0x4,
+	NVM_BLK_T_GRWN_BAD	= 0x2,
+	NVM_BLK_T_DEV		= 0x4,
+	NVM_BLK_T_HOST		= 0x8,
 };
 
 struct nvm_id_group {
