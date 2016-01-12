@@ -632,6 +632,13 @@ static inline struct cfq_group *cfqg_parent(struct cfq_group *cfqg)
 	return pblkg ? blkg_to_cfqg(pblkg) : NULL;
 }
 
+static inline bool cfqg_is_descendant(struct cfq_group *cfqg,
+				      struct cfq_group *ancestor)
+{
+	return cgroup_is_descendant(cfqg_to_blkg(cfqg)->blkcg->css.cgroup,
+				    cfqg_to_blkg(ancestor)->blkcg->css.cgroup);
+}
+
 static inline void cfqg_get(struct cfq_group *cfqg)
 {
 	return blkg_get(cfqg_to_blkg(cfqg));
@@ -758,6 +765,11 @@ static void cfqg_stats_xfer_dead(struct cfq_group *cfqg)
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
 
 static inline struct cfq_group *cfqg_parent(struct cfq_group *cfqg) { return NULL; }
+static inline bool cfqg_is_descendant(struct cfq_group *cfqg,
+				      struct cfq_group *ancestor)
+{
+	return true;
+}
 static inline void cfqg_get(struct cfq_group *cfqg) { }
 static inline void cfqg_put(struct cfq_group *cfqg) { }
 
@@ -3953,7 +3965,12 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (rq_is_sync(rq) && !cfq_cfqq_sync(cfqq))
 		return true;
 
-	if (new_cfqq->cfqg != cfqq->cfqg)
+	/*
+	 * Treat ancestors of current cgroup the same way as current cgroup.
+	 * For anybody else we disallow preemption to guarantee service
+	 * fairness among cgroups.
+	 */
+	if (!cfqg_is_descendant(cfqq->cfqg, new_cfqq->cfqg))
 		return false;
 
 	if (cfq_slice_used(cfqq))
