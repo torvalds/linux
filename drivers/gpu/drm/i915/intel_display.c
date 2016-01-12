@@ -2457,11 +2457,11 @@ static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
 
 /* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
  * is assumed to be a power-of-two. */
-unsigned long intel_gen4_compute_page_offset(struct drm_i915_private *dev_priv,
-					     int *x, int *y,
-					     uint64_t fb_modifier,
-					     unsigned int cpp,
-					     unsigned int pitch)
+unsigned long intel_compute_tile_offset(struct drm_i915_private *dev_priv,
+					int *x, int *y,
+					uint64_t fb_modifier,
+					unsigned int cpp,
+					unsigned int pitch)
 {
 	if (fb_modifier != DRM_FORMAT_MOD_NONE) {
 		unsigned int tile_size, tile_width, tile_height;
@@ -2784,10 +2784,10 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		intel_crtc->dspaddr_offset =
-			intel_gen4_compute_page_offset(dev_priv, &x, &y,
-						       fb->modifier[0],
-						       pixel_size,
-						       fb->pitches[0]);
+			intel_compute_tile_offset(dev_priv, &x, &y,
+						  fb->modifier[0],
+						  pixel_size,
+						  fb->pitches[0]);
 		linear_offset -= intel_crtc->dspaddr_offset;
 	} else {
 		intel_crtc->dspaddr_offset = linear_offset;
@@ -2892,10 +2892,10 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 
 	linear_offset = y * fb->pitches[0] + x * pixel_size;
 	intel_crtc->dspaddr_offset =
-		intel_gen4_compute_page_offset(dev_priv, &x, &y,
-					       fb->modifier[0],
-					       pixel_size,
-					       fb->pitches[0]);
+		intel_compute_tile_offset(dev_priv, &x, &y,
+					  fb->modifier[0],
+					  pixel_size,
+					  fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
 	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;

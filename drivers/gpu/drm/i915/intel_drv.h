@@ -1195,11 +1195,11 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
-unsigned long intel_gen4_compute_page_offset(struct drm_i915_private *dev_priv,
-					     int *x, int *y,
-					     uint64_t fb_modifier,
-					     unsigned int cpp,
-					     unsigned int pitch);
+unsigned long intel_compute_tile_offset(struct drm_i915_private *dev_priv,
+					int *x, int *y,
+					uint64_t fb_modifier,
+					unsigned int cpp,
+					unsigned int pitch);
 void intel_prepare_reset(struct drm_device *dev);
 void intel_finish_reset(struct drm_device *dev);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
