@@ -2268,21 +2268,15 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 master_ctl;
+	u32 master_ctl, iir;
 	irqreturn_t ret = IRQ_NONE;
-	uint32_t tmp = 0;
 	enum pipe pipe;
-	u32 aux_mask = GEN8_AUX_CHANNEL_A;
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
-
-	if (INTEL_INFO(dev_priv)->gen >= 9)
-		aux_mask |=  GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
-			GEN9_AUX_CHANNEL_D;
 
 	master_ctl = I915_READ_FW(GEN8_MASTER_IRQ);
 	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
@@ -2296,11 +2290,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	ret = gen8_gt_irq_handler(dev_priv, master_ctl);
 
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
-		tmp = I915_READ(GEN8_DE_MISC_IIR);
-		if (tmp) {
-			I915_WRITE(GEN8_DE_MISC_IIR, tmp);
+		iir = I915_READ(GEN8_DE_MISC_IIR);
+		if (iir) {
+			I915_WRITE(GEN8_DE_MISC_IIR, iir);
 			ret = IRQ_HANDLED;
-			if (tmp & GEN8_DE_MISC_GSE)
+			if (iir & GEN8_DE_MISC_GSE)
 				intel_opregion_asle_intr(dev);
 			else
 				DRM_ERROR("Unexpected DE Misc interrupt\n");
@@ -2310,33 +2304,40 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	}
 
 	if (master_ctl & GEN8_DE_PORT_IRQ) {
-		tmp = I915_READ(GEN8_DE_PORT_IIR);
-		if (tmp) {
+		iir = I915_READ(GEN8_DE_PORT_IIR);
+		if (iir) {
+			u32 tmp_mask;
 			bool found = false;
-			u32 hotplug_trigger = 0;
 
-			if (IS_BROXTON(dev_priv))
-				hotplug_trigger = tmp & BXT_DE_PORT_HOTPLUG_MASK;
-			else if (IS_BROADWELL(dev_priv))
-				hotplug_trigger = tmp & GEN8_PORT_DP_A_HOTPLUG;
-
-			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
+			I915_WRITE(GEN8_DE_PORT_IIR, iir);
 			ret = IRQ_HANDLED;
 
-			if (tmp & aux_mask) {
+			tmp_mask = GEN8_AUX_CHANNEL_A;
+			if (INTEL_INFO(dev_priv)->gen >= 9)
+				tmp_mask |= GEN9_AUX_CHANNEL_B |
+					    GEN9_AUX_CHANNEL_C |
+					    GEN9_AUX_CHANNEL_D;
+
+			if (iir & tmp_mask) {
 				dp_aux_irq_handler(dev);
 				found = true;
 			}
 
-			if (hotplug_trigger) {
-				if (IS_BROXTON(dev))
-					bxt_hpd_irq_handler(dev, hotplug_trigger, hpd_bxt);
-				else
-					ilk_hpd_irq_handler(dev, hotplug_trigger, hpd_bdw);
-				found = true;
+			if (IS_BROXTON(dev_priv)) {
+				tmp_mask = iir & BXT_DE_PORT_HOTPLUG_MASK;
+				if (tmp_mask) {
+					bxt_hpd_irq_handler(dev, tmp_mask, hpd_bxt);
+					found = true;
+				}
+			} else if (IS_BROADWELL(dev_priv)) {
+				tmp_mask = iir & GEN8_PORT_DP_A_HOTPLUG;
+				if (tmp_mask) {
+					ilk_hpd_irq_handler(dev, tmp_mask, hpd_bdw);
+					found = true;
+				}
 			}
 
-			if (IS_BROXTON(dev) && (tmp & BXT_DE_PORT_GMBUS)) {
+			if (IS_BROXTON(dev) && (iir & BXT_DE_PORT_GMBUS)) {
 				gmbus_irq_handler(dev);
 				found = true;
 			}
@@ -2349,49 +2350,51 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	}
 
 	for_each_pipe(dev_priv, pipe) {
-		uint32_t pipe_iir, flip_done = 0, fault_errors = 0;
+		u32 flip_done, fault_errors;
 
 		if (!(master_ctl & GEN8_DE_PIPE_IRQ(pipe)))
 			continue;
 
-		pipe_iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
-		if (pipe_iir) {
-			ret = IRQ_HANDLED;
-			I915_WRITE(GEN8_DE_PIPE_IIR(pipe), pipe_iir);
-
-			if (pipe_iir & GEN8_PIPE_VBLANK &&
-			    intel_pipe_handle_vblank(dev, pipe))
-				intel_check_page_flip(dev, pipe);
-
-			if (INTEL_INFO(dev_priv)->gen >= 9)
-				flip_done = pipe_iir & GEN9_PIPE_PLANE1_FLIP_DONE;
-			else
-				flip_done = pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE;
-
-			if (flip_done) {
-				intel_prepare_page_flip(dev, pipe);
-				intel_finish_page_flip_plane(dev, pipe);
-			}
-
-			if (pipe_iir & GEN8_PIPE_CDCLK_CRC_DONE)
-				hsw_pipe_crc_irq_handler(dev, pipe);
-
-			if (pipe_iir & GEN8_PIPE_FIFO_UNDERRUN)
-				intel_cpu_fifo_underrun_irq_handler(dev_priv,
-								    pipe);
-
-
-			if (INTEL_INFO(dev_priv)->gen >= 9)
-				fault_errors = pipe_iir & GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
-			else
-				fault_errors = pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
-
-			if (fault_errors)
-				DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
-					  pipe_name(pipe),
-					  pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS);
-		} else
+		iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
+		if (!iir) {
 			DRM_ERROR("The master control interrupt lied (DE PIPE)!\n");
+			continue;
+		}
+
+		ret = IRQ_HANDLED;
+		I915_WRITE(GEN8_DE_PIPE_IIR(pipe), iir);
+
+		if (iir & GEN8_PIPE_VBLANK &&
+		    intel_pipe_handle_vblank(dev, pipe))
+			intel_check_page_flip(dev, pipe);
+
+		flip_done = iir;
+		if (INTEL_INFO(dev_priv)->gen >= 9)
+			flip_done &= GEN9_PIPE_PLANE1_FLIP_DONE;
+		else
+			flip_done &= GEN8_PIPE_PRIMARY_FLIP_DONE;
+
+		if (flip_done) {
+			intel_prepare_page_flip(dev, pipe);
+			intel_finish_page_flip_plane(dev, pipe);
+		}
+
+		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
+			hsw_pipe_crc_irq_handler(dev, pipe);
+
+		if (iir & GEN8_PIPE_FIFO_UNDERRUN)
+			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+
+		fault_errors = iir;
+		if (INTEL_INFO(dev_priv)->gen >= 9)
+			fault_errors &= GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
+		else
+			fault_errors &= GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
+
+		if (fault_errors)
+			DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
+				  pipe_name(pipe),
+				  fault_errors);
 	}
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_PCH_NOP(dev) &&
@@ -2401,15 +2404,15 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		 * scheme also closed the SDE interrupt handling race we've seen
 		 * on older pch-split platforms. But this needs testing.
 		 */
-		u32 pch_iir = I915_READ(SDEIIR);
-		if (pch_iir) {
-			I915_WRITE(SDEIIR, pch_iir);
+		iir = I915_READ(SDEIIR);
+		if (iir) {
+			I915_WRITE(SDEIIR, iir);
 			ret = IRQ_HANDLED;
 
 			if (HAS_PCH_SPT(dev_priv))
-				spt_irq_handler(dev, pch_iir);
+				spt_irq_handler(dev, iir);
 			else
-				cpt_irq_handler(dev, pch_iir);
+				cpt_irq_handler(dev, iir);
 		} else {
 			/*
 			 * Like on previous PCH there seems to be something
