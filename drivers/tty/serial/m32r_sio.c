@@ -47,7 +47,6 @@
 #define BAUD_RATE	115200
 
 #include <linux/serial_core.h>
-#include "m32r_sio.h"
 #include "m32r_sio_reg.h"
 
 /*
@@ -98,7 +97,16 @@
 
 #endif /* !CONFIG_PLAT_USRV */
 
-static struct old_serial_port old_serial_port[] = {
+static const struct {
+	unsigned int uart;
+	unsigned int baud_base;
+	unsigned int port;
+	unsigned int irq;
+	unsigned int flags;
+	unsigned char io_type;
+	unsigned char __iomem *iomem_base;
+	unsigned short iomem_reg_shift;
+} old_serial_port[] = {
 	SERIAL_PORT_DFNS
 };
 
@@ -1112,28 +1120,6 @@ static struct uart_driver m32r_sio_reg = {
 	.cons			= M32R_SIO_CONSOLE,
 };
 
-/**
- *	m32r_sio_suspend_port - suspend one serial port
- *	@line: serial line number
- *
- *	Suspend one serial port.
- */
-void m32r_sio_suspend_port(int line)
-{
-	uart_suspend_port(&m32r_sio_reg, &m32r_sio_ports[line].port);
-}
-
-/**
- *	m32r_sio_resume_port - resume one serial port
- *	@line: serial line number
- *
- *	Resume one serial port.
- */
-void m32r_sio_resume_port(int line)
-{
-	uart_resume_port(&m32r_sio_reg, &m32r_sio_ports[line].port);
-}
-
 static int __init m32r_sio_init(void)
 {
 	int ret, i;
@@ -1162,9 +1148,6 @@ static void __exit m32r_sio_exit(void)
 
 module_init(m32r_sio_init);
 module_exit(m32r_sio_exit);
-
-EXPORT_SYMBOL(m32r_sio_suspend_port);
-EXPORT_SYMBOL(m32r_sio_resume_port);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic M32R SIO serial driver");
