@@ -72,7 +72,7 @@ struct reada_extent {
 	spinlock_t		lock;
 	struct reada_zone	*zones[BTRFS_MAX_MIRRORS];
 	int			nzones;
-	struct btrfs_device	*scheduled_for;
+	int			scheduled;
 };
 
 struct reada_zone {
@@ -115,7 +115,6 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 	u64 bytenr;
 	u64 generation;
 	struct list_head list;
-	struct btrfs_device *for_dev;
 
 	if (eb)
 		level = btrfs_header_level(eb);
@@ -126,8 +125,7 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 	 * don't need the lock anymore
 	 */
 	list_replace_init(&re->extctl, &list);
-	for_dev = re->scheduled_for;
-	re->scheduled_for = NULL;
+	re->scheduled = 0;
 	spin_unlock(&re->lock);
 
 	/*
@@ -211,9 +209,6 @@ cleanup:
 
 		reada_extent_put(fs_info, re);	/* one ref for each entry */
 	}
-
-	if (for_dev)
-		atomic_dec(&for_dev->reada_in_flight);
 
 	return;
 }
@@ -535,8 +530,6 @@ static void reada_extent_put(struct btrfs_fs_info *fs_info,
 		kref_put(&zone->refcnt, reada_zone_release);
 		spin_unlock(&fs_info->reada_lock);
 	}
-	if (re->scheduled_for)
-		atomic_dec(&re->scheduled_for->reada_in_flight);
 
 	kfree(re);
 }
@@ -702,12 +695,12 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	spin_unlock(&fs_info->reada_lock);
 
 	spin_lock(&re->lock);
-	if (re->scheduled_for || list_empty(&re->extctl)) {
+	if (re->scheduled || list_empty(&re->extctl)) {
 		spin_unlock(&re->lock);
 		reada_extent_put(fs_info, re);
 		return 0;
 	}
-	re->scheduled_for = dev;
+	re->scheduled = 1;
 	spin_unlock(&re->lock);
 
 	/*
@@ -732,6 +725,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	if (eb)
 		free_extent_buffer(eb);
 
+	atomic_dec(&dev->reada_in_flight);
 	reada_extent_put(fs_info, re);
 
 	return 1;
@@ -850,10 +844,9 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			if (ret == 0)
 				break;
 			printk(KERN_DEBUG
-				"  re: logical %llu size %u empty %d for %lld",
+				"  re: logical %llu size %u empty %d scheduled %d",
 				re->logical, fs_info->tree_root->nodesize,
-				list_empty(&re->extctl), re->scheduled_for ?
-				re->scheduled_for->devid : -1);
+				list_empty(&re->extctl), re->scheduled);
 
 			for (i = 0; i < re->nzones; ++i) {
 				printk(KERN_CONT " zone %llu-%llu devs",
@@ -880,15 +873,14 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 					     index, 1);
 		if (ret == 0)
 			break;
-		if (!re->scheduled_for) {
+		if (!re->scheduled) {
 			index = (re->logical >> PAGE_CACHE_SHIFT) + 1;
 			continue;
 		}
 		printk(KERN_DEBUG
-			"re: logical %llu size %u list empty %d for %lld",
+			"re: logical %llu size %u list empty %d scheduled %d",
 			re->logical, fs_info->tree_root->nodesize,
-			list_empty(&re->extctl),
-			re->scheduled_for ? re->scheduled_for->devid : -1);
+			list_empty(&re->extctl), re->scheduled);
 		for (i = 0; i < re->nzones; ++i) {
 			printk(KERN_CONT " zone %llu-%llu devs",
 				re->zones[i]->start,
