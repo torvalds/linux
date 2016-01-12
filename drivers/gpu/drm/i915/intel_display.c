@@ -2223,6 +2223,11 @@ static bool need_vtd_wa(struct drm_device *dev)
 	return false;
 }
 
+static unsigned int intel_tile_size(const struct drm_i915_private *dev_priv)
+{
+	return IS_GEN2(dev_priv) ? 2048 : 4096;
+}
+
 static unsigned int intel_tile_width(const struct drm_i915_private *dev_priv,
 				     uint64_t fb_modifier, unsigned int cpp)
 {
@@ -2260,67 +2265,34 @@ static unsigned int intel_tile_width(const struct drm_i915_private *dev_priv,
 	}
 }
 
-unsigned int
-intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
-		  uint64_t fb_format_modifier, unsigned int plane)
+unsigned int intel_tile_height(const struct drm_i915_private *dev_priv,
+			       uint64_t fb_modifier, unsigned int cpp)
 {
-	unsigned int tile_height;
-	uint32_t pixel_bytes;
-
-	switch (fb_format_modifier) {
-	case DRM_FORMAT_MOD_NONE:
-		tile_height = 1;
-		break;
-	case I915_FORMAT_MOD_X_TILED:
-		tile_height = IS_GEN2(dev) ? 16 : 8;
-		break;
-	case I915_FORMAT_MOD_Y_TILED:
-		tile_height = 32;
-		break;
-	case I915_FORMAT_MOD_Yf_TILED:
-		pixel_bytes = drm_format_plane_cpp(pixel_format, plane);
-		switch (pixel_bytes) {
-		default:
-		case 1:
-			tile_height = 64;
-			break;
-		case 2:
-		case 4:
-			tile_height = 32;
-			break;
-		case 8:
-			tile_height = 16;
-			break;
-		case 16:
-			WARN_ONCE(1,
-				  "128-bit pixels are not supported for display!");
-			tile_height = 16;
-			break;
-		}
-		break;
-	default:
-		MISSING_CASE(fb_format_modifier);
-		tile_height = 1;
-		break;
-	}
-
-	return tile_height;
+	if (fb_modifier == DRM_FORMAT_MOD_NONE)
+		return 1;
+	else
+		return intel_tile_size(dev_priv) /
+			intel_tile_width(dev_priv, fb_modifier, cpp);
 }
 
 unsigned int
 intel_fb_align_height(struct drm_device *dev, unsigned int height,
-		      uint32_t pixel_format, uint64_t fb_format_modifier)
+		      uint32_t pixel_format, uint64_t fb_modifier)
 {
-	return ALIGN(height, intel_tile_height(dev, pixel_format,
-					       fb_format_modifier, 0));
+	unsigned int cpp = drm_format_plane_cpp(pixel_format, 0);
+	unsigned int tile_height = intel_tile_height(to_i915(dev), fb_modifier, cpp);
+
+	return ALIGN(height, tile_height);
 }
 
 static void
 intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 			const struct drm_plane_state *plane_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 	struct intel_rotation_info *info = &view->params.rotation_info;
 	unsigned int tile_height, tile_pitch;
+	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	*view = i915_ggtt_view_normal;
 
@@ -2338,22 +2310,19 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	info->uv_offset = fb->offsets[1];
 	info->fb_modifier = fb->modifier[0];
 
-	tile_height = intel_tile_height(fb->dev, fb->pixel_format,
-					fb->modifier[0], 0);
+	tile_height = intel_tile_height(dev_priv, fb->modifier[0], cpp);
 	tile_pitch = PAGE_SIZE / tile_height;
 	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_pitch);
 	info->height_pages = DIV_ROUND_UP(fb->height, tile_height);
 	info->size = info->width_pages * info->height_pages * PAGE_SIZE;
 
 	if (info->pixel_format == DRM_FORMAT_NV12) {
-		tile_height = intel_tile_height(fb->dev, fb->pixel_format,
-						fb->modifier[0], 1);
+		cpp = drm_format_plane_cpp(fb->pixel_format, 1);
+		tile_height = intel_tile_height(dev_priv, fb->modifier[1], cpp);
 		tile_pitch = PAGE_SIZE / tile_height;
-		info->width_pages_uv = DIV_ROUND_UP(fb->pitches[0], tile_pitch);
-		info->height_pages_uv = DIV_ROUND_UP(fb->height / 2,
-						     tile_height);
-		info->size_uv = info->width_pages_uv * info->height_pages_uv *
-				PAGE_SIZE;
+		info->width_pages_uv = DIV_ROUND_UP(fb->pitches[1], tile_pitch);
+		info->height_pages_uv = DIV_ROUND_UP(fb->height / 2, tile_height);
+		info->size_uv = info->width_pages_uv * info->height_pages_uv * PAGE_SIZE;
 	}
 }
 
@@ -3140,9 +3109,10 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	WARN_ON(drm_rect_width(&plane_state->src) == 0);
 
 	if (intel_rotation_90_or_270(rotation)) {
+		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
 		/* stride = Surface height in tiles */
-		tile_height = intel_tile_height(dev, fb->pixel_format,
-						fb->modifier[0], 0);
+		tile_height = intel_tile_height(dev_priv, fb->modifier[0], cpp);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
 		x_offset = stride * tile_height - src_y - src_h;
 		y_offset = src_x;
@@ -11401,8 +11371,7 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 	 */
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride = Surface height in tiles */
-		tile_height = intel_tile_height(dev, fb->pixel_format,
-						fb->modifier[0], 0);
+		tile_height = intel_tile_height(dev_priv, fb->modifier[0], 0);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
 	} else {
 		stride = fb->pitches[0] /

@@ -1155,9 +1155,8 @@ int intel_plane_atomic_set_property(struct drm_plane *plane,
 int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 				    struct drm_plane_state *plane_state);
 
-unsigned int
-intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
-		  uint64_t fb_format_modifier, unsigned int plane);
+unsigned int intel_tile_height(const struct drm_i915_private *dev_priv,
+			       uint64_t fb_modifier, unsigned int cpp);
 
 static inline bool
 intel_rotation_90_or_270(unsigned int rotation)
