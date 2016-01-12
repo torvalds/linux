@@ -62,11 +62,9 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	rc = irq_of_parse_and_map(child, 0);
 	if (rc > 0) {
 		phy->irq = rc;
-		if (mdio->irq)
-			mdio->irq[addr] = rc;
+		mdio->irq[addr] = rc;
 	} else {
-		if (mdio->irq)
-			phy->irq = mdio->irq[addr];
+		phy->irq = mdio->irq[addr];
 	}
 
 	if (of_property_read_bool(child, "broken-turn-around"))
