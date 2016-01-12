@@ -110,6 +110,10 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (intf) {
 		if (add_uevent_var(env, "INTERFACE=%u", intf->interface_id))
 			return -ENOMEM;
+		if (add_uevent_var(env, "GREYBUS_ID=%04x/%04x",
+				   (u16)(intf->vendor_id & 0xffff),
+				   (u16)(intf->product_id & 0xffff)))
+			return -ENOMEM;
 	}
 
 	if (bundle) {
