@@ -207,6 +207,26 @@ static int ccp_sha_digest(struct ahash_request *req)
 	return ccp_sha_finup(req);
 }
 
+static int ccp_sha_export(struct ahash_request *req, void *out)
+{
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_sha_req_ctx *state = out;
+
+	*state = *rctx;
+
+	return 0;
+}
+
+static int ccp_sha_import(struct ahash_request *req, const void *in)
+{
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	const struct ccp_sha_req_ctx *state = in;
+
+	*rctx = *state;
+
+	return 0;
+}
+
 static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int key_len)
 {
@@ -403,9 +423,12 @@ static int ccp_register_sha_alg(struct list_head *head,
 	alg->final = ccp_sha_final;
 	alg->finup = ccp_sha_finup;
 	alg->digest = ccp_sha_digest;
+	alg->export = ccp_sha_export;
+	alg->import = ccp_sha_import;
 
 	halg = &alg->halg;
 	halg->digestsize = def->digest_size;
+	halg->statesize = sizeof(struct ccp_sha_req_ctx);
 
 	base = &halg->base;
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
