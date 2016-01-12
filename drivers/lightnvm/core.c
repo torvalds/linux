@@ -245,10 +245,10 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < nr_ppas; i++) {
-		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+	for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+		for (i = 0; i < nr_ppas; i++) {
 			ppas[i].g.pl = pl_idx;
-			rqd->ppa_list[(i * plane_cnt) + pl_idx] = ppas[i];
+			rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppas[i];
 		}
 	}
 
