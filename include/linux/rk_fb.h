@@ -215,6 +215,7 @@ enum {
 enum data_format {
 	ARGB888,
 	RGB888,
+	BGR888,
 	RGB565,
 	XRGB888,
 	XBGR888,
