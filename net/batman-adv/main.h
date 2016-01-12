@@ -100,11 +100,6 @@
  */
 #define BATADV_TQ_SIMILARITY_THRESHOLD 50
 
-/* how much worse secondary interfaces may be to be considered as bonding
- * candidates
- */
-#define BATADV_BONDING_TQ_THRESHOLD	50
-
 /* should not be bigger than 512 bytes or change the size of
  * forw_packet->direct_link_flags
  */
