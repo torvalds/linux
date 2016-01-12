@@ -119,7 +119,7 @@ nvkm_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 	struct pci_bus *pbus;
 	int ret;
 
-	if (pci || !pci_is_pcie(pci->pdev))
+	if (!pci || !pci_is_pcie(pci->pdev))
 		return 0;
 	pbus = pci->pdev->bus;
 
