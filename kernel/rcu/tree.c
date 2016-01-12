@@ -3649,6 +3649,11 @@ static void sync_sched_exp_handler(void *data)
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
 	    __this_cpu_read(rcu_sched_data.cpu_no_qs.b.exp))
 		return;
+	if (rcu_is_cpu_rrupt_from_idle()) {
+		rcu_report_exp_rdp(&rcu_sched_state,
+				   this_cpu_ptr(&rcu_sched_data), true);
+		return;
+	}
 	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, true);
 	resched_cpu(smp_processor_id());
 }
