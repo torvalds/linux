@@ -1198,8 +1198,8 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 unsigned long intel_gen4_compute_page_offset(struct drm_i915_private *dev_priv,
 					     int *x, int *y,
-					     unsigned int tiling_mode,
-					     unsigned int bpp,
+					     uint64_t fb_modifier,
+					     unsigned int cpp,
 					     unsigned int pitch);
 void intel_prepare_reset(struct drm_device *dev);
 void intel_finish_reset(struct drm_device *dev);
