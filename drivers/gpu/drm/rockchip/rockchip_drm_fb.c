@@ -39,7 +39,6 @@ struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
 
 	return rk_fb->obj[plane];
 }
-EXPORT_SYMBOL_GPL(rockchip_fb_get_gem_obj);
 
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
