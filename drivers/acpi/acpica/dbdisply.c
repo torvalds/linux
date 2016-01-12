@@ -679,6 +679,12 @@ acpi_db_display_result_object(union acpi_operand_object *obj_desc,
 			      struct acpi_walk_state *walk_state)
 {
 
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
+
 	/* Only display if single stepping */
 
 	if (!acpi_gbl_cm_single_step) {
@@ -707,6 +713,12 @@ void
 acpi_db_display_argument_object(union acpi_operand_object *obj_desc,
 				struct acpi_walk_state *walk_state)
 {
+
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
 
 	if (!acpi_gbl_cm_single_step) {
 		return;
