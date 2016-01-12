@@ -1507,6 +1507,14 @@ S: 312/107 Canberra Avenue
 S: Griffith, ACT 2603 
 S: Australia
 
+N: Andreas Herrmann
+E: herrmann.der.user@gmail.com
+E: herrmann.der.user@googlemail.com
+D: Key developer of x86/AMD64
+D: Author of AMD family 15h processor power monitoring driver
+D: Maintainer of AMD Athlon 64 and Opteron processor frequency driver
+S: Germany
+
 N: Sebastian Hetze
 E: she@lunetix.de
 D: German Linux Documentation,

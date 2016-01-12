@@ -614,9 +614,9 @@ F:	drivers/crypto/ccp/
 F:	include/linux/ccp.h
 
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
-M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
+M:	Huang Rui <ray.huang@amd.com>
 L:	lm-sensors@lm-sensors.org
-S:	Maintained
+S:	Supported
 F:	Documentation/hwmon/fam15h_power
 F:	drivers/hwmon/fam15h_power.c
 
