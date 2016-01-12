@@ -602,8 +602,10 @@ static int clie_5_attach(struct usb_serial *serial)
 	 */
 
 	/* some sanity check */
-	if (serial->num_ports < 2)
-		return -1;
+	if (serial->num_bulk_out < 2) {
+		dev_err(&serial->interface->dev, "missing bulk out endpoints\n");
+		return -ENODEV;
+	}
 
 	/* port 0 now uses the modified endpoint Address */
 	port = serial->port[0];
