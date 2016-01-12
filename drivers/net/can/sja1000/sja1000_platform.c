@@ -46,6 +46,10 @@ struct sja1000_of_data {
 	int     (*init)(struct sja1000_priv *priv, struct device_node *of);
 };
 
+struct technologic_priv {
+	spinlock_t      io_lock;
+};
+
 static u8 sp_read_reg8(const struct sja1000_priv *priv, int reg)
 {
 	return ioread8(priv->reg_base + reg);
@@ -74,6 +78,43 @@ static u8 sp_read_reg32(const struct sja1000_priv *priv, int reg)
 static void sp_write_reg32(const struct sja1000_priv *priv, int reg, u8 val)
 {
 	iowrite8(val, priv->reg_base + reg * 4);
+}
+
+static u8 sp_technologic_read_reg16(const struct sja1000_priv *priv, int reg)
+{
+	struct technologic_priv *tp = priv->priv;
+	unsigned long flags;
+	u8 val;
+
+	spin_lock_irqsave(&tp->io_lock, flags);
+	iowrite16(reg, priv->reg_base + 0);
+	val = ioread16(priv->reg_base + 2);
+	spin_unlock_irqrestore(&tp->io_lock, flags);
+
+	return val;
+}
+
+static void sp_technologic_write_reg16(const struct sja1000_priv *priv,
+				       int reg, u8 val)
+{
+	struct technologic_priv *tp = priv->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tp->io_lock, flags);
+	iowrite16(reg, priv->reg_base + 0);
+	iowrite16(val, priv->reg_base + 2);
+	spin_unlock_irqrestore(&tp->io_lock, flags);
+}
+
+static int sp_technologic_init(struct sja1000_priv *priv, struct device_node *of)
+{
+	struct technologic_priv *tp = priv->priv;
+
+	priv->read_reg = sp_technologic_read_reg16;
+	priv->write_reg = sp_technologic_write_reg16;
+	spin_lock_init(&tp->io_lock);
+
+	return 0;
 }
 
 static void sp_populate(struct sja1000_priv *priv,
@@ -160,8 +201,14 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 		priv->cdr |= CDR_CBP; /* default */
 }
 
+static struct sja1000_of_data technologic_data = {
+	.priv_sz = sizeof(struct technologic_priv),
+	.init = sp_technologic_init,
+};
+
 static const struct of_device_id sp_of_table[] = {
 	{ .compatible = "nxp,sja1000", .data = NULL, },
+	{ .compatible = "technologic,sja1000", .data = &technologic_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sp_of_table);
