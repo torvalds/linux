@@ -33,6 +33,7 @@
 
 #define NVM_TTYPE_NAME_MAX 48
 #define NVM_TTYPE_MAX 63
+#define NVM_MMTYPE_LEN 8
 
 #define NVM_CTRL_FILE "/dev/lightnvm/control"
 
