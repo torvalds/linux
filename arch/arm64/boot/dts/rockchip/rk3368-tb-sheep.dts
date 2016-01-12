@@ -72,3 +72,11 @@
 &rk818 {
 	status = "okay";
 };
+
+&cpu_l0 {
+	cpu-supply = <&syr827>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&syr827>;
+};
