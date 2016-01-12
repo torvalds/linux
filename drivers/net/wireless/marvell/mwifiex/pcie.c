@@ -2116,11 +2116,6 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter,
 		}
 	}
 
-	spin_lock_irqsave(&adapter->int_lock, flags);
-	adapter->int_status |= pcie_ireg;
-	spin_unlock_irqrestore(&adapter->int_lock, flags);
-	mwifiex_dbg(adapter, INTR, "ireg: 0x%08x\n", pcie_ireg);
-
 	if (!adapter->pps_uapsd_mode &&
 	    adapter->ps_state == PS_STATE_SLEEP &&
 	    mwifiex_pcie_ok_to_access_hw(adapter)) {
@@ -2132,6 +2127,11 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter,
 		adapter->pm_wakeup_fw_try = false;
 		del_timer(&adapter->wakeup_timer);
 	}
+
+	spin_lock_irqsave(&adapter->int_lock, flags);
+	adapter->int_status |= pcie_ireg;
+	spin_unlock_irqrestore(&adapter->int_lock, flags);
+	mwifiex_dbg(adapter, INTR, "ireg: 0x%08x\n", pcie_ireg);
 }
 
 /*
