@@ -2181,9 +2181,17 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	 * to be able to forward the PSW.
 	 */
 	rc = read_guest_instr(vcpu, &opcode, 1);
-	if (rc)
-		return kvm_s390_inject_prog_cond(vcpu, rc);
 	ilen = insn_length(opcode);
+	if (rc < 0) {
+		return rc;
+	} else if (rc) {
+		/* Instruction-Fetching Exceptions - we can't detect the ilen.
+		 * Forward by arbitrary ilc, injection will take care of
+		 * nullification if necessary.
+		 */
+		pgm_info = vcpu->arch.pgm;
+		ilen = 4;
+	}
 	pgm_info.flags = ilen | KVM_S390_PGM_FLAGS_ILC_VALID;
 	kvm_s390_forward_psw(vcpu, ilen);
 	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
