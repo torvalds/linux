@@ -2264,30 +2264,13 @@ static void bxt_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger,
 	intel_hpd_irq_handler(dev, pin_mask, long_mask);
 }
 
-static irqreturn_t gen8_irq_handler(int irq, void *arg)
+static irqreturn_t
+gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
-	struct drm_device *dev = arg;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 master_ctl, iir;
+	struct drm_device *dev = dev_priv->dev;
 	irqreturn_t ret = IRQ_NONE;
+	u32 iir;
 	enum pipe pipe;
-
-	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
-
-	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
-
-	master_ctl = I915_READ_FW(GEN8_MASTER_IRQ);
-	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
-	if (!master_ctl)
-		goto out;
-
-	I915_WRITE_FW(GEN8_MASTER_IRQ, 0);
-
-	/* Find, clear, then process each source of interrupt */
-
-	ret = gen8_gt_irq_handler(dev_priv, master_ctl);
 
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		iir = I915_READ(GEN8_DE_MISC_IIR);
@@ -2422,10 +2405,36 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		}
 	}
 
+	return ret;
+}
+
+static irqreturn_t gen8_irq_handler(int irq, void *arg)
+{
+	struct drm_device *dev = arg;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 master_ctl;
+	irqreturn_t ret;
+
+	if (!intel_irqs_enabled(dev_priv))
+		return IRQ_NONE;
+
+	master_ctl = I915_READ_FW(GEN8_MASTER_IRQ);
+	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
+	if (!master_ctl)
+		return IRQ_NONE;
+
+	I915_WRITE_FW(GEN8_MASTER_IRQ, 0);
+
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
+
+	/* Find, clear, then process each source of interrupt */
+	ret = gen8_gt_irq_handler(dev_priv, master_ctl);
+	ret |= gen8_de_irq_handler(dev_priv, master_ctl);
+
 	I915_WRITE_FW(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	POSTING_READ_FW(GEN8_MASTER_IRQ);
 
-out:
 	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
