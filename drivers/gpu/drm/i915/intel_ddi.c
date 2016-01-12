@@ -436,8 +436,9 @@ void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 		    dev_priv->vbt.ddi_port_info[port].dp_boost_level)
 			iboost_bit = 1<<31;
 
-		if (WARN_ON(port != PORT_A &&
-			    port != PORT_E && n_edp_entries > 9))
+		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
+			    port != PORT_A && port != PORT_E &&
+			    n_edp_entries > 9))
 			n_edp_entries = 9;
 	} else if (IS_BROADWELL(dev_priv)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
