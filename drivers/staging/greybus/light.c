@@ -30,7 +30,9 @@ struct gb_channel {
 	struct attribute		**attrs;
 	struct attribute_group		*attr_group;
 	const struct attribute_group	**attr_groups;
+#ifndef LED_HAVE_SET_BLOCKING
 	struct work_struct		work_brightness_set;
+#endif
 	struct led_classdev		*led;
 #ifdef LED_HAVE_FLASH
 	struct led_classdev_flash	fled;
@@ -381,6 +383,7 @@ static int __gb_lights_brightness_set(struct gb_channel *channel)
 	return ret;
 }
 
+#ifndef LED_HAVE_SET_BLOCKING
 static void gb_brightness_set_work(struct work_struct *work)
 {
 	struct gb_channel *channel = container_of(work, struct gb_channel,
@@ -412,6 +415,17 @@ static void gb_brightness_set(struct led_classdev *cdev,
 	cdev->brightness = value;
 	schedule_work(&channel->work_brightness_set);
 }
+#else /* LED_HAVE_SET_BLOCKING */
+static int gb_brightness_set(struct led_classdev *cdev,
+			     enum led_brightness value)
+{
+	struct gb_channel *channel = get_channel_from_cdev(cdev);
+
+	channel->led->brightness = value;
+
+	return __gb_lights_brightness_set(channel);
+}
+#endif
 
 static enum led_brightness gb_brightness_get(struct led_classdev *cdev)
 
@@ -443,12 +457,17 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 static void gb_lights_led_operations_set(struct gb_channel *channel,
 					 struct led_classdev *cdev)
 {
-	cdev->brightness_set = gb_brightness_set;
 	cdev->brightness_get = gb_brightness_get;
 #ifdef LED_HAVE_SET_SYNC
 	cdev->brightness_set_sync = gb_brightness_set_sync;
 #endif
+#ifdef LED_HAVE_SET_BLOCKING
+	cdev->brightness_set_blocking = gb_brightness_set;
+#endif
+#ifndef LED_HAVE_SET_BLOCKING
+	cdev->brightness_set = gb_brightness_set;
 	INIT_WORK(&channel->work_brightness_set, gb_brightness_set_work);
+#endif
 
 	if (channel->flags & GB_LIGHT_CHANNEL_BLINK)
 		cdev->blink_set = gb_blink_set;
@@ -986,8 +1005,10 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 
 static void gb_lights_channel_free(struct gb_channel *channel)
 {
+#ifndef LED_HAVE_SET_BLOCKING
 	if (&channel->work_brightness_set)
 		flush_work(&channel->work_brightness_set);
+#endif
 	kfree(channel->attrs);
 	kfree(channel->attr_group);
 	kfree(channel->attr_groups);
