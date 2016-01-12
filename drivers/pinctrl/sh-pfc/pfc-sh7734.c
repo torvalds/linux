@@ -14,14 +14,6 @@
 
 #include "sh_pfc.h"
 
-#define PORT_GP_12(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0, fn, sfx),  PORT_GP_1(bank, 1, fn, sfx),	\
-	PORT_GP_1(bank, 2, fn, sfx),  PORT_GP_1(bank, 3, fn, sfx),	\
-	PORT_GP_1(bank, 4, fn, sfx),  PORT_GP_1(bank, 5, fn, sfx),	\
-	PORT_GP_1(bank, 6, fn, sfx),  PORT_GP_1(bank, 7, fn, sfx),	\
-	PORT_GP_1(bank, 8, fn, sfx),  PORT_GP_1(bank, 9, fn, sfx),	\
-	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx)
-
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_32(0, fn, sfx),						\
 	PORT_GP_32(1, fn, sfx),						\
@@ -585,15 +577,18 @@ enum {
 static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
-	PINMUX_DATA(CLKOUT_MARK, FN_CLKOUT),
-	PINMUX_DATA(BS_MARK, FN_BS), PINMUX_DATA(CS0_MARK, FN_CS0),
-	PINMUX_DATA(EX_CS0_MARK, FN_EX_CS0),
-	PINMUX_DATA(RD_MARK, FN_RD), PINMUX_DATA(WE0_MARK, FN_WE0),
-	PINMUX_DATA(WE1_MARK, FN_WE1),
-	PINMUX_DATA(SCL0_MARK, FN_SCL0), PINMUX_DATA(PENC0_MARK, FN_PENC0),
-	PINMUX_DATA(USB_OVC0_MARK, FN_USB_OVC0),
-	PINMUX_DATA(IRQ2_B_MARK, FN_IRQ2_B),
-		PINMUX_DATA(IRQ3_B_MARK, FN_IRQ3_B),
+	PINMUX_SINGLE(CLKOUT),
+	PINMUX_SINGLE(BS),
+	PINMUX_SINGLE(CS0),
+	PINMUX_SINGLE(EX_CS0),
+	PINMUX_SINGLE(RD),
+	PINMUX_SINGLE(WE0),
+	PINMUX_SINGLE(WE1),
+	PINMUX_SINGLE(SCL0),
+	PINMUX_SINGLE(PENC0),
+	PINMUX_SINGLE(USB_OVC0),
+	PINMUX_SINGLE(IRQ2_B),
+	PINMUX_SINGLE(IRQ3_B),
 
 	/* IPSR0 */
 	PINMUX_IPSR_DATA(IP0_1_0, A0),
