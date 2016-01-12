@@ -1,7 +1,15 @@
-#include "cache.h"
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/wait.h>
+#include "subcmd-util.h"
 #include "run-command.h"
-#include "exec_cmd.h"
-#include "debug.h"
+#include "exec-cmd.h"
+
+#define STRERR_BUFSIZE 128
 
 static inline void close_pair(int fd[2])
 {
@@ -112,8 +120,8 @@ int start_command(struct child_process *cmd)
 		}
 		if (cmd->preexec_cb)
 			cmd->preexec_cb();
-		if (cmd->perf_cmd) {
-			execv_perf_cmd(cmd->argv);
+		if (cmd->exec_cmd) {
+			execv_cmd(cmd->argv);
 		} else {
 			execvp(cmd->argv[0], (char *const*) cmd->argv);
 		}
@@ -164,8 +172,8 @@ static int wait_or_whine(pid_t pid)
 		if (waiting < 0) {
 			if (errno == EINTR)
 				continue;
-			error("waitpid failed (%s)",
-			      strerror_r(errno, sbuf, sizeof(sbuf)));
+			fprintf(stderr, " Error: waitpid failed (%s)",
+				strerror_r(errno, sbuf, sizeof(sbuf)));
 			return -ERR_RUN_COMMAND_WAITPID;
 		}
 		if (waiting != pid)
@@ -207,7 +215,7 @@ static void prepare_run_command_v_opt(struct child_process *cmd,
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->argv = argv;
 	cmd->no_stdin = opt & RUN_COMMAND_NO_STDIN ? 1 : 0;
-	cmd->perf_cmd = opt & RUN_PERF_CMD ? 1 : 0;
+	cmd->exec_cmd = opt & RUN_EXEC_CMD ? 1 : 0;
 	cmd->stdout_to_stderr = opt & RUN_COMMAND_STDOUT_TO_STDERR ? 1 : 0;
 }
 

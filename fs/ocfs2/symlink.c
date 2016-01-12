@@ -88,8 +88,7 @@ const struct address_space_operations ocfs2_fast_symlink_aops = {
 
 const struct inode_operations ocfs2_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
-	.put_link	= page_put_link,
+	.get_link	= page_get_link,
 	.getattr	= ocfs2_getattr,
 	.setattr	= ocfs2_setattr,
 	.setxattr	= generic_setxattr,

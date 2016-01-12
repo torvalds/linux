@@ -1170,6 +1170,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	reiserfs_update_inode_transaction(parent_dir);
 
 	inode->i_op = &reiserfs_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &reiserfs_address_space_operations;
 
 	retval = reiserfs_add_entry(&th, parent_dir, dentry->d_name.name,
@@ -1664,8 +1665,7 @@ const struct inode_operations reiserfs_dir_inode_operations = {
  */
 const struct inode_operations reiserfs_symlink_inode_operations = {
 	.readlink = generic_readlink,
-	.follow_link = page_follow_link_light,
-	.put_link = page_put_link,
+	.get_link	= page_get_link,
 	.setattr = reiserfs_setattr,
 	.setxattr = reiserfs_setxattr,
 	.getxattr = reiserfs_getxattr,

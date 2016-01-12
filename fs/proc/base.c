@@ -1564,11 +1564,15 @@ static int proc_exe_link(struct dentry *dentry, struct path *exe_path)
 		return -ENOENT;
 }
 
-static const char *proc_pid_follow_link(struct dentry *dentry, void **cookie)
+static const char *proc_pid_get_link(struct dentry *dentry,
+				     struct inode *inode,
+				     struct delayed_call *done)
 {
-	struct inode *inode = d_inode(dentry);
 	struct path path;
 	int error = -EACCES;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	/* Are we allowed to snoop on the tasks file descriptors? */
 	if (!proc_fd_access_allowed(inode))
@@ -1630,7 +1634,7 @@ out:
 
 const struct inode_operations proc_pid_link_inode_operations = {
 	.readlink	= proc_pid_readlink,
-	.follow_link	= proc_pid_follow_link,
+	.get_link	= proc_pid_get_link,
 	.setattr	= proc_setattr,
 };
 
@@ -1895,7 +1899,7 @@ static const struct dentry_operations tid_map_files_dentry_operations = {
 	.d_delete	= pid_delete_dentry,
 };
 
-static int proc_map_files_get_link(struct dentry *dentry, struct path *path)
+static int map_files_get_link(struct dentry *dentry, struct path *path)
 {
 	unsigned long vm_start, vm_end;
 	struct vm_area_struct *vma;
@@ -1945,20 +1949,22 @@ struct map_files_info {
  * path to the file in question.
  */
 static const char *
-proc_map_files_follow_link(struct dentry *dentry, void **cookie)
+proc_map_files_get_link(struct dentry *dentry,
+			struct inode *inode,
+		        struct delayed_call *done)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	return proc_pid_follow_link(dentry, NULL);
+	return proc_pid_get_link(dentry, inode, done);
 }
 
 /*
- * Identical to proc_pid_link_inode_operations except for follow_link()
+ * Identical to proc_pid_link_inode_operations except for get_link()
  */
 static const struct inode_operations proc_map_files_link_inode_operations = {
 	.readlink	= proc_pid_readlink,
-	.follow_link	= proc_map_files_follow_link,
+	.get_link	= proc_map_files_get_link,
 	.setattr	= proc_setattr,
 };
 
@@ -1975,7 +1981,7 @@ proc_map_files_instantiate(struct inode *dir, struct dentry *dentry,
 		return -ENOENT;
 
 	ei = PROC_I(inode);
-	ei->op.proc_get_link = proc_map_files_get_link;
+	ei->op.proc_get_link = map_files_get_link;
 
 	inode->i_op = &proc_map_files_link_inode_operations;
 	inode->i_size = 64;

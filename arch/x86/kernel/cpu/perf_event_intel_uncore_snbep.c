@@ -209,31 +209,98 @@
 #define HSWEP_PCU_MSR_PMON_BOX_CTL		0x710
 #define HSWEP_PCU_MSR_PMON_BOX_FILTER		0x715
 
+/* KNL Ubox */
+#define KNL_U_MSR_PMON_RAW_EVENT_MASK \
+					(SNBEP_U_MSR_PMON_RAW_EVENT_MASK | \
+						SNBEP_CBO_PMON_CTL_TID_EN)
+/* KNL CHA */
+#define KNL_CHA_MSR_OFFSET			0xc
+#define KNL_CHA_MSR_PMON_CTL_QOR		(1 << 16)
+#define KNL_CHA_MSR_PMON_RAW_EVENT_MASK \
+					(SNBEP_CBO_MSR_PMON_RAW_EVENT_MASK | \
+					 KNL_CHA_MSR_PMON_CTL_QOR)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_TID		0x1ff
+#define KNL_CHA_MSR_PMON_BOX_FILTER_STATE	(7 << 18)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_OP		(0xfffffe2aULL << 32)
+
+/* KNL EDC/MC UCLK */
+#define KNL_UCLK_MSR_PMON_CTR0_LOW		0x400
+#define KNL_UCLK_MSR_PMON_CTL0			0x420
+#define KNL_UCLK_MSR_PMON_BOX_CTL		0x430
+#define KNL_UCLK_MSR_PMON_UCLK_FIXED_LOW	0x44c
+#define KNL_UCLK_MSR_PMON_UCLK_FIXED_CTL	0x454
+#define KNL_PMON_FIXED_CTL_EN			0x1
+
+/* KNL EDC */
+#define KNL_EDC0_ECLK_MSR_PMON_CTR0_LOW		0xa00
+#define KNL_EDC0_ECLK_MSR_PMON_CTL0		0xa20
+#define KNL_EDC0_ECLK_MSR_PMON_BOX_CTL		0xa30
+#define KNL_EDC0_ECLK_MSR_PMON_ECLK_FIXED_LOW	0xa3c
+#define KNL_EDC0_ECLK_MSR_PMON_ECLK_FIXED_CTL	0xa44
+
+/* KNL MC */
+#define KNL_MC0_CH0_MSR_PMON_CTR0_LOW		0xb00
+#define KNL_MC0_CH0_MSR_PMON_CTL0		0xb20
+#define KNL_MC0_CH0_MSR_PMON_BOX_CTL		0xb30
+#define KNL_MC0_CH0_MSR_PMON_FIXED_LOW		0xb3c
+#define KNL_MC0_CH0_MSR_PMON_FIXED_CTL		0xb44
+
+/* KNL IRP */
+#define KNL_IRP_PCI_PMON_BOX_CTL		0xf0
+#define KNL_IRP_PCI_PMON_RAW_EVENT_MASK		(SNBEP_PMON_RAW_EVENT_MASK | \
+						 KNL_CHA_MSR_PMON_CTL_QOR)
+/* KNL PCU */
+#define KNL_PCU_PMON_CTL_EV_SEL_MASK		0x0000007f
+#define KNL_PCU_PMON_CTL_USE_OCC_CTR		(1 << 7)
+#define KNL_PCU_MSR_PMON_CTL_TRESH_MASK		0x3f000000
+#define KNL_PCU_MSR_PMON_RAW_EVENT_MASK	\
+				(KNL_PCU_PMON_CTL_EV_SEL_MASK | \
+				 KNL_PCU_PMON_CTL_USE_OCC_CTR | \
+				 SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK | \
+				 SNBEP_PMON_CTL_EDGE_DET | \
+				 SNBEP_CBO_PMON_CTL_TID_EN | \
+				 SNBEP_PMON_CTL_EV_SEL_EXT | \
+				 SNBEP_PMON_CTL_INVERT | \
+				 KNL_PCU_MSR_PMON_CTL_TRESH_MASK | \
+				 SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT | \
+				 SNBEP_PCU_MSR_PMON_CTL_OCC_EDGE_DET)
 
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
+DEFINE_UNCORE_FORMAT_ATTR(event2, event, "config:0-6");
 DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
+DEFINE_UNCORE_FORMAT_ATTR(use_occ_ctr, use_occ_ctr, "config:7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
+DEFINE_UNCORE_FORMAT_ATTR(qor, qor, "config:16");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en, tid_en, "config:19");
 DEFINE_UNCORE_FORMAT_ATTR(inv, inv, "config:23");
 DEFINE_UNCORE_FORMAT_ATTR(thresh8, thresh, "config:24-31");
+DEFINE_UNCORE_FORMAT_ATTR(thresh6, thresh, "config:24-29");
 DEFINE_UNCORE_FORMAT_ATTR(thresh5, thresh, "config:24-28");
 DEFINE_UNCORE_FORMAT_ATTR(occ_sel, occ_sel, "config:14-15");
 DEFINE_UNCORE_FORMAT_ATTR(occ_invert, occ_invert, "config:30");
 DEFINE_UNCORE_FORMAT_ATTR(occ_edge, occ_edge, "config:14-51");
+DEFINE_UNCORE_FORMAT_ATTR(occ_edge_det, occ_edge_det, "config:31");
 DEFINE_UNCORE_FORMAT_ATTR(filter_tid, filter_tid, "config1:0-4");
 DEFINE_UNCORE_FORMAT_ATTR(filter_tid2, filter_tid, "config1:0");
 DEFINE_UNCORE_FORMAT_ATTR(filter_tid3, filter_tid, "config1:0-5");
+DEFINE_UNCORE_FORMAT_ATTR(filter_tid4, filter_tid, "config1:0-8");
 DEFINE_UNCORE_FORMAT_ATTR(filter_cid, filter_cid, "config1:5");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link, filter_link, "config1:5-8");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link2, filter_link, "config1:6-8");
+DEFINE_UNCORE_FORMAT_ATTR(filter_link3, filter_link, "config1:12");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid, filter_nid, "config1:10-17");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid2, filter_nid, "config1:32-47");
 DEFINE_UNCORE_FORMAT_ATTR(filter_state, filter_state, "config1:18-22");
 DEFINE_UNCORE_FORMAT_ATTR(filter_state2, filter_state, "config1:17-22");
 DEFINE_UNCORE_FORMAT_ATTR(filter_state3, filter_state, "config1:17-23");
+DEFINE_UNCORE_FORMAT_ATTR(filter_state4, filter_state, "config1:18-20");
+DEFINE_UNCORE_FORMAT_ATTR(filter_local, filter_local, "config1:33");
+DEFINE_UNCORE_FORMAT_ATTR(filter_all_op, filter_all_op, "config1:35");
+DEFINE_UNCORE_FORMAT_ATTR(filter_nnm, filter_nnm, "config1:37");
 DEFINE_UNCORE_FORMAT_ATTR(filter_opc, filter_opc, "config1:23-31");
 DEFINE_UNCORE_FORMAT_ATTR(filter_opc2, filter_opc, "config1:52-60");
+DEFINE_UNCORE_FORMAT_ATTR(filter_opc3, filter_opc, "config1:41-60");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nc, filter_nc, "config1:62");
 DEFINE_UNCORE_FORMAT_ATTR(filter_c6, filter_c6, "config1:61");
 DEFINE_UNCORE_FORMAT_ATTR(filter_isoc, filter_isoc, "config1:63");
@@ -315,8 +382,9 @@ static u64 snbep_uncore_pci_read_counter(struct intel_uncore_box *box, struct pe
 static void snbep_uncore_pci_init_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
 
-	pci_write_config_dword(pdev, SNBEP_PCI_PMON_BOX_CTL, SNBEP_PMON_BOX_CTL_INT);
+	pci_write_config_dword(pdev, box_ctl, SNBEP_PMON_BOX_CTL_INT);
 }
 
 static void snbep_uncore_msr_disable_box(struct intel_uncore_box *box)
@@ -1728,6 +1796,419 @@ int ivbep_uncore_pci_init(void)
 }
 /* end of IvyTown uncore support */
 
+/* KNL uncore support */
+static struct attribute *knl_uncore_ubox_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_tid_en.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh5.attr,
+	NULL,
+};
+
+static struct attribute_group knl_uncore_ubox_format_group = {
+	.name = "format",
+	.attrs = knl_uncore_ubox_formats_attr,
+};
+
+static struct intel_uncore_type knl_uncore_ubox = {
+	.name			= "ubox",
+	.num_counters		= 2,
+	.num_boxes		= 1,
+	.perf_ctr_bits		= 48,
+	.fixed_ctr_bits		= 48,
+	.perf_ctr		= HSWEP_U_MSR_PMON_CTR0,
+	.event_ctl		= HSWEP_U_MSR_PMON_CTL0,
+	.event_mask		= KNL_U_MSR_PMON_RAW_EVENT_MASK,
+	.fixed_ctr		= HSWEP_U_MSR_PMON_UCLK_FIXED_CTR,
+	.fixed_ctl		= HSWEP_U_MSR_PMON_UCLK_FIXED_CTL,
+	.ops			= &snbep_uncore_msr_ops,
+	.format_group		= &knl_uncore_ubox_format_group,
+};
+
+static struct attribute *knl_uncore_cha_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_qor.attr,
+	&format_attr_edge.attr,
+	&format_attr_tid_en.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	&format_attr_filter_tid4.attr,
+	&format_attr_filter_link3.attr,
+	&format_attr_filter_state4.attr,
+	&format_attr_filter_local.attr,
+	&format_attr_filter_all_op.attr,
+	&format_attr_filter_nnm.attr,
+	&format_attr_filter_opc3.attr,
+	&format_attr_filter_nc.attr,
+	&format_attr_filter_isoc.attr,
+	NULL,
+};
+
+static struct attribute_group knl_uncore_cha_format_group = {
+	.name = "format",
+	.attrs = knl_uncore_cha_formats_attr,
+};
+
+static struct event_constraint knl_uncore_cha_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x36, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
+static struct extra_reg knl_uncore_cha_extra_regs[] = {
+	SNBEP_CBO_EVENT_EXTRA_REG(SNBEP_CBO_PMON_CTL_TID_EN,
+				  SNBEP_CBO_PMON_CTL_TID_EN, 0x1),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x3d, 0xff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x35, 0xff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x36, 0xff, 0x4),
+	EVENT_EXTRA_END
+};
+
+static u64 knl_cha_filter_mask(int fields)
+{
+	u64 mask = 0;
+
+	if (fields & 0x1)
+		mask |= KNL_CHA_MSR_PMON_BOX_FILTER_TID;
+	if (fields & 0x2)
+		mask |= KNL_CHA_MSR_PMON_BOX_FILTER_STATE;
+	if (fields & 0x4)
+		mask |= KNL_CHA_MSR_PMON_BOX_FILTER_OP;
+	return mask;
+}
+
+static struct event_constraint *
+knl_cha_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
+{
+	return __snbep_cbox_get_constraint(box, event, knl_cha_filter_mask);
+}
+
+static int knl_cha_hw_config(struct intel_uncore_box *box,
+			     struct perf_event *event)
+{
+	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
+	struct extra_reg *er;
+	int idx = 0;
+
+	for (er = knl_uncore_cha_extra_regs; er->msr; er++) {
+		if (er->event != (event->hw.config & er->config_mask))
+			continue;
+		idx |= er->idx;
+	}
+
+	if (idx) {
+		reg1->reg = HSWEP_C0_MSR_PMON_BOX_FILTER0 +
+			    KNL_CHA_MSR_OFFSET * box->pmu->pmu_idx;
+		reg1->config = event->attr.config1 & knl_cha_filter_mask(idx);
+		reg1->idx = idx;
+	}
+	return 0;
+}
+
+static void hswep_cbox_enable_event(struct intel_uncore_box *box,
+				    struct perf_event *event);
+
+static struct intel_uncore_ops knl_uncore_cha_ops = {
+	.init_box		= snbep_uncore_msr_init_box,
+	.disable_box		= snbep_uncore_msr_disable_box,
+	.enable_box		= snbep_uncore_msr_enable_box,
+	.disable_event		= snbep_uncore_msr_disable_event,
+	.enable_event		= hswep_cbox_enable_event,
+	.read_counter		= uncore_msr_read_counter,
+	.hw_config		= knl_cha_hw_config,
+	.get_constraint		= knl_cha_get_constraint,
+	.put_constraint		= snbep_cbox_put_constraint,
+};
+
+static struct intel_uncore_type knl_uncore_cha = {
+	.name			= "cha",
+	.num_counters		= 4,
+	.num_boxes		= 38,
+	.perf_ctr_bits		= 48,
+	.event_ctl		= HSWEP_C0_MSR_PMON_CTL0,
+	.perf_ctr		= HSWEP_C0_MSR_PMON_CTR0,
+	.event_mask		= KNL_CHA_MSR_PMON_RAW_EVENT_MASK,
+	.box_ctl		= HSWEP_C0_MSR_PMON_BOX_CTL,
+	.msr_offset		= KNL_CHA_MSR_OFFSET,
+	.num_shared_regs	= 1,
+	.constraints		= knl_uncore_cha_constraints,
+	.ops			= &knl_uncore_cha_ops,
+	.format_group		= &knl_uncore_cha_format_group,
+};
+
+static struct attribute *knl_uncore_pcu_formats_attr[] = {
+	&format_attr_event2.attr,
+	&format_attr_use_occ_ctr.attr,
+	&format_attr_occ_sel.attr,
+	&format_attr_edge.attr,
+	&format_attr_tid_en.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh6.attr,
+	&format_attr_occ_invert.attr,
+	&format_attr_occ_edge_det.attr,
+	NULL,
+};
+
+static struct attribute_group knl_uncore_pcu_format_group = {
+	.name = "format",
+	.attrs = knl_uncore_pcu_formats_attr,
+};
+
+static struct intel_uncore_type knl_uncore_pcu = {
+	.name			= "pcu",
+	.num_counters		= 4,
+	.num_boxes		= 1,
+	.perf_ctr_bits		= 48,
+	.perf_ctr		= HSWEP_PCU_MSR_PMON_CTR0,
+	.event_ctl		= HSWEP_PCU_MSR_PMON_CTL0,
+	.event_mask		= KNL_PCU_MSR_PMON_RAW_EVENT_MASK,
+	.box_ctl		= HSWEP_PCU_MSR_PMON_BOX_CTL,
+	.ops			= &snbep_uncore_msr_ops,
+	.format_group		= &knl_uncore_pcu_format_group,
+};
+
+static struct intel_uncore_type *knl_msr_uncores[] = {
+	&knl_uncore_ubox,
+	&knl_uncore_cha,
+	&knl_uncore_pcu,
+	NULL,
+};
+
+void knl_uncore_cpu_init(void)
+{
+	uncore_msr_uncores = knl_msr_uncores;
+}
+
+static void knl_uncore_imc_enable_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
+
+	pci_write_config_dword(pdev, box_ctl, 0);
+}
+
+static void knl_uncore_imc_enable_event(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+
+	if ((event->attr.config & SNBEP_PMON_CTL_EV_SEL_MASK)
+							== UNCORE_FIXED_EVENT)
+		pci_write_config_dword(pdev, hwc->config_base,
+				       hwc->config | KNL_PMON_FIXED_CTL_EN);
+	else
+		pci_write_config_dword(pdev, hwc->config_base,
+				       hwc->config | SNBEP_PMON_CTL_EN);
+}
+
+static struct intel_uncore_ops knl_uncore_imc_ops = {
+	.init_box	= snbep_uncore_pci_init_box,
+	.disable_box	= snbep_uncore_pci_disable_box,
+	.enable_box	= knl_uncore_imc_enable_box,
+	.read_counter	= snbep_uncore_pci_read_counter,
+	.enable_event	= knl_uncore_imc_enable_event,
+	.disable_event	= snbep_uncore_pci_disable_event,
+};
+
+static struct intel_uncore_type knl_uncore_imc_uclk = {
+	.name			= "imc_uclk",
+	.num_counters		= 4,
+	.num_boxes		= 2,
+	.perf_ctr_bits		= 48,
+	.fixed_ctr_bits		= 48,
+	.perf_ctr		= KNL_UCLK_MSR_PMON_CTR0_LOW,
+	.event_ctl		= KNL_UCLK_MSR_PMON_CTL0,
+	.event_mask		= SNBEP_PMON_RAW_EVENT_MASK,
+	.fixed_ctr		= KNL_UCLK_MSR_PMON_UCLK_FIXED_LOW,
+	.fixed_ctl		= KNL_UCLK_MSR_PMON_UCLK_FIXED_CTL,
+	.box_ctl		= KNL_UCLK_MSR_PMON_BOX_CTL,
+	.ops			= &knl_uncore_imc_ops,
+	.format_group		= &snbep_uncore_format_group,
+};
+
+static struct intel_uncore_type knl_uncore_imc_dclk = {
+	.name			= "imc",
+	.num_counters		= 4,
+	.num_boxes		= 6,
+	.perf_ctr_bits		= 48,
+	.fixed_ctr_bits		= 48,
+	.perf_ctr		= KNL_MC0_CH0_MSR_PMON_CTR0_LOW,
+	.event_ctl		= KNL_MC0_CH0_MSR_PMON_CTL0,
+	.event_mask		= SNBEP_PMON_RAW_EVENT_MASK,
+	.fixed_ctr		= KNL_MC0_CH0_MSR_PMON_FIXED_LOW,
+	.fixed_ctl		= KNL_MC0_CH0_MSR_PMON_FIXED_CTL,
+	.box_ctl		= KNL_MC0_CH0_MSR_PMON_BOX_CTL,
+	.ops			= &knl_uncore_imc_ops,
+	.format_group		= &snbep_uncore_format_group,
+};
+
+static struct intel_uncore_type knl_uncore_edc_uclk = {
+	.name			= "edc_uclk",
+	.num_counters		= 4,
+	.num_boxes		= 8,
+	.perf_ctr_bits		= 48,
+	.fixed_ctr_bits		= 48,
+	.perf_ctr		= KNL_UCLK_MSR_PMON_CTR0_LOW,
+	.event_ctl		= KNL_UCLK_MSR_PMON_CTL0,
+	.event_mask		= SNBEP_PMON_RAW_EVENT_MASK,
+	.fixed_ctr		= KNL_UCLK_MSR_PMON_UCLK_FIXED_LOW,
+	.fixed_ctl		= KNL_UCLK_MSR_PMON_UCLK_FIXED_CTL,
+	.box_ctl		= KNL_UCLK_MSR_PMON_BOX_CTL,
+	.ops			= &knl_uncore_imc_ops,
+	.format_group		= &snbep_uncore_format_group,
+};
+
+static struct intel_uncore_type knl_uncore_edc_eclk = {
+	.name			= "edc_eclk",
+	.num_counters		= 4,
+	.num_boxes		= 8,
+	.perf_ctr_bits		= 48,
+	.fixed_ctr_bits		= 48,
+	.perf_ctr		= KNL_EDC0_ECLK_MSR_PMON_CTR0_LOW,
+	.event_ctl		= KNL_EDC0_ECLK_MSR_PMON_CTL0,
+	.event_mask		= SNBEP_PMON_RAW_EVENT_MASK,
+	.fixed_ctr		= KNL_EDC0_ECLK_MSR_PMON_ECLK_FIXED_LOW,
+	.fixed_ctl		= KNL_EDC0_ECLK_MSR_PMON_ECLK_FIXED_CTL,
+	.box_ctl		= KNL_EDC0_ECLK_MSR_PMON_BOX_CTL,
+	.ops			= &knl_uncore_imc_ops,
+	.format_group		= &snbep_uncore_format_group,
+};
+
+static struct event_constraint knl_uncore_m2pcie_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
+	EVENT_CONSTRAINT_END
+};
+
+static struct intel_uncore_type knl_uncore_m2pcie = {
+	.name		= "m2pcie",
+	.num_counters   = 4,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 48,
+	.constraints	= knl_uncore_m2pcie_constraints,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
+static struct attribute *knl_uncore_irp_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_qor.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	NULL,
+};
+
+static struct attribute_group knl_uncore_irp_format_group = {
+	.name = "format",
+	.attrs = knl_uncore_irp_formats_attr,
+};
+
+static struct intel_uncore_type knl_uncore_irp = {
+	.name			= "irp",
+	.num_counters		= 2,
+	.num_boxes		= 1,
+	.perf_ctr_bits		= 48,
+	.perf_ctr		= SNBEP_PCI_PMON_CTR0,
+	.event_ctl		= SNBEP_PCI_PMON_CTL0,
+	.event_mask		= KNL_IRP_PCI_PMON_RAW_EVENT_MASK,
+	.box_ctl		= KNL_IRP_PCI_PMON_BOX_CTL,
+	.ops			= &snbep_uncore_pci_ops,
+	.format_group		= &knl_uncore_irp_format_group,
+};
+
+enum {
+	KNL_PCI_UNCORE_MC_UCLK,
+	KNL_PCI_UNCORE_MC_DCLK,
+	KNL_PCI_UNCORE_EDC_UCLK,
+	KNL_PCI_UNCORE_EDC_ECLK,
+	KNL_PCI_UNCORE_M2PCIE,
+	KNL_PCI_UNCORE_IRP,
+};
+
+static struct intel_uncore_type *knl_pci_uncores[] = {
+	[KNL_PCI_UNCORE_MC_UCLK]	= &knl_uncore_imc_uclk,
+	[KNL_PCI_UNCORE_MC_DCLK]	= &knl_uncore_imc_dclk,
+	[KNL_PCI_UNCORE_EDC_UCLK]	= &knl_uncore_edc_uclk,
+	[KNL_PCI_UNCORE_EDC_ECLK]	= &knl_uncore_edc_eclk,
+	[KNL_PCI_UNCORE_M2PCIE]		= &knl_uncore_m2pcie,
+	[KNL_PCI_UNCORE_IRP]		= &knl_uncore_irp,
+	NULL,
+};
+
+/*
+ * KNL uses a common PCI device ID for multiple instances of an Uncore PMU
+ * device type. prior to KNL, each instance of a PMU device type had a unique
+ * device ID.
+ *
+ *	PCI Device ID	Uncore PMU Devices
+ *	----------------------------------
+ *	0x7841		MC0 UClk, MC1 UClk
+ *	0x7843		MC0 DClk CH 0, MC0 DClk CH 1, MC0 DClk CH 2,
+ *			MC1 DClk CH 0, MC1 DClk CH 1, MC1 DClk CH 2
+ *	0x7833		EDC0 UClk, EDC1 UClk, EDC2 UClk, EDC3 UClk,
+ *			EDC4 UClk, EDC5 UClk, EDC6 UClk, EDC7 UClk
+ *	0x7835		EDC0 EClk, EDC1 EClk, EDC2 EClk, EDC3 EClk,
+ *			EDC4 EClk, EDC5 EClk, EDC6 EClk, EDC7 EClk
+ *	0x7817		M2PCIe
+ *	0x7814		IRP
+*/
+
+static const struct pci_device_id knl_uncore_pci_ids[] = {
+	{ /* MC UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7841),
+		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_MC_UCLK, 0),
+	},
+	{ /* MC DClk Channel */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
+		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_MC_DCLK, 0),
+	},
+	{ /* EDC UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_EDC_UCLK, 0),
+	},
+	{ /* EDC EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_EDC_ECLK, 0),
+	},
+	{ /* M2PCIe */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7817),
+		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_M2PCIE, 0),
+	},
+	{ /* IRP */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7814),
+		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_IRP, 0),
+	},
+	{ /* end: all zeroes */ }
+};
+
+static struct pci_driver knl_uncore_pci_driver = {
+	.name		= "knl_uncore",
+	.id_table	= knl_uncore_pci_ids,
+};
+
+int knl_uncore_pci_init(void)
+{
+	int ret;
+
+	/* All KNL PCI based PMON units are on the same PCI bus except IRP */
+	ret = snb_pci2phy_map_init(0x7814); /* IRP */
+	if (ret)
+		return ret;
+	ret = snb_pci2phy_map_init(0x7817); /* M2PCIe */
+	if (ret)
+		return ret;
+	uncore_pci_uncores = knl_pci_uncores;
+	uncore_pci_driver = &knl_uncore_pci_driver;
+	return 0;
+}
+
+/* end of KNL uncore support */
+
 /* Haswell-EP uncore support */
 static struct attribute *hswep_uncore_ubox_formats_attr[] = {
 	&format_attr_event.attr,
@@ -2338,7 +2819,7 @@ int hswep_uncore_pci_init(void)
 }
 /* end of Haswell-EP uncore support */
 
-/* BDX-DE uncore support */
+/* BDX uncore support */
 
 static struct intel_uncore_type bdx_uncore_ubox = {
 	.name			= "ubox",
@@ -2360,13 +2841,14 @@ static struct event_constraint bdx_uncore_cbox_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x09, 0x3),
 	UNCORE_EVENT_CONSTRAINT(0x11, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x36, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x3e, 0x1),
 	EVENT_CONSTRAINT_END
 };
 
 static struct intel_uncore_type bdx_uncore_cbox = {
 	.name			= "cbox",
 	.num_counters		= 4,
-	.num_boxes		= 8,
+	.num_boxes		= 24,
 	.perf_ctr_bits		= 48,
 	.event_ctl		= HSWEP_C0_MSR_PMON_CTL0,
 	.perf_ctr		= HSWEP_C0_MSR_PMON_CTR0,
@@ -2379,9 +2861,24 @@ static struct intel_uncore_type bdx_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
+static struct intel_uncore_type bdx_uncore_sbox = {
+	.name			= "sbox",
+	.num_counters		= 4,
+	.num_boxes		= 4,
+	.perf_ctr_bits		= 48,
+	.event_ctl		= HSWEP_S0_MSR_PMON_CTL0,
+	.perf_ctr		= HSWEP_S0_MSR_PMON_CTR0,
+	.event_mask		= HSWEP_S_MSR_PMON_RAW_EVENT_MASK,
+	.box_ctl		= HSWEP_S0_MSR_PMON_BOX_CTL,
+	.msr_offset		= HSWEP_SBOX_MSR_OFFSET,
+	.ops			= &hswep_uncore_sbox_msr_ops,
+	.format_group		= &hswep_uncore_sbox_format_group,
+};
+
 static struct intel_uncore_type *bdx_msr_uncores[] = {
 	&bdx_uncore_ubox,
 	&bdx_uncore_cbox,
+	&bdx_uncore_sbox,
 	&hswep_uncore_pcu,
 	NULL,
 };
@@ -2396,7 +2893,7 @@ void bdx_uncore_cpu_init(void)
 static struct intel_uncore_type bdx_uncore_ha = {
 	.name		= "ha",
 	.num_counters   = 4,
-	.num_boxes	= 1,
+	.num_boxes	= 2,
 	.perf_ctr_bits	= 48,
 	SNBEP_UNCORE_PCI_COMMON_INIT(),
 };
@@ -2404,7 +2901,7 @@ static struct intel_uncore_type bdx_uncore_ha = {
 static struct intel_uncore_type bdx_uncore_imc = {
 	.name		= "imc",
 	.num_counters   = 5,
-	.num_boxes	= 2,
+	.num_boxes	= 8,
 	.perf_ctr_bits	= 48,
 	.fixed_ctr_bits	= 48,
 	.fixed_ctr	= SNBEP_MC_CHy_PCI_PMON_FIXED_CTR,
@@ -2424,6 +2921,19 @@ static struct intel_uncore_type bdx_uncore_irp = {
 	.format_group		= &snbep_uncore_format_group,
 };
 
+static struct intel_uncore_type bdx_uncore_qpi = {
+	.name			= "qpi",
+	.num_counters		= 4,
+	.num_boxes		= 3,
+	.perf_ctr_bits		= 48,
+	.perf_ctr		= SNBEP_PCI_PMON_CTR0,
+	.event_ctl		= SNBEP_PCI_PMON_CTL0,
+	.event_mask		= SNBEP_QPI_PCI_PMON_RAW_EVENT_MASK,
+	.box_ctl		= SNBEP_PCI_PMON_BOX_CTL,
+	.num_shared_regs	= 1,
+	.ops			= &snbep_uncore_qpi_ops,
+	.format_group		= &snbep_uncore_qpi_format_group,
+};
 
 static struct event_constraint bdx_uncore_r2pcie_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x10, 0x3),
@@ -2432,6 +2942,8 @@ static struct event_constraint bdx_uncore_r2pcie_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x23, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x25, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x26, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x28, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2c, 0x3),
 	UNCORE_EVENT_CONSTRAINT(0x2d, 0x3),
 	EVENT_CONSTRAINT_END
 };
@@ -2445,18 +2957,65 @@ static struct intel_uncore_type bdx_uncore_r2pcie = {
 	SNBEP_UNCORE_PCI_COMMON_INIT(),
 };
 
+static struct event_constraint bdx_uncore_r3qpi_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x01, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x07, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x08, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x09, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x0a, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x0e, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x10, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x13, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x14, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x15, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x20, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x21, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x22, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x25, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x26, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x28, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x29, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2c, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2d, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2e, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2f, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x33, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x34, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x36, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x37, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x38, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x39, 0x3),
+	EVENT_CONSTRAINT_END
+};
+
+static struct intel_uncore_type bdx_uncore_r3qpi = {
+	.name		= "r3qpi",
+	.num_counters   = 3,
+	.num_boxes	= 3,
+	.perf_ctr_bits	= 48,
+	.constraints	= bdx_uncore_r3qpi_constraints,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
 enum {
 	BDX_PCI_UNCORE_HA,
 	BDX_PCI_UNCORE_IMC,
 	BDX_PCI_UNCORE_IRP,
+	BDX_PCI_UNCORE_QPI,
 	BDX_PCI_UNCORE_R2PCIE,
+	BDX_PCI_UNCORE_R3QPI,
 };
 
 static struct intel_uncore_type *bdx_pci_uncores[] = {
 	[BDX_PCI_UNCORE_HA]	= &bdx_uncore_ha,
 	[BDX_PCI_UNCORE_IMC]	= &bdx_uncore_imc,
 	[BDX_PCI_UNCORE_IRP]	= &bdx_uncore_irp,
+	[BDX_PCI_UNCORE_QPI]	= &bdx_uncore_qpi,
 	[BDX_PCI_UNCORE_R2PCIE]	= &bdx_uncore_r2pcie,
+	[BDX_PCI_UNCORE_R3QPI]	= &bdx_uncore_r3qpi,
 	NULL,
 };
 
@@ -2464,6 +3023,10 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f30),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_HA, 0),
+	},
+	{ /* Home Agent 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f38),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_HA, 1),
 	},
 	{ /* MC0 Channel 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb0),
@@ -2473,13 +3036,73 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb1),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 1),
 	},
+	{ /* MC0 Channel 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb4),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 2),
+	},
+	{ /* MC0 Channel 3 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb5),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 3),
+	},
+	{ /* MC1 Channel 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd0),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 4),
+	},
+	{ /* MC1 Channel 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd1),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 5),
+	},
+	{ /* MC1 Channel 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd4),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 6),
+	},
+	{ /* MC1 Channel 3 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd5),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 7),
+	},
 	{ /* IRP */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f39),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IRP, 0),
 	},
+	{ /* QPI0 Port 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f32),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_QPI, 0),
+	},
+	{ /* QPI0 Port 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f33),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_QPI, 1),
+	},
+	{ /* QPI1 Port 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f3a),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_QPI, 2),
+	},
 	{ /* R2PCIe */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f34),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R2PCIE, 0),
+	},
+	{ /* R3QPI0 Link 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f36),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R3QPI, 0),
+	},
+	{ /* R3QPI0 Link 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f37),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R3QPI, 1),
+	},
+	{ /* R3QPI1 Link 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f3e),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R3QPI, 2),
+	},
+	{ /* QPI Port 0 filter  */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f86),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 0),
+	},
+	{ /* QPI Port 1 filter  */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f96),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 1),
+	},
+	{ /* QPI Port 2 filter  */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f46),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 2),
 	},
 	{ /* end: all zeroes */ }
 };
@@ -2500,4 +3123,4 @@ int bdx_uncore_pci_init(void)
 	return 0;
 }
 
-/* end of BDX-DE uncore support */
+/* end of BDX uncore support */

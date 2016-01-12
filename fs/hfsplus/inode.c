@@ -403,6 +403,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode)
 	} else if (S_ISLNK(inode->i_mode)) {
 		sbi->file_count++;
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &hfsplus_aops;
 		hip->clump_blocks = 1;
 	} else
@@ -526,6 +527,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else if (S_ISLNK(inode->i_mode)) {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else {
 			init_special_inode(inode, inode->i_mode,
