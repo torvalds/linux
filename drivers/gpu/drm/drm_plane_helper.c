@@ -426,7 +426,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 
 	if (plane_funcs->prepare_fb && plane_state->fb &&
 	    plane_state->fb != old_fb) {
-		ret = plane_funcs->prepare_fb(plane, plane_state->fb,
+		ret = plane_funcs->prepare_fb(plane,
 					      plane_state);
 		if (ret)
 			goto out;
@@ -479,8 +479,8 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 		ret = 0;
 	}
 
-	if (plane_funcs->cleanup_fb && old_fb)
-		plane_funcs->cleanup_fb(plane, old_fb, plane_state);
+	if (plane_funcs->cleanup_fb)
+		plane_funcs->cleanup_fb(plane, plane_state);
 out:
 	if (plane_state) {
 		if (plane->funcs->atomic_destroy_state)

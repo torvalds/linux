@@ -6185,6 +6185,11 @@ static int ci_dpm_late_init(void *handle)
 	if (!amdgpu_dpm)
 		return 0;
 
+	/* init the sysfs and debugfs files late */
+	ret = amdgpu_pm_sysfs_init(adev);
+	if (ret)
+		return ret;
+
 	ret = ci_set_temperature_range(adev);
 	if (ret)
 		return ret;
@@ -6232,9 +6237,6 @@ static int ci_dpm_sw_init(void *handle)
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		goto dpm_failed;
 	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
 
@@ -6567,12 +6569,12 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		default:
@@ -6584,12 +6586,12 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		default:

@@ -169,7 +169,7 @@ static inline int tty_copy_to_user(struct tty_struct *tty,
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	tty_audit_add_data(tty, to, n, ldata->icanon);
+	tty_audit_add_data(tty, from, n, ldata->icanon);
 	return copy_to_user(to, from, n);
 }
 
@@ -201,7 +201,7 @@ static void n_tty_kick_worker(struct tty_struct *tty)
 		 */
 		WARN_RATELIMIT(test_bit(TTY_LDISC_HALTED, &tty->flags),
 			       "scheduling buffer work for halted ldisc\n");
-		queue_work(system_unbound_wq, &tty->port->buf.work);
+		tty_buffer_restart_work(tty->port);
 	}
 }
 
@@ -343,8 +343,7 @@ static void n_tty_packet_mode_flush(struct tty_struct *tty)
 		spin_lock_irqsave(&tty->ctrl_lock, flags);
 		tty->ctrl_status |= TIOCPKT_FLUSHREAD;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		if (waitqueue_active(&tty->link->read_wait))
-			wake_up_interruptible(&tty->link->read_wait);
+		wake_up_interruptible(&tty->link->read_wait);
 	}
 }
 
@@ -1180,8 +1179,6 @@ static void n_tty_receive_break(struct tty_struct *tty)
 		put_tty_queue('\0', ldata);
 	}
 	put_tty_queue('\0', ldata);
-	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 }
 
 /**
@@ -1238,8 +1235,6 @@ static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 			put_tty_queue('\0', ldata);
 	} else
 		put_tty_queue(c, ldata);
-	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 }
 
 static void
@@ -1382,8 +1377,7 @@ handle_newline:
 			put_tty_queue(c, ldata);
 			smp_store_release(&ldata->canon_head, ldata->read_head);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-			if (waitqueue_active(&tty->read_wait))
-				wake_up_interruptible_poll(&tty->read_wait, POLLIN);
+			wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 			return 0;
 		}
 	}
@@ -1667,8 +1661,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	if ((read_cnt(ldata) >= ldata->minimum_to_wake) || L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-		if (waitqueue_active(&tty->read_wait))
-			wake_up_interruptible_poll(&tty->read_wait, POLLIN);
+		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 	}
 }
 
@@ -1887,10 +1880,8 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	}
 
 	/* The termios change make the tty ready for I/O */
-	if (waitqueue_active(&tty->write_wait))
-		wake_up_interruptible(&tty->write_wait);
-	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible(&tty->read_wait);
+	wake_up_interruptible(&tty->write_wait);
+	wake_up_interruptible(&tty->read_wait);
 }
 
 /**
@@ -2147,37 +2138,15 @@ extern ssize_t redirected_tty_write(struct file *, const char __user *,
 
 static int job_control(struct tty_struct *tty, struct file *file)
 {
-	struct pid *pgrp;
-
 	/* Job control check -- must be done at start and after
 	   every sleep (POSIX.1 7.1.1.4). */
 	/* NOTE: not yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
-	if (file->f_op->write == redirected_tty_write ||
-	    current->signal->tty != tty)
+	if (file->f_op->write == redirected_tty_write)
 		return 0;
 
-	rcu_read_lock();
-	pgrp = task_pgrp(current);
-
-	spin_lock_irq(&tty->ctrl_lock);
-	if (!tty->pgrp)
-		printk(KERN_ERR "n_tty_read: no tty->pgrp!\n");
-	else if (pgrp != tty->pgrp) {
-		spin_unlock_irq(&tty->ctrl_lock);
-		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned()) {
-			rcu_read_unlock();
-			return -EIO;
-		}
-		kill_pgrp(pgrp, SIGTTIN, 1);
-		rcu_read_unlock();
-		set_thread_flag(TIF_SIGPENDING);
-		return -ERESTARTSYS;
-	}
-	spin_unlock_irq(&tty->ctrl_lock);
-	rcu_read_unlock();
-	return 0;
+	return __tty_check_change(tty, SIGTTIN);
 }
 
 

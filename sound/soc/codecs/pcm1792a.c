@@ -257,7 +257,6 @@ MODULE_DEVICE_TABLE(spi, pcm1792a_spi_ids);
 static struct spi_driver pcm1792a_codec_driver = {
 	.driver = {
 		.name = "pcm1792a",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(pcm1792a_of_match),
 	},
 	.id_table = pcm1792a_spi_ids,

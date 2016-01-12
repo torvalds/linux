@@ -67,6 +67,7 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	 * VM_PFNMAP flag that was set by drm_gem_mmap_obj()/drm_gem_mmap().
 	 */
 	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_pgoff = 0;
 
 	ret = dma_mmap_attrs(drm->dev, vma, rk_obj->kvaddr, rk_obj->dma_addr,
 			     obj->size, &rk_obj->dma_attrs);
@@ -79,12 +80,9 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 int rockchip_gem_mmap_buf(struct drm_gem_object *obj,
 			  struct vm_area_struct *vma)
 {
-	struct drm_device *drm = obj->dev;
 	int ret;
 
-	mutex_lock(&drm->struct_mutex);
 	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	mutex_unlock(&drm->struct_mutex);
 	if (ret)
 		return ret;
 

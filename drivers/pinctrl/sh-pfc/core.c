@@ -272,7 +272,7 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 			      u16 *enum_idp)
 {
-	const u16 *data = pfc->info->gpio_data;
+	const u16 *data = pfc->info->pinmux_data;
 	unsigned int k;
 
 	if (pos) {
@@ -280,7 +280,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 		return pos + 1;
 	}
 
-	for (k = 0; k < pfc->info->gpio_data_size; k++) {
+	for (k = 0; k < pfc->info->pinmux_data_size; k++) {
 		if (data[k] == mark) {
 			*enum_idp = data[k + 1];
 			return k + 1;
@@ -489,6 +489,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7794_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7795
+	{
+		.compatible = "renesas,pfc-r8a7795",
+		.data = &r8a7795_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{
 		.compatible = "renesas,pfc-sh73a0",
@@ -587,12 +593,6 @@ static int sh_pfc_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_pfc_id_table[] = {
-#ifdef CONFIG_PINCTRL_PFC_R8A7778
-	{ "pfc-r8a7778", (kernel_ulong_t)&r8a7778_pinmux_info },
-#endif
-#ifdef CONFIG_PINCTRL_PFC_R8A7779
-	{ "pfc-r8a7779", (kernel_ulong_t)&r8a7779_pinmux_info },
-#endif
 #ifdef CONFIG_PINCTRL_PFC_SH7203
 	{ "pfc-sh7203", (kernel_ulong_t)&sh7203_pinmux_info },
 #endif

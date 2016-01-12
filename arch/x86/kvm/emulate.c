@@ -2272,8 +2272,8 @@ static int emulator_has_longmode(struct x86_emulate_ctxt *ctxt)
 #define GET_SMSTATE(type, smbase, offset)				  \
 	({								  \
 	 type __val;							  \
-	 int r = ctxt->ops->read_std(ctxt, smbase + offset, &__val,       \
-				     sizeof(__val), NULL);		  \
+	 int r = ctxt->ops->read_phys(ctxt, smbase + offset, &__val,      \
+				      sizeof(__val));			  \
 	 if (r != X86EMUL_CONTINUE)					  \
 		 return X86EMUL_UNHANDLEABLE;				  \
 	 __val;								  \
@@ -2418,7 +2418,7 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt, u64 smbase)
 	u64 val, cr0, cr4;
 	u32 base3;
 	u16 selector;
-	int i;
+	int i, r;
 
 	for (i = 0; i < 16; i++)
 		*reg_write(ctxt, i) = GET_SMSTATE(u64, smbase, 0x7ff8 - i * 8);
@@ -2460,13 +2460,17 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt, u64 smbase)
 	dt.address =                GET_SMSTATE(u64, smbase, 0x7e68);
 	ctxt->ops->set_gdt(ctxt, &dt);
 
+	r = rsm_enter_protected_mode(ctxt, cr0, cr4);
+	if (r != X86EMUL_CONTINUE)
+		return r;
+
 	for (i = 0; i < 6; i++) {
-		int r = rsm_load_seg_64(ctxt, smbase, i);
+		r = rsm_load_seg_64(ctxt, smbase, i);
 		if (r != X86EMUL_CONTINUE)
 			return r;
 	}
 
-	return rsm_enter_protected_mode(ctxt, cr0, cr4);
+	return X86EMUL_CONTINUE;
 }
 
 static int em_rsm(struct x86_emulate_ctxt *ctxt)
@@ -2480,17 +2484,36 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 
 	/*
 	 * Get back to real mode, to prepare a safe state in which to load
-	 * CR0/CR3/CR4/EFER.  Also this will ensure that addresses passed
-	 * to read_std/write_std are not virtual.
-	 *
-	 * CR4.PCIDE must be zero, because it is a 64-bit mode only feature.
+	 * CR0/CR3/CR4/EFER.  It's all a bit more complicated if the vCPU
+	 * supports long mode.
 	 */
+	cr4 = ctxt->ops->get_cr(ctxt, 4);
+	if (emulator_has_longmode(ctxt)) {
+		struct desc_struct cs_desc;
+
+		/* Zero CR4.PCIDE before CR0.PG.  */
+		if (cr4 & X86_CR4_PCIDE) {
+			ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PCIDE);
+			cr4 &= ~X86_CR4_PCIDE;
+		}
+
+		/* A 32-bit code segment is required to clear EFER.LMA.  */
+		memset(&cs_desc, 0, sizeof(cs_desc));
+		cs_desc.type = 0xb;
+		cs_desc.s = cs_desc.g = cs_desc.p = 1;
+		ctxt->ops->set_segment(ctxt, 0, &cs_desc, 0, VCPU_SREG_CS);
+	}
+
+	/* For the 64-bit case, this will clear EFER.LMA.  */
 	cr0 = ctxt->ops->get_cr(ctxt, 0);
 	if (cr0 & X86_CR0_PE)
 		ctxt->ops->set_cr(ctxt, 0, cr0 & ~(X86_CR0_PG | X86_CR0_PE));
-	cr4 = ctxt->ops->get_cr(ctxt, 4);
+
+	/* Now clear CR4.PAE (which must be done before clearing EFER.LME).  */
 	if (cr4 & X86_CR4_PAE)
 		ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PAE);
+
+	/* And finally go back to 32-bit mode.  */
 	efer = 0;
 	ctxt->ops->set_msr(ctxt, MSR_EFER, efer);
 
@@ -4451,7 +4474,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
-	II(No64 | EmulateOnUD | ImplicitOps, em_rsm, rsm),
+	II(EmulateOnUD | ImplicitOps, em_rsm, rsm),
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),

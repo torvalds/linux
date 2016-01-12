@@ -1704,7 +1704,7 @@ error_4:
 error_3:
 	bq2415x_power_supply_exit(bq);
 error_2:
-	if (bq->notify_node)
+	if (bq && bq->notify_node)
 		of_node_put(bq->notify_node);
 	kfree(name);
 error_1:

@@ -76,7 +76,7 @@
 				pmic: act8865@5b {
 					compatible = "active-semi,act8865";
 					reg = <0x5b>;
-					status = "okay";
+					status = "disabled";
 
 					regulators {
 						vcc_1v8_reg: DCDC_REG1 {
@@ -315,7 +315,7 @@
 			label = "PB_USER";
 			gpios = <&pioE 29 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

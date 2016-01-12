@@ -247,10 +247,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * primitives such as list_add_rcu() as long as it's guarded by rcu_read_lock().
  */
 #define list_entry_rcu(ptr, type, member) \
-({ \
-	typeof(*ptr) __rcu *__ptr = (typeof(*ptr) __rcu __force *)ptr; \
-	container_of((typeof(ptr))rcu_dereference_raw(__ptr), type, member); \
-})
+	container_of(lockless_dereference(ptr), type, member)
 
 /**
  * Where are list_empty_rcu() and list_first_entry_rcu()?

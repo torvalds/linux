@@ -237,13 +237,14 @@ static int bcm47xxsflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	return 0;
 }
 
-static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
+static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s,
+				   struct device *dev)
 {
 	struct mtd_info *mtd = &b47s->mtd;
 
 	mtd->priv = b47s;
+	mtd->dev.parent = dev;
 	mtd->name = "bcm47xxsflash";
-	mtd->owner = THIS_MODULE;
 
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_CAP_NORFLASH;
@@ -300,7 +301,7 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	b47s->blocksize = sflash->blocksize;
 	b47s->numblocks = sflash->numblocks;
 	b47s->size = sflash->size;
-	bcm47xxsflash_fill_mtd(b47s);
+	bcm47xxsflash_fill_mtd(b47s, &pdev->dev);
 
 	err = mtd_device_parse_register(&b47s->mtd, probes, NULL, NULL, 0);
 	if (err) {

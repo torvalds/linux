@@ -411,7 +411,7 @@ static int pinconf_dbg_config_print(struct seq_file *s, void *d)
 	const struct pinctrl_map *found = NULL;
 	struct pinctrl_dev *pctldev;
 	struct dbg_cfg *dbg = &pinconf_dbg_conf;
-	int i, j;
+	int i;
 
 	mutex_lock(&pinctrl_maps_mutex);
 
@@ -424,13 +424,10 @@ static int pinconf_dbg_config_print(struct seq_file *s, void *d)
 		if (strcmp(map->name, dbg->state_name))
 			continue;
 
-		for (j = 0; j < map->data.configs.num_configs; j++) {
-			if (!strcmp(map->data.configs.group_or_pin,
-					dbg->pin_name)) {
-				/* We found the right pin / state */
-				found = map;
-				break;
-			}
+		if (!strcmp(map->data.configs.group_or_pin, dbg->pin_name)) {
+			/* We found the right pin */
+			found = map;
+			break;
 		}
 	}
 

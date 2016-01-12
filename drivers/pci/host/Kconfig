@@ -39,7 +39,8 @@ config PCI_TEGRA
 
 config PCI_RCAR_GEN2
 	bool "Renesas R-Car Gen2 Internal PCI controller"
-	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	depends on ARM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Say Y here if you want internal PCI support on R-Car Gen2 SoC.
 	  There are 3 internal PCI controllers available with a single
@@ -47,7 +48,8 @@ config PCI_RCAR_GEN2
 
 config PCI_RCAR_GEN2_PCIE
 	bool "Renesas R-Car PCIe controller"
-	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	depends on ARM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Say Y here if you want PCIe controller support on R-Car Gen2 SoCs.
 
@@ -105,7 +107,7 @@ config PCI_XGENE_MSI
 
 config PCI_LAYERSCAPE
 	bool "Freescale Layerscape PCIe controller"
-	depends on OF && ARM
+	depends on OF && (ARM || ARCH_LAYERSCAPE)
 	select PCIE_DW
 	select MFD_SYSCON
 	help
@@ -144,5 +146,30 @@ config PCIE_IPROC_BCMA
 	help
 	  Say Y here if you want to use the Broadcom iProc PCIe controller
 	  through the BCMA bus interface
+
+config PCIE_ALTERA
+	bool "Altera PCIe controller"
+	depends on ARM || NIOS2
+	depends on OF_PCI
+	select PCI_DOMAINS
+	help
+	  Say Y here if you want to enable PCIe controller support on Altera
+	  FPGA.
+
+config PCIE_ALTERA_MSI
+	bool "Altera PCIe MSI feature"
+	depends on PCIE_ALTERA && PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+	help
+	  Say Y here if you want PCIe MSI support for the Altera FPGA.
+	  This MSI driver supports Altera MSI to GIC controller IP.
+
+config PCI_HISI
+	depends on OF && ARM64
+	bool "HiSilicon SoC HIP05 PCIe controller"
+	select PCIEPORTBUS
+	select PCIE_DW
+	help
+	  Say Y here if you want PCIe controller support on HiSilicon HIP05 SoC
 
 endmenu

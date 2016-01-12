@@ -84,8 +84,10 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 		}
 
 		ret = pm_runtime_get_sync(dev);
-		if (ret < 0 && ret != -EACCES)
+		if (ret < 0 && ret != -EACCES) {
+			kfree(vma);
 			goto out;
+		}
 
 		ret = nouveau_bo_vma_add(nvbo, cli->vm, vma);
 		if (ret)
@@ -227,11 +229,12 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nvkm_vma *vma;
 
-	if (nvbo->bo.mem.mem_type == TTM_PL_TT)
+	if (is_power_of_2(nvbo->valid_domains))
+		rep->domain = nvbo->valid_domains;
+	else if (nvbo->bo.mem.mem_type == TTM_PL_TT)
 		rep->domain = NOUVEAU_GEM_DOMAIN_GART;
 	else
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
-
 	rep->offset = nvbo->bo.offset;
 	if (cli->vm) {
 		vma = nouveau_bo_vma_find(nvbo, cli->vm);
@@ -665,7 +668,7 @@ int
 nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_abi16_chan *temp;
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -681,7 +684,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	list_for_each_entry(temp, &abi16->channels, head) {
-		if (temp->chan->user.handle == (NVDRM_CHAN | req->channel)) {
+		if (temp->chan->chid == req->channel) {
 			chan = temp->chan;
 			break;
 		}

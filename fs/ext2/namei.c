@@ -143,9 +143,6 @@ static int ext2_mknod (struct inode * dir, struct dentry *dentry, umode_t mode, 
 	struct inode * inode;
 	int err;
 
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
-
 	err = dquot_initialize(dir);
 	if (err)
 		return err;

@@ -611,15 +611,16 @@ static void ccp_get_dm_area(struct ccp_dm_workarea *wa, unsigned int wa_offset,
 				 1);
 }
 
-static void ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
-				    struct scatterlist *sg,
-				    unsigned int len, unsigned int se_len,
-				    bool sign_extend)
+static int ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
+				   struct scatterlist *sg,
+				   unsigned int len, unsigned int se_len,
+				   bool sign_extend)
 {
 	unsigned int nbytes, sg_offset, dm_offset, ksb_len, i;
 	u8 buffer[CCP_REVERSE_BUF_SIZE];
 
-	BUG_ON(se_len > sizeof(buffer));
+	if (WARN_ON(se_len > sizeof(buffer)))
+		return -EINVAL;
 
 	sg_offset = len;
 	dm_offset = 0;
@@ -642,6 +643,8 @@ static void ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
 				       se_len - ksb_len);
 		}
 	}
+
+	return 0;
 }
 
 static void ccp_reverse_get_dm_area(struct ccp_dm_workarea *wa,
@@ -1606,8 +1609,10 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (ret)
 		goto e_ksb;
 
-	ccp_reverse_set_dm_area(&exp, rsa->exp, rsa->exp_len, CCP_KSB_BYTES,
-				false);
+	ret = ccp_reverse_set_dm_area(&exp, rsa->exp, rsa->exp_len,
+				      CCP_KSB_BYTES, false);
+	if (ret)
+		goto e_exp;
 	ret = ccp_copy_to_ksb(cmd_q, &exp, op.jobid, op.ksb_key,
 			      CCP_PASSTHRU_BYTESWAP_NOOP);
 	if (ret) {
@@ -1623,11 +1628,15 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (ret)
 		goto e_exp;
 
-	ccp_reverse_set_dm_area(&src, rsa->mod, rsa->mod_len, CCP_KSB_BYTES,
-				false);
+	ret = ccp_reverse_set_dm_area(&src, rsa->mod, rsa->mod_len,
+				      CCP_KSB_BYTES, false);
+	if (ret)
+		goto e_src;
 	src.address += o_len;	/* Adjust the address for the copy operation */
-	ccp_reverse_set_dm_area(&src, rsa->src, rsa->src_len, CCP_KSB_BYTES,
-				false);
+	ret = ccp_reverse_set_dm_area(&src, rsa->src, rsa->src_len,
+				      CCP_KSB_BYTES, false);
+	if (ret)
+		goto e_src;
 	src.address -= o_len;	/* Reset the address to original value */
 
 	/* Prepare the output area for the operation */
@@ -1841,21 +1850,27 @@ static int ccp_run_ecc_mm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	save = src.address;
 
 	/* Copy the ECC modulus */
-	ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	/* Copy the first operand */
-	ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_1,
-				ecc->u.mm.operand_1_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_1,
+				      ecc->u.mm.operand_1_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	if (ecc->function != CCP_ECC_FUNCTION_MINV_384BIT) {
 		/* Copy the second operand */
-		ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_2,
-					ecc->u.mm.operand_2_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_2,
+					      ecc->u.mm.operand_2_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 	}
 
@@ -1960,18 +1975,24 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	save = src.address;
 
 	/* Copy the ECC modulus */
-	ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	/* Copy the first point X and Y coordinate */
-	ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.x,
-				ecc->u.pm.point_1.x_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.x,
+				      ecc->u.pm.point_1.x_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
-	ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.y,
-				ecc->u.pm.point_1.y_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.y,
+				      ecc->u.pm.point_1.y_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	/* Set the first point Z coordianate to 1 */
@@ -1980,13 +2001,17 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	if (ecc->function == CCP_ECC_FUNCTION_PADD_384BIT) {
 		/* Copy the second point X and Y coordinate */
-		ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.x,
-					ecc->u.pm.point_2.x_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.x,
+					      ecc->u.pm.point_2.x_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
-		ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.y,
-					ecc->u.pm.point_2.y_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.y,
+					      ecc->u.pm.point_2.y_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 
 		/* Set the second point Z coordianate to 1 */
@@ -1994,16 +2019,21 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		src.address += CCP_ECC_OPERAND_SIZE;
 	} else {
 		/* Copy the Domain "a" parameter */
-		ccp_reverse_set_dm_area(&src, ecc->u.pm.domain_a,
-					ecc->u.pm.domain_a_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.domain_a,
+					      ecc->u.pm.domain_a_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 
 		if (ecc->function == CCP_ECC_FUNCTION_PMUL_384BIT) {
 			/* Copy the scalar value */
-			ccp_reverse_set_dm_area(&src, ecc->u.pm.scalar,
-						ecc->u.pm.scalar_len,
-						CCP_ECC_OPERAND_SIZE, false);
+			ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.scalar,
+						      ecc->u.pm.scalar_len,
+						      CCP_ECC_OPERAND_SIZE,
+						      false);
+			if (ret)
+				goto e_src;
 			src.address += CCP_ECC_OPERAND_SIZE;
 		}
 	}

@@ -25,6 +25,7 @@
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
+#include <mon.h>
 #include <wifi.h>
 #include <linux/vmalloc.h>
 
@@ -1276,7 +1277,7 @@ static int validate_recv_frame(struct adapter *adapter,
 		int i;
 		DBG_88E("#############################\n");
 
-		for (i = 0; i < 64; i = i+8)
+		for (i = 0; i < 64; i += 8)
 			DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
 				*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 		DBG_88E("#############################\n");
@@ -1285,7 +1286,7 @@ static int validate_recv_frame(struct adapter *adapter,
 			int i;
 			DBG_88E("#############################\n");
 
-			for (i = 0; i < 64; i = i+8)
+			for (i = 0; i < 64; i += 8)
 				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
 					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 			DBG_88E("#############################\n");
@@ -1295,7 +1296,7 @@ static int validate_recv_frame(struct adapter *adapter,
 			int i;
 			DBG_88E("#############################\n");
 
-			for (i = 0; i < 64; i = i+8)
+			for (i = 0; i < 64; i += 8)
 				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
 					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 			DBG_88E("#############################\n");
@@ -1328,6 +1329,19 @@ static int validate_recv_frame(struct adapter *adapter,
 		retval = _FAIL;
 		break;
 	}
+
+	/*
+	 * This is the last moment before management and control frames get
+	 * discarded. So we need to forward them to the monitor now or never.
+	 *
+	 * At the same time data frames can still be encrypted if software
+	 * decryption is in use. However, decryption can occur not until later
+	 * (see recv_func()).
+	 *
+	 * Hence forward the frame to the monitor anyway to preserve the order
+	 * in which frames were received.
+	 */
+	rtl88eu_mon_recv_hook(adapter->pmondev, precv_frame);
 
 exit:
 

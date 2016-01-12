@@ -335,7 +335,7 @@ static int src_default_config_arcrw(struct src *src)
 	return 0;
 }
 
-static struct src_rsc_ops src_rsc_ops = {
+static const struct src_rsc_ops src_rsc_ops = {
 	.set_state		= src_set_state,
 	.set_bm			= src_set_bm,
 	.set_sf			= src_set_sf,
@@ -611,7 +611,7 @@ static int srcimp_index(const struct rsc *rsc)
 	return container_of(rsc, struct srcimp, rsc)->idx[rsc->conj];
 }
 
-static struct rsc_ops srcimp_basic_rsc_ops = {
+static const struct rsc_ops srcimp_basic_rsc_ops = {
 	.master		= srcimp_master,
 	.next_conj	= srcimp_next_conj,
 	.index		= srcimp_index,
@@ -662,7 +662,7 @@ static int srcimp_unmap(struct srcimp *srcimp)
 	return 0;
 }
 
-static struct srcimp_rsc_ops srcimp_ops = {
+static const struct srcimp_rsc_ops srcimp_ops = {
 	.map = srcimp_map,
 	.unmap = srcimp_unmap
 };

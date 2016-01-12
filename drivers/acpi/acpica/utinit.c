@@ -241,8 +241,6 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_disable_mem_tracking = FALSE;
 #endif
 
-	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = FALSE);
-
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -283,6 +281,19 @@ static void acpi_ut_terminate(void)
 void acpi_ut_subsystem_shutdown(void)
 {
 	ACPI_FUNCTION_TRACE(ut_subsystem_shutdown);
+
+	/* Just exit if subsystem is already shutdown */
+
+	if (acpi_gbl_shutdown) {
+		ACPI_ERROR((AE_INFO, "ACPI Subsystem is already terminated"));
+		return_VOID;
+	}
+
+	/* Subsystem appears active, go ahead and shut it down */
+
+	acpi_gbl_shutdown = TRUE;
+	acpi_gbl_startup_flags = 0;
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 #ifndef ACPI_ASL_COMPILER
 

@@ -306,8 +306,7 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
  * reference counted modeset objects like framebuffers.
  *
  * Returns:
- * New unique (relative to other objects in @dev) integer identifier for the
- * object.
+ * Zero on success, error code on failure.
  */
 int drm_mode_object_get(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
@@ -423,7 +422,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 out:
 	mutex_unlock(&dev->mode_config.fb_lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
 
@@ -538,7 +537,12 @@ EXPORT_SYMBOL(drm_framebuffer_reference);
  */
 void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
+	struct drm_device *dev;
+
+	if (!fb)
+		return;
+
+	dev = fb->dev;
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	/* Mark fb as reaped and drop idr ref. */
@@ -589,11 +593,16 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  */
 void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
+	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	struct drm_mode_set set;
 	int ret;
+
+	if (!fb)
+		return;
+
+	dev = fb->dev;
 
 	WARN_ON(!list_empty(&fb->filp_head));
 
@@ -667,7 +676,6 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
-	crtc->invert_dimensions = false;
 
 	drm_modeset_lock_init(&crtc->mutex);
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
@@ -1509,7 +1517,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  */
 int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
-				  char *modes[])
+				  const char * const modes[])
 {
 	struct drm_property *tv_selector;
 	struct drm_property *tv_subconnector;
@@ -1525,6 +1533,9 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 					  "select subconnector",
 					  drm_tv_select_enum_list,
 					  ARRAY_SIZE(drm_tv_select_enum_list));
+	if (!tv_selector)
+		goto nomem;
+
 	dev->mode_config.tv_select_subconnector_property = tv_selector;
 
 	tv_subconnector =
@@ -1532,6 +1543,8 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 				    "subconnector",
 				    drm_tv_subconnector_enum_list,
 				    ARRAY_SIZE(drm_tv_subconnector_enum_list));
+	if (!tv_subconnector)
+		goto nomem;
 	dev->mode_config.tv_subconnector_property = tv_subconnector;
 
 	/*
@@ -1539,42 +1552,67 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 	 */
 	dev->mode_config.tv_left_margin_property =
 		drm_property_create_range(dev, 0, "left margin", 0, 100);
+	if (!dev->mode_config.tv_left_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_right_margin_property =
 		drm_property_create_range(dev, 0, "right margin", 0, 100);
+	if (!dev->mode_config.tv_right_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_top_margin_property =
 		drm_property_create_range(dev, 0, "top margin", 0, 100);
+	if (!dev->mode_config.tv_top_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_bottom_margin_property =
 		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
+	if (!dev->mode_config.tv_bottom_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_mode_property =
 		drm_property_create(dev, DRM_MODE_PROP_ENUM,
 				    "mode", num_modes);
+	if (!dev->mode_config.tv_mode_property)
+		goto nomem;
+
 	for (i = 0; i < num_modes; i++)
 		drm_property_add_enum(dev->mode_config.tv_mode_property, i,
 				      i, modes[i]);
 
 	dev->mode_config.tv_brightness_property =
 		drm_property_create_range(dev, 0, "brightness", 0, 100);
+	if (!dev->mode_config.tv_brightness_property)
+		goto nomem;
 
 	dev->mode_config.tv_contrast_property =
 		drm_property_create_range(dev, 0, "contrast", 0, 100);
+	if (!dev->mode_config.tv_contrast_property)
+		goto nomem;
 
 	dev->mode_config.tv_flicker_reduction_property =
 		drm_property_create_range(dev, 0, "flicker reduction", 0, 100);
+	if (!dev->mode_config.tv_flicker_reduction_property)
+		goto nomem;
 
 	dev->mode_config.tv_overscan_property =
 		drm_property_create_range(dev, 0, "overscan", 0, 100);
+	if (!dev->mode_config.tv_overscan_property)
+		goto nomem;
 
 	dev->mode_config.tv_saturation_property =
 		drm_property_create_range(dev, 0, "saturation", 0, 100);
+	if (!dev->mode_config.tv_saturation_property)
+		goto nomem;
 
 	dev->mode_config.tv_hue_property =
 		drm_property_create_range(dev, 0, "hue", 0, 100);
+	if (!dev->mode_config.tv_hue_property)
+		goto nomem;
 
 	return 0;
+nomem:
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(drm_mode_create_tv_properties);
 
@@ -2276,6 +2314,32 @@ int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
 	return -EINVAL;
 }
 
+static int check_src_coords(uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h,
+			    const struct drm_framebuffer *fb)
+{
+	unsigned int fb_width, fb_height;
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (src_w > fb_width ||
+	    src_x > fb_width - src_w ||
+	    src_h > fb_height ||
+	    src_y > fb_height - src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
+			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
+			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
+			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 /*
  * setplane_internal - setplane handler for internal callers
  *
@@ -2295,7 +2359,6 @@ static int __setplane_internal(struct drm_plane *plane,
 			       uint32_t src_w, uint32_t src_h)
 {
 	int ret = 0;
-	unsigned int fb_width, fb_height;
 
 	/* No fb means shut it down */
 	if (!fb) {
@@ -2332,27 +2395,13 @@ static int __setplane_internal(struct drm_plane *plane,
 	    crtc_y > INT_MAX - (int32_t) crtc_h) {
 		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
 			      crtc_w, crtc_h, crtc_x, crtc_y);
-		return -ERANGE;
-	}
-
-
-	fb_width = fb->width << 16;
-	fb_height = fb->height << 16;
-
-	/* Make sure source coordinates are inside the fb. */
-	if (src_w > fb_width ||
-	    src_x > fb_width - src_w ||
-	    src_h > fb_height ||
-	    src_y > fb_height - src_h) {
-		DRM_DEBUG_KMS("Invalid source coordinates "
-			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
-			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
-			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
-			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
-			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
-		ret = -ENOSPC;
+		ret = -ERANGE;
 		goto out;
 	}
+
+	ret = check_src_coords(src_x, src_y, src_w, src_h, fb);
+	if (ret)
+		goto out;
 
 	plane->old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
@@ -2543,20 +2592,13 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 
 	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
 
-	if (crtc->invert_dimensions)
+	if (crtc->state &&
+	    crtc->primary->state->rotation & (BIT(DRM_ROTATE_90) |
+					      BIT(DRM_ROTATE_270)))
 		swap(hdisplay, vdisplay);
 
-	if (hdisplay > fb->width ||
-	    vdisplay > fb->height ||
-	    x > fb->width - hdisplay ||
-	    y > fb->height - vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
-			      fb->width, fb->height, hdisplay, vdisplay, x, y,
-			      crtc->invert_dimensions ? " (inverted)" : "");
-		return -ENOSPC;
-	}
-
-	return 0;
+	return check_src_coords(x << 16, y << 16,
+				hdisplay << 16, vdisplay << 16, fb);
 }
 EXPORT_SYMBOL(drm_crtc_check_viewport);
 
@@ -3310,14 +3352,11 @@ int drm_mode_rmfb(struct drm_device *dev,
 	if (!found)
 		goto fail_lookup;
 
-	/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
-	__drm_framebuffer_unregister(dev, fb);
-
 	list_del_init(&fb->filp_head);
 	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
 
-	drm_framebuffer_remove(fb);
+	drm_framebuffer_unreference(fb);
 
 	return 0;
 
@@ -3484,7 +3523,6 @@ out_err1:
  */
 void drm_fb_release(struct drm_file *priv)
 {
-	struct drm_device *dev = priv->minor->dev;
 	struct drm_framebuffer *fb, *tfb;
 
 	/*
@@ -3498,16 +3536,10 @@ void drm_fb_release(struct drm_file *priv)
 	 * at it any more.
 	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-
-		mutex_lock(&dev->mode_config.fb_lock);
-		/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
-		__drm_framebuffer_unregister(dev, fb);
-		mutex_unlock(&dev->mode_config.fb_lock);
-
 		list_del_init(&fb->filp_head);
 
-		/* This will also drop the fpriv->fbs reference. */
-		drm_framebuffer_remove(fb);
+		/* This drops the fpriv->fbs reference. */
+		drm_framebuffer_unreference(fb);
 	}
 }
 
@@ -4105,7 +4137,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	struct drm_property_blob *blob;
 	int ret;
 
-	if (!length)
+	if (!length || length > ULONG_MAX - sizeof(struct drm_property_blob))
 		return ERR_PTR(-EINVAL);
 
 	blob = kzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
@@ -4454,7 +4486,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 	 * not associated with any file_priv. */
 	mutex_lock(&dev->mode_config.blob_lock);
 	out_resp->blob_id = blob->base.id;
-	list_add_tail(&file_priv->blobs, &blob->head_file);
+	list_add_tail(&blob->head_file, &file_priv->blobs);
 	mutex_unlock(&dev->mode_config.blob_lock);
 
 	return 0;
@@ -5181,7 +5213,14 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	if (crtc->state) {
+		const struct drm_plane_state *state = crtc->primary->state;
+
+		ret = check_src_coords(state->src_x, state->src_y,
+				       state->src_w, state->src_h, fb);
+	} else {
+		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	}
 	if (ret)
 		goto out;
 
@@ -5629,7 +5668,8 @@ unsigned int drm_rotation_simplify(unsigned int rotation,
 {
 	if (rotation & ~supported_rotations) {
 		rotation ^= BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y);
-		rotation = (rotation & ~0xf) | BIT((ffs(rotation & 0xf) + 1) % 4);
+		rotation = (rotation & DRM_REFLECT_MASK) |
+		           BIT((ffs(rotation & DRM_ROTATE_MASK) + 1) % 4);
 	}
 
 	return rotation;
@@ -5732,7 +5772,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_remove(fb);
+		drm_framebuffer_free(&fb->refcount);
 	}
 
 	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,

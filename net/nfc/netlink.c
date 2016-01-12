@@ -885,7 +885,7 @@ static int nfc_genl_activate_target(struct sk_buff *skb, struct genl_info *info)
 	target_idx = nla_get_u32(info->attrs[NFC_ATTR_TARGET_INDEX]);
 	protocol = nla_get_u32(info->attrs[NFC_ATTR_PROTOCOLS]);
 
-	nfc_deactivate_target(dev, target_idx);
+	nfc_deactivate_target(dev, target_idx, NFC_TARGET_MODE_SLEEP);
 	rc = nfc_activate_target(dev, target_idx, protocol);
 
 	nfc_put_device(dev);
@@ -1109,10 +1109,8 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
 
 	dev = nfc_get_device(idx);
-	if (!dev) {
-		rc = -ENODEV;
-		goto exit;
-	}
+	if (!dev)
+		return -ENODEV;
 
 	device_lock(&dev->dev);
 

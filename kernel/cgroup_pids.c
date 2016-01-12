@@ -106,7 +106,7 @@ static void pids_uncharge(struct pids_cgroup *pids, int num)
 {
 	struct pids_cgroup *p;
 
-	for (p = pids; p; p = parent_pids(p))
+	for (p = pids; parent_pids(p); p = parent_pids(p))
 		pids_cancel(p, num);
 }
 
@@ -123,7 +123,7 @@ static void pids_charge(struct pids_cgroup *pids, int num)
 {
 	struct pids_cgroup *p;
 
-	for (p = pids; p; p = parent_pids(p))
+	for (p = pids; parent_pids(p); p = parent_pids(p))
 		atomic64_add(num, &p->counter);
 }
 
@@ -140,7 +140,7 @@ static int pids_try_charge(struct pids_cgroup *pids, int num)
 {
 	struct pids_cgroup *p, *q;
 
-	for (p = pids; p; p = parent_pids(p)) {
+	for (p = pids; parent_pids(p); p = parent_pids(p)) {
 		int64_t new = atomic64_add_return(num, &p->counter);
 
 		/*
@@ -162,13 +162,13 @@ revert:
 	return -EAGAIN;
 }
 
-static int pids_can_attach(struct cgroup_subsys_state *css,
-			   struct cgroup_taskset *tset)
+static int pids_can_attach(struct cgroup_taskset *tset)
 {
-	struct pids_cgroup *pids = css_pids(css);
 	struct task_struct *task;
+	struct cgroup_subsys_state *dst_css;
 
-	cgroup_taskset_for_each(task, tset) {
+	cgroup_taskset_for_each(task, dst_css, tset) {
+		struct pids_cgroup *pids = css_pids(dst_css);
 		struct cgroup_subsys_state *old_css;
 		struct pids_cgroup *old_pids;
 
@@ -187,13 +187,13 @@ static int pids_can_attach(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-static void pids_cancel_attach(struct cgroup_subsys_state *css,
-			       struct cgroup_taskset *tset)
+static void pids_cancel_attach(struct cgroup_taskset *tset)
 {
-	struct pids_cgroup *pids = css_pids(css);
 	struct task_struct *task;
+	struct cgroup_subsys_state *dst_css;
 
-	cgroup_taskset_for_each(task, tset) {
+	cgroup_taskset_for_each(task, dst_css, tset) {
+		struct pids_cgroup *pids = css_pids(dst_css);
 		struct cgroup_subsys_state *old_css;
 		struct pids_cgroup *old_pids;
 
@@ -205,72 +205,33 @@ static void pids_cancel_attach(struct cgroup_subsys_state *css,
 	}
 }
 
+/*
+ * task_css_check(true) in pids_can_fork() and pids_cancel_fork() relies
+ * on threadgroup_change_begin() held by the copy_process().
+ */
 static int pids_can_fork(struct task_struct *task, void **priv_p)
 {
 	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
-	int err;
 
-	/*
-	 * Use the "current" task_css for the pids subsystem as the tentative
-	 * css. It is possible we will charge the wrong hierarchy, in which
-	 * case we will forcefully revert/reapply the charge on the right
-	 * hierarchy after it is committed to the task proper.
-	 */
-	css = task_get_css(current, pids_cgrp_id);
+	css = task_css_check(current, pids_cgrp_id, true);
 	pids = css_pids(css);
-
-	err = pids_try_charge(pids, 1);
-	if (err)
-		goto err_css_put;
-
-	*priv_p = css;
-	return 0;
-
-err_css_put:
-	css_put(css);
-	return err;
+	return pids_try_charge(pids, 1);
 }
 
 static void pids_cancel_fork(struct task_struct *task, void *priv)
 {
-	struct cgroup_subsys_state *css = priv;
-	struct pids_cgroup *pids = css_pids(css);
-
-	pids_uncharge(pids, 1);
-	css_put(css);
-}
-
-static void pids_fork(struct task_struct *task, void *priv)
-{
 	struct cgroup_subsys_state *css;
-	struct cgroup_subsys_state *old_css = priv;
 	struct pids_cgroup *pids;
-	struct pids_cgroup *old_pids = css_pids(old_css);
 
-	css = task_get_css(task, pids_cgrp_id);
+	css = task_css_check(current, pids_cgrp_id, true);
 	pids = css_pids(css);
-
-	/*
-	 * If the association has changed, we have to revert and reapply the
-	 * charge/uncharge on the wrong hierarchy to the current one. Since
-	 * the association can only change due to an organisation event, its
-	 * okay for us to ignore the limit in this case.
-	 */
-	if (pids != old_pids) {
-		pids_uncharge(old_pids, 1);
-		pids_charge(pids, 1);
-	}
-
-	css_put(css);
-	css_put(old_css);
+	pids_uncharge(pids, 1);
 }
 
-static void pids_exit(struct cgroup_subsys_state *css,
-		      struct cgroup_subsys_state *old_css,
-		      struct task_struct *task)
+static void pids_free(struct task_struct *task)
 {
-	struct pids_cgroup *pids = css_pids(old_css);
+	struct pids_cgroup *pids = css_pids(task_css(task, pids_cgrp_id));
 
 	pids_uncharge(pids, 1);
 }
@@ -337,6 +298,7 @@ static struct cftype pids_files[] = {
 	{
 		.name = "current",
 		.read_s64 = pids_current_read,
+		.flags = CFTYPE_NOT_ON_ROOT,
 	},
 	{ }	/* terminate */
 };
@@ -348,8 +310,7 @@ struct cgroup_subsys pids_cgrp_subsys = {
 	.cancel_attach 	= pids_cancel_attach,
 	.can_fork	= pids_can_fork,
 	.cancel_fork	= pids_cancel_fork,
-	.fork		= pids_fork,
-	.exit		= pids_exit,
+	.free		= pids_free,
 	.legacy_cftypes	= pids_files,
 	.dfl_cftypes	= pids_files,
 };

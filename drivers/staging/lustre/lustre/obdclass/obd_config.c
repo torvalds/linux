@@ -47,8 +47,7 @@
 
 #include "llog_internal.h"
 
-static cfs_hash_ops_t uuid_hash_ops;
-static cfs_hash_ops_t nid_hash_ops;
+static struct cfs_hash_ops uuid_hash_ops;
 
 /*********** string parsing utils *********/
 
@@ -61,7 +60,7 @@ int class_find_param(char *buf, char *key, char **valp)
 		return 1;
 
 	ptr = strstr(buf, key);
-	if (ptr == NULL)
+	if (!ptr)
 		return 1;
 
 	if (valp)
@@ -71,117 +70,9 @@ int class_find_param(char *buf, char *key, char **valp)
 }
 EXPORT_SYMBOL(class_find_param);
 
-/**
- * Check whether the proc parameter \a param is an old parameter or not from
- * the array \a ptr which contains the mapping from old parameters to new ones.
- * If it's an old one, then return the pointer to the cfg_interop_param struc-
- * ture which contains both the old and new parameters.
- *
- * \param param			proc parameter
- * \param ptr			an array which contains the mapping from
- *				old parameters to new ones
- *
- * \retval valid-pointer	pointer to the cfg_interop_param structure
- *				which contains the old and new parameters
- * \retval NULL			\a param or \a ptr is NULL,
- *				or \a param is not an old parameter
- */
-struct cfg_interop_param *class_find_old_param(const char *param,
-					       struct cfg_interop_param *ptr)
-{
-	char *value = NULL;
-	int   name_len = 0;
-
-	if (param == NULL || ptr == NULL)
-		return NULL;
-
-	value = strchr(param, '=');
-	if (value == NULL)
-		name_len = strlen(param);
-	else
-		name_len = value - param;
-
-	while (ptr->old_param != NULL) {
-		if (strncmp(param, ptr->old_param, name_len) == 0 &&
-		    name_len == strlen(ptr->old_param))
-			return ptr;
-		ptr++;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(class_find_old_param);
-
-/**
- * Finds a parameter in \a params and copies it to \a copy.
- *
- * Leading spaces are skipped. Next space or end of string is the
- * parameter terminator with the exception that spaces inside single or double
- * quotes get included into a parameter. The parameter is copied into \a copy
- * which has to be allocated big enough by a caller, quotes are stripped in
- * the copy and the copy is terminated by 0.
- *
- * On return \a params is set to next parameter or to NULL if last
- * parameter is returned.
- *
- * \retval 0 if parameter is returned in \a copy
- * \retval 1 otherwise
- * \retval -EINVAL if unbalanced quota is found
- */
-int class_get_next_param(char **params, char *copy)
-{
-	char *q1, *q2, *str;
-	int len;
-
-	str = *params;
-	while (*str == ' ')
-		str++;
-
-	if (*str == '\0') {
-		*params = NULL;
-		return 1;
-	}
-
-	while (1) {
-		q1 = strpbrk(str, " '\"");
-		if (q1 == NULL) {
-			len = strlen(str);
-			memcpy(copy, str, len);
-			copy[len] = '\0';
-			*params = NULL;
-			return 0;
-		}
-		len = q1 - str;
-		if (*q1 == ' ') {
-			memcpy(copy, str, len);
-			copy[len] = '\0';
-			*params = str + len;
-			return 0;
-		}
-
-		memcpy(copy, str, len);
-		copy += len;
-
-		/* search for the matching closing quote */
-		str = q1 + 1;
-		q2 = strchr(str, *q1);
-		if (q2 == NULL) {
-			CERROR("Unbalanced quota in parameters: \"%s\"\n",
-			       *params);
-			return -EINVAL;
-		}
-		len = q2 - str;
-		memcpy(copy, str, len);
-		copy += len;
-		str = q2 + 1;
-	}
-	return 1;
-}
-EXPORT_SYMBOL(class_get_next_param);
-
 /* returns 0 if this is the first key in the buffer, else 1.
    valp points to first char after key. */
-int class_match_param(char *buf, char *key, char **valp)
+static int class_match_param(char *buf, char *key, char **valp)
 {
 	if (!buf)
 		return 1;
@@ -194,11 +85,10 @@ int class_match_param(char *buf, char *key, char **valp)
 
 	return 0;
 }
-EXPORT_SYMBOL(class_match_param);
 
 static int parse_nid(char *buf, void *value, int quiet)
 {
-	lnet_nid_t *nid = (lnet_nid_t *)value;
+	lnet_nid_t *nid = value;
 
 	*nid = libcfs_str2nid(buf);
 	if (*nid != LNET_NID_ANY)
@@ -211,7 +101,7 @@ static int parse_nid(char *buf, void *value, int quiet)
 
 static int parse_net(char *buf, void *value)
 {
-	__u32 *net = (__u32 *)value;
+	__u32 *net = value;
 
 	*net = libcfs_str2net(buf);
 	CDEBUG(D_INFO, "Net %s\n", libcfs_net2str(*net));
@@ -243,7 +133,7 @@ static int class_parse_value(char *buf, int opc, void *value, char **endh,
 
 	/* nid separators or end of nids */
 	endp = strpbrk(buf, ",: /");
-	if (endp == NULL)
+	if (!endp)
 		endp = buf + strlen(buf);
 
 	tmp = *endp;
@@ -278,59 +168,13 @@ int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh)
 }
 EXPORT_SYMBOL(class_parse_nid_quiet);
 
-int class_parse_net(char *buf, __u32 *net, char **endh)
-{
-	return class_parse_value(buf, CLASS_PARSE_NET, (void *)net, endh, 0);
-}
-EXPORT_SYMBOL(class_parse_net);
-
-/* 1 param contains key and match
- * 0 param contains key and not match
- * -1 param does not contain key
- */
-int class_match_nid(char *buf, char *key, lnet_nid_t nid)
-{
-	lnet_nid_t tmp;
-	int   rc = -1;
-
-	while (class_find_param(buf, key, &buf) == 0) {
-		/* please restrict to the nids pertaining to
-		 * the specified nids */
-		while (class_parse_nid(buf, &tmp, &buf) == 0) {
-			if (tmp == nid)
-				return 1;
-		}
-		rc = 0;
-	}
-	return rc;
-}
-EXPORT_SYMBOL(class_match_nid);
-
-int class_match_net(char *buf, char *key, __u32 net)
-{
-	__u32 tmp;
-	int   rc = -1;
-
-	while (class_find_param(buf, key, &buf) == 0) {
-		/* please restrict to the nids pertaining to
-		 * the specified networks */
-		while (class_parse_net(buf, &tmp, &buf) == 0) {
-			if (tmp == net)
-				return 1;
-		}
-		rc = 0;
-	}
-	return rc;
-}
-EXPORT_SYMBOL(class_match_net);
-
 /********************** class fns **********************/
 
 /**
  * Create a new obd device and set the type, name and uuid.  If successful,
  * the new device can be accessed by either name or uuid.
  */
-int class_attach(struct lustre_cfg *lcfg)
+static int class_attach(struct lustre_cfg *lcfg)
 {
 	struct obd_device *obd = NULL;
 	char *typename, *name, *uuid;
@@ -381,7 +225,6 @@ int class_attach(struct lustre_cfg *lcfg)
 	INIT_LIST_HEAD(&obd->obd_exports);
 	INIT_LIST_HEAD(&obd->obd_unlinked_exports);
 	INIT_LIST_HEAD(&obd->obd_delayed_exports);
-	INIT_LIST_HEAD(&obd->obd_exports_timed);
 	spin_lock_init(&obd->obd_nid_lock);
 	spin_lock_init(&obd->obd_dev_lock);
 	mutex_init(&obd->obd_dev_mutex);
@@ -393,14 +236,7 @@ int class_attach(struct lustre_cfg *lcfg)
 	/* XXX belongs in setup not attach  */
 	init_rwsem(&obd->obd_observer_link_sem);
 	/* recovery data */
-	cfs_init_timer(&obd->obd_recovery_timer);
-	spin_lock_init(&obd->obd_recovery_task_lock);
-	init_waitqueue_head(&obd->obd_next_transno_waitq);
 	init_waitqueue_head(&obd->obd_evict_inprogress_waitq);
-	INIT_LIST_HEAD(&obd->obd_req_replay_queue);
-	INIT_LIST_HEAD(&obd->obd_lock_replay_queue);
-	INIT_LIST_HEAD(&obd->obd_final_req_queue);
-	INIT_LIST_HEAD(&obd->obd_evict_list);
 
 	llog_group_init(&obd->obd_olg, FID_SEQ_LLOG);
 
@@ -441,12 +277,11 @@ int class_attach(struct lustre_cfg *lcfg)
 	}
 	return rc;
 }
-EXPORT_SYMBOL(class_attach);
 
 /** Create hashes, self-export, and call type-specific setup.
  * Setup is effectively the "start this obd" call.
  */
-int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int err = 0;
 	struct obd_export *exp;
@@ -483,7 +318,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	   other fns check that status, and we're not actually set up yet. */
 	obd->obd_starting = 1;
 	obd->obd_uuid_hash = NULL;
-	obd->obd_nid_hash = NULL;
 	spin_unlock(&obd->obd_dev_lock);
 
 	/* create an uuid-export lustre hash */
@@ -499,19 +333,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		goto err_hash;
 	}
 
-	/* create a nid-export lustre hash */
-	obd->obd_nid_hash = cfs_hash_create("NID_HASH",
-					    HASH_NID_CUR_BITS,
-					    HASH_NID_MAX_BITS,
-					    HASH_NID_BKT_BITS, 0,
-					    CFS_HASH_MIN_THETA,
-					    CFS_HASH_MAX_THETA,
-					    &nid_hash_ops, CFS_HASH_DEFAULT);
-	if (!obd->obd_nid_hash) {
-		err = -ENOMEM;
-		goto err_hash;
-	}
-
 	exp = class_new_export(obd, &obd->obd_uuid);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
@@ -519,7 +340,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	}
 
 	obd->obd_self_export = exp;
-	list_del_init(&exp->exp_obd_chain_timed);
 	class_export_put(exp);
 
 	err = obd_setup(obd, lcfg);
@@ -547,20 +367,15 @@ err_hash:
 		cfs_hash_putref(obd->obd_uuid_hash);
 		obd->obd_uuid_hash = NULL;
 	}
-	if (obd->obd_nid_hash) {
-		cfs_hash_putref(obd->obd_nid_hash);
-		obd->obd_nid_hash = NULL;
-	}
 	obd->obd_starting = 0;
 	CERROR("setup %s failed (%d)\n", obd->obd_name, err);
 	return err;
 }
-EXPORT_SYMBOL(class_setup);
 
 /** We have finished using this obd and are ready to destroy it.
  * There can be no more references to this obd.
  */
-int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	if (obd->obd_set_up) {
 		CERROR("OBD device %d still set up\n", obd->obd_minor);
@@ -582,13 +397,12 @@ int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 	class_decref(obd, "attach", obd);
 	return 0;
 }
-EXPORT_SYMBOL(class_detach);
 
 /** Start shutting down the obd.  There may be in-progress ops when
  * this is called.  We tell them to start shutting down with a call
  * to class_disconnect_exports().
  */
-int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int err = 0;
 	char *flag;
@@ -644,18 +458,6 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	LASSERT(obd->obd_self_export);
 
-	/* The three references that should be remaining are the
-	 * obd_self_export and the attach and setup references. */
-	if (atomic_read(&obd->obd_refcount) > 3) {
-		/* refcount - 3 might be the number of real exports
-		   (excluding self export). But class_incref is called
-		   by other things as well, so don't count on it. */
-		CDEBUG(D_IOCTL, "%s: forcing exports to disconnect: %d\n",
-		       obd->obd_name, atomic_read(&obd->obd_refcount) - 3);
-		dump_exports(obd, 0);
-		class_disconnect_exports(obd);
-	}
-
 	/* Precleanup, we must make sure all exports get destroyed. */
 	err = obd_precleanup(obd, OBD_CLEANUP_EXPORTS);
 	if (err)
@@ -668,18 +470,11 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		obd->obd_uuid_hash = NULL;
 	}
 
-	/* destroy a nid-export hash body */
-	if (obd->obd_nid_hash) {
-		cfs_hash_putref(obd->obd_nid_hash);
-		obd->obd_nid_hash = NULL;
-	}
-
 	class_decref(obd, "setup", obd);
 	obd->obd_set_up = 0;
 
 	return 0;
 }
-EXPORT_SYMBOL(class_cleanup);
 
 struct obd_device *class_incref(struct obd_device *obd,
 				const char *scope, const void *source)
@@ -743,7 +538,7 @@ EXPORT_SYMBOL(class_decref);
 /** Add a failover nid location.
  * Client obd types contact server obd types using this nid list.
  */
-int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct obd_import *imp;
 	struct obd_uuid uuid;
@@ -774,11 +569,10 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	return rc;
 }
-EXPORT_SYMBOL(class_add_conn);
 
 /** Remove a failover nid location.
  */
-int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct obd_import *imp;
 	struct obd_uuid uuid;
@@ -826,8 +620,8 @@ EXPORT_SYMBOL(class_get_profile);
  * This defines the mdc and osc names to use for a client.
  * This also is used to define the lov to be used by a mdt.
  */
-int class_add_profile(int proflen, char *prof, int osclen, char *osc,
-		      int mdclen, char *mdc)
+static int class_add_profile(int proflen, char *prof, int osclen, char *osc,
+			     int mdclen, char *mdc)
 {
 	struct lustre_profile *lprof;
 	int err = 0;
@@ -841,14 +635,14 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 
 	LASSERT(proflen == (strlen(prof) + 1));
 	lprof->lp_profile = kmemdup(prof, proflen, GFP_NOFS);
-	if (lprof->lp_profile == NULL) {
+	if (!lprof->lp_profile) {
 		err = -ENOMEM;
 		goto free_lprof;
 	}
 
 	LASSERT(osclen == (strlen(osc) + 1));
 	lprof->lp_dt = kmemdup(osc, osclen, GFP_NOFS);
-	if (lprof->lp_dt == NULL) {
+	if (!lprof->lp_dt) {
 		err = -ENOMEM;
 		goto free_lp_profile;
 	}
@@ -856,7 +650,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	if (mdclen > 0) {
 		LASSERT(mdclen == (strlen(mdc) + 1));
 		lprof->lp_md = kmemdup(mdc, mdclen, GFP_NOFS);
-		if (lprof->lp_md == NULL) {
+		if (!lprof->lp_md) {
 			err = -ENOMEM;
 			goto free_lp_dt;
 		}
@@ -928,89 +722,16 @@ static int class_set_global(char *ptr, int val, struct lustre_cfg *lcfg)
 	return 0;
 }
 
-
 /* We can't call ll_process_config or lquota_process_config directly because
  * it lives in a module that must be loaded after this one. */
-static int (*client_process_config)(struct lustre_cfg *lcfg) = NULL;
-static int (*quota_process_config)(struct lustre_cfg *lcfg) = NULL;
+static int (*client_process_config)(struct lustre_cfg *lcfg);
+static int (*quota_process_config)(struct lustre_cfg *lcfg);
 
 void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg))
 {
 	client_process_config = cpc;
 }
 EXPORT_SYMBOL(lustre_register_client_process_config);
-
-/**
- * Rename the proc parameter in \a cfg with a new name \a new_name.
- *
- * \param cfg	   config structure which contains the proc parameter
- * \param new_name new name of the proc parameter
- *
- * \retval valid-pointer    pointer to the newly-allocated config structure
- *			    which contains the renamed proc parameter
- * \retval ERR_PTR(-EINVAL) if \a cfg or \a new_name is NULL, or \a cfg does
- *			    not contain a proc parameter
- * \retval ERR_PTR(-ENOMEM) if memory allocation failure occurs
- */
-struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
-				     const char *new_name)
-{
-	struct lustre_cfg_bufs	*bufs = NULL;
-	struct lustre_cfg	*new_cfg = NULL;
-	char			*param = NULL;
-	char			*new_param = NULL;
-	char			*value = NULL;
-	int			 name_len = 0;
-	int			 new_len = 0;
-
-	if (cfg == NULL || new_name == NULL)
-		return ERR_PTR(-EINVAL);
-
-	param = lustre_cfg_string(cfg, 1);
-	if (param == NULL)
-		return ERR_PTR(-EINVAL);
-
-	value = strchr(param, '=');
-	if (value == NULL)
-		name_len = strlen(param);
-	else
-		name_len = value - param;
-
-	new_len = LUSTRE_CFG_BUFLEN(cfg, 1) + strlen(new_name) - name_len;
-
-	new_param = kzalloc(new_len, GFP_NOFS);
-	if (!new_param)
-		return ERR_PTR(-ENOMEM);
-
-	strcpy(new_param, new_name);
-	if (value != NULL)
-		strcat(new_param, value);
-
-	bufs = kzalloc(sizeof(*bufs), GFP_NOFS);
-	if (!bufs) {
-		kfree(new_param);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	lustre_cfg_bufs_reset(bufs, NULL);
-	lustre_cfg_bufs_init(bufs, cfg);
-	lustre_cfg_bufs_set_string(bufs, 1, new_param);
-
-	new_cfg = lustre_cfg_new(cfg->lcfg_command, bufs);
-
-	kfree(new_param);
-	kfree(bufs);
-	if (new_cfg == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	new_cfg->lcfg_num = cfg->lcfg_num;
-	new_cfg->lcfg_flags = cfg->lcfg_flags;
-	new_cfg->lcfg_nid = cfg->lcfg_nid;
-	new_cfg->lcfg_nal = cfg->lcfg_nal;
-
-	return new_cfg;
-}
-EXPORT_SYMBOL(lustre_cfg_rename);
 
 static int process_param2_config(struct lustre_cfg *lcfg)
 {
@@ -1022,10 +743,9 @@ static int process_param2_config(struct lustre_cfg *lcfg)
 		[2] = param,
 		[3] = NULL
 	};
-	struct timeval	start;
-	struct timeval	end;
+	ktime_t	start;
+	ktime_t	end;
 	int		rc;
-
 
 	/* Add upcall processing here. Now only lctl is supported */
 	if (strcmp(upcall, LCTL_UPCALL) != 0) {
@@ -1033,30 +753,24 @@ static int process_param2_config(struct lustre_cfg *lcfg)
 		return -EINVAL;
 	}
 
-	do_gettimeofday(&start);
+	start = ktime_get();
 	rc = call_usermodehelper(argv[0], argv, NULL, 1);
-	do_gettimeofday(&end);
+	end = ktime_get();
 
 	if (rc < 0) {
 		CERROR(
 		       "lctl: error invoking upcall %s %s %s: rc = %d; time %ldus\n",
 		       argv[0], argv[1], argv[2], rc,
-		       cfs_timeval_sub(&end, &start, NULL));
+		       (long)ktime_us_delta(end, start));
 	} else {
 		CDEBUG(D_HA, "lctl: invoked upcall %s %s %s, time %ldus\n",
 		       argv[0], argv[1], argv[2],
-		       cfs_timeval_sub(&end, &start, NULL));
+		       (long)ktime_us_delta(end, start));
 		       rc = 0;
 	}
 
 	return rc;
 }
-
-void lustre_register_quota_process_config(int (*qpc)(struct lustre_cfg *lcfg))
-{
-	quota_process_config = qpc;
-}
-EXPORT_SYMBOL(lustre_register_quota_process_config);
 
 /** Process configuration commands given in lustre_cfg form.
  * These may come from direct calls (e.g. class_manual_cleanup)
@@ -1135,6 +849,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 	}
 	case LCFG_MARKER: {
 		struct cfg_marker *marker;
+
 		marker = lustre_cfg_buf(lcfg, 1);
 		CDEBUG(D_IOCTL, "marker %d (%#x) %.16s %s\n", marker->cm_step,
 		       marker->cm_flags, marker->cm_tgtname, marker->cm_comment);
@@ -1178,7 +893,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 	}
 	/* Commands that require a device */
 	obd = class_name2obd(lustre_cfg_string(lcfg, 0));
-	if (obd == NULL) {
+	if (!obd) {
 		if (!LUSTRE_CFG_BUFLEN(lcfg, 0))
 			CERROR("this lcfg command requires a device name\n");
 		else
@@ -1299,6 +1014,7 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 				rc = -EROFS;
 				if (var->fops && var->fops->write) {
 					mm_segment_t oldfs;
+
 					oldfs = get_fs();
 					set_fs(KERNEL_DS);
 					rc = (var->fops->write)(&fakefile, sval,
@@ -1354,8 +1070,6 @@ int class_config_llog_handler(const struct lu_env *env,
 	char *cfg_buf = (char *) (rec + 1);
 	int rc = 0;
 
-	//class_config_dump_handler(handle, rec, data);
-
 	switch (rec->lrh_type) {
 	case OBD_CFG_REC: {
 		struct lustre_cfg *lcfg, *lcfg_new;
@@ -1377,6 +1091,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		/* Figure out config state info */
 		if (lcfg->lcfg_command == LCFG_MARKER) {
 			struct cfg_marker *marker = lustre_cfg_buf(lcfg, 1);
+
 			lustre_swab_cfg_marker(marker, swab,
 					       LUSTRE_CFG_BUFLEN(lcfg, 1));
 			CDEBUG(D_CONFIG, "Marker, inst_flg=%#x mark_flg=%#x\n",
@@ -1439,7 +1154,6 @@ int class_config_llog_handler(const struct lu_env *env,
 			}
 		}
 
-
 		if (clli->cfg_flags & CFG_F_EXCLUDE) {
 			CDEBUG(D_CONFIG, "cmd: %x marked EXCLUDED\n",
 			       lcfg->lcfg_command);
@@ -1451,18 +1165,17 @@ int class_config_llog_handler(const struct lu_env *env,
 		lustre_cfg_bufs_init(&bufs, lcfg);
 
 		if (clli && clli->cfg_instance &&
-		    LUSTRE_CFG_BUFLEN(lcfg, 0) > 0){
+		    LUSTRE_CFG_BUFLEN(lcfg, 0) > 0) {
 			inst = 1;
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;
-			inst_name = kzalloc(inst_len, GFP_NOFS);
+			inst_name = kasprintf(GFP_NOFS, "%s-%p",
+					      lustre_cfg_string(lcfg, 0),
+					      clli->cfg_instance);
 			if (!inst_name) {
 				rc = -ENOMEM;
 				goto out;
 			}
-			sprintf(inst_name, "%s-%p",
-				lustre_cfg_string(lcfg, 0),
-				clli->cfg_instance);
 			lustre_cfg_bufs_set_string(&bufs, 0, inst_name);
 			CDEBUG(D_CONFIG, "cmd %x, instance name: %s\n",
 			       lcfg->lcfg_command, inst_name);
@@ -1482,7 +1195,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		 * moving them to index [1] and [2], and insert MGC's
 		 * obdname at index [0].
 		 */
-		if (clli && clli->cfg_instance == NULL &&
+		if (clli && !clli->cfg_instance &&
 		    lcfg->lcfg_command == LCFG_SPTLRPC_CONF) {
 			lustre_cfg_bufs_set(&bufs, 2, bufs.lcfg_buf[1],
 					    bufs.lcfg_buflen[1]);
@@ -1582,7 +1295,8 @@ EXPORT_SYMBOL(class_config_parse_llog);
  * This is separated from class_config_dump_handler() to use
  * for ioctl needs as well
  */
-int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf, int size)
+static int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf,
+				  int size)
 {
 	struct lustre_cfg	*lcfg = (struct lustre_cfg *)(rec + 1);
 	char			*ptr = buf;
@@ -1602,10 +1316,13 @@ int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf, int size)
 	if (lcfg->lcfg_num)
 		ptr += snprintf(ptr, end-ptr, "num=%#08x ", lcfg->lcfg_num);
 
-	if (lcfg->lcfg_nid)
+	if (lcfg->lcfg_nid) {
+		char nidstr[LNET_NIDSTR_SIZE];
+
+		libcfs_nid2str_r(lcfg->lcfg_nid, nidstr, sizeof(nidstr));
 		ptr += snprintf(ptr, end-ptr, "nid=%s(%#llx)\n     ",
-				libcfs_nid2str(lcfg->lcfg_nid),
-				lcfg->lcfg_nid);
+				nidstr, lcfg->lcfg_nid);
+	}
 
 	if (lcfg->lcfg_command == LCFG_MARKER) {
 		struct cfg_marker *marker = lustre_cfg_buf(lcfg, 1);
@@ -1648,31 +1365,6 @@ int class_config_dump_handler(const struct lu_env *env,
 	kfree(outstr);
 	return rc;
 }
-
-int class_config_dump_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
-			   char *name, struct config_llog_instance *cfg)
-{
-	struct llog_handle	*llh;
-	int			 rc;
-
-	LCONSOLE_INFO("Dumping config log %s\n", name);
-
-	rc = llog_open(env, ctxt, &llh, NULL, name, LLOG_OPEN_EXISTS);
-	if (rc)
-		return rc;
-
-	rc = llog_init_handle(env, llh, LLOG_F_IS_PLAIN, NULL);
-	if (rc)
-		goto parse_out;
-
-	rc = llog_process(env, llh, class_config_dump_handler, cfg, NULL);
-parse_out:
-	llog_close(env, llh);
-
-	LCONSOLE_INFO("End config log %s\n", name);
-	return rc;
-}
-EXPORT_SYMBOL(class_config_dump_llog);
 
 /** Call class_cleanup and class_detach.
  * "Manual" only in the sense that we're faking lcfg commands.
@@ -1781,81 +1473,11 @@ uuid_export_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 	class_export_put(exp);
 }
 
-static cfs_hash_ops_t uuid_hash_ops = {
+static struct cfs_hash_ops uuid_hash_ops = {
 	.hs_hash	= uuid_hash,
-	.hs_key	 = uuid_key,
+	.hs_key		= uuid_key,
 	.hs_keycmp      = uuid_keycmp,
 	.hs_object      = uuid_export_object,
-	.hs_get	 = uuid_export_get,
+	.hs_get		= uuid_export_get,
 	.hs_put_locked  = uuid_export_put_locked,
-};
-
-
-/*
- * nid<->export hash operations
- */
-
-static unsigned
-nid_hash(struct cfs_hash *hs, const void *key, unsigned mask)
-{
-	return cfs_hash_djb2_hash(key, sizeof(lnet_nid_t), mask);
-}
-
-static void *
-nid_key(struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-
-	return &exp->exp_connection->c_peer.nid;
-}
-
-/*
- * NOTE: It is impossible to find an export that is in failed
- *       state with this function
- */
-static int
-nid_kepcmp(const void *key, struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	LASSERT(key);
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-
-	return exp->exp_connection->c_peer.nid == *(lnet_nid_t *)key &&
-	       !exp->exp_failed;
-}
-
-static void *
-nid_export_object(struct hlist_node *hnode)
-{
-	return hlist_entry(hnode, struct obd_export, exp_nid_hash);
-}
-
-static void
-nid_export_get(struct cfs_hash *hs, struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-	class_export_get(exp);
-}
-
-static void
-nid_export_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-	class_export_put(exp);
-}
-
-static cfs_hash_ops_t nid_hash_ops = {
-	.hs_hash	= nid_hash,
-	.hs_key	 = nid_key,
-	.hs_keycmp      = nid_kepcmp,
-	.hs_object      = nid_export_object,
-	.hs_get	 = nid_export_get,
-	.hs_put_locked  = nid_export_put_locked,
 };

@@ -1,6 +1,15 @@
 menu "Clock Source drivers"
+	depends on !ARCH_USES_GETTIMEOFFSET
 
 config CLKSRC_OF
+	bool
+	select CLKSRC_PROBE
+
+config CLKSRC_ACPI
+	bool
+	select CLKSRC_PROBE
+
+config CLKSRC_PROBE
 	bool
 
 config CLKSRC_I8253
@@ -115,6 +124,14 @@ config CLKSRC_PISTACHIO
 	bool
 	select CLKSRC_OF
 
+config CLKSRC_TI_32K
+	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK
+	select CLKSRC_OF if OF
+	help
+	  This option enables support for Texas Instruments 32.768 Hz clocksource
+	  available on many OMAP-like platforms.
+
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
@@ -123,6 +140,7 @@ config CLKSRC_STM32
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
+	select CLKSRC_ACPI if ACPI
 
 config ARM_ARCH_TIMER_EVTSTREAM
 	bool "Support for ARM architected timer event stream generation"
@@ -277,6 +295,10 @@ config CLKSRC_VERSATILE
 config CLKSRC_MIPS_GIC
 	bool
 	depends on MIPS_GIC
+	select CLKSRC_OF
+
+config CLKSRC_TANGO_XTAL
+	bool
 	select CLKSRC_OF
 
 config CLKSRC_PXA

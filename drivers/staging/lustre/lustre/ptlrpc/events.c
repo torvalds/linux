@@ -64,7 +64,7 @@ void request_out_callback(lnet_event_t *ev)
 
 	sptlrpc_request_out_callback(req);
 	spin_lock(&req->rq_lock);
-	req->rq_real_sent = get_seconds();
+	req->rq_real_sent = ktime_get_real_seconds();
 	if (ev->unlinked)
 		req->rq_req_unlink = 0;
 
@@ -158,7 +158,7 @@ void reply_in_callback(lnet_event_t *ev)
 			  ev->mlength, ev->offset, req->rq_replen);
 	}
 
-	req->rq_import->imp_last_reply_time = get_seconds();
+	req->rq_import->imp_last_reply_time = ktime_get_real_seconds();
 
 out_wake:
 	/* NB don't unlock till after wakeup; req can disappear under us
@@ -246,7 +246,7 @@ static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
 				   struct ptlrpc_request *req)
 {
 	__u64 sec = req->rq_arrival_time.tv_sec;
-	__u32 usec = req->rq_arrival_time.tv_usec >> 4; /* usec / 16 */
+	__u32 usec = req->rq_arrival_time.tv_nsec / NSEC_PER_USEC / 16; /* usec / 16 */
 	__u64 new_seq;
 
 	/* set sequence ID for request and add it to history list,
@@ -327,7 +327,7 @@ void request_in_callback(lnet_event_t *ev)
 	req->rq_reqbuf = ev->md.start + ev->offset;
 	if (ev->type == LNET_EVENT_PUT && ev->status == 0)
 		req->rq_reqdata_len = ev->mlength;
-	do_gettimeofday(&req->rq_arrival_time);
+	ktime_get_real_ts64(&req->rq_arrival_time);
 	req->rq_peer = ev->initiator;
 	req->rq_self = ev->target.nid;
 	req->rq_rqbd = rqbd;
@@ -414,7 +414,6 @@ void reply_out_callback(lnet_event_t *ev)
 		spin_unlock(&svcpt->scp_rep_lock);
 	}
 }
-
 
 static void ptlrpc_master_callback(lnet_event_t *ev)
 {
@@ -521,7 +520,7 @@ static void ptlrpc_ni_fini(void)
 	/* notreached */
 }
 
-lnet_pid_t ptl_get_pid(void)
+static lnet_pid_t ptl_get_pid(void)
 {
 	lnet_pid_t pid;
 
@@ -559,7 +558,6 @@ static int ptlrpc_ni_init(void)
 
 	return -ENOMEM;
 }
-
 
 int ptlrpc_init_portals(void)
 {

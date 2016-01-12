@@ -160,12 +160,6 @@ among other things.  For that, it needs a type.
 
 	struct configfs_item_operations {
 		void (*release)(struct config_item *);
-		ssize_t (*show_attribute)(struct config_item *,
-					  struct configfs_attribute *,
-					  char *);
-		ssize_t (*store_attribute)(struct config_item *,
-					   struct configfs_attribute *,
-					   const char *, size_t);
 		int (*allow_link)(struct config_item *src,
 				  struct config_item *target);
 		int (*drop_link)(struct config_item *src,
@@ -183,9 +177,7 @@ The most basic function of a config_item_type is to define what
 operations can be performed on a config_item.  All items that have been
 allocated dynamically will need to provide the ct_item_ops->release()
 method.  This method is called when the config_item's reference count
-reaches zero.  Items that wish to display an attribute need to provide
-the ct_item_ops->show_attribute() method.  Similarly, storing a new
-attribute value uses the store_attribute() method.
+reaches zero.
 
 [struct configfs_attribute]
 
@@ -193,6 +185,8 @@ attribute value uses the store_attribute() method.
 		char                    *ca_name;
 		struct module           *ca_owner;
 		umode_t                  ca_mode;
+		ssize_t (*show)(struct config_item *, char *);
+		ssize_t (*store)(struct config_item *, const char *, size_t);
 	};
 
 When a config_item wants an attribute to appear as a file in the item's
@@ -202,10 +196,10 @@ config_item_type->ct_attrs.  When the item appears in configfs, the
 attribute file will appear with the configfs_attribute->ca_name
 filename.  configfs_attribute->ca_mode specifies the file permissions.
 
-If an attribute is readable and the config_item provides a
-ct_item_ops->show_attribute() method, that method will be called
-whenever userspace asks for a read(2) on the attribute.  The converse
-will happen for write(2).
+If an attribute is readable and provides a ->show method, that method will
+be called whenever userspace asks for a read(2) on the attribute.  If an
+attribute is writable and provides a ->store  method, that method will be
+be called whenever userspace asks for a write(2) on the attribute.
 
 [struct config_group]
 
@@ -311,20 +305,10 @@ the subsystem must be ready for it.
 [An Example]
 
 The best example of these basic concepts is the simple_children
-subsystem/group and the simple_child item in configfs_example_explicit.c
-and configfs_example_macros.c.  It shows a trivial object displaying and
-storing an attribute, and a simple group creating and destroying these
-children.
-
-The only difference between configfs_example_explicit.c and
-configfs_example_macros.c is how the attributes of the childless item
-are defined.  The childless item has extended attributes, each with
-their own show()/store() operation.  This follows a convention commonly
-used in sysfs.  configfs_example_explicit.c creates these attributes
-by explicitly defining the structures involved.  Conversely
-configfs_example_macros.c uses some convenience macros from configfs.h
-to define the attributes.  These macros are similar to their sysfs
-counterparts.
+subsystem/group and the simple_child item in
+samples/configfs/configfs_sample.c. It shows a trivial object displaying
+and storing an attribute, and a simple group creating and destroying
+these children.
 
 [Hierarchy Navigation and the Subsystem Mutex]
 

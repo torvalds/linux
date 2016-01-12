@@ -89,14 +89,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hpd>;
 	status = "okay";
-};
-
-&ehci {
-	samsung,vbus-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
-};
-
-&fimd {
-	status = "okay";
 
 	display-timings {
 		native-mode = <&timing0>;
@@ -114,6 +106,14 @@
 			vsync-len = <4>;
 		};
 	};
+};
+
+&ehci {
+	samsung,vbus-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+};
+
+&fimd {
+	status = "okay";
 };
 
 &hdmi {
@@ -197,6 +197,7 @@
 				regulator-name = "P1.8V_LDO_OUT10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 			};
 
 			ldo11_reg: LDO11 {

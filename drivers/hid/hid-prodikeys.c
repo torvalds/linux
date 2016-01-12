@@ -427,7 +427,7 @@ static int pcmidi_handle_report4(struct pcmidi_snd *pm, u8 *data)
 					pm->midi_octave = 2;
 				dbg_hid("pcmidi mode: %d octave: %d\n",
 					pm->midi_mode, pm->midi_octave);
-			    continue;
+				continue;
 			} else
 				key = KEY_MESSENGER;
 			break;
@@ -695,7 +695,7 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 	if (err < 0) {
 		pk_error("failed to register pc-midi sound card: error %d\n",
 			 err);
-			 goto fail_register;
+		goto fail_register;
 	}
 
 	dbg_hid("pcmidi_snd_initialise finished ok\n");

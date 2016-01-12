@@ -510,10 +510,11 @@ int intel_pmu_drain_bts_buffer(void)
 		u64	flags;
 	};
 	struct perf_event *event = cpuc->events[INTEL_PMC_IDX_FIXED_BTS];
-	struct bts_record *at, *top;
+	struct bts_record *at, *base, *top;
 	struct perf_output_handle handle;
 	struct perf_event_header header;
 	struct perf_sample_data data;
+	unsigned long skip = 0;
 	struct pt_regs regs;
 
 	if (!event)
@@ -522,10 +523,10 @@ int intel_pmu_drain_bts_buffer(void)
 	if (!x86_pmu.bts_active)
 		return 0;
 
-	at  = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
-	top = (struct bts_record *)(unsigned long)ds->bts_index;
+	base = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
+	top  = (struct bts_record *)(unsigned long)ds->bts_index;
 
-	if (top <= at)
+	if (top <= base)
 		return 0;
 
 	memset(&regs, 0, sizeof(regs));
@@ -535,16 +536,43 @@ int intel_pmu_drain_bts_buffer(void)
 	perf_sample_data_init(&data, 0, event->hw.last_period);
 
 	/*
+	 * BTS leaks kernel addresses in branches across the cpl boundary,
+	 * such as traps or system calls, so unless the user is asking for
+	 * kernel tracing (and right now it's not possible), we'd need to
+	 * filter them out. But first we need to count how many of those we
+	 * have in the current batch. This is an extra O(n) pass, however,
+	 * it's much faster than the other one especially considering that
+	 * n <= 2560 (BTS_BUFFER_SIZE / BTS_RECORD_SIZE * 15/16; see the
+	 * alloc_bts_buffer()).
+	 */
+	for (at = base; at < top; at++) {
+		/*
+		 * Note that right now *this* BTS code only works if
+		 * attr::exclude_kernel is set, but let's keep this extra
+		 * check here in case that changes.
+		 */
+		if (event->attr.exclude_kernel &&
+		    (kernel_ip(at->from) || kernel_ip(at->to)))
+			skip++;
+	}
+
+	/*
 	 * Prepare a generic sample, i.e. fill in the invariant fields.
 	 * We will overwrite the from and to address before we output
 	 * the sample.
 	 */
 	perf_prepare_sample(&header, &data, event, &regs);
 
-	if (perf_output_begin(&handle, event, header.size * (top - at)))
+	if (perf_output_begin(&handle, event, header.size *
+			      (top - base - skip)))
 		return 1;
 
-	for (; at < top; at++) {
+	for (at = base; at < top; at++) {
+		/* Filter out any records that contain kernel addresses. */
+		if (event->attr.exclude_kernel &&
+		    (kernel_ip(at->from) || kernel_ip(at->to)))
+			continue;
+
 		data.ip		= at->from;
 		data.addr	= at->to;
 

@@ -108,6 +108,21 @@ acpi_status acpi_ut_mutex_initialize(void)
 	/* Create the reader/writer lock for namespace access */
 
 	status = acpi_ut_create_rw_lock(&acpi_gbl_namespace_rw_lock);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+#ifdef ACPI_DEBUGGER
+
+	/* Debugger Support */
+
+	status = acpi_os_create_mutex(&acpi_gbl_db_command_ready);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_os_create_mutex(&acpi_gbl_db_command_complete);
+#endif
+
 	return_ACPI_STATUS(status);
 }
 
@@ -147,6 +162,12 @@ void acpi_ut_mutex_terminate(void)
 	/* Delete the reader/writer lock */
 
 	acpi_ut_delete_rw_lock(&acpi_gbl_namespace_rw_lock);
+
+#ifdef ACPI_DEBUGGER
+	acpi_os_delete_mutex(acpi_gbl_db_command_ready);
+	acpi_os_delete_mutex(acpi_gbl_db_command_complete);
+#endif
+
 	return_VOID;
 }
 

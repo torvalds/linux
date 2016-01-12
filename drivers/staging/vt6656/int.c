@@ -149,10 +149,18 @@ void vnt_int_process_data(struct vnt_private *priv)
 				priv->op_mode == NL80211_IFTYPE_AP)
 			vnt_schedule_command(priv, WLAN_CMD_BECON_SEND);
 
-		if (int_data->isr0 & ISR_TBTT) {
-			if (priv->hw->conf.flags & IEEE80211_CONF_PS)
+		if (int_data->isr0 & ISR_TBTT &&
+		    priv->hw->conf.flags & IEEE80211_CONF_PS) {
+			if (!priv->wake_up_count)
+				priv->wake_up_count =
+					priv->hw->conf.listen_interval;
+
+			--priv->wake_up_count;
+
+			/* Turn on wake up to listen next beacon */
+			if (priv->wake_up_count == 1)
 				vnt_schedule_command(priv,
-							WLAN_CMD_TBTT_WAKEUP);
+						     WLAN_CMD_TBTT_WAKEUP);
 		}
 		priv->current_tsf = le64_to_cpu(int_data->tsf);
 

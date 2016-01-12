@@ -75,6 +75,7 @@ unsigned int aperf_mperf_multiplier = 1;
 int do_smi;
 double bclk;
 double base_hz;
+unsigned int has_base_hz;
 double tsc_tweak = 1.0;
 unsigned int show_pkg;
 unsigned int show_core;
@@ -96,6 +97,7 @@ unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
 int base_cpu;
+double discover_bclk(unsigned int family, unsigned int model);
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -511,9 +513,13 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	}
 
 	/* Bzy_MHz */
-	if (has_aperf)
-		outp += sprintf(outp, "%8.0f",
-			1.0 * t->tsc * tsc_tweak / units * t->aperf / t->mperf / interval_float);
+	if (has_aperf) {
+		if (has_base_hz)
+			outp += sprintf(outp, "%8.0f", base_hz / units * t->aperf / t->mperf);
+		else
+			outp += sprintf(outp, "%8.0f",
+				1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
+	}
 
 	/* TSC_MHz */
 	outp += sprintf(outp, "%8.0f", 1.0 * t->tsc/units/interval_float);
@@ -1158,12 +1164,6 @@ int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV,
 static void
 calculate_tsc_tweak()
 {
-	unsigned long long msr;
-	unsigned int base_ratio;
-
-	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
-	base_ratio = (msr >> 8) & 0xFF;
-	base_hz = base_ratio * bclk * 1000000;
 	tsc_tweak = base_hz / tsc_hz;
 }
 
@@ -1173,9 +1173,9 @@ dump_nhm_platform_info(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
+	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
 
-	fprintf(stderr, "cpu%d: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
+	fprintf(stderr, "cpu%d: MSR_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency frequency\n",
@@ -1440,7 +1440,7 @@ dump_config_tdp(void)
 	
 	get_msr(base_cpu, MSR_TURBO_ACTIVATION_RATIO, &msr);
 	fprintf(stderr, "cpu%d: MSR_TURBO_ACTIVATION_RATIO: 0x%08llx (", base_cpu, msr);
-	fprintf(stderr, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0xEF);
+	fprintf(stderr, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0x7F);
 	fprintf(stderr, " lock=%d", (unsigned int)(msr >> 31) & 1);
 	fprintf(stderr, ")\n");
 }
@@ -1807,7 +1807,7 @@ void check_permissions()
  *
  * MSR_SMI_COUNT                   0x00000034
  *
- * MSR_NHM_PLATFORM_INFO           0x000000ce
+ * MSR_PLATFORM_INFO               0x000000ce
  * MSR_NHM_SNB_PKG_CST_CFG_CTL     0x000000e2
  *
  * MSR_PKG_C3_RESIDENCY            0x000003f8
@@ -1821,6 +1821,7 @@ void check_permissions()
 int probe_nhm_msrs(unsigned int family, unsigned int model)
 {
 	unsigned long long msr;
+	unsigned int base_ratio;
 	int *pkg_cstate_limits;
 
 	if (!genuine_intel)
@@ -1828,6 +1829,8 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 
 	if (family != 6)
 		return 0;
+
+	bclk = discover_bclk(family, model);
 
 	switch (model) {
 	case 0x1A:	/* Core i7, Xeon 5500 series - Bloomfield, Gainstown NHM-EP */
@@ -1871,9 +1874,13 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		return 0;
 	}
 	get_msr(base_cpu, MSR_NHM_SNB_PKG_CST_CFG_CTL, &msr);
-
 	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
 
+	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
+	base_ratio = (msr >> 8) & 0xFF;
+
+	base_hz = base_ratio * bclk * 1000000;
+	has_base_hz = 1;
 	return 1;
 }
 int has_nhm_turbo_ratio_limit(unsigned int family, unsigned int model)
@@ -2780,7 +2787,6 @@ void process_cpuid()
 	do_skl_residency = has_skl_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
-	bclk = discover_bclk(family, model);
 
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);

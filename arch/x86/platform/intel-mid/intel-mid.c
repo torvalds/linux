@@ -61,7 +61,7 @@
 enum intel_mid_timer_options intel_mid_timer_options;
 
 /* intel_mid_ops to store sub arch ops */
-struct intel_mid_ops *intel_mid_ops;
+static struct intel_mid_ops *intel_mid_ops;
 /* getter function for sub arch ops*/
 static void *(*get_intel_mid_ops[])(void) = INTEL_MID_OPS_INIT;
 enum intel_mid_cpu_type __intel_mid_cpu_chip;

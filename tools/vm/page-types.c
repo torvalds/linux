@@ -42,7 +42,7 @@
 #include <sys/mman.h>
 #include "../../include/uapi/linux/magic.h"
 #include "../../include/uapi/linux/kernel-page-flags.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/fs.h>
 
 #ifndef MAX_PATH
 # define MAX_PATH 256
@@ -128,6 +128,7 @@ static const char * const page_flag_names[] = {
 	[KPF_THP]		= "t:thp",
 	[KPF_BALLOON]		= "o:balloon",
 	[KPF_ZERO_PAGE]		= "z:zero_page",
+	[KPF_IDLE]              = "i:idle_page",
 
 	[KPF_RESERVED]		= "r:reserved",
 	[KPF_MLOCKED]		= "m:mlocked",
@@ -188,7 +189,7 @@ static int		kpageflags_fd;
 static int		opt_hwpoison;
 static int		opt_unpoison;
 
-static char		*hwpoison_debug_fs;
+static const char	*hwpoison_debug_fs;
 static int		hwpoison_inject_fd;
 static int		hwpoison_forget_fd;
 
@@ -487,7 +488,7 @@ static void prepare_hwpoison_fd(void)
 {
 	char buf[MAX_PATH + 1];
 
-	hwpoison_debug_fs = debugfs_mount(NULL);
+	hwpoison_debug_fs = debugfs__mount();
 	if (!hwpoison_debug_fs) {
 		perror("mount debugfs");
 		exit(EXIT_FAILURE);

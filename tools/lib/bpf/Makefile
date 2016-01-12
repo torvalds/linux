@@ -64,8 +64,9 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
 
-FEATURE_DISPLAY = libelf libelf-getphdrnum libelf-mmap bpf
-FEATURE_TESTS = libelf bpf
+FEATURE_USER = .libbpf
+FEATURE_TESTS = libelf libelf-getphdrnum libelf-mmap bpf
+FEATURE_DISPLAY = libelf bpf
 
 INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
 FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)
@@ -122,8 +123,10 @@ endif
 # the same command line setup.
 MAKEOVERRIDES=
 
+all:
+
 export srctree OUTPUT CC LD CFLAGS V
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
 BPF_IN    := $(OUTPUT)libbpf-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
@@ -132,7 +135,7 @@ CMD_TARGETS = $(LIB_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
-all: $(VERSION_FILES) all_cmd
+all: fixdep $(VERSION_FILES) all_cmd
 
 all_cmd: $(CMD_TARGETS)
 
@@ -177,7 +180,7 @@ config-clean:
 clean:
 	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d \
 		$(RM) LIBBPF-CFLAGS
-	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP
+	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP.libbpf
 
 
 

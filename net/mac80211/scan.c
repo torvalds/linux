@@ -16,7 +16,6 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
-#include <linux/pm_qos.h>
 #include <net/sch_generic.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -67,24 +66,23 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
 	int clen, srlen;
-	enum nl80211_bss_scan_width scan_width;
-	s32 signal = 0;
+	struct cfg80211_inform_bss bss_meta = {};
 	bool signal_valid;
 
 	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM))
-		signal = rx_status->signal * 100;
+		bss_meta.signal = rx_status->signal * 100;
 	else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC))
-		signal = (rx_status->signal * 100) / local->hw.max_signal;
+		bss_meta.signal = (rx_status->signal * 100) / local->hw.max_signal;
 
-	scan_width = NL80211_BSS_CHAN_WIDTH_20;
+	bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_20;
 	if (rx_status->flag & RX_FLAG_5MHZ)
-		scan_width = NL80211_BSS_CHAN_WIDTH_5;
+		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_5;
 	if (rx_status->flag & RX_FLAG_10MHZ)
-		scan_width = NL80211_BSS_CHAN_WIDTH_10;
+		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
-	cbss = cfg80211_inform_bss_width_frame(local->hw.wiphy, channel,
-					       scan_width, mgmt, len, signal,
-					       GFP_ATOMIC);
+	bss_meta.chan = channel;
+	cbss = cfg80211_inform_bss_frame_data(local->hw.wiphy, &bss_meta,
+					      mgmt, len, GFP_ATOMIC);
 	if (!cbss)
 		return NULL;
 	/* In case the signal is invalid update the status */
@@ -599,8 +597,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		/* We need to ensure power level is at max for scanning. */
 		ieee80211_hw_config(local, 0);
 
-		if ((req->channels[0]->flags &
-		     IEEE80211_CHAN_NO_IR) ||
+		if ((req->channels[0]->flags & (IEEE80211_CHAN_NO_IR |
+						IEEE80211_CHAN_RADAR)) ||
 		    !req->n_ssids) {
 			next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		} else {
@@ -647,7 +645,7 @@ ieee80211_scan_get_channel_time(struct ieee80211_channel *chan)
 	 * TODO: channel switching also consumes quite some time,
 	 * add that delay as well to get a better estimation
 	 */
-	if (chan->flags & IEEE80211_CHAN_NO_IR)
+	if (chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR))
 		return IEEE80211_PASSIVE_CHANNEL_TIME;
 	return IEEE80211_PROBE_DELAY + IEEE80211_CHANNEL_TIME;
 }
@@ -779,7 +777,8 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	 *
 	 * In any case, it is not necessary for a passive scan.
 	 */
-	if (chan->flags & IEEE80211_CHAN_NO_IR || !scan_req->n_ssids) {
+	if ((chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) ||
+	    !scan_req->n_ssids) {
 		*next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		local->next_scan_state = SCAN_DECISION;
 		return;
@@ -1142,10 +1141,10 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
-int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
+int ieee80211_request_sched_scan_stop(struct ieee80211_local *local)
 {
-	struct ieee80211_local *local = sdata->local;
-	int ret = 0;
+	struct ieee80211_sub_if_data *sched_scan_sdata;
+	int ret = -ENOENT;
 
 	mutex_lock(&local->mtx);
 
@@ -1157,8 +1156,10 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 	/* We don't want to restart sched scan anymore. */
 	RCU_INIT_POINTER(local->sched_scan_req, NULL);
 
-	if (rcu_access_pointer(local->sched_scan_sdata)) {
-		ret = drv_sched_scan_stop(local, sdata);
+	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata) {
+		ret = drv_sched_scan_stop(local, sched_scan_sdata);
 		if (!ret)
 			RCU_INIT_POINTER(local->sched_scan_sdata, NULL);
 	}

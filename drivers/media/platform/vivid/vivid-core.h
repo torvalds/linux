@@ -21,7 +21,7 @@
 #define _VIVID_CORE_H_
 
 #include <linux/fb.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ctrls.h>
@@ -93,7 +93,7 @@ extern struct vivid_fmt vivid_formats[];
 /* buffer for one video frame */
 struct vivid_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 };
 
@@ -123,6 +123,7 @@ enum vivid_colorspace {
 	VIVID_CS_SRGB,
 	VIVID_CS_ADOBERGB,
 	VIVID_CS_2020,
+	VIVID_CS_DCI_P3,
 	VIVID_CS_240M,
 	VIVID_CS_SYS_M,
 	VIVID_CS_SYS_BG,
@@ -451,6 +452,7 @@ struct vivid_dev {
 	unsigned			sdr_buffersize;
 	unsigned			sdr_adc_freq;
 	unsigned			sdr_fm_freq;
+	unsigned			sdr_fm_deviation;
 	int				sdr_fixp_src_phase;
 	int				sdr_fixp_mod_phase;
 

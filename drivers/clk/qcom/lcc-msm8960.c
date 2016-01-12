@@ -565,15 +565,8 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 	return qcom_cc_really_probe(pdev, &lcc_msm8960_desc, regmap);
 }
 
-static int lcc_msm8960_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver lcc_msm8960_driver = {
 	.probe		= lcc_msm8960_probe,
-	.remove		= lcc_msm8960_remove,
 	.driver		= {
 		.name	= "lcc-msm8960",
 		.of_match_table = lcc_msm8960_match_table,

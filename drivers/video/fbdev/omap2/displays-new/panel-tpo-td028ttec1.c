@@ -498,7 +498,6 @@ static struct spi_driver td028ttec1_spi_driver = {
 
 	.driver         = {
 		.name   = "panel-tpo-td028ttec1",
-		.owner  = THIS_MODULE,
 		.of_match_table = td028ttec1_of_match,
 		.suppress_bind_attrs = true,
 	},

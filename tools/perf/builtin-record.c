@@ -31,6 +31,7 @@
 #include "util/auxtrace.h"
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
+#include "util/llvm-utils.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -49,7 +50,7 @@ struct record {
 	int			realtime_prio;
 	bool			no_buildid;
 	bool			no_buildid_cache;
-	long			samples;
+	unsigned long long	samples;
 };
 
 static int record__write(struct record *rec, void *bf, size_t size)
@@ -636,8 +637,29 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	/*
 	 * Let the child rip
 	 */
-	if (forks)
+	if (forks) {
+		union perf_event *event;
+
+		event = malloc(sizeof(event->comm) + machine->id_hdr_size);
+		if (event == NULL) {
+			err = -ENOMEM;
+			goto out_child;
+		}
+
+		/*
+		 * Some H/W events are generated before COMM event
+		 * which is emitted during exec(), so perf script
+		 * cannot see a correct process name for those events.
+		 * Synthesize COMM event to prevent it.
+		 */
+		perf_event__synthesize_comm(tool, event,
+					    rec->evlist->workload.pid,
+					    process_synthesized_event,
+					    machine);
+		free(event);
+
 		perf_evlist__start_workload(rec->evlist);
+	}
 
 	if (opts->initial_delay) {
 		usleep(opts->initial_delay * 1000);
@@ -646,7 +668,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	auxtrace_snapshot_enabled = 1;
 	for (;;) {
-		int hits = rec->samples;
+		unsigned long long hits = rec->samples;
 
 		if (record__mmap_read_all(rec) < 0) {
 			auxtrace_snapshot_enabled = 0;
@@ -989,13 +1011,8 @@ static struct record record = {
 	},
 };
 
-#define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace) recording: "
-
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-const char record_callchain_help[] = CALLCHAIN_HELP "fp dwarf lbr";
-#else
-const char record_callchain_help[] = CALLCHAIN_HELP "fp lbr";
-#endif
+const char record_callchain_help[] = CALLCHAIN_RECORD_HELP
+	"\n\t\t\t\tDefault: fp";
 
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
@@ -1043,7 +1060,7 @@ struct option __record_options[] = {
 			   NULL, "enables call-graph recording" ,
 			   &record_callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &record.opts,
-		     "mode[,dump_size]", record_callchain_help,
+		     "record_mode[,record_size]", record_callchain_help,
 		     &record_parse_callchain_opt),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
@@ -1096,6 +1113,12 @@ struct option __record_options[] = {
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
+#ifdef HAVE_LIBBPF_SUPPORT
+	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
+		   "clang binary to use for compiling BPF scriptlets"),
+	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
+		   "options passed to clang when compiling BPF scriptlets"),
+#endif
 	OPT_END()
 };
 
@@ -1119,14 +1142,15 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		usage_with_options(record_usage, record_options);
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
-		ui__error("cgroup monitoring only available in"
-			  " system-wide mode\n");
-		usage_with_options(record_usage, record_options);
+		usage_with_options_msg(record_usage, record_options,
+			"cgroup monitoring only available in system-wide mode");
+
 	}
 	if (rec->opts.record_switch_events &&
 	    !perf_can_record_switch_events()) {
-		ui__error("kernel does not support recording context switch events (--switch-events option)\n");
-		usage_with_options(record_usage, record_options);
+		ui__error("kernel does not support recording context switch events\n");
+		parse_options_usage(record_usage, record_options, "switch-events", 0);
+		return -EINVAL;
 	}
 
 	if (!rec->itr) {

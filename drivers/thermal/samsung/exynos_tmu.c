@@ -548,7 +548,7 @@ static int exynos5433_tmu_initialize(struct platform_device *pdev)
 	default:
 		pdata->cal_type = TYPE_ONE_POINT_TRIMMING;
 		break;
-	};
+	}
 
 	dev_info(&pdev->dev, "Calibration type is %d-point calibration\n",
 			cal_type ?  2 : 1);
@@ -608,7 +608,7 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info = 0, con, rising_threshold;
-	int ret = 0, threshold_code;
+	int threshold_code;
 	int crit_temp = 0;
 
 	/*
@@ -651,7 +651,8 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 	/* Clear the PMIN in the common TMU register */
 	if (!data->id)
 		writel(0, data->base_second + EXYNOS5440_TMU_PMIN);
-	return ret;
+
+	return 0;
 }
 
 static int exynos7_tmu_initialize(struct platform_device *pdev)
@@ -932,7 +933,7 @@ static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
 
 	if (data->soc == SOC_ARCH_EXYNOS5260)
 		emul_con = EXYNOS5260_EMUL_CON;
-	if (data->soc == SOC_ARCH_EXYNOS5433)
+	else if (data->soc == SOC_ARCH_EXYNOS5433)
 		emul_con = EXYNOS5433_TMU_EMUL_CON;
 	else if (data->soc == SOC_ARCH_EXYNOS7)
 		emul_con = EXYNOS7_TMU_REG_EMUL_CON;
@@ -1168,26 +1169,9 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct exynos_tmu_platform_data *pdata;
 	struct resource res;
-	int ret;
 
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
-
-	/*
-	 * Try enabling the regulator if found
-	 * TODO: Add regulator as an SOC feature, so that regulator enable
-	 * is a compulsory call.
-	 */
-	data->regulator = devm_regulator_get(&pdev->dev, "vtmu");
-	if (!IS_ERR(data->regulator)) {
-		ret = regulator_enable(data->regulator);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to enable vtmu\n");
-			return ret;
-		}
-	} else {
-		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
-	}
 
 	data->id = of_alias_get_id(pdev->dev.of_node, "tmuctrl");
 	if (data->id < 0)
@@ -1306,12 +1290,22 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 	mutex_init(&data->lock);
 
-	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
-						    &exynos_sensor_ops);
-	if (IS_ERR(data->tzd)) {
-		pr_err("thermal: tz: %p ERROR\n", data->tzd);
-		return PTR_ERR(data->tzd);
+	/*
+	 * Try enabling the regulator if found
+	 * TODO: Add regulator as an SOC feature, so that regulator enable
+	 * is a compulsory call.
+	 */
+	data->regulator = devm_regulator_get(&pdev->dev, "vtmu");
+	if (!IS_ERR(data->regulator)) {
+		ret = regulator_enable(data->regulator);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable vtmu\n");
+			return ret;
+		}
+	} else {
+		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
 	}
+
 	ret = exynos_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
@@ -1363,23 +1357,38 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		break;
 	default:
 		break;
-	};
+	}
+
+	/*
+	 * data->tzd must be registered before calling exynos_tmu_initialize(),
+	 * requesting irq and calling exynos_tmu_control().
+	 */
+	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
+						    &exynos_sensor_ops);
+	if (IS_ERR(data->tzd)) {
+		ret = PTR_ERR(data->tzd);
+		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
+		goto err_sclk;
+	}
 
 	ret = exynos_tmu_initialize(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
-		goto err_sclk;
+		goto err_thermal;
 	}
 
 	ret = devm_request_irq(&pdev->dev, data->irq, exynos_tmu_irq,
 		IRQF_TRIGGER_RISING | IRQF_SHARED, dev_name(&pdev->dev), data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
-		goto err_sclk;
+		goto err_thermal;
 	}
 
 	exynos_tmu_control(pdev, true);
 	return 0;
+
+err_thermal:
+	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
 err_sclk:
 	clk_disable_unprepare(data->sclk);
 err_clk:
@@ -1388,9 +1397,8 @@ err_clk_sec:
 	if (!IS_ERR(data->clk_sec))
 		clk_unprepare(data->clk_sec);
 err_sensor:
-	if (!IS_ERR_OR_NULL(data->regulator))
+	if (!IS_ERR(data->regulator))
 		regulator_disable(data->regulator);
-	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
 
 	return ret;
 }

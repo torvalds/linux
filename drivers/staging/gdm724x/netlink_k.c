@@ -34,8 +34,8 @@ static struct semaphore netlink_mutex;
 #define ND_NLMSG_SPACE(len)	(NLMSG_SPACE(len) + ND_IFINDEX_LEN)
 #define ND_NLMSG_DATA(nlh)	((void *)((char *)NLMSG_DATA(nlh) + \
 						  ND_IFINDEX_LEN))
-#define ND_NLMSG_S_LEN(len)	(len+ND_IFINDEX_LEN)
-#define ND_NLMSG_R_LEN(nlh)	(nlh->nlmsg_len-ND_IFINDEX_LEN)
+#define ND_NLMSG_S_LEN(len)	(len + ND_IFINDEX_LEN)
+#define ND_NLMSG_R_LEN(nlh)	(nlh->nlmsg_len - ND_IFINDEX_LEN)
 #define ND_NLMSG_IFIDX(nlh)	NLMSG_DATA(nlh)
 #define ND_MAX_MSG_LEN		(1024 * 32)
 
@@ -122,7 +122,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	if (group > ND_MAX_GROUP)
 		return -EINVAL;
 
-	if (!netlink_has_listeners(sock, group+1))
+	if (!netlink_has_listeners(sock, group + 1))
 		return -ESRCH;
 
 	skb = alloc_skb(NLMSG_SPACE(len), GFP_ATOMIC);
@@ -136,14 +136,14 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	NETLINK_CB(skb).portid = 0;
 	NETLINK_CB(skb).dst_group = 0;
 
-	ret = netlink_broadcast(sock, skb, 0, group+1, GFP_ATOMIC);
+	ret = netlink_broadcast(sock, skb, 0, group + 1, GFP_ATOMIC);
 	if (!ret)
 		return len;
 
 	if (ret != -ESRCH)
 		pr_err("nl broadcast g=%d, t=%d, l=%d, r=%d\n",
 		       group, type, len, ret);
-	else if (netlink_has_listeners(sock, group+1))
+	else if (netlink_has_listeners(sock, group + 1))
 		return -EAGAIN;
 
 	return ret;

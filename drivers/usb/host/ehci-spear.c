@@ -149,6 +149,7 @@ static const struct of_device_id spear_ehci_id_table[] = {
 	{ .compatible = "st,spear600-ehci", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, spear_ehci_id_table);
 
 static struct platform_driver spear_ehci_hcd_driver = {
 	.probe		= spear_ehci_hcd_drv_probe,

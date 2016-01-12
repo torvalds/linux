@@ -555,7 +555,7 @@ static ssize_t show_tempsense(struct device *device,
 		container_of(device, struct hfi1_ibdev, ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	struct hfi1_temp temp;
-	int ret = -ENXIO;
+	int ret;
 
 	ret = hfi1_tempsense_rd(dd, &temp);
 	if (!ret) {

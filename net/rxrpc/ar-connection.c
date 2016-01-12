@@ -500,7 +500,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 		if (bundle->num_conns >= 20) {
 			_debug("too many conns");
 
-			if (!(gfp & __GFP_WAIT)) {
+			if (!gfpflags_allow_blocking(gfp)) {
 				_leave(" = -EAGAIN");
 				return -EAGAIN;
 			}
@@ -808,7 +808,7 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 
 	ASSERTCMP(atomic_read(&conn->usage), >, 0);
 
-	conn->put_time = get_seconds();
+	conn->put_time = ktime_get_seconds();
 	if (atomic_dec_and_test(&conn->usage)) {
 		_debug("zombie");
 		rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
@@ -852,7 +852,7 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 
 	_enter("");
 
-	now = get_seconds();
+	now = ktime_get_seconds();
 	earliest = ULONG_MAX;
 
 	write_lock_bh(&rxrpc_connection_lock);

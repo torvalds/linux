@@ -107,8 +107,7 @@ static int rx51_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
 
-	snd_pcm_hw_constraint_minmax(runtime,
-				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
+	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 	rx51_ext_control(&card->dapm);
 
 	return 0;
@@ -297,7 +296,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "Failed to add TPA6130A2 controls\n");
 		return err;
 	}
-	snd_soc_limit_volume(codec, "TPA6130A2 Headphone Playback Volume", 42);
+	snd_soc_limit_volume(card, "TPA6130A2 Headphone Playback Volume", 42);
 
 	err = omap_mcbsp_st_add_controls(rtd, 2);
 	if (err < 0) {

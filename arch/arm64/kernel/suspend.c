@@ -1,3 +1,4 @@
+#include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
@@ -41,7 +42,7 @@ void notrace __cpu_suspend_save(struct cpu_suspend_ctx *ptr,
  * time the notifier runs debug exceptions might have been enabled already,
  * with HW breakpoints registers content still in an unknown state.
  */
-void (*hw_breakpoint_restore)(void *);
+static void (*hw_breakpoint_restore)(void *);
 void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 {
 	/* Prevent multiple restore hook initializations */
@@ -71,6 +72,13 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	local_dbg_save(flags);
 
 	/*
+	 * Function graph tracer state gets incosistent when the kernel
+	 * calls functions that never return (aka suspend finishers) hence
+	 * disable graph tracing during their execution.
+	 */
+	pause_graph_tracing();
+
+	/*
 	 * mm context saved on the stack, it will be restored when
 	 * the cpu comes out of reset through the identity mapped
 	 * page tables, so that the thread address space is properly
@@ -80,17 +88,21 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	if (ret == 0) {
 		/*
 		 * We are resuming from reset with TTBR0_EL1 set to the
-		 * idmap to enable the MMU; restore the active_mm mappings in
-		 * TTBR0_EL1 unless the active_mm == &init_mm, in which case
-		 * the thread entered cpu_suspend with TTBR0_EL1 set to
-		 * reserved TTBR0 page tables and should be restored as such.
+		 * idmap to enable the MMU; set the TTBR0 to the reserved
+		 * page tables to prevent speculative TLB allocations, flush
+		 * the local tlb and set the default tcr_el1.t0sz so that
+		 * the TTBR0 address space set-up is properly restored.
+		 * If the current active_mm != &init_mm we entered cpu_suspend
+		 * with mappings in TTBR0 that must be restored, so we switch
+		 * them back to complete the address space configuration
+		 * restoration before returning.
 		 */
-		if (mm == &init_mm)
-			cpu_set_reserved_ttbr0();
-		else
-			cpu_switch_mm(mm->pgd, mm);
+		cpu_set_reserved_ttbr0();
+		local_flush_tlb_all();
+		cpu_set_default_tcr_t0sz();
 
-		flush_tlb_all();
+		if (mm != &init_mm)
+			cpu_switch_mm(mm->pgd, mm);
 
 		/*
 		 * Restore per-cpu offset before any kernel
@@ -106,6 +118,8 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		if (hw_breakpoint_restore)
 			hw_breakpoint_restore(NULL);
 	}
+
+	unpause_graph_tracing();
 
 	/*
 	 * Restore pstate flags. OS lock and mdscr have been already

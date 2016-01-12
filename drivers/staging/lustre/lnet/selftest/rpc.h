@@ -65,7 +65,6 @@ typedef enum {
 	SRPC_MSG_JOIN_REPLY     = 17,
 } srpc_msg_type_t;
 
-
 /* CAVEAT EMPTOR:
  * All srpc_*_reqst_t's 1st field must be matchbits of reply buffer,
  * and 2nd field matchbits of bulk buffer if any.

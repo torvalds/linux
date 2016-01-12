@@ -637,8 +637,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_try_fmt_sliced_vbi_out)))
 			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SLICED_VBI_CAP, vidioc_g_sliced_vbi_cap);
-	} else if (is_sdr) {
-		/* SDR specific ioctls */
+	} else if (is_sdr && is_rx) {
+		/* SDR receiver specific ioctls */
 		if (ops->vidioc_enum_fmt_sdr_cap)
 			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
 		if (ops->vidioc_g_fmt_sdr_cap)
@@ -646,6 +646,16 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		if (ops->vidioc_s_fmt_sdr_cap)
 			set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
 		if (ops->vidioc_try_fmt_sdr_cap)
+			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
+	} else if (is_sdr && is_tx) {
+		/* SDR transmitter specific ioctls */
+		if (ops->vidioc_enum_fmt_sdr_out)
+			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
+		if (ops->vidioc_g_fmt_sdr_out)
+			set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
+		if (ops->vidioc_s_fmt_sdr_out)
+			set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
+		if (ops->vidioc_try_fmt_sdr_out)
 			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 	}
 

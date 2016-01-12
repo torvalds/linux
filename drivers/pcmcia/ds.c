@@ -468,11 +468,9 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 			if ((length < 2) || (length > 255))
 				continue;
 
-			new = kmalloc(sizeof(char) * length, GFP_KERNEL);
+			new = kstrdup(tmp, GFP_KERNEL);
 			if (!new)
 				continue;
-
-			new = strncpy(new, tmp, length);
 
 			tmp = p_dev->prod_id[i];
 			p_dev->prod_id[i] = new;

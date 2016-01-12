@@ -147,6 +147,20 @@ config CLOCK_THERMAL
 	  device that is configured to use this cooling mechanism will be
 	  controlled to reduce clock frequency whenever temperature is high.
 
+config DEVFREQ_THERMAL
+	bool "Generic device cooling support"
+	depends on PM_DEVFREQ
+	depends on PM_OPP
+	help
+	  This implements the generic devfreq cooling mechanism through
+	  frequency reduction for devices using devfreq.
+
+	  This will throttle the device by limiting the maximum allowed DVFS
+	  frequency corresponding to the cooling level.
+
+	  In order to use the power extensions of the cooling device,
+	  devfreq should use the simple_ondemand governor.
+
 	  If you want this support, you should say Y here.
 
 config THERMAL_EMULATION
@@ -275,6 +289,7 @@ config X86_PKG_TEMP_THERMAL
 	tristate "X86 package temperature thermal driver"
 	depends on X86_THERMAL_VECTOR
 	select THERMAL_GOV_USER_SPACE
+	select THERMAL_WRITABLE_TRIPS
 	default m
 	help
 	  Enable this to register CPU digital sensor for package temperature as
@@ -296,6 +311,7 @@ config INTEL_SOC_DTS_THERMAL
 	tristate "Intel SoCs DTS thermal driver"
 	depends on X86
 	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
 	help
 	  Enable this to register Intel SoCs (e.g. Bay Trail) platform digital
 	  temperature sensor (DTS). These SoCs have two additional DTSs in
@@ -322,6 +338,7 @@ config INT340X_THERMAL
 	select ACPI_THERMAL_REL
 	select ACPI_FAN
 	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and
 	  other devices with thermal control capabilities outside the core
@@ -365,7 +382,7 @@ endmenu
 
 config QCOM_SPMI_TEMP_ALARM
 	tristate "Qualcomm SPMI PMIC Temperature Alarm"
-	depends on OF && (SPMI || COMPILE_TEST) && IIO
+	depends on OF && SPMI && IIO
 	select REGMAP_SPMI
 	help
 	  This enables a thermal sysfs driver for Qualcomm plug-and-play (QPNP)

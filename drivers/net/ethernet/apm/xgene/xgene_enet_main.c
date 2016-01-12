@@ -450,12 +450,12 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	pdata->ring_ops->wr_cmd(tx_ring, count);
 	skb_tx_timestamp(skb);
 
 	pdata->stats.tx_packets++;
 	pdata->stats.tx_bytes += skb->len;
 
+	pdata->ring_ops->wr_cmd(tx_ring, count);
 	return NETDEV_TX_OK;
 }
 
@@ -688,17 +688,16 @@ static int xgene_enet_open(struct net_device *ndev)
 	mac_ops->tx_enable(pdata);
 	mac_ops->rx_enable(pdata);
 
+	xgene_enet_napi_enable(pdata);
 	ret = xgene_enet_register_irq(ndev);
 	if (ret)
 		return ret;
-	xgene_enet_napi_enable(pdata);
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		phy_start(pdata->phy_dev);
 	else
 		schedule_delayed_work(&pdata->link_work, PHY_POLL_LINK_OFF);
 
-	netif_carrier_off(ndev);
 	netif_start_queue(ndev);
 
 	return ret;
@@ -716,12 +715,12 @@ static int xgene_enet_close(struct net_device *ndev)
 	else
 		cancel_delayed_work_sync(&pdata->link_work);
 
-	xgene_enet_napi_disable(pdata);
-	xgene_enet_free_irq(ndev);
-	xgene_enet_process_ring(pdata->rx_ring, -1);
-
 	mac_ops->tx_disable(pdata);
 	mac_ops->rx_disable(pdata);
+
+	xgene_enet_free_irq(ndev);
+	xgene_enet_napi_disable(pdata);
+	xgene_enet_process_ring(pdata->rx_ring, -1);
 
 	return 0;
 }
@@ -1118,6 +1117,47 @@ static int xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pda
 	return ret;
 }
 
+static int xgene_get_tx_delay(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+	int delay, ret;
+
+	ret = of_property_read_u32(dev->of_node, "tx-delay", &delay);
+	if (ret) {
+		pdata->tx_delay = 4;
+		return 0;
+	}
+
+	if (delay < 0 || delay > 7) {
+		dev_err(dev, "Invalid tx-delay specified\n");
+		return -EINVAL;
+	}
+
+	pdata->tx_delay = delay;
+
+	return 0;
+}
+
+static int xgene_get_rx_delay(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+	int delay, ret;
+
+	ret = of_property_read_u32(dev->of_node, "rx-delay", &delay);
+	if (ret) {
+		pdata->rx_delay = 2;
+		return 0;
+	}
+
+	if (delay < 0 || delay > 7) {
+		dev_err(dev, "Invalid rx-delay specified\n");
+		return -EINVAL;
+	}
+
+	pdata->rx_delay = delay;
+
+	return 0;
+}
 
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
@@ -1193,6 +1233,14 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		dev_err(dev, "Incorrect phy-connection-type specified\n");
 		return -ENODEV;
 	}
+
+	ret = xgene_get_tx_delay(pdata);
+	if (ret)
+		return ret;
+
+	ret = xgene_get_rx_delay(pdata);
+	if (ret)
+		return ret;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
@@ -1305,10 +1353,17 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 			pdata->ring_num = START_RING_NUM_0;
 			break;
 		case 1:
-			pdata->cpu_bufnum = START_CPU_BUFNUM_1;
-			pdata->eth_bufnum = START_ETH_BUFNUM_1;
-			pdata->bp_bufnum = START_BP_BUFNUM_1;
-			pdata->ring_num = START_RING_NUM_1;
+			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+				pdata->cpu_bufnum = XG_START_CPU_BUFNUM_1;
+				pdata->eth_bufnum = XG_START_ETH_BUFNUM_1;
+				pdata->bp_bufnum = XG_START_BP_BUFNUM_1;
+				pdata->ring_num = XG_START_RING_NUM_1;
+			} else {
+				pdata->cpu_bufnum = START_CPU_BUFNUM_1;
+				pdata->eth_bufnum = START_ETH_BUFNUM_1;
+				pdata->bp_bufnum = START_BP_BUFNUM_1;
+				pdata->ring_num = START_RING_NUM_1;
+			}
 			break;
 		default:
 			break;
@@ -1419,15 +1474,15 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	}
 	ndev->hw_features = ndev->features;
 
-	ret = register_netdev(ndev);
-	if (ret) {
-		netdev_err(ndev, "Failed to register netdev\n");
-		goto err;
-	}
-
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
 		netdev_err(ndev, "No usable DMA configuration\n");
+		goto err;
+	}
+
+	ret = register_netdev(ndev);
+	if (ret) {
+		netdev_err(ndev, "Failed to register netdev\n");
 		goto err;
 	}
 
@@ -1435,14 +1490,17 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	xgene_enet_napi_add(pdata);
 	mac_ops = pdata->mac_ops;
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
 		ret = xgene_enet_mdio_config(pdata);
-	else
+		if (ret)
+			goto err;
+	} else {
 		INIT_DELAYED_WORK(&pdata->link_work, mac_ops->link_state);
+	}
 
-	return ret;
+	xgene_enet_napi_add(pdata);
+	return 0;
 err:
 	unregister_netdev(ndev);
 	free_netdev(ndev);
@@ -1478,6 +1536,7 @@ static const struct acpi_device_id xgene_enet_acpi_match[] = {
 	{ "APMC0D05", XGENE_ENET1},
 	{ "APMC0D30", XGENE_ENET1},
 	{ "APMC0D31", XGENE_ENET1},
+	{ "APMC0D3F", XGENE_ENET1},
 	{ "APMC0D26", XGENE_ENET2},
 	{ "APMC0D25", XGENE_ENET2},
 	{ }

@@ -315,7 +315,6 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 		if (page_count + (*bio)->bi_vcnt > LLOOP_MAX_SEGMENTS)
 			break;
 
-
 		page_count += (*bio)->bi_vcnt;
 		count++;
 		bio = &(*bio)->bi_next;
@@ -334,7 +333,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	return count;
 }
 
-static void loop_make_request(struct request_queue *q, struct bio *old_bio)
+static blk_qc_t loop_make_request(struct request_queue *q, struct bio *old_bio)
 {
 	struct lloop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
@@ -365,18 +364,20 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 		goto err;
 	}
 	loop_add_bio(lo, old_bio);
-	return;
+	return BLK_QC_T_NONE;
 err:
 	bio_io_error(old_bio);
+	return BLK_QC_T_NONE;
 }
-
 
 static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 {
 	int ret;
+
 	ret = do_bio_lustrebacked(lo, bio);
 	while (bio) {
 		struct bio *tmp = bio->bi_next;
+
 		bio->bi_next = NULL;
 		bio->bi_error = ret;
 		bio_endio(bio);
@@ -430,6 +431,7 @@ static int loop_thread(void *data)
 		wait_event(lo->lo_bh_wait, loop_active(lo));
 		if (!atomic_read(&lo->lo_pending)) {
 			int exiting = 0;
+
 			spin_lock_irq(&lo->lo_lock);
 			exiting = (lo->lo_state == LLOOP_RUNDOWN);
 			spin_unlock_irq(&lo->lo_lock);

@@ -19,12 +19,12 @@
 	compatible = "renesas,marzen", "renesas,r8a7779";
 
 	aliases {
-		serial2 = &scif2;
-		serial4 = &scif4;
+		serial0 = &scif2;
+		serial1 = &scif4;
 	};
 
 	chosen {
-		bootargs = "console=ttySC2,115200 ignore_loglevel root=/dev/nfs ip=on";
+		bootargs = "ignore_loglevel root=/dev/nfs ip=on";
 		stdout-path = &scif2;
 	};
 

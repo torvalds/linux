@@ -1462,7 +1462,7 @@ err_firmware:
 
 #define EVENT_REMAP_CELLS 3
 
-static int __init sdma_event_remap(struct sdma_engine *sdma)
+static int sdma_event_remap(struct sdma_engine *sdma)
 {
 	struct device_node *np = sdma->dev->of_node;
 	struct device_node *gpr_np = of_parse_phandle(np, "gpr", 0);
@@ -1478,7 +1478,7 @@ static int __init sdma_event_remap(struct sdma_engine *sdma)
 	event_remap = of_find_property(np, propname, NULL);
 	num_map = event_remap ? (event_remap->length / sizeof(u32)) : 0;
 	if (!num_map) {
-		dev_warn(sdma->dev, "no event needs to be remapped\n");
+		dev_dbg(sdma->dev, "no event needs to be remapped\n");
 		goto out;
 	} else if (num_map % EVENT_REMAP_CELLS) {
 		dev_err(sdma->dev, "the property %s must modulo %d\n",
@@ -1826,8 +1826,6 @@ static int sdma_probe(struct platform_device *pdev)
 		of_node_put(spba_bus);
 	}
 
-	dev_info(sdma->dev, "initialized\n");
-
 	return 0;
 
 err_register:
@@ -1852,7 +1850,6 @@ static int sdma_remove(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, NULL);
-	dev_info(&pdev->dev, "Removed...\n");
 	return 0;
 }
 

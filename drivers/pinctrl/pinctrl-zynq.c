@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2014 Xilinx
  *
- *  SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>
+ *  Sören Brinkmann <soren.brinkmann@xilinx.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1230,8 +1230,18 @@ static struct platform_driver zynq_pinctrl_driver = {
 	.remove = zynq_pinctrl_remove,
 };
 
-module_platform_driver(zynq_pinctrl_driver);
+static int __init zynq_pinctrl_init(void)
+{
+	return platform_driver_register(&zynq_pinctrl_driver);
+}
+arch_initcall(zynq_pinctrl_init);
 
-MODULE_AUTHOR("SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>");
+static void __exit zynq_pinctrl_exit(void)
+{
+	platform_driver_unregister(&zynq_pinctrl_driver);
+}
+module_exit(zynq_pinctrl_exit);
+
+MODULE_AUTHOR("Sören Brinkmann <soren.brinkmann@xilinx.com>");
 MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
 MODULE_LICENSE("GPL");

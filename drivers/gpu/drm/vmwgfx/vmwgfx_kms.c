@@ -78,7 +78,7 @@ int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	cmd->cursor.hotspotX = hotspotX;
 	cmd->cursor.hotspotY = hotspotY;
 
-	vmw_fifo_commit(dev_priv, cmd_size);
+	vmw_fifo_commit_flush(dev_priv, cmd_size);
 
 	return 0;
 }
@@ -123,23 +123,29 @@ err_unreserve:
 void vmw_cursor_update_position(struct vmw_private *dev_priv,
 				bool show, int x, int y)
 {
-	u32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	u32 *fifo_mem = dev_priv->mmio_virt;
 	uint32_t count;
 
-	iowrite32(show ? 1 : 0, fifo_mem + SVGA_FIFO_CURSOR_ON);
-	iowrite32(x, fifo_mem + SVGA_FIFO_CURSOR_X);
-	iowrite32(y, fifo_mem + SVGA_FIFO_CURSOR_Y);
-	count = ioread32(fifo_mem + SVGA_FIFO_CURSOR_COUNT);
-	iowrite32(++count, fifo_mem + SVGA_FIFO_CURSOR_COUNT);
+	vmw_mmio_write(show ? 1 : 0, fifo_mem + SVGA_FIFO_CURSOR_ON);
+	vmw_mmio_write(x, fifo_mem + SVGA_FIFO_CURSOR_X);
+	vmw_mmio_write(y, fifo_mem + SVGA_FIFO_CURSOR_Y);
+	count = vmw_mmio_read(fifo_mem + SVGA_FIFO_CURSOR_COUNT);
+	vmw_mmio_write(++count, fifo_mem + SVGA_FIFO_CURSOR_COUNT);
 }
 
-int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
-			   uint32_t handle, uint32_t width, uint32_t height)
+
+/*
+ * vmw_du_crtc_cursor_set2 - Driver cursor_set2 callback.
+ */
+int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
+			    uint32_t handle, uint32_t width, uint32_t height,
+			    int32_t hot_x, int32_t hot_y)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *dmabuf = NULL;
+	s32 hotspot_x, hotspot_y;
 	int ret;
 
 	/*
@@ -151,6 +157,8 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	 */
 	drm_modeset_unlock_crtc(crtc);
 	drm_modeset_lock_all(dev_priv->dev);
+	hotspot_x = hot_x + du->hotspot_x;
+	hotspot_y = hot_y + du->hotspot_y;
 
 	/* A lot of the code assumes this */
 	if (handle && (width != 64 || height != 64)) {
@@ -187,31 +195,34 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		vmw_dmabuf_unreference(&du->cursor_dmabuf);
 
 	/* setup new image */
+	ret = 0;
 	if (surface) {
 		/* vmw_user_surface_lookup takes one reference */
 		du->cursor_surface = surface;
 
 		du->cursor_surface->snooper.crtc = crtc;
 		du->cursor_age = du->cursor_surface->snooper.age;
-		vmw_cursor_update_image(dev_priv, surface->snooper.image,
-					64, 64, du->hotspot_x, du->hotspot_y);
+		ret = vmw_cursor_update_image(dev_priv, surface->snooper.image,
+					      64, 64, hotspot_x, hotspot_y);
 	} else if (dmabuf) {
 		/* vmw_user_surface_lookup takes one reference */
 		du->cursor_dmabuf = dmabuf;
 
 		ret = vmw_cursor_update_dmabuf(dev_priv, dmabuf, width, height,
-					       du->hotspot_x, du->hotspot_y);
+					       hotspot_x, hotspot_y);
 	} else {
 		vmw_cursor_update_position(dev_priv, false, 0, 0);
-		ret = 0;
 		goto out;
 	}
 
-	vmw_cursor_update_position(dev_priv, true,
-				   du->cursor_x + du->hotspot_x,
-				   du->cursor_y + du->hotspot_y);
+	if (!ret) {
+		vmw_cursor_update_position(dev_priv, true,
+					   du->cursor_x + hotspot_x,
+					   du->cursor_y + hotspot_y);
+		du->core_hotspot_x = hot_x;
+		du->core_hotspot_y = hot_y;
+	}
 
-	ret = 0;
 out:
 	drm_modeset_unlock_all(dev_priv->dev);
 	drm_modeset_lock_crtc(crtc, crtc->cursor);
@@ -239,8 +250,10 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	drm_modeset_lock_all(dev_priv->dev);
 
 	vmw_cursor_update_position(dev_priv, shown,
-				   du->cursor_x + du->hotspot_x,
-				   du->cursor_y + du->hotspot_y);
+				   du->cursor_x + du->hotspot_x +
+				   du->core_hotspot_x,
+				   du->cursor_y + du->hotspot_y +
+				   du->core_hotspot_y);
 
 	drm_modeset_unlock_all(dev_priv->dev);
 	drm_modeset_lock_crtc(crtc, crtc->cursor);
@@ -334,6 +347,29 @@ err_unreserve:
 	ttm_bo_unreserve(bo);
 }
 
+/**
+ * vmw_kms_legacy_hotspot_clear - Clear legacy hotspots
+ *
+ * @dev_priv: Pointer to the device private struct.
+ *
+ * Clears all legacy hotspots.
+ */
+void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct vmw_display_unit *du;
+	struct drm_crtc *crtc;
+
+	drm_modeset_lock_all(dev);
+	drm_for_each_crtc(crtc, dev) {
+		du = vmw_crtc_to_du(crtc);
+
+		du->hotspot_x = 0;
+		du->hotspot_y = 0;
+	}
+	drm_modeset_unlock_all(dev);
+}
+
 void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -351,7 +387,9 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 		du->cursor_age = du->cursor_surface->snooper.age;
 		vmw_cursor_update_image(dev_priv,
 					du->cursor_surface->snooper.image,
-					64, 64, du->hotspot_x, du->hotspot_y);
+					64, 64,
+					du->hotspot_x + du->core_hotspot_x,
+					du->hotspot_y + du->core_hotspot_y);
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
@@ -1155,7 +1193,8 @@ int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
 		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK, pitch);
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
-		iowrite32(pitch, vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
+		vmw_mmio_write(pitch, vmw_priv->mmio_virt +
+			       SVGA_FIFO_PITCHLOCK);
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, height);
 	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bpp);
@@ -1181,8 +1220,8 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 		vmw_priv->vga_pitchlock =
 		  vmw_read(vmw_priv, SVGA_REG_PITCHLOCK);
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
-		vmw_priv->vga_pitchlock = ioread32(vmw_priv->mmio_virt +
-						   SVGA_FIFO_PITCHLOCK);
+		vmw_priv->vga_pitchlock = vmw_mmio_read(vmw_priv->mmio_virt +
+							SVGA_FIFO_PITCHLOCK);
 
 	if (!(vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY))
 		return 0;
@@ -1230,8 +1269,8 @@ int vmw_kms_restore_vga(struct vmw_private *vmw_priv)
 		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK,
 			  vmw_priv->vga_pitchlock);
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
-		iowrite32(vmw_priv->vga_pitchlock,
-			  vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
+		vmw_mmio_write(vmw_priv->vga_pitchlock,
+			       vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
 
 	if (!(vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY))
 		return 0;
@@ -1263,7 +1302,7 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 /**
  * Function called by DRM code called with vbl_lock held.
  */
-u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
+u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	return 0;
 }
@@ -1271,7 +1310,7 @@ u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
 /**
  * Function called by DRM code called with vbl_lock held.
  */
-int vmw_enable_vblank(struct drm_device *dev, int crtc)
+int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	return -ENOSYS;
 }
@@ -1279,7 +1318,7 @@ int vmw_enable_vblank(struct drm_device *dev, int crtc)
 /**
  * Function called by DRM code called with vbl_lock held.
  */
-void vmw_disable_vblank(struct drm_device *dev, int crtc)
+void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 }
 

@@ -28,13 +28,6 @@
 #include <asm/cputype.h>
 #include <asm/pgtable.h>
 
-#define MAX_ASID_BITS	16
-
-extern unsigned int cpu_last_asid;
-
-void __init_new_context(struct task_struct *tsk, struct mm_struct *mm);
-void __new_context(struct mm_struct *mm);
-
 #ifdef CONFIG_PID_IN_CONTEXTIDR
 static inline void contextidr_thread_switch(struct task_struct *next)
 {
@@ -77,96 +70,38 @@ static inline bool __cpu_uses_extended_idmap(void)
 		unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS)));
 }
 
-static inline void __cpu_set_tcr_t0sz(u64 t0sz)
-{
-	unsigned long tcr;
-
-	if (__cpu_uses_extended_idmap())
-		asm volatile (
-		"	mrs	%0, tcr_el1	;"
-		"	bfi	%0, %1, %2, %3	;"
-		"	msr	tcr_el1, %0	;"
-		"	isb"
-		: "=&r" (tcr)
-		: "r"(t0sz), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
-}
-
-/*
- * Set TCR.T0SZ to the value appropriate for activating the identity map.
- */
-static inline void cpu_set_idmap_tcr_t0sz(void)
-{
-	__cpu_set_tcr_t0sz(idmap_t0sz);
-}
-
 /*
  * Set TCR.T0SZ to its default value (based on VA_BITS)
  */
 static inline void cpu_set_default_tcr_t0sz(void)
 {
-	__cpu_set_tcr_t0sz(TCR_T0SZ(VA_BITS));
+	unsigned long tcr;
+
+	if (!__cpu_uses_extended_idmap())
+		return;
+
+	asm volatile (
+	"	mrs	%0, tcr_el1	;"
+	"	bfi	%0, %1, %2, %3	;"
+	"	msr	tcr_el1, %0	;"
+	"	isb"
+	: "=&r" (tcr)
+	: "r"(TCR_T0SZ(VA_BITS)), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
 }
 
-static inline void switch_new_context(struct mm_struct *mm)
-{
-	unsigned long flags;
-
-	__new_context(mm);
-
-	local_irq_save(flags);
-	cpu_switch_mm(mm->pgd, mm);
-	local_irq_restore(flags);
-}
-
-static inline void check_and_switch_context(struct mm_struct *mm,
-					    struct task_struct *tsk)
-{
-	/*
-	 * Required during context switch to avoid speculative page table
-	 * walking with the wrong TTBR.
-	 */
-	cpu_set_reserved_ttbr0();
-
-	if (!((mm->context.id ^ cpu_last_asid) >> MAX_ASID_BITS))
-		/*
-		 * The ASID is from the current generation, just switch to the
-		 * new pgd. This condition is only true for calls from
-		 * context_switch() and interrupts are already disabled.
-		 */
-		cpu_switch_mm(mm->pgd, mm);
-	else if (irqs_disabled())
-		/*
-		 * Defer the new ASID allocation until after the context
-		 * switch critical region since __new_context() cannot be
-		 * called with interrupts disabled.
-		 */
-		set_ti_thread_flag(task_thread_info(tsk), TIF_SWITCH_MM);
-	else
-		/*
-		 * That is a direct call to switch_mm() or activate_mm() with
-		 * interrupts enabled and a new context.
-		 */
-		switch_new_context(mm);
-}
-
-#define init_new_context(tsk,mm)	(__init_new_context(tsk,mm),0)
+/*
+ * It would be nice to return ASIDs back to the allocator, but unfortunately
+ * that introduces a race with a generation rollover where we could erroneously
+ * free an ASID allocated in a future generation. We could workaround this by
+ * freeing the ASID from the context of the dying mm (e.g. in arch_exit_mmap),
+ * but we'd then need to make sure that we didn't dirty any TLBs afterwards.
+ * Setting a reserved TTBR0 or EPD0 would work, but it all gets ugly when you
+ * take CPU migration into account.
+ */
 #define destroy_context(mm)		do { } while(0)
+void check_and_switch_context(struct mm_struct *mm, unsigned int cpu);
 
-#define finish_arch_post_lock_switch \
-	finish_arch_post_lock_switch
-static inline void finish_arch_post_lock_switch(void)
-{
-	if (test_and_clear_thread_flag(TIF_SWITCH_MM)) {
-		struct mm_struct *mm = current->mm;
-		unsigned long flags;
-
-		__new_context(mm);
-
-		local_irq_save(flags);
-		cpu_switch_mm(mm->pgd, mm);
-		local_irq_restore(flags);
-	}
-}
+#define init_new_context(tsk,mm)	({ atomic64_set(&(mm)->context.id, 0); 0; })
 
 /*
  * This is called when "tsk" is about to enter lazy TLB mode.
@@ -194,6 +129,9 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	unsigned int cpu = smp_processor_id();
 
+	if (prev == next)
+		return;
+
 	/*
 	 * init_mm.pgd does not contain any user mappings and it is always
 	 * active for kernel addresses in TTBR1. Just set the reserved TTBR0.
@@ -203,8 +141,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		return;
 	}
 
-	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next)
-		check_and_switch_context(next, tsk);
+	check_and_switch_context(next, cpu);
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)

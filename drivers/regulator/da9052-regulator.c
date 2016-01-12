@@ -381,6 +381,7 @@ static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
 	case DA9053_AA:
 	case DA9053_BA:
 	case DA9053_BB:
+	case DA9053_BC:
 		for (i = 0; i < ARRAY_SIZE(da9053_regulator_info); i++) {
 			info = &da9053_regulator_info[i];
 			if (info->reg_desc.id == id)

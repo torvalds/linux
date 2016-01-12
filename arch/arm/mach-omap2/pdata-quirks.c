@@ -24,9 +24,6 @@
 #include <linux/platform_data/iommu-omap.h>
 #include <linux/platform_data/wkup_m3.h>
 
-#include <asm/siginfo.h>
-#include <asm/signal.h>
-
 #include "common.h"
 #include "common-board-devices.h"
 #include "dss-common.h"
@@ -385,29 +382,6 @@ static void __init omap3_pandora_legacy_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
-#ifdef CONFIG_SOC_TI81XX
-static int fault_fixed_up;
-
-static int t410_abort_handler(unsigned long addr, unsigned int fsr,
-			      struct pt_regs *regs)
-{
-	if ((fsr == 0x406 || fsr == 0xc06) && !fault_fixed_up) {
-		pr_warn("External imprecise Data abort at addr=%#lx, fsr=%#x ignored.\n",
-			addr, fsr);
-		fault_fixed_up = 1;
-		return 0;
-	}
-
-	return 1;
-}
-
-static void __init t410_abort_init(void)
-{
-	hook_fault_code(16 + 6, t410_abort_handler, SIGBUS, BUS_OBJERR,
-			"imprecise external abort");
-}
-#endif
-
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 static struct iommu_platform_data omap4_iommu_pdata = {
 	.reset_name = "mmu_cache",
@@ -536,9 +510,6 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "openpandora,omap3-pandora-600mhz", omap3_pandora_legacy_init, },
 	{ "openpandora,omap3-pandora-1ghz", omap3_pandora_legacy_init, },
 #endif
-#ifdef CONFIG_SOC_TI81XX
-	{ "hp,t410", t410_abort_init, },
-#endif
 #ifdef CONFIG_SOC_OMAP5
 	{ "ti,omap5-uevm", omap5_uevm_legacy_init, },
 #endif
@@ -559,7 +530,14 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 
 void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 {
-	omap_sdrc_init(NULL, NULL);
+	/*
+	 * We still need this for omap2420 and omap3 PM to work, others are
+	 * using drivers/misc/sram.c already.
+	 */
+	if (of_machine_is_compatible("ti,omap2420") ||
+	    of_machine_is_compatible("ti,omap3"))
+		omap_sdrc_init(NULL, NULL);
+
 	pdata_quirks_check(auxdata_quirks);
 	of_platform_populate(NULL, omap_dt_match_table,
 			     omap_auxdata_lookup, NULL);

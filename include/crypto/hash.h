@@ -264,6 +264,20 @@ static inline unsigned int crypto_ahash_alignmask(
 	return crypto_tfm_alg_alignmask(crypto_ahash_tfm(tfm));
 }
 
+/**
+ * crypto_ahash_blocksize() - obtain block size for cipher
+ * @tfm: cipher handle
+ *
+ * The block size for the message digest cipher referenced with the cipher
+ * handle is returned.
+ *
+ * Return: block size of cipher
+ */
+static inline unsigned int crypto_ahash_blocksize(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
+}
+
 static inline struct hash_alg_common *__crypto_hash_alg_common(
 	struct crypto_alg *alg)
 {

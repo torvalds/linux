@@ -74,7 +74,7 @@
 		reg = <0x48240200 0x100>;
 		interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&dpll_mpu_m2_ck>;
+		clocks = <&mpu_periphclk>;
 	};
 
 	local_timer: timer@48240600 {
@@ -82,7 +82,7 @@
 		reg = <0x48240600 0x100>;
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&dpll_mpu_m2_ck>;
+		clocks = <&mpu_periphclk>;
 	};
 
 	l2-cache-controller@48242000 {
@@ -591,6 +591,7 @@
 			cpts_clock_mult = <0x80000000>;
 			cpts_clock_shift = <29>;
 			ranges;
+			syscon = <&scm_conf>;
 
 			davinci_mdio: mdio@4a101000 {
 				compatible = "ti,am4372-mdio","ti,davinci_mdio";

@@ -872,33 +872,38 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 
-	lgp = kzalloc(sizeof(*lgp), gfp_flags);
-	if (lgp == NULL)
-		return NULL;
-
-	i_size = i_size_read(ino);
-
-	lgp->args.minlength = PAGE_CACHE_SIZE;
-	if (lgp->args.minlength > range->length)
-		lgp->args.minlength = range->length;
-	if (range->iomode == IOMODE_READ) {
-		if (range->offset >= i_size)
-			lgp->args.minlength = 0;
-		else if (i_size - range->offset < lgp->args.minlength)
-			lgp->args.minlength = i_size - range->offset;
-	}
-	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
-	lgp->args.range = *range;
-	lgp->args.type = server->pnfs_curr_ld->id;
-	lgp->args.inode = ino;
-	lgp->args.ctx = get_nfs_open_context(ctx);
-	lgp->gfp_flags = gfp_flags;
-	lgp->cred = lo->plh_lc_cred;
-
-	/* Synchronously retrieve layout information from server and
-	 * store in lseg.
+	/*
+	 * Synchronously retrieve layout information from server and
+	 * store in lseg. If we race with a concurrent seqid morphing
+	 * op, then re-send the LAYOUTGET.
 	 */
-	lseg = nfs4_proc_layoutget(lgp, gfp_flags);
+	do {
+		lgp = kzalloc(sizeof(*lgp), gfp_flags);
+		if (lgp == NULL)
+			return NULL;
+
+		i_size = i_size_read(ino);
+
+		lgp->args.minlength = PAGE_CACHE_SIZE;
+		if (lgp->args.minlength > range->length)
+			lgp->args.minlength = range->length;
+		if (range->iomode == IOMODE_READ) {
+			if (range->offset >= i_size)
+				lgp->args.minlength = 0;
+			else if (i_size - range->offset < lgp->args.minlength)
+				lgp->args.minlength = i_size - range->offset;
+		}
+		lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
+		lgp->args.range = *range;
+		lgp->args.type = server->pnfs_curr_ld->id;
+		lgp->args.inode = ino;
+		lgp->args.ctx = get_nfs_open_context(ctx);
+		lgp->gfp_flags = gfp_flags;
+		lgp->cred = lo->plh_lc_cred;
+
+		lseg = nfs4_proc_layoutget(lgp, gfp_flags);
+	} while (lseg == ERR_PTR(-EAGAIN));
+
 	if (IS_ERR(lseg)) {
 		switch (PTR_ERR(lseg)) {
 		case -ENOMEM:
@@ -1461,11 +1466,11 @@ static bool pnfs_within_mdsthreshold(struct nfs_open_context *ctx,
 }
 
 /* stop waiting if someone clears NFS_LAYOUT_RETRY_LAYOUTGET bit. */
-static int pnfs_layoutget_retry_bit_wait(struct wait_bit_key *key)
+static int pnfs_layoutget_retry_bit_wait(struct wait_bit_key *key, int mode)
 {
 	if (!test_bit(NFS_LAYOUT_RETRY_LAYOUTGET, key->flags))
 		return 1;
-	return nfs_wait_bit_killable(key);
+	return nfs_wait_bit_killable(key, mode);
 }
 
 static bool pnfs_prepare_to_retry_layoutget(struct pnfs_layout_hdr *lo)
@@ -1687,6 +1692,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		/* existing state ID, make sure the sequence number matches. */
 		if (pnfs_layout_stateid_blocked(lo, &res->stateid)) {
 			dprintk("%s forget reply due to sequence\n", __func__);
+			status = -EAGAIN;
 			goto out_forget_reply;
 		}
 		pnfs_set_layout_stateid(lo, &res->stateid, false);
@@ -1912,12 +1918,13 @@ static void pnfs_ld_handle_write_error(struct nfs_pgio_header *hdr)
  */
 void pnfs_ld_write_done(struct nfs_pgio_header *hdr)
 {
-	trace_nfs4_pnfs_write(hdr, hdr->pnfs_error);
-	if (!hdr->pnfs_error) {
+	if (likely(!hdr->pnfs_error)) {
 		pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
 				hdr->mds_offset + hdr->res.count);
 		hdr->mds_ops->rpc_call_done(&hdr->task, hdr);
-	} else
+	}
+	trace_nfs4_pnfs_write(hdr, hdr->pnfs_error);
+	if (unlikely(hdr->pnfs_error))
 		pnfs_ld_handle_write_error(hdr);
 	hdr->mds_ops->rpc_release(hdr);
 }
@@ -2028,11 +2035,12 @@ static void pnfs_ld_handle_read_error(struct nfs_pgio_header *hdr)
  */
 void pnfs_ld_read_done(struct nfs_pgio_header *hdr)
 {
-	trace_nfs4_pnfs_read(hdr, hdr->pnfs_error);
 	if (likely(!hdr->pnfs_error)) {
 		__nfs4_read_done_cb(hdr);
 		hdr->mds_ops->rpc_call_done(&hdr->task, hdr);
-	} else
+	}
+	trace_nfs4_pnfs_read(hdr, hdr->pnfs_error);
+	if (unlikely(hdr->pnfs_error))
 		pnfs_ld_handle_read_error(hdr);
 	hdr->mds_ops->rpc_release(hdr);
 }

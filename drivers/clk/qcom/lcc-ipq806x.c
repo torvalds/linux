@@ -452,15 +452,8 @@ static int lcc_ipq806x_probe(struct platform_device *pdev)
 	return qcom_cc_really_probe(pdev, &lcc_ipq806x_desc, regmap);
 }
 
-static int lcc_ipq806x_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver lcc_ipq806x_driver = {
 	.probe		= lcc_ipq806x_probe,
-	.remove		= lcc_ipq806x_remove,
 	.driver		= {
 		.name	= "lcc-ipq806x",
 		.of_match_table = lcc_ipq806x_match_table,

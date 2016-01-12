@@ -81,6 +81,30 @@
 #endif
 #endif /* atomic_add_return_relaxed */
 
+/* atomic_inc_return_relaxed */
+#ifndef atomic_inc_return_relaxed
+#define  atomic_inc_return_relaxed	atomic_inc_return
+#define  atomic_inc_return_acquire	atomic_inc_return
+#define  atomic_inc_return_release	atomic_inc_return
+
+#else /* atomic_inc_return_relaxed */
+
+#ifndef atomic_inc_return_acquire
+#define  atomic_inc_return_acquire(...)					\
+	__atomic_op_acquire(atomic_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_inc_return_release
+#define  atomic_inc_return_release(...)					\
+	__atomic_op_release(atomic_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_inc_return
+#define  atomic_inc_return(...)						\
+	__atomic_op_fence(atomic_inc_return, __VA_ARGS__)
+#endif
+#endif /* atomic_inc_return_relaxed */
+
 /* atomic_sub_return_relaxed */
 #ifndef atomic_sub_return_relaxed
 #define  atomic_sub_return_relaxed	atomic_sub_return
@@ -104,6 +128,30 @@
 	__atomic_op_fence(atomic_sub_return, __VA_ARGS__)
 #endif
 #endif /* atomic_sub_return_relaxed */
+
+/* atomic_dec_return_relaxed */
+#ifndef atomic_dec_return_relaxed
+#define  atomic_dec_return_relaxed	atomic_dec_return
+#define  atomic_dec_return_acquire	atomic_dec_return
+#define  atomic_dec_return_release	atomic_dec_return
+
+#else /* atomic_dec_return_relaxed */
+
+#ifndef atomic_dec_return_acquire
+#define  atomic_dec_return_acquire(...)					\
+	__atomic_op_acquire(atomic_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_dec_return_release
+#define  atomic_dec_return_release(...)					\
+	__atomic_op_release(atomic_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_dec_return
+#define  atomic_dec_return(...)						\
+	__atomic_op_fence(atomic_dec_return, __VA_ARGS__)
+#endif
+#endif /* atomic_dec_return_relaxed */
 
 /* atomic_xchg_relaxed */
 #ifndef atomic_xchg_relaxed
@@ -185,6 +233,31 @@
 #endif
 #endif /* atomic64_add_return_relaxed */
 
+/* atomic64_inc_return_relaxed */
+#ifndef atomic64_inc_return_relaxed
+#define  atomic64_inc_return_relaxed	atomic64_inc_return
+#define  atomic64_inc_return_acquire	atomic64_inc_return
+#define  atomic64_inc_return_release	atomic64_inc_return
+
+#else /* atomic64_inc_return_relaxed */
+
+#ifndef atomic64_inc_return_acquire
+#define  atomic64_inc_return_acquire(...)				\
+	__atomic_op_acquire(atomic64_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_inc_return_release
+#define  atomic64_inc_return_release(...)				\
+	__atomic_op_release(atomic64_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_inc_return
+#define  atomic64_inc_return(...)					\
+	__atomic_op_fence(atomic64_inc_return, __VA_ARGS__)
+#endif
+#endif /* atomic64_inc_return_relaxed */
+
+
 /* atomic64_sub_return_relaxed */
 #ifndef atomic64_sub_return_relaxed
 #define  atomic64_sub_return_relaxed	atomic64_sub_return
@@ -208,6 +281,30 @@
 	__atomic_op_fence(atomic64_sub_return, __VA_ARGS__)
 #endif
 #endif /* atomic64_sub_return_relaxed */
+
+/* atomic64_dec_return_relaxed */
+#ifndef atomic64_dec_return_relaxed
+#define  atomic64_dec_return_relaxed	atomic64_dec_return
+#define  atomic64_dec_return_acquire	atomic64_dec_return
+#define  atomic64_dec_return_release	atomic64_dec_return
+
+#else /* atomic64_dec_return_relaxed */
+
+#ifndef atomic64_dec_return_acquire
+#define  atomic64_dec_return_acquire(...)				\
+	__atomic_op_acquire(atomic64_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_dec_return_release
+#define  atomic64_dec_return_release(...)				\
+	__atomic_op_release(atomic64_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_dec_return
+#define  atomic64_dec_return(...)					\
+	__atomic_op_fence(atomic64_dec_return, __VA_ARGS__)
+#endif
+#endif /* atomic64_dec_return_relaxed */
 
 /* atomic64_xchg_relaxed */
 #ifndef atomic64_xchg_relaxed
@@ -451,7 +548,6 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 }
 #endif
 
-#include <asm-generic/atomic-long.h>
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #endif
@@ -462,5 +558,7 @@ static inline void atomic64_andnot(long long i, atomic64_t *v)
 	atomic64_and(~i, v);
 }
 #endif
+
+#include <asm-generic/atomic-long.h>
 
 #endif /* _LINUX_ATOMIC_H */

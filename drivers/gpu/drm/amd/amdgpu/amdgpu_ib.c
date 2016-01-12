@@ -62,7 +62,7 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 	int r;
 
 	if (size) {
-		r = amdgpu_sa_bo_new(adev, &adev->ring_tmp_bo,
+		r = amdgpu_sa_bo_new(&adev->ring_tmp_bo,
 				      &ib->sa_bo, size, 256);
 		if (r) {
 			dev_err(adev->dev, "failed to get a new IB (%d)\n", r);
@@ -95,7 +95,8 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
 	amdgpu_sync_free(adev, &ib->sync, &ib->fence->base);
 	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
-	amdgpu_fence_unref(&ib->fence);
+	if (ib->fence)
+		fence_put(&ib->fence->base);
 }
 
 /**
@@ -215,7 +216,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	}
 
 	if (ib->vm)
-		amdgpu_vm_fence(adev, ib->vm, ib->fence);
+		amdgpu_vm_fence(adev, ib->vm, &ib->fence->base);
 
 	amdgpu_ring_unlock_commit(ring);
 	return 0;
@@ -298,7 +299,6 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		r = amdgpu_ring_test_ib(ring);
 		if (r) {
 			ring->ready = false;
-			adev->needs_reset = false;
 
 			if (ring == &adev->gfx.gfx_ring[0]) {
 				/* oh, oh, that's really bad */

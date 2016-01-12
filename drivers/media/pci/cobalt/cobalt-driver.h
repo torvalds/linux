@@ -35,6 +35,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-sg.h>
 
 #include "m00233_video_measure_memmap_package.h"
@@ -206,11 +207,12 @@ struct sg_dma_desc_info {
 #define COBALT_STREAM_FL_ADV_IRQ		1
 
 struct cobalt_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
-static inline struct cobalt_buffer *to_cobalt_buffer(struct vb2_buffer *vb2)
+static inline
+struct cobalt_buffer *to_cobalt_buffer(struct vb2_v4l2_buffer *vb2)
 {
 	return container_of(vb2, struct cobalt_buffer, vb);
 }

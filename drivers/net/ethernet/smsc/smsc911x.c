@@ -809,22 +809,17 @@ static int smsc911x_phy_check_loopbackpkt(struct smsc911x_data *pdata)
 
 static int smsc911x_phy_reset(struct smsc911x_data *pdata)
 {
-	struct phy_device *phy_dev = pdata->phy_dev;
 	unsigned int temp;
 	unsigned int i = 100000;
 
-	BUG_ON(!phy_dev);
-	BUG_ON(!phy_dev->bus);
-
-	SMSC_TRACE(pdata, hw, "Performing PHY BCR Reset");
-	smsc911x_mii_write(phy_dev->bus, phy_dev->addr, MII_BMCR, BMCR_RESET);
+	temp = smsc911x_reg_read(pdata, PMT_CTRL);
+	smsc911x_reg_write(pdata, PMT_CTRL, temp | PMT_CTRL_PHY_RST_);
 	do {
 		msleep(1);
-		temp = smsc911x_mii_read(phy_dev->bus, phy_dev->addr,
-			MII_BMCR);
-	} while ((i--) && (temp & BMCR_RESET));
+		temp = smsc911x_reg_read(pdata, PMT_CTRL);
+	} while ((i--) && (temp & PMT_CTRL_PHY_RST_));
 
-	if (temp & BMCR_RESET) {
+	if (unlikely(temp & PMT_CTRL_PHY_RST_)) {
 		SMSC_WARN(pdata, hw, "PHY reset failed to complete");
 		return -EIO;
 	}
@@ -1052,6 +1047,7 @@ static int smsc911x_mii_probe(struct net_device *dev)
 #ifdef USE_PHY_WORK_AROUND
 	if (smsc911x_phy_loopbacktest(dev) < 0) {
 		SMSC_WARN(pdata, hw, "Failed Loop Back Test");
+		phy_disconnect(phydev);
 		return -ENODEV;
 	}
 	SMSC_TRACE(pdata, hw, "Passed Loop Back Test");
@@ -2295,7 +2291,7 @@ static int smsc911x_init(struct net_device *dev)
 	}
 
 	/* Reset the LAN911x */
-	if (smsc911x_soft_reset(pdata))
+	if (smsc911x_phy_reset(pdata) || smsc911x_soft_reset(pdata))
 		return -ENODEV;
 
 	dev->flags |= IFF_MULTICAST;

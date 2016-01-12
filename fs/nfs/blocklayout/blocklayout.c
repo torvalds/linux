@@ -229,7 +229,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 	struct parallel_io *par;
 	loff_t f_offset = header->args.offset;
 	size_t bytes_left = header->args.count;
-	unsigned int pg_offset, pg_len;
+	unsigned int pg_offset = header->args.pgbase, pg_len;
 	struct page **pages = header->args.pages;
 	int pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
 	const bool is_dio = (header->dreq != NULL);
@@ -262,7 +262,6 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 			extent_length = be.be_length - (isect - be.be_f_offset);
 		}
 
-		pg_offset = f_offset & ~PAGE_CACHE_MASK;
 		if (is_dio) {
 			if (pg_offset + bytes_left > PAGE_CACHE_SIZE)
 				pg_len = PAGE_CACHE_SIZE - pg_offset;
@@ -272,9 +271,6 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 			BUG_ON(pg_offset != 0);
 			pg_len = PAGE_CACHE_SIZE;
 		}
-
-		isect += (pg_offset >> SECTOR_SHIFT);
-		extent_length -= (pg_offset >> SECTOR_SHIFT);
 
 		if (is_hole(&be)) {
 			bio = bl_submit_bio(READ, bio);
@@ -301,6 +297,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		extent_length -= (pg_len >> SECTOR_SHIFT);
 		f_offset += pg_len;
 		bytes_left -= pg_len;
+		pg_offset = 0;
 	}
 	if ((isect << SECTOR_SHIFT) >= header->inode->i_size) {
 		header->res.eof = 1;

@@ -1,7 +1,6 @@
 #ifndef WILC_WLAN_H
 #define WILC_WLAN_H
 
-#include "wilc_oswrapper.h"
 
 
 #define ISWILC1000(id)   (((id & 0xfffff000) == 0x100000) ? 1 : 0)
@@ -22,7 +21,6 @@
 #define ETH_ETHERNET_HDR_OFFSET   (MAX_MAC_HDR_LEN + SUB_MSDU_HEADER_LENGTH + \
 				   SNAP_HDR_LEN - ETHERNET_HDR_LEN + WORD_ALIGNMENT_PAD)
 
-/*Bug3959: transmitting mgmt frames received from host*/
 #define HOST_HDR_OFFSET		4
 #define ETHERNET_HDR_LEN          14
 #define IP_HDR_LEN                20
@@ -34,11 +32,6 @@
 
 #define ETH_CONFIG_PKT_HDR_OFFSET (ETH_ETHERNET_HDR_OFFSET + \
 				   ETH_CONFIG_PKT_HDR_LEN)
-#define   ACTION         0xD0
-#define   PROBE_REQ   0x40
-#ifdef WILC_FULLY_HOSTING_AP
-#define	FH_TX_HOST_HDR_OFFSET	24
-#endif
 
 /********************************************
  *
@@ -57,7 +50,6 @@
  *
  ********************************************/
 #define WILC_PERIPH_REG_BASE 0x1000
-/*BugID_5137*/
 #define WILC_CHANGING_VIR_IF                     (0x108c)
 #define WILC_CHIPID	(WILC_PERIPH_REG_BASE)
 #define WILC_GLB_RESET_0 (WILC_PERIPH_REG_BASE + 0x400)
@@ -108,8 +100,8 @@
 #define WILC_AHB_DATA_MEM_BASE 0x30000
 #define WILC_AHB_SHARE_MEM_BASE 0xd0000
 
-#define WILC_VMM_TBL_RX_SHADOW_BASE WILC_AHB_SHARE_MEM_BASE /* Bug 4477 fix */
-#define WILC_VMM_TBL_RX_SHADOW_SIZE (256) /* Bug 4477 fix */
+#define WILC_VMM_TBL_RX_SHADOW_BASE WILC_AHB_SHARE_MEM_BASE
+#define WILC_VMM_TBL_RX_SHADOW_SIZE (256)
 
 #define WILC_GP_REG_0   0x149c
 #define WILC_GP_REG_1   0x14a0
@@ -141,15 +133,8 @@
  ********************************************/
 #define WILC_CFG_PKT	1
 #define WILC_NET_PKT 0
-/*Bug3959: transmitting mgmt frames received from host*/
-#ifdef WILC_AP_EXTERNAL_MLME
 #define WILC_MGMT_PKT 2
 
-#ifdef WILC_FULLY_HOSTING_AP
-#define WILC_FH_DATA_PKT 4
-#endif
-
-#endif /*WILC_AP_EXTERNAL_MLME*/
 #define WILC_CFG_SET 1
 #define WILC_CFG_QUERY 0
 
@@ -164,7 +149,7 @@
 #endif
 
 
-#define ABORT_INT   (1 << 31)
+#define ABORT_INT   BIT(31)
 
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
@@ -203,15 +188,15 @@
 /* 7: Select VMM table 2                   */
 /* 8: Enable VMM                           */
 /*******************************************/
-#define CLR_INT0             (1 << 0)
-#define CLR_INT1             (1 << 1)
-#define CLR_INT2             (1 << 2)
-#define CLR_INT3             (1 << 3)
-#define CLR_INT4             (1 << 4)
-#define CLR_INT5             (1 << 5)
-#define SEL_VMM_TBL0         (1 << 6)
-#define SEL_VMM_TBL1         (1 << 7)
-#define EN_VMM               (1 << 8)
+#define CLR_INT0             BIT(0)
+#define CLR_INT1             BIT(1)
+#define CLR_INT2             BIT(2)
+#define CLR_INT3             BIT(3)
+#define CLR_INT4             BIT(4)
+#define CLR_INT5             BIT(5)
+#define SEL_VMM_TBL0         BIT(6)
+#define SEL_VMM_TBL1         BIT(7)
+#define EN_VMM               BIT(8)
 
 #define DATA_INT_EXT	INT_0
 #define PLL_INT_EXT         INT_1
@@ -234,7 +219,7 @@
  *      Debug Type
  *
  ********************************************/
-typedef void (*wilc_debug_func)(uint32_t, char *, ...);
+typedef void (*wilc_debug_func)(u32, char *, ...);
 
 /********************************************
  *
@@ -247,7 +232,7 @@ struct txq_entry_t {
 	struct txq_entry_t *prev;
 	int type;
 	int tcp_PendingAck_index;
-	uint8_t *buffer;
+	u8 *buffer;
 	int buffer_size;
 	void *priv;
 	int status;
@@ -256,7 +241,7 @@ struct txq_entry_t {
 
 struct rxq_entry_t {
 	struct rxq_entry_t *next;
-	uint8_t *buffer;
+	u8 *buffer;
 	int buffer_size;
 };
 
@@ -269,17 +254,17 @@ struct rxq_entry_t {
 typedef struct {
 	int (*hif_init)(wilc_wlan_inp_t *, wilc_debug_func);
 	int (*hif_deinit)(void *);
-	int (*hif_read_reg)(uint32_t, uint32_t *);
-	int (*hif_write_reg)(uint32_t, uint32_t);
-	int (*hif_block_rx)(uint32_t, uint8_t *, uint32_t);
-	int (*hif_block_tx)(uint32_t, uint8_t *, uint32_t);
+	int (*hif_read_reg)(u32, u32 *);
+	int (*hif_write_reg)(u32, u32);
+	int (*hif_block_rx)(u32, u8 *, u32);
+	int (*hif_block_tx)(u32, u8 *, u32);
 	int (*hif_sync)(void);
 	int (*hif_clear_int)(void);
-	int (*hif_read_int)(uint32_t *);
-	int (*hif_clear_int_ext)(uint32_t);
-	int (*hif_read_size)(uint32_t *);
-	int (*hif_block_tx_ext)(uint32_t, uint8_t *, uint32_t);
-	int (*hif_block_rx_ext)(uint32_t, uint8_t *, uint32_t);
+	int (*hif_read_int)(u32 *);
+	int (*hif_clear_int_ext)(u32);
+	int (*hif_read_size)(u32 *);
+	int (*hif_block_tx_ext)(u32, u8 *, u32);
+	int (*hif_block_rx_ext)(u32, u8 *, u32);
 	int (*hif_sync_ext)(int);
 	void (*hif_set_max_bus_speed)(void);
 	void (*hif_set_default_bus_speed)(void);
@@ -294,28 +279,34 @@ typedef struct {
 #define MAX_CFG_FRAME_SIZE 1468
 
 typedef struct {
-	uint8_t ether_header[14];
-	uint8_t ip_header[20];
-	uint8_t udp_header[8];
-	uint8_t wid_header[8];
-	uint8_t frame[MAX_CFG_FRAME_SIZE];
+	u8 ether_header[14];
+	u8 ip_header[20];
+	u8 udp_header[8];
+	u8 wid_header[8];
+	u8 frame[MAX_CFG_FRAME_SIZE];
 } wilc_cfg_frame_t;
 
 typedef struct {
-	int (*wlan_tx)(uint8_t *, uint32_t, wilc_tx_complete_func_t);
+	int (*wlan_tx)(u8 *, u32, wilc_tx_complete_func_t);
 } wilc_wlan_cfg_func_t;
 
 typedef struct {
 	int type;
-	uint32_t seq_no;
+	u32 seq_no;
 } wilc_cfg_rsp_t;
 
-typedef struct {
-	int (*cfg_wid_set)(uint8_t *, uint32_t, uint16_t, uint8_t *, int);
-	int (*cfg_wid_get)(uint8_t *, uint32_t, uint16_t);
-	int (*cfg_wid_get_val)(uint16_t, uint8_t *, uint32_t);
-	int (*rx_indicate)(uint8_t *, int, wilc_cfg_rsp_t *);
-	int (*cfg_init)(wilc_debug_func);
-} wilc_cfg_func_t;
-
+int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size);
+int wilc_wlan_start(void);
+int wilc_wlan_stop(void);
+int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
+			      u32 buffer_size, wilc_tx_complete_func_t func);
+int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount);
+void wilc_handle_isr(void *wilc);
+void wilc_wlan_cleanup(struct net_device *dev);
+int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
+		      int commit, u32 drvHandler);
+int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler);
+int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size);
+int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size,
+			       wilc_tx_complete_func_t func);
 #endif

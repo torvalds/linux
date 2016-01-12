@@ -100,6 +100,7 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->adev->gem.mutex);
 	drm_gem_object_release(&bo->gem_base);
+	amdgpu_bo_unref(&bo->parent);
 	kfree(bo->metadata);
 	kfree(bo);
 }
@@ -132,6 +133,8 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 		placements[c].fpfn = 0;
 		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_VRAM;
+		if (!(flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED))
+			placements[c - 1].flags |= TTM_PL_FLAG_TOPDOWN;
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {

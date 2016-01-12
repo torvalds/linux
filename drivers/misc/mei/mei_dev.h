@@ -275,32 +275,33 @@ struct mei_cl {
 	struct mei_cl_device *cldev;
 };
 
-/** struct mei_hw_ops
+/**
+ * struct mei_hw_ops - hw specific ops
  *
  * @host_is_ready    : query for host readiness
-
+ *
  * @hw_is_ready      : query if hw is ready
  * @hw_reset         : reset hw
  * @hw_start         : start hw after reset
  * @hw_config        : configure hw
-
+ *
  * @fw_status        : get fw status registers
  * @pg_state         : power gating state of the device
  * @pg_in_transition : is device now in pg transition
  * @pg_is_enabled    : is power gating enabled
-
+ *
  * @intr_clear       : clear pending interrupts
  * @intr_enable      : enable interrupts
  * @intr_disable     : disable interrupts
-
+ *
  * @hbuf_free_slots  : query for write buffer empty slots
  * @hbuf_is_ready    : query if write buffer is empty
  * @hbuf_max_len     : query for write buffer max len
-
+ *
  * @write            : write a message to FW
-
+ *
  * @rdbuf_full_slots : query how many slots are filled
-
+ *
  * @read_hdr         : get first 4 bytes (header)
  * @read             : read a buffer from the FW
  */
@@ -340,7 +341,7 @@ struct mei_hw_ops {
 
 /* MEI bus API*/
 void mei_cl_bus_rescan(struct mei_device *bus);
-void mei_cl_dev_fixup(struct mei_cl_device *dev);
+void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
@@ -528,7 +529,7 @@ struct mei_device {
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
 	unsigned long me_client_index;
 
-	u32 allow_fixed_address;
+	bool allow_fixed_address;
 
 	struct mei_cl wd_cl;
 	enum mei_wd_states wd_state;

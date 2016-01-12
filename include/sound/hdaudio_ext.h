@@ -40,6 +40,13 @@ void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus);
 #define hbus_to_ebus(_bus) \
 	container_of(_bus, struct hdac_ext_bus, bus)
 
+#define HDA_CODEC_REV_EXT_ENTRY(_vid, _rev, _name, drv_data) \
+	{ .vendor_id = (_vid), .rev_id = (_rev), .name = (_name), \
+	  .api_version = HDA_DEV_ASOC, \
+	  .driver_data = (unsigned long)(drv_data) }
+#define HDA_CODEC_EXT_ENTRY(_vid, _revid, _name, _drv_data) \
+	HDA_CODEC_REV_EXT_ENTRY(_vid, _revid, _name, _drv_data)
+
 int snd_hdac_ext_bus_parse_capabilities(struct hdac_ext_bus *sbus);
 void snd_hdac_ext_bus_ppcap_enable(struct hdac_ext_bus *chip, bool enable);
 void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_ext_bus *chip, bool enable);

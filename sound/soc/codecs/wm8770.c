@@ -703,7 +703,6 @@ static int wm8770_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8770_spi_driver = {
 	.driver = {
 		.name = "wm8770",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8770_of_match,
 	},
 	.probe = wm8770_spi_probe,

@@ -45,6 +45,8 @@
 #include <linux/percpu.h>
 #include <linux/syscore_ops.h>
 
+#include <asm/delay.h>
+
 /*
  * Timer block registers.
  */
@@ -249,6 +251,15 @@ struct syscore_ops armada_370_xp_timer_syscore_ops = {
 	.resume		= armada_370_xp_timer_resume,
 };
 
+static unsigned long armada_370_delay_timer_read(void)
+{
+	return ~readl(timer_base + TIMER0_VAL_OFF);
+}
+
+static struct delay_timer armada_370_delay_timer = {
+	.read_current_timer = armada_370_delay_timer_read,
+};
+
 static void __init armada_370_xp_timer_common_init(struct device_node *np)
 {
 	u32 clr = 0, set = 0;
@@ -286,6 +297,9 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 	atomic_io_modify(timer_base + TIMER_CTRL_OFF,
 		TIMER0_RELOAD_EN | enable_mask,
 		TIMER0_RELOAD_EN | enable_mask);
+
+	armada_370_delay_timer.freq = timer_clk;
+	register_current_timer_delay(&armada_370_delay_timer);
 
 	/*
 	 * Set scale and timer for sched_clock.

@@ -458,18 +458,6 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
-static int msm_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-	return pinctrl_request_gpio(gpio);
-}
-
-static void msm_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-	return pinctrl_free_gpio(gpio);
-}
-
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
 
@@ -527,8 +515,8 @@ static struct gpio_chip msm_gpio_template = {
 	.direction_output = msm_gpio_direction_output,
 	.get              = msm_gpio_get,
 	.set              = msm_gpio_set,
-	.request          = msm_gpio_request,
-	.free             = msm_gpio_free,
+	.request          = gpiochip_generic_request,
+	.free             = gpiochip_generic_free,
 	.dbg_show         = msm_gpio_dbg_show,
 };
 

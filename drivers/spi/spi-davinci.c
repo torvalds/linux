@@ -215,17 +215,9 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	struct davinci_spi_config *spicfg = spi->controller_data;
 	u8 chip_sel = spi->chip_select;
 	u16 spidat1 = CS_DEFAULT;
-	bool gpio_chipsel = false;
-	int gpio;
 
 	dspi = spi_master_get_devdata(spi->master);
 	pdata = &dspi->pdata;
-
-	if (spi->cs_gpio >= 0) {
-		/* SPI core parse and update master->cs_gpio */
-		gpio_chipsel = true;
-		gpio = spi->cs_gpio;
-	}
 
 	/* program delay transfers if tx_delay is non zero */
 	if (spicfg->wdelay)
@@ -235,11 +227,12 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	 * Board specific chip select logic decides the polarity and cs
 	 * line for the controller
 	 */
-	if (gpio_chipsel) {
+	if (spi->cs_gpio >= 0) {
 		if (value == BITBANG_CS_ACTIVE)
-			gpio_set_value(gpio, spi->mode & SPI_CS_HIGH);
+			gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH);
 		else
-			gpio_set_value(gpio, !(spi->mode & SPI_CS_HIGH));
+			gpio_set_value(spi->cs_gpio,
+				!(spi->mode & SPI_CS_HIGH));
 	} else {
 		if (value == BITBANG_CS_ACTIVE) {
 			spidat1 |= SPIDAT1_CSHOLD_MASK;
@@ -992,11 +985,12 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
-	dspi->irq = platform_get_irq(pdev, 0);
-	if (dspi->irq <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret == 0)
 		ret = -EINVAL;
+	if (ret < 0)
 		goto free_master;
-	}
+	dspi->irq = ret;
 
 	ret = devm_request_threaded_irq(&pdev->dev, dspi->irq, davinci_spi_irq,
 				dummy_thread_fn, 0, dev_name(&pdev->dev), dspi);

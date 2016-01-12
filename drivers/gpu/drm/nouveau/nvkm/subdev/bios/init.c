@@ -267,6 +267,12 @@ init_i2c(struct nvbios_init *init, int index)
 		index = NVKM_I2C_BUS_PRI;
 		if (init->outp && init->outp->i2c_upper_default)
 			index = NVKM_I2C_BUS_SEC;
+	} else
+	if (index == 0x80) {
+		index = NVKM_I2C_BUS_PRI;
+	} else
+	if (index == 0x81) {
+		index = NVKM_I2C_BUS_SEC;
 	}
 
 	bus = nvkm_i2c_bus_find(i2c, index);

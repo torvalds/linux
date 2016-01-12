@@ -75,24 +75,32 @@ static inline void atomic_add(int i, atomic_t *v)
 	: "x30");
 }
 
-static inline int atomic_add_return(int i, atomic_t *v)
-{
-	register int w0 asm ("w0") = i;
-	register atomic_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC(add_return),
-	/* LSE atomics */
-	"	ldaddal	%w[i], w30, %[v]\n"
-	"	add	%w[i], %w[i], w30")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: "x30", "memory");
-
-	return w0;
+#define ATOMIC_OP_ADD_RETURN(name, mb, cl...)				\
+static inline int atomic_add_return##name(int i, atomic_t *v)		\
+{									\
+	register int w0 asm ("w0") = i;					\
+	register atomic_t *x1 asm ("x1") = v;				\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"	nop\n"							\
+	__LL_SC_ATOMIC(add_return##name),				\
+	/* LSE atomics */						\
+	"	ldadd" #mb "	%w[i], w30, %[v]\n"			\
+	"	add	%w[i], %w[i], w30")				\
+	: [i] "+r" (w0), [v] "+Q" (v->counter)				\
+	: "r" (x1)							\
+	: "x30" , ##cl);						\
+									\
+	return w0;							\
 }
+
+ATOMIC_OP_ADD_RETURN(_relaxed,   )
+ATOMIC_OP_ADD_RETURN(_acquire,  a, "memory")
+ATOMIC_OP_ADD_RETURN(_release,  l, "memory")
+ATOMIC_OP_ADD_RETURN(        , al, "memory")
+
+#undef ATOMIC_OP_ADD_RETURN
 
 static inline void atomic_and(int i, atomic_t *v)
 {
@@ -128,27 +136,34 @@ static inline void atomic_sub(int i, atomic_t *v)
 	: "x30");
 }
 
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	register int w0 asm ("w0") = i;
-	register atomic_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC(sub_return)
-	"	nop",
-	/* LSE atomics */
-	"	neg	%w[i], %w[i]\n"
-	"	ldaddal	%w[i], w30, %[v]\n"
-	"	add	%w[i], %w[i], w30")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: "x30", "memory");
-
-	return w0;
+#define ATOMIC_OP_SUB_RETURN(name, mb, cl...)				\
+static inline int atomic_sub_return##name(int i, atomic_t *v)		\
+{									\
+	register int w0 asm ("w0") = i;					\
+	register atomic_t *x1 asm ("x1") = v;				\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"	nop\n"							\
+	__LL_SC_ATOMIC(sub_return##name)				\
+	"	nop",							\
+	/* LSE atomics */						\
+	"	neg	%w[i], %w[i]\n"					\
+	"	ldadd" #mb "	%w[i], w30, %[v]\n"			\
+	"	add	%w[i], %w[i], w30")				\
+	: [i] "+r" (w0), [v] "+Q" (v->counter)				\
+	: "r" (x1)							\
+	: "x30" , ##cl);						\
+									\
+	return w0;							\
 }
 
+ATOMIC_OP_SUB_RETURN(_relaxed,   )
+ATOMIC_OP_SUB_RETURN(_acquire,  a, "memory")
+ATOMIC_OP_SUB_RETURN(_release,  l, "memory")
+ATOMIC_OP_SUB_RETURN(        , al, "memory")
+
+#undef ATOMIC_OP_SUB_RETURN
 #undef __LL_SC_ATOMIC
 
 #define __LL_SC_ATOMIC64(op)	__LL_SC_CALL(atomic64_##op)
@@ -201,24 +216,32 @@ static inline void atomic64_add(long i, atomic64_t *v)
 	: "x30");
 }
 
-static inline long atomic64_add_return(long i, atomic64_t *v)
-{
-	register long x0 asm ("x0") = i;
-	register atomic64_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC64(add_return),
-	/* LSE atomics */
-	"	ldaddal	%[i], x30, %[v]\n"
-	"	add	%[i], %[i], x30")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: "x30", "memory");
-
-	return x0;
+#define ATOMIC64_OP_ADD_RETURN(name, mb, cl...)				\
+static inline long atomic64_add_return##name(long i, atomic64_t *v)	\
+{									\
+	register long x0 asm ("x0") = i;				\
+	register atomic64_t *x1 asm ("x1") = v;				\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"	nop\n"							\
+	__LL_SC_ATOMIC64(add_return##name),				\
+	/* LSE atomics */						\
+	"	ldadd" #mb "	%[i], x30, %[v]\n"			\
+	"	add	%[i], %[i], x30")				\
+	: [i] "+r" (x0), [v] "+Q" (v->counter)				\
+	: "r" (x1)							\
+	: "x30" , ##cl);						\
+									\
+	return x0;							\
 }
+
+ATOMIC64_OP_ADD_RETURN(_relaxed,   )
+ATOMIC64_OP_ADD_RETURN(_acquire,  a, "memory")
+ATOMIC64_OP_ADD_RETURN(_release,  l, "memory")
+ATOMIC64_OP_ADD_RETURN(        , al, "memory")
+
+#undef ATOMIC64_OP_ADD_RETURN
 
 static inline void atomic64_and(long i, atomic64_t *v)
 {
@@ -254,26 +277,34 @@ static inline void atomic64_sub(long i, atomic64_t *v)
 	: "x30");
 }
 
-static inline long atomic64_sub_return(long i, atomic64_t *v)
-{
-	register long x0 asm ("x0") = i;
-	register atomic64_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC64(sub_return)
-	"	nop",
-	/* LSE atomics */
-	"	neg	%[i], %[i]\n"
-	"	ldaddal	%[i], x30, %[v]\n"
-	"	add	%[i], %[i], x30")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: "x30", "memory");
-
-	return x0;
+#define ATOMIC64_OP_SUB_RETURN(name, mb, cl...)				\
+static inline long atomic64_sub_return##name(long i, atomic64_t *v)	\
+{									\
+	register long x0 asm ("x0") = i;				\
+	register atomic64_t *x1 asm ("x1") = v;				\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"	nop\n"							\
+	__LL_SC_ATOMIC64(sub_return##name)				\
+	"	nop",							\
+	/* LSE atomics */						\
+	"	neg	%[i], %[i]\n"					\
+	"	ldadd" #mb "	%[i], x30, %[v]\n"			\
+	"	add	%[i], %[i], x30")				\
+	: [i] "+r" (x0), [v] "+Q" (v->counter)				\
+	: "r" (x1)							\
+	: "x30" , ##cl);						\
+									\
+	return x0;							\
 }
+
+ATOMIC64_OP_SUB_RETURN(_relaxed,   )
+ATOMIC64_OP_SUB_RETURN(_acquire,  a, "memory")
+ATOMIC64_OP_SUB_RETURN(_release,  l, "memory")
+ATOMIC64_OP_SUB_RETURN(        , al, "memory")
+
+#undef ATOMIC64_OP_SUB_RETURN
 
 static inline long atomic64_dec_if_positive(atomic64_t *v)
 {
@@ -333,14 +364,22 @@ static inline unsigned long __cmpxchg_case_##name(volatile void *ptr,	\
 	return x0;							\
 }
 
-__CMPXCHG_CASE(w, b,    1,   )
-__CMPXCHG_CASE(w, h,    2,   )
-__CMPXCHG_CASE(w,  ,    4,   )
-__CMPXCHG_CASE(x,  ,    8,   )
-__CMPXCHG_CASE(w, b, mb_1, al, "memory")
-__CMPXCHG_CASE(w, h, mb_2, al, "memory")
-__CMPXCHG_CASE(w,  , mb_4, al, "memory")
-__CMPXCHG_CASE(x,  , mb_8, al, "memory")
+__CMPXCHG_CASE(w, b,     1,   )
+__CMPXCHG_CASE(w, h,     2,   )
+__CMPXCHG_CASE(w,  ,     4,   )
+__CMPXCHG_CASE(x,  ,     8,   )
+__CMPXCHG_CASE(w, b, acq_1,  a, "memory")
+__CMPXCHG_CASE(w, h, acq_2,  a, "memory")
+__CMPXCHG_CASE(w,  , acq_4,  a, "memory")
+__CMPXCHG_CASE(x,  , acq_8,  a, "memory")
+__CMPXCHG_CASE(w, b, rel_1,  l, "memory")
+__CMPXCHG_CASE(w, h, rel_2,  l, "memory")
+__CMPXCHG_CASE(w,  , rel_4,  l, "memory")
+__CMPXCHG_CASE(x,  , rel_8,  l, "memory")
+__CMPXCHG_CASE(w, b,  mb_1, al, "memory")
+__CMPXCHG_CASE(w, h,  mb_2, al, "memory")
+__CMPXCHG_CASE(w,  ,  mb_4, al, "memory")
+__CMPXCHG_CASE(x,  ,  mb_8, al, "memory")
 
 #undef __LL_SC_CMPXCHG
 #undef __CMPXCHG_CASE
@@ -348,7 +387,7 @@ __CMPXCHG_CASE(x,  , mb_8, al, "memory")
 #define __LL_SC_CMPXCHG_DBL(op)	__LL_SC_CALL(__cmpxchg_double##op)
 
 #define __CMPXCHG_DBL(name, mb, cl...)					\
-static inline int __cmpxchg_double##name(unsigned long old1,		\
+static inline long __cmpxchg_double##name(unsigned long old1,		\
 					 unsigned long old2,		\
 					 unsigned long new1,		\
 					 unsigned long new2,		\

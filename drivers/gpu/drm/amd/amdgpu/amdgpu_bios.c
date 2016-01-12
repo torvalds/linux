@@ -29,7 +29,6 @@
 #include "amdgpu.h"
 #include "atom.h"
 
-#include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 /*

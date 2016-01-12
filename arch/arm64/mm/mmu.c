@@ -32,6 +32,7 @@
 
 #include <asm/cputype.h>
 #include <asm/fixmap.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
@@ -63,8 +64,12 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 
 static void __init *early_alloc(unsigned long sz)
 {
-	void *ptr = __va(memblock_alloc(sz, sz));
-	BUG_ON(!ptr);
+	phys_addr_t phys;
+	void *ptr;
+
+	phys = memblock_alloc(sz, sz);
+	BUG_ON(!phys);
+	ptr = __va(phys);
 	memset(ptr, 0, sz);
 	return ptr;
 }
@@ -110,7 +115,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
-void split_pud(pud_t *old_pud, pmd_t *pmd)
+static void split_pud(pud_t *old_pud, pmd_t *pmd)
 {
 	unsigned long addr = pud_pfn(*old_pud) << PAGE_SHIFT;
 	pgprot_t prot = __pgprot(pud_val(*old_pud) ^ addr);
@@ -308,8 +313,8 @@ static void __init __map_memblock(phys_addr_t start, phys_addr_t end)
 	 * for now. This will get more fine grained later once all memory
 	 * is mapped
 	 */
-	unsigned long kernel_x_start = round_down(__pa(_stext), SECTION_SIZE);
-	unsigned long kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	unsigned long kernel_x_start = round_down(__pa(_stext), SWAPPER_BLOCK_SIZE);
+	unsigned long kernel_x_end = round_up(__pa(__init_end), SWAPPER_BLOCK_SIZE);
 
 	if (end < kernel_x_start) {
 		create_mapping(start, __phys_to_virt(start),
@@ -353,14 +358,11 @@ static void __init map_mem(void)
 	 * memory addressable from the initial direct kernel mapping.
 	 *
 	 * The initial direct kernel mapping, located at swapper_pg_dir, gives
-	 * us PUD_SIZE (4K pages) or PMD_SIZE (64K pages) memory starting from
-	 * PHYS_OFFSET (which must be aligned to 2MB as per
-	 * Documentation/arm64/booting.txt).
+	 * us PUD_SIZE (with SECTION maps) or PMD_SIZE (without SECTION maps,
+	 * memory starting from PHYS_OFFSET (which must be aligned to 2MB as
+	 * per Documentation/arm64/booting.txt).
 	 */
-	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-		limit = PHYS_OFFSET + PMD_SIZE;
-	else
-		limit = PHYS_OFFSET + PUD_SIZE;
+	limit = PHYS_OFFSET + SWAPPER_INIT_MAP_SIZE;
 	memblock_set_current_limit(limit);
 
 	/* map all the memory banks */
@@ -371,21 +373,24 @@ static void __init map_mem(void)
 		if (start >= end)
 			break;
 
-#ifndef CONFIG_ARM64_64K_PAGES
-		/*
-		 * For the first memory bank align the start address and
-		 * current memblock limit to prevent create_mapping() from
-		 * allocating pte page tables from unmapped memory.
-		 * When 64K pages are enabled, the pte page table for the
-		 * first PGDIR_SIZE is already present in swapper_pg_dir.
-		 */
-		if (start < limit)
-			start = ALIGN(start, PMD_SIZE);
-		if (end < limit) {
-			limit = end & PMD_MASK;
-			memblock_set_current_limit(limit);
+		if (ARM64_SWAPPER_USES_SECTION_MAPS) {
+			/*
+			 * For the first memory bank align the start address and
+			 * current memblock limit to prevent create_mapping() from
+			 * allocating pte page tables from unmapped memory. With
+			 * the section maps, if the first block doesn't end on section
+			 * size boundary, create_mapping() will try to allocate a pte
+			 * page, which may be returned from an unmapped area.
+			 * When section maps are not used, the pte page table for the
+			 * current limit is already present in swapper_pg_dir.
+			 */
+			if (start < limit)
+				start = ALIGN(start, SECTION_SIZE);
+			if (end < limit) {
+				limit = end & SECTION_MASK;
+				memblock_set_current_limit(limit);
+			}
 		}
-#endif
 		__map_memblock(start, end);
 	}
 
@@ -393,22 +398,22 @@ static void __init map_mem(void)
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 }
 
-void __init fixup_executable(void)
+static void __init fixup_executable(void)
 {
 #ifdef CONFIG_DEBUG_RODATA
 	/* now that we are actually fully mapped, make the start/end more fine grained */
-	if (!IS_ALIGNED((unsigned long)_stext, SECTION_SIZE)) {
+	if (!IS_ALIGNED((unsigned long)_stext, SWAPPER_BLOCK_SIZE)) {
 		unsigned long aligned_start = round_down(__pa(_stext),
-							SECTION_SIZE);
+							 SWAPPER_BLOCK_SIZE);
 
 		create_mapping(aligned_start, __phys_to_virt(aligned_start),
 				__pa(_stext) - aligned_start,
 				PAGE_KERNEL);
 	}
 
-	if (!IS_ALIGNED((unsigned long)__init_end, SECTION_SIZE)) {
+	if (!IS_ALIGNED((unsigned long)__init_end, SWAPPER_BLOCK_SIZE)) {
 		unsigned long aligned_end = round_up(__pa(__init_end),
-							SECTION_SIZE);
+							  SWAPPER_BLOCK_SIZE);
 		create_mapping(__pa(__init_end), (unsigned long)__init_end,
 				aligned_end - __pa(__init_end),
 				PAGE_KERNEL);
@@ -421,7 +426,7 @@ void mark_rodata_ro(void)
 {
 	create_mapping_late(__pa(_stext), (unsigned long)_stext,
 				(unsigned long)_etext - (unsigned long)_stext,
-				PAGE_KERNEL_EXEC | PTE_RDONLY);
+				PAGE_KERNEL_ROX);
 
 }
 #endif
@@ -456,7 +461,7 @@ void __init paging_init(void)
 	 * point to zero page to avoid speculatively fetching new entries.
 	 */
 	cpu_set_reserved_ttbr0();
-	flush_tlb_all();
+	local_flush_tlb_all();
 	cpu_set_default_tcr_t0sz();
 }
 
@@ -498,12 +503,12 @@ int kern_addr_valid(unsigned long addr)
 	return pfn_valid(pte_pfn(*pte));
 }
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-#ifdef CONFIG_ARM64_64K_PAGES
+#if !ARM64_SWAPPER_USES_SECTION_MAPS
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
 	return vmemmap_populate_basepages(start, end, node);
 }
-#else	/* !CONFIG_ARM64_64K_PAGES */
+#else	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
 	unsigned long addr = start;
@@ -637,8 +642,8 @@ void __set_fixmap(enum fixed_addresses idx,
 void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 {
 	const u64 dt_virt_base = __fix_to_virt(FIX_FDT);
-	pgprot_t prot = PAGE_KERNEL | PTE_RDONLY;
-	int granularity, size, offset;
+	pgprot_t prot = PAGE_KERNEL_RO;
+	int size, offset;
 	void *dt_virt;
 
 	/*
@@ -664,24 +669,15 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	 */
 	BUILD_BUG_ON(dt_virt_base % SZ_2M);
 
-	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES)) {
-		BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> PMD_SHIFT !=
-			     __fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT);
+	BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> SWAPPER_TABLE_SHIFT !=
+		     __fix_to_virt(FIX_BTMAP_BEGIN) >> SWAPPER_TABLE_SHIFT);
 
-		granularity = PAGE_SIZE;
-	} else {
-		BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> PUD_SHIFT !=
-			     __fix_to_virt(FIX_BTMAP_BEGIN) >> PUD_SHIFT);
-
-		granularity = PMD_SIZE;
-	}
-
-	offset = dt_phys % granularity;
+	offset = dt_phys % SWAPPER_BLOCK_SIZE;
 	dt_virt = (void *)dt_virt_base + offset;
 
 	/* map the first chunk so we can read the size from the header */
-	create_mapping(round_down(dt_phys, granularity), dt_virt_base,
-		       granularity, prot);
+	create_mapping(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
+		       SWAPPER_BLOCK_SIZE, prot);
 
 	if (fdt_check_header(dt_virt) != 0)
 		return NULL;
@@ -690,9 +686,9 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	if (size > MAX_FDT_SIZE)
 		return NULL;
 
-	if (offset + size > granularity)
-		create_mapping(round_down(dt_phys, granularity), dt_virt_base,
-			       round_up(offset + size, granularity), prot);
+	if (offset + size > SWAPPER_BLOCK_SIZE)
+		create_mapping(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
+			       round_up(offset + size, SWAPPER_BLOCK_SIZE), prot);
 
 	memblock_reserve(dt_phys, size);
 

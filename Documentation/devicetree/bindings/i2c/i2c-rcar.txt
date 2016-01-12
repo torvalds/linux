@@ -10,6 +10,7 @@ Required properties:
 	"renesas,i2c-r8a7792"
 	"renesas,i2c-r8a7793"
 	"renesas,i2c-r8a7794"
+	"renesas,i2c-r8a7795"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: interrupt specifier.

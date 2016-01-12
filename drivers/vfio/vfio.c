@@ -25,6 +25,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -438,15 +439,32 @@ static struct vfio_device *vfio_group_get_device(struct vfio_group *group,
 }
 
 /*
- * Whitelist some drivers that we know are safe (no dma) or just sit on
- * a device.  It's not always practical to leave a device within a group
- * driverless as it could get re-bound to something unsafe.
+ * Some drivers, like pci-stub, are only used to prevent other drivers from
+ * claiming a device and are therefore perfectly legitimate for a user owned
+ * group.  The pci-stub driver has no dependencies on DMA or the IOVA mapping
+ * of the device, but it does prevent the user from having direct access to
+ * the device, which is useful in some circumstances.
+ *
+ * We also assume that we can include PCI interconnect devices, ie. bridges.
+ * IOMMU grouping on PCI necessitates that if we lack isolation on a bridge
+ * then all of the downstream devices will be part of the same IOMMU group as
+ * the bridge.  Thus, if placing the bridge into the user owned IOVA space
+ * breaks anything, it only does so for user owned devices downstream.  Note
+ * that error notification via MSI can be affected for platforms that handle
+ * MSI within the same IOVA space as DMA.
  */
-static const char * const vfio_driver_whitelist[] = { "pci-stub", "pcieport" };
+static const char * const vfio_driver_whitelist[] = { "pci-stub" };
 
-static bool vfio_whitelisted_driver(struct device_driver *drv)
+static bool vfio_dev_whitelisted(struct device *dev, struct device_driver *drv)
 {
 	int i;
+
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+
+		if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
+			return true;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(vfio_driver_whitelist); i++) {
 		if (!strcmp(drv->name, vfio_driver_whitelist[i]))
@@ -462,6 +480,7 @@ static bool vfio_whitelisted_driver(struct device_driver *drv)
  *  - driver-less
  *  - bound to a vfio driver
  *  - bound to a whitelisted driver
+ *  - a PCI interconnect device
  *
  * We use two methods to determine whether a device is bound to a vfio
  * driver.  The first is to test whether the device exists in the vfio
@@ -486,7 +505,7 @@ static int vfio_dev_viable(struct device *dev, void *data)
 	}
 	mutex_unlock(&group->unbound_lock);
 
-	if (!ret || !drv || vfio_whitelisted_driver(drv))
+	if (!ret || !drv || vfio_dev_whitelisted(dev, drv))
 		return 0;
 
 	device = vfio_group_get_device(group, dev);
@@ -517,7 +536,7 @@ static int vfio_group_nb_add_dev(struct vfio_group *group, struct device *dev)
 		return 0;
 
 	/* TODO Prevent device auto probing */
-	WARN("Device %s added to live group %d!\n", dev_name(dev),
+	WARN(1, "Device %s added to live group %d!\n", dev_name(dev),
 	     iommu_group_id(group->iommu_group));
 
 	return 0;
@@ -692,11 +711,12 @@ EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
 static struct vfio_device *vfio_device_get_from_name(struct vfio_group *group,
 						     char *buf)
 {
-	struct vfio_device *device;
+	struct vfio_device *it, *device = NULL;
 
 	mutex_lock(&group->device_lock);
-	list_for_each_entry(device, &group->device_list, group_next) {
-		if (!strcmp(dev_name(device->dev), buf)) {
+	list_for_each_entry(it, &group->device_list, group_next) {
+		if (!strcmp(dev_name(it->dev), buf)) {
+			device = it;
 			vfio_device_get(device);
 			break;
 		}

@@ -68,7 +68,7 @@ struct b43_dfsentry {
 	u32 shm32read_addr_next;
 
 	/* Enabled/Disabled list for the dynamic debugging features. */
-	u32 dyn_debug[__B43_NR_DYNDBG];
+	bool dyn_debug[__B43_NR_DYNDBG];
 	/* Dentries for the dynamic debugging entries. */
 	struct dentry *dyn_debug_dentries[__B43_NR_DYNDBG];
 };

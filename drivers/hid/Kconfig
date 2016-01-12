@@ -171,6 +171,16 @@ config HID_CHICONY
 	---help---
 	Support for Chicony Tactical pad.
 
+config HID_CORSAIR
+	tristate "Corsair devices"
+	depends on HID && USB && LEDS_CLASS
+	---help---
+	Support for Corsair devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Vengeance K90
+
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on HID && SND
@@ -678,9 +688,8 @@ config HID_SAITEK
 
 	Supported devices:
 	- PS1000 Dual Analog Pad
-	- R.A.T.9 Gaming Mouse
-	- R.A.T.7 Gaming Mouse
-	- M.M.O.7 Gaming Mouse
+	- Saitek R.A.T.7, R.A.T.9, M.M.O.7 Gaming Mice
+	- Mad Catz R.A.T.5, R.A.T.9 Gaming Mice
 
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"

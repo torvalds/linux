@@ -11,8 +11,9 @@ Unlike the kernel we don't have a single build object 'obj-y' list that where
 we setup source objects, but we support more. This allows one 'Build' file to
 carry a sources list for multiple build objects.
 
-a) Build framework makefiles
-----------------------------
+
+Build framework makefiles
+-------------------------
 
 The build framework consists of 2 Makefiles:
 
@@ -23,7 +24,7 @@ While the 'Build.include' file contains just some generic definitions, the
 'Makefile.build' file is the makefile used from the outside. It's
 interface/usage is following:
 
-  $ make -f tools/build/Makefile srctree=$(KSRC) dir=$(DIR) obj=$(OBJECT)
+  $ make -f tools/build/Makefile.build srctree=$(KSRC) dir=$(DIR) obj=$(OBJECT)
 
 where:
 
@@ -38,8 +39,9 @@ called $(OBJECT)-in.o:
 
 which includes all compiled sources described in 'Build' makefiles.
 
-a) Build makefiles
-------------------
+
+Build makefiles
+---------------
 
 The user supplies 'Build' makefiles that contains a objects list, and connects
 the build to nested directories.
@@ -95,8 +97,31 @@ It's only a matter of 2 single commands to create the final binaries:
 
 You can check the 'ex' example in 'tools/build/tests/ex' for more details.
 
-b) Rules
---------
+
+Makefile.include
+----------------
+
+The tools/build/Makefile.include makefile could be included
+via user makefiles to get usefull definitions.
+
+It defines following interface:
+
+  - build macro definition:
+      build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+
+    to make it easier to invoke build like:
+      make $(build)=ex
+
+
+Fixdep
+------
+It is necessary to build the fixdep helper before invoking the build.
+The Makefile.include file adds the fixdep target, that could be
+invoked by the user.
+
+
+Rules
+-----
 
 The build framework provides standard compilation rules to handle .S and .c
 compilation.
@@ -104,8 +129,9 @@ compilation.
 It's possible to include special rule if needed (like we do for flex or bison
 code generation).
 
-c) CFLAGS
----------
+
+CFLAGS
+------
 
 It's possible to alter the standard object C flags in the following way:
 
@@ -115,8 +141,8 @@ It's possible to alter the standard object C flags in the following way:
 This C flags changes has the scope of the Build makefile they are defined in.
 
 
-d) Dependencies
----------------
+Dependencies
+------------
 
 For each built object file 'a.o' the '.a.cmd' is created and holds:
 
@@ -130,8 +156,8 @@ All existing '.cmd' files are included in the Build process to follow properly
 the dependencies and trigger a rebuild when necessary.
 
 
-e) Single rules
----------------
+Single rules
+------------
 
 It's possible to build single object file by choice, like:
 

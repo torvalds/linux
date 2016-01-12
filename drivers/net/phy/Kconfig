@@ -69,20 +69,39 @@ config SMSC_PHY
 	---help---
 	  Currently supports the LAN83C185, LAN8187 and LAN8700 PHYs
 
+config BCM_NET_PHYLIB
+	tristate
+
 config BROADCOM_PHY
 	tristate "Drivers for Broadcom PHYs"
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481 and BCM5482 PHYs.
 
+config BCM_CYGNUS_PHY
+	tristate "Drivers for Broadcom Cygnus SoC internal PHY"
+	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	depends on MDIO_BCM_IPROC
+	select BCM_NET_PHYLIB
+	---help---
+	  This PHY driver is for the 1G internal PHYs of the Broadcom
+	  Cygnus Family SoC.
+
+	  Currently supports internal PHY's used in the BCM11300,
+	  BCM11320, BCM11350, BCM11360, BCM58300, BCM58302,
+	  BCM58303 & BCM58305 Broadcom Cygnus SoCs.
+
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 
 config BCM7XXX_PHY
 	tristate "Drivers for Broadcom 7xxx SOCs internal PHYs"
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM7366, BCM7439, BCM7445, and
 	  40nm and 65nm generation of BCM7xxx Set Top Box SoCs.
@@ -121,6 +140,11 @@ config MICREL_PHY
 	tristate "Driver for Micrel PHYs"
 	---help---
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
+
+config DP83848_PHY
+	tristate "Driver for Texas Instruments DP83848 PHY"
+	---help---
+	  Supports the DP83848 PHY.
 
 config DP83867_PHY
 	tristate "Drivers for Texas Instruments DP83867 Gigabit PHY"
@@ -167,8 +191,6 @@ config MDIO_OCTEON
 	  This module provides a driver for the Octeon and ThunderX MDIO
 	  busses. It is required by the Octeon and ThunderX ethernet device
 	  drivers.
-
-	  If in doubt, say Y.
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
@@ -225,6 +247,15 @@ config MDIO_BCM_UNIMAC
 	  This hardware can be found in the Broadcom GENET Ethernet MAC
 	  controllers as well as some Broadcom Ethernet switches such as the
 	  Starfighter 2 switches.
+
+config MDIO_BCM_IPROC
+	tristate "Broadcom iProc MDIO bus controller"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF_MDIO
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  Broadcom iProc SoC's.
+
 endif # PHYLIB
 
 config MICREL_KS8995MA

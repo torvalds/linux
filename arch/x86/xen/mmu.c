@@ -2888,6 +2888,7 @@ static int do_remap_gfn(struct vm_area_struct *vma,
 		addr += range;
 		if (err_ptr)
 			err_ptr += batch;
+		cond_resched();
 	}
 out:
 

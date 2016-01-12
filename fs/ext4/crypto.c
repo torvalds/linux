@@ -253,8 +253,7 @@ typedef enum {
 	EXT4_ENCRYPT,
 } ext4_direction_t;
 
-static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
-			    struct inode *inode,
+static int ext4_page_crypto(struct inode *inode,
 			    ext4_direction_t rw,
 			    pgoff_t index,
 			    struct page *src_page,
@@ -296,7 +295,6 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	else
 		res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
@@ -353,7 +351,7 @@ struct page *ext4_encrypt(struct inode *inode,
 	if (IS_ERR(ciphertext_page))
 		goto errout;
 	ctx->w.control_page = plaintext_page;
-	err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, plaintext_page->index,
+	err = ext4_page_crypto(inode, EXT4_ENCRYPT, plaintext_page->index,
 			       plaintext_page, ciphertext_page);
 	if (err) {
 		ciphertext_page = ERR_PTR(err);
@@ -378,29 +376,12 @@ struct page *ext4_encrypt(struct inode *inode,
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int ext4_decrypt(struct ext4_crypto_ctx *ctx, struct page *page)
+int ext4_decrypt(struct page *page)
 {
 	BUG_ON(!PageLocked(page));
 
-	return ext4_page_crypto(ctx, page->mapping->host,
+	return ext4_page_crypto(page->mapping->host,
 				EXT4_DECRYPT, page->index, page, page);
-}
-
-/*
- * Convenience function which takes care of allocating and
- * deallocating the encryption context
- */
-int ext4_decrypt_one(struct inode *inode, struct page *page)
-{
-	int ret;
-
-	struct ext4_crypto_ctx *ctx = ext4_get_crypto_ctx(inode);
-
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-	ret = ext4_decrypt(ctx, page);
-	ext4_release_crypto_ctx(ctx);
-	return ret;
 }
 
 int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
@@ -408,10 +389,16 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 	struct ext4_crypto_ctx	*ctx;
 	struct page		*ciphertext_page = NULL;
 	struct bio		*bio;
-	ext4_lblk_t		lblk = ex->ee_block;
+	ext4_lblk_t		lblk = le32_to_cpu(ex->ee_block);
 	ext4_fsblk_t		pblk = ext4_ext_pblock(ex);
 	unsigned int		len = ext4_ext_get_actual_len(ex);
-	int			err = 0;
+	int			ret, err = 0;
+
+#if 0
+	ext4_msg(inode->i_sb, KERN_CRIT,
+		 "ext4_encrypted_zeroout ino %lu lblk %u len %u",
+		 (unsigned long) inode->i_ino, lblk, len);
+#endif
 
 	BUG_ON(inode->i_sb->s_blocksize != PAGE_CACHE_SIZE);
 
@@ -426,7 +413,7 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 	}
 
 	while (len--) {
-		err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, lblk,
+		err = ext4_page_crypto(inode, EXT4_ENCRYPT, lblk,
 				       ZERO_PAGE(0), ciphertext_page);
 		if (err)
 			goto errout;
@@ -437,17 +424,26 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 			goto errout;
 		}
 		bio->bi_bdev = inode->i_sb->s_bdev;
-		bio->bi_iter.bi_sector = pblk;
-		err = bio_add_page(bio, ciphertext_page,
+		bio->bi_iter.bi_sector =
+			pblk << (inode->i_sb->s_blocksize_bits - 9);
+		ret = bio_add_page(bio, ciphertext_page,
 				   inode->i_sb->s_blocksize, 0);
-		if (err) {
+		if (ret != inode->i_sb->s_blocksize) {
+			/* should never happen! */
+			ext4_msg(inode->i_sb, KERN_ERR,
+				 "bio_add_page failed: %d", ret);
+			WARN_ON(1);
 			bio_put(bio);
+			err = -EIO;
 			goto errout;
 		}
 		err = submit_bio_wait(WRITE, bio);
+		if ((err == 0) && bio->bi_error)
+			err = -EIO;
 		bio_put(bio);
 		if (err)
 			goto errout;
+		lblk++; pblk++;
 	}
 	err = 0;
 errout:

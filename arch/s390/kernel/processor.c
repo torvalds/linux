@@ -11,6 +11,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+#include <asm/diag.h>
 #include <asm/elf.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
@@ -20,8 +21,10 @@ static DEFINE_PER_CPU(struct cpuid, cpu_id);
 
 void notrace cpu_relax(void)
 {
-	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44)
+	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44) {
+		diag_stat_inc(DIAG_STAT_X044);
 		asm volatile("diag 0,0,0x44");
+	}
 	barrier();
 }
 EXPORT_SYMBOL(cpu_relax);

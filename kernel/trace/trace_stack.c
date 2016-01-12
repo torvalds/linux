@@ -16,24 +16,22 @@
 
 #include "trace.h"
 
-#define STACK_TRACE_ENTRIES 500
-
 static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES+1] =
 	 { [0 ... (STACK_TRACE_ENTRIES)] = ULONG_MAX };
-static unsigned stack_dump_index[STACK_TRACE_ENTRIES];
+unsigned stack_trace_index[STACK_TRACE_ENTRIES];
 
 /*
  * Reserve one entry for the passed in ip. This will allow
  * us to remove most or all of the stack size overhead
  * added by the stack tracer itself.
  */
-static struct stack_trace max_stack_trace = {
+struct stack_trace stack_trace_max = {
 	.max_entries		= STACK_TRACE_ENTRIES - 1,
 	.entries		= &stack_dump_trace[0],
 };
 
-static unsigned long max_stack_size;
-static arch_spinlock_t max_stack_lock =
+unsigned long stack_trace_max_size;
+arch_spinlock_t stack_trace_max_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static DEFINE_PER_CPU(int, trace_active);
@@ -42,30 +40,38 @@ static DEFINE_MUTEX(stack_sysctl_mutex);
 int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
 
-static inline void print_max_stack(void)
+void stack_trace_print(void)
 {
 	long i;
 	int size;
 
 	pr_emerg("        Depth    Size   Location    (%d entries)\n"
 			   "        -----    ----   --------\n",
-			   max_stack_trace.nr_entries);
+			   stack_trace_max.nr_entries);
 
-	for (i = 0; i < max_stack_trace.nr_entries; i++) {
+	for (i = 0; i < stack_trace_max.nr_entries; i++) {
 		if (stack_dump_trace[i] == ULONG_MAX)
 			break;
-		if (i+1 == max_stack_trace.nr_entries ||
+		if (i+1 == stack_trace_max.nr_entries ||
 				stack_dump_trace[i+1] == ULONG_MAX)
-			size = stack_dump_index[i];
+			size = stack_trace_index[i];
 		else
-			size = stack_dump_index[i] - stack_dump_index[i+1];
+			size = stack_trace_index[i] - stack_trace_index[i+1];
 
-		pr_emerg("%3ld) %8d   %5d   %pS\n", i, stack_dump_index[i],
+		pr_emerg("%3ld) %8d   %5d   %pS\n", i, stack_trace_index[i],
 				size, (void *)stack_dump_trace[i]);
 	}
 }
 
-static inline void
+/*
+ * When arch-specific code overides this function, the following
+ * data should be filled up, assuming stack_trace_max_lock is held to
+ * prevent concurrent updates.
+ *     stack_trace_index[]
+ *     stack_trace_max
+ *     stack_trace_max_size
+ */
+void __weak
 check_stack(unsigned long ip, unsigned long *stack)
 {
 	unsigned long this_size, flags; unsigned long *p, *top, *start;
@@ -78,33 +84,43 @@ check_stack(unsigned long ip, unsigned long *stack)
 	/* Remove the frame of the tracer */
 	this_size -= frame_size;
 
-	if (this_size <= max_stack_size)
+	if (this_size <= stack_trace_max_size)
 		return;
 
 	/* we do not handle interrupt stacks yet */
 	if (!object_is_on_stack(stack))
 		return;
 
+	/* Can't do this from NMI context (can cause deadlocks) */
+	if (in_nmi())
+		return;
+
 	local_irq_save(flags);
-	arch_spin_lock(&max_stack_lock);
+	arch_spin_lock(&stack_trace_max_lock);
+
+	/*
+	 * RCU may not be watching, make it see us.
+	 * The stack trace code uses rcu_sched.
+	 */
+	rcu_irq_enter();
 
 	/* In case another CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
 		this_size -= tracer_frame;
 
 	/* a race could have already updated it */
-	if (this_size <= max_stack_size)
+	if (this_size <= stack_trace_max_size)
 		goto out;
 
-	max_stack_size = this_size;
+	stack_trace_max_size = this_size;
 
-	max_stack_trace.nr_entries = 0;
-	max_stack_trace.skip = 3;
+	stack_trace_max.nr_entries = 0;
+	stack_trace_max.skip = 3;
 
-	save_stack_trace(&max_stack_trace);
+	save_stack_trace(&stack_trace_max);
 
 	/* Skip over the overhead of the stack tracer itself */
-	for (i = 0; i < max_stack_trace.nr_entries; i++) {
+	for (i = 0; i < stack_trace_max.nr_entries; i++) {
 		if (stack_dump_trace[i] == ip)
 			break;
 	}
@@ -124,18 +140,18 @@ check_stack(unsigned long ip, unsigned long *stack)
 	 * loop will only happen once. This code only takes place
 	 * on a new max, so it is far from a fast path.
 	 */
-	while (i < max_stack_trace.nr_entries) {
+	while (i < stack_trace_max.nr_entries) {
 		int found = 0;
 
-		stack_dump_index[x] = this_size;
+		stack_trace_index[x] = this_size;
 		p = start;
 
-		for (; p < top && i < max_stack_trace.nr_entries; p++) {
+		for (; p < top && i < stack_trace_max.nr_entries; p++) {
 			if (stack_dump_trace[i] == ULONG_MAX)
 				break;
 			if (*p == stack_dump_trace[i]) {
 				stack_dump_trace[x] = stack_dump_trace[i++];
-				this_size = stack_dump_index[x++] =
+				this_size = stack_trace_index[x++] =
 					(top - p) * sizeof(unsigned long);
 				found = 1;
 				/* Start the search from here */
@@ -150,7 +166,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 				if (unlikely(!tracer_frame)) {
 					tracer_frame = (p - stack) *
 						sizeof(unsigned long);
-					max_stack_size -= tracer_frame;
+					stack_trace_max_size -= tracer_frame;
 				}
 			}
 		}
@@ -159,17 +175,18 @@ check_stack(unsigned long ip, unsigned long *stack)
 			i++;
 	}
 
-	max_stack_trace.nr_entries = x;
+	stack_trace_max.nr_entries = x;
 	for (; x < i; x++)
 		stack_dump_trace[x] = ULONG_MAX;
 
 	if (task_stack_end_corrupted(current)) {
-		print_max_stack();
+		stack_trace_print();
 		BUG();
 	}
 
  out:
-	arch_spin_unlock(&max_stack_lock);
+	rcu_irq_exit();
+	arch_spin_unlock(&stack_trace_max_lock);
 	local_irq_restore(flags);
 }
 
@@ -240,9 +257,9 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	cpu = smp_processor_id();
 	per_cpu(trace_active, cpu)++;
 
-	arch_spin_lock(&max_stack_lock);
+	arch_spin_lock(&stack_trace_max_lock);
 	*ptr = val;
-	arch_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&stack_trace_max_lock);
 
 	per_cpu(trace_active, cpu)--;
 	local_irq_restore(flags);
@@ -262,7 +279,7 @@ __next(struct seq_file *m, loff_t *pos)
 {
 	long n = *pos - 1;
 
-	if (n > max_stack_trace.nr_entries || stack_dump_trace[n] == ULONG_MAX)
+	if (n > stack_trace_max.nr_entries || stack_dump_trace[n] == ULONG_MAX)
 		return NULL;
 
 	m->private = (void *)n;
@@ -285,7 +302,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	cpu = smp_processor_id();
 	per_cpu(trace_active, cpu)++;
 
-	arch_spin_lock(&max_stack_lock);
+	arch_spin_lock(&stack_trace_max_lock);
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
@@ -297,7 +314,7 @@ static void t_stop(struct seq_file *m, void *p)
 {
 	int cpu;
 
-	arch_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&stack_trace_max_lock);
 
 	cpu = smp_processor_id();
 	per_cpu(trace_active, cpu)--;
@@ -332,9 +349,9 @@ static int t_show(struct seq_file *m, void *v)
 		seq_printf(m, "        Depth    Size   Location"
 			   "    (%d entries)\n"
 			   "        -----    ----   --------\n",
-			   max_stack_trace.nr_entries);
+			   stack_trace_max.nr_entries);
 
-		if (!stack_tracer_enabled && !max_stack_size)
+		if (!stack_tracer_enabled && !stack_trace_max_size)
 			print_disabled(m);
 
 		return 0;
@@ -342,17 +359,17 @@ static int t_show(struct seq_file *m, void *v)
 
 	i = *(long *)v;
 
-	if (i >= max_stack_trace.nr_entries ||
+	if (i >= stack_trace_max.nr_entries ||
 	    stack_dump_trace[i] == ULONG_MAX)
 		return 0;
 
-	if (i+1 == max_stack_trace.nr_entries ||
+	if (i+1 == stack_trace_max.nr_entries ||
 	    stack_dump_trace[i+1] == ULONG_MAX)
-		size = stack_dump_index[i];
+		size = stack_trace_index[i];
 	else
-		size = stack_dump_index[i] - stack_dump_index[i+1];
+		size = stack_trace_index[i] - stack_trace_index[i+1];
 
-	seq_printf(m, "%3ld) %8d   %5d   ", i, stack_dump_index[i], size);
+	seq_printf(m, "%3ld) %8d   %5d   ", i, stack_trace_index[i], size);
 
 	trace_lookup_stack(m, i);
 
@@ -442,7 +459,7 @@ static __init int stack_trace_init(void)
 		return 0;
 
 	trace_create_file("stack_max_size", 0644, d_tracer,
-			&max_stack_size, &stack_max_size_fops);
+			&stack_trace_max_size, &stack_max_size_fops);
 
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);

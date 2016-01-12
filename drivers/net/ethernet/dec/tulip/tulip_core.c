@@ -98,8 +98,7 @@ static int csr0 = 0x01A00000 | 0x4800;
 #elif defined(__mips__)
 static int csr0 = 0x00200000 | 0x4000;
 #else
-#warning Processor architecture undefined!
-static int csr0 = 0x00A00000 | 0x4800;
+static int csr0;
 #endif
 
 /* Operational parameters that usually are not changed. */
@@ -1981,6 +1980,12 @@ static int __init tulip_init (void)
 #ifdef MODULE
 	pr_info("%s", version);
 #endif
+
+	if (!csr0) {
+		pr_warn("tulip: unknown CPU architecture, using default csr0\n");
+		/* default to 8 longword cache line alignment */
+		csr0 = 0x00A00000 | 0x4800;
+	}
 
 	/* copy module parms into globals */
 	tulip_rx_copybreak = rx_copybreak;

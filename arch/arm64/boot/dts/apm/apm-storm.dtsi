@@ -97,6 +97,11 @@
 		clock-frequency = <50000000>;
 	};
 
+	pmu {
+		compatible = "apm,potenza-pmu", "arm,armv8-pmuv3";
+		interrupts = <1 12 0xff04>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -205,6 +210,17 @@
 				reg-names = "csr-reg";
 				csr-mask = <0x3>;
 				clock-output-names = "xge0clk";
+			};
+
+			xge1clk: xge1clk@1f62c000 {
+				compatible = "apm,xgene-device-clock";
+				status = "disabled";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f62c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				csr-mask = <0x3>;
+				clock-output-names = "xge1clk";
 			};
 
 			sataphy1clk: sataphy1clk@1f21c000 {
@@ -396,6 +412,18 @@
 					0x0 0x1f 0x4>;
 		};
 
+		scu: system-clk-controller@17000000 {
+			compatible = "apm,xgene-scu","syscon";
+			reg = <0x0 0x17000000 0x0 0x400>;
+		};
+
+		reboot: reboot@17000014 {
+			compatible = "syscon-reboot";
+			regmap = <&scu>;
+			offset = <0x14>;
+			mask = <0x1>;
+		};
+
 		csw: csw@7e200000 {
 			compatible = "apm,xgene-csw", "syscon";
 			reg = <0x0 0x7e200000 0x0 0x1000>;
@@ -476,6 +504,16 @@
 				compatible = "apm,xgene-edac-pmd";
 				reg = <0x0 0x7c600000 0x0 0x200000>;
 				pmd-controller = <3>;
+			};
+
+			edacl3@7e600000 {
+				compatible = "apm,xgene-edac-l3";
+				reg = <0x0 0x7e600000 0x0 0x1000>;
+			};
+
+			edacsoc@7e930000 {
+				compatible = "apm,xgene-edac-soc-v1";
+				reg = <0x0 0x7e930000 0x0 0x1000>;
 			};
 		};
 
@@ -811,6 +849,23 @@
 				     <0x0 0x61 0x4>;
 			dma-coherent;
 			clocks = <&xge0clk 0>;
+			/* mac address will be overwritten by the bootloader */
+			local-mac-address = [00 00 00 00 00 00];
+			phy-connection-type = "xgmii";
+		};
+
+		xgenet1: ethernet@1f620000 {
+			compatible = "apm,xgene1-xgenet";
+			status = "disabled";
+			reg = <0x0 0x1f620000 0x0 0xd100>,
+			      <0x0 0x1f600000 0x0 0Xc300>,
+			      <0x0 0x18000000 0x0 0X8000>;
+			reg-names = "enet_csr", "ring_csr", "ring_cmd";
+			interrupts = <0x0 0x6C 0x4>,
+				     <0x0 0x6D 0x4>;
+			port-id = <1>;
+			dma-coherent;
+			clocks = <&xge1clk 0>;
 			/* mac address will be overwritten by the bootloader */
 			local-mac-address = [00 00 00 00 00 00];
 			phy-connection-type = "xgmii";

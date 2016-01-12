@@ -153,6 +153,15 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static irqreturn_t iio_simple_dummy_get_timestamp(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct iio_dummy_state *st = iio_priv(indio_dev);
+
+	st->event_timestamp = iio_get_time_ns();
+	return IRQ_WAKE_THREAD;
+}
+
 /**
  * iio_simple_dummy_event_handler() - identify and pass on event
  * @irq: irq of event line
@@ -177,7 +186,7 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 			       IIO_EVENT_CODE(IIO_VOLTAGE, 0, 0,
 					      IIO_EV_DIR_RISING,
 					      IIO_EV_TYPE_THRESH, 0, 0, 0),
-			       iio_get_time_ns());
+			       st->event_timestamp);
 		break;
 	case 1:
 		if (st->activity_running > st->event_val)
@@ -187,7 +196,7 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 						      IIO_EV_DIR_RISING,
 						      IIO_EV_TYPE_THRESH,
 						      0, 0, 0),
-				       iio_get_time_ns());
+				       st->event_timestamp);
 		break;
 	case 2:
 		if (st->activity_walking < st->event_val)
@@ -197,14 +206,14 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 						      IIO_EV_DIR_FALLING,
 						      IIO_EV_TYPE_THRESH,
 						      0, 0, 0),
-				       iio_get_time_ns());
+				       st->event_timestamp);
 		break;
 	case 3:
 		iio_push_event(indio_dev,
 			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
 					      IIO_EV_DIR_NONE,
 					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
-			       iio_get_time_ns());
+			       st->event_timestamp);
 		break;
 	default:
 		break;
@@ -238,7 +247,7 @@ int iio_simple_dummy_events_register(struct iio_dev *indio_dev)
 	st->regs = iio_dummy_evgen_get_regs(st->event_irq);
 
 	ret = request_threaded_irq(st->event_irq,
-				   NULL,
+				   &iio_simple_dummy_get_timestamp,
 				   &iio_simple_dummy_event_handler,
 				   IRQF_ONESHOT,
 				   "iio_simple_event",

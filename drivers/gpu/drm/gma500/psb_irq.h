@@ -38,9 +38,9 @@ int psb_irq_enable_dpst(struct drm_device *dev);
 int psb_irq_disable_dpst(struct drm_device *dev);
 void psb_irq_turn_on_dpst(struct drm_device *dev);
 void psb_irq_turn_off_dpst(struct drm_device *dev);
-int  psb_enable_vblank(struct drm_device *dev, int pipe);
-void psb_disable_vblank(struct drm_device *dev, int pipe);
-u32  psb_get_vblank_counter(struct drm_device *dev, int pipe);
+int  psb_enable_vblank(struct drm_device *dev, unsigned int pipe);
+void psb_disable_vblank(struct drm_device *dev, unsigned int pipe);
+u32  psb_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
 
 int mdfld_enable_te(struct drm_device *dev, int pipe);
 void mdfld_disable_te(struct drm_device *dev, int pipe);

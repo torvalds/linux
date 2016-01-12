@@ -99,27 +99,40 @@ struct gsb_buffer {
 	};
 } __packed;
 
-static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
+struct acpi_i2c_lookup {
+	struct i2c_board_info *info;
+	acpi_handle adapter_handle;
+	acpi_handle device_handle;
+};
+
+static int acpi_i2c_find_address(struct acpi_resource *ares, void *data)
 {
-	struct i2c_board_info *info = data;
+	struct acpi_i2c_lookup *lookup = data;
+	struct i2c_board_info *info = lookup->info;
+	struct acpi_resource_i2c_serialbus *sb;
+	acpi_handle adapter_handle;
+	acpi_status status;
 
-	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
-		struct acpi_resource_i2c_serialbus *sb;
+	if (info->addr || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return 1;
 
-		sb = &ares->data.i2c_serial_bus;
-		if (!info->addr && sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
-			info->addr = sb->slave_address;
-			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
-				info->flags |= I2C_CLIENT_TEN;
-		}
-	} else if (!info->irq) {
-		struct resource r;
+	sb = &ares->data.i2c_serial_bus;
+	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_I2C)
+		return 1;
 
-		if (acpi_dev_resource_interrupt(ares, 0, &r))
-			info->irq = r.start;
+	/*
+	 * Extract the ResourceSource and make sure that the handle matches
+	 * with the I2C adapter handle.
+	 */
+	status = acpi_get_handle(lookup->device_handle,
+				 sb->resource_source.string_ptr,
+				 &adapter_handle);
+	if (ACPI_SUCCESS(status) && adapter_handle == lookup->adapter_handle) {
+		info->addr = sb->slave_address;
+		if (sb->access_mode == ACPI_I2C_10BIT_MODE)
+			info->flags |= I2C_CLIENT_TEN;
 	}
 
-	/* Tell the ACPI core to skip this resource */
 	return 1;
 }
 
@@ -128,6 +141,8 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 {
 	struct i2c_adapter *adapter = data;
 	struct list_head resource_list;
+	struct acpi_i2c_lookup lookup;
+	struct resource_entry *entry;
 	struct i2c_board_info info;
 	struct acpi_device *adev;
 	int ret;
@@ -140,13 +155,36 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 	memset(&info, 0, sizeof(info));
 	info.fwnode = acpi_fwnode_handle(adev);
 
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.adapter_handle = ACPI_HANDLE(&adapter->dev);
+	lookup.device_handle = handle;
+	lookup.info = &info;
+
+	/*
+	 * Look up for I2cSerialBus resource with ResourceSource that
+	 * matches with this adapter.
+	 */
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
-				     acpi_i2c_add_resource, &info);
+				     acpi_i2c_find_address, &lookup);
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (ret < 0 || !info.addr)
 		return AE_OK;
+
+	/* Then fill IRQ number if any */
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		return AE_OK;
+
+	resource_list_for_each_entry(entry, &resource_list) {
+		if (resource_type(entry->res) == IORESOURCE_IRQ) {
+			info.irq = entry->res->start;
+			break;
+		}
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
 
 	adev->power.flags.ignore_parent = true;
 	strlcpy(info.type, dev_name(&adev->dev), sizeof(info.type));
@@ -160,6 +198,8 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
+#define ACPI_I2C_MAX_SCAN_DEPTH 32
+
 /**
  * acpi_i2c_register_devices - enumerate I2C slave devices behind adapter
  * @adap: pointer to adapter
@@ -170,17 +210,13 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
  */
 static void acpi_i2c_register_devices(struct i2c_adapter *adap)
 {
-	acpi_handle handle;
 	acpi_status status;
 
-	if (!adap->dev.parent)
+	if (!has_acpi_companion(&adap->dev))
 		return;
 
-	handle = ACPI_HANDLE(adap->dev.parent);
-	if (!handle)
-		return;
-
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				     ACPI_I2C_MAX_SCAN_DEPTH,
 				     acpi_i2c_add_device, NULL,
 				     adap, NULL);
 	if (ACPI_FAILURE(status))
@@ -679,7 +715,7 @@ static int i2c_device_probe(struct device *dev)
 		if (wakeirq > 0 && wakeirq != client->irq)
 			status = dev_pm_set_dedicated_wake_irq(dev, wakeirq);
 		else if (client->irq > 0)
-			status = dev_pm_set_wake_irq(dev, wakeirq);
+			status = dev_pm_set_wake_irq(dev, client->irq);
 		else
 			status = 0;
 
@@ -694,12 +730,12 @@ static int i2c_device_probe(struct device *dev)
 		goto err_clear_wakeup_irq;
 
 	status = dev_pm_domain_attach(&client->dev, true);
-	if (status != -EPROBE_DEFER) {
-		status = driver->probe(client, i2c_match_id(driver->id_table,
-					client));
-		if (status)
-			goto err_detach_pm_domain;
-	}
+	if (status == -EPROBE_DEFER)
+		goto err_clear_wakeup_irq;
+
+	status = driver->probe(client, i2c_match_id(driver->id_table, client));
+	if (status)
+		goto err_detach_pm_domain;
 
 	return 0;
 

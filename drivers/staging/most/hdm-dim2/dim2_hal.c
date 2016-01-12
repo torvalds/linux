@@ -19,7 +19,6 @@
 #include "dim2_reg.h"
 #include <linux/stddef.h>
 
-
 /*
  * The number of frames per sub-buffer for synchronous channels.
  * Allowed values: 1, 2, 4, 8, 16, 32, 64.
@@ -51,7 +50,6 @@
  */
 #define DBR_MAP_SIZE 2
 
-
 /* -------------------------------------------------------------------------- */
 /* not configurable area */
 
@@ -60,9 +58,8 @@
 #define MLB_CAT 0x80
 #define AHB_CAT 0x88
 
-#define DBR_SIZE  (16*1024) /* specified by IP */
+#define DBR_SIZE  (16 * 1024) /* specified by IP */
 #define DBR_BLOCK_SIZE  (DBR_SIZE / 32 / DBR_MAP_SIZE)
-
 
 /* -------------------------------------------------------------------------- */
 /* generic helper functions and macros */
@@ -81,7 +78,6 @@ static inline bool dim_on_error(u8 error_id, const char *error_message)
 	return false;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* types and local variables */
 
@@ -93,7 +89,6 @@ struct lld_global_vars_t {
 };
 
 static struct lld_global_vars_t g = { false };
-
 
 /* -------------------------------------------------------------------------- */
 
@@ -134,7 +129,7 @@ static int alloc_dbr(u16 size)
 				return block_idx * DBR_BLOCK_SIZE;
 			}
 			block_idx += mask_size;
-			/* do shift left with 2 steps for case mask_size == 32 */
+			/* do shift left with 2 steps in case mask_size == 32 */
 			mask <<= mask_size - 1;
 		} while ((mask <<= 1) != 0);
 	}
@@ -327,7 +322,6 @@ static void dim2_start_isoc_sync(u8 ch_addr, u8 idx, u32 buf_addr,
 	dim2_write_ctr_mask(ADT + ch_addr, mask, adt);
 }
 
-
 static void dim2_clear_ctram(void)
 {
 	u32 ctr_addr;
@@ -499,22 +493,6 @@ static void dim2_initialize(bool enable_6pin, u8 mlb_clock)
 	DIMCB_IoWrite(&g.dim2->ACTL,
 		      ACTL_DMA_MODE_VAL_DMA_MODE_1 << ACTL_DMA_MODE_BIT |
 		      true << ACTL_SCE_BIT);
-
-#if 0
-	DIMCB_IoWrite(&g.dim2->MIEN,
-		      bit_mask(MIEN_CTX_BREAK_BIT) |
-		      bit_mask(MIEN_CTX_PE_BIT) |
-		      bit_mask(MIEN_CTX_DONE_BIT) |
-		      bit_mask(MIEN_CRX_BREAK_BIT) |
-		      bit_mask(MIEN_CRX_PE_BIT) |
-		      bit_mask(MIEN_CRX_DONE_BIT) |
-		      bit_mask(MIEN_ATX_BREAK_BIT) |
-		      bit_mask(MIEN_ATX_PE_BIT) |
-		      bit_mask(MIEN_ATX_DONE_BIT) |
-		      bit_mask(MIEN_ARX_BREAK_BIT) |
-		      bit_mask(MIEN_ARX_PE_BIT) |
-		      bit_mask(MIEN_ARX_DONE_BIT));
-#endif
 }
 
 static bool dim2_is_mlb_locked(void)
@@ -529,7 +507,6 @@ static bool dim2_is_mlb_locked(void)
 	return (DIMCB_IoRead(&g.dim2->MLBC1) & mask1) == 0 &&
 	       (DIMCB_IoRead(&g.dim2->MLBC0) & mask0) != 0;
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* channel help routines */
@@ -558,7 +535,6 @@ static inline bool service_channel(u8 ch_addr, u8 idx)
 
 	return true;
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* channel init routines */
@@ -639,7 +615,8 @@ static bool channel_start(struct dim_channel *ch, u32 buf_addr, u16 buf_size)
 	if (ch->packet_length || ch->bytes_per_frame)
 		dim2_start_isoc_sync(ch->addr, state->idx1, buf_addr, buf_size);
 	else
-		dim2_start_ctrl_async(ch->addr, state->idx1, buf_addr, buf_size);
+		dim2_start_ctrl_async(ch->addr, state->idx1, buf_addr,
+				      buf_size);
 	state->idx1 ^= 1;
 
 	return true;
@@ -670,7 +647,6 @@ static bool channel_detach_buffers(struct dim_channel *ch, u16 buffers_number)
 	return true;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* API */
 
@@ -687,7 +663,8 @@ u8 DIM_Startup(void *dim_base_address, u32 mlb_clock)
 		return DIM_INIT_ERR_MLB_CLOCK;
 
 	g.dim2 = dim_base_address;
-	g.dbr_map[0] = g.dbr_map[1] = 0;
+	g.dbr_map[0] = 0;
+	g.dbr_map[1] = 0;
 
 	dim2_initialize(mlb_clock >= 3, mlb_clock);
 
@@ -766,14 +743,14 @@ u8 DIM_InitControl(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		   u16 max_buffer_size)
 {
 	return init_ctrl_async(ch, CAT_CT_VAL_CONTROL, is_tx, ch_address,
-			       max_buffer_size * 2);
+			       max_buffer_size);
 }
 
 u8 DIM_InitAsync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		 u16 max_buffer_size)
 {
 	return init_ctrl_async(ch, CAT_CT_VAL_ASYNC, is_tx, ch_address,
-			       max_buffer_size * 2);
+			       max_buffer_size);
 }
 
 u8 DIM_InitIsoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
@@ -855,11 +832,11 @@ void DIM_ServiceIrq(struct dim_channel *const *channels)
 	}
 
 	/*
-	 * Use while-loop and a flag to make sure the age is changed back at least once,
-	 * otherwise the interrupt may never come if CPU generates interrupt on changing age.
-	 *
-	 * This cycle runs not more than number of channels, because service_interrupts
-	 * routine doesn't start the channel again.
+	 * Use while-loop and a flag to make sure the age is changed back at
+	 * least once, otherwise the interrupt may never come if CPU generates
+	 * interrupt on changing age.
+	 * This cycle runs not more than number of channels, because
+	 * channel_service_interrupt() routine doesn't start the channel again.
 	 */
 	do {
 		struct dim_channel *const *ch = channels;
@@ -886,7 +863,7 @@ u8 DIM_ServiceChannel(struct dim_channel *ch)
 }
 
 struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
-		struct dim_ch_state_t *state_ptr)
+					   struct dim_ch_state_t *state_ptr)
 {
 	if (!ch || !state_ptr)
 		return NULL;
@@ -900,7 +877,8 @@ struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
 bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr, u16 buffer_size)
 {
 	if (!ch)
-		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED, "Bad channel");
+		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
+				    "Bad channel");
 
 	return channel_start(ch, buffer_addr, buffer_size);
 }
@@ -908,12 +886,8 @@ bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr, u16 buffer_size)
 bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number)
 {
 	if (!ch)
-		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED, "Bad channel");
+		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
+				    "Bad channel");
 
 	return channel_detach_buffers(ch, buffers_number);
-}
-
-u32 DIM_ReadRegister(u8 register_index)
-{
-	return DIMCB_IoRead((u32 *)g.dim2 + register_index);
 }

@@ -55,6 +55,7 @@ static const struct of_device_id max8997_pmic_dt_match[] = {
 	{ .compatible = "maxim,max8997-pmic", .data = (void *)TYPE_MAX8997 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, max8997_pmic_dt_match);
 #endif
 
 int max8997_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)

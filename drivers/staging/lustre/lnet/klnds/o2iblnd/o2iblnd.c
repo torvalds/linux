@@ -2154,23 +2154,23 @@ static int kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 	if (rc != 0)
 		return rc;
 
-		LIBCFS_ALLOC(hdev->ibh_mrs, 1 * sizeof(*hdev->ibh_mrs));
-		if (hdev->ibh_mrs == NULL) {
-			CERROR("Failed to allocate MRs table\n");
-			return -ENOMEM;
-		}
+	LIBCFS_ALLOC(hdev->ibh_mrs, 1 * sizeof(*hdev->ibh_mrs));
+	if (hdev->ibh_mrs == NULL) {
+		CERROR("Failed to allocate MRs table\n");
+		return -ENOMEM;
+	}
 
-		hdev->ibh_mrs[0] = NULL;
-		hdev->ibh_nmrs   = 1;
+	hdev->ibh_mrs[0] = NULL;
+	hdev->ibh_nmrs   = 1;
 
-		mr = ib_get_dma_mr(hdev->ibh_pd, acflags);
-		if (IS_ERR(mr)) {
-			CERROR("Failed ib_get_dma_mr : %ld\n", PTR_ERR(mr));
-			kiblnd_hdev_cleanup_mrs(hdev);
-			return PTR_ERR(mr);
-		}
+	mr = ib_get_dma_mr(hdev->ibh_pd, acflags);
+	if (IS_ERR(mr)) {
+		CERROR("Failed ib_get_dma_mr : %ld\n", PTR_ERR(mr));
+		kiblnd_hdev_cleanup_mrs(hdev);
+		return PTR_ERR(mr);
+	}
 
-		hdev->ibh_mrs[0] = mr;
+	hdev->ibh_mrs[0] = mr;
 
 	return 0;
 }
@@ -2228,13 +2228,10 @@ static int kiblnd_dev_need_failover(kib_dev_t *dev)
 		return rc;
 	}
 
-	if (dev->ibd_hdev->ibh_ibdev == cmid->device) {
-		/* don't need device failover */
-		rdma_destroy_id(cmid);
-		return 0;
-	}
+	rc = dev->ibd_hdev->ibh_ibdev != cmid->device; /* true for failover */
+	rdma_destroy_id(cmid);
 
-	return 1;
+	return rc;
 }
 
 int kiblnd_dev_failover(kib_dev_t *dev)
@@ -2752,7 +2749,7 @@ int kiblnd_startup(lnet_ni_t *ni)
 	char *ifname;
 	kib_dev_t *ibdev = NULL;
 	kib_net_t *net;
-	struct timeval tv;
+	struct timespec64 tv;
 	unsigned long flags;
 	int rc;
 	int newdev;
@@ -2770,8 +2767,9 @@ int kiblnd_startup(lnet_ni_t *ni)
 	if (net == NULL)
 		goto net_failed;
 
-	do_gettimeofday(&tv);
-	net->ibn_incarnation = (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;
+	ktime_get_real_ts64(&tv);
+	net->ibn_incarnation = tv.tv_sec * USEC_PER_SEC +
+			       tv.tv_nsec / NSEC_PER_USEC;
 
 	ni->ni_peertimeout    = *kiblnd_tunables.kib_peertimeout;
 	ni->ni_maxtxcredits   = *kiblnd_tunables.kib_credits;

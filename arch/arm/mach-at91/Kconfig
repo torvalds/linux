@@ -4,7 +4,6 @@ menuconfig ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK_AT91
 	select PINCTRL
-	select PINCTRL_AT91
 	select SOC_BUS
 
 if ARCH_AT91
@@ -17,6 +16,7 @@ config SOC_SAMA5D2
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_H32MX
 	select HAVE_AT91_GENERATED_CLK
+	select PINCTRL_AT91PIO4
 	help
 	  Select this if ou are using one of Atmel's SAMA5D2 family SoC.
 
@@ -27,6 +27,7 @@ config SOC_SAMA5D3
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
+	select PINCTRL_AT91
 	help
 	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
 	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
@@ -40,6 +41,7 @@ config SOC_SAMA5D4
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_H32MX
+	select PINCTRL_AT91
 	help
 	  Select this if you are using one of Atmel's SAMA5D4 family SoC.
 
@@ -50,6 +52,7 @@ config SOC_AT91RM9200
 	select CPU_ARM920T
 	select HAVE_AT91_USB_CLK
 	select MIGHT_HAVE_PCI
+	select PINCTRL_AT91
 	select SOC_SAM_V4_V5
 	select SRAM if PM
 	help
@@ -65,6 +68,7 @@ config SOC_AT91SAM9
 	select HAVE_AT91_UTMI
 	select HAVE_FB_ATMEL
 	select MEMORY
+	select PINCTRL_AT91
 	select SOC_SAM_V4_V5
 	select SRAM if PM
 	help
@@ -100,6 +104,9 @@ config HAVE_AT91_SMD
 	bool
 
 config HAVE_AT91_H32MX
+	bool
+
+config HAVE_AT91_GENERATED_CLK
 	bool
 
 config SOC_SAM_V4_V5

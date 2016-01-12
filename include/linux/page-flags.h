@@ -86,12 +86,7 @@ enum pageflags {
 	PG_private,		/* If pagecache, has fs-private data */
 	PG_private_2,		/* If pagecache, has fs aux data */
 	PG_writeback,		/* Page is under writeback */
-#ifdef CONFIG_PAGEFLAGS_EXTENDED
 	PG_head,		/* A head page */
-	PG_tail,		/* A tail page */
-#else
-	PG_compound,		/* A compound page */
-#endif
 	PG_swapcache,		/* Swap page: swp_entry_t in private */
 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
 	PG_reclaim,		/* To be reclaimed asap */
@@ -256,7 +251,7 @@ PAGEFLAG(Readahead, reclaim) TESTCLEARFLAG(Readahead, reclaim)
  * Must use a macro here due to header dependency issues. page_zone() is not
  * available at this point.
  */
-#define PageHighMem(__p) is_highmem(page_zone(__p))
+#define PageHighMem(__p) is_highmem_idx(page_zonenum(__p))
 #else
 PAGEFLAG_FALSE(HighMem)
 #endif
@@ -398,21 +393,35 @@ static inline void set_page_writeback_keepwrite(struct page *page)
 	test_set_page_writeback_keepwrite(page);
 }
 
-#ifdef CONFIG_PAGEFLAGS_EXTENDED
-/*
- * System with lots of page flags available. This allows separate
- * flags for PageHead() and PageTail() checks of compound pages so that bit
- * tests can be used in performance sensitive paths. PageCompound is
- * generally not used in hot code paths except arch/powerpc/mm/init_64.c
- * and arch/powerpc/kvm/book3s_64_vio_hv.c which use it to detect huge pages
- * and avoid handling those in real mode.
- */
 __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
-__PAGEFLAG(Tail, tail)
+
+static inline int PageTail(struct page *page)
+{
+	return READ_ONCE(page->compound_head) & 1;
+}
+
+static inline void set_compound_head(struct page *page, struct page *head)
+{
+	WRITE_ONCE(page->compound_head, (unsigned long)head + 1);
+}
+
+static inline void clear_compound_head(struct page *page)
+{
+	WRITE_ONCE(page->compound_head, 0);
+}
+
+static inline struct page *compound_head(struct page *page)
+{
+	unsigned long head = READ_ONCE(page->compound_head);
+
+	if (unlikely(head & 1))
+		return (struct page *) (head - 1);
+	return page;
+}
 
 static inline int PageCompound(struct page *page)
 {
-	return page->flags & ((1L << PG_head) | (1L << PG_tail));
+	return PageHead(page) || PageTail(page);
 
 }
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -424,59 +433,6 @@ static inline void ClearPageCompound(struct page *page)
 #endif
 
 #define PG_head_mask ((1L << PG_head))
-
-#else
-/*
- * Reduce page flag use as much as possible by overlapping
- * compound page flags with the flags used for page cache pages. Possible
- * because PageCompound is always set for compound pages and not for
- * pages on the LRU and/or pagecache.
- */
-TESTPAGEFLAG(Compound, compound)
-__SETPAGEFLAG(Head, compound)  __CLEARPAGEFLAG(Head, compound)
-
-/*
- * PG_reclaim is used in combination with PG_compound to mark the
- * head and tail of a compound page. This saves one page flag
- * but makes it impossible to use compound pages for the page cache.
- * The PG_reclaim bit would have to be used for reclaim or readahead
- * if compound pages enter the page cache.
- *
- * PG_compound & PG_reclaim	=> Tail page
- * PG_compound & ~PG_reclaim	=> Head page
- */
-#define PG_head_mask ((1L << PG_compound))
-#define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
-
-static inline int PageHead(struct page *page)
-{
-	return ((page->flags & PG_head_tail_mask) == PG_head_mask);
-}
-
-static inline int PageTail(struct page *page)
-{
-	return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
-}
-
-static inline void __SetPageTail(struct page *page)
-{
-	page->flags |= PG_head_tail_mask;
-}
-
-static inline void __ClearPageTail(struct page *page)
-{
-	page->flags &= ~PG_head_tail_mask;
-}
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static inline void ClearPageCompound(struct page *page)
-{
-	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
-	clear_bit(PG_compound, &page->flags);
-}
-#endif
-
-#endif /* !PAGEFLAGS_EXTENDED */
 
 #ifdef CONFIG_HUGETLB_PAGE
 int PageHuge(struct page *page);

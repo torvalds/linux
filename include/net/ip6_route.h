@@ -133,27 +133,18 @@ void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 /*
  *	Store a destination cache entry in a socket
  */
-static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				   const struct in6_addr *daddr,
-				   const struct in6_addr *saddr)
+static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
+				 const struct in6_addr *daddr,
+				 const struct in6_addr *saddr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct rt6_info *rt = (struct rt6_info *) dst;
 
+	np->dst_cookie = rt6_get_cookie((struct rt6_info *)dst);
 	sk_setup_caps(sk, dst);
 	np->daddr_cache = daddr;
 #ifdef CONFIG_IPV6_SUBTREES
 	np->saddr_cache = saddr;
 #endif
-	np->dst_cookie = rt6_get_cookie(rt);
-}
-
-static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				 struct in6_addr *daddr, struct in6_addr *saddr)
-{
-	spin_lock(&sk->sk_dst_lock);
-	__ip6_dst_store(sk, dst, daddr, saddr);
-	spin_unlock(&sk->sk_dst_lock);
 }
 
 static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
@@ -173,8 +164,8 @@ static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 		 ipv6_addr_equal(&rt->rt6i_dst.addr, daddr));
 }
 
-int ip6_fragment(struct sock *sk, struct sk_buff *skb,
-		 int (*output)(struct sock *, struct sk_buff *));
+int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+		 int (*output)(struct net *, struct sock *, struct sk_buff *));
 
 static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 {

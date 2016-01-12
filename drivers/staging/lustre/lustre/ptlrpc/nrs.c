@@ -49,7 +49,6 @@
 
 /* XXX: This is just for liblustre. Remove the #if defined directive when the
  * "cfs_" prefix is dropped from cfs_list_head. */
-extern struct list_head ptlrpc_all_services;
 
 /**
  * NRS core object.
@@ -478,7 +477,6 @@ static void nrs_resource_get_safe(struct ptlrpc_nrs *nrs,
  *
  * \param resp	the resource hierarchy that is being released
  *
- * \see ptlrpc_nrs_req_hp_move()
  * \see ptlrpc_nrs_req_finalize()
  */
 static void nrs_resource_put_safe(struct ptlrpc_nrs_resource **resp)
@@ -1113,7 +1111,7 @@ again:
  * \retval -ve error
  * \retval   0 success
  */
-int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
+static int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 {
 	struct ptlrpc_service *svc;
 	struct ptlrpc_nrs_pol_desc *desc;
@@ -1249,71 +1247,6 @@ fail:
 
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_nrs_policy_register);
-
-/**
- * Unregisters a previously registered policy with NRS core. All instances of
- * the policy on all NRS heads of all supported services are removed.
- *
- * N.B. This function should only be called from a module's exit() function.
- *	Although it can be used for policies that ship alongside NRS core, the
- *	function is primarily intended for policies that register externally,
- *	from other modules.
- *
- * \param[in] conf configuration information for the policy to unregister
- *
- * \retval -ve error
- * \retval   0 success
- */
-int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
-{
-	struct ptlrpc_nrs_pol_desc *desc;
-	int rc;
-
-	LASSERT(conf != NULL);
-
-	if (conf->nc_flags & PTLRPC_NRS_FL_FALLBACK) {
-		CERROR("Unable to unregister a fallback policy, unless the PTLRPC service is stopping.\n");
-		return -EPERM;
-	}
-
-	conf->nc_name[NRS_POL_NAME_MAX - 1] = '\0';
-
-	mutex_lock(&nrs_core.nrs_mutex);
-
-	desc = nrs_policy_find_desc_locked(conf->nc_name);
-	if (desc == NULL) {
-		CERROR("Failing to unregister NRS policy %s which has not been registered with NRS core!\n",
-		       conf->nc_name);
-		rc = -ENOENT;
-		goto not_exist;
-	}
-
-	mutex_lock(&ptlrpc_all_services_mutex);
-
-	rc = nrs_policy_unregister_locked(desc);
-	if (rc < 0) {
-		if (rc == -EBUSY)
-			CERROR("Please first stop policy %s on all service partitions and then retry to unregister the policy.\n",
-			       conf->nc_name);
-		goto fail;
-	}
-
-	CDEBUG(D_INFO, "Unregistering policy %s from NRS core.\n",
-	       conf->nc_name);
-
-	list_del(&desc->pd_list);
-	kfree(desc);
-
-fail:
-	mutex_unlock(&ptlrpc_all_services_mutex);
-
-not_exist:
-	mutex_unlock(&nrs_core.nrs_mutex);
-
-	return rc;
-}
-EXPORT_SYMBOL(ptlrpc_nrs_policy_unregister);
 
 /**
  * Setup NRS heads on all service partitions of service \a svc, and register
@@ -1554,22 +1487,6 @@ ptlrpc_nrs_req_get_nolock0(struct ptlrpc_service_part *svcpt, bool hp,
 }
 
 /**
- * Dequeues request \a req from the policy it has been enqueued on.
- *
- * \param[in] req the request
- */
-void ptlrpc_nrs_req_del_nolock(struct ptlrpc_request *req)
-{
-	struct ptlrpc_nrs_policy *policy = nrs_request_policy(&req->rq_nrq);
-
-	policy->pol_desc->pd_ops->op_req_dequeue(policy, &req->rq_nrq);
-
-	req->rq_nrq.nr_enqueued = 0;
-
-	nrs_request_removed(policy);
-}
-
-/**
  * Returns whether there are any requests currently enqueued on any of the
  * policies of service partition's \a svcpt NRS head specified by \a hp. Should
  * be called while holding ptlrpc_service_part::scp_req_lock to get a reliable
@@ -1588,48 +1505,6 @@ bool ptlrpc_nrs_req_pending_nolock(struct ptlrpc_service_part *svcpt, bool hp)
 
 	return nrs->nrs_req_queued > 0;
 };
-
-/**
- * Moves request \a req from the regular to the high-priority NRS head.
- *
- * \param[in] req the request to move
- */
-void ptlrpc_nrs_req_hp_move(struct ptlrpc_request *req)
-{
-	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
-	struct ptlrpc_nrs_request *nrq = &req->rq_nrq;
-	struct ptlrpc_nrs_resource *res1[NRS_RES_MAX];
-	struct ptlrpc_nrs_resource *res2[NRS_RES_MAX];
-
-	/**
-	 * Obtain the high-priority NRS head resources.
-	 */
-	nrs_resource_get_safe(nrs_svcpt2nrs(svcpt, true), nrq, res1, true);
-
-	spin_lock(&svcpt->scp_req_lock);
-
-	if (!ptlrpc_nrs_req_can_move(req))
-		goto out;
-
-	ptlrpc_nrs_req_del_nolock(req);
-
-	memcpy(res2, nrq->nr_res_ptrs, NRS_RES_MAX * sizeof(res2[0]));
-	memcpy(nrq->nr_res_ptrs, res1, NRS_RES_MAX * sizeof(res1[0]));
-
-	ptlrpc_nrs_hpreq_add_nolock(req);
-
-	memcpy(res1, res2, NRS_RES_MAX * sizeof(res1[0]));
-out:
-	spin_unlock(&svcpt->scp_req_lock);
-
-	/**
-	 * Release either the regular NRS head resources if we moved the
-	 * request, or the high-priority NRS head resources if we took a
-	 * reference earlier in this function and ptlrpc_nrs_req_can_move()
-	 * returned false.
-	 */
-	nrs_resource_put_safe(res1);
-}
 
 /**
  * Carries out a control operation \a opc on the policy identified by the
@@ -1698,7 +1573,6 @@ out:
 	return rc;
 }
 
-
 /* ptlrpc/nrs_fifo.c */
 extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
 
@@ -1719,7 +1593,6 @@ int ptlrpc_nrs_init(void)
 	rc = ptlrpc_nrs_policy_register(&nrs_conf_fifo);
 	if (rc != 0)
 		goto fail;
-
 
 	return rc;
 fail:

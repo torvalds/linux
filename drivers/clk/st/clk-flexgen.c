@@ -268,6 +268,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	int num_parents, i;
 	spinlock_t *rlock = NULL;
 	unsigned long flex_flags = 0;
+	int ret;
 
 	pnode = of_get_parent(np);
 	if (!pnode)
@@ -285,13 +286,13 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	if (!clk_data)
 		goto err;
 
-	clk_data->clk_num = of_property_count_strings(np ,
-			"clock-output-names");
-	if (clk_data->clk_num <= 0) {
+	ret = of_property_count_strings(np, "clock-output-names");
+	if (ret <= 0) {
 		pr_err("%s: Failed to get number of output clocks (%d)",
 				__func__, clk_data->clk_num);
 		goto err;
 	}
+	clk_data->clk_num = ret;
 
 	clk_data->clks = kcalloc(clk_data->clk_num, sizeof(struct clk *),
 			GFP_KERNEL);

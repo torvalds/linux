@@ -134,11 +134,12 @@ done:
 		skip = true;
 		s->skip_first_frames--;
 	}
-	v4l2_get_timestamp(&cb->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&cb->vb.timestamp);
 	/* TODO: the sequence number should be read from the FPGA so we
 	   also know about dropped frames. */
-	cb->vb.v4l2_buf.sequence = s->sequence++;
-	vb2_buffer_done(&cb->vb, (skip || s->unstable_frame) ?
+	cb->vb.sequence = s->sequence++;
+	vb2_buffer_done(&cb->vb.vb2_buf,
+			(skip || s->unstable_frame) ?
 			VB2_BUF_STATE_REQUEUEING : VB2_BUF_STATE_DONE);
 }
 

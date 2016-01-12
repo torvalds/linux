@@ -1111,7 +1111,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	u32 cawake_gpio = 0;
+	int cawake_gpio = 0;
 	u32 port_id;
 	int err;
 

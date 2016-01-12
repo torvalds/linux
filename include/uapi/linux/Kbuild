@@ -264,6 +264,7 @@ header-y += minix_fs.h
 header-y += mman.h
 header-y += mmtimer.h
 header-y += mpls.h
+header-y += mpls_iptunnel.h
 header-y += mqueue.h
 header-y += mroute6.h
 header-y += mroute.h

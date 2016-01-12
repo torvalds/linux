@@ -221,7 +221,7 @@ static void brcmf_flowring_block(struct brcmf_flowring *flow, u8 flowid,
 
 	bus_if = dev_get_drvdata(flow->dev);
 	drvr = bus_if->drvr;
-	ifp = drvr->iflist[ifidx];
+	ifp = brcmf_get_ifp(drvr, ifidx);
 	brcmf_txflowblock_if(ifp, BRCMF_NETIF_STOP_REASON_FLOW, blocked);
 
 	spin_unlock_irqrestore(&flow->block_lock, flags);

@@ -5,9 +5,28 @@
 #ifndef __LINUX_USB_CHIPIDEA_H
 #define __LINUX_USB_CHIPIDEA_H
 
+#include <linux/extcon.h>
 #include <linux/usb/otg.h>
 
 struct ci_hdrc;
+
+/**
+ * struct ci_hdrc_cable - structure for external connector cable state tracking
+ * @state: current state of the line
+ * @changed: set to true when extcon event happen
+ * @edev: device which generate events
+ * @ci: driver state of the chipidea device
+ * @nb: hold event notification callback
+ * @conn: used for notification registration
+ */
+struct ci_hdrc_cable {
+	bool				state;
+	bool				changed;
+	struct extcon_dev		*edev;
+	struct ci_hdrc			*ci;
+	struct notifier_block		nb;
+};
+
 struct ci_hdrc_platform_data {
 	const char	*name;
 	/* offset of the capability registers */
@@ -48,6 +67,11 @@ struct ci_hdrc_platform_data {
 	u32			ahb_burst_config;
 	u32			tx_burst_size;
 	u32			rx_burst_size;
+
+	/* VBUS and ID signal state tracking, using extcon framework */
+	struct ci_hdrc_cable		vbus_extcon;
+	struct ci_hdrc_cable		id_extcon;
+	u32			phy_clkgate_delay_us;
 };
 
 /* Default offset of capability registers */

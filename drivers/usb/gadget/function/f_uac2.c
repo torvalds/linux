@@ -1081,14 +1081,12 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		goto err;
 	}
-	agdev->out_ep->driver_data = agdev;
 
 	agdev->in_ep = usb_ep_autoconfig(gadget, &fs_epin_desc);
 	if (!agdev->in_ep) {
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		goto err;
 	}
-	agdev->in_ep->driver_data = agdev;
 
 	uac2->p_prm.uac2 = uac2;
 	uac2->c_prm.uac2 = uac2;
@@ -1132,10 +1130,6 @@ err_free_descs:
 err:
 	kfree(agdev->uac2.p_prm.rbuf);
 	kfree(agdev->uac2.c_prm.rbuf);
-	if (agdev->in_ep)
-		agdev->in_ep->driver_data = NULL;
-	if (agdev->out_ep)
-		agdev->out_ep->driver_data = NULL;
 	return -EINVAL;
 }
 
@@ -1445,9 +1439,6 @@ static inline struct f_uac2_opts *to_f_uac2_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_uac2_opts);
-CONFIGFS_ATTR_OPS(f_uac2_opts);
-
 static void f_uac2_attr_release(struct config_item *item)
 {
 	struct f_uac2_opts *opts = to_f_uac2_opts(item);
@@ -1457,14 +1448,13 @@ static void f_uac2_attr_release(struct config_item *item)
 
 static struct configfs_item_operations f_uac2_item_ops = {
 	.release	= f_uac2_attr_release,
-	.show_attribute	= f_uac2_opts_attr_show,
-	.store_attribute = f_uac2_opts_attr_store,
 };
 
 #define UAC2_ATTRIBUTE(name)						\
-static ssize_t f_uac2_opts_##name##_show(struct f_uac2_opts *opts,	\
+static ssize_t f_uac2_opts_##name##_show(struct config_item *item,	\
 					 char *page)			\
 {									\
+	struct f_uac2_opts *opts = to_f_uac2_opts(item);		\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
@@ -1474,9 +1464,10 @@ static ssize_t f_uac2_opts_##name##_show(struct f_uac2_opts *opts,	\
 	return result;							\
 }									\
 									\
-static ssize_t f_uac2_opts_##name##_store(struct f_uac2_opts *opts,	\
+static ssize_t f_uac2_opts_##name##_store(struct config_item *item,	\
 					  const char *page, size_t len)	\
 {									\
+	struct f_uac2_opts *opts = to_f_uac2_opts(item);		\
 	int ret;							\
 	u32 num;							\
 									\
@@ -1498,10 +1489,7 @@ end:									\
 	return ret;							\
 }									\
 									\
-static struct f_uac2_opts_attribute f_uac2_opts_##name =		\
-	__CONFIGFS_ATTR(name, S_IRUGO | S_IWUSR,			\
-			f_uac2_opts_##name##_show,			\
-			f_uac2_opts_##name##_store)
+CONFIGFS_ATTR(f_uac2_opts_, name)
 
 UAC2_ATTRIBUTE(p_chmask);
 UAC2_ATTRIBUTE(p_srate);
@@ -1511,12 +1499,12 @@ UAC2_ATTRIBUTE(c_srate);
 UAC2_ATTRIBUTE(c_ssize);
 
 static struct configfs_attribute *f_uac2_attrs[] = {
-	&f_uac2_opts_p_chmask.attr,
-	&f_uac2_opts_p_srate.attr,
-	&f_uac2_opts_p_ssize.attr,
-	&f_uac2_opts_c_chmask.attr,
-	&f_uac2_opts_c_srate.attr,
-	&f_uac2_opts_c_ssize.attr,
+	&f_uac2_opts_attr_p_chmask,
+	&f_uac2_opts_attr_p_srate,
+	&f_uac2_opts_attr_p_ssize,
+	&f_uac2_opts_attr_c_chmask,
+	&f_uac2_opts_attr_c_srate,
+	&f_uac2_opts_attr_c_ssize,
 	NULL,
 };
 
@@ -1583,11 +1571,6 @@ static void afunc_unbind(struct usb_configuration *c, struct usb_function *f)
 	prm = &agdev->uac2.c_prm;
 	kfree(prm->rbuf);
 	usb_free_all_descriptors(f);
-
-	if (agdev->in_ep)
-		agdev->in_ep->driver_data = NULL;
-	if (agdev->out_ep)
-		agdev->out_ep->driver_data = NULL;
 }
 
 static struct usb_function *afunc_alloc(struct usb_function_instance *fi)

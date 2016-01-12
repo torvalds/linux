@@ -235,7 +235,7 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
  */
 bool __map__is_kernel(const struct map *map)
 {
-	return map->groups->machine->vmlinux_maps[map->type] == map;
+	return __machine__kernel_map(map->groups->machine, map->type) == map;
 }
 
 static void map__exit(struct map *map)
@@ -553,13 +553,9 @@ struct symbol *map_groups__find_symbol(struct map_groups *mg,
 	return NULL;
 }
 
-struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
-					       enum map_type type,
-					       const char *name,
-					       struct map **mapp,
-					       symbol_filter_t filter)
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+					 struct map **mapp, symbol_filter_t filter)
 {
-	struct maps *maps = &mg->maps[type];
 	struct symbol *sym;
 	struct rb_node *nd;
 
@@ -580,6 +576,17 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 	sym = NULL;
 out:
 	pthread_rwlock_unlock(&maps->lock);
+	return sym;
+}
+
+struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
+					       enum map_type type,
+					       const char *name,
+					       struct map **mapp,
+					       symbol_filter_t filter)
+{
+	struct symbol *sym = maps__find_symbol_by_name(&mg->maps[type], name, mapp, filter);
+
 	return sym;
 }
 
@@ -637,6 +644,12 @@ size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
 	return printed;
 }
 
+static void __map_groups__insert(struct map_groups *mg, struct map *map)
+{
+	__maps__insert(&mg->maps[map->type], map);
+	map->groups = mg;
+}
+
 static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 {
 	struct rb_root *root;
@@ -675,7 +688,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			before->end = map->start;
-			__maps__insert(maps, before);
+			__map_groups__insert(pos->groups, before);
 			if (verbose >= 2)
 				map__fprintf(before, fp);
 		}
@@ -689,7 +702,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			after->start = map->end;
-			__maps__insert(maps, after);
+			__map_groups__insert(pos->groups, after);
 			if (verbose >= 2)
 				map__fprintf(after, fp);
 		}

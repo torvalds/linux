@@ -111,6 +111,8 @@ int instruction_count(void)
 	struct event event;
 	uint64_t overhead;
 
+	SKIP_IF(!ebb_is_supported());
+
 	event_init_named(&event, 0x400FA, "PM_RUN_INST_CMPL");
 	event_leader_ebb_init(&event);
 	event.attr.exclude_kernel = 1;

@@ -255,8 +255,8 @@ static enum drm_mode_status ch7017_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void ch7017_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	uint8_t lvds_pll_feedback_div, lvds_pll_vco_control;
 	uint8_t outputs_enable, lvds_control_2, lvds_power_down;

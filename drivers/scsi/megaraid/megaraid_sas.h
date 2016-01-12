@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.807.10.00-rc1"
-#define MEGASAS_RELDATE				"March 6, 2015"
+#define MEGASAS_VERSION				"06.808.16.00-rc1"
+#define MEGASAS_RELDATE				"Oct. 8, 2015"
 
 /*
  * Device IDs
@@ -52,6 +52,10 @@
 #define PCI_DEVICE_ID_LSI_PLASMA		0x002f
 #define PCI_DEVICE_ID_LSI_INVADER		0x005d
 #define PCI_DEVICE_ID_LSI_FURY			0x005f
+#define PCI_DEVICE_ID_LSI_INTRUDER		0x00ce
+#define PCI_DEVICE_ID_LSI_INTRUDER_24		0x00cf
+#define PCI_DEVICE_ID_LSI_CUTLASS_52		0x0052
+#define PCI_DEVICE_ID_LSI_CUTLASS_53		0x0053
 
 /*
  * Intel HBA SSDIDs
@@ -62,6 +66,14 @@
 #define MEGARAID_INTEL_RS3MC044_SSDID		0x9381
 #define MEGARAID_INTEL_RS3WC080_SSDID		0x9341
 #define MEGARAID_INTEL_RS3WC040_SSDID		0x9343
+#define MEGARAID_INTEL_RMS3BC160_SSDID		0x352B
+
+/*
+ * Intruder HBA SSDIDs
+ */
+#define MEGARAID_INTRUDER_SSDID1		0x9371
+#define MEGARAID_INTRUDER_SSDID2		0x9390
+#define MEGARAID_INTRUDER_SSDID3		0x9370
 
 /*
  * Intel HBA branding
@@ -78,6 +90,8 @@
 	"Intel(R) RAID Controller RS3WC080"
 #define MEGARAID_INTEL_RS3WC040_BRANDING	\
 	"Intel(R) RAID Controller RS3WC040"
+#define MEGARAID_INTEL_RMS3BC160_BRANDING	\
+	"Intel(R) Integrated RAID Module RMS3BC160"
 
 /*
  * =====================================
@@ -273,6 +287,16 @@ enum MFI_STAT {
 	MFI_STAT_INVALID_STATUS = 0xFF
 };
 
+enum mfi_evt_class {
+	MFI_EVT_CLASS_DEBUG =		-2,
+	MFI_EVT_CLASS_PROGRESS =	-1,
+	MFI_EVT_CLASS_INFO =		0,
+	MFI_EVT_CLASS_WARNING =		1,
+	MFI_EVT_CLASS_CRITICAL =	2,
+	MFI_EVT_CLASS_FATAL =		3,
+	MFI_EVT_CLASS_DEAD =		4
+};
+
 /*
  * Crash dump related defines
  */
@@ -364,6 +388,8 @@ enum MR_EVT_ARGS {
 	MR_EVT_ARGS_GENERIC,
 };
 
+
+#define SGE_BUFFER_SIZE	4096
 /*
  * define constants for device list query options
  */
@@ -394,6 +420,7 @@ enum MR_LD_QUERY_TYPE {
 #define MR_EVT_FOREIGN_CFG_IMPORTED                     0x00db
 #define MR_EVT_LD_OFFLINE                               0x00fc
 #define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED             0x0152
+#define MR_EVT_CTRL_PROP_CHANGED			0x012f
 
 enum MR_PD_STATE {
 	MR_PD_STATE_UNCONFIGURED_GOOD   = 0x00,
@@ -973,7 +1000,12 @@ struct megasas_ctrl_info {
 
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:12;
+		u32     reserved:7;
+		u32     useSeqNumJbodFP:1;
+		u32     supportExtendedSSCSize:1;
+		u32     supportDiskCacheSettingForSysPDs:1;
+		u32     supportCPLDUpdate:1;
+		u32     supportTTYLogCompression:1;
 		u32     discardCacheDuringLDDelete:1;
 		u32     supportSecurityonJBOD:1;
 		u32     supportCacheBypassModes:1;
@@ -1013,7 +1045,12 @@ struct megasas_ctrl_info {
 		u32     supportCacheBypassModes:1;
 		u32     supportSecurityonJBOD:1;
 		u32     discardCacheDuringLDDelete:1;
-		u32     reserved:12;
+		u32     supportTTYLogCompression:1;
+		u32     supportCPLDUpdate:1;
+		u32     supportDiskCacheSettingForSysPDs:1;
+		u32     supportExtendedSSCSize:1;
+		u32     useSeqNumJbodFP:1;
+		u32     reserved:7;
 #endif
 	} adapterOperations3;
 
@@ -1229,7 +1266,9 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:25;
+		u32     reserved:23;
+		u32     support_ext_io_size:1;
+		u32	support_ext_queue_depth:1;
 		u32     security_protocol_cmds_fw:1;
 		u32     support_core_affinity:1;
 		u32     support_ndrive_r1_lb:1;
@@ -1245,7 +1284,9 @@ typedef union _MFI_CAPABILITIES {
 		u32     support_ndrive_r1_lb:1;
 		u32     support_core_affinity:1;
 		u32     security_protocol_cmds_fw:1;
-		u32     reserved:25;
+		u32	support_ext_queue_depth:1;
+		u32     support_ext_io_size:1;
+		u32     reserved:23;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -1690,6 +1731,7 @@ struct megasas_instance {
 	u32 crash_dump_drv_support;
 	u32 crash_dump_app_support;
 	u32 secure_jbod_support;
+	bool use_seqnum_jbod_fp;   /* Added for PD sequence */
 	spinlock_t crashdump_lock;
 
 	struct megasas_register_set __iomem *reg_set;
@@ -1748,6 +1790,7 @@ struct megasas_instance {
 	u8 UnevenSpanSupport;
 
 	u8 supportmax256vd;
+	u8 allow_fw_scan;
 	u16 fw_supported_vd_count;
 	u16 fw_supported_pd_count;
 
@@ -1769,7 +1812,9 @@ struct megasas_instance {
 	struct msix_entry msixentry[MEGASAS_MAX_MSIX_QUEUES];
 	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
 	u64 map_id;
+	u64 pd_seq_map_id;
 	struct megasas_cmd *map_update_cmd;
+	struct megasas_cmd *jbod_seq_cmd;
 	unsigned long bar;
 	long reset_flags;
 	struct mutex reset_mutex;
@@ -1780,6 +1825,7 @@ struct megasas_instance {
 	char mpio;
 	u16 throttlequeuedepth;
 	u8 mask_interrupts;
+	u16 max_chain_frame_sz;
 	u8 is_imr;
 	bool dev_handle;
 };
@@ -1985,6 +2031,9 @@ __le16 get_updated_dev_handle(struct megasas_instance *instance,
 void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *map,
 	struct LD_LOAD_BALANCE_INFO *lbInfo);
 int megasas_get_ctrl_info(struct megasas_instance *instance);
+/* PD sequence */
+int
+megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend);
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);
@@ -2000,5 +2049,6 @@ void __megasas_return_cmd(struct megasas_instance *instance,
 void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
 	struct megasas_cmd *cmd_mfi, struct megasas_cmd_fusion *cmd_fusion);
 int megasas_cmd_type(struct scsi_cmnd *cmd);
+void megasas_setup_jbod_map(struct megasas_instance *instance);
 
 #endif				/*LSI_MEGARAID_SAS_H */

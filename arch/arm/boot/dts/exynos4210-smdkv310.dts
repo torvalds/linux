@@ -16,6 +16,7 @@
 
 /dts-v1/;
 #include "exynos4210.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Samsung smdkv310 evaluation board based on Exynos4210";
@@ -182,7 +183,7 @@
 };
 
 &spi_2 {
-	cs-gpios = <&gpc1 2 0>;
+	cs-gpios = <&gpc1 2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	w25x80@0 {

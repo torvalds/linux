@@ -556,6 +556,16 @@ config LEDS_KTD2692
 
 	  Say Y to enable this driver.
 
+config LEDS_SEAD3
+	tristate "LED support for the MIPS SEAD 3 board"
+	depends on LEDS_CLASS && MIPS_SEAD3
+	help
+	  Say Y here to include support for the FLED and PLED LEDs on SEAD3 eval
+	  boards.
+
+	  This driver can also be built as a module. If so the module
+	  will be called leds-sead3.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM

@@ -31,6 +31,7 @@ gf100_pci_msi_rearm(struct nvkm_pci *pci)
 
 static const struct nvkm_pci_func
 gf100_pci_func = {
+	.init = g84_pci_init,
 	.rd32 = nv40_pci_rd32,
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,

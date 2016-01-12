@@ -14,7 +14,7 @@ struct vm_area_struct;
 #define ___GFP_HIGHMEM		0x02u
 #define ___GFP_DMA32		0x04u
 #define ___GFP_MOVABLE		0x08u
-#define ___GFP_WAIT		0x10u
+#define ___GFP_RECLAIMABLE	0x10u
 #define ___GFP_HIGH		0x20u
 #define ___GFP_IO		0x40u
 #define ___GFP_FS		0x80u
@@ -29,18 +29,17 @@ struct vm_area_struct;
 #define ___GFP_NOMEMALLOC	0x10000u
 #define ___GFP_HARDWALL		0x20000u
 #define ___GFP_THISNODE		0x40000u
-#define ___GFP_RECLAIMABLE	0x80000u
+#define ___GFP_ATOMIC		0x80000u
 #define ___GFP_NOACCOUNT	0x100000u
 #define ___GFP_NOTRACK		0x200000u
-#define ___GFP_NO_KSWAPD	0x400000u
+#define ___GFP_DIRECT_RECLAIM	0x400000u
 #define ___GFP_OTHER_NODE	0x800000u
 #define ___GFP_WRITE		0x1000000u
+#define ___GFP_KSWAPD_RECLAIM	0x2000000u
 /* If the above are modified, __GFP_BITS_SHIFT may need updating */
 
 /*
- * GFP bitmasks..
- *
- * Zone modifiers (see linux/mmzone.h - low three bits)
+ * Physical address zone modifiers (see linux/mmzone.h - low four bits)
  *
  * Do not put any conditional on these. If necessary modify the definitions
  * without the underscores and use them consistently. The definitions here may
@@ -50,116 +49,229 @@ struct vm_area_struct;
 #define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
 #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
 #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* Page is movable */
+#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
 #define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
+
 /*
- * Action modifiers - doesn't change the zoning
+ * Page mobility and placement hints
+ *
+ * These flags provide hints about how mobile the page is. Pages with similar
+ * mobility are placed within the same pageblocks to minimise problems due
+ * to external fragmentation.
+ *
+ * __GFP_MOVABLE (also a zone modifier) indicates that the page can be
+ *   moved by page migration during memory compaction or can be reclaimed.
+ *
+ * __GFP_RECLAIMABLE is used for slab allocations that specify
+ *   SLAB_RECLAIM_ACCOUNT and whose pages can be freed via shrinkers.
+ *
+ * __GFP_WRITE indicates the caller intends to dirty the page. Where possible,
+ *   these pages will be spread between local zones to avoid all the dirty
+ *   pages being in one zone (fair zone allocation policy).
+ *
+ * __GFP_HARDWALL enforces the cpuset memory allocation policy.
+ *
+ * __GFP_THISNODE forces the allocation to be satisified from the requested
+ *   node with no fallbacks or placement policy enforcements.
+ */
+#define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE)
+#define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)
+#define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL)
+#define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)
+
+/*
+ * Watermark modifiers -- controls access to emergency reserves
+ *
+ * __GFP_HIGH indicates that the caller is high-priority and that granting
+ *   the request is necessary before the system can make forward progress.
+ *   For example, creating an IO context to clean pages.
+ *
+ * __GFP_ATOMIC indicates that the caller cannot reclaim or sleep and is
+ *   high priority. Users are typically interrupt handlers. This may be
+ *   used in conjunction with __GFP_HIGH
+ *
+ * __GFP_MEMALLOC allows access to all memory. This should only be used when
+ *   the caller guarantees the allocation will allow more memory to be freed
+ *   very shortly e.g. process exiting or swapping. Users either should
+ *   be the MM or co-ordinating closely with the VM (e.g. swap over NFS).
+ *
+ * __GFP_NOMEMALLOC is used to explicitly forbid access to emergency reserves.
+ *   This takes precedence over the __GFP_MEMALLOC flag if both are set.
+ *
+ * __GFP_NOACCOUNT ignores the accounting for kmemcg limit enforcement.
+ */
+#define __GFP_ATOMIC	((__force gfp_t)___GFP_ATOMIC)
+#define __GFP_HIGH	((__force gfp_t)___GFP_HIGH)
+#define __GFP_MEMALLOC	((__force gfp_t)___GFP_MEMALLOC)
+#define __GFP_NOMEMALLOC ((__force gfp_t)___GFP_NOMEMALLOC)
+#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT)
+
+/*
+ * Reclaim modifiers
+ *
+ * __GFP_IO can start physical IO.
+ *
+ * __GFP_FS can call down to the low-level FS. Clearing the flag avoids the
+ *   allocator recursing into the filesystem which might already be holding
+ *   locks.
+ *
+ * __GFP_DIRECT_RECLAIM indicates that the caller may enter direct reclaim.
+ *   This flag can be cleared to avoid unnecessary delays when a fallback
+ *   option is available.
+ *
+ * __GFP_KSWAPD_RECLAIM indicates that the caller wants to wake kswapd when
+ *   the low watermark is reached and have it reclaim pages until the high
+ *   watermark is reached. A caller may wish to clear this flag when fallback
+ *   options are available and the reclaim is likely to disrupt the system. The
+ *   canonical example is THP allocation where a fallback is cheap but
+ *   reclaim/compaction may cause indirect stalls.
+ *
+ * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
  *
  * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
- * _might_ fail.  This depends upon the particular VM implementation.
+ *   _might_ fail.  This depends upon the particular VM implementation.
  *
  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
- * cannot handle allocation failures. New users should be evaluated carefully
- * (and the flag should be used only when there is no reasonable failure policy)
- * but it is definitely preferable to use the flag rather than opencode endless
- * loop around allocator.
+ *   cannot handle allocation failures. New users should be evaluated carefully
+ *   (and the flag should be used only when there is no reasonable failure
+ *   policy) but it is definitely preferable to use the flag rather than
+ *   opencode endless loop around allocator.
  *
  * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
- * return NULL when direct reclaim and memory compaction have failed to allow
- * the allocation to succeed.  The OOM killer is not called with the current
- * implementation.
- *
- * __GFP_MOVABLE: Flag that this page will be movable by the page migration
- * mechanism or reclaimed
+ *   return NULL when direct reclaim and memory compaction have failed to allow
+ *   the allocation to succeed.  The OOM killer is not called with the current
+ *   implementation.
  */
-#define __GFP_WAIT	((__force gfp_t)___GFP_WAIT)	/* Can wait and reschedule? */
-#define __GFP_HIGH	((__force gfp_t)___GFP_HIGH)	/* Should access emergency pools? */
-#define __GFP_IO	((__force gfp_t)___GFP_IO)	/* Can start physical IO? */
-#define __GFP_FS	((__force gfp_t)___GFP_FS)	/* Can call down to low-level FS? */
-#define __GFP_COLD	((__force gfp_t)___GFP_COLD)	/* Cache-cold page required */
-#define __GFP_NOWARN	((__force gfp_t)___GFP_NOWARN)	/* Suppress page allocation failure warning */
-#define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)	/* See above */
-#define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)	/* See above */
-#define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY) /* See above */
-#define __GFP_MEMALLOC	((__force gfp_t)___GFP_MEMALLOC)/* Allow access to emergency reserves */
-#define __GFP_COMP	((__force gfp_t)___GFP_COMP)	/* Add compound page metadata */
-#define __GFP_ZERO	((__force gfp_t)___GFP_ZERO)	/* Return zeroed page on success */
-#define __GFP_NOMEMALLOC ((__force gfp_t)___GFP_NOMEMALLOC) /* Don't use emergency reserves.
-							 * This takes precedence over the
-							 * __GFP_MEMALLOC flag if both are
-							 * set
-							 */
-#define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
-#define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
-#define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
-#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to kmemcg */
-#define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
-
-#define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
-#define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
-#define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
+#define __GFP_IO	((__force gfp_t)___GFP_IO)
+#define __GFP_FS	((__force gfp_t)___GFP_FS)
+#define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
+#define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
+#define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
+#define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
+#define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
+#define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
 
 /*
- * This may seem redundant, but it's a way of annotating false positives vs.
- * allocations that simply cannot be supported (e.g. page tables).
+ * Action modifiers
+ *
+ * __GFP_COLD indicates that the caller does not expect to be used in the near
+ *   future. Where possible, a cache-cold page will be returned.
+ *
+ * __GFP_NOWARN suppresses allocation failure reports.
+ *
+ * __GFP_COMP address compound page metadata.
+ *
+ * __GFP_ZERO returns a zeroed page on success.
+ *
+ * __GFP_NOTRACK avoids tracking with kmemcheck.
+ *
+ * __GFP_NOTRACK_FALSE_POSITIVE is an alias of __GFP_NOTRACK. It's a means of
+ *   distinguishing in the source between false positives and allocations that
+ *   cannot be supported (e.g. page tables).
+ *
+ * __GFP_OTHER_NODE is for allocations that are on a remote node but that
+ *   should not be accounted for as a remote allocation in vmstat. A
+ *   typical user would be khugepaged collapsing a huge page on a remote
+ *   node.
  */
+#define __GFP_COLD	((__force gfp_t)___GFP_COLD)
+#define __GFP_NOWARN	((__force gfp_t)___GFP_NOWARN)
+#define __GFP_COMP	((__force gfp_t)___GFP_COMP)
+#define __GFP_ZERO	((__force gfp_t)___GFP_ZERO)
+#define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)
 #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+#define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE)
 
-#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
+/* Room for N __GFP_FOO bits */
+#define __GFP_BITS_SHIFT 26
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
-/* This equals 0, but use constants in case they ever change */
-#define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-/* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
-#define GFP_ATOMIC	(__GFP_HIGH)
-#define GFP_NOIO	(__GFP_WAIT)
-#define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
-#define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
-#define GFP_TEMPORARY	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
+/*
+ * Useful GFP flag combinations that are commonly used. It is recommended
+ * that subsystems start with one of these combinations and then set/clear
+ * __GFP_FOO flags as necessary.
+ *
+ * GFP_ATOMIC users can not sleep and need the allocation to succeed. A lower
+ *   watermark is applied to allow access to "atomic reserves"
+ *
+ * GFP_KERNEL is typical for kernel-internal allocations. The caller requires
+ *   ZONE_NORMAL or a lower zone for direct access but can direct reclaim.
+ *
+ * GFP_NOWAIT is for kernel allocations that should not stall for direct
+ *   reclaim, start physical IO or use any filesystem callback.
+ *
+ * GFP_NOIO will use direct reclaim to discard clean pages or slab pages
+ *   that do not require the starting of any physical IO.
+ *
+ * GFP_NOFS will use direct reclaim but will not use any filesystem interfaces.
+ *
+ * GFP_USER is for userspace allocations that also need to be directly
+ *   accessibly by the kernel or hardware. It is typically used by hardware
+ *   for buffers that are mapped to userspace (e.g. graphics) that hardware
+ *   still must DMA to. cpuset limits are enforced for these allocations.
+ *
+ * GFP_DMA exists for historical reasons and should be avoided where possible.
+ *   The flags indicates that the caller requires that the lowest zone be
+ *   used (ZONE_DMA or 16M on x86-64). Ideally, this would be removed but
+ *   it would require careful auditing as some users really require it and
+ *   others use the flag to avoid lowmem reserves in ZONE_DMA and treat the
+ *   lowest zone as a type of emergency reserve.
+ *
+ * GFP_DMA32 is similar to GFP_DMA except that the caller requires a 32-bit
+ *   address.
+ *
+ * GFP_HIGHUSER is for userspace allocations that may be mapped to userspace,
+ *   do not need to be directly accessible by the kernel but that cannot
+ *   move once in use. An example may be a hardware allocation that maps
+ *   data directly into userspace but has no addressing limitations.
+ *
+ * GFP_HIGHUSER_MOVABLE is for userspace allocations that the kernel does not
+ *   need direct access to but can use kmap() when access is required. They
+ *   are expected to be movable via page reclaim or page migration. Typically,
+ *   pages on the LRU would also be allocated with GFP_HIGHUSER_MOVABLE.
+ *
+ * GFP_TRANSHUGE is used for THP allocations. They are compound allocations
+ *   that will fail quickly if memory is not available and will not wake
+ *   kswapd on failure.
+ */
+#define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
+#define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
+#define GFP_NOIO	(__GFP_RECLAIM)
+#define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
+#define GFP_TEMPORARY	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | \
 			 __GFP_RECLAIMABLE)
-#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+#define GFP_USER	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+#define GFP_DMA		__GFP_DMA
+#define GFP_DMA32	__GFP_DMA32
 #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
 #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
-#define GFP_IOFS	(__GFP_IO | __GFP_FS)
-#define GFP_TRANSHUGE	(GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
-			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN | \
-			 __GFP_NO_KSWAPD)
-
-/* This mask makes up all the page movable related flags */
-#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-
-/* Control page allocator reclaim behavior */
-#define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
-			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
-			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
-
-/* Control slab gfp mask during early boot */
-#define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS))
-
-/* Control allocation constraints */
-#define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
-
-/* Do not use these with a slab allocator */
-#define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
-
-/* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
-   platforms, used as appropriate on others */
-
-#define GFP_DMA		__GFP_DMA
-
-/* 4GB DMA on some platforms */
-#define GFP_DMA32	__GFP_DMA32
+#define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
+			 ~__GFP_KSWAPD_RECLAIM)
 
 /* Convert GFP flags to their corresponding migrate type */
+#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+#define GFP_MOVABLE_SHIFT 3
+
 static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
 {
-	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+	VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+	BUILD_BUG_ON((1UL << GFP_MOVABLE_SHIFT) != ___GFP_MOVABLE);
+	BUILD_BUG_ON((___GFP_MOVABLE >> GFP_MOVABLE_SHIFT) != MIGRATE_MOVABLE);
 
 	if (unlikely(page_group_by_mobility_disabled))
 		return MIGRATE_UNMOVABLE;
 
 	/* Group based on mobility */
-	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
-		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+	return (gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
+}
+#undef GFP_MOVABLE_MASK
+#undef GFP_MOVABLE_SHIFT
+
+static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+{
+	return (bool __force)(gfp_flags & __GFP_DIRECT_RECLAIM);
 }
 
 #ifdef CONFIG_HIGHMEM

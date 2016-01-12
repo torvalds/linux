@@ -44,22 +44,38 @@
 #include <linux/usb/phy.h>
 #include "hw.h"
 
-#ifdef DWC2_LOG_WRITES
-static inline void do_write(u32 value, void *addr)
+static inline u32 dwc2_readl(const void __iomem *addr)
 {
-	writel(value, addr);
-	pr_info("INFO:: wrote %08x to %p\n", value, addr);
+	u32 value = __raw_readl(addr);
+
+	/* In order to preserve endianness __raw_* operation is used. Therefore
+	 * a barrier is needed to ensure IO access is not re-ordered across
+	 * reads or writes
+	 */
+	mb();
+	return value;
 }
 
-#undef writel
-#define writel(v, a)	do_write(v, a)
+static inline void dwc2_writel(u32 value, void __iomem *addr)
+{
+	__raw_writel(value, addr);
+
+	/*
+	 * In order to preserve endianness __raw_* operation is used. Therefore
+	 * a barrier is needed to ensure IO access is not re-ordered across
+	 * reads or writes
+	 */
+	mb();
+#ifdef DWC2_LOG_WRITES
+	pr_info("INFO:: wrote %08x to %p\n", value, addr);
 #endif
+}
 
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16
 
-/* s3c-hsotg declarations */
-static const char * const s3c_hsotg_supply_names[] = {
+/* dwc2-hsotg declarations */
+static const char * const dwc2_hsotg_supply_names[] = {
 	"vusb_d",               /* digital USB supply, 1.2V */
 	"vusb_a",               /* analog USB supply, 1.1V */
 };
@@ -85,10 +101,10 @@ static const char * const s3c_hsotg_supply_names[] = {
 #define EP0_MPS_LIMIT   64
 
 struct dwc2_hsotg;
-struct s3c_hsotg_req;
+struct dwc2_hsotg_req;
 
 /**
- * struct s3c_hsotg_ep - driver endpoint definition.
+ * struct dwc2_hsotg_ep - driver endpoint definition.
  * @ep: The gadget layer representation of the endpoint.
  * @name: The driver generated name for the endpoint.
  * @queue: Queue of requests for this endpoint.
@@ -127,11 +143,11 @@ struct s3c_hsotg_req;
  * as in shared-fifo mode periodic in acts like a single-frame packet
  * buffer than a fifo)
  */
-struct s3c_hsotg_ep {
+struct dwc2_hsotg_ep {
 	struct usb_ep           ep;
 	struct list_head        queue;
 	struct dwc2_hsotg       *parent;
-	struct s3c_hsotg_req    *req;
+	struct dwc2_hsotg_req    *req;
 	struct dentry           *debugfs;
 
 	unsigned long           total_data;
@@ -150,17 +166,18 @@ struct s3c_hsotg_ep {
 	unsigned int            periodic:1;
 	unsigned int            isochronous:1;
 	unsigned int            send_zlp:1;
+	unsigned int            has_correct_parity:1;
 
 	char                    name[10];
 };
 
 /**
- * struct s3c_hsotg_req - data transfer request
+ * struct dwc2_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
  * @saved_req_buf: variable to save req.buf when bounce buffers are used.
  */
-struct s3c_hsotg_req {
+struct dwc2_hsotg_req {
 	struct usb_request      req;
 	struct list_head        queue;
 	void *saved_req_buf;
@@ -562,6 +579,15 @@ struct dwc2_hregs_backup {
  *                      - USB_DR_MODE_PERIPHERAL
  *                      - USB_DR_MODE_HOST
  *                      - USB_DR_MODE_OTG
+ * @hcd_enabled		Host mode sub-driver initialization indicator.
+ * @gadget_enabled	Peripheral mode sub-driver initialization indicator.
+ * @ll_hw_enabled	Status of low-level hardware resources.
+ * @phy:                The otg phy transceiver structure for phy control.
+ * @uphy:               The otg phy transceiver structure for old USB phy control.
+ * @plat:               The platform specific configuration data. This can be removed once
+ *                      all SoCs support usb transceiver.
+ * @supplies:           Definition of USB power supplies
+ * @phyif:              PHY interface width
  * @lock:		Spinlock that protects all the driver data structures
  * @priv:		Stores a pointer to the struct usb_hcd
  * @queuing_high_bandwidth: True if multiple packets of a high-bandwidth
@@ -654,12 +680,6 @@ struct dwc2_hregs_backup {
  * These are for peripheral mode:
  *
  * @driver:             USB gadget driver
- * @phy:                The otg phy transceiver structure for phy control.
- * @uphy:               The otg phy transceiver structure for old USB phy control.
- * @plat:               The platform specific configuration data. This can be removed once
- *                      all SoCs support usb transceiver.
- * @supplies:           Definition of USB power supplies
- * @phyif:              PHY interface width
  * @dedicated_fifos:    Set if the hardware has dedicated IN-EP fifos.
  * @num_of_eps:         Number of available EPs (excluding EP0)
  * @debug_root:         Root directrory for debugfs.
@@ -672,7 +692,6 @@ struct dwc2_hregs_backup {
  * @ctrl_req:           Request for EP0 control packets.
  * @ep0_state:          EP0 control transfers state
  * @test_mode:          USB test mode requested by the host
- * @last_rst:           Time of last reset
  * @eps:                The endpoints being supplied to the gadget framework
  * @g_using_dma:          Indicate if dma usage is enabled
  * @g_rx_fifo_sz:         Contains rx fifo size value
@@ -690,13 +709,15 @@ struct dwc2_hsotg {
 	enum usb_dr_mode dr_mode;
 	unsigned int hcd_enabled:1;
 	unsigned int gadget_enabled:1;
+	unsigned int ll_hw_enabled:1;
 
 	struct phy *phy;
 	struct usb_phy *uphy;
-	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
+	struct dwc2_hsotg_plat *plat;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(dwc2_hsotg_supply_names)];
+	u32 phyif;
 
 	spinlock_t lock;
-	struct mutex init_mutex;
 	void *priv;
 	int     irq;
 	struct clk *clk;
@@ -748,6 +769,7 @@ struct dwc2_hsotg {
 	u16 frame_usecs[8];
 	u16 frame_number;
 	u16 periodic_qh_count;
+	bool bus_suspended;
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 #define FRAME_NUM_ARRAY_SIZE 1000
@@ -796,9 +818,6 @@ struct dwc2_hsotg {
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	/* Gadget structures */
 	struct usb_gadget_driver *driver;
-	struct s3c_hsotg_plat *plat;
-
-	u32 phyif;
 	int fifo_mem;
 	unsigned int dedicated_fifos:1;
 	unsigned char num_of_eps;
@@ -814,9 +833,8 @@ struct dwc2_hsotg {
 	struct usb_gadget gadget;
 	unsigned int enabled:1;
 	unsigned int connected:1;
-	unsigned long last_rst;
-	struct s3c_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
-	struct s3c_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
+	struct dwc2_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
+	struct dwc2_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
 	u32 g_using_dma;
 	u32 g_rx_fifo_sz;
 	u32 g_np_g_tx_fifo_sz;
@@ -1088,7 +1106,8 @@ extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
 
 extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 
-
+extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
+extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
 /*
  * Dump core registers and SPRAM
@@ -1104,30 +1123,30 @@ extern u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg);
 
 /* Gadget defines */
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
-extern int s3c_hsotg_remove(struct dwc2_hsotg *hsotg);
-extern int s3c_hsotg_suspend(struct dwc2_hsotg *dwc2);
-extern int s3c_hsotg_resume(struct dwc2_hsotg *dwc2);
+extern int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg);
+extern int dwc2_hsotg_suspend(struct dwc2_hsotg *dwc2);
+extern int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2);
 extern int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
-extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+extern void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset);
-extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
-extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
-extern int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
+extern void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg);
+extern void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2);
+extern int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #define dwc2_is_device_connected(hsotg) (hsotg->connected)
 #else
-static inline int s3c_hsotg_remove(struct dwc2_hsotg *dwc2)
+static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
-static inline int s3c_hsotg_suspend(struct dwc2_hsotg *dwc2)
+static inline int dwc2_hsotg_suspend(struct dwc2_hsotg *dwc2)
 { return 0; }
-static inline int s3c_hsotg_resume(struct dwc2_hsotg *dwc2)
+static inline int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2)
 { return 0; }
 static inline int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
-static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+static inline void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset) {}
-static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
-static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
-static inline int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
+static inline void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
+static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 							int testmode)
 { return 0; }
 #define dwc2_is_device_connected(hsotg) (0)

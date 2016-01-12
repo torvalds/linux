@@ -45,7 +45,7 @@ shadow_fetch(struct nvkm_bios *bios, struct shadow *mthd, u32 upto)
 		u32 read = mthd->func->read(data, start, limit - start, bios);
 		bios->size = start + read;
 	}
-	return bios->size >= limit;
+	return bios->size >= upto;
 }
 
 static int
@@ -55,14 +55,22 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 	struct nvbios_image image;
 	int score = 1;
 
-	if (!shadow_fetch(bios, mthd, offset + 0x1000)) {
-		nvkm_debug(subdev, "%08x: header fetch failed\n", offset);
-		return 0;
-	}
+	if (mthd->func->no_pcir) {
+		image.base = 0;
+		image.type = 0;
+		image.size = mthd->func->size(mthd->data);
+		image.last = 1;
+	} else {
+		if (!shadow_fetch(bios, mthd, offset + 0x1000)) {
+			nvkm_debug(subdev, "%08x: header fetch failed\n",
+				   offset);
+			return 0;
+		}
 
-	if (!nvbios_image(bios, idx, &image)) {
-		nvkm_debug(subdev, "image %d invalid\n", idx);
-		return 0;
+		if (!nvbios_image(bios, idx, &image)) {
+			nvkm_debug(subdev, "image %d invalid\n", idx);
+			return 0;
+		}
 	}
 	nvkm_debug(subdev, "%08x: type %02x, %d bytes\n",
 		   image.base, image.type, image.size);
@@ -74,7 +82,8 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 
 	switch (image.type) {
 	case 0x00:
-		if (nvbios_checksum(&bios->data[image.base], image.size)) {
+		if (!mthd->func->ignore_checksum &&
+		    nvbios_checksum(&bios->data[image.base], image.size)) {
 			nvkm_debug(subdev, "%08x: checksum failed\n",
 				   image.base);
 			if (mthd->func->rw)

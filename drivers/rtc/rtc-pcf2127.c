@@ -20,11 +20,12 @@
 #include <linux/module.h>
 #include <linux/of.h>
 
-#define DRV_VERSION "0.0.1"
-
 #define PCF2127_REG_CTRL1       (0x00)  /* Control Register 1 */
 #define PCF2127_REG_CTRL2       (0x01)  /* Control Register 2 */
+
 #define PCF2127_REG_CTRL3       (0x02)  /* Control Register 3 */
+#define PCF2127_REG_CTRL3_BLF		BIT(2)
+
 #define PCF2127_REG_SC          (0x03)  /* datetime */
 #define PCF2127_REG_MN          (0x04)
 #define PCF2127_REG_HR          (0x05)
@@ -39,8 +40,6 @@ static struct i2c_driver pcf2127_driver;
 
 struct pcf2127 {
 	struct rtc_device *rtc;
-	int voltage_low; /* indicates if a low_voltage was detected */
-	int oscillator_failed; /* OSF was detected and date is unreliable */
 };
 
 /*
@@ -49,7 +48,6 @@ struct pcf2127 {
  */
 static int pcf2127_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	struct pcf2127 *pcf2127 = i2c_get_clientdata(client);
 	unsigned char buf[10] = { PCF2127_REG_CTRL1 };
 
 	/* read registers */
@@ -59,18 +57,15 @@ static int pcf2127_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
-	if (buf[PCF2127_REG_CTRL3] & 0x04) {
-		pcf2127->voltage_low = 1;
+	if (buf[PCF2127_REG_CTRL3] & PCF2127_REG_CTRL3_BLF)
 		dev_info(&client->dev,
 			"low voltage detected, check/replace RTC battery.\n");
-	}
 
 	if (buf[PCF2127_REG_SC] & PCF2127_OSF) {
 		/*
 		 * no need clear the flag here,
 		 * it will be cleared once the new date is saved
 		 */
-		pcf2127->oscillator_failed = 1;
 		dev_warn(&client->dev,
 			 "oscillator stop detected, date/time is not reliable\n");
 		return -EINVAL;
@@ -107,7 +102,6 @@ static int pcf2127_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 static int pcf2127_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	struct pcf2127 *pcf2127 = i2c_get_clientdata(client);
 	unsigned char buf[8];
 	int i = 0, err;
 
@@ -141,9 +135,6 @@ static int pcf2127_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
-	/* clear OSF flag in client data */
-	pcf2127->oscillator_failed = 0;
-
 	return 0;
 }
 
@@ -151,17 +142,28 @@ static int pcf2127_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 static int pcf2127_rtc_ioctl(struct device *dev,
 				unsigned int cmd, unsigned long arg)
 {
-	struct pcf2127 *pcf2127 = i2c_get_clientdata(to_i2c_client(dev));
+	struct i2c_client *client = to_i2c_client(dev);
+	unsigned char buf = PCF2127_REG_CTRL3;
+	int touser;
+	int ret;
 
 	switch (cmd) {
 	case RTC_VL_READ:
-		if (pcf2127->voltage_low)
-			dev_info(dev, "low voltage detected, check/replace battery\n");
-		if (pcf2127->oscillator_failed)
-			dev_info(dev, "oscillator stop detected, date/time is not reliable\n");
+		ret = i2c_master_send(client, &buf, 1);
+		if (!ret)
+			ret = -EIO;
+		if (ret < 0)
+			return ret;
 
-		if (copy_to_user((void __user *)arg, &pcf2127->voltage_low,
-					sizeof(int)))
+		ret = i2c_master_recv(client, &buf, 1);
+		if (!ret)
+			ret = -EIO;
+		if (ret < 0)
+			return ret;
+
+		touser = buf & PCF2127_REG_CTRL3_BLF ? 1 : 0;
+
+		if (copy_to_user((void __user *)arg, &touser, sizeof(int)))
 			return -EFAULT;
 		return 0;
 	default:
@@ -203,8 +205,6 @@ static int pcf2127_probe(struct i2c_client *client,
 	if (!pcf2127)
 		return -ENOMEM;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	i2c_set_clientdata(client, pcf2127);
 
 	pcf2127->rtc = devm_rtc_device_register(&client->dev,
@@ -241,5 +241,4 @@ module_i2c_driver(pcf2127_driver);
 
 MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-technologies.fr>");
 MODULE_DESCRIPTION("NXP PCF2127 RTC driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
+MODULE_LICENSE("GPL v2");

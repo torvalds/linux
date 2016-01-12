@@ -11,8 +11,8 @@
 #define USE_HW_I2C
 
 #ifdef USE_HW_I2C
-    #define i2cWriteReg hwI2CWriteReg
-    #define i2cReadReg  hwI2CReadReg
+    #define i2cWriteReg sm750_hw_i2c_write_reg
+    #define i2cReadReg  sm750_hw_i2c_read_reg
 #else
     #define i2cWriteReg swI2CWriteReg
     #define i2cReadReg  swI2CReadReg
@@ -130,9 +130,9 @@ long sii164InitChip(
 	/* Initialize the i2c bus */
 #ifdef USE_HW_I2C
 	/* Use fast mode. */
-	hwI2CInit(1);
+	sm750_hw_i2c_init(1);
 #else
-	swI2CInit(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
+	sm750_sw_i2c_init(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
 #endif
 
 	/* Check if SII164 Chip exists */

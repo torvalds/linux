@@ -2,9 +2,10 @@ Texas Instruments DMA Crossbar (DMA request router)
 
 Required properties:
 - compatible:	"ti,dra7-dma-crossbar" for DRA7xx DMA crossbar
+		"ti,am335x-edma-crossbar" for AM335x and AM437x
 - reg:		Memory map for accessing module
-- #dma-cells:	Should be set to <1>.
-		Clients should use the crossbar request number (input)
+- #dma-cells:	Should be set to to match with the DMA controller's dma-cells
+		for ti,dra7-dma-crossbar and <3> for ti,am335x-edma-crossbar.
 - dma-requests:	Number of DMA requests the crossbar can receive
 - dma-masters:	phandle pointing to the DMA controller
 
@@ -13,6 +14,15 @@ The DMA controller node need to have the following poroperties:
 
 Optional properties:
 - ti,dma-safe-map: Safe routing value for unused request lines
+
+Notes:
+When requesting channel via ti,dra7-dma-crossbar, the DMA clinet must request
+the DMA event number as crossbar ID (input to the DMA crossbar).
+
+For ti,am335x-edma-crossbar: the meaning of parameters of dmas for clients:
+dmas = <&edma_xbar 12 0 1>; where <12> is the DMA request number, <0> is the TC
+the event should be assigned and <1> is the mux selection for in the crossbar.
+When mux 0 is used the DMA channel can be requested directly from edma node.
 
 Example:
 
@@ -47,6 +57,7 @@ uart1: serial@4806a000 {
 	ti,hwmods = "uart1";
 	clock-frequency = <48000000>;
 	status = "disabled";
+	/* Requesting crossbar input 49 and 50 */
 	dmas = <&sdma_xbar 49>, <&sdma_xbar 50>;
 	dma-names = "tx", "rx";
 };

@@ -105,6 +105,7 @@ struct tipc_sock {
 static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 static void tipc_data_ready(struct sock *sk);
 static void tipc_write_space(struct sock *sk);
+static void tipc_sock_destruct(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags);
 static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p);
@@ -381,6 +382,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
 	sk->sk_write_space = tipc_write_space;
+	sk->sk_destruct = tipc_sock_destruct;
 	tsk->conn_timeout = CONN_TIMEOUT_DEFAULT;
 	tsk->sent_unacked = 0;
 	atomic_set(&tsk->dupl_rcvcnt, 0);
@@ -469,9 +471,6 @@ static int tipc_release(struct socket *sock)
 			tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 		tipc_node_remove_conn(net, dnode, tsk->portid);
 	}
-
-	/* Discard any remaining (connection-based) messages in receive queue */
-	__skb_queue_purge(&sk->sk_receive_queue);
 
 	/* Reject any messages that accumulated in backlog queue */
 	sock->state = SS_DISCONNECTING;
@@ -689,13 +688,13 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	msg_set_hdr_sz(mhdr, MCAST_H_SIZE);
 
 new_mtu:
-	mtu = tipc_bclink_get_mtu();
+	mtu = tipc_bcast_get_mtu(net);
 	rc = tipc_msg_build(mhdr, msg, 0, dsz, mtu, pktchain);
 	if (unlikely(rc < 0))
 		return rc;
 
 	do {
-		rc = tipc_bclink_xmit(net, pktchain);
+		rc = tipc_bcast_xmit(net, pktchain);
 		if (likely(!rc))
 			return dsz;
 
@@ -1513,6 +1512,11 @@ static void tipc_data_ready(struct sock *sk)
 		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
 						POLLRDNORM | POLLRDBAND);
 	rcu_read_unlock();
+}
+
+static void tipc_sock_destruct(struct sock *sk)
+{
+	__skb_queue_purge(&sk->sk_receive_queue);
 }
 
 /**

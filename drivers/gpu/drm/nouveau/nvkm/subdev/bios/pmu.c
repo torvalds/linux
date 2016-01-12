@@ -62,19 +62,6 @@ nvbios_pmuTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u32
-nvbios_pmuTp(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-	     struct nvbios_pmuT *info)
-{
-	u32 data = nvbios_pmuTe(bios, ver, hdr, cnt, len);
-	memset(info, 0x00, sizeof(*info));
-	switch (!!data * *ver) {
-	default:
-		break;
-	}
-	return data;
-}
-
-u32
 nvbios_pmuEe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len;

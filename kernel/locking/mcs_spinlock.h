@@ -67,7 +67,7 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 	node->locked = 0;
 	node->next   = NULL;
 
-	prev = xchg(lock, node);
+	prev = xchg_acquire(lock, node);
 	if (likely(prev == NULL)) {
 		/*
 		 * Lock acquired, don't need to set node->locked to 1. Threads
@@ -98,7 +98,7 @@ void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 		/*
 		 * Release the lock by setting it to NULL
 		 */
-		if (likely(cmpxchg(lock, node, NULL) == node))
+		if (likely(cmpxchg_release(lock, node, NULL) == node))
 			return;
 		/* Wait until the next pointer is set */
 		while (!(next = READ_ONCE(node->next)))

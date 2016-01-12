@@ -122,12 +122,24 @@ int i915_save_state(struct drm_device *dev)
 	dev_priv->regfile.saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
 
 	/* Scratch space */
-	for (i = 0; i < 16; i++) {
-		dev_priv->regfile.saveSWF0[i] = I915_READ(SWF00 + (i << 2));
-		dev_priv->regfile.saveSWF1[i] = I915_READ(SWF10 + (i << 2));
+	if (IS_GEN2(dev_priv) && IS_MOBILE(dev_priv)) {
+		for (i = 0; i < 7; i++) {
+			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
+			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
+		}
+		for (i = 0; i < 3; i++)
+			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
+	} else if (IS_GEN2(dev_priv)) {
+		for (i = 0; i < 7; i++)
+			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
+	} else if (HAS_GMCH_DISPLAY(dev_priv)) {
+		for (i = 0; i < 16; i++) {
+			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
+			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
+		}
+		for (i = 0; i < 3; i++)
+			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
 	}
-	for (i = 0; i < 3; i++)
-		dev_priv->regfile.saveSWF2[i] = I915_READ(SWF30 + (i << 2));
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -156,12 +168,25 @@ int i915_restore_state(struct drm_device *dev)
 	/* Memory arbitration state */
 	I915_WRITE(MI_ARB_STATE, dev_priv->regfile.saveMI_ARB_STATE | 0xffff0000);
 
-	for (i = 0; i < 16; i++) {
-		I915_WRITE(SWF00 + (i << 2), dev_priv->regfile.saveSWF0[i]);
-		I915_WRITE(SWF10 + (i << 2), dev_priv->regfile.saveSWF1[i]);
+	/* Scratch space */
+	if (IS_GEN2(dev_priv) && IS_MOBILE(dev_priv)) {
+		for (i = 0; i < 7; i++) {
+			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
+			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
+		}
+		for (i = 0; i < 3; i++)
+			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
+	} else if (IS_GEN2(dev_priv)) {
+		for (i = 0; i < 7; i++)
+			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
+	} else if (HAS_GMCH_DISPLAY(dev_priv)) {
+		for (i = 0; i < 16; i++) {
+			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
+			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
+		}
+		for (i = 0; i < 3; i++)
+			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
 	}
-	for (i = 0; i < 3; i++)
-		I915_WRITE(SWF30 + (i << 2), dev_priv->regfile.saveSWF2[i]);
 
 	mutex_unlock(&dev->struct_mutex);
 

@@ -1,0 +1,23 @@
+/dts-v1/;
+#include "bcm2835-rpi.dtsi"
+
+/ {
+	compatible = "raspberrypi,model-b-rev2", "brcm,bcm2835";
+	model = "Raspberry Pi Model B rev2";
+
+	leds {
+		act {
+			gpios = <&gpio 16 1>;
+		};
+	};
+};
+
+&gpio {
+	pinctrl-0 = <&gpioout &alt0 &i2s_alt2 &alt3>;
+
+	/* I2S interface */
+	i2s_alt2: i2s_alt2 {
+		brcm,pins = <28 29 30 31>;
+		brcm,function = <BCM2835_FSEL_ALT2>;
+	};
+};

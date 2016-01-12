@@ -342,12 +342,16 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		r = 0;
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
-		if (MACHINE_HAS_VX) {
+		mutex_lock(&kvm->lock);
+		if (atomic_read(&kvm->online_vcpus)) {
+			r = -EBUSY;
+		} else if (MACHINE_HAS_VX) {
 			set_kvm_facility(kvm->arch.model.fac->mask, 129);
 			set_kvm_facility(kvm->arch.model.fac->list, 129);
 			r = 0;
 		} else
 			r = -EINVAL;
+		mutex_unlock(&kvm->lock);
 		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_VECTOR_REGISTERS %s",
 			 r ? "(not available)" : "(success)");
 		break;
@@ -514,35 +518,20 @@ static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 
 	if (gtod_high != 0)
 		return -EINVAL;
-	VM_EVENT(kvm, 3, "SET: TOD extension: 0x%x\n", gtod_high);
+	VM_EVENT(kvm, 3, "SET: TOD extension: 0x%x", gtod_high);
 
 	return 0;
 }
 
 static int kvm_s390_set_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 {
-	struct kvm_vcpu *cur_vcpu;
-	unsigned int vcpu_idx;
-	u64 host_tod, gtod;
-	int r;
+	u64 gtod;
 
 	if (copy_from_user(&gtod, (void __user *)attr->addr, sizeof(gtod)))
 		return -EFAULT;
 
-	r = store_tod_clock(&host_tod);
-	if (r)
-		return r;
-
-	mutex_lock(&kvm->lock);
-	preempt_disable();
-	kvm->arch.epoch = gtod - host_tod;
-	kvm_s390_vcpu_block_all(kvm);
-	kvm_for_each_vcpu(vcpu_idx, cur_vcpu, kvm)
-		cur_vcpu->arch.sie_block->epoch = kvm->arch.epoch;
-	kvm_s390_vcpu_unblock_all(kvm);
-	preempt_enable();
-	mutex_unlock(&kvm->lock);
-	VM_EVENT(kvm, 3, "SET: TOD base: 0x%llx\n", gtod);
+	kvm_s390_set_tod_clock(kvm, gtod);
+	VM_EVENT(kvm, 3, "SET: TOD base: 0x%llx", gtod);
 	return 0;
 }
 
@@ -574,26 +563,19 @@ static int kvm_s390_get_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 	if (copy_to_user((void __user *)attr->addr, &gtod_high,
 					 sizeof(gtod_high)))
 		return -EFAULT;
-	VM_EVENT(kvm, 3, "QUERY: TOD extension: 0x%x\n", gtod_high);
+	VM_EVENT(kvm, 3, "QUERY: TOD extension: 0x%x", gtod_high);
 
 	return 0;
 }
 
 static int kvm_s390_get_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 {
-	u64 host_tod, gtod;
-	int r;
+	u64 gtod;
 
-	r = store_tod_clock(&host_tod);
-	if (r)
-		return r;
-
-	preempt_disable();
-	gtod = host_tod + kvm->arch.epoch;
-	preempt_enable();
+	gtod = kvm_s390_get_tod_clock_fast(kvm);
 	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
 		return -EFAULT;
-	VM_EVENT(kvm, 3, "QUERY: TOD base: 0x%llx\n", gtod);
+	VM_EVENT(kvm, 3, "QUERY: TOD base: 0x%llx", gtod);
 
 	return 0;
 }
@@ -1120,7 +1102,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (!kvm->arch.sca)
 		goto out_err;
 	spin_lock(&kvm_lock);
-	sca_offset = (sca_offset + 16) & 0x7f0;
+	sca_offset += 16;
+	if (sca_offset + sizeof(struct sca_block) > PAGE_SIZE)
+		sca_offset = 0;
 	kvm->arch.sca = (struct sca_block *) ((char *) kvm->arch.sca + sca_offset);
 	spin_unlock(&kvm_lock);
 
@@ -1292,7 +1276,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 static inline void save_fpu_to(struct fpu *dst)
 {
 	dst->fpc = current->thread.fpu.fpc;
-	dst->flags = current->thread.fpu.flags;
 	dst->regs = current->thread.fpu.regs;
 }
 
@@ -1303,7 +1286,6 @@ static inline void save_fpu_to(struct fpu *dst)
 static inline void load_fpu_from(struct fpu *from)
 {
 	current->thread.fpu.fpc = from->fpc;
-	current->thread.fpu.flags = from->flags;
 	current->thread.fpu.regs = from->regs;
 }
 
@@ -1315,15 +1297,12 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if (test_kvm_facility(vcpu->kvm, 129)) {
 		current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
-		current->thread.fpu.flags = FPU_USE_VX;
 		/*
 		 * Use the register save area in the SIE-control block
 		 * for register restore and save in kvm_arch_vcpu_put()
 		 */
 		current->thread.fpu.vxrs =
 			(__vector128 *)&vcpu->run->s.regs.vrs;
-		/* Always enable the vector extension for KVM */
-		__ctl_set_vx();
 	} else
 		load_fpu_from(&vcpu->arch.guest_fpregs);
 
@@ -1916,6 +1895,22 @@ retry:
 	return 0;
 }
 
+void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	mutex_lock(&kvm->lock);
+	preempt_disable();
+	kvm->arch.epoch = tod - get_tod_clock();
+	kvm_s390_vcpu_block_all(kvm);
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		vcpu->arch.sie_block->epoch = kvm->arch.epoch;
+	kvm_s390_vcpu_unblock_all(kvm);
+	preempt_enable();
+	mutex_unlock(&kvm->lock);
+}
+
 /**
  * kvm_arch_fault_in_page - fault-in guest page if necessary
  * @vcpu: The corresponding virtual cpu
@@ -2326,7 +2321,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 		 * registers and the FPC value and store them in the
 		 * guest_fpregs structure.
 		 */
-		WARN_ON(!is_vx_task(current));	  /* XXX remove later */
 		vcpu->arch.guest_fpregs.fpc = current->thread.fpu.fpc;
 		convert_vx_to_fp(vcpu->arch.guest_fpregs.fprs,
 				 current->thread.fpu.vxrs);

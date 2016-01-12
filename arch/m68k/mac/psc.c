@@ -29,6 +29,7 @@
 
 int psc_present;
 volatile __u8 *psc;
+EXPORT_SYMBOL_GPL(psc);
 
 /*
  * Debugging dump, used in various places to see what's going on.

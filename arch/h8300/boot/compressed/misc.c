@@ -28,7 +28,7 @@ static unsigned long free_mem_end_ptr;
 
 extern char input_data[];
 extern int input_len;
-static unsigned char *output;
+extern char output[];
 
 #define HEAP_SIZE             0x10000
 
@@ -56,14 +56,9 @@ void *memcpy(void *dest, const void *src, size_t n)
 
 static void error(char *x)
 {
-
 	while (1)
 		;	/* Halt */
 }
-
-#define STACK_SIZE (4096)
-long user_stack[STACK_SIZE];
-long *stack_start = &user_stack[STACK_SIZE];
 
 void decompress_kernel(void)
 {

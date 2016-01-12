@@ -21,6 +21,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/pm.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/slab.h>
 
 #define DS1343_DRV_VERSION	"01.00"
@@ -663,15 +664,15 @@ static int ds1343_probe(struct spi_device *spi)
 
 	if (priv->irq >= 0) {
 		res = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
-						ds1343_thread,
-						IRQF_NO_SUSPEND | IRQF_ONESHOT,
+						ds1343_thread, IRQF_ONESHOT,
 						"ds1343", priv);
 		if (res) {
 			priv->irq = -1;
 			dev_err(&spi->dev,
 				"unable to request irq for rtc ds1343\n");
 		} else {
-			device_set_wakeup_capable(&spi->dev, 1);
+			device_init_wakeup(&spi->dev, true);
+			dev_pm_set_wake_irq(&spi->dev, spi->irq);
 		}
 	}
 
@@ -692,6 +693,8 @@ static int ds1343_remove(struct spi_device *spi)
 		priv->irqen &= ~RTC_AF;
 		mutex_unlock(&priv->mutex);
 
+		dev_pm_clear_wake_irq(&spi->dev);
+		device_init_wakeup(&spi->dev, false);
 		devm_free_irq(&spi->dev, spi->irq, priv);
 	}
 
@@ -731,7 +734,6 @@ static SIMPLE_DEV_PM_OPS(ds1343_pm, ds1343_suspend, ds1343_resume);
 static struct spi_driver ds1343_driver = {
 	.driver = {
 		.name = "ds1343",
-		.owner = THIS_MODULE,
 		.pm = &ds1343_pm,
 	},
 	.probe = ds1343_probe,

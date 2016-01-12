@@ -175,6 +175,15 @@ config AHCI_XGENE
 	help
 	 This option enables support for APM X-Gene SoC SATA host controller.
 
+config AHCI_QORIQ
+	tristate "Freescale QorIQ AHCI SATA support"
+	depends on OF
+	help
+	  This option enables support for the Freescale QorIQ AHCI SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC

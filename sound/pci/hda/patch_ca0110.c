@@ -83,22 +83,19 @@ static int patch_ca0110(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_ca0110[] = {
-	{ .id = 0x1102000a, .name = "CA0110-IBG", .patch = patch_ca0110 },
-	{ .id = 0x1102000b, .name = "CA0110-IBG", .patch = patch_ca0110 },
-	{ .id = 0x1102000d, .name = "SB0880 X-Fi", .patch = patch_ca0110 },
+static const struct hda_device_id snd_hda_id_ca0110[] = {
+	HDA_CODEC_ENTRY(0x1102000a, "CA0110-IBG", patch_ca0110),
+	HDA_CODEC_ENTRY(0x1102000b, "CA0110-IBG", patch_ca0110),
+	HDA_CODEC_ENTRY(0x1102000d, "SB0880 X-Fi", patch_ca0110),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:1102000a");
-MODULE_ALIAS("snd-hda-codec-id:1102000b");
-MODULE_ALIAS("snd-hda-codec-id:1102000d");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_ca0110);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Creative CA0110-IBG HD-audio codec");
 
 static struct hda_codec_driver ca0110_driver = {
-	.preset = snd_hda_preset_ca0110,
+	.id = snd_hda_id_ca0110,
 };
 
 module_hda_codec_driver(ca0110_driver);

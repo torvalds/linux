@@ -476,26 +476,6 @@ static int cio_check_devno_blacklisted(struct subchannel *sch)
 	return 0;
 }
 
-static int cio_validate_io_subchannel(struct subchannel *sch)
-{
-	/* Initialization for io subchannels. */
-	if (!css_sch_is_valid(&sch->schib))
-		return -ENODEV;
-
-	/* Devno is valid. */
-	return cio_check_devno_blacklisted(sch);
-}
-
-static int cio_validate_msg_subchannel(struct subchannel *sch)
-{
-	/* Initialization for message subchannels. */
-	if (!css_sch_is_valid(&sch->schib))
-		return -ENODEV;
-
-	/* Devno is valid. */
-	return cio_check_devno_blacklisted(sch);
-}
-
 /**
  * cio_validate_subchannel - basic validation of subchannel
  * @sch: subchannel structure to be filled out
@@ -533,10 +513,11 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 
 	switch (sch->st) {
 	case SUBCHANNEL_TYPE_IO:
-		err = cio_validate_io_subchannel(sch);
-		break;
 	case SUBCHANNEL_TYPE_MSG:
-		err = cio_validate_msg_subchannel(sch);
+		if (!css_sch_is_valid(&sch->schib))
+			err = -ENODEV;
+		else
+			err = cio_check_devno_blacklisted(sch);
 		break;
 	default:
 		err = 0;
@@ -826,11 +807,11 @@ static atomic_t chpid_reset_count;
 static void s390_reset_chpids_mcck_handler(void)
 {
 	struct crw crw;
-	struct mci *mci;
+	union mci mci;
 
 	/* Check for pending channel report word. */
-	mci = (struct mci *)&S390_lowcore.mcck_interruption_code;
-	if (!mci->cp)
+	mci.val = S390_lowcore.mcck_interruption_code;
+	if (!mci.cp)
 		return;
 	/* Process channel report words. */
 	while (stcrw(&crw) == 0) {
@@ -944,18 +925,32 @@ void reipl_ccw_dev(struct ccw_dev_id *devid)
 
 int __init cio_get_iplinfo(struct cio_iplinfo *iplinfo)
 {
+	static struct chsc_sda_area sda_area __initdata;
 	struct subchannel_id schid;
 	struct schib schib;
 
 	schid = *(struct subchannel_id *)&S390_lowcore.subchannel_id;
 	if (!schid.one)
 		return -ENODEV;
+
+	if (schid.ssid) {
+		/*
+		 * Firmware should have already enabled MSS but whoever started
+		 * the kernel might have initiated a channel subsystem reset.
+		 * Ensure that MSS is enabled.
+		 */
+		memset(&sda_area, 0, sizeof(sda_area));
+		if (__chsc_enable_facility(&sda_area, CHSC_SDA_OC_MSS))
+			return -ENODEV;
+	}
 	if (stsch_err(schid, &schib))
 		return -ENODEV;
 	if (schib.pmcw.st != SUBCHANNEL_TYPE_IO)
 		return -ENODEV;
 	if (!schib.pmcw.dnv)
 		return -ENODEV;
+
+	iplinfo->ssid = schid.ssid;
 	iplinfo->devno = schib.pmcw.dev;
 	iplinfo->is_qdio = schib.pmcw.qf;
 	return 0;

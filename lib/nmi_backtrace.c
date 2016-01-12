@@ -43,6 +43,12 @@ static void print_seq_line(struct nmi_seq_buf *s, int start, int end)
 	printk("%.*s", (end - start) + 1, buf);
 }
 
+/*
+ * When raise() is called it will be is passed a pointer to the
+ * backtrace_mask. Architectures that call nmi_cpu_backtrace()
+ * directly from their raise() functions may rely on the mask
+ * they are passed being updated as a side effect of this call.
+ */
 void nmi_trigger_all_cpu_backtrace(bool include_self,
 				   void (*raise)(cpumask_t *mask))
 {
@@ -149,7 +155,10 @@ bool nmi_cpu_backtrace(struct pt_regs *regs)
 		/* Replace printk to write into the NMI seq */
 		this_cpu_write(printk_func, nmi_vprintk);
 		pr_warn("NMI backtrace for cpu %d\n", cpu);
-		show_regs(regs);
+		if (regs)
+			show_regs(regs);
+		else
+			dump_stack();
 		this_cpu_write(printk_func, printk_func_save);
 
 		cpumask_clear_cpu(cpu, to_cpumask(backtrace_mask));

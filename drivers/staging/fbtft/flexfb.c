@@ -233,8 +233,6 @@ static const struct flexfb_lcd_controller flexfb_chip_table[] = {
 static void flexfb_set_addr_win_1(struct fbtft_par *par,
 				  int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
-		      __func__, xs, ys, xe, ye);
 	switch (par->info->var.rotate) {
 	/* R20h = Horizontal GRAM Start Address */
 	/* R21h = Vertical GRAM Start Address */
@@ -262,10 +260,6 @@ static void flexfb_set_addr_win_1(struct fbtft_par *par,
 static void flexfb_set_addr_win_2(struct fbtft_par *par,
 				  int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
-		      __func__, xs, ys, xe, ye);
-
 	switch (par->info->var.rotate) {
 	/* R4Eh - Set GDDRAM X address counter */
 	/* R4Fh - Set GDDRAM Y address counter */
@@ -295,10 +289,6 @@ static void flexfb_set_addr_win_2(struct fbtft_par *par,
 static void set_addr_win_3(struct fbtft_par *par,
 			   int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__,
-		      xs, ys, xe, ye);
-
 	write_reg(par, 0x15, xs, xe);
 	write_reg(par, 0x75, ys, ye);
 	write_reg(par, 0x5C);
@@ -583,7 +573,6 @@ static int flexfb_remove_pdev(struct platform_device *pdev)
 static struct spi_driver flexfb_spi_driver = {
 	.driver = {
 		.name   = DRVNAME,
-		.owner  = THIS_MODULE,
 	},
 	.probe  = flexfb_probe_spi,
 	.remove = flexfb_remove_spi,

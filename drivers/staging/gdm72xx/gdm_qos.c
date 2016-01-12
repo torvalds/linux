@@ -59,7 +59,7 @@ static void *alloc_qos_entry(void)
 
 static void free_qos_entry(void *entry)
 {
-	struct qos_entry_s *qentry = (struct qos_entry_s *)entry;
+	struct qos_entry_s *qentry = entry;
 	unsigned long flags;
 
 	spin_lock_irqsave(&qos_free_list.lock, flags);
@@ -190,7 +190,7 @@ static int get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 	int ip_ver, i;
 	struct qos_cb_s *qcb = &nic->qos;
 
-	if (iph == NULL || tcpudph == NULL)
+	if (!iph || !tcpudph)
 		return -1;
 
 	ip_ver = (iph[0]>>4)&0xf;

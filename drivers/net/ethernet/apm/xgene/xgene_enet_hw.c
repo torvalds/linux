@@ -107,7 +107,8 @@ static void xgene_enet_set_ring_state(struct xgene_enet_desc_ring *ring)
 {
 	xgene_enet_ring_set_type(ring);
 
-	if (xgene_enet_ring_owner(ring->id) == RING_OWNER_ETH0)
+	if (xgene_enet_ring_owner(ring->id) == RING_OWNER_ETH0 ||
+	    xgene_enet_ring_owner(ring->id) == RING_OWNER_ETH1)
 		xgene_enet_ring_set_recombbuf(ring);
 
 	xgene_enet_ring_init(ring);
@@ -458,8 +459,48 @@ static void xgene_gmac_reset(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_1_ADDR, 0);
 }
 
+static void xgene_enet_configure_clock(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+
+	if (dev->of_node) {
+		struct clk *parent = clk_get_parent(pdata->clk);
+
+		switch (pdata->phy_speed) {
+		case SPEED_10:
+			clk_set_rate(parent, 2500000);
+			break;
+		case SPEED_100:
+			clk_set_rate(parent, 25000000);
+			break;
+		default:
+			clk_set_rate(parent, 125000000);
+			break;
+		}
+	}
+#ifdef CONFIG_ACPI
+	else {
+		switch (pdata->phy_speed) {
+		case SPEED_10:
+			acpi_evaluate_object(ACPI_HANDLE(dev),
+					     "S10", NULL, NULL);
+			break;
+		case SPEED_100:
+			acpi_evaluate_object(ACPI_HANDLE(dev),
+					     "S100", NULL, NULL);
+			break;
+		default:
+			acpi_evaluate_object(ACPI_HANDLE(dev),
+					     "S1G", NULL, NULL);
+			break;
+		}
+	}
+#endif
+}
+
 static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 {
+	struct device *dev = &pdata->pdev->dev;
 	u32 value, mc2;
 	u32 intf_ctl, rgmii;
 	u32 icm0, icm2;
@@ -475,12 +516,14 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	switch (pdata->phy_speed) {
 	case SPEED_10:
 		ENET_INTERFACE_MODE2_SET(&mc2, 1);
+		intf_ctl &= ~(ENET_LHD_MODE | ENET_GHD_MODE);
 		CFG_MACMODE_SET(&icm0, 0);
 		CFG_WAITASYNCRD_SET(&icm2, 500);
 		rgmii &= ~CFG_SPEED_1250;
 		break;
 	case SPEED_100:
 		ENET_INTERFACE_MODE2_SET(&mc2, 1);
+		intf_ctl &= ~ENET_GHD_MODE;
 		intf_ctl |= ENET_LHD_MODE;
 		CFG_MACMODE_SET(&icm0, 1);
 		CFG_WAITASYNCRD_SET(&icm2, 80);
@@ -488,15 +531,23 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 		break;
 	default:
 		ENET_INTERFACE_MODE2_SET(&mc2, 2);
+		intf_ctl &= ~ENET_LHD_MODE;
 		intf_ctl |= ENET_GHD_MODE;
-		CFG_TXCLK_MUXSEL0_SET(&rgmii, 4);
+		CFG_MACMODE_SET(&icm0, 2);
+		CFG_WAITASYNCRD_SET(&icm2, 0);
+		if (dev->of_node) {
+			CFG_TXCLK_MUXSEL0_SET(&rgmii, pdata->tx_delay);
+			CFG_RXCLK_MUXSEL0_SET(&rgmii, pdata->rx_delay);
+		}
+		rgmii |= CFG_SPEED_1250;
+
 		xgene_enet_rd_csr(pdata, DEBUG_REG_ADDR, &value);
 		value |= CFG_BYPASS_UNISEC_TX | CFG_BYPASS_UNISEC_RX;
 		xgene_enet_wr_csr(pdata, DEBUG_REG_ADDR, value);
 		break;
 	}
 
-	mc2 |= FULL_DUPLEX2;
+	mc2 |= FULL_DUPLEX2 | PAD_CRC;
 	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_2_ADDR, mc2);
 	xgene_enet_wr_mcx_mac(pdata, INTERFACE_CONTROL_ADDR, intf_ctl);
 
@@ -515,6 +566,7 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	/* Rtype should be copied from FP */
 	xgene_enet_wr_csr(pdata, RSIF_RAM_DBG_REG0_ADDR, 0);
 	xgene_enet_wr_csr(pdata, RGMII_REG_0_ADDR, rgmii);
+	xgene_enet_configure_clock(pdata);
 
 	/* Rx-Tx traffic resume */
 	xgene_enet_wr_csr(pdata, CFG_LINK_AGGR_RESUME_0_ADDR, TX_PORT0);

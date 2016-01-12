@@ -319,7 +319,7 @@ __tty_ldisc_lock_nested(struct tty_struct *tty, unsigned long timeout)
 
 static inline void __tty_ldisc_unlock(struct tty_struct *tty)
 {
-	return ldsem_up_write(&tty->ldisc_sem);
+	ldsem_up_write(&tty->ldisc_sem);
 }
 
 static int __lockfunc
@@ -592,7 +592,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 	/* Restart the work queue in case no characters kick it off. Safe if
 	   already running */
-	schedule_work(&tty->port->buf.work);
+	tty_buffer_restart_work(tty->port);
 
 	tty_unlock(tty);
 	return retval;

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014 Marvell Technology Group Ltd.
  *
- * Antoine TÃ©nart <antoine.tenart@free-electrons.com>
+ * Antoine Ténart <antoine.tenart@free-electrons.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -408,6 +408,6 @@ static struct platform_driver berlin2q_pinctrl_driver = {
 };
 module_platform_driver(berlin2q_pinctrl_driver);
 
-MODULE_AUTHOR("Antoine TÃ©nart <antoine.tenart@free-electrons.com>");
+MODULE_AUTHOR("Antoine Ténart <antoine.tenart@free-electrons.com>");
 MODULE_DESCRIPTION("Marvell Berlin BG2Q pinctrl driver");
 MODULE_LICENSE("GPL");

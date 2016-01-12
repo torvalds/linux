@@ -242,7 +242,10 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 	atomic_inc(&buf->priority);
 
 	mutex_lock(&buf->lock);
-	while ((next = buf->head->next) != NULL) {
+	/* paired w/ release in __tty_buffer_request_room; ensures there are
+	 * no pending memory accesses to the freed buffer
+	 */
+	while ((next = smp_load_acquire(&buf->head->next)) != NULL) {
 		tty_buffer_free(port, buf->head);
 		buf->head = next;
 	}
@@ -290,7 +293,10 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 		if (n != NULL) {
 			n->flags = flags;
 			buf->tail = n;
-			b->commit = b->used;
+			/* paired w/ acquire in flush_to_ldisc(); ensures
+			 * flush_to_ldisc() sees buffer data.
+			 */
+			smp_store_release(&b->commit, b->used);
 			/* paired w/ acquire in flush_to_ldisc(); ensures the
 			 * latest commit value can be read before the head is
 			 * advanced to the next buffer
@@ -393,8 +399,11 @@ void tty_schedule_flip(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
 
-	buf->tail->commit = buf->tail->used;
-	schedule_work(&buf->work);
+	/* paired w/ acquire in flush_to_ldisc(); ensures
+	 * flush_to_ldisc() sees buffer data.
+	 */
+	smp_store_release(&buf->tail->commit, buf->tail->used);
+	queue_work(system_unbound_wq, &buf->work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -467,7 +476,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	struct tty_struct *tty;
 	struct tty_ldisc *disc;
 
-	tty = port->itty;
+	tty = READ_ONCE(port->itty);
 	if (tty == NULL)
 		return;
 
@@ -491,7 +500,10 @@ static void flush_to_ldisc(struct work_struct *work)
 		 * is advancing to the next buffer
 		 */
 		next = smp_load_acquire(&head->next);
-		count = head->commit - head->read;
+		/* paired w/ release in __tty_buffer_request_room() or in
+		 * tty_buffer_flush(); ensures we see the committed buffer data
+		 */
+		count = smp_load_acquire(&head->commit) - head->read;
 		if (!count) {
 			if (next == NULL) {
 				check_other_closed(tty);
@@ -574,4 +586,14 @@ EXPORT_SYMBOL_GPL(tty_buffer_set_limit);
 void tty_buffer_set_lock_subclass(struct tty_port *port)
 {
 	lockdep_set_subclass(&port->buf.lock, TTY_LOCK_SLAVE);
+}
+
+bool tty_buffer_restart_work(struct tty_port *port)
+{
+	return queue_work(system_unbound_wq, &port->buf.work);
+}
+
+bool tty_buffer_cancel_work(struct tty_port *port)
+{
+	return cancel_work_sync(&port->buf.work);
 }

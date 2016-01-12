@@ -1150,7 +1150,7 @@ static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
 	return ret;
 }
 
-static void btt_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct btt *btt = q->queuedata;
@@ -1198,6 +1198,7 @@ static void btt_make_request(struct request_queue *q, struct bio *bio)
 
 out:
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
@@ -1279,7 +1280,6 @@ static int btt_blk_init(struct btt *btt)
 
 static void btt_blk_cleanup(struct btt *btt)
 {
-	blk_integrity_unregister(btt->btt_disk);
 	del_gendisk(btt->btt_disk);
 	put_disk(btt->btt_disk);
 	blk_cleanup_queue(btt->btt_queue);

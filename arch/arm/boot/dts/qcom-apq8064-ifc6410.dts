@@ -1,5 +1,6 @@
 #include "qcom-apq8064-v2.0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
 	model = "Qualcomm APQ8064/IFC6410";
@@ -12,6 +13,29 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	pwrseq {
+		compatible = "simple-bus";
+
+		sdcc4_pwrseq: sdcc4_pwrseq {
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_default_gpios>;
+			compatible = "mmc-pwrseq-simple";
+			reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&notify_led>;
+
+		led@1 {
+			label = "apq8064:green:user1";
+			gpios = <&pm8921_gpio 18 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	soc {
@@ -119,8 +143,6 @@
 			qcom,mode = <GSBI_PROT_I2C>;
 			i2c3: i2c@16280000 {
 				status = "okay";
-				pinctrl-0 = <&i2c3_pins>;
-				pinctrl-names = "default";
 			};
 		};
 
@@ -131,10 +153,8 @@
 			i2c@12460000 {
 				status = "okay";
 				clock-frequency = <200000>;
-				pinctrl-0 = <&i2c1_pins>;
-				pinctrl-names = "default";
 
-				eeprom: eeprom@52 {
+				eeprom@52 {
 					compatible = "atmel,24c128";
 					reg = <0x52>;
 					pagesize = <32>;
@@ -148,9 +168,8 @@
 
 			serial@16540000 {
 				status = "ok";
-
 				pinctrl-names = "default";
-				pinctrl-0 = <&uart_pins>;
+				pinctrl-0 = <&gsbi6_uart_4pins>;
 			};
 		};
 
@@ -159,6 +178,8 @@
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 			serial@16640000 {
 				status = "ok";
+				pinctrl-names = "default";
+				pinctrl-0 = <&gsbi7_uart_2pins>;
 			};
 		};
 
@@ -210,6 +231,30 @@
 			status = "okay";
 		};
 
+		qcom,ssbi@500000 {
+			pmic@0 {
+				gpio@150 {
+					wlan_default_gpios: wlan-gpios {
+						pios {
+							pins = "gpio43";
+							function = "normal";
+							bias-disable;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+
+					notify_led: nled {
+						pios {
+							pins = "gpio18";
+							function = "normal";
+							bias-disable;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+				};
+			};
+		};
+
 		amba {
 			/* eMMC */
 			sdcc1: sdcc@12400000 {
@@ -231,6 +276,7 @@
 				status = "okay";
 				vmmc-supply = <&ext_3p3v>;
 				vqmmc-supply = <&pm8921_lvs1>;
+				mmc-pwrseq = <&sdcc4_pwrseq>;
 			};
 		};
 	};

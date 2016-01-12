@@ -450,7 +450,7 @@ static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
 	u32 api_flags = le32_to_cpu(ucode_api->api_flags);
 	int i;
 
-	if (api_index >= IWL_API_MAX_BITS / 32) {
+	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_API, 32)) {
 		IWL_ERR(drv, "api_index larger than supported by driver\n");
 		/* don't return an error so we can load FW that has more bits */
 		return 0;
@@ -472,7 +472,7 @@ static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
 	u32 api_flags = le32_to_cpu(ucode_capa->api_capa);
 	int i;
 
-	if (api_index >= IWL_CAPABILITIES_MAX_BITS / 32) {
+	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_CAPA, 32)) {
 		IWL_ERR(drv, "api_index larger than supported by driver\n");
 		/* don't return an error so we can load FW that has more bits */
 		return 0;

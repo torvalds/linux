@@ -161,6 +161,21 @@ static struct resource axp22x_pek_resources[] = {
 	},
 };
 
+static struct resource axp288_power_button_resources[] = {
+	{
+		.name	= "PEK_DBR",
+		.start	= AXP288_IRQ_POKN,
+		.end	= AXP288_IRQ_POKN,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "PEK_DBF",
+		.start	= AXP288_IRQ_POKP,
+		.end	= AXP288_IRQ_POKP,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct resource axp288_fuel_gauge_resources[] = {
 	{
 		.start = AXP288_IRQ_QWBTU,
@@ -570,6 +585,11 @@ static struct mfd_cell axp288_cells[] = {
 		.name = "axp288_fuel_gauge",
 		.num_resources = ARRAY_SIZE(axp288_fuel_gauge_resources),
 		.resources = axp288_fuel_gauge_resources,
+	},
+	{
+		.name = "axp20x-pek",
+		.num_resources = ARRAY_SIZE(axp288_power_button_resources),
+		.resources = axp288_power_button_resources,
 	},
 	{
 		.name = "axp288_pmic_acpi",

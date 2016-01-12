@@ -111,7 +111,7 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 
 	dh = __scsi_dh_lookup(name);
 	if (!dh) {
-		request_module(name);
+		request_module("scsi_dh_%s", name);
 		dh = __scsi_dh_lookup(name);
 	}
 
@@ -226,16 +226,20 @@ int scsi_dh_add_device(struct scsi_device *sdev)
 
 	drv = scsi_dh_find_driver(sdev);
 	if (drv)
-		devinfo = scsi_dh_lookup(drv);
+		devinfo = __scsi_dh_lookup(drv);
 	if (devinfo)
 		err = scsi_dh_handler_attach(sdev, devinfo);
 	return err;
 }
 
-void scsi_dh_remove_device(struct scsi_device *sdev)
+void scsi_dh_release_device(struct scsi_device *sdev)
 {
 	if (sdev->handler)
 		scsi_dh_handler_detach(sdev);
+}
+
+void scsi_dh_remove_device(struct scsi_device *sdev)
+{
 	device_remove_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 }
 

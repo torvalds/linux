@@ -45,7 +45,6 @@
 lnet_t the_lnet;			   /* THE state of the network */
 EXPORT_SYMBOL(the_lnet);
 
-
 static char *ip2nets = "";
 module_param(ip2nets, charp, 0444);
 MODULE_PARM_DESC(ip2nets, "LNET network <- IP table");
@@ -264,7 +263,7 @@ static void lnet_assert_wire_constants(void)
 }
 
 static lnd_t *
-lnet_find_lnd_by_type(int type)
+lnet_find_lnd_by_type(__u32 type)
 {
 	lnd_t *lnd;
 	struct list_head *tmp;
@@ -273,7 +272,7 @@ lnet_find_lnd_by_type(int type)
 	list_for_each(tmp, &the_lnet.ln_lnds) {
 		lnd = list_entry(tmp, lnd_t, lnd_list);
 
-		if ((int)lnd->lnd_type == type)
+		if (lnd->lnd_type == type)
 			return lnd;
 	}
 
@@ -528,7 +527,6 @@ lnet_res_lh_initialize(struct lnet_res_container *rec, lnet_libhandle_t *lh)
 
 	list_add(&lh->lh_hash_chain, &rec->rec_lh_hash[hash]);
 }
-
 
 int lnet_unprepare(void);
 
@@ -964,7 +962,7 @@ lnet_startup_lndnis(void)
 	struct list_head nilist;
 	int i;
 	int rc = 0;
-	int lnd_type;
+	__u32 lnd_type;
 	int nicount = 0;
 	char *nets = lnet_get_networks();
 
@@ -1262,7 +1260,7 @@ LNetNIInit(lnet_pid_t requested_pid)
 	if (rc != 0)
 		goto failed4;
 
-	lnet_proc_init();
+	lnet_router_debugfs_init();
 	goto out;
 
  failed4:
@@ -1305,7 +1303,7 @@ LNetNIFini(void)
 	} else {
 		LASSERT(!the_lnet.ln_niinit_self);
 
-		lnet_proc_fini();
+		lnet_router_debugfs_fini();
 		lnet_router_checker_stop();
 		lnet_ping_target_fini();
 
@@ -1343,6 +1341,7 @@ LNetCtl(unsigned int cmd, void *arg)
 	lnet_process_id_t id = {0};
 	lnet_ni_t *ni;
 	int rc;
+	unsigned long secs_passed;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -1370,10 +1369,9 @@ LNetCtl(unsigned int cmd, void *arg)
 				      &data->ioc_nid, &data->ioc_flags,
 				      &data->ioc_priority);
 	case IOC_LIBCFS_NOTIFY_ROUTER:
+		secs_passed = (ktime_get_real_seconds() - data->ioc_u64[0]);
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,
-				   cfs_time_current() -
-				   cfs_time_seconds(get_seconds() -
-						    (time_t)data->ioc_u64[0]));
+				   jiffies - secs_passed * HZ);
 
 	case IOC_LIBCFS_PORTALS_COMPATIBILITY:
 		/* This can be removed once lustre stops calling it */

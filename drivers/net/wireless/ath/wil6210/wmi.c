@@ -293,12 +293,6 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	/* ignore MAC address, we already have it from the boot loader */
 	snprintf(wdev->wiphy->fw_version, sizeof(wdev->wiphy->fw_version),
 		 "%d", wil->fw_version);
-}
-
-static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
-			     int len)
-{
-	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
@@ -684,13 +678,22 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	spin_unlock_bh(&sta->tid_rx_lock);
 }
 
+/**
+ * Some events are ignored for purpose; and need not be interpreted as
+ * "unhandled events"
+ */
+static void wmi_evt_ignore(struct wil6210_priv *wil, int id, void *d, int len)
+{
+	wil_dbg_wmi(wil, "Ignore event 0x%04x len %d\n", id, len);
+}
+
 static const struct {
 	int eventid;
 	void (*handler)(struct wil6210_priv *wil, int eventid,
 			void *data, int data_len);
 } wmi_evt_handlers[] = {
 	{WMI_READY_EVENTID,		wmi_evt_ready},
-	{WMI_FW_READY_EVENTID,		wmi_evt_fw_ready},
+	{WMI_FW_READY_EVENTID,			wmi_evt_ignore},
 	{WMI_RX_MGMT_PACKET_EVENTID,	wmi_evt_rx_mgmt},
 	{WMI_TX_MGMT_PACKET_EVENTID,		wmi_evt_tx_mgmt},
 	{WMI_SCAN_COMPLETE_EVENTID,	wmi_evt_scan_complete},
@@ -701,6 +704,7 @@ static const struct {
 	{WMI_RCP_ADDBA_REQ_EVENTID,	wmi_evt_addba_rx_req},
 	{WMI_DELBA_EVENTID,		wmi_evt_delba},
 	{WMI_VRING_EN_EVENTID,		wmi_evt_vring_en},
+	{WMI_DATA_PORT_OPEN_EVENTID,		wmi_evt_ignore},
 };
 
 /*
@@ -720,7 +724,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	ulong flags;
 	unsigned n;
 
-	if (!test_bit(wil_status_reset_done, wil->status)) {
+	if (!test_bit(wil_status_mbox_ready, wil->status)) {
 		wil_err(wil, "Reset in progress. Cannot handle WMI event\n");
 		return;
 	}
@@ -1120,7 +1124,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 			cpu_to_le32(ndev->type == ARPHRD_IEEE80211_RADIOTAP);
 		cmd.sniffer_cfg.phy_support =
 			cpu_to_le32((wil->monitor_flags & MONITOR_FLAG_CONTROL)
-				    ? WMI_SNIFFER_CP : WMI_SNIFFER_DP);
+				    ? WMI_SNIFFER_CP : WMI_SNIFFER_BOTH_PHYS);
 	} else {
 		/* Initialize offload (in non-sniffer mode).
 		 * Linux IP stack always calculates IP checksum

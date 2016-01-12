@@ -48,7 +48,7 @@ struct src_rsc_ops;
 struct src {
 	struct rsc rsc; /* Basic resource info */
 	struct src *intlv; /* Pointer to next interleaved SRC in a series */
-	struct src_rsc_ops *ops; /* SRC specific operations */
+	const struct src_rsc_ops *ops; /* SRC specific operations */
 	/* Number of contiguous srcs for interleaved usage */
 	unsigned char multi;
 	unsigned char mode; /* Working mode of this SRC resource */
@@ -110,7 +110,7 @@ struct srcimp {
 	struct imapper *imappers;
 	unsigned int mapped; /* A bit-map indicating which conj rsc is mapped */
 	struct srcimp_mgr *mgr;
-	struct srcimp_rsc_ops *ops;
+	const struct srcimp_rsc_ops *ops;
 };
 
 struct srcimp_rsc_ops {

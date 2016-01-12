@@ -45,7 +45,7 @@ struct netup_spi_regs {
 struct netup_spi {
 	struct device			*dev;
 	struct spi_master		*master;
-	struct netup_spi_regs		*regs;
+	struct netup_spi_regs __iomem	*regs;
 	u8 __iomem			*mmio;
 	spinlock_t			lock;
 	wait_queue_head_t		waitq;
@@ -80,11 +80,9 @@ irqreturn_t netup_spi_interrupt(struct netup_spi *spi)
 	u16 reg;
 	unsigned long flags;
 
-	if (!spi) {
-		dev_dbg(&spi->master->dev,
-			"%s(): SPI not initialized\n", __func__);
+	if (!spi)
 		return IRQ_NONE;
-	}
+
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	if (!(reg & NETUP_SPI_CTRL_IRQ)) {
@@ -202,7 +200,7 @@ int netup_spi_init(struct netup_unidvb_dev *ndev)
 	spin_lock_init(&nspi->lock);
 	init_waitqueue_head(&nspi->waitq);
 	nspi->master = master;
-	nspi->regs = (struct netup_spi_regs *)(ndev->bmmio0 + 0x4000);
+	nspi->regs = (struct netup_spi_regs __iomem *)(ndev->bmmio0 + 0x4000);
 	writew(2, &nspi->regs->clock_divider);
 	writew(NETUP_UNIDVB_IRQ_SPI, ndev->bmmio0 + REG_IMASK_SET);
 	ndev->spi = nspi;
@@ -234,11 +232,9 @@ void netup_spi_release(struct netup_unidvb_dev *ndev)
 	unsigned long flags;
 	struct netup_spi *spi = ndev->spi;
 
-	if (!spi) {
-		dev_dbg(&spi->master->dev,
-			"%s(): SPI not initialized\n", __func__);
+	if (!spi)
 		return;
-	}
+
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	writew(reg | NETUP_SPI_CTRL_IRQ, &spi->regs->control_stat);

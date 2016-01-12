@@ -933,6 +933,7 @@ static struct dso *__dso__findlink_by_longname(struct rb_root *root,
 		/* Add new node and rebalance tree */
 		rb_link_node(&dso->rb_node, parent, p);
 		rb_insert_color(&dso->rb_node, root);
+		dso->root = root;
 	}
 	return NULL;
 }
@@ -945,15 +946,30 @@ static inline struct dso *__dso__find_by_longname(struct rb_root *root,
 
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 {
+	struct rb_root *root = dso->root;
+
 	if (name == NULL)
 		return;
 
 	if (dso->long_name_allocated)
 		free((char *)dso->long_name);
 
+	if (root) {
+		rb_erase(&dso->rb_node, root);
+		/*
+		 * __dso__findlink_by_longname() isn't guaranteed to add it
+		 * back, so a clean removal is required here.
+		 */
+		RB_CLEAR_NODE(&dso->rb_node);
+		dso->root = NULL;
+	}
+
 	dso->long_name		 = name;
 	dso->long_name_len	 = strlen(name);
 	dso->long_name_allocated = name_allocated;
+
+	if (root)
+		__dso__findlink_by_longname(root, dso, NULL);
 }
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
@@ -1046,6 +1062,7 @@ struct dso *dso__new(const char *name)
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		RB_CLEAR_NODE(&dso->rb_node);
+		dso->root = NULL;
 		INIT_LIST_HEAD(&dso->node);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		pthread_mutex_init(&dso->lock, NULL);

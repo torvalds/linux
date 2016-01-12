@@ -56,24 +56,28 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <2>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <3>;
+			next-level-cache = <&l2>;
 		};
 	};
 
@@ -108,6 +112,18 @@
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <1>;
+		};
+
+		l2: l2-cache@500c0000 {
+			compatible = "socionext,uniphier-system-cache";
+			reg = <0x500c0000 0x2000>, <0x503c0100 0x4>,
+			      <0x506c0000 0x400>;
+			interrupts = <0 174 4>, <0 175 4>, <0 190 4>, <0 191 4>;
+			cache-unified;
+			cache-size = <(1280 * 1024)>;
+			cache-sets = <512>;
+			cache-line-size = <128>;
+			cache-level = <2>;
 		};
 
 		serial0: serial@54006800 {
@@ -235,10 +251,9 @@
 			clock-frequency = <400000>;
 		};
 
-		system-bus-controller-misc@59800000 {
-			compatible = "socionext,uniphier-system-bus-controller-misc",
-				     "syscon";
-			reg = <0x59800000 0x2000>;
+		system-bus-controller@58c00000 {
+			compatible = "socionext,uniphier-system-bus-controller";
+			reg = <0x58c00000 0x400>, <0x59800000 0x2000>;
 		};
 
 		pinctrl: pinctrl@5f801000 {

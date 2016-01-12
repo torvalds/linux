@@ -911,7 +911,7 @@ void __init finish_e820_parsing(void)
 	}
 }
 
-static inline const char *e820_type_to_string(int e820_type)
+static const char *e820_type_to_string(int e820_type)
 {
 	switch (e820_type) {
 	case E820_RESERVED_KERN:

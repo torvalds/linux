@@ -149,6 +149,7 @@ static int of_overlay_apply_one(struct of_overlay *ov,
 			pr_err("%s: Failed to apply single node @%s/%s\n",
 					__func__, target->full_name,
 					child->name);
+			of_node_put(child);
 			return ret;
 		}
 	}
@@ -417,8 +418,10 @@ static int overlay_subtree_check(struct device_node *tree,
 		return 1;
 
 	for_each_child_of_node(tree, child) {
-		if (overlay_subtree_check(child, dn))
+		if (overlay_subtree_check(child, dn)) {
+			of_node_put(child);
 			return 1;
+		}
 	}
 
 	return 0;

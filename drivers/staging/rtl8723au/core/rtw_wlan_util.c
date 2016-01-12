@@ -525,7 +525,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	else
 		aSifsTime = 16;
 
-		for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++) {
 		ACI = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN >> 5) & 0x03;
 		ACM = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN >> 4) & 0x01;
 
@@ -1212,7 +1212,7 @@ unsigned int update_supported_rate23a(unsigned char *ptn, unsigned int ptn_sz)
 
 unsigned int update_MSC_rate23a(struct ieee80211_ht_cap *pHT_caps)
 {
-	unsigned int mask = 0;
+	unsigned int mask;
 
 	mask = pHT_caps->mcs.rx_mask[0] << 12 |
 		pHT_caps->mcs.rx_mask[1] << 20;

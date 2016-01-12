@@ -723,16 +723,6 @@ static const struct pinmux_ops mtk_pmx_ops = {
 	.gpio_set_direction	= mtk_pmx_gpio_set_direction,
 };
 
-static int mtk_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void mtk_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int mtk_gpio_direction_input(struct gpio_chip *chip,
 					unsigned offset)
 {
@@ -757,7 +747,7 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
-	return !!(read_val & bit);
+	return !(read_val & bit);
 }
 
 static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -767,12 +757,8 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned int read_val = 0;
 	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->dev);
 
-	if (mtk_gpio_get_direction(chip, offset))
-		reg_addr = mtk_get_port(pctl, offset) +
-			pctl->devdata->dout_offset;
-	else
-		reg_addr = mtk_get_port(pctl, offset) +
-			pctl->devdata->din_offset;
+	reg_addr = mtk_get_port(pctl, offset) +
+		pctl->devdata->din_offset;
 
 	bit = BIT(offset & 0xf);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
@@ -899,7 +885,7 @@ static int mtk_eint_flip_edge(struct mtk_pinctrl *pctl, int hwirq)
 	int start_level, curr_level;
 	unsigned int reg_offset;
 	const struct mtk_eint_offsets *eint_offsets = &(pctl->devdata->eint_offsets);
-	u32 mask = 1 << (hwirq & 0x1f);
+	u32 mask = BIT(hwirq & 0x1f);
 	u32 port = (hwirq >> 5) & eint_offsets->port_mask;
 	void __iomem *reg = pctl->eint_reg_base + (port << 2);
 	const struct mtk_desc_pin *pin;
@@ -1005,8 +991,9 @@ static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 
 static struct gpio_chip mtk_gpio_chip = {
 	.owner			= THIS_MODULE,
-	.request		= mtk_gpio_request,
-	.free			= mtk_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
+	.get_direction		= mtk_gpio_get_direction,
 	.direction_input	= mtk_gpio_direction_input,
 	.direction_output	= mtk_gpio_direction_output,
 	.get			= mtk_gpio_get,
@@ -1436,7 +1423,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		irq_set_chip_and_handler(virq, &mtk_pinctrl_irq_chip,
 			handle_level_irq);
 		irq_set_chip_data(virq, pctl);
-	};
+	}
 
 	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
 	return 0;

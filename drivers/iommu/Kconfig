@@ -23,8 +23,7 @@ config IOMMU_IO_PGTABLE
 config IOMMU_IO_PGTABLE_LPAE
 	bool "ARMv7/v8 Long Descriptor Format"
 	select IOMMU_IO_PGTABLE
-	# SWIOTLB guarantees a dma_to_phys() implementation
-	depends on ARM || ARM64 || (COMPILE_TEST && SWIOTLB)
+	depends on HAS_DMA && (ARM || ARM64 || COMPILE_TEST)
 	help
 	  Enable support for the ARM long descriptor pagetable format.
 	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
@@ -48,6 +47,13 @@ config IOMMU_IOVA
 config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
+
+# IOMMU-agnostic DMA-mapping layer
+config IOMMU_DMA
+	bool
+	depends on NEED_SG_DMA_LENGTH
+	select IOMMU_API
+	select IOMMU_IOVA
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
@@ -134,6 +140,16 @@ config INTEL_IOMMU
 	  These DMA remapping devices are reported via ACPI tables
 	  and include PCI device scope covered by these DMA
 	  remapping devices.
+
+config INTEL_IOMMU_SVM
+	bool "Support for Shared Virtual Memory with Intel IOMMU"
+	depends on INTEL_IOMMU && X86
+	select PCI_PASID
+	select MMU_NOTIFIER
+	help
+	  Shared Virtual Memory (SVM) provides a facility for devices
+	  to access DMA resources through process address space by
+	  means of a Process Address Space ID (PASID).
 
 config INTEL_IOMMU_DEFAULT_ON
 	def_bool y
@@ -362,11 +378,19 @@ config ARM_SMMU_V3
 	depends on ARM64 && PCI
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
+	select GENERIC_MSI_IRQ_DOMAIN
 	help
 	  Support for implementations of the ARM System MMU architecture
 	  version 3 providing translation support to a PCIe root complex.
 
 	  Say Y here if your system includes an IOMMU device implementing
 	  the ARM SMMUv3 architecture.
+
+config S390_IOMMU
+	def_bool y if S390 && PCI
+	depends on S390 && PCI
+	select IOMMU_API
+	help
+	  Support for the IOMMU API for s390 PCI devices.
 
 endif # IOMMU_SUPPORT

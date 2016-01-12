@@ -58,7 +58,6 @@ MODULE_DEVICE_TABLE(spi, st_magn_id_table);
 
 static struct spi_driver st_magn_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-magn-spi",
 	},
 	.probe = st_magn_spi_probe,

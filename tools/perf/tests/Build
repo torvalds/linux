@@ -8,7 +8,6 @@ perf-y += openat-syscall-all-cpus.o
 perf-y += openat-syscall-tp-fields.o
 perf-y += mmap-basic.o
 perf-y += perf-record.o
-perf-y += rdpmc.o
 perf-y += evsel-roundtrip-name.o
 perf-y += evsel-tp-sched.o
 perf-y += fdarray.o
@@ -32,9 +31,23 @@ perf-y += sample-parsing.o
 perf-y += parse-no-sample-id-all.o
 perf-y += kmod-path.o
 perf-y += thread-map.o
-perf-y += llvm.o
+perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o
+perf-y += bpf.o
+perf-y += topology.o
 
-perf-$(CONFIG_X86) += perf-time-to-tsc.o
+$(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_base_prog[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
+
+$(OUTPUT)tests/llvm-src-kbuild.c: tests/bpf-script-test-kbuild.c
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_test_kbuild_prog[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
 
 ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o

@@ -284,20 +284,20 @@ struct ib_mr *hfi1_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	m = 0;
 	n = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-			void *vaddr;
+		void *vaddr;
 
-			vaddr = page_address(sg_page(sg));
-			if (!vaddr) {
-				ret = ERR_PTR(-EINVAL);
-				goto bail;
-			}
-			mr->mr.map[m]->segs[n].vaddr = vaddr;
-			mr->mr.map[m]->segs[n].length = umem->page_size;
-			n++;
-			if (n == HFI1_SEGSZ) {
-				m++;
-				n = 0;
-			}
+		vaddr = page_address(sg_page(sg));
+		if (!vaddr) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
+		mr->mr.map[m]->segs[n].vaddr = vaddr;
+		mr->mr.map[m]->segs[n].length = umem->page_size;
+		n++;
+		if (n == HFI1_SEGSZ) {
+			m++;
+			n = 0;
+		}
 	}
 	ret = &mr->ibmr;
 
@@ -344,9 +344,10 @@ out:
 
 /*
  * Allocate a memory region usable with the
- * IB_WR_FAST_REG_MR send work request.
+ * IB_WR_REG_MR send work request.
  *
  * Return the memory region on success, otherwise return an errno.
+ * FIXME: IB_WR_REG_MR is not supported
  */
 struct ib_mr *hfi1_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
@@ -362,36 +363,6 @@ struct ib_mr *hfi1_alloc_mr(struct ib_pd *pd,
 		return (struct ib_mr *)mr;
 
 	return &mr->ibmr;
-}
-
-struct ib_fast_reg_page_list *
-hfi1_alloc_fast_reg_page_list(struct ib_device *ibdev, int page_list_len)
-{
-	unsigned size = page_list_len * sizeof(u64);
-	struct ib_fast_reg_page_list *pl;
-
-	if (size > PAGE_SIZE)
-		return ERR_PTR(-EINVAL);
-
-	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
-	if (!pl)
-		return ERR_PTR(-ENOMEM);
-
-	pl->page_list = kzalloc(size, GFP_KERNEL);
-	if (!pl->page_list)
-		goto err_free;
-
-	return pl;
-
-err_free:
-	kfree(pl);
-	return ERR_PTR(-ENOMEM);
-}
-
-void hfi1_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl)
-{
-	kfree(pl->page_list);
-	kfree(pl);
 }
 
 /**

@@ -129,7 +129,6 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 {
 	int ret;
 	u32 clk_div, host_clock;
-	u32 *property_p;
 	struct mii_bus *bus;
 	struct resource res;
 	struct device_node *np1;
@@ -168,8 +167,7 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 		clk_div = DEFAULT_CLOCK_DIVISOR;
 		goto issue;
 	}
-	property_p = (u32 *) of_get_property(np1, "clock-frequency", NULL);
-	if (!property_p) {
+	if (of_property_read_u32(np1, "clock-frequency", &host_clock)) {
 		netdev_warn(lp->ndev, "clock-frequency property not found.\n");
 		netdev_warn(lp->ndev,
 			    "Setting MDIO clock divisor to default %d\n",
@@ -179,7 +177,6 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 		goto issue;
 	}
 
-	host_clock = be32_to_cpup(property_p);
 	clk_div = (host_clock / (MAX_MDIO_FREQ * 2)) - 1;
 	/* If there is any remainder from the division of
 	 * fHOST / (MAX_MDIO_FREQ * 2), then we need to add

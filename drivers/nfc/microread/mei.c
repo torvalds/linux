@@ -29,7 +29,7 @@
 
 #define MICROREAD_DRIVER_NAME "microread"
 
-static int microread_mei_probe(struct mei_cl_device *device,
+static int microread_mei_probe(struct mei_cl_device *cldev,
 			       const struct mei_cl_device_id *id)
 {
 	struct nfc_mei_phy *phy;
@@ -37,7 +37,7 @@ static int microread_mei_probe(struct mei_cl_device *device,
 
 	pr_info("Probing NFC microread\n");
 
-	phy = nfc_mei_phy_alloc(device);
+	phy = nfc_mei_phy_alloc(cldev);
 	if (!phy) {
 		pr_err("Cannot allocate memory for microread mei phy.\n");
 		return -ENOMEM;
@@ -55,9 +55,9 @@ static int microread_mei_probe(struct mei_cl_device *device,
 	return 0;
 }
 
-static int microread_mei_remove(struct mei_cl_device *device)
+static int microread_mei_remove(struct mei_cl_device *cldev)
 {
-	struct nfc_mei_phy *phy = mei_cl_get_drvdata(device);
+	struct nfc_mei_phy *phy = mei_cldev_get_drvdata(cldev);
 
 	microread_remove(phy->hdev);
 
@@ -67,7 +67,7 @@ static int microread_mei_remove(struct mei_cl_device *device)
 }
 
 static struct mei_cl_device_id microread_mei_tbl[] = {
-	{ MICROREAD_DRIVER_NAME, MEI_NFC_UUID},
+	{ MICROREAD_DRIVER_NAME, MEI_NFC_UUID, MEI_CL_VERSION_ANY},
 
 	/* required last entry */
 	{ }
@@ -88,7 +88,7 @@ static int microread_mei_init(void)
 
 	pr_debug(DRIVER_DESC ": %s\n", __func__);
 
-	r = mei_cl_driver_register(&microread_driver);
+	r = mei_cldev_driver_register(&microread_driver);
 	if (r) {
 		pr_err(MICROREAD_DRIVER_NAME ": driver registration failed\n");
 		return r;
@@ -99,7 +99,7 @@ static int microread_mei_init(void)
 
 static void microread_mei_exit(void)
 {
-	mei_cl_driver_unregister(&microread_driver);
+	mei_cldev_driver_unregister(&microread_driver);
 }
 
 module_init(microread_mei_init);

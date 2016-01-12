@@ -14,7 +14,7 @@ DOCBOOKS := z8530book.xml device-drivers.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
 	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml drm.xml media_api.xml w1.xml \
+	    tracepoint.xml gpu.xml media_api.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
 
 include Documentation/DocBook/media/Makefile
@@ -69,6 +69,12 @@ installmandocs: mandocs
 KERNELDOCXMLREF = $(srctree)/scripts/kernel-doc-xml-ref
 KERNELDOC       = $(srctree)/scripts/kernel-doc
 DOCPROC         = $(objtree)/scripts/docproc
+CHECK_LC_CTYPE = $(objtree)/scripts/check-lc_ctype
+
+# Use a fixed encoding - UTF-8 if the C library has support built-in
+# or ASCII if not
+LC_CTYPE := $(call try-run, LC_CTYPE=C.UTF-8 $(CHECK_LC_CTYPE),C.UTF-8,C)
+export LC_CTYPE
 
 XMLTOFLAGS = -m $(srctree)/$(src)/stylesheet.xsl
 XMLTOFLAGS += --skip-validation

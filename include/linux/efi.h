@@ -99,6 +99,7 @@ typedef	struct {
 #define EFI_MEMORY_XP		((u64)0x0000000000004000ULL)	/* execute-protect */
 #define EFI_MEMORY_MORE_RELIABLE \
 				((u64)0x0000000000010000ULL)	/* higher reliability */
+#define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
 #define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
 #define EFI_MEMORY_DESCRIPTOR_VERSION	1
 
@@ -595,6 +596,9 @@ void efi_native_runtime_setup(void);
 #define DEVICE_TREE_GUID \
     EFI_GUID(  0xb1b621d5, 0xf19c, 0x41a5, 0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0 )
 
+#define EFI_PROPERTIES_TABLE_GUID \
+    EFI_GUID(  0x880aaca3, 0x4adc, 0x4a04, 0x90, 0x79, 0xb7, 0x47, 0x34, 0x08, 0x25, 0xe5 )
+
 typedef struct {
 	efi_guid_t guid;
 	u64 table;
@@ -676,7 +680,7 @@ typedef struct {
 } efi_system_table_t;
 
 struct efi_memory_map {
-	void *phys_map;
+	phys_addr_t phys_map;
 	void *map;
 	void *map_end;
 	int nr_map;
@@ -808,6 +812,15 @@ typedef struct _efi_file_io_interface {
 #define EFI_FILE_MODE_WRITE	0x0000000000000002
 #define EFI_FILE_MODE_CREATE	0x8000000000000000
 
+typedef struct {
+	u32 version;
+	u32 length;
+	u64 memory_protection_attribute;
+} efi_properties_table_t;
+
+#define EFI_PROPERTIES_TABLE_VERSION	0x00010000
+#define EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA	0x1
+
 #define EFI_INVALID_TABLE_ADDR		(~0UL)
 
 /*
@@ -830,6 +843,7 @@ extern struct efi {
 	unsigned long runtime;		/* runtime table */
 	unsigned long config_table;	/* config tables */
 	unsigned long esrt;		/* ESRT table */
+	unsigned long properties_table;	/* properties table */
 	efi_get_time_t *get_time;
 	efi_set_time_t *set_time;
 	efi_get_wakeup_time_t *get_wakeup_time;
@@ -901,12 +915,18 @@ extern void efi_initialize_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource, struct resource *bss_resource);
 extern void efi_get_time(struct timespec *now);
 extern void efi_reserve_boot_services(void);
-extern int efi_get_fdt_params(struct efi_fdt_params *params, int verbose);
+extern int efi_get_fdt_params(struct efi_fdt_params *params);
 extern struct efi_memory_map memmap;
 extern struct kobject *efi_kobj;
 
 extern int efi_reboot_quirk_mode;
 extern bool efi_poweroff_required(void);
+
+#ifdef CONFIG_EFI_FAKE_MEMMAP
+extern void __init efi_fake_memmap(void);
+#else
+static inline void efi_fake_memmap(void) { }
+#endif
 
 /* Iterate through an efi_memory_map */
 #define for_each_efi_memory_desc(m, md)					   \
@@ -959,6 +979,7 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_PARAVIRT		6	/* Access is via a paravirt interface */
 #define EFI_ARCH_1		7	/* First arch-specific bit */
 #define EFI_DBG			8	/* Print additional debug info at runtime */
+#define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped non-executable? */
 
 #ifdef CONFIG_EFI
 /*

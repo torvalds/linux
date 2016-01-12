@@ -42,7 +42,6 @@
 
 #include "selftest.h"
 
-
 /*
  * Timers are implemented as a sorted queue of expiry times. The queue
  * is slotted, with each slot holding timers which expire in a
@@ -78,13 +77,13 @@ stt_add_timer(stt_timer_t *timer)
 	LASSERT(!stt_data.stt_shuttingdown);
 	LASSERT(timer->stt_func != NULL);
 	LASSERT(list_empty(&timer->stt_list));
-	LASSERT(cfs_time_after(timer->stt_expires, get_seconds()));
+	LASSERT(timer->stt_expires > ktime_get_real_seconds());
 
 	/* a simple insertion sort */
 	list_for_each_prev(pos, STTIMER_SLOT(timer->stt_expires)) {
 		stt_timer_t *old = list_entry(pos, stt_timer_t, stt_list);
 
-		if (cfs_time_aftereq(timer->stt_expires, old->stt_expires))
+		if (timer->stt_expires >= old->stt_expires)
 			break;
 	}
 	list_add(&timer->stt_list, pos);
@@ -122,7 +121,7 @@ stt_del_timer(stt_timer_t *timer)
 
 /* called with stt_data.stt_lock held */
 static int
-stt_expire_list(struct list_head *slot, unsigned long now)
+stt_expire_list(struct list_head *slot, time64_t now)
 {
 	int expired = 0;
 	stt_timer_t *timer;
@@ -130,7 +129,7 @@ stt_expire_list(struct list_head *slot, unsigned long now)
 	while (!list_empty(slot)) {
 		timer = list_entry(slot->next, stt_timer_t, stt_list);
 
-		if (cfs_time_after(timer->stt_expires, now))
+		if (timer->stt_expires > now)
 			break;
 
 		list_del_init(&timer->stt_list);
@@ -149,10 +148,10 @@ static int
 stt_check_timers(unsigned long *last)
 {
 	int expired = 0;
-	unsigned long now;
+	time64_t now;
 	unsigned long this_slot;
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 	this_slot = now & STTIMER_SLOTTIMEMASK;
 
 	spin_lock(&stt_data.stt_lock);
@@ -166,7 +165,6 @@ stt_check_timers(unsigned long *last)
 	spin_unlock(&stt_data.stt_lock);
 	return expired;
 }
-
 
 static int
 stt_timer_main(void *arg)
@@ -204,7 +202,6 @@ stt_start_timer_thread(void)
 	return 0;
 }
 
-
 int
 stt_startup(void)
 {
@@ -212,7 +209,7 @@ stt_startup(void)
 	int i;
 
 	stt_data.stt_shuttingdown = 0;
-	stt_data.stt_prev_slot = get_seconds() & STTIMER_SLOTTIMEMASK;
+	stt_data.stt_prev_slot = ktime_get_real_seconds() & STTIMER_SLOTTIMEMASK;
 
 	spin_lock_init(&stt_data.stt_lock);
 	for (i = 0; i < STTIMER_NSLOTS; i++)

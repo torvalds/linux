@@ -400,7 +400,6 @@ static struct i2c_driver ptn3460_driver = {
 	.remove		= ptn3460_remove,
 	.driver		= {
 		.name	= "nxp,ptn3460",
-		.owner	= THIS_MODULE,
 		.of_match_table = ptn3460_match,
 	},
 };

@@ -168,14 +168,13 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		*/
 
 		POKE32(PANEL_DISPLAY_CTRL, ulTmpValue|ulReg);
-#if 1
+
 		while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) != (ulTmpValue|ulReg)) {
 			cnt++;
 			if (cnt > 1000)
 				break;
 			POKE32(PANEL_DISPLAY_CTRL, ulTmpValue|ulReg);
 		}
-#endif
 	} else {
 		ret = -1;
 	}

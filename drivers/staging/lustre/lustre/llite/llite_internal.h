@@ -71,7 +71,7 @@ struct ll_dentry_data {
 	struct rcu_head			lld_rcu_head;
 };
 
-#define ll_d2d(de) ((struct ll_dentry_data*)((de)->d_fsdata))
+#define ll_d2d(de) ((struct ll_dentry_data *)((de)->d_fsdata))
 
 #define LLI_INODE_MAGIC		 0x111d0de5
 #define LLI_INODE_DEAD		  0xdeadd00d
@@ -134,11 +134,9 @@ struct ll_inode_info {
 	struct lu_fid		   lli_pfid;
 
 	struct list_head		      lli_close_list;
-	struct list_head		      lli_oss_capas;
 	/* open count currently used by capability only, indicate whether
 	 * capability needs renewal */
 	atomic_t		    lli_open_count;
-	struct obd_capa		*lli_mds_capa;
 	unsigned long		      lli_rmtperm_time;
 
 	/* handle is to be sent to MDS later on done_writing and setattr.
@@ -398,8 +396,8 @@ enum stats_track_type {
 #define LL_SBI_USER_XATTR	0x08 /* support user xattr */
 #define LL_SBI_ACL	       0x10 /* support ACL */
 #define LL_SBI_RMT_CLIENT	0x40 /* remote client */
-#define LL_SBI_MDS_CAPA	  0x80 /* support mds capa */
-#define LL_SBI_OSS_CAPA	 0x100 /* support oss capa */
+#define LL_SBI_MDS_CAPA		 0x80 /* support mds capa, obsolete */
+#define LL_SBI_OSS_CAPA		0x100 /* support oss capa, obsolete */
 #define LL_SBI_LOCALFLOCK       0x200 /* Local flocks support by kernel */
 #define LL_SBI_LRU_RESIZE       0x400 /* lru resize support */
 #define LL_SBI_LAZYSTATFS       0x800 /* lazystatfs mount option */
@@ -659,7 +657,6 @@ static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 
 void ll_ra_read_in(struct file *f, struct ll_ra_read *rar);
 void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar);
-struct ll_ra_read *ll_ra_read_get(struct file *f);
 
 /* llite/lproc_llite.c */
 int ldebugfs_register_mountpoint(struct dentry *parent,
@@ -690,7 +687,6 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 int ll_md_blocking_ast(struct ldlm_lock *, struct ldlm_lock_desc *,
 		       void *data, int flag);
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de);
-int ll_rmdir_entry(struct inode *dir, char *name, int namelen);
 
 /* llite/rw.c */
 int ll_prepare_write(struct file *, struct page *, unsigned from, unsigned to);
@@ -791,8 +787,6 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 int ll_obd_statfs(struct inode *inode, void *arg);
 int ll_get_max_mdsize(struct ll_sb_info *sbi, int *max_mdsize);
 int ll_get_default_mdsize(struct ll_sb_info *sbi, int *default_mdsize);
-int ll_get_max_cookiesize(struct ll_sb_info *sbi, int *max_cookiesize);
-int ll_get_default_cookiesize(struct ll_sb_info *sbi, int *default_cookiesize);
 int ll_process_config(struct lustre_cfg *lcfg);
 struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 				      struct inode *i1, struct inode *i2,
@@ -801,6 +795,7 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 void ll_finish_md_op_data(struct md_op_data *op_data);
 int ll_get_obd_name(struct inode *inode, unsigned int cmd, unsigned long arg);
 char *ll_get_fsname(struct super_block *sb, char *buf, int buflen);
+void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req);
 
 /* llite/llite_nfs.c */
 extern struct export_operations lustre_export_operations;
@@ -822,7 +817,6 @@ struct ll_close_queue {
 };
 
 struct ccc_object *cl_inode2ccc(struct inode *inode);
-
 
 void vvp_write_pending (struct ccc_object *club, struct ccc_page *page);
 void vvp_write_complete(struct ccc_object *club, struct ccc_page *page);
@@ -850,7 +844,7 @@ struct vvp_io {
 			 * Inode modification time that is checked across DLM
 			 * lock request.
 			 */
-			time_t		 ft_mtime;
+			time64_t	    ft_mtime;
 			struct vm_area_struct *ft_vma;
 			/**
 			 *  locked page returned from vvp_io
@@ -1000,6 +994,7 @@ static inline struct obd_export *ll_s2mdexp(struct super_block *sb)
 static inline struct client_obd *sbi2mdc(struct ll_sb_info *sbi)
 {
 	struct obd_device *obd = sbi->ll_md_exp->exp_obd;
+
 	if (obd == NULL)
 		LBUG();
 	return &obd->u.cli;
@@ -1051,25 +1046,6 @@ extern struct kmem_cache *ll_rmtperm_hash_cachep;
 void free_rmtperm_hash(struct hlist_head *hash);
 int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm);
 int lustre_check_remote_perm(struct inode *inode, int mask);
-
-/* llite/llite_capa.c */
-extern struct timer_list ll_capa_timer;
-
-int ll_capa_thread_start(void);
-void ll_capa_thread_stop(void);
-void ll_capa_timer_callback(unsigned long unused);
-
-struct obd_capa *ll_add_capa(struct inode *inode, struct obd_capa *ocapa);
-
-void ll_capa_open(struct inode *inode);
-void ll_capa_close(struct inode *inode);
-
-struct obd_capa *ll_mdscapa_get(struct inode *inode);
-struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc);
-
-void ll_truncate_free_capa(struct obd_capa *ocapa);
-void ll_clear_inode_capas(struct inode *inode);
-void ll_print_capa_stat(struct ll_sb_info *sbi);
 
 /* llite/llite_cl.c */
 extern struct lu_device_type vvp_device_type;
@@ -1296,7 +1272,6 @@ typedef enum llioc_iter (*llioc_callback_t)(struct inode *inode,
 void *ll_iocontrol_register(llioc_callback_t cb, int count, unsigned int *cmd);
 void ll_iocontrol_unregister(void *magic);
 
-
 /* lclient compat stuff */
 #define cl_inode_info ll_inode_info
 #define cl_i2info(info) ll_i2info(info)
@@ -1343,8 +1318,6 @@ static inline int cl_merge_lvb(const struct lu_env *env, struct inode *inode)
 #define cl_inode_atime(inode) LTIME_S((inode)->i_atime)
 #define cl_inode_ctime(inode) LTIME_S((inode)->i_ctime)
 #define cl_inode_mtime(inode) LTIME_S((inode)->i_mtime)
-
-struct obd_capa *cl_capa_lookup(struct inode *inode, enum cl_req_type crt);
 
 int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 		       enum cl_fsync_mode mode, int ignore_layout);
@@ -1465,7 +1438,15 @@ static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 	spin_lock_nested(&dentry->d_lock,
 			 nested ? DENTRY_D_LOCK_NESTED : DENTRY_D_LOCK_NORMAL);
 	__d_lustre_invalidate(dentry);
-	if (d_count(dentry) == 0)
+	/*
+	 * We should be careful about dentries created by d_obtain_alias().
+	 * These dentries are not put in the dentry tree, instead they are
+	 * linked to sb->s_anon through dentry->d_hash.
+	 * shrink_dcache_for_umount() shrinks the tree and sb->s_anon list.
+	 * If we unhashed such a dentry, unmount would not be able to find
+	 * it and busy inodes would be reported.
+	 */
+	if (d_count(dentry) == 0 && !(dentry->d_flags & DCACHE_DISCONNECTED))
 		__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
 }

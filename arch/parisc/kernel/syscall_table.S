@@ -438,6 +438,9 @@
 	ENTRY_SAME(memfd_create)	/* 340 */
 	ENTRY_SAME(bpf)
 	ENTRY_COMP(execveat)
+	ENTRY_SAME(membarrier)
+	ENTRY_SAME(userfaultfd)
+	ENTRY_SAME(mlock2)		/* 345 */
 
 
 .ifne (. - 90b) - (__NR_Linux_syscalls * (91b - 90b))

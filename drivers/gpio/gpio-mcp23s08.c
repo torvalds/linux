@@ -848,7 +848,6 @@ MODULE_DEVICE_TABLE(i2c, mcp230xx_id);
 static struct i2c_driver mcp230xx_driver = {
 	.driver = {
 		.name	= "mcp230xx",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(mcp23s08_i2c_of_match),
 	},
 	.probe		= mcp230xx_probe,
@@ -1021,7 +1020,6 @@ static struct spi_driver mcp23s08_driver = {
 	.id_table	= mcp23s08_ids,
 	.driver = {
 		.name	= "mcp23s08",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(mcp23s08_spi_of_match),
 	},
 };

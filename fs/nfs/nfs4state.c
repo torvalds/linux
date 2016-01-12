@@ -1725,7 +1725,8 @@ restart:
 			if (!test_and_clear_bit(ops->owner_flag_bit,
 							&sp->so_flags))
 				continue;
-			atomic_inc(&sp->so_count);
+			if (!atomic_inc_not_zero(&sp->so_count))
+				continue;
 			spin_unlock(&clp->cl_lock);
 			rcu_read_unlock();
 

@@ -19,7 +19,7 @@
  */
 
 #include <linux/bitops.h>
-#include <asm-generic/bitops/count_zeros.h>
+#include <linux/count_zeros.h>
 #include "mpi-internal.h"
 
 #define MAX_EXTERN_MPI_BITS 16384
@@ -319,3 +319,202 @@ int mpi_set_buffer(MPI a, const void *xbuffer, unsigned nbytes, int sign)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mpi_set_buffer);
+
+/**
+ * mpi_write_to_sgl() - Funnction exports MPI to an sgl (msb first)
+ *
+ * This function works in the same way as the mpi_read_buffer, but it
+ * takes an sgl instead of u8 * buf.
+ *
+ * @a:		a multi precision integer
+ * @sgl:	scatterlist to write to. Needs to be at least
+ *		mpi_get_size(a) long.
+ * @nbytes:	in/out param - it has the be set to the maximum number of
+ *		bytes that can be written to sgl. This has to be at least
+ *		the size of the integer a. On return it receives the actual
+ *		length of the data written.
+ * @sign:	if not NULL, it will be set to the sign of a.
+ *
+ * Return:	0 on success or error code in case of error
+ */
+int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
+		     int *sign)
+{
+	u8 *p, *p2;
+	mpi_limb_t alimb, alimb2;
+	unsigned int n = mpi_get_size(a);
+	int i, x, y = 0, lzeros = 0, buf_len;
+
+	if (!nbytes || *nbytes < n)
+		return -EINVAL;
+
+	if (sign)
+		*sign = a->sign;
+
+	p = (void *)&a->d[a->nlimbs] - 1;
+
+	for (i = a->nlimbs * sizeof(alimb) - 1; i >= 0; i--, p--) {
+		if (!*p)
+			lzeros++;
+		else
+			break;
+	}
+
+	*nbytes = n - lzeros;
+	buf_len = sgl->length;
+	p2 = sg_virt(sgl);
+
+	for (i = a->nlimbs - 1; i >= 0; i--) {
+		alimb = a->d[i];
+		p = (u8 *)&alimb2;
+#if BYTES_PER_MPI_LIMB == 4
+		*p++ = alimb >> 24;
+		*p++ = alimb >> 16;
+		*p++ = alimb >> 8;
+		*p++ = alimb;
+#elif BYTES_PER_MPI_LIMB == 8
+		*p++ = alimb >> 56;
+		*p++ = alimb >> 48;
+		*p++ = alimb >> 40;
+		*p++ = alimb >> 32;
+		*p++ = alimb >> 24;
+		*p++ = alimb >> 16;
+		*p++ = alimb >> 8;
+		*p++ = alimb;
+#else
+#error please implement for this limb size.
+#endif
+		if (lzeros > 0) {
+			if (lzeros >= sizeof(alimb)) {
+				p -= sizeof(alimb);
+				continue;
+			} else {
+				mpi_limb_t *limb1 = (void *)p - sizeof(alimb);
+				mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
+							+ lzeros;
+				*limb1 = *limb2;
+				p -= lzeros;
+				y = lzeros;
+			}
+			lzeros -= sizeof(alimb);
+		}
+
+		p = p - (sizeof(alimb) - y);
+
+		for (x = 0; x < sizeof(alimb) - y; x++) {
+			if (!buf_len) {
+				sgl = sg_next(sgl);
+				if (!sgl)
+					return -EINVAL;
+				buf_len = sgl->length;
+				p2 = sg_virt(sgl);
+			}
+			*p2++ = *p++;
+			buf_len--;
+		}
+		y = 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mpi_write_to_sgl);
+
+/*
+ * mpi_read_raw_from_sgl() - Function allocates an MPI and populates it with
+ *			     data from the sgl
+ *
+ * This function works in the same way as the mpi_read_raw_data, but it
+ * takes an sgl instead of void * buffer. i.e. it allocates
+ * a new MPI and reads the content of the sgl to the MPI.
+ *
+ * @sgl:	scatterlist to read from
+ * @len:	number of bytes to read
+ *
+ * Return:	Pointer to a new MPI or NULL on error
+ */
+MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int len)
+{
+	struct scatterlist *sg;
+	int x, i, j, z, lzeros, ents;
+	unsigned int nbits, nlimbs, nbytes;
+	mpi_limb_t a;
+	MPI val = NULL;
+
+	lzeros = 0;
+	ents = sg_nents(sgl);
+
+	for_each_sg(sgl, sg, ents, i) {
+		const u8 *buff = sg_virt(sg);
+		int len = sg->length;
+
+		while (len && !*buff) {
+			lzeros++;
+			len--;
+			buff++;
+		}
+
+		if (len && *buff)
+			break;
+
+		ents--;
+		lzeros = 0;
+	}
+
+	sgl = sg;
+
+	if (!ents)
+		nbytes = 0;
+	else
+		nbytes = len - lzeros;
+
+	nbits = nbytes * 8;
+	if (nbits > MAX_EXTERN_MPI_BITS) {
+		pr_info("MPI: mpi too large (%u bits)\n", nbits);
+		return NULL;
+	}
+
+	if (nbytes > 0)
+		nbits -= count_leading_zeros(*(u8 *)(sg_virt(sgl) + lzeros));
+	else
+		nbits = 0;
+
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
+	val = mpi_alloc(nlimbs);
+	if (!val)
+		return NULL;
+
+	val->nbits = nbits;
+	val->sign = 0;
+	val->nlimbs = nlimbs;
+
+	if (nbytes == 0)
+		return val;
+
+	j = nlimbs - 1;
+	a = 0;
+	z = 0;
+	x = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
+	x %= BYTES_PER_MPI_LIMB;
+
+	for_each_sg(sgl, sg, ents, i) {
+		const u8 *buffer = sg_virt(sg) + lzeros;
+		int len = sg->length - lzeros;
+		int buf_shift = x;
+
+		if  (sg_is_last(sg) && (len % BYTES_PER_MPI_LIMB))
+			len += BYTES_PER_MPI_LIMB - (len % BYTES_PER_MPI_LIMB);
+
+		for (; x < len + buf_shift; x++) {
+			a <<= 8;
+			a |= *buffer++;
+			if (((z + x + 1) % BYTES_PER_MPI_LIMB) == 0) {
+				val->d[j--] = a;
+				a = 0;
+			}
+		}
+		z += x;
+		x = 0;
+		lzeros = 0;
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(mpi_read_raw_from_sgl);

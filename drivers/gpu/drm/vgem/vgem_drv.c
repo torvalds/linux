@@ -235,66 +235,13 @@ unlock:
 	return ret;
 }
 
-int vgem_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
-	struct drm_vma_offset_node *node;
-	struct drm_gem_object *obj;
-	struct drm_vgem_gem_object *vgem_obj;
-	int ret = 0;
-
-	mutex_lock(&dev->struct_mutex);
-
-	node = drm_vma_offset_exact_lookup(dev->vma_offset_manager,
-					   vma->vm_pgoff,
-					   vma_pages(vma));
-	if (!node) {
-		ret = -EINVAL;
-		goto out_unlock;
-	} else if (!drm_vma_node_is_allowed(node, filp)) {
-		ret = -EACCES;
-		goto out_unlock;
-	}
-
-	obj = container_of(node, struct drm_gem_object, vma_node);
-
-	vgem_obj = to_vgem_bo(obj);
-
-	if (obj->dma_buf && vgem_obj->use_dma_buf) {
-		ret = dma_buf_mmap(obj->dma_buf, vma, 0);
-		goto out_unlock;
-	}
-
-	if (!obj->dev->driver->gem_vm_ops) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
-	vma->vm_ops = obj->dev->driver->gem_vm_ops;
-	vma->vm_private_data = vgem_obj;
-	vma->vm_page_prot =
-		pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
-
-	mutex_unlock(&dev->struct_mutex);
-	drm_gem_vm_open(vma);
-	return ret;
-
-out_unlock:
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
-
 static struct drm_ioctl_desc vgem_ioctls[] = {
 };
 
 static const struct file_operations vgem_driver_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
-	.mmap		= vgem_drm_gem_mmap,
+	.mmap		= drm_gem_mmap,
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl = drm_ioctl,

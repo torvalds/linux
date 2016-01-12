@@ -3,6 +3,10 @@
 
 #include <uapi/linux/audit.h>
 
+typedef asmlinkage long (*sys_call_ptr_t)(unsigned long, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long, unsigned long);
+
 static inline int syscall_get_arch(void)
 {
 #ifdef CONFIG_X86_32

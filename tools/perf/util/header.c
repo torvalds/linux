@@ -24,9 +24,6 @@
 #include "build-id.h"
 #include "data.h"
 
-static u32 header_argc;
-static const char **header_argv;
-
 /*
  * magic2 = "PERFILE2"
  * must be a numerical value to let the endianness
@@ -88,6 +85,9 @@ int write_padded(int fd, const void *bf, size_t count, size_t count_aligned)
 	return err;
 }
 
+#define string_size(str)						\
+	(PERF_ALIGN((strlen(str) + 1), NAME_ALIGN) + sizeof(u32))
+
 static int do_write_string(int fd, const char *str)
 {
 	u32 len, olen;
@@ -133,37 +133,6 @@ static char *do_read_string(int fd, struct perf_header *ph)
 
 	free(buf);
 	return NULL;
-}
-
-int
-perf_header__set_cmdline(int argc, const char **argv)
-{
-	int i;
-
-	/*
-	 * If header_argv has already been set, do not override it.
-	 * This allows a command to set the cmdline, parse args and
-	 * then call another builtin function that implements a
-	 * command -- e.g, cmd_kvm calling cmd_record.
-	 */
-	if (header_argv)
-		return 0;
-
-	header_argc = (u32)argc;
-
-	/* do not include NULL termination */
-	header_argv = calloc(argc, sizeof(char *));
-	if (!header_argv)
-		return -ENOMEM;
-
-	/*
-	 * must copy argv contents because it gets moved
-	 * around during option parsing
-	 */
-	for (i = 0; i < argc ; i++)
-		header_argv[i] = argv[i];
-
-	return 0;
 }
 
 static int write_tracing_data(int fd, struct perf_header *h __maybe_unused,
@@ -402,8 +371,8 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 {
 	char buf[MAXPATHLEN];
 	char proc[32];
-	u32 i, n;
-	int ret;
+	u32 n;
+	int i, ret;
 
 	/*
 	 * actual atual path to perf binary
@@ -417,7 +386,7 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	buf[ret] = '\0';
 
 	/* account for binary path */
-	n = header_argc + 1;
+	n = perf_env.nr_cmdline + 1;
 
 	ret = do_write(fd, &n, sizeof(n));
 	if (ret < 0)
@@ -427,8 +396,8 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	if (ret < 0)
 		return ret;
 
-	for (i = 0 ; i < header_argc; i++) {
-		ret = do_write_string(fd, header_argv[i]);
+	for (i = 0 ; i < perf_env.nr_cmdline; i++) {
+		ret = do_write_string(fd, perf_env.cmdline_argv[i]);
 		if (ret < 0)
 			return ret;
 	}
@@ -441,6 +410,7 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list"
 
 struct cpu_topo {
+	u32 cpu_nr;
 	u32 core_sib;
 	u32 thread_sib;
 	char **core_siblings;
@@ -551,7 +521,7 @@ static struct cpu_topo *build_cpu_topology(void)
 		return NULL;
 
 	tp = addr;
-
+	tp->cpu_nr = nr;
 	addr += sizeof(*tp);
 	tp->core_siblings = addr;
 	addr += sz;
@@ -574,7 +544,7 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 {
 	struct cpu_topo *tp;
 	u32 i;
-	int ret;
+	int ret, j;
 
 	tp = build_cpu_topology();
 	if (!tp)
@@ -597,6 +567,21 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 		ret = do_write_string(fd, tp->thread_siblings[i]);
 		if (ret < 0)
 			break;
+	}
+
+	ret = perf_env__read_cpu_topology_map(&perf_env);
+	if (ret < 0)
+		goto done;
+
+	for (j = 0; j < perf_env.nr_cpus_avail; j++) {
+		ret = do_write(fd, &perf_env.cpu[j].core_id,
+			       sizeof(perf_env.cpu[j].core_id));
+		if (ret < 0)
+			return ret;
+		ret = do_write(fd, &perf_env.cpu[j].socket_id,
+			       sizeof(perf_env.cpu[j].socket_id));
+		if (ret < 0)
+			return ret;
 	}
 done:
 	free_cpu_topo(tp);
@@ -938,6 +923,7 @@ static void print_cpu_topology(struct perf_header *ph, int fd __maybe_unused,
 {
 	int nr, i;
 	char *str;
+	int cpu_nr = ph->env.nr_cpus_online;
 
 	nr = ph->env.nr_sibling_cores;
 	str = ph->env.sibling_cores;
@@ -954,6 +940,13 @@ static void print_cpu_topology(struct perf_header *ph, int fd __maybe_unused,
 		fprintf(fp, "# sibling threads : %s\n", str);
 		str += strlen(str) + 1;
 	}
+
+	if (ph->env.cpu != NULL) {
+		for (i = 0; i < cpu_nr; i++)
+			fprintf(fp, "# CPU %d: Core ID %d, Socket ID %d\n", i,
+				ph->env.cpu[i].core_id, ph->env.cpu[i].socket_id);
+	} else
+		fprintf(fp, "# Core ID and Socket ID information is not available\n");
 }
 
 static void free_event_desc(struct perf_evsel *events)
@@ -1582,7 +1575,7 @@ error:
 	return -1;
 }
 
-static int process_cpu_topology(struct perf_file_section *section __maybe_unused,
+static int process_cpu_topology(struct perf_file_section *section,
 				struct perf_header *ph, int fd,
 				void *data __maybe_unused)
 {
@@ -1590,15 +1583,22 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 	u32 nr, i;
 	char *str;
 	struct strbuf sb;
+	int cpu_nr = ph->env.nr_cpus_online;
+	u64 size = 0;
+
+	ph->env.cpu = calloc(cpu_nr, sizeof(*ph->env.cpu));
+	if (!ph->env.cpu)
+		return -1;
 
 	ret = readn(fd, &nr, sizeof(nr));
 	if (ret != sizeof(nr))
-		return -1;
+		goto free_cpu;
 
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
 	ph->env.nr_sibling_cores = nr;
+	size += sizeof(u32);
 	strbuf_init(&sb, 128);
 
 	for (i = 0; i < nr; i++) {
@@ -1608,6 +1608,7 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 
 		/* include a NULL character at the end */
 		strbuf_add(&sb, str, strlen(str) + 1);
+		size += string_size(str);
 		free(str);
 	}
 	ph->env.sibling_cores = strbuf_detach(&sb, NULL);
@@ -1620,6 +1621,7 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 		nr = bswap_32(nr);
 
 	ph->env.nr_sibling_threads = nr;
+	size += sizeof(u32);
 
 	for (i = 0; i < nr; i++) {
 		str = do_read_string(fd, ph);
@@ -1628,13 +1630,57 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 
 		/* include a NULL character at the end */
 		strbuf_add(&sb, str, strlen(str) + 1);
+		size += string_size(str);
 		free(str);
 	}
 	ph->env.sibling_threads = strbuf_detach(&sb, NULL);
+
+	/*
+	 * The header may be from old perf,
+	 * which doesn't include core id and socket id information.
+	 */
+	if (section->size <= size) {
+		zfree(&ph->env.cpu);
+		return 0;
+	}
+
+	for (i = 0; i < (u32)cpu_nr; i++) {
+		ret = readn(fd, &nr, sizeof(nr));
+		if (ret != sizeof(nr))
+			goto free_cpu;
+
+		if (ph->needs_swap)
+			nr = bswap_32(nr);
+
+		if (nr > (u32)cpu_nr) {
+			pr_debug("core_id number is too big."
+				 "You may need to upgrade the perf tool.\n");
+			goto free_cpu;
+		}
+		ph->env.cpu[i].core_id = nr;
+
+		ret = readn(fd, &nr, sizeof(nr));
+		if (ret != sizeof(nr))
+			goto free_cpu;
+
+		if (ph->needs_swap)
+			nr = bswap_32(nr);
+
+		if (nr > (u32)cpu_nr) {
+			pr_debug("socket_id number is too big."
+				 "You may need to upgrade the perf tool.\n");
+			goto free_cpu;
+		}
+
+		ph->env.cpu[i].socket_id = nr;
+	}
+
 	return 0;
 
 error:
 	strbuf_release(&sb);
+free_cpu:
+	zfree(&ph->env.cpu);
 	return -1;
 }
 
@@ -1736,6 +1782,9 @@ static int process_pmu_mappings(struct perf_file_section *section __maybe_unused
 		strbuf_addf(&sb, "%u:%s", type, name);
 		/* include a NULL character at the end */
 		strbuf_add(&sb, "", 1);
+
+		if (!strcmp(name, "msr"))
+			ph->env.msr_pmu_type = type;
 
 		free(name);
 		pmu_num--;
@@ -2515,6 +2564,7 @@ int perf_session__read_header(struct perf_session *session)
 		return -ENOMEM;
 
 	session->evlist->env = &header->env;
+	session->machines.host.env = &header->env;
 	if (perf_data_file__is_pipe(file))
 		return perf_header__read_pipe(session);
 

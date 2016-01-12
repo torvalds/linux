@@ -34,12 +34,39 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&A57_0>;
+				};
+				core1 {
+					cpu = <&A57_1>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&A53_0>;
+				};
+				core1 {
+					cpu = <&A53_1>;
+				};
+				core2 {
+					cpu = <&A53_2>;
+				};
+				core3 {
+					cpu = <&A53_3>;
+				};
+			};
+		};
+
 		A57_0: cpu@0 {
 			compatible = "arm,cortex-a57","arm,armv8";
 			reg = <0x0 0x0>;
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A57_L2>;
+			clocks = <&scpi_dvfs 0>;
 		};
 
 		A57_1: cpu@1 {
@@ -48,6 +75,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A57_L2>;
+			clocks = <&scpi_dvfs 0>;
 		};
 
 		A53_0: cpu@100 {
@@ -56,6 +84,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A53_1: cpu@101 {
@@ -64,6 +93,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A53_2: cpu@102 {
@@ -72,6 +102,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A53_3: cpu@103 {
@@ -80,6 +111,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A57_L2: l2-cache0 {
@@ -91,17 +123,21 @@
 		};
 	};
 
-	pmu {
-		compatible = "arm,armv8-pmuv3";
+	pmu_a57 {
+		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 02 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 06 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 06 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&A57_0>,
+				     <&A57_1>;
+	};
+
+	pmu_a53 {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&A57_0>,
-				     <&A57_1>,
-				     <&A53_0>,
+		interrupt-affinity = <&A53_0>,
 				     <&A53_1>,
 				     <&A53_2>,
 				     <&A53_3>;

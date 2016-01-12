@@ -124,6 +124,9 @@ config I2C_I801
 	    BayTrail (SOC)
 	    Sunrise Point-H (PCH)
 	    Sunrise Point-LP (PCH)
+	    DNV (SOC)
+	    Broxton (SOC)
+	    Lewisburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -422,7 +425,7 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 
 config I2C_CADENCE
 	tristate "Cadence I2C Controller"
-	depends on ARCH_ZYNQ
+	depends on ARCH_ZYNQ || ARM64
 	help
 	  Say yes here to select Cadence I2C Host Controller. This controller is
 	  e.g. used by Xilinx Zynq.
@@ -582,10 +585,10 @@ config I2C_IMG
 
 config I2C_IMX
 	tristate "IMX I2C interface"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || ARCH_LAYERSCAPE
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Freescale i.MX/MXC processors.
+	  the Freescale i.MX/MXC or Layerscape processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
@@ -901,6 +904,22 @@ config I2C_TEGRA
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C controller embedded in NVIDIA Tegra SOCs
+
+config I2C_UNIPHIER
+	tristate "UniPhier FIFO-less I2C controller"
+	depends on ARCH_UNIPHIER
+	help
+	  If you say yes to this option, support will be included for
+	  the UniPhier FIFO-less I2C interface embedded in PH1-LD4, PH1-sLD8,
+	  or older UniPhier SoCs.
+
+config I2C_UNIPHIER_F
+	tristate "UniPhier FIFO-builtin I2C controller"
+	depends on ARCH_UNIPHIER
+	help
+	  If you say yes to this option, support will be included for
+	  the UniPhier FIFO-builtin I2C interface embedded in PH1-Pro4,
+	  PH1-Pro5, or newer UniPhier SoCs.
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"

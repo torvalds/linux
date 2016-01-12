@@ -364,25 +364,27 @@ add_extension(enum ip_set_ext_id id, u32 flags, struct nlattr *tb[])
 }
 
 size_t
-ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len)
+ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len,
+		size_t align)
 {
 	enum ip_set_ext_id id;
-	size_t offset = len;
 	u32 cadt_flags = 0;
 
 	if (tb[IPSET_ATTR_CADT_FLAGS])
 		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 	if (cadt_flags & IPSET_FLAG_WITH_FORCEADD)
 		set->flags |= IPSET_CREATE_FLAG_FORCEADD;
+	if (!align)
+		align = 1;
 	for (id = 0; id < IPSET_EXT_ID_MAX; id++) {
 		if (!add_extension(id, cadt_flags, tb))
 			continue;
-		offset = ALIGN(offset, ip_set_extensions[id].align);
-		set->offset[id] = offset;
+		len = ALIGN(len, ip_set_extensions[id].align);
+		set->offset[id] = len;
 		set->extensions |= ip_set_extensions[id].type;
-		offset += ip_set_extensions[id].len;
+		len += ip_set_extensions[id].len;
 	}
-	return offset;
+	return ALIGN(len, align);
 }
 EXPORT_SYMBOL_GPL(ip_set_elem_len);
 
@@ -519,8 +521,7 @@ int
 ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 	    const struct xt_action_param *par, struct ip_set_adt_opt *opt)
 {
-	struct ip_set *set = ip_set_rcu_get(
-			dev_net(par->in ? par->in : par->out), index);
+	struct ip_set *set = ip_set_rcu_get(par->net, index);
 	int ret = 0;
 
 	BUG_ON(!set);
@@ -558,8 +559,7 @@ int
 ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
 	   const struct xt_action_param *par, struct ip_set_adt_opt *opt)
 {
-	struct ip_set *set = ip_set_rcu_get(
-			dev_net(par->in ? par->in : par->out), index);
+	struct ip_set *set = ip_set_rcu_get(par->net, index);
 	int ret;
 
 	BUG_ON(!set);
@@ -581,8 +581,7 @@ int
 ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
 	   const struct xt_action_param *par, struct ip_set_adt_opt *opt)
 {
-	struct ip_set *set = ip_set_rcu_get(
-			dev_net(par->in ? par->in : par->out), index);
+	struct ip_set *set = ip_set_rcu_get(par->net, index);
 	int ret = 0;
 
 	BUG_ON(!set);

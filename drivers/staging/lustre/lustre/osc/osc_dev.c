@@ -122,7 +122,7 @@ static void *osc_key_init(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, osc_thread_kmem, GFP_NOFS);
+	info = kmem_cache_alloc(osc_thread_kmem, GFP_NOFS | __GFP_ZERO);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -133,7 +133,7 @@ static void osc_key_fini(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info = data;
 
-	OBD_SLAB_FREE_PTR(info, osc_thread_kmem);
+	kmem_cache_free(osc_thread_kmem, info);
 }
 
 struct lu_context_key osc_key = {
@@ -147,7 +147,7 @@ static void *osc_session_init(const struct lu_context *ctx,
 {
 	struct osc_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, osc_session_kmem, GFP_NOFS);
+	info = kmem_cache_alloc(osc_session_kmem, GFP_NOFS | __GFP_ZERO);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -158,7 +158,7 @@ static void osc_session_fini(const struct lu_context *ctx,
 {
 	struct osc_session *info = data;
 
-	OBD_SLAB_FREE_PTR(info, osc_session_kmem);
+	kmem_cache_free(osc_session_kmem, info);
 }
 
 struct lu_context_key osc_session_key = {

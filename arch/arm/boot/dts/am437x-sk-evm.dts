@@ -563,7 +563,7 @@
 
 	vmmc-supply = <&dcdc4>;
 	bus-width = <4>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 };
 
 &usb2_phy1 {

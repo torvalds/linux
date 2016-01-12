@@ -61,39 +61,47 @@ void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
 	}
 }
 
-static void mlx5e_dma_pop_last_pushed(struct mlx5e_sq *sq, dma_addr_t *addr,
-				      u32 *size)
+static inline void mlx5e_tx_dma_unmap(struct device *pdev,
+				      struct mlx5e_sq_dma *dma)
 {
-	sq->dma_fifo_pc--;
-	*addr = sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].addr;
-	*size = sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].size;
+	switch (dma->type) {
+	case MLX5E_DMA_MAP_SINGLE:
+		dma_unmap_single(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
+		break;
+	case MLX5E_DMA_MAP_PAGE:
+		dma_unmap_page(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
+		break;
+	default:
+		WARN_ONCE(true, "mlx5e_tx_dma_unmap unknown DMA type!\n");
+	}
+}
+
+static inline void mlx5e_dma_push(struct mlx5e_sq *sq,
+				  dma_addr_t addr,
+				  u32 size,
+				  enum mlx5e_dma_map_type map_type)
+{
+	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].addr = addr;
+	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].size = size;
+	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].type = map_type;
+	sq->dma_fifo_pc++;
+}
+
+static inline struct mlx5e_sq_dma *mlx5e_dma_get(struct mlx5e_sq *sq, u32 i)
+{
+	return &sq->dma_fifo[i & sq->dma_fifo_mask];
 }
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_sq *sq, struct sk_buff *skb)
 {
-	dma_addr_t addr;
-	u32 size;
 	int i;
 
 	for (i = 0; i < MLX5E_TX_SKB_CB(skb)->num_dma; i++) {
-		mlx5e_dma_pop_last_pushed(sq, &addr, &size);
-		dma_unmap_single(sq->pdev, addr, size, DMA_TO_DEVICE);
+		struct mlx5e_sq_dma *last_pushed_dma =
+			mlx5e_dma_get(sq, --sq->dma_fifo_pc);
+
+		mlx5e_tx_dma_unmap(sq->pdev, last_pushed_dma);
 	}
-}
-
-static inline void mlx5e_dma_push(struct mlx5e_sq *sq, dma_addr_t addr,
-				  u32 size)
-{
-	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].addr = addr;
-	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].size = size;
-	sq->dma_fifo_pc++;
-}
-
-static inline void mlx5e_dma_get(struct mlx5e_sq *sq, u32 i, dma_addr_t *addr,
-				 u32 *size)
-{
-	*addr = sq->dma_fifo[i & sq->dma_fifo_mask].addr;
-	*size = sq->dma_fifo[i & sq->dma_fifo_mask].size;
 }
 
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
@@ -116,12 +124,34 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 	 * headers and occur before the data gather.
 	 * Therefore these headers must be copied into the WQE
 	 */
-#define MLX5E_MIN_INLINE (ETH_HLEN + 2/*vlan tag*/)
+#define MLX5E_MIN_INLINE ETH_HLEN
 
-	if (bf && (skb_headlen(skb) <= sq->max_inline))
-		return skb_headlen(skb);
+	if (bf) {
+		u16 ihs = skb_headlen(skb);
+
+		if (skb_vlan_tag_present(skb))
+			ihs += VLAN_HLEN;
+
+		if (ihs <= sq->max_inline)
+			return skb_headlen(skb);
+	}
 
 	return MLX5E_MIN_INLINE;
+}
+
+static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
+{
+	struct vlan_ethhdr *vhdr = (struct vlan_ethhdr *)start;
+	int cpy1_sz = 2 * ETH_ALEN;
+	int cpy2_sz = ihs - cpy1_sz;
+
+	skb_copy_from_linear_data(skb, vhdr, cpy1_sz);
+	skb_pull_inline(skb, cpy1_sz);
+	vhdr->h_vlan_proto = skb->vlan_proto;
+	vhdr->h_vlan_TCI = cpu_to_be16(skb_vlan_tag_get(skb));
+	skb_copy_from_linear_data(skb, &vhdr->h_vlan_encapsulated_proto,
+				  cpy2_sz);
+	skb_pull_inline(skb, cpy2_sz);
 }
 
 static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
@@ -175,8 +205,13 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 							ETH_ZLEN);
 	}
 
-	skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
-	skb_pull_inline(skb, ihs);
+	if (skb_vlan_tag_present(skb)) {
+		mlx5e_insert_vlan(eseg->inline_hdr_start, skb, ihs);
+		ihs += VLAN_HLEN;
+	} else {
+		skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
+		skb_pull_inline(skb, ihs);
+	}
 
 	eseg->inline_hdr_sz = cpu_to_be16(ihs);
 
@@ -198,7 +233,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		dseg->lkey       = sq->mkey_be;
 		dseg->byte_count = cpu_to_be32(headlen);
 
-		mlx5e_dma_push(sq, dma_addr, headlen);
+		mlx5e_dma_push(sq, dma_addr, headlen, MLX5E_DMA_MAP_SINGLE);
 		MLX5E_TX_SKB_CB(skb)->num_dma++;
 
 		dseg++;
@@ -217,7 +252,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		dseg->lkey       = sq->mkey_be;
 		dseg->byte_count = cpu_to_be32(fsz);
 
-		mlx5e_dma_push(sq, dma_addr, fsz);
+		mlx5e_dma_push(sq, dma_addr, fsz, MLX5E_DMA_MAP_PAGE);
 		MLX5E_TX_SKB_CB(skb)->num_dma++;
 
 		dseg++;
@@ -333,13 +368,10 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 			}
 
 			for (j = 0; j < MLX5E_TX_SKB_CB(skb)->num_dma; j++) {
-				dma_addr_t addr;
-				u32 size;
+				struct mlx5e_sq_dma *dma =
+					mlx5e_dma_get(sq, dma_fifo_cc++);
 
-				mlx5e_dma_get(sq, dma_fifo_cc, &addr, &size);
-				dma_fifo_cc++;
-				dma_unmap_single(sq->pdev, addr, size,
-						 DMA_TO_DEVICE);
+				mlx5e_tx_dma_unmap(sq->pdev, dma);
 			}
 
 			npkts++;

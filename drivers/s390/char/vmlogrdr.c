@@ -99,8 +99,8 @@ static const struct file_operations vmlogrdr_fops = {
 };
 
 
-static void vmlogrdr_iucv_path_complete(struct iucv_path *, u8 ipuser[16]);
-static void vmlogrdr_iucv_path_severed(struct iucv_path *, u8 ipuser[16]);
+static void vmlogrdr_iucv_path_complete(struct iucv_path *, u8 *ipuser);
+static void vmlogrdr_iucv_path_severed(struct iucv_path *, u8 *ipuser);
 static void vmlogrdr_iucv_message_pending(struct iucv_path *,
 					  struct iucv_message *);
 
@@ -160,7 +160,7 @@ static struct cdev  *vmlogrdr_cdev = NULL;
 static int recording_class_AB;
 
 
-static void vmlogrdr_iucv_path_complete(struct iucv_path *path, u8 ipuser[16])
+static void vmlogrdr_iucv_path_complete(struct iucv_path *path, u8 *ipuser)
 {
 	struct vmlogrdr_priv_t * logptr = path->private;
 
@@ -171,7 +171,7 @@ static void vmlogrdr_iucv_path_complete(struct iucv_path *path, u8 ipuser[16])
 }
 
 
-static void vmlogrdr_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
+static void vmlogrdr_iucv_path_severed(struct iucv_path *path, u8 *ipuser)
 {
 	struct vmlogrdr_priv_t * logptr = path->private;
 	u8 reason = (u8) ipuser[8];

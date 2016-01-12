@@ -1,0 +1,17 @@
+Cirrus Logic Arizona class audio SoCs
+
+These devices are audio SoCs with extensive digital capabilities and a range
+of analogue I/O.
+
+This document lists regulator specific bindings, see the primary binding
+document:
+  ../mfd/arizona.txt
+
+Optional properties:
+  - wlf,ldoena : GPIO specifier for the GPIO controlling LDOENA
+
+Optional subnodes:
+  - ldo1 : Initial data for the LDO1 regulator, as covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt
+  - micvdd : Initial data for the MICVDD regulator, as covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt

@@ -29,7 +29,6 @@
 #include "ccp-dev.h"
 
 struct ccp_platform {
-	int use_acpi;
 	int coherent;
 };
 
@@ -95,7 +94,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	struct ccp_device *ccp;
 	struct ccp_platform *ccp_platform;
 	struct device *dev = &pdev->dev;
-	struct acpi_device *adev = ACPI_COMPANION(dev);
+	enum dev_dma_attr attr;
 	struct resource *ior;
 	int ret;
 
@@ -112,8 +111,6 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	ccp->get_irq = ccp_get_irqs;
 	ccp->free_irq = ccp_free_irqs;
 
-	ccp_platform->use_acpi = (!adev || acpi_disabled) ? 0 : 1;
-
 	ior = ccp_find_mmio_area(ccp);
 	ccp->io_map = devm_ioremap_resource(dev, ior);
 	if (IS_ERR(ccp->io_map)) {
@@ -122,17 +119,23 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	}
 	ccp->io_regs = ccp->io_map;
 
+	attr = device_get_dma_attr(dev);
+	if (attr == DEV_DMA_NOT_SUPPORTED) {
+		dev_err(dev, "DMA is not supported");
+		goto e_err;
+	}
+
+	ccp_platform->coherent = (attr == DEV_DMA_COHERENT);
+	if (ccp_platform->coherent)
+		ccp->axcache = CACHE_WB_NO_ALLOC;
+	else
+		ccp->axcache = CACHE_NONE;
+
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
 		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
 		goto e_err;
 	}
-
-	ccp_platform->coherent = device_dma_is_coherent(ccp->dev);
-	if (ccp_platform->coherent)
-		ccp->axcache = CACHE_WB_NO_ALLOC;
-	else
-		ccp->axcache = CACHE_NONE;
 
 	dev_set_drvdata(dev, ccp);
 
@@ -229,7 +232,7 @@ MODULE_DEVICE_TABLE(of, ccp_of_match);
 
 static struct platform_driver ccp_platform_driver = {
 	.driver = {
-		.name = "AMD Cryptographic Coprocessor",
+		.name = "ccp",
 #ifdef CONFIG_ACPI
 		.acpi_match_table = ccp_acpi_match,
 #endif

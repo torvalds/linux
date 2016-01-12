@@ -360,7 +360,7 @@ struct ipoib_dev_priv {
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
-	struct ib_send_wr    tx_wr;
+	struct ib_ud_wr      tx_wr;
 	unsigned	     tx_outstanding;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
 
@@ -495,6 +495,7 @@ void ipoib_dev_cleanup(struct net_device *dev);
 void ipoib_mcast_join_task(struct work_struct *work);
 void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
+void ipoib_mcast_free(struct ipoib_mcast *mc);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 int ipoib_mcast_start_thread(struct net_device *dev);
@@ -527,7 +528,7 @@ static inline void ipoib_build_sge(struct ipoib_dev_priv *priv,
 		priv->tx_sge[i + off].addr = mapping[i + off];
 		priv->tx_sge[i + off].length = skb_frag_size(&frags[i]);
 	}
-	priv->tx_wr.num_sge	     = nr_frags + off;
+	priv->tx_wr.wr.num_sge	     = nr_frags + off;
 }
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG

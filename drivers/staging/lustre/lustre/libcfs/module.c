@@ -66,9 +66,6 @@ MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
 MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
 
-static void insert_debugfs(void);
-static void remove_debugfs(void);
-
 static struct dentry *lnet_debugfs_root;
 
 static void kportal_memhog_free(struct libcfs_device_userstate *ldu)
@@ -277,25 +274,9 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 		}
 		break;
 
-	case IOC_LIBCFS_PING_TEST: {
-		extern void (kping_client)(struct libcfs_ioctl_data *);
-		void (*ping)(struct libcfs_ioctl_data *);
-
-		CDEBUG(D_IOCTL, "doing %d pings to nid %s (%s)\n",
-		       data->ioc_count, libcfs_nid2str(data->ioc_nid),
-		       libcfs_nid2str(data->ioc_nid));
-		ping = symbol_get(kping_client);
-		if (!ping)
-			CERROR("symbol_get failed\n");
-		else {
-			ping(data);
-			symbol_put(kping_client);
-		}
-		return 0;
-	}
-
 	default: {
 		struct libcfs_ioctl_handler *hand;
+
 		err = -EINVAL;
 		down_read(&ioctl_list_sem);
 		list_for_each_entry(hand, &ioctl_list, item) {
@@ -321,7 +302,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 	struct libcfs_ioctl_data *data;
 	int err = 0;
 
-	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
+	LIBCFS_ALLOC_GFP(buf, 1024, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
@@ -340,7 +321,6 @@ out:
 	return err;
 }
 
-
 struct cfs_psdev_ops libcfs_psdev_ops = {
 	libcfs_psdev_open,
 	libcfs_psdev_release,
@@ -348,90 +328,6 @@ struct cfs_psdev_ops libcfs_psdev_ops = {
 	NULL,
 	libcfs_ioctl
 };
-
-static int init_libcfs_module(void)
-{
-	int rc;
-
-	libcfs_arch_init();
-	libcfs_init_nidstrings();
-
-	rc = libcfs_debug_init(5 * 1024 * 1024);
-	if (rc < 0) {
-		pr_err("LustreError: libcfs_debug_init: %d\n", rc);
-		return rc;
-	}
-
-	rc = cfs_cpu_init();
-	if (rc != 0)
-		goto cleanup_debug;
-
-	rc = misc_register(&libcfs_dev);
-	if (rc) {
-		CERROR("misc_register: error %d\n", rc);
-		goto cleanup_cpu;
-	}
-
-	rc = cfs_wi_startup();
-	if (rc) {
-		CERROR("initialize workitem: error %d\n", rc);
-		goto cleanup_deregister;
-	}
-
-	/* max to 4 threads, should be enough for rehash */
-	rc = min(cfs_cpt_weight(cfs_cpt_table, CFS_CPT_ANY), 4);
-	rc = cfs_wi_sched_create("cfs_rh", cfs_cpt_table, CFS_CPT_ANY,
-				 rc, &cfs_sched_rehash);
-	if (rc != 0) {
-		CERROR("Startup workitem scheduler: error: %d\n", rc);
-		goto cleanup_deregister;
-	}
-
-	rc = cfs_crypto_register();
-	if (rc) {
-		CERROR("cfs_crypto_register: error %d\n", rc);
-		goto cleanup_wi;
-	}
-
-	insert_debugfs();
-
-	CDEBUG(D_OTHER, "portals setup OK\n");
-	return 0;
- cleanup_wi:
-	cfs_wi_shutdown();
- cleanup_deregister:
-	misc_deregister(&libcfs_dev);
-cleanup_cpu:
-	cfs_cpu_fini();
- cleanup_debug:
-	libcfs_debug_cleanup();
-	return rc;
-}
-
-static void exit_libcfs_module(void)
-{
-	int rc;
-
-	remove_debugfs();
-
-	if (cfs_sched_rehash != NULL) {
-		cfs_wi_sched_destroy(cfs_sched_rehash);
-		cfs_sched_rehash = NULL;
-	}
-
-	cfs_crypto_unregister();
-	cfs_wi_shutdown();
-
-	misc_deregister(&libcfs_dev);
-
-	cfs_cpu_fini();
-
-	rc = libcfs_debug_cleanup();
-	if (rc)
-		pr_err("LustreError: libcfs_debug_cleanup: %d\n", rc);
-
-	libcfs_arch_cleanup();
-}
 
 static int proc_call_handler(void *data, int write, loff_t *ppos,
 		void __user *buffer, size_t *lenp,
@@ -700,11 +596,6 @@ static struct ctl_table lnet_table[] = {
 	}
 };
 
-struct lnet_debugfs_symlink_def {
-	char *name;
-	char *target;
-};
-
 static const struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
 	{ "console_ratelimit",
 	  "/sys/module/libcfs/parameters/libcfs_console_ratelimit"},
@@ -756,11 +647,10 @@ static const struct file_operations lnet_debugfs_file_operations = {
 	.llseek		= default_llseek,
 };
 
-static void insert_debugfs(void)
+void lustre_insert_debugfs(struct ctl_table *table,
+			   const struct lnet_debugfs_symlink_def *symlinks)
 {
-	struct ctl_table *table;
 	struct dentry *entry;
-	const struct lnet_debugfs_symlink_def *symlinks;
 
 	if (lnet_debugfs_root == NULL)
 		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
@@ -769,24 +659,104 @@ static void insert_debugfs(void)
 	if (IS_ERR_OR_NULL(lnet_debugfs_root))
 		return;
 
-	for (table = lnet_table; table->procname; table++)
+	for (; table->procname; table++)
 		entry = debugfs_create_file(table->procname, table->mode,
 					    lnet_debugfs_root, table,
 					    &lnet_debugfs_file_operations);
 
-	for (symlinks = lnet_debugfs_symlinks; symlinks->name; symlinks++)
+	for (; symlinks && symlinks->name; symlinks++)
 		entry = debugfs_create_symlink(symlinks->name,
 					       lnet_debugfs_root,
 					       symlinks->target);
 
 }
+EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
 
-static void remove_debugfs(void)
+static void lustre_remove_debugfs(void)
 {
 	if (lnet_debugfs_root != NULL)
 		debugfs_remove_recursive(lnet_debugfs_root);
 
 	lnet_debugfs_root = NULL;
+}
+
+static int init_libcfs_module(void)
+{
+	int rc;
+
+	rc = libcfs_debug_init(5 * 1024 * 1024);
+	if (rc < 0) {
+		pr_err("LustreError: libcfs_debug_init: %d\n", rc);
+		return rc;
+	}
+
+	rc = cfs_cpu_init();
+	if (rc != 0)
+		goto cleanup_debug;
+
+	rc = misc_register(&libcfs_dev);
+	if (rc) {
+		CERROR("misc_register: error %d\n", rc);
+		goto cleanup_cpu;
+	}
+
+	rc = cfs_wi_startup();
+	if (rc) {
+		CERROR("initialize workitem: error %d\n", rc);
+		goto cleanup_deregister;
+	}
+
+	/* max to 4 threads, should be enough for rehash */
+	rc = min(cfs_cpt_weight(cfs_cpt_table, CFS_CPT_ANY), 4);
+	rc = cfs_wi_sched_create("cfs_rh", cfs_cpt_table, CFS_CPT_ANY,
+				 rc, &cfs_sched_rehash);
+	if (rc != 0) {
+		CERROR("Startup workitem scheduler: error: %d\n", rc);
+		goto cleanup_deregister;
+	}
+
+	rc = cfs_crypto_register();
+	if (rc) {
+		CERROR("cfs_crypto_register: error %d\n", rc);
+		goto cleanup_wi;
+	}
+
+	lustre_insert_debugfs(lnet_table, lnet_debugfs_symlinks);
+
+	CDEBUG(D_OTHER, "portals setup OK\n");
+	return 0;
+ cleanup_wi:
+	cfs_wi_shutdown();
+ cleanup_deregister:
+	misc_deregister(&libcfs_dev);
+cleanup_cpu:
+	cfs_cpu_fini();
+ cleanup_debug:
+	libcfs_debug_cleanup();
+	return rc;
+}
+
+static void exit_libcfs_module(void)
+{
+	int rc;
+
+	lustre_remove_debugfs();
+
+	if (cfs_sched_rehash) {
+		cfs_wi_sched_destroy(cfs_sched_rehash);
+		cfs_sched_rehash = NULL;
+	}
+
+	cfs_crypto_unregister();
+	cfs_wi_shutdown();
+
+	misc_deregister(&libcfs_dev);
+
+	cfs_cpu_fini();
+
+	rc = libcfs_debug_cleanup();
+	if (rc)
+		pr_err("LustreError: libcfs_debug_cleanup: %d\n", rc);
 }
 
 MODULE_VERSION("1.0.0");

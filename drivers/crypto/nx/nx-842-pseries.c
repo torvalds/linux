@@ -234,6 +234,10 @@ static int nx842_validate_result(struct device *dev,
 		dev_dbg(dev, "%s: Out of space in output buffer\n",
 					__func__);
 		return -ENOSPC;
+	case 65: /* Calculated CRC doesn't match the passed value */
+		dev_dbg(dev, "%s: CRC mismatch for decompression\n",
+					__func__);
+		return -EINVAL;
 	case 66: /* Input data contains an illegal template field */
 	case 67: /* Template indicates data past the end of the input stream */
 		dev_dbg(dev, "%s: Bad data for decompression (code:%d)\n",
@@ -324,7 +328,7 @@ static int nx842_pseries_compress(const unsigned char *in, unsigned int inlen,
 	slout.entries = (struct nx842_slentry *)workmem->slout;
 
 	/* Init operation */
-	op.flags = NX842_OP_COMPRESS;
+	op.flags = NX842_OP_COMPRESS_CRC;
 	csbcpb = &workmem->csbcpb;
 	memset(csbcpb, 0, sizeof(*csbcpb));
 	op.csbcpb = nx842_get_pa(csbcpb);
@@ -457,7 +461,7 @@ static int nx842_pseries_decompress(const unsigned char *in, unsigned int inlen,
 	slout.entries = (struct nx842_slentry *)workmem->slout;
 
 	/* Init operation */
-	op.flags = NX842_OP_DECOMPRESS;
+	op.flags = NX842_OP_DECOMPRESS_CRC;
 	csbcpb = &workmem->csbcpb;
 	memset(csbcpb, 0, sizeof(*csbcpb));
 	op.csbcpb = nx842_get_pa(csbcpb);

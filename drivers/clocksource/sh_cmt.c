@@ -962,7 +962,6 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	memset(cmt, 0, sizeof(*cmt));
 	cmt->pdev = pdev;
 	raw_spin_lock_init(&cmt->lock);
 

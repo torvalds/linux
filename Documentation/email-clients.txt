@@ -176,10 +176,46 @@ To use 'vim' with mutt:
 if you want to include the patch inline.
 (a)ttach works fine without "set paste".
 
+You can also generate patches with 'git format-patch' and then use Mutt
+to send them:
+    $ mutt -H 0001-some-bug-fix.patch
+
 Config options:
 It should work with default settings.
 However, it's a good idea to set the "send_charset" to:
   set send_charset="us-ascii:utf-8"
+
+Mutt is highly customizable. Here is a minimum configuration to start
+using Mutt to send patches through Gmail:
+
+# .muttrc
+# ================  IMAP ====================
+set imap_user = 'yourusername@gmail.com'
+set imap_pass = 'yourpassword'
+set spoolfile = imaps://imap.gmail.com/INBOX
+set folder = imaps://imap.gmail.com/
+set record="imaps://imap.gmail.com/[Gmail]/Sent Mail"
+set postponed="imaps://imap.gmail.com/[Gmail]/Drafts"
+set mbox="imaps://imap.gmail.com/[Gmail]/All Mail"
+
+# ================  SMTP  ====================
+set smtp_url = "smtp://username@smtp.gmail.com:587/"
+set smtp_pass = $imap_pass
+set ssl_force_tls = yes # Require encrypted connection
+
+# ================  Composition  ====================
+set editor = `echo \$EDITOR`
+set edit_headers = yes  # See the headers when editing
+set charset = UTF-8     # value of $LANG; also fallback for send_charset
+# Sender, email address, and sign-off line must match
+unset use_domain        # because joe@localhost is just embarrassing
+set realname = "YOUR NAME"
+set from = "username@gmail.com"
+set use_from = yes
+
+The Mutt docs have lots more information:
+    http://dev.mutt.org/trac/wiki/UseCases/Gmail
+    http://dev.mutt.org/doc/manual.html
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Pine (TUI)
@@ -220,7 +256,7 @@ to coerce it into behaving.
   Compose dialog.
 
   Please note that "external editor" requires that your editor must not
-  fork, or in other words, the editor must not return before closing. 
+  fork, or in other words, the editor must not return before closing.
   You may have to pass additional flags or change the settings of your
   editor. Most notably if you are using gvim then you must pass the -f
   option to gvim by putting "/usr/bin/gvim -f" (if the binary is in

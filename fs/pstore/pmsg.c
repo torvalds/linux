@@ -37,6 +37,8 @@ static ssize_t write_pmsg(struct file *file, const char __user *buf,
 	if (buffer_size > PMSG_MAX_BOUNCE_BUFFER_SIZE)
 		buffer_size = PMSG_MAX_BOUNCE_BUFFER_SIZE;
 	buffer = vmalloc(buffer_size);
+	if (!buffer)
+		return -ENOMEM;
 
 	mutex_lock(&pmsg_lock);
 	for (i = 0; i < count; ) {
@@ -111,4 +113,11 @@ err_class:
 	unregister_chrdev(pmsg_major, PMSG_NAME);
 err:
 	return;
+}
+
+void pstore_unregister_pmsg(void)
+{
+	device_destroy(pmsg_class, MKDEV(pmsg_major, 0));
+	class_destroy(pmsg_class);
+	unregister_chrdev(pmsg_major, PMSG_NAME);
 }

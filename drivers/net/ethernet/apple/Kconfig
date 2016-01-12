@@ -51,7 +51,7 @@ config BMAC
 	  will be called bmac.
 
 config MACMACE
-	bool "Macintosh (AV) onboard MACE ethernet"
+	tristate "Macintosh (AV) onboard MACE ethernet"
 	depends on MAC
 	select CRC32
 	---help---

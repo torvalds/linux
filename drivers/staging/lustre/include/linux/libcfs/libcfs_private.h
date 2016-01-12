@@ -79,7 +79,7 @@ do {									\
 
 #define KLASSERT(e) LASSERT(e)
 
-void lbug_with_loc(struct libcfs_debug_msg_data *)__attribute__((noreturn));
+void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *);
 
 #define LBUG()							  \
 do {								    \
@@ -95,7 +95,7 @@ do {								    \
 do {									    \
 	LASSERT(!in_interrupt() ||					    \
 		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 ((mask) & __GFP_WAIT) == 0));				    \
+		 !gfpflags_allow_blocking(mask)));			    \
 } while (0)
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \

@@ -179,8 +179,6 @@ struct cm_av {
 	struct ib_ah_attr ah_attr;
 	u16 pkey_index;
 	u8 timeout;
-	u8  valid;
-	u8  smac[ETH_ALEN];
 };
 
 struct cm_work {
@@ -361,16 +359,20 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	unsigned long flags;
 	int ret;
 	u8 p;
+	struct net_device *ndev = ib_get_ndev_from_path(path);
 
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
 		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
-					&p, NULL)) {
+					ndev, &p, NULL)) {
 			port = cm_dev->port[p-1];
 			break;
 		}
 	}
 	read_unlock_irqrestore(&cm.device_lock, flags);
+
+	if (ndev)
+		dev_put(ndev);
 
 	if (!port)
 		return -EINVAL;
@@ -384,9 +386,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	ib_init_ah_from_path(cm_dev->ib_device, port->port_num, path,
 			     &av->ah_attr);
 	av->timeout = path->packet_life_time + 1;
-	memcpy(av->smac, path->smac, sizeof(av->smac));
 
-	av->valid = 1;
 	return 0;
 }
 
@@ -835,6 +835,11 @@ retest:
 	case IB_CM_SIDR_REQ_RCVD:
 		spin_unlock_irq(&cm_id_priv->lock);
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
+		spin_lock_irq(&cm.lock);
+		if (!RB_EMPTY_NODE(&cm_id_priv->sidr_id_node))
+			rb_erase(&cm_id_priv->sidr_id_node,
+				 &cm.remote_sidr_table);
+		spin_unlock_irq(&cm.lock);
 		break;
 	case IB_CM_REQ_SENT:
 	case IB_CM_MRA_REQ_RCVD:
@@ -1634,11 +1639,11 @@ static int cm_req_handler(struct cm_work *work)
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 
 	memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.dmac, ETH_ALEN);
-	work->path[0].vlan_id = cm_id_priv->av.ah_attr.vlan_id;
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
 	if (ret) {
 		ib_get_cached_gid(work->port->cm_dev->ib_device,
-				  work->port->port_num, 0, &work->path[0].sgid);
+				  work->port->port_num, 0, &work->path[0].sgid,
+				  NULL);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
 			       &work->path[0].sgid, sizeof work->path[0].sgid,
 			       NULL, 0);
@@ -3172,7 +3177,10 @@ int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
 	spin_lock_irqsave(&cm.lock, flags);
-	rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
+	if (!RB_EMPTY_NODE(&cm_id_priv->sidr_id_node)) {
+		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
+		RB_CLEAR_NODE(&cm_id_priv->sidr_id_node);
+	}
 	spin_unlock_irqrestore(&cm.lock, flags);
 	return 0;
 
@@ -3610,32 +3618,6 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 		*qp_attr_mask = IB_QP_STATE | IB_QP_AV | IB_QP_PATH_MTU |
 				IB_QP_DEST_QPN | IB_QP_RQ_PSN;
 		qp_attr->ah_attr = cm_id_priv->av.ah_attr;
-		if (!cm_id_priv->av.valid) {
-			spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-			return -EINVAL;
-		}
-		if (cm_id_priv->av.ah_attr.vlan_id != 0xffff) {
-			qp_attr->vlan_id = cm_id_priv->av.ah_attr.vlan_id;
-			*qp_attr_mask |= IB_QP_VID;
-		}
-		if (!is_zero_ether_addr(cm_id_priv->av.smac)) {
-			memcpy(qp_attr->smac, cm_id_priv->av.smac,
-			       sizeof(qp_attr->smac));
-			*qp_attr_mask |= IB_QP_SMAC;
-		}
-		if (cm_id_priv->alt_av.valid) {
-			if (cm_id_priv->alt_av.ah_attr.vlan_id != 0xffff) {
-				qp_attr->alt_vlan_id =
-					cm_id_priv->alt_av.ah_attr.vlan_id;
-				*qp_attr_mask |= IB_QP_ALT_VID;
-			}
-			if (!is_zero_ether_addr(cm_id_priv->alt_av.smac)) {
-				memcpy(qp_attr->alt_smac,
-				       cm_id_priv->alt_av.smac,
-				       sizeof(qp_attr->alt_smac));
-				*qp_attr_mask |= IB_QP_ALT_SMAC;
-			}
-		}
 		qp_attr->path_mtu = cm_id_priv->path_mtu;
 		qp_attr->dest_qp_num = be32_to_cpu(cm_id_priv->remote_qpn);
 		qp_attr->rq_psn = be32_to_cpu(cm_id_priv->rq_psn);
