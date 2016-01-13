@@ -115,7 +115,7 @@ The following mount options are accepted:
 DEBUGGING
 =========
 
-If you want the debug (GOSSIP) statments in a particular
+If you want the debug (GOSSIP) statements in a particular
 source file (inode.c for example) go to syslog:
 
   echo inode > /sys/kernel/debug/orangefs/kernel-debug
@@ -135,3 +135,219 @@ All debugging:
 Get a list of all debugging keywords:
 
   cat /sys/kernel/debug/orangefs/debug-help
+
+
+PROTOCOL BETWEEN KERNEL MODULE AND USERSPACE
+============================================
+
+Orangefs is a user space filesystem and an associated kernel module.
+We'll just refer to the user space part of Orangefs as "userspace"
+from here on out. Orangefs descends from PVFS, and userspace code
+still uses PVFS for function and variable names. Userspace typedefs
+many of the important structures. Function and variable names in
+the kernel module have been transitioned to "orangefs", and The Linux
+Coding Style avoids typedefs, so kernel module structures that
+correspond to userspace structures are not typedefed.
+
+The kernel module implements a pseudo device that userspace
+can read from and write to. Userspace can also manipulate the
+kernel module through the pseudo device with ioctl.
+
+THE BUFMAP:
+
+At startup userspace allocates two page-size-aligned (posix_memalign)
+mlocked memory buffers, one is used for IO and one is used for readdir
+operations. The IO buffer is 41943040 bytes and the readdir buffer is
+4194304 bytes. Each buffer contains logical chunks, or partitions, and
+a pointer to each buffer is added to its own PVFS_dev_map_desc structure
+which also describes its total size, as well as the size and number of
+the partitions.
+
+A pointer to the IO buffer's PVFS_dev_map_desc structure is sent to a
+mapping routine in the kernel module with an ioctl. The structure is
+copied from user space to kernel space with copy_from_user and is used
+to initialize the kernel module's "bufmap" (struct orangefs_bufmap), which
+then contains:
+
+  * refcnt - a reference counter
+  * desc_size - PVFS2_BUFMAP_DEFAULT_DESC_SIZE (4194304) - the IO buffer's
+    partition size, which represents the filesystem's block size and
+    is used for s_blocksize in super blocks.
+  * desc_count - PVFS2_BUFMAP_DEFAULT_DESC_COUNT (10) - the number of
+    partitions in the IO buffer.
+  * desc_shift - log2(desc_size), used for s_blocksize_bits in super blocks.
+  * total_size - the total size of the IO buffer.
+  * page_count - the number of 4096 byte pages in the IO buffer.
+  * page_array - a pointer to page_count * (sizeof(struct page*)) bytes
+    of kcalloced memory. This memory is used as an array of pointers
+    to each of the pages in the IO buffer through a call to get_user_pages.
+  * desc_array - a pointer to desc_count * (sizeof(struct orangefs_bufmap_desc))
+    bytes of kcalloced memory. This memory is further intialized:
+
+      user_desc is the kernel's copy of the IO buffer's ORANGEFS_dev_map_desc
+      structure. user_desc->ptr points to the IO buffer.
+
+      pages_per_desc = bufmap->desc_size / PAGE_SIZE
+      offset = 0
+
+        bufmap->desc_array[0].page_array = &bufmap->page_array[offset]
+        bufmap->desc_array[0].array_count = pages_per_desc = 1024
+        bufmap->desc_array[0].uaddr = (user_desc->ptr) + (0 * 1024 * 4096)
+        offset += 1024
+                           .
+                           .
+                           .
+        bufmap->desc_array[9].page_array = &bufmap->page_array[offset]
+        bufmap->desc_array[9].array_count = pages_per_desc = 1024
+        bufmap->desc_array[9].uaddr = (user_desc->ptr) +
+                                               (9 * 1024 * 4096)
+        offset += 1024
+
+  * buffer_index_array - a desc_count sized array of ints, used to
+    indicate which of the IO buffer's partitions are available to use.
+  * buffer_index_lock - a spinlock to protect buffer_index_array during update.
+  * readdir_index_array - a five (ORANGEFS_READDIR_DEFAULT_DESC_COUNT) element
+    int array used to indicate which of the readdir buffer's partitions are
+    available to use.
+  * readdir_index_lock - a spinlock to protect readdir_index_array during
+    update.
+
+OPERATIONS:
+
+The kernel module builds an "op" (struct orangefs_kernel_op_s) when it
+needs to communicate with userspace. Part of the op contains the "upcall"
+which expresses the request to userspace. Part of the op eventually
+contains the "downcall" which expresses the results of the request.
+
+The slab allocator is used to keep a cache of op structures handy.
+
+The life cycle of a typical op goes like this:
+
+  - obtain and initialize an op structure from the op_cache.
+
+  - queue the op to the pvfs device so that its upcall data can be
+    read by userspace.
+
+  - wait for userspace to write downcall data back to the pvfs device.
+
+  - consume the downcall and return the op struct to the op_cache.
+
+Some ops are atypical with respect to their payloads: readdir and io ops.
+
+  - readdir ops use the smaller of the two pre-allocated pre-partitioned
+    memory buffers. The readdir buffer is only available to userspace.
+    The kernel module obtains an index to a free partition before launching
+    a readdir op. Userspace deposits the results into the indexed partition
+    and then writes them to back to the pvfs device.
+
+  - io (read and write) ops use the larger of the two pre-allocated
+    pre-partitioned memory buffers. The IO buffer is accessible from
+    both userspace and the kernel module. The kernel module obtains an
+    index to a free partition before launching an io op. The kernel module
+    deposits write data into the indexed partition, to be consumed
+    directly by userspace. Userspace deposits the results of read
+    requests into the indexed partition, to be consumed directly
+    by the kernel module.
+
+Responses to kernel requests are all packaged in pvfs2_downcall_t
+structs. Besides a few other members, pvfs2_downcall_t contains a
+union of structs, each of which is associated with a particular
+response type.
+
+The several members outside of the union are:
+ - int32_t type - type of operation.
+ - int32_t status - return code for the operation.
+ - int64_t trailer_size - 0 unless readdir operation.
+ - char *trailer_buf - initialized to NULL, used during readdir operations.
+
+The appropriate member inside the union is filled out for any
+particular response.
+
+  PVFS2_VFS_OP_FILE_IO
+    fill a pvfs2_io_response_t
+
+  PVFS2_VFS_OP_LOOKUP
+    fill a PVFS_object_kref
+
+  PVFS2_VFS_OP_CREATE
+    fill a PVFS_object_kref
+
+  PVFS2_VFS_OP_SYMLINK
+    fill a PVFS_object_kref
+
+  PVFS2_VFS_OP_GETATTR
+    fill in a PVFS_sys_attr_s (tons of stuff the kernel doesn't need)
+    fill in a string with the link target when the object is a symlink.
+
+  PVFS2_VFS_OP_MKDIR
+    fill a PVFS_object_kref
+
+  PVFS2_VFS_OP_STATFS
+    fill a pvfs2_statfs_response_t with useless info <g>. It is hard for
+    us to know, in a timely fashion, these statistics about our
+    distributed network filesystem. 
+
+  PVFS2_VFS_OP_FS_MOUNT
+    fill a pvfs2_fs_mount_response_t which is just like a PVFS_object_kref
+    except its members are in a different order and "__pad1" is replaced
+    with "id".
+
+  PVFS2_VFS_OP_GETXATTR
+    fill a pvfs2_getxattr_response_t
+
+  PVFS2_VFS_OP_LISTXATTR
+    fill a pvfs2_listxattr_response_t
+
+  PVFS2_VFS_OP_PARAM
+    fill a pvfs2_param_response_t
+
+  PVFS2_VFS_OP_PERF_COUNT
+    fill a pvfs2_perf_count_response_t
+
+  PVFS2_VFS_OP_FSKEY
+    file a pvfs2_fs_key_response_t
+
+  PVFS2_VFS_OP_READDIR
+    jamb everything needed to represent a pvfs2_readdir_response_t into
+    the readdir buffer descriptor specified in the upcall.
+
+writev() on /dev/pvfs2-req is used to pass responses to the requests
+made by the kernel side.
+
+A buffer_list containing:
+  - a pointer to the prepared response to the request from the
+    kernel (struct pvfs2_downcall_t).
+  - and also, in the case of a readdir request, a pointer to a
+    buffer containing descriptors for the objects in the target
+    directory.
+... is sent to the function (PINT_dev_write_list) which performs
+the writev.
+
+PINT_dev_write_list has a local iovec array: struct iovec io_array[10];
+
+The first four elements of io_array are initialized like this for all
+responses:
+
+  io_array[0].iov_base = address of local variable "proto_ver" (int32_t)
+  io_array[0].iov_len = sizeof(int32_t)
+
+  io_array[1].iov_base = address of global variable "pdev_magic" (int32_t)
+  io_array[1].iov_len = sizeof(int32_t)
+  
+  io_array[2].iov_base = address of parameter "tag" (PVFS_id_gen_t)
+  io_array[2].iov_len = sizeof(int64_t)
+
+  io_array[3].iov_base = address of out_downcall member (pvfs2_downcall_t)
+                         of global variable vfs_request (vfs_request_t)
+  io_array[3].iov_len = sizeof(pvfs2_downcall_t)
+
+Readdir responses initialize the fifth element io_array like this:
+
+  io_array[4].iov_base = contents of member trailer_buf (char *)
+                         from out_downcall member of global variable
+                         vfs_request
+  io_array[4].iov_len = contents of member trailer_size (PVFS_size)
+                        from out_downcall member of global variable
+                        vfs_request
+  
+
