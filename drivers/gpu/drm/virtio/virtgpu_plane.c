@@ -68,8 +68,8 @@ static void virtio_gpu_plane_atomic_update(struct drm_plane *plane,
 	struct virtio_gpu_object *bo;
 	uint32_t handle;
 
-	if (plane->fb) {
-		vgfb = to_virtio_gpu_framebuffer(plane->fb);
+	if (plane->state->fb) {
+		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
 		bo = gem_to_virtio_gpu_obj(vgfb->obj);
 		handle = bo->hw_res_handle;
 	} else {
