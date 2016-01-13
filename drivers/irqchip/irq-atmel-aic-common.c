@@ -80,16 +80,10 @@ int aic_common_set_type(struct irq_data *d, unsigned type, unsigned *val)
 	return 0;
 }
 
-int aic_common_set_priority(int priority, unsigned *val)
+void aic_common_set_priority(int priority, unsigned *val)
 {
-	if (priority < AT91_AIC_IRQ_MIN_PRIORITY ||
-	    priority > AT91_AIC_IRQ_MAX_PRIORITY)
-		return -EINVAL;
-
 	*val &= ~AT91_AIC_PRIOR;
 	*val |= priority;
-
-	return 0;
 }
 
 int aic_common_irq_domain_xlate(struct irq_domain *d,

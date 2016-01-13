@@ -19,7 +19,7 @@
 
 int aic_common_set_type(struct irq_data *d, unsigned type, unsigned *val);
 
-int aic_common_set_priority(int priority, unsigned *val);
+void aic_common_set_priority(int priority, unsigned *val);
 
 int aic_common_irq_domain_xlate(struct irq_domain *d,
 				struct device_node *ctrlr,
