@@ -635,6 +635,7 @@ static int acp_dma_open(struct snd_pcm_substream *substream)
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0) {
 		dev_err(prtd->platform->dev, "set integer constraint failed\n");
+		kfree(adata);
 		return ret;
 	}
 
