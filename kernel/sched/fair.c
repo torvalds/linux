@@ -4542,6 +4542,25 @@ static unsigned long weighted_cpuload(const int cpu)
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
+static void __update_cpu_load_nohz(struct rq *this_rq,
+				   unsigned long curr_jiffies,
+				   unsigned long load,
+				   int active)
+{
+	unsigned long pending_updates;
+
+	pending_updates = curr_jiffies - this_rq->last_load_update_tick;
+	if (pending_updates) {
+		this_rq->last_load_update_tick = curr_jiffies;
+		/*
+		 * In the regular NOHZ case, we were idle, this means load 0.
+		 * In the NOHZ_FULL case, we were non-idle, we should consider
+		 * its weighted load.
+		 */
+		__update_cpu_load(this_rq, load, pending_updates, active);
+	}
+}
+
 /*
  * There is no sane way to deal with nohz on smp when using jiffies because the
  * cpu doing the jiffies update might drift wrt the cpu doing the jiffy reading
@@ -4559,22 +4578,15 @@ static unsigned long weighted_cpuload(const int cpu)
  * Called from nohz_idle_balance() to update the load ratings before doing the
  * idle balance.
  */
-static void update_idle_cpu_load(struct rq *this_rq)
+static void update_cpu_load_idle(struct rq *this_rq)
 {
-	unsigned long curr_jiffies = READ_ONCE(jiffies);
-	unsigned long load = weighted_cpuload(cpu_of(this_rq));
-	unsigned long pending_updates;
-
 	/*
 	 * bail if there's load or we're actually up-to-date.
 	 */
-	if (load || curr_jiffies == this_rq->last_load_update_tick)
+	if (weighted_cpuload(cpu_of(this_rq)))
 		return;
 
-	pending_updates = curr_jiffies - this_rq->last_load_update_tick;
-	this_rq->last_load_update_tick = curr_jiffies;
-
-	__update_cpu_load(this_rq, load, pending_updates, 0);
+	__update_cpu_load_nohz(this_rq, READ_ONCE(jiffies), 0, 0);
 }
 
 /*
@@ -4585,22 +4597,12 @@ void update_cpu_load_nohz(int active)
 	struct rq *this_rq = this_rq();
 	unsigned long curr_jiffies = READ_ONCE(jiffies);
 	unsigned long load = active ? weighted_cpuload(cpu_of(this_rq)) : 0;
-	unsigned long pending_updates;
 
 	if (curr_jiffies == this_rq->last_load_update_tick)
 		return;
 
 	raw_spin_lock(&this_rq->lock);
-	pending_updates = curr_jiffies - this_rq->last_load_update_tick;
-	if (pending_updates) {
-		this_rq->last_load_update_tick = curr_jiffies;
-		/*
-		 * In the regular NOHZ case, we were idle, this means load 0.
-		 * In the NOHZ_FULL case, we were non-idle, we should consider
-		 * its weighted load.
-		 */
-		__update_cpu_load(this_rq, load, pending_updates, active);
-	}
+	__update_cpu_load_nohz(this_rq, curr_jiffies, load, active);
 	raw_spin_unlock(&this_rq->lock);
 }
 #endif /* CONFIG_NO_HZ */
@@ -4612,7 +4614,7 @@ void update_cpu_load_active(struct rq *this_rq)
 {
 	unsigned long load = weighted_cpuload(cpu_of(this_rq));
 	/*
-	 * See the mess around update_idle_cpu_load() / update_cpu_load_nohz().
+	 * See the mess around update_cpu_load_idle() / update_cpu_load_nohz().
 	 */
 	this_rq->last_load_update_tick = jiffies;
 	__update_cpu_load(this_rq, load, 1, 1);
@@ -7906,7 +7908,7 @@ static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 		if (time_after_eq(jiffies, rq->next_balance)) {
 			raw_spin_lock_irq(&rq->lock);
 			update_rq_clock(rq);
-			update_idle_cpu_load(rq);
+			update_cpu_load_idle(rq);
 			raw_spin_unlock_irq(&rq->lock);
 			rebalance_domains(rq, CPU_IDLE);
 		}
