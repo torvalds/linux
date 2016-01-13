@@ -746,6 +746,13 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 
 	mwifiex_queue_main_work(priv->adapter);
 
+	if (priv->sched_scanning) {
+		mwifiex_dbg(priv->adapter, INFO,
+			    "aborting bgscan on ndo_stop\n");
+		mwifiex_stop_bg_scan(priv);
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+	}
+
 	return 0;
 }
 

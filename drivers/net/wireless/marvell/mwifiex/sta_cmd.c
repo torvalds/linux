@@ -1873,6 +1873,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_cmd_802_11_scan(cmd_ptr, data_buf);
 		break;
+	case HostCmd_CMD_802_11_BG_SCAN_CONFIG:
+		ret = mwifiex_cmd_802_11_bg_scan_config(priv, cmd_ptr,
+							data_buf);
+		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
 		ret = mwifiex_cmd_802_11_bg_scan_query(cmd_ptr);
 		break;

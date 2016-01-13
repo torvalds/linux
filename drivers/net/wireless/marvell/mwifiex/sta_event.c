@@ -688,6 +688,13 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 				       HostCmd_ACT_GEN_GET, 0, NULL, false);
 		break;
 
+	case EVENT_BG_SCAN_STOPPED:
+		dev_dbg(adapter->dev, "event: BGS_STOPPED\n");
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+		if (priv->sched_scanning)
+			priv->sched_scanning = false;
+		break;
+
 	case EVENT_PORT_RELEASE:
 		mwifiex_dbg(adapter, EVENT, "event: PORT RELEASE\n");
 		priv->port_open = true;

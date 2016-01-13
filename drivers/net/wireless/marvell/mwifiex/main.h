@@ -198,6 +198,11 @@ do {								\
 			       buf, len, false);		\
 } while (0)
 
+/** Min BGSCAN interval 15 second */
+#define MWIFIEX_BGSCAN_INTERVAL 15000
+/** default repeat count */
+#define MWIFIEX_BGSCAN_REPEAT_COUNT 6
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -641,6 +646,7 @@ struct mwifiex_private {
 	u32 mgmt_frame_mask;
 	struct mwifiex_roc_cfg roc_cfg;
 	bool scan_aborting;
+	u8 sched_scanning;
 	u8 csa_chan;
 	unsigned long csa_expire_time;
 	u8 del_list_idx;
@@ -1198,6 +1204,10 @@ int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *resp);
 int mwifiex_handle_event_ext_scan_report(struct mwifiex_private *priv,
 					 void *buf);
+int mwifiex_cmd_802_11_bg_scan_config(struct mwifiex_private *priv,
+				      struct host_cmd_ds_command *cmd,
+				      void *data_buf);
+int mwifiex_stop_bg_scan(struct mwifiex_private *priv);
 
 /*
  * This function checks if the queuing is RA based or not.

@@ -1962,6 +1962,9 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
+	if (!mwifiex_stop_bg_scan(priv))
+		cfg80211_sched_scan_stopped_rtnl(priv->wdev.wiphy);
+
 	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
@@ -2217,6 +2220,9 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		    "info: Trying to associate to %s and bssid %pM\n",
 		    (char *)sme->ssid, sme->bssid);
 
+	if (!mwifiex_stop_bg_scan(priv))
+		cfg80211_sched_scan_stopped_rtnl(priv->wdev.wiphy);
+
 	ret = mwifiex_cfg80211_assoc(priv, sme->ssid_len, sme->ssid, sme->bssid,
 				     priv->bss_mode, sme->channel, sme, 0);
 	if (!ret) {
@@ -2420,6 +2426,9 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
+	if (!mwifiex_stop_bg_scan(priv))
+		cfg80211_sched_scan_stopped_rtnl(priv->wdev.wiphy);
+
 	user_scan_cfg = kzalloc(sizeof(*user_scan_cfg), GFP_KERNEL);
 	if (!user_scan_cfg)
 		return -ENOMEM;
@@ -2484,6 +2493,121 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 			}
 		}
 	}
+	return 0;
+}
+
+/* CFG802.11 operation handler for sched_scan_start.
+ *
+ * This function issues a bgscan config request to the firmware based upon
+ * the user specified sched_scan configuration. On successful completion,
+ * firmware will generate BGSCAN_REPORT event, driver should issue bgscan
+ * query command to get sched_scan results from firmware.
+ */
+static int
+mwifiex_cfg80211_sched_scan_start(struct wiphy *wiphy,
+				  struct net_device *dev,
+				  struct cfg80211_sched_scan_request *request)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	int i, offset;
+	struct ieee80211_channel *chan;
+	struct mwifiex_bg_scan_cfg *bgscan_cfg;
+	struct ieee_types_header *ie;
+
+	if (!request || (!request->n_ssids && !request->n_match_sets)) {
+		wiphy_err(wiphy, "%s : Invalid Sched_scan parameters",
+			  __func__);
+		return -EINVAL;
+	}
+
+	wiphy_info(wiphy, "sched_scan start : n_ssids=%d n_match_sets=%d ",
+		   request->n_ssids, request->n_match_sets);
+	wiphy_info(wiphy, "n_channels=%d interval=%d ie_len=%d\n",
+		   request->n_channels, request->scan_plans->interval,
+		   (int)request->ie_len);
+
+	bgscan_cfg = kzalloc(sizeof(*bgscan_cfg), GFP_KERNEL);
+	if (!bgscan_cfg)
+		return -ENOMEM;
+
+	if (priv->scan_request || priv->scan_aborting)
+		bgscan_cfg->start_later = true;
+
+	bgscan_cfg->num_ssids = request->n_match_sets;
+	bgscan_cfg->ssid_list = request->match_sets;
+
+	if (request->ie && request->ie_len) {
+		offset = 0;
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask != MWIFIEX_VSIE_MASK_CLEAR)
+				continue;
+			priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_BGSCAN;
+			ie = (struct ieee_types_header *)(request->ie + offset);
+			memcpy(&priv->vs_ie[i].ie, ie, sizeof(*ie) + ie->len);
+			offset += sizeof(*ie) + ie->len;
+
+			if (offset >= request->ie_len)
+				break;
+		}
+	}
+
+	for (i = 0; i < min_t(u32, request->n_channels,
+			      MWIFIEX_BG_SCAN_CHAN_MAX); i++) {
+		chan = request->channels[i];
+		bgscan_cfg->chan_list[i].chan_number = chan->hw_value;
+		bgscan_cfg->chan_list[i].radio_type = chan->band;
+
+		if ((chan->flags & IEEE80211_CHAN_NO_IR) || !request->n_ssids)
+			bgscan_cfg->chan_list[i].scan_type =
+						MWIFIEX_SCAN_TYPE_PASSIVE;
+		else
+			bgscan_cfg->chan_list[i].scan_type =
+						MWIFIEX_SCAN_TYPE_ACTIVE;
+
+		bgscan_cfg->chan_list[i].scan_time = 0;
+	}
+
+	bgscan_cfg->chan_per_scan = min_t(u32, request->n_channels,
+					  MWIFIEX_BG_SCAN_CHAN_MAX);
+
+	/* Use at least 15 second for per scan cycle */
+	bgscan_cfg->scan_interval = (request->scan_plans->interval >
+				     MWIFIEX_BGSCAN_INTERVAL) ?
+				request->scan_plans->interval :
+				MWIFIEX_BGSCAN_INTERVAL;
+
+	bgscan_cfg->repeat_count = MWIFIEX_BGSCAN_REPEAT_COUNT;
+	bgscan_cfg->report_condition = MWIFIEX_BGSCAN_SSID_MATCH |
+				MWIFIEX_BGSCAN_WAIT_ALL_CHAN_DONE;
+	bgscan_cfg->bss_type = MWIFIEX_BSS_MODE_INFRA;
+	bgscan_cfg->action = MWIFIEX_BGSCAN_ACT_SET;
+	bgscan_cfg->enable = true;
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_BG_SCAN_CONFIG,
+			     HostCmd_ACT_GEN_SET, 0, bgscan_cfg, true)) {
+		kfree(bgscan_cfg);
+		return -EFAULT;
+	}
+
+	priv->sched_scanning = true;
+
+	kfree(bgscan_cfg);
+	return 0;
+}
+
+/* CFG802.11 operation handler for sched_scan_stop.
+ *
+ * This function issues a bgscan config command to disable
+ * previous bgscan configuration in the firmware
+ */
+static int mwifiex_cfg80211_sched_scan_stop(struct wiphy *wiphy,
+					    struct net_device *dev)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	wiphy_info(wiphy, "sched scan stop!");
+	mwifiex_stop_bg_scan(priv);
+
 	return 0;
 }
 
@@ -2847,6 +2971,9 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 #ifdef CONFIG_DEBUG_FS
 	mwifiex_dev_debugfs_remove(priv);
 #endif
+
+	if (priv->sched_scanning)
+		priv->sched_scanning = false;
 
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 
@@ -3701,6 +3828,8 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 	.set_antenna = mwifiex_cfg80211_set_antenna,
 	.del_station = mwifiex_cfg80211_del_station,
+	.sched_scan_start = mwifiex_cfg80211_sched_scan_start,
+	.sched_scan_stop = mwifiex_cfg80211_sched_scan_stop,
 #ifdef CONFIG_PM
 	.suspend = mwifiex_cfg80211_suspend,
 	.resume = mwifiex_cfg80211_resume,
@@ -3829,6 +3958,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
+			WIPHY_FLAG_SUPPORTS_SCHED_SCAN |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
 			WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -3846,6 +3976,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P;
+
+	wiphy->max_sched_scan_ssids = MWIFIEX_MAX_SSID_LIST_LENGTH;
+	wiphy->max_sched_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
+	wiphy->max_match_sets = MWIFIEX_MAX_SSID_LIST_LENGTH;
 
 	wiphy->available_antennas_tx = BIT(adapter->number_of_antenna) - 1;
 	wiphy->available_antennas_rx = BIT(adapter->number_of_antenna) - 1;

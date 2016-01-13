@@ -414,6 +414,7 @@ struct mwifiex_ds_mef_cfg {
 #define MWIFIEX_VSIE_MASK_SCAN     0x01
 #define MWIFIEX_VSIE_MASK_ASSOC    0x02
 #define MWIFIEX_VSIE_MASK_ADHOC    0x04
+#define MWIFIEX_VSIE_MASK_BGSCAN   0x08
 
 enum {
 	MWIFIEX_FUNC_INIT = 1,
