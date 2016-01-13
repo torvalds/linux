@@ -193,7 +193,7 @@ void __init aic_common_rtt_irq_fixup(struct device_node *root)
 	}
 }
 
-void __init aic_common_irq_fixup(const struct of_device_id *matches)
+static void __init aic_common_irq_fixup(const struct of_device_id *matches)
 {
 	struct device_node *root = of_find_node_by_path("/");
 	const struct of_device_id *match;
@@ -214,7 +214,8 @@ void __init aic_common_irq_fixup(const struct of_device_id *matches)
 
 struct irq_domain *__init aic_common_of_init(struct device_node *node,
 					     const struct irq_domain_ops *ops,
-					     const char *name, int nirqs)
+					     const char *name, int nirqs,
+					     const struct of_device_id *matches)
 {
 	struct irq_chip_generic *gc;
 	struct irq_domain *domain;
@@ -264,6 +265,7 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 	}
 
 	aic_common_ext_irq_of_init(domain);
+	aic_common_irq_fixup(matches);
 
 	return domain;
 

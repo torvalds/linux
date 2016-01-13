@@ -312,11 +312,9 @@ static int __init aic5_of_init(struct device_node *node,
 		return -EEXIST;
 
 	domain = aic_common_of_init(node, &aic5_irq_ops, "atmel-aic5",
-				    nirqs);
+				    nirqs, aic5_irq_fixups);
 	if (IS_ERR(domain))
 		return PTR_ERR(domain);
-
-	aic_common_irq_fixup(aic5_irq_fixups);
 
 	aic5_domain = domain;
 	nchips = aic5_domain->revmap_size / 32;

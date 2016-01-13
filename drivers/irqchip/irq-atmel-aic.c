@@ -248,11 +248,9 @@ static int __init aic_of_init(struct device_node *node,
 		return -EEXIST;
 
 	domain = aic_common_of_init(node, &aic_irq_ops, "atmel-aic",
-				    NR_AIC_IRQS);
+				    NR_AIC_IRQS, aic_irq_fixups);
 	if (IS_ERR(domain))
 		return PTR_ERR(domain);
-
-	aic_common_irq_fixup(aic_irq_fixups);
 
 	aic_domain = domain;
 	gc = irq_get_domain_generic_chip(domain, 0);
