@@ -347,7 +347,8 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	 *     delivered which is treated as end-of-data and is itself discarded
 	 */
 
-	if (ar->debug.fw_stats_done) {
+	if (ar->debug.fw_stats_done &&
+	    !test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
 		ath10k_warn(ar, "received unsolicited stats update event\n");
 		goto free;
 	}
@@ -372,11 +373,13 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 			/* Although this is unlikely impose a sane limit to
 			 * prevent firmware from DoS-ing the host.
 			 */
+			ath10k_fw_stats_peers_free(&ar->debug.fw_stats.peers);
 			ath10k_warn(ar, "dropping fw peer stats\n");
 			goto free;
 		}
 
 		if (num_vdevs >= BITS_PER_LONG) {
+			ath10k_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
 			ath10k_warn(ar, "dropping fw vdev stats\n");
 			goto free;
 		}
