@@ -165,12 +165,24 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 {
 	u32 timing_h = 0;
 	u32 timing_v = 0;
+	unsigned hsw_offset = 1;
 
 	DSSDBG("Enter hdmi_wp_video_config_timing\n");
 
+	/*
+	 * On OMAP4 and OMAP5 ES1 the HSW field is programmed as is. On OMAP5
+	 * ES2+ (including DRA7/AM5 SoCs) HSW field is programmed to hsw-1.
+	 * However, we don't support OMAP5 ES1 at all, so we can just check for
+	 * OMAP4 here.
+	 */
+	if (omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES1 ||
+	    omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES2 ||
+	    omapdss_get_version() == OMAPDSS_VER_OMAP4)
+		hsw_offset = 0;
+
 	timing_h |= FLD_VAL(timings->hbp, 31, 20);
 	timing_h |= FLD_VAL(timings->hfp, 19, 8);
-	timing_h |= FLD_VAL(timings->hsw, 7, 0);
+	timing_h |= FLD_VAL(timings->hsw - hsw_offset, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_H, timing_h);
 
 	timing_v |= FLD_VAL(timings->vbp, 31, 20);
