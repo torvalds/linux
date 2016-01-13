@@ -199,8 +199,6 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
 	video_fmt->y_res = param->timings.y_res;
 	video_fmt->x_res = param->timings.x_res;
-	if (param->timings.interlace)
-		video_fmt->y_res /= 2;
 
 	timings->hbp = param->timings.hbp;
 	timings->hfp = param->timings.hfp;
@@ -208,9 +206,25 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	timings->vbp = param->timings.vbp;
 	timings->vfp = param->timings.vfp;
 	timings->vsw = param->timings.vsw;
+
 	timings->vsync_level = param->timings.vsync_level;
 	timings->hsync_level = param->timings.hsync_level;
 	timings->interlace = param->timings.interlace;
+	timings->double_pixel = param->timings.double_pixel;
+
+	if (param->timings.interlace) {
+		video_fmt->y_res /= 2;
+		timings->vbp /= 2;
+		timings->vfp /= 2;
+		timings->vsw /= 2;
+	}
+
+	if (param->timings.double_pixel) {
+		video_fmt->x_res *= 2;
+		timings->hfp *= 2;
+		timings->hsw *= 2;
+		timings->hbp *= 2;
+	}
 }
 
 void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
