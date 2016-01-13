@@ -296,11 +296,11 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 	video_cfg->data_enable_pol = 1; /* It is always 1*/
 	video_cfg->v_fc_config.timings.hsync_level = cfg->timings.hsync_level;
 	video_cfg->v_fc_config.timings.x_res = cfg->timings.x_res;
-	video_cfg->v_fc_config.timings.hsw = cfg->timings.hsw - 1;
+	video_cfg->v_fc_config.timings.hsw = cfg->timings.hsw;
 	video_cfg->v_fc_config.timings.hbp = cfg->timings.hbp;
 	video_cfg->v_fc_config.timings.hfp = cfg->timings.hfp;
 	video_cfg->hblank = cfg->timings.hfp +
-				cfg->timings.hbp + cfg->timings.hsw - 1;
+				cfg->timings.hbp + cfg->timings.hsw;
 	video_cfg->v_fc_config.timings.vsync_level = cfg->timings.vsync_level;
 	video_cfg->v_fc_config.timings.y_res = cfg->timings.y_res;
 	video_cfg->v_fc_config.timings.vsw = cfg->timings.vsw;
