@@ -84,6 +84,11 @@ static void virtio_gpu_plane_atomic_update(struct drm_plane *plane,
 				   plane->state->crtc_h,
 				   plane->state->crtc_x,
 				   plane->state->crtc_y);
+	virtio_gpu_cmd_resource_flush(vgdev, handle,
+				      plane->state->crtc_x,
+				      plane->state->crtc_y,
+				      plane->state->crtc_w,
+				      plane->state->crtc_h);
 }
 
 
