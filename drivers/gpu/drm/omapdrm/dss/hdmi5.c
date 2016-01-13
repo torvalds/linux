@@ -284,10 +284,6 @@ static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
 {
 	struct omap_dss_device *out = &hdmi.output;
 
-	/* TODO: proper interlace support */
-	if (timings->interlace)
-		return -EINVAL;
-
 	if (!dispc_mgr_timings_ok(out->dispc_channel, timings))
 		return -EINVAL;
 
