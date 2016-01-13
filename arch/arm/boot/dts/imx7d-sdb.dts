@@ -610,12 +610,6 @@
 			>;
 		};
 
-		pinctrl_enet2_epdc0_en: enet2_epdc0_grp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO04__GPIO1_IO4		0x80000000
-			>;
-		};
-
                 pinctrl_epdc0: epdcgrp0 {
                         fsl,pins = <
 				MX7D_PAD_EPDC_DATA00__EPDC_DATA0  0x2
@@ -774,7 +768,6 @@
 
 		pinctrl_sai3: sai3grp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO03__SAI3_MCLK         0x1f
 				MX7D_PAD_UART3_TX_DATA__SAI3_TX_BCLK   0x1f
 				MX7D_PAD_UART3_CTS_B__SAI3_TX_SYNC     0x1f
 				MX7D_PAD_UART3_RTS_B__SAI3_TX_DATA0    0x30
@@ -1026,7 +1019,7 @@
 
 &sai3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sai3>;
+	pinctrl-0 = <&pinctrl_sai3 &pinctrl_sai3_mclk>;
 	assigned-clocks = <&clks IMX7D_SAI3_ROOT_SRC>,
 			  <&clks IMX7D_SAI3_ROOT_CLK>;
 	assigned-clock-parents = <&clks IMX7D_PLL_AUDIO_POST_DIV>;
@@ -1073,6 +1066,17 @@
 			>;
 		};
 
+		pinctrl_enet2_epdc0_en: enet2_epdc0_grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO04__GPIO1_IO4		0x59
+			>;
+		};
+
+		pinctrl_sai3_mclk: sai3grp_mclk {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO03__SAI3_MCLK         0x1f
+			>;
+		};
 	};
 };
 
