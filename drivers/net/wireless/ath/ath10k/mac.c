@@ -4104,6 +4104,18 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	ar->ani_enabled = true;
 
+	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
+		param = ar->wmi.pdev_param->peer_stats_update_period;
+		ret = ath10k_wmi_pdev_set_param(ar, param,
+						PEER_DEFAULT_STATS_UPDATE_PERIOD);
+		if (ret) {
+			ath10k_warn(ar,
+				    "failed to set peer stats period : %d\n",
+				    ret);
+			goto err_core_stop;
+		}
+	}
+
 	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
 
