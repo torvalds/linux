@@ -1502,6 +1502,6 @@ int dvb_net_init (struct dvb_adapter *adap, struct dvb_net *dvbnet,
 		dvbnet->state[i] = 0;
 
 	return dvb_register_device(adap, &dvbnet->dvbdev, &dvbdev_net,
-			     dvbnet, DVB_DEVICE_NET);
+			     dvbnet, DVB_DEVICE_NET, 0);
 }
 EXPORT_SYMBOL(dvb_net_init);

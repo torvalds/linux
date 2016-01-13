@@ -97,7 +97,6 @@ config MEDIA_CONTROLLER
 config MEDIA_CONTROLLER_DVB
 	bool "Enable Media controller for DVB (EXPERIMENTAL)"
 	depends on MEDIA_CONTROLLER
-	depends on BROKEN
 	---help---
 	  Enable the media controller API support for DVB.
 
