@@ -9,8 +9,8 @@
 /****************************************************************************
        Add Rockchip modificatons here!
 *****************************************************************************/
-#define RK33_DVFS_SUPPORT                   1   // 1:DVFS on   0:DVFS off
-#define RK33_SYSFS_FILE_SUPPORT             1   // 1:add information nodes in /sys/devices/ffa30000.gpu/
+#define RK33_DVFS_SUPPORT                   1	// 1:DVFS on   0:DVFS off
+#define RK33_SYSFS_FILE_SUPPORT             1	// 1:add information nodes in /sys/devices/ffa30000.gpu/
 
 //RK33_USE_RGX_GET_GPU_UTIL and RK33_USE_CUSTOMER_GET_GPU_UTIL are mutually exclusive
 #define RK33_USE_RGX_GET_GPU_UTIL           1
@@ -29,7 +29,6 @@
 #define RK33_DVFS_FREQ                  50
 #define RK33_DEFAULT_CLOCK              400
 #define RK33_DVFS_FREQ_LIMIT            1
-#define RK_RESERVED                     0
 #define RGX_DVFS_CURRENT_FREQ           0
 
 #define FPS_DEFAULT_GAP                 300
@@ -51,112 +50,107 @@
 
 #define RK_EXPORT_API(func)  EXPORT_SYMBOL(func);
 
-typedef struct _rgx_dvfs_info
-{
-    IMG_UINT    voltage;
-    IMG_UINT    clock;
-    IMG_INT     min_threshold;
-    IMG_INT     max_threshold;
-    IMG_UINT64  time;
-    IMG_UINT    coef;
+typedef struct _rgx_dvfs_info {
+	IMG_UINT voltage;
+	IMG_UINT clock;
+	IMG_INT min_threshold;
+	IMG_INT max_threshold;
+	IMG_UINT64 time;
+	IMG_UINT coef;
 } rgx_dvfs_info;
 
-typedef struct _rgx_dvfs_status_type
-{
-    IMG_INT step;
-    IMG_INT utilisation;
-    IMG_UINT32 temperature;
-    IMG_UINT32 temperature_time;
+typedef struct _rgx_dvfs_status_type {
+	IMG_INT step;
+	IMG_INT utilisation;
+	IMG_UINT32 temperature;
+	IMG_UINT32 temperature_time;
 #if 0
-    IMG_INT upper_lock;
-    IMG_INT under_lock;
+	IMG_INT upper_lock;
+	IMG_INT under_lock;
 #endif
 
 } rgx_dvfs_status;
 
-enum
-{
-    DBG_OFF = 0,
-    DBG_LOW,
-    DBG_HIGH,
+enum {
+	DBG_OFF = 0,
+	DBG_LOW,
+	DBG_HIGH,
 };
 
-struct rk_utilis
-{
-    IMG_INT utilis[RK33_MAX_UTILIS];
-    IMG_INT time_busys[RK33_MAX_UTILIS];
-    IMG_INT time_idles[RK33_MAX_UTILIS];
+struct rk_utilis {
+	IMG_INT utilis[RK33_MAX_UTILIS];
+	IMG_INT time_busys[RK33_MAX_UTILIS];
+	IMG_INT time_idles[RK33_MAX_UTILIS];
 };
 
-struct rk_context
-{
-    /** Indicator if system clock to mail-t604 is active */
-    IMG_INT                 cmu_pmu_status;
-    /** cmd & pmu lock */
-    spinlock_t              cmu_pmu_lock;
-    /*Timer*/
-    spinlock_t              timer_lock;
+struct rk_context {
+	/** Indicator if system clock to mail-t604 is active */
+	IMG_INT cmu_pmu_status;
+	/** cmd & pmu lock */
+	spinlock_t cmu_pmu_lock;
+	/*Timer */
+	spinlock_t timer_lock;
 
 #if OPEN_GPU_PD
-    IMG_BOOL                bEnablePd;
-    struct clk              *pd_gpu_0;
-    struct clk              *pd_gpu_1;
+	IMG_BOOL bEnablePd;
+	struct clk *pd_gpu_0;
+	struct clk *pd_gpu_1;
 #endif
-    //struct clk              *aclk_gpu;
-    struct clk              *aclk_gpu_mem;
-    struct clk              *aclk_gpu_cfg;
-    struct clk              *clk_gpu;
-    struct dvfs_node        *gpu_clk_node;
+	//struct clk              *aclk_gpu;
+	struct clk *aclk_gpu_mem;
+	struct clk *aclk_gpu_cfg;
+	struct clk *sclk_gpu_core;
+	struct regulator *gpu_reg;
 
-    PVRSRV_DEVICE_NODE     *psDeviceNode;
-    RGXFWIF_GPU_UTIL_STATS  sUtilStats;
-    IMG_BOOL                gpu_active;
-    IMG_BOOL                dvfs_enabled;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
+	RGXFWIF_GPU_UTIL_STATS sUtilStats;
+	IMG_BOOL gpu_active;
+	IMG_BOOL dvfs_enabled;
 
 #if RK33_DVFS_SUPPORT
 #if RK33_USE_CUSTOMER_GET_GPU_UTIL
-    ktime_t                 time_period_start;
+	ktime_t time_period_start;
 #endif
 
-    /*Temperature*/
-    IMG_UINT32              temperature;
-    IMG_UINT32              temperature_time;
+	/*Temperature */
+	IMG_UINT32 temperature;
+	IMG_UINT32 temperature_time;
 
 #if USE_HRTIMER
-    struct hrtimer          timer;
+	struct hrtimer timer;
 #endif
-    IMG_BOOL                timer_active;
+	IMG_BOOL timer_active;
 
 #if USE_KTHREAD
-    /*dvfs kthread*/
-    struct task_struct      *dvfs_task;
-    wait_queue_head_t       dvfs_wait;
+	/*dvfs kthread */
+	struct task_struct *dvfs_task;
+	wait_queue_head_t dvfs_wait;
 #endif
 
-    /*To calculate utilization for x sec */
-    IMG_INT         freq_level;
-    IMG_INT         freq;
-    IMG_INT         time_tick;
-    struct rk_utilis stUtilis;
-    IMG_INT         utilisation;
-    IMG_UINT32      time_busy;
-    IMG_UINT32      time_idle;
+	/*To calculate utilization for x sec */
+	IMG_INT freq_level;
+	IMG_INT freq;
+	IMG_INT time_tick;
+	struct rk_utilis stUtilis;
+	IMG_INT utilisation;
+	IMG_UINT32 time_busy;
+	IMG_UINT32 time_idle;
 
 #if RK33_USE_CL_COUNT_UTILS
-    IMG_UINT32      abs_load[4];
+	IMG_UINT32 abs_load[4];
 #endif
 
 #if RK33_SYSFS_FILE_SUPPORT
 #if RK33_DVFS_FREQ_LIMIT
-    IMG_INT         up_level;
-    IMG_INT         down_level;
-#endif //end of RK33_DVFS_FREQ_LIMIT
-    IMG_INT         debug_level;
-    IMG_UINT        fps_gap;
-    IMG_INT         fix_freq;
-#endif //end of RK33_SYSFS_FILE_SUPPORT
+	IMG_INT up_level;
+	IMG_INT down_level;
+#endif				//end of RK33_DVFS_FREQ_LIMIT
+	IMG_INT debug_level;
+	IMG_UINT fps_gap;
+	IMG_INT fix_freq;
+#endif				//end of RK33_SYSFS_FILE_SUPPORT
 
-#endif  //end of RK33_DVFS_SUPPORT
+#endif				//end of RK33_DVFS_SUPPORT
 };
 
 IMG_VOID RgxRkInit(IMG_VOID);
@@ -174,6 +168,10 @@ IMG_BOOL rk33_clear_device_node(IMG_VOID);
 
 PVRSRV_ERROR IonInit(void *pvPrivateData);
 IMG_VOID IonDeinit(IMG_VOID);
-PVRSRV_ERROR RkPrePowerState(PVRSRV_DEV_POWER_STATE eNewPowerState, PVRSRV_DEV_POWER_STATE eCurrentPowerState, IMG_BOOL bForced);
-PVRSRV_ERROR RkPostPowerState(PVRSRV_DEV_POWER_STATE eNewPowerState, PVRSRV_DEV_POWER_STATE eCurrentPowerState, IMG_BOOL bForced);
+PVRSRV_ERROR RkPrePowerState(PVRSRV_DEV_POWER_STATE eNewPowerState,
+			     PVRSRV_DEV_POWER_STATE eCurrentPowerState,
+			     IMG_BOOL bForced);
+PVRSRV_ERROR RkPostPowerState(PVRSRV_DEV_POWER_STATE eNewPowerState,
+			      PVRSRV_DEV_POWER_STATE eCurrentPowerState,
+			      IMG_BOOL bForced);
 #endif /* __SUNXI_INIT__ */

@@ -773,9 +773,16 @@
 			<&cru ACLK_GPU_MEM>,
 			<&cru ACLK_GPU_CFG>;
 		clock-names =
-			"clk_gpu",
+			"sclk_gpu_core",
 			"aclk_gpu_mem",
 			"aclk_gpu_cfg";
+		operating-points = <
+			/* KHz uV */
+			200000 1100000
+			288000 1100000
+			400000 1150000
+			576000 1200000
+		>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "rogue-g6110-irq";
 	};

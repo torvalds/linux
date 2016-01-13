@@ -1,5 +1,6 @@
 config POWERVR_ROGUE_M
 	tristate "PowerVR Rogue M"
+	select PM_OPP
 	default n
 	help
 	  Driver for PowerVR Rogue hardware.

@@ -80,3 +80,7 @@
 &cpu_b0 {
 	cpu-supply = <&syr827>;
 };
+
+&gpu {
+	logic-supply = <&vdd_logic>;
+};

@@ -631,5 +631,5 @@ static void __exit PVRCore_Cleanup(void)
  * statically as well; in both cases they define the function the kernel will
  * run to start/stop the driver.
 */
-module_init(PVRCore_Init);
+late_initcall(PVRCore_Init);
 module_exit(PVRCore_Cleanup);
