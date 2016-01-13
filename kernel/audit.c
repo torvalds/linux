@@ -110,7 +110,6 @@ static u32	audit_backlog_limit = 64;
 #define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
 static u32	audit_backlog_wait_time_master = AUDIT_BACKLOG_WAIT_TIME;
 static u32	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
-static u32	audit_backlog_wait_overflow = 0;
 
 /* The identity of the user shutting down the audit system. */
 kuid_t		audit_sig_uid = INVALID_UID;
@@ -1395,7 +1394,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 				skb_queue_len(&audit_skb_queue),
 				audit_backlog_limit);
 		audit_log_lost("backlog limit exceeded");
-		audit_backlog_wait_time = audit_backlog_wait_overflow;
+		audit_backlog_wait_time = 0;
 		wake_up(&audit_backlog_wait);
 		return NULL;
 	}
