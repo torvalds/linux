@@ -240,7 +240,7 @@ static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
 {
-	struct device *connector_dev = container_of(kobj, struct device, kobj);
+	struct device *connector_dev = kobj_to_dev(kobj);
 	struct drm_connector *connector = to_drm_connector(connector_dev);
 	unsigned char *edid;
 	size_t size;
