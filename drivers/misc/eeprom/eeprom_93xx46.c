@@ -45,7 +45,7 @@ eeprom_93xx46_bin_read(struct file *filp, struct kobject *kobj,
 	int bits, ret;
 	u16 cmd_addr;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	edev = dev_get_drvdata(dev);
 
 	cmd_addr = OP_READ << edev->addrlen;
@@ -190,7 +190,7 @@ eeprom_93xx46_bin_write(struct file *filp, struct kobject *kobj,
 	struct device *dev;
 	int i, ret, step = 1;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	edev = dev_get_drvdata(dev);
 
 	/* only write even number of bytes on 16-bit devices */
