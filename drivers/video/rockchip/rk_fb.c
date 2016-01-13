@@ -123,8 +123,8 @@ int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
 		trsm_mipi_ops = ops;
 		break;
 	default:
-		pr_warning("%s:un supported transmitter:%d!\n",
-			   __func__, type);
+		pr_warn("%s: unsupported transmitter: %d!\n",
+			__func__, type);
 		break;
 	}
 	return 0;
@@ -151,8 +151,8 @@ struct rk_fb_trsm_ops *rk_fb_trsm_ops_get(int type)
 		break;
 	default:
 		ops = NULL;
-		pr_warning("%s:un supported transmitter:%d!\n",
-			   __func__, type);
+		pr_warn("%s: unsupported transmitter: %d!\n",
+			__func__, type);
 		break;
 	}
 	return ops;
@@ -190,8 +190,8 @@ int rk_fb_pixel_width(int data_format)
 		pixel_width = 8;
 		break;
 	default:
-		pr_warning("%s:un supported format:0x%x\n",
-			   __func__, data_format);
+		pr_warn("%s: unsupported format: 0x%x\n",
+			__func__, data_format);
 		return -EINVAL;
 	}
 	return pixel_width;
@@ -252,8 +252,8 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 			fb_data_fmt = FBDC_RGBX_888;
 			break;
 		default:
-			pr_warning("%s:un supported format:0x%x\n",
-				   __func__, data_format);
+			pr_warn("%s: unsupported format: 0x%x\n",
+				__func__, data_format);
 			return -EINVAL;
 		}
 	} else {
@@ -268,8 +268,8 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 			fb_data_fmt = RGB565;
 			break;
 		default:
-			pr_warning("%s:un supported bits_per_pixel:%d\n",
-				   __func__, bits_per_pixel);
+			pr_warn("%s: unsupported bits_per_pixel: %d\n",
+				__func__, bits_per_pixel);
 			break;
 		}
 	}
@@ -999,7 +999,7 @@ static void ipp_win_check(int *dst_w, int *dst_h, int *dst_vir_w,
 }
 
 static void fb_copy_by_ipp(struct fb_info *dst_info,
-				struct fb_info *src_info)
+			   struct fb_info *src_info)
 {
 	struct rk29_ipp_req ipp_req;
 	uint32_t rotation = 0;
@@ -1126,94 +1126,95 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 			    struct rk_lcdc_win *src_win,
 			    u16 orientation, int iommu_en)
 {
-	struct rga_req Rga_Request;
+	struct rga_req rga_request;
 	long ret = 0;
 	/* int fd = 0; */
 
-	memset(&Rga_Request, 0, sizeof(Rga_Request));
+	memset(&rga_request, 0, sizeof(rga_request));
 	rga_win_check(dst_win, src_win);
 
 	switch (orientation) {
 	case ROTATE_90:
-		Rga_Request.rotate_mode = 1;
-		Rga_Request.sina = 65536;
-		Rga_Request.cosa = 0;
-		Rga_Request.dst.act_w = dst_win->area[0].yact;
-		Rga_Request.dst.act_h = dst_win->area[0].xact;
-		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
-		Rga_Request.dst.y_offset = 0;
+		rga_request.rotate_mode = 1;
+		rga_request.sina = 65536;
+		rga_request.cosa = 0;
+		rga_request.dst.act_w = dst_win->area[0].yact;
+		rga_request.dst.act_h = dst_win->area[0].xact;
+		rga_request.dst.x_offset = dst_win->area[0].xact - 1;
+		rga_request.dst.y_offset = 0;
 		break;
 	case ROTATE_180:
-		Rga_Request.rotate_mode = 1;
-		Rga_Request.sina = 0;
-		Rga_Request.cosa = -65536;
-		Rga_Request.dst.act_w = dst_win->area[0].xact;
-		Rga_Request.dst.act_h = dst_win->area[0].yact;
-		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
-		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
+		rga_request.rotate_mode = 1;
+		rga_request.sina = 0;
+		rga_request.cosa = -65536;
+		rga_request.dst.act_w = dst_win->area[0].xact;
+		rga_request.dst.act_h = dst_win->area[0].yact;
+		rga_request.dst.x_offset = dst_win->area[0].xact - 1;
+		rga_request.dst.y_offset = dst_win->area[0].yact - 1;
 		break;
 	case ROTATE_270:
-		Rga_Request.rotate_mode = 1;
-		Rga_Request.sina = -65536;
-		Rga_Request.cosa = 0;
-		Rga_Request.dst.act_w = dst_win->area[0].yact;
-		Rga_Request.dst.act_h = dst_win->area[0].xact;
-		Rga_Request.dst.x_offset = 0;
-		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
+		rga_request.rotate_mode = 1;
+		rga_request.sina = -65536;
+		rga_request.cosa = 0;
+		rga_request.dst.act_w = dst_win->area[0].yact;
+		rga_request.dst.act_h = dst_win->area[0].xact;
+		rga_request.dst.x_offset = 0;
+		rga_request.dst.y_offset = dst_win->area[0].yact - 1;
 		break;
 	default:
-		Rga_Request.rotate_mode = 0;
-		Rga_Request.dst.act_w = dst_win->area[0].xact;
-		Rga_Request.dst.act_h = dst_win->area[0].yact;
-		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
-		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
+		rga_request.rotate_mode = 0;
+		rga_request.dst.act_w = dst_win->area[0].xact;
+		rga_request.dst.act_h = dst_win->area[0].yact;
+		rga_request.dst.x_offset = dst_win->area[0].xact - 1;
+		rga_request.dst.y_offset = dst_win->area[0].yact - 1;
 		break;
 	}
 
 	/*
 	 * fd =
 	 *    ion_share_dma_buf_fd(rk_fb->ion_client, src_win->area[0].ion_hdl);
-	 * Rga_Request.src.yrgb_addr = fd;
+	 * rga_request.src.yrgb_addr = fd;
 	 * fd =
 	 *    ion_share_dma_buf_fd(rk_fb->ion_client, dst_win->area[0].ion_hdl);
-	 * Rga_Request.dst.yrgb_addr = fd;
+	 * rga_request.dst.yrgb_addr = fd;
 	 */
-	Rga_Request.src.yrgb_addr = 0;
-	Rga_Request.src.uv_addr =
+	rga_request.src.yrgb_addr = 0;
+	rga_request.src.uv_addr =
 	    src_win->area[0].smem_start + src_win->area[0].y_offset;
-	Rga_Request.src.v_addr = 0;
+	rga_request.src.v_addr = 0;
 
-	Rga_Request.dst.yrgb_addr = 0;
-	Rga_Request.dst.uv_addr =
+	rga_request.dst.yrgb_addr = 0;
+	rga_request.dst.uv_addr =
 	    dst_win->area[0].smem_start + dst_win->area[0].y_offset;
-	Rga_Request.dst.v_addr = 0;
+	rga_request.dst.v_addr = 0;
 
-	Rga_Request.src.vir_w = src_win->area[0].xvir;
-	Rga_Request.src.vir_h = src_win->area[0].yvir;
-	Rga_Request.src.format = get_rga_format(src_win->area[0].format);
-	Rga_Request.src.act_w = src_win->area[0].xact;
-	Rga_Request.src.act_h = src_win->area[0].yact;
-	Rga_Request.src.x_offset = 0;
-	Rga_Request.src.y_offset = 0;
+	rga_request.src.vir_w = src_win->area[0].xvir;
+	rga_request.src.vir_h = src_win->area[0].yvir;
+	rga_request.src.format = get_rga_format(src_win->area[0].format);
+	rga_request.src.act_w = src_win->area[0].xact;
+	rga_request.src.act_h = src_win->area[0].yact;
+	rga_request.src.x_offset = 0;
+	rga_request.src.y_offset = 0;
 
-	Rga_Request.dst.vir_w = dst_win->area[0].xvir;
-	Rga_Request.dst.vir_h = dst_win->area[0].yvir;
-	Rga_Request.dst.format = get_rga_format(dst_win->area[0].format);
+	rga_request.dst.vir_w = dst_win->area[0].xvir;
+	rga_request.dst.vir_h = dst_win->area[0].yvir;
+	rga_request.dst.format = get_rga_format(dst_win->area[0].format);
 
-	Rga_Request.clip.xmin = 0;
-	Rga_Request.clip.xmax = dst_win->area[0].xact - 1;
-	Rga_Request.clip.ymin = 0;
-	Rga_Request.clip.ymax = dst_win->area[0].yact - 1;
-	Rga_Request.scale_mode = 0;
+	rga_request.clip.xmin = 0;
+	rga_request.clip.xmax = dst_win->area[0].xact - 1;
+	rga_request.clip.ymin = 0;
+	rga_request.clip.ymax = dst_win->area[0].yact - 1;
+	rga_request.scale_mode = 0;
+
 	if (iommu_en) {
-		Rga_Request.mmu_info.mmu_en = 1;
-		Rga_Request.mmu_info.mmu_flag = 1;
+		rga_request.mmu_info.mmu_en = 1;
+		rga_request.mmu_info.mmu_flag = 1;
 	} else {
-		Rga_Request.mmu_info.mmu_en = 0;
-		Rga_Request.mmu_info.mmu_flag = 0;
+		rga_request.mmu_info.mmu_en = 0;
+		rga_request.mmu_info.mmu_flag = 0;
 	}
 
-	ret = rga_ioctl_kernel(&Rga_Request);
+	ret = rga_ioctl_kernel(&rga_request);
 }
 
 /*
@@ -1222,7 +1223,7 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
  * RGA2 support copy RGB to RGB and YUV to YUV
  */
 static void fb_copy_by_rga(struct fb_info *dst_info,
-			       struct fb_info *src_info)
+			   struct fb_info *src_info)
 {
 	struct rk_fb_par *src_fb_par = (struct rk_fb_par *)src_info->par;
 	struct rk_fb_par *dst_fb_par = (struct rk_fb_par *)dst_info->par;
@@ -1244,7 +1245,7 @@ static void fb_copy_by_rga(struct fb_info *dst_info,
 #endif
 
 static int rk_fb_rotate(struct fb_info *dst_info,
-			  struct fb_info *src_info)
+			struct fb_info *src_info)
 {
 #if defined(CONFIG_RK29_IPP)
 	fb_copy_by_ipp(dst_info, src_info);
@@ -1257,8 +1258,8 @@ static int rk_fb_rotate(struct fb_info *dst_info,
 }
 
 static int __maybe_unused rk_fb_win_rotate(struct rk_lcdc_win *dst_win,
-					    struct rk_lcdc_win *src_win,
-					    u16 rotate, int iommu_en)
+					   struct rk_lcdc_win *src_win,
+					   u16 rotate, int iommu_en)
 {
 #if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
 	win_copy_by_rga(dst_win, src_win, rotate, iommu_en);
@@ -1399,7 +1400,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	if (video_data_to_mirroring)
 		video_data_to_mirroring(info, NULL);
 #endif
-	/*if not want the config effect,set reserved[3] bit[0] 1*/
+	/* if not want the config effect,set reserved[3] bit[0] 1 */
 	if (likely((var->reserved[3] & 0x1) == 0))
 		dev_drv->ops->cfg_done(dev_drv);
 	if (dev_drv->hdmi_switch)
@@ -1452,6 +1453,7 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 		void *page = phys_to_page(i + src);
 		void *from_virt = kmap(page);
 		void *to_virt = dst + i;
+
 		memcpy(to_virt, from_virt, PAGE_SIZE);
 	}
 	dev_drv->ops->direct_set_addr(dev_drv, win_id,
@@ -1478,6 +1480,7 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
 	int i = 0, j = 0;
 	static int page_fault_cnt;
+
 	if ((page_fault_cnt++) >= 10)
 		return 0;
 	pr_err
@@ -1497,6 +1500,7 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 	for (i = 0; i < PAGE_SIZE; i += DUMP_CHUNK) {
 		if ((PAGE_SIZE - i) > DUMP_CHUNK) {
 			char c = buf[i + DUMP_CHUNK];
+
 			buf[i + DUMP_CHUNK] = 0;
 			pr_cont("%s", buf + i);
 			buf[i + DUMP_CHUNK] = c;
@@ -1536,8 +1540,8 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 }
 
 static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
-				struct rk_lcdc_win *win,
-				struct rk_fb_reg_win_data *reg_win_data)
+			     struct rk_lcdc_win *win,
+			     struct rk_fb_reg_win_data *reg_win_data)
 {
 	int i = 0;
 	struct rk_fb *inf = platform_get_drvdata(fb_pdev);
@@ -1687,8 +1691,8 @@ static struct rk_fb_reg_win_data *rk_fb_get_win_data(struct rk_fb_reg_data
 }
 
 static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
-			      struct rk_fb_reg_data *regs,
-			      int count)
+			    struct rk_fb_reg_data *regs,
+			    int count)
 {
 	int i, j, wait_for_vsync = false;
 	unsigned int dsp_addr[5][4];
@@ -1706,6 +1710,7 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 					dev_drv->win[i]->area[j].smem_start +
 					dev_drv->win[i]->area[j].y_offset;
 				u32 reg_start = dsp_addr[i][j];
+
 				if (unlikely(new_start != reg_start)) {
 					wait_for_vsync = true;
 					dev_info(dev_drv->dev,
@@ -1818,9 +1823,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	for (i = 0; i < regs->win_num; i++) {
 		win_data = &regs->reg_win_data[i];
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
-			if (win_data->reg_area_data[j].acq_fence) {
+			if (win_data->reg_area_data[j].acq_fence)
 				rk_fd_fence_wait(dev_drv, win_data->reg_area_data[j].acq_fence);
-			}
 		}
 	}
 
@@ -1939,10 +1943,10 @@ static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
 	    (area_par->ypos >= screen->mode.yres) ||
 	    ((area_par->xsize <= 0) || (area_par->ysize <= 0))) {
 		pr_warn("check config var fail 1:\n"
-		       "xpos=%d,xsize=%d,xres=%d\n"
-		       "ypos=%d,ysize=%d,yres=%d\n",
-		       area_par->xpos, area_par->xsize, screen->mode.xres,
-		       area_par->ypos, area_par->ysize, screen->mode.yres);
+			"xpos=%d,xsize=%d,xres=%d\n"
+			"ypos=%d,ysize=%d,yres=%d\n",
+			area_par->xpos, area_par->xsize, screen->mode.xres,
+			area_par->ypos, area_par->ysize, screen->mode.yres);
 		return -EINVAL;
 	}
 	return 0;
@@ -2020,8 +2024,8 @@ static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 static int rk_fb_config_backup(struct rk_lcdc_driver *dev_drv,
-				   struct rk_fb_win_cfg_data *win_cfg,
-				   struct rk_fb_reg_data *regs)
+			       struct rk_fb_win_cfg_data *win_cfg,
+			       struct rk_fb_reg_data *regs)
 {
 	int i;
 
@@ -2331,7 +2335,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			reg_win_data->reg_area_data[0].xoff*
 			pixel_width / 16;
 		if ((buff_len > reg_win_data->reg_area_data[0].buff_len) &&
-			dev_drv->iommu_enabled)
+		     dev_drv->iommu_enabled)
 			pr_err("\n!!!!!!error: fmt=%d,xvir[%d]*"
 			       "yact[%d]*bpp[%d]"
 			       "=buff_len[0x%x]>>mmu len=0x%x\n",
@@ -2420,7 +2424,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		} else {
 			pr_info("error:win_id bigger than lcdc_win_num\n");
 			pr_info("i=%d,win_id=%d\n", i,
-			       win_data->win_par[i].win_id);
+				win_data->win_par[i].win_id);
 		}
 	}
 
@@ -2442,7 +2446,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 			win_data->rel_fence_fd[i] = get_unused_fd_flags(0);
 			if (win_data->rel_fence_fd[i] < 0) {
 				pr_info("rel_fence_fd=%d\n",
-				       win_data->rel_fence_fd[i]);
+					win_data->rel_fence_fd[i]);
 				ret = -EFAULT;
 				goto err2;
 			}
@@ -2624,8 +2628,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			}
 
 			ret = ion_map_iommu(dev_drv->dev, rk_fb->ion_client, hdl,
-						(unsigned long *)&phy_addr,
-						(unsigned long *)&len);
+					    (unsigned long *)&phy_addr,
+					    (unsigned long *)&len);
 			if (ret < 0) {
 				dev_err(info->dev, "ion map to get hwc phy addr failed");
 				ion_free(rk_fb->ion_client, hdl);
@@ -2756,6 +2760,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			struct ion_handle *hdl;
 			ion_phys_addr_t phy_addr;
 			size_t len;
+
 			if (copy_from_user(&usr_fd, argp, sizeof(usr_fd)))
 				return -EFAULT;
 
@@ -3175,6 +3180,7 @@ static int fb_setcolreg(unsigned regno,
 		/* true-colour, use pseudo-palette */
 		if (regno < 16) {
 			u32 *pal = info->pseudo_palette;
+
 			val = chan_to_field(red, &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue, &info->var.blue);
@@ -3680,6 +3686,7 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	else
 		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0,
 				   ION_HEAP_TYPE_DMA_MASK, 0);
+
 	if (IS_ERR(handle)) {
 		dev_err(fbi->device, "failed to ion_alloc:%ld\n",
 			PTR_ERR(handle));
@@ -3822,8 +3829,8 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 	fb_par->fb_size = fbi->fix.smem_len;
 
 	pr_info("%s:phy:%lx>>vir:%p>>len:0x%x\n", fbi->fix.id,
-		       fbi->fix.smem_start, fbi->screen_base,
-		       fbi->fix.smem_len);
+		fbi->fix.smem_start, fbi->screen_base,
+		fbi->fix.smem_len);
 	return ret;
 }
 
@@ -3953,12 +3960,12 @@ static void fb_show_bmp_logo(struct fb_info *info, int rotate)
 	unsigned char *src = bmp_logo->data;
 	unsigned char *dst = info->screen_base;
 	int i;
-	unsigned int Needwidth = (*(src - 24) << 8) | (*(src - 23));
-	unsigned int Needheight = (*(src - 22) << 8) | (*(src - 21));
+	unsigned int needwidth = (*(src - 24) << 8) | (*(src - 23));
+	unsigned int needheight = (*(src - 22) << 8) | (*(src - 21));
 
-	for (i = 0; i < Needheight; i++)
+	for (i = 0; i < needheight; i++)
 		memcpy(dst + info->var.xres * i * 4,
-		       src + bmp_logo->width * i * 4, Needwidth * 4);
+		       src + bmp_logo->width * i * 4, needwidth * 4);
 }
 #endif
 
@@ -4181,7 +4188,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			return 0;
 		} else if (dev_drv->uboot_logo && uboot_logo_base) {
 			u32 start = uboot_logo_base;
-			int logo_len, i=0;
+			int logo_len, i = 0;
 			int y_mirror = 0;
 			unsigned int nr_pages;
 			struct page **pages;
@@ -4189,7 +4196,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			int align = 0, xvir;
 
 			dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
-					              &yact, &format,
+						      &yact, &format,
 						      &start,
 						      &y_mirror);
 			logo_len = rk_fb_pixel_width(format) * xact * yact >> 3;
@@ -4266,6 +4273,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 #endif
 	} else {
 		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
+
 		extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
 		extend_fbi->fbops->fb_open(extend_fbi, 1);
 		if (dev_drv->iommu_enabled) {
