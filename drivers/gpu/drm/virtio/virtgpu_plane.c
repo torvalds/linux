@@ -72,6 +72,13 @@ static void virtio_gpu_plane_atomic_update(struct drm_plane *plane,
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
 		bo = gem_to_virtio_gpu_obj(vgfb->obj);
 		handle = bo->hw_res_handle;
+		if (bo->dumb) {
+			virtio_gpu_cmd_transfer_to_host_2d
+				(vgdev, handle, 0,
+				 cpu_to_le32(plane->state->crtc_w),
+				 cpu_to_le32(plane->state->crtc_h),
+				 plane->state->crtc_x, plane->state->crtc_y, NULL);
+		}
 	} else {
 		handle = 0;
 	}
