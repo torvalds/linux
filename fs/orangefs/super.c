@@ -158,11 +158,15 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		goto out_op_release;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "orangefs_statfs: got %ld blocks available | "
-		     "%ld blocks total | %ld block size\n",
+		     "%s: got %ld blocks available | "
+		     "%ld blocks total | %ld block size | "
+		     "%ld files total | %ld files avail\n",
+		     __func__,
 		     (long)new_op->downcall.resp.statfs.blocks_avail,
 		     (long)new_op->downcall.resp.statfs.blocks_total,
-		     (long)new_op->downcall.resp.statfs.block_size);
+		     (long)new_op->downcall.resp.statfs.block_size,
+		     (long)new_op->downcall.resp.statfs.files_total,
+		     (long)new_op->downcall.resp.statfs.files_avail);
 
 	buf->f_type = sb->s_magic;
 	memcpy(&buf->f_fsid, &ORANGEFS_SB(sb)->fs_id, sizeof(buf->f_fsid));
