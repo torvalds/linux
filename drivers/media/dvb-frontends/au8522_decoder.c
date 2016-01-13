@@ -730,7 +730,6 @@ static int au8522_probe(struct i2c_client *client,
 	struct v4l2_ctrl_handler *hdl;
 	struct v4l2_subdev *sd;
 	int instance;
-	struct au8522_config *demod_config;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter,
@@ -754,15 +753,7 @@ static int au8522_probe(struct i2c_client *client,
 		break;
 	}
 
-	demod_config = kzalloc(sizeof(struct au8522_config), GFP_KERNEL);
-	if (demod_config == NULL) {
-		if (instance == 1)
-			kfree(state);
-		return -ENOMEM;
-	}
-	demod_config->demod_address = 0x8e >> 1;
-
-	state->config = demod_config;
+	state->config.demod_address = 0x8e >> 1;
 	state->i2c = client->adapter;
 
 	sd = &state->sd;
@@ -784,8 +775,7 @@ static int au8522_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(demod_config);
-		kfree(state);
+		au8522_release_state(state);
 		return err;
 	}
 

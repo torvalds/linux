@@ -31,7 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include <media/as3645a.h>
+#include <media/i2c/as3645a.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 

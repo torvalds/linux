@@ -69,7 +69,6 @@ struct distr_item {
 
 struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ);
 struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ);
-void named_cluster_distribute(struct net *net, struct sk_buff *buf);
 void tipc_named_node_up(struct net *net, u32 dnode);
 void tipc_named_rcv(struct net *net, struct sk_buff_head *msg_queue);
 void tipc_named_reinit(struct net *net);

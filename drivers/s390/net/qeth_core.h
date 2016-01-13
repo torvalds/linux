@@ -981,6 +981,10 @@ int qeth_send_setassparms(struct qeth_card *, struct qeth_cmd_buffer *, __u16,
 			  int (*reply_cb)(struct qeth_card *,
 					  struct qeth_reply *, unsigned long),
 			  void *);
+struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
+						 enum qeth_ipa_funcs,
+						 __u16, __u16,
+						 enum qeth_prot_versions);
 int qeth_start_ipa_tx_checksum(struct qeth_card *);
 int qeth_set_rx_csum(struct qeth_card *, int);
 

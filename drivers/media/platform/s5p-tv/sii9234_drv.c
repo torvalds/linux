@@ -23,7 +23,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
 
-#include <media/sii9234.h>
+#include <linux/platform_data/media/sii9234.h>
 #include <media/v4l2-subdev.h>
 
 MODULE_AUTHOR("Tomasz Stanislawski <t.stanislaws@samsung.com>");

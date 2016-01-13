@@ -540,10 +540,6 @@ struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned long		busy_poll_state;
-#endif
-
 	union host_hc_status_block	status_blk;
 	/* chip independent shortcuts into sb structure */
 	__le16			*sb_index_values;
@@ -594,8 +590,6 @@ struct bnx2x_fastpath {
 	/* The last maximal completed SGE */
 	u16			last_max_sge;
 	__le16			*rx_cons_sb;
-	unsigned long		rx_pkt,
-				rx_calls;
 
 	/* TPA related */
 	struct bnx2x_agg_info	*tpa_info;
@@ -616,115 +610,6 @@ struct bnx2x_fastpath {
 #define bnx2x_sp_obj(bp, fp)	((bp)->sp_objs[(fp)->index])
 #define bnx2x_fp_stats(bp, fp)	(&((bp)->fp_stats[(fp)->index]))
 #define bnx2x_fp_qstats(bp, fp)	(&((bp)->fp_stats[(fp)->index].eth_q_stats))
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-
-enum bnx2x_fp_state {
-	BNX2X_STATE_FP_NAPI	= BIT(0), /* NAPI handler owns the queue */
-
-	BNX2X_STATE_FP_NAPI_REQ_BIT = 1, /* NAPI would like to own the queue */
-	BNX2X_STATE_FP_NAPI_REQ = BIT(1),
-
-	BNX2X_STATE_FP_POLL_BIT = 2,
-	BNX2X_STATE_FP_POLL     = BIT(2), /* busy_poll owns the queue */
-
-	BNX2X_STATE_FP_DISABLE_BIT = 3, /* queue is dismantled */
-};
-
-static inline void bnx2x_fp_busy_poll_init(struct bnx2x_fastpath *fp)
-{
-	WRITE_ONCE(fp->busy_poll_state, 0);
-}
-
-/* called from the device poll routine to get ownership of a FP */
-static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
-{
-	unsigned long prev, old = READ_ONCE(fp->busy_poll_state);
-
-	while (1) {
-		switch (old) {
-		case BNX2X_STATE_FP_POLL:
-			/* make sure bnx2x_fp_lock_poll() wont starve us */
-			set_bit(BNX2X_STATE_FP_NAPI_REQ_BIT,
-				&fp->busy_poll_state);
-			/* fallthrough */
-		case BNX2X_STATE_FP_POLL | BNX2X_STATE_FP_NAPI_REQ:
-			return false;
-		default:
-			break;
-		}
-		prev = cmpxchg(&fp->busy_poll_state, old, BNX2X_STATE_FP_NAPI);
-		if (unlikely(prev != old)) {
-			old = prev;
-			continue;
-		}
-		return true;
-	}
-}
-
-static inline void bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
-{
-	smp_wmb();
-	fp->busy_poll_state = 0;
-}
-
-/* called from bnx2x_low_latency_poll() */
-static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
-{
-	return cmpxchg(&fp->busy_poll_state, 0, BNX2X_STATE_FP_POLL) == 0;
-}
-
-static inline void bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
-{
-	smp_mb__before_atomic();
-	clear_bit(BNX2X_STATE_FP_POLL_BIT, &fp->busy_poll_state);
-}
-
-/* true if a socket is polling */
-static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
-{
-	return READ_ONCE(fp->busy_poll_state) & BNX2X_STATE_FP_POLL;
-}
-
-/* false if fp is currently owned */
-static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
-{
-	set_bit(BNX2X_STATE_FP_DISABLE_BIT, &fp->busy_poll_state);
-	return !bnx2x_fp_ll_polling(fp);
-
-}
-#else
-static inline void bnx2x_fp_busy_poll_init(struct bnx2x_fastpath *fp)
-{
-}
-
-static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
-{
-	return true;
-}
-
-static inline void bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
-{
-}
-
-static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
-{
-	return false;
-}
-
-static inline void bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
-{
-}
-
-static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
-{
-	return false;
-}
-static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
-{
-	return true;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /* Use 2500 as a mini-jumbo MTU for FCoE */
 #define BNX2X_FCOE_MINI_JUMBO_MTU	2500

@@ -96,7 +96,7 @@ cgroup_install firewire_install hv_install lguest_install perf_install usb_insta
 	$(call descend,$(@:_install=),install)
 
 selftests_install:
-	$(call descend,testing/$(@:_clean=),install)
+	$(call descend,testing/$(@:_install=),install)
 
 turbostat_install x86_energy_perf_policy_install:
 	$(call descend,power/x86/$(@:_install=),install)

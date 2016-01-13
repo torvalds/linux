@@ -135,7 +135,7 @@ static void boost_set_msrs(bool enable, const struct cpumask *cpumask)
 	wrmsr_on_cpus(cpumask, msr_addr, msrs);
 }
 
-static int _store_boost(int val)
+static int set_boost(int val)
 {
 	get_online_cpus();
 	boost_set_msrs(val, cpu_online_mask);
@@ -158,27 +158,22 @@ static ssize_t show_freqdomain_cpus(struct cpufreq_policy *policy, char *buf)
 cpufreq_freq_attr_ro(freqdomain_cpus);
 
 #ifdef CONFIG_X86_ACPI_CPUFREQ_CPB
-static ssize_t store_boost(const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val = 0;
-
-	if (!acpi_cpufreq_driver.boost_supported)
-		return -EINVAL;
-
-	ret = kstrtoul(buf, 10, &val);
-	if (ret || (val > 1))
-		return -EINVAL;
-
-	_store_boost((int) val);
-
-	return count;
-}
-
 static ssize_t store_cpb(struct cpufreq_policy *policy, const char *buf,
 			 size_t count)
 {
-	return store_boost(buf, count);
+	int ret;
+	unsigned int val = 0;
+
+	if (!acpi_cpufreq_driver.set_boost)
+		return -EINVAL;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret || val > 1)
+		return -EINVAL;
+
+	set_boost(val);
+
+	return count;
 }
 
 static ssize_t show_cpb(struct cpufreq_policy *policy, char *buf)
@@ -905,7 +900,6 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 	.resume		= acpi_cpufreq_resume,
 	.name		= "acpi-cpufreq",
 	.attr		= acpi_cpufreq_attr,
-	.set_boost      = _store_boost,
 };
 
 static void __init acpi_cpufreq_boost_init(void)
@@ -916,7 +910,7 @@ static void __init acpi_cpufreq_boost_init(void)
 		if (!msrs)
 			return;
 
-		acpi_cpufreq_driver.boost_supported = true;
+		acpi_cpufreq_driver.set_boost = set_boost;
 		acpi_cpufreq_driver.boost_enabled = boost_state(0);
 
 		cpu_notifier_register_begin();

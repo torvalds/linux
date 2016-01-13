@@ -434,7 +434,7 @@ On host: serialc -v <vendorID> -p <productID> -i<interface#> -a1 -s1024 \
 
 where seriald and serialc are Felipe's utilities found here:
 
-https://git.gitorious.org/usb/usb-tools.git master
+https://github.com/felipebalbi/usb-tools.git master
 
 12. PHONET function
 ===================
@@ -579,6 +579,8 @@ The SOURCESINK function provides these attributes in its function directory:
 	isoc_mult	- 0..2 (hs/ss only)
 	isoc_maxburst	- 0..15 (ss only)
 	bulk_buflen	- buffer length
+	bulk_qlen	- depth of queue for bulk
+	iso_qlen	- depth of queue for iso
 
 Testing the SOURCESINK function
 -------------------------------

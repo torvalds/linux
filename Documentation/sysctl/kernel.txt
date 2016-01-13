@@ -551,6 +551,21 @@ the recommended setting is 60.
 
 ==============================================================
 
+panic_on_io_nmi:
+
+Controls the kernel's behavior when a CPU receives an NMI caused by
+an IO error.
+
+0: try to continue operation (default)
+
+1: panic immediately. The IO error triggered an NMI. This indicates a
+   serious system condition which could result in IO data corruption.
+   Rather than continuing, panicking might be a better choice. Some
+   servers issue this sort of NMI when the dump button is pushed,
+   and you can use this option to take a crash dump.
+
+==============================================================
+
 panic_on_oops:
 
 Controls the kernel's behaviour when an oops or BUG is encountered.

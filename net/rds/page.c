@@ -179,37 +179,18 @@ out:
 }
 EXPORT_SYMBOL_GPL(rds_page_remainder_alloc);
 
-static int rds_page_remainder_cpu_notify(struct notifier_block *self,
-					 unsigned long action, void *hcpu)
+void rds_page_exit(void)
 {
-	struct rds_page_remainder *rem;
-	long cpu = (long)hcpu;
+	unsigned int cpu;
 
-	rem = &per_cpu(rds_page_remainders, cpu);
+	for_each_possible_cpu(cpu) {
+		struct rds_page_remainder *rem;
 
-	rdsdebug("cpu %ld action 0x%lx\n", cpu, action);
+		rem = &per_cpu(rds_page_remainders, cpu);
+		rdsdebug("cpu %u\n", cpu);
 
-	switch (action) {
-	case CPU_DEAD:
 		if (rem->r_page)
 			__free_page(rem->r_page);
 		rem->r_page = NULL;
-		break;
 	}
-
-	return 0;
-}
-
-static struct notifier_block rds_page_remainder_nb = {
-	.notifier_call = rds_page_remainder_cpu_notify,
-};
-
-void rds_page_exit(void)
-{
-	int i;
-
-	for_each_possible_cpu(i)
-		rds_page_remainder_cpu_notify(&rds_page_remainder_nb,
-					      (unsigned long)CPU_DEAD,
-					      (void *)(long)i);
 }

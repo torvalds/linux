@@ -47,7 +47,6 @@ static struct acpi_device  *hv_acpi_dev;
 
 static struct tasklet_struct msg_dpc;
 static struct completion probe_event;
-static int irq;
 
 
 static void hyperv_report_panic(struct pt_regs *regs)
@@ -531,9 +530,9 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 
 static const uuid_le null_guid;
 
-static inline bool is_null_guid(const __u8 *guid)
+static inline bool is_null_guid(const uuid_le *guid)
 {
-	if (memcmp(guid, &null_guid, sizeof(uuid_le)))
+	if (uuid_le_cmp(*guid, null_guid))
 		return false;
 	return true;
 }
@@ -544,10 +543,10 @@ static inline bool is_null_guid(const __u8 *guid)
  */
 static const struct hv_vmbus_device_id *hv_vmbus_get_id(
 					const struct hv_vmbus_device_id *id,
-					const __u8 *guid)
+					const uuid_le *guid)
 {
-	for (; !is_null_guid(id->guid); id++)
-		if (!memcmp(&id->guid, guid, sizeof(uuid_le)))
+	for (; !is_null_guid(&id->guid); id++)
+		if (!uuid_le_cmp(id->guid, *guid))
 			return id;
 
 	return NULL;
@@ -563,7 +562,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
 
-	if (hv_vmbus_get_id(drv->id_table, hv_dev->dev_type.b))
+	if (hv_vmbus_get_id(drv->id_table, &hv_dev->dev_type))
 		return 1;
 
 	return 0;
@@ -580,7 +579,7 @@ static int vmbus_probe(struct device *child_device)
 	struct hv_device *dev = device_to_hv_device(child_device);
 	const struct hv_vmbus_device_id *dev_id;
 
-	dev_id = hv_vmbus_get_id(drv->id_table, dev->dev_type.b);
+	dev_id = hv_vmbus_get_id(drv->id_table, &dev->dev_type);
 	if (drv->probe) {
 		ret = drv->probe(dev, dev_id);
 		if (ret != 0)
@@ -602,23 +601,11 @@ static int vmbus_remove(struct device *child_device)
 {
 	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
-	u32 relid = dev->channel->offermsg.child_relid;
 
 	if (child_device->driver) {
 		drv = drv_to_hv_drv(child_device->driver);
 		if (drv->remove)
 			drv->remove(dev);
-		else {
-			hv_process_channel_removal(dev->channel, relid);
-			pr_err("remove not set for driver %s\n",
-				dev_name(child_device));
-		}
-	} else {
-		/*
-		 * We don't have a driver for this device; deal with the
-		 * rescind message by removing the channel.
-		 */
-		hv_process_channel_removal(dev->channel, relid);
 	}
 
 	return 0;
@@ -653,7 +640,10 @@ static void vmbus_shutdown(struct device *child_device)
 static void vmbus_device_release(struct device *device)
 {
 	struct hv_device *hv_dev = device_to_hv_device(device);
+	struct vmbus_channel *channel = hv_dev->channel;
 
+	hv_process_channel_removal(channel,
+				   channel->offermsg.child_relid);
 	kfree(hv_dev);
 
 }
@@ -835,10 +825,9 @@ static void vmbus_isr(void)
  * Here, we
  *	- initialize the vmbus driver context
  *	- invoke the vmbus hv main init routine
- *	- get the irq resource
  *	- retrieve the channel offers
  */
-static int vmbus_bus_init(int irq)
+static int vmbus_bus_init(void)
 {
 	int ret;
 
@@ -867,7 +856,7 @@ static int vmbus_bus_init(int irq)
 	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_alloc;
+		goto err_connect;
 
 	if (vmbus_proto_version > VERSION_WIN7)
 		cpu_hotplug_disable();
@@ -885,6 +874,8 @@ static int vmbus_bus_init(int irq)
 
 	return 0;
 
+err_connect:
+	on_each_cpu(hv_synic_cleanup, NULL, 1);
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
@@ -1031,9 +1022,6 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	struct resource **prev_res = NULL;
 
 	switch (res->type) {
-	case ACPI_RESOURCE_TYPE_IRQ:
-		irq = res->data.irq.interrupts[0];
-		return AE_OK;
 
 	/*
 	 * "Address" descriptors are for bus windows. Ignore
@@ -1075,9 +1063,25 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	new_res->start = start;
 	new_res->end = end;
 
+	/*
+	 * Stick ranges from higher in address space at the front of the list.
+	 * If two ranges are adjacent, merge them.
+	 */
 	do {
 		if (!*old_res) {
 			*old_res = new_res;
+			break;
+		}
+
+		if (((*old_res)->end + 1) == new_res->start) {
+			(*old_res)->end = new_res->end;
+			kfree(new_res);
+			break;
+		}
+
+		if ((*old_res)->start == new_res->end + 1) {
+			(*old_res)->start = new_res->start;
+			kfree(new_res);
 			break;
 		}
 
@@ -1191,6 +1195,23 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 }
 EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
 
+/**
+ * vmbus_cpu_number_to_vp_number() - Map CPU to VP.
+ * @cpu_number: CPU number in Linux terms
+ *
+ * This function returns the mapping between the Linux processor
+ * number and the hypervisor's virtual processor number, useful
+ * in making hypercalls and such that talk about specific
+ * processors.
+ *
+ * Return: Virtual processor number in Hyper-V terms
+ */
+int vmbus_cpu_number_to_vp_number(int cpu_number)
+{
+	return hv_context.vp_index[cpu_number];
+}
+EXPORT_SYMBOL_GPL(vmbus_cpu_number_to_vp_number);
+
 static int vmbus_acpi_add(struct acpi_device *device)
 {
 	acpi_status result;
@@ -1275,7 +1296,7 @@ static int __init hv_acpi_init(void)
 	init_completion(&probe_event);
 
 	/*
-	 * Get irq resources first.
+	 * Get ACPI resources first.
 	 */
 	ret = acpi_bus_register_driver(&vmbus_acpi_driver);
 
@@ -1288,12 +1309,7 @@ static int __init hv_acpi_init(void)
 		goto cleanup;
 	}
 
-	if (irq <= 0) {
-		ret = -ENODEV;
-		goto cleanup;
-	}
-
-	ret = vmbus_bus_init(irq);
+	ret = vmbus_bus_init();
 	if (ret)
 		goto cleanup;
 

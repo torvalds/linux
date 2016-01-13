@@ -1,6 +1,8 @@
 #ifndef _XT_TEE_TARGET_H
 #define _XT_TEE_TARGET_H
 
+#include <linux/netfilter.h>
+
 struct xt_tee_tginfo {
 	union nf_inet_addr gw;
 	char oif[16];

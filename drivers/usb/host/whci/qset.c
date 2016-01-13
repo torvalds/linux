@@ -30,10 +30,9 @@ struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
 	struct whc_qset *qset;
 	dma_addr_t dma;
 
-	qset = dma_pool_alloc(whc->qset_pool, mem_flags, &dma);
+	qset = dma_pool_zalloc(whc->qset_pool, mem_flags, &dma);
 	if (qset == NULL)
 		return NULL;
-	memset(qset, 0, sizeof(struct whc_qset));
 
 	qset->qset_dma = dma;
 	qset->whc = whc;
@@ -400,7 +399,7 @@ static void urb_dequeue_work(struct work_struct *work)
 	struct whc *whc = qset->whc;
 	unsigned long flags;
 
-	if (wurb->is_async == true)
+	if (wurb->is_async)
 		asl_update(whc, WUSBCMD_ASYNC_UPDATED
 			   | WUSBCMD_ASYNC_SYNCED_DB
 			   | WUSBCMD_ASYNC_QSET_RM);

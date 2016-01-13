@@ -103,11 +103,11 @@ struct tipc_bearer;
  */
 struct tipc_media {
 	int (*send_msg)(struct net *net, struct sk_buff *buf,
-			struct tipc_bearer *b_ptr,
+			struct tipc_bearer *b,
 			struct tipc_media_addr *dest);
-	int (*enable_media)(struct net *net, struct tipc_bearer *b_ptr,
+	int (*enable_media)(struct net *net, struct tipc_bearer *b,
 			    struct nlattr *attr[]);
-	void (*disable_media)(struct tipc_bearer *b_ptr);
+	void (*disable_media)(struct tipc_bearer *b);
 	int (*addr2str)(struct tipc_media_addr *addr,
 			char *strbuf,
 			int bufsz);
@@ -176,7 +176,7 @@ struct tipc_bearer_names {
  * TIPC routines available to supported media types
  */
 
-void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr);
+void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b);
 
 /*
  * Routines made available to TIPC by supported media types

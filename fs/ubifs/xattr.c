@@ -267,7 +267,7 @@ static int check_namespace(const struct qstr *nm)
 
 	if (!strncmp(nm->name, XATTR_TRUSTED_PREFIX,
 		     XATTR_TRUSTED_PREFIX_LEN)) {
-		if (nm->name[sizeof(XATTR_TRUSTED_PREFIX) - 1] == '\0')
+		if (nm->name[XATTR_TRUSTED_PREFIX_LEN] == '\0')
 			return -EINVAL;
 		type = TRUSTED_XATTR;
 	} else if (!strncmp(nm->name, XATTR_USER_PREFIX,
@@ -277,7 +277,7 @@ static int check_namespace(const struct qstr *nm)
 		type = USER_XATTR;
 	} else if (!strncmp(nm->name, XATTR_SECURITY_PREFIX,
 				     XATTR_SECURITY_PREFIX_LEN)) {
-		if (nm->name[sizeof(XATTR_SECURITY_PREFIX) - 1] == '\0')
+		if (nm->name[XATTR_SECURITY_PREFIX_LEN] == '\0')
 			return -EINVAL;
 		type = SECURITY_XATTR;
 	} else

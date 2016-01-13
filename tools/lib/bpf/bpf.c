@@ -83,3 +83,17 @@ int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 	log_buf[0] = 0;
 	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 }
+
+int bpf_map_update_elem(int fd, void *key, void *value,
+			u64 flags)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.value = ptr_to_u64(value);
+	attr.flags = flags;
+
+	return sys_bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
+}

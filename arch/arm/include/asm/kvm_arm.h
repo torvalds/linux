@@ -19,6 +19,7 @@
 #ifndef __ARM_KVM_ARM_H__
 #define __ARM_KVM_ARM_H__
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 /* Hyp Configuration Register (HCR) bits */
@@ -132,10 +133,9 @@
  * space.
  */
 #define KVM_PHYS_SHIFT	(40)
-#define KVM_PHYS_SIZE	(1ULL << KVM_PHYS_SHIFT)
-#define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1ULL)
-#define PTRS_PER_S2_PGD	(1ULL << (KVM_PHYS_SHIFT - 30))
-#define S2_PGD_ORDER	get_order(PTRS_PER_S2_PGD * sizeof(pgd_t))
+#define KVM_PHYS_SIZE	(_AC(1, ULL) << KVM_PHYS_SHIFT)
+#define KVM_PHYS_MASK	(KVM_PHYS_SIZE - _AC(1, ULL))
+#define PTRS_PER_S2_PGD	(_AC(1, ULL) << (KVM_PHYS_SHIFT - 30))
 
 /* Virtualization Translation Control Register (VTCR) bits */
 #define VTCR_SH0	(3 << 12)
@@ -162,17 +162,17 @@
 #define VTTBR_X		(5 - KVM_T0SZ)
 #endif
 #define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
-#define VTTBR_BADDR_MASK  (((1LLU << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
-#define VTTBR_VMID_SHIFT  (48LLU)
-#define VTTBR_VMID_MASK	  (0xffLLU << VTTBR_VMID_SHIFT)
+#define VTTBR_BADDR_MASK  (((_AC(1, ULL) << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
+#define VTTBR_VMID_SHIFT  _AC(48, ULL)
+#define VTTBR_VMID_MASK(size)	(_AT(u64, (1 << size) - 1) << VTTBR_VMID_SHIFT)
 
 /* Hyp Syndrome Register (HSR) bits */
 #define HSR_EC_SHIFT	(26)
-#define HSR_EC		(0x3fU << HSR_EC_SHIFT)
-#define HSR_IL		(1U << 25)
+#define HSR_EC		(_AC(0x3f, UL) << HSR_EC_SHIFT)
+#define HSR_IL		(_AC(1, UL) << 25)
 #define HSR_ISS		(HSR_IL - 1)
 #define HSR_ISV_SHIFT	(24)
-#define HSR_ISV		(1U << HSR_ISV_SHIFT)
+#define HSR_ISV		(_AC(1, UL) << HSR_ISV_SHIFT)
 #define HSR_SRT_SHIFT	(16)
 #define HSR_SRT_MASK	(0xf << HSR_SRT_SHIFT)
 #define HSR_FSC		(0x3f)
@@ -180,9 +180,9 @@
 #define HSR_SSE		(1 << 21)
 #define HSR_WNR		(1 << 6)
 #define HSR_CV_SHIFT	(24)
-#define HSR_CV		(1U << HSR_CV_SHIFT)
+#define HSR_CV		(_AC(1, UL) << HSR_CV_SHIFT)
 #define HSR_COND_SHIFT	(20)
-#define HSR_COND	(0xfU << HSR_COND_SHIFT)
+#define HSR_COND	(_AC(0xf, UL) << HSR_COND_SHIFT)
 
 #define FSC_FAULT	(0x04)
 #define FSC_ACCESS	(0x08)
@@ -210,13 +210,13 @@
 #define HSR_EC_DABT	(0x24)
 #define HSR_EC_DABT_HYP	(0x25)
 
-#define HSR_WFI_IS_WFE		(1U << 0)
+#define HSR_WFI_IS_WFE		(_AC(1, UL) << 0)
 
-#define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
+#define HSR_HVC_IMM_MASK	((_AC(1, UL) << 16) - 1)
 
-#define HSR_DABT_S1PTW		(1U << 7)
-#define HSR_DABT_CM		(1U << 8)
-#define HSR_DABT_EA		(1U << 9)
+#define HSR_DABT_S1PTW		(_AC(1, UL) << 7)
+#define HSR_DABT_CM		(_AC(1, UL) << 8)
+#define HSR_DABT_EA		(_AC(1, UL) << 9)
 
 #define kvm_arm_exception_type	\
 	{0, "RESET" }, 		\

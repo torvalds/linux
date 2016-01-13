@@ -61,6 +61,33 @@ static int regmap_mmio_regbits_check(size_t reg_bits)
 	}
 }
 
+static int regmap_mmio_get_min_stride(size_t val_bits)
+{
+	int min_stride;
+
+	switch (val_bits) {
+	case 8:
+		/* The core treats 0 as 1 */
+		min_stride = 0;
+		return 0;
+	case 16:
+		min_stride = 2;
+		break;
+	case 32:
+		min_stride = 4;
+		break;
+#ifdef CONFIG_64BIT
+	case 64:
+		min_stride = 8;
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+
+	return min_stride;
+}
+
 static inline void regmap_mmio_count_check(size_t count, u32 offset)
 {
 	BUG_ON(count <= offset);
@@ -106,17 +133,17 @@ static int regmap_mmio_gather_write(void *context,
 	while (val_size) {
 		switch (ctx->val_bytes) {
 		case 1:
-			writeb(*(u8 *)val, ctx->regs + offset);
+			__raw_writeb(*(u8 *)val, ctx->regs + offset);
 			break;
 		case 2:
-			writew(*(u16 *)val, ctx->regs + offset);
+			__raw_writew(*(u16 *)val, ctx->regs + offset);
 			break;
 		case 4:
-			writel(*(u32 *)val, ctx->regs + offset);
+			__raw_writel(*(u32 *)val, ctx->regs + offset);
 			break;
 #ifdef CONFIG_64BIT
 		case 8:
-			writeq(*(u64 *)val, ctx->regs + offset);
+			__raw_writeq(*(u64 *)val, ctx->regs + offset);
 			break;
 #endif
 		default:
@@ -166,17 +193,17 @@ static int regmap_mmio_read(void *context,
 	while (val_size) {
 		switch (ctx->val_bytes) {
 		case 1:
-			*(u8 *)val = readb(ctx->regs + offset);
+			*(u8 *)val = __raw_readb(ctx->regs + offset);
 			break;
 		case 2:
-			*(u16 *)val = readw(ctx->regs + offset);
+			*(u16 *)val = __raw_readw(ctx->regs + offset);
 			break;
 		case 4:
-			*(u32 *)val = readl(ctx->regs + offset);
+			*(u32 *)val = __raw_readl(ctx->regs + offset);
 			break;
 #ifdef CONFIG_64BIT
 		case 8:
-			*(u64 *)val = readq(ctx->regs + offset);
+			*(u64 *)val = __raw_readq(ctx->regs + offset);
 			break;
 #endif
 		default:
@@ -231,26 +258,9 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	if (config->pad_bits)
 		return ERR_PTR(-EINVAL);
 
-	switch (config->val_bits) {
-	case 8:
-		/* The core treats 0 as 1 */
-		min_stride = 0;
-		break;
-	case 16:
-		min_stride = 2;
-		break;
-	case 32:
-		min_stride = 4;
-		break;
-#ifdef CONFIG_64BIT
-	case 64:
-		min_stride = 8;
-		break;
-#endif
-		break;
-	default:
-		return ERR_PTR(-EINVAL);
-	}
+	min_stride = regmap_mmio_get_min_stride(config->val_bits);
+	if (min_stride < 0)
+		return ERR_PTR(min_stride);
 
 	if (config->reg_stride < min_stride)
 		return ERR_PTR(-EINVAL);

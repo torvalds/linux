@@ -692,7 +692,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	/* Support irq domain for max14577 MUIC device */
 	for (i = 0; i < info->muic_irqs_num; i++) {
 		struct max14577_muic_irq *muic_irq = &info->muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(max14577->irq_data, muic_irq->irq);
 		if (virq <= 0)

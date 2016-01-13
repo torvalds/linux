@@ -52,7 +52,6 @@ struct nxp_nci_i2c_phy {
 
 	unsigned int gpio_en;
 	unsigned int gpio_fw;
-	unsigned int gpio_irq;
 
 	int hard_fault; /*
 			 * < 0 if hardware error occurred (e.g. i2c err)
@@ -85,7 +84,7 @@ static int nxp_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 		return phy->hard_fault;
 
 	r = i2c_master_send(client, skb->data, skb->len);
-	if (r == -EREMOTEIO) {
+	if (r < 0) {
 		/* Retry, chip was in standby */
 		usleep_range(110000, 120000);
 		r = i2c_master_send(client, skb->data, skb->len);
@@ -264,8 +263,6 @@ exit_irq_none:
 	return IRQ_NONE;
 }
 
-#ifdef CONFIG_OF
-
 static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
 {
 	struct nxp_nci_i2c_phy *phy = i2c_get_clientdata(client);
@@ -294,48 +291,24 @@ static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
 	}
 	phy->gpio_fw = r;
 
-	r = irq_of_parse_and_map(pp, 0);
-	if (r < 0) {
-		nfc_err(&client->dev, "Unable to get irq, error: %d\n", r);
-		return r;
-	}
-	client->irq = r;
-
 	return 0;
 }
-
-#else
-
-static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
-{
-	return -ENODEV;
-}
-
-#endif
 
 static int nxp_nci_i2c_acpi_config(struct nxp_nci_i2c_phy *phy)
 {
 	struct i2c_client *client = phy->i2c_dev;
-	struct gpio_desc *gpiod_en, *gpiod_fw, *gpiod_irq;
+	struct gpio_desc *gpiod_en, *gpiod_fw;
 
 	gpiod_en = devm_gpiod_get_index(&client->dev, NULL, 2, GPIOD_OUT_LOW);
 	gpiod_fw = devm_gpiod_get_index(&client->dev, NULL, 1, GPIOD_OUT_LOW);
-	gpiod_irq = devm_gpiod_get_index(&client->dev, NULL, 0, GPIOD_IN);
 
-	if (IS_ERR(gpiod_en) || IS_ERR(gpiod_fw) || IS_ERR(gpiod_irq)) {
+	if (IS_ERR(gpiod_en) || IS_ERR(gpiod_fw)) {
 		nfc_err(&client->dev, "No GPIOs\n");
-		return -EINVAL;
-	}
-
-	client->irq = gpiod_to_irq(gpiod_irq);
-	if (client->irq < 0) {
-		nfc_err(&client->dev, "No IRQ\n");
 		return -EINVAL;
 	}
 
 	phy->gpio_en = desc_to_gpio(gpiod_en);
 	phy->gpio_fw = desc_to_gpio(gpiod_fw);
-	phy->gpio_irq = desc_to_gpio(gpiod_irq);
 
 	return 0;
 }
@@ -374,7 +347,6 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	} else if (pdata) {
 		phy->gpio_en = pdata->gpio_en;
 		phy->gpio_fw = pdata->gpio_fw;
-		client->irq = pdata->irq;
 	} else if (ACPI_HANDLE(&client->dev)) {
 		r = nxp_nci_i2c_acpi_config(phy);
 		if (r < 0)

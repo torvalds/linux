@@ -778,8 +778,8 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 	return mask;
 }
 
-static int do_poll(unsigned int nfds,  struct poll_list *list,
-		   struct poll_wqueues *wait, struct timespec *end_time)
+static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
+		   struct timespec *end_time)
 {
 	poll_table* pt = &wait->pt;
 	ktime_t expire, *to = NULL;
@@ -908,7 +908,7 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 	}
 
 	poll_initwait(&table);
-	fdcount = do_poll(nfds, head, &table, end_time);
+	fdcount = do_poll(head, &table, end_time);
 	poll_freewait(&table);
 
 	for (walk = head; walk; walk = walk->next) {

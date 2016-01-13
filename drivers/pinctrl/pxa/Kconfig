@@ -1,0 +1,17 @@
+if (ARCH_PXA || COMPILE_TEST)
+
+config PINCTRL_PXA
+	bool
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+
+config PINCTRL_PXA27X
+	tristate "Marvell PXA27x pin controller driver"
+	select PINCTRL_PXA
+	default y if PXA27x
+	help
+	  This is the pinctrl, pinmux, pinconf driver for the Marvell
+	  PXA2xx block found in the pxa25x and pxa27x platforms.
+
+endif

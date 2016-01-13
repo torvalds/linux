@@ -31,21 +31,31 @@ perf-y += sample-parsing.o
 perf-y += parse-no-sample-id-all.o
 perf-y += kmod-path.o
 perf-y += thread-map.o
-perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o
+perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o llvm-src-prologue.o
 perf-y += bpf.o
 perf-y += topology.o
+perf-y += cpumap.o
+perf-y += stat.o
+perf-y += event_update.o
 
-$(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c
+$(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)
 	$(Q)echo '#include <tests/llvm.h>' > $@
 	$(Q)echo 'const char test_llvm__bpf_base_prog[] =' >> $@
 	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
 	$(Q)echo ';' >> $@
 
-$(OUTPUT)tests/llvm-src-kbuild.c: tests/bpf-script-test-kbuild.c
+$(OUTPUT)tests/llvm-src-kbuild.c: tests/bpf-script-test-kbuild.c tests/Build
 	$(call rule_mkdir)
 	$(Q)echo '#include <tests/llvm.h>' > $@
 	$(Q)echo 'const char test_llvm__bpf_test_kbuild_prog[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
+
+$(OUTPUT)tests/llvm-src-prologue.c: tests/bpf-script-test-prologue.c tests/Build
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_test_prologue_prog[] =' >> $@
 	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
 	$(Q)echo ';' >> $@
 

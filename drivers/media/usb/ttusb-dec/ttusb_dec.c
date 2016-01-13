@@ -1606,7 +1606,7 @@ static int fe_send_command(struct dvb_frontend* fe, const u8 command,
 	return ttusb_dec_send_command(dec, command, param_length, params, result_length, cmd_result);
 }
 
-static struct ttusbdecfe_config fe_config = {
+static const struct ttusbdecfe_config fe_config = {
 	.send_command = fe_send_command
 };
 

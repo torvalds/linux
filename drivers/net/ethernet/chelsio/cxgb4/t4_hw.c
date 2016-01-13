@@ -1942,8 +1942,12 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1190, 0x1194,
 		0x11a0, 0x11a4,
 		0x11b0, 0x11b4,
-		0x11fc, 0x1254,
-		0x1280, 0x133c,
+		0x11fc, 0x1258,
+		0x1280, 0x12d4,
+		0x12d9, 0x12d9,
+		0x12de, 0x12de,
+		0x12e3, 0x12e3,
+		0x12e8, 0x133c,
 		0x1800, 0x18fc,
 		0x3000, 0x302c,
 		0x3060, 0x30b0,
@@ -1973,7 +1977,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x5e50, 0x5e94,
 		0x5ea0, 0x5eb0,
 		0x5ec0, 0x5ec0,
-		0x5ec8, 0x5ecc,
+		0x5ec8, 0x5ed0,
 		0x6000, 0x6020,
 		0x6028, 0x6040,
 		0x6058, 0x609c,
@@ -2048,7 +2052,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x19150, 0x19194,
 		0x1919c, 0x191b0,
 		0x191d0, 0x191e8,
-		0x19238, 0x192b0,
+		0x19238, 0x19290,
+		0x192a4, 0x192b0,
 		0x192bc, 0x192bc,
 		0x19348, 0x1934c,
 		0x193f8, 0x19418,
@@ -2442,7 +2447,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x40280, 0x40280,
 		0x40304, 0x40304,
 		0x40330, 0x4033c,
-		0x41304, 0x413c8,
+		0x41304, 0x413b8,
+		0x413c0, 0x413c8,
 		0x413d0, 0x413dc,
 		0x413f0, 0x413f0,
 		0x41400, 0x4140c,
@@ -5254,7 +5260,7 @@ void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	int i;
 	u32 data[2];
 
-	for (i = 0; i < PM_NSTATS; i++) {
+	for (i = 0; i < adap->params.arch.pm_stats_cnt; i++) {
 		t4_write_reg(adap, PM_TX_STAT_CONFIG_A, i + 1);
 		cnt[i] = t4_read_reg(adap, PM_TX_STAT_COUNT_A);
 		if (is_t4(adap->params.chip)) {
@@ -5281,7 +5287,7 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	int i;
 	u32 data[2];
 
-	for (i = 0; i < PM_NSTATS; i++) {
+	for (i = 0; i < adap->params.arch.pm_stats_cnt; i++) {
 		t4_write_reg(adap, PM_RX_STAT_CONFIG_A, i + 1);
 		cnt[i] = t4_read_reg(adap, PM_RX_STAT_COUNT_A);
 		if (is_t4(adap->params.chip)) {
@@ -5310,7 +5316,14 @@ unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 
 	if (n == 0)
 		return idx == 0 ? 0xf : 0;
-	if (n == 1)
+	/* In T6 (which is a 2 port card),
+	 * port 0 is mapped to channel 0 and port 1 is mapped to channel 1.
+	 * For 2 port T4/T5 adapter,
+	 * port 0 is mapped to channel 0 and 1,
+	 * port 1 is mapped to channel 2 and 3.
+	 */
+	if ((n == 1) &&
+	    (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5))
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
 }
@@ -5689,6 +5702,39 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 		"IDMA_FL_SEND_PADDING",
 		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
 	};
+	static const char * const t6_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"IDMA_SGEFLRFLUSH_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_DROP_SEND_INC",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+	};
 	static const u32 sge_regs[] = {
 		SGE_DEBUG_DATA_LOW_INDEX_2_A,
 		SGE_DEBUG_DATA_LOW_INDEX_3_A,
@@ -5697,6 +5743,32 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 	const char **sge_idma_decode;
 	int sge_idma_decode_nstates;
 	int i;
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adapter->params.chip);
+
+	/* Select the right set of decode strings to dump depending on the
+	 * adapter chip type.
+	 */
+	switch (chip_version) {
+	case CHELSIO_T4:
+		sge_idma_decode = (const char **)t4_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t4_decode);
+		break;
+
+	case CHELSIO_T5:
+		sge_idma_decode = (const char **)t5_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t5_decode);
+		break;
+
+	case CHELSIO_T6:
+		sge_idma_decode = (const char **)t6_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t6_decode);
+		break;
+
+	default:
+		dev_err(adapter->pdev_dev,
+			"Unsupported chip version %d\n", chip_version);
+		return;
+	}
 
 	if (is_t4(adapter->params.chip)) {
 		sge_idma_decode = (const char **)t4_decode;
@@ -6097,6 +6169,59 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 }
 
 /**
+ *	t4_fl_pkt_align - return the fl packet alignment
+ *	@adap: the adapter
+ *
+ *	T4 has a single field to specify the packing and padding boundary.
+ *	T5 onwards has separate fields for this and hence the alignment for
+ *	next packet offset is maximum of these two.
+ *
+ */
+int t4_fl_pkt_align(struct adapter *adap)
+{
+	u32 sge_control, sge_control2;
+	unsigned int ingpadboundary, ingpackboundary, fl_align, ingpad_shift;
+
+	sge_control = t4_read_reg(adap, SGE_CONTROL_A);
+
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately.  The actual Ingress Packet Data alignment boundary
+	 * within Packed Buffer Mode is the maximum of these two
+	 * specifications.  (Note that it makes no real practical sense to
+	 * have the Pading Boudary be larger than the Packing Boundary but you
+	 * could set the chip up that way and, in fact, legacy T4 code would
+	 * end doing this because it would initialize the Padding Boundary and
+	 * leave the Packing Boundary initialized to 0 (16 bytes).)
+	 * Padding Boundary values in T6 starts from 8B,
+	 * where as it is 32B for T4 and T5.
+	 */
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		ingpad_shift = INGPADBOUNDARY_SHIFT_X;
+	else
+		ingpad_shift = T6_INGPADBOUNDARY_SHIFT_X;
+
+	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) + ingpad_shift);
+
+	fl_align = ingpadboundary;
+	if (!is_t4(adap->params.chip)) {
+		/* T5 has a weird interpretation of one of the PCIe Packing
+		 * Boundary values.  No idea why ...
+		 */
+		sge_control2 = t4_read_reg(adap, SGE_CONTROL2_A);
+		ingpackboundary = INGPACKBOUNDARY_G(sge_control2);
+		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
+			ingpackboundary = 16;
+		else
+			ingpackboundary = 1 << (ingpackboundary +
+						INGPACKBOUNDARY_SHIFT_X);
+
+		fl_align = max(ingpadboundary, ingpackboundary);
+	}
+	return fl_align;
+}
+
+/**
  *	t4_fixup_host_params - fix up host-dependent parameters
  *	@adap: the adapter
  *	@page_size: the host's Base Page Size
@@ -6114,6 +6239,7 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 	unsigned int stat_len = cache_line_size > 64 ? 128 : 64;
 	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
 	unsigned int fl_align_log = fls(fl_align) - 1;
+	unsigned int ingpad;
 
 	t4_write_reg(adap, SGE_HOST_PAGE_SIZE_A,
 		     HOSTPAGESIZEPF0_V(sge_hps) |
@@ -6161,10 +6287,16 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 			fl_align = 64;
 			fl_align_log = 6;
 		}
+
+		if (is_t5(adap->params.chip))
+			ingpad = INGPCIEBOUNDARY_32B_X;
+		else
+			ingpad = T6_INGPADBOUNDARY_32B_X;
+
 		t4_set_reg_field(adap, SGE_CONTROL_A,
 				 INGPADBOUNDARY_V(INGPADBOUNDARY_M) |
 				 EGRSTATUSPAGESIZE_F,
-				 INGPADBOUNDARY_V(INGPCIEBOUNDARY_32B_X) |
+				 INGPADBOUNDARY_V(ingpad) |
 				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 		t4_set_reg_field(adap, SGE_CONTROL2_A,
 				 INGPACKBOUNDARY_V(INGPACKBOUNDARY_M),
@@ -7060,7 +7192,12 @@ int t4_prep_adapter(struct adapter *adapter)
 				 NUM_MPS_CLS_SRAM_L_INSTANCES;
 		adapter->params.arch.mps_rplc_size = 128;
 		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.pm_stats_cnt = PM_NSTATS;
 		adapter->params.arch.vfcount = 128;
+		/* Congestion map is for 4 channels so that
+		 * MPS can have 4 priority per port.
+		 */
+		adapter->params.arch.cng_ch_bits_log = 2;
 		break;
 	case CHELSIO_T5:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
@@ -7069,7 +7206,9 @@ int t4_prep_adapter(struct adapter *adapter)
 				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 		adapter->params.arch.mps_rplc_size = 128;
 		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.pm_stats_cnt = PM_NSTATS;
 		adapter->params.arch.vfcount = 128;
+		adapter->params.arch.cng_ch_bits_log = 2;
 		break;
 	case CHELSIO_T6:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
@@ -7078,7 +7217,12 @@ int t4_prep_adapter(struct adapter *adapter)
 				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 		adapter->params.arch.mps_rplc_size = 256;
 		adapter->params.arch.nchan = 2;
+		adapter->params.arch.pm_stats_cnt = T6_PM_NSTATS;
 		adapter->params.arch.vfcount = 256;
+		/* Congestion map will be for 2 channels so that
+		 * MPS can have 8 priority per port.
+		 */
+		adapter->params.arch.cng_ch_bits_log = 3;
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",

@@ -17,6 +17,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
+#include <linux/of_platform.h>
 
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
@@ -106,24 +107,71 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_OTG]		= "otg",
 };
 
+static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(usb_dr_modes); i++)
+		if (!strcmp(usb_dr_modes[i], str))
+			return i;
+
+	return USB_DR_MODE_UNKNOWN;
+}
+
 enum usb_dr_mode usb_get_dr_mode(struct device *dev)
 {
 	const char *dr_mode;
-	int err, i;
+	int err;
 
 	err = device_property_read_string(dev, "dr_mode", &dr_mode);
 	if (err < 0)
 		return USB_DR_MODE_UNKNOWN;
 
-	for (i = 0; i < ARRAY_SIZE(usb_dr_modes); i++)
-		if (!strcmp(dr_mode, usb_dr_modes[i]))
-			return i;
-
-	return USB_DR_MODE_UNKNOWN;
+	return usb_get_dr_mode_from_string(dr_mode);
 }
 EXPORT_SYMBOL_GPL(usb_get_dr_mode);
 
 #ifdef CONFIG_OF
+/**
+ * of_usb_get_dr_mode_by_phy - Get dual role mode for the controller device
+ * which is associated with the given phy device_node
+ * @np:	Pointer to the given phy device_node
+ *
+ * In dts a usb controller associates with phy devices.  The function gets
+ * the string from property 'dr_mode' of the controller associated with the
+ * given phy device node, and returns the correspondig enum usb_dr_mode.
+ */
+enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *phy_np)
+{
+	struct device_node *controller = NULL;
+	struct device_node *phy;
+	const char *dr_mode;
+	int index;
+	int err;
+
+	do {
+		controller = of_find_node_with_property(controller, "phys");
+		index = 0;
+		do {
+			phy = of_parse_phandle(controller, "phys", index);
+			of_node_put(phy);
+			if (phy == phy_np)
+				goto finish;
+			index++;
+		} while (phy);
+	} while (controller);
+
+finish:
+	err = of_property_read_string(controller, "dr_mode", &dr_mode);
+	of_node_put(controller);
+
+	if (err < 0)
+		return USB_DR_MODE_UNKNOWN;
+
+	return usb_get_dr_mode_from_string(dr_mode);
+}
+EXPORT_SYMBOL_GPL(of_usb_get_dr_mode_by_phy);
+
 /**
  * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported
  * for given targeted hosts (non-PC hosts)

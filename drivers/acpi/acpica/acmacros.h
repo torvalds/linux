@@ -401,17 +401,6 @@
 #endif
 
 /*
- * Some code only gets executed when the debugger is built in.
- * Note that this is entirely independent of whether the
- * DEBUG_PRINT stuff (set by ACPI_DEBUG_OUTPUT) is on, or not.
- */
-#ifdef ACPI_DEBUGGER
-#define ACPI_DEBUGGER_EXEC(a)           a
-#else
-#define ACPI_DEBUGGER_EXEC(a)
-#endif
-
-/*
  * Macros used for ACPICA utilities only
  */
 

@@ -1360,8 +1360,7 @@ static int ep_config_from_table(struct musb *musb)
 		break;
 	}
 
-	printk(KERN_DEBUG "%s: setup fifo_mode %d\n",
-			musb_driver_name, fifo_mode);
+	pr_debug("%s: setup fifo_mode %d\n", musb_driver_name, fifo_mode);
 
 
 done:
@@ -1390,7 +1389,7 @@ done:
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
 	}
 
-	printk(KERN_DEBUG "%s: %d/%d max ep, %d/%d memory\n",
+	pr_debug("%s: %d/%d max ep, %d/%d memory\n",
 			musb_driver_name,
 			n + 1, musb->config->num_eps * 2 - 1,
 			offset, (1 << (musb->config->ram_bits + 2)));
@@ -1491,8 +1490,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 	if (reg & MUSB_CONFIGDATA_SOFTCONE)
 		strcat(aInfo, ", SoftConn");
 
-	printk(KERN_DEBUG "%s: ConfigData=0x%02x (%s)\n",
-			musb_driver_name, reg, aInfo);
+	pr_debug("%s: ConfigData=0x%02x (%s)\n", musb_driver_name, reg, aInfo);
 
 	aDate[0] = 0;
 	if (MUSB_CONTROLLER_MHDRC == musb_type) {
@@ -1502,9 +1500,8 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 		musb->is_multipoint = 0;
 		type = "";
 #ifndef	CONFIG_USB_OTG_BLACKLIST_HUB
-		printk(KERN_ERR
-			"%s: kernel must blacklist external hubs\n",
-			musb_driver_name);
+		pr_err("%s: kernel must blacklist external hubs\n",
+		       musb_driver_name);
 #endif
 	}
 
@@ -1513,8 +1510,8 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 	snprintf(aRevision, 32, "%d.%d%s", MUSB_HWVERS_MAJOR(musb->hwvers),
 		MUSB_HWVERS_MINOR(musb->hwvers),
 		(musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
-	printk(KERN_DEBUG "%s: %sHDRC RTL version %s %s\n",
-			musb_driver_name, type, aRevision, aDate);
+	pr_debug("%s: %sHDRC RTL version %s %s\n",
+		 musb_driver_name, type, aRevision, aDate);
 
 	/* configure ep0 */
 	musb_configure_ep0(musb);
@@ -1704,6 +1701,23 @@ EXPORT_SYMBOL_GPL(musb_dma_completion);
 #else
 #define use_dma			0
 #endif
+
+static void (*musb_phy_callback)(enum musb_vbus_id_status status);
+
+/*
+ * musb_mailbox - optional phy notifier function
+ * @status phy state change
+ *
+ * Optionally gets called from the USB PHY. Note that the USB PHY must be
+ * disabled at the point the phy_callback is registered or unregistered.
+ */
+void musb_mailbox(enum musb_vbus_id_status status)
+{
+	if (musb_phy_callback)
+		musb_phy_callback(status);
+
+};
+EXPORT_SYMBOL_GPL(musb_mailbox);
 
 /*-------------------------------------------------------------------------*/
 
@@ -2117,7 +2131,14 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->xceiv->io_ops = &musb_ulpi_access;
 	}
 
+	if (musb->ops->phy_callback)
+		musb_phy_callback = musb->ops->phy_callback;
+
 	pm_runtime_get_sync(musb->controller);
+
+	status = usb_phy_init(musb->xceiv);
+	if (status < 0)
+		goto err_usb_phy_init;
 
 	if (use_dma && dev->dma_mask) {
 		musb->dma_controller =
@@ -2239,7 +2260,11 @@ fail3:
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);
+
 fail2_5:
+	usb_phy_shutdown(musb->xceiv);
+
+err_usb_phy_init:
 	pm_runtime_put_sync(musb->controller);
 
 fail2:
@@ -2295,9 +2320,12 @@ static int musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
+	musb_phy_callback = NULL;
 
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);
+
+	usb_phy_shutdown(musb->xceiv);
 
 	cancel_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);

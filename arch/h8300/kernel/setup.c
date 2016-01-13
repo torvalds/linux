@@ -207,14 +207,14 @@ device_initcall(device_probe);
 #define get_wait(base, addr) ({		\
 	int baddr;			\
 	baddr = ((addr) / 0x200000 * 2);			     \
-	w *= (ctrl_inw((unsigned long)(base) + 2) & (3 << baddr)) + 1;	\
+	w *= (readw((base) + 2) & (3 << baddr)) + 1;		     \
 	})
 #endif
 #if defined(CONFIG_CPU_H8S)
 #define get_wait(base, addr) ({		\
 	int baddr;			\
 	baddr = ((addr) / 0x200000 * 16);			     \
-	w *= (ctrl_inl((unsigned long)(base) + 2) & (7 << baddr)) + 1;	\
+	w *= (readl((base) + 2) & (7 << baddr)) + 1;	\
 	})
 #endif
 
@@ -228,8 +228,8 @@ static __init int access_timing(void)
 
 	bsc = of_find_compatible_node(NULL, NULL, "renesas,h8300-bsc");
 	base = of_iomap(bsc, 0);
-	w = (ctrl_inb((unsigned long)base + 0) & bit)?2:1;
-	if (ctrl_inb((unsigned long)base + 1) & bit)
+	w = (readb(base + 0) & bit)?2:1;
+	if (readb(base + 1) & bit)
 		w *= get_wait(base, addr);
 	else
 		w *= 2;

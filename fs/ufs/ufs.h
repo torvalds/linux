@@ -136,10 +136,6 @@ extern __printf(3, 4)
 void ufs_panic(struct super_block *, const char *, const char *, ...);
 void ufs_mark_sb_dirty(struct super_block *sb);
 
-/* symlink.c */
-extern const struct inode_operations ufs_fast_symlink_inode_operations;
-extern const struct inode_operations ufs_symlink_inode_operations;
-
 static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;

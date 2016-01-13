@@ -3186,15 +3186,11 @@ static noinline int mmc_ioctl_dvd_read_struct(struct cdrom_device_info *cdi,
 	if (!CDROM_CAN(CDC_DVD))
 		return -ENOSYS;
 
-	s = kmalloc(size, GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
+	s = memdup_user(arg, size);
+	if (IS_ERR(s))
+		return PTR_ERR(s);
 
 	cd_dbg(CD_DO_IOCTL, "entering DVD_READ_STRUCT\n");
-	if (copy_from_user(s, arg, size)) {
-		kfree(s);
-		return -EFAULT;
-	}
 
 	ret = dvd_read_struct(cdi, s, cgc);
 	if (ret)

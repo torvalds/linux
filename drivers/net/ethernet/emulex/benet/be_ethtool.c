@@ -241,15 +241,26 @@ static u32 lancer_cmd_get_file_len(struct be_adapter *adapter, u8 *file_name)
 	u32 data_read = 0, eof;
 	u8 addn_status;
 	struct be_dma_mem data_len_cmd;
-	int status;
 
 	memset(&data_len_cmd, 0, sizeof(data_len_cmd));
 	/* data_offset and data_size should be 0 to get reg len */
-	status = lancer_cmd_read_object(adapter, &data_len_cmd, 0, 0,
-					file_name, &data_read, &eof,
-					&addn_status);
+	lancer_cmd_read_object(adapter, &data_len_cmd, 0, 0, file_name,
+			       &data_read, &eof, &addn_status);
 
 	return data_read;
+}
+
+static int be_get_dump_len(struct be_adapter *adapter)
+{
+	u32 dump_size = 0;
+
+	if (lancer_chip(adapter))
+		dump_size = lancer_cmd_get_file_len(adapter,
+						    LANCER_FW_DUMP_FILE);
+	else
+		dump_size = adapter->fat_dump_len;
+
+	return dump_size;
 }
 
 static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
@@ -293,37 +304,18 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 	return status;
 }
 
-static int be_get_reg_len(struct net_device *netdev)
+static int be_read_dump_data(struct be_adapter *adapter, u32 dump_len,
+			     void *buf)
 {
-	struct be_adapter *adapter = netdev_priv(netdev);
-	u32 log_size = 0;
+	int status = 0;
 
-	if (!check_privilege(adapter, MAX_PRIVILEGES))
-		return 0;
+	if (lancer_chip(adapter))
+		status = lancer_cmd_read_file(adapter, LANCER_FW_DUMP_FILE,
+					      dump_len, buf);
+	else
+		status = be_cmd_get_fat_dump(adapter, dump_len, buf);
 
-	if (be_physfn(adapter)) {
-		if (lancer_chip(adapter))
-			log_size = lancer_cmd_get_file_len(adapter,
-							   LANCER_FW_DUMP_FILE);
-		else
-			be_cmd_get_reg_len(adapter, &log_size);
-	}
-	return log_size;
-}
-
-static void
-be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-
-	if (be_physfn(adapter)) {
-		memset(buf, 0, regs->len);
-		if (lancer_chip(adapter))
-			lancer_cmd_read_file(adapter, LANCER_FW_DUMP_FILE,
-					     regs->len, buf);
-		else
-			be_cmd_get_regs(adapter, regs->len, buf);
-	}
+	return status;
 }
 
 static int be_get_coalesce(struct net_device *netdev,
@@ -916,6 +908,34 @@ static int be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 	return be_load_fw(adapter, efl->data);
 }
 
+static int
+be_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return -EOPNOTSUPP;
+
+	dump->len = be_get_dump_len(adapter);
+	dump->version = 1;
+	dump->flag = 0x1;	/* FW dump is enabled */
+	return 0;
+}
+
+static int
+be_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
+		 void *buf)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return -EOPNOTSUPP;
+
+	status = be_read_dump_data(adapter, dump->len, buf);
+	return be_cmd_status(status);
+}
+
 static int be_get_eeprom_len(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -1313,8 +1333,6 @@ const struct ethtool_ops be_ethtool_ops = {
 	.set_msglevel = be_set_msg_level,
 	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
-	.get_regs_len = be_get_reg_len,
-	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
 	.get_rxnfc = be_get_rxnfc,
@@ -1323,6 +1341,8 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_rxfh_key_size = be_get_rxfh_key_size,
 	.get_rxfh = be_get_rxfh,
 	.set_rxfh = be_set_rxfh,
+	.get_dump_flag = be_get_dump_flag,
+	.get_dump_data = be_get_dump_data,
 	.get_channels = be_get_channels,
 	.set_channels = be_set_channels,
 	.get_module_info = be_get_module_info,

@@ -167,7 +167,7 @@ struct qlcnic_dcb_cfg {
 	u32 version;
 };
 
-static struct qlcnic_dcb_ops qlcnic_83xx_dcb_ops = {
+static const struct qlcnic_dcb_ops qlcnic_83xx_dcb_ops = {
 	.init_dcbnl_ops		= __qlcnic_init_dcbnl_ops,
 	.free			= __qlcnic_dcb_free,
 	.attach			= __qlcnic_dcb_attach,
@@ -180,7 +180,7 @@ static struct qlcnic_dcb_ops qlcnic_83xx_dcb_ops = {
 	.aen_handler		= qlcnic_83xx_dcb_aen_handler,
 };
 
-static struct qlcnic_dcb_ops qlcnic_82xx_dcb_ops = {
+static const struct qlcnic_dcb_ops qlcnic_82xx_dcb_ops = {
 	.init_dcbnl_ops		= __qlcnic_init_dcbnl_ops,
 	.free			= __qlcnic_dcb_free,
 	.attach			= __qlcnic_dcb_attach,

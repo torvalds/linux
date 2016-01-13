@@ -49,58 +49,10 @@
  */
 
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <linux/device.h>
 
 #include "hfi.h"
-
-static void __hfi1_release_user_pages(struct page **p, size_t num_pages,
-				      int dirty)
-{
-	size_t i;
-
-	for (i = 0; i < num_pages; i++) {
-		if (dirty)
-			set_page_dirty_lock(p[i]);
-		put_page(p[i]);
-	}
-}
-
-/*
- * Call with current->mm->mmap_sem held.
- */
-static int __hfi1_get_user_pages(unsigned long start_page, size_t num_pages,
-				 struct page **p)
-{
-	unsigned long lock_limit;
-	size_t got;
-	int ret;
-
-	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-
-	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
-		ret = -ENOMEM;
-		goto bail;
-	}
-
-	for (got = 0; got < num_pages; got += ret) {
-		ret = get_user_pages(current, current->mm,
-				     start_page + got * PAGE_SIZE,
-				     num_pages - got, 1, 1,
-				     p + got, NULL);
-		if (ret < 0)
-			goto bail_release;
-	}
-
-	current->mm->pinned_vm += num_pages;
-
-	ret = 0;
-	goto bail;
-
-bail_release:
-	__hfi1_release_user_pages(p, got, 0);
-bail:
-	return ret;
-}
 
 /**
  * hfi1_map_page - a safety wrapper around pci_map_page()
@@ -116,41 +68,44 @@ dma_addr_t hfi1_map_page(struct pci_dev *hwdev, struct page *page,
 	return phys;
 }
 
-/**
- * hfi1_get_user_pages - lock user pages into memory
- * @start_page: the start page
- * @num_pages: the number of pages
- * @p: the output page structures
- *
- * This function takes a given start page (page aligned user virtual
- * address) and pins it and the following specified number of pages.  For
- * now, num_pages is always 1, but that will probably change at some point
- * (because caller is doing expected sends on a single virtually contiguous
- * buffer, so we can do all pages at once).
- */
-int hfi1_get_user_pages(unsigned long start_page, size_t num_pages,
-			struct page **p)
+int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
+			    struct page **pages)
 {
+	unsigned long pinned, lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	bool can_lock = capable(CAP_IPC_LOCK);
 	int ret;
 
+	down_read(&current->mm->mmap_sem);
+	pinned = current->mm->pinned_vm;
+	up_read(&current->mm->mmap_sem);
+
+	if (pinned + npages > lock_limit && !can_lock)
+		return -ENOMEM;
+
+	ret = get_user_pages_fast(vaddr, npages, writable, pages);
+	if (ret < 0)
+		return ret;
+
 	down_write(&current->mm->mmap_sem);
-
-	ret = __hfi1_get_user_pages(start_page, num_pages, p);
-
+	current->mm->pinned_vm += ret;
 	up_write(&current->mm->mmap_sem);
 
 	return ret;
 }
 
-void hfi1_release_user_pages(struct page **p, size_t num_pages)
+void hfi1_release_user_pages(struct page **p, size_t npages, bool dirty)
 {
-	if (current->mm) /* during close after signal, mm can be NULL */
+	size_t i;
+
+	for (i = 0; i < npages; i++) {
+		if (dirty)
+			set_page_dirty_lock(p[i]);
+		put_page(p[i]);
+	}
+
+	if (current->mm) { /* during close after signal, mm can be NULL */
 		down_write(&current->mm->mmap_sem);
-
-	__hfi1_release_user_pages(p, num_pages, 1);
-
-	if (current->mm) {
-		current->mm->pinned_vm -= num_pages;
+		current->mm->pinned_vm -= npages;
 		up_write(&current->mm->mmap_sem);
 	}
 }

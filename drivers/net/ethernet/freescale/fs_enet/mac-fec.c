@@ -254,7 +254,7 @@ static void restart(struct net_device *dev)
 	int r;
 	u32 addrhi, addrlo;
 
-	struct mii_bus* mii = fep->phydev->bus;
+	struct mii_bus *mii = fep->phydev->mdio.bus;
 	struct fec_info* fec_inf = mii->priv;
 
 	r = whack_reset(fep->fec.fecp);
@@ -363,7 +363,7 @@ static void stop(struct net_device *dev)
 	const struct fs_platform_info *fpi = fep->fpi;
 	struct fec __iomem *fecp = fep->fec.fecp;
 
-	struct fec_info* feci= fep->phydev->bus->priv;
+	struct fec_info *feci = fep->phydev->mdio.bus->priv;
 
 	int i;
 

@@ -4,11 +4,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/compiler.h>
 #include "tests.h"
 
 extern int verbose;
 
-int test__python_use(void)
+int test__python_use(int subtest __maybe_unused)
 {
 	char *cmd;
 	int ret;
