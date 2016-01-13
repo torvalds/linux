@@ -305,8 +305,10 @@ int etnaviv_gem_get_iova(struct etnaviv_gpu *gpu,
 	mapping = etnaviv_gem_get_vram_mapping(etnaviv_obj, NULL);
 	if (!mapping) {
 		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
-		if (!mapping)
-			return -ENOMEM;
+		if (!mapping) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		INIT_LIST_HEAD(&mapping->scan_node);
 		mapping->object = etnaviv_obj;
