@@ -77,14 +77,21 @@ module_param(allow_duplicates, bool, 0644);
 static int disable_backlight_sysfs_if = -1;
 module_param(disable_backlight_sysfs_if, int, 0444);
 
+#define REPORT_OUTPUT_KEY_EVENTS		0x01
+#define REPORT_BRIGHTNESS_KEY_EVENTS		0x02
+static int report_key_events = -1;
+module_param(report_key_events, int, 0644);
+MODULE_PARM_DESC(report_key_events,
+	"0: none, 1: output changes, 2: brightness changes, 3: all");
+
 static bool device_id_scheme = false;
 module_param(device_id_scheme, bool, 0444);
 
 static bool only_lcd = false;
 module_param(only_lcd, bool, 0444);
 
-static int register_count;
-static DEFINE_MUTEX(register_count_mutex);
+static DECLARE_COMPLETION(register_done);
+static DEFINE_MUTEX(register_done_mutex);
 static struct mutex video_list_lock;
 static struct list_head video_bus_head;
 static int acpi_video_bus_add(struct acpi_device *device);
@@ -412,6 +419,13 @@ static int video_enable_only_lcd(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int video_set_report_key_events(const struct dmi_system_id *id)
+{
+	if (report_key_events == -1)
+		report_key_events = (uintptr_t)id->driver_data;
+	return 0;
+}
+
 static struct dmi_system_id video_dmi_table[] = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
@@ -498,6 +512,24 @@ static struct dmi_system_id video_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Mobile M9410"),
+		},
+	},
+	/*
+	 * Some machines report wrong key events on the acpi-bus, suppress
+	 * key event reporting on these.  Note this is only intended to work
+	 * around events which are plain wrong. In some cases we get double
+	 * events, in this case acpi-video is considered the canonical source
+	 * and the events from the other source should be filtered. E.g.
+	 * by calling acpi_video_handles_brightness_key_presses() from the
+	 * vendor acpi/wmi driver or by using /lib/udev/hwdb.d/60-keyboard.hwdb
+	 */
+	{
+	 .callback = video_set_report_key_events,
+	 .driver_data = (void *)((uintptr_t)REPORT_OUTPUT_KEY_EVENTS),
+	 .ident = "Dell Vostro V131",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Vostro V131"),
 		},
 	},
 	{}
@@ -1480,7 +1512,7 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 		/* Something vetoed the keypress. */
 		keycode = 0;
 
-	if (keycode) {
+	if (keycode && (report_key_events & REPORT_OUTPUT_KEY_EVENTS)) {
 		input_report_key(input, keycode, 1);
 		input_sync(input);
 		input_report_key(input, keycode, 0);
@@ -1544,7 +1576,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 
 	acpi_notifier_call_chain(device, event, 0);
 
-	if (keycode) {
+	if (keycode && (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS)) {
 		input_report_key(input, keycode, 1);
 		input_sync(input);
 		input_report_key(input, keycode, 0);
@@ -2017,8 +2049,8 @@ int acpi_video_register(void)
 {
 	int ret = 0;
 
-	mutex_lock(&register_count_mutex);
-	if (register_count) {
+	mutex_lock(&register_done_mutex);
+	if (completion_done(&register_done)) {
 		/*
 		 * if the function of acpi_video_register is already called,
 		 * don't register the acpi_vide_bus again and return no error.
@@ -2039,22 +2071,22 @@ int acpi_video_register(void)
 	 * When the acpi_video_bus is loaded successfully, increase
 	 * the counter reference.
 	 */
-	register_count = 1;
+	complete(&register_done);
 
 leave:
-	mutex_unlock(&register_count_mutex);
+	mutex_unlock(&register_done_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(acpi_video_register);
 
 void acpi_video_unregister(void)
 {
-	mutex_lock(&register_count_mutex);
-	if (register_count) {
+	mutex_lock(&register_done_mutex);
+	if (completion_done(&register_done)) {
 		acpi_bus_unregister_driver(&acpi_video_bus);
-		register_count = 0;
+		reinit_completion(&register_done);
 	}
-	mutex_unlock(&register_count_mutex);
+	mutex_unlock(&register_done_mutex);
 }
 EXPORT_SYMBOL(acpi_video_unregister);
 
@@ -2062,15 +2094,29 @@ void acpi_video_unregister_backlight(void)
 {
 	struct acpi_video_bus *video;
 
-	mutex_lock(&register_count_mutex);
-	if (register_count) {
+	mutex_lock(&register_done_mutex);
+	if (completion_done(&register_done)) {
 		mutex_lock(&video_list_lock);
 		list_for_each_entry(video, &video_bus_head, entry)
 			acpi_video_bus_unregister_backlight(video);
 		mutex_unlock(&video_list_lock);
 	}
-	mutex_unlock(&register_count_mutex);
+	mutex_unlock(&register_done_mutex);
 }
+
+bool acpi_video_handles_brightness_key_presses(void)
+{
+	bool have_video_busses;
+
+	wait_for_completion(&register_done);
+	mutex_lock(&video_list_lock);
+	have_video_busses = !list_empty(&video_bus_head);
+	mutex_unlock(&video_list_lock);
+
+	return have_video_busses &&
+	       (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS);
+}
+EXPORT_SYMBOL(acpi_video_handles_brightness_key_presses);
 
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
