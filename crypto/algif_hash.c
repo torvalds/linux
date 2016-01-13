@@ -384,7 +384,7 @@ static int hash_setkey(void *private, const u8 *key, unsigned int keylen)
 	return err;
 }
 
-static void hash_sock_destruct_common(struct sock *sk)
+static void hash_sock_destruct(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
@@ -392,33 +392,10 @@ static void hash_sock_destruct_common(struct sock *sk)
 	sock_kzfree_s(sk, ctx->result,
 		      crypto_ahash_digestsize(crypto_ahash_reqtfm(&ctx->req)));
 	sock_kfree_s(sk, ctx, ctx->len);
-}
-
-static void hash_sock_destruct(struct sock *sk)
-{
-	hash_sock_destruct_common(sk);
 	af_alg_release_parent(sk);
 }
 
-static void hash_release_parent_nokey(struct sock *sk)
-{
-	struct alg_sock *ask = alg_sk(sk);
-
-	if (!ask->refcnt) {
-		sock_put(ask->parent);
-		return;
-	}
-
-	af_alg_release_parent(sk);
-}
-
-static void hash_sock_destruct_nokey(struct sock *sk)
-{
-	hash_sock_destruct_common(sk);
-	hash_release_parent_nokey(sk);
-}
-
-static int hash_accept_parent_common(void *private, struct sock *sk)
+static int hash_accept_parent_nokey(void *private, struct sock *sk)
 {
 	struct hash_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
@@ -461,21 +438,7 @@ static int hash_accept_parent(void *private, struct sock *sk)
 	if (!tfm->has_key && crypto_ahash_has_setkey(tfm->hash))
 		return -ENOKEY;
 
-	return hash_accept_parent_common(private, sk);
-}
-
-static int hash_accept_parent_nokey(void *private, struct sock *sk)
-{
-	int err;
-
-	err = hash_accept_parent_common(private, sk);
-	if (err)
-		goto out;
-
-	sk->sk_destruct = hash_sock_destruct_nokey;
-
-out:
-	return err;
+	return hash_accept_parent_nokey(private, sk);
 }
 
 static const struct af_alg_type algif_type_hash = {
