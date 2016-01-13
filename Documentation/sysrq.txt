@@ -23,7 +23,7 @@ to 1. Here is the list of possible values in /proc/sys/kernel/sysrq:
           8 =   0x8 - enable debugging dumps of processes etc.
          16 =  0x10 - enable sync command
          32 =  0x20 - enable remount read-only
-         64 =  0x40 - enable signalling of processes (term, kill, oom-kill)
+         64 =  0x40 - enable signaling of processes (term, kill, oom-kill)
         128 =  0x80 - allow reboot/poweroff
         256 = 0x100 - allow nicing of all RT tasks
 
@@ -53,7 +53,7 @@ On the serial console (PC style standard serial ports only) -
            You send a BREAK, then within 5 seconds a command key. Sending
            BREAK twice is interpreted as a normal BREAK.
 
-On PowerPC - Press 'ALT - Print Screen (or F13) - <command key>,  
+On PowerPC - Press 'ALT - Print Screen (or F13) - <command key>,
              Print Screen (or F13) - <command key> may suffice.
 
 On other - If you know of the key combos for other architectures, please
@@ -116,7 +116,7 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 'v'	- Forcefully restores framebuffer console
 'v'	- Causes ETM buffer dump [ARM-specific]
 
-'w'	- Dumps tasks that are in uninterruptable (blocked) state.
+'w'	- Dumps tasks that are in uninterruptible (blocked) state.
 
 'x'	- Used by xmon interface on ppc/powerpc platforms.
           Show global PMU Registers on sparc64.

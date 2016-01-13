@@ -123,7 +123,7 @@ At the bottom of your email, put the commonly-used patch delimiter before
 inserting your patch:  three hyphens (---).
 
 Then from the "Message" menu item, select insert file and choose your patch.
-As an added bonus you can customise the message creation toolbar menu
+As an added bonus you can customize the message creation toolbar menu
 and put the "insert file" icon there.
 
 Make the composer window wide enough so that no lines wrap. As of

@@ -204,7 +204,7 @@ the configuration options listed in section 4. If it fails, you can still use
 your kernel with the video mode set directly via the kernel parameter.
 
    In either case, please send me a bug report containing what _exactly_
-happens and how do the configuration switches affect the behaviour of the bug.
+happens and how do the configuration switches affect the behavior of the bug.
 
    If you start Linux from M$-DOS, you might also use some DOS tools for
 video mode setting. In this case, you must specify the 0x0f04 mode ("leave

@@ -82,7 +82,7 @@ by including a size argument in the structure:
     };
 
 As long as any subsequently added field, say param_4, is designed so that a
-zero value gives the previous behaviour, then this allows both directions of
+zero value gives the previous behavior, then this allows both directions of
 version mismatch:
 
  - To cope with a later userspace program calling an older kernel, the kernel

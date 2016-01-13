@@ -1,5 +1,5 @@
 Tools that manage md devices can be found at
-   http://www.kernel.org/pub/linux/utils/raid/ 
+   http://www.kernel.org/pub/linux/utils/raid/
 
 
 Boot time assembly of RAID arrays
@@ -15,9 +15,9 @@ for raid arrays with persistent superblocks
   md=<md device no.>,dev0,dev1,...,devn
 or, to assemble a partitionable array:
   md=d<md device no.>,dev0,dev1,...,devn
-  
-md device no. = the number of the md device ... 
-              0 means md0, 
+
+md device no. = the number of the md device ...
+              0 means md0,
 	      1 md1,
 	      2 md2,
 	      3 md3,
@@ -29,11 +29,11 @@ raid level = -1 linear mode
 
 chunk size factor = (raid-0 and raid-1 only)
               Set  the chunk size as 4k << n.
-	      
+
 fault level = totally ignored
-			    
+
 dev0-devn: e.g. /dev/hda1,/dev/hdc1,/dev/sda1,/dev/sdb1
-			    
+
 A possible loadlin line (Harald Hoyer <HarryH@Royal.Net>)  looks like this:
 
 e:\loadlin\loadlin e:\zimage root=/dev/md0 md=0,0,4,0,/dev/hdb2,/dev/hdc3 ro
@@ -178,13 +178,13 @@ All md devices contain:
      This is the size in bytes for 'chunks' and is only relevant to
      raid levels that involve striping (0,4,5,6,10). The address space
      of the array is conceptually divided into chunks and consecutive
-     chunks are striped onto neighbouring devices.
+     chunks are striped onto neighboring devices.
      The size should be at least PAGE_SIZE (4k) and should be a power
      of 2.  This can only be set while assembling an array
 
   layout
      The "layout" for the array for the particular level.  This is
-     simply a number that is interpretted differently by different
+     simply a number that is interpreted differently by different
      levels.  It can be written while assembling an array.
 
   array_size
@@ -273,7 +273,7 @@ All md devices contain:
          When written, doesn't tear down array, but just stops it
      suspended (not supported yet)
          All IO requests will block. The array can be reconfigured.
-         Writing this, if accepted, will block until array is quiessent
+         Writing this, if accepted, will block until array is quiescent
      readonly
          no resync can happen.  no superblocks get written.
          write requests fail
@@ -338,9 +338,9 @@ All md devices contain:
      When metadata is managed externally, it should be set to true
      once the array becomes non-degraded, and this fact has been
      recorded in the metadata.
-     
-     
-     
+
+
+
 
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named
@@ -451,7 +451,7 @@ Each directory contains:
 
 	Setting this to 'none' is equivalent to setting 'in_sync'.
 	Setting to any other value also clears the 'in_sync' flag.
-	
+
       bad_blocks
 	This gives the list of all known bad blocks in the form of
 	start address and length (in sectors respectively). If output
@@ -500,7 +500,7 @@ also have
        repair        - A full check and repair is happening.  This is
                        similar to 'resync', but was requested by the
                        user, and the write-intent bitmap is NOT used to
-		       optimise the process.
+		       optimize the process.
 
       This file is writable, and each of the strings that could be
       read are meaningful for writing.

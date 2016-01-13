@@ -46,7 +46,7 @@ struct demo_client {
 };
 
 /*
- * This is the handler for data received from remote. The behaviour is purely
+ * This is the handler for data received from remote. The behavior is purely
  * dependent upon the protocol. This is just an example.
  */
 static void message_from_remote(struct mbox_client *cl, void *mssg)

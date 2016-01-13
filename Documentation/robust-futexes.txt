@@ -126,9 +126,9 @@ vma based method:
 
  - no VM changes are needed - 'struct address_space' is left alone.
 
- - no registration of individual locks is needed: robust mutexes dont
+ - no registration of individual locks is needed: robust mutexes don't
    need any extra per-lock syscalls. Robust mutexes thus become a very
-   lightweight primitive - so they dont force the application designer
+   lightweight primitive - so they don't force the application designer
    to do a hard choice between performance and robustness - robust
    mutexes are just as fast.
 

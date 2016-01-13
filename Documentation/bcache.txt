@@ -8,7 +8,7 @@ Wiki and git repositories are at:
 
 It's designed around the performance characteristics of SSDs - it only allocates
 in erase block sized buckets, and it uses a hybrid btree/log to track cached
-extants (which can be anywhere from a single sector to the bucket size). It's
+extents (which can be anywhere from a single sector to the bucket size). It's
 designed to avoid random writes at all costs; it fills up an erase block
 sequentially, then issues a discard before reusing it.
 

@@ -184,11 +184,11 @@ MANIPULATION FUNCTIONS
 
 There are a number of functions for manipulating an associative array:
 
- (1) Initialise an associative array.
+ (1) Initialize an associative array.
 
 	void assoc_array_init(struct assoc_array *array);
 
-     This initialises the base structure for an associative array.  It can't
+     This initializes the base structure for an associative array.  It can't
      fail.
 
 
@@ -350,7 +350,7 @@ This will cause leaves with different length keys to scatter away from each
 other - and those with the same length keys to cluster together.
 
 It is also recommended that the index key begin with a hash of the rest of the
-key to maximise scattering throughout keyspace.
+key to maximize scattering throughout keyspace.
 
 The better the scattering, the wider and lower the internal tree will be.
 

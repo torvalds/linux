@@ -17,7 +17,7 @@ buffering.  There are two sets of such features:
 
 To use these facilities, as discussed below, there needs to be just one
 producer and just one consumer.  It is possible to handle multiple producers by
-serialising them, and to handle multiple consumers by serialising them.
+serializing them, and to handle multiple consumers by serializing them.
 
 
 Contents:

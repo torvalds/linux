@@ -12,7 +12,7 @@ If you are unsure send it to the person responsible for the code relevant to
 what you were doing.  If it occurs repeatably try and describe how to recreate
 it.  That's worth even more than the oops.
 
-If you are totally stumped as to whom to send the report, send it to 
+If you are totally stumped as to whom to send the report, send it to
 linux-kernel@vger.kernel.org. Thanks for your help in making Linux as
 stable as humanly possible.
 
@@ -39,7 +39,7 @@ the disk is not available then you have three options :-
 
 (2) Boot with a serial console (see Documentation/serial-console.txt),
     run a null modem to a second machine and capture the output there
-    using your favourite communication program.  Minicom works well.
+    using your favorite communication program.  Minicom works well.
 
 (3) Use Kdump (see Documentation/kdump/kdump.txt),
     extract the kernel ring buffer from old memory with using dmesg
@@ -51,39 +51,39 @@ Full Information
 
 NOTE: the message from Linus below applies to 2.4 kernel.  I have preserved it
 for historical reasons, and because some of the information in it still
-applies.  Especially, please ignore any references to ksymoops. 
+applies.  Especially, please ignore any references to ksymoops.
 
 From: Linus Torvalds <torvalds@osdl.org>
 
 How to track down an Oops.. [originally a mail to linux-kernel]
 
-The main trick is having 5 years of experience with those pesky oops 
+The main trick is having 5 years of experience with those pesky oops
 messages ;-)
 
-Actually, there are things you can do that make this easier. I have two 
+Actually, there are things you can do that make this easier. I have two
 separate approaches:
 
 	gdb /usr/src/linux/vmlinux
 	gdb> disassemble <offending_function>
 
-That's the easy way to find the problem, at least if the bug-report is 
-well made (like this one was - run through ksymoops to get the 
-information of which function and the offset in the function that it 
+That's the easy way to find the problem, at least if the bug-report is
+well made (like this one was - run through ksymoops to get the
+information of which function and the offset in the function that it
 happened in).
 
-Oh, it helps if the report happens on a kernel that is compiled with the 
+Oh, it helps if the report happens on a kernel that is compiled with the
 same compiler and similar setups.
 
-The other thing to do is disassemble the "Code:" part of the bug report: 
+The other thing to do is disassemble the "Code:" part of the bug report:
 ksymoops will do this too with the correct tools, but if you don't have
 the tools you can just do a silly program:
 
 	char str[] = "\xXX\xXX\xXX...";
 	main(){}
 
-and compile it with gcc -g and then do "disassemble str" (where the "XX" 
-stuff are the values reported by the Oops - you can just cut-and-paste 
-and do a replace of spaces to "\x" - that's what I do, as I'm too lazy 
+and compile it with gcc -g and then do "disassemble str" (where the "XX"
+stuff are the values reported by the Oops - you can just cut-and-paste
+and do a replace of spaces to "\x" - that's what I do, as I'm too lazy
 to write a program to automate this all).
 
 Alternatively, you can use the shell script in scripts/decodecode.
@@ -105,35 +105,35 @@ Finally, if you want to see where the code comes from, you can do
 	cd /usr/src/linux
 	make fs/buffer.s 	# or whatever file the bug happened in
 
-and then you get a better idea of what happens than with the gdb 
+and then you get a better idea of what happens than with the gdb
 disassembly.
 
-Now, the trick is just then to combine all the data you have: the C 
-sources (and general knowledge of what it _should_ do), the assembly 
-listing and the code disassembly (and additionally the register dump you 
-also get from the "oops" message - that can be useful to see _what_ the 
-corrupted pointers were, and when you have the assembler listing you can 
-also match the other registers to whatever C expressions they were used 
+Now, the trick is just then to combine all the data you have: the C
+sources (and general knowledge of what it _should_ do), the assembly
+listing and the code disassembly (and additionally the register dump you
+also get from the "oops" message - that can be useful to see _what_ the
+corrupted pointers were, and when you have the assembler listing you can
+also match the other registers to whatever C expressions they were used
 for).
 
-Essentially, you just look at what doesn't match (in this case it was the 
-"Code" disassembly that didn't match with what the compiler generated). 
-Then you need to find out _why_ they don't match. Often it's simple - you 
-see that the code uses a NULL pointer and then you look at the code and 
-wonder how the NULL pointer got there, and if it's a valid thing to do 
+Essentially, you just look at what doesn't match (in this case it was the
+"Code" disassembly that didn't match with what the compiler generated).
+Then you need to find out _why_ they don't match. Often it's simple - you
+see that the code uses a NULL pointer and then you look at the code and
+wonder how the NULL pointer got there, and if it's a valid thing to do
 you just check against it..
 
-Now, if somebody gets the idea that this is time-consuming and requires 
-some small amount of concentration, you're right. Which is why I will 
-mostly just ignore any panic reports that don't have the symbol table 
-info etc looked up: it simply gets too hard to look it up (I have some 
-programs to search for specific patterns in the kernel code segment, and 
-sometimes I have been able to look up those kinds of panics too, but 
-that really requires pretty good knowledge of the kernel just to be able 
+Now, if somebody gets the idea that this is time-consuming and requires
+some small amount of concentration, you're right. Which is why I will
+mostly just ignore any panic reports that don't have the symbol table
+info etc looked up: it simply gets too hard to look it up (I have some
+programs to search for specific patterns in the kernel code segment, and
+sometimes I have been able to look up those kinds of panics too, but
+that really requires pretty good knowledge of the kernel just to be able
 to pick out the right sequences etc..)
 
-_Sometimes_ it happens that I just see the disassembled code sequence 
-from the panic, and I know immediately where it's coming from. That's when 
+_Sometimes_ it happens that I just see the disassembled code sequence
+from the panic, and I know immediately where it's coming from. That's when
 I get worried that I've been doing this for too long ;-)
 
 		Linus
@@ -204,11 +204,11 @@ Aug 29 09:51:01 blizard kernel: eax: 315e97cc   ebx: 003a6f80   ecx: 001be77b   
 Aug 29 09:51:01 blizard kernel: esi: 00000000   edi: bffffdb3   ebp: 00589f90   esp: 00589f8c
 Aug 29 09:51:01 blizard kernel: ds: 0018   es: 0018   fs: 002b   gs: 002b   ss: 0018
 Aug 29 09:51:01 blizard kernel: Process oops_test (pid: 3374, process nr: 21, stackpage=00589000)
-Aug 29 09:51:01 blizard kernel: Stack: 315e97cc 00589f98 0100b0b4 bffffed4 0012e38e 00240c64 003a6f80 00000001 
-Aug 29 09:51:01 blizard kernel:        00000000 00237810 bfffff00 0010a7fa 00000003 00000001 00000000 bfffff00 
-Aug 29 09:51:01 blizard kernel:        bffffdb3 bffffed4 ffffffda 0000002b 0007002b 0000002b 0000002b 00000036 
-Aug 29 09:51:01 blizard kernel: Call Trace: [oops:_oops_ioctl+48/80] [_sys_ioctl+254/272] [_system_call+82/128] 
-Aug 29 09:51:01 blizard kernel: Code: c7 00 05 00 00 00 eb 08 90 90 90 90 90 90 90 90 89 ec 5d c3 
+Aug 29 09:51:01 blizard kernel: Stack: 315e97cc 00589f98 0100b0b4 bffffed4 0012e38e 00240c64 003a6f80 00000001
+Aug 29 09:51:01 blizard kernel:        00000000 00237810 bfffff00 0010a7fa 00000003 00000001 00000000 bfffff00
+Aug 29 09:51:01 blizard kernel:        bffffdb3 bffffed4 ffffffda 0000002b 0007002b 0000002b 0000002b 00000036
+Aug 29 09:51:01 blizard kernel: Call Trace: [oops:_oops_ioctl+48/80] [_sys_ioctl+254/272] [_system_call+82/128]
+Aug 29 09:51:01 blizard kernel: Code: c7 00 05 00 00 00 eb 08 90 90 90 90 90 90 90 90 89 ec 5d c3
 ---------------------------------------------------------------------------
 
 Dr. G.W. Wettstein           Oncology Research Div. Computing Facility
@@ -228,7 +228,7 @@ characters, each representing a particular tainted value.
 
   1: 'G' if all modules loaded have a GPL or compatible license, 'P' if
      any proprietary module has been loaded.  Modules without a
-     MODULE_LICENSE or with a MODULE_LICENSE that is not recognised by
+     MODULE_LICENSE or with a MODULE_LICENSE that is not recognized by
      insmod as GPL compatible are assumed to be proprietary.
 
   2: 'F' if any module was force loaded by "insmod -f", ' ' if all

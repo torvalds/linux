@@ -59,7 +59,7 @@ Parport probe [optional]
 In 2.2 kernels there was a module called parport_probe, which was used
 for collecting IEEE 1284 device ID information.  This has now been
 enhanced and now lives with the IEEE 1284 support.  When a parallel
-port is detected, the devices that are connected to it are analysed,
+port is detected, the devices that are connected to it are analyzed,
 and information is logged like this:
 
 	parport0: Printer, BJC-210 (Canon)

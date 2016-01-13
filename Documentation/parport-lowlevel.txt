@@ -80,7 +80,7 @@ The port functions can be split into three groups: SPP, EPP, and ECP.
 SPP (Standard Parallel Port) functions modify so-called 'SPP'
 registers: data, status, and control.  The hardware may not actually
 have registers exactly like that, but the PC does and this interface is
-modelled after common PC implementations.  Other low-level drivers may
+modeled after common PC implementations.  Other low-level drivers may
 be able to emulate most of the functionality.
 
 EPP (Enhanced Parallel Port) functions are provided for reading and
@@ -144,7 +144,7 @@ struct parport
 There are other members of the structure, but they should not be
 touched.
 
-The 'modes' member summarises the capabilities of the underlying
+The 'modes' member summarizes the capabilities of the underlying
 hardware.  It consists of flags which may be bitwise-ored together:
 
   PARPORT_MODE_PCSPP		IBM PC registers are available,

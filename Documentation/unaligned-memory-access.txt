@@ -1,7 +1,7 @@
 UNALIGNED MEMORY ACCESSES
 =========================
 
-Linux runs on a wide variety of architectures which have varying behaviour
+Linux runs on a wide variety of architectures which have varying behavior
 when it comes to memory access. This document presents some details about
 unaligned accesses, why you need to write code that doesn't cause them,
 and how to write such code!
@@ -233,7 +233,7 @@ Alignment vs. Networking
 ========================
 
 On architectures that require aligned loads, networking requires that the IP
-header is aligned on a four-byte boundary to optimise the IP stack. For
+header is aligned on a four-byte boundary to optimize the IP stack. For
 regular ethernet hardware, the constant NET_IP_ALIGN is used. On most
 architectures this constant has the value 2 because the normal ethernet
 header is 14 bytes long, so in order to get proper alignment one needs to
@@ -259,4 +259,3 @@ Authors: Daniel Drake <dsd@gentoo.org>,
 With help from: Alan Cox, Avuton Olrich, Heikki Orsila, Jan Engelhardt,
 Kyle McMartin, Kyle Moffett, Randy Dunlap, Robert Hancock, Uli Kunitz,
 Vadim Lobanov
-

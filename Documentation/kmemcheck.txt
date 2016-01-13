@@ -366,7 +366,7 @@ addresses). This becomes obvious when we look at the code for line 446:
 438                  * attacks in the high resolution timer case. This is
 439                  * compliant with the old way of self restarting
 440                  * itimers, as the SIGALRM is a legacy signal and only
-441                  * queued once. Changing the restart behaviour to
+441                  * queued once. Changing the restart behavior to
 442                  * restart the timer in the signal dequeue path is
 443                  * reducing the timer noise on heavy loaded !highres
 444                  * systems too.

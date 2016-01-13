@@ -22,7 +22,7 @@ closely, however due to the nature of how/when the kernel collects
 this data sometimes it can not be trusted at all.
 
 So how is this information collected?  Whenever timer interrupt is
-signalled the kernel looks what kind of task was running at this
+signaled the kernel looks what kind of task was running at this
 moment and increments the counter that corresponds to this tasks
 kind/state.  The problem with this is that the system could have
 switched between various states multiple times between two timer

@@ -213,7 +213,7 @@ NOTES:
    In case it is allowed by the exporter:
     if the new buffer-user has stricter 'backing-storage constraints', and the
     exporter can handle these constraints, the exporter can just stall on the
-    map_dma_buf until all outstanding access is completed (as signalled by
+    map_dma_buf until all outstanding access is completed (as signaled by
     unmap_dma_buf).
     Once all users have finished accessing and have unmapped this buffer, the
     exporter could potentially move the buffer to the stricter backing-storage,

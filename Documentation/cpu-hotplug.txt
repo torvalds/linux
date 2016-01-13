@@ -97,7 +97,7 @@ from the map depending on the event is hot-add/hot-remove. There are currently
 no locking rules as of now. Typical usage is to init topology during boot,
 at which time hotplug is disabled.
 
-You really dont need to manipulate any of the system cpu maps. They should
+You really don't need to manipulate any of the system cpu maps. They should
 be read-only for most use. When setting up per-cpu resources almost always use
 cpu_possible_mask/for_each_possible_cpu() to iterate.
 

@@ -234,14 +234,14 @@ don't take special care to determine the cache line size at run time
 only map virtual regions that begin and end on page boundaries (which
 are guaranteed also to be cache line boundaries).
 
-DMA_TO_DEVICE synchronisation must be done after the last modification
+DMA_TO_DEVICE synchronization must be done after the last modification
 of the memory region by the software and before it is handed off to
 the driver.  Once this primitive is used, memory covered by this
 primitive should be treated as read-only by the device.  If the device
 may write to it at any point, it should be DMA_BIDIRECTIONAL (see
 below).
 
-DMA_FROM_DEVICE synchronisation must be done before the driver
+DMA_FROM_DEVICE synchronization must be done before the driver
 accesses data that may be changed by the device.  This memory should
 be treated as read-only by the driver.  If the driver needs to write
 to it at any point, it should be DMA_BIDIRECTIONAL (see below).
@@ -349,7 +349,7 @@ void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 		       enum dma_data_direction direction)
 
-Synchronise a single contiguous or scatter/gather mapping for the CPU
+Synchronize a single contiguous or scatter/gather mapping for the CPU
 and device. With the sync_sg API, all the parameters must be the same
 as those passed into the single mapping API. With the sync_single API,
 you can use dma_handle and size parameters that aren't identical to
@@ -521,7 +521,7 @@ DMA_MEMORY_INCLUDES_CHILDREN - make the declared memory be allocated by
 dma_alloc_coherent of any child devices of this one (for memory residing
 on a bridge).
 
-DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions. 
+DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions.
 Do not allow dma_alloc_coherent() to fall back to system memory when
 it's out of memory in the declared region.
 

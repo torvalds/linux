@@ -117,7 +117,7 @@ Memory state around the buggy address:
  ffff8800693bc800: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
 ==================================================================
 
-The header of the report discribe what kind of bug happened and what kind of
+The header of the report describes what kind of bug happened and what kind of
 access caused it. It's followed by the description of the accessed slub object
 (see 'SLUB Debug output' section in Documentation/vm/slub.txt for details) and
 the description of the accessed memory page.
