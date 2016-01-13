@@ -1333,10 +1333,8 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	data->tx_bytes += skb->len;
 	ack = mac80211_hwsim_tx_frame_no_nl(hw, skb, channel);
 
-	if (ack && skb->len >= 16) {
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	if (ack && skb->len >= 16)
 		mac80211_hwsim_monitor_ack(channel, hdr->addr2);
-	}
 
 	ieee80211_tx_info_clear_status(txi);
 
