@@ -1002,6 +1002,7 @@ struct mwifiex_adapter {
 	u8 active_scan_triggered;
 	bool usb_mc_status;
 	bool usb_mc_setup;
+	struct cfg80211_wowlan_nd_info *nd_info;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);

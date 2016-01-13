@@ -3273,7 +3273,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
 
-	if (!priv->media_connected) {
+	if (!priv->media_connected && !wowlan->nd_config) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Can not configure WOWLAN in disconnected state\n");
 		return 0;
@@ -3285,20 +3285,30 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		return ret;
 	}
 
+	memset(&hs_cfg, 0, sizeof(hs_cfg));
+	hs_cfg.conditions = le32_to_cpu(adapter->hs_cfg.conditions);
+
+	if (wowlan->nd_config) {
+		mwifiex_dbg(adapter, INFO, "Wake on net detect\n");
+		hs_cfg.conditions |= HS_CFG_COND_MAC_EVENT;
+		mwifiex_cfg80211_sched_scan_start(wiphy, priv->netdev,
+						  wowlan->nd_config);
+	}
+
 	if (wowlan->disconnect) {
-		memset(&hs_cfg, 0, sizeof(hs_cfg));
-		hs_cfg.is_invoke_hostcmd = false;
-		hs_cfg.conditions = HS_CFG_COND_MAC_EVENT;
-		hs_cfg.gpio = adapter->hs_cfg.gpio;
-		hs_cfg.gap = adapter->hs_cfg.gap;
-		ret = mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
-					    MWIFIEX_SYNC_CMD, &hs_cfg);
-		if (ret) {
-			mwifiex_dbg(adapter, ERROR,
-				    "Failed to set HS params\n");
-			return ret;
-		}
+		hs_cfg.conditions |= HS_CFG_COND_MAC_EVENT;
 		mwifiex_dbg(priv->adapter, INFO, "Wake on device disconnect\n");
+	}
+
+	hs_cfg.is_invoke_hostcmd = false;
+	hs_cfg.gpio = adapter->hs_cfg.gpio;
+	hs_cfg.gap = adapter->hs_cfg.gap;
+	ret = mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
+				    MWIFIEX_SYNC_CMD, &hs_cfg);
+	if (ret) {
+		mwifiex_dbg(adapter, ERROR,
+			    "Failed to set HS params\n");
+		return ret;
 	}
 
 	return ret;
@@ -3853,11 +3863,13 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
-	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
+		WIPHY_WOWLAN_NET_DETECT,
 	.n_patterns = MWIFIEX_MEF_MAX_FILTERS,
 	.pattern_min_len = 1,
 	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
 	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
+	.max_nd_match_sets = MWIFIEX_MAX_ND_MATCH_SETS,
 };
 #endif
 

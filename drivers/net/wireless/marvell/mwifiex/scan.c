@@ -2092,6 +2092,8 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 	u8 is_bgscan_resp;
 	__le64 fw_tsf = 0;
 	u8 *radio_type;
+	struct cfg80211_wowlan_nd_match *pmatch;
+	struct cfg80211_sched_scan_request *nd_config = NULL;
 
 	is_bgscan_resp = (le16_to_cpu(resp->command)
 			  == HostCmd_CMD_802_11_BG_SCAN_QUERY);
@@ -2154,6 +2156,21 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					     (struct mwifiex_ie_types_data **)
 					     &chan_band_tlv);
 
+#ifdef CONFIG_PM
+	if (priv->wdev.wiphy->wowlan_config)
+		nd_config = priv->wdev.wiphy->wowlan_config->nd_config;
+#endif
+
+	if (nd_config) {
+		adapter->nd_info =
+			kzalloc(sizeof(struct cfg80211_wowlan_nd_match) +
+				sizeof(struct cfg80211_wowlan_nd_match *) *
+				scan_rsp->number_of_sets, GFP_ATOMIC);
+
+		if (adapter->nd_info)
+			adapter->nd_info->n_matches = scan_rsp->number_of_sets;
+	}
+
 	for (idx = 0; idx < scan_rsp->number_of_sets && bytes_left; idx++) {
 		/*
 		 * If the TSF TLV was appended to the scan results, save this
@@ -2170,6 +2187,23 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			radio_type = &chan_band->radio_type;
 		} else {
 			radio_type = NULL;
+		}
+
+		if (chan_band_tlv && adapter->nd_info) {
+			adapter->nd_info->matches[idx] =
+				kzalloc(sizeof(*pmatch) +
+				sizeof(u32), GFP_ATOMIC);
+
+			pmatch = adapter->nd_info->matches[idx];
+
+			if (!pmatch) {
+				memset(pmatch, 0, sizeof(*pmatch));
+				if (chan_band_tlv) {
+					pmatch->n_channels = 1;
+					pmatch->channels[0] =
+						chan_band->chan_number;
+				}
+			}
 		}
 
 		ret = mwifiex_parse_single_response_buf(priv, &bss_info,

@@ -505,10 +505,17 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	}
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
 	if (priv && priv->sched_scanning) {
-		dev_dbg(adapter->dev, "aborting bgscan!\n");
-		mwifiex_stop_bg_scan(priv);
-		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+#ifdef CONFIG_PM
+		if (!priv->wdev.wiphy->wowlan_config->nd_config) {
+#endif
+			mwifiex_dbg(adapter, CMD, "aborting bgscan!\n");
+			mwifiex_stop_bg_scan(priv);
+			cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+#ifdef CONFIG_PM
+		}
+#endif
 	}
 
 	if (adapter->hs_activated) {
