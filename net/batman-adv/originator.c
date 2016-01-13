@@ -211,10 +211,6 @@ static void batadv_hardif_neigh_free_rcu(struct rcu_head *rcu)
 
 	hardif_neigh = container_of(rcu, struct batadv_hardif_neigh_node, rcu);
 
-	spin_lock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
-	hlist_del_init_rcu(&hardif_neigh->list);
-	spin_unlock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
-
 	batadv_hardif_free_ref_now(hardif_neigh->if_incoming);
 	kfree(hardif_neigh);
 }
@@ -227,8 +223,13 @@ static void batadv_hardif_neigh_free_rcu(struct rcu_head *rcu)
 static void
 batadv_hardif_neigh_free_now(struct batadv_hardif_neigh_node *hardif_neigh)
 {
-	if (atomic_dec_and_test(&hardif_neigh->refcount))
+	if (atomic_dec_and_test(&hardif_neigh->refcount)) {
+		spin_lock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
+		hlist_del_init_rcu(&hardif_neigh->list);
+		spin_unlock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
+
 		batadv_hardif_neigh_free_rcu(&hardif_neigh->rcu);
+	}
 }
 
 /**
@@ -238,8 +239,13 @@ batadv_hardif_neigh_free_now(struct batadv_hardif_neigh_node *hardif_neigh)
  */
 void batadv_hardif_neigh_free_ref(struct batadv_hardif_neigh_node *hardif_neigh)
 {
-	if (atomic_dec_and_test(&hardif_neigh->refcount))
+	if (atomic_dec_and_test(&hardif_neigh->refcount)) {
+		spin_lock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
+		hlist_del_init_rcu(&hardif_neigh->list);
+		spin_unlock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
+
 		call_rcu(&hardif_neigh->rcu, batadv_hardif_neigh_free_rcu);
+	}
 }
 
 /**
