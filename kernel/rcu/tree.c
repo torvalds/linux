@@ -370,6 +370,21 @@ void rcu_all_qs(void)
 		rcu_momentary_dyntick_idle();
 		local_irq_restore(flags);
 	}
+	if (unlikely(raw_cpu_read(rcu_sched_data.cpu_no_qs.b.exp))) {
+		/*
+		 * Yes, we just checked a per-CPU variable with preemption
+		 * enabled, so we might be migrated to some other CPU at
+		 * this point.  That is OK because in that case, the
+		 * migration will supply the needed quiescent state.
+		 * We might end up needlessly disabling preemption and
+		 * invoking rcu_sched_qs() on the destination CPU, but
+		 * the probability and cost are both quite low, so this
+		 * should not be a problem in practice.
+		 */
+		preempt_disable();
+		rcu_sched_qs();
+		preempt_enable();
+	}
 	this_cpu_inc(rcu_qs_ctr);
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
 }
