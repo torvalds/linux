@@ -27,6 +27,7 @@ static void force_opal_console_flush(struct kmsg_dumper *dumper,
 				     enum kmsg_dump_reason reason)
 {
 	int i;
+	int64_t ret;
 
 	/*
 	 * Outside of a panic context the pollers will continue to run,
@@ -36,7 +37,13 @@ static void force_opal_console_flush(struct kmsg_dumper *dumper,
 		return;
 
 	if (opal_check_token(OPAL_CONSOLE_FLUSH)) {
-		opal_console_flush();
+		ret = opal_console_flush(0);
+
+		if (ret == OPAL_UNSUPPORTED || ret == OPAL_PARAMETER)
+			return;
+
+		/* Incrementally flush until there's nothing left */
+		while (opal_console_flush(0) != OPAL_SUCCESS);
 	} else {
 		/*
 		 * If OPAL_CONSOLE_FLUSH is not implemented in the firmware,
