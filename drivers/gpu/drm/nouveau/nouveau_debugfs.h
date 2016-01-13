@@ -34,13 +34,13 @@ nouveau_drm_debugfs_cleanup(struct drm_minor *minor)
 }
 
 static inline int
-nouveau_debugfs_init(struct nouveau_drm *)
+nouveau_debugfs_init(struct nouveau_drm *drm)
 {
 	return 0;
 }
 
 static inline void
-nouveau_debugfs_fini(struct nouveau_drm *)
+nouveau_debugfs_fini(struct nouveau_drm *drm)
 {
 }
 
