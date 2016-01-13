@@ -97,10 +97,13 @@ struct gbaudio_codec_info {
 	int type;
 	int dai_added;
 	int codec_registered;
+	int set_uevent;
 	char vstr[NAME_SIZE];
 	char pstr[NAME_SIZE];
 	struct list_head list;
 	struct gb_audio_topology *topology;
+	/* need to share this info to above user space */
+	int manager_id;
 	char name[NAME_SIZE];
 
 	/* soc related data */
