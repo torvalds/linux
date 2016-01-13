@@ -807,7 +807,7 @@ by migrate-type and finishes with details on how many page blocks of each
 type exist.
 
 If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
-from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
+from libhugetlbfs https://github.com/libhugetlbfs/libhugetlbfs/), one can
 make an estimate of the likely number of huge pages that can be allocated
 at a given point in time. All the "Movable" blocks should be allocatable
 unless memory has been mlock()'d. Some of the Reclaimable blocks should
