@@ -12,6 +12,7 @@
 #include <sound/msm-dynamic-dailink.h>
 
 #include "audio_codec.h"
+#include "audio_apbridgea.h"
 
 #define GB_AUDIO_MGMT_DRIVER_NAME	"gb_audio_mgmt"
 #define GB_AUDIO_DATA_DRIVER_NAME	"gb_audio_data"
@@ -19,28 +20,325 @@
 static DEFINE_MUTEX(gb_codec_list_lock);
 static LIST_HEAD(gb_codec_list);
 
+/*
+ * codec DAI ops
+ */
 static int gbcodec_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	return 0;
+	int ret, found;
+	__u16 i2s_port, cportid;
+
+	struct gbaudio_dai *gb_dai;
+	struct gbaudio_codec_info *gb =
+		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+
+	/* find the dai */
+	found = 0;
+	list_for_each_entry(gb_dai, &gb->dai_list, list) {
+		if (!strncmp(gb_dai->name, dai->name, NAME_SIZE)) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
+		return -EINVAL;
+	}
+
+	/* register cport */
+	i2s_port = 0;	/* fixed for now */
+	cportid = gb_dai->connection->hd_cport_id;
+	ret = gb_audio_apbridgea_register_cport(gb_dai->connection, i2s_port,
+						cportid);
+	dev_dbg(dai->dev, "Register %s:%d DAI, ret:%d\n", dai->name, cportid,
+		ret);
+
+	return ret;
 }
 
 static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
+	int ret, found;
+	__u16 i2s_port, cportid;
+
+	struct gbaudio_dai *gb_dai;
+	struct gbaudio_codec_info *gb =
+		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+
+	/* find the dai */
+	found = 0;
+	list_for_each_entry(gb_dai, &gb->dai_list, list) {
+		if (!strncmp(gb_dai->name, dai->name, NAME_SIZE)) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
+		return;
+	}
+
+	/* deactivate rx/tx */
+	cportid = gb_dai->connection->intf_cport_id;
+
+	switch (substream->stream) {
+	case SNDRV_PCM_STREAM_CAPTURE:
+		ret = gb_audio_gb_deactivate_rx(gb->mgmt_connection, cportid);
+		break;
+	case SNDRV_PCM_STREAM_PLAYBACK:
+		ret = gb_audio_gb_deactivate_tx(gb->mgmt_connection, cportid);
+		break;
+	default:
+		dev_err(dai->dev, "Invalid stream type during shutdown\n");
+		return;
+	}
+
+	if (ret)
+		dev_err(dai->dev, "%d:Error during deactivate\n", ret);
+
+	/* un register cport */
+	i2s_port = 0;	/* fixed for now */
+	ret = gb_audio_apbridgea_unregister_cport(gb_dai->connection, i2s_port,
+					gb_dai->connection->hd_cport_id);
+
+	dev_dbg(dai->dev, "Unregister %s:%d DAI, ret:%d\n", dai->name,
+		gb_dai->connection->hd_cport_id, ret);
+
+	return;
 }
 
 static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hwparams,
 			     struct snd_soc_dai *dai)
 {
-	return 0;
+	int ret, found;
+	uint8_t sig_bits, channels;
+	uint32_t format, rate;
+	uint16_t data_cport;
+	struct gbaudio_dai *gb_dai;
+	struct gbaudio_codec_info *gb =
+		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+
+	/* find the dai */
+	found = 0;
+	list_for_each_entry(gb_dai, &gb->dai_list, list) {
+		if (!strncmp(gb_dai->name, dai->name, NAME_SIZE)) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
+		return -EINVAL;
+	}
+
+	/*
+	 * assuming, currently only 48000 Hz, 16BIT_LE, stereo
+	 * is supported, validate params before configuring codec
+	 */
+	if (params_channels(hwparams) != 2) {
+		dev_err(dai->dev, "Invalid channel count:%d\n",
+			params_channels(hwparams));
+		return -EINVAL;
+	}
+	channels = params_channels(hwparams);
+
+	if (params_rate(hwparams) != 48000) {
+		dev_err(dai->dev, "Invalid sampling rate:%d\n",
+			params_rate(hwparams));
+		return -EINVAL;
+	}
+	rate = GB_AUDIO_PCM_RATE_48000;
+
+	if (params_format(hwparams) != SNDRV_PCM_FORMAT_S16_LE) {
+		dev_err(dai->dev, "Invalid format:%d\n",
+			params_format(hwparams));
+		return -EINVAL;
+	}
+	format = GB_AUDIO_PCM_FMT_S16_LE;
+
+	data_cport = gb_dai->connection->intf_cport_id;
+	/* XXX check impact of sig_bit
+	 * it should not change ideally
+	 */
+
+	dev_dbg(dai->dev, "cport:%d, rate:%d, channel %d, format %d, sig_bits:%d\n",
+		data_cport, rate, channels, format, sig_bits);
+	ret = gb_audio_gb_set_pcm(gb->mgmt_connection, data_cport, format,
+				  rate, channels, sig_bits);
+	if (ret) {
+		dev_err(dai->dev, "%d: Error during set_pcm\n", ret);
+		return ret;
+	}
+
+	/*
+	 * XXX need to check if
+	 * set config is always required
+	 * check for mclk_freq as well
+	 */
+	ret = gb_audio_apbridgea_set_config(gb_dai->connection, 0,
+					    AUDIO_APBRIDGEA_PCM_FMT_16,
+					    AUDIO_APBRIDGEA_PCM_RATE_48000,
+					    6144000);
+	if (ret)
+		dev_err(dai->dev, "%d: Error during set_config\n", ret);
+
+	return ret;
 }
 
 static int gbcodec_prepare(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	return 0;
+	int ret, found;
+	uint16_t data_cport;
+	struct gbaudio_dai *gb_dai;
+	struct gbaudio_codec_info *gb =
+		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+
+	/* find the dai */
+	found = 0;
+	list_for_each_entry(gb_dai, &gb->dai_list, list) {
+		if (!strncmp(gb_dai->name, dai->name, NAME_SIZE)) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
+		return -EINVAL;
+	}
+
+	/* deactivate rx/tx */
+	data_cport = gb_dai->connection->intf_cport_id;
+
+	switch (substream->stream) {
+	case SNDRV_PCM_STREAM_CAPTURE:
+		ret = gb_audio_gb_set_rx_data_size(gb->mgmt_connection,
+						   data_cport, 192);
+		if (ret) {
+			dev_err(dai->dev,
+				"%d:Error during set_rx_data_size, cport:%d\n",
+				ret, data_cport);
+			return ret;
+		}
+		ret = gb_audio_apbridgea_set_rx_data_size(gb_dai->connection, 0,
+							  192);
+		if (ret) {
+			dev_err(dai->dev,
+				"%d:Error during apbridgea_set_rx_data_size\n",
+				ret);
+			return ret;
+		}
+		ret = gb_audio_gb_activate_rx(gb->mgmt_connection, data_cport);
+		break;
+	case SNDRV_PCM_STREAM_PLAYBACK:
+		ret = gb_audio_gb_set_tx_data_size(gb->mgmt_connection,
+						   data_cport, 192);
+		if (ret) {
+			dev_err(dai->dev,
+				"%d:Error during module set_tx_data_size, cport:%d\n",
+				ret, data_cport);
+			return ret;
+		}
+		ret = gb_audio_apbridgea_set_tx_data_size(gb_dai->connection, 0,
+							  192);
+		if (ret) {
+			dev_err(dai->dev,
+				"%d:Error during apbridgea set_tx_data_size, cport\n",
+				ret);
+			return ret;
+		}
+		ret = gb_audio_gb_activate_tx(gb->mgmt_connection, data_cport);
+		break;
+	default:
+		dev_err(dai->dev, "Invalid stream type %d during prepare\n",
+			substream->stream);
+		return -EINVAL;
+	}
+
+	if (ret)
+		dev_err(dai->dev, "%d: Error during activate stream\n", ret);
+
+	return ret;
+}
+
+static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
+		struct snd_soc_dai *dai)
+{
+	int ret, found;
+	int tx, rx, start, stop;
+	struct gbaudio_dai *gb_dai;
+	struct gbaudio_codec_info *gb =
+		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+
+	/* find the dai */
+	found = 0;
+	list_for_each_entry(gb_dai, &gb->dai_list, list) {
+		if (!strncmp(gb_dai->name, dai->name, NAME_SIZE)) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
+		return -EINVAL;
+	}
+
+	tx = rx = start = stop = 0;
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		start = 1;
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		stop = 1;
+		break;
+	default:
+		dev_err(dai->dev, "Invalid tigger cmd:%d\n", cmd);
+		return -EINVAL;
+	}
+
+	switch (substream->stream) {
+	case SNDRV_PCM_STREAM_CAPTURE:
+		rx = 1;
+		break;
+	case SNDRV_PCM_STREAM_PLAYBACK:
+		tx = 1;
+		break;
+	default:
+		dev_err(dai->dev, "Invalid stream type:%d\n",
+			substream->stream);
+		return -EINVAL;
+	}
+
+	if (start && tx)
+		ret = gb_audio_apbridgea_start_tx(gb_dai->connection, 0, 0);
+
+	else if (start && rx)
+		ret = gb_audio_apbridgea_start_rx(gb_dai->connection, 0);
+
+	else if (stop && tx)
+		ret = gb_audio_apbridgea_stop_tx(gb_dai->connection, 0);
+
+	else if (stop && rx)
+		ret = gb_audio_apbridgea_stop_rx(gb_dai->connection, 0);
+
+	else
+		ret = -EINVAL;
+
+	if (ret)
+		dev_err(dai->dev, "%d:Error during %s stream\n", ret,
+			start ? "Start" : "Stop");
+
+	return ret;
 }
 
 static int gbcodec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -57,6 +355,7 @@ static struct snd_soc_dai_ops gbcodec_dai_ops = {
 	.startup = gbcodec_startup,
 	.shutdown = gbcodec_shutdown,
 	.hw_params = gbcodec_hw_params,
+	.trigger = gbcodec_trigger,
 	.prepare = gbcodec_prepare,
 	.set_fmt = gbcodec_set_dai_fmt,
 	.digital_mute = gbcodec_digital_mute,
