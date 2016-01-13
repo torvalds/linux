@@ -44,6 +44,8 @@
 #define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
 #define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
 
+#define FIRMWARE_URL  "https://01.org/linuxgraphics/intel-linux-graphics-firmwares"
+
 MODULE_FIRMWARE(I915_CSR_SKL);
 MODULE_FIRMWARE(I915_CSR_BXT);
 
@@ -282,7 +284,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	    csr->version < SKL_CSR_VERSION_REQUIRED) {
 		DRM_INFO("Refusing to load old Skylake DMC firmware v%u.%u,"
 			 " please upgrade to v%u.%u or later"
-			 " [https://01.org/linuxgraphics/intel-linux-graphics-firmwares].\n",
+			   " [" FIRMWARE_URL "].\n",
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version),
 			 CSR_VERSION_MAJOR(SKL_CSR_VERSION_REQUIRED),
@@ -400,7 +402,10 @@ out:
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		DRM_ERROR("Failed to load DMC firmware, disabling rpm\n");
+		dev_notice(dev_priv->dev->dev,
+			   "Failed to load DMC firmware"
+			   " [" FIRMWARE_URL "],"
+			   " disabling runtime power management.\n");
 	}
 
 	release_firmware(fw);
