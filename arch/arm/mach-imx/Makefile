@@ -32,7 +32,6 @@ endif
 
 ifdef CONFIG_SND_IMX_SOC
 obj-y += ssi-fiq.o
-obj-y += ssi-fiq-ksym.o
 endif
 
 # i.MX1 based machines

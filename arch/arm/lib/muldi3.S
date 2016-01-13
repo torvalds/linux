@@ -12,6 +12,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 #ifdef __ARMEB__
 #define xh r0
@@ -46,3 +47,5 @@ ENTRY(__aeabi_lmul)
 
 ENDPROC(__muldi3)
 ENDPROC(__aeabi_lmul)
+EXPORT_SYMBOL(__muldi3)
+EXPORT_SYMBOL(__aeabi_lmul)

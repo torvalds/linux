@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 		.text
 
@@ -30,4 +31,4 @@ ENTRY(__csum_ipv6_magic)
 		adcs	r0, r0, #0
 		ldmfd	sp!, {pc}
 ENDPROC(__csum_ipv6_magic)
-
+EXPORT_SYMBOL(__csum_ipv6_magic)

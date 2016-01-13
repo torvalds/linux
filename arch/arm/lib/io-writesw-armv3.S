@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 .Loutsw_bad_alignment:
 		adr	r0, .Loutsw_bad_align_msg
@@ -124,3 +125,4 @@ ENTRY(__raw_writesw)
 		strne	ip, [r0]
 
 		ldmfd	sp!, {r4, r5, r6, pc}
+EXPORT_SYMBOL(__raw_writesw)

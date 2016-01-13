@@ -15,6 +15,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
+#include <asm/export.h>
 
 #ifdef __ARMEB__
 #define xh r0
@@ -210,3 +211,4 @@ Ldiv0_64:
 
 UNWIND(.fnend)
 ENDPROC(__do_div64)
+EXPORT_SYMBOL(__do_div64)

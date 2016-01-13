@@ -8,6 +8,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 /*
  * r8  = bit 0-15: tx offset, bit 16-31: tx buffer size
@@ -144,4 +145,8 @@ imx_ssi_fiq_tx_buffer:
 		.word 0x0
 .L_imx_ssi_fiq_end:
 imx_ssi_fiq_end:
-
+EXPORT_SYMBOL(imx_ssi_fiq_tx_buffer)
+EXPORT_SYMBOL(imx_ssi_fiq_rx_buffer)
+EXPORT_SYMBOL(imx_ssi_fiq_start)
+EXPORT_SYMBOL(imx_ssi_fiq_end)
+EXPORT_SYMBOL(imx_ssi_fiq_base)
