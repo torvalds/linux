@@ -386,8 +386,7 @@ static ssize_t afu_eb_read(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr, char *buf,
 			       loff_t off, size_t count)
 {
-	struct cxl_afu *afu = to_cxl_afu(container_of(kobj,
-						      struct device, kobj));
+	struct cxl_afu *afu = to_cxl_afu(kobj_to_dev(kobj));
 
 	return cxl_afu_read_err_buffer(afu, buf, off, count);
 }
@@ -467,7 +466,7 @@ static ssize_t afu_read_config(struct file *filp, struct kobject *kobj,
 			       loff_t off, size_t count)
 {
 	struct afu_config_record *cr = to_cr(kobj);
-	struct cxl_afu *afu = to_cxl_afu(container_of(kobj->parent, struct device, kobj));
+	struct cxl_afu *afu = to_cxl_afu(kobj_to_dev(kobj->parent));
 
 	u64 i, j, val;
 
