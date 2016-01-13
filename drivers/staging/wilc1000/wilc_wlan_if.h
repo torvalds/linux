@@ -12,6 +12,7 @@
 
 #include <linux/semaphore.h>
 #include "linux_wlan_common.h"
+#include <linux/netdevice.h>
 
 /********************************************
  *
@@ -71,41 +72,12 @@ typedef struct {
 	u32 block_size;
 } sdio_cmd53_t;
 
-typedef struct {
-	int io_type;
-	int (*io_init)(void *);
-	void (*io_deinit)(void *);
-	union {
-		struct {
-			int (*sdio_cmd52)(sdio_cmd52_t *);
-			int (*sdio_cmd53)(sdio_cmd53_t *);
-			int (*sdio_set_max_speed)(void);
-			int (*sdio_set_default_speed)(void);
-		} sdio;
-		struct {
-			int (*spi_max_speed)(void);
-			int (*spi_tx)(u8 *, u32);
-			int (*spi_rx)(u8 *, u32);
-			int (*spi_trx)(u8 *, u8 *, u32);
-		} spi;
-	} u;
-} wilc_wlan_io_func_t;
-
 #define WILC_MAC_INDICATE_STATUS	0x1
 #define WILC_MAC_STATUS_INIT		-1
 #define WILC_MAC_STATUS_READY		0
 #define WILC_MAC_STATUS_CONNECT		1
 
 #define WILC_MAC_INDICATE_SCAN		0x2
-
-typedef struct {
-	void *os_private;
-} wilc_wlan_os_context_t;
-
-typedef struct {
-	wilc_wlan_os_context_t os_context;
-	wilc_wlan_io_func_t io_func;
-} wilc_wlan_inp_t;
 
 struct tx_complete_data {
 	int size;
@@ -315,7 +287,7 @@ typedef enum {
 	SW_TRIGGER_ABORT,
 } TX_ABORT_OPTION_T;
 
-enum WID_TYPE {
+enum wid_type {
 	WID_CHAR		= 0,
 	WID_SHORT		= 1,
 	WID_INT			= 2,
@@ -937,10 +909,10 @@ typedef enum {
 	WID_MAX				= 0xFFFF
 } WID_T;
 
-int wilc_wlan_init(wilc_wlan_inp_t *inp);
-
+struct wilc;
+int wilc_wlan_init(struct net_device *dev);
 void wilc_bus_set_max_speed(void);
 void wilc_bus_set_default_speed(void);
-u32 wilc_get_chipid(u8 update);
+u32 wilc_get_chipid(struct wilc *wilc, u8 update);
 
 #endif

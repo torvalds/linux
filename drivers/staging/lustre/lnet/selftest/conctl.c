@@ -925,5 +925,3 @@ out:
 
 	return rc;
 }
-
-EXPORT_SYMBOL(lstcon_ioctl_entry);
