@@ -104,6 +104,8 @@ struct dispc_features {
 	bool supports_sync_align:1;
 
 	bool has_writeback:1;
+
+	bool supports_double_pixel:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -3287,6 +3289,10 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	} else {
 		if (t.interlace)
 			t.y_res /= 2;
+
+		if (dispc.feat->supports_double_pixel)
+			REG_FLD_MOD(DISPC_CONTROL, t.double_pixel ? 1 : 0,
+				19, 17);
 	}
 
 	dispc_mgr_set_size(channel, t.x_res, t.y_res);
@@ -3951,6 +3957,7 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.set_max_preload	=	true,
 	.supports_sync_align	=	true,
 	.has_writeback		=	true,
+	.supports_double_pixel	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats = {
@@ -3974,6 +3981,7 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.set_max_preload	=	true,
 	.supports_sync_align	=	true,
 	.has_writeback		=	true,
+	.supports_double_pixel	=	true,
 };
 
 static int dispc_init_features(struct platform_device *pdev)

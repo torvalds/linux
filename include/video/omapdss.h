@@ -367,6 +367,8 @@ struct omap_video_timings {
 	enum omap_dss_signal_level de_level;
 	/* Pixel clock edges to drive HSYNC and VSYNC signals */
 	enum omap_dss_signal_edge sync_pclk_edge;
+
+	bool double_pixel;
 };
 
 /* Hardcoded timings for tv modes. Venc only uses these to
