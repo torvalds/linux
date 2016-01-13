@@ -54,7 +54,7 @@
 #include "icp_qat_hal.h"
 
 #define ADF_MAJOR_VERSION	0
-#define ADF_MINOR_VERSION	2
+#define ADF_MINOR_VERSION	6
 #define ADF_BUILD_VERSION	0
 #define ADF_DRV_VERSION		__stringify(ADF_MAJOR_VERSION) "." \
 				__stringify(ADF_MINOR_VERSION) "." \
@@ -106,8 +106,6 @@ int adf_dev_start(struct adf_accel_dev *accel_dev);
 int adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
-void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
-void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
 void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
 int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
@@ -143,6 +141,7 @@ int adf_ae_stop(struct adf_accel_dev *accel_dev);
 
 int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf);
 void adf_disable_aer(struct adf_accel_dev *accel_dev);
+void adf_dev_restore(struct adf_accel_dev *accel_dev);
 int adf_init_aer(void);
 void adf_exit_aer(void);
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
@@ -159,6 +158,7 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev);
 void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev);
 int qat_crypto_register(void);
 int qat_crypto_unregister(void);
+int qat_crypto_dev_config(struct adf_accel_dev *accel_dev);
 struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
@@ -167,6 +167,11 @@ int qat_algs_register(void);
 void qat_algs_unregister(void);
 int qat_asym_algs_register(void);
 void qat_asym_algs_unregister(void);
+
+int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
+void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
+int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
+void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
@@ -178,6 +183,8 @@ void qat_hal_reset(struct icp_qat_fw_loader_handle *handle);
 int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle);
 void qat_hal_set_live_ctx(struct icp_qat_fw_loader_handle *handle,
 			  unsigned char ae, unsigned int ctx_mask);
+int qat_hal_check_ae_active(struct icp_qat_fw_loader_handle *handle,
+			    unsigned int ae);
 int qat_hal_set_ae_lm_mode(struct icp_qat_fw_loader_handle *handle,
 			   unsigned char ae, enum icp_qat_uof_regtype lm_type,
 			   unsigned char mode);
@@ -216,10 +223,10 @@ int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae, unsigned short lm_addr, unsigned int value);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
 void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle);
-int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
-			 void *addr_ptr, int mem_size);
-void qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
-			void *addr_ptr, int mem_size);
+int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle, void *addr_ptr,
+		       int mem_size);
+int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
+		     void *addr_ptr, int mem_size);
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);
@@ -227,6 +234,8 @@ void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				  uint32_t vf_mask);
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				 uint32_t vf_mask);
+void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 #else
 static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 {
@@ -234,6 +243,14 @@ static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 }
 
 static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
 }
 #endif

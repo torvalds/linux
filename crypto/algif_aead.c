@@ -213,7 +213,7 @@ static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	}
 
 	while (size) {
-		unsigned long len = size;
+		size_t len = size;
 		struct scatterlist *sg = NULL;
 
 		/* use the existing memory in an allocated page */
@@ -247,7 +247,7 @@ static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		/* allocate a new page */
 		len = min_t(unsigned long, size, aead_sndbuf(sk));
 		while (len) {
-			int plen = 0;
+			size_t plen = 0;
 
 			if (sgl->cur >= ALG_MAX_PAGES) {
 				aead_put_sgl(sk);
@@ -256,7 +256,7 @@ static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 			}
 
 			sg = sgl->sg + sgl->cur;
-			plen = min_t(int, len, PAGE_SIZE);
+			plen = min_t(size_t, len, PAGE_SIZE);
 
 			sg_assign_page(sg, alloc_page(GFP_KERNEL));
 			err = -ENOMEM;

@@ -51,15 +51,13 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <adf_accel_devices.h>
-#include <adf_common_drv.h>
-#include <adf_cfg.h>
-#include <adf_cfg_strings.h>
-#include <adf_cfg_common.h>
-#include <adf_transport_access_macros.h>
-#include <adf_transport_internal.h>
-#include "adf_drv.h"
-#include "adf_dh895xcc_hw_data.h"
+#include "adf_accel_devices.h"
+#include "adf_common_drv.h"
+#include "adf_cfg.h"
+#include "adf_cfg_strings.h"
+#include "adf_cfg_common.h"
+#include "adf_transport_access_macros.h"
+#include "adf_transport_internal.h"
 
 static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 {
@@ -109,14 +107,16 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 #ifdef CONFIG_PCI_IOV
 	/* If SR-IOV is enabled (vf_info is non-NULL), check for VF->PF ints */
 	if (accel_dev->pf.vf_info) {
-		void __iomem *pmisc_bar_addr =
-		    (&GET_BARS(accel_dev)[ADF_DH895XCC_PMISC_BAR])->virt_addr;
+		struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+		struct adf_bar *pmisc =
+			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
+		void __iomem *pmisc_bar_addr = pmisc->virt_addr;
 		u32 vf_mask;
 
 		/* Get the interrupt sources triggered by VFs */
-		vf_mask = ((ADF_CSR_RD(pmisc_bar_addr, ADF_DH895XCC_ERRSOU5) &
+		vf_mask = ((ADF_CSR_RD(pmisc_bar_addr, ADF_ERRSOU5) &
 			    0x0000FFFF) << 16) |
-			  ((ADF_CSR_RD(pmisc_bar_addr, ADF_DH895XCC_ERRSOU3) &
+			  ((ADF_CSR_RD(pmisc_bar_addr, ADF_ERRSOU3) &
 			    0x01FFFE00) >> 9);
 
 		if (vf_mask) {
@@ -301,6 +301,12 @@ static void adf_cleanup_bh(struct adf_accel_dev *accel_dev)
 	}
 }
 
+/**
+ * adf_vf_isr_resource_free() - Free IRQ for acceleration device
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function frees interrupts for acceleration device.
+ */
 void adf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	adf_free_irqs(accel_dev);
@@ -308,7 +314,16 @@ void adf_isr_resource_free(struct adf_accel_dev *accel_dev)
 	adf_disable_msix(&accel_dev->accel_pci_dev);
 	adf_isr_free_msix_entry_table(accel_dev);
 }
+EXPORT_SYMBOL_GPL(adf_isr_resource_free);
 
+/**
+ * adf_vf_isr_resource_alloc() - Allocate IRQ for acceleration device
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function allocates interrupts for acceleration device.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
 int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 {
 	int ret;
@@ -330,3 +345,4 @@ err_out:
 	adf_isr_resource_free(accel_dev);
 	return -EFAULT;
 }
+EXPORT_SYMBOL_GPL(adf_isr_resource_alloc);

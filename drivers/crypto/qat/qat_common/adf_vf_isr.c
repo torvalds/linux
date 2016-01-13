@@ -51,16 +51,18 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <adf_accel_devices.h>
-#include <adf_common_drv.h>
-#include <adf_cfg.h>
-#include <adf_cfg_strings.h>
-#include <adf_cfg_common.h>
-#include <adf_transport_access_macros.h>
-#include <adf_transport_internal.h>
-#include <adf_pf2vf_msg.h>
-#include "adf_drv.h"
-#include "adf_dh895xccvf_hw_data.h"
+#include "adf_accel_devices.h"
+#include "adf_common_drv.h"
+#include "adf_cfg.h"
+#include "adf_cfg_strings.h"
+#include "adf_cfg_common.h"
+#include "adf_transport_access_macros.h"
+#include "adf_transport_internal.h"
+#include "adf_pf2vf_msg.h"
+
+#define ADF_VINTSOU_OFFSET	0x204
+#define ADF_VINTSOU_BUN		BIT(0)
+#define ADF_VINTSOU_PF2VF	BIT(1)
 
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
@@ -91,12 +93,14 @@ static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 static void adf_pf2vf_bh_handler(void *data)
 {
 	struct adf_accel_dev *accel_dev = data;
-	void __iomem *pmisc_bar_addr =
-		(&GET_BARS(accel_dev)[ADF_DH895XCCIOV_PMISC_BAR])->virt_addr;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_bar *pmisc =
+			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
+	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
 	u32 msg;
 
 	/* Read the message from PF */
-	msg = ADF_CSR_RD(pmisc_bar_addr, ADF_DH895XCCIOV_PF2VF_OFFSET);
+	msg = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_pf2vf_offset(0));
 
 	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
 		/* Ignore legacy non-system (non-kernel) PF2VF messages */
@@ -124,8 +128,8 @@ static void adf_pf2vf_bh_handler(void *data)
 	}
 
 	/* To ack, clear the PF2VFINT bit */
-	msg &= ~ADF_DH895XCC_PF2VF_PF2VFINT;
-	ADF_CSR_WR(pmisc_bar_addr, ADF_DH895XCCIOV_PF2VF_OFFSET, msg);
+	msg &= ~BIT(0);
+	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
 
 	/* Re-enable PF2VF interrupts */
 	adf_enable_pf2vf_interrupts(accel_dev);
@@ -155,15 +159,17 @@ static void adf_cleanup_pf2vf_bh(struct adf_accel_dev *accel_dev)
 static irqreturn_t adf_isr(int irq, void *privdata)
 {
 	struct adf_accel_dev *accel_dev = privdata;
-	void __iomem *pmisc_bar_addr =
-		(&GET_BARS(accel_dev)[ADF_DH895XCCIOV_PMISC_BAR])->virt_addr;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_bar *pmisc =
+			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
+	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
 	u32 v_int;
 
 	/* Read VF INT source CSR to determine the source of VF interrupt */
-	v_int = ADF_CSR_RD(pmisc_bar_addr, ADF_DH895XCCIOV_VINTSOU_OFFSET);
+	v_int = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTSOU_OFFSET);
 
 	/* Check for PF2VF interrupt */
-	if (v_int & ADF_DH895XCC_VINTSOU_PF2VF) {
+	if (v_int & ADF_VINTSOU_PF2VF) {
 		/* Disable PF to VF interrupt */
 		adf_disable_pf2vf_interrupts(accel_dev);
 
@@ -173,7 +179,7 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 	}
 
 	/* Check bundle interrupt */
-	if (v_int & ADF_DH895XCC_VINTSOU_BUN) {
+	if (v_int & ADF_VINTSOU_BUN) {
 		struct adf_etr_data *etr_data = accel_dev->transport;
 		struct adf_etr_bank_data *bank = &etr_data->banks[0];
 
@@ -226,6 +232,12 @@ static void adf_cleanup_bh(struct adf_accel_dev *accel_dev)
 	tasklet_kill(&priv_data->banks[0].resp_handler);
 }
 
+/**
+ * adf_vf_isr_resource_free() - Free IRQ for acceleration device
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function frees interrupts for acceleration device virtual function.
+ */
 void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
@@ -236,7 +248,16 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 	adf_cleanup_pf2vf_bh(accel_dev);
 	adf_disable_msi(accel_dev);
 }
+EXPORT_SYMBOL_GPL(adf_vf_isr_resource_free);
 
+/**
+ * adf_vf_isr_resource_alloc() - Allocate IRQ for acceleration device
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function allocates interrupts for acceleration device virtual function.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
 int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 {
 	if (adf_enable_msi(accel_dev))
@@ -256,3 +277,4 @@ err_out:
 	adf_vf_isr_resource_free(accel_dev);
 	return -EFAULT;
 }
+EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);

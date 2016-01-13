@@ -13,6 +13,8 @@
 #define MD5_H2	0x98badcfeUL
 #define MD5_H3	0x10325476UL
 
+extern const u8 md5_zero_message_hash[MD5_DIGEST_SIZE];
+
 struct md5_state {
 	u32 hash[MD5_HASH_WORDS];
 	u32 block[MD5_BLOCK_WORDS];

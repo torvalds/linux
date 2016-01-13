@@ -712,6 +712,10 @@ static int mv_cesa_ahash_req_init(struct ahash_request *req, bool *cached)
 		creq->req.base.type = CESA_STD_REQ;
 
 	creq->src_nents = sg_nents_for_len(req->src, req->nbytes);
+	if (creq->src_nents < 0) {
+		dev_err(cesa_dev->dev, "Invalid number of src SG");
+		return creq->src_nents;
+	}
 
 	ret = mv_cesa_ahash_cache_req(req, cached);
 	if (ret)

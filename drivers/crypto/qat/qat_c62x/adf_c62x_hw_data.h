@@ -44,15 +44,41 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#ifndef ADF_DH895x_DRV_H_
-#define ADF_DH895x_DRV_H_
-#include <adf_accel_devices.h>
-#include <adf_transport.h>
+#ifndef ADF_C62X_HW_DATA_H_
+#define ADF_C62X_HW_DATA_H_
 
-void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
-void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
-int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
-void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
-void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
-			     uint32_t const **arb_map_config);
+/* PCIe configuration space */
+#define ADF_C62X_SRAM_BAR 0
+#define ADF_C62X_PMISC_BAR 1
+#define ADF_C62X_ETR_BAR 2
+#define ADF_C62X_RX_RINGS_OFFSET 8
+#define ADF_C62X_TX_RINGS_MASK 0xFF
+#define ADF_C62X_MAX_ACCELERATORS 5
+#define ADF_C62X_MAX_ACCELENGINES 10
+#define ADF_C62X_ACCELERATORS_REG_OFFSET 16
+#define ADF_C62X_ACCELERATORS_MASK 0x1F
+#define ADF_C62X_ACCELENGINES_MASK 0x3FF
+#define ADF_C62X_ETR_MAX_BANKS 16
+#define ADF_C62X_SMIAPF0_MASK_OFFSET (0x3A000 + 0x28)
+#define ADF_C62X_SMIAPF1_MASK_OFFSET (0x3A000 + 0x30)
+#define ADF_C62X_SMIA0_MASK 0xFFFF
+#define ADF_C62X_SMIA1_MASK 0x1
+/* Error detection and correction */
+#define ADF_C62X_AE_CTX_ENABLES(i) (i * 0x1000 + 0x20818)
+#define ADF_C62X_AE_MISC_CONTROL(i) (i * 0x1000 + 0x20960)
+#define ADF_C62X_ENABLE_AE_ECC_ERR BIT(28)
+#define ADF_C62X_ENABLE_AE_ECC_PARITY_CORR (BIT(24) | BIT(12))
+#define ADF_C62X_UERRSSMSH(i) (i * 0x4000 + 0x18)
+#define ADF_C62X_CERRSSMSH(i) (i * 0x4000 + 0x10)
+#define ADF_C62X_ERRSSMSH_EN BIT(3)
+
+#define ADF_C62X_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
+#define ADF_C62X_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
+
+/* Firmware Binary */
+#define ADF_C62X_FW "qat_c62x.bin"
+#define ADF_C62X_MMP "qat_c62x_mmp.bin"
+
+void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data);
+void adf_clean_hw_data_c62x(struct adf_hw_device_data *hw_data);
 #endif
