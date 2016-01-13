@@ -508,8 +508,7 @@ static void flush_hold_queue(void)
 	 * if auditd just disappeared but we
 	 * dequeued an skb we need to drop ref
 	 */
-	if (skb)
-		consume_skb(skb);
+	consume_skb(skb);
 }
 
 static int kauditd_thread(void *dummy)
@@ -1232,9 +1231,7 @@ static void audit_buffer_free(struct audit_buffer *ab)
 	if (!ab)
 		return;
 
-	if (ab->skb)
-		kfree_skb(ab->skb);
-
+	kfree_skb(ab->skb);
 	spin_lock_irqsave(&audit_freelist_lock, flags);
 	if (audit_freelist_count > AUDIT_MAXFREE)
 		kfree(ab);
