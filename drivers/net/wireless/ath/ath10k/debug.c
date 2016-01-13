@@ -276,7 +276,7 @@ static const struct file_operations fops_wmi_services = {
 	.llseek = default_llseek,
 };
 
-static void ath10k_debug_fw_stats_pdevs_free(struct list_head *head)
+static void ath10k_fw_stats_pdevs_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_pdev *i, *tmp;
 
@@ -286,7 +286,7 @@ static void ath10k_debug_fw_stats_pdevs_free(struct list_head *head)
 	}
 }
 
-static void ath10k_debug_fw_stats_vdevs_free(struct list_head *head)
+static void ath10k_fw_stats_vdevs_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_vdev *i, *tmp;
 
@@ -296,7 +296,7 @@ static void ath10k_debug_fw_stats_vdevs_free(struct list_head *head)
 	}
 }
 
-static void ath10k_debug_fw_stats_peers_free(struct list_head *head)
+static void ath10k_fw_stats_peers_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_peer *i, *tmp;
 
@@ -310,9 +310,9 @@ static void ath10k_debug_fw_stats_reset(struct ath10k *ar)
 {
 	spin_lock_bh(&ar->data_lock);
 	ar->debug.fw_stats_done = false;
-	ath10k_debug_fw_stats_pdevs_free(&ar->debug.fw_stats.pdevs);
-	ath10k_debug_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
-	ath10k_debug_fw_stats_peers_free(&ar->debug.fw_stats.peers);
+	ath10k_fw_stats_pdevs_free(&ar->debug.fw_stats.pdevs);
+	ath10k_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
+	ath10k_fw_stats_peers_free(&ar->debug.fw_stats.peers);
 	spin_unlock_bh(&ar->data_lock);
 }
 
@@ -391,9 +391,9 @@ free:
 	/* In some cases lists have been spliced and cleared. Free up
 	 * resources if that is not the case.
 	 */
-	ath10k_debug_fw_stats_pdevs_free(&stats.pdevs);
-	ath10k_debug_fw_stats_vdevs_free(&stats.vdevs);
-	ath10k_debug_fw_stats_peers_free(&stats.peers);
+	ath10k_fw_stats_pdevs_free(&stats.pdevs);
+	ath10k_fw_stats_vdevs_free(&stats.vdevs);
+	ath10k_fw_stats_peers_free(&stats.peers);
 
 	spin_unlock_bh(&ar->data_lock);
 }
