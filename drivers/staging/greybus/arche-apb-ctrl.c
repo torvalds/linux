@@ -82,19 +82,6 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	/* On DB3 clock was not mandatory */
-	if (gpio_is_valid(apb->clk_en_gpio)) {
-		ret = devm_gpio_request(dev, apb->clk_en_gpio, "apb_clk_en");
-		if (ret) {
-			dev_warn(dev, "Failed requesting APB clock en gpio %d\n",
-				 apb->clk_en_gpio);
-		} else {
-			ret = gpio_direction_output(apb->clk_en_gpio, 1);
-			if (ret)
-				dev_warn(dev, "failed to set APB clock en gpio dir:%d\n",
-					 ret);
-		}
-	}
 	/* Hold APB in reset state */
 	ret = devm_gpio_request(dev, apb->resetn_gpio, "apb-reset");
 	if (ret) {
@@ -128,6 +115,7 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 			return ret;
 		}
 	}
+
 	if (!IS_ERR(apb->vio)) {
 		ret = regulator_enable(apb->vio);
 		if (ret) {
@@ -144,7 +132,22 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 		goto out_vio_disable;
 	}
 	gpio_set_value(apb->boot_ret_gpio, 0);
-	udelay(50);
+
+	/* On DB3 clock was not mandatory */
+	if (gpio_is_valid(apb->clk_en_gpio)) {
+		ret = devm_gpio_request(dev, apb->clk_en_gpio, "apb_clk_en");
+		if (ret) {
+			dev_warn(dev, "Failed requesting APB clock en gpio %d\n",
+				 apb->clk_en_gpio);
+		} else {
+			ret = gpio_direction_output(apb->clk_en_gpio, 1);
+			if (ret)
+				dev_warn(dev, "failed to set APB clock en gpio dir:%d\n",
+					 ret);
+		}
+	}
+
+	usleep_range(100, 200);
 
 	return 0;
 
