@@ -56,6 +56,9 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "Register %s:%d DAI, ret:%d\n", dai->name, cportid,
 		ret);
 
+	if (!ret)
+		atomic_inc(&gb->users);
+
 	return ret;
 }
 
@@ -82,6 +85,8 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
 		return;
 	}
+
+	atomic_dec(&gb->users);
 
 	/* deactivate rx/tx */
 	cportid = gb_dai->connection->intf_cport_id;
@@ -428,6 +433,7 @@ static struct snd_soc_codec_driver soc_codec_dev_gbcodec = {
 	.reg_word_size = 1,
 
 	.idle_bias_off = true,
+	.ignore_pmdown_time = 1,
 };
 
 /*
@@ -573,6 +579,50 @@ struct device_driver gb_codec_driver = {
 	.owner = THIS_MODULE,
 };
 
+/* XXX
+ * since BE DAI path is not yet properly closed from above layer,
+ * dsp dai.mi2s_dai_data.status_mask is still set to STATUS_PORT_STARTED
+ * this causes immediate playback/capture to fail in case relevant mixer
+ * control is not turned OFF
+ * user need to try once again after failure to recover DSP state.
+ */
+static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
+{
+	int cportid, ret;
+	struct gbaudio_dai *gb_dai;
+	struct gb_connection *connection;
+	struct device *dev = gb->dev;
+
+	list_for_each_entry(gb_dai, &gb->dai_list, list) {
+		/*
+		 * In case of BE dailink, need to deactivate APBridge
+		 * manually
+		 */
+		if (gbaudio_dailink.no_pcm && atomic_read(&gb->users)) {
+			connection = gb_dai->connection;
+			/* PB active */
+			ret = gb_audio_apbridgea_stop_tx(connection, 0);
+			if (ret)
+				dev_info(dev, "%d:Failed during APBridge stop_tx\n",
+					 ret);
+			cportid = connection->intf_cport_id;
+			ret = gb_audio_gb_deactivate_tx(gb->mgmt_connection,
+							cportid);
+			if (ret)
+				dev_info(dev,
+					 "%d:Failed during deactivate_tx\n",
+					 ret);
+			cportid = connection->hd_cport_id;
+			ret = gb_audio_apbridgea_unregister_cport(connection, 0,
+								  cportid);
+			if (ret)
+				dev_info(dev, "%d:Failed during unregister cport\n",
+					 ret);
+			atomic_dec(&gb->users);
+		}
+	}
+}
+
 static int gbaudio_codec_probe(struct gb_connection *connection)
 {
 	int ret, i;
@@ -641,6 +691,9 @@ static int gbaudio_codec_probe(struct gb_connection *connection)
 	mutex_lock(&gbcodec->lock);
 	gbcodec->codec_registered = 1;
 
+	/* codec cleanup related */
+	atomic_set(&gbcodec->users, 0);
+
 	/* inform above layer for uevent */
 	if (!gbcodec->set_uevent &&
 	    (gbcodec->dai_added == gbcodec->num_dais)) {
@@ -695,6 +748,11 @@ static void gbaudio_codec_remove(struct gb_connection *connection)
 		gbcodec->set_uevent = 0;
 	}
 	mutex_unlock(&gbcodec->lock);
+
+	if (atomic_read(&gbcodec->users)) {
+		dev_err(dev, "Cleanup Error: BE stream not yet closed\n");
+		gb_audio_cleanup(gbcodec);
+	}
 
 	msm8994_remove_dailink("msm8994-tomtom-mtp-snd-card", &gbaudio_dailink,
 			       1);

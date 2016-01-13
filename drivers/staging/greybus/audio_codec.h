@@ -131,6 +131,9 @@ struct gbaudio_codec_info {
 	struct snd_soc_dapm_route *routes;
 	struct snd_soc_dai_driver *dais;
 
+	/* codec users */
+	atomic_t users;
+
 	/* lists */
 	struct list_head dai_list;
 	struct list_head widget_list;
