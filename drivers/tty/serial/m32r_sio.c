@@ -990,7 +990,7 @@ static void __init m32r_sio_register_ports(struct uart_driver *drv)
 /*
  *	Wait for transmitter & holding register to empty
  */
-static inline void wait_for_xmitr(struct uart_sio_port *up)
+static void wait_for_xmitr(struct uart_sio_port *up)
 {
 	unsigned int status, tmout = 10000;
 

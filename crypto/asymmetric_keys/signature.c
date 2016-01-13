@@ -13,7 +13,7 @@
 
 #define pr_fmt(fmt) "SIG: "fmt
 #include <keys/asymmetric-subtype.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <crypto/public_key.h>
 #include "asymmetric_keys.h"

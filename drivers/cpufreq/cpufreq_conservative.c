@@ -115,13 +115,13 @@ static void cs_check_cpu(int cpu, unsigned int load)
 	}
 }
 
-static unsigned int cs_dbs_timer(struct cpu_dbs_info *cdbs,
-				 struct dbs_data *dbs_data, bool modify_all)
+static unsigned int cs_dbs_timer(struct cpufreq_policy *policy, bool modify_all)
 {
+	struct dbs_data *dbs_data = policy->governor_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 
 	if (modify_all)
-		dbs_check_cpu(dbs_data, cdbs->shared->policy->cpu);
+		dbs_check_cpu(dbs_data, policy->cpu);
 
 	return delay_for_sampling_rate(cs_tuners->sampling_rate);
 }

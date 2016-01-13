@@ -111,23 +111,19 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 	u32 reg = imr_id * IMR_NUM_REGS + idev->reg_base;
 	int ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->addr_lo);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->addr_lo);
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->addr_hi);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->addr_hi);
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->rmask);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->rmask);
 	if (ret)
 		return ret;
 
-	return iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->wmask);
+	return iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->wmask);
 }
 
 /**
@@ -151,31 +147,27 @@ static int imr_write(struct imr_device *idev, u32 imr_id,
 
 	local_irq_save(flags);
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE, reg++,
-				imr->addr_lo);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->addr_lo);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->addr_hi);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->addr_hi);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->rmask);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->rmask);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->wmask);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->wmask);
 	if (ret)
 		goto failed;
 
 	/* Lock bit must be set separately to addr_lo address bits. */
 	if (lock) {
 		imr->addr_lo |= IMR_LOCK;
-		ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-					reg - IMR_NUM_REGS, imr->addr_lo);
+		ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE,
+				     reg - IMR_NUM_REGS, imr->addr_lo);
 		if (ret)
 			goto failed;
 	}

@@ -57,8 +57,8 @@ static int ehci_msm_reset(struct usb_hcd *hcd)
 
 	/* bursts of unspecified length. */
 	writel(0, USB_AHBBURST);
-	/* Use the AHB transactor */
-	writel(0, USB_AHBMODE);
+	/* Use the AHB transactor, allow posted data writes */
+	writel(0x8, USB_AHBMODE);
 	/* Disable streaming mode and select host mode */
 	writel(0x13, USB_USBMODE);
 

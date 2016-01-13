@@ -226,15 +226,9 @@ static ssize_t cachefiles_daemon_write(struct file *file,
 		return -EOPNOTSUPP;
 
 	/* drag the command string into the kernel so we can parse it */
-	data = kmalloc(datalen + 1, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	ret = -EFAULT;
-	if (copy_from_user(data, _data, datalen) != 0)
-		goto error;
-
-	data[datalen] = '\0';
+	data = memdup_user_nul(_data, datalen);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	ret = -EINVAL;
 	if (memchr(data, '\0', datalen))

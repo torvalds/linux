@@ -55,7 +55,7 @@ static inline int
 nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
 {
-	return -1;
+	return -ENOTSUPP;
 }
 
 static inline struct nand_bch_control *

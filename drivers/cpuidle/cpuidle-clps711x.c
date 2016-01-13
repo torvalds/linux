@@ -12,7 +12,7 @@
 #include <linux/cpuidle.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 
 #define CLPS711X_CPUIDLE_NAME	"clps711x-cpuidle"
@@ -56,8 +56,4 @@ static struct platform_driver clps711x_cpuidle_driver = {
 		.name	= CLPS711X_CPUIDLE_NAME,
 	},
 };
-module_platform_driver_probe(clps711x_cpuidle_driver, clps711x_cpuidle_probe);
-
-MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
-MODULE_DESCRIPTION("CLPS711X CPU idle driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver_probe(clps711x_cpuidle_driver, clps711x_cpuidle_probe);

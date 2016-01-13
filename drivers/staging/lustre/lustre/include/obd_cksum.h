@@ -133,29 +133,6 @@ static inline cksum_type_t cksum_types_supported_client(void)
 	return ret;
 }
 
-/* Server uses algos that perform at 50% or better of the Adler */
-static inline cksum_type_t cksum_types_supported_server(void)
-{
-	int	     base_speed;
-	cksum_type_t    ret = OBD_CKSUM_ADLER;
-
-	CDEBUG(D_INFO, "Crypto hash speed: crc %d, crc32c %d, adler %d\n",
-	       cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_CRC32)),
-	       cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_CRC32C)),
-	       cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_ADLER)));
-
-	base_speed = cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_ADLER)) / 2;
-
-	if (cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_CRC32C)) >=
-	    base_speed)
-		ret |= OBD_CKSUM_CRC32C;
-	if (cfs_crypto_hash_speed(cksum_obd2cfs(OBD_CKSUM_CRC32)) >=
-	    base_speed)
-		ret |= OBD_CKSUM_CRC32;
-
-	return ret;
-}
-
 /* Select the best checksum algorithm among those supplied in the cksum_types
  * input.
  *

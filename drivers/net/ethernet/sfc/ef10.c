@@ -181,13 +181,6 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID);
 
 	if (!(nic_data->datapath_caps &
-	      (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
-		netif_err(efx, drv, efx->net_dev,
-			  "current firmware does not support TSO\n");
-		return -ENODEV;
-	}
-
-	if (!(nic_data->datapath_caps &
 	      (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14_LBN))) {
 		netif_err(efx, probe, efx->net_dev,
 			  "current firmware does not support an RX prefix\n");
@@ -493,10 +486,17 @@ static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
 	BUILD_BUG_ON(MC_CMD_ALLOC_PIOBUF_IN_LEN != 0);
 
 	for (i = 0; i < n; i++) {
-		rc = efx_mcdi_rpc(efx, MC_CMD_ALLOC_PIOBUF, NULL, 0,
-				  outbuf, sizeof(outbuf), &outlen);
-		if (rc)
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_ALLOC_PIOBUF, NULL, 0,
+					outbuf, sizeof(outbuf), &outlen);
+		if (rc) {
+			/* Don't display the MC error if we didn't have space
+			 * for a VF.
+			 */
+			if (!(efx_ef10_is_vf(efx) && rc == -ENOSPC))
+				efx_mcdi_display_error(efx, MC_CMD_ALLOC_PIOBUF,
+						       0, outbuf, outlen, rc);
 			break;
+		}
 		if (outlen < MC_CMD_ALLOC_PIOBUF_OUT_LEN) {
 			rc = -EIO;
 			break;
@@ -1797,6 +1797,12 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			     ESF_DZ_TX_OPTION_UDP_TCP_CSUM, csum_offload,
 			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload);
 	tx_queue->write_count = 1;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
+		tx_queue->tso_version = 1;
+	}
+
 	wmb();
 	efx_ef10_push_tx_desc(tx_queue, txd);
 
@@ -2375,8 +2381,19 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 				    1 << MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN) {
 					netif_info(efx, drv, efx->net_dev,
 						   "other functions on NIC have been reset\n");
-					/* MC's boot count has incremented */
-					++nic_data->warm_boot_count;
+
+					/* With MCFW v4.6.x and earlier, the
+					 * boot count will have incremented,
+					 * so re-read the warm_boot_count
+					 * value now to ensure this function
+					 * doesn't think it has changed next
+					 * time it checks.
+					 */
+					rc = efx_ef10_get_warm_boot_count(efx);
+					if (rc >= 0) {
+						nic_data->warm_boot_count = rc;
+						rc = 0;
+					}
 				}
 				nic_data->workaround_26807 = true;
 			} else if (rc == -EPERM) {
@@ -3823,13 +3840,12 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 			       MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE);
 		MCDI_SET_QWORD(inbuf, FILTER_OP_IN_HANDLE,
 			       table->entry[filter_idx].handle);
-		rc = efx_mcdi_rpc(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
-				  NULL, 0, NULL);
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FILTER_OP, inbuf,
+					sizeof(inbuf), NULL, 0, NULL);
 		if (rc)
-			netdev_WARN(efx->net_dev,
-				    "filter_idx=%#x handle=%#llx\n",
-				    filter_idx,
-				    table->entry[filter_idx].handle);
+			netif_info(efx, drv, efx->net_dev,
+				   "%s: filter %04x remove failed\n",
+				   __func__, filter_idx);
 		kfree(spec);
 	}
 
@@ -3838,11 +3854,14 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 }
 
 #define EFX_EF10_FILTER_DO_MARK_OLD(id) \
-		if (id != EFX_EF10_FILTER_ID_INVALID) { \
-			filter_idx = efx_ef10_filter_get_unsafe_id(efx, id); \
-			WARN_ON(!table->entry[filter_idx].spec); \
-			table->entry[filter_idx].spec |= EFX_EF10_FILTER_FLAG_AUTO_OLD; \
-		}
+	if (id != EFX_EF10_FILTER_ID_INVALID) { \
+		filter_idx = efx_ef10_filter_get_unsafe_id(efx, id); \
+		if (!table->entry[filter_idx].spec) \
+			netif_dbg(efx, drv, efx->net_dev, \
+				  "%s: marked null spec old %04x:%04x\n", \
+				  __func__, id, filter_idx); \
+		table->entry[filter_idx].spec |= EFX_EF10_FILTER_FLAG_AUTO_OLD;\
+	}
 static void efx_ef10_filter_mark_old(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -4016,9 +4035,10 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 
 	rc = efx_ef10_filter_insert(efx, &spec, true);
 	if (rc < 0) {
-		netif_warn(efx, drv, efx->net_dev,
-			   "%scast mismatch filter insert failed rc=%d\n",
-			   multicast ? "Multi" : "Uni", rc);
+		netif_printk(efx, drv, rc == -EPERM ? KERN_DEBUG : KERN_WARNING,
+			     efx->net_dev,
+			     "%scast mismatch filter insert failed rc=%d\n",
+			     multicast ? "Multi" : "Uni", rc);
 	} else if (multicast) {
 		table->mcdef_id = efx_ef10_filter_get_unsafe_id(efx, rc);
 		if (!nic_data->workaround_26807) {
@@ -4060,19 +4080,31 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 static void efx_ef10_filter_remove_old(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
-	bool remove_failed = false;
+	int remove_failed = 0;
+	int remove_noent = 0;
+	int rc;
 	int i;
 
 	for (i = 0; i < HUNT_FILTER_TBL_ROWS; i++) {
 		if (ACCESS_ONCE(table->entry[i].spec) &
 		    EFX_EF10_FILTER_FLAG_AUTO_OLD) {
-			if (efx_ef10_filter_remove_internal(
-				    efx, 1U << EFX_FILTER_PRI_AUTO,
-				    i, true) < 0)
-				remove_failed = true;
+			rc = efx_ef10_filter_remove_internal(efx,
+					1U << EFX_FILTER_PRI_AUTO, i, true);
+			if (rc == -ENOENT)
+				remove_noent++;
+			else if (rc)
+				remove_failed++;
 		}
 	}
-	WARN_ON(remove_failed);
+
+	if (remove_failed)
+		netif_info(efx, drv, efx->net_dev,
+			   "%s: failed to remove %d filters\n",
+			   __func__, remove_failed);
+	if (remove_noent)
+		netif_info(efx, drv, efx->net_dev,
+			   "%s: failed to remove %d non-existent filters\n",
+			   __func__, remove_noent);
 }
 
 static int efx_ef10_vport_set_mac_address(struct efx_nic *efx)

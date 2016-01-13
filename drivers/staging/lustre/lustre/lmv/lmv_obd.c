@@ -27,7 +27,7 @@
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -2744,55 +2744,55 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 }
 
 static struct obd_ops lmv_obd_ops = {
-	.o_owner		= THIS_MODULE,
-	.o_setup		= lmv_setup,
-	.o_cleanup	      = lmv_cleanup,
-	.o_precleanup	   = lmv_precleanup,
-	.o_process_config       = lmv_process_config,
-	.o_connect	      = lmv_connect,
-	.o_disconnect	   = lmv_disconnect,
-	.o_statfs	       = lmv_statfs,
-	.o_get_info	     = lmv_get_info,
-	.o_set_info_async       = lmv_set_info_async,
-	.o_packmd	       = lmv_packmd,
-	.o_unpackmd	     = lmv_unpackmd,
-	.o_notify	       = lmv_notify,
-	.o_get_uuid	     = lmv_get_uuid,
-	.o_iocontrol	    = lmv_iocontrol,
-	.o_quotacheck	   = lmv_quotacheck,
-	.o_quotactl	     = lmv_quotactl
+	.owner		= THIS_MODULE,
+	.setup		= lmv_setup,
+	.cleanup	= lmv_cleanup,
+	.precleanup	= lmv_precleanup,
+	.process_config	= lmv_process_config,
+	.connect	= lmv_connect,
+	.disconnect	= lmv_disconnect,
+	.statfs		= lmv_statfs,
+	.get_info	= lmv_get_info,
+	.set_info_async	= lmv_set_info_async,
+	.packmd		= lmv_packmd,
+	.unpackmd	= lmv_unpackmd,
+	.notify		= lmv_notify,
+	.get_uuid	= lmv_get_uuid,
+	.iocontrol	= lmv_iocontrol,
+	.quotacheck	= lmv_quotacheck,
+	.quotactl	= lmv_quotactl
 };
 
 static struct md_ops lmv_md_ops = {
-	.m_getstatus	    = lmv_getstatus,
-	.m_null_inode		= lmv_null_inode,
-	.m_find_cbdata	  = lmv_find_cbdata,
-	.m_close		= lmv_close,
-	.m_create	       = lmv_create,
-	.m_done_writing	 = lmv_done_writing,
-	.m_enqueue	      = lmv_enqueue,
-	.m_getattr	      = lmv_getattr,
-	.m_getxattr	     = lmv_getxattr,
-	.m_getattr_name	 = lmv_getattr_name,
-	.m_intent_lock	  = lmv_intent_lock,
-	.m_link		 = lmv_link,
-	.m_rename	       = lmv_rename,
-	.m_setattr	      = lmv_setattr,
-	.m_setxattr	     = lmv_setxattr,
-	.m_sync		 = lmv_sync,
-	.m_readpage	     = lmv_readpage,
-	.m_unlink	       = lmv_unlink,
-	.m_init_ea_size	 = lmv_init_ea_size,
-	.m_cancel_unused	= lmv_cancel_unused,
-	.m_set_lock_data	= lmv_set_lock_data,
-	.m_lock_match	   = lmv_lock_match,
-	.m_get_lustre_md	= lmv_get_lustre_md,
-	.m_free_lustre_md       = lmv_free_lustre_md,
-	.m_set_open_replay_data = lmv_set_open_replay_data,
-	.m_clear_open_replay_data = lmv_clear_open_replay_data,
-	.m_get_remote_perm      = lmv_get_remote_perm,
-	.m_intent_getattr_async = lmv_intent_getattr_async,
-	.m_revalidate_lock      = lmv_revalidate_lock
+	.getstatus		= lmv_getstatus,
+	.null_inode		= lmv_null_inode,
+	.find_cbdata		= lmv_find_cbdata,
+	.close			= lmv_close,
+	.create			= lmv_create,
+	.done_writing		= lmv_done_writing,
+	.enqueue		= lmv_enqueue,
+	.getattr		= lmv_getattr,
+	.getxattr		= lmv_getxattr,
+	.getattr_name		= lmv_getattr_name,
+	.intent_lock		= lmv_intent_lock,
+	.link			= lmv_link,
+	.rename			= lmv_rename,
+	.setattr		= lmv_setattr,
+	.setxattr		= lmv_setxattr,
+	.sync			= lmv_sync,
+	.readpage		= lmv_readpage,
+	.unlink			= lmv_unlink,
+	.init_ea_size		= lmv_init_ea_size,
+	.cancel_unused		= lmv_cancel_unused,
+	.set_lock_data		= lmv_set_lock_data,
+	.lock_match		= lmv_lock_match,
+	.get_lustre_md		= lmv_get_lustre_md,
+	.free_lustre_md		= lmv_free_lustre_md,
+	.set_open_replay_data	= lmv_set_open_replay_data,
+	.clear_open_replay_data	= lmv_clear_open_replay_data,
+	.get_remote_perm	= lmv_get_remote_perm,
+	.intent_getattr_async	= lmv_intent_getattr_async,
+	.revalidate_lock	= lmv_revalidate_lock
 };
 
 static int __init lmv_init(void)
@@ -2812,7 +2812,7 @@ static void lmv_exit(void)
 	class_unregister_type(LUSTRE_LMV_NAME);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Logical Metadata Volume OBD driver");
 MODULE_LICENSE("GPL");
 

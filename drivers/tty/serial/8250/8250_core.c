@@ -620,7 +620,7 @@ static int univ8250_console_setup(struct console *co, char *options)
  *	@options: ptr to option string from console command line
  *
  *	Only attempts to match console command lines of the form:
- *	    console=uart[8250],io|mmio|mmio32,<addr>[,<options>]
+ *	    console=uart[8250],io|mmio|mmio16|mmio32,<addr>[,<options>]
  *	    console=uart[8250],0x<addr>[,<options>]
  *	This form is used to register an initial earlycon boot console and
  *	replace it with the serial8250_console at 8250 driver init.
@@ -650,8 +650,9 @@ static int univ8250_console_match(struct console *co, char *name, int idx,
 
 		if (port->iotype != iotype)
 			continue;
-		if ((iotype == UPIO_MEM || iotype == UPIO_MEM32) &&
-		    (port->mapbase != addr))
+		if ((iotype == UPIO_MEM || iotype == UPIO_MEM16 ||
+		     iotype == UPIO_MEM32 || iotype == UPIO_MEM32BE)
+		    && (port->mapbase != addr))
 			continue;
 		if (iotype == UPIO_PORT && port->iobase != addr)
 			continue;

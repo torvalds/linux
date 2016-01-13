@@ -2027,6 +2027,31 @@ TRACE_EVENT(api_eosp,
 	)
 );
 
+TRACE_EVENT(api_send_eosp_nullfunc,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u8 tid),
+
+	TP_ARGS(local, sta, tid),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u8, tid)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->tid = tid;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT " tid:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->tid
+	)
+);
+
 TRACE_EVENT(api_sta_set_buffered,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sta *sta,

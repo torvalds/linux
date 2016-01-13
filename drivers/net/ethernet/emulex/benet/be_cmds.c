@@ -308,8 +308,7 @@ static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
 
 	if (evt->valid) {
 		adapter->vlan_prio_bmap = evt->available_priority_bmap;
-		adapter->recommended_prio &= ~VLAN_PRIO_MASK;
-		adapter->recommended_prio =
+		adapter->recommended_prio_bits =
 			evt->reco_default_priority << VLAN_PRIO_SHIFT;
 	}
 }
@@ -1713,49 +1712,40 @@ err:
 }
 
 /* Uses synchronous mcc */
-int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size)
+int be_cmd_get_fat_dump_len(struct be_adapter *adapter, u32 *dump_size)
 {
-	struct be_mcc_wrb *wrb;
+	struct be_mcc_wrb wrb = {0};
 	struct be_cmd_req_get_fat *req;
 	int status;
 
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-	req = embedded_payload(wrb);
+	req = embedded_payload(&wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_MANAGE_FAT, sizeof(*req), wrb,
-			       NULL);
+			       OPCODE_COMMON_MANAGE_FAT, sizeof(*req),
+			       &wrb, NULL);
 	req->fat_operation = cpu_to_le32(QUERY_FAT);
-	status = be_mcc_notify_wait(adapter);
+	status = be_cmd_notify_wait(adapter, &wrb);
 	if (!status) {
-		struct be_cmd_resp_get_fat *resp = embedded_payload(wrb);
+		struct be_cmd_resp_get_fat *resp = embedded_payload(&wrb);
 
-		if (log_size && resp->log_size)
-			*log_size = le32_to_cpu(resp->log_size) -
+		if (dump_size && resp->log_size)
+			*dump_size = le32_to_cpu(resp->log_size) -
 					sizeof(u32);
 	}
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
-int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
+int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf)
 {
 	struct be_dma_mem get_fat_cmd;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_fat *req;
 	u32 offset = 0, total_size, buf_size,
 				log_offset = sizeof(u32), payload_len;
-	int status = 0;
+	int status;
 
 	if (buf_len == 0)
-		return -EIO;
+		return 0;
 
 	total_size = buf_len;
 
@@ -1763,11 +1753,8 @@ int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
 	get_fat_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev,
 					     get_fat_cmd.size,
 					     &get_fat_cmd.dma, GFP_ATOMIC);
-	if (!get_fat_cmd.va) {
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure while reading FAT data\n");
+	if (!get_fat_cmd.va)
 		return -ENOMEM;
-	}
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -2291,10 +2278,11 @@ err:
 	return status;
 }
 
-int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			    u32 data_size, u32 data_offset,
-			    const char *obj_name, u32 *data_written,
-			    u8 *change_status, u8 *addn_status)
+static int lancer_cmd_write_object(struct be_adapter *adapter,
+				   struct be_dma_mem *cmd, u32 data_size,
+				   u32 data_offset, const char *obj_name,
+				   u32 *data_written, u8 *change_status,
+				   u8 *addn_status)
 {
 	struct be_mcc_wrb *wrb;
 	struct lancer_cmd_req_write_object *req;
@@ -2410,7 +2398,8 @@ int be_cmd_query_sfp_info(struct be_adapter *adapter)
 	return status;
 }
 
-int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name)
+static int lancer_cmd_delete_object(struct be_adapter *adapter,
+				    const char *obj_name)
 {
 	struct lancer_cmd_req_delete_object *req;
 	struct be_mcc_wrb *wrb;
@@ -2485,9 +2474,9 @@ err_unlock:
 	return status;
 }
 
-int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			  u32 flash_type, u32 flash_opcode, u32 img_offset,
-			  u32 buf_size)
+static int be_cmd_write_flashrom(struct be_adapter *adapter,
+				 struct be_dma_mem *cmd, u32 flash_type,
+				 u32 flash_opcode, u32 img_offset, u32 buf_size)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_write_flashrom *req;
@@ -2533,8 +2522,8 @@ err_unlock:
 	return status;
 }
 
-int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 u16 img_optype, u32 img_offset, u32 crc_offset)
+static int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
+				u16 img_optype, u32 img_offset, u32 crc_offset)
 {
 	struct be_cmd_read_flash_crc *req;
 	struct be_mcc_wrb *wrb;
@@ -2568,6 +2557,579 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+static char flash_cookie[2][16] = {"*** SE FLAS", "H DIRECTORY *** "};
+
+static bool phy_flashing_required(struct be_adapter *adapter)
+{
+	return (adapter->phy.phy_type == PHY_TYPE_TN_8022 &&
+		adapter->phy.interface_type == PHY_TYPE_BASET_10GB);
+}
+
+static bool is_comp_in_ufi(struct be_adapter *adapter,
+			   struct flash_section_info *fsec, int type)
+{
+	int i = 0, img_type = 0;
+	struct flash_section_info_g2 *fsec_g2 = NULL;
+
+	if (BE2_chip(adapter))
+		fsec_g2 = (struct flash_section_info_g2 *)fsec;
+
+	for (i = 0; i < MAX_FLASH_COMP; i++) {
+		if (fsec_g2)
+			img_type = le32_to_cpu(fsec_g2->fsec_entry[i].type);
+		else
+			img_type = le32_to_cpu(fsec->fsec_entry[i].type);
+
+		if (img_type == type)
+			return true;
+	}
+	return false;
+}
+
+static struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
+						int header_size,
+						const struct firmware *fw)
+{
+	struct flash_section_info *fsec = NULL;
+	const u8 *p = fw->data;
+
+	p += header_size;
+	while (p < (fw->data + fw->size)) {
+		fsec = (struct flash_section_info *)p;
+		if (!memcmp(flash_cookie, fsec->cookie, sizeof(flash_cookie)))
+			return fsec;
+		p += 32;
+	}
+	return NULL;
+}
+
+static int be_check_flash_crc(struct be_adapter *adapter, const u8 *p,
+			      u32 img_offset, u32 img_size, int hdr_size,
+			      u16 img_optype, bool *crc_match)
+{
+	u32 crc_offset;
+	int status;
+	u8 crc[4];
+
+	status = be_cmd_get_flash_crc(adapter, crc, img_optype, img_offset,
+				      img_size - 4);
+	if (status)
+		return status;
+
+	crc_offset = hdr_size + img_offset + img_size - 4;
+
+	/* Skip flashing, if crc of flashed region matches */
+	if (!memcmp(crc, p + crc_offset, 4))
+		*crc_match = true;
+	else
+		*crc_match = false;
+
+	return status;
+}
+
+static int be_flash(struct be_adapter *adapter, const u8 *img,
+		    struct be_dma_mem *flash_cmd, int optype, int img_size,
+		    u32 img_offset)
+{
+	u32 flash_op, num_bytes, total_bytes = img_size, bytes_sent = 0;
+	struct be_cmd_write_flashrom *req = flash_cmd->va;
+	int status;
+
+	while (total_bytes) {
+		num_bytes = min_t(u32, 32 * 1024, total_bytes);
+
+		total_bytes -= num_bytes;
+
+		if (!total_bytes) {
+			if (optype == OPTYPE_PHY_FW)
+				flash_op = FLASHROM_OPER_PHY_FLASH;
+			else
+				flash_op = FLASHROM_OPER_FLASH;
+		} else {
+			if (optype == OPTYPE_PHY_FW)
+				flash_op = FLASHROM_OPER_PHY_SAVE;
+			else
+				flash_op = FLASHROM_OPER_SAVE;
+		}
+
+		memcpy(req->data_buf, img, num_bytes);
+		img += num_bytes;
+		status = be_cmd_write_flashrom(adapter, flash_cmd, optype,
+					       flash_op, img_offset +
+					       bytes_sent, num_bytes);
+		if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST &&
+		    optype == OPTYPE_PHY_FW)
+			break;
+		else if (status)
+			return status;
+
+		bytes_sent += num_bytes;
+	}
+	return 0;
+}
+
+/* For BE2, BE3 and BE3-R */
+static int be_flash_BEx(struct be_adapter *adapter,
+			const struct firmware *fw,
+			struct be_dma_mem *flash_cmd, int num_of_images)
+{
+	int img_hdrs_size = (num_of_images * sizeof(struct image_hdr));
+	struct device *dev = &adapter->pdev->dev;
+	struct flash_section_info *fsec = NULL;
+	int status, i, filehdr_size, num_comp;
+	const struct flash_comp *pflashcomp;
+	bool crc_match;
+	const u8 *p;
+
+	struct flash_comp gen3_flash_types[] = {
+		{ BE3_ISCSI_PRIMARY_IMAGE_START, OPTYPE_ISCSI_ACTIVE,
+			BE3_COMP_MAX_SIZE, IMAGE_FIRMWARE_ISCSI},
+		{ BE3_REDBOOT_START, OPTYPE_REDBOOT,
+			BE3_REDBOOT_COMP_MAX_SIZE, IMAGE_BOOT_CODE},
+		{ BE3_ISCSI_BIOS_START, OPTYPE_BIOS,
+			BE3_BIOS_COMP_MAX_SIZE, IMAGE_OPTION_ROM_ISCSI},
+		{ BE3_PXE_BIOS_START, OPTYPE_PXE_BIOS,
+			BE3_BIOS_COMP_MAX_SIZE, IMAGE_OPTION_ROM_PXE},
+		{ BE3_FCOE_BIOS_START, OPTYPE_FCOE_BIOS,
+			BE3_BIOS_COMP_MAX_SIZE, IMAGE_OPTION_ROM_FCOE},
+		{ BE3_ISCSI_BACKUP_IMAGE_START, OPTYPE_ISCSI_BACKUP,
+			BE3_COMP_MAX_SIZE, IMAGE_FIRMWARE_BACKUP_ISCSI},
+		{ BE3_FCOE_PRIMARY_IMAGE_START, OPTYPE_FCOE_FW_ACTIVE,
+			BE3_COMP_MAX_SIZE, IMAGE_FIRMWARE_FCOE},
+		{ BE3_FCOE_BACKUP_IMAGE_START, OPTYPE_FCOE_FW_BACKUP,
+			BE3_COMP_MAX_SIZE, IMAGE_FIRMWARE_BACKUP_FCOE},
+		{ BE3_NCSI_START, OPTYPE_NCSI_FW,
+			BE3_NCSI_COMP_MAX_SIZE, IMAGE_NCSI},
+		{ BE3_PHY_FW_START, OPTYPE_PHY_FW,
+			BE3_PHY_FW_COMP_MAX_SIZE, IMAGE_FIRMWARE_PHY}
+	};
+
+	struct flash_comp gen2_flash_types[] = {
+		{ BE2_ISCSI_PRIMARY_IMAGE_START, OPTYPE_ISCSI_ACTIVE,
+			BE2_COMP_MAX_SIZE, IMAGE_FIRMWARE_ISCSI},
+		{ BE2_REDBOOT_START, OPTYPE_REDBOOT,
+			BE2_REDBOOT_COMP_MAX_SIZE, IMAGE_BOOT_CODE},
+		{ BE2_ISCSI_BIOS_START, OPTYPE_BIOS,
+			BE2_BIOS_COMP_MAX_SIZE, IMAGE_OPTION_ROM_ISCSI},
+		{ BE2_PXE_BIOS_START, OPTYPE_PXE_BIOS,
+			BE2_BIOS_COMP_MAX_SIZE, IMAGE_OPTION_ROM_PXE},
+		{ BE2_FCOE_BIOS_START, OPTYPE_FCOE_BIOS,
+			BE2_BIOS_COMP_MAX_SIZE, IMAGE_OPTION_ROM_FCOE},
+		{ BE2_ISCSI_BACKUP_IMAGE_START, OPTYPE_ISCSI_BACKUP,
+			BE2_COMP_MAX_SIZE, IMAGE_FIRMWARE_BACKUP_ISCSI},
+		{ BE2_FCOE_PRIMARY_IMAGE_START, OPTYPE_FCOE_FW_ACTIVE,
+			BE2_COMP_MAX_SIZE, IMAGE_FIRMWARE_FCOE},
+		{ BE2_FCOE_BACKUP_IMAGE_START, OPTYPE_FCOE_FW_BACKUP,
+			 BE2_COMP_MAX_SIZE, IMAGE_FIRMWARE_BACKUP_FCOE}
+	};
+
+	if (BE3_chip(adapter)) {
+		pflashcomp = gen3_flash_types;
+		filehdr_size = sizeof(struct flash_file_hdr_g3);
+		num_comp = ARRAY_SIZE(gen3_flash_types);
+	} else {
+		pflashcomp = gen2_flash_types;
+		filehdr_size = sizeof(struct flash_file_hdr_g2);
+		num_comp = ARRAY_SIZE(gen2_flash_types);
+		img_hdrs_size = 0;
+	}
+
+	/* Get flash section info*/
+	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
+	if (!fsec) {
+		dev_err(dev, "Invalid Cookie. FW image may be corrupted\n");
+		return -1;
+	}
+	for (i = 0; i < num_comp; i++) {
+		if (!is_comp_in_ufi(adapter, fsec, pflashcomp[i].img_type))
+			continue;
+
+		if ((pflashcomp[i].optype == OPTYPE_NCSI_FW) &&
+		    memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+			continue;
+
+		if (pflashcomp[i].optype == OPTYPE_PHY_FW  &&
+		    !phy_flashing_required(adapter))
+			continue;
+
+		if (pflashcomp[i].optype == OPTYPE_REDBOOT) {
+			status = be_check_flash_crc(adapter, fw->data,
+						    pflashcomp[i].offset,
+						    pflashcomp[i].size,
+						    filehdr_size +
+						    img_hdrs_size,
+						    OPTYPE_REDBOOT, &crc_match);
+			if (status) {
+				dev_err(dev,
+					"Could not get CRC for 0x%x region\n",
+					pflashcomp[i].optype);
+				continue;
+			}
+
+			if (crc_match)
+				continue;
+		}
+
+		p = fw->data + filehdr_size + pflashcomp[i].offset +
+			img_hdrs_size;
+		if (p + pflashcomp[i].size > fw->data + fw->size)
+			return -1;
+
+		status = be_flash(adapter, p, flash_cmd, pflashcomp[i].optype,
+				  pflashcomp[i].size, 0);
+		if (status) {
+			dev_err(dev, "Flashing section type 0x%x failed\n",
+				pflashcomp[i].img_type);
+			return status;
+		}
+	}
+	return 0;
+}
+
+static u16 be_get_img_optype(struct flash_section_entry fsec_entry)
+{
+	u32 img_type = le32_to_cpu(fsec_entry.type);
+	u16 img_optype = le16_to_cpu(fsec_entry.optype);
+
+	if (img_optype != 0xFFFF)
+		return img_optype;
+
+	switch (img_type) {
+	case IMAGE_FIRMWARE_ISCSI:
+		img_optype = OPTYPE_ISCSI_ACTIVE;
+		break;
+	case IMAGE_BOOT_CODE:
+		img_optype = OPTYPE_REDBOOT;
+		break;
+	case IMAGE_OPTION_ROM_ISCSI:
+		img_optype = OPTYPE_BIOS;
+		break;
+	case IMAGE_OPTION_ROM_PXE:
+		img_optype = OPTYPE_PXE_BIOS;
+		break;
+	case IMAGE_OPTION_ROM_FCOE:
+		img_optype = OPTYPE_FCOE_BIOS;
+		break;
+	case IMAGE_FIRMWARE_BACKUP_ISCSI:
+		img_optype = OPTYPE_ISCSI_BACKUP;
+		break;
+	case IMAGE_NCSI:
+		img_optype = OPTYPE_NCSI_FW;
+		break;
+	case IMAGE_FLASHISM_JUMPVECTOR:
+		img_optype = OPTYPE_FLASHISM_JUMPVECTOR;
+		break;
+	case IMAGE_FIRMWARE_PHY:
+		img_optype = OPTYPE_SH_PHY_FW;
+		break;
+	case IMAGE_REDBOOT_DIR:
+		img_optype = OPTYPE_REDBOOT_DIR;
+		break;
+	case IMAGE_REDBOOT_CONFIG:
+		img_optype = OPTYPE_REDBOOT_CONFIG;
+		break;
+	case IMAGE_UFI_DIR:
+		img_optype = OPTYPE_UFI_DIR;
+		break;
+	default:
+		break;
+	}
+
+	return img_optype;
+}
+
+static int be_flash_skyhawk(struct be_adapter *adapter,
+			    const struct firmware *fw,
+			    struct be_dma_mem *flash_cmd, int num_of_images)
+{
+	int img_hdrs_size = num_of_images * sizeof(struct image_hdr);
+	bool crc_match, old_fw_img, flash_offset_support = true;
+	struct device *dev = &adapter->pdev->dev;
+	struct flash_section_info *fsec = NULL;
+	u32 img_offset, img_size, img_type;
+	u16 img_optype, flash_optype;
+	int status, i, filehdr_size;
+	const u8 *p;
+
+	filehdr_size = sizeof(struct flash_file_hdr_g3);
+	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
+	if (!fsec) {
+		dev_err(dev, "Invalid Cookie. FW image may be corrupted\n");
+		return -EINVAL;
+	}
+
+retry_flash:
+	for (i = 0; i < le32_to_cpu(fsec->fsec_hdr.num_images); i++) {
+		img_offset = le32_to_cpu(fsec->fsec_entry[i].offset);
+		img_size   = le32_to_cpu(fsec->fsec_entry[i].pad_size);
+		img_type   = le32_to_cpu(fsec->fsec_entry[i].type);
+		img_optype = be_get_img_optype(fsec->fsec_entry[i]);
+		old_fw_img = fsec->fsec_entry[i].optype == 0xFFFF;
+
+		if (img_optype == 0xFFFF)
+			continue;
+
+		if (flash_offset_support)
+			flash_optype = OPTYPE_OFFSET_SPECIFIED;
+		else
+			flash_optype = img_optype;
+
+		/* Don't bother verifying CRC if an old FW image is being
+		 * flashed
+		 */
+		if (old_fw_img)
+			goto flash;
+
+		status = be_check_flash_crc(adapter, fw->data, img_offset,
+					    img_size, filehdr_size +
+					    img_hdrs_size, flash_optype,
+					    &crc_match);
+		if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST ||
+		    base_status(status) == MCC_STATUS_ILLEGAL_FIELD) {
+			/* The current FW image on the card does not support
+			 * OFFSET based flashing. Retry using older mechanism
+			 * of OPTYPE based flashing
+			 */
+			if (flash_optype == OPTYPE_OFFSET_SPECIFIED) {
+				flash_offset_support = false;
+				goto retry_flash;
+			}
+
+			/* The current FW image on the card does not recognize
+			 * the new FLASH op_type. The FW download is partially
+			 * complete. Reboot the server now to enable FW image
+			 * to recognize the new FLASH op_type. To complete the
+			 * remaining process, download the same FW again after
+			 * the reboot.
+			 */
+			dev_err(dev, "Flash incomplete. Reset the server\n");
+			dev_err(dev, "Download FW image again after reset\n");
+			return -EAGAIN;
+		} else if (status) {
+			dev_err(dev, "Could not get CRC for 0x%x region\n",
+				img_optype);
+			return -EFAULT;
+		}
+
+		if (crc_match)
+			continue;
+
+flash:
+		p = fw->data + filehdr_size + img_offset + img_hdrs_size;
+		if (p + img_size > fw->data + fw->size)
+			return -1;
+
+		status = be_flash(adapter, p, flash_cmd, flash_optype, img_size,
+				  img_offset);
+
+		/* The current FW image on the card does not support OFFSET
+		 * based flashing. Retry using older mechanism of OPTYPE based
+		 * flashing
+		 */
+		if (base_status(status) == MCC_STATUS_ILLEGAL_FIELD &&
+		    flash_optype == OPTYPE_OFFSET_SPECIFIED) {
+			flash_offset_support = false;
+			goto retry_flash;
+		}
+
+		/* For old FW images ignore ILLEGAL_FIELD error or errors on
+		 * UFI_DIR region
+		 */
+		if (old_fw_img &&
+		    (base_status(status) == MCC_STATUS_ILLEGAL_FIELD ||
+		     (img_optype == OPTYPE_UFI_DIR &&
+		      base_status(status) == MCC_STATUS_FAILED))) {
+			continue;
+		} else if (status) {
+			dev_err(dev, "Flashing section type 0x%x failed\n",
+				img_type);
+
+			switch (addl_status(status)) {
+			case MCC_ADDL_STATUS_MISSING_SIGNATURE:
+				dev_err(dev,
+					"Digital signature missing in FW\n");
+				return -EINVAL;
+			case MCC_ADDL_STATUS_INVALID_SIGNATURE:
+				dev_err(dev,
+					"Invalid digital signature in FW\n");
+				return -EINVAL;
+			default:
+				return -EFAULT;
+			}
+		}
+	}
+	return 0;
+}
+
+int lancer_fw_download(struct be_adapter *adapter,
+		       const struct firmware *fw)
+{
+	struct device *dev = &adapter->pdev->dev;
+	struct be_dma_mem flash_cmd;
+	const u8 *data_ptr = NULL;
+	u8 *dest_image_ptr = NULL;
+	size_t image_size = 0;
+	u32 chunk_size = 0;
+	u32 data_written = 0;
+	u32 offset = 0;
+	int status = 0;
+	u8 add_status = 0;
+	u8 change_status;
+
+	if (!IS_ALIGNED(fw->size, sizeof(u32))) {
+		dev_err(dev, "FW image size should be multiple of 4\n");
+		return -EINVAL;
+	}
+
+	flash_cmd.size = sizeof(struct lancer_cmd_req_write_object)
+				+ LANCER_FW_DOWNLOAD_CHUNK;
+	flash_cmd.va = dma_zalloc_coherent(dev, flash_cmd.size,
+					   &flash_cmd.dma, GFP_KERNEL);
+	if (!flash_cmd.va)
+		return -ENOMEM;
+
+	dest_image_ptr = flash_cmd.va +
+				sizeof(struct lancer_cmd_req_write_object);
+	image_size = fw->size;
+	data_ptr = fw->data;
+
+	while (image_size) {
+		chunk_size = min_t(u32, image_size, LANCER_FW_DOWNLOAD_CHUNK);
+
+		/* Copy the image chunk content. */
+		memcpy(dest_image_ptr, data_ptr, chunk_size);
+
+		status = lancer_cmd_write_object(adapter, &flash_cmd,
+						 chunk_size, offset,
+						 LANCER_FW_DOWNLOAD_LOCATION,
+						 &data_written, &change_status,
+						 &add_status);
+		if (status)
+			break;
+
+		offset += data_written;
+		data_ptr += data_written;
+		image_size -= data_written;
+	}
+
+	if (!status) {
+		/* Commit the FW written */
+		status = lancer_cmd_write_object(adapter, &flash_cmd,
+						 0, offset,
+						 LANCER_FW_DOWNLOAD_LOCATION,
+						 &data_written, &change_status,
+						 &add_status);
+	}
+
+	dma_free_coherent(dev, flash_cmd.size, flash_cmd.va, flash_cmd.dma);
+	if (status) {
+		dev_err(dev, "Firmware load error\n");
+		return be_cmd_status(status);
+	}
+
+	dev_info(dev, "Firmware flashed successfully\n");
+
+	if (change_status == LANCER_FW_RESET_NEEDED) {
+		dev_info(dev, "Resetting adapter to activate new FW\n");
+		status = lancer_physdev_ctrl(adapter,
+					     PHYSDEV_CONTROL_FW_RESET_MASK);
+		if (status) {
+			dev_err(dev, "Adapter busy, could not reset FW\n");
+			dev_err(dev, "Reboot server to activate new FW\n");
+		}
+	} else if (change_status != LANCER_NO_RESET_NEEDED) {
+		dev_info(dev, "Reboot server to activate new FW\n");
+	}
+
+	return 0;
+}
+
+/* Check if the flash image file is compatible with the adapter that
+ * is being flashed.
+ */
+static bool be_check_ufi_compatibility(struct be_adapter *adapter,
+				       struct flash_file_hdr_g3 *fhdr)
+{
+	if (!fhdr) {
+		dev_err(&adapter->pdev->dev, "Invalid FW UFI file");
+		return false;
+	}
+
+	/* First letter of the build version is used to identify
+	 * which chip this image file is meant for.
+	 */
+	switch (fhdr->build[0]) {
+	case BLD_STR_UFI_TYPE_SH:
+		if (!skyhawk_chip(adapter))
+			return false;
+		break;
+	case BLD_STR_UFI_TYPE_BE3:
+		if (!BE3_chip(adapter))
+			return false;
+		break;
+	case BLD_STR_UFI_TYPE_BE2:
+		if (!BE2_chip(adapter))
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	/* In BE3 FW images the "asic_type_rev" field doesn't track the
+	 * asic_rev of the chips it is compatible with.
+	 * When asic_type_rev is 0 the image is compatible only with
+	 * pre-BE3-R chips (asic_rev < 0x10)
+	 */
+	if (BEx_chip(adapter) && fhdr->asic_type_rev == 0)
+		return adapter->asic_rev < 0x10;
+	else
+		return (fhdr->asic_type_rev >= adapter->asic_rev);
+}
+
+int be_fw_download(struct be_adapter *adapter, const struct firmware *fw)
+{
+	struct device *dev = &adapter->pdev->dev;
+	struct flash_file_hdr_g3 *fhdr3;
+	struct image_hdr *img_hdr_ptr;
+	int status = 0, i, num_imgs;
+	struct be_dma_mem flash_cmd;
+
+	fhdr3 = (struct flash_file_hdr_g3 *)fw->data;
+	if (!be_check_ufi_compatibility(adapter, fhdr3)) {
+		dev_err(dev, "Flash image is not compatible with adapter\n");
+		return -EINVAL;
+	}
+
+	flash_cmd.size = sizeof(struct be_cmd_write_flashrom);
+	flash_cmd.va = dma_zalloc_coherent(dev, flash_cmd.size, &flash_cmd.dma,
+					   GFP_KERNEL);
+	if (!flash_cmd.va)
+		return -ENOMEM;
+
+	num_imgs = le32_to_cpu(fhdr3->num_imgs);
+	for (i = 0; i < num_imgs; i++) {
+		img_hdr_ptr = (struct image_hdr *)(fw->data +
+				(sizeof(struct flash_file_hdr_g3) +
+				 i * sizeof(struct image_hdr)));
+		if (!BE2_chip(adapter) &&
+		    le32_to_cpu(img_hdr_ptr->imageid) != 1)
+			continue;
+
+		if (skyhawk_chip(adapter))
+			status = be_flash_skyhawk(adapter, fw, &flash_cmd,
+						  num_imgs);
+		else
+			status = be_flash_BEx(adapter, fw, &flash_cmd,
+					      num_imgs);
+	}
+
+	dma_free_coherent(dev, flash_cmd.size, flash_cmd.va, flash_cmd.dma);
+	if (!status)
+		dev_info(dev, "Firmware flashed successfully\n");
+
 	return status;
 }
 
@@ -2892,7 +3454,6 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 	if (!status) {
 		attribs = attribs_cmd.va + sizeof(struct be_cmd_resp_hdr);
 		adapter->hba_port_num = attribs->hba_attribs.phy_port;
-		adapter->pci_func_num = attribs->pci_func_num;
 		serial_num = attribs->hba_attribs.controller_serial_number;
 		for (i = 0; i < CNTL_SERIAL_NUM_WORDS; i++)
 			adapter->serial_num[i] = le32_to_cpu(serial_num[i]) &
@@ -3575,14 +4136,16 @@ int be_cmd_query_port_name(struct be_adapter *adapter)
 	return status;
 }
 
-/* Descriptor type */
-enum {
-	FUNC_DESC = 1,
-	VFT_DESC = 2
-};
-
+/* When more than 1 NIC descriptor is present in the descriptor list,
+ * the caller must specify the pf_num to obtain the NIC descriptor
+ * corresponding to its pci function.
+ * get_vft must be true when the caller wants the VF-template desc of the
+ * PF-pool.
+ * The pf_num should be set to PF_NUM_IGNORE when the caller knows
+ * that only it's NIC descriptor is present in the descriptor list.
+ */
 static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
-					       int desc_type)
+					       bool get_vft, u8 pf_num)
 {
 	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
 	struct be_nic_res_desc *nic;
@@ -3592,40 +4155,42 @@ static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
 		if (hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
 		    hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V1) {
 			nic = (struct be_nic_res_desc *)hdr;
-			if (desc_type == FUNC_DESC ||
-			    (desc_type == VFT_DESC &&
-			     nic->flags & (1 << VFT_SHIFT)))
+
+			if ((pf_num == PF_NUM_IGNORE ||
+			     nic->pf_num == pf_num) &&
+			    (!get_vft || nic->flags & BIT(VFT_SHIFT)))
 				return nic;
 		}
-
 		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
 		hdr = (void *)hdr + hdr->desc_len;
 	}
 	return NULL;
 }
 
-static struct be_nic_res_desc *be_get_vft_desc(u8 *buf, u32 desc_count)
+static struct be_nic_res_desc *be_get_vft_desc(u8 *buf, u32 desc_count,
+					       u8 pf_num)
 {
-	return be_get_nic_desc(buf, desc_count, VFT_DESC);
+	return be_get_nic_desc(buf, desc_count, true, pf_num);
 }
 
-static struct be_nic_res_desc *be_get_func_nic_desc(u8 *buf, u32 desc_count)
+static struct be_nic_res_desc *be_get_func_nic_desc(u8 *buf, u32 desc_count,
+						    u8 pf_num)
 {
-	return be_get_nic_desc(buf, desc_count, FUNC_DESC);
+	return be_get_nic_desc(buf, desc_count, false, pf_num);
 }
 
-static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
-						 u32 desc_count)
+static struct be_pcie_res_desc *be_get_pcie_desc(u8 *buf, u32 desc_count,
+						 u8 pf_num)
 {
 	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
 	struct be_pcie_res_desc *pcie;
 	int i;
 
 	for (i = 0; i < desc_count; i++) {
-		if ((hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V0 ||
-		     hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V1)) {
-			pcie = (struct be_pcie_res_desc	*)hdr;
-			if (pcie->pf_num == devfn)
+		if (hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V0 ||
+		    hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V1) {
+			pcie = (struct be_pcie_res_desc *)hdr;
+			if (pcie->pf_num == pf_num)
 				return pcie;
 		}
 
@@ -3710,13 +4275,23 @@ int be_cmd_get_func_config(struct be_adapter *adapter, struct be_resources *res)
 		u32 desc_count = le32_to_cpu(resp->desc_count);
 		struct be_nic_res_desc *desc;
 
-		desc = be_get_func_nic_desc(resp->func_param, desc_count);
+		/* GET_FUNC_CONFIG returns resource descriptors of the
+		 * current function only. So, pf_num should be set to
+		 * PF_NUM_IGNORE.
+		 */
+		desc = be_get_func_nic_desc(resp->func_param, desc_count,
+					    PF_NUM_IGNORE);
 		if (!desc) {
 			status = -EINVAL;
 			goto err;
 		}
-		adapter->pf_number = desc->pf_num;
-		be_copy_nic_desc(res, desc);
+
+		/* Store pf_num & vf_num for later use in GET_PROFILE_CONFIG */
+		adapter->pf_num = desc->pf_num;
+		adapter->vf_num = desc->vf_num;
+
+		if (res)
+			be_copy_nic_desc(res, desc);
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);
@@ -3726,10 +4301,7 @@ err:
 	return status;
 }
 
-/* Will use MBOX only if MCCQ has not been created
- * non-zero domain => a PF is querying this on behalf of a VF
- * zero domain => a PF or a VF is querying this for itself
- */
+/* Will use MBOX only if MCCQ has not been created */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 query, u8 domain)
 {
@@ -3759,12 +4331,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (!lancer_chip(adapter))
 		req->hdr.version = 1;
 	req->type = ACTIVE_PROFILE_TYPE;
-	/* When a function is querying profile information relating to
-	 * itself hdr.pf_number must be set to it's pci_func_num + 1
-	 */
 	req->hdr.domain = domain;
-	if (domain == 0)
-		req->hdr.pf_num = adapter->pci_func_num + 1;
 
 	/* When QUERY_MODIFIABLE_FIELDS_TYPE bit is set, cmd returns the
 	 * descriptors with all bits set to "1" for the fields which can be
@@ -3780,8 +4347,8 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	resp = cmd.va;
 	desc_count = le16_to_cpu(resp->desc_count);
 
-	pcie = be_get_pcie_desc(adapter->pdev->devfn, resp->func_param,
-				desc_count);
+	pcie = be_get_pcie_desc(resp->func_param, desc_count,
+				adapter->pf_num);
 	if (pcie)
 		res->max_vfs = le16_to_cpu(pcie->num_vfs);
 
@@ -3789,11 +4356,13 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (port)
 		adapter->mc_type = port->mc_type;
 
-	nic = be_get_func_nic_desc(resp->func_param, desc_count);
+	nic = be_get_func_nic_desc(resp->func_param, desc_count,
+				   adapter->pf_num);
 	if (nic)
 		be_copy_nic_desc(res, nic);
 
-	vf_res = be_get_vft_desc(resp->func_param, desc_count);
+	vf_res = be_get_vft_desc(resp->func_param, desc_count,
+				 adapter->pf_num);
 	if (vf_res)
 		res->vf_if_cap_flags = vf_res->cap_flags;
 err:
@@ -3883,7 +4452,7 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 		return be_cmd_set_qos(adapter, max_rate / 10, domain);
 
 	be_reset_nic_desc(&nic_desc);
-	nic_desc.pf_num = adapter->pf_number;
+	nic_desc.pf_num = adapter->pf_num;
 	nic_desc.vf_num = domain;
 	nic_desc.bw_min = 0;
 	if (lancer_chip(adapter)) {
@@ -4260,15 +4829,12 @@ err:
 	return status;
 }
 
-int be_cmd_set_logical_link_config(struct be_adapter *adapter,
-				   int link_state, u8 domain)
+int __be_cmd_set_logical_link_config(struct be_adapter *adapter,
+				     int link_state, int version, u8 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_ll_link *req;
 	int status;
-
-	if (BEx_chip(adapter) || lancer_chip(adapter))
-		return -EOPNOTSUPP;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -4284,14 +4850,15 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 			       OPCODE_COMMON_SET_LOGICAL_LINK_CONFIG,
 			       sizeof(*req), wrb, NULL);
 
-	req->hdr.version = 1;
+	req->hdr.version = version;
 	req->hdr.domain = domain;
 
-	if (link_state == IFLA_VF_LINK_STATE_ENABLE)
-		req->link_config |= 1;
+	if (link_state == IFLA_VF_LINK_STATE_ENABLE ||
+	    link_state == IFLA_VF_LINK_STATE_AUTO)
+		req->link_config |= PLINK_ENABLE;
 
 	if (link_state == IFLA_VF_LINK_STATE_AUTO)
-		req->link_config |= 1 << PLINK_TRACK_SHIFT;
+		req->link_config |= PLINK_TRACK;
 
 	status = be_mcc_notify_wait(adapter);
 err:
@@ -4299,6 +4866,25 @@ err:
 	return status;
 }
 
+int be_cmd_set_logical_link_config(struct be_adapter *adapter,
+				   int link_state, u8 domain)
+{
+	int status;
+
+	if (BEx_chip(adapter))
+		return -EOPNOTSUPP;
+
+	status = __be_cmd_set_logical_link_config(adapter, link_state,
+						  2, domain);
+
+	/* Version 2 of the command will not be recognized by older FW.
+	 * On such a failure issue version 1 of the command.
+	 */
+	if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST)
+		status = __be_cmd_set_logical_link_config(adapter, link_state,
+							  1, domain);
+	return status;
+}
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 		    int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {

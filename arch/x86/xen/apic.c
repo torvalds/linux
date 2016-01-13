@@ -64,7 +64,7 @@ static u32 xen_apic_read(u32 reg)
 	if (reg != APIC_ID)
 		return 0;
 
-	ret = HYPERVISOR_dom0_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
 	if (ret)
 		return 0;
 

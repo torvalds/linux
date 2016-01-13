@@ -96,18 +96,6 @@ static inline int extent_equal(struct interval_node_extent *e1,
 	return (e1->start == e2->start) && (e1->end == e2->end);
 }
 
-static inline int node_compare(struct interval_node *n1,
-			       struct interval_node *n2)
-{
-	return extent_compare(&n1->in_extent, &n2->in_extent);
-}
-
-static inline int node_equal(struct interval_node *n1,
-			     struct interval_node *n2)
-{
-	return extent_equal(&n1->in_extent, &n2->in_extent);
-}
-
 static inline __u64 max_u64(__u64 x, __u64 y)
 {
 	return x > y ? x : y;
@@ -278,14 +266,14 @@ struct interval_node *interval_insert(struct interval_node *node,
 	p = root;
 	while (*p) {
 		parent = *p;
-		if (node_equal(parent, node))
+		if (extent_equal(&parent->in_extent, &node->in_extent))
 			return parent;
 
 		/* max_high field must be updated after each iteration */
 		if (parent->in_max_high < interval_high(node))
 			parent->in_max_high = interval_high(node);
 
-		if (node_compare(node, parent) < 0)
+		if (extent_compare(&node->in_extent, &parent->in_extent) < 0)
 			p = &parent->in_left;
 		else
 			p = &parent->in_right;

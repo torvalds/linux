@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -270,8 +270,8 @@ void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
 void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
 
 #define OBT(dev)	(dev)->obd_type
-#define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->o_ ## op
-#define MDP(dev, op)    (dev)->obd_type->typ_md_ops->m_ ## op
+#define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->op
+#define MDP(dev, op)    (dev)->obd_type->typ_md_ops->op
 #define CTXTP(ctxt, op) (ctxt)->loc_logops->lop_##op
 
 /* Ensure obd_setup: used for cleanup which must be called
@@ -301,9 +301,9 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 }
 
 #define OBD_COUNTER_OFFSET(op)				  \
-	((offsetof(struct obd_ops, o_ ## op) -		  \
-	  offsetof(struct obd_ops, o_iocontrol))		\
-	 / sizeof(((struct obd_ops *)(0))->o_iocontrol))
+	((offsetof(struct obd_ops, op) -		  \
+	  offsetof(struct obd_ops, iocontrol))		\
+	 / sizeof(((struct obd_ops *)(0))->iocontrol))
 
 #define OBD_COUNTER_INCREMENT(obdx, op)			   \
 	if ((obdx)->obd_stats != NULL) {			  \
@@ -324,9 +324,9 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	}
 
 #define MD_COUNTER_OFFSET(op)				   \
-	((offsetof(struct md_ops, m_ ## op) -		   \
-	  offsetof(struct md_ops, m_getstatus))		 \
-	 / sizeof(((struct md_ops *)(0))->m_getstatus))
+	((offsetof(struct md_ops, op) -		   \
+	  offsetof(struct md_ops, getstatus))		 \
+	 / sizeof(((struct md_ops *)(0))->getstatus))
 
 #define MD_COUNTER_INCREMENT(obdx, op)			   \
 	if ((obd)->md_stats != NULL) {			   \

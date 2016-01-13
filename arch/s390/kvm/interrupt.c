@@ -34,6 +34,106 @@
 #define PFAULT_DONE 0x0680
 #define VIRTIO_PARAM 0x0d00
 
+/* handle external calls via sigp interpretation facility */
+static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
+{
+	int c, scn;
+
+	if (!(atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND))
+		return 0;
+
+	read_lock(&vcpu->kvm->arch.sca_lock);
+	if (vcpu->kvm->arch.use_esca) {
+		struct esca_block *sca = vcpu->kvm->arch.sca;
+		union esca_sigp_ctrl sigp_ctrl =
+			sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+
+		c = sigp_ctrl.c;
+		scn = sigp_ctrl.scn;
+	} else {
+		struct bsca_block *sca = vcpu->kvm->arch.sca;
+		union bsca_sigp_ctrl sigp_ctrl =
+			sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+
+		c = sigp_ctrl.c;
+		scn = sigp_ctrl.scn;
+	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
+
+	if (src_id)
+		*src_id = scn;
+
+	return c;
+}
+
+static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
+{
+	int expect, rc;
+
+	read_lock(&vcpu->kvm->arch.sca_lock);
+	if (vcpu->kvm->arch.use_esca) {
+		struct esca_block *sca = vcpu->kvm->arch.sca;
+		union esca_sigp_ctrl *sigp_ctrl =
+			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
+		union esca_sigp_ctrl new_val = {0}, old_val = *sigp_ctrl;
+
+		new_val.scn = src_id;
+		new_val.c = 1;
+		old_val.c = 0;
+
+		expect = old_val.value;
+		rc = cmpxchg(&sigp_ctrl->value, old_val.value, new_val.value);
+	} else {
+		struct bsca_block *sca = vcpu->kvm->arch.sca;
+		union bsca_sigp_ctrl *sigp_ctrl =
+			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
+		union bsca_sigp_ctrl new_val = {0}, old_val = *sigp_ctrl;
+
+		new_val.scn = src_id;
+		new_val.c = 1;
+		old_val.c = 0;
+
+		expect = old_val.value;
+		rc = cmpxchg(&sigp_ctrl->value, old_val.value, new_val.value);
+	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
+
+	if (rc != expect) {
+		/* another external call is pending */
+		return -EBUSY;
+	}
+	atomic_or(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
+	return 0;
+}
+
+static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	int rc, expect;
+
+	atomic_andnot(CPUSTAT_ECALL_PEND, li->cpuflags);
+	read_lock(&vcpu->kvm->arch.sca_lock);
+	if (vcpu->kvm->arch.use_esca) {
+		struct esca_block *sca = vcpu->kvm->arch.sca;
+		union esca_sigp_ctrl *sigp_ctrl =
+			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
+		union esca_sigp_ctrl old = *sigp_ctrl;
+
+		expect = old.value;
+		rc = cmpxchg(&sigp_ctrl->value, old.value, 0);
+	} else {
+		struct bsca_block *sca = vcpu->kvm->arch.sca;
+		union bsca_sigp_ctrl *sigp_ctrl =
+			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
+		union bsca_sigp_ctrl old = *sigp_ctrl;
+
+		expect = old.value;
+		rc = cmpxchg(&sigp_ctrl->value, old.value, 0);
+	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
+	WARN_ON(rc != expect); /* cannot clear? */
+}
+
 int psw_extint_disabled(struct kvm_vcpu *vcpu)
 {
 	return !(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_EXT);
@@ -792,13 +892,11 @@ static const deliver_irq_t deliver_irq_funcs[] = {
 int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	uint8_t sigp_ctrl = vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
 	if (!sclp.has_sigpif)
 		return test_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs);
 
-	return (sigp_ctrl & SIGP_CTRL_C) &&
-	       (atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND);
+	return sca_ext_call_pending(vcpu, NULL);
 }
 
 int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
@@ -909,9 +1007,7 @@ void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
 	memset(&li->irq, 0, sizeof(li->irq));
 	spin_unlock(&li->lock);
 
-	/* clear pending external calls set by sigp interpretation facility */
-	atomic_andnot(CPUSTAT_ECALL_PEND, li->cpuflags);
-	vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl = 0;
+	sca_clear_ext_call(vcpu);
 }
 
 int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
@@ -1003,21 +1099,6 @@ static int __inject_pfault_init(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	return 0;
 }
 
-static int __inject_extcall_sigpif(struct kvm_vcpu *vcpu, uint16_t src_id)
-{
-	unsigned char new_val, old_val;
-	uint8_t *sigp_ctrl = &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
-
-	new_val = SIGP_CTRL_C | (src_id & SIGP_CTRL_SCN_MASK);
-	old_val = *sigp_ctrl & ~SIGP_CTRL_C;
-	if (cmpxchg(sigp_ctrl, old_val, new_val) != old_val) {
-		/* another external call is pending */
-		return -EBUSY;
-	}
-	atomic_or(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
-	return 0;
-}
-
 static int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
@@ -1034,7 +1115,7 @@ static int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 		return -EINVAL;
 
 	if (sclp.has_sigpif)
-		return __inject_extcall_sigpif(vcpu, src_id);
+		return sca_inject_ext_call(vcpu, src_id);
 
 	if (test_and_set_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs))
 		return -EBUSY;
@@ -2203,7 +2284,7 @@ static void store_local_irq(struct kvm_s390_local_interrupt *li,
 
 int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu, __u8 __user *buf, int len)
 {
-	uint8_t sigp_ctrl = vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+	int scn;
 	unsigned long sigp_emerg_pending[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	unsigned long pending_irqs;
@@ -2243,14 +2324,12 @@ int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu, __u8 __user *buf, int len)
 		}
 	}
 
-	if ((sigp_ctrl & SIGP_CTRL_C) &&
-	    (atomic_read(&vcpu->arch.sie_block->cpuflags) &
-	     CPUSTAT_ECALL_PEND)) {
+	if (sca_ext_call_pending(vcpu, &scn)) {
 		if (n + sizeof(irq) > len)
 			return -ENOBUFS;
 		memset(&irq, 0, sizeof(irq));
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
-		irq.u.extcall.code = sigp_ctrl & SIGP_CTRL_SCN_MASK;
+		irq.u.extcall.code = scn;
 		if (copy_to_user(&buf[n], &irq, sizeof(irq)))
 			return -EFAULT;
 		n += sizeof(irq);

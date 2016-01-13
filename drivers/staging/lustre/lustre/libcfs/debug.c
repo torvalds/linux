@@ -94,17 +94,14 @@ static struct kernel_param_ops param_ops_debugmb = {
 static unsigned int libcfs_debug_mb;
 module_param(libcfs_debug_mb, debugmb, 0644);
 MODULE_PARM_DESC(libcfs_debug_mb, "Total debug buffer size.");
-EXPORT_SYMBOL(libcfs_debug_mb);
 
 unsigned int libcfs_printk = D_CANTMASK;
 module_param(libcfs_printk, uint, 0644);
 MODULE_PARM_DESC(libcfs_printk, "Lustre kernel debug console mask");
-EXPORT_SYMBOL(libcfs_printk);
 
 unsigned int libcfs_console_ratelimit = 1;
 module_param(libcfs_console_ratelimit, uint, 0644);
 MODULE_PARM_DESC(libcfs_console_ratelimit, "Lustre kernel debug console ratelimit (0 to disable)");
-EXPORT_SYMBOL(libcfs_console_ratelimit);
 
 static int param_set_delay_minmax(const char *val,
 				  const struct kernel_param *kp,
@@ -135,9 +132,7 @@ static int param_get_delay(char *buffer, const struct kernel_param *kp)
 }
 
 unsigned int libcfs_console_max_delay;
-EXPORT_SYMBOL(libcfs_console_max_delay);
 unsigned int libcfs_console_min_delay;
-EXPORT_SYMBOL(libcfs_console_min_delay);
 
 static int param_set_console_max_delay(const char *val,
 				       const struct kernel_param *kp)
@@ -207,10 +202,8 @@ static struct kernel_param_ops param_ops_uintpos = {
 unsigned int libcfs_console_backoff = CDEBUG_DEFAULT_BACKOFF;
 module_param(libcfs_console_backoff, uintpos, 0644);
 MODULE_PARM_DESC(libcfs_console_backoff, "Lustre kernel debug console backoff factor");
-EXPORT_SYMBOL(libcfs_console_backoff);
 
 unsigned int libcfs_debug_binary = 1;
-EXPORT_SYMBOL(libcfs_debug_binary);
 
 unsigned int libcfs_stack = 3 * THREAD_SIZE / 4;
 EXPORT_SYMBOL(libcfs_stack);
@@ -221,7 +214,6 @@ EXPORT_SYMBOL(libcfs_catastrophe);
 unsigned int libcfs_panic_on_lbug = 1;
 module_param(libcfs_panic_on_lbug, uint, 0644);
 MODULE_PARM_DESC(libcfs_panic_on_lbug, "Lustre kernel panic on LBUG");
-EXPORT_SYMBOL(libcfs_panic_on_lbug);
 
 static wait_queue_head_t debug_ctlwq;
 
@@ -512,9 +504,9 @@ int libcfs_debug_init(unsigned long bufsize)
 	}
 
 	if (libcfs_debug_file_path != NULL) {
-		strncpy(libcfs_debug_file_path_arr,
-			libcfs_debug_file_path, PATH_MAX-1);
-		libcfs_debug_file_path_arr[PATH_MAX - 1] = '\0';
+		strlcpy(libcfs_debug_file_path_arr,
+			libcfs_debug_file_path,
+			sizeof(libcfs_debug_file_path_arr));
 	}
 
 	/* If libcfs_debug_mb is set to an invalid value or uninitialized
@@ -565,12 +557,3 @@ int libcfs_debug_mark_buffer(const char *text)
 
 #undef DEBUG_SUBSYSTEM
 #define DEBUG_SUBSYSTEM S_LNET
-
-void libcfs_debug_set_level(unsigned int debug_level)
-{
-	pr_warn("Lustre: Setting portals debug level to %08x\n",
-	       debug_level);
-	libcfs_debug = debug_level;
-}
-
-EXPORT_SYMBOL(libcfs_debug_set_level);

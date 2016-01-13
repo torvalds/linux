@@ -1136,8 +1136,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 			}
 		}
 
-		if (src_pad == NULL ||
-		    media_entity_type(src_pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!src_pad || !is_media_entity_v4l2_subdev(src_pad->entity))
 			break;
 
 		/* Don't call FIMC subdev operation to avoid nested locking */
@@ -1392,7 +1391,7 @@ static int fimc_link_setup(struct media_entity *entity,
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct v4l2_subdev *sensor;
 
-	if (media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!is_media_entity_v4l2_subdev(remote->entity))
 		return -EINVAL;
 
 	if (WARN_ON(fimc == NULL))
@@ -1800,7 +1799,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vid_cap->wb_fmt.code = fmt->mbus_code;
 
 	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
+	ret = media_entity_pads_init(&vfd->entity, 1, &vid_cap->vd_pad);
 	if (ret)
 		goto err_free_ctx;
 
@@ -1892,8 +1891,8 @@ int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK_CAM].flags = MEDIA_PAD_FL_SINK;
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK_FIFO].flags = MEDIA_PAD_FL_SINK;
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
-				fimc->vid_cap.sd_pads, 0);
+	ret = media_entity_pads_init(&sd->entity, FIMC_SD_PADS_NUM,
+				fimc->vid_cap.sd_pads);
 	if (ret)
 		return ret;
 

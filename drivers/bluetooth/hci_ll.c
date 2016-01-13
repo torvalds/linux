@@ -307,7 +307,7 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	BT_DBG("hu %p skb %p", hu, skb);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	/* lock hcill state */
 	spin_lock_irqsave(&ll->hcill_lock, flags);
@@ -493,7 +493,7 @@ static int ll_recv(struct hci_uart *hu, const void *data, int count)
 			return -ENOMEM;
 		}
 
-		bt_cb(ll->rx_skb)->pkt_type = type;
+		hci_skb_pkt_type(ll->rx_skb) = type;
 	}
 
 	return count;

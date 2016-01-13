@@ -49,18 +49,18 @@ struct uas_dev_info {
 };
 
 enum {
-	SUBMIT_STATUS_URB	= (1 << 1),
-	ALLOC_DATA_IN_URB	= (1 << 2),
-	SUBMIT_DATA_IN_URB	= (1 << 3),
-	ALLOC_DATA_OUT_URB	= (1 << 4),
-	SUBMIT_DATA_OUT_URB	= (1 << 5),
-	ALLOC_CMD_URB		= (1 << 6),
-	SUBMIT_CMD_URB		= (1 << 7),
-	COMMAND_INFLIGHT        = (1 << 8),
-	DATA_IN_URB_INFLIGHT    = (1 << 9),
-	DATA_OUT_URB_INFLIGHT   = (1 << 10),
-	COMMAND_ABORTED         = (1 << 11),
-	IS_IN_WORK_LIST         = (1 << 12),
+	SUBMIT_STATUS_URB	= BIT(1),
+	ALLOC_DATA_IN_URB	= BIT(2),
+	SUBMIT_DATA_IN_URB	= BIT(3),
+	ALLOC_DATA_OUT_URB	= BIT(4),
+	SUBMIT_DATA_OUT_URB	= BIT(5),
+	ALLOC_CMD_URB		= BIT(6),
+	SUBMIT_CMD_URB		= BIT(7),
+	COMMAND_INFLIGHT        = BIT(8),
+	DATA_IN_URB_INFLIGHT    = BIT(9),
+	DATA_OUT_URB_INFLIGHT   = BIT(10),
+	COMMAND_ABORTED         = BIT(11),
+	IS_IN_WORK_LIST         = BIT(12),
 };
 
 /* Overrides scsi_pointer */
@@ -74,7 +74,7 @@ struct uas_cmd_info {
 
 /* I hate forward declarations, but I actually have a loop */
 static int uas_submit_urbs(struct scsi_cmnd *cmnd,
-				struct uas_dev_info *devinfo, gfp_t gfp);
+				struct uas_dev_info *devinfo);
 static void uas_do_work(struct work_struct *work);
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
 static void uas_free_streams(struct uas_dev_info *devinfo);
@@ -105,7 +105,7 @@ static void uas_do_work(struct work_struct *work)
 		if (!(cmdinfo->state & IS_IN_WORK_LIST))
 			continue;
 
-		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
+		err = uas_submit_urbs(cmnd, cmnd->device->hostdata);
 		if (!err)
 			cmdinfo->state &= ~IS_IN_WORK_LIST;
 		else
@@ -240,7 +240,7 @@ static void uas_xfer_data(struct urb *urb, struct scsi_cmnd *cmnd,
 	int err;
 
 	cmdinfo->state |= direction | SUBMIT_STATUS_URB;
-	err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
+	err = uas_submit_urbs(cmnd, cmnd->device->hostdata);
 	if (err) {
 		uas_add_work(cmdinfo);
 	}
@@ -512,7 +512,7 @@ static struct urb *uas_submit_sense_urb(struct scsi_cmnd *cmnd, gfp_t gfp)
 }
 
 static int uas_submit_urbs(struct scsi_cmnd *cmnd,
-			   struct uas_dev_info *devinfo, gfp_t gfp)
+			   struct uas_dev_info *devinfo)
 {
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb;
@@ -520,14 +520,14 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	lockdep_assert_held(&devinfo->lock);
 	if (cmdinfo->state & SUBMIT_STATUS_URB) {
-		urb = uas_submit_sense_urb(cmnd, gfp);
+		urb = uas_submit_sense_urb(cmnd, GFP_ATOMIC);
 		if (!urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~SUBMIT_STATUS_URB;
 	}
 
 	if (cmdinfo->state & ALLOC_DATA_IN_URB) {
-		cmdinfo->data_in_urb = uas_alloc_data_urb(devinfo, gfp,
+		cmdinfo->data_in_urb = uas_alloc_data_urb(devinfo, GFP_ATOMIC,
 							cmnd, DMA_FROM_DEVICE);
 		if (!cmdinfo->data_in_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -536,7 +536,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & SUBMIT_DATA_IN_URB) {
 		usb_anchor_urb(cmdinfo->data_in_urb, &devinfo->data_urbs);
-		err = usb_submit_urb(cmdinfo->data_in_urb, gfp);
+		err = usb_submit_urb(cmdinfo->data_in_urb, GFP_ATOMIC);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->data_in_urb);
 			uas_log_cmd_state(cmnd, "data in submit err", err);
@@ -547,7 +547,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	}
 
 	if (cmdinfo->state & ALLOC_DATA_OUT_URB) {
-		cmdinfo->data_out_urb = uas_alloc_data_urb(devinfo, gfp,
+		cmdinfo->data_out_urb = uas_alloc_data_urb(devinfo, GFP_ATOMIC,
 							cmnd, DMA_TO_DEVICE);
 		if (!cmdinfo->data_out_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -556,7 +556,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & SUBMIT_DATA_OUT_URB) {
 		usb_anchor_urb(cmdinfo->data_out_urb, &devinfo->data_urbs);
-		err = usb_submit_urb(cmdinfo->data_out_urb, gfp);
+		err = usb_submit_urb(cmdinfo->data_out_urb, GFP_ATOMIC);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->data_out_urb);
 			uas_log_cmd_state(cmnd, "data out submit err", err);
@@ -567,7 +567,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	}
 
 	if (cmdinfo->state & ALLOC_CMD_URB) {
-		cmdinfo->cmd_urb = uas_alloc_cmd_urb(devinfo, gfp, cmnd);
+		cmdinfo->cmd_urb = uas_alloc_cmd_urb(devinfo, GFP_ATOMIC, cmnd);
 		if (!cmdinfo->cmd_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~ALLOC_CMD_URB;
@@ -575,7 +575,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & SUBMIT_CMD_URB) {
 		usb_anchor_urb(cmdinfo->cmd_urb, &devinfo->cmd_urbs);
-		err = usb_submit_urb(cmdinfo->cmd_urb, gfp);
+		err = usb_submit_urb(cmdinfo->cmd_urb, GFP_ATOMIC);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->cmd_urb);
 			uas_log_cmd_state(cmnd, "cmd submit err", err);
@@ -653,7 +653,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	if (!devinfo->use_streams)
 		cmdinfo->state &= ~(SUBMIT_DATA_IN_URB | SUBMIT_DATA_OUT_URB);
 
-	err = uas_submit_urbs(cmnd, devinfo, GFP_ATOMIC);
+	err = uas_submit_urbs(cmnd, devinfo);
 	if (err) {
 		/* If we did nothing, give up now */
 		if (cmdinfo->state & SUBMIT_STATUS_URB) {

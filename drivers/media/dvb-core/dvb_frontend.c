@@ -622,7 +622,7 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 	struct media_device *mdev = adapter->mdev;
 	struct media_entity  *entity, *source;
 	struct media_link *link, *found_link = NULL;
-	int i, ret, n_links = 0, active_links = 0;
+	int ret, n_links = 0, active_links = 0;
 
 	fepriv->pipe_start_entity = NULL;
 
@@ -632,8 +632,7 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 	entity = fepriv->dvbdev->entity;
 	fepriv->pipe_start_entity = entity;
 
-	for (i = 0; i < entity->num_links; i++) {
-		link = &entity->links[i];
+	list_for_each_entry(link, &entity->links, list) {
 		if (link->sink->entity == entity) {
 			found_link = link;
 			n_links++;
@@ -659,13 +658,11 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 
 	source = found_link->source->entity;
 	fepriv->pipe_start_entity = source;
-	for (i = 0; i < source->num_links; i++) {
+	list_for_each_entry(link, &source->links, list) {
 		struct media_entity *sink;
 		int flags = 0;
 
-		link = &source->links[i];
 		sink = link->sink->entity;
-
 		if (sink == entity)
 			flags = MEDIA_LNK_FL_ENABLED;
 
@@ -2762,7 +2759,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 			fe->dvb->num, fe->id, fe->ops.info.name);
 
 	dvb_register_device (fe->dvb, &fepriv->dvbdev, &dvbdev_template,
-			     fe, DVB_DEVICE_FRONTEND);
+			     fe, DVB_DEVICE_FRONTEND, 0);
 
 	/*
 	 * Initialize the cache to the proper values according with the

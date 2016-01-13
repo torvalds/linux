@@ -2,9 +2,10 @@ Binding for MTK SPI controller
 
 Required properties:
 - compatible: should be one of the following.
-    - mediatek,mt8173-spi: for mt8173 platforms
-    - mediatek,mt8135-spi: for mt8135 platforms
+    - mediatek,mt2701-spi: for mt2701 platforms
     - mediatek,mt6589-spi: for mt6589 platforms
+    - mediatek,mt8135-spi: for mt8135 platforms
+    - mediatek,mt8173-spi: for mt8173 platforms
 
 - #address-cells: should be 1.
 
@@ -29,10 +30,10 @@ Required properties:
   muxes clock, and "spi-clk" for the clock gate.
 
 Optional properties:
--cs-gpios: see spi-bus.txt, only required for MT8173.
+-cs-gpios: see spi-bus.txt.
 
 - mediatek,pad-select: specify which pins group(ck/mi/mo/cs) spi
-  controller used. This is a array, the element value should be 0~3,
+  controller used. This is an array, the element value should be 0~3,
   only required for MT8173.
     0: specify GPIO69,70,71,72 for spi pins.
     1: specify GPIO102,103,104,105 for spi pins.

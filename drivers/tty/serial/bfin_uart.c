@@ -213,7 +213,7 @@ static void bfin_serial_stop_rx(struct uart_port *port)
 static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
 	unsigned int status, ch, flg;
-	static struct timeval anomaly_start = { .tv_sec = 0 };
+	static u64 anomaly_start;
 
 	status = UART_GET_LSR(uart);
 	UART_CLEAR_LSR(uart);
@@ -246,27 +246,24 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		 * character time +/- some percent.  So 1.5 sounds good.  All other
 		 * Blackfin families operate properly.  Woo.
 		 */
-		if (anomaly_start.tv_sec) {
-			struct timeval curr;
-			suseconds_t usecs;
+		if (anomaly_start > 0) {
+			u64 curr, nsecs, threshold_ns;
 
 			if ((~ch & (~ch + 1)) & 0xff)
 				goto known_good_char;
 
-			do_gettimeofday(&curr);
-			if (curr.tv_sec - anomaly_start.tv_sec > 1)
+			curr = ktime_get_ns();
+			nsecs = curr - anomaly_start;
+			if (nsecs >> 32)
 				goto known_good_char;
 
-			usecs = 0;
-			if (curr.tv_sec != anomaly_start.tv_sec)
-				usecs += USEC_PER_SEC;
-			usecs += curr.tv_usec - anomaly_start.tv_usec;
-
-			if (usecs > UART_GET_ANOMALY_THRESHOLD(uart))
+			threshold_ns = UART_GET_ANOMALY_THRESHOLD(uart)
+							* NSEC_PER_USEC;
+			if (nsecs > threshold_ns)
 				goto known_good_char;
 
 			if (ch)
-				anomaly_start.tv_sec = 0;
+				anomaly_start = 0;
 			else
 				anomaly_start = curr;
 
@@ -274,14 +271,14 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 
  known_good_char:
 			status &= ~BI;
-			anomaly_start.tv_sec = 0;
+			anomaly_start = 0;
 		}
 	}
 
 	if (status & BI) {
 		if (ANOMALY_05000363)
 			if (bfin_revid() < 5)
-				do_gettimeofday(&anomaly_start);
+				anomaly_start = ktime_get_ns();
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;

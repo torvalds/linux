@@ -51,6 +51,7 @@ struct module;
 struct configfs_item_operations;
 struct configfs_group_operations;
 struct configfs_attribute;
+struct configfs_bin_attribute;
 struct configfs_subsystem;
 
 struct config_item {
@@ -84,6 +85,7 @@ struct config_item_type {
 	struct configfs_item_operations		*ct_item_ops;
 	struct configfs_group_operations	*ct_group_ops;
 	struct configfs_attribute		**ct_attrs;
+	struct configfs_bin_attribute		**ct_bin_attrs;
 };
 
 /**
@@ -152,6 +154,54 @@ static struct configfs_attribute _pfx##attr_##_name = {	\
 	.ca_mode	= S_IWUSR,			\
 	.ca_owner	= THIS_MODULE,			\
 	.store		= _pfx##_name##_store,		\
+}
+
+struct file;
+struct vm_area_struct;
+
+struct configfs_bin_attribute {
+	struct configfs_attribute cb_attr;	/* std. attribute */
+	void *cb_private;			/* for user       */
+	size_t cb_max_size;			/* max core size  */
+	ssize_t (*read)(struct config_item *, void *, size_t);
+	ssize_t (*write)(struct config_item *, const void *, size_t);
+};
+
+#define CONFIGFS_BIN_ATTR(_pfx, _name, _priv, _maxsz)		\
+static struct configfs_bin_attribute _pfx##attr_##_name = {	\
+	.cb_attr = {						\
+		.ca_name	= __stringify(_name),		\
+		.ca_mode	= S_IRUGO | S_IWUSR,		\
+		.ca_owner	= THIS_MODULE,			\
+	},							\
+	.cb_private	= _priv,				\
+	.cb_max_size	= _maxsz,				\
+	.read		= _pfx##_name##_read,			\
+	.write		= _pfx##_name##_write,			\
+}
+
+#define CONFIGFS_BIN_ATTR_RO(_pfx, _name, _priv, _maxsz)	\
+static struct configfs_attribute _pfx##attr_##_name = {		\
+	.cb_attr = {						\
+		.ca_name	= __stringify(_name),		\
+		.ca_mode	= S_IRUGO,			\
+		.ca_owner	= THIS_MODULE,			\
+	},							\
+	.cb_private	= _priv,				\
+	.cb_max_size	= _maxsz,				\
+	.read		= _pfx##_name##_read,			\
+}
+
+#define CONFIGFS_BIN_ATTR_WO(_pfx, _name, _priv, _maxsz)	\
+static struct configfs_attribute _pfx##attr_##_name = {		\
+	.cb_attr = {						\
+		.ca_name	= __stringify(_name),		\
+		.ca_mode	= S_IWUSR,			\
+		.ca_owner	= THIS_MODULE,			\
+	},							\
+	.cb_private	= _priv,				\
+	.cb_max_size	= _maxsz,				\
+	.write		= _pfx##_name##_write,			\
 }
 
 /*

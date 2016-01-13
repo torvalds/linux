@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, 2013, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -156,20 +156,11 @@ int fld_cache_insert(struct fld_cache *cache,
 struct fld_cache_entry
 *fld_cache_entry_create(const struct lu_seq_range *range);
 
-int fld_cache_insert_nolock(struct fld_cache *cache,
-			    struct fld_cache_entry *f_new);
-void fld_cache_delete(struct fld_cache *cache,
-		      const struct lu_seq_range *range);
-void fld_cache_delete_nolock(struct fld_cache *cache,
-			     const struct lu_seq_range *range);
 int fld_cache_lookup(struct fld_cache *cache,
 		     const u64 seq, struct lu_seq_range *range);
 
 struct fld_cache_entry*
 fld_cache_entry_lookup(struct fld_cache *cache, struct lu_seq_range *range);
-void fld_cache_entry_delete(struct fld_cache *cache,
-			    struct fld_cache_entry *node);
-void fld_dump_cache_entries(struct fld_cache *cache);
 
 struct fld_cache_entry
 *fld_cache_entry_lookup_nolock(struct fld_cache *cache,

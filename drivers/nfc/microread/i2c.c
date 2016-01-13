@@ -50,8 +50,6 @@ struct microread_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
 
-	int irq;
-
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
 				 * and prevents normal operation.

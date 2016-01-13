@@ -246,6 +246,13 @@ enum dwc2_ep0_state {
  *                      value for this if none is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
+ * @dma_desc_fs_enable: When DMA mode is enabled, specifies whether to use
+ *                      address DMA mode or descriptor DMA mode for accessing
+ *                      the data FIFOs in Full Speed mode only. The driver
+ *                      will automatically detect the value for this if none is
+ *                      specified.
+ *                       0 - Address DMA
+ *                       1 - Descriptor DMA in FS (default, if available)
  * @speed:              Specifies the maximum speed of operation in host and
  *                      device mode. The actual speed depends on the speed of
  *                      the attached device and the value of phy_type.
@@ -375,6 +382,7 @@ struct dwc2_core_params {
 	int otg_ver;
 	int dma_enable;
 	int dma_desc_enable;
+	int dma_desc_fs_enable;
 	int speed;
 	int enable_dynamic_fifo;
 	int en_multiple_tx_fifo;
@@ -451,15 +459,18 @@ struct dwc2_core_params {
  *                       1 - 16 bits
  *                       2 - 8 or 16 bits
  * @snpsid:             Value from SNPSID register
+ * @dev_ep_dirs:        Direction of device endpoints (GHWCFG1)
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
 	unsigned arch:2;
 	unsigned dma_desc_enable:1;
+	unsigned dma_desc_fs_enable:1;
 	unsigned enable_dynamic_fifo:1;
 	unsigned en_multiple_tx_fifo:1;
 	unsigned host_rx_fifo_size:16;
 	unsigned host_nperio_tx_fifo_size:16;
+	unsigned dev_nperio_tx_fifo_size:16;
 	unsigned host_perio_tx_fifo_size:16;
 	unsigned nperio_tx_q_depth:3;
 	unsigned host_perio_tx_q_depth:3;
@@ -476,6 +487,7 @@ struct dwc2_hw_params {
 	unsigned power_optimized:1;
 	unsigned utmi_phy_data_width:2;
 	u32 snpsid;
+	u32 dev_ep_dirs;
 };
 
 /* Size of control and EP0 buffers */
@@ -676,6 +688,9 @@ struct dwc2_hregs_backup {
  * @otg_port:           OTG port number
  * @frame_list:         Frame list
  * @frame_list_dma:     Frame list DMA address
+ * @frame_list_sz:      Frame list size
+ * @desc_gen_cache:     Kmem cache for generic descriptors
+ * @desc_hsisoc_cache:  Kmem cache for hs isochronous descriptors
  *
  * These are for peripheral mode:
  *
@@ -770,6 +785,7 @@ struct dwc2_hsotg {
 	u16 frame_number;
 	u16 periodic_qh_count;
 	bool bus_suspended;
+	bool new_connection;
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 #define FRAME_NUM_ARRAY_SIZE 1000
@@ -794,6 +810,9 @@ struct dwc2_hsotg {
 	u8 otg_port;
 	u32 *frame_list;
 	dma_addr_t frame_list_dma;
+	u32 frame_list_sz;
+	struct kmem_cache *desc_gen_cache;
+	struct kmem_cache *desc_hsisoc_cache;
 
 #ifdef DEBUG
 	u32 frrem_samples;
@@ -864,9 +883,13 @@ enum dwc2_halt_status {
  * The following functions support initialization of the core driver component
  * and the DWC_otg controller
  */
+extern int dwc2_core_reset(struct dwc2_hsotg *hsotg);
+extern int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
 extern void dwc2_core_host_init(struct dwc2_hsotg *hsotg);
 extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
 extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
+
+void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
 /*
  * Host core Functions.
@@ -901,7 +924,7 @@ extern void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes);
 extern void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num);
 extern void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
 
-extern int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq);
+extern int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup);
 extern void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
 extern void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
 
@@ -940,6 +963,16 @@ extern void dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val);
  * 1 - DMA Descriptor(default, if available)
  */
 extern void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val);
+
+/*
+ * When DMA mode is enabled specifies whether to use
+ * address DMA or DMA Descritor mode with full speed devices
+ * for accessing the data FIFOs in host mode.
+ * 0 - address DMA
+ * 1 - FS DMA Descriptor(default, if available)
+ */
+extern void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg,
+					      int val);
 
 /*
  * Specifies the maximum speed of operation in host and device mode.
@@ -1110,6 +1143,31 @@ extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
 /*
+ * The following functions check the controller's OTG operation mode
+ * capability (GHWCFG2.OTG_MODE).
+ *
+ * These functions can be used before the internal hsotg->hw_params
+ * are read in and cached so they always read directly from the
+ * GHWCFG2 register.
+ */
+unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg);
+bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg);
+bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg);
+bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
+
+/*
+ * Returns the mode of operation, host or device
+ */
+static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
+}
+static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
+}
+
+/*
  * Dump core registers and SPRAM
  */
 extern void dwc2_dump_dev_registers(struct dwc2_hsotg *hsotg);
@@ -1154,12 +1212,14 @@ static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 extern int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
-extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg);
+extern void dwc2_hcd_connect(struct dwc2_hsotg *hsotg);
+extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force);
 extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 { return 0; }
-static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hcd_connect(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force) {}
 static inline void dwc2_hcd_start(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_remove(struct dwc2_hsotg *hsotg) {}
 static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)

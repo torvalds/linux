@@ -43,8 +43,6 @@ MODULE_LICENSE("GPL");
 
 #define DELL_EVENT_GUID "9DBB5994-A997-11DA-B012-B622A1EF5492"
 
-static int acpi_video;
-
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
 
 /*
@@ -159,7 +157,8 @@ static void dell_wmi_process_key(int reported_key)
 
 	/* Don't report brightness notifications that will also come via ACPI */
 	if ((key->keycode == KEY_BRIGHTNESSUP ||
-	     key->keycode == KEY_BRIGHTNESSDOWN) && acpi_video)
+	     key->keycode == KEY_BRIGHTNESSDOWN) &&
+	    acpi_video_handles_brightness_key_presses())
 		return;
 
 	sparse_keymap_report_entry(dell_wmi_input_dev, key, 1, true);
@@ -398,7 +397,6 @@ static int __init dell_wmi_init(void)
 	}
 
 	dmi_walk(find_hk_type, NULL);
-	acpi_video = acpi_video_get_backlight_type() != acpi_backlight_vendor;
 
 	err = dell_wmi_input_setup();
 	if (err)
