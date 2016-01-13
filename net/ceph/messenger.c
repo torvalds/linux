@@ -2827,13 +2827,17 @@ static bool con_backoff(struct ceph_connection *con)
 
 static void con_fault_finish(struct ceph_connection *con)
 {
+	dout("%s %p\n", __func__, con);
+
 	/*
 	 * in case we faulted due to authentication, invalidate our
 	 * current tickets so that we can get new ones.
 	 */
-	if (con->auth_retry && con->ops->invalidate_authorizer) {
-		dout("calling invalidate_authorizer()\n");
-		con->ops->invalidate_authorizer(con);
+	if (con->auth_retry) {
+		dout("auth_retry %d, invalidating\n", con->auth_retry);
+		if (con->ops->invalidate_authorizer)
+			con->ops->invalidate_authorizer(con);
+		con->auth_retry = 0;
 	}
 
 	if (con->ops->fault)
