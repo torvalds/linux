@@ -630,7 +630,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 	if (!node)
 		return ERR_PTR(-ENODEV);
 
-	nbuttons = of_get_child_count(node);
+	nbuttons = of_get_available_child_count(node);
 	if (nbuttons == 0)
 		return ERR_PTR(-ENODEV);
 
@@ -648,7 +648,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 	of_property_read_string(node, "label", &pdata->name);
 
 	i = 0;
-	for_each_child_of_node(node, pp) {
+	for_each_available_child_of_node(node, pp) {
 		enum of_gpio_flags flags;
 
 		button = &pdata->buttons[i++];
