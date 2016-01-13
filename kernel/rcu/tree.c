@@ -3778,7 +3778,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 		       rsp->name);
 		ndetected = 0;
 		rcu_for_each_leaf_node(rsp, rnp) {
-			ndetected = rcu_print_task_exp_stall(rnp);
+			ndetected += rcu_print_task_exp_stall(rnp);
 			mask = 1;
 			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
 				struct rcu_data *rdp;
@@ -3797,7 +3797,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 		pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
 			jiffies - jiffies_start, rsp->expedited_sequence,
 			rnp_root->expmask, ".T"[!!rnp_root->exp_tasks]);
-		if (!ndetected) {
+		if (ndetected) {
 			pr_err("blocking rcu_node structures:");
 			rcu_for_each_node_breadth_first(rsp, rnp) {
 				if (rnp == rnp_root)
