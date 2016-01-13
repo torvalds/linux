@@ -445,6 +445,7 @@ fail:
 
 	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_disable(dev);
+	i915_guc_submission_fini(dev);
 
 	return err;
 }
@@ -561,10 +562,12 @@ fail:
 	DRM_ERROR("Failed to fetch GuC firmware from %s (error %d)\n",
 		  guc_fw->guc_fw_path, err);
 
+	mutex_lock(&dev->struct_mutex);
 	obj = guc_fw->guc_fw_obj;
 	if (obj)
 		drm_gem_object_unreference(&obj->base);
 	guc_fw->guc_fw_obj = NULL;
+	mutex_unlock(&dev->struct_mutex);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_FAIL;
@@ -631,10 +634,11 @@ void intel_guc_ucode_fini(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
+	mutex_lock(&dev->struct_mutex);
 	direct_interrupts_to_host(dev_priv);
+	i915_guc_submission_disable(dev);
 	i915_guc_submission_fini(dev);
 
-	mutex_lock(&dev->struct_mutex);
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);
 	guc_fw->guc_fw_obj = NULL;
