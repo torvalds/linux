@@ -16,11 +16,16 @@
 #define _ASM_POWERPC_QE_H
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
+#include <linux/genalloc.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <asm/cpm.h>
-#include <asm/immap_qe.h>
+#include <soc/fsl/qe/immap_qe.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/types.h>
 
 #define QE_NUM_OF_SNUM	256	/* There are 256 serial number in QE */
 #define QE_NUM_OF_BRGS	16
@@ -91,6 +96,51 @@ extern void qe_reset(void);
 #else
 static inline void qe_reset(void) {}
 #endif
+
+int cpm_muram_init(void);
+
+#if defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE)
+unsigned long cpm_muram_alloc(unsigned long size, unsigned long align);
+int cpm_muram_free(unsigned long offset);
+unsigned long cpm_muram_alloc_fixed(unsigned long offset, unsigned long size);
+unsigned long cpm_muram_alloc_common(unsigned long size, genpool_algo_t algo,
+				     void *data);
+void __iomem *cpm_muram_addr(unsigned long offset);
+unsigned long cpm_muram_offset(void __iomem *addr);
+dma_addr_t cpm_muram_dma(void __iomem *addr);
+#else
+static inline unsigned long cpm_muram_alloc(unsigned long size,
+					    unsigned long align)
+{
+	return -ENOSYS;
+}
+
+static inline int cpm_muram_free(unsigned long offset)
+{
+	return -ENOSYS;
+}
+
+static inline unsigned long cpm_muram_alloc_fixed(unsigned long offset,
+						  unsigned long size)
+{
+	return -ENOSYS;
+}
+
+static inline void __iomem *cpm_muram_addr(unsigned long offset)
+{
+	return NULL;
+}
+
+static inline unsigned long cpm_muram_offset(void __iomem *addr)
+{
+	return -ENOSYS;
+}
+
+static inline dma_addr_t cpm_muram_dma(void __iomem *addr)
+{
+	return 0;
+}
+#endif /* defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE) */
 
 /* QE PIO */
 #define QE_PIO_PINS 32

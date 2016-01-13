@@ -29,7 +29,7 @@
 
 #include <asm/io.h>
 #if IS_ENABLED(CONFIG_UCC_GETH)
-#include <asm/ucc.h>	/* for ucc_set_qe_mux_mii_mng() */
+#include <soc/fsl/qe/ucc.h>
 #endif
 
 #include "gianfar.h"

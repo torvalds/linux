@@ -16,10 +16,10 @@
 
 #include <linux/kernel.h>
 
-#include <asm/immap_qe.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/immap_qe.h>
+#include <soc/fsl/qe/qe.h>
 
-#include <asm/ucc.h>
+#include <soc/fsl/qe/ucc.h>
 
 /* Receive BD's status */
 #define R_E	0x80000000	/* buffer empty */

@@ -1,5 +1,5 @@
 /*
- * arch/powerpc/sysdev/qe_lib/qe_ic.h
+ * drivers/soc/fsl/qe/qe_ic.h
  *
  * QUICC ENGINE Interrupt Controller Header
  *
@@ -16,7 +16,7 @@
 #ifndef _POWERPC_SYSDEV_QE_IC_H
 #define _POWERPC_SYSDEV_QE_IC_H
 
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe_ic.h>
 
 #define NR_QE_IC_INTS		64
 
