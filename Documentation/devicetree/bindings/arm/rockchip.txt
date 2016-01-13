@@ -72,3 +72,7 @@ Rockchip platforms device tree bindings
 - Rockchip R88 board:
     Required root node properties:
       - compatible = "rockchip,r88", "rockchip,rk3368";
+
+- Rockchip RK3399 FPGA board:
+    Required root node properties:
+      - compatible = "rockchip,fpga", "rockchip,rk3399";
