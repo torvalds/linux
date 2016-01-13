@@ -123,7 +123,7 @@ static void _free_network(struct mlme_priv *pmlmepriv,
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
 }
 
-static void _free_network_nolock(struct mlme_priv *pmlmepriv,
+static void free_network_nolock(struct mlme_priv *pmlmepriv,
 			  struct wlan_network *pnetwork)
 {
 	struct  __queue *free_queue = &pmlmepriv->free_bss_pool;
@@ -232,12 +232,6 @@ void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv)
 static struct	wlan_network *alloc_network(struct mlme_priv *pmlmepriv)
 {
 	return _r8712_alloc_network(pmlmepriv);
-}
-
-static void free_network_nolock(struct mlme_priv *pmlmepriv,
-			 struct wlan_network *pnetwork)
-{
-	_free_network_nolock(pmlmepriv, pnetwork);
 }
 
 void r8712_free_network_queue(struct _adapter *dev)

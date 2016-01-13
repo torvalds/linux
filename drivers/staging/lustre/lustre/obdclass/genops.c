@@ -27,7 +27,7 @@
  * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -132,7 +132,7 @@ static struct obd_type *class_get_type(const char *name)
 	if (type) {
 		spin_lock(&type->obd_type_lock);
 		type->typ_refcnt++;
-		try_module_get(type->typ_dt_ops->o_owner);
+		try_module_get(type->typ_dt_ops->owner);
 		spin_unlock(&type->obd_type_lock);
 	}
 	return type;
@@ -143,7 +143,7 @@ void class_put_type(struct obd_type *type)
 	LASSERT(type);
 	spin_lock(&type->obd_type_lock);
 	type->typ_refcnt--;
-	module_put(type->typ_dt_ops->o_owner);
+	module_put(type->typ_dt_ops->owner);
 	spin_unlock(&type->obd_type_lock);
 }
 EXPORT_SYMBOL(class_put_type);
@@ -155,7 +155,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 			struct lu_device_type *ldt)
 {
 	struct obd_type *type;
-	int rc = 0;
+	int rc;
 
 	/* sanity check */
 	LASSERT(strnlen(name, CLASS_MAX_NAME) < CLASS_MAX_NAME);

@@ -26,12 +26,9 @@ struct wilc_wfi_radiotap_cb_hdr {
 
 static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 
-extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
-
-
-u8 srcAdd[6];
-u8 bssid[6];
-u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static u8 srcAdd[6];
+static u8 bssid[6];
+static u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 /**
  *  @brief      WILC_WFI_monitor_rx
  *  @details
@@ -195,7 +192,7 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	mgmt_tx->size = len;
 
 	memcpy(mgmt_tx->buff, buf, len);
-	wilc_wlan_txq_add_mgmt_pkt(mgmt_tx, mgmt_tx->buff, mgmt_tx->size,
+	wilc_wlan_txq_add_mgmt_pkt(dev, mgmt_tx, mgmt_tx->buff, mgmt_tx->size,
 				   mgmt_tx_complete);
 
 	netif_wake_queue(dev);
@@ -298,7 +295,7 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		mon_mgmt_tx(mon_priv->real_ndev, skb->data, skb->len);
 		dev_kfree_skb(skb);
 	} else
-		ret = mac_xmit(skb, mon_priv->real_ndev);
+		ret = wilc_mac_xmit(skb, mon_priv->real_ndev);
 
 	return ret;
 }

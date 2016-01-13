@@ -52,6 +52,15 @@ config EXTCON_MAX14577
 	  Maxim MAX14577/77836. The MAX14577/77836 MUIC is a USB port accessory
 	  detector and switch.
 
+config EXTCON_MAX3355
+	tristate "Maxim MAX3355 USB OTG EXTCON Support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  If you say yes here you get support for the USB OTG role detection by
+	  MAX3355. The MAX3355 chip integrates a charge pump and comparators to
+	  enable a system with an integrated USB OTG dual-role transceiver to
+	  function as an USB OTG dual-role device.
+
 config EXTCON_MAX77693
 	tristate "Maxim MAX77693 EXTCON Support"
 	depends on MFD_MAX77693 && INPUT

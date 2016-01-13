@@ -517,7 +517,7 @@ static struct uart_ops serial_sprd_ops = {
 };
 
 #ifdef CONFIG_SERIAL_SPRD_CONSOLE
-static inline void wait_for_xmitr(struct uart_port *port)
+static void wait_for_xmitr(struct uart_port *port)
 {
 	unsigned int status, tmout = 10000;
 

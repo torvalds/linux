@@ -236,15 +236,6 @@ _out:
 EXPORT_SYMBOL(lustre_posix_acl_xattr_filter);
 
 /*
- * Release the posix ACL space.
- */
-void lustre_posix_acl_xattr_free(posix_acl_xattr_header *header, int size)
-{
-	kfree(header);
-}
-EXPORT_SYMBOL(lustre_posix_acl_xattr_free);
-
-/*
  * Release the extended ACL space.
  */
 void lustre_ext_acl_xattr_free(ext_acl_xattr_header *header)

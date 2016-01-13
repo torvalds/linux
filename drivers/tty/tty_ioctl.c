@@ -216,7 +216,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-	tty_debug_wait_until_sent(tty, "\n");
+	tty_debug_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
 
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
@@ -239,18 +239,13 @@ EXPORT_SYMBOL(tty_wait_until_sent);
  *		Termios Helper Methods
  */
 
-static void unset_locked_termios(struct ktermios *termios,
-				 struct ktermios *old,
-				 struct ktermios *locked)
+static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
 {
+	struct ktermios *termios = &tty->termios;
+	struct ktermios *locked  = &tty->termios_locked;
 	int	i;
 
 #define NOSET_MASK(x, y, z) (x = ((x) & ~(z)) | ((y) & (z)))
-
-	if (!locked) {
-		printk(KERN_WARNING "Warning?!? termios_locked is NULL.\n");
-		return;
-	}
 
 	NOSET_MASK(termios->c_iflag, old->c_iflag, locked->c_iflag);
 	NOSET_MASK(termios->c_oflag, old->c_oflag, locked->c_oflag);
@@ -463,10 +458,8 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 #else
-	if (ifound == -1 || ofound == -1) {
-		printk_once(KERN_WARNING "tty: Unable to return correct "
-			  "speed data as your architecture needs updating.\n");
-	}
+	if (ifound == -1 || ofound == -1)
+		pr_warn_once("tty: Unable to return correct speed data as your architecture needs updating.\n");
 #endif
 }
 EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
@@ -556,7 +549,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
-	unset_locked_termios(&tty->termios, &old_termios, &tty->termios_locked);
+	unset_locked_termios(tty, &old_termios);
 
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);

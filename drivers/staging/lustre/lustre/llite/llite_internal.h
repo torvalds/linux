@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -1283,16 +1283,6 @@ static inline struct ll_file_data *cl_iattr2fd(struct inode *inode,
 {
 	LASSERT(attr->ia_valid & ATTR_FILE);
 	return LUSTRE_FPRIVATE(attr->ia_file);
-}
-
-static inline void cl_isize_lock(struct inode *inode)
-{
-	ll_inode_size_lock(inode);
-}
-
-static inline void cl_isize_unlock(struct inode *inode)
-{
-	ll_inode_size_unlock(inode);
 }
 
 static inline void cl_isize_write_nolock(struct inode *inode, loff_t kms)

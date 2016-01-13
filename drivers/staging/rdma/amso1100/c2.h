@@ -476,72 +476,72 @@ static inline int c2_errno(void *reply)
 }
 
 /* Device */
-extern int c2_register_device(struct c2_dev *c2dev);
-extern void c2_unregister_device(struct c2_dev *c2dev);
-extern int c2_rnic_init(struct c2_dev *c2dev);
-extern void c2_rnic_term(struct c2_dev *c2dev);
-extern void c2_rnic_interrupt(struct c2_dev *c2dev);
-extern int c2_del_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask);
-extern int c2_add_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask);
+int c2_register_device(struct c2_dev *c2dev);
+void c2_unregister_device(struct c2_dev *c2dev);
+int c2_rnic_init(struct c2_dev *c2dev);
+void c2_rnic_term(struct c2_dev *c2dev);
+void c2_rnic_interrupt(struct c2_dev *c2dev);
+int c2_del_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask);
+int c2_add_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask);
 
 /* QPs */
-extern int c2_alloc_qp(struct c2_dev *c2dev, struct c2_pd *pd,
+int c2_alloc_qp(struct c2_dev *c2dev, struct c2_pd *pd,
 		       struct ib_qp_init_attr *qp_attrs, struct c2_qp *qp);
-extern void c2_free_qp(struct c2_dev *c2dev, struct c2_qp *qp);
-extern struct ib_qp *c2_get_qp(struct ib_device *device, int qpn);
-extern int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
+void c2_free_qp(struct c2_dev *c2dev, struct c2_qp *qp);
+struct ib_qp *c2_get_qp(struct ib_device *device, int qpn);
+int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 			struct ib_qp_attr *attr, int attr_mask);
-extern int c2_qp_set_read_limits(struct c2_dev *c2dev, struct c2_qp *qp,
+int c2_qp_set_read_limits(struct c2_dev *c2dev, struct c2_qp *qp,
 				 int ord, int ird);
-extern int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
+int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 			struct ib_send_wr **bad_wr);
-extern int c2_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
+int c2_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 			   struct ib_recv_wr **bad_wr);
-extern void c2_init_qp_table(struct c2_dev *c2dev);
-extern void c2_cleanup_qp_table(struct c2_dev *c2dev);
-extern void c2_set_qp_state(struct c2_qp *, int);
-extern struct c2_qp *c2_find_qpn(struct c2_dev *c2dev, int qpn);
+void c2_init_qp_table(struct c2_dev *c2dev);
+void c2_cleanup_qp_table(struct c2_dev *c2dev);
+void c2_set_qp_state(struct c2_qp *, int);
+struct c2_qp *c2_find_qpn(struct c2_dev *c2dev, int qpn);
 
 /* PDs */
-extern int c2_pd_alloc(struct c2_dev *c2dev, int privileged, struct c2_pd *pd);
-extern void c2_pd_free(struct c2_dev *c2dev, struct c2_pd *pd);
-extern int c2_init_pd_table(struct c2_dev *c2dev);
-extern void c2_cleanup_pd_table(struct c2_dev *c2dev);
+int c2_pd_alloc(struct c2_dev *c2dev, int privileged, struct c2_pd *pd);
+void c2_pd_free(struct c2_dev *c2dev, struct c2_pd *pd);
+int c2_init_pd_table(struct c2_dev *c2dev);
+void c2_cleanup_pd_table(struct c2_dev *c2dev);
 
 /* CQs */
-extern int c2_init_cq(struct c2_dev *c2dev, int entries,
+int c2_init_cq(struct c2_dev *c2dev, int entries,
 		      struct c2_ucontext *ctx, struct c2_cq *cq);
-extern void c2_free_cq(struct c2_dev *c2dev, struct c2_cq *cq);
-extern void c2_cq_event(struct c2_dev *c2dev, u32 mq_index);
-extern void c2_cq_clean(struct c2_dev *c2dev, struct c2_qp *qp, u32 mq_index);
-extern int c2_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
-extern int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+void c2_free_cq(struct c2_dev *c2dev, struct c2_cq *cq);
+void c2_cq_event(struct c2_dev *c2dev, u32 mq_index);
+void c2_cq_clean(struct c2_dev *c2dev, struct c2_qp *qp, u32 mq_index);
+int c2_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
+int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 
 /* CM */
-extern int c2_llp_connect(struct iw_cm_id *cm_id,
+int c2_llp_connect(struct iw_cm_id *cm_id,
 			  struct iw_cm_conn_param *iw_param);
-extern int c2_llp_accept(struct iw_cm_id *cm_id,
+int c2_llp_accept(struct iw_cm_id *cm_id,
 			 struct iw_cm_conn_param *iw_param);
-extern int c2_llp_reject(struct iw_cm_id *cm_id, const void *pdata,
+int c2_llp_reject(struct iw_cm_id *cm_id, const void *pdata,
 			 u8 pdata_len);
-extern int c2_llp_service_create(struct iw_cm_id *cm_id, int backlog);
-extern int c2_llp_service_destroy(struct iw_cm_id *cm_id);
+int c2_llp_service_create(struct iw_cm_id *cm_id, int backlog);
+int c2_llp_service_destroy(struct iw_cm_id *cm_id);
 
 /* MM */
-extern int c2_nsmr_register_phys_kern(struct c2_dev *c2dev, u64 *addr_list,
+int c2_nsmr_register_phys_kern(struct c2_dev *c2dev, u64 *addr_list,
  				      int page_size, int pbl_depth, u32 length,
  				      u32 off, u64 *va, enum c2_acf acf,
 				      struct c2_mr *mr);
-extern int c2_stag_dealloc(struct c2_dev *c2dev, u32 stag_index);
+int c2_stag_dealloc(struct c2_dev *c2dev, u32 stag_index);
 
 /* AE */
-extern void c2_ae_event(struct c2_dev *c2dev, u32 mq_index);
+void c2_ae_event(struct c2_dev *c2dev, u32 mq_index);
 
 /* MQSP Allocator */
-extern int c2_init_mqsp_pool(struct c2_dev *c2dev, gfp_t gfp_mask,
+int c2_init_mqsp_pool(struct c2_dev *c2dev, gfp_t gfp_mask,
 			     struct sp_chunk **root);
-extern void c2_free_mqsp_pool(struct c2_dev *c2dev, struct sp_chunk *root);
-extern __be16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
+void c2_free_mqsp_pool(struct c2_dev *c2dev, struct sp_chunk *root);
+__be16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
 			     dma_addr_t *dma_addr, gfp_t gfp_mask);
-extern void c2_free_mqsp(__be16* mqsp);
+void c2_free_mqsp(__be16* mqsp);
 #endif

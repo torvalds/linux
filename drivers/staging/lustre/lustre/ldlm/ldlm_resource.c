@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2010, 2012, Intel Corporation.
+ * Copyright (c) 2010, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -1154,8 +1154,6 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 			CERROR("%s: lvbo_init failed for resource %#llx:%#llx: rc = %d\n",
 			       ns->ns_obd->obd_name, name->name[0],
 			       name->name[1], rc);
-			kfree(res->lr_lvb_data);
-			res->lr_lvb_data = NULL;
 			res->lr_lvb_len = rc;
 			mutex_unlock(&res->lr_lvb_mutex);
 			ldlm_resource_putref(res);
