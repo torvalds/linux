@@ -133,6 +133,12 @@ void af_alg_release_parent(struct sock *sk)
 	bool last;
 
 	sk = ask->parent;
+
+	if (ask->nokey_refcnt && !ask->refcnt) {
+		sock_put(sk);
+		return;
+	}
+
 	ask = alg_sk(sk);
 
 	lock_sock(sk);
@@ -268,8 +274,8 @@ int af_alg_accept(struct sock *sk, struct socket *newsock)
 	struct alg_sock *ask = alg_sk(sk);
 	const struct af_alg_type *type;
 	struct sock *sk2;
+	unsigned int nokey;
 	int err;
-	bool nokey;
 
 	lock_sock(sk);
 	type = ask->type;
@@ -302,6 +308,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock)
 		sock_hold(sk);
 	alg_sk(sk2)->parent = sk;
 	alg_sk(sk2)->type = type;
+	alg_sk(sk2)->nokey_refcnt = nokey;
 
 	newsock->ops = type->ops;
 	newsock->state = SS_CONNECTED;
