@@ -29,7 +29,7 @@ gb-raw-y := raw.o
 gb-hid-y := hid.o
 gb-es2-y := es2.o
 gb-arche-y := arche-platform.o arche-apb-ctrl.o
-gb-audio-codec-y := audio-codec.o
+gb-audio-codec-y := audio_codec.o
 gb-camera-y := camera.o
 
 obj-m += greybus.o
