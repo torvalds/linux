@@ -1371,7 +1371,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		return NULL;
 
 	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
-		if (audit_pid && audit_pid == current->pid)
+		if (audit_pid && audit_pid == current->tgid)
 			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 		else
 			reserve = 0;
