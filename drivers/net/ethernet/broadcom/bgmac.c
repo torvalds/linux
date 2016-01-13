@@ -469,6 +469,11 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			len -= ETH_FCS_LEN;
 
 			skb = build_skb(buf, BGMAC_RX_ALLOC_SIZE);
+			if (unlikely(skb)) {
+				bgmac_err(bgmac, "build_skb failed\n");
+				put_page(virt_to_head_page(buf));
+				break;
+			}
 			skb_put(skb, BGMAC_RX_FRAME_OFFSET +
 				BGMAC_RX_BUF_OFFSET + len);
 			skb_pull(skb, BGMAC_RX_FRAME_OFFSET +
