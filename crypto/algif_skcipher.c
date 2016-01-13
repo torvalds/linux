@@ -895,7 +895,7 @@ static void skcipher_wait(struct sock *sk)
 		msleep(100);
 }
 
-static void skcipher_sock_destruct_common(struct sock *sk)
+static void skcipher_sock_destruct(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	struct skcipher_ctx *ctx = ask->private;
@@ -907,33 +907,10 @@ static void skcipher_sock_destruct_common(struct sock *sk)
 	skcipher_free_sgl(sk);
 	sock_kzfree_s(sk, ctx->iv, crypto_skcipher_ivsize(tfm));
 	sock_kfree_s(sk, ctx, ctx->len);
-}
-
-static void skcipher_sock_destruct(struct sock *sk)
-{
-	skcipher_sock_destruct_common(sk);
 	af_alg_release_parent(sk);
 }
 
-static void skcipher_release_parent_nokey(struct sock *sk)
-{
-	struct alg_sock *ask = alg_sk(sk);
-
-	if (!ask->refcnt) {
-		sock_put(ask->parent);
-		return;
-	}
-
-	af_alg_release_parent(sk);
-}
-
-static void skcipher_sock_destruct_nokey(struct sock *sk)
-{
-	skcipher_sock_destruct_common(sk);
-	skcipher_release_parent_nokey(sk);
-}
-
-static int skcipher_accept_parent_common(void *private, struct sock *sk)
+static int skcipher_accept_parent_nokey(void *private, struct sock *sk)
 {
 	struct skcipher_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
@@ -981,21 +958,7 @@ static int skcipher_accept_parent(void *private, struct sock *sk)
 	if (!tfm->has_key && crypto_skcipher_has_setkey(tfm->skcipher))
 		return -ENOKEY;
 
-	return skcipher_accept_parent_common(private, sk);
-}
-
-static int skcipher_accept_parent_nokey(void *private, struct sock *sk)
-{
-	int err;
-
-	err = skcipher_accept_parent_common(private, sk);
-	if (err)
-		goto out;
-
-	sk->sk_destruct = skcipher_sock_destruct_nokey;
-
-out:
-	return err;
+	return skcipher_accept_parent_nokey(private, sk);
 }
 
 static const struct af_alg_type algif_type_skcipher = {
