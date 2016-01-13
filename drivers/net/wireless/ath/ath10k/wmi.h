@@ -4233,7 +4233,7 @@ struct wmi_10_2_peer_stats {
 
 struct wmi_10_2_4_peer_stats {
 	struct wmi_10_2_peer_stats common;
-	__le32 unknown_value; /* FIXME: what is this word? */
+	__le32 peer_rssi_changed;
 } __packed;
 
 struct wmi_10_2_4_ext_peer_stats {
