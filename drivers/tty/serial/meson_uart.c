@@ -57,6 +57,7 @@
 #define AML_UART_RX_EMPTY		BIT(20)
 #define AML_UART_TX_FULL		BIT(21)
 #define AML_UART_TX_EMPTY		BIT(22)
+#define AML_UART_XMIT_BUSY		BIT(25)
 #define AML_UART_ERR			(AML_UART_PARITY_ERR | \
 					 AML_UART_FRAME_ERR  | \
 					 AML_UART_TX_FIFO_WERR)
@@ -100,7 +101,8 @@ static unsigned int meson_uart_tx_empty(struct uart_port *port)
 	u32 val;
 
 	val = readl(port->membase + AML_UART_STATUS);
-	return (val & AML_UART_TX_EMPTY) ? TIOCSER_TEMT : 0;
+	val &= (AML_UART_TX_EMPTY | AML_UART_XMIT_BUSY);
+	return (val == AML_UART_TX_EMPTY) ? TIOCSER_TEMT : 0;
 }
 
 static void meson_uart_stop_tx(struct uart_port *port)
@@ -108,7 +110,7 @@ static void meson_uart_stop_tx(struct uart_port *port)
 	u32 val;
 
 	val = readl(port->membase + AML_UART_CONTROL);
-	val &= ~AML_UART_TX_EN;
+	val &= ~AML_UART_TX_INT_EN;
 	writel(val, port->membase + AML_UART_CONTROL);
 }
 
@@ -131,7 +133,7 @@ static void meson_uart_shutdown(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 
 	val = readl(port->membase + AML_UART_CONTROL);
-	val &= ~(AML_UART_RX_EN | AML_UART_TX_EN);
+	val &= ~AML_UART_RX_EN;
 	val &= ~(AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
 	writel(val, port->membase + AML_UART_CONTROL);
 
@@ -142,6 +144,7 @@ static void meson_uart_start_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int ch;
+	u32 val;
 
 	if (uart_tx_stopped(port)) {
 		meson_uart_stop_tx(port);
@@ -163,6 +166,12 @@ static void meson_uart_start_tx(struct uart_port *port)
 		writel(ch, port->membase + AML_UART_WFIFO);
 		xmit->tail = (xmit->tail+1) & (SERIAL_XMIT_SIZE - 1);
 		port->icount.tx++;
+	}
+
+	if (!uart_circ_empty(xmit)) {
+		val = readl(port->membase + AML_UART_CONTROL);
+		val |= AML_UART_TX_INT_EN;
+		writel(val, port->membase + AML_UART_CONTROL);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -228,8 +237,10 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY))
 		meson_receive_chars(port);
 
-	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_FULL))
-		meson_uart_start_tx(port);
+	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_FULL)) {
+		if (readl(port->membase + AML_UART_CONTROL) & AML_UART_TX_INT_EN)
+			meson_uart_start_tx(port);
+	}
 
 	spin_unlock(&port->lock);
 
@@ -241,16 +252,27 @@ static const char *meson_uart_type(struct uart_port *port)
 	return (port->type == PORT_MESON) ? "meson_uart" : NULL;
 }
 
-static int meson_uart_startup(struct uart_port *port)
+static void meson_uart_reset(struct uart_port *port)
 {
 	u32 val;
-	int ret = 0;
 
 	val = readl(port->membase + AML_UART_CONTROL);
 	val |= (AML_UART_RX_RST | AML_UART_TX_RST | AML_UART_CLR_ERR);
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	val &= ~(AML_UART_RX_RST | AML_UART_TX_RST | AML_UART_CLR_ERR);
+	writel(val, port->membase + AML_UART_CONTROL);
+}
+
+static int meson_uart_startup(struct uart_port *port)
+{
+	u32 val;
+	int ret = 0;
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	val |= AML_UART_CLR_ERR;
+	writel(val, port->membase + AML_UART_CONTROL);
+	val &= ~AML_UART_CLR_ERR;
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	val |= (AML_UART_RX_EN | AML_UART_TX_EN);
@@ -272,7 +294,7 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 {
 	u32 val;
 
-	while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_EMPTY))
+	while (!meson_uart_tx_empty(port))
 		cpu_relax();
 
 	val = readl(port->membase + AML_UART_REG5);
@@ -367,9 +389,26 @@ static int meson_uart_verify_port(struct uart_port *port,
 	return ret;
 }
 
+static int meson_uart_res_size(struct uart_port *port)
+{
+	struct platform_device *pdev = to_platform_device(port->dev);
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(port->dev, "cannot obtain I/O memory region");
+		return -ENODEV;
+	}
+
+	return resource_size(res);
+}
+
 static void meson_uart_release_port(struct uart_port *port)
 {
+	int size = meson_uart_res_size(port);
+
 	if (port->flags & UPF_IOREMAP) {
+		devm_release_mem_region(port->dev, port->mapbase, size);
 		devm_iounmap(port->dev, port->membase);
 		port->membase = NULL;
 	}
@@ -377,16 +416,10 @@ static void meson_uart_release_port(struct uart_port *port)
 
 static int meson_uart_request_port(struct uart_port *port)
 {
-	struct platform_device *pdev = to_platform_device(port->dev);
-	struct resource *res;
-	int size;
+	int size = meson_uart_res_size(port);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory region");
-		return -ENODEV;
-	}
-	size = resource_size(res);
+	if (size < 0)
+		return size;
 
 	if (!devm_request_mem_region(port->dev, port->mapbase, size,
 				     dev_name(port->dev))) {
@@ -448,6 +481,7 @@ static void meson_serial_console_write(struct console *co, const char *s,
 	struct uart_port *port;
 	unsigned long flags;
 	int locked;
+	u32 val, tmp;
 
 	port = meson_ports[co->index];
 	if (!port)
@@ -463,7 +497,13 @@ static void meson_serial_console_write(struct console *co, const char *s,
 		locked = 1;
 	}
 
+	val = readl(port->membase + AML_UART_CONTROL);
+	val |= AML_UART_TX_EN;
+	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
+	writel(tmp, port->membase + AML_UART_CONTROL);
+
 	uart_console_write(port, s, count, meson_console_putchar);
+	writel(val, port->membase + AML_UART_CONTROL);
 
 	if (locked)
 		spin_unlock(&port->lock);
@@ -569,6 +609,12 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	meson_ports[pdev->id] = port;
 	platform_set_drvdata(pdev, port);
+
+	/* reset port before registering (and possibly registering console) */
+	if (meson_uart_request_port(port) >= 0) {
+		meson_uart_reset(port);
+		meson_uart_release_port(port);
+	}
 
 	ret = uart_add_one_port(&meson_uart_driver, port);
 	if (ret)

@@ -18,14 +18,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/nwpserial.h>
 #include <linux/clk.h>
 
-#ifdef CONFIG_SERIAL_8250_MODULE
-#define CONFIG_SERIAL_8250 CONFIG_SERIAL_8250_MODULE
-#endif
-
-#include "8250/8250.h"
+#include "8250.h"
 
 struct of_serial_info {
 	struct clk *clk;
@@ -122,6 +117,9 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		case 1:
 			port->iotype = UPIO_MEM;
 			break;
+		case 2:
+			port->iotype = UPIO_MEM16;
+			break;
 		case 4:
 			port->iotype = of_device_is_big_endian(np) ?
 				       UPIO_MEM32BE : UPIO_MEM32;
@@ -195,7 +193,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		goto out;
 
 	switch (port_type) {
-#ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 	{
 		struct uart_8250_port port8250;
@@ -212,12 +209,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		ret = serial8250_register_8250_port(&port8250);
 		break;
 	}
-#endif
-#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	case PORT_NWPSERIAL:
-		ret = nwpserial_register_port(&port);
-		break;
-#endif
 	default:
 		/* need to add code for these */
 	case PORT_UNKNOWN:
@@ -245,16 +236,9 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 {
 	struct of_serial_info *info = platform_get_drvdata(ofdev);
 	switch (info->type) {
-#ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 		serial8250_unregister_port(info->line);
 		break;
-#endif
-#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	case PORT_NWPSERIAL:
-		nwpserial_unregister_port(info->line);
-		break;
-#endif
 	default:
 		/* need to add code for these */
 		break;
@@ -267,7 +251,6 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-#ifdef CONFIG_SERIAL_8250
 static void of_serial_suspend_8250(struct of_serial_info *info)
 {
 	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
@@ -288,15 +271,6 @@ static void of_serial_resume_8250(struct of_serial_info *info)
 
 	serial8250_resume_port(info->line);
 }
-#else
-static inline void of_serial_suspend_8250(struct of_serial_info *info)
-{
-}
-
-static inline void of_serial_resume_8250(struct of_serial_info *info)
-{
-}
-#endif
 
 static int of_serial_suspend(struct device *dev)
 {
@@ -353,10 +327,6 @@ static const struct of_device_id of_platform_serial_table[] = {
 		.data = (void *)PORT_XSCALE, },
 	{ .compatible = "mrvl,pxa-uart",
 		.data = (void *)PORT_XSCALE, },
-#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	{ .compatible = "ibm,qpace-nwp-serial",
-		.data = (void *)PORT_NWPSERIAL, },
-#endif
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(of, of_platform_serial_table);

@@ -389,6 +389,13 @@ static void sc16is7xx_fifo_write(struct uart_port *port, u8 to_send)
 	const u8 line = sc16is7xx_line(port);
 	u8 addr = (SC16IS7XX_THR_REG << SC16IS7XX_REG_SHIFT) | line;
 
+	/*
+	 * Don't send zero-length data, at least on SPI it confuses the chip
+	 * delivering wrong TXLVL data.
+	 */
+	if (unlikely(!to_send))
+		return;
+
 	regcache_cache_bypass(s->regmap, true);
 	regmap_raw_write(s->regmap, addr, s->buf, to_send);
 	regcache_cache_bypass(s->regmap, false);
@@ -630,6 +637,12 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 	if (likely(to_send)) {
 		/* Limit to size of TX FIFO */
 		txlen = sc16is7xx_port_read(port, SC16IS7XX_TXLVL_REG);
+		if (txlen > SC16IS7XX_FIFO_SIZE) {
+			dev_err_ratelimited(port->dev,
+				"chip reports %d free bytes in TX fifo, but it only has %d",
+				txlen, SC16IS7XX_FIFO_SIZE);
+			txlen = 0;
+		}
 		to_send = (to_send > txlen) ? txlen : to_send;
 
 		/* Add data to send */
