@@ -13,6 +13,9 @@
 
 #include <sound/soc.h>
 
+#include "greybus.h"
+#include "greybus_protocols.h"
+
 #define NAME_SIZE	32
 
 enum {
@@ -81,6 +84,43 @@ struct gbaudio_codec_info {
 	struct snd_soc_dapm_route *routes;
 	struct mutex lock;
 };
+
+extern int gb_audio_gb_get_topology(struct gb_connection *connection,
+				    struct gb_audio_topology **topology);
+extern int gb_audio_gb_get_control(struct gb_connection *connection,
+				   uint8_t control_id, uint8_t index,
+				   struct gb_audio_ctl_elem_value *value);
+extern int gb_audio_gb_set_control(struct gb_connection *connection,
+				   uint8_t control_id, uint8_t index,
+				   struct gb_audio_ctl_elem_value *value);
+extern int gb_audio_gb_enable_widget(struct gb_connection *connection,
+				     uint8_t widget_id);
+extern int gb_audio_gb_disable_widget(struct gb_connection *connection,
+				      uint8_t widget_id);
+extern int gb_audio_gb_get_pcm(struct gb_connection *connection,
+			       uint16_t data_cport, uint32_t *format,
+			       uint32_t *rate, uint8_t *channels,
+			       uint8_t *sig_bits);
+extern int gb_audio_gb_set_pcm(struct gb_connection *connection,
+			       uint16_t data_cport, uint32_t format,
+			       uint32_t rate, uint8_t channels,
+			       uint8_t sig_bits);
+extern int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
+					uint16_t data_cport, uint16_t size);
+extern int gb_audio_gb_get_tx_delay(struct gb_connection *connection,
+				    uint16_t data_cport, uint32_t *delay);
+extern int gb_audio_gb_activate_tx(struct gb_connection *connection,
+				   uint16_t data_cport);
+extern int gb_audio_gb_deactivate_tx(struct gb_connection *connection,
+				     uint16_t data_cport);
+extern int gb_audio_gb_set_rx_data_size(struct gb_connection *connection,
+					uint16_t data_cport, uint16_t size);
+extern int gb_audio_gb_get_rx_delay(struct gb_connection *connection,
+				    uint16_t data_cport, uint32_t *delay);
+extern int gb_audio_gb_activate_rx(struct gb_connection *connection,
+				   uint16_t data_cport);
+extern int gb_audio_gb_deactivate_rx(struct gb_connection *connection,
+				     uint16_t data_cport);
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_GBAUDIO_H */
