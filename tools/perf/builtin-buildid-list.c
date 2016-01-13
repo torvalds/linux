@@ -12,7 +12,7 @@
 #include "util/build-id.h"
 #include "util/cache.h"
 #include "util/debug.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/data.h"
@@ -110,7 +110,7 @@ int cmd_buildid_list(int argc, const char **argv,
 	setup_pager();
 
 	if (show_kernel)
-		return sysfs__fprintf_build_id(stdout);
+		return !(sysfs__fprintf_build_id(stdout) > 0);
 
 	return perf_session__list_build_ids(force, with_hits);
 }

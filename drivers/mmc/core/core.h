@@ -90,5 +90,13 @@ int mmc_execute_tuning(struct mmc_card *card);
 int mmc_hs200_to_hs400(struct mmc_card *card);
 int mmc_hs400_to_hs200(struct mmc_card *card);
 
+#ifdef CONFIG_PM_SLEEP
+void mmc_register_pm_notifier(struct mmc_host *host);
+void mmc_unregister_pm_notifier(struct mmc_host *host);
+#else
+static inline void mmc_register_pm_notifier(struct mmc_host *host) { }
+static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
+#endif
+
 #endif
 

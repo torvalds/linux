@@ -350,25 +350,43 @@ struct sk_filter {
 
 #define BPF_PROG_RUN(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
 
+#define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
+
+static inline u8 *bpf_skb_cb(struct sk_buff *skb)
+{
+	/* eBPF programs may read/write skb->cb[] area to transfer meta
+	 * data between tail calls. Since this also needs to work with
+	 * tc, that scratch memory is mapped to qdisc_skb_cb's data area.
+	 *
+	 * In some socket filter cases, the cb unfortunately needs to be
+	 * saved/restored so that protocol specific skb->cb[] data won't
+	 * be lost. In any case, due to unpriviledged eBPF programs
+	 * attached to sockets, we need to clear the bpf_skb_cb() area
+	 * to not leak previous contents to user space.
+	 */
+	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) != BPF_SKB_CB_LEN);
+	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) !=
+		     FIELD_SIZEOF(struct qdisc_skb_cb, data));
+
+	return qdisc_skb_cb(skb)->data;
+}
+
 static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
 				       struct sk_buff *skb)
 {
-	u8 *cb_data = qdisc_skb_cb(skb)->data;
-	u8 saved_cb[QDISC_CB_PRIV_LEN];
+	u8 *cb_data = bpf_skb_cb(skb);
+	u8 cb_saved[BPF_SKB_CB_LEN];
 	u32 res;
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) !=
-		     QDISC_CB_PRIV_LEN);
-
 	if (unlikely(prog->cb_access)) {
-		memcpy(saved_cb, cb_data, sizeof(saved_cb));
-		memset(cb_data, 0, sizeof(saved_cb));
+		memcpy(cb_saved, cb_data, sizeof(cb_saved));
+		memset(cb_data, 0, sizeof(cb_saved));
 	}
 
 	res = BPF_PROG_RUN(prog, skb);
 
 	if (unlikely(prog->cb_access))
-		memcpy(cb_data, saved_cb, sizeof(saved_cb));
+		memcpy(cb_data, cb_saved, sizeof(cb_saved));
 
 	return res;
 }
@@ -376,10 +394,11 @@ static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
 static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
 					struct sk_buff *skb)
 {
-	u8 *cb_data = qdisc_skb_cb(skb)->data;
+	u8 *cb_data = bpf_skb_cb(skb);
 
 	if (unlikely(prog->cb_access))
-		memset(cb_data, 0, QDISC_CB_PRIV_LEN);
+		memset(cb_data, 0, BPF_SKB_CB_LEN);
+
 	return BPF_PROG_RUN(prog, skb);
 }
 
@@ -447,6 +466,8 @@ void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
+int sk_reuseport_attach_filter(struct sock_fprog *fprog, struct sock *sk);
+int sk_reuseport_attach_bpf(u32 ufd, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);

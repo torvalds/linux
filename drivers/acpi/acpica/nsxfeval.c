@@ -750,8 +750,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 	/* We have a valid device, invoke the user function */
 
-	status = info->user_function(obj_handle, nesting_level, info->context,
-				     return_value);
+	status = info->user_function(obj_handle, nesting_level,
+				     info->context, return_value);
 	return (status);
 }
 

@@ -133,7 +133,7 @@ static struct list_head *test_terms_list(void)
 	return &terms;
 }
 
-int test__pmu(void)
+int test__pmu(int subtest __maybe_unused)
 {
 	char *format = test_format_dir_get();
 	LIST_HEAD(formats);

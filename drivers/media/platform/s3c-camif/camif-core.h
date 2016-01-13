@@ -26,7 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
 #include <media/videobuf2-v4l2.h>
-#include <media/s3c_camif.h>
+#include <media/drv-intf/s3c_camif.h>
 
 #define S3C_CAMIF_DRIVER_NAME	"s3c-camif"
 #define CAMIF_REQ_BUFS_MIN	3

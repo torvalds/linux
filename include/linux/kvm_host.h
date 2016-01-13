@@ -111,38 +111,13 @@ static inline bool is_error_page(struct page *page)
 }
 
 /*
- * vcpu->requests bit members
+ * Architecture-independent vcpu->requests bit members
+ * Bits 4-7 are reserved for more arch-independent bits.
  */
 #define KVM_REQ_TLB_FLUSH          0
-#define KVM_REQ_MIGRATE_TIMER      1
-#define KVM_REQ_REPORT_TPR_ACCESS  2
-#define KVM_REQ_MMU_RELOAD         3
-#define KVM_REQ_TRIPLE_FAULT       4
-#define KVM_REQ_PENDING_TIMER      5
-#define KVM_REQ_UNHALT             6
-#define KVM_REQ_MMU_SYNC           7
-#define KVM_REQ_CLOCK_UPDATE       8
-#define KVM_REQ_KICK               9
-#define KVM_REQ_DEACTIVATE_FPU    10
-#define KVM_REQ_EVENT             11
-#define KVM_REQ_APF_HALT          12
-#define KVM_REQ_STEAL_UPDATE      13
-#define KVM_REQ_NMI               14
-#define KVM_REQ_PMU               15
-#define KVM_REQ_PMI               16
-#define KVM_REQ_WATCHDOG          17
-#define KVM_REQ_MASTERCLOCK_UPDATE 18
-#define KVM_REQ_MCLOCK_INPROGRESS 19
-#define KVM_REQ_EPR_EXIT          20
-#define KVM_REQ_SCAN_IOAPIC       21
-#define KVM_REQ_GLOBAL_CLOCK_UPDATE 22
-#define KVM_REQ_ENABLE_IBS        23
-#define KVM_REQ_DISABLE_IBS       24
-#define KVM_REQ_APIC_PAGE_RELOAD  25
-#define KVM_REQ_SMI               26
-#define KVM_REQ_HV_CRASH          27
-#define KVM_REQ_IOAPIC_EOI_EXIT   28
-#define KVM_REQ_HV_RESET          29
+#define KVM_REQ_MMU_RELOAD         1
+#define KVM_REQ_PENDING_TIMER      2
+#define KVM_REQ_UNHALT             3
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -318,6 +293,11 @@ struct kvm_s390_adapter_int {
 	u32 adapter_id;
 };
 
+struct kvm_hv_sint {
+	u32 vcpu;
+	u32 sint;
+};
+
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
 	u32 type;
@@ -331,6 +311,7 @@ struct kvm_kernel_irq_routing_entry {
 		} irqchip;
 		struct msi_msg msi;
 		struct kvm_s390_adapter_int adapter;
+		struct kvm_hv_sint hv_sint;
 	};
 	struct hlist_node link;
 };
@@ -439,10 +420,13 @@ struct kvm {
 
 /* The guest did something we don't support. */
 #define vcpu_unimpl(vcpu, fmt, ...)					\
-	kvm_pr_unimpl("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
+	kvm_pr_unimpl("vcpu%i, guest rIP: 0x%lx " fmt,			\
+			(vcpu)->vcpu_id, kvm_rip_read(vcpu), ## __VA_ARGS__)
 
 #define vcpu_debug(vcpu, fmt, ...)					\
 	kvm_debug("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
+#define vcpu_err(vcpu, fmt, ...)					\
+	kvm_err("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
@@ -465,6 +449,11 @@ static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 	struct kvm_vcpu *vcpu;
 	int i;
 
+	if (id < 0 || id >= KVM_MAX_VCPUS)
+		return NULL;
+	vcpu = kvm_get_vcpu(kvm, id);
+	if (vcpu && vcpu->vcpu_id == id)
+		return vcpu;
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		if (vcpu->vcpu_id == id)
 			return vcpu;
@@ -484,12 +473,12 @@ void vcpu_put(struct kvm_vcpu *vcpu);
 
 #ifdef __KVM_HAVE_IOAPIC
 void kvm_vcpu_request_scan_ioapic(struct kvm *kvm);
-void kvm_arch_irq_routing_update(struct kvm *kvm);
+void kvm_arch_post_irq_routing_update(struct kvm *kvm);
 #else
 static inline void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
 {
 }
-static inline void kvm_arch_irq_routing_update(struct kvm *kvm)
+static inline void kvm_arch_post_irq_routing_update(struct kvm *kvm)
 {
 }
 #endif
@@ -634,7 +623,7 @@ int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
 int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
-int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
+bool kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
 unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn);
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
 
@@ -668,8 +657,6 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
-void kvm_make_mclock_inprogress_request(struct kvm *kvm);
-void kvm_make_scan_ioapic_request(struct kvm *kvm);
 bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req);
 
 long kvm_arch_dev_ioctl(struct file *filp,
@@ -990,11 +977,6 @@ static inline bool kvm_is_error_gpa(struct kvm *kvm, gpa_t gpa)
 	return kvm_is_error_hva(hva);
 }
 
-static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
-{
-	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
-}
-
 enum kvm_stat_kind {
 	KVM_STAT_VM,
 	KVM_STAT_VCPU,
@@ -1004,7 +986,6 @@ struct kvm_stats_debugfs_item {
 	const char *name;
 	int offset;
 	enum kvm_stat_kind kind;
-	struct dentry *dentry;
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;
@@ -1091,6 +1072,7 @@ static inline void kvm_irq_routing_update(struct kvm *kvm)
 {
 }
 #endif
+void kvm_arch_irq_routing_update(struct kvm *kvm);
 
 static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {

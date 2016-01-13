@@ -192,7 +192,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 #ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
 {
-	return memblock_is_memory(__pfn_to_phys(pfn));
+	return memblock_is_map_memory(__pfn_to_phys(pfn));
 }
 EXPORT_SYMBOL(pfn_valid);
 #endif
@@ -431,6 +431,9 @@ static void __init free_highpages(void)
 
 		/* Ignore complete lowmem entries */
 		if (end <= max_low)
+			continue;
+
+		if (memblock_is_nomap(mem))
 			continue;
 
 		/* Truncate partial highmem entries */

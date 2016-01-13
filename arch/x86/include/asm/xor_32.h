@@ -553,7 +553,7 @@ do {							\
 	if (cpu_has_xmm) {				\
 		xor_speed(&xor_block_pIII_sse);		\
 		xor_speed(&xor_block_sse_pf64);		\
-	} else if (cpu_has_mmx) {			\
+	} else if (boot_cpu_has(X86_FEATURE_MMX)) {	\
 		xor_speed(&xor_block_pII_mmx);		\
 		xor_speed(&xor_block_p5_mmx);		\
 	} else {					\

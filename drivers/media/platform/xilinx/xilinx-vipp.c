@@ -476,8 +476,10 @@ static int xvip_graph_dma_init(struct xvip_composite_device *xdev)
 
 	for_each_child_of_node(ports, port) {
 		ret = xvip_graph_dma_init_one(xdev, port);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(port);
 			return ret;
+		}
 	}
 
 	return 0;

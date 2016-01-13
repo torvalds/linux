@@ -18,7 +18,7 @@ static __initconst const u64 amd_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0x0141, /* Data Cache Misses          */
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0142, /* Data Cache Refills :system */
+		[ C(RESULT_ACCESS) ] = 0,
 		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_PREFETCH) ] = {
@@ -160,7 +160,7 @@ static inline int amd_pmu_addr_offset(int index, bool eventsel)
 	if (offset)
 		return offset;
 
-	if (!cpu_has_perfctr_core)
+	if (!boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
 		offset = index;
 	else
 		offset = index << 1;
@@ -652,7 +652,7 @@ static __initconst const struct x86_pmu amd_pmu = {
 
 static int __init amd_core_pmu_init(void)
 {
-	if (!cpu_has_perfctr_core)
+	if (!boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
 		return 0;
 
 	switch (boot_cpu_data.x86) {

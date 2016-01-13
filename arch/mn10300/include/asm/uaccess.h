@@ -110,21 +110,6 @@ extern int fixup_exception(struct pt_regs *regs);
 #define __put_user(x, ptr) __put_user_nocheck((x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr) __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 
-/*
- * The "xxx_ret" versions return constant specified in third argument, if
- * something bad happens. These macros can be optimized for the
- * case of just returning from the function xxx_ret is used.
- */
-
-#define put_user_ret(x, ptr, ret) \
-	({ if (put_user((x), (ptr)))	return (ret); })
-#define get_user_ret(x, ptr, ret) \
-	({ if (get_user((x), (ptr)))	return (ret); })
-#define __put_user_ret(x, ptr, ret) \
-	({ if (__put_user((x), (ptr)))	return (ret); })
-#define __get_user_ret(x, ptr, ret) \
-	({ if (__get_user((x), (ptr)))	return (ret); })
-
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct *)(x))
 

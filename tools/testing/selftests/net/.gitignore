@@ -1,3 +1,4 @@
 socket
 psock_fanout
 psock_tpacket
+reuseport_bpf

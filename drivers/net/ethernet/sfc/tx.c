@@ -1010,12 +1010,16 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
 
 /* Parse the SKB header and initialise state. */
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
+		     struct efx_tx_queue *tx_queue,
 		     const struct sk_buff *skb)
 {
-	bool use_opt_desc = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	unsigned int header_len, in_len;
+	bool use_opt_desc = false;
 	dma_addr_t dma_addr;
+
+	if (tx_queue->tso_version == 1)
+		use_opt_desc = true;
 
 	st->ip_off = skb_network_header(skb) - skb->data;
 	st->tcp_off = skb_transport_header(skb) - skb->data;
@@ -1271,7 +1275,7 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
 
-	rc = tso_start(&state, efx, skb);
+	rc = tso_start(&state, efx, tx_queue, skb);
 	if (rc)
 		goto mem_err;
 

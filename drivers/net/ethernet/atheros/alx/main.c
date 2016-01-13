@@ -577,7 +577,6 @@ static int alx_alloc_rings(struct alx_priv *alx)
 
 	alx->int_mask &= ~ALX_ISR_ALL_QUEUES;
 	alx->int_mask |= ALX_ISR_TX_Q0 | ALX_ISR_RX_Q0;
-	alx->tx_ringsz = alx->tx_ringsz;
 
 	netif_napi_add(alx->dev, &alx->napi, alx_poll, 64);
 
@@ -705,7 +704,7 @@ static int alx_init_sw(struct alx_priv *alx)
 
 	hw->smb_timer = 400;
 	hw->mtu = alx->dev->mtu;
-	alx->rxbuf_size = ALIGN(ALX_RAW_MTU(hw->mtu), 8);
+	alx->rxbuf_size = ALX_MAX_FRAME_LEN(hw->mtu);
 	alx->tx_ringsz = 256;
 	alx->rx_ringsz = 512;
 	hw->imt = 200;
@@ -806,7 +805,7 @@ static void alx_reinit(struct alx_priv *alx)
 static int alx_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct alx_priv *alx = netdev_priv(netdev);
-	int max_frame = mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+	int max_frame = ALX_MAX_FRAME_LEN(mtu);
 
 	if ((max_frame < ALX_MIN_FRAME_SIZE) ||
 	    (max_frame > ALX_MAX_FRAME_SIZE))
@@ -817,8 +816,7 @@ static int alx_change_mtu(struct net_device *netdev, int mtu)
 
 	netdev->mtu = mtu;
 	alx->hw.mtu = mtu;
-	alx->rxbuf_size = mtu > ALX_DEF_RXBUF_SIZE ?
-			   ALIGN(max_frame, 8) : ALX_DEF_RXBUF_SIZE;
+	alx->rxbuf_size = max(max_frame, ALX_DEF_RXBUF_SIZE);
 	netdev_update_features(netdev);
 	if (netif_running(netdev))
 		alx_reinit(alx);

@@ -1511,12 +1511,6 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 	snprintf(dev->mdiobus->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
 		 dev->udev->bus->busnum, dev->udev->devnum);
 
-	dev->mdiobus->irq = kzalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!dev->mdiobus->irq) {
-		ret = -ENOMEM;
-		goto exit1;
-	}
-
 	/* handle our own interrupt */
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		dev->mdiobus->irq[i] = PHY_IGNORE_INTERRUPT;
@@ -1532,13 +1526,11 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 	ret = mdiobus_register(dev->mdiobus);
 	if (ret) {
 		netdev_err(dev->net, "can't register MDIO bus\n");
-		goto exit2;
+		goto exit1;
 	}
 
 	netdev_dbg(dev->net, "registered mdiobus bus %s\n", dev->mdiobus->id);
 	return 0;
-exit2:
-	kfree(dev->mdiobus->irq);
 exit1:
 	mdiobus_free(dev->mdiobus);
 	return ret;
@@ -1547,7 +1539,6 @@ exit1:
 static void lan78xx_remove_mdio(struct lan78xx_net *dev)
 {
 	mdiobus_unregister(dev->mdiobus);
-	kfree(dev->mdiobus->irq);
 	mdiobus_free(dev->mdiobus);
 }
 

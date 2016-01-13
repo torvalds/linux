@@ -143,7 +143,7 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 	 * when we go busy again does not account too much ticks.
 	 */
 	if (ts->tick_stopped) {
-		touch_softlockup_watchdog();
+		touch_softlockup_watchdog_sched();
 		if (is_idle_task(current))
 			ts->idle_jiffies++;
 	}
@@ -430,7 +430,7 @@ static void tick_nohz_update_jiffies(ktime_t now)
 	tick_do_update_jiffies64(now);
 	local_irq_restore(flags);
 
-	touch_softlockup_watchdog();
+	touch_softlockup_watchdog_sched();
 }
 
 /*
@@ -603,15 +603,31 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 
 	/*
 	 * If the tick is due in the next period, keep it ticking or
-	 * restart it proper.
+	 * force prod the timer.
 	 */
 	delta = next_tick - basemono;
 	if (delta <= (u64)TICK_NSEC) {
 		tick.tv64 = 0;
+		/*
+		 * We've not stopped the tick yet, and there's a timer in the
+		 * next period, so no point in stopping it either, bail.
+		 */
 		if (!ts->tick_stopped)
 			goto out;
+
+		/*
+		 * If, OTOH, we did stop it, but there's a pending (expired)
+		 * timer reprogram the timer hardware to fire now.
+		 *
+		 * We will not restart the tick proper, just prod the timer
+		 * hardware into firing an interrupt to process the pending
+		 * timers. Just like tick_irq_exit() will not restart the tick
+		 * for 'normal' interrupts.
+		 *
+		 * Only once we exit the idle loop will we re-enable the tick,
+		 * see tick_nohz_idle_exit().
+		 */
 		if (delta == 0) {
-			/* Tick is stopped, but required now. Enforce it */
 			tick_nohz_restart(ts, now);
 			goto out;
 		}
@@ -694,14 +710,14 @@ out:
 	return tick;
 }
 
-static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
+static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now, int active)
 {
 	/* Update jiffies first */
 	tick_do_update_jiffies64(now);
-	update_cpu_load_nohz();
+	update_cpu_load_nohz(active);
 
 	calc_load_exit_idle();
-	touch_softlockup_watchdog();
+	touch_softlockup_watchdog_sched();
 	/*
 	 * Cancel the scheduled timer and restore the tick
 	 */
@@ -725,7 +741,7 @@ static void tick_nohz_full_update_tick(struct tick_sched *ts)
 	if (can_stop_full_tick())
 		tick_nohz_stop_sched_tick(ts, ktime_get(), cpu);
 	else if (ts->tick_stopped)
-		tick_nohz_restart_sched_tick(ts, ktime_get());
+		tick_nohz_restart_sched_tick(ts, ktime_get(), 1);
 #endif
 }
 
@@ -875,7 +891,7 @@ static void tick_nohz_account_idle_ticks(struct tick_sched *ts)
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	unsigned long ticks;
 
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		return;
 	/*
 	 * We stopped the tick in idle. Update process times would miss the
@@ -916,7 +932,7 @@ void tick_nohz_idle_exit(void)
 		tick_nohz_stop_idle(ts, now);
 
 	if (ts->tick_stopped) {
-		tick_nohz_restart_sched_tick(ts, now);
+		tick_nohz_restart_sched_tick(ts, now, 0);
 		tick_nohz_account_idle_ticks(ts);
 	}
 

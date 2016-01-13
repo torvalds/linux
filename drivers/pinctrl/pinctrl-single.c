@@ -1484,10 +1484,7 @@ static void pcs_irq_free(struct pcs_device *pcs)
 static void pcs_free_resources(struct pcs_device *pcs)
 {
 	pcs_irq_free(pcs);
-
-	if (pcs->pctl)
-		pinctrl_unregister(pcs->pctl);
-
+	pinctrl_unregister(pcs->pctl);
 	pcs_free_funcs(pcs);
 	pcs_free_pingroups(pcs);
 }

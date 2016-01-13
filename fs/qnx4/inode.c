@@ -316,6 +316,7 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 		inode->i_fop = &qnx4_dir_operations;
 	} else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &qnx4_aops;
 		qnx4_i(inode)->mmu_private = inode->i_size;
 	} else {

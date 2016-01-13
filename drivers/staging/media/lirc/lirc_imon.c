@@ -885,12 +885,14 @@ static int imon_probe(struct usb_interface *interface,
 		vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
 
 	/* Everything went fine. Just unlock and return retval (with is 0) */
+	mutex_unlock(&context->ctx_lock);
 	goto driver_unlock;
 
 unregister_lirc:
 	lirc_unregister_driver(driver->minor);
 
 free_tx_urb:
+	mutex_unlock(&context->ctx_lock);
 	usb_free_urb(tx_urb);
 
 free_rx_urb:

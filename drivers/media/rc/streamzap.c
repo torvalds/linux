@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/ktime.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <media/rc-core.h>
@@ -96,8 +97,8 @@ struct streamzap_ir {
 	/* sum of signal lengths received since signal start */
 	unsigned long		sum;
 	/* start time of signal; necessary for gap tracking */
-	struct timeval		signal_last;
-	struct timeval		signal_start;
+	ktime_t			signal_last;
+	ktime_t			signal_start;
 	bool			timeout_enabled;
 
 	char			name[128];
@@ -136,20 +137,18 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 	DEFINE_IR_RAW_EVENT(rawir);
 
 	if (sz->idle) {
-		long deltv;
+		int delta;
 
 		sz->signal_last = sz->signal_start;
-		do_gettimeofday(&sz->signal_start);
+		sz->signal_start = ktime_get_real();
 
-		deltv = sz->signal_start.tv_sec - sz->signal_last.tv_sec;
+		delta = ktime_us_delta(sz->signal_start, sz->signal_last);
 		rawir.pulse = false;
-		if (deltv > 15) {
+		if (delta > (15 * USEC_PER_SEC)) {
 			/* really long time */
 			rawir.duration = IR_MAX_DURATION;
 		} else {
-			rawir.duration = (int)(deltv * 1000000 +
-				sz->signal_start.tv_usec -
-				sz->signal_last.tv_usec);
+			rawir.duration = delta;
 			rawir.duration -= sz->sum;
 			rawir.duration = US_TO_NS(rawir.duration);
 			rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
@@ -428,7 +427,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	sz->max_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
 	#endif
 
-	do_gettimeofday(&sz->signal_start);
+	sz->signal_start = ktime_get_real();
 
 	/* Complete final initialisations */
 	usb_fill_int_urb(sz->urb_in, usbdev, pipe, sz->buf_in,

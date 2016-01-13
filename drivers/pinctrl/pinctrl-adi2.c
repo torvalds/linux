@@ -1102,32 +1102,24 @@ static struct platform_driver adi_gpio_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&adi_pinctrl_driver,
+	&adi_gpio_pint_driver,
+	&adi_gpio_driver,
+};
+
 static int __init adi_pinctrl_setup(void)
 {
 	int ret;
 
-	ret = platform_driver_register(&adi_pinctrl_driver);
+	ret = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (ret)
 		return ret;
-
-	ret = platform_driver_register(&adi_gpio_pint_driver);
-	if (ret)
-		goto pint_error;
-
-	ret = platform_driver_register(&adi_gpio_driver);
-	if (ret)
-		goto gpio_error;
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&gpio_pm_syscore_ops);
 #endif
-	return ret;
-gpio_error:
-	platform_driver_unregister(&adi_gpio_pint_driver);
-pint_error:
-	platform_driver_unregister(&adi_pinctrl_driver);
-
-	return ret;
+	return 0;
 }
 arch_initcall(adi_pinctrl_setup);
 

@@ -1644,10 +1644,7 @@ static int emac_dev_open(struct net_device *ndev)
 		priv->speed = 0;
 		priv->duplex = ~0;
 
-		dev_info(emac_dev, "attached PHY driver [%s] "
-			"(mii_bus:phy_addr=%s, id=%x)\n",
-			priv->phydev->drv->name, dev_name(&priv->phydev->dev),
-			priv->phydev->phy_id);
+		phy_attached_info(priv->phydev);
 	}
 
 	if (!priv->phydev) {

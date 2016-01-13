@@ -104,6 +104,9 @@
 #define HWCAP_S390_TE		1024
 #define HWCAP_S390_VXRS		2048
 
+/* Internal bits, not exposed via elf */
+#define HWCAP_INT_SIE		1UL
+
 /*
  * These are used to set parameters in the core dumps.
  */
@@ -168,6 +171,10 @@ extern unsigned int vdso_enabled;
 
 extern unsigned long elf_hwcap;
 #define ELF_HWCAP (elf_hwcap)
+
+/* Internal hardware capabilities, not exposed via elf */
+
+extern unsigned long int_hwcap;
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

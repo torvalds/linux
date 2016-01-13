@@ -622,12 +622,17 @@ static void dw_dma_tasklet(unsigned long data)
 static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 {
 	struct dw_dma *dw = dev_id;
-	u32 status = dma_readl(dw, STATUS_INT);
+	u32 status;
 
+	/* Check if we have any interrupt from the DMAC which is not in use */
+	if (!dw->in_use)
+		return IRQ_NONE;
+
+	status = dma_readl(dw, STATUS_INT);
 	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__, status);
 
 	/* Check if we have any interrupt from the DMAC */
-	if (!status || !dw->in_use)
+	if (!status)
 		return IRQ_NONE;
 
 	/*

@@ -21,10 +21,12 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/string.h>
+#include <linux/fsl/edac.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
@@ -1255,6 +1257,25 @@ void fsl_pcibios_fixup_phb(struct pci_controller *phb)
 #endif
 }
 
+static int add_err_dev(struct platform_device *pdev)
+{
+	struct platform_device *errdev;
+	struct mpc85xx_edac_pci_plat_data pd = {
+		.of_node = pdev->dev.of_node
+	};
+
+	errdev = platform_device_register_resndata(&pdev->dev,
+						   "mpc85xx-pci-edac",
+						   PLATFORM_DEVID_AUTO,
+						   pdev->resource,
+						   pdev->num_resources,
+						   &pd, sizeof(pd));
+	if (IS_ERR(errdev))
+		return PTR_ERR(errdev);
+
+	return 0;
+}
+
 static int fsl_pci_probe(struct platform_device *pdev)
 {
 	struct device_node *node;
@@ -1262,8 +1283,13 @@ static int fsl_pci_probe(struct platform_device *pdev)
 
 	node = pdev->dev.of_node;
 	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
+	if (ret)
+		return ret;
 
-	mpc85xx_pci_err_probe(pdev);
+	ret = add_err_dev(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "couldn't register error device: %d\n",
+			ret);
 
 	return 0;
 }

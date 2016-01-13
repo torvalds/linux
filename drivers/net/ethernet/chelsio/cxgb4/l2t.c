@@ -66,7 +66,7 @@ struct l2t_data {
 
 static inline unsigned int vlan_prio(const struct l2t_entry *e)
 {
-	return e->vlan >> 13;
+	return e->vlan >> VLAN_PRIO_SHIFT;
 }
 
 static inline void l2t_hold(struct l2t_data *d, struct l2t_entry *e)
@@ -161,8 +161,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 		memcpy(e->dmac, e->neigh->ha, sizeof(e->dmac));
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
-	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
-	t4_ofld_send(adap, skb);
+	t4_mgmt_tx(adap, skb);
 
 	if (sync && e->state != L2T_STATE_SWITCHING)
 		e->state = L2T_STATE_SYNC_WRITE;
@@ -175,14 +174,10 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
  */
 static void send_pending(struct adapter *adap, struct l2t_entry *e)
 {
-	while (e->arpq_head) {
-		struct sk_buff *skb = e->arpq_head;
+	struct sk_buff *skb;
 
-		e->arpq_head = skb->next;
-		skb->next = NULL;
+	while ((skb = __skb_dequeue(&e->arpq)) != NULL)
 		t4_ofld_send(adap, skb);
-	}
-	e->arpq_tail = NULL;
 }
 
 /*
@@ -222,12 +217,7 @@ void do_l2t_write_rpl(struct adapter *adap, const struct cpl_l2t_write_rpl *rpl)
  */
 static inline void arpq_enqueue(struct l2t_entry *e, struct sk_buff *skb)
 {
-	skb->next = NULL;
-	if (e->arpq_head)
-		e->arpq_tail->next = skb;
-	else
-		e->arpq_head = skb;
-	e->arpq_tail = skb;
+	__skb_queue_tail(&e->arpq, skb);
 }
 
 int cxgb4_l2t_send(struct net_device *dev, struct sk_buff *skb,
@@ -259,7 +249,8 @@ again:
 		if (e->state == L2T_STATE_RESOLVING &&
 		    !neigh_event_send(e->neigh, NULL)) {
 			spin_lock_bh(&e->lock);
-			if (e->state == L2T_STATE_RESOLVING && e->arpq_head)
+			if (e->state == L2T_STATE_RESOLVING &&
+			    !skb_queue_empty(&e->arpq))
 				write_l2e(adap, e, 1);
 			spin_unlock_bh(&e->lock);
 		}
@@ -305,12 +296,82 @@ found:
 	return e;
 }
 
-/*
- * Called when an L2T entry has no more users.
+static struct l2t_entry *find_or_alloc_l2e(struct l2t_data *d, u16 vlan,
+					   u8 port, u8 *dmac)
+{
+	struct l2t_entry *end, *e, **p;
+	struct l2t_entry *first_free = NULL;
+
+	for (e = &d->l2tab[0], end = &d->l2tab[d->l2t_size]; e != end; ++e) {
+		if (atomic_read(&e->refcnt) == 0) {
+			if (!first_free)
+				first_free = e;
+		} else {
+			if (e->state == L2T_STATE_SWITCHING) {
+				if (ether_addr_equal(e->dmac, dmac) &&
+				    (e->vlan == vlan) && (e->lport == port))
+					goto exists;
+			}
+		}
+	}
+
+	if (first_free) {
+		e = first_free;
+		goto found;
+	}
+
+	return NULL;
+
+found:
+	/* The entry we found may be an inactive entry that is
+	 * presently in the hash table.  We need to remove it.
+	 */
+	if (e->state < L2T_STATE_SWITCHING)
+		for (p = &d->l2tab[e->hash].first; *p; p = &(*p)->next)
+			if (*p == e) {
+				*p = e->next;
+				e->next = NULL;
+				break;
+			}
+	e->state = L2T_STATE_UNUSED;
+
+exists:
+	return e;
+}
+
+/* Called when an L2T entry has no more users.  The entry is left in the hash
+ * table since it is likely to be reused but we also bump nfree to indicate
+ * that the entry can be reallocated for a different neighbor.  We also drop
+ * the existing neighbor reference in case the neighbor is going away and is
+ * waiting on our reference.
+ *
+ * Because entries can be reallocated to other neighbors once their ref count
+ * drops to 0 we need to take the entry's lock to avoid races with a new
+ * incarnation.
  */
+static void _t4_l2e_free(struct l2t_entry *e)
+{
+	struct l2t_data *d;
+	struct sk_buff *skb;
+
+	if (atomic_read(&e->refcnt) == 0) {  /* hasn't been recycled */
+		if (e->neigh) {
+			neigh_release(e->neigh);
+			e->neigh = NULL;
+		}
+		while ((skb = __skb_dequeue(&e->arpq)) != NULL)
+			kfree_skb(skb);
+	}
+
+	d = container_of(e, struct l2t_data, l2tab[e->idx]);
+	atomic_inc(&d->nfree);
+}
+
+/* Locked version of _t4_l2e_free */
 static void t4_l2e_free(struct l2t_entry *e)
 {
 	struct l2t_data *d;
+	struct sk_buff *skb;
 
 	spin_lock_bh(&e->lock);
 	if (atomic_read(&e->refcnt) == 0) {  /* hasn't been recycled */
@@ -318,13 +379,8 @@ static void t4_l2e_free(struct l2t_entry *e)
 			neigh_release(e->neigh);
 			e->neigh = NULL;
 		}
-		while (e->arpq_head) {
-			struct sk_buff *skb = e->arpq_head;
-
-			e->arpq_head = skb->next;
+		while ((skb = __skb_dequeue(&e->arpq)) != NULL)
 			kfree_skb(skb);
-		}
-		e->arpq_tail = NULL;
 	}
 	spin_unlock_bh(&e->lock);
 
@@ -457,18 +513,19 @@ EXPORT_SYMBOL(cxgb4_select_ntuple);
  * on the arpq head.  If a packet specifies a failure handler it is invoked,
  * otherwise the packet is sent to the device.
  */
-static void handle_failed_resolution(struct adapter *adap, struct sk_buff *arpq)
+static void handle_failed_resolution(struct adapter *adap, struct l2t_entry *e)
 {
-	while (arpq) {
-		struct sk_buff *skb = arpq;
+	struct sk_buff *skb;
+
+	while ((skb = __skb_dequeue(&e->arpq)) != NULL) {
 		const struct l2t_skb_cb *cb = L2T_SKB_CB(skb);
 
-		arpq = skb->next;
-		skb->next = NULL;
+		spin_unlock(&e->lock);
 		if (cb->arp_err_handler)
 			cb->arp_err_handler(cb->handle, skb);
 		else
 			t4_ofld_send(adap, skb);
+		spin_lock(&e->lock);
 	}
 }
 
@@ -479,7 +536,7 @@ static void handle_failed_resolution(struct adapter *adap, struct sk_buff *arpq)
 void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 {
 	struct l2t_entry *e;
-	struct sk_buff *arpq = NULL;
+	struct sk_buff_head *arpq = NULL;
 	struct l2t_data *d = adap->l2t;
 	int addr_len = neigh->tbl->key_len;
 	u32 *addr = (u32 *) neigh->primary_key;
@@ -506,10 +563,9 @@ void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 
 	if (e->state == L2T_STATE_RESOLVING) {
 		if (neigh->nud_state & NUD_FAILED) {
-			arpq = e->arpq_head;
-			e->arpq_head = e->arpq_tail = NULL;
+			arpq = &e->arpq;
 		} else if ((neigh->nud_state & (NUD_CONNECTED | NUD_STALE)) &&
-			   e->arpq_head) {
+			   !skb_queue_empty(&e->arpq)) {
 			write_l2e(adap, e, 1);
 		}
 	} else {
@@ -519,43 +575,66 @@ void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 			write_l2e(adap, e, 0);
 	}
 
-	spin_unlock_bh(&e->lock);
-
 	if (arpq)
-		handle_failed_resolution(adap, arpq);
+		handle_failed_resolution(adap, e);
+	spin_unlock_bh(&e->lock);
 }
 
 /* Allocate an L2T entry for use by a switching rule.  Such need to be
  * explicitly freed and while busy they are not on any hash chain, so normal
  * address resolution updates do not see them.
  */
-struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *d)
+struct l2t_entry *t4_l2t_alloc_switching(struct adapter *adap, u16 vlan,
+					 u8 port, u8 *eth_addr)
 {
+	struct l2t_data *d = adap->l2t;
 	struct l2t_entry *e;
+	int ret;
 
 	write_lock_bh(&d->lock);
-	e = alloc_l2e(d);
+	e = find_or_alloc_l2e(d, vlan, port, eth_addr);
 	if (e) {
 		spin_lock(&e->lock);          /* avoid race with t4_l2t_free */
-		e->state = L2T_STATE_SWITCHING;
-		atomic_set(&e->refcnt, 1);
+		if (!atomic_read(&e->refcnt)) {
+			e->state = L2T_STATE_SWITCHING;
+			e->vlan = vlan;
+			e->lport = port;
+			ether_addr_copy(e->dmac, eth_addr);
+			atomic_set(&e->refcnt, 1);
+			ret = write_l2e(adap, e, 0);
+			if (ret < 0) {
+				_t4_l2e_free(e);
+				spin_unlock(&e->lock);
+				write_unlock_bh(&d->lock);
+				return NULL;
+			}
+		} else {
+			atomic_inc(&e->refcnt);
+		}
+
 		spin_unlock(&e->lock);
 	}
 	write_unlock_bh(&d->lock);
 	return e;
 }
 
-/* Sets/updates the contents of a switching L2T entry that has been allocated
- * with an earlier call to @t4_l2t_alloc_switching.
+/**
+ * @dev: net_device pointer
+ * @vlan: VLAN Id
+ * @port: Associated port
+ * @dmac: Destination MAC address to add to L2T
+ * Returns pointer to the allocated l2t entry
+ *
+ * Allocates an L2T entry for use by switching rule of a filter
  */
-int t4_l2t_set_switching(struct adapter *adap, struct l2t_entry *e, u16 vlan,
-		u8 port, u8 *eth_addr)
+struct l2t_entry *cxgb4_l2t_alloc_switching(struct net_device *dev, u16 vlan,
+					    u8 port, u8 *dmac)
 {
-	e->vlan = vlan;
-	e->lport = port;
-	memcpy(e->dmac, eth_addr, ETH_ALEN);
-	return write_l2e(adap, e, 0);
+	struct adapter *adap = netdev2adap(dev);
+
+	return t4_l2t_alloc_switching(adap, vlan, port, dmac);
 }
+EXPORT_SYMBOL(cxgb4_l2t_alloc_switching);
 
 struct l2t_data *t4_init_l2t(unsigned int l2t_start, unsigned int l2t_end)
 {
@@ -585,6 +664,7 @@ struct l2t_data *t4_init_l2t(unsigned int l2t_start, unsigned int l2t_end)
 		d->l2tab[i].state = L2T_STATE_UNUSED;
 		spin_lock_init(&d->l2tab[i].lock);
 		atomic_set(&d->l2tab[i].refcnt, 0);
+		skb_queue_head_init(&d->l2tab[i].arpq);
 	}
 	return d;
 }
@@ -619,7 +699,8 @@ static char l2e_state(const struct l2t_entry *e)
 	case L2T_STATE_VALID: return 'V';
 	case L2T_STATE_STALE: return 'S';
 	case L2T_STATE_SYNC_WRITE: return 'W';
-	case L2T_STATE_RESOLVING: return e->arpq_head ? 'A' : 'R';
+	case L2T_STATE_RESOLVING:
+		return skb_queue_empty(&e->arpq) ? 'R' : 'A';
 	case L2T_STATE_SWITCHING: return 'X';
 	default:
 		return 'U';

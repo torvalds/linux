@@ -3993,6 +3993,8 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_PHY_CORE_WRITE             0x000e0000
 #define DRV_MSG_CODE_SET_VERSION                0x000f0000
 
+#define DRV_MSG_CODE_SET_LED_MODE               0x00200000
+
 #define DRV_MSG_SEQ_NUMBER_MASK                 0x0000ffff
 
 	u32 drv_mb_param;
@@ -4043,6 +4045,10 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_MASK     0x000000FF
 #define DRV_MB_PARAM_CFG_VF_MSIX_SB_NUM_SHIFT   8
 #define DRV_MB_PARAM_CFG_VF_MSIX_SB_NUM_MASK    0x0000FF00
+
+#define DRV_MB_PARAM_SET_LED_MODE_OPER          0x0
+#define DRV_MB_PARAM_SET_LED_MODE_ON            0x1
+#define DRV_MB_PARAM_SET_LED_MODE_OFF           0x2
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK                        0xffff0000

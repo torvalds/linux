@@ -60,11 +60,7 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
-#include <adf_transport_access_macros.h>
 #include "adf_dh895xcc_hw_data.h"
-#include "adf_drv.h"
-
-static const char adf_driver_name[] = ADF_DH895XCC_DEVICE_NAME;
 
 #define ADF_SYSTEM_DEVICE(device_id) \
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
@@ -80,7 +76,7 @@ static void adf_remove(struct pci_dev *dev);
 
 static struct pci_driver adf_driver = {
 	.id_table = adf_pci_tbl,
-	.name = adf_driver_name,
+	.name = ADF_DH895XCC_DEVICE_NAME,
 	.probe = adf_probe,
 	.remove = adf_remove,
 	.sriov_configure = adf_sriov_configure,
@@ -118,87 +114,6 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	adf_cfg_dev_remove(accel_dev);
 	debugfs_remove(accel_dev->debugfs_dir);
 	adf_devmgr_rm_dev(accel_dev, NULL);
-}
-
-static int adf_dev_configure(struct adf_accel_dev *accel_dev)
-{
-	int cpus = num_online_cpus();
-	int banks = GET_MAX_BANKS(accel_dev);
-	int instances = min(cpus, banks);
-	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	int i;
-	unsigned long val;
-
-	if (adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC))
-		goto err;
-	if (adf_cfg_section_add(accel_dev, "Accelerator0"))
-		goto err;
-	for (i = 0; i < instances; i++) {
-		val = i;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_BANK_NUM, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_ETRMGR_CORE_AFFINITY,
-			 i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, i);
-		val = 128;
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		val = 512;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		val = 0;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		val = 2;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		val = 8;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		val = 10;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
-			goto err;
-
-		val = ADF_COALESCING_DEF_TIME;
-		snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT, i);
-		if (adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
-						key, (void *)&val, ADF_DEC))
-			goto err;
-	}
-
-	val = i;
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					ADF_NUM_CY, (void *)&val, ADF_DEC))
-		goto err;
-
-	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
-	return 0;
-err:
-	dev_err(&GET_DEV(accel_dev), "Failed to start QAT accel dev\n");
-	return -EINVAL;
 }
 
 static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -253,15 +168,9 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	accel_dev->hw_device = hw_data;
-	switch (ent->device) {
-	case ADF_DH895XCC_PCI_DEVICE_ID:
-		adf_init_hw_data_dh895xcc(accel_dev->hw_device);
-		break;
-	default:
-		return -ENODEV;
-	}
+	adf_init_hw_data_dh895xcc(accel_dev->hw_device);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
-	pci_read_config_dword(pdev, ADF_DH895XCC_FUSECTL_OFFSET,
+	pci_read_config_dword(pdev, ADF_DEVICE_FUSECTL_OFFSET,
 			      &hw_data->fuses);
 
 	/* Get Accelerators and Accelerators Engines masks */
@@ -316,13 +225,13 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	}
 
-	if (pci_request_regions(pdev, adf_driver_name)) {
+	if (pci_request_regions(pdev, ADF_DH895XCC_DEVICE_NAME)) {
 		ret = -EFAULT;
 		goto out_err_disable;
 	}
 
 	/* Read accelerator capabilities mask */
-	pci_read_config_dword(pdev, ADF_DH895XCC_LEGFUSE_OFFSET,
+	pci_read_config_dword(pdev, ADF_DEVICE_LEGFUSE_OFFSET,
 			      &hw_data->accel_capabilities_mask);
 
 	/* Find and map all the device's BARS */
@@ -357,7 +266,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err_free_reg;
 	}
 
-	ret = adf_dev_configure(accel_dev);
+	ret = qat_crypto_dev_config(accel_dev);
 	if (ret)
 		goto out_err_free_reg;
 

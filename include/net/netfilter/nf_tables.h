@@ -19,8 +19,6 @@ struct nft_pktinfo {
 	const struct net_device		*out;
 	u8				pf;
 	u8				hook;
-	u8				nhoff;
-	u8				thoff;
 	u8				tprot;
 	/* for x_tables compatibility */
 	struct xt_action_param		xt;
@@ -293,6 +291,8 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@timeout: default timeout value in msecs
  * 	@gc_int: garbage collection interval in msecs
  *	@policy: set parameterization (see enum nft_set_policies)
+ *	@udlen: user data length
+ *	@udata: user data
  * 	@ops: set ops
  * 	@pnet: network namespace
  * 	@flags: set flags
@@ -312,6 +312,8 @@ struct nft_set {
 	u64				timeout;
 	u32				gc_int;
 	u16				policy;
+	u16				udlen;
+	unsigned char			*udata;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	possible_net_t			pnet;
@@ -823,10 +825,7 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
-int nft_register_basechain(struct nft_base_chain *basechain,
-			   unsigned int hook_nops);
-void nft_unregister_basechain(struct nft_base_chain *basechain,
-			      unsigned int hook_nops);
+int __nft_release_basechain(struct nft_ctx *ctx);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
 
@@ -882,13 +881,45 @@ struct nft_af_info {
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);
-void nft_unregister_afinfo(struct nft_af_info *);
+void nft_unregister_afinfo(struct net *, struct nft_af_info *);
 
 int nft_register_chain_type(const struct nf_chain_type *);
 void nft_unregister_chain_type(const struct nf_chain_type *);
 
 int nft_register_expr(struct nft_expr_type *);
 void nft_unregister_expr(struct nft_expr_type *);
+
+int nft_verdict_dump(struct sk_buff *skb, int type,
+		     const struct nft_verdict *v);
+
+/**
+ *	struct nft_traceinfo - nft tracing information and state
+ *
+ *	@pkt: pktinfo currently processed
+ *	@basechain: base chain currently processed
+ *	@chain: chain currently processed
+ *	@rule:  rule that was evaluated
+ *	@verdict: verdict given by rule
+ *	@type: event type (enum nft_trace_types)
+ *	@packet_dumped: packet headers sent in a previous traceinfo message
+ *	@trace: other struct members are initialised
+ */
+struct nft_traceinfo {
+	const struct nft_pktinfo	*pkt;
+	const struct nft_base_chain	*basechain;
+	const struct nft_chain		*chain;
+	const struct nft_rule		*rule;
+	const struct nft_verdict	*verdict;
+	enum nft_trace_types		type;
+	bool				packet_dumped;
+	bool				trace;
+};
+
+void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
+		    const struct nft_verdict *verdict,
+		    const struct nft_chain *basechain);
+
+void nft_trace_notify(struct nft_traceinfo *info);
 
 #define nft_dereference(p)					\
 	nfnl_dereference(p, NFNL_SUBSYS_NFTABLES)

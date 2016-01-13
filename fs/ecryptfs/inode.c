@@ -282,9 +282,7 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 	if (rc) {
 		ecryptfs_do_unlink(directory_inode, ecryptfs_dentry,
 				   ecryptfs_inode);
-		make_bad_inode(ecryptfs_inode);
-		unlock_new_inode(ecryptfs_inode);
-		iput(ecryptfs_inode);
+		iget_failed(ecryptfs_inode);
 		goto out;
 	}
 	unlock_new_inode(ecryptfs_inode);
@@ -674,16 +672,24 @@ out:
 	return rc ? ERR_PTR(rc) : buf;
 }
 
-static const char *ecryptfs_follow_link(struct dentry *dentry, void **cookie)
+static const char *ecryptfs_get_link(struct dentry *dentry,
+				     struct inode *inode,
+				     struct delayed_call *done)
 {
 	size_t len;
-	char *buf = ecryptfs_readlink_lower(dentry, &len);
+	char *buf;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
+	buf = ecryptfs_readlink_lower(dentry, &len);
 	if (IS_ERR(buf))
 		return buf;
 	fsstack_copy_attr_atime(d_inode(dentry),
 				d_inode(ecryptfs_dentry_to_lower(dentry)));
 	buf[len] = '\0';
-	return *cookie = buf;
+	set_delayed_call(done, kfree_link, buf);
+	return buf;
 }
 
 /**
@@ -1095,8 +1101,7 @@ out:
 
 const struct inode_operations ecryptfs_symlink_iops = {
 	.readlink = generic_readlink,
-	.follow_link = ecryptfs_follow_link,
-	.put_link = kfree_put_link,
+	.get_link = ecryptfs_get_link,
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.getattr = ecryptfs_getattr_link,

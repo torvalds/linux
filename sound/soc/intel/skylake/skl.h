@@ -68,6 +68,8 @@ struct skl {
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
 	struct list_head dapm_path_list;
+
+	const struct firmware *tplg;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)

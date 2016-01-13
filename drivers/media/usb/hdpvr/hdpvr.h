@@ -17,7 +17,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 
 #define HDPVR_MAX 8
 #define HDPVR_I2C_MAX_SIZE 128

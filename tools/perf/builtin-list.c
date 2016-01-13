@@ -14,7 +14,7 @@
 #include "util/parse-events.h"
 #include "util/cache.h"
 #include "util/pmu.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 
 int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 {
