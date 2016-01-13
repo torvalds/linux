@@ -15,6 +15,7 @@
 #include "greybus_protocols.h"
 
 #define NAME_SIZE	32
+#define MAX_DAIS	2	/* APB1, APB2 */
 
 enum {
 	APB1_PCM = 0,
@@ -67,24 +68,54 @@ static const u8 gbcodec_reg_defaults[GBCODEC_REG_COUNT] = {
 	GBCODEC_APB2_MUX_REG_DEFAULT,
 };
 
+struct gbaudio_dai {
+	__le16 data_cport;
+	char name[NAME_SIZE];
+	struct gb_connection *connection;
+	struct list_head list;
+};
+
 struct gbaudio_codec_info {
+	/* module info */
+	int dev_id;	/* check if it should be bundle_id/hd_cport_id */
+	int vid;
+	int pid;
+	int slot;
+	int type;
+	int dai_added;
+	int codec_registered;
+	char vstr[NAME_SIZE];
+	char pstr[NAME_SIZE];
+	struct list_head list;
+	char name[NAME_SIZE];
+
+	/* soc related data */
 	struct snd_soc_codec *codec;
-
-	bool usable;
+	struct device *dev;
 	u8 reg[GBCODEC_REG_COUNT];
-	int registered;
 
+	/* dai_link related */
+	char card_name[NAME_SIZE];
+	char *dailink_name[MAX_DAIS];
+	int num_dai_links;
+
+	/* topology related */
+	struct gb_connection *mgmt_connection;
+	int num_dais;
 	int num_kcontrols;
 	int num_dapm_widgets;
 	int num_dapm_routes;
 	struct snd_kcontrol_new *kctls;
 	struct snd_soc_dapm_widget *widgets;
 	struct snd_soc_dapm_route *routes;
+	struct snd_soc_dai_driver *dais;
+
+	/* lists */
+	struct list_head dai_list;
 	struct mutex lock;
 };
 
-extern int gb_audio_gb_get_topology(struct gb_connection *connection,
-				    struct gb_audio_topology **topology);
+/* protocol related */
 extern int gb_audio_gb_get_control(struct gb_connection *connection,
 				   uint8_t control_id, uint8_t index,
 				   struct gb_audio_ctl_elem_value *value);
