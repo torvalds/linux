@@ -373,6 +373,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 #define HostCmd_CMD_11AC_CFG			      0x0112
+#define HostCmd_CMD_HS_WAKEUP_REASON                  0x0116
 #define HostCmd_CMD_TDLS_CONFIG                       0x0100
 #define HostCmd_CMD_MC_POLICY                         0x0121
 #define HostCmd_CMD_TDLS_OPER                         0x0122
@@ -606,6 +607,20 @@ struct mwifiex_ie_types_data {
 #define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
 #define MWIFIEX_RXPD_FLAGS_TDLS_PACKET      0x01
 #define MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS    0x20
+
+enum HS_WAKEUP_REASON {
+	NO_HSWAKEUP_REASON = 0,
+	BCAST_DATA_MATCHED,
+	MCAST_DATA_MATCHED,
+	UCAST_DATA_MATCHED,
+	MASKTABLE_EVENT_MATCHED,
+	NON_MASKABLE_EVENT_MATCHED,
+	NON_MASKABLE_CONDITION_MATCHED,
+	MAGIC_PATTERN_MATCHED,
+	CONTROL_FRAME_MATCHED,
+	MANAGEMENT_FRAME_MATCHED,
+	RESERVED
+};
 
 struct txpd {
 	u8 bss_type;
@@ -2159,6 +2174,10 @@ struct host_cmd_ds_robust_coex {
 	__le16 reserved;
 } __packed;
 
+struct host_cmd_ds_wakeup_reason {
+	u16  wakeup_reason;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2231,6 +2250,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_sdio_sp_rx_aggr_cfg sdio_rx_aggr_cfg;
 		struct host_cmd_ds_multi_chan_policy mc_policy;
 		struct host_cmd_ds_robust_coex coex;
+		struct host_cmd_ds_wakeup_reason hs_wakeup_reason;
 	} params;
 } __packed;
 

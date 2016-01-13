@@ -1465,3 +1465,19 @@ mwifiex_set_gen_ie(struct mwifiex_private *priv, const u8 *ie, int ie_len)
 
 	return 0;
 }
+
+/* This function get Host Sleep wake up reason.
+ *
+ */
+int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
+			      int cmd_type,
+			      struct mwifiex_ds_wakeup_reason *wakeup_reason)
+{
+	int status = 0;
+
+	status = mwifiex_send_cmd(priv, HostCmd_CMD_HS_WAKEUP_REASON,
+				  HostCmd_ACT_GEN_GET, 0, wakeup_reason,
+				  cmd_type == MWIFIEX_SYNC_CMD);
+
+	return status;
+}

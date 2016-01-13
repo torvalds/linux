@@ -271,6 +271,10 @@ struct mwifiex_ds_hs_cfg {
 	u32 gap;
 };
 
+struct mwifiex_ds_wakeup_reason {
+	u16  hs_wakeup_reason;
+};
+
 #define DEEP_SLEEP_ON  1
 #define DEEP_SLEEP_OFF 0
 #define DEEP_SLEEP_IDLE_TIME	100
