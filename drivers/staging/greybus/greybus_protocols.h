@@ -175,6 +175,9 @@ struct gb_control_interface_version_response {
 /* request to control the CSI transmitter */
 #define GB_APB_REQUEST_CSI_TX_CONTROL	0x08
 
+/* request to control the CSI transmitter */
+#define GB_APB_REQUEST_AUDIO_CONTROL	0x09
+
 
 /* Firmware Protocol */
 
