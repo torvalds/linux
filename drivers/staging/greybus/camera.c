@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
+#include "gb-camera.h"
 #include "greybus.h"
 #include "greybus_protocols.h"
 
@@ -55,6 +56,31 @@ struct gb_camera_stream_config {
 	unsigned int vc;
 	unsigned int dt[2];
 	unsigned int max_size;
+};
+
+struct gb_camera_fmt_map {
+	enum v4l2_mbus_pixelcode mbus_code;
+	unsigned int gb_format;
+};
+
+/* GB format to media code map */
+static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
+	{
+		.mbus_code = V4L2_MBUS_FMT_UYVY8_1X16,
+		.gb_format = 0x01,
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_YUYV8_1_5X8,
+		.gb_format = 0x16,
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_YVYU8_1_5X8,
+		.gb_format = 0x17,
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_JPEG_1X8,
+		.gb_format = 0x40,
+	}
 };
 
 #define ES2_APB_CDSI0_CPORT		16
@@ -258,6 +284,97 @@ static int gb_camera_event_recv(u8 type, struct gb_operation *op)
 		 payload->request_id, payload->frame_number, payload->stream);
 
 	return 0;
+}
+
+/* -----------------------------------------------------------------------------
+ * Interface with HOST ara camera.
+ */
+static unsigned int gb_camera_mbus_to_gb(enum v4l2_mbus_pixelcode mbus_code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(mbus_to_gbus_format); i++) {
+		if (mbus_to_gbus_format[i].mbus_code == mbus_code)
+			return mbus_to_gbus_format[i].gb_format;
+	}
+	return mbus_to_gbus_format[0].gb_format;
+}
+
+static enum v4l2_mbus_pixelcode gb_camera_gb_to_mbus(u16 gb_fmt)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(mbus_to_gbus_format); i++) {
+		if (mbus_to_gbus_format[i].gb_format == gb_fmt)
+			return mbus_to_gbus_format[i].mbus_code;
+	}
+	return mbus_to_gbus_format[0].mbus_code;
+}
+
+static int gb_camera_op_configure_streams(void *priv, unsigned int nstreams,
+			struct gb_camera_stream *streams)
+{
+	struct gb_camera *gcam = priv;
+	struct gb_camera_stream_config *gb_streams;
+	unsigned int i;
+	int ret;
+
+	if (nstreams > GB_CAMERA_MAX_STREAMS)
+		return -EINVAL;
+
+	gb_streams = kzalloc(nstreams * sizeof(*gb_streams), GFP_KERNEL);
+	if (!gb_streams)
+		return -ENOMEM;
+
+	for (i = 0; i < nstreams; i++) {
+		gb_streams[i].width = streams[i].width;
+		gb_streams[i].height = streams[i].height;
+		gb_streams[i].format =
+			gb_camera_mbus_to_gb(streams[i].pixel_code);
+	}
+
+	ret = gb_camera_configure_streams(gcam, nstreams, 0, gb_streams);
+	if (ret < 0)
+		goto done;
+
+	for (i = 0; i < nstreams; i++) {
+		streams[i].width = gb_streams[i].width;
+		streams[i].height = gb_streams[i].height;
+		streams[i].vc = gb_streams[i].vc;
+		streams[i].dt[0] = gb_streams[i].dt[0];
+		streams[i].dt[1] = gb_streams[i].dt[1];
+		streams[i].max_size = gb_streams[i].max_size;
+		streams[i].pixel_code =
+			gb_camera_gb_to_mbus(gb_streams[i].format);
+	}
+
+done:
+	kfree(gb_streams);
+	return ret;
+}
+
+static int gb_camera_op_capture(void *priv, u32 request_id,
+		unsigned int streams, unsigned int num_frames,
+		size_t settings_size, const void *settings)
+{
+	return gb_camera_capture(priv, request_id, streams, num_frames,
+				 settings_size, settings);
+}
+
+static int gb_camera_op_flush(void *priv, u32 *request_id)
+{
+	return gb_camera_flush(priv, request_id);
+}
+
+struct gb_camera_ops gb_cam_ops = {
+	.configure_streams = gb_camera_op_configure_streams,
+	.capture = gb_camera_op_capture,
+	.flush = gb_camera_op_flush,
+};
+
+static int gb_camera_register_intf_ops(struct gb_camera *gcam)
+{
+	return gb_camera_register(&gb_cam_ops, gcam);
 }
 
 /* -----------------------------------------------------------------------------
@@ -643,6 +760,10 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 		goto error;
 
 	ret = gb_camera_debugfs_init(gcam);
+	if (ret < 0)
+		goto error;
+
+	ret = gb_camera_register_intf_ops(gcam);
 	if (ret < 0)
 		goto error;
 
