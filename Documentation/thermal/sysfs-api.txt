@@ -364,6 +364,7 @@ integral_cutoff
 	accumulates error when temperature is above the desired
 	temperature trip point. For more information see
 	Documentation/thermal/power_allocator.txt
+	Unit: millidegree Celsius
 	RW, Optional
 
 slope
