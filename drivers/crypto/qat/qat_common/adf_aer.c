@@ -82,7 +82,7 @@ struct adf_reset_dev_data {
 	struct work_struct reset_work;
 };
 
-static void adf_dev_restore(struct adf_accel_dev *accel_dev)
+void adf_dev_restore(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 	struct pci_dev *parent = pdev->bus->self;
@@ -197,7 +197,7 @@ static void adf_resume(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "Device is up and runnig\n");
 }
 
-static struct pci_error_handlers adf_err_handler = {
+static const struct pci_error_handlers adf_err_handler = {
 	.error_detected = adf_error_detected,
 	.slot_reset = adf_slot_reset,
 	.resume = adf_resume,

@@ -377,17 +377,6 @@ static const struct of_device_id uniphier_cache_match[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static struct device_node * __init uniphier_cache_get_next_level_node(
-							struct device_node *np)
-{
-	u32 phandle;
-
-	if (of_property_read_u32(np, "next-level-cache", &phandle))
-		return NULL;
-
-	return of_find_node_by_phandle(phandle);
-}
-
 static int __init __uniphier_cache_init(struct device_node *np,
 					unsigned int *cache_level)
 {
@@ -491,7 +480,7 @@ static int __init __uniphier_cache_init(struct device_node *np,
 	 * next level cache fails because we want to continue with available
 	 * cache levels.
 	 */
-	next_np = uniphier_cache_get_next_level_node(np);
+	next_np = of_find_next_cache_node(np);
 	if (next_np) {
 		(*cache_level)++;
 		ret = __uniphier_cache_init(next_np, cache_level);

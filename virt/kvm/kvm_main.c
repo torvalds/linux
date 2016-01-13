@@ -206,16 +206,6 @@ void kvm_reload_remote_mmus(struct kvm *kvm)
 	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);
 }
 
-void kvm_make_mclock_inprogress_request(struct kvm *kvm)
-{
-	kvm_make_all_cpus_request(kvm, KVM_REQ_MCLOCK_INPROGRESS);
-}
-
-void kvm_make_scan_ioapic_request(struct kvm *kvm)
-{
-	kvm_make_all_cpus_request(kvm, KVM_REQ_SCAN_IOAPIC);
-}
-
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 {
 	struct page *page;
@@ -1164,15 +1154,15 @@ struct kvm_memory_slot *kvm_vcpu_gfn_to_memslot(struct kvm_vcpu *vcpu, gfn_t gfn
 	return __gfn_to_memslot(kvm_vcpu_memslots(vcpu), gfn);
 }
 
-int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
+bool kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *memslot = gfn_to_memslot(kvm, gfn);
 
 	if (!memslot || memslot->id >= KVM_USER_MEM_SLOTS ||
 	      memslot->flags & KVM_MEMSLOT_INVALID)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
 
@@ -2257,7 +2247,7 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 {
 	int r;
-	struct kvm_vcpu *vcpu, *v;
+	struct kvm_vcpu *vcpu;
 
 	if (id >= KVM_MAX_VCPUS)
 		return -EINVAL;
@@ -2281,12 +2271,10 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		r = -EINVAL;
 		goto unlock_vcpu_destroy;
 	}
-
-	kvm_for_each_vcpu(r, v, kvm)
-		if (v->vcpu_id == id) {
-			r = -EEXIST;
-			goto unlock_vcpu_destroy;
-		}
+	if (kvm_get_vcpu_by_id(kvm, id)) {
+		r = -EEXIST;
+		goto unlock_vcpu_destroy;
+	}
 
 	BUG_ON(kvm->vcpus[atomic_read(&kvm->online_vcpus)]);
 
@@ -3449,10 +3437,9 @@ static int kvm_init_debug(void)
 		goto out;
 
 	for (p = debugfs_entries; p->name; ++p) {
-		p->dentry = debugfs_create_file(p->name, 0444, kvm_debugfs_dir,
-						(void *)(long)p->offset,
-						stat_fops[p->kind]);
-		if (p->dentry == NULL)
+		if (!debugfs_create_file(p->name, 0444, kvm_debugfs_dir,
+					 (void *)(long)p->offset,
+					 stat_fops[p->kind]))
 			goto out_dir;
 	}
 
@@ -3462,15 +3449,6 @@ out_dir:
 	debugfs_remove_recursive(kvm_debugfs_dir);
 out:
 	return r;
-}
-
-static void kvm_exit_debug(void)
-{
-	struct kvm_stats_debugfs_item *p;
-
-	for (p = debugfs_entries; p->name; ++p)
-		debugfs_remove(p->dentry);
-	debugfs_remove(kvm_debugfs_dir);
 }
 
 static int kvm_suspend(void)
@@ -3630,7 +3608,7 @@ EXPORT_SYMBOL_GPL(kvm_init);
 
 void kvm_exit(void)
 {
-	kvm_exit_debug();
+	debugfs_remove_recursive(kvm_debugfs_dir);
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);
 	kvm_async_pf_deinit();

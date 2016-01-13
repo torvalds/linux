@@ -44,7 +44,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-of.h>
 #include <media/v4l2-ctrls.h>
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 #include <media/media-entity.h>
 
 #include "tvp514x_regs.h"

@@ -30,7 +30,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 
 #include "go7007-priv.h"
 
@@ -369,7 +369,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int go7007_queue_setup(struct vb2_queue *q,
-		const void *parg,
 		unsigned int *num_buffers, unsigned int *num_planes,
 		unsigned int sizes[], void *alloc_ctxs[])
 {

@@ -1112,7 +1112,7 @@ static int init_device(struct adv7180_state *state)
 	mutex_lock(&state->mutex);
 
 	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
-	usleep_range(2000, 10000);
+	usleep_range(5000, 10000);
 
 	ret = state->chip_info->init(state);
 	if (ret)

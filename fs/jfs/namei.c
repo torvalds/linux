@@ -983,6 +983,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 		jfs_info("jfs_symlink: allocate extent ip:0x%p", ip);
 
 		ip->i_op = &jfs_symlink_inode_operations;
+		inode_nohighmem(ip);
 		ip->i_mapping->a_ops = &jfs_aops;
 
 		/*

@@ -943,6 +943,8 @@ static int __ref kernel_init(void *unused)
 
 	flush_delayed_fput();
 
+	rcu_end_inkernel_boot();
+
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)

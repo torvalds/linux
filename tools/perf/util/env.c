@@ -25,15 +25,6 @@ int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[])
 {
 	int i;
 
-	/*
-	 * If env->cmdline_argv has already been set, do not override it.  This allows
-	 * a command to set the cmdline, parse args and then call another
-	 * builtin function that implements a command -- e.g, cmd_kvm calling
-	 * cmd_record.
-	 */
-	if (env->cmdline_argv != NULL)
-		return 0;
-
 	/* do not include NULL termination */
 	env->cmdline_argv = calloc(argc, sizeof(char *));
 	if (env->cmdline_argv == NULL)

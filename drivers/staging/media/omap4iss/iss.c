@@ -601,8 +601,8 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 		subdev = media_entity_to_v4l2_subdev(entity);
 		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
 		if (ret < 0) {
-			dev_dbg(iss->dev, "%s: module stop timeout.\n",
-				subdev->name);
+			dev_warn(iss->dev, "%s: module stop timeout.\n",
+				 subdev->name);
 			/* If the entity failed to stopped, assume it has
 			 * crashed. Mark it as such, the ISS will be reset when
 			 * applications will release it.

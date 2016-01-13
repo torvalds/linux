@@ -304,7 +304,7 @@ do {									\
 
 static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
-	if (cpu_has_topoext) {
+	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
 		if (c->phys_proc_id == o->phys_proc_id &&
@@ -628,13 +628,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		num_starts = 2;
 	else
 		num_starts = 0;
-
-	/*
-	 * Paravirt / VMI wants a startup IPI hook here to set up the
-	 * target processor state.
-	 */
-	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
-			 stack_start);
 
 	/*
 	 * Run STARTUP IPI loop.

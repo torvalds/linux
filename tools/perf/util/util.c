@@ -16,12 +16,15 @@
 #include <linux/kernel.h>
 #include <unistd.h>
 #include "callchain.h"
+#include "strlist.h"
+#include <subcmd/exec-cmd.h>
 
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_ABS,
 	.min_percent = 0.5,
 	.order  = ORDER_CALLEE,
-	.key	= CCKEY_FUNCTION
+	.key	= CCKEY_FUNCTION,
+	.value	= CCVAL_PERCENT,
 };
 
 /*
@@ -351,41 +354,8 @@ void sighandler_dump_stack(int sig)
 {
 	psignal(sig, "perf");
 	dump_stack();
-	exit(sig);
-}
-
-void get_term_dimensions(struct winsize *ws)
-{
-	char *s = getenv("LINES");
-
-	if (s != NULL) {
-		ws->ws_row = atoi(s);
-		s = getenv("COLUMNS");
-		if (s != NULL) {
-			ws->ws_col = atoi(s);
-			if (ws->ws_row && ws->ws_col)
-				return;
-		}
-	}
-#ifdef TIOCGWINSZ
-	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
-	    ws->ws_row && ws->ws_col)
-		return;
-#endif
-	ws->ws_row = 25;
-	ws->ws_col = 80;
-}
-
-void set_term_quiet_input(struct termios *old)
-{
-	struct termios tc;
-
-	tcgetattr(0, old);
-	tc = *old;
-	tc.c_lflag &= ~(ICANON | ECHO);
-	tc.c_cc[VMIN] = 0;
-	tc.c_cc[VTIME] = 0;
-	tcsetattr(0, TCSANOW, &tc);
+	signal(sig, SIG_DFL);
+	raise(sig);
 }
 
 int parse_nsec_time(const char *str, u64 *ptime)
@@ -694,4 +664,29 @@ fetch_kernel_version(unsigned int *puint, char *str,
 	if (puint)
 		*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	return 0;
+}
+
+const char *perf_tip(const char *dirpath)
+{
+	struct strlist *tips;
+	struct str_node *node;
+	char *tip = NULL;
+	struct strlist_config conf = {
+		.dirname = system_path(dirpath) ,
+	};
+
+	tips = strlist__new("tips.txt", &conf);
+	if (tips == NULL || strlist__nr_entries(tips) == 1) {
+		tip = (char *)"Cannot find tips.txt file";
+		goto out;
+	}
+
+	node = strlist__entry(tips, random() % strlist__nr_entries(tips));
+	if (asprintf(&tip, "Tip: %s", node->s) < 0)
+		tip = (char *)"Tip: get more memory! ;-)";
+
+out:
+	strlist__delete(tips);
+
+	return tip;
 }

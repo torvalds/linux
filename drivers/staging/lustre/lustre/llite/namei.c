@@ -126,9 +126,7 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 				rc = cl_file_inode_init(inode, md);
 			}
 			if (rc != 0) {
-				make_bad_inode(inode);
-				unlock_new_inode(inode);
-				iput(inode);
+				iget_failed(inode);
 				inode = ERR_PTR(rc);
 			} else
 				unlock_new_inode(inode);

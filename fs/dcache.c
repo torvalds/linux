@@ -1734,7 +1734,7 @@ static unsigned d_flags_for_inode(struct inode *inode)
 	}
 
 	if (unlikely(!(inode->i_opflags & IOP_NOFOLLOW))) {
-		if (unlikely(inode->i_op->follow_link)) {
+		if (unlikely(inode->i_op->get_link)) {
 			add_flags = DCACHE_SYMLINK_TYPE;
 			goto type_determined;
 		}
@@ -3303,18 +3303,18 @@ out:
  * @new_dentry: new dentry
  * @old_dentry: old dentry
  *
- * Returns 1 if new_dentry is a subdirectory of the parent (at any depth).
- * Returns 0 otherwise.
+ * Returns true if new_dentry is a subdirectory of the parent (at any depth).
+ * Returns false otherwise.
  * Caller must ensure that "new_dentry" is pinned before calling is_subdir()
  */
   
-int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
+bool is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 {
-	int result;
+	bool result;
 	unsigned seq;
 
 	if (new_dentry == old_dentry)
-		return 1;
+		return true;
 
 	do {
 		/* for restarting inner loop in case of seq retry */
@@ -3325,9 +3325,9 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 		 */
 		rcu_read_lock();
 		if (d_ancestor(old_dentry, new_dentry))
-			result = 1;
+			result = true;
 		else
-			result = 0;
+			result = false;
 		rcu_read_unlock();
 	} while (read_seqretry(&rename_lock, seq));
 

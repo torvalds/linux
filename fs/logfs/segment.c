@@ -197,7 +197,7 @@ static int btree_write_alias(struct super_block *sb, struct logfs_block *block,
 	return 0;
 }
 
-static struct logfs_block_ops btree_block_ops = {
+static const struct logfs_block_ops btree_block_ops = {
 	.write_block	= btree_write_block,
 	.free_block	= __free_block,
 	.write_alias	= btree_write_alias,

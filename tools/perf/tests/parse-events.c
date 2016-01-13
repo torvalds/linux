@@ -1765,7 +1765,7 @@ static void debug_warn(const char *warn, va_list params)
 	fprintf(stderr, " Warning: %s\n", msg);
 }
 
-int test__parse_events(void)
+int test__parse_events(int subtest __maybe_unused)
 {
 	int ret1, ret2 = 0;
 

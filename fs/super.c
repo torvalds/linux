@@ -1012,10 +1012,8 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 		blkdev_put(bdev, mode);
 		down_write(&s->s_umount);
 	} else {
-		char b[BDEVNAME_SIZE];
-
 		s->s_mode = mode;
-		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
+		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {

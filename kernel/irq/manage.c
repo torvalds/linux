@@ -1434,6 +1434,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 	if (!desc)
 		return NULL;
 
+	chip_bus_lock(desc);
 	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	/*
@@ -1447,7 +1448,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		if (!action) {
 			WARN(1, "Trying to free already-free IRQ %d\n", irq);
 			raw_spin_unlock_irqrestore(&desc->lock, flags);
-
+			chip_bus_sync_unlock(desc);
 			return NULL;
 		}
 
@@ -1475,6 +1476,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 #endif
 
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	chip_bus_sync_unlock(desc);
 
 	unregister_handler_proc(irq, action);
 
@@ -1553,9 +1555,7 @@ void free_irq(unsigned int irq, void *dev_id)
 		desc->affinity_notify = NULL;
 #endif
 
-	chip_bus_lock(desc);
 	kfree(__free_irq(irq, dev_id));
-	chip_bus_sync_unlock(desc);
 }
 EXPORT_SYMBOL(free_irq);
 
@@ -1742,6 +1742,31 @@ out:
 	irq_put_desc_unlock(desc, flags);
 }
 EXPORT_SYMBOL_GPL(enable_percpu_irq);
+
+/**
+ * irq_percpu_is_enabled - Check whether the per cpu irq is enabled
+ * @irq:	Linux irq number to check for
+ *
+ * Must be called from a non migratable context. Returns the enable
+ * state of a per cpu interrupt on the current cpu.
+ */
+bool irq_percpu_is_enabled(unsigned int irq)
+{
+	unsigned int cpu = smp_processor_id();
+	struct irq_desc *desc;
+	unsigned long flags;
+	bool is_enabled;
+
+	desc = irq_get_desc_lock(irq, &flags, IRQ_GET_DESC_CHECK_PERCPU);
+	if (!desc)
+		return false;
+
+	is_enabled = cpumask_test_cpu(cpu, desc->percpu_enabled);
+	irq_put_desc_unlock(desc, flags);
+
+	return is_enabled;
+}
+EXPORT_SYMBOL_GPL(irq_percpu_is_enabled);
 
 void disable_percpu_irq(unsigned int irq)
 {

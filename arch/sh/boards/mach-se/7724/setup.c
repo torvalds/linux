@@ -30,7 +30,7 @@
 #include <linux/sh_intc.h>
 #include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
-#include <media/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
 #include <asm/io.h>
@@ -534,8 +534,8 @@ static struct platform_device irda_device = {
 	.resource       = irda_resources,
 };
 
-#include <media/ak881x.h>
-#include <media/sh_vou.h>
+#include <media/i2c/ak881x.h>
+#include <media/drv-intf/sh_vou.h>
 
 static struct ak881x_pdata ak881x_pdata = {
 	.flags = AK881X_IF_MODE_SLAVE,

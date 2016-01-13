@@ -303,27 +303,25 @@ static void xvip_dma_complete(void *param)
 
 	buf->buf.field = V4L2_FIELD_NONE;
 	buf->buf.sequence = dma->sequence++;
-	v4l2_get_timestamp(&buf->buf.timestamp);
+	buf->buf.vb2_buf.timestamp = ktime_get_ns();
 	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, dma->format.sizeimage);
 	vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
 static int
-xvip_dma_queue_setup(struct vb2_queue *vq, const void *parg,
+xvip_dma_queue_setup(struct vb2_queue *vq,
 		     unsigned int *nbuffers, unsigned int *nplanes,
 		     unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
 
+	alloc_ctxs[0] = dma->alloc_ctx;
 	/* Make sure the image size is large enough. */
-	if (fmt && fmt->fmt.pix.sizeimage < dma->format.sizeimage)
-		return -EINVAL;
+	if (*nplanes)
+		return sizes[0] < dma->format.sizeimage ? -EINVAL : 0;
 
 	*nplanes = 1;
-
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : dma->format.sizeimage;
-	alloc_ctxs[0] = dma->alloc_ctx;
+	sizes[0] = dma->format.sizeimage;
 
 	return 0;
 }

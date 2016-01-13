@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/mmp-camera.h>
+#include <linux/platform_data/media/mmp-camera.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>

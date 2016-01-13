@@ -250,6 +250,12 @@ dentry names:
 
 	Passed by reference.
 
+block_device names:
+
+	%pg	sda, sda1 or loop0p1
+
+	For printing name of block_device pointers.
+
 struct va_format:
 
 	%pV

@@ -19,7 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 #include <linux/platform_data/gpio-davinci.h>

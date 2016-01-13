@@ -144,6 +144,56 @@ struct ioctl_gntdev_unmap_notify {
 	__u32 event_channel_port;
 };
 
+struct gntdev_grant_copy_segment {
+	union {
+		void __user *virt;
+		struct {
+			grant_ref_t ref;
+			__u16 offset;
+			domid_t domid;
+		} foreign;
+	} source, dest;
+	__u16 len;
+
+	__u16 flags;  /* GNTCOPY_* */
+	__s16 status; /* GNTST_* */
+};
+
+/*
+ * Copy between grant references and local buffers.
+ *
+ * The copy is split into @count @segments, each of which can copy
+ * to/from one grant reference.
+ *
+ * Each segment is similar to struct gnttab_copy in the hypervisor ABI
+ * except the local buffer is specified using a virtual address
+ * (instead of a GFN and offset).
+ *
+ * The local buffer may cross a Xen page boundary -- the driver will
+ * split segments into multiple ops if required.
+ *
+ * Returns 0 if all segments have been processed and @status in each
+ * segment is valid.  Note that one or more segments may have failed
+ * (status != GNTST_okay).
+ *
+ * If the driver had to split a segment into two or more ops, @status
+ * includes the status of the first failed op for that segment (or
+ * GNTST_okay if all ops were successful).
+ *
+ * If -1 is returned, the status of all segments is undefined.
+ *
+ * EINVAL: A segment has local buffers for both source and
+ *         destination.
+ * EINVAL: A segment crosses the boundary of a foreign page.
+ * EFAULT: A segment's local buffer is not accessible.
+ */
+#define IOCTL_GNTDEV_GRANT_COPY \
+	_IOC(_IOC_NONE, 'G', 8, sizeof(struct ioctl_gntdev_grant_copy))
+struct ioctl_gntdev_grant_copy {
+	unsigned int count;
+	struct gntdev_grant_copy_segment __user *segments;
+};
+
 /* Clear (set to zero) the byte specified by index */
 #define UNMAP_NOTIFY_CLEAR_BYTE 0x1
 /* Send an interrupt on the indicated event channel */

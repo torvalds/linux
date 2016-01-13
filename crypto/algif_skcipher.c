@@ -40,7 +40,7 @@ struct skcipher_ctx {
 	struct af_alg_completion completion;
 
 	atomic_t inflight;
-	unsigned used;
+	size_t used;
 
 	unsigned int len;
 	bool more;
@@ -153,7 +153,7 @@ static int skcipher_alloc_sgl(struct sock *sk)
 	return 0;
 }
 
-static void skcipher_pull_sgl(struct sock *sk, int used, int put)
+static void skcipher_pull_sgl(struct sock *sk, size_t used, int put)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	struct skcipher_ctx *ctx = ask->private;
@@ -167,7 +167,7 @@ static void skcipher_pull_sgl(struct sock *sk, int used, int put)
 		sg = sgl->sg;
 
 		for (i = 0; i < sgl->cur; i++) {
-			int plen = min_t(int, used, sg[i].length);
+			size_t plen = min_t(size_t, used, sg[i].length);
 
 			if (!sg_page(sg + i))
 				continue;
@@ -348,7 +348,7 @@ static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
 	while (size) {
 		struct scatterlist *sg;
 		unsigned long len = size;
-		int plen;
+		size_t plen;
 
 		if (ctx->merge) {
 			sgl = list_entry(ctx->tsgl.prev,
@@ -390,7 +390,7 @@ static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
 		sg_unmark_end(sg + sgl->cur);
 		do {
 			i = sgl->cur;
-			plen = min_t(int, len, PAGE_SIZE);
+			plen = min_t(size_t, len, PAGE_SIZE);
 
 			sg_assign_page(sg + i, alloc_page(GFP_KERNEL));
 			err = -ENOMEM;

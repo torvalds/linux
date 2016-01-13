@@ -31,11 +31,10 @@
 #include "vivid-kthread-out.h"
 #include "vivid-vid-out.h"
 
-static int vid_out_queue_setup(struct vb2_queue *vq, const void *parg,
+static int vid_out_queue_setup(struct vb2_queue *vq,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	const struct vivid_fmt *vfmt = dev->fmt_out;
 	unsigned planes = vfmt->buffers;
@@ -64,26 +63,16 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const void *parg,
 		return -EINVAL;
 	}
 
-	if (fmt) {
-		const struct v4l2_pix_format_mplane *mp;
-		struct v4l2_format mp_fmt;
-
-		if (!V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
-			fmt_sp2mp(fmt, &mp_fmt);
-			fmt = &mp_fmt;
-		}
-		mp = &fmt->fmt.pix_mp;
+	if (*nplanes) {
 		/*
-		 * Check if the number of planes in the specified format match
+		 * Check if the number of requested planes match
 		 * the number of planes in the current format. You can't mix that.
 		 */
-		if (mp->num_planes != planes)
+		if (*nplanes != planes)
 			return -EINVAL;
-		sizes[0] = mp->plane_fmt[0].sizeimage;
 		if (sizes[0] < size)
 			return -EINVAL;
 		for (p = 1; p < planes; p++) {
-			sizes[p] = mp->plane_fmt[p].sizeimage;
 			if (sizes[p] < dev->bytesperline_out[p] * h)
 				return -EINVAL;
 		}
@@ -224,6 +213,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 {
 	struct v4l2_bt_timings *bt = &dev->dv_timings_out.bt;
 	unsigned size, p;
+	u64 pixelclock;
 
 	switch (dev->output_type[dev->output]) {
 	case SVID:
@@ -245,8 +235,14 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		dev->sink_rect.width = bt->width;
 		dev->sink_rect.height = bt->height;
 		size = V4L2_DV_BT_FRAME_WIDTH(bt) * V4L2_DV_BT_FRAME_HEIGHT(bt);
+
+		if (can_reduce_fps(bt) && (bt->flags & V4L2_DV_FL_REDUCED_FPS))
+			pixelclock = div_u64(bt->pixelclock * 1000, 1001);
+		else
+			pixelclock = bt->pixelclock;
+
 		dev->timeperframe_vid_out = (struct v4l2_fract) {
-			size / 100, (u32)bt->pixelclock / 100
+			size / 100, (u32)pixelclock / 100
 		};
 		if (bt->interlaced)
 			dev->field_out = V4L2_FIELD_ALTERNATE;
@@ -1149,7 +1145,7 @@ int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 				0, NULL, NULL) &&
 	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
-	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0))
+	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0, true))
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_out_q))
 		return -EBUSY;
