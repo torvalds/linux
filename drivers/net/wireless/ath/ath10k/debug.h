@@ -153,6 +153,12 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 #ifdef CONFIG_MAC80211_DEBUGFS
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
+void ath10k_sta_update_rx_duration(struct ath10k *ar, struct list_head *peer);
+#else
+static inline void ath10k_sta_update_rx_duration(struct ath10k *ar,
+						 struct list_head *peer)
+{
+}
 #endif /* CONFIG_MAC80211_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG

@@ -319,7 +319,7 @@ static void ath10k_debug_fw_stats_reset(struct ath10k *ar)
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_fw_stats stats = {};
-	bool is_start, is_started, is_end;
+	bool is_start, is_started, is_end, peer_stats_svc;
 	size_t num_peers;
 	size_t num_vdevs;
 	int ret;
@@ -347,8 +347,8 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	 *     delivered which is treated as end-of-data and is itself discarded
 	 */
 
-	if (ar->debug.fw_stats_done &&
-	    !test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
+	peer_stats_svc = test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map);
+	if (ar->debug.fw_stats_done && !peer_stats_svc) {
 		ath10k_warn(ar, "received unsolicited stats update event\n");
 		goto free;
 	}
@@ -383,6 +383,9 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 			ath10k_warn(ar, "dropping fw vdev stats\n");
 			goto free;
 		}
+
+		if (peer_stats_svc)
+			ath10k_sta_update_rx_duration(ar, &stats.peers);
 
 		list_splice_tail_init(&stats.peers, &ar->debug.fw_stats.peers);
 		list_splice_tail_init(&stats.vdevs, &ar->debug.fw_stats.vdevs);
