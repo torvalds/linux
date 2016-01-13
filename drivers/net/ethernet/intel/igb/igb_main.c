@@ -2372,38 +2372,41 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * assignment.
 	 */
 	netdev->features |= NETIF_F_SG |
-			    NETIF_F_IP_CSUM |
-			    NETIF_F_IPV6_CSUM |
 			    NETIF_F_TSO |
 			    NETIF_F_TSO6 |
 			    NETIF_F_RXHASH |
 			    NETIF_F_RXCSUM |
+			    NETIF_F_HW_CSUM |
 			    NETIF_F_HW_VLAN_CTAG_RX |
 			    NETIF_F_HW_VLAN_CTAG_TX;
+
+	if (hw->mac.type >= e1000_82576)
+		netdev->features |= NETIF_F_SCTP_CRC;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
 	netdev->hw_features |= NETIF_F_RXALL;
 
+	if (hw->mac.type >= e1000_i350)
+		netdev->hw_features |= NETIF_F_NTUPLE;
+
 	/* set this bit last since it cannot be part of hw_features */
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	netdev->vlan_features |= NETIF_F_TSO |
+	netdev->vlan_features |= NETIF_F_SG |
+				 NETIF_F_TSO |
 				 NETIF_F_TSO6 |
-				 NETIF_F_IP_CSUM |
-				 NETIF_F_IPV6_CSUM |
-				 NETIF_F_SG;
+				 NETIF_F_HW_CSUM |
+				 NETIF_F_SCTP_CRC;
+
+	netdev->mpls_features |= NETIF_F_HW_CSUM;
+	netdev->hw_enc_features |= NETIF_F_HW_CSUM;
 
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
-	}
-
-	if (hw->mac.type >= e1000_82576) {
-		netdev->hw_features |= NETIF_F_SCTP_CRC;
-		netdev->features |= NETIF_F_SCTP_CRC;
 	}
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
@@ -4883,70 +4886,57 @@ static int igb_tso(struct igb_ring *tx_ring,
 	return 1;
 }
 
+static inline bool igb_ipv6_csum_is_sctp(struct sk_buff *skb)
+{
+	unsigned int offset = 0;
+
+	ipv6_find_hdr(skb, &offset, IPPROTO_SCTP, NULL, NULL);
+
+	return offset == skb_checksum_start_offset(skb);
+}
+
 static void igb_tx_csum(struct igb_ring *tx_ring, struct igb_tx_buffer *first)
 {
 	struct sk_buff *skb = first->skb;
 	u32 vlan_macip_lens = 0;
-	u32 mss_l4len_idx = 0;
 	u32 type_tucmd = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+csum_failed:
 		if (!(first->tx_flags & IGB_TX_FLAGS_VLAN))
 			return;
-	} else {
-		u8 l4_hdr = 0;
-
-		switch (first->protocol) {
-		case htons(ETH_P_IP):
-			vlan_macip_lens |= skb_network_header_len(skb);
-			type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
-			l4_hdr = ip_hdr(skb)->protocol;
-			break;
-		case htons(ETH_P_IPV6):
-			vlan_macip_lens |= skb_network_header_len(skb);
-			l4_hdr = ipv6_hdr(skb)->nexthdr;
-			break;
-		default:
-			if (unlikely(net_ratelimit())) {
-				dev_warn(tx_ring->dev,
-					 "partial checksum but proto=%x!\n",
-					 first->protocol);
-			}
-			break;
-		}
-
-		switch (l4_hdr) {
-		case IPPROTO_TCP:
-			type_tucmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-			mss_l4len_idx = tcp_hdrlen(skb) <<
-					E1000_ADVTXD_L4LEN_SHIFT;
-			break;
-		case IPPROTO_SCTP:
-			type_tucmd |= E1000_ADVTXD_TUCMD_L4T_SCTP;
-			mss_l4len_idx = sizeof(struct sctphdr) <<
-					E1000_ADVTXD_L4LEN_SHIFT;
-			break;
-		case IPPROTO_UDP:
-			mss_l4len_idx = sizeof(struct udphdr) <<
-					E1000_ADVTXD_L4LEN_SHIFT;
-			break;
-		default:
-			if (unlikely(net_ratelimit())) {
-				dev_warn(tx_ring->dev,
-					 "partial checksum but l4 proto=%x!\n",
-					 l4_hdr);
-			}
-			break;
-		}
-
-		/* update TX checksum flag */
-		first->tx_flags |= IGB_TX_FLAGS_CSUM;
+		goto no_csum;
 	}
 
+	switch (skb->csum_offset) {
+	case offsetof(struct tcphdr, check):
+		type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
+		/* fall through */
+	case offsetof(struct udphdr, check):
+		break;
+	case offsetof(struct sctphdr, checksum):
+		/* validate that this is actually an SCTP request */
+		if (((first->protocol == htons(ETH_P_IP)) &&
+		     (ip_hdr(skb)->protocol == IPPROTO_SCTP)) ||
+		    ((first->protocol == htons(ETH_P_IPV6)) &&
+		     igb_ipv6_csum_is_sctp(skb))) {
+			type_tucmd = E1000_ADVTXD_TUCMD_L4T_SCTP;
+			break;
+		}
+	default:
+		skb_checksum_help(skb);
+		goto csum_failed;
+	}
+
+	/* update TX checksum flag */
+	first->tx_flags |= IGB_TX_FLAGS_CSUM;
+	vlan_macip_lens = skb_checksum_start_offset(skb) -
+			  skb_network_offset(skb);
+no_csum:
 	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IGB_TX_FLAGS_VLAN_MASK;
 
-	igb_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
+	igb_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, 0);
 }
 
 #define IGB_SET_FLAG(_input, _flag, _result) \
