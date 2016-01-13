@@ -115,7 +115,7 @@ enum orangefs_vfs_op_states {
 
 #define get_op(op)					\
 	do {						\
-		atomic_inc(&(op)->aio_ref_count);	\
+		atomic_inc(&(op)->ref_count);	\
 		gossip_debug(GOSSIP_DEV_DEBUG,	\
 			"(get) Alloced OP (%p:%llu)\n",	\
 			op,				\
@@ -124,7 +124,7 @@ enum orangefs_vfs_op_states {
 
 #define put_op(op)							\
 	do {								\
-		if (atomic_sub_and_test(1, &(op)->aio_ref_count) == 1) {  \
+		if (atomic_sub_and_test(1, &(op)->ref_count) == 1) {  \
 			gossip_debug(GOSSIP_DEV_DEBUG,		\
 				"(put) Releasing OP (%p:%llu)\n",	\
 				op,					\
@@ -133,7 +133,7 @@ enum orangefs_vfs_op_states {
 			}						\
 	} while (0)
 
-#define op_wait(op) (atomic_read(&(op)->aio_ref_count) <= 2 ? 0 : 1)
+#define op_wait(op) (atomic_read(&(op)->ref_count) <= 2 ? 0 : 1)
 
 /*
  * Defines for controlling whether I/O upcalls are for async or sync operations
@@ -239,13 +239,12 @@ struct orangefs_kernel_op_s {
 	int io_completed;
 	wait_queue_head_t io_completion_waitq;
 
+	atomic_t ref_count;
+
 	/* VFS aio fields */
 
 	/* used by the async I/O code to stash the orangefs_kiocb_s structure */
 	void *priv;
-
-	/* used again for the async I/O code for deallocation */
-	atomic_t aio_ref_count;
 
 	int attempts;
 

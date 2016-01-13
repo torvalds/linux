@@ -120,7 +120,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		init_waitqueue_head(&new_op->waitq);
 
 		init_waitqueue_head(&new_op->io_completion_waitq);
-		atomic_set(&new_op->aio_ref_count, 0);
+		atomic_set(&new_op->ref_count, 0);
 
 		orangefs_op_initialize(new_op);
 
