@@ -177,6 +177,7 @@ enum wmi_service {
 	WMI_SERVICE_BSS_CHANNEL_INFO_64,
 	WMI_SERVICE_EXT_RES_CFG_SUPPORT,
 	WMI_SERVICE_MESH,
+	WMI_SERVICE_PEER_STATS,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -213,6 +214,7 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_BSS_CHANNEL_INFO_64,
 	WMI_10X_SERVICE_MESH,
 	WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
+	WMI_10X_SERVICE_PEER_STATS,
 };
 
 enum wmi_main_service {
@@ -386,6 +388,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_BSS_CHANNEL_INFO_64);
 	SVCSTR(WMI_SERVICE_EXT_RES_CFG_SUPPORT);
 	SVCSTR(WMI_SERVICE_MESH);
+	SVCSTR(WMI_SERVICE_PEER_STATS);
 	default:
 		return NULL;
 	}
@@ -463,6 +466,8 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_MESH, len);
 	SVCMAP(WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
 	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
+	SVCMAP(WMI_10X_SERVICE_PEER_STATS,
+	       WMI_SERVICE_PEER_STATS, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -2417,6 +2422,7 @@ enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
 	WMI_10_2_COEX_GPIO     = BIT(3),
+	WMI_10_2_PEER_STATS    = BIT(7),
 };
 
 struct wmi_resource_config_10_2 {
@@ -4228,6 +4234,12 @@ struct wmi_10_2_peer_stats {
 struct wmi_10_2_4_peer_stats {
 	struct wmi_10_2_peer_stats common;
 	__le32 unknown_value; /* FIXME: what is this word? */
+} __packed;
+
+struct wmi_10_2_4_ext_peer_stats {
+	struct wmi_10_2_peer_stats common;
+	__le32 peer_rssi_changed;
+	__le32 rx_duration;
 } __packed;
 
 struct wmi_10_4_peer_stats {
