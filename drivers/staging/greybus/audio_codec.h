@@ -68,6 +68,19 @@ static const u8 gbcodec_reg_defaults[GBCODEC_REG_COUNT] = {
 	GBCODEC_APB2_MUX_REG_DEFAULT,
 };
 
+struct gbaudio_widget {
+	__u8 id;
+	const char *name;
+	struct list_head list;
+};
+
+struct gbaudio_control {
+	__u8 id;
+	char *name;
+	const char * const *texts;
+	struct list_head list;
+};
+
 struct gbaudio_dai {
 	__le16 data_cport;
 	char name[NAME_SIZE];
@@ -87,6 +100,7 @@ struct gbaudio_codec_info {
 	char vstr[NAME_SIZE];
 	char pstr[NAME_SIZE];
 	struct list_head list;
+	struct gb_audio_topology *topology;
 	char name[NAME_SIZE];
 
 	/* soc related data */
@@ -105,6 +119,10 @@ struct gbaudio_codec_info {
 	int num_kcontrols;
 	int num_dapm_widgets;
 	int num_dapm_routes;
+	unsigned long dai_offset;
+	unsigned long widget_offset;
+	unsigned long control_offset;
+	unsigned long route_offset;
 	struct snd_kcontrol_new *kctls;
 	struct snd_soc_dapm_widget *widgets;
 	struct snd_soc_dapm_route *routes;
@@ -112,10 +130,23 @@ struct gbaudio_codec_info {
 
 	/* lists */
 	struct list_head dai_list;
+	struct list_head widget_list;
+	struct list_head codec_ctl_list;
+	struct list_head widget_ctl_list;
 	struct mutex lock;
 };
 
+struct gbaudio_dai *gbaudio_add_dai(struct gbaudio_codec_info *gbcodec,
+				    int data_cport,
+				    struct gb_connection *connection,
+				    const char *name);
+int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
+			       struct gb_audio_topology *tplg_data);
+void gbaudio_tplg_release(struct gbaudio_codec_info *gbcodec);
+
 /* protocol related */
+extern int gb_audio_gb_get_topology(struct gb_connection *connection,
+				    struct gb_audio_topology **topology);
 extern int gb_audio_gb_get_control(struct gb_connection *connection,
 				   uint8_t control_id, uint8_t index,
 				   struct gb_audio_ctl_elem_value *value);
