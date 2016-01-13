@@ -415,6 +415,11 @@ static int dvb_register(struct au0828_dev *dev)
 		       result);
 		goto fail_adapter;
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	dvb->adapter.mdev = dev->media_dev;
+#endif
+
 	dvb->adapter.priv = dev;
 
 	/* register frontend */
@@ -480,8 +485,15 @@ static int dvb_register(struct au0828_dev *dev)
 
 	dvb->start_count = 0;
 	dvb->stop_count = 0;
+
+	result = dvb_create_media_graph(&dvb->adapter, false);
+	if (result < 0)
+		goto fail_create_graph;
+
 	return 0;
 
+fail_create_graph:
+	dvb_net_release(&dvb->net);
 fail_fe_conn:
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 fail_fe_mem:

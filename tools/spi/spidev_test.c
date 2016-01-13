@@ -19,6 +19,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 
@@ -33,6 +34,8 @@ static void pabort(const char *s)
 static const char *device = "/dev/spidev1.1";
 static uint32_t mode;
 static uint8_t bits = 8;
+static char *input_file;
+static char *output_file;
 static uint32_t speed = 500000;
 static uint16_t delay;
 static int verbose;
@@ -49,7 +52,8 @@ uint8_t default_tx[] = {
 uint8_t default_rx[ARRAY_SIZE(default_tx)] = {0, };
 char *input_tx;
 
-static void hex_dump(const void *src, size_t length, size_t line_size, char *prefix)
+static void hex_dump(const void *src, size_t length, size_t line_size,
+		     char *prefix)
 {
 	int i = 0;
 	const unsigned char *address = src;
@@ -83,13 +87,17 @@ static void hex_dump(const void *src, size_t length, size_t line_size, char *pre
 static int unescape(char *_dst, char *_src, size_t len)
 {
 	int ret = 0;
+	int match;
 	char *src = _src;
 	char *dst = _dst;
 	unsigned int ch;
 
 	while (*src) {
 		if (*src == '\\' && *(src+1) == 'x') {
-			sscanf(src + 2, "%2x", &ch);
+			match = sscanf(src + 2, "%2x", &ch);
+			if (!match)
+				pabort("malformed input string");
+
 			src += 4;
 			*dst++ = (unsigned char)ch;
 		} else {
@@ -103,7 +111,7 @@ static int unescape(char *_dst, char *_src, size_t len)
 static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 {
 	int ret;
-
+	int out_fd;
 	struct spi_ioc_transfer tr = {
 		.tx_buf = (unsigned long)tx,
 		.rx_buf = (unsigned long)rx,
@@ -134,7 +142,21 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 
 	if (verbose)
 		hex_dump(tx, len, 32, "TX");
-	hex_dump(rx, len, 32, "RX");
+
+	if (output_file) {
+		out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+		if (out_fd < 0)
+			pabort("could not open output file");
+
+		ret = write(out_fd, rx, len);
+		if (ret != len)
+			pabort("not all bytes written to output file");
+
+		close(out_fd);
+	}
+
+	if (verbose || !output_file)
+		hex_dump(rx, len, 32, "RX");
 }
 
 static void print_usage(const char *prog)
@@ -143,7 +165,9 @@ static void print_usage(const char *prog)
 	puts("  -D --device   device to use (default /dev/spidev1.1)\n"
 	     "  -s --speed    max speed (Hz)\n"
 	     "  -d --delay    delay (usec)\n"
-	     "  -b --bpw      bits per word \n"
+	     "  -b --bpw      bits per word\n"
+	     "  -i --input    input data from a file (e.g. \"test.bin\")\n"
+	     "  -o --output   output data to a file (e.g. \"results.bin\")\n"
 	     "  -l --loop     loopback\n"
 	     "  -H --cpha     clock phase\n"
 	     "  -O --cpol     clock polarity\n"
@@ -167,6 +191,8 @@ static void parse_opts(int argc, char *argv[])
 			{ "speed",   1, 0, 's' },
 			{ "delay",   1, 0, 'd' },
 			{ "bpw",     1, 0, 'b' },
+			{ "input",   1, 0, 'i' },
+			{ "output",  1, 0, 'o' },
 			{ "loop",    0, 0, 'l' },
 			{ "cpha",    0, 0, 'H' },
 			{ "cpol",    0, 0, 'O' },
@@ -182,7 +208,8 @@ static void parse_opts(int argc, char *argv[])
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR24p:v", lopts, NULL);
+		c = getopt_long(argc, argv, "D:s:d:b:i:o:lHOLC3NR24p:v",
+				lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -199,6 +226,12 @@ static void parse_opts(int argc, char *argv[])
 			break;
 		case 'b':
 			bits = atoi(optarg);
+			break;
+		case 'i':
+			input_file = optarg;
+			break;
+		case 'o':
+			output_file = optarg;
 			break;
 		case 'l':
 			mode |= SPI_LOOP;
@@ -249,13 +282,63 @@ static void parse_opts(int argc, char *argv[])
 	}
 }
 
+static void transfer_escaped_string(int fd, char *str)
+{
+	size_t size = strlen(str + 1);
+	uint8_t *tx;
+	uint8_t *rx;
+
+	tx = malloc(size);
+	if (!tx)
+		pabort("can't allocate tx buffer");
+
+	rx = malloc(size);
+	if (!rx)
+		pabort("can't allocate rx buffer");
+
+	size = unescape((char *)tx, str, size);
+	transfer(fd, tx, rx, size);
+	free(rx);
+	free(tx);
+}
+
+static void transfer_file(int fd, char *filename)
+{
+	ssize_t bytes;
+	struct stat sb;
+	int tx_fd;
+	uint8_t *tx;
+	uint8_t *rx;
+
+	if (stat(filename, &sb) == -1)
+		pabort("can't stat input file");
+
+	tx_fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		pabort("can't open input file");
+
+	tx = malloc(sb.st_size);
+	if (!tx)
+		pabort("can't allocate tx buffer");
+
+	rx = malloc(sb.st_size);
+	if (!rx)
+		pabort("can't allocate rx buffer");
+
+	bytes = read(tx_fd, tx, sb.st_size);
+	if (bytes != sb.st_size)
+		pabort("failed to read input file");
+
+	transfer(fd, tx, rx, sb.st_size);
+	free(rx);
+	free(tx);
+	close(tx_fd);
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = 0;
 	int fd;
-	uint8_t *tx;
-	uint8_t *rx;
-	int size;
 
 	parse_opts(argc, argv);
 
@@ -300,17 +383,15 @@ int main(int argc, char *argv[])
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
-	if (input_tx) {
-		size = strlen(input_tx+1);
-		tx = malloc(size);
-		rx = malloc(size);
-		size = unescape((char *)tx, input_tx, size);
-		transfer(fd, tx, rx, size);
-		free(rx);
-		free(tx);
-	} else {
+	if (input_tx && input_file)
+		pabort("only one of -p and --input may be selected");
+
+	if (input_tx)
+		transfer_escaped_string(fd, input_tx);
+	else if (input_file)
+		transfer_file(fd, input_file);
+	else
 		transfer(fd, default_tx, default_rx, sizeof(default_tx));
-	}
 
 	close(fd);
 

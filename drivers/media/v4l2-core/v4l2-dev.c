@@ -194,9 +194,12 @@ static void v4l2_device_release(struct device *cd)
 	mutex_unlock(&videodev_lock);
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (v4l2_dev->mdev &&
-	    vdev->vfl_type != VFL_TYPE_SUBDEV)
-		media_device_unregister_entity(&vdev->entity);
+	if (v4l2_dev->mdev) {
+		/* Remove interfaces and interface links */
+		media_devnode_remove(vdev->intf_devnode);
+		if (vdev->entity.function != MEDIA_ENT_F_UNKNOWN)
+			media_device_unregister_entity(&vdev->entity);
+	}
 #endif
 
 	/* Do not call v4l2_device_put if there is no release callback set.
@@ -723,6 +726,91 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			BASE_VIDIOC_PRIVATE);
 }
 
+static int video_register_media_controller(struct video_device *vdev, int type)
+{
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	u32 intf_type;
+	int ret;
+
+	if (!vdev->v4l2_dev->mdev)
+		return 0;
+
+	vdev->entity.function = MEDIA_ENT_F_UNKNOWN;
+
+	switch (type) {
+	case VFL_TYPE_GRABBER:
+		intf_type = MEDIA_INTF_T_V4L_VIDEO;
+		vdev->entity.function = MEDIA_ENT_F_IO_V4L;
+		break;
+	case VFL_TYPE_VBI:
+		intf_type = MEDIA_INTF_T_V4L_VBI;
+		vdev->entity.function = MEDIA_ENT_F_IO_VBI;
+		break;
+	case VFL_TYPE_SDR:
+		intf_type = MEDIA_INTF_T_V4L_SWRADIO;
+		vdev->entity.function = MEDIA_ENT_F_IO_SWRADIO;
+		break;
+	case VFL_TYPE_RADIO:
+		intf_type = MEDIA_INTF_T_V4L_RADIO;
+		/*
+		 * Radio doesn't have an entity at the V4L2 side to represent
+		 * radio input or output. Instead, the audio input/output goes
+		 * via either physical wires or ALSA.
+		 */
+		break;
+	case VFL_TYPE_SUBDEV:
+		intf_type = MEDIA_INTF_T_V4L_SUBDEV;
+		/* Entity will be created via v4l2_device_register_subdev() */
+		break;
+	default:
+		return 0;
+	}
+
+	if (vdev->entity.function != MEDIA_ENT_F_UNKNOWN) {
+		vdev->entity.name = vdev->name;
+
+		/* Needed just for backward compatibility with legacy MC API */
+		vdev->entity.info.dev.major = VIDEO_MAJOR;
+		vdev->entity.info.dev.minor = vdev->minor;
+
+		ret = media_device_register_entity(vdev->v4l2_dev->mdev,
+						   &vdev->entity);
+		if (ret < 0) {
+			printk(KERN_WARNING
+				"%s: media_device_register_entity failed\n",
+				__func__);
+			return ret;
+		}
+	}
+
+	vdev->intf_devnode = media_devnode_create(vdev->v4l2_dev->mdev,
+						  intf_type,
+						  0, VIDEO_MAJOR,
+						  vdev->minor);
+	if (!vdev->intf_devnode) {
+		media_device_unregister_entity(&vdev->entity);
+		return -ENOMEM;
+	}
+
+	if (vdev->entity.function != MEDIA_ENT_F_UNKNOWN) {
+		struct media_link *link;
+
+		link = media_create_intf_link(&vdev->entity,
+					      &vdev->intf_devnode->intf,
+					      MEDIA_LNK_FL_ENABLED);
+		if (!link) {
+			media_devnode_remove(vdev->intf_devnode);
+			media_device_unregister_entity(&vdev->entity);
+			return -ENOMEM;
+		}
+	}
+
+	/* FIXME: how to create the other interface links? */
+
+#endif
+	return 0;
+}
+
 /**
  *	__video_register_device - register video4linux devices
  *	@vdev: video device structure we want to register
@@ -918,22 +1006,9 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	/* Increase v4l2_device refcount */
 	v4l2_device_get(vdev->v4l2_dev);
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Part 5: Register the entity. */
-	if (vdev->v4l2_dev->mdev &&
-	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
-		vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
-		vdev->entity.name = vdev->name;
-		vdev->entity.info.dev.major = VIDEO_MAJOR;
-		vdev->entity.info.dev.minor = vdev->minor;
-		ret = media_device_register_entity(vdev->v4l2_dev->mdev,
-			&vdev->entity);
-		if (ret < 0)
-			printk(KERN_WARNING
-			       "%s: media_device_register_entity failed\n",
-			       __func__);
-	}
-#endif
+	ret = video_register_media_controller(vdev, type);
+
 	/* Part 6: Activate this minor. The char device can now be used. */
 	set_bit(V4L2_FL_REGISTERED, &vdev->flags);
 

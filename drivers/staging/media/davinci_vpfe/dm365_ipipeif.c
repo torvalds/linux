@@ -885,9 +885,14 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct vpfe_device *vpfe = to_vpfe_device(ipipeif);
+	unsigned int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPEIF_PAD_SINK | MEDIA_ENT_T_DEVNODE:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case IPIPEIF_PAD_SINK:
 		/* Single shot mode */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->input = IPIPEIF_INPUT_NONE;
@@ -896,7 +901,7 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		ipipeif->input = IPIPEIF_INPUT_MEMORY;
 		break;
 
-	case IPIPEIF_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPEIF_PAD_SINK | 2 << 16:
 		/* read from isif */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->input = IPIPEIF_INPUT_NONE;
@@ -908,7 +913,7 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		ipipeif->input = IPIPEIF_INPUT_ISIF;
 		break;
 
-	case IPIPEIF_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPEIF_PAD_SOURCE | 2 << 16:
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->output = IPIPEIF_OUTPUT_NONE;
 			break;
@@ -971,7 +976,7 @@ vpfe_ipipeif_register_entities(struct vpfe_ipipeif_device *ipipeif,
 	ipipeif->video_in.vpfe_dev = vpfe_dev;
 
 	flags = 0;
-	ret = media_entity_create_link(&ipipeif->video_in.video_dev.entity, 0,
+	ret = media_create_pad_link(&ipipeif->video_in.video_dev.entity, 0,
 					&ipipeif->subdev.entity, 0, flags);
 	if (ret < 0)
 		goto fail;
@@ -1026,7 +1031,7 @@ int vpfe_ipipeif_init(struct vpfe_ipipeif_device *ipipeif,
 	ipipeif->output = IPIPEIF_OUTPUT_NONE;
 	me->ops = &ipipeif_media_ops;
 
-	ret = media_entity_init(me, IPIPEIF_NUM_PADS, pads, 0);
+	ret = media_entity_pads_init(me, IPIPEIF_NUM_PADS, pads);
 	if (ret)
 		goto fail;
 
