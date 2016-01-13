@@ -34,33 +34,38 @@ fi
 
 configfile=`echo $i | sed -e 's/^.*\///'`
 
-grep -e '-perf:.*writer-duration' $i/console.log | sed -e 's/^\[[^]]*]//' |
+sed -e 's/^\[[^]]*]//' < $i/console.log |
 awk '
-{
+/-perf: .* gps: .* batches:/ {
+	ngps = $9;
+	nbatches = $11;
+}
+
+/-perf: .*writer-duration/ {
 	gptimes[++n] = $5 / 1000.;
 	sum += $5 / 1000.;
 }
 
 END {
-	if (NR <= 0) {
+	newNR = asort(gptimes);
+	if (newNR <= 0) {
 		print "No rcuperf records found???"
 		exit;
 	}
-	asort(gptimes);
-	pct50 = int(NR * 50 / 100);
+	pct50 = int(newNR * 50 / 100);
 	if (pct50 < 1)
 		pct50 = 1;
-	pct90 = int(NR * 90 / 100);
+	pct90 = int(newNR * 90 / 100);
 	if (pct90 < 1)
 		pct90 = 1;
-	pct99 = int(NR * 99 / 100);
+	pct99 = int(newNR * 99 / 100);
 	if (pct99 < 1)
 		pct99 = 1;
 	div = 10 ** int(log(gptimes[pct90]) / log(10) + .5) / 100;
 	print "Histogram bucket size: " div;
 	last = gptimes[1] - 10;
 	count = 0;
-	for (i = 1; i <= NR; i++) {
+	for (i = 1; i <= newNR; i++) {
 		current = div * int(gptimes[i] / div);
 		if (last == current) {
 			count++;
@@ -73,10 +78,11 @@ END {
 	}
 	if (count > 0)
 		print last, count;
-	print "Average grace-period duration: " sum / NR " microseconds";
+	print "Average grace-period duration: " sum / newNR " microseconds";
 	print "Minimum grace-period duration: " gptimes[1];
 	print "50th percentile grace-period duration: " gptimes[pct50];
 	print "90th percentile grace-period duration: " gptimes[pct90];
 	print "99th percentile grace-period duration: " gptimes[pct99];
-	print "Maximum grace-period duration: " gptimes[NR];
+	print "Maximum grace-period duration: " gptimes[newNR];
+	print "Grace periods: " ngps + 0 " Batches: " nbatches + 0 " Ratio: " ngps / nbatches;
 }'
