@@ -139,45 +139,9 @@ static void mv_chan_clear_err_status(struct mv_xor_chan *chan)
 }
 
 static void mv_chan_set_mode(struct mv_xor_chan *chan,
-			     enum dma_transaction_type type)
+			     u32 op_mode)
 {
-	u32 op_mode;
 	u32 config = readl_relaxed(XOR_CONFIG(chan));
-
-	switch (type) {
-	case DMA_XOR:
-		op_mode = XOR_OPERATION_MODE_XOR;
-		break;
-	case DMA_MEMCPY:
-		op_mode = XOR_OPERATION_MODE_MEMCPY;
-		break;
-	default:
-		dev_err(mv_chan_to_devp(chan),
-			"error: unsupported operation %d\n",
-			type);
-		BUG();
-		return;
-	}
-
-	config &= ~0x7;
-	config |= op_mode;
-
-#if defined(__BIG_ENDIAN)
-	config |= XOR_DESCRIPTOR_SWAP;
-#else
-	config &= ~XOR_DESCRIPTOR_SWAP;
-#endif
-
-	writel_relaxed(config, XOR_CONFIG(chan));
-	chan->current_type = type;
-}
-
-static void mv_chan_set_mode_to_desc(struct mv_xor_chan *chan)
-{
-	u32 op_mode;
-	u32 config = readl_relaxed(XOR_CONFIG(chan));
-
-	op_mode = XOR_OPERATION_MODE_IN_DESC;
 
 	config &= ~0x7;
 	config |= op_mode;
@@ -1043,9 +1007,9 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	mv_chan_unmask_interrupts(mv_chan);
 
 	if (mv_chan->op_in_desc == XOR_MODE_IN_DESC)
-		mv_chan_set_mode_to_desc(mv_chan);
+		mv_chan_set_mode(mv_chan, XOR_OPERATION_MODE_IN_DESC);
 	else
-		mv_chan_set_mode(mv_chan, DMA_XOR);
+		mv_chan_set_mode(mv_chan, XOR_OPERATION_MODE_XOR);
 
 	spin_lock_init(&mv_chan->lock);
 	INIT_LIST_HEAD(&mv_chan->chain);
@@ -1119,6 +1083,57 @@ mv_xor_conf_mbus_windows(struct mv_xor_device *xordev,
 	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
 	writel(0, base + WINDOW_OVERRIDE_CTRL(0));
 	writel(0, base + WINDOW_OVERRIDE_CTRL(1));
+}
+
+/*
+ * Since this XOR driver is basically used only for RAID5, we don't
+ * need to care about synchronizing ->suspend with DMA activity,
+ * because the DMA engine will naturally be quiet due to the block
+ * devices being suspended.
+ */
+static int mv_xor_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct mv_xor_device *xordev = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+		struct mv_xor_chan *mv_chan = xordev->channels[i];
+
+		if (!mv_chan)
+			continue;
+
+		mv_chan->saved_config_reg =
+			readl_relaxed(XOR_CONFIG(mv_chan));
+		mv_chan->saved_int_mask_reg =
+			readl_relaxed(XOR_INTR_MASK(mv_chan));
+	}
+
+	return 0;
+}
+
+static int mv_xor_resume(struct platform_device *dev)
+{
+	struct mv_xor_device *xordev = platform_get_drvdata(dev);
+	const struct mbus_dram_target_info *dram;
+	int i;
+
+	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+		struct mv_xor_chan *mv_chan = xordev->channels[i];
+
+		if (!mv_chan)
+			continue;
+
+		writel_relaxed(mv_chan->saved_config_reg,
+			       XOR_CONFIG(mv_chan));
+		writel_relaxed(mv_chan->saved_int_mask_reg,
+			       XOR_INTR_MASK(mv_chan));
+	}
+
+	dram = mv_mbus_dram_info();
+	if (dram)
+		mv_xor_conf_mbus_windows(xordev, dram);
+
+	return 0;
 }
 
 static const struct of_device_id mv_xor_dt_ids[] = {
@@ -1282,6 +1297,8 @@ err_channel_add:
 
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
+	.suspend        = mv_xor_suspend,
+	.resume         = mv_xor_resume,
 	.driver		= {
 		.name	        = MV_XOR_NAME,
 		.of_match_table = of_match_ptr(mv_xor_dt_ids),
