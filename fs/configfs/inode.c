@@ -218,7 +218,7 @@ const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 	if (sd->s_type & (CONFIGFS_DIR | CONFIGFS_ITEM_LINK))
 		return sd->s_dentry->d_name.name;
 
-	if (sd->s_type & CONFIGFS_ITEM_ATTR) {
+	if (sd->s_type & (CONFIGFS_ITEM_ATTR | CONFIGFS_ITEM_BIN_ATTR)) {
 		attr = sd->s_element;
 		return attr->ca_name;
 	}
