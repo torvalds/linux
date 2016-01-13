@@ -168,6 +168,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	struct omap_overlay_manager *mgr = hdmi.output.manager;
 	struct hdmi_wp_data *wp = &hdmi.wp;
 	struct dss_pll_clock_info hdmi_cinfo = { 0 };
+	unsigned pc;
 
 	r = hdmi_power_on_core(dssdev);
 	if (r)
@@ -181,7 +182,11 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
 
-	hdmi_pll_compute(&hdmi.pll, p->pixelclock, &hdmi_cinfo);
+	pc = p->pixelclock;
+	if (p->double_pixel)
+		pc *= 2;
+
+	hdmi_pll_compute(&hdmi.pll, pc, &hdmi_cinfo);
 
 	r = dss_pll_enable(&hdmi.pll.pll);
 	if (r) {
