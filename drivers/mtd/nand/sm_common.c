@@ -102,7 +102,7 @@ static struct nand_flash_dev nand_xd_flash_ids[] = {
 
 int sm_register_device(struct mtd_info *mtd, int smartmedia)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
 
 	chip->options |= NAND_SKIP_BBTSCAN;

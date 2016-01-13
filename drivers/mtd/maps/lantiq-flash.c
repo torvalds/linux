@@ -110,7 +110,6 @@ ltq_copy_to(struct map_info *map, unsigned long to,
 static int
 ltq_mtd_probe(struct platform_device *pdev)
 {
-	struct mtd_part_parser_data ppdata;
 	struct ltq_mtd *ltq_mtd;
 	struct cfi_private *cfi;
 	int err;
@@ -161,13 +160,13 @@ ltq_mtd_probe(struct platform_device *pdev)
 	}
 
 	ltq_mtd->mtd->dev.parent = &pdev->dev;
+	mtd_set_of_node(ltq_mtd->mtd, pdev->dev.of_node);
 
 	cfi = ltq_mtd->map->fldrv_priv;
 	cfi->addr_unlock1 ^= 1;
 	cfi->addr_unlock2 ^= 1;
 
-	ppdata.of_node = pdev->dev.of_node;
-	err = mtd_device_parse_register(ltq_mtd->mtd, NULL, &ppdata, NULL, 0);
+	err = mtd_device_register(ltq_mtd->mtd, NULL, 0);
 	if (err) {
 		dev_err(&pdev->dev, "failed to add partitions\n");
 		goto err_destroy;

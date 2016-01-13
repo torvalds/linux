@@ -1153,7 +1153,7 @@ static struct jffs2_sb_info *work_to_sb(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 
-	dwork = container_of(work, struct delayed_work, work);
+	dwork = to_delayed_work(work);
 	return container_of(dwork, struct jffs2_sb_info, wbuf_dwork);
 }
 
