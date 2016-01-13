@@ -6,10 +6,8 @@
  * Released under the GPLv2 only.
  */
 
-#ifndef __LINUX_GBAUDIO_H
-#define __LINUX_GBAUDIO_H
-
-#ifdef __KERNEL__
+#ifndef __LINUX_GBAUDIO_CODEC_H
+#define __LINUX_GBAUDIO_CODEC_H
 
 #include <sound/soc.h>
 
@@ -145,5 +143,4 @@ extern int gb_audio_apbridgea_start_rx(struct gb_connection *connection,
 extern int gb_audio_apbridgea_stop_rx(struct gb_connection *connection,
 				      __u16 i2s_port);
 
-#endif /* __KERNEL__ */
-#endif /* __LINUX_GBAUDIO_H */
+#endif /* __LINUX_GBAUDIO_CODEC_H */

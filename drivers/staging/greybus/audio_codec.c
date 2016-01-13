@@ -7,7 +7,7 @@
  */
 #include <linux/module.h>
 
-#include "audio.h"
+#include "audio_codec.h"
 
 static int gbcodec_event_spk(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *k, int event)
