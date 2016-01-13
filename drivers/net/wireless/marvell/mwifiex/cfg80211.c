@@ -3171,10 +3171,12 @@ static int mwifiex_set_wowlan_mef_entry(struct mwifiex_private *priv,
 				sizeof(byte_seq));
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 
-		if (first_pat)
+		if (first_pat) {
 			first_pat = false;
-		else
+			mwifiex_dbg(priv->adapter, INFO, "Wake on patterns\n");
+		} else {
 			mef_entry->filter[filt_num].filt_action = TYPE_AND;
+		}
 
 		filt_num++;
 	}
@@ -3200,6 +3202,7 @@ static int mwifiex_set_wowlan_mef_entry(struct mwifiex_private *priv,
 		mef_entry->filter[filt_num].offset = 56;
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		mef_entry->filter[filt_num].filt_action = TYPE_OR;
+		mwifiex_dbg(priv->adapter, INFO, "Wake on magic packet\n");
 	}
 	return ret;
 }
@@ -3295,6 +3298,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 				    "Failed to set HS params\n");
 			return ret;
 		}
+		mwifiex_dbg(priv->adapter, INFO, "Wake on device disconnect\n");
 	}
 
 	return ret;
