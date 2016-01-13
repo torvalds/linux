@@ -66,6 +66,7 @@ config AM335X_PHY_USB
 	select USB_PHY
 	select AM335X_CONTROL_USB
 	select NOP_USB_XCEIV
+	select USB_COMMON
 	help
 	  This driver provides PHY support for that phy which part for the
 	  AM335x SoC.
@@ -185,19 +186,6 @@ config USB_MXS_PHY
 	  Enable this to support the Freescale MXS USB PHY.
 
 	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
-
-config USB_RCAR_PHY
-	tristate "Renesas R-Car USB PHY support"
-	depends on USB || USB_GADGET
-	depends on ARCH_R8A7778 || ARCH_R8A7779 || COMPILE_TEST
-	select USB_PHY
-	help
-	  Say Y here to add support for the Renesas R-Car USB common PHY driver.
-	  This chip is typically used as USB PHY for USB host, gadget.
-	  This driver supports R8A7778 and R8A7779.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called phy-rcar-usb.
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
