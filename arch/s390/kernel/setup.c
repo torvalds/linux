@@ -99,7 +99,7 @@ unsigned long MODULES_VADDR;
 unsigned long MODULES_END;
 
 /* An array with a pointer to the lowcore of every CPU. */
-struct _lowcore *lowcore_ptr[NR_CPUS];
+struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
 
 /*
@@ -293,12 +293,12 @@ void *restart_stack __attribute__((__section__(".data")));
 
 static void __init setup_lowcore(void)
 {
-	struct _lowcore *lc;
+	struct lowcore *lc;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr =
@@ -663,15 +663,6 @@ static void __init reserve_kernel(void)
 #endif
 }
 
-static void __init reserve_elfcorehdr(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (is_kdump_kernel())
-		memblock_reserve(elfcorehdr_addr - OLDMEM_BASE,
-				 PAGE_ALIGN(elfcorehdr_size));
-#endif
-}
-
 static void __init setup_memory(void)
 {
 	struct memblock_region *reg;
@@ -850,6 +841,11 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long) &_end;
 
 	parse_early_param();
+#ifdef CONFIG_CRASH_DUMP
+	/* Deactivate elfcorehdr= kernel parameter */
+	elfcorehdr_addr = ELFCORE_ADDR_MAX;
+#endif
+
 	os_info_init();
 	setup_ipl();
 
@@ -858,7 +854,6 @@ void __init setup_arch(char **cmdline_p)
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
-	reserve_elfcorehdr();
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
@@ -879,11 +874,13 @@ void __init setup_arch(char **cmdline_p)
 
 	check_initrd();
 	reserve_crashkernel();
+#ifdef CONFIG_CRASH_DUMP
 	/*
 	 * Be aware that smp_save_dump_cpus() triggers a system reset.
 	 * Therefore CPU and device initialization should be done afterwards.
 	 */
 	smp_save_dump_cpus();
+#endif
 
 	setup_resources();
 	setup_vmcoreinfo();
