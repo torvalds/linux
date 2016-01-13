@@ -2753,7 +2753,7 @@ static netdev_features_t
 jme_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	if (netdev->mtu > 1900)
-		features &= ~(NETIF_F_ALL_TSO | NETIF_F_ALL_CSUM);
+		features &= ~(NETIF_F_ALL_TSO | NETIF_F_CSUM_MASK);
 	return features;
 }
 

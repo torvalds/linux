@@ -463,11 +463,6 @@ static int hns_mdio_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "no syscon hisilicon,peri-c-subctrl\n");
 		mdio_dev->subctrl_vbase = NULL;
 	}
-	new_bus->irq = devm_kcalloc(&pdev->dev, PHY_MAX_ADDR,
-				    sizeof(int), GFP_KERNEL);
-	if (!new_bus->irq)
-		return -ENOMEM;
-
 	new_bus->parent = &pdev->dev;
 	platform_set_drvdata(pdev, new_bus);
 

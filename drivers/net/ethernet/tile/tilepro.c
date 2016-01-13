@@ -1349,8 +1349,7 @@ static int tile_net_open_inner(struct net_device *dev)
  */
 static void tile_net_open_retry(struct work_struct *w)
 {
-	struct delayed_work *dw =
-		container_of(w, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(w);
 
 	struct tile_net_priv *priv =
 		container_of(dw, struct tile_net_priv, retry_work);

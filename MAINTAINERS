@@ -371,6 +371,15 @@ ADDRESS SPACE LAYOUT RANDOMIZATION (ASLR)
 M:	Jiri Kosina <jikos@kernel.org>
 S:	Maintained
 
+ADF7242 IEEE 802.15.4 RADIO DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+W:	https://wiki.analog.com/ADF7242
+W:	http://ez.analog.com/community/linux-device-drivers
+L:	linux-wpan@vger.kernel.org
+S:	Supported
+F:	drivers/net/ieee802154/adf7242.c
+F:	Documentation/devicetree/bindings/net/ieee802154/adf7242.txt
+
 ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	lm-sensors@lm-sensors.org
@@ -388,7 +397,7 @@ ADM8211 WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 S:	Orphan
-F:	drivers/net/wireless/adm8211.*
+F:	drivers/net/wireless/admtek/adm8211.*
 
 ADP1653 FLASH CONTROLLER DRIVER
 M:	Sakari Ailus <sakari.ailus@iki.fi>
@@ -1992,7 +2001,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
-F:	drivers/net/wireless/atmel*
+F:	drivers/net/wireless/atmel/atmel*
 
 ATMEL MAXTOUCH DRIVER
 M:	Nick Dyer <nick.dyer@itdev.co.uk>
@@ -2081,7 +2090,7 @@ L:	linux-wireless@vger.kernel.org
 L:	b43-dev@lists.infradead.org
 W:	http://wireless.kernel.org/en/users/Drivers/b43
 S:	Odd Fixes
-F:	drivers/net/wireless/b43/
+F:	drivers/net/wireless/broadcom/b43/
 
 B43LEGACY WIRELESS DRIVER
 M:	Larry Finger <Larry.Finger@lwfinger.net>
@@ -2089,7 +2098,7 @@ L:	linux-wireless@vger.kernel.org
 L:	b43-dev@lists.infradead.org
 W:	http://wireless.kernel.org/en/users/Drivers/b43
 S:	Maintained
-F:	drivers/net/wireless/b43legacy/
+F:	drivers/net/wireless/broadcom/b43legacy/
 
 BACKLIGHT CLASS/SUBSYSTEM
 M:	Jingoo Han <jingoohan1@gmail.com>
@@ -2101,7 +2110,7 @@ F:	include/linux/backlight.h
 BATMAN ADVANCED
 M:	Marek Lindner <mareklindner@neomailbox.ch>
 M:	Simon Wunderlich <sw@simonwunderlich.de>
-M:	Antonio Quartulli <antonio@meshcoding.com>
+M:	Antonio Quartulli <a@unstable.cc>
 L:	b.a.t.m.a.n@lists.open-mesh.org
 W:	http://www.open-mesh.org/
 S:	Maintained
@@ -2391,7 +2400,7 @@ M:	Hante Meuleman <meuleman@broadcom.com>
 L:	linux-wireless@vger.kernel.org
 L:	brcm80211-dev-list@broadcom.com
 S:	Supported
-F:	drivers/net/wireless/brcm80211/
+F:	drivers/net/wireless/broadcom/brcm80211/
 
 BROADCOM BNX2FC 10 GIGABIT FCOE DRIVER
 M:	QLogic-Storage-Upstream@qlogic.com
@@ -3113,7 +3122,7 @@ F:	sound/pci/cs5535audio/
 CW1200 WLAN driver
 M:	Solomon Peachy <pizza@shaftnet.org>
 S:	Maintained
-F:	drivers/net/wireless/cw1200/
+F:	drivers/net/wireless/st/cw1200/
 
 CX18 VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
@@ -5035,7 +5044,7 @@ L:	hostap@shmoo.com (subscribers-only)
 L:	linux-wireless@vger.kernel.org
 W:	http://hostap.epitest.fi/
 S:	Maintained
-F:	drivers/net/wireless/hostap/
+F:	drivers/net/wireless/intersil/hostap/
 
 HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
 L:	platform-driver-x86@vger.kernel.org
@@ -5272,6 +5281,13 @@ M:	Thomas Falcon <tlfalcon@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/ibm/ibmveth.*
+
+IBM Power SRIOV Virtual NIC Device Driver
+M:	Thomas Falcon <tlfalcon@linux.vnet.ibm.com>
+M:	John Allen <jallen@linux.vnet.ibm.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/ibm/ibmvnic.*
 
 IBM Power Virtual SCSI Device Drivers
 M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
@@ -5603,7 +5619,7 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/README.ipw2100
 F:	Documentation/networking/README.ipw2200
-F:	drivers/net/wireless/ipw2x00/
+F:	drivers/net/wireless/intel/ipw2x00/
 
 INTEL(R) TRACE HUB
 M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
@@ -5635,7 +5651,7 @@ INTEL WIRELESS 3945ABG/BG, 4965AGN (iwlegacy)
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
-F:	drivers/net/wireless/iwlegacy/
+F:	drivers/net/wireless/intel/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Johannes Berg <johannes.berg@intel.com>
@@ -5645,7 +5661,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 S:	Supported
-F:	drivers/net/wireless/iwlwifi/
+F:	drivers/net/wireless/intel/iwlwifi/
 
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
@@ -6697,7 +6713,7 @@ F:	drivers/net/ethernet/marvell/sk*
 MARVELL LIBERTAS WIRELESS DRIVER
 L:	libertas-dev@lists.infradead.org
 S:	Orphan
-F:	drivers/net/wireless/libertas/
+F:	drivers/net/wireless/marvell/libertas/
 
 MARVELL MV643XX ETHERNET DRIVER
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
@@ -6717,13 +6733,13 @@ M:	Amitkumar Karwar <akarwar@marvell.com>
 M:	Nishant Sarmukadam <nishants@marvell.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	drivers/net/wireless/mwifiex/
+F:	drivers/net/wireless/marvell/mwifiex/
 
 MARVELL MWL8K WIRELESS DRIVER
 M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	linux-wireless@vger.kernel.org
 S:	Odd Fixes
-F:	drivers/net/wireless/mwl8k.c
+F:	drivers/net/wireless/marvell/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
@@ -7359,6 +7375,13 @@ F:	include/net/netrom.h
 F:	include/uapi/linux/netrom.h
 F:	net/netrom/
 
+NETRONOME ETHERNET DRIVERS
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Rolf Neugebauer <rolf.neugebauer@netronome.com>
+L:	oss-drivers@netronome.com
+S:	Maintained
+F:	drivers/net/ethernet/netronome/
+
 NETWORK BLOCK DEVICE (NBD)
 M:	Markus Pargmann <mpa@pengutronix.de>
 S:	Maintained
@@ -7490,7 +7513,12 @@ F:	net/nfc/
 F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h
 F:	drivers/nfc/
+F:	include/linux/platform_data/microread.h
+F:	include/linux/platform_data/nfcmrvl.h
+F:	include/linux/platform_data/nxp-nci.h
 F:	include/linux/platform_data/pn544.h
+F:	include/linux/platform_data/st21nfca.h
+F:	include/linux/platform_data/st-nci.h
 F:	Documentation/devicetree/bindings/net/nfc/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
@@ -7940,7 +7968,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/orinoco
 W:	http://www.nongnu.org/orinoco/
 S:	Orphan
-F:	drivers/net/wireless/orinoco/
+F:	drivers/net/wireless/intersil/orinoco/
 
 OSD LIBRARY and FILESYSTEM
 M:	Boaz Harrosh <ooo@electrozaur.com>
@@ -7966,7 +7994,7 @@ M:	Christian Lamparter <chunkeey@googlemail.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Maintained
-F:	drivers/net/wireless/p54/
+F:	drivers/net/wireless/intersil/p54/
 
 PA SEMI ETHERNET DRIVER
 M:	Olof Johansson <olof@lixom.net>
@@ -8517,7 +8545,7 @@ M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
-F:	drivers/net/wireless/prism54/
+F:	drivers/net/wireless/intersil/prism54/
 
 PS3 NETWORK SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
@@ -8821,7 +8849,7 @@ M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	Helmut Schaa <helmut.schaa@googlemail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	drivers/net/wireless/rt2x00/
+F:	drivers/net/wireless/ralink/rt2x00/
 
 RAMDISK RAM BLOCK DEVICE DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
@@ -9062,7 +9090,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Orphan
-F:	drivers/net/wireless/rtl818x/rtl8180/
+F:	drivers/net/wireless/realtek/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
 M:	Herton Ronaldo Krzesinski <herton@canonical.com>
@@ -9072,7 +9100,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818x/rtl8187/
+F:	drivers/net/wireless/realtek/rtl818x/rtl8187/
 
 RTL8192CE WIRELESS DRIVER
 M:	Larry Finger <Larry.Finger@lwfinger.net>
@@ -9081,8 +9109,8 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtlwifi/
-F:	drivers/net/wireless/rtlwifi/rtl8192ce/
+F:	drivers/net/wireless/realtek/rtlwifi/
+F:	drivers/net/wireless/realtek/rtlwifi/rtl8192ce/
 
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
 M:	Jes Sorensen <Jes.Sorensen@redhat.com>
@@ -9126,7 +9154,7 @@ F:	drivers/s390/block/dasd*
 F:	block/partitions/ibm.c
 
 S390 NETWORK DRIVERS
-M:	Ursula Braun <ursula.braun@de.ibm.com>
+M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -9156,7 +9184,7 @@ S:	Supported
 F:	drivers/s390/scsi/zfcp_*
 
 S390 IUCV NETWORK LAYER
-M:	Ursula Braun <ursula.braun@de.ibm.com>
+M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -11185,6 +11213,13 @@ L:	linux-usb@vger.kernel.org
 S:	Supported
 F:	drivers/usb/class/usblp.c
 
+USB QMI WWAN NETWORK DRIVER
+M:	Bjørn Mork <bjorn@mork.no>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-class-net-qmi
+F:	drivers/net/usb/qmi_wwan.c
+
 USB RTL8150 DRIVER
 M:	Petko Manolov <petkan@nucleusys.com>
 L:	linux-usb@vger.kernel.org
@@ -11281,7 +11316,7 @@ USB ZD1201 DRIVER
 L:	linux-wireless@vger.kernel.org
 W:	http://linux-lc100020.sourceforge.net
 S:	Orphan
-F:	drivers/net/wireless/zd1201.*
+F:	drivers/net/wireless/zydas/zd1201.*
 
 USB ZR364XX DRIVER
 M:	Antoine Jacquet <royale@zerezo.com>
@@ -11912,7 +11947,7 @@ W:	http://zd1211.ath.cx/wiki/DriverRewrite
 L:	linux-wireless@vger.kernel.org
 L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
-F:	drivers/net/wireless/zd1211rw/
+F:	drivers/net/wireless/zydas/zd1211rw/
 
 ZPOOL COMPRESSED PAGE STORAGE API
 M:	Dan Streetman <ddstreet@ieee.org>

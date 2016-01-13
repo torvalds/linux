@@ -1138,9 +1138,15 @@ static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_get_stats64 = ppp_get_stats64,
 };
 
+static struct device_type ppp_type = {
+	.name = "ppp",
+};
+
 static void ppp_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &ppp_netdev_ops;
+	SET_NETDEV_DEVTYPE(dev, &ppp_type);
+
 	dev->hard_header_len = PPP_HDRLEN;
 	dev->mtu = PPP_MRU;
 	dev->addr_len = 0;
@@ -2720,8 +2726,7 @@ static struct ppp *ppp_create_interface(struct net *net, int unit,
 	int ret = -ENOMEM;
 	int i;
 
-	dev = alloc_netdev(sizeof(struct ppp), "", NET_NAME_UNKNOWN,
-			   ppp_setup);
+	dev = alloc_netdev(sizeof(struct ppp), "", NET_NAME_ENUM, ppp_setup);
 	if (!dev)
 		goto out1;
 

@@ -265,6 +265,7 @@ struct nicvf {
 	u8			tns_mode:1;
 	u8			sqs_mode:1;
 	u8			loopback_supported:1;
+	bool			hw_tso;
 	u16			mtu;
 	struct queue_set	*qs;
 #define	MAX_SQS_PER_VF_SINGLE_NODE		5
@@ -487,6 +488,11 @@ static inline int nic_get_node_id(struct pci_dev *pdev)
 {
 	u64 addr = pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM);
 	return ((addr >> NIC_NODE_ID_SHIFT) & NIC_NODE_ID_MASK);
+}
+
+static inline bool pass1_silicon(struct pci_dev *pdev)
+{
+	return pdev->revision < 8;
 }
 
 int nicvf_set_real_num_queues(struct net_device *netdev,

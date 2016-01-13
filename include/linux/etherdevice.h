@@ -29,6 +29,9 @@
 #include <asm/bitsperlong.h>
 
 #ifdef __KERNEL__
+struct device;
+int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr);
+unsigned char *arch_get_platform_get_mac_address(void);
 u32 eth_get_headlen(void *data, unsigned int max_len);
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
 extern const struct header_ops eth_header_ops;

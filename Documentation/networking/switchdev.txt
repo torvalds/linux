@@ -304,8 +304,12 @@ certain netdevs from flooding unicast traffic for which there is no FDB entry.
 IGMP Snooping
 ^^^^^^^^^^^^^
 
-XXX: complete this section
-
+In order to support IGMP snooping, the port netdevs should trap to the bridge
+driver all IGMP join and leave messages.
+The bridge multicast module will notify port netdevs on every multicast group
+changed whether it is static configured or dynamically joined/leave.
+The hardware implementation should be forwarding all registered multicast
+traffic groups only to the configured ports.
 
 L3 Routing Offload
 ------------------

@@ -57,8 +57,8 @@
 #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
 #include <linux/kthread.h>
 #include <linux/delay.h>
-
 #include <linux/atomic.h>
+#include <net/sock.h>
 
 /*
  * pidlists linger the following amount before being destroyed.  The goal
@@ -440,11 +440,6 @@ static bool cgroup_tryget(struct cgroup *cgrp)
 	return css_tryget(&cgrp->self);
 }
 
-static void cgroup_put(struct cgroup *cgrp)
-{
-	css_put(&cgrp->self);
-}
-
 struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 {
 	struct cgroup *cgrp = of->kn->parent->priv;
@@ -464,25 +459,6 @@ struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 		return &cgrp->self;
 }
 EXPORT_SYMBOL_GPL(of_css);
-
-/**
- * cgroup_is_descendant - test ancestry
- * @cgrp: the cgroup to be tested
- * @ancestor: possible ancestor of @cgrp
- *
- * Test whether @cgrp is a descendant of @ancestor.  It also returns %true
- * if @cgrp == @ancestor.  This function is safe to call as long as @cgrp
- * and @ancestor are accessible.
- */
-bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor)
-{
-	while (cgrp) {
-		if (cgrp == ancestor)
-			return true;
-		cgrp = cgroup_parent(cgrp);
-	}
-	return false;
-}
 
 static int notify_on_release(const struct cgroup *cgrp)
 {
@@ -1924,6 +1900,7 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
 	if (ret < 0)
 		goto out;
 	root_cgrp->id = ret;
+	root_cgrp->ancestor_ids[0] = ret;
 
 	ret = percpu_ref_init(&root_cgrp->self.refcnt, css_release, 0,
 			      GFP_KERNEL);
@@ -4903,11 +4880,11 @@ err_free_css:
 static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 			umode_t mode)
 {
-	struct cgroup *parent, *cgrp;
+	struct cgroup *parent, *cgrp, *tcgrp;
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
 	struct kernfs_node *kn;
-	int ssid, ret;
+	int level, ssid, ret;
 
 	/* Do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable.
 	 */
@@ -4918,9 +4895,11 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (!parent)
 		return -ENODEV;
 	root = parent->root;
+	level = parent->level + 1;
 
 	/* allocate the cgroup and its ID, 0 is reserved for the root */
-	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
+	cgrp = kzalloc(sizeof(*cgrp) +
+		       sizeof(cgrp->ancestor_ids[0]) * (level + 1), GFP_KERNEL);
 	if (!cgrp) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -4944,6 +4923,10 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 
 	cgrp->self.parent = &parent->self;
 	cgrp->root = root;
+	cgrp->level = level;
+
+	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp))
+		cgrp->ancestor_ids[tcgrp->level] = tcgrp->id;
 
 	if (notify_on_release(parent))
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
@@ -5821,6 +5804,93 @@ struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss)
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	return id > 0 ? idr_find(&ss->css_idr, id) : NULL;
 }
+
+/**
+ * cgroup_get_from_path - lookup and get a cgroup from its default hierarchy path
+ * @path: path on the default hierarchy
+ *
+ * Find the cgroup at @path on the default hierarchy, increment its
+ * reference count and return it.  Returns pointer to the found cgroup on
+ * success, ERR_PTR(-ENOENT) if @path doens't exist and ERR_PTR(-ENOTDIR)
+ * if @path points to a non-directory.
+ */
+struct cgroup *cgroup_get_from_path(const char *path)
+{
+	struct kernfs_node *kn;
+	struct cgroup *cgrp;
+
+	mutex_lock(&cgroup_mutex);
+
+	kn = kernfs_walk_and_get(cgrp_dfl_root.cgrp.kn, path);
+	if (kn) {
+		if (kernfs_type(kn) == KERNFS_DIR) {
+			cgrp = kn->priv;
+			cgroup_get(cgrp);
+		} else {
+			cgrp = ERR_PTR(-ENOTDIR);
+		}
+		kernfs_put(kn);
+	} else {
+		cgrp = ERR_PTR(-ENOENT);
+	}
+
+	mutex_unlock(&cgroup_mutex);
+	return cgrp;
+}
+EXPORT_SYMBOL_GPL(cgroup_get_from_path);
+
+/*
+ * sock->sk_cgrp_data handling.  For more info, see sock_cgroup_data
+ * definition in cgroup-defs.h.
+ */
+#ifdef CONFIG_SOCK_CGROUP_DATA
+
+#if defined(CONFIG_CGROUP_NET_PRIO) || defined(CONFIG_CGROUP_NET_CLASSID)
+
+DEFINE_SPINLOCK(cgroup_sk_update_lock);
+static bool cgroup_sk_alloc_disabled __read_mostly;
+
+void cgroup_sk_alloc_disable(void)
+{
+	if (cgroup_sk_alloc_disabled)
+		return;
+	pr_info("cgroup: disabling cgroup2 socket matching due to net_prio or net_cls activation\n");
+	cgroup_sk_alloc_disabled = true;
+}
+
+#else
+
+#define cgroup_sk_alloc_disabled	false
+
+#endif
+
+void cgroup_sk_alloc(struct sock_cgroup_data *skcd)
+{
+	if (cgroup_sk_alloc_disabled)
+		return;
+
+	rcu_read_lock();
+
+	while (true) {
+		struct css_set *cset;
+
+		cset = task_css_set(current);
+		if (likely(cgroup_tryget(cset->dfl_cgrp))) {
+			skcd->val = (unsigned long)cset->dfl_cgrp;
+			break;
+		}
+		cpu_relax();
+	}
+
+	rcu_read_unlock();
+}
+
+void cgroup_sk_free(struct sock_cgroup_data *skcd)
+{
+	cgroup_put(sock_cgroup_ptr(skcd));
+}
+
+#endif	/* CONFIG_SOCK_CGROUP_DATA */
 
 #ifdef CONFIG_CGROUP_DEBUG
 static struct cgroup_subsys_state *

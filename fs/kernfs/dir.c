@@ -694,6 +694,29 @@ static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
 	return NULL;
 }
 
+static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
+					  const unsigned char *path,
+					  const void *ns)
+{
+	static char path_buf[PATH_MAX];	/* protected by kernfs_mutex */
+	size_t len = strlcpy(path_buf, path, PATH_MAX);
+	char *p = path_buf;
+	char *name;
+
+	lockdep_assert_held(&kernfs_mutex);
+
+	if (len >= PATH_MAX)
+		return NULL;
+
+	while ((name = strsep(&p, "/")) && parent) {
+		if (*name == '\0')
+			continue;
+		parent = kernfs_find_ns(parent, name, ns);
+	}
+
+	return parent;
+}
+
 /**
  * kernfs_find_and_get_ns - find and get kernfs_node with the given name
  * @parent: kernfs_node to search under
@@ -717,6 +740,29 @@ struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 	return kn;
 }
 EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
+
+/**
+ * kernfs_walk_and_get_ns - find and get kernfs_node with the given path
+ * @parent: kernfs_node to search under
+ * @path: path to look for
+ * @ns: the namespace tag to use
+ *
+ * Look for kernfs_node with path @path under @parent and get a reference
+ * if found.  This function may sleep and returns pointer to the found
+ * kernfs_node on success, %NULL on failure.
+ */
+struct kernfs_node *kernfs_walk_and_get_ns(struct kernfs_node *parent,
+					   const char *path, const void *ns)
+{
+	struct kernfs_node *kn;
+
+	mutex_lock(&kernfs_mutex);
+	kn = kernfs_walk_ns(parent, path, ns);
+	kernfs_get(kn);
+	mutex_unlock(&kernfs_mutex);
+
+	return kn;
+}
 
 /**
  * kernfs_create_root - create a new kernfs hierarchy

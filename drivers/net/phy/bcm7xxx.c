@@ -170,7 +170,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	int ret = 0;
 
 	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
-		     dev_name(&phydev->dev), phydev->drv->name, rev, patch);
+		     phydev_name(phydev), phydev->drv->name, rev, patch);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
 	 * internal inverter may not allow the first MDIO transaction to pass
@@ -324,7 +324,6 @@ static int bcm7xxx_dummy_config_init(struct phy_device *phydev)
 	.config_aneg	= genphy_config_aneg,				\
 	.read_status	= genphy_read_status,				\
 	.resume		= bcm7xxx_28nm_resume,				\
-	.driver		= { .owner = THIS_MODULE },			\
 }
 
 static struct phy_driver bcm7xxx_driver[] = {
@@ -346,7 +345,6 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.read_status    = genphy_read_status,
 	.suspend        = bcm7xxx_suspend,
 	.resume         = bcm7xxx_config_init,
-	.driver         = { .owner = THIS_MODULE },
 }, {
 	.phy_id         = PHY_ID_BCM7429,
 	.phy_id_mask    = 0xfffffff0,
@@ -359,7 +357,18 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.read_status    = genphy_read_status,
 	.suspend        = bcm7xxx_suspend,
 	.resume         = bcm7xxx_config_init,
-	.driver         = { .owner = THIS_MODULE },
+}, {
+	.phy_id         = PHY_ID_BCM7435,
+	.phy_id_mask    = 0xfffffff0,
+	.name           = "Broadcom BCM7435",
+	.features       = PHY_GBIT_FEATURES |
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
+	.flags          = PHY_IS_INTERNAL,
+	.config_init    = bcm7xxx_config_init,
+	.config_aneg    = genphy_config_aneg,
+	.read_status    = genphy_read_status,
+	.suspend        = bcm7xxx_suspend,
+	.resume         = bcm7xxx_config_init,
 }, {
 	.phy_id		= PHY_BCM_OUI_4,
 	.phy_id_mask	= 0xffff0000,
@@ -372,7 +381,6 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.read_status	= genphy_read_status,
 	.suspend	= bcm7xxx_suspend,
 	.resume		= bcm7xxx_config_init,
-	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_BCM_OUI_5,
 	.phy_id_mask	= 0xffffff00,
@@ -385,7 +393,6 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.read_status	= genphy_read_status,
 	.suspend	= bcm7xxx_suspend,
 	.resume		= bcm7xxx_config_init,
-	.driver		= { .owner = THIS_MODULE },
 } };
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
@@ -395,6 +402,7 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7425, 0xfffffff0, },
 	{ PHY_ID_BCM7429, 0xfffffff0, },
 	{ PHY_ID_BCM7439, 0xfffffff0, },
+	{ PHY_ID_BCM7435, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
 	{ PHY_BCM_OUI_4, 0xffff0000 },
 	{ PHY_BCM_OUI_5, 0xffffff00 },

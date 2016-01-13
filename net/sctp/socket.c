@@ -1228,7 +1228,6 @@ out_free:
 		 * To the hash table, try to unhash it, just in case, its a noop
 		 * if it wasn't hashed so we're safe
 		 */
-		sctp_unhash_established(asoc);
 		sctp_association_free(asoc);
 	}
 	return err;
@@ -1504,7 +1503,6 @@ static void sctp_close(struct sock *sk, long timeout)
 			 * ABORT or SHUTDOWN based on the linger options.
 			 */
 			if (sctp_state(asoc, CLOSED)) {
-				sctp_unhash_established(asoc);
 				sctp_association_free(asoc);
 				continue;
 			}
@@ -1986,10 +1984,8 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	goto out_unlock;
 
 out_free:
-	if (new_asoc) {
-		sctp_unhash_established(asoc);
+	if (new_asoc)
 		sctp_association_free(asoc);
-	}
 out_unlock:
 	release_sock(sk);
 
@@ -6980,7 +6976,7 @@ void sctp_data_ready(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
 						POLLRDNORM | POLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);

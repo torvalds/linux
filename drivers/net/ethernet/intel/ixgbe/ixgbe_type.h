@@ -1020,6 +1020,7 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_TXSTMPH    0x08C08 /* Tx timestamp value High - RO */
 #define IXGBE_SYSTIML    0x08C0C /* System time register Low - RO */
 #define IXGBE_SYSTIMH    0x08C10 /* System time register High - RO */
+#define IXGBE_SYSTIMR    0x08C58 /* System time register Residue - RO */
 #define IXGBE_TIMINCA    0x08C14 /* Increment attributes register - RW */
 #define IXGBE_TIMADJL    0x08C18 /* Time Adjustment Offset register Low - RW */
 #define IXGBE_TIMADJH    0x08C1C /* Time Adjustment Offset register High - RW */
@@ -1036,6 +1037,7 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_AUXSTMPH0  0x08C40 /* Auxiliary Time Stamp 0 register High - RO */
 #define IXGBE_AUXSTMPL1  0x08C44 /* Auxiliary Time Stamp 1 register Low - RO */
 #define IXGBE_AUXSTMPH1  0x08C48 /* Auxiliary Time Stamp 1 register High - RO */
+#define IXGBE_TSIM       0x08C68 /* TimeSync Interrupt Mask Register - RW */
 
 /* Diagnostic Registers */
 #define IXGBE_RDSTATCTL   0x02C20
@@ -1345,7 +1347,10 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_MASK	0xFF01 /* int chip-wide mask */
 #define IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_FLAG	0xFC01 /* int chip-wide mask */
 #define IXGBE_MDIO_GLOBAL_ALARM_1		0xCC00 /* Global alarm 1 */
+#define IXGBE_MDIO_GLOBAL_ALM_1_DEV_FAULT	0x0010 /* device fault */
 #define IXGBE_MDIO_GLOBAL_ALM_1_HI_TMP_FAIL	0x4000 /* high temp failure */
+#define IXGBE_MDIO_GLOBAL_FAULT_MSG		0xC850 /* global fault msg */
+#define IXGBE_MDIO_GLOBAL_FAULT_MSG_HI_TMP	0x8007 /* high temp failure */
 #define IXGBE_MDIO_GLOBAL_INT_MASK		0xD400 /* Global int mask */
 /* autoneg vendor alarm int enable */
 #define IXGBE_MDIO_GLOBAL_AN_VEN_ALM_INT_EN	0x1000
@@ -1353,6 +1358,7 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_MDIO_GLOBAL_VEN_ALM_INT_EN	0x1 /* vendor alarm int enable */
 #define IXGBE_MDIO_GLOBAL_STD_ALM2_INT		0x200 /* vendor alarm2 int mask */
 #define IXGBE_MDIO_GLOBAL_INT_HI_TEMP_EN	0x4000 /* int high temp enable */
+#define IXGBE_MDIO_GLOBAL_INT_DEV_FAULT_EN	0x0010 /*int dev fault enable */
 
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR	0xC30A /* PHY_XS SDA/SCL Addr Reg */
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA	0xC30B /* PHY_XS SDA/SCL Data Reg */
@@ -2209,6 +2215,7 @@ enum {
 #define IXGBE_TSAUXC_EN_CLK   0x00000004
 #define IXGBE_TSAUXC_SYNCLK   0x00000008
 #define IXGBE_TSAUXC_SDP0_INT 0x00000040
+#define IXGBE_TSAUXC_DISABLE_SYSTIME	0x80000000
 
 #define IXGBE_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
 #define IXGBE_TSYNCTXCTL_ENABLED	0x00000010 /* Tx timestamping enabled */
@@ -2218,8 +2225,12 @@ enum {
 #define IXGBE_TSYNCRXCTL_TYPE_L2_V2	0x00
 #define IXGBE_TSYNCRXCTL_TYPE_L4_V1	0x02
 #define IXGBE_TSYNCRXCTL_TYPE_L2_L4_V2	0x04
+#define IXGBE_TSYNCRXCTL_TYPE_ALL	0x08
 #define IXGBE_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
 #define IXGBE_TSYNCRXCTL_ENABLED	0x00000010 /* Rx Timestamping enabled */
+#define IXGBE_TSYNCRXCTL_TSIP_UT_EN	0x00800000 /* Rx Timestamp in Packet */
+
+#define IXGBE_TSIM_TXTS			0x00000002
 
 #define IXGBE_RXMTRL_V1_CTRLT_MASK	0x000000FF
 #define IXGBE_RXMTRL_V1_SYNC_MSG	0x00
@@ -2332,6 +2343,7 @@ enum {
 #define IXGBE_RXD_STAT_UDPV     0x400   /* Valid UDP checksum */
 #define IXGBE_RXD_STAT_DYNINT   0x800   /* Pkt caused INT via DYNINT */
 #define IXGBE_RXD_STAT_LLINT    0x800   /* Pkt caused Low Latency Interrupt */
+#define IXGBE_RXD_STAT_TSIP     0x08000 /* Time Stamp in packet buffer */
 #define IXGBE_RXD_STAT_TS       0x10000 /* Time Stamp */
 #define IXGBE_RXD_STAT_SECP     0x20000 /* Security Processing */
 #define IXGBE_RXD_STAT_LB       0x40000 /* Loopback Status */
@@ -2768,6 +2780,7 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ADVTXD_TUCMD_L4T_UDP   0x00000000  /* L4 Packet TYPE of UDP */
 #define IXGBE_ADVTXD_TUCMD_L4T_TCP   0x00000800  /* L4 Packet TYPE of TCP */
 #define IXGBE_ADVTXD_TUCMD_L4T_SCTP  0x00001000  /* L4 Packet TYPE of SCTP */
+#define IXGBE_ADVTXD_TUCMD_L4T_RSV     0x00001800 /* RSV L4 Packet TYPE */
 #define IXGBE_ADVTXD_TUCMD_MKRREQ    0x00002000 /*Req requires Markers and CRC*/
 #define IXGBE_ADVTXD_POPTS_IPSEC      0x00000400 /* IPSec offload request */
 #define IXGBE_ADVTXD_TUCMD_IPSEC_TYPE_ESP 0x00002000 /* IPSec Type ESP */
@@ -3288,7 +3301,7 @@ struct ixgbe_mac_operations {
 	s32 (*enable_mc)(struct ixgbe_hw *);
 	s32 (*disable_mc)(struct ixgbe_hw *);
 	s32 (*clear_vfta)(struct ixgbe_hw *);
-	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool);
+	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool, bool);
 	s32 (*init_uta_tables)(struct ixgbe_hw *);
 	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
 	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
@@ -3508,7 +3521,7 @@ struct ixgbe_info {
 
 #define IXGBE_FUSES0_GROUP(_i)		(0x11158 + ((_i) * 4))
 #define IXGBE_FUSES0_300MHZ		BIT(5)
-#define IXGBE_FUSES0_REV1		BIT(6)
+#define IXGBE_FUSES0_REV_MASK		(3 << 6)
 
 #define IXGBE_KRM_PORT_CAR_GEN_CTRL(P)	((P) ? 0x8010 : 0x4010)
 #define IXGBE_KRM_LINK_CTRL_1(P)	((P) ? 0x820C : 0x420C)
