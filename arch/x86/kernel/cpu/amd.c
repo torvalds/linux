@@ -434,8 +434,7 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 		 */
 		int ht_nodeid = c->initial_apicid;
 
-		if (ht_nodeid >= 0 &&
-		    __apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
+		if (__apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
 			node = __apicid_to_node[ht_nodeid];
 		/* Pick a nearby node */
 		if (!node_online(node))
