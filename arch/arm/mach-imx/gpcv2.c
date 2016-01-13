@@ -43,8 +43,10 @@
 #define GPC_PU_PGC_SW_PDN_REQ	0x104
 #define GPC_GTOR		0x124
 #define GPC_PGC_C0		0x800
+#define GPC_PGC_C0_PUPSCR	0x804
 #define GPC_PGC_SCU_TIMING	0x890
 #define GPC_PGC_C1		0x840
+#define GPC_PGC_C1_PUPSCR	0x844
 #define GPC_PGC_SCU		0x880
 #define GPC_PGC_FM		0xa00
 #define GPC_PGC_MIPI_PHY	0xc00
@@ -79,6 +81,7 @@
 
 #define BM_CPU_PGC_SW_PDN_PUP_REQ_CORE1_A7	0x2
 #define BM_GPC_PGC_PCG				0x1
+#define BM_GPC_PGC_CORE_PUPSCR			0x7fff80
 
 #define BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK	0x80000000
 #define BM_GPC_PGC_ACK_SEL_A7_DUMMY_PDN_ACK	0x8000
@@ -392,8 +395,8 @@ void imx_gpcv2_set_cpu_power_gate_in_idle(bool pdn)
 		imx_gpcv2_set_slot_ack(2, SCU_A7, false, true);
 		imx_gpcv2_set_slot_ack(6, SCU_A7, true, false);
 		if (num_online_cpus() > 1)
-			imx_gpcv2_set_slot_ack(7, CORE1_A7, true, false);
-		imx_gpcv2_set_slot_ack(8, CORE0_A7, true, true);
+			imx_gpcv2_set_slot_ack(6, CORE1_A7, true, false);
+		imx_gpcv2_set_slot_ack(6, CORE0_A7, true, true);
 	} else {
 		writel_relaxed(0x0, gpc_base + GPC_SLOT0_CFG + 0 * 0x4);
 		writel_relaxed(0x0, gpc_base + GPC_SLOT0_CFG + 1 * 0x4);
@@ -488,7 +491,7 @@ void imx_gpcv2_pre_suspend(bool arm_power_off)
 		imx_gpcv2_mf_mix_off();
 
 		imx_gpcv2_set_slot_ack(6, SCU_A7, true, false);
-		imx_gpcv2_set_slot_ack(7, CORE0_A7, true, true);
+		imx_gpcv2_set_slot_ack(6, CORE0_A7, true, true);
 
 		/* enable core0, scu */
 		imx_gpcv2_set_m_core_pgc(true, GPC_PGC_C0);
@@ -520,6 +523,17 @@ void imx_gpcv2_post_resume(void)
 	/* set SCU timing */
 	writel_relaxed((0x59 << 10) | 0x5B | (0x51 << 20),
 		gpc_base + GPC_PGC_SCU_TIMING);
+
+	/* set C0/C1 power up timming per design requirement */
+	val = readl_relaxed(gpc_base + GPC_PGC_C0_PUPSCR);
+	val &= ~BM_GPC_PGC_CORE_PUPSCR;
+	val |= (0x1A << 7);
+	writel_relaxed(val, gpc_base + GPC_PGC_C0_PUPSCR);
+
+	val = readl_relaxed(gpc_base + GPC_PGC_C1_PUPSCR);
+	val &= ~BM_GPC_PGC_CORE_PUPSCR;
+	val |= (0x19 << 7);
+	writel_relaxed(val, gpc_base + GPC_PGC_C1_PUPSCR);
 
 	val = readl_relaxed(gpc_base + GPC_SLPCR);
 	val &= ~(BM_SLPCR_EN_DSM | BM_SLPCR_VSTBY | BM_SLPCR_RBC_EN |
@@ -751,6 +765,18 @@ static int __init imx_gpcv2_init(struct device_node *node,
 	/* set SCU timing */
 	writel_relaxed((0x59 << 10) | 0x5B | (0x51 << 20),
 		gpc_base + GPC_PGC_SCU_TIMING);
+
+	/* set C0/C1 power up timming per design requirement */
+	val = readl_relaxed(gpc_base + GPC_PGC_C0_PUPSCR);
+	val &= ~BM_GPC_PGC_CORE_PUPSCR;
+	val |= (0x1A << 7);
+	writel_relaxed(val, gpc_base + GPC_PGC_C0_PUPSCR);
+
+	val = readl_relaxed(gpc_base + GPC_PGC_C1_PUPSCR);
+	val &= ~BM_GPC_PGC_CORE_PUPSCR;
+	val |= (0x19 << 7);
+	writel_relaxed(val, gpc_base + GPC_PGC_C1_PUPSCR);
+
 	writel_relaxed(BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK |
 		BM_GPC_PGC_ACK_SEL_A7_DUMMY_PDN_ACK,
 		gpc_base + GPC_PGC_ACK_SEL_A7);
