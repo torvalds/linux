@@ -84,6 +84,56 @@ static void __hyp_text __vgic_restore_state(struct kvm_vcpu *vcpu)
 	__vgic_v2_restore_state(vcpu);
 }
 
+static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
+{
+	u32 hsr = read_sysreg(HSR);
+	u8 ec = hsr >> HSR_EC_SHIFT;
+	u32 hpfar, far;
+
+	vcpu->arch.fault.hsr = hsr;
+
+	if (ec == HSR_EC_IABT)
+		far = read_sysreg(HIFAR);
+	else if (ec == HSR_EC_DABT)
+		far = read_sysreg(HDFAR);
+	else
+		return true;
+
+	/*
+	 * B3.13.5 Reporting exceptions taken to the Non-secure PL2 mode:
+	 *
+	 * Abort on the stage 2 translation for a memory access from a
+	 * Non-secure PL1 or PL0 mode:
+	 *
+	 * For any Access flag fault or Translation fault, and also for any
+	 * Permission fault on the stage 2 translation of a memory access
+	 * made as part of a translation table walk for a stage 1 translation,
+	 * the HPFAR holds the IPA that caused the fault. Otherwise, the HPFAR
+	 * is UNKNOWN.
+	 */
+	if (!(hsr & HSR_DABT_S1PTW) && (hsr & HSR_FSC_TYPE) == FSC_PERM) {
+		u64 par, tmp;
+
+		par = read_sysreg(PAR);
+		write_sysreg(far, ATS1CPR);
+		isb();
+
+		tmp = read_sysreg(PAR);
+		write_sysreg(par, PAR);
+
+		if (unlikely(tmp & 1))
+			return false; /* Translation failed, back to guest */
+
+		hpfar = ((tmp >> 12) & ((1UL << 28) - 1)) << 4;
+	} else {
+		hpfar = read_sysreg(HPFAR);
+	}
+
+	vcpu->arch.fault.hxfar = far;
+	vcpu->arch.fault.hpfar = hpfar;
+	return true;
+}
+
 static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
@@ -111,8 +161,12 @@ static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	__banked_restore_state(guest_ctxt);
 
 	/* Jump in the fire! */
+again:
 	exit_code = __guest_enter(vcpu, host_ctxt);
 	/* And we're baaack! */
+
+	if (exit_code == ARM_EXCEPTION_HVC && !__populate_fault_info(vcpu))
+		goto again;
 
 	fp_enabled = __vfp_enabled();
 
