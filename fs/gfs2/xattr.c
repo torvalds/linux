@@ -119,7 +119,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 	__be64 *eablk, *end;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, 0, &bh);
 	if (error)
 		return error;
 
@@ -143,7 +143,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 			break;
 		bn = be64_to_cpu(*eablk);
 
-		error = gfs2_meta_read(ip->i_gl, bn, DIO_WAIT, &eabh);
+		error = gfs2_meta_read(ip->i_gl, bn, DIO_WAIT, 0, &eabh);
 		if (error)
 			break;
 		error = ea_foreach_i(ip, eabh, ea_call, data);
@@ -477,7 +477,7 @@ static int gfs2_iter_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		return -ENOMEM;
 
 	for (x = 0; x < nptrs; x++) {
-		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs), 0,
+		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs), 0, 0,
 				       bh + x);
 		if (error) {
 			while (x--)
@@ -979,7 +979,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
 		__be64 *end;
 
-		error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT,
+		error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, 0,
 				       &indbh);
 		if (error)
 			return error;
@@ -1256,7 +1256,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, &indbh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, 0, &indbh);
 	if (error)
 		return error;
 

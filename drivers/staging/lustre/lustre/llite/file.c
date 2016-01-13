@@ -3139,7 +3139,7 @@ struct file_operations ll_file_operations_noflock = {
 	.lock	   = ll_file_noflock
 };
 
-struct inode_operations ll_file_inode_operations = {
+const struct inode_operations ll_file_inode_operations = {
 	.setattr	= ll_setattr,
 	.getattr	= ll_getattr,
 	.permission	= ll_inode_permission,

@@ -282,9 +282,7 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 	if (rc) {
 		ecryptfs_do_unlink(directory_inode, ecryptfs_dentry,
 				   ecryptfs_inode);
-		make_bad_inode(ecryptfs_inode);
-		unlock_new_inode(ecryptfs_inode);
-		iput(ecryptfs_inode);
+		iget_failed(ecryptfs_inode);
 		goto out;
 	}
 	unlock_new_inode(ecryptfs_inode);

@@ -31,6 +31,9 @@
 #include <linux/dcache.h>
 #include <linux/cred.h>
 #include <net/addrconf.h>
+#ifdef CONFIG_BLOCK
+#include <linux/blkdev.h>
+#endif
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/sections.h>	/* for dereference_function_descriptor() */
@@ -612,6 +615,26 @@ char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_sp
 	}
 	return buf;
 }
+
+#ifdef CONFIG_BLOCK
+static noinline_for_stack
+char *bdev_name(char *buf, char *end, struct block_device *bdev,
+		struct printf_spec spec, const char *fmt)
+{
+	struct gendisk *hd = bdev->bd_disk;
+	
+	buf = string(buf, end, hd->disk_name, spec);
+	if (bdev->bd_part->partno) {
+		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
+			if (buf < end)
+				*buf = 'p';
+			buf++;
+		}
+		buf = number(buf, end, bdev->bd_part->partno, spec);
+	}
+	return buf;
+}
+#endif
 
 static noinline_for_stack
 char *symbol_string(char *buf, char *end, void *ptr,
@@ -1443,6 +1466,7 @@ int kptr_restrict __read_mostly;
  *           (default assumed to be phys_addr_t, passed by reference)
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
+ * - 'g' For block_device name (gendisk + partition number)
  * - 'C' For a clock, it prints the name (Common Clock Framework) or address
  *       (legacy clock framework) of the clock
  * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
@@ -1600,6 +1624,11 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return dentry_name(buf, end,
 				   ((const struct file *)ptr)->f_path.dentry,
 				   spec, fmt);
+#ifdef CONFIG_BLOCK
+	case 'g':
+		return bdev_name(buf, end, ptr, spec, fmt);
+#endif
+
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {

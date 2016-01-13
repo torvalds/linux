@@ -1602,13 +1602,11 @@ static inline bool is_dot_dotdot(const struct qstr *str)
 
 static inline bool f2fs_may_extent_tree(struct inode *inode)
 {
-	mode_t mode = inode->i_mode;
-
 	if (!test_opt(F2FS_I_SB(inode), EXTENT_CACHE) ||
 			is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
 		return false;
 
-	return S_ISREG(mode);
+	return S_ISREG(inode->i_mode);
 }
 
 static inline void *f2fs_kvmalloc(size_t size, gfp_t flags)
@@ -2121,7 +2119,7 @@ static inline int f2fs_sb_has_crypto(struct super_block *sb)
 static inline bool f2fs_may_encrypt(struct inode *inode)
 {
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 
 	return (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode));
 #else
