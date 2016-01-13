@@ -254,7 +254,6 @@ static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 static noinline void do_no_context(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
-	unsigned long address;
 
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
@@ -267,7 +266,6 @@ static noinline void do_no_context(struct pt_regs *regs)
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
-	address = regs->int_parm_long & __FAIL_ADDR_MASK;
 	if (!user_space_fault(regs))
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
 		       " in virtual kernel address space\n");

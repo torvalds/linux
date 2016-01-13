@@ -166,8 +166,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
-	default 2
+	default 4
 
 source "init/Kconfig"
 
@@ -390,9 +389,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-config SCHED_SMT
-	def_bool n
-
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
 # between a node's start and end pfns, it may not
@@ -403,7 +399,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	depends on SMP && SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
@@ -462,6 +458,9 @@ config EMU_SIZE
 	  supported.
 
 endmenu
+
+config SCHED_SMT
+	def_bool n
 
 config SCHED_MC
 	def_bool n

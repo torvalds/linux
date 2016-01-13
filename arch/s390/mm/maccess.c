@@ -163,11 +163,11 @@ static int is_swapped(unsigned long addr)
 	unsigned long lc;
 	int cpu;
 
-	if (addr < sizeof(struct _lowcore))
+	if (addr < sizeof(struct lowcore))
 		return 1;
 	for_each_online_cpu(cpu) {
 		lc = (unsigned long) lowcore_ptr[cpu];
-		if (addr > lc + sizeof(struct _lowcore) - 1 || addr < lc)
+		if (addr > lc + sizeof(struct lowcore) - 1 || addr < lc)
 			continue;
 		return 1;
 	}
