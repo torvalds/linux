@@ -1007,10 +1007,9 @@ static int emulate_cp(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+			/* Handled */
+			return 0;
 		}
-
-		/* Handled */
-		return 0;
 	}
 
 	/* Not handled */
