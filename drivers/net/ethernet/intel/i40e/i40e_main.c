@@ -28,11 +28,6 @@
 #include <linux/of_net.h>
 #include <linux/pci.h>
 
-#ifdef CONFIG_SPARC
-#include <asm/idprom.h>
-#include <asm/prom.h>
-#endif
-
 /* Local includes */
 #include "i40e.h"
 #include "i40e_diag.h"
@@ -10618,21 +10613,9 @@ static void i40e_print_features(struct i40e_pf *pf)
  **/
 static void i40e_get_platform_mac_addr(struct pci_dev *pdev, struct i40e_pf *pf)
 {
-	struct device_node *dp = pci_device_to_OF_node(pdev);
-	const unsigned char *addr;
-	u8 *mac_addr = pf->hw.mac.addr;
-
 	pf->flags &= ~I40E_FLAG_PF_MAC;
-	addr = of_get_mac_address(dp);
-	if (addr) {
-		ether_addr_copy(mac_addr, addr);
+	if (!eth_platform_get_mac_address(&pdev->dev, pf->hw.mac.addr))
 		pf->flags |= I40E_FLAG_PF_MAC;
-#ifdef CONFIG_SPARC
-	} else {
-		ether_addr_copy(mac_addr, idprom->id_ethaddr);
-		pf->flags |= I40E_FLAG_PF_MAC;
-#endif /* CONFIG_SPARC */
-	}
 }
 
 /**
