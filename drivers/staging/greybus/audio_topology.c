@@ -837,7 +837,7 @@ static int gbaudio_tplg_process_dais(struct gbaudio_codec_info *gbcodec,
 				      dai_name);
 		if (!dai)
 			goto error;
-		dev_err(gbcodec->dev, "%s:DAI added\n", dai->name);
+		dev_dbg(gbcodec->dev, "%s:DAI added\n", dai->name);
 		gb_dais[i].name = dai->name;
 		curr++;
 	}
@@ -1031,7 +1031,7 @@ int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 			"%d: Error in parsing controls data\n", ret);
 		return ret;
 	}
-	dev_err(gbcodec->dev, "Control parsing finished\n");
+	dev_dbg(gbcodec->dev, "Control parsing finished\n");
 
 	/* process DAI */
 	dais = (struct gb_audio_dai *)gbcodec->dai_offset;
@@ -1041,7 +1041,7 @@ int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 			"%d: Error in parsing DAIs data\n", ret);
 		return ret;
 	}
-	dev_err(gbcodec->dev, "DAI parsing finished\n");
+	dev_dbg(gbcodec->dev, "DAI parsing finished\n");
 
 	/* process widgets */
 	widgets = (struct gb_audio_widget *)gbcodec->widget_offset;
@@ -1051,7 +1051,7 @@ int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 			"%d: Error in parsing widgets data\n", ret);
 		return ret;
 	}
-	dev_err(gbcodec->dev, "Widget parsing finished\n");
+	dev_dbg(gbcodec->dev, "Widget parsing finished\n");
 
 	/* process route */
 	routes = (struct gb_audio_route *)gbcodec->route_offset;
@@ -1061,7 +1061,7 @@ int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 			"%d: Error in parsing routes data\n", ret);
 		return ret;
 	}
-	dev_err(gbcodec->dev, "Route parsing finished\n");
+	dev_dbg(gbcodec->dev, "Route parsing finished\n");
 
 	return ret;
 }
