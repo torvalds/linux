@@ -210,8 +210,7 @@ isp_video_remote_subdev(struct isp_video *video, u32 *pad)
 
 	remote = media_entity_remote_pad(&video->pad);
 
-	if (remote == NULL ||
-	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
 
 	if (pad)
@@ -226,16 +225,23 @@ static int isp_video_get_graph_data(struct isp_video *video,
 {
 	struct media_entity_graph graph;
 	struct media_entity *entity = &video->video.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	struct isp_video *far_end = NULL;
+	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
+	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		return ret;
+	}
+
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 		struct isp_video *__video;
 
-		pipe->entities |= 1 << entity->id;
+		media_entity_enum_set(&pipe->ent_enum, entity);
 
 		if (far_end != NULL)
 			continue;
@@ -243,7 +249,7 @@ static int isp_video_get_graph_data(struct isp_video *video,
 		if (entity == &video->video.entity)
 			continue;
 
-		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
+		if (!is_media_entity_v4l2_io(entity))
 			continue;
 
 		__video = to_isp_video(media_entity_to_video_device(entity));
@@ -252,6 +258,8 @@ static int isp_video_get_graph_data(struct isp_video *video,
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	media_entity_graph_walk_cleanup(&graph);
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		pipe->input = far_end;
@@ -900,7 +908,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 
 	for (i = 0; i < ARRAY_SIZE(ents); i++) {
 		/* Is the entity part of the pipeline? */
-		if (!(pipe->entities & (1 << ents[i]->id)))
+		if (!media_entity_enum_test(&pipe->ent_enum, ents[i]))
 			continue;
 
 		/* ISP entities have always sink pad == 0. Find source. */
@@ -918,7 +926,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 		return -EINVAL;
 	}
 
-	if (media_entity_type(source) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!is_media_entity_v4l2_subdev(source))
 		return 0;
 
 	pipe->external = media_entity_to_v4l2_subdev(source);
@@ -952,7 +960,8 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 
 	pipe->external_rate = ctrl.value64;
 
-	if (pipe->entities & (1 << isp->isp_ccdc.subdev.entity.id)) {
+	if (media_entity_enum_test(&pipe->ent_enum,
+				   &isp->isp_ccdc.subdev.entity)) {
 		unsigned int rate = UINT_MAX;
 		/*
 		 * Check that maximum allowed CCDC pixel rate isn't
@@ -1018,7 +1027,9 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	pipe = video->video.entity.pipe
 	     ? to_isp_pipeline(&video->video.entity) : &video->pipe;
 
-	pipe->entities = 0;
+	ret = media_entity_enum_init(&pipe->ent_enum, &video->isp->media_dev);
+	if (ret)
+		goto err_enum_init;
 
 	/* TODO: Implement PM QoS */
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
@@ -1092,6 +1103,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 
 	mutex_unlock(&video->stream_lock);
+
 	return 0;
 
 err_set_stream:
@@ -1112,7 +1124,11 @@ err_pipeline_start:
 	INIT_LIST_HEAD(&video->dmaqueue);
 	video->queue = NULL;
 
+	media_entity_enum_cleanup(&pipe->ent_enum);
+
+err_enum_init:
 	mutex_unlock(&video->stream_lock);
+
 	return ret;
 }
 
@@ -1163,6 +1179,8 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	/* TODO: Implement PM QoS */
 	media_entity_pipeline_stop(&video->video.entity);
+
+	media_entity_enum_cleanup(&pipe->ent_enum);
 
 done:
 	mutex_unlock(&video->stream_lock);
@@ -1243,7 +1261,12 @@ static int isp_video_open(struct file *file)
 		goto done;
 	}
 
-	ret = omap3isp_pipeline_pm_use(&video->video.entity, 1);
+	ret = media_entity_graph_walk_init(&handle->graph,
+					   &video->isp->media_dev);
+	if (ret)
+		goto done;
+
+	ret = omap3isp_pipeline_pm_use(&video->video.entity, 1, &handle->graph);
 	if (ret < 0) {
 		omap3isp_put(video->isp);
 		goto done;
@@ -1274,6 +1297,7 @@ static int isp_video_open(struct file *file)
 done:
 	if (ret < 0) {
 		v4l2_fh_del(&handle->vfh);
+		media_entity_graph_walk_cleanup(&handle->graph);
 		kfree(handle);
 	}
 
@@ -1293,7 +1317,8 @@ static int isp_video_release(struct file *file)
 	vb2_queue_release(&handle->queue);
 	mutex_unlock(&video->queue_lock);
 
-	omap3isp_pipeline_pm_use(&video->video.entity, 0);
+	omap3isp_pipeline_pm_use(&video->video.entity, 0, &handle->graph);
+	media_entity_graph_walk_cleanup(&handle->graph);
 
 	/* Release the file handle. */
 	v4l2_fh_del(vfh);
@@ -1367,7 +1392,7 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	if (IS_ERR(video->alloc_ctx))
 		return PTR_ERR(video->alloc_ctx);
 
-	ret = media_entity_init(&video->video.entity, 1, &video->pad, 0);
+	ret = media_entity_pads_init(&video->video.entity, 1, &video->pad);
 	if (ret < 0) {
 		vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 		return ret;

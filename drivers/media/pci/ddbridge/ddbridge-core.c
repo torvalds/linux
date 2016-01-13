@@ -1065,7 +1065,7 @@ static int ddb_ci_attach(struct ddb_port *port)
 			    port->en, 0, 1);
 	ret = dvb_register_device(&port->output->adap, &port->output->dev,
 				  &dvbdev_ci, (void *) port->output,
-				  DVB_DEVICE_SEC);
+				  DVB_DEVICE_SEC, 0);
 	return ret;
 }
 

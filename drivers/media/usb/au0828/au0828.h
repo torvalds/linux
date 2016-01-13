@@ -33,6 +33,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/media-device.h>
 
 /* DVB */
 #include "demux.h"
@@ -93,7 +94,6 @@ struct au0828_board {
 	unsigned char has_ir_i2c:1;
 	unsigned char has_analog:1;
 	struct au0828_input input[AU0828_MAX_INPUT];
-
 };
 
 struct au0828_dvb {
@@ -276,6 +276,14 @@ struct au0828_dev {
 	/* Preallocated transfer digital transfer buffers */
 
 	char *dig_transfer_buffer[URB_COUNT];
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *media_dev;
+	struct media_pad video_pad, vbi_pad;
+	struct media_entity *decoder;
+	struct media_entity input_ent[AU0828_MAX_INPUT];
+	struct media_pad input_pad[AU0828_MAX_INPUT];
+#endif
 };
 
 

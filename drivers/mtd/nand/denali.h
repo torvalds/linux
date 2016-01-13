@@ -450,7 +450,6 @@ struct nand_buf {
 #define DT		3
 
 struct denali_nand_info {
-	struct mtd_info mtd;
 	struct nand_chip nand;
 	int flash_bank; /* currently selected chip */
 	int status;
