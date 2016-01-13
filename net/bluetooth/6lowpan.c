@@ -317,6 +317,7 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 		local_skb->protocol = htons(ETH_P_IPV6);
 		local_skb->pkt_type = PACKET_HOST;
+		local_skb->dev = dev;
 
 		skb_set_transport_header(local_skb, sizeof(struct ipv6hdr));
 
@@ -335,6 +336,8 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 		if (!local_skb)
 			goto drop;
 
+		local_skb->dev = dev;
+
 		ret = iphc_decompress(local_skb, dev, chan);
 		if (ret < 0) {
 			kfree_skb(local_skb);
@@ -343,7 +346,6 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 		local_skb->protocol = htons(ETH_P_IPV6);
 		local_skb->pkt_type = PACKET_HOST;
-		local_skb->dev = dev;
 
 		if (give_skb_to_upper(local_skb, dev)
 				!= NET_RX_SUCCESS) {
