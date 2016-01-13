@@ -425,8 +425,8 @@ void mac_adjust_link(struct net_device *net_dev);
 void hns_mac_get_link_status(struct hns_mac_cb *mac_cb,	u32 *link_status);
 int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid, char *addr);
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
-		      u32 port_num, char *addr, u8 en);
-int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, u8 en);
+		      u32 port_num, char *addr, bool enable);
+int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, bool enable);
 void hns_mac_start(struct hns_mac_cb *mac_cb);
 void hns_mac_stop(struct hns_mac_cb *mac_cb);
 int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac);

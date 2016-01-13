@@ -623,12 +623,24 @@ DECLARE_EVENT_CLASS(station_add_change,
 		__field(u32, sta_flags_set)
 		__field(u32, sta_modify_mask)
 		__field(int, listen_interval)
+		__field(u16, capability)
 		__field(u16, aid)
 		__field(u8, plink_action)
 		__field(u8, plink_state)
 		__field(u8, uapsd_queues)
+		__field(u8, max_sp)
+		__field(u8, opmode_notif)
+		__field(bool, opmode_notif_used)
 		__array(u8, ht_capa, (int)sizeof(struct ieee80211_ht_cap))
+		__array(u8, vht_capa, (int)sizeof(struct ieee80211_vht_cap))
 		__array(char, vlan, IFNAMSIZ)
+		__dynamic_array(u8, supported_rates,
+				params->supported_rates_len)
+		__dynamic_array(u8, ext_capab, params->ext_capab_len)
+		__dynamic_array(u8, supported_channels,
+				params->supported_channels_len)
+		__dynamic_array(u8, supported_oper_classes,
+				params->supported_oper_classes_len)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -646,9 +658,35 @@ DECLARE_EVENT_CLASS(station_add_change,
 		if (params->ht_capa)
 			memcpy(__entry->ht_capa, params->ht_capa,
 			       sizeof(struct ieee80211_ht_cap));
+		memset(__entry->vht_capa, 0, sizeof(struct ieee80211_vht_cap));
+		if (params->vht_capa)
+			memcpy(__entry->vht_capa, params->vht_capa,
+			       sizeof(struct ieee80211_vht_cap));
 		memset(__entry->vlan, 0, sizeof(__entry->vlan));
 		if (params->vlan)
 			memcpy(__entry->vlan, params->vlan->name, IFNAMSIZ);
+		if (params->supported_rates && params->supported_rates_len)
+			memcpy(__get_dynamic_array(supported_rates),
+			       params->supported_rates,
+			       params->supported_rates_len);
+		if (params->ext_capab && params->ext_capab_len)
+			memcpy(__get_dynamic_array(ext_capab),
+			       params->ext_capab,
+			       params->ext_capab_len);
+		if (params->supported_channels &&
+		    params->supported_channels_len)
+			memcpy(__get_dynamic_array(supported_channels),
+			       params->supported_channels,
+			       params->supported_channels_len);
+		if (params->supported_oper_classes &&
+		    params->supported_oper_classes_len)
+			memcpy(__get_dynamic_array(supported_oper_classes),
+			       params->supported_oper_classes,
+			       params->supported_oper_classes_len);
+		__entry->max_sp = params->max_sp;
+		__entry->capability = params->capability;
+		__entry->opmode_notif = params->opmode_notif;
+		__entry->opmode_notif_used = params->opmode_notif_used;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", station mac: " MAC_PR_FMT
 		  ", station flags mask: %u, station flags set: %u, "
@@ -2818,6 +2856,71 @@ TRACE_EVENT(cfg80211_stop_iface,
 		  WIPHY_PR_ARG, WDEV_PR_ARG)
 );
 
+TRACE_EVENT(rdev_start_radar_detection,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_chan_def *chandef,
+		 u32 cac_time_ms),
+	TP_ARGS(wiphy, netdev, chandef, cac_time_ms),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		CHAN_DEF_ENTRY
+		__field(u32, cac_time_ms)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef);
+		__entry->cac_time_ms = cac_time_ms;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT
+		  ", cac_time_ms=%u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, CHAN_DEF_PR_ARG,
+		  __entry->cac_time_ms)
+);
+
+TRACE_EVENT(rdev_set_mcast_rate,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 int mcast_rate[IEEE80211_NUM_BANDS]),
+	TP_ARGS(wiphy, netdev, mcast_rate),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__array(int, mcast_rate, IEEE80211_NUM_BANDS)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		memcpy(__entry->mcast_rate, mcast_rate,
+		       sizeof(int) * IEEE80211_NUM_BANDS);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", "
+		  "mcast_rates [2.4GHz=0x%x, 5.2GHz=0x%x, 60GHz=0x%x]",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  __entry->mcast_rate[IEEE80211_BAND_2GHZ],
+		  __entry->mcast_rate[IEEE80211_BAND_5GHZ],
+		  __entry->mcast_rate[IEEE80211_BAND_60GHZ])
+);
+
+TRACE_EVENT(rdev_set_coalesce,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_coalesce *coalesce),
+	TP_ARGS(wiphy, coalesce),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(int, n_rules)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->n_rules = coalesce ? coalesce->n_rules : 0;
+	),
+	TP_printk(WIPHY_PR_FMT ", n_rules=%d",
+		  WIPHY_PR_ARG, __entry->n_rules)
+);
+
+DEFINE_EVENT(wiphy_wdev_evt, rdev_abort_scan,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev)
+);
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

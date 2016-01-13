@@ -19,24 +19,20 @@ struct hns_mac_cb;
 #define DSAF_DRV_NAME "hns_dsaf"
 #define DSAF_MOD_VERSION "v1.0"
 
-#define ENABLE		(0x1)
-#define DISABLE		(0x0)
+#define HNS_DSAF_DEBUG_NW_REG_OFFSET 0x100000
 
-#define HNS_DSAF_DEBUG_NW_REG_OFFSET (0x100000)
+#define DSAF_BASE_INNER_PORT_NUM 127/* mac tbl qid*/
 
-#define DSAF_BASE_INNER_PORT_NUM (127)  /* mac tbl qid*/
+#define DSAF_MAX_CHIP_NUM 2  /*max 2 chips */
 
-#define DSAF_MAX_CHIP_NUM (2)  /*max 2 chips */
+#define DSAF_DEFAUTL_QUEUE_NUM_PER_PPE 22
 
-#define DSAF_DEFAUTL_QUEUE_NUM_PER_PPE (22)
+#define HNS_DSAF_MAX_DESC_CNT 1024
+#define HNS_DSAF_MIN_DESC_CNT 16
 
-#define HNS_DSAF_MAX_DESC_CNT (1024)
-#define HNS_DSAF_MIN_DESC_CNT (16)
+#define DSAF_INVALID_ENTRY_IDX 0xffff
 
-#define DSAF_INVALID_ENTRY_IDX (0xffff)
-
-#define DSAF_CFG_READ_CNT   (30)
-#define DSAF_SRAM_INIT_FINISH_FLAG (0xff)
+#define DSAF_CFG_READ_CNT   30
 
 #define MAC_NUM_OCTETS_PER_ADDR 6
 
@@ -273,10 +269,6 @@ struct dsaf_int_stat {
 struct dsaf_device {
 	struct device *dev;
 	struct hnae_ae_dev ae_dev;
-
-	void *priv;
-
-	int virq[DSAF_IRQ_NUM];
 
 	u8 __iomem *sc_base;
 	u8 __iomem *sds_base;

@@ -26,6 +26,8 @@ struct rcb_common_cb;
 #define HNS_RCB_SERVICE_NW_ENGINE_NUM		DSAF_COMM_CHN
 #define HNS_RCB_DEBUG_NW_ENGINE_NUM		1
 #define HNS_RCB_RING_MAX_BD_PER_PKT		3
+#define HNS_RCB_RING_MAX_TXBD_PER_PKT		3
+#define HNS_RCBV2_RING_MAX_TXBD_PER_PKT		8
 #define HNS_RCB_MAX_PKT_SIZE MAC_MAX_MTU
 
 #define HNS_RCB_RING_MAX_PENDING_BD		1024
@@ -106,13 +108,17 @@ void hns_rcb_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index);
 int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common);
 void hns_rcb_start(struct hnae_queue *q, u32 val);
 void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common);
-void hns_rcb_common_init_commit_hw(struct rcb_common_cb *rcb_common);
 void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode, int comm_index,
 			    u16 *max_vfn, u16 *max_q_per_vf);
+
+void hns_rcb_common_init_commit_hw(struct rcb_common_cb *rcb_common);
 
 void hns_rcb_ring_enable_hw(struct hnae_queue *q, u32 val);
 void hns_rcb_int_clr_hw(struct hnae_queue *q, u32 flag);
 void hns_rcb_int_ctrl_hw(struct hnae_queue *q, u32 flag, u32 enable);
+void hns_rcbv2_int_ctrl_hw(struct hnae_queue *q, u32 flag, u32 mask);
+void hns_rcbv2_int_clr_hw(struct hnae_queue *q, u32 flag);
+
 void hns_rcb_init_hw(struct ring_pair_cb *ring);
 void hns_rcb_reset_ring_hw(struct hnae_queue *q);
 void hns_rcb_wait_fbd_clean(struct hnae_queue **qs, int q_num, u32 flag);

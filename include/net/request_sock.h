@@ -68,7 +68,7 @@ struct request_sock {
 	u32				peer_secid;
 };
 
-static inline struct request_sock *inet_reqsk(struct sock *sk)
+static inline struct request_sock *inet_reqsk(const struct sock *sk)
 {
 	return (struct request_sock *)sk;
 }

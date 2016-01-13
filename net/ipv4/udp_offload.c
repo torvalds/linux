@@ -21,6 +21,7 @@ static struct udp_offload_priv __rcu *udp_offload_base __read_mostly;
 
 struct udp_offload_priv {
 	struct udp_offload	*offload;
+	possible_net_t	net;
 	struct rcu_head		rcu;
 	struct udp_offload_priv __rcu *next;
 };
@@ -60,8 +61,9 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 
 	/* Try to offload checksum if possible */
 	offload_csum = !!(need_csum &&
-			  (skb->dev->features &
-			   (is_ipv6 ? NETIF_F_V6_CSUM : NETIF_F_V4_CSUM)));
+			  ((skb->dev->features & NETIF_F_HW_CSUM) ||
+			   (skb->dev->features & (is_ipv6 ?
+			    NETIF_F_IPV6_CSUM : NETIF_F_IP_CSUM))));
 
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & features;
@@ -241,13 +243,14 @@ out:
 	return segs;
 }
 
-int udp_add_offload(struct udp_offload *uo)
+int udp_add_offload(struct net *net, struct udp_offload *uo)
 {
 	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_ATOMIC);
 
 	if (!new_offload)
 		return -ENOMEM;
 
+	write_pnet(&new_offload->net, net);
 	new_offload->offload = uo;
 
 	spin_lock(&udp_offload_lock);
@@ -311,7 +314,8 @@ struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 	rcu_read_lock();
 	uo_priv = rcu_dereference(udp_offload_base);
 	for (; uo_priv != NULL; uo_priv = rcu_dereference(uo_priv->next)) {
-		if (uo_priv->offload->port == uh->dest &&
+		if (net_eq(read_pnet(&uo_priv->net), dev_net(skb->dev)) &&
+		    uo_priv->offload->port == uh->dest &&
 		    uo_priv->offload->callbacks.gro_receive)
 			goto unflush;
 	}
@@ -389,7 +393,8 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff)
 
 	uo_priv = rcu_dereference(udp_offload_base);
 	for (; uo_priv != NULL; uo_priv = rcu_dereference(uo_priv->next)) {
-		if (uo_priv->offload->port == uh->dest &&
+		if (net_eq(read_pnet(&uo_priv->net), dev_net(skb->dev)) &&
+		    uo_priv->offload->port == uh->dest &&
 		    uo_priv->offload->callbacks.gro_complete)
 			break;
 	}

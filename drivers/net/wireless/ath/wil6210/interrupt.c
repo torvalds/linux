@@ -394,9 +394,13 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 		wil_fw_core_dump(wil);
 		wil_notify_fw_error(wil);
 		isr &= ~ISR_MISC_FW_ERROR;
-		wil_fw_error_recovery(wil);
+		if (wil->platform_ops.notify_crash) {
+			wil_err(wil, "notify platform driver about FW crash");
+			wil->platform_ops.notify_crash(wil->platform_handle);
+		} else {
+			wil_fw_error_recovery(wil);
+		}
 	}
-
 	if (isr & ISR_MISC_MBOX_EVT) {
 		wil_dbg_irq(wil, "MBOX event\n");
 		wmi_recv_cmd(wil);

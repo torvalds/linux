@@ -407,6 +407,7 @@ acpi_tb_verify_temp_table(struct acpi_table_desc * table_desc, char *signature)
 					table_desc->signature.ascii : "????",
 					ACPI_FORMAT_UINT64(table_desc->
 							   address)));
+
 			goto invalidate_and_exit;
 		}
 	}

@@ -130,16 +130,6 @@ static int toim3232delay = 150;	/* default is 150 ms */
 module_param(toim3232delay, int, 0);
 MODULE_PARM_DESC(toim3232delay, "toim3232 dongle write complete delay");
 
-#if 0
-static int toim3232flipdtr = 0;	/* default is DTR high to reset */
-module_param(toim3232flipdtr, int, 0);
-MODULE_PARM_DESC(toim3232flipdtr, "toim3232 dongle invert DTR (Reset)");
-
-static int toim3232fliprts = 0;	/* default is RTS high for baud change */
-module_param(toim3232fliptrs, int, 0);
-MODULE_PARM_DESC(toim3232fliprts, "toim3232 dongle invert RTS (BR/D)");
-#endif
-
 static int toim3232_open(struct sir_dev *);
 static int toim3232_close(struct sir_dev *);
 static int toim3232_change_speed(struct sir_dev *, unsigned);

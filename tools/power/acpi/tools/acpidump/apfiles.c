@@ -48,6 +48,18 @@
 
 static int ap_is_existing_file(char *pathname);
 
+/******************************************************************************
+ *
+ * FUNCTION:    ap_is_existing_file
+ *
+ * PARAMETERS:  pathname            - Output filename
+ *
+ * RETURN:      0 on success
+ *
+ * DESCRIPTION: Query for file overwrite if it already exists.
+ *
+ ******************************************************************************/
+
 static int ap_is_existing_file(char *pathname)
 {
 #ifndef _GNU_EFI
@@ -136,6 +148,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	} else {
 		ACPI_MOVE_NAME(filename, table->signature);
 	}
+
 	filename[0] = (char)tolower((int)filename[0]);
 	filename[1] = (char)tolower((int)filename[1]);
 	filename[2] = (char)tolower((int)filename[2]);

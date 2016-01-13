@@ -302,6 +302,22 @@ static int wcn36xx_smd_rsp_status_check(void *buf, size_t len)
 	return 0;
 }
 
+static int wcn36xx_smd_rsp_status_check_v2(struct wcn36xx *wcn, void *buf,
+					     size_t len)
+{
+	struct wcn36xx_fw_msg_status_rsp_v2 *rsp;
+
+	if (len < sizeof(struct wcn36xx_hal_msg_header) + sizeof(*rsp))
+		return wcn36xx_smd_rsp_status_check(buf, len);
+
+	rsp = buf + sizeof(struct wcn36xx_hal_msg_header);
+
+	if (WCN36XX_FW_MSG_RESULT_SUCCESS != rsp->status)
+		return rsp->status;
+
+	return 0;
+}
+
 int wcn36xx_smd_load_nv(struct wcn36xx *wcn)
 {
 	struct nv_data *nv_d;
@@ -1582,7 +1598,8 @@ int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 		wcn36xx_err("Sending hal_remove_bsskey failed\n");
 		goto out;
 	}
-	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	ret = wcn36xx_smd_rsp_status_check_v2(wcn, wcn->hal_buf,
+					      wcn->hal_rsp_len);
 	if (ret) {
 		wcn36xx_err("hal_remove_bsskey response failed err=%d\n", ret);
 		goto out;
@@ -1951,7 +1968,8 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 		wcn36xx_err("Sending hal_trigger_ba failed\n");
 		goto out;
 	}
-	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	ret = wcn36xx_smd_rsp_status_check_v2(wcn, wcn->hal_buf,
+						wcn->hal_rsp_len);
 	if (ret) {
 		wcn36xx_err("hal_trigger_ba response failed err=%d\n", ret);
 		goto out;
@@ -2128,6 +2146,8 @@ static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 		complete(&wcn->hal_rsp_compl);
 		break;
 
+	case WCN36XX_HAL_COEX_IND:
+	case WCN36XX_HAL_AVOID_FREQ_RANGE_IND:
 	case WCN36XX_HAL_OTA_TX_COMPL_IND:
 	case WCN36XX_HAL_MISSED_BEACON_IND:
 	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
@@ -2174,6 +2194,9 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 	msg_header = (struct wcn36xx_hal_msg_header *)hal_ind_msg->msg;
 
 	switch (msg_header->msg_type) {
+	case WCN36XX_HAL_COEX_IND:
+	case WCN36XX_HAL_AVOID_FREQ_RANGE_IND:
+		break;
 	case WCN36XX_HAL_OTA_TX_COMPL_IND:
 		wcn36xx_smd_tx_compl_ind(wcn,
 					 hal_ind_msg->msg,

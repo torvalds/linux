@@ -539,8 +539,6 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 
 static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 {
-	int err = 0;
-
 	pr_debug("total: %d\n", dd->total);
 
 	omap_aes_dma_stop(dd);
@@ -548,7 +546,7 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 	dmaengine_terminate_all(dd->dma_lch_in);
 	dmaengine_terminate_all(dd->dma_lch_out);
 
-	return err;
+	return 0;
 }
 
 static int omap_aes_check_aligned(struct scatterlist *sg, int total)

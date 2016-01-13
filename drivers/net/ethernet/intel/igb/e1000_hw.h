@@ -441,6 +441,7 @@ struct e1000_phy_info {
 	u16 cable_length;
 	u16 max_cable_length;
 	u16 min_cable_length;
+	u16 pair_length[4];
 
 	u8 mdix;
 

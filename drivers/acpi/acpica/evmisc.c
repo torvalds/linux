@@ -68,6 +68,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
 
 u8 acpi_ev_is_notify_object(struct acpi_namespace_node *node)
 {
+
 	switch (node->type) {
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_PROCESSOR:
@@ -170,8 +171,8 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 			  acpi_ut_get_notify_name(notify_value, ACPI_TYPE_ANY),
 			  node));
 
-	status = acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_notify_dispatch,
-				 info);
+	status = acpi_os_execute(OSL_NOTIFY_HANDLER,
+				 acpi_ev_notify_dispatch, info);
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_delete_generic_state(info);
 	}

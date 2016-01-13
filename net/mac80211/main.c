@@ -541,7 +541,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 			   NL80211_FEATURE_HT_IBSS |
 			   NL80211_FEATURE_VIF_TXPOWER |
 			   NL80211_FEATURE_MAC_ON_CREATE |
-			   NL80211_FEATURE_USERSPACE_MPM;
+			   NL80211_FEATURE_USERSPACE_MPM |
+			   NL80211_FEATURE_FULL_AP_CLIENT_STATE;
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -1148,6 +1149,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	rtnl_unlock();
 
+	cancel_delayed_work_sync(&local->roc_work);
 	cancel_work_sync(&local->restart_work);
 	cancel_work_sync(&local->reconfig_filter);
 	cancel_work_sync(&local->tdls_chsw_work);

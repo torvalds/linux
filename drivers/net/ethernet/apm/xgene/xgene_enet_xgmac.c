@@ -326,7 +326,7 @@ static void xgene_enet_link_state(struct work_struct *work)
 	schedule_delayed_work(&pdata->link_work, poll_interval);
 }
 
-struct xgene_mac_ops xgene_xgmac_ops = {
+const struct xgene_mac_ops xgene_xgmac_ops = {
 	.init = xgene_xgmac_init,
 	.reset = xgene_xgmac_reset,
 	.rx_enable = xgene_xgmac_rx_enable,
@@ -338,7 +338,7 @@ struct xgene_mac_ops xgene_xgmac_ops = {
 	.link_state = xgene_enet_link_state
 };
 
-struct xgene_port_ops xgene_xgport_ops = {
+const struct xgene_port_ops xgene_xgport_ops = {
 	.reset = xgene_enet_reset,
 	.cle_bypass = xgene_enet_xgcle_bypass,
 	.shutdown = xgene_enet_shutdown,

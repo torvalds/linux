@@ -152,8 +152,6 @@ static void build_prologue(struct jit_ctx *ctx)
 	const u8 r8 = bpf2a64[BPF_REG_8];
 	const u8 r9 = bpf2a64[BPF_REG_9];
 	const u8 fp = bpf2a64[BPF_REG_FP];
-	const u8 ra = bpf2a64[BPF_REG_A];
-	const u8 rx = bpf2a64[BPF_REG_X];
 	const u8 tmp1 = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
 
@@ -200,10 +198,6 @@ static void build_prologue(struct jit_ctx *ctx)
 
 	/* Set up function call stack */
 	emit(A64_SUB_I(1, A64_SP, A64_SP, STACK_SIZE), ctx);
-
-	/* Clear registers A and X */
-	emit_a64_mov_i64(ra, 0, ctx);
-	emit_a64_mov_i64(rx, 0, ctx);
 }
 
 static void build_epilogue(struct jit_ctx *ctx)

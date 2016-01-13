@@ -38,13 +38,13 @@ MODULE_DESCRIPTION("arptables core");
 /*#define DEBUG_ARP_TABLES_USER*/
 
 #ifdef DEBUG_ARP_TABLES
-#define dprintf(format, args...)  printk(format , ## args)
+#define dprintf(format, args...)  pr_debug(format, ## args)
 #else
 #define dprintf(format, args...)
 #endif
 
 #ifdef DEBUG_ARP_TABLES_USER
-#define duprintf(format, args...) printk(format , ## args)
+#define duprintf(format, args...) pr_debug(format, ## args)
 #else
 #define duprintf(format, args...)
 #endif
@@ -1905,7 +1905,7 @@ static int __init arp_tables_init(void)
 	if (ret < 0)
 		goto err4;
 
-	printk(KERN_INFO "arp_tables: (C) 2002 David S. Miller\n");
+	pr_info("arp_tables: (C) 2002 David S. Miller\n");
 	return 0;
 
 err4:
