@@ -299,20 +299,15 @@ config AUDIT
 	help
 	  Enable auditing infrastructure that can be used with another
 	  kernel subsystem, such as SELinux (which requires this for
-	  logging of avc messages output).  Does not do system-call
-	  auditing without CONFIG_AUDITSYSCALL.
+	  logging of avc messages output).  System call auditing is included
+	  on architectures which support it.
 
 config HAVE_ARCH_AUDITSYSCALL
 	bool
 
 config AUDITSYSCALL
-	bool "Enable system-call auditing support"
+	def_bool y
 	depends on AUDIT && HAVE_ARCH_AUDITSYSCALL
-	default y if SECURITY_SELINUX
-	help
-	  Enable low-overhead system-call auditing infrastructure that
-	  can be used independently or with another kernel subsystem,
-	  such as SELinux.
 
 config AUDIT_WATCH
 	def_bool y
