@@ -2582,6 +2582,10 @@ mwifiex_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	bgscan_cfg->bss_type = MWIFIEX_BSS_MODE_INFRA;
 	bgscan_cfg->action = MWIFIEX_BGSCAN_ACT_SET;
 	bgscan_cfg->enable = true;
+	if (request->min_rssi_thold != NL80211_SCAN_RSSI_THOLD_OFF) {
+		bgscan_cfg->report_condition |= MWIFIEX_BGSCAN_SSID_RSSI_MATCH;
+		bgscan_cfg->rssi_threshold = request->min_rssi_thold;
+	}
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_BG_SCAN_CONFIG,
 			     HostCmd_ACT_GEN_SET, 0, bgscan_cfg, true)) {

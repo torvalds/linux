@@ -2260,6 +2260,7 @@ int mwifiex_cmd_802_11_bg_scan_config(struct mwifiex_private *priv,
 	int i;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
 	struct mwifiex_ie_types_repeat_count *repeat_count_tlv;
+	struct mwifiex_ie_types_min_rssi_threshold *rssi_threshold_tlv;
 	struct mwifiex_ie_types_bgscan_start_later *start_later_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
 	struct mwifiex_ie_types_chan_list_param_set *chan_list_tlv;
@@ -2308,6 +2309,20 @@ int mwifiex_cmd_802_11_bg_scan_config(struct mwifiex_private *priv,
 
 		tlv_pos += sizeof(repeat_count_tlv->header) +
 			le16_to_cpu(repeat_count_tlv->header.len);
+	}
+
+	if (bgscan_cfg_in->rssi_threshold) {
+		rssi_threshold_tlv =
+			(struct mwifiex_ie_types_min_rssi_threshold *)tlv_pos;
+		rssi_threshold_tlv->header.type =
+			cpu_to_le16(TLV_TYPE_RSSI_LOW);
+		rssi_threshold_tlv->header.len =
+			cpu_to_le16(sizeof(rssi_threshold_tlv->rssi_threshold));
+		rssi_threshold_tlv->rssi_threshold =
+			cpu_to_le16(bgscan_cfg_in->rssi_threshold);
+
+		tlv_pos += sizeof(rssi_threshold_tlv->header) +
+			le16_to_cpu(rssi_threshold_tlv->header.len);
 	}
 
 	for (i = 0; i < bgscan_cfg_in->num_ssids; i++) {

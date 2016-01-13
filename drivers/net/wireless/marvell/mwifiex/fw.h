@@ -759,6 +759,11 @@ struct mwifiex_ie_types_repeat_count {
 	__le16 repeat_count;
 } __packed;
 
+struct mwifiex_ie_types_min_rssi_threshold {
+	struct mwifiex_ie_types_header header;
+	__le16 rssi_threshold;
+} __packed;
+
 struct mwifiex_ie_types_bgscan_start_later {
 	struct mwifiex_ie_types_header header;
 	__le16 start_later;
