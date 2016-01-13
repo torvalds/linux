@@ -164,7 +164,6 @@ struct ftrace_ops {
 	ftrace_func_t			saved_func;
 	int __percpu			*disabled;
 #ifdef CONFIG_DYNAMIC_FTRACE
-	int				nr_trampolines;
 	struct ftrace_ops_hash		local_hash;
 	struct ftrace_ops_hash		*func_hash;
 	struct ftrace_ops_hash		old_hash;
