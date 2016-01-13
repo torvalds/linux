@@ -461,7 +461,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		plane_config.zpos = i;
 		plane_config.type = vidi_win_types[i];
 
-		ret = exynos_plane_init(drm_dev, &ctx->planes[i],
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
 					1 << ctx->pipe, &plane_config);
 		if (ret)
 			return ret;

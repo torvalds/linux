@@ -64,6 +64,7 @@ struct exynos_drm_plane_state {
 	struct exynos_drm_rect src;
 	unsigned int h_ratio;
 	unsigned int v_ratio;
+	unsigned int zpos;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -76,7 +77,7 @@ to_exynos_plane_state(struct drm_plane_state *state)
  * Exynos drm common overlay structure.
  *
  * @base: plane object
- * @zpos: order of overlay layer(z position).
+ * @index: hardware index of the overlay layer
  *
  * this structure is common to exynos SoC and its contents would be copied
  * to hardware specific overlay info.
@@ -85,17 +86,18 @@ to_exynos_plane_state(struct drm_plane_state *state)
 struct exynos_drm_plane {
 	struct drm_plane base;
 	const struct exynos_drm_plane_config *config;
-	unsigned int zpos;
+	unsigned int index;
 	struct drm_framebuffer *pending_fb;
 };
 
 #define EXYNOS_DRM_PLANE_CAP_DOUBLE	(1 << 0)
 #define EXYNOS_DRM_PLANE_CAP_SCALE	(1 << 1)
+#define EXYNOS_DRM_PLANE_CAP_ZPOS	(1 << 2)
 
 /*
  * Exynos DRM plane configuration structure.
  *
- * @zpos: z-position of the plane.
+ * @zpos: initial z-position of the plane.
  * @type: type of the plane (primary, cursor or overlay).
  * @pixel_formats: supported pixel formats.
  * @num_pixel_formats: number of elements in 'pixel_formats'.
@@ -121,8 +123,8 @@ struct exynos_drm_plane_config {
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
  * @atomic_check: validate state
- * @atomic_begin: prepare a window to receive a update
- * @atomic_flush: mark the end of a window update
+ * @atomic_begin: prepare device to receive an update
+ * @atomic_flush: mark the end of device update
  * @update_plane: apply hardware specific overlay data to registers.
  * @disable_plane: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
@@ -142,14 +144,12 @@ struct exynos_drm_crtc_ops {
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
 	int (*atomic_check)(struct exynos_drm_crtc *crtc,
 			    struct drm_crtc_state *state);
-	void (*atomic_begin)(struct exynos_drm_crtc *crtc,
-			      struct exynos_drm_plane *plane);
+	void (*atomic_begin)(struct exynos_drm_crtc *crtc);
 	void (*update_plane)(struct exynos_drm_crtc *crtc,
 			     struct exynos_drm_plane *plane);
 	void (*disable_plane)(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane);
-	void (*atomic_flush)(struct exynos_drm_crtc *crtc,
-			      struct exynos_drm_plane *plane);
+	void (*atomic_flush)(struct exynos_drm_crtc *crtc);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };
