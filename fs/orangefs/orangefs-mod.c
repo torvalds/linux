@@ -14,7 +14,7 @@
 
 /* ORANGEFS_VERSION is a ./configure define */
 #ifndef ORANGEFS_VERSION
-#define ORANGEFS_VERSION "Unknown"
+#define ORANGEFS_VERSION "upstream"
 #endif
 
 /*
