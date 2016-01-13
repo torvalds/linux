@@ -1384,6 +1384,7 @@ static struct dma_async_tx_descriptor *pxp_prep_slave_sg(struct dma_chan *chan,
 	struct pxp_channel *pxp_chan = to_pxp_channel(chan);
 	struct pxp_dma *pxp_dma = to_pxp_dma(chan->device);
 	struct pxps *pxp = to_pxp(pxp_dma);
+	struct pxp_tx_desc *pos = NULL, *next = NULL;
 	struct pxp_tx_desc *desc = NULL;
 	struct pxp_tx_desc *first = NULL, *prev = NULL;
 	struct scatterlist *sg;
@@ -1403,6 +1404,16 @@ static struct dma_async_tx_descriptor *pxp_prep_slave_sg(struct dma_chan *chan,
 		desc = pxpdma_desc_alloc(pxp_chan);
 		if (!desc) {
 			dev_err(chan->device->dev, "no enough memory to allocate tx descriptor\n");
+
+			if (first) {
+				list_for_each_entry_safe(pos, next, &first->tx_list, list) {
+					list_del_init(&pos->list);
+					kmem_cache_free(tx_desc_cache, (void*)pos);
+				}
+				list_del_init(&first->list);
+				kmem_cache_free(tx_desc_cache, (void*)first);
+			}
+
 			return NULL;
 		}
 
