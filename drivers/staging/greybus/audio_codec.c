@@ -575,7 +575,6 @@ static void gbaudio_free_codec(struct device *dev,
  * GB codec module driver ops
  */
 struct device_driver gb_codec_driver = {
-	.name = "1-8",
 	.owner = THIS_MODULE,
 };
 
@@ -626,11 +625,12 @@ static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 static int gbaudio_codec_probe(struct gb_connection *connection)
 {
 	int ret, i;
+	char *driver_name;
 	struct gbaudio_codec_info *gbcodec;
 	struct gb_audio_topology *topology;
 	struct gb_audio_manager_module_descriptor desc;
 	struct device *dev = &connection->bundle->dev;
-	int dev_id = connection->bundle->id;
+	int dev_id = connection->intf->interface_id;
 
 	dev_dbg(dev, "Add device:%d:%s\n", dev_id, dev_name(dev));
 	/* get gbcodec data */
@@ -670,6 +670,10 @@ static int gbaudio_codec_probe(struct gb_connection *connection)
 		gbcodec->dais[i].ops = &gbcodec_dai_ops;
 
 	/* FIXME */
+	driver_name = devm_kzalloc(dev, NAME_SIZE, GFP_KERNEL);
+	strlcpy(driver_name, gbcodec->name, NAME_SIZE);
+	gb_codec_driver.name = strsep(&driver_name, ".");
+	dev_dbg(dev, "driver.name:%s\n", gb_codec_driver.name);
 	dev->driver = &gb_codec_driver;
 
 	/* register codec */
@@ -730,7 +734,7 @@ static void gbaudio_codec_remove(struct gb_connection *connection)
 {
 	struct gbaudio_codec_info *gbcodec;
 	struct device *dev = &connection->bundle->dev;
-	int dev_id = connection->bundle->id;
+	int dev_id = connection->intf->interface_id;
 
 	dev_dbg(dev, "Remove device:%d:%s\n", dev_id, dev_name(dev));
 
@@ -795,7 +799,7 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 {
 	struct gbaudio_dai *dai;
 	struct device *dev = &connection->bundle->dev;
-	int dev_id = connection->bundle->id;
+	int dev_id = connection->intf->interface_id;
 	struct gbaudio_codec_info *gbcodec = dev_get_drvdata(dev);
 	struct gb_audio_manager_module_descriptor desc;
 
@@ -839,7 +843,7 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 static void gbaudio_dai_remove(struct gb_connection *connection)
 {
 	struct device *dev = &connection->bundle->dev;
-	int dev_id = connection->bundle->id;
+	int dev_id = connection->intf->interface_id;
 	struct gbaudio_codec_info *gbcodec;
 
 	dev_dbg(dev, "Remove DAI device:%d:%s\n", dev_id, dev_name(dev));
