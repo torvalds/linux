@@ -1601,6 +1601,11 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 		goto out_fput;
 #endif
 
+	case FICLONE:
+	case FICLONERANGE:
+	case FIDEDUPERANGE:
+		goto do_ioctl;
+
 	case FIBMAP:
 	case FIGETBSZ:
 	case FIONREAD:

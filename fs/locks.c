@@ -1258,20 +1258,16 @@ int locks_mandatory_locked(struct file *file)
 
 /**
  * locks_mandatory_area - Check for a conflicting lock
- * @read_write: %FLOCK_VERIFY_WRITE for exclusive access, %FLOCK_VERIFY_READ
- *		for shared
- * @inode:      the file to check
+ * @inode:	the file to check
  * @filp:       how the file was opened (if it was)
- * @offset:     start of area to check
- * @count:      length of area to check
+ * @start:	first byte in the file to check
+ * @end:	lastbyte in the file to check
+ * @type:	%F_WRLCK for a write lock, else %F_RDLCK
  *
  * Searches the inode's list of locks to find any POSIX locks which conflict.
- * This function is called from rw_verify_area() and
- * locks_verify_truncate().
  */
-int locks_mandatory_area(int read_write, struct inode *inode,
-			 struct file *filp, loff_t offset,
-			 size_t count)
+int locks_mandatory_area(struct inode *inode, struct file *filp, loff_t start,
+			 loff_t end, unsigned char type)
 {
 	struct file_lock fl;
 	int error;
@@ -1283,9 +1279,9 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 	fl.fl_flags = FL_POSIX | FL_ACCESS;
 	if (filp && !(filp->f_flags & O_NONBLOCK))
 		sleep = true;
-	fl.fl_type = (read_write == FLOCK_VERIFY_WRITE) ? F_WRLCK : F_RDLCK;
-	fl.fl_start = offset;
-	fl.fl_end = offset + count - 1;
+	fl.fl_type = type;
+	fl.fl_start = start;
+	fl.fl_end = end;
 
 	for (;;) {
 		if (filp) {
