@@ -15565,6 +15565,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_gt_powersave(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	intel_teardown_gmbus(dev);
 }
 
 /*
