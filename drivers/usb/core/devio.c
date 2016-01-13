@@ -157,30 +157,6 @@ static int connected(struct usb_dev_state *ps)
 			ps->dev->state != USB_STATE_NOTATTACHED);
 }
 
-static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
-{
-	loff_t ret;
-
-	mutex_lock(&file_inode(file)->i_mutex);
-
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case 1:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	case 2:
-	default:
-		ret = -EINVAL;
-	}
-
-	mutex_unlock(&file_inode(file)->i_mutex);
-	return ret;
-}
-
 static ssize_t usbdev_read(struct file *file, char __user *buf, size_t nbytes,
 			   loff_t *ppos)
 {
@@ -2366,7 +2342,7 @@ static unsigned int usbdev_poll(struct file *file,
 
 const struct file_operations usbdev_file_operations = {
 	.owner =	  THIS_MODULE,
-	.llseek =	  usbdev_lseek,
+	.llseek =	  no_seek_end_llseek,
 	.read =		  usbdev_read,
 	.poll =		  usbdev_poll,
 	.unlocked_ioctl = usbdev_ioctl,

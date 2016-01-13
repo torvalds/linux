@@ -2307,9 +2307,9 @@ static inline void iterate_bdevs(void (*f)(struct block_device *, void *), void 
 {
 }
 
-static inline int sb_is_blkdev_sb(struct super_block *sb)
+static inline bool sb_is_blkdev_sb(struct super_block *sb)
 {
-	return 0;
+	return false;
 }
 #endif
 extern int sync_filesystem(struct super_block *);
@@ -2387,7 +2387,7 @@ extern void init_special_inode(struct inode *, umode_t, dev_t);
 
 /* Invalid inode operations -- fs/bad_inode.c */
 extern void make_bad_inode(struct inode *);
-extern int is_bad_inode(struct inode *);
+extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
 /*
@@ -2548,8 +2548,8 @@ extern ssize_t __kernel_write(struct file *, const char *, size_t, loff_t *);
 extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
-extern int is_subdir(struct dentry *, struct dentry *);
-extern int path_is_under(struct path *, struct path *);
+extern bool is_subdir(struct dentry *, struct dentry *);
+extern bool path_is_under(struct path *, struct path *);
 
 extern char *file_path(struct file *, char *, int);
 
@@ -2676,6 +2676,8 @@ extern loff_t generic_file_llseek_size(struct file *file, loff_t offset,
 		int whence, loff_t maxsize, loff_t eof);
 extern loff_t fixed_size_llseek(struct file *file, loff_t offset,
 		int whence, loff_t size);
+extern loff_t no_seek_end_llseek_size(struct file *, loff_t, int, loff_t);
+extern loff_t no_seek_end_llseek(struct file *, loff_t, int);
 extern int generic_file_open(struct inode * inode, struct file * filp);
 extern int nonseekable_open(struct inode * inode, struct file * filp);
 
@@ -2978,7 +2980,7 @@ int __init get_filesystem_list(char *buf);
 #define OPEN_FMODE(flag) ((__force fmode_t)(((flag + 1) & O_ACCMODE) | \
 					    (flag & __FMODE_NONOTIFY)))
 
-static inline int is_sxid(umode_t mode)
+static inline bool is_sxid(umode_t mode)
 {
 	return (mode & S_ISUID) || ((mode & S_ISGID) && (mode & S_IXGRP));
 }

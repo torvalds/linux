@@ -1835,17 +1835,16 @@ static int lbmLogInit(struct jfs_log * log)
 	for (i = 0; i < LOGPAGES;) {
 		char *buffer;
 		uint offset;
-		struct page *page;
+		struct page *page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 
-		buffer = (char *) get_zeroed_page(GFP_KERNEL);
-		if (buffer == NULL)
+		if (!page)
 			goto error;
-		page = virt_to_page(buffer);
+		buffer = page_address(page);
 		for (offset = 0; offset < PAGE_SIZE; offset += LOGPSIZE) {
 			lbuf = kmalloc(sizeof(struct lbuf), GFP_KERNEL);
 			if (lbuf == NULL) {
 				if (offset == 0)
-					free_page((unsigned long) buffer);
+					__free_page(page);
 				goto error;
 			}
 			if (offset) /* we already have one reference */

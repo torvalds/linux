@@ -650,7 +650,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
 	do {
 		if (!bio_add_page(&b->bio, virt_to_page(ptr),
 				  len < PAGE_SIZE ? len : PAGE_SIZE,
-				  virt_to_phys(ptr) & (PAGE_SIZE - 1))) {
+				  offset_in_page(ptr))) {
 			BUG_ON(b->c->block_size <= PAGE_SIZE);
 			use_dmio(b, rw, block, end_io);
 			return;
