@@ -2317,6 +2317,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 		return PTR_ERR(cstate);
 
 	pipe_wm = &cstate->wm.optimal.ilk;
+	memset(pipe_wm, 0, sizeof(*pipe_wm));
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		ps = drm_atomic_get_plane_state(state,
