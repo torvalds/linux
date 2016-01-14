@@ -53,7 +53,7 @@
 #define DEBUG_AUTOCONF(fmt...)	do { } while (0)
 #endif
 
-#define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
+#define BOTH_EMPTY	(UART_LSR_TEMT | UART_LSR_THRE)
 
 /*
  * Here we define the default xmit fifo size used for each type of UART.
@@ -2487,7 +2487,7 @@ serial8250_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
-		          struct ktermios *old)
+			  struct ktermios *old)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char cval;
