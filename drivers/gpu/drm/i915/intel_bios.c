@@ -842,6 +842,7 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 {
 	int seq_end;
 	u16 len;
+	u32 size_of_sequence;
 
 	/*
 	 * Could skip sequence based on Size of Sequence alone, but also do some
@@ -852,14 +853,24 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 		return 0;
 	}
 
-	seq_end = index + *((const u32 *)(data + 1));
+	/* Skip Sequence Byte. */
+	index++;
+
+	/*
+	 * Size of Sequence. Excludes the Sequence Byte and the size itself,
+	 * includes MIPI_SEQ_ELEM_END byte, excludes the final MIPI_SEQ_END
+	 * byte.
+	 */
+	size_of_sequence = *((const uint32_t *)(data + index));
+	index += 4;
+
+	seq_end = index + size_of_sequence;
 	if (seq_end > total) {
 		DRM_ERROR("Invalid sequence size\n");
 		return 0;
 	}
 
-	/* Skip Sequence Byte and Size of Sequence. */
-	for (index = index + 5; index < total; index += len) {
+	for (; index < total; index += len) {
 		u8 operation_byte = *(data + index);
 		index++;
 
