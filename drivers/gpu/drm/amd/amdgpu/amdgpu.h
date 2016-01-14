@@ -788,6 +788,9 @@ struct amdgpu_ring {
 	struct amdgpu_ctx	*current_ctx;
 	enum amdgpu_ring_type	type;
 	char			name[16];
+	unsigned		cond_exe_offs;
+	u64				cond_exe_gpu_addr;
+	volatile u32	*cond_exe_cpu_addr;
 };
 
 /*

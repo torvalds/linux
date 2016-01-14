@@ -160,6 +160,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			amdgpu_ring_emit_hdp_flush(ring);
 	}
 
+	/* always set cond_exec_polling to CONTINUE */
+	*ring->cond_exe_cpu_addr = 1;
+
 	old_ctx = ring->current_ctx;
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];

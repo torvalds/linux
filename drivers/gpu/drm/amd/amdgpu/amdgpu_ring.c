@@ -267,6 +267,15 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + (ring->next_rptr_offs * 4);
 	ring->next_rptr_cpu_addr = &adev->wb.wb[ring->next_rptr_offs];
+
+	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
+		return r;
+	}
+	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
+	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
+
 	spin_lock_init(&ring->fence_lock);
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
