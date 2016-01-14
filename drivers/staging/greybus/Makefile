@@ -46,7 +46,6 @@ obj-m += gb-hid.o
 obj-m += gb-raw.o
 obj-m += gb-es2.o
 obj-m += gb-arche.o
-obj-m += gb-audio-codec.o
 ifeq ($(CONFIG_SND_SOC_DYNAMIC_DAILINK),y)
  obj-m += gb-audio-codec.o
 endif
