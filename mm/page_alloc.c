@@ -2876,28 +2876,6 @@ retry:
 	return page;
 }
 
-/*
- * This is called in the allocator slow-path if the allocation request is of
- * sufficient urgency to ignore watermarks and take other desperate measures
- */
-static inline struct page *
-__alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
-				const struct alloc_context *ac)
-{
-	struct page *page;
-
-	do {
-		page = get_page_from_freelist(gfp_mask, order,
-						ALLOC_NO_WATERMARKS, ac);
-
-		if (!page && gfp_mask & __GFP_NOFAIL)
-			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
-									HZ/50);
-	} while (!page && (gfp_mask & __GFP_NOFAIL));
-
-	return page;
-}
-
 static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
 {
 	struct zoneref *z;
@@ -3042,12 +3020,16 @@ retry:
 		 * allocations are system rather than user orientated
 		 */
 		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+		do {
+			page = get_page_from_freelist(gfp_mask, order,
+						      ALLOC_NO_WATERMARKS, ac);
+			if (page)
+				goto got_pg;
 
-		page = __alloc_pages_high_priority(gfp_mask, order, ac);
-
-		if (page) {
-			goto got_pg;
-		}
+			if (gfp_mask & __GFP_NOFAIL)
+				wait_iff_congested(ac->preferred_zone,
+						   BLK_RW_ASYNC, HZ/50);
+		} while (gfp_mask & __GFP_NOFAIL);
 	}
 
 	/* Caller is not willing to reclaim, we can't balance anything */
