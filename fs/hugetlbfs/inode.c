@@ -4,11 +4,11 @@
  * Nadia Yvette Chambers, 2002
  *
  * Copyright (C) 2002 Linus Torvalds.
+ * License: GPL
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/thread_info.h>
 #include <asm/current.h>
 #include <linux/sched.h>		/* remove ASAP */
@@ -1202,7 +1202,6 @@ static struct file_system_type hugetlbfs_fs_type = {
 	.mount		= hugetlbfs_mount,
 	.kill_sb	= kill_litter_super,
 };
-MODULE_ALIAS_FS("hugetlbfs");
 
 static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
 
@@ -1356,26 +1355,4 @@ static int __init init_hugetlbfs_fs(void)
  out2:
 	return error;
 }
-
-static void __exit exit_hugetlbfs_fs(void)
-{
-	struct hstate *h;
-	int i;
-
-
-	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
-	 * destroy cache.
-	 */
-	rcu_barrier();
-	kmem_cache_destroy(hugetlbfs_inode_cachep);
-	i = 0;
-	for_each_hstate(h)
-		kern_unmount(hugetlbfs_vfsmount[i++]);
-	unregister_filesystem(&hugetlbfs_fs_type);
-}
-
-module_init(init_hugetlbfs_fs)
-module_exit(exit_hugetlbfs_fs)
-
-MODULE_LICENSE("GPL");
+fs_initcall(init_hugetlbfs_fs)
