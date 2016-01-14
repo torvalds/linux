@@ -357,8 +357,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* Fujitsu Wacom 1FGT Tablet PC device */
 	{	"FUJ02E9",		0	},
 	/*
-	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in
-	 * disguise)
+	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6
+	 * in disguise).
 	 */
 	{	"LTS0001",		0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
@@ -367,12 +367,14 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"PNPCXXX",		UNKNOWN_DEV	},
 	/* More unknown PnP modems */
 	{	"PNPDXXX",		UNKNOWN_DEV	},
-	/* Winbond CIR port, should not be probed. We should keep track
-	   of it to prevent the legacy serial driver from probing it */
+	/*
+	 * Winbond CIR port, should not be probed. We should keep track of
+	 * it to prevent the legacy serial driver from probing it.
+	 */
 	{	"WEC1022",		CIR_PORT	},
 	/*
-	 * SMSC IrCC SIR/FIR port, should not be probed by serial driver
-	 * as well so its own driver can bind to it.
+	 * SMSC IrCC SIR/FIR port, should not be probed by serial driver as
+	 * well so its own driver can bind to it.
 	 */
 	{	"SMCF010",		CIR_PORT	},
 	{	"",			0	}

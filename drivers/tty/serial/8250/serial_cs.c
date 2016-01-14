@@ -441,16 +441,20 @@ static int simple_config(struct pcmcia_device *link)
 	struct serial_info *info = link->priv;
 	int i = -ENODEV, try;
 
-	/* First pass: look for a config entry that looks normal.
-	 * Two tries: without IO aliases, then with aliases */
+	/*
+	 * First pass: look for a config entry that looks normal.
+	 * Two tries: without IO aliases, then with aliases.
+	 */
 	link->config_flags |= CONF_AUTO_SET_VPP;
 	for (try = 0; try < 4; try++)
 		if (!pcmcia_loop_config(link, simple_config_check, &try))
 			goto found_port;
 
-	/* Second pass: try to find an entry that isn't picky about
-	   its base address, then try to grab any standard serial port
-	   address, and finally try to get any free port. */
+	/*
+	 * Second pass: try to find an entry that isn't picky about
+	 * its base address, then try to grab any standard serial port
+	 * address, and finally try to get any free port.
+	 */
 	if (!pcmcia_loop_config(link, simple_config_check_notpicky, NULL))
 		goto found_port;
 
@@ -480,8 +484,10 @@ static int multi_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	if (p_dev->resource[1]->end)
 		return -EINVAL;
 
-	/* The quad port cards have bad CIS's, so just look for a
-	   window larger than 8 ports and assume it will be right */
+	/*
+	 * The quad port cards have bad CIS's, so just look for a
+	 * window larger than 8 ports and assume it will be right.
+	 */
 	if (p_dev->resource[0]->end <= 8)
 		return -EINVAL;
 
@@ -623,8 +629,10 @@ static int serial_config(struct pcmcia_device *link)
 			break;
 		}
 
-	/* Another check for dual-serial cards: look for either serial or
-	   multifunction cards that ask for appropriate IO port ranges */
+	/*
+	 * Another check for dual-serial cards: look for either serial or
+	 * multifunction cards that ask for appropriate IO port ranges.
+	 */
 	if ((info->multi == 0) &&
 	    (link->has_func_id) &&
 	    (link->socket->pcmcia_pfc == 0) &&

@@ -156,14 +156,18 @@ static void ingenic_uart_serial_out(struct uart_port *p, int offset, int value)
 		break;
 
 	case UART_IER:
-		/* Enable receive timeout interrupt with the
-		 * receive line status interrupt */
+		/*
+		 * Enable receive timeout interrupt with the receive line
+		 * status interrupt.
+		 */
 		value |= (value & 0x4) << 2;
 		break;
 
 	case UART_MCR:
-		/* If we have enabled modem status IRQs we should enable modem
-		 * mode. */
+		/*
+		 * If we have enabled modem status IRQs we should enable
+		 * modem mode.
+		 */
 		ier = p->serial_in(p, UART_IER);
 
 		if (ier & UART_IER_MSI)

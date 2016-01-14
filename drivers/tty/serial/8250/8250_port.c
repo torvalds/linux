@@ -251,9 +251,11 @@ static const struct serial8250_config uart_config[] = {
 		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
 	},
-/* tx_loadsz is set to 63-bytes instead of 64-bytes to implement
-workaround of errata A-008006 which states that tx_loadsz should  be
-configured less than Maximum supported fifo bytes */
+	/*
+	 * tx_loadsz is set to 63-bytes instead of 64-bytes to implement
+	 * workaround of errata A-008006 which states that tx_loadsz should
+	 * be configured less than Maximum supported fifo bytes.
+	 */
 	[PORT_16550A_FSL64] = {
 		.name		= "16550A_FSL64",
 		.fifo_size	= 64,
@@ -2198,23 +2200,23 @@ int serial8250_do_startup(struct uart_port *port)
 
 	serial8250_set_mctrl(port, port->mctrl);
 
-	/* Serial over Lan (SoL) hack:
-	   Intel 8257x Gigabit ethernet chips have a
-	   16550 emulation, to be used for Serial Over Lan.
-	   Those chips take a longer time than a normal
-	   serial device to signalize that a transmission
-	   data was queued. Due to that, the above test generally
-	   fails. One solution would be to delay the reading of
-	   iir. However, this is not reliable, since the timeout
-	   is variable. So, let's just don't test if we receive
-	   TX irq. This way, we'll never enable UART_BUG_TXEN.
+	/*
+	 * Serial over Lan (SoL) hack:
+	 * Intel 8257x Gigabit ethernet chips have a 16550 emulation, to be
+	 * used for Serial Over Lan.  Those chips take a longer time than a
+	 * normal serial device to signalize that a transmission data was
+	 * queued. Due to that, the above test generally fails. One solution
+	 * would be to delay the reading of iir. However, this is not
+	 * reliable, since the timeout is variable. So, let's just don't
+	 * test if we receive TX irq.  This way, we'll never enable
+	 * UART_BUG_TXEN.
 	 */
 	if (up->port.flags & UPF_NO_TXEN_TEST)
 		goto dont_test_tx_en;
 
 	/*
-	 * Do a quick test to see if we receive an
-	 * interrupt when we enable the TX irq.
+	 * Do a quick test to see if we receive an interrupt when we enable
+	 * the TX irq.
 	 */
 	serial_port_out(port, UART_IER, UART_IER_THRI);
 	lsr = serial_port_in(port, UART_LSR);
