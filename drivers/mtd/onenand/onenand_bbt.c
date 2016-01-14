@@ -247,5 +247,3 @@ int onenand_default_bbt(struct mtd_info *mtd)
 
 	return onenand_scan_bbt(mtd, bbm->badblock_pattern);
 }
-
-EXPORT_SYMBOL(onenand_default_bbt);
