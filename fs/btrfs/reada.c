@@ -371,6 +371,11 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		struct reada_zone *zone;
 
 		dev = bbio->stripes[nzones].dev;
+
+		/* cannot read ahead on missing device. */
+		 if (!dev->bdev)
+			continue;
+
 		zone = reada_find_zone(fs_info, dev, logical, bbio);
 		if (!zone)
 			continue;
@@ -423,15 +428,9 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 			 */
 			continue;
 		}
-		if (!dev->bdev) {
-			/*
-			 * cannot read ahead on missing device, but for RAID5/6,
-			 * REQ_GET_READ_MIRRORS return 1. So don't skip missing
-			 * device for such case.
-			 */
-			if (nzones > 1)
-				continue;
-		}
+		if (!dev->bdev)
+			continue;
+
 		if (dev_replace_is_ongoing &&
 		    dev == fs_info->dev_replace.tgtdev) {
 			/*
