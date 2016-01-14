@@ -845,6 +845,9 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
+	if (udata->inlen < sizeof(struct ib_uverbs_cmd_hdr))
+		return ERR_PTR(-EINVAL);
+
 	reqlen = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
 	if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
 		ver = 0;
@@ -871,7 +874,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	if (reqlen > sizeof(req) &&
 	    !ib_is_udata_cleared(udata, sizeof(req),
-				 udata->inlen - sizeof(req)))
+				 reqlen - sizeof(req)))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	req.total_num_uuars = ALIGN(req.total_num_uuars,
