@@ -32,4 +32,20 @@ config PIC32MZDA
 
 endchoice
 
+choice
+	prompt "Devicetree selection"
+	default DTB_PIC32_NONE
+	help
+	  Select the devicetree.
+
+config DTB_PIC32_NONE
+       bool "None"
+
+config DTB_PIC32_MZDA_SK
+       bool "PIC32MZDA Starter Kit"
+       depends on PIC32MZDA
+       select BUILTIN_DTB
+
+endchoice
+
 endif # MACH_PIC32
