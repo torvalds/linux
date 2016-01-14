@@ -660,12 +660,6 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
 }
 #endif /* CONFIG_MEMCG */
 
-enum {
-	UNDER_LIMIT,
-	SOFT_LIMIT,
-	OVER_LIMIT,
-};
-
 #ifdef CONFIG_CGROUP_WRITEBACK
 
 struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
@@ -694,6 +688,19 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
 struct sock;
 void sock_update_memcg(struct sock *sk);
 void sock_release_memcg(struct sock *sk);
+bool mem_cgroup_charge_skmem(struct cg_proto *proto, unsigned int nr_pages);
+void mem_cgroup_uncharge_skmem(struct cg_proto *proto, unsigned int nr_pages);
+#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
+static inline bool mem_cgroup_under_socket_pressure(struct cg_proto *proto)
+{
+	return proto->memory_pressure;
+}
+#else
+static inline bool mem_cgroup_under_pressure(struct cg_proto *proto)
+{
+	return false;
+}
+#endif
 
 #ifdef CONFIG_MEMCG_KMEM
 extern struct static_key memcg_kmem_enabled_key;

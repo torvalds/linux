@@ -1129,8 +1129,9 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
 	if (!sk->sk_prot->memory_pressure)
 		return false;
 
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return !!sk->sk_cgrp->memory_pressure;
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp &&
+	    mem_cgroup_under_socket_pressure(sk->sk_cgrp))
+		return true;
 
 	return !!*sk->sk_prot->memory_pressure;
 }
@@ -1144,9 +1145,6 @@ static inline void sk_leave_memory_pressure(struct sock *sk)
 
 	if (*memory_pressure)
 		*memory_pressure = 0;
-
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		sk->sk_cgrp->memory_pressure = 0;
 }
 
 static inline void sk_enter_memory_pressure(struct sock *sk)
@@ -1154,76 +1152,30 @@ static inline void sk_enter_memory_pressure(struct sock *sk)
 	if (!sk->sk_prot->enter_memory_pressure)
 		return;
 
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		sk->sk_cgrp->memory_pressure = 1;
-
 	sk->sk_prot->enter_memory_pressure(sk);
 }
 
 static inline long sk_prot_mem_limits(const struct sock *sk, int index)
 {
-	long limit = sk->sk_prot->sysctl_mem[index];
-
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		limit = min_t(long, limit, sk->sk_cgrp->memory_allocated.limit);
-
-	return limit;
-}
-
-static inline void memcg_memory_allocated_add(struct cg_proto *prot,
-					      unsigned long amt,
-					      int *parent_status)
-{
-	struct page_counter *counter;
-
-	if (page_counter_try_charge(&prot->memory_allocated, amt, &counter))
-		return;
-
-	page_counter_charge(&prot->memory_allocated, amt);
-	*parent_status = OVER_LIMIT;
-}
-
-static inline void memcg_memory_allocated_sub(struct cg_proto *prot,
-					      unsigned long amt)
-{
-	page_counter_uncharge(&prot->memory_allocated, amt);
+	return sk->sk_prot->sysctl_mem[index];
 }
 
 static inline long
 sk_memory_allocated(const struct sock *sk)
 {
-	struct proto *prot = sk->sk_prot;
-
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return page_counter_read(&sk->sk_cgrp->memory_allocated);
-
-	return atomic_long_read(prot->memory_allocated);
+	return atomic_long_read(sk->sk_prot->memory_allocated);
 }
 
 static inline long
-sk_memory_allocated_add(struct sock *sk, int amt, int *parent_status)
+sk_memory_allocated_add(struct sock *sk, int amt)
 {
-	struct proto *prot = sk->sk_prot;
-
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp) {
-		memcg_memory_allocated_add(sk->sk_cgrp, amt, parent_status);
-		/* update the root cgroup regardless */
-		atomic_long_add_return(amt, prot->memory_allocated);
-		return page_counter_read(&sk->sk_cgrp->memory_allocated);
-	}
-
-	return atomic_long_add_return(amt, prot->memory_allocated);
+	return atomic_long_add_return(amt, sk->sk_prot->memory_allocated);
 }
 
 static inline void
 sk_memory_allocated_sub(struct sock *sk, int amt)
 {
-	struct proto *prot = sk->sk_prot;
-
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		memcg_memory_allocated_sub(sk->sk_cgrp, amt);
-
-	atomic_long_sub(amt, prot->memory_allocated);
+	atomic_long_sub(amt, sk->sk_prot->memory_allocated);
 }
 
 static inline void sk_sockets_allocated_dec(struct sock *sk)

@@ -338,6 +338,38 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 }
 EXPORT_SYMBOL(tcp_proto_cgroup);
 
+/**
+ * mem_cgroup_charge_skmem - charge socket memory
+ * @proto: proto to charge
+ * @nr_pages: number of pages to charge
+ *
+ * Charges @nr_pages to @proto. Returns %true if the charge fit within
+ * @proto's configured limit, %false if the charge had to be forced.
+ */
+bool mem_cgroup_charge_skmem(struct cg_proto *proto, unsigned int nr_pages)
+{
+	struct page_counter *counter;
+
+	if (page_counter_try_charge(&proto->memory_allocated,
+				    nr_pages, &counter)) {
+		proto->memory_pressure = 0;
+		return true;
+	}
+	page_counter_charge(&proto->memory_allocated, nr_pages);
+	proto->memory_pressure = 1;
+	return false;
+}
+
+/**
+ * mem_cgroup_uncharge_skmem - uncharge socket memory
+ * @proto - proto to uncharge
+ * @nr_pages - number of pages to uncharge
+ */
+void mem_cgroup_uncharge_skmem(struct cg_proto *proto, unsigned int nr_pages)
+{
+	page_counter_uncharge(&proto->memory_allocated, nr_pages);
+}
+
 #endif
 
 #ifdef CONFIG_MEMCG_KMEM
