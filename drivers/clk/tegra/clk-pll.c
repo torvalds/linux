@@ -2012,7 +2012,7 @@ static int clk_plle_tegra210_enable(struct clk_hw *hw)
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table sel;
 	u32 val;
-	int ret;
+	int ret = 0;
 	unsigned long flags = 0;
 	unsigned long input_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 
@@ -2022,15 +2022,13 @@ static int clk_plle_tegra210_enable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
+	val = pll_readl(pll->params->aux_reg, pll);
+	if (val & PLLE_AUX_SEQ_ENABLE)
+		goto out;
+
 	val = pll_readl_base(pll);
 	val &= ~BIT(30); /* Disable lock override */
 	pll_writel_base(val, pll);
-
-	val = pll_readl(pll->params->aux_reg, pll);
-	val |= PLLE_AUX_ENABLE_SWCTL;
-	val &= ~PLLE_AUX_SEQ_ENABLE;
-	pll_writel(val, pll->params->aux_reg, pll);
-	udelay(1);
 
 	val = pll_readl_misc(pll);
 	val |= PLLE_MISC_LOCK_ENABLE;
@@ -2104,15 +2102,25 @@ static void clk_plle_tegra210_disable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
+	/* If PLLE HW sequencer is enabled, SW should not disable PLLE */
+	val = pll_readl(pll->params->aux_reg, pll);
+	if (val & PLLE_AUX_SEQ_ENABLE)
+		goto out;
+
 	val = pll_readl_base(pll);
 	val &= ~PLLE_BASE_ENABLE;
 	pll_writel_base(val, pll);
+
+	val = pll_readl(pll->params->aux_reg, pll);
+	val |= PLLE_AUX_ENABLE_SWCTL | PLLE_AUX_SS_SWCTL;
+	pll_writel(val, pll->params->aux_reg, pll);
 
 	val = pll_readl_misc(pll);
 	val |= PLLE_MISC_IDDQ_SW_CTRL | PLLE_MISC_IDDQ_SW_VALUE;
 	pll_writel_misc(val, pll);
 	udelay(1);
 
+out:
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
 }
