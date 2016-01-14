@@ -881,9 +881,6 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
 	pmd = pmd_wrprotect(pmd);
 	pmd = pmd_clear_soft_dirty(pmd);
 
-	if (vma->vm_flags & VM_SOFTDIRTY)
-		vma->vm_flags &= ~VM_SOFTDIRTY;
-
 	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
 }
 #else
