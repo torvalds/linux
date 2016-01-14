@@ -897,10 +897,10 @@ static int enqueue_hrtimer(struct hrtimer *timer,
  */
 static void __remove_hrtimer(struct hrtimer *timer,
 			     struct hrtimer_clock_base *base,
-			     unsigned long newstate, int reprogram)
+			     u8 newstate, int reprogram)
 {
 	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
-	unsigned int state = timer->state;
+	u8 state = timer->state;
 
 	timer->state = newstate;
 	if (!(state & HRTIMER_STATE_ENQUEUED))
@@ -930,7 +930,7 @@ static inline int
 remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base, bool restart)
 {
 	if (hrtimer_is_queued(timer)) {
-		unsigned long state = timer->state;
+		u8 state = timer->state;
 		int reprogram;
 
 		/*
@@ -954,6 +954,22 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base, bool rest
 	return 0;
 }
 
+static inline ktime_t hrtimer_update_lowres(struct hrtimer *timer, ktime_t tim,
+					    const enum hrtimer_mode mode)
+{
+#ifdef CONFIG_TIME_LOW_RES
+	/*
+	 * CONFIG_TIME_LOW_RES indicates that the system has no way to return
+	 * granular time values. For relative timers we add hrtimer_resolution
+	 * (i.e. one jiffie) to prevent short timeouts.
+	 */
+	timer->is_rel = mode & HRTIMER_MODE_REL;
+	if (timer->is_rel)
+		tim = ktime_add_safe(tim, ktime_set(0, hrtimer_resolution));
+#endif
+	return tim;
+}
+
 /**
  * hrtimer_start_range_ns - (re)start an hrtimer on the current CPU
  * @timer:	the timer to be added
@@ -974,19 +990,10 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	/* Remove an active timer from the queue: */
 	remove_hrtimer(timer, base, true);
 
-	if (mode & HRTIMER_MODE_REL) {
+	if (mode & HRTIMER_MODE_REL)
 		tim = ktime_add_safe(tim, base->get_time());
-		/*
-		 * CONFIG_TIME_LOW_RES is a temporary way for architectures
-		 * to signal that they simply return xtime in
-		 * do_gettimeoffset(). In this case we want to round up by
-		 * resolution when starting a relative timer, to avoid short
-		 * timeouts. This will go away with the GTOD framework.
-		 */
-#ifdef CONFIG_TIME_LOW_RES
-		tim = ktime_add_safe(tim, ktime_set(0, hrtimer_resolution));
-#endif
-	}
+
+	tim = hrtimer_update_lowres(timer, tim, mode);
 
 	hrtimer_set_expires_range_ns(timer, tim, delta_ns);
 
@@ -1074,19 +1081,23 @@ EXPORT_SYMBOL_GPL(hrtimer_cancel);
 /**
  * hrtimer_get_remaining - get remaining time for the timer
  * @timer:	the timer to read
+ * @adjust:	adjust relative timers when CONFIG_TIME_LOW_RES=y
  */
-ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
+ktime_t __hrtimer_get_remaining(const struct hrtimer *timer, bool adjust)
 {
 	unsigned long flags;
 	ktime_t rem;
 
 	lock_hrtimer_base(timer, &flags);
-	rem = hrtimer_expires_remaining(timer);
+	if (IS_ENABLED(CONFIG_TIME_LOW_RES) && adjust)
+		rem = hrtimer_expires_remaining_adjusted(timer);
+	else
+		rem = hrtimer_expires_remaining(timer);
 	unlock_hrtimer_base(timer, &flags);
 
 	return rem;
 }
-EXPORT_SYMBOL_GPL(hrtimer_get_remaining);
+EXPORT_SYMBOL_GPL(__hrtimer_get_remaining);
 
 #ifdef CONFIG_NO_HZ_COMMON
 /**
@@ -1218,6 +1229,14 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 	__remove_hrtimer(timer, base, HRTIMER_STATE_INACTIVE, 0);
 	timer_stats_account_hrtimer(timer);
 	fn = timer->function;
+
+	/*
+	 * Clear the 'is relative' flag for the TIME_LOW_RES case. If the
+	 * timer is restarted with a period then it becomes an absolute
+	 * timer. If its not restarted it does not matter.
+	 */
+	if (IS_ENABLED(CONFIG_TIME_LOW_RES))
+		timer->is_rel = false;
 
 	/*
 	 * Because we run timers from hardirq context, there is no chance

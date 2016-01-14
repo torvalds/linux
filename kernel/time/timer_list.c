@@ -69,7 +69,7 @@ print_timer(struct seq_file *m, struct hrtimer *taddr, struct hrtimer *timer,
 	print_name_offset(m, taddr);
 	SEQ_printf(m, ", ");
 	print_name_offset(m, timer->function);
-	SEQ_printf(m, ", S:%02lx", timer->state);
+	SEQ_printf(m, ", S:%02x", timer->state);
 #ifdef CONFIG_TIMER_STATS
 	SEQ_printf(m, ", ");
 	print_name_offset(m, timer->start_site);
