@@ -571,19 +571,17 @@ static inline bool zone_is_empty(struct zone *zone)
 /* Maximum number of zones on a zonelist */
 #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
 
+enum {
+	ZONELIST_FALLBACK,	/* zonelist with fallback */
 #ifdef CONFIG_NUMA
-
-/*
- * The NUMA zonelists are doubled because we need zonelists that restrict the
- * allocations to a single node for __GFP_THISNODE.
- *
- * [0]	: Zonelist with fallback
- * [1]	: No fallback (__GFP_THISNODE)
- */
-#define MAX_ZONELISTS 2
-#else
-#define MAX_ZONELISTS 1
+	/*
+	 * The NUMA zonelists are doubled because we need zonelists that
+	 * restrict the allocations to a single node for __GFP_THISNODE.
+	 */
+	ZONELIST_NOFALLBACK,	/* zonelist without fallback (__GFP_THISNODE) */
 #endif
+	MAX_ZONELISTS
+};
 
 /*
  * This struct contains information about a zone in a zonelist. It is stored
