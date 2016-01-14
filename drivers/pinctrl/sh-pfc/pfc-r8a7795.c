@@ -478,7 +478,6 @@ FM(IP16_31_28)	IP16_31_28
 #define MOD_SEL2_31		FM(I2C_SEL_5_0)		FM(I2C_SEL_5_1)
 #define MOD_SEL2_30		FM(I2C_SEL_3_0)		FM(I2C_SEL_3_1)
 #define MOD_SEL2_29		FM(I2C_SEL_0_0)		FM(I2C_SEL_0_1)
-#define MOD_SEL2_2_1		FM(SEL_VSP_0)		FM(SEL_VSP_1)		FM(SEL_VSP_2)		FM(SEL_VSP_3)
 #define MOD_SEL2_0		FM(SEL_VIN4_0)		FM(SEL_VIN4_1)
 
 #define PINMUX_MOD_SELS\
@@ -512,7 +511,7 @@ MOD_SEL0_7_6 \
 MOD_SEL0_5_4		MOD_SEL1_5 \
 			MOD_SEL1_4 \
 MOD_SEL0_3		MOD_SEL1_3 \
-MOD_SEL0_2_1		MOD_SEL1_2		MOD_SEL2_2_1 \
+MOD_SEL0_2_1		MOD_SEL1_2 \
 			MOD_SEL1_1 \
 			MOD_SEL1_0		MOD_SEL2_0
 
@@ -4213,7 +4212,8 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		/* RESERVED 3 */
 		0, 0,
-		MOD_SEL2_2_1
+		/* RESERVED 2, 1 */
+		0, 0, 0, 0,
 		MOD_SEL2_0 }
 	},
 	{ },
