@@ -2469,9 +2469,9 @@ static void serial8250_set_divisor(struct uart_port *port, unsigned int baud,
 		serial_port_out(port, 0x2, quot_frac);
 }
 
-static unsigned int
-serial8250_get_baud_rate(struct uart_port *port, struct ktermios *termios,
-			 struct ktermios *old)
+static unsigned int serial8250_get_baud_rate(struct uart_port *port,
+					     struct ktermios *termios,
+					     struct ktermios *old)
 {
 	unsigned int tolerance = port->uartclk / 100;
 

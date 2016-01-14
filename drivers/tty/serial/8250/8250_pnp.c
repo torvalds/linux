@@ -427,8 +427,8 @@ static bool check_resources(struct pnp_dev *dev)
 static int serial_pnp_guess_board(struct pnp_dev *dev)
 {
 	if (!(check_name(pnp_dev_name(dev)) ||
-		(dev->card && check_name(dev->card->name))))
-			return -ENODEV;
+	    (dev->card && check_name(dev->card->name))))
+		return -ENODEV;
 
 	if (check_resources(dev))
 		return 0;

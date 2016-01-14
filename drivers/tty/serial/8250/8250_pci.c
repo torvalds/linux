@@ -842,15 +842,15 @@ static int pci_netmos_init(struct pci_dev *dev)
 		return 0;
 
 	switch (dev->device) { /* FALLTHROUGH on all */
-		case PCI_DEVICE_ID_NETMOS_9904:
-		case PCI_DEVICE_ID_NETMOS_9912:
-		case PCI_DEVICE_ID_NETMOS_9922:
-		case PCI_DEVICE_ID_NETMOS_9900:
-			num_serial = pci_netmos_9900_numports(dev);
-			break;
+	case PCI_DEVICE_ID_NETMOS_9904:
+	case PCI_DEVICE_ID_NETMOS_9912:
+	case PCI_DEVICE_ID_NETMOS_9922:
+	case PCI_DEVICE_ID_NETMOS_9900:
+		num_serial = pci_netmos_9900_numports(dev);
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 
 	if (num_serial == 0) {
