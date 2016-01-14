@@ -260,7 +260,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 		enum vmpressure_levels level;
 
 		/* For now, no users for root-level efficiency */
-		if (memcg == root_mem_cgroup)
+		if (!memcg || memcg == root_mem_cgroup)
 			return;
 
 		spin_lock(&vmpr->sr_lock);
