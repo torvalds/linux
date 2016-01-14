@@ -14905,13 +14905,14 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
 	intel_fb->obj = obj;
-	intel_fb->obj->framebuffer_references++;
 
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
 		return ret;
 	}
+
+	intel_fb->obj->framebuffer_references++;
 
 	return 0;
 }
