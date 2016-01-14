@@ -209,7 +209,11 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 }
 
 #if 1
-extern void wifi_card_detect(void);
+/* Murata debug: this function is re-worked because "wifi_plat_data" is NULL.  */
+/* Need to investigate how this pointer/data is being passed into probe function. */
+/* "wifi_plat_data" used to be "wifi_ctrl".  */
+/* All this code is done for only one reason -- calling mmc_detect_change() in /drivers/mmc/core/core.c. */
+extern void wifi_card_detect(bool);
 int wifi_platform_bus_enumerate(wifi_adapter_info_t *adapter, bool device_present)
 {
         int err = 0;
@@ -222,13 +226,13 @@ int wifi_platform_bus_enumerate(wifi_adapter_info_t *adapter, bool device_presen
 
         DHD_ERROR(("%s device present %d\n", __FUNCTION__, device_present));
 
-        if (!adapter->wifi_plat_data) {
-                wifi_card_detect(); /* hook for card_detect */
-        } else {
-                plat_data = adapter->wifi_plat_data;
-                if (plat_data->set_carddetect)
-                        err = plat_data->set_carddetect(device_present);
-        }
+	if (!adapter->wifi_plat_data) {
+		wifi_card_detect(device_present); /* hook for card_detect */
+	} else {
+		plat_data = adapter->wifi_plat_data;
+		if (plat_data->set_carddetect)
+			err = plat_data->set_carddetect(device_present);
+	}
 
         return 0; /* force success status returned */
 }

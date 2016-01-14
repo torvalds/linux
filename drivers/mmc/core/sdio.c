@@ -804,8 +804,21 @@ static void mmc_sdio_remove(struct mmc_host *host)
 	}
 
 	mmc_remove_card(host->card);
+	/* clear rescan_entered in case force remove */
+	host->rescan_entered = 0;
 	host->card = NULL;
 }
+
+void mmc_sdio_force_remove(struct mmc_host *host)
+{
+	mmc_sdio_remove(host);
+
+	mmc_claim_host(host);
+	mmc_detach_bus(host);
+	mmc_power_off(host);
+	mmc_release_host(host);
+}
+EXPORT_SYMBOL_GPL(mmc_sdio_force_remove);
 
 /*
  * Card detection - card is alive.

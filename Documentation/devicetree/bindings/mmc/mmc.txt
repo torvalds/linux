@@ -12,6 +12,8 @@ Only one of the properties in this section should be supplied:
   - broken-cd: There is no card detection available; polling must be used.
   - cd-gpios: Specify GPIOs for card detection, see gpio binding
   - non-removable: non-removable slot (like eMMC); assume always present.
+  - cd-post: postone card detect from start host for non-removable cards
+	     and let client driver to start it when ready
 
 Optional properties:
 - bus-width: Number of data lines, can be <1>, <4>, or <8>.  The default

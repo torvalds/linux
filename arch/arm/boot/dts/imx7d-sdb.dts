@@ -1151,6 +1151,8 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	enable-sdio-wakeup;
 	keep-power-in-suspend;
+	non-removable;
+	cd-post;
 	wifi-host;
 	status = "okay";
 };

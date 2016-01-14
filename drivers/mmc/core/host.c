@@ -447,6 +447,8 @@ int mmc_of_parse(struct mmc_host *host)
 	/* Parse Card Detection */
 	if (of_property_read_bool(np, "non-removable")) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
+		if (of_property_read_bool(np, "cd-post"))
+			host->caps2 |= MMC_CAP2_CD_POST;
 	} else {
 		cd_cap_invert = of_property_read_bool(np, "cd-inverted");
 

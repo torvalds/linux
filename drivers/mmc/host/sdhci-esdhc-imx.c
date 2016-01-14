@@ -145,10 +145,13 @@
 #define ESDHC_STROBE_DLL_CLK_FREQ	100000000
 
 static struct mmc_host *wifi_mmc_host;
-void wifi_card_detect(void)
+void wifi_card_detect(bool on)
 {
 	WARN_ON(!wifi_mmc_host);
-	mmc_detect_change(wifi_mmc_host, 0);
+	if (on)
+		mmc_detect_change(wifi_mmc_host, 0);
+	else
+		mmc_sdio_force_remove(wifi_mmc_host);
 }
 EXPORT_SYMBOL(wifi_card_detect);
 
