@@ -211,9 +211,35 @@ struct mlx5_ib_qp_trans {
 	u8			resp_depth;
 };
 
+struct mlx5_ib_rq {
+	struct mlx5_ib_qp_base base;
+	struct mlx5_ib_wq	*rq;
+	struct mlx5_ib_ubuffer	ubuffer;
+	struct mlx5_db		*doorbell;
+	u32			tirn;
+	u8			state;
+};
+
+struct mlx5_ib_sq {
+	struct mlx5_ib_qp_base base;
+	struct mlx5_ib_wq	*sq;
+	struct mlx5_ib_ubuffer  ubuffer;
+	struct mlx5_db		*doorbell;
+	u32			tisn;
+	u8			state;
+};
+
+struct mlx5_ib_raw_packet_qp {
+	struct mlx5_ib_sq sq;
+	struct mlx5_ib_rq rq;
+};
+
 struct mlx5_ib_qp {
 	struct ib_qp		ibqp;
-	struct mlx5_ib_qp_trans trans_qp;
+	union {
+		struct mlx5_ib_qp_trans trans_qp;
+		struct mlx5_ib_raw_packet_qp raw_packet_qp;
+	};
 	struct mlx5_buf		buf;
 
 	struct mlx5_db		db;

@@ -145,6 +145,7 @@ struct mlx5_ib_create_qp {
 	__u32	flags;
 	__u32	uidx;
 	__u32	reserved0;
+	__u64	sq_buf_addr;
 };
 
 struct mlx5_ib_create_qp_resp {
