@@ -22,11 +22,11 @@
 #define NORM_FREQ_LEN 32
 
 static struct option set_opts[] = {
-	{ .name = "min",	.has_arg = required_argument,	.flag = NULL,	.val = 'd'},
-	{ .name = "max",	.has_arg = required_argument,	.flag = NULL,	.val = 'u'},
-	{ .name = "governor",	.has_arg = required_argument,	.flag = NULL,	.val = 'g'},
-	{ .name = "freq",	.has_arg = required_argument,	.flag = NULL,	.val = 'f'},
-	{ .name = "related",	.has_arg = no_argument,		.flag = NULL,	.val='r'},
+	{"min",		required_argument,	NULL, 'd'},
+	{"max",		required_argument,	NULL, 'u'},
+	{"governor",	required_argument,	NULL, 'g'},
+	{"freq",	required_argument,	NULL, 'f'},
+	{"related",	no_argument,		NULL, 'r'},
 	{ },
 };
 

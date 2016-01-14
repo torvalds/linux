@@ -267,7 +267,6 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.shost_attrs		= qla2x00_host_attrs,
 
 	.supported_mode		= MODE_INITIATOR,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 

@@ -21,5 +21,5 @@
 	@ find cause bits that are unmasked
 	ands	\irqstat, \irqstat, \tmp	@ clear Z flag if any
 	clzne	\irqnr,	\irqstat		@ calc irqnr
-	rsbne	\irqnr, \irqnr, #31
+	rsbne	\irqnr, \irqnr, #32
 	.endm

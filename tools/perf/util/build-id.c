@@ -76,6 +76,7 @@ struct perf_tool build_id__mark_dso_hit_ops = {
 	.exit	= perf_event__exit_del_thread,
 	.attr		 = perf_event__process_attr,
 	.build_id	 = perf_event__process_build_id,
+	.ordered_events	 = true,
 };
 
 int build_id__sprintf(const u8 *build_id, int len, char *bf)

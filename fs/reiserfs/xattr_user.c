@@ -7,8 +7,8 @@
 #include <linux/uaccess.h>
 
 static int
-user_get(struct dentry *dentry, const char *name, void *buffer, size_t size,
-	 int handler_flags)
+user_get(const struct xattr_handler *handler, struct dentry *dentry,
+	 const char *name, void *buffer, size_t size)
 {
 
 	if (strlen(name) < sizeof(XATTR_USER_PREFIX))
@@ -19,8 +19,8 @@ user_get(struct dentry *dentry, const char *name, void *buffer, size_t size,
 }
 
 static int
-user_set(struct dentry *dentry, const char *name, const void *buffer,
-	 size_t size, int flags, int handler_flags)
+user_set(const struct xattr_handler *handler, struct dentry *dentry,
+	 const char *name, const void *buffer, size_t size, int flags)
 {
 	if (strlen(name) < sizeof(XATTR_USER_PREFIX))
 		return -EINVAL;
@@ -30,8 +30,9 @@ user_set(struct dentry *dentry, const char *name, const void *buffer,
 	return reiserfs_xattr_set(d_inode(dentry), name, buffer, size, flags);
 }
 
-static size_t user_list(struct dentry *dentry, char *list, size_t list_size,
-			const char *name, size_t name_len, int handler_flags)
+static size_t user_list(const struct xattr_handler *handler,
+			struct dentry *dentry, char *list, size_t list_size,
+			const char *name, size_t name_len)
 {
 	const size_t len = name_len + 1;
 

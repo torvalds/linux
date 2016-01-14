@@ -6569,12 +6569,12 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		default:
@@ -6586,12 +6586,12 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		default:

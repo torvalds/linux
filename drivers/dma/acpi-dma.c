@@ -161,10 +161,8 @@ int acpi_dma_controller_register(struct device *dev,
 		return -EINVAL;
 
 	/* Check if the device was enumerated by ACPI */
-	if (!ACPI_HANDLE(dev))
-		return -EINVAL;
-
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
 		return -EINVAL;
 
 	adma = kzalloc(sizeof(*adma), GFP_KERNEL);
@@ -359,10 +357,11 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	int found;
 
 	/* Check if the device was enumerated by ACPI */
-	if (!dev || !ACPI_HANDLE(dev))
+	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
 		return ERR_PTR(-ENODEV);
 
 	memset(&pdata, 0, sizeof(pdata));

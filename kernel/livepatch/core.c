@@ -294,6 +294,12 @@ static int klp_write_object_relocations(struct module *pmod,
 
 	for (reloc = obj->relocs; reloc->name; reloc++) {
 		if (!klp_is_module(obj)) {
+
+#if defined(CONFIG_RANDOMIZE_BASE)
+			/* If KASLR has been enabled, adjust old value accordingly */
+			if (kaslr_enabled())
+				reloc->val += kaslr_offset();
+#endif
 			ret = klp_verify_vmlinux_symbol(reloc->name,
 							reloc->val);
 			if (ret)

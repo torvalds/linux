@@ -17,6 +17,7 @@ config XTENSA
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUTEX_CMPXCHG if !MMU
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
@@ -397,6 +398,20 @@ config SIMDISK1_FILENAME
 
 source "mm/Kconfig"
 
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
@@ -408,7 +423,7 @@ config DEFAULT_MEM_START
 	hex "Physical address of the default memory area start"
 	depends on PLATFORM_WANT_DEFAULT_MEM
 	default 0x00000000 if MMU
-	default 0x40000000 if !MMU
+	default 0x60000000 if !MMU
 	help
 	  This is a fallback start address of the default memory area, it is
 	  used when no physical memory size is passed through DTB or through

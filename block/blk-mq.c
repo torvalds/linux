@@ -244,11 +244,11 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
-	blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_WAIT,
+	blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_DIRECT_RECLAIM,
 			reserved, ctx, hctx);
 
 	rq = __blk_mq_alloc_request(&alloc_data, rw);
-	if (!rq && (gfp & __GFP_WAIT)) {
+	if (!rq && (gfp & __GFP_DIRECT_RECLAIM)) {
 		__blk_mq_run_hw_queue(hctx);
 		blk_mq_put_ctx(ctx);
 
@@ -358,7 +358,7 @@ static void blk_mq_ipi_complete_request(struct request *rq)
 	put_cpu();
 }
 
-void __blk_mq_complete_request(struct request *rq)
+static void __blk_mq_complete_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
@@ -1186,7 +1186,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 		ctx = blk_mq_get_ctx(q);
 		hctx = q->mq_ops->map_queue(q, ctx->cpu);
 		blk_mq_set_alloc_data(&alloc_data, q,
-				__GFP_WAIT|GFP_ATOMIC, false, ctx, hctx);
+				__GFP_RECLAIM|__GFP_HIGH, false, ctx, hctx);
 		rq = __blk_mq_alloc_request(&alloc_data, rw);
 		ctx = alloc_data.ctx;
 		hctx = alloc_data.hctx;
@@ -1198,7 +1198,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	return rq;
 }
 
-static int blk_mq_direct_issue_request(struct request *rq)
+static int blk_mq_direct_issue_request(struct request *rq, blk_qc_t *cookie)
 {
 	int ret;
 	struct request_queue *q = rq->q;
@@ -1209,6 +1209,7 @@ static int blk_mq_direct_issue_request(struct request *rq)
 		.list = NULL,
 		.last = 1
 	};
+	blk_qc_t new_cookie = blk_tag_to_qc_t(rq->tag, hctx->queue_num);
 
 	/*
 	 * For OK queue, we are done. For error, kill it. Any other
@@ -1216,18 +1217,21 @@ static int blk_mq_direct_issue_request(struct request *rq)
 	 * would have done
 	 */
 	ret = q->mq_ops->queue_rq(hctx, &bd);
-	if (ret == BLK_MQ_RQ_QUEUE_OK)
+	if (ret == BLK_MQ_RQ_QUEUE_OK) {
+		*cookie = new_cookie;
 		return 0;
-	else {
-		__blk_mq_requeue_request(rq);
-
-		if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
-			rq->errors = -EIO;
-			blk_mq_end_request(rq, rq->errors);
-			return 0;
-		}
-		return -1;
 	}
+
+	__blk_mq_requeue_request(rq);
+
+	if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
+		*cookie = BLK_QC_T_NONE;
+		rq->errors = -EIO;
+		blk_mq_end_request(rq, rq->errors);
+		return 0;
+	}
+
+	return -1;
 }
 
 /*
@@ -1235,7 +1239,7 @@ static int blk_mq_direct_issue_request(struct request *rq)
  * but will attempt to bypass the hctx queueing if we can go straight to
  * hardware for SYNC IO.
  */
-static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 {
 	const int is_sync = rw_is_sync(bio->bi_rw);
 	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
@@ -1244,12 +1248,13 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	unsigned int request_count = 0;
 	struct blk_plug *plug;
 	struct request *same_queue_rq = NULL;
+	blk_qc_t cookie;
 
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
 		bio_io_error(bio);
-		return;
+		return BLK_QC_T_NONE;
 	}
 
 	blk_queue_split(q, &bio, q->bio_split);
@@ -1257,13 +1262,15 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (!is_flush_fua && !blk_queue_nomerges(q)) {
 		if (blk_attempt_plug_merge(q, bio, &request_count,
 					   &same_queue_rq))
-			return;
+			return BLK_QC_T_NONE;
 	} else
 		request_count = blk_plug_queued_count(q);
 
 	rq = blk_mq_map_request(q, bio, &data);
 	if (unlikely(!rq))
-		return;
+		return BLK_QC_T_NONE;
+
+	cookie = blk_tag_to_qc_t(rq->tag, data.hctx->queue_num);
 
 	if (unlikely(is_flush_fua)) {
 		blk_mq_bio_to_request(rq, bio);
@@ -1284,15 +1291,16 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_bio_to_request(rq, bio);
 
 		/*
-		 * we do limited pluging. If bio can be merged, do merge.
+		 * We do limited pluging. If the bio can be merged, do that.
 		 * Otherwise the existing request in the plug list will be
 		 * issued. So the plug list will have one request at most
 		 */
 		if (plug) {
 			/*
 			 * The plug list might get flushed before this. If that
-			 * happens, same_queue_rq is invalid and plug list is empty
-			 **/
+			 * happens, same_queue_rq is invalid and plug list is
+			 * empty
+			 */
 			if (same_queue_rq && !list_empty(&plug->mq_list)) {
 				old_rq = same_queue_rq;
 				list_del_init(&old_rq->queuelist);
@@ -1302,11 +1310,11 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 			old_rq = rq;
 		blk_mq_put_ctx(data.ctx);
 		if (!old_rq)
-			return;
-		if (!blk_mq_direct_issue_request(old_rq))
-			return;
+			goto done;
+		if (!blk_mq_direct_issue_request(old_rq, &cookie))
+			goto done;
 		blk_mq_insert_request(old_rq, false, true, true);
-		return;
+		goto done;
 	}
 
 	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
@@ -1320,13 +1328,15 @@ run_queue:
 		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
 	blk_mq_put_ctx(data.ctx);
+done:
+	return cookie;
 }
 
 /*
  * Single hardware queue variant. This will attempt to use any per-process
  * plug for merging and IO deferral.
  */
-static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 {
 	const int is_sync = rw_is_sync(bio->bi_rw);
 	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
@@ -1334,23 +1344,26 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	unsigned int request_count = 0;
 	struct blk_map_ctx data;
 	struct request *rq;
+	blk_qc_t cookie;
 
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
 		bio_io_error(bio);
-		return;
+		return BLK_QC_T_NONE;
 	}
 
 	blk_queue_split(q, &bio, q->bio_split);
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
-		return;
+		return BLK_QC_T_NONE;
 
 	rq = blk_mq_map_request(q, bio, &data);
 	if (unlikely(!rq))
-		return;
+		return BLK_QC_T_NONE;
+
+	cookie = blk_tag_to_qc_t(rq->tag, data.hctx->queue_num);
 
 	if (unlikely(is_flush_fua)) {
 		blk_mq_bio_to_request(rq, bio);
@@ -1368,13 +1381,16 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_bio_to_request(rq, bio);
 		if (!request_count)
 			trace_block_plug(q);
-		else if (request_count >= BLK_MAX_REQUEST_COUNT) {
+
+		blk_mq_put_ctx(data.ctx);
+
+		if (request_count >= BLK_MAX_REQUEST_COUNT) {
 			blk_flush_plug_list(plug, false);
 			trace_block_plug(q);
 		}
+
 		list_add_tail(&rq->queuelist, &plug->mq_list);
-		blk_mq_put_ctx(data.ctx);
-		return;
+		return cookie;
 	}
 
 	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
@@ -1389,6 +1405,7 @@ run_queue:
 	}
 
 	blk_mq_put_ctx(data.ctx);
+	return cookie;
 }
 
 /*

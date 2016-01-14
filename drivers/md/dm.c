@@ -591,7 +591,7 @@ retry:
 
 out:
 	dm_put_live_table(md, *srcu_idx);
-	if (r == -ENOTCONN) {
+	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
 		msleep(10);
 		goto retry;
 	}
@@ -603,9 +603,10 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	struct dm_target *tgt;
+	struct block_device *tgt_bdev = NULL;
 	int srcu_idx, r;
 
-	r = dm_get_live_table_for_ioctl(md, &tgt, &bdev, &mode, &srcu_idx);
+	r = dm_get_live_table_for_ioctl(md, &tgt, &tgt_bdev, &mode, &srcu_idx);
 	if (r < 0)
 		return r;
 
@@ -620,7 +621,7 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			goto out;
 	}
 
-	r =  __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	r =  __blkdev_driver_ioctl(tgt_bdev, mode, cmd, arg);
 out:
 	dm_put_live_table(md, srcu_idx);
 	return r;
@@ -1755,7 +1756,7 @@ static void __split_and_process_bio(struct mapped_device *md,
  * The request function that just remaps the bio built up by
  * dm_merge_bvec.
  */
-static void dm_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
@@ -1774,12 +1775,12 @@ static void dm_make_request(struct request_queue *q, struct bio *bio)
 			queue_io(md, bio);
 		else
 			bio_io_error(bio);
-		return;
+		return BLK_QC_T_NONE;
 	}
 
 	__split_and_process_bio(md, map, bio);
 	dm_put_live_table(md, srcu_idx);
-	return;
+	return BLK_QC_T_NONE;
 }
 
 int dm_request_based(struct mapped_device *md)

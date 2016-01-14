@@ -13,11 +13,5 @@
 };
 
 &gpio {
-	pinctrl-0 = <&gpioout &alt0 &i2s_alt2 &alt3>;
-
-	/* I2S interface */
-	i2s_alt2: i2s_alt2 {
-		brcm,pins = <28 29 30 31>;
-		brcm,function = <BCM2835_FSEL_ALT2>;
-	};
+	pinctrl-0 = <&gpioout &alt0 &alt3>;
 };

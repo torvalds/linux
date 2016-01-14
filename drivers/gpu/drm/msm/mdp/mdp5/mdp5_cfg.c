@@ -27,6 +27,8 @@ const struct mdp5_cfg_hw msm8x74v1_config = {
 	.mdp = {
 		.count = 1,
 		.base = { 0x00100 },
+		.caps = MDP_CAP_SMP |
+			0,
 	},
 	.smp = {
 		.mmb_count = 22,
@@ -96,6 +98,8 @@ const struct mdp5_cfg_hw msm8x74v2_config = {
 	.mdp = {
 		.count = 1,
 		.base = { 0x00100 },
+		.caps = MDP_CAP_SMP |
+			0,
 	},
 	.smp = {
 		.mmb_count = 22,
@@ -165,6 +169,8 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.mdp = {
 		.count = 1,
 		.base = { 0x00100 },
+		.caps = MDP_CAP_SMP |
+			0,
 	},
 	.smp = {
 		.mmb_count = 44,
@@ -242,6 +248,8 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.mdp = {
 		.count = 1,
 		.base = { 0x01000 },
+		.caps = MDP_CAP_SMP |
+			0,
 	},
 	.smp = {
 		.mmb_count = 8,
@@ -301,6 +309,8 @@ const struct mdp5_cfg_hw msm8x94_config = {
 	.mdp = {
 		.count = 1,
 		.base = { 0x01000 },
+		.caps = MDP_CAP_SMP |
+			0,
 	},
 	.smp = {
 		.mmb_count = 44,
@@ -370,7 +380,89 @@ const struct mdp5_cfg_hw msm8x94_config = {
 			[3] = INTF_HDMI,
 		},
 	},
-	.max_clk = 320000000,
+	.max_clk = 400000000,
+};
+
+const struct mdp5_cfg_hw msm8x96_config = {
+	.name = "msm8x96",
+	.mdp = {
+		.count = 1,
+		.base = { 0x01000 },
+		.caps = MDP_CAP_DSC |
+			MDP_CAP_CDM |
+			0,
+	},
+	.ctl = {
+		.count = 5,
+		.base = { 0x02000, 0x02200, 0x02400, 0x02600, 0x02800 },
+		.flush_hw_mask = 0xf4ffffff,
+	},
+	.pipe_vig = {
+		.count = 4,
+		.base = { 0x05000, 0x07000, 0x09000, 0x0b000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SCALE	|
+			MDP_PIPE_CAP_CSC	|
+			MDP_PIPE_CAP_DECIMATION	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			0,
+	},
+	.pipe_rgb = {
+		.count = 4,
+		.base = { 0x15000, 0x17000, 0x19000, 0x1b000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SCALE	|
+			MDP_PIPE_CAP_DECIMATION	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			0,
+	},
+	.pipe_dma = {
+		.count = 2,
+		.base = { 0x25000, 0x27000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			0,
+	},
+	.lm = {
+		.count = 6,
+		.base = { 0x45000, 0x46000, 0x47000, 0x48000, 0x49000, 0x4a000 },
+		.nb_stages = 8,
+		.max_width = 2560,
+		.max_height = 0xFFFF,
+	},
+	.dspp = {
+		.count = 2,
+		.base = { 0x55000, 0x57000 },
+	},
+	.ad = {
+		.count = 3,
+		.base = { 0x79000, 0x79800, 0x7a000 },
+	},
+	.pp = {
+		.count = 4,
+		.base = { 0x71000, 0x71800, 0x72000, 0x72800 },
+	},
+	.cdm = {
+		.count = 1,
+		.base = { 0x7a200 },
+	},
+	.dsc = {
+		.count = 2,
+		.base = { 0x81000, 0x81400 },
+	},
+	.intf = {
+		.base = { 0x6b000, 0x6b800, 0x6c000, 0x6c800, 0x6d000 },
+		.connect = {
+			[0] = INTF_DISABLED,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+			[3] = INTF_HDMI,
+		},
+	},
+	.max_clk = 412500000,
 };
 
 static const struct mdp5_cfg_handler cfg_handlers[] = {
@@ -379,6 +471,7 @@ static const struct mdp5_cfg_handler cfg_handlers[] = {
 	{ .revision = 3, .config = { .hw = &apq8084_config } },
 	{ .revision = 6, .config = { .hw = &msm8x16_config } },
 	{ .revision = 9, .config = { .hw = &msm8x94_config } },
+	{ .revision = 7, .config = { .hw = &msm8x96_config } },
 };
 
 static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev);

@@ -1041,7 +1041,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	WARN_ON(ib->length_dw > num_dw);
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vm_free_job,
-						 AMDGPU_FENCE_OWNER_MOVE,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
 						 fence);
 	if (r)
 		goto error_free;
@@ -1072,6 +1072,11 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	spin_lock(&glob->lru_lock);
 	ret = drm_mm_dump_table(m, mm);
 	spin_unlock(&glob->lru_lock);
+	if (ttm_pl == TTM_PL_VRAM)
+		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
+			   adev->mman.bdev.man[ttm_pl].size,
+			   (u64)atomic64_read(&adev->vram_usage) >> 20,
+			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
 	return ret;
 }
 

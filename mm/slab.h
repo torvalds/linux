@@ -170,7 +170,7 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
  * may be allocated or freed using these operations.
  */
 void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-bool __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
 #ifdef CONFIG_MEMCG_KMEM
 /*

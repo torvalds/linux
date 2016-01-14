@@ -1061,7 +1061,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	}
 	build_epilogue(&ctx);
 
-	flush_icache_range((u32)ctx.target, (u32)(ctx.target + ctx.idx));
+	flush_icache_range((u32)header, (u32)(ctx.target + ctx.idx));
 
 #if __LINUX_ARM_ARCH__ < 7
 	if (ctx.imm_count)

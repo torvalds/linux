@@ -13,6 +13,7 @@
 #include <linux/cred.h>
 #include <linux/mm.h>
 #include <linux/printk.h>
+#include <linux/string_helpers.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -25,12 +26,17 @@ static void seq_set_overflow(struct seq_file *m)
 static void *seq_buf_alloc(unsigned long size)
 {
 	void *buf;
+	gfp_t gfp = GFP_KERNEL;
 
 	/*
-	 * __GFP_NORETRY to avoid oom-killings with high-order allocations -
-	 * it's better to fall back to vmalloc() than to kill things.
+	 * For high order allocations, use __GFP_NORETRY to avoid oom-killing -
+	 * it's better to fall back to vmalloc() than to kill things.  For small
+	 * allocations, just use GFP_KERNEL which will oom kill, thus no need
+	 * for vmalloc fallback.
 	 */
-	buf = kmalloc(size, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+	if (size > PAGE_SIZE)
+		gfp |= __GFP_NORETRY | __GFP_NOWARN;
+	buf = kmalloc(size, gfp);
 	if (!buf && size > PAGE_SIZE)
 		buf = vmalloc(size);
 	return buf;
@@ -377,26 +383,12 @@ EXPORT_SYMBOL(seq_release);
  */
 void seq_escape(struct seq_file *m, const char *s, const char *esc)
 {
-	char *end = m->buf + m->size;
-	char *p;
-	char c;
+	char *buf;
+	size_t size = seq_get_buf(m, &buf);
+	int ret;
 
-	for (p = m->buf + m->count; (c = *s) != '\0' && p < end; s++) {
-		if (!strchr(esc, c)) {
-			*p++ = c;
-			continue;
-		}
-		if (p + 3 < end) {
-			*p++ = '\\';
-			*p++ = '0' + ((c & 0300) >> 6);
-			*p++ = '0' + ((c & 070) >> 3);
-			*p++ = '0' + (c & 07);
-			continue;
-		}
-		seq_set_overflow(m);
-		return;
-	}
-	m->count = p - m->buf;
+	ret = string_escape_str(s, buf, size, ESCAPE_OCTAL, esc);
+	seq_commit(m, ret < size ? ret : -1);
 }
 EXPORT_SYMBOL(seq_escape);
 
@@ -773,6 +765,8 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 {
 	const u8 *ptr = buf;
 	int i, linelen, remaining = len;
+	char *buffer;
+	size_t size;
 	int ret;
 
 	if (rowsize != 16 && rowsize != 32)
@@ -794,15 +788,12 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 			break;
 		}
 
+		size = seq_get_buf(m, &buffer);
 		ret = hex_dump_to_buffer(ptr + i, linelen, rowsize, groupsize,
-					 m->buf + m->count, m->size - m->count,
-					 ascii);
-		if (ret >= m->size - m->count) {
-			seq_set_overflow(m);
-		} else {
-			m->count += ret;
-			seq_putc(m, '\n');
-		}
+					 buffer, size, ascii);
+		seq_commit(m, ret < size ? ret : -1);
+
+		seq_putc(m, '\n');
 	}
 }
 EXPORT_SYMBOL(seq_hex_dump);

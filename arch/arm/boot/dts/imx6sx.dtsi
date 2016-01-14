@@ -211,7 +211,7 @@
 					dmas = <&sdma 14 18 0>,
 					       <&sdma 15 18 0>;
 					dma-names = "rx", "tx";
-					clocks = <&clks IMX6SX_CLK_SPDIF>,
+					clocks = <&clks IMX6SX_CLK_SPDIF_GCLK>,
 						 <&clks IMX6SX_CLK_OSC>,
 						 <&clks IMX6SX_CLK_SPDIF>,
 						 <&clks 0>, <&clks 0>, <&clks 0>,

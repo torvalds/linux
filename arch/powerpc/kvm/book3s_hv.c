@@ -2019,7 +2019,7 @@ static bool can_split_piggybacked_subcores(struct core_info *cip)
 			return false;
 		n_subcores += (cip->subcore_threads[sub] - 1) >> 1;
 	}
-	if (n_subcores > 3 || large_sub < 0)
+	if (large_sub < 0 || !subcore_config_ok(n_subcores + 1, 2))
 		return false;
 
 	/*

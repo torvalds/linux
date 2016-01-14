@@ -21,6 +21,9 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 
+/* Lock to allow exclusive modification to the device and opp lists */
+extern struct mutex dev_opp_list_lock;
+
 /*
  * Internal data structure organization with the OPP layer library is as
  * follows:

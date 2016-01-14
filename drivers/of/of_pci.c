@@ -143,26 +143,6 @@ void of_pci_check_probe_only(void)
 }
 EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 
-/**
- * of_pci_dma_configure - Setup DMA configuration
- * @dev: ptr to pci_dev struct of the PCI device
- *
- * Function to update PCI devices's DMA configuration using the same
- * info from the OF node of host bridge's parent (if any).
- */
-void of_pci_dma_configure(struct pci_dev *pci_dev)
-{
-	struct device *dev = &pci_dev->dev;
-	struct device *bridge = pci_get_host_bridge_device(pci_dev);
-
-	if (!bridge->parent)
-		return;
-
-	of_dma_configure(dev, bridge->parent->of_node);
-	pci_put_host_bridge_device(bridge);
-}
-EXPORT_SYMBOL_GPL(of_pci_dma_configure);
-
 #if defined(CONFIG_OF_ADDRESS)
 /**
  * of_pci_get_host_bridge_resources - Parse PCI host bridge resources from DT

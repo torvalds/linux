@@ -1,4 +1,5 @@
 menu "Clock Source drivers"
+	depends on !ARCH_USES_GETTIMEOFFSET
 
 config CLKSRC_OF
 	bool
@@ -122,6 +123,14 @@ config CLKSRC_LPC32XX
 config CLKSRC_PISTACHIO
 	bool
 	select CLKSRC_OF
+
+config CLKSRC_TI_32K
+	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK
+	select CLKSRC_OF if OF
+	help
+	  This option enables support for Texas Instruments 32.768 Hz clocksource
+	  available on many OMAP-like platforms.
 
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32

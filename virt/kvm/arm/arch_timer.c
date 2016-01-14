@@ -221,17 +221,23 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	kvm_timer_update_state(vcpu);
 
 	/*
-	 * If we enter the guest with the virtual input level to the VGIC
-	 * asserted, then we have already told the VGIC what we need to, and
-	 * we don't need to exit from the guest until the guest deactivates
-	 * the already injected interrupt, so therefore we should set the
-	 * hardware active state to prevent unnecessary exits from the guest.
-	 *
-	 * Conversely, if the virtual input level is deasserted, then always
-	 * clear the hardware active state to ensure that hardware interrupts
-	 * from the timer triggers a guest exit.
-	 */
-	if (timer->irq.level)
+	* If we enter the guest with the virtual input level to the VGIC
+	* asserted, then we have already told the VGIC what we need to, and
+	* we don't need to exit from the guest until the guest deactivates
+	* the already injected interrupt, so therefore we should set the
+	* hardware active state to prevent unnecessary exits from the guest.
+	*
+	* Also, if we enter the guest with the virtual timer interrupt active,
+	* then it must be active on the physical distributor, because we set
+	* the HW bit and the guest must be able to deactivate the virtual and
+	* physical interrupt at the same time.
+	*
+	* Conversely, if the virtual input level is deasserted and the virtual
+	* interrupt is not active, then always clear the hardware active state
+	* to ensure that hardware interrupts from the timer triggers a guest
+	* exit.
+	*/
+	if (timer->irq.level || kvm_vgic_map_is_active(vcpu, timer->map))
 		phys_active = true;
 	else
 		phys_active = false;

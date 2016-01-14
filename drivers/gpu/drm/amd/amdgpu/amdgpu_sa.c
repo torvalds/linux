@@ -139,25 +139,6 @@ int amdgpu_sa_bo_manager_suspend(struct amdgpu_device *adev,
 	return r;
 }
 
-static uint32_t amdgpu_sa_get_ring_from_fence(struct fence *f)
-{
-	struct amdgpu_fence *a_fence;
-	struct amd_sched_fence *s_fence;
-
-	s_fence = to_amd_sched_fence(f);
-	if (s_fence) {
-		struct amdgpu_ring *ring;
-
-		ring = container_of(s_fence->sched, struct amdgpu_ring, sched);
-		return ring->idx;
-	}
-
-	a_fence = to_amdgpu_fence(f);
-	if (a_fence)
-		return a_fence->ring->idx;
-	return 0;
-}
-
 static void amdgpu_sa_bo_remove_locked(struct amdgpu_sa_bo *sa_bo)
 {
 	struct amdgpu_sa_manager *sa_manager = sa_bo->manager;
@@ -318,7 +299,7 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	}
 
 	if (best_bo) {
-		uint32_t idx = amdgpu_sa_get_ring_from_fence(best_bo->fence);
+		uint32_t idx = amdgpu_ring_from_fence(best_bo->fence)->idx;
 		++tries[idx];
 		sa_manager->hole = best_bo->olist.prev;
 
@@ -330,13 +311,13 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	return false;
 }
 
-int amdgpu_sa_bo_new(struct amdgpu_device *adev,
-		     struct amdgpu_sa_manager *sa_manager,
+int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     struct amdgpu_sa_bo **sa_bo,
 		     unsigned size, unsigned align)
 {
 	struct fence *fences[AMDGPU_MAX_RINGS];
 	unsigned tries[AMDGPU_MAX_RINGS];
+	unsigned count;
 	int i, r;
 	signed long t;
 
@@ -371,13 +352,18 @@ int amdgpu_sa_bo_new(struct amdgpu_device *adev,
 			/* see if we can skip over some allocations */
 		} while (amdgpu_sa_bo_next_hole(sa_manager, fences, tries));
 
-		spin_unlock(&sa_manager->wq.lock);
-		t = amdgpu_fence_wait_any(adev, fences, AMDGPU_MAX_RINGS,
-					  false, MAX_SCHEDULE_TIMEOUT);
-		r = (t > 0) ? 0 : t;
-		spin_lock(&sa_manager->wq.lock);
-		/* if we have nothing to wait for block */
-		if (r == -ENOENT) {
+		for (i = 0, count = 0; i < AMDGPU_MAX_RINGS; ++i)
+			if (fences[i])
+				fences[count++] = fences[i];
+
+		if (count) {
+			spin_unlock(&sa_manager->wq.lock);
+			t = fence_wait_any_timeout(fences, count, false,
+						   MAX_SCHEDULE_TIMEOUT);
+			r = (t > 0) ? 0 : t;
+			spin_lock(&sa_manager->wq.lock);
+		} else {
+			/* if we have nothing to wait for block */
 			r = wait_event_interruptible_locked(
 				sa_manager->wq,
 				amdgpu_sa_event(sa_manager, size, align)
@@ -406,7 +392,7 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev, struct amdgpu_sa_bo **sa_bo,
 	if (fence && !fence_is_signaled(fence)) {
 		uint32_t idx;
 		(*sa_bo)->fence = fence_get(fence);
-		idx = amdgpu_sa_get_ring_from_fence(fence);
+		idx = amdgpu_ring_from_fence(fence)->idx;
 		list_add_tail(&(*sa_bo)->flist, &sa_manager->flist[idx]);
 	} else {
 		amdgpu_sa_bo_remove_locked(*sa_bo);

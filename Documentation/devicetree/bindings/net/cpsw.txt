@@ -48,6 +48,11 @@ Optional properties:
 - mac-address		: See ethernet.txt file in the same directory
 - phy-handle		: See ethernet.txt file in the same directory
 
+Slave sub-nodes:
+- fixed-link		: See fixed-link.txt file in the same directory
+			  Either the properties phy_id and phy-mode,
+			  or the sub-node fixed-link can be specified
+
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.
 Future plan is to migrate hwmod data base contents into device tree

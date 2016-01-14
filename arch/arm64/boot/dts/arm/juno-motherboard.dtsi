@@ -103,6 +103,21 @@
 				};
 			};
 
+			flash@0,00000000 {
+				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
+				compatible = "arm,vexpress-flash", "cfi-flash";
+				linux,part-probe = "afs";
+				reg = <0 0x00000000 0x04000000>;
+				bank-width = <4>;
+				/*
+				 * Unfortunately, accessing the flash disturbs
+				 * the CPU idle states (suspend) and CPU
+				 * hotplug of the platform. For this reason,
+				 * flash hardware access is disabled by default.
+				 */
+				status = "disabled";
+			};
+
 			ethernet@2,00000000 {
 				compatible = "smsc,lan9118", "smsc,lan9115";
 				reg = <2 0x00000000 0x10000>;

@@ -1317,6 +1317,154 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return error;
 }
 
+#if (defined(CONFIG_PM))
+void aac_release_resources(struct aac_dev *aac)
+{
+	int i;
+
+	aac_adapter_disable_int(aac);
+	if (aac->pdev->device == PMC_DEVICE_S6 ||
+	    aac->pdev->device == PMC_DEVICE_S7 ||
+	    aac->pdev->device == PMC_DEVICE_S8 ||
+	    aac->pdev->device == PMC_DEVICE_S9) {
+		if (aac->max_msix > 1) {
+			for (i = 0; i < aac->max_msix; i++)
+				free_irq(aac->msixentry[i].vector,
+					&(aac->aac_msix[i]));
+		} else {
+			free_irq(aac->pdev->irq, &(aac->aac_msix[0]));
+		}
+	} else {
+		free_irq(aac->pdev->irq, aac);
+	}
+	if (aac->msi)
+		pci_disable_msi(aac->pdev);
+	else if (aac->max_msix > 1)
+		pci_disable_msix(aac->pdev);
+
+}
+
+static int aac_acquire_resources(struct aac_dev *dev)
+{
+	int i, j;
+	int instance = dev->id;
+	const char *name = dev->name;
+	unsigned long status;
+	/*
+	 *	First clear out all interrupts.  Then enable the one's that we
+	 *	can handle.
+	 */
+	while (!((status = src_readl(dev, MUnit.OMR)) & KERNEL_UP_AND_RUNNING)
+		|| status == 0xffffffff)
+			msleep(20);
+
+	aac_adapter_disable_int(dev);
+	aac_adapter_enable_int(dev);
+
+
+	if ((dev->pdev->device == PMC_DEVICE_S7 ||
+	     dev->pdev->device == PMC_DEVICE_S8 ||
+	     dev->pdev->device == PMC_DEVICE_S9))
+		aac_define_int_mode(dev);
+
+	if (dev->msi_enabled)
+		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
+
+	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
+		for (i = 0; i < dev->max_msix; i++) {
+			dev->aac_msix[i].vector_no = i;
+			dev->aac_msix[i].dev = dev;
+
+			if (request_irq(dev->msixentry[i].vector,
+					dev->a_ops.adapter_intr,
+					0, "aacraid", &(dev->aac_msix[i]))) {
+				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
+						name, instance, i);
+				for (j = 0 ; j < i ; j++)
+					free_irq(dev->msixentry[j].vector,
+						 &(dev->aac_msix[j]));
+				pci_disable_msix(dev->pdev);
+				goto error_iounmap;
+			}
+		}
+	} else {
+		dev->aac_msix[0].vector_no = 0;
+		dev->aac_msix[0].dev = dev;
+
+		if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
+			IRQF_SHARED, "aacraid",
+			&(dev->aac_msix[0])) < 0) {
+			if (dev->msi)
+				pci_disable_msi(dev->pdev);
+			printk(KERN_ERR "%s%d: Interrupt unavailable.\n",
+					name, instance);
+			goto error_iounmap;
+		}
+	}
+
+	aac_adapter_enable_int(dev);
+
+	if (!dev->sync_mode)
+		aac_adapter_start(dev);
+	return 0;
+
+error_iounmap:
+	return -1;
+
+}
+static int aac_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
+
+	scsi_block_requests(shost);
+	aac_send_shutdown(aac);
+
+	aac_release_resources(aac);
+
+	pci_set_drvdata(pdev, shost);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int aac_resume(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
+	int r;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_enable_wake(pdev, PCI_D0, 0);
+	pci_restore_state(pdev);
+	r = pci_enable_device(pdev);
+
+	if (r)
+		goto fail_device;
+
+	pci_set_master(pdev);
+	if (aac_acquire_resources(aac))
+		goto fail_device;
+	/*
+	* reset this flag to unblock ioctl() as it was set at
+	* aac_send_shutdown() to block ioctls from upperlayer
+	*/
+	aac->adapter_shutdown = 0;
+	scsi_unblock_requests(shost);
+
+	return 0;
+
+fail_device:
+	printk(KERN_INFO "%s%d: resume failed.\n", aac->name, aac->id);
+	scsi_host_put(shost);
+	pci_disable_device(pdev);
+	return -ENODEV;
+}
+#endif
+
 static void aac_shutdown(struct pci_dev *dev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(dev);
@@ -1356,6 +1504,10 @@ static struct pci_driver aac_pci_driver = {
 	.id_table	= aac_pci_tbl,
 	.probe		= aac_probe_one,
 	.remove		= aac_remove_one,
+#if (defined(CONFIG_PM))
+	.suspend	= aac_suspend,
+	.resume		= aac_resume,
+#endif
 	.shutdown	= aac_shutdown,
 };
 

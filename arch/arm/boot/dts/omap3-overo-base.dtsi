@@ -35,7 +35,7 @@
 		regulator-name = "hsusb2_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio6 8 0>;				/* gpio_168: vbus enable */
+		gpio = <&gpio6 8 GPIO_ACTIVE_HIGH>;		/* gpio_168: vbus enable */
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};

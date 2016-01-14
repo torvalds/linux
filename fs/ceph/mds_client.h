@@ -236,6 +236,9 @@ struct ceph_mds_request {
 	struct inode	*r_unsafe_dir;
 	struct list_head r_unsafe_dir_item;
 
+	/* unsafe requests that modify the target inode */
+	struct list_head r_unsafe_target_item;
+
 	struct ceph_mds_session *r_session;
 
 	int               r_attempts;   /* resend attempts */

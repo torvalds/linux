@@ -257,18 +257,32 @@ static int kobject_add_internal(struct kobject *kobj)
 int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	char *s;
+	const char *s;
 
 	if (kobj->name && !fmt)
 		return 0;
 
-	s = kvasprintf(GFP_KERNEL, fmt, vargs);
+	s = kvasprintf_const(GFP_KERNEL, fmt, vargs);
 	if (!s)
 		return -ENOMEM;
 
-	/* ewww... some of these buggers have '/' in the name ... */
-	strreplace(s, '/', '!');
-	kfree(kobj->name);
+	/*
+	 * ewww... some of these buggers have '/' in the name ... If
+	 * that's the case, we need to make sure we have an actual
+	 * allocated copy to modify, since kvasprintf_const may have
+	 * returned something from .rodata.
+	 */
+	if (strchr(s, '/')) {
+		char *t;
+
+		t = kstrdup(s, GFP_KERNEL);
+		kfree_const(s);
+		if (!t)
+			return -ENOMEM;
+		strreplace(t, '/', '!');
+		s = t;
+	}
+	kfree_const(kobj->name);
 	kobj->name = s;
 
 	return 0;
@@ -466,7 +480,7 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 	envp[0] = devpath_string;
 	envp[1] = NULL;
 
-	name = dup_name = kstrdup(new_name, GFP_KERNEL);
+	name = dup_name = kstrdup_const(new_name, GFP_KERNEL);
 	if (!name) {
 		error = -ENOMEM;
 		goto out;
@@ -486,7 +500,7 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 	kobject_uevent_env(kobj, KOBJ_MOVE, envp);
 
 out:
-	kfree(dup_name);
+	kfree_const(dup_name);
 	kfree(devpath_string);
 	kfree(devpath);
 	kobject_put(kobj);
@@ -634,7 +648,7 @@ static void kobject_cleanup(struct kobject *kobj)
 	/* free name if we allocated it */
 	if (name) {
 		pr_debug("kobject: '%s': free name\n", name);
-		kfree(name);
+		kfree_const(name);
 	}
 }
 

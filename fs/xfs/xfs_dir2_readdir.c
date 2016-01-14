@@ -666,7 +666,7 @@ xfs_readdir(
 		return -EIO;
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_getdents);
+	XFS_STATS_INC(dp->i_mount, xs_dir_getdents);
 
 	args.dp = dp;
 	args.geo = dp->i_mount->m_dir_geo;

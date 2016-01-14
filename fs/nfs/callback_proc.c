@@ -17,9 +17,7 @@
 #include "nfs4session.h"
 #include "nfs4trace.h"
 
-#ifdef NFS_DEBUG
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
-#endif
 
 __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 			     struct cb_getattrres *res,

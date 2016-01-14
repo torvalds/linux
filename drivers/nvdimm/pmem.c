@@ -64,7 +64,7 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	kunmap_atomic(mem);
 }
 
-static void pmem_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 {
 	bool do_acct;
 	unsigned long start;
@@ -84,6 +84,7 @@ static void pmem_make_request(struct request_queue *q, struct bio *bio)
 		wmb_pmem();
 
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
@@ -104,22 +105,11 @@ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	resource_size_t offset = sector * 512 + pmem->data_offset;
-	resource_size_t size;
 
-	if (pmem->data_offset) {
-		/*
-		 * Limit the direct_access() size to what is covered by
-		 * the memmap
-		 */
-		size = (pmem->size - offset) & ~ND_PFN_MASK;
-	} else
-		size = pmem->size - offset;
-
-	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
 	*kaddr = pmem->virt_addr + offset;
 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
 
-	return size;
+	return pmem->size - offset;
 }
 
 static const struct block_device_operations pmem_fops = {
@@ -150,18 +140,15 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 		return ERR_PTR(-EBUSY);
 	}
 
-	if (pmem_should_map_pages(dev)) {
-		void *addr = devm_memremap_pages(dev, res);
+	if (pmem_should_map_pages(dev))
+		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res);
+	else
+		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
+				pmem->phys_addr, pmem->size,
+				ARCH_MEMREMAP_PMEM);
 
-		if (IS_ERR(addr))
-			return addr;
-		pmem->virt_addr = (void __pmem *) addr;
-	} else {
-		pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr,
-				pmem->size);
-		if (!pmem->virt_addr)
-			return ERR_PTR(-ENXIO);
-	}
+	if (IS_ERR(pmem->virt_addr))
+		return (void __force *) pmem->virt_addr;
 
 	return pmem;
 }
@@ -179,9 +166,10 @@ static void pmem_detach_disk(struct pmem_device *pmem)
 static int pmem_attach_disk(struct device *dev,
 		struct nd_namespace_common *ndns, struct pmem_device *pmem)
 {
+	int nid = dev_to_node(dev);
 	struct gendisk *disk;
 
-	pmem->pmem_queue = blk_alloc_queue(GFP_KERNEL);
+	pmem->pmem_queue = blk_alloc_queue_node(GFP_KERNEL, nid);
 	if (!pmem->pmem_queue)
 		return -ENOMEM;
 
@@ -191,7 +179,7 @@ static int pmem_attach_disk(struct device *dev,
 	blk_queue_bounce_limit(pmem->pmem_queue, BLK_BOUNCE_ANY);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, pmem->pmem_queue);
 
-	disk = alloc_disk(0);
+	disk = alloc_disk_node(0, nid);
 	if (!disk) {
 		blk_cleanup_queue(pmem->pmem_queue);
 		return -ENOMEM;
@@ -363,8 +351,8 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
 
 	/* establish pfn range for lookup, and switch to direct map */
 	pmem = dev_get_drvdata(dev);
-	memunmap_pmem(dev, pmem->virt_addr);
-	pmem->virt_addr = (void __pmem *)devm_memremap_pages(dev, &nsio->res);
+	devm_memunmap(dev, (void __force *) pmem->virt_addr);
+	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res);
 	if (IS_ERR(pmem->virt_addr)) {
 		rc = PTR_ERR(pmem->virt_addr);
 		goto err;

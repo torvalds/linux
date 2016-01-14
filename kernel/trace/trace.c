@@ -100,8 +100,6 @@ static DEFINE_PER_CPU(bool, trace_cmdline_save);
  */
 static int tracing_disabled = 1;
 
-DEFINE_PER_CPU(int, ftrace_cpu_disabled);
-
 cpumask_var_t __read_mostly	tracing_buffer_mask;
 
 /*
@@ -1774,10 +1772,6 @@ trace_function(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
-
-	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
-		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
 					  flags, pc);
@@ -4554,6 +4548,8 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_TRACER_MAX_TRACE
+
 static ssize_t
 tracing_max_lat_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
@@ -4567,6 +4563,8 @@ tracing_max_lat_write(struct file *filp, const char __user *ubuf,
 {
 	return tracing_nsecs_write(filp->private_data, ubuf, cnt, ppos);
 }
+
+#endif
 
 static int tracing_open_pipe(struct inode *inode, struct file *filp)
 {
@@ -5469,12 +5467,14 @@ static const struct file_operations tracing_thresh_fops = {
 	.llseek		= generic_file_llseek,
 };
 
+#ifdef CONFIG_TRACER_MAX_TRACE
 static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
 	.write		= tracing_max_lat_write,
 	.llseek		= generic_file_llseek,
 };
+#endif
 
 static const struct file_operations set_tracer_fops = {
 	.open		= tracing_open_generic,
@@ -6847,7 +6847,9 @@ struct dentry *tracing_init_dentry(void)
 	if (tr->dir)
 		return NULL;
 
-	if (WARN_ON(!debugfs_initialized()))
+	if (WARN_ON(!tracefs_initialized()) ||
+		(IS_ENABLED(CONFIG_DEBUG_FS) &&
+		 WARN_ON(!debugfs_initialized())))
 		return ERR_PTR(-ENODEV);
 
 	/*

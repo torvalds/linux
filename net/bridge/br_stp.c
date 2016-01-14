@@ -48,7 +48,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 
 	p->state = state;
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
 }
@@ -600,12 +600,17 @@ void __br_set_forward_delay(struct net_bridge *br, unsigned long t)
 int br_set_forward_delay(struct net_bridge *br, unsigned long val)
 {
 	unsigned long t = clock_t_to_jiffies(val);
-
-	if (t < BR_MIN_FORWARD_DELAY || t > BR_MAX_FORWARD_DELAY)
-		return -ERANGE;
+	int err = -ERANGE;
 
 	spin_lock_bh(&br->lock);
+	if (br->stp_enabled != BR_NO_STP &&
+	    (t < BR_MIN_FORWARD_DELAY || t > BR_MAX_FORWARD_DELAY))
+		goto unlock;
+
 	__br_set_forward_delay(br, t);
+	err = 0;
+
+unlock:
 	spin_unlock_bh(&br->lock);
-	return 0;
+	return err;
 }

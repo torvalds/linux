@@ -923,14 +923,21 @@ static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 	if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
 	    fib_prefsrc != cfg->fc_dst) {
 		u32 tb_id = cfg->fc_table;
+		int rc;
 
 		if (tb_id == RT_TABLE_MAIN)
 			tb_id = RT_TABLE_LOCAL;
 
-		if (inet_addr_type_table(cfg->fc_nlinfo.nl_net,
-					 fib_prefsrc, tb_id) != RTN_LOCAL) {
-			return false;
+		rc = inet_addr_type_table(cfg->fc_nlinfo.nl_net,
+					  fib_prefsrc, tb_id);
+
+		if (rc != RTN_LOCAL && tb_id != RT_TABLE_LOCAL) {
+			rc = inet_addr_type_table(cfg->fc_nlinfo.nl_net,
+						  fib_prefsrc, RT_TABLE_LOCAL);
 		}
+
+		if (rc != RTN_LOCAL)
+			return false;
 	}
 	return true;
 }

@@ -132,6 +132,8 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 		placements[c].fpfn = 0;
 		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_VRAM;
+		if (!(flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED))
+			placements[c - 1].flags |= TTM_PL_FLAG_TOPDOWN;
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {

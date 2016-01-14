@@ -278,6 +278,12 @@ trace:
 	/* save_mcount_regs fills in first two parameters */
 	save_mcount_regs
 
+	/*
+	 * When DYNAMIC_FTRACE is not defined, ARCH_SUPPORTS_FTRACE_OPS is not
+	 * set (see include/asm/ftrace.h and include/linux/ftrace.h).  Only the
+	 * ip and parent ip are used and the list function is called when
+	 * function tracing is enabled.
+	 */
 	call   *ftrace_trace_function
 
 	restore_mcount_regs

@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
-#ifdef __HAVE_ARCH_MEMSET
 void *memset(void *s, int c, size_t count)
 {
 	int destptr, charcnt, dwordcnt, fill8reg, wrkrega;
@@ -78,4 +77,3 @@ void *memset(void *s, int c, size_t count)
 
 	return s;
 }
-#endif /* __HAVE_ARCH_MEMSET */

@@ -42,13 +42,15 @@
  */
 
 #define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
+#define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
 
 MODULE_FIRMWARE(I915_CSR_SKL);
+MODULE_FIRMWARE(I915_CSR_BXT);
 
 /*
 * SKL CSR registers for DC5 and DC6
 */
-#define CSR_PROGRAM_BASE		0x80000
+#define CSR_PROGRAM(i)			(0x80000 + (i) * 4)
 #define CSR_SSP_BASE_ADDR_GEN9		0x00002FC0
 #define CSR_HTP_ADDR_SKL		0x00500034
 #define CSR_SSP_BASE			0x8F074
@@ -181,11 +183,19 @@ static const struct stepping_info skl_stepping_info[] = {
 		{'G', '0'}, {'H', '0'}, {'I', '0'}
 };
 
+static struct stepping_info bxt_stepping_info[] = {
+	{'A', '0'}, {'A', '1'}, {'A', '2'},
+	{'B', '0'}, {'B', '1'}, {'B', '2'}
+};
+
 static char intel_get_stepping(struct drm_device *dev)
 {
 	if (IS_SKYLAKE(dev) && (dev->pdev->revision <
 			ARRAY_SIZE(skl_stepping_info)))
 		return skl_stepping_info[dev->pdev->revision].stepping;
+	else if (IS_BROXTON(dev) && (dev->pdev->revision <
+				ARRAY_SIZE(bxt_stepping_info)))
+		return bxt_stepping_info[dev->pdev->revision].stepping;
 	else
 		return -ENODATA;
 }
@@ -195,6 +205,9 @@ static char intel_get_substepping(struct drm_device *dev)
 	if (IS_SKYLAKE(dev) && (dev->pdev->revision <
 			ARRAY_SIZE(skl_stepping_info)))
 		return skl_stepping_info[dev->pdev->revision].substepping;
+	else if (IS_BROXTON(dev) && (dev->pdev->revision <
+			ARRAY_SIZE(bxt_stepping_info)))
+		return bxt_stepping_info[dev->pdev->revision].substepping;
 	else
 		return -ENODATA;
 }
@@ -252,11 +265,19 @@ void intel_csr_load_program(struct drm_device *dev)
 		return;
 	}
 
+	/*
+	 * FIXME: Firmware gets lost on S3/S4, but not when entering system
+	 * standby or suspend-to-idle (which is just like forced runtime pm).
+	 * Unfortunately the ACPI subsystem doesn't yet give us a way to
+	 * differentiate this, hence figure it out with this hack.
+	 */
+	if (I915_READ(CSR_PROGRAM(0)))
+		return;
+
 	mutex_lock(&dev_priv->csr_lock);
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)
-		I915_WRITE(CSR_PROGRAM_BASE + i * 4,
-			payload[i]);
+		I915_WRITE(CSR_PROGRAM(i), payload[i]);
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
@@ -409,6 +430,8 @@ void intel_csr_ucode_init(struct drm_device *dev)
 
 	if (IS_SKYLAKE(dev))
 		csr->fw_path = I915_CSR_SKL;
+	else if (IS_BROXTON(dev_priv))
+		csr->fw_path = I915_CSR_BXT;
 	else {
 		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
 		intel_csr_load_status_set(dev_priv, FW_FAILED);
@@ -454,10 +477,10 @@ void intel_csr_ucode_fini(struct drm_device *dev)
 
 void assert_csr_loaded(struct drm_i915_private *dev_priv)
 {
-	WARN(intel_csr_load_status_get(dev_priv) != FW_LOADED,
-	     "CSR is not loaded.\n");
-	WARN(!I915_READ(CSR_PROGRAM_BASE),
-				"CSR program storage start is NULL\n");
-	WARN(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
-	WARN(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
+	WARN_ONCE(intel_csr_load_status_get(dev_priv) != FW_LOADED,
+		  "CSR is not loaded.\n");
+	WARN_ONCE(!I915_READ(CSR_PROGRAM(0)),
+		  "CSR program storage start is NULL\n");
+	WARN_ONCE(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
+	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
 }

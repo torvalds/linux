@@ -330,10 +330,13 @@ ssize_t beiscsi_phys_port_disp(struct device *dev,
 
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
-			     struct be_mem_descriptor *mem_descr);
+			     struct be_mem_descriptor *mem_descr,
+			     struct hwi_wrb_context *pwrb_context);
 
 void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
-			     struct wrb_handle *pwrb_handle);
+			     struct wrb_handle *pwrb_handle,
+			     struct hwi_wrb_context *pwrb_context);
+
 void beiscsi_ue_detect(struct beiscsi_hba *phba);
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 			 struct be_set_eqd *, int num);

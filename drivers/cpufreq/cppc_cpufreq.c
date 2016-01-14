@@ -98,10 +98,11 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->max = cpu->perf_caps.highest_perf;
 	policy->cpuinfo.min_freq = policy->min;
 	policy->cpuinfo.max_freq = policy->max;
+	policy->shared_type = cpu->shared_type;
 
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
 		cpumask_copy(policy->cpus, cpu->shared_cpu_map);
-	else {
+	else if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL) {
 		/* Support only SW_ANY for now. */
 		pr_debug("Unsupported CPU co-ord type\n");
 		return -EFAULT;
@@ -166,8 +167,7 @@ static int __init cppc_cpufreq_init(void)
 
 out:
 	for_each_possible_cpu(i)
-		if (all_cpu_data[i])
-			kfree(all_cpu_data[i]);
+		kfree(all_cpu_data[i]);
 
 	kfree(all_cpu_data);
 	return -ENODEV;

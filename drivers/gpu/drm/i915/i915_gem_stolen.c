@@ -30,6 +30,9 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+#define KB(x) ((x) * 1024)
+#define MB(x) (KB(x) * 1024)
+
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
  * use of the integrated graphics. This memory is no longer available for
@@ -42,21 +45,36 @@
  * for is a boon.
  */
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *node, u64 size,
-				unsigned alignment)
+int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
+					 struct drm_mm_node *node, u64 size,
+					 unsigned alignment, u64 start, u64 end)
 {
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
+	/* See the comment at the drm_mm_init() call for more about this check.
+	 * WaSkipStolenMemoryFirstPage:bdw,chv (incomplete) */
+	if (INTEL_INFO(dev_priv)->gen == 8 && start < 4096)
+		start = 4096;
+
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node, size, alignment,
-				 DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node, size,
+					  alignment, start, end,
+					  DRM_MM_SEARCH_DEFAULT);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 
 	return ret;
+}
+
+int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
+				struct drm_mm_node *node, u64 size,
+				unsigned alignment)
+{
+	return i915_gem_stolen_insert_node_in_range(dev_priv, node, size,
+					alignment, 0,
+					dev_priv->gtt.stolen_usable_size);
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
@@ -76,24 +94,91 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	/* Almost universally we can find the Graphics Base of Stolen Memory
 	 * at offset 0x5c in the igfx configuration space. On a few (desktop)
 	 * machines this is also mirrored in the bridge device at different
-	 * locations, or in the MCHBAR. On gen2, the layout is again slightly
-	 * different with the Graphics Segment immediately following Top of
-	 * Memory (or Top of Usable DRAM). Note it appears that TOUD is only
-	 * reported by 865g, so we just use the top of memory as determined
-	 * by the e820 probe.
+	 * locations, or in the MCHBAR.
 	 *
-	 * XXX However gen2 requires an unavailable symbol.
+	 * On 865 we just check the TOUD register.
+	 *
+	 * On 830/845/85x the stolen memory base isn't available in any
+	 * register. We need to calculate it as TOM-TSEG_SIZE-stolen_size.
+	 *
 	 */
 	base = 0;
 	if (INTEL_INFO(dev)->gen >= 3) {
 		/* Read Graphics Base of Stolen Memory directly */
 		pci_read_config_dword(dev->pdev, 0x5c, &base);
 		base &= ~((1<<20) - 1);
-	} else { /* GEN2 */
-#if 0
-		/* Stolen is immediately above Top of Memory */
-		base = max_low_pfn_mapped << PAGE_SHIFT;
-#endif
+	} else if (IS_I865G(dev)) {
+		u16 toud = 0;
+
+		/*
+		 * FIXME is the graphics stolen memory region
+		 * always at TOUD? Ie. is it always the last
+		 * one to be allocated by the BIOS?
+		 */
+		pci_bus_read_config_word(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I865_TOUD, &toud);
+
+		base = toud << 16;
+	} else if (IS_I85X(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I85X_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE)
+			tseg_size = MB(1);
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 1),
+					 I85X_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+	} else if (IS_845G(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I845_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE) {
+			switch (tmp & I845_TSEG_SIZE_MASK) {
+			case I845_TSEG_SIZE_512K:
+				tseg_size = KB(512);
+				break;
+			case I845_TSEG_SIZE_1M:
+				tseg_size = MB(1);
+				break;
+			}
+		}
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I830_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+	} else if (IS_I830(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I830_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE) {
+			if (tmp & I830_TSEG_SIZE_1M)
+				tseg_size = MB(1);
+			else
+				tseg_size = KB(512);
+		}
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I830_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - dev_priv->gtt.stolen_size;
 	}
 
 	if (base == 0)
@@ -184,6 +269,29 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 		return;
 
 	drm_mm_takedown(&dev_priv->mm.stolen);
+}
+
+static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				    unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
+				     CTG_STOLEN_RESERVED :
+				     ELK_STOLEN_RESERVED);
+	unsigned long stolen_top = dev_priv->mm.stolen_base +
+		dev_priv->gtt.stolen_size;
+
+	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
+
+	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
+
+	/* On these platforms, the register doesn't have a size field, so the
+	 * size is the distance between the base and the top of the stolen
+	 * memory. We also have the genuine case where base is zero and there's
+	 * nothing reserved. */
+	if (*base == 0)
+		*size = 0;
+	else
+		*size = stolen_top - *base;
 }
 
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
@@ -281,7 +389,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 int i915_gem_init_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long reserved_total, reserved_base, reserved_size;
+	unsigned long reserved_total, reserved_base = 0, reserved_size;
 	unsigned long stolen_top;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
@@ -305,7 +413,12 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
 	case 3:
+		break;
 	case 4:
+		if (IS_G4X(dev))
+			g4x_get_stolen_reserved(dev_priv, &reserved_base,
+						&reserved_size);
+		break;
 	case 5:
 		/* Assume the gen6 maximum for the older platforms. */
 		reserved_size = 1024 * 1024;
@@ -352,9 +465,21 @@ int i915_gem_init_stolen(struct drm_device *dev)
 		      dev_priv->gtt.stolen_size >> 10,
 		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
 
-	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
-		    reserved_total);
+	dev_priv->gtt.stolen_usable_size = dev_priv->gtt.stolen_size -
+					   reserved_total;
+
+	/*
+	 * Basic memrange allocator for stolen space.
+	 *
+	 * TODO: Notice that some platforms require us to not use the first page
+	 * of the stolen memory but their BIOSes may still put the framebuffer
+	 * on the first page. So we don't reserve this page for now because of
+	 * that. Our current solution is to just prevent new nodes from being
+	 * inserted on the first page - see the check we have at
+	 * i915_gem_stolen_insert_node_in_range(). We may want to fix the fbcon
+	 * problem later.
+	 */
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_usable_size);
 
 	return 0;
 }
@@ -544,7 +669,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	vma = i915_gem_obj_lookup_or_create_vma(obj, ggtt);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto err_out;
+		goto err;
 	}
 
 	/* To simplify the initialisation sequence between KMS and GTT,
@@ -558,23 +683,19 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		ret = drm_mm_reserve_node(&ggtt->mm, &vma->node);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			goto err_vma;
+			goto err;
 		}
+
+		vma->bound |= GLOBAL_BIND;
+		list_add_tail(&vma->mm_list, &ggtt->inactive_list);
 	}
 
-	vma->bound |= GLOBAL_BIND;
-
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&vma->mm_list, &ggtt->inactive_list);
 	i915_gem_object_pin_pages(obj);
 
 	return obj;
 
-err_vma:
-	i915_gem_vma_destroy(vma);
-err_out:
-	i915_gem_stolen_remove_node(dev_priv, stolen);
-	kfree(stolen);
+err:
 	drm_gem_object_unreference(&obj->base);
 	return NULL;
 }

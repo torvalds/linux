@@ -261,6 +261,10 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 	if (old && !new) {
 		dev_dbg(kdev->dev, "setup-acc-irq: freeing %s for channel %s\n",
 			acc->name, acc->name);
+		ret = irq_set_affinity_hint(irq, NULL);
+		if (ret)
+			dev_warn(range->kdev->dev,
+				 "Failed to set IRQ affinity\n");
 		free_irq(irq, range);
 	}
 
@@ -482,8 +486,8 @@ struct knav_range_ops knav_acc_range_ops = {
  * Return 0 on success or error
  */
 int knav_init_acc_range(struct knav_device *kdev,
-				struct device_node *node,
-				struct knav_range_info *range)
+			struct device_node *node,
+			struct knav_range_info *range)
 {
 	struct knav_acc_channel *acc;
 	struct knav_pdsp_info *pdsp;
@@ -524,6 +528,12 @@ int knav_init_acc_range(struct knav_device *kdev,
 		dev_err(kdev->dev, "pdsp id %d not found for range %s\n",
 			info->pdsp_id, range->name);
 		return -EINVAL;
+	}
+
+	if (!pdsp->started) {
+		dev_err(kdev->dev, "pdsp id %d not started for range %s\n",
+			info->pdsp_id, range->name);
+		return -ENODEV;
 	}
 
 	info->pdsp = pdsp;

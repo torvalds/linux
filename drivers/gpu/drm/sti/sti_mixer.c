@@ -10,6 +10,11 @@
 #include "sti_mixer.h"
 #include "sti_vtg.h"
 
+/* Module parameter to set the background color of the mixer */
+static unsigned int bkg_color = 0x000000;
+MODULE_PARM_DESC(bkgcolor, "Value of the background color 0xRRGGBB");
+module_param_named(bkgcolor, bkg_color, int, 0644);
+
 /* Identity: G=Y , B=Cb , R=Cr */
 static const u32 mixerColorSpaceMatIdentity[] = {
 	0x10000000, 0x00000000, 0x10000000, 0x00001000,
@@ -58,7 +63,6 @@ const char *sti_mixer_to_str(struct sti_mixer *mixer)
 		return "<UNKNOWN MIXER>";
 	}
 }
-EXPORT_SYMBOL(sti_mixer_to_str);
 
 static inline u32 sti_mixer_reg_read(struct sti_mixer *mixer, u32 reg_id)
 {
@@ -81,11 +85,9 @@ void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable)
 }
 
 static void sti_mixer_set_background_color(struct sti_mixer *mixer,
-					   u8 red, u8 green, u8 blue)
+					   unsigned int rgb)
 {
-	u32 val = (red << 16) | (green << 8) | blue;
-
-	sti_mixer_reg_write(mixer, GAM_MIXER_BKC, val);
+	sti_mixer_reg_write(mixer, GAM_MIXER_BKC, rgb);
 }
 
 static void sti_mixer_set_background_area(struct sti_mixer *mixer,
@@ -175,7 +177,7 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 	sti_mixer_reg_write(mixer, GAM_MIXER_AVO, ydo << 16 | xdo);
 	sti_mixer_reg_write(mixer, GAM_MIXER_AVS, yds << 16 | xds);
 
-	sti_mixer_set_background_color(mixer, 0xFF, 0, 0);
+	sti_mixer_set_background_color(mixer, bkg_color);
 
 	sti_mixer_set_background_area(mixer, mode);
 	sti_mixer_set_background_status(mixer, true);

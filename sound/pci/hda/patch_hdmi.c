@@ -50,8 +50,9 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 #define is_haswell(codec)  ((codec)->core.vendor_id == 0x80862807)
 #define is_broadwell(codec)    ((codec)->core.vendor_id == 0x80862808)
 #define is_skylake(codec) ((codec)->core.vendor_id == 0x80862809)
+#define is_broxton(codec) ((codec)->core.vendor_id == 0x8086280a)
 #define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec) \
-					|| is_skylake(codec))
+				|| is_skylake(codec) || is_broxton(codec))
 
 #define is_valleyview(codec) ((codec)->core.vendor_id == 0x80862882)
 #define is_cherryview(codec) ((codec)->core.vendor_id == 0x80862883)
@@ -2096,14 +2097,17 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	int pcmdev = get_pcm_rec(spec, pin_idx)->device;
+	bool phantom_jack;
 
 	if (pcmdev > 0)
 		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
-	if (!is_jack_detectable(codec, per_pin->pin_nid))
+	phantom_jack = !is_jack_detectable(codec, per_pin->pin_nid);
+	if (phantom_jack)
 		strncat(hdmi_str, " Phantom",
 			sizeof(hdmi_str) - strlen(hdmi_str) - 1);
 
-	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str);
+	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str,
+				     phantom_jack);
 }
 
 static int generic_hdmi_build_controls(struct hda_codec *codec)
@@ -2374,7 +2378,8 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	 * can cover the codec power request, and so need not set this flag.
 	 * For previous platforms, there is no such power well feature.
 	 */
-	if (is_valleyview_plus(codec) || is_skylake(codec))
+	if (is_valleyview_plus(codec) || is_skylake(codec) ||
+			is_broxton(codec))
 		codec->core.link_power_control = 1;
 
 	if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {

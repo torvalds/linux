@@ -2157,12 +2157,13 @@ vmxnet3_set_mc(struct net_device *netdev)
 		if (!netdev_mc_empty(netdev)) {
 			new_table = vmxnet3_copy_mc(netdev);
 			if (new_table) {
-				rxConf->mfTableLen = cpu_to_le16(
-					netdev_mc_count(netdev) * ETH_ALEN);
+				size_t sz = netdev_mc_count(netdev) * ETH_ALEN;
+
+				rxConf->mfTableLen = cpu_to_le16(sz);
 				new_table_pa = dma_map_single(
 							&adapter->pdev->dev,
 							new_table,
-							rxConf->mfTableLen,
+							sz,
 							PCI_DMA_TODEVICE);
 			}
 

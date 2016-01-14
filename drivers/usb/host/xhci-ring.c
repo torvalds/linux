@@ -3896,28 +3896,6 @@ cleanup:
 	return ret;
 }
 
-static int ep_ring_is_processing(struct xhci_hcd *xhci,
-		int slot_id, unsigned int ep_index)
-{
-	struct xhci_virt_device *xdev;
-	struct xhci_ring *ep_ring;
-	struct xhci_ep_ctx *ep_ctx;
-	struct xhci_virt_ep *xep;
-	dma_addr_t hw_deq;
-
-	xdev = xhci->devs[slot_id];
-	xep = &xhci->devs[slot_id]->eps[ep_index];
-	ep_ring = xep->ring;
-	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
-
-	if ((le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK) != EP_STATE_RUNNING)
-		return 0;
-
-	hw_deq = le64_to_cpu(ep_ctx->deq) & ~EP_CTX_CYCLE_MASK;
-	return (hw_deq !=
-		xhci_trb_virt_to_dma(ep_ring->enq_seg, ep_ring->enqueue));
-}
-
 /*
  * Check transfer ring to guarantee there is enough room for the urb.
  * Update ISO URB start_frame and interval.
@@ -3983,10 +3961,12 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	}
 
 	/* Calculate the start frame and put it in urb->start_frame. */
-	if (HCC_CFC(xhci->hcc_params) &&
-			ep_ring_is_processing(xhci, slot_id, ep_index)) {
-		urb->start_frame = xep->next_frame_id;
-		goto skip_start_over;
+	if (HCC_CFC(xhci->hcc_params) && !list_empty(&ep_ring->td_list)) {
+		if ((le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK) ==
+				EP_STATE_RUNNING) {
+			urb->start_frame = xep->next_frame_id;
+			goto skip_start_over;
+		}
 	}
 
 	start_frame = readl(&xhci->run_regs->microframe_index);

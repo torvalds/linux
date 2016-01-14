@@ -171,10 +171,6 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 {
 	int i;
 
-	mutex_lock(&cpufreq_governor_lock);
-	if (!policy->governor_enabled)
-		goto out_unlock;
-
 	if (!all_cpus) {
 		/*
 		 * Use raw_smp_processor_id() to avoid preemptible warnings.
@@ -188,9 +184,6 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 		for_each_cpu(i, policy->cpus)
 			__gov_queue_work(i, dbs_data, delay);
 	}
-
-out_unlock:
-	mutex_unlock(&cpufreq_governor_lock);
 }
 EXPORT_SYMBOL_GPL(gov_queue_work);
 
@@ -229,12 +222,23 @@ static void dbs_timer(struct work_struct *work)
 	struct cpu_dbs_info *cdbs = container_of(work, struct cpu_dbs_info,
 						 dwork.work);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
-	struct cpufreq_policy *policy = shared->policy;
-	struct dbs_data *dbs_data = policy->governor_data;
+	struct cpufreq_policy *policy;
+	struct dbs_data *dbs_data;
 	unsigned int sampling_rate, delay;
 	bool modify_all = true;
 
 	mutex_lock(&shared->timer_mutex);
+
+	policy = shared->policy;
+
+	/*
+	 * Governor might already be disabled and there is no point continuing
+	 * with the work-handler.
+	 */
+	if (!policy)
+		goto unlock;
+
+	dbs_data = policy->governor_data;
 
 	if (dbs_data->cdata->governor == GOV_CONSERVATIVE) {
 		struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
@@ -252,6 +256,7 @@ static void dbs_timer(struct work_struct *work)
 	delay = dbs_data->cdata->gov_dbs_timer(cdbs, dbs_data, modify_all);
 	gov_queue_work(dbs_data, policy, delay, modify_all);
 
+unlock:
 	mutex_unlock(&shared->timer_mutex);
 }
 
@@ -478,9 +483,17 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 	if (!shared || !shared->policy)
 		return -EBUSY;
 
+	/*
+	 * Work-handler must see this updated, as it should not proceed any
+	 * further after governor is disabled. And so timer_mutex is taken while
+	 * updating this value.
+	 */
+	mutex_lock(&shared->timer_mutex);
+	shared->policy = NULL;
+	mutex_unlock(&shared->timer_mutex);
+
 	gov_cancel_work(dbs_data, policy);
 
-	shared->policy = NULL;
 	mutex_destroy(&shared->timer_mutex);
 	return 0;
 }

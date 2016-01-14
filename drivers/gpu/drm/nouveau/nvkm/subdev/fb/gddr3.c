@@ -63,7 +63,7 @@ ramgddr3_wr_lo[] = {
 	{ 5, 2 }, { 7, 4 }, { 8, 5 }, { 9, 6 }, { 10, 7 },
 	{ 11, 0 }, { 13 , 1 },
 	/* the below are mentioned in some, but not all, gddr3 docs */
-	{ 4, 1 }, { 6, 3 }, { 12, 1 },
+	{ 4, 0 }, { 6, 3 }, { 12, 1 },
 	{ -1 }
 };
 
@@ -87,13 +87,15 @@ nvkm_gddr3_calc(struct nvkm_ram *ram)
 		WR  = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
 		/* XXX: Get these values from the VBIOS instead */
 		DLL = !(ram->mr[1] & 0x1);
-		ODT =  (ram->mr[1] & 0x004) >> 2 |
-		       (ram->mr[1] & 0x040) >> 5 |
-		       (ram->mr[1] & 0x200) >> 7;
 		RON = !(ram->mr[1] & 0x300) >> 8;
 		break;
 	default:
 		return -ENOSYS;
+	}
+
+	if (ram->next->bios.timing_ver == 0x20 ||
+	    ram->next->bios.ramcfg_timing == 0xff) {
+		ODT =  (ram->mr[1] & 0xc) >> 2;
 	}
 
 	hi = ram->mr[2] & 0x1;

@@ -50,7 +50,7 @@ void br_init_port(struct net_bridge_port *p)
 	p->config_pending = 0;
 
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		netdev_err(p->dev, "failed to set HW ageing time\n");
 }
 

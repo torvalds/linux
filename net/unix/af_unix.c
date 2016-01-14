@@ -441,6 +441,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 		if (state == TCP_LISTEN)
 			unix_release_sock(skb->sk, 1);
 		/* passed fds are erased in the kfree_skb hook	      */
+		UNIXCB(skb).consumed = skb->len;
 		kfree_skb(skb);
 	}
 
@@ -1799,6 +1800,7 @@ alloc_skb:
 		 * this - does no harm
 		 */
 		consume_skb(newskb);
+		newskb = NULL;
 	}
 
 	if (skb_append_pagefrags(skb, page, offset, size)) {
@@ -1811,8 +1813,11 @@ alloc_skb:
 	skb->truesize += size;
 	atomic_add(size, &sk->sk_wmem_alloc);
 
-	if (newskb)
+	if (newskb) {
+		spin_lock(&other->sk_receive_queue.lock);
 		__skb_queue_tail(&other->sk_receive_queue, newskb);
+		spin_unlock(&other->sk_receive_queue.lock);
+	}
 
 	unix_state_unlock(other);
 	mutex_unlock(&unix_sk(other)->readlock);
@@ -2072,6 +2077,7 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state)
 
 	do {
 		int chunk;
+		bool drop_skb;
 		struct sk_buff *skb, *last;
 
 		unix_state_lock(sk);
@@ -2152,7 +2158,11 @@ unlock:
 		}
 
 		chunk = min_t(unsigned int, unix_skb_len(skb) - skip, size);
+		skb_get(skb);
 		chunk = state->recv_actor(skb, skip, chunk, state);
+		drop_skb = !unix_skb_len(skb);
+		/* skb is only safe to use if !drop_skb */
+		consume_skb(skb);
 		if (chunk < 0) {
 			if (copied == 0)
 				copied = -EFAULT;
@@ -2160,6 +2170,18 @@ unlock:
 		}
 		copied += chunk;
 		size -= chunk;
+
+		if (drop_skb) {
+			/* the skb was touched by a concurrent reader;
+			 * we should not expect anything from this skb
+			 * anymore and assume it invalid - we can be
+			 * sure it was dropped from the socket queue
+			 *
+			 * let's report a short read
+			 */
+			err = 0;
+			break;
+		}
 
 		/* Mark read part of skb as used */
 		if (!(flags & MSG_PEEK)) {

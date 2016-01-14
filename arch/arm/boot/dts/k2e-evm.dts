@@ -13,7 +13,7 @@
 #include "k2e.dtsi"
 
 / {
-	compatible =  "ti,k2e-evm","ti,keystone";
+	compatible = "ti,k2e-evm", "ti,k2e", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Edison EVM";
 
 	soc {

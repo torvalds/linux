@@ -400,5 +400,6 @@
 #define __NR_shmdt		375
 #define __NR_shmget		376
 #define __NR_shmctl		377
+#define __NR_mlock2		378
 
 #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */

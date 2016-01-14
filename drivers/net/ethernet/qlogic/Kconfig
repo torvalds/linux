@@ -94,6 +94,7 @@ config NETXEN_NIC
 config QED
 	tristate "QLogic QED 25/40/100Gb core driver"
 	depends on PCI
+	select ZLIB_INFLATE
 	---help---
 	  This enables the support for ...
 
