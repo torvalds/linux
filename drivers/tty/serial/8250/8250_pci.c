@@ -850,13 +850,13 @@ static int pci_netmos_init(struct pci_dev *dev)
 			break;
 
 		default:
-			if (num_serial == 0 ) {
-				moan_device("unknown NetMos/Mostech device", dev);
-			}
+			break;
 	}
 
-	if (num_serial == 0)
+	if (num_serial == 0) {
+		moan_device("unknown NetMos/Mostech device", dev);
 		return -ENODEV;
+	}
 
 	return num_serial;
 }
