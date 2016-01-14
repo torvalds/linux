@@ -5453,6 +5453,7 @@ static int energy_diff(struct energy_env *eenv)
 	struct sched_domain *sd;
 	struct sched_group *sg;
 	int sd_cpu = -1, energy_before = 0, energy_after = 0;
+	int result;
 
 	struct energy_env eenv_before = {
 		.util_delta	= 0,
@@ -5496,7 +5497,15 @@ static int energy_diff(struct energy_env *eenv)
 	eenv->nrg.diff = eenv->nrg.after - eenv->nrg.before;
 	eenv->payoff = 0;
 
-	return energy_diff_evaluate(eenv);
+	result = energy_diff_evaluate(eenv);
+
+	trace_sched_energy_diff(eenv->task,
+			eenv->src_cpu, eenv->dst_cpu, eenv->util_delta,
+			eenv->nrg.before, eenv->nrg.after, eenv->nrg.diff,
+			eenv->cap.before, eenv->cap.after, eenv->cap.delta,
+			eenv->nrg.delta, eenv->payoff);
+
+	return result;
 }
 
 /*
