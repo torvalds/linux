@@ -94,7 +94,7 @@
 #define X86_FEATURE_REP_GOOD	( 3*32+16) /* rep microcode works well */
 #define X86_FEATURE_MFENCE_RDTSC ( 3*32+17) /* "" Mfence synchronizes RDTSC */
 #define X86_FEATURE_LFENCE_RDTSC ( 3*32+18) /* "" Lfence synchronizes RDTSC */
-/* free, was #define X86_FEATURE_11AP	( 3*32+19) * "" Bad local APIC aka 11AP */
+#define X86_FEATURE_ACC_POWER	( 3*32+19) /* AMD Accumulated Power Mechanism */
 #define X86_FEATURE_NOPL	( 3*32+20) /* The NOPL (0F 1F) instructions */
 #define X86_FEATURE_ALWAYS	( 3*32+21) /* "" Always-present feature */
 #define X86_FEATURE_XTOPOLOGY	( 3*32+22) /* cpu topology enum extensions */

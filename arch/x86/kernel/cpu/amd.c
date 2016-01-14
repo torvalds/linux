@@ -546,6 +546,10 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 			set_sched_clock_stable();
 	}
 
+	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
+	if (c->x86_power & BIT(12))
+		set_cpu_cap(c, X86_FEATURE_ACC_POWER);
+
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
 #else
