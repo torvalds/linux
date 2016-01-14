@@ -1195,8 +1195,10 @@ static inline void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
  * i40e_alloc_rx_buffers_ps - Replace used receive buffers; packet split
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
+ *
+ * Returns true if any errors on allocation
  **/
-void i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
+bool i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 {
 	u16 i = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
@@ -1204,7 +1206,7 @@ void i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
-		return;
+		return false;
 
 	while (cleaned_count--) {
 		rx_desc = I40E_RX_DESC(rx_ring, i);
@@ -1251,17 +1253,29 @@ void i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 			i = 0;
 	}
 
+	if (rx_ring->next_to_use != i)
+		i40e_release_rx_desc(rx_ring, i);
+
+	return false;
+
 no_buffers:
 	if (rx_ring->next_to_use != i)
 		i40e_release_rx_desc(rx_ring, i);
+
+	/* make sure to come back via polling to try again after
+	 * allocation failure
+	 */
+	return true;
 }
 
 /**
  * i40e_alloc_rx_buffers_1buf - Replace used receive buffers; single buffer
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
+ *
+ * Returns true if any errors on allocation
  **/
-void i40e_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
+bool i40e_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 {
 	u16 i = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
@@ -1270,7 +1284,7 @@ void i40e_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
-		return;
+		return false;
 
 	while (cleaned_count--) {
 		rx_desc = I40E_RX_DESC(rx_ring, i);
@@ -1297,6 +1311,8 @@ void i40e_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 			if (dma_mapping_error(rx_ring->dev, bi->dma)) {
 				rx_ring->rx_stats.alloc_buff_failed++;
 				bi->dma = 0;
+				dev_kfree_skb(bi->skb);
+				bi->skb = NULL;
 				goto no_buffers;
 			}
 		}
@@ -1308,9 +1324,19 @@ void i40e_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 			i = 0;
 	}
 
+	if (rx_ring->next_to_use != i)
+		i40e_release_rx_desc(rx_ring, i);
+
+	return false;
+
 no_buffers:
 	if (rx_ring->next_to_use != i)
 		i40e_release_rx_desc(rx_ring, i);
+
+	/* make sure to come back via polling to try again after
+	 * allocation failure
+	 */
+	return true;
 }
 
 /**
@@ -1494,7 +1520,7 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  **/
-static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
+static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
@@ -1504,6 +1530,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 	u16 i = rx_ring->next_to_clean;
 	union i40e_rx_desc *rx_desc;
 	u32 rx_error, rx_status;
+	bool failure = false;
 	u8 rx_ptype;
 	u64 qword;
 
@@ -1516,7 +1543,9 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 		u16 vlan_tag;
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
-			i40e_alloc_rx_buffers_ps(rx_ring, cleaned_count);
+			failure = failure ||
+				  i40e_alloc_rx_buffers_ps(rx_ring,
+							   cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -1546,6 +1575,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 							rx_ring->rx_hdr_len);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_buff_failed++;
+				failure = true;
 				break;
 			}
 
@@ -1675,7 +1705,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 
-	return total_rx_packets;
+	return failure ? budget : total_rx_packets;
 }
 
 /**
@@ -1693,6 +1723,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 	union i40e_rx_desc *rx_desc;
 	u32 rx_error, rx_status;
 	u16 rx_packet_len;
+	bool failure = false;
 	u8 rx_ptype;
 	u64 qword;
 	u16 i;
@@ -1703,7 +1734,9 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 		u16 vlan_tag;
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
-			i40e_alloc_rx_buffers_1buf(rx_ring, cleaned_count);
+			failure = failure ||
+				  i40e_alloc_rx_buffers_1buf(rx_ring,
+							     cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -1802,7 +1835,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 
-	return total_rx_packets;
+	return failure ? budget : total_rx_packets;
 }
 
 static u32 i40e_buildreg_itr(const int type, const u16 itr)

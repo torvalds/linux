@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -316,8 +316,8 @@ struct i40e_ring_container {
 #define i40e_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos != NULL; pos = pos->next)
 
-void i40e_alloc_rx_buffers_ps(struct i40e_ring *rxr, u16 cleaned_count);
-void i40e_alloc_rx_buffers_1buf(struct i40e_ring *rxr, u16 cleaned_count);
+bool i40e_alloc_rx_buffers_ps(struct i40e_ring *rxr, u16 cleaned_count);
+bool i40e_alloc_rx_buffers_1buf(struct i40e_ring *rxr, u16 cleaned_count);
 void i40e_alloc_rx_headers(struct i40e_ring *rxr);
 netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 void i40e_clean_tx_ring(struct i40e_ring *tx_ring);
