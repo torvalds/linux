@@ -33,4 +33,17 @@ config SUN4I_EMAC
           To compile this driver as a module, choose M here.  The module
           will be called sun4i-emac.
 
+config SUN8I_EMAC
+        tristate "Allwinner H3 EMAC support"
+	depends on ARCH_SUNXI
+	depends on OF
+	select CRC32
+	select MII
+	select PHYLIB
+        ---help---
+          Support for Allwinner H3 EMAC ethernet driver.
+
+          To compile this driver as a module, choose M here.  The module
+          will be called sun8i-emac.
+
 endif # NET_VENDOR_ALLWINNER
