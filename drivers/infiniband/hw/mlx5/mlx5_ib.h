@@ -57,6 +57,8 @@ pr_warn("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
 
 #define field_avail(type, fld, sz) (offsetof(type, fld) +		\
 				    sizeof(((type *)0)->fld) <= (sz))
+#define MLX5_IB_DEFAULT_UIDX 0xffffff
+#define MLX5_USER_ASSIGNED_UIDX_MASK __mlx5_mask(qpc, user_index)
 
 enum {
 	MLX5_IB_MMAP_CMD_SHIFT	= 8,
@@ -94,6 +96,11 @@ enum {
 	MLX5_CROSS_CHANNEL_UUAR         = 0,
 };
 
+enum {
+	MLX5_CQE_VERSION_V0,
+	MLX5_CQE_VERSION_V1,
+};
+
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
@@ -102,6 +109,7 @@ struct mlx5_ib_ucontext {
 	 */
 	struct mutex		db_page_mutex;
 	struct mlx5_uuar_info	uuari;
+	u8			cqe_version;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -693,5 +701,20 @@ static inline u32 check_cq_create_flags(u32 flags)
 	 * create flags, otherwise it returns zero.
 	 */
 	return (flags & ~IB_CQ_FLAGS_IGNORE_OVERRUN);
+}
+
+static inline int verify_assign_uidx(u8 cqe_version, u32 cmd_uidx,
+				     u32 *user_index)
+{
+	if (cqe_version) {
+		if ((cmd_uidx == MLX5_IB_DEFAULT_UIDX) ||
+		    (cmd_uidx & ~MLX5_USER_ASSIGNED_UIDX_MASK))
+			return -EINVAL;
+		*user_index = cmd_uidx;
+	} else {
+		*user_index = MLX5_IB_DEFAULT_UIDX;
+	}
+
+	return 0;
 }
 #endif /* MLX5_IB_H */

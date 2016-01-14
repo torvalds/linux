@@ -696,7 +696,6 @@ clean:
 	return err;
 }
 
-#ifdef CONFIG_MLX5_CORE_EN
 static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 {
 	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)];
@@ -749,7 +748,6 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 
 	return -ENOTSUPP;
 }
-#endif
 
 static int map_bf_area(struct mlx5_core_dev *dev)
 {
@@ -995,13 +993,11 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_pagealloc_cleanup;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5_core_set_issi(dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to set issi\n");
 		goto err_disable_hca;
 	}
-#endif
 
 	err = mlx5_satisfy_startup_pages(dev, 1);
 	if (err) {
