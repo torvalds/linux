@@ -979,10 +979,6 @@ struct mlx4_mad_ifc {
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if ((type) == (dev)->caps.port_mask[(port)])
 
-#define mlx4_foreach_non_ib_transport_port(port, dev)                     \
-	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	  \
-		if (((dev)->caps.port_mask[port] != MLX4_PORT_TYPE_IB))
-
 #define mlx4_foreach_ib_transport_port(port, dev)                         \
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	  \
 		if (((dev)->caps.port_mask[port] == MLX4_PORT_TYPE_IB) || \
