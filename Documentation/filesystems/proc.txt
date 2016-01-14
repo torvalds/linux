@@ -169,6 +169,9 @@ read the file /proc/PID/status:
   VmLck:         0 kB
   VmHWM:       476 kB
   VmRSS:       476 kB
+  RssAnon:             352 kB
+  RssFile:             120 kB
+  RssShmem:              4 kB
   VmData:      156 kB
   VmStk:        88 kB
   VmExe:        68 kB
@@ -231,7 +234,12 @@ Table 1-2: Contents of the status files (as of 4.1)
  VmSize                      total program size
  VmLck                       locked memory size
  VmHWM                       peak resident set size ("high water mark")
- VmRSS                       size of memory portions
+ VmRSS                       size of memory portions. It contains the three
+                             following parts (VmRSS = RssAnon + RssFile + RssShmem)
+ RssAnon                     size of resident anonymous memory
+ RssFile                     size of resident file mappings
+ RssShmem                    size of resident shmem memory (includes SysV shm,
+                             mapping of tmpfs and shared anonymous mappings)
  VmData                      size of data, stack, and text segments
  VmStk                       size of data, stack, and text segments
  VmExe                       size of text segment
@@ -266,7 +274,8 @@ Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
  Field    Content
  size     total program size (pages)		(same as VmSize in status)
  resident size of memory portions (pages)	(same as VmRSS in status)
- shared   number of pages that are shared	(i.e. backed by a file)
+ shared   number of pages that are shared	(i.e. backed by a file, same
+						as RssFile+RssShmem in status)
  trs      number of pages that are 'code'	(not including libs; broken,
 							includes data segment)
  lrs      number of pages of library		(always 0 on 2.6)
