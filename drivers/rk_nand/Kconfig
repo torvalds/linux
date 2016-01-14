@@ -1,0 +1,8 @@
+if ARCH_ROCKCHIP
+config RK_NAND
+	tristate "RK NAND Device Support"
+	default n
+	help
+	  RK NAND Device Support.
+
+endif
