@@ -790,7 +790,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 dev_id, disp_id;
 	const char *lcd_panel;
-	unsigned int mux;
+	int mux;
 	int ret = 0;
 
 	mipi_dsi = devm_kzalloc(&pdev->dev, sizeof(*mipi_dsi), GFP_KERNEL);
@@ -889,7 +889,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mux = mipi_dsi->bus_mux->get_mux(dev_id, disp_id);
 	if (mux >= 0)
 		regmap_update_bits(mipi_dsi->regmap, mipi_dsi->bus_mux->reg,
-				   mipi_dsi->bus_mux->mask, mux);
+				   mipi_dsi->bus_mux->mask, (unsigned int)mux);
 	else
 		dev_warn(&pdev->dev, "invalid dev_id or disp_id muxing\n");
 
