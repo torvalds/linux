@@ -248,8 +248,8 @@ static int __init hp300_8250_init(void)
 
 		/* Memory mapped I/O */
 		uart.port.iotype = UPIO_MEM;
-		uart.port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ \
-			      | UPF_BOOT_AUTOCONF;
+		uart.port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ
+				| UPF_BOOT_AUTOCONF;
 		/* XXX - no interrupt support yet */
 		uart.port.irq = 0;
 		uart.port.uartclk = HPAPCI_BAUD_BASE * 16;
