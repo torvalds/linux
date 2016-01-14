@@ -348,9 +348,6 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	}
 
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
-
 	ret = drm_fb_helper_initial_config(helper, preferred_bpp);
 	if (ret < 0) {
 		dev_err(dev->dev, "Failed to set initial hw configuration.\n");
