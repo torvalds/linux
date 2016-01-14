@@ -6174,8 +6174,7 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 	}
 
 bail:
-	if (tl_inode)
-		iput(tl_inode);
+	iput(tl_inode);
 	brelse(tl_bh);
 
 	if (status < 0) {

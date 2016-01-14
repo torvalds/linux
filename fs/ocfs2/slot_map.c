@@ -322,8 +322,7 @@ static void __ocfs2_free_slot_info(struct ocfs2_slot_info *si)
 	if (si == NULL)
 		return;
 
-	if (si->si_inode)
-		iput(si->si_inode);
+	iput(si->si_inode);
 	if (si->si_bh) {
 		for (i = 0; i < si->si_blocks; i++) {
 			if (si->si_bh[i]) {

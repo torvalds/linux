@@ -1683,8 +1683,7 @@ bail:
 	if (new_inode)
 		sync_mapping_buffers(old_inode->i_mapping);
 
-	if (new_inode)
-		iput(new_inode);
+	iput(new_inode);
 
 	ocfs2_free_dir_lookup_result(&target_lookup_res);
 	ocfs2_free_dir_lookup_result(&old_entry_lookup);

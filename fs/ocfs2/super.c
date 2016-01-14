@@ -1722,8 +1722,7 @@ static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	ocfs2_inode_unlock(inode, 0);
 	status = 0;
 bail:
-	if (inode)
-		iput(inode);
+	iput(inode);
 
 	if (status)
 		mlog_errno(status);
