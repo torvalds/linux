@@ -1511,6 +1511,9 @@ static void get_cqs(struct mlx5_ib_qp *qp,
 	}
 }
 
+static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
+				u16 operation);
+
 static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 {
 	struct mlx5_ib_cq *send_cq, *recv_cq;
@@ -1527,9 +1530,16 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 		return;
 
 	if (qp->state != IB_QPS_RESET) {
-		mlx5_ib_qp_disable_pagefaults(qp);
-		if (mlx5_core_qp_modify(dev->mdev, MLX5_CMD_OP_2RST_QP,
-					in, 0, &base->mqp))
+		if (qp->ibqp.qp_type != IB_QPT_RAW_PACKET) {
+			mlx5_ib_qp_disable_pagefaults(qp);
+			err = mlx5_core_qp_modify(dev->mdev,
+						  MLX5_CMD_OP_2RST_QP, in, 0,
+						  &base->mqp);
+		} else {
+			err = modify_raw_packet_qp(dev, qp,
+						   MLX5_CMD_OP_2RST_QP);
+		}
+		if (err)
 			mlx5_ib_warn(dev, "mlx5_ib: modify QP 0x%06x to RESET failed\n",
 				     base->mqp.qpn);
 	}
@@ -1984,6 +1994,110 @@ static int ib_mask_to_mlx5_opt(int ib_mask)
 	return result;
 }
 
+static int modify_raw_packet_qp_rq(struct mlx5_core_dev *dev,
+				   struct mlx5_ib_rq *rq, int new_state)
+{
+	void *in;
+	void *rqc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_rq_in);
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_rq_in, in, rq_state, rq->state);
+
+	rqc = MLX5_ADDR_OF(modify_rq_in, in, ctx);
+	MLX5_SET(rqc, rqc, state, new_state);
+
+	err = mlx5_core_modify_rq(dev, rq->base.mqp.qpn, in, inlen);
+	if (err)
+		goto out;
+
+	rq->state = new_state;
+
+out:
+	kvfree(in);
+	return err;
+}
+
+static int modify_raw_packet_qp_sq(struct mlx5_core_dev *dev,
+				   struct mlx5_ib_sq *sq, int new_state)
+{
+	void *in;
+	void *sqc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_sq_in);
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_sq_in, in, sq_state, sq->state);
+
+	sqc = MLX5_ADDR_OF(modify_sq_in, in, ctx);
+	MLX5_SET(sqc, sqc, state, new_state);
+
+	err = mlx5_core_modify_sq(dev, sq->base.mqp.qpn, in, inlen);
+	if (err)
+		goto out;
+
+	sq->state = new_state;
+
+out:
+	kvfree(in);
+	return err;
+}
+
+static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
+				u16 operation)
+{
+	struct mlx5_ib_raw_packet_qp *raw_packet_qp = &qp->raw_packet_qp;
+	struct mlx5_ib_rq *rq = &raw_packet_qp->rq;
+	struct mlx5_ib_sq *sq = &raw_packet_qp->sq;
+	int rq_state;
+	int sq_state;
+	int err;
+
+	switch (operation) {
+	case MLX5_CMD_OP_RST2INIT_QP:
+		rq_state = MLX5_RQC_STATE_RDY;
+		sq_state = MLX5_SQC_STATE_RDY;
+		break;
+	case MLX5_CMD_OP_2ERR_QP:
+		rq_state = MLX5_RQC_STATE_ERR;
+		sq_state = MLX5_SQC_STATE_ERR;
+		break;
+	case MLX5_CMD_OP_2RST_QP:
+		rq_state = MLX5_RQC_STATE_RST;
+		sq_state = MLX5_SQC_STATE_RST;
+		break;
+	case MLX5_CMD_OP_INIT2INIT_QP:
+	case MLX5_CMD_OP_INIT2RTR_QP:
+	case MLX5_CMD_OP_RTR2RTS_QP:
+	case MLX5_CMD_OP_RTS2RTS_QP:
+		/* Nothing to do here... */
+		return 0;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (qp->rq.wqe_cnt) {
+		err =  modify_raw_packet_qp_rq(dev->mdev, rq, rq_state);
+		if (err)
+			return err;
+	}
+
+	if (qp->sq.wqe_cnt)
+		return modify_raw_packet_qp_sq(dev->mdev, sq, sq_state);
+
+	return 0;
+}
+
 static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       const struct ib_qp_attr *attr, int attr_mask,
 			       enum ib_qp_state cur_state, enum ib_qp_state new_state)
@@ -2181,7 +2295,8 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	 * again to RTS, and may cause the driver and the device to get out of
 	 * sync. */
 	if (cur_state != IB_QPS_RESET && cur_state != IB_QPS_ERR &&
-	    (new_state == IB_QPS_RESET || new_state == IB_QPS_ERR))
+	    (new_state == IB_QPS_RESET || new_state == IB_QPS_ERR) &&
+	    (qp->ibqp.qp_type != IB_QPT_RAW_PACKET))
 		mlx5_ib_qp_disable_pagefaults(qp);
 
 	if (mlx5_cur >= MLX5_QP_NUM_STATE || mlx5_new >= MLX5_QP_NUM_STATE ||
@@ -2192,12 +2307,17 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	optpar = ib_mask_to_mlx5_opt(attr_mask);
 	optpar &= opt_mask[mlx5_cur][mlx5_new][mlx5_st];
 	in->optparam = cpu_to_be32(optpar);
-	err = mlx5_core_qp_modify(dev->mdev, op, in, sqd_event,
-				  &base->mqp);
+
+	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET)
+		err = modify_raw_packet_qp(dev, qp, op);
+	else
+		err = mlx5_core_qp_modify(dev->mdev, op, in, sqd_event,
+					  &base->mqp);
 	if (err)
 		goto out;
 
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT &&
+	    (qp->ibqp.qp_type != IB_QPT_RAW_PACKET))
 		mlx5_ib_qp_enable_pagefaults(qp);
 
 	qp->state = new_state;
@@ -2254,11 +2374,6 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (!(cur_state == new_state && cur_state == IB_QPS_RESET)) {
 		port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 		ll = dev->ib_dev.get_link_layer(&dev->ib_dev, port);
-	}
-
-	if (ibqp->qp_type == IB_QPT_RAW_PACKET) {
-		err = -EOPNOTSUPP;
-		goto out;
 	}
 
 	if (ibqp->qp_type != MLX5_IB_QPT_REG_UMR &&
