@@ -869,7 +869,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (req.total_num_uuars == 0)
 		return ERR_PTR(-EINVAL);
 
-	if (req.comp_mask)
+	if (req.comp_mask || req.reserved0 || req.reserved1 || req.reserved2)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	if (reqlen > sizeof(req) &&
@@ -892,6 +892,9 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	resp.max_send_wqebb = 1 << MLX5_CAP_GEN(dev->mdev, log_max_qp_sz);
 	resp.max_recv_wr = 1 << MLX5_CAP_GEN(dev->mdev, log_max_qp_sz);
 	resp.max_srq_recv_wr = 1 << MLX5_CAP_GEN(dev->mdev, log_max_srq_sz);
+	resp.cqe_version = min_t(__u8,
+				 (__u8)MLX5_CAP_GEN(dev->mdev, cqe_version),
+				 req.max_cqe_version);
 	resp.response_length = min(offsetof(typeof(resp), response_length) +
 				   sizeof(resp.response_length), udata->outlen);
 
@@ -945,8 +948,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	resp.tot_uuars = req.total_num_uuars;
 	resp.num_ports = MLX5_CAP_GEN(dev->mdev, num_ports);
 
-	if (field_avail(typeof(resp), reserved2, udata->outlen))
-		resp.response_length += sizeof(resp.reserved2);
+	if (field_avail(typeof(resp), cqe_version, udata->outlen))
+		resp.response_length += sizeof(resp.cqe_version);
 
 	if (field_avail(typeof(resp), hca_core_clock_offset, udata->outlen)) {
 		resp.comp_mask |=
@@ -954,7 +957,9 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 		resp.hca_core_clock_offset =
 			offsetof(struct mlx5_init_seg, internal_timer_h) %
 			PAGE_SIZE;
-		resp.response_length += sizeof(resp.hca_core_clock_offset);
+		resp.response_length += sizeof(resp.hca_core_clock_offset) +
+					sizeof(resp.reserved2) +
+					sizeof(resp.reserved3);
 	}
 
 	err = ib_copy_to_udata(udata, &resp, resp.response_length);
@@ -965,6 +970,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	uuari->num_low_latency_uuars = req.num_low_latency_uuars;
 	uuari->uars = uars;
 	uuari->num_uars = num_uars;
+	context->cqe_version = resp.cqe_version;
+
 	return &context->ibucontext;
 
 out_uars:
