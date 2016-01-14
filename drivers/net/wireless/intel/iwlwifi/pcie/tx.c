@@ -571,6 +571,7 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 		return ret;
 
 	spin_lock_init(&txq->lock);
+	__skb_queue_head_init(&txq->overflow_q);
 
 	/*
 	 * Tell nic where to find circular buffer of Tx Frame Descriptors for
@@ -621,6 +622,13 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr);
 	}
 	txq->active = false;
+
+	while (!skb_queue_empty(&txq->overflow_q)) {
+		struct sk_buff *skb = __skb_dequeue(&txq->overflow_q);
+
+		iwl_op_mode_free_skb(trans->op_mode, skb);
+	}
+
 	spin_unlock_bh(&txq->lock);
 
 	/* just in case - this queue may have been stopped */
@@ -1052,8 +1060,41 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	iwl_pcie_txq_progress(txq);
 
-	if (iwl_queue_space(&txq->q) > txq->q.low_mark)
-		iwl_wake_queue(trans, txq);
+	if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
+	    test_bit(txq_id, trans_pcie->queue_stopped)) {
+		struct sk_buff_head skbs;
+
+		__skb_queue_head_init(&skbs);
+		skb_queue_splice_init(&txq->overflow_q, &skbs);
+
+		/*
+		 * This is tricky: we are in reclaim path which is non
+		 * re-entrant, so noone will try to take the access the
+		 * txq data from that path. We stopped tx, so we can't
+		 * have tx as well. Bottom line, we can unlock and re-lock
+		 * later.
+		 */
+		spin_unlock_bh(&txq->lock);
+
+		while (!skb_queue_empty(&skbs)) {
+			struct sk_buff *skb = __skb_dequeue(&skbs);
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+			u8 dev_cmd_idx = IWL_TRANS_FIRST_DRIVER_DATA + 1;
+			struct iwl_device_cmd *dev_cmd =
+				info->driver_data[dev_cmd_idx];
+
+			/*
+			 * Note that we can very well be overflowing again.
+			 * In that case, iwl_queue_space will be small again
+			 * and we won't wake mac80211's queue.
+			 */
+			iwl_trans_pcie_tx(trans, skb, dev_cmd, txq_id);
+		}
+		spin_lock_bh(&txq->lock);
+
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
+			iwl_wake_queue(trans, txq);
+	}
 
 	if (q->read_ptr == q->write_ptr) {
 		IWL_DEBUG_RPM(trans, "Q %d - last tx reclaimed\n", q->id);
@@ -2161,6 +2202,8 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 		csum = skb_checksum(skb, offs, skb->len - offs, 0);
 		*(__sum16 *)(skb->data + csum_offs) = csum_fold(csum);
+
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
 	if (skb_is_nonlinear(skb) &&
@@ -2176,6 +2219,22 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	hdr_len = ieee80211_hdrlen(fc);
 
 	spin_lock(&txq->lock);
+
+	if (iwl_queue_space(q) < q->high_mark) {
+		iwl_stop_queue(trans, txq);
+
+		/* don't put the packet on the ring, if there is no room */
+		if (unlikely(iwl_queue_space(q) < 3)) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+			info->driver_data[IWL_TRANS_FIRST_DRIVER_DATA + 1] =
+				dev_cmd;
+			__skb_queue_tail(&txq->overflow_q, skb);
+
+			spin_unlock(&txq->lock);
+			return 0;
+		}
+	}
 
 	/* In AGG mode, the index in the ring must correspond to the WiFi
 	 * sequence number. This is a HW requirements to help the SCD to parse
@@ -2281,12 +2340,6 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 * At this point the frame is "transmitted" successfully
 	 * and we will get a TX status notification eventually.
 	 */
-	if (iwl_queue_space(q) < q->high_mark) {
-		if (wait_write_ptr)
-			iwl_pcie_txq_inc_wr_ptr(trans, txq);
-		else
-			iwl_stop_queue(trans, txq);
-	}
 	spin_unlock(&txq->lock);
 	return 0;
 out_err:

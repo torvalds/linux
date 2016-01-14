@@ -280,6 +280,7 @@ struct iwl_txq {
 	bool ampdu;
 	bool block;
 	unsigned long wd_timeout;
+	struct sk_buff_head overflow_q;
 };
 
 static inline dma_addr_t
