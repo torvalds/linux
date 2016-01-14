@@ -108,13 +108,14 @@ struct ap_csi_config_request {
 } __packed;
 
 static int gb_camera_configure_streams(struct gb_camera *gcam,
-				       unsigned int nstreams,
-				       unsigned int flags,
+				       unsigned int *num_streams,
+				       unsigned int *flags,
 				       struct gb_camera_stream_config *streams)
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
 	struct ap_csi_config_request csi_cfg;
+	unsigned int nstreams = *num_streams;
 	unsigned int i;
 	size_t req_size;
 	size_t resp_size;
@@ -134,7 +135,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	}
 
 	req->num_streams = nstreams;
-	req->flags = flags;
+	req->flags = *flags;
 	req->padding = 0;
 
 	for (i = 0; i < nstreams; ++i) {
@@ -164,6 +165,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		ret = -EIO;
 		goto done;
 	}
+
+	*flags = resp->flags;
 
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
@@ -205,7 +208,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		gcam_err(gcam, "failed to %s the CSI transmitter\n",
 			 nstreams ? "start" : "stop");
 
-	ret = resp->num_streams;
+	*num_streams = resp->num_streams;
+	ret = 0;
 
 done:
 	kfree(req);
@@ -316,6 +320,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int nstreams,
 {
 	struct gb_camera *gcam = priv;
 	struct gb_camera_stream_config *gb_streams;
+	unsigned int flags = 0;
 	unsigned int i;
 	int ret;
 
@@ -333,7 +338,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int nstreams,
 			gb_camera_mbus_to_gb(streams[i].pixel_code);
 	}
 
-	ret = gb_camera_configure_streams(gcam, nstreams, 0, gb_streams);
+	ret = gb_camera_configure_streams(gcam, &nstreams, &flags, gb_streams);
 	if (ret < 0)
 		goto done;
 
@@ -455,12 +460,11 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 			goto done;
 	}
 
-	ret = gb_camera_configure_streams(gcam, nstreams, flags, streams);
+	ret = gb_camera_configure_streams(gcam, &nstreams, &flags, streams);
 	if (ret < 0)
 		goto done;
 
-	nstreams = ret;
-	buffer->length = sprintf(buffer->data, "%u;", nstreams);
+	buffer->length = sprintf(buffer->data, "%u;%u;", nstreams, flags);
 
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config *stream = &streams[i];
