@@ -86,7 +86,7 @@ static void amdgpu_mn_destroy(struct work_struct *work)
 	}
 	mutex_unlock(&adev->mn_lock);
 	up_write(&rmn->mm->mmap_sem);
-	mmu_notifier_unregister(&rmn->mn, rmn->mm);
+	mmu_notifier_unregister_no_release(&rmn->mn, rmn->mm);
 	kfree(rmn);
 }
 
