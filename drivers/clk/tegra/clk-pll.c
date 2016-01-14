@@ -1401,7 +1401,7 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	val |= PLLE_MISC_IDDQ_SW_CTRL;
 	val &= ~PLLE_MISC_IDDQ_SW_VALUE;
 	val |= PLLE_MISC_PLLE_PTS;
-	val |= PLLE_MISC_VREG_BG_CTRL_MASK | PLLE_MISC_VREG_CTRL_MASK;
+	val &= ~(PLLE_MISC_VREG_BG_CTRL_MASK | PLLE_MISC_VREG_CTRL_MASK);
 	pll_writel_misc(val, pll);
 	udelay(5);
 
@@ -2035,7 +2035,7 @@ static int clk_plle_tegra210_enable(struct clk_hw *hw)
 	val |= PLLE_MISC_IDDQ_SW_CTRL;
 	val &= ~PLLE_MISC_IDDQ_SW_VALUE;
 	val |= PLLE_MISC_PLLE_PTS;
-	val |= PLLE_MISC_VREG_BG_CTRL_MASK | PLLE_MISC_VREG_CTRL_MASK;
+	val &= ~(PLLE_MISC_VREG_BG_CTRL_MASK | PLLE_MISC_VREG_CTRL_MASK);
 	pll_writel_misc(val, pll);
 	udelay(5);
 
