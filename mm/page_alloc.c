@@ -3402,7 +3402,8 @@ EXPORT_SYMBOL(__free_page_frag);
 
 /*
  * alloc_kmem_pages charges newly allocated pages to the kmem resource counter
- * of the current memory cgroup.
+ * of the current memory cgroup if __GFP_ACCOUNT is set, other than that it is
+ * equivalent to alloc_pages.
  *
  * It should be used when the caller would like to use kmalloc, but since the
  * allocation is large, it has to fall back to the page allocator.
