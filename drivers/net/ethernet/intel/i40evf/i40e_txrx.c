@@ -764,8 +764,10 @@ bool i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 		skb = bi->skb;
 
 		if (!skb) {
-			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-							rx_ring->rx_buf_len);
+			skb = __netdev_alloc_skb_ip_align(rx_ring->netdev,
+							  rx_ring->rx_buf_len,
+							  GFP_ATOMIC |
+							  __GFP_NOWARN);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_buff_failed++;
 				goto no_buffers;
@@ -1034,8 +1036,10 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 		rx_bi = &rx_ring->rx_bi[i];
 		skb = rx_bi->skb;
 		if (likely(!skb)) {
-			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-							rx_ring->rx_hdr_len);
+			skb = __netdev_alloc_skb_ip_align(rx_ring->netdev,
+							  rx_ring->rx_hdr_len,
+							  GFP_ATOMIC |
+							  __GFP_NOWARN);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_buff_failed++;
 				failure = true;
