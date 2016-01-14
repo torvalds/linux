@@ -1752,7 +1752,33 @@ static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 	return rate + MLX5_STAT_RATE_OFFSET;
 }
 
-static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
+static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
+				      struct mlx5_ib_sq *sq, u8 sl)
+{
+	void *in;
+	void *tisc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_tis_in);
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_tis_in, in, bitmask.prio, 1);
+
+	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
+	MLX5_SET(tisc, tisc, prio, ((sl & 0x7) << 1));
+
+	err = mlx5_core_modify_tis(dev, sq->tisn, in, inlen);
+
+	kvfree(in);
+
+	return err;
+}
+
+static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
+			 const struct ib_ah_attr *ah,
 			 struct mlx5_qp_path *path, u8 port, int attr_mask,
 			 u32 path_flags, const struct ib_qp_attr *attr)
 {
@@ -1807,6 +1833,11 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 
 	if (attr_mask & IB_QP_TIMEOUT)
 		path->ackto_lt = attr->timeout << 3;
+
+	if ((qp->ibqp.qp_type == IB_QPT_RAW_PACKET) && qp->sq.wqe_cnt)
+		return modify_raw_packet_eth_prio(dev->mdev,
+						  &qp->raw_packet_qp.sq,
+						  ah->sl & 0xf);
 
 	return 0;
 }
@@ -2029,7 +2060,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		context->pri_path.port = attr->port_num;
 
 	if (attr_mask & IB_QP_AV) {
-		err = mlx5_set_path(dev, &attr->ah_attr, &context->pri_path,
+		err = mlx5_set_path(dev, qp, &attr->ah_attr, &context->pri_path,
 				    attr_mask & IB_QP_PORT ? attr->port_num : qp->port,
 				    attr_mask, 0, attr);
 		if (err)
@@ -2040,7 +2071,8 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		context->pri_path.ackto_lt |= attr->timeout << 3;
 
 	if (attr_mask & IB_QP_ALT_PATH) {
-		err = mlx5_set_path(dev, &attr->alt_ah_attr, &context->alt_path,
+		err = mlx5_set_path(dev, qp, &attr->alt_ah_attr,
+				    &context->alt_path,
 				    attr->alt_port_num, attr_mask, 0, attr);
 		if (err)
 			goto out;

@@ -4052,6 +4052,13 @@ struct mlx5_ifc_modify_tis_out_bits {
 	u8         reserved_1[0x40];
 };
 
+struct mlx5_ifc_modify_tis_bitmask_bits {
+	u8         reserved_0[0x20];
+
+	u8         reserved_1[0x1f];
+	u8         prio[0x1];
+};
+
 struct mlx5_ifc_modify_tis_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_0[0x10];
@@ -4064,7 +4071,7 @@ struct mlx5_ifc_modify_tis_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_modify_tis_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 

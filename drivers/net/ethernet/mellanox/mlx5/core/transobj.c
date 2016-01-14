@@ -235,6 +235,18 @@ int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
 }
 EXPORT_SYMBOL(mlx5_core_create_tis);
 
+int mlx5_core_modify_tis(struct mlx5_core_dev *dev, u32 tisn, u32 *in,
+			 int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_tis_out)] = {0};
+
+	MLX5_SET(modify_tis_in, in, tisn, tisn);
+	MLX5_SET(modify_tis_in, in, opcode, MLX5_CMD_OP_MODIFY_TIS);
+
+	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
+}
+EXPORT_SYMBOL(mlx5_core_modify_tis);
+
 void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_tis_in)];
