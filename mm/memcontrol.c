@@ -294,9 +294,6 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 void sock_update_memcg(struct sock *sk)
 {
 	struct mem_cgroup *memcg;
-	struct cg_proto *cg_proto;
-
-	BUG_ON(!sk->sk_prot->proto_cgroup);
 
 	/* Socket cloning can throw us here with sk_cgrp already
 	 * filled. It won't however, necessarily happen from
@@ -306,68 +303,58 @@ void sock_update_memcg(struct sock *sk)
 	 * Respecting the original socket's memcg is a better
 	 * decision in this case.
 	 */
-	if (sk->sk_cgrp) {
-		BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
-		css_get(&sk->sk_cgrp->memcg->css);
+	if (sk->sk_memcg) {
+		BUG_ON(mem_cgroup_is_root(sk->sk_memcg));
+		css_get(&sk->sk_memcg->css);
 		return;
 	}
 
 	rcu_read_lock();
 	memcg = mem_cgroup_from_task(current);
-	cg_proto = sk->sk_prot->proto_cgroup(memcg);
-	if (cg_proto && cg_proto->active &&
-	    css_tryget_online(&memcg->css)) {
-		sk->sk_cgrp = cg_proto;
-	}
+	if (memcg != root_mem_cgroup &&
+	    memcg->tcp_mem.active &&
+	    css_tryget_online(&memcg->css))
+		sk->sk_memcg = memcg;
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(sock_update_memcg);
 
 void sock_release_memcg(struct sock *sk)
 {
-	WARN_ON(!sk->sk_cgrp->memcg);
-	css_put(&sk->sk_cgrp->memcg->css);
+	WARN_ON(!sk->sk_memcg);
+	css_put(&sk->sk_memcg->css);
 }
-
-struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
-{
-	if (!memcg || mem_cgroup_is_root(memcg))
-		return NULL;
-
-	return &memcg->tcp_mem;
-}
-EXPORT_SYMBOL(tcp_proto_cgroup);
 
 /**
  * mem_cgroup_charge_skmem - charge socket memory
- * @proto: proto to charge
+ * @memcg: memcg to charge
  * @nr_pages: number of pages to charge
  *
- * Charges @nr_pages to @proto. Returns %true if the charge fit within
- * @proto's configured limit, %false if the charge had to be forced.
+ * Charges @nr_pages to @memcg. Returns %true if the charge fit within
+ * @memcg's configured limit, %false if the charge had to be forced.
  */
-bool mem_cgroup_charge_skmem(struct cg_proto *proto, unsigned int nr_pages)
+bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
 {
 	struct page_counter *counter;
 
-	if (page_counter_try_charge(&proto->memory_allocated,
+	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
 				    nr_pages, &counter)) {
-		proto->memory_pressure = 0;
+		memcg->tcp_mem.memory_pressure = 0;
 		return true;
 	}
-	page_counter_charge(&proto->memory_allocated, nr_pages);
-	proto->memory_pressure = 1;
+	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
+	memcg->tcp_mem.memory_pressure = 1;
 	return false;
 }
 
 /**
  * mem_cgroup_uncharge_skmem - uncharge socket memory
- * @proto - proto to uncharge
+ * @memcg - memcg to uncharge
  * @nr_pages - number of pages to uncharge
  */
-void mem_cgroup_uncharge_skmem(struct cg_proto *proto, unsigned int nr_pages)
+void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
 {
-	page_counter_uncharge(&proto->memory_allocated, nr_pages);
+	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
 }
 
 #endif
@@ -3653,7 +3640,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 	if (ret)
 		return ret;
 
-	return mem_cgroup_sockets_init(memcg, ss);
+	return tcp_init_cgroup(memcg, ss);
 }
 
 static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
@@ -3709,7 +3696,7 @@ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
 		static_key_slow_dec(&memcg_kmem_enabled_key);
 		WARN_ON(page_counter_read(&memcg->kmem));
 	}
-	mem_cgroup_sockets_destroy(memcg);
+	tcp_destroy_cgroup(memcg);
 }
 #else
 static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)

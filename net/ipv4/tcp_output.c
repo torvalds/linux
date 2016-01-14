@@ -2821,8 +2821,8 @@ void sk_forced_mem_schedule(struct sock *sk, int size)
 	sk->sk_forward_alloc += amt * SK_MEM_QUANTUM;
 	sk_memory_allocated_add(sk, amt);
 
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		mem_cgroup_charge_skmem(sk->sk_cgrp, amt);
+	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
+		mem_cgroup_charge_skmem(sk->sk_memcg, amt);
 }
 
 /* Send a FIN. The caller locks the socket for us.

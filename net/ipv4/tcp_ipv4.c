@@ -1819,7 +1819,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 
 	sk_sockets_allocated_dec(sk);
 
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
+	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
 		sock_release_memcg(sk);
 }
 EXPORT_SYMBOL(tcp_v4_destroy_sock);
@@ -2343,11 +2343,6 @@ struct proto tcp_prot = {
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt	= compat_tcp_setsockopt,
 	.compat_getsockopt	= compat_tcp_getsockopt,
-#endif
-#ifdef CONFIG_MEMCG_KMEM
-	.init_cgroup		= tcp_init_cgroup,
-	.destroy_cgroup		= tcp_destroy_cgroup,
-	.proto_cgroup		= tcp_proto_cgroup,
 #endif
 	.diag_destroy		= tcp_abort,
 };

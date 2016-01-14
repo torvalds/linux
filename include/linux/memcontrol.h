@@ -89,16 +89,6 @@ struct cg_proto {
 	struct page_counter	memory_allocated;	/* Current allocated memory. */
 	int			memory_pressure;
 	bool			active;
-	/*
-	 * memcg field is used to find which memcg we belong directly
-	 * Each memcg struct can hold more than one cg_proto, so container_of
-	 * won't really cut.
-	 *
-	 * The elegant solution would be having an inverse function to
-	 * proto_cgroup in struct proto, but that means polluting the structure
-	 * for everybody, instead of just for memcg users.
-	 */
-	struct mem_cgroup	*memcg;
 };
 
 #ifdef CONFIG_MEMCG
@@ -688,15 +678,15 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
 struct sock;
 void sock_update_memcg(struct sock *sk);
 void sock_release_memcg(struct sock *sk);
-bool mem_cgroup_charge_skmem(struct cg_proto *proto, unsigned int nr_pages);
-void mem_cgroup_uncharge_skmem(struct cg_proto *proto, unsigned int nr_pages);
+bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
+void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
 #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
-static inline bool mem_cgroup_under_socket_pressure(struct cg_proto *proto)
+static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 {
-	return proto->memory_pressure;
+	return memcg->tcp_mem.memory_pressure;
 }
 #else
-static inline bool mem_cgroup_under_pressure(struct cg_proto *proto)
+static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 {
 	return false;
 }
