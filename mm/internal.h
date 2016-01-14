@@ -119,6 +119,8 @@ extern int isolate_lru_page(struct page *page);
 extern void putback_lru_page(struct page *page);
 extern bool zone_reclaimable(struct zone *zone);
 
+#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+
 /*
  * in mm/rmap.c:
  */

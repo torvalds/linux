@@ -106,8 +106,6 @@ struct scan_control {
 	unsigned long nr_reclaimed;
 };
 
-#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-
 #ifdef ARCH_HAS_PREFETCH
 #define prefetch_prev_lru_page(_page, _base, _field)			\
 	do {								\
