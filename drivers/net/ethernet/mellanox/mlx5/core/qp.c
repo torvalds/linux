@@ -68,6 +68,52 @@ void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common)
 		complete(&common->free);
 }
 
+static u64 qp_allowed_event_types(void)
+{
+	u64 mask;
+
+	mask = BIT(MLX5_EVENT_TYPE_PATH_MIG) |
+	       BIT(MLX5_EVENT_TYPE_COMM_EST) |
+	       BIT(MLX5_EVENT_TYPE_SQ_DRAINED) |
+	       BIT(MLX5_EVENT_TYPE_SRQ_LAST_WQE) |
+	       BIT(MLX5_EVENT_TYPE_WQ_CATAS_ERROR) |
+	       BIT(MLX5_EVENT_TYPE_PATH_MIG_FAILED) |
+	       BIT(MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR) |
+	       BIT(MLX5_EVENT_TYPE_WQ_ACCESS_ERROR);
+
+	return mask;
+}
+
+static u64 rq_allowed_event_types(void)
+{
+	u64 mask;
+
+	mask = BIT(MLX5_EVENT_TYPE_SRQ_LAST_WQE) |
+	       BIT(MLX5_EVENT_TYPE_WQ_CATAS_ERROR);
+
+	return mask;
+}
+
+static u64 sq_allowed_event_types(void)
+{
+	return BIT(MLX5_EVENT_TYPE_WQ_CATAS_ERROR);
+}
+
+static bool is_event_type_allowed(int rsc_type, int event_type)
+{
+	switch (rsc_type) {
+	case MLX5_EVENT_QUEUE_TYPE_QP:
+		return BIT(event_type) & qp_allowed_event_types();
+	case MLX5_EVENT_QUEUE_TYPE_RQ:
+		return BIT(event_type) & rq_allowed_event_types();
+	case MLX5_EVENT_QUEUE_TYPE_SQ:
+		return BIT(event_type) & sq_allowed_event_types();
+	default:
+		WARN(1, "Event arrived for unknown resource type");
+		return false;
+	}
+}
+
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
 {
 	struct mlx5_core_rsc_common *common = mlx5_get_rsc(dev, rsn);
@@ -75,6 +121,12 @@ void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
 
 	if (!common)
 		return;
+
+	if (!is_event_type_allowed((rsn >> MLX5_USER_INDEX_LEN), event_type)) {
+		mlx5_core_warn(dev, "event 0x%.2x is not allowed on resource 0x%.8x\n",
+			       event_type, rsn);
+		return;
+	}
 
 	switch (common->res) {
 	case MLX5_RES_QP:
