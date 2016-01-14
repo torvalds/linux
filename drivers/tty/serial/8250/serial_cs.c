@@ -533,8 +533,8 @@ static int multi_config(struct pcmcia_device *link)
 		info->multi = 2;
 		if (pcmcia_loop_config(link, multi_config_check_notpicky,
 				       &base2)) {
-			dev_warn(&link->dev, "no usable port range "
-			       "found, giving up\n");
+			dev_warn(&link->dev,
+				 "no usable port range found, giving up\n");
 			return -ENODEV;
 		}
 	}
