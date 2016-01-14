@@ -651,6 +651,14 @@ void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
 				u8 context, int error);
 #endif
+int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
+				struct mlx5_core_qp *rq);
+void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
+				  struct mlx5_core_qp *rq);
+int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
+				struct mlx5_core_qp *sq);
+void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
+				  struct mlx5_core_qp *sq);
 
 static inline const char *mlx5_qp_type_str(int type)
 {

@@ -346,9 +346,11 @@ struct mlx5_core_mr {
 };
 
 enum mlx5_res_type {
-	MLX5_RES_QP,
-	MLX5_RES_SRQ,
-	MLX5_RES_XSRQ,
+	MLX5_RES_QP	= MLX5_EVENT_QUEUE_TYPE_QP,
+	MLX5_RES_RQ	= MLX5_EVENT_QUEUE_TYPE_RQ,
+	MLX5_RES_SQ	= MLX5_EVENT_QUEUE_TYPE_SQ,
+	MLX5_RES_SRQ	= 3,
+	MLX5_RES_XSRQ	= 4,
 };
 
 struct mlx5_core_rsc_common {

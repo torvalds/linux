@@ -223,6 +223,14 @@ enum {
 #define MLX5_UMR_MTT_MASK      (MLX5_UMR_MTT_ALIGNMENT - 1)
 #define MLX5_UMR_MTT_MIN_CHUNK_SIZE MLX5_UMR_MTT_ALIGNMENT
 
+#define MLX5_USER_INDEX_LEN (MLX5_FLD_SZ_BYTES(qpc, user_index) * 8)
+
+enum {
+	MLX5_EVENT_QUEUE_TYPE_QP = 0,
+	MLX5_EVENT_QUEUE_TYPE_RQ = 1,
+	MLX5_EVENT_QUEUE_TYPE_SQ = 2,
+};
+
 enum mlx5_event {
 	MLX5_EVENT_TYPE_COMP		   = 0x0,
 
@@ -479,7 +487,9 @@ struct mlx5_eqe_comp {
 };
 
 struct mlx5_eqe_qp_srq {
-	__be32	reserved[6];
+	__be32	reserved1[5];
+	u8	type;
+	u8	reserved2[3];
 	__be32	qp_srq_n;
 };
 
