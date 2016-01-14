@@ -2988,14 +2988,7 @@ out:
  */
 int may_expand_vm(struct mm_struct *mm, unsigned long npages)
 {
-	unsigned long cur = mm->total_vm;	/* pages */
-	unsigned long lim;
-
-	lim = rlimit(RLIMIT_AS) >> PAGE_SHIFT;
-
-	if (cur + npages > lim)
-		return 0;
-	return 1;
+	return mm->total_vm + npages <= rlimit(RLIMIT_AS) >> PAGE_SHIFT;
 }
 
 static int special_mapping_fault(struct vm_area_struct *vma,
