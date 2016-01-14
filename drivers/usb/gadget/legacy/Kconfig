@@ -246,6 +246,12 @@ config USB_MASS_STORAGE
 	  Say "y" to link the driver statically, or "m" to build
 	  a dynamically linked module called "g_mass_storage".
 
+config FSL_UTP
+        bool "UTP over Storage Gadget"
+        depends on USB_MASS_STORAGE
+        help
+          Freescale's extension to MSC protocol
+
 config USB_GADGET_TARGET
 	tristate "USB Gadget Target Fabric Module"
 	depends on TARGET_CORE
