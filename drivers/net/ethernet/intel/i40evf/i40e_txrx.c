@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -292,40 +292,49 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 }
 
 /**
- * i40evf_force_wb -Arm hardware to do a wb on noncache aligned descriptors
+ * i40evf_enable_wb_on_itr - Arm hardware to do a wb, interrupts are not enabled
+ * @vsi: the VSI we care about
+ * @q_vector: the vector on which to enable writeback
+ *
+ **/
+static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
+				  struct i40e_q_vector *q_vector)
+{
+	u16 flags = q_vector->tx.ring[0].flags;
+	u32 val;
+
+	if (!(flags & I40E_TXR_FLAGS_WB_ON_ITR))
+		return;
+
+	if (q_vector->arm_wb_state)
+		return;
+
+	val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
+	      I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
+
+	wr32(&vsi->back->hw,
+	     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
+				  vsi->base_vector - 1), val);
+	q_vector->arm_wb_state = true;
+}
+
+/**
+ * i40evf_force_wb - Issue SW Interrupt so HW does a wb
  * @vsi: the VSI we care about
  * @q_vector: the vector  on which to force writeback
  *
  **/
-static void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
+void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	u16 flags = q_vector->tx.ring[0].flags;
+	u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+		  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
+		  I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
+		  I40E_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK
+		  /* allow 00 to be written to the index */;
 
-	if (flags & I40E_TXR_FLAGS_WB_ON_ITR) {
-		u32 val;
-
-		if (q_vector->arm_wb_state)
-			return;
-
-		val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
-		      I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
-
-		wr32(&vsi->back->hw,
-		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
-					  vsi->base_vector - 1),
-		     val);
-		q_vector->arm_wb_state = true;
-	} else {
-		u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-			  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
-			  I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-			  I40E_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK;
-			  /* allow 00 to be written to the index */
-
-		wr32(&vsi->back->hw,
-		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
-					  vsi->base_vector - 1), val);
-	}
+	wr32(&vsi->back->hw,
+	     I40E_VFINT_DYN_CTLN1(q_vector->v_idx + vsi->base_vector - 1),
+	     val);
 }
 
 /**
@@ -1384,7 +1393,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 tx_only:
 		if (arm_wb) {
 			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
-			i40evf_force_wb(vsi, q_vector);
+			i40e_enable_wb_on_itr(vsi, q_vector);
 		}
 		return budget;
 	}

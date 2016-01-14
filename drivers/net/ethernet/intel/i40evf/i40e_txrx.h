@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -324,6 +324,7 @@ int i40evf_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40evf_free_tx_resources(struct i40e_ring *tx_ring);
 void i40evf_free_rx_resources(struct i40e_ring *rx_ring);
 int i40evf_napi_poll(struct napi_struct *napi, int budget);
+void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
 u32 i40evf_get_tx_pending(struct i40e_ring *ring);
 
 /**
