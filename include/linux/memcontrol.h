@@ -766,14 +766,12 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
 	return memcg ? memcg->kmemcg_id : -1;
 }
 
-struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep);
+struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
 void __memcg_kmem_put_cache(struct kmem_cache *cachep);
 
-static inline bool __memcg_kmem_bypass(gfp_t gfp)
+static inline bool __memcg_kmem_bypass(void)
 {
 	if (!memcg_kmem_enabled())
-		return true;
-	if (!(gfp & __GFP_ACCOUNT))
 		return true;
 	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
 		return true;
@@ -791,7 +789,9 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
 static __always_inline int memcg_kmem_charge(struct page *page,
 					     gfp_t gfp, int order)
 {
-	if (__memcg_kmem_bypass(gfp))
+	if (__memcg_kmem_bypass())
+		return 0;
+	if (!(gfp & __GFP_ACCOUNT))
 		return 0;
 	return __memcg_kmem_charge(page, gfp, order);
 }
@@ -810,16 +810,15 @@ static __always_inline void memcg_kmem_uncharge(struct page *page, int order)
 /**
  * memcg_kmem_get_cache: selects the correct per-memcg cache for allocation
  * @cachep: the original global kmem cache
- * @gfp: allocation flags.
  *
  * All memory allocated from a per-memcg cache is charged to the owner memcg.
  */
 static __always_inline struct kmem_cache *
 memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
 {
-	if (__memcg_kmem_bypass(gfp))
+	if (__memcg_kmem_bypass())
 		return cachep;
-	return __memcg_kmem_get_cache(cachep);
+	return __memcg_kmem_get_cache(cachep, gfp);
 }
 
 static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
