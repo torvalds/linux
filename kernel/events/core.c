@@ -148,6 +148,13 @@ static void perf_ctx_unlock(struct perf_cpu_context *cpuctx,
 	raw_spin_unlock(&cpuctx->ctx.lock);
 }
 
+#define TASK_TOMBSTONE ((void *)-1L)
+
+static bool is_kernel_event(struct perf_event *event)
+{
+	return event->owner == TASK_TOMBSTONE;
+}
+
 /*
  * On task ctx scheduling...
  *
@@ -196,31 +203,21 @@ static int event_function(void *info)
 	struct perf_event_context *ctx = event->ctx;
 	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
 	struct perf_event_context *task_ctx = cpuctx->task_ctx;
+	int ret = 0;
 
 	WARN_ON_ONCE(!irqs_disabled());
 
+	perf_ctx_lock(cpuctx, task_ctx);
 	/*
 	 * Since we do the IPI call without holding ctx->lock things can have
 	 * changed, double check we hit the task we set out to hit.
-	 *
-	 * If ctx->task == current, we know things must remain valid because
-	 * we have IRQs disabled so we cannot schedule.
 	 */
 	if (ctx->task) {
-		if (ctx->task != current)
-			return -EAGAIN;
+		if (ctx->task != current) {
+			ret = -EAGAIN;
+			goto unlock;
+		}
 
-		WARN_ON_ONCE(task_ctx != ctx);
-	} else {
-		WARN_ON_ONCE(&cpuctx->ctx != ctx);
-	}
-
-	perf_ctx_lock(cpuctx, task_ctx);
-	/*
-	 * Now that we hold locks, double check state. Paranoia pays.
-	 */
-	if (task_ctx) {
-		WARN_ON_ONCE(task_ctx->task != current);
 		/*
 		 * We only use event_function_call() on established contexts,
 		 * and event_function() is only ever called when active (or
@@ -233,12 +230,16 @@ static int event_function(void *info)
 		 * And since we have ctx->is_active, cpuctx->task_ctx must
 		 * match.
 		 */
-		WARN_ON_ONCE(cpuctx->task_ctx != task_ctx);
+		WARN_ON_ONCE(task_ctx != ctx);
+	} else {
+		WARN_ON_ONCE(&cpuctx->ctx != ctx);
 	}
+
 	efs->func(event, cpuctx, ctx, efs->data);
+unlock:
 	perf_ctx_unlock(cpuctx, task_ctx);
 
-	return 0;
+	return ret;
 }
 
 static void event_function_local(struct perf_event *event, event_f func, void *data)
@@ -256,7 +257,7 @@ static void event_function_local(struct perf_event *event, event_f func, void *d
 static void event_function_call(struct perf_event *event, event_f func, void *data)
 {
 	struct perf_event_context *ctx = event->ctx;
-	struct task_struct *task = ctx->task;
+	struct task_struct *task = READ_ONCE(ctx->task); /* verified in event_function */
 	struct event_function_struct efs = {
 		.event = event,
 		.func = func,
@@ -278,28 +279,26 @@ static void event_function_call(struct perf_event *event, event_f func, void *da
 	}
 
 again:
+	if (task == TASK_TOMBSTONE)
+		return;
+
 	if (!task_function_call(task, event_function, &efs))
 		return;
 
 	raw_spin_lock_irq(&ctx->lock);
-	if (ctx->is_active) {
-		/*
-		 * Reload the task pointer, it might have been changed by
-		 * a concurrent perf_event_context_sched_out().
-		 */
-		task = ctx->task;
-		raw_spin_unlock_irq(&ctx->lock);
-		goto again;
+	/*
+	 * Reload the task pointer, it might have been changed by
+	 * a concurrent perf_event_context_sched_out().
+	 */
+	task = ctx->task;
+	if (task != TASK_TOMBSTONE) {
+		if (ctx->is_active) {
+			raw_spin_unlock_irq(&ctx->lock);
+			goto again;
+		}
+		func(event, NULL, ctx, data);
 	}
-	func(event, NULL, ctx, data);
 	raw_spin_unlock_irq(&ctx->lock);
-}
-
-#define EVENT_OWNER_KERNEL ((void *) -1)
-
-static bool is_kernel_event(struct perf_event *event)
-{
-	return event->owner == EVENT_OWNER_KERNEL;
 }
 
 #define PERF_FLAG_ALL (PERF_FLAG_FD_NO_GROUP |\
@@ -1025,7 +1024,7 @@ static void put_ctx(struct perf_event_context *ctx)
 	if (atomic_dec_and_test(&ctx->refcount)) {
 		if (ctx->parent_ctx)
 			put_ctx(ctx->parent_ctx);
-		if (ctx->task)
+		if (ctx->task && ctx->task != TASK_TOMBSTONE)
 			put_task_struct(ctx->task);
 		call_rcu(&ctx->rcu_head, free_ctx);
 	}
@@ -1186,6 +1185,7 @@ static u64 primary_event_id(struct perf_event *event)
 
 /*
  * Get the perf_event_context for a task and lock it.
+ *
  * This has to cope with with the fact that until it is locked,
  * the context could get moved to another task.
  */
@@ -1226,10 +1226,13 @@ retry:
 			goto retry;
 		}
 
-		if (!atomic_inc_not_zero(&ctx->refcount)) {
+		if (ctx->task == TASK_TOMBSTONE ||
+		    !atomic_inc_not_zero(&ctx->refcount)) {
 			raw_spin_unlock(&ctx->lock);
 			ctx = NULL;
 		}
+
+		WARN_ON_ONCE(ctx->task != task);
 	}
 	rcu_read_unlock();
 	if (!ctx)
@@ -2140,23 +2143,27 @@ static int  __perf_install_in_context(void *info)
 	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
 	struct perf_event_context *task_ctx = cpuctx->task_ctx;
 
+	raw_spin_lock(&cpuctx->ctx.lock);
 	if (ctx->task) {
+		raw_spin_lock(&ctx->lock);
 		/*
 		 * If we hit the 'wrong' task, we've since scheduled and
 		 * everything should be sorted, nothing to do!
 		 */
+		task_ctx = ctx;
 		if (ctx->task != current)
-			return 0;
+			goto unlock;
 
 		/*
 		 * If task_ctx is set, it had better be to us.
 		 */
 		WARN_ON_ONCE(cpuctx->task_ctx != ctx && cpuctx->task_ctx);
-		task_ctx = ctx;
+	} else if (task_ctx) {
+		raw_spin_lock(&task_ctx->lock);
 	}
 
-	perf_ctx_lock(cpuctx, task_ctx);
 	ctx_resched(cpuctx, task_ctx);
+unlock:
 	perf_ctx_unlock(cpuctx, task_ctx);
 
 	return 0;
@@ -2188,6 +2195,17 @@ perf_install_in_context(struct perf_event_context *ctx,
 	 * happened and that will have taken care of business.
 	 */
 	raw_spin_lock_irq(&ctx->lock);
+	task = ctx->task;
+	/*
+	 * Worse, we cannot even rely on the ctx actually existing anymore. If
+	 * between find_get_context() and perf_install_in_context() the task
+	 * went through perf_event_exit_task() its dead and we should not be
+	 * adding new events.
+	 */
+	if (task == TASK_TOMBSTONE) {
+		raw_spin_unlock_irq(&ctx->lock);
+		return;
+	}
 	update_context_time(ctx);
 	/*
 	 * Update cgrp time only if current cgrp matches event->cgrp.
@@ -2195,7 +2213,6 @@ perf_install_in_context(struct perf_event_context *ctx,
 	 */
 	update_cgrp_time_from_event(event);
 	add_event_to_ctx(event, ctx);
-	task = ctx->task;
 	raw_spin_unlock_irq(&ctx->lock);
 
 	if (task)
@@ -2538,16 +2555,20 @@ static void perf_event_context_sched_out(struct task_struct *task, int ctxn,
 		raw_spin_lock(&ctx->lock);
 		raw_spin_lock_nested(&next_ctx->lock, SINGLE_DEPTH_NESTING);
 		if (context_equiv(ctx, next_ctx)) {
-			/*
-			 * XXX do we need a memory barrier of sorts
-			 * wrt to rcu_dereference() of perf_event_ctxp
-			 */
-			task->perf_event_ctxp[ctxn] = next_ctx;
-			next->perf_event_ctxp[ctxn] = ctx;
-			ctx->task = next;
-			next_ctx->task = task;
+			WRITE_ONCE(ctx->task, next);
+			WRITE_ONCE(next_ctx->task, task);
 
 			swap(ctx->task_ctx_data, next_ctx->task_ctx_data);
+
+			/*
+			 * RCU_INIT_POINTER here is safe because we've not
+			 * modified the ctx and the above modification of
+			 * ctx->task and ctx->task_ctx_data are immaterial
+			 * since those values are always verified under
+			 * ctx->lock which we're now holding.
+			 */
+			RCU_INIT_POINTER(task->perf_event_ctxp[ctxn], next_ctx);
+			RCU_INIT_POINTER(next->perf_event_ctxp[ctxn], ctx);
 
 			do_switch = 0;
 
@@ -8545,7 +8566,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 	}
 
 	/* Mark owner so we could distinguish it from user events. */
-	event->owner = EVENT_OWNER_KERNEL;
+	event->owner = TASK_TOMBSTONE;
 
 	account_event(event);
 
@@ -8725,28 +8746,26 @@ __perf_event_exit_task(struct perf_event *child_event,
 
 static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 {
-	struct perf_event *child_event, *next;
 	struct perf_event_context *child_ctx, *clone_ctx = NULL;
+	struct perf_event *child_event, *next;
+	unsigned long flags;
 
-	if (likely(!child->perf_event_ctxp[ctxn]))
+	WARN_ON_ONCE(child != current);
+
+	child_ctx = perf_lock_task_context(child, ctxn, &flags);
+	if (!child_ctx)
 		return;
 
-	local_irq_disable();
-	WARN_ON_ONCE(child != current);
-	/*
-	 * We can't reschedule here because interrupts are disabled,
-	 * and child must be current.
-	 */
-	child_ctx = rcu_dereference_raw(child->perf_event_ctxp[ctxn]);
+	task_ctx_sched_out(__get_cpu_context(child_ctx), child_ctx);
 
 	/*
-	 * Take the context lock here so that if find_get_context is
-	 * reading child->perf_event_ctxp, we wait until it has
-	 * incremented the context's refcount before we do put_ctx below.
+	 * Now that the context is inactive, destroy the task <-> ctx relation
+	 * and mark the context dead.
 	 */
-	raw_spin_lock(&child_ctx->lock);
-	task_ctx_sched_out(__get_cpu_context(child_ctx), child_ctx);
-	child->perf_event_ctxp[ctxn] = NULL;
+	RCU_INIT_POINTER(child->perf_event_ctxp[ctxn], NULL);
+	put_ctx(child_ctx); /* cannot be last */
+	WRITE_ONCE(child_ctx->task, TASK_TOMBSTONE);
+	put_task_struct(current); /* cannot be last */
 
 	/*
 	 * If this context is a clone; unclone it so it can't get
@@ -8755,7 +8774,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 */
 	clone_ctx = unclone_ctx(child_ctx);
 	update_context_time(child_ctx);
-	raw_spin_unlock_irq(&child_ctx->lock);
+	raw_spin_unlock_irqrestore(&child_ctx->lock, flags);
 
 	if (clone_ctx)
 		put_ctx(clone_ctx);
