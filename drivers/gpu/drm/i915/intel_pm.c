@@ -3680,23 +3680,43 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	dev_priv->wm.skl_hw = *results;
 }
 
+static void ilk_compute_wm_config(struct drm_device *dev,
+				  struct intel_wm_config *config)
+{
+	struct intel_crtc *crtc;
+
+	/* Compute the currently _active_ config */
+	for_each_intel_crtc(dev, crtc) {
+		const struct intel_pipe_wm *wm = &crtc->wm.active.ilk;
+
+		if (!wm->pipe_enabled)
+			continue;
+
+		config->sprites_enabled |= wm->sprites_enabled;
+		config->sprites_scaled |= wm->sprites_scaled;
+		config->num_pipes_active++;
+	}
+}
+
 static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct ilk_wm_maximums max;
-	struct intel_wm_config *config = &dev_priv->wm.config;
+	struct intel_wm_config config = {};
 	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 
-	ilk_compute_wm_maximums(dev, 1, config, INTEL_DDB_PART_1_2, &max);
-	ilk_wm_merge(dev, config, &max, &lp_wm_1_2);
+	ilk_compute_wm_config(dev, &config);
+
+	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_wm_merge(dev, &config, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
 	if (INTEL_INFO(dev)->gen >= 7 &&
-	    config->num_pipes_active == 1 && config->sprites_enabled) {
-		ilk_compute_wm_maximums(dev, 1, config, INTEL_DDB_PART_5_6, &max);
-		ilk_wm_merge(dev, config, &max, &lp_wm_5_6);
+	    config.num_pipes_active == 1 && config.sprites_enabled) {
+		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
+		ilk_wm_merge(dev, &config, &max, &lp_wm_5_6);
 
 		best_lp_wm = ilk_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
