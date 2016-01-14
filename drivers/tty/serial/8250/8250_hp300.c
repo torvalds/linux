@@ -24,8 +24,7 @@
 #endif
 
 #ifdef CONFIG_HPAPCI
-struct hp300_port
-{
+struct hp300_port {
 	struct hp300_port *next;	/* next port */
 	int line;			/* line (tty) number */
 };
