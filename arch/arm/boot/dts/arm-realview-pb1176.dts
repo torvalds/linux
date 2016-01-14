@@ -373,6 +373,15 @@
 		compatible = "simple-bus";
 		ranges;
 
+		fpga_aaci: aaci@10004000 {
+			compatible = "arm,pl041", "arm,primecell";
+			reg = <0x10004000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
 		fpga_mci: mmcsd@10005000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x10005000 0x1000>;
