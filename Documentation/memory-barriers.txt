@@ -565,21 +565,6 @@ odd-numbered bank is idle, one can see the new value of the pointer P (&B),
 but the old value of the variable B (2).
 
 
-Another example of where data dependency barriers might be required is where a
-number is read from memory and then used to calculate the index for an array
-access:
-
-	CPU 1		      CPU 2
-	===============	      ===============
-	{ M[0] == 1, M[1] == 2, M[3] = 3, P == 0, Q == 3 }
-	M[1] = 4;
-	<write barrier>
-	WRITE_ONCE(P, 1);
-			      Q = READ_ONCE(P);
-			      <data dependency barrier>
-			      D = M[Q];
-
-
 The data dependency barrier is very important to the RCU system,
 for example.  See rcu_assign_pointer() and rcu_dereference() in
 include/linux/rcupdate.h.  This permits the current target of an RCU'd
