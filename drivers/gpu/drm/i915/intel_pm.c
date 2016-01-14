@@ -4590,13 +4590,13 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 	}
 	if (HAS_RC6p(dev))
 		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s RC6p %s RC6pp %s\n",
-			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-			      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-			      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE),
+			      onoff(mode & GEN6_RC_CTL_RC6p_ENABLE),
+			      onoff(mode & GEN6_RC_CTL_RC6pp_ENABLE));
 
 	else
 		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s\n",
-			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
+			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
 }
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
@@ -4774,8 +4774,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	/* 3a: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
-			"on" : "off");
+	DRM_INFO("RC6 %s\n", onoff(rc6_mask & GEN6_RC_CTL_RC6_ENABLE));
 	/* WaRsUseTimeoutMode */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
 	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {

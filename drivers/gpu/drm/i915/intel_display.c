@@ -1150,11 +1150,6 @@ static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
 	}
 }
 
-static const char *state_string(bool enabled)
-{
-	return enabled ? "on" : "off";
-}
-
 /* Only for pre-ILK configs */
 void assert_pll(struct drm_i915_private *dev_priv,
 		enum pipe pipe, bool state)
@@ -1166,7 +1161,7 @@ void assert_pll(struct drm_i915_private *dev_priv,
 	cur_state = !!(val & DPLL_VCO_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "PLL state assertion failure (expected %s, current %s)\n",
-	     state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 
 /* XXX: the dsi pll is shared between MIPI DSI ports */
@@ -1182,7 +1177,7 @@ static void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 	cur_state = val & DSI_PLL_VCO_EN;
 	I915_STATE_WARN(cur_state != state,
 	     "DSI PLL state assertion failure (expected %s, current %s)\n",
-	     state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 #define assert_dsi_pll_enabled(d) assert_dsi_pll(d, true)
 #define assert_dsi_pll_disabled(d) assert_dsi_pll(d, false)
@@ -1206,14 +1201,13 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	bool cur_state;
 	struct intel_dpll_hw_state hw_state;
 
-	if (WARN (!pll,
-		  "asserting DPLL %s with no DPLL\n", state_string(state)))
+	if (WARN(!pll, "asserting DPLL %s with no DPLL\n", onoff(state)))
 		return;
 
 	cur_state = pll->get_hw_state(dev_priv, pll, &hw_state);
 	I915_STATE_WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s)\n",
-	     pll->name, state_string(state), state_string(cur_state));
+			pll->name, onoff(state), onoff(cur_state));
 }
 
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
@@ -1233,7 +1227,7 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 	}
 	I915_STATE_WARN(cur_state != state,
 	     "FDI TX state assertion failure (expected %s, current %s)\n",
-	     state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 #define assert_fdi_tx_enabled(d, p) assert_fdi_tx(d, p, true)
 #define assert_fdi_tx_disabled(d, p) assert_fdi_tx(d, p, false)
@@ -1248,7 +1242,7 @@ static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 	cur_state = !!(val & FDI_RX_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "FDI RX state assertion failure (expected %s, current %s)\n",
-	     state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 #define assert_fdi_rx_enabled(d, p) assert_fdi_rx(d, p, true)
 #define assert_fdi_rx_disabled(d, p) assert_fdi_rx(d, p, false)
@@ -1280,7 +1274,7 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 	cur_state = !!(val & FDI_RX_PLL_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "FDI RX PLL assertion failure (expected %s, current %s)\n",
-	     state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 
 void assert_panel_unlocked(struct drm_i915_private *dev_priv,
@@ -1338,7 +1332,7 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 
 	I915_STATE_WARN(cur_state != state,
 	     "cursor on pipe %c assertion failure (expected %s, current %s)\n",
-	     pipe_name(pipe), state_string(state), state_string(cur_state));
+			pipe_name(pipe), onoff(state), onoff(cur_state));
 }
 #define assert_cursor_enabled(d, p) assert_cursor(d, p, true)
 #define assert_cursor_disabled(d, p) assert_cursor(d, p, false)
@@ -1365,7 +1359,7 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 
 	I915_STATE_WARN(cur_state != state,
 	     "pipe %c assertion failure (expected %s, current %s)\n",
-	     pipe_name(pipe), state_string(state), state_string(cur_state));
+			pipe_name(pipe), onoff(state), onoff(cur_state));
 }
 
 static void assert_plane(struct drm_i915_private *dev_priv,
@@ -1378,7 +1372,7 @@ static void assert_plane(struct drm_i915_private *dev_priv,
 	cur_state = !!(val & DISPLAY_PLANE_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "plane %c assertion failure (expected %s, current %s)\n",
-	     plane_name(plane), state_string(state), state_string(cur_state));
+			plane_name(plane), onoff(state), onoff(cur_state));
 }
 
 #define assert_plane_enabled(d, p) assert_plane(d, p, true)
@@ -16317,7 +16311,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 	for_each_pipe(dev_priv, i) {
 		err_printf(m, "Pipe [%d]:\n", i);
 		err_printf(m, "  Power: %s\n",
-			   error->pipe[i].power_domain_on ? "on" : "off");
+			   onoff(error->pipe[i].power_domain_on));
 		err_printf(m, "  SRC: %08x\n", error->pipe[i].source);
 		err_printf(m, "  STAT: %08x\n", error->pipe[i].stat);
 
@@ -16345,7 +16339,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "CPU transcoder: %c\n",
 			   transcoder_name(error->transcoder[i].cpu_transcoder));
 		err_printf(m, "  Power: %s\n",
-			   error->transcoder[i].power_domain_on ? "on" : "off");
+			   onoff(error->transcoder[i].power_domain_on));
 		err_printf(m, "  CONF: %08x\n", error->transcoder[i].conf);
 		err_printf(m, "  HTOTAL: %08x\n", error->transcoder[i].htotal);
 		err_printf(m, "  HBLANK: %08x\n", error->transcoder[i].hblank);

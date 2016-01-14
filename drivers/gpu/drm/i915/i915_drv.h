@@ -102,6 +102,11 @@ static inline const char *yesno(bool v)
 	return v ? "yes" : "no";
 }
 
+static inline const char *onoff(bool v)
+{
+	return v ? "on" : "off";
+}
+
 enum pipe {
 	INVALID_PIPE = -1,
 	PIPE_A = 0,

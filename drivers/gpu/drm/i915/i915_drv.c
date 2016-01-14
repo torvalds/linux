@@ -1335,8 +1335,8 @@ static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 		return 0;
 
 	DRM_DEBUG_KMS("waiting for GT wells to go %s (%08x)\n",
-			wait_for_on ? "on" : "off",
-			I915_READ(VLV_GTLC_PW_STATUS));
+		      onoff(wait_for_on),
+		      I915_READ(VLV_GTLC_PW_STATUS));
 
 	/*
 	 * RC6 transitioning can be delayed up to 2 msec (see
@@ -1345,7 +1345,7 @@ static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	err = wait_for(COND, 3);
 	if (err)
 		DRM_ERROR("timeout waiting for GT wells to go %s\n",
-			  wait_for_on ? "on" : "off");
+			  onoff(wait_for_on));
 
 	return err;
 #undef COND
