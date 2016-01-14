@@ -215,7 +215,8 @@ static int mlx4_ib_add_gid(struct ib_device *device,
 	port_gid_table = &iboe->gids[port_num - 1];
 	spin_lock_bh(&iboe->lock);
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
-		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid))) {
+		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid)) &&
+		    (port_gid_table->gids[i].gid_type == attr->gid_type))  {
 			found = i;
 			break;
 		}
@@ -233,6 +234,7 @@ static int mlx4_ib_add_gid(struct ib_device *device,
 			} else {
 				*context = port_gid_table->gids[free].ctx;
 				memcpy(&port_gid_table->gids[free].gid, gid, sizeof(*gid));
+				port_gid_table->gids[free].gid_type = attr->gid_type;
 				port_gid_table->gids[free].ctx->real_index = free;
 				port_gid_table->gids[free].ctx->refcount = 1;
 				hw_update = 1;
@@ -248,8 +250,10 @@ static int mlx4_ib_add_gid(struct ib_device *device,
 		if (!gids) {
 			ret = -ENOMEM;
 		} else {
-			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++)
+			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++) {
 				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
+				gids[i].gid_type = port_gid_table->gids[i].gid_type;
+			}
 		}
 	}
 	spin_unlock_bh(&iboe->lock);
@@ -325,6 +329,7 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	int i;
 	int ret;
 	unsigned long flags;
+	struct ib_gid_attr attr;
 
 	if (port_num > MLX4_MAX_PORTS)
 		return -EINVAL;
@@ -335,9 +340,12 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	if (!rdma_cap_roce_gid_table(&ibdev->ib_dev, port_num))
 		return index;
 
-	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid, NULL);
+	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid, &attr);
 	if (ret)
 		return ret;
+
+	if (attr.ndev)
+		dev_put(attr.ndev);
 
 	if (!memcmp(&gid, &zgid, sizeof(gid)))
 		return -EINVAL;
@@ -346,7 +354,8 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	port_gid_table = &iboe->gids[port_num - 1];
 
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i)
-		if (!memcmp(&port_gid_table->gids[i].gid, &gid, sizeof(gid))) {
+		if (!memcmp(&port_gid_table->gids[i].gid, &gid, sizeof(gid)) &&
+		    attr.gid_type == port_gid_table->gids[i].gid_type) {
 			ctx = port_gid_table->gids[i].ctx;
 			break;
 		}

@@ -478,6 +478,7 @@ struct gid_cache_context {
 
 struct gid_entry {
 	union ib_gid	gid;
+	enum ib_gid_type gid_type;
 	struct gid_cache_context *ctx;
 };
 
