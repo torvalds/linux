@@ -152,6 +152,7 @@ static struct genl_family tcmu_genl_family = {
 	.maxattr = TCMU_ATTR_MAX,
 	.mcgrps = tcmu_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(tcmu_mcgrps),
+	.netnsok = true,
 };
 
 static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
@@ -840,7 +841,7 @@ static int tcmu_netlink_event(enum tcmu_genl_cmd cmd, const char *name, int mino
 
 	genlmsg_end(skb, msg_header);
 
-	ret = genlmsg_multicast(&tcmu_genl_family, skb, 0,
+	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
 				TCMU_MCGRP_CONFIG, GFP_KERNEL);
 
 	/* We don't care if no one is listening */
