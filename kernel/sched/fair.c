@@ -5506,11 +5506,13 @@ static inline int task_util(struct task_struct *p)
 	return p->se.avg.util_avg;
 }
 
+static inline unsigned long boosted_task_util(struct task_struct *task);
+
 static inline bool __task_fits(struct task_struct *p, int cpu, int util)
 {
 	unsigned long capacity = capacity_of(cpu);
 
-	util += task_util(p);
+	util += boosted_task_util(p);
 
 	return (capacity * 1024) > (util * capacity_margin);
 }
@@ -5591,10 +5593,37 @@ schedtune_cpu_margin(unsigned long util, int cpu)
 	return schedtune_margin(util, boost);
 }
 
+static inline unsigned long
+schedtune_task_margin(struct task_struct *task)
+{
+	unsigned int boost;
+	unsigned long util;
+	unsigned long margin;
+
+#ifdef CONFIG_CGROUP_SCHEDTUNE
+	boost = schedtune_task_boost(task);
+#else
+	boost = get_sysctl_sched_cfs_boost();
+#endif
+	if (boost == 0)
+		return 0;
+
+	util = task_util(task);
+	margin = schedtune_margin(util, boost);
+
+	return margin;
+}
+
 #else /* CONFIG_SCHED_TUNE */
 
 static inline unsigned int
 schedtune_cpu_margin(unsigned long util, int cpu)
+{
+	return 0;
+}
+
+static inline unsigned int
+schedtune_task_margin(struct task_struct *task)
 {
 	return 0;
 }
@@ -5606,6 +5635,15 @@ boosted_cpu_util(int cpu)
 {
 	unsigned long util = cpu_util(cpu);
 	unsigned long margin = schedtune_cpu_margin(util, cpu);
+
+	return util + margin;
+}
+
+static inline unsigned long
+boosted_task_util(struct task_struct *task)
+{
+	unsigned long util = task_util(task);
+	unsigned long margin = schedtune_task_margin(task);
 
 	return util + margin;
 }
@@ -6043,7 +6081,7 @@ static int energy_aware_wake_cpu(struct task_struct *p, int target)
 		 * so prev_cpu will receive a negative bias due to the double
 		 * accounting. However, the blocked utilization may be zero.
 		 */
-		int new_util = cpu_util(i) + task_util(p);
+		int new_util = cpu_util(i) + boosted_task_util(p);
 
 		if (new_util > capacity_orig_of(i))
 			continue;
