@@ -691,7 +691,7 @@ static int __init univ8250_console_init(void)
 }
 console_initcall(univ8250_console_init);
 
-#define SERIAL8250_CONSOLE	&univ8250_console
+#define SERIAL8250_CONSOLE	(&univ8250_console)
 #else
 #define SERIAL8250_CONSOLE	NULL
 #endif

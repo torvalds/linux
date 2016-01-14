@@ -803,7 +803,7 @@ static int pci_netmos_9900_numports(struct pci_dev *dev)
 	unsigned int pi;
 	unsigned short sub_serports;
 
-	pi = (c & 0xff);
+	pi = c & 0xff;
 
 	if (pi == 2)
 		return 1;
