@@ -48,7 +48,7 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
 
 	percpu_counter_destroy(&cg_proto->sockets_allocated);
 
-	if (test_bit(MEMCG_SOCK_ACTIVATED, &cg_proto->flags))
+	if (cg_proto->active)
 		static_key_slow_dec(&memcg_socket_limit_enabled);
 
 }
@@ -72,11 +72,9 @@ static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
 		cg_proto->sysctl_mem[i] = min_t(long, nr_pages,
 						sysctl_tcp_mem[i]);
 
-	if (nr_pages == PAGE_COUNTER_MAX)
-		clear_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
-	else {
+	if (!cg_proto->active) {
 		/*
-		 * The active bit needs to be written after the static_key
+		 * The active flag needs to be written after the static_key
 		 * update. This is what guarantees that the socket activation
 		 * function is the last one to run. See sock_update_memcg() for
 		 * details, and note that we don't mark any socket as belonging
@@ -90,14 +88,9 @@ static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
 		 * We never race with the readers in sock_update_memcg(),
 		 * because when this value change, the code to process it is not
 		 * patched in yet.
-		 *
-		 * The activated bit is used to guarantee that no two writers
-		 * will do the update in the same memcg. Without that, we can't
-		 * properly shutdown the static key.
 		 */
-		if (!test_and_set_bit(MEMCG_SOCK_ACTIVATED, &cg_proto->flags))
-			static_key_slow_inc(&memcg_socket_limit_enabled);
-		set_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
+		static_key_slow_inc(&memcg_socket_limit_enabled);
+		cg_proto->active = true;
 	}
 
 	return 0;
