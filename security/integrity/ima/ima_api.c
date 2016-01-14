@@ -188,7 +188,8 @@ int ima_get_action(struct inode *inode, int mask, enum ima_hooks func)
  * Return 0 on success, error code otherwise
  */
 int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file, enum hash_algo algo)
+			    struct file *file, void *buf, loff_t size,
+			    enum hash_algo algo)
 {
 	const char *audit_cause = "failed";
 	struct inode *inode = file_inode(file);
@@ -210,7 +211,8 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 
 		hash.hdr.algo = algo;
 
-		result = ima_calc_file_hash(file, &hash.hdr);
+		result = (!buf) ?  ima_calc_file_hash(file, &hash.hdr) :
+			ima_calc_buffer_hash(buf, size, &hash.hdr);
 		if (!result) {
 			int length = sizeof(hash.hdr) + hash.hdr.length;
 			void *tmpbuf = krealloc(iint->ima_hash, length,

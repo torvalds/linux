@@ -12,6 +12,7 @@
  */
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/magic.h>
 #include <linux/parser.h>

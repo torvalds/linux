@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/hash.h>
 #include <linux/tpm.h>
@@ -152,7 +153,8 @@ enum ima_hooks {
 int ima_get_action(struct inode *inode, int mask, enum ima_hooks func);
 int ima_must_measure(struct inode *inode, int mask, enum ima_hooks func);
 int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file, enum hash_algo algo);
+			    struct file *file, void *buf, loff_t size,
+			    enum hash_algo algo);
 void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
 			   const unsigned char *filename,
 			   struct evm_ima_xattr_data *xattr_value,

@@ -913,7 +913,12 @@ int security_kernel_module_from_file(struct file *file)
 int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 				   enum kernel_read_file_id id)
 {
-	return call_int_hook(kernel_post_read_file, 0, file, buf, size, id);
+	int ret;
+
+	ret = call_int_hook(kernel_post_read_file, 0, file, buf, size, id);
+	if (ret)
+		return ret;
+	return ima_post_read_file(file, buf, size, id);
 }
 EXPORT_SYMBOL_GPL(security_kernel_post_read_file);
 

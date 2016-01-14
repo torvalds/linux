@@ -24,6 +24,7 @@
 
 #include <linux/key.h>
 #include <linux/capability.h>
+#include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/string.h>

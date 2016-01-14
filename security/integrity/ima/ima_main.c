@@ -153,8 +153,8 @@ void ima_file_free(struct file *file)
 	ima_check_last_writer(iint, inode, file);
 }
 
-static int process_measurement(struct file *file, int mask,
-			       enum ima_hooks func, int opened)
+static int process_measurement(struct file *file, char *buf, loff_t size,
+			       int mask, enum ima_hooks func, int opened)
 {
 	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint = NULL;
@@ -226,7 +226,7 @@ static int process_measurement(struct file *file, int mask,
 
 	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
 
-	rc = ima_collect_measurement(iint, file, hash_algo);
+	rc = ima_collect_measurement(iint, file, buf, size, hash_algo);
 	if (rc != 0) {
 		if (file->f_flags & O_DIRECT)
 			rc = (iint->flags & IMA_PERMIT_DIRECTIO) ? 0 : -EACCES;
@@ -273,7 +273,8 @@ out:
 int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	if (file && (prot & PROT_EXEC))
-		return process_measurement(file, MAY_EXEC, MMAP_CHECK, 0);
+		return process_measurement(file, NULL, 0, MAY_EXEC,
+					   MMAP_CHECK, 0);
 	return 0;
 }
 
@@ -292,7 +293,8 @@ int ima_file_mmap(struct file *file, unsigned long prot)
  */
 int ima_bprm_check(struct linux_binprm *bprm)
 {
-	return process_measurement(bprm->file, MAY_EXEC, BPRM_CHECK, 0);
+	return process_measurement(bprm->file, NULL, 0, MAY_EXEC,
+				   BPRM_CHECK, 0);
 }
 
 /**
@@ -307,7 +309,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
  */
 int ima_file_check(struct file *file, int mask, int opened)
 {
-	return process_measurement(file,
+	return process_measurement(file, NULL, 0,
 				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				   FILE_CHECK, opened);
 }
@@ -332,7 +334,7 @@ int ima_module_check(struct file *file)
 #endif
 		return 0;	/* We rely on module signature checking */
 	}
-	return process_measurement(file, MAY_EXEC, MODULE_CHECK, 0);
+	return process_measurement(file, NULL, 0, MAY_EXEC, MODULE_CHECK, 0);
 }
 
 int ima_fw_from_file(struct file *file, char *buf, size_t size)
@@ -343,7 +345,34 @@ int ima_fw_from_file(struct file *file, char *buf, size_t size)
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
 		return 0;
 	}
-	return process_measurement(file, MAY_EXEC, FIRMWARE_CHECK, 0);
+	return process_measurement(file, NULL, 0, MAY_EXEC, FIRMWARE_CHECK, 0);
+}
+
+/**
+ * ima_post_read_file - in memory collect/appraise/audit measurement
+ * @file: pointer to the file to be measured/appraised/audit
+ * @buf: pointer to in memory file contents
+ * @size: size of in memory file contents
+ * @read_id: caller identifier
+ *
+ * Measure/appraise/audit in memory file based on policy.  Policy rules
+ * are written in terms of a policy identifier.
+ *
+ * On success return 0.  On integrity appraisal error, assuming the file
+ * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
+ */
+int ima_post_read_file(struct file *file, void *buf, loff_t size,
+		       enum kernel_read_file_id read_id)
+{
+	enum ima_hooks func = FILE_CHECK;
+
+	if (!file || !buf || size == 0) { /* should never happen */
+		if (ima_appraise & IMA_APPRAISE_ENFORCE)
+			return -EACCES;
+		return 0;
+	}
+
+	return process_measurement(file, buf, size, MAY_READ, func, 0);
 }
 
 static int __init init_ima(void)
