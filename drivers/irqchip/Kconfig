@@ -117,6 +117,11 @@ config ORION_IRQCHIP
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 
+config PIC32_EVIC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config RENESAS_INTC_IRQPIN
 	bool
 	select IRQ_DOMAIN
