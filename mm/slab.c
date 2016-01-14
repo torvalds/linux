@@ -3338,17 +3338,12 @@ free_done:
 #if STATS
 	{
 		int i = 0;
-		struct list_head *p;
+		struct page *page;
 
-		p = n->slabs_free.next;
-		while (p != &(n->slabs_free)) {
-			struct page *page;
-
-			page = list_entry(p, struct page, lru);
+		list_for_each_entry(page, &n->slabs_free, lru) {
 			BUG_ON(page->active);
 
 			i++;
-			p = p->next;
 		}
 		STATS_SET_FREEABLE(cachep, i);
 	}
