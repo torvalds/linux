@@ -72,6 +72,7 @@ void lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *);
 void lpfc_retry_pport_discovery(struct lpfc_hba *);
 void lpfc_release_rpi(struct lpfc_hba *, struct lpfc_vport *, uint16_t);
 
+void lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -167,9 +168,8 @@ void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			 struct lpfc_iocbq *);
 int lpfc_ct_handle_unsol_abort(struct lpfc_hba *, struct hbq_dmabuf *);
 int lpfc_ns_cmd(struct lpfc_vport *, int, uint8_t, uint32_t);
-int lpfc_fdmi_cmd(struct lpfc_vport *, struct lpfc_nodelist *, int);
-void lpfc_fdmi_tmo(unsigned long);
-void lpfc_fdmi_timeout_handler(struct lpfc_vport *);
+int lpfc_fdmi_cmd(struct lpfc_vport *, struct lpfc_nodelist *, int, uint32_t);
+void lpfc_fdmi_num_disc_check(struct lpfc_vport *);
 void lpfc_delayed_disc_tmo(unsigned long);
 void lpfc_delayed_disc_timeout_handler(struct lpfc_vport *);
 

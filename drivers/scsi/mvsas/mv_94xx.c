@@ -330,6 +330,51 @@ static void mvs_94xx_phy_enable(struct mvs_info *mvi, u32 phy_id)
 	mvs_write_port_vsr_data(mvi, phy_id, tmp & 0xfd7fffff);
 }
 
+static void mvs_94xx_sgpio_init(struct mvs_info *mvi)
+{
+	void __iomem *regs = mvi->regs_ex - 0x10200;
+	u32 tmp;
+
+	tmp = mr32(MVS_HST_CHIP_CONFIG);
+	tmp |= 0x100;
+	mw32(MVS_HST_CHIP_CONFIG, tmp);
+
+	mw32(MVS_SGPIO_CTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		MVS_SGPIO_CTRL_SDOUT_AUTO << MVS_SGPIO_CTRL_SDOUT_SHIFT);
+
+	mw32(MVS_SGPIO_CFG1 + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		8 << MVS_SGPIO_CFG1_LOWA_SHIFT |
+		8 << MVS_SGPIO_CFG1_HIA_SHIFT |
+		4 << MVS_SGPIO_CFG1_LOWB_SHIFT |
+		4 << MVS_SGPIO_CFG1_HIB_SHIFT |
+		2 << MVS_SGPIO_CFG1_MAXACTON_SHIFT |
+		1 << MVS_SGPIO_CFG1_FORCEACTOFF_SHIFT
+	);
+
+	mw32(MVS_SGPIO_CFG2 + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		(300000 / 100) << MVS_SGPIO_CFG2_CLK_SHIFT | /* 100kHz clock */
+		66 << MVS_SGPIO_CFG2_BLINK_SHIFT /* (66 * 0,121 Hz?)*/
+	);
+
+	mw32(MVS_SGPIO_CFG0 + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		MVS_SGPIO_CFG0_ENABLE |
+		MVS_SGPIO_CFG0_BLINKA |
+		MVS_SGPIO_CFG0_BLINKB |
+		/* 3*4 data bits / PDU */
+		(12 - 1) << MVS_SGPIO_CFG0_AUT_BITLEN_SHIFT
+	);
+
+	mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		DEFAULT_SGPIO_BITS);
+
+	mw32(MVS_SGPIO_DSRC + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		((mvi->id * 4) + 3) << (8 * 3) |
+		((mvi->id * 4) + 2) << (8 * 2) |
+		((mvi->id * 4) + 1) << (8 * 1) |
+		((mvi->id * 4) + 0) << (8 * 0));
+
+}
+
 static int mvs_94xx_init(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
@@ -532,6 +577,8 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 
 	/* Enable SRS interrupt */
 	mw32(MVS_INT_MASK_SRS_0, 0xFFFF);
+
+	mvs_94xx_sgpio_init(mvi);
 
 	return 0;
 }
@@ -1005,6 +1052,92 @@ static void mvs_94xx_tune_interrupt(struct mvs_info *mvi, u32 time)
 
 }
 
+static int mvs_94xx_gpio_write(struct mvs_prv_info *mvs_prv,
+			u8 reg_type, u8 reg_index,
+			u8 reg_count, u8 *write_data)
+{
+	int i;
+
+	switch (reg_type) {
+
+	case SAS_GPIO_REG_TX_GP:
+		if (reg_index == 0)
+			return -EINVAL;
+
+		if (reg_count > 1)
+			return -EINVAL;
+
+		if (reg_count == 0)
+			return 0;
+
+		/* maximum supported bits = hosts * 4 drives * 3 bits */
+		for (i = 0; i < mvs_prv->n_host * 4 * 3; i++) {
+
+			/* select host */
+			struct mvs_info *mvi = mvs_prv->mvi[i/(4*3)];
+
+			void __iomem *regs = mvi->regs_ex - 0x10200;
+
+			int drive = (i/3) & (4-1); /* drive number on host */
+			u32 block = mr32(MVS_SGPIO_DCTRL +
+				MVS_SGPIO_HOST_OFFSET * mvi->id);
+
+
+			/*
+			* if bit is set then create a mask with the first
+			* bit of the drive set in the mask ...
+			*/
+			u32 bit = (write_data[i/8] & (1 << (i&(8-1)))) ?
+				1<<(24-drive*8) : 0;
+
+			/*
+			* ... and then shift it to the right position based
+			* on the led type (activity/id/fail)
+			*/
+			switch (i%3) {
+			case 0: /* activity */
+				block &= ~((0x7 << MVS_SGPIO_DCTRL_ACT_SHIFT)
+					<< (24-drive*8));
+					/* hardwire activity bit to SOF */
+				block |= LED_BLINKA_SOF << (
+					MVS_SGPIO_DCTRL_ACT_SHIFT +
+					(24-drive*8));
+				break;
+			case 1: /* id */
+				block &= ~((0x3 << MVS_SGPIO_DCTRL_LOC_SHIFT)
+					<< (24-drive*8));
+				block |= bit << MVS_SGPIO_DCTRL_LOC_SHIFT;
+				break;
+			case 2: /* fail */
+				block &= ~((0x7 << MVS_SGPIO_DCTRL_ERR_SHIFT)
+					<< (24-drive*8));
+				block |= bit << MVS_SGPIO_DCTRL_ERR_SHIFT;
+				break;
+			}
+
+			mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+				block);
+
+		}
+
+		return reg_count;
+
+	case SAS_GPIO_REG_TX:
+		if (reg_index + reg_count > mvs_prv->n_host)
+			return -EINVAL;
+
+		for (i = 0; i < reg_count; i++) {
+			struct mvs_info *mvi = mvs_prv->mvi[i+reg_index];
+			void __iomem *regs = mvi->regs_ex - 0x10200;
+
+			mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+				be32_to_cpu(((u32 *) write_data)[i]));
+		}
+		return reg_count;
+	}
+	return -ENOSYS;
+}
+
 const struct mvs_dispatch mvs_94xx_dispatch = {
 	"mv94xx",
 	mvs_94xx_init,
@@ -1057,5 +1190,6 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 	mvs_94xx_fix_dma,
 	mvs_94xx_tune_interrupt,
 	mvs_94xx_non_spec_ncq_error,
+	mvs_94xx_gpio_write,
 };
 
