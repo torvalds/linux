@@ -92,8 +92,8 @@ module_param(only_lcd, bool, 0444);
 
 static int register_count;
 static DEFINE_MUTEX(register_count_mutex);
-static struct mutex video_list_lock;
-static struct list_head video_bus_head;
+static DEFINE_MUTEX(video_list_lock);
+static LIST_HEAD(video_bus_head);
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device);
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
@@ -2066,9 +2066,6 @@ int acpi_video_register(void)
 		 */
 		goto leave;
 	}
-
-	mutex_init(&video_list_lock);
-	INIT_LIST_HEAD(&video_bus_head);
 
 	dmi_check_system(video_dmi_table);
 
