@@ -1,3 +1,5 @@
+include ../scripts/Makefile.include
+
 ifndef MK
 ifeq ($(MAKECMDGOALS),)
 # no target specified, trigger the whole suite
@@ -12,7 +14,19 @@ endif
 else
 PERF := .
 
-include config/Makefile.arch
+# As per kernel Makefile, avoid funny character set dependencies
+unexport LC_ALL
+LC_COLLATE=C
+LC_NUMERIC=C
+export LC_COLLATE LC_NUMERIC
+
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+#$(info Determined 'srctree' to be $(srctree))
+endif
+
+include $(srctree)/tools/scripts/Makefile.arch
 
 # FIXME looks like x86 is the only arch running tests ;-)
 # we need some IS_(32/64) flag to make this generic
@@ -280,5 +294,5 @@ all: $(run) $(run_O) tarpkg make_kernelsrc make_kernelsrc_tools
 out: $(run_O)
 	@echo OK
 
-.PHONY: all $(run) $(run_O) tarpkg clean
+.PHONY: all $(run) $(run_O) tarpkg clean make_kernelsrc make_kernelsrc_tools
 endif # ifndef MK
