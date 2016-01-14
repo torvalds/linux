@@ -1316,8 +1316,7 @@ static void autoconfig(struct uart_8250_port *up)
 out_lock:
 	spin_unlock_irqrestore(&port->lock, flags);
 	if (up->capabilities != old_capabilities) {
-		printk(KERN_WARNING
-		       "ttyS%d: detected caps %08x should be %08x\n",
+		pr_warn("ttyS%d: detected caps %08x should be %08x\n",
 		       serial_index(port), old_capabilities,
 		       up->capabilities);
 	}
