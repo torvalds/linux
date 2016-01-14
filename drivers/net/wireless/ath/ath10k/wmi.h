@@ -5454,6 +5454,16 @@ struct wmi_host_swba_event {
 	struct wmi_bcn_info bcn_info[0];
 } __packed;
 
+struct wmi_10_2_4_bcn_info {
+	struct wmi_tim_info tim_info;
+	/* The 10.2.4 FW doesn't have p2p NOA info */
+} __packed;
+
+struct wmi_10_2_4_host_swba_event {
+	__le32 vdev_map;
+	struct wmi_10_2_4_bcn_info bcn_info[0];
+} __packed;
+
 /* 16 words = 512 client + 1 word = for guard */
 #define WMI_10_4_TIM_BITMAP_ARRAY_SIZE 17
 
