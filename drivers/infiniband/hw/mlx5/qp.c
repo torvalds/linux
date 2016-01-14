@@ -116,14 +116,15 @@ void *mlx5_get_send_wqe(struct mlx5_ib_qp *qp, int n)
  * Return: the number of bytes copied, or an error code.
  */
 int mlx5_ib_read_user_wqe(struct mlx5_ib_qp *qp, int send, int wqe_index,
-			  void *buffer, u32 length)
+			  void *buffer, u32 length,
+			  struct mlx5_ib_qp_base *base)
 {
 	struct ib_device *ibdev = qp->ibqp.device;
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_ib_wq *wq = send ? &qp->sq : &qp->rq;
 	size_t offset;
 	size_t wq_end;
-	struct ib_umem *umem = qp->umem;
+	struct ib_umem *umem = base->ubuffer.umem;
 	u32 first_copy_length;
 	int wqe_length;
 	int ret;
@@ -174,8 +175,10 @@ static void mlx5_ib_qp_event(struct mlx5_core_qp *qp, int type)
 	struct ib_qp *ibqp = &to_mibqp(qp)->ibqp;
 	struct ib_event event;
 
-	if (type == MLX5_EVENT_TYPE_PATH_MIG)
-		to_mibqp(qp)->port = to_mibqp(qp)->alt_port;
+	if (type == MLX5_EVENT_TYPE_PATH_MIG) {
+		/* This event is only valid for trans_qps */
+		to_mibqp(qp)->port = to_mibqp(qp)->trans_qp.alt_port;
+	}
 
 	if (ibqp->event_handler) {
 		event.device     = ibqp->device;
@@ -368,7 +371,8 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 
 static int set_user_buf_size(struct mlx5_ib_dev *dev,
 			    struct mlx5_ib_qp *qp,
-			    struct mlx5_ib_create_qp *ucmd)
+			    struct mlx5_ib_create_qp *ucmd,
+			    struct mlx5_ib_qp_base *base)
 {
 	int desc_sz = 1 << qp->sq.wqe_shift;
 
@@ -393,8 +397,8 @@ static int set_user_buf_size(struct mlx5_ib_dev *dev,
 		return -EINVAL;
 	}
 
-	qp->buf_size = (qp->rq.wqe_cnt << qp->rq.wqe_shift) +
-		(qp->sq.wqe_cnt << 6);
+	base->ubuffer.buf_size = (qp->rq.wqe_cnt << qp->rq.wqe_shift) +
+				 (qp->sq.wqe_cnt << 6);
 
 	return 0;
 }
@@ -592,13 +596,50 @@ static int uuarn_to_uar_index(struct mlx5_uuar_info *uuari, int uuarn)
 	return uuari->uars[uuarn / MLX5_BF_REGS_PER_PAGE].index;
 }
 
+static int mlx5_ib_umem_get(struct mlx5_ib_dev *dev,
+			    struct ib_pd *pd,
+			    unsigned long addr, size_t size,
+			    struct ib_umem **umem,
+			    int *npages, int *page_shift, int *ncont,
+			    u32 *offset)
+{
+	int err;
+
+	*umem = ib_umem_get(pd->uobject->context, addr, size, 0, 0);
+	if (IS_ERR(*umem)) {
+		mlx5_ib_dbg(dev, "umem_get failed\n");
+		return PTR_ERR(*umem);
+	}
+
+	mlx5_ib_cont_pages(*umem, addr, npages, page_shift, ncont, NULL);
+
+	err = mlx5_ib_get_buf_offset(addr, *page_shift, offset);
+	if (err) {
+		mlx5_ib_warn(dev, "bad offset\n");
+		goto err_umem;
+	}
+
+	mlx5_ib_dbg(dev, "addr 0x%lx, size %zu, npages %d, page_shift %d, ncont %d, offset %d\n",
+		    addr, size, *npages, *page_shift, *ncont, *offset);
+
+	return 0;
+
+err_umem:
+	ib_umem_release(*umem);
+	*umem = NULL;
+
+	return err;
+}
+
 static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			  struct mlx5_ib_qp *qp, struct ib_udata *udata,
 			  struct mlx5_create_qp_mbox_in **in,
-			  struct mlx5_ib_create_qp_resp *resp, int *inlen)
+			  struct mlx5_ib_create_qp_resp *resp, int *inlen,
+			  struct mlx5_ib_qp_base *base)
 {
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_ib_create_qp ucmd;
+	struct mlx5_ib_ubuffer *ubuffer = &base->ubuffer;
 	int page_shift = 0;
 	int uar_index;
 	int npages;
@@ -645,32 +686,20 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
 	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
 
-	err = set_user_buf_size(dev, qp, &ucmd);
+	err = set_user_buf_size(dev, qp, &ucmd, base);
 	if (err)
 		goto err_uuar;
 
-	if (ucmd.buf_addr && qp->buf_size) {
-		qp->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-				       qp->buf_size, 0, 0);
-		if (IS_ERR(qp->umem)) {
-			mlx5_ib_dbg(dev, "umem_get failed\n");
-			err = PTR_ERR(qp->umem);
+	if (ucmd.buf_addr && ubuffer->buf_size) {
+		ubuffer->buf_addr = ucmd.buf_addr;
+		err = mlx5_ib_umem_get(dev, pd, ubuffer->buf_addr,
+				       ubuffer->buf_size,
+				       &ubuffer->umem, &npages, &page_shift,
+				       &ncont, &offset);
+		if (err)
 			goto err_uuar;
-		}
 	} else {
-		qp->umem = NULL;
-	}
-
-	if (qp->umem) {
-		mlx5_ib_cont_pages(qp->umem, ucmd.buf_addr, &npages, &page_shift,
-				   &ncont, NULL);
-		err = mlx5_ib_get_buf_offset(ucmd.buf_addr, page_shift, &offset);
-		if (err) {
-			mlx5_ib_warn(dev, "bad offset\n");
-			goto err_umem;
-		}
-		mlx5_ib_dbg(dev, "addr 0x%llx, size %d, npages %d, page_shift %d, ncont %d, offset %d\n",
-			    ucmd.buf_addr, qp->buf_size, npages, page_shift, ncont, offset);
+		ubuffer->umem = NULL;
 	}
 
 	*inlen = sizeof(**in) + sizeof(*(*in)->pas) * ncont;
@@ -679,8 +708,9 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		err = -ENOMEM;
 		goto err_umem;
 	}
-	if (qp->umem)
-		mlx5_ib_populate_pas(dev, qp->umem, page_shift, (*in)->pas, 0);
+	if (ubuffer->umem)
+		mlx5_ib_populate_pas(dev, ubuffer->umem, page_shift,
+				     (*in)->pas, 0);
 	(*in)->ctx.log_pg_sz_remote_qpn =
 		cpu_to_be32((page_shift - MLX5_ADAPTER_PAGE_SHIFT) << 24);
 	(*in)->ctx.params2 = cpu_to_be32(offset << 6);
@@ -711,29 +741,31 @@ err_free:
 	kvfree(*in);
 
 err_umem:
-	if (qp->umem)
-		ib_umem_release(qp->umem);
+	if (ubuffer->umem)
+		ib_umem_release(ubuffer->umem);
 
 err_uuar:
 	free_uuar(&context->uuari, uuarn);
 	return err;
 }
 
-static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp)
+static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp,
+			    struct mlx5_ib_qp_base *base)
 {
 	struct mlx5_ib_ucontext *context;
 
 	context = to_mucontext(pd->uobject->context);
 	mlx5_ib_db_unmap_user(context, &qp->db);
-	if (qp->umem)
-		ib_umem_release(qp->umem);
+	if (base->ubuffer.umem)
+		ib_umem_release(base->ubuffer.umem);
 	free_uuar(&context->uuari, qp->uuarn);
 }
 
 static int create_kernel_qp(struct mlx5_ib_dev *dev,
 			    struct ib_qp_init_attr *init_attr,
 			    struct mlx5_ib_qp *qp,
-			    struct mlx5_create_qp_mbox_in **in, int *inlen)
+			    struct mlx5_create_qp_mbox_in **in, int *inlen,
+			    struct mlx5_ib_qp_base *base)
 {
 	enum mlx5_ib_latency_class lc = MLX5_IB_LATENCY_CLASS_LOW;
 	struct mlx5_uuar_info *uuari;
@@ -765,9 +797,9 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 
 	qp->rq.offset = 0;
 	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
-	qp->buf_size = err + (qp->rq.wqe_cnt << qp->rq.wqe_shift);
+	base->ubuffer.buf_size = err + (qp->rq.wqe_cnt << qp->rq.wqe_shift);
 
-	err = mlx5_buf_alloc(dev->mdev, qp->buf_size, &qp->buf);
+	err = mlx5_buf_alloc(dev->mdev, base->ubuffer.buf_size, &qp->buf);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		goto err_uuar;
@@ -866,6 +898,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 {
 	struct mlx5_ib_resources *devr = &dev->devr;
 	struct mlx5_core_dev *mdev = dev->mdev;
+	struct mlx5_ib_qp_base *base = &qp->trans_qp.base;
 	struct mlx5_ib_create_qp_resp resp;
 	struct mlx5_create_qp_mbox_in *in;
 	struct mlx5_ib_create_qp ucmd;
@@ -947,11 +980,13 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 					    ucmd.sq_wqe_count, max_wqes);
 				return -EINVAL;
 			}
-			err = create_user_qp(dev, pd, qp, udata, &in, &resp, &inlen);
+			err = create_user_qp(dev, pd, qp, udata, &in, &resp,
+					     &inlen, base);
 			if (err)
 				mlx5_ib_dbg(dev, "err %d\n", err);
 		} else {
-			err = create_kernel_qp(dev, init_attr, qp, &in, &inlen);
+			err = create_kernel_qp(dev, init_attr, qp, &in, &inlen,
+					       base);
 			if (err)
 				mlx5_ib_dbg(dev, "err %d\n", err);
 		}
@@ -1060,26 +1095,22 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, user_index, uidx);
 	}
 
-	err = mlx5_core_create_qp(dev->mdev, &qp->mqp, in, inlen);
+	err = mlx5_core_create_qp(dev->mdev, &base->mqp, in, inlen);
 	if (err) {
 		mlx5_ib_dbg(dev, "create qp failed\n");
 		goto err_create;
 	}
 
 	kvfree(in);
-	/* Hardware wants QPN written in big-endian order (after
-	 * shifting) for send doorbell.  Precompute this value to save
-	 * a little bit when posting sends.
-	 */
-	qp->doorbell_qpn = swab32(qp->mqp.qpn << 8);
 
-	qp->mqp.event = mlx5_ib_qp_event;
+	base->container_mibqp = qp;
+	base->mqp.event = mlx5_ib_qp_event;
 
 	return 0;
 
 err_create:
 	if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(pd, qp);
+		destroy_qp_user(pd, qp, base);
 	else if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 
@@ -1188,6 +1219,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 {
 	struct mlx5_ib_cq *send_cq, *recv_cq;
 	struct mlx5_modify_qp_mbox_in *in;
+	struct mlx5_ib_qp_base *base = &qp->trans_qp.base;
 	int err;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
@@ -1197,32 +1229,34 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	if (qp->state != IB_QPS_RESET) {
 		mlx5_ib_qp_disable_pagefaults(qp);
 		if (mlx5_core_qp_modify(dev->mdev, to_mlx5_state(qp->state),
-					MLX5_QP_STATE_RST, in, 0, &qp->mqp))
+					MLX5_QP_STATE_RST, in, 0,
+					&base->mqp))
 			mlx5_ib_warn(dev, "mlx5_ib: modify QP %06x to RESET failed\n",
-				     qp->mqp.qpn);
+				     base->mqp.qpn);
 	}
 
 	get_cqs(qp, &send_cq, &recv_cq);
 
 	if (qp->create_type == MLX5_QP_KERNEL) {
 		mlx5_ib_lock_cqs(send_cq, recv_cq);
-		__mlx5_ib_cq_clean(recv_cq, qp->mqp.qpn,
+		__mlx5_ib_cq_clean(recv_cq, base->mqp.qpn,
 				   qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (send_cq != recv_cq)
-			__mlx5_ib_cq_clean(send_cq, qp->mqp.qpn, NULL);
+			__mlx5_ib_cq_clean(send_cq, base->mqp.qpn,
+					   NULL);
 		mlx5_ib_unlock_cqs(send_cq, recv_cq);
 	}
 
-	err = mlx5_core_destroy_qp(dev->mdev, &qp->mqp);
+	err = mlx5_core_destroy_qp(dev->mdev, &base->mqp);
 	if (err)
-		mlx5_ib_warn(dev, "failed to destroy QP 0x%x\n", qp->mqp.qpn);
+		mlx5_ib_warn(dev, "failed to destroy QP 0x%x\n", base->mqp.qpn);
 	kfree(in);
 
 
 	if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 	else if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(&get_pd(qp)->ibpd, qp);
+		destroy_qp_user(&get_pd(qp)->ibpd, qp, base);
 }
 
 static const char *ib_qp_type_str(enum ib_qp_type type)
@@ -1314,13 +1348,14 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		else if (is_qp1(init_attr->qp_type))
 			qp->ibqp.qp_num = 1;
 		else
-			qp->ibqp.qp_num = qp->mqp.qpn;
+			qp->ibqp.qp_num = qp->trans_qp.base.mqp.qpn;
 
 		mlx5_ib_dbg(dev, "ib qpnum 0x%x, mlx qpn 0x%x, rcqn 0x%x, scqn 0x%x\n",
-			    qp->ibqp.qp_num, qp->mqp.qpn, to_mcq(init_attr->recv_cq)->mcq.cqn,
+			    qp->ibqp.qp_num, qp->trans_qp.base.mqp.qpn,
+			    to_mcq(init_attr->recv_cq)->mcq.cqn,
 			    to_mcq(init_attr->send_cq)->mcq.cqn);
 
-		qp->xrcdn = xrcdn;
+		qp->trans_qp.xrcdn = xrcdn;
 
 		break;
 
@@ -1360,12 +1395,12 @@ static __be32 to_mlx5_access_flags(struct mlx5_ib_qp *qp, const struct ib_qp_att
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
 		dest_rd_atomic = attr->max_dest_rd_atomic;
 	else
-		dest_rd_atomic = qp->resp_depth;
+		dest_rd_atomic = qp->trans_qp.resp_depth;
 
 	if (attr_mask & IB_QP_ACCESS_FLAGS)
 		access_flags = attr->qp_access_flags;
 	else
-		access_flags = qp->atomic_rd_en;
+		access_flags = qp->trans_qp.atomic_rd_en;
 
 	if (!dest_rd_atomic)
 		access_flags &= IB_ACCESS_REMOTE_WRITE;
@@ -1610,6 +1645,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
+	struct mlx5_ib_qp_base *base = &qp->trans_qp.base;
 	struct mlx5_ib_cq *send_cq, *recv_cq;
 	struct mlx5_qp_context *context;
 	struct mlx5_modify_qp_mbox_in *in;
@@ -1769,7 +1805,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	in->optparam = cpu_to_be32(optpar);
 	err = mlx5_core_qp_modify(dev->mdev, to_mlx5_state(cur_state),
 				  to_mlx5_state(new_state), in, sqd_event,
-				  &qp->mqp);
+				  &base->mqp);
 	if (err)
 		goto out;
 
@@ -1779,23 +1815,23 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	qp->state = new_state;
 
 	if (attr_mask & IB_QP_ACCESS_FLAGS)
-		qp->atomic_rd_en = attr->qp_access_flags;
+		qp->trans_qp.atomic_rd_en = attr->qp_access_flags;
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-		qp->resp_depth = attr->max_dest_rd_atomic;
+		qp->trans_qp.resp_depth = attr->max_dest_rd_atomic;
 	if (attr_mask & IB_QP_PORT)
 		qp->port = attr->port_num;
 	if (attr_mask & IB_QP_ALT_PATH)
-		qp->alt_port = attr->alt_port_num;
+		qp->trans_qp.alt_port = attr->alt_port_num;
 
 	/*
 	 * If we moved a kernel QP to RESET, clean up all old CQ
 	 * entries and reinitialize the QP.
 	 */
 	if (new_state == IB_QPS_RESET && !ibqp->uobject) {
-		mlx5_ib_cq_clean(recv_cq, qp->mqp.qpn,
+		mlx5_ib_cq_clean(recv_cq, base->mqp.qpn,
 				 ibqp->srq ? to_msrq(ibqp->srq) : NULL);
 		if (send_cq != recv_cq)
-			mlx5_ib_cq_clean(send_cq, qp->mqp.qpn, NULL);
+			mlx5_ib_cq_clean(send_cq, base->mqp.qpn, NULL);
 
 		qp->rq.head = 0;
 		qp->rq.tail = 0;
@@ -2631,7 +2667,7 @@ static void finish_wqe(struct mlx5_ib_qp *qp,
 
 	ctrl->opmod_idx_opcode = cpu_to_be32(((u32)(qp->sq.cur_post) << 8) |
 					     mlx5_opcode | ((u32)opmod << 24));
-	ctrl->qpn_ds = cpu_to_be32(size | (qp->mqp.qpn << 8));
+	ctrl->qpn_ds = cpu_to_be32(size | (qp->trans_qp.base.mqp.qpn << 8));
 	ctrl->fm_ce_se |= fence;
 	qp->fm_cache = next_fence;
 	if (unlikely(qp->wq_sig))
@@ -3107,7 +3143,8 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 		goto out;
 	}
 	context = &outb->ctx;
-	err = mlx5_core_qp_query(dev->mdev, &qp->mqp, outb, sizeof(*outb));
+	err = mlx5_core_qp_query(dev->mdev, &qp->trans_qp.base.mqp, outb,
+				 sizeof(*outb));
 	if (err)
 		goto out_free;
 

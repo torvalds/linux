@@ -191,35 +191,44 @@ struct mlx5_ib_pfault {
 	struct mlx5_pagefault	mpfault;
 };
 
+struct mlx5_ib_ubuffer {
+	struct ib_umem	       *umem;
+	int			buf_size;
+	u64			buf_addr;
+};
+
+struct mlx5_ib_qp_base {
+	struct mlx5_ib_qp	*container_mibqp;
+	struct mlx5_core_qp	mqp;
+	struct mlx5_ib_ubuffer	ubuffer;
+};
+
+struct mlx5_ib_qp_trans {
+	struct mlx5_ib_qp_base	base;
+	u16			xrcdn;
+	u8			alt_port;
+	u8			atomic_rd_en;
+	u8			resp_depth;
+};
+
 struct mlx5_ib_qp {
 	struct ib_qp		ibqp;
-	struct mlx5_core_qp	mqp;
+	struct mlx5_ib_qp_trans trans_qp;
 	struct mlx5_buf		buf;
 
 	struct mlx5_db		db;
 	struct mlx5_ib_wq	rq;
 
-	u32			doorbell_qpn;
 	u8			sq_signal_bits;
 	u8			fm_cache;
-	int			sq_max_wqes_per_wr;
-	int			sq_spare_wqes;
 	struct mlx5_ib_wq	sq;
-
-	struct ib_umem	       *umem;
-	int			buf_size;
 
 	/* serialize qp state modifications
 	 */
 	struct mutex		mutex;
-	u16			xrcdn;
 	u32			flags;
 	u8			port;
-	u8			alt_port;
-	u8			atomic_rd_en;
-	u8			resp_depth;
 	u8			state;
-	int			mlx_type;
 	int			wq_sig;
 	int			scat_cqe;
 	int			max_inline_data;
@@ -489,7 +498,7 @@ static inline struct mlx5_ib_cq *to_mcq(struct ib_cq *ibcq)
 
 static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 {
-	return container_of(mqp, struct mlx5_ib_qp, mqp);
+	return container_of(mqp, struct mlx5_ib_qp_base, mqp)->container_mibqp;
 }
 
 static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mr *mmr)
@@ -567,7 +576,8 @@ int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr);
 void *mlx5_get_send_wqe(struct mlx5_ib_qp *qp, int n);
 int mlx5_ib_read_user_wqe(struct mlx5_ib_qp *qp, int send, int wqe_index,
-			  void *buffer, u32 length);
+			  void *buffer, u32 length,
+			  struct mlx5_ib_qp_base *base);
 struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
