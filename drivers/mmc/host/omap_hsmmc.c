@@ -503,8 +503,11 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	host->pbias = devm_regulator_get_optional(host->dev, "pbias");
 	if (IS_ERR(host->pbias)) {
 		ret = PTR_ERR(host->pbias);
-		if ((ret != -ENODEV) && host->dev->of_node)
+		if ((ret != -ENODEV) && host->dev->of_node) {
+			dev_err(host->dev,
+			"SD card detect fail? enable CONFIG_REGULATOR_PBIAS\n");
 			return ret;
+		}
 		dev_dbg(host->dev, "unable to get pbias regulator %ld\n",
 			PTR_ERR(host->pbias));
 		host->pbias = NULL;
