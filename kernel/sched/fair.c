@@ -4727,6 +4727,16 @@ struct energy_env {
 	int			src_cpu;
 	int			dst_cpu;
 	int			energy;
+	struct {
+		int before;
+		int after;
+		int diff;
+	} nrg;
+	struct {
+		int before;
+		int after;
+		int delta;
+	} cap;
 };
 
 /*
@@ -4893,6 +4903,22 @@ static int sched_group_energy(struct energy_env *eenv)
 					eenv->sg_cap = sg;
 
 				cap_idx = find_new_capacity(eenv, sg->sge);
+
+				if (sg->group_weight == 1) {
+					/* Remove capacity of src CPU (before task move) */
+					if (eenv->util_delta == 0 &&
+					    cpumask_test_cpu(eenv->src_cpu, sched_group_cpus(sg))) {
+						eenv->cap.before = sg->sge->cap_states[cap_idx].cap;
+						eenv->cap.delta -= eenv->cap.before;
+					}
+					/* Add capacity of dst CPU  (after task move) */
+					if (eenv->util_delta != 0 &&
+					    cpumask_test_cpu(eenv->dst_cpu, sched_group_cpus(sg))) {
+						eenv->cap.after = sg->sge->cap_states[cap_idx].cap;
+						eenv->cap.delta += eenv->cap.after;
+					}
+				}
+
 				idle_idx = group_idle_state(sg);
 				group_util = group_norm_util(eenv, sg);
 				sg_busy_energy = (group_util * sg->sge->cap_states[cap_idx].power)
@@ -4941,6 +4967,8 @@ static int energy_diff(struct energy_env *eenv)
 		.util_delta	= 0,
 		.src_cpu	= eenv->src_cpu,
 		.dst_cpu	= eenv->dst_cpu,
+		.nrg		= { 0, 0, 0 },
+		.cap		= { 0, 0, 0 },
 	};
 
 	if (eenv->src_cpu == eenv->dst_cpu)
@@ -4962,13 +4990,21 @@ static int energy_diff(struct energy_env *eenv)
 				return 0; /* Invalid result abort */
 			energy_before += eenv_before.energy;
 
+			/* Keep track of SRC cpu (before) capacity */
+			eenv->cap.before = eenv_before.cap.before;
+			eenv->cap.delta = eenv_before.cap.delta;
+
 			if (sched_group_energy(eenv))
 				return 0; /* Invalid result abort */
 			energy_after += eenv->energy;
 		}
 	} while (sg = sg->next, sg != sd->groups);
 
-	return energy_after-energy_before;
+	eenv->nrg.before = energy_before;
+	eenv->nrg.after = energy_after;
+	eenv->nrg.diff = eenv->nrg.after - eenv->nrg.before;
+
+	return eenv->nrg.diff;
 }
 
 /*
