@@ -280,7 +280,7 @@ static const struct ib_field deth_table[] = {
 	  .size_bits    = 24 }
 };
 
-__be16 ib_ud_ip4_csum(struct ib_ud_header *header)
+__sum16 ib_ud_ip4_csum(struct ib_ud_header *header)
 {
 	struct iphdr iph;
 

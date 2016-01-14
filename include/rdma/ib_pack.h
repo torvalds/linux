@@ -234,7 +234,7 @@ struct ib_unpacked_ip4 {
 	__be16	frag_off;
 	u8	ttl;
 	u8	protocol;
-	__be16	check;
+	__sum16	check;
 	__be32	saddr;
 	__be32	daddr;
 };
@@ -280,7 +280,7 @@ void ib_unpack(const struct ib_field        *desc,
 	       void                         *buf,
 	       void                         *structure);
 
-__be16 ib_ud_ip4_csum(struct ib_ud_header *header);
+__sum16 ib_ud_ip4_csum(struct ib_ud_header *header);
 
 int ib_ud_header_init(int		    payload_bytes,
 		      int		    lrh_present,
