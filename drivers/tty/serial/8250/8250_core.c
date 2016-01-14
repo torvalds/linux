@@ -768,6 +768,7 @@ void serial8250_suspend_port(int line)
 
 	uart_suspend_port(&serial8250_reg, port);
 }
+EXPORT_SYMBOL(serial8250_suspend_port);
 
 /**
  *	serial8250_resume_port - resume one serial port
@@ -793,6 +794,7 @@ void serial8250_resume_port(int line)
 	}
 	uart_resume_port(&serial8250_reg, port);
 }
+EXPORT_SYMBOL(serial8250_resume_port);
 
 /*
  * Register a set of serial devices attached to a platform device.  The
@@ -1171,9 +1173,6 @@ static void __exit serial8250_exit(void)
 
 module_init(serial8250_init);
 module_exit(serial8250_exit);
-
-EXPORT_SYMBOL(serial8250_suspend_port);
-EXPORT_SYMBOL(serial8250_resume_port);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic 8250/16x50 serial driver");
