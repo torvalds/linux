@@ -460,7 +460,10 @@ and a page is modified, the file page is replaced by a private anonymous copy.
 hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
 "Swap" shows how much would-be-anonymous memory is also used, but out on swap.
-"SwapPss" shows proportional swap share of this mapping.
+For shmem mappings, "Swap" includes also the size of the mapped (and not
+replaced by copy-on-write) part of the underlying shmem object out on swap.
+"SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
+does not take into account swapped out page of underlying shmem objects.
 "Locked" indicates whether the mapping is locked in memory or not.
 
 "VmFlags" field deserves a separate description. This member represents the kernel
