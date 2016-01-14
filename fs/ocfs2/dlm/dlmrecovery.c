@@ -2457,11 +2457,7 @@ static void __dlm_hb_node_down(struct dlm_ctxt *dlm, int idx)
 	 * perhaps later we can genericize this for other waiters. */
 	wake_up(&dlm->migration_wq);
 
-	if (test_bit(idx, dlm->recovery_map))
-		mlog(0, "domain %s, node %u already added "
-		     "to recovery map!\n", dlm->name, idx);
-	else
-		set_bit(idx, dlm->recovery_map);
+	set_bit(idx, dlm->recovery_map);
 }
 
 void dlm_hb_node_down_cb(struct o2nm_node *node, int idx, void *data)
