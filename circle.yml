@@ -1,24 +1,35 @@
 general:
   artifacts:
 
+## Customize the test machine
+machine:
+  # Add some environment variables
+  environment:
+   HOST: $(case $CIRCLE_NODE_INDEX in 0) host='' ;; 1) host='i686-w64-mingw32-' ;; esac; echo $host)
+
 ## Customize dependencies
 dependencies:
   pre:
     - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine
 
 test:
+  pre:
+    - sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin:
+        parallel: true
+
   override:
-    - cd tools/lkl && make -j8
-    - cd tools/lkl && make test
-    - cd tools/lkl && make clean
+    - cd tools/lkl && make clean:
+        parallel: true
+    - cd tools/lkl && CROSS_COMPILE=${HOST} make -j8:
+        parallel: true
+    - cd tools/lkl && make test:
+        parallel: true
+
     - ? >
         if [ -n "${RUN_NIGHTLY_BUILD}" ]; then
           cd tools/lkl && make valgrind;
         fi
       : timeout: 1800 # timeout to 30mins
-    - sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin
-    - cd tools/lkl && CROSS_COMPILE=i686-w64-mingw32- make -j8
-    - cd tools/lkl && make test
 
   post:
     - mkdir -p $CIRCLE_TEST_REPORTS/junit/
