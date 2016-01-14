@@ -1778,6 +1778,9 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 
 		return -EAGAIN;
 	case MMC_SIGNAL_VOLTAGE_180:
+		if (host->quirks2 & SDHCI_QUIRK2_NO_1_8_V)
+			return -EIO;
+
 		if (!IS_ERR(mmc->supply.vqmmc)) {
 			ret = regulator_set_voltage(mmc->supply.vqmmc,
 					1700000, 1950000);
