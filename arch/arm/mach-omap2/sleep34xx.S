@@ -92,8 +92,12 @@ ENTRY(enable_omap3630_toggle_l2_on_restore)
 	ldmfd	sp!, {pc}	@ restore regs and return
 ENDPROC(enable_omap3630_toggle_l2_on_restore)
 
-	.text
-/* Function to call rom code to save secure ram context */
+/*
+ * Function to call rom code to save secure ram context. This gets
+ * relocated to SRAM, so it can be all in .data section. Otherwise
+ * we need to initialize api_params separately.
+ */
+	.data
 	.align	3
 ENTRY(save_secure_ram_context)
 	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
@@ -126,6 +130,8 @@ api_params:
 ENDPROC(save_secure_ram_context)
 ENTRY(save_secure_ram_context_sz)
 	.word	. - save_secure_ram_context
+
+	.text
 
 /*
  * ======================
