@@ -170,6 +170,9 @@ struct mem_cgroup {
 	unsigned long low;
 	unsigned long high;
 
+	/* Range enforcement for interrupt charges */
+	struct work_struct high_work;
+
 	unsigned long soft_limit;
 
 	/* vmpressure notifications */
@@ -680,12 +683,16 @@ void sock_update_memcg(struct sock *sk);
 void sock_release_memcg(struct sock *sk);
 bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
 void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
-#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
+#if defined(CONFIG_MEMCG) && defined(CONFIG_INET)
 extern struct static_key memcg_sockets_enabled_key;
 #define mem_cgroup_sockets_enabled static_key_false(&memcg_sockets_enabled_key)
 static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 {
+#ifdef CONFIG_MEMCG_KMEM
 	return memcg->tcp_mem.memory_pressure;
+#else
+	return false;
+#endif
 }
 #else
 #define mem_cgroup_sockets_enabled 0
