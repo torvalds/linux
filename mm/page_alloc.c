@@ -3020,32 +3020,36 @@ retry:
 		 * allocations are system rather than user orientated
 		 */
 		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-		do {
-			page = get_page_from_freelist(gfp_mask, order,
-						      ALLOC_NO_WATERMARKS, ac);
-			if (page)
-				goto got_pg;
-
-			if (gfp_mask & __GFP_NOFAIL)
-				wait_iff_congested(ac->preferred_zone,
-						   BLK_RW_ASYNC, HZ/50);
-		} while (gfp_mask & __GFP_NOFAIL);
+		page = get_page_from_freelist(gfp_mask, order,
+						ALLOC_NO_WATERMARKS, ac);
+		if (page)
+			goto got_pg;
 	}
 
 	/* Caller is not willing to reclaim, we can't balance anything */
 	if (!can_direct_reclaim) {
 		/*
-		 * All existing users of the deprecated __GFP_NOFAIL are
-		 * blockable, so warn of any new users that actually allow this
-		 * type of allocation to fail.
+		 * All existing users of the __GFP_NOFAIL are blockable, so warn
+		 * of any new users that actually allow this type of allocation
+		 * to fail.
 		 */
 		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
 		goto nopage;
 	}
 
 	/* Avoid recursion of direct reclaim */
-	if (current->flags & PF_MEMALLOC)
+	if (current->flags & PF_MEMALLOC) {
+		/*
+		 * __GFP_NOFAIL request from this context is rather bizarre
+		 * because we cannot reclaim anything and only can loop waiting
+		 * for somebody to do a work for us.
+		 */
+		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+			cond_resched();
+			goto retry;
+		}
 		goto nopage;
+	}
 
 	/* Avoid allocations with no watermarks from looping endlessly */
 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
