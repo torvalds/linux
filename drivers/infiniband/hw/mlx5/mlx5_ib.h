@@ -42,6 +42,7 @@
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/srq.h>
 #include <linux/types.h>
+#include <linux/mlx5/transobj.h>
 
 #define mlx5_ib_dbg(dev, format, arg...)				\
 pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
@@ -110,6 +111,8 @@ struct mlx5_ib_ucontext {
 	struct mutex		db_page_mutex;
 	struct mlx5_uuar_info	uuari;
 	u8			cqe_version;
+	/* Transport Domain number */
+	u32			tdn;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
