@@ -348,59 +348,15 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_core_destroy_qp);
 
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, enum mlx5_qp_state cur_state,
-			enum mlx5_qp_state new_state,
+int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 operation,
 			struct mlx5_modify_qp_mbox_in *in, int sqd_event,
 			struct mlx5_core_qp *qp)
 {
-	static const u16 optab[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE] = {
-		[MLX5_QP_STATE_RST] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_INIT]	= MLX5_CMD_OP_RST2INIT_QP,
-		},
-		[MLX5_QP_STATE_INIT]  = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_INIT]	= MLX5_CMD_OP_INIT2INIT_QP,
-			[MLX5_QP_STATE_RTR]	= MLX5_CMD_OP_INIT2RTR_QP,
-		},
-		[MLX5_QP_STATE_RTR]   = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_RTR2RTS_QP,
-		},
-		[MLX5_QP_STATE_RTS]   = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_RTS2RTS_QP,
-		},
-		[MLX5_QP_STATE_SQD] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-		},
-		[MLX5_QP_STATE_SQER] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_SQERR2RTS_QP,
-		},
-		[MLX5_QP_STATE_ERR] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-		}
-	};
-
 	struct mlx5_modify_qp_mbox_out out;
 	int err = 0;
-	u16 op;
-
-	if (cur_state >= MLX5_QP_NUM_STATE || new_state >= MLX5_QP_NUM_STATE ||
-	    !optab[cur_state][new_state])
-		return -EINVAL;
 
 	memset(&out, 0, sizeof(out));
-	op = optab[cur_state][new_state];
-	in->hdr.opcode = cpu_to_be16(op);
+	in->hdr.opcode = cpu_to_be16(operation);
 	in->qpn = cpu_to_be32(qp->qpn);
 	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
 	if (err)

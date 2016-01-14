@@ -1528,10 +1528,9 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 
 	if (qp->state != IB_QPS_RESET) {
 		mlx5_ib_qp_disable_pagefaults(qp);
-		if (mlx5_core_qp_modify(dev->mdev, to_mlx5_state(qp->state),
-					MLX5_QP_STATE_RST, in, 0,
-					&base->mqp))
-			mlx5_ib_warn(dev, "mlx5_ib: modify QP %06x to RESET failed\n",
+		if (mlx5_core_qp_modify(dev->mdev, MLX5_CMD_OP_2RST_QP,
+					in, 0, &base->mqp))
+			mlx5_ib_warn(dev, "mlx5_ib: modify QP 0x%06x to RESET failed\n",
 				     base->mqp.qpn);
 	}
 
@@ -1989,6 +1988,43 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       const struct ib_qp_attr *attr, int attr_mask,
 			       enum ib_qp_state cur_state, enum ib_qp_state new_state)
 {
+	static const u16 optab[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE] = {
+		[MLX5_QP_STATE_RST] = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_INIT]	= MLX5_CMD_OP_RST2INIT_QP,
+		},
+		[MLX5_QP_STATE_INIT]  = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_INIT]	= MLX5_CMD_OP_INIT2INIT_QP,
+			[MLX5_QP_STATE_RTR]	= MLX5_CMD_OP_INIT2RTR_QP,
+		},
+		[MLX5_QP_STATE_RTR]   = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_RTR2RTS_QP,
+		},
+		[MLX5_QP_STATE_RTS]   = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_RTS2RTS_QP,
+		},
+		[MLX5_QP_STATE_SQD] = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+		},
+		[MLX5_QP_STATE_SQER] = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_SQERR2RTS_QP,
+		},
+		[MLX5_QP_STATE_ERR] = {
+			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
+			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+		}
+	};
+
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_ib_qp_base *base = &qp->trans_qp.base;
@@ -2001,6 +2037,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	int sqd_event;
 	int mlx5_st;
 	int err;
+	u16 op;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
 	if (!in)
@@ -2147,11 +2184,15 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	    (new_state == IB_QPS_RESET || new_state == IB_QPS_ERR))
 		mlx5_ib_qp_disable_pagefaults(qp);
 
+	if (mlx5_cur >= MLX5_QP_NUM_STATE || mlx5_new >= MLX5_QP_NUM_STATE ||
+	    !optab[mlx5_cur][mlx5_new])
+		goto out;
+
+	op = optab[mlx5_cur][mlx5_new];
 	optpar = ib_mask_to_mlx5_opt(attr_mask);
 	optpar &= opt_mask[mlx5_cur][mlx5_new][mlx5_st];
 	in->optparam = cpu_to_be32(optpar);
-	err = mlx5_core_qp_modify(dev->mdev, to_mlx5_state(cur_state),
-				  to_mlx5_state(new_state), in, sqd_event,
+	err = mlx5_core_qp_modify(dev->mdev, op, in, sqd_event,
 				  &base->mqp);
 	if (err)
 		goto out;
