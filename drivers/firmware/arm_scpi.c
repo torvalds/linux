@@ -231,7 +231,8 @@ struct _scpi_sensor_info {
 };
 
 struct sensor_value {
-	__le32 val;
+	__le32 lo_val;
+	__le32 hi_val;
 } __packed;
 
 static struct scpi_drvinfo *scpi_info;
@@ -525,7 +526,7 @@ static int scpi_sensor_get_info(u16 sensor_id, struct scpi_sensor_info *info)
 	return ret;
 }
 
-int scpi_sensor_get_value(u16 sensor, u32 *val)
+int scpi_sensor_get_value(u16 sensor, u64 *val)
 {
 	__le16 id = cpu_to_le16(sensor);
 	struct sensor_value buf;
@@ -534,7 +535,8 @@ int scpi_sensor_get_value(u16 sensor, u32 *val)
 	ret = scpi_send_message(SCPI_CMD_SENSOR_VALUE, &id, sizeof(id),
 				&buf, sizeof(buf));
 	if (!ret)
-		*val = le32_to_cpu(buf.val);
+		*val = (u64)le32_to_cpu(buf.hi_val) << 32 |
+			le32_to_cpu(buf.lo_val);
 
 	return ret;
 }

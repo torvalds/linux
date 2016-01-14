@@ -52,7 +52,7 @@ static int scpi_read_temp(void *dev, int *temp)
 	struct scpi_sensors *scpi_sensors = zone->scpi_sensors;
 	struct scpi_ops *scpi_ops = scpi_sensors->scpi_ops;
 	struct sensor_data *sensor = &scpi_sensors->data[zone->sensor_id];
-	u32 value;
+	u64 value;
 	int ret;
 
 	ret = scpi_ops->sensor_get_value(sensor->info.sensor_id, &value);
@@ -70,7 +70,7 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 	struct scpi_sensors *scpi_sensors = dev_get_drvdata(dev);
 	struct scpi_ops *scpi_ops = scpi_sensors->scpi_ops;
 	struct sensor_data *sensor;
-	u32 value;
+	u64 value;
 	int ret;
 
 	sensor = container_of(attr, struct sensor_data, dev_attr_input);
@@ -79,7 +79,7 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%llu\n", value);
 }
 
 static ssize_t
