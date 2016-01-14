@@ -131,6 +131,14 @@
 		status = "disabled";
 	};
 
+	usb@3b000000 {
+		compatible = "nxp,usb-isp1761";
+		reg = <0x3b000000 0x20000>;
+		interrupt-parent = <&intc_fpga1176>;
+		interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+		port1-otg;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
