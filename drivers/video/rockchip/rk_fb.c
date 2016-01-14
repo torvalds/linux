@@ -1205,7 +1205,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 	Rga_Request.clip.ymin = 0;
 	Rga_Request.clip.ymax = dst_win->area[0].yact - 1;
 	Rga_Request.scale_mode = 0;
-#if defined(CONFIG_RK_IOMMU)
 	if (iommu_en) {
 		Rga_Request.mmu_info.mmu_en = 1;
 		Rga_Request.mmu_info.mmu_flag = 1;
@@ -1213,10 +1212,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 		Rga_Request.mmu_info.mmu_en = 0;
 		Rga_Request.mmu_info.mmu_flag = 0;
 	}
-#else
-	Rga_Request.mmu_info.mmu_en = 0;
-	Rga_Request.mmu_info.mmu_flag = 0;
-#endif
 
 	ret = rga_ioctl_kernel(&Rga_Request);
 }
@@ -1464,7 +1459,6 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 	return 0;
 }
 #endif
-#ifdef CONFIG_RK_IOMMU
 static int g_last_addr[5][4];
 static int g_now_config_addr[5][4];
 static int g_last_state[5][4];
@@ -1514,7 +1508,6 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 
 	return 0;
 }
-#endif
 
 void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 			struct rk_fb_reg_win_data *reg_win_data)
@@ -1526,7 +1519,6 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 	for (i = 0; i < reg_win_data->area_num; i++) {
 		area_data = &reg_win_data->reg_area_data[i];
 		index_buf = area_data->index_buf;
-#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (area_data->ion_handle != NULL &&
 			    !IS_YUV_FMT(area_data->data_format))
@@ -1534,7 +1526,6 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 						area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
 		}
-#endif
 		if (area_data->ion_handle != NULL)
 			ion_free(rk_fb->ion_client, area_data->ion_handle);
 
@@ -1662,22 +1653,18 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 				win->area[i].y_vir_stride =
 				    reg_win_data->reg_area_data[i].y_vir_stride;
 				win->area[i].state = 1;
-#if defined(CONFIG_RK_IOMMU)
 				if (dev_drv->iommu_enabled) {
 					g_now_config_addr[win->id][i] =
 						win->area[i].smem_start +
 						win->area[i].y_offset;
 					g_now_config_state[win->id][i] = 1;
 				}
-#endif
 			} else {
 				win->area[i].state = 0;
-#if defined(CONFIG_RK_IOMMU)
 				if (dev_drv->iommu_enabled) {
 					g_now_config_addr[win->id][i] = 0;
 					g_now_config_state[win->id][i] = 0;
 				}
-#endif
 			}
 		}
 	}
@@ -1852,14 +1839,12 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			win->state = 0;
 			for (j = 0; j < 4; j++)
 				win->area[j].state = 0;
-#if defined(CONFIG_RK_IOMMU)
 			if (dev_drv->iommu_enabled) {
 				for (j = 0; j < 4; j++) {
 					g_now_config_addr[i][j] = 0;
 					g_now_config_state[i][j] = 0;
 				}
 			}
-#endif
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
@@ -1885,14 +1870,12 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 #endif
 
 	if (dev_drv->front_regs) {
-#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->ops->mmu_en)
 				dev_drv->ops->mmu_en(dev_drv);
 			freed_index = 0;
 			g_last_timeout = timeout;
 		}
-#endif
 
 		mutex_lock(&dev_drv->front_lock);
 
@@ -1904,10 +1887,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 
 		mutex_unlock(&dev_drv->front_lock);
 
-#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled)
 			freed_addr[freed_index] = 0xfefefefe;
-#endif
 	}
 
 	mutex_lock(&dev_drv->front_lock);
@@ -2110,10 +2091,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 					break;
 				}
 				reg_win_data->reg_area_data[i].ion_handle = hdl;
-#ifndef CONFIG_RK_IOMMU
-				ret = ion_phys(rk_fb->ion_client, hdl, &phy_addr,
-					       &len);
-#else
 				if (dev_drv->iommu_enabled)
 					ret = ion_map_iommu(dev_drv->dev,
 							    rk_fb->ion_client,
@@ -2123,7 +2100,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				else
 					ret = ion_phys(rk_fb->ion_client, hdl,
 						       &phy_addr, &len);
-#endif
 				if (ret < 0) {
 					dev_err(fbi->dev, "ion map to get phy addr failed\n");
 					ion_free(rk_fb->ion_client, hdl);
@@ -2589,11 +2565,9 @@ int rk_get_real_fps(int before)
 EXPORT_SYMBOL(rk_get_real_fps);
 
 #endif
-#ifdef CONFIG_RK_IOMMU
 #define ION_MAX 10
 static struct ion_handle *ion_hanle[ION_MAX];
 static struct ion_handle *ion_hwc[1];
-#endif
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
 {
@@ -2621,11 +2595,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 		if (copy_from_user(hwc_phy, argp, 4))
 			return -EFAULT;
-#ifdef CONFIG_RK_IOMMU
 		if (!dev_drv->iommu_enabled) {
-#endif
 			fix->smem_start = hwc_phy[0];
-#ifdef CONFIG_RK_IOMMU
 		} else {
 			int usr_fd;
 			struct ion_handle *hdl;
@@ -2663,7 +2634,6 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			fix->smem_start = phy_addr;
 			ion_hwc[0] = hdl;
 		}
-#endif
 		break;
 	}
 	case RK_FBIOSET_YUV_ADDR:
@@ -2672,12 +2642,9 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 			if (copy_from_user(yuv_phy, argp, 8))
 				return -EFAULT;
-			#ifdef CONFIG_RK_IOMMU
 			if (!dev_drv->iommu_enabled || !strcmp(info->fix.id, "fb0")) {
-			#endif
 				fix->smem_start = yuv_phy[0];
 				fix->mmio_start = yuv_phy[1];
-			#ifdef CONFIG_RK_IOMMU
 			} else {
 				int usr_fd, offset, tmp;
 				struct ion_handle *hdl;
@@ -2729,7 +2696,6 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 					ion_hanle[tmp] = ion_hanle[tmp - 1];
 				ion_hanle[0] = 0;
 			}
-			#endif
 			break;
 		}
 	case RK_FBIOSET_ENABLE:
@@ -3729,16 +3695,12 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	win->area[0].ion_hdl = handle;
 	if (dev_drv->prop == PRMRY)
 		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
-#ifdef CONFIG_RK_IOMMU
 	if (dev_drv->iommu_enabled && dev_drv->mmu_dev)
 		ret = ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
 				    (unsigned long *)&phy_addr,
 				    (unsigned long *)&len);
 	else
 		ret = ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
-#else
-	ret = ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
-#endif
 	if (ret < 0) {
 		dev_err(fbi->dev, "ion map to get phy addr failed\n");
 		goto err_share_dma_buf;
@@ -3817,8 +3779,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 						       fb_par->ion_hdl);
 				dev_drv->win[win_id]->area[0].ion_hdl =
 					fb_par->ion_hdl;
-#ifdef CONFIG_RK_IOMMU
-				if (dev_drv->mmu_dev)
+				if (dev_drv->iommu_enabled && dev_drv->mmu_dev)
 					ret = ion_map_iommu(dev_drv->dev,
 							    rk_fb->ion_client,
 							    fb_par->ion_hdl,
@@ -3828,7 +3789,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 					ret = ion_phys(rk_fb->ion_client,
 						       fb_par->ion_hdl,
 						       &phy_addr, &len);
-#endif
 				if (ret < 0) {
 					dev_err(fbi->dev, "ion map to get phy addr failed\n");
 					return -ENOMEM;
@@ -4145,13 +4105,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		main_fbi->fbops->fb_open(main_fbi, 1);
 		main_fbi->var.pixclock = dev_drv->pixclock;
-#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_set_fault_handler(dev_drv->dev,
 						rk_fb_sysmmu_fault_handler);
 		}
-#endif
 
 		rk_fb_alloc_buffer(main_fbi);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
@@ -4308,16 +4266,13 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 #endif
 	} else {
 		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
-
 		extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
 		extend_fbi->fbops->fb_open(extend_fbi, 1);
-#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_set_fault_handler(dev_drv->dev,
 								 rk_fb_sysmmu_fault_handler);
 		}
-#endif
 		rk_fb_alloc_buffer(extend_fbi);
 	}
 #endif

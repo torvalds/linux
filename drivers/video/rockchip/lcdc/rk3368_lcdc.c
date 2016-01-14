@@ -1555,7 +1555,6 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
-#if defined(CONFIG_RK_IOMMU)
 	if (dev_drv->iommu_enabled) {
 		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
 			if (likely(lcdc_dev->clk_on)) {
@@ -1572,7 +1571,6 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 			rockchip_iovmm_activate(dev_drv->dev);
 		}
 	}
-#endif
 	return 0;
 }
 
@@ -2257,7 +2255,6 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk3368_lcdc_pre_init(dev_drv);
 		rk3368_lcdc_clk_enable(lcdc_dev);
 		rk3368_lcdc_enable_irq(dev_drv);
-#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
 				dev_drv->mmu_dev =
@@ -2275,7 +2272,6 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			/*if (dev_drv->mmu_dev)
 			   rockchip_iovmm_activate(dev_drv->dev); */
 		}
-#endif
 		rk3368_lcdc_reg_restore(lcdc_dev);
 		/*if (dev_drv->iommu_enabled)
 		   rk3368_lcdc_mmu_en(dev_drv); */
@@ -2304,12 +2300,10 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	/*if ((!open) && (!lcdc_dev->atv_layer_cnt)) {
 	   rk3368_lcdc_disable_irq(lcdc_dev);
 	   rk3368_lcdc_reg_update(dev_drv);
-	   #if defined(CONFIG_RK_IOMMU)
 	   if (dev_drv->iommu_enabled) {
 	   if (dev_drv->mmu_dev)
 	   rockchip_iovmm_deactivate(dev_drv->dev);
 	   }
-	   #endif
 	   rk3368_lcdc_clk_disable(lcdc_dev);
 	   #ifndef CONFIG_RK_FPGA
 	   rockchip_clear_system_status(sys_status);
@@ -4895,14 +4889,10 @@ static int rk3368_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 		dev_drv->bcsh.cos_hue = (val >> 8) & 0xff;
 	}
 
-#if defined(CONFIG_RK_IOMMU)
 	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
 		dev_drv->iommu_enabled = 0;
 	else
 		dev_drv->iommu_enabled = val;
-#else
-	dev_drv->iommu_enabled = 0;
-#endif
 	return 0;
 }
 
