@@ -34,7 +34,7 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
 		return;
 
 	if (memcg->tcp_mem.active)
-		static_key_slow_dec(&memcg_sockets_enabled_key);
+		static_branch_dec(&memcg_sockets_enabled_key);
 }
 
 static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
@@ -65,7 +65,7 @@ static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
 		 * because when this value change, the code to process it is not
 		 * patched in yet.
 		 */
-		static_key_slow_inc(&memcg_sockets_enabled_key);
+		static_branch_inc(&memcg_sockets_enabled_key);
 		memcg->tcp_mem.active = true;
 	}
 

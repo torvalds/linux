@@ -704,8 +704,8 @@ void sock_release_memcg(struct sock *sk);
 bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
 void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
 #if defined(CONFIG_MEMCG) && defined(CONFIG_INET)
-extern struct static_key memcg_sockets_enabled_key;
-#define mem_cgroup_sockets_enabled static_key_false(&memcg_sockets_enabled_key)
+extern struct static_key_false memcg_sockets_enabled_key;
+#define mem_cgroup_sockets_enabled static_branch_unlikely(&memcg_sockets_enabled_key)
 static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 {
 #ifdef CONFIG_MEMCG_KMEM
@@ -727,7 +727,7 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 #endif
 
 #ifdef CONFIG_MEMCG_KMEM
-extern struct static_key memcg_kmem_enabled_key;
+extern struct static_key_false memcg_kmem_enabled_key;
 
 extern int memcg_nr_cache_ids;
 void memcg_get_cache_ids(void);
@@ -743,7 +743,7 @@ void memcg_put_cache_ids(void);
 
 static inline bool memcg_kmem_enabled(void)
 {
-	return static_key_false(&memcg_kmem_enabled_key);
+	return static_branch_unlikely(&memcg_kmem_enabled_key);
 }
 
 static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
