@@ -90,8 +90,8 @@ module_param(device_id_scheme, bool, 0444);
 static bool only_lcd = false;
 module_param(only_lcd, bool, 0444);
 
-static DECLARE_COMPLETION(register_done);
-static DEFINE_MUTEX(register_done_mutex);
+static int register_count;
+static DEFINE_MUTEX(register_count_mutex);
 static struct mutex video_list_lock;
 static struct list_head video_bus_head;
 static int acpi_video_bus_add(struct acpi_device *device);
@@ -2058,8 +2058,8 @@ int acpi_video_register(void)
 {
 	int ret = 0;
 
-	mutex_lock(&register_done_mutex);
-	if (completion_done(&register_done)) {
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
 		 * don't register the acpi_vide_bus again and return no error.
@@ -2080,22 +2080,22 @@ int acpi_video_register(void)
 	 * When the acpi_video_bus is loaded successfully, increase
 	 * the counter reference.
 	 */
-	complete(&register_done);
+	register_count = 1;
 
 leave:
-	mutex_unlock(&register_done_mutex);
+	mutex_unlock(&register_count_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(acpi_video_register);
 
 void acpi_video_unregister(void)
 {
-	mutex_lock(&register_done_mutex);
-	if (completion_done(&register_done)) {
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
 		acpi_bus_unregister_driver(&acpi_video_bus);
-		reinit_completion(&register_done);
+		register_count = 0;
 	}
-	mutex_unlock(&register_done_mutex);
+	mutex_unlock(&register_count_mutex);
 }
 EXPORT_SYMBOL(acpi_video_unregister);
 
@@ -2103,21 +2103,20 @@ void acpi_video_unregister_backlight(void)
 {
 	struct acpi_video_bus *video;
 
-	mutex_lock(&register_done_mutex);
-	if (completion_done(&register_done)) {
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
 		mutex_lock(&video_list_lock);
 		list_for_each_entry(video, &video_bus_head, entry)
 			acpi_video_bus_unregister_backlight(video);
 		mutex_unlock(&video_list_lock);
 	}
-	mutex_unlock(&register_done_mutex);
+	mutex_unlock(&register_count_mutex);
 }
 
 bool acpi_video_handles_brightness_key_presses(void)
 {
 	bool have_video_busses;
 
-	wait_for_completion(&register_done);
 	mutex_lock(&video_list_lock);
 	have_video_busses = !list_empty(&video_bus_head);
 	mutex_unlock(&video_list_lock);
