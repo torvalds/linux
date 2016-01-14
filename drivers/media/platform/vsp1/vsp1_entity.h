@@ -20,6 +20,7 @@
 
 struct vsp1_device;
 struct vsp1_dl_list;
+struct vsp1_pipeline;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRU,
@@ -66,7 +67,8 @@ struct vsp1_route {
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*set_memory)(struct vsp1_entity *, struct vsp1_dl_list *dl);
-	void (*configure)(struct vsp1_entity *, struct vsp1_dl_list *dl);
+	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
+			  struct vsp1_dl_list *);
 };
 
 struct vsp1_entity {

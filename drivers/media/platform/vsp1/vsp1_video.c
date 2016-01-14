@@ -619,7 +619,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe->dl);
+			entity->ops->configure(entity, pipe, pipe->dl);
 	}
 
 	return 0;

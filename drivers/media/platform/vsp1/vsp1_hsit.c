@@ -166,7 +166,9 @@ static struct v4l2_subdev_ops hsit_ops = {
  * VSP1 Entity Operations
  */
 
-static void hsit_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
+static void hsit_configure(struct vsp1_entity *entity,
+			   struct vsp1_pipeline *pipe,
+			   struct vsp1_dl_list *dl)
 {
 	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
 

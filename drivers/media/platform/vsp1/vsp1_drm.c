@@ -464,7 +464,7 @@ void vsp1_du_atomic_flush(struct device *dev)
 		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe->dl);
+			entity->ops->configure(entity, pipe, pipe->dl);
 
 		if (entity->type == VSP1_ENTITY_RPF)
 			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev),
