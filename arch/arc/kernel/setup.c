@@ -13,7 +13,6 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
-#include <linux/clk-provider.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/cache.h>
@@ -444,7 +443,6 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init customize_machine(void)
 {
-	of_clk_init(NULL);
 	/*
 	 * Traverses flattened DeviceTree - registering platform devices
 	 * (if any) complete with their resources

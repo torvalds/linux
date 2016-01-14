@@ -34,6 +34,8 @@
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/init.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
@@ -301,6 +303,9 @@ static void __init arc_clockevent_setup(void)
  */
 void __init time_init(void)
 {
+	of_clk_init(NULL);
+	clocksource_probe();
+
 	/*
 	 * sets up the timekeeping free-flowing counter which also returns
 	 * whether the counter is usable as clocksource
