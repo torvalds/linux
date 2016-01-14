@@ -15,24 +15,14 @@
 
 #include "zcomp_lzo.h"
 
-static void *lzo_create(void)
+static void *lzo_create(gfp_t flags)
 {
 	void *ret;
 
-	/*
-	 * This function can be called in swapout/fs write path
-	 * so we can't use GFP_FS|IO. And it assumes we already
-	 * have at least one stream in zram initialization so we
-	 * don't do best effort to allocate more stream in here.
-	 * A default stream will work well without further multiple
-	 * streams. That's why we use NORETRY | NOWARN.
-	 */
-	ret = kzalloc(LZO1X_MEM_COMPRESS, GFP_NOIO | __GFP_NORETRY |
-					__GFP_NOWARN);
+	ret = kzalloc(LZO1X_MEM_COMPRESS, flags);
 	if (!ret)
 		ret = __vmalloc(LZO1X_MEM_COMPRESS,
-				GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN |
-				__GFP_ZERO | __GFP_HIGHMEM,
+				flags | __GFP_ZERO | __GFP_HIGHMEM,
 				PAGE_KERNEL);
 	return ret;
 }
