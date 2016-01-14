@@ -133,7 +133,7 @@ static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
 	val = ucb1x00_reg_read(ucb, UCB_IO_DATA);
 	ucb1x00_disable(ucb);
 
-	return val & (1 << offset);
+	return !!(val & (1 << offset));
 }
 
 static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)

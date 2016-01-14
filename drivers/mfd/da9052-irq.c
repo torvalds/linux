@@ -283,7 +283,7 @@ regmap_err:
 
 int da9052_irq_exit(struct da9052 *da9052)
 {
-	da9052_free_irq(da9052, DA9052_IRQ_ADC_EOM , da9052);
+	da9052_free_irq(da9052, DA9052_IRQ_ADC_EOM, da9052);
 	regmap_del_irq_chip(da9052->chip_irq, da9052->irq_data);
 
 	return 0;
