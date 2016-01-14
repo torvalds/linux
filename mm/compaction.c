@@ -1708,7 +1708,10 @@ static void compact_nodes(void)
 /* The written value is actually unused, all memory is compacted */
 int sysctl_compact_memory;
 
-/* This is the entry point for compacting all nodes via /proc/sys/vm */
+/*
+ * This is the entry point for compacting all nodes via
+ * /proc/sys/vm/compact_memory
+ */
 int sysctl_compaction_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *length, loff_t *ppos)
 {
