@@ -1,7 +1,7 @@
 /*
  * BPF JIT compiler for ARM64
  *
- * Copyright (C) 2014-2015 Zi Shen Lim <zlim.lnx@gmail.com>
+ * Copyright (C) 2014-2016 Zi Shen Lim <zlim.lnx@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -737,6 +737,20 @@ static int build_body(struct jit_ctx *ctx)
 	return 0;
 }
 
+static int validate_code(struct jit_ctx *ctx)
+{
+	int i;
+
+	for (i = 0; i < ctx->idx; i++) {
+		u32 a64_insn = le32_to_cpu(ctx->image[i]);
+
+		if (a64_insn == AARCH64_BREAK_FAULT)
+			return -1;
+	}
+
+	return 0;
+}
+
 static inline void bpf_flush_icache(void *start, void *end)
 {
 	flush_icache_range((unsigned long)start, (unsigned long)end);
@@ -798,6 +812,12 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	build_epilogue(&ctx);
+
+	/* 3. Extra pass to validate JITed code. */
+	if (validate_code(&ctx)) {
+		bpf_jit_binary_free(header);
+		goto out;
+	}
 
 	/* And we're done. */
 	if (bpf_jit_enable > 1)
