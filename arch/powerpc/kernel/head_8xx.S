@@ -31,6 +31,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/fixmap.h>
+#include <asm/export.h>
 
 /* Macro to make the code more readable. */
 #ifdef CONFIG_8xx_CPU6
@@ -895,6 +896,7 @@ sdata:
 	.align	PAGE_SHIFT
 empty_zero_page:
 	.space	PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:

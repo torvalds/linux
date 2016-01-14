@@ -11,6 +11,7 @@
 #include <asm/processor.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 _GLOBAL(memset)
 	neg	r0,r3
@@ -76,6 +77,7 @@ _GLOBAL(memset)
 10:	bflr	31
 	stb	r4,0(r6)
 	blr
+EXPORT_SYMBOL(memset)
 
 _GLOBAL_TOC(memmove)
 	cmplw	0,r3,r4
@@ -117,3 +119,4 @@ _GLOBAL(backwards_memcpy)
 	beq	2b
 	mtctr	r7
 	b	1b
+EXPORT_SYMBOL(memmove)

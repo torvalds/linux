@@ -24,6 +24,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/export.h>
 
 #ifdef CONFIG_VSX
 #define __REST_32FPVSRS(n,c,base)					\
@@ -85,6 +86,7 @@ _GLOBAL(load_fp_state)
 	MTFSF_L(fr0)
 	REST_32FPVSRS(0, R4, R3)
 	blr
+EXPORT_SYMBOL(load_fp_state)
 
 /*
  * Store FP state into memory, including FPSCR
@@ -95,6 +97,7 @@ _GLOBAL(store_fp_state)
 	mffs	fr0
 	stfd	fr0,FPSTATE_FPSCR(r3)
 	blr
+EXPORT_SYMBOL(store_fp_state)
 
 /*
  * This task wants to use the FPU now.

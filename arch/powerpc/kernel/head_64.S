@@ -42,6 +42,7 @@
 #include <asm/hw_irq.h>
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
+#include <asm/export.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -983,3 +984,4 @@ swapper_pg_dir:
 	.globl	empty_zero_page
 empty_zero_page:
 	.space	PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)

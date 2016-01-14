@@ -6,6 +6,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/export.h>
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 /* void do_load_up_transact_altivec(struct thread_struct *thread)
@@ -42,6 +43,7 @@ _GLOBAL(load_vr_state)
 	mtvscr	v0
 	REST_32VRS(0,r4,r3)
 	blr
+EXPORT_SYMBOL(load_vr_state)
 
 /*
  * Store VMX state into memory, including VSCR.
@@ -53,6 +55,7 @@ _GLOBAL(store_vr_state)
 	li	r4, VRSTATE_VSCR
 	stvx	v0, r4, r3
 	blr
+EXPORT_SYMBOL(store_vr_state)
 
 /*
  * Disable VMX for the task which had it previously,

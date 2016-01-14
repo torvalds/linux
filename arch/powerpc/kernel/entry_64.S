@@ -38,6 +38,7 @@
 #include <asm/context_tracking.h>
 #include <asm/tm.h>
 #include <asm/ppc-opcode.h>
+#include <asm/export.h>
 
 /*
  * System calls.
@@ -1180,6 +1181,7 @@ _GLOBAL(enter_prom)
 #ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
+EXPORT_SYMBOL(_mcount)
 	mflr	r12
 	mtctr	r12
 	mtlr	r0
@@ -1416,6 +1418,7 @@ livepatch_handler:
 
 #else
 _GLOBAL_TOC(_mcount)
+EXPORT_SYMBOL(_mcount)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
 	ld	r11, 0(r1)
