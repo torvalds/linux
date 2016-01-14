@@ -302,6 +302,8 @@ struct amdgpu_ring_funcs {
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
+	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
+	void (*patch_cond_exec)(struct amdgpu_ring *ring, unsigned offset);
 };
 
 /*
@@ -2182,6 +2184,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
 #define amdgpu_ring_emit_hdp_invalidate(r) (r)->funcs->emit_hdp_invalidate((r))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
+#define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
+#define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
 #define amdgpu_ih_set_rptr(adev) (adev)->irq.ih_funcs->set_rptr((adev))

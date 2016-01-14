@@ -452,6 +452,31 @@ static void sdma_v3_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 	amdgpu_ring_write(ring, SDMA_PKT_TRAP_INT_CONTEXT_INT_CONTEXT(0));
 }
 
+unsigned init_cond_exec(struct amdgpu_ring *ring)
+{
+	unsigned ret;
+	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_COND_EXE));
+	amdgpu_ring_write(ring, lower_32_bits(ring->cond_exe_gpu_addr));
+	amdgpu_ring_write(ring, upper_32_bits(ring->cond_exe_gpu_addr));
+	amdgpu_ring_write(ring, 1);
+	ret = ring->wptr;/* this is the offset we need patch later */
+	amdgpu_ring_write(ring, 0x55aa55aa);/* insert dummy here and patch it later */
+	return ret;
+}
+
+void patch_cond_exec(struct amdgpu_ring *ring, unsigned offset)
+{
+	unsigned cur;
+	BUG_ON(ring->ring[offset] != 0x55aa55aa);
+
+	cur = ring->wptr - 1;
+	if (likely(cur > offset))
+		ring->ring[offset] = cur - offset;
+	else
+		ring->ring[offset] = (ring->ring_size>>2) - offset + cur;
+}
+
+
 /**
  * sdma_v3_0_gfx_stop - stop the gfx async dma engines
  *

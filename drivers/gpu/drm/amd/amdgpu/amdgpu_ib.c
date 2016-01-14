@@ -124,7 +124,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
 	struct fence *hwf;
-	unsigned i;
+	unsigned i, patch_offset = ~0;
+
 	int r = 0;
 
 	if (num_ibs == 0)
@@ -148,6 +149,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
+
+	if (ring->type == AMDGPU_RING_TYPE_SDMA && ring->funcs->init_cond_exec)
+		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
 	if (vm) {
 		/* do context switch */
@@ -203,6 +207,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (f)
 		*f = fence_get(hwf);
+
+	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
+		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
 	amdgpu_ring_commit(ring);
 	return 0;
