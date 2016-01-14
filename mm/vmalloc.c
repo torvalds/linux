@@ -441,8 +441,7 @@ nocache:
 		if (list_is_last(&first->list, &vmap_area_list))
 			goto found;
 
-		first = list_entry(first->list.next,
-				struct vmap_area, list);
+		first = list_next_entry(first, list);
 	}
 
 found:
@@ -2559,10 +2558,10 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 	struct vmap_area *va;
 
 	spin_lock(&vmap_area_lock);
-	va = list_entry((&vmap_area_list)->next, typeof(*va), list);
+	va = list_first_entry(&vmap_area_list, typeof(*va), list);
 	while (n > 0 && &va->list != &vmap_area_list) {
 		n--;
-		va = list_entry(va->list.next, typeof(*va), list);
+		va = list_next_entry(va, list);
 	}
 	if (!n && &va->list != &vmap_area_list)
 		return va;
@@ -2576,7 +2575,7 @@ static void *s_next(struct seq_file *m, void *p, loff_t *pos)
 	struct vmap_area *va = p, *next;
 
 	++*pos;
-	next = list_entry(va->list.next, typeof(*va), list);
+	next = list_next_entry(va, list);
 	if (&next->list != &vmap_area_list)
 		return next;
 
