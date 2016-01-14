@@ -9285,8 +9285,10 @@ F:	drivers/regulator/s5m*.c
 F:	drivers/clk/clk-s2mps11.c
 F:	drivers/rtc/rtc-s5m.c
 F:	include/linux/mfd/samsung/
-F:	Documentation/devicetree/bindings/regulator/s5m8767-regulator.txt
-F:	Documentation/devicetree/bindings/mfd/s2mp*.txt
+F:	Documentation/devicetree/bindings/mfd/samsung,sec-core.txt
+F:	Documentation/devicetree/bindings/regulator/samsung,s2m*.txt
+F:	Documentation/devicetree/bindings/regulator/samsung,s5m*.txt
+F:	Documentation/devicetree/bindings/clock/samsung,s2mps11.txt
 
 SAMSUNG S5P/EXYNOS4 SOC SERIES CAMERA SUBSYSTEM DRIVERS
 M:	Kyungmin Park <kyungmin.park@samsung.com>
@@ -11743,6 +11745,7 @@ F:	drivers/input/touchscreen/wm831x-ts.c
 F:	drivers/input/touchscreen/wm97*.c
 F:	drivers/mfd/arizona*
 F:	drivers/mfd/wm*.c
+F:	drivers/mfd/cs47l24*
 F:	drivers/power/wm83*.c
 F:	drivers/rtc/rtc-wm83*.c
 F:	drivers/regulator/wm8*.c
@@ -11756,6 +11759,7 @@ F:	include/linux/wm97xx.h
 F:	include/sound/wm????.h
 F:	sound/soc/codecs/arizona.?
 F:	sound/soc/codecs/wm*
+F:	sound/soc/codecs/cs47l24*
 
 WORKQUEUE
 M:	Tejun Heo <tj@kernel.org>
