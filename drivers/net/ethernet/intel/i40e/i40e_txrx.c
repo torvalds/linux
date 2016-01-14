@@ -1060,7 +1060,7 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 			if (rx_bi->page_dma) {
 				dma_unmap_page(dev,
 					       rx_bi->page_dma,
-					       PAGE_SIZE / 2,
+					       PAGE_SIZE,
 					       DMA_FROM_DEVICE);
 				rx_bi->page_dma = 0;
 			}
@@ -1203,6 +1203,7 @@ bool i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 	u16 i = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
 	struct i40e_rx_buffer *bi;
+	const int current_node = numa_node_id();
 
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
@@ -1214,39 +1215,50 @@ bool i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 
 		if (bi->skb) /* desc is in use */
 			goto no_buffers;
+
+	/* If we've been moved to a different NUMA node, release the
+	 * page so we can get a new one on the current node.
+	 */
+		if (bi->page &&  page_to_nid(bi->page) != current_node) {
+			dma_unmap_page(rx_ring->dev,
+				       bi->page_dma,
+				       PAGE_SIZE,
+				       DMA_FROM_DEVICE);
+			__free_page(bi->page);
+			bi->page = NULL;
+			bi->page_dma = 0;
+			rx_ring->rx_stats.realloc_count++;
+		} else if (bi->page) {
+			rx_ring->rx_stats.page_reuse_count++;
+		}
+
 		if (!bi->page) {
 			bi->page = alloc_page(GFP_ATOMIC);
 			if (!bi->page) {
 				rx_ring->rx_stats.alloc_page_failed++;
 				goto no_buffers;
 			}
-		}
-
-		if (!bi->page_dma) {
-			/* use a half page if we're re-using */
-			bi->page_offset ^= PAGE_SIZE / 2;
 			bi->page_dma = dma_map_page(rx_ring->dev,
 						    bi->page,
-						    bi->page_offset,
-						    PAGE_SIZE / 2,
+						    0,
+						    PAGE_SIZE,
 						    DMA_FROM_DEVICE);
-			if (dma_mapping_error(rx_ring->dev,
-					      bi->page_dma)) {
+			if (dma_mapping_error(rx_ring->dev, bi->page_dma)) {
 				rx_ring->rx_stats.alloc_page_failed++;
+				__free_page(bi->page);
+				bi->page = NULL;
 				bi->page_dma = 0;
+				bi->page_offset = 0;
 				goto no_buffers;
 			}
+			bi->page_offset = 0;
 		}
 
-		dma_sync_single_range_for_device(rx_ring->dev,
-						 rx_ring->rx_bi[0].dma,
-						 i * rx_ring->rx_hdr_len,
-						 rx_ring->rx_hdr_len,
-						 DMA_FROM_DEVICE);
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
 		 */
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
+		rx_desc->read.pkt_addr =
+				cpu_to_le64(bi->page_dma + bi->page_offset);
 		rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 		i++;
 		if (i == rx_ring->count)
@@ -1527,7 +1539,6 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
-	const int current_node = numa_mem_id();
 	struct i40e_vsi *vsi = rx_ring->vsi;
 	u16 i = rx_ring->next_to_clean;
 	union i40e_rx_desc *rx_desc;
@@ -1535,6 +1546,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 	bool failure = false;
 	u8 rx_ptype;
 	u64 qword;
+	u32 copysize;
 
 	if (budget <= 0)
 		return 0;
@@ -1565,6 +1577,12 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 		 * DD bit is set.
 		 */
 		dma_rmb();
+		/* sync header buffer for reading */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      rx_ring->rx_bi[0].dma,
+					      i * rx_ring->rx_hdr_len,
+					      rx_ring->rx_hdr_len,
+					      DMA_FROM_DEVICE);
 		if (i40e_rx_is_programming_status(qword)) {
 			i40e_clean_programming_status(rx_ring, rx_desc);
 			I40E_RX_INCREMENT(rx_ring, i);
@@ -1606,9 +1624,16 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 
 		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
 			   I40E_RXD_QW1_PTYPE_SHIFT;
-		prefetch(rx_bi->page);
+		/* sync half-page for reading */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      rx_bi->page_dma,
+					      rx_bi->page_offset,
+					      PAGE_SIZE / 2,
+					      DMA_FROM_DEVICE);
+		prefetch(page_address(rx_bi->page) + rx_bi->page_offset);
 		rx_bi->skb = NULL;
 		cleaned_count++;
+		copysize = 0;
 		if (rx_hbo || rx_sph) {
 			int len;
 
@@ -1619,38 +1644,45 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 			memcpy(__skb_put(skb, len), rx_bi->hdr_buf, len);
 		} else if (skb->len == 0) {
 			int len;
+			unsigned char *va = page_address(rx_bi->page) +
+					    rx_bi->page_offset;
 
-			len = (rx_packet_len > skb_headlen(skb) ?
-				skb_headlen(skb) : rx_packet_len);
-			memcpy(__skb_put(skb, len),
-			       rx_bi->page + rx_bi->page_offset,
-			       len);
-			rx_bi->page_offset += len;
+			len = min(rx_packet_len, rx_ring->rx_hdr_len);
+			memcpy(__skb_put(skb, len), va, len);
+			copysize = len;
 			rx_packet_len -= len;
 		}
-
 		/* Get the rest of the data if this was a header split */
 		if (rx_packet_len) {
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-					   rx_bi->page,
-					   rx_bi->page_offset,
-					   rx_packet_len);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+					rx_bi->page,
+					rx_bi->page_offset + copysize,
+					rx_packet_len, I40E_RXBUFFER_2048);
 
-			skb->len += rx_packet_len;
-			skb->data_len += rx_packet_len;
-			skb->truesize += rx_packet_len;
-
-			if ((page_count(rx_bi->page) == 1) &&
-			    (page_to_nid(rx_bi->page) == current_node))
-				get_page(rx_bi->page);
-			else
+			get_page(rx_bi->page);
+			/* switch to the other half-page here; the allocation
+			 * code programs the right addr into HW. If we haven't
+			 * used this half-page, the address won't be changed,
+			 * and HW can just use it next time through.
+			 */
+			rx_bi->page_offset ^= PAGE_SIZE / 2;
+			/* If the page count is more than 2, then both halves
+			 * of the page are used and we need to free it. Do it
+			 * here instead of in the alloc code. Otherwise one
+			 * of the half-pages might be released between now and
+			 * then, and we wouldn't know which one to use.
+			 */
+			if (page_count(rx_bi->page) > 2) {
+				dma_unmap_page(rx_ring->dev,
+					       rx_bi->page_dma,
+					       PAGE_SIZE,
+					       DMA_FROM_DEVICE);
+				__free_page(rx_bi->page);
 				rx_bi->page = NULL;
+				rx_bi->page_dma = 0;
+				rx_ring->rx_stats.realloc_count++;
+			}
 
-			dma_unmap_page(rx_ring->dev,
-				       rx_bi->page_dma,
-				       PAGE_SIZE / 2,
-				       DMA_FROM_DEVICE);
-			rx_bi->page_dma = 0;
 		}
 		I40E_RX_INCREMENT(rx_ring, i);
 
