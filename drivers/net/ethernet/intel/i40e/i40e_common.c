@@ -2308,8 +2308,8 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
  * @downlink_seid: the VSI SEID
  * @enabled_tc: bitmap of TCs to be enabled
  * @default_port: true for default port VSI, false for control port
- * @enable_l2_filtering: true to add L2 filter table rules to regular forwarding rules for cloud support
  * @veb_seid: pointer to where to put the resulting VEB SEID
+ * @enable_stats: true to turn on VEB stats
  * @cmd_details: pointer to command details structure or NULL
  *
  * This asks the FW to add a VEB between the uplink and downlink
@@ -2317,8 +2317,8 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
  **/
 i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc,
-				bool default_port, bool enable_l2_filtering,
-				u16 *veb_seid,
+				bool default_port, u16 *veb_seid,
+				bool enable_stats,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2345,8 +2345,9 @@ i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 	else
 		veb_flags |= I40E_AQC_ADD_VEB_PORT_TYPE_DATA;
 
-	if (enable_l2_filtering)
-		veb_flags |= I40E_AQC_ADD_VEB_ENABLE_L2_FILTER;
+	/* reverse logic here: set the bitflag to disable the stats */
+	if (!enable_stats)
+		veb_flags |= I40E_AQC_ADD_VEB_ENABLE_DISABLE_STATS;
 
 	cmd->veb_flags = cpu_to_le16(veb_flags);
 
