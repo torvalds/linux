@@ -38,9 +38,12 @@
 #define DDRPHY_OFFSETW_CON1	0x34
 #define DDRPHY_OFFSETW_CON2	0x38
 #define DDRPHY_RFSHTMG		0x64
+#define DDRPHY_CA_WLDSKEW_CON0	0x6c
 #define DDRPHY_CA_DSKEW_CON0	0x7c
 #define DDRPHY_CA_DSKEW_CON1	0x80
 #define DDRPHY_CA_DSKEW_CON2	0x84
+
+#define ANADIG_DIGPROG		0x800
 
 	.align 3
 
@@ -177,11 +180,25 @@
 	ldr	r7, =0x7f
 	str	r7, [r5, #DDRPHY_OFFSETW_CON2]
 
+	ldr	r7, [r9, #ANADIG_DIGPROG]
+	and	r7, r7, #0x11
+	cmp	r7, #0x10
+	beq	11f
+
+	ldr	r7, =0x0
+	str	r7, [r5, #DDRPHY_CA_WLDSKEW_CON0]
+	ldr	r7, =0x60606060
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON0]
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON1]
+	ldr	r7, =0x00006060
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON2]
+	b	12f
+11:
 	ldr	r7, =0x0
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON0]
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON1]
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON2]
-
+12:
 	ldr	r7, =0x100007f
 	str	r7, [r5, #DDRPHY_OFFSETD_CON0]
 	ldr	r7, =0x7f
@@ -220,12 +237,26 @@
 	ldr	r7, =0x8
 	str	r7, [r5, #DDRPHY_OFFSETW_CON2]
 
+	ldr	r7, [r9, #ANADIG_DIGPROG]
+	and	r7, r7, #0x11
+	cmp	r7, #0x10
+	beq	13f
+
+	ldr	r7, =0x1c1c1c1c
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON0]
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON1]
+	ldr	r7, =0x30301c1c
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON2]
+	ldr	r7, =0x30303030
+	str	r7, [r5, #DDRPHY_CA_WLDSKEW_CON0]
+	b	14f
+13:
 	ldr	r7, =0x08080808
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON0]
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON1]
 	ldr	r7, =0x0808
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON2]
-
+14:
 	ldr	r7, =0x11000008
 	str	r7, [r5, #DDRPHY_OFFSETD_CON0]
 	ldr	r7, =0x10000008
@@ -241,7 +272,7 @@
 	.endm
 
 ENTRY(imx_lpddr3_freq_change)
-	push	{r2 - r8}
+	push	{r2 - r9}
 
 	/*
 	 * To ensure no page table walks occur in DDR, we
@@ -297,6 +328,7 @@ ENTRY(imx_lpddr3_freq_change)
 	ldr	r3, =IMX_IO_P2V(MX7D_IOMUXC_GPR_BASE_ADDR)
 	ldr	r4, =IMX_IO_P2V(MX7D_DDRC_BASE_ADDR)
 	ldr	r5, =IMX_IO_P2V(MX7D_DDRC_PHY_BASE_ADDR)
+	ldr	r9, =IMX_IO_P2V(MX7D_ANATOP_BASE_ADDR)
 
 	ddrc_prepare
 
@@ -378,6 +410,6 @@ done:
 	nop
 
 	/* Restore registers */
-	pop	{r2 - r8}
+	pop	{r2 - r9}
 	mov	pc, lr
 ENDPROC(imx_lpddr3_freq_change)
