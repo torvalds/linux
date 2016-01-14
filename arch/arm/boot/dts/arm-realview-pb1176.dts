@@ -53,6 +53,14 @@
 		regulator-boot-on;
         };
 
+	veth: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "veth";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+	};
+
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -129,6 +137,20 @@
 		reg = <0x3c000000 0x4000000>;
 		bank-width = <4>;
 		status = "disabled";
+	};
+
+	/* SMSC 9118 ethernet with PHY and EEPROM */
+	ethernet@3a000000 {
+		compatible = "smsc,lan9118", "smsc,lan9115";
+		reg = <0x3a000000 0x10000>;
+		interrupt-parent = <&intc_fpga1176>;
+		interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
+		phy-mode = "mii";
+		reg-io-width = <4>;
+		smsc,irq-active-high;
+		smsc,irq-push-pull;
+		vdd33a-supply = <&veth>;
+		vddvario-supply = <&veth>;
 	};
 
 	usb@3b000000 {
