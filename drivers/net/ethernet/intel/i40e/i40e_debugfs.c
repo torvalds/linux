@@ -521,7 +521,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 rx_ring->dtype);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-			 i, rx_ring->hsplit,
+			 i, ring_is_ps_enabled(rx_ring),
 			 rx_ring->next_to_use,
 			 rx_ring->next_to_clean,
 			 rx_ring->ring_active);
@@ -572,8 +572,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 "    tx_rings[%i]: dtype = %d\n",
 			 i, tx_ring->dtype);
 		dev_info(&pf->pdev->dev,
-			 "    tx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-			 i, tx_ring->hsplit,
+			 "    tx_rings[%i]: next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+			 i,
 			 tx_ring->next_to_use,
 			 tx_ring->next_to_clean,
 			 tx_ring->ring_active);
