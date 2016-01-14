@@ -2252,7 +2252,8 @@ struct mlx4_config_dev {
 	__be32	rsvd1[3];
 	__be16	vxlan_udp_dport;
 	__be16	rsvd2;
-	__be32	rsvd3;
+	__be16  roce_v2_entropy;
+	__be16  roce_v2_udp_dport;
 	__be32	roce_flags;
 	__be32	rsvd4[25];
 	__be16	rsvd5;
@@ -2261,6 +2262,7 @@ struct mlx4_config_dev {
 };
 
 #define MLX4_VXLAN_UDP_DPORT (1 << 0)
+#define MLX4_ROCE_V2_UDP_DPORT BIT(3)
 #define MLX4_DISABLE_RX_PORT BIT(18)
 
 static int mlx4_CONFIG_DEV_set(struct mlx4_dev *dev, struct mlx4_config_dev *config_dev)
@@ -2377,6 +2379,18 @@ int mlx4_disable_rx_port_check(struct mlx4_dev *dev, bool dis)
 
 	return mlx4_CONFIG_DEV_set(dev, &config_dev);
 }
+
+int mlx4_config_roce_v2_port(struct mlx4_dev *dev, u16 udp_port)
+{
+	struct mlx4_config_dev config_dev;
+
+	memset(&config_dev, 0, sizeof(config_dev));
+	config_dev.update_flags    = cpu_to_be32(MLX4_ROCE_V2_UDP_DPORT);
+	config_dev.roce_v2_udp_dport = cpu_to_be16(udp_port);
+
+	return mlx4_CONFIG_DEV_set(dev, &config_dev);
+}
+EXPORT_SYMBOL_GPL(mlx4_config_roce_v2_port);
 
 int mlx4_virt2phy_port_map(struct mlx4_dev *dev, u32 port1, u32 port2)
 {
