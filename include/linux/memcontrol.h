@@ -249,6 +249,10 @@ struct mem_cgroup {
 	struct wb_domain cgwb_domain;
 #endif
 
+#ifdef CONFIG_INET
+	unsigned long		socket_pressure;
+#endif
+
 	/* List of events which userspace want to receive */
 	struct list_head event_list;
 	spinlock_t event_list_lock;
@@ -290,17 +294,33 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
 
 bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
-struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
 
 static inline
 struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
 }
 
+#define mem_cgroup_from_counter(counter, member)	\
+	container_of(counter, struct mem_cgroup, member)
+
 struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
 				   struct mem_cgroup *,
 				   struct mem_cgroup_reclaim_cookie *);
 void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+
+/**
+ * parent_mem_cgroup - find the accounting parent of a memcg
+ * @memcg: memcg whose parent to find
+ *
+ * Returns the parent memcg, or NULL if this is the root or the memory
+ * controller is in legacy no-hierarchy mode.
+ */
+static inline struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
+{
+	if (!memcg->memory.parent)
+		return NULL;
+	return mem_cgroup_from_counter(memcg->memory.parent, memory);
+}
 
 static inline bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
 			      struct mem_cgroup *root)
@@ -689,10 +709,14 @@ extern struct static_key memcg_sockets_enabled_key;
 static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 {
 #ifdef CONFIG_MEMCG_KMEM
-	return memcg->tcp_mem.memory_pressure;
-#else
-	return false;
+	if (memcg->tcp_mem.memory_pressure)
+		return true;
 #endif
+	do {
+		if (time_before(jiffies, memcg->socket_pressure))
+			return true;
+	} while ((memcg = parent_mem_cgroup(memcg)));
+	return false;
 }
 #else
 #define mem_cgroup_sockets_enabled 0
