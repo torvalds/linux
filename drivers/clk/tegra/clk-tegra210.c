@@ -780,13 +780,13 @@ static void pllx_get_dyn_steps(struct clk_hw *hw, u32 *step_a, u32 *step_b)
 {
 	unsigned long input_rate;
 
-	if (!IS_ERR_OR_NULL(hw->clk)) {
+	/* cf rate */
+	if (!IS_ERR_OR_NULL(hw->clk))
 		input_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
-		/* cf rate */
-		input_rate /= tegra_pll_get_fixed_mdiv(hw, input_rate);
-	} else {
+	else
 		input_rate = 38400000;
-	}
+
+	input_rate /= tegra_pll_get_fixed_mdiv(hw, input_rate);
 
 	switch (input_rate) {
 	case 12000000:
