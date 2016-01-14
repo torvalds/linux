@@ -229,17 +229,11 @@ struct kvm_s390_itdb {
 	__u8	data[256];
 } __packed;
 
-struct kvm_s390_vregs {
-	__vector128 vrs[32];
-	__u8	reserved200[512];	/* for future vector expansion */
-} __packed;
-
 struct sie_page {
 	struct kvm_s390_sie_block sie_block;
 	__u8 reserved200[1024];		/* 0x0200 */
 	struct kvm_s390_itdb itdb;	/* 0x0600 */
-	__u8 reserved700[1280];		/* 0x0700 */
-	struct kvm_s390_vregs vregs;	/* 0x0c00 */
+	__u8 reserved700[2304];		/* 0x0700 */
 } __packed;
 
 struct kvm_vcpu_stat {
