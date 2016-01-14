@@ -32,7 +32,6 @@ int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 		counter_parent = &parent_cg->memory_allocated;
 
 	page_counter_init(&cg_proto->memory_allocated, counter_parent);
-	percpu_counter_init(&cg_proto->sockets_allocated, 0, GFP_KERNEL);
 
 	return 0;
 }
@@ -45,8 +44,6 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
 		return;
-
-	percpu_counter_destroy(&cg_proto->sockets_allocated);
 
 	if (cg_proto->active)
 		static_key_slow_dec(&memcg_socket_limit_enabled);

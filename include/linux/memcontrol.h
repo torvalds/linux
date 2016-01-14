@@ -87,7 +87,6 @@ enum mem_cgroup_events_target {
 
 struct cg_proto {
 	struct page_counter	memory_allocated;	/* Current allocated memory. */
-	struct percpu_counter	sockets_allocated;	/* Current number of sockets. */
 	int			memory_pressure;
 	bool			active;
 	long			sysctl_mem[3];
