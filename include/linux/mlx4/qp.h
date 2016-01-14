@@ -194,7 +194,7 @@ struct mlx4_qp_context {
 	u8			mtu_msgmax;
 	u8			rq_size_stride;
 	u8			sq_size_stride;
-	u8			rlkey;
+	u8			rlkey_roce_mode;
 	__be32			usr_page;
 	__be32			local_qpn;
 	__be32			remote_qpn;

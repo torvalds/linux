@@ -1509,6 +1509,24 @@ static int create_qp_lb_counter(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 	return 0;
 }
 
+enum {
+	MLX4_QPC_ROCE_MODE_1 = 0,
+	MLX4_QPC_ROCE_MODE_2 = 2,
+	MLX4_QPC_ROCE_MODE_UNDEFINED = 0xff
+};
+
+static u8 gid_type_to_qpc(enum ib_gid_type gid_type)
+{
+	switch (gid_type) {
+	case IB_GID_TYPE_ROCE:
+		return MLX4_QPC_ROCE_MODE_1;
+	case IB_GID_TYPE_ROCE_UDP_ENCAP:
+		return MLX4_QPC_ROCE_MODE_2;
+	default:
+		return MLX4_QPC_ROCE_MODE_UNDEFINED;
+	}
+}
+
 static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			       const struct ib_qp_attr *attr, int attr_mask,
 			       enum ib_qp_state cur_state, enum ib_qp_state new_state)
@@ -1652,9 +1670,10 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		u16 vlan = 0xffff;
 		u8 smac[ETH_ALEN];
 		int status = 0;
+		int is_eth = rdma_cap_eth_ah(&dev->ib_dev, port_num) &&
+			attr->ah_attr.ah_flags & IB_AH_GRH;
 
-		if (rdma_cap_eth_ah(&dev->ib_dev, port_num) &&
-		    attr->ah_attr.ah_flags & IB_AH_GRH) {
+		if (is_eth) {
 			int index = attr->ah_attr.grh.sgid_index;
 
 			status = ib_get_cached_gid(ibqp->device, port_num,
@@ -1676,6 +1695,18 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 		optpar |= (MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH |
 			   MLX4_QP_OPTPAR_SCHED_QUEUE);
+
+		if (is_eth &&
+		    (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR)) {
+			u8 qpc_roce_mode = gid_type_to_qpc(gid_attr.gid_type);
+
+			if (qpc_roce_mode == MLX4_QPC_ROCE_MODE_UNDEFINED) {
+				err = -EINVAL;
+				goto out;
+			}
+			context->rlkey_roce_mode |= (qpc_roce_mode << 6);
+		}
+
 	}
 
 	if (attr_mask & IB_QP_TIMEOUT) {
@@ -1847,7 +1878,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		sqd_event = 0;
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
-		context->rlkey |= (1 << 4);
+		context->rlkey_roce_mode |= (1 << 4);
 
 	/*
 	 * Before passing a kernel QP to the HW, make sure that the
