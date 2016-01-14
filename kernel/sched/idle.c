@@ -220,6 +220,7 @@ static void cpu_idle_loop(void)
 		 */
 
 		__current_set_polling();
+		quiet_vmstat();
 		tick_nohz_idle_enter();
 
 		while (!need_resched()) {
