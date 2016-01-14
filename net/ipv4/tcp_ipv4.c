@@ -1818,7 +1818,9 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	tcp_saved_syn_free(tp);
 
 	sk_sockets_allocated_dec(sk);
-	sock_release_memcg(sk);
+
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
+		sock_release_memcg(sk);
 }
 EXPORT_SYMBOL(tcp_v4_destroy_sock);
 

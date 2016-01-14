@@ -293,46 +293,40 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 
 void sock_update_memcg(struct sock *sk)
 {
-	if (mem_cgroup_sockets_enabled) {
-		struct mem_cgroup *memcg;
-		struct cg_proto *cg_proto;
+	struct mem_cgroup *memcg;
+	struct cg_proto *cg_proto;
 
-		BUG_ON(!sk->sk_prot->proto_cgroup);
+	BUG_ON(!sk->sk_prot->proto_cgroup);
 
-		/* Socket cloning can throw us here with sk_cgrp already
-		 * filled. It won't however, necessarily happen from
-		 * process context. So the test for root memcg given
-		 * the current task's memcg won't help us in this case.
-		 *
-		 * Respecting the original socket's memcg is a better
-		 * decision in this case.
-		 */
-		if (sk->sk_cgrp) {
-			BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
-			css_get(&sk->sk_cgrp->memcg->css);
-			return;
-		}
-
-		rcu_read_lock();
-		memcg = mem_cgroup_from_task(current);
-		cg_proto = sk->sk_prot->proto_cgroup(memcg);
-		if (cg_proto && cg_proto->active &&
-		    css_tryget_online(&memcg->css)) {
-			sk->sk_cgrp = cg_proto;
-		}
-		rcu_read_unlock();
+	/* Socket cloning can throw us here with sk_cgrp already
+	 * filled. It won't however, necessarily happen from
+	 * process context. So the test for root memcg given
+	 * the current task's memcg won't help us in this case.
+	 *
+	 * Respecting the original socket's memcg is a better
+	 * decision in this case.
+	 */
+	if (sk->sk_cgrp) {
+		BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
+		css_get(&sk->sk_cgrp->memcg->css);
+		return;
 	}
+
+	rcu_read_lock();
+	memcg = mem_cgroup_from_task(current);
+	cg_proto = sk->sk_prot->proto_cgroup(memcg);
+	if (cg_proto && cg_proto->active &&
+	    css_tryget_online(&memcg->css)) {
+		sk->sk_cgrp = cg_proto;
+	}
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(sock_update_memcg);
 
 void sock_release_memcg(struct sock *sk)
 {
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp) {
-		struct mem_cgroup *memcg;
-		WARN_ON(!sk->sk_cgrp->memcg);
-		memcg = sk->sk_cgrp->memcg;
-		css_put(&sk->sk_cgrp->memcg->css);
-	}
+	WARN_ON(!sk->sk_cgrp->memcg);
+	css_put(&sk->sk_cgrp->memcg->css);
 }
 
 struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
