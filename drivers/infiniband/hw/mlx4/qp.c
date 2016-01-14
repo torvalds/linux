@@ -32,6 +32,7 @@
  */
 
 #include <linux/log2.h>
+#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
@@ -2253,16 +2254,6 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	return 0;
 }
 
-static void mlx4_u64_to_smac(u8 *dst_mac, u64 src_mac)
-{
-	int i;
-
-	for (i = ETH_ALEN; i; i--) {
-		dst_mac[i - 1] = src_mac & 0xff;
-		src_mac >>= 8;
-	}
-}
-
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
 {
@@ -2384,27 +2375,16 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 
 	if (is_eth) {
 		struct in6_addr in6;
-
 		u16 pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
 
 		mlx->sched_prio = cpu_to_be16(pcp);
 
+		ether_addr_copy(sqp->ud_header.eth.smac_h, ah->av.eth.s_mac);
 		memcpy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac, 6);
-		/* FIXME: cache smac value? */
 		memcpy(&ctrl->srcrb_flags16[0], ah->av.eth.mac, 2);
 		memcpy(&ctrl->imm, ah->av.eth.mac + 2, 4);
 		memcpy(&in6, sgid.raw, sizeof(in6));
 
-		if (!mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
-			u64 mac = atomic64_read(&to_mdev(ib_dev)->iboe.mac[sqp->qp.port - 1]);
-			u8 smac[ETH_ALEN];
-
-			mlx4_u64_to_smac(smac, mac);
-			memcpy(sqp->ud_header.eth.smac_h, smac, ETH_ALEN);
-		} else {
-			/* use the src mac of the tunnel */
-			memcpy(sqp->ud_header.eth.smac_h, ah->av.eth.s_mac, ETH_ALEN);
-		}
 
 		if (!memcmp(sqp->ud_header.eth.smac_h, sqp->ud_header.eth.dmac_h, 6))
 			mlx->flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
