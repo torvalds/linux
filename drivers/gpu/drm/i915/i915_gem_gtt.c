@@ -3331,7 +3331,7 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 }
 
 static struct scatterlist *
-rotate_pages(dma_addr_t *in, unsigned int offset,
+rotate_pages(const dma_addr_t *in, unsigned int offset,
 	     unsigned int width, unsigned int height,
 	     struct sg_table *st, struct scatterlist *sg)
 {
