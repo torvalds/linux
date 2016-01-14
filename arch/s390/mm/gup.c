@@ -233,6 +233,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	struct mm_struct *mm = current->mm;
 	int nr, ret;
 
+	might_sleep();
 	start &= PAGE_MASK;
 	nr = __get_user_pages_fast(start, nr_pages, write, pages);
 	if (nr == nr_pages)

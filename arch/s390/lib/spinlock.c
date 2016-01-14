@@ -37,12 +37,22 @@ static inline void _raw_compare_and_delay(unsigned int *lock, unsigned int old)
 	asm(".insn rsy,0xeb0000000022,%0,0,%1" : : "d" (old), "Q" (*lock));
 }
 
+static inline int cpu_is_preempted(int cpu)
+{
+	if (test_cpu_flag_of(CIF_ENABLED_WAIT, cpu))
+		return 0;
+	if (smp_vcpu_scheduled(cpu))
+		return 0;
+	return 1;
+}
+
 void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
 	unsigned int cpu = SPINLOCK_LOCKVAL;
 	unsigned int owner;
-	int count;
+	int count, first_diag;
 
+	first_diag = 1;
 	while (1) {
 		owner = ACCESS_ONCE(lp->lock);
 		/* Try to get the lock if it is free. */
@@ -51,9 +61,10 @@ void arch_spin_lock_wait(arch_spinlock_t *lp)
 				return;
 			continue;
 		}
-		/* Check if the lock owner is running. */
-		if (!smp_vcpu_scheduled(~owner)) {
+		/* First iteration: check if the lock owner is running. */
+		if (first_diag && cpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
+			first_diag = 0;
 			continue;
 		}
 		/* Loop for a while on the lock value. */
@@ -67,10 +78,13 @@ void arch_spin_lock_wait(arch_spinlock_t *lp)
 			continue;
 		/*
 		 * For multiple layers of hypervisors, e.g. z/VM + LPAR
-		 * yield the CPU if the lock is still unavailable.
+		 * yield the CPU unconditionally. For LPAR rely on the
+		 * sense running status.
 		 */
-		if (!MACHINE_IS_LPAR)
+		if (!MACHINE_IS_LPAR || cpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
+			first_diag = 0;
+		}
 	}
 }
 EXPORT_SYMBOL(arch_spin_lock_wait);
@@ -79,9 +93,10 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 {
 	unsigned int cpu = SPINLOCK_LOCKVAL;
 	unsigned int owner;
-	int count;
+	int count, first_diag;
 
 	local_irq_restore(flags);
+	first_diag = 1;
 	while (1) {
 		owner = ACCESS_ONCE(lp->lock);
 		/* Try to get the lock if it is free. */
@@ -92,8 +107,9 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 			local_irq_restore(flags);
 		}
 		/* Check if the lock owner is running. */
-		if (!smp_vcpu_scheduled(~owner)) {
+		if (first_diag && cpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
+			first_diag = 0;
 			continue;
 		}
 		/* Loop for a while on the lock value. */
@@ -107,10 +123,13 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 			continue;
 		/*
 		 * For multiple layers of hypervisors, e.g. z/VM + LPAR
-		 * yield the CPU if the lock is still unavailable.
+		 * yield the CPU unconditionally. For LPAR rely on the
+		 * sense running status.
 		 */
-		if (!MACHINE_IS_LPAR)
+		if (!MACHINE_IS_LPAR || cpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
+			first_diag = 0;
+		}
 	}
 }
 EXPORT_SYMBOL(arch_spin_lock_wait_flags);
@@ -145,7 +164,7 @@ void _raw_read_lock_wait(arch_rwlock_t *rw)
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
-			if (owner && !smp_vcpu_scheduled(~owner))
+			if (owner && cpu_is_preempted(~owner))
 				smp_yield_cpu(~owner);
 			count = spin_retry;
 		}
@@ -191,7 +210,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw, unsigned int prev)
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
-			if (owner && !smp_vcpu_scheduled(~owner))
+			if (owner && cpu_is_preempted(~owner))
 				smp_yield_cpu(~owner);
 			count = spin_retry;
 		}
@@ -221,7 +240,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
-			if (owner && !smp_vcpu_scheduled(~owner))
+			if (owner && cpu_is_preempted(~owner))
 				smp_yield_cpu(~owner);
 			count = spin_retry;
 		}
@@ -265,7 +284,7 @@ void arch_lock_relax(unsigned int cpu)
 {
 	if (!cpu)
 		return;
-	if (MACHINE_IS_LPAR && smp_vcpu_scheduled(~cpu))
+	if (MACHINE_IS_LPAR && !cpu_is_preempted(~cpu))
 		return;
 	smp_yield_cpu(~cpu);
 }

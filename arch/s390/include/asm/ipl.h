@@ -87,14 +87,12 @@ struct ipl_parameter_block {
  * IPL validity flags
  */
 extern u32 ipl_flags;
-extern u32 dump_prefix_page;
 
-struct dump_save_areas {
-	struct save_area_ext **areas;
-	int count;
-};
-
-extern struct dump_save_areas dump_save_areas;
+struct save_area;
+struct save_area * __init save_area_alloc(bool is_boot_cpu);
+struct save_area * __init save_area_boot_cpu(void);
+void __init save_area_add_regs(struct save_area *, void *regs);
+void __init save_area_add_vxrs(struct save_area *, __vector128 *vxrs);
 
 extern void do_reipl(void);
 extern void do_halt(void);
@@ -176,7 +174,7 @@ enum diag308_rc {
 
 extern int diag308(unsigned long subcode, void *addr);
 extern void diag308_reset(void);
-extern void store_status(void);
+extern void store_status(void (*fn)(void *), void *data);
 extern void lgr_info_log(void);
 
 #endif /* _ASM_S390_IPL_H */

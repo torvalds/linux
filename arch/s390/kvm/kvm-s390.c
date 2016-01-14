@@ -2400,37 +2400,37 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 	u64 clkcomp;
 	int rc;
 
+	px = kvm_s390_get_prefix(vcpu);
 	if (gpa == KVM_S390_STORE_STATUS_NOADDR) {
 		if (write_guest_abs(vcpu, 163, &archmode, 1))
 			return -EFAULT;
-		gpa = SAVE_AREA_BASE;
+		gpa = 0;
 	} else if (gpa == KVM_S390_STORE_STATUS_PREFIXED) {
 		if (write_guest_real(vcpu, 163, &archmode, 1))
 			return -EFAULT;
-		gpa = kvm_s390_real_to_abs(vcpu, SAVE_AREA_BASE);
-	}
-	rc = write_guest_abs(vcpu, gpa + offsetof(struct save_area, fp_regs),
+		gpa = px;
+	} else
+		gpa -= __LC_FPREGS_SAVE_AREA;
+	rc = write_guest_abs(vcpu, gpa + __LC_FPREGS_SAVE_AREA,
 			     vcpu->arch.guest_fpregs.fprs, 128);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, gp_regs),
+	rc |= write_guest_abs(vcpu, gpa + __LC_GPREGS_SAVE_AREA,
 			      vcpu->run->s.regs.gprs, 128);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, psw),
+	rc |= write_guest_abs(vcpu, gpa + __LC_PSW_SAVE_AREA,
 			      &vcpu->arch.sie_block->gpsw, 16);
-	px = kvm_s390_get_prefix(vcpu);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, pref_reg),
+	rc |= write_guest_abs(vcpu, gpa + __LC_PREFIX_SAVE_AREA,
 			      &px, 4);
-	rc |= write_guest_abs(vcpu,
-			      gpa + offsetof(struct save_area, fp_ctrl_reg),
+	rc |= write_guest_abs(vcpu, gpa + __LC_FP_CREG_SAVE_AREA,
 			      &vcpu->arch.guest_fpregs.fpc, 4);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, tod_reg),
+	rc |= write_guest_abs(vcpu, gpa + __LC_TOD_PROGREG_SAVE_AREA,
 			      &vcpu->arch.sie_block->todpr, 4);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, timer),
+	rc |= write_guest_abs(vcpu, gpa + __LC_CPU_TIMER_SAVE_AREA,
 			      &vcpu->arch.sie_block->cputm, 8);
 	clkcomp = vcpu->arch.sie_block->ckc >> 8;
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, clk_cmp),
+	rc |= write_guest_abs(vcpu, gpa + __LC_CLOCK_COMP_SAVE_AREA,
 			      &clkcomp, 8);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, acc_regs),
+	rc |= write_guest_abs(vcpu, gpa + __LC_AREGS_SAVE_AREA,
 			      &vcpu->run->s.regs.acrs, 64);
-	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, ctrl_regs),
+	rc |= write_guest_abs(vcpu, gpa + __LC_CREGS_SAVE_AREA,
 			      &vcpu->arch.sie_block->gcr, 128);
 	return rc ? -EFAULT : 0;
 }

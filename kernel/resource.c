@@ -1498,8 +1498,15 @@ int iomem_is_exclusive(u64 addr)
 			break;
 		if (p->end < addr)
 			continue;
-		if (p->flags & IORESOURCE_BUSY &&
-		     p->flags & IORESOURCE_EXCLUSIVE) {
+		/*
+		 * A resource is exclusive if IORESOURCE_EXCLUSIVE is set
+		 * or CONFIG_IO_STRICT_DEVMEM is enabled and the
+		 * resource is busy.
+		 */
+		if ((p->flags & IORESOURCE_BUSY) == 0)
+			continue;
+		if (IS_ENABLED(CONFIG_IO_STRICT_DEVMEM)
+				|| p->flags & IORESOURCE_EXCLUSIVE) {
 			err = 1;
 			break;
 		}
