@@ -5304,6 +5304,8 @@ boosted_task_util(struct task_struct *task)
 	unsigned long util = task_util(task);
 	unsigned long margin = schedtune_task_margin(task);
 
+	trace_sched_boost_task(task, util, margin);
+
 	return util + margin;
 }
 

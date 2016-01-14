@@ -813,6 +813,36 @@ TRACE_EVENT(sched_tune_boostgroup_update,
 		__entry->cpu, __entry->variation, __entry->max_boost)
 );
 
+/*
+ * Tracepoint for accounting task boosted utilization
+ */
+TRACE_EVENT(sched_boost_task,
+
+	TP_PROTO(struct task_struct *tsk, unsigned long util, unsigned long margin),
+
+	TP_ARGS(tsk, util, margin),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN		)
+		__field( pid_t,		pid			)
+		__field( unsigned long,	util			)
+		__field( unsigned long,	margin			)
+
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid	= tsk->pid;
+		__entry->util	= util;
+		__entry->margin	= margin;
+	),
+
+	TP_printk("comm=%s pid=%d util=%lu margin=%lu",
+		  __entry->comm, __entry->pid,
+		  __entry->util,
+		  __entry->margin)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
