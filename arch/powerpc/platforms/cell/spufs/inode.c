@@ -767,7 +767,7 @@ static int __init spufs_init(void)
 	ret = -ENOMEM;
 	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",
 			sizeof(struct spufs_inode_info), 0,
-			SLAB_HWCACHE_ALIGN, spufs_init_once);
+			SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT, spufs_init_once);
 
 	if (!spufs_inode_cache)
 		goto out;

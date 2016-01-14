@@ -1541,8 +1541,9 @@ MODULE_ALIAS_FS("f2fs");
 
 static int __init init_inodecache(void)
 {
-	f2fs_inode_cachep = f2fs_kmem_cache_create("f2fs_inode_cache",
-			sizeof(struct f2fs_inode_info));
+	f2fs_inode_cachep = kmem_cache_create("f2fs_inode_cache",
+			sizeof(struct f2fs_inode_info), 0,
+			SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT, NULL);
 	if (!f2fs_inode_cachep)
 		return -ENOMEM;
 	return 0;
