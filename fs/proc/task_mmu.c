@@ -14,6 +14,7 @@
 #include <linux/swapops.h>
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
+#include <linux/shmem_fs.h>
 
 #include <asm/elf.h>
 #include <asm/uaccess.h>
@@ -717,8 +718,25 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
 
 #ifdef CONFIG_SHMEM
 	if (vma->vm_file && shmem_mapping(vma->vm_file->f_mapping)) {
-		mss.check_shmem_swap = true;
-		smaps_walk.pte_hole = smaps_pte_hole;
+		/*
+		 * For shared or readonly shmem mappings we know that all
+		 * swapped out pages belong to the shmem object, and we can
+		 * obtain the swap value much more efficiently. For private
+		 * writable mappings, we might have COW pages that are
+		 * not affected by the parent swapped out pages of the shmem
+		 * object, so we have to distinguish them during the page walk.
+		 * Unless we know that the shmem object (or the part mapped by
+		 * our VMA) has no swapped out pages at all.
+		 */
+		unsigned long shmem_swapped = shmem_swap_usage(vma);
+
+		if (!shmem_swapped || (vma->vm_flags & VM_SHARED) ||
+					!(vma->vm_flags & VM_WRITE)) {
+			mss.swap = shmem_swapped;
+		} else {
+			mss.check_shmem_swap = true;
+			smaps_walk.pte_hole = smaps_pte_hole;
+		}
 	}
 #endif
 
