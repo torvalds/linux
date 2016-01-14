@@ -104,6 +104,7 @@ struct arm_pmu {
 	atomic_t	active_events;
 	struct mutex	reserve_mutex;
 	u64		max_period;
+	bool		secure_access; /* 32-bit ARM only */
 	struct platform_device	*plat_device;
 	struct pmu_hw_events	__percpu *hw_events;
 	struct notifier_block	hotplug_nb;

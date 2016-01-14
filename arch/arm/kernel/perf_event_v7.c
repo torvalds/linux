@@ -712,6 +712,11 @@ static const struct attribute_group *armv7_pmuv2_attr_groups[] = {
 #define	ARMV7_EXCLUDE_USER	(1 << 30)
 #define	ARMV7_INCLUDE_HYP	(1 << 27)
 
+/*
+ * Secure debug enable reg
+ */
+#define ARMV7_SDER_SUNIDEN	BIT(1) /* Permit non-invasive debug */
+
 static inline u32 armv7_pmnc_read(void)
 {
 	u32 val;
@@ -1094,7 +1099,13 @@ static int armv7pmu_set_event_filter(struct hw_perf_event *event,
 static void armv7pmu_reset(void *info)
 {
 	struct arm_pmu *cpu_pmu = (struct arm_pmu *)info;
-	u32 idx, nb_cnt = cpu_pmu->num_events;
+	u32 idx, nb_cnt = cpu_pmu->num_events, val;
+
+	if (cpu_pmu->secure_access) {
+		asm volatile("mrc p15, 0, %0, c1, c1, 1" : "=r" (val));
+		val |= ARMV7_SDER_SUNIDEN;
+		asm volatile("mcr p15, 0, %0, c1, c1, 1" : : "r" (val));
+	}
 
 	/* The counter and interrupt enable registers are unknown at reset. */
 	for (idx = ARMV7_IDX_CYCLE_COUNTER; idx < nb_cnt; ++idx) {
