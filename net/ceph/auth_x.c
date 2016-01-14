@@ -684,14 +684,26 @@ static void ceph_x_destroy(struct ceph_auth_client *ac)
 	ac->private = NULL;
 }
 
-static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
-				   int peer_type)
+static void invalidate_ticket(struct ceph_auth_client *ac, int peer_type)
 {
 	struct ceph_x_ticket_handler *th;
 
 	th = get_ticket_handler(ac, peer_type);
 	if (!IS_ERR(th))
 		th->have_key = false;
+}
+
+static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
+					 int peer_type)
+{
+	/*
+	 * We are to invalidate a service ticket in the hopes of
+	 * getting a new, hopefully more valid, one.  But, we won't get
+	 * it unless our AUTH ticket is good, so invalidate AUTH ticket
+	 * as well, just in case.
+	 */
+	invalidate_ticket(ac, peer_type);
+	invalidate_ticket(ac, CEPH_ENTITY_TYPE_AUTH);
 }
 
 static int calcu_signature(struct ceph_x_authorizer *au,
