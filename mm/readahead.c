@@ -17,6 +17,7 @@
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
+#include <linux/mm_inline.h>
 
 #include "internal.h"
 
