@@ -46,6 +46,7 @@
 #define SDMMC_VERID		0x06c
 #define SDMMC_HCON		0x070
 #define SDMMC_UHS_REG		0x074
+#define SDMMC_RST_N		0x078
 #define SDMMC_BMOD		0x080
 #define SDMMC_PLDMND		0x084
 #define SDMMC_DBADDR		0x088
@@ -169,6 +170,8 @@
 #define SDMMC_IDMAC_ENABLE		BIT(7)
 #define SDMMC_IDMAC_FB			BIT(1)
 #define SDMMC_IDMAC_SWRESET		BIT(0)
+/* H/W reset */
+#define SDMMC_RST_HWACTIVE		0x1
 /* Version ID register define */
 #define SDMMC_GET_VERID(x)		((x) & 0xFFFF)
 /* Card read threshold */

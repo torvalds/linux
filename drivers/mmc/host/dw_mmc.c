@@ -1474,6 +1474,34 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
+static void dw_mci_hw_reset(struct mmc_host *mmc)
+{
+	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci *host = slot->host;
+	int reset;
+
+	if (host->use_dma == TRANS_MODE_IDMAC)
+		dw_mci_idmac_reset(host);
+
+	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_DMA_RESET |
+				     SDMMC_CTRL_FIFO_RESET))
+		return;
+
+	/*
+	 * According to eMMC spec, card reset procedure:
+	 * tRstW >= 1us:   RST_n pulse width
+	 * tRSCA >= 200us: RST_n to Command time
+	 * tRSTH >= 1us:   RST_n high period
+	 */
+	reset = mci_readl(host, RST_N);
+	reset &= ~(SDMMC_RST_HWACTIVE << slot->id);
+	mci_writel(host, RST_N, reset);
+	usleep_range(1, 2);
+	reset |= SDMMC_RST_HWACTIVE << slot->id;
+	mci_writel(host, RST_N, reset);
+	usleep_range(200, 300);
+}
+
 static void dw_mci_init_card(struct mmc_host *mmc, struct mmc_card *card)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
@@ -1560,6 +1588,7 @@ static const struct mmc_host_ops dw_mci_ops = {
 	.set_ios		= dw_mci_set_ios,
 	.get_ro			= dw_mci_get_ro,
 	.get_cd			= dw_mci_get_cd,
+	.hw_reset               = dw_mci_hw_reset,
 	.enable_sdio_irq	= dw_mci_enable_sdio_irq,
 	.execute_tuning		= dw_mci_execute_tuning,
 	.card_busy		= dw_mci_card_busy,
