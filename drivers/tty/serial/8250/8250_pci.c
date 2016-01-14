@@ -805,10 +805,10 @@ static int pci_netmos_9900_numports(struct pci_dev *dev)
 
 	pi = (c & 0xff);
 
-	if (pi == 2) {
+	if (pi == 2)
 		return 1;
-	} else if ((pi == 0) &&
-			   (dev->device == PCI_DEVICE_ID_NETMOS_9900)) {
+
+	if ((pi == 0) && (dev->device == PCI_DEVICE_ID_NETMOS_9900)) {
 		/* two possibilities: 0x30ps encodes number of parallel and
 		 * serial ports, or 0x1000 indicates *something*. This is not
 		 * immediately obvious, since the 2s1p+4s configuration seems
@@ -816,12 +816,12 @@ static int pci_netmos_9900_numports(struct pci_dev *dev)
 		 * advertising the same function 3 as the 4s+2s1p config.
 		 */
 		sub_serports = dev->subsystem_device & 0xf;
-		if (sub_serports > 0) {
+		if (sub_serports > 0)
 			return sub_serports;
-		} else {
-			dev_err(&dev->dev, "NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
-			return 0;
-		}
+
+		dev_err(&dev->dev,
+			"NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
+		return 0;
 	}
 
 	moan_device("unknown NetMos/Mostech program interface", dev);
