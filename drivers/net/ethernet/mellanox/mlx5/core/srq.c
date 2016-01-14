@@ -37,7 +37,7 @@
 #include <linux/mlx5/srq.h>
 #include <rdma/ib_verbs.h>
 #include "mlx5_core.h"
-#include "transobj.h"
+#include <linux/mlx5/transobj.h>
 
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type)
 {
