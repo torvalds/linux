@@ -1197,7 +1197,7 @@ int __sb_start_write(struct super_block *sb, int level, bool wait)
 	else
 		ret = percpu_down_read_trylock(sb->s_writers.rw_sem + level-1);
 
-	WARN_ON(force_trylock & !ret);
+	WARN_ON(force_trylock && !ret);
 	return ret;
 }
 EXPORT_SYMBOL(__sb_start_write);
