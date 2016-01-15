@@ -261,48 +261,6 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 }
 
 /**
- * amdgpu_sync_rings - sync ring to all registered fences
- *
- * @sync: sync object to use
- * @ring: ring that needs sync
- *
- * Ensure that all registered fences are signaled before letting
- * the ring continue. The caller must hold the ring lock.
- */
-int amdgpu_sync_rings(struct amdgpu_sync *sync,
-		      struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	int i, r;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *other = adev->rings[i];
-		struct amdgpu_fence *fence;
-
-		if (!sync->sync_to[i])
-			continue;
-
-		fence = to_amdgpu_fence(sync->sync_to[i]);
-
-		/* prevent GPU deadlocks */
-		if (!other->ready) {
-			dev_err(adev->dev, "Syncing to a disabled ring!");
-			return -EINVAL;
-		}
-
-		if (amdgpu_enable_scheduler) {
-			r = fence_wait(sync->sync_to[i], true);
-			if (r)
-				return r;
-			continue;
-		}
-
-	}
-
-	return 0;
-}
-
-/**
  * amdgpu_sync_free - free the sync object
  *
  * @adev: amdgpu_device pointer
