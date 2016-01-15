@@ -1663,28 +1663,33 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 					rx_bi->page_offset + copysize,
 					rx_packet_len, I40E_RXBUFFER_2048);
 
-			get_page(rx_bi->page);
-			/* switch to the other half-page here; the allocation
-			 * code programs the right addr into HW. If we haven't
-			 * used this half-page, the address won't be changed,
-			 * and HW can just use it next time through.
-			 */
-			rx_bi->page_offset ^= PAGE_SIZE / 2;
 			/* If the page count is more than 2, then both halves
 			 * of the page are used and we need to free it. Do it
 			 * here instead of in the alloc code. Otherwise one
 			 * of the half-pages might be released between now and
 			 * then, and we wouldn't know which one to use.
+			 * Don't call get_page and free_page since those are
+			 * both expensive atomic operations that just change
+			 * the refcount in opposite directions. Just give the
+			 * page to the stack; he can have our refcount.
 			 */
 			if (page_count(rx_bi->page) > 2) {
 				dma_unmap_page(rx_ring->dev,
 					       rx_bi->page_dma,
 					       PAGE_SIZE,
 					       DMA_FROM_DEVICE);
-				__free_page(rx_bi->page);
 				rx_bi->page = NULL;
 				rx_bi->page_dma = 0;
 				rx_ring->rx_stats.realloc_count++;
+			} else {
+				get_page(rx_bi->page);
+				/* switch to the other half-page here; the
+				 * allocation code programs the right addr
+				 * into HW. If we haven't used this half-page,
+				 * the address won't be changed, and HW can
+				 * just use it next time through.
+				 */
+				rx_bi->page_offset ^= PAGE_SIZE / 2;
 			}
 
 		}
