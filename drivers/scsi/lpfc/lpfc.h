@@ -386,7 +386,6 @@ struct lpfc_vport {
 	uint32_t work_port_events; /* Timeout to be handled  */
 #define WORKER_DISC_TMO                0x1	/* vport: Discovery timeout */
 #define WORKER_ELS_TMO                 0x2	/* vport: ELS timeout */
-#define WORKER_FDMI_TMO                0x4	/* vport: FDMI timeout */
 #define WORKER_DELAYED_DISC_TMO        0x8	/* vport: delayed discovery */
 
 #define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
@@ -396,7 +395,6 @@ struct lpfc_vport {
 #define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
 #define WORKER_SERVICE_TXQ             0x2000	/* hba: IOCBs on the txq */
 
-	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
 	struct timer_list delayed_disc_tmo;
 
@@ -405,6 +403,7 @@ struct lpfc_vport {
 	uint8_t load_flag;
 #define FC_LOADING		0x1	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
+#define FC_ALLOW_FDMI		0x4	/* port is ready for FDMI requests */
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;
@@ -414,10 +413,6 @@ struct lpfc_vport {
 	uint32_t cfg_peer_port_login;
 	uint32_t cfg_fcp_class;
 	uint32_t cfg_use_adisc;
-	uint32_t cfg_fdmi_on;
-#define LPFC_FDMI_SUPPORT	1	/* bit 0 - FDMI supported? */
-#define LPFC_FDMI_REG_DELAY	2	/* bit 1 - 60 sec registration delay */
-#define LPFC_FDMI_ALL_ATTRIB	4	/* bit 2 - register ALL attributes? */
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_max_luns;
@@ -443,6 +438,10 @@ struct lpfc_vport {
 	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
 #define STATIC_VPORT	1
+
+	uint16_t fdmi_num_disc;
+	uint32_t fdmi_hba_mask;
+	uint32_t fdmi_port_mask;
 };
 
 struct hbq_s {
@@ -755,6 +754,11 @@ struct lpfc_hba {
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
 	uint32_t cfg_enable_dss;
+	uint32_t cfg_fdmi_on;
+#define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
+#define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
+#define LPFC_FDMI_SMART_SAN	2	/* SmartSAN supported */
+	uint32_t cfg_enable_SmartSAN;
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;

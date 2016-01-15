@@ -35,46 +35,6 @@ extern const unsigned long long relocate_kernel_len;
 #ifdef CONFIG_CRASH_DUMP
 
 /*
- * Create ELF notes for one CPU
- */
-static void add_elf_notes(int cpu)
-{
-	struct save_area *sa = (void *) 4608 + store_prefix();
-	void *ptr;
-
-	memcpy((void *) (4608UL + sa->pref_reg), sa, sizeof(*sa));
-	ptr = (u64 *) per_cpu_ptr(crash_notes, cpu);
-	ptr = fill_cpu_elf_notes(ptr, sa, NULL);
-	memset(ptr, 0, sizeof(struct elf_note));
-}
-
-/*
- * Initialize CPU ELF notes
- */
-static void setup_regs(void)
-{
-	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
-	struct _lowcore *lc;
-	int cpu, this_cpu;
-
-	/* Get lowcore pointer from store status of this CPU (absolute zero) */
-	lc = (struct _lowcore *)(unsigned long)S390_lowcore.prefixreg_save_area;
-	this_cpu = smp_find_processor_id(stap());
-	add_elf_notes(this_cpu);
-	for_each_online_cpu(cpu) {
-		if (cpu == this_cpu)
-			continue;
-		if (smp_store_status(cpu))
-			continue;
-		add_elf_notes(cpu);
-	}
-	if (MACHINE_HAS_VX)
-		save_vx_regs_safe((void *) lc->vector_save_area_addr);
-	/* Copy dump CPU store status info to absolute zero */
-	memcpy((void *) SAVE_AREA_BASE, (void *) sa, sizeof(struct save_area));
-}
-
-/*
  * PM notifier callback for kdump
  */
 static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
@@ -105,14 +65,66 @@ static int __init machine_kdump_pm_init(void)
 arch_initcall(machine_kdump_pm_init);
 
 /*
- * Start kdump: We expect here that a store status has been done on our CPU
+ * Reset the system, copy boot CPU registers to absolute zero,
+ * and jump to the kdump image
  */
 static void __do_machine_kdump(void *image)
 {
-	int (*start_kdump)(int) = (void *)((struct kimage *) image)->start;
+	int (*start_kdump)(int);
+	unsigned long prefix;
+
+	/* store_status() saved the prefix register to lowcore */
+	prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
+
+	/* Now do the reset  */
+	s390_reset_system();
+
+	/*
+	 * Copy dump CPU store status info to absolute zero.
+	 * This need to be done *after* s390_reset_system set the
+	 * prefix register of this CPU to zero
+	 */
+	memcpy((void *) __LC_FPREGS_SAVE_AREA,
+	       (void *)(prefix + __LC_FPREGS_SAVE_AREA), 512);
 
 	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
+	start_kdump = (void *)((struct kimage *) image)->start;
 	start_kdump(1);
+
+	/* Die if start_kdump returns */
+	disabled_wait((unsigned long) __builtin_return_address(0));
+}
+
+/*
+ * Start kdump: create a LGR log entry, store status of all CPUs and
+ * branch to __do_machine_kdump.
+ */
+static noinline void __machine_kdump(void *image)
+{
+	int this_cpu, cpu;
+
+	lgr_info_log();
+	/* Get status of the other CPUs */
+	this_cpu = smp_find_processor_id(stap());
+	for_each_online_cpu(cpu) {
+		if (cpu == this_cpu)
+			continue;
+		if (smp_store_status(cpu))
+			continue;
+	}
+	/* Store status of the boot CPU */
+	if (MACHINE_HAS_VX)
+		save_vx_regs((void *) &S390_lowcore.vector_save_area);
+	/*
+	 * To create a good backchain for this CPU in the dump store_status
+	 * is passed the address of a function. The address is saved into
+	 * the PSW save area of the boot CPU and the function is invoked as
+	 * a tail call of store_status. The backchain in the dump will look
+	 * like this:
+	 *   restart_int_handler ->  __machine_kexec -> __do_machine_kdump
+	 * The call to store_status() will not return.
+	 */
+	store_status(__do_machine_kdump, image);
 }
 #endif
 
@@ -235,10 +247,14 @@ static void __do_machine_kexec(void *data)
 	relocate_kernel_t data_mover;
 	struct kimage *image = data;
 
+	s390_reset_system();
 	data_mover = (relocate_kernel_t) page_to_phys(image->control_code_page);
 
 	/* Call the moving routine */
 	(*data_mover)(&image->head, image->start);
+
+	/* Die if kexec returns */
+	disabled_wait((unsigned long) __builtin_return_address(0));
 }
 
 /*
@@ -251,14 +267,10 @@ static void __machine_kexec(void *data)
 	tracing_off();
 	debug_locks_off();
 #ifdef CONFIG_CRASH_DUMP
-	if (((struct kimage *) data)->type == KEXEC_TYPE_CRASH) {
-
-		lgr_info_log();
-		s390_reset_system(setup_regs, __do_machine_kdump, data);
-	} else
+	if (((struct kimage *) data)->type == KEXEC_TYPE_CRASH)
+		__machine_kdump(data);
 #endif
-		s390_reset_system(NULL, __do_machine_kexec, data);
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	__do_machine_kexec(data);
 }
 
 /*

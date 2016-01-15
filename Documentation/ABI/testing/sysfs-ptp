@@ -74,7 +74,7 @@ Description:
 		assignment may be changed by two writing numbers into
 		the file.
 
-What:		/sys/class/ptp/ptpN/pps_avaiable
+What:		/sys/class/ptp/ptpN/pps_available
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:

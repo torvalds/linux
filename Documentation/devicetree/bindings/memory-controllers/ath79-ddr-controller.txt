@@ -1,6 +1,6 @@
 Binding for Qualcomm  Atheros AR7xxx/AR9xxx DDR controller
 
-The DDR controller of the ARxxx and AR9xxx families provides an interface
+The DDR controller of the AR7xxx and AR9xxx families provides an interface
 to flush the FIFO between various devices and the DDR. This is mainly used
 by the IRQ controller to flush the FIFO before running the interrupt handler
 of such devices.
@@ -11,9 +11,9 @@ Required properties:
   "qca,[ar7100|ar7240]-ddr-controller" as fallback.
   On SoC with PCI support "qca,ar7100-ddr-controller" should be used as
   fallback, otherwise "qca,ar7240-ddr-controller" should be used.
-- reg: Base address and size of the controllers memory area
-- #qca,ddr-wb-channel-cells: has to be 1, the index of the write buffer
-  channel
+- reg: Base address and size of the controller's memory area
+- #qca,ddr-wb-channel-cells: Specifies the number of cells needed to encode
+			     the write buffer channel index, should be 1.
 
 Example:
 

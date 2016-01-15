@@ -123,6 +123,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "80860F41", 0 },
 	{ "808622C1", 0 },
 	{ "AMD0010", ACCESS_INTR_MASK },
+	{ "AMDI0510", 0 },
 	{ "APMC0D0F", 0 },
 	{ }
 };
@@ -133,6 +134,18 @@ static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
 	return -ENODEV;
 }
 #endif
+
+static int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
+{
+	if (IS_ERR(i_dev->clk))
+		return PTR_ERR(i_dev->clk);
+
+	if (prepare)
+		return clk_prepare_enable(i_dev->clk);
+
+	clk_disable_unprepare(i_dev->clk);
+	return 0;
+}
 
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
@@ -206,16 +219,13 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 			DW_IC_CON_RESTART_EN | DW_IC_CON_SPEED_FAST;
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
-	if (IS_ERR(dev->clk))
-		return PTR_ERR(dev->clk);
-	clk_prepare_enable(dev->clk);
+	if (!i2c_dw_plat_prepare_clk(dev, true)) {
+		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
 
-	if (!dev->sda_hold_time && ht) {
-		u32 ic_clk = dev->get_clk_rate_khz(dev);
-
-		dev->sda_hold_time = div_u64((u64)ic_clk * ht + 500000,
-					     1000000);
+		if (!dev->sda_hold_time && ht)
+			dev->sda_hold_time = div_u64(
+				(u64)dev->get_clk_rate_khz(dev) * ht + 500000,
+				1000000);
 	}
 
 	if (!dev->tx_fifo_depth) {
@@ -297,7 +307,7 @@ static int dw_i2c_plat_suspend(struct device *dev)
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
 	i2c_dw_disable(i_dev);
-	clk_disable_unprepare(i_dev->clk);
+	i2c_dw_plat_prepare_clk(i_dev, false);
 
 	return 0;
 }
@@ -307,7 +317,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
-	clk_prepare_enable(i_dev->clk);
+	i2c_dw_plat_prepare_clk(i_dev, true);
 
 	if (!i_dev->pm_runtime_disabled)
 		i2c_dw_init(i_dev);

@@ -31,6 +31,16 @@ struct dk_cxlflash_hdr {
 };
 
 /*
+ * Return flag definitions available to all ioctls
+ *
+ * Similar to the input flags, these are grown from the bottom-up with the
+ * intention that ioctl-specific return flag definitions would grow from the
+ * top-down, allowing the two sets to co-exist. While not required/enforced
+ * at this time, this provides future flexibility.
+ */
+#define DK_CXLFLASH_ALL_PORTS_ACTIVE	0x0000000000000001ULL
+
+/*
  * Notes:
  * -----
  * The 'context_id' field of all ioctl structures contains the context

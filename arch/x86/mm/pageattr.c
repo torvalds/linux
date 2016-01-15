@@ -66,6 +66,9 @@ void update_page_count(int level, unsigned long pages)
 
 static void split_page_count(int level)
 {
+	if (direct_pages_count[level] == 0)
+		return;
+
 	direct_pages_count[level]--;
 	direct_pages_count[level - 1] += PTRS_PER_PTE;
 }

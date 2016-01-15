@@ -293,6 +293,7 @@ int test__hists_link(int subtest __maybe_unused)
 	if (err)
 		goto out;
 
+	err = TEST_FAIL;
 	/* default sort order (comm,dso,sym) will be used */
 	if (setup_sorting(NULL) < 0)
 		goto out;

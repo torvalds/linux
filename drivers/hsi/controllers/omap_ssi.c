@@ -323,11 +323,10 @@ static int __init ssi_add_controller(struct hsi_controller *ssi,
 		return -ENOMEM;
 	}
 
-	ssi->id = ida_simple_get(&platform_omap_ssi_ida, 0, 0, GFP_KERNEL);
-	if (ssi->id < 0) {
-		err = ssi->id;
+	err = ida_simple_get(&platform_omap_ssi_ida, 0, 0, GFP_KERNEL);
+	if (err < 0)
 		goto out_err;
-	}
+	ssi->id = err;
 
 	ssi->owner = THIS_MODULE;
 	ssi->device.parent = &pd->dev;
