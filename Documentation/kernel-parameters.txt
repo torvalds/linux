@@ -2993,6 +2993,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			may be specified.
 			Format: <port>,<port>....
 
+	ppc_strict_facility_enable
+			[PPC] This option catches any kernel floating point,
+			Altivec, VSX and SPE outside of regions specifically
+			allowed (eg kernel_enable_fpu()/kernel_disable_fpu()).
+			There is some performance impact when enabling this.
+
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
 

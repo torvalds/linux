@@ -1265,6 +1265,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	if (rcomp)
 		kvmppc_set_cr(vcpu, cr);
 
+	disable_kernel_fp();
 	preempt_enable();
 
 	return emulated;

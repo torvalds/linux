@@ -228,7 +228,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		asm volatile("slbie %0" : : "r" (slbie_data));
 
 	get_paca()->slb_cache_ptr = 0;
-	get_paca()->context = mm->context;
+	copy_mm_to_paca(&mm->context);
 
 	/*
 	 * preload some userspace segments into the SLB.
