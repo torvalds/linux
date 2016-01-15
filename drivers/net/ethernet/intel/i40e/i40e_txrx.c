@@ -2051,19 +2051,6 @@ tx_only:
 	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
 		i40e_update_enable_itr(vsi, q_vector);
 	} else { /* Legacy mode */
-		struct i40e_hw *hw = &vsi->back->hw;
-		/* We re-enable the queue 0 cause, but
-		 * don't worry about dynamic_enable
-		 * because we left it on for the other
-		 * possible interrupts during napi
-		 */
-		u32 qval = rd32(hw, I40E_QINT_RQCTL(0)) |
-			   I40E_QINT_RQCTL_CAUSE_ENA_MASK;
-
-		wr32(hw, I40E_QINT_RQCTL(0), qval);
-		qval = rd32(hw, I40E_QINT_TQCTL(0)) |
-		       I40E_QINT_TQCTL_CAUSE_ENA_MASK;
-		wr32(hw, I40E_QINT_TQCTL(0), qval);
 		i40e_irq_dynamic_enable_icr0(vsi->back, false);
 	}
 	return 0;

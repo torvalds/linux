@@ -3462,16 +3462,12 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 		struct i40e_q_vector *q_vector = vsi->q_vectors[0];
 
-		/* temporarily disable queue cause for NAPI processing */
-		u32 qval = rd32(hw, I40E_QINT_RQCTL(0));
-
-		qval &= ~I40E_QINT_RQCTL_CAUSE_ENA_MASK;
-		wr32(hw, I40E_QINT_RQCTL(0), qval);
-
-		qval = rd32(hw, I40E_QINT_TQCTL(0));
-		qval &= ~I40E_QINT_TQCTL_CAUSE_ENA_MASK;
-		wr32(hw, I40E_QINT_TQCTL(0), qval);
-
+		/* We do not have a way to disarm Queue causes while leaving
+		 * interrupt enabled for all other causes, ideally
+		 * interrupt should be disabled while we are in NAPI but
+		 * this is not a performance path and napi_schedule()
+		 * can deal with rescheduling.
+		 */
 		if (!test_bit(__I40E_DOWN, &pf->state))
 			napi_schedule_irqoff(&q_vector->napi);
 	}
