@@ -558,8 +558,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 		return -EINVAL;
 
 	/* this is the actual buffer to work with */
-
-	args_buff = memdup_user(args_buff,
+	args_buff = memdup_user(cmd_from_user,
 				args->buf_size_in_bytes - sizeof(*args));
 	if (IS_ERR(args_buff))
 		return PTR_ERR(args_buff);
