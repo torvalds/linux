@@ -794,7 +794,6 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v5_0_ring_emit_ib,
 	.emit_fence = uvd_v5_0_ring_emit_fence,
-	.emit_semaphore = NULL,
 	.test_ring = uvd_v5_0_ring_test_ring,
 	.test_ib = uvd_v5_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

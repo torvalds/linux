@@ -1277,7 +1277,6 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = sdma_v2_4_ring_emit_ib,
 	.emit_fence = sdma_v2_4_ring_emit_fence,
-	.emit_semaphore = NULL,
 	.emit_vm_flush = sdma_v2_4_ring_emit_vm_flush,
 	.emit_hdp_flush = sdma_v2_4_ring_emit_hdp_flush,
 	.test_ring = sdma_v2_4_ring_test_ring,

@@ -1273,7 +1273,6 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = cik_sdma_ring_emit_ib,
 	.emit_fence = cik_sdma_ring_emit_fence,
-	.emit_semaphore = NULL,
 	.emit_vm_flush = cik_sdma_ring_emit_vm_flush,
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
 	.test_ring = cik_sdma_ring_test_ring,

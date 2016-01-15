@@ -84,7 +84,6 @@ extern int amdgpu_vm_fault_stop;
 extern int amdgpu_vm_debug;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
-extern int amdgpu_enable_semaphores;
 extern int amdgpu_powerplay;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
@@ -188,7 +187,6 @@ struct amdgpu_fence;
 struct amdgpu_ib;
 struct amdgpu_vm;
 struct amdgpu_ring;
-struct amdgpu_semaphore;
 struct amdgpu_cs_parser;
 struct amdgpu_job;
 struct amdgpu_irq_src;
@@ -333,9 +331,6 @@ struct amdgpu_ring_funcs {
 			struct amdgpu_ib *ib);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
 			   uint64_t seq, unsigned flags);
-	bool (*emit_semaphore)(struct amdgpu_ring *ring,
-			       struct amdgpu_semaphore *semaphore,
-			       bool emit_wait);
 	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
@@ -842,8 +837,6 @@ struct amdgpu_ring {
 	bool			ready;
 	u32			nop;
 	u32			idx;
-	u64			last_semaphore_signal_addr;
-	u64			last_semaphore_wait_addr;
 	u32			me;
 	u32			pipe;
 	u32			queue;
@@ -2226,7 +2219,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_ib(r, ib) (r)->funcs->emit_ib((r), (ib))
 #define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
-#define amdgpu_ring_emit_semaphore(r, semaphore, emit_wait) (r)->funcs->emit_semaphore((r), (semaphore), (emit_wait))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
