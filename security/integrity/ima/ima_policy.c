@@ -114,6 +114,7 @@ static struct ima_rule_entry default_measurement_rules[] = {
 	 .uid = GLOBAL_ROOT_UID, .flags = IMA_FUNC | IMA_INMASK | IMA_UID},
 	{.action = MEASURE, .func = MODULE_CHECK, .flags = IMA_FUNC},
 	{.action = MEASURE, .func = FIRMWARE_CHECK, .flags = IMA_FUNC},
+	{.action = MEASURE, .func = POLICY_CHECK, .flags = IMA_FUNC},
 };
 
 static struct ima_rule_entry default_appraise_rules[] = {
@@ -618,6 +619,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			else if (strcmp(args[0].from, "KEXEC_INITRAMFS_CHECK")
 				 == 0)
 				entry->func = KEXEC_INITRAMFS_CHECK;
+			else if (strcmp(args[0].from, "POLICY_CHECK") == 0)
+				entry->func = POLICY_CHECK;
 			else
 				result = -EINVAL;
 			if (!result)
@@ -776,6 +779,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		temp_ima_appraise |= IMA_APPRAISE_MODULES;
 	else if (entry->func == FIRMWARE_CHECK)
 		temp_ima_appraise |= IMA_APPRAISE_FIRMWARE;
+	else if (entry->func == POLICY_CHECK)
+		temp_ima_appraise |= IMA_APPRAISE_POLICY;
 	audit_log_format(ab, "res=%d", !result);
 	audit_log_end(ab);
 	return result;
@@ -862,7 +867,8 @@ static char *mask_tokens[] = {
 enum {
 	func_file = 0, func_mmap, func_bprm,
 	func_module, func_firmware, func_post,
-	func_kexec_kernel, func_kexec_initramfs
+	func_kexec_kernel, func_kexec_initramfs,
+	func_policy
 };
 
 static char *func_tokens[] = {
@@ -873,6 +879,7 @@ static char *func_tokens[] = {
 	"FIRMWARE_CHECK",
 	"KEXEC_KERNEL_CHECK",
 	"KEXEC_INITRAMFS_CHECK",
+	"POLICY_CHECK",
 	"POST_SETATTR"
 };
 
@@ -943,6 +950,9 @@ static void policy_func_show(struct seq_file *m, enum ima_hooks func)
 		break;
 	case KEXEC_INITRAMFS_CHECK:
 		seq_printf(m, pt(Opt_func), ft(func_kexec_initramfs));
+		break;
+	case POLICY_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_policy));
 		break;
 	default:
 		snprintf(tbuf, sizeof(tbuf), "%d", func);

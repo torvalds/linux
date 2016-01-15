@@ -325,10 +325,18 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 	if (result < 0)
 		goto out_free;
 
-	if (data[0] == '/')
+	if (data[0] == '/') {
 		result = ima_read_policy(data);
-	else 
+	} else if (ima_appraise & IMA_APPRAISE_POLICY) {
+		pr_err("IMA: signed policy file (specified as an absolute pathname) required\n");
+		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
+				    "policy_update", "signed policy required",
+				    1, 0);
+		if (ima_appraise & IMA_APPRAISE_ENFORCE)
+			result = -EACCES;
+	} else {
 		result = ima_parse_add_rule(data);
+	}
 	mutex_unlock(&ima_write_mutex);
 out_free:
 	kfree(data);
