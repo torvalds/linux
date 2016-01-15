@@ -1894,15 +1894,14 @@ int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	attr.ia_mode = S_IFLNK | S_IRWXUGO;
 	attr.ia_valid = ATTR_MODE;
 
-	page = alloc_page(GFP_HIGHUSER);
+	page = alloc_page(GFP_USER);
 	if (!page)
 		return -ENOMEM;
 
-	kaddr = kmap_atomic(page);
+	kaddr = page_address(page);
 	memcpy(kaddr, symname, pathlen);
 	if (pathlen < PAGE_SIZE)
 		memset(kaddr + pathlen, 0, PAGE_SIZE - pathlen);
-	kunmap_atomic(kaddr);
 
 	trace_nfs_symlink_enter(dir, dentry);
 	error = NFS_PROTO(dir)->symlink(dir, dentry, page, pathlen, &attr);
