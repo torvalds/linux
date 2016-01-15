@@ -1251,7 +1251,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
-	s64 before, now;
+	s64 before = 0; /* Only to silence a compiler warning. */
 	int ret;
 
 	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
@@ -1271,14 +1271,17 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			return -ETIME;
 
 		timeout_expire = jiffies + nsecs_to_jiffies_timeout(*timeout);
+
+		/*
+		 * Record current time in case interrupted by signal, or wedged.
+		 */
+		before = ktime_get_raw_ns();
 	}
 
 	if (INTEL_INFO(dev_priv)->gen >= 6)
 		gen6_rps_boost(dev_priv, rps, req->emitted_jiffies);
 
-	/* Record current time in case interrupted by signal, or wedged */
 	trace_i915_gem_request_wait_begin(req);
-	before = ktime_get_raw_ns();
 
 	/* Optimistic spin for the next jiffie before touching IRQs */
 	ret = __i915_spin_request(req, state);
@@ -1343,11 +1346,10 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	finish_wait(&ring->irq_queue, &wait);
 
 out:
-	now = ktime_get_raw_ns();
 	trace_i915_gem_request_wait_end(req);
 
 	if (timeout) {
-		s64 tres = *timeout - (now - before);
+		s64 tres = *timeout - (ktime_get_raw_ns() - before);
 
 		*timeout = tres < 0 ? 0 : tres;
 
