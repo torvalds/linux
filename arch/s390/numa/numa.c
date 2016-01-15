@@ -58,8 +58,6 @@ static __init pg_data_t *alloc_node_data(void)
 	pg_data_t *res;
 
 	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 8);
-	if (!res)
-		panic("Could not allocate memory for node data!\n");
 	memset(res, 0, sizeof(pg_data_t));
 	return res;
 }
