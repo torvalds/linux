@@ -620,8 +620,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 			return -ENOMEM;
 		adap->conn = conn;
 
-		adap->conn_pads = kcalloc(1, sizeof(*adap->conn_pads),
-					    GFP_KERNEL);
+		adap->conn_pads = kzalloc(sizeof(*adap->conn_pads), GFP_KERNEL);
 		if (!adap->conn_pads)
 			return -ENOMEM;
 
