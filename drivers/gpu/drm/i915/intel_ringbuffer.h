@@ -157,6 +157,7 @@ struct  intel_engine_cs {
 	} id;
 #define I915_NUM_RINGS 5
 #define _VCS(n) (VCS + (n))
+	unsigned int exec_id;
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;

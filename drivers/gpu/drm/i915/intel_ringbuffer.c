@@ -2683,6 +2683,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	ring->name = "render ring";
 	ring->id = RCS;
+	ring->exec_id = I915_EXEC_RENDER;
 	ring->mmio_base = RENDER_RING_BASE;
 
 	if (INTEL_INFO(dev)->gen >= 8) {
@@ -2831,6 +2832,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 
 	ring->name = "bsd ring";
 	ring->id = VCS;
+	ring->exec_id = I915_EXEC_BSD;
 
 	ring->write_tail = ring_write_tail;
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -2907,6 +2909,7 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 
 	ring->name = "bsd2 ring";
 	ring->id = VCS2;
+	ring->exec_id = I915_EXEC_BSD;
 
 	ring->write_tail = ring_write_tail;
 	ring->mmio_base = GEN8_BSD2_RING_BASE;
@@ -2937,6 +2940,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 
 	ring->name = "blitter ring";
 	ring->id = BCS;
+	ring->exec_id = I915_EXEC_BLT;
 
 	ring->mmio_base = BLT_RING_BASE;
 	ring->write_tail = ring_write_tail;
@@ -2994,6 +2998,7 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 
 	ring->name = "video enhancement ring";
 	ring->id = VECS;
+	ring->exec_id = I915_EXEC_VEBOX;
 
 	ring->mmio_base = VEBOX_RING_BASE;
 	ring->write_tail = ring_write_tail;

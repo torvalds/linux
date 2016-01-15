@@ -4358,10 +4358,20 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto unref;
 
-	BUILD_BUG_ON(I915_NUM_RINGS > 16);
-	args->busy = obj->active << 16;
-	if (obj->last_write_req)
-		args->busy |= obj->last_write_req->ring->id;
+	args->busy = 0;
+	if (obj->active) {
+		int i;
+
+		for (i = 0; i < I915_NUM_RINGS; i++) {
+			struct drm_i915_gem_request *req;
+
+			req = obj->last_read_req[i];
+			if (req)
+				args->busy |= 1 << (16 + req->ring->exec_id);
+		}
+		if (obj->last_write_req)
+			args->busy |= obj->last_write_req->ring->exec_id;
+	}
 
 unref:
 	drm_gem_object_unreference(&obj->base);
