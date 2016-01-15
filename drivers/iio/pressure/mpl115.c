@@ -163,7 +163,6 @@ static int mpl115_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	i2c_set_clientdata(client, indio_dev);
 	indio_dev->info = &mpl115_info;
 	indio_dev->name = id->name;
 	indio_dev->dev.parent = &client->dev;
