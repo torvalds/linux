@@ -1378,7 +1378,8 @@ static int sisusb_clear_vram(struct sisusb_usb_data *sisusb,
 		return 0;
 
 	/* allocate free buffer/urb and clear the buffer */
-	if ((i = sisusb_alloc_outbuf(sisusb)) < 0)
+	i = sisusb_alloc_outbuf(sisusb);
+	if (i < 0)
 		return -EBUSY;
 
 	memset(sisusb->obuf[i], 0, sisusb->obufsize);
@@ -3067,7 +3068,8 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	/* Allocate buffers */
 	sisusb->ibufsize = SISUSB_IBUF_SIZE;
-	if (!(sisusb->ibuf = kmalloc(SISUSB_IBUF_SIZE, GFP_KERNEL))) {
+	sisusb->ibuf = kmalloc(SISUSB_IBUF_SIZE, GFP_KERNEL);
+	if (!sisusb->ibuf) {
 		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate memory for input buffer");
 		retval = -ENOMEM;
 		goto error_2;
@@ -3076,7 +3078,8 @@ static int sisusb_probe(struct usb_interface *intf,
 	sisusb->numobufs = 0;
 	sisusb->obufsize = SISUSB_OBUF_SIZE;
 	for (i = 0; i < NUMOBUFS; i++) {
-		if (!(sisusb->obuf[i] = kmalloc(SISUSB_OBUF_SIZE, GFP_KERNEL))) {
+		sisusb->obuf[i] = kmalloc(SISUSB_OBUF_SIZE, GFP_KERNEL);
+		if (!sisusb->obuf[i]) {
 			if (i == 0) {
 				dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate memory for output buffer\n");
 				retval = -ENOMEM;
@@ -3088,7 +3091,8 @@ static int sisusb_probe(struct usb_interface *intf,
 	}
 
 	/* Allocate URBs */
-	if (!(sisusb->sisurbin = usb_alloc_urb(0, GFP_KERNEL))) {
+	sisusb->sisurbin = usb_alloc_urb(0, GFP_KERNEL);
+	if (!sisusb->sisurbin) {
 		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate URBs\n");
 		retval = -ENOMEM;
 		goto error_3;
@@ -3096,7 +3100,8 @@ static int sisusb_probe(struct usb_interface *intf,
 	sisusb->completein = 1;
 
 	for (i = 0; i < sisusb->numobufs; i++) {
-		if (!(sisusb->sisurbout[i] = usb_alloc_urb(0, GFP_KERNEL))) {
+		sisusb->sisurbout[i] = usb_alloc_urb(0, GFP_KERNEL);
+		if (!sisusb->sisurbout[i]) {
 			dev_err(&sisusb->sisusb_dev->dev,
 					"Failed to allocate URBs\n");
 			retval = -ENOMEM;
@@ -3112,7 +3117,8 @@ static int sisusb_probe(struct usb_interface *intf,
 
 #ifdef INCL_SISUSB_CON
 	/* Allocate our SiS_Pr */
-	if (!(sisusb->SiS_Pr = kmalloc(sizeof(struct SiS_Private), GFP_KERNEL))) {
+	sisusb->SiS_Pr = kmalloc(sizeof(struct SiS_Private), GFP_KERNEL);
+	if (!sisusb->SiS_Pr) {
 		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate SiS_Pr\n");
 	}
 #endif
