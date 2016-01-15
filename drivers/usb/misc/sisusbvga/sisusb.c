@@ -76,15 +76,11 @@ static void sisusb_free_buffers(struct sisusb_usb_data *sisusb)
 	int i;
 
 	for (i = 0; i < NUMOBUFS; i++) {
-		if (sisusb->obuf[i]) {
-			kfree(sisusb->obuf[i]);
-			sisusb->obuf[i] = NULL;
-		}
+		kfree(sisusb->obuf[i]);
+		sisusb->obuf[i] = NULL;
 	}
-	if (sisusb->ibuf) {
-		kfree(sisusb->ibuf);
-		sisusb->ibuf = NULL;
-	}
+	kfree(sisusb->ibuf);
+	sisusb->ibuf = NULL;
 }
 
 static void sisusb_free_urbs(struct sisusb_usb_data *sisusb)
