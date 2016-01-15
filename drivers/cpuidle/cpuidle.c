@@ -79,9 +79,9 @@ static int find_deepest_state(struct cpuidle_driver *drv,
 			      bool freeze)
 {
 	unsigned int latency_req = 0;
-	int i, ret = -ENXIO;
+	int i, ret = 0;
 
-	for (i = 0; i < drv->state_count; i++) {
+	for (i = 1; i < drv->state_count; i++) {
 		struct cpuidle_state *s = &drv->states[i];
 		struct cpuidle_state_usage *su = &dev->states_usage[i];
 
@@ -243,7 +243,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  * @drv: the cpuidle driver
  * @dev: the cpuidle device
  *
- * Returns the index of the idle state.
+ * Returns the index of the idle state.  The return value must not be negative.
  */
 int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
