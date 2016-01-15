@@ -47,6 +47,18 @@
 					bias-disable;
 				};
 			};
+
+			pcie_pins: pcie_pinmux {
+				mux {
+					pins = "gpio27";
+					function = "gpio";
+				};
+				conf {
+					pins = "gpio27";
+					drive-strength = <12>;
+					bias-disable;
+				};
+			};
 		};
 
 		rpm@108000 {
@@ -121,6 +133,10 @@
 				};
 
 				pm8921_lvs1: lvs1 {
+					bias-pull-down;
+				};
+
+				lvs6 {
 					bias-pull-down;
 				};
 			};
@@ -229,6 +245,16 @@
 
 		usb4: usb@12530000 {
 			status = "okay";
+		};
+
+		pci@1b500000 {
+			status = "ok";
+			vdda-supply = <&pm8921_s3>;
+			vdda_phy-supply = <&pm8921_lvs6>;
+			vdda_refclk-supply = <&ext_3p3v>;
+			pinctrl-0 = <&pcie_pins>;
+			pinctrl-names = "default";
+			perst-gpio = <&tlmm_pinmux 27 GPIO_ACTIVE_LOW>;
 		};
 
 		qcom,ssbi@500000 {

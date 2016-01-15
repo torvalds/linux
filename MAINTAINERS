@@ -8240,10 +8240,18 @@ F:	drivers/pci/host/pci-xgene-msi.c
 
 PCIE DRIVER FOR HISILICON
 M:	Zhou Wang <wangzhou1@hisilicon.com>
+M:	Gabriele Paoloni <gabriele.paoloni@huawei.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/hisilicon-pcie.txt
 F:	drivers/pci/host/pcie-hisi.c
+
+PCIE DRIVER FOR QUALCOMM MSM
+M:     Stanimir Varbanov <svarbanov@mm-sol.com>
+L:     linux-pci@vger.kernel.org
+L:     linux-arm-msm@vger.kernel.org
+S:     Maintained
+F:     drivers/pci/host/*qcom*
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
