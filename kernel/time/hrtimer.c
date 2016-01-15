@@ -94,16 +94,14 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 };
 
 static const int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
+	/* Make sure we catch unsupported clockids */
+	[0 ... MAX_CLOCKS - 1]	= HRTIMER_MAX_CLOCK_BASES,
+
 	[CLOCK_REALTIME]	= HRTIMER_BASE_REALTIME,
 	[CLOCK_MONOTONIC]	= HRTIMER_BASE_MONOTONIC,
 	[CLOCK_BOOTTIME]	= HRTIMER_BASE_BOOTTIME,
 	[CLOCK_TAI]		= HRTIMER_BASE_TAI,
 };
-
-static inline int hrtimer_clockid_to_base(clockid_t clock_id)
-{
-	return hrtimer_clock_to_base_table[clock_id];
-}
 
 /*
  * Functions and macros which are different for UP/SMP systems are kept in a
@@ -1080,6 +1078,18 @@ u64 hrtimer_get_next_event(void)
 	return expires;
 }
 #endif
+
+static inline int hrtimer_clockid_to_base(clockid_t clock_id)
+{
+	if (likely(clock_id < MAX_CLOCKS)) {
+		int base = hrtimer_clock_to_base_table[clock_id];
+
+		if (likely(base != HRTIMER_MAX_CLOCK_BASES))
+			return base;
+	}
+	WARN(1, "Invalid clockid %d. Using MONOTONIC\n", clock_id);
+	return HRTIMER_BASE_MONOTONIC;
+}
 
 static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 			   enum hrtimer_mode mode)
