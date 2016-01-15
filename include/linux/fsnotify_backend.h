@@ -220,7 +220,10 @@ struct fsnotify_mark {
 	/* List of marks by group->i_fsnotify_marks. Also reused for queueing
 	 * mark into destroy_list when it's waiting for the end of SRCU period
 	 * before it can be freed. [group->mark_mutex] */
-	struct list_head g_list;
+	union {
+		struct list_head g_list;
+		struct rcu_head g_rcu;
+	};
 	/* Protects inode / mnt pointers, flags, masks */
 	spinlock_t lock;
 	/* List of marks for inode / vfsmount [obj_lock] */

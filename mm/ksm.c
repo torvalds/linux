@@ -740,8 +740,7 @@ static int remove_stable_node(struct stable_node *stable_node)
 
 static int remove_all_stable_nodes(void)
 {
-	struct stable_node *stable_node;
-	struct list_head *this, *next;
+	struct stable_node *stable_node, *next;
 	int nid;
 	int err = 0;
 
@@ -756,8 +755,7 @@ static int remove_all_stable_nodes(void)
 			cond_resched();
 		}
 	}
-	list_for_each_safe(this, next, &migrate_nodes) {
-		stable_node = list_entry(this, struct stable_node, list);
+	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
 		if (remove_stable_node(stable_node))
 			err = -EBUSY;
 		cond_resched();
@@ -1583,13 +1581,11 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
 		 * so prune them once before each full scan.
 		 */
 		if (!ksm_merge_across_nodes) {
-			struct stable_node *stable_node;
-			struct list_head *this, *next;
+			struct stable_node *stable_node, *next;
 			struct page *page;
 
-			list_for_each_safe(this, next, &migrate_nodes) {
-				stable_node = list_entry(this,
-						struct stable_node, list);
+			list_for_each_entry_safe(stable_node, next,
+						 &migrate_nodes, list) {
 				page = get_ksm_page(stable_node, false);
 				if (page)
 					put_page(page);
@@ -2012,8 +2008,7 @@ static void wait_while_offlining(void)
 static void ksm_check_stable_tree(unsigned long start_pfn,
 				  unsigned long end_pfn)
 {
-	struct stable_node *stable_node;
-	struct list_head *this, *next;
+	struct stable_node *stable_node, *next;
 	struct rb_node *node;
 	int nid;
 
@@ -2034,8 +2029,7 @@ static void ksm_check_stable_tree(unsigned long start_pfn,
 			cond_resched();
 		}
 	}
-	list_for_each_safe(this, next, &migrate_nodes) {
-		stable_node = list_entry(this, struct stable_node, list);
+	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
 		if (stable_node->kpfn >= start_pfn &&
 		    stable_node->kpfn < end_pfn)
 			remove_node_from_stable_tree(stable_node);

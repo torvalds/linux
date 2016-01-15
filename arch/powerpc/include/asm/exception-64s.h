@@ -130,15 +130,6 @@ BEGIN_FTR_SECTION_NESTED(941)						\
 END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,941)
 
 /*
- * Increase the priority on systems where PPR save/restore is not
- * implemented/ supported.
- */
-#define HMT_MEDIUM_PPR_DISCARD						\
-BEGIN_FTR_SECTION_NESTED(942)						\
-	HMT_MEDIUM;							\
-END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,0,942)  /*non P7*/		
-
-/*
  * Get an SPR into a register if the CPU has the given feature
  */
 #define OPT_GET_SPR(ra, spr, ftr)					\
@@ -263,17 +254,6 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
-#define KVMTEST_PR(n)			__KVMTEST(n)
-#define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
-#define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
-
-#else
-#define KVMTEST_PR(n)
-#define KVM_HANDLER_PR(area, h, n)
-#define KVM_HANDLER_PR_SKIP(area, h, n)
-#endif
-
 #define NOTEST(n)
 
 /*
@@ -353,27 +333,25 @@ do_kvm_##n:								\
 /*
  * Exception vectors.
  */
-#define STD_EXCEPTION_PSERIES(loc, vec, label)		\
-	. = loc;					\
+#define STD_EXCEPTION_PSERIES(vec, label)		\
+	. = vec;					\
 	.globl label##_pSeries;				\
 label##_pSeries:					\
-	HMT_MEDIUM_PPR_DISCARD;				\
 	SET_SCRATCH0(r13);		/* save r13 */		\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
-				 EXC_STD, KVMTEST_PR, vec)
+				 EXC_STD, KVMTEST, vec)
 
 /* Version of above for when we have to branch out-of-line */
 #define STD_EXCEPTION_PSERIES_OOL(vec, label)			\
 	.globl label##_pSeries;					\
 label##_pSeries:						\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST, vec);	\
 	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_STD)
 
 #define STD_EXCEPTION_HV(loc, vec, label)		\
 	. = loc;					\
 	.globl label##_hv;				\
 label##_hv:						\
-	HMT_MEDIUM_PPR_DISCARD;				\
 	SET_SCRATCH0(r13);	/* save r13 */			\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
 				 EXC_HV, KVMTEST, vec)
@@ -389,7 +367,6 @@ label##_hv:						\
 	. = loc;					\
 	.globl label##_relon_pSeries;			\
 label##_relon_pSeries:					\
-	HMT_MEDIUM_PPR_DISCARD;				\
 	/* No guest interrupts come through here */	\
 	SET_SCRATCH0(r13);		/* save r13 */	\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
@@ -405,7 +382,6 @@ label##_relon_pSeries:						\
 	. = loc;					\
 	.globl label##_relon_hv;			\
 label##_relon_hv:					\
-	HMT_MEDIUM_PPR_DISCARD;				\
 	/* No guest interrupts come through here */	\
 	SET_SCRATCH0(r13);	/* save r13 */		\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
@@ -436,16 +412,12 @@ label##_relon_hv:						\
 #define _SOFTEN_TEST(h, vec)	__SOFTEN_TEST(h, vec)
 
 #define SOFTEN_TEST_PR(vec)						\
-	KVMTEST_PR(vec);						\
+	KVMTEST(vec);							\
 	_SOFTEN_TEST(EXC_STD, vec)
 
 #define SOFTEN_TEST_HV(vec)						\
 	KVMTEST(vec);							\
 	_SOFTEN_TEST(EXC_HV, vec)
-
-#define SOFTEN_TEST_HV_201(vec)						\
-	KVMTEST(vec);							\
-	_SOFTEN_TEST(EXC_STD, vec)
 
 #define SOFTEN_NOTEST_PR(vec)		_SOFTEN_TEST(EXC_STD, vec)
 #define SOFTEN_NOTEST_HV(vec)		_SOFTEN_TEST(EXC_HV, vec)
@@ -463,7 +435,6 @@ label##_relon_hv:						\
 	. = loc;							\
 	.globl label##_pSeries;						\
 label##_pSeries:							\
-	HMT_MEDIUM_PPR_DISCARD;						\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
 				    EXC_STD, SOFTEN_TEST_PR)
 
@@ -481,7 +452,6 @@ label##_hv:								\
 	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_HV);
 
 #define __MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra)	\
-	HMT_MEDIUM_PPR_DISCARD;						\
 	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0(PACA_EXGEN);					\
 	__EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec);		\

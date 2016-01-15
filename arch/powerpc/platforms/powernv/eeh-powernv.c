@@ -48,8 +48,8 @@ static int pnv_eeh_init(void)
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warn("%s: OPALv3 is required !\n",
+	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
+		pr_warn("%s: OPAL is required !\n",
 			__func__);
 		return -EINVAL;
 	}

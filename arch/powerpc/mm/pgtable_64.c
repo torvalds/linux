@@ -359,7 +359,7 @@ struct page *pud_page(pud_t pud)
 struct page *pmd_page(pmd_t pmd)
 {
 	if (pmd_trans_huge(pmd) || pmd_huge(pmd))
-		return pfn_to_page(pmd_pfn(pmd));
+		return pte_page(pmd_pte(pmd));
 	return virt_to_page(pmd_page_vaddr(pmd));
 }
 
@@ -625,7 +625,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
 	"1:	ldarx	%0,0,%3\n\
 		andi.	%1,%0,%6\n\
 		bne-	1b \n\
-		ori	%1,%0,%4 \n\
+		oris	%1,%0,%4@h \n\
 		stdcx.	%1,0,%3 \n\
 		bne-	1b"
 	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
@@ -759,22 +759,15 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 
 static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
 {
-	pmd_val(pmd) |= pgprot_val(pgprot);
-	return pmd;
+	return __pmd(pmd_val(pmd) | pgprot_val(pgprot));
 }
 
 pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
-	pmd_t pmd;
-	/*
-	 * For a valid pte, we would have _PAGE_PRESENT always
-	 * set. We use this to check THP page at pmd level.
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
-	pmd_val(pmd) = pfn << PTE_RPN_SHIFT;
-	pmd_val(pmd) |= _PAGE_THP_HUGE;
-	pmd = pmd_set_protbits(pmd, pgprot);
-	return pmd;
+	unsigned long pmdv;
+
+	pmdv = pfn << PTE_RPN_SHIFT;
+	return pmd_set_protbits(__pmd(pmdv), pgprot);
 }
 
 pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
@@ -784,10 +777,11 @@ pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
 
 pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
+	unsigned long pmdv;
 
-	pmd_val(pmd) &= _HPAGE_CHG_MASK;
-	pmd = pmd_set_protbits(pmd, newprot);
-	return pmd;
+	pmdv = pmd_val(pmd);
+	pmdv &= _HPAGE_CHG_MASK;
+	return pmd_set_protbits(__pmd(pmdv), newprot);
 }
 
 /*

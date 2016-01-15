@@ -219,7 +219,7 @@ static int da9211_get_current_limit(struct regulator_dev *rdev)
 	return current_limits[data];
 }
 
-static struct regulator_ops da9211_buck_ops = {
+static const struct regulator_ops da9211_buck_ops = {
 	.get_mode = da9211_buck_get_mode,
 	.set_mode = da9211_buck_set_mode,
 	.enable = regulator_enable_regmap,

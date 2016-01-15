@@ -54,7 +54,7 @@
  */
 struct ocfs2_extent_tree_operations;
 struct ocfs2_extent_tree {
-	struct ocfs2_extent_tree_operations	*et_ops;
+	const struct ocfs2_extent_tree_operations *et_ops;
 	struct buffer_head			*et_root_bh;
 	struct ocfs2_extent_list		*et_root_el;
 	struct ocfs2_caching_info		*et_ci;

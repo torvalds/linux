@@ -188,4 +188,4 @@
 	};
 };
 
-/include/ "t1024si-post.dtsi"
+#include "t1024si-post.dtsi"

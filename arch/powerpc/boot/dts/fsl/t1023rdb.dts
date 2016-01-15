@@ -159,4 +159,4 @@
 	};
 };
 
-/include/ "t1023si-post.dtsi"
+#include "t1023si-post.dtsi"
