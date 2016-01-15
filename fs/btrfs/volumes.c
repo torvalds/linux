@@ -3752,7 +3752,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	if (btrfs_get_num_tolerated_disk_barrier_failures(bctl->meta.target) <
 		btrfs_get_num_tolerated_disk_barrier_failures(bctl->data.target)) {
 		btrfs_warn(fs_info,
-	"metatdata profile 0x%llx has lower redundancy than data profile 0x%llx",
+	"metadata profile 0x%llx has lower redundancy than data profile 0x%llx",
 			bctl->meta.target, bctl->data.target);
 	}
 
