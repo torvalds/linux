@@ -43,10 +43,8 @@ gm107_ltc_cbc_wait(struct nvkm_ltc *ltc)
 	for (c = 0; c < ltc->ltc_nr; c++) {
 		for (s = 0; s < ltc->lts_nr; s++) {
 			const u32 addr = 0x14046c + (c * 0x2000) + (s * 0x200);
-			nvkm_msec(device, 2000,
-				if (!nvkm_rd32(device, addr))
-					break;
-			);
+			nvkm_wait_msec(device, 2000, addr,
+				       0x00000004, 0x00000000);
 		}
 	}
 }
