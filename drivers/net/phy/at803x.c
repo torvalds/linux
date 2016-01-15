@@ -20,9 +20,12 @@
 #include <linux/gpio/consumer.h>
 
 #define AT803X_INTR_ENABLE			0x12
+#define AT803X_INTR_ENABLE_INIT			0xec00
 #define AT803X_INTR_STATUS			0x13
+
 #define AT803X_SMART_SPEED			0x14
 #define AT803X_LED_CONTROL			0x18
+
 #define AT803X_WOL_ENABLE			0x01
 #define AT803X_DEVICE_ADDR			0x03
 #define AT803X_LOC_MAC_ADDR_0_15_OFFSET		0x804C
@@ -31,13 +34,13 @@
 #define AT803X_MMD_ACCESS_CONTROL		0x0D
 #define AT803X_MMD_ACCESS_CONTROL_DATA		0x0E
 #define AT803X_FUNC_DATA			0x4003
-#define AT803X_INER				0x0012
-#define AT803X_INER_INIT			0xec00
-#define AT803X_INSR				0x0013
+
 #define AT803X_DEBUG_ADDR			0x1D
 #define AT803X_DEBUG_DATA			0x1E
+
 #define AT803X_DEBUG_REG_0			0x00
 #define AT803X_DEBUG_RX_CLK_DLY_EN		BIT(15)
+
 #define AT803X_DEBUG_REG_5			0x05
 #define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
 
@@ -280,7 +283,7 @@ static int at803x_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
 
-	err = phy_read(phydev, AT803X_INSR);
+	err = phy_read(phydev, AT803X_INTR_STATUS);
 
 	return (err < 0) ? err : 0;
 }
@@ -290,13 +293,13 @@ static int at803x_config_intr(struct phy_device *phydev)
 	int err;
 	int value;
 
-	value = phy_read(phydev, AT803X_INER);
+	value = phy_read(phydev, AT803X_INTR_ENABLE);
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, AT803X_INER,
-				value | AT803X_INER_INIT);
+		err = phy_write(phydev, AT803X_INTR_ENABLE,
+				value | AT803X_INTR_ENABLE_INIT);
 	else
-		err = phy_write(phydev, AT803X_INER, 0);
+		err = phy_write(phydev, AT803X_INTR_ENABLE, 0);
 
 	return err;
 }
