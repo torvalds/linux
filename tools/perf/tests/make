@@ -5,7 +5,7 @@ ifeq ($(MAKECMDGOALS),)
 # no target specified, trigger the whole suite
 all:
 	@echo "Testing Makefile";      $(MAKE) -sf tests/make MK=Makefile
-	@echo "Testing Makefile.perf"; $(MAKE) -sf tests/make MK=Makefile.perf SET_PARALLEL=1
+	@echo "Testing Makefile.perf"; $(MAKE) -sf tests/make MK=Makefile.perf SET_PARALLEL=1 SET_O=1
 else
 # run only specific test over 'Makefile'
 %:
@@ -13,6 +13,14 @@ else
 endif
 else
 PERF := .
+O_OPT :=
+
+ifneq ($(O),)
+  FULL_O := $(shell readlink -f $(O) || echo $(O))
+  ifeq ($(SET_O),1)
+    O_OPT := 'O=$(FULL_O)'
+  endif
+endif
 
 PARALLEL_OPT=
 ifeq ($(SET_PARALLEL),1)
@@ -256,12 +264,12 @@ endif
 
 MAKEFLAGS := --no-print-directory
 
-clean := @(cd $(PERF); make -s -f $(MK) clean >/dev/null)
+clean := @(cd $(PERF); make -s -f $(MK) $(O_OPT) clean >/dev/null)
 
 $(run):
 	$(call clean)
 	@TMP_DEST=$$(mktemp -d); \
-	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) DESTDIR=$$TMP_DEST $($@)"; \
+	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST $($@)"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1; \
 	echo "  test: $(call test,$@)" >> $@ 2>&1; \
