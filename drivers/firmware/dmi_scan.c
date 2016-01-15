@@ -321,26 +321,31 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	list_add_tail(&dev->list, &dmi_devices);
 }
 
-static void __init dmi_save_dev_onboard(int instance, int segment, int bus,
-					int devfn, const char *name)
+static void __init dmi_save_dev_pciaddr(int instance, int segment, int bus,
+					int devfn, const char *name, int type)
 {
-	struct dmi_dev_onboard *onboard_dev;
+	struct dmi_dev_onboard *dev;
 
-	onboard_dev = dmi_alloc(sizeof(*onboard_dev) + strlen(name) + 1);
-	if (!onboard_dev)
+	/* Ignore invalid values */
+	if (type == DMI_DEV_TYPE_DEV_SLOT &&
+	    segment == 0xFFFF && bus == 0xFF && devfn == 0xFF)
 		return;
 
-	onboard_dev->instance = instance;
-	onboard_dev->segment = segment;
-	onboard_dev->bus = bus;
-	onboard_dev->devfn = devfn;
+	dev = dmi_alloc(sizeof(*dev) + strlen(name) + 1);
+	if (!dev)
+		return;
 
-	strcpy((char *)&onboard_dev[1], name);
-	onboard_dev->dev.type = DMI_DEV_TYPE_DEV_ONBOARD;
-	onboard_dev->dev.name = (char *)&onboard_dev[1];
-	onboard_dev->dev.device_data = onboard_dev;
+	dev->instance = instance;
+	dev->segment = segment;
+	dev->bus = bus;
+	dev->devfn = devfn;
 
-	list_add(&onboard_dev->dev.list, &dmi_devices);
+	strcpy((char *)&dev[1], name);
+	dev->dev.type = type;
+	dev->dev.name = (char *)&dev[1];
+	dev->dev.device_data = dev;
+
+	list_add(&dev->dev.list, &dmi_devices);
 }
 
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
@@ -353,8 +358,21 @@ static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 		return;
 
 	name = dmi_string_nosave(dm, d[0x4]);
-	dmi_save_dev_onboard(d[0x6], *(u16 *)(d + 0x7), d[0x9], d[0xA], name);
+	dmi_save_dev_pciaddr(d[0x6], *(u16 *)(d + 0x7), d[0x9], d[0xA], name,
+			     DMI_DEV_TYPE_DEV_ONBOARD);
 	dmi_save_one_device(d[0x5] & 0x7f, name);
+}
+
+static void __init dmi_save_system_slot(const struct dmi_header *dm)
+{
+	const u8 *d = (u8 *)dm;
+
+	/* Need SMBIOS 2.6+ structure */
+	if (dm->length < 0x11)
+		return;
+	dmi_save_dev_pciaddr(*(u16 *)(d + 0x9), *(u16 *)(d + 0xD), d[0xF],
+			     d[0x10], dmi_string_nosave(dm, d[0x4]),
+			     DMI_DEV_TYPE_DEV_SLOT);
 }
 
 static void __init count_mem_devices(const struct dmi_header *dm, void *v)
@@ -426,6 +444,9 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 		dmi_save_ident(dm, DMI_CHASSIS_VERSION, 6);
 		dmi_save_ident(dm, DMI_CHASSIS_SERIAL, 7);
 		dmi_save_ident(dm, DMI_CHASSIS_ASSET_TAG, 8);
+		break;
+	case 9:		/* System Slots */
+		dmi_save_system_slot(dm);
 		break;
 	case 10:	/* Onboard Devices Information */
 		dmi_save_devices(dm);
