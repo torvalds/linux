@@ -226,7 +226,7 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 	}
 }
 
-static const u32 chanctx_event_delta(struct ath_softc *sc)
+static u32 chanctx_event_delta(struct ath_softc *sc)
 {
 	u64 ms;
 	struct timespec ts, *old;
