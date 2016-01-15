@@ -246,6 +246,7 @@ _system_call:
 	/* save top of frame */
 	mov.l	sp,er0
 	jsr	@set_esp0
+	andc	#0x3f,ccr
 	mov.l	sp,er2
 	and.w	#0xe000,r2
 	mov.l	@(TI_FLAGS:16,er2),er2
