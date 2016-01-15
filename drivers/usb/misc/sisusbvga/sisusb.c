@@ -3112,7 +3112,8 @@ static int sisusb_probe(struct usb_interface *intf,
 	/* Allocate our SiS_Pr */
 	sisusb->SiS_Pr = kmalloc(sizeof(struct SiS_Private), GFP_KERNEL);
 	if (!sisusb->SiS_Pr) {
-		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate SiS_Pr\n");
+		retval = -ENOMEM;
+		goto error_4;
 	}
 #endif
 
