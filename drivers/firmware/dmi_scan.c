@@ -870,7 +870,7 @@ EXPORT_SYMBOL(dmi_name_in_vendors);
  *	@from: previous device found in search, or %NULL for new search.
  *
  *	Iterates through the list of known onboard devices. If a device is
- *	found with a matching @vendor and @device, a pointer to its device
+ *	found with a matching @type and @name, a pointer to its device
  *	structure is returned.  Otherwise, %NULL is returned.
  *	A new search is initiated by passing %NULL as the @from argument.
  *	If @from is not %NULL, searches continue from next device.
