@@ -13893,11 +13893,12 @@ intel_check_primary_plane(struct drm_plane *plane,
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
 
-	/* use scaler when colorkey is not required */
-	if (INTEL_INFO(plane->dev)->gen >= 9 &&
-	    state->ckey.flags == I915_SET_COLORKEY_NONE) {
-		min_scale = 1;
-		max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+	if (INTEL_INFO(plane->dev)->gen >= 9) {
+		/* use scaler when colorkey is not required */
+		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
+			min_scale = 1;
+			max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+		}
 		can_position = true;
 	}
 
