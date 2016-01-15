@@ -2122,7 +2122,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		cur_promisc = (!!(vsi->current_netdev_flags & IFF_PROMISC) ||
 			       test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
 					&vsi->state));
-		if (vsi->type == I40E_VSI_MAIN && pf->lan_veb != I40E_NO_VEB) {
+		if ((vsi->type == I40E_VSI_MAIN) &&
+		    (pf->lan_veb != I40E_NO_VEB) &&
+		    !(pf->flags & I40E_FLAG_MFP_ENABLED)) {
 			/* set defport ON for Main VSI instead of true promisc
 			 * this way we will get all unicast/multicast and VLAN
 			 * promisc behavior but will not get VF or VMDq traffic
