@@ -401,8 +401,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (!r)
 		amdgpu_bo_fence(bo, fence, true);
 	fence_put(fence);
-	if (amdgpu_enable_scheduler)
-		return 0;
+	return 0;
 
 error_free:
 	amdgpu_ib_free(adev, ib);
@@ -536,7 +535,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		fence_put(fence);
 	}
 
-	if (!amdgpu_enable_scheduler || ib->length_dw == 0) {
+	if (ib->length_dw == 0) {
 		amdgpu_ib_free(adev, ib);
 		kfree(ib);
 	}
@@ -819,10 +818,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		*fence = fence_get(f);
 	}
 	fence_put(f);
-	if (!amdgpu_enable_scheduler) {
-		amdgpu_ib_free(adev, ib);
-		kfree(ib);
-	}
 	return 0;
 
 error_free:

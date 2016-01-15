@@ -432,8 +432,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
-	if (amdgpu_enable_scheduler)
-		return 0;
+	return 0;
 err:
 	amdgpu_ib_free(adev, ib);
 	kfree(ib);
@@ -499,8 +498,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
-	if (amdgpu_enable_scheduler)
-		return 0;
+	return 0;
 err:
 	amdgpu_ib_free(adev, ib);
 	kfree(ib);

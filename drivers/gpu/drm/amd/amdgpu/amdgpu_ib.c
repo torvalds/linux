@@ -199,10 +199,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return r;
 	}
 
-	if (!amdgpu_enable_scheduler && ib->ctx)
-		ib->sequence = amdgpu_ctx_add_fence(ib->ctx, ring,
-						    &ib->fence->base);
-
 	/* wrap the last IB with fence */
 	if (ib->user) {
 		uint64_t addr = amdgpu_bo_gpu_offset(ib->user->bo);

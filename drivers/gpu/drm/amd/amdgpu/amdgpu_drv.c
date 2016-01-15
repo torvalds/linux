@@ -78,7 +78,6 @@ int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
 int amdgpu_exp_hw_support = 0;
-int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_powerplay = -1;
@@ -151,9 +150,6 @@ module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
 
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
-
-MODULE_PARM_DESC(enable_scheduler, "enable SW GPU scheduler (1 = enable (default), 0 = disable)");
-module_param_named(enable_scheduler, amdgpu_enable_scheduler, int, 0444);
 
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 32)");
 module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);

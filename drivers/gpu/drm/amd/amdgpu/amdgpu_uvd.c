@@ -895,11 +895,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 		*fence = fence_get(f);
 	amdgpu_bo_unref(&bo);
 	fence_put(f);
-	if (amdgpu_enable_scheduler)
-		return 0;
 
-	amdgpu_ib_free(ring->adev, ib);
-	kfree(ib);
 	return 0;
 err2:
 	amdgpu_ib_free(ring->adev, ib);

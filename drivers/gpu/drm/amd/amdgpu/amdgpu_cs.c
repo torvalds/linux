@@ -813,7 +813,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r)
 		goto out;
 
-	if (amdgpu_enable_scheduler && parser.num_ibs) {
+	if (parser.num_ibs) {
 		struct amdgpu_ring * ring = parser.ibs->ring;
 		struct amd_sched_fence *fence;
 		struct amdgpu_job *job;
@@ -858,15 +858,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		trace_amdgpu_cs_ioctl(job);
 		amd_sched_entity_push_job(&job->base);
-
-	} else {
-		struct amdgpu_fence *fence;
-
-		r = amdgpu_ib_schedule(adev, parser.num_ibs, parser.ibs,
-				       parser.filp);
-		fence = parser.ibs[parser.num_ibs - 1].fence;
-		parser.fence = fence_get(&fence->base);
-		cs->out.handle = parser.ibs[parser.num_ibs - 1].sequence;
 	}
 
 out:

@@ -1070,10 +1070,6 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	if (r)
 		goto error_free;
 
-	if (!amdgpu_enable_scheduler) {
-		amdgpu_ib_free(adev, ib);
-		kfree(ib);
-	}
 	return 0;
 error_free:
 	amdgpu_ib_free(adev, ib);

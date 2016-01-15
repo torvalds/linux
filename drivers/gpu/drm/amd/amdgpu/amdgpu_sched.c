@@ -76,33 +76,25 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 					 void *owner,
 					 struct fence **f)
 {
-	int r = 0;
-	if (amdgpu_enable_scheduler) {
-		struct amdgpu_job *job =
-			kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
-		if (!job)
-			return -ENOMEM;
-		job->base.sched = &ring->sched;
-		job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
-		job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
-		if (!job->base.s_fence) {
-			kfree(job);
-			return -ENOMEM;
-		}
-		*f = fence_get(&job->base.s_fence->base);
-
-		job->adev = adev;
-		job->ibs = ibs;
-		job->num_ibs = num_ibs;
-		job->owner = owner;
-		job->free_job = free_job;
-		amd_sched_entity_push_job(&job->base);
-	} else {
-		r = amdgpu_ib_schedule(adev, num_ibs, ibs, owner);
-		if (r)
-			return r;
-		*f = fence_get(&ibs[num_ibs - 1].fence->base);
+	struct amdgpu_job *job =
+		kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
+	if (!job)
+		return -ENOMEM;
+	job->base.sched = &ring->sched;
+	job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
+	job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
+	if (!job->base.s_fence) {
+		kfree(job);
+		return -ENOMEM;
 	}
+	*f = fence_get(&job->base.s_fence->base);
+
+	job->adev = adev;
+	job->ibs = ibs;
+	job->num_ibs = num_ibs;
+	job->owner = owner;
+	job->free_job = free_job;
+	amd_sched_entity_push_job(&job->base);
 
 	return 0;
 }

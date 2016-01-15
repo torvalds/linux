@@ -45,29 +45,27 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
 		ctx->rings[i].fences = (void *)ctx->fences + sizeof(struct fence *) *
 			amdgpu_sched_jobs * i;
 	}
-	if (amdgpu_enable_scheduler) {
-		/* create context entity for each ring */
-		for (i = 0; i < adev->num_rings; i++) {
-			struct amd_sched_rq *rq;
-			if (pri >= AMD_SCHED_MAX_PRIORITY) {
-				kfree(ctx->fences);
-				return -EINVAL;
-			}
-			rq = &adev->rings[i]->sched.sched_rq[pri];
-			r = amd_sched_entity_init(&adev->rings[i]->sched,
-						  &ctx->rings[i].entity,
-						  rq, amdgpu_sched_jobs);
-			if (r)
-				break;
-		}
-
-		if (i < adev->num_rings) {
-			for (j = 0; j < i; j++)
-				amd_sched_entity_fini(&adev->rings[j]->sched,
-						      &ctx->rings[j].entity);
+	/* create context entity for each ring */
+	for (i = 0; i < adev->num_rings; i++) {
+		struct amd_sched_rq *rq;
+		if (pri >= AMD_SCHED_MAX_PRIORITY) {
 			kfree(ctx->fences);
-			return r;
+			return -EINVAL;
 		}
+		rq = &adev->rings[i]->sched.sched_rq[pri];
+		r = amd_sched_entity_init(&adev->rings[i]->sched,
+					  &ctx->rings[i].entity,
+					  rq, amdgpu_sched_jobs);
+		if (r)
+			break;
+	}
+
+	if (i < adev->num_rings) {
+		for (j = 0; j < i; j++)
+			amd_sched_entity_fini(&adev->rings[j]->sched,
+					      &ctx->rings[j].entity);
+		kfree(ctx->fences);
+		return r;
 	}
 	return 0;
 }
@@ -85,11 +83,9 @@ void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 			fence_put(ctx->rings[i].fences[j]);
 	kfree(ctx->fences);
 
-	if (amdgpu_enable_scheduler) {
-		for (i = 0; i < adev->num_rings; i++)
-			amd_sched_entity_fini(&adev->rings[i]->sched,
-					      &ctx->rings[i].entity);
-	}
+	for (i = 0; i < adev->num_rings; i++)
+		amd_sched_entity_fini(&adev->rings[i]->sched,
+				      &ctx->rings[i].entity);
 }
 
 static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
