@@ -20,13 +20,21 @@
 #include <linux/gpio/consumer.h>
 
 #define AT803X_INTR_ENABLE			0x12
-#define AT803X_INTR_ENABLE_INIT			0xec00
+#define AT803X_INTR_ENABLE_AUTONEG_ERR		BIT(15)
+#define AT803X_INTR_ENABLE_SPEED_CHANGED	BIT(14)
+#define AT803X_INTR_ENABLE_DUPLEX_CHANGED	BIT(13)
+#define AT803X_INTR_ENABLE_PAGE_RECEIVED	BIT(12)
+#define AT803X_INTR_ENABLE_LINK_FAIL		BIT(11)
+#define AT803X_INTR_ENABLE_LINK_SUCCESS		BIT(10)
+#define AT803X_INTR_ENABLE_WIRESPEED_DOWNGRADE	BIT(5)
+#define AT803X_INTR_ENABLE_POLARITY_CHANGED	BIT(1)
+#define AT803X_INTR_ENABLE_WOL			BIT(0)
+
 #define AT803X_INTR_STATUS			0x13
 
 #define AT803X_SMART_SPEED			0x14
 #define AT803X_LED_CONTROL			0x18
 
-#define AT803X_WOL_ENABLE			0x01
 #define AT803X_DEVICE_ADDR			0x03
 #define AT803X_LOC_MAC_ADDR_0_15_OFFSET		0x804C
 #define AT803X_LOC_MAC_ADDR_16_31_OFFSET	0x804B
@@ -164,14 +172,14 @@ static int at803x_set_wol(struct phy_device *phydev,
 		}
 
 		value = phy_read(phydev, AT803X_INTR_ENABLE);
-		value |= AT803X_WOL_ENABLE;
+		value |= AT803X_INTR_ENABLE_WOL;
 		ret = phy_write(phydev, AT803X_INTR_ENABLE, value);
 		if (ret)
 			return ret;
 		value = phy_read(phydev, AT803X_INTR_STATUS);
 	} else {
 		value = phy_read(phydev, AT803X_INTR_ENABLE);
-		value &= (~AT803X_WOL_ENABLE);
+		value &= (~AT803X_INTR_ENABLE_WOL);
 		ret = phy_write(phydev, AT803X_INTR_ENABLE, value);
 		if (ret)
 			return ret;
@@ -190,7 +198,7 @@ static void at803x_get_wol(struct phy_device *phydev,
 	wol->wolopts = 0;
 
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
-	if (value & AT803X_WOL_ENABLE)
+	if (value & AT803X_INTR_ENABLE_WOL)
 		wol->wolopts |= WAKE_MAGIC;
 }
 
@@ -202,7 +210,7 @@ static int at803x_suspend(struct phy_device *phydev)
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
-	wol_enabled = value & AT803X_WOL_ENABLE;
+	wol_enabled = value & AT803X_INTR_ENABLE_WOL;
 
 	value = phy_read(phydev, MII_BMCR);
 
@@ -295,9 +303,15 @@ static int at803x_config_intr(struct phy_device *phydev)
 
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, AT803X_INTR_ENABLE,
-				value | AT803X_INTR_ENABLE_INIT);
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		value |= AT803X_INTR_ENABLE_AUTONEG_ERR;
+		value |= AT803X_INTR_ENABLE_SPEED_CHANGED;
+		value |= AT803X_INTR_ENABLE_DUPLEX_CHANGED;
+		value |= AT803X_INTR_ENABLE_LINK_FAIL;
+		value |= AT803X_INTR_ENABLE_LINK_SUCCESS;
+
+		err = phy_write(phydev, AT803X_INTR_ENABLE, value);
+	}
 	else
 		err = phy_write(phydev, AT803X_INTR_ENABLE, 0);
 
