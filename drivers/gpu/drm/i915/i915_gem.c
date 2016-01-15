@@ -5141,6 +5141,8 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
 
+	file_priv->bsd_ring = -1;
+
 	ret = i915_gem_context_open(dev, file);
 	if (ret)
 		kfree(file_priv);

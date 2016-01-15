@@ -149,14 +149,14 @@ struct  i915_ctx_workarounds {
 struct  intel_engine_cs {
 	const char	*name;
 	enum intel_ring_id {
-		RCS = 0x0,
-		VCS,
+		RCS = 0,
 		BCS,
-		VECS,
-		VCS2
+		VCS,
+		VCS2,	/* Keep instances of the same type engine together. */
+		VECS
 	} id;
 #define I915_NUM_RINGS 5
-#define LAST_USER_RING (VECS + 1)
+#define _VCS(n) (VCS + (n))
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;

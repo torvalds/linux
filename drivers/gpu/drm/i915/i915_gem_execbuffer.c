@@ -1325,33 +1325,23 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 /**
  * Find one BSD ring to dispatch the corresponding BSD command.
- * The Ring ID is returned.
+ * The ring index is returned.
  */
-static int gen8_dispatch_bsd_ring(struct drm_device *dev,
-				  struct drm_file *file)
+static unsigned int
+gen8_dispatch_bsd_ring(struct drm_i915_private *dev_priv, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	/* Check whether the file_priv is using one ring */
-	if (file_priv->bsd_ring)
-		return file_priv->bsd_ring->id;
-	else {
-		/* If no, use the ping-pong mechanism to select one ring */
-		int ring_id;
-
-		mutex_lock(&dev->struct_mutex);
-		if (dev_priv->mm.bsd_ring_dispatch_index == 0) {
-			ring_id = VCS;
-			dev_priv->mm.bsd_ring_dispatch_index = 1;
-		} else {
-			ring_id = VCS2;
-			dev_priv->mm.bsd_ring_dispatch_index = 0;
-		}
-		file_priv->bsd_ring = &dev_priv->ring[ring_id];
-		mutex_unlock(&dev->struct_mutex);
-		return ring_id;
+	/* Check whether the file_priv has already selected one ring. */
+	if ((int)file_priv->bsd_ring < 0) {
+		/* If not, use the ping-pong mechanism to select one. */
+		mutex_lock(&dev_priv->dev->struct_mutex);
+		file_priv->bsd_ring = dev_priv->mm.bsd_ring_dispatch_index;
+		dev_priv->mm.bsd_ring_dispatch_index ^= 1;
+		mutex_unlock(&dev_priv->dev->struct_mutex);
 	}
+
+	return file_priv->bsd_ring;
 }
 
 static struct drm_i915_gem_object *
@@ -1372,6 +1362,63 @@ eb_get_batch(struct eb_vmas *eb)
 		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
 
 	return vma->obj;
+}
+
+#define I915_USER_RINGS (4)
+
+static const enum intel_ring_id user_ring_map[I915_USER_RINGS + 1] = {
+	[I915_EXEC_DEFAULT]	= RCS,
+	[I915_EXEC_RENDER]	= RCS,
+	[I915_EXEC_BLT]		= BCS,
+	[I915_EXEC_BSD]		= VCS,
+	[I915_EXEC_VEBOX]	= VECS
+};
+
+static int
+eb_select_ring(struct drm_i915_private *dev_priv,
+	       struct drm_file *file,
+	       struct drm_i915_gem_execbuffer2 *args,
+	       struct intel_engine_cs **ring)
+{
+	unsigned int user_ring_id = args->flags & I915_EXEC_RING_MASK;
+
+	if (user_ring_id > I915_USER_RINGS) {
+		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
+		return -EINVAL;
+	}
+
+	if ((user_ring_id != I915_EXEC_BSD) &&
+	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
+		DRM_DEBUG("execbuf with non bsd ring but with invalid "
+			  "bsd dispatch flags: %d\n", (int)(args->flags));
+		return -EINVAL;
+	}
+
+	if (user_ring_id == I915_EXEC_BSD && HAS_BSD2(dev_priv)) {
+		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
+
+		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {
+			bsd_idx = gen8_dispatch_bsd_ring(dev_priv, file);
+		} else if (bsd_idx >= I915_EXEC_BSD_RING1 &&
+			   bsd_idx <= I915_EXEC_BSD_RING2) {
+			bsd_idx--;
+		} else {
+			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
+				  bsd_idx);
+			return -EINVAL;
+		}
+
+		*ring = &dev_priv->ring[_VCS(bsd_idx)];
+	} else {
+		*ring = &dev_priv->ring[user_ring_map[user_ring_id]];
+	}
+
+	if (!intel_ring_initialized(*ring)) {
+		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int
@@ -1412,51 +1459,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->flags & I915_EXEC_IS_PINNED)
 		dispatch_flags |= I915_DISPATCH_PINNED;
 
-	if ((args->flags & I915_EXEC_RING_MASK) > LAST_USER_RING) {
-		DRM_DEBUG("execbuf with unknown ring: %d\n",
-			  (int)(args->flags & I915_EXEC_RING_MASK));
-		return -EINVAL;
-	}
-
-	if (((args->flags & I915_EXEC_RING_MASK) != I915_EXEC_BSD) &&
-	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
-		DRM_DEBUG("execbuf with non bsd ring but with invalid "
-			"bsd dispatch flags: %d\n", (int)(args->flags));
-		return -EINVAL;
-	} 
-
-	if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_DEFAULT)
-		ring = &dev_priv->ring[RCS];
-	else if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_BSD) {
-		if (HAS_BSD2(dev)) {
-			int ring_id;
-
-			switch (args->flags & I915_EXEC_BSD_MASK) {
-			case I915_EXEC_BSD_DEFAULT:
-				ring_id = gen8_dispatch_bsd_ring(dev, file);
-				ring = &dev_priv->ring[ring_id];
-				break;
-			case I915_EXEC_BSD_RING1:
-				ring = &dev_priv->ring[VCS];
-				break;
-			case I915_EXEC_BSD_RING2:
-				ring = &dev_priv->ring[VCS2];
-				break;
-			default:
-				DRM_DEBUG("execbuf with unknown bsd ring: %d\n",
-					  (int)(args->flags & I915_EXEC_BSD_MASK));
-				return -EINVAL;
-			}
-		} else
-			ring = &dev_priv->ring[VCS];
-	} else
-		ring = &dev_priv->ring[(args->flags & I915_EXEC_RING_MASK) - 1];
-
-	if (!intel_ring_initialized(ring)) {
-		DRM_DEBUG("execbuf with invalid ring: %d\n",
-			  (int)(args->flags & I915_EXEC_RING_MASK));
-		return -EINVAL;
-	}
+	ret = eb_select_ring(dev_priv, file, args, &ring);
+	if (ret)
+		return ret;
 
 	if (args->buffer_count < 1) {
 		DRM_DEBUG("execbuf with %d buffers\n", args->buffer_count);
