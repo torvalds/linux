@@ -1889,6 +1889,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 
 retry:
 	r = amdgpu_asic_reset(adev);
+	/* post card */
+	amdgpu_atom_asic_init(adev->mode_info.atom_context);
+
 	if (!r) {
 		dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
 		r = amdgpu_resume(adev);
