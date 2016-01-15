@@ -22,6 +22,7 @@ ifneq ($(O),)
   ifeq ($(SET_O),1)
     O_OPT := 'O=$(FULL_O)'
   endif
+  K_O_OPT := 'O=$(FULL_O)'
 endif
 
 PARALLEL_OPT=
@@ -301,15 +302,15 @@ ifneq ($(O),)
 endif
 
 make_kernelsrc:
-	@echo "- make -C <kernelsrc> $(PARALLEL_OPT) tools/perf"
+	@echo "- make -C <kernelsrc> $(PARALLEL_OPT) $(K_O_OPT) tools/perf"
 	$(call clean); \
-	(make -C ../.. $(PARALLEL_OPT) tools/perf) > $@ 2>&1 && \
+	(make -C ../.. $(PARALLEL_OPT) $(K_O_OPT) tools/perf) > $@ 2>&1 && \
 	test -x $(KERNEL_O)/tools/perf/perf && rm -f $@ || (cat $@ ; false)
 
 make_kernelsrc_tools:
-	@echo "- make -C <kernelsrc>/tools $(PARALLEL_OPT) perf"
+	@echo "- make -C <kernelsrc>/tools $(PARALLEL_OPT) $(K_O_OPT) perf"
 	$(call clean); \
-	(make -C ../../tools $(PARALLEL_OPT) perf) > $@ 2>&1 && \
+	(make -C ../../tools $(PARALLEL_OPT) $(K_O_OPT) perf) > $@ 2>&1 && \
 	test -x $(KERNEL_O)/tools/perf/perf && rm -f $@ || (cat $@ ; false)
 
 all: $(run) $(run_O) tarpkg make_kernelsrc make_kernelsrc_tools
