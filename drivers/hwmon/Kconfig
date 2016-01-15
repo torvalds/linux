@@ -685,6 +685,20 @@ config SENSORS_LTC2945
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2945.
 
+config SENSORS_LTC2990
+	tristate "Linear Technology LTC2990 (current monitoring mode only)"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC2990
+	  I2C System Monitor. The LTC2990 supports a combination of voltage,
+	  current and temperature monitoring, but in addition to the Vcc supply
+	  voltage and chip temperature, this driver currently only supports
+	  reading two currents by measuring two differential voltages across
+	  series resistors.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2990.
+
 config SENSORS_LTC4151
 	tristate "Linear Technology LTC4151"
 	depends on I2C
