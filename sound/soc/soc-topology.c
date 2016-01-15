@@ -340,6 +340,16 @@ static int soc_tplg_dai_load(struct soc_tplg *tplg,
 	return 0;
 }
 
+/* pass link configurations to component driver for extra intialization */
+static int soc_tplg_dai_link_load(struct soc_tplg *tplg,
+	struct snd_soc_dai_link *link)
+{
+	if (tplg->comp && tplg->ops && tplg->ops->link_load)
+		return tplg->ops->link_load(tplg->comp, link);
+
+	return 0;
+}
+
 /* tell the component driver that all firmware has been loaded in this request */
 static void soc_tplg_complete(struct soc_tplg *tplg)
 {
@@ -510,6 +520,24 @@ static void remove_dai(struct snd_soc_component *comp,
 
 	list_del(&dobj->list);
 	kfree(dai_drv);
+}
+
+/* remove link configurations */
+static void remove_link(struct snd_soc_component *comp,
+	struct snd_soc_dobj *dobj, int pass)
+{
+	struct snd_soc_dai_link *link =
+		container_of(dobj, struct snd_soc_dai_link, dobj);
+
+	if (pass != SOC_TPLG_PASS_PCM_DAI)
+		return;
+
+	if (dobj->ops && dobj->ops->link_unload)
+		dobj->ops->link_unload(comp, dobj);
+
+	list_del(&dobj->list);
+	snd_soc_remove_dai_link(comp->card, link);
+	kfree(link);
 }
 
 /* bind a kcontrol to it's IO handlers */
@@ -1603,10 +1631,47 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	return snd_soc_register_dai(tplg->comp, dai_drv);
 }
 
+static int soc_tplg_link_create(struct soc_tplg *tplg,
+	struct snd_soc_tplg_pcm *pcm)
+{
+	struct snd_soc_dai_link *link;
+	int ret;
+
+	link = kzalloc(sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	if (link == NULL)
+		return -ENOMEM;
+
+	link->name = pcm->pcm_name;
+	link->stream_name = pcm->pcm_name;
+
+	/* pass control to component driver for optional further init */
+	ret = soc_tplg_dai_link_load(tplg, link);
+	if (ret < 0) {
+		dev_err(tplg->comp->dev, "ASoC: FE link loading failed\n");
+		kfree(link);
+		return ret;
+	}
+
+	link->dobj.index = tplg->index;
+	link->dobj.ops = tplg->ops;
+	link->dobj.type = SND_SOC_DOBJ_DAI_LINK;
+	list_add(&link->dobj.list, &tplg->comp->dobj_list);
+
+	snd_soc_add_dai_link(tplg->comp->card, link);
+	return 0;
+}
+
+/* create a FE DAI and DAI link from the PCM object */
 static int soc_tplg_pcm_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
-	return soc_tplg_dai_create(tplg, pcm);
+	int ret;
+
+	ret = soc_tplg_dai_create(tplg, pcm);
+	if (ret < 0)
+		return ret;
+
+	return  soc_tplg_link_create(tplg, pcm);
 }
 
 static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
@@ -1889,6 +1954,9 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index)
 				break;
 			case SND_SOC_DOBJ_PCM:
 				remove_dai(comp, dobj, pass);
+				break;
+			case SND_SOC_DOBJ_DAI_LINK:
+				remove_link(comp, dobj, pass);
 				break;
 			default:
 				dev_err(comp->dev, "ASoC: invalid component type %d for removal\n",

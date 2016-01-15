@@ -125,6 +125,12 @@ struct snd_soc_tplg_ops {
 	int (*dai_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
+	/* DAI link - used for any driver specific init */
+	int (*link_load)(struct snd_soc_component *,
+		struct snd_soc_dai_link *link);
+	int (*link_unload)(struct snd_soc_component *,
+		struct snd_soc_dobj *);
+
 	/* callback to handle vendor bespoke data */
 	int (*vendor_load)(struct snd_soc_component *,
 		struct snd_soc_tplg_hdr *);
