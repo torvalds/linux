@@ -299,6 +299,7 @@
 
 	broken-cd;
 	bus-width = <4>;
+	cap-sd-highspeed;
 	cap-sdio-irq;
 	default-sample-phase = <90>;
 	keep-power-in-suspend;
@@ -306,6 +307,10 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 };
 
 &uart0 {
