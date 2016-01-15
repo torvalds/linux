@@ -114,8 +114,6 @@
 #define DCU_UPDATE_MODE_MODE		BIT(31)
 #define DCU_UPDATE_MODE_READREG		BIT(30)
 
-#define DCU_DCFB_MAX			0x300
-
 #define DCU_CTRLDESCLN(layer, reg)	(0x200 + (reg - 1) * 4 + (layer) * 0x40)
 
 #define DCU_LAYER_HEIGHT(x)		((x) << 16)
@@ -155,6 +153,9 @@
 #define DCU_LAYER_POST_SKIP(x)		((x) << 16)
 #define DCU_LAYER_PRE_SKIP(x)		(x)
 
+#define VF610_DCU_MAX_REGISTER		0x11fc
+#define LS1021A_DCU_MAX_REGISTER	0x5fc
+
 #define FSL_DCU_RGB565			4
 #define FSL_DCU_RGB888			5
 #define FSL_DCU_ARGB8888		6
@@ -175,6 +176,7 @@ struct fsl_dcu_soc_data {
 	unsigned int total_layer;
 	/*max layer number DCU supported*/
 	unsigned int max_layer;
+	unsigned int max_register;
 };
 
 struct fsl_dcu_drm_device {
