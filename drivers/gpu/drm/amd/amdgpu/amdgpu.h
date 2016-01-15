@@ -74,7 +74,6 @@ extern int amdgpu_dpm;
 extern int amdgpu_smc_load_fw;
 extern int amdgpu_aspm;
 extern int amdgpu_runtime_pm;
-extern int amdgpu_hard_reset;
 extern unsigned amdgpu_ip_block_mask;
 extern int amdgpu_bapm;
 extern int amdgpu_deep_color;

@@ -69,7 +69,6 @@ int amdgpu_dpm = -1;
 int amdgpu_smc_load_fw = 1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
-int amdgpu_hard_reset = 0;
 unsigned amdgpu_ip_block_mask = 0xffffffff;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
@@ -123,9 +122,6 @@ module_param_named(aspm, amdgpu_aspm, int, 0444);
 
 MODULE_PARM_DESC(runpm, "PX runtime pm (1 = force enable, 0 = disable, -1 = PX only default)");
 module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
-
-MODULE_PARM_DESC(hard_reset, "PCI config reset (1 = force enable, 0 = disable (default))");
-module_param_named(hard_reset, amdgpu_hard_reset, int, 0444);
 
 MODULE_PARM_DESC(ip_block_mask, "IP Block Mask (all blocks enabled (default))");
 module_param_named(ip_block_mask, amdgpu_ip_block_mask, uint, 0444);
