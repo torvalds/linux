@@ -295,30 +295,6 @@ static void cik_sdma_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
- * cik_sdma_ring_emit_semaphore - emit a semaphore on the dma ring
- *
- * @ring: amdgpu_ring structure holding ring information
- * @semaphore: amdgpu semaphore object
- * @emit_wait: wait or signal semaphore
- *
- * Add a DMA semaphore packet to the ring wait on or signal
- * other rings (CIK).
- */
-static bool cik_sdma_ring_emit_semaphore(struct amdgpu_ring *ring,
-					 struct amdgpu_semaphore *semaphore,
-					 bool emit_wait)
-{
-	u64 addr = semaphore->gpu_addr;
-	u32 extra_bits = emit_wait ? 0 : SDMA_SEMAPHORE_EXTRA_S;
-
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SEMAPHORE, 0, extra_bits));
-	amdgpu_ring_write(ring, addr & 0xfffffff8);
-	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
-
-	return true;
-}
-
-/**
  * cik_sdma_gfx_stop - stop the gfx async dma engines
  *
  * @adev: amdgpu_device pointer
@@ -1297,7 +1273,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = cik_sdma_ring_emit_ib,
 	.emit_fence = cik_sdma_ring_emit_fence,
-	.emit_semaphore = cik_sdma_ring_emit_semaphore,
+	.emit_semaphore = NULL,
 	.emit_vm_flush = cik_sdma_ring_emit_vm_flush,
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
 	.test_ring = cik_sdma_ring_test_ring,

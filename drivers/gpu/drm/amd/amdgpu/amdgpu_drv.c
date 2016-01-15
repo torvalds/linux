@@ -81,7 +81,6 @@ int amdgpu_exp_hw_support = 0;
 int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_enable_semaphores = 0;
 int amdgpu_powerplay = -1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
@@ -161,9 +160,6 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
-
-MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable, 0 = disable (default))");
-module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");

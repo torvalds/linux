@@ -743,30 +743,6 @@ out:
 }
 
 /**
- * amdgpu_vce_ring_emit_semaphore - emit a semaphore command
- *
- * @ring: engine to use
- * @semaphore: address of semaphore
- * @emit_wait: true=emit wait, false=emit signal
- *
- */
-bool amdgpu_vce_ring_emit_semaphore(struct amdgpu_ring *ring,
-				    struct amdgpu_semaphore *semaphore,
-				    bool emit_wait)
-{
-	uint64_t addr = semaphore->gpu_addr;
-
-	amdgpu_ring_write(ring, VCE_CMD_SEMAPHORE);
-	amdgpu_ring_write(ring, (addr >> 3) & 0x000FFFFF);
-	amdgpu_ring_write(ring, (addr >> 23) & 0x000FFFFF);
-	amdgpu_ring_write(ring, 0x01003000 | (emit_wait ? 1 : 0));
-	if (!emit_wait)
-		amdgpu_ring_write(ring, VCE_CMD_END);
-
-	return true;
-}
-
-/**
  * amdgpu_vce_ring_emit_ib - execute indirect buffer
  *
  * @ring: engine to use

@@ -722,33 +722,6 @@ static void uvd_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
- * uvd_v6_0_ring_emit_semaphore - emit semaphore command
- *
- * @ring: amdgpu_ring pointer
- * @semaphore: semaphore to emit commands for
- * @emit_wait: true if we should emit a wait command
- *
- * Emit a semaphore command (either wait or signal) to the UVD ring.
- */
-static bool uvd_v6_0_ring_emit_semaphore(struct amdgpu_ring *ring,
-					 struct amdgpu_semaphore *semaphore,
-					 bool emit_wait)
-{
-	uint64_t addr = semaphore->gpu_addr;
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_ADDR_LOW, 0));
-	amdgpu_ring_write(ring, (addr >> 3) & 0x000FFFFF);
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_ADDR_HIGH, 0));
-	amdgpu_ring_write(ring, (addr >> 23) & 0x000FFFFF);
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_CMD, 0));
-	amdgpu_ring_write(ring, 0x80 | (emit_wait ? 1 : 0));
-
-	return true;
-}
-
-/**
  * uvd_v6_0_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -1062,7 +1035,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
-	.emit_semaphore = uvd_v6_0_ring_emit_semaphore,
+	.emit_semaphore = NULL,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = uvd_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

@@ -247,42 +247,6 @@ TRACE_EVENT(amdgpu_bo_list_set,
 	    TP_printk("list=%p, bo=%p", __entry->list, __entry->bo)
 );
 
-DECLARE_EVENT_CLASS(amdgpu_semaphore_request,
-
-	    TP_PROTO(int ring, struct amdgpu_semaphore *sem),
-
-	    TP_ARGS(ring, sem),
-
-	    TP_STRUCT__entry(
-			     __field(int, ring)
-			     __field(signed, waiters)
-			     __field(uint64_t, gpu_addr)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->ring = ring;
-			   __entry->waiters = sem->waiters;
-			   __entry->gpu_addr = sem->gpu_addr;
-			   ),
-
-	    TP_printk("ring=%u, waiters=%d, addr=%010Lx", __entry->ring,
-		      __entry->waiters, __entry->gpu_addr)
-);
-
-DEFINE_EVENT(amdgpu_semaphore_request, amdgpu_semaphore_signale,
-
-	    TP_PROTO(int ring, struct amdgpu_semaphore *sem),
-
-	    TP_ARGS(ring, sem)
-);
-
-DEFINE_EVENT(amdgpu_semaphore_request, amdgpu_semaphore_wait,
-
-	    TP_PROTO(int ring, struct amdgpu_semaphore *sem),
-
-	    TP_ARGS(ring, sem)
-);
-
 #endif
 
 /* This part must be outside protection */

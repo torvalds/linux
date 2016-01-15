@@ -4762,44 +4762,6 @@ static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 
 }
 
-/**
- * gfx_v8_0_ring_emit_semaphore - emit a semaphore on the CP ring
- *
- * @ring: amdgpu ring buffer object
- * @semaphore: amdgpu semaphore object
- * @emit_wait: Is this a sempahore wait?
- *
- * Emits a semaphore signal/wait packet to the CP ring and prevents the PFP
- * from running ahead of semaphore waits.
- */
-static bool gfx_v8_0_ring_emit_semaphore(struct amdgpu_ring *ring,
-					 struct amdgpu_semaphore *semaphore,
-					 bool emit_wait)
-{
-	uint64_t addr = semaphore->gpu_addr;
-	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
-
-	if (ring->adev->asic_type == CHIP_TOPAZ ||
-	    ring->adev->asic_type == CHIP_TONGA ||
-	    ring->adev->asic_type == CHIP_FIJI)
-		/* we got a hw semaphore bug in VI TONGA, return false to switch back to sw fence wait */
-		return false;
-	else {
-		amdgpu_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 2));
-		amdgpu_ring_write(ring, lower_32_bits(addr));
-		amdgpu_ring_write(ring, upper_32_bits(addr));
-		amdgpu_ring_write(ring, sel);
-	}
-
-	if (emit_wait && (ring->type == AMDGPU_RING_TYPE_GFX)) {
-		/* Prevent the PFP from running ahead of the semaphore wait */
-		amdgpu_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
-		amdgpu_ring_write(ring, 0x0);
-	}
-
-	return true;
-}
-
 static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
@@ -5145,7 +5107,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.parse_cs = NULL,
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v8_0_ring_emit_fence_gfx,
-	.emit_semaphore = gfx_v8_0_ring_emit_semaphore,
+	.emit_semaphore = NULL,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v8_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
@@ -5161,7 +5123,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.parse_cs = NULL,
 	.emit_ib = gfx_v8_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v8_0_ring_emit_fence_compute,
-	.emit_semaphore = gfx_v8_0_ring_emit_semaphore,
+	.emit_semaphore = NULL,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v8_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,

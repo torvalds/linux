@@ -444,32 +444,6 @@ static void sdma_v3_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 	amdgpu_ring_write(ring, SDMA_PKT_TRAP_INT_CONTEXT_INT_CONTEXT(0));
 }
 
-
-/**
- * sdma_v3_0_ring_emit_semaphore - emit a semaphore on the dma ring
- *
- * @ring: amdgpu_ring structure holding ring information
- * @semaphore: amdgpu semaphore object
- * @emit_wait: wait or signal semaphore
- *
- * Add a DMA semaphore packet to the ring wait on or signal
- * other rings (VI).
- */
-static bool sdma_v3_0_ring_emit_semaphore(struct amdgpu_ring *ring,
-					  struct amdgpu_semaphore *semaphore,
-					  bool emit_wait)
-{
-	u64 addr = semaphore->gpu_addr;
-	u32 sig = emit_wait ? 0 : 1;
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SEM) |
-			  SDMA_PKT_SEMAPHORE_HEADER_SIGNAL(sig));
-	amdgpu_ring_write(ring, lower_32_bits(addr) & 0xfffffff8);
-	amdgpu_ring_write(ring, upper_32_bits(addr));
-
-	return true;
-}
-
 /**
  * sdma_v3_0_gfx_stop - stop the gfx async dma engines
  *
@@ -1570,7 +1544,7 @@ static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = sdma_v3_0_ring_emit_ib,
 	.emit_fence = sdma_v3_0_ring_emit_fence,
-	.emit_semaphore = sdma_v3_0_ring_emit_semaphore,
+	.emit_semaphore = NULL,
 	.emit_vm_flush = sdma_v3_0_ring_emit_vm_flush,
 	.emit_hdp_flush = sdma_v3_0_ring_emit_hdp_flush,
 	.test_ring = sdma_v3_0_ring_test_ring,

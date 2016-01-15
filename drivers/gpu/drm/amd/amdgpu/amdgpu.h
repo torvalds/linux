@@ -638,31 +638,10 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 			  struct drm_device *dev,
 			  uint32_t handle, uint64_t *offset_p);
-
-/*
- * Semaphores.
- */
-struct amdgpu_semaphore {
-	struct amdgpu_sa_bo	*sa_bo;
-	signed			waiters;
-	uint64_t		gpu_addr;
-};
-
-int amdgpu_semaphore_create(struct amdgpu_device *adev,
-			    struct amdgpu_semaphore **semaphore);
-bool amdgpu_semaphore_emit_signal(struct amdgpu_ring *ring,
-				  struct amdgpu_semaphore *semaphore);
-bool amdgpu_semaphore_emit_wait(struct amdgpu_ring *ring,
-				struct amdgpu_semaphore *semaphore);
-void amdgpu_semaphore_free(struct amdgpu_device *adev,
-			   struct amdgpu_semaphore **semaphore,
-			   struct fence *fence);
-
 /*
  * Synchronization
  */
 struct amdgpu_sync {
-	struct amdgpu_semaphore *semaphores[AMDGPU_NUM_SYNCS];
 	struct fence		*sync_to[AMDGPU_MAX_RINGS];
 	DECLARE_HASHTABLE(fences, 4);
 	struct fence	        *last_vm_update;
