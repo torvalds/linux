@@ -269,6 +269,8 @@ struct  intel_engine_cs {
 	struct list_head execlist_queue;
 	struct list_head execlist_retired_req_list;
 	u8 next_context_status_buffer;
+	bool disable_lite_restore_wa;
+	u32 ctx_desc_template;
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
