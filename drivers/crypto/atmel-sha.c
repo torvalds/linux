@@ -122,6 +122,7 @@ struct atmel_sha_dev {
 	spinlock_t		lock;
 	int			err;
 	struct tasklet_struct	done_task;
+	struct tasklet_struct	queue_task;
 
 	unsigned long		flags;
 	struct crypto_queue	queue;
@@ -788,7 +789,7 @@ static void atmel_sha_finish_req(struct ahash_request *req, int err)
 		req->base.complete(&req->base, err);
 
 	/* handle new request */
-	tasklet_schedule(&dd->done_task);
+	tasklet_schedule(&dd->queue_task);
 }
 
 static int atmel_sha_hw_init(struct atmel_sha_dev *dd)
@@ -1101,15 +1102,17 @@ static struct ahash_alg sha_384_512_algs[] = {
 },
 };
 
+static void atmel_sha_queue_task(unsigned long data)
+{
+	struct atmel_sha_dev *dd = (struct atmel_sha_dev *)data;
+
+	atmel_sha_handle_queue(dd, NULL);
+}
+
 static void atmel_sha_done_task(unsigned long data)
 {
 	struct atmel_sha_dev *dd = (struct atmel_sha_dev *)data;
 	int err = 0;
-
-	if (!(SHA_FLAGS_BUSY & dd->flags)) {
-		atmel_sha_handle_queue(dd, NULL);
-		return;
-	}
 
 	if (SHA_FLAGS_CPU & dd->flags) {
 		if (SHA_FLAGS_OUTPUT_READY & dd->flags) {
@@ -1367,6 +1370,8 @@ static int atmel_sha_probe(struct platform_device *pdev)
 
 	tasklet_init(&sha_dd->done_task, atmel_sha_done_task,
 					(unsigned long)sha_dd);
+	tasklet_init(&sha_dd->queue_task, atmel_sha_queue_task,
+					(unsigned long)sha_dd);
 
 	crypto_init_queue(&sha_dd->queue, ATMEL_SHA_QUEUE_LENGTH);
 
@@ -1459,6 +1464,7 @@ err_algs:
 		atmel_sha_dma_cleanup(sha_dd);
 err_sha_dma:
 res_err:
+	tasklet_kill(&sha_dd->queue_task);
 	tasklet_kill(&sha_dd->done_task);
 sha_dd_err:
 	dev_err(dev, "initialization failed.\n");
@@ -1479,6 +1485,7 @@ static int atmel_sha_remove(struct platform_device *pdev)
 
 	atmel_sha_unregister_algs(sha_dd);
 
+	tasklet_kill(&sha_dd->queue_task);
 	tasklet_kill(&sha_dd->done_task);
 
 	if (sha_dd->caps.has_dma)
