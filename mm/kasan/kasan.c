@@ -19,6 +19,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/mm.h>
@@ -444,6 +445,7 @@ int kasan_module_alloc(void *addr, size_t size)
 
 	if (ret) {
 		find_vm_area(addr)->flags |= VM_KASAN;
+		kmemleak_ignore(ret);
 		return 0;
 	}
 

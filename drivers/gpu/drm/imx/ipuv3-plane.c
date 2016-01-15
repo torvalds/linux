@@ -381,7 +381,7 @@ static struct drm_plane_funcs ipu_plane_funcs = {
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,
-				 bool priv)
+				 enum drm_plane_type type)
 {
 	struct ipu_plane *ipu_plane;
 	int ret;
@@ -399,10 +399,9 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	ipu_plane->dma = dma;
 	ipu_plane->dp_flow = dp;
 
-	ret = drm_plane_init(dev, &ipu_plane->base, possible_crtcs,
-			     &ipu_plane_funcs, ipu_plane_formats,
-			     ARRAY_SIZE(ipu_plane_formats),
-			     priv);
+	ret = drm_universal_plane_init(dev, &ipu_plane->base, possible_crtcs,
+				       &ipu_plane_funcs, ipu_plane_formats,
+				       ARRAY_SIZE(ipu_plane_formats), type);
 	if (ret) {
 		DRM_ERROR("failed to initialize plane\n");
 		kfree(ipu_plane);

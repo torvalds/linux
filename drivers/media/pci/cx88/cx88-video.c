@@ -1314,9 +1314,9 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 
 	pci_set_master(pci_dev);
-	if (!pci_set_dma_mask(pci_dev,DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(pci_dev,DMA_BIT_MASK(32));
+	if (err) {
 		printk("%s/0: Oops: no 32bit PCI DMA ???\n",core->name);
-		err = -EIO;
 		goto fail_core;
 	}
 	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);

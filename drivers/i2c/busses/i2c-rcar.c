@@ -576,7 +576,7 @@ static int rcar_reg_slave(struct i2c_client *slave)
 	if (slave->flags & I2C_CLIENT_TEN)
 		return -EAFNOSUPPORT;
 
-	pm_runtime_forbid(rcar_i2c_priv_to_dev(priv));
+	pm_runtime_get_sync(rcar_i2c_priv_to_dev(priv));
 
 	priv->slave = slave;
 	rcar_i2c_write(priv, ICSAR, slave->addr);
@@ -598,7 +598,7 @@ static int rcar_unreg_slave(struct i2c_client *slave)
 
 	priv->slave = NULL;
 
-	pm_runtime_allow(rcar_i2c_priv_to_dev(priv));
+	pm_runtime_put(rcar_i2c_priv_to_dev(priv));
 
 	return 0;
 }

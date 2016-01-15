@@ -3615,6 +3615,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 	status = 0;
 	if (unlikely(!(bitmap[0] & FATTR4_WORD0_FS_LOCATIONS)))
 		goto out;
+	bitmap[0] &= ~FATTR4_WORD0_FS_LOCATIONS;
 	status = -EIO;
 	/* Ignore borken servers that return unrequested attrs */
 	if (unlikely(res == NULL))

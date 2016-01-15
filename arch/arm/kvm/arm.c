@@ -564,17 +564,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			vcpu_sleep(vcpu);
 
 		/*
-		 * Disarming the background timer must be done in a
-		 * preemptible context, as this call may sleep.
-		 */
-		kvm_timer_flush_hwstate(vcpu);
-
-		/*
 		 * Preparing the interrupts to be injected also
 		 * involves poking the GIC, which must be done in a
 		 * non-preemptible context.
 		 */
 		preempt_disable();
+		kvm_timer_flush_hwstate(vcpu);
 		kvm_vgic_flush_hwstate(vcpu);
 
 		local_irq_disable();

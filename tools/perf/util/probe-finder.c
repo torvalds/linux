@@ -1183,7 +1183,7 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 			container_of(pf, struct trace_event_finder, pf);
 	struct perf_probe_point *pp = &pf->pev->point;
 	struct probe_trace_event *tev;
-	struct perf_probe_arg *args;
+	struct perf_probe_arg *args = NULL;
 	int ret, i;
 
 	/* Check number of tevs */
@@ -1198,19 +1198,23 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 	ret = convert_to_trace_point(&pf->sp_die, tf->mod, pf->addr,
 				     pp->retprobe, pp->function, &tev->point);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	tev->point.realname = strdup(dwarf_diename(sc_die));
-	if (!tev->point.realname)
-		return -ENOMEM;
+	if (!tev->point.realname) {
+		ret = -ENOMEM;
+		goto end;
+	}
 
 	pr_debug("Probe point found: %s+%lu\n", tev->point.symbol,
 		 tev->point.offset);
 
 	/* Expand special probe argument if exist */
 	args = zalloc(sizeof(struct perf_probe_arg) * MAX_PROBE_ARGS);
-	if (args == NULL)
-		return -ENOMEM;
+	if (args == NULL) {
+		ret = -ENOMEM;
+		goto end;
+	}
 
 	ret = expand_probe_args(sc_die, pf, args);
 	if (ret < 0)
@@ -1234,6 +1238,10 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 	}
 
 end:
+	if (ret) {
+		clear_probe_trace_event(tev);
+		tf->ntevs--;
+	}
 	free(args);
 	return ret;
 }
@@ -1246,7 +1254,7 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 	struct trace_event_finder tf = {
 			.pf = {.pev = pev, .callback = add_probe_trace_event},
 			.max_tevs = probe_conf.max_probes, .mod = dbg->mod};
-	int ret;
+	int ret, i;
 
 	/* Allocate result tevs array */
 	*tevs = zalloc(sizeof(struct probe_trace_event) * tf.max_tevs);
@@ -1258,6 +1266,8 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 
 	ret = debuginfo__find_probes(dbg, &tf.pf);
 	if (ret < 0) {
+		for (i = 0; i < tf.ntevs; i++)
+			clear_probe_trace_event(&tf.tevs[i]);
 		zfree(tevs);
 		return ret;
 	}

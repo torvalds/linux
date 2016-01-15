@@ -181,6 +181,20 @@ struct __name##_back_ring {						\
 #define RING_GET_REQUEST(_r, _idx)					\
     (&((_r)->sring->ring[((_idx) & (RING_SIZE(_r) - 1))].req))
 
+/*
+ * Get a local copy of a request.
+ *
+ * Use this in preference to RING_GET_REQUEST() so all processing is
+ * done on a local copy that cannot be modified by the other end.
+ *
+ * Note that https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 may cause this
+ * to be ineffective where _req is a struct which consists of only bitfields.
+ */
+#define RING_COPY_REQUEST(_r, _idx, _req) do {				\
+	/* Use volatile to force the copy into _req. */			\
+	*(_req) = *(volatile typeof(_req))RING_GET_REQUEST(_r, _idx);	\
+} while (0)
+
 #define RING_GET_RESPONSE(_r, _idx)					\
     (&((_r)->sring->ring[((_idx) & (RING_SIZE(_r) - 1))].rsp))
 

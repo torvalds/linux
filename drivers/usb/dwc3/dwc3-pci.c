@@ -34,6 +34,8 @@
 #define PCI_DEVICE_ID_INTEL_BSW			0x22b7
 #define PCI_DEVICE_ID_INTEL_SPTLP		0x9d30
 #define PCI_DEVICE_ID_INTEL_SPTH		0xa130
+#define PCI_DEVICE_ID_INTEL_BXT			0x0aaa
+#define PCI_DEVICE_ID_INTEL_APL			0x5aaa
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
 static const struct acpi_gpio_params cs_gpios = { 1, 0, false };
@@ -210,6 +212,8 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_MRFLD), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SPTLP), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SPTH), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_APL), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB), },
 	{  }	/* Terminating Entry */
 };

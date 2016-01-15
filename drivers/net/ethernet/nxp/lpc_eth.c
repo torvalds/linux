@@ -1326,7 +1326,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	/* Get platform resources */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if ((!res) || (irq < 0) || (irq >= NR_IRQS)) {
+	if (!res || irq < 0) {
 		dev_err(&pdev->dev, "error getting resources.\n");
 		ret = -ENXIO;
 		goto err_exit;

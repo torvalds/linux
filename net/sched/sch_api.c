@@ -253,7 +253,8 @@ int qdisc_set_default(const char *name)
 }
 
 /* We know handle. Find qdisc among all qdisc's attached to device
-   (root qdisc, all its children, children of children etc.)
+ * (root qdisc, all its children, children of children etc.)
+ * Note: caller either uses rtnl or rcu_read_lock()
  */
 
 static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
@@ -264,7 +265,7 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 	    root->handle == handle)
 		return root;
 
-	list_for_each_entry(q, &root->list, list) {
+	list_for_each_entry_rcu(q, &root->list, list) {
 		if (q->handle == handle)
 			return q;
 	}
@@ -277,15 +278,18 @@ void qdisc_list_add(struct Qdisc *q)
 		struct Qdisc *root = qdisc_dev(q)->qdisc;
 
 		WARN_ON_ONCE(root == &noop_qdisc);
-		list_add_tail(&q->list, &root->list);
+		ASSERT_RTNL();
+		list_add_tail_rcu(&q->list, &root->list);
 	}
 }
 EXPORT_SYMBOL(qdisc_list_add);
 
 void qdisc_list_del(struct Qdisc *q)
 {
-	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS))
-		list_del(&q->list);
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		ASSERT_RTNL();
+		list_del_rcu(&q->list);
+	}
 }
 EXPORT_SYMBOL(qdisc_list_del);
 
@@ -750,14 +754,18 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 	if (n == 0)
 		return;
 	drops = max_t(int, n, 0);
+	rcu_read_lock();
 	while ((parentid = sch->parent)) {
 		if (TC_H_MAJ(parentid) == TC_H_MAJ(TC_H_INGRESS))
-			return;
+			break;
 
+		if (sch->flags & TCQ_F_NOPARENT)
+			break;
+		/* TODO: perform the search on a per txq basis */
 		sch = qdisc_lookup(qdisc_dev(sch), TC_H_MAJ(parentid));
 		if (sch == NULL) {
-			WARN_ON(parentid != TC_H_ROOT);
-			return;
+			WARN_ON_ONCE(parentid != TC_H_ROOT);
+			break;
 		}
 		cops = sch->ops->cl_ops;
 		if (cops->qlen_notify) {
@@ -768,6 +776,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 		sch->q.qlen -= n;
 		__qdisc_qstats_drop(sch, drops);
 	}
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(qdisc_tree_decrease_qlen);
 

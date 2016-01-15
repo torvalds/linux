@@ -556,8 +556,7 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 }
 
 void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
-		   const struct in6_addr *daddr, const struct in6_addr *saddr,
-		   struct sk_buff *oskb)
+		   const struct in6_addr *daddr, const struct in6_addr *saddr)
 {
 	struct sk_buff *skb;
 	struct in6_addr addr_buf;
@@ -592,9 +591,6 @@ void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 	if (inc_opt)
 		ndisc_fill_addr_option(skb, ND_OPT_SOURCE_LL_ADDR,
 				       dev->dev_addr);
-
-	if (!(dev->priv_flags & IFF_XMIT_DST_RELEASE) && oskb)
-		skb_dst_copy(skb, oskb);
 
 	ndisc_send_skb(skb, daddr, saddr);
 }
@@ -682,12 +678,12 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				  __func__, target);
 		}
-		ndisc_send_ns(dev, target, target, saddr, skb);
+		ndisc_send_ns(dev, target, target, saddr);
 	} else if ((probes -= NEIGH_VAR(neigh->parms, APP_PROBES)) < 0) {
 		neigh_app_ns(neigh);
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
-		ndisc_send_ns(dev, target, &mcaddr, saddr, skb);
+		ndisc_send_ns(dev, target, &mcaddr, saddr);
 	}
 }
 
@@ -1187,7 +1183,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	 */
 	if (!in6_dev->cnf.accept_ra_from_local &&
 	    ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
-			  NULL, 0)) {
+			  in6_dev->dev, 0)) {
 		ND_PRINTK(2, info,
 			  "RA from local address detected on dev: %s: default router ignored\n",
 			  skb->dev->name);
@@ -1341,7 +1337,7 @@ skip_linkparms:
 #ifdef CONFIG_IPV6_ROUTE_INFO
 	if (!in6_dev->cnf.accept_ra_from_local &&
 	    ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
-			  NULL, 0)) {
+			  in6_dev->dev, 0)) {
 		ND_PRINTK(2, info,
 			  "RA from local address detected on dev: %s: router info ignored.\n",
 			  skb->dev->name);

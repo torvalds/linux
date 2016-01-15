@@ -78,18 +78,9 @@ static void bpf_jit_build_prologue(struct bpf_prog *fp, u32 *image,
 		PPC_LI(r_X, 0);
 	}
 
-	switch (filter[0].code) {
-	case BPF_RET | BPF_K:
-	case BPF_LD | BPF_W | BPF_LEN:
-	case BPF_LD | BPF_W | BPF_ABS:
-	case BPF_LD | BPF_H | BPF_ABS:
-	case BPF_LD | BPF_B | BPF_ABS:
-		/* first instruction sets A register (or is RET 'constant') */
-		break;
-	default:
-		/* make sure we dont leak kernel information to user */
+	/* make sure we dont leak kernel information to user */
+	if (bpf_needs_clear_a(&filter[0]))
 		PPC_LI(r_A, 0);
-	}
 }
 
 static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)

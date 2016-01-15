@@ -10295,6 +10295,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* set up a default setting for link flow control */
 	pf->hw.fc.requested_mode = I40E_FC_NONE;
 
+	/* set up the locks for the AQ, do this only once in probe
+	 * and destroy them only once in remove
+	 */
+	mutex_init(&hw->aq.asq_mutex);
+	mutex_init(&hw->aq.arq_mutex);
+
 	err = i40e_init_adminq(hw);
 
 	/* provide nvm, fw, api versions */
@@ -10697,7 +10703,6 @@ static void i40e_remove(struct pci_dev *pdev)
 	set_bit(__I40E_DOWN, &pf->state);
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
-	i40e_fdir_teardown(pf);
 
 	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
 		i40e_free_vfs(pf);
@@ -10739,6 +10744,10 @@ static void i40e_remove(struct pci_dev *pdev)
 		dev_warn(&pdev->dev,
 			 "Failed to destroy the Admin Queue resources: %d\n",
 			 ret_code);
+
+	/* destroy the locks only once, here */
+	mutex_destroy(&hw->aq.arq_mutex);
+	mutex_destroy(&hw->aq.asq_mutex);
 
 	/* Clear all dynamic memory lists of rings, q_vectors, and VSIs */
 	i40e_clear_interrupt_scheme(pf);

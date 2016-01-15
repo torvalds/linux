@@ -4306,9 +4306,10 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		return -EOPNOTSUPP;
 
 	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
-	ctrl->port = mlx4_slave_convert_port(dev, slave, ctrl->port);
-	if (ctrl->port <= 0)
+	err = mlx4_slave_convert_port(dev, slave, ctrl->port);
+	if (err <= 0)
 		return -EINVAL;
+	ctrl->port = err;
 	qpn = be32_to_cpu(ctrl->qpn) & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
 	if (err) {
@@ -4952,26 +4953,41 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 	struct res_counter *counter;
 	struct res_counter *tmp;
 	int err;
-	int index;
+	int *counters_arr = NULL;
+	int i, j;
 
 	err = move_all_busy(dev, slave, RES_COUNTER);
 	if (err)
 		mlx4_warn(dev, "rem_slave_counters: Could not move all counters - too busy for slave %d\n",
 			  slave);
 
-	spin_lock_irq(mlx4_tlock(dev));
-	list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
-		if (counter->com.owner == slave) {
-			index = counter->com.res_id;
-			rb_erase(&counter->com.node,
-				 &tracker->res_tree[RES_COUNTER]);
-			list_del(&counter->com.list);
-			kfree(counter);
-			__mlx4_counter_free(dev, index);
+	counters_arr = kmalloc_array(dev->caps.max_counters,
+				     sizeof(*counters_arr), GFP_KERNEL);
+	if (!counters_arr)
+		return;
+
+	do {
+		i = 0;
+		j = 0;
+		spin_lock_irq(mlx4_tlock(dev));
+		list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
+			if (counter->com.owner == slave) {
+				counters_arr[i++] = counter->com.res_id;
+				rb_erase(&counter->com.node,
+					 &tracker->res_tree[RES_COUNTER]);
+				list_del(&counter->com.list);
+				kfree(counter);
+			}
+		}
+		spin_unlock_irq(mlx4_tlock(dev));
+
+		while (j < i) {
+			__mlx4_counter_free(dev, counters_arr[j++]);
 			mlx4_release_resource(dev, slave, RES_COUNTER, 1, 0);
 		}
-	}
-	spin_unlock_irq(mlx4_tlock(dev));
+	} while (i);
+
+	kfree(counters_arr);
 }
 
 static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)

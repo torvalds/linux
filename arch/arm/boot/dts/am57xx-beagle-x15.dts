@@ -604,6 +604,7 @@
 		reg = <0x6f>;
 		interrupts-extended = <&crossbar_mpu GIC_SPI 2 IRQ_TYPE_EDGE_RISING>,
 				      <&dra7_pmx_core 0x424>;
+		interrupt-names = "irq", "wakeup";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&mcp79410_pins_default>;

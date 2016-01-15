@@ -372,8 +372,10 @@ retry_locked:
 		spin_unlock(&resv->lock);
 
 		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
-		if (!trg)
+		if (!trg) {
+			kfree(nrg);
 			return -ENOMEM;
+		}
 
 		spin_lock(&resv->lock);
 		list_add(&trg->link, &resv->region_cache);
@@ -483,8 +485,16 @@ static long region_del(struct resv_map *resv, long f, long t)
 retry:
 	spin_lock(&resv->lock);
 	list_for_each_entry_safe(rg, trg, head, link) {
-		if (rg->to <= f)
+		/*
+		 * Skip regions before the range to be deleted.  file_region
+		 * ranges are normally of the form [from, to).  However, there
+		 * may be a "placeholder" entry in the map which is of the form
+		 * (from, to) with from == to.  Check for placeholder entries
+		 * at the beginning of the range to be deleted.
+		 */
+		if (rg->to <= f && (rg->to != rg->from || rg->to != f))
 			continue;
+
 		if (rg->from >= t)
 			break;
 
@@ -1886,7 +1896,10 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);
 		if (!page)
 			goto out_uncharge_cgroup;
-
+		if (!avoid_reserve && vma_has_reserves(vma, gbl_chg)) {
+			SetPagePrivate(page);
+			h->resv_huge_pages--;
+		}
 		spin_lock(&hugetlb_lock);
 		list_move(&page->lru, &h->hugepage_activelist);
 		/* Fall through */
@@ -3693,11 +3706,11 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
 			return VM_FAULT_HWPOISON_LARGE |
 				VM_FAULT_SET_HINDEX(hstate_index(h));
+	} else {
+		ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+		if (!ptep)
+			return VM_FAULT_OOM;
 	}
-
-	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
-	if (!ptep)
-		return VM_FAULT_OOM;
 
 	mapping = vma->vm_file->f_mapping;
 	idx = vma_hugecache_offset(h, vma, address);

@@ -251,6 +251,7 @@ struct nfs4_layoutget {
 	struct nfs4_layoutget_res res;
 	struct rpc_cred *cred;
 	gfp_t gfp_flags;
+	long timeout;
 };
 
 struct nfs4_getdeviceinfo_args {

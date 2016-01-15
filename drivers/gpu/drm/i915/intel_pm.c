@@ -4449,7 +4449,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	POSTING_READ(GEN6_RPNSWREQ);
 
 	dev_priv->rps.cur_freq = val;
-	trace_intel_gpu_freq_change(val * 50);
+	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
 }
 
 static void valleyview_set_rps(struct drm_device *dev, u8 val)
@@ -4782,8 +4782,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	/* 2b: Program RC6 thresholds.*/
 
 	/* WaRsDoubleRc6WrlWithCoarsePowerGating: Doubling WRL only when CPG is enabled */
-	if (IS_SKYLAKE(dev) && !((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
-				 (INTEL_REVID(dev) <= SKL_REVID_E0)))
+	if (IS_SKYLAKE(dev))
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 108 << 16);
 	else
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
@@ -4825,7 +4824,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
 	 */
 	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
-	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
+	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_F0)))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
 		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
@@ -7255,7 +7254,8 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_GEN9(dev_priv->dev))
-		return (val * GT_FREQUENCY_MULTIPLIER) / GEN9_FREQ_SCALER;
+		return DIV_ROUND_CLOSEST(val * GT_FREQUENCY_MULTIPLIER,
+					 GEN9_FREQ_SCALER);
 	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_gpu_freq(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
@@ -7267,13 +7267,14 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_GEN9(dev_priv->dev))
-		return (val * GEN9_FREQ_SCALER) / GT_FREQUENCY_MULTIPLIER;
+		return DIV_ROUND_CLOSEST(val * GEN9_FREQ_SCALER,
+					 GT_FREQUENCY_MULTIPLIER);
 	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_freq_opcode(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_freq_opcode(dev_priv, val);
 	else
-		return val / GT_FREQUENCY_MULTIPLIER;
+		return DIV_ROUND_CLOSEST(val, GT_FREQUENCY_MULTIPLIER);
 }
 
 struct request_boost {

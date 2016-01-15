@@ -3029,6 +3029,7 @@ int set_regdom(const struct ieee80211_regdomain *rd,
 		break;
 	default:
 		WARN(1, "invalid initiator %d\n", lr->initiator);
+		kfree(rd);
 		return -EINVAL;
 	}
 
@@ -3221,8 +3222,10 @@ int __init regulatory_init(void)
 	/* We always try to get an update for the static regdomain */
 	err = regulatory_hint_core(cfg80211_world_regdom->alpha2);
 	if (err) {
-		if (err == -ENOMEM)
+		if (err == -ENOMEM) {
+			platform_device_unregister(reg_pdev);
 			return err;
+		}
 		/*
 		 * N.B. kobject_uevent_env() can fail mainly for when we're out
 		 * memory which is handled and propagated appropriately above

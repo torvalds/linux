@@ -169,10 +169,14 @@ int qed_int_get_num_sbs(struct qed_hwfn *p_hwfn,
 			int *p_iov_blks);
 
 /**
- * @file
+ * @brief qed_int_disable_post_isr_release - performs the cleanup post ISR
+ *        release. The API need to be called after releasing all slowpath IRQs
+ *        of the device.
  *
- * @brief Interrupt handler
+ * @param cdev
+ *
  */
+void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 
 #define QED_CAU_DEF_RX_TIMER_RES 0
 #define QED_CAU_DEF_TX_TIMER_RES 0
@@ -366,10 +370,11 @@ void qed_int_setup(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_ptt
  * @param int_mode
+ *
+ * @return int
  */
-void qed_int_igu_enable(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt,
-			enum qed_int_mode int_mode);
+int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       enum qed_int_mode int_mode);
 
 /**
  * @brief - Initialize CAU status block entry

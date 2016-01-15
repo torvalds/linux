@@ -1398,7 +1398,8 @@ enum netdev_priv_flags {
  *	@dma:		DMA channel
  *	@mtu:		Interface MTU value
  *	@type:		Interface hardware type
- *	@hard_header_len: Hardware header length
+ *	@hard_header_len: Hardware header length, which means that this is the
+ *			  minimum size of a packet.
  *
  *	@needed_headroom: Extra headroom the hardware may need, but not in all
  *			  cases can this be guaranteed
@@ -2068,19 +2069,22 @@ struct pcpu_sw_netstats {
 	struct u64_stats_sync   syncp;
 };
 
-#define netdev_alloc_pcpu_stats(type)				\
-({								\
-	typeof(type) __percpu *pcpu_stats = alloc_percpu(type); \
-	if (pcpu_stats)	{					\
-		int __cpu;					\
-		for_each_possible_cpu(__cpu) {			\
-			typeof(type) *stat;			\
-			stat = per_cpu_ptr(pcpu_stats, __cpu);	\
-			u64_stats_init(&stat->syncp);		\
-		}						\
-	}							\
-	pcpu_stats;						\
+#define __netdev_alloc_pcpu_stats(type, gfp)				\
+({									\
+	typeof(type) __percpu *pcpu_stats = alloc_percpu_gfp(type, gfp);\
+	if (pcpu_stats)	{						\
+		int __cpu;						\
+		for_each_possible_cpu(__cpu) {				\
+			typeof(type) *stat;				\
+			stat = per_cpu_ptr(pcpu_stats, __cpu);		\
+			u64_stats_init(&stat->syncp);			\
+		}							\
+	}								\
+	pcpu_stats;							\
 })
+
+#define netdev_alloc_pcpu_stats(type)					\
+	__netdev_alloc_pcpu_stats(type, GFP_KERNEL)
 
 #include <linux/notifier.h>
 
@@ -3852,6 +3856,11 @@ static inline bool netif_is_l3_slave(const struct net_device *dev)
 static inline bool netif_is_bridge_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_EBRIDGE;
+}
+
+static inline bool netif_is_bridge_port(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_BRIDGE_PORT;
 }
 
 static inline bool netif_is_ovs_master(const struct net_device *dev)

@@ -2,7 +2,7 @@
  * jump label support
  *
  * Copyright (C) 2009 Jason Baron <jbaron@redhat.com>
- * Copyright (C) 2011 Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2011 Peter Zijlstra
  *
  */
 #include <linux/memory.h>

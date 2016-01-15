@@ -77,6 +77,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/stringify.h>
+#include <asm/barrier.h>
 
 /*
  * Low-level accessors

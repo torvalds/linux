@@ -498,7 +498,7 @@ static void macvtap_sock_write_space(struct sock *sk)
 	wait_queue_head_t *wqueue;
 
 	if (!sock_writeable(sk) ||
-	    !test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
+	    !test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
 
 	wqueue = sk_sleep(sk);
@@ -585,7 +585,7 @@ static unsigned int macvtap_poll(struct file *file, poll_table * wait)
 		mask |= POLLIN | POLLRDNORM;
 
 	if (sock_writeable(&q->sk) ||
-	    (!test_and_set_bit(SOCK_ASYNC_NOSPACE, &q->sock.flags) &&
+	    (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &q->sock.flags) &&
 	     sock_writeable(&q->sk)))
 		mask |= POLLOUT | POLLWRNORM;
 

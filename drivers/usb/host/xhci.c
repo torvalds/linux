@@ -175,6 +175,16 @@ int xhci_reset(struct xhci_hcd *xhci)
 	command |= CMD_RESET;
 	writel(command, &xhci->op_regs->command);
 
+	/* Existing Intel xHCI controllers require a delay of 1 mS,
+	 * after setting the CMD_RESET bit, and before accessing any
+	 * HC registers. This allows the HC to complete the
+	 * reset operation and be ready for HC register access.
+	 * Without this delay, the subsequent HC register access,
+	 * may result in a system hang very rarely.
+	 */
+	if (xhci->quirks & XHCI_INTEL_HOST)
+		udelay(1000);
+
 	ret = xhci_handshake(&xhci->op_regs->command,
 			CMD_RESET, 0, 10 * 1000 * 1000);
 	if (ret)
@@ -4768,8 +4778,16 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
 	slot_ctx = xhci_get_slot_ctx(xhci, config_cmd->in_ctx);
 	slot_ctx->dev_info |= cpu_to_le32(DEV_HUB);
+	/*
+	 * refer to section 6.2.2: MTT should be 0 for full speed hub,
+	 * but it may be already set to 1 when setup an xHCI virtual
+	 * device, so clear it anyway.
+	 */
 	if (tt->multi)
 		slot_ctx->dev_info |= cpu_to_le32(DEV_MTT);
+	else if (hdev->speed == USB_SPEED_FULL)
+		slot_ctx->dev_info &= cpu_to_le32(~DEV_MTT);
+
 	if (xhci->hci_version > 0x95) {
 		xhci_dbg(xhci, "xHCI version %x needs hub "
 				"TT think time and number of ports\n",

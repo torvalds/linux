@@ -115,6 +115,7 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
 	if (buf && !parse_options(&early_console_dev, buf))
 		buf = NULL;
 
+	spin_lock_init(&port->lock);
 	port->uartclk = BASE_BAUD * 16;
 	if (port->mapbase)
 		port->membase = earlycon_map(port->mapbase, 64);
@@ -202,6 +203,7 @@ int __init of_setup_earlycon(unsigned long addr,
 	int err;
 	struct uart_port *port = &early_console_dev.port;
 
+	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
 	port->mapbase = addr;
 	port->uartclk = BASE_BAUD * 16;

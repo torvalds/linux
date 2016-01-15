@@ -398,7 +398,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
+	clear_bit(SOCKWQ_ASYNC_NOSPACE, &sock->flags);
 	if (base != 0) {
 		addr = NULL;
 		addrlen = 0;
@@ -442,7 +442,7 @@ static void xs_nospace_callback(struct rpc_task *task)
 	struct sock_xprt *transport = container_of(task->tk_rqstp->rq_xprt, struct sock_xprt, xprt);
 
 	transport->inet->sk_write_pending--;
-	clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+	clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 }
 
 /**
@@ -467,7 +467,7 @@ static int xs_nospace(struct rpc_task *task)
 
 	/* Don't race with disconnect */
 	if (xprt_connected(xprt)) {
-		if (test_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags)) {
+		if (test_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags)) {
 			/*
 			 * Notify TCP that we're limited by the application
 			 * window size
@@ -478,7 +478,7 @@ static int xs_nospace(struct rpc_task *task)
 			xprt_wait_for_buffer_space(task, xs_nospace_callback);
 		}
 	} else {
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 		ret = -ENOTCONN;
 	}
 
@@ -626,7 +626,7 @@ process_status:
 	case -EPERM:
 		/* When the server has died, an ICMP port unreachable message
 		 * prompts ECONNREFUSED. */
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 	}
 
 	return status;
@@ -715,7 +715,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -EADDRINUSE:
 	case -ENOBUFS:
 	case -EPIPE:
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 	}
 
 	return status;
@@ -1618,7 +1618,7 @@ static void xs_write_space(struct sock *sk)
 
 	if (unlikely(!(xprt = xprt_from_sock(sk))))
 		return;
-	if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
+	if (test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &sock->flags) == 0)
 		return;
 
 	xprt_write_space(xprt);

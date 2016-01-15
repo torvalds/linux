@@ -660,7 +660,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
-	if (!MACHINE_HAS_PFMF)
+	if (!test_kvm_facility(vcpu->kvm, 8))
 		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)

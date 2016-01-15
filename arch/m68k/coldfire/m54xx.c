@@ -98,7 +98,7 @@ static void __init mcf54xx_bootmem_alloc(void)
 	memstart = PAGE_ALIGN(_ramstart);
 	min_low_pfn = PFN_DOWN(_rambase);
 	start_pfn = PFN_DOWN(memstart);
-	max_low_pfn = PFN_DOWN(_ramend);
+	max_pfn = max_low_pfn = PFN_DOWN(_ramend);
 	high_memory = (void *)_ramend;
 
 	m68k_virt_to_node_shift = fls(_ramend - _rambase - 1) - 6;

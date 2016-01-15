@@ -406,10 +406,12 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 			ip_select_ident(net, skb, NULL);
 
 		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+		skb->transport_header += iphlen;
+		if (iph->protocol == IPPROTO_ICMP &&
+		    length >= iphlen + sizeof(struct icmphdr))
+			icmp_out_count(net, ((struct icmphdr *)
+				skb_transport_header(skb))->type);
 	}
-	if (iph->protocol == IPPROTO_ICMP)
-		icmp_out_count(net, ((struct icmphdr *)
-			skb_transport_header(skb))->type);
 
 	err = NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_OUT,
 		      net, sk, skb, NULL, rt->dst.dev,
@@ -599,8 +601,11 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			    (inet->hdrincl ? FLOWI_FLAG_KNOWN_NH : 0),
 			   daddr, saddr, 0, 0);
 
-	if (!saddr && ipc.oif)
-		l3mdev_get_saddr(net, ipc.oif, &fl4);
+	if (!saddr && ipc.oif) {
+		err = l3mdev_get_saddr(net, ipc.oif, &fl4);
+		if (err < 0)
+			goto done;
+	}
 
 	if (!inet->hdrincl) {
 		rfv.msg = msg;

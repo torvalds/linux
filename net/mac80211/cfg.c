@@ -1169,8 +1169,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		 * rc isn't initialized here yet, so ignore it
 		 */
 		__ieee80211_vht_handle_opmode(sdata, sta,
-					      params->opmode_notif,
-					      band, false);
+					      params->opmode_notif, band);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
@@ -3454,8 +3453,12 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			goto out_unlock;
 		}
 	} else {
-		/* for cookie below */
-		ack_skb = skb;
+		/* Assign a dummy non-zero cookie, it's not sent to
+		 * userspace in this case but we rely on its value
+		 * internally in the need_offchan case to distinguish
+		 * mgmt-tx from remain-on-channel.
+		 */
+		*cookie = 0xffffffff;
 	}
 
 	if (!need_offchan) {

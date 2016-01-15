@@ -2242,7 +2242,7 @@ efx_farch_filter_init_rx_auto(struct efx_nic *efx,
 	 */
 	spec->priority = EFX_FILTER_PRI_AUTO;
 	spec->flags = (EFX_FILTER_FLAG_RX |
-		       (efx->n_rx_channels > 1 ? EFX_FILTER_FLAG_RX_RSS : 0) |
+		       (efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0) |
 		       (efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0));
 	spec->dmaq_id = 0;
 }

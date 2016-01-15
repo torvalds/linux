@@ -71,3 +71,12 @@ config SCSI_MPT3SAS_MAX_SGE
 	MAX_PHYS_SEGMENTS in most kernels.  However in SuSE kernels this
 	can be 256. However, it may decreased down to 16.  Decreasing this
 	parameter will reduce memory requirements on a per controller instance.
+
+config SCSI_MPT2SAS
+	tristate "Legacy MPT2SAS config option"
+	default n
+	select SCSI_MPT3SAS
+	depends on PCI && SCSI
+	---help---
+	Dummy config option for backwards compatiblity: configure the MPT3SAS
+	driver instead.

@@ -977,7 +977,7 @@ static void ipsec_esp_decrypt_swauth_done(struct device *dev,
 		} else
 			oicv = (char *)&edesc->link_tbl[0];
 
-		err = memcmp(oicv, icv, authsize) ? -EBADMSG : 0;
+		err = crypto_memneq(oicv, icv, authsize) ? -EBADMSG : 0;
 	}
 
 	kfree(edesc);

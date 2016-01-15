@@ -298,6 +298,9 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 	struct callchain_list *cl = container_of(ms, struct callchain_list, ms);
 	bool has_children;
 
+	if (!he || !ms)
+		return false;
+
 	if (ms == &he->ms)
 		has_children = hist_entry__toggle_fold(he);
 	else
@@ -928,6 +931,8 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	}
 
 	ui_browser__hists_init_top(browser);
+	hb->he_selection = NULL;
+	hb->selection = NULL;
 
 	for (nd = browser->top; nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
@@ -1033,6 +1038,9 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 	 * and stop when we printed enough lines to fill the screen.
 	 */
 do_offset:
+	if (!nd)
+		return;
+
 	if (offset > 0) {
 		do {
 			h = rb_entry(nd, struct hist_entry, rb_node);
@@ -1430,7 +1438,6 @@ close_file_and_continue:
 
 struct popup_action {
 	struct thread 		*thread;
-	struct dso		*dso;
 	struct map_symbol 	ms;
 	int			socket;
 
@@ -1565,7 +1572,6 @@ add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 		return 0;
 
 	act->ms.map = map;
-	act->dso = map->dso;
 	act->fn = do_zoom_dso;
 	return 1;
 }
@@ -1827,7 +1833,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 	while (1) {
 		struct thread *thread = NULL;
-		struct dso *dso = NULL;
 		struct map *map = NULL;
 		int choice = 0;
 		int socked_id = -1;
@@ -1839,8 +1844,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
 			map = browser->selection->map;
-			if (map)
-				dso = map->dso;
 			socked_id = browser->he_selection->socket;
 		}
 		switch (key) {
@@ -1874,7 +1877,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			hist_browser__dump(browser);
 			continue;
 		case 'd':
-			actions->dso = dso;
+			actions->ms.map = map;
 			do_zoom_dso(browser, actions);
 			continue;
 		case 'V':

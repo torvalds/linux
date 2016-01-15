@@ -70,8 +70,13 @@ struct pv_info {
 #endif
 
 	int paravirt_enabled;
+	unsigned int features;	  /* valid only if paravirt_enabled is set */
 	const char *name;
 };
+
+#define paravirt_has(x) paravirt_has_feature(PV_SUPPORTED_##x)
+/* Supported features */
+#define PV_SUPPORTED_RTC        (1<<0)
 
 struct pv_init_ops {
 	/*

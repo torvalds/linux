@@ -196,7 +196,13 @@ static inline const char *ovs_vport_name(struct vport *vport)
 	return vport->dev->name;
 }
 
-int ovs_vport_ops_register(struct vport_ops *ops);
+int __ovs_vport_ops_register(struct vport_ops *ops);
+#define ovs_vport_ops_register(ops)		\
+	({					\
+		(ops)->owner = THIS_MODULE;	\
+		__ovs_vport_ops_register(ops);	\
+	})
+
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 
 static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,

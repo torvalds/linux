@@ -3,6 +3,8 @@
  *
  *  Reset a SNI machine.
  */
+#include <linux/delay.h>
+
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/sni.h>
@@ -24,7 +26,7 @@ static inline void kb_wait(void)
 /* XXX This ends up at the ARC firmware prompt ...  */
 void sni_machine_restart(char *command)
 {
-	int i, j;
+	int i;
 
 	/* This does a normal via the keyboard controller like a PC.
 	   We can do that easier ...  */
@@ -32,9 +34,9 @@ void sni_machine_restart(char *command)
 	for (;;) {
 		for (i = 0; i < 100; i++) {
 			kb_wait();
-			for (j = 0; j < 100000 ; j++)
-				/* nothing */;
+			udelay(50);
 			outb_p(0xfe, 0x64);	 /* pulse reset low */
+			udelay(50);
 		}
 	}
 }

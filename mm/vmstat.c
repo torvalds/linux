@@ -219,7 +219,7 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
  * particular counter cannot be updated from interrupt context.
  */
 void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-				int delta)
+			   long delta)
 {
 	struct per_cpu_pageset __percpu *pcp = zone->pageset;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
@@ -318,8 +318,8 @@ EXPORT_SYMBOL(__dec_zone_page_state);
  *     1       Overstepping half of threshold
  *     -1      Overstepping minus half of threshold
 */
-static inline void mod_state(struct zone *zone,
-       enum zone_stat_item item, int delta, int overstep_mode)
+static inline void mod_state(struct zone *zone, enum zone_stat_item item,
+			     long delta, int overstep_mode)
 {
 	struct per_cpu_pageset __percpu *pcp = zone->pageset;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
@@ -357,7 +357,7 @@ static inline void mod_state(struct zone *zone,
 }
 
 void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-					int delta)
+			 long delta)
 {
 	mod_state(zone, item, delta, 0);
 }
@@ -384,7 +384,7 @@ EXPORT_SYMBOL(dec_zone_page_state);
  * Use interrupt disable to serialize counter updates
  */
 void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-					int delta)
+			 long delta)
 {
 	unsigned long flags;
 
@@ -921,8 +921,8 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
 #ifdef CONFIG_PROC_FS
 static char * const migratetype_names[MIGRATE_TYPES] = {
 	"Unmovable",
-	"Reclaimable",
 	"Movable",
+	"Reclaimable",
 	"HighAtomic",
 #ifdef CONFIG_CMA
 	"CMA",
@@ -1379,6 +1379,7 @@ static const struct file_operations proc_vmstat_file_operations = {
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SMP
+static struct workqueue_struct *vmstat_wq;
 static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
 int sysctl_stat_interval __read_mostly = HZ;
 static cpumask_var_t cpu_stat_off;
@@ -1391,7 +1392,7 @@ static void vmstat_update(struct work_struct *w)
 		 * to occur in the future. Keep on running the
 		 * update worker thread.
 		 */
-		schedule_delayed_work_on(smp_processor_id(),
+		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
 			this_cpu_ptr(&vmstat_work),
 			round_jiffies_relative(sysctl_stat_interval));
 	} else {
@@ -1460,7 +1461,7 @@ static void vmstat_shepherd(struct work_struct *w)
 		if (need_update(cpu) &&
 			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
 
-			schedule_delayed_work_on(cpu,
+			queue_delayed_work_on(cpu, vmstat_wq,
 				&per_cpu(vmstat_work, cpu), 0);
 
 	put_online_cpus();
@@ -1482,6 +1483,7 @@ static void __init start_shepherd_timer(void)
 		BUG();
 	cpumask_copy(cpu_stat_off, cpu_online_mask);
 
+	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	schedule_delayed_work(&shepherd,
 		round_jiffies_relative(sysctl_stat_interval));
 }

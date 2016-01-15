@@ -698,3 +698,4 @@ int __init microcode_init(void)
 	return error;
 
 }
+late_initcall(microcode_init);

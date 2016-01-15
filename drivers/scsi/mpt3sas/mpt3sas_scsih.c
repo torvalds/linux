@@ -3905,8 +3905,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	 * We do not expose raid functionality to upper layer for warpdrive.
 	 */
 	if (!ioc->is_warpdrive && !scsih_is_raid(&scmd->device->sdev_gendev)
-	    && (sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
-	    scmd->cmd_len != 32)
+	    && sas_is_tlr_enabled(scmd->device) && scmd->cmd_len != 32)
 		mpi_control |= MPI2_SCSIIO_CONTROL_TLR_ON;
 
 	smid = mpt3sas_base_get_smid_scsiio(ioc, ioc->scsi_io_cb_idx, scmd);
