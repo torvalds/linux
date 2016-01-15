@@ -152,7 +152,6 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	void *ticket_buf = NULL;
 	void *tp, *tpend;
 	void **ptp;
-	struct ceph_timespec new_validity;
 	struct ceph_crypto_key new_session_key;
 	struct ceph_buffer *new_ticket_blob;
 	unsigned long new_expires, new_renew_after;
@@ -193,8 +192,8 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	if (ret)
 		goto out;
 
-	ceph_decode_copy(&dp, &new_validity, sizeof(new_validity));
-	ceph_decode_timespec(&validity, &new_validity);
+	ceph_decode_timespec(&validity, dp);
+	dp += sizeof(struct ceph_timespec);
 	new_expires = get_seconds() + validity.tv_sec;
 	new_renew_after = new_expires - (validity.tv_sec / 4);
 	dout(" expires=%lu renew_after=%lu\n", new_expires,
@@ -233,7 +232,6 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 		ceph_buffer_put(th->ticket_blob);
 	th->session_key = new_session_key;
 	th->ticket_blob = new_ticket_blob;
-	th->validity = new_validity;
 	th->secret_id = new_secret_id;
 	th->expires = new_expires;
 	th->renew_after = new_renew_after;
