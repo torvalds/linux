@@ -3551,7 +3551,8 @@ struct skb_gso_cb {
 	int	encap_level;
 	__u16	csum_start;
 };
-#define SKB_GSO_CB(skb) ((struct skb_gso_cb *)(skb)->cb)
+#define SKB_SGO_CB_OFFSET	32
+#define SKB_GSO_CB(skb) ((struct skb_gso_cb *)((skb)->cb + SKB_SGO_CB_OFFSET))
 
 static inline int skb_tnl_header_len(const struct sk_buff *inner_skb)
 {
