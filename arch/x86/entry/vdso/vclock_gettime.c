@@ -126,22 +126,22 @@ static notrace cycle_t vread_pvclock(int *mode)
 	 *
 	 * On Xen, we don't appear to have that guarantee, but Xen still
 	 * supplies a valid seqlock using the version field.
-
+	 *
 	 * We only do pvclock vdso timing at all if
 	 * PVCLOCK_TSC_STABLE_BIT is set, and we interpret that bit to
 	 * mean that all vCPUs have matching pvti and that the TSC is
 	 * synced, so we can just look at vCPU 0's pvti.
 	 */
 
-	if (unlikely(!(pvti->flags & PVCLOCK_TSC_STABLE_BIT))) {
-		*mode = VCLOCK_NONE;
-		return 0;
-	}
-
 	do {
 		version = pvti->version;
 
 		smp_rmb();
+
+		if (unlikely(!(pvti->flags & PVCLOCK_TSC_STABLE_BIT))) {
+			*mode = VCLOCK_NONE;
+			return 0;
+		}
 
 		tsc = rdtsc_ordered();
 		pvti_tsc_to_system_mul = pvti->tsc_to_system_mul;

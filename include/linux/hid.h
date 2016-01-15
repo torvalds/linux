@@ -168,6 +168,8 @@ struct hid_item {
 #define HID_UP_MSVENDOR		0xff000000
 #define HID_UP_CUSTOM		0x00ff0000
 #define HID_UP_LOGIVENDOR	0xffbc0000
+#define HID_UP_LOGIVENDOR2   0xff090000
+#define HID_UP_LOGIVENDOR3   0xff430000
 #define HID_UP_LNVENDOR		0xffa00000
 #define HID_UP_SENSOR		0x00200000
 
@@ -563,6 +565,9 @@ struct hid_device {							/* device report descriptor */
 	wait_queue_head_t debug_wait;
 };
 
+#define to_hid_device(pdev) \
+	container_of(pdev, struct hid_device, dev)
+
 static inline void *hid_get_drvdata(struct hid_device *hdev)
 {
 	return dev_get_drvdata(&hdev->dev);
@@ -711,6 +716,9 @@ struct hid_driver {
 /* private: */
 	struct device_driver driver;
 };
+
+#define to_hid_driver(pdrv) \
+	container_of(pdrv, struct hid_driver, driver)
 
 /**
  * hid_ll_driver - low level driver callbacks

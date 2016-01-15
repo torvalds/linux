@@ -16,7 +16,7 @@ SRAM nodes
 ----------
 
 Each SRAM is described using the mmio-sram bindings documented in
-Documentation/devicetree/bindings/misc/sram.txt
+Documentation/devicetree/bindings/sram/sram.txt
 
 Each SRAM will have SRAM sections that are going to be handled by the
 SRAM controller as subnodes. These sections are represented following

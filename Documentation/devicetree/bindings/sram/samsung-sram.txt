@@ -15,7 +15,7 @@ Required sub-node properties:
 		"samsung,exynos4210-sysram-ns" : for Non-secure SYSRAM
 
 The rest of the properties should follow the generic mmio-sram discription
-found in ../../misc/sysram.txt
+found in Documentation/devicetree/bindings/sram/sram.txt
 
 Example:
 

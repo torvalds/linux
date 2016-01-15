@@ -1588,7 +1588,7 @@ static int add_default_attributes(void)
 	return perf_evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
 }
 
-static const char * const recort_usage[] = {
+static const char * const stat_record_usage[] = {
 	"perf stat record [<options>]",
 	NULL,
 };
@@ -1611,7 +1611,7 @@ static int __cmd_record(int argc, const char **argv)
 	struct perf_session *session;
 	struct perf_data_file *file = &perf_stat.file;
 
-	argc = parse_options(argc, argv, stat_options, record_usage,
+	argc = parse_options(argc, argv, stat_options, stat_record_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (output_name)
@@ -1745,7 +1745,7 @@ int process_cpu_map_event(struct perf_tool *tool __maybe_unused,
 	return set_maps(st);
 }
 
-static const char * const report_usage[] = {
+static const char * const stat_report_usage[] = {
 	"perf stat report [<options>]",
 	NULL,
 };
@@ -1779,7 +1779,7 @@ static int __cmd_report(int argc, const char **argv)
 	struct stat st;
 	int ret;
 
-	argc = parse_options(argc, argv, options, report_usage, 0);
+	argc = parse_options(argc, argv, options, stat_report_usage, 0);
 
 	if (!input_name || !strlen(input_name)) {
 		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))

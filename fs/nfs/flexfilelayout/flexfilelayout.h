@@ -85,6 +85,7 @@ struct nfs4_ff_layout_mirror {
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
 	ktime_t				last_report_time;
+	u32				report_interval;
 };
 
 struct nfs4_ff_layout_segment {

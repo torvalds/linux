@@ -127,7 +127,9 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	pmic_spmi_show_revid(regmap, &sdev->dev);
+	/* Only the first slave id for a PMIC contains this information */
+	if (sdev->usid % 2 == 0)
+		pmic_spmi_show_revid(regmap, &sdev->dev);
 
 	return of_platform_populate(root, NULL, NULL, &sdev->dev);
 }

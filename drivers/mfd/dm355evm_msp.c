@@ -147,7 +147,7 @@ static int msp_gpio_get(struct gpio_chip *chip, unsigned offset)
 		return status;
 	if (reg == DM355EVM_MSP_LED)
 		msp_led_cache = status;
-	return status & MSP_GPIO_MASK(offset);
+	return !!(status & MSP_GPIO_MASK(offset));
 }
 
 static int msp_gpio_out(struct gpio_chip *chip, unsigned offset, int value)

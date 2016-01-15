@@ -814,8 +814,7 @@ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
 		if (phys_addr < (phys_addr_t)0x40000000)
 			return;
 
-		if (IS_ALIGNED(addr, PAGE_SIZE) &&
-		    IS_ALIGNED(next, PAGE_SIZE)) {
+		if (PAGE_ALIGNED(addr) && PAGE_ALIGNED(next)) {
 			/*
 			 * Do not free direct mapping pages since they were
 			 * freed when offlining, or simplely not in use.
