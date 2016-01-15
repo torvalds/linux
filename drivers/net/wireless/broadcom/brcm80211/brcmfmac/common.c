@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/netdevice.h>
+#include <linux/module.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include "core.h"
