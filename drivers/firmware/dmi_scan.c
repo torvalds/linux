@@ -345,15 +345,17 @@ static void __init dmi_save_dev_onboard(int instance, int segment, int bus,
 
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 {
+	const char *name;
 	const u8 *d = (u8 *) dm + 5;
 
 	/* Skip disabled device */
 	if ((*d & 0x80) == 0)
 		return;
 
+	name = dmi_string_nosave(dm, *(d - 1));
 	dmi_save_dev_onboard(*(d+1), *(u16 *)(d+2), *(d+4), *(d+5),
-			     dmi_string_nosave(dm, *(d-1)));
-	dmi_save_one_device(*d & 0x7f, dmi_string_nosave(dm, *(d - 1)));
+			     name);
+	dmi_save_one_device(*d & 0x7f, name);
 }
 
 static void __init count_mem_devices(const struct dmi_header *dm, void *v)
