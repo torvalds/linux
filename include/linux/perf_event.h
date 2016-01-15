@@ -634,9 +634,6 @@ struct perf_event_context {
 	int				nr_cgroups;	 /* cgroup evts */
 	void				*task_ctx_data; /* pmu specific data */
 	struct rcu_head			rcu_head;
-
-	struct delayed_work		orphans_remove;
-	bool				orphans_remove_sched;
 };
 
 /*

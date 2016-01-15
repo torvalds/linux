@@ -49,8 +49,6 @@
 
 #include <asm/irq_regs.h>
 
-static struct workqueue_struct *perf_wq;
-
 typedef int (*remote_function_f)(void *);
 
 struct remote_function_call {
@@ -1645,44 +1643,10 @@ out:
 		perf_event__header_size(tmp);
 }
 
-/*
- * User event without the task.
- */
 static bool is_orphaned_event(struct perf_event *event)
 {
-	return event && event->state == PERF_EVENT_STATE_EXIT;
+	return event->state == PERF_EVENT_STATE_EXIT;
 }
-
-/*
- * Event has a parent but parent's task finished and it's
- * alive only because of children holding refference.
- */
-static bool is_orphaned_child(struct perf_event *event)
-{
-	return is_orphaned_event(event->parent);
-}
-
-static void orphans_remove_work(struct work_struct *work);
-
-static void schedule_orphans_remove(struct perf_event_context *ctx)
-{
-	if (!ctx->task || ctx->orphans_remove_sched || !perf_wq)
-		return;
-
-	if (queue_delayed_work(perf_wq, &ctx->orphans_remove, 1)) {
-		get_ctx(ctx);
-		ctx->orphans_remove_sched = true;
-	}
-}
-
-static int __init perf_workqueue_init(void)
-{
-	perf_wq = create_singlethread_workqueue("perf");
-	WARN(!perf_wq, "failed to create perf workqueue\n");
-	return perf_wq ? 0 : -1;
-}
-
-core_initcall(perf_workqueue_init);
 
 static inline int pmu_filter_match(struct perf_event *event)
 {
@@ -1743,9 +1707,6 @@ event_sched_out(struct perf_event *event,
 		ctx->nr_freq--;
 	if (event->attr.exclusive || !cpuctx->active_oncpu)
 		cpuctx->exclusive = 0;
-
-	if (is_orphaned_child(event))
-		schedule_orphans_remove(ctx);
 
 	perf_pmu_enable(event->pmu);
 }
@@ -1983,9 +1944,6 @@ event_sched_in(struct perf_event *event,
 
 	if (event->attr.exclusive)
 		cpuctx->exclusive = 1;
-
-	if (is_orphaned_child(event))
-		schedule_orphans_remove(ctx);
 
 out:
 	perf_pmu_enable(event->pmu);
@@ -3369,7 +3327,6 @@ static void __perf_event_init_context(struct perf_event_context *ctx)
 	INIT_LIST_HEAD(&ctx->flexible_groups);
 	INIT_LIST_HEAD(&ctx->event_list);
 	atomic_set(&ctx->refcount, 1);
-	INIT_DELAYED_WORK(&ctx->orphans_remove, orphans_remove_work);
 }
 
 static struct perf_event_context *
@@ -3782,10 +3739,21 @@ static void perf_remove_from_owner(struct perf_event *event)
 
 static void put_event(struct perf_event *event)
 {
-	struct perf_event_context *ctx;
-
 	if (!atomic_long_dec_and_test(&event->refcount))
 		return;
+
+	_free_event(event);
+}
+
+/*
+ * Kill an event dead; while event:refcount will preserve the event
+ * object, it will not preserve its functionality. Once the last 'user'
+ * gives up the object, we'll destroy the thing.
+ */
+int perf_event_release_kernel(struct perf_event *event)
+{
+	struct perf_event_context *ctx;
+	struct perf_event *child, *tmp;
 
 	if (!is_kernel_event(event))
 		perf_remove_from_owner(event);
@@ -3811,14 +3779,70 @@ static void put_event(struct perf_event *event)
 	 * At this point we must have event->state == PERF_EVENT_STATE_EXIT,
 	 * either from the above perf_remove_from_context() or through
 	 * perf_event_exit_event().
+	 *
+	 * Therefore, anybody acquiring event->child_mutex after the below
+	 * loop _must_ also see this, most importantly inherit_event() which
+	 * will avoid placing more children on the list.
+	 *
+	 * Thus this guarantees that we will in fact observe and kill _ALL_
+	 * child events.
 	 */
 	WARN_ON_ONCE(event->state != PERF_EVENT_STATE_EXIT);
 
-	_free_event(event);
-}
+again:
+	mutex_lock(&event->child_mutex);
+	list_for_each_entry(child, &event->child_list, child_list) {
 
-int perf_event_release_kernel(struct perf_event *event)
-{
+		/*
+		 * Cannot change, child events are not migrated, see the
+		 * comment with perf_event_ctx_lock_nested().
+		 */
+		ctx = lockless_dereference(child->ctx);
+		/*
+		 * Since child_mutex nests inside ctx::mutex, we must jump
+		 * through hoops. We start by grabbing a reference on the ctx.
+		 *
+		 * Since the event cannot get freed while we hold the
+		 * child_mutex, the context must also exist and have a !0
+		 * reference count.
+		 */
+		get_ctx(ctx);
+
+		/*
+		 * Now that we have a ctx ref, we can drop child_mutex, and
+		 * acquire ctx::mutex without fear of it going away. Then we
+		 * can re-acquire child_mutex.
+		 */
+		mutex_unlock(&event->child_mutex);
+		mutex_lock(&ctx->mutex);
+		mutex_lock(&event->child_mutex);
+
+		/*
+		 * Now that we hold ctx::mutex and child_mutex, revalidate our
+		 * state, if child is still the first entry, it didn't get freed
+		 * and we can continue doing so.
+		 */
+		tmp = list_first_entry_or_null(&event->child_list,
+					       struct perf_event, child_list);
+		if (tmp == child) {
+			perf_remove_from_context(child, DETACH_GROUP);
+			list_del(&child->child_list);
+			free_event(child);
+			/*
+			 * This matches the refcount bump in inherit_event();
+			 * this can't be the last reference.
+			 */
+			put_event(event);
+		}
+
+		mutex_unlock(&event->child_mutex);
+		mutex_unlock(&ctx->mutex);
+		put_ctx(ctx);
+		goto again;
+	}
+	mutex_unlock(&event->child_mutex);
+
+	/* Must be the last reference */
 	put_event(event);
 	return 0;
 }
@@ -3829,44 +3853,8 @@ EXPORT_SYMBOL_GPL(perf_event_release_kernel);
  */
 static int perf_release(struct inode *inode, struct file *file)
 {
-	put_event(file->private_data);
+	perf_event_release_kernel(file->private_data);
 	return 0;
-}
-
-/*
- * Remove all orphanes events from the context.
- */
-static void orphans_remove_work(struct work_struct *work)
-{
-	struct perf_event_context *ctx;
-	struct perf_event *event, *tmp;
-
-	ctx = container_of(work, struct perf_event_context,
-			   orphans_remove.work);
-
-	mutex_lock(&ctx->mutex);
-	list_for_each_entry_safe(event, tmp, &ctx->event_list, event_entry) {
-		struct perf_event *parent_event = event->parent;
-
-		if (!is_orphaned_child(event))
-			continue;
-
-		perf_remove_from_context(event, DETACH_GROUP);
-
-		mutex_lock(&parent_event->child_mutex);
-		list_del_init(&event->child_list);
-		mutex_unlock(&parent_event->child_mutex);
-
-		free_event(event);
-		put_event(parent_event);
-	}
-
-	raw_spin_lock_irq(&ctx->lock);
-	ctx->orphans_remove_sched = false;
-	raw_spin_unlock_irq(&ctx->lock);
-	mutex_unlock(&ctx->mutex);
-
-	put_ctx(ctx);
 }
 
 u64 perf_event_read_value(struct perf_event *event, u64 *enabled, u64 *running)
@@ -8719,7 +8707,7 @@ perf_event_exit_event(struct perf_event *child_event,
 	if (parent_event)
 		perf_group_detach(child_event);
 	list_del_event(child_event, child_ctx);
-	child_event->state = PERF_EVENT_STATE_EXIT;
+	child_event->state = PERF_EVENT_STATE_EXIT; /* see perf_event_release_kernel() */
 	raw_spin_unlock_irq(&child_ctx->lock);
 
 	/*
@@ -8977,8 +8965,16 @@ inherit_event(struct perf_event *parent_event,
 	if (IS_ERR(child_event))
 		return child_event;
 
+	/*
+	 * is_orphaned_event() and list_add_tail(&parent_event->child_list)
+	 * must be under the same lock in order to serialize against
+	 * perf_event_release_kernel(), such that either we must observe
+	 * is_orphaned_event() or they will observe us on the child_list.
+	 */
+	mutex_lock(&parent_event->child_mutex);
 	if (is_orphaned_event(parent_event) ||
 	    !atomic_long_inc_not_zero(&parent_event->refcount)) {
+		mutex_unlock(&parent_event->child_mutex);
 		free_event(child_event);
 		return NULL;
 	}
@@ -9026,8 +9022,6 @@ inherit_event(struct perf_event *parent_event,
 	/*
 	 * Link this into the parent event's child list
 	 */
-	WARN_ON_ONCE(parent_event->ctx->parent_ctx);
-	mutex_lock(&parent_event->child_mutex);
 	list_add_tail(&child_event->child_list, &parent_event->child_list);
 	mutex_unlock(&parent_event->child_mutex);
 
