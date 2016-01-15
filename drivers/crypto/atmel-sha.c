@@ -939,6 +939,7 @@ static int atmel_sha_final(struct ahash_request *req)
 		if (err)
 			goto err1;
 
+		dd->req = req;
 		dd->flags |= SHA_FLAGS_BUSY;
 		err = atmel_sha_final_req(dd);
 	} else {
