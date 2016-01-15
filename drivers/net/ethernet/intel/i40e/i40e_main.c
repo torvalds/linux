@@ -768,7 +768,7 @@ static void i40e_update_fcoe_stats(struct i40e_vsi *vsi)
 	if (vsi->type != I40E_VSI_FCOE)
 		return;
 
-	idx = (pf->pf_seid - I40E_BASE_PF_SEID) + I40E_FCOE_PF_STAT_OFFSET;
+	idx = hw->pf_id + I40E_FCOE_PF_STAT_OFFSET;
 	fs = &vsi->fcoe_stats;
 	ofs = &vsi->fcoe_stats_offsets;
 

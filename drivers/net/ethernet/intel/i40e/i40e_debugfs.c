@@ -61,13 +61,9 @@ static struct i40e_veb *i40e_dbg_find_veb(struct i40e_pf *pf, int seid)
 {
 	int i;
 
-	if ((seid < I40E_BASE_VEB_SEID) ||
-	    (seid > (I40E_BASE_VEB_SEID + I40E_MAX_VEB)))
-		dev_info(&pf->pdev->dev, "%d: bad seid\n", seid);
-	else
-		for (i = 0; i < I40E_MAX_VEB; i++)
-			if (pf->veb[i] && pf->veb[i]->seid == seid)
-				return pf->veb[i];
+	for (i = 0; i < I40E_MAX_VEB; i++)
+		if (pf->veb[i] && pf->veb[i]->seid == seid)
+			return pf->veb[i];
 	return NULL;
 }
 
@@ -690,12 +686,6 @@ static void i40e_dbg_dump_eth_stats(struct i40e_pf *pf,
 static void i40e_dbg_dump_veb_seid(struct i40e_pf *pf, int seid)
 {
 	struct i40e_veb *veb;
-
-	if ((seid < I40E_BASE_VEB_SEID) ||
-	    (seid >= (I40E_MAX_VEB + I40E_BASE_VEB_SEID))) {
-		dev_info(&pf->pdev->dev, "%d: bad seid\n", seid);
-		return;
-	}
 
 	veb = i40e_dbg_find_veb(pf, seid);
 	if (!veb) {
