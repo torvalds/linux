@@ -362,8 +362,9 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 			*err = -EINVAL;
 			goto out_err;
 		}
-		namelen = udf_put_filename(sb, dentry->d_name.name, name,
-						 dentry->d_name.len);
+		namelen = udf_put_filename(sb, dentry->d_name.name,
+					   dentry->d_name.len,
+					   name, UDF_NAME_LEN);
 		if (!namelen) {
 			*err = -ENAMETOOLONG;
 			goto out_err;
@@ -997,8 +998,9 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		}
 
 		if (pc->componentType == 5) {
-			namelen = udf_put_filename(sb, compstart, name,
-						   symname - compstart);
+			namelen = udf_put_filename(sb, compstart,
+						   symname - compstart,
+						   name, UDF_NAME_LEN);
 			if (!namelen)
 				goto out_no_entry;
 
