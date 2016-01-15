@@ -352,7 +352,7 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 	ret = media_device_register_entity(dvbdev->adapter->mdev,
 					   dvbdev->entity);
 	if (ret)
-		return (ret);
+		return ret;
 
 	printk(KERN_DEBUG "%s: media entity '%s' registered.\n",
 		__func__, dvbdev->entity->name);
