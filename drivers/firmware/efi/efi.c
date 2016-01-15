@@ -25,7 +25,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include <asm/efi.h>
+#include <asm/early_ioremap.h>
 
 struct efi __read_mostly efi = {
 	.mps			= EFI_INVALID_TABLE_ADDR,

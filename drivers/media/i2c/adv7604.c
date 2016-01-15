@@ -3208,8 +3208,8 @@ static int adv76xx_probe(struct i2c_client *client,
 		state->pads[i].flags = MEDIA_PAD_FL_SINK;
 	state->pads[state->source_pad].flags = MEDIA_PAD_FL_SOURCE;
 
-	err = media_entity_init(&sd->entity, state->source_pad + 1,
-				state->pads, 0);
+	err = media_entity_pads_init(&sd->entity, state->source_pad + 1,
+				state->pads);
 	if (err)
 		goto err_work_queues;
 

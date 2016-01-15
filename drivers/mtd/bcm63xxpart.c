@@ -68,7 +68,7 @@ static int bcm63xx_detect_cfe(struct mtd_info *master)
 }
 
 static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
-					struct mtd_partition **pparts,
+					const struct mtd_partition **pparts,
 					struct mtd_part_parser_data *data)
 {
 	/* CFE, NVRAM and global Linux are always present */
@@ -214,24 +214,10 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 };
 
 static struct mtd_part_parser bcm63xx_cfe_parser = {
-	.owner = THIS_MODULE,
 	.parse_fn = bcm63xx_parse_cfe_partitions,
 	.name = "bcm63xxpart",
 };
-
-static int __init bcm63xx_cfe_parser_init(void)
-{
-	register_mtd_parser(&bcm63xx_cfe_parser);
-	return 0;
-}
-
-static void __exit bcm63xx_cfe_parser_exit(void)
-{
-	deregister_mtd_parser(&bcm63xx_cfe_parser);
-}
-
-module_init(bcm63xx_cfe_parser_init);
-module_exit(bcm63xx_cfe_parser_exit);
+module_mtd_part_parser(bcm63xx_cfe_parser);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Dickinson <openwrt@cshore.neomailbox.net>");

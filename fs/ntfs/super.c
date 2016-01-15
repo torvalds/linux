@@ -3139,8 +3139,8 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_big_inode_cache = kmem_cache_create(ntfs_big_inode_cache_name,
 			sizeof(big_ntfs_inode), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-			ntfs_big_inode_init_once);
+			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+			SLAB_ACCOUNT, ntfs_big_inode_init_once);
 	if (!ntfs_big_inode_cache) {
 		pr_crit("Failed to create %s!\n", ntfs_big_inode_cache_name);
 		goto big_inode_err_out;

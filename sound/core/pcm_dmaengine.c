@@ -202,13 +202,13 @@ int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (runtime->info & SNDRV_PCM_INFO_PAUSE)
 			dmaengine_pause(prtd->dma_chan);
 		else
-			dmaengine_terminate_all(prtd->dma_chan);
+			dmaengine_terminate_async(prtd->dma_chan);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dmaengine_pause(prtd->dma_chan);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dmaengine_terminate_all(prtd->dma_chan);
+		dmaengine_terminate_async(prtd->dma_chan);
 		break;
 	default:
 		return -EINVAL;
@@ -346,6 +346,7 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
+	dmaengine_synchronize(prtd->dma_chan);
 	kfree(prtd);
 
 	return 0;
@@ -362,9 +363,11 @@ int snd_dmaengine_pcm_close_release_chan(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
+	dmaengine_synchronize(prtd->dma_chan);
 	dma_release_channel(prtd->dma_chan);
+	kfree(prtd);
 
-	return snd_dmaengine_pcm_close(substream);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_close_release_chan);
 

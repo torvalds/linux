@@ -1434,7 +1434,6 @@ struct fman_mac *dtsec_config(struct fman_mac_params *params)
 	dtsec->tbiphy = of_phy_find_device(params->internal_phy_node);
 	if (!dtsec->tbiphy) {
 		pr_err("of_phy_find_device (TBI PHY) failed\n");
-		put_device(&dtsec->tbiphy->mdio.dev);
 		goto err_dtsec_drv_param;
 	}
 

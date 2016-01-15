@@ -2022,7 +2022,7 @@ void show_code(struct pt_regs *regs)
 			*ptr++ = '\t';
 		ptr += print_insn(ptr, code + start, addr);
 		start += opsize;
-		printk(buffer);
+		printk("%s", buffer);
 		ptr = buffer;
 		ptr += sprintf(ptr, "\n          ");
 		hops++;
@@ -2049,7 +2049,7 @@ void print_fn_code(unsigned char *code, unsigned long len)
 		ptr += print_insn(ptr, code, (unsigned long) code);
 		*ptr++ = '\n';
 		*ptr++ = 0;
-		printk(buffer);
+		printk("%s", buffer);
 		code += opsize;
 		len -= opsize;
 	}

@@ -725,7 +725,7 @@ static int rohm_ts_load_firmware(struct i2c_client *client,
 			break;
 
 		error = -EIO;
-	} while (++retry >= FIRMWARE_RETRY_MAX);
+	} while (++retry <= FIRMWARE_RETRY_MAX);
 
 out:
 	error2 = i2c_smbus_write_byte_data(client, INT_MASK, INT_ALL);

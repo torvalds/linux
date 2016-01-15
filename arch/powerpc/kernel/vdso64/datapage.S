@@ -62,7 +62,7 @@ V_FUNCTION_BEGIN(__kernel_get_syscall_map)
 	cmpli	cr0,r4,0
 	crclr	cr0*4+so
 	beqlr
-	li	r0,__NR_syscalls
+	li	r0,NR_syscalls
 	stw	r0,0(r4)
 	blr
   .cfi_endproc

@@ -160,7 +160,7 @@ static void __exit ptlrpc_exit(void)
 	ptlrpc_connection_fini();
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Request Processor and Lock Management");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");

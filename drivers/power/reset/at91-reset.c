@@ -198,6 +198,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 			at91_ramc_base[idx] = of_iomap(np, 0);
 			if (!at91_ramc_base[idx]) {
 				dev_err(&pdev->dev, "Could not map ram controller address\n");
+				of_node_put(np);
 				return -ENODEV;
 			}
 			idx++;

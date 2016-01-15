@@ -603,7 +603,7 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 
 		ret = devm_request_threaded_irq(info->dev, virq, NULL,
 						rt8973a_muic_irq_handler,
-						IRQF_NO_SUSPEND,
+						IRQF_NO_SUSPEND | IRQF_ONESHOT,
 						muic_irq->name, info);
 		if (ret) {
 			dev_err(info->dev,

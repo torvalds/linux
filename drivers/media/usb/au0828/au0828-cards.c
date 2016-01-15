@@ -228,6 +228,10 @@ void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 				"au8522", 0x8e >> 1, NULL);
 		if (sd == NULL)
 			pr_err("analog subdev registration failed\n");
+#ifdef CONFIG_MEDIA_CONTROLLER
+		if (sd)
+			dev->decoder = &sd->entity;
+#endif
 	}
 
 	/* Setup tuners */

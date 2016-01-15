@@ -10,11 +10,13 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <net/sock.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/xprt.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
 #include <trace/events/sunrpc.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
@@ -937,6 +939,49 @@ static void svc_age_temp_xprts(unsigned long closure)
 
 	mod_timer(&serv->sv_temptimer, jiffies + svc_conn_age_period * HZ);
 }
+
+/* Close temporary transports whose xpt_local matches server_addr immediately
+ * instead of waiting for them to be picked up by the timer.
+ *
+ * This is meant to be called from a notifier_block that runs when an ip
+ * address is deleted.
+ */
+void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
+{
+	struct svc_xprt *xprt;
+	struct svc_sock *svsk;
+	struct socket *sock;
+	struct list_head *le, *next;
+	LIST_HEAD(to_be_closed);
+	struct linger no_linger = {
+		.l_onoff = 1,
+		.l_linger = 0,
+	};
+
+	spin_lock_bh(&serv->sv_lock);
+	list_for_each_safe(le, next, &serv->sv_tempsocks) {
+		xprt = list_entry(le, struct svc_xprt, xpt_list);
+		if (rpc_cmp_addr(server_addr, (struct sockaddr *)
+				&xprt->xpt_local)) {
+			dprintk("svc_age_temp_xprts_now: found %p\n", xprt);
+			list_move(le, &to_be_closed);
+		}
+	}
+	spin_unlock_bh(&serv->sv_lock);
+
+	while (!list_empty(&to_be_closed)) {
+		le = to_be_closed.next;
+		list_del_init(le);
+		xprt = list_entry(le, struct svc_xprt, xpt_list);
+		dprintk("svc_age_temp_xprts_now: closing %p\n", xprt);
+		svsk = container_of(xprt, struct svc_sock, sk_xprt);
+		sock = svsk->sk_sock;
+		kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
+				  (char *)&no_linger, sizeof(no_linger));
+		svc_close_xprt(xprt);
+	}
+}
+EXPORT_SYMBOL_GPL(svc_age_temp_xprts_now);
 
 static void call_xpt_users(struct svc_xprt *xprt)
 {

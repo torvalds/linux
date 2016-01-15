@@ -480,7 +480,7 @@ static int hist_browser__run(struct hist_browser *browser, const char *help)
 
 	hists__browser_title(browser->hists, hbt, title, sizeof(title));
 
-	if (ui_browser__show(&browser->b, title, help) < 0)
+	if (ui_browser__show(&browser->b, title, "%s", help) < 0)
 		return -1;
 
 	while (1) {

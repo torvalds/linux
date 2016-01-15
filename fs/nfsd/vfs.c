@@ -43,6 +43,7 @@
 
 #include "nfsd.h"
 #include "vfs.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
 
@@ -997,15 +998,22 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct raparms	*ra;
 	__be32 err;
 
+	trace_read_start(rqstp, fhp, offset, vlen);
 	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
 	if (err)
 		return err;
 
 	ra = nfsd_init_raparms(file);
+
+	trace_read_opened(rqstp, fhp, offset, vlen);
 	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
+	trace_read_io_done(rqstp, fhp, offset, vlen);
+
 	if (ra)
 		nfsd_put_raparams(file, ra);
 	fput(file);
+
+	trace_read_done(rqstp, fhp, offset, vlen);
 
 	return err;
 }
@@ -1022,24 +1030,31 @@ nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 {
 	__be32			err = 0;
 
+	trace_write_start(rqstp, fhp, offset, vlen);
+
 	if (file) {
 		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
 				NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE);
 		if (err)
 			goto out;
+		trace_write_opened(rqstp, fhp, offset, vlen);
 		err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt,
 				stablep);
+		trace_write_io_done(rqstp, fhp, offset, vlen);
 	} else {
 		err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
 		if (err)
 			goto out;
 
+		trace_write_opened(rqstp, fhp, offset, vlen);
 		if (cnt)
 			err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen,
 					     cnt, stablep);
+		trace_write_io_done(rqstp, fhp, offset, vlen);
 		fput(file);
 	}
 out:
+	trace_write_done(rqstp, fhp, offset, vlen);
 	return err;
 }
 

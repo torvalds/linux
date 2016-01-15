@@ -425,8 +425,9 @@ static int __init via_pmu_start(void)
 			gpio_irq = irq_of_parse_and_map(gpio_node, 0);
 
 		if (gpio_irq != NO_IRQ) {
-			if (request_irq(gpio_irq, gpio1_interrupt, IRQF_TIMER,
-					"GPIO1 ADB", (void *)0))
+			if (request_irq(gpio_irq, gpio1_interrupt,
+					IRQF_NO_SUSPEND, "GPIO1 ADB",
+					(void *)0))
 				printk(KERN_ERR "pmu: can't get irq %d"
 				       " (GPIO1)\n", gpio_irq);
 			else

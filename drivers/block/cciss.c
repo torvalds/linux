@@ -3848,7 +3848,7 @@ static void print_cfg_table(ctlr_info_t *h)
 	       readl(&(tb->HostWrite.CoalIntDelay)));
 	dev_dbg(&h->pdev->dev, "   Coalesce Interrupt Count = 0x%x\n",
 	       readl(&(tb->HostWrite.CoalIntCount)));
-	dev_dbg(&h->pdev->dev, "   Max outstanding commands = 0x%d\n",
+	dev_dbg(&h->pdev->dev, "   Max outstanding commands = 0x%x\n",
 	       readl(&(tb->CmdsOutMax)));
 	dev_dbg(&h->pdev->dev, "   Bus Types = 0x%x\n",
 		readl(&(tb->BusTypes)));

@@ -580,8 +580,6 @@ ksocknal_lib_push_conn(ksock_conn_t *conn)
 	ksocknal_connsock_decref(conn);
 }
 
-extern void ksocknal_read_callback(ksock_conn_t *conn);
-extern void ksocknal_write_callback(ksock_conn_t *conn);
 /*
  * socket call back in Linux
  */

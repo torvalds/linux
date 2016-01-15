@@ -310,7 +310,7 @@ static struct sctp_transport *sctp_transport_get_next(struct seq_file *seq)
 static struct sctp_transport *sctp_transport_get_idx(struct seq_file *seq,
 						     loff_t pos)
 {
-	void *obj;
+	void *obj = SEQ_START_TOKEN;
 
 	while (pos && (obj = sctp_transport_get_next(seq)) && !IS_ERR(obj))
 		pos--;
@@ -347,7 +347,7 @@ static void *sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 	if (err)
 		return ERR_PTR(err);
 
-	return *pos ? sctp_transport_get_idx(seq, *pos) : SEQ_START_TOKEN;
+	return sctp_transport_get_idx(seq, *pos);
 }
 
 static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
@@ -462,7 +462,7 @@ static void *sctp_remaddr_seq_start(struct seq_file *seq, loff_t *pos)
 	if (err)
 		return ERR_PTR(err);
 
-	return *pos ? sctp_transport_get_idx(seq, *pos) : SEQ_START_TOKEN;
+	return sctp_transport_get_idx(seq, *pos);
 }
 
 static void *sctp_remaddr_seq_next(struct seq_file *seq, void *v, loff_t *pos)

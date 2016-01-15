@@ -608,6 +608,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			cut the overhead, others just disable the usage. So
 			only cgroup_disable=memory is actually worthy}
 
+	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
+			Format: <string>
+			nosocket -- Disable socket memory accounting.
+
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
@@ -730,16 +734,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
+		uart[8250],mmio16,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
 		uart[8250],0x<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.
 			MMIO inter-register address stride is either 8-bit
-			(mmio) or 32-bit (mmio32).
-			If none of [io|mmio|mmio32], <addr> is assumed to be
-			equivalent to 'mmio'. 'options' are specified in the
-			same format described for ttyS above; if unspecified,
+			(mmio), 16-bit (mmio16), or 32-bit (mmio32).
+			If none of [io|mmio|mmio16|mmio32], <addr> is assumed
+			to be equivalent to 'mmio'. 'options' are specified in
+			the same format described for ttyS above; if unspecified,
 			the h/w is not re-initialized.
 
 		hvc<n>	Use the hypervisor console device <n>. This is for
@@ -1011,10 +1016,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unspecified, the h/w is not initialized.
 
 		pl011,<addr>
+		pl011,mmio32,<addr>
 			Start an early, polled-mode console on a pl011 serial
 			port at the specified address. The pl011 serial port
 			must already be setup and configured. Options are not
-			yet supported.
+			yet supported.  If 'mmio32' is specified, then only
+			the driver will use only 32-bit accessors to read/write
+			the device registers.
 
 		msm_serial,<addr>
 			Start an early, polled-mode console on an msm serial
@@ -2584,8 +2592,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
 
-	nousb		[USB] Disable the USB subsystem
-
 	nowatchdog	[KNL] Disable both lockup detectors, i.e.
                         soft-lockup and NMI watchdog (hard-lockup).
 
@@ -2986,6 +2992,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Up to 8 (IP_VS_APP_MAX_PORTS) ports
 			may be specified.
 			Format: <port>,<port>....
+
+	ppc_strict_facility_enable
+			[PPC] This option catches any kernel floating point,
+			Altivec, VSX and SPE outside of regions specifically
+			allowed (eg kernel_enable_fpu()/kernel_disable_fpu()).
+			There is some performance impact when enabling this.
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -3900,6 +3912,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	usbcore.usbfs_snoop=
 			[USB] Set to log all usbfs traffic (default 0 = off).
 
+	usbcore.usbfs_snoop_max=
+			[USB] Maximum number of bytes to snoop in each URB
+			(default = 65536).
+
 	usbcore.blinkenlights=
 			[USB] Set to cycle leds on hubs (default 0 = off).
 
@@ -3919,6 +3935,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[USB] Specifies timeout for the initial 64-byte
                         USB_REQ_GET_DESCRIPTOR request in milliseconds
 			(default 5000 = 5.0 seconds).
+
+	usbcore.nousb	[USB] Disable the USB subsystem
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.

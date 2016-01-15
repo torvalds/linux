@@ -606,9 +606,7 @@ bail:
 	if (gb_inode)
 		mutex_unlock(&gb_inode->i_mutex);
 
-	if (gb_inode)
-		iput(gb_inode);
-
+	iput(gb_inode);
 	brelse(bh);
 
 	return status;

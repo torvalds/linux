@@ -162,6 +162,7 @@ struct disk_part_tbl {
 };
 
 struct disk_events;
+struct badblocks;
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
@@ -213,6 +214,7 @@ struct gendisk {
 	struct kobject integrity_kobj;
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
 	int node_id;
+	struct badblocks *bb;
 };
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)

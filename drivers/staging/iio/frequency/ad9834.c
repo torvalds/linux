@@ -318,7 +318,7 @@ static const struct iio_info ad9833_info = {
 
 static int ad9834_probe(struct spi_device *spi)
 {
-	struct ad9834_platform_data *pdata = spi->dev.platform_data;
+	struct ad9834_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad9834_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *reg;

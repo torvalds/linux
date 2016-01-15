@@ -172,6 +172,17 @@ static inline void mcf_outsw(void *a, unsigned char *p, int l)
 
 #define SMC_IRQ_FLAGS		0
 
+#elif defined(CONFIG_H8300)
+#define SMC_CAN_USE_8BIT	1
+#define SMC_CAN_USE_16BIT	0
+#define SMC_CAN_USE_32BIT	0
+#define SMC_NOWAIT		0
+
+#define SMC_inb(a, r)		ioread8((a) + (r))
+#define SMC_outb(v, a, r)	iowrite8(v, (a) + (r))
+#define SMC_insb(a, r, p, l)	ioread8_rep((a) + (r), p, l)
+#define SMC_outsb(a, r, p, l)	iowrite8_rep((a) + (r), p, l)
+
 #else
 
 /*

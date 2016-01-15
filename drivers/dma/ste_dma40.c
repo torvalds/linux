@@ -3543,8 +3543,8 @@ static int __init d40_probe(struct platform_device *pdev)
 	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -ENOENT;
-	struct d40_base *base = NULL;
-	struct resource *res = NULL;
+	struct d40_base *base;
+	struct resource *res;
 	int num_reserved_chans;
 	u32 val;
 
@@ -3552,17 +3552,17 @@ static int __init d40_probe(struct platform_device *pdev)
 		if (np) {
 			if (d40_of_probe(pdev, np)) {
 				ret = -ENOMEM;
-				goto failure;
+				goto report_failure;
 			}
 		} else {
 			d40_err(&pdev->dev, "No pdata or Device Tree provided\n");
-			goto failure;
+			goto report_failure;
 		}
 	}
 
 	base = d40_hw_detect_init(pdev);
 	if (!base)
-		goto failure;
+		goto report_failure;
 
 	num_reserved_chans = d40_phy_res_init(base);
 
@@ -3693,51 +3693,48 @@ static int __init d40_probe(struct platform_device *pdev)
 	return 0;
 
 failure:
-	if (base) {
-		if (base->desc_slab)
-			kmem_cache_destroy(base->desc_slab);
-		if (base->virtbase)
-			iounmap(base->virtbase);
+	kmem_cache_destroy(base->desc_slab);
+	if (base->virtbase)
+		iounmap(base->virtbase);
 
-		if (base->lcla_pool.base && base->plat_data->use_esram_lcla) {
-			iounmap(base->lcla_pool.base);
-			base->lcla_pool.base = NULL;
-		}
-
-		if (base->lcla_pool.dma_addr)
-			dma_unmap_single(base->dev, base->lcla_pool.dma_addr,
-					 SZ_1K * base->num_phy_chans,
-					 DMA_TO_DEVICE);
-
-		if (!base->lcla_pool.base_unaligned && base->lcla_pool.base)
-			free_pages((unsigned long)base->lcla_pool.base,
-				   base->lcla_pool.pages);
-
-		kfree(base->lcla_pool.base_unaligned);
-
-		if (base->phy_lcpa)
-			release_mem_region(base->phy_lcpa,
-					   base->lcpa_size);
-		if (base->phy_start)
-			release_mem_region(base->phy_start,
-					   base->phy_size);
-		if (base->clk) {
-			clk_disable_unprepare(base->clk);
-			clk_put(base->clk);
-		}
-
-		if (base->lcpa_regulator) {
-			regulator_disable(base->lcpa_regulator);
-			regulator_put(base->lcpa_regulator);
-		}
-
-		kfree(base->lcla_pool.alloc_map);
-		kfree(base->lookup_log_chans);
-		kfree(base->lookup_phy_chans);
-		kfree(base->phy_res);
-		kfree(base);
+	if (base->lcla_pool.base && base->plat_data->use_esram_lcla) {
+		iounmap(base->lcla_pool.base);
+		base->lcla_pool.base = NULL;
 	}
 
+	if (base->lcla_pool.dma_addr)
+		dma_unmap_single(base->dev, base->lcla_pool.dma_addr,
+				 SZ_1K * base->num_phy_chans,
+				 DMA_TO_DEVICE);
+
+	if (!base->lcla_pool.base_unaligned && base->lcla_pool.base)
+		free_pages((unsigned long)base->lcla_pool.base,
+			   base->lcla_pool.pages);
+
+	kfree(base->lcla_pool.base_unaligned);
+
+	if (base->phy_lcpa)
+		release_mem_region(base->phy_lcpa,
+				   base->lcpa_size);
+	if (base->phy_start)
+		release_mem_region(base->phy_start,
+				   base->phy_size);
+	if (base->clk) {
+		clk_disable_unprepare(base->clk);
+		clk_put(base->clk);
+	}
+
+	if (base->lcpa_regulator) {
+		regulator_disable(base->lcpa_regulator);
+		regulator_put(base->lcpa_regulator);
+	}
+
+	kfree(base->lcla_pool.alloc_map);
+	kfree(base->lookup_log_chans);
+	kfree(base->lookup_phy_chans);
+	kfree(base->phy_res);
+	kfree(base);
+report_failure:
 	d40_err(&pdev->dev, "probe failed\n");
 	return ret;
 }

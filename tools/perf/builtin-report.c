@@ -28,6 +28,7 @@
 #include "util/tool.h"
 
 #include <subcmd/parse-options.h>
+#include <subcmd/exec-cmd.h>
 #include "util/parse-events.h"
 
 #include "util/thread.h"
@@ -433,7 +434,14 @@ static int report__browse_hists(struct report *rep)
 	int ret;
 	struct perf_session *session = rep->session;
 	struct perf_evlist *evlist = session->evlist;
-	const char *help = perf_tip(TIPDIR);
+	const char *help = perf_tip(system_path(TIPDIR));
+
+	if (help == NULL) {
+		/* fallback for people who don't install perf ;-) */
+		help = perf_tip(DOCDIR);
+		if (help == NULL)
+			help = "Cannot load tips.txt file, please install perf!";
+	}
 
 	switch (use_browser) {
 	case 1:

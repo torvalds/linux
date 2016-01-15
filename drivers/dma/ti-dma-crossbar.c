@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
-#include <linux/idr.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
@@ -198,7 +197,8 @@ struct ti_dra7_xbar_data {
 	void __iomem *iomem;
 
 	struct dma_router dmarouter;
-	struct idr map_idr;
+	struct mutex mutex;
+	unsigned long *dma_inuse;
 
 	u16 safe_val; /* Value to rest the crossbar lines */
 	u32 xbar_requests; /* number of DMA requests connected to XBAR */
@@ -225,7 +225,9 @@ static void ti_dra7_xbar_free(struct device *dev, void *route_data)
 		map->xbar_in, map->xbar_out);
 
 	ti_dra7_xbar_write(xbar->iomem, map->xbar_out, xbar->safe_val);
-	idr_remove(&xbar->map_idr, map->xbar_out);
+	mutex_lock(&xbar->mutex);
+	clear_bit(map->xbar_out, xbar->dma_inuse);
+	mutex_unlock(&xbar->mutex);
 	kfree(map);
 }
 
@@ -255,8 +257,17 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	map->xbar_out = idr_alloc(&xbar->map_idr, NULL, 0, xbar->dma_requests,
-				  GFP_KERNEL);
+	mutex_lock(&xbar->mutex);
+	map->xbar_out = find_first_zero_bit(xbar->dma_inuse,
+					    xbar->dma_requests);
+	mutex_unlock(&xbar->mutex);
+	if (map->xbar_out == xbar->dma_requests) {
+		dev_err(&pdev->dev, "Run out of free DMA requests\n");
+		kfree(map);
+		return ERR_PTR(-ENOMEM);
+	}
+	set_bit(map->xbar_out, xbar->dma_inuse);
+
 	map->xbar_in = (u16)dma_spec->args[0];
 
 	dma_spec->args[0] = map->xbar_out + xbar->dma_offset;
@@ -278,8 +289,18 @@ static const struct of_device_id ti_dra7_master_match[] = {
 		.compatible = "ti,edma3",
 		.data = (void *)TI_XBAR_EDMA_OFFSET,
 	},
+	{
+		.compatible = "ti,edma3-tpcc",
+		.data = (void *)TI_XBAR_EDMA_OFFSET,
+	},
 	{},
 };
+
+static inline void ti_dra7_xbar_reserve(int offset, int len, unsigned long *p)
+{
+	for (; len > 0; len--)
+		clear_bit(offset + (len - 1), p);
+}
 
 static int ti_dra7_xbar_probe(struct platform_device *pdev)
 {
@@ -287,8 +308,10 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct device_node *dma_node;
 	struct ti_dra7_xbar_data *xbar;
+	struct property *prop;
 	struct resource *res;
 	u32 safe_val;
+	size_t sz;
 	void __iomem *iomem;
 	int i, ret;
 
@@ -298,8 +321,6 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	xbar = devm_kzalloc(&pdev->dev, sizeof(*xbar), GFP_KERNEL);
 	if (!xbar)
 		return -ENOMEM;
-
-	idr_init(&xbar->map_idr);
 
 	dma_node = of_parse_phandle(node, "dma-masters", 0);
 	if (!dma_node) {
@@ -322,6 +343,12 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	}
 	of_node_put(dma_node);
 
+	xbar->dma_inuse = devm_kcalloc(&pdev->dev,
+				       BITS_TO_LONGS(xbar->dma_requests),
+				       sizeof(unsigned long), GFP_KERNEL);
+	if (!xbar->dma_inuse)
+		return -ENOMEM;
+
 	if (of_property_read_u32(node, "dma-requests", &xbar->xbar_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing XBAR input information, using %u.\n",
@@ -331,6 +358,33 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 
 	if (!of_property_read_u32(node, "ti,dma-safe-map", &safe_val))
 		xbar->safe_val = (u16)safe_val;
+
+
+	prop = of_find_property(node, "ti,reserved-dma-request-ranges", &sz);
+	if (prop) {
+		const char pname[] = "ti,reserved-dma-request-ranges";
+		u32 (*rsv_events)[2];
+		size_t nelm = sz / sizeof(*rsv_events);
+		int i;
+
+		if (!nelm)
+			return -EINVAL;
+
+		rsv_events = kcalloc(nelm, sizeof(*rsv_events), GFP_KERNEL);
+		if (!rsv_events)
+			return -ENOMEM;
+
+		ret = of_property_read_u32_array(node, pname, (u32 *)rsv_events,
+						 nelm * 2);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < nelm; i++) {
+			ti_dra7_xbar_reserve(rsv_events[i][0], rsv_events[i][1],
+					     xbar->dma_inuse);
+		}
+		kfree(rsv_events);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iomem = devm_ioremap_resource(&pdev->dev, res);
@@ -343,18 +397,23 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	xbar->dmarouter.route_free = ti_dra7_xbar_free;
 	xbar->dma_offset = (u32)match->data;
 
+	mutex_init(&xbar->mutex);
 	platform_set_drvdata(pdev, xbar);
 
 	/* Reset the crossbar */
-	for (i = 0; i < xbar->dma_requests; i++)
-		ti_dra7_xbar_write(xbar->iomem, i, xbar->safe_val);
+	for (i = 0; i < xbar->dma_requests; i++) {
+		if (!test_bit(i, xbar->dma_inuse))
+			ti_dra7_xbar_write(xbar->iomem, i, xbar->safe_val);
+	}
 
 	ret = of_dma_router_register(node, ti_dra7_xbar_route_allocate,
 				     &xbar->dmarouter);
 	if (ret) {
 		/* Restore the defaults for the crossbar */
-		for (i = 0; i < xbar->dma_requests; i++)
-			ti_dra7_xbar_write(xbar->iomem, i, i);
+		for (i = 0; i < xbar->dma_requests; i++) {
+			if (!test_bit(i, xbar->dma_inuse))
+				ti_dra7_xbar_write(xbar->iomem, i, i);
+		}
 	}
 
 	return ret;

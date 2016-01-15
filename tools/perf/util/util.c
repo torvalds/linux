@@ -17,7 +17,6 @@
 #include <unistd.h>
 #include "callchain.h"
 #include "strlist.h"
-#include <subcmd/exec-cmd.h>
 
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_ABS,
@@ -672,14 +671,16 @@ const char *perf_tip(const char *dirpath)
 	struct str_node *node;
 	char *tip = NULL;
 	struct strlist_config conf = {
-		.dirname = system_path(dirpath) ,
+		.dirname = dirpath,
+		.file_only = true,
 	};
 
 	tips = strlist__new("tips.txt", &conf);
-	if (tips == NULL || strlist__nr_entries(tips) == 1) {
-		tip = (char *)"Cannot find tips.txt file";
+	if (tips == NULL)
+		return errno == ENOENT ? NULL : "Tip: get more memory! ;-p";
+
+	if (strlist__nr_entries(tips) == 0)
 		goto out;
-	}
 
 	node = strlist__entry(tips, random() % strlist__nr_entries(tips));
 	if (asprintf(&tip, "Tip: %s", node->s) < 0)

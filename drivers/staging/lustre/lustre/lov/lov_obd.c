@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -2277,35 +2277,35 @@ out:
 }
 
 static struct obd_ops lov_obd_ops = {
-	.o_owner	       = THIS_MODULE,
-	.o_setup	       = lov_setup,
-	.o_precleanup	  = lov_precleanup,
-	.o_cleanup	     = lov_cleanup,
-	/*.o_process_config      = lov_process_config,*/
-	.o_connect	     = lov_connect,
-	.o_disconnect	  = lov_disconnect,
-	.o_statfs	      = lov_statfs,
-	.o_statfs_async	= lov_statfs_async,
-	.o_packmd	      = lov_packmd,
-	.o_unpackmd	    = lov_unpackmd,
-	.o_create	      = lov_create,
-	.o_destroy	     = lov_destroy,
-	.o_getattr_async       = lov_getattr_async,
-	.o_setattr_async       = lov_setattr_async,
-	.o_adjust_kms	  = lov_adjust_kms,
-	.o_find_cbdata	 = lov_find_cbdata,
-	.o_iocontrol	   = lov_iocontrol,
-	.o_get_info	    = lov_get_info,
-	.o_set_info_async      = lov_set_info_async,
-	.o_notify	      = lov_notify,
-	.o_pool_new	    = lov_pool_new,
-	.o_pool_rem	    = lov_pool_remove,
-	.o_pool_add	    = lov_pool_add,
-	.o_pool_del	    = lov_pool_del,
-	.o_getref	      = lov_getref,
-	.o_putref	      = lov_putref,
-	.o_quotactl	    = lov_quotactl,
-	.o_quotacheck	  = lov_quotacheck,
+	.owner          = THIS_MODULE,
+	.setup          = lov_setup,
+	.precleanup     = lov_precleanup,
+	.cleanup        = lov_cleanup,
+	/*.process_config       = lov_process_config,*/
+	.connect        = lov_connect,
+	.disconnect     = lov_disconnect,
+	.statfs         = lov_statfs,
+	.statfs_async   = lov_statfs_async,
+	.packmd         = lov_packmd,
+	.unpackmd       = lov_unpackmd,
+	.create         = lov_create,
+	.destroy        = lov_destroy,
+	.getattr_async  = lov_getattr_async,
+	.setattr_async  = lov_setattr_async,
+	.adjust_kms     = lov_adjust_kms,
+	.find_cbdata    = lov_find_cbdata,
+	.iocontrol      = lov_iocontrol,
+	.get_info       = lov_get_info,
+	.set_info_async = lov_set_info_async,
+	.notify         = lov_notify,
+	.pool_new       = lov_pool_new,
+	.pool_rem       = lov_pool_remove,
+	.pool_add       = lov_pool_add,
+	.pool_del       = lov_pool_del,
+	.getref         = lov_getref,
+	.putref         = lov_putref,
+	.quotactl       = lov_quotactl,
+	.quotacheck     = lov_quotacheck,
 };
 
 struct kmem_cache *lov_oinfo_slab;
@@ -2352,7 +2352,7 @@ static void /*__exit*/ lov_exit(void)
 	lu_kmem_fini(lov_caches);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Logical Object Volume OBD driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(LUSTRE_VERSION_STRING);

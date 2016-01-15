@@ -1042,8 +1042,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 //	up_write(&journal->j_trans_barrier);
 done:
-	if (inode)
-		iput(inode);
+	iput(inode);
 }
 
 static void ocfs2_clear_journal_error(struct super_block *sb,
@@ -1687,9 +1686,7 @@ done:
 	if (got_lock)
 		ocfs2_inode_unlock(inode, 1);
 
-	if (inode)
-		iput(inode);
-
+	iput(inode);
 	brelse(bh);
 
 	return status;
@@ -1796,8 +1793,7 @@ static int ocfs2_trylock_journal(struct ocfs2_super *osb,
 
 	ocfs2_inode_unlock(inode, 1);
 bail:
-	if (inode)
-		iput(inode);
+	iput(inode);
 
 	return status;
 }

@@ -201,6 +201,7 @@ xfs_attr3_rmt_write_verify(
 }
 
 const struct xfs_buf_ops xfs_attr3_rmt_buf_ops = {
+	.name = "xfs_attr3_rmt",
 	.verify_read = xfs_attr3_rmt_read_verify,
 	.verify_write = xfs_attr3_rmt_write_verify,
 };
@@ -447,8 +448,6 @@ xfs_attr_rmtval_set(
 	 * Roll through the "value", allocating blocks on disk as required.
 	 */
 	while (blkcnt > 0) {
-		int	committed;
-
 		/*
 		 * Allocate a single extent, up to the size of the value.
 		 *
@@ -466,23 +465,13 @@ xfs_attr_rmtval_set(
 		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
 				  blkcnt, XFS_BMAPI_ATTRFORK, args->firstblock,
 				  args->total, &map, &nmap, args->flist);
-		if (!error) {
-			error = xfs_bmap_finish(&args->trans, args->flist,
-						&committed);
-		}
+		if (!error)
+			error = xfs_bmap_finish(&args->trans, args->flist, dp);
 		if (error) {
-			ASSERT(committed);
 			args->trans = NULL;
 			xfs_bmap_cancel(args->flist);
 			return error;
 		}
-
-		/*
-		 * bmap_finish() may have committed the last trans and started
-		 * a new one.  We need the inode to be in all transactions.
-		 */
-		if (committed)
-			xfs_trans_ijoin(args->trans, dp, 0);
 
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -614,29 +603,18 @@ xfs_attr_rmtval_remove(
 	blkcnt = args->rmtblkcnt;
 	done = 0;
 	while (!done) {
-		int committed;
-
 		xfs_bmap_init(args->flist, args->firstblock);
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
 				    XFS_BMAPI_ATTRFORK, 1, args->firstblock,
 				    args->flist, &done);
-		if (!error) {
+		if (!error)
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						&committed);
-		}
+						args->dp);
 		if (error) {
-			ASSERT(committed);
 			args->trans = NULL;
 			xfs_bmap_cancel(args->flist);
 			return error;
 		}
-
-		/*
-		 * bmap_finish() may have committed the last trans and started
-		 * a new one.  We need the inode to be in all transactions.
-		 */
-		if (committed)
-			xfs_trans_ijoin(args->trans, args->dp, 0);
 
 		/*
 		 * Close out trans and start the next one in the chain.

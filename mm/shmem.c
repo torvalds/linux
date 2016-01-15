@@ -360,6 +360,87 @@ static int shmem_free_swap(struct address_space *mapping,
 }
 
 /*
+ * Determine (in bytes) how many of the shmem object's pages mapped by the
+ * given offsets are swapped out.
+ *
+ * This is safe to call without i_mutex or mapping->tree_lock thanks to RCU,
+ * as long as the inode doesn't go away and racy results are not a problem.
+ */
+unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+						pgoff_t start, pgoff_t end)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+	struct page *page;
+	unsigned long swapped = 0;
+
+	rcu_read_lock();
+
+restart:
+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+		if (iter.index >= end)
+			break;
+
+		page = radix_tree_deref_slot(slot);
+
+		/*
+		 * This should only be possible to happen at index 0, so we
+		 * don't need to reset the counter, nor do we risk infinite
+		 * restarts.
+		 */
+		if (radix_tree_deref_retry(page))
+			goto restart;
+
+		if (radix_tree_exceptional_entry(page))
+			swapped++;
+
+		if (need_resched()) {
+			cond_resched_rcu();
+			start = iter.index + 1;
+			goto restart;
+		}
+	}
+
+	rcu_read_unlock();
+
+	return swapped << PAGE_SHIFT;
+}
+
+/*
+ * Determine (in bytes) how many of the shmem object's pages mapped by the
+ * given vma is swapped out.
+ *
+ * This is safe to call without i_mutex or mapping->tree_lock thanks to RCU,
+ * as long as the inode doesn't go away and racy results are not a problem.
+ */
+unsigned long shmem_swap_usage(struct vm_area_struct *vma)
+{
+	struct inode *inode = file_inode(vma->vm_file);
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct address_space *mapping = inode->i_mapping;
+	unsigned long swapped;
+
+	/* Be careful as we don't hold info->lock */
+	swapped = READ_ONCE(info->swapped);
+
+	/*
+	 * The easier cases are when the shmem object has nothing in swap, or
+	 * the vma maps it whole. Then we can simply use the stats that we
+	 * already track.
+	 */
+	if (!swapped)
+		return 0;
+
+	if (!vma->vm_pgoff && vma->vm_end - vma->vm_start >= inode->i_size)
+		return swapped << PAGE_SHIFT;
+
+	/* Here comes the more involved part */
+	return shmem_partial_swap_usage(mapping,
+			linear_page_index(vma, vma->vm_start),
+			linear_page_index(vma, vma->vm_end));
+}
+
+/*
  * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
  */
 void shmem_unlock_mapping(struct address_space *mapping)
@@ -2469,6 +2550,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 		inode->i_op = &shmem_short_symlink_operations;
 		inode->i_link = info->symlink;
 	} else {
+		inode_nohighmem(inode);
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
 		if (error) {
 			iput(inode);
@@ -2476,7 +2558,6 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 		}
 		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
-		inode_nohighmem(inode);
 		memcpy(page_address(page), symname, len);
 		SetPageUptodate(page);
 		set_page_dirty(page);
@@ -3064,7 +3145,7 @@ static int shmem_init_inodecache(void)
 {
 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
 				sizeof(struct shmem_inode_info),
-				0, SLAB_PANIC, shmem_init_inode);
+				0, SLAB_PANIC|SLAB_ACCOUNT, shmem_init_inode);
 	return 0;
 }
 

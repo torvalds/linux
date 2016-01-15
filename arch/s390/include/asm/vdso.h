@@ -38,12 +38,14 @@ struct vdso_data {
 struct vdso_per_cpu_data {
 	__u64 ectg_timer_base;
 	__u64 ectg_user_time;
+	__u32 cpu_nr;
+	__u32 node_id;
 };
 
 extern struct vdso_data *vdso_data;
 
-int vdso_alloc_per_cpu(struct _lowcore *lowcore);
-void vdso_free_per_cpu(struct _lowcore *lowcore);
+int vdso_alloc_per_cpu(struct lowcore *lowcore);
+void vdso_free_per_cpu(struct lowcore *lowcore);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __S390_VDSO_H__ */
