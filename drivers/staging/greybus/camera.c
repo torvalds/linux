@@ -352,8 +352,6 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int nstreams,
 		streams[i].pixel_code =
 			gb_camera_gb_to_mbus(gb_streams[i].format);
 	}
-	/* For backward compatibility return number of streams in ret code */
-	ret = nstreams;
 
 done:
 	kfree(gb_streams);
