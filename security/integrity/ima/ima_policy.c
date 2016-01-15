@@ -612,6 +612,12 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = MMAP_CHECK;
 			else if (strcmp(args[0].from, "BPRM_CHECK") == 0)
 				entry->func = BPRM_CHECK;
+			else if (strcmp(args[0].from, "KEXEC_KERNEL_CHECK") ==
+				 0)
+				entry->func = KEXEC_KERNEL_CHECK;
+			else if (strcmp(args[0].from, "KEXEC_INITRAMFS_CHECK")
+				 == 0)
+				entry->func = KEXEC_INITRAMFS_CHECK;
 			else
 				result = -EINVAL;
 			if (!result)
@@ -855,7 +861,8 @@ static char *mask_tokens[] = {
 
 enum {
 	func_file = 0, func_mmap, func_bprm,
-	func_module, func_firmware, func_post
+	func_module, func_firmware, func_post,
+	func_kexec_kernel, func_kexec_initramfs
 };
 
 static char *func_tokens[] = {
@@ -864,6 +871,8 @@ static char *func_tokens[] = {
 	"BPRM_CHECK",
 	"MODULE_CHECK",
 	"FIRMWARE_CHECK",
+	"KEXEC_KERNEL_CHECK",
+	"KEXEC_INITRAMFS_CHECK",
 	"POST_SETATTR"
 };
 
@@ -928,6 +937,12 @@ static void policy_func_show(struct seq_file *m, enum ima_hooks func)
 		break;
 	case POST_SETATTR:
 		seq_printf(m, pt(Opt_func), ft(func_post));
+		break;
+	case KEXEC_KERNEL_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_kexec_kernel));
+		break;
+	case KEXEC_INITRAMFS_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_kexec_initramfs));
 		break;
 	default:
 		snprintf(tbuf, sizeof(tbuf), "%d", func);

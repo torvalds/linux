@@ -339,6 +339,13 @@ int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
 	return 0;
 }
 
+static int read_idmap[READING_MAX_ID] = {
+	[READING_FIRMWARE] = FIRMWARE_CHECK,
+	[READING_MODULE] = MODULE_CHECK,
+	[READING_KEXEC_IMAGE] = KEXEC_KERNEL_CHECK,
+	[READING_KEXEC_INITRAMFS] = KEXEC_INITRAMFS_CHECK,
+};
+
 /**
  * ima_post_read_file - in memory collect/appraise/audit measurement
  * @file: pointer to the file to be measured/appraised/audit
@@ -355,7 +362,7 @@ int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
 int ima_post_read_file(struct file *file, void *buf, loff_t size,
 		       enum kernel_read_file_id read_id)
 {
-	enum ima_hooks func = FILE_CHECK;
+	enum ima_hooks func;
 
 	if (!file && read_id == READING_FIRMWARE) {
 		if ((ima_appraise & IMA_APPRAISE_FIRMWARE) &&
@@ -373,11 +380,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 		return 0;
 	}
 
-	if (read_id == READING_FIRMWARE)
-		func = FIRMWARE_CHECK;
-	else if (read_id == READING_MODULE)
-		func = MODULE_CHECK;
-
+	func = read_idmap[read_id] ?: FILE_CHECK;
 	return process_measurement(file, buf, size, MAY_READ, func, 0);
 }
 
