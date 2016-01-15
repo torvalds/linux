@@ -1486,8 +1486,6 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 		ecc_writel(host->ecc, CR, ATMEL_ECC_RST);
 }
 
-static const struct of_device_id atmel_nand_dt_ids[];
-
 static int atmel_of_init_port(struct atmel_nand_host *host,
 			      struct device_node *np)
 {
@@ -1498,7 +1496,7 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 	enum of_gpio_flags flags = 0;
 
 	host->caps = (struct atmel_nand_caps *)
-		of_match_device(atmel_nand_dt_ids, host->dev)->data;
+		of_device_get_match_data(host->dev);
 
 	if (of_property_read_u32(np, "atmel,nand-addr-offset", &val) == 0) {
 		if (val >= 32) {
