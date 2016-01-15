@@ -4153,11 +4153,12 @@ commit_trans:
 				if (ret)
 					return ret;
 				/*
-				 * make sure that all running delayed iput are
-				 * done
+				 * The cleaner kthread might still be doing iput
+				 * operations. Wait for it to finish so that
+				 * more space is released.
 				 */
-				down_write(&root->fs_info->delayed_iput_sem);
-				up_write(&root->fs_info->delayed_iput_sem);
+				mutex_lock(&root->fs_info->cleaner_delayed_iput_mutex);
+				mutex_unlock(&root->fs_info->cleaner_delayed_iput_mutex);
 				goto again;
 			} else {
 				btrfs_end_transaction(trans, root);
