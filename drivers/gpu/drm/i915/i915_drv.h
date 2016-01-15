@@ -890,6 +890,7 @@ struct intel_context {
 		int pin_count;
 		struct i915_vma *lrc_vma;
 		u64 lrc_desc;
+		uint32_t *lrc_reg_state;
 	} engine[I915_NUM_RINGS];
 
 	struct list_head link;
