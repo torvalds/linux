@@ -28,9 +28,6 @@
 
 #include "udf_sb.h"
 
-static int udf_translate_to_linux(uint8_t *, int, const uint8_t *, int,
-				  const uint8_t *, int);
-
 static int udf_uni2char_utf8(wchar_t uni,
 			     unsigned char *out,
 			     int boundlen)
@@ -114,13 +111,83 @@ static int udf_char2uni_utf8(const unsigned char *in,
 	return u_len;
 }
 
+#define ILLEGAL_CHAR_MARK	'_'
+#define EXT_MARK		'.'
+#define CRC_MARK		'#'
+#define EXT_SIZE		5
+/* Number of chars we need to store generated CRC to make filename unique */
+#define CRC_LEN			5
+
+static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
+			      int *str_o_idx,
+			      const uint8_t *str_i, int str_i_max_len,
+			      int *str_i_idx,
+			      int u_ch, int *needsCRC,
+			      int (*conv_f)(wchar_t, unsigned char *, int),
+			      int translate)
+{
+	uint32_t c;
+	int illChar = 0;
+	int len, gotch = 0;
+
+	for (; (!gotch) && (*str_i_idx < str_i_max_len); *str_i_idx += u_ch) {
+		if (*str_o_idx >= str_o_max_len) {
+			*needsCRC = 1;
+			return gotch;
+		}
+
+		/* Expand OSTA compressed Unicode to Unicode */
+		c = str_i[*str_i_idx];
+		if (u_ch > 1)
+			c = (c << 8) | str_i[*str_i_idx + 1];
+
+		if (translate && (c == '/' || c == 0))
+			illChar = 1;
+		else if (illChar)
+			break;
+		else
+			gotch = 1;
+	}
+	if (illChar) {
+		*needsCRC = 1;
+		c = ILLEGAL_CHAR_MARK;
+		gotch = 1;
+	}
+	if (gotch) {
+		len = conv_f(c, &str_o[*str_o_idx], str_o_max_len - *str_o_idx);
+		/* Valid character? */
+		if (len >= 0)
+			*str_o_idx += len;
+		else if (len == -ENAMETOOLONG) {
+			*needsCRC = 1;
+			gotch = 0;
+		} else {
+			str_o[(*str_o_idx)++] = '?';
+			*needsCRC = 1;
+		}
+	}
+	return gotch;
+}
+
 static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
 			     const uint8_t *ocu, int ocu_len,
-			     int (*conv_f)(wchar_t, unsigned char *, int))
+			     int (*conv_f)(wchar_t, unsigned char *, int),
+			     int translate)
 {
+	uint32_t c;
 	uint8_t cmp_id;
-	int i, len;
-	int str_o_len = 0;
+	int idx, len;
+	int u_ch;
+	int needsCRC = 0;
+	int ext_i_len, ext_max_len;
+	int str_o_len = 0;	/* Length of resulting output */
+	int ext_o_len = 0;	/* Extension output length */
+	int ext_crc_len = 0;	/* Extension output length if used with CRC */
+	int i_ext = -1;		/* Extension position in input buffer */
+	int o_crc = 0;		/* Rightmost possible output pos for CRC+ext */
+	unsigned short valueCRC;
+	uint8_t ext[EXT_SIZE * NLS_MAX_CHARSET_SIZE + 1];
+	uint8_t crc[CRC_LEN];
 
 	if (str_max_len <= 0)
 		return 0;
@@ -133,24 +200,88 @@ static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
 	cmp_id = ocu[0];
 	if (cmp_id != 8 && cmp_id != 16) {
 		memset(str_o, 0, str_max_len);
-		pr_err("unknown compression code (%d) stri=%s\n", cmp_id, ocu);
+		pr_err("unknown compression code (%d)\n", cmp_id);
+		return -EINVAL;
+	}
+	u_ch = cmp_id >> 3;
+
+	ocu++;
+	ocu_len--;
+
+	if (ocu_len % u_ch) {
+		pr_err("incorrect filename length (%d)\n", ocu_len + 1);
 		return -EINVAL;
 	}
 
-	for (i = 1; (i < ocu_len) && (str_o_len < str_max_len);) {
-		/* Expand OSTA compressed Unicode to Unicode */
-		uint32_t c = ocu[i++];
-		if (cmp_id == 16)
-			c = (c << 8) | ocu[i++];
+	if (translate) {
+		/* Look for extension */
+		for (idx = ocu_len - u_ch, ext_i_len = 0;
+		     (idx >= 0) && (ext_i_len < EXT_SIZE);
+		     idx -= u_ch, ext_i_len++) {
+			c = ocu[idx];
+			if (u_ch > 1)
+				c = (c << 8) | ocu[idx + 1];
 
-		len = conv_f(c, &str_o[str_o_len], str_max_len - str_o_len);
-		/* Valid character? */
-		if (len >= 0)
-			str_o_len += len;
-		else if (len == -ENAMETOOLONG)
+			if (c == EXT_MARK) {
+				if (ext_i_len)
+					i_ext = idx;
+				break;
+			}
+		}
+		if (i_ext >= 0) {
+			/* Convert extension */
+			ext_max_len = min_t(int, sizeof(ext), str_max_len);
+			ext[ext_o_len++] = EXT_MARK;
+			idx = i_ext + u_ch;
+			while (udf_name_conv_char(ext, ext_max_len, &ext_o_len,
+						  ocu, ocu_len, &idx,
+						  u_ch, &needsCRC,
+						  conv_f, translate)) {
+				if ((ext_o_len + CRC_LEN) < str_max_len)
+					ext_crc_len = ext_o_len;
+			}
+		}
+	}
+
+	idx = 0;
+	while (1) {
+		if (translate && (idx == i_ext)) {
+			if (str_o_len > (str_max_len - ext_o_len))
+				needsCRC = 1;
 			break;
-		else
-			str_o[str_o_len++] = '?';
+		}
+
+		if (!udf_name_conv_char(str_o, str_max_len, &str_o_len,
+					ocu, ocu_len, &idx,
+					u_ch, &needsCRC, conv_f, translate))
+			break;
+
+		if (translate &&
+		    (str_o_len <= (str_max_len - ext_o_len - CRC_LEN)))
+			o_crc = str_o_len;
+	}
+
+	if (translate) {
+		if (str_o_len <= 2 && str_o[0] == '.' &&
+		    (str_o_len == 1 || str_o[1] == '.'))
+			needsCRC = 1;
+		if (needsCRC) {
+			str_o_len = o_crc;
+			valueCRC = crc_itu_t(0, ocu, ocu_len);
+			crc[0] = CRC_MARK;
+			crc[1] = hex_asc_upper_hi(valueCRC >> 8);
+			crc[2] = hex_asc_upper_lo(valueCRC >> 8);
+			crc[3] = hex_asc_upper_hi(valueCRC);
+			crc[4] = hex_asc_upper_lo(valueCRC);
+			len = min_t(int, CRC_LEN, str_max_len - str_o_len);
+			memcpy(&str_o[str_o_len], crc, len);
+			str_o_len += len;
+			ext_o_len = ext_crc_len;
+		}
+		if (ext_o_len > 0) {
+			memcpy(&str_o[str_o_len], ext, ext_o_len);
+			str_o_len += ext_o_len;
+		}
 	}
 
 	return str_o_len;
@@ -207,13 +338,12 @@ try_again:
 int udf_CS0toUTF8(uint8_t *utf_o, int o_len, const uint8_t *ocu_i, int i_len)
 {
 	return udf_name_from_CS0(utf_o, o_len, ocu_i, i_len,
-				 udf_uni2char_utf8);
+				 udf_uni2char_utf8, 0);
 }
 
 int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
 		     uint8_t *dname, int dlen)
 {
-	uint8_t *filename;
 	int (*conv_f)(wchar_t, unsigned char *, int);
 	int ret;
 
@@ -223,10 +353,6 @@ int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
 	if (dlen <= 0)
 		return 0;
 
-	filename = kmalloc(dlen, GFP_NOFS);
-	if (!filename)
-		return -ENOMEM;
-
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
 		conv_f = udf_uni2char_utf8;
 	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
@@ -234,19 +360,10 @@ int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
 	} else
 		BUG();
 
-	ret = udf_name_from_CS0(filename, dlen, sname, slen, conv_f);
-	if (ret < 0) {
-		udf_debug("Failed in udf_get_filename: sname = %s\n", sname);
-		goto out2;
-	}
-
-	ret = udf_translate_to_linux(dname, dlen, filename, dlen,
-				     sname + 1, slen - 1);
+	ret = udf_name_from_CS0(dname, dlen, sname, slen, conv_f, 1);
 	/* Zero length filename isn't valid... */
 	if (ret == 0)
 		ret = -EINVAL;
-out2:
-	kfree(filename);
 	return ret;
 }
 
@@ -265,96 +382,3 @@ int udf_put_filename(struct super_block *sb, const uint8_t *sname, int slen,
 	return udf_name_to_CS0(dname, dlen, sname, slen, conv_f);
 }
 
-#define ILLEGAL_CHAR_MARK	'_'
-#define EXT_MARK		'.'
-#define CRC_MARK		'#'
-#define EXT_SIZE 		5
-/* Number of chars we need to store generated CRC to make filename unique */
-#define CRC_LEN			5
-
-static int udf_translate_to_linux(uint8_t *newName, int newLen,
-				  const uint8_t *udfName, int udfLen,
-				  const uint8_t *fidName, int fidNameLen)
-{
-	int index, newIndex = 0, needsCRC = 0;
-	int extIndex = 0, newExtIndex = 0, hasExt = 0;
-	unsigned short valueCRC;
-	uint8_t curr;
-
-	if (udfName[0] == '.' &&
-	    (udfLen == 1 || (udfLen == 2 && udfName[1] == '.'))) {
-		needsCRC = 1;
-		newIndex = udfLen;
-		memcpy(newName, udfName, udfLen);
-	} else {
-		for (index = 0; index < udfLen; index++) {
-			curr = udfName[index];
-			if (curr == '/' || curr == 0) {
-				needsCRC = 1;
-				curr = ILLEGAL_CHAR_MARK;
-				while (index + 1 < udfLen &&
-						(udfName[index + 1] == '/' ||
-						 udfName[index + 1] == 0))
-					index++;
-			}
-			if (curr == EXT_MARK &&
-					(udfLen - index - 1) <= EXT_SIZE) {
-				if (udfLen == index + 1)
-					hasExt = 0;
-				else {
-					hasExt = 1;
-					extIndex = index;
-					newExtIndex = newIndex;
-				}
-			}
-			if (newIndex < newLen)
-				newName[newIndex++] = curr;
-			else
-				needsCRC = 1;
-		}
-	}
-	if (needsCRC) {
-		uint8_t ext[EXT_SIZE];
-		int localExtIndex = 0;
-
-		if (hasExt) {
-			int maxFilenameLen;
-			for (index = 0;
-			     index < EXT_SIZE && extIndex + index + 1 < udfLen;
-			     index++) {
-				curr = udfName[extIndex + index + 1];
-
-				if (curr == '/' || curr == 0) {
-					needsCRC = 1;
-					curr = ILLEGAL_CHAR_MARK;
-					while (extIndex + index + 2 < udfLen &&
-					      (index + 1 < EXT_SIZE &&
-						(udfName[extIndex + index + 2] == '/' ||
-						 udfName[extIndex + index + 2] == 0)))
-						index++;
-				}
-				ext[localExtIndex++] = curr;
-			}
-			maxFilenameLen = newLen - CRC_LEN - localExtIndex;
-			if (newIndex > maxFilenameLen)
-				newIndex = maxFilenameLen;
-			else
-				newIndex = newExtIndex;
-		} else if (newIndex > newLen - CRC_LEN)
-			newIndex = newLen - CRC_LEN;
-		newName[newIndex++] = CRC_MARK;
-		valueCRC = crc_itu_t(0, fidName, fidNameLen);
-		newName[newIndex++] = hex_asc_upper_hi(valueCRC >> 8);
-		newName[newIndex++] = hex_asc_upper_lo(valueCRC >> 8);
-		newName[newIndex++] = hex_asc_upper_hi(valueCRC);
-		newName[newIndex++] = hex_asc_upper_lo(valueCRC);
-
-		if (hasExt) {
-			newName[newIndex++] = EXT_MARK;
-			for (index = 0; index < localExtIndex; index++)
-				newName[newIndex++] = ext[index];
-		}
-	}
-
-	return newIndex;
-}
