@@ -15,7 +15,14 @@ struct readdir_handle_s {
 };
 
 /*
- * decode routine needed by kmod to make sense of the shared page for readdirs.
+ * decode routine used by kmod to deal with the blob sent from
+ * userspace for readdirs. The blob contains zero or more of these
+ * sub-blobs:
+ *   __u32 - represents length of the character string that follows.
+ *   string - between 1 and ORANGEFS_NAME_MAX bytes long.
+ *   padding - (if needed) to cause the __u32 plus the string to be
+ *             eight byte aligned.
+ *   khandle - sizeof(khandle) bytes.
  */
 static long decode_dirents(char *ptr, size_t size,
                            struct orangefs_readdir_response_s *readdir)
@@ -24,54 +31,115 @@ static long decode_dirents(char *ptr, size_t size,
 	struct orangefs_readdir_response_s *rd =
 		(struct orangefs_readdir_response_s *) ptr;
 	char *buf = ptr;
+	int khandle_size = sizeof(struct orangefs_khandle);
+	size_t offset = offsetof(struct orangefs_readdir_response_s,
+				dirent_array);
+	/* 8 reflects eight byte alignment */
+	int smallest_blob = khandle_size + 8;
+	__u32 len;
+	int aligned_len;
+	int sizeof_u32 = sizeof(__u32);
+	long ret;
 
-	if (size < offsetof(struct orangefs_readdir_response_s, dirent_array))
-		return -EINVAL;
+	gossip_debug(GOSSIP_DIR_DEBUG, "%s: size:%zu:\n", __func__, size);
+
+	/* size is = offset on empty dirs, > offset on non-empty dirs... */
+	if (size < offset) {
+		gossip_err("%s: size:%zu: offset:%zu:\n",
+			   __func__,
+			   size,
+			   offset);
+		ret = -EINVAL;
+		goto out;
+	}
+
+        if ((size == offset) && (readdir->orangefs_dirent_outcount != 0)) {
+		gossip_err("%s: size:%zu: dirent_outcount:%d:\n",
+			   __func__,
+			   size,
+			   readdir->orangefs_dirent_outcount);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	readdir->token = rd->token;
 	readdir->orangefs_dirent_outcount = rd->orangefs_dirent_outcount;
 	readdir->dirent_array = kcalloc(readdir->orangefs_dirent_outcount,
 					sizeof(*readdir->dirent_array),
 					GFP_KERNEL);
-	if (readdir->dirent_array == NULL)
-		return -ENOMEM;
+	if (readdir->dirent_array == NULL) {
+		gossip_err("%s: kcalloc failed.\n", __func__);
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	buf += offsetof(struct orangefs_readdir_response_s, dirent_array);
-	size -= offsetof(struct orangefs_readdir_response_s, dirent_array);
+	buf += offset;
+	size -= offset;
 
 	for (i = 0; i < readdir->orangefs_dirent_outcount; i++) {
-		__u32 len;
-
-		if (size < 4)
-			goto Einval;
+		if (size < smallest_blob) {
+			gossip_err("%s: size:%zu: smallest_blob:%d:\n",
+				   __func__,
+				   size,
+				   smallest_blob);
+			ret = -EINVAL;
+			goto free;
+		}
 
 		len = *(__u32 *)buf;
-		if (len >= (unsigned)-24)
-			goto Einval;
+		if ((len < 1) || (len > ORANGEFS_NAME_MAX)) {
+			gossip_err("%s: len:%d:\n", __func__, len);
+			ret = -EINVAL;
+			goto free;
+		}
 
-		readdir->dirent_array[i].d_name = buf + 4;
+		gossip_debug(GOSSIP_DIR_DEBUG,
+			     "%s: size:%zu: len:%d:\n",
+			     __func__,
+			     size,
+			     len);
+
+		readdir->dirent_array[i].d_name = buf + sizeof_u32;
 		readdir->dirent_array[i].d_length = len;
 
 		/*
-		 * Round 4 + len + 1, which is the encoded size plus the string
-		 * plus the null terminator to the nearest eight byte boundry.
+		 * Calculate "aligned" length of this string and its
+		 * associated __u32 descriptor.
 		 */
-		len = ((4 + len + 1) + 7) & ~7;
-		if (size < len + 16)
-			goto Einval;
-		size -= len + 16;
+		aligned_len = ((sizeof_u32 + len + 1) + 7) & ~7;
+		gossip_debug(GOSSIP_DIR_DEBUG,
+			     "%s: aligned_len:%d:\n",
+			     __func__,
+			     aligned_len);
 
-		buf += len;
+		/*
+		 * The end of the blob should coincide with the end
+		 * of the last sub-blob.
+		 */
+		if (size < aligned_len + khandle_size) {
+			gossip_err("%s: ran off the end of the blob.\n",
+				   __func__);
+			ret = -EINVAL;
+			goto free;
+		}
+		size -= aligned_len + khandle_size;
+
+		buf += aligned_len;
 
 		readdir->dirent_array[i].khandle =
 			*(struct orangefs_khandle *) buf;
-		buf += 16;
+		buf += khandle_size;
 	}
-	return buf - ptr;
-Einval:
+	ret = buf - ptr;
+	gossip_debug(GOSSIP_DIR_DEBUG, "%s: returning:%ld:\n", __func__, ret);
+	goto out;
+
+free:
 	kfree(readdir->dirent_array);
 	readdir->dirent_array = NULL;
-	return -EINVAL;
+
+out:
+	return ret;
 }
 
 static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
