@@ -67,7 +67,7 @@ static int ima_fix_xattr(struct dentry *dentry,
 
 /* Return specific func appraised cached result */
 enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
-					   int func)
+					   enum ima_hooks func)
 {
 	switch (func) {
 	case MMAP_CHECK:
@@ -85,7 +85,8 @@ enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 }
 
 static void ima_set_cache_status(struct integrity_iint_cache *iint,
-				 int func, enum integrity_status status)
+				 enum ima_hooks func,
+				 enum integrity_status status)
 {
 	switch (func) {
 	case MMAP_CHECK:
@@ -103,11 +104,11 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 	case FILE_CHECK:
 	default:
 		iint->ima_file_status = status;
-		break;
 	}
 }
 
-static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
+static void ima_cache_flags(struct integrity_iint_cache *iint,
+			     enum ima_hooks func)
 {
 	switch (func) {
 	case MMAP_CHECK:
@@ -125,7 +126,6 @@ static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
 	case FILE_CHECK:
 	default:
 		iint->flags |= (IMA_FILE_APPRAISED | IMA_APPRAISED);
-		break;
 	}
 }
 
@@ -185,7 +185,8 @@ int ima_read_xattr(struct dentry *dentry,
  *
  * Return 0 on success, error code otherwise
  */
-int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
+int ima_appraise_measurement(enum ima_hooks func,
+			     struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
 			     int xattr_len, int opened)

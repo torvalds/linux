@@ -207,8 +207,8 @@ static void ima_lsm_update_rules(void)
  *
  * Returns true on rule match, false on failure.
  */
-static bool ima_match_rules(struct ima_rule_entry *rule,
-			    struct inode *inode, enum ima_hooks func, int mask)
+static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
+			    enum ima_hooks func, int mask)
 {
 	struct task_struct *tsk = current;
 	const struct cred *cred = current_cred();
@@ -289,7 +289,7 @@ retry:
  * In addition to knowing that we need to appraise the file in general,
  * we need to differentiate between calling hooks, for hook specific rules.
  */
-static int get_subaction(struct ima_rule_entry *rule, int func)
+static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 {
 	if (!(rule->flags & IMA_FUNC))
 		return IMA_FILE_APPRAISE;

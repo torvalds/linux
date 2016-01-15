@@ -156,7 +156,7 @@ err_out:
  * ima_get_action - appraise & measure decision based on policy.
  * @inode: pointer to inode to measure
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXECUTE)
- * @function: calling function (FILE_CHECK, BPRM_CHECK, MMAP_CHECK, MODULE_CHECK)
+ * @func: caller identifier
  *
  * The policy is defined in terms of keypairs:
  *		subj=, obj=, type=, func=, mask=, fsmagic=
@@ -168,13 +168,13 @@ err_out:
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_get_action(struct inode *inode, int mask, int function)
+int ima_get_action(struct inode *inode, int mask, enum ima_hooks func)
 {
 	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
 
 	flags &= ima_policy_flag;
 
-	return ima_match_policy(inode, function, mask, flags);
+	return ima_match_policy(inode, func, mask, flags);
 }
 
 /*

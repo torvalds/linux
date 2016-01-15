@@ -153,8 +153,8 @@ void ima_file_free(struct file *file)
 	ima_check_last_writer(iint, inode, file);
 }
 
-static int process_measurement(struct file *file, int mask, int function,
-			       int opened)
+static int process_measurement(struct file *file, int mask,
+			       enum ima_hooks func, int opened)
 {
 	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint = NULL;
@@ -174,8 +174,8 @@ static int process_measurement(struct file *file, int mask, int function,
 	 * bitmask based on the appraise/audit/measurement policy.
 	 * Included is the appraise submask.
 	 */
-	action = ima_get_action(inode, mask, function);
-	violation_check = ((function == FILE_CHECK || function == MMAP_CHECK) &&
+	action = ima_get_action(inode, mask, func);
+	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK) &&
 			   (ima_policy_flag & IMA_MEASURE));
 	if (!action && !violation_check)
 		return 0;
@@ -184,7 +184,7 @@ static int process_measurement(struct file *file, int mask, int function,
 
 	/*  Is the appraise rule hook specific?  */
 	if (action & IMA_FILE_APPRAISE)
-		function = FILE_CHECK;
+		func = FILE_CHECK;
 
 	inode_lock(inode);
 
@@ -214,7 +214,7 @@ static int process_measurement(struct file *file, int mask, int function,
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
 		if (must_appraise)
-			rc = ima_get_cache_status(iint, function);
+			rc = ima_get_cache_status(iint, func);
 		goto out_digsig;
 	}
 
@@ -240,7 +240,7 @@ static int process_measurement(struct file *file, int mask, int function,
 		ima_store_measurement(iint, file, pathname,
 				      xattr_value, xattr_len);
 	if (action & IMA_APPRAISE_SUBMASK)
-		rc = ima_appraise_measurement(function, iint, file, pathname,
+		rc = ima_appraise_measurement(func, iint, file, pathname,
 					      xattr_value, xattr_len, opened);
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);

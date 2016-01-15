@@ -137,9 +137,18 @@ static inline unsigned long ima_hash_key(u8 *digest)
 	return hash_long(*digest, IMA_HASH_BITS);
 }
 
+enum ima_hooks {
+	FILE_CHECK = 1,
+	MMAP_CHECK,
+	BPRM_CHECK,
+	MODULE_CHECK,
+	FIRMWARE_CHECK,
+	POST_SETATTR
+};
+
 /* LIM API function definitions */
-int ima_get_action(struct inode *inode, int mask, int function);
-int ima_must_measure(struct inode *inode, int mask, int function);
+int ima_get_action(struct inode *inode, int mask, enum ima_hooks func);
+int ima_must_measure(struct inode *inode, int mask, enum ima_hooks func);
 int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    struct file *file, enum hash_algo algo);
 void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
@@ -156,8 +165,6 @@ void ima_free_template_entry(struct ima_template_entry *entry);
 const char *ima_d_path(struct path *path, char **pathbuf);
 
 /* IMA policy related functions */
-enum ima_hooks { FILE_CHECK = 1, MMAP_CHECK, BPRM_CHECK, MODULE_CHECK, FIRMWARE_CHECK, POST_SETATTR };
-
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags);
 void ima_init_policy(void);
@@ -179,21 +186,22 @@ int ima_policy_show(struct seq_file *m, void *v);
 #define IMA_APPRAISE_FIRMWARE	0x10
 
 #ifdef CONFIG_IMA_APPRAISE
-int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
+int ima_appraise_measurement(enum ima_hooks func,
+			     struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
 			     int xattr_len, int opened);
 int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
 void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
 enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
-					   int func);
+					   enum ima_hooks func);
 enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 				 int xattr_len);
 int ima_read_xattr(struct dentry *dentry,
 		   struct evm_ima_xattr_data **xattr_value);
 
 #else
-static inline int ima_appraise_measurement(int func,
+static inline int ima_appraise_measurement(enum ima_hooks func,
 					   struct integrity_iint_cache *iint,
 					   struct file *file,
 					   const unsigned char *filename,
@@ -215,7 +223,8 @@ static inline void ima_update_xattr(struct integrity_iint_cache *iint,
 }
 
 static inline enum integrity_status ima_get_cache_status(struct integrity_iint_cache
-							 *iint, int func)
+							 *iint,
+							 enum ima_hooks func)
 {
 	return INTEGRITY_UNKNOWN;
 }
