@@ -80,7 +80,7 @@
 #define FW_REV_MINOR(x)		(((x) & FW_REV_MINOR_MASK) >> FW_REV_MINOR_BITS)
 #define FW_REV_PATCH(x)		((x) & FW_REV_PATCH_MASK)
 
-#define MAX_RX_TIMEOUT		(msecs_to_jiffies(20))
+#define MAX_RX_TIMEOUT		(msecs_to_jiffies(30))
 
 enum scpi_error_codes {
 	SCPI_SUCCESS = 0, /* Success */
@@ -700,7 +700,7 @@ static int scpi_probe(struct platform_device *pdev)
 		cl->rx_callback = scpi_handle_remote_msg;
 		cl->tx_prepare = scpi_tx_prepare;
 		cl->tx_block = true;
-		cl->tx_tout = 50;
+		cl->tx_tout = 20;
 		cl->knows_txdone = false; /* controller can't ack */
 
 		INIT_LIST_HEAD(&pchan->rx_pending);
