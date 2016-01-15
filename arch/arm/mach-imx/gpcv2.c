@@ -193,8 +193,9 @@ void imx_gpcv2_set_slot_ack(u32 index, enum imx_gpc_slot m_core,
 	if (index >= MAX_SLOT_NUMBER)
 		pr_err("Invalid slot index!\n");
 	/* set slot */
-	writel_relaxed((mode + 1) << (m_core * 2), gpc_base +
-		GPC_SLOT0_CFG + index * 4);
+	writel_relaxed(readl_relaxed(gpc_base + GPC_SLOT0_CFG + index * 4) |
+		((mode + 1) << (m_core * 2)),
+		gpc_base + GPC_SLOT0_CFG + index * 4);
 
 	if (ack) {
 		/* set ack */
