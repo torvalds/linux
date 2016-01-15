@@ -406,7 +406,5 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		__swab64s(&marker->cm_createtime);
 		__swab64s(&marker->cm_canceltime);
 	}
-
-	return;
 }
 EXPORT_SYMBOL(lustre_swab_cfg_marker);
