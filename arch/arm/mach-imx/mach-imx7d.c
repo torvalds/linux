@@ -19,6 +19,12 @@
 #include "common.h"
 #include "cpuidle.h"
 
+static struct property device_disabled = {
+	.name = "status",
+	.length = sizeof("disabled"),
+	.value = "disabled",
+};
+
 static int ar8031_phy_fixup(struct phy_device *dev)
 {
 	u16 val;
@@ -108,6 +114,17 @@ static inline void imx7d_enet_init(void)
 	imx7d_enet_clk_sel();
 }
 
+static inline void imx7d_disable_arm_arch_timer(void)
+{
+	struct device_node *node;
+
+	node = of_find_compatible_node(NULL, NULL, "arm,armv7-timer");
+	if (node) {
+		pr_info("disable arm arch timer for nosmp!\n");
+		of_add_property(node, &device_disabled);
+	}
+}
+
 static void __init imx7d_init_machine(void)
 {
 	struct device *parent;
@@ -128,6 +145,9 @@ static void __init imx7d_init_irq(void)
 	imx_init_revision_from_anatop();
 	imx_src_init();
 	irqchip_init();
+#ifndef CONFIG_SMP
+	imx7d_disable_arm_arch_timer();
+#endif
 }
 
 static void __init imx7d_init_late(void)
