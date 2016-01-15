@@ -71,8 +71,7 @@ MODULE_PARM_DESC(last, "Number of last console to take over (1 - MAX_NR_CONSOLES
 
 static struct usb_driver sisusb_driver;
 
-static void
-sisusb_free_buffers(struct sisusb_usb_data *sisusb)
+static void sisusb_free_buffers(struct sisusb_usb_data *sisusb)
 {
 	int i;
 
@@ -88,8 +87,7 @@ sisusb_free_buffers(struct sisusb_usb_data *sisusb)
 	}
 }
 
-static void
-sisusb_free_urbs(struct sisusb_usb_data *sisusb)
+static void sisusb_free_urbs(struct sisusb_usb_data *sisusb)
 {
 	int i;
 
@@ -108,8 +106,7 @@ sisusb_free_urbs(struct sisusb_usb_data *sisusb)
 /* out-urb management */
 
 /* Return 1 if all free, 0 otherwise */
-static int
-sisusb_all_free(struct sisusb_usb_data *sisusb)
+static int sisusb_all_free(struct sisusb_usb_data *sisusb)
 {
 	int i;
 
@@ -124,8 +121,7 @@ sisusb_all_free(struct sisusb_usb_data *sisusb)
 }
 
 /* Kill all busy URBs */
-static void
-sisusb_kill_all_busy(struct sisusb_usb_data *sisusb)
+static void sisusb_kill_all_busy(struct sisusb_usb_data *sisusb)
 {
 	int i;
 
@@ -141,20 +137,17 @@ sisusb_kill_all_busy(struct sisusb_usb_data *sisusb)
 }
 
 /* Return 1 if ok, 0 if error (not all complete within timeout) */
-static int
-sisusb_wait_all_out_complete(struct sisusb_usb_data *sisusb)
+static int sisusb_wait_all_out_complete(struct sisusb_usb_data *sisusb)
 {
 	int timeout = 5 * HZ, i = 1;
 
-	wait_event_timeout(sisusb->wait_q,
-				(i = sisusb_all_free(sisusb)),
-				 timeout);
+	wait_event_timeout(sisusb->wait_q, (i = sisusb_all_free(sisusb)),
+			timeout);
 
 	return i;
 }
 
-static int
-sisusb_outurb_available(struct sisusb_usb_data *sisusb)
+static int sisusb_outurb_available(struct sisusb_usb_data *sisusb)
 {
 	int i;
 
@@ -168,20 +161,17 @@ sisusb_outurb_available(struct sisusb_usb_data *sisusb)
 	return -1;
 }
 
-static int
-sisusb_get_free_outbuf(struct sisusb_usb_data *sisusb)
+static int sisusb_get_free_outbuf(struct sisusb_usb_data *sisusb)
 {
 	int i, timeout = 5 * HZ;
 
 	wait_event_timeout(sisusb->wait_q,
-				((i = sisusb_outurb_available(sisusb)) >= 0),
-				timeout);
+			((i = sisusb_outurb_available(sisusb)) >= 0), timeout);
 
 	return i;
 }
 
-static int
-sisusb_alloc_outbuf(struct sisusb_usb_data *sisusb)
+static int sisusb_alloc_outbuf(struct sisusb_usb_data *sisusb)
 {
 	int i;
 
@@ -193,8 +183,7 @@ sisusb_alloc_outbuf(struct sisusb_usb_data *sisusb)
 	return i;
 }
 
-static void
-sisusb_free_outbuf(struct sisusb_usb_data *sisusb, int index)
+static void sisusb_free_outbuf(struct sisusb_usb_data *sisusb, int index)
 {
 	if ((index >= 0) && (index < sisusb->numobufs))
 		sisusb->urbstatus[index] &= ~SU_URB_ALLOC;
@@ -202,8 +191,7 @@ sisusb_free_outbuf(struct sisusb_usb_data *sisusb, int index)
 
 /* completion callback */
 
-static void
-sisusb_bulk_completeout(struct urb *urb)
+static void sisusb_bulk_completeout(struct urb *urb)
 {
 	struct sisusb_urb_context *context = urb->context;
 	struct sisusb_usb_data *sisusb;
@@ -225,9 +213,9 @@ sisusb_bulk_completeout(struct urb *urb)
 	wake_up(&sisusb->wait_q);
 }
 
-static int
-sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index, unsigned int pipe, void *data,
-		int len, int *actual_length, int timeout, unsigned int tflags)
+static int sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index,
+		unsigned int pipe, void *data, int len, int *actual_length,
+		int timeout, unsigned int tflags)
 {
 	struct urb *urb = sisusb->sisurbout[index];
 	int retval, byteswritten = 0;
@@ -236,7 +224,8 @@ sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index, unsigned int pipe,
 	urb->transfer_flags = 0;
 
 	usb_fill_bulk_urb(urb, sisusb->sisusb_dev, pipe, data, len,
-		sisusb_bulk_completeout, &sisusb->urbout_context[index]);
+			sisusb_bulk_completeout,
+			&sisusb->urbout_context[index]);
 
 	urb->transfer_flags |= tflags;
 	urb->actual_length = 0;
@@ -277,8 +266,7 @@ sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index, unsigned int pipe,
 
 /* completion callback */
 
-static void
-sisusb_bulk_completein(struct urb *urb)
+static void sisusb_bulk_completein(struct urb *urb)
 {
 	struct sisusb_usb_data *sisusb = urb->context;
 
@@ -289,9 +277,9 @@ sisusb_bulk_completein(struct urb *urb)
 	wake_up(&sisusb->wait_q);
 }
 
-static int
-sisusb_bulkin_msg(struct sisusb_usb_data *sisusb, unsigned int pipe, void *data,
-	int len, int *actual_length, int timeout, unsigned int tflags)
+static int sisusb_bulkin_msg(struct sisusb_usb_data *sisusb,
+		unsigned int pipe, void *data, int len,
+		int *actual_length, int timeout, unsigned int tflags)
 {
 	struct urb *urb = sisusb->sisurbin;
 	int retval, readbytes = 0;
@@ -405,14 +393,9 @@ static int sisusb_send_bulk_msg(struct sisusb_usb_data *sisusb, int ep, int len,
 			if (!sisusb->sisusb_dev)
 				return -ENODEV;
 
-			result = sisusb_bulkout_msg(sisusb,
-						index,
-						pipe,
-						buffer,
-						thispass,
-						&transferred_len,
-						async ? 0 : 5 * HZ,
-						tflags);
+			result = sisusb_bulkout_msg(sisusb, index, pipe,
+					buffer, thispass, &transferred_len,
+					async ? 0 : 5 * HZ, tflags);
 
 			if (result == -ETIMEDOUT) {
 
@@ -500,13 +483,8 @@ static int sisusb_recv_bulk_msg(struct sisusb_usb_data *sisusb, int ep, int len,
 
 		thispass = (bufsize < count) ? bufsize : count;
 
-		result = sisusb_bulkin_msg(sisusb,
-					   pipe,
-					   buffer,
-					   thispass,
-					   &transferred_len,
-					   5 * HZ,
-					   tflags);
+		result = sisusb_bulkin_msg(sisusb, pipe, buffer, thispass,
+				&transferred_len, 5 * HZ, tflags);
 
 		if (transferred_len)
 			thispass = transferred_len;
@@ -585,8 +563,7 @@ static int sisusb_send_packet(struct sisusb_usb_data *sisusb, int len,
 }
 
 static int sisusb_send_bridge_packet(struct sisusb_usb_data *sisusb, int len,
-					struct sisusb_packet *packet,
-					unsigned int tflags)
+		struct sisusb_packet *packet, unsigned int tflags)
 {
 	int ret;
 	ssize_t bytes_transferred = 0;
@@ -780,9 +757,8 @@ static int sisusb_write_memio_long(struct sisusb_usb_data *sisusb, int type,
  */
 
 static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
-				char *kernbuffer, int length,
-				const char __user *userbuffer, int index,
-				ssize_t *bytes_written)
+		char *kernbuffer, int length, const char __user *userbuffer,
+		int index, ssize_t *bytes_written)
 {
 	struct sisusb_packet packet;
 	int  ret = 0;
@@ -811,9 +787,8 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			} else
 				swap8 = kernbuffer[0];
 
-			ret = sisusb_write_memio_byte(sisusb,
-							SISUSB_TYPE_MEM,
-							addr, swap8);
+			ret = sisusb_write_memio_byte(sisusb, SISUSB_TYPE_MEM,
+					addr, swap8);
 
 			if (!ret)
 				(*bytes_written)++;
@@ -827,10 +802,8 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			} else
 				swap16 = *((u16 *)kernbuffer);
 
-			ret = sisusb_write_memio_word(sisusb,
-							SISUSB_TYPE_MEM,
-							addr,
-							swap16);
+			ret = sisusb_write_memio_word(sisusb, SISUSB_TYPE_MEM,
+					addr, swap16);
 
 			if (!ret)
 				(*bytes_written) += 2;
@@ -861,10 +834,8 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 					 kernbuffer[0];
 #endif
 
-			ret = sisusb_write_memio_24bit(sisusb,
-							SISUSB_TYPE_MEM,
-							addr,
-							swap32);
+			ret = sisusb_write_memio_24bit(sisusb, SISUSB_TYPE_MEM,
+					addr, swap32);
 
 			if (!ret)
 				(*bytes_written) += 3;
@@ -878,10 +849,8 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			} else
 				swap32 = *((u32 *)kernbuffer);
 
-			ret = sisusb_write_memio_long(sisusb,
-							SISUSB_TYPE_MEM,
-							addr,
-							swap32);
+			ret = sisusb_write_memio_long(sisusb, SISUSB_TYPE_MEM,
+					addr, swap32);
 			if (!ret)
 				(*bytes_written) += 4;
 
@@ -976,10 +945,13 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			if (ret) {
 				msgcount++;
 				if (msgcount < 500)
-					dev_err(&sisusb->sisusb_dev->dev, "Wrote %zd of %d bytes, error %d\n",
-						*bytes_written, length, ret);
+					dev_err(&sisusb->sisusb_dev->dev,
+							"Wrote %zd of %d bytes, error %d\n",
+							*bytes_written, length,
+							ret);
 				else if (msgcount == 500)
-					dev_err(&sisusb->sisusb_dev->dev, "Too many errors, logging stopped\n");
+					dev_err(&sisusb->sisusb_dev->dev,
+							"Too many errors, logging stopped\n");
 			}
 			addr += (*bytes_written);
 			length -= (*bytes_written);
@@ -1137,8 +1109,8 @@ static int sisusb_read_memio_long(struct sisusb_usb_data *sisusb, int type,
 }
 
 static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
-				char *kernbuffer, int length,
-				char __user *userbuffer, ssize_t *bytes_read)
+		char *kernbuffer, int length, char __user *userbuffer,
+		ssize_t *bytes_read)
 {
 	int ret = 0;
 	char buf[4];
@@ -1157,8 +1129,7 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			if (!ret) {
 				(*bytes_read)++;
 				if (userbuffer) {
-					if (put_user(buf[0],
-						(u8 __user *)userbuffer)) {
+					if (put_user(buf[0], (u8 __user *)userbuffer)) {
 						return -EFAULT;
 					}
 				} else {
@@ -1173,8 +1144,7 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			if (!ret) {
 				(*bytes_read) += 2;
 				if (userbuffer) {
-					if (put_user(swap16,
-						(u16 __user *)userbuffer))
+					if (put_user(swap16, (u16 __user *)userbuffer))
 						return -EFAULT;
 				} else {
 					*((u16 *)kernbuffer) = swap16;
@@ -1197,7 +1167,8 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 				buf[0] = swap32 & 0xff;
 #endif
 				if (userbuffer) {
-					if (copy_to_user(userbuffer, &buf[0], 3))
+					if (copy_to_user(userbuffer,
+							&buf[0], 3))
 						return -EFAULT;
 				} else {
 					kernbuffer[0] = buf[0];
@@ -1213,8 +1184,7 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			if (!ret) {
 				(*bytes_read) += 4;
 				if (userbuffer) {
-					if (put_user(swap32,
-						(u32 __user *)userbuffer))
+					if (put_user(swap32, (u32 __user *)userbuffer))
 						return -EFAULT;
 
 					userbuffer += 4;
@@ -1236,40 +1206,39 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 /* High level: Gfx (indexed) register access */
 
 #ifdef INCL_SISUSB_CON
-int
-sisusb_setreg(struct sisusb_usb_data *sisusb, int port, u8 data)
+int sisusb_setreg(struct sisusb_usb_data *sisusb, int port, u8 data)
 {
 	return sisusb_write_memio_byte(sisusb, SISUSB_TYPE_IO, port, data);
 }
 
-int
-sisusb_getreg(struct sisusb_usb_data *sisusb, int port, u8 *data)
+int sisusb_getreg(struct sisusb_usb_data *sisusb, int port, u8 *data)
 {
 	return sisusb_read_memio_byte(sisusb, SISUSB_TYPE_IO, port, data);
 }
 #endif
 
-int
-sisusb_setidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 data)
+int sisusb_setidxreg(struct sisusb_usb_data *sisusb, int port,
+		u8 index, u8 data)
 {
 	int ret;
+
 	ret = sisusb_write_memio_byte(sisusb, SISUSB_TYPE_IO, port, index);
 	ret |= sisusb_write_memio_byte(sisusb, SISUSB_TYPE_IO, port + 1, data);
 	return ret;
 }
 
-int
-sisusb_getidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 *data)
+int sisusb_getidxreg(struct sisusb_usb_data *sisusb, int port,
+		u8 index, u8 *data)
 {
 	int ret;
+
 	ret = sisusb_write_memio_byte(sisusb, SISUSB_TYPE_IO, port, index);
 	ret |= sisusb_read_memio_byte(sisusb, SISUSB_TYPE_IO, port + 1, data);
 	return ret;
 }
 
-int
-sisusb_setidxregandor(struct sisusb_usb_data *sisusb, int port, u8 idx,
-							u8 myand, u8 myor)
+int sisusb_setidxregandor(struct sisusb_usb_data *sisusb, int port, u8 idx,
+		u8 myand, u8 myor)
 {
 	int ret;
 	u8 tmp;
@@ -1282,12 +1251,12 @@ sisusb_setidxregandor(struct sisusb_usb_data *sisusb, int port, u8 idx,
 	return ret;
 }
 
-static int
-sisusb_setidxregmask(struct sisusb_usb_data *sisusb, int port, u8 idx,
-							u8 data, u8 mask)
+static int sisusb_setidxregmask(struct sisusb_usb_data *sisusb,
+		int port, u8 idx, u8 data, u8 mask)
 {
 	int ret;
 	u8 tmp;
+
 	ret = sisusb_write_memio_byte(sisusb, SISUSB_TYPE_IO, port, idx);
 	ret |= sisusb_read_memio_byte(sisusb, SISUSB_TYPE_IO, port + 1, &tmp);
 	tmp &= ~(mask);
@@ -1296,14 +1265,14 @@ sisusb_setidxregmask(struct sisusb_usb_data *sisusb, int port, u8 idx,
 	return ret;
 }
 
-int
-sisusb_setidxregor(struct sisusb_usb_data *sisusb, int port, u8 index, u8 myor)
+int sisusb_setidxregor(struct sisusb_usb_data *sisusb, int port,
+		u8 index, u8 myor)
 {
 	return(sisusb_setidxregandor(sisusb, port, index, 0xff, myor));
 }
 
-int
-sisusb_setidxregand(struct sisusb_usb_data *sisusb, int port, u8 idx, u8 myand)
+int sisusb_setidxregand(struct sisusb_usb_data *sisusb, int port,
+		u8 idx, u8 myand)
 {
 	return(sisusb_setidxregandor(sisusb, port, idx, myand, 0x00));
 }
@@ -1311,38 +1280,35 @@ sisusb_setidxregand(struct sisusb_usb_data *sisusb, int port, u8 idx, u8 myand)
 /* Write/read video ram */
 
 #ifdef INCL_SISUSB_CON
-int
-sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data)
+int sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data)
 {
 	return(sisusb_write_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data));
 }
 
-int
-sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
+int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
 {
 	return(sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data));
 }
 
-int
-sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
-			u32 dest, int length, size_t *bytes_written)
+int sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
+		u32 dest, int length, size_t *bytes_written)
 {
-	return(sisusb_write_mem_bulk(sisusb, dest, src, length, NULL, 0, bytes_written));
+	return(sisusb_write_mem_bulk(sisusb, dest, src, length,
+			NULL, 0, bytes_written));
 }
 
 #ifdef SISUSBENDIANTEST
-int
-sisusb_read_memory(struct sisusb_usb_data *sisusb, char *dest,
-			u32 src, int length, size_t *bytes_written)
+int sisusb_read_memory(struct sisusb_usb_data *sisusb, char *dest,
+		u32 src, int length, size_t *bytes_written)
 {
-	return(sisusb_read_mem_bulk(sisusb, src, dest, length, NULL, bytes_written));
+	return(sisusb_read_mem_bulk(sisusb, src, dest, length,
+			NULL, bytes_written));
 }
 #endif
 #endif
 
 #ifdef SISUSBENDIANTEST
-static void
-sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
+static void sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
 {
 	static char srcbuffer[] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
 	char destbuffer[10];
@@ -1367,8 +1333,8 @@ sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
 
 /* access pci config registers (reg numbers 0, 4, 8, etc) */
 
-static int
-sisusb_write_pci_config(struct sisusb_usb_data *sisusb, int regnum, u32 data)
+static int sisusb_write_pci_config(struct sisusb_usb_data *sisusb,
+		int regnum, u32 data)
 {
 	struct sisusb_packet packet;
 	int ret;
@@ -1380,8 +1346,8 @@ sisusb_write_pci_config(struct sisusb_usb_data *sisusb, int regnum, u32 data)
 	return ret;
 }
 
-static int
-sisusb_read_pci_config(struct sisusb_usb_data *sisusb, int regnum, u32 *data)
+static int sisusb_read_pci_config(struct sisusb_usb_data *sisusb,
+		int regnum, u32 *data)
 {
 	struct sisusb_packet packet;
 	int ret;
@@ -1395,8 +1361,8 @@ sisusb_read_pci_config(struct sisusb_usb_data *sisusb, int regnum, u32 *data)
 
 /* Clear video RAM */
 
-static int
-sisusb_clear_vram(struct sisusb_usb_data *sisusb, u32 address, int length)
+static int sisusb_clear_vram(struct sisusb_usb_data *sisusb,
+		u32 address, int length)
 {
 	int ret, i;
 	ssize_t j;
@@ -1447,8 +1413,7 @@ sisusb_clear_vram(struct sisusb_usb_data *sisusb, u32 address, int length)
 #define READB(a, d) sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, a, d)
 #define WRITEB(a, d) sisusb_write_memio_byte(sisusb, SISUSB_TYPE_MEM, a, d)
 
-static int
-sisusb_triggersr16(struct sisusb_usb_data *sisusb, u8 ramtype)
+static int sisusb_triggersr16(struct sisusb_usb_data *sisusb, u8 ramtype)
 {
 	int ret;
 	u8 tmp8;
@@ -1478,8 +1443,8 @@ sisusb_triggersr16(struct sisusb_usb_data *sisusb, u8 ramtype)
 	return ret;
 }
 
-static int
-sisusb_getbuswidth(struct sisusb_usb_data *sisusb, int *bw, int *chab)
+static int sisusb_getbuswidth(struct sisusb_usb_data *sisusb,
+		int *bw, int *chab)
 {
 	int ret;
 	u8  ramtype, done = 0;
@@ -1591,8 +1556,7 @@ sisusb_getbuswidth(struct sisusb_usb_data *sisusb, int *bw, int *chab)
 	return ret;
 }
 
-static int
-sisusb_verify_mclk(struct sisusb_usb_data *sisusb)
+static int sisusb_verify_mclk(struct sisusb_usb_data *sisusb)
 {
 	int ret = 0;
 	u32 ramptr = SISUSB_PCI_MEMBASE;
@@ -1620,10 +1584,8 @@ sisusb_verify_mclk(struct sisusb_usb_data *sisusb)
 	return ret;
 }
 
-static int
-sisusb_set_rank(struct sisusb_usb_data *sisusb, int *iret, int index,
-			u8 rankno, u8 chab, const u8 dramtype[][5],
-			int bw)
+static int sisusb_set_rank(struct sisusb_usb_data *sisusb, int *iret,
+		int index, u8 rankno, u8 chab, const u8 dramtype[][5], int bw)
 {
 	int ret = 0, ranksize;
 	u8 tmp;
@@ -1639,7 +1601,9 @@ sisusb_set_rank(struct sisusb_usb_data *sisusb, int *iret, int index,
 		return ret;
 
 	tmp = 0;
-	while ((ranksize >>= 1) > 0) tmp += 0x10;
+	while ((ranksize >>= 1) > 0)
+		tmp += 0x10;
+
 	tmp |= ((rankno - 1) << 2);
 	tmp |= ((bw / 64) & 0x02);
 	tmp |= (chab & 0x01);
@@ -1652,8 +1616,8 @@ sisusb_set_rank(struct sisusb_usb_data *sisusb, int *iret, int index,
 	return ret;
 }
 
-static int
-sisusb_check_rbc(struct sisusb_usb_data *sisusb, int *iret, u32 inc, int testn)
+static int sisusb_check_rbc(struct sisusb_usb_data *sisusb, int *iret,
+		u32 inc, int testn)
 {
 	int ret = 0, i;
 	u32 j, tmp;
@@ -1667,7 +1631,9 @@ sisusb_check_rbc(struct sisusb_usb_data *sisusb, int *iret, u32 inc, int testn)
 
 	for (i = 0, j = 0; i < testn; i++) {
 		ret |= READL(sisusb->vrambase + j, &tmp);
-		if (tmp != j) return ret;
+		if (tmp != j)
+			return ret;
+
 		j += inc;
 	}
 
@@ -1675,9 +1641,8 @@ sisusb_check_rbc(struct sisusb_usb_data *sisusb, int *iret, u32 inc, int testn)
 	return ret;
 }
 
-static int
-sisusb_check_ranks(struct sisusb_usb_data *sisusb, int *iret, int rankno,
-					int idx, int bw, const u8 rtype[][5])
+static int sisusb_check_ranks(struct sisusb_usb_data *sisusb,
+		int *iret, int rankno, int idx, int bw, const u8 rtype[][5])
 {
 	int ret = 0, i, i2ret;
 	u32 inc;
@@ -1685,10 +1650,8 @@ sisusb_check_ranks(struct sisusb_usb_data *sisusb, int *iret, int rankno,
 	*iret = 0;
 
 	for (i = rankno; i >= 1; i--) {
-		inc = 1 << (rtype[idx][2] +
-			    rtype[idx][1] +
-			    rtype[idx][0] +
-			    bw / 64 + i);
+		inc = 1 << (rtype[idx][2] + rtype[idx][1] + rtype[idx][0] +
+				bw / 64 + i);
 		ret |= sisusb_check_rbc(sisusb, &i2ret, inc, 2);
 		if (!i2ret)
 			return ret;
@@ -1708,9 +1671,8 @@ sisusb_check_ranks(struct sisusb_usb_data *sisusb, int *iret, int rankno,
 	return ret;
 }
 
-static int
-sisusb_get_sdram_size(struct sisusb_usb_data *sisusb, int *iret, int bw,
-								int chab)
+static int sisusb_get_sdram_size(struct sisusb_usb_data *sisusb, int *iret,
+		int bw, int chab)
 {
 	int ret = 0, i2ret = 0, i, j;
 	static const u8 sdramtype[13][5] = {
@@ -1734,13 +1696,13 @@ sisusb_get_sdram_size(struct sisusb_usb_data *sisusb, int *iret, int bw,
 	for (i = 0; i < 13; i++) {
 		ret |= SETIREGANDOR(SISSR, 0x13, 0x80, sdramtype[i][4]);
 		for (j = 2; j > 0; j--) {
-			ret |= sisusb_set_rank(sisusb, &i2ret, i, j,
-						chab, sdramtype, bw);
+			ret |= sisusb_set_rank(sisusb, &i2ret, i, j, chab,
+					sdramtype, bw);
 			if (!i2ret)
 				continue;
 
-			ret |= sisusb_check_ranks(sisusb, &i2ret, j, i,
-						bw, sdramtype);
+			ret |= sisusb_check_ranks(sisusb, &i2ret, j, i, bw,
+					sdramtype);
 			if (i2ret) {
 				*iret = 0;	/* ram size found */
 				return ret;
@@ -1751,8 +1713,8 @@ sisusb_get_sdram_size(struct sisusb_usb_data *sisusb, int *iret, int bw,
 	return ret;
 }
 
-static int
-sisusb_setup_screen(struct sisusb_usb_data *sisusb, int clrall, int drwfr)
+static int sisusb_setup_screen(struct sisusb_usb_data *sisusb,
+		int clrall, int drwfr)
 {
 	int ret = 0;
 	u32 address;
@@ -1791,8 +1753,8 @@ sisusb_setup_screen(struct sisusb_usb_data *sisusb, int clrall, int drwfr)
 	return ret;
 }
 
-static int
-sisusb_set_default_mode(struct sisusb_usb_data *sisusb, int touchengines)
+static int sisusb_set_default_mode(struct sisusb_usb_data *sisusb,
+		int touchengines)
 {
 	int ret = 0, i, j, modex, modey, bpp, du;
 	u8 sr31, cr63, tmp8;
@@ -1872,12 +1834,16 @@ sisusb_set_default_mode(struct sisusb_usb_data *sisusb, int touchengines)
 	SETIREGANDOR(SISCR, 0x09, 0x5f, ((crtcdata[16] & 0x01) << 5));
 	SETIREG(SISCR, 0x14, 0x4f);
 	du = (modex / 16) * (bpp * 2);	/* offset/pitch */
-	if (modex % 16) du += bpp;
+	if (modex % 16)
+		du += bpp;
+
 	SETIREGANDOR(SISSR, 0x0e, 0xf0, ((du >> 8) & 0x0f));
 	SETIREG(SISCR, 0x13, (du & 0xff));
 	du <<= 5;
 	tmp8 = du >> 8;
-	if (du & 0xff) tmp8++;
+	if (du & 0xff)
+		tmp8++;
+
 	SETIREG(SISSR, 0x10, tmp8);
 	SETIREG(SISSR, 0x31, 0x00);	/* VCLK */
 	SETIREG(SISSR, 0x2b, 0x1b);
@@ -1923,8 +1889,7 @@ sisusb_set_default_mode(struct sisusb_usb_data *sisusb, int touchengines)
 	return ret;
 }
 
-static int
-sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
+static int sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 {
 	int ret = 0, i, j, bw, chab, iret, retry = 3;
 	u8 tmp8, ramtype;
@@ -1968,7 +1933,8 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 		ret |= GETREG(SISMISCR, &tmp8);
 		ret |= SETREG(SISMISCW, (tmp8 | 0x01));
 
-		if (ret) continue;
+		if (ret)
+			continue;
 
 		/* Reset registers */
 		ret |= SETIREGAND(SISCR, 0x5b, 0xdf);
@@ -1993,7 +1959,8 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 			ret |= SETIREG(SISCR, i, 0x00);
 		}
 
-		if (ret) continue;
+		if (ret)
+			continue;
 
 		ret |= SETIREG(SISCR, 0x63, 0x80);
 
@@ -2011,13 +1978,16 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 		ret |= SETIREG(SISSR, 0x07, 0x18);
 		ret |= SETIREG(SISSR, 0x11, 0x0f);
 
-		if (ret) continue;
+		if (ret)
+			continue;
 
 		for (i = 0x15, j = 0; i <= 0x1b; i++, j++) {
-			ret |= SETIREG(SISSR, i, ramtypetable1[(j*4) + ramtype]);
+			ret |= SETIREG(SISSR, i,
+					ramtypetable1[(j*4) + ramtype]);
 		}
 		for (i = 0x40, j = 0; i <= 0x44; i++, j++) {
-			ret |= SETIREG(SISCR, i, ramtypetable2[(j*4) + ramtype]);
+			ret |= SETIREG(SISCR, i,
+					ramtypetable2[(j*4) + ramtype]);
 		}
 
 		ret |= SETIREG(SISCR, 0x49, 0xaa);
@@ -2034,7 +2004,8 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 
 		ret |= SETIREGAND(SISCAP, 0x3f, 0xef);
 
-		if (ret) continue;
+		if (ret)
+			continue;
 
 		ret |= SETIREG(SISPART1, 0x00, 0x00);
 
@@ -2056,7 +2027,8 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 		ret |= SETIREG(SISSR, 0x32, 0x11);
 		ret |= SETIREG(SISSR, 0x33, 0x00);
 
-		if (ret) continue;
+		if (ret)
+			continue;
 
 		ret |= SETIREG(SISCR, 0x83, 0x00);
 
@@ -2078,12 +2050,14 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 		if (ramtype <= 1) {
 			ret |= sisusb_get_sdram_size(sisusb, &iret, bw, chab);
 			if (iret) {
-				dev_err(&sisusb->sisusb_dev->dev,"RAM size detection failed, assuming 8MB video RAM\n");
+				dev_err(&sisusb->sisusb_dev->dev,
+						"RAM size detection failed, assuming 8MB video RAM\n");
 				ret |= SETIREG(SISSR, 0x14, 0x31);
 				/* TODO */
 			}
 		} else {
-			dev_err(&sisusb->sisusb_dev->dev, "DDR RAM device found, assuming 8MB video RAM\n");
+			dev_err(&sisusb->sisusb_dev->dev,
+					"DDR RAM device found, assuming 8MB video RAM\n");
 			ret |= SETIREG(SISSR, 0x14, 0x31);
 			/* *** TODO *** */
 		}
@@ -2115,8 +2089,7 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 #undef READL
 #undef WRITEL
 
-static void
-sisusb_get_ramconfig(struct sisusb_usb_data *sisusb)
+static void sisusb_get_ramconfig(struct sisusb_usb_data *sisusb)
 {
 	u8 tmp8, tmp82, ramtype;
 	int bw = 0;
@@ -2133,35 +2106,38 @@ sisusb_get_ramconfig(struct sisusb_usb_data *sisusb)
 	sisusb->vramsize = (1 << ((tmp8 & 0xf0) >> 4)) * 1024 * 1024;
 	ramtype &= 0x03;
 	switch ((tmp8 >> 2) & 0x03) {
-	case 0: ramtypetext1 = "1 ch/1 r";
+	case 0:
+		ramtypetext1 = "1 ch/1 r";
 		if (tmp82 & 0x10) {
 			bw = 32;
 		} else {
 			bw = busSDR[(tmp8 & 0x03)];
 		}
 		break;
-	case 1: ramtypetext1 = "1 ch/2 r";
+	case 1:
+		ramtypetext1 = "1 ch/2 r";
 		sisusb->vramsize <<= 1;
 		bw = busSDR[(tmp8 & 0x03)];
 		break;
-	case 2: ramtypetext1 = "asymmeric";
+	case 2:
+		ramtypetext1 = "asymmeric";
 		sisusb->vramsize += sisusb->vramsize/2;
 		bw = busDDRA[(tmp8 & 0x03)];
 		break;
-	case 3: ramtypetext1 = "2 channel";
+	case 3:
+		ramtypetext1 = "2 channel";
 		sisusb->vramsize <<= 1;
 		bw = busDDR[(tmp8 & 0x03)];
 		break;
 	}
 
-
-	dev_info(&sisusb->sisusb_dev->dev, "%dMB %s %cDR S%cRAM, bus width %d\n",
-		 sisusb->vramsize >> 20, ramtypetext1,
-		 ram_datarate[ramtype], ram_dynamictype[ramtype], bw);
+	dev_info(&sisusb->sisusb_dev->dev,
+			"%dMB %s %cDR S%cRAM, bus width %d\n",
+			sisusb->vramsize >> 20, ramtypetext1,
+			ram_datarate[ramtype], ram_dynamictype[ramtype], bw);
 }
 
-static int
-sisusb_do_init_gfxdevice(struct sisusb_usb_data *sisusb)
+static int sisusb_do_init_gfxdevice(struct sisusb_usb_data *sisusb)
 {
 	struct sisusb_packet packet;
 	int ret;
@@ -2239,8 +2215,7 @@ sisusb_do_init_gfxdevice(struct sisusb_usb_data *sisusb)
  * of the graphics board.
  */
 
-static int
-sisusb_init_gfxdevice(struct sisusb_usb_data *sisusb, int initscreen)
+static int sisusb_init_gfxdevice(struct sisusb_usb_data *sisusb, int initscreen)
 {
 	int ret = 0, test = 0;
 	u32 tmp32;
@@ -2248,16 +2223,25 @@ sisusb_init_gfxdevice(struct sisusb_usb_data *sisusb, int initscreen)
 	if (sisusb->devinit == 1) {
 		/* Read PCI BARs and see if they have been set up */
 		ret |= sisusb_read_pci_config(sisusb, 0x10, &tmp32);
-		if (ret) return ret;
-		if ((tmp32 & 0xfffffff0) == SISUSB_PCI_MEMBASE) test++;
+		if (ret)
+			return ret;
+
+		if ((tmp32 & 0xfffffff0) == SISUSB_PCI_MEMBASE)
+			test++;
 
 		ret |= sisusb_read_pci_config(sisusb, 0x14, &tmp32);
-		if (ret) return ret;
-		if ((tmp32 & 0xfffffff0) == SISUSB_PCI_MMIOBASE) test++;
+		if (ret)
+			return ret;
+
+		if ((tmp32 & 0xfffffff0) == SISUSB_PCI_MMIOBASE)
+			test++;
 
 		ret |= sisusb_read_pci_config(sisusb, 0x18, &tmp32);
-		if (ret) return ret;
-		if ((tmp32 & 0xfffffff0) == SISUSB_PCI_IOPORTBASE) test++;
+		if (ret)
+			return ret;
+
+		if ((tmp32 & 0xfffffff0) == SISUSB_PCI_IOPORTBASE)
+			test++;
 	}
 
 	/* No? So reset the device */
@@ -2292,15 +2276,15 @@ sisusb_init_gfxdevice(struct sisusb_usb_data *sisusb, int initscreen)
    - Upload user font (if available)
 */
 
-int
-sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
+int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 {
 	int ret = 0, slot = sisusb->font_slot, i;
 	const struct font_desc *myfont;
 	u8 *tempbuf;
 	u16 *tempbufb;
 	size_t written;
-	static const char bootstring[] = "SiSUSB VGA text console, (C) 2005 Thomas Winischhofer.";
+	static const char bootstring[] =
+		"SiSUSB VGA text console, (C) 2005 Thomas Winischhofer.";
 	static const char bootlogo[] = "(o_ //\\ V_/_";
 
 	/* sisusb->lock is down */
@@ -2326,7 +2310,8 @@ sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 		memcpy(tempbuf + (i * 32), myfont->data + (i * 16), 16);
 
 	/* Upload default font */
-	ret = sisusbcon_do_font_op(sisusb, 1, 0, tempbuf, 8192, 0, 1, NULL, 16, 0);
+	ret = sisusbcon_do_font_op(sisusb, 1, 0, tempbuf, 8192,
+			0, 1, NULL, 16, 0);
 
 	vfree(tempbuf);
 
@@ -2373,7 +2358,8 @@ sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 	} else if (sisusb->scrbuf) {
 
 		ret |= sisusb_copy_memory(sisusb, (char *)sisusb->scrbuf,
-				sisusb->vrambase, sisusb->scrbuf_size, &written);
+				sisusb->vrambase, sisusb->scrbuf_size,
+				&written);
 
 	}
 
@@ -2390,7 +2376,8 @@ sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 	}
 
 	slot = sisusb->sisusb_cursor_loc;
-	if (slot < 0) slot = 0;
+	if (slot < 0)
+		slot = 0;
 
 	sisusb->sisusb_cursor_loc = -1;
 	sisusb->bad_cursor_pos = 1;
@@ -2411,8 +2398,7 @@ sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 
 /* fops */
 
-static int
-sisusb_open(struct inode *inode, struct file *file)
+static int sisusb_open(struct inode *inode, struct file *file)
 {
 	struct sisusb_usb_data *sisusb;
 	struct usb_interface *interface;
@@ -2445,12 +2431,14 @@ sisusb_open(struct inode *inode, struct file *file)
 				sisusb->sisusb_dev->speed == USB_SPEED_SUPER) {
 			if (sisusb_init_gfxdevice(sisusb, 0)) {
 				mutex_unlock(&sisusb->lock);
-				dev_err(&sisusb->sisusb_dev->dev, "Failed to initialize device\n");
+				dev_err(&sisusb->sisusb_dev->dev,
+						"Failed to initialize device\n");
 				return -EIO;
 			}
 		} else {
 			mutex_unlock(&sisusb->lock);
-			dev_err(&sisusb->sisusb_dev->dev, "Device not attached to USB 2.0 hub\n");
+			dev_err(&sisusb->sisusb_dev->dev,
+					"Device not attached to USB 2.0 hub\n");
 			return -EIO;
 		}
 	}
@@ -2467,8 +2455,7 @@ sisusb_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-void
-sisusb_delete(struct kref *kref)
+void sisusb_delete(struct kref *kref)
 {
 	struct sisusb_usb_data *sisusb = to_sisusb_dev(kref);
 
@@ -2486,8 +2473,7 @@ sisusb_delete(struct kref *kref)
 	kfree(sisusb);
 }
 
-static int
-sisusb_release(struct inode *inode, struct file *file)
+static int sisusb_release(struct inode *inode, struct file *file)
 {
 	struct sisusb_usb_data *sisusb;
 
@@ -2514,8 +2500,8 @@ sisusb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t
-sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t sisusb_read(struct file *file, char __user *buffer,
+		size_t count, loff_t *ppos)
 {
 	struct sisusb_usb_data *sisusb;
 	ssize_t bytes_read = 0;
@@ -2539,9 +2525,8 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 	if ((*ppos) >= SISUSB_PCI_PSEUDO_IOPORTBASE &&
 			(*ppos) <  SISUSB_PCI_PSEUDO_IOPORTBASE + 128) {
 
-		address = (*ppos) -
-			SISUSB_PCI_PSEUDO_IOPORTBASE +
-			SISUSB_PCI_IOPORTBASE;
+		address = (*ppos) - SISUSB_PCI_PSEUDO_IOPORTBASE +
+				SISUSB_PCI_IOPORTBASE;
 
 		/* Read i/o ports
 		 * Byte, word and long(32) can be read. As this
@@ -2550,8 +2535,7 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 		 */
 		switch (count) {
 		case 1:
-			if (sisusb_read_memio_byte(sisusb,
-					SISUSB_TYPE_IO,
+			if (sisusb_read_memio_byte(sisusb, SISUSB_TYPE_IO,
 					address, &buf8))
 				errno = -EIO;
 			else if (put_user(buf8, (u8 __user *)buffer))
@@ -2562,8 +2546,7 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 			break;
 
 		case 2:
-			if (sisusb_read_memio_word(sisusb,
-					SISUSB_TYPE_IO,
+			if (sisusb_read_memio_word(sisusb, SISUSB_TYPE_IO,
 					address, &buf16))
 				errno = -EIO;
 			else if (put_user(buf16, (u16 __user *)buffer))
@@ -2574,8 +2557,7 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 			break;
 
 		case 4:
-			if (sisusb_read_memio_long(sisusb,
-					SISUSB_TYPE_IO,
+			if (sisusb_read_memio_long(sisusb, SISUSB_TYPE_IO,
 					address, &buf32))
 				errno = -EIO;
 			else if (put_user(buf32, (u32 __user *)buffer))
@@ -2590,12 +2572,11 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 
 		}
 
-	} else if ((*ppos) >= SISUSB_PCI_PSEUDO_MEMBASE &&
-		   (*ppos) <  SISUSB_PCI_PSEUDO_MEMBASE + sisusb->vramsize) {
+	} else if ((*ppos) >= SISUSB_PCI_PSEUDO_MEMBASE && (*ppos) <
+			SISUSB_PCI_PSEUDO_MEMBASE + sisusb->vramsize) {
 
-		address = (*ppos) -
-			SISUSB_PCI_PSEUDO_MEMBASE +
-			SISUSB_PCI_MEMBASE;
+		address = (*ppos) - SISUSB_PCI_PSEUDO_MEMBASE +
+				SISUSB_PCI_MEMBASE;
 
 		/* Read video ram
 		 * Remember: Data delivered is never endian-corrected
@@ -2607,11 +2588,11 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 			errno = bytes_read;
 
 	} else  if ((*ppos) >= SISUSB_PCI_PSEUDO_MMIOBASE &&
-		    (*ppos) <  SISUSB_PCI_PSEUDO_MMIOBASE + SISUSB_PCI_MMIOSIZE) {
+				(*ppos) <  SISUSB_PCI_PSEUDO_MMIOBASE +
+				SISUSB_PCI_MMIOSIZE) {
 
-		address = (*ppos) -
-			SISUSB_PCI_PSEUDO_MMIOBASE +
-			SISUSB_PCI_MMIOBASE;
+		address = (*ppos) - SISUSB_PCI_PSEUDO_MMIOBASE +
+				SISUSB_PCI_MMIOBASE;
 
 		/* Read MMIO
 		 * Remember: Data delivered is never endian-corrected
@@ -2655,9 +2636,8 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 	return errno ? errno : bytes_read;
 }
 
-static ssize_t
-sisusb_write(struct file *file, const char __user *buffer, size_t count,
-								loff_t *ppos)
+static ssize_t sisusb_write(struct file *file, const char __user *buffer,
+		size_t count, loff_t *ppos)
 {
 	struct sisusb_usb_data *sisusb;
 	int errno = 0;
@@ -2681,9 +2661,8 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 	if ((*ppos) >= SISUSB_PCI_PSEUDO_IOPORTBASE &&
 			(*ppos) <  SISUSB_PCI_PSEUDO_IOPORTBASE + 128) {
 
-		address = (*ppos) -
-			SISUSB_PCI_PSEUDO_IOPORTBASE +
-			SISUSB_PCI_IOPORTBASE;
+		address = (*ppos) - SISUSB_PCI_PSEUDO_IOPORTBASE +
+				SISUSB_PCI_IOPORTBASE;
 
 		/* Write i/o ports
 		 * Byte, word and long(32) can be written. As this
@@ -2695,8 +2674,7 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 			if (get_user(buf8, (u8 __user *)buffer))
 				errno = -EFAULT;
 			else if (sisusb_write_memio_byte(sisusb,
-					SISUSB_TYPE_IO,
-					address, buf8))
+					SISUSB_TYPE_IO, address, buf8))
 				errno = -EIO;
 			else
 				bytes_written = 1;
@@ -2707,8 +2685,7 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 			if (get_user(buf16, (u16 __user *)buffer))
 				errno = -EFAULT;
 			else if (sisusb_write_memio_word(sisusb,
-					SISUSB_TYPE_IO,
-					address, buf16))
+					SISUSB_TYPE_IO, address, buf16))
 				errno = -EIO;
 			else
 				bytes_written = 2;
@@ -2719,8 +2696,7 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 			if (get_user(buf32, (u32 __user *)buffer))
 				errno = -EFAULT;
 			else if (sisusb_write_memio_long(sisusb,
-					SISUSB_TYPE_IO,
-					address, buf32))
+					SISUSB_TYPE_IO, address, buf32))
 				errno = -EIO;
 			else
 				bytes_written = 4;
@@ -2732,11 +2708,11 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 		}
 
 	} else if ((*ppos) >= SISUSB_PCI_PSEUDO_MEMBASE &&
-		   (*ppos) <  SISUSB_PCI_PSEUDO_MEMBASE + sisusb->vramsize) {
+			(*ppos) <  SISUSB_PCI_PSEUDO_MEMBASE +
+			sisusb->vramsize) {
 
-		address = (*ppos) -
-			SISUSB_PCI_PSEUDO_MEMBASE +
-			SISUSB_PCI_MEMBASE;
+		address = (*ppos) - SISUSB_PCI_PSEUDO_MEMBASE +
+				SISUSB_PCI_MEMBASE;
 
 		/* Write video ram.
 		 * Buffer is copied 1:1, therefore, on big-endian
@@ -2751,11 +2727,11 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 			errno = bytes_written;
 
 	} else  if ((*ppos) >= SISUSB_PCI_PSEUDO_MMIOBASE &&
-		    (*ppos) <  SISUSB_PCI_PSEUDO_MMIOBASE + SISUSB_PCI_MMIOSIZE) {
+			(*ppos) <  SISUSB_PCI_PSEUDO_MMIOBASE +
+			SISUSB_PCI_MMIOSIZE) {
 
-		address = (*ppos) -
-			SISUSB_PCI_PSEUDO_MMIOBASE +
-			SISUSB_PCI_MMIOBASE;
+		address = (*ppos) - SISUSB_PCI_PSEUDO_MMIOBASE +
+				SISUSB_PCI_MMIOBASE;
 
 		/* Write MMIO.
 		 * Buffer is copied 1:1, therefore, on big-endian
@@ -2769,7 +2745,8 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 			errno = bytes_written;
 
 	} else  if ((*ppos) >= SISUSB_PCI_PSEUDO_PCIBASE &&
-		    (*ppos) <= SISUSB_PCI_PSEUDO_PCIBASE + SISUSB_PCI_PCONFSIZE) {
+				(*ppos) <= SISUSB_PCI_PSEUDO_PCIBASE +
+				SISUSB_PCI_PCONFSIZE) {
 
 		if (count != 4) {
 			mutex_unlock(&sisusb->lock);
@@ -2803,8 +2780,7 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 	return errno ? errno : bytes_written;
 }
 
-static loff_t
-sisusb_lseek(struct file *file, loff_t offset, int orig)
+static loff_t sisusb_lseek(struct file *file, loff_t offset, int orig)
 {
 	struct sisusb_usb_data *sisusb;
 	loff_t ret;
@@ -2827,9 +2803,8 @@ sisusb_lseek(struct file *file, loff_t offset, int orig)
 	return ret;
 }
 
-static int
-sisusb_handle_command(struct sisusb_usb_data *sisusb, struct sisusb_command *y,
-							unsigned long arg)
+static int sisusb_handle_command(struct sisusb_usb_data *sisusb,
+		struct sisusb_command *y, unsigned long arg)
 {
 	int	retval, port, length;
 	u32	address;
@@ -2946,8 +2921,7 @@ sisusb_handle_command(struct sisusb_usb_data *sisusb, struct sisusb_command *y,
 	return retval;
 }
 
-static long
-sisusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long sisusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct sisusb_usb_data *sisusb;
 	struct sisusb_info x;
@@ -3021,8 +2995,8 @@ err_out:
 }
 
 #ifdef SISUSB_NEW_CONFIG_COMPAT
-static long
-sisusb_compat_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+static long sisusb_compat_ioctl(struct file *f, unsigned int cmd,
+		unsigned long arg)
 {
 	long retval;
 
@@ -3081,8 +3055,9 @@ static int sisusb_probe(struct usb_interface *intf,
 	/* Register device */
 	retval = usb_register_dev(intf, &usb_sisusb_class);
 	if (retval) {
-		dev_err(&sisusb->sisusb_dev->dev, "Failed to get a minor for device %d\n",
-			dev->devnum);
+		dev_err(&sisusb->sisusb_dev->dev,
+				"Failed to get a minor for device %d\n",
+				dev->devnum);
 		retval = -ENODEV;
 		goto error_1;
 	}
@@ -3128,7 +3103,8 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	for (i = 0; i < sisusb->numobufs; i++) {
 		if (!(sisusb->sisurbout[i] = usb_alloc_urb(0, GFP_KERNEL))) {
-			dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate URBs\n");
+			dev_err(&sisusb->sisusb_dev->dev,
+					"Failed to allocate URBs\n");
 			retval = -ENOMEM;
 			goto error_4;
 		}
@@ -3137,7 +3113,8 @@ static int sisusb_probe(struct usb_interface *intf,
 		sisusb->urbstatus[i] = 0;
 	}
 
-	dev_info(&sisusb->sisusb_dev->dev, "Allocated %d output buffers\n", sisusb->numobufs);
+	dev_info(&sisusb->sisusb_dev->dev, "Allocated %d output buffers\n",
+			sisusb->numobufs);
 
 #ifdef INCL_SISUSB_CON
 	/* Allocate our SiS_Pr */
@@ -3159,17 +3136,18 @@ static int sisusb_probe(struct usb_interface *intf,
 	if (dev->speed == USB_SPEED_HIGH || dev->speed == USB_SPEED_SUPER) {
 		int initscreen = 1;
 #ifdef INCL_SISUSB_CON
-		if (sisusb_first_vc > 0 &&
-		    sisusb_last_vc > 0 &&
-		    sisusb_first_vc <= sisusb_last_vc &&
-		    sisusb_last_vc <= MAX_NR_CONSOLES)
+		if (sisusb_first_vc > 0 && sisusb_last_vc > 0 &&
+				sisusb_first_vc <= sisusb_last_vc &&
+				sisusb_last_vc <= MAX_NR_CONSOLES)
 			initscreen = 0;
 #endif
 		if (sisusb_init_gfxdevice(sisusb, initscreen))
-			dev_err(&sisusb->sisusb_dev->dev, "Failed to early initialize device\n");
+			dev_err(&sisusb->sisusb_dev->dev,
+					"Failed to early initialize device\n");
 
 	} else
-		dev_info(&sisusb->sisusb_dev->dev, "Not attached to USB 2.0 hub, deferring init\n");
+		dev_info(&sisusb->sisusb_dev->dev,
+				"Not attached to USB 2.0 hub, deferring init\n");
 
 	sisusb->ready = 1;
 
