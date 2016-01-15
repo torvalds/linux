@@ -2509,7 +2509,7 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
  * @pwrb: ptr to the WRB entry
  * @task: iscsi task which is to be executed
  **/
-static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
+static int hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 {
 	struct iscsi_sge *psgl;
 	struct beiscsi_io_task *io_task = task->dd_data;
@@ -2541,6 +2541,9 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 							     task->data,
 							     task->data_count,
 							     PCI_DMA_TODEVICE);
+			if (pci_dma_mapping_error(phba->pcidev,
+						  io_task->mtask_addr))
+				return -ENOMEM;
 			io_task->mtask_data_count = task->data_count;
 		} else
 			io_task->mtask_addr = 0;
@@ -2585,6 +2588,7 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 		AMAP_SET_BITS(struct amap_iscsi_sge, len, psgl, 0x106);
 	}
 	AMAP_SET_BITS(struct amap_iscsi_sge, last_sge, psgl, 1);
+	return 0;
 }
 
 /**
@@ -5046,6 +5050,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	unsigned int doorbell = 0;
 	unsigned int cid;
 	unsigned int pwrb_typeoffset = 0;
+	int ret = 0;
 
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	pwrb = io_task->pwrb_handle->pwrb;
@@ -5094,7 +5099,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	case ISCSI_OP_LOGIN:
 		AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb, 1);
 		ADAPTER_SET_WRB_TYPE(pwrb, TGT_DM_CMD, pwrb_typeoffset);
-		hwi_write_buffer(pwrb, task);
+		ret = hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_NOOP_OUT:
 		if (task->hdr->ttt != ISCSI_RESERVED_TAG) {
@@ -5114,19 +5119,19 @@ static int beiscsi_mtask(struct iscsi_task *task)
 				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
 					      dmsg, pwrb, 0);
 		}
-		hwi_write_buffer(pwrb, task);
+		ret = hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_TEXT:
 		ADAPTER_SET_WRB_TYPE(pwrb, TGT_DM_CMD, pwrb_typeoffset);
-		hwi_write_buffer(pwrb, task);
+		ret = hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
 		ADAPTER_SET_WRB_TYPE(pwrb, INI_TMF_CMD, pwrb_typeoffset);
-		hwi_write_buffer(pwrb, task);
+		ret = hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_LOGOUT:
 		ADAPTER_SET_WRB_TYPE(pwrb, HWH_TYPE_LOGOUT, pwrb_typeoffset);
-		hwi_write_buffer(pwrb, task);
+		ret = hwi_write_buffer(pwrb, task);
 		break;
 
 	default:
@@ -5136,6 +5141,9 @@ static int beiscsi_mtask(struct iscsi_task *task)
 
 		return -EINVAL;
 	}
+
+	if (ret)
+		return ret;
 
 	/* Set the task type */
 	io_task->wrb_type = (is_chip_be2_be3r(phba)) ?
