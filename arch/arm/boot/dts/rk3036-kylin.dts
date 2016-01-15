@@ -308,6 +308,10 @@
 	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
 };
 
+&uart0 {
+	status = "okay";
+};
+
 &uart2 {
 	status = "okay";
 };
