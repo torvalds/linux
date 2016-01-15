@@ -98,16 +98,11 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%d)\n",
 		 opal.size, sizep, runtimesz);
 
-	powerpc_firmware_features |= FW_FEATURE_OPAL;
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
-		powerpc_firmware_features |= FW_FEATURE_OPALv2;
-		powerpc_firmware_features |= FW_FEATURE_OPALv3;
-		pr_info("OPAL V3 detected !\n");
-	} else if (of_flat_dt_is_compatible(node, "ibm,opal-v2")) {
-		powerpc_firmware_features |= FW_FEATURE_OPALv2;
-		pr_info("OPAL V2 detected !\n");
+		powerpc_firmware_features |= FW_FEATURE_OPAL;
+		pr_info("OPAL detected !\n");
 	} else {
-		pr_info("OPAL V1 detected !\n");
+		panic("OPAL != V3 detected, no longer supported.\n");
 	}
 
 	/* Reinit all cores with the right endian */
@@ -352,17 +347,15 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	 * enough room and be done with it
 	 */
 	spin_lock_irqsave(&opal_write_lock, flags);
-	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
-		rc = opal_console_write_buffer_space(vtermno, &olen);
-		len = be64_to_cpu(olen);
-		if (rc || len < total_len) {
-			spin_unlock_irqrestore(&opal_write_lock, flags);
-			/* Closed -> drop characters */
-			if (rc)
-				return total_len;
-			opal_poll_events(NULL);
-			return -EAGAIN;
-		}
+	rc = opal_console_write_buffer_space(vtermno, &olen);
+	len = be64_to_cpu(olen);
+	if (rc || len < total_len) {
+		spin_unlock_irqrestore(&opal_write_lock, flags);
+		/* Closed -> drop characters */
+		if (rc)
+			return total_len;
+		opal_poll_events(NULL);
+		return -EAGAIN;
 	}
 
 	/* We still try to handle partial completions, though they
@@ -555,7 +548,7 @@ bool opal_mce_check_early_recovery(struct pt_regs *regs)
 		goto out;
 
 	if ((regs->nip >= opal.base) &&
-			(regs->nip <= (opal.base + opal.size)))
+			(regs->nip < (opal.base + opal.size)))
 		recover_addr = find_recovery_address(regs->nip);
 
 	/*
@@ -696,10 +689,7 @@ static int __init opal_init(void)
 	}
 
 	/* Register OPAL consoles if any ports */
-	if (firmware_has_feature(FW_FEATURE_OPALv2))
-		consoles = of_find_node_by_path("/ibm,opal/consoles");
-	else
-		consoles = of_node_get(opal_node);
+	consoles = of_find_node_by_path("/ibm,opal/consoles");
 	if (consoles) {
 		for_each_child_of_node(consoles, np) {
 			if (strcmp(np->name, "serial"))
@@ -757,6 +747,9 @@ static int __init opal_init(void)
 	opal_pdev_init(opal_node, "ibm,opal-ipmi");
 	opal_pdev_init(opal_node, "ibm,opal-flash");
 	opal_pdev_init(opal_node, "ibm,opal-prd");
+
+	/* Initialise OPAL kmsg dumper for flushing console on panic */
+	opal_kmsg_init();
 
 	return 0;
 }

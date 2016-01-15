@@ -2924,4 +2924,4 @@ static int __init dquot_init(void)
 
 	return 0;
 }
-module_init(dquot_init);
+fs_initcall(dquot_init);

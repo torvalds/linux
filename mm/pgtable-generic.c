@@ -176,13 +176,10 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 
 	/* FIFO */
 	pgtable = pmd_huge_pte(mm, pmdp);
-	if (list_empty(&pgtable->lru))
-		pmd_huge_pte(mm, pmdp) = NULL;
-	else {
-		pmd_huge_pte(mm, pmdp) = list_entry(pgtable->lru.next,
-					      struct page, lru);
+	pmd_huge_pte(mm, pmdp) = list_first_entry_or_null(&pgtable->lru,
+							  struct page, lru);
+	if (pmd_huge_pte(mm, pmdp))
 		list_del(&pgtable->lru);
-	}
 	return pgtable;
 }
 #endif

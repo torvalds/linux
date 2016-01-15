@@ -101,6 +101,7 @@ static void raid6_altivec$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 	raid6_altivec$#_gen_syndrome_real(disks, bytes, ptrs);
 
+	disable_kernel_altivec();
 	preempt_enable();
 }
 
