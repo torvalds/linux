@@ -99,6 +99,7 @@ struct intel_ring_hangcheck {
 struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
 	void __iomem *virtual_start;
+	struct i915_vma *vma;
 
 	struct intel_engine_cs *ring;
 	struct list_head link;

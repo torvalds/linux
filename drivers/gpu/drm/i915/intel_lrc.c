@@ -391,7 +391,6 @@ static int execlists_update_context(struct drm_i915_gem_request *rq)
 	struct intel_engine_cs *ring = rq->ring;
 	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
 	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring->id].state;
-	struct drm_i915_gem_object *rb_obj = rq->ringbuf->obj;
 	struct page *page;
 	uint32_t *reg_state;
 
@@ -401,7 +400,7 @@ static int execlists_update_context(struct drm_i915_gem_request *rq)
 	reg_state = kmap_atomic(page);
 
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
-	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);
+	reg_state[CTX_RING_BUFFER_START+1] = rq->ringbuf->vma->node.start;
 
 	if (ppgtt && !USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
 		/* True 32b PPGTT with dynamic page allocation: update PDP
