@@ -261,7 +261,7 @@
 	uart3: serial@ff1b0000 {
 		compatible = "rockchip,rk3399-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff1b0000 0x0 0x100>;
-		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART4>;
+		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 		clock-names = "baudclk", "apb_pclk";
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
