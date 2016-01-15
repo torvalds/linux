@@ -396,10 +396,8 @@ static void fs_remove_slot(struct pci_slot *pci_slot)
 static struct hotplug_slot *get_slot_from_name(const char *name)
 {
 	struct hotplug_slot *slot;
-	struct list_head *tmp;
 
-	list_for_each(tmp, &pci_hotplug_slot_list) {
-		slot = list_entry(tmp, struct hotplug_slot, slot_list);
+	list_for_each_entry(slot, &pci_hotplug_slot_list, slot_list) {
 		if (strcmp(hotplug_slot_name(slot), name) == 0)
 			return slot;
 	}

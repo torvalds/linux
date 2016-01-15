@@ -116,11 +116,9 @@ static inline int slot_update(struct slot **sl)
 static int __init get_max_slots (void)
 {
 	struct slot *slot_cur;
-	struct list_head *tmp;
 	u8 slot_count = 0;
 
-	list_for_each(tmp, &ibmphp_slot_head) {
-		slot_cur = list_entry(tmp, struct slot, ibm_slot_list);
+	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
 		/* sometimes the hot-pluggable slots start with 4 (not always from 1) */
 		slot_count = max(slot_count, slot_cur->number);
 	}
@@ -501,16 +499,10 @@ static int get_bus_name(struct hotplug_slot *hotplug_slot, char *value)
 static int __init init_ops(void)
 {
 	struct slot *slot_cur;
-	struct list_head *tmp;
 	int retval;
 	int rc;
 
-	list_for_each(tmp, &ibmphp_slot_head) {
-		slot_cur = list_entry(tmp, struct slot, ibm_slot_list);
-
-		if (!slot_cur)
-			return -ENODEV;
-
+	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
 		debug("BEFORE GETTING SLOT STATUS, slot # %x\n",
 							slot_cur->number);
 		if (slot_cur->ctrl->revision == 0xFF)
@@ -669,9 +661,7 @@ static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
 {
 	struct pci_func *func_cur;
 	struct slot *slot_cur;
-	struct list_head *tmp;
-	list_for_each(tmp, &ibmphp_slot_head) {
-		slot_cur = list_entry(tmp, struct slot, ibm_slot_list);
+	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
 		if (slot_cur->func) {
 			func_cur = slot_cur->func;
 			while (func_cur) {
@@ -693,14 +683,12 @@ static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
  *************************************************************/
 static void free_slots(void)
 {
-	struct slot *slot_cur;
-	struct list_head *tmp;
-	struct list_head *next;
+	struct slot *slot_cur, *next;
 
 	debug("%s -- enter\n", __func__);
 
-	list_for_each_safe(tmp, next, &ibmphp_slot_head) {
-		slot_cur = list_entry(tmp, struct slot, ibm_slot_list);
+	list_for_each_entry_safe(slot_cur, next, &ibmphp_slot_head,
+				 ibm_slot_list) {
 		pci_hp_deregister(slot_cur->hotplug_slot);
 	}
 	debug("%s -- exit\n", __func__);
