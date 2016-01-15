@@ -1952,12 +1952,19 @@ i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc,
 					i40e_aqc_opc_set_vsi_promiscuous_modes);
 
-	if (set)
+	if (set) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
+		if (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
+		    (hw->aq.api_maj_ver > 1))
+			flags |= I40E_AQC_SET_VSI_PROMISC_TX;
+	}
 
 	cmd->promiscuous_flags = cpu_to_le16(flags);
 
 	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
+	if (((hw->aq.api_maj_ver >= 1) && (hw->aq.api_min_ver >= 5)) ||
+	    (hw->aq.api_maj_ver > 1))
+		cmd->valid_flags |= cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_TX);
 
 	cmd->seid = cpu_to_le16(seid);
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
