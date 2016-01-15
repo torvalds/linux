@@ -346,16 +346,15 @@ static void __init dmi_save_dev_onboard(int instance, int segment, int bus,
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 {
 	const char *name;
-	const u8 *d = (u8 *) dm + 5;
+	const u8 *d = (u8 *)dm;
 
 	/* Skip disabled device */
-	if ((*d & 0x80) == 0)
+	if ((d[0x5] & 0x80) == 0)
 		return;
 
-	name = dmi_string_nosave(dm, *(d - 1));
-	dmi_save_dev_onboard(*(d+1), *(u16 *)(d+2), *(d+4), *(d+5),
-			     name);
-	dmi_save_one_device(*d & 0x7f, name);
+	name = dmi_string_nosave(dm, d[0x4]);
+	dmi_save_dev_onboard(d[0x6], *(u16 *)(d + 0x7), d[0x9], d[0xA], name);
+	dmi_save_one_device(d[0x5] & 0x7f, name);
 }
 
 static void __init count_mem_devices(const struct dmi_header *dm, void *v)
