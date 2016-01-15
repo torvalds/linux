@@ -429,6 +429,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static void native_hugepage_invalidate(unsigned long vsid,
 				       unsigned long addr,
 				       unsigned char *hpte_slot_array,
@@ -482,6 +483,15 @@ static void native_hugepage_invalidate(unsigned long vsid,
 	}
 	local_irq_restore(flags);
 }
+#else
+static void native_hugepage_invalidate(unsigned long vsid,
+				       unsigned long addr,
+				       unsigned char *hpte_slot_array,
+				       int psize, int ssize, int local)
+{
+	WARN(1, "%s called without THP support\n", __func__);
+}
+#endif
 
 static inline int __hpte_actual_psize(unsigned int lp, int psize)
 {

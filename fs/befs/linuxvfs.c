@@ -434,7 +434,7 @@ befs_init_inodecache(void)
 	befs_inode_cachep = kmem_cache_create("befs_inode_cache",
 					      sizeof (struct befs_inode_info),
 					      0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					      init_once);
 	if (befs_inode_cachep == NULL) {
 		pr_err("%s: Couldn't initialize inode slabcache\n", __func__);

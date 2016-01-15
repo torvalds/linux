@@ -14,10 +14,13 @@ obj-$(CONFIG_PPC_MMU_NOHASH)	+= mmu_context_nohash.o tlb_nohash.o \
 obj-$(CONFIG_PPC_BOOK3E)	+= tlb_low_$(CONFIG_WORD_SIZE)e.o
 hash64-$(CONFIG_PPC_NATIVE)	:= hash_native_64.o
 obj-$(CONFIG_PPC_STD_MMU_64)	+= hash_utils_64.o slb_low.o slb.o $(hash64-y)
-obj-$(CONFIG_PPC_STD_MMU_32)	+= ppc_mmu_32.o
-obj-$(CONFIG_PPC_STD_MMU)	+= hash_low_$(CONFIG_WORD_SIZE).o \
-				   tlb_hash$(CONFIG_WORD_SIZE).o \
+obj-$(CONFIG_PPC_STD_MMU_32)	+= ppc_mmu_32.o hash_low_32.o
+obj-$(CONFIG_PPC_STD_MMU)	+= tlb_hash$(CONFIG_WORD_SIZE).o \
 				   mmu_context_hash$(CONFIG_WORD_SIZE).o
+ifeq ($(CONFIG_PPC_STD_MMU_64),y)
+obj-$(CONFIG_PPC_4K_PAGES)	+= hash64_4k.o
+obj-$(CONFIG_PPC_64K_PAGES)	+= hash64_64k.o
+endif
 obj-$(CONFIG_PPC_ICSWX)		+= icswx.o
 obj-$(CONFIG_PPC_ICSWX_PID)	+= icswx_pid.o
 obj-$(CONFIG_40x)		+= 40x_mmu.o

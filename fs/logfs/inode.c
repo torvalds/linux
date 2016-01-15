@@ -409,7 +409,8 @@ const struct super_operations logfs_super_operations = {
 int logfs_init_inode_cache(void)
 {
 	logfs_inode_cache = kmem_cache_create("logfs_inode_cache",
-			sizeof(struct logfs_inode), 0, SLAB_RECLAIM_ACCOUNT,
+			sizeof(struct logfs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
 			logfs_init_once);
 	if (!logfs_inode_cache)
 		return -ENOMEM;

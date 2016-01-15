@@ -1015,6 +1015,7 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = mlxsw_sp_port_mdb_del(mlxsw_sp_port,
 					    SWITCHDEV_OBJ_PORT_MDB(obj));
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;

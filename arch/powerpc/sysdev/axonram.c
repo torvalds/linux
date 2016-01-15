@@ -313,6 +313,7 @@ static const struct of_device_id axon_ram_device_id[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, axon_ram_device_id);
 
 static struct platform_driver axon_ram_driver = {
 	.probe		= axon_ram_probe,
