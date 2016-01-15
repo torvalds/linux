@@ -49,8 +49,8 @@ extern __printf(3, 4) void _udf_warn(struct super_block *sb,
 #define UDF_EXTENT_FLAG_MASK	0xC0000000
 
 #define UDF_NAME_PAD		4
-#define UDF_NAME_LEN		256
-#define UDF_PATH_LEN		1023
+#define UDF_NAME_LEN		254
+#define UDF_NAME_LEN_CS0	255
 
 static inline size_t udf_file_entry_alloc_offset(struct inode *inode)
 {
@@ -108,7 +108,7 @@ struct generic_desc {
 
 struct ustr {
 	uint8_t u_cmpID;
-	uint8_t u_name[UDF_NAME_LEN - 2];
+	uint8_t u_name[UDF_NAME_LEN];
 	uint8_t u_len;
 };
 

@@ -291,7 +291,7 @@ static struct dentry *udf_lookup(struct inode *dir, struct dentry *dentry,
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi;
 
-	if (dentry->d_name.len > UDF_NAME_LEN - 2)
+	if (dentry->d_name.len > UDF_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 #ifdef UDF_RECOVERY
@@ -351,7 +351,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	struct udf_inode_info *dinfo;
 
 	fibh->sbh = fibh->ebh = NULL;
-	name = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	name = kmalloc(UDF_NAME_LEN_CS0, GFP_NOFS);
 	if (!name) {
 		*err = -ENOMEM;
 		goto out_err;
@@ -364,7 +364,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 		}
 		namelen = udf_put_filename(sb, dentry->d_name.name,
 					   dentry->d_name.len,
-					   name, UDF_NAME_LEN);
+					   name, UDF_NAME_LEN_CS0);
 		if (!namelen) {
 			*err = -ENAMETOOLONG;
 			goto out_err;
@@ -915,7 +915,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 
 	iinfo = UDF_I(inode);
 	down_write(&iinfo->i_data_sem);
-	name = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	name = kmalloc(UDF_NAME_LEN_CS0, GFP_NOFS);
 	if (!name) {
 		err = -ENOMEM;
 		goto out_no_entry;
@@ -1000,7 +1000,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		if (pc->componentType == 5) {
 			namelen = udf_put_filename(sb, compstart,
 						   symname - compstart,
-						   name, UDF_NAME_LEN);
+						   name, UDF_NAME_LEN_CS0);
 			if (!namelen)
 				goto out_no_entry;
 

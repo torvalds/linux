@@ -33,7 +33,7 @@ static int udf_translate_to_linux(uint8_t *, int, uint8_t *, int, uint8_t *,
 
 static int udf_char_to_ustr(struct ustr *dest, const uint8_t *src, int strlen)
 {
-	if ((!dest) || (!src) || (!strlen) || (strlen > UDF_NAME_LEN - 2))
+	if ((!dest) || (!src) || (!strlen) || (strlen > UDF_NAME_LEN))
 		return 0;
 
 	memset(dest, 0, sizeof(struct ustr));
@@ -184,14 +184,14 @@ static int udf_name_from_CS0(struct ustr *utf_o,
 
 	ocu = ocu_i->u_name;
 	utf_o->u_len = 0;
-	for (i = 0; (i < ocu_len) && (utf_o->u_len <= (UDF_NAME_LEN - 3));) {
+	for (i = 0; (i < ocu_len) && (utf_o->u_len < UDF_NAME_LEN);) {
 		/* Expand OSTA compressed Unicode to Unicode */
 		uint32_t c = ocu[i++];
 		if (cmp_id == 16)
 			c = (c << 8) | ocu[i++];
 
 		len = conv_f(c, &utf_o->u_name[utf_o->u_len],
-			     UDF_NAME_LEN - 2 - utf_o->u_len);
+			     UDF_NAME_LEN - utf_o->u_len);
 		/* Valid character? */
 		if (len >= 0)
 			utf_o->u_len += len;
