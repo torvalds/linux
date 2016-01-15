@@ -24,6 +24,8 @@ struct md_cluster_operations {
 	int (*new_disk_ack)(struct mddev *mddev, bool ack);
 	int (*remove_disk)(struct mddev *mddev, struct md_rdev *rdev);
 	int (*gather_bitmaps)(struct md_rdev *rdev);
+	int (*lock_all_bitmaps)(struct mddev *mddev);
+	void (*unlock_all_bitmaps)(struct mddev *mddev);
 };
 
 #endif /* _MD_CLUSTER_H */
