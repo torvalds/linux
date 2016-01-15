@@ -1318,8 +1318,82 @@ or a level of cache, CPU 2 might have early access to CPU 1's writes.
 General barriers are therefore required to ensure that all CPUs agree
 on the combined order of CPU 1's and CPU 2's accesses.
 
-To reiterate, if your code requires transitivity, use general barriers
-throughout.
+General barriers provide "global transitivity", so that all CPUs will
+agree on the order of operations.  In contrast, a chain of release-acquire
+pairs provides only "local transitivity", so that only those CPUs on
+the chain are guaranteed to agree on the combined order of the accesses.
+For example, switching to C code in deference to Herman Hollerith:
+
+	int u, v, x, y, z;
+
+	void cpu0(void)
+	{
+		r0 = smp_load_acquire(&x);
+		WRITE_ONCE(u, 1);
+		smp_store_release(&y, 1);
+	}
+
+	void cpu1(void)
+	{
+		r1 = smp_load_acquire(&y);
+		r4 = READ_ONCE(v);
+		r5 = READ_ONCE(u);
+		smp_store_release(&z, 1);
+	}
+
+	void cpu2(void)
+	{
+		r2 = smp_load_acquire(&z);
+		smp_store_release(&x, 1);
+	}
+
+	void cpu3(void)
+	{
+		WRITE_ONCE(v, 1);
+		smp_mb();
+		r3 = READ_ONCE(u);
+	}
+
+Because cpu0(), cpu1(), and cpu2() participate in a local transitive
+chain of smp_store_release()/smp_load_acquire() pairs, the following
+outcome is prohibited:
+
+	r0 == 1 && r1 == 1 && r2 == 1
+
+Furthermore, because of the release-acquire relationship between cpu0()
+and cpu1(), cpu1() must see cpu0()'s writes, so that the following
+outcome is prohibited:
+
+	r1 == 1 && r5 == 0
+
+However, the transitivity of release-acquire is local to the participating
+CPUs and does not apply to cpu3().  Therefore, the following outcome
+is possible:
+
+	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0
+
+Although cpu0(), cpu1(), and cpu2() will see their respective reads and
+writes in order, CPUs not involved in the release-acquire chain might
+well disagree on the order.  This disagreement stems from the fact that
+the weak memory-barrier instructions used to implement smp_load_acquire()
+and smp_store_release() are not required to order prior stores against
+subsequent loads in all cases.  This means that cpu3() can see cpu0()'s
+store to u as happening -after- cpu1()'s load from v, even though
+both cpu0() and cpu1() agree that these two operations occurred in the
+intended order.
+
+However, please keep in mind that smp_load_acquire() is not magic.
+In particular, it simply reads from its argument with ordering.  It does
+-not- ensure that any particular value will be read.  Therefore, the
+following outcome is possible:
+
+	r0 == 0 && r1 == 0 && r2 == 0 && r5 == 0
+
+Note that this outcome can happen even on a mythical sequentially
+consistent system where nothing is ever reordered.
+
+To reiterate, if your code requires global transitivity, use general
+barriers throughout.
 
 
 ========================
