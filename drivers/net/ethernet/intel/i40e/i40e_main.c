@@ -11219,8 +11219,8 @@ static void i40e_remove(struct pci_dev *pdev)
 		i40e_vsi_release(pf->vsi[pf->lan_vsi]);
 
 	/* shutdown and destroy the HMC */
-	if (pf->hw.hmc.hmc_obj) {
-		ret_code = i40e_shutdown_lan_hmc(&pf->hw);
+	if (hw->hmc.hmc_obj) {
+		ret_code = i40e_shutdown_lan_hmc(hw);
 		if (ret_code)
 			dev_warn(&pdev->dev,
 				 "Failed to destroy the HMC resources: %d\n",
@@ -11228,7 +11228,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	}
 
 	/* shutdown the adminq */
-	ret_code = i40e_shutdown_adminq(&pf->hw);
+	ret_code = i40e_shutdown_adminq(hw);
 	if (ret_code)
 		dev_warn(&pdev->dev,
 			 "Failed to destroy the Admin Queue resources: %d\n",
@@ -11256,7 +11256,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	kfree(pf->qp_pile);
 	kfree(pf->vsi);
 
-	iounmap(pf->hw.hw_addr);
+	iounmap(hw->hw_addr);
 	kfree(pf);
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
