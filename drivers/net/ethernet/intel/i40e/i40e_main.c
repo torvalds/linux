@@ -3475,6 +3475,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	if (icr0 & I40E_PFINT_ICR0_ADMINQ_MASK) {
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
 		set_bit(__I40E_ADMINQ_EVENT_PENDING, &pf->state);
+		i40e_debug(&pf->hw, I40E_DEBUG_NVM, "AdminQ event\n");
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_MAL_DETECT_MASK) {
@@ -6332,7 +6333,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		case i40e_aqc_opc_nvm_erase:
 		case i40e_aqc_opc_nvm_update:
 		case i40e_aqc_opc_oem_post_update:
-			i40e_debug(&pf->hw, I40E_DEBUG_NVM, "ARQ NVM operation completed\n");
+			i40e_debug(&pf->hw, I40E_DEBUG_NVM,
+				   "ARQ NVM operation 0x%04x completed\n",
+				   opcode);
 			break;
 		default:
 			dev_info(&pf->pdev->dev,
