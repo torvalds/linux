@@ -48,7 +48,7 @@ static bool timer_is_armed(struct arch_timer_cpu *timer)
 static void timer_arm(struct arch_timer_cpu *timer, u64 ns)
 {
 	timer->armed = true;
-	hrtimer_start(&timer->timer, ktime_add_ns(ktime_get(), ns),
+	hrtimer_start(&timer->timer, ktime_add_ns(ktime_get_raw(), ns),
 		      HRTIMER_MODE_ABS);
 }
 
@@ -308,7 +308,7 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
 	INIT_WORK(&timer->expired, kvm_timer_inject_irq_work);
-	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&timer->timer, CLOCK_MONOTONIC_RAW, HRTIMER_MODE_ABS);
 	timer->timer.function = kvm_timer_expire;
 }
 
