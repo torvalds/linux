@@ -229,15 +229,17 @@ void batadv_hardif_neigh_free_ref(struct batadv_hardif_neigh_node *hardif_neigh)
 /**
  * batadv_neigh_node_release - release neigh_node from lists and queue for
  *  free after rcu grace period
- * @neigh_node: neigh neighbor to free
+ * @ref: kref pointer of the neigh_node
  */
-static void batadv_neigh_node_release(struct batadv_neigh_node *neigh_node)
+static void batadv_neigh_node_release(struct kref *ref)
 {
 	struct hlist_node *node_tmp;
+	struct batadv_neigh_node *neigh_node;
 	struct batadv_hardif_neigh_node *hardif_neigh;
 	struct batadv_neigh_ifinfo *neigh_ifinfo;
 	struct batadv_algo_ops *bao;
 
+	neigh_node = container_of(ref, struct batadv_neigh_node, refcount);
 	bao = neigh_node->orig_node->bat_priv->bat_algo_ops;
 
 	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
@@ -262,14 +264,13 @@ static void batadv_neigh_node_release(struct batadv_neigh_node *neigh_node)
 }
 
 /**
- * batadv_neigh_node_free_ref - decrement the neighbors refcounter
- *  and possibly release it
+ * batadv_neigh_node_free_ref - decrement the neighbors refcounter and possibly
+ *  release it
  * @neigh_node: neigh neighbor to free
  */
 void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node)
 {
-	if (atomic_dec_and_test(&neigh_node->refcount))
-		batadv_neigh_node_release(neigh_node);
+	kref_put(&neigh_node->refcount, batadv_neigh_node_release);
 }
 
 /**
@@ -298,7 +299,7 @@ batadv_orig_router_get(struct batadv_orig_node *orig_node,
 		break;
 	}
 
-	if (router && !atomic_inc_not_zero(&router->refcount))
+	if (router && !kref_get_unless_zero(&router->refcount))
 		router = NULL;
 
 	rcu_read_unlock();
@@ -491,7 +492,7 @@ batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
 		if (tmp_neigh_node->if_incoming != hard_iface)
 			continue;
 
-		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+		if (!kref_get_unless_zero(&tmp_neigh_node->refcount))
 			continue;
 
 		res = tmp_neigh_node;
@@ -649,7 +650,8 @@ batadv_neigh_node_new(struct batadv_orig_node *orig_node,
 	neigh_node->orig_node = orig_node;
 
 	/* extra reference for return */
-	atomic_set(&neigh_node->refcount, 2);
+	kref_init(&neigh_node->refcount);
+	kref_get(&neigh_node->refcount);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
@@ -1084,7 +1086,7 @@ batadv_find_best_neighbor(struct batadv_priv *bat_priv,
 						best, if_outgoing) <= 0))
 			continue;
 
-		if (!atomic_inc_not_zero(&neigh->refcount))
+		if (!kref_get_unless_zero(&neigh->refcount))
 			continue;
 
 		if (best)

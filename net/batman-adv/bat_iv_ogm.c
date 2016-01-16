@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
+#include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/pkt_sched.h>
 #include <linux/printk.h>
@@ -1002,7 +1003,7 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		neigh_addr = tmp_neigh_node->addr;
 		if (batadv_compare_eth(neigh_addr, ethhdr->h_source) &&
 		    tmp_neigh_node->if_incoming == if_incoming &&
-		    atomic_inc_not_zero(&tmp_neigh_node->refcount)) {
+		    kref_get_unless_zero(&tmp_neigh_node->refcount)) {
 			if (WARN(neigh_node, "too many matching neigh_nodes"))
 				batadv_neigh_node_free_ref(neigh_node);
 			neigh_node = tmp_neigh_node;
@@ -1161,7 +1162,7 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 		if (tmp_neigh_node->if_incoming != if_incoming)
 			continue;
 
-		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+		if (!kref_get_unless_zero(&tmp_neigh_node->refcount))
 			continue;
 
 		neigh_node = tmp_neigh_node;

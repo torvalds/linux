@@ -73,7 +73,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 
 	rcu_read_lock();
 	curr_router = rcu_dereference(orig_ifinfo->router);
-	if (curr_router && !atomic_inc_not_zero(&curr_router->refcount))
+	if (curr_router && !kref_get_unless_zero(&curr_router->refcount))
 		curr_router = NULL;
 	rcu_read_unlock();
 
@@ -101,7 +101,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 		batadv_neigh_node_free_ref(curr_router);
 
 	/* increase refcount of new best neighbor */
-	if (neigh_node && !atomic_inc_not_zero(&neigh_node->refcount))
+	if (neigh_node && !kref_get_unless_zero(&neigh_node->refcount))
 		neigh_node = NULL;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
@@ -505,7 +505,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		if (!cand_router)
 			goto next;
 
-		if (!atomic_inc_not_zero(&cand_router->refcount)) {
+		if (!kref_get_unless_zero(&cand_router->refcount)) {
 			cand_router = NULL;
 			goto next;
 		}
@@ -524,7 +524,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 
 		/* mark the first possible candidate */
 		if (!first_candidate) {
-			atomic_inc(&cand_router->refcount);
+			kref_get(&cand_router->refcount);
 			kref_get(&cand->refcount);
 			first_candidate = cand;
 			first_candidate_router = cand_router;
