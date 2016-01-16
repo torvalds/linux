@@ -515,6 +515,20 @@ char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
+static noinline_for_stack
+char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
+{
+	struct printf_spec spec;
+
+	spec.type = FORMAT_TYPE_PTR;
+	spec.field_width = 2 + 2 * size;	/* 0x + hex */
+	spec.flags = SPECIAL | SMALL | ZEROPAD;
+	spec.base = 16;
+	spec.precision = -1;
+
+	return number(buf, end, num, spec);
+}
+
 static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
 {
 	size_t size;
@@ -670,11 +684,7 @@ char *symbol_string(char *buf, char *end, void *ptr,
 
 	return string(buf, end, sym, spec);
 #else
-	spec.field_width = 2 * sizeof(void *);
-	spec.flags |= SPECIAL | SMALL | ZEROPAD;
-	spec.base = 16;
-
-	return number(buf, end, value, spec);
+	return special_hex_number(buf, end, value, sizeof(void *));
 #endif
 }
 
@@ -1336,39 +1346,33 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 }
 
 static
-char *netdev_feature_string(char *buf, char *end, const u8 *addr,
-		      struct printf_spec spec)
+char *netdev_feature_string(char *buf, char *end, const void *addr)
 {
-	spec.flags |= SPECIAL | SMALL | ZEROPAD;
-	if (spec.field_width == -1)
-		spec.field_width = 2 + 2 * sizeof(netdev_features_t);
-	spec.base = 16;
+	unsigned long long num = *(const netdev_features_t *)addr;
+	int size = sizeof(netdev_features_t);
 
-	return number(buf, end, *(const netdev_features_t *)addr, spec);
+	return special_hex_number(buf, end, num, size);
 }
 
 static noinline_for_stack
-char *address_val(char *buf, char *end, const void *addr,
-		  struct printf_spec spec, const char *fmt)
+char *address_val(char *buf, char *end, const void *addr, const char *fmt)
 {
 	unsigned long long num;
-
-	spec.flags |= SPECIAL | SMALL | ZEROPAD;
-	spec.base = 16;
+	int size;
 
 	switch (fmt[1]) {
 	case 'd':
 		num = *(const dma_addr_t *)addr;
-		spec.field_width = sizeof(dma_addr_t) * 2 + 2;
+		size = sizeof(dma_addr_t);
 		break;
 	case 'p':
 	default:
 		num = *(const phys_addr_t *)addr;
-		spec.field_width = sizeof(phys_addr_t) * 2 + 2;
+		size = sizeof(phys_addr_t);
 		break;
 	}
 
-	return number(buf, end, num, spec);
+	return special_hex_number(buf, end, num, size);
 }
 
 static noinline_for_stack
@@ -1387,10 +1391,7 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 #ifdef CONFIG_COMMON_CLK
 		return string(buf, end, __clk_get_name(clk), spec);
 #else
-		spec.base = 16;
-		spec.field_width = sizeof(unsigned long) * 2 + 2;
-		spec.flags |= SPECIAL | SMALL | ZEROPAD;
-		return number(buf, end, (unsigned long)clk, spec);
+		return special_hex_number(buf, end, (unsigned long)clk, sizeof(unsigned long));
 #endif
 	}
 }
@@ -1622,11 +1623,11 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'N':
 		switch (fmt[1]) {
 		case 'F':
-			return netdev_feature_string(buf, end, ptr, spec);
+			return netdev_feature_string(buf, end, ptr);
 		}
 		break;
 	case 'a':
-		return address_val(buf, end, ptr, spec, fmt);
+		return address_val(buf, end, ptr, fmt);
 	case 'd':
 		return dentry_name(buf, end, ptr, spec, fmt);
 	case 'C':
