@@ -61,6 +61,14 @@ extern int memblock_debug;
 extern bool movable_node_enabled;
 #endif /* CONFIG_MOVABLE_NODE */
 
+#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+#define __init_memblock __meminit
+#define __initdata_memblock __meminitdata
+#else
+#define __init_memblock
+#define __initdata_memblock
+#endif
+
 #define memblock_dbg(fmt, ...) \
 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
@@ -166,7 +174,7 @@ static inline bool memblock_is_hotpluggable(struct memblock_region *m)
 	return m->flags & MEMBLOCK_HOTPLUG;
 }
 
-static inline bool movable_node_is_enabled(void)
+static inline bool __init_memblock movable_node_is_enabled(void)
 {
 	return movable_node_enabled;
 }
@@ -404,14 +412,6 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
 	rgn = &memblock_type->regions[idx];				\
 	for (idx = 0; idx < memblock_type->cnt;				\
 	     idx++,rgn = &memblock_type->regions[idx])
-
-#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-#define __init_memblock __meminit
-#define __initdata_memblock __meminitdata
-#else
-#define __init_memblock
-#define __initdata_memblock
-#endif
 
 #ifdef CONFIG_MEMTEST
 extern void early_memtest(phys_addr_t start, phys_addr_t end);
