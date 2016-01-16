@@ -1684,6 +1684,49 @@ static int __soft_offline_page(struct page *page, int flags)
 	return ret;
 }
 
+static int soft_offline_in_use_page(struct page *page, int flags)
+{
+	int ret;
+	struct page *hpage = compound_head(page);
+
+	if (!PageHuge(page) && PageTransHuge(hpage)) {
+		lock_page(hpage);
+		ret = split_huge_page(hpage);
+		unlock_page(hpage);
+		if (unlikely(ret || PageTransCompound(page) ||
+			     !PageAnon(page))) {
+			pr_info("soft offline: %#lx: failed to split THP\n",
+				page_to_pfn(page));
+			if (flags & MF_COUNT_INCREASED)
+				put_hwpoison_page(hpage);
+			return -EBUSY;
+		}
+		get_hwpoison_page(page);
+		put_hwpoison_page(hpage);
+	}
+
+	if (PageHuge(page))
+		ret = soft_offline_huge_page(page, flags);
+	else
+		ret = __soft_offline_page(page, flags);
+
+	return ret;
+}
+
+static void soft_offline_free_page(struct page *page)
+{
+	if (PageHuge(page)) {
+		struct page *hpage = compound_head(page);
+
+		set_page_hwpoison_huge_page(hpage);
+		if (!dequeue_hwpoisoned_huge_page(hpage))
+			num_poisoned_pages_add(1 << compound_order(hpage));
+	} else {
+		if (!TestSetPageHWPoison(page))
+			num_poisoned_pages_inc();
+	}
+}
+
 /**
  * soft_offline_page - Soft offline a page.
  * @page: page to offline
@@ -1710,7 +1753,6 @@ int soft_offline_page(struct page *page, int flags)
 {
 	int ret;
 	unsigned long pfn = page_to_pfn(page);
-	struct page *hpage = compound_head(page);
 
 	if (PageHWPoison(page)) {
 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
@@ -1723,36 +1765,10 @@ int soft_offline_page(struct page *page, int flags)
 	ret = get_any_page(page, pfn, flags);
 	put_online_mems();
 
-	if (ret > 0) { /* for in-use pages */
-		if (!PageHuge(page) && PageTransHuge(hpage)) {
-			lock_page(hpage);
-			ret = split_huge_page(hpage);
-			unlock_page(hpage);
-			if (unlikely(ret || PageTransCompound(page) ||
-					!PageAnon(page))) {
-				pr_info("soft offline: %#lx: failed to split THP\n",
-					pfn);
-				if (flags & MF_COUNT_INCREASED)
-					put_hwpoison_page(hpage);
-				return -EBUSY;
-			}
-			get_hwpoison_page(page);
-			put_hwpoison_page(hpage);
-		}
+	if (ret > 0)
+		ret = soft_offline_in_use_page(page, flags);
+	else if (ret == 0)
+		soft_offline_free_page(page);
 
-		if (PageHuge(page))
-			ret = soft_offline_huge_page(page, flags);
-		else
-			ret = __soft_offline_page(page, flags);
-	} else if (ret == 0) { /* for free pages */
-		if (PageHuge(page)) {
-			set_page_hwpoison_huge_page(hpage);
-			if (!dequeue_hwpoisoned_huge_page(hpage))
-				num_poisoned_pages_add(1 << compound_order(hpage));
-		} else {
-			if (!TestSetPageHWPoison(page))
-				num_poisoned_pages_inc();
-		}
-	}
 	return ret;
 }
