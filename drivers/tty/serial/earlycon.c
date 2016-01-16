@@ -218,7 +218,7 @@ early_param("earlycon", param_setup_earlycon);
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
 int __init of_setup_earlycon(unsigned long addr,
-			     int (*setup)(struct earlycon_device *, const char *))
+			     const struct earlycon_id *match)
 {
 	int err;
 	struct uart_port *port = &early_console_dev.port;
@@ -229,8 +229,8 @@ int __init of_setup_earlycon(unsigned long addr,
 	port->uartclk = BASE_BAUD * 16;
 	port->membase = earlycon_map(addr, SZ_4K);
 
-	early_console_dev.con->data = &early_console_dev;
-	err = setup(&early_console_dev, NULL);
+	earlycon_init(&early_console_dev, match->name);
+	err = match->setup(&early_console_dev, NULL);
 	if (err < 0)
 		return err;
 	if (!early_console_dev.con->write)
