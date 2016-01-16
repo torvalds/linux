@@ -800,7 +800,7 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 static int __init early_init_dt_scan_chosen_serial(void)
 {
 	int offset;
-	const char *p;
+	const char *p, *q, *options = NULL;
 	int l;
 	const struct earlycon_id *match;
 	const void *fdt = initial_boot_params;
@@ -817,11 +817,12 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	if (!p || !l)
 		return -ENOENT;
 
-	/* Remove console options if present */
-	l = strchrnul(p, ':') - p;
+	q = strchrnul(p, ':');
+	if (*q != '\0')
+		options = q + 1;
 
 	/* Get the node specified by stdout-path */
-	offset = fdt_path_offset_namelen(fdt, p, l);
+	offset = fdt_path_offset_namelen(fdt, p, q - p);
 	if (offset < 0)
 		return -ENODEV;
 
@@ -838,7 +839,7 @@ static int __init early_init_dt_scan_chosen_serial(void)
 		if (addr == OF_BAD_ADDR)
 			return -ENXIO;
 
-		of_setup_earlycon(addr, match);
+		of_setup_earlycon(addr, match, options);
 		return 0;
 	}
 	return -ENODEV;
