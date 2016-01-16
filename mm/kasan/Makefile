@@ -6,3 +6,6 @@ CFLAGS_REMOVE_kasan.o = -pg
 CFLAGS_kasan.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
 
 obj-y := kasan.o report.o kasan_init.o
+ifdef CONFIG_SLAB
+	obj-y	+= stackdepot.o quarantine.o
+endif
