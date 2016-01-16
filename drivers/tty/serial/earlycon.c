@@ -204,6 +204,8 @@ static int __init param_setup_earlycon(char *buf)
 }
 early_param("earlycon", param_setup_earlycon);
 
+#ifdef CONFIG_OF_EARLY_FLATTREE
+
 int __init of_setup_earlycon(unsigned long addr,
 			     int (*setup)(struct earlycon_device *, const char *))
 {
@@ -227,3 +229,5 @@ int __init of_setup_earlycon(unsigned long addr,
 	register_console(early_console_dev.con);
 	return 0;
 }
+
+#endif /* CONFIG_OF_EARLY_FLATTREE */
