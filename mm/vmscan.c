@@ -1184,7 +1184,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * we obviously don't have to worry about waking up a process
 		 * waiting on the page lock, because there are no references.
 		 */
-		__clear_page_locked(page);
+		__ClearPageLocked(page);
 free_it:
 		nr_reclaimed++;
 

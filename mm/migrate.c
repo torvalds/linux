@@ -1767,7 +1767,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 		flush_tlb_range(vma, mmun_start, mmun_end);
 
 	/* Prepare a page as a migration target */
-	__set_page_locked(new_page);
+	__SetPageLocked(new_page);
 	SetPageSwapBacked(new_page);
 
 	/* anon mapping, we can simply copy page->mapping to the new page: */

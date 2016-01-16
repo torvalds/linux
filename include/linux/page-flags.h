@@ -256,7 +256,7 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
 #define TESTSCFLAG_FALSE(uname)						\
 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
 
-TESTPAGEFLAG(Locked, locked, PF_ANY)
+__PAGEFLAG(Locked, locked, PF_NO_TAIL)
 PAGEFLAG(Error, error, PF_ANY) TESTCLEARFLAG(Error, error, PF_ANY)
 PAGEFLAG(Referenced, referenced, PF_ANY) TESTCLEARFLAG(Referenced, referenced, PF_ANY)
 	__SETPAGEFLAG(Referenced, referenced, PF_ANY)

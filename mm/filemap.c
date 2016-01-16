@@ -682,11 +682,11 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 	void *shadow = NULL;
 	int ret;
 
-	__set_page_locked(page);
+	__SetPageLocked(page);
 	ret = __add_to_page_cache_locked(page, mapping, offset,
 					 gfp_mask, &shadow);
 	if (unlikely(ret))
-		__clear_page_locked(page);
+		__ClearPageLocked(page);
 	else {
 		/*
 		 * The page might have been evicted from cache only
@@ -809,6 +809,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
  */
 void unlock_page(struct page *page)
 {
+	page = compound_head(page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	clear_bit_unlock(PG_locked, &page->flags);
 	smp_mb__after_atomic();
@@ -873,18 +874,20 @@ EXPORT_SYMBOL_GPL(page_endio);
  */
 void __lock_page(struct page *page)
 {
-	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+	struct page *page_head = compound_head(page);
+	DEFINE_WAIT_BIT(wait, &page_head->flags, PG_locked);
 
-	__wait_on_bit_lock(page_waitqueue(page), &wait, bit_wait_io,
+	__wait_on_bit_lock(page_waitqueue(page_head), &wait, bit_wait_io,
 							TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(__lock_page);
 
 int __lock_page_killable(struct page *page)
 {
-	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+	struct page *page_head = compound_head(page);
+	DEFINE_WAIT_BIT(wait, &page_head->flags, PG_locked);
 
-	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+	return __wait_on_bit_lock(page_waitqueue(page_head), &wait,
 					bit_wait_io, TASK_KILLABLE);
 }
 EXPORT_SYMBOL_GPL(__lock_page_killable);
