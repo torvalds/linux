@@ -1805,7 +1805,7 @@ static void __split_huge_page_refcount(struct page *page,
 		*/
 		page_tail->_mapcount = page->_mapcount;
 
-		BUG_ON(page_tail->mapping);
+		BUG_ON(page_tail->mapping != TAIL_MAPPING);
 		page_tail->mapping = page->mapping;
 
 		page_tail->index = page->index + i;

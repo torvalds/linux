@@ -466,6 +466,7 @@ void prep_compound_page(struct page *page, unsigned int order)
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 		set_page_count(p, 0);
+		p->mapping = TAIL_MAPPING;
 		set_compound_head(p, page);
 	}
 }
@@ -856,6 +857,10 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 		ret = 0;
 		goto out;
 	}
+	if (page->mapping != TAIL_MAPPING) {
+		bad_page(page, "corrupted mapping in tail page", 0);
+		goto out;
+	}
 	if (unlikely(!PageTail(page))) {
 		bad_page(page, "PageTail not set", 0);
 		goto out;
@@ -866,6 +871,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 	}
 	ret = 0;
 out:
+	page->mapping = NULL;
 	clear_compound_head(page);
 	return ret;
 }
