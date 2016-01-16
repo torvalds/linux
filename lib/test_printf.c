@@ -127,6 +127,7 @@ __test(const char *expect, int elen, const char *fmt, ...)
 
 	p = kvasprintf(GFP_KERNEL, fmt, ap);
 	if (p) {
+		total_tests++;
 		if (memcmp(p, expect, elen+1)) {
 			pr_warn("kvasprintf(..., \"%s\", ...) returned '%s', expected '%s'\n",
 				fmt, p, expect);
