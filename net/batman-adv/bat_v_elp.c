@@ -37,8 +37,8 @@
 #include <linux/workqueue.h>
 
 #include "bat_algo.h"
+#include "bat_v_ogm.h"
 #include "hard-interface.h"
-#include "hash.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"
@@ -193,45 +193,6 @@ void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 				primary_iface->net_dev->dev_addr);
 	}
 	rcu_read_unlock();
-}
-
-/**
- * batadv_v_ogm_orig_get - retrieve and possibly create an originator node
- * @bat_priv: the bat priv with all the soft interface information
- * @addr: the address of the originator
- *
- * Return: the orig_node corresponding to the specified address. If such object
- * does not exist it is allocated here. In case of allocation failure returns
- * NULL.
- */
-static struct batadv_orig_node *
-batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
-		      const u8 *addr)
-{
-	struct batadv_orig_node *orig_node;
-	int hash_added;
-
-	orig_node = batadv_orig_hash_find(bat_priv, addr);
-	if (orig_node)
-		return orig_node;
-
-	orig_node = batadv_orig_node_new(bat_priv, addr);
-	if (!orig_node)
-		return NULL;
-
-	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
-				     batadv_choose_orig, orig_node,
-				     &orig_node->hash_entry);
-	if (hash_added != 0) {
-		/* orig_node->refcounter is initialised to 2 by
-		 * batadv_orig_node_new()
-		 */
-		batadv_orig_node_put(orig_node);
-		batadv_orig_node_put(orig_node);
-		orig_node = NULL;
-	}
-
-	return orig_node;
 }
 
 /**

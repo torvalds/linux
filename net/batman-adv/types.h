@@ -149,6 +149,7 @@ struct batadv_hard_iface {
  * @router: router that should be used to reach this originator
  * @last_real_seqno: last and best known sequence number
  * @last_ttl: ttl of last received packet
+ * @last_seqno_forwarded: seqno of the OGM which was forwarded last
  * @batman_seqno_reset: time when the batman seqno window was reset
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
@@ -159,6 +160,7 @@ struct batadv_orig_ifinfo {
 	struct batadv_neigh_node __rcu *router; /* rcu protected pointer */
 	u32 last_real_seqno;
 	u8 last_ttl;
+	u32 last_seqno_forwarded;
 	unsigned long batman_seqno_reset;
 	struct kref refcount;
 	struct rcu_head rcu;
@@ -448,9 +450,11 @@ struct batadv_neigh_ifinfo_bat_iv {
  * struct batadv_neigh_ifinfo_bat_v - neighbor information per outgoing
  *  interface for B.A.T.M.A.N. V
  * @throughput: last throughput metric received from originator via this neigh
+ * @last_seqno: last sequence number known for this neighbor
  */
 struct batadv_neigh_ifinfo_bat_v {
 	u32 throughput;
+	u32 last_seqno;
 };
 
 /**

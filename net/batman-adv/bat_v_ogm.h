@@ -18,6 +18,8 @@
 #ifndef _BATMAN_ADV_BATADV_V_OGM_H_
 #define _BATMAN_ADV_BATADV_V_OGM_H_
 
+#include <linux/types.h>
+
 struct batadv_hard_iface;
 struct batadv_priv;
 struct sk_buff;
@@ -25,6 +27,8 @@ struct sk_buff;
 int batadv_v_ogm_init(struct batadv_priv *bat_priv);
 void batadv_v_ogm_free(struct batadv_priv *bat_priv);
 int batadv_v_ogm_iface_enable(struct batadv_hard_iface *hard_iface);
+struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
+					       const u8 *addr);
 void batadv_v_ogm_primary_iface_set(struct batadv_hard_iface *primary_iface);
 int batadv_v_ogm_packet_recv(struct sk_buff *skb,
 			     struct batadv_hard_iface *if_incoming);
