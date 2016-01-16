@@ -81,20 +81,9 @@ struct page {
 
 				union {
 					/*
-					 * Count of ptes mapped in
-					 * mms, to show when page is
-					 * mapped & limit reverse map
-					 * searches.
-					 *
-					 * Used also for tail pages
-					 * refcounting instead of
-					 * _count. Tail pages cannot
-					 * be mapped and keeping the
-					 * tail page _count zero at
-					 * all times guarantees
-					 * get_page_unless_zero() will
-					 * never succeed on tail
-					 * pages.
+					 * Count of ptes mapped in mms, to show
+					 * when page is mapped & limit reverse
+					 * map searches.
 					 */
 					atomic_t _mapcount;
 

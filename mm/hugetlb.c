@@ -3865,7 +3865,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 same_page:
 		if (pages) {
 			pages[i] = mem_map_offset(page, pfn_offset);
-			get_page_foll(pages[i]);
+			get_page(pages[i]);
 		}
 
 		if (vmas)

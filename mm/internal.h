@@ -66,50 +66,6 @@ static inline void set_page_refcounted(struct page *page)
 	set_page_count(page, 1);
 }
 
-static inline void __get_page_tail_foll(struct page *page,
-					bool get_page_head)
-{
-	/*
-	 * If we're getting a tail page, the elevated page->_count is
-	 * required only in the head page and we will elevate the head
-	 * page->_count and tail page->_mapcount.
-	 *
-	 * We elevate page_tail->_mapcount for tail pages to force
-	 * page_tail->_count to be zero at all times to avoid getting
-	 * false positives from get_page_unless_zero() with
-	 * speculative page access (like in
-	 * page_cache_get_speculative()) on tail pages.
-	 */
-	VM_BUG_ON_PAGE(atomic_read(&compound_head(page)->_count) <= 0, page);
-	if (get_page_head)
-		atomic_inc(&compound_head(page)->_count);
-	get_huge_page_tail(page);
-}
-
-/*
- * This is meant to be called as the FOLL_GET operation of
- * follow_page() and it must be called while holding the proper PT
- * lock while the pte (or pmd_trans_huge) is still mapping the page.
- */
-static inline void get_page_foll(struct page *page)
-{
-	if (unlikely(PageTail(page)))
-		/*
-		 * This is safe only because
-		 * __split_huge_page_refcount() can't run under
-		 * get_page_foll() because we hold the proper PT lock.
-		 */
-		__get_page_tail_foll(page, true);
-	else {
-		/*
-		 * Getting a normal page or the head of a compound page
-		 * requires to already have an elevated page->_count.
-		 */
-		VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
-		atomic_inc(&page->_count);
-	}
-}
-
 extern unsigned long highest_memmap_pfn;
 
 /*
