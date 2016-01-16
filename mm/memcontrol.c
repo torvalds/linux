@@ -382,14 +382,11 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
 {
 	struct mem_cgroup *memcg;
 
-	rcu_read_lock();
-
 	memcg = page->mem_cgroup;
 
 	if (!memcg || !cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		memcg = root_mem_cgroup;
 
-	rcu_read_unlock();
 	return &memcg->css;
 }
 
