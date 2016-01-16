@@ -360,6 +360,7 @@ extern const struct earlycon_id __earlycon_table_end[];
 
 extern int setup_earlycon(char *buf);
 extern int of_setup_earlycon(unsigned long addr, const struct earlycon_id *match,
+			     unsigned long node,
 			     const char *options);
 
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,
