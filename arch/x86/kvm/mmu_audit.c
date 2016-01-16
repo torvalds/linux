@@ -97,7 +97,7 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 {
 	struct kvm_mmu_page *sp;
 	gfn_t gfn;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 	hpa_t hpa;
 
 	sp = page_header(__pa(sptep));

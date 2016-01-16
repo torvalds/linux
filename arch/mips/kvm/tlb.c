@@ -38,13 +38,13 @@ atomic_t kvm_mips_instance;
 EXPORT_SYMBOL(kvm_mips_instance);
 
 /* These function pointers are initialized once the KVM module is loaded */
-pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
+kvm_pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
 EXPORT_SYMBOL(kvm_mips_gfn_to_pfn);
 
-void (*kvm_mips_release_pfn_clean)(pfn_t pfn);
+void (*kvm_mips_release_pfn_clean)(kvm_pfn_t pfn);
 EXPORT_SYMBOL(kvm_mips_release_pfn_clean);
 
-bool (*kvm_mips_is_error_pfn)(pfn_t pfn);
+bool (*kvm_mips_is_error_pfn)(kvm_pfn_t pfn);
 EXPORT_SYMBOL(kvm_mips_is_error_pfn);
 
 uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(kvm_mips_dump_guest_tlbs);
 static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 {
 	int srcu_idx, err = 0;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 
 	if (kvm->arch.guest_pmap[gfn] != KVM_INVALID_PAGE)
 		return 0;
@@ -262,7 +262,7 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 				    struct kvm_vcpu *vcpu)
 {
 	gfn_t gfn;
-	pfn_t pfn0, pfn1;
+	kvm_pfn_t pfn0, pfn1;
 	unsigned long vaddr = 0;
 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
 	int even;
@@ -313,7 +313,7 @@ EXPORT_SYMBOL(kvm_mips_handle_kseg0_tlb_fault);
 int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	struct kvm_vcpu *vcpu)
 {
-	pfn_t pfn0, pfn1;
+	kvm_pfn_t pfn0, pfn1;
 	unsigned long flags, old_entryhi = 0, vaddr = 0;
 	unsigned long entrylo0 = 0, entrylo1 = 0;
 
@@ -360,7 +360,7 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 {
 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
 	struct kvm *kvm = vcpu->kvm;
-	pfn_t pfn0, pfn1;
+	kvm_pfn_t pfn0, pfn1;
 
 	if ((tlb->tlb_hi & VPN2_MASK) == 0) {
 		pfn0 = 0;

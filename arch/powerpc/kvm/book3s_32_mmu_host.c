@@ -142,7 +142,7 @@ extern char etext[];
 int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 			bool iswrite)
 {
-	pfn_t hpaddr;
+	kvm_pfn_t hpaddr;
 	u64 vpn;
 	u64 vsid;
 	struct kvmppc_sid_map *map;
