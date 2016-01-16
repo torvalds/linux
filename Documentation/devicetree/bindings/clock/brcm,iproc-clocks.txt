@@ -208,3 +208,8 @@ These clock IDs are defined in:
     ch3_unused	lcpll_ports	4	BCM_NS2_LCPLL_PORTS_CH3_UNUSED
     ch4_unused	lcpll_ports	5	BCM_NS2_LCPLL_PORTS_CH4_UNUSED
     ch5_unused	lcpll_ports	6	BCM_NS2_LCPLL_PORTS_CH5_UNUSED
+
+BCM63138
+--------
+PLL and leaf clock compatible strings for BCM63138 are:
+    "brcm,bcm63138-armpll"

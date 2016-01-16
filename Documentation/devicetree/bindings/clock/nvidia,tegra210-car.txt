@@ -1,0 +1,56 @@
+NVIDIA Tegra210 Clock And Reset Controller
+
+This binding uses the common clock binding:
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+The CAR (Clock And Reset) Controller on Tegra is the HW module responsible
+for muxing and gating Tegra's clocks, and setting their rates.
+
+Required properties :
+- compatible : Should be "nvidia,tegra210-car"
+- reg : Should contain CAR registers location and length
+- clocks : Should contain phandle and clock specifiers for two clocks:
+  the 32 KHz "32k_in".
+- #clock-cells : Should be 1.
+  In clock consumers, this cell represents the clock ID exposed by the
+  CAR. The assignments may be found in header file
+  <dt-bindings/clock/tegra210-car.h>.
+- #reset-cells : Should be 1.
+  In clock consumers, this cell represents the bit number in the CAR's
+  array of CLK_RST_CONTROLLER_RST_DEVICES_* registers.
+
+Example SoC include file:
+
+/ {
+	tegra_car: clock {
+		compatible = "nvidia,tegra210-car";
+		reg = <0x60006000 0x1000>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
+
+	usb@c5004000 {
+		clocks = <&tegra_car TEGRA210_CLK_USB2>;
+	};
+};
+
+Example board file:
+
+/ {
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk_32k: clock@1 {
+			compatible = "fixed-clock";
+			reg = <1>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	&tegra_car {
+		clocks = <&clk_32k>;
+	};
+};
