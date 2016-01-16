@@ -47,8 +47,7 @@ static const char BRCM_ ## fw_nvram_name ## _FIRMWARE_NAME[] = \
 	BRCMF_FW_DEFAULT_PATH fw; \
 static const char BRCM_ ## fw_nvram_name ## _NVRAM_NAME[] = \
 	BRCMF_FW_DEFAULT_PATH nvram; \
-MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw); \
-MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH nvram)
+MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw);
 
 #define BRCMF_FW_DEF(fw_name, fw) \
 static const char BRCM_ ## fw_name ## _FIRMWARE_NAME[] = \
