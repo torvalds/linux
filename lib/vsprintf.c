@@ -401,6 +401,8 @@ char *number(char *buf, char *end, unsigned long long num,
 	int need_pfx = ((spec.flags & SPECIAL) && spec.base != 10);
 	int i;
 	bool is_zero = num == 0LL;
+	int field_width = spec.field_width;
+	int precision = spec.precision;
 
 	BUILD_BUG_ON(sizeof(struct printf_spec) != 8);
 
@@ -414,20 +416,20 @@ char *number(char *buf, char *end, unsigned long long num,
 		if ((signed long long)num < 0) {
 			sign = '-';
 			num = -(signed long long)num;
-			spec.field_width--;
+			field_width--;
 		} else if (spec.flags & PLUS) {
 			sign = '+';
-			spec.field_width--;
+			field_width--;
 		} else if (spec.flags & SPACE) {
 			sign = ' ';
-			spec.field_width--;
+			field_width--;
 		}
 	}
 	if (need_pfx) {
 		if (spec.base == 16)
-			spec.field_width -= 2;
+			field_width -= 2;
 		else if (!is_zero)
-			spec.field_width--;
+			field_width--;
 	}
 
 	/* generate full string in tmp[], in reverse order */
@@ -449,12 +451,12 @@ char *number(char *buf, char *end, unsigned long long num,
 	}
 
 	/* printing 100 using %2d gives "100", not "00" */
-	if (i > spec.precision)
-		spec.precision = i;
+	if (i > precision)
+		precision = i;
 	/* leading space padding */
-	spec.field_width -= spec.precision;
+	field_width -= precision;
 	if (!(spec.flags & (ZEROPAD | LEFT))) {
-		while (--spec.field_width >= 0) {
+		while (--field_width >= 0) {
 			if (buf < end)
 				*buf = ' ';
 			++buf;
@@ -483,14 +485,14 @@ char *number(char *buf, char *end, unsigned long long num,
 	if (!(spec.flags & LEFT)) {
 		char c = ' ' + (spec.flags & ZEROPAD);
 		BUILD_BUG_ON(' ' + ZEROPAD != '0');
-		while (--spec.field_width >= 0) {
+		while (--field_width >= 0) {
 			if (buf < end)
 				*buf = c;
 			++buf;
 		}
 	}
 	/* hmm even more zero padding? */
-	while (i <= --spec.precision) {
+	while (i <= --precision) {
 		if (buf < end)
 			*buf = '0';
 		++buf;
@@ -502,7 +504,7 @@ char *number(char *buf, char *end, unsigned long long num,
 		++buf;
 	}
 	/* trailing space padding */
-	while (--spec.field_width >= 0) {
+	while (--field_width >= 0) {
 		if (buf < end)
 			*buf = ' ';
 		++buf;
