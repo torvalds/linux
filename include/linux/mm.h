@@ -1100,7 +1100,7 @@ static inline bool shmem_mapping(struct address_space *mapping)
 }
 #endif
 
-extern int can_do_mlock(void);
+extern bool can_do_mlock(void);
 extern int user_shm_lock(size_t, struct user_struct *);
 extern void user_shm_unlock(size_t, struct user_struct *);
 
