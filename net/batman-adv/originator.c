@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -196,11 +197,15 @@ void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo)
 /**
  * batadv_hardif_neigh_release - release hardif neigh node from lists and
  *  queue for free after rcu grace period
- * @hardif_neigh: hardif neigh neighbor to free
+ * @ref: kref pointer of the neigh_node
  */
-static void
-batadv_hardif_neigh_release(struct batadv_hardif_neigh_node *hardif_neigh)
+static void batadv_hardif_neigh_release(struct kref *ref)
 {
+	struct batadv_hardif_neigh_node *hardif_neigh;
+
+	hardif_neigh = container_of(ref, struct batadv_hardif_neigh_node,
+				    refcount);
+
 	spin_lock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
 	hlist_del_init_rcu(&hardif_neigh->list);
 	spin_unlock_bh(&hardif_neigh->if_incoming->neigh_list_lock);
@@ -216,8 +221,7 @@ batadv_hardif_neigh_release(struct batadv_hardif_neigh_node *hardif_neigh)
  */
 void batadv_hardif_neigh_free_ref(struct batadv_hardif_neigh_node *hardif_neigh)
 {
-	if (atomic_dec_and_test(&hardif_neigh->refcount))
-		batadv_hardif_neigh_release(hardif_neigh);
+	kref_put(&hardif_neigh->refcount, batadv_hardif_neigh_release);
 }
 
 /**
@@ -529,7 +533,7 @@ batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
 	hardif_neigh->if_incoming = hard_iface;
 	hardif_neigh->last_seen = jiffies;
 
-	atomic_set(&hardif_neigh->refcount, 1);
+	kref_init(&hardif_neigh->refcount);
 
 	if (bat_priv->bat_algo_ops->bat_hardif_neigh_init)
 		bat_priv->bat_algo_ops->bat_hardif_neigh_init(hardif_neigh);
@@ -584,7 +588,7 @@ batadv_hardif_neigh_get(const struct batadv_hard_iface *hard_iface,
 		if (!batadv_compare_eth(tmp_hardif_neigh->addr, neigh_addr))
 			continue;
 
-		if (!atomic_inc_not_zero(&tmp_hardif_neigh->refcount))
+		if (!kref_get_unless_zero(&tmp_hardif_neigh->refcount))
 			continue;
 
 		hardif_neigh = tmp_hardif_neigh;
@@ -648,7 +652,7 @@ batadv_neigh_node_new(struct batadv_orig_node *orig_node,
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	/* increment unique neighbor refcount */
-	atomic_inc(&hardif_neigh->refcount);
+	kref_get(&hardif_neigh->refcount);
 
 	batadv_dbg(BATADV_DBG_BATMAN, orig_node->bat_priv,
 		   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
