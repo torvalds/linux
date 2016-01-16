@@ -104,7 +104,7 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 		   hard_iface->net_dev->name,
 		   atomic_read(&hard_iface->bat_v.elp_seqno));
 
-	batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
+	batadv_send_broadcast_skb(skb, hard_iface);
 
 	atomic_inc(&hard_iface->bat_v.elp_seqno);
 

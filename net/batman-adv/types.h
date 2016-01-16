@@ -377,11 +377,13 @@ DECLARE_EWMA(throughput, 1024, 8)
  * @throughput: ewma link throughput towards this neighbor
  * @elp_interval: time interval between two ELP transmissions
  * @elp_latest_seqno: latest and best known ELP sequence number
+ * @last_unicast_tx: when the last unicast packet has been sent to this neighbor
  */
 struct batadv_hardif_neigh_node_bat_v {
 	struct ewma_throughput throughput;
 	u32 elp_interval;
 	u32 elp_latest_seqno;
+	unsigned long last_unicast_tx;
 };
 
 /**

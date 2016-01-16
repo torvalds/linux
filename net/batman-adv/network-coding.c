@@ -575,9 +575,7 @@ batadv_nc_hash_find(struct batadv_hashtable *hash,
  */
 static void batadv_nc_send_packet(struct batadv_nc_packet *nc_packet)
 {
-	batadv_send_skb_packet(nc_packet->skb,
-			       nc_packet->neigh_node->if_incoming,
-			       nc_packet->nc_path->next_hop);
+	batadv_send_unicast_skb(nc_packet->skb, nc_packet->neigh_node);
 	nc_packet->skb = NULL;
 	batadv_nc_packet_free(nc_packet);
 }
@@ -1067,11 +1065,11 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	struct batadv_unicast_packet *packet1;
 	struct batadv_unicast_packet *packet2;
 	struct batadv_coded_packet *coded_packet;
-	struct batadv_neigh_node *neigh_tmp, *router_neigh;
-	struct batadv_neigh_node *router_coding = NULL;
+	struct batadv_neigh_node *neigh_tmp, *router_neigh, *first_dest;
+	struct batadv_neigh_node *router_coding = NULL, *second_dest;
 	struct batadv_neigh_ifinfo *router_neigh_ifinfo = NULL;
 	struct batadv_neigh_ifinfo *router_coding_ifinfo = NULL;
-	u8 *first_source, *first_dest, *second_source, *second_dest;
+	u8 *first_source, *second_source;
 	__be32 packet_id1, packet_id2;
 	size_t count;
 	bool res = false;
@@ -1114,9 +1112,9 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	 */
 	if (tq_weighted_neigh >= tq_weighted_coding) {
 		/* Destination from nc_packet is selected for MAC-header */
-		first_dest = nc_packet->nc_path->next_hop;
+		first_dest = nc_packet->neigh_node;
 		first_source = nc_packet->nc_path->prev_hop;
-		second_dest = neigh_node->addr;
+		second_dest = neigh_node;
 		second_source = ethhdr->h_source;
 		packet1 = (struct batadv_unicast_packet *)nc_packet->skb->data;
 		packet2 = (struct batadv_unicast_packet *)skb->data;
@@ -1125,9 +1123,9 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 					      skb->data + sizeof(*packet2));
 	} else {
 		/* Destination for skb is selected for MAC-header */
-		first_dest = neigh_node->addr;
+		first_dest = neigh_node;
 		first_source = ethhdr->h_source;
-		second_dest = nc_packet->nc_path->next_hop;
+		second_dest = nc_packet->neigh_node;
 		second_source = nc_packet->nc_path->prev_hop;
 		packet1 = (struct batadv_unicast_packet *)skb->data;
 		packet2 = (struct batadv_unicast_packet *)nc_packet->skb->data;
@@ -1169,7 +1167,7 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	coded_packet->first_ttvn = packet1->ttvn;
 
 	/* Info about second unicast packet */
-	ether_addr_copy(coded_packet->second_dest, second_dest);
+	ether_addr_copy(coded_packet->second_dest, second_dest->addr);
 	ether_addr_copy(coded_packet->second_source, second_source);
 	ether_addr_copy(coded_packet->second_orig_dest, packet2->dest);
 	coded_packet->second_crc = packet_id2;
@@ -1224,7 +1222,7 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	batadv_nc_packet_free(nc_packet);
 
 	/* Send the coded packet and return true */
-	batadv_send_skb_packet(skb_dest, neigh_node->if_incoming, first_dest);
+	batadv_send_unicast_skb(skb_dest, first_dest);
 	res = true;
 out:
 	if (router_neigh)

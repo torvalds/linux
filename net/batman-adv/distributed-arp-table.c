@@ -654,9 +654,7 @@ static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
 			goto free_neigh;
 		}
 
-		send_status = batadv_send_skb_packet(tmp_skb,
-						     neigh_node->if_incoming,
-						     neigh_node->addr);
+		send_status = batadv_send_unicast_skb(tmp_skb, neigh_node);
 		if (send_status == NET_XMIT_SUCCESS) {
 			/* count the sent packet */
 			switch (packet_subtype) {
