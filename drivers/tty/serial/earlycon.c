@@ -59,6 +59,7 @@ static void __init earlycon_init(struct earlycon_device *device,
 				 const char *name)
 {
 	struct console *earlycon = device->con;
+	struct uart_port *port = &device->port;
 	const char *s;
 	size_t len;
 
@@ -72,6 +73,19 @@ static void __init earlycon_init(struct earlycon_device *device,
 	len = s - name;
 	strlcpy(earlycon->name, name, min(len + 1, sizeof(earlycon->name)));
 	earlycon->data = &early_console_dev;
+
+	if (port->iotype == UPIO_MEM || port->iotype == UPIO_MEM16 ||
+	    port->iotype == UPIO_MEM32 || port->iotype == UPIO_MEM32BE)
+		pr_info("Early serial console at MMIO%s 0x%llx (options '%s')\n",
+			(port->iotype == UPIO_MEM) ? "" :
+			(port->iotype == UPIO_MEM16) ? "16" :
+			(port->iotype == UPIO_MEM32) ? "32" : "32be",
+			(unsigned long long)port->mapbase,
+			device->options);
+	else
+		pr_info("Early serial console at I/O port 0x%lx (options '%s')\n",
+			port->iobase,
+			device->options);
 }
 
 static int __init parse_options(struct earlycon_device *device, char *options)
@@ -109,19 +123,6 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 			     (size_t)(sizeof(device->options)));
 		strlcpy(device->options, options, length);
 	}
-
-	if (port->iotype == UPIO_MEM || port->iotype == UPIO_MEM16 ||
-	    port->iotype == UPIO_MEM32 || port->iotype == UPIO_MEM32BE)
-		pr_info("Early serial console at MMIO%s 0x%llx (options '%s')\n",
-			(port->iotype == UPIO_MEM) ? "" :
-			(port->iotype == UPIO_MEM16) ? "16" :
-			(port->iotype == UPIO_MEM32) ? "32" : "32be",
-			(unsigned long long)port->mapbase,
-			device->options);
-	else
-		pr_info("Early serial console at I/O port 0x%lx (options '%s')\n",
-			port->iobase,
-			device->options);
 
 	return 0;
 }
