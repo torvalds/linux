@@ -166,6 +166,7 @@ struct page_map {
 	struct resource res;
 	struct percpu_ref *ref;
 	struct dev_pagemap pgmap;
+	struct vmem_altmap altmap;
 };
 
 static void pgmap_radix_release(struct resource *res)
@@ -183,6 +184,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
 	struct page_map *page_map = data;
 	struct resource *res = &page_map->res;
 	resource_size_t align_start, align_size;
+	struct dev_pagemap *pgmap = &page_map->pgmap;
 
 	pgmap_radix_release(res);
 
@@ -190,6 +192,8 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
 	align_start = res->start & ~(SECTION_SIZE - 1);
 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
 	arch_remove_memory(align_start, align_size);
+	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
+			"%s: failed to free all reserved pages\n", __func__);
 }
 
 /* assumes rcu_read_lock() held at entry */
@@ -203,11 +207,23 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
 	return page_map ? &page_map->pgmap : NULL;
 }
 
-void *devm_memremap_pages(struct device *dev, struct resource *res)
+/**
+ * devm_memremap_pages - remap and provide memmap backing for the given resource
+ * @dev: hosting device for @res
+ * @res: "host memory" address range
+ * @altmap: optional descriptor for allocating the memmap from @res
+ *
+ * Note, the expectation is that @res is a host memory range that could
+ * feasibly be treated as a "System RAM" range, i.e. not a device mmio
+ * range, but this is not enforced.
+ */
+void *devm_memremap_pages(struct device *dev, struct resource *res,
+		struct vmem_altmap *altmap)
 {
 	int is_ram = region_intersects(res->start, resource_size(res),
 			"System RAM");
 	resource_size_t key, align_start, align_size;
+	struct dev_pagemap *pgmap;
 	struct page_map *page_map;
 	int error, nid;
 
@@ -220,14 +236,27 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
 
+	if (altmap && !IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)) {
+		dev_err(dev, "%s: altmap requires CONFIG_SPARSEMEM_VMEMMAP=y\n",
+				__func__);
+		return ERR_PTR(-ENXIO);
+	}
+
 	page_map = devres_alloc_node(devm_memremap_pages_release,
 			sizeof(*page_map), GFP_KERNEL, dev_to_node(dev));
 	if (!page_map)
 		return ERR_PTR(-ENOMEM);
+	pgmap = &page_map->pgmap;
 
 	memcpy(&page_map->res, res, sizeof(*res));
 
-	page_map->pgmap.dev = dev;
+	pgmap->dev = dev;
+	if (altmap) {
+		memcpy(&page_map->altmap, altmap, sizeof(*altmap));
+		pgmap->altmap = &page_map->altmap;
+	}
+	pgmap->res = &page_map->res;
+
 	mutex_lock(&pgmap_lock);
 	error = 0;
 	for (key = res->start; key <= res->end; key += SECTION_SIZE) {
@@ -273,4 +302,43 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 	return ERR_PTR(error);
 }
 EXPORT_SYMBOL(devm_memremap_pages);
+
+unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
+{
+	/* number of pfns from base where pfn_to_page() is valid */
+	return altmap->reserve + altmap->free;
+}
+
+void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
+{
+	altmap->alloc -= nr_pfns;
+}
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+{
+	/*
+	 * 'memmap_start' is the virtual address for the first "struct
+	 * page" in this range of the vmemmap array.  In the case of
+	 * CONFIG_SPARSE_VMEMMAP a page_to_pfn conversion is simple
+	 * pointer arithmetic, so we can perform this to_vmem_altmap()
+	 * conversion without concern for the initialization state of
+	 * the struct page fields.
+	 */
+	struct page *page = (struct page *) memmap_start;
+	struct dev_pagemap *pgmap;
+
+	/*
+	 * Uncoditionally retrieve a dev_pagemap associated with the
+	 * given physical address, this is only for use in the
+	 * arch_{add|remove}_memory() for setting up and tearing down
+	 * the memmap.
+	 */
+	rcu_read_lock();
+	pgmap = find_dev_pagemap(__pfn_to_phys(page_to_pfn(page)));
+	rcu_read_unlock();
+
+	return pgmap ? pgmap->altmap : NULL;
+}
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 #endif /* CONFIG_ZONE_DEVICE */
