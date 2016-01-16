@@ -133,6 +133,27 @@ enum pageflags {
 
 #ifndef __GENERATING_BOUNDS_H
 
+struct page;	/* forward declaration */
+
+static inline struct page *compound_head(struct page *page)
+{
+	unsigned long head = READ_ONCE(page->compound_head);
+
+	if (unlikely(head & 1))
+		return (struct page *) (head - 1);
+	return page;
+}
+
+static inline int PageTail(struct page *page)
+{
+	return READ_ONCE(page->compound_head) & 1;
+}
+
+static inline int PageCompound(struct page *page)
+{
+	return test_bit(PG_head, &page->flags) || PageTail(page);
+}
+
 /*
  * Macros to create function definitions for page flags
  */
@@ -204,7 +225,6 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
 #define TESTSCFLAG_FALSE(uname)						\
 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
 
-struct page;	/* forward declaration */
 
 TESTPAGEFLAG(Locked, locked)
 PAGEFLAG(Error, error) TESTCLEARFLAG(Error, error)
@@ -395,11 +415,6 @@ static inline void set_page_writeback_keepwrite(struct page *page)
 
 __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
 
-static inline int PageTail(struct page *page)
-{
-	return READ_ONCE(page->compound_head) & 1;
-}
-
 static inline void set_compound_head(struct page *page, struct page *head)
 {
 	WRITE_ONCE(page->compound_head, (unsigned long)head + 1);
@@ -410,20 +425,6 @@ static inline void clear_compound_head(struct page *page)
 	WRITE_ONCE(page->compound_head, 0);
 }
 
-static inline struct page *compound_head(struct page *page)
-{
-	unsigned long head = READ_ONCE(page->compound_head);
-
-	if (unlikely(head & 1))
-		return (struct page *) (head - 1);
-	return page;
-}
-
-static inline int PageCompound(struct page *page)
-{
-	return PageHead(page) || PageTail(page);
-
-}
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline void ClearPageCompound(struct page *page)
 {
