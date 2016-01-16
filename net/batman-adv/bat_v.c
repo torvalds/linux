@@ -19,12 +19,15 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/bug.h>
 #include <linux/cache.h>
 #include <linux/init.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
 
 #include "bat_v_elp.h"
 #include "bat_v_ogm.h"
+#include "originator.h"
 #include "packet.h"
 
 static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
@@ -78,6 +81,39 @@ static void batadv_v_ogm_emit(struct batadv_forw_packet *forw_packet)
 {
 }
 
+static int batadv_v_neigh_cmp(struct batadv_neigh_node *neigh1,
+			      struct batadv_hard_iface *if_outgoing1,
+			      struct batadv_neigh_node *neigh2,
+			      struct batadv_hard_iface *if_outgoing2)
+{
+	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
+
+	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
+	ifinfo2 = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+
+	if (WARN_ON(!ifinfo1 || !ifinfo2))
+		return 0;
+
+	return ifinfo1->bat_v.throughput - ifinfo2->bat_v.throughput;
+}
+
+static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
+				  struct batadv_hard_iface *if_outgoing1,
+				  struct batadv_neigh_node *neigh2,
+				  struct batadv_hard_iface *if_outgoing2)
+{
+	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
+	u32 threshold;
+
+	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
+	ifinfo2 = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+
+	threshold = ifinfo1->bat_v.throughput / 4;
+	threshold = ifinfo1->bat_v.throughput - threshold;
+
+	return ifinfo2->bat_v.throughput > threshold;
+}
+
 static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.name = "BATMAN_V",
 	.bat_iface_enable = batadv_v_iface_enable,
@@ -87,6 +123,8 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.bat_hardif_neigh_init = batadv_v_hardif_neigh_init,
 	.bat_ogm_emit = batadv_v_ogm_emit,
 	.bat_ogm_schedule = batadv_v_ogm_schedule,
+	.bat_neigh_cmp = batadv_v_neigh_cmp,
+	.bat_neigh_is_similar_or_better = batadv_v_neigh_is_sob,
 };
 
 /**
