@@ -233,14 +233,27 @@ static void batadv_nc_node_free_ref(struct batadv_nc_node *nc_node)
 }
 
 /**
- * batadv_nc_path_free_ref - decrements the nc path refcounter and possibly
- * frees it
- * @nc_path: the nc node to free
+ * batadv_nc_path_release - release nc_path from lists and queue for free after
+ *  rcu grace period
+ * @ref: kref pointer of the nc_path
+ */
+static void batadv_nc_path_release(struct kref *ref)
+{
+	struct batadv_nc_path *nc_path;
+
+	nc_path = container_of(ref, struct batadv_nc_path, refcount);
+
+	kfree_rcu(nc_path, rcu);
+}
+
+/**
+ * batadv_nc_path_free_ref - decrement the nc_path refcounter and possibly
+ *  release it
+ * @nc_path: nc_path to be free'd
  */
 static void batadv_nc_path_free_ref(struct batadv_nc_path *nc_path)
 {
-	if (atomic_dec_and_test(&nc_path->refcount))
-		kfree_rcu(nc_path, rcu);
+	kref_put(&nc_path->refcount, batadv_nc_path_release);
 }
 
 /**
@@ -545,7 +558,7 @@ batadv_nc_hash_find(struct batadv_hashtable *hash,
 		if (!batadv_nc_hash_compare(&nc_path->hash_entry, data))
 			continue;
 
-		if (!atomic_inc_not_zero(&nc_path->refcount))
+		if (!kref_get_unless_zero(&nc_path->refcount))
 			continue;
 
 		nc_path_tmp = nc_path;
@@ -972,7 +985,8 @@ static struct batadv_nc_path *batadv_nc_get_path(struct batadv_priv *bat_priv,
 	/* Initialize nc_path */
 	INIT_LIST_HEAD(&nc_path->packet_list);
 	spin_lock_init(&nc_path->packet_list_lock);
-	atomic_set(&nc_path->refcount, 2);
+	kref_init(&nc_path->refcount);
+	kref_get(&nc_path->refcount);
 	nc_path->last_valid = jiffies;
 	ether_addr_copy(nc_path->next_hop, dst);
 	ether_addr_copy(nc_path->prev_hop, src);
