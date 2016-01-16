@@ -1,6 +1,6 @@
-/* Copyright (C) 2011-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2016 B.A.T.M.A.N. contributors:
  *
- * Marek Lindner, Linus Lüssing
+ * Linus Lüssing, Marek Lindner
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -15,22 +15,13 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _NET_BATMAN_ADV_BAT_ALGO_H_
-#define _NET_BATMAN_ADV_BAT_ALGO_H_
+#include "main.h"
 
-int batadv_iv_init(void);
+#ifndef _NET_BATMAN_ADV_BAT_V_ELP_H_
+#define _NET_BATMAN_ADV_BAT_V_ELP_H_
 
-#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface);
+void batadv_v_elp_iface_disable(struct batadv_hard_iface *hard_iface);
+void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface);
 
-int batadv_v_init(void);
-
-#else
-
-static inline int batadv_v_init(void)
-{
-	return 0;
-}
-
-#endif /* CONFIG_BATMAN_ADV_BATMAN_V */
-
-#endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */
+#endif /* _NET_BATMAN_ADV_BAT_V_ELP_H_ */

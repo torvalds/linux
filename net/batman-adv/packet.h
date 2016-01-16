@@ -26,6 +26,7 @@
  * @BATADV_IV_OGM: originator messages for B.A.T.M.A.N. IV
  * @BATADV_BCAST: broadcast packets carrying broadcast payload
  * @BATADV_CODED: network coded packets
+ * @BATADV_ELP: echo location packets for B.A.T.M.A.N. V
  *
  * @BATADV_UNICAST: unicast packets carrying unicast payload traffic
  * @BATADV_UNICAST_FRAG: unicast packets carrying a fragment of the original
@@ -40,6 +41,7 @@ enum batadv_packettype {
 	BATADV_IV_OGM           = 0x00,
 	BATADV_BCAST            = 0x01,
 	BATADV_CODED            = 0x02,
+	BATADV_ELP		= 0x03,
 	/* 0x40 - 0x7f: unicast */
 #define BATADV_UNICAST_MIN     0x40
 	BATADV_UNICAST          = 0x40,
@@ -233,6 +235,24 @@ struct batadv_ogm_packet {
 };
 
 #define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
+
+/**
+ * struct batadv_elp_packet - elp (neighbor discovery) packet
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @orig: originator mac address
+ * @seqno: sequence number
+ * @elp_interval: currently used ELP sending interval in ms
+ */
+struct batadv_elp_packet {
+	u8     packet_type;
+	u8     version;
+	u8     orig[ETH_ALEN];
+	__be32 seqno;
+	__be32 elp_interval;
+};
+
+#define BATADV_ELP_HLEN sizeof(struct batadv_elp_packet)
 
 /**
  * struct batadv_icmp_header - common members among all the ICMP packets

@@ -87,6 +87,7 @@ static int __init batadv_init(void)
 
 	batadv_recv_handler_init();
 
+	batadv_v_init();
 	batadv_iv_init();
 	batadv_nc_init();
 
