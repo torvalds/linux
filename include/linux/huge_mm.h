@@ -95,28 +95,12 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 #endif /* CONFIG_DEBUG_VM */
 
 extern unsigned long transparent_hugepage_flags;
-extern int split_huge_page_to_list(struct page *page, struct list_head *list);
-static inline int split_huge_page(struct page *page)
-{
-	return split_huge_page_to_list(page, NULL);
-}
-extern void __split_huge_page_pmd(struct vm_area_struct *vma,
-		unsigned long address, pmd_t *pmd);
-#define split_huge_pmd(__vma, __pmd, __address)				\
-	do {								\
-		pmd_t *____pmd = (__pmd);				\
-		if (unlikely(pmd_trans_huge(*____pmd)))			\
-			__split_huge_page_pmd(__vma, __address,		\
-					____pmd);			\
-	}  while (0)
-#define wait_split_huge_page(__anon_vma, __pmd)				\
-	do {								\
-		pmd_t *____pmd = (__pmd);				\
-		anon_vma_lock_write(__anon_vma);			\
-		anon_vma_unlock_write(__anon_vma);			\
-		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
-		       pmd_trans_huge(*____pmd));			\
-	} while (0)
+
+#define split_huge_page_to_list(page, list) BUILD_BUG()
+#define split_huge_page(page) BUILD_BUG()
+#define split_huge_pmd(__vma, __pmd, __address) BUILD_BUG()
+
+#define wait_split_huge_page(__anon_vma, __pmd) BUILD_BUG()
 #if HPAGE_PMD_ORDER >= MAX_ORDER
 #error "hugepages can't be allocated by the buddy allocator"
 #endif
