@@ -953,10 +953,21 @@ static inline pgoff_t page_file_index(struct page *page)
 
 /*
  * Return true if this page is mapped into pagetables.
+ * For compound page it returns true if any subpage of compound page is mapped.
  */
-static inline int page_mapped(struct page *page)
+static inline bool page_mapped(struct page *page)
 {
-	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
+	int i;
+	if (likely(!PageCompound(page)))
+		return atomic_read(&page->_mapcount) >= 0;
+	page = compound_head(page);
+	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+		return true;
+	for (i = 0; i < hpage_nr_pages(page); i++) {
+		if (atomic_read(&page[i]._mapcount) >= 0)
+			return true;
+	}
+	return false;
 }
 
 /*
