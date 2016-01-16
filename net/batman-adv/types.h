@@ -92,12 +92,14 @@ struct batadv_hard_iface_bat_iv {
  * @elp_seqno: current ELP sequence number
  * @elp_skb: base skb containing the ELP message to send
  * @elp_wq: workqueue used to schedule ELP transmissions
+ * @throughput_override: throughput override to disable link auto-detection
  */
 struct batadv_hard_iface_bat_v {
 	atomic_t elp_interval;
 	atomic_t elp_seqno;
 	struct sk_buff *elp_skb;
 	struct delayed_work elp_wq;
+	atomic_t throughput_override;
 };
 
 /**

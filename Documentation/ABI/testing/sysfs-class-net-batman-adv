@@ -1,4 +1,13 @@
 
+What:		/sys/class/net/<iface>/batman-adv/throughput_override
+Date:		Feb 2014
+Contact:	Antonio Quartulli <antonio@meshcoding.com>
+description:
+		Defines the throughput value to be used by B.A.T.M.A.N. V
+		when estimating the link throughput using this interface.
+		If the value is set to 0 then batman-adv will try to
+		estimate the throughput by itself.
+
 What:           /sys/class/net/<iface>/batman-adv/elp_interval
 Date:           Feb 2014
 Contact:        Linus Lüssing <linus.luessing@web.de>

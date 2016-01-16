@@ -18,6 +18,7 @@
 #include "bat_algo.h"
 #include "main.h"
 
+#include <linux/atomic.h>
 #include <linux/cache.h>
 #include <linux/init.h>
 
@@ -36,6 +37,11 @@ static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 	ret = batadv_v_ogm_iface_enable(hard_iface);
 	if (ret < 0)
 		batadv_v_elp_iface_disable(hard_iface);
+
+	/* enable link throughput auto-detection by setting the throughput
+	 * override to zero
+	 */
+	atomic_set(&hard_iface->bat_v.throughput_override, 0);
 
 	return ret;
 }

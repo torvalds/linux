@@ -917,12 +917,85 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 	return length;
 }
 
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+
+/**
+ * batadv_store_throughput_override - parse and store throughput override
+ *  entered by the user
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer containing the user data
+ * @count: number of bytes in the buffer
+ *
+ * Return: 'count' on success or a negative error code in case of failure
+ */
+static ssize_t batadv_store_throughput_override(struct kobject *kobj,
+						struct attribute *attr,
+						char *buff, size_t count)
+{
+	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct batadv_hard_iface *hard_iface;
+	u32 tp_override;
+	u32 old_tp_override;
+	bool ret;
+
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	if (!hard_iface)
+		return -EINVAL;
+
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
+
+	ret = batadv_parse_throughput(net_dev, buff, "throughput_override",
+				      &tp_override);
+	if (!ret)
+		return count;
+
+	old_tp_override = atomic_read(&hard_iface->bat_v.throughput_override);
+	if (old_tp_override == tp_override)
+		goto out;
+
+	batadv_info(net_dev, "%s: Changing from: %u.%u MBit to: %u.%u MBit\n",
+		    "throughput_override",
+		    old_tp_override / 10, old_tp_override % 10,
+		    tp_override / 10, tp_override % 10);
+
+	atomic_set(&hard_iface->bat_v.throughput_override, tp_override);
+
+out:
+	batadv_hardif_put(hard_iface);
+	return count;
+}
+
+static ssize_t batadv_show_throughput_override(struct kobject *kobj,
+					       struct attribute *attr,
+					       char *buff)
+{
+	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct batadv_hard_iface *hard_iface;
+	u32 tp_override;
+
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	if (!hard_iface)
+		return -EINVAL;
+
+	tp_override = atomic_read(&hard_iface->bat_v.throughput_override);
+
+	return sprintf(buff, "%u.%u MBit\n", tp_override / 10,
+		       tp_override % 10);
+}
+
+#endif
+
 static BATADV_ATTR(mesh_iface, S_IRUGO | S_IWUSR, batadv_show_mesh_iface,
 		   batadv_store_mesh_iface);
 static BATADV_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 BATADV_ATTR_HIF_UINT(elp_interval, bat_v.elp_interval, S_IRUGO | S_IWUSR,
 		     2 * BATADV_JITTER, INT_MAX, NULL);
+static BATADV_ATTR(throughput_override, S_IRUGO | S_IWUSR,
+		   batadv_show_throughput_override,
+		   batadv_store_throughput_override);
 #endif
 
 static struct batadv_attribute *batadv_batman_attrs[] = {
@@ -930,6 +1003,7 @@ static struct batadv_attribute *batadv_batman_attrs[] = {
 	&batadv_attr_iface_status,
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 	&batadv_attr_elp_interval,
+	&batadv_attr_throughput_override,
 #endif
 	NULL,
 };
