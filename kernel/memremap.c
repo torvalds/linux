@@ -12,6 +12,7 @@
  */
 #include <linux/device.h>
 #include <linux/types.h>
+#include <linux/pfn_t.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/memory_hotplug.h>
@@ -146,6 +147,12 @@ void devm_memunmap(struct device *dev, void *addr)
 				devm_memremap_match, addr));
 }
 EXPORT_SYMBOL(devm_memunmap);
+
+pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
+{
+	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
+}
+EXPORT_SYMBOL(phys_to_pfn_t);
 
 #ifdef CONFIG_ZONE_DEVICE
 struct page_map {

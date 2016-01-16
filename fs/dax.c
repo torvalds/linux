@@ -28,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/uio.h>
 #include <linux/vmstat.h>
+#include <linux/pfn_t.h>
 #include <linux/sizes.h>
 
 static long dax_map_atomic(struct block_device *bdev, struct blk_dax_ctl *dax)
@@ -362,7 +363,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
 	}
 	dax_unmap_atomic(bdev, &dax);
 
-	error = vm_insert_mixed(vma, vaddr, dax.pfn);
+	error = vm_insert_mixed(vma, vaddr, pfn_t_to_pfn(dax.pfn));
 
  out:
 	i_mmap_unlock_read(mapping);
@@ -667,7 +668,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 			result = VM_FAULT_SIGBUS;
 			goto out;
 		}
-		if ((length < PMD_SIZE) || (dax.pfn & PG_PMD_COLOUR)) {
+		if (length < PMD_SIZE
+				|| (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)) {
 			dax_unmap_atomic(bdev, &dax);
 			goto fallback;
 		}
@@ -676,7 +678,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		 * TODO: teach vmf_insert_pfn_pmd() to support
 		 * 'pte_special' for pmds
 		 */
-		if (pfn_valid(dax.pfn)) {
+		if (pfn_t_has_page(dax.pfn)) {
 			dax_unmap_atomic(bdev, &dax);
 			goto fallback;
 		}
@@ -690,7 +692,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		}
 		dax_unmap_atomic(bdev, &dax);
 
-		result |= vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
+		result |= vmf_insert_pfn_pmd(vma, address, pmd,
+				pfn_t_to_pfn(dax.pfn), write);
 	}
 
  out:
