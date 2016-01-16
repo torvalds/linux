@@ -39,6 +39,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x0>;
 			device_type = "cpu";
+			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
 		};
 
@@ -46,20 +47,27 @@
 			compatible = "arm,cortex-a57","arm,armv8";
 			reg = <0x1>;
 			device_type = "cpu";
+			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
 		};
 		a57_2: cpu@2 {
 			compatible = "arm,cortex-a57","arm,armv8";
 			reg = <0x2>;
 			device_type = "cpu";
+			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
 		};
 		a57_3: cpu@3 {
 			compatible = "arm,cortex-a57","arm,armv8";
 			reg = <0x3>;
 			device_type = "cpu";
+			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
 		};
+	};
+
+	L2_CA57: cache-controller@0 {
+		compatible = "cache";
 	};
 
 	extal_clk: extal {
