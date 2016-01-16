@@ -85,8 +85,8 @@
 #define  MMA8452_INT_FF_MT			BIT(2)
 #define  MMA8452_INT_TRANS			BIT(5)
 
-#define  MMA8452_DEVICE_ID			0x2a
-#define  MMA8453_DEVICE_ID			0x3a
+#define MMA8452_DEVICE_ID			0x2a
+#define MMA8453_DEVICE_ID			0x3a
 #define MMA8652_DEVICE_ID			0x4a
 #define MMA8653_DEVICE_ID			0x5a
 
