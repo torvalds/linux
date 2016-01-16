@@ -2022,7 +2022,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 
 	BUG_ON(!PageSwapBacked(page));
 	__split_huge_page(page, anon_vma, list);
-	count_vm_event(THP_SPLIT);
+	count_vm_event(THP_SPLIT_PAGE);
 
 	BUG_ON(PageCompound(page));
 out_unlock:
