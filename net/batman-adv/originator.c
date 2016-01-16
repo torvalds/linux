@@ -18,6 +18,7 @@
 #include "originator.h"
 #include "main.h"
 
+#include <linux/atomic.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
@@ -775,13 +776,16 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 /**
  * batadv_orig_node_release - release orig_node from lists and queue for
  *  free after rcu grace period
- * @orig_node: the orig node to free
+ * @ref: kref pointer of the orig_node
  */
-static void batadv_orig_node_release(struct batadv_orig_node *orig_node)
+static void batadv_orig_node_release(struct kref *ref)
 {
 	struct hlist_node *node_tmp;
 	struct batadv_neigh_node *neigh_node;
+	struct batadv_orig_node *orig_node;
 	struct batadv_orig_ifinfo *orig_ifinfo;
+
+	orig_node = container_of(ref, struct batadv_orig_node, refcount);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 
@@ -812,8 +816,7 @@ static void batadv_orig_node_release(struct batadv_orig_node *orig_node)
  */
 void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node)
 {
-	if (atomic_dec_and_test(&orig_node->refcount))
-		batadv_orig_node_release(orig_node);
+	kref_put(&orig_node->refcount, batadv_orig_node_release);
 }
 
 void batadv_originator_free(struct batadv_priv *bat_priv)
@@ -885,7 +888,8 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	batadv_nc_init_orig(orig_node);
 
 	/* extra reference for return */
-	atomic_set(&orig_node->refcount, 2);
+	kref_init(&orig_node->refcount);
+	kref_get(&orig_node->refcount);
 
 	orig_node->bat_priv = bat_priv;
 	ether_addr_copy(orig_node->orig, addr);

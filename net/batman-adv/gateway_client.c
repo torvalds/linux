@@ -118,7 +118,7 @@ batadv_gw_get_selected_orig(struct batadv_priv *bat_priv)
 	if (!orig_node)
 		goto unlock;
 
-	if (!atomic_inc_not_zero(&orig_node->refcount))
+	if (!kref_get_unless_zero(&orig_node->refcount))
 		orig_node = NULL;
 
 unlock:
@@ -441,7 +441,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	if (gateway->bandwidth_down == 0)
 		return;
 
-	if (!atomic_inc_not_zero(&orig_node->refcount))
+	if (!kref_get_unless_zero(&orig_node->refcount))
 		return;
 
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);

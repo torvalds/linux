@@ -542,7 +542,7 @@ static void batadv_choose_next_candidate(struct batadv_priv *bat_priv,
 							  max_orig_node))
 				continue;
 
-			if (!atomic_inc_not_zero(&orig_node->refcount))
+			if (!kref_get_unless_zero(&orig_node->refcount))
 				continue;
 
 			max = tmp_max;

@@ -1334,7 +1334,7 @@ batadv_tt_global_orig_entry_add(struct batadv_tt_global_entry *tt_global,
 		goto out;
 
 	INIT_HLIST_NODE(&orig_entry->list);
-	atomic_inc(&orig_node->refcount);
+	kref_get(&orig_node->refcount);
 	batadv_tt_global_size_inc(orig_node, tt_global->common.vid);
 	orig_entry->orig_node = orig_node;
 	orig_entry->ttvn = ttvn;
@@ -2097,7 +2097,7 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	/* found anything? */
 	if (best_entry)
 		orig_node = best_entry->orig_node;
-	if (orig_node && !atomic_inc_not_zero(&orig_node->refcount))
+	if (orig_node && !kref_get_unless_zero(&orig_node->refcount))
 		orig_node = NULL;
 	rcu_read_unlock();
 

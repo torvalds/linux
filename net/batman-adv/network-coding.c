@@ -858,7 +858,7 @@ static struct batadv_nc_node
 	if (!nc_node)
 		return NULL;
 
-	if (!atomic_inc_not_zero(&orig_neigh_node->refcount))
+	if (!kref_get_unless_zero(&orig_neigh_node->refcount))
 		goto free;
 
 	/* Initialize nc_node */
