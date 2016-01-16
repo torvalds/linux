@@ -1282,6 +1282,9 @@ static void page_remove_anon_compound_rmap(struct page *page)
 		nr = HPAGE_PMD_NR;
 	}
 
+	if (unlikely(PageMlocked(page)))
+		clear_page_mlock(page);
+
 	if (nr) {
 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
 		deferred_split_huge_page(page);
