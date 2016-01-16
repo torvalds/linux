@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include <linux/bitmap.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 
@@ -341,6 +342,20 @@ struct_clk(void)
 }
 
 static void __init
+large_bitmap(void)
+{
+	const int nbits = 1 << 16;
+	unsigned long *bits = kcalloc(BITS_TO_LONGS(nbits), sizeof(long), GFP_KERNEL);
+	if (!bits)
+		return;
+
+	bitmap_set(bits, 1, 20);
+	bitmap_set(bits, 60000, 15);
+	test("1-20,60000-60014", "%*pbl", nbits, bits);
+	kfree(bits);
+}
+
+static void __init
 bitmap(void)
 {
 	DECLARE_BITMAP(bits, 20);
@@ -359,6 +374,8 @@ bitmap(void)
 	bitmap_fill(bits, 20);
 	test("fffff|fffff", "%20pb|%*pb", bits, 20, bits);
 	test("0-19|0-19", "%20pbl|%*pbl", bits, 20, bits);
+
+	large_bitmap();
 }
 
 static void __init
