@@ -798,6 +798,96 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 	return 1;
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+/*
+ * Check that @page is mapped at @address into @mm. In contrast to
+ * page_check_address(), this function can handle transparent huge pages.
+ *
+ * On success returns true with pte mapped and locked. For PMD-mapped
+ * transparent huge pages *@ptep is set to NULL.
+ */
+bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
+				  unsigned long address, pmd_t **pmdp,
+				  pte_t **ptep, spinlock_t **ptlp)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	spinlock_t *ptl;
+
+	if (unlikely(PageHuge(page))) {
+		/* when pud is not present, pte will be NULL */
+		pte = huge_pte_offset(mm, address);
+		if (!pte)
+			return false;
+
+		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
+		pmd = NULL;
+		goto check_pte;
+	}
+
+	pgd = pgd_offset(mm, address);
+	if (!pgd_present(*pgd))
+		return false;
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud))
+		return false;
+	pmd = pmd_offset(pud, address);
+
+	if (pmd_trans_huge(*pmd)) {
+		ptl = pmd_lock(mm, pmd);
+		if (!pmd_present(*pmd))
+			goto unlock_pmd;
+		if (unlikely(!pmd_trans_huge(*pmd))) {
+			spin_unlock(ptl);
+			goto map_pte;
+		}
+
+		if (pmd_page(*pmd) != page)
+			goto unlock_pmd;
+
+		pte = NULL;
+		goto found;
+unlock_pmd:
+		spin_unlock(ptl);
+		return false;
+	} else {
+		pmd_t pmde = *pmd;
+
+		barrier();
+		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+			return false;
+	}
+map_pte:
+	pte = pte_offset_map(pmd, address);
+	if (!pte_present(*pte)) {
+		pte_unmap(pte);
+		return false;
+	}
+
+	ptl = pte_lockptr(mm, pmd);
+check_pte:
+	spin_lock(ptl);
+
+	if (!pte_present(*pte)) {
+		pte_unmap_unlock(pte, ptl);
+		return false;
+	}
+
+	/* THP can be referenced by any subpage */
+	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
+		pte_unmap_unlock(pte, ptl);
+		return false;
+	}
+found:
+	*ptep = pte;
+	*pmdp = pmd;
+	*ptlp = ptl;
+	return true;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
 struct page_referenced_arg {
 	int mapcount;
 	int referenced;
@@ -811,108 +901,45 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
 			unsigned long address, void *arg)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	spinlock_t *ptl;
-	int referenced = 0;
 	struct page_referenced_arg *pra = arg;
-	pgd_t *pgd;
-	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	spinlock_t *ptl;
+	int referenced = 0;
 
-	if (unlikely(PageHuge(page))) {
-		/* when pud is not present, pte will be NULL */
-		pte = huge_pte_offset(mm, address);
-		if (!pte)
-			return SWAP_AGAIN;
-
-		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
-		goto check_pte;
-	}
-
-	pgd = pgd_offset(mm, address);
-	if (!pgd_present(*pgd))
+	if (!page_check_address_transhuge(page, mm, address, &pmd, &pte, &ptl))
 		return SWAP_AGAIN;
-	pud = pud_offset(pgd, address);
-	if (!pud_present(*pud))
-		return SWAP_AGAIN;
-	pmd = pmd_offset(pud, address);
-
-	if (pmd_trans_huge(*pmd)) {
-		int ret = SWAP_AGAIN;
-
-		ptl = pmd_lock(mm, pmd);
-		if (!pmd_present(*pmd))
-			goto unlock_pmd;
-		if (unlikely(!pmd_trans_huge(*pmd))) {
-			spin_unlock(ptl);
-			goto map_pte;
-		}
-
-		if (pmd_page(*pmd) != page)
-			goto unlock_pmd;
-
-		if (vma->vm_flags & VM_LOCKED) {
-			pra->vm_flags |= VM_LOCKED;
-			ret = SWAP_FAIL; /* To break the loop */
-			goto unlock_pmd;
-		}
-
-		if (pmdp_clear_flush_young_notify(vma, address, pmd))
-			referenced++;
-		spin_unlock(ptl);
-		goto found;
-unlock_pmd:
-		spin_unlock(ptl);
-		return ret;
-	} else {
-		pmd_t pmde = *pmd;
-
-		barrier();
-		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
-			return SWAP_AGAIN;
-	}
-map_pte:
-	pte = pte_offset_map(pmd, address);
-	if (!pte_present(*pte)) {
-		pte_unmap(pte);
-		return SWAP_AGAIN;
-	}
-
-	ptl = pte_lockptr(mm, pmd);
-check_pte:
-	spin_lock(ptl);
-
-	if (!pte_present(*pte)) {
-		pte_unmap_unlock(pte, ptl);
-		return SWAP_AGAIN;
-	}
-
-	/* THP can be referenced by any subpage */
-	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
-		pte_unmap_unlock(pte, ptl);
-		return SWAP_AGAIN;
-	}
 
 	if (vma->vm_flags & VM_LOCKED) {
-		pte_unmap_unlock(pte, ptl);
+		if (pte)
+			pte_unmap(pte);
+		spin_unlock(ptl);
 		pra->vm_flags |= VM_LOCKED;
 		return SWAP_FAIL; /* To break the loop */
 	}
 
-	if (ptep_clear_flush_young_notify(vma, address, pte)) {
-		/*
-		 * Don't treat a reference through a sequentially read
-		 * mapping as such.  If the page has been used in
-		 * another mapping, we will catch it; if this other
-		 * mapping is already gone, the unmap path will have
-		 * set PG_referenced or activated the page.
-		 */
-		if (likely(!(vma->vm_flags & VM_SEQ_READ)))
+	if (pte) {
+		if (ptep_clear_flush_young_notify(vma, address, pte)) {
+			/*
+			 * Don't treat a reference through a sequentially read
+			 * mapping as such.  If the page has been used in
+			 * another mapping, we will catch it; if this other
+			 * mapping is already gone, the unmap path will have
+			 * set PG_referenced or activated the page.
+			 */
+			if (likely(!(vma->vm_flags & VM_SEQ_READ)))
+				referenced++;
+		}
+		pte_unmap(pte);
+	} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
+		if (pmdp_clear_flush_young_notify(vma, address, pmd))
 			referenced++;
+	} else {
+		/* unexpected pmd-mapped page? */
+		WARN_ON_ONCE(1);
 	}
-	pte_unmap_unlock(pte, ptl);
+	spin_unlock(ptl);
 
-found:
 	if (referenced)
 		clear_page_idle(page);
 	if (test_and_clear_page_young(page))
