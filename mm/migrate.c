@@ -1760,6 +1760,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 		HPAGE_PMD_ORDER);
 	if (!new_page)
 		goto out_fail;
+	prep_transhuge_page(new_page);
 
 	isolated = numamigrate_isolate_page(pgdat, page);
 	if (!isolated) {

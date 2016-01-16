@@ -1282,8 +1282,10 @@ static void page_remove_anon_compound_rmap(struct page *page)
 		nr = HPAGE_PMD_NR;
 	}
 
-	if (nr)
+	if (nr) {
 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
+		deferred_split_huge_page(page);
+	}
 }
 
 /**
@@ -1317,6 +1319,9 @@ void page_remove_rmap(struct page *page, bool compound)
 
 	if (unlikely(PageMlocked(page)))
 		clear_page_mlock(page);
+
+	if (PageTransCompound(page))
+		deferred_split_huge_page(compound_head(page));
 
 	/*
 	 * It would be tidy to reset the PageAnon mapping here,
