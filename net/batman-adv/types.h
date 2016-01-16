@@ -141,7 +141,7 @@ struct batadv_orig_ifinfo {
 	u32 last_real_seqno;
 	u8 last_ttl;
 	unsigned long batman_seqno_reset;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 

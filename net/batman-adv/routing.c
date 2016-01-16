@@ -25,6 +25,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/jiffies.h>
+#include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
@@ -497,7 +498,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 
 	hlist_for_each_entry_rcu(cand, &orig_node->ifinfo_list, list) {
 		/* acquire some structures and references ... */
-		if (!atomic_inc_not_zero(&cand->refcount))
+		if (!kref_get_unless_zero(&cand->refcount))
 			continue;
 
 		cand_router = rcu_dereference(cand->router);
@@ -524,7 +525,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		/* mark the first possible candidate */
 		if (!first_candidate) {
 			atomic_inc(&cand_router->refcount);
-			atomic_inc(&cand->refcount);
+			kref_get(&cand->refcount);
 			first_candidate = cand;
 			first_candidate_router = cand_router;
 		}
