@@ -31,6 +31,7 @@
 #include <linux/jhash.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -143,14 +144,29 @@ static int batadv_compare_claim(const struct hlist_node *node,
 }
 
 /**
- * batadv_compare_backbone_gw - free backbone gw
+ * batadv_backbone_gw_release - release backbone gw from lists and queue for
+ *  free after rcu grace period
+ * @ref: kref pointer of the backbone gw
+ */
+static void batadv_backbone_gw_release(struct kref *ref)
+{
+	struct batadv_bla_backbone_gw *backbone_gw;
+
+	backbone_gw = container_of(ref, struct batadv_bla_backbone_gw,
+				   refcount);
+
+	kfree_rcu(backbone_gw, rcu);
+}
+
+/**
+ * batadv_backbone_gw_free_ref - decrement the backbone gw refcounter and
+ *  possibly release it
  * @backbone_gw: backbone gateway to be free'd
  */
 static void
 batadv_backbone_gw_free_ref(struct batadv_bla_backbone_gw *backbone_gw)
 {
-	if (atomic_dec_and_test(&backbone_gw->refcount))
-		kfree_rcu(backbone_gw, rcu);
+	kref_put(&backbone_gw->refcount, batadv_backbone_gw_release);
 }
 
 /**
@@ -247,7 +263,7 @@ batadv_backbone_hash_find(struct batadv_priv *bat_priv, u8 *addr,
 						&search_entry))
 			continue;
 
-		if (!atomic_inc_not_zero(&backbone_gw->refcount))
+		if (!kref_get_unless_zero(&backbone_gw->refcount))
 			continue;
 
 		backbone_gw_tmp = backbone_gw;
@@ -448,7 +464,8 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, u8 *orig,
 	ether_addr_copy(entry->orig, orig);
 
 	/* one for the hash, one for returning */
-	atomic_set(&entry->refcount, 2);
+	kref_init(&entry->refcount);
+	kref_get(&entry->refcount);
 
 	hash_added = batadv_hash_add(bat_priv->bla.backbone_hash,
 				     batadv_compare_backbone_gw,
@@ -664,7 +681,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 		batadv_backbone_gw_free_ref(claim->backbone_gw);
 	}
 	/* set (new) backbone gw */
-	atomic_inc(&backbone_gw->refcount);
+	kref_get(&backbone_gw->refcount);
 	claim->backbone_gw = backbone_gw;
 
 	spin_lock_bh(&backbone_gw->crc_lock);
