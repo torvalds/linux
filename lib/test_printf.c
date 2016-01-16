@@ -166,14 +166,23 @@ test_string(void)
 	test("", "%s%.0s", "", "123");
 	test("ABCD|abc|123", "%s|%.3s|%.*s", "ABCD", "abcdef", 3, "123456");
 	test("1  |  2|3  |  4|5  ", "%-3s|%3s|%-*s|%*s|%*s", "1", "2", 3, "3", 3, "4", -3, "5");
+	test("1234      ", "%-10.4s", "123456");
+	test("      1234", "%10.4s", "123456");
 	/*
-	 * POSIX and C99 say that a missing precision should be
-	 * treated as a precision of 0. However, the kernel's printf
-	 * implementation treats this case as if the . wasn't
-	 * present. Let's add a test case documenting the current
-	 * behaviour; should anyone ever feel the need to follow the
-	 * standards more closely, this can be revisited.
+	 * POSIX and C99 say that a negative precision (which is only
+	 * possible to pass via a * argument) should be treated as if
+	 * the precision wasn't present, and that if the precision is
+	 * omitted (as in %.s), the precision should be taken to be
+	 * 0. However, the kernel's printf behave exactly opposite,
+	 * treating a negative precision as 0 and treating an omitted
+	 * precision specifier as if no precision was given.
+	 *
+	 * These test cases document the current behaviour; should
+	 * anyone ever feel the need to follow the standards more
+	 * closely, this can be revisited.
 	 */
+	test("    ", "%4.*s", -5, "123456");
+	test("123456", "%.s", "123456");
 	test("a||", "%.s|%.0s|%.*s", "a", "b", 0, "c");
 	test("a  |   |   ", "%-3.s|%-3.0s|%-3.*s", "a", "b", 0, "c");
 }
