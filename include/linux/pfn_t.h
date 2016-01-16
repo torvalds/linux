@@ -64,4 +64,31 @@ static inline pfn_t page_to_pfn_t(struct page *page)
 {
 	return pfn_to_pfn_t(page_to_pfn(page));
 }
+
+static inline int pfn_t_valid(pfn_t pfn)
+{
+	return pfn_valid(pfn_t_to_pfn(pfn));
+}
+
+#ifdef CONFIG_MMU
+static inline pte_t pfn_t_pte(pfn_t pfn, pgprot_t pgprot)
+{
+	return pfn_pte(pfn_t_to_pfn(pfn), pgprot);
+}
+#endif
+
+#ifdef __HAVE_ARCH_PTE_DEVMAP
+static inline bool pfn_t_devmap(pfn_t pfn)
+{
+	const unsigned long flags = PFN_DEV|PFN_MAP;
+
+	return (pfn.val & flags) == flags;
+}
+#else
+static inline bool pfn_t_devmap(pfn_t pfn)
+{
+	return false;
+}
+pte_t pte_mkdevmap(pte_t pte);
+#endif
 #endif /* _LINUX_PFN_T_H_ */
