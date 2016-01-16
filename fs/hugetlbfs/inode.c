@@ -708,7 +708,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 /*
  * Hugetlbfs is not reclaimable; therefore its i_mmap_rwsem will never
  * be taken from reclaim -- unlike regular filesystems. This needs an
- * annotation because huge_pmd_share() does an allocation under
+ * annotation because huge_pmd_share() does an allocation under hugetlb's
  * i_mmap_rwsem.
  */
 static struct lock_class_key hugetlbfs_i_mmap_rwsem_key;
