@@ -1267,8 +1267,8 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
 
 	/* we rely on prep_new_huge_page to set the destructor */
 	set_compound_order(page, order);
-	__SetPageHead(page);
 	__ClearPageReserved(page);
+	__SetPageHead(page);
 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
 		/*
 		 * For gigantic hugepages allocated through bootmem at
