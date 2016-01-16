@@ -820,11 +820,14 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	q = strchrnul(p, ':');
 	if (*q != '\0')
 		options = q + 1;
+	l = q - p;
 
 	/* Get the node specified by stdout-path */
-	offset = fdt_path_offset_namelen(fdt, p, q - p);
-	if (offset < 0)
-		return -ENODEV;
+	offset = fdt_path_offset_namelen(fdt, p, l);
+	if (offset < 0) {
+		pr_warn("earlycon: stdout-path %.*s not found\n", l, p);
+		return 0;
+	}
 
 	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
 		if (!match->compatible[0])
