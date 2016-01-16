@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/serial_core.h>
 #include <linux/sizes.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 
 #ifdef CONFIG_FIX_EARLYCON_MEM
@@ -218,8 +219,7 @@ early_param("earlycon", param_setup_earlycon);
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
-int __init of_setup_earlycon(unsigned long addr,
-			     const struct earlycon_id *match,
+int __init of_setup_earlycon(const struct earlycon_id *match,
 			     unsigned long node,
 			     const char *options)
 {
@@ -227,12 +227,18 @@ int __init of_setup_earlycon(unsigned long addr,
 	struct uart_port *port = &early_console_dev.port;
 	const __be32 *val;
 	bool big_endian;
+	u64 addr;
 
 	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
+	addr = of_flat_dt_translate_address(node);
+	if (addr == OF_BAD_ADDR) {
+		pr_warn("[%s] bad address\n", match->name);
+		return -ENXIO;
+	}
 	port->mapbase = addr;
 	port->uartclk = BASE_BAUD * 16;
-	port->membase = earlycon_map(addr, SZ_4K);
+	port->membase = earlycon_map(port->mapbase, SZ_4K);
 
 	val = of_get_flat_dt_prop(node, "reg-offset", NULL);
 	if (val)

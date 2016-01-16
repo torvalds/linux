@@ -827,19 +827,13 @@ static int __init early_init_dt_scan_chosen_serial(void)
 		return -ENODEV;
 
 	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
-		u64 addr;
-
 		if (!match->compatible[0])
 			continue;
 
 		if (fdt_node_check_compatible(fdt, offset, match->compatible))
 			continue;
 
-		addr = fdt_translate_address(fdt, offset);
-		if (addr == OF_BAD_ADDR)
-			return -ENXIO;
-
-		of_setup_earlycon(addr, match, offset, options);
+		of_setup_earlycon(match, offset, options);
 		return 0;
 	}
 	return -ENODEV;
