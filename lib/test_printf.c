@@ -16,6 +16,7 @@
 #include <linux/in.h>
 
 #define BUF_SIZE 256
+#define PAD_SIZE 16
 #define FILL_CHAR '$'
 
 #define PTR1 ((void*)0x01234567)
@@ -39,6 +40,7 @@
 static unsigned total_tests __initdata;
 static unsigned failed_tests __initdata;
 static char *test_buffer __initdata;
+static char *alloced_buffer __initdata;
 
 static int __printf(4, 0) __init
 do_test(int bufsize, const char *expect, int elen,
@@ -49,7 +51,7 @@ do_test(int bufsize, const char *expect, int elen,
 
 	total_tests++;
 
-	memset(test_buffer, FILL_CHAR, BUF_SIZE);
+	memset(alloced_buffer, FILL_CHAR, BUF_SIZE + 2*PAD_SIZE);
 	va_copy(aq, ap);
 	ret = vsnprintf(test_buffer, bufsize, fmt, aq);
 	va_end(aq);
@@ -60,8 +62,13 @@ do_test(int bufsize, const char *expect, int elen,
 		return 1;
 	}
 
+	if (memchr_inv(alloced_buffer, FILL_CHAR, PAD_SIZE)) {
+		pr_warn("vsnprintf(buf, %d, \"%s\", ...) wrote before buffer\n", bufsize, fmt);
+		return 1;
+	}
+
 	if (!bufsize) {
-		if (memchr_inv(test_buffer, FILL_CHAR, BUF_SIZE)) {
+		if (memchr_inv(test_buffer, FILL_CHAR, BUF_SIZE + PAD_SIZE)) {
 			pr_warn("vsnprintf(buf, 0, \"%s\", ...) wrote to buffer\n",
 				fmt);
 			return 1;
@@ -72,6 +79,12 @@ do_test(int bufsize, const char *expect, int elen,
 	written = min(bufsize-1, elen);
 	if (test_buffer[written]) {
 		pr_warn("vsnprintf(buf, %d, \"%s\", ...) did not nul-terminate buffer\n",
+			bufsize, fmt);
+		return 1;
+	}
+
+	if (memchr_inv(test_buffer + written + 1, FILL_CHAR, BUF_SIZE + PAD_SIZE - (written + 1))) {
+		pr_warn("vsnprintf(buf, %d, \"%s\", ...) wrote beyond the nul-terminator\n",
 			bufsize, fmt);
 		return 1;
 	}
@@ -342,16 +355,17 @@ test_pointer(void)
 static int __init
 test_printf_init(void)
 {
-	test_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!test_buffer)
+	alloced_buffer = kmalloc(BUF_SIZE + 2*PAD_SIZE, GFP_KERNEL);
+	if (!alloced_buffer)
 		return -ENOMEM;
+	test_buffer = alloced_buffer + PAD_SIZE;
 
 	test_basic();
 	test_number();
 	test_string();
 	test_pointer();
 
-	kfree(test_buffer);
+	kfree(alloced_buffer);
 
 	if (failed_tests == 0)
 		pr_info("all %u tests passed\n", total_tests);
