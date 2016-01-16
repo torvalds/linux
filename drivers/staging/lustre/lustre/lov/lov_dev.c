@@ -334,7 +334,7 @@ static struct lov_device_emerg **lov_emerg_alloc(int nr)
 			emerg[i] = em;
 			cl_page_list_init(&em->emrg_page_list);
 			em->emrg_env = cl_env_alloc(&em->emrg_refcheck,
-						    LCT_REMEMBER|LCT_NOREF);
+						    LCT_REMEMBER | LCT_NOREF);
 			if (!IS_ERR(em->emrg_env))
 				em->emrg_env->le_ctx.lc_cookie = 0x2;
 			else {
