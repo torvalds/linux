@@ -79,8 +79,8 @@ struct opt3001 {
 	struct device		*dev;
 
 	struct mutex		lock;
-	u16			ok_to_ignore_lock:1;
-	u16			result_ready:1;
+	bool			ok_to_ignore_lock;
+	bool			result_ready;
 	wait_queue_head_t	result_ready_queue;
 	u16			result;
 
