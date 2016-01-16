@@ -20,8 +20,8 @@
 
 #include "main.h"
 
-#include <linux/atomic.h>
 #include <linux/compiler.h>
+#include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/stddef.h>
@@ -61,18 +61,16 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 void batadv_hardif_remove_interfaces(void);
 int batadv_hardif_min_mtu(struct net_device *soft_iface);
 void batadv_update_min_mtu(struct net_device *soft_iface);
-void batadv_hardif_release(struct batadv_hard_iface *hard_iface);
+void batadv_hardif_release(struct kref *ref);
 
 /**
- * batadv_hardif_free_ref - decrement the hard interface refcounter and
- *  possibly release it
+ * batadv_hardif_free_ref - decrement the hard interface refcounter and possibly
+ *  release it
  * @hard_iface: the hard interface to free
  */
-static inline void
-batadv_hardif_free_ref(struct batadv_hard_iface *hard_iface)
+static inline void batadv_hardif_free_ref(struct batadv_hard_iface *hard_iface)
 {
-	if (atomic_dec_and_test(&hard_iface->refcount))
-		batadv_hardif_release(hard_iface);
+	kref_put(&hard_iface->refcount, batadv_hardif_release);
 }
 
 static inline struct batadv_hard_iface *
@@ -85,7 +83,7 @@ batadv_primary_if_get_selected(struct batadv_priv *bat_priv)
 	if (!hard_iface)
 		goto out;
 
-	if (!atomic_inc_not_zero(&hard_iface->refcount))
+	if (!kref_get_unless_zero(&hard_iface->refcount))
 		hard_iface = NULL;
 
 out:
