@@ -158,6 +158,30 @@ test_number(void)
 	test("0x1234abcd  ", "%#-12x", 0x1234abcd);
 	test("  0x1234abcd", "%#12x", 0x1234abcd);
 	test("0|001| 12|+123| 1234|-123|-1234", "%d|%03d|%3d|%+d|% d|%+d|% d", 0, 1, 12, 123, 1234, -123, -1234);
+	test("0|1|1|128|255", "%hhu|%hhu|%hhu|%hhu|%hhu", 0, 1, 257, 128, -1);
+	test("0|1|1|-128|-1", "%hhd|%hhd|%hhd|%hhd|%hhd", 0, 1, 257, 128, -1);
+	test("2015122420151225", "%ho%ho%#ho", 1037, 5282, -11627);
+	/*
+	 * POSIX/C99: »The result of converting zero with an explicit
+	 * precision of zero shall be no characters.« Hence the output
+	 * from the below test should really be "00|0||| ". However,
+	 * the kernel's printf also produces a single 0 in that
+	 * case. This test case simply documents the current
+	 * behaviour.
+	 */
+	test("00|0|0|0|0", "%.2d|%.1d|%.0d|%.*d|%1.0d", 0, 0, 0, 0, 0, 0);
+#ifndef __CHAR_UNSIGNED__
+	{
+		/*
+		 * Passing a 'char' to a %02x specifier doesn't do
+		 * what was presumably the intention when char is
+		 * signed and the value is negative. One must either &
+		 * with 0xff or cast to u8.
+		 */
+		char val = -16;
+		test("0xfffffff0|0xf0|0xf0", "%#02x|%#02x|%#02x", val, val & 0xff, (u8)val);
+	}
+#endif
 }
 
 static void __init
