@@ -67,9 +67,6 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	def_bool y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
