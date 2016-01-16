@@ -169,6 +169,18 @@ struct page_map {
 	struct vmem_altmap altmap;
 };
 
+void get_zone_device_page(struct page *page)
+{
+	percpu_ref_get(page->pgmap->ref);
+}
+EXPORT_SYMBOL(get_zone_device_page);
+
+void put_zone_device_page(struct page *page)
+{
+	put_dev_pagemap(page->pgmap);
+}
+EXPORT_SYMBOL(put_zone_device_page);
+
 static void pgmap_radix_release(struct resource *res)
 {
 	resource_size_t key;
