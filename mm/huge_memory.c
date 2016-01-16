@@ -23,6 +23,7 @@
 #include <linux/freezer.h>
 #include <linux/mman.h>
 #include <linux/pagemap.h>
+#include <linux/debugfs.h>
 #include <linux/migrate.h>
 #include <linux/hashtable.h>
 #include <linux/userfaultfd_k.h>
@@ -3350,3 +3351,61 @@ static struct shrinker deferred_split_shrinker = {
 	.scan_objects = deferred_split_scan,
 	.seeks = DEFAULT_SEEKS,
 };
+
+#ifdef CONFIG_DEBUG_FS
+static int split_huge_pages_set(void *data, u64 val)
+{
+	struct zone *zone;
+	struct page *page;
+	unsigned long pfn, max_zone_pfn;
+	unsigned long total = 0, split = 0;
+
+	if (val != 1)
+		return -EINVAL;
+
+	for_each_populated_zone(zone) {
+		max_zone_pfn = zone_end_pfn(zone);
+		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++) {
+			if (!pfn_valid(pfn))
+				continue;
+
+			page = pfn_to_page(pfn);
+			if (!get_page_unless_zero(page))
+				continue;
+
+			if (zone != page_zone(page))
+				goto next;
+
+			if (!PageHead(page) || !PageAnon(page) ||
+					PageHuge(page))
+				goto next;
+
+			total++;
+			lock_page(page);
+			if (!split_huge_page(page))
+				split++;
+			unlock_page(page);
+next:
+			put_page(page);
+		}
+	}
+
+	pr_info("%lu of %lu THP split", split, total);
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(split_huge_pages_fops, NULL, split_huge_pages_set,
+		"%llu\n");
+
+static int __init split_huge_pages_debugfs(void)
+{
+	void *ret;
+
+	ret = debugfs_create_file("split_huge_pages", 0644, NULL, NULL,
+			&split_huge_pages_fops);
+	if (!ret)
+		pr_warn("Failed to create split_huge_pages in debugfs");
+	return 0;
+}
+late_initcall(split_huge_pages_debugfs);
+#endif
