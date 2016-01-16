@@ -27,9 +27,9 @@
 #include <asm/serial.h>
 
 static struct console early_con = {
-	.name =		"uart", /* 8250 console switch requires this name */
+	.name =		"uart",		/* fixed up at earlycon registration */
 	.flags =	CON_PRINTBUFFER | CON_BOOT,
-	.index =	-1,
+	.index =	0,
 };
 
 static struct earlycon_device early_console_dev = {
@@ -51,6 +51,25 @@ static void __iomem * __init earlycon_map(unsigned long paddr, size_t size)
 		       (unsigned long long)paddr);
 
 	return base;
+}
+
+static void __init earlycon_init(struct earlycon_device *device,
+				 const char *name)
+{
+	struct console *earlycon = device->con;
+	const char *s;
+	size_t len;
+
+	/* scan backwards from end of string for first non-numeral */
+	for (s = name + strlen(name);
+	     s > name && s[-1] >= '0' && s[-1] <= '9';
+	     s--)
+		;
+	if (*s)
+		earlycon->index = simple_strtoul(s, NULL, 10);
+	len = s - name;
+	strlcpy(earlycon->name, name, min(len + 1, sizeof(earlycon->name)));
+	earlycon->data = &early_console_dev;
 }
 
 static int __init parse_options(struct earlycon_device *device, char *options)
@@ -119,7 +138,7 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
 	if (port->mapbase)
 		port->membase = earlycon_map(port->mapbase, 64);
 
-	early_console_dev.con->data = &early_console_dev;
+	earlycon_init(&early_console_dev, match->name);
 	err = match->setup(&early_console_dev, buf);
 	if (err < 0)
 		return err;
