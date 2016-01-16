@@ -76,7 +76,7 @@ void core_tmr_release_req(struct se_tmr_req *tmr)
 }
 
 static void core_tmr_handle_tas_abort(
-	struct se_node_acl *tmr_nacl,
+	struct se_session *tmr_sess,
 	struct se_cmd *cmd,
 	int tas)
 {
@@ -84,7 +84,7 @@ static void core_tmr_handle_tas_abort(
 	/*
 	 * TASK ABORTED status (TAS) bit support
 	 */
-	if ((tmr_nacl && (tmr_nacl != cmd->se_sess->se_node_acl)) && tas) {
+	if (tmr_sess && tmr_sess != cmd->se_sess && tas) {
 		remove = false;
 		transport_send_task_abort(cmd);
 	}
@@ -273,7 +273,7 @@ static void core_tmr_drain_tmr_list(
 static void core_tmr_drain_state_list(
 	struct se_device *dev,
 	struct se_cmd *prout_cmd,
-	struct se_node_acl *tmr_nacl,
+	struct se_session *tmr_sess,
 	int tas,
 	struct list_head *preempt_and_abort_list)
 {
@@ -364,7 +364,7 @@ static void core_tmr_drain_state_list(
 		cancel_work_sync(&cmd->work);
 		transport_wait_for_tasks(cmd);
 
-		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas);
+		core_tmr_handle_tas_abort(tmr_sess, cmd, tas);
 		target_put_sess_cmd(cmd);
 	}
 }
@@ -377,6 +377,7 @@ int core_tmr_lun_reset(
 {
 	struct se_node_acl *tmr_nacl = NULL;
 	struct se_portal_group *tmr_tpg = NULL;
+	struct se_session *tmr_sess = NULL;
 	int tas;
         /*
 	 * TASK_ABORTED status bit, this is configurable via ConfigFS
@@ -395,8 +396,9 @@ int core_tmr_lun_reset(
 	 * or struct se_device passthrough..
 	 */
 	if (tmr && tmr->task_cmd && tmr->task_cmd->se_sess) {
-		tmr_nacl = tmr->task_cmd->se_sess->se_node_acl;
-		tmr_tpg = tmr->task_cmd->se_sess->se_tpg;
+		tmr_sess = tmr->task_cmd->se_sess;
+		tmr_nacl = tmr_sess->se_node_acl;
+		tmr_tpg = tmr_sess->se_tpg;
 		if (tmr_nacl && tmr_tpg) {
 			pr_debug("LUN_RESET: TMR caller fabric: %s"
 				" initiator port %s\n",
@@ -409,7 +411,7 @@ int core_tmr_lun_reset(
 		dev->transport->name, tas);
 
 	core_tmr_drain_tmr_list(dev, tmr, preempt_and_abort_list);
-	core_tmr_drain_state_list(dev, prout_cmd, tmr_nacl, tas,
+	core_tmr_drain_state_list(dev, prout_cmd, tmr_sess, tas,
 				preempt_and_abort_list);
 
 	/*
