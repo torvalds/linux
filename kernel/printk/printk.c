@@ -1661,7 +1661,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
 {
-	static int recursion_bug;
+	static bool recursion_bug;
 	static char textbuf[LOG_LINE_MAX];
 	char *text = textbuf;
 	size_t text_len = 0;
@@ -1697,7 +1697,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * it can be printed at the next appropriate moment:
 		 */
 		if (!oops_in_progress && !lockdep_recursing(current)) {
-			recursion_bug = 1;
+			recursion_bug = true;
 			local_irq_restore(flags);
 			return 0;
 		}
@@ -1712,7 +1712,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		static const char recursion_msg[] =
 			"BUG: recent printk recursion!";
 
-		recursion_bug = 0;
+		recursion_bug = false;
 		/* emit KERN_CRIT message */
 		printed_len += log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
 					 NULL, 0, recursion_msg,
