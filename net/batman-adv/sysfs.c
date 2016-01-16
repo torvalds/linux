@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
+#include <linux/kref.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
@@ -97,7 +98,7 @@ batadv_kobj_to_vlan(struct batadv_priv *bat_priv, struct kobject *obj)
 		if (vlan_tmp->kobj != obj)
 			continue;
 
-		if (!atomic_inc_not_zero(&vlan_tmp->refcount))
+		if (!kref_get_unless_zero(&vlan_tmp->refcount))
 			continue;
 
 		vlan = vlan_tmp;
