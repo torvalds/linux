@@ -28,6 +28,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/rculist.h>
@@ -59,12 +60,29 @@
  */
 #define BATADV_DHCP_CHADDR_OFFSET	28
 
+/**
+ * batadv_gw_node_release - release gw_node from lists and queue for free after
+ *  rcu grace period
+ * @ref: kref pointer of the gw_node
+ */
+static void batadv_gw_node_release(struct kref *ref)
+{
+	struct batadv_gw_node *gw_node;
+
+	gw_node = container_of(ref, struct batadv_gw_node, refcount);
+
+	batadv_orig_node_free_ref(gw_node->orig_node);
+	kfree_rcu(gw_node, rcu);
+}
+
+/**
+ * batadv_gw_node_free_ref - decrement the gw_node refcounter and possibly
+ *  release it
+ * @gw_node: gateway node to free
+ */
 static void batadv_gw_node_free_ref(struct batadv_gw_node *gw_node)
 {
-	if (atomic_dec_and_test(&gw_node->refcount)) {
-		batadv_orig_node_free_ref(gw_node->orig_node);
-		kfree_rcu(gw_node, rcu);
-	}
+	kref_put(&gw_node->refcount, batadv_gw_node_release);
 }
 
 static struct batadv_gw_node *
@@ -77,7 +95,7 @@ batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 	if (!gw_node)
 		goto out;
 
-	if (!atomic_inc_not_zero(&gw_node->refcount))
+	if (!kref_get_unless_zero(&gw_node->refcount))
 		gw_node = NULL;
 
 out:
@@ -118,7 +136,7 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 
-	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
+	if (new_gw_node && !kref_get_unless_zero(&new_gw_node->refcount))
 		new_gw_node = NULL;
 
 	curr_gw_node = rcu_dereference_protected(bat_priv->gw.curr_gw, 1);
@@ -170,7 +188,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		if (!router_ifinfo)
 			goto next;
 
-		if (!atomic_inc_not_zero(&gw_node->refcount))
+		if (!kref_get_unless_zero(&gw_node->refcount))
 			goto next;
 
 		tq_avg = router_ifinfo->bat_iv.tq_avg;
@@ -188,7 +206,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 				if (curr_gw)
 					batadv_gw_node_free_ref(curr_gw);
 				curr_gw = gw_node;
-				atomic_inc(&curr_gw->refcount);
+				kref_get(&curr_gw->refcount);
 			}
 			break;
 
@@ -203,7 +221,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 				if (curr_gw)
 					batadv_gw_node_free_ref(curr_gw);
 				curr_gw = gw_node;
-				atomic_inc(&curr_gw->refcount);
+				kref_get(&curr_gw->refcount);
 			}
 			break;
 		}
@@ -436,7 +454,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	gw_node->orig_node = orig_node;
 	gw_node->bandwidth_down = ntohl(gateway->bandwidth_down);
 	gw_node->bandwidth_up = ntohl(gateway->bandwidth_up);
-	atomic_set(&gw_node->refcount, 1);
+	kref_init(&gw_node->refcount);
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.list);
@@ -469,7 +487,7 @@ batadv_gw_node_get(struct batadv_priv *bat_priv,
 		if (gw_node_tmp->orig_node != orig_node)
 			continue;
 
-		if (!atomic_inc_not_zero(&gw_node_tmp->refcount))
+		if (!kref_get_unless_zero(&gw_node_tmp->refcount))
 			continue;
 
 		gw_node = gw_node_tmp;
