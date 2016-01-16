@@ -61,8 +61,7 @@ static int page_idle_clear_pte_refs_one(struct page *page,
 	bool referenced = false;
 
 	if (unlikely(PageTransHuge(page))) {
-		pmd = page_check_address_pmd(page, mm, addr,
-					     PAGE_CHECK_ADDRESS_PMD_FLAG, &ptl);
+		pmd = page_check_address_pmd(page, mm, addr, &ptl);
 		if (pmd) {
 			referenced = pmdp_clear_young_notify(vma, addr, pmd);
 			spin_unlock(ptl);
