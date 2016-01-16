@@ -693,7 +693,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		dax_unmap_atomic(bdev, &dax);
 
 		result |= vmf_insert_pfn_pmd(vma, address, pmd,
-				pfn_t_to_pfn(dax.pfn), write);
+				dax.pfn, write);
 	}
 
  out:
