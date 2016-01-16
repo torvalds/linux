@@ -433,20 +433,25 @@ static inline void page_mapcount_reset(struct page *page)
 	atomic_set(&(page)->_mapcount, -1);
 }
 
+int __page_mapcount(struct page *page);
+
 static inline int page_mapcount(struct page *page)
 {
-	int ret;
 	VM_BUG_ON_PAGE(PageSlab(page), page);
 
-	ret = atomic_read(&page->_mapcount) + 1;
-	if (PageCompound(page)) {
-		page = compound_head(page);
-		ret += atomic_read(compound_mapcount_ptr(page)) + 1;
-		if (PageDoubleMap(page))
-			ret--;
-	}
-	return ret;
+	if (unlikely(PageCompound(page)))
+		return __page_mapcount(page);
+	return atomic_read(&page->_mapcount) + 1;
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+int total_mapcount(struct page *page);
+#else
+static inline int total_mapcount(struct page *page)
+{
+	return page_mapcount(page);
+}
+#endif
 
 static inline int page_count(struct page *page)
 {

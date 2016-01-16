@@ -56,23 +56,70 @@ static int page_idle_clear_pte_refs_one(struct page *page,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	spinlock_t *ptl;
+	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	bool referenced = false;
 
-	if (unlikely(PageTransHuge(page))) {
-		pmd = page_check_address_pmd(page, mm, addr, &ptl);
-		if (pmd) {
-			referenced = pmdp_clear_young_notify(vma, addr, pmd);
+	pgd = pgd_offset(mm, addr);
+	if (!pgd_present(*pgd))
+		return SWAP_AGAIN;
+	pud = pud_offset(pgd, addr);
+	if (!pud_present(*pud))
+		return SWAP_AGAIN;
+	pmd = pmd_offset(pud, addr);
+
+	if (pmd_trans_huge(*pmd)) {
+		ptl = pmd_lock(mm, pmd);
+		if (!pmd_present(*pmd))
+			goto unlock_pmd;
+		if (unlikely(!pmd_trans_huge(*pmd))) {
 			spin_unlock(ptl);
+			goto map_pte;
 		}
+
+		if (pmd_page(*pmd) != page)
+			goto unlock_pmd;
+
+		referenced = pmdp_clear_young_notify(vma, addr, pmd);
+		spin_unlock(ptl);
+		goto found;
+unlock_pmd:
+		spin_unlock(ptl);
+		return SWAP_AGAIN;
 	} else {
-		pte = page_check_address(page, mm, addr, &ptl, 0);
-		if (pte) {
-			referenced = ptep_clear_young_notify(vma, addr, pte);
-			pte_unmap_unlock(pte, ptl);
-		}
+		pmd_t pmde = *pmd;
+
+		barrier();
+		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+			return SWAP_AGAIN;
+
 	}
+map_pte:
+	pte = pte_offset_map(pmd, addr);
+	if (!pte_present(*pte)) {
+		pte_unmap(pte);
+		return SWAP_AGAIN;
+	}
+
+	ptl = pte_lockptr(mm, pmd);
+	spin_lock(ptl);
+
+	if (!pte_present(*pte)) {
+		pte_unmap_unlock(pte, ptl);
+		return SWAP_AGAIN;
+	}
+
+	/* THP can be referenced by any subpage */
+	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
+		pte_unmap_unlock(pte, ptl);
+		return SWAP_AGAIN;
+	}
+
+	referenced = ptep_clear_young_notify(vma, addr, pte);
+	pte_unmap_unlock(pte, ptl);
+found:
 	if (referenced) {
 		clear_page_idle(page);
 		/*
