@@ -246,8 +246,8 @@
 			power-domains = <&cpg>;
 		};
 
-		pmu {
-			compatible = "arm,armv8-pmuv3";
+		pmu_a57 {
+			compatible = "arm,cortex-a57-pmu";
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
