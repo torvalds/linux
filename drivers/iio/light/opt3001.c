@@ -65,6 +65,9 @@
 #define OPT3001_REG_EXPONENT(n)		((n) >> 12)
 #define OPT3001_REG_MANTISSA(n)		((n) & 0xfff)
 
+#define OPT3001_INT_TIME_LONG		800000
+#define OPT3001_INT_TIME_SHORT		100000
+
 /*
  * Time to wait for conversion result to be ready. The device datasheet
  * worst-case max value is 880ms. Add some slack to be on the safe side.
@@ -325,13 +328,13 @@ static int opt3001_set_int_time(struct opt3001 *opt, int time)
 	reg = ret;
 
 	switch (time) {
-	case 100000:
+	case OPT3001_INT_TIME_SHORT:
 		reg &= ~OPT3001_CONFIGURATION_CT;
-		opt->int_time = 100000;
+		opt->int_time = OPT3001_INT_TIME_SHORT;
 		break;
-	case 800000:
+	case OPT3001_INT_TIME_LONG:
 		reg |= OPT3001_CONFIGURATION_CT;
-		opt->int_time = 800000;
+		opt->int_time = OPT3001_INT_TIME_LONG;
 		break;
 	default:
 		return -EINVAL;
@@ -597,9 +600,9 @@ static int opt3001_configure(struct opt3001 *opt)
 
 	/* Reflect status of the device's integration time setting */
 	if (reg & OPT3001_CONFIGURATION_CT)
-		opt->int_time = 800000;
+		opt->int_time = OPT3001_INT_TIME_LONG;
 	else
-		opt->int_time = 100000;
+		opt->int_time = OPT3001_INT_TIME_SHORT;
 
 	/* Ensure device is in shutdown initially */
 	opt3001_set_mode(opt, &reg, OPT3001_CONFIGURATION_M_SHUTDOWN);
