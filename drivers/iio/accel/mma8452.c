@@ -1,6 +1,7 @@
 /*
  * mma8452.c - Support for following Freescale 3-axis accelerometers:
  *
+ * MMA8451Q (14 bit)
  * MMA8452Q (12 bit)
  * MMA8453Q (10 bit)
  * MMA8652FC (12 bit)
@@ -85,6 +86,7 @@
 #define  MMA8452_INT_FF_MT			BIT(2)
 #define  MMA8452_INT_TRANS			BIT(5)
 
+#define MMA8451_DEVICE_ID			0x1a
 #define MMA8452_DEVICE_ID			0x2a
 #define MMA8453_DEVICE_ID			0x3a
 #define MMA8652_DEVICE_ID			0x4a
@@ -942,6 +944,14 @@ static struct attribute_group mma8452_event_attribute_group = {
 	.num_event_specs = ARRAY_SIZE(mma8452_motion_event), \
 }
 
+static const struct iio_chan_spec mma8451_channels[] = {
+	MMA8452_CHANNEL(X, idx_x, 14),
+	MMA8452_CHANNEL(Y, idx_y, 14),
+	MMA8452_CHANNEL(Z, idx_z, 14),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
+	MMA8452_FREEFALL_CHANNEL(IIO_MOD_X_AND_Y_AND_Z),
+};
+
 static const struct iio_chan_spec mma8452_channels[] = {
 	MMA8452_CHANNEL(X, idx_x, 12),
 	MMA8452_CHANNEL(Y, idx_y, 12),
@@ -975,6 +985,7 @@ static const struct iio_chan_spec mma8653_channels[] = {
 };
 
 enum {
+	mma8451,
 	mma8452,
 	mma8453,
 	mma8652,
@@ -982,17 +993,34 @@ enum {
 };
 
 static const struct mma_chip_info mma_chip_info_table[] = {
+	[mma8451] = {
+		.chip_id = MMA8451_DEVICE_ID,
+		.channels = mma8451_channels,
+		.num_channels = ARRAY_SIZE(mma8451_channels),
+		/*
+		 * Hardware has fullscale of -2G, -4G, -8G corresponding to
+		 * raw value -8192 for 14 bit, -2048 for 12 bit or -512 for 10
+		 * bit.
+		 * The userspace interface uses m/s^2 and we declare micro units
+		 * So scale factor for 12 bit here is given by:
+		 * 	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
+		 */
+		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
+		.ev_cfg = MMA8452_TRANSIENT_CFG,
+		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
+		.ev_cfg_chan_shift = 1,
+		.ev_src = MMA8452_TRANSIENT_SRC,
+		.ev_src_xe = MMA8452_TRANSIENT_SRC_XTRANSE,
+		.ev_src_ye = MMA8452_TRANSIENT_SRC_YTRANSE,
+		.ev_src_ze = MMA8452_TRANSIENT_SRC_ZTRANSE,
+		.ev_ths = MMA8452_TRANSIENT_THS,
+		.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
+		.ev_count = MMA8452_TRANSIENT_COUNT,
+	},
 	[mma8452] = {
 		.chip_id = MMA8452_DEVICE_ID,
 		.channels = mma8452_channels,
 		.num_channels = ARRAY_SIZE(mma8452_channels),
-		/*
-		 * Hardware has fullscale of -2G, -4G, -8G corresponding to
-		 * raw value -2048 for 12 bit or -512 for 10 bit.
-		 * The userspace interface uses m/s^2 and we declare micro units
-		 * So scale factor for 12 bit here is given by:
-		 *	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
-		 */
 		.mma_scales = { {0, 9577}, {0, 19154}, {0, 38307} },
 		.ev_cfg = MMA8452_TRANSIENT_CFG,
 		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
@@ -1173,6 +1201,7 @@ static int mma8452_reset(struct i2c_client *client)
 }
 
 static const struct of_device_id mma8452_dt_ids[] = {
+	{ .compatible = "fsl,mma8451", .data = &mma_chip_info_table[mma8451] },
 	{ .compatible = "fsl,mma8452", .data = &mma_chip_info_table[mma8452] },
 	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ .compatible = "fsl,mma8652", .data = &mma_chip_info_table[mma8652] },
@@ -1209,6 +1238,7 @@ static int mma8452_probe(struct i2c_client *client,
 		return ret;
 
 	switch (ret) {
+	case MMA8451_DEVICE_ID:
 	case MMA8452_DEVICE_ID:
 	case MMA8453_DEVICE_ID:
 	case MMA8652_DEVICE_ID:
