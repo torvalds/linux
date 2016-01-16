@@ -560,32 +560,22 @@ char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
 static noinline_for_stack
 char *string(char *buf, char *end, const char *s, struct printf_spec spec)
 {
-	int len, i;
+	int len = 0;
+	size_t lim = spec.precision;
 
 	if ((unsigned long)s < PAGE_SIZE)
 		s = "(null)";
 
-	len = strnlen(s, spec.precision);
-
-	if (!(spec.flags & LEFT)) {
-		while (len < spec.field_width--) {
-			if (buf < end)
-				*buf = ' ';
-			++buf;
-		}
-	}
-	for (i = 0; i < len; ++i) {
+	while (lim--) {
+		char c = *s++;
+		if (!c)
+			break;
 		if (buf < end)
-			*buf = *s;
-		++buf; ++s;
-	}
-	while (len < spec.field_width--) {
-		if (buf < end)
-			*buf = ' ';
+			*buf = c;
 		++buf;
+		++len;
 	}
-
-	return buf;
+	return widen_string(buf, len, end, spec);
 }
 
 static noinline_for_stack
