@@ -45,6 +45,7 @@ enum scan_result {
 	SCAN_PAGE_LRU,
 	SCAN_PAGE_LOCK,
 	SCAN_PAGE_ANON,
+	SCAN_PAGE_COMPOUND,
 	SCAN_ANY_PROCESS,
 	SCAN_VMA_NULL,
 	SCAN_VMA_CHECK,
@@ -2770,6 +2771,13 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 			result = SCAN_PAGE_NULL;
 			goto out_unmap;
 		}
+
+		/* TODO: teach khugepaged to collapse THP mapped with pte */
+		if (PageCompound(page)) {
+			result = SCAN_PAGE_COMPOUND;
+			goto out_unmap;
+		}
+
 		/*
 		 * Record which node the original page is from and save this
 		 * information to khugepaged_node_load[].
@@ -2782,7 +2790,6 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 			goto out_unmap;
 		}
 		khugepaged_node_load[node]++;
-		VM_BUG_ON_PAGE(PageCompound(page), page);
 		if (!PageLRU(page)) {
 			result = SCAN_SCAN_ABORT;
 			goto out_unmap;
