@@ -172,11 +172,14 @@ err:
 /**
  * batadv_neigh_ifinfo_release - release neigh_ifinfo from lists and queue for
  *  free after rcu grace period
- * @neigh_ifinfo: the neigh_ifinfo object to release
+ * @ref: kref pointer of the neigh_ifinfo
  */
-static void
-batadv_neigh_ifinfo_release(struct batadv_neigh_ifinfo *neigh_ifinfo)
+static void batadv_neigh_ifinfo_release(struct kref *ref)
 {
+	struct batadv_neigh_ifinfo *neigh_ifinfo;
+
+	neigh_ifinfo = container_of(ref, struct batadv_neigh_ifinfo, refcount);
+
 	if (neigh_ifinfo->if_outgoing != BATADV_IF_DEFAULT)
 		batadv_hardif_free_ref(neigh_ifinfo->if_outgoing);
 
@@ -190,8 +193,7 @@ batadv_neigh_ifinfo_release(struct batadv_neigh_ifinfo *neigh_ifinfo)
  */
 void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo)
 {
-	if (atomic_dec_and_test(&neigh_ifinfo->refcount))
-		batadv_neigh_ifinfo_release(neigh_ifinfo);
+	kref_put(&neigh_ifinfo->refcount, batadv_neigh_ifinfo_release);
 }
 
 /**
@@ -405,7 +407,7 @@ batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
 		if (tmp_neigh_ifinfo->if_outgoing != if_outgoing)
 			continue;
 
-		if (!atomic_inc_not_zero(&tmp_neigh_ifinfo->refcount))
+		if (!kref_get_unless_zero(&tmp_neigh_ifinfo->refcount))
 			continue;
 
 		neigh_ifinfo = tmp_neigh_ifinfo;
@@ -450,7 +452,8 @@ batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
 	}
 
 	INIT_HLIST_NODE(&neigh_ifinfo->list);
-	atomic_set(&neigh_ifinfo->refcount, 2);
+	kref_init(&neigh_ifinfo->refcount);
+	kref_get(&neigh_ifinfo->refcount);
 	neigh_ifinfo->if_outgoing = if_outgoing;
 
 	hlist_add_head_rcu(&neigh_ifinfo->list, &neigh->ifinfo_list);
