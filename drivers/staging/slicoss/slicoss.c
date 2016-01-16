@@ -102,8 +102,7 @@ static char *slic_banner = "Alacritech SLIC Technology(tm) Server and Storage Ac
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 
 static struct base_driver slic_global = { {}, 0, 0, 0, 1, NULL, NULL };
-static int intagg_delay = 100;
-static u32 dynamic_intagg;
+#define DEFAULT_INTAGG_DELAY 100
 static unsigned int rcv_count;
 
 #define DRV_NAME          "slicoss"
@@ -119,16 +118,13 @@ MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("Dual BSD/GPL");
 
-module_param(dynamic_intagg, int, 0);
-MODULE_PARM_DESC(dynamic_intagg, "Dynamic Interrupt Aggregation Setting");
-module_param(intagg_delay, int, 0);
-MODULE_PARM_DESC(intagg_delay, "uSec Interrupt Aggregation Delay");
-
 static const struct pci_device_id slic_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_1GB_DEVICE_ID) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_2GB_DEVICE_ID) },
 	{ 0 }
 };
+
+static struct ethtool_ops slic_ethtool_ops;
 
 MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 
@@ -2860,7 +2856,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	if (slic_global.dynamic_intagg)
 		slic_intagg_set(adapter, 0);
 	else
-		slic_intagg_set(adapter, intagg_delay);
+		slic_intagg_set(adapter, adapter->intagg_delay);
 
 	/*
 	 *  Initialize ping status to "ok"
@@ -2879,6 +2875,26 @@ card_init_err:
 	pci_free_consistent(adapter->pcidev, sizeof(struct slic_eeprom),
 			    peeprom, phys_config);
 	return status;
+}
+
+static int slic_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coalesce)
+{
+	struct adapter *adapter = netdev_priv(dev);
+
+	adapter->intagg_delay = coalesce->rx_coalesce_usecs;
+	adapter->dynamic_intagg = coalesce->use_adaptive_rx_coalesce;
+	return 0;
+}
+
+static int slic_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coalesce)
+{
+	struct adapter *adapter = netdev_priv(dev);
+
+	coalesce->rx_coalesce_usecs = adapter->intagg_delay;
+	coalesce->use_adaptive_rx_coalesce = adapter->dynamic_intagg;
+	return 0;
 }
 
 static void slic_init_driver(void)
@@ -3069,8 +3085,6 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	struct sliccard *card = NULL;
 	int pci_using_dac = 0;
 
-	slic_global.dynamic_intagg = dynamic_intagg;
-
 	err = pci_enable_device(pcidev);
 
 	if (err)
@@ -3112,12 +3126,14 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 		goto err_out_exit_slic_probe;
 	}
 
+	netdev->ethtool_ops = &slic_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &pcidev->dev);
 
 	pci_set_drvdata(pcidev, netdev);
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pcidev = pcidev;
+	slic_global.dynamic_intagg = adapter->dynamic_intagg;
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
@@ -3203,6 +3219,11 @@ static void __exit slic_module_cleanup(void)
 {
 	pci_unregister_driver(&slic_driver);
 }
+
+static struct ethtool_ops slic_ethtool_ops = {
+	.get_coalesce = slic_get_coalesce,
+	.set_coalesce = slic_set_coalesce
+};
 
 module_init(slic_module_init);
 module_exit(slic_module_cleanup);
