@@ -285,7 +285,7 @@ config FHANDLE
 
 config USELIB
 	bool "uselib syscall"
-	default y
+	def_bool ALPHA || M68K || SPARC || X86_32 || IA32_EMULATION
 	help
 	  This option enables the uselib syscall, a system call used in the
 	  dynamic linker from libc5 and earlier.  glibc does not use this
