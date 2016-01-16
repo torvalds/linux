@@ -174,8 +174,12 @@ batadv_backbone_gw_free_ref(struct batadv_bla_backbone_gw *backbone_gw)
  *  grace period
  * @ref: kref pointer of the claim
  */
-static void batadv_claim_release(struct batadv_bla_claim *claim)
+static void batadv_claim_release(struct kref *ref)
 {
+	struct batadv_bla_claim *claim;
+
+	claim = container_of(ref, struct batadv_bla_claim, refcount);
+
 	batadv_backbone_gw_free_ref(claim->backbone_gw);
 	kfree_rcu(claim, rcu);
 }
@@ -187,8 +191,7 @@ static void batadv_claim_release(struct batadv_bla_claim *claim)
  */
 static void batadv_claim_free_ref(struct batadv_bla_claim *claim)
 {
-	if (atomic_dec_and_test(&claim->refcount))
-		batadv_claim_release(claim);
+	kref_put(&claim->refcount, batadv_claim_release);
 }
 
 /**
@@ -219,7 +222,7 @@ static struct batadv_bla_claim
 		if (!batadv_compare_claim(&claim->hash_entry, data))
 			continue;
 
-		if (!atomic_inc_not_zero(&claim->refcount))
+		if (!kref_get_unless_zero(&claim->refcount))
 			continue;
 
 		claim_tmp = claim;
@@ -651,7 +654,8 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 		claim->lasttime = jiffies;
 		claim->backbone_gw = backbone_gw;
 
-		atomic_set(&claim->refcount, 2);
+		kref_init(&claim->refcount);
+		kref_get(&claim->refcount);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
 			   mac, BATADV_PRINT_VID(vid));
