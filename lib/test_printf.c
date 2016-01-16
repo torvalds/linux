@@ -13,6 +13,7 @@
 #include <linux/string.h>
 
 #include <linux/bitmap.h>
+#include <linux/dcache.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 
@@ -326,9 +327,35 @@ uuid(void)
 	test("03020100-0504-0706-0809-0A0B0C0D0E0F", "%pUL", uuid);
 }
 
+static struct dentry test_dentry[4] __initdata = {
+	{ .d_parent = &test_dentry[0],
+	  .d_name = QSTR_INIT(test_dentry[0].d_iname, 3),
+	  .d_iname = "foo" },
+	{ .d_parent = &test_dentry[0],
+	  .d_name = QSTR_INIT(test_dentry[1].d_iname, 5),
+	  .d_iname = "bravo" },
+	{ .d_parent = &test_dentry[1],
+	  .d_name = QSTR_INIT(test_dentry[2].d_iname, 4),
+	  .d_iname = "alfa" },
+	{ .d_parent = &test_dentry[2],
+	  .d_name = QSTR_INIT(test_dentry[3].d_iname, 5),
+	  .d_iname = "romeo" },
+};
+
 static void __init
 dentry(void)
 {
+	test("foo", "%pd", &test_dentry[0]);
+	test("foo", "%pd2", &test_dentry[0]);
+
+	test("romeo", "%pd", &test_dentry[3]);
+	test("alfa/romeo", "%pd2", &test_dentry[3]);
+	test("bravo/alfa/romeo", "%pd3", &test_dentry[3]);
+	test("/bravo/alfa/romeo", "%pd4", &test_dentry[3]);
+	test("/bravo/alfa", "%pd4", &test_dentry[2]);
+
+	test("bravo/alfa  |bravo/alfa  ", "%-12pd2|%*pd2", &test_dentry[2], -12, &test_dentry[2]);
+	test("  bravo/alfa|  bravo/alfa", "%12pd2|%*pd2", &test_dentry[2], 12, &test_dentry[2]);
 }
 
 static void __init
