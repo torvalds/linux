@@ -306,15 +306,6 @@ Network device features:
 
 	Passed by reference.
 
-Command from struct task_struct
-
-	%pT	ls
-
-	For printing executable name excluding path from struct
-	task_struct.
-
-	Passed by reference.
-
 If you add other %p extensions, please extend lib/test_printf.c with
 one or more test cases, if at all feasible.
 
