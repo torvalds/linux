@@ -27,6 +27,7 @@
  * @BATADV_BCAST: broadcast packets carrying broadcast payload
  * @BATADV_CODED: network coded packets
  * @BATADV_ELP: echo location packets for B.A.T.M.A.N. V
+ * @BATADV_OGM2: originator messages for B.A.T.M.A.N. V
  *
  * @BATADV_UNICAST: unicast packets carrying unicast payload traffic
  * @BATADV_UNICAST_FRAG: unicast packets carrying a fragment of the original
@@ -42,6 +43,7 @@ enum batadv_packettype {
 	BATADV_BCAST            = 0x01,
 	BATADV_CODED            = 0x02,
 	BATADV_ELP		= 0x03,
+	BATADV_OGM2		= 0x04,
 	/* 0x40 - 0x7f: unicast */
 #define BATADV_UNICAST_MIN     0x40
 	BATADV_UNICAST          = 0x40,
@@ -235,6 +237,33 @@ struct batadv_ogm_packet {
 };
 
 #define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
+
+/**
+ * struct batadv_ogm2_packet - ogm2 (routing protocol) packet
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
+ * @flags: reseved for routing relevant flags - currently always 0
+ * @seqno: sequence number
+ * @orig: originator mac address
+ * @tvlv_len: length of the appended tvlv buffer (in bytes)
+ * @throughput: the currently flooded path throughput
+ */
+struct batadv_ogm2_packet {
+	u8     packet_type;
+	u8     version;
+	u8     ttl;
+	u8     flags;
+	__be32 seqno;
+	u8     orig[ETH_ALEN];
+	__be16 tvlv_len;
+	__be32 throughput;
+	/* __packed is not needed as the struct size is divisible by 4,
+	 * and the largest data type in this struct has a size of 4.
+	 */
+};
+
+#define BATADV_OGM2_HLEN sizeof(struct batadv_ogm2_packet)
 
 /**
  * struct batadv_elp_packet - elp (neighbor discovery) packet
