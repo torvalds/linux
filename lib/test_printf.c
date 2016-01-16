@@ -91,7 +91,12 @@ __test(const char *expect, int elen, const char *fmt, ...)
 	int rand;
 	char *p;
 
-	BUG_ON(elen >= BUF_SIZE);
+	if (elen >= BUF_SIZE) {
+		pr_err("error in test suite: expected output length %d too long. Format was '%s'.\n",
+		       elen, fmt);
+		failed_tests++;
+		return;
+	}
 
 	va_start(ap, fmt);
 
