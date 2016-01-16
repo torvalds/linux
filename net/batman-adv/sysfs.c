@@ -920,10 +920,17 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 static BATADV_ATTR(mesh_iface, S_IRUGO | S_IWUSR, batadv_show_mesh_iface,
 		   batadv_store_mesh_iface);
 static BATADV_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+BATADV_ATTR_HIF_UINT(elp_interval, bat_v.elp_interval, S_IRUGO | S_IWUSR,
+		     2 * BATADV_JITTER, INT_MAX, NULL);
+#endif
 
 static struct batadv_attribute *batadv_batman_attrs[] = {
 	&batadv_attr_mesh_iface,
 	&batadv_attr_iface_status,
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	&batadv_attr_elp_interval,
+#endif
 	NULL,
 };
 
