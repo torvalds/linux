@@ -3201,6 +3201,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 	struct page *head = compound_head(page);
 	struct anon_vma *anon_vma;
 	int count, mapcount, ret;
+	bool mlocked;
 
 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
 	VM_BUG_ON_PAGE(!PageAnon(page), page);
@@ -3231,8 +3232,13 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		goto out_unlock;
 	}
 
+	mlocked = PageMlocked(page);
 	freeze_page(anon_vma, head);
 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
+
+	/* Make sure the page is not on per-CPU pagevec as it takes pin */
+	if (mlocked)
+		lru_add_drain();
 
 	/* Prevent deferred_split_scan() touching ->_count */
 	spin_lock(&split_queue_lock);
