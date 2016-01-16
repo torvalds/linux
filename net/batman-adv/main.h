@@ -60,6 +60,9 @@
 #define BATADV_TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define BATADV_TQ_TOTAL_BIDRECT_LIMIT 1
 
+/* B.A.T.M.A.N. V */
+#define BATADV_ELP_MAX_AGE 64
+
 /* number of OGMs sent with the last tt diff */
 #define BATADV_TT_OGM_APPEND_MAX 3
 

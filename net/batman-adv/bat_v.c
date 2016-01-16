@@ -22,6 +22,7 @@
 #include <linux/init.h>
 
 #include "bat_v_elp.h"
+#include "packet.h"
 
 static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 {
@@ -42,6 +43,12 @@ static void batadv_v_primary_iface_set(struct batadv_hard_iface *hard_iface)
 	batadv_v_elp_primary_iface_set(hard_iface);
 }
 
+static void
+batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
+{
+	ewma_throughput_init(&hardif_neigh->bat_v.throughput);
+}
+
 static void batadv_v_ogm_schedule(struct batadv_hard_iface *hard_iface)
 {
 }
@@ -56,6 +63,7 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.bat_iface_disable = batadv_v_iface_disable,
 	.bat_iface_update_mac = batadv_v_iface_update_mac,
 	.bat_primary_iface_set = batadv_v_primary_iface_set,
+	.bat_hardif_neigh_init = batadv_v_hardif_neigh_init,
 	.bat_ogm_emit = batadv_v_ogm_emit,
 	.bat_ogm_schedule = batadv_v_ogm_schedule,
 };
@@ -70,5 +78,18 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
  */
 int __init batadv_v_init(void)
 {
-	return batadv_algo_register(&batadv_batman_v);
+	int ret;
+
+	/* B.A.T.M.A.N. V echo location protocol packet  */
+	ret = batadv_recv_handler_register(BATADV_ELP,
+					   batadv_v_elp_packet_recv);
+	if (ret < 0)
+		return ret;
+
+	ret = batadv_algo_register(&batadv_batman_v);
+
+	if (ret < 0)
+		batadv_recv_handler_unregister(BATADV_ELP);
+
+	return ret;
 }
