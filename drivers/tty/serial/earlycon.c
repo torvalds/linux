@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/serial_core.h>
 #include <linux/sizes.h>
-#include <linux/mod_devicetable.h>
 
 #ifdef CONFIG_FIX_EARLYCON_MEM
 #include <asm/fixmap.h>
@@ -36,13 +35,6 @@ static struct console early_con = {
 static struct earlycon_device early_console_dev = {
 	.con = &early_con,
 };
-
-extern struct earlycon_id __earlycon_table[];
-static const struct earlycon_id __earlycon_table_sentinel
-	__used __section(__earlycon_table_end);
-
-static const struct of_device_id __earlycon_of_table_sentinel
-	__used __section(__earlycon_of_table_end);
 
 static void __iomem * __init earlycon_map(unsigned long paddr, size_t size)
 {
@@ -166,7 +158,7 @@ int __init setup_earlycon(char *buf)
 	if (early_con.flags & CON_ENABLED)
 		return -EALREADY;
 
-	for (match = __earlycon_table; match->name[0]; match++) {
+	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
 		size_t len = strlen(match->name);
 
 		if (strncmp(buf, match->name, len))
