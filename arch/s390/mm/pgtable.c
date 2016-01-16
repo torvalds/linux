@@ -585,7 +585,7 @@ int gmap_fault(struct gmap *gmap, unsigned long gaddr,
 		rc = vmaddr;
 		goto out_up;
 	}
-	if (fixup_user_fault(current, gmap->mm, vmaddr, fault_flags)) {
+	if (fixup_user_fault(current, gmap->mm, vmaddr, fault_flags, NULL)) {
 		rc = -EFAULT;
 		goto out_up;
 	}
@@ -727,7 +727,8 @@ int gmap_ipte_notify(struct gmap *gmap, unsigned long gaddr, unsigned long len)
 			break;
 		}
 		/* Get the page mapped */
-		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE)) {
+		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE,
+				     NULL)) {
 			rc = -EFAULT;
 			break;
 		}
@@ -802,7 +803,8 @@ retry:
 	if (!(pte_val(*ptep) & _PAGE_INVALID) &&
 	     (pte_val(*ptep) & _PAGE_PROTECT)) {
 		pte_unmap_unlock(ptep, ptl);
-		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE)) {
+		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE,
+				     NULL)) {
 			up_read(&mm->mmap_sem);
 			return -EFAULT;
 		}
