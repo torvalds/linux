@@ -57,6 +57,7 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>
+#include <asm/export.h>
 
 #if 0
 # define PSR_DEFAULT_BITS	psr.ac
@@ -85,6 +86,7 @@
 
 	.align 32768	// align on 32KB boundary
 	.global ia64_ivt
+	EXPORT_DATA_SYMBOL(ia64_ivt)
 ia64_ivt:
 /////////////////////////////////////////////////////////////////////////////////////////
 // 0x0000 Entry 0 (size 64 bundles) VHPT Translation (8,20,47)

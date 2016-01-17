@@ -14,6 +14,7 @@
  */
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 
 GLOBAL_ENTRY(xor_ia64_2)
 	.prologue
@@ -51,6 +52,7 @@ GLOBAL_ENTRY(xor_ia64_2)
 	mov pr = r29, -1
 	br.ret.sptk.few rp
 END(xor_ia64_2)
+EXPORT_SYMBOL(xor_ia64_2)
 
 GLOBAL_ENTRY(xor_ia64_3)
 	.prologue
@@ -91,6 +93,7 @@ GLOBAL_ENTRY(xor_ia64_3)
 	mov pr = r29, -1
 	br.ret.sptk.few rp
 END(xor_ia64_3)
+EXPORT_SYMBOL(xor_ia64_3)
 
 GLOBAL_ENTRY(xor_ia64_4)
 	.prologue
@@ -134,6 +137,7 @@ GLOBAL_ENTRY(xor_ia64_4)
 	mov pr = r29, -1
 	br.ret.sptk.few rp
 END(xor_ia64_4)
+EXPORT_SYMBOL(xor_ia64_4)
 
 GLOBAL_ENTRY(xor_ia64_5)
 	.prologue
@@ -182,3 +186,4 @@ GLOBAL_ENTRY(xor_ia64_5)
 	mov pr = r29, -1
 	br.ret.sptk.few rp
 END(xor_ia64_5)
+EXPORT_SYMBOL(xor_ia64_5)

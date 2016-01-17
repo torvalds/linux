@@ -48,6 +48,7 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
+#include <asm/export.h>
 
 #include "minstate.h"
 
@@ -1345,12 +1346,14 @@ GLOBAL_ENTRY(unw_init_running)
 	mov rp=loc0
 	br.ret.sptk.many rp
 END(unw_init_running)
+EXPORT_SYMBOL(unw_init_running)
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 GLOBAL_ENTRY(_mcount)
 	br ftrace_stub
 END(_mcount)
+EXPORT_SYMBOL(_mcount)
 
 .here:
 	br.ret.sptk.many b0
