@@ -743,11 +743,11 @@ static void batadv_orig_ifinfo_release(struct kref *ref)
 }
 
 /**
- * batadv_orig_ifinfo_free_ref - decrement the refcounter and possibly release
+ * batadv_orig_ifinfo_put - decrement the refcounter and possibly release
  *  the orig_ifinfo
  * @orig_ifinfo: the orig_ifinfo object to release
  */
-void batadv_orig_ifinfo_free_ref(struct batadv_orig_ifinfo *orig_ifinfo)
+void batadv_orig_ifinfo_put(struct batadv_orig_ifinfo *orig_ifinfo)
 {
 	kref_put(&orig_ifinfo->refcount, batadv_orig_ifinfo_release);
 }
@@ -799,7 +799,7 @@ static void batadv_orig_node_release(struct kref *ref)
 	hlist_for_each_entry_safe(orig_ifinfo, node_tmp,
 				  &orig_node->ifinfo_list, list) {
 		hlist_del_rcu(&orig_ifinfo->list);
-		batadv_orig_ifinfo_free_ref(orig_ifinfo);
+		batadv_orig_ifinfo_put(orig_ifinfo);
 	}
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
@@ -1012,10 +1012,10 @@ batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
 		ifinfo_purged = true;
 
 		hlist_del_rcu(&orig_ifinfo->list);
-		batadv_orig_ifinfo_free_ref(orig_ifinfo);
+		batadv_orig_ifinfo_put(orig_ifinfo);
 		if (orig_node->last_bonding_candidate == orig_ifinfo) {
 			orig_node->last_bonding_candidate = NULL;
-			batadv_orig_ifinfo_free_ref(orig_ifinfo);
+			batadv_orig_ifinfo_put(orig_ifinfo);
 		}
 	}
 

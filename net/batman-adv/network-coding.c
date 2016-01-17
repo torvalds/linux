@@ -772,7 +772,7 @@ static bool batadv_can_nc_with_orig(struct batadv_priv *bat_priv,
 
 	last_ttl = orig_ifinfo->last_ttl;
 	last_real_seqno = orig_ifinfo->last_real_seqno;
-	batadv_orig_ifinfo_free_ref(orig_ifinfo);
+	batadv_orig_ifinfo_put(orig_ifinfo);
 
 	if (last_real_seqno != ntohl(ogm_packet->seqno))
 		return false;

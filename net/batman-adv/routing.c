@@ -107,7 +107,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	spin_lock_bh(&orig_node->neigh_list_lock);
 	rcu_assign_pointer(orig_ifinfo->router, neigh_node);
 	spin_unlock_bh(&orig_node->neigh_list_lock);
-	batadv_orig_ifinfo_free_ref(orig_ifinfo);
+	batadv_orig_ifinfo_put(orig_ifinfo);
 
 	/* decrease refcount of previous best neighbor */
 	if (curr_router)
@@ -548,13 +548,13 @@ next:
 			batadv_neigh_node_put(cand_router);
 			cand_router = NULL;
 		}
-		batadv_orig_ifinfo_free_ref(cand);
+		batadv_orig_ifinfo_put(cand);
 	}
 	rcu_read_unlock();
 
 	/* last_bonding_candidate is reset below, remove the old reference. */
 	if (orig_node->last_bonding_candidate)
-		batadv_orig_ifinfo_free_ref(orig_node->last_bonding_candidate);
+		batadv_orig_ifinfo_put(orig_node->last_bonding_candidate);
 
 	/* After finding candidates, handle the three cases:
 	 * 1) there is a next candidate, use that
@@ -567,7 +567,7 @@ next:
 		/* remove references to first candidate, we don't need it. */
 		if (first_candidate) {
 			batadv_neigh_node_put(first_candidate_router);
-			batadv_orig_ifinfo_free_ref(first_candidate);
+			batadv_orig_ifinfo_put(first_candidate);
 		}
 		router = next_candidate_router;
 		orig_node->last_bonding_candidate = next_candidate;
