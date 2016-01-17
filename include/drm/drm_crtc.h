@@ -306,6 +306,7 @@ struct drm_plane_helper_funcs;
  * @active_changed: crtc_state->active has been toggled.
  * @connectors_changed: connectors to this crtc have been updated
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
+ * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
@@ -338,6 +339,8 @@ struct drm_crtc_state {
 	 * on plane_mask being accurate!
 	 */
 	u32 plane_mask;
+
+	u32 connector_mask;
 
 	/* last_vblank_count: for vblank waits before cleanup */
 	u32 last_vblank_count;
@@ -548,7 +551,8 @@ struct drm_crtc_funcs {
 	 * ->page_flip() operation is already pending the callback should return
 	 * -EBUSY. Pageflips on a disabled CRTC (either by setting a NULL mode
 	 * or just runtime disabled through DPMS respectively the new atomic
-	 * "ACTIVE" state) should result in an -EINVAL error code.
+	 * "ACTIVE" state) should result in an -EINVAL error code. Note that
+	 * drm_atomic_helper_page_flip() checks this already for atomic drivers.
 	 */
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,

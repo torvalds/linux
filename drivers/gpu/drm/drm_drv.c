@@ -44,10 +44,6 @@ MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
-MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
-MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
-MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
-
 module_param_named(debug, drm_debug, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);

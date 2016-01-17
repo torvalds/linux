@@ -1579,194 +1579,6 @@ void intel_crt_init(struct drm_device *dev)
       entities.
     </para>
     <sect2>
-      <title>Legacy CRTC Helper Operations</title>
-      <itemizedlist>
-        <listitem id="drm-helper-crtc-mode-fixup">
-          <synopsis>bool (*mode_fixup)(struct drm_crtc *crtc,
-                       const struct drm_display_mode *mode,
-                       struct drm_display_mode *adjusted_mode);</synopsis>
-          <para>
-            Let CRTCs adjust the requested mode or reject it completely. This
-            operation returns true if the mode is accepted (possibly after being
-            adjusted) or false if it is rejected.
-          </para>
-          <para>
-            The <methodname>mode_fixup</methodname> operation should reject the
-            mode if it can't reasonably use it. The definition of "reasonable"
-            is currently fuzzy in this context. One possible behaviour would be
-            to set the adjusted mode to the panel timings when a fixed-mode
-            panel is used with hardware capable of scaling. Another behaviour
-            would be to accept any input mode and adjust it to the closest mode
-            supported by the hardware (FIXME: This needs to be clarified).
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
-                     struct drm_framebuffer *old_fb)</synopsis>
-          <para>
-            Move the CRTC on the current frame buffer (stored in
-            <literal>crtc-&gt;fb</literal>) to position (x,y). Any of the frame
-            buffer, x position or y position may have been modified.
-          </para>
-          <para>
-            This helper operation is optional. If not provided, the
-            <function>drm_crtc_helper_set_config</function> function will fall
-            back to the <methodname>mode_set</methodname> helper operation.
-          </para>
-          <note><para>
-            FIXME: Why are x and y passed as arguments, as they can be accessed
-            through <literal>crtc-&gt;x</literal> and
-            <literal>crtc-&gt;y</literal>?
-          </para></note>
-        </listitem>
-        <listitem>
-          <synopsis>void (*prepare)(struct drm_crtc *crtc);</synopsis>
-          <para>
-            Prepare the CRTC for mode setting. This operation is called after
-            validating the requested mode. Drivers use it to perform
-            device-specific operations required before setting the new mode.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
-                struct drm_display_mode *adjusted_mode, int x, int y,
-                struct drm_framebuffer *old_fb);</synopsis>
-          <para>
-            Set a new mode, position and frame buffer. Depending on the device
-            requirements, the mode can be stored internally by the driver and
-            applied in the <methodname>commit</methodname> operation, or
-            programmed to the hardware immediately.
-          </para>
-          <para>
-            The <methodname>mode_set</methodname> operation returns 0 on success
-	    or a negative error code if an error occurs.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*commit)(struct drm_crtc *crtc);</synopsis>
-          <para>
-            Commit a mode. This operation is called after setting the new mode.
-            Upon return the device must use the new mode and be fully
-            operational.
-          </para>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
-      <title>Encoder Helper Operations</title>
-      <itemizedlist>
-        <listitem>
-          <synopsis>bool (*mode_fixup)(struct drm_encoder *encoder,
-                       const struct drm_display_mode *mode,
-                       struct drm_display_mode *adjusted_mode);</synopsis>
-          <para>
-            Let encoders adjust the requested mode or reject it completely. This
-            operation returns true if the mode is accepted (possibly after being
-            adjusted) or false if it is rejected. See the
-            <link linkend="drm-helper-crtc-mode-fixup">mode_fixup CRTC helper
-            operation</link> for an explanation of the allowed adjustments.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*prepare)(struct drm_encoder *encoder);</synopsis>
-          <para>
-            Prepare the encoder for mode setting. This operation is called after
-            validating the requested mode. Drivers use it to perform
-            device-specific operations required before setting the new mode.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*mode_set)(struct drm_encoder *encoder,
-                 struct drm_display_mode *mode,
-                 struct drm_display_mode *adjusted_mode);</synopsis>
-          <para>
-            Set a new mode. Depending on the device requirements, the mode can
-            be stored internally by the driver and applied in the
-            <methodname>commit</methodname> operation, or programmed to the
-            hardware immediately.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*commit)(struct drm_encoder *encoder);</synopsis>
-          <para>
-            Commit a mode. This operation is called after setting the new mode.
-            Upon return the device must use the new mode and be fully
-            operational.
-          </para>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
-      <title>Connector Helper Operations</title>
-      <itemizedlist>
-        <listitem>
-          <synopsis>struct drm_encoder *(*best_encoder)(struct drm_connector *connector);</synopsis>
-          <para>
-            Return a pointer to the best encoder for the connecter. Device that
-            map connectors to encoders 1:1 simply return the pointer to the
-            associated encoder. This operation is mandatory.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*get_modes)(struct drm_connector *connector);</synopsis>
-          <para>
-            Fill the connector's <structfield>probed_modes</structfield> list
-            by parsing EDID data with <function>drm_add_edid_modes</function>,
-            adding standard VESA DMT modes with <function>drm_add_modes_noedid</function>,
-            or calling <function>drm_mode_probed_add</function> directly for every
-            supported mode and return the number of modes it has detected. This
-            operation is mandatory.
-          </para>
-          <para>
-            Note that the caller function will automatically add standard VESA
-            DMT modes up to 1024x768 if the <methodname>get_modes</methodname>
-            helper operation returns no mode and if the connector status is
-            connector_status_connected. There is no need to call
-            <function>drm_add_edid_modes</function> manually in that case.
-          </para>
-          <para>
-            The <structfield>vrefresh</structfield> value is computed by
-            <function>drm_helper_probe_single_connector_modes</function>.
-          </para>
-          <para>
-            When parsing EDID data, <function>drm_add_edid_modes</function> fills the
-            connector <structfield>display_info</structfield>
-            <structfield>width_mm</structfield> and
-            <structfield>height_mm</structfield> fields. When creating modes
-            manually the <methodname>get_modes</methodname> helper operation must
-            set the <structfield>display_info</structfield>
-            <structfield>width_mm</structfield> and
-            <structfield>height_mm</structfield> fields if they haven't been set
-            already (for instance at initialization time when a fixed-size panel is
-            attached to the connector). The mode <structfield>width_mm</structfield>
-            and <structfield>height_mm</structfield> fields are only used internally
-            during EDID parsing and should not be set when creating modes manually.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*mode_valid)(struct drm_connector *connector,
-		  struct drm_display_mode *mode);</synopsis>
-          <para>
-            Verify whether a mode is valid for the connector. Return MODE_OK for
-            supported modes and one of the enum drm_mode_status values (MODE_*)
-            for unsupported modes. This operation is optional.
-          </para>
-          <para>
-            As the mode rejection reason is currently not used beside for
-            immediately removing the unsupported mode, an implementation can
-            return MODE_BAD regardless of the exact reason why the mode is not
-            valid.
-          </para>
-          <note><para>
-            Note that the <methodname>mode_valid</methodname> helper operation is
-            only called for modes detected by the device, and
-            <emphasis>not</emphasis> for modes set by the user through the CRTC
-            <methodname>set_config</methodname> operation.
-          </para></note>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
       <title>Atomic Modeset Helper Functions Reference</title>
       <sect3>
 	<title>Overview</title>
@@ -3625,41 +3437,63 @@ int num_ioctls;</synopsis>
 
   <chapter id="modes_of_use">
     <title>Modes of Use</title>
-  <sect1>
-    <title>Manual switching and manual power control</title>
+    <sect1>
+      <title>Manual switching and manual power control</title>
 !Pdrivers/gpu/vga/vga_switcheroo.c Manual switching and manual power control
-  </sect1>
-  <sect1>
-    <title>Driver power control</title>
+    </sect1>
+    <sect1>
+      <title>Driver power control</title>
 !Pdrivers/gpu/vga/vga_switcheroo.c Driver power control
-  </sect1>
+    </sect1>
   </chapter>
 
-  <chapter id="pubfunctions">
-    <title>Public functions</title>
+  <chapter id="api">
+    <title>API</title>
+    <sect1>
+      <title>Public functions</title>
 !Edrivers/gpu/vga/vga_switcheroo.c
-  </chapter>
-
-  <chapter id="pubstructures">
-    <title>Public structures</title>
+    </sect1>
+    <sect1>
+      <title>Public structures</title>
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_handler
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_client_ops
-  </chapter>
-
-  <chapter id="pubconstants">
-    <title>Public constants</title>
+    </sect1>
+    <sect1>
+      <title>Public constants</title>
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_client_id
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_state
-  </chapter>
-
-  <chapter id="privstructures">
-    <title>Private structures</title>
+    </sect1>
+    <sect1>
+      <title>Private structures</title>
 !Fdrivers/gpu/vga/vga_switcheroo.c vgasr_priv
 !Fdrivers/gpu/vga/vga_switcheroo.c vga_switcheroo_client
+    </sect1>
+  </chapter>
+
+  <chapter id="handlers">
+    <title>Handlers</title>
+    <sect1>
+      <title>apple-gmux Handler</title>
+!Pdrivers/platform/x86/apple-gmux.c Overview
+!Pdrivers/platform/x86/apple-gmux.c Interrupt
+      <sect2>
+        <title>Graphics mux</title>
+!Pdrivers/platform/x86/apple-gmux.c Graphics mux
+      </sect2>
+      <sect2>
+        <title>Power control</title>
+!Pdrivers/platform/x86/apple-gmux.c Power control
+      </sect2>
+      <sect2>
+        <title>Backlight control</title>
+!Pdrivers/platform/x86/apple-gmux.c Backlight control
+      </sect2>
+    </sect1>
   </chapter>
 
 !Cdrivers/gpu/vga/vga_switcheroo.c
 !Cinclude/linux/vga_switcheroo.h
+!Cdrivers/platform/x86/apple-gmux.c
 </part>
 
 </book>

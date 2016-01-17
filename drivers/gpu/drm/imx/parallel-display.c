@@ -204,8 +204,6 @@ static int imx_pd_register(struct drm_device *drm,
 
 	drm_mode_connector_attach_encoder(&imxpd->connector, &imxpd->encoder);
 
-	imxpd->connector.encoder = &imxpd->encoder;
-
 	return 0;
 }
 

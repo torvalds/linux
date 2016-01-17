@@ -305,6 +305,7 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		dev_warn(drm->dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
 		legacyfb_depth = 16;
 	}
+	drm_helper_disable_unused_functions(drm);
 	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth,
 				drm->mode_config.num_crtc, MAX_CRTC);
 	if (IS_ERR(imxdrm->fbhelper)) {
