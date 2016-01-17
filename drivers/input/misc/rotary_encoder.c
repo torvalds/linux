@@ -211,8 +211,8 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 	if (!of_id || !np)
 		return NULL;
 
-	pdata = kzalloc(sizeof(struct rotary_encoder_platform_data),
-			GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(struct rotary_encoder_platform_data),
+			     GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -277,12 +277,13 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		}
 	}
 
-	encoder = kzalloc(sizeof(struct rotary_encoder), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!encoder || !input) {
-		err = -ENOMEM;
-		goto exit_free_mem;
-	}
+	encoder = devm_kzalloc(dev, sizeof(struct rotary_encoder), GFP_KERNEL);
+	if (!encoder)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
 
 	encoder->input = input;
 	encoder->pdata = pdata;
@@ -301,16 +302,18 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	}
 
 	/* request the GPIOs */
-	err = gpio_request_one(pdata->gpio_a, GPIOF_IN, dev_name(dev));
+	err = devm_gpio_request_one(dev, pdata->gpio_a, GPIOF_IN,
+				    dev_name(dev));
 	if (err) {
 		dev_err(dev, "unable to request GPIO %d\n", pdata->gpio_a);
-		goto exit_free_mem;
+		return err;
 	}
 
-	err = gpio_request_one(pdata->gpio_b, GPIOF_IN, dev_name(dev));
+	err = devm_gpio_request_one(dev, pdata->gpio_b, GPIOF_IN,
+				    dev_name(dev));
 	if (err) {
 		dev_err(dev, "unable to request GPIO %d\n", pdata->gpio_b);
-		goto exit_free_gpio_a;
+		return err;
 	}
 
 	encoder->irq_a = gpio_to_irq(pdata->gpio_a);
@@ -331,72 +334,34 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	default:
 		dev_err(dev, "'%d' is not a valid steps-per-period value\n",
 			pdata->steps_per_period);
-		err = -EINVAL;
-		goto exit_free_gpio_b;
+		return -EINVAL;
 	}
 
-	err = request_irq(encoder->irq_a, handler,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  DRV_NAME, encoder);
+	err = devm_request_irq(dev, encoder->irq_a, handler,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			       DRV_NAME, encoder);
 	if (err) {
 		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_a);
-		goto exit_free_gpio_b;
+		return err;
 	}
 
-	err = request_irq(encoder->irq_b, handler,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  DRV_NAME, encoder);
+	err = devm_request_irq(dev, encoder->irq_b, handler,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			       DRV_NAME, encoder);
 	if (err) {
 		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_b);
-		goto exit_free_irq_a;
+		return err;
 	}
 
 	err = input_register_device(input);
 	if (err) {
 		dev_err(dev, "failed to register input device\n");
-		goto exit_free_irq_b;
+		return err;
 	}
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup_source);
 
 	platform_set_drvdata(pdev, encoder);
-
-	return 0;
-
-exit_free_irq_b:
-	free_irq(encoder->irq_b, encoder);
-exit_free_irq_a:
-	free_irq(encoder->irq_a, encoder);
-exit_free_gpio_b:
-	gpio_free(pdata->gpio_b);
-exit_free_gpio_a:
-	gpio_free(pdata->gpio_a);
-exit_free_mem:
-	input_free_device(input);
-	kfree(encoder);
-	if (!dev_get_platdata(&pdev->dev))
-		kfree(pdata);
-
-	return err;
-}
-
-static int rotary_encoder_remove(struct platform_device *pdev)
-{
-	struct rotary_encoder *encoder = platform_get_drvdata(pdev);
-	const struct rotary_encoder_platform_data *pdata = encoder->pdata;
-
-	device_init_wakeup(&pdev->dev, false);
-
-	free_irq(encoder->irq_a, encoder);
-	free_irq(encoder->irq_b, encoder);
-	gpio_free(pdata->gpio_a);
-	gpio_free(pdata->gpio_b);
-
-	input_unregister_device(encoder->input);
-	kfree(encoder);
-
-	if (!dev_get_platdata(&pdev->dev))
-		kfree(pdata);
 
 	return 0;
 }
@@ -432,7 +397,6 @@ static SIMPLE_DEV_PM_OPS(rotary_encoder_pm_ops,
 
 static struct platform_driver rotary_encoder_driver = {
 	.probe		= rotary_encoder_probe,
-	.remove		= rotary_encoder_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.pm	= &rotary_encoder_pm_ops,
