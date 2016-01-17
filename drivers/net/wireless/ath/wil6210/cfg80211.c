@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -828,9 +828,9 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 		wil_print_bcon_data(bcon);
 	}
 
-	if (bcon->proberesp_ies &&
-	    cfg80211_find_ie(WLAN_EID_RSN, bcon->proberesp_ies,
-			     bcon->proberesp_ies_len))
+	if (bcon->tail &&
+	    cfg80211_find_ie(WLAN_EID_RSN, bcon->tail,
+			     bcon->tail_len))
 		privacy = 1;
 
 	/* in case privacy has changed, need to restart the AP */
