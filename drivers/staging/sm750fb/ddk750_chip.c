@@ -95,20 +95,20 @@ static void setMemoryClock(unsigned int frequency)
 		divisor = roundedDiv(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		reg = PEEK32(CURRENT_GATE);
+		reg = PEEK32(CURRENT_GATE) & ~CURRENT_GATE_M2XCLK_MASK;
 		switch (divisor) {
 		default:
 		case 1:
-			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_1);
+			reg |= CURRENT_GATE_M2XCLK_DIV_1;
 			break;
 		case 2:
-			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_2);
+			reg |= CURRENT_GATE_M2XCLK_DIV_2;
 			break;
 		case 3:
-			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_3);
+			reg |= CURRENT_GATE_M2XCLK_DIV_3;
 			break;
 		case 4:
-			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_4);
+			reg |= CURRENT_GATE_M2XCLK_DIV_4;
 			break;
 		}
 
@@ -142,20 +142,20 @@ static void setMasterClock(unsigned int frequency)
 		divisor = roundedDiv(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		reg = PEEK32(CURRENT_GATE);
+		reg = PEEK32(CURRENT_GATE) & ~CURRENT_GATE_MCLK_MASK;
 		switch (divisor) {
 		default:
 		case 3:
-			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_3);
+			reg |= CURRENT_GATE_MCLK_DIV_3;
 			break;
 		case 4:
-			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_4);
+			reg |= CURRENT_GATE_MCLK_DIV_4;
 			break;
 		case 6:
-			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_6);
+			reg |= CURRENT_GATE_MCLK_DIV_6;
 			break;
 		case 8:
-			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_8);
+			reg |= CURRENT_GATE_MCLK_DIV_8;
 			break;
 		}
 

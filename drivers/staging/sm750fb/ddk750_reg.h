@@ -391,29 +391,29 @@
 #define INT_MASK_VGA_VSYNC_ENABLE                     1
 
 #define CURRENT_GATE                                  0x000040
-#define CURRENT_GATE_MCLK                             15:14
+#define CURRENT_GATE_MCLK_MASK                        (0x3 << 14)
 #ifdef VALIDATION_CHIP
-    #define CURRENT_GATE_MCLK_112MHZ                      0
-    #define CURRENT_GATE_MCLK_84MHZ                       1
-    #define CURRENT_GATE_MCLK_56MHZ                       2
-    #define CURRENT_GATE_MCLK_42MHZ                       3
+    #define CURRENT_GATE_MCLK_112MHZ                  (0x0 << 14)
+    #define CURRENT_GATE_MCLK_84MHZ                   (0x1 << 14)
+    #define CURRENT_GATE_MCLK_56MHZ                   (0x2 << 14)
+    #define CURRENT_GATE_MCLK_42MHZ                   (0x3 << 14)
 #else
-    #define CURRENT_GATE_MCLK_DIV_3                       0
-    #define CURRENT_GATE_MCLK_DIV_4                       1
-    #define CURRENT_GATE_MCLK_DIV_6                       2
-    #define CURRENT_GATE_MCLK_DIV_8                       3
+    #define CURRENT_GATE_MCLK_DIV_3                   (0x0 << 14)
+    #define CURRENT_GATE_MCLK_DIV_4                   (0x1 << 14)
+    #define CURRENT_GATE_MCLK_DIV_6                   (0x2 << 14)
+    #define CURRENT_GATE_MCLK_DIV_8                   (0x3 << 14)
 #endif
-#define CURRENT_GATE_M2XCLK                           13:12
+#define CURRENT_GATE_M2XCLK_MASK                      (0x3 << 12)
 #ifdef VALIDATION_CHIP
-    #define CURRENT_GATE_M2XCLK_336MHZ                    0
-    #define CURRENT_GATE_M2XCLK_168MHZ                    1
-    #define CURRENT_GATE_M2XCLK_112MHZ                    2
-    #define CURRENT_GATE_M2XCLK_84MHZ                     3
+    #define CURRENT_GATE_M2XCLK_336MHZ                (0x0 << 12)
+    #define CURRENT_GATE_M2XCLK_168MHZ                (0x1 << 12)
+    #define CURRENT_GATE_M2XCLK_112MHZ                (0x2 << 12)
+    #define CURRENT_GATE_M2XCLK_84MHZ                 (0x3 << 12)
 #else
-    #define CURRENT_GATE_M2XCLK_DIV_1                     0
-    #define CURRENT_GATE_M2XCLK_DIV_2                     1
-    #define CURRENT_GATE_M2XCLK_DIV_3                     2
-    #define CURRENT_GATE_M2XCLK_DIV_4                     3
+    #define CURRENT_GATE_M2XCLK_DIV_1                 (0x0 << 12)
+    #define CURRENT_GATE_M2XCLK_DIV_2                 (0x1 << 12)
+    #define CURRENT_GATE_M2XCLK_DIV_3                 (0x2 << 12)
+    #define CURRENT_GATE_M2XCLK_DIV_4                 (0x3 << 12)
 #endif
 #define CURRENT_GATE_VGA                              BIT(10)
 #define CURRENT_GATE_PWM                              BIT(9)
