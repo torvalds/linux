@@ -239,10 +239,10 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	 */
 	if (pInitParam->resetMemory == 1) {
 		reg = PEEK32(MISC_CTRL);
-		reg = FIELD_SET(reg, MISC_CTRL, LOCALMEM_RESET, RESET);
+		reg &= ~MISC_CTRL_LOCALMEM_RESET;
 		POKE32(MISC_CTRL, reg);
 
-		reg = FIELD_SET(reg, MISC_CTRL, LOCALMEM_RESET, NORMAL);
+		reg |= MISC_CTRL_LOCALMEM_RESET;
 		POKE32(MISC_CTRL, reg);
 	}
 

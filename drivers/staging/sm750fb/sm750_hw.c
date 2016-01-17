@@ -116,18 +116,14 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		/* does user need CRT ?*/
 		if (sm750_dev->nocrt) {
 			POKE32(MISC_CTRL,
-					FIELD_SET(PEEK32(MISC_CTRL),
-					MISC_CTRL,
-					DAC_POWER, OFF));
+			       PEEK32(MISC_CTRL) | MISC_CTRL_DAC_POWER_OFF);
 			/* shut off dpms */
 			val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
 			val |= SYSTEM_CTRL_DPMS_VPHN;
 			POKE32(SYSTEM_CTRL, val);
 		} else {
 			POKE32(MISC_CTRL,
-					FIELD_SET(PEEK32(MISC_CTRL),
-					MISC_CTRL,
-					DAC_POWER, ON));
+			       PEEK32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF);
 			/* turn on dpms */
 			val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
 			val |= SYSTEM_CTRL_DPMS_VPHP;
