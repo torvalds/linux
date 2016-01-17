@@ -378,6 +378,8 @@
 
 /* Wired to the tps65950 on the SOM, only the USB connector is on the devkit */
 &usb_otg_hs {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb_otg_pins>;
 	interface-type = <0>;
 	usb-phy = <&usb2_phy>;
 	phys = <&usb2_phy>;
