@@ -861,7 +861,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 
 		if (vbo->base.size < offset ||
 		    vbo->base.size - offset < attr_size) {
-			DRM_ERROR("BO offset overflow (%d + %d > %d)\n",
+			DRM_ERROR("BO offset overflow (%d + %d > %zu)\n",
 				  offset, attr_size, vbo->base.size);
 			return -EINVAL;
 		}
