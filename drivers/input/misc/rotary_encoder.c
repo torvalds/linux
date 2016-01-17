@@ -383,8 +383,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int rotary_encoder_suspend(struct device *dev)
+static int __maybe_unused rotary_encoder_suspend(struct device *dev)
 {
 	struct rotary_encoder *encoder = dev_get_drvdata(dev);
 
@@ -396,7 +395,7 @@ static int rotary_encoder_suspend(struct device *dev)
 	return 0;
 }
 
-static int rotary_encoder_resume(struct device *dev)
+static int __maybe_unused rotary_encoder_resume(struct device *dev)
 {
 	struct rotary_encoder *encoder = dev_get_drvdata(dev);
 
@@ -407,10 +406,9 @@ static int rotary_encoder_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(rotary_encoder_pm_ops,
-		 rotary_encoder_suspend, rotary_encoder_resume);
+			 rotary_encoder_suspend, rotary_encoder_resume);
 
 static struct platform_driver rotary_encoder_driver = {
 	.probe		= rotary_encoder_probe,
