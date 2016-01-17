@@ -493,15 +493,15 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 int hw_sm750le_deWait(void)
 {
 	int i = 0x10000000;
+	unsigned int mask = DE_STATE2_DE_STATUS_BUSY | DE_STATE2_DE_FIFO_EMPTY |
+		DE_STATE2_DE_MEM_FIFO_EMPTY;
 
 	while (i--) {
 		unsigned int val = PEEK32(DE_STATE2);
 
-		if ((FIELD_GET(val, DE_STATE2, DE_STATUS) == DE_STATE2_DE_STATUS_IDLE) &&
-		    (FIELD_GET(val, DE_STATE2, DE_FIFO) == DE_STATE2_DE_FIFO_EMPTY) &&
-		    (FIELD_GET(val, DE_STATE2, DE_MEM_FIFO) == DE_STATE2_DE_MEM_FIFO_EMPTY)) {
+		if ((val & mask) ==
+		    (DE_STATE2_DE_FIFO_EMPTY | DE_STATE2_DE_MEM_FIFO_EMPTY))
 			return 0;
-		}
 	}
 	/* timeout error */
 	return -1;

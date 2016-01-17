@@ -6,15 +6,9 @@
 #define DE_STATE1_DE_ABORT                               BIT(0)
 
 #define DE_STATE2                                        0x100058
-#define DE_STATE2_DE_FIFO                                3:3
-#define DE_STATE2_DE_FIFO_NOTEMPTY                       0
-#define DE_STATE2_DE_FIFO_EMPTY                          1
-#define DE_STATE2_DE_STATUS                              2:2
-#define DE_STATE2_DE_STATUS_IDLE                         0
-#define DE_STATE2_DE_STATUS_BUSY                         1
-#define DE_STATE2_DE_MEM_FIFO                            1:1
-#define DE_STATE2_DE_MEM_FIFO_NOTEMPTY                   0
-#define DE_STATE2_DE_MEM_FIFO_EMPTY                      1
+#define DE_STATE2_DE_FIFO_EMPTY                          BIT(3)
+#define DE_STATE2_DE_STATUS_BUSY                         BIT(2)
+#define DE_STATE2_DE_MEM_FIFO_EMPTY                      BIT(1)
 #define DE_STATE2_DE_RESERVED                            0:0
 
 
