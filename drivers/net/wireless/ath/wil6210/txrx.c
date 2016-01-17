@@ -794,6 +794,9 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	txdata->dot1x_open = false;
 	txdata->enabled = 0;
 	wil_vring_free(wil, vring, 1);
+	wil->vring2cid_tid[id][0] = WIL6210_MAX_CID;
+	wil->vring2cid_tid[id][1] = 0;
+
  out:
 
 	return rc;
