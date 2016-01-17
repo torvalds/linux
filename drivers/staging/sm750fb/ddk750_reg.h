@@ -501,10 +501,10 @@
 #endif
 #define POWER_MODE_CTRL_OSC_INPUT                     BIT(3)
 #define POWER_MODE_CTRL_ACPI                          BIT(2)
-#define POWER_MODE_CTRL_MODE                          1:0
-#define POWER_MODE_CTRL_MODE_MODE0                    0
-#define POWER_MODE_CTRL_MODE_MODE1                    1
-#define POWER_MODE_CTRL_MODE_SLEEP                    2
+#define POWER_MODE_CTRL_MODE_MASK                     (0x3 << 0)
+#define POWER_MODE_CTRL_MODE_MODE0                    (0x0 << 0)
+#define POWER_MODE_CTRL_MODE_MODE1                    (0x1 << 0)
+#define POWER_MODE_CTRL_MODE_SLEEP                    (0x2 << 0)
 
 #define PCI_MASTER_BASE                               0x000050
 #define PCI_MASTER_BASE_ADDRESS                       7:0

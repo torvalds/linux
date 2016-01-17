@@ -21,7 +21,7 @@ static unsigned int getPowerMode(void)
 {
 	if (getChipType() == SM750LE)
 		return 0;
-	return FIELD_GET(PEEK32(POWER_MODE_CTRL), POWER_MODE_CTRL, MODE);
+	return PEEK32(POWER_MODE_CTRL) & POWER_MODE_CTRL_MODE_MASK;
 }
 
 
@@ -33,25 +33,22 @@ void setPowerMode(unsigned int powerMode)
 {
 	unsigned int control_value = 0;
 
-	control_value = PEEK32(POWER_MODE_CTRL);
+	control_value = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
 
 	if (getChipType() == SM750LE)
 		return;
 
 	switch (powerMode) {
 	case POWER_MODE_CTRL_MODE_MODE0:
-		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE,
-					  MODE0);
+		control_value |= POWER_MODE_CTRL_MODE_MODE0;
 		break;
 
 	case POWER_MODE_CTRL_MODE_MODE1:
-		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE,
-					  MODE1);
+		control_value |= POWER_MODE_CTRL_MODE_MODE1;
 		break;
 
 	case POWER_MODE_CTRL_MODE_SLEEP:
-		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE,
-					  SLEEP);
+		control_value |= POWER_MODE_CTRL_MODE_SLEEP;
 		break;
 
 	default:
