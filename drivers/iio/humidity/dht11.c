@@ -161,7 +161,7 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 			int *val, int *val2, long m)
 {
 	struct dht11 *dht11 = iio_priv(iio_dev);
-	int ret, timeres;
+	int ret, timeres, offset;
 
 	mutex_lock(&dht11->lock);
 	if (dht11->timestamp + DHT11_DATA_VALID_TIME < ktime_get_real_ns()) {
@@ -208,11 +208,14 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 		if (ret < 0)
 			goto err;
 
-		ret = dht11_decode(dht11,
-				   dht11->num_edges == DHT11_EDGES_PER_READ ?
-					DHT11_EDGES_PREAMBLE :
-					DHT11_EDGES_PREAMBLE - 2,
-				timeres);
+		offset = DHT11_EDGES_PREAMBLE +
+				dht11->num_edges - DHT11_EDGES_PER_READ;
+		for (; offset >= 0; --offset) {
+			ret = dht11_decode(dht11, offset, timeres);
+			if (!ret)
+				break;
+		}
+
 		if (ret)
 			goto err;
 	}
