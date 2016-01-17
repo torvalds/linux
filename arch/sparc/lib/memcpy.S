@@ -141,11 +141,6 @@ x:
 	retl
 	 nop		! Only bcopy returns here and it retuns void...
 
-#ifdef __KERNEL__
-FUNC(amemmove)
-FUNC(__memmove)
-EXPORT_SYMBOL(__memmove)
-#endif
 FUNC(memmove)
 EXPORT_SYMBOL(memmove)
 	cmp		%o0, %o1
