@@ -112,6 +112,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	}
 
 	if (getChipType() != SM750LE) {
+		unsigned int val;
 		/* does user need CRT ?*/
 		if (sm750_dev->nocrt) {
 			POKE32(MISC_CTRL,
@@ -119,20 +120,18 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 					MISC_CTRL,
 					DAC_POWER, OFF));
 			/* shut off dpms */
-			POKE32(SYSTEM_CTRL,
-					FIELD_SET(PEEK32(SYSTEM_CTRL),
-					SYSTEM_CTRL,
-					DPMS, VNHN));
+			val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
+			val |= SYSTEM_CTRL_DPMS_VPHN;
+			POKE32(SYSTEM_CTRL, val);
 		} else {
 			POKE32(MISC_CTRL,
 					FIELD_SET(PEEK32(MISC_CTRL),
 					MISC_CTRL,
 					DAC_POWER, ON));
 			/* turn on dpms */
-			POKE32(SYSTEM_CTRL,
-					FIELD_SET(PEEK32(SYSTEM_CTRL),
-					SYSTEM_CTRL,
-					DPMS, VPHP));
+			val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
+			val |= SYSTEM_CTRL_DPMS_VPHP;
+			POKE32(SYSTEM_CTRL, val);
 		}
 
 		switch (sm750_dev->pnltype) {
@@ -448,8 +447,9 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 	}
 
 	if (output->paths & sm750_crt) {
+		unsigned int val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
 
-		POKE32(SYSTEM_CTRL, FIELD_VALUE(PEEK32(SYSTEM_CTRL), SYSTEM_CTRL, DPMS, dpms));
+		POKE32(SYSTEM_CTRL, val | dpms);
 		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, BLANK, crtdb));
 	}
 

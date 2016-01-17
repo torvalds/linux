@@ -12,7 +12,7 @@ void ddk750_setDPMS(DPMS_t state)
 						     DPMS, state));
 	} else {
 		value = PEEK32(SYSTEM_CTRL);
-		value = FIELD_VALUE(value, SYSTEM_CTRL, DPMS, state);
+		value = (value & ~SYSTEM_CTRL_DPMS_MASK) | state;
 		POKE32(SYSTEM_CTRL, value);
 	}
 }

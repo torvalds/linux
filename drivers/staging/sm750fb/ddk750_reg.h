@@ -11,11 +11,11 @@
 #define DE_STATE2_DE_MEM_FIFO_EMPTY                      BIT(1)
 
 #define SYSTEM_CTRL                                   0x000000
-#define SYSTEM_CTRL_DPMS                              31:30
-#define SYSTEM_CTRL_DPMS_VPHP                         0
-#define SYSTEM_CTRL_DPMS_VPHN                         1
-#define SYSTEM_CTRL_DPMS_VNHP                         2
-#define SYSTEM_CTRL_DPMS_VNHN                         3
+#define SYSTEM_CTRL_DPMS_MASK                         (0x3 << 30)
+#define SYSTEM_CTRL_DPMS_VPHP                         (0x0 << 30)
+#define SYSTEM_CTRL_DPMS_VPHN                         (0x1 << 30)
+#define SYSTEM_CTRL_DPMS_VNHP                         (0x2 << 30)
+#define SYSTEM_CTRL_DPMS_VNHN                         (0x3 << 30)
 #define SYSTEM_CTRL_PCI_BURST                         BIT(29)
 #define SYSTEM_CTRL_PCI_MASTER                        BIT(25)
 #define SYSTEM_CTRL_LATENCY_TIMER_OFF                 BIT(24)
@@ -31,11 +31,11 @@
 #define SYSTEM_CTRL_DE_ABORT                          BIT(13)
 #define SYSTEM_CTRL_PCI_SUBSYS_ID_LOCK                BIT(11)
 #define SYSTEM_CTRL_PCI_RETRY_OFF                     BIT(7)
-#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE         5:4
-#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_1       0
-#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_2       1
-#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_4       2
-#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_8       3
+#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_MASK    (0x3 << 4)
+#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_1       (0x0 << 4)
+#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_2       (0x1 << 4)
+#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_4       (0x2 << 4)
+#define SYSTEM_CTRL_PCI_SLAVE_BURST_READ_SIZE_8       (0x3 << 4)
 #define SYSTEM_CTRL_CRT_TRISTATE                      BIT(3)
 #define SYSTEM_CTRL_PCIMEM_TRISTATE                   BIT(2)
 #define SYSTEM_CTRL_LOCALMEM_TRISTATE                 BIT(1)
