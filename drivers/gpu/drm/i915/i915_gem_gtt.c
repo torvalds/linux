@@ -24,6 +24,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/stop_machine.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -104,9 +105,11 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
 	bool has_aliasing_ppgtt;
 	bool has_full_ppgtt;
+	bool has_full_48bit_ppgtt;
 
 	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
 	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
+	has_full_48bit_ppgtt = IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9;
 
 	if (intel_vgpu_active(dev))
 		has_full_ppgtt = false; /* emulation is too hard */
@@ -125,6 +128,9 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	if (enable_ppgtt == 2 && has_full_ppgtt)
 		return 2;
 
+	if (enable_ppgtt == 3 && has_full_48bit_ppgtt)
+		return 3;
+
 #ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
 	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
@@ -141,7 +147,7 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	}
 
 	if (INTEL_INFO(dev)->gen >= 8 && i915.enable_execlists)
-		return 2;
+		return has_full_48bit_ppgtt ? 3 : 2;
 	else
 		return has_aliasing_ppgtt ? 1 : 0;
 }
@@ -661,10 +667,10 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, GEN8_RING_PDP_UDW(ring, entry));
+	intel_ring_emit_reg(ring, GEN8_RING_PDP_UDW(ring, entry));
 	intel_ring_emit(ring, upper_32_bits(addr));
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, GEN8_RING_PDP_LDW(ring, entry));
+	intel_ring_emit_reg(ring, GEN8_RING_PDP_LDW(ring, entry));
 	intel_ring_emit(ring, lower_32_bits(addr));
 	intel_ring_advance(ring);
 
@@ -904,14 +910,13 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 	enum vgt_g2v_type msg;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int offset = vgtif_reg(pdp0_lo);
 	int i;
 
 	if (USES_FULL_48BIT_PPGTT(dev)) {
 		u64 daddr = px_dma(&ppgtt->pml4);
 
-		I915_WRITE(offset, lower_32_bits(daddr));
-		I915_WRITE(offset + 4, upper_32_bits(daddr));
+		I915_WRITE(vgtif_reg(pdp[0].lo), lower_32_bits(daddr));
+		I915_WRITE(vgtif_reg(pdp[0].hi), upper_32_bits(daddr));
 
 		msg = (create ? VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE :
 				VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY);
@@ -919,10 +924,8 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 		for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
 			u64 daddr = i915_page_dir_dma_addr(ppgtt, i);
 
-			I915_WRITE(offset, lower_32_bits(daddr));
-			I915_WRITE(offset + 4, upper_32_bits(daddr));
-
-			offset += 8;
+			I915_WRITE(vgtif_reg(pdp[i].lo), lower_32_bits(daddr));
+			I915_WRITE(vgtif_reg(pdp[i].hi), upper_32_bits(daddr));
 		}
 
 		msg = (create ? VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE :
@@ -1662,9 +1665,9 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
 	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
 	intel_ring_emit(ring, get_pd_offset(ppgtt));
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1699,9 +1702,9 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
 	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
 	intel_ring_emit(ring, get_pd_offset(ppgtt));
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -2528,6 +2531,26 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	return 0;
 }
 
+struct ggtt_bind_vma__cb {
+	struct i915_vma *vma;
+	enum i915_cache_level cache_level;
+	u32 flags;
+};
+
+static int ggtt_bind_vma__cb(void *_arg)
+{
+	struct ggtt_bind_vma__cb *arg = _arg;
+	return ggtt_bind_vma(arg->vma, arg->cache_level, arg->flags);
+}
+
+static int ggtt_bind_vma__BKL(struct i915_vma *vma,
+			      enum i915_cache_level cache_level,
+			      u32 flags)
+{
+	struct ggtt_bind_vma__cb arg = { vma, cache_level, flags };
+	return stop_machine(ggtt_bind_vma__cb, &arg, NULL);
+}
+
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 				 enum i915_cache_level cache_level,
 				 u32 flags)
@@ -2996,6 +3019,9 @@ static int gen8_gmch_probe(struct drm_device *dev,
 	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
 	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
 
+	if (IS_CHERRYVIEW(dev))
+		dev_priv->gtt.base.bind_vma = ggtt_bind_vma__BKL;
+
 	return ret;
 }
 
@@ -3303,7 +3329,7 @@ static struct sg_table *
 intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 			  struct drm_i915_gem_object *obj)
 {
-	struct intel_rotation_info *rot_info = &ggtt_view->rotation_info;
+	struct intel_rotation_info *rot_info = &ggtt_view->params.rotation_info;
 	unsigned int size_pages = rot_info->size >> PAGE_SHIFT;
 	unsigned int size_pages_uv;
 	struct sg_page_iter sg_iter;
@@ -3535,7 +3561,7 @@ i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 	if (view->type == I915_GGTT_VIEW_NORMAL) {
 		return obj->base.size;
 	} else if (view->type == I915_GGTT_VIEW_ROTATED) {
-		return view->rotation_info.size;
+		return view->params.rotation_info.size;
 	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
 		return view->params.partial.size << PAGE_SHIFT;
 	} else {

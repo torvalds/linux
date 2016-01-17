@@ -1,4 +1,4 @@
-Texas Instruments pcm1792a DT bindings
+Texas Instruments pcm179x DT bindings
 
 This driver supports the SPI bus.
 

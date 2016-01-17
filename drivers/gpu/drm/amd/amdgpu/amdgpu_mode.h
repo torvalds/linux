@@ -556,7 +556,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 
 int amdgpu_framebuffer_init(struct drm_device *dev,
 			     struct amdgpu_framebuffer *rfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 int amdgpufb_remove(struct drm_device *dev, struct drm_framebuffer *fb);

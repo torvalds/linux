@@ -76,11 +76,17 @@ struct intel_guc_fw {
 	uint16_t			guc_fw_minor_wanted;
 	uint16_t			guc_fw_major_found;
 	uint16_t			guc_fw_minor_found;
+
+	uint32_t header_size;
+	uint32_t header_offset;
+	uint32_t rsa_size;
+	uint32_t rsa_offset;
+	uint32_t ucode_size;
+	uint32_t ucode_offset;
 };
 
 struct intel_guc {
 	struct intel_guc_fw guc_fw;
-
 	uint32_t log_flags;
 	struct drm_i915_gem_object *log_obj;
 

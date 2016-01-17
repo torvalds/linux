@@ -32,7 +32,8 @@ struct intel_dvo_device {
 	const char *name;
 	int type;
 	/* DVOA/B/C output register */
-	u32 dvo_reg;
+	i915_reg_t dvo_reg;
+	i915_reg_t dvo_srcdim_reg;
 	/* GPIO register used for i2c bus to control this device */
 	u32 gpio;
 	int slave_addr;

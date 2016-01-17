@@ -349,6 +349,8 @@ struct drm_file {
 	struct list_head event_list;
 	int event_space;
 
+	struct mutex event_read_lock;
+
 	struct drm_prime_file_private prime;
 };
 
@@ -1120,5 +1122,8 @@ static __inline__ bool drm_can_sleep(void)
 		return false;
 	return true;
 }
+
+/* helper for handling conditionals in various for_each macros */
+#define for_each_if(condition) if (!(condition)) {} else
 
 #endif

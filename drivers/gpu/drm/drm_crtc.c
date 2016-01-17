@@ -45,7 +45,7 @@
 
 static struct drm_framebuffer *
 internal_framebuffer_create(struct drm_device *dev,
-			    struct drm_mode_fb_cmd2 *r,
+			    const struct drm_mode_fb_cmd2 *r,
 			    struct drm_file *file_priv);
 
 /* Avoid boilerplate.  I'm tired of typing. */
@@ -3235,7 +3235,7 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 
 static struct drm_framebuffer *
 internal_framebuffer_create(struct drm_device *dev,
-			    struct drm_mode_fb_cmd2 *r,
+			    const struct drm_mode_fb_cmd2 *r,
 			    struct drm_file *file_priv)
 {
 	struct drm_mode_config *config = &dev->mode_config;

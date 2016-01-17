@@ -554,7 +554,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 				if (signaller == ring)
 					continue;
 
-				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit_reg(ring, RING_PSMI_CTL(signaller->mmio_base));
 				intel_ring_emit(ring, _MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
 		}
@@ -579,7 +579,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 				if (signaller == ring)
 					continue;
 
-				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit_reg(ring, RING_PSMI_CTL(signaller->mmio_base));
 				intel_ring_emit(ring, _MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
 		}
@@ -922,6 +922,14 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
 		args->value = ctx->flags & CONTEXT_NO_ZEROMAP;
+		break;
+	case I915_CONTEXT_PARAM_GTT_SIZE:
+		if (ctx->ppgtt)
+			args->value = ctx->ppgtt->base.total;
+		else if (to_i915(dev)->mm.aliasing_ppgtt)
+			args->value = to_i915(dev)->mm.aliasing_ppgtt->base.total;
+		else
+			args->value = to_i915(dev)->gtt.base.total;
 		break;
 	default:
 		ret = -EINVAL;

@@ -45,7 +45,6 @@
 struct amdgpu_fbdev {
 	struct drm_fb_helper helper;
 	struct amdgpu_framebuffer rfb;
-	struct list_head fbdev_list;
 	struct amdgpu_device *adev;
 };
 

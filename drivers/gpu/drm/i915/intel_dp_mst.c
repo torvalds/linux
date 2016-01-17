@@ -173,19 +173,13 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	intel_mst->port = found->port;
 
 	if (intel_dp->active_mst_links == 0) {
-		enum port port = intel_ddi_get_encoder_port(encoder);
+		intel_ddi_clk_select(encoder, intel_crtc->config);
 
 		intel_dp_set_link_params(intel_dp, intel_crtc->config);
-
-		/* FIXME: add support for SKL */
-		if (INTEL_INFO(dev)->gen < 9)
-			I915_WRITE(PORT_CLK_SEL(port),
-				   intel_crtc->config->ddi_pll_sel);
 
 		intel_ddi_init_dp_buf_reg(&intel_dig_port->base);
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
-
 
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_stop_link_train(intel_dp);
@@ -414,7 +408,10 @@ static void intel_connector_add_to_fbdev(struct intel_connector *connector)
 {
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper, &connector->base);
+
+	if (dev_priv->fbdev)
+		drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper,
+						&connector->base);
 #endif
 }
 
@@ -422,7 +419,10 @@ static void intel_connector_remove_from_fbdev(struct intel_connector *connector)
 {
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper, &connector->base);
+
+	if (dev_priv->fbdev)
+		drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper,
+						   &connector->base);
 #endif
 }
 

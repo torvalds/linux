@@ -27,7 +27,7 @@
 #include "intel_guc.h"
 
 /**
- * DOC: GuC Client
+ * DOC: GuC-based command submission
  *
  * i915_guc_client:
  * We use the term client to avoid confusion with contexts. A i915_guc_client is
@@ -161,9 +161,9 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
 	if (!intel_enable_rc6(dev_priv->dev) ||
-	    (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
-	    (IS_SKL_GT3(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)) ||
-	    (IS_SKL_GT4(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1) ||
+	    (IS_SKL_GT3(dev) && IS_SKL_REVID(dev, 0, SKL_REVID_E0)) ||
+	    (IS_SKL_GT4(dev) && IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
 		data[1] = 0;
 	else
 		/* bit 0 and 1 are for Render and Media domain separately */
@@ -258,7 +258,7 @@ static void guc_disable_doorbell(struct intel_guc *guc,
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct guc_doorbell_info *doorbell;
 	void *base;
-	int drbreg = GEN8_DRBREGL(client->doorbell_id);
+	i915_reg_t drbreg = GEN8_DRBREGL(client->doorbell_id);
 	int value;
 
 	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
@@ -588,8 +588,7 @@ static void lr_context_update(struct drm_i915_gem_request *rq)
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @client:	the guc client where commands will go through
- * @ctx:	LRC where commands come from
- * @ring:	HW engine that will excute the commands
+ * @rq:		request associated with the commands
  *
  * Return:	0 if succeed
  */
@@ -731,7 +730,8 @@ static void guc_client_free(struct drm_device *dev,
  * 		The kernel client to replace ExecList submission is created with
  * 		NORMAL priority. Priority of a client for scheduler can be HIGH,
  * 		while a preemption context can use CRITICAL.
- * @ctx		the context to own the client (we use the default render context)
+ * @ctx:	the context that owns the client (we use the default render
+ * 		context)
  *
  * Return:	An i915_guc_client object if success.
  */

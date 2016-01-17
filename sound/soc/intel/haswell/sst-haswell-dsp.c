@@ -607,7 +607,7 @@ static int hsw_block_disable(struct sst_mem_block *block)
 	return 0;
 }
 
-static struct sst_block_ops sst_hsw_ops = {
+static const struct sst_block_ops sst_hsw_ops = {
 	.enable = hsw_block_enable,
 	.disable = hsw_block_disable,
 };

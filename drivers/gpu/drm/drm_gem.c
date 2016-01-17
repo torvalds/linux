@@ -244,8 +244,9 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
  * @filp: drm file-private structure to use for the handle look up
  * @handle: userspace handle to delete
  *
- * Removes the GEM handle from the @filp lookup table and if this is the last
- * handle also cleans up linked resources like GEM names.
+ * Removes the GEM handle from the @filp lookup table which has been added with
+ * drm_gem_handle_create(). If this is the last handle also cleans up linked
+ * resources like GEM names.
  */
 int
 drm_gem_handle_delete(struct drm_file *filp, u32 handle)
@@ -314,6 +315,10 @@ EXPORT_SYMBOL(drm_gem_dumb_destroy);
  * This expects the dev->object_name_lock to be held already and will drop it
  * before returning. Used to avoid races in establishing new handles when
  * importing an object from either an flink name or a dma-buf.
+ *
+ * Handles must be release again through drm_gem_handle_delete(). This is done
+ * when userspace closes @file_priv for all attached handles, or through the
+ * GEM_CLOSE ioctl for individual handles.
  */
 int
 drm_gem_handle_create_tail(struct drm_file *file_priv,
@@ -541,7 +546,17 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 }
 EXPORT_SYMBOL(drm_gem_put_pages);
 
-/** Returns a reference to the object named by the handle. */
+/**
+ * drm_gem_object_lookup - look up a GEM object from it's handle
+ * @dev: DRM device
+ * @filp: DRM file private date
+ * @handle: userspace handle
+ *
+ * Returns:
+ *
+ * A reference to the object named by the handle if such exists on @filp, NULL
+ * otherwise.
+ */
 struct drm_gem_object *
 drm_gem_object_lookup(struct drm_device *dev, struct drm_file *filp,
 		      u32 handle)
@@ -774,6 +789,13 @@ drm_gem_object_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
+/**
+ * drm_gem_vm_open - vma->ops->open implementation for GEM
+ * @vma: VM area structure
+ *
+ * This function implements the #vm_operations_struct open() callback for GEM
+ * drivers. This must be used together with drm_gem_vm_close().
+ */
 void drm_gem_vm_open(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -782,6 +804,13 @@ void drm_gem_vm_open(struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL(drm_gem_vm_open);
 
+/**
+ * drm_gem_vm_close - vma->ops->close implementation for GEM
+ * @vma: VM area structure
+ *
+ * This function implements the #vm_operations_struct close() callback for GEM
+ * drivers. This must be used together with drm_gem_vm_open().
+ */
 void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;

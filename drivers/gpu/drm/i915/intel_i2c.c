@@ -36,7 +36,7 @@
 
 struct gmbus_pin {
 	const char *name;
-	int reg;
+	i915_reg_t reg;
 };
 
 /* Map gmbus pin pairs to names and registers. */
@@ -63,9 +63,9 @@ static const struct gmbus_pin gmbus_pins_skl[] = {
 };
 
 static const struct gmbus_pin gmbus_pins_bxt[] = {
-	[GMBUS_PIN_1_BXT] = { "dpb", PCH_GPIOB },
-	[GMBUS_PIN_2_BXT] = { "dpc", PCH_GPIOC },
-	[GMBUS_PIN_3_BXT] = { "misc", PCH_GPIOD },
+	[GMBUS_PIN_1_BXT] = { "dpb", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpc", GPIOC },
+	[GMBUS_PIN_3_BXT] = { "misc", GPIOD },
 };
 
 /* pin is expected to be valid */
@@ -74,7 +74,7 @@ static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 {
 	if (IS_BROXTON(dev_priv))
 		return &gmbus_pins_bxt[pin];
-	else if (IS_SKYLAKE(dev_priv))
+	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		return &gmbus_pins_skl[pin];
 	else if (IS_BROADWELL(dev_priv))
 		return &gmbus_pins_bdw[pin];
@@ -89,14 +89,15 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 
 	if (IS_BROXTON(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
-	else if (IS_SKYLAKE(dev_priv))
+	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_skl);
 	else if (IS_BROADWELL(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bdw);
 	else
 		size = ARRAY_SIZE(gmbus_pins);
 
-	return pin < size && get_gmbus_pin(dev_priv, pin)->reg;
+	return pin < size &&
+		i915_mmio_reg_valid(get_gmbus_pin(dev_priv, pin)->reg);
 }
 
 /* Intel GPIO access functions */
@@ -240,9 +241,8 @@ intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = dev_priv->gpio_mmio_base +
-		get_gmbus_pin(dev_priv, pin)->reg;
-
+	bus->gpio_reg = _MMIO(dev_priv->gpio_mmio_base +
+			      i915_mmio_reg_offset(get_gmbus_pin(dev_priv, pin)->reg));
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
@@ -628,12 +628,13 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 	if (HAS_PCH_NOP(dev))
 		return 0;
-	else if (HAS_PCH_SPLIT(dev))
-		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
-	else if (IS_VALLEYVIEW(dev))
+
+	if (IS_VALLEYVIEW(dev))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
-	else
-		dev_priv->gpio_mmio_base = 0;
+	else if (!HAS_GMCH_DISPLAY(dev_priv))
+		dev_priv->gpio_mmio_base =
+			i915_mmio_reg_offset(PCH_GPIOA) -
+			i915_mmio_reg_offset(GPIOA);
 
 	mutex_init(&dev_priv->gmbus_mutex);
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);

@@ -316,8 +316,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
-	if (state->mode_blob)
-		drm_property_unreference_blob(state->mode_blob);
+	drm_property_unreference_blob(state->mode_blob);
 	state->mode_blob = NULL;
 
 	if (mode) {
@@ -363,8 +362,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	if (blob == state->mode_blob)
 		return 0;
 
-	if (state->mode_blob)
-		drm_property_unreference_blob(state->mode_blob);
+	drm_property_unreference_blob(state->mode_blob);
 	state->mode_blob = NULL;
 
 	if (blob) {
@@ -419,8 +417,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property_blob *mode =
 			drm_property_lookup_blob(dev, val);
 		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
-		if (mode)
-			drm_property_unreference_blob(mode);
+		drm_property_unreference_blob(mode);
 		return ret;
 	}
 	else if (crtc->funcs->atomic_set_property)
@@ -1191,12 +1188,7 @@ void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 retry:
 	drm_modeset_backoff(state->acquire_ctx);
 
-	ret = drm_modeset_lock(&state->dev->mode_config.connection_mutex,
-			       state->acquire_ctx);
-	if (ret)
-		goto retry;
-	ret = drm_modeset_lock_all_crtcs(state->dev,
-					 state->acquire_ctx);
+	ret = drm_modeset_lock_all_ctx(state->dev, state->acquire_ctx);
 	if (ret)
 		goto retry;
 }
@@ -1433,7 +1425,7 @@ static int atomic_set_prop(struct drm_atomic_state *state,
 }
 
 /**
- * drm_atomic_update_old_fb -- Unset old_fb pointers and set plane->fb pointers.
+ * drm_atomic_clean_old_fb -- Unset old_fb pointers and set plane->fb pointers.
  *
  * @dev: drm device to check.
  * @plane_mask: plane mask for planes that were updated.

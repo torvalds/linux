@@ -1252,18 +1252,21 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		max_freq = (IS_BROXTON(dev) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
-		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
+		max_freq *= (IS_SKYLAKE(dev) || IS_KABYLAKE(dev) ?
+			     GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
-		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
+		max_freq *= (IS_SKYLAKE(dev) || IS_KABYLAKE(dev) ?
+			     GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (IS_BROXTON(dev) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
-		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
+		max_freq *= (IS_SKYLAKE(dev) || IS_KABYLAKE(dev) ?
+			     GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
@@ -1523,7 +1526,7 @@ static int gen6_drpc_info(struct seq_file *m)
 		seq_printf(m, "RC information accurate: %s\n", yesno(count < 51));
 	}
 
-	gt_core_status = readl(dev_priv->regs + GEN6_GT_CORE_STATUS);
+	gt_core_status = I915_READ_FW(GEN6_GT_CORE_STATUS);
 	trace_i915_reg_rw(false, GEN6_GT_CORE_STATUS, gt_core_status, 4, true);
 
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
@@ -1640,7 +1643,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_puts(m, "FBC enabled\n");
 	else
 		seq_printf(m, "FBC disabled: %s\n",
-			  intel_no_fbc_reason_str(dev_priv->fbc.no_fbc_reason));
+			   dev_priv->fbc.no_fbc_reason);
 
 	if (INTEL_INFO(dev_priv)->gen >= 7)
 		seq_printf(m, "Compressing: %s\n",
@@ -1801,7 +1804,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		goto out;
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq =
 			dev_priv->rps.min_freq_softlimit / GEN9_FREQ_SCALER;
@@ -1821,7 +1824,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 				       &ia_freq);
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
 			   intel_gpu_freq(dev_priv, (gpu_freq *
-				(IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1))),
+				(IS_SKYLAKE(dev) || IS_KABYLAKE(dev) ?
+				 GEN9_FREQ_SCALER : 1))),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
@@ -1873,17 +1877,19 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	ifbdev = dev_priv->fbdev;
-	fb = to_intel_framebuffer(ifbdev->helper.fb);
+	if (ifbdev) {
+		fb = to_intel_framebuffer(ifbdev->helper.fb);
 
-	seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
-		   fb->base.width,
-		   fb->base.height,
-		   fb->base.depth,
-		   fb->base.bits_per_pixel,
-		   fb->base.modifier[0],
-		   atomic_read(&fb->base.refcount.refcount));
-	describe_obj(m, fb->obj);
-	seq_putc(m, '\n');
+		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
+			   fb->base.width,
+			   fb->base.height,
+			   fb->base.depth,
+			   fb->base.bits_per_pixel,
+			   fb->base.modifier[0],
+			   atomic_read(&fb->base.refcount.refcount));
+		describe_obj(m, fb->obj);
+		seq_putc(m, '\n');
+	}
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
@@ -2402,6 +2408,12 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 		guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
 	seq_printf(m, "\tversion found: %d.%d\n",
 		guc_fw->guc_fw_major_found, guc_fw->guc_fw_minor_found);
+	seq_printf(m, "\theader: offset is %d; size = %d\n",
+		guc_fw->header_offset, guc_fw->header_size);
+	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
+		guc_fw->ucode_offset, guc_fw->ucode_size);
+	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
+		guc_fw->rsa_offset, guc_fw->rsa_size);
 
 	tmp = I915_READ(GUC_STATUS);
 
@@ -2550,7 +2562,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	if (HAS_DDI(dev))
-		enabled = I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
+		enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
 	else {
 		for_each_pipe(dev_priv, pipe) {
 			stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
@@ -2572,7 +2584,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	/* CHV PSR has no kind of performance counter */
 	if (HAS_DDI(dev)) {
-		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
+		psrperf = I915_READ(EDP_PSR_PERF_CNT) &
 			EDP_PSR_PERF_CNT_MASK;
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
@@ -2696,24 +2708,16 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "TRANSCODER_C";
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return "TRANSCODER_EDP";
-	case POWER_DOMAIN_PORT_DDI_A_2_LANES:
-		return "PORT_DDI_A_2_LANES";
-	case POWER_DOMAIN_PORT_DDI_A_4_LANES:
-		return "PORT_DDI_A_4_LANES";
-	case POWER_DOMAIN_PORT_DDI_B_2_LANES:
-		return "PORT_DDI_B_2_LANES";
-	case POWER_DOMAIN_PORT_DDI_B_4_LANES:
-		return "PORT_DDI_B_4_LANES";
-	case POWER_DOMAIN_PORT_DDI_C_2_LANES:
-		return "PORT_DDI_C_2_LANES";
-	case POWER_DOMAIN_PORT_DDI_C_4_LANES:
-		return "PORT_DDI_C_4_LANES";
-	case POWER_DOMAIN_PORT_DDI_D_2_LANES:
-		return "PORT_DDI_D_2_LANES";
-	case POWER_DOMAIN_PORT_DDI_D_4_LANES:
-		return "PORT_DDI_D_4_LANES";
-	case POWER_DOMAIN_PORT_DDI_E_2_LANES:
-		return "PORT_DDI_E_2_LANES";
+	case POWER_DOMAIN_PORT_DDI_A_LANES:
+		return "PORT_DDI_A_LANES";
+	case POWER_DOMAIN_PORT_DDI_B_LANES:
+		return "PORT_DDI_B_LANES";
+	case POWER_DOMAIN_PORT_DDI_C_LANES:
+		return "PORT_DDI_C_LANES";
+	case POWER_DOMAIN_PORT_DDI_D_LANES:
+		return "PORT_DDI_D_LANES";
+	case POWER_DOMAIN_PORT_DDI_E_LANES:
+		return "PORT_DDI_E_LANES";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:
@@ -2736,6 +2740,8 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "AUX_D";
 	case POWER_DOMAIN_GMBUS:
 		return "GMBUS";
+	case POWER_DOMAIN_MODESET:
+		return "MODESET";
 	case POWER_DOMAIN_INIT:
 		return "INIT";
 	default:
@@ -2775,6 +2781,51 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 	}
 
 	mutex_unlock(&power_domains->lock);
+
+	return 0;
+}
+
+static int i915_dmc_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_csr *csr;
+
+	if (!HAS_CSR(dev)) {
+		seq_puts(m, "not supported\n");
+		return 0;
+	}
+
+	csr = &dev_priv->csr;
+
+	intel_runtime_pm_get(dev_priv);
+
+	seq_printf(m, "fw loaded: %s\n", yesno(csr->dmc_payload != NULL));
+	seq_printf(m, "path: %s\n", csr->fw_path);
+
+	if (!csr->dmc_payload)
+		goto out;
+
+	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
+		   CSR_VERSION_MINOR(csr->version));
+
+	if (IS_SKYLAKE(dev) && csr->version >= CSR_VERSION(1, 6)) {
+		seq_printf(m, "DC3 -> DC5 count: %d\n",
+			   I915_READ(SKL_CSR_DC3_DC5_COUNT));
+		seq_printf(m, "DC5 -> DC6 count: %d\n",
+			   I915_READ(SKL_CSR_DC5_DC6_COUNT));
+	} else if (IS_BROXTON(dev) && csr->version >= CSR_VERSION(1, 4)) {
+		seq_printf(m, "DC3 -> DC5 count: %d\n",
+			   I915_READ(BXT_CSR_DC3_DC5_COUNT));
+	}
+
+out:
+	seq_printf(m, "program base: 0x%08x\n", I915_READ(CSR_PROGRAM(0)));
+	seq_printf(m, "ssp base: 0x%08x\n", I915_READ(CSR_SSP_BASE));
+	seq_printf(m, "htp: 0x%08x\n", I915_READ(CSR_HTP_SKL));
+
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
@@ -2946,6 +2997,107 @@ static bool cursor_position(struct drm_device *dev, int pipe, int *x, int *y)
 	return cursor_active(dev, pipe);
 }
 
+static const char *plane_type(enum drm_plane_type type)
+{
+	switch (type) {
+	case DRM_PLANE_TYPE_OVERLAY:
+		return "OVL";
+	case DRM_PLANE_TYPE_PRIMARY:
+		return "PRI";
+	case DRM_PLANE_TYPE_CURSOR:
+		return "CUR";
+	/*
+	 * Deliberately omitting default: to generate compiler warnings
+	 * when a new drm_plane_type gets added.
+	 */
+	}
+
+	return "unknown";
+}
+
+static const char *plane_rotation(unsigned int rotation)
+{
+	static char buf[48];
+	/*
+	 * According to doc only one DRM_ROTATE_ is allowed but this
+	 * will print them all to visualize if the values are misused
+	 */
+	snprintf(buf, sizeof(buf),
+		 "%s%s%s%s%s%s(0x%08x)",
+		 (rotation & BIT(DRM_ROTATE_0)) ? "0 " : "",
+		 (rotation & BIT(DRM_ROTATE_90)) ? "90 " : "",
+		 (rotation & BIT(DRM_ROTATE_180)) ? "180 " : "",
+		 (rotation & BIT(DRM_ROTATE_270)) ? "270 " : "",
+		 (rotation & BIT(DRM_REFLECT_X)) ? "FLIPX " : "",
+		 (rotation & BIT(DRM_REFLECT_Y)) ? "FLIPY " : "",
+		 rotation);
+
+	return buf;
+}
+
+static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct intel_plane *intel_plane;
+
+	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
+		struct drm_plane_state *state;
+		struct drm_plane *plane = &intel_plane->base;
+
+		if (!plane->state) {
+			seq_puts(m, "plane->state is NULL!\n");
+			continue;
+		}
+
+		state = plane->state;
+
+		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s\n",
+			   plane->base.id,
+			   plane_type(intel_plane->base.type),
+			   state->crtc_x, state->crtc_y,
+			   state->crtc_w, state->crtc_h,
+			   (state->src_x >> 16),
+			   ((state->src_x & 0xffff) * 15625) >> 10,
+			   (state->src_y >> 16),
+			   ((state->src_y & 0xffff) * 15625) >> 10,
+			   (state->src_w >> 16),
+			   ((state->src_w & 0xffff) * 15625) >> 10,
+			   (state->src_h >> 16),
+			   ((state->src_h & 0xffff) * 15625) >> 10,
+			   state->fb ? drm_get_format_name(state->fb->pixel_format) : "N/A",
+			   plane_rotation(state->rotation));
+	}
+}
+
+static void intel_scaler_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+{
+	struct intel_crtc_state *pipe_config;
+	int num_scalers = intel_crtc->num_scalers;
+	int i;
+
+	pipe_config = to_intel_crtc_state(intel_crtc->base.state);
+
+	/* Not all platformas have a scaler */
+	if (num_scalers) {
+		seq_printf(m, "\tnum_scalers=%d, scaler_users=%x scaler_id=%d",
+			   num_scalers,
+			   pipe_config->scaler_state.scaler_users,
+			   pipe_config->scaler_state.scaler_id);
+
+		for (i = 0; i < SKL_NUM_SCALERS; i++) {
+			struct intel_scaler *sc =
+					&pipe_config->scaler_state.scalers[i];
+
+			seq_printf(m, ", scalers[%d]: use=%s, mode=%x",
+				   i, yesno(sc->in_use), sc->mode);
+		}
+		seq_puts(m, "\n");
+	} else {
+		seq_puts(m, "\tNo scalers available on this platform\n");
+	}
+}
+
 static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -2965,10 +3117,12 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 		pipe_config = to_intel_crtc_state(crtc->base.state);
 
-		seq_printf(m, "CRTC %d: pipe: %c, active=%s (size=%dx%d)\n",
+		seq_printf(m, "CRTC %d: pipe: %c, active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
 			   yesno(pipe_config->base.active),
-			   pipe_config->pipe_src_w, pipe_config->pipe_src_h);
+			   pipe_config->pipe_src_w, pipe_config->pipe_src_h,
+			   yesno(pipe_config->dither), pipe_config->pipe_bpp);
+
 		if (pipe_config->base.active) {
 			intel_crtc_info(m, crtc);
 
@@ -2978,6 +3132,8 @@ static int i915_display_info(struct seq_file *m, void *unused)
 				   x, y, crtc->base.cursor->state->crtc_w,
 				   crtc->base.cursor->state->crtc_h,
 				   crtc->cursor_addr, yesno(active));
+			intel_scaler_info(m, crtc);
+			intel_plane_info(m, crtc);
 		}
 
 		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",
@@ -3112,7 +3268,8 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 
 	seq_printf(m, "Workarounds applied: %d\n", dev_priv->workarounds.count);
 	for (i = 0; i < dev_priv->workarounds.count; ++i) {
-		u32 addr, mask, value, read;
+		i915_reg_t addr;
+		u32 mask, value, read;
 		bool ok;
 
 		addr = dev_priv->workarounds.reg[i].addr;
@@ -3121,7 +3278,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 		read = I915_READ(addr);
 		ok = (value & mask) == (read & mask);
 		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X, read: 0x%08x, status: %s\n",
-			   addr, value, mask, read, ok ? "OK" : "FAIL");
+			   i915_mmio_reg_offset(addr), value, mask, read, ok ? "OK" : "FAIL");
 	}
 
 	intel_runtime_pm_put(dev_priv);
@@ -5025,7 +5182,7 @@ static void gen9_sseu_device_status(struct drm_device *dev,
 
 		stat->slice_total++;
 
-		if (IS_SKYLAKE(dev))
+		if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 			ss_cnt = INTEL_INFO(dev)->subslice_per_slice;
 
 		for (ss = 0; ss < ss_max; ss++) {
@@ -5238,6 +5395,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
+	{"i915_dmc_info", i915_dmc_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},

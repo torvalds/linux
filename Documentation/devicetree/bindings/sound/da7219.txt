@@ -28,12 +28,14 @@ Optional properties:
 - clocks : phandle and clock specifier for codec MCLK.
 - clock-names : Clock name string for 'clocks' attribute, should be "mclk".
 
-- dlg,ldo-lvl : Required internal LDO voltage (mV) level for digital engine
-	[<1050>, <1100>, <1200>, <1400>]
 - dlg,micbias-lvl : Voltage (mV) for Mic Bias
-	[<1800>, <2000>, <2200>, <2400>, <2600>]
+	[<1600>, <1800>, <2000>, <2200>, <2400>, <2600>]
 - dlg,mic-amp-in-sel : Mic input source type
 	["diff", "se_p", "se_n"]
+
+Deprecated properties:
+- dlg,ldo-lvl : Required internal LDO voltage (mV) level for digital engine
+  (LDO unavailable in production HW so property no longer required).
 
 ======
 

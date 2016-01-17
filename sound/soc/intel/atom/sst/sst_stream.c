@@ -108,7 +108,7 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 			str_id, pipe_id);
 	ret = sst_prepare_and_post_msg(sst_drv_ctx, task_id, IPC_CMD,
 			IPC_IA_ALLOC_STREAM_MRFLD, pipe_id, sizeof(alloc_param),
-			&alloc_param, data, true, true, false, true);
+			&alloc_param, &data, true, true, false, true);
 
 	if (ret < 0) {
 		dev_err(sst_drv_ctx->dev, "FW alloc failed ret %d\n", ret);

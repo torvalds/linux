@@ -106,7 +106,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	.output_poll_changed = tegra_fb_output_poll_changed,
 #endif
 	.atomic_check = drm_atomic_helper_check,
@@ -260,7 +260,7 @@ static void tegra_drm_context_free(struct tegra_drm_context *context)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_restore_mode(tegra->fbdev);

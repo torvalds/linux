@@ -465,6 +465,8 @@ struct drm_psb_private {
 	struct mutex gtt_mutex;
 	struct resource *gtt_mem;	/* Our PCI resource */
 
+	struct mutex mmap_mutex;
+
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
 

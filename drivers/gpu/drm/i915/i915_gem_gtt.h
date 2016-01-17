@@ -156,13 +156,10 @@ struct i915_ggtt_view {
 			u64 offset;
 			unsigned int size;
 		} partial;
+		struct intel_rotation_info rotation_info;
 	} params;
 
 	struct sg_table *pages;
-
-	union {
-		struct intel_rotation_info rotation_info;
-	};
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
@@ -556,7 +553,7 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 
 	if (a->type != b->type)
 		return false;
-	if (a->type == I915_GGTT_VIEW_PARTIAL)
+	if (a->type != I915_GGTT_VIEW_NORMAL)
 		return !memcmp(&a->params, &b->params, sizeof(a->params));
 	return true;
 }
