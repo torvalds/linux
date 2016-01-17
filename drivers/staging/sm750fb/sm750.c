@@ -1067,8 +1067,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
 	sm750_dev->devid = pdev->device;
 	sm750_dev->revid = pdev->revision;
-
-	pr_info("share->revid = %02x\n", sm750_dev->revid);
 	sm750_dev->pdev = pdev;
 	sm750_dev->mtrr_off = g_nomtrr;
 	sm750_dev->mtrr.vram = 0;
@@ -1086,9 +1084,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		sm750_dev->accel.de_fillrect = hw_fillrect;
 		sm750_dev->accel.de_copyarea = hw_copyarea;
 		sm750_dev->accel.de_imageblit = hw_imageblit;
-		pr_info("enable 2d acceleration\n");
-	} else {
-		pr_info("disable 2d acceleration\n");
 	}
 
 	/* call chip specific setup routine  */
@@ -1104,9 +1099,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 							sm750_dev->vidmem_size);
 
 	memset_io(sm750_dev->pvMem, 0, sm750_dev->vidmem_size);
-
-	pr_info("sm%3x mmio address = %p\n", sm750_dev->devid,
-		sm750_dev->pvReg);
 
 	pci_set_drvdata(pdev, sm750_dev);
 
