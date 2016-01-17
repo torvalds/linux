@@ -315,34 +315,47 @@ static enum v4l2_mbus_pixelcode gb_camera_gb_to_mbus(u16 gb_fmt)
 	return mbus_to_gbus_format[0].mbus_code;
 }
 
-static int gb_camera_op_configure_streams(void *priv, unsigned int nstreams,
-			struct gb_camera_stream *streams)
+static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
+		unsigned int *flags, struct gb_camera_stream *streams)
 {
 	struct gb_camera *gcam = priv;
 	struct gb_camera_stream_config *gb_streams;
-	unsigned int flags = 0;
+	unsigned int gb_flags = 0;
+	unsigned int gb_nstreams = *nstreams;
 	unsigned int i;
 	int ret;
 
-	if (nstreams > GB_CAMERA_MAX_STREAMS)
+	if (gb_nstreams > GB_CAMERA_MAX_STREAMS)
 		return -EINVAL;
 
-	gb_streams = kzalloc(nstreams * sizeof(*gb_streams), GFP_KERNEL);
+	gb_streams = kzalloc(gb_nstreams * sizeof(*gb_streams), GFP_KERNEL);
 	if (!gb_streams)
 		return -ENOMEM;
 
-	for (i = 0; i < nstreams; i++) {
+	for (i = 0; i < gb_nstreams; i++) {
 		gb_streams[i].width = streams[i].width;
 		gb_streams[i].height = streams[i].height;
 		gb_streams[i].format =
 			gb_camera_mbus_to_gb(streams[i].pixel_code);
 	}
 
-	ret = gb_camera_configure_streams(gcam, &nstreams, &flags, gb_streams);
+	if (*flags & GB_CAMERA_IN_FLAG_TEST)
+		gb_flags |= GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY;
+
+	ret = gb_camera_configure_streams(gcam, &gb_nstreams,
+					  &gb_flags, gb_streams);
 	if (ret < 0)
 		goto done;
+	if (gb_nstreams > *nstreams) {
+		ret = -EINVAL;
+		goto done;
+	}
 
-	for (i = 0; i < nstreams; i++) {
+	*flags = 0;
+	if (gb_flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED)
+		*flags |= GB_CAMERA_OUT_FLAG_ADJUSTED;
+
+	for (i = 0; i < gb_nstreams; i++) {
 		streams[i].width = gb_streams[i].width;
 		streams[i].height = gb_streams[i].height;
 		streams[i].vc = gb_streams[i].vc;
@@ -352,6 +365,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int nstreams,
 		streams[i].pixel_code =
 			gb_camera_gb_to_mbus(gb_streams[i].format);
 	}
+	*nstreams = gb_nstreams;
 
 done:
 	kfree(gb_streams);
