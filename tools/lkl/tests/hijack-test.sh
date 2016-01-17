@@ -4,7 +4,7 @@ script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 hijack_script=lkl-hijack.sh
 export PATH=${script_dir}/../bin/:${PATH}
 
-if ! [ -e ${script_dir}/../lib/liblkl-hijack.so ]; then
+if ! [ -e ${script_dir}/../liblkl-hijack.so ]; then
     exit 0;
 fi
 

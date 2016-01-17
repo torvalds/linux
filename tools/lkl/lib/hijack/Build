@@ -1,0 +1,4 @@
+hijack-y += hijack.o
+hijack-y += init.o
+hijack-y += xlate.o
+

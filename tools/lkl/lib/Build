@@ -1,0 +1,9 @@
+lkl-y += fs.o
+lkl-y += iomem.o
+lkl-y += net.o
+lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += posix-host.o
+lkl-$(CONFIG_AUTO_LKL_NT_HOST) += nt-host.o
+lkl-y += utils.o
+lkl-y += virtio_blk.o
+lkl-y += virtio.o
+lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net.o

@@ -4,3 +4,5 @@ cptofs
 cpfromfs
 lklfuse
 tests/valgrind*.xml
+*.exe
+*.dll

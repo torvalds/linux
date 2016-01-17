@@ -1,0 +1,6 @@
+CFLAGS_lklfuse.o += -D_FILE_OFFSET_BITS=64
+
+cptofs-y += cptofs.o
+fs2tar-y += fs2tar.o
+lklfuse-y += lklfuse.o
+

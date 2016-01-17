@@ -39,11 +39,9 @@ else
 	VALGRIND_CMD=valgrind_test
 endif
 
-all:
+test:
 	$(call run,)
 	$(HIJACK_TEST)
-
-test: all
 
 valgrind:
 	$(call for_fs,$(VALGRIND_CMD))
