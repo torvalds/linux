@@ -10,6 +10,11 @@
 
 #include <linux/v4l2-mediabus.h>
 
+/* Input flags need to be set from the caller */
+#define GB_CAMERA_IN_FLAG_TEST		(1 << 0)
+/* Output flags returned */
+#define GB_CAMERA_OUT_FLAG_ADJUSTED	(1 << 0)
+
 struct gb_camera_stream {
 	unsigned int width;
 	unsigned int height;
@@ -21,8 +26,8 @@ struct gb_camera_stream {
 
 struct gb_camera_ops {
 	ssize_t (*capabilities)(void *priv, char *buf, size_t len);
-	int (*configure_streams)(void *priv, unsigned int nstreams,
-				struct gb_camera_stream *streams);
+	int (*configure_streams)(void *priv, unsigned int *nstreams,
+			unsigned int *flags, struct gb_camera_stream *streams);
 	int (*capture)(void *priv, u32 request_id,
 			unsigned int streams, unsigned int num_frames,
 			size_t settings_size, const void *settings);
