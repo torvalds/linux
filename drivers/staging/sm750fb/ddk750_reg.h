@@ -9,9 +9,6 @@
 #define DE_STATE2_DE_FIFO_EMPTY                          BIT(3)
 #define DE_STATE2_DE_STATUS_BUSY                         BIT(2)
 #define DE_STATE2_DE_MEM_FIFO_EMPTY                      BIT(1)
-#define DE_STATE2_DE_RESERVED                            0:0
-
-
 
 #define SYSTEM_CTRL                                   0x000000
 #define SYSTEM_CTRL_DPMS                              31:30
