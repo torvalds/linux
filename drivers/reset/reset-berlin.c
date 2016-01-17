@@ -46,7 +46,7 @@ static int berlin_reset_reset(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops berlin_reset_ops = {
+static const struct reset_control_ops berlin_reset_ops = {
 	.reset	= berlin_reset_reset,
 };
 
