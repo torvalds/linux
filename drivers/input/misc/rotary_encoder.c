@@ -21,20 +21,23 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
-#include <linux/rotary_encoder.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 
 #define DRV_NAME "rotary-encoder"
 
 struct rotary_encoder {
 	struct input_dev *input;
-	const struct rotary_encoder_platform_data *pdata;
+
 	struct mutex access_mutex;
 
-	unsigned int axis;
+	u32 steps;
+	u32 axis;
+	bool relative_axis;
+	bool rollover;
+
 	unsigned int pos;
 
 	struct gpio_desc *gpio_a;
@@ -59,31 +62,29 @@ static int rotary_encoder_get_state(struct rotary_encoder *encoder)
 
 static void rotary_encoder_report_event(struct rotary_encoder *encoder)
 {
-	const struct rotary_encoder_platform_data *pdata = encoder->pdata;
-
-	if (pdata->relative_axis) {
+	if (encoder->relative_axis) {
 		input_report_rel(encoder->input,
-				 pdata->axis, encoder->dir ? -1 : 1);
+				 encoder->axis, encoder->dir ? -1 : 1);
 	} else {
 		unsigned int pos = encoder->pos;
 
 		if (encoder->dir) {
 			/* turning counter-clockwise */
-			if (pdata->rollover)
-				pos += pdata->steps;
+			if (encoder->rollover)
+				pos += encoder->steps;
 			if (pos)
 				pos--;
 		} else {
 			/* turning clockwise */
-			if (pdata->rollover || pos < pdata->steps)
+			if (encoder->rollover || pos < encoder->steps)
 				pos++;
 		}
 
-		if (pdata->rollover)
-			pos %= pdata->steps;
+		if (encoder->rollover)
+			pos %= encoder->steps;
 
 		encoder->pos = pos;
-		input_report_abs(encoder->input, pdata->axis, encoder->pos);
+		input_report_abs(encoder->input, encoder->axis, encoder->pos);
 	}
 
 	input_sync(encoder->input);
@@ -204,90 +205,43 @@ out:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id rotary_encoder_of_match[] = {
-	{ .compatible = "rotary-encoder", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, rotary_encoder_of_match);
-
-static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct device *dev)
-{
-	const struct of_device_id *of_id =
-				of_match_device(rotary_encoder_of_match, dev);
-	struct device_node *np = dev->of_node;
-	struct rotary_encoder_platform_data *pdata;
-	int error;
-
-	if (!of_id || !np)
-		return NULL;
-
-	pdata = devm_kzalloc(dev, sizeof(struct rotary_encoder_platform_data),
-			     GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	of_property_read_u32(np, "rotary-encoder,steps", &pdata->steps);
-	of_property_read_u32(np, "linux,axis", &pdata->axis);
-
-	pdata->relative_axis =
-		of_property_read_bool(np, "rotary-encoder,relative-axis");
-	pdata->rollover = of_property_read_bool(np, "rotary-encoder,rollover");
-
-	error = of_property_read_u32(np, "rotary-encoder,steps-per-period",
-				     &pdata->steps_per_period);
-	if (error) {
-		/*
-		 * The 'half-period' property has been deprecated, you must use
-		 * 'steps-per-period' and set an appropriate value, but we still
-		 * need to parse it to maintain compatibility.
-		 */
-		if (of_property_read_bool(np, "rotary-encoder,half-period")) {
-			pdata->steps_per_period = 2;
-		} else {
-			/* Fallback to one step per period behavior */
-			pdata->steps_per_period = 1;
-		}
-	}
-
-	pdata->wakeup_source = of_property_read_bool(np, "wakeup-source");
-
-	return pdata;
-}
-#else
-static inline struct rotary_encoder_platform_data *
-rotary_encoder_parse_dt(struct device *dev)
-{
-	return NULL;
-}
-#endif
-
 static int rotary_encoder_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct rotary_encoder_platform_data *pdata = dev_get_platdata(dev);
 	struct rotary_encoder *encoder;
 	struct input_dev *input;
 	irq_handler_t handler;
+	u32 steps_per_period;
 	int err;
-
-	if (!pdata) {
-		pdata = rotary_encoder_parse_dt(dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-
-		if (!pdata) {
-			dev_err(dev, "missing platform data\n");
-			return -EINVAL;
-		}
-	}
 
 	encoder = devm_kzalloc(dev, sizeof(struct rotary_encoder), GFP_KERNEL);
 	if (!encoder)
 		return -ENOMEM;
 
 	mutex_init(&encoder->access_mutex);
-	encoder->pdata = pdata;
+
+	device_property_read_u32(dev, "rotary-encoder,steps", &encoder->steps);
+
+	err = device_property_read_u32(dev, "rotary-encoder,steps-per-period",
+				       &steps_per_period);
+	if (err) {
+		/*
+		 * The 'half-period' property has been deprecated, you must
+		 * use 'steps-per-period' and set an appropriate value, but
+		 * we still need to parse it to maintain compatibility. If
+		 * neither property is present we fall back to the one step
+		 * per period behavior.
+		 */
+		steps_per_period = device_property_read_bool(dev,
+					"rotary-encoder,half-period") ? 2 : 1;
+	}
+
+	encoder->rollover =
+		device_property_read_bool(dev, "rotary-encoder,rollover");
+
+	device_property_read_u32(dev, "linux,axis", &encoder->axis);
+	encoder->relative_axis =
+		device_property_read_bool(dev, "rotary-encoder,relative-axis");
 
 	encoder->gpio_a = devm_gpiod_get_index(dev, NULL, 0, GPIOD_IN);
 	if (IS_ERR(encoder->gpio_a)) {
@@ -317,12 +271,13 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = dev;
 
-	if (pdata->relative_axis)
-		input_set_capability(input, EV_REL, pdata->axis);
+	if (encoder->relative_axis)
+		input_set_capability(input, EV_REL, encoder->axis);
 	else
-		input_set_abs_params(input, pdata->axis, 0, pdata->steps, 0, 1);
+		input_set_abs_params(input,
+				     encoder->axis, 0, encoder->steps, 0, 1);
 
-	switch (pdata->steps_per_period) {
+	switch (steps_per_period) {
 	case 4:
 		handler = &rotary_encoder_quarter_period_irq;
 		encoder->last_stable = rotary_encoder_get_state(encoder);
@@ -336,7 +291,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(dev, "'%d' is not a valid steps-per-period value\n",
-			pdata->steps_per_period);
+			steps_per_period);
 		return -EINVAL;
 	}
 
@@ -364,7 +319,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	device_init_wakeup(&pdev->dev, pdata->wakeup_source);
+	device_init_wakeup(dev,
+			   device_property_read_bool(dev, "wakeup-source"));
 
 	platform_set_drvdata(pdev, encoder);
 
@@ -397,6 +353,14 @@ static int __maybe_unused rotary_encoder_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(rotary_encoder_pm_ops,
 			 rotary_encoder_suspend, rotary_encoder_resume);
+
+#ifdef CONFIG_OF
+static const struct of_device_id rotary_encoder_of_match[] = {
+	{ .compatible = "rotary-encoder", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rotary_encoder_of_match);
+#endif
 
 static struct platform_driver rotary_encoder_driver = {
 	.probe		= rotary_encoder_probe,
