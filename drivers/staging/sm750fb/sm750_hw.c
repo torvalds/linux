@@ -468,11 +468,11 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 
 	if (getChipType() == SM750LE) {
 		reg = PEEK32(DE_STATE1);
-		reg = FIELD_SET(reg, DE_STATE1, DE_ABORT, ON);
+		reg |= DE_STATE1_DE_ABORT;
 		POKE32(DE_STATE1, reg);
 
 		reg = PEEK32(DE_STATE1);
-		reg = FIELD_SET(reg, DE_STATE1, DE_ABORT, OFF);
+		reg &= ~DE_STATE1_DE_ABORT;
 		POKE32(DE_STATE1, reg);
 
 	} else {

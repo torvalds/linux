@@ -3,9 +3,7 @@
 
 /* New register for SM750LE */
 #define DE_STATE1                                        0x100054
-#define DE_STATE1_DE_ABORT                               0:0
-#define DE_STATE1_DE_ABORT_OFF                           0
-#define DE_STATE1_DE_ABORT_ON                            1
+#define DE_STATE1_DE_ABORT                               BIT(0)
 
 #define DE_STATE2                                        0x100058
 #define DE_STATE2_DE_FIFO                                3:3
