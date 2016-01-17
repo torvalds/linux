@@ -568,7 +568,8 @@ static void mlx5_irq_clear_affinity_hints(struct mlx5_core_dev *mdev)
 		mlx5_irq_clear_affinity_hint(mdev, i);
 }
 
-int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn)
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
+		    unsigned int *irqn)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	struct mlx5_eq *eq, *n;
