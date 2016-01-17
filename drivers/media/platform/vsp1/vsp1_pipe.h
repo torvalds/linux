@@ -13,6 +13,7 @@
 #ifndef __VSP1_PIPE_H__
 #define __VSP1_PIPE_H__
 
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -63,7 +64,7 @@ enum vsp1_pipeline_state {
  * @wq: work queue to wait for state change completion
  * @frame_end: frame end interrupt handler
  * @lock: protects the pipeline use count and stream count
- * @use_count: number of video nodes using the pipeline
+ * @kref: pipeline reference count
  * @stream_count: number of streaming video nodes
  * @buffers_ready: bitmask of RPFs and WPFs with at least one buffer available
  * @num_inputs: number of RPFs
@@ -86,7 +87,7 @@ struct vsp1_pipeline {
 	void (*frame_end)(struct vsp1_pipeline *pipe);
 
 	struct mutex lock;
-	unsigned int use_count;
+	struct kref kref;
 	unsigned int stream_count;
 	unsigned int buffers_ready;
 

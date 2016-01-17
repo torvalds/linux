@@ -194,6 +194,7 @@ void vsp1_pipeline_init(struct vsp1_pipeline *pipe)
 	mutex_init(&pipe->lock);
 	spin_lock_init(&pipe->irqlock);
 	init_waitqueue_head(&pipe->wq);
+	kref_init(&pipe->kref);
 
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
