@@ -1360,10 +1360,11 @@ config RTC_DRV_SUN4V
 
 config RTC_DRV_SUN6I
 	tristate "Allwinner A31 RTC"
-	depends on MACH_SUN6I || MACH_SUN8I
+	default MACH_SUN6I || MACH_SUN8I
+	depends on ARCH_SUNXI
 	help
-	  If you say Y here you will get support for the RTC found on
-	  Allwinner A31.
+	  If you say Y here you will get support for the RTC found in
+	  some Allwinner SoCs like the A31 or the A64.
 
 config RTC_DRV_SUNXI
 	tristate "Allwinner sun4i/sun7i RTC"
