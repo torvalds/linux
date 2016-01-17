@@ -197,24 +197,24 @@ unsigned int ddk750_getVMSize(void)
 
 int ddk750_initHw(initchip_param_t *pInitParam)
 {
-	unsigned int ulReg;
+	unsigned int reg;
 
 	if (pInitParam->powerMode != 0)
 		pInitParam->powerMode = 0;
 	setPowerMode(pInitParam->powerMode);
 
 	/* Enable display power gate & LOCALMEM power gate*/
-	ulReg = PEEK32(CURRENT_GATE);
-	ulReg = FIELD_SET(ulReg, CURRENT_GATE, DISPLAY, ON);
-	ulReg = FIELD_SET(ulReg, CURRENT_GATE, LOCALMEM, ON);
-	setCurrentGate(ulReg);
+	reg = PEEK32(CURRENT_GATE);
+	reg = FIELD_SET(reg, CURRENT_GATE, DISPLAY, ON);
+	reg = FIELD_SET(reg, CURRENT_GATE, LOCALMEM, ON);
+	setCurrentGate(reg);
 
 	if (getChipType() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
-		ulReg = PEEK32(VGA_CONFIGURATION);
-		ulReg = FIELD_SET(ulReg, VGA_CONFIGURATION, PLL, PANEL);
-		ulReg = FIELD_SET(ulReg, VGA_CONFIGURATION, MODE, GRAPHIC);
-		POKE32(VGA_CONFIGURATION, ulReg);
+		reg = PEEK32(VGA_CONFIGURATION);
+		reg = FIELD_SET(reg, VGA_CONFIGURATION, PLL, PANEL);
+		reg = FIELD_SET(reg, VGA_CONFIGURATION, MODE, GRAPHIC);
+		POKE32(VGA_CONFIGURATION, reg);
 	} else {
 #if defined(__i386__) || defined(__x86_64__)
 		/* set graphic mode via IO method */
@@ -238,36 +238,36 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	   The memory should be resetted after changing the MXCLK.
 	 */
 	if (pInitParam->resetMemory == 1) {
-		ulReg = PEEK32(MISC_CTRL);
-		ulReg = FIELD_SET(ulReg, MISC_CTRL, LOCALMEM_RESET, RESET);
-		POKE32(MISC_CTRL, ulReg);
+		reg = PEEK32(MISC_CTRL);
+		reg = FIELD_SET(reg, MISC_CTRL, LOCALMEM_RESET, RESET);
+		POKE32(MISC_CTRL, reg);
 
-		ulReg = FIELD_SET(ulReg, MISC_CTRL, LOCALMEM_RESET, NORMAL);
-		POKE32(MISC_CTRL, ulReg);
+		reg = FIELD_SET(reg, MISC_CTRL, LOCALMEM_RESET, NORMAL);
+		POKE32(MISC_CTRL, reg);
 	}
 
 	if (pInitParam->setAllEngOff == 1) {
 		enable2DEngine(0);
 
 		/* Disable Overlay, if a former application left it on */
-		ulReg = PEEK32(VIDEO_DISPLAY_CTRL);
-		ulReg = FIELD_SET(ulReg, VIDEO_DISPLAY_CTRL, PLANE, DISABLE);
-		POKE32(VIDEO_DISPLAY_CTRL, ulReg);
+		reg = PEEK32(VIDEO_DISPLAY_CTRL);
+		reg = FIELD_SET(reg, VIDEO_DISPLAY_CTRL, PLANE, DISABLE);
+		POKE32(VIDEO_DISPLAY_CTRL, reg);
 
 		/* Disable video alpha, if a former application left it on */
-		ulReg = PEEK32(VIDEO_ALPHA_DISPLAY_CTRL);
-		ulReg = FIELD_SET(ulReg, VIDEO_ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
-		POKE32(VIDEO_ALPHA_DISPLAY_CTRL, ulReg);
+		reg = PEEK32(VIDEO_ALPHA_DISPLAY_CTRL);
+		reg = FIELD_SET(reg, VIDEO_ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
+		POKE32(VIDEO_ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable alpha plane, if a former application left it on */
-		ulReg = PEEK32(ALPHA_DISPLAY_CTRL);
-		ulReg = FIELD_SET(ulReg, ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
-		POKE32(ALPHA_DISPLAY_CTRL, ulReg);
+		reg = PEEK32(ALPHA_DISPLAY_CTRL);
+		reg = FIELD_SET(reg, ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
+		POKE32(ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable DMA Channel, if a former application left it on */
-		ulReg = PEEK32(DMA_ABORT_INTERRUPT);
-		ulReg = FIELD_SET(ulReg, DMA_ABORT_INTERRUPT, ABORT_1, ABORT);
-		POKE32(DMA_ABORT_INTERRUPT, ulReg);
+		reg = PEEK32(DMA_ABORT_INTERRUPT);
+		reg = FIELD_SET(reg, DMA_ABORT_INTERRUPT, ABORT_1, ABORT);
+		POKE32(DMA_ABORT_INTERRUPT, reg);
 
 		/* Disable DMA Power, if a former application left it on */
 		enableDMA(0);
