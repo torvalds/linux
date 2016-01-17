@@ -428,16 +428,16 @@
 #define CURRENT_GATE_DMA                              BIT(0)
 
 #define MODE0_GATE                                    0x000044
-#define MODE0_GATE_MCLK                               15:14
-#define MODE0_GATE_MCLK_112MHZ                        0
-#define MODE0_GATE_MCLK_84MHZ                         1
-#define MODE0_GATE_MCLK_56MHZ                         2
-#define MODE0_GATE_MCLK_42MHZ                         3
-#define MODE0_GATE_M2XCLK                             13:12
-#define MODE0_GATE_M2XCLK_336MHZ                      0
-#define MODE0_GATE_M2XCLK_168MHZ                      1
-#define MODE0_GATE_M2XCLK_112MHZ                      2
-#define MODE0_GATE_M2XCLK_84MHZ                       3
+#define MODE0_GATE_MCLK_MASK                          (0x3 << 14)
+#define MODE0_GATE_MCLK_112MHZ                        (0x0 << 14)
+#define MODE0_GATE_MCLK_84MHZ                         (0x1 << 14)
+#define MODE0_GATE_MCLK_56MHZ                         (0x2 << 14)
+#define MODE0_GATE_MCLK_42MHZ                         (0x3 << 14)
+#define MODE0_GATE_M2XCLK_MASK                        (0x3 << 12)
+#define MODE0_GATE_M2XCLK_336MHZ                      (0x0 << 12)
+#define MODE0_GATE_M2XCLK_168MHZ                      (0x1 << 12)
+#define MODE0_GATE_M2XCLK_112MHZ                      (0x2 << 12)
+#define MODE0_GATE_M2XCLK_84MHZ                       (0x3 << 12)
 #define MODE0_GATE_VGA                                BIT(10)
 #define MODE0_GATE_PWM                                BIT(9)
 #define MODE0_GATE_I2C                                BIT(8)
