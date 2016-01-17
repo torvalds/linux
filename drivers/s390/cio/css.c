@@ -390,7 +390,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch_err(schid, &schib)) {
+	if (stsch(schid, &schib)) {
 		/* Subchannel is not provided. */
 		return -ENXIO;
 	}

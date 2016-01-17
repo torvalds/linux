@@ -699,7 +699,7 @@ linkend="v4l2-buf-type" /></entry>
 buffer. It depends on the negotiated data format and may change with
 each buffer for compressed variable size data like JPEG images.
 Drivers must set this field when <structfield>type</structfield>
-refers to an input stream, applications when it refers to an output stream.
+refers to a capture stream, applications when it refers to an output stream.
 If the application sets this to 0 for an output stream, then
 <structfield>bytesused</structfield> will be set to the size of the
 buffer (see the <structfield>length</structfield> field of this struct) by
@@ -720,14 +720,14 @@ linkend="buffer-flags" />.</entry>
 	    <entry>Indicates the field order of the image in the
 buffer, see <xref linkend="v4l2-field" />. This field is not used when
 the buffer contains VBI data. Drivers must set it when
-<structfield>type</structfield> refers to an input stream,
+<structfield>type</structfield> refers to a capture stream,
 applications when it refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry>struct timeval</entry>
 	    <entry><structfield>timestamp</structfield></entry>
 	    <entry></entry>
-	    <entry><para>For input streams this is time when the first data
+	    <entry><para>For capture streams this is time when the first data
 	    byte was captured, as returned by the
 	    <function>clock_gettime()</function> function for the relevant
 	    clock id; see <constant>V4L2_BUF_FLAG_TIMESTAMP_*</constant> in
@@ -866,7 +866,7 @@ must set this to 0.</entry>
 	    <entry></entry>
 	    <entry>The number of bytes occupied by data in the plane
 	      (its payload). Drivers must set this field when <structfield>type</structfield>
-	      refers to an input stream, applications when it refers to an output stream.
+	      refers to a capture stream, applications when it refers to an output stream.
 	      If the application sets this to 0 for an output stream, then
 	      <structfield>bytesused</structfield> will be set to the size of the
 	      plane (see the <structfield>length</structfield> field of this struct)
@@ -919,7 +919,7 @@ must set this to 0.</entry>
 	    <entry></entry>
 	    <entry>Offset in bytes to video data in the plane.
 	      Drivers must set this field when <structfield>type</structfield>
-	      refers to an input stream, applications when it refers to an output stream.
+	      refers to a capture stream, applications when it refers to an output stream.
 	      Note that data_offset is included in <structfield>bytesused</structfield>.
 	      So the size of the image in the plane is
 	      <structfield>bytesused</structfield>-<structfield>data_offset</structfield> at

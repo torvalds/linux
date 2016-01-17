@@ -32,7 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/v4l2-dv-timings.h>
-#include <media/tvp7002.h>
+#include <media/i2c/tvp7002.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
@@ -1012,9 +1012,9 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	device->pad.flags = MEDIA_PAD_FL_SOURCE;
 	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	device->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+	device->sd.entity.flags |= MEDIA_ENT_F_ATV_DECODER;
 
-	error = media_entity_init(&device->sd.entity, 1, &device->pad, 0);
+	error = media_entity_pads_init(&device->sd.entity, 1, &device->pad);
 	if (error < 0)
 		return error;
 #endif

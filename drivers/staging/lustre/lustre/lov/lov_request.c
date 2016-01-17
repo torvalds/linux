@@ -27,7 +27,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -74,7 +74,7 @@ void lov_finish_set(struct lov_request_set *set)
 	kfree(set);
 }
 
-int lov_set_finished(struct lov_request_set *set, int idempotent)
+static int lov_set_finished(struct lov_request_set *set, int idempotent)
 {
 	int completes = atomic_read(&set->set_completes);
 
@@ -89,8 +89,8 @@ int lov_set_finished(struct lov_request_set *set, int idempotent)
 	return 0;
 }
 
-void lov_update_set(struct lov_request_set *set,
-		    struct lov_request *req, int rc)
+static void lov_update_set(struct lov_request_set *set,
+			   struct lov_request *req, int rc)
 {
 	req->rq_complete = 1;
 	req->rq_rc = rc;
@@ -118,7 +118,8 @@ int lov_update_common_set(struct lov_request_set *set,
 	return rc;
 }
 
-void lov_set_add_req(struct lov_request *req, struct lov_request_set *set)
+static void lov_set_add_req(struct lov_request *req,
+			    struct lov_request_set *set)
 {
 	list_add_tail(&req->rq_link, &set->set_list);
 	set->set_count++;
@@ -144,7 +145,7 @@ static int lov_check_set(struct lov_obd *lov, int idx)
  * If the OSC has not yet had a chance to connect to the OST the first time,
  * wait once for it to connect instead of returning an error.
  */
-int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
+static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 {
 	wait_queue_head_t waitq;
 	struct l_wait_info lwi;
@@ -591,8 +592,9 @@ int lov_fini_statfs_set(struct lov_request_set *set)
 	return rc;
 }
 
-void lov_update_statfs(struct obd_statfs *osfs, struct obd_statfs *lov_sfs,
-		       int success)
+static void lov_update_statfs(struct obd_statfs *osfs,
+			      struct obd_statfs *lov_sfs,
+			      int success)
 {
 	int shift = 0, quit = 0;
 	__u64 tmp;

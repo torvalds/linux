@@ -466,6 +466,11 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			len -= ETH_FCS_LEN;
 
 			skb = build_skb(buf, BGMAC_RX_ALLOC_SIZE);
+			if (unlikely(!skb)) {
+				bgmac_err(bgmac, "build_skb failed\n");
+				put_page(virt_to_head_page(buf));
+				break;
+			}
 			skb_put(skb, BGMAC_RX_FRAME_OFFSET +
 				BGMAC_RX_BUF_OFFSET + len);
 			skb_pull(skb, BGMAC_RX_FRAME_OFFSET +
@@ -1471,7 +1476,7 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
 	char bus_id[MII_BUS_ID_SIZE + 3];
-	int i, err = 0;
+	int err = 0;
 
 	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
 	    ci->id == BCMA_CHIP_ID_BCM53018)
@@ -1490,18 +1495,10 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 	mii_bus->parent = &bgmac->core->dev;
 	mii_bus->phy_mask = ~(1 << bgmac->phyaddr);
 
-	mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
-	if (!mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_free_bus;
-	}
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		mii_bus->irq[i] = PHY_POLL;
-
 	err = mdiobus_register(mii_bus);
 	if (err) {
 		bgmac_err(bgmac, "Registration of mii bus failed\n");
-		goto err_free_irq;
+		goto err_free_bus;
 	}
 
 	bgmac->mii_bus = mii_bus;
@@ -1522,8 +1519,6 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 
 err_unregister_bus:
 	mdiobus_unregister(mii_bus);
-err_free_irq:
-	kfree(mii_bus->irq);
 err_free_bus:
 	mdiobus_free(mii_bus);
 	return err;
@@ -1534,7 +1529,6 @@ static void bgmac_mii_unregister(struct bgmac *bgmac)
 	struct mii_bus *mii_bus = bgmac->mii_bus;
 
 	mdiobus_unregister(mii_bus);
-	kfree(mii_bus->irq);
 	mdiobus_free(mii_bus);
 }
 

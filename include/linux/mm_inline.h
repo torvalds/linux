@@ -100,4 +100,6 @@ static __always_inline enum lru_list page_lru(struct page *page)
 	return lru;
 }
 
+#define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
+
 #endif

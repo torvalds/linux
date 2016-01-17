@@ -2326,8 +2326,11 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 		goto out;
 
 	if (!allow_suffix) {
-		pr_warning("Error: event \"%s\" already exists. "
-			   "(Use -f to force duplicates.)\n", buf);
+		pr_warning("Error: event \"%s\" already exists.\n"
+			   " Hint: Remove existing event by 'perf probe -d'\n"
+			   "       or force duplicates by 'perf probe -f'\n"
+			   "       or set 'force=yes' in BPF source.\n",
+			   buf);
 		ret = -EEXIST;
 		goto out;
 	}

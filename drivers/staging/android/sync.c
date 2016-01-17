@@ -43,7 +43,7 @@ struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
 		return NULL;
 
 	obj = kzalloc(size, GFP_KERNEL);
-	if (obj == NULL)
+	if (!obj)
 		return NULL;
 
 	kref_init(&obj->kref);
@@ -130,7 +130,7 @@ struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size)
 		return NULL;
 
 	pt = kzalloc(size, GFP_KERNEL);
-	if (pt == NULL)
+	if (!pt)
 		return NULL;
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
@@ -155,7 +155,7 @@ static struct sync_fence *sync_fence_alloc(int size, const char *name)
 	struct sync_fence *fence;
 
 	fence = kzalloc(size, GFP_KERNEL);
-	if (fence == NULL)
+	if (!fence)
 		return NULL;
 
 	fence->file = anon_inode_getfile("sync_fence", &sync_fence_fops,
@@ -188,26 +188,31 @@ static void fence_check_cb_func(struct fence *f, struct fence_cb *cb)
 }
 
 /* TODO: implement a create which takes more that one sync_pt */
-struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt)
+struct sync_fence *sync_fence_create_dma(const char *name, struct fence *pt)
 {
 	struct sync_fence *fence;
 
 	fence = sync_fence_alloc(offsetof(struct sync_fence, cbs[1]), name);
-	if (fence == NULL)
+	if (!fence)
 		return NULL;
 
 	fence->num_fences = 1;
 	atomic_set(&fence->status, 1);
 
-	fence->cbs[0].sync_pt = &pt->base;
+	fence->cbs[0].sync_pt = pt;
 	fence->cbs[0].fence = fence;
-	if (fence_add_callback(&pt->base, &fence->cbs[0].cb,
-			       fence_check_cb_func))
+	if (fence_add_callback(pt, &fence->cbs[0].cb, fence_check_cb_func))
 		atomic_dec(&fence->status);
 
 	sync_fence_debug_add(fence);
 
 	return fence;
+}
+EXPORT_SYMBOL(sync_fence_create_dma);
+
+struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt)
+{
+	return sync_fence_create_dma(name, &pt->base);
 }
 EXPORT_SYMBOL(sync_fence_create);
 
@@ -215,7 +220,7 @@ struct sync_fence *sync_fence_fdget(int fd)
 {
 	struct file *file = fget(fd);
 
-	if (file == NULL)
+	if (!file)
 		return NULL;
 
 	if (file->f_op != &sync_fence_fops)
@@ -262,7 +267,7 @@ struct sync_fence *sync_fence_merge(const char *name,
 	unsigned long size = offsetof(struct sync_fence, cbs[num_fences]);
 
 	fence = sync_fence_alloc(size, name);
-	if (fence == NULL)
+	if (!fence)
 		return NULL;
 
 	atomic_set(&fence->status, num_fences);
@@ -313,7 +318,7 @@ struct sync_fence *sync_fence_merge(const char *name,
 EXPORT_SYMBOL(sync_fence_merge);
 
 int sync_fence_wake_up_wq(wait_queue_t *curr, unsigned mode,
-				 int wake_flags, void *key)
+			  int wake_flags, void *key)
 {
 	struct sync_fence_waiter *wait;
 
@@ -353,7 +358,7 @@ int sync_fence_wait_async(struct sync_fence *fence,
 EXPORT_SYMBOL(sync_fence_wait_async);
 
 int sync_fence_cancel_async(struct sync_fence *fence,
-			     struct sync_fence_waiter *waiter)
+			    struct sync_fence_waiter *waiter)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -519,12 +524,10 @@ static const struct fence_ops android_fence_ops = {
 static void sync_fence_free(struct kref *kref)
 {
 	struct sync_fence *fence = container_of(kref, struct sync_fence, kref);
-	int i, status = atomic_read(&fence->status);
+	int i;
 
 	for (i = 0; i < fence->num_fences; ++i) {
-		if (status)
-			fence_remove_callback(fence->cbs[i].sync_pt,
-					      &fence->cbs[i].cb);
+		fence_remove_callback(fence->cbs[i].sync_pt, &fence->cbs[i].cb);
 		fence_put(fence->cbs[i].sync_pt);
 	}
 
@@ -583,14 +586,14 @@ static long sync_fence_ioctl_merge(struct sync_fence *fence, unsigned long arg)
 	}
 
 	fence2 = sync_fence_fdget(data.fd2);
-	if (fence2 == NULL) {
+	if (!fence2) {
 		err = -ENOENT;
 		goto err_put_fd;
 	}
 
 	data.name[sizeof(data.name) - 1] = '\0';
 	fence3 = sync_fence_merge(data.name, fence, fence2);
-	if (fence3 == NULL) {
+	if (!fence3) {
 		err = -ENOMEM;
 		goto err_put_fence2;
 	}
@@ -666,7 +669,7 @@ static long sync_fence_ioctl_fence_info(struct sync_fence *fence,
 		size = 4096;
 
 	data = kzalloc(size, GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		return -ENOMEM;
 
 	strlcpy(data->name, fence->name, sizeof(data->name));

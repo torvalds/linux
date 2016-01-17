@@ -151,10 +151,11 @@
 #define INT_FIFO_EMPTYING		BIT(12)
 #define INT_TRANSACTION_DONE		BIT(15)
 #define INT_SLAVE_EVENT			BIT(16)
+#define INT_MASTER_HALTED		BIT(17)
 #define INT_TIMING			BIT(18)
+#define INT_STOP_DETECTED		BIT(19)
 
 #define INT_FIFO_FULL_FILLING	(INT_FIFO_FULL  | INT_FIFO_FILLING)
-#define INT_FIFO_EMPTY_EMPTYING	(INT_FIFO_EMPTY | INT_FIFO_EMPTYING)
 
 /* Level interrupts need clearing after handling instead of before */
 #define INT_LEVEL			0x01e00
@@ -177,7 +178,8 @@
 					 INT_FIFO_FULL        | \
 					 INT_FIFO_FILLING     | \
 					 INT_FIFO_EMPTY       | \
-					 INT_FIFO_EMPTYING)
+					 INT_MASTER_HALTED    | \
+					 INT_STOP_DETECTED)
 
 #define INT_ENABLE_MASK_WAITSTOP	(INT_SLAVE_EVENT      | \
 					 INT_ADDR_ACK_ERR     | \
@@ -511,7 +513,17 @@ static void img_i2c_soft_reset(struct img_i2c *i2c)
 		       SCB_CONTROL_CLK_ENABLE | SCB_CONTROL_SOFT_RESET);
 }
 
-/* enable or release transaction halt for control of repeated starts */
+/*
+ * Enable or release transaction halt for control of repeated starts.
+ * In version 3.3 of the IP when transaction halt is set, an interrupt
+ * will be generated after each byte of a transfer instead of after
+ * every transfer but before the stop bit.
+ * Due to this behaviour we have to be careful that every time we
+ * release the transaction halt we have to re-enable it straight away
+ * so that we only process a single byte, not doing so will result in
+ * all remaining bytes been processed and a stop bit being issued,
+ * which will prevent us having a repeated start.
+ */
 static void img_i2c_transaction_halt(struct img_i2c *i2c, bool t_halt)
 {
 	u32 val;
@@ -580,7 +592,6 @@ static void img_i2c_read(struct img_i2c *i2c)
 	img_i2c_writel(i2c, SCB_READ_ADDR_REG, i2c->msg.addr);
 	img_i2c_writel(i2c, SCB_READ_COUNT_REG, i2c->msg.len);
 
-	img_i2c_transaction_halt(i2c, false);
 	mod_timer(&i2c->check_timer, jiffies + msecs_to_jiffies(1));
 }
 
@@ -594,7 +605,6 @@ static void img_i2c_write(struct img_i2c *i2c)
 	img_i2c_writel(i2c, SCB_WRITE_ADDR_REG, i2c->msg.addr);
 	img_i2c_writel(i2c, SCB_WRITE_COUNT_REG, i2c->msg.len);
 
-	img_i2c_transaction_halt(i2c, false);
 	mod_timer(&i2c->check_timer, jiffies + msecs_to_jiffies(1));
 	img_i2c_write_fifo(i2c);
 
@@ -750,7 +760,9 @@ static unsigned int img_i2c_atomic(struct img_i2c *i2c,
 			next_cmd = CMD_RET_ACK;
 		break;
 	case CMD_RET_ACK:
-		if (i2c->line_status & LINESTAT_ACK_DET) {
+		if (i2c->line_status & LINESTAT_ACK_DET ||
+		    (i2c->line_status & LINESTAT_NACK_DET &&
+		    i2c->msg.flags & I2C_M_IGNORE_NAK)) {
 			if (i2c->msg.len == 0) {
 				next_cmd = CMD_GEN_STOP;
 			} else if (i2c->msg.flags & I2C_M_RD) {
@@ -858,33 +870,41 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 
 	/* Enable transaction halt on start bit */
 	if (!i2c->last_msg && line_status & LINESTAT_START_BIT_DET) {
-		img_i2c_transaction_halt(i2c, true);
+		img_i2c_transaction_halt(i2c, !i2c->last_msg);
 		/* we're no longer interested in the slave event */
 		i2c->int_enable &= ~INT_SLAVE_EVENT;
 	}
 
 	mod_timer(&i2c->check_timer, jiffies + msecs_to_jiffies(1));
 
+	if (int_status & INT_STOP_DETECTED) {
+		/* Drain remaining data in FIFO and complete transaction */
+		if (i2c->msg.flags & I2C_M_RD)
+			img_i2c_read_fifo(i2c);
+		return ISR_COMPLETE(0);
+	}
+
 	if (i2c->msg.flags & I2C_M_RD) {
-		if (int_status & INT_FIFO_FULL_FILLING) {
+		if (int_status & (INT_FIFO_FULL_FILLING | INT_MASTER_HALTED)) {
 			img_i2c_read_fifo(i2c);
 			if (i2c->msg.len == 0)
 				return ISR_WAITSTOP;
 		}
 	} else {
-		if (int_status & INT_FIFO_EMPTY_EMPTYING) {
-			/*
-			 * The write fifo empty indicates that we're in the
-			 * last byte so it's safe to start a new write
-			 * transaction without losing any bytes from the
-			 * previous one.
-			 * see 2.3.7 Repeated Start Transactions.
-			 */
+		if (int_status & (INT_FIFO_EMPTY | INT_MASTER_HALTED)) {
 			if ((int_status & INT_FIFO_EMPTY) &&
 			    i2c->msg.len == 0)
 				return ISR_WAITSTOP;
 			img_i2c_write_fifo(i2c);
 		}
+	}
+	if (int_status & INT_MASTER_HALTED) {
+		/*
+		 * Release and then enable transaction halt, to
+		 * allow only a single byte to proceed.
+		 */
+		img_i2c_transaction_halt(i2c, false);
+		img_i2c_transaction_halt(i2c, !i2c->last_msg);
 	}
 
 	return 0;
@@ -1017,20 +1037,23 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		return -EIO;
 
 	for (i = 0; i < num; i++) {
-		if (likely(msgs[i].len))
-			continue;
 		/*
 		 * 0 byte reads are not possible because the slave could try
 		 * and pull the data line low, preventing a stop bit.
 		 */
-		if (unlikely(msgs[i].flags & I2C_M_RD))
+		if (!msgs[i].len && msgs[i].flags & I2C_M_RD)
 			return -EIO;
 		/*
 		 * 0 byte writes are possible and used for probing, but we
 		 * cannot do them in automatic mode, so use atomic mode
 		 * instead.
+		 *
+		 * Also, the I2C_M_IGNORE_NAK mode can only be implemented
+		 * in atomic mode.
 		 */
-		atomic = true;
+		if (!msgs[i].len ||
+		    (msgs[i].flags & I2C_M_IGNORE_NAK))
+			atomic = true;
 	}
 
 	ret = clk_prepare_enable(i2c->scb_clk);
@@ -1069,12 +1092,31 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		img_i2c_writel(i2c, SCB_INT_CLEAR_REG, ~0);
 		img_i2c_writel(i2c, SCB_CLEAR_REG, ~0);
 
-		if (atomic)
+		if (atomic) {
 			img_i2c_atomic_start(i2c);
-		else if (msg->flags & I2C_M_RD)
-			img_i2c_read(i2c);
-		else
-			img_i2c_write(i2c);
+		} else {
+			/*
+			 * Enable transaction halt if not the last message in
+			 * the queue so that we can control repeated starts.
+			 */
+			img_i2c_transaction_halt(i2c, !i2c->last_msg);
+
+			if (msg->flags & I2C_M_RD)
+				img_i2c_read(i2c);
+			else
+				img_i2c_write(i2c);
+
+			/*
+			 * Release and then enable transaction halt, to
+			 * allow only a single byte to proceed.
+			 * This doesn't have an effect on the initial transfer
+			 * but will allow the following transfers to start
+			 * processing if the previous transfer was marked as
+			 * complete while the i2c block was halted.
+			 */
+			img_i2c_transaction_halt(i2c, false);
+			img_i2c_transaction_halt(i2c, !i2c->last_msg);
+		}
 		spin_unlock_irqrestore(&i2c->lock, flags);
 
 		time_left = wait_for_completion_timeout(&i2c->msg_complete,

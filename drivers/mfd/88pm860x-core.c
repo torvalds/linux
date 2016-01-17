@@ -705,10 +705,12 @@ int pm8606_osc_disable(struct pm860x_chip *chip, unsigned short client)
 			chip->osc_status);
 
 	mutex_lock(&chip->osc_lock);
-	/*Update voting status */
+	/* Update voting status */
 	chip->osc_vote &= ~(client);
-	/* If reference group is off and this is the last client to release
-	 * - turn off */
+	/*
+	 * If reference group is off and this is the last client to release
+	 * - turn off
+	 */
 	if ((chip->osc_status != PM8606_REF_GP_OSC_OFF) &&
 			(chip->osc_vote == REF_GP_NO_CLIENTS)) {
 		chip->osc_status = PM8606_REF_GP_OSC_UNKNOWN;
@@ -1218,7 +1220,7 @@ static int pm860x_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int pm860x_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1228,7 +1230,7 @@ static int pm860x_suspend(struct device *dev)
 
 static int pm860x_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1265,6 +1267,7 @@ static struct i2c_driver pm860x_driver = {
 static int __init pm860x_i2c_init(void)
 {
 	int ret;
+
 	ret = i2c_add_driver(&pm860x_driver);
 	if (ret != 0)
 		pr_err("Failed to register 88PM860x I2C driver: %d\n", ret);

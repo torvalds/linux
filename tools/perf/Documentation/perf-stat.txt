@@ -10,6 +10,8 @@ SYNOPSIS
 [verse]
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] -- <command> [<options>]
+'perf stat' report [-i file]
 
 DESCRIPTION
 -----------
@@ -22,6 +24,11 @@ OPTIONS
 <command>...::
 	Any command you can specify in a shell.
 
+record::
+	See STAT RECORD.
+
+report::
+	See STAT REPORT.
 
 -e::
 --event=::
@@ -158,6 +165,33 @@ filter out the startup phase of the program, which is often very different.
 --transaction::
 
 Print statistics of transactional execution if supported.
+
+STAT RECORD
+-----------
+Stores stat data into perf data file.
+
+-o file::
+--output file::
+Output file name.
+
+STAT REPORT
+-----------
+Reads and reports stat data from perf data file.
+
+-i file::
+--input file::
+Input file name.
+
+--per-socket::
+Aggregate counts per processor socket for system-wide mode measurements.
+
+--per-core::
+Aggregate counts per physical processor for system-wide mode measurements.
+
+-A::
+--no-aggr::
+Do not aggregate counts across all monitored CPUs.
+
 
 EXAMPLES
 --------

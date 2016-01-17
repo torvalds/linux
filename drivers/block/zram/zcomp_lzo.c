@@ -10,17 +10,26 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/lzo.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
 
 #include "zcomp_lzo.h"
 
-static void *lzo_create(void)
+static void *lzo_create(gfp_t flags)
 {
-	return kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	void *ret;
+
+	ret = kmalloc(LZO1X_MEM_COMPRESS, flags);
+	if (!ret)
+		ret = __vmalloc(LZO1X_MEM_COMPRESS,
+				flags | __GFP_HIGHMEM,
+				PAGE_KERNEL);
+	return ret;
 }
 
 static void lzo_destroy(void *private)
 {
-	kfree(private);
+	kvfree(private);
 }
 
 static int lzo_compress(const unsigned char *src, unsigned char *dst,

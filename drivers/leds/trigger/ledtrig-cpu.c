@@ -19,7 +19,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -140,27 +139,4 @@ static int __init ledtrig_cpu_init(void)
 
 	return 0;
 }
-module_init(ledtrig_cpu_init);
-
-static void __exit ledtrig_cpu_exit(void)
-{
-	int cpu;
-
-	unregister_cpu_notifier(&ledtrig_cpu_nb);
-
-	for_each_possible_cpu(cpu) {
-		struct led_trigger_cpu *trig = &per_cpu(cpu_trig, cpu);
-
-		led_trigger_unregister_simple(trig->_trig);
-		trig->_trig = NULL;
-		memset(trig->name, 0, MAX_NAME_LEN);
-	}
-
-	unregister_syscore_ops(&ledtrig_cpu_syscore_ops);
-}
-module_exit(ledtrig_cpu_exit);
-
-MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
-MODULE_AUTHOR("Bryan Wu <bryan.wu@canonical.com>");
-MODULE_DESCRIPTION("CPU LED trigger");
-MODULE_LICENSE("GPL");
+device_initcall(ledtrig_cpu_init);

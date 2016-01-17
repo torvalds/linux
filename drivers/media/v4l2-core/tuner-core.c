@@ -134,8 +134,9 @@ struct tuner {
 	unsigned int        type; /* chip type id */
 	void                *config;
 	const char          *name;
+
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	struct media_pad	pad;
+	struct media_pad	pad[TUNER_NUM_PADS];
 #endif
 };
 
@@ -695,11 +696,12 @@ static int tuner_probe(struct i2c_client *client,
 	/* Should be just before return */
 register_client:
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	t->pad.flags = MEDIA_PAD_FL_SOURCE;
-	t->sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_TUNER;
+	t->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	t->pad[TUNER_PAD_IF_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+	t->sd.entity.function = MEDIA_ENT_F_TUNER;
 	t->sd.entity.name = t->name;
 
-	ret = media_entity_init(&t->sd.entity, 1, &t->pad, 0);
+	ret = media_entity_pads_init(&t->sd.entity, TUNER_NUM_PADS, &t->pad[0]);
 	if (ret < 0) {
 		tuner_err("failed to initialize media entity!\n");
 		kfree(t);

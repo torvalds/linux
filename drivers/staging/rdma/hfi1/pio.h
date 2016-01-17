@@ -130,7 +130,7 @@ struct send_context {
 	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
 	u64 credit_ctrl;		/* cache for credit control */
 	u32 credit_intr_count;		/* count of credit intr users */
-	atomic_t buffers_allocated;	/* count of buffers allocated */
+	u32 __percpu *buffers_allocated;/* count of buffers allocated */
 	wait_queue_head_t halt_wait;    /* wait until kernel sees interrupt */
 };
 

@@ -10,6 +10,7 @@
 
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
+#include <media/tuner.h>
 
 #include "mxl111sf.h"
 #include "mxl111sf-reg.h"
@@ -288,9 +289,9 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	err = mxl1x1sf_set_device_mode(state, adap_state->device_mode);
 
 	mxl_fail(err);
-	mxl111sf_enable_usb_output(state);
+	err = mxl111sf_enable_usb_output(state);
 	mxl_fail(err);
-	mxl1x1sf_top_master_ctrl(state, 1);
+	err = mxl1x1sf_top_master_ctrl(state, 1);
 	mxl_fail(err);
 
 	if ((MXL111SF_GPIO_MOD_DVBT != adap_state->gpio_mode) &&
@@ -731,7 +732,7 @@ fail:
 	return ret;
 }
 
-static struct mxl111sf_demod_config mxl_demod_config = {
+static const struct mxl111sf_demod_config mxl_demod_config = {
 	.read_reg        = mxl111sf_read_reg,
 	.write_reg       = mxl111sf_write_reg,
 	.program_regs    = mxl111sf_ctrl_program_regs,
@@ -868,6 +869,10 @@ static struct mxl111sf_tuner_config mxl_tuner_config = {
 static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 {
 	struct mxl111sf_state *state = adap_to_priv(adap);
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_device *mdev = dvb_get_media_controller(&adap->dvb_adap);
+	int ret;
+#endif
 	int i;
 
 	pr_debug("%s()\n", __func__);
@@ -879,6 +884,21 @@ static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 		adap->fe[i]->ops.read_signal_strength = adap->fe[i]->ops.tuner_ops.get_rf_strength;
 	}
 
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	state->tuner.function = MEDIA_ENT_F_TUNER;
+	state->tuner.name = "mxl111sf tuner";
+	state->tuner_pads[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->tuner_pads[TUNER_PAD_IF_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+
+	ret = media_entity_pads_init(&state->tuner,
+				     TUNER_NUM_PADS, state->tuner_pads);
+	if (ret)
+		return ret;
+
+	ret = media_device_register_entity(mdev, &state->tuner);
+	if (ret)
+		return ret;
+#endif
 	return 0;
 }
 

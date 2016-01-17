@@ -76,7 +76,7 @@ int main(void)
 
 <para>NOTE: While it is possible to directly call the Kernel code like the
     above example, it is strongly recommended to use
-    <ulink url="http://linuxtv.org/docs/libdvbv5/index.html">libdvbv5</ulink>,
+    <ulink url="https://linuxtv.org/docs/libdvbv5/index.html">libdvbv5</ulink>,
     as it provides abstraction to work with the supported digital TV standards
     and provides methods for usual operations like program scanning and to
     read/write channel descriptor files.</para>

@@ -51,6 +51,24 @@ static inline int l3mdev_master_ifindex(struct net_device *dev)
 	return ifindex;
 }
 
+static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
+{
+	struct net_device *dev;
+	int rc = 0;
+
+	if (likely(ifindex)) {
+		rcu_read_lock();
+
+		dev = dev_get_by_index_rcu(net, ifindex);
+		if (dev)
+			rc = l3mdev_master_ifindex_rcu(dev);
+
+		rcu_read_unlock();
+	}
+
+	return rc;
+}
+
 /* get index of an interface to use for FIB lookups. For devices
  * enslaved to an L3 master device FIB lookups are based on the
  * master index
@@ -166,6 +184,11 @@ static inline int l3mdev_master_ifindex_rcu(struct net_device *dev)
 	return 0;
 }
 static inline int l3mdev_master_ifindex(struct net_device *dev)
+{
+	return 0;
+}
+
+static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 {
 	return 0;
 }

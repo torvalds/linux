@@ -156,7 +156,7 @@ static int xvip_graph_build_one(struct xvip_composite_device *xdev,
 			local->name, local_pad->index,
 			remote->name, remote_pad->index);
 
-		ret = media_entity_create_link(local, local_pad->index,
+		ret = media_create_pad_link(local, local_pad->index,
 					       remote, remote_pad->index,
 					       link_flags);
 		if (ret < 0) {
@@ -270,7 +270,7 @@ static int xvip_graph_build_dma(struct xvip_composite_device *xdev)
 			source->name, source_pad->index,
 			sink->name, sink_pad->index);
 
-		ret = media_entity_create_link(source, source_pad->index,
+		ret = media_create_pad_link(source, source_pad->index,
 					       sink, sink_pad->index,
 					       link_flags);
 		if (ret < 0) {
@@ -311,7 +311,7 @@ static int xvip_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0)
 		dev_err(xdev->dev, "failed to register subdev nodes\n");
 
-	return ret;
+	return media_device_register(&xdev->media_dev);
 }
 
 static int xvip_graph_notify_bound(struct v4l2_async_notifier *notifier,
@@ -476,8 +476,10 @@ static int xvip_graph_dma_init(struct xvip_composite_device *xdev)
 
 	for_each_child_of_node(ports, port) {
 		ret = xvip_graph_dma_init_one(xdev, port);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(port);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -571,6 +573,7 @@ static void xvip_composite_v4l2_cleanup(struct xvip_composite_device *xdev)
 {
 	v4l2_device_unregister(&xdev->v4l2_dev);
 	media_device_unregister(&xdev->media_dev);
+	media_device_cleanup(&xdev->media_dev);
 }
 
 static int xvip_composite_v4l2_init(struct xvip_composite_device *xdev)
@@ -582,19 +585,14 @@ static int xvip_composite_v4l2_init(struct xvip_composite_device *xdev)
 		sizeof(xdev->media_dev.model));
 	xdev->media_dev.hw_revision = 0;
 
-	ret = media_device_register(&xdev->media_dev);
-	if (ret < 0) {
-		dev_err(xdev->dev, "media device registration failed (%d)\n",
-			ret);
-		return ret;
-	}
+	media_device_init(&xdev->media_dev);
 
 	xdev->v4l2_dev.mdev = &xdev->media_dev;
 	ret = v4l2_device_register(xdev->dev, &xdev->v4l2_dev);
 	if (ret < 0) {
 		dev_err(xdev->dev, "V4L2 device registration failed (%d)\n",
 			ret);
-		media_device_unregister(&xdev->media_dev);
+		media_device_cleanup(&xdev->media_dev);
 		return ret;
 	}
 

@@ -227,7 +227,7 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 		return 0;
 
 	vpfe_dev->clks = kcalloc(vpfe_cfg->num_clocks,
-				 sizeof(struct clock *), GFP_KERNEL);
+				 sizeof(*vpfe_dev->clks), GFP_KERNEL);
 	if (vpfe_dev->clks == NULL)
 		return -ENOMEM;
 
@@ -445,32 +445,32 @@ static int vpfe_register_entities(struct vpfe_device *vpfe_dev)
 		/* if entity has no pads (ex: amplifier),
 		   cant establish link */
 		if (vpfe_dev->sd[i]->entity.num_pads) {
-			ret = media_entity_create_link(&vpfe_dev->sd[i]->entity,
+			ret = media_create_pad_link(&vpfe_dev->sd[i]->entity,
 				0, &vpfe_dev->vpfe_isif.subdev.entity,
 				0, flags);
 			if (ret < 0)
 				goto out_resizer_register;
 		}
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_isif.subdev.entity, 1,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_isif.subdev.entity, 1,
 				       &vpfe_dev->vpfe_ipipeif.subdev.entity,
 				       0, flags);
 	if (ret < 0)
 		goto out_resizer_register;
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
 				       &vpfe_dev->vpfe_ipipe.subdev.entity,
 				       0, flags);
 	if (ret < 0)
 		goto out_resizer_register;
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_ipipe.subdev.entity,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_ipipe.subdev.entity,
 			1, &vpfe_dev->vpfe_resizer.crop_resizer.subdev.entity,
 			0, flags);
 	if (ret < 0)
 		goto out_resizer_register;
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
 			&vpfe_dev->vpfe_resizer.crop_resizer.subdev.entity,
 			0, flags);
 	if (ret < 0)

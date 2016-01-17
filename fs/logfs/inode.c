@@ -64,7 +64,8 @@ static void logfs_inode_setops(struct inode *inode)
 		inode->i_mapping->a_ops = &logfs_reg_aops;
 		break;
 	case S_IFLNK:
-		inode->i_op = &logfs_symlink_iops;
+		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &logfs_reg_aops;
 		break;
 	case S_IFSOCK:	/* fall through */
@@ -408,7 +409,8 @@ const struct super_operations logfs_super_operations = {
 int logfs_init_inode_cache(void)
 {
 	logfs_inode_cache = kmem_cache_create("logfs_inode_cache",
-			sizeof(struct logfs_inode), 0, SLAB_RECLAIM_ACCOUNT,
+			sizeof(struct logfs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
 			logfs_init_once);
 	if (!logfs_inode_cache)
 		return -ENOMEM;

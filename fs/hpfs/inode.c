@@ -77,6 +77,7 @@ void hpfs_read_inode(struct inode *i)
 			kfree(ea);
 			i->i_mode = S_IFLNK | 0777;
 			i->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(i);
 			i->i_data.a_ops = &hpfs_symlink_aops;
 			set_nlink(i, 1);
 			i->i_size = ea_size;

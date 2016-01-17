@@ -33,12 +33,16 @@ Description:
 		The object directory contains subdirectories for each function
 		that is patched within the object.
 
-What:		/sys/kernel/livepatch/<patch>/<object>/<function>
+What:		/sys/kernel/livepatch/<patch>/<object>/<function,sympos>
 Date:		Nov 2014
 KernelVersion:	3.19.0
 Contact:	live-patching@vger.kernel.org
 Description:
 		The function directory contains attributes regarding the
 		properties and state of the patched function.
+
+		The directory name contains the patched function name and a
+		sympos number corresponding to the nth occurrence of the symbol
+		name in kallsyms for the patched object.
 
 		There are currently no such attributes.

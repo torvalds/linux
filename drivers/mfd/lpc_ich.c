@@ -55,6 +55,7 @@
  *	document number TBD : Coleto Creek
  *	document number TBD : Wildcat Point-LP
  *	document number TBD : 9 Series
+ *	document number TBD : Lewisburg
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -213,6 +214,7 @@ enum lpc_chipsets {
 	LPC_COLETO,	/* Coleto Creek */
 	LPC_WPT_LP,	/* Wildcat Point-LP */
 	LPC_BRASWELL,	/* Braswell SoC */
+	LPC_LEWISBURG,	/* Lewisburg */
 	LPC_9S,		/* 9 Series */
 };
 
@@ -521,6 +523,10 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.name = "Braswell SoC",
 		.iTCO_version = 3,
 	},
+	[LPC_LEWISBURG] = {
+		.name = "Lewisburg",
+		.iTCO_version = 2,
+	},
 	[LPC_9S] = {
 		.name = "9 Series",
 		.iTCO_version = 2,
@@ -757,6 +763,15 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9cc6), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc7), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc9), LPC_WPT_LP},
+	{ PCI_VDEVICE(INTEL, 0xa1c1), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c2), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c3), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c4), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c5), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c6), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c7), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa242), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa243), LPC_LEWISBURG},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);

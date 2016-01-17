@@ -83,6 +83,14 @@ qce_ablkcipher_async_req_handle(struct crypto_async_request *async_req)
 		rctx->dst_nents = sg_nents_for_len(req->dst, req->nbytes);
 	else
 		rctx->dst_nents = rctx->src_nents;
+	if (rctx->src_nents < 0) {
+		dev_err(qce->dev, "Invalid numbers of src SG.\n");
+		return rctx->src_nents;
+	}
+	if (rctx->dst_nents < 0) {
+		dev_err(qce->dev, "Invalid numbers of dst SG.\n");
+		return -rctx->dst_nents;
+	}
 
 	rctx->dst_nents += 1;
 

@@ -2029,13 +2029,10 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	}
 
 	if (taskout) {
-		outbuf = kzalloc(taskout, GFP_KERNEL);
-		if (outbuf == NULL) {
-			err = -ENOMEM;
-			goto abort;
-		}
-		if (copy_from_user(outbuf, buf + outtotal, taskout)) {
-			err = -EFAULT;
+		outbuf = memdup_user(buf + outtotal, taskout);
+		if (IS_ERR(outbuf)) {
+			err = PTR_ERR(outbuf);
+			outbuf = NULL;
 			goto abort;
 		}
 		outbuf_dma = pci_map_single(dd->pdev,
@@ -2050,14 +2047,10 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	}
 
 	if (taskin) {
-		inbuf = kzalloc(taskin, GFP_KERNEL);
-		if (inbuf == NULL) {
-			err = -ENOMEM;
-			goto abort;
-		}
-
-		if (copy_from_user(inbuf, buf + intotal, taskin)) {
-			err = -EFAULT;
+		inbuf = memdup_user(buf + intotal, taskin);
+		if (IS_ERR(inbuf)) {
+			err = PTR_ERR(inbuf);
+			inbuf = NULL;
 			goto abort;
 		}
 		inbuf_dma = pci_map_single(dd->pdev,

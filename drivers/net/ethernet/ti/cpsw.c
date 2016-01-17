@@ -1159,8 +1159,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			slave->data->phy_id, slave->slave_num);
 		slave->phy = NULL;
 	} else {
-		dev_info(priv->dev, "phy found : id is : 0x%x\n",
-			 slave->phy->phy_id);
+		phy_attached_info(slave->phy);
+
 		phy_start(slave->phy);
 
 		/* Configure GMII_SEL register */
@@ -2050,7 +2050,8 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 			if (!phy_dev)
 				return -ENODEV;
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-				 PHY_ID_FMT, phy_dev->bus->id, phy_dev->addr);
+				 PHY_ID_FMT, phy_dev->mdio.bus->id,
+				 phy_dev->mdio.addr);
 		} else if (parp) {
 			u32 phyid;
 			struct device_node *mdio_node;
@@ -2482,7 +2483,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	ndev->ethtool_ops = &cpsw_ethtool_ops;
 	netif_napi_add(ndev, &priv->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
-	netif_napi_add(ndev, &priv->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
+	netif_tx_napi_add(ndev, &priv->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, &pdev->dev);

@@ -634,7 +634,7 @@ static void set_origin(struct vc_data *vc)
 	vc->vc_pos = vc->vc_origin + vc->vc_size_row * vc->vc_y + 2 * vc->vc_x;
 }
 
-static inline void save_screen(struct vc_data *vc)
+static void save_screen(struct vc_data *vc)
 {
 	WARN_CONSOLE_UNLOCKED();
 

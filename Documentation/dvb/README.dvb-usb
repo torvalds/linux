@@ -45,7 +45,7 @@ Supported devices
 See the LinuxTV DVB Wiki at www.linuxtv.org for a complete list of
 cards/drivers/firmwares:
 
-http://www.linuxtv.org/wiki/index.php/DVB_USB
+https://linuxtv.org/wiki/index.php/DVB_USB
 
 0. History & News:
   2005-06-30 - added support for WideView WT-220U (Thanks to Steve Chang)
@@ -121,7 +121,7 @@ working.
 Have a look at the Wikipage for the DVB-USB-drivers to find out, which firmware
 you need for your device:
 
-http://www.linuxtv.org/wiki/index.php/DVB_USB
+https://linuxtv.org/wiki/index.php/DVB_USB
 
 1.2. Compiling
 

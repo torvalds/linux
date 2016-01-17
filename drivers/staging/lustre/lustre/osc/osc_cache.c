@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  *
  */
 /*
@@ -619,9 +619,9 @@ static inline int overlapped(struct osc_extent *ex1, struct osc_extent *ex2)
  * Find or create an extent which includes @index, core function to manage
  * extent tree.
  */
-struct osc_extent *osc_extent_find(const struct lu_env *env,
-				   struct osc_object *obj, pgoff_t index,
-				   int *grants)
+static struct osc_extent *osc_extent_find(const struct lu_env *env,
+					  struct osc_object *obj, pgoff_t index,
+					  int *grants)
 
 {
 	struct client_obd *cli = osc_cli(obj);
@@ -1420,8 +1420,8 @@ static void __osc_unreserve_grant(struct client_obd *cli,
 	}
 }
 
-void osc_unreserve_grant(struct client_obd *cli,
-			 unsigned int reserved, unsigned int unused)
+static void osc_unreserve_grant(struct client_obd *cli,
+				unsigned int reserved, unsigned int unused)
 {
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	__osc_unreserve_grant(cli, reserved, unused);

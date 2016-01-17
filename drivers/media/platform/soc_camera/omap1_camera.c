@@ -28,9 +28,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <media/omap1_camera.h>
+#include <linux/platform_data/media/omap1_camera.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/videobuf-dma-contig.h>
 #include <media/videobuf-dma-sg.h>
 

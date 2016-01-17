@@ -361,9 +361,8 @@ config SERIAL_8250_UNIPHIER
 
 config SERIAL_8250_INGENIC
 	bool "Support for Ingenic SoC serial ports"
-	depends on SERIAL_8250_CONSOLE && OF_FLATTREE
+	depends on OF_FLATTREE
 	select LIBFDT
-	select SERIAL_EARLYCON
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.
@@ -372,9 +371,18 @@ config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms"
 	depends on SERIAL_8250 && PCI
 	select HSU_DMA if SERIAL_8250_DMA
-	select HSU_DMA_PCI if X86_INTEL_MID
+	select HSU_DMA_PCI if (HSU_DMA && X86_INTEL_MID)
 	select RATIONAL
 	help
 	  Selecting this option will enable handling of the extra features
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
+
+config SERIAL_OF_PLATFORM
+	tristate "Devicetree based probing for 8250 ports"
+	depends on SERIAL_8250 && OF
+	help
+	  This option is used for all 8250 compatible serial ports that
+	  are probed through devicetree, including Open Firmware based
+	  PowerPC systems and embedded systems on architectures using the
+	  flattened device tree format.

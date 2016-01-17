@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 #include <asm/mpic.h>
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pci.h>
 #include <asm/udbg.h>
 
 #include "mpc85xx.h"
@@ -46,10 +47,12 @@ static void __init bsc913x_qds_setup_arch(void)
 	mpc85xx_smp_init();
 #endif
 
+	fsl_pci_assign_primary();
+
 	pr_info("bsc913x board from Freescale Semiconductor\n");
 }
 
-machine_device_initcall(bsc9132_qds, mpc85xx_common_publish_devices);
+machine_arch_initcall(bsc9132_qds, mpc85xx_common_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened
@@ -67,6 +70,9 @@ define_machine(bsc9132_qds) {
 	.probe			= bsc9132_qds_probe,
 	.setup_arch		= bsc913x_qds_setup_arch,
 	.init_IRQ		= bsc913x_qds_pic_init,
+#ifdef CONFIG_PCI
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,

@@ -93,7 +93,8 @@ enum ad_link_speed_type {
 	AD_LINK_SPEED_10000MBPS,
 	AD_LINK_SPEED_20000MBPS,
 	AD_LINK_SPEED_40000MBPS,
-	AD_LINK_SPEED_56000MBPS
+	AD_LINK_SPEED_56000MBPS,
+	AD_LINK_SPEED_100000MBPS,
 };
 
 /* compare MAC addresses */
@@ -258,6 +259,7 @@ static inline int __check_agg_selection_timer(struct port *port)
  *     %AD_LINK_SPEED_20000MBPS
  *     %AD_LINK_SPEED_40000MBPS
  *     %AD_LINK_SPEED_56000MBPS
+ *     %AD_LINK_SPEED_100000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -303,6 +305,10 @@ static u16 __get_link_speed(struct port *port)
 
 		case SPEED_56000:
 			speed = AD_LINK_SPEED_56000MBPS;
+			break;
+
+		case SPEED_100000:
+			speed = AD_LINK_SPEED_100000MBPS;
 			break;
 
 		default:
@@ -680,6 +686,9 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 			break;
 		case AD_LINK_SPEED_56000MBPS:
 			bandwidth = aggregator->num_of_ports * 56000;
+			break;
+		case AD_LINK_SPEED_100000MBPS:
+			bandwidth = aggregator->num_of_ports * 100000;
 			break;
 		default:
 			bandwidth = 0; /* to silence the compiler */

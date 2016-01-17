@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -151,23 +151,10 @@ int lov_stripe_number(struct lov_stripe_md *lsm, u64 lov_off);
 /* lov_qos.c */
 #define LOV_USES_ASSIGNED_STRIPE	0
 #define LOV_USES_DEFAULT_STRIPE	 1
-int qos_add_tgt(struct obd_device *obd, __u32 index);
-int qos_del_tgt(struct obd_device *obd, struct lov_tgt_desc *tgt);
-void qos_shrink_lsm(struct lov_request_set *set);
-int qos_prep_create(struct obd_export *exp, struct lov_request_set *set);
-void qos_update(struct lov_obd *lov);
-void qos_statfs_done(struct lov_obd *lov);
-void qos_statfs_update(struct obd_device *obd, __u64 max_age, int wait);
-int qos_remedy_create(struct lov_request_set *set, struct lov_request *req);
 
 /* lov_request.c */
-void lov_set_add_req(struct lov_request *req, struct lov_request_set *set);
-int lov_set_finished(struct lov_request_set *set, int idempotent);
-void lov_update_set(struct lov_request_set *set,
-		    struct lov_request *req, int rc);
 int lov_update_common_set(struct lov_request_set *set,
 			  struct lov_request *req, int rc);
-int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx);
 int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct lov_request_set **reqset);
 int lov_fini_getattr_set(struct lov_request_set *set);
@@ -184,8 +171,6 @@ int lov_update_setattr_set(struct lov_request_set *set,
 int lov_fini_setattr_set(struct lov_request_set *set);
 int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			struct lov_request_set **reqset);
-void lov_update_statfs(struct obd_statfs *osfs, struct obd_statfs *lov_sfs,
-		       int success);
 int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,
 		    int success);
 int lov_fini_statfs_set(struct lov_request_set *set);

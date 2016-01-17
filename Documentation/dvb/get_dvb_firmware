@@ -152,7 +152,7 @@ sub tda10046lifeview {
 
 sub av7110 {
     my $sourcefile = "dvb-ttpci-01.fw-261d";
-    my $url = "http://www.linuxtv.org/downloads/firmware/$sourcefile";
+    my $url = "https://linuxtv.org/downloads/firmware/$sourcefile";
     my $hash = "603431b6259715a8e88f376a53b64e2f";
     my $outfile = "dvb-ttpci-01.fw";
 
@@ -303,7 +303,7 @@ sub vp7049 {
 }
 
 sub dibusb {
-	my $url = "http://www.linuxtv.org/downloads/firmware/dvb-usb-dibusb-5.0.0.11.fw";
+	my $url = "https://linuxtv.org/downloads/firmware/dvb-usb-dibusb-5.0.0.11.fw";
 	my $outfile = "dvb-dibusb-5.0.0.11.fw";
 	my $hash = "fa490295a527360ca16dcdf3224ca243";
 
@@ -351,7 +351,7 @@ sub nxt2004 {
 
 sub or51211 {
     my $fwfile = "dvb-fe-or51211.fw";
-    my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
     my $hash = "d830949c771a289505bf9eafc225d491";
 
     checkstandard();
@@ -364,7 +364,7 @@ sub or51211 {
 
 sub cx231xx {
     my $fwfile = "v4l-cx231xx-avcore-01.fw";
-    my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
     my $hash = "7d3bb956dc9df0eafded2b56ba57cc42";
 
     checkstandard();
@@ -376,7 +376,7 @@ sub cx231xx {
 }
 
 sub cx18 {
-    my $url = "http://linuxtv.org/downloads/firmware/";
+    my $url = "https://linuxtv.org/downloads/firmware/";
 
     my %files = (
 	'v4l-cx23418-apu.fw' => '588f081b562f5c653a3db1ad8f65939a',
@@ -450,7 +450,7 @@ sub mpc718 {
 }
 
 sub cx23885 {
-    my $url = "http://linuxtv.org/downloads/firmware/";
+    my $url = "https://linuxtv.org/downloads/firmware/";
 
     my %files = (
 	'v4l-cx23885-avcore-01.fw' => 'a9f8f5d901a7fb42f552e1ee6384f3bb',
@@ -472,7 +472,7 @@ sub cx23885 {
 }
 
 sub pvrusb2 {
-    my $url = "http://linuxtv.org/downloads/firmware/";
+    my $url = "https://linuxtv.org/downloads/firmware/";
 
     my %files = (
 	'v4l-cx25840.fw'           => 'dadb79e9904fc8af96e8111d9cb59320',
@@ -494,7 +494,7 @@ sub pvrusb2 {
 
 sub or51132_qam {
     my $fwfile = "dvb-fe-or51132-qam.fw";
-    my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
     my $hash = "7702e8938612de46ccadfe9b413cb3b5";
 
     checkstandard();
@@ -507,7 +507,7 @@ sub or51132_qam {
 
 sub or51132_vsb {
     my $fwfile = "dvb-fe-or51132-vsb.fw";
-    my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
     my $hash = "c16208e02f36fc439a557ad4c613364a";
 
     checkstandard();
@@ -519,7 +519,7 @@ sub or51132_vsb {
 }
 
 sub bluebird {
-	my $url = "http://www.linuxtv.org/download/dvb/firmware/dvb-usb-bluebird-01.fw";
+	my $url = "https://linuxtv.org/download/dvb/firmware/dvb-usb-bluebird-01.fw";
 	my $outfile = "dvb-usb-bluebird-01.fw";
 	my $hash = "658397cb9eba9101af9031302671f49d";
 
@@ -677,7 +677,7 @@ sub drxk_hauppauge_hvr930c {
 }
 
 sub drxk_terratec_h5 {
-    my $url = "http://www.linuxtv.org/downloads/firmware/";
+    my $url = "https://linuxtv.org/downloads/firmware/";
     my $hash = "19000dada8e2741162ccc50cc91fa7f1";
     my $fwfile = "dvb-usb-terratec-h5-drxk.fw";
 

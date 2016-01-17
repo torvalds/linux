@@ -357,8 +357,10 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	tss = &per_cpu(cpu_tss, get_cpu());
 	/* make room for real-mode segments */
 	tsk->thread.sp0 += 16;
-	if (cpu_has_sep)
+
+	if (static_cpu_has_safe(X86_FEATURE_SEP))
 		tsk->thread.sysenter_cs = 0;
+
 	load_sp0(tss, &tsk->thread);
 	put_cpu();
 

@@ -61,7 +61,7 @@ int pio2_cntr_reset(struct pio2_card *card)
 	/* Ensure all counter interrupts are cleared */
 	do {
 		retval = vme_master_read(card->window, &reg, 1,
-			PIO2_REGS_INT_STAT_CNTR);
+					 PIO2_REGS_INT_STAT_CNTR);
 		if (retval < 0)
 			return retval;
 	} while (reg != 0);

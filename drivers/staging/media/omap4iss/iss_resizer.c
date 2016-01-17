@@ -158,8 +158,8 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 	/* Program UV buffer address... Hardcoded to be contiguous! */
 	if ((informat->code == MEDIA_BUS_FMT_UYVY8_1X16) &&
 	    (outformat->code == MEDIA_BUS_FMT_YUYV8_1_5X8)) {
-		u32 c_addr = addr + (resizer->video_out.bpl_value *
-				     (outformat->height - 1));
+		u32 c_addr = addr + resizer->video_out.bpl_value
+			   * outformat->height;
 
 		/* Ensure Y_BAD_L[6:0] = C_BAD_L[6:0]*/
 		if ((c_addr ^ addr) & 0x7f) {
@@ -716,9 +716,14 @@ static int resizer_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct iss_device *iss = to_iss_device(resizer);
+	unsigned int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case RESIZER_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case RESIZER_PAD_SINK | 2 << 16:
 		/* Read from IPIPE or IPIPEIF. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			resizer->input = RESIZER_INPUT_NONE;
@@ -735,7 +740,7 @@ static int resizer_link_setup(struct media_entity *entity,
 
 		break;
 
-	case RESIZER_PAD_SOURCE_MEM | MEDIA_ENT_T_DEVNODE:
+	case RESIZER_PAD_SOURCE_MEM:
 		/* Write to memory */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (resizer->output & ~RESIZER_OUTPUT_MEMORY)
@@ -785,7 +790,7 @@ static int resizer_init_entities(struct iss_resizer_device *resizer)
 	pads[RESIZER_PAD_SOURCE_MEM].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, RESIZER_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
@@ -799,18 +804,7 @@ static int resizer_init_entities(struct iss_resizer_device *resizer)
 	resizer->video_out.bpl_zero_padding = 1;
 	resizer->video_out.bpl_max = 0x1ffe0;
 
-	ret = omap4iss_video_init(&resizer->video_out, "ISP resizer a");
-	if (ret < 0)
-		return ret;
-
-	/* Connect the RESIZER subdev to the video node. */
-	ret = media_entity_create_link(&resizer->subdev.entity,
-				       RESIZER_PAD_SOURCE_MEM,
-				       &resizer->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return omap4iss_video_init(&resizer->video_out, "ISP resizer a");
 }
 
 void omap4iss_resizer_unregister_entities(struct iss_resizer_device *resizer)
@@ -860,6 +854,22 @@ int omap4iss_resizer_init(struct iss_device *iss)
 	init_waitqueue_head(&resizer->wait);
 
 	return resizer_init_entities(resizer);
+}
+
+/*
+ * omap4iss_resizer_create_links() - RESIZER pads links creation
+ * @iss: Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+int omap4iss_resizer_create_links(struct iss_device *iss)
+{
+	struct iss_resizer_device *resizer = &iss->resizer;
+
+	/* Connect the RESIZER subdev to the video node. */
+	return media_create_pad_link(&resizer->subdev.entity,
+				     RESIZER_PAD_SOURCE_MEM,
+				     &resizer->video_out.video.entity, 0, 0);
 }
 
 /*
