@@ -1006,18 +1006,17 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	struct fb_info *info[] = {NULL, NULL};
 	struct sm750_dev *sm750_dev = NULL;
 	int fbidx;
+	int err;
 
 	/* enable device */
-	if (pci_enable_device(pdev)) {
-		pr_err("can not enable device.\n");
-		goto err_enable;
-	}
+	err = pci_enable_device(pdev);
+	if (err)
+		return err;
 
+	err = -ENOMEM;
 	sm750_dev = kzalloc(sizeof(*sm750_dev), GFP_KERNEL);
-	if (!sm750_dev) {
-		pr_err("Could not allocate memory for share.\n");
-		goto err_share;
-	}
+	if (!sm750_dev)
+		goto disable_pci;
 
 	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
 	sm750_dev->devid = pdev->device;
@@ -1051,10 +1050,9 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	sm750fb_setup(sm750_dev, g_settings);
 
 	/* call chip specific mmap routine */
-	if (hw_sm750_map(sm750_dev, pdev)) {
-		pr_err("Memory map failed\n");
-		goto err_map;
-	}
+	err = hw_sm750_map(sm750_dev, pdev);
+	if (err)
+		goto free_sm750_dev;
 
 	if (!sm750_dev->mtrr_off)
 		sm750_dev->mtrr.vram = arch_phys_wc_add(sm750_dev->vidmem_start,
@@ -1073,6 +1071,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	/* allocate frame buffer info structor according to g_dualview */
 	fbidx = 0;
 ALLOC_FB:
+	err = -ENOMEM;
 	info[fbidx] = framebuffer_alloc(sizeof(struct lynxfb_par), &pdev->dev);
 	if (!info[fbidx]) {
 		pr_err("Could not allocate framebuffer #%d.\n", fbidx);
@@ -1082,7 +1081,6 @@ ALLOC_FB:
 			goto err_info1_alloc;
 	} else {
 		struct lynxfb_par *par;
-		int errno;
 
 		pr_info("framebuffer #%d alloc okay\n", fbidx);
 		sm750_dev->fbinfo[fbidx] = info[fbidx];
@@ -1100,11 +1098,11 @@ ALLOC_FB:
 
 		/* register frame buffer */
 		pr_info("Ready to register framebuffer #%d.\n", fbidx);
-		errno = register_framebuffer(info[fbidx]);
-		if (errno < 0) {
+		err = register_framebuffer(info[fbidx]);
+		if (err < 0) {
 			pr_err("Failed to register fb_info #%d. err %d\n",
 			       fbidx,
-			       errno);
+			       err);
 			if (fbidx == 0)
 				goto err_register0;
 			else
@@ -1129,12 +1127,11 @@ err_register0:
 err_info0_set:
 	framebuffer_release(info[0]);
 err_info0_alloc:
-err_map:
+free_sm750_dev:
 	kfree(sm750_dev);
-err_share:
+disable_pci:
 	pci_disable_device(pdev);
-err_enable:
-	return -ENODEV;
+	return err;
 }
 
 static void lynxfb_pci_remove(struct pci_dev *pdev)
