@@ -272,6 +272,30 @@ config SERIAL_8250_ACORN
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
 
+config SERIAL_8250_BCM2835AUX
+	tristate "BCM2835 auxiliar mini UART support"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on SERIAL_8250 && SERIAL_8250_SHARE_IRQ
+	help
+	  Support for the BCM2835 auxiliar mini UART.
+
+	  Features and limitations of the UART are
+	    Registers are similar to 16650 registers,
+              set bits in the control registers that are unsupported
+	      are ignored and read back as 0
+	    7/8 bit operation with 1 start and 1 stop bit
+	    8 symbols deep fifo for rx and tx
+	    SW controlled RTS and SW readable CTS
+	    Clock rate derived from system clock
+	    Uses 8 times oversampling (compared to 16 times for 16650)
+	    Missing break detection (but break generation)
+	    Missing framing error detection
+	    Missing parity bit
+	    Missing receive time-out interrupt
+	    Missing DCD, DSR, DTR and RI signals
+
+	  If unsure, say N.
+
 config SERIAL_8250_FSL
 	bool
 	depends on SERIAL_8250_CONSOLE
