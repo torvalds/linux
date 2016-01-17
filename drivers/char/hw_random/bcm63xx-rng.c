@@ -79,10 +79,8 @@ static int bcm63xx_rng_data_read(struct hwrng *rng, u32 *data)
 static int bcm63xx_rng_probe(struct platform_device *pdev)
 {
 	struct resource *r;
-	struct clk *clk;
 	int ret;
 	struct bcm63xx_rng_priv *priv;
-	struct hwrng *rng;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
