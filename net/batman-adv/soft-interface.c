@@ -377,7 +377,7 @@ dropped_freed:
 	batadv_inc_counter(bat_priv, BATADV_CNT_TX_DROPPED);
 end:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	return NETDEV_TX_OK;
 }
 
@@ -878,7 +878,7 @@ static int batadv_softif_slave_add(struct net_device *dev,
 
 out:
 	if (hard_iface)
-		batadv_hardif_free_ref(hard_iface);
+		batadv_hardif_put(hard_iface);
 	return ret;
 }
 
@@ -905,7 +905,7 @@ static int batadv_softif_slave_del(struct net_device *dev,
 
 out:
 	if (hard_iface)
-		batadv_hardif_free_ref(hard_iface);
+		batadv_hardif_put(hard_iface);
 	return ret;
 }
 

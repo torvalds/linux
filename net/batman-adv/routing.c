@@ -269,7 +269,7 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 	}
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	if (orig_node)
 		batadv_orig_node_put(orig_node);
 	return ret;
@@ -317,7 +317,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	if (orig_node)
 		batadv_orig_node_put(orig_node);
 	return ret;
@@ -702,7 +702,7 @@ batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
 	ret = true;
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	if (orig_node)
 		batadv_orig_node_put(orig_node);
 
@@ -808,7 +808,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 
 	ether_addr_copy(unicast_packet->dest, primary_if->net_dev->dev_addr);
 
-	batadv_hardif_free_ref(primary_if);
+	batadv_hardif_put(primary_if);
 
 	unicast_packet->ttvn = curr_ttvn;
 

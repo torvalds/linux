@@ -515,7 +515,7 @@ static void batadv_iv_ogm_emit(struct batadv_forw_packet *forw_packet)
 
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 }
 
 /**
@@ -617,7 +617,7 @@ batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
 
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	return res;
 }
 
@@ -711,9 +711,9 @@ out_nomem:
 	if (!own_packet)
 		atomic_inc(&bat_priv->batman_queue_left);
 out_free_outgoing:
-	batadv_hardif_free_ref(if_outgoing);
+	batadv_hardif_put(if_outgoing);
 out_free_incoming:
-	batadv_hardif_free_ref(if_incoming);
+	batadv_hardif_put(if_incoming);
 }
 
 /* aggregate a new packet into the existing ogm packet */
@@ -958,7 +958,7 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 }
 
 /**

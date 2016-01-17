@@ -771,7 +771,7 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 
 	length = sprintf(buff, "%s\n", ifname);
 
-	batadv_hardif_free_ref(hard_iface);
+	batadv_hardif_put(hard_iface);
 
 	return length;
 }
@@ -795,7 +795,7 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
 		       buff);
-		batadv_hardif_free_ref(hard_iface);
+		batadv_hardif_put(hard_iface);
 		return -EINVAL;
 	}
 
@@ -829,7 +829,7 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 unlock:
 	rtnl_unlock();
 out:
-	batadv_hardif_free_ref(hard_iface);
+	batadv_hardif_put(hard_iface);
 	return ret;
 }
 
@@ -863,7 +863,7 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 		break;
 	}
 
-	batadv_hardif_free_ref(hard_iface);
+	batadv_hardif_put(hard_iface);
 
 	return length;
 }

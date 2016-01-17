@@ -512,7 +512,7 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 
 out_err:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 
 	return ret;
 }

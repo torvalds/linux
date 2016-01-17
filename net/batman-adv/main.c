@@ -287,7 +287,7 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 	seq_printf(seq,
 		   "BATMAN mesh %s disabled - primary interface not active\n",
 		   net_dev->name);
-	batadv_hardif_free_ref(primary_if);
+	batadv_hardif_put(primary_if);
 	primary_if = NULL;
 
 out:
