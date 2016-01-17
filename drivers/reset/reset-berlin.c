@@ -55,9 +55,6 @@ static int berlin_reset_xlate(struct reset_controller_dev *rcdev,
 {
 	unsigned offset, bit;
 
-	if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells))
-		return -EINVAL;
-
 	offset = reset_spec->args[0];
 	bit = reset_spec->args[1];
 
