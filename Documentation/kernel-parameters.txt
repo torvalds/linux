@@ -2748,10 +2748,16 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				hardware access methods are allowed. Use this
 				if you experience crashes upon bootup and you
 				suspect they are caused by the BIOS.
-		conf1		[X86] Force use of PCI Configuration
-				Mechanism 1.
-		conf2		[X86] Force use of PCI Configuration
-				Mechanism 2.
+		conf1		[X86] Force use of PCI Configuration Access
+				Mechanism 1 (config address in IO port 0xCF8,
+				data in IO port 0xCFC, both 32-bit).
+		conf2		[X86] Force use of PCI Configuration Access
+				Mechanism 2 (IO port 0xCF8 is an 8-bit port for
+				the function, IO port 0xCFA, also 8-bit, sets
+				bus number. The config space is then accessed
+				through ports 0xC000-0xCFFF).
+				See http://wiki.osdev.org/PCI for more info
+				on the configuration access mechanisms.
 		noaer		[PCIE] If the PCIEAER kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of PCIE advanced error reporting.
@@ -3070,9 +3076,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	raid=		[HW,RAID]
 			See Documentation/md.txt.
-
-	ramdisk_blocksize=	[RAM]
-			See Documentation/blockdev/ramdisk.txt.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
