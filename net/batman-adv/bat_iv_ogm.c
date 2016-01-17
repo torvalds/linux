@@ -1574,7 +1574,7 @@ out:
 	if (orig_neigh_router)
 		batadv_neigh_node_put(orig_neigh_router);
 	if (hardif_neigh)
-		batadv_hardif_neigh_free_ref(hardif_neigh);
+		batadv_hardif_neigh_put(hardif_neigh);
 
 	kfree_skb(skb_priv);
 }
