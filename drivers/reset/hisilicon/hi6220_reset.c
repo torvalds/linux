@@ -57,7 +57,7 @@ static int hi6220_reset_deassert(struct reset_controller_dev *rc_dev,
 	return 0;
 }
 
-static struct reset_control_ops hi6220_reset_ops = {
+static const struct reset_control_ops hi6220_reset_ops = {
 	.assert = hi6220_reset_assert,
 	.deassert = hi6220_reset_deassert,
 };
