@@ -1002,6 +1002,18 @@ NO_PARAM:
 	}
 }
 
+static void sm750fb_frambuffer_release(struct sm750_dev *sm750_dev)
+{
+	struct fb_info *fb_info;
+
+	while (sm750_dev->fb_count) {
+		fb_info = sm750_dev->fbinfo[sm750_dev->fb_count - 1];
+		unregister_framebuffer(fb_info);
+		framebuffer_release(fb_info);
+		sm750_dev->fb_count--;
+	}
+}
+
 static int lynxfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
@@ -1138,22 +1150,11 @@ disable_pci:
 
 static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
-	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
-	int cnt;
 
-	cnt = 2;
 	sm750_dev = pci_get_drvdata(pdev);
 
-	while (cnt-- > 0) {
-		info = sm750_dev->fbinfo[cnt];
-		if (!info)
-			continue;
-
-		unregister_framebuffer(info);
-		/* release frame buffer */
-		framebuffer_release(info);
-	}
+	sm750fb_frambuffer_release(sm750_dev);
 	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
 	iounmap(sm750_dev->pvReg);
