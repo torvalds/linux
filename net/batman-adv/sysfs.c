@@ -216,7 +216,7 @@ ssize_t batadv_store_vlan_##_name(struct kobject *kobj,			\
 					      attr, &vlan->_name,	\
 					      bat_priv->soft_iface);	\
 									\
-	batadv_softif_vlan_free_ref(vlan);				\
+	batadv_softif_vlan_put(vlan);					\
 	return res;							\
 }
 
@@ -231,7 +231,7 @@ ssize_t batadv_show_vlan_##_name(struct kobject *kobj,			\
 			     atomic_read(&vlan->_name) == 0 ?		\
 			     "disabled" : "enabled");			\
 									\
-	batadv_softif_vlan_free_ref(vlan);				\
+	batadv_softif_vlan_put(vlan);					\
 	return res;							\
 }
 
