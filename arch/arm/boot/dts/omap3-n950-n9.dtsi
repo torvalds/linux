@@ -72,6 +72,22 @@
 			OMAP3_CORE1_IOPAD(0x218a, PIN_OUTPUT | MUX_MODE1)            /* ssi1_wake */
 		>;
 	};
+
+	modem_pins1: pinmux_modem_core1_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x207a, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* gpio_34 (ape_rst_rq) */
+			OMAP3_CORE1_IOPAD(0x2100, PIN_OUTPUT | MUX_MODE4)            /* gpio_88 (cmt_rst_rq) */
+			OMAP3_CORE1_IOPAD(0x210a, PIN_OUTPUT | MUX_MODE4)            /* gpio_93 (cmt_apeslpx) */
+		>;
+	};
+};
+
+&omap3_pmx_core2 {
+	modem_pins2: pinmux_modem_core2_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25ec, PIN_OUTPUT | MUX_MODE4)         /* gpio_23 (cmt_en) */
+		>;
+	};
 };
 
 &i2c1 {
@@ -225,6 +241,30 @@
 	pinctrl-0 = <&ssi_pins>;
 
 	ti,ssi-cawake-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* 151 */
+
+	modem: hsi-client {
+		pinctrl-names = "default";
+		pinctrl-0 = <&modem_pins1 &modem_pins2>;
+
+		hsi-channel-ids = <0>, <1>, <2>, <3>;
+		hsi-channel-names = "mcsaab-control",
+				    "speech-control",
+				    "speech-data",
+				    "mcsaab-data";
+		hsi-speed-kbps = <96000>;
+		hsi-mode = "frame";
+		hsi-flow = "synchronized";
+		hsi-arb-mode = "round-robin";
+
+		interrupts-extended = <&gpio2 2 IRQ_TYPE_EDGE_RISING>; /* gpio 34 */
+
+		gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>, /* gpio 93 */
+			<&gpio3 24 GPIO_ACTIVE_HIGH>, /* gpio 88 */
+			<&gpio1 23 GPIO_ACTIVE_HIGH>; /* gpio 23 */
+		gpio-names = "cmt_apeslpx",
+			     "cmt_rst_rq",
+			     "cmt_en";
+	};
 };
 
 &ssi_port2 {

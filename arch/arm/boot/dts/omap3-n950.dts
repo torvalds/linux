@@ -82,3 +82,7 @@
 		vwlan-supply = <&vwlan_fixed>;
 	};
 };
+
+&modem {
+	compatible = "nokia,n950-modem";
+};
