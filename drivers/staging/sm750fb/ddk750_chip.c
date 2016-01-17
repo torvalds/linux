@@ -174,7 +174,7 @@ unsigned int ddk750_getVMSize(void)
 
 	/* for 750,always use power mode0*/
 	reg = PEEK32(MODE0_GATE);
-	reg = FIELD_SET(reg, MODE0_GATE, GPIO, ON);
+	reg |= MODE0_GATE_GPIO;
 	POKE32(MODE0_GATE, reg);
 
 	/* get frame buffer size from GPIO */
