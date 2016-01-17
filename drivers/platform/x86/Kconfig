@@ -967,10 +967,10 @@ config INTEL_PMC_IPC
 	with other entities in the CPU.
 
 config SURFACE_PRO3_BUTTON
-	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3 tablet"
+	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3/4 tablet"
 	depends on ACPI && INPUT
 	---help---
-	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3 tablet.
+	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
 
 config INTEL_PUNIT_IPC
 	tristate "Intel P-Unit IPC Driver"
