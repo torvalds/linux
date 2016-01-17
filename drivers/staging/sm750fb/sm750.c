@@ -1132,6 +1132,7 @@ err_info0_alloc:
 err_map:
 	kfree(sm750_dev);
 err_share:
+	pci_disable_device(pdev);
 err_enable:
 	return -ENODEV;
 }
