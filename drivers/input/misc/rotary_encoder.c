@@ -20,12 +20,11 @@
 #include <linux/input.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/rotary_encoder.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/pm.h>
 
 #define DRV_NAME "rotary-encoder"
@@ -38,6 +37,9 @@ struct rotary_encoder {
 	unsigned int axis;
 	unsigned int pos;
 
+	struct gpio_desc *gpio_a;
+	struct gpio_desc *gpio_b;
+
 	unsigned int irq_a;
 	unsigned int irq_b;
 
@@ -47,13 +49,10 @@ struct rotary_encoder {
 	char last_stable;
 };
 
-static int rotary_encoder_get_state(const struct rotary_encoder_platform_data *pdata)
+static int rotary_encoder_get_state(struct rotary_encoder *encoder)
 {
-	int a = !!gpio_get_value_cansleep(pdata->gpio_a);
-	int b = !!gpio_get_value_cansleep(pdata->gpio_b);
-
-	a ^= pdata->inverted_a;
-	b ^= pdata->inverted_b;
+	int a = !!gpiod_get_value_cansleep(encoder->gpio_a);
+	int b = !!gpiod_get_value_cansleep(encoder->gpio_b);
 
 	return ((a << 1) | b);
 }
@@ -97,7 +96,7 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 
 	mutex_lock(&encoder->access_mutex);
 
-	state = rotary_encoder_get_state(encoder->pdata);
+	state = rotary_encoder_get_state(encoder);
 
 	switch (state) {
 	case 0x0:
@@ -130,7 +129,7 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 
 	mutex_lock(&encoder->access_mutex);
 
-	state = rotary_encoder_get_state(encoder->pdata);
+	state = rotary_encoder_get_state(encoder);
 
 	switch (state) {
 	case 0x00:
@@ -160,7 +159,7 @@ static irqreturn_t rotary_encoder_quarter_period_irq(int irq, void *dev_id)
 
 	mutex_lock(&encoder->access_mutex);
 
-	state = rotary_encoder_get_state(encoder->pdata);
+	state = rotary_encoder_get_state(encoder);
 
 	/*
 	 * We encode the previous and the current state using a byte.
@@ -218,7 +217,6 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 				of_match_device(rotary_encoder_of_match, dev);
 	struct device_node *np = dev->of_node;
 	struct rotary_encoder_platform_data *pdata;
-	enum of_gpio_flags flags;
 	int error;
 
 	if (!of_id || !np)
@@ -231,12 +229,6 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 
 	of_property_read_u32(np, "rotary-encoder,steps", &pdata->steps);
 	of_property_read_u32(np, "linux,axis", &pdata->axis);
-
-	pdata->gpio_a = of_get_gpio_flags(np, 0, &flags);
-	pdata->inverted_a = flags & OF_GPIO_ACTIVE_LOW;
-
-	pdata->gpio_b = of_get_gpio_flags(np, 1, &flags);
-	pdata->inverted_b = flags & OF_GPIO_ACTIVE_LOW;
 
 	pdata->relative_axis =
 		of_property_read_bool(np, "rotary-encoder,relative-axis");
@@ -294,14 +286,32 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	if (!encoder)
 		return -ENOMEM;
 
+	mutex_init(&encoder->access_mutex);
+	encoder->pdata = pdata;
+
+	encoder->gpio_a = devm_gpiod_get_index(dev, NULL, 0, GPIOD_IN);
+	if (IS_ERR(encoder->gpio_a)) {
+		err = PTR_ERR(encoder->gpio_a);
+		dev_err(dev, "unable to get GPIO at index 0: %d\n", err);
+		return err;
+	}
+
+	encoder->irq_a = gpiod_to_irq(encoder->gpio_a);
+
+	encoder->gpio_b = devm_gpiod_get_index(dev, NULL, 1, GPIOD_IN);
+	if (IS_ERR(encoder->gpio_b)) {
+		err = PTR_ERR(encoder->gpio_b);
+		dev_err(dev, "unable to get GPIO at index 1: %d\n", err);
+		return err;
+	}
+
+	encoder->irq_b = gpiod_to_irq(encoder->gpio_b);
+
 	input = devm_input_allocate_device(dev);
 	if (!input)
 		return -ENOMEM;
 
-	mutex_init(&encoder->access_mutex);
-
 	encoder->input = input;
-	encoder->pdata = pdata;
 
 	input->name = pdev->name;
 	input->id.bustype = BUS_HOST;
@@ -316,32 +326,14 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 				     pdata->axis, 0, pdata->steps, 0, 1);
 	}
 
-	/* request the GPIOs */
-	err = devm_gpio_request_one(dev, pdata->gpio_a, GPIOF_IN,
-				    dev_name(dev));
-	if (err) {
-		dev_err(dev, "unable to request GPIO %d\n", pdata->gpio_a);
-		return err;
-	}
-
-	err = devm_gpio_request_one(dev, pdata->gpio_b, GPIOF_IN,
-				    dev_name(dev));
-	if (err) {
-		dev_err(dev, "unable to request GPIO %d\n", pdata->gpio_b);
-		return err;
-	}
-
-	encoder->irq_a = gpio_to_irq(pdata->gpio_a);
-	encoder->irq_b = gpio_to_irq(pdata->gpio_b);
-
 	switch (pdata->steps_per_period) {
 	case 4:
 		handler = &rotary_encoder_quarter_period_irq;
-		encoder->last_stable = rotary_encoder_get_state(pdata);
+		encoder->last_stable = rotary_encoder_get_state(encoder);
 		break;
 	case 2:
 		handler = &rotary_encoder_half_period_irq;
-		encoder->last_stable = rotary_encoder_get_state(pdata);
+		encoder->last_stable = rotary_encoder_get_state(encoder);
 		break;
 	case 1:
 		handler = &rotary_encoder_irq;

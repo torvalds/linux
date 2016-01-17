@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/input.h>
 #include <linux/rotary_encoder.h>
@@ -366,14 +367,21 @@ static struct pxaohci_platform_data raumfeld_ohci_info = {
  * Rotary encoder input device
  */
 
+static struct gpiod_lookup_table raumfeld_rotary_gpios_table = {
+	.dev_id = "rotary-encoder.0",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-0",
+				GPIO_VOLENC_A, NULL, 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-0",
+				GPIO_VOLENC_B, NULL, 1, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct rotary_encoder_platform_data raumfeld_rotary_encoder_info = {
 	.steps		= 24,
 	.axis		= REL_X,
 	.relative_axis	= 1,
-	.gpio_a		= GPIO_VOLENC_A,
-	.gpio_b		= GPIO_VOLENC_B,
-	.inverted_a	= 1,
-	.inverted_b	= 0,
 };
 
 static struct platform_device rotary_encoder_device = {
@@ -1051,7 +1059,10 @@ static void __init raumfeld_controller_init(void)
 	int ret;
 
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(raumfeld_controller_pin_config));
+
+	gpiod_add_lookup_table(&raumfeld_rotary_gpios_table);
 	platform_device_register(&rotary_encoder_device);
+
 	spi_register_board_info(ARRAY_AND_SIZE(controller_spi_devices));
 	i2c_register_board_info(0, &raumfeld_controller_i2c_board_info, 1);
 
@@ -1086,6 +1097,8 @@ static void __init raumfeld_speaker_init(void)
 	i2c_register_board_info(0, &raumfeld_connector_i2c_board_info, 1);
 
 	platform_device_register(&smc91x_device);
+
+	gpiod_add_lookup_table(&raumfeld_rotary_gpios_table);
 	platform_device_register(&rotary_encoder_device);
 
 	raumfeld_audio_init();
