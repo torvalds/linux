@@ -219,7 +219,7 @@ SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, stat
 #  define choose_32_64(a,b) b
 #endif
 
-#define valid_dev(x)  choose_32_64(old_valid_dev,new_valid_dev)(x)
+#define valid_dev(x)  choose_32_64(old_valid_dev(x),true)
 #define encode_dev(x) choose_32_64(old_encode_dev,new_encode_dev)(x)
 
 #ifndef INIT_STRUCT_STAT_PADDING

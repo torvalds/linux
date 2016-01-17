@@ -101,10 +101,6 @@ config LOCKDEP_SUPPORT
 	bool
 	default y if SPARC64
 
-config HAVE_LATENCYTOP_SUPPORT
-	bool
-	default y if SPARC64
-
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y if SPARC64
 
