@@ -151,11 +151,11 @@ static void batadv_orig_node_vlan_release(struct kref *ref)
 }
 
 /**
- * batadv_orig_node_vlan_free_ref - decrement the refcounter and possibly
- *  release the originator-vlan object
+ * batadv_orig_node_vlan_put - decrement the refcounter and possibly release
+ *  the originator-vlan object
  * @orig_vlan: the originator-vlan object to release
  */
-void batadv_orig_node_vlan_free_ref(struct batadv_orig_node_vlan *orig_vlan)
+void batadv_orig_node_vlan_put(struct batadv_orig_node_vlan *orig_vlan)
 {
 	kref_put(&orig_vlan->refcount, batadv_orig_node_vlan_release);
 }
@@ -917,7 +917,7 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	 * Immediately release vlan since it is not needed anymore in this
 	 * context
 	 */
-	batadv_orig_node_vlan_free_ref(vlan);
+	batadv_orig_node_vlan_put(vlan);
 
 	for (i = 0; i < BATADV_FRAG_BUFFER_COUNT; i++) {
 		INIT_HLIST_HEAD(&orig_node->fragments[i].head);
