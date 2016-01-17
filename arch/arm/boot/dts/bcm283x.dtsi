@@ -112,7 +112,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		uart0: uart@7e201000 {
+		uart0: serial@7e201000 {
 			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
 			reg = <0x7e201000 0x1000>;
 			interrupts = <2 25>;
