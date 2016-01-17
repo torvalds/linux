@@ -235,7 +235,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		batadv_gw_node_free_ref(gw_node);
 
 next:
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 		if (router_ifinfo)
 			batadv_neigh_ifinfo_free_ref(router_ifinfo);
 	}
@@ -352,7 +352,7 @@ out:
 	if (next_gw)
 		batadv_gw_node_free_ref(next_gw);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	if (router_ifinfo)
 		batadv_neigh_ifinfo_free_ref(router_ifinfo);
 }
@@ -417,9 +417,9 @@ out:
 	if (curr_gw_orig)
 		batadv_orig_node_put(curr_gw_orig);
 	if (router_gw)
-		batadv_neigh_node_free_ref(router_gw);
+		batadv_neigh_node_put(router_gw);
 	if (router_orig)
-		batadv_neigh_node_free_ref(router_orig);
+		batadv_neigh_node_put(router_orig);
 	if (router_gw_tq)
 		batadv_neigh_ifinfo_free_ref(router_gw_tq);
 	if (router_orig_tq)
@@ -626,7 +626,7 @@ out:
 	if (router_ifinfo)
 		batadv_neigh_ifinfo_free_ref(router_ifinfo);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	return ret;
 }
 
@@ -885,8 +885,8 @@ out:
 	if (gw_node)
 		batadv_gw_node_free_ref(gw_node);
 	if (neigh_old)
-		batadv_neigh_node_free_ref(neigh_old);
+		batadv_neigh_node_put(neigh_old);
 	if (neigh_curr)
-		batadv_neigh_node_free_ref(neigh_curr);
+		batadv_neigh_node_put(neigh_curr);
 	return out_of_range;
 }

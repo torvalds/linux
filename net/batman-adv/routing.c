@@ -98,7 +98,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	}
 
 	if (curr_router)
-		batadv_neigh_node_free_ref(curr_router);
+		batadv_neigh_node_put(curr_router);
 
 	/* increase refcount of new best neighbor */
 	if (neigh_node && !kref_get_unless_zero(&neigh_node->refcount))
@@ -111,7 +111,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 
 	/* decrease refcount of previous best neighbor */
 	if (curr_router)
-		batadv_neigh_node_free_ref(curr_router);
+		batadv_neigh_node_put(curr_router);
 }
 
 /**
@@ -138,7 +138,7 @@ void batadv_update_route(struct batadv_priv *bat_priv,
 
 out:
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 }
 
 /**
@@ -545,7 +545,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 next:
 		/* free references */
 		if (cand_router) {
-			batadv_neigh_node_free_ref(cand_router);
+			batadv_neigh_node_put(cand_router);
 			cand_router = NULL;
 		}
 		batadv_orig_ifinfo_free_ref(cand);
@@ -562,17 +562,17 @@ next:
 	 * 3) there is no candidate at all, return the default router
 	 */
 	if (next_candidate) {
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 
 		/* remove references to first candidate, we don't need it. */
 		if (first_candidate) {
-			batadv_neigh_node_free_ref(first_candidate_router);
+			batadv_neigh_node_put(first_candidate_router);
 			batadv_orig_ifinfo_free_ref(first_candidate);
 		}
 		router = next_candidate_router;
 		orig_node->last_bonding_candidate = next_candidate;
 	} else if (first_candidate) {
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 
 		/* refcounting has already been done in the loop above. */
 		router = first_candidate_router;

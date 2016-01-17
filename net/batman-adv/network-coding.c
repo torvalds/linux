@@ -1228,9 +1228,9 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	res = true;
 out:
 	if (router_neigh)
-		batadv_neigh_node_free_ref(router_neigh);
+		batadv_neigh_node_put(router_neigh);
 	if (router_coding)
-		batadv_neigh_node_free_ref(router_coding);
+		batadv_neigh_node_put(router_coding);
 	if (router_neigh_ifinfo)
 		batadv_neigh_ifinfo_free_ref(router_neigh_ifinfo);
 	if (router_coding_ifinfo)

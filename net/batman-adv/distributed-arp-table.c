@@ -674,7 +674,7 @@ static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
 			ret = true;
 		}
 free_neigh:
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 free_orig:
 		batadv_orig_node_put(cand[i].orig_node);
 	}

@@ -1586,20 +1586,20 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 		if (best_router &&
 		    bao->bat_neigh_cmp(router, BATADV_IF_DEFAULT,
 				       best_router, BATADV_IF_DEFAULT) <= 0) {
-			batadv_neigh_node_free_ref(router);
+			batadv_neigh_node_put(router);
 			continue;
 		}
 
 		/* release the refcount for the "old" best */
 		if (best_router)
-			batadv_neigh_node_free_ref(best_router);
+			batadv_neigh_node_put(best_router);
 
 		best_entry = orig_entry;
 		best_router = router;
 	}
 
 	if (best_router)
-		batadv_neigh_node_free_ref(best_router);
+		batadv_neigh_node_put(best_router);
 
 	return best_entry;
 }

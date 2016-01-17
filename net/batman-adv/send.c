@@ -153,7 +153,7 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 
 out:
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 
 	return ret;
 }

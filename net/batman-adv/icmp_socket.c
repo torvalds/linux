@@ -290,7 +290,7 @@ out:
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 	if (orig_node)
 		batadv_orig_node_put(orig_node);
 	return len;

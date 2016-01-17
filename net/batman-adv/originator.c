@@ -279,11 +279,11 @@ static void batadv_neigh_node_release(struct kref *ref)
 }
 
 /**
- * batadv_neigh_node_free_ref - decrement the neighbors refcounter and possibly
+ * batadv_neigh_node_put - decrement the neighbors refcounter and possibly
  *  release it
  * @neigh_node: neigh neighbor to free
  */
-void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node)
+void batadv_neigh_node_put(struct batadv_neigh_node *neigh_node)
 {
 	kref_put(&neigh_node->refcount, batadv_neigh_node_release);
 }
@@ -737,7 +737,7 @@ static void batadv_orig_ifinfo_release(struct kref *ref)
 	/* this is the last reference to this object */
 	router = rcu_dereference_protected(orig_ifinfo->router, true);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 
 	kfree_rcu(orig_ifinfo, rcu);
 }
@@ -793,7 +793,7 @@ static void batadv_orig_node_release(struct kref *ref)
 	hlist_for_each_entry_safe(neigh_node, node_tmp,
 				  &orig_node->neigh_list, list) {
 		hlist_del_rcu(&neigh_node->list);
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 	}
 
 	hlist_for_each_entry_safe(orig_ifinfo, node_tmp,
@@ -1069,7 +1069,7 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 			neigh_purged = true;
 
 			hlist_del_rcu(&neigh_node->list);
-			batadv_neigh_node_free_ref(neigh_node);
+			batadv_neigh_node_put(neigh_node);
 		} else {
 			/* only necessary if not the whole neighbor is to be
 			 * deleted, but some interface has been removed.
@@ -1108,7 +1108,7 @@ batadv_find_best_neighbor(struct batadv_priv *bat_priv,
 			continue;
 
 		if (best)
-			batadv_neigh_node_free_ref(best);
+			batadv_neigh_node_put(best);
 
 		best = neigh;
 	}
@@ -1154,7 +1154,7 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 	batadv_update_route(bat_priv, orig_node, BATADV_IF_DEFAULT,
 			    best_neigh_node);
 	if (best_neigh_node)
-		batadv_neigh_node_free_ref(best_neigh_node);
+		batadv_neigh_node_put(best_neigh_node);
 
 	/* ... then for all other interfaces. */
 	rcu_read_lock();
@@ -1171,7 +1171,7 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 		batadv_update_route(bat_priv, orig_node, hard_iface,
 				    best_neigh_node);
 		if (best_neigh_node)
-			batadv_neigh_node_free_ref(best_neigh_node);
+			batadv_neigh_node_put(best_neigh_node);
 	}
 	rcu_read_unlock();
 

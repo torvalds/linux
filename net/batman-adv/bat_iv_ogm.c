@@ -1005,7 +1005,7 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		    tmp_neigh_node->if_incoming == if_incoming &&
 		    kref_get_unless_zero(&tmp_neigh_node->refcount)) {
 			if (WARN(neigh_node, "too many matching neigh_nodes"))
-				batadv_neigh_node_free_ref(neigh_node);
+				batadv_neigh_node_put(neigh_node);
 			neigh_node = tmp_neigh_node;
 			continue;
 		}
@@ -1116,9 +1116,9 @@ unlock:
 	rcu_read_unlock();
 out:
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	if (neigh_ifinfo)
 		batadv_neigh_ifinfo_free_ref(neigh_ifinfo);
 	if (router_ifinfo)
@@ -1265,7 +1265,7 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 
 out:
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 	return ret;
 }
 
@@ -1568,11 +1568,11 @@ out:
 	if (router_ifinfo)
 		batadv_neigh_ifinfo_free_ref(router_ifinfo);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	if (router_router)
-		batadv_neigh_node_free_ref(router_router);
+		batadv_neigh_node_put(router_router);
 	if (orig_neigh_router)
-		batadv_neigh_node_free_ref(orig_neigh_router);
+		batadv_neigh_node_put(orig_neigh_router);
 	if (hardif_neigh)
 		batadv_hardif_neigh_free_ref(hardif_neigh);
 
@@ -1868,7 +1868,7 @@ static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
 			batman_count++;
 
 next:
-			batadv_neigh_node_free_ref(neigh_node);
+			batadv_neigh_node_put(neigh_node);
 			if (n_ifinfo)
 				batadv_neigh_ifinfo_free_ref(n_ifinfo);
 		}
