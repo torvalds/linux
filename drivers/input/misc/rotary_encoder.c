@@ -317,14 +317,10 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = dev;
 
-	if (pdata->relative_axis) {
-		input->evbit[0] = BIT_MASK(EV_REL);
-		input->relbit[0] = BIT_MASK(pdata->axis);
-	} else {
-		input->evbit[0] = BIT_MASK(EV_ABS);
-		input_set_abs_params(encoder->input,
-				     pdata->axis, 0, pdata->steps, 0, 1);
-	}
+	if (pdata->relative_axis)
+		input_set_capability(input, EV_REL, pdata->axis);
+	else
+		input_set_abs_params(input, pdata->axis, 0, pdata->steps, 0, 1);
 
 	switch (pdata->steps_per_period) {
 	case 4:
