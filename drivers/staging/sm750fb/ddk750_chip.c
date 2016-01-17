@@ -79,7 +79,7 @@ static void setChipClock(unsigned int frequency)
 
 static void setMemoryClock(unsigned int frequency)
 {
-	unsigned int ulReg, divisor;
+	unsigned int reg, divisor;
 
 	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
 	if (getChipType() == SM750LE)
@@ -95,24 +95,24 @@ static void setMemoryClock(unsigned int frequency)
 		divisor = roundedDiv(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		ulReg = PEEK32(CURRENT_GATE);
+		reg = PEEK32(CURRENT_GATE);
 		switch (divisor) {
 		default:
 		case 1:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_1);
+			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_1);
 			break;
 		case 2:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_2);
+			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_2);
 			break;
 		case 3:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_3);
+			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_3);
 			break;
 		case 4:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_4);
+			reg = FIELD_SET(reg, CURRENT_GATE, M2XCLK, DIV_4);
 			break;
 		}
 
-		setCurrentGate(ulReg);
+		setCurrentGate(reg);
 	}
 }
 
@@ -126,7 +126,7 @@ static void setMemoryClock(unsigned int frequency)
  */
 static void setMasterClock(unsigned int frequency)
 {
-	unsigned int ulReg, divisor;
+	unsigned int reg, divisor;
 
 	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
 	if (getChipType() == SM750LE)
@@ -142,24 +142,24 @@ static void setMasterClock(unsigned int frequency)
 		divisor = roundedDiv(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		ulReg = PEEK32(CURRENT_GATE);
+		reg = PEEK32(CURRENT_GATE);
 		switch (divisor) {
 		default:
 		case 3:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_3);
+			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_3);
 			break;
 		case 4:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_4);
+			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_4);
 			break;
 		case 6:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_6);
+			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_6);
 			break;
 		case 8:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_8);
+			reg = FIELD_SET(reg, CURRENT_GATE, MCLK, DIV_8);
 			break;
 		}
 
-		setCurrentGate(ulReg);
+		setCurrentGate(reg);
 		}
 }
 
