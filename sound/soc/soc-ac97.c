@@ -142,7 +142,7 @@ static int snd_soc_ac97_init_gpio(struct snd_ac97 *ac97,
 	gpio_priv->codec = codec;
 	gpio_priv->gpio_chip = snd_soc_ac97_gpio_chip;
 	gpio_priv->gpio_chip.ngpio = AC97_NUM_GPIOS;
-	gpio_priv->gpio_chip.dev = codec->dev;
+	gpio_priv->gpio_chip.parent = codec->dev;
 	gpio_priv->gpio_chip.base = -1;
 
 	ret = gpiochip_add(&gpio_priv->gpio_chip);

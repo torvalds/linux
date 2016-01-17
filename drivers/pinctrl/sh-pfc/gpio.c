@@ -38,14 +38,10 @@ struct sh_pfc_chip {
 	struct sh_pfc_gpio_pin		*pins;
 };
 
-static struct sh_pfc_chip *gpio_to_pfc_chip(struct gpio_chip *gc)
-{
-	return container_of(gc, struct sh_pfc_chip, gpio_chip);
-}
-
 static struct sh_pfc *gpio_to_pfc(struct gpio_chip *gc)
 {
-	return gpio_to_pfc_chip(gc)->pfc;
+	struct sh_pfc_chip *chip = gpiochip_get_data(gc);
+	return chip->pfc;
 }
 
 static void gpio_get_data_reg(struct sh_pfc_chip *chip, unsigned int offset,
@@ -178,14 +174,14 @@ static int gpio_pin_direction_input(struct gpio_chip *gc, unsigned offset)
 static int gpio_pin_direction_output(struct gpio_chip *gc, unsigned offset,
 				    int value)
 {
-	gpio_pin_set_value(gpio_to_pfc_chip(gc), offset, value);
+	gpio_pin_set_value(gpiochip_get_data(gc), offset, value);
 
 	return pinctrl_gpio_direction_output(offset);
 }
 
 static int gpio_pin_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct sh_pfc_chip *chip = gpio_to_pfc_chip(gc);
+	struct sh_pfc_chip *chip = gpiochip_get_data(gc);
 	struct sh_pfc_gpio_data_reg *reg;
 	unsigned int bit;
 	unsigned int pos;
@@ -199,7 +195,7 @@ static int gpio_pin_get(struct gpio_chip *gc, unsigned offset)
 
 static void gpio_pin_set(struct gpio_chip *gc, unsigned offset, int value)
 {
-	gpio_pin_set_value(gpio_to_pfc_chip(gc), offset, value);
+	gpio_pin_set_value(gpiochip_get_data(gc), offset, value);
 }
 
 static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)
@@ -246,7 +242,7 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	gc->to_irq = gpio_pin_to_irq;
 
 	gc->label = pfc->info->name;
-	gc->dev = pfc->dev;
+	gc->parent = pfc->dev;
 	gc->owner = THIS_MODULE;
 	gc->base = 0;
 	gc->ngpio = pfc->nr_gpio_pins;
@@ -322,7 +318,7 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *),
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	ret = gpiochip_add(&chip->gpio_chip);
+	ret = gpiochip_add_data(&chip->gpio_chip, chip);
 	if (unlikely(ret < 0))
 		return ERR_PTR(ret);
 

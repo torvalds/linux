@@ -694,7 +694,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = ngpios;
 	chip->num_banks = (ngpios + NGPIOS_PER_BANK - 1) / NGPIOS_PER_BANK;
 	gc->label = dev_name(dev);
-	gc->dev = dev;
+	gc->parent = dev;
 	gc->of_node = dev->of_node;
 	gc->request = iproc_gpio_request;
 	gc->free = iproc_gpio_free;

@@ -93,13 +93,6 @@ static struct sch311x_gpio_block_def sch311x_gpio_blocks[] = {
 	},
 };
 
-static inline struct sch311x_gpio_block *
-to_sch311x_gpio_block(struct gpio_chip *chip)
-{
-	return container_of(chip, struct sch311x_gpio_block, chip);
-}
-
-
 /*
  *	Super-IO functions
  */
@@ -142,14 +135,14 @@ static inline void sch311x_sio_outb(int sio_config_port, int reg, int val)
 
 static int sch311x_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	if (block->config_regs[offset] == 0) /* GPIO is not available */
 		return -ENODEV;
 
 	if (!request_region(block->runtime_reg + block->config_regs[offset],
 			    1, DRV_NAME)) {
-		dev_err(chip->dev, "Failed to request region 0x%04x.\n",
+		dev_err(chip->parent, "Failed to request region 0x%04x.\n",
 			block->runtime_reg + block->config_regs[offset]);
 		return -EBUSY;
 	}
@@ -158,7 +151,7 @@ static int sch311x_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	if (block->config_regs[offset] == 0) /* GPIO is not available */
 		return;
@@ -168,7 +161,7 @@ static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static int sch311x_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 	unsigned char data;
 
 	spin_lock(&block->lock);
@@ -192,7 +185,7 @@ static void __sch311x_gpio_set(struct sch311x_gpio_block *block,
 static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 			     int value)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	spin_lock(&block->lock);
 	 __sch311x_gpio_set(block, offset, value);
@@ -201,7 +194,7 @@ static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 
 static int sch311x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	spin_lock(&block->lock);
 	outb(SCH311X_GPIO_CONF_IN, block->runtime_reg +
@@ -214,7 +207,7 @@ static int sch311x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	spin_lock(&block->lock);
 
@@ -229,7 +222,7 @@ static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 
 static int sch311x_gpio_probe(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
+	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sch311x_gpio_priv *priv;
 	struct sch311x_gpio_block *block;
 	int err, i;
@@ -261,13 +254,13 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		block->chip.get = sch311x_gpio_get;
 		block->chip.set = sch311x_gpio_set;
 		block->chip.ngpio = 8;
-		block->chip.dev = &pdev->dev;
+		block->chip.parent = &pdev->dev;
 		block->chip.base = sch311x_gpio_blocks[i].base;
 		block->config_regs = sch311x_gpio_blocks[i].config_regs;
 		block->data_reg = sch311x_gpio_blocks[i].data_reg;
 		block->runtime_reg = pdata->runtime_reg;
 
-		err = gpiochip_add(&block->chip);
+		err = gpiochip_add_data(&block->chip, block);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"Could not register gpiochip, %d\n", err);
@@ -289,7 +282,7 @@ exit_err:
 
 static int sch311x_gpio_remove(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
+	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
 	int i;
 

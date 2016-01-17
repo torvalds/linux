@@ -106,7 +106,7 @@ static const int num_ports[] = {6, 12, 16, 16, 15, 16, 16, 12};
 static void ioh_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 {
 	u32 reg_val;
-	struct ioh_gpio *chip =	container_of(gpio, struct ioh_gpio, gpio);
+	struct ioh_gpio *chip =	gpiochip_get_data(gpio);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -122,15 +122,15 @@ static void ioh_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 
 static int ioh_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
-	struct ioh_gpio *chip =	container_of(gpio, struct ioh_gpio, gpio);
+	struct ioh_gpio *chip =	gpiochip_get_data(gpio);
 
-	return ioread32(&chip->reg->regs[chip->ch].pi) & (1 << nr);
+	return !!(ioread32(&chip->reg->regs[chip->ch].pi) & (1 << nr));
 }
 
 static int ioh_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 				     int val)
 {
-	struct ioh_gpio *chip =	container_of(gpio, struct ioh_gpio, gpio);
+	struct ioh_gpio *chip =	gpiochip_get_data(gpio);
 	u32 pm;
 	u32 reg_val;
 	unsigned long flags;
@@ -155,7 +155,7 @@ static int ioh_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 
 static int ioh_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
-	struct ioh_gpio *chip =	container_of(gpio, struct ioh_gpio, gpio);
+	struct ioh_gpio *chip =	gpiochip_get_data(gpio);
 	u32 pm;
 	unsigned long flags;
 
@@ -225,7 +225,7 @@ static void ioh_gpio_restore_reg_conf(struct ioh_gpio *chip)
 
 static int ioh_gpio_to_irq(struct gpio_chip *gpio, unsigned offset)
 {
-	struct ioh_gpio *chip = container_of(gpio, struct ioh_gpio, gpio);
+	struct ioh_gpio *chip = gpiochip_get_data(gpio);
 	return chip->irq_base + offset;
 }
 
@@ -450,7 +450,7 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 		chip->ch = i;
 		spin_lock_init(&chip->spinlock);
 		ioh_gpio_setup(chip, num_ports[i]);
-		ret = gpiochip_add(&chip->gpio);
+		ret = gpiochip_add_data(&chip->gpio, chip);
 		if (ret) {
 			dev_err(&pdev->dev, "IOH gpio: Failed to register GPIO\n");
 			goto err_gpiochip_add;

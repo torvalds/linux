@@ -16,7 +16,7 @@
 #include <linux/device.h>
 
 enum of_gpio_flags;
-
+enum gpiod_flags;
 struct acpi_device;
 
 /**

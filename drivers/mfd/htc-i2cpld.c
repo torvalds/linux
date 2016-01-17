@@ -429,7 +429,7 @@ static int htcpld_register_chip_gpio(
 	/* Setup the GPIO chips */
 	gpio_chip = &(chip->chip_out);
 	gpio_chip->label           = "htcpld-out";
-	gpio_chip->dev             = dev;
+	gpio_chip->parent             = dev;
 	gpio_chip->owner           = THIS_MODULE;
 	gpio_chip->get             = htcpld_chip_get;
 	gpio_chip->set             = htcpld_chip_set;
@@ -440,7 +440,7 @@ static int htcpld_register_chip_gpio(
 
 	gpio_chip = &(chip->chip_in);
 	gpio_chip->label           = "htcpld-in";
-	gpio_chip->dev             = dev;
+	gpio_chip->parent             = dev;
 	gpio_chip->owner           = THIS_MODULE;
 	gpio_chip->get             = htcpld_chip_get;
 	gpio_chip->set             = NULL;

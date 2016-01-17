@@ -570,7 +570,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);
-		ucb->gpio.dev = &ucb->dev;
+		ucb->gpio.parent = &ucb->dev;
 		ucb->gpio.owner = THIS_MODULE;
 		ucb->gpio.base = pdata->gpio_base;
 		ucb->gpio.ngpio = 10;
