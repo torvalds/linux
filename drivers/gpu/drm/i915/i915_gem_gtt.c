@@ -2384,6 +2384,32 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
+struct insert_entries {
+	struct i915_address_space *vm;
+	struct sg_table *st;
+	uint64_t start;
+	enum i915_cache_level level;
+	u32 flags;
+};
+
+static int gen8_ggtt_insert_entries__cb(void *_arg)
+{
+	struct insert_entries *arg = _arg;
+	gen8_ggtt_insert_entries(arg->vm, arg->st,
+				 arg->start, arg->level, arg->flags);
+	return 0;
+}
+
+static void gen8_ggtt_insert_entries__BKL(struct i915_address_space *vm,
+					  struct sg_table *st,
+					  uint64_t start,
+					  enum i915_cache_level level,
+					  u32 flags)
+{
+	struct insert_entries arg = { vm, st, start, level, flags };
+	stop_machine(gen8_ggtt_insert_entries__cb, &arg, NULL);
+}
+
 /*
  * Binds an object into the global gtt with the specified cache level. The object
  * will be accessible to the GPU via commands whose operands reference offsets
@@ -2558,26 +2584,6 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	vma->bound |= GLOBAL_BIND | LOCAL_BIND;
 
 	return 0;
-}
-
-struct ggtt_bind_vma__cb {
-	struct i915_vma *vma;
-	enum i915_cache_level cache_level;
-	u32 flags;
-};
-
-static int ggtt_bind_vma__cb(void *_arg)
-{
-	struct ggtt_bind_vma__cb *arg = _arg;
-	return ggtt_bind_vma(arg->vma, arg->cache_level, arg->flags);
-}
-
-static int ggtt_bind_vma__BKL(struct i915_vma *vma,
-			      enum i915_cache_level cache_level,
-			      u32 flags)
-{
-	struct ggtt_bind_vma__cb arg = { vma, cache_level, flags };
-	return stop_machine(ggtt_bind_vma__cb, &arg, NULL);
 }
 
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
@@ -3048,8 +3054,8 @@ static int gen8_gmch_probe(struct drm_device *dev,
 	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
 	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
 
-	if (IS_CHERRYVIEW(dev))
-		dev_priv->gtt.base.bind_vma = ggtt_bind_vma__BKL;
+	if (IS_CHERRYVIEW(dev_priv))
+		dev_priv->gtt.base.insert_entries = gen8_ggtt_insert_entries__BKL;
 
 	return ret;
 }

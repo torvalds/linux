@@ -3488,7 +3488,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	if (flags & PIN_MAPPABLE)
 		end = min_t(u64, end, dev_priv->gtt.mappable_end);
 	if (flags & PIN_ZONE_4G)
-		end = min_t(u64, end, (1ULL << 32));
+		end = min_t(u64, end, (1ULL << 32) - PAGE_SIZE);
 
 	if (alignment == 0)
 		alignment = flags & PIN_MAPPABLE ? fence_alignment :
