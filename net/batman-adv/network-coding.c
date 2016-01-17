@@ -1232,9 +1232,9 @@ out:
 	if (router_coding)
 		batadv_neigh_node_put(router_coding);
 	if (router_neigh_ifinfo)
-		batadv_neigh_ifinfo_free_ref(router_neigh_ifinfo);
+		batadv_neigh_ifinfo_put(router_neigh_ifinfo);
 	if (router_coding_ifinfo)
-		batadv_neigh_ifinfo_free_ref(router_coding_ifinfo);
+		batadv_neigh_ifinfo_put(router_coding_ifinfo);
 	return res;
 }
 

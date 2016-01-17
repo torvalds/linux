@@ -202,11 +202,11 @@ static void batadv_neigh_ifinfo_release(struct kref *ref)
 }
 
 /**
- * batadv_neigh_ifinfo_free_ref - decrement the refcounter and possibly release
+ * batadv_neigh_ifinfo_put - decrement the refcounter and possibly release
  *  the neigh_ifinfo
  * @neigh_ifinfo: the neigh_ifinfo object to release
  */
-void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo)
+void batadv_neigh_ifinfo_put(struct batadv_neigh_ifinfo *neigh_ifinfo)
 {
 	kref_put(&neigh_ifinfo->refcount, batadv_neigh_ifinfo_release);
 }
@@ -259,7 +259,7 @@ static void batadv_neigh_node_release(struct kref *ref)
 
 	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
 				  &neigh_node->ifinfo_list, list) {
-		batadv_neigh_ifinfo_free_ref(neigh_ifinfo);
+		batadv_neigh_ifinfo_put(neigh_ifinfo);
 	}
 
 	hardif_neigh = batadv_hardif_neigh_get(neigh_node->if_incoming,
@@ -966,7 +966,7 @@ batadv_purge_neigh_ifinfo(struct batadv_priv *bat_priv,
 			   neigh->addr, if_outgoing->net_dev->name);
 
 		hlist_del_rcu(&neigh_ifinfo->list);
-		batadv_neigh_ifinfo_free_ref(neigh_ifinfo);
+		batadv_neigh_ifinfo_put(neigh_ifinfo);
 	}
 
 	spin_unlock_bh(&neigh->ifinfo_lock);
