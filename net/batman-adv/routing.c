@@ -271,7 +271,7 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return ret;
 }
 
@@ -319,7 +319,7 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return ret;
 }
 
@@ -403,7 +403,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return ret;
 }
 
@@ -649,7 +649,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return ret;
 }
 
@@ -704,7 +704,7 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 
 	return ret;
 }
@@ -768,7 +768,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 			return 0;
 
 		curr_ttvn = (u8)atomic_read(&orig_node->last_ttvn);
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	}
 
 	/* check if the TTVN contained in the packet is fresher than what the
@@ -908,7 +908,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 
 rx_success:
 		if (orig_node)
-			batadv_orig_node_free_ref(orig_node);
+			batadv_orig_node_put(orig_node);
 
 		return NET_RX_SUCCESS;
 	}
@@ -1019,7 +1019,7 @@ int batadv_recv_frag_packet(struct sk_buff *skb,
 
 out:
 	if (orig_node_src)
-		batadv_orig_node_free_ref(orig_node_src);
+		batadv_orig_node_put(orig_node_src);
 
 	return ret;
 }
@@ -1124,6 +1124,6 @@ spin_unlock:
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return ret;
 }

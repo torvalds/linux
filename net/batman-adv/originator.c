@@ -810,11 +810,11 @@ static void batadv_orig_node_release(struct kref *ref)
 }
 
 /**
- * batadv_orig_node_free_ref - decrement the orig node refcounter and possibly
+ * batadv_orig_node_put - decrement the orig node refcounter and possibly
  *  release it
  * @orig_node: the orig node to free
  */
-void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node)
+void batadv_orig_node_put(struct batadv_orig_node *orig_node)
 {
 	kref_put(&orig_node->refcount, batadv_orig_node_release);
 }
@@ -843,7 +843,7 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
 		hlist_for_each_entry_safe(orig_node, node_tmp,
 					  head, hash_entry) {
 			hlist_del_rcu(&orig_node->hash_entry);
-			batadv_orig_node_free_ref(orig_node);
+			batadv_orig_node_put(orig_node);
 		}
 		spin_unlock_bh(list_lock);
 	}
@@ -1204,7 +1204,7 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 				batadv_tt_global_del_orig(orig_node->bat_priv,
 							  orig_node, -1,
 							  "originator timed out");
-				batadv_orig_node_free_ref(orig_node);
+				batadv_orig_node_put(orig_node);
 				continue;
 			}
 

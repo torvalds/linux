@@ -71,7 +71,7 @@ static void batadv_gw_node_release(struct kref *ref)
 
 	gw_node = container_of(ref, struct batadv_gw_node, refcount);
 
-	batadv_orig_node_free_ref(gw_node->orig_node);
+	batadv_orig_node_put(gw_node->orig_node);
 	kfree_rcu(gw_node, rcu);
 }
 
@@ -415,7 +415,7 @@ reselect:
 	batadv_gw_reselect(bat_priv);
 out:
 	if (curr_gw_orig)
-		batadv_orig_node_free_ref(curr_gw_orig);
+		batadv_orig_node_put(curr_gw_orig);
 	if (router_gw)
 		batadv_neigh_node_free_ref(router_gw);
 	if (router_orig)
@@ -446,7 +446,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
 	if (!gw_node) {
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 		return;
 	}
 
@@ -879,7 +879,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 out:
 	if (orig_dst_node)
-		batadv_orig_node_free_ref(orig_dst_node);
+		batadv_orig_node_put(orig_dst_node);
 	if (curr_gw)
 		batadv_gw_node_free_ref(curr_gw);
 	if (gw_node)

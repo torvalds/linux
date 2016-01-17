@@ -218,7 +218,7 @@ static void batadv_nc_node_release(struct kref *ref)
 
 	nc_node = container_of(ref, struct batadv_nc_node, refcount);
 
-	batadv_orig_node_free_ref(nc_node->orig_node);
+	batadv_orig_node_put(nc_node->orig_node);
 	kfree_rcu(nc_node, rcu);
 }
 
@@ -1372,7 +1372,7 @@ batadv_nc_skb_src_search(struct batadv_priv *bat_priv,
 	}
 	rcu_read_unlock();
 
-	batadv_orig_node_free_ref(orig_node);
+	batadv_orig_node_put(orig_node);
 	return nc_packet;
 }
 

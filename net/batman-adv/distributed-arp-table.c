@@ -547,7 +547,7 @@ static void batadv_choose_next_candidate(struct batadv_priv *bat_priv,
 
 			max = tmp_max;
 			if (max_orig_node)
-				batadv_orig_node_free_ref(max_orig_node);
+				batadv_orig_node_put(max_orig_node);
 			max_orig_node = orig_node;
 		}
 		rcu_read_unlock();
@@ -676,7 +676,7 @@ static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
 free_neigh:
 		batadv_neigh_node_free_ref(neigh_node);
 free_orig:
-		batadv_orig_node_free_ref(cand[i].orig_node);
+		batadv_orig_node_put(cand[i].orig_node);
 	}
 
 out:

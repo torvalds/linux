@@ -392,7 +392,7 @@ static void batadv_tt_orig_list_entry_release(struct kref *ref)
 	orig_entry = container_of(ref, struct batadv_tt_orig_list_entry,
 				  refcount);
 
-	batadv_orig_node_free_ref(orig_entry->orig_node);
+	batadv_orig_node_put(orig_entry->orig_node);
 	kfree_rcu(orig_entry, rcu);
 }
 
@@ -2776,9 +2776,9 @@ unlock:
 
 out:
 	if (res_dst_orig_node)
-		batadv_orig_node_free_ref(res_dst_orig_node);
+		batadv_orig_node_put(res_dst_orig_node);
 	if (req_dst_orig_node)
-		batadv_orig_node_free_ref(req_dst_orig_node);
+		batadv_orig_node_put(req_dst_orig_node);
 	kfree(tvlv_tt_data);
 	return ret;
 }
@@ -2893,7 +2893,7 @@ unlock:
 out:
 	spin_unlock_bh(&bat_priv->tt.commit_lock);
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	kfree(tvlv_tt_data);
@@ -2981,7 +2981,7 @@ static void batadv_tt_fill_gtable(struct batadv_priv *bat_priv,
 
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 }
 
 static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
@@ -3087,7 +3087,7 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 	spin_unlock_bh(&bat_priv->tt.req_list_lock);
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 }
 
 static void batadv_tt_roam_list_free(struct batadv_priv *bat_priv)
@@ -3802,7 +3802,7 @@ static int batadv_roam_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
 
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return NET_RX_SUCCESS;
 }
 
