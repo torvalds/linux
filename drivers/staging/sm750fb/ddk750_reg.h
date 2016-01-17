@@ -497,16 +497,10 @@
 
 #define POWER_MODE_CTRL                               0x00004C
 #ifdef VALIDATION_CHIP
-    #define POWER_MODE_CTRL_336CLK                    4:4
-    #define POWER_MODE_CTRL_336CLK_OFF                0
-    #define POWER_MODE_CTRL_336CLK_ON                 1
+    #define POWER_MODE_CTRL_336CLK                    BIT(4)
 #endif
-#define POWER_MODE_CTRL_OSC_INPUT                     3:3
-#define POWER_MODE_CTRL_OSC_INPUT_OFF                 0
-#define POWER_MODE_CTRL_OSC_INPUT_ON                  1
-#define POWER_MODE_CTRL_ACPI                          2:2
-#define POWER_MODE_CTRL_ACPI_OFF                      0
-#define POWER_MODE_CTRL_ACPI_ON                       1
+#define POWER_MODE_CTRL_OSC_INPUT                     BIT(3)
+#define POWER_MODE_CTRL_ACPI                          BIT(2)
 #define POWER_MODE_CTRL_MODE                          1:0
 #define POWER_MODE_CTRL_MODE_MODE0                    0
 #define POWER_MODE_CTRL_MODE_MODE1                    1
