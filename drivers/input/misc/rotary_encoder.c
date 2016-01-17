@@ -33,6 +33,7 @@
 struct rotary_encoder {
 	struct input_dev *input;
 	const struct rotary_encoder_platform_data *pdata;
+	struct mutex access_mutex;
 
 	unsigned int axis;
 	unsigned int pos;
@@ -48,8 +49,8 @@ struct rotary_encoder {
 
 static int rotary_encoder_get_state(const struct rotary_encoder_platform_data *pdata)
 {
-	int a = !!gpio_get_value(pdata->gpio_a);
-	int b = !!gpio_get_value(pdata->gpio_b);
+	int a = !!gpio_get_value_cansleep(pdata->gpio_a);
+	int b = !!gpio_get_value_cansleep(pdata->gpio_b);
 
 	a ^= pdata->inverted_a;
 	b ^= pdata->inverted_b;
@@ -94,6 +95,8 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 	struct rotary_encoder *encoder = dev_id;
 	int state;
 
+	mutex_lock(&encoder->access_mutex);
+
 	state = rotary_encoder_get_state(encoder->pdata);
 
 	switch (state) {
@@ -115,6 +118,8 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 		break;
 	}
 
+	mutex_unlock(&encoder->access_mutex);
+
 	return IRQ_HANDLED;
 }
 
@@ -122,6 +127,8 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 {
 	struct rotary_encoder *encoder = dev_id;
 	int state;
+
+	mutex_lock(&encoder->access_mutex);
 
 	state = rotary_encoder_get_state(encoder->pdata);
 
@@ -140,6 +147,8 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 		break;
 	}
 
+	mutex_unlock(&encoder->access_mutex);
+
 	return IRQ_HANDLED;
 }
 
@@ -148,6 +157,8 @@ static irqreturn_t rotary_encoder_quarter_period_irq(int irq, void *dev_id)
 	struct rotary_encoder *encoder = dev_id;
 	unsigned char sum;
 	int state;
+
+	mutex_lock(&encoder->access_mutex);
 
 	state = rotary_encoder_get_state(encoder->pdata);
 
@@ -189,6 +200,8 @@ static irqreturn_t rotary_encoder_quarter_period_irq(int irq, void *dev_id)
 
 out:
 	encoder->last_stable = state;
+	mutex_unlock(&encoder->access_mutex);
+
 	return IRQ_HANDLED;
 }
 
@@ -285,6 +298,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	if (!input)
 		return -ENOMEM;
 
+	mutex_init(&encoder->access_mutex);
+
 	encoder->input = input;
 	encoder->pdata = pdata;
 
@@ -337,17 +352,19 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	err = devm_request_irq(dev, encoder->irq_a, handler,
-			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			       DRV_NAME, encoder);
+	err = devm_request_threaded_irq(dev, encoder->irq_a, NULL, handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+				IRQF_ONESHOT,
+				DRV_NAME, encoder);
 	if (err) {
 		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_a);
 		return err;
 	}
 
-	err = devm_request_irq(dev, encoder->irq_b, handler,
-			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			       DRV_NAME, encoder);
+	err = devm_request_threaded_irq(dev, encoder->irq_b, NULL, handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+				IRQF_ONESHOT,
+				DRV_NAME, encoder);
 	if (err) {
 		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_b);
 		return err;
