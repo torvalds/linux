@@ -6,6 +6,7 @@
 
 #include <linux/linkage.h>
 #include <asm/page.h>
+#include <asm/export.h>
 
 	/* Zero out 64 bytes of memory at (buf + offset).
 	 * Assumes %g1 contains zero.
@@ -64,6 +65,7 @@ ENTRY(bzero_1page)
 	retl
 	 nop
 ENDPROC(bzero_1page)
+EXPORT_SYMBOL(bzero_1page)
 
 ENTRY(__copy_1page)
 /* NOTE: If you change the number of insns of this routine, please check
@@ -87,3 +89,4 @@ ENTRY(__copy_1page)
 	retl
 	 nop
 ENDPROC(__copy_1page)
+EXPORT_SYMBOL(__copy_1page)

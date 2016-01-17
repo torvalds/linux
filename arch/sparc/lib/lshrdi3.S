@@ -1,4 +1,5 @@
 #include <linux/linkage.h>
+#include <asm/export.h>
 
 ENTRY(__lshrdi3)
 	cmp	%o2, 0
@@ -25,3 +26,4 @@ ENTRY(__lshrdi3)
 	retl 
 	 nop 
 ENDPROC(__lshrdi3)
+EXPORT_SYMBOL(__lshrdi3)

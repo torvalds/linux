@@ -5,6 +5,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/export.h>
 
 	.text
 ENTRY(memmove) /* o0=dst o1=src o2=len */
@@ -57,3 +58,4 @@ ENTRY(memmove) /* o0=dst o1=src o2=len */
 	 stb		%g7, [%o0 - 0x1]
 	ba,a,pt		%xcc, 99b
 ENDPROC(memmove)
+EXPORT_SYMBOL(memmove)

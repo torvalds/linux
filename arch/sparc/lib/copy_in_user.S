@@ -5,6 +5,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asi.h>
+#include <asm/export.h>
 
 #define XCC xcc
 
@@ -90,3 +91,4 @@ ENTRY(___copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
 	retl
 	 clr		%o0
 ENDPROC(___copy_in_user)
+EXPORT_SYMBOL(___copy_in_user)

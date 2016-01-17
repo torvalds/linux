@@ -7,6 +7,7 @@
  * Copyright (C) 1996 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
+#include <asm/export.h>
 #define FUNC(x) 		\
 	.globl	x;		\
 	.type	x,@function;	\
@@ -143,8 +144,10 @@ x:
 #ifdef __KERNEL__
 FUNC(amemmove)
 FUNC(__memmove)
+EXPORT_SYMBOL(__memmove)
 #endif
 FUNC(memmove)
+EXPORT_SYMBOL(memmove)
 	cmp		%o0, %o1
 	mov		%o0, %g7
 	bleu		9f
@@ -202,6 +205,7 @@ FUNC(memmove)
 	 add		%o0, 2, %o0
 
 FUNC(memcpy)	/* %o0=dst %o1=src %o2=len */
+EXPORT_SYMBOL(memcpy)
 
 	sub		%o0, %o1, %o4
 	mov		%o0, %g7
