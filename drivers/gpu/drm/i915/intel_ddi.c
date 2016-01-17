@@ -353,10 +353,10 @@ static const struct ddi_buf_trans *skl_get_buf_trans_dp(struct drm_device *dev,
 {
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKL_ULX(dev)) {
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 		ddi_translations = skl_y_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-	} else if (IS_SKL_ULT(dev)) {
+	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
 		ddi_translations = skl_u_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
 	} else {
@@ -373,7 +373,7 @@ static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKL_ULX(dev)) {
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 		if (dev_priv->edp_low_vswing) {
 			ddi_translations = skl_y_ddi_translations_edp;
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
@@ -381,7 +381,7 @@ static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
 			ddi_translations = skl_y_ddi_translations_dp;
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
 		}
-	} else if (IS_SKL_ULT(dev)) {
+	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
 		if (dev_priv->edp_low_vswing) {
 			ddi_translations = skl_u_ddi_translations_edp;
 			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
@@ -408,7 +408,7 @@ skl_get_buf_trans_hdmi(struct drm_device *dev,
 {
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKL_ULX(dev)) {
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 		ddi_translations = skl_y_ddi_translations_hdmi;
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
 	} else {
@@ -675,15 +675,16 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		temp = I915_READ(DP_TP_STATUS(PORT_E));
 		if (temp & DP_TP_STATUS_AUTOTRAIN_DONE) {
 			DRM_DEBUG_KMS("FDI link training done on step %d\n", i);
+			break;
+		}
 
-			/* Enable normal pixel sending for FDI */
-			I915_WRITE(DP_TP_CTL(PORT_E),
-				   DP_TP_CTL_FDI_AUTOTRAIN |
-				   DP_TP_CTL_LINK_TRAIN_NORMAL |
-				   DP_TP_CTL_ENHANCED_FRAME_ENABLE |
-				   DP_TP_CTL_ENABLE);
-
-			return;
+		/*
+		 * Leave things enabled even if we failed to train FDI.
+		 * Results in less fireworks from the state checker.
+		 */
+		if (i == ARRAY_SIZE(hsw_ddi_translations_fdi) * 2 - 1) {
+			DRM_ERROR("FDI link training failed!\n");
+			break;
 		}
 
 		temp = I915_READ(DDI_BUF_CTL(PORT_E));
@@ -712,7 +713,12 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(FDI_RX_MISC(PIPE_A));
 	}
 
-	DRM_ERROR("FDI link training failed!\n");
+	/* Enable normal pixel sending for FDI */
+	I915_WRITE(DP_TP_CTL(PORT_E),
+		   DP_TP_CTL_FDI_AUTOTRAIN |
+		   DP_TP_CTL_LINK_TRAIN_NORMAL |
+		   DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+		   DP_TP_CTL_ENABLE);
 }
 
 void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
@@ -3108,6 +3114,19 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 }
 
+bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
+				 struct intel_crtc *intel_crtc)
+{
+	u32 temp;
+
+	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
+			return true;
+	}
+	return false;
+}
+
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config)
 {
@@ -3151,7 +3170,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->has_hdmi_sink = true;
 		intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 
-		if (intel_hdmi->infoframe_enabled(&encoder->base))
+		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
 		break;
 	case TRANS_DDI_MODE_SELECT_DVI:
@@ -3168,11 +3187,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
-		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
-			pipe_config->has_audio = true;
-	}
+	pipe_config->has_audio =
+		intel_ddi_is_audio_enabled(dev_priv, intel_crtc);
 
 	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp_bpp &&
 	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {
@@ -3284,7 +3300,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	encoder = &intel_encoder->base;
 
 	drm_encoder_init(dev, encoder, &intel_ddi_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;

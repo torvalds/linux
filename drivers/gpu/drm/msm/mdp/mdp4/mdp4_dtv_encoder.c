@@ -262,7 +262,7 @@ struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev)
 	encoder = &mdp4_dtv_encoder->base;
 
 	drm_encoder_init(dev, encoder, &mdp4_dtv_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 	drm_encoder_helper_add(encoder, &mdp4_dtv_encoder_helper_funcs);
 
 	mdp4_dtv_encoder->src_clk = devm_clk_get(dev->dev, "src_clk");

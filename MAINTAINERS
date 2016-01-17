@@ -3768,6 +3768,15 @@ S:	Maintained
 F:	drivers/gpu/drm/sti
 F:	Documentation/devicetree/bindings/display/st,stih4xx.txt
 
+DRM DRIVERS FOR VIVANTE GPU IP
+M:	Lucas Stach <l.stach@pengutronix.de>
+R:	Russell King <linux+etnaviv@arm.linux.org.uk>
+R:	Christian Gmeiner <christian.gmeiner@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+F:	drivers/gpu/drm/etnaviv
+F:	Documentation/devicetree/bindings/display/etnaviv
+
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
 L:	linux-media@vger.kernel.org

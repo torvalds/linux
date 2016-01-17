@@ -130,10 +130,6 @@ int __must_check
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
 
-int
-drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
-			       struct drm_crtc *crtc);
-
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state);
 
 void

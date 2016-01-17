@@ -31,13 +31,8 @@
 #include <linux/iommu.h>
 #include <linux/types.h>
 #include <linux/of_graph.h>
+#include <linux/of_device.h>
 #include <asm/sizes.h>
-
-#ifndef CONFIG_OF
-#include <mach/board.h>
-#include <mach/socinfo.h>
-#include <mach/iommu_domains.h>
-#endif
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>

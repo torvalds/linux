@@ -372,7 +372,7 @@ static int execlists_update_context(struct drm_i915_gem_request *rq)
 	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
 	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
 	reg_state = kmap_atomic(page);
 
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
@@ -1425,7 +1425,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *ring)
 		return ret;
 	}
 
-	page = i915_gem_object_get_page(wa_ctx->obj, 0);
+	page = i915_gem_object_get_dirty_page(wa_ctx->obj, 0);
 	batch = kmap_atomic(page);
 	offset = 0;
 
@@ -1894,8 +1894,10 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 
 	dev_priv = ring->dev->dev_private;
 
-	intel_logical_ring_stop(ring);
-	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	if (ring->buffer) {
+		intel_logical_ring_stop(ring);
+		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	}
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -1909,6 +1911,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 	}
 
 	lrc_destroy_wa_ctx_obj(ring);
+	ring->dev = NULL;
 }
 
 static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
@@ -1931,11 +1934,11 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
-		return ret;
+		goto error;
 
 	ret = intel_lr_context_deferred_alloc(ring->default_context, ring);
 	if (ret)
-		return ret;
+		goto error;
 
 	/* As this is the default context, always pin it */
 	ret = intel_lr_context_do_pin(
@@ -1946,9 +1949,13 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 		DRM_ERROR(
 			"Failed to pin and map ringbuffer %s: %d\n",
 			ring->name, ret);
-		return ret;
+		goto error;
 	}
 
+	return 0;
+
+error:
+	intel_logical_ring_cleanup(ring);
 	return ret;
 }
 
@@ -2257,7 +2264,7 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
 	reg_state = kmap_atomic(page);
 
 	/* A context is actually a big batch buffer with several MI_LOAD_REGISTER_IMM
@@ -2343,9 +2350,6 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	}
 
 	kunmap_atomic(reg_state);
-
-	ctx_obj->dirty = 1;
-	set_page_dirty(page);
 	i915_gem_object_unpin_pages(ctx_obj);
 
 	return 0;
@@ -2529,7 +2533,7 @@ void intel_lr_context_reset(struct drm_device *dev,
 			WARN(1, "Failed get_pages for context obj\n");
 			continue;
 		}
-		page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+		page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
 		reg_state = kmap_atomic(page);
 
 		reg_state[CTX_RING_HEAD+1] = 0;

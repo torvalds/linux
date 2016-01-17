@@ -27,7 +27,7 @@
 #ifndef _UAPI_I915_DRM_H_
 #define _UAPI_I915_DRM_H_
 
-#include <drm/drm.h>
+#include "drm.h"
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
@@ -356,6 +356,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_EU_TOTAL		 34
 #define I915_PARAM_HAS_GPU_RESET	 35
 #define I915_PARAM_HAS_RESOURCE_STREAMER 36
+#define I915_PARAM_HAS_EXEC_SOFTPIN	 37
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -682,8 +683,12 @@ struct drm_i915_gem_exec_object2 {
 	__u64 alignment;
 
 	/**
-	 * Returned value of the updated offset of the object, for future
-	 * presumed_offset writes.
+	 * When the EXEC_OBJECT_PINNED flag is specified this is populated by
+	 * the user with the GTT offset at which this object will be pinned.
+	 * When the I915_EXEC_NO_RELOC flag is specified this must contain the
+	 * presumed_offset of the object.
+	 * During execbuffer2 the kernel populates it with the value of the
+	 * current GTT offset of the object, for future presumed_offset writes.
 	 */
 	__u64 offset;
 
@@ -691,7 +696,8 @@ struct drm_i915_gem_exec_object2 {
 #define EXEC_OBJECT_NEEDS_GTT	(1<<1)
 #define EXEC_OBJECT_WRITE	(1<<2)
 #define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_SUPPORTS_48B_ADDRESS<<1)
+#define EXEC_OBJECT_PINNED	(1<<4)
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PINNED<<1)
 	__u64 flags;
 
 	__u64 rsvd1;

@@ -550,6 +550,13 @@ typedef struct _COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_1
 //MPLL_CNTL_FLAG_BYPASS_AD_PLL has a wrong name, should be BYPASS_DQ_PLL
 #define MPLL_CNTL_FLAG_BYPASS_AD_PLL            0x04
 
+// use for ComputeMemoryClockParamTable
+typedef struct _COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_2
+{
+  COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 ulClock;
+  ULONG ulReserved;
+}COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_2;
+
 typedef struct _DYNAMICE_MEMORY_SETTINGS_PARAMETER
 {
   ATOM_COMPUTE_CLOCK_FREQ ulClock;
@@ -4987,6 +4994,78 @@ typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_3
   ULONG  ulSCRPercent;
   ULONG  ulSDCMargine;
 }ATOM_ASIC_PROFILING_INFO_V3_3;
+
+// for Fiji speed EVV algorithm
+typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_4
+{
+  ATOM_COMMON_TABLE_HEADER         asHeader;
+  ULONG  ulEvvLkgFactor;
+  ULONG  ulBoardCoreTemp;
+  ULONG  ulMaxVddc;
+  ULONG  ulMinVddc;
+  ULONG  ulLoadLineSlop;
+  ULONG  ulLeakageTemp;
+  ULONG  ulLeakageVoltage;
+  EFUSE_LINEAR_FUNC_PARAM sCACm;
+  EFUSE_LINEAR_FUNC_PARAM sCACb;
+  EFUSE_LOGISTIC_FUNC_PARAM sKt_b;
+  EFUSE_LOGISTIC_FUNC_PARAM sKv_m;
+  EFUSE_LOGISTIC_FUNC_PARAM sKv_b;
+  USHORT usLkgEuseIndex;
+  UCHAR  ucLkgEfuseBitLSB;
+  UCHAR  ucLkgEfuseLength;
+  ULONG  ulLkgEncodeLn_MaxDivMin;
+  ULONG  ulLkgEncodeMax;
+  ULONG  ulLkgEncodeMin;
+  ULONG  ulEfuseLogisticAlpha;
+  USHORT usPowerDpm0;
+  USHORT usPowerDpm1;
+  USHORT usPowerDpm2;
+  USHORT usPowerDpm3;
+  USHORT usPowerDpm4;
+  USHORT usPowerDpm5;
+  USHORT usPowerDpm6;
+  USHORT usPowerDpm7;
+  ULONG  ulTdpDerateDPM0;
+  ULONG  ulTdpDerateDPM1;
+  ULONG  ulTdpDerateDPM2;
+  ULONG  ulTdpDerateDPM3;
+  ULONG  ulTdpDerateDPM4;
+  ULONG  ulTdpDerateDPM5;
+  ULONG  ulTdpDerateDPM6;
+  ULONG  ulTdpDerateDPM7;
+  EFUSE_LINEAR_FUNC_PARAM sRoFuse;
+  ULONG  ulEvvDefaultVddc;
+  ULONG  ulEvvNoCalcVddc;
+  USHORT usParamNegFlag;
+  USHORT usSpeed_Model;
+  ULONG  ulSM_A0;
+  ULONG  ulSM_A1;
+  ULONG  ulSM_A2;
+  ULONG  ulSM_A3;
+  ULONG  ulSM_A4;
+  ULONG  ulSM_A5;
+  ULONG  ulSM_A6;
+  ULONG  ulSM_A7;
+  UCHAR  ucSM_A0_sign;
+  UCHAR  ucSM_A1_sign;
+  UCHAR  ucSM_A2_sign;
+  UCHAR  ucSM_A3_sign;
+  UCHAR  ucSM_A4_sign;
+  UCHAR  ucSM_A5_sign;
+  UCHAR  ucSM_A6_sign;
+  UCHAR  ucSM_A7_sign;
+  ULONG ulMargin_RO_a;
+  ULONG ulMargin_RO_b;
+  ULONG ulMargin_RO_c;
+  ULONG ulMargin_fixed;
+  ULONG ulMargin_Fmax_mean;
+  ULONG ulMargin_plat_mean;
+  ULONG ulMargin_Fmax_sigma;
+  ULONG ulMargin_plat_sigma;
+  ULONG ulMargin_DC_sigma;
+  ULONG ulReserved[8];            // Reserved for future ASIC
+}ATOM_ASIC_PROFILING_INFO_V3_4;
 
 typedef struct _ATOM_POWER_SOURCE_OBJECT
 {

@@ -79,9 +79,10 @@ int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_enable_scheduler = 1;
-int amdgpu_sched_jobs = 16;
+int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_enable_semaphores = 0;
+int amdgpu_powerplay = -1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -155,7 +156,7 @@ module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 MODULE_PARM_DESC(enable_scheduler, "enable SW GPU scheduler (1 = enable (default), 0 = disable)");
 module_param_named(enable_scheduler, amdgpu_enable_scheduler, int, 0444);
 
-MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 16)");
+MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 32)");
 module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
@@ -163,6 +164,11 @@ module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 
 MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable, 0 = disable (default))");
 module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
+
+#ifdef CONFIG_DRM_AMD_POWERPLAY
+MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
+module_param_named(powerplay, amdgpu_powerplay, int, 0444);
+#endif
 
 static struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK

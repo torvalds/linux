@@ -1142,8 +1142,34 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   MEMSTAT_VID_SHIFT);
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if (IS_GEN6(dev) || (IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) ||
-		   IS_BROADWELL(dev) || IS_GEN9(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		u32 freq_sts;
+
+		mutex_lock(&dev_priv->rps.hw_lock);
+		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
+		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
+
+		seq_printf(m, "actual GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
+
+		seq_printf(m, "current GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+
+		seq_printf(m, "max GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+
+		seq_printf(m, "min GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+
+		seq_printf(m, "idle GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
+
+		seq_printf(m,
+			   "efficient (RPe) frequency: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
+		mutex_unlock(&dev_priv->rps.hw_lock);
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		u32 rp_state_limits;
 		u32 gt_perf_status;
 		u32 rp_state_cap;
@@ -1284,33 +1310,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
-	} else if (IS_VALLEYVIEW(dev)) {
-		u32 freq_sts;
-
-		mutex_lock(&dev_priv->rps.hw_lock);
-		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
-		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
-
-		seq_printf(m, "actual GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
-
-		seq_printf(m, "current GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
-
-		seq_printf(m, "max GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
-
-		seq_printf(m, "min GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
-
-		seq_printf(m, "idle GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
-
-		seq_printf(m,
-			   "efficient (RPe) frequency: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
-		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_puts(m, "no P-state info available\n");
 	}
@@ -1602,7 +1601,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		return vlv_drpc_info(m);
 	else if (INTEL_INFO(dev)->gen >= 6)
 		return gen6_drpc_info(m);
@@ -1639,7 +1638,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 	mutex_lock(&dev_priv->fbc.lock);
 
-	if (intel_fbc_enabled(dev_priv))
+	if (intel_fbc_is_active(dev_priv))
 		seq_puts(m, "FBC enabled\n");
 	else
 		seq_printf(m, "FBC disabled: %s\n",
@@ -1743,7 +1742,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 		sr_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;
 	else if (IS_PINEVIEW(dev))
 		sr_enabled = I915_READ(DSPFW3) & PINEVIEW_SELF_REFRESH_EN;
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		sr_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
 	intel_runtime_pm_put(dev_priv);
@@ -1843,25 +1842,31 @@ static int i915_opregion(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
-	void *data = kmalloc(OPREGION_SIZE, GFP_KERNEL);
 	int ret;
-
-	if (data == NULL)
-		return -ENOMEM;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		goto out;
 
-	if (opregion->header) {
-		memcpy(data, opregion->header, OPREGION_SIZE);
-		seq_write(m, data, OPREGION_SIZE);
-	}
+	if (opregion->header)
+		seq_write(m, opregion->header, OPREGION_SIZE);
 
 	mutex_unlock(&dev->struct_mutex);
 
 out:
-	kfree(data);
+	return 0;
+}
+
+static int i915_vbt(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+
+	if (opregion->vbt)
+		seq_write(m, opregion->vbt, opregion->vbt_size);
+
 	return 0;
 }
 
@@ -1869,33 +1874,29 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct intel_fbdev *ifbdev = NULL;
-	struct intel_framebuffer *fb;
+	struct intel_framebuffer *fbdev_fb = NULL;
 	struct drm_framebuffer *drm_fb;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct drm_i915_private *dev_priv = dev->dev_private;
+       if (to_i915(dev)->fbdev) {
+               fbdev_fb = to_intel_framebuffer(to_i915(dev)->fbdev->helper.fb);
 
-	ifbdev = dev_priv->fbdev;
-	if (ifbdev) {
-		fb = to_intel_framebuffer(ifbdev->helper.fb);
-
-		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
-			   fb->base.width,
-			   fb->base.height,
-			   fb->base.depth,
-			   fb->base.bits_per_pixel,
-			   fb->base.modifier[0],
-			   atomic_read(&fb->base.refcount.refcount));
-		describe_obj(m, fb->obj);
-		seq_putc(m, '\n');
-	}
+               seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
+                         fbdev_fb->base.width,
+                         fbdev_fb->base.height,
+                         fbdev_fb->base.depth,
+                         fbdev_fb->base.bits_per_pixel,
+                         fbdev_fb->base.modifier[0],
+                         atomic_read(&fbdev_fb->base.refcount.refcount));
+               describe_obj(m, fbdev_fb->obj);
+               seq_putc(m, '\n');
+       }
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	drm_for_each_fb(drm_fb, dev) {
-		fb = to_intel_framebuffer(drm_fb);
-		if (ifbdev && &fb->base == ifbdev->helper.fb)
+		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
+		if (fb == fbdev_fb)
 			continue;
 
 		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
@@ -2473,15 +2474,15 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	if (!HAS_GUC_SCHED(dev_priv->dev))
 		return 0;
 
+	if (mutex_lock_interruptible(&dev->struct_mutex))
+		return 0;
+
 	/* Take a local copy of the GuC data, so we can dump it at leisure */
-	spin_lock(&dev_priv->guc.host2guc_lock);
 	guc = dev_priv->guc;
-	if (guc.execbuf_client) {
-		spin_lock(&guc.execbuf_client->wq_lock);
+	if (guc.execbuf_client)
 		client = *guc.execbuf_client;
-		spin_unlock(&guc.execbuf_client->wq_lock);
-	}
-	spin_unlock(&dev_priv->guc.host2guc_lock);
+
+	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
 	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
@@ -2582,8 +2583,11 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		}
 	seq_puts(m, "\n");
 
-	/* CHV PSR has no kind of performance counter */
-	if (HAS_DDI(dev)) {
+	/*
+	 * VLV/CHV PSR has no kind of performance counter
+	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
+	 */
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		psrperf = I915_READ(EDP_PSR_PERF_CNT) &
 			EDP_PSR_PERF_CNT_MASK;
 
@@ -2685,71 +2689,6 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static const char *power_domain_str(enum intel_display_power_domain domain)
-{
-	switch (domain) {
-	case POWER_DOMAIN_PIPE_A:
-		return "PIPE_A";
-	case POWER_DOMAIN_PIPE_B:
-		return "PIPE_B";
-	case POWER_DOMAIN_PIPE_C:
-		return "PIPE_C";
-	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
-		return "PIPE_A_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
-		return "PIPE_B_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
-		return "PIPE_C_PANEL_FITTER";
-	case POWER_DOMAIN_TRANSCODER_A:
-		return "TRANSCODER_A";
-	case POWER_DOMAIN_TRANSCODER_B:
-		return "TRANSCODER_B";
-	case POWER_DOMAIN_TRANSCODER_C:
-		return "TRANSCODER_C";
-	case POWER_DOMAIN_TRANSCODER_EDP:
-		return "TRANSCODER_EDP";
-	case POWER_DOMAIN_PORT_DDI_A_LANES:
-		return "PORT_DDI_A_LANES";
-	case POWER_DOMAIN_PORT_DDI_B_LANES:
-		return "PORT_DDI_B_LANES";
-	case POWER_DOMAIN_PORT_DDI_C_LANES:
-		return "PORT_DDI_C_LANES";
-	case POWER_DOMAIN_PORT_DDI_D_LANES:
-		return "PORT_DDI_D_LANES";
-	case POWER_DOMAIN_PORT_DDI_E_LANES:
-		return "PORT_DDI_E_LANES";
-	case POWER_DOMAIN_PORT_DSI:
-		return "PORT_DSI";
-	case POWER_DOMAIN_PORT_CRT:
-		return "PORT_CRT";
-	case POWER_DOMAIN_PORT_OTHER:
-		return "PORT_OTHER";
-	case POWER_DOMAIN_VGA:
-		return "VGA";
-	case POWER_DOMAIN_AUDIO:
-		return "AUDIO";
-	case POWER_DOMAIN_PLLS:
-		return "PLLS";
-	case POWER_DOMAIN_AUX_A:
-		return "AUX_A";
-	case POWER_DOMAIN_AUX_B:
-		return "AUX_B";
-	case POWER_DOMAIN_AUX_C:
-		return "AUX_C";
-	case POWER_DOMAIN_AUX_D:
-		return "AUX_D";
-	case POWER_DOMAIN_GMBUS:
-		return "GMBUS";
-	case POWER_DOMAIN_MODESET:
-		return "MODESET";
-	case POWER_DOMAIN_INIT:
-		return "INIT";
-	default:
-		MISSING_CASE(domain);
-		return "?";
-	}
-}
-
 static int i915_power_domain_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -2775,7 +2714,7 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 				continue;
 
 			seq_printf(m, "  %-23s %d\n",
-				 power_domain_str(power_domain),
+				 intel_display_power_domain_str(power_domain),
 				 power_domains->domain_use_count[power_domain]);
 		}
 	}
@@ -2916,6 +2855,20 @@ static void intel_dp_info(struct seq_file *m,
 		intel_panel_info(m, &intel_connector->panel);
 }
 
+static void intel_dp_mst_info(struct seq_file *m,
+			  struct intel_connector *intel_connector)
+{
+	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_dp_mst_encoder *intel_mst =
+		enc_to_mst(&intel_encoder->base);
+	struct intel_digital_port *intel_dig_port = intel_mst->primary;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	bool has_audio = drm_dp_mst_port_has_audio(&intel_dp->mst_mgr,
+					intel_connector->port);
+
+	seq_printf(m, "\taudio support: %s\n", yesno(has_audio));
+}
+
 static void intel_hdmi_info(struct seq_file *m,
 			    struct intel_connector *intel_connector)
 {
@@ -2959,6 +2912,8 @@ static void intel_connector_info(struct seq_file *m,
 			intel_hdmi_info(m, intel_connector);
 		else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
 			intel_lvds_info(m, intel_connector);
+		else if (intel_encoder->type == INTEL_OUTPUT_DP_MST)
+			intel_dp_mst_info(m, intel_connector);
 	}
 
 	seq_printf(m, "\tmodes:\n");
@@ -4049,7 +4004,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		ret = i8xx_pipe_crc_ctl_reg(&source, &val);
 	else if (INTEL_INFO(dev)->gen < 5)
 		ret = i9xx_pipe_crc_ctl_reg(dev, pipe, &source, &val);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		ret = vlv_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ret = ilk_pipe_crc_ctl_reg(&source, &val);
@@ -4118,7 +4073,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 		if (IS_G4X(dev))
 			g4x_undo_pipe_scramble_reset(dev, pipe);
-		else if (IS_VALLEYVIEW(dev))
+		else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 			vlv_undo_pipe_scramble_reset(dev, pipe);
 		else if (IS_HASWELL(dev) && pipe == PIPE_A)
 			hsw_trans_edp_pipe_A_crc_wa(dev, false);
@@ -4508,7 +4463,8 @@ static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 		 * - WM1+ latency values in 0.5us units
 		 * - latencies are in us on gen9/vlv/chv
 		 */
-		if (INTEL_INFO(dev)->gen >= 9 || IS_VALLEYVIEW(dev))
+		if (INTEL_INFO(dev)->gen >= 9 || IS_VALLEYVIEW(dev) ||
+		    IS_CHERRYVIEW(dev))
 			latency *= 10;
 		else if (level > 0)
 			latency *= 5;
@@ -5382,6 +5338,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
+	{"i915_vbt", i915_vbt, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
 	{"i915_dump_lrc", i915_dump_lrc, 0},

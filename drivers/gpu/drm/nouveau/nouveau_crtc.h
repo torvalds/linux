@@ -73,6 +73,9 @@ struct nouveau_crtc {
 	int (*set_dither)(struct nouveau_crtc *crtc, bool update);
 	int (*set_scale)(struct nouveau_crtc *crtc, bool update);
 	int (*set_color_vibrance)(struct nouveau_crtc *crtc, bool update);
+
+	void (*save)(struct drm_crtc *crtc);
+	void (*restore)(struct drm_crtc *crtc);
 };
 
 static inline struct nouveau_crtc *nouveau_crtc(struct drm_crtc *crtc)

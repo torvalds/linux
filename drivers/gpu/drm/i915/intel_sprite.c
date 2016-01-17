@@ -951,7 +951,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
 		return -EINVAL;
 
-	if (IS_VALLEYVIEW(dev) &&
+	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		return -EINVAL;
 
@@ -1086,7 +1086,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 			intel_plane->max_downscale = 1;
 		}
 
-		if (IS_VALLEYVIEW(dev)) {
+		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 			intel_plane->update_plane = vlv_update_plane;
 			intel_plane->disable_plane = vlv_disable_plane;
 
@@ -1123,7 +1123,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 				       &intel_plane_funcs,
 				       plane_formats, num_plane_formats,
-				       DRM_PLANE_TYPE_OVERLAY);
+				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret) {
 		kfree(intel_plane);
 		goto out;

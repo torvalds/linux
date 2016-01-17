@@ -173,7 +173,7 @@ struct tegra_sor {
 	struct clk *clk_dp;
 	struct clk *clk;
 
-	struct tegra_dpaux *dpaux;
+	struct drm_dp_aux *aux;
 
 	struct drm_info_list *debugfs_files;
 	struct drm_minor *minor;
@@ -273,7 +273,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 		   SOR_DP_PADCTL_CM_TXD_1 | SOR_DP_PADCTL_CM_TXD_0);
 	tegra_sor_writel(sor, value, SOR_DP_PADCTL0);
 
-	err = tegra_dpaux_prepare(sor->dpaux, DP_SET_ANSI_8B10B);
+	err = drm_dp_aux_prepare(sor->aux, DP_SET_ANSI_8B10B);
 	if (err < 0)
 		return err;
 
@@ -288,7 +288,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 
 	pattern = DP_TRAINING_PATTERN_1;
 
-	err = tegra_dpaux_train(sor->dpaux, link, pattern);
+	err = drm_dp_aux_train(sor->aux, link, pattern);
 	if (err < 0)
 		return err;
 
@@ -309,7 +309,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 
 	pattern = DP_LINK_SCRAMBLING_DISABLE | DP_TRAINING_PATTERN_2;
 
-	err = tegra_dpaux_train(sor->dpaux, link, pattern);
+	err = drm_dp_aux_train(sor->aux, link, pattern);
 	if (err < 0)
 		return err;
 
@@ -324,7 +324,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 
 	pattern = DP_TRAINING_PATTERN_DISABLE;
 
-	err = tegra_dpaux_train(sor->dpaux, link, pattern);
+	err = drm_dp_aux_train(sor->aux, link, pattern);
 	if (err < 0)
 		return err;
 
@@ -1044,8 +1044,8 @@ tegra_sor_connector_detect(struct drm_connector *connector, bool force)
 	struct tegra_output *output = connector_to_output(connector);
 	struct tegra_sor *sor = to_sor(output);
 
-	if (sor->dpaux)
-		return tegra_dpaux_detect(sor->dpaux);
+	if (sor->aux)
+		return drm_dp_aux_detect(sor->aux);
 
 	return tegra_output_connector_detect(connector, force);
 }
@@ -1066,13 +1066,13 @@ static int tegra_sor_connector_get_modes(struct drm_connector *connector)
 	struct tegra_sor *sor = to_sor(output);
 	int err;
 
-	if (sor->dpaux)
-		tegra_dpaux_enable(sor->dpaux);
+	if (sor->aux)
+		drm_dp_aux_enable(sor->aux);
 
 	err = tegra_output_connector_get_modes(connector);
 
-	if (sor->dpaux)
-		tegra_dpaux_disable(sor->dpaux);
+	if (sor->aux)
+		drm_dp_aux_disable(sor->aux);
 
 	return err;
 }
@@ -1128,8 +1128,8 @@ static void tegra_sor_edp_disable(struct drm_encoder *encoder)
 	if (err < 0)
 		dev_err(sor->dev, "failed to power down SOR: %d\n", err);
 
-	if (sor->dpaux) {
-		err = tegra_dpaux_disable(sor->dpaux);
+	if (sor->aux) {
+		err = drm_dp_aux_disable(sor->aux);
 		if (err < 0)
 			dev_err(sor->dev, "failed to disable DP: %d\n", err);
 	}
@@ -1196,7 +1196,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	struct tegra_sor *sor = to_sor(output);
 	struct tegra_sor_config config;
 	struct drm_dp_link link;
-	struct drm_dp_aux *aux;
+	u8 rate, lanes;
 	int err = 0;
 	u32 value;
 
@@ -1209,20 +1209,14 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	if (output->panel)
 		drm_panel_prepare(output->panel);
 
-	/* FIXME: properly convert to struct drm_dp_aux */
-	aux = (struct drm_dp_aux *)sor->dpaux;
+	err = drm_dp_aux_enable(sor->aux);
+	if (err < 0)
+		dev_err(sor->dev, "failed to enable DP: %d\n", err);
 
-	if (sor->dpaux) {
-		err = tegra_dpaux_enable(sor->dpaux);
-		if (err < 0)
-			dev_err(sor->dev, "failed to enable DP: %d\n", err);
-
-		err = drm_dp_link_probe(aux, &link);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to probe eDP link: %d\n",
-				err);
-			return;
-		}
+	err = drm_dp_link_probe(sor->aux, &link);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to probe eDP link: %d\n", err);
+		return;
 	}
 
 	err = clk_set_parent(sor->clk, sor->clk_safe);
@@ -1434,60 +1428,51 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	value |= SOR_DP_PADCTL_PAD_CAL_PD;
 	tegra_sor_writel(sor, value, SOR_DP_PADCTL0);
 
-	if (sor->dpaux) {
-		u8 rate, lanes;
+	err = drm_dp_link_probe(sor->aux, &link);
+	if (err < 0)
+		dev_err(sor->dev, "failed to probe eDP link: %d\n", err);
 
-		err = drm_dp_link_probe(aux, &link);
-		if (err < 0)
-			dev_err(sor->dev, "failed to probe eDP link: %d\n",
-				err);
+	err = drm_dp_link_power_up(sor->aux, &link);
+	if (err < 0)
+		dev_err(sor->dev, "failed to power up eDP link: %d\n", err);
 
-		err = drm_dp_link_power_up(aux, &link);
-		if (err < 0)
-			dev_err(sor->dev, "failed to power up eDP link: %d\n",
-				err);
+	err = drm_dp_link_configure(sor->aux, &link);
+	if (err < 0)
+		dev_err(sor->dev, "failed to configure eDP link: %d\n", err);
 
-		err = drm_dp_link_configure(aux, &link);
-		if (err < 0)
-			dev_err(sor->dev, "failed to configure eDP link: %d\n",
-				err);
+	rate = drm_dp_link_rate_to_bw_code(link.rate);
+	lanes = link.num_lanes;
 
-		rate = drm_dp_link_rate_to_bw_code(link.rate);
-		lanes = link.num_lanes;
+	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
+	value &= ~SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
+	value |= SOR_CLK_CNTRL_DP_LINK_SPEED(rate);
+	tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
 
-		value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
-		value &= ~SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
-		value |= SOR_CLK_CNTRL_DP_LINK_SPEED(rate);
-		tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
+	value = tegra_sor_readl(sor, SOR_DP_LINKCTL0);
+	value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
+	value |= SOR_DP_LINKCTL_LANE_COUNT(lanes);
 
-		value = tegra_sor_readl(sor, SOR_DP_LINKCTL0);
-		value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
-		value |= SOR_DP_LINKCTL_LANE_COUNT(lanes);
+	if (link.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+		value |= SOR_DP_LINKCTL_ENHANCED_FRAME;
 
-		if (link.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
-			value |= SOR_DP_LINKCTL_ENHANCED_FRAME;
+	tegra_sor_writel(sor, value, SOR_DP_LINKCTL0);
 
-		tegra_sor_writel(sor, value, SOR_DP_LINKCTL0);
+	/* disable training pattern generator */
 
-		/* disable training pattern generator */
-
-		for (i = 0; i < link.num_lanes; i++) {
-			unsigned long lane = SOR_DP_TPG_CHANNEL_CODING |
-					     SOR_DP_TPG_SCRAMBLER_GALIOS |
-					     SOR_DP_TPG_PATTERN_NONE;
-			value = (value << 8) | lane;
-		}
-
-		tegra_sor_writel(sor, value, SOR_DP_TPG);
-
-		err = tegra_sor_dp_train_fast(sor, &link);
-		if (err < 0) {
-			dev_err(sor->dev, "DP fast link training failed: %d\n",
-				err);
-		}
-
-		dev_dbg(sor->dev, "fast link training succeeded\n");
+	for (i = 0; i < link.num_lanes; i++) {
+		unsigned long lane = SOR_DP_TPG_CHANNEL_CODING |
+				     SOR_DP_TPG_SCRAMBLER_GALIOS |
+				     SOR_DP_TPG_PATTERN_NONE;
+		value = (value << 8) | lane;
 	}
+
+	tegra_sor_writel(sor, value, SOR_DP_TPG);
+
+	err = tegra_sor_dp_train_fast(sor, &link);
+	if (err < 0)
+		dev_err(sor->dev, "DP fast link training failed: %d\n", err);
+
+	dev_dbg(sor->dev, "fast link training succeeded\n");
 
 	err = tegra_sor_power_up(sor, 250);
 	if (err < 0)
@@ -1961,9 +1946,9 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 
 	/* production settings */
 	settings = tegra_sor_hdmi_find_settings(sor, mode->clock * 1000);
-	if (IS_ERR(settings)) {
-		dev_err(sor->dev, "no settings for pixel clock %d Hz: %ld\n",
-			mode->clock * 1000, PTR_ERR(settings));
+	if (!settings) {
+		dev_err(sor->dev, "no settings for pixel clock %d Hz\n",
+			mode->clock * 1000);
 		return;
 	}
 
@@ -2148,7 +2133,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	int encoder = DRM_MODE_ENCODER_NONE;
 	int err;
 
-	if (!sor->dpaux) {
+	if (!sor->aux) {
 		if (sor->soc->supports_hdmi) {
 			connector = DRM_MODE_CONNECTOR_HDMIA;
 			encoder = DRM_MODE_ENCODER_TMDS;
@@ -2178,7 +2163,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	sor->output.connector.dpms = DRM_MODE_DPMS_OFF;
 
 	drm_encoder_init(drm, &sor->output.encoder, &tegra_sor_encoder_funcs,
-			 encoder);
+			 encoder, NULL);
 	drm_encoder_helper_add(&sor->output.encoder, helpers);
 
 	drm_mode_connector_attach_encoder(&sor->output.connector,
@@ -2199,8 +2184,8 @@ static int tegra_sor_init(struct host1x_client *client)
 			dev_err(sor->dev, "debugfs setup failed: %d\n", err);
 	}
 
-	if (sor->dpaux) {
-		err = tegra_dpaux_attach(sor->dpaux, &sor->output);
+	if (sor->aux) {
+		err = drm_dp_aux_attach(sor->aux, &sor->output);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to attach DP: %d\n", err);
 			return err;
@@ -2249,8 +2234,8 @@ static int tegra_sor_exit(struct host1x_client *client)
 
 	tegra_output_exit(&sor->output);
 
-	if (sor->dpaux) {
-		err = tegra_dpaux_detach(sor->dpaux);
+	if (sor->aux) {
+		err = drm_dp_aux_detach(sor->aux);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to detach DP: %d\n", err);
 			return err;
@@ -2399,14 +2384,14 @@ static int tegra_sor_probe(struct platform_device *pdev)
 
 	np = of_parse_phandle(pdev->dev.of_node, "nvidia,dpaux", 0);
 	if (np) {
-		sor->dpaux = tegra_dpaux_find_by_of_node(np);
+		sor->aux = drm_dp_aux_find_by_of_node(np);
 		of_node_put(np);
 
-		if (!sor->dpaux)
+		if (!sor->aux)
 			return -EPROBE_DEFER;
 	}
 
-	if (!sor->dpaux) {
+	if (!sor->aux) {
 		if (sor->soc->supports_hdmi) {
 			sor->ops = &tegra_sor_hdmi_ops;
 		} else if (sor->soc->supports_lvds) {

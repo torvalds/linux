@@ -1,3 +1,20 @@
+Device-Tree bindings for Samsung Exynos Embedded DisplayPort Transmitter(eDP)
+
+DisplayPort is industry standard to accommodate the growing board adoption
+of digital display technology within the PC and CE industries.
+It consolidates the internal and external connection methods to reduce device
+complexity and cost. It also supports necessary features for important cross
+industry applications and provides performance scalability to enable the next
+generation of displays that feature higher color depths, refresh rates, and
+display resolutions.
+
+eDP (embedded display port) device is compliant with Embedded DisplayPort
+standard as follows,
+- DisplayPort standard 1.1a for Exynos5250 and Exynos5260.
+- DisplayPort standard 1.3 for Exynos5422s and Exynos5800.
+
+eDP resides between FIMD and panel or FIMD and bridge such as LVDS.
+
 The Exynos display port interface should be configured based on
 the type of panel connected to it.
 
@@ -66,8 +83,15 @@ Optional properties for dp-controller:
 		Hotplug detect GPIO.
 			Indicates which GPIO should be used for hotplug
 			detection
-	-video interfaces: Device node can contain video interface port
-			    nodes according to [1].
+Video interfaces:
+  Device node can contain video interface port nodes according to [1].
+  The following are properties specific to those nodes:
+
+  endpoint node connected to bridge or panel node:
+   - remote-endpoint: specifies the endpoint in panel or bridge node.
+		      This node is required in all kinds of exynos dp
+		      to represent the connection between dp and bridge
+		      or dp and panel.
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
@@ -111,9 +135,18 @@ Board Specific portion:
 		};
 
 		ports {
-			port@0 {
+			port {
 				dp_out: endpoint {
-					remote-endpoint = <&bridge_in>;
+					remote-endpoint = <&dp_in>;
+				};
+			};
+		};
+
+		panel {
+			...
+			port {
+				dp_in: endpoint {
+					remote-endpoint = <&dp_out>;
 				};
 			};
 		};

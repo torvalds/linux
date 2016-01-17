@@ -49,7 +49,7 @@ static u32 calc_residency(struct drm_device *dev,
 	intel_runtime_pm_get(dev_priv);
 
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		units = 1;
 		div = dev_priv->czclk_freq;
 
@@ -284,7 +284,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
-	if (IS_VALLEYVIEW(dev_priv->dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
@@ -598,7 +598,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 		if (ret)
 			DRM_ERROR("RC6p residency sysfs setup failed\n");
 	}
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
 					&media_rc6_attr_group);
 		if (ret)
@@ -619,7 +619,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 	}
 
 	ret = 0;
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		ret = sysfs_create_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else if (INTEL_INFO(dev)->gen >= 6)
 		ret = sysfs_create_files(&dev->primary->kdev->kobj, gen6_attrs);
@@ -635,7 +635,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 void i915_teardown_sysfs(struct drm_device *dev)
 {
 	sysfs_remove_bin_file(&dev->primary->kdev->kobj, &error_state_attr);
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		sysfs_remove_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else
 		sysfs_remove_files(&dev->primary->kdev->kobj, gen6_attrs);
