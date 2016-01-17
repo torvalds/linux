@@ -178,7 +178,7 @@ unsigned int ddk750_getVMSize(void)
 	POKE32(MODE0_GATE, reg);
 
 	/* get frame buffer size from GPIO */
-	reg = FIELD_GET(PEEK32(MISC_CTRL), MISC_CTRL, LOCALMEM_SIZE);
+	reg = PEEK32(MISC_CTRL) & MISC_CTRL_LOCALMEM_SIZE_MASK;
 	switch (reg) {
 	case MISC_CTRL_LOCALMEM_SIZE_8M:
 		data = SZ_8M;  break; /* 8  Mega byte */

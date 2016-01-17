@@ -43,24 +43,24 @@
 
 #define MISC_CTRL                                     0x000004
 #define MISC_CTRL_DRAM_RERESH_COUNT                   BIT(27)
-#define MISC_CTRL_DRAM_REFRESH_TIME                   26:25
-#define MISC_CTRL_DRAM_REFRESH_TIME_8                 0
-#define MISC_CTRL_DRAM_REFRESH_TIME_16                1
-#define MISC_CTRL_DRAM_REFRESH_TIME_32                2
-#define MISC_CTRL_DRAM_REFRESH_TIME_64                3
+#define MISC_CTRL_DRAM_REFRESH_TIME_MASK              (0x3 << 25)
+#define MISC_CTRL_DRAM_REFRESH_TIME_8                 (0x0 << 25)
+#define MISC_CTRL_DRAM_REFRESH_TIME_16                (0x1 << 25)
+#define MISC_CTRL_DRAM_REFRESH_TIME_32                (0x2 << 25)
+#define MISC_CTRL_DRAM_REFRESH_TIME_64                (0x3 << 25)
 #define MISC_CTRL_INT_OUTPUT_INVERT                   BIT(24)
 #define MISC_CTRL_PLL_CLK_COUNT                       BIT(23)
 #define MISC_CTRL_DAC_POWER_OFF                       BIT(20)
 #define MISC_CTRL_CLK_SELECT_TESTCLK                  BIT(16)
-#define MISC_CTRL_DRAM_COLUMN_SIZE                    15:14
-#define MISC_CTRL_DRAM_COLUMN_SIZE_256                0
-#define MISC_CTRL_DRAM_COLUMN_SIZE_512                1
-#define MISC_CTRL_DRAM_COLUMN_SIZE_1024               2
-#define MISC_CTRL_LOCALMEM_SIZE                       13:12
-#define MISC_CTRL_LOCALMEM_SIZE_8M                    3
-#define MISC_CTRL_LOCALMEM_SIZE_16M                   0
-#define MISC_CTRL_LOCALMEM_SIZE_32M                   1
-#define MISC_CTRL_LOCALMEM_SIZE_64M                   2
+#define MISC_CTRL_DRAM_COLUMN_SIZE_MASK               (0x3 << 14)
+#define MISC_CTRL_DRAM_COLUMN_SIZE_256                (0x0 << 14)
+#define MISC_CTRL_DRAM_COLUMN_SIZE_512                (0x1 << 14)
+#define MISC_CTRL_DRAM_COLUMN_SIZE_1024               (0x2 << 14)
+#define MISC_CTRL_LOCALMEM_SIZE_MASK                  (0x3 << 12)
+#define MISC_CTRL_LOCALMEM_SIZE_8M                    (0x3 << 12)
+#define MISC_CTRL_LOCALMEM_SIZE_16M                   (0x0 << 12)
+#define MISC_CTRL_LOCALMEM_SIZE_32M                   (0x1 << 12)
+#define MISC_CTRL_LOCALMEM_SIZE_64M                   (0x2 << 12)
 #define MISC_CTRL_DRAM_TWTR                           BIT(11)
 #define MISC_CTRL_DRAM_TWR                            BIT(10)
 #define MISC_CTRL_DRAM_TRP                            BIT(9)
