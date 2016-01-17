@@ -5148,7 +5148,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
 				  int emulation_type)
 {
 	gpa_t gpa = cr2;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 
 	if (emulation_type & EMULTYPE_NO_REEXECUTE)
 		return false;

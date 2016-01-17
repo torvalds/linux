@@ -547,6 +547,7 @@ static const struct pci_device_id intel_stolen_ids[] __initconst = {
 	INTEL_CHV_IDS(&chv_stolen_funcs),
 	INTEL_SKL_IDS(&gen9_stolen_funcs),
 	INTEL_BXT_IDS(&gen9_stolen_funcs),
+	INTEL_KBL_IDS(&gen9_stolen_funcs),
 };
 
 static void __init intel_graphics_stolen(int num, int slot, int func)

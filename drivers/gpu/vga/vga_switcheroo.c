@@ -63,7 +63,7 @@
  * for the inactive GPU.) Also, muxes are often used to cut power to the
  * discrete GPU while it is not used.
  *
- * DRM drivers register GPUs with vga_switcheroo, these are heretoforth called
+ * DRM drivers register GPUs with vga_switcheroo, these are henceforth called
  * clients. The mux is called the handler. Muxless machines also register a
  * handler to control the power state of the discrete GPU, its ->switchto
  * callback is a no-op for obvious reasons. The discrete GPU is often equipped

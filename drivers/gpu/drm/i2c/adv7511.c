@@ -752,7 +752,7 @@ static void adv7511_encoder_mode_set(struct drm_encoder *encoder,
 	adv7511->f_tmds = mode->clock;
 }
 
-static struct drm_encoder_slave_funcs adv7511_encoder_funcs = {
+static const struct drm_encoder_slave_funcs adv7511_encoder_funcs = {
 	.dpms = adv7511_encoder_dpms,
 	.mode_valid = adv7511_encoder_mode_valid,
 	.mode_set = adv7511_encoder_mode_set,

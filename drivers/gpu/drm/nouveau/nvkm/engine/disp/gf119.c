@@ -158,7 +158,7 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	switch (outp->info.type) {
 	case DCB_OUTPUT_TMDS:
 		*conf = (ctrl & 0x00000f00) >> 8;
-		if (pclk >= 165000)
+		if (*conf == 5)
 			*conf |= 0x0100;
 		break;
 	case DCB_OUTPUT_LVDS:

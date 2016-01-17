@@ -26,16 +26,16 @@
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
-static void
+void
 gm107_ltc_cbc_clear(struct nvkm_ltc *ltc, u32 start, u32 limit)
 {
 	struct nvkm_device *device = ltc->subdev.device;
 	nvkm_wr32(device, 0x17e270, start);
 	nvkm_wr32(device, 0x17e274, limit);
-	nvkm_wr32(device, 0x17e26c, 0x00000004);
+	nvkm_mask(device, 0x17e26c, 0x00000000, 0x00000004);
 }
 
-static void
+void
 gm107_ltc_cbc_wait(struct nvkm_ltc *ltc)
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -51,7 +51,7 @@ gm107_ltc_cbc_wait(struct nvkm_ltc *ltc)
 	}
 }
 
-static void
+void
 gm107_ltc_zbc_clear_color(struct nvkm_ltc *ltc, int i, const u32 color[4])
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -62,7 +62,7 @@ gm107_ltc_zbc_clear_color(struct nvkm_ltc *ltc, int i, const u32 color[4])
 	nvkm_wr32(device, 0x17e348, color[3]);
 }
 
-static void
+void
 gm107_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -84,7 +84,7 @@ gm107_ltc_lts_isr(struct nvkm_ltc *ltc, int c, int s)
 	}
 }
 
-static void
+void
 gm107_ltc_intr(struct nvkm_ltc *ltc)
 {
 	struct nvkm_device *device = ltc->subdev.device;

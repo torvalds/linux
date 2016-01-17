@@ -1645,7 +1645,7 @@ intel_tv_init(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_SVIDEO);
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
-			 DRM_MODE_ENCODER_TVDAC);
+			 DRM_MODE_ENCODER_TVDAC, NULL);
 
 	intel_encoder->compute_config = intel_tv_compute_config;
 	intel_encoder->get_config = intel_tv_get_config;

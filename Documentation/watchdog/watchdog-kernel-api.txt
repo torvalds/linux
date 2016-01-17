@@ -44,17 +44,18 @@ The watchdog device structure looks like this:
 
 struct watchdog_device {
 	int id;
-	struct cdev cdev;
-	struct device *dev;
 	struct device *parent;
+	const struct attribute_group **groups;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
 	unsigned int timeout;
 	unsigned int min_timeout;
 	unsigned int max_timeout;
+	struct notifier_block reboot_nb;
+	struct notifier_block restart_nb;
 	void *driver_data;
-	struct mutex lock;
+	struct watchdog_core_data *wd_data;
 	unsigned long status;
 	struct list_head deferred;
 };
@@ -64,27 +65,32 @@ It contains following fields:
   /dev/watchdog0 cdev (dynamic major, minor 0) as well as the old
   /dev/watchdog miscdev. The id is set automatically when calling
   watchdog_register_device.
-* cdev: cdev for the dynamic /dev/watchdog<id> device nodes. This
-  field is also populated by watchdog_register_device.
-* dev: device under the watchdog class (created by watchdog_register_device).
 * parent: set this to the parent device (or NULL) before calling
   watchdog_register_device.
+* groups: List of sysfs attribute groups to create when creating the watchdog
+  device.
 * info: a pointer to a watchdog_info structure. This structure gives some
   additional information about the watchdog timer itself. (Like it's unique name)
 * ops: a pointer to the list of watchdog operations that the watchdog supports.
 * timeout: the watchdog timer's timeout value (in seconds).
 * min_timeout: the watchdog timer's minimum timeout value (in seconds).
 * max_timeout: the watchdog timer's maximum timeout value (in seconds).
+* reboot_nb: notifier block that is registered for reboot notifications, for
+  internal use only. If the driver calls watchdog_stop_on_reboot, watchdog core
+  will stop the watchdog on such notifications.
+* restart_nb: notifier block that is registered for machine restart, for
+  internal use only. If a watchdog is capable of restarting the machine, it
+  should define ops->restart. Priority can be changed through
+  watchdog_set_restart_priority.
 * bootstatus: status of the device after booting (reported with watchdog
   WDIOF_* status bits).
 * driver_data: a pointer to the drivers private data of a watchdog device.
   This data should only be accessed via the watchdog_set_drvdata and
   watchdog_get_drvdata routines.
-* lock: Mutex for WatchDog Timer Driver Core internal use only.
+* wd_data: a pointer to watchdog core internal data.
 * status: this field contains a number of status bits that give extra
   information about the status of the device (Like: is the watchdog timer
-  running/active, is the nowayout bit set, is the device opened via
-  the /dev/watchdog interface or not, ...).
+  running/active, or is the nowayout bit set).
 * deferred: entry in wtd_deferred_reg_list which is used to
   register early initialized watchdogs.
 
@@ -100,8 +106,9 @@ struct watchdog_ops {
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
 	unsigned int (*get_timeleft)(struct watchdog_device *);
-	void (*ref)(struct watchdog_device *);
-	void (*unref)(struct watchdog_device *);
+	int (*restart)(struct watchdog_device *);
+	void (*ref)(struct watchdog_device *) __deprecated;
+	void (*unref)(struct watchdog_device *) __deprecated;
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
@@ -109,20 +116,6 @@ It is important that you first define the module owner of the watchdog timer
 driver's operations. This module owner will be used to lock the module when
 the watchdog is active. (This to avoid a system crash when you unload the
 module and /dev/watchdog is still open).
-
-If the watchdog_device struct is dynamically allocated, just locking the module
-is not enough and a driver also needs to define the ref and unref operations to
-ensure the structure holding the watchdog_device does not go away.
-
-The simplest (and usually sufficient) implementation of this is to:
-1) Add a kref struct to the same structure which is holding the watchdog_device
-2) Define a release callback for the kref which frees the struct holding both
-3) Call kref_init on this kref *before* calling watchdog_register_device()
-4) Define a ref operation calling kref_get on this kref
-5) Define a unref operation calling kref_put on this kref
-6) When it is time to cleanup:
- * Do not kfree() the struct holding both, the last kref_put will do this!
- * *After* calling watchdog_unregister_device() call kref_put on the kref
 
 Some operations are mandatory and some are optional. The mandatory operations
 are:
@@ -164,14 +157,14 @@ they are supported. These optional routines/operations are:
   (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
   watchdog's info structure).
 * get_timeleft: this routines returns the time that's left before a reset.
-* ref: the operation that calls kref_get on the kref of a dynamically
-  allocated watchdog_device struct.
-* unref: the operation that calls kref_put on the kref of a dynamically
-  allocated watchdog_device struct.
+* restart: this routine restarts the machine. It returns 0 on success or a
+  negative errno code for failure.
 * ioctl: if this routine is present then it will be called first before we do
   our own internal ioctl call handling. This routine should return -ENOIOCTLCMD
   if a command is not supported. The parameters that are passed to the ioctl
   call are: watchdog_device, cmd and arg.
+
+The 'ref' and 'unref' operations are no longer used and deprecated.
 
 The status bits should (preferably) be set with the set_bit and clear_bit alike
 bit-operations. The status bits that are defined are:
@@ -179,19 +172,8 @@ bit-operations. The status bits that are defined are:
   is active or not. When the watchdog is active after booting, then you should
   set this status bit (Note: when you register the watchdog timer device with
   this bit set, then opening /dev/watchdog will skip the start operation)
-* WDOG_DEV_OPEN: this status bit shows whether or not the watchdog device
-  was opened via /dev/watchdog.
-  (This bit should only be used by the WatchDog Timer Driver Core).
-* WDOG_ALLOW_RELEASE: this bit stores whether or not the magic close character
-  has been sent (so that we can support the magic close feature).
-  (This bit should only be used by the WatchDog Timer Driver Core).
 * WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
   If this bit is set then the watchdog timer will not be able to stop.
-* WDOG_UNREGISTERED: this bit gets set by the WatchDog Timer Driver Core
-  after calling watchdog_unregister_device, and then checked before calling
-  any watchdog_ops, so that you can be sure that no operations (other then
-  unref) will get called after unregister, even if userspace still holds a
-  reference to /dev/watchdog
 
   To set the WDOG_NO_WAY_OUT status bit (before registering your watchdog
   timer device) you can either:
@@ -231,3 +213,18 @@ the device tree (if the module timeout parameter is invalid). Best practice is
 to set the default timeout value as timeout value in the watchdog_device and
 then use this function to set the user "preferred" timeout value.
 This routine returns zero on success and a negative errno code for failure.
+
+To disable the watchdog on reboot, the user must call the following helper:
+
+static inline void watchdog_stop_on_reboot(struct watchdog_device *wdd);
+
+To change the priority of the restart handler the following helper should be
+used:
+
+void watchdog_set_restart_priority(struct watchdog_device *wdd, int priority);
+
+User should follow the following guidelines for setting the priority:
+* 0: should be called in last resort, has limited restart capabilities
+* 128: default restart handler, use if no other handler is expected to be
+  available, and/or if restart is sufficient to restart the entire system
+* 255: highest priority, will preempt all other restart handlers

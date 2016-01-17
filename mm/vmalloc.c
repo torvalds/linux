@@ -455,7 +455,7 @@ found:
 	free_vmap_cache = &va->rb_node;
 	spin_unlock(&vmap_area_lock);
 
-	BUG_ON(va->va_start & (align-1));
+	BUG_ON(!IS_ALIGNED(va->va_start, align));
 	BUG_ON(va->va_start < vstart);
 	BUG_ON(va->va_end > vend);
 
@@ -1086,7 +1086,7 @@ void vm_unmap_ram(const void *mem, unsigned int count)
 	BUG_ON(!addr);
 	BUG_ON(addr < VMALLOC_START);
 	BUG_ON(addr > VMALLOC_END);
-	BUG_ON(addr & (PAGE_SIZE-1));
+	BUG_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 
 	debug_check_no_locks_freed(mem, size);
 	vmap_debug_free_range(addr, addr+size);

@@ -1174,7 +1174,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 #ifdef CONFIG_GPIOLIB
 	/* Setup GPIO cotroller */
 	s->gpio.owner		= THIS_MODULE;
-	s->gpio.dev		= dev;
+	s->gpio.parent		= dev;
 	s->gpio.label		= dev_name(dev);
 	s->gpio.direction_input	= max310x_gpio_direction_input;
 	s->gpio.get		= max310x_gpio_get;

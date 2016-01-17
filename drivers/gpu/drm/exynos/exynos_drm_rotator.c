@@ -790,10 +790,10 @@ static int rotator_remove(struct platform_device *pdev)
 static int rotator_clk_crtl(struct rot_context *rot, bool enable)
 {
 	if (enable) {
-		clk_enable(rot->clock);
+		clk_prepare_enable(rot->clock);
 		rot->suspended = false;
 	} else {
-		clk_disable(rot->clock);
+		clk_disable_unprepare(rot->clock);
 		rot->suspended = true;
 	}
 

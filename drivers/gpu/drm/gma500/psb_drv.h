@@ -465,6 +465,8 @@ struct drm_psb_private {
 	struct mutex gtt_mutex;
 	struct resource *gtt_mem;	/* Our PCI resource */
 
+	struct mutex mmap_mutex;
+
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
 
@@ -651,6 +653,8 @@ struct psb_ops {
 	void (*init_pm)(struct drm_device *dev);
 	int (*save_regs)(struct drm_device *dev);
 	int (*restore_regs)(struct drm_device *dev);
+	void (*save_crtc)(struct drm_crtc *crtc);
+	void (*restore_crtc)(struct drm_crtc *crtc);
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
 	void (*update_wm)(struct drm_device *dev, struct drm_crtc *crtc);

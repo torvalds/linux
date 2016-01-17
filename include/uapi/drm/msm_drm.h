@@ -18,8 +18,7 @@
 #ifndef __MSM_DRM_H__
 #define __MSM_DRM_H__
 
-#include <stddef.h>
-#include <drm/drm.h>
+#include "drm.h"
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
@@ -122,7 +121,7 @@ struct drm_msm_gem_cpu_fini {
 struct drm_msm_gem_submit_reloc {
 	__u32 submit_offset;  /* in, offset from submit_bo */
 	__u32 or;             /* in, value OR'd with result */
-	__s32  shift;          /* in, amount of left shift (can be negative) */
+	__s32 shift;          /* in, amount of left shift (can be negative) */
 	__u32 reloc_idx;      /* in, index of reloc_bo buffer */
 	__u64 reloc_offset;   /* in, offset from start of reloc_bo */
 };

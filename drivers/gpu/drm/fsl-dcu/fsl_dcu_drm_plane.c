@@ -249,7 +249,7 @@ struct drm_plane *fsl_dcu_drm_primary_create_plane(struct drm_device *dev)
 				       &fsl_dcu_drm_plane_funcs,
 				       fsl_dcu_drm_plane_formats,
 				       ARRAY_SIZE(fsl_dcu_drm_plane_formats),
-				       DRM_PLANE_TYPE_PRIMARY);
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		kfree(primary);
 		primary = NULL;

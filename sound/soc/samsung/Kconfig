@@ -1,8 +1,6 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
 	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
-	depends on S3C64XX_PL080 || !ARCH_S3C64XX
-	depends on S3C24XX_DMAC || !ARCH_S3C24XX
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for codecs attached to

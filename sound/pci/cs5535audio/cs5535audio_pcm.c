@@ -402,7 +402,7 @@ static struct snd_pcm_ops snd_cs5535audio_capture_ops = {
 	.pointer =	snd_cs5535audio_pcm_pointer,
 };
 
-static struct cs5535audio_dma_ops snd_cs5535audio_playback_dma_ops = {
+static const struct cs5535audio_dma_ops snd_cs5535audio_playback_dma_ops = {
         .type = CS5535AUDIO_DMA_PLAYBACK,
         .enable_dma = cs5535audio_playback_enable_dma,
         .disable_dma = cs5535audio_playback_disable_dma,
@@ -412,7 +412,7 @@ static struct cs5535audio_dma_ops snd_cs5535audio_playback_dma_ops = {
         .read_dma_pntr = cs5535audio_playback_read_dma_pntr,
 };
 
-static struct cs5535audio_dma_ops snd_cs5535audio_capture_dma_ops = {
+static const struct cs5535audio_dma_ops snd_cs5535audio_capture_dma_ops = {
         .type = CS5535AUDIO_DMA_CAPTURE,
         .enable_dma = cs5535audio_capture_enable_dma,
         .disable_dma = cs5535audio_capture_disable_dma,

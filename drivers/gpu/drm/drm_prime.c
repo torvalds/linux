@@ -313,19 +313,15 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
  *
  * Export callbacks:
  *
- *  - @gem_prime_pin (optional): prepare a GEM object for exporting
- *
- *  - @gem_prime_get_sg_table: provide a scatter/gather table of pinned pages
- *
- *  - @gem_prime_vmap: vmap a buffer exported by your driver
- *
- *  - @gem_prime_vunmap: vunmap a buffer exported by your driver
- *
- *  - @gem_prime_mmap (optional): mmap a buffer exported by your driver
+ *  * @gem_prime_pin (optional): prepare a GEM object for exporting
+ *  * @gem_prime_get_sg_table: provide a scatter/gather table of pinned pages
+ *  * @gem_prime_vmap: vmap a buffer exported by your driver
+ *  * @gem_prime_vunmap: vunmap a buffer exported by your driver
+ *  * @gem_prime_mmap (optional): mmap a buffer exported by your driver
  *
  * Import callback:
  *
- *  - @gem_prime_import_sg_table (import): produce a GEM object from another
+ *  * @gem_prime_import_sg_table (import): produce a GEM object from another
  *    driver's scatter/gather table
  */
 

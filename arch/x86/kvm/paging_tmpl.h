@@ -456,7 +456,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 {
 	unsigned pte_access;
 	gfn_t gfn;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 
 	if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
 		return false;
@@ -551,7 +551,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 struct guest_walker *gw,
 			 int write_fault, int hlevel,
-			 pfn_t pfn, bool map_writable, bool prefault)
+			 kvm_pfn_t pfn, bool map_writable, bool prefault)
 {
 	struct kvm_mmu_page *sp = NULL;
 	struct kvm_shadow_walk_iterator it;
@@ -694,7 +694,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	int user_fault = error_code & PFERR_USER_MASK;
 	struct guest_walker walker;
 	int r;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 	int level = PT_PAGE_TABLE_LEVEL;
 	bool force_pt_level = false;
 	unsigned long mmu_seq;

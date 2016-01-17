@@ -130,10 +130,6 @@ int __must_check
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
 
-int
-drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
-			       struct drm_crtc *crtc);
-
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state);
 
 void
@@ -149,7 +145,7 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 	     ((connector) = (state)->connectors[__i],			\
 	     (connector_state) = (state)->connector_states[__i], 1); 	\
 	     (__i)++)							\
-		if (connector)
+		for_each_if (connector)
 
 #define for_each_crtc_in_state(state, crtc, crtc_state, __i)	\
 	for ((__i) = 0;						\
@@ -157,7 +153,7 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 	     ((crtc) = (state)->crtcs[__i],			\
 	     (crtc_state) = (state)->crtc_states[__i], 1);	\
 	     (__i)++)						\
-		if (crtc_state)
+		for_each_if (crtc_state)
 
 #define for_each_plane_in_state(state, plane, plane_state, __i)		\
 	for ((__i) = 0;							\
@@ -165,7 +161,7 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 	     ((plane) = (state)->planes[__i],				\
 	     (plane_state) = (state)->plane_states[__i], 1);		\
 	     (__i)++)							\
-		if (plane_state)
+		for_each_if (plane_state)
 static inline bool
 drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
 {

@@ -47,7 +47,7 @@ gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 }
 
 void
-gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
+gk104_fifo_runlist_commit(struct gk104_fifo *fifo, u32 engine)
 {
 	struct gk104_fifo_engn *engn = &fifo->engine[engine];
 	struct gk104_fifo_chan *chan;
@@ -76,6 +76,22 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 				msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist %d update timeout\n", engine);
 	mutex_unlock(&subdev->mutex);
+}
+
+void
+gk104_fifo_runlist_remove(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
+{
+	mutex_lock(&fifo->base.engine.subdev.mutex);
+	list_del_init(&chan->head);
+	mutex_unlock(&fifo->base.engine.subdev.mutex);
+}
+
+void
+gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
+{
+	mutex_lock(&fifo->base.engine.subdev.mutex);
+	list_add_tail(&chan->head, &fifo->engine[chan->engine].chan);
+	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
 
 static inline struct nvkm_engine *
@@ -112,7 +128,7 @@ gk104_fifo_recover_work(struct work_struct *work)
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
 		}
-		gk104_fifo_runlist_update(fifo, gk104_fifo_subdev_engine(engn));
+		gk104_fifo_runlist_commit(fifo, gk104_fifo_subdev_engine(engn));
 	}
 
 	nvkm_wr32(device, 0x00262c, engm);
@@ -180,7 +196,7 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	for (engn = 0; engn < ARRAY_SIZE(fifo->engine); engn++) {
-		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x04));
+		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
 		u32 busy = (stat & 0x80000000);
 		u32 next = (stat & 0x07ff0000) >> 16;
 		u32 chsw = (stat & 0x00008000);

@@ -114,7 +114,7 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	return gpiochip_add(&iop3xx_chip);
+	return gpiochip_add_data(&iop3xx_chip, NULL);
 }
 
 static struct platform_driver iop3xx_gpio_driver = {

@@ -216,11 +216,11 @@ r1373f4_fini(struct gk104_ramfuc *fuc)
 	ram_wr32(fuc, 0x1373ec, tmp | (v1 << 16));
 	ram_mask(fuc, 0x1373f0, (~ram->mode & 3), 0x00000000);
 	if (ram->mode == 2) {
-		ram_mask(fuc, 0x1373f4, 0x00000003, 0x000000002);
-		ram_mask(fuc, 0x1373f4, 0x00001100, 0x000000000);
+		ram_mask(fuc, 0x1373f4, 0x00000003, 0x00000002);
+		ram_mask(fuc, 0x1373f4, 0x00001100, 0x00000000);
 	} else {
-		ram_mask(fuc, 0x1373f4, 0x00000003, 0x000000001);
-		ram_mask(fuc, 0x1373f4, 0x00010000, 0x000000000);
+		ram_mask(fuc, 0x1373f4, 0x00000003, 0x00000001);
+		ram_mask(fuc, 0x1373f4, 0x00010000, 0x00000000);
 	}
 	ram_mask(fuc, 0x10f800, 0x00000030, (v0 ^ v1) << 4);
 }
