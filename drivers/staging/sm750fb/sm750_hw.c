@@ -108,7 +108,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	/* for sm718,open pci burst */
 	if (sm750_dev->devid == 0x718) {
 		POKE32(SYSTEM_CTRL,
-				FIELD_SET(PEEK32(SYSTEM_CTRL), SYSTEM_CTRL, PCI_BURST, ON));
+		       PEEK32(SYSTEM_CTRL) | SYSTEM_CTRL_PCI_BURST);
 	}
 
 	if (getChipType() != SM750LE) {
@@ -478,11 +478,11 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 	} else {
 		/* engine reset */
 		reg = PEEK32(SYSTEM_CTRL);
-	    reg = FIELD_SET(reg, SYSTEM_CTRL, DE_ABORT, ON);
+		reg |= SYSTEM_CTRL_DE_ABORT;
 		POKE32(SYSTEM_CTRL, reg);
 
 		reg = PEEK32(SYSTEM_CTRL);
-		reg = FIELD_SET(reg, SYSTEM_CTRL, DE_ABORT, OFF);
+		reg &= ~SYSTEM_CTRL_DE_ABORT;
 		POKE32(SYSTEM_CTRL, reg);
 	}
 
@@ -511,15 +511,16 @@ int hw_sm750le_deWait(void)
 int hw_sm750_deWait(void)
 {
 	int i = 0x10000000;
+	unsigned int mask = SYSTEM_CTRL_DE_STATUS_BUSY |
+		SYSTEM_CTRL_DE_FIFO_EMPTY |
+		SYSTEM_CTRL_DE_MEM_FIFO_EMPTY;
 
 	while (i--) {
 		unsigned int val = PEEK32(SYSTEM_CTRL);
 
-		if ((FIELD_GET(val, SYSTEM_CTRL, DE_STATUS) == SYSTEM_CTRL_DE_STATUS_IDLE) &&
-		    (FIELD_GET(val, SYSTEM_CTRL, DE_FIFO) == SYSTEM_CTRL_DE_FIFO_EMPTY) &&
-		    (FIELD_GET(val, SYSTEM_CTRL, DE_MEM_FIFO) == SYSTEM_CTRL_DE_MEM_FIFO_EMPTY)) {
+		if ((val & mask) ==
+		    (SYSTEM_CTRL_DE_FIFO_EMPTY | SYSTEM_CTRL_DE_MEM_FIFO_EMPTY))
 			return 0;
-		}
 	}
 	/* timeout error */
 	return -1;

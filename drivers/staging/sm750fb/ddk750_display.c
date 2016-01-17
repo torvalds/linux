@@ -136,17 +136,13 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		while (delay-- > 0) {
 			/* Wait for end of vsync. */
 			do {
-				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
-						   SYSTEM_CTRL,
-						   PANEL_VSYNC);
-			} while (status == SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
+				status = PEEK32(SYSTEM_CTRL);
+			} while (status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
 
 			/* Wait for start of vsync. */
 			do {
-				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
-						   SYSTEM_CTRL,
-						   PANEL_VSYNC);
-			} while (status == SYSTEM_CTRL_PANEL_VSYNC_INACTIVE);
+				status = PEEK32(SYSTEM_CTRL);
+			} while (!(status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE));
 		}
 
 	} else {
@@ -163,17 +159,13 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		while (delay-- > 0) {
 			/* Wait for end of vsync. */
 			do {
-				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
-								   SYSTEM_CTRL,
-								   CRT_VSYNC);
-			} while (status == SYSTEM_CTRL_CRT_VSYNC_ACTIVE);
+				status = PEEK32(SYSTEM_CTRL);
+			} while (status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
 
 			/* Wait for start of vsync. */
 			do {
-				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
-								   SYSTEM_CTRL,
-								   CRT_VSYNC);
-			} while (status == SYSTEM_CTRL_CRT_VSYNC_INACTIVE);
+				status = PEEK32(SYSTEM_CTRL);
+			} while (!(status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE));
 		}
 	}
 }
