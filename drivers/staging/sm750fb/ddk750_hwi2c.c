@@ -17,8 +17,7 @@ unsigned char bus_speed_mode
 	/* Enable GPIO 30 & 31 as IIC clock & data */
 	value = PEEK32(GPIO_MUX);
 
-	value = FIELD_SET(value, GPIO_MUX, 30, I2C) |
-			  FIELD_SET(0, GPIO_MUX, 31, I2C);
+	value |= (GPIO_MUX_30 | GPIO_MUX_31);
 	POKE32(GPIO_MUX, value);
 
 	/* Enable Hardware I2C power.
@@ -52,8 +51,8 @@ void sm750_hw_i2c_close(void)
 
 	/* Set GPIO 30 & 31 back as GPIO pins */
 	value = PEEK32(GPIO_MUX);
-	value = FIELD_SET(value, GPIO_MUX, 30, GPIO);
-	value = FIELD_SET(value, GPIO_MUX, 31, GPIO);
+	value &= ~GPIO_MUX_30;
+	value &= ~GPIO_MUX_31;
 	POKE32(GPIO_MUX, value);
 }
 
