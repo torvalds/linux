@@ -112,11 +112,9 @@ void enable2DEngine(unsigned int enable)
 
 	gate = PEEK32(CURRENT_GATE);
 	if (enable) {
-		gate = FIELD_SET(gate, CURRENT_GATE, DE,  ON);
-		gate = FIELD_SET(gate, CURRENT_GATE, CSC, ON);
+		gate |= (CURRENT_GATE_DE | CURRENT_GATE_CSC);
 	} else {
-		gate = FIELD_SET(gate, CURRENT_GATE, DE,  OFF);
-		gate = FIELD_SET(gate, CURRENT_GATE, CSC, OFF);
+		gate &= ~(CURRENT_GATE_DE | CURRENT_GATE_CSC);
 	}
 
 	setCurrentGate(gate);
@@ -129,9 +127,9 @@ void enableDMA(unsigned int enable)
 	/* Enable DMA Gate */
 	gate = PEEK32(CURRENT_GATE);
 	if (enable)
-		gate = FIELD_SET(gate, CURRENT_GATE, DMA, ON);
+		gate |= CURRENT_GATE_DMA;
 	else
-		gate = FIELD_SET(gate, CURRENT_GATE, DMA, OFF);
+		gate &= ~CURRENT_GATE_DMA;
 
 	setCurrentGate(gate);
 }
@@ -146,9 +144,9 @@ void enableGPIO(unsigned int enable)
 	/* Enable GPIO Gate */
 	gate = PEEK32(CURRENT_GATE);
 	if (enable)
-		gate = FIELD_SET(gate, CURRENT_GATE, GPIO, ON);
+		gate |= CURRENT_GATE_GPIO;
 	else
-		gate = FIELD_SET(gate, CURRENT_GATE, GPIO, OFF);
+		gate &= ~CURRENT_GATE_GPIO;
 
 	setCurrentGate(gate);
 }
@@ -163,9 +161,9 @@ void enableI2C(unsigned int enable)
 	/* Enable I2C Gate */
 	gate = PEEK32(CURRENT_GATE);
 	if (enable)
-		gate = FIELD_SET(gate, CURRENT_GATE, I2C, ON);
+		gate |= CURRENT_GATE_I2C;
 	else
-	gate = FIELD_SET(gate, CURRENT_GATE, I2C, OFF);
+		gate &= ~CURRENT_GATE_I2C;
 
 	setCurrentGate(gate);
 }

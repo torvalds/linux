@@ -205,8 +205,7 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 
 	/* Enable display power gate & LOCALMEM power gate*/
 	reg = PEEK32(CURRENT_GATE);
-	reg = FIELD_SET(reg, CURRENT_GATE, DISPLAY, ON);
-	reg = FIELD_SET(reg, CURRENT_GATE, LOCALMEM, ON);
+	reg |= (CURRENT_GATE_DISPLAY | CURRENT_GATE_LOCALMEM);
 	setCurrentGate(reg);
 
 	if (getChipType() != SM750LE) {
