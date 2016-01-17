@@ -79,7 +79,7 @@ struct sm750_dev {
 	struct fb_info *fbinfo[2];
 	struct lynx_accel accel;
 	int accel_off;
-	int dual;
+	int fb_count;
 	int mtrr_off;
 	struct{
 		int vram;

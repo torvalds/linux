@@ -189,7 +189,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	 * If not use spin_lock,system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_fillrect(&sm750_dev->accel,
@@ -197,7 +197,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 				     region->dx, region->dy,
 				     region->width, region->height,
 				     color, rop);
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_unlock(&sm750_dev->slock);
 }
 
@@ -223,7 +223,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_copyarea(&sm750_dev->accel,
@@ -231,7 +231,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 				     base, pitch, Bpp, region->dx, region->dy,
 				     region->width, region->height,
 				     HW_ROP2_COPY);
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_unlock(&sm750_dev->slock);
 }
 
@@ -272,7 +272,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_imageblit(&sm750_dev->accel,
@@ -281,7 +281,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 				      image->dx, image->dy,
 				      image->width, image->height,
 				      fgcol, bgcol, HW_ROP2_COPY);
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_unlock(&sm750_dev->slock);
 }
 
@@ -650,8 +650,10 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	output = &par->output;
 	crtc = &par->crtc;
 
-	crtc->vidmem_size = (sm750_dev->dual) ? sm750_dev->vidmem_size >> 1 :
-			     sm750_dev->vidmem_size;
+	crtc->vidmem_size = sm750_dev->vidmem_size;
+	if (sm750_dev->fb_count > 1)
+		crtc->vidmem_size >>= 1;
+
 	/* setup crtc and output member */
 	sm750_dev->hwCursor = g_hwcursor;
 
@@ -981,7 +983,7 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 
 NO_PARAM:
 	if (sm750_dev->revid != SM750LE_REVISION_ID) {
-		if (sm750_dev->dual) {
+		if (sm750_dev->fb_count > 1) {
 			if (swap)
 				sm750_dev->dataflow = sm750_dual_swap;
 			else
@@ -1027,7 +1029,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	sm750_dev->mtrr_off = g_nomtrr;
 	sm750_dev->mtrr.vram = 0;
 	sm750_dev->accel_off = g_noaccel;
-	sm750_dev->dual = g_dualview;
 	spin_lock_init(&sm750_dev->slock);
 
 	if (!sm750_dev->accel_off) {
@@ -1113,7 +1114,8 @@ ALLOC_FB:
 
 	/* no dual view by far */
 	fbidx++;
-	if (sm750_dev->dual && fbidx < 2)
+	sm750_dev->fb_count++;
+	if (g_dualview && fbidx < 2)
 		goto ALLOC_FB;
 
 	return 0;
