@@ -371,6 +371,19 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return 0;
 }
 
+static bool perf_hpp__is_hpp_entry(struct perf_hpp_fmt *a)
+{
+	return a->header == hpp__header_fn;
+}
+
+static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	if (!perf_hpp__is_hpp_entry(a) || !perf_hpp__is_hpp_entry(b))
+		return false;
+
+	return a->idx == b->idx;
+}
+
 #define HPP__COLOR_PRINT_FNS(_name, _fn, _idx)		\
 	{						\
 		.name   = _name,			\
@@ -382,6 +395,7 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
 		.idx	= PERF_HPP__ ## _idx,		\
+		.equal	= hpp__equal,			\
 	}
 
 #define HPP__COLOR_ACC_PRINT_FNS(_name, _fn, _idx)	\
@@ -395,6 +409,7 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
 		.idx	= PERF_HPP__ ## _idx,		\
+		.equal	= hpp__equal,			\
 	}
 
 #define HPP__PRINT_FNS(_name, _fn, _idx)		\
@@ -407,6 +422,7 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
 		.idx	= PERF_HPP__ ## _idx,		\
+		.equal	= hpp__equal,			\
 	}
 
 struct perf_hpp_fmt perf_hpp__format[] = {
