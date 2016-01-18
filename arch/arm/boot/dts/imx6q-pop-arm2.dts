@@ -17,7 +17,8 @@
 	compatible = "fsl,imx6q-pop-arm2", "fsl,imx6q";
 
 	memory {
-		reg = <0x10000000 0x40000000>;
+		linux,usable-memory = <0x10000000 0x20000000>,
+			<0x80000000 0x20000000>;
 	};
 
 	regulators {
