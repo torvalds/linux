@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2010-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -100,13 +100,11 @@ static int imx_cs42888_surround_startup(struct snd_pcm_substream *substream)
 	int ret;
 
 	if (priv->mclk_freq == 24576000) {
-		support_rates[0] = 32000;
-		support_rates[1] = 48000;
-		support_rates[2] = 64000;
-		support_rates[3] = 96000;
-		support_rates[4] = 192000;
+		support_rates[0] = 48000;
+		support_rates[1] = 96000;
+		support_rates[2] = 192000;
 		constraint_rates.list = support_rates;
-		constraint_rates.count = 5;
+		constraint_rates.count = 3;
 
 		ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 							&constraint_rates);
