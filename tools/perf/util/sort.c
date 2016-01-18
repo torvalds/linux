@@ -1616,14 +1616,15 @@ static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd)
 	return 0;
 }
 
-static int __sort_dimension__add_hpp_output(struct sort_dimension *sd)
+static int __sort_dimension__add_hpp_output(struct perf_hpp_list *list,
+					    struct sort_dimension *sd)
 {
 	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd);
 
 	if (hse == NULL)
 		return -1;
 
-	perf_hpp__column_register(&hse->hpp);
+	perf_hpp_list__column_register(list, &hse->hpp);
 	return 0;
 }
 
@@ -2117,19 +2118,21 @@ static int __hpp_dimension__add(struct hpp_dimension *hd)
 	return 0;
 }
 
-static int __sort_dimension__add_output(struct sort_dimension *sd)
+static int __sort_dimension__add_output(struct perf_hpp_list *list,
+					struct sort_dimension *sd)
 {
 	if (sd->taken)
 		return 0;
 
-	if (__sort_dimension__add_hpp_output(sd) < 0)
+	if (__sort_dimension__add_hpp_output(list, sd) < 0)
 		return -1;
 
 	sd->taken = 1;
 	return 0;
 }
 
-static int __hpp_dimension__add_output(struct hpp_dimension *hd)
+static int __hpp_dimension__add_output(struct perf_hpp_list *list,
+				       struct hpp_dimension *hd)
 {
 	struct perf_hpp_fmt *fmt;
 
@@ -2141,14 +2144,14 @@ static int __hpp_dimension__add_output(struct hpp_dimension *hd)
 		return -1;
 
 	hd->taken = 1;
-	perf_hpp__column_register(fmt);
+	perf_hpp_list__column_register(list, fmt);
 	return 0;
 }
 
 int hpp_dimension__add_output(unsigned col)
 {
 	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	return __hpp_dimension__add_output(&hpp_sort_dimensions[col]);
+	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
 }
 
 static int sort_dimension__add(const char *tok,
@@ -2492,7 +2495,7 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-static int output_field_add(char *tok)
+static int output_field_add(struct perf_hpp_list *list, char *tok)
 {
 	unsigned int i;
 
@@ -2502,7 +2505,7 @@ static int output_field_add(char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		return __sort_dimension__add_output(sd);
+		return __sort_dimension__add_output(list, sd);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
@@ -2511,7 +2514,7 @@ static int output_field_add(char *tok)
 		if (strncasecmp(tok, hd->name, strlen(tok)))
 			continue;
 
-		return __hpp_dimension__add_output(hd);
+		return __hpp_dimension__add_output(list, hd);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
@@ -2520,7 +2523,7 @@ static int output_field_add(char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		return __sort_dimension__add_output(sd);
+		return __sort_dimension__add_output(list, sd);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
@@ -2529,20 +2532,20 @@ static int output_field_add(char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		return __sort_dimension__add_output(sd);
+		return __sort_dimension__add_output(list, sd);
 	}
 
 	return -ESRCH;
 }
 
-static int setup_output_list(char *str)
+static int setup_output_list(struct perf_hpp_list *list, char *str)
 {
 	char *tmp, *tok;
 	int ret = 0;
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = output_field_add(tok);
+		ret = output_field_add(list, tok);
 		if (ret == -EINVAL) {
 			error("Invalid --fields key: `%s'", tok);
 			break;
@@ -2599,7 +2602,7 @@ static int __setup_output_field(void)
 		goto out;
 	}
 
-	ret = setup_output_list(strp);
+	ret = setup_output_list(&perf_hpp_list, strp);
 
 out:
 	free(str);
