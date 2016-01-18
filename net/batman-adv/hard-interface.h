@@ -75,18 +75,6 @@ batadv_hardif_free_ref(struct batadv_hard_iface *hard_iface)
 		call_rcu(&hard_iface->rcu, batadv_hardif_free_rcu);
 }
 
-/**
- * batadv_hardif_free_ref_now - decrement the hard interface refcounter and
- *  possibly free it (without rcu callback)
- * @hard_iface: the hard interface to free
- */
-static inline void
-batadv_hardif_free_ref_now(struct batadv_hard_iface *hard_iface)
-{
-	if (atomic_dec_and_test(&hard_iface->refcount))
-		batadv_hardif_free_rcu(&hard_iface->rcu);
-}
-
 static inline struct batadv_hard_iface *
 batadv_primary_if_get_selected(struct batadv_priv *bat_priv)
 {
