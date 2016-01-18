@@ -216,6 +216,7 @@ struct perf_hpp_fmt {
 	int64_t (*sort)(struct perf_hpp_fmt *fmt,
 			struct hist_entry *a, struct hist_entry *b);
 	bool (*equal)(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
+	void (*free)(struct perf_hpp_fmt *fmt);
 
 	struct list_head list;
 	struct list_head sort_list;
