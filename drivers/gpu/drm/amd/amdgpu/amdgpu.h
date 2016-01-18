@@ -956,13 +956,10 @@ void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates);
 void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		      struct amdgpu_sync *sync);
+		      struct amdgpu_sync *sync, struct fence *fence);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct amdgpu_vm *vm,
 		     struct fence *updates);
-void amdgpu_vm_fence(struct amdgpu_device *adev,
-		     struct amdgpu_vm *vm,
-		     struct fence *fence);
 uint64_t amdgpu_vm_map_gart(struct amdgpu_device *adev, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);

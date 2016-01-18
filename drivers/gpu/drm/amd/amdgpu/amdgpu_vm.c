@@ -152,13 +152,14 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
  * @vm: vm to allocate id for
  * @ring: ring we want to submit job to
  * @sync: sync object where we add dependencies
+ * @fence: fence protecting ID from reuse
  *
  * Allocate an id for the vm, adding fences to the sync obj as necessary.
  *
  * Global mutex must be locked!
  */
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		      struct amdgpu_sync *sync)
+		      struct amdgpu_sync *sync, struct fence *fence)
 {
 	struct fence *best[AMDGPU_MAX_RINGS] = {};
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
@@ -166,6 +167,8 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	unsigned choices[2] = {};
 	unsigned i;
+
+	mutex_lock(&adev->vm_manager.lock);
 
 	/* check if the id is still valid */
 	if (vm_id->id) {
@@ -175,6 +178,9 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		owner = atomic_long_read(&adev->vm_manager.ids[id].owner);
 		if (owner == (long)vm) {
 			trace_amdgpu_vm_grab_id(vm, vm_id->id, ring->idx);
+			fence_put(adev->vm_manager.ids[id].active);
+			adev->vm_manager.ids[id].active = fence_get(fence);
+			mutex_unlock(&adev->vm_manager.lock);
 			return 0;
 		}
 	}
@@ -191,6 +197,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			/* found a free one */
 			vm_id->id = i;
 			trace_amdgpu_vm_grab_id(vm, i, ring->idx);
+			mutex_unlock(&adev->vm_manager.lock);
 			return 0;
 		}
 
@@ -203,19 +210,29 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	}
 
 	for (i = 0; i < 2; ++i) {
-		if (choices[i]) {
-			struct fence *fence;
+		struct fence *active;
+		int r;
 
-			fence  = adev->vm_manager.ids[choices[i]].active;
-			vm_id->id = choices[i];
+		if (!choices[i])
+			continue;
 
-			trace_amdgpu_vm_grab_id(vm, choices[i], ring->idx);
-			return amdgpu_sync_fence(ring->adev, sync, fence);
-		}
+		vm_id->id = choices[i];
+		active  = adev->vm_manager.ids[vm_id->id].active;
+		r = amdgpu_sync_fence(ring->adev, sync, active);
+
+		trace_amdgpu_vm_grab_id(vm, choices[i], ring->idx);
+		atomic_long_set(&adev->vm_manager.ids[vm_id->id].owner, (long)vm);
+
+		fence_put(adev->vm_manager.ids[vm_id->id].active);
+		adev->vm_manager.ids[vm_id->id].active = fence_get(fence);
+
+		mutex_unlock(&adev->vm_manager.lock);
+		return r;
 	}
 
 	/* should never happen */
 	BUG();
+	mutex_unlock(&adev->vm_manager.lock);
 	return -EINVAL;
 }
 
@@ -255,30 +272,6 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		vm_id->pd_gpu_addr = pd_addr;
 		amdgpu_ring_emit_vm_flush(ring, vm_id->id, vm_id->pd_gpu_addr);
 	}
-}
-
-/**
- * amdgpu_vm_fence - remember fence for vm
- *
- * @adev: amdgpu_device pointer
- * @vm: vm we want to fence
- * @fence: fence to remember
- *
- * Fence the vm (cayman+).
- * Set the fence used to protect page table and id.
- *
- * Global and local mutex must be locked!
- */
-void amdgpu_vm_fence(struct amdgpu_device *adev,
-		     struct amdgpu_vm *vm,
-		     struct fence *fence)
-{
-	struct amdgpu_ring *ring = amdgpu_ring_from_fence(fence);
-	unsigned vm_id = vm->ids[ring->idx].id;
-
-	fence_put(adev->vm_manager.ids[vm_id].active);
-	adev->vm_manager.ids[vm_id].active = fence_get(fence);
-	atomic_long_set(&adev->vm_manager.ids[vm_id].owner, (long)vm);
 }
 
 /**

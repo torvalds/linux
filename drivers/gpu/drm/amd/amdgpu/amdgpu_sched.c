@@ -38,19 +38,14 @@ static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 
 	if (fence == NULL && vm && !job->ibs->grabbed_vmid) {
 		struct amdgpu_ring *ring = job->ibs->ring;
-		struct amdgpu_device *adev = ring->adev;
 		int r;
 
-		mutex_lock(&adev->vm_manager.lock);
-		r = amdgpu_vm_grab_id(vm, ring, sync);
-		if (r) {
+		r = amdgpu_vm_grab_id(vm, ring, sync,
+				      &job->base.s_fence->base);
+		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
-		} else {
-			fence = &job->base.s_fence->base;
-			amdgpu_vm_fence(ring->adev, vm, fence);
+		else
 			job->ibs->grabbed_vmid = true;
-		}
-		mutex_unlock(&adev->vm_manager.lock);
 
 		fence = amdgpu_sync_get_fence(sync);
 	}
