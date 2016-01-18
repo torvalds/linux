@@ -629,20 +629,12 @@ unsigned int hists__sort_list_width(struct hists *hists)
 
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 {
-	int idx;
-
 	if (perf_hpp__is_sort_entry(fmt))
 		return perf_hpp__reset_sort_width(fmt, hists);
 
-	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
-		if (fmt == &perf_hpp__format[idx])
-			break;
-	}
+	BUG_ON(fmt->idx >= PERF_HPP__MAX_INDEX);
 
-	if (idx == PERF_HPP__MAX_INDEX)
-		return;
-
-	switch (idx) {
+	switch (fmt->idx) {
 	case PERF_HPP__OVERHEAD:
 	case PERF_HPP__OVERHEAD_SYS:
 	case PERF_HPP__OVERHEAD_US:
