@@ -507,7 +507,7 @@ static void report__output_resort(struct report *rep)
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
 	evlist__for_each(rep->session->evlist, pos)
-		hists__output_resort(evsel__hists(pos), &prog);
+		perf_evsel__output_resort(pos, &prog);
 
 	ui_progress__finish();
 }

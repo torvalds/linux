@@ -1233,9 +1233,8 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	}
 }
 
-void hists__output_resort(struct hists *hists, struct ui_progress *prog)
+void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog)
 {
-	struct perf_evsel *evsel = hists_to_evsel(hists);
 	bool use_callchain;
 
 	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
@@ -1243,7 +1242,12 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	else
 		use_callchain = symbol_conf.use_callchain;
 
-	output_resort(hists, prog, use_callchain);
+	output_resort(evsel__hists(evsel), prog, use_callchain);
+}
+
+void hists__output_resort(struct hists *hists, struct ui_progress *prog)
+{
+	output_resort(hists, prog, symbol_conf.use_callchain);
 }
 
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
