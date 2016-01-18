@@ -531,84 +531,99 @@ static void f_midi_drop_out_substreams(struct f_midi *midi)
 	}
 }
 
+static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
+{
+	struct usb_request *req = NULL;
+	unsigned int len, i;
+	bool active = false;
+	int err;
+
+	/*
+	 * We peek the request in order to reuse it if it fails to enqueue on
+	 * its endpoint
+	 */
+	len = kfifo_peek(&midi->in_req_fifo, &req);
+	if (len != 1) {
+		ERROR(midi, "%s: Couldn't get usb request\n", __func__);
+		return -1;
+	}
+
+	/*
+	 * If buffer overrun, then we ignore this transmission.
+	 * IMPORTANT: This will cause the user-space rawmidi device to block
+	 * until a) usb requests have been completed or b) snd_rawmidi_write()
+	 * times out.
+	 */
+	if (req->length > 0)
+		return 0;
+
+	for (i = midi->in_last_port; i < MAX_PORTS; i++) {
+		struct gmidi_in_port *port = midi->in_port[i];
+		struct snd_rawmidi_substream *substream = midi->in_substream[i];
+
+		if (!port) {
+			/* Reset counter when we reach the last available port */
+			midi->in_last_port = 0;
+			break;
+		}
+
+		if (!port->active || !substream)
+			continue;
+
+		while (req->length + 3 < midi->buflen) {
+			uint8_t b;
+
+			if (snd_rawmidi_transmit(substream, &b, 1) != 1) {
+				port->active = 0;
+				break;
+			}
+			f_midi_transmit_byte(req, port, b);
+		}
+
+		active = !!port->active;
+		/*
+		 * Check if last port is still active, which means that there is
+		 * still data on that substream but this current request run out
+		 * of space.
+		 */
+		if (active) {
+			midi->in_last_port = i;
+			/* There is no need to re-iterate though midi ports. */
+			break;
+		}
+	}
+
+	if (req->length <= 0)
+		return active;
+
+	err = usb_ep_queue(ep, req, GFP_ATOMIC);
+	if (err < 0) {
+		ERROR(midi, "%s failed to queue req: %d\n",
+		      midi->in_ep->name, err);
+		req->length = 0; /* Re-use request next time. */
+	} else {
+		/* Upon success, put request at the back of the queue. */
+		kfifo_skip(&midi->in_req_fifo);
+		kfifo_put(&midi->in_req_fifo, req);
+	}
+
+	return active;
+}
+
 static void f_midi_transmit(struct f_midi *midi)
 {
 	struct usb_ep *ep = midi->in_ep;
-	bool active;
+	int ret;
 
 	/* We only care about USB requests if IN endpoint is enabled */
 	if (!ep || !ep->enabled)
 		goto drop_out;
 
 	do {
-		struct usb_request *req = NULL;
-		unsigned int len, i;
-
-		active = false;
-
-		/* We peek the request in order to reuse it if it fails
-		 * to enqueue on its endpoint */
-		len = kfifo_peek(&midi->in_req_fifo, &req);
-		if (len != 1) {
-			ERROR(midi, "%s: Couldn't get usb request\n", __func__);
+		ret = f_midi_do_transmit(midi, ep);
+		if (ret < 0)
 			goto drop_out;
-		}
-
-		/* If buffer overrun, then we ignore this transmission.
-		 * IMPORTANT: This will cause the user-space rawmidi device to block until a) usb
-		 * requests have been completed or b) snd_rawmidi_write() times out. */
-		if (req->length > 0)
-			return;
-
-		for (i = midi->in_last_port; i < MAX_PORTS; i++) {
-			struct gmidi_in_port *port = midi->in_port[i];
-			struct snd_rawmidi_substream *substream = midi->in_substream[i];
-
-			if (!port) {
-				/* Reset counter when we reach the last available port */
-				midi->in_last_port = 0;
-				break;
-			}
-
-			if (!port->active || !substream)
-				continue;
-
-			while (req->length + 3 < midi->buflen) {
-				uint8_t b;
-
-				if (snd_rawmidi_transmit(substream, &b, 1) != 1) {
-					port->active = 0;
-					break;
-				}
-				f_midi_transmit_byte(req, port, b);
-			}
-
-			active = !!port->active;
-			/* Check if last port is still active, which means that
-			 * there is still data on that substream but this current
-			 * request run out of space. */
-			if (active) {
-				midi->in_last_port = i;
-				/* There is no need to re-iterate though midi ports. */
-				break;
-			}
-		}
-
-		if (req->length > 0) {
-			int err;
-
-			err = usb_ep_queue(ep, req, GFP_ATOMIC);
-			if (err < 0) {
-				ERROR(midi, "%s failed to queue req: %d\n",
-				      midi->in_ep->name, err);
-				req->length = 0; /* Re-use request next time. */
-			} else {
-				/* Upon success, put request at the back of the queue. */
-				kfifo_skip(&midi->in_req_fifo);
-				kfifo_put(&midi->in_req_fifo, req);
-			}
-		}
-	} while (active);
+	} while (ret);
 
 	return;
 
