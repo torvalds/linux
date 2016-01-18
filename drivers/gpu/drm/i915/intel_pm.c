@@ -4138,7 +4138,7 @@ void intel_update_watermarks(struct drm_crtc *crtc)
 		dev_priv->display.update_wm(crtc);
 }
 
-/**
+/*
  * Lock protecting IPS related data structures
  */
 DEFINE_SPINLOCK(mchdev_lock);

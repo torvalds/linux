@@ -410,7 +410,7 @@ intel_write_status_page(struct intel_engine_cs *ring,
 	ring->status_page.page_addr[reg] = value;
 }
 
-/**
+/*
  * Reads a dword out of the status page, which is written to from the command
  * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
  * MI_STORE_DATA_IMM.
