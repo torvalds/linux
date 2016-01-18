@@ -193,13 +193,10 @@ static struct i915_vma *eb_get_vma(struct eb_vmas *eb, unsigned long handle)
 		return eb->lut[handle];
 	} else {
 		struct hlist_head *head;
-		struct hlist_node *node;
+		struct i915_vma *vma;
 
 		head = &eb->buckets[handle & eb->and];
-		hlist_for_each(node, head) {
-			struct i915_vma *vma;
-
-			vma = hlist_entry(node, struct i915_vma, exec_node);
+		hlist_for_each_entry(vma, head, exec_node) {
 			if (vma->exec_handle == handle)
 				return vma;
 		}
