@@ -1,7 +1,7 @@
 /*
  * Freescale ASRC Memory to Memory (M2M) driver
  *
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -954,11 +954,13 @@ static void fsl_asrc_m2m_suspend(struct fsl_asrc *asrc_priv)
 			if (pair->dma_chan[IN])
 				dmaengine_terminate_all(pair->dma_chan[IN]);
 			fsl_asrc_input_dma_callback((void *)pair);
+			init_completion(&m2m->complete[IN]);
 		}
 		if (!completion_done(&m2m->complete[OUT])) {
 			if (pair->dma_chan[OUT])
 				dmaengine_terminate_all(pair->dma_chan[OUT]);
 			fsl_asrc_output_dma_callback((void *)pair);
+			init_completion(&m2m->complete[OUT]);
 		}
 
 		spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
