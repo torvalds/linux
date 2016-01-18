@@ -604,7 +604,7 @@ void perf_hpp__reset_output_field(void)
 	}
 
 	/* reset sort keys */
-	perf_hpp__for_each_sort_list_safe(fmt, tmp) {
+	perf_hpp_list__for_each_sort_list_safe(&perf_hpp_list, fmt, tmp) {
 		list_del_init(&fmt->list);
 		list_del_init(&fmt->sort_list);
 		fmt_free(fmt);
