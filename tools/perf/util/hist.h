@@ -221,6 +221,7 @@ struct perf_hpp_fmt {
 	bool elide;
 	int len;
 	int user_len;
+	int idx;
 };
 
 extern struct list_head perf_hpp__list;

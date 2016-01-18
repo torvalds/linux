@@ -371,7 +371,7 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return 0;
 }
 
-#define HPP__COLOR_PRINT_FNS(_name, _fn)		\
+#define HPP__COLOR_PRINT_FNS(_name, _fn, _idx)		\
 	{						\
 		.name   = _name,			\
 		.header	= hpp__header_fn,		\
@@ -381,9 +381,10 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.cmp	= hpp__nop_cmp,			\
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
+		.idx	= PERF_HPP__ ## _idx,		\
 	}
 
-#define HPP__COLOR_ACC_PRINT_FNS(_name, _fn)		\
+#define HPP__COLOR_ACC_PRINT_FNS(_name, _fn, _idx)	\
 	{						\
 		.name   = _name,			\
 		.header	= hpp__header_fn,		\
@@ -393,9 +394,10 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.cmp	= hpp__nop_cmp,			\
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
+		.idx	= PERF_HPP__ ## _idx,		\
 	}
 
-#define HPP__PRINT_FNS(_name, _fn)			\
+#define HPP__PRINT_FNS(_name, _fn, _idx)		\
 	{						\
 		.name   = _name,			\
 		.header	= hpp__header_fn,		\
@@ -404,17 +406,18 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.cmp	= hpp__nop_cmp,			\
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
+		.idx	= PERF_HPP__ ## _idx,		\
 	}
 
 struct perf_hpp_fmt perf_hpp__format[] = {
-	HPP__COLOR_PRINT_FNS("Overhead", overhead),
-	HPP__COLOR_PRINT_FNS("sys", overhead_sys),
-	HPP__COLOR_PRINT_FNS("usr", overhead_us),
-	HPP__COLOR_PRINT_FNS("guest sys", overhead_guest_sys),
-	HPP__COLOR_PRINT_FNS("guest usr", overhead_guest_us),
-	HPP__COLOR_ACC_PRINT_FNS("Children", overhead_acc),
-	HPP__PRINT_FNS("Samples", samples),
-	HPP__PRINT_FNS("Period", period)
+	HPP__COLOR_PRINT_FNS("Overhead", overhead, OVERHEAD),
+	HPP__COLOR_PRINT_FNS("sys", overhead_sys, OVERHEAD_SYS),
+	HPP__COLOR_PRINT_FNS("usr", overhead_us, OVERHEAD_US),
+	HPP__COLOR_PRINT_FNS("guest sys", overhead_guest_sys, OVERHEAD_GUEST_SYS),
+	HPP__COLOR_PRINT_FNS("guest usr", overhead_guest_us, OVERHEAD_GUEST_US),
+	HPP__COLOR_ACC_PRINT_FNS("Children", overhead_acc, OVERHEAD_ACC),
+	HPP__PRINT_FNS("Samples", samples, SAMPLES),
+	HPP__PRINT_FNS("Period", period, PERIOD)
 };
 
 LIST_HEAD(perf_hpp__list);
