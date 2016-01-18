@@ -617,7 +617,6 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
-		struct drm_crtc_state *old_crtc_state;
 
 		/* Shut down everything that's in the changeset and currently
 		 * still on. So need to check the old, saved state. */
