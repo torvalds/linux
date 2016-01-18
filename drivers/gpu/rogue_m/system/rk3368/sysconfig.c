@@ -159,7 +159,7 @@ PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig, void *hDev
 	 */
 	gsRGXTimingInfo.ui32CoreClockSpeed        = RGX_RK_CORE_CLOCK_SPEED;
 	gsRGXTimingInfo.bEnableActivePM           = IMG_TRUE;
-	gsRGXTimingInfo.bEnableRDPowIsland        = IMG_TRUE;
+	gsRGXTimingInfo.bEnableRDPowIsland        = IMG_FALSE;
 	gsRGXTimingInfo.ui32ActivePMLatencyms     = SYS_RGX_ACTIVE_POWER_LATENCY_MS;
 
 	/*

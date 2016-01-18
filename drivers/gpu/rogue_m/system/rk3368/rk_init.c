@@ -24,6 +24,7 @@
 #include <linux/clk-private.h>
 #else
 #include <linux/clk-provider.h>
+#include <linux/pm_runtime.h>
 #endif
 #include <linux/pm_opp.h>
 #include <asm/compiler.h>
@@ -1802,6 +1803,7 @@ static IMG_VOID RgxDisableClock(IMG_VOID)
 }
 
 #if OPEN_GPU_PD
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 /*
  * The power management
  * software must power down pd_gpu_1 before power down pd_gpu_0,
@@ -1812,7 +1814,6 @@ static IMG_VOID RgxEnablePower(IMG_VOID)
 	struct rk_context *platform;
 
 	platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
-
 	PVR_ASSERT(platform != NULL);
 
 	if (!platform->bEnablePd && platform->pd_gpu_0 && platform->pd_gpu_1) {
@@ -1829,7 +1830,6 @@ static IMG_VOID RgxDisablePower(IMG_VOID)
 	struct rk_context *platform;
 
 	platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
-
 	PVR_ASSERT(platform != NULL);
 
 	if (platform->bEnablePd && platform->pd_gpu_0 && platform->pd_gpu_1) {
@@ -1840,7 +1840,39 @@ static IMG_VOID RgxDisablePower(IMG_VOID)
 		PVR_DPF((PVR_DBG_WARNING, "Failed to enable gpu_pd clock!"));
 	}
 }
+#else
+static IMG_VOID RgxEnablePower(IMG_VOID)
+{
+	struct rk_context *platform;
+
+	platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
+	PVR_ASSERT(platform != NULL);
+
+	if (!platform->bEnablePd) {
+		pm_runtime_get_sync(&gpsPVRLDMDev->dev);
+		platform->bEnablePd = IMG_TRUE;
+	} else {
+		PVR_DPF((PVR_DBG_WARNING, "Failed to enable gpu_pd clock!"));
+	}
+}
+
+static IMG_VOID RgxDisablePower(IMG_VOID)
+{
+	struct rk_context *platform;
+
+	platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
+
+	PVR_ASSERT(platform != NULL);
+
+	if (platform->bEnablePd) {
+		pm_runtime_put(&gpsPVRLDMDev->dev);
+		platform->bEnablePd = IMG_FALSE;
+	} else {
+		PVR_DPF((PVR_DBG_WARNING, "Failed to enable gpu_pd clock!"));
+	}
+}
 #endif
+#endif //end of OPEN_GPU_PD
 
 IMG_VOID RgxResume(IMG_VOID)
 {
@@ -1905,6 +1937,7 @@ IMG_VOID RgxRkInit(IMG_VOID)
 	spin_lock_init(&platform->timer_lock);
 
 #if OPEN_GPU_PD
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 	platform->pd_gpu_0 = devm_clk_get(&gpsPVRLDMDev->dev, "pd_gpu_0");
 	if (IS_ERR_OR_NULL(platform->pd_gpu_0)) {
 		PVR_DPF((PVR_DBG_ERROR,
@@ -1918,7 +1951,10 @@ IMG_VOID RgxRkInit(IMG_VOID)
 			 "RgxRkInit: Failed to find pd_gpu_1 clock source"));
 		goto fail1;
 	}
+#else
+	pm_runtime_enable(&gpsPVRLDMDev->dev);
 #endif
+#endif //end of OPEN_GPU_PD
 
 	platform->aclk_gpu_mem =
 	    devm_clk_get(&gpsPVRLDMDev->dev, "aclk_gpu_mem");
@@ -1980,11 +2016,10 @@ fail4:
 fail3:
 	platform->aclk_gpu_mem = NULL;
 fail2:
-#if OPEN_GPU_PD
+#if OPEN_GPU_PD && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 	platform->pd_gpu_1 = NULL;
 fail1:
 	platform->pd_gpu_0 = NULL;
-fail0:
 #else
         return;
 #endif //end of OPEN_GPU_PD
@@ -2010,13 +2045,17 @@ IMG_VOID RgxRkUnInit(IMG_VOID)
 		platform->aclk_gpu_mem = NULL;
 	}
 #if OPEN_GPU_PD
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 	if (platform->pd_gpu_1) {
 		platform->pd_gpu_1 = NULL;
 	}
 	if (platform->pd_gpu_0) {
 		platform->pd_gpu_0 = NULL;
 	}
+#else
+	pm_runtime_disable(&gpsPVRLDMDev->dev);
 #endif
+#endif //OPEN_GPU_PD
 
 	if (platform->dvfs_enabled) {
 #if RK33_DVFS_SUPPORT

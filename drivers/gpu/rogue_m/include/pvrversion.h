@@ -49,27 +49,33 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *  Rogue KM Version Note
  *
  *  L 1.17:
- *          Support gpu disable dvfs case.
- *          Add rk_tf_check_version to compatible for rk3328.
+ *		Support gpu disable dvfs case.
+ *		Add rk_tf_check_version to compatible for rk3328.
  *  L 1.18:
- *			If fix freq,then don't force to drop freq to the lowest.
+ *		If fix freq,then don't force to drop freq to the lowest.
  *
  *  M 1.21:
- *          Merge 1.5_RTM3604260 DDK code.
+ *		Merge 1.5_RTM3604260 DDK code.
  *  M 1.24:
- *          Merge 1.5_ED3653583 DDK code.
+ *		Merge 1.5_ED3653583 DDK code.
  *  M 1.28:
- *	    Merge 1.5_ED3776568 DDK code.
+ *		Merge 1.5_ED3776568 DDK code.
  *  M 1.29
- *	    1. Reopen bEnableRDPowIsland since it doesn't appear splash screen when click the drawerbutton.
- *	    2. Don't set PVR_ANDROID_HAS_SET_BUFFERS_DATASPACE by default.
- *	    3. Remove hGPUUtilLock to avoid dead lock.
- *	    4. Get raw ion_device by IonDevAcquire.
+ *		1. Reopen bEnableRDPowIsland since it doesn't appear splash screen when click the drawerbutton.
+ *		2. Don't set PVR_ANDROID_HAS_SET_BUFFERS_DATASPACE by default.
+ *		3. Remove hGPUUtilLock to avoid dead lock.
+ *		4. Get raw ion_device by IonDevAcquire.
  *  M 1.31
- *	    1. Merge 1.5_ED3830101 DDK code.
+ *		1. Merge 1.5_ED3830101 DDK code.
  *  M 1.31+
- *          1. Let Rogue M support kernel 4.4.
- *          2. Close OPEN_GPU_PD temporarily.
+ *		1. Let Rogue M support kernel 4.4.
+ *		2. Close OPEN_GPU_PD temporarily.
+ *  M 1.31_2
+ *		1. Add GPU dvfs support.
+ *		2. Adjust the code indentation.
+ *		3. Use late_initcall instead of module_init to load gpu driver.
+ *		4. Add GPU pd support.
+ *		5. Disable RD power island.
  */
 
 #define PVR_STR(X) #X
