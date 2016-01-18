@@ -647,13 +647,6 @@ static int skcipher_recvmsg_sync(struct socket *sock, struct msghdr *msg,
 
 	lock_sock(sk);
 	while (msg_data_left(msg)) {
-		sgl = list_first_entry(&ctx->tsgl,
-				       struct skcipher_sg_list, list);
-		sg = sgl->sg;
-
-		while (!sg->length)
-			sg++;
-
 		if (!ctx->used) {
 			err = skcipher_wait_for_data(sk, flags);
 			if (err)
@@ -673,6 +666,13 @@ static int skcipher_recvmsg_sync(struct socket *sock, struct msghdr *msg,
 		err = -EINVAL;
 		if (!used)
 			goto free;
+
+		sgl = list_first_entry(&ctx->tsgl,
+				       struct skcipher_sg_list, list);
+		sg = sgl->sg;
+
+		while (!sg->length)
+			sg++;
 
 		skcipher_request_set_crypt(&ctx->req, sg, ctx->rsgl.sg, used,
 					   ctx->iv);
