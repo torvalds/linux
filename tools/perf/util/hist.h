@@ -264,6 +264,9 @@ static inline void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
 #define hists__for_each_format(hists, format) \
 	perf_hpp_list__for_each_format((hists)->hpp_list, fmt)
 
+#define hists__for_each_sort_list(hists, format) \
+	perf_hpp_list__for_each_sort_list((hists)->hpp_list, fmt)
+
 extern struct perf_hpp_fmt perf_hpp__format[];
 
 enum {
