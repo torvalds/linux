@@ -217,12 +217,16 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		int niface;
 		int rc;
 
-		/* NB we don't check interface conflicts here; it's the LNDs
-		 * responsibility (if it cares at all) */
+		/*
+		 * NB we don't check interface conflicts here; it's the LNDs
+		 * responsibility (if it cares at all)
+		 */
 
 		if (square != NULL && (comma == NULL || square < comma)) {
-			/* i.e: o2ib0(ib0)[1,2], number between square
-			 * brackets are CPTs this NI needs to be bond */
+			/*
+			 * i.e: o2ib0(ib0)[1,2], number between square
+			 * brackets are CPTs this NI needs to be bond
+			 */
 			if (bracket != NULL && bracket > square) {
 				tmp = square;
 				goto failed_syntax;
@@ -609,8 +613,10 @@ lnet_parse_priority(char *str, unsigned int *priority, char **token)
 	len = strlen(sep + 1);
 
 	if ((sscanf((sep+1), "%u%n", priority, &nob) < 1) || (len != nob)) {
-		/* Update the caller's token pointer so it treats the found
-		   priority as the token to report in the error message. */
+		/*
+		 * Update the caller's token pointer so it treats the found
+		 * priority as the token to report in the error message.
+		 */
 		*token += sep - str + 1;
 		return -1;
 	}
