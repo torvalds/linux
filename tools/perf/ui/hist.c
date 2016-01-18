@@ -436,9 +436,10 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__PRINT_FNS("Period", period, PERIOD)
 };
 
-LIST_HEAD(perf_hpp__list);
-LIST_HEAD(perf_hpp__sort_list);
-
+struct perf_hpp_list perf_hpp_list = {
+	.fields	= LIST_HEAD_INIT(perf_hpp_list.fields),
+	.sorts	= LIST_HEAD_INIT(perf_hpp_list.sorts),
+};
 
 #undef HPP__COLOR_PRINT_FNS
 #undef HPP__COLOR_ACC_PRINT_FNS
@@ -506,7 +507,7 @@ void perf_hpp__init(void)
 
 void perf_hpp__column_register(struct perf_hpp_fmt *format)
 {
-	list_add_tail(&format->list, &perf_hpp__list);
+	list_add_tail(&format->list, &perf_hpp_list.fields);
 }
 
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
@@ -516,7 +517,7 @@ void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 
 void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
 {
-	list_add_tail(&format->sort_list, &perf_hpp__sort_list);
+	list_add_tail(&format->sort_list, &perf_hpp_list.sorts);
 }
 
 void perf_hpp__cancel_cumulate(void)
