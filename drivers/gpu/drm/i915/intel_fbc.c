@@ -414,14 +414,6 @@ out:
 	drm_crtc_vblank_put(&crtc->base);
 }
 
-static void intel_fbc_cancel_work(struct drm_i915_private *dev_priv)
-{
-	struct intel_fbc *fbc = &dev_priv->fbc;
-
-	WARN_ON(!mutex_is_locked(&fbc->lock));
-	fbc->work.scheduled = false;
-}
-
 static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
@@ -436,10 +428,10 @@ static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 		return;
 	}
 
-	/* It is useless to call intel_fbc_cancel_work() in this function since
-	 * we're not releasing fbc.lock, so it won't have an opportunity to grab
-	 * it to discover that it was cancelled. So we just update the expected
-	 * jiffy count. */
+	/* It is useless to call intel_fbc_cancel_work() or cancel_work() in
+	 * this function since we're not releasing fbc.lock, so it won't have an
+	 * opportunity to grab it to discover that it was cancelled. So we just
+	 * update the expected jiffy count. */
 	work->scheduled = true;
 	work->scheduled_vblank = drm_crtc_vblank_count(&crtc->base);
 	drm_crtc_vblank_put(&crtc->base);
@@ -453,23 +445,13 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv)
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
 
-	intel_fbc_cancel_work(dev_priv);
+	/* Calling cancel_work() here won't help due to the fact that the work
+	 * function grabs fbc->lock. Just set scheduled to false so the work
+	 * function can know it was cancelled. */
+	fbc->work.scheduled = false;
 
 	if (fbc->active)
 		fbc->deactivate(dev_priv);
-}
-
-static bool crtc_can_fbc(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
-
-	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
-		return false;
-
-	if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A)
-		return false;
-
-	return true;
 }
 
 static bool multiple_pipes_ok(struct intel_crtc *crtc)
@@ -831,8 +813,13 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if (!crtc_can_fbc(crtc)) {
+	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A) {
 		fbc->no_fbc_reason = "no enabled pipes can have FBC";
+		return false;
+	}
+
+	if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A) {
+		fbc->no_fbc_reason = "no enabled planes can have FBC";
 		return false;
 	}
 
