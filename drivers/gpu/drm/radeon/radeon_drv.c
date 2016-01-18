@@ -291,88 +291,6 @@ static struct pci_device_id pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-#ifdef CONFIG_DRM_RADEON_UMS
-
-static int radeon_suspend(struct drm_device *dev, pm_message_t state)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
-		return 0;
-
-	/* Disable *all* interrupts */
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
-		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
-	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
-	return 0;
-}
-
-static int radeon_resume(struct drm_device *dev)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
-		return 0;
-
-	/* Restore interrupt registers */
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
-		RADEON_WRITE(R500_DxMODE_INT_MASK, dev_priv->r500_disp_irq_reg);
-	RADEON_WRITE(RADEON_GEN_INT_CNTL, dev_priv->irq_enable_reg);
-	return 0;
-}
-
-
-static const struct file_operations radeon_driver_old_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_legacy_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = radeon_compat_ioctl,
-#endif
-	.llseek = noop_llseek,
-};
-
-static struct drm_driver driver_old = {
-	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
-	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED,
-	.dev_priv_size = sizeof(drm_radeon_buf_priv_t),
-	.load = radeon_driver_load,
-	.firstopen = radeon_driver_firstopen,
-	.open = radeon_driver_open,
-	.preclose = radeon_driver_preclose,
-	.postclose = radeon_driver_postclose,
-	.lastclose = radeon_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
-	.unload = radeon_driver_unload,
-	.suspend = radeon_suspend,
-	.resume = radeon_resume,
-	.get_vblank_counter = radeon_get_vblank_counter,
-	.enable_vblank = radeon_enable_vblank,
-	.disable_vblank = radeon_disable_vblank,
-	.master_create = radeon_master_create,
-	.master_destroy = radeon_master_destroy,
-	.irq_preinstall = radeon_driver_irq_preinstall,
-	.irq_postinstall = radeon_driver_irq_postinstall,
-	.irq_uninstall = radeon_driver_irq_uninstall,
-	.irq_handler = radeon_driver_irq_handler,
-	.ioctls = radeon_ioctls,
-	.dma_ioctl = radeon_cp_buffers,
-	.fops = &radeon_driver_old_fops,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
-};
-
-#endif
-
 static struct drm_driver kms_driver;
 
 static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
@@ -619,13 +537,6 @@ static struct drm_driver kms_driver = {
 static struct drm_driver *driver;
 static struct pci_driver *pdriver;
 
-#ifdef CONFIG_DRM_RADEON_UMS
-static struct pci_driver radeon_pci_driver = {
-	.name = DRIVER_NAME,
-	.id_table = pciidlist,
-};
-#endif
-
 static struct pci_driver radeon_kms_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
@@ -655,16 +566,8 @@ static int __init radeon_init(void)
 		radeon_register_atpx_handler();
 
 	} else {
-#ifdef CONFIG_DRM_RADEON_UMS
-		DRM_INFO("radeon userspace modesetting enabled.\n");
-		driver = &driver_old;
-		pdriver = &radeon_pci_driver;
-		driver->driver_features &= ~DRIVER_MODESET;
-		driver->num_ioctls = radeon_max_ioctl;
-#else
 		DRM_ERROR("No UMS support in radeon module!\n");
 		return -EINVAL;
-#endif
 	}
 
 	radeon_kfd_init();

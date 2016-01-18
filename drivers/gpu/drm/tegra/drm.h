@@ -57,6 +57,8 @@ struct tegra_drm {
 		struct work_struct work;
 		struct mutex lock;
 	} commit;
+
+	struct drm_atomic_state *state;
 };
 
 struct tegra_drm_client;
@@ -247,18 +249,17 @@ void tegra_output_connector_destroy(struct drm_connector *connector);
 void tegra_output_encoder_destroy(struct drm_encoder *encoder);
 
 /* from dpaux.c */
-struct tegra_dpaux;
 struct drm_dp_link;
 
-struct tegra_dpaux *tegra_dpaux_find_by_of_node(struct device_node *np);
-enum drm_connector_status tegra_dpaux_detect(struct tegra_dpaux *dpaux);
-int tegra_dpaux_attach(struct tegra_dpaux *dpaux, struct tegra_output *output);
-int tegra_dpaux_detach(struct tegra_dpaux *dpaux);
-int tegra_dpaux_enable(struct tegra_dpaux *dpaux);
-int tegra_dpaux_disable(struct tegra_dpaux *dpaux);
-int tegra_dpaux_prepare(struct tegra_dpaux *dpaux, u8 encoding);
-int tegra_dpaux_train(struct tegra_dpaux *dpaux, struct drm_dp_link *link,
-		      u8 pattern);
+struct drm_dp_aux *drm_dp_aux_find_by_of_node(struct device_node *np);
+enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux);
+int drm_dp_aux_attach(struct drm_dp_aux *aux, struct tegra_output *output);
+int drm_dp_aux_detach(struct drm_dp_aux *aux);
+int drm_dp_aux_enable(struct drm_dp_aux *aux);
+int drm_dp_aux_disable(struct drm_dp_aux *aux);
+int drm_dp_aux_prepare(struct drm_dp_aux *aux, u8 encoding);
+int drm_dp_aux_train(struct drm_dp_aux *aux, struct drm_dp_link *link,
+		     u8 pattern);
 
 /* from fb.c */
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
@@ -273,16 +274,18 @@ int tegra_drm_fb_prepare(struct drm_device *drm);
 void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
+void tegra_drm_fb_suspend(struct drm_device *drm);
+void tegra_drm_fb_resume(struct drm_device *drm);
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 void tegra_fb_output_poll_changed(struct drm_device *drm);
 #endif
 
 extern struct platform_driver tegra_dc_driver;
-extern struct platform_driver tegra_dsi_driver;
-extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_hdmi_driver;
+extern struct platform_driver tegra_dsi_driver;
 extern struct platform_driver tegra_dpaux_driver;
+extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;
 

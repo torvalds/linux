@@ -6003,7 +6003,7 @@ intel_dp_init(struct drm_device *dev,
 	encoder = &intel_encoder->base;
 
 	if (drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
-			     DRM_MODE_ENCODER_TMDS))
+			     DRM_MODE_ENCODER_TMDS, NULL))
 		goto err_encoder_init;
 
 	intel_encoder->compute_config = intel_dp_compute_config;

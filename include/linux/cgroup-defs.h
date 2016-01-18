@@ -90,7 +90,6 @@ enum {
  */
 struct cgroup_file {
 	/* do not access any fields from outside cgroup core */
-	struct list_head node;			/* anchored at css->files */
 	struct kernfs_node *kn;
 };
 
@@ -133,9 +132,6 @@ struct cgroup_subsys_state {
 	 * used to allow interrupting and resuming iterations.
 	 */
 	u64 serial_nr;
-
-	/* all cgroup_files associated with this css */
-	struct list_head files;
 
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
@@ -426,12 +422,9 @@ struct cgroup_subsys {
 	void (*css_reset)(struct cgroup_subsys_state *css);
 	void (*css_e_css_changed)(struct cgroup_subsys_state *css);
 
-	int (*can_attach)(struct cgroup_subsys_state *css,
-			  struct cgroup_taskset *tset);
-	void (*cancel_attach)(struct cgroup_subsys_state *css,
-			      struct cgroup_taskset *tset);
-	void (*attach)(struct cgroup_subsys_state *css,
-		       struct cgroup_taskset *tset);
+	int (*can_attach)(struct cgroup_taskset *tset);
+	void (*cancel_attach)(struct cgroup_taskset *tset);
+	void (*attach)(struct cgroup_taskset *tset);
 	int (*can_fork)(struct task_struct *task, void **priv_p);
 	void (*cancel_fork)(struct task_struct *task, void *priv);
 	void (*fork)(struct task_struct *task, void *priv);

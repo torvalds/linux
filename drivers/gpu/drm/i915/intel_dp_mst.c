@@ -536,7 +536,7 @@ static void intel_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 	drm_kms_helper_hotplug_event(dev);
 }
 
-static struct drm_dp_mst_topology_cbs mst_cbs = {
+static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = intel_dp_add_mst_connector,
 	.register_connector = intel_dp_register_mst_connector,
 	.destroy_connector = intel_dp_destroy_mst_connector,
@@ -560,7 +560,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_mst->primary = intel_dig_port;
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_mst_enc_funcs,
-			 DRM_MODE_ENCODER_DPMST);
+			 DRM_MODE_ENCODER_DPMST, NULL);
 
 	intel_encoder->type = INTEL_OUTPUT_DP_MST;
 	intel_encoder->crtc_mask = 0x7;

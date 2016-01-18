@@ -274,6 +274,11 @@ static void cik_ih_set_rptr(struct amdgpu_device *adev)
 static int cik_ih_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret;
+
+	ret = amdgpu_irq_add_domain(adev);
+	if (ret)
+		return ret;
 
 	cik_ih_set_interrupt_funcs(adev);
 
@@ -300,6 +305,7 @@ static int cik_ih_sw_fini(void *handle)
 
 	amdgpu_irq_fini(adev);
 	amdgpu_ih_ring_fini(adev);
+	amdgpu_irq_remove_domain(adev);
 
 	return 0;
 }

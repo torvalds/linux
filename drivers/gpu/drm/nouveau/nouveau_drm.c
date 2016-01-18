@@ -37,12 +37,16 @@
 #include <core/pci.h>
 #include <core/tegra.h>
 
+#include <nvif/class.h>
+#include <nvif/cl0002.h>
+#include <nvif/cla06f.h>
+#include <nvif/if0004.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 #include "nouveau_vga.h"
-#include "nouveau_sysfs.h"
 #include "nouveau_hwmon.h"
 #include "nouveau_acpi.h"
 #include "nouveau_bios.h"
@@ -256,8 +260,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		}
 
 		ret = nvif_notify_init(&drm->nvsw, nouveau_flip_complete,
-				       false, NVSW_NTFY_UEVENT, NULL, 0, 0,
-				       &drm->flip);
+				       false, NV04_NVSW_NTFY_UEVENT,
+				       NULL, 0, 0, &drm->flip);
 		if (ret == 0)
 			ret = nvif_notify_get(&drm->flip);
 		if (ret) {
@@ -448,7 +452,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 			goto fail_dispinit;
 	}
 
-	nouveau_sysfs_init(dev);
+	nouveau_debugfs_init(drm);
 	nouveau_hwmon_init(dev);
 	nouveau_accel_init(drm);
 	nouveau_fbcon_init(dev);
@@ -486,7 +490,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_fbcon_fini(dev);
 	nouveau_accel_fini(drm);
 	nouveau_hwmon_fini(dev);
-	nouveau_sysfs_fini(dev);
+	nouveau_debugfs_fini(drm);
 
 	if (dev->mode_config.num_crtc)
 		nouveau_display_fini(dev);
@@ -928,8 +932,8 @@ driver_stub = {
 	.lastclose = nouveau_vga_lastclose,
 
 #if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = nouveau_debugfs_init,
-	.debugfs_cleanup = nouveau_debugfs_takedown,
+	.debugfs_init = nouveau_drm_debugfs_init,
+	.debugfs_cleanup = nouveau_drm_debugfs_cleanup,
 #endif
 
 	.get_vblank_counter = drm_vblank_no_hw_counter,
@@ -1003,7 +1007,6 @@ static void nouveau_display_options(void)
 	DRM_DEBUG_DRIVER("... modeset      : %d\n", nouveau_modeset);
 	DRM_DEBUG_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
 	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
-	DRM_DEBUG_DRIVER("... pstate       : %d\n", nouveau_pstate);
 }
 
 static const struct dev_pm_ops nouveau_pm_ops = {
@@ -1045,10 +1048,6 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		err = -ENOMEM;
 		goto err_free;
 	}
-
-	err = drm_dev_set_unique(drm, "%s", dev_name(&pdev->dev));
-	if (err < 0)
-		goto err_free;
 
 	drm->platformdev = pdev;
 	platform_set_drvdata(pdev, drm);

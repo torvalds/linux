@@ -81,9 +81,11 @@ static void update_classid(struct cgroup_subsys_state *css, void *v)
 	css_task_iter_end(&it);
 }
 
-static void cgrp_attach(struct cgroup_subsys_state *css,
-			struct cgroup_taskset *tset)
+static void cgrp_attach(struct cgroup_taskset *tset)
 {
+	struct cgroup_subsys_state *css;
+
+	cgroup_taskset_first(tset, &css);
 	update_classid(css,
 		       (void *)(unsigned long)css_cls_state(css)->classid);
 }

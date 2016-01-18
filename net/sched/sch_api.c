@@ -950,7 +950,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 		}
 		lockdep_set_class(qdisc_lock(sch), &qdisc_tx_lock);
 		if (!netif_is_multiqueue(dev))
-			sch->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
+			sch->flags |= TCQ_F_ONETXQUEUE;
 	}
 
 	sch->handle = handle;

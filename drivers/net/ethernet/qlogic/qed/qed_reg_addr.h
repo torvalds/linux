@@ -363,4 +363,8 @@
 		0x7 << 0)
 #define  MCP_REG_NVM_CFG4_FLASH_SIZE_SHIFT \
 	0
+#define PGLUE_B_REG_PF_BAR0_SIZE \
+	0x2aae60UL
+#define PGLUE_B_REG_PF_BAR1_SIZE \
+	0x2aae64UL
 #endif

@@ -397,7 +397,8 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
-				 mdp4_plane->formats, mdp4_plane->nformats, type);
+				 mdp4_plane->formats, mdp4_plane->nformats,
+				 type, NULL);
 	if (ret)
 		goto fail;
 

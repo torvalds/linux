@@ -125,9 +125,11 @@ static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(hsotg->clk);
-	if (ret)
-		return ret;
+	if (hsotg->clk) {
+		ret = clk_prepare_enable(hsotg->clk);
+		if (ret)
+			return ret;
+	}
 
 	if (hsotg->uphy)
 		ret = usb_phy_init(hsotg->uphy);
@@ -175,7 +177,8 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	if (ret)
 		return ret;
 
-	clk_disable_unprepare(hsotg->clk);
+	if (hsotg->clk)
+		clk_disable_unprepare(hsotg->clk);
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 				     hsotg->supplies);
@@ -212,13 +215,40 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	 */
 	hsotg->phy = devm_phy_get(hsotg->dev, "usb2-phy");
 	if (IS_ERR(hsotg->phy)) {
-		hsotg->phy = NULL;
-		hsotg->uphy = devm_usb_get_phy(hsotg->dev, USB_PHY_TYPE_USB2);
-		if (IS_ERR(hsotg->uphy))
-			hsotg->uphy = NULL;
-		else
-			hsotg->plat = dev_get_platdata(hsotg->dev);
+		ret = PTR_ERR(hsotg->phy);
+		switch (ret) {
+		case -ENODEV:
+		case -ENOSYS:
+			hsotg->phy = NULL;
+			break;
+		case -EPROBE_DEFER:
+			return ret;
+		default:
+			dev_err(hsotg->dev, "error getting phy %d\n", ret);
+			return ret;
+		}
 	}
+
+	if (!hsotg->phy) {
+		hsotg->uphy = devm_usb_get_phy(hsotg->dev, USB_PHY_TYPE_USB2);
+		if (IS_ERR(hsotg->uphy)) {
+			ret = PTR_ERR(hsotg->uphy);
+			switch (ret) {
+			case -ENODEV:
+			case -ENXIO:
+				hsotg->uphy = NULL;
+				break;
+			case -EPROBE_DEFER:
+				return ret;
+			default:
+				dev_err(hsotg->dev, "error getting usb phy %d\n",
+					ret);
+				return ret;
+			}
+		}
+	}
+
+	hsotg->plat = dev_get_platdata(hsotg->dev);
 
 	if (hsotg->phy) {
 		/*
@@ -227,11 +257,6 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 		 */
 		if (phy_get_bus_width(hsotg->phy) == 8)
 			hsotg->phyif = GUSBCFG_PHYIF8;
-	}
-
-	if (!hsotg->phy && !hsotg->uphy && !hsotg->plat) {
-		dev_err(hsotg->dev, "no platform data or transceiver defined\n");
-		return -EPROBE_DEFER;
 	}
 
 	/* Clock */
@@ -342,20 +367,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (retval)
 		return retval;
 
-	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
-		dev_err(&dev->dev, "missing IRQ resource\n");
-		return irq;
-	}
-
-	dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
-		irq);
-	retval = devm_request_irq(hsotg->dev, irq,
-				  dwc2_handle_common_intr, IRQF_SHARED,
-				  dev_name(hsotg->dev), hsotg);
-	if (retval)
-		return retval;
-
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	hsotg->regs = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(hsotg->regs))
@@ -389,6 +400,20 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		return -ENOMEM;
 
 	dwc2_set_all_params(hsotg->core_params, -1);
+
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		dev_err(&dev->dev, "missing IRQ resource\n");
+		return irq;
+	}
+
+	dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
+		irq);
+	retval = devm_request_irq(hsotg->dev, irq,
+				  dwc2_handle_common_intr, IRQF_SHARED,
+				  dev_name(hsotg->dev), hsotg);
+	if (retval)
+		return retval;
 
 	retval = dwc2_lowlevel_hw_enable(hsotg);
 	if (retval)

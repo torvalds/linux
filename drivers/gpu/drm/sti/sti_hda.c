@@ -543,8 +543,6 @@ static int sti_hda_connector_get_modes(struct drm_connector *connector)
 		count++;
 	}
 
-	drm_mode_sort(&connector->modes);
-
 	return count;
 }
 

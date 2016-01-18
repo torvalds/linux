@@ -271,9 +271,9 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 	return 0;
 }
 
-static int nvme_nvm_identity(struct request_queue *q, struct nvm_id *nvm_id)
+static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_id *nvme_nvm_id;
 	struct nvme_nvm_command c = {};
@@ -308,10 +308,10 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_l2p_tbl(struct request_queue *q, u64 slba, u32 nlb,
+static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 				nvm_l2p_update_fn *update_l2p, void *priv)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
 	u32 len = queue_max_hw_sectors(dev->admin_q) << 9;
@@ -415,10 +415,10 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_set_bb_tbl(struct request_queue *q, struct nvm_rq *rqd,
+static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
 								int type)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
 	int ret = 0;
@@ -455,7 +455,7 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	struct nvm_rq *rqd = rq->end_io_data;
 	struct nvm_dev *dev = rqd->dev;
 
-	if (dev->mt->end_io(rqd, error))
+	if (dev->mt && dev->mt->end_io(rqd, error))
 		pr_err("nvme: err status: %x result: %lx\n",
 				rq->errors, (unsigned long)rq->special);
 
@@ -463,8 +463,9 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	blk_mq_free_request(rq);
 }
 
-static int nvme_nvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
+static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
+	struct request_queue *q = dev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct request *rq;
 	struct bio *bio = rqd->bio;
@@ -502,8 +503,9 @@ static int nvme_nvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
 	return 0;
 }
 
-static int nvme_nvm_erase_block(struct request_queue *q, struct nvm_rq *rqd)
+static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
+	struct request_queue *q = dev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_nvm_command c = {};
 
@@ -515,9 +517,9 @@ static int nvme_nvm_erase_block(struct request_queue *q, struct nvm_rq *rqd)
 	return nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
 }
 
-static void *nvme_nvm_create_dma_pool(struct request_queue *q, char *name)
+static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
 {
-	struct nvme_ns *ns = q->queuedata;
+	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 
 	return dma_pool_create(name, dev->dev, PAGE_SIZE, PAGE_SIZE, 0);
@@ -530,7 +532,7 @@ static void nvme_nvm_destroy_dma_pool(void *pool)
 	dma_pool_destroy(dma_pool);
 }
 
-static void *nvme_nvm_dev_dma_alloc(struct request_queue *q, void *pool,
+static void *nvme_nvm_dev_dma_alloc(struct nvm_dev *dev, void *pool,
 				    gfp_t mem_flags, dma_addr_t *dma_handler)
 {
 	return dma_pool_alloc(pool, mem_flags, dma_handler);

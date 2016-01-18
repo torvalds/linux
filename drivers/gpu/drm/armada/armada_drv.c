@@ -102,6 +102,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.funcs = &armada_drm_mode_config_funcs;
 	drm_mm_init(&priv->linear, mem->start, resource_size(mem));
+	mutex_init(&priv->linear_lock);
 
 	ret = component_bind_all(dev->dev, dev);
 	if (ret)

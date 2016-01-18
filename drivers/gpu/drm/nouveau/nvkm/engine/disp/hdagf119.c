@@ -29,7 +29,7 @@
 #include <subdev/bios/dcb.h>
 #include <subdev/timer.h>
 
-#include <nvif/class.h>
+#include <nvif/cl5070.h>
 #include <nvif/unpack.h>
 
 int
@@ -41,10 +41,10 @@ gf119_hda_eld(NV50_DISP_MTHD_V1)
 	} *args = data;
 	const u32 soff = outp->or * 0x030;
 	const u32 hoff = head * 0x800;
-	int ret, i;
+	int ret = -ENOSYS, i;
 
 	nvif_ioctl(object, "disp sor hda eld size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object, "disp sor hda eld vers %d\n",
 			   args->v0.version);
 		if (size > 0x60)

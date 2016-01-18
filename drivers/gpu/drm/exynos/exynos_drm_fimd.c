@@ -29,6 +29,7 @@
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
@@ -87,7 +88,6 @@
 
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
-#define CURSOR_WIN	4
 
 struct fimd_driver_data {
 	unsigned int timing_base;
@@ -150,6 +150,7 @@ struct fimd_context {
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
+	struct exynos_drm_plane_config	configs[WINDOWS_NR];
 	struct clk			*bus_clk;
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
@@ -186,6 +187,14 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
+
+static const enum drm_plane_type fimd_win_types[WINDOWS_NR] = {
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_CURSOR,
+};
 
 static const uint32_t fimd_formats[] = {
 	DRM_FORMAT_C8,
@@ -478,7 +487,7 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
-				struct drm_framebuffer *fb)
+				uint32_t pixel_format, int width)
 {
 	unsigned long val;
 
@@ -489,11 +498,11 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 	 * So the request format is ARGB8888 then change it to XRGB8888.
 	 */
 	if (ctx->driver_data->has_limited_fmt && !win) {
-		if (fb->pixel_format == DRM_FORMAT_ARGB8888)
-			fb->pixel_format = DRM_FORMAT_XRGB8888;
+		if (pixel_format == DRM_FORMAT_ARGB8888)
+			pixel_format = DRM_FORMAT_XRGB8888;
 	}
 
-	switch (fb->pixel_format) {
+	switch (pixel_format) {
 	case DRM_FORMAT_C8:
 		val |= WINCON0_BPPMODE_8BPP_PALETTE;
 		val |= WINCONx_BURSTLEN_8WORD;
@@ -529,17 +538,15 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", fb->bits_per_pixel);
-
 	/*
-	 * In case of exynos, setting dma-burst to 16Word causes permanent
-	 * tearing for very small buffers, e.g. cursor buffer. Burst Mode
-	 * switching which is based on plane size is not recommended as
-	 * plane size varies alot towards the end of the screen and rapid
-	 * movement causes unstable DMA which results into iommu crash/tear.
+	 * Setting dma-burst to 16Word causes permanent tearing for very small
+	 * buffers, e.g. cursor buffer. Burst Mode switching which based on
+	 * plane size is not recommended as plane size varies alot towards the
+	 * end of the screen and rapid movement causes unstable DMA, but it is
+	 * still better to change dma-burst than displaying garbage.
 	 */
 
-	if (fb->width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	if (width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_4WORD;
 	}
@@ -615,64 +622,68 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_atomic_begin(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void fimd_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
 
-	fimd_shadow_protect_win(ctx, plane->zpos, true);
+	for (i = 0; i < WINDOWS_NR; i++)
+		fimd_shadow_protect_win(ctx, i, true);
 }
 
-static void fimd_atomic_flush(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
 
-	fimd_shadow_protect_win(ctx, plane->zpos, false);
+	for (i = 0; i < WINDOWS_NR; i++)
+		fimd_shadow_protect_win(ctx, i, false);
 }
 
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 	struct fimd_context *ctx = crtc->ctx;
-	struct drm_plane_state *state = plane->base.state;
+	struct drm_framebuffer *fb = state->base.fb;
 	dma_addr_t dma_addr;
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
-	unsigned int win = plane->zpos;
-	unsigned int bpp = state->fb->bits_per_pixel >> 3;
-	unsigned int pitch = state->fb->pitches[0];
+	unsigned int win = plane->index;
+	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
 		return;
 
-	offset = plane->src_x * bpp;
-	offset += plane->src_y * pitch;
+	offset = state->src.x * bpp;
+	offset += state->src.y * pitch;
 
 	/* buffer start address */
-	dma_addr = plane->dma_addr[0] + offset;
+	dma_addr = exynos_drm_fb_dma_addr(fb, 0) + offset;
 	val = (unsigned long)dma_addr;
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = pitch * plane->crtc_h;
+	size = pitch * state->crtc.h;
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
 			(unsigned long)dma_addr, val, size);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			plane->crtc_w, plane->crtc_h);
+			state->crtc.w, state->crtc.h);
 
 	/* buffer size */
-	buf_offsize = pitch - (plane->crtc_w * bpp);
-	line_size = plane->crtc_w * bpp;
+	buf_offsize = pitch - (state->crtc.w * bpp);
+	line_size = state->crtc.w * bpp;
 	val = VIDW_BUF_SIZE_OFFSET(buf_offsize) |
 		VIDW_BUF_SIZE_PAGEWIDTH(line_size) |
 		VIDW_BUF_SIZE_OFFSET_E(buf_offsize) |
@@ -680,16 +691,16 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDWx_BUF_SIZE(win, 0));
 
 	/* OSD position */
-	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
-		VIDOSDxA_TOPLEFT_Y(plane->crtc_y) |
-		VIDOSDxA_TOPLEFT_X_E(plane->crtc_x) |
-		VIDOSDxA_TOPLEFT_Y_E(plane->crtc_y);
+	val = VIDOSDxA_TOPLEFT_X(state->crtc.x) |
+		VIDOSDxA_TOPLEFT_Y(state->crtc.y) |
+		VIDOSDxA_TOPLEFT_X_E(state->crtc.x) |
+		VIDOSDxA_TOPLEFT_Y_E(state->crtc.y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	last_x = plane->crtc_x + plane->crtc_w;
+	last_x = state->crtc.x + state->crtc.w;
 	if (last_x)
 		last_x--;
-	last_y = plane->crtc_y + plane->crtc_h;
+	last_y = state->crtc.y + state->crtc.h;
 	if (last_y)
 		last_y--;
 
@@ -699,20 +710,20 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			plane->crtc_x, plane->crtc_y, last_x, last_y);
+			state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD size */
 	if (win != 3 && win != 4) {
 		u32 offset = VIDOSD_D(win);
 		if (win == 0)
 			offset = VIDOSD_C(win);
-		val = plane->crtc_w * plane->crtc_h;
+		val = state->crtc.w * state->crtc.h;
 		writel(val, ctx->regs + offset);
 
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, state->fb);
+	fimd_win_set_pixfmt(ctx, win, fb->pixel_format, state->src.w);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)
@@ -731,7 +742,7 @@ static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	unsigned int win = plane->zpos;
+	unsigned int win = plane->index;
 
 	if (ctx->suspended)
 		return;
@@ -745,7 +756,6 @@ static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
 static void fimd_enable(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	int ret;
 
 	if (!ctx->suspended)
 		return;
@@ -753,18 +763,6 @@ static void fimd_enable(struct exynos_drm_crtc *crtc)
 	ctx->suspended = false;
 
 	pm_runtime_get_sync(ctx->dev);
-
-	ret = clk_prepare_enable(ctx->bus_clk);
-	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
-		return;
-	}
-
-	ret = clk_prepare_enable(ctx->lcd_clk);
-	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
-		return;
-	}
 
 	/* if vblank was enabled status, enable it again. */
 	if (test_and_clear_bit(0, &ctx->irq_flags))
@@ -795,11 +793,7 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 
 	writel(0, ctx->regs + VIDCON0);
 
-	clk_disable_unprepare(ctx->lcd_clk);
-	clk_disable_unprepare(ctx->bus_clk);
-
 	pm_runtime_put_sync(ctx->dev);
-
 	ctx->suspended = true;
 }
 
@@ -941,18 +935,19 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
-	enum drm_plane_type type;
-	unsigned int zpos;
+	unsigned int i;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
-	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = exynos_plane_get_type(zpos, CURSOR_WIN);
-		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, fimd_formats,
-					ARRAY_SIZE(fimd_formats), zpos);
+	for (i = 0; i < WINDOWS_NR; i++) {
+		ctx->configs[i].pixel_formats = fimd_formats;
+		ctx->configs[i].num_pixel_formats = ARRAY_SIZE(fimd_formats);
+		ctx->configs[i].zpos = i;
+		ctx->configs[i].type = fimd_win_types[i];
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
+					1 << ctx->pipe, &ctx->configs[i]);
 		if (ret)
 			return ret;
 	}
@@ -1121,12 +1116,49 @@ static int fimd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int exynos_fimd_suspend(struct device *dev)
+{
+	struct fimd_context *ctx = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(ctx->lcd_clk);
+	clk_disable_unprepare(ctx->bus_clk);
+
+	return 0;
+}
+
+static int exynos_fimd_resume(struct device *dev)
+{
+	struct fimd_context *ctx = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(ctx->bus_clk);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(ctx->lcd_clk);
+	if  (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops exynos_fimd_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos_fimd_suspend, exynos_fimd_resume, NULL)
+};
+
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= fimd_remove,
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
+		.pm	= &exynos_fimd_pm_ops,
 		.of_match_table = fimd_driver_dt_match,
 	},
 };

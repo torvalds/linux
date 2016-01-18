@@ -2807,5 +2807,18 @@
 #define ixDIDT_DBR_WEIGHT0_3                                                    0x90
 #define ixDIDT_DBR_WEIGHT4_7                                                    0x91
 #define ixDIDT_DBR_WEIGHT8_11                                                   0x92
+#define mmTD_EDC_CNT                                                            0x252e
+#define mmCPF_EDC_TAG_CNT                                                       0x3188
+#define mmCPF_EDC_ROQ_CNT                                                       0x3189
+#define mmCPF_EDC_ATC_CNT                                                       0x318a
+#define mmCPG_EDC_TAG_CNT                                                       0x318b
+#define mmCPG_EDC_ATC_CNT                                                       0x318c
+#define mmCPG_EDC_DMA_CNT                                                       0x318d
+#define mmCPC_EDC_SCRATCH_CNT                                                   0x318e
+#define mmCPC_EDC_UCODE_CNT                                                     0x318f
+#define mmCPC_EDC_ATC_CNT                                                       0x3190
+#define mmDC_EDC_STATE_CNT                                                      0x3191
+#define mmDC_EDC_CSINVOC_CNT                                                    0x3192
+#define mmDC_EDC_RESTORE_CNT                                                    0x3193
 
 #endif /* GFX_8_0_D_H */

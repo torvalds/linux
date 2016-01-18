@@ -1810,7 +1810,7 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	if (!dev->driver) {
 		/* dev->driver may be null if we're being removed */
 		dev_dbg(dev, "%s: no driver found for dev\n", __func__);
-		return;
+		goto out_unlock;
 	}
 
 	if (!acpi_desc) {

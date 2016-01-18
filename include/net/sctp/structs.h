@@ -1493,7 +1493,8 @@ struct sctp_association {
 		 *             : SACK's are not delayed (see Section 6).
 		 */
 		__u8    sack_needed:1,     /* Do we need to sack the peer? */
-			sack_generation:1;
+			sack_generation:1,
+			zero_window_announced:1;
 		__u32	sack_cnt;
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */

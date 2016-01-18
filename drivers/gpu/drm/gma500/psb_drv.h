@@ -653,6 +653,8 @@ struct psb_ops {
 	void (*init_pm)(struct drm_device *dev);
 	int (*save_regs)(struct drm_device *dev);
 	int (*restore_regs)(struct drm_device *dev);
+	void (*save_crtc)(struct drm_crtc *crtc);
+	void (*restore_crtc)(struct drm_crtc *crtc);
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
 	void (*update_wm)(struct drm_device *dev, struct drm_crtc *crtc);

@@ -133,13 +133,19 @@ void vmw_cursor_update_position(struct vmw_private *dev_priv,
 	vmw_mmio_write(++count, fifo_mem + SVGA_FIFO_CURSOR_COUNT);
 }
 
-int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
-			   uint32_t handle, uint32_t width, uint32_t height)
+
+/*
+ * vmw_du_crtc_cursor_set2 - Driver cursor_set2 callback.
+ */
+int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
+			    uint32_t handle, uint32_t width, uint32_t height,
+			    int32_t hot_x, int32_t hot_y)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *dmabuf = NULL;
+	s32 hotspot_x, hotspot_y;
 	int ret;
 
 	/*
@@ -151,6 +157,8 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	 */
 	drm_modeset_unlock_crtc(crtc);
 	drm_modeset_lock_all(dev_priv->dev);
+	hotspot_x = hot_x + du->hotspot_x;
+	hotspot_y = hot_y + du->hotspot_y;
 
 	/* A lot of the code assumes this */
 	if (handle && (width != 64 || height != 64)) {
@@ -187,31 +195,34 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		vmw_dmabuf_unreference(&du->cursor_dmabuf);
 
 	/* setup new image */
+	ret = 0;
 	if (surface) {
 		/* vmw_user_surface_lookup takes one reference */
 		du->cursor_surface = surface;
 
 		du->cursor_surface->snooper.crtc = crtc;
 		du->cursor_age = du->cursor_surface->snooper.age;
-		vmw_cursor_update_image(dev_priv, surface->snooper.image,
-					64, 64, du->hotspot_x, du->hotspot_y);
+		ret = vmw_cursor_update_image(dev_priv, surface->snooper.image,
+					      64, 64, hotspot_x, hotspot_y);
 	} else if (dmabuf) {
 		/* vmw_user_surface_lookup takes one reference */
 		du->cursor_dmabuf = dmabuf;
 
 		ret = vmw_cursor_update_dmabuf(dev_priv, dmabuf, width, height,
-					       du->hotspot_x, du->hotspot_y);
+					       hotspot_x, hotspot_y);
 	} else {
 		vmw_cursor_update_position(dev_priv, false, 0, 0);
-		ret = 0;
 		goto out;
 	}
 
-	vmw_cursor_update_position(dev_priv, true,
-				   du->cursor_x + du->hotspot_x,
-				   du->cursor_y + du->hotspot_y);
+	if (!ret) {
+		vmw_cursor_update_position(dev_priv, true,
+					   du->cursor_x + hotspot_x,
+					   du->cursor_y + hotspot_y);
+		du->core_hotspot_x = hot_x;
+		du->core_hotspot_y = hot_y;
+	}
 
-	ret = 0;
 out:
 	drm_modeset_unlock_all(dev_priv->dev);
 	drm_modeset_lock_crtc(crtc, crtc->cursor);
@@ -239,8 +250,10 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	drm_modeset_lock_all(dev_priv->dev);
 
 	vmw_cursor_update_position(dev_priv, shown,
-				   du->cursor_x + du->hotspot_x,
-				   du->cursor_y + du->hotspot_y);
+				   du->cursor_x + du->hotspot_x +
+				   du->core_hotspot_x,
+				   du->cursor_y + du->hotspot_y +
+				   du->core_hotspot_y);
 
 	drm_modeset_unlock_all(dev_priv->dev);
 	drm_modeset_lock_crtc(crtc, crtc->cursor);
@@ -334,6 +347,29 @@ err_unreserve:
 	ttm_bo_unreserve(bo);
 }
 
+/**
+ * vmw_kms_legacy_hotspot_clear - Clear legacy hotspots
+ *
+ * @dev_priv: Pointer to the device private struct.
+ *
+ * Clears all legacy hotspots.
+ */
+void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct vmw_display_unit *du;
+	struct drm_crtc *crtc;
+
+	drm_modeset_lock_all(dev);
+	drm_for_each_crtc(crtc, dev) {
+		du = vmw_crtc_to_du(crtc);
+
+		du->hotspot_x = 0;
+		du->hotspot_y = 0;
+	}
+	drm_modeset_unlock_all(dev);
+}
+
 void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -351,7 +387,9 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 		du->cursor_age = du->cursor_surface->snooper.age;
 		vmw_cursor_update_image(dev_priv,
 					du->cursor_surface->snooper.image,
-					64, 64, du->hotspot_x, du->hotspot_y);
+					64, 64,
+					du->hotspot_x + du->core_hotspot_x,
+					du->hotspot_y + du->core_hotspot_y);
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
@@ -470,7 +508,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 }
 
 
-static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
+static const struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 	.destroy = vmw_framebuffer_surface_destroy,
 	.dirty = vmw_framebuffer_surface_dirty,
 };
@@ -647,7 +685,7 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	return ret;
 }
 
-static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
+static const struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 	.destroy = vmw_framebuffer_dmabuf_destroy,
 	.dirty = vmw_framebuffer_dmabuf_dirty,
 };
@@ -725,21 +763,25 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 	uint32_t format;
 	struct drm_vmw_size content_base_size;
 	struct vmw_resource *res;
+	unsigned int bytes_pp;
 	int ret;
 
 	switch (mode_cmd->depth) {
 	case 32:
 	case 24:
 		format = SVGA3D_X8R8G8B8;
+		bytes_pp = 4;
 		break;
 
 	case 16:
 	case 15:
 		format = SVGA3D_R5G6B5;
+		bytes_pp = 2;
 		break;
 
 	case 8:
 		format = SVGA3D_P8;
+		bytes_pp = 1;
 		break;
 
 	default:
@@ -747,7 +789,7 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	content_base_size.width  = mode_cmd->width;
+	content_base_size.width  = mode_cmd->pitch / bytes_pp;
 	content_base_size.height = mode_cmd->height;
 	content_base_size.depth  = 1;
 
@@ -1331,14 +1373,6 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 	return 0;
 }
 
-void vmw_du_crtc_save(struct drm_crtc *crtc)
-{
-}
-
-void vmw_du_crtc_restore(struct drm_crtc *crtc)
-{
-}
-
 void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 			   u16 *r, u16 *g, u16 *b,
 			   uint32_t start, uint32_t size)
@@ -1358,14 +1392,6 @@ void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 int vmw_du_connector_dpms(struct drm_connector *connector, int mode)
 {
 	return 0;
-}
-
-void vmw_du_connector_save(struct drm_connector *connector)
-{
-}
-
-void vmw_du_connector_restore(struct drm_connector *connector)
-{
 }
 
 enum drm_connector_status
@@ -1554,7 +1580,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 		drm_mode_probed_add(connector, mode);
 	}
 
-	drm_mode_connector_list_update(connector, true);
+	drm_mode_connector_list_update(connector);
 	/* Move the prefered mode first, help apps pick the right mode. */
 	drm_mode_sort(&connector->modes);
 

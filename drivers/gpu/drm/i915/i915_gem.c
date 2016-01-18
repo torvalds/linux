@@ -2994,6 +2994,10 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		if (!list_empty(&ring->request_list))
 			return;
 
+	/* we probably should sync with hangcheck here, using cancel_work_sync.
+	 * Also locking seems to be fubar here, ring->request_list is protected
+	 * by dev->struct_mutex. */
+
 	intel_mark_idle(dev);
 
 	if (mutex_trylock(&dev->struct_mutex)) {

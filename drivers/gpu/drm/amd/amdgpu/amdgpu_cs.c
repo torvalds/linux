@@ -127,6 +127,37 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 	return 0;
 }
 
+static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
+				      struct drm_amdgpu_cs_chunk_fence *fence_data)
+{
+	struct drm_gem_object *gobj;
+	uint32_t handle;
+
+	handle = fence_data->handle;
+	gobj = drm_gem_object_lookup(p->adev->ddev, p->filp,
+				     fence_data->handle);
+	if (gobj == NULL)
+		return -EINVAL;
+
+	p->uf.bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
+	p->uf.offset = fence_data->offset;
+
+	if (amdgpu_ttm_tt_has_userptr(p->uf.bo->tbo.ttm)) {
+		drm_gem_object_unreference_unlocked(gobj);
+		return -EINVAL;
+	}
+
+	p->uf_entry.robj = amdgpu_bo_ref(p->uf.bo);
+	p->uf_entry.prefered_domains = AMDGPU_GEM_DOMAIN_GTT;
+	p->uf_entry.allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
+	p->uf_entry.priority = 0;
+	p->uf_entry.tv.bo = &p->uf_entry.robj->tbo;
+	p->uf_entry.tv.shared = true;
+
+	drm_gem_object_unreference_unlocked(gobj);
+	return 0;
+}
+
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 {
 	union drm_amdgpu_cs *cs = data;
@@ -207,28 +238,15 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 
 		case AMDGPU_CHUNK_ID_FENCE:
 			size = sizeof(struct drm_amdgpu_cs_chunk_fence);
-			if (p->chunks[i].length_dw * sizeof(uint32_t) >= size) {
-				uint32_t handle;
-				struct drm_gem_object *gobj;
-				struct drm_amdgpu_cs_chunk_fence *fence_data;
-
-				fence_data = (void *)p->chunks[i].kdata;
-				handle = fence_data->handle;
-				gobj = drm_gem_object_lookup(p->adev->ddev,
-							     p->filp, handle);
-				if (gobj == NULL) {
-					ret = -EINVAL;
-					goto free_partial_kdata;
-				}
-
-				p->uf.bo = gem_to_amdgpu_bo(gobj);
-				amdgpu_bo_ref(p->uf.bo);
-				drm_gem_object_unreference_unlocked(gobj);
-				p->uf.offset = fence_data->offset;
-			} else {
+			if (p->chunks[i].length_dw * sizeof(uint32_t) < size) {
 				ret = -EINVAL;
 				goto free_partial_kdata;
 			}
+
+			ret = amdgpu_cs_user_fence_chunk(p, (void *)p->chunks[i].kdata);
+			if (ret)
+				goto free_partial_kdata;
+
 			break;
 
 		case AMDGPU_CHUNK_ID_DEPENDENCIES:
@@ -388,26 +406,32 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
 	}
 
-	p->vm_bos = amdgpu_vm_get_bos(p->adev, &fpriv->vm,
-				      &p->validated);
+	INIT_LIST_HEAD(&duplicates);
+	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
+
+	if (p->uf.bo)
+		list_add(&p->uf_entry.tv.head, &p->validated);
 
 	if (need_mmap_lock)
 		down_read(&current->mm->mmap_sem);
 
-	INIT_LIST_HEAD(&duplicates);
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true, &duplicates);
 	if (unlikely(r != 0))
 		goto error_reserve;
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
+	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
+
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
 	if (r)
 		goto error_validate;
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
 
 error_validate:
-	if (r)
+	if (r) {
+		amdgpu_vm_move_pt_bos_in_lru(p->adev, &fpriv->vm);
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
+	}
 
 error_reserve:
 	if (need_mmap_lock)
@@ -451,7 +475,10 @@ static int cmp_size_smaller_first(void *priv, struct list_head *a,
  **/
 static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
 {
+	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	unsigned i;
+
+	amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
 
 	if (!error) {
 		/* Sort the buffer list from the smallest to largest buffer,
@@ -480,7 +507,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	if (parser->bo_list)
 		amdgpu_bo_list_put(parser->bo_list);
 
-	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
@@ -488,8 +514,8 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 		for (i = 0; i < parser->num_ibs; i++)
 			amdgpu_ib_free(parser->adev, &parser->ibs[i]);
 	kfree(parser->ibs);
-	if (parser->uf.bo)
-		amdgpu_bo_unref(&parser->uf.bo);
+	amdgpu_bo_unref(&parser->uf.bo);
+	amdgpu_bo_unref(&parser->uf_entry.robj);
 }
 
 static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
