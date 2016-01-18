@@ -353,8 +353,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	struct resource	*res;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev,
-					  sizeof(struct at91_adc_state));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
