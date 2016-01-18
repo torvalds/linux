@@ -2535,6 +2535,26 @@ static int output_field_add(char *tok)
 	return -ESRCH;
 }
 
+static int setup_output_list(char *str)
+{
+	char *tmp, *tok;
+	int ret = 0;
+
+	for (tok = strtok_r(str, ", ", &tmp);
+			tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		ret = output_field_add(tok);
+		if (ret == -EINVAL) {
+			error("Invalid --fields key: `%s'", tok);
+			break;
+		} else if (ret == -ESRCH) {
+			error("Unknown --fields key: `%s'", tok);
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static void reset_dimensions(void)
 {
 	unsigned int i;
@@ -2559,7 +2579,7 @@ bool is_strict_order(const char *order)
 
 static int __setup_output_field(void)
 {
-	char *tmp, *tok, *str, *strp;
+	char *str, *strp;
 	int ret = -EINVAL;
 
 	if (field_order == NULL)
@@ -2579,17 +2599,7 @@ static int __setup_output_field(void)
 		goto out;
 	}
 
-	for (tok = strtok_r(strp, ", ", &tmp);
-			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = output_field_add(tok);
-		if (ret == -EINVAL) {
-			error("Invalid --fields key: `%s'", tok);
-			break;
-		} else if (ret == -ESRCH) {
-			error("Unknown --fields key: `%s'", tok);
-			break;
-		}
-	}
+	ret = setup_output_list(strp);
 
 out:
 	free(str);
