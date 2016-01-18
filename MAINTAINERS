@@ -1019,6 +1019,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 N:	sun[x456789]i
 F:	arch/arm/boot/dts/ntc-gr8*
+F:	arch/arm64/boot/dts/allwinner/
 
 ARM/Allwinner SoC Clock Support
 M:	Emilio López <emilio@elopez.com.ar>
