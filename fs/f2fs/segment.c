@@ -254,7 +254,8 @@ int commit_inmem_pages(struct inode *inode, bool abort)
 	if (!abort) {
 		f2fs_unlock_op(sbi);
 		if (submit_bio)
-			f2fs_submit_merged_bio(sbi, DATA, WRITE);
+			f2fs_submit_merged_bio_cond(sbi, inode, NULL, 0,
+								DATA, WRITE);
 	}
 	return err;
 }
@@ -1422,8 +1423,7 @@ void f2fs_wait_on_page_writeback(struct page *page,
 	if (PageWriteback(page)) {
 		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
-		if (is_merged_page(sbi, page, type))
-			f2fs_submit_merged_bio(sbi, type, WRITE);
+		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, type, WRITE);
 		if (ordered)
 			wait_on_page_writeback(page);
 		else
