@@ -215,8 +215,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 				  p80211_wep->iv, p80211_wep->icv);
 		if (foo) {
 			netdev_warn(wlandev->netdev,
-			       "Host en-WEP failed, dropping frame (%d).\n",
-			       foo);
+				    "Host en-WEP failed, dropping frame (%d).\n",
+				    foo);
 			return 2;
 		}
 		fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
@@ -330,10 +330,10 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			return 1;
 		}
 		foo = wep_decrypt(wlandev, skb->data + payload_offset + 4,
-				       payload_length - 8, -1,
-				       skb->data + payload_offset,
-				       skb->data + payload_offset +
-				       payload_length - 4);
+				  payload_length - 8, -1,
+				  skb->data + payload_offset,
+				  skb->data + payload_offset +
+				  payload_length - 4);
 		if (foo) {
 			/* de-wep failed, drop skb. */
 			pr_debug("Host de-WEP failed, dropping frame (%d).\n",
@@ -371,7 +371,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			/* A bogus length ethfrm has been encap'd. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "ENCAP frame too large (%d > %d)\n",
-			       payload_length, netdev->mtu + ETH_HLEN);
+				   payload_length, netdev->mtu + ETH_HLEN);
 			return 1;
 		}
 
@@ -400,7 +400,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "SNAP frame too large (%d > %d)\n",
-			       payload_length, netdev->mtu);
+				   payload_length, netdev->mtu);
 			return 1;
 		}
 
@@ -433,9 +433,9 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "DIXII frame too large (%ld > %d)\n",
-			       (long int)(payload_length -
-					sizeof(struct wlan_llc) -
-					sizeof(struct wlan_snap)), netdev->mtu);
+				   (long int)(payload_length -
+				   sizeof(struct wlan_llc) -
+				   sizeof(struct wlan_snap)), netdev->mtu);
 			return 1;
 		}
 
@@ -468,7 +468,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "OTHER frame too large (%d > %d)\n",
-			       payload_length, netdev->mtu);
+				   payload_length, netdev->mtu);
 			return 1;
 		}
 
