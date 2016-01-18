@@ -532,7 +532,7 @@ void perf_hpp__cancel_cumulate(void)
 	ovh = &perf_hpp__format[PERF_HPP__OVERHEAD];
 	acc = &perf_hpp__format[PERF_HPP__OVERHEAD_ACC];
 
-	perf_hpp__for_each_format_safe(fmt, tmp) {
+	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
 		if (acc->equal(acc, fmt)) {
 			perf_hpp__column_unregister(fmt);
 			continue;
@@ -597,7 +597,7 @@ void perf_hpp__reset_output_field(void)
 	struct perf_hpp_fmt *fmt, *tmp;
 
 	/* reset output fields */
-	perf_hpp__for_each_format_safe(fmt, tmp) {
+	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
 		list_del_init(&fmt->list);
 		list_del_init(&fmt->sort_list);
 		fmt_free(fmt);

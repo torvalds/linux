@@ -251,8 +251,8 @@ static inline void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
 #define perf_hpp_list__for_each_format(_list, format) \
 	list_for_each_entry(format, &(_list)->fields, list)
 
-#define perf_hpp__for_each_format_safe(format, tmp)	\
-	list_for_each_entry_safe(format, tmp, &perf_hpp_list.fields, list)
+#define perf_hpp_list__for_each_format_safe(_list, format, tmp)	\
+	list_for_each_entry_safe(format, tmp, &(_list)->fields, list)
 
 #define perf_hpp__for_each_sort_list(format) \
 	list_for_each_entry(format, &perf_hpp_list.sorts, sort_list)
