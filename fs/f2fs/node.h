@@ -123,7 +123,7 @@ static inline void raw_nat_from_node_info(struct f2fs_nat_entry *raw_ne,
 static inline bool excess_dirty_nats(struct f2fs_sb_info *sbi)
 {
 	return NM_I(sbi)->dirty_nat_cnt >= NM_I(sbi)->max_nid *
-					DEF_DIRTY_NAT_RATIO_THRESHOLD / 100;
+					NM_I(sbi)->dirty_nats_ratio / 100;
 }
 
 enum mem_type {
