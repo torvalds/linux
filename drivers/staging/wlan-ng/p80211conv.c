@@ -149,7 +149,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 
 			/* tack on SNAP */
 			e_snap =
-			    (struct wlan_snap *) skb_push(skb,
+			    (struct wlan_snap *)skb_push(skb,
 				sizeof(struct wlan_snap));
 			e_snap->type = htons(proto);
 			if (ethconv == WLAN_ETHCONV_8021h &&
@@ -163,7 +163,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 
 			/* tack on llc */
 			e_llc =
-			    (struct wlan_llc *) skb_push(skb,
+			    (struct wlan_llc *)skb_push(skb,
 				sizeof(struct wlan_llc));
 			e_llc->dsap = 0xAA;	/* SNAP, see IEEE 802 */
 			e_llc->ssap = 0xAA;
@@ -294,7 +294,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	payload_length = skb->len - WLAN_HDR_A3_LEN - WLAN_CRC_LEN;
 	payload_offset = WLAN_HDR_A3_LEN;
 
-	w_hdr = (union p80211_hdr *) skb->data;
+	w_hdr = (union p80211_hdr *)skb->data;
 
 	/* setup some vars for convenience */
 	fc = le16_to_cpu(w_hdr->a3.fc);
@@ -352,11 +352,11 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		wlandev->rx.decrypt++;
 	}
 
-	e_hdr = (struct wlan_ethhdr *) (skb->data + payload_offset);
+	e_hdr = (struct wlan_ethhdr *)(skb->data + payload_offset);
 
-	e_llc = (struct wlan_llc *) (skb->data + payload_offset);
+	e_llc = (struct wlan_llc *)(skb->data + payload_offset);
 	e_snap =
-	    (struct wlan_snap *) (skb->data + payload_offset +
+	    (struct wlan_snap *)(skb->data + payload_offset +
 		sizeof(struct wlan_llc));
 
 	/* Test for the various encodings */
@@ -631,7 +631,7 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 
 	/* Overlay a frmmeta_t onto skb->cb */
 	memset(skb->cb, 0, sizeof(struct p80211_frmmeta));
-	frmmeta = (struct p80211_frmmeta *) (skb->cb);
+	frmmeta = (struct p80211_frmmeta *)(skb->cb);
 	frmmeta->magic = P80211_FRMMETA_MAGIC;
 	frmmeta->rx = rxmeta;
 exit:
