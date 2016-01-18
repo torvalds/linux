@@ -116,6 +116,44 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 	io->bio = NULL;
 }
 
+bool is_merged_page(struct f2fs_sb_info *sbi, struct page *page,
+							enum page_type type)
+{
+	enum page_type btype = PAGE_TYPE_OF_BIO(type);
+	struct f2fs_bio_info *io = &sbi->write_io[btype];
+	struct bio_vec *bvec;
+	struct page *target;
+	int i;
+
+	down_read(&io->io_rwsem);
+	if (!io->bio) {
+		up_read(&io->io_rwsem);
+		return false;
+	}
+
+	bio_for_each_segment_all(bvec, io->bio, i) {
+
+		if (bvec->bv_page->mapping) {
+			target = bvec->bv_page;
+		} else {
+			struct f2fs_crypto_ctx *ctx;
+
+			/* encrypted page */
+			ctx = (struct f2fs_crypto_ctx *)page_private(
+								bvec->bv_page);
+			target = ctx->w.control_page;
+		}
+
+		if (page == target) {
+			up_read(&io->io_rwsem);
+			return true;
+		}
+	}
+
+	up_read(&io->io_rwsem);
+	return false;
+}
+
 void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi,
 				enum page_type type, int rw)
 {
