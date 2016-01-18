@@ -519,18 +519,6 @@ void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
 	list_add_tail(&format->sort_list, &perf_hpp__sort_list);
 }
 
-void perf_hpp__column_enable(unsigned col)
-{
-	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	perf_hpp__column_register(&perf_hpp__format[col]);
-}
-
-void perf_hpp__column_disable(unsigned col)
-{
-	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	perf_hpp__column_unregister(&perf_hpp__format[col]);
-}
-
 void perf_hpp__cancel_cumulate(void)
 {
 	struct perf_hpp_fmt *fmt, *acc, *ovh, *tmp;
