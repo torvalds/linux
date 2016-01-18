@@ -13,6 +13,7 @@
  *  Supports: IT8603E  Super I/O chip w/LPC interface
  *            IT8620E  Super I/O chip w/LPC interface
  *            IT8623E  Super I/O chip w/LPC interface
+ *            IT8628E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
  *            IT8712F  Super I/O chip w/LPC interface
  *            IT8716F  Super I/O chip w/LPC interface
@@ -69,7 +70,7 @@
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8732,
 	     it8771, it8772, it8781, it8782, it8783, it8786, it8790, it8603,
-	     it8620 };
+	     it8620, it8628 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -160,6 +161,7 @@ static inline void superio_exit(int ioreg)
 #define IT8603E_DEVID 0x8603
 #define IT8620E_DEVID 0x8620
 #define IT8623E_DEVID 0x8623
+#define IT8628E_DEVID 0x8628
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -427,6 +429,15 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8620] = {
 		.name = "it8620",
+		.suffix = "E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
+		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
+		  | FEAT_SIX_TEMP,
+		.peci_mask = 0x07,
+	},
+	[it8628] = {
+		.name = "it8628",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
@@ -2402,6 +2413,9 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	case IT8620E_DEVID:
 		sio_data->type = it8620;
 		break;
+	case IT8628E_DEVID:
+		sio_data->type = it8628;
+		break;
 	case 0xffff:	/* No device at all */
 		goto exit;
 	default:
@@ -2546,7 +2560,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 
 		sio_data->beep_pin = superio_inb(sioaddr,
 						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
-	} else if (sio_data->type == it8620) {
+	} else if (sio_data->type == it8620 || sio_data->type == it8628) {
 		int reg;
 
 		superio_select(sioaddr, GPIO);
