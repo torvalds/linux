@@ -91,7 +91,12 @@ max_user_freq_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
-	unsigned long val = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 0, &val);
+	if (err)
+		return err;
 
 	if (val >= 4096 || val == 0)
 		return -EINVAL;
@@ -175,7 +180,9 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		} else
 			adjust = 1;
 	}
-	alarm = simple_strtoul(buf_ptr, NULL, 0);
+	retval = kstrtoul(buf_ptr, 0, &alarm);
+	if (retval)
+		return retval;
 	if (adjust) {
 		alarm += now;
 	}

@@ -27,9 +27,27 @@
 #define ABX8XX_REG_YR		0x06
 #define ABX8XX_REG_WD		0x07
 
+#define ABX8XX_REG_AHTH		0x08
+#define ABX8XX_REG_ASC		0x09
+#define ABX8XX_REG_AMN		0x0a
+#define ABX8XX_REG_AHR		0x0b
+#define ABX8XX_REG_ADA		0x0c
+#define ABX8XX_REG_AMO		0x0d
+#define ABX8XX_REG_AWD		0x0e
+
+#define ABX8XX_REG_STATUS	0x0f
+#define ABX8XX_STATUS_AF	BIT(2)
+
 #define ABX8XX_REG_CTRL1	0x10
 #define ABX8XX_CTRL_WRITE	BIT(0)
+#define ABX8XX_CTRL_ARST	BIT(2)
 #define ABX8XX_CTRL_12_24	BIT(6)
+
+#define ABX8XX_REG_IRQ		0x12
+#define ABX8XX_IRQ_AIE		BIT(2)
+#define ABX8XX_IRQ_IM_1_4	(0x3 << 5)
+
+#define ABX8XX_REG_CD_TIMER_CTL	0x18
 
 #define ABX8XX_REG_CFG_KEY	0x1f
 #define ABX8XX_CFG_KEY_MISC	0x9d
@@ -62,8 +80,6 @@ static struct abx80x_cap abx80x_caps[] = {
 	[AB1805] = {.pn = 0x1805, .has_tc = true},
 	[ABX80X] = {.pn = 0}
 };
-
-static struct i2c_driver abx80x_driver;
 
 static int abx80x_enable_trickle_charger(struct i2c_client *client,
 					 u8 trickle_cfg)
@@ -148,9 +164,111 @@ static int abx80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static irqreturn_t abx80x_handle_irq(int irq, void *dev_id)
+{
+	struct i2c_client *client = dev_id;
+	struct rtc_device *rtc = i2c_get_clientdata(client);
+	int status;
+
+	status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
+	if (status < 0)
+		return IRQ_NONE;
+
+	if (status & ABX8XX_STATUS_AF)
+		rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
+
+	i2c_smbus_write_byte_data(client, ABX8XX_REG_STATUS, 0);
+
+	return IRQ_HANDLED;
+}
+
+static int abx80x_read_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	unsigned char buf[7];
+
+	int irq_mask, err;
+
+	if (client->irq <= 0)
+		return -EINVAL;
+
+	err = i2c_smbus_read_i2c_block_data(client, ABX8XX_REG_ASC,
+					    sizeof(buf), buf);
+	if (err)
+		return err;
+
+	irq_mask = i2c_smbus_read_byte_data(client, ABX8XX_REG_IRQ);
+	if (irq_mask < 0)
+		return irq_mask;
+
+	t->time.tm_sec = bcd2bin(buf[0] & 0x7F);
+	t->time.tm_min = bcd2bin(buf[1] & 0x7F);
+	t->time.tm_hour = bcd2bin(buf[2] & 0x3F);
+	t->time.tm_mday = bcd2bin(buf[3] & 0x3F);
+	t->time.tm_mon = bcd2bin(buf[4] & 0x1F) - 1;
+	t->time.tm_wday = buf[5] & 0x7;
+
+	t->enabled = !!(irq_mask & ABX8XX_IRQ_AIE);
+	t->pending = (buf[6] & ABX8XX_STATUS_AF) && t->enabled;
+
+	return err;
+}
+
+static int abx80x_set_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	u8 alarm[6];
+	int err;
+
+	if (client->irq <= 0)
+		return -EINVAL;
+
+	alarm[0] = 0x0;
+	alarm[1] = bin2bcd(t->time.tm_sec);
+	alarm[2] = bin2bcd(t->time.tm_min);
+	alarm[3] = bin2bcd(t->time.tm_hour);
+	alarm[4] = bin2bcd(t->time.tm_mday);
+	alarm[5] = bin2bcd(t->time.tm_mon + 1);
+
+	err = i2c_smbus_write_i2c_block_data(client, ABX8XX_REG_AHTH,
+					     sizeof(alarm), alarm);
+	if (err < 0) {
+		dev_err(&client->dev, "Unable to write alarm registers\n");
+		return -EIO;
+	}
+
+	if (t->enabled) {
+		err = i2c_smbus_write_byte_data(client, ABX8XX_REG_IRQ,
+						(ABX8XX_IRQ_IM_1_4 |
+						 ABX8XX_IRQ_AIE));
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int abx80x_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int err;
+
+	if (enabled)
+		err = i2c_smbus_write_byte_data(client, ABX8XX_REG_IRQ,
+						(ABX8XX_IRQ_IM_1_4 |
+						 ABX8XX_IRQ_AIE));
+	else
+		err = i2c_smbus_write_byte_data(client, ABX8XX_REG_IRQ,
+						ABX8XX_IRQ_IM_1_4);
+	return err;
+}
+
 static const struct rtc_class_ops abx80x_rtc_ops = {
 	.read_time	= abx80x_rtc_read_time,
 	.set_time	= abx80x_rtc_set_time,
+	.read_alarm	= abx80x_read_alarm,
+	.set_alarm	= abx80x_set_alarm,
+	.alarm_irq_enable = abx80x_alarm_irq_enable,
 };
 
 static int abx80x_dt_trickle_cfg(struct device_node *np)
@@ -225,7 +343,8 @@ static int abx80x_probe(struct i2c_client *client,
 	}
 
 	err = i2c_smbus_write_byte_data(client, ABX8XX_REG_CTRL1,
-					((data & ~ABX8XX_CTRL_12_24) |
+					((data & ~(ABX8XX_CTRL_12_24 |
+						   ABX8XX_CTRL_ARST)) |
 					 ABX8XX_CTRL_WRITE));
 	if (err < 0) {
 		dev_err(&client->dev, "Unable to write control register\n");
@@ -260,13 +379,31 @@ static int abx80x_probe(struct i2c_client *client,
 		abx80x_enable_trickle_charger(client, trickle_cfg);
 	}
 
-	rtc = devm_rtc_device_register(&client->dev, abx80x_driver.driver.name,
+	err = i2c_smbus_write_byte_data(client, ABX8XX_REG_CD_TIMER_CTL,
+					BIT(2));
+	if (err)
+		return err;
+
+	rtc = devm_rtc_device_register(&client->dev, "abx8xx",
 				       &abx80x_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	i2c_set_clientdata(client, rtc);
+
+	if (client->irq > 0) {
+		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
+		err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+						abx80x_handle_irq,
+						IRQF_SHARED | IRQF_ONESHOT,
+						"abx8xx",
+						client);
+		if (err) {
+			dev_err(&client->dev, "unable to request IRQ, alarms disabled\n");
+			client->irq = 0;
+		}
+	}
 
 	return 0;
 }
@@ -286,6 +423,7 @@ static const struct i2c_device_id abx80x_id[] = {
 	{ "ab1803", AB1803 },
 	{ "ab1804", AB1804 },
 	{ "ab1805", AB1805 },
+	{ "rv1805", AB1805 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, abx80x_id);
