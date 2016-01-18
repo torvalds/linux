@@ -100,6 +100,7 @@ static inline uint64_t I642U64(int64_t val)
 #define DRM_REFLECT_Y	5
 
 struct drm_blend_mode {
+	uint64_t color;
 	uint64_t func;
 };
 
@@ -2115,6 +2116,7 @@ struct drm_mode_config {
 	struct drm_property *prop_mode_id;
 	struct drm_property *prop_background_color;
 	struct drm_property *prop_blend_func;
+	struct drm_property *prop_blend_color;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
