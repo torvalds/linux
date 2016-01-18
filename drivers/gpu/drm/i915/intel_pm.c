@@ -32,6 +32,8 @@
 #include <linux/module.h>
 
 /**
+ * DOC: RC6
+ *
  * RC6 is a special power stage which allows the GPU to enter an very
  * low-voltage mode when idle, using down to 0V while at this stage.  This
  * stage is entered automatically when the GPU is idle when RC6 support is
