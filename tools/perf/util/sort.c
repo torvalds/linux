@@ -2241,6 +2241,26 @@ static int sort_dimension__add(const char *tok,
 	return -ESRCH;
 }
 
+static int setup_sort_list(char *str, struct perf_evlist *evlist)
+{
+	char *tmp, *tok;
+	int ret = 0;
+
+	for (tok = strtok_r(str, ", ", &tmp);
+			tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		ret = sort_dimension__add(tok, evlist);
+		if (ret == -EINVAL) {
+			error("Invalid --sort key: `%s'", tok);
+			break;
+		} else if (ret == -ESRCH) {
+			error("Unknown --sort key: `%s'", tok);
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static const char *get_default_sort_order(struct perf_evlist *evlist)
 {
 	const char *default_sort_orders[] = {
@@ -2335,7 +2355,7 @@ static char *setup_overhead(char *keys)
 
 static int __setup_sorting(struct perf_evlist *evlist)
 {
-	char *tmp, *tok, *str;
+	char *str;
 	const char *sort_keys;
 	int ret = 0;
 
@@ -2373,17 +2393,7 @@ static int __setup_sorting(struct perf_evlist *evlist)
 		}
 	}
 
-	for (tok = strtok_r(str, ", ", &tmp);
-			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = sort_dimension__add(tok, evlist);
-		if (ret == -EINVAL) {
-			error("Invalid --sort key: `%s'", tok);
-			break;
-		} else if (ret == -ESRCH) {
-			error("Unknown --sort key: `%s'", tok);
-			break;
-		}
-	}
+	ret = setup_sort_list(str, evlist);
 
 	free(str);
 	return ret;
