@@ -11999,9 +11999,7 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 				fb->pixel_format == DRM_FORMAT_ARGB8888 ||
 				fb->pixel_format == DRM_FORMAT_BGRA8888;
 
-	state->premultiplied_alpha = false;
 	state->drop_alpha = false;
-	state->use_plane_alpha = false;
 
 	switch (mode->func) {
 	/*
@@ -12013,28 +12011,34 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 	case DRM_BLEND_FUNC(AUTO, AUTO):
 		if (has_per_pixel_blending)
 			state->premultiplied_alpha = true;
+		state->use_plane_alpha = false;
 		break;
 	/* fbs without an alpha channel, or dropping the alpha channel */
 	case DRM_BLEND_FUNC(ONE, ZERO):
 		if (has_per_pixel_blending)
 			state->drop_alpha = true;
+		state->premultiplied_alpha = false;
 		break;
 	/* pre-multiplied alpha */
 	case DRM_BLEND_FUNC(ONE, ONE_MINUS_SRC_ALPHA):
 		if (!has_per_pixel_blending)
 			state->drop_alpha = true;
 		state->premultiplied_alpha = true;
+		state->use_plane_alpha = false;
 		break;
 	/* non pre-multiplied alpha */
 	case DRM_BLEND_FUNC(SRC_ALPHA, ONE_MINUS_SRC_ALPHA):
 		if (!has_per_pixel_blending)
 			state->drop_alpha = true;
+		state->use_plane_alpha = false;
+		state->premultiplied_alpha = false;
 		break;
 	/* plane alpha */
 	case DRM_BLEND_FUNC(CONSTANT_ALPHA, ONE_MINUS_CONSTANT_ALPHA):
 		if (has_per_pixel_blending)
 			state->drop_alpha = true;
 		state->use_plane_alpha = true;
+		state->premultiplied_alpha = false;
 		break;
 	/* plane alpha, pre-multiplied fb */
 	case DRM_BLEND_FUNC(CONSTANT_ALPHA,
@@ -12050,6 +12054,11 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 		if (!has_per_pixel_blending)
 			state->drop_alpha = true;
 		state->use_plane_alpha = true;
+		state->premultiplied_alpha = false;
+		break;
+	/* drop plane alpha */
+	case DRM_BLEND_FUNC(ZERO, ONE):
+		state->use_plane_alpha = false;
 		break;
 	default:
 		return -EINVAL;
