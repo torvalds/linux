@@ -71,7 +71,7 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
                 const struct exception_table_entry *fixup;
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
                 if (fixup)
-			regs->psw.addr = extable_fixup(fixup) | PSW_ADDR_AMODE;
+			regs->psw.addr = extable_fixup(fixup);
 		else {
 			enum bug_trap_type btt;
 

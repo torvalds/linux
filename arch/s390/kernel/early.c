@@ -259,7 +259,7 @@ static void early_pgm_check_handler(void)
 	__ctl_store(cr0, 0, 0);
 	cr0_new = cr0 & ~(1UL << 28);
 	__ctl_load(cr0_new, 0, 0);
-	S390_lowcore.program_old_psw.addr = extable_fixup(fixup)|PSW_ADDR_AMODE;
+	S390_lowcore.program_old_psw.addr = extable_fixup(fixup);
 	__ctl_load(cr0, 0, 0);
 }
 
@@ -268,9 +268,9 @@ static noinline __init void setup_lowcore_early(void)
 	psw_t psw;
 
 	psw.mask = PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA;
-	psw.addr = PSW_ADDR_AMODE | (unsigned long) s390_base_ext_handler;
+	psw.addr = (unsigned long) s390_base_ext_handler;
 	S390_lowcore.external_new_psw = psw;
-	psw.addr = PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
+	psw.addr = (unsigned long) s390_base_pgm_handler;
 	S390_lowcore.program_new_psw = psw;
 	s390_base_pgm_handler_fn = early_pgm_check_handler;
 }

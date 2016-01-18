@@ -166,14 +166,14 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
  */
 #define start_thread(regs, new_psw, new_stackp) do {			\
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_EA | PSW_MASK_BA;	\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
 	execve_tail();							\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {			\
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
 	crst_table_downgrade(current->mm, 1UL << 31);			\
 	execve_tail();							\

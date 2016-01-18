@@ -301,25 +301,21 @@ static void __init setup_lowcore(void)
 	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
-	lc->restart_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
+	lc->restart_psw.addr = (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
-	lc->external_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
+	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
 	lc->svc_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
+	lc->svc_new_psw.addr = (unsigned long) system_call;
 	lc->program_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
-	lc->program_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) pgm_check_handler;
+	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
-	lc->mcck_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
+	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
 	lc->io_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
-	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
+	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
 	lc->kernel_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);

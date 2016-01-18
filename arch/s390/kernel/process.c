@@ -154,7 +154,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-		frame->childregs.psw.addr = PSW_ADDR_AMODE |
+		frame->childregs.psw.addr =
 				(unsigned long) kernel_thread_starter;
 		frame->childregs.gprs[9] = new_stackp; /* function */
 		frame->childregs.gprs[10] = arg;

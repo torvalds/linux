@@ -258,7 +258,7 @@ static noinline void do_no_context(struct pt_regs *regs)
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
 	if (fixup) {
-		regs->psw.addr = extable_fixup(fixup) | PSW_ADDR_AMODE;
+		regs->psw.addr = extable_fixup(fixup);
 		return;
 	}
 
