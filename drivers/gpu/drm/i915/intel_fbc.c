@@ -405,8 +405,7 @@ retry:
 		goto retry;
 	}
 
-	if (crtc->base.primary->fb == work->fb)
-		fbc->activate(dev_priv);
+	fbc->activate(dev_priv);
 
 	work->scheduled = false;
 
@@ -441,7 +440,6 @@ static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 	 * we're not releasing fbc.lock, so it won't have an opportunity to grab
 	 * it to discover that it was cancelled. So we just update the expected
 	 * jiffy count. */
-	work->fb = crtc->base.primary->fb;
 	work->scheduled = true;
 	work->scheduled_vblank = drm_crtc_vblank_count(&crtc->base);
 	drm_crtc_vblank_put(&crtc->base);

@@ -961,7 +961,6 @@ struct intel_fbc {
 		bool scheduled;
 		u32 scheduled_vblank;
 		struct work_struct work;
-		struct drm_framebuffer *fb;
 	} work;
 
 	const char *no_fbc_reason;
