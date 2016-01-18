@@ -329,6 +329,11 @@ struct intel_plane_state {
 	 *     update_scaler_plane.
 	 */
 	int scaler_id;
+	/*
+	 * blending related hw states
+	 */
+	bool premultiplied_alpha;	/* is the fb pre-multiplied? */
+	bool drop_alpha;		/* drop the fb alpha channel */
 
 	struct drm_intel_sprite_colorkey ckey;
 
@@ -1199,6 +1204,7 @@ intel_rotation_90_or_270(unsigned int rotation)
 
 void intel_create_rotation_property(struct drm_device *dev,
 					struct intel_plane *plane);
+void intel_plane_add_blend_properties(struct intel_plane *plane);
 
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
@@ -1269,11 +1275,14 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
+u32 skl_plane_ctl_format(uint32_t pixel_format,
+				bool pre_multiplied,
+				bool drop_alpha);
+
 u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
 			   struct drm_i915_gem_object *obj,
 			   unsigned int plane);
 
-u32 skl_plane_ctl_format(uint32_t pixel_format);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
 u32 skl_plane_ctl_rotation(unsigned int rotation);
 
