@@ -2636,9 +2636,9 @@ int setup_sorting(struct perf_evlist *evlist)
 		return err;
 
 	/* copy sort keys to output fields */
-	perf_hpp__setup_output_field();
+	perf_hpp__setup_output_field(&perf_hpp_list);
 	/* and then copy output fields to sort keys */
-	perf_hpp__append_sort_keys();
+	perf_hpp__append_sort_keys(&perf_hpp_list);
 
 	return 0;
 }
@@ -2654,5 +2654,5 @@ void reset_output_field(void)
 	sort_order = NULL;
 
 	reset_dimensions();
-	perf_hpp__reset_output_field();
+	perf_hpp__reset_output_field(&perf_hpp_list);
 }

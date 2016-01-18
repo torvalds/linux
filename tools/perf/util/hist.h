@@ -279,9 +279,10 @@ enum {
 void perf_hpp__init(void);
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format);
 void perf_hpp__cancel_cumulate(void);
-void perf_hpp__setup_output_field(void);
-void perf_hpp__reset_output_field(void);
-void perf_hpp__append_sort_keys(void);
+void perf_hpp__setup_output_field(struct perf_hpp_list *list);
+void perf_hpp__reset_output_field(struct perf_hpp_list *list);
+void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
+
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);

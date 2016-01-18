@@ -548,15 +548,15 @@ static bool fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 	return a->equal && a->equal(a, b);
 }
 
-void perf_hpp__setup_output_field(void)
+void perf_hpp__setup_output_field(struct perf_hpp_list *list)
 {
 	struct perf_hpp_fmt *fmt;
 
 	/* append sort keys to output field */
-	perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
+	perf_hpp_list__for_each_sort_list(list, fmt) {
 		struct perf_hpp_fmt *pos;
 
-		perf_hpp_list__for_each_format(&perf_hpp_list, pos) {
+		perf_hpp_list__for_each_format(list, pos) {
 			if (fmt_equal(fmt, pos))
 				goto next;
 		}
@@ -567,15 +567,15 @@ next:
 	}
 }
 
-void perf_hpp__append_sort_keys(void)
+void perf_hpp__append_sort_keys(struct perf_hpp_list *list)
 {
 	struct perf_hpp_fmt *fmt;
 
 	/* append output fields to sort keys */
-	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
+	perf_hpp_list__for_each_format(list, fmt) {
 		struct perf_hpp_fmt *pos;
 
-		perf_hpp_list__for_each_sort_list(&perf_hpp_list, pos) {
+		perf_hpp_list__for_each_sort_list(list, pos) {
 			if (fmt_equal(fmt, pos))
 				goto next;
 		}
@@ -586,25 +586,26 @@ next:
 	}
 }
 
+
 static void fmt_free(struct perf_hpp_fmt *fmt)
 {
 	if (fmt->free)
 		fmt->free(fmt);
 }
 
-void perf_hpp__reset_output_field(void)
+void perf_hpp__reset_output_field(struct perf_hpp_list *list)
 {
 	struct perf_hpp_fmt *fmt, *tmp;
 
 	/* reset output fields */
-	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
+	perf_hpp_list__for_each_format_safe(list, fmt, tmp) {
 		list_del_init(&fmt->list);
 		list_del_init(&fmt->sort_list);
 		fmt_free(fmt);
 	}
 
 	/* reset sort keys */
-	perf_hpp_list__for_each_sort_list_safe(&perf_hpp_list, fmt, tmp) {
+	perf_hpp_list__for_each_sort_list_safe(list, fmt, tmp) {
 		list_del_init(&fmt->list);
 		list_del_init(&fmt->sort_list);
 		fmt_free(fmt);
