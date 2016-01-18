@@ -912,15 +912,6 @@ repeat:
 		symbol_conf.cumulate_callchain = false;
 	}
 
-	if (setup_sorting(session->evlist) < 0) {
-		if (sort_order)
-			parse_options_usage(report_usage, options, "s", 1);
-		if (field_order)
-			parse_options_usage(sort_order ? NULL : report_usage,
-					    options, "F", 1);
-		goto error;
-	}
-
 	/* Force tty output for header output and per-thread stat. */
 	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
@@ -929,6 +920,15 @@ repeat:
 		setup_browser(true);
 	else
 		use_browser = 0;
+
+	if (setup_sorting(session->evlist) < 0) {
+		if (sort_order)
+			parse_options_usage(report_usage, options, "s", 1);
+		if (field_order)
+			parse_options_usage(sort_order ? NULL : report_usage,
+					    options, "F", 1);
+		goto error;
+	}
 
 	if (report.header || report.header_only) {
 		perf_session__fprintf_info(session, stdout,
