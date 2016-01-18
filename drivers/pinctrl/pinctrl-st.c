@@ -985,6 +985,7 @@ static struct pinmux_ops st_pmxops = {
 	.get_function_groups	= st_pmx_get_groups,
 	.set_mux		= st_pmx_set_mux,
 	.gpio_set_direction	= st_pmx_set_gpio_direction,
+	.strict			= true,
 };
 
 /* Pinconf  */
