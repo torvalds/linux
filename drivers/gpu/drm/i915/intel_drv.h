@@ -334,6 +334,7 @@ struct intel_plane_state {
 	 */
 	bool premultiplied_alpha;	/* is the fb pre-multiplied? */
 	bool drop_alpha;		/* drop the fb alpha channel */
+	bool use_plane_alpha;		/* use per-plane alpha */
 
 	struct drm_intel_sprite_colorkey ckey;
 
