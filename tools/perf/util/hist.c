@@ -1578,7 +1578,7 @@ int perf_hist_config(const char *var, const char *value)
 	return 0;
 }
 
-int __hists__init(struct hists *hists)
+int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list)
 {
 	memset(hists, 0, sizeof(*hists));
 	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
@@ -1587,6 +1587,7 @@ int __hists__init(struct hists *hists)
 	hists->entries = RB_ROOT;
 	pthread_mutex_init(&hists->lock, NULL);
 	hists->socket_filter = -1;
+	hists->hpp_list = hpp_list;
 	return 0;
 }
 
@@ -1623,7 +1624,7 @@ static int hists_evsel__init(struct perf_evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
-	__hists__init(hists);
+	__hists__init(hists, &perf_hpp_list);
 	return 0;
 }
 

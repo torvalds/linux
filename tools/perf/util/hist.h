@@ -75,6 +75,7 @@ struct hists {
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
 	int			socket_filter;
+	struct perf_hpp_list	*hpp_list;
 };
 
 struct hist_entry_iter;
@@ -186,7 +187,7 @@ static inline struct hists *evsel__hists(struct perf_evsel *evsel)
 }
 
 int hists__init(void);
-int __hists__init(struct hists *hists);
+int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
 struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
 bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
