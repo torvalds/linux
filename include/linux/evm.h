@@ -14,6 +14,7 @@
 struct integrity_iint_cache;
 
 #ifdef CONFIG_EVM
+extern int evm_set_key(void *key, size_t keylen);
 extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     const char *xattr_name,
 					     void *xattr_value,
@@ -42,6 +43,12 @@ static inline int posix_xattr_acl(const char *xattrname)
 }
 #endif
 #else
+
+static inline int evm_set_key(void *key, size_t keylen)
+{
+	return -EOPNOTSUPP;
+}
+
 #ifdef CONFIG_INTEGRITY
 static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 						    const char *xattr_name,
