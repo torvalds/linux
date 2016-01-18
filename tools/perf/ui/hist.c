@@ -524,6 +524,11 @@ void perf_hpp__cancel_cumulate(void)
 	perf_hpp__format[PERF_HPP__OVERHEAD].name = "Overhead";
 }
 
+static bool fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	return a->equal && a->equal(a, b);
+}
+
 void perf_hpp__setup_output_field(void)
 {
 	struct perf_hpp_fmt *fmt;
@@ -542,7 +547,7 @@ void perf_hpp__setup_output_field(void)
 			struct perf_hpp_fmt *pos;
 
 			perf_hpp__for_each_format(pos) {
-				if (perf_hpp__same_sort_entry(pos, fmt))
+				if (fmt_equal(fmt, pos))
 					goto next;
 			}
 		}
@@ -571,7 +576,7 @@ void perf_hpp__append_sort_keys(void)
 			struct perf_hpp_fmt *pos;
 
 			perf_hpp__for_each_sort_list(pos) {
-				if (perf_hpp__same_sort_entry(pos, fmt))
+				if (fmt_equal(fmt, pos))
 					goto next;
 			}
 		}

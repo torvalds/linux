@@ -215,6 +215,7 @@ struct perf_hpp_fmt {
 			    struct hist_entry *a, struct hist_entry *b);
 	int64_t (*sort)(struct perf_hpp_fmt *fmt,
 			struct hist_entry *a, struct hist_entry *b);
+	bool (*equal)(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 
 	struct list_head list;
 	struct list_head sort_list;
@@ -268,7 +269,6 @@ void perf_hpp__reset_output_field(void);
 void perf_hpp__append_sort_keys(void);
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
-bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists);
 
