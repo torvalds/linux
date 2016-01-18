@@ -108,7 +108,6 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			struct sk_buff *skb, union p80211_hdr *p80211_hdr,
 			struct p80211_metawep *p80211_wep)
 {
-
 	__le16 fc;
 	u16 proto;
 	struct wlan_ethhdr e_hdr;
@@ -169,7 +168,6 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			e_llc->dsap = 0xAA;	/* SNAP, see IEEE 802 */
 			e_llc->ssap = 0xAA;
 			e_llc->ctl = 0x03;
-
 		}
 	}
 
@@ -244,7 +242,6 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 	 */
 
 	for (i = 0; i < wlandev->spy_number; i++) {
-
 		if (!memcmp(wlandev->spy_address[i], mac, ETH_ALEN)) {
 			memcpy(wlandev->spy_address[i], mac, ETH_ALEN);
 			wlandev->spy_stat[i].level = rxmeta->signal;
@@ -486,7 +483,6 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 
 		/* chop off the 802.11 CRC */
 		skb_trim(skb, skb->len - WLAN_CRC_LEN);
-
 	}
 
 	/*
