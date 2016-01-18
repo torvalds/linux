@@ -534,6 +534,7 @@ static void f_midi_drop_out_substreams(struct f_midi *midi)
 static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 {
 	struct usb_request *req = NULL;
+	struct gmidi_in_port *port;
 	unsigned int len, i;
 	bool active = false;
 	int err;
@@ -557,16 +558,9 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 	if (req->length > 0)
 		return 0;
 
-	for (i = midi->in_last_port; i < MAX_PORTS; i++) {
-		struct gmidi_in_port *port = midi->in_port[i];
+	i = midi->in_last_port;
+	for (; i < MAX_PORTS && (port = midi->in_port[i]); ++i) {
 		struct snd_rawmidi_substream *substream = midi->in_substream[i];
-
-		if (!port) {
-			/* Reset counter when we reach the last available port */
-			midi->in_last_port = 0;
-			break;
-		}
-
 		if (!port->active || !substream)
 			continue;
 
@@ -581,20 +575,13 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 		}
 
 		active = !!port->active;
-		/*
-		 * Check if last port is still active, which means that there is
-		 * still data on that substream but this current request run out
-		 * of space.
-		 */
-		if (active) {
-			midi->in_last_port = i;
-			/* There is no need to re-iterate though midi ports. */
+		if (active)
 			break;
-		}
 	}
+	midi->in_last_port = active ? i : 0;
 
 	if (req->length <= 0)
-		return active;
+		goto done;
 
 	err = usb_ep_queue(ep, req, GFP_ATOMIC);
 	if (err < 0) {
@@ -607,6 +594,7 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 		kfifo_put(&midi->in_req_fifo, req);
 	}
 
+done:
 	return active;
 }
 
