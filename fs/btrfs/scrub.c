@@ -1514,8 +1514,6 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 	if (sblock->no_io_error_seen)
 		scrub_recheck_block_checksum(sblock);
-
-	return;
 }
 
 static inline int scrub_check_fsid(u8 fsid[],
@@ -3507,7 +3505,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
@@ -3735,27 +3733,27 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (fs_info->scrub_workers_refcnt == 0) {
 		if (is_dev_replace)
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("btrfs-scrub", flags,
+				btrfs_alloc_workqueue("scrub", flags,
 						      1, 4);
 		else
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("btrfs-scrub", flags,
+				btrfs_alloc_workqueue("scrub", flags,
 						      max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
 		fs_info->scrub_wr_completion_workers =
-			btrfs_alloc_workqueue("btrfs-scrubwrc", flags,
+			btrfs_alloc_workqueue("scrubwrc", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_wr_completion_workers)
 			goto fail_scrub_wr_completion_workers;
 
 		fs_info->scrub_nocow_workers =
-			btrfs_alloc_workqueue("btrfs-scrubnc", flags, 1, 0);
+			btrfs_alloc_workqueue("scrubnc", flags, 1, 0);
 		if (!fs_info->scrub_nocow_workers)
 			goto fail_scrub_nocow_workers;
 		fs_info->scrub_parity_workers =
-			btrfs_alloc_workqueue("btrfs-scrubparity", flags,
+			btrfs_alloc_workqueue("scrubparity", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_parity_workers)
 			goto fail_scrub_parity_workers;
@@ -4211,7 +4209,7 @@ static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
 
 	io_tree = &BTRFS_I(inode)->io_tree;
 
-	lock_extent_bits(io_tree, lockstart, lockend, 0, &cached_state);
+	lock_extent_bits(io_tree, lockstart, lockend, &cached_state);
 	ordered = btrfs_lookup_ordered_range(inode, lockstart, len);
 	if (ordered) {
 		btrfs_put_ordered_extent(ordered);

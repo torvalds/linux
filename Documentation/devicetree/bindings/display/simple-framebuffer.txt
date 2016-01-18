@@ -47,10 +47,14 @@ Required properties:
   - a8b8g8r8 (32-bit pixels, d[31:24]=a, d[23:16]=b, d[15:8]=g, d[7:0]=r).
 
 Optional properties:
-- clocks : List of clocks used by the framebuffer. Clocks listed here
-           are expected to already be configured correctly. The OS must
-           ensure these clocks are not modified or disabled while the
-           simple framebuffer remains active.
+- clocks : List of clocks used by the framebuffer.
+- *-supply : Any number of regulators used by the framebuffer. These should
+	     be named according to the names in the device's design.
+
+  The above resources are expected to already be configured correctly.
+  The OS must ensure they are not modified or disabled while the simple
+  framebuffer remains active.
+
 - display : phandle pointing to the primary display hardware node
 
 Example:
@@ -68,6 +72,7 @@ chosen {
 		stride = <(1600 * 2)>;
 		format = "r5g6b5";
 		clocks = <&ahb_gates 36>, <&ahb_gates 43>, <&ahb_gates 44>;
+		lcd-supply = <&reg_dc1sw>;
 		display = <&lcdc0>;
 	};
 	stdout-path = "display0";
