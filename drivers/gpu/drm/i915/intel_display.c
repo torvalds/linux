@@ -3202,7 +3202,10 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 		    PLANE_CTL_PIPE_GAMMA_ENABLE |
 		    PLANE_CTL_PIPE_CSC_ENABLE;
 
-	plane_ctl |= skl_plane_ctl_format(fb->pixel_format, false, false);
+	plane_ctl |= skl_plane_ctl_format(fb->pixel_format,
+					plane_state->premultiplied_alpha,
+					plane_state->drop_alpha);
+
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
@@ -12136,6 +12139,9 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		intel_crtc->atomic.post_enable_primary = turn_on;
 		intel_crtc->atomic.update_fbc = true;
 
+		ret = intel_plane_state_check_blend(plane_state);
+		if (ret)
+			return ret;
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
 		break;
@@ -14418,6 +14424,9 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		intel_create_rotation_property(dev, primary);
+
+	if (INTEL_INFO(dev)->gen == 9)
+		intel_plane_add_blend_properties(primary);
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 
