@@ -388,7 +388,7 @@ struct amdgpu_fence_driver {
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
-	uint64_t			sync_seq[AMDGPU_MAX_RINGS];
+	uint64_t			sync_seq;
 	atomic64_t			last_seq;
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
@@ -440,11 +440,6 @@ void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
-
-bool amdgpu_fence_need_sync(struct amdgpu_fence *fence,
-			    struct amdgpu_ring *ring);
-void amdgpu_fence_note_sync(struct amdgpu_fence *fence,
-			    struct amdgpu_ring *ring);
 
 /*
  * TTM.
