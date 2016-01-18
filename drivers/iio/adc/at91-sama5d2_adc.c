@@ -171,7 +171,7 @@ struct at91_adc_state {
 	struct clk			*per_clk;
 	struct regulator		*reg;
 	struct regulator		*vref;
-	u32				vref_uv;
+	int				vref_uv;
 	const struct iio_chan_spec	*chan;
 	bool				conversion_done;
 	u32				conversion_value;
