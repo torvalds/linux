@@ -553,7 +553,7 @@ void perf_hpp__setup_output_field(void)
 	struct perf_hpp_fmt *fmt;
 
 	/* append sort keys to output field */
-	perf_hpp__for_each_sort_list(fmt) {
+	perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
 		struct perf_hpp_fmt *pos;
 
 		perf_hpp_list__for_each_format(&perf_hpp_list, pos) {
@@ -575,7 +575,7 @@ void perf_hpp__append_sort_keys(void)
 	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 		struct perf_hpp_fmt *pos;
 
-		perf_hpp__for_each_sort_list(pos) {
+		perf_hpp_list__for_each_sort_list(&perf_hpp_list, pos) {
 			if (fmt_equal(fmt, pos))
 				goto next;
 		}
