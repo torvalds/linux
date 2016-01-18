@@ -25,6 +25,9 @@
 /* control the memory footprint threshold (10MB per 1GB ram) */
 #define DEF_RAM_THRESHOLD	10
 
+/* control dirty nats ratio threshold (default: 10% over max nid count) */
+#define DEF_DIRTY_NAT_RATIO_THRESHOLD		10
+
 /* vector size for gang look-up from nat cache that consists of radix tree */
 #define NATVEC_SIZE	64
 #define SETVEC_SIZE	32
@@ -115,6 +118,12 @@ static inline void raw_nat_from_node_info(struct f2fs_nat_entry *raw_ne,
 	raw_ne->ino = cpu_to_le32(ni->ino);
 	raw_ne->block_addr = cpu_to_le32(ni->blk_addr);
 	raw_ne->version = ni->version;
+}
+
+static inline bool excess_dirty_nats(struct f2fs_sb_info *sbi)
+{
+	return NM_I(sbi)->dirty_nat_cnt >= NM_I(sbi)->max_nid *
+					DEF_DIRTY_NAT_RATIO_THRESHOLD / 100;
 }
 
 enum mem_type {
