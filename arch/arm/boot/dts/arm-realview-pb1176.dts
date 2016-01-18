@@ -403,6 +403,18 @@
 		compatible = "simple-bus";
 		ranges;
 
+		i2c0: i2c@10002000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "arm,versatile-i2c";
+			reg = <0x10002000 0x1000>;
+
+			rtc@68 {
+				compatible = "dallas,ds1338";
+				reg = <0x68>;
+			};
+		};
+
 		fpga_aaci: aaci@10004000 {
 			compatible = "arm,pl041", "arm,primecell";
 			reg = <0x10004000 0x1000>;
