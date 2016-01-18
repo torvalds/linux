@@ -505,19 +505,21 @@ void perf_hpp__init(void)
 		hpp_dimension__add_output(PERF_HPP__PERIOD);
 }
 
-void perf_hpp__column_register(struct perf_hpp_fmt *format)
+void perf_hpp_list__column_register(struct perf_hpp_list *list,
+				    struct perf_hpp_fmt *format)
 {
-	list_add_tail(&format->list, &perf_hpp_list.fields);
+	list_add_tail(&format->list, &list->fields);
+}
+
+void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
+					struct perf_hpp_fmt *format)
+{
+	list_add_tail(&format->sort_list, &list->sorts);
 }
 
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
 	list_del(&format->list);
-}
-
-void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
-{
-	list_add_tail(&format->sort_list, &perf_hpp_list.sorts);
 }
 
 void perf_hpp__cancel_cumulate(void)

@@ -233,6 +233,21 @@ struct perf_hpp_list {
 
 extern struct perf_hpp_list perf_hpp_list;
 
+void perf_hpp_list__column_register(struct perf_hpp_list *list,
+				    struct perf_hpp_fmt *format);
+void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
+					struct perf_hpp_fmt *format);
+
+static inline void perf_hpp__column_register(struct perf_hpp_fmt *format)
+{
+	perf_hpp_list__column_register(&perf_hpp_list, format);
+}
+
+static inline void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
+{
+	perf_hpp_list__register_sort_field(&perf_hpp_list, format);
+}
+
 #define perf_hpp__for_each_format(format) \
 	list_for_each_entry(format, &perf_hpp_list.fields, list)
 
@@ -262,11 +277,8 @@ enum {
 };
 
 void perf_hpp__init(void);
-void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format);
 void perf_hpp__cancel_cumulate(void);
-
-void perf_hpp__register_sort_field(struct perf_hpp_fmt *format);
 void perf_hpp__setup_output_field(void);
 void perf_hpp__reset_output_field(void);
 void perf_hpp__append_sort_keys(void);
