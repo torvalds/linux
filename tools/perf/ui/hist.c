@@ -533,11 +533,23 @@ void perf_hpp__column_disable(unsigned col)
 
 void perf_hpp__cancel_cumulate(void)
 {
+	struct perf_hpp_fmt *fmt, *acc, *ovh, *tmp;
+
 	if (is_strict_order(field_order))
 		return;
 
-	perf_hpp__column_disable(PERF_HPP__OVERHEAD_ACC);
-	perf_hpp__format[PERF_HPP__OVERHEAD].name = "Overhead";
+	ovh = &perf_hpp__format[PERF_HPP__OVERHEAD];
+	acc = &perf_hpp__format[PERF_HPP__OVERHEAD_ACC];
+
+	perf_hpp__for_each_format_safe(fmt, tmp) {
+		if (acc->equal(acc, fmt)) {
+			perf_hpp__column_unregister(fmt);
+			continue;
+		}
+
+		if (ovh->equal(ovh, fmt))
+			fmt->name = "Overhead";
+	}
 }
 
 static bool fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)

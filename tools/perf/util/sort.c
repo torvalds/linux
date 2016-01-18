@@ -1577,6 +1577,19 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd)
 	return hse;
 }
 
+static struct perf_hpp_fmt *__hpp_dimension__alloc_hpp(struct hpp_dimension *hd)
+{
+	struct perf_hpp_fmt *fmt;
+
+	fmt = memdup(hd->fmt, sizeof(*fmt));
+	if (fmt) {
+		INIT_LIST_HEAD(&fmt->list);
+		INIT_LIST_HEAD(&fmt->sort_list);
+	}
+
+	return fmt;
+}
+
 static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd)
 {
 	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd);
@@ -2066,11 +2079,17 @@ static int __sort_dimension__add(struct sort_dimension *sd)
 
 static int __hpp_dimension__add(struct hpp_dimension *hd)
 {
-	if (!hd->taken) {
-		hd->taken = 1;
+	struct perf_hpp_fmt *fmt;
 
-		perf_hpp__register_sort_field(hd->fmt);
-	}
+	if (hd->taken)
+		return 0;
+
+	fmt = __hpp_dimension__alloc_hpp(hd);
+	if (!fmt)
+		return -1;
+
+	hd->taken = 1;
+	perf_hpp__register_sort_field(fmt);
 	return 0;
 }
 
@@ -2088,11 +2107,17 @@ static int __sort_dimension__add_output(struct sort_dimension *sd)
 
 static int __hpp_dimension__add_output(struct hpp_dimension *hd)
 {
-	if (!hd->taken) {
-		hd->taken = 1;
+	struct perf_hpp_fmt *fmt;
 
-		perf_hpp__column_register(hd->fmt);
-	}
+	if (hd->taken)
+		return 0;
+
+	fmt = __hpp_dimension__alloc_hpp(hd);
+	if (!fmt)
+		return -1;
+
+	hd->taken = 1;
+	perf_hpp__column_register(fmt);
 	return 0;
 }
 
