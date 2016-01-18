@@ -556,7 +556,7 @@ void perf_hpp__setup_output_field(void)
 	perf_hpp__for_each_sort_list(fmt) {
 		struct perf_hpp_fmt *pos;
 
-		perf_hpp__for_each_format(pos) {
+		perf_hpp_list__for_each_format(&perf_hpp_list, pos) {
 			if (fmt_equal(fmt, pos))
 				goto next;
 		}
@@ -572,7 +572,7 @@ void perf_hpp__append_sort_keys(void)
 	struct perf_hpp_fmt *fmt;
 
 	/* append output fields to sort keys */
-	perf_hpp__for_each_format(fmt) {
+	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 		struct perf_hpp_fmt *pos;
 
 		perf_hpp__for_each_sort_list(pos) {
@@ -621,7 +621,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 	bool first = true;
 	struct perf_hpp dummy_hpp;
 
-	perf_hpp__for_each_format(fmt) {
+	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
@@ -674,7 +674,7 @@ void perf_hpp__set_user_width(const char *width_list_str)
 	struct perf_hpp_fmt *fmt;
 	const char *ptr = width_list_str;
 
-	perf_hpp__for_each_format(fmt) {
+	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 		char *p;
 
 		int len = strtol(ptr, &p, 10);

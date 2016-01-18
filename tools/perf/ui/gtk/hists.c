@@ -306,7 +306,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 
 	nr_cols = 0;
 
-	perf_hpp__for_each_format(fmt)
+	perf_hpp_list__for_each_format(&perf_hpp_list, fmt)
 		col_types[nr_cols++] = G_TYPE_STRING;
 
 	store = gtk_tree_store_newv(nr_cols, col_types);
@@ -317,7 +317,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 
 	col_idx = 0;
 
-	perf_hpp__for_each_format(fmt) {
+	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
@@ -367,7 +367,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 
 		col_idx = 0;
 
-		perf_hpp__for_each_format(fmt) {
+		perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 			if (perf_hpp__should_skip(fmt, h->hists))
 				continue;
 
