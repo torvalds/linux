@@ -12019,13 +12019,13 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 	/* pre-multiplied alpha */
 	case DRM_BLEND_FUNC(ONE, ONE_MINUS_SRC_ALPHA):
 		if (!has_per_pixel_blending)
-			return -EINVAL;
+			state->drop_alpha = true;
 		state->premultiplied_alpha = true;
 		break;
 	/* non pre-multiplied alpha */
 	case DRM_BLEND_FUNC(SRC_ALPHA, ONE_MINUS_SRC_ALPHA):
 		if (!has_per_pixel_blending)
-			return -EINVAL;
+			state->drop_alpha = true;
 		break;
 	/* plane alpha */
 	case DRM_BLEND_FUNC(CONSTANT_ALPHA, ONE_MINUS_CONSTANT_ALPHA):
@@ -12037,7 +12037,7 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 	case DRM_BLEND_FUNC(CONSTANT_ALPHA,
 			    ONE_MINUS_CONSTANT_ALPHA_TIMES_SRC_ALPHA):
 		if (!has_per_pixel_blending)
-			return -EINVAL;
+			state->drop_alpha = true;
 		state->premultiplied_alpha = true;
 		state->use_plane_alpha = true;
 		break;
@@ -12045,7 +12045,7 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 	case DRM_BLEND_FUNC(CONSTANT_ALPHA_TIMES_SRC_ALPHA,
 			    ONE_MINUS_CONSTANT_ALPHA_TIMES_SRC_ALPHA):
 		if (!has_per_pixel_blending)
-			return -EINVAL;
+			state->drop_alpha = true;
 		state->use_plane_alpha = true;
 		break;
 	default:
