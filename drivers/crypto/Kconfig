@@ -487,7 +487,7 @@ config CRYPTO_DEV_IMGTEC_HASH
 
 config CRYPTO_DEV_SUN4I_SS
 	tristate "Support for Allwinner Security System cryptographic accelerator"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI && !64BIT
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_AES
