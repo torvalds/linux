@@ -1419,6 +1419,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	 */
 	if (MACHINE_HAS_VX)
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_VRS;
+	else
+		vcpu->run->kvm_valid_regs |= KVM_SYNC_FPRS;
 
 	if (kvm_is_ucontrol(vcpu->kvm))
 		return __kvm_ucontrol_vcpu_init(vcpu);
@@ -1433,10 +1435,10 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.host_fpregs.fpc = current->thread.fpu.fpc;
 	vcpu->arch.host_fpregs.regs = current->thread.fpu.regs;
 
-	/* Depending on MACHINE_HAS_VX, data stored to vrs either
-	 * has vector register or floating point register format.
-	 */
-	current->thread.fpu.regs = vcpu->run->s.regs.vrs;
+	if (MACHINE_HAS_VX)
+		current->thread.fpu.regs = vcpu->run->s.regs.vrs;
+	else
+		current->thread.fpu.regs = vcpu->run->s.regs.fprs;
 	current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
 	if (test_fp_ctl(current->thread.fpu.fpc))
 		/* User space provided an invalid FPC, let's clear it */
@@ -2389,7 +2391,7 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 				     fprs, 128);
 	} else {
 		rc = write_guest_abs(vcpu, gpa + __LC_FPREGS_SAVE_AREA,
-				     vcpu->run->s.regs.vrs, 128);
+				     vcpu->run->s.regs.fprs, 128);
 	}
 	rc |= write_guest_abs(vcpu, gpa + __LC_GPREGS_SAVE_AREA,
 			      vcpu->run->s.regs.gprs, 128);
