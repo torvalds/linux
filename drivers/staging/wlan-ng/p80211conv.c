@@ -49,7 +49,8 @@
 *
 * --------------------------------------------------------------------
 *
-*================================================================ */
+*================================================================
+*/
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -101,7 +102,8 @@ static u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
 *
 * Call context:
 *	May be called in interrupt or non-interrupt context
-----------------------------------------------------------------*/
+*----------------------------------------------------------------
+*/
 int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			struct sk_buff *skb, union p80211_hdr *p80211_hdr,
 			struct p80211_metawep *p80211_wep)
@@ -238,7 +240,8 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 	int i;
 
 	/* Gather wireless spy statistics: for each packet, compare the
-	 * source address with out list, and if match, get the stats... */
+	 * source address with out list, and if match, get the stats...
+	 */
 
 	for (i = 0; i < wlandev->spy_number; i++) {
 
@@ -273,7 +276,8 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 *
 * Call context:
 *	May be called in interrupt or non-interrupt context
-----------------------------------------------------------------*/
+*----------------------------------------------------------------
+*/
 int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			struct sk_buff *skb)
 {
@@ -421,7 +425,8 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		&& (e_llc->ctl == 0x03)) {
 		pr_debug("802.1h/RFC1042 len: %d\n", payload_length);
 		/* it's an 802.1h frame || (an RFC1042 && protocol not in STT)
-		   build a DIXII + RFC894 */
+		 * build a DIXII + RFC894
+		 */
 
 		/* Test for an overlength frame */
 		if ((payload_length - sizeof(struct wlan_llc) -
@@ -521,14 +526,15 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 *
 * Call context:
 *	May be called in interrupt or non-interrupt context
-----------------------------------------------------------------*/
+*----------------------------------------------------------------
+*/
 int p80211_stt_findproto(u16 proto)
 {
 	/* Always return found for now.  This is the behavior used by the */
-	/*  Zoom Win95 driver when 802.1h mode is selected */
+	/* Zoom Win95 driver when 802.1h mode is selected */
 	/* TODO: If necessary, add an actual search we'll probably
-	   need this to match the CMAC's way of doing things.
-	   Need to do some testing to confirm.
+	 * need this to match the CMAC's way of doing things.
+	 * Need to do some testing to confirm.
 	 */
 
 	if (proto == ETH_P_AARP)	/* APPLETALK */
@@ -551,7 +557,8 @@ int p80211_stt_findproto(u16 proto)
 *
 * Call context:
 *	May be called in interrupt or non-interrupt context
-----------------------------------------------------------------*/
+*----------------------------------------------------------------
+*/
 void p80211skb_rxmeta_detach(struct sk_buff *skb)
 {
 	struct p80211_rxmeta *rxmeta;
@@ -595,7 +602,8 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 *
 * Call context:
 *	May be called in interrupt or non-interrupt context
-----------------------------------------------------------------*/
+*----------------------------------------------------------------
+*/
 int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	int result = 0;
@@ -648,7 +656,8 @@ exit:
 *
 * Call context:
 *	May be called in interrupt or non-interrupt context
-----------------------------------------------------------------*/
+*----------------------------------------------------------------
+*/
 void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	struct p80211_frmmeta *meta;
