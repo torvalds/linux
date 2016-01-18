@@ -1197,19 +1197,13 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	rb_insert_color(&he->rb_node, entries);
 }
 
-void hists__output_resort(struct hists *hists, struct ui_progress *prog)
+static void output_resort(struct hists *hists, struct ui_progress *prog,
+			  bool use_callchain)
 {
 	struct rb_root *root;
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
-	bool use_callchain;
-
-	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
-		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
-	else
-		use_callchain = symbol_conf.use_callchain;
 
 	min_callchain_hits = hists__total_period(hists) * (callchain_param.min_percent / 100);
 
@@ -1237,6 +1231,19 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 		if (prog)
 			ui_progress__update(prog, 1);
 	}
+}
+
+void hists__output_resort(struct hists *hists, struct ui_progress *prog)
+{
+	struct perf_evsel *evsel = hists_to_evsel(hists);
+	bool use_callchain;
+
+	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
+		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
+	else
+		use_callchain = symbol_conf.use_callchain;
+
+	output_resort(hists, prog, use_callchain);
 }
 
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
