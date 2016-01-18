@@ -622,6 +622,18 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->src_h = val;
 	} else if (property == config->rotation_property) {
 		state->rotation = val;
+	} else if (property == config->prop_blend_func) {
+		enum drm_blend_factor src_factor, dst_factor;
+
+		src_factor = DRM_BLEND_FUNC_SRC_FACTOR(val);
+		dst_factor = DRM_BLEND_FUNC_DST_FACTOR(val);
+
+		if (src_factor != dst_factor &&
+		    (src_factor == DRM_BLEND_FACTOR_AUTO ||
+		     dst_factor == DRM_BLEND_FACTOR_AUTO))
+			return -EINVAL;
+
+		state->blend_mode.func = val & GENMASK(31, 0);
 	} else if (plane->funcs->atomic_set_property) {
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
@@ -678,6 +690,8 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->src_h;
 	} else if (property == config->rotation_property) {
 		*val = state->rotation;
+	} else if (property == config->prop_blend_func) {
+		*val = state->blend_mode.func;
 	} else if (plane->funcs->atomic_get_property) {
 		return plane->funcs->atomic_get_property(plane, state, property, val);
 	} else {

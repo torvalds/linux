@@ -99,6 +99,10 @@ static inline uint64_t I642U64(int64_t val)
 #define DRM_REFLECT_X	4
 #define DRM_REFLECT_Y	5
 
+struct drm_blend_mode {
+	uint64_t func;
+};
+
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
 	DRM_FORCE_OFF,
@@ -1274,6 +1278,8 @@ struct drm_plane_state {
 	/* Plane rotation */
 	unsigned int rotation;
 
+	struct drm_blend_mode blend_mode;
+
 	struct drm_atomic_state *state;
 };
 
@@ -2108,6 +2114,7 @@ struct drm_mode_config {
 	struct drm_property *prop_active;
 	struct drm_property *prop_mode_id;
 	struct drm_property *prop_background_color;
+	struct drm_property *prop_blend_func;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
