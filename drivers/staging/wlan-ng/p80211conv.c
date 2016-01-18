@@ -153,8 +153,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			    (struct wlan_snap *) skb_push(skb,
 				sizeof(struct wlan_snap));
 			e_snap->type = htons(proto);
-			if (ethconv == WLAN_ETHCONV_8021h
-			    && p80211_stt_findproto(proto)) {
+			if (ethconv == WLAN_ETHCONV_8021h &&
+			    p80211_stt_findproto(proto)) {
 				memcpy(e_snap->oui, oui_8021h,
 				       WLAN_IEEE_OUI_LEN);
 			} else {
@@ -204,8 +204,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 
 	p80211_wep->data = NULL;
 
-	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
-	    && (wlandev->hostwep & HOSTWEP_ENCRYPT)) {
+	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) &&
+	    (wlandev->hostwep & HOSTWEP_ENCRYPT)) {
 		/* XXXX need to pick keynum other than default? */
 
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
@@ -304,12 +304,12 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	if ((WLAN_GET_FC_TODS(fc) == 0) && (WLAN_GET_FC_FROMDS(fc) == 0)) {
 		ether_addr_copy(daddr, w_hdr->a3.a1);
 		ether_addr_copy(saddr, w_hdr->a3.a2);
-	} else if ((WLAN_GET_FC_TODS(fc) == 0)
-			&& (WLAN_GET_FC_FROMDS(fc) == 1)) {
+	} else if ((WLAN_GET_FC_TODS(fc) == 0) &&
+		   (WLAN_GET_FC_FROMDS(fc) == 1)) {
 		ether_addr_copy(daddr, w_hdr->a3.a1);
 		ether_addr_copy(saddr, w_hdr->a3.a3);
-	} else if ((WLAN_GET_FC_TODS(fc) == 1)
-			&& (WLAN_GET_FC_FROMDS(fc) == 0)) {
+	} else if ((WLAN_GET_FC_TODS(fc) == 1) &&
+		   (WLAN_GET_FC_FROMDS(fc) == 0)) {
 		ether_addr_copy(daddr, w_hdr->a3.a3);
 		ether_addr_copy(saddr, w_hdr->a3.a2);
 	} else {
@@ -324,8 +324,9 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	}
 
 	/* perform de-wep if necessary.. */
-	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) && WLAN_GET_FC_ISWEP(fc)
-	    && (wlandev->hostwep & HOSTWEP_DECRYPT)) {
+	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) &&
+	    WLAN_GET_FC_ISWEP(fc) &&
+	    (wlandev->hostwep & HOSTWEP_DECRYPT)) {
 		if (payload_length <= 8) {
 			netdev_err(netdev,
 				   "WEP frame too short (%u).\n", skb->len);
@@ -383,15 +384,15 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		skb_trim(skb, skb->len - WLAN_CRC_LEN);
 
 	} else if ((payload_length >= sizeof(struct wlan_llc) +
-		sizeof(struct wlan_snap))
-		&& (e_llc->dsap == 0xaa)
-		&& (e_llc->ssap == 0xaa)
-		&& (e_llc->ctl == 0x03)
-		   &&
-		   (((memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) == 0)
-		     && (ethconv == WLAN_ETHCONV_8021h)
-		     && (p80211_stt_findproto(le16_to_cpu(e_snap->type))))
-		    || (memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) !=
+		sizeof(struct wlan_snap)) &&
+		(e_llc->dsap == 0xaa) &&
+		(e_llc->ssap == 0xaa) &&
+		(e_llc->ctl == 0x03) &&
+		   (((memcmp(e_snap->oui, oui_rfc1042,
+		   WLAN_IEEE_OUI_LEN) == 0) &&
+		   (ethconv == WLAN_ETHCONV_8021h) &&
+		   (p80211_stt_findproto(le16_to_cpu(e_snap->type)))) ||
+		   (memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) !=
 			0))) {
 		pr_debug("SNAP+RFC1042 len: %d\n", payload_length);
 		/* it's a SNAP + RFC1042 frame && protocol is in STT */
@@ -419,10 +420,10 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		skb_trim(skb, skb->len - WLAN_CRC_LEN);
 
 	} else if ((payload_length >= sizeof(struct wlan_llc) +
-		sizeof(struct wlan_snap))
-		&& (e_llc->dsap == 0xaa)
-		&& (e_llc->ssap == 0xaa)
-		&& (e_llc->ctl == 0x03)) {
+		sizeof(struct wlan_snap)) &&
+		(e_llc->dsap == 0xaa) &&
+		(e_llc->ssap == 0xaa) &&
+		(e_llc->ctl == 0x03)) {
 		pr_debug("802.1h/RFC1042 len: %d\n", payload_length);
 		/* it's an 802.1h frame || (an RFC1042 && protocol not in STT)
 		 * build a DIXII + RFC894
