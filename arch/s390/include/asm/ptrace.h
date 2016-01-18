@@ -149,7 +149,7 @@ static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
 #define arch_has_block_step()	(1)
 
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
-#define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)
+#define instruction_pointer(regs) ((regs)->psw.addr)
 #define user_stack_pointer(regs)((regs)->gprs[15])
 #define profile_pc(regs) instruction_pointer(regs)
 
@@ -171,7 +171,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
 
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
-	return regs->gprs[15] & PSW_ADDR_INSN;
+	return regs->gprs[15];
 }
 
 #endif /* __ASSEMBLY__ */
