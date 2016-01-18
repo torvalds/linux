@@ -562,17 +562,17 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 	struct p80211_frmmeta *frmmeta;
 
 	/* Sanity checks */
-	if (skb == NULL) {	/* bad skb */
+	if (!skb) {	/* bad skb */
 		pr_debug("Called w/ null skb.\n");
 		return;
 	}
 	frmmeta = P80211SKB_FRMMETA(skb);
-	if (frmmeta == NULL) {	/* no magic */
+	if (!frmmeta) {	/* no magic */
 		pr_debug("Called w/ bad frmmeta magic.\n");
 		return;
 	}
 	rxmeta = frmmeta->rx;
-	if (rxmeta == NULL) {	/* bad meta ptr */
+	if (!rxmeta) {	/* bad meta ptr */
 		pr_debug("Called w/ bad rxmeta ptr.\n");
 		return;
 	}
@@ -608,7 +608,7 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	struct p80211_frmmeta *frmmeta;
 
 	/* If these already have metadata, we error out! */
-	if (P80211SKB_RXMETA(skb) != NULL) {
+	if (P80211SKB_RXMETA(skb)) {
 		netdev_err(wlandev->netdev,
 			   "%s: RXmeta already attached!\n", wlandev->name);
 		result = 0;
@@ -618,7 +618,7 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	/* Allocate the rxmeta */
 	rxmeta = kzalloc(sizeof(struct p80211_rxmeta), GFP_ATOMIC);
 
-	if (rxmeta == NULL) {
+	if (!rxmeta) {
 		netdev_err(wlandev->netdev,
 			   "%s: Failed to allocate rxmeta.\n", wlandev->name);
 		result = 1;
