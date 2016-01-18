@@ -389,17 +389,27 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 	if (vio_version_after_eq(&port->vio, 1, 8)) {
 		struct vio_net_dext *dext = vio_net_ext(desc);
 
+		skb_reset_network_header(skb);
+
 		if (dext->flags & VNET_PKT_HCK_IPV4_HDRCKSUM) {
 			if (skb->protocol == ETH_P_IP) {
-				struct iphdr *iph = (struct iphdr *)skb->data;
+				struct iphdr *iph = ip_hdr(skb);
 
 				iph->check = 0;
 				ip_send_check(iph);
 			}
 		}
 		if ((dext->flags & VNET_PKT_HCK_FULLCKSUM) &&
-		    skb->ip_summed == CHECKSUM_NONE)
-			vnet_fullcsum(skb);
+		    skb->ip_summed == CHECKSUM_NONE) {
+			if (skb->protocol == htons(ETH_P_IP)) {
+				struct iphdr *iph = ip_hdr(skb);
+				int ihl = iph->ihl * 4;
+
+				skb_reset_transport_header(skb);
+				skb_set_transport_header(skb, ihl);
+				vnet_fullcsum(skb);
+			}
+		}
 		if (dext->flags & VNET_PKT_HCK_IPV4_HDRCKSUM_OK) {
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			skb->csum_level = 0;
