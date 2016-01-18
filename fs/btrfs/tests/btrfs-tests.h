@@ -24,17 +24,23 @@
 #define test_msg(fmt, ...) pr_info("BTRFS: selftest: " fmt, ##__VA_ARGS__)
 
 struct btrfs_root;
+struct btrfs_trans_handle;
 
 int btrfs_test_free_space_cache(void);
 int btrfs_test_extent_buffer_operations(void);
 int btrfs_test_extent_io(void);
 int btrfs_test_inodes(void);
 int btrfs_test_qgroups(void);
+int btrfs_test_free_space_tree(void);
 int btrfs_init_test_fs(void);
 void btrfs_destroy_test_fs(void);
 struct inode *btrfs_new_test_inode(void);
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void);
 void btrfs_free_dummy_root(struct btrfs_root *root);
+struct btrfs_block_group_cache *
+btrfs_alloc_dummy_block_group(unsigned long length);
+void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache);
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans);
 #else
 static inline int btrfs_test_free_space_cache(void)
 {
@@ -60,6 +66,10 @@ static inline int btrfs_test_inodes(void)
 	return 0;
 }
 static inline int btrfs_test_qgroups(void)
+{
+	return 0;
+}
+static inline int btrfs_test_free_space_tree(void)
 {
 	return 0;
 }

@@ -493,12 +493,12 @@ update_existing_head_ref(struct btrfs_delayed_ref_root *delayed_refs,
 				memcpy(&existing_ref->extent_op->key,
 				       &ref->extent_op->key,
 				       sizeof(ref->extent_op->key));
-				existing_ref->extent_op->update_key = 1;
+				existing_ref->extent_op->update_key = true;
 			}
 			if (ref->extent_op->update_flags) {
 				existing_ref->extent_op->flags_to_set |=
 					ref->extent_op->flags_to_set;
-				existing_ref->extent_op->update_flags = 1;
+				existing_ref->extent_op->update_flags = true;
 			}
 			btrfs_free_delayed_extent_op(ref->extent_op);
 		}
