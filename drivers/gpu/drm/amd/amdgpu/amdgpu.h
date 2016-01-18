@@ -636,7 +636,6 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
  * Synchronization
  */
 struct amdgpu_sync {
-	struct fence		*sync_to[AMDGPU_MAX_RINGS];
 	DECLARE_HASHTABLE(fences, 4);
 	struct fence	        *last_vm_update;
 };

@@ -46,11 +46,6 @@ struct amdgpu_sync_entry {
  */
 void amdgpu_sync_create(struct amdgpu_sync *sync)
 {
-	unsigned i;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		sync->sync_to[i] = NULL;
-
 	hash_init(sync->fences);
 	sync->last_vm_update = NULL;
 }
@@ -104,7 +99,6 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		      struct fence *f)
 {
 	struct amdgpu_sync_entry *e;
-	struct amdgpu_fence *fence;
 
 	if (!f)
 		return 0;
@@ -113,27 +107,20 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	    amdgpu_sync_test_owner(f, AMDGPU_FENCE_OWNER_VM))
 		amdgpu_sync_keep_later(&sync->last_vm_update, f);
 
-	fence = to_amdgpu_fence(f);
-	if (!fence || fence->ring->adev != adev) {
-		hash_for_each_possible(sync->fences, e, node, f->context) {
-			if (unlikely(e->fence->context != f->context))
-				continue;
+	hash_for_each_possible(sync->fences, e, node, f->context) {
+		if (unlikely(e->fence->context != f->context))
+			continue;
 
-			amdgpu_sync_keep_later(&e->fence, f);
-			return 0;
-		}
-
-		e = kmalloc(sizeof(struct amdgpu_sync_entry), GFP_KERNEL);
-		if (!e)
-			return -ENOMEM;
-
-		hash_add(sync->fences, &e->node, f->context);
-		e->fence = fence_get(f);
+		amdgpu_sync_keep_later(&e->fence, f);
 		return 0;
 	}
 
-	amdgpu_sync_keep_later(&sync->sync_to[fence->ring->idx], f);
+	e = kmalloc(sizeof(struct amdgpu_sync_entry), GFP_KERNEL);
+	if (!e)
+		return -ENOMEM;
 
+	hash_add(sync->fences, &e->node, f->context);
+	e->fence = fence_get(f);
 	return 0;
 }
 
@@ -247,16 +234,6 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 		kfree(e);
 	}
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct fence *fence = sync->sync_to[i];
-		if (!fence)
-			continue;
-
-		r = fence_wait(fence, false);
-		if (r)
-			return r;
-	}
-
 	return 0;
 }
 
@@ -282,9 +259,6 @@ void amdgpu_sync_free(struct amdgpu_device *adev,
 		fence_put(e->fence);
 		kfree(e);
 	}
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		fence_put(sync->sync_to[i]);
 
 	fence_put(sync->last_vm_update);
 }
