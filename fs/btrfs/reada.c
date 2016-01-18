@@ -280,7 +280,7 @@ static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 	end = start + cache->key.offset - 1;
 	btrfs_put_block_group(cache);
 
-	zone = kzalloc(sizeof(*zone), GFP_NOFS);
+	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	if (!zone)
 		return NULL;
 
@@ -343,7 +343,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	if (re)
 		return re;
 
-	re = kzalloc(sizeof(*re), GFP_NOFS);
+	re = kzalloc(sizeof(*re), GFP_KERNEL);
 	if (!re)
 		return NULL;
 
@@ -566,7 +566,7 @@ static int reada_add_block(struct reada_control *rc, u64 logical,
 	if (!re)
 		return -1;
 
-	rec = kzalloc(sizeof(*rec), GFP_NOFS);
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
 	if (!rec) {
 		reada_extent_put(root->fs_info, re);
 		return -ENOMEM;
@@ -791,7 +791,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 {
 	struct reada_machine_work *rmw;
 
-	rmw = kzalloc(sizeof(*rmw), GFP_NOFS);
+	rmw = kzalloc(sizeof(*rmw), GFP_KERNEL);
 	if (!rmw) {
 		/* FIXME we cannot handle this properly right now */
 		BUG();
@@ -926,7 +926,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 		.offset = (u64)-1
 	};
 
-	rc = kzalloc(sizeof(*rc), GFP_NOFS);
+	rc = kzalloc(sizeof(*rc), GFP_KERNEL);
 	if (!rc)
 		return ERR_PTR(-ENOMEM);
 
