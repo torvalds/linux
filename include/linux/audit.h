@@ -238,7 +238,7 @@ extern void __audit_getname(struct filename *name);
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
 extern void __audit_file(const struct file *);
-extern void __audit_inode_child(const struct inode *parent,
+extern void __audit_inode_child(struct inode *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
 extern void __audit_seccomp(unsigned long syscall, long signr, int code);
@@ -303,7 +303,7 @@ static inline void audit_inode_parent_hidden(struct filename *name,
 		__audit_inode(name, dentry,
 				AUDIT_INODE_PARENT | AUDIT_INODE_HIDDEN);
 }
-static inline void audit_inode_child(const struct inode *parent,
+static inline void audit_inode_child(struct inode *parent,
 				     const struct dentry *dentry,
 				     const unsigned char type) {
 	if (unlikely(!audit_dummy_context()))
@@ -463,7 +463,7 @@ static inline void __audit_inode(struct filename *name,
 					const struct dentry *dentry,
 					unsigned int flags)
 { }
-static inline void __audit_inode_child(const struct inode *parent,
+static inline void __audit_inode_child(struct inode *parent,
 					const struct dentry *dentry,
 					const unsigned char type)
 { }
@@ -477,7 +477,7 @@ static inline void audit_file(struct file *file)
 static inline void audit_inode_parent_hidden(struct filename *name,
 				const struct dentry *dentry)
 { }
-static inline void audit_inode_child(const struct inode *parent,
+static inline void audit_inode_child(struct inode *parent,
 				     const struct dentry *dentry,
 				     const unsigned char type)
 { }

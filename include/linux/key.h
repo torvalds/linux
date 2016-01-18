@@ -177,6 +177,7 @@ struct key {
 #define KEY_FLAG_TRUSTED_ONLY	9	/* set if keyring only accepts links to trusted keys */
 #define KEY_FLAG_BUILTIN	10	/* set if key is builtin */
 #define KEY_FLAG_ROOT_CAN_INVAL	11	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_KEEP		12	/* set if key should not be removed */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
