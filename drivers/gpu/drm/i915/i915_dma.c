@@ -391,13 +391,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_client;
 
-	/* Initialise stolen first so that we may reserve preallocated
-	 * objects for the BIOS to KMS transition.
-	 */
-	ret = i915_gem_init_stolen(dev);
-	if (ret)
-		goto cleanup_vga_switcheroo;
-
 	intel_power_domains_init_hw(dev_priv, false);
 
 	intel_csr_ucode_init(dev_priv);
@@ -460,8 +453,6 @@ cleanup_irq:
 	intel_teardown_gmbus(dev);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
-	i915_gem_cleanup_stolen(dev);
-cleanup_vga_switcheroo:
 	vga_switcheroo_unregister_client(dev->pdev);
 cleanup_vga_client:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
@@ -1233,7 +1224,6 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	intel_fbc_cleanup_cfb(dev_priv);
-	i915_gem_cleanup_stolen(dev);
 
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
