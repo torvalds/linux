@@ -161,8 +161,12 @@ static int greybus_remove(struct device *dev)
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 	struct gb_connection *connection;
 
-	list_for_each_entry(connection, &bundle->connections, bundle_links)
-		gb_connection_disable_rx(connection);
+	list_for_each_entry(connection, &bundle->connections, bundle_links) {
+		if (bundle->intf->disconnected)
+			gb_connection_disable(connection);
+		else
+			gb_connection_disable_rx(connection);
+	}
 
 	driver->disconnect(bundle);
 
