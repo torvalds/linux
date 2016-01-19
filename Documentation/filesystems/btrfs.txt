@@ -168,6 +168,14 @@ Options with (*) are default options and will not show in the mount options.
   notreelog
 	Enable/disable the tree logging used for fsync and O_SYNC writes.
 
+  nologreplay
+	Disable the log tree replay at mount time to prevent filesystem
+	from getting modified.
+	Must be used with 'ro' mount option.
+	A filesystem mounted with this option cannot transition to a
+	read-write mount via remount,rw - the filesystem must be unmounted
+	and mounted back again if read-write access is desired.
+
   usebackuproot
 	Enable attempts to use backup tree roots if a bad tree root is found at
 	mount time.
