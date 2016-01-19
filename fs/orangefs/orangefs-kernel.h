@@ -619,47 +619,6 @@ extern wait_queue_head_t orangefs_bufmap_init_waitq;
 /*
  * misc convenience macros
  */
-#define add_op_to_request_list(op)				\
-do {								\
-	spin_lock(&orangefs_request_list_lock);			\
-	spin_lock(&op->lock);					\
-	set_op_state_waiting(op);				\
-	list_add_tail(&op->list, &orangefs_request_list);		\
-	spin_unlock(&orangefs_request_list_lock);			\
-	spin_unlock(&op->lock);					\
-	wake_up_interruptible(&orangefs_request_list_waitq);	\
-} while (0)
-
-#define add_priority_op_to_request_list(op)				\
-	do {								\
-		spin_lock(&orangefs_request_list_lock);			\
-		spin_lock(&op->lock);					\
-		set_op_state_waiting(op);				\
-									\
-		list_add(&op->list, &orangefs_request_list);		\
-		spin_unlock(&orangefs_request_list_lock);			\
-		spin_unlock(&op->lock);					\
-		wake_up_interruptible(&orangefs_request_list_waitq);	\
-} while (0)
-
-#define remove_op_from_request_list(op)					\
-	do {								\
-		struct list_head *tmp = NULL;				\
-		struct list_head *tmp_safe = NULL;			\
-		struct orangefs_kernel_op_s *tmp_op = NULL;		\
-									\
-		spin_lock(&orangefs_request_list_lock);			\
-		list_for_each_safe(tmp, tmp_safe, &orangefs_request_list) { \
-			tmp_op = list_entry(tmp,			\
-					    struct orangefs_kernel_op_s,	\
-					    list);			\
-			if (tmp_op && (tmp_op == op)) {			\
-				list_del(&tmp_op->list);		\
-				break;					\
-			}						\
-		}							\
-		spin_unlock(&orangefs_request_list_lock);			\
-	} while (0)
 
 #define ORANGEFS_OP_INTERRUPTIBLE 1   /* service_operation() is interruptible */
 #define ORANGEFS_OP_PRIORITY      2   /* service_operation() is high priority */

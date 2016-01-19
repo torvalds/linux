@@ -41,6 +41,31 @@ void purge_waiting_ops(void)
 	spin_unlock(&orangefs_request_list_lock);
 }
 
+static inline void
+add_op_to_request_list(struct orangefs_kernel_op_s *op)
+{
+	spin_lock(&orangefs_request_list_lock);
+	spin_lock(&op->lock);
+	set_op_state_waiting(op);
+	list_add_tail(&op->list, &orangefs_request_list);
+	spin_unlock(&orangefs_request_list_lock);
+	spin_unlock(&op->lock);
+	wake_up_interruptible(&orangefs_request_list_waitq);
+}
+
+static inline
+void add_priority_op_to_request_list(struct orangefs_kernel_op_s *op)
+{
+	spin_lock(&orangefs_request_list_lock);
+	spin_lock(&op->lock);
+	set_op_state_waiting(op);
+
+	list_add(&op->list, &orangefs_request_list);
+	spin_unlock(&orangefs_request_list_lock);
+	spin_unlock(&op->lock);
+	wake_up_interruptible(&orangefs_request_list_waitq);
+}
+
 /*
  * submits a ORANGEFS operation and waits for it to complete
  *
@@ -250,6 +275,25 @@ retry_servicing:
 		     ret,
 		     op);
 	return ret;
+}
+
+static inline void remove_op_from_request_list(struct orangefs_kernel_op_s *op)
+{
+	struct list_head *tmp = NULL;
+	struct list_head *tmp_safe = NULL;
+	struct orangefs_kernel_op_s *tmp_op = NULL;
+
+	spin_lock(&orangefs_request_list_lock);
+	list_for_each_safe(tmp, tmp_safe, &orangefs_request_list) {
+		tmp_op = list_entry(tmp,
+				    struct orangefs_kernel_op_s,
+				    list);
+		if (tmp_op && (tmp_op == op)) {
+			list_del(&tmp_op->list);
+			break;
+		}
+	}
+	spin_unlock(&orangefs_request_list_lock);
 }
 
 void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
