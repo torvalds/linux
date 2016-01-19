@@ -2426,6 +2426,16 @@ gckKERNEL_Dispatch(
                 Interface->u.Cache.node,
                 &nodeObject));
 
+            /* Verify the nodeObject. */
+            if ((nodeObject == gcvNULL)
+            ||  (nodeObject->node == gcvNULL)
+            ||  (nodeObject->node->VidMem.memory == gcvNULL)
+            )
+            {
+                /* Invalid object. */
+                gcmkONERROR(gcvSTATUS_INVALID_OBJECT);
+            }
+
             if (nodeObject->node->VidMem.memory->object.type == gcvOBJ_VIDMEM
              || nodeObject->node->Virtual.contiguous
             )
