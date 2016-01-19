@@ -172,9 +172,9 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
  * Pipeline Management
  */
 
-static int vsp1_video_pipeline_validate_branch(struct vsp1_pipeline *pipe,
-					       struct vsp1_rwpf *input,
-					       struct vsp1_rwpf *output)
+static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
+					    struct vsp1_rwpf *input,
+					    struct vsp1_rwpf *output)
 {
 	struct media_entity_enum ent_enum;
 	struct vsp1_entity *entity;
@@ -257,8 +257,8 @@ out:
 	return ret;
 }
 
-static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
-					struct vsp1_video *video)
+static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
+				     struct vsp1_video *video)
 {
 	struct media_entity_graph graph;
 	struct media_entity *entity = &video->video.entity;
@@ -321,8 +321,8 @@ static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 		if (!pipe->inputs[i])
 			continue;
 
-		ret = vsp1_video_pipeline_validate_branch(pipe, pipe->inputs[i],
-							  pipe->output);
+		ret = vsp1_video_pipeline_build_branch(pipe, pipe->inputs[i],
+						       pipe->output);
 		if (ret < 0)
 			goto error;
 	}
@@ -341,9 +341,9 @@ static int vsp1_video_pipeline_init(struct vsp1_pipeline *pipe,
 
 	mutex_lock(&pipe->lock);
 
-	/* If we're the first user validate and initialize the pipeline. */
+	/* If we're the first user build and validate the pipeline. */
 	if (pipe->use_count == 0) {
-		ret = vsp1_video_pipeline_validate(pipe, video);
+		ret = vsp1_video_pipeline_build(pipe, video);
 		if (ret < 0)
 			goto done;
 	}
