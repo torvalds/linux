@@ -66,8 +66,6 @@ void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
-static DEFINE_MUTEX(connection_mutex);
-
 static void gb_connection_kref_release(struct kref *kref)
 {
 	struct gb_connection *connection;
@@ -75,7 +73,6 @@ static void gb_connection_kref_release(struct kref *kref)
 	connection = container_of(kref, struct gb_connection, kref);
 
 	kfree(connection);
-	mutex_unlock(&connection_mutex);
 }
 
 static void gb_connection_init_name(struct gb_connection *connection)
@@ -519,8 +516,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	ida_simple_remove(id_map, connection->hd_cport_id);
 	connection->hd_cport_id = CPORT_ID_BAD;
 
-	kref_put_mutex(&connection->kref, gb_connection_kref_release,
-		       &connection_mutex);
+	kref_put(&connection->kref, gb_connection_kref_release);
 }
 
 void gb_connection_latency_tag_enable(struct gb_connection *connection)
