@@ -492,6 +492,8 @@ struct intel_crtc_state {
 
 	bool ips_enabled;
 
+	bool enable_fbc;
+
 	bool double_wide;
 
 	bool dp_encoder_is_mst;
@@ -1329,6 +1331,8 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 #endif
 
 /* intel_fbc.c */
+void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
+			   struct drm_atomic_state *state);
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
 void intel_fbc_pre_update(struct intel_crtc *crtc);
 void intel_fbc_post_update(struct intel_crtc *crtc);

@@ -826,7 +826,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	return true;
 }
 
-static bool intel_fbc_can_enable(struct intel_crtc *crtc)
+static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
@@ -1015,11 +1015,76 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 }
 
 /**
+ * intel_fbc_choose_crtc - select a CRTC to enable FBC on
+ * @dev_priv: i915 device instance
+ * @state: the atomic state structure
+ *
+ * This function looks at the proposed state for CRTCs and planes, then chooses
+ * which pipe is going to have FBC by setting intel_crtc_state->enable_fbc to
+ * true.
+ *
+ * Later, intel_fbc_enable is going to look for state->enable_fbc and then maybe
+ * enable FBC for the chosen CRTC. If it does, it will set dev_priv->fbc.crtc.
+ */
+void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
+			   struct drm_atomic_state *state)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	bool fbc_crtc_present = false;
+	int i, j;
+
+	mutex_lock(&fbc->lock);
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (fbc->crtc == to_intel_crtc(crtc)) {
+			fbc_crtc_present = true;
+			break;
+		}
+	}
+	/* This atomic commit doesn't involve the CRTC currently tied to FBC. */
+	if (!fbc_crtc_present && fbc->crtc != NULL)
+		goto out;
+
+	/* Simply choose the first CRTC that is compatible and has a visible
+	 * plane. We could go for fancier schemes such as checking the plane
+	 * size, but this would just affect the few platforms that don't tie FBC
+	 * to pipe or plane A. */
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		struct intel_plane_state *intel_plane_state =
+			to_intel_plane_state(plane_state);
+
+		if (!intel_plane_state->visible)
+			continue;
+
+		for_each_crtc_in_state(state, crtc, crtc_state, j) {
+			struct intel_crtc_state *intel_crtc_state =
+				to_intel_crtc_state(crtc_state);
+
+			if (plane_state->crtc != crtc)
+				continue;
+
+			if (!intel_fbc_can_choose(to_intel_crtc(crtc)))
+				break;
+
+			intel_crtc_state->enable_fbc = true;
+			goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&fbc->lock);
+}
+
+/**
  * intel_fbc_enable: tries to enable FBC on the CRTC
  * @crtc: the CRTC
  *
- * This function checks if it's possible to enable FBC on the following CRTC,
- * then enables it. Notice that it doesn't activate FBC.
+ * This function checks if the given CRTC was chosen for FBC, then enables it if
+ * possible. Notice that it doesn't activate FBC.
  */
 void intel_fbc_enable(struct intel_crtc *crtc)
 {
@@ -1036,11 +1101,11 @@ void intel_fbc_enable(struct intel_crtc *crtc)
 		goto out;
 	}
 
+	if (!crtc->config->enable_fbc)
+		goto out;
+
 	WARN_ON(fbc->active);
 	WARN_ON(fbc->crtc != NULL);
-
-	if (!intel_fbc_can_enable(crtc))
-		goto out;
 
 	intel_fbc_update_state_cache(crtc);
 	if (intel_fbc_alloc_cfb(crtc)) {

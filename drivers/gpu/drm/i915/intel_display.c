@@ -13402,6 +13402,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	intel_fbc_choose_crtc(dev_priv, state);
 	calc_watermark_data(state);
 
 	return 0;
