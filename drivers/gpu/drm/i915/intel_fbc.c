@@ -982,7 +982,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 
 	fbc->busy_bits |= intel_fbc_get_frontbuffer_bit(fbc) & frontbuffer_bits;
 
-	if (fbc->busy_bits)
+	if (fbc->enabled && fbc->busy_bits)
 		intel_fbc_deactivate(dev_priv);
 
 	mutex_unlock(&fbc->lock);
