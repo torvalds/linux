@@ -1098,6 +1098,8 @@ void intel_fbc_disable(struct intel_crtc *crtc)
 		__intel_fbc_disable(dev_priv);
 	}
 	mutex_unlock(&fbc->lock);
+
+	cancel_work_sync(&fbc->work.work);
 }
 
 /**
@@ -1117,6 +1119,8 @@ void intel_fbc_global_disable(struct drm_i915_private *dev_priv)
 	if (fbc->enabled)
 		__intel_fbc_disable(dev_priv);
 	mutex_unlock(&fbc->lock);
+
+	cancel_work_sync(&fbc->work.work);
 }
 
 /**
