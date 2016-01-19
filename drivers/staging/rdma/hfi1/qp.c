@@ -1205,8 +1205,6 @@ unsigned free_all_qps(struct rvt_dev_info *rdi)
 	for (n = 0; n < dd->num_pports; n++) {
 		struct hfi1_ibport *ibp = &dd->pport[n].ibport_data;
 
-		if (!hfi1_mcast_tree_empty(ibp))
-			qp_inuse++;
 		rcu_read_lock();
 		if (rcu_dereference(ibp->rvp.qp[0]))
 			qp_inuse++;

@@ -451,12 +451,12 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	lid = be16_to_cpu(hdr->lrh[1]);
 	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
-		struct hfi1_mcast *mcast;
-		struct hfi1_mcast_qp *p;
+		struct rvt_mcast *mcast;
+		struct rvt_mcast_qp *p;
 
 		if (lnh != HFI1_LRH_GRH)
 			goto drop;
-		mcast = hfi1_mcast_find(ibp, &hdr->u.l.grh.dgid);
+		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid);
 		if (mcast == NULL)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
@@ -467,7 +467,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 			spin_unlock_irqrestore(&packet->qp->r_lock, flags);
 		}
 		/*
-		 * Notify hfi1_multicast_detach() if it is waiting for us
+		 * Notify rvt_multicast_detach() if it is waiting for us
 		 * to finish.
 		 */
 		if (atomic_dec_return(&mcast->refcount) <= 1)
@@ -1536,7 +1536,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
-	spin_lock_init(&dev->n_mcast_grps_lock);
 	init_timer(&dev->mem_timer);
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
@@ -1644,8 +1643,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->map_phys_fmr = NULL;
 	ibdev->unmap_fmr = NULL;
 	ibdev->dealloc_fmr = NULL;
-	ibdev->attach_mcast = hfi1_multicast_attach;
-	ibdev->detach_mcast = hfi1_multicast_detach;
+	ibdev->attach_mcast = NULL;
+	ibdev->detach_mcast = NULL;
 	ibdev->process_mad = hfi1_process_mad;
 	ibdev->mmap = NULL;
 	ibdev->dma_ops = NULL;

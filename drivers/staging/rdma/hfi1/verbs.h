@@ -201,25 +201,6 @@ struct tx_pio_header {
 } ____cacheline_aligned;
 
 /*
- * There is one struct hfi1_mcast for each multicast GID.
- * All attached QPs are then stored as a list of
- * struct hfi1_mcast_qp.
- */
-struct hfi1_mcast_qp {
-	struct list_head list;
-	struct rvt_qp *qp;
-};
-
-struct hfi1_mcast {
-	struct rb_node rb_node;
-	union ib_gid mgid;
-	struct list_head qp_list;
-	wait_queue_head_t wait;
-	atomic_t refcount;
-	int n_attached;
-};
-
-/*
  * hfi1 specific data structures that will be hidden from rvt after the queue
  * pair is made common
  */
@@ -309,8 +290,6 @@ struct hfi1_ibdev {
 	spinlock_t n_qps_lock;
 	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
 	spinlock_t n_srqs_lock;
-	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
-	spinlock_t n_mcast_grps_lock;
 #ifdef CONFIG_DEBUG_FS
 	/* per HFI debugfs */
 	struct dentry *hfi1_ibdev_dbg;
@@ -433,14 +412,6 @@ static inline u32 delta_psn(u32 a, u32 b)
 {
 	return (((int)a - (int)b) << PSN_SHIFT) >> PSN_SHIFT;
 }
-
-struct hfi1_mcast *hfi1_mcast_find(struct hfi1_ibport *ibp, union ib_gid *mgid);
-
-int hfi1_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
-
-int hfi1_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
-
-int hfi1_mcast_tree_empty(struct hfi1_ibport *ibp);
 
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
