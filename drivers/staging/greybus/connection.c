@@ -507,7 +507,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 {
 	struct ida *id_map;
 
-	if (WARN_ON(!connection))
+	if (!connection)
 		return;
 
 	spin_lock_irq(&gb_connections_lock);
