@@ -4799,7 +4799,7 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 		intel_update_watermarks(&crtc->base);
 
 	if (atomic->update_fbc)
-		intel_fbc_update(crtc);
+		intel_fbc_post_update(crtc);
 
 	if (atomic->post_enable_primary)
 		intel_post_enable_primary(&crtc->base);
@@ -4815,8 +4815,8 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc->base.state);
 
-	if (atomic->disable_fbc)
-		intel_fbc_deactivate(crtc);
+	if (atomic->update_fbc)
+		intel_fbc_pre_update(crtc);
 
 	if (crtc->atomic.disable_ips)
 		hsw_disable_ips(crtc);
@@ -10912,7 +10912,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_frontbuffer_flip_complete(dev, to_intel_plane(primary)->frontbuffer_bit);
-	intel_fbc_update(crtc);
+	intel_fbc_post_update(crtc);
 	drm_framebuffer_unreference(work->old_fb);
 
 	BUG_ON(atomic_read(&crtc->unpin_work_count) == 0);
@@ -11712,7 +11712,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			  to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_fbc_deactivate(intel_crtc);
+	intel_fbc_pre_update(intel_crtc);
 	intel_frontbuffer_flip_prepare(dev,
 				       to_intel_plane(primary)->frontbuffer_bit);
 
@@ -11901,7 +11901,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	case DRM_PLANE_TYPE_PRIMARY:
 		intel_crtc->atomic.pre_disable_primary = turn_off;
 		intel_crtc->atomic.post_enable_primary = turn_on;
-		intel_crtc->atomic.disable_fbc = true;
 		intel_crtc->atomic.update_fbc = true;
 
 		if (turn_off) {

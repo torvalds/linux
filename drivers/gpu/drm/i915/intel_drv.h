@@ -542,16 +542,17 @@ struct intel_mmio_flip {
  */
 struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
-	bool disable_fbc;
 	bool disable_ips;
 	bool pre_disable_primary;
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
 	bool wait_vblank;
-	bool update_fbc;
 	bool post_enable_primary;
 	unsigned update_sprite_watermarks;
+
+	/* Sleepable operations to perform before and after commit */
+	bool update_fbc;
 };
 
 struct intel_crtc {
@@ -1330,7 +1331,8 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 /* intel_fbc.c */
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
 void intel_fbc_deactivate(struct intel_crtc *crtc);
-void intel_fbc_update(struct intel_crtc *crtc);
+void intel_fbc_pre_update(struct intel_crtc *crtc);
+void intel_fbc_post_update(struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
 void intel_fbc_enable(struct intel_crtc *crtc);
 void intel_fbc_disable(struct drm_i915_private *dev_priv);

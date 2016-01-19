@@ -510,6 +510,7 @@ static bool multiple_pipes_ok(struct drm_i915_private *dev_priv)
 	if (INTEL_INFO(dev_priv)->gen > 4)
 		return true;
 
+	/* FIXME: we don't have the appropriate state locks to do this here. */
 	for_each_pipe(dev_priv, pipe) {
 		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
@@ -732,11 +733,15 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
-	struct intel_crtc_state *crtc_state = crtc->config;
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane_state *plane_state =
 		to_intel_plane_state(crtc->base.primary->state);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj;
+
+	WARN_ON(!drm_modeset_is_locked(&crtc->base.mutex));
+	WARN_ON(!drm_modeset_is_locked(&crtc->base.primary->mutex));
 
 	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -896,12 +901,15 @@ static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
 	return memcmp(params1, params2, sizeof(*params1)) == 0;
 }
 
-static void intel_fbc_pre_update(struct intel_crtc *crtc)
+void intel_fbc_pre_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
-	WARN_ON(!mutex_is_locked(&fbc->lock));
+	if (!fbc_supported(dev_priv))
+		return;
+
+	mutex_lock(&fbc->lock);
 
 	if (!multiple_pipes_ok(dev_priv)) {
 		set_no_fbc_reason(dev_priv, "more than one pipe active");
@@ -909,15 +917,17 @@ static void intel_fbc_pre_update(struct intel_crtc *crtc)
 	}
 
 	if (!fbc->enabled || fbc->crtc != crtc)
-		return;
+		goto unlock;
 
 	intel_fbc_update_state_cache(crtc);
 
 deactivate:
 	__intel_fbc_deactivate(dev_priv);
+unlock:
+	mutex_unlock(&fbc->lock);
 }
 
-static void intel_fbc_post_update(struct intel_crtc *crtc)
+static void __intel_fbc_post_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -950,13 +960,7 @@ static void intel_fbc_post_update(struct intel_crtc *crtc)
 	fbc->no_fbc_reason = "FBC enabled (active or scheduled)";
 }
 
-/*
- * intel_fbc_update - activate/deactivate FBC as needed
- * @crtc: the CRTC that triggered the update
- *
- * This function reevaluates the overall state and activates or deactivates FBC.
- */
-void intel_fbc_update(struct intel_crtc *crtc)
+void intel_fbc_post_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -965,8 +969,7 @@ void intel_fbc_update(struct intel_crtc *crtc)
 		return;
 
 	mutex_lock(&fbc->lock);
-	intel_fbc_pre_update(crtc);
-	intel_fbc_post_update(crtc);
+	__intel_fbc_post_update(crtc);
 	mutex_unlock(&fbc->lock);
 }
 
@@ -1020,7 +1023,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		if (fbc->active)
 			intel_fbc_recompress(dev_priv);
 		else
-			intel_fbc_post_update(fbc->crtc);
+			__intel_fbc_post_update(fbc->crtc);
 	}
 
 	mutex_unlock(&fbc->lock);
