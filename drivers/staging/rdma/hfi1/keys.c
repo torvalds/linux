@@ -63,21 +63,21 @@
  *
  */
 
-int hfi1_alloc_lkey(struct hfi1_mregion *mr, int dma_region)
+int hfi1_alloc_lkey(struct rvt_mregion *mr, int dma_region)
 {
 	unsigned long flags;
 	u32 r;
 	u32 n;
 	int ret = 0;
 	struct hfi1_ibdev *dev = to_idev(mr->pd->device);
-	struct hfi1_lkey_table *rkt = &dev->lk_table;
+	struct rvt_lkey_table *rkt = &dev->lk_table;
 
 	hfi1_get_mr(mr);
 	spin_lock_irqsave(&rkt->lock, flags);
 
 	/* special case for dma_mr lkey == 0 */
 	if (dma_region) {
-		struct hfi1_mregion *tmr;
+		struct rvt_mregion *tmr;
 
 		tmr = rcu_access_pointer(dev->dma_mr);
 		if (!tmr) {
@@ -133,13 +133,13 @@ bail:
  * hfi1_free_lkey - free an lkey
  * @mr: mr to free from tables
  */
-void hfi1_free_lkey(struct hfi1_mregion *mr)
+void hfi1_free_lkey(struct rvt_mregion *mr)
 {
 	unsigned long flags;
 	u32 lkey = mr->lkey;
 	u32 r;
 	struct hfi1_ibdev *dev = to_idev(mr->pd->device);
-	struct hfi1_lkey_table *rkt = &dev->lk_table;
+	struct rvt_lkey_table *rkt = &dev->lk_table;
 	int freed = 0;
 
 	spin_lock_irqsave(&rkt->lock, flags);
@@ -176,10 +176,10 @@ out:
  * Check the IB SGE for validity and initialize our internal version
  * of it.
  */
-int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct rvt_pd *pd,
+int hfi1_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		 struct hfi1_sge *isge, struct ib_sge *sge, int acc)
 {
-	struct hfi1_mregion *mr;
+	struct rvt_mregion *mr;
 	unsigned n, m;
 	size_t off;
 
@@ -231,15 +231,15 @@ int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct rvt_pd *pd,
 
 		entries_spanned_by_off = off >> mr->page_shift;
 		off -= (entries_spanned_by_off << mr->page_shift);
-		m = entries_spanned_by_off / HFI1_SEGSZ;
-		n = entries_spanned_by_off % HFI1_SEGSZ;
+		m = entries_spanned_by_off / RVT_SEGSZ;
+		n = entries_spanned_by_off % RVT_SEGSZ;
 	} else {
 		m = 0;
 		n = 0;
 		while (off >= mr->map[m]->segs[n].length) {
 			off -= mr->map[m]->segs[n].length;
 			n++;
-			if (n >= HFI1_SEGSZ) {
+			if (n >= RVT_SEGSZ) {
 				m++;
 				n = 0;
 			}
@@ -274,8 +274,8 @@ bail:
 int hfi1_rkey_ok(struct hfi1_qp *qp, struct hfi1_sge *sge,
 		 u32 len, u64 vaddr, u32 rkey, int acc)
 {
-	struct hfi1_lkey_table *rkt = &to_idev(qp->ibqp.device)->lk_table;
-	struct hfi1_mregion *mr;
+	struct rvt_lkey_table *rkt = &to_idev(qp->ibqp.device)->lk_table;
+	struct rvt_mregion *mr;
 	unsigned n, m;
 	size_t off;
 
@@ -328,15 +328,15 @@ int hfi1_rkey_ok(struct hfi1_qp *qp, struct hfi1_sge *sge,
 
 		entries_spanned_by_off = off >> mr->page_shift;
 		off -= (entries_spanned_by_off << mr->page_shift);
-		m = entries_spanned_by_off / HFI1_SEGSZ;
-		n = entries_spanned_by_off % HFI1_SEGSZ;
+		m = entries_spanned_by_off / RVT_SEGSZ;
+		n = entries_spanned_by_off % RVT_SEGSZ;
 	} else {
 		m = 0;
 		n = 0;
 		while (off >= mr->map[m]->segs[n].length) {
 			off -= mr->map[m]->segs[n].length;
 			n++;
-			if (n >= HFI1_SEGSZ) {
+			if (n >= RVT_SEGSZ) {
 				m++;
 				n = 0;
 			}

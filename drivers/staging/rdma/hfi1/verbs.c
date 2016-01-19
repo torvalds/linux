@@ -300,7 +300,7 @@ void hfi1_copy_sge(
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= HFI1_SEGSZ) {
+			if (++sge->n >= RVT_SEGSZ) {
 				if (++sge->m >= sge->mr->mapsz)
 					break;
 				sge->n = 0;
@@ -341,7 +341,7 @@ void hfi1_skip_sge(struct hfi1_sge_state *ss, u32 length, int release)
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= HFI1_SEGSZ) {
+			if (++sge->n >= RVT_SEGSZ) {
 				if (++sge->m >= sge->mr->mapsz)
 					break;
 				sge->n = 0;
@@ -367,7 +367,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 	int i;
 	int j;
 	int acc;
-	struct hfi1_lkey_table *rkt;
+	struct rvt_lkey_table *rkt;
 	struct rvt_pd *pd;
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_pportdata *ppd;
@@ -725,7 +725,7 @@ void update_sge(struct hfi1_sge_state *ss, u32 length)
 		if (--ss->num_sge)
 			*sge = *ss->sg_list++;
 	} else if (sge->length == 0 && sge->mr->lkey) {
-		if (++sge->n >= HFI1_SEGSZ) {
+		if (++sge->n >= RVT_SEGSZ) {
 			if (++sge->m >= sge->mr->mapsz)
 				return;
 			sge->n = 0;
@@ -1883,13 +1883,13 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	spin_lock_init(&dev->lk_table.lock);
 	dev->lk_table.max = 1 << hfi1_lkey_table_size;
 	/* ensure generation is at least 4 bits (keys.c) */
-	if (hfi1_lkey_table_size > MAX_LKEY_TABLE_BITS) {
+	if (hfi1_lkey_table_size > RVT_MAX_LKEY_TABLE_BITS) {
 		dd_dev_warn(dd, "lkey bits %u too large, reduced to %u\n",
-			      hfi1_lkey_table_size, MAX_LKEY_TABLE_BITS);
-		hfi1_lkey_table_size = MAX_LKEY_TABLE_BITS;
+			      hfi1_lkey_table_size, RVT_MAX_LKEY_TABLE_BITS);
+		hfi1_lkey_table_size = RVT_MAX_LKEY_TABLE_BITS;
 	}
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
-	dev->lk_table.table = (struct hfi1_mregion __rcu **)
+	dev->lk_table.table = (struct rvt_mregion __rcu **)
 		vmalloc(lk_tab_size);
 	if (dev->lk_table.table == NULL) {
 		ret = -ENOMEM;

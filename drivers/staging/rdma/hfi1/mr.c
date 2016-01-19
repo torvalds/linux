@@ -56,7 +56,7 @@
 /* Fast memory region */
 struct hfi1_fmr {
 	struct ib_fmr ibfmr;
-	struct hfi1_mregion mr;        /* must be last */
+	struct rvt_mregion mr;        /* must be last */
 };
 
 static inline struct hfi1_fmr *to_ifmr(struct ib_fmr *ibfmr)
@@ -64,13 +64,13 @@ static inline struct hfi1_fmr *to_ifmr(struct ib_fmr *ibfmr)
 	return container_of(ibfmr, struct hfi1_fmr, ibfmr);
 }
 
-static int init_mregion(struct hfi1_mregion *mr, struct ib_pd *pd,
+static int init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
 			int count)
 {
 	int m, i = 0;
 	int rval = 0;
 
-	m = (count + HFI1_SEGSZ - 1) / HFI1_SEGSZ;
+	m = (count + RVT_SEGSZ - 1) / RVT_SEGSZ;
 	for (; i < m; i++) {
 		mr->map[i] = kzalloc(sizeof(*mr->map[0]), GFP_KERNEL);
 		if (!mr->map[i])
@@ -91,7 +91,7 @@ bail:
 	goto out;
 }
 
-static void deinit_mregion(struct hfi1_mregion *mr)
+static void deinit_mregion(struct rvt_mregion *mr)
 {
 	int i = mr->mapsz;
 
@@ -159,7 +159,7 @@ static struct hfi1_mr *alloc_mr(int count, struct ib_pd *pd)
 	int m;
 
 	/* Allocate struct plus pointers to first level page tables. */
-	m = (count + HFI1_SEGSZ - 1) / HFI1_SEGSZ;
+	m = (count + RVT_SEGSZ - 1) / RVT_SEGSZ;
 	mr = kzalloc(sizeof(*mr) + m * sizeof(mr->mr.map[0]), GFP_KERNEL);
 	if (!mr)
 		goto bail;
@@ -245,7 +245,7 @@ struct ib_mr *hfi1_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		mr->mr.map[m]->segs[n].vaddr = vaddr;
 		mr->mr.map[m]->segs[n].length = umem->page_size;
 		n++;
-		if (n == HFI1_SEGSZ) {
+		if (n == RVT_SEGSZ) {
 			m++;
 			n = 0;
 		}
@@ -333,7 +333,7 @@ struct ib_fmr *hfi1_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 	int rval = -ENOMEM;
 
 	/* Allocate struct plus pointers to first level page tables. */
-	m = (fmr_attr->max_pages + HFI1_SEGSZ - 1) / HFI1_SEGSZ;
+	m = (fmr_attr->max_pages + RVT_SEGSZ - 1) / RVT_SEGSZ;
 	fmr = kzalloc(sizeof(*fmr) + m * sizeof(fmr->mr.map[0]), GFP_KERNEL);
 	if (!fmr)
 		goto bail;
@@ -385,7 +385,7 @@ int hfi1_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 		      int list_len, u64 iova)
 {
 	struct hfi1_fmr *fmr = to_ifmr(ibfmr);
-	struct hfi1_lkey_table *rkt;
+	struct rvt_lkey_table *rkt;
 	unsigned long flags;
 	int m, n, i;
 	u32 ps;
@@ -410,7 +410,7 @@ int hfi1_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	for (i = 0; i < list_len; i++) {
 		fmr->mr.map[m]->segs[n].vaddr = (void *) page_list[i];
 		fmr->mr.map[m]->segs[n].length = ps;
-		if (++n == HFI1_SEGSZ) {
+		if (++n == RVT_SEGSZ) {
 			m++;
 			n = 0;
 		}
@@ -431,7 +431,7 @@ bail:
 int hfi1_unmap_fmr(struct list_head *fmr_list)
 {
 	struct hfi1_fmr *fmr;
-	struct hfi1_lkey_table *rkt;
+	struct rvt_lkey_table *rkt;
 	unsigned long flags;
 
 	list_for_each_entry(fmr, fmr_list, ibfmr.list) {

@@ -285,44 +285,11 @@ struct hfi1_cq {
 };
 
 /*
- * A segment is a linear region of low physical memory.
- * Used by the verbs layer.
- */
-struct hfi1_seg {
-	void *vaddr;
-	size_t length;
-};
-
-/* The number of hfi1_segs that fit in a page. */
-#define HFI1_SEGSZ     (PAGE_SIZE / sizeof(struct hfi1_seg))
-
-struct hfi1_segarray {
-	struct hfi1_seg segs[HFI1_SEGSZ];
-};
-
-struct hfi1_mregion {
-	struct ib_pd *pd;       /* shares refcnt of ibmr.pd */
-	u64 user_base;          /* User's address for this region */
-	u64 iova;               /* IB start address of this region */
-	size_t length;
-	u32 lkey;
-	u32 offset;             /* offset (bytes) to start of region */
-	int access_flags;
-	u32 max_segs;           /* number of hfi1_segs in all the arrays */
-	u32 mapsz;              /* size of the map array */
-	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
-	u8  lkey_published;     /* in global table */
-	struct completion comp; /* complete when refcount goes to zero */
-	atomic_t refcount;
-	struct hfi1_segarray *map[0];    /* the segments */
-};
-
-/*
  * These keep track of the copy progress within a memory region.
  * Used by the verbs layer.
  */
 struct hfi1_sge {
-	struct hfi1_mregion *mr;
+	struct rvt_mregion *mr;
 	void *vaddr;            /* kernel virtual address of segment */
 	u32 sge_length;         /* length of the SGE */
 	u32 length;             /* remaining length of the segment */
@@ -334,7 +301,7 @@ struct hfi1_sge {
 struct hfi1_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
-	struct hfi1_mregion mr;  /* must be last */
+	struct rvt_mregion mr;  /* must be last */
 };
 
 /*
@@ -501,7 +468,7 @@ struct hfi1_qp {
 	u32 s_flags;
 	struct hfi1_swqe *s_wqe;
 	struct hfi1_sge_state s_sge;     /* current send request data */
-	struct hfi1_mregion *s_rdma_mr;
+	struct rvt_mregion *s_rdma_mr;
 	u32 s_cur_size;         /* size of send packet in bytes */
 	u32 s_len;              /* total length of s_sge */
 	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
@@ -655,16 +622,6 @@ static inline struct hfi1_rwqe *get_rwqe_ptr(struct hfi1_rq *rq, unsigned n)
 		  rq->max_sge * sizeof(struct ib_sge)) * n);
 }
 
-#define MAX_LKEY_TABLE_BITS 23
-
-struct hfi1_lkey_table {
-	spinlock_t lock; /* protect changes in this struct */
-	u32 next;               /* next unused index (speeds search) */
-	u32 gen;                /* generation count */
-	u32 max;                /* size of the table */
-	struct hfi1_mregion __rcu **table;
-};
-
 struct hfi1_opcode_stats {
 	u64 n_packets;          /* number of packets */
 	u64 n_bytes;            /* total number of bytes */
@@ -748,12 +705,12 @@ struct hfi1_ibdev {
 	struct list_head pending_mmaps;
 	spinlock_t mmap_offset_lock; /* protect mmap_offset */
 	u32 mmap_offset;
-	struct hfi1_mregion __rcu *dma_mr;
+	struct rvt_mregion __rcu *dma_mr;
 
 	struct hfi1_qp_ibdev *qp_dev;
 
 	/* QP numbers are shared by all IB ports */
-	struct hfi1_lkey_table lk_table;
+	struct rvt_lkey_table lk_table;
 	/* protect wait lists */
 	seqlock_t iowait_lock;
 	struct list_head txwait;        /* list for wait verbs_txreq */
@@ -966,11 +923,11 @@ void hfi1_ud_rcv(struct hfi1_packet *packet);
 
 int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey);
 
-int hfi1_alloc_lkey(struct hfi1_mregion *mr, int dma_region);
+int hfi1_alloc_lkey(struct rvt_mregion *mr, int dma_region);
 
-void hfi1_free_lkey(struct hfi1_mregion *mr);
+void hfi1_free_lkey(struct rvt_mregion *mr);
 
-int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct rvt_pd *pd,
+int hfi1_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		 struct hfi1_sge *isge, struct ib_sge *sge, int acc);
 
 int hfi1_rkey_ok(struct hfi1_qp *qp, struct hfi1_sge *sge,
@@ -1035,12 +992,12 @@ int hfi1_unmap_fmr(struct list_head *fmr_list);
 
 int hfi1_dealloc_fmr(struct ib_fmr *ibfmr);
 
-static inline void hfi1_get_mr(struct hfi1_mregion *mr)
+static inline void hfi1_get_mr(struct rvt_mregion *mr)
 {
 	atomic_inc(&mr->refcount);
 }
 
-static inline void hfi1_put_mr(struct hfi1_mregion *mr)
+static inline void hfi1_put_mr(struct rvt_mregion *mr)
 {
 	if (unlikely(atomic_dec_and_test(&mr->refcount)))
 		complete(&mr->comp);

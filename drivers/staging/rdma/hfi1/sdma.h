@@ -381,7 +381,7 @@ struct verbs_txreq {
 	struct sdma_txreq       txreq;
 	struct hfi1_qp           *qp;
 	struct hfi1_swqe         *wqe;
-	struct hfi1_mregion	*mr;
+	struct rvt_mregion	*mr;
 	struct hfi1_sge_state    *ss;
 	struct sdma_engine     *sde;
 	u16                     hdr_dwords;

@@ -101,7 +101,7 @@ static int init_sge(struct hfi1_qp *qp, struct hfi1_rwqe *wqe)
 {
 	int i, j, ret;
 	struct ib_wc wc;
-	struct hfi1_lkey_table *rkt;
+	struct rvt_lkey_table *rkt;
 	struct rvt_pd *pd;
 	struct hfi1_sge_state *ss;
 
@@ -534,7 +534,7 @@ again:
 			if (--sqp->s_sge.num_sge)
 				*sge = *sqp->s_sge.sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= HFI1_SEGSZ) {
+			if (++sge->n >= RVT_SEGSZ) {
 				if (++sge->m >= sge->mr->mapsz)
 					break;
 				sge->n = 0;
