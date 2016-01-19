@@ -913,9 +913,23 @@ static void wait_for_fences(struct drm_device *dev,
 	}
 }
 
-static bool framebuffer_changed(struct drm_device *dev,
-				struct drm_atomic_state *old_state,
-				struct drm_crtc *crtc)
+/**
+ * drm_atomic_helper_framebuffer_changed - check if framebuffer has changed
+ * @dev: DRM device
+ * @old_state: atomic state object with old state structures
+ * @crtc: DRM crtc
+ *
+ * Checks whether the framebuffer used for this CRTC changes as a result of
+ * the atomic update.  This is useful for drivers which cannot use
+ * drm_atomic_helper_wait_for_vblanks() and need to reimplement its
+ * functionality.
+ *
+ * Returns:
+ * true if the framebuffer changed.
+ */
+bool drm_atomic_helper_framebuffer_changed(struct drm_device *dev,
+					   struct drm_atomic_state *old_state,
+					   struct drm_crtc *crtc)
 {
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
@@ -932,6 +946,7 @@ static bool framebuffer_changed(struct drm_device *dev,
 
 	return false;
 }
+EXPORT_SYMBOL(drm_atomic_helper_framebuffer_changed);
 
 /**
  * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
@@ -966,7 +981,8 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		if (old_state->legacy_cursor_update)
 			continue;
 
-		if (!framebuffer_changed(dev, old_state, crtc))
+		if (!drm_atomic_helper_framebuffer_changed(dev,
+				old_state, crtc))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
