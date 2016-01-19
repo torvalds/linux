@@ -49,6 +49,8 @@
  */
 
 #include <linux/io.h>
+#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 
 #include "hfi.h"
 #include "qp.h"
@@ -891,7 +893,7 @@ static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 			qp->s_retry = qp->s_retry_cnt;
 		} else if (qp->s_last == qp->s_acked) {
 			hfi1_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
-			hfi1_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			return;
 		} else /* need to handle delayed completion */
 			return;
@@ -1355,7 +1357,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 class_b:
 			if (qp->s_last == qp->s_acked) {
 				hfi1_send_complete(qp, wqe, status);
-				hfi1_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+				rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			}
 			break;
 
@@ -1601,7 +1603,7 @@ ack_len_err:
 ack_err:
 	if (qp->s_last == qp->s_acked) {
 		hfi1_send_complete(qp, wqe, status);
-		hfi1_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+		rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 	}
 ack_done:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1832,7 +1834,7 @@ void hfi1_rc_error(struct rvt_qp *qp, enum ib_wc_status err)
 	int lastwqe;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
-	lastwqe = hfi1_error_qp(qp, err);
+	lastwqe = rvt_error_qp(qp, err);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
 	if (lastwqe) {
@@ -1873,8 +1875,8 @@ static void log_cca_event(struct hfi1_pportdata *ppd, u8 sl, u32 rlid,
 	cc_event = &ppd->cc_events[ppd->cc_log_idx++];
 	if (ppd->cc_log_idx == OPA_CONG_LOG_ELEMS)
 		ppd->cc_log_idx = 0;
-	cc_event->lqpn = lqpn & HFI1_QPN_MASK;
-	cc_event->rqpn = rqpn & HFI1_QPN_MASK;
+	cc_event->lqpn = lqpn & RVT_QPN_MASK;
+	cc_event->rqpn = rqpn & RVT_QPN_MASK;
 	cc_event->sl = sl;
 	cc_event->svc_type = svc_type;
 	cc_event->rlid = rlid;
@@ -2063,7 +2065,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	/* OK, process the packet. */
 	switch (opcode) {
 	case OP(SEND_FIRST):
-		ret = hfi1_get_rwqe(qp, 0);
+		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)
@@ -2084,7 +2086,7 @@ send_middle:
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
 		/* consume RWQE */
-		ret = hfi1_get_rwqe(qp, 1);
+		ret = hfi1_rvt_get_rwqe(qp, 1);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)
@@ -2093,7 +2095,7 @@ send_middle:
 
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
-		ret = hfi1_get_rwqe(qp, 0);
+		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)
@@ -2125,7 +2127,7 @@ send_last:
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto nack_inv;
 		hfi1_copy_sge(&qp->r_sge, data, tlen, 1);
-		hfi1_put_ss(&qp->r_sge);
+		rvt_put_ss(&qp->r_sge);
 		qp->r_msn++;
 		if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 			break;
@@ -2193,7 +2195,7 @@ send_last:
 			goto send_middle;
 		else if (opcode == OP(RDMA_WRITE_ONLY))
 			goto no_immediate_data;
-		ret = hfi1_get_rwqe(qp, 1);
+		ret = hfi1_rvt_get_rwqe(qp, 1);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)

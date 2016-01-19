@@ -292,7 +292,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 			u16 rlid = be16_to_cpu(hdr->lrh[3]);
 			u8 sl, sc5;
 
-			lqpn = bth1 & HFI1_QPN_MASK;
+			lqpn = bth1 & RVT_QPN_MASK;
 			rqpn = qp->remote_qpn;
 
 			sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
@@ -335,7 +335,7 @@ inv:
 			set_bit(RVT_R_REWIND_SGE, &qp->r_aflags);
 			qp->r_sge.num_sge = 0;
 		} else
-			hfi1_put_ss(&qp->r_sge);
+			rvt_put_ss(&qp->r_sge);
 		qp->r_state = OP(SEND_LAST);
 		switch (opcode) {
 		case OP(SEND_FIRST):
@@ -394,7 +394,7 @@ send_first:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
 			qp->r_sge = qp->s_rdma_read_sge;
 		else {
-			ret = hfi1_get_rwqe(qp, 0);
+			ret = hfi1_rvt_get_rwqe(qp, 0);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -444,7 +444,7 @@ send_last:
 			goto rewind;
 		wc.opcode = IB_WC_RECV;
 		hfi1_copy_sge(&qp->r_sge, data, tlen, 0);
-		hfi1_put_ss(&qp->s_rdma_read_sge);
+		rvt_put_ss(&qp->s_rdma_read_sge);
 last_imm:
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
@@ -537,9 +537,9 @@ rdma_last_imm:
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
-			hfi1_put_ss(&qp->s_rdma_read_sge);
+			rvt_put_ss(&qp->s_rdma_read_sge);
 		else {
-			ret = hfi1_get_rwqe(qp, 1);
+			ret = hfi1_rvt_get_rwqe(qp, 1);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -548,7 +548,7 @@ rdma_last_imm:
 		wc.byte_len = qp->r_len;
 		wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
 		hfi1_copy_sge(&qp->r_sge, data, tlen, 1);
-		hfi1_put_ss(&qp->r_sge);
+		rvt_put_ss(&qp->r_sge);
 		goto last_imm;
 
 	case OP(RDMA_WRITE_LAST):
@@ -564,7 +564,7 @@ rdma_last:
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
 		hfi1_copy_sge(&qp->r_sge, data, tlen, 1);
-		hfi1_put_ss(&qp->r_sge);
+		rvt_put_ss(&qp->r_sge);
 		break;
 
 	default:

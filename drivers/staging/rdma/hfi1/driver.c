@@ -282,6 +282,8 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	struct hfi1_devdata *dd = ppd->dd;
+	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 
 	if (packet->rhf & (RHF_VCRC_ERR | RHF_ICRC_ERR))
 		return;
@@ -316,13 +318,13 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			goto drop;
 
 		/* Get the destination QP number. */
-		qp_num = be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
+		qp_num = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
 		if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 			struct rvt_qp *qp;
 			unsigned long flags;
 
 			rcu_read_lock();
-			qp = hfi1_lookup_qpn(ibp, qp_num);
+			qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 			if (!qp) {
 				rcu_read_unlock();
 				goto drop;
@@ -397,9 +399,9 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				sc5 |= 0x10;
 			sl = ibp->sc_to_sl[sc5];
 
-			lqpn = be32_to_cpu(bth[1]) & HFI1_QPN_MASK;
+			lqpn = be32_to_cpu(bth[1]) & RVT_QPN_MASK;
 			rcu_read_lock();
-			qp = hfi1_lookup_qpn(ibp, lqpn);
+			qp = rvt_lookup_qpn(rdi, &ibp->rvp, lqpn);
 			if (qp == NULL) {
 				rcu_read_unlock();
 				goto drop;
@@ -470,7 +472,7 @@ static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
 		rlid = be16_to_cpu(hdr->lrh[3]);
-		rqpn = be32_to_cpu(ohdr->u.ud.deth[1]) & HFI1_QPN_MASK;
+		rqpn = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
 		svc_type = IB_CC_SVCTYPE_UD;
 		break;
 	case IB_QPT_UC:
@@ -500,7 +502,7 @@ static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
 
 	if (bth1 & HFI1_BECN_SMASK) {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-		u32 lqpn = bth1 & HFI1_QPN_MASK;
+		u32 lqpn = bth1 & RVT_QPN_MASK;
 		u8 sl = ibp->sc_to_sl[sc5];
 
 		process_becn(ppd, sl, rlid, lqpn, rqpn, svc_type);
@@ -599,6 +601,7 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		struct hfi1_ib_header *hdr;
 		struct hfi1_other_headers *ohdr;
 		struct ib_grh *grh = NULL;
+		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
 		int is_ecn = 0;
@@ -631,9 +634,9 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		if (!is_ecn)
 			goto next;
 
-		qpn = bth1 & HFI1_QPN_MASK;
+		qpn = bth1 & RVT_QPN_MASK;
 		rcu_read_lock();
-		qp = hfi1_lookup_qpn(ibp, qpn);
+		qp = rvt_lookup_qpn(rdi, &ibp->rvp, qpn);
 
 		if (qp == NULL) {
 			rcu_read_unlock();

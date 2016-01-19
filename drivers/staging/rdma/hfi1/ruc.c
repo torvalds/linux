@@ -145,7 +145,7 @@ bail:
 }
 
 /**
- * hfi1_get_rwqe - copy the next RWQE into the QP's RWQE
+ * hfi1_rvt_get_rwqe - copy the next RWQE into the QP's RWQE
  * @qp: the QP
  * @wr_id_only: update qp->r_wr_id only, not qp->r_sge
  *
@@ -154,7 +154,7 @@ bail:
  *
  * Can be called from interrupt level.
  */
-int hfi1_get_rwqe(struct rvt_qp *qp, int wr_id_only)
+int hfi1_rvt_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 {
 	unsigned long flags;
 	struct rvt_rq *rq;
@@ -192,7 +192,7 @@ int hfi1_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 	}
 	/* Make sure entry is read after head index is read. */
 	smp_rmb();
-	wqe = get_rwqe_ptr(rq, tail);
+	wqe = rvt_get_rwqe_ptr(rq, tail);
 	/*
 	 * Even though we update the tail index in memory, the verbs
 	 * consumer is not supposed to post more entries until a
@@ -377,7 +377,8 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	 * Note that we check the responder QP state after
 	 * checking the requester's state.
 	 */
-	qp = hfi1_lookup_qpn(ibp, sqp->remote_qpn);
+	qp = rvt_lookup_qpn(ib_to_rvt(sqp->ibqp.device), &ibp->rvp,
+			    sqp->remote_qpn);
 
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
@@ -441,7 +442,7 @@ again:
 		wc.ex.imm_data = wqe->wr.ex.imm_data;
 		/* FALLTHROUGH */
 	case IB_WR_SEND:
-		ret = hfi1_get_rwqe(qp, 0);
+		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0)
 			goto op_err;
 		if (!ret)
@@ -453,7 +454,7 @@ again:
 			goto inv_err;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		wc.ex.imm_data = wqe->wr.ex.imm_data;
-		ret = hfi1_get_rwqe(qp, 1);
+		ret = hfi1_rvt_get_rwqe(qp, 1);
 		if (ret < 0)
 			goto op_err;
 		if (!ret)
@@ -548,7 +549,7 @@ again:
 		sqp->s_len -= len;
 	}
 	if (release)
-		hfi1_put_ss(&qp->r_sge);
+		rvt_put_ss(&qp->r_sge);
 
 	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 		goto send_comp;
@@ -623,7 +624,7 @@ serr:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	hfi1_send_complete(sqp, wqe, send_status);
 	if (sqp->ibqp.qp_type == IB_QPT_RC) {
-		int lastwqe = hfi1_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
+		int lastwqe = rvt_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
 
 		sqp->s_flags &= ~RVT_S_BUSY;
 		spin_unlock_irqrestore(&sqp->s_lock, flags);

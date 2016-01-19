@@ -225,18 +225,6 @@ struct hfi1_pkt_state {
 
 #define HFI1_PSN_CREDIT  16
 
-/*
- * Since struct rvt_rwqe is not a fixed size, we can't simply index into
- * struct rvt_rwq.wq.  This function does the array index computation.
- */
-static inline struct rvt_rwqe *get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
-{
-	return (struct rvt_rwqe *)
-		((char *) rq->wq->wq +
-		 (sizeof(struct rvt_rwqe) +
-		  rq->max_sge * sizeof(struct ib_sge)) * n);
-}
-
 struct hfi1_opcode_stats {
 	u64 n_packets;          /* number of packets */
 	u64 n_bytes;            /* total number of bytes */
@@ -286,8 +274,6 @@ struct hfi1_ibdev {
 	u64 n_kmem_wait;
 	u64 n_send_schedule;
 
-	u32 n_qps_allocated;    /* number of QPs allocated for device */
-	spinlock_t n_qps_lock;
 	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
 	spinlock_t n_srqs_lock;
 #ifdef CONFIG_DEBUG_FS
@@ -464,18 +450,15 @@ int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int hfi1_destroy_srq(struct ib_srq *ibsrq);
 
-static inline void hfi1_put_ss(struct rvt_sge_state *ss)
-{
-	while (ss->num_sge) {
-		rvt_put_mr(ss->sge.mr);
-		if (--ss->num_sge)
-			ss->sge = *ss->sg_list++;
-	}
-}
-
-int hfi1_get_rwqe(struct rvt_qp *qp, int wr_id_only);
+int hfi1_rvt_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
 void hfi1_migrate_qp(struct rvt_qp *qp);
+
+int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
+			 int attr_mask, struct ib_udata *udata);
+
+void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
+		    int attr_mask, struct ib_udata *udata);
 
 int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0);

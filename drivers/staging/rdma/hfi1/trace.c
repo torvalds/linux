@@ -166,7 +166,7 @@ const char *parse_everbs_hdrs(
 	case OP(UD, SEND_ONLY_WITH_IMMEDIATE):
 		trace_seq_printf(p, DETH_PRN,
 			be32_to_cpu(eh->ud.deth[0]),
-			be32_to_cpu(eh->ud.deth[1]) & HFI1_QPN_MASK);
+			be32_to_cpu(eh->ud.deth[1]) & RVT_QPN_MASK);
 		break;
 	}
 	trace_seq_putc(p, 0);

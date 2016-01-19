@@ -80,7 +80,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 	rcu_read_lock();
 
-	qp = hfi1_lookup_qpn(ibp, swqe->ud_wr.remote_qpn);
+	qp = rvt_lookup_qpn(ib_to_rvt(sqp->ibqp.device), &ibp->rvp,
+			    swqe->ud_wr.remote_qpn);
 	if (!qp) {
 		ibp->rvp.n_pkt_drops++;
 		rcu_read_unlock();
@@ -166,7 +167,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	else {
 		int ret;
 
-		ret = hfi1_get_rwqe(qp, 0);
+		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0) {
 			hfi1_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			goto bail_unlock;
@@ -222,7 +223,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		}
 		length -= len;
 	}
-	hfi1_put_ss(&qp->r_sge);
+	rvt_put_ss(&qp->r_sge);
 	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 		goto bail_unlock;
 	wc.wr_id = qp->r_wr_id;
@@ -664,7 +665,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	struct ib_grh *grh = NULL;
 
 	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
-	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & HFI1_QPN_MASK;
+	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
 	dlid = be16_to_cpu(hdr->lrh[1]);
 	is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 			(dlid != be16_to_cpu(IB_LID_PERMISSIVE));
@@ -675,7 +676,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		 * error path.
 		 */
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
+		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
 		u8 sl, sc5;
 
 		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
@@ -817,7 +818,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	else {
 		int ret;
 
-		ret = hfi1_get_rwqe(qp, 0);
+		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0) {
 			hfi1_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			return;
@@ -840,7 +841,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	} else
 		hfi1_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
 	hfi1_copy_sge(&qp->r_sge, data, wc.byte_len - sizeof(struct ib_grh), 1);
-	hfi1_put_ss(&qp->r_sge);
+	rvt_put_ss(&qp->r_sge);
 	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 		return;
 	wc.wr_id = qp->r_wr_id;

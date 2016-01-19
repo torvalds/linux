@@ -93,7 +93,7 @@ int hfi1_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			goto bail;
 		}
 
-		wqe = get_rwqe_ptr(&srq->rq, wq->head);
+		wqe = rvt_get_rwqe_ptr(&srq->rq, wq->head);
 		wqe->wr_id = wr->wr_id;
 		wqe->num_sge = wr->num_sge;
 		for (i = 0; i < wr->num_sge; i++)
@@ -299,7 +299,7 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			struct rvt_rwqe *wqe;
 			int i;
 
-			wqe = get_rwqe_ptr(&srq->rq, tail);
+			wqe = rvt_get_rwqe_ptr(&srq->rq, tail);
 			p->wr_id = wqe->wr_id;
 			p->num_sge = wqe->num_sge;
 			for (i = 0; i < wqe->num_sge; i++)

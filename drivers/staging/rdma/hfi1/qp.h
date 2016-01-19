@@ -57,38 +57,6 @@
 
 extern unsigned int hfi1_qp_table_size;
 
-static inline u32 qpn_hash(struct rvt_qp_ibdev *dev, u32 qpn)
-{
-	return hash_32(qpn, dev->qp_table_bits);
-}
-
-/**
- * hfi1_lookup_qpn - return the QP with the given QPN
- * @ibp: the ibport
- * @qpn: the QP number to look up
- *
- * The caller must hold the rcu_read_lock(), and keep the lock until
- * the returned qp is no longer in use.
- */
-static inline struct rvt_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
-					     u32 qpn) __must_hold(RCU)
-{
-	struct rvt_qp *qp = NULL;
-
-	if (unlikely(qpn <= 1)) {
-		qp = rcu_dereference(ibp->rvp.qp[qpn]);
-	} else {
-		struct hfi1_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
-		u32 n = qpn_hash(dev->rdi.qp_dev, qpn);
-
-		for (qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn)
-				break;
-	}
-	return qp;
-}
-
 /*
  * free_ahg - clear ahg from QP
  */
@@ -102,30 +70,6 @@ static inline void clear_ahg(struct rvt_qp *qp)
 		sdma_ahg_free(priv->s_sde, qp->s_ahgidx);
 	qp->s_ahgidx = -1;
 }
-
-/**
- * hfi1_error_qp - put a QP into the error state
- * @qp: the QP to put into the error state
- * @err: the receive completion error to signal if a RWQE is active
- *
- * Flushes both send and receive work queues.
- * Returns true if last WQE event should be generated.
- * The QP r_lock and s_lock should be held and interrupts disabled.
- * If we are already in error state, just return.
- */
-int hfi1_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
-
-/**
- * hfi1_modify_qp - modify the attributes of a queue pair
- * @ibqp: the queue pair who's attributes we're modifying
- * @attr: the new attributes
- * @attr_mask: the mask of attributes to modify
- * @udata: user data for libibverbs.so
- *
- * Returns 0 on success, otherwise returns an errno.
- */
-int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		   int attr_mask, struct ib_udata *udata);
 
 int hfi1_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_qp_init_attr *init_attr);
@@ -253,5 +197,12 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 unsigned free_all_qps(struct rvt_dev_info *rdi);
 void notify_qp_reset(struct rvt_qp *qp);
-
+int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		       struct ib_qp_attr *attr);
+void flush_qp_waiters(struct rvt_qp *qp);
+void notify_error_qp(struct rvt_qp *qp);
+void stop_send_queue(struct rvt_qp *qp);
+void quiesce_qp(struct rvt_qp *qp);
+u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);
+int mtu_to_path_mtu(u32 mtu);
 #endif /* _QP_H */

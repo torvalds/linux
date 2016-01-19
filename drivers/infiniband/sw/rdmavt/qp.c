@@ -1133,13 +1133,6 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			qp->remote_ah_attr = qp->alt_ah_attr;
 			qp->port_num = qp->alt_ah_attr.port_num;
 			qp->s_pkey_index = qp->s_alt_pkey_index;
-
-			/*
-			 * Ignored by drivers which do not support it. Not
-			 * really worth creating a call back into the driver
-			 * just to set a flag.
-			 */
-			qp->s_flags |= RVT_S_AHG_CLEAR;
 		}
 	}
 

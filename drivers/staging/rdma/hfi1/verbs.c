@@ -368,7 +368,7 @@ static int post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			goto bail;
 		}
 
-		wqe = get_rwqe_ptr(&qp->r_rq, wq->head);
+		wqe = rvt_get_rwqe_ptr(&qp->r_rq, wq->head);
 		wqe->wr_id = wr->wr_id;
 		wqe->num_sge = wr->num_sge;
 		for (i = 0; i < wr->num_sge; i++)
@@ -418,6 +418,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	struct rvt_dev_info *rdi = &ppd->dd->verbs_dev.rdi;
 	unsigned long flags;
 	u32 qp_num;
 	int lnh;
@@ -447,7 +448,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
 
 	/* Get the destination QP number. */
-	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & HFI1_QPN_MASK;
+	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & RVT_QPN_MASK;
 	lid = be16_to_cpu(hdr->lrh[1]);
 	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
@@ -474,7 +475,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 			wake_up(&mcast->wait);
 	} else {
 		rcu_read_lock();
-		packet->qp = hfi1_lookup_qpn(ibp, qp_num);
+		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp) {
 			rcu_read_unlock();
 			goto drop;
@@ -1534,7 +1535,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 
-	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
 	init_timer(&dev->mem_timer);
 	dev->mem_timer.function = mem_timer;
@@ -1623,7 +1623,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->query_srq = hfi1_query_srq;
 	ibdev->destroy_srq = hfi1_destroy_srq;
 	ibdev->create_qp = NULL;
-	ibdev->modify_qp = hfi1_modify_qp;
+	ibdev->modify_qp = NULL;
 	ibdev->query_qp = hfi1_query_qp;
 	ibdev->destroy_qp = hfi1_destroy_qp;
 	ibdev->post_send = NULL;
@@ -1674,12 +1674,26 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.qpn_res_start = kdeth_qp << 16;
 	dd->verbs_dev.rdi.dparms.qpn_res_end =
 	dd->verbs_dev.rdi.dparms.qpn_res_start + 65535;
+	dd->verbs_dev.rdi.dparms.max_rdma_atomic = HFI1_MAX_RDMA_ATOMIC;
+	dd->verbs_dev.rdi.dparms.psn_mask = PSN_MASK;
+	dd->verbs_dev.rdi.dparms.psn_shift = PSN_SHIFT;
+	dd->verbs_dev.rdi.dparms.psn_modify_mask = PSN_MODIFY_MASK;
 	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qp_priv_alloc;
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
 	dd->verbs_dev.rdi.driver_f.do_send = hfi1_do_send;
 	dd->verbs_dev.rdi.driver_f.schedule_send = hfi1_schedule_send;
+	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = get_pmtu_from_attr;
+	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
+	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = flush_qp_waiters;
+	dd->verbs_dev.rdi.driver_f.stop_send_queue = stop_send_queue;
+	dd->verbs_dev.rdi.driver_f.quiesce_qp = quiesce_qp;
+	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
+	dd->verbs_dev.rdi.driver_f.mtu_from_qp = mtu_from_qp;
+	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = mtu_to_path_mtu;
+	dd->verbs_dev.rdi.driver_f.check_modify_qp = hfi1_check_modify_qp;
+	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
 
 	/* completeion queue */
 	snprintf(dd->verbs_dev.rdi.dparms.cq_name,
