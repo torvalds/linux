@@ -12,6 +12,9 @@
 #include "greybus.h"
 
 
+static void gb_connection_kref_release(struct kref *kref);
+
+
 static DEFINE_SPINLOCK(gb_connections_lock);
 
 /* This is only used at initialization time; no locking is required. */
@@ -30,6 +33,19 @@ gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 	return NULL;
 }
 
+static void gb_connection_get(struct gb_connection *connection)
+{
+	kref_get(&connection->kref);
+}
+
+static void gb_connection_put(struct gb_connection *connection)
+{
+	kref_put(&connection->kref, gb_connection_kref_release);
+}
+
+/*
+ * Returns a reference-counted pointer to the connection if found.
+ */
 static struct gb_connection *
 gb_connection_hd_find(struct gb_host_device *hd, u16 cport_id)
 {
@@ -38,8 +54,10 @@ gb_connection_hd_find(struct gb_host_device *hd, u16 cport_id)
 
 	spin_lock_irqsave(&gb_connections_lock, flags);
 	list_for_each_entry(connection, &hd->connections, hd_links)
-		if (connection->hd_cport_id == cport_id)
+		if (connection->hd_cport_id == cport_id) {
+			gb_connection_get(connection);
 			goto found;
+		}
 	connection = NULL;
 found:
 	spin_unlock_irqrestore(&gb_connections_lock, flags);
@@ -63,6 +81,7 @@ void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 		return;
 	}
 	gb_connection_recv(connection, data, length);
+	gb_connection_put(connection);
 }
 EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
@@ -516,7 +535,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	ida_simple_remove(id_map, connection->hd_cport_id);
 	connection->hd_cport_id = CPORT_ID_BAD;
 
-	kref_put(&connection->kref, gb_connection_kref_release);
+	gb_connection_put(connection);
 }
 
 void gb_connection_latency_tag_enable(struct gb_connection *connection)
