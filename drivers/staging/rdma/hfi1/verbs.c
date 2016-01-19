@@ -646,8 +646,8 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	/* Get the destination QP number. */
 	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & HFI1_QPN_MASK;
 	lid = be16_to_cpu(hdr->lrh[1]);
-	if (unlikely((lid >= HFI1_MULTICAST_LID_BASE) &&
-	    (lid != HFI1_PERMISSIVE_LID))) {
+	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
 		struct hfi1_mcast *mcast;
 		struct hfi1_mcast_qp *p;
 

@@ -640,7 +640,7 @@ int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_AV) {
 		u8 sc;
 
-		if (attr->ah_attr.dlid >= HFI1_MULTICAST_LID_BASE)
+		if (attr->ah_attr.dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
 		if (hfi1_check_ah(qp->ibqp.device, &attr->ah_attr))
 			goto inval;
@@ -653,7 +653,8 @@ int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_ALT_PATH) {
 		u8 sc;
 
-		if (attr->alt_ah_attr.dlid >= HFI1_MULTICAST_LID_BASE)
+		if (attr->alt_ah_attr.dlid >=
+		    be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
 		if (hfi1_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
 			goto inval;

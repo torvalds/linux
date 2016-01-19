@@ -1097,7 +1097,7 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	/* Must be a valid unicast LID address. */
 	if ((lid == 0 && ls_old > IB_PORT_INIT) ||
-	     lid >= HFI1_MULTICAST_LID_BASE) {
+	     lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		pr_warn("SubnSet(OPA_PortInfo) lid invalid 0x%x\n",
 			lid);
@@ -1130,7 +1130,7 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	/* Must be a valid unicast LID address. */
 	if ((smlid == 0 && ls_old > IB_PORT_INIT) ||
-	     smlid >= HFI1_MULTICAST_LID_BASE) {
+	     smlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		pr_warn("SubnSet(OPA_PortInfo) smlid invalid 0x%x\n", smlid);
 	} else if (smlid != ibp->sm_lid || msl != ibp->sm_sl) {

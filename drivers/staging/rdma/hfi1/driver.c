@@ -56,6 +56,7 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/prefetch.h>
+#include <rdma/ib_verbs.h>
 
 #include "hfi.h"
 #include "trace.h"
@@ -316,7 +317,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 		/* Get the destination QP number. */
 		qp_num = be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
-		if (lid < HFI1_MULTICAST_LID_BASE) {
+		if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 			struct hfi1_qp *qp;
 			unsigned long flags;
 
