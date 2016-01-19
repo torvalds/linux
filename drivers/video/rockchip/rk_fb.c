@@ -4147,7 +4147,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		if (dev_drv->uboot_logo &&
 		    uboot_logo_offset && uboot_logo_base) {
-			int width, height, bits;
+			int width, height, bits, xvir;
 			phys_addr_t start = uboot_logo_base + uboot_logo_offset;
 			unsigned int size = uboot_logo_size - uboot_logo_offset;
 			unsigned int nr_pages;
@@ -4190,6 +4190,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				       xact, yact, width, height);
 				return 0;
 			}
+			xvir = ALIGN(width * bits, 1 << 5) >> 5;
 			ymirror = 0;
 			local_irq_save(flags);
 			if (dev_drv->ops->wait_frame_start)
@@ -4198,7 +4199,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				dev_drv->ops->post_dspbuf(dev_drv,
 					main_fbi->fix.smem_start,
 					rk_fb_data_fmt(0, bits),
-					width, height, width * bits >> 5,
+					width, height, xvir,
 					ymirror);
 			}
 			if (dev_drv->iommu_enabled) {
@@ -4216,7 +4217,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			unsigned int nr_pages;
 			struct page **pages;
 			char *vaddr;
-			int align = 0;
+			int align = 0, xvir;
 
 			dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
 					              &yact, &format,
@@ -4253,6 +4254,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 			kfree(pages);
 			vunmap(vaddr);
+			xvir = ALIGN(xact * rk_fb_pixel_width(format),
+				     1 << 5) >> 5;
 			local_irq_save(flags);
 			if (dev_drv->ops->wait_frame_start)
 				dev_drv->ops->wait_frame_start(dev_drv, 0);
@@ -4260,7 +4263,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 					main_fbi->fix.smem_start +
 					(y_mirror ? logo_len : 0),
 					format,	xact, yact,
-					xact * rk_fb_pixel_width(format) >> 5,
+					xvir,
 					y_mirror);
 			if (dev_drv->iommu_enabled) {
 				rk_fb_poll_wait_frame_complete();

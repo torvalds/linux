@@ -303,6 +303,7 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 	uint16_t *bmp_logo_palette;
 	uint32_t size;
 	uint16_t linesize;
+	int stride;
 	char *cmap_base;
 	char *src = bmp_addr;
 	char *dst = pdst;
@@ -359,15 +360,16 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 		pr_info("unsupport bit=%d now\n", infoheader.bitcount);
 		break;
 	case 24:
+		stride = ALIGN(*width * 3, 4);
 		if (flip)
-			src += (*width) * (*height - 1) * 3;
+			src += stride * (*height - 1);
 
 		for (i = 0; i < *height; i++) {
 			memcpy(dst, src, 3 * (*width));
-			dst += *width * 3;
-			src += *width * 3;
+			dst += stride;
+			src += stride;
 			if (flip)
-				src -= *width * 3 * 2;
+				src -= stride * 2;
 		}
 
 		*bits = 24;
