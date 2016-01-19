@@ -248,35 +248,6 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 }
 
 /*
- * Cancel all active operations on a connection.
- *
- * Should only be called during connection tear down.
- */
-static void gb_connection_cancel_operations(struct gb_connection *connection,
-						int errno)
-{
-	struct gb_operation *operation;
-
-	spin_lock_irq(&connection->lock);
-	while (!list_empty(&connection->operations)) {
-		operation = list_last_entry(&connection->operations,
-						struct gb_operation, links);
-		gb_operation_get(operation);
-		spin_unlock_irq(&connection->lock);
-
-		if (gb_operation_is_incoming(operation))
-			gb_operation_cancel_incoming(operation, errno);
-		else
-			gb_operation_cancel(operation, errno);
-
-		gb_operation_put(operation);
-
-		spin_lock_irq(&connection->lock);
-	}
-	spin_unlock_irq(&connection->lock);
-}
-
-/*
  * Request the SVC to create a connection from AP's cport to interface's
  * cport.
  */
@@ -387,6 +358,33 @@ static int gb_connection_protocol_get_version(struct gb_connection *connection)
 	return 0;
 }
 
+/*
+ * Cancel all active operations on a connection.
+ *
+ * Locking: Called with connection lock held and state set to DISABLED.
+ */
+static void gb_connection_cancel_operations(struct gb_connection *connection,
+						int errno)
+{
+	struct gb_operation *operation;
+
+	while (!list_empty(&connection->operations)) {
+		operation = list_last_entry(&connection->operations,
+						struct gb_operation, links);
+		gb_operation_get(operation);
+		spin_unlock_irq(&connection->lock);
+
+		if (gb_operation_is_incoming(operation))
+			gb_operation_cancel_incoming(operation, errno);
+		else
+			gb_operation_cancel(operation, errno);
+
+		gb_operation_put(operation);
+
+		spin_lock_irq(&connection->lock);
+	}
+}
+
 int gb_connection_enable(struct gb_connection *connection,
 				gb_request_handler_t handler)
 {
@@ -433,9 +431,8 @@ void gb_connection_disable(struct gb_connection *connection)
 
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
-	spin_unlock_irq(&connection->lock);
-
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
+	spin_unlock_irq(&connection->lock);
 
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
