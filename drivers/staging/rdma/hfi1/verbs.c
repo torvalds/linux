@@ -2063,7 +2063,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->detach_mcast = hfi1_multicast_detach;
 	ibdev->process_mad = hfi1_process_mad;
 	ibdev->mmap = hfi1_mmap;
-	ibdev->dma_ops = &hfi1_dma_mapping_ops;
+	ibdev->dma_ops = NULL;
 	ibdev->get_port_immutable = port_immutable;
 
 	strncpy(ibdev->node_desc, init_utsname()->nodename,

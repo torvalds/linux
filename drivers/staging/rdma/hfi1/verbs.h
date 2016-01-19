@@ -1151,6 +1151,4 @@ extern unsigned int hfi1_max_srq_wrs;
 
 extern const u32 ib_hfi1_rnr_table[];
 
-extern struct ib_dma_mapping_ops hfi1_dma_mapping_ops;
-
 #endif                          /* HFI1_VERBS_H */
