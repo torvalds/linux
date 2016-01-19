@@ -217,6 +217,11 @@
 #define	 BCMA_CC_CLKDIV_JTAG_SHIFT	8
 #define	 BCMA_CC_CLKDIV_UART		0x000000FF
 #define BCMA_CC_CAP_EXT			0x00AC		/* Capabilities */
+#define  BCMA_CC_CAP_EXT_SECI_PRESENT	0x00000001
+#define  BCMA_CC_CAP_EXT_GSIO_PRESENT	0x00000002
+#define  BCMA_CC_CAP_EXT_GCI_PRESENT	0x00000004
+#define  BCMA_CC_CAP_EXT_SECI_PUART_PRESENT		0x00000008    /* UART present */
+#define  BCMA_CC_CAP_EXT_AOB_PRESENT	0x00000040
 #define BCMA_CC_PLLONDELAY		0x00B0		/* Rev >= 4 only */
 #define BCMA_CC_FREFSELDELAY		0x00B4		/* Rev >= 4 only */
 #define BCMA_CC_SLOWCLKCTL		0x00B8		/* 6 <= Rev <= 9 only */
@@ -566,6 +571,7 @@
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
  */
 struct bcma_chipcommon_pmu {
+	struct bcma_device *core;	/* Can be separated core or just ChipCommon one */
 	u8 rev;			/* PMU revision */
 	u32 crystalfreq;	/* The active crystal frequency (in kHz) */
 };
@@ -659,6 +665,19 @@ struct bcma_drv_cc_b {
 	bcma_cc_write32(cc, offset, bcma_cc_read32(cc, offset) | (set))
 #define bcma_cc_maskset32(cc, offset, mask, set) \
 	bcma_cc_write32(cc, offset, (bcma_cc_read32(cc, offset) & (mask)) | (set))
+
+/* PMU registers access */
+#define bcma_pmu_read32(cc, offset) \
+	bcma_read32((cc)->pmu.core, offset)
+#define bcma_pmu_write32(cc, offset, val) \
+	bcma_write32((cc)->pmu.core, offset, val)
+
+#define bcma_pmu_mask32(cc, offset, mask) \
+	bcma_pmu_write32(cc, offset, bcma_pmu_read32(cc, offset) & (mask))
+#define bcma_pmu_set32(cc, offset, set) \
+	bcma_pmu_write32(cc, offset, bcma_pmu_read32(cc, offset) | (set))
+#define bcma_pmu_maskset32(cc, offset, mask, set) \
+	bcma_pmu_write32(cc, offset, (bcma_pmu_read32(cc, offset) & (mask)) | (set))
 
 extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 

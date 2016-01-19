@@ -185,7 +185,7 @@ u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 			ticks = 2;
 		else if (ticks > maxt)
 			ticks = maxt;
-		bcma_cc_write32(cc, BCMA_CC_PMU_WATCHDOG, ticks);
+		bcma_pmu_write32(cc, BCMA_CC_PMU_WATCHDOG, ticks);
 	} else {
 		struct bcma_bus *bus = cc->core->bus;
 
