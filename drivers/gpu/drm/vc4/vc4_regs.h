@@ -154,7 +154,7 @@
 #define V3D_PCTRS14  0x006f4
 #define V3D_PCTR15   0x006f8
 #define V3D_PCTRS15  0x006fc
-#define V3D_BGE      0x00f00
+#define V3D_DBGE     0x00f00
 #define V3D_FDBGO    0x00f04
 #define V3D_FDBGB    0x00f08
 #define V3D_FDBGR    0x00f0c

@@ -233,29 +233,30 @@ MMP/MMP2 family (communication processor)
    Linux kernel mach directory: arch/arm/mach-mmp
    Linux kernel plat directory: arch/arm/plat-pxa
 
-Berlin family (Digital Entertainment)
+Berlin family (Multimedia Solutions)
 -------------------------------------
 
   Flavors:
-	88DE3005, Armada 1500-mini
+	88DE3005, Armada 1500 Mini
 		Design name:	BG2CD
 		Core:		ARM Cortex-A9, PL310 L2CC
-		Homepage:	http://www.marvell.com/digital-entertainment/armada-1500-mini/
+		Homepage:	http://www.marvell.com/multimedia-solutions/armada-1500-mini/
+        88DE3006, Armada 1500 Mini Plus
+                Design name:    BG2CDP
+                Core:           Dual Core ARM Cortex-A7
+                Homepage:       http://www.marvell.com/multimedia-solutions/armada-1500-mini-plus/
 	88DE3100, Armada 1500
 		Design name:	BG2
 		Core:		Marvell PJ4B (ARMv7), Tauros3 L2CC
-		Homepage:	http://www.marvell.com/digital-entertainment/armada-1500/
-		Product Brief:	http://www.marvell.com/digital-entertainment/armada-1500/assets/Marvell-ARMADA-1500-Product-Brief.pdf
+		Product Brief:	http://www.marvell.com/multimedia-solutions/armada-1500/assets/Marvell-ARMADA-1500-Product-Brief.pdf
 	88DE3114, Armada 1500 Pro
-		Design name:	BG2-Q
+		Design name:	BG2Q
 		Core:		Quad Core ARM Cortex-A9, PL310 L2CC
-		Homepage:	http://www.marvell.com/digital-entertainment/armada-1500-pro/
-		Product Brief:	http://www.marvell.com/digital-entertainment/armada-1500-pro/assets/Marvell_ARMADA_1500_PRO-01_product_brief.pdf
 	88DE????
 		Design name:	BG3
 		Core:		ARM Cortex-A15, CA15 integrated L2CC
 
-  Homepage: http://www.marvell.com/digital-entertainment/
+  Homepage: http://www.marvell.com/multimedia-solutions/
   Directory: arch/arm/mach-berlin
 
   Comments:

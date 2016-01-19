@@ -125,8 +125,8 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 int __init integrity_read_file(const char *path, char **data);
 
 #define INTEGRITY_KEYRING_EVM		0
-#define INTEGRITY_KEYRING_MODULE	1
-#define INTEGRITY_KEYRING_IMA		2
+#define INTEGRITY_KEYRING_IMA		1
+#define INTEGRITY_KEYRING_MODULE	2
 #define INTEGRITY_KEYRING_MAX		3
 
 #ifdef CONFIG_INTEGRITY_SIGNATURE
@@ -149,7 +149,6 @@ static inline int integrity_init_keyring(const unsigned int id)
 {
 	return 0;
 }
-
 #endif /* CONFIG_INTEGRITY_SIGNATURE */
 
 #ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
@@ -167,6 +166,14 @@ static inline int asymmetric_verify(struct key *keyring, const char *sig,
 void __init ima_load_x509(void);
 #else
 static inline void ima_load_x509(void)
+{
+}
+#endif
+
+#ifdef CONFIG_EVM_LOAD_X509
+void __init evm_load_x509(void);
+#else
+static inline void evm_load_x509(void)
 {
 }
 #endif

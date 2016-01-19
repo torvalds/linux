@@ -110,7 +110,6 @@ static u32	audit_backlog_limit = 64;
 #define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
 static u32	audit_backlog_wait_time_master = AUDIT_BACKLOG_WAIT_TIME;
 static u32	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
-static u32	audit_backlog_wait_overflow = 0;
 
 /* The identity of the user shutting down the audit system. */
 kuid_t		audit_sig_uid = INVALID_UID;
@@ -509,8 +508,7 @@ static void flush_hold_queue(void)
 	 * if auditd just disappeared but we
 	 * dequeued an skb we need to drop ref
 	 */
-	if (skb)
-		consume_skb(skb);
+	consume_skb(skb);
 }
 
 static int kauditd_thread(void *dummy)
@@ -524,7 +522,8 @@ static int kauditd_thread(void *dummy)
 		skb = skb_dequeue(&audit_skb_queue);
 
 		if (skb) {
-			if (skb_queue_len(&audit_skb_queue) <= audit_backlog_limit)
+			if (!audit_backlog_limit ||
+			    (skb_queue_len(&audit_skb_queue) <= audit_backlog_limit))
 				wake_up(&audit_backlog_wait);
 			if (audit_pid)
 				kauditd_send_skb(skb);
@@ -1232,9 +1231,7 @@ static void audit_buffer_free(struct audit_buffer *ab)
 	if (!ab)
 		return;
 
-	if (ab->skb)
-		kfree_skb(ab->skb);
-
+	kfree_skb(ab->skb);
 	spin_lock_irqsave(&audit_freelist_lock, flags);
 	if (audit_freelist_count > AUDIT_MAXFREE)
 		kfree(ab);
@@ -1372,7 +1369,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		return NULL;
 
 	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
-		if (audit_pid && audit_pid == current->pid)
+		if (audit_pid && audit_pid == current->tgid)
 			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 		else
 			reserve = 0;
@@ -1395,12 +1392,12 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 				skb_queue_len(&audit_skb_queue),
 				audit_backlog_limit);
 		audit_log_lost("backlog limit exceeded");
-		audit_backlog_wait_time = audit_backlog_wait_overflow;
+		audit_backlog_wait_time = 0;
 		wake_up(&audit_backlog_wait);
 		return NULL;
 	}
 
-	if (!reserve)
+	if (!reserve && !audit_backlog_wait_time)
 		audit_backlog_wait_time = audit_backlog_wait_time_master;
 
 	ab = audit_buffer_alloc(ctx, gfp_mask, type);
@@ -1722,7 +1719,7 @@ static inline int audit_copy_fcaps(struct audit_names *name,
 
 /* Copy inode data into an audit_names. */
 void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
-		      const struct inode *inode)
+		      struct inode *inode)
 {
 	name->ino   = inode->i_ino;
 	name->dev   = inode->i_sb->s_dev;

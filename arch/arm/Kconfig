@@ -168,11 +168,6 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-config HAVE_LATENCYTOP_SUPPORT
-	bool
-	depends on !SMP
-	default y
-
 config LOCKDEP_SUPPORT
 	bool
 	default y

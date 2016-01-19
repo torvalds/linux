@@ -107,6 +107,15 @@ nvkm_pci_preinit(struct nvkm_subdev *subdev)
 }
 
 static int
+nvkm_pci_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_pci *pci = nvkm_pci(subdev);
+	if (pci_is_pcie(pci->pdev))
+		return nvkm_pcie_oneinit(pci);
+	return 0;
+}
+
+static int
 nvkm_pci_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
@@ -117,6 +126,8 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 		ret = nvkm_agp_init(pci);
 		if (ret)
 			return ret;
+	} else if (pci_is_pcie(pci->pdev)) {
+		nvkm_pcie_init(pci);
 	}
 
 	if (pci->func->init)
@@ -143,6 +154,7 @@ nvkm_pci_dtor(struct nvkm_subdev *subdev)
 static const struct nvkm_subdev_func
 nvkm_pci_func = {
 	.dtor = nvkm_pci_dtor,
+	.oneinit = nvkm_pci_oneinit,
 	.preinit = nvkm_pci_preinit,
 	.init = nvkm_pci_init,
 	.fini = nvkm_pci_fini,
@@ -160,6 +172,8 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 	pci->func = func;
 	pci->pdev = device->func->pci(device)->pdev;
 	pci->irq = -1;
+	pci->pcie.speed = -1;
+	pci->pcie.width = -1;
 
 	if (device->type == NVKM_DEVICE_AGP)
 		nvkm_agp_ctor(pci);

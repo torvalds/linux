@@ -17,14 +17,9 @@
 
 #define BCMA_GPIO_MAX_PINS	32
 
-static inline struct bcma_drv_cc *bcma_gpio_get_cc(struct gpio_chip *chip)
-{
-	return container_of(chip, struct bcma_drv_cc, gpio);
-}
-
 static int bcma_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	return !!bcma_chipco_gpio_in(cc, 1 << gpio);
 }
@@ -32,14 +27,14 @@ static int bcma_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 static void bcma_gpio_set_value(struct gpio_chip *chip, unsigned gpio,
 				int value)
 {
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	bcma_chipco_gpio_out(cc, 1 << gpio, value ? 1 << gpio : 0);
 }
 
 static int bcma_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	bcma_chipco_gpio_outen(cc, 1 << gpio, 0);
 	return 0;
@@ -48,7 +43,7 @@ static int bcma_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 static int bcma_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 				      int value)
 {
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	bcma_chipco_gpio_outen(cc, 1 << gpio, 1 << gpio);
 	bcma_chipco_gpio_out(cc, 1 << gpio, value ? 1 << gpio : 0);
@@ -57,7 +52,7 @@ static int bcma_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 
 static int bcma_gpio_request(struct gpio_chip *chip, unsigned gpio)
 {
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	bcma_chipco_gpio_control(cc, 1 << gpio, 0);
 	/* clear pulldown */
@@ -70,7 +65,7 @@ static int bcma_gpio_request(struct gpio_chip *chip, unsigned gpio)
 
 static void bcma_gpio_free(struct gpio_chip *chip, unsigned gpio)
 {
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	/* clear pullup */
 	bcma_chipco_gpio_pullup(cc, 1 << gpio, 0);
@@ -81,7 +76,7 @@ static void bcma_gpio_free(struct gpio_chip *chip, unsigned gpio)
 static void bcma_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(gc);
+	struct bcma_drv_cc *cc = gpiochip_get_data(gc);
 	int gpio = irqd_to_hwirq(d);
 	u32 val = bcma_chipco_gpio_in(cc, BIT(gpio));
 
@@ -92,7 +87,7 @@ static void bcma_gpio_irq_unmask(struct irq_data *d)
 static void bcma_gpio_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct bcma_drv_cc *cc = bcma_gpio_get_cc(gc);
+	struct bcma_drv_cc *cc = gpiochip_get_data(gc);
 	int gpio = irqd_to_hwirq(d);
 
 	bcma_chipco_gpio_intmask(cc, BIT(gpio), 0);
@@ -188,7 +183,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->owner		= THIS_MODULE;
-	chip->dev		= bcma_bus_get_host_dev(bus);
+	chip->parent		= bcma_bus_get_host_dev(bus);
 #if IS_BUILTIN(CONFIG_OF)
 	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
 		chip->of_node	= cc->core->dev.of_node;
@@ -216,7 +211,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	else
 		chip->base		= -1;
 
-	err = gpiochip_add(chip);
+	err = gpiochip_add_data(chip, cc);
 	if (err)
 		return err;
 

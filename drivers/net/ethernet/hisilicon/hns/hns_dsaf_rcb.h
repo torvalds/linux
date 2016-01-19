@@ -54,6 +54,9 @@ struct rcb_common_cb;
 #define HNS_DUMP_REG_NUM			500
 #define HNS_STATIC_REG_NUM			12
 
+#define HNS_TSO_MODE_8BD_32K			1
+#define HNS_TSO_MDOE_4BD_16K			0
+
 enum rcb_int_flag {
 	RCB_INT_FLAG_TX = 0x1,
 	RCB_INT_FLAG_RX = (0x1 << 1),

@@ -2594,6 +2594,7 @@ static const struct regmap_config mmcc_msm8974_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0x5104,
 	.fast_io	= true,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct qcom_cc_desc mmcc_msm8974_desc = {

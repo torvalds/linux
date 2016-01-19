@@ -47,7 +47,7 @@ static int rdc_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 	u32 value = 0;
 	int reg;
 
-	gpch = container_of(chip, struct rdc321x_gpio, chip);
+	gpch = gpiochip_get_data(chip);
 	reg = gpio < 32 ? gpch->reg1_data_base : gpch->reg2_data_base;
 
 	spin_lock(&gpch->lock);
@@ -65,7 +65,7 @@ static void rdc_gpio_set_value_impl(struct gpio_chip *chip,
 	struct rdc321x_gpio *gpch;
 	int reg = (gpio < 32) ? 0 : 1;
 
-	gpch = container_of(chip, struct rdc321x_gpio, chip);
+	gpch = gpiochip_get_data(chip);
 
 	if (value)
 		gpch->data_reg[reg] |= 1 << (gpio & 0x1f);
@@ -83,7 +83,7 @@ static void rdc_gpio_set_value(struct gpio_chip *chip,
 {
 	struct rdc321x_gpio *gpch;
 
-	gpch = container_of(chip, struct rdc321x_gpio, chip);
+	gpch = gpiochip_get_data(chip);
 	spin_lock(&gpch->lock);
 	rdc_gpio_set_value_impl(chip, gpio, value);
 	spin_unlock(&gpch->lock);
@@ -96,7 +96,7 @@ static int rdc_gpio_config(struct gpio_chip *chip,
 	int err;
 	u32 reg;
 
-	gpch = container_of(chip, struct rdc321x_gpio, chip);
+	gpch = gpiochip_get_data(chip);
 
 	spin_lock(&gpch->lock);
 	err = pci_read_config_dword(gpch->sb_pdev, gpio < 32 ?
@@ -194,7 +194,7 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "registering %d GPIOs\n",
 					rdc321x_gpio_dev->chip.ngpio);
-	return gpiochip_add(&rdc321x_gpio_dev->chip);
+	return gpiochip_add_data(&rdc321x_gpio_dev->chip, rdc321x_gpio_dev);
 }
 
 static int rdc321x_gpio_remove(struct platform_device *pdev)

@@ -1040,9 +1040,7 @@ out_finish:
 /*
  *  Screen Target CRTC dispatch table
  */
-static struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
-	.save = vmw_du_crtc_save,
-	.restore = vmw_du_crtc_restore,
+static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.cursor_set2 = vmw_du_crtc_cursor_set2,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
@@ -1072,7 +1070,7 @@ static void vmw_stdu_encoder_destroy(struct drm_encoder *encoder)
 	vmw_stdu_destroy(vmw_encoder_to_stdu(encoder));
 }
 
-static struct drm_encoder_funcs vmw_stdu_encoder_funcs = {
+static const struct drm_encoder_funcs vmw_stdu_encoder_funcs = {
 	.destroy = vmw_stdu_encoder_destroy,
 };
 
@@ -1099,10 +1097,8 @@ static void vmw_stdu_connector_destroy(struct drm_connector *connector)
 
 
 
-static struct drm_connector_funcs vmw_stdu_connector_funcs = {
+static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
-	.save = vmw_du_connector_save,
-	.restore = vmw_du_connector_restore,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
 	.set_property = vmw_du_connector_set_property,
@@ -1149,7 +1145,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	connector->status = vmw_du_connector_detect(connector, false);
 
 	drm_encoder_init(dev, encoder, &vmw_stdu_encoder_funcs,
-			 DRM_MODE_ENCODER_VIRTUAL);
+			 DRM_MODE_ENCODER_VIRTUAL, NULL);
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;

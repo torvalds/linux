@@ -169,7 +169,14 @@ static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
 	/* if we had >1 encoder, we'd need something more clever: */
-	return mdp4_dtv_round_pixclk(encoder, rate);
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_TMDS:
+		return mdp4_dtv_round_pixclk(encoder, rate);
+	case DRM_MODE_ENCODER_LVDS:
+	case DRM_MODE_ENCODER_DSI:
+	default:
+		return rate;
+	}
 }
 
 static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
@@ -240,19 +247,18 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static struct drm_panel *detect_panel(struct drm_device *dev)
+static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
 {
 	struct device_node *endpoint, *panel_node;
 	struct device_node *np = dev->dev->of_node;
-	struct drm_panel *panel = NULL;
 
 	endpoint = of_graph_get_next_endpoint(np, NULL);
 	if (!endpoint) {
-		dev_err(dev->dev, "no valid endpoint\n");
-		return ERR_PTR(-ENODEV);
+		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
+		return NULL;
 	}
 
+	/* don't proceed if we have an endpoint but no panel_node tied to it */
 	panel_node = of_graph_get_remote_port_parent(endpoint);
 	if (!panel_node) {
 		dev_err(dev->dev, "no valid panel node\n");
@@ -262,20 +268,111 @@ static struct drm_panel *detect_panel(struct drm_device *dev)
 
 	of_node_put(endpoint);
 
-	panel = of_drm_find_panel(panel_node);
-	if (!panel) {
-		of_node_put(panel_node);
-		return ERR_PTR(-EPROBE_DEFER);
+	return panel_node;
+}
+
+static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
+				  int intf_type)
+{
+	struct drm_device *dev = mdp4_kms->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	struct device_node *panel_node;
+	struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
+	int i, dsi_id;
+	int ret;
+
+	switch (intf_type) {
+	case DRM_MODE_ENCODER_LVDS:
+		/*
+		 * bail out early if:
+		 * - there is no panel node (no need to initialize lcdc
+		 *   encoder and lvds connector), or
+		 * - panel node is a bad pointer
+		 */
+		panel_node = mdp4_detect_lcdc_panel(dev);
+		if (IS_ERR_OR_NULL(panel_node))
+			return PTR_ERR(panel_node);
+
+		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct LCDC encoder\n");
+			return PTR_ERR(encoder);
+		}
+
+		/* LCDC can be hooked to DMA_P (TODO: Add DMA_S later?) */
+		encoder->possible_crtcs = 1 << DMA_P;
+
+		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
+		if (IS_ERR(connector)) {
+			dev_err(dev->dev, "failed to initialize LVDS connector\n");
+			return PTR_ERR(connector);
+		}
+
+		priv->encoders[priv->num_encoders++] = encoder;
+		priv->connectors[priv->num_connectors++] = connector;
+
+		break;
+	case DRM_MODE_ENCODER_TMDS:
+		encoder = mdp4_dtv_encoder_init(dev);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct DTV encoder\n");
+			return PTR_ERR(encoder);
+		}
+
+		/* DTV can be hooked to DMA_E: */
+		encoder->possible_crtcs = 1 << 1;
+
+		if (priv->hdmi) {
+			/* Construct bridge/connector for HDMI: */
+			ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+			if (ret) {
+				dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+				return ret;
+			}
+		}
+
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		break;
+	case DRM_MODE_ENCODER_DSI:
+		/* only DSI1 supported for now */
+		dsi_id = 0;
+
+		if (!priv->dsi[dsi_id])
+			break;
+
+		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
+			dsi_encs[i] = mdp4_dsi_encoder_init(dev);
+			if (IS_ERR(dsi_encs[i])) {
+				ret = PTR_ERR(dsi_encs[i]);
+				dev_err(dev->dev,
+					"failed to construct DSI encoder: %d\n",
+					ret);
+				return ret;
+			}
+
+			/* TODO: Add DMA_S later? */
+			dsi_encs[i]->possible_crtcs = 1 << DMA_P;
+			priv->encoders[priv->num_encoders++] = dsi_encs[i];
+		}
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize DSI: %d\n",
+				ret);
+			return ret;
+		}
+
+		break;
+	default:
+		dev_err(dev->dev, "Invalid or unsupported interface\n");
+		return -EINVAL;
 	}
 
-	return panel;
+	return 0;
 }
-#else
-static struct drm_panel *detect_panel(struct drm_device *dev)
-{
-	// ??? maybe use a module param to specify which panel is attached?
-}
-#endif
 
 static int modeset_init(struct mdp4_kms *mdp4_kms)
 {
@@ -283,111 +380,73 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	struct drm_panel *panel;
-	int ret;
+	int i, ret;
+	static const enum mdp4_pipe rgb_planes[] = {
+		RGB1, RGB2,
+	};
+	static const enum mdp4_pipe vg_planes[] = {
+		VG1, VG2,
+	};
+	static const enum mdp4_dma mdp4_crtcs[] = {
+		DMA_P, DMA_E,
+	};
+	static const char * const mdp4_crtc_names[] = {
+		"DMA_P", "DMA_E",
+	};
+	static const int mdp4_intfs[] = {
+		DRM_MODE_ENCODER_LVDS,
+		DRM_MODE_ENCODER_DSI,
+		DRM_MODE_ENCODER_TMDS,
+	};
 
 	/* construct non-private planes: */
-	plane = mdp4_plane_init(dev, VG1, false);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for VG1\n");
-		ret = PTR_ERR(plane);
-		goto fail;
+	for (i = 0; i < ARRAY_SIZE(vg_planes); i++) {
+		plane = mdp4_plane_init(dev, vg_planes[i], false);
+		if (IS_ERR(plane)) {
+			dev_err(dev->dev,
+				"failed to construct plane for VG%d\n", i + 1);
+			ret = PTR_ERR(plane);
+			goto fail;
+		}
+		priv->planes[priv->num_planes++] = plane;
 	}
-	priv->planes[priv->num_planes++] = plane;
 
-	plane = mdp4_plane_init(dev, VG2, false);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for VG2\n");
-		ret = PTR_ERR(plane);
-		goto fail;
+	for (i = 0; i < ARRAY_SIZE(mdp4_crtcs); i++) {
+		plane = mdp4_plane_init(dev, rgb_planes[i], true);
+		if (IS_ERR(plane)) {
+			dev_err(dev->dev,
+				"failed to construct plane for RGB%d\n", i + 1);
+			ret = PTR_ERR(plane);
+			goto fail;
+		}
+
+		crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, i,
+				mdp4_crtcs[i]);
+		if (IS_ERR(crtc)) {
+			dev_err(dev->dev, "failed to construct crtc for %s\n",
+				mdp4_crtc_names[i]);
+			ret = PTR_ERR(crtc);
+			goto fail;
+		}
+
+		priv->crtcs[priv->num_crtcs++] = crtc;
 	}
-	priv->planes[priv->num_planes++] = plane;
 
 	/*
-	 * Setup the LCDC/LVDS path: RGB2 -> DMA_P -> LCDC -> LVDS:
+	 * we currently set up two relatively fixed paths:
+	 *
+	 * LCDC/LVDS path: RGB1 -> DMA_P -> LCDC -> LVDS
+	 *			or
+	 * DSI path: RGB1 -> DMA_P -> DSI1 -> DSI Panel
+	 *
+	 * DTV/HDMI path: RGB2 -> DMA_E -> DTV -> HDMI
 	 */
 
-	panel = detect_panel(dev);
-	if (IS_ERR(panel)) {
-		ret = PTR_ERR(panel);
-		dev_err(dev->dev, "failed to detect LVDS panel: %d\n", ret);
-		goto fail;
-	}
-
-	plane = mdp4_plane_init(dev, RGB2, true);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for RGB2\n");
-		ret = PTR_ERR(plane);
-		goto fail;
-	}
-
-	crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 0, DMA_P);
-	if (IS_ERR(crtc)) {
-		dev_err(dev->dev, "failed to construct crtc for DMA_P\n");
-		ret = PTR_ERR(crtc);
-		goto fail;
-	}
-
-	encoder = mdp4_lcdc_encoder_init(dev, panel);
-	if (IS_ERR(encoder)) {
-		dev_err(dev->dev, "failed to construct LCDC encoder\n");
-		ret = PTR_ERR(encoder);
-		goto fail;
-	}
-
-	/* LCDC can be hooked to DMA_P: */
-	encoder->possible_crtcs = 1 << priv->num_crtcs;
-
-	priv->crtcs[priv->num_crtcs++] = crtc;
-	priv->encoders[priv->num_encoders++] = encoder;
-
-	connector = mdp4_lvds_connector_init(dev, panel, encoder);
-	if (IS_ERR(connector)) {
-		ret = PTR_ERR(connector);
-		dev_err(dev->dev, "failed to initialize LVDS connector: %d\n", ret);
-		goto fail;
-	}
-
-	priv->connectors[priv->num_connectors++] = connector;
-
-	/*
-	 * Setup DTV/HDMI path: RGB1 -> DMA_E -> DTV -> HDMI:
-	 */
-
-	plane = mdp4_plane_init(dev, RGB1, true);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for RGB1\n");
-		ret = PTR_ERR(plane);
-		goto fail;
-	}
-
-	crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 1, DMA_E);
-	if (IS_ERR(crtc)) {
-		dev_err(dev->dev, "failed to construct crtc for DMA_E\n");
-		ret = PTR_ERR(crtc);
-		goto fail;
-	}
-
-	encoder = mdp4_dtv_encoder_init(dev);
-	if (IS_ERR(encoder)) {
-		dev_err(dev->dev, "failed to construct DTV encoder\n");
-		ret = PTR_ERR(encoder);
-		goto fail;
-	}
-
-	/* DTV can be hooked to DMA_E: */
-	encoder->possible_crtcs = 1 << priv->num_crtcs;
-
-	priv->crtcs[priv->num_crtcs++] = crtc;
-	priv->encoders[priv->num_encoders++] = encoder;
-
-	if (priv->hdmi) {
-		/* Construct bridge/connector for HDMI: */
-		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+	for (i = 0; i < ARRAY_SIZE(mdp4_intfs); i++) {
+		ret = mdp4_modeset_init_intf(mdp4_kms, mdp4_intfs[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+			dev_err(dev->dev, "failed to initialize intf: %d, %d\n",
+				i, ret);
 			goto fail;
 		}
 	}
@@ -558,17 +617,10 @@ fail:
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 {
 	static struct mdp4_platform_config config = {};
-#ifdef CONFIG_OF
-	/* TODO */
+
+	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
 	config.max_clk = 266667000;
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
-#else
-	if (cpu_is_apq8064())
-		config.max_clk = 266667000;
-	else
-		config.max_clk = 200000000;
 
-	config.iommu = msm_get_iommu_domain(DISPLAY_READ_DOMAIN);
-#endif
 	return &config;
 }

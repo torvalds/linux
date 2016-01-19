@@ -503,7 +503,6 @@ static void cache_rbio(struct btrfs_raid_bio *rbio)
 	}
 
 	spin_unlock_irqrestore(&table->cache_lock, flags);
-	return;
 }
 
 /*
@@ -906,7 +905,6 @@ static void raid_write_end_io(struct bio *bio)
 		err = -EIO;
 
 	rbio_orig_end_io(rbio, err);
-	return;
 }
 
 /*

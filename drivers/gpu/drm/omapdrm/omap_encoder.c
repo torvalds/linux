@@ -110,8 +110,6 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 	struct omap_dss_driver *dssdrv = dssdev->driver;
 	int ret;
 
-	dssdev->src->manager = omap_dss_get_overlay_manager(channel);
-
 	if (dssdrv->check_timings) {
 		ret = dssdrv->check_timings(dssdev, timings);
 	} else {
@@ -178,7 +176,7 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 	encoder = &omap_encoder->base;
 
 	drm_encoder_init(dev, encoder, &omap_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 	drm_encoder_helper_add(encoder, &omap_encoder_helper_funcs);
 
 	return encoder;

@@ -25,7 +25,7 @@
 #include "drmP.h"
 #include "amdgpu.h"
 #include "fiji_ppsmc.h"
-#include "fiji_smumgr.h"
+#include "fiji_smum.h"
 #include "smu_ucode_xfer_vi.h"
 #include "amdgpu_ucode.h"
 

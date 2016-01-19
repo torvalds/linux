@@ -24,7 +24,7 @@
  *   http://www.silabs.com/Support%20Documents/TechnicalDocs/AN495.pdf
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/hid.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -169,8 +169,7 @@ MODULE_PARM_DESC(gpio_push_pull, "GPIO push-pull configuration bitmask");
 
 static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct cp2112_device *dev = container_of(chip, struct cp2112_device,
-						 gc);
+	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[5];
 	int ret;
@@ -198,8 +197,7 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct cp2112_device *dev = container_of(chip, struct cp2112_device,
-						 gc);
+	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[3];
 	int ret;
@@ -216,8 +214,7 @@ static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int cp2112_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct cp2112_device *dev = container_of(chip, struct cp2112_device,
-						 gc);
+	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[2];
 	int ret;
@@ -235,8 +232,7 @@ static int cp2112_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset, int value)
 {
-	struct cp2112_device *dev = container_of(chip, struct cp2112_device,
-						 gc);
+	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[5];
 	int ret;
@@ -1104,9 +1100,9 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->gc.base			= -1;
 	dev->gc.ngpio			= 8;
 	dev->gc.can_sleep		= 1;
-	dev->gc.dev			= &hdev->dev;
+	dev->gc.parent			= &hdev->dev;
 
-	ret = gpiochip_add(&dev->gc);
+	ret = gpiochip_add_data(&dev->gc, dev);
 	if (ret < 0) {
 		hid_err(hdev, "error registering gpio chip\n");
 		goto err_free_i2c;

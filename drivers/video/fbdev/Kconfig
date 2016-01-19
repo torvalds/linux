@@ -5,6 +5,7 @@
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	select FB_CMDLINE
+	select FB_NOTIFY
 	---help---
 	  The frame buffer device provides an abstraction for the graphics
 	  hardware. It represents the frame buffer of some video hardware and
@@ -54,6 +55,9 @@ config FIRMWARE_EDID
 	 suffer from this problem.
 
 config FB_CMDLINE
+	bool
+
+config FB_NOTIFY
 	bool
 
 config FB_DDC
@@ -1506,6 +1510,7 @@ config FB_SIS
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_BOOT_VESA_SUPPORT if FB_SIS = y
+	select FB_SIS_300 if !FB_SIS_315
 	help
 	  This is the frame buffer device driver for the SiS 300, 315, 330
 	  and 340 series as well as XGI V3XT, V5, V8, Z7 graphics chipsets.
@@ -1880,6 +1885,8 @@ config FB_PXA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select VIDEOMODE_HELPERS if OF
+	select FB_MODE_HELPERS if OF
 	---help---
 	  Frame buffer driver for the built-in LCD controller in the Intel
 	  PXA2x0 processor.
@@ -1989,16 +1996,6 @@ config FB_SH_MOBILE_LCDC
 	select SH_MIPI_DSI if SH_LCD_MIPI_DSI
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
-
-config FB_SH_MOBILE_HDMI
-	tristate "SuperH Mobile HDMI controller support"
-	depends on FB_SH_MOBILE_LCDC
-	select FB_MODE_HELPERS
-	select SOUND
-	select SND
-	select SND_SOC
-	---help---
-	  Driver for the on-chip SH-Mobile HDMI controller.
 
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"

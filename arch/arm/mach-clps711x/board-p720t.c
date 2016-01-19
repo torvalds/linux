@@ -28,7 +28,7 @@
 #include <linux/leds.h>
 #include <linux/sizes.h>
 #include <linux/backlight.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand-gpio.h>

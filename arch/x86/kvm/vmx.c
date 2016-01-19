@@ -4251,7 +4251,7 @@ out:
 static int init_rmode_identity_map(struct kvm *kvm)
 {
 	int i, idx, r = 0;
-	pfn_t identity_map_pfn;
+	kvm_pfn_t identity_map_pfn;
 	u32 tmp;
 
 	if (!enable_ept)

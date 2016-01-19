@@ -251,8 +251,7 @@ static void uni_player_set_channel_status(struct uniperif *player,
 	 * set one.
 	 */
 	mutex_lock(&player->ctrl_lock);
-	if (runtime && (player->stream_settings.iec958.status[3]
-					== IEC958_AES3_CON_FS_NOTID)) {
+	if (runtime) {
 		switch (runtime->rate) {
 		case 22050:
 			player->stream_settings.iec958.status[3] =
