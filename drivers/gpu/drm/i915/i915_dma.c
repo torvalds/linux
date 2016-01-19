@@ -1034,7 +1034,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_setup_mchbar(dev);
 	intel_opregion_setup(dev);
 
-	i915_gem_load(dev);
+	i915_gem_load_init(dev);
 	i915_gem_shrinker_init(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -1121,9 +1121,7 @@ out_uncore_fini:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
-	kmem_cache_destroy(dev_priv->requests);
-	kmem_cache_destroy(dev_priv->vmas);
-	kmem_cache_destroy(dev_priv->objects);
+	i915_gem_load_cleanup(dev);
 out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
 
@@ -1215,9 +1213,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
-	kmem_cache_destroy(dev_priv->requests);
-	kmem_cache_destroy(dev_priv->vmas);
-	kmem_cache_destroy(dev_priv->objects);
+	i915_gem_load_cleanup(dev);
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev_priv);
 
