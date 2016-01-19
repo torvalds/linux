@@ -1363,12 +1363,12 @@ MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via DMI");
 #endif
 module_param_named(tryplatform, si_tryplatform, bool, 0);
-MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+MODULE_PARM_DESC(tryplatform, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via platform"
 		 " interfaces like openfirmware");
 #ifdef CONFIG_PCI
 module_param_named(trypci, si_trypci, bool, 0);
-MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via pci");
 #endif
 module_param_named(trydefaults, si_trydefaults, bool, 0);
