@@ -1221,6 +1221,37 @@
 #              define	ADDR_SURF_4_BANK			1
 #              define	ADDR_SURF_8_BANK			2
 #              define	ADDR_SURF_16_BANK			3
+#define	GB_TILE_MODE1					0x2645
+#define	GB_TILE_MODE2					0x2646
+#define	GB_TILE_MODE3					0x2647
+#define	GB_TILE_MODE4					0x2648
+#define	GB_TILE_MODE5					0x2649
+#define	GB_TILE_MODE6					0x264a
+#define	GB_TILE_MODE7					0x264b
+#define	GB_TILE_MODE8					0x264c
+#define	GB_TILE_MODE9					0x264d
+#define	GB_TILE_MODE10					0x264e
+#define	GB_TILE_MODE11					0x264f
+#define	GB_TILE_MODE12					0x2650
+#define	GB_TILE_MODE13					0x2651
+#define	GB_TILE_MODE14					0x2652
+#define	GB_TILE_MODE15					0x2653
+#define	GB_TILE_MODE16					0x2654
+#define	GB_TILE_MODE17					0x2655
+#define	GB_TILE_MODE18					0x2656
+#define	GB_TILE_MODE19					0x2657
+#define	GB_TILE_MODE20					0x2658
+#define	GB_TILE_MODE21					0x2659
+#define	GB_TILE_MODE22					0x265a
+#define	GB_TILE_MODE23					0x265b
+#define	GB_TILE_MODE24					0x265c
+#define	GB_TILE_MODE25					0x265d
+#define	GB_TILE_MODE26					0x265e
+#define	GB_TILE_MODE27					0x265f
+#define	GB_TILE_MODE28					0x2660
+#define	GB_TILE_MODE29					0x2661
+#define	GB_TILE_MODE30					0x2662
+#define	GB_TILE_MODE31					0x2663
 
 #define	CB_PERFCOUNTER0_SELECT0				0x2688
 #define	CB_PERFCOUNTER0_SELECT1				0x2689
@@ -2017,7 +2048,21 @@
 #define R600_D1GRPH_SWAP_ENDIAN_64BIT                   (3 << 0)
 
 #define AVIVO_D1VGA_CONTROL					0x00cc
+#       define AVIVO_DVGA_CONTROL_MODE_ENABLE            (1 << 0)
+#       define AVIVO_DVGA_CONTROL_TIMING_SELECT          (1 << 8)
+#       define AVIVO_DVGA_CONTROL_SYNC_POLARITY_SELECT   (1 << 9)
+#       define AVIVO_DVGA_CONTROL_OVERSCAN_TIMING_SELECT (1 << 10)
+#       define AVIVO_DVGA_CONTROL_OVERSCAN_COLOR_EN      (1 << 16)
+#       define AVIVO_DVGA_CONTROL_ROTATE                 (1 << 24)
 #define AVIVO_D2VGA_CONTROL					0x00ce
+
+#define R600_BUS_CNTL                                           0x1508
+#       define R600_BIOS_ROM_DIS                                (1 << 1)
+
+#define R600_ROM_CNTL                              0x580
+#       define R600_SCK_OVERWRITE                  (1 << 1)
+#       define R600_SCK_PRESCALE_CRYSTAL_CLK_SHIFT 28
+#       define R600_SCK_PRESCALE_CRYSTAL_CLK_MASK  (0xf << 28)
 
 #define GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK 0x1
 
