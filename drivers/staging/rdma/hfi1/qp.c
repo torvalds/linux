@@ -332,59 +332,6 @@ __be32 hfi1_compute_aeth(struct rvt_qp *qp)
 }
 
 /**
- * hfi1_destroy_qp - destroy a queue pair
- * @ibqp: the queue pair to destroy
- *
- * Returns 0 on success.
- *
- * Note that this can be called while the QP is actively sending or
- * receiving!
- */
-int hfi1_destroy_qp(struct ib_qp *ibqp)
-{
-	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
-	struct hfi1_ibdev *dev = to_idev(ibqp->device);
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	/* Make sure HW and driver activity is stopped. */
-	spin_lock_irq(&qp->r_lock);
-	spin_lock(&qp->s_lock);
-	if (qp->state != IB_QPS_RESET) {
-		qp->state = IB_QPS_RESET;
-		flush_iowait(qp);
-		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
-		spin_unlock(&qp->s_lock);
-		spin_unlock_irq(&qp->r_lock);
-		cancel_work_sync(&priv->s_iowait.iowork);
-		del_timer_sync(&qp->s_timer);
-		iowait_sdma_drain(&priv->s_iowait);
-		flush_tx_list(qp);
-		rvt_remove_qp(ib_to_rvt(ibqp->device), qp);
-		wait_event(qp->wait, !atomic_read(&qp->refcount));
-		spin_lock_irq(&qp->r_lock);
-		spin_lock(&qp->s_lock);
-		rvt_clear_mr_refs(qp, 1);
-		clear_ahg(qp);
-	}
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irq(&qp->r_lock);
-
-	/* all user's cleaned up, mark it available */
-	rvt_free_qpn(&dev->rdi.qp_dev->qpn_table, qp->ibqp.qp_num);
-	rvt_dec_qp_cnt(&dev->rdi);
-
-	if (qp->ip)
-		kref_put(&qp->ip->ref, rvt_release_mmap_info);
-	else
-		vfree(qp->r_rq.wq);
-	vfree(qp->s_wq);
-	kfree(priv->s_hdr);
-	kfree(priv);
-	kfree(qp);
-	return 0;
-}
-
-/**
  * hfi1_get_credit - flush the send work queue of a QP
  * @qp: the qp who's send work queue to flush
  * @aeth: the Acknowledge Extended Transport Header

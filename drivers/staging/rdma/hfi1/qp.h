@@ -96,17 +96,6 @@ struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
 			     struct ib_qp_init_attr *init_attr,
 			     struct ib_udata *udata);
 /**
- * hfi1_destroy_qp - destroy a queue pair
- * @ibqp: the queue pair to destroy
- *
- * Returns 0 on success.
- *
- * Note that this can be called while the QP is actively sending or
- * receiving!
- */
-int hfi1_destroy_qp(struct ib_qp *ibqp);
-
-/**
  * hfi1_get_credit - flush the send work queue of a QP
  * @qp: the qp who's send work queue to flush
  * @aeth: the Acknowledge Extended Transport Header

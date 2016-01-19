@@ -1625,7 +1625,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->create_qp = NULL;
 	ibdev->modify_qp = NULL;
 	ibdev->query_qp = hfi1_query_qp;
-	ibdev->destroy_qp = hfi1_destroy_qp;
+	ibdev->destroy_qp = NULL;
 	ibdev->post_send = NULL;
 	ibdev->post_recv = post_receive;
 	ibdev->post_srq_recv = hfi1_post_srq_receive;
