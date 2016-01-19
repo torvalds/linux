@@ -304,7 +304,7 @@ enum {
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
 	Opt_datasum, Opt_treelog, Opt_noinode_cache, Opt_usebackuproot,
-	Opt_nologreplay,
+	Opt_nologreplay, Opt_norecovery,
 #ifdef CONFIG_BTRFS_DEBUG
 	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
 #endif
@@ -337,6 +337,7 @@ static const match_table_t tokens = {
 	{Opt_notreelog, "notreelog"},
 	{Opt_treelog, "treelog"},
 	{Opt_nologreplay, "nologreplay"},
+	{Opt_norecovery, "norecovery"},
 	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_noflushoncommit, "noflushoncommit"},
 	{Opt_ratio, "metadata_ratio=%d"},
@@ -614,6 +615,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 			btrfs_clear_and_info(root, NOTREELOG,
 					     "enabling tree log");
 			break;
+		case Opt_norecovery:
 		case Opt_nologreplay:
 			btrfs_set_and_info(root, NOLOGREPLAY,
 					   "disabling log replay at mount time");
