@@ -30,15 +30,25 @@ static int legacy_connection_get_version(struct gb_connection *connection)
 static int legacy_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;
+	u8 major, minor;
+
+	/*
+	 * The legacy protocols have always been looked up using a hard-coded
+	 * version of 0.1, despite (or perhaps rather, due to) the fact that
+	 * module version negotiation could not take place until after the
+	 * protocol was bound.
+	 */
+	major = 0;
+	minor = 1;
 
 	protocol = gb_protocol_get(connection->protocol_id,
-				   connection->major,
-				   connection->minor);
+				   major,
+				   minor);
 	if (!protocol) {
 		dev_err(&connection->hd->dev,
 				"protocol 0x%02x version %u.%u not found\n",
 				connection->protocol_id,
-				connection->major, connection->minor);
+				major, minor);
 		return -EPROTONOSUPPORT;
 	}
 	connection->protocol = protocol;

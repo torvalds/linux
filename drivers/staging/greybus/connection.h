@@ -39,8 +39,6 @@ struct gb_connection {
 
 	struct gb_protocol		*protocol;
 	u8				protocol_id;
-	u8				major;
-	u8				minor;
 	u8				module_major;
 	u8				module_minor;
 

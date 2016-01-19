@@ -120,8 +120,6 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
 	int ida_start, ida_end;
-	u8 major = 0;
-	u8 minor = 1;
 
 	/*
 	 * If a manifest tries to reuse a cport, reject it.  We
@@ -159,8 +157,6 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	connection->intf = intf;
 
 	connection->protocol_id = protocol_id;
-	connection->major = major;
-	connection->minor = minor;
 
 	connection->bundle = bundle;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
