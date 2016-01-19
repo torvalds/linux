@@ -65,15 +65,15 @@
  * Note that the receive interrupt handler may be calling hfi1_ud_rcv()
  * while this is being called.
  */
-static void ud_loopback(struct hfi1_qp *sqp, struct hfi1_swqe *swqe)
+static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 {
 	struct hfi1_ibport *ibp = to_iport(sqp->ibqp.device, sqp->port_num);
 	struct hfi1_pportdata *ppd;
-	struct hfi1_qp *qp;
+	struct rvt_qp *qp;
 	struct ib_ah_attr *ah_attr;
 	unsigned long flags;
-	struct hfi1_sge_state ssge;
-	struct hfi1_sge *sge;
+	struct rvt_sge_state ssge;
+	struct rvt_sge *sge;
 	struct ib_wc wc;
 	u32 length;
 	enum ib_qp_type sqptype, dqptype;
@@ -262,14 +262,14 @@ drop:
  *
  * Return 1 if constructed; otherwise, return 0.
  */
-int hfi1_make_ud_req(struct hfi1_qp *qp)
+int hfi1_make_ud_req(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
 	struct ib_ah_attr *ah_attr;
 	struct hfi1_pportdata *ppd;
 	struct hfi1_ibport *ibp;
-	struct hfi1_swqe *wqe;
+	struct rvt_swqe *wqe;
 	unsigned long flags;
 	u32 nwords;
 	u32 extra_bytes;
@@ -477,7 +477,7 @@ int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey)
 	return -1;
 }
 
-void return_cnp(struct hfi1_ibport *ibp, struct hfi1_qp *qp, u32 remote_qpn,
+void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh)
 {
@@ -551,7 +551,7 @@ void return_cnp(struct hfi1_ibport *ibp, struct hfi1_qp *qp, u32 remote_qpn,
  * opa_smp_check() returns 0 if all checks succeed, 1 otherwise.
  */
 static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
-			 struct hfi1_qp *qp, u16 slid, struct opa_smp *smp)
+			 struct rvt_qp *qp, u16 slid, struct opa_smp *smp)
 {
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 
@@ -655,7 +655,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
-	struct hfi1_qp *qp = packet->qp;
+	struct rvt_qp *qp = packet->qp;
 	bool has_grh = rcv_flags & HFI1_HAS_GRH;
 	bool sc4_bit = has_sc4_bit(packet);
 	u8 sc;

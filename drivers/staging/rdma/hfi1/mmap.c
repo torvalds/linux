@@ -59,12 +59,12 @@
 
 /**
  * hfi1_release_mmap_info - free mmap info structure
- * @ref: a pointer to the kref within struct hfi1_mmap_info
+ * @ref: a pointer to the kref within struct rvt_mmap_info
  */
 void hfi1_release_mmap_info(struct kref *ref)
 {
-	struct hfi1_mmap_info *ip =
-		container_of(ref, struct hfi1_mmap_info, ref);
+	struct rvt_mmap_info *ip =
+		container_of(ref, struct rvt_mmap_info, ref);
 	struct hfi1_ibdev *dev = to_idev(ip->context->device);
 
 	spin_lock_irq(&dev->pending_lock);
@@ -81,14 +81,14 @@ void hfi1_release_mmap_info(struct kref *ref)
  */
 static void hfi1_vma_open(struct vm_area_struct *vma)
 {
-	struct hfi1_mmap_info *ip = vma->vm_private_data;
+	struct rvt_mmap_info *ip = vma->vm_private_data;
 
 	kref_get(&ip->ref);
 }
 
 static void hfi1_vma_close(struct vm_area_struct *vma)
 {
-	struct hfi1_mmap_info *ip = vma->vm_private_data;
+	struct rvt_mmap_info *ip = vma->vm_private_data;
 
 	kref_put(&ip->ref, hfi1_release_mmap_info);
 }
@@ -109,7 +109,7 @@ int hfi1_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	struct hfi1_ibdev *dev = to_idev(context->device);
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long size = vma->vm_end - vma->vm_start;
-	struct hfi1_mmap_info *ip, *pp;
+	struct rvt_mmap_info *ip, *pp;
 	int ret = -EINVAL;
 
 	/*
@@ -146,11 +146,11 @@ done:
 /*
  * Allocate information for hfi1_mmap
  */
-struct hfi1_mmap_info *hfi1_create_mmap_info(struct hfi1_ibdev *dev,
-					     u32 size,
-					     struct ib_ucontext *context,
-					     void *obj) {
-	struct hfi1_mmap_info *ip;
+struct rvt_mmap_info *hfi1_create_mmap_info(struct hfi1_ibdev *dev,
+					    u32 size,
+					    struct ib_ucontext *context,
+					    void *obj) {
+	struct rvt_mmap_info *ip;
 
 	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
@@ -175,7 +175,7 @@ bail:
 	return ip;
 }
 
-void hfi1_update_mmap_info(struct hfi1_ibdev *dev, struct hfi1_mmap_info *ip,
+void hfi1_update_mmap_info(struct hfi1_ibdev *dev, struct rvt_mmap_info *ip,
 			   u32 size, void *obj)
 {
 	size = PAGE_ALIGN(size);

@@ -479,7 +479,7 @@ int hfi1_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 
 	if (cq->ip) {
 		struct hfi1_ibdev *dev = to_idev(ibcq->device);
-		struct hfi1_mmap_info *ip = cq->ip;
+		struct rvt_mmap_info *ip = cq->ip;
 
 		hfi1_update_mmap_info(dev, ip, sz, wc);
 

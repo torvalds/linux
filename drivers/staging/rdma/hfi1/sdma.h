@@ -379,10 +379,10 @@ struct sdma_txreq {
 struct verbs_txreq {
 	struct hfi1_pio_header	phdr;
 	struct sdma_txreq       txreq;
-	struct hfi1_qp           *qp;
-	struct hfi1_swqe         *wqe;
+	struct rvt_qp           *qp;
+	struct rvt_swqe         *wqe;
 	struct rvt_mregion	*mr;
-	struct hfi1_sge_state    *ss;
+	struct rvt_sge_state    *ss;
 	struct sdma_engine     *sde;
 	u16                     hdr_dwords;
 	u16                     hdr_inx;

@@ -334,7 +334,7 @@ struct hfi1_packet {
 	void *hdr;
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
-	struct hfi1_qp *qp;
+	struct rvt_qp *qp;
 	struct hfi1_other_headers *ohdr;
 	u64 rhf;
 	u32 maxcnt;
@@ -374,7 +374,7 @@ struct hfi1_snoop_data {
 #define HFI1_PORT_SNOOP_MODE     1U
 #define HFI1_PORT_CAPTURE_MODE   2U
 
-struct hfi1_sge_state;
+struct rvt_sge_state;
 
 /*
  * Get/Set IB link-level config parameters for f_get/set_ib_cfg()
@@ -1091,9 +1091,9 @@ struct hfi1_devdata {
 	 * Handlers for outgoing data so that snoop/capture does not
 	 * have to have its hooks in the send path
 	 */
-	int (*process_pio_send)(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+	int (*process_pio_send)(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 				u64 pbc);
-	int (*process_dma_send)(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+	int (*process_dma_send)(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 				u64 pbc);
 	void (*pio_inline_send)(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 				u64 pbc, const void *from, size_t count);
@@ -1276,7 +1276,7 @@ static inline u32 egress_cycles(u32 len, u32 rate)
 void set_link_ipg(struct hfi1_pportdata *ppd);
 void process_becn(struct hfi1_pportdata *ppd, u8 sl,  u16 rlid, u32 lqpn,
 		  u32 rqpn, u8 svc_type);
-void return_cnp(struct hfi1_ibport *ibp, struct hfi1_qp *qp, u32 remote_qpn,
+void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh);
 
@@ -1468,9 +1468,9 @@ void reset_link_credits(struct hfi1_devdata *dd);
 void assign_remote_cm_au_table(struct hfi1_devdata *dd, u8 vcu);
 
 int snoop_recv_handler(struct hfi1_packet *packet);
-int snoop_send_dma_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+int snoop_send_dma_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc);
-int snoop_send_pio_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc);
 void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 			   u64 pbc, const void *from, size_t count);
@@ -1682,7 +1682,7 @@ int process_receive_invalid(struct hfi1_packet *packet);
 
 extern rhf_rcv_function_ptr snoop_rhf_rcv_functions[8];
 
-void update_sge(struct hfi1_sge_state *ss, u32 length);
+void update_sge(struct rvt_sge_state *ss, u32 length);
 
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;

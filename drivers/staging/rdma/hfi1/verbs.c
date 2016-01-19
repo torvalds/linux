@@ -65,7 +65,7 @@
 #include "qp.h"
 #include "sdma.h"
 
-unsigned int hfi1_lkey_table_size = 16;
+static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
 		   S_IRUGO);
 MODULE_PARM_DESC(lkey_table_size,
@@ -162,7 +162,7 @@ static inline struct hfi1_ucontext *to_iucontext(struct ib_ucontext
 	return container_of(ibucontext, struct hfi1_ucontext, ibucontext);
 }
 
-static inline void _hfi1_schedule_send(struct hfi1_qp *qp);
+static inline void _hfi1_schedule_send(struct rvt_qp *qp);
 
 /*
  * Translate ib_wr_opcode into ib_wc_opcode.
@@ -276,11 +276,11 @@ __be64 ib_hfi1_sys_image_guid;
  * @length: the length of the data
  */
 void hfi1_copy_sge(
-	struct hfi1_sge_state *ss,
+	struct rvt_sge_state *ss,
 	void *data, u32 length,
 	int release)
 {
-	struct hfi1_sge *sge = &ss->sge;
+	struct rvt_sge *sge = &ss->sge;
 
 	while (length) {
 		u32 len = sge->length;
@@ -296,7 +296,7 @@ void hfi1_copy_sge(
 		sge->sge_length -= len;
 		if (sge->sge_length == 0) {
 			if (release)
-				hfi1_put_mr(sge->mr);
+				rvt_put_mr(sge->mr);
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
@@ -320,9 +320,9 @@ void hfi1_copy_sge(
  * @ss: the SGE state
  * @length: the number of bytes to skip
  */
-void hfi1_skip_sge(struct hfi1_sge_state *ss, u32 length, int release)
+void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, int release)
 {
-	struct hfi1_sge *sge = &ss->sge;
+	struct rvt_sge *sge = &ss->sge;
 
 	while (length) {
 		u32 len = sge->length;
@@ -337,7 +337,7 @@ void hfi1_skip_sge(struct hfi1_sge_state *ss, u32 length, int release)
 		sge->sge_length -= len;
 		if (sge->sge_length == 0) {
 			if (release)
-				hfi1_put_mr(sge->mr);
+				rvt_put_mr(sge->mr);
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
@@ -360,9 +360,9 @@ void hfi1_skip_sge(struct hfi1_sge_state *ss, u32 length, int release)
  * @qp: the QP to post on
  * @wr: the work request to send
  */
-static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
+static int post_one_send(struct rvt_qp *qp, struct ib_send_wr *wr)
 {
-	struct hfi1_swqe *wqe;
+	struct rvt_swqe *wqe;
 	u32 next;
 	int i;
 	int j;
@@ -412,7 +412,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 	if (next == qp->s_last)
 		return -ENOMEM;
 
-	rkt = &to_idev(qp->ibqp.device)->lk_table;
+	rkt = &to_idev(qp->ibqp.device)->rdi.lkey_table;
 	pd = ibpd_to_rvtpd(qp->ibqp.pd);
 	wqe = get_swqe_ptr(qp, qp->s_head);
 
@@ -441,8 +441,8 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 
 			if (length == 0)
 				continue;
-			ok = hfi1_lkey_ok(rkt, pd, &wqe->sg_list[j],
-					  &wr->sg_list[i], acc);
+			ok = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j],
+					 &wr->sg_list[i], acc);
 			if (!ok)
 				goto bail_inval_free;
 			wqe->length += length;
@@ -465,9 +465,9 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 bail_inval_free:
 	/* release mr holds */
 	while (j) {
-		struct hfi1_sge *sge = &wqe->sg_list[--j];
+		struct rvt_sge *sge = &wqe->sg_list[--j];
 
-		hfi1_put_mr(sge->mr);
+		rvt_put_mr(sge->mr);
 	}
 	return -EINVAL;
 }
@@ -483,7 +483,7 @@ bail_inval_free:
 static int post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		     struct ib_send_wr **bad_wr)
 {
-	struct hfi1_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = to_iqp(ibqp);
 	struct hfi1_qp_priv *priv = qp->priv;
 	int err = 0;
 	int call_send;
@@ -529,8 +529,8 @@ bail:
 static int post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			struct ib_recv_wr **bad_wr)
 {
-	struct hfi1_qp *qp = to_iqp(ibqp);
-	struct hfi1_rwq *wq = qp->r_rq.wq;
+	struct rvt_qp *qp = to_iqp(ibqp);
+	struct rvt_rwq *wq = qp->r_rq.wq;
 	unsigned long flags;
 	int ret;
 
@@ -542,7 +542,7 @@ static int post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	}
 
 	for (; wr; wr = wr->next) {
-		struct hfi1_rwqe *wqe;
+		struct rvt_rwqe *wqe;
 		u32 next;
 		int i;
 
@@ -694,7 +694,7 @@ static void mem_timer(unsigned long data)
 {
 	struct hfi1_ibdev *dev = (struct hfi1_ibdev *)data;
 	struct list_head *list = &dev->memwait;
-	struct hfi1_qp *qp = NULL;
+	struct rvt_qp *qp = NULL;
 	struct iowait *wait;
 	unsigned long flags;
 	struct hfi1_qp_priv *priv;
@@ -715,9 +715,9 @@ static void mem_timer(unsigned long data)
 		hfi1_qp_wakeup(qp, HFI1_S_WAIT_KMEM);
 }
 
-void update_sge(struct hfi1_sge_state *ss, u32 length)
+void update_sge(struct rvt_sge_state *ss, u32 length)
 {
-	struct hfi1_sge *sge = &ss->sge;
+	struct rvt_sge *sge = &ss->sge;
 
 	sge->vaddr += length;
 	sge->length -= length;
@@ -737,7 +737,7 @@ void update_sge(struct hfi1_sge_state *ss, u32 length)
 }
 
 static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
-						struct hfi1_qp *qp)
+						struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct verbs_txreq *tx;
@@ -764,7 +764,7 @@ static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 }
 
 static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
-					    struct hfi1_qp *qp)
+					    struct rvt_qp *qp)
 {
 	struct verbs_txreq *tx;
 
@@ -782,7 +782,7 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 void hfi1_put_txreq(struct verbs_txreq *tx)
 {
 	struct hfi1_ibdev *dev;
-	struct hfi1_qp *qp;
+	struct rvt_qp *qp;
 	unsigned long flags;
 	unsigned int seq;
 	struct hfi1_qp_priv *priv;
@@ -791,7 +791,7 @@ void hfi1_put_txreq(struct verbs_txreq *tx)
 	dev = to_idev(qp->ibqp.device);
 
 	if (tx->mr) {
-		hfi1_put_mr(tx->mr);
+		rvt_put_mr(tx->mr);
 		tx->mr = NULL;
 	}
 	sdma_txclean(dd_from_dev(dev), &tx->txreq);
@@ -830,7 +830,7 @@ static void verbs_sdma_complete(
 {
 	struct verbs_txreq *tx =
 		container_of(cookie, struct verbs_txreq, txreq);
-	struct hfi1_qp *qp = tx->qp;
+	struct rvt_qp *qp = tx->qp;
 
 	spin_lock(&qp->s_lock);
 	if (tx->wqe)
@@ -858,7 +858,7 @@ static void verbs_sdma_complete(
 	hfi1_put_txreq(tx);
 }
 
-static int wait_kmem(struct hfi1_ibdev *dev, struct hfi1_qp *qp)
+static int wait_kmem(struct hfi1_ibdev *dev, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	unsigned long flags;
@@ -891,12 +891,12 @@ static int wait_kmem(struct hfi1_ibdev *dev, struct hfi1_qp *qp)
  */
 static int build_verbs_ulp_payload(
 	struct sdma_engine *sde,
-	struct hfi1_sge_state *ss,
+	struct rvt_sge_state *ss,
 	u32 length,
 	struct verbs_txreq *tx)
 {
-	struct hfi1_sge *sg_list = ss->sg_list;
-	struct hfi1_sge sge = ss->sge;
+	struct rvt_sge *sg_list = ss->sg_list;
+	struct rvt_sge sge = ss->sge;
 	u8 num_sge = ss->num_sge;
 	u32 len;
 	int ret = 0;
@@ -939,7 +939,7 @@ bail_txadd:
 /* New API */
 static int build_verbs_tx_desc(
 	struct sdma_engine *sde,
-	struct hfi1_sge_state *ss,
+	struct rvt_sge_state *ss,
 	u32 length,
 	struct verbs_txreq *tx,
 	struct ahg_ib_header *ahdr,
@@ -1006,13 +1006,13 @@ bail_txadd:
 	return ret;
 }
 
-int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct ahg_ib_header *ahdr = priv->s_hdr;
 	u32 hdrwords = qp->s_hdrwords;
-	struct hfi1_sge_state *ss = qp->s_cur_sge;
+	struct rvt_sge_state *ss = qp->s_cur_sge;
 	u32 len = qp->s_cur_size;
 	u32 plen = hdrwords + ((len + 3) >> 2) + 2; /* includes pbc */
 	struct hfi1_ibdev *dev = ps->dev;
@@ -1080,7 +1080,7 @@ bail_tx:
  * If we are now in the error state, return zero to flush the
  * send work request.
  */
-static int no_bufs_available(struct hfi1_qp *qp, struct send_context *sc)
+static int no_bufs_available(struct rvt_qp *qp, struct send_context *sc)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_devdata *dd = sc->dd;
@@ -1119,7 +1119,7 @@ static int no_bufs_available(struct hfi1_qp *qp, struct send_context *sc)
 	return ret;
 }
 
-struct send_context *qp_to_send_context(struct hfi1_qp *qp, u8 sc5)
+struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_pportdata *ppd = dd->pport + (qp->port_num - 1);
@@ -1131,13 +1131,13 @@ struct send_context *qp_to_send_context(struct hfi1_qp *qp, u8 sc5)
 	return dd->vld[vl].sc;
 }
 
-int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct ahg_ib_header *ahdr = priv->s_hdr;
 	u32 hdrwords = qp->s_hdrwords;
-	struct hfi1_sge_state *ss = qp->s_cur_sge;
+	struct rvt_sge_state *ss = qp->s_cur_sge;
 	u32 len = qp->s_cur_size;
 	u32 dwords = (len + 3) >> 2;
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */
@@ -1209,7 +1209,7 @@ int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 	trace_output_ibhdr(dd_from_ibdev(qp->ibqp.device), &ahdr->ibh);
 
 	if (qp->s_rdma_mr) {
-		hfi1_put_mr(qp->s_rdma_mr);
+		rvt_put_mr(qp->s_rdma_mr);
 		qp->s_rdma_mr = NULL;
 	}
 
@@ -1256,7 +1256,7 @@ static inline int egress_pkey_matches_entry(u16 pkey, u16 ent)
  */
 static inline int egress_pkey_check(struct hfi1_pportdata *ppd,
 				    struct hfi1_ib_header *hdr,
-				    struct hfi1_qp *qp)
+				    struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
@@ -1319,7 +1319,7 @@ bad:
  * Return zero if packet is sent or queued OK.
  * Return non-zero and clear qp->s_flags HFI1_S_BUSY otherwise.
  */
-int hfi1_verbs_send(struct hfi1_qp *qp, struct hfi1_pkt_state *ps)
+int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
@@ -1402,8 +1402,8 @@ static int query_device(struct ib_device *ibdev,
 	props->max_cq = hfi1_max_cqs;
 	props->max_ah = hfi1_max_ahs;
 	props->max_cqe = hfi1_max_cqes;
-	props->max_mr = dev->lk_table.max;
-	props->max_fmr = dev->lk_table.max;
+	props->max_mr = dev->rdi.lkey_table.max;
+	props->max_fmr = dev->rdi.lkey_table.max;
 	props->max_map_per_fmr = 32767;
 	props->max_pd = dev->rdi.dparms.props.max_pd;
 	props->max_qp_rd_atom = HFI1_MAX_RDMA_ATOMIC;
@@ -1657,7 +1657,7 @@ struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 {
 	struct ib_ah_attr attr;
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
-	struct hfi1_qp *qp0;
+	struct rvt_qp *qp0;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.dlid = dlid;
@@ -1772,7 +1772,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct ib_device *ibdev = &dev->rdi.ibdev;
 	struct hfi1_pportdata *ppd = dd->pport;
-	unsigned i, lk_tab_size;
+	unsigned i;
 	int ret;
 	size_t lcpysz = IB_DEVICE_NAME_MAX;
 	u16 descq_cnt;
@@ -1796,29 +1796,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
 
-	/*
-	 * The top hfi1_lkey_table_size bits are used to index the
-	 * table.  The lower 8 bits can be owned by the user (copied from
-	 * the LKEY).  The remaining bits act as a generation number or tag.
-	 */
-	spin_lock_init(&dev->lk_table.lock);
-	dev->lk_table.max = 1 << hfi1_lkey_table_size;
-	/* ensure generation is at least 4 bits (keys.c) */
-	if (hfi1_lkey_table_size > RVT_MAX_LKEY_TABLE_BITS) {
-		dd_dev_warn(dd, "lkey bits %u too large, reduced to %u\n",
-			      hfi1_lkey_table_size, RVT_MAX_LKEY_TABLE_BITS);
-		hfi1_lkey_table_size = RVT_MAX_LKEY_TABLE_BITS;
-	}
-	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
-	dev->lk_table.table = (struct rvt_mregion __rcu **)
-		vmalloc(lk_tab_size);
-	if (dev->lk_table.table == NULL) {
-		ret = -ENOMEM;
-		goto err_lk;
-	}
-	RCU_INIT_POINTER(dev->dma_mr, NULL);
-	for (i = 0; i < dev->lk_table.max; i++)
-		RCU_INIT_POINTER(dev->lk_table.table[i], NULL);
 	INIT_LIST_HEAD(&dev->pending_mmaps);
 	spin_lock_init(&dev->pending_lock);
 	seqlock_init(&dev->iowait_lock);
@@ -1917,14 +1894,15 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->resize_cq = hfi1_resize_cq;
 	ibdev->poll_cq = hfi1_poll_cq;
 	ibdev->req_notify_cq = hfi1_req_notify_cq;
-	ibdev->get_dma_mr = hfi1_get_dma_mr;
-	ibdev->reg_user_mr = hfi1_reg_user_mr;
-	ibdev->dereg_mr = hfi1_dereg_mr;
-	ibdev->alloc_mr = hfi1_alloc_mr;
-	ibdev->alloc_fmr = hfi1_alloc_fmr;
-	ibdev->map_phys_fmr = hfi1_map_phys_fmr;
-	ibdev->unmap_fmr = hfi1_unmap_fmr;
-	ibdev->dealloc_fmr = hfi1_dealloc_fmr;
+	ibdev->get_dma_mr = NULL;
+	ibdev->reg_user_mr = NULL;
+	ibdev->dereg_mr = NULL;
+	ibdev->alloc_mr = NULL;
+	ibdev->map_mr_sg = NULL;
+	ibdev->alloc_fmr = NULL;
+	ibdev->map_phys_fmr = NULL;
+	ibdev->unmap_fmr = NULL;
+	ibdev->dealloc_fmr = NULL;
 	ibdev->attach_mcast = hfi1_multicast_attach;
 	ibdev->detach_mcast = hfi1_multicast_detach;
 	ibdev->process_mad = hfi1_process_mad;
@@ -1945,9 +1923,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.notify_new_ah = hfi1_notify_new_ah;
 	dd->verbs_dev.rdi.dparms.props.max_ah = hfi1_max_ahs;
 	dd->verbs_dev.rdi.dparms.props.max_pd = hfi1_max_pds;
-	dd->verbs_dev.rdi.flags = (RVT_FLAG_MR_INIT_DRIVER |
-				   RVT_FLAG_QP_INIT_DRIVER |
+	dd->verbs_dev.rdi.flags = (RVT_FLAG_QP_INIT_DRIVER |
 				   RVT_FLAG_CQ_INIT_DRIVER);
+	dd->verbs_dev.rdi.dparms.lkey_table_size = hfi1_lkey_table_size;
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
@@ -1970,8 +1948,6 @@ err_agents:
 err_reg:
 err_verbs_txreq:
 	kmem_cache_destroy(dev->verbs_txreq_cache);
-	vfree(dev->lk_table.table);
-err_lk:
 	hfi1_qp_exit(dev);
 err_qp_init:
 	dd_dev_err(dd, "cannot register verbs: %d!\n", -ret);
@@ -1993,13 +1969,10 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 		dd_dev_err(dd, "txwait list not empty!\n");
 	if (!list_empty(&dev->memwait))
 		dd_dev_err(dd, "memwait list not empty!\n");
-	if (dev->dma_mr)
-		dd_dev_err(dd, "DMA MR not NULL!\n");
 
 	hfi1_qp_exit(dev);
 	del_timer_sync(&dev->mem_timer);
 	kmem_cache_destroy(dev->verbs_txreq_cache);
-	vfree(dev->lk_table.table);
 }
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
@@ -2007,7 +1980,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_ib_header *hdr = packet->hdr;
-	struct hfi1_qp *qp = packet->qp;
+	struct rvt_qp *qp = packet->qp;
 	u32 lqpn, rqpn = 0;
 	u16 rlid = 0;
 	u8 sl, sc5, sc4_bit, svc_type;

@@ -318,7 +318,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		/* Get the destination QP number. */
 		qp_num = be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
 		if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
-			struct hfi1_qp *qp;
+			struct rvt_qp *qp;
 			unsigned long flags;
 
 			rcu_read_lock();
@@ -387,7 +387,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			 * Only in pre-B0 h/w is the CNP_OPCODE handled
 			 * via this code path.
 			 */
-			struct hfi1_qp *qp = NULL;
+			struct rvt_qp *qp = NULL;
 			u32 lqpn, rqpn;
 			u16 rlid;
 			u8 svc_type, sl, sc5;
@@ -456,7 +456,7 @@ static void prescan_rxq(struct hfi1_packet *packet) {}
 #else /* !CONFIG_PRESCAN_RXQ */
 static int prescan_receive_queue;
 
-static void process_ecn(struct hfi1_qp *qp, struct hfi1_ib_header *hdr,
+static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
 			struct hfi1_other_headers *ohdr,
 			u64 rhf, u32 bth1, struct ib_grh *grh)
 {
@@ -595,7 +595,7 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		struct hfi1_ibport *ibp = &rcd->ppd->ibport_data;
 		__le32 *rhf_addr = (__le32 *) rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
-		struct hfi1_qp *qp;
+		struct rvt_qp *qp;
 		struct hfi1_ib_header *hdr;
 		struct hfi1_other_headers *ohdr;
 		struct ib_grh *grh = NULL;
@@ -770,7 +770,7 @@ static inline void process_rcv_qp_work(struct hfi1_packet *packet)
 {
 
 	struct hfi1_ctxtdata *rcd;
-	struct hfi1_qp *qp, *nqp;
+	struct rvt_qp *qp, *nqp;
 
 	rcd = packet->rcd;
 	rcd->head = packet->rhqoff;

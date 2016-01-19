@@ -80,7 +80,7 @@ struct hfi1_qpn_table {
 struct hfi1_qp_ibdev {
 	u32 qp_table_size;
 	u32 qp_table_bits;
-	struct hfi1_qp __rcu **qp_table;
+	struct rvt_qp __rcu **qp_table;
 	spinlock_t qpt_lock;
 	struct hfi1_qpn_table qpn_table;
 };
@@ -98,10 +98,10 @@ static inline u32 qpn_hash(struct hfi1_qp_ibdev *dev, u32 qpn)
  * The caller must hold the rcu_read_lock(), and keep the lock until
  * the returned qp is no longer in use.
  */
-static inline struct hfi1_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
-				u32 qpn) __must_hold(RCU)
+static inline struct rvt_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
+					     u32 qpn) __must_hold(RCU)
 {
-	struct hfi1_qp *qp = NULL;
+	struct rvt_qp *qp = NULL;
 
 	if (unlikely(qpn <= 1)) {
 		qp = rcu_dereference(ibp->qp[qpn]);
@@ -117,11 +117,10 @@ static inline struct hfi1_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
 	return qp;
 }
 
-/**
- * clear_ahg - reset ahg status in qp
- * @qp - qp pointer
+/*
+ * free_ahg - clear ahg from QP
  */
-static inline void clear_ahg(struct hfi1_qp *qp)
+static inline void clear_ahg(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
@@ -142,7 +141,7 @@ static inline void clear_ahg(struct hfi1_qp *qp)
  * The QP r_lock and s_lock should be held and interrupts disabled.
  * If we are already in error state, just return.
  */
-int hfi1_error_qp(struct hfi1_qp *qp, enum ib_wc_status err);
+int hfi1_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 
 /**
  * hfi1_modify_qp - modify the attributes of a queue pair
@@ -165,7 +164,7 @@ int hfi1_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * Returns the AETH.
  */
-__be32 hfi1_compute_aeth(struct hfi1_qp *qp);
+__be32 hfi1_compute_aeth(struct rvt_qp *qp);
 
 /**
  * hfi1_create_qp - create a queue pair for a device
@@ -198,7 +197,7 @@ int hfi1_destroy_qp(struct ib_qp *ibqp);
  *
  * The QP s_lock should be held.
  */
-void hfi1_get_credit(struct hfi1_qp *qp, u32 aeth);
+void hfi1_get_credit(struct rvt_qp *qp, u32 aeth);
 
 /**
  * hfi1_qp_init - allocate QP tables
@@ -217,9 +216,9 @@ void hfi1_qp_exit(struct hfi1_ibdev *dev);
  * @qp: the QP
  * @flag: flag the qp on which the qp is stalled
  */
-void hfi1_qp_wakeup(struct hfi1_qp *qp, u32 flag);
+void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag);
 
-struct sdma_engine *qp_to_sdma_engine(struct hfi1_qp *qp, u8 sc5);
+struct sdma_engine *qp_to_sdma_engine(struct rvt_qp *qp, u8 sc5);
 
 struct qp_iter;
 
@@ -246,7 +245,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter);
  * qp_comm_est - handle trap with QP established
  * @qp: the QP
  */
-void qp_comm_est(struct hfi1_qp *qp);
+void qp_comm_est(struct rvt_qp *qp);
 
 /**
  * _hfi1_schedule_send - schedule progress
@@ -257,7 +256,7 @@ void qp_comm_est(struct hfi1_qp *qp);
  * It is only used in the post send, which doesn't hold
  * the s_lock.
  */
-static inline void _hfi1_schedule_send(struct hfi1_qp *qp)
+static inline void _hfi1_schedule_send(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp =
@@ -278,12 +277,12 @@ static inline void _hfi1_schedule_send(struct hfi1_qp *qp)
  * This schedules qp progress and caller should hold
  * the s_lock.
  */
-static inline void hfi1_schedule_send(struct hfi1_qp *qp)
+static inline void hfi1_schedule_send(struct rvt_qp *qp)
 {
 	if (hfi1_send_ok(qp))
 		_hfi1_schedule_send(qp);
 }
 
-void hfi1_migrate_qp(struct hfi1_qp *qp);
+void hfi1_migrate_qp(struct rvt_qp *qp);
 
 #endif /* _QP_H */

@@ -66,12 +66,12 @@ int hfi1_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			  struct ib_recv_wr **bad_wr)
 {
 	struct hfi1_srq *srq = to_isrq(ibsrq);
-	struct hfi1_rwq *wq;
+	struct rvt_rwq *wq;
 	unsigned long flags;
 	int ret;
 
 	for (; wr; wr = wr->next) {
-		struct hfi1_rwqe *wqe;
+		struct rvt_rwqe *wqe;
 		u32 next;
 		int i;
 
@@ -149,8 +149,8 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 	srq->rq.size = srq_init_attr->attr.max_wr + 1;
 	srq->rq.max_sge = srq_init_attr->attr.max_sge;
 	sz = sizeof(struct ib_sge) * srq->rq.max_sge +
-		sizeof(struct hfi1_rwqe);
-	srq->rq.wq = vmalloc_user(sizeof(struct hfi1_rwq) + srq->rq.size * sz);
+		sizeof(struct rvt_rwqe);
+	srq->rq.wq = vmalloc_user(sizeof(struct rvt_rwq) + srq->rq.size * sz);
 	if (!srq->rq.wq) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail_srq;
@@ -162,7 +162,7 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
-		u32 s = sizeof(struct hfi1_rwq) + srq->rq.size * sz;
+		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip =
 		    hfi1_create_mmap_info(dev, s, ibpd->uobject->context,
@@ -230,12 +230,12 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    struct ib_udata *udata)
 {
 	struct hfi1_srq *srq = to_isrq(ibsrq);
-	struct hfi1_rwq *wq;
+	struct rvt_rwq *wq;
 	int ret = 0;
 
 	if (attr_mask & IB_SRQ_MAX_WR) {
-		struct hfi1_rwq *owq;
-		struct hfi1_rwqe *p;
+		struct rvt_rwq *owq;
+		struct rvt_rwqe *p;
 		u32 sz, size, n, head, tail;
 
 		/* Check that the requested sizes are below the limits. */
@@ -246,10 +246,10 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			goto bail;
 		}
 
-		sz = sizeof(struct hfi1_rwqe) +
+		sz = sizeof(struct rvt_rwqe) +
 			srq->rq.max_sge * sizeof(struct ib_sge);
 		size = attr->max_wr + 1;
-		wq = vmalloc_user(sizeof(struct hfi1_rwq) + size * sz);
+		wq = vmalloc_user(sizeof(struct rvt_rwq) + size * sz);
 		if (!wq) {
 			ret = -ENOMEM;
 			goto bail;
@@ -296,7 +296,7 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		n = 0;
 		p = wq->wq;
 		while (tail != head) {
-			struct hfi1_rwqe *wqe;
+			struct rvt_rwqe *wqe;
 			int i;
 
 			wqe = get_rwqe_ptr(&srq->rq, tail);
@@ -305,7 +305,7 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			for (i = 0; i < wqe->num_sge; i++)
 				p->sg_list[i] = wqe->sg_list[i];
 			n++;
-			p = (struct hfi1_rwqe *)((char *)p + sz);
+			p = (struct rvt_rwqe *)((char *)p + sz);
 			if (++tail >= srq->rq.size)
 				tail = 0;
 		}
@@ -320,9 +320,9 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		vfree(owq);
 
 		if (srq->ip) {
-			struct hfi1_mmap_info *ip = srq->ip;
+			struct rvt_mmap_info *ip = srq->ip;
 			struct hfi1_ibdev *dev = to_idev(srq->ibsrq.device);
-			u32 s = sizeof(struct hfi1_rwq) + size * sz;
+			u32 s = sizeof(struct rvt_rwq) + size * sz;
 
 			hfi1_update_mmap_info(dev, ip, s, wq);
 

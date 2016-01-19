@@ -1526,8 +1526,8 @@ static void sc_piobufavail(struct send_context *sc)
 	struct hfi1_devdata *dd = sc->dd;
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct list_head *list;
-	struct hfi1_qp *qps[PIO_WAIT_BATCH_SIZE];
-	struct hfi1_qp *qp;
+	struct rvt_qp *qps[PIO_WAIT_BATCH_SIZE];
+	struct rvt_qp *qp;
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
 	unsigned i, n = 0;
