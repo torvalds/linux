@@ -12,6 +12,9 @@
 
 struct gb_control {
 	struct gb_connection	*connection;
+
+	u8 protocol_major;
+	u8 protocol_minor;
 };
 
 struct gb_control *gb_control_create(struct gb_interface *intf);
@@ -26,6 +29,4 @@ int gb_control_get_manifest_operation(struct gb_interface *intf, void *manifest,
 				      size_t size);
 int gb_control_get_interface_version_operation(struct gb_interface *intf);
 
-int gb_control_protocol_init(void);
-void gb_control_protocol_exit(void);
 #endif /* __CONTROL_H */

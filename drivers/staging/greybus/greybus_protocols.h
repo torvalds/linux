@@ -116,12 +116,23 @@ struct gb_protocol_version_response {
 /* Control Protocol */
 
 /* Greybus control request types */
+#define GB_CONTROL_TYPE_VERSION			0x01
 #define GB_CONTROL_TYPE_PROBE_AP		0x02
 #define GB_CONTROL_TYPE_GET_MANIFEST_SIZE	0x03
 #define GB_CONTROL_TYPE_GET_MANIFEST		0x04
 #define GB_CONTROL_TYPE_CONNECTED		0x05
 #define GB_CONTROL_TYPE_DISCONNECTED		0x06
 #define GB_CONTROL_TYPE_INTERFACE_VERSION	0x0a
+
+struct gb_control_version_request {
+	__u8	major;
+	__u8	minor;
+} __packed;
+
+struct gb_control_version_response {
+	__u8	major;
+	__u8	minor;
+} __packed;
 
 /* Control protocol manifest get size request has no payload*/
 struct gb_control_get_manifest_size_response {
