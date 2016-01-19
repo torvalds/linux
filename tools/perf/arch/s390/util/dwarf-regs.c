@@ -19,5 +19,9 @@ static const char *gpr_names[NUM_GPRS] = {
 
 const char *get_arch_regstr(unsigned int n)
 {
+	if (n == 64)
+		return "mask";
+	if (n == 65)
+		return "pc";
 	return (n >= NUM_GPRS) ? NULL : gpr_names[n];
 }
