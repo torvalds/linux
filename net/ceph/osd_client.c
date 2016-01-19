@@ -2187,7 +2187,8 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		goto bad;
 done:
 	downgrade_write(&osdc->map_sem);
-	ceph_monc_got_osdmap(&osdc->client->monc, osdc->osdmap->epoch);
+	ceph_monc_got_map(&osdc->client->monc, CEPH_SUB_OSDMAP,
+			  osdc->osdmap->epoch);
 
 	/*
 	 * subscribe to subsequent osdmap updates if full to ensure
