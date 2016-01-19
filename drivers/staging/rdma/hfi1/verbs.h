@@ -234,13 +234,6 @@ struct hfi1_mcast {
 	int n_attached;
 };
 
-/* Address Handle */
-struct hfi1_ah {
-	struct ib_ah ibah;
-	struct ib_ah_attr attr;
-	atomic_t refcount;
-};
-
 /*
  * This structure is used by hfi1_mmap() to validate an offset
  * when an mmap() request is made.  The vm_area_struct then uses
@@ -652,8 +645,8 @@ static inline void inc_opstats(
 struct hfi1_ibport {
 	struct hfi1_qp __rcu *qp[2];
 	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
-	struct hfi1_ah *sm_ah;
-	struct hfi1_ah *smi_ah;
+	struct rvt_ah *sm_ah;
+	struct rvt_ah *smi_ah;
 	struct rb_root mcast_tree;
 	spinlock_t lock;		/* protect changes in this struct */
 
@@ -735,8 +728,6 @@ struct hfi1_ibdev {
 	u64 n_kmem_wait;
 	u64 n_send_schedule;
 
-	u32 n_ahs_allocated;    /* number of AHs allocated for device */
-	spinlock_t n_ahs_lock;
 	u32 n_cqs_allocated;    /* number of CQs allocated for device */
 	spinlock_t n_cqs_lock;
 	u32 n_qps_allocated;    /* number of QPs allocated for device */
@@ -772,11 +763,6 @@ struct hfi1_verbs_counters {
 static inline struct hfi1_mr *to_imr(struct ib_mr *ibmr)
 {
 	return container_of(ibmr, struct hfi1_mr, ibmr);
-}
-
-static inline struct hfi1_ah *to_iah(struct ib_ah *ibah)
-{
-	return container_of(ibah, struct hfi1_ah, ibah);
 }
 
 static inline struct hfi1_cq *to_icq(struct ib_cq *ibcq)
@@ -924,8 +910,6 @@ void hfi1_rc_hdrerr(
 	struct hfi1_qp *qp);
 
 u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
-
-int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 
