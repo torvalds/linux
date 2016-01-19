@@ -3146,6 +3146,12 @@ retry_root_backup:
 
 	fs_info->open = 1;
 
+	/*
+	 * backuproot only affect mount behavior, and if open_ctree succeeded,
+	 * no need to keep the flag
+	 */
+	btrfs_clear_opt(fs_info->mount_opt, USEBACKUPROOT);
+
 	return 0;
 
 fail_qgroup:
@@ -3200,7 +3206,7 @@ fail:
 	return err;
 
 recovery_tree_root:
-	if (!btrfs_test_opt(tree_root, RECOVERY))
+	if (!btrfs_test_opt(tree_root, USEBACKUPROOT))
 		goto fail_tree_roots;
 
 	free_root_pointers(fs_info, 0);

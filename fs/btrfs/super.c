@@ -303,7 +303,7 @@ enum {
 	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
-	Opt_datasum, Opt_treelog, Opt_noinode_cache,
+	Opt_datasum, Opt_treelog, Opt_noinode_cache, Opt_usebackuproot,
 #ifdef CONFIG_BTRFS_DEBUG
 	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
 #endif
@@ -352,7 +352,8 @@ static const match_table_t tokens = {
 	{Opt_inode_cache, "inode_cache"},
 	{Opt_noinode_cache, "noinode_cache"},
 	{Opt_no_space_cache, "nospace_cache"},
-	{Opt_recovery, "recovery"},
+	{Opt_recovery, "recovery"}, /* deprecated */
+	{Opt_usebackuproot, "usebackuproot"},
 	{Opt_skip_balance, "skip_balance"},
 	{Opt_check_integrity, "check_int"},
 	{Opt_check_integrity_including_extent_data, "check_int_data"},
@@ -696,8 +697,12 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 					     "disabling auto defrag");
 			break;
 		case Opt_recovery:
-			btrfs_info(root->fs_info, "enabling auto recovery");
-			btrfs_set_opt(info->mount_opt, RECOVERY);
+			btrfs_warn(root->fs_info,
+				   "'recovery' is deprecated, use 'usebackuproot' instead");
+		case Opt_usebackuproot:
+			btrfs_info(root->fs_info,
+				   "trying to use backup root at mount time");
+			btrfs_set_opt(info->mount_opt, USEBACKUPROOT);
 			break;
 		case Opt_skip_balance:
 			btrfs_set_opt(info->mount_opt, SKIP_BALANCE);
@@ -1228,8 +1233,6 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",inode_cache");
 	if (btrfs_test_opt(root, SKIP_BALANCE))
 		seq_puts(seq, ",skip_balance");
-	if (btrfs_test_opt(root, RECOVERY))
-		seq_puts(seq, ",recovery");
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(root, CHECK_INTEGRITY_INCLUDING_EXTENT_DATA))
 		seq_puts(seq, ",check_int_data");
