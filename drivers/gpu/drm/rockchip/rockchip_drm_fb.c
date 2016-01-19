@@ -176,6 +176,21 @@ static void rockchip_crtc_wait_for_update(struct drm_crtc *crtc)
 		crtc_funcs->wait_for_update(crtc);
 }
 
+/*
+ * We can't use drm_atomic_helper_wait_for_vblanks() because rk3288 and rk3066
+ * have hardware counters for neither vblanks nor scanlines, which results in
+ * a race where:
+ *				| <-- HW vsync irq and reg take effect
+ *	       plane_commit --> |
+ *	get_vblank and wait --> |
+ *				| <-- handle_vblank, vblank->count + 1
+ *		 cleanup_fb --> |
+ *		iommu crash --> |
+ *				| <-- HW vsync irq and reg take effect
+ *
+ * This function is equivalent but uses rockchip_crtc_wait_for_update() instead
+ * of waiting for vblank_count to change.
+ */
 static void
 rockchip_atomic_wait_for_complete(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
