@@ -75,16 +75,18 @@ void core_tmr_release_req(struct se_tmr_req *tmr)
 	kfree(tmr);
 }
 
-static void core_tmr_handle_tas_abort(
-	struct se_session *tmr_sess,
-	struct se_cmd *cmd,
-	int tas)
+static void core_tmr_handle_tas_abort(struct se_cmd *cmd, int tas)
 {
-	bool remove = true;
+	unsigned long flags;
+	bool remove = true, send_tas;
 	/*
 	 * TASK ABORTED status (TAS) bit support
 	 */
-	if (tmr_sess && tmr_sess != cmd->se_sess && tas) {
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	send_tas = (cmd->transport_state & CMD_T_TAS);
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+	if (send_tas) {
 		remove = false;
 		transport_send_task_abort(cmd);
 	}
@@ -107,7 +109,8 @@ static int target_check_cdb_and_preempt(struct list_head *list,
 	return 1;
 }
 
-static bool __target_check_io_state(struct se_cmd *se_cmd)
+static bool __target_check_io_state(struct se_cmd *se_cmd,
+				    struct se_session *tmr_sess, int tas)
 {
 	struct se_session *sess = se_cmd->se_sess;
 
@@ -115,21 +118,32 @@ static bool __target_check_io_state(struct se_cmd *se_cmd)
 	WARN_ON_ONCE(!irqs_disabled());
 	/*
 	 * If command already reached CMD_T_COMPLETE state within
-	 * target_complete_cmd(), this se_cmd has been passed to
-	 * fabric driver and will not be aborted.
+	 * target_complete_cmd() or CMD_T_FABRIC_STOP due to shutdown,
+	 * this se_cmd has been passed to fabric driver and will
+	 * not be aborted.
 	 *
 	 * Otherwise, obtain a local se_cmd->cmd_kref now for TMR
 	 * ABORT_TASK + LUN_RESET for CMD_T_ABORTED processing as
 	 * long as se_cmd->cmd_kref is still active unless zero.
 	 */
 	spin_lock(&se_cmd->t_state_lock);
-	if (se_cmd->transport_state & CMD_T_COMPLETE) {
-		pr_debug("Attempted to abort io tag: %llu already complete,"
+	if (se_cmd->transport_state & (CMD_T_COMPLETE | CMD_T_FABRIC_STOP)) {
+		pr_debug("Attempted to abort io tag: %llu already complete or"
+			" fabric stop, skipping\n", se_cmd->tag);
+		spin_unlock(&se_cmd->t_state_lock);
+		return false;
+	}
+	if (sess->sess_tearing_down || se_cmd->cmd_wait_set) {
+		pr_debug("Attempted to abort io tag: %llu already shutdown,"
 			" skipping\n", se_cmd->tag);
 		spin_unlock(&se_cmd->t_state_lock);
 		return false;
 	}
 	se_cmd->transport_state |= CMD_T_ABORTED;
+
+	if ((tmr_sess != se_cmd->se_sess) && tas)
+		se_cmd->transport_state |= CMD_T_TAS;
+
 	spin_unlock(&se_cmd->t_state_lock);
 
 	return kref_get_unless_zero(&se_cmd->cmd_kref);
@@ -161,7 +175,7 @@ void core_tmr_abort_task(
 		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
 			se_cmd->se_tfo->get_fabric_name(), ref_tag);
 
-		if (!__target_check_io_state(se_cmd)) {
+		if (!__target_check_io_state(se_cmd, se_sess, 0)) {
 			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 			target_put_sess_cmd(se_cmd);
 			goto out;
@@ -230,7 +244,8 @@ static void core_tmr_drain_tmr_list(
 
 		spin_lock(&sess->sess_cmd_lock);
 		spin_lock(&cmd->t_state_lock);
-		if (!(cmd->transport_state & CMD_T_ACTIVE)) {
+		if (!(cmd->transport_state & CMD_T_ACTIVE) ||
+		     (cmd->transport_state & CMD_T_FABRIC_STOP)) {
 			spin_unlock(&cmd->t_state_lock);
 			spin_unlock(&sess->sess_cmd_lock);
 			continue;
@@ -240,15 +255,22 @@ static void core_tmr_drain_tmr_list(
 			spin_unlock(&sess->sess_cmd_lock);
 			continue;
 		}
+		if (sess->sess_tearing_down || cmd->cmd_wait_set) {
+			spin_unlock(&cmd->t_state_lock);
+			spin_unlock(&sess->sess_cmd_lock);
+			continue;
+		}
 		cmd->transport_state |= CMD_T_ABORTED;
 		spin_unlock(&cmd->t_state_lock);
 
 		rc = kref_get_unless_zero(&cmd->cmd_kref);
-		spin_unlock(&sess->sess_cmd_lock);
 		if (!rc) {
 			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
+			spin_unlock(&sess->sess_cmd_lock);
 			continue;
 		}
+		spin_unlock(&sess->sess_cmd_lock);
+
 		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
 	}
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
@@ -325,7 +347,7 @@ static void core_tmr_drain_state_list(
 			continue;
 
 		spin_lock(&sess->sess_cmd_lock);
-		rc = __target_check_io_state(cmd);
+		rc = __target_check_io_state(cmd, tmr_sess, tas);
 		spin_unlock(&sess->sess_cmd_lock);
 		if (!rc)
 			continue;
@@ -364,7 +386,7 @@ static void core_tmr_drain_state_list(
 		cancel_work_sync(&cmd->work);
 		transport_wait_for_tasks(cmd);
 
-		core_tmr_handle_tas_abort(tmr_sess, cmd, tas);
+		core_tmr_handle_tas_abort(cmd, tas);
 		target_put_sess_cmd(cmd);
 	}
 }
