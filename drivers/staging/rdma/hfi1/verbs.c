@@ -486,6 +486,7 @@ static int post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		     struct ib_send_wr **bad_wr)
 {
 	struct hfi1_qp *qp = to_iqp(ibqp);
+	struct hfi1_qp_priv *priv = qp->priv;
 	int err = 0;
 	int call_send;
 	unsigned long flags;
@@ -515,7 +516,7 @@ bail:
 	if (nreq && !call_send)
 		_hfi1_schedule_send(qp);
 	if (nreq && call_send)
-		hfi1_do_send(&qp->s_iowait.iowork);
+		hfi1_do_send(&priv->s_iowait.iowork);
 	return err;
 }
 
@@ -698,12 +699,14 @@ static void mem_timer(unsigned long data)
 	struct hfi1_qp *qp = NULL;
 	struct iowait *wait;
 	unsigned long flags;
+	struct hfi1_qp_priv *priv;
 
 	write_seqlock_irqsave(&dev->iowait_lock, flags);
 	if (!list_empty(list)) {
 		wait = list_first_entry(list, struct iowait, list);
-		qp = container_of(wait, struct hfi1_qp, s_iowait);
-		list_del_init(&qp->s_iowait.list);
+		qp = iowait_to_qp(wait);
+		priv = qp->priv;
+		list_del_init(&priv->s_iowait.list);
 		/* refcount held until actual wake up */
 		if (!list_empty(list))
 			mod_timer(&dev->mem_timer, jiffies + 1);
@@ -738,6 +741,7 @@ void update_sge(struct hfi1_sge_state *ss, u32 length)
 static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 						struct hfi1_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct verbs_txreq *tx;
 	unsigned long flags;
 
@@ -746,10 +750,10 @@ static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 		spin_lock_irqsave(&qp->s_lock, flags);
 		write_seqlock(&dev->iowait_lock);
 		if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK &&
-		    list_empty(&qp->s_iowait.list)) {
+		    list_empty(&priv->s_iowait.list)) {
 			dev->n_txwait++;
 			qp->s_flags |= HFI1_S_WAIT_TX;
-			list_add_tail(&qp->s_iowait.list, &dev->txwait);
+			list_add_tail(&priv->s_iowait.list, &dev->txwait);
 			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_TX);
 			atomic_inc(&qp->refcount);
 		}
@@ -783,6 +787,7 @@ void hfi1_put_txreq(struct verbs_txreq *tx)
 	struct hfi1_qp *qp;
 	unsigned long flags;
 	unsigned int seq;
+	struct hfi1_qp_priv *priv;
 
 	qp = tx->qp;
 	dev = to_idev(qp->ibqp.device);
@@ -805,8 +810,9 @@ void hfi1_put_txreq(struct verbs_txreq *tx)
 			/* Wake up first QP wanting a free struct */
 			wait = list_first_entry(&dev->txwait, struct iowait,
 						list);
-			qp = container_of(wait, struct hfi1_qp, s_iowait);
-			list_del_init(&qp->s_iowait.list);
+			qp = iowait_to_qp(wait);
+			priv = qp->priv;
+			list_del_init(&priv->s_iowait.list);
 			/* refcount held until actual wake up */
 			write_sequnlock_irqrestore(&dev->iowait_lock, flags);
 			hfi1_qp_wakeup(qp, HFI1_S_WAIT_TX);
@@ -856,17 +862,18 @@ static void verbs_sdma_complete(
 
 static int wait_kmem(struct hfi1_ibdev *dev, struct hfi1_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
-		if (list_empty(&qp->s_iowait.list)) {
+		if (list_empty(&priv->s_iowait.list)) {
 			if (list_empty(&dev->memwait))
 				mod_timer(&dev->mem_timer, jiffies + 1);
 			qp->s_flags |= HFI1_S_WAIT_KMEM;
-			list_add_tail(&qp->s_iowait.list, &dev->memwait);
+			list_add_tail(&priv->s_iowait.list, &dev->memwait);
 			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_KMEM);
 			atomic_inc(&qp->refcount);
 		}
@@ -1004,7 +1011,8 @@ bail_txadd:
 int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc)
 {
-	struct ahg_ib_header *ahdr = qp->s_hdr;
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct ahg_ib_header *ahdr = priv->s_hdr;
 	u32 hdrwords = qp->s_hdrwords;
 	struct hfi1_sge_state *ss = qp->s_cur_sge;
 	u32 len = qp->s_cur_size;
@@ -1014,17 +1022,18 @@ int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 	struct verbs_txreq *tx;
 	struct sdma_txreq *stx;
 	u64 pbc_flags = 0;
-	u8 sc5 = qp->s_sc;
+	u8 sc5 = priv->s_sc;
+
 	int ret;
 
-	if (!list_empty(&qp->s_iowait.tx_head)) {
+	if (!list_empty(&priv->s_iowait.tx_head)) {
 		stx = list_first_entry(
-			&qp->s_iowait.tx_head,
+			&priv->s_iowait.tx_head,
 			struct sdma_txreq,
 			list);
 		list_del_init(&stx->list);
 		tx = container_of(stx, struct verbs_txreq, txreq);
-		ret = sdma_send_txreq(tx->sde, &qp->s_iowait, stx);
+		ret = sdma_send_txreq(tx->sde, &priv->s_iowait, stx);
 		if (unlikely(ret == -ECOMM))
 			goto bail_ecomm;
 		return ret;
@@ -1034,7 +1043,7 @@ int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 	if (IS_ERR(tx))
 		goto bail_tx;
 
-	tx->sde = qp->s_sde;
+	tx->sde = priv->s_sde;
 
 	if (likely(pbc == 0)) {
 		u32 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
@@ -1053,7 +1062,7 @@ int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 	if (unlikely(ret))
 		goto bail_build;
 	trace_output_ibhdr(dd_from_ibdev(qp->ibqp.device), &ahdr->ibh);
-	ret =  sdma_send_txreq(tx->sde, &qp->s_iowait, &tx->txreq);
+	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq);
 	if (unlikely(ret == -ECOMM))
 		goto bail_ecomm;
 	return ret;
@@ -1075,6 +1084,7 @@ bail_tx:
  */
 static int no_bufs_available(struct hfi1_qp *qp, struct send_context *sc)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_devdata *dd = sc->dd;
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	unsigned long flags;
@@ -1089,14 +1099,14 @@ static int no_bufs_available(struct hfi1_qp *qp, struct send_context *sc)
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
-		if (list_empty(&qp->s_iowait.list)) {
+		if (list_empty(&priv->s_iowait.list)) {
 			struct hfi1_ibdev *dev = &dd->verbs_dev;
 			int was_empty;
 
 			dev->n_piowait++;
 			qp->s_flags |= HFI1_S_WAIT_PIO;
 			was_empty = list_empty(&sc->piowait);
-			list_add_tail(&qp->s_iowait.list, &sc->piowait);
+			list_add_tail(&priv->s_iowait.list, &sc->piowait);
 			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_PIO);
 			atomic_inc(&qp->refcount);
 			/* counting: only call wantpiobuf_intr if first user */
@@ -1126,7 +1136,8 @@ struct send_context *qp_to_send_context(struct hfi1_qp *qp, u8 sc5)
 int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc)
 {
-	struct ahg_ib_header *ahdr = qp->s_hdr;
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct ahg_ib_header *ahdr = priv->s_hdr;
 	u32 hdrwords = qp->s_hdrwords;
 	struct hfi1_sge_state *ss = qp->s_cur_sge;
 	u32 len = qp->s_cur_size;
@@ -1142,7 +1153,7 @@ int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 	int wc_status = IB_WC_SUCCESS;
 
 	/* vl15 special case taken care of in ud.c */
-	sc5 = qp->s_sc;
+	sc5 = priv->s_sc;
 	sc = qp_to_send_context(qp, sc5);
 
 	if (!sc)
@@ -1249,11 +1260,12 @@ static inline int egress_pkey_check(struct hfi1_pportdata *ppd,
 				    struct hfi1_ib_header *hdr,
 				    struct hfi1_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
 	struct hfi1_devdata *dd;
 	int i = 0;
 	u16 pkey;
-	u8 lnh, sc5 = qp->s_sc;
+	u8 lnh, sc5 = priv->s_sc;
 
 	if (!(ppd->part_enforce & HFI1_PART_ENFORCE_OUT))
 		return 0;
@@ -1312,7 +1324,8 @@ bad:
 int hfi1_verbs_send(struct hfi1_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
-	struct ahg_ib_header *ahdr = qp->s_hdr;
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct ahg_ib_header *ahdr = priv->s_hdr;
 	int ret;
 	int pio = 0;
 	unsigned long flags = 0;

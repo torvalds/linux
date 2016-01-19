@@ -259,6 +259,7 @@ bail:
  */
 int hfi1_make_rc_req(struct hfi1_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	struct hfi1_other_headers *ohdr;
 	struct hfi1_sge_state *ss;
@@ -275,9 +276,9 @@ int hfi1_make_rc_req(struct hfi1_qp *qp)
 	int middle = 0;
 	int delta;
 
-	ohdr = &qp->s_hdr->ibh.u.oth;
+	ohdr = &priv->s_hdr->ibh.u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr->ibh.u.l.oth;
+		ohdr = &priv->s_hdr->ibh.u.l.oth;
 
 	/*
 	 * The lock is needed to synchronize between the sending tasklet,
@@ -297,7 +298,7 @@ int hfi1_make_rc_req(struct hfi1_qp *qp)
 		if (qp->s_last == qp->s_head)
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
-		if (atomic_read(&qp->s_iowait.sdma_busy)) {
+		if (atomic_read(&priv->s_iowait.sdma_busy)) {
 			qp->s_flags |= HFI1_S_WAIT_DMA;
 			goto bail;
 		}
@@ -1620,7 +1621,9 @@ static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,
 
 static inline void rc_cancel_ack(struct hfi1_qp *qp)
 {
-	qp->r_adefered = 0;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	priv->r_adefered = 0;
 	if (list_empty(&qp->rspwait))
 		return;
 	list_del_init(&qp->rspwait);
@@ -2347,11 +2350,13 @@ send_last:
 	qp->r_nak_state = 0;
 	/* Send an ACK if requested or required. */
 	if (psn & IB_BTH_REQ_ACK) {
+		struct hfi1_qp_priv *priv = qp->priv;
+
 		if (packet->numpkt == 0) {
 			rc_cancel_ack(qp);
 			goto send_ack;
 		}
-		if (qp->r_adefered >= HFI1_PSN_CREDIT) {
+		if (priv->r_adefered >= HFI1_PSN_CREDIT) {
 			rc_cancel_ack(qp);
 			goto send_ack;
 		}
@@ -2359,7 +2364,7 @@ send_last:
 			rc_cancel_ack(qp);
 			goto send_ack;
 		}
-		qp->r_adefered++;
+		priv->r_adefered++;
 		rc_defered_ack(rcd, qp);
 	}
 	return;

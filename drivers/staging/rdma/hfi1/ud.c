@@ -264,6 +264,7 @@ drop:
  */
 int hfi1_make_ud_req(struct hfi1_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
 	struct ib_ah_attr *ah_attr;
 	struct hfi1_pportdata *ppd;
@@ -288,7 +289,7 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 		if (qp->s_last == qp->s_head)
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
-		if (atomic_read(&qp->s_iowait.sdma_busy)) {
+		if (atomic_read(&priv->s_iowait.sdma_busy)) {
 			qp->s_flags |= HFI1_S_WAIT_DMA;
 			goto bail;
 		}
@@ -322,7 +323,7 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 			 * Instead of waiting, we could queue a
 			 * zero length descriptor so we get a callback.
 			 */
-			if (atomic_read(&qp->s_iowait.sdma_busy)) {
+			if (atomic_read(&priv->s_iowait.sdma_busy)) {
 				qp->s_flags |= HFI1_S_WAIT_DMA;
 				goto bail;
 			}
@@ -353,11 +354,11 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 
 	if (ah_attr->ah_flags & IB_AH_GRH) {
 		/* Header size in 32-bit words. */
-		qp->s_hdrwords += hfi1_make_grh(ibp, &qp->s_hdr->ibh.u.l.grh,
+		qp->s_hdrwords += hfi1_make_grh(ibp, &priv->s_hdr->ibh.u.l.grh,
 					       &ah_attr->grh,
 					       qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
-		ohdr = &qp->s_hdr->ibh.u.l.oth;
+		ohdr = &priv->s_hdr->ibh.u.l.oth;
 		/*
 		 * Don't worry about sending to locally attached multicast
 		 * QPs.  It is unspecified by the spec. what happens.
@@ -365,7 +366,7 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 	} else {
 		/* Header size in 32-bit words. */
 		lrh0 = HFI1_LRH_BTH;
-		ohdr = &qp->s_hdr->ibh.u.oth;
+		ohdr = &priv->s_hdr->ibh.u.oth;
 	}
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 		qp->s_hdrwords++;
@@ -377,25 +378,25 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 	lrh0 |= (ah_attr->sl & 0xf) << 4;
 	if (qp->ibqp.qp_type == IB_QPT_SMI) {
 		lrh0 |= 0xF000; /* Set VL (see ch. 13.5.3.1) */
-		qp->s_sc = 0xf;
+		priv->s_sc = 0xf;
 	} else {
 		lrh0 |= (sc5 & 0xf) << 12;
-		qp->s_sc = sc5;
+		priv->s_sc = sc5;
 	}
-	qp->s_sde = qp_to_sdma_engine(qp, qp->s_sc);
-	qp->s_hdr->ibh.lrh[0] = cpu_to_be16(lrh0);
-	qp->s_hdr->ibh.lrh[1] = cpu_to_be16(ah_attr->dlid);  /* DEST LID */
-	qp->s_hdr->ibh.lrh[2] =
+	priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+	priv->s_hdr->ibh.lrh[0] = cpu_to_be16(lrh0);
+	priv->s_hdr->ibh.lrh[1] = cpu_to_be16(ah_attr->dlid);  /* DEST LID */
+	priv->s_hdr->ibh.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
 	if (ah_attr->dlid == be16_to_cpu(IB_LID_PERMISSIVE))
-		qp->s_hdr->ibh.lrh[3] = IB_LID_PERMISSIVE;
+		priv->s_hdr->ibh.lrh[3] = IB_LID_PERMISSIVE;
 	else {
 		lid = ppd->lid;
 		if (lid) {
 			lid |= ah_attr->src_path_bits & ((1 << ppd->lmc) - 1);
-			qp->s_hdr->ibh.lrh[3] = cpu_to_be16(lid);
+			priv->s_hdr->ibh.lrh[3] = cpu_to_be16(lid);
 		} else
-			qp->s_hdr->ibh.lrh[3] = IB_LID_PERMISSIVE;
+			priv->s_hdr->ibh.lrh[3] = IB_LID_PERMISSIVE;
 	}
 	if (wqe->wr.send_flags & IB_SEND_SOLICITED)
 		bth0 |= IB_BTH_SOLICITED;
@@ -415,10 +416,10 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 					 qp->qkey : wqe->ud_wr.remote_qkey);
 	ohdr->u.ud.deth[1] = cpu_to_be32(qp->ibqp.qp_num);
 	/* disarm any ahg */
-	qp->s_hdr->ahgcount = 0;
-	qp->s_hdr->ahgidx = 0;
-	qp->s_hdr->tx_flags = 0;
-	qp->s_hdr->sde = NULL;
+	priv->s_hdr->ahgcount = 0;
+	priv->s_hdr->ahgidx = 0;
+	priv->s_hdr->tx_flags = 0;
+	priv->s_hdr->sde = NULL;
 
 done:
 	ret = 1;

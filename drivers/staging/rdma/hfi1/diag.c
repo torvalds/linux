@@ -1619,7 +1619,8 @@ int snoop_send_dma_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 int snoop_send_pio_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc)
 {
-	struct ahg_ib_header *ahdr = qp->s_hdr;
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct ahg_ib_header *ahdr = priv->s_hdr;
 	u32 hdrwords = qp->s_hdrwords;
 	struct hfi1_sge_state *ss = qp->s_cur_sge;
 	u32 len = qp->s_cur_size;

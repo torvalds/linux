@@ -1528,6 +1528,7 @@ static void sc_piobufavail(struct send_context *sc)
 	struct list_head *list;
 	struct hfi1_qp *qps[PIO_WAIT_BATCH_SIZE];
 	struct hfi1_qp *qp;
+	struct hfi1_qp_priv *priv;
 	unsigned long flags;
 	unsigned i, n = 0;
 
@@ -1547,8 +1548,9 @@ static void sc_piobufavail(struct send_context *sc)
 		if (n == ARRAY_SIZE(qps))
 			goto full;
 		wait = list_first_entry(list, struct iowait, list);
-		qp = container_of(wait, struct hfi1_qp, s_iowait);
-		list_del_init(&qp->s_iowait.list);
+		qp = iowait_to_qp(wait);
+		priv = qp->priv;
+		list_del_init(&priv->s_iowait.list);
 		/* refcount held until actual wake up */
 		qps[n++] = qp;
 	}

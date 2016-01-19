@@ -123,10 +123,12 @@ static inline struct hfi1_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
  */
 static inline void clear_ahg(struct hfi1_qp *qp)
 {
-	qp->s_hdr->ahgcount = 0;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	priv->s_hdr->ahgcount = 0;
 	qp->s_flags &= ~(HFI1_S_AHG_VALID | HFI1_S_AHG_CLEAR);
-	if (qp->s_sde && qp->s_ahgidx >= 0)
-		sdma_ahg_free(qp->s_sde, qp->s_ahgidx);
+	if (priv->s_sde && qp->s_ahgidx >= 0)
+		sdma_ahg_free(priv->s_sde, qp->s_ahgidx);
 	qp->s_ahgidx = -1;
 }
 
@@ -257,14 +259,15 @@ void qp_comm_est(struct hfi1_qp *qp);
  */
 static inline void _hfi1_schedule_send(struct hfi1_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp =
 		to_iport(qp->ibqp.device, qp->port_num);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 
-	iowait_schedule(&qp->s_iowait, ppd->hfi1_wq,
-			qp->s_sde ?
-			qp->s_sde->cpu :
+	iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
+			priv->s_sde ?
+			priv->s_sde->cpu :
 			cpumask_first(cpumask_of_node(dd->assigned_node_id)));
 }
 
