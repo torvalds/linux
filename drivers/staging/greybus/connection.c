@@ -16,6 +16,8 @@ static void gb_connection_kref_release(struct kref *kref);
 
 
 static DEFINE_SPINLOCK(gb_connections_lock);
+static DEFINE_MUTEX(gb_connection_mutex);
+
 
 /* This is only used at initialization time; no locking is required. */
 static struct gb_connection *
@@ -125,6 +127,9 @@ static void gb_connection_init_name(struct gb_connection *connection)
  * A connection also maintains the state of operations sent over the
  * connection.
  *
+ * Serialised against concurrent create and destroy using the
+ * gb_connection_mutex.
+ *
  * Return: A pointer to the new connection if successful, or NULL otherwise.
  */
 static struct gb_connection *
@@ -159,9 +164,11 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 		return NULL;
 	}
 
+	mutex_lock(&gb_connection_mutex);
+
 	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
 	if (hd_cport_id < 0)
-		return NULL;
+		goto err_unlock;
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
 	if (!connection)
@@ -201,12 +208,16 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	spin_unlock_irq(&gb_connections_lock);
 
+	mutex_unlock(&gb_connection_mutex);
+
 	return connection;
 
 err_free_connection:
 	kfree(connection);
 err_remove_ida:
 	ida_simple_remove(id_map, hd_cport_id);
+err_unlock:
+	mutex_unlock(&gb_connection_mutex);
 
 	return NULL;
 }
@@ -524,6 +535,8 @@ void gb_connection_destroy(struct gb_connection *connection)
 	if (!connection)
 		return;
 
+	mutex_lock(&gb_connection_mutex);
+
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
@@ -534,6 +547,8 @@ void gb_connection_destroy(struct gb_connection *connection)
 	id_map = &connection->hd->cport_id_map;
 	ida_simple_remove(id_map, connection->hd_cport_id);
 	connection->hd_cport_id = CPORT_ID_BAD;
+
+	mutex_unlock(&gb_connection_mutex);
 
 	gb_connection_put(connection);
 }
