@@ -1630,6 +1630,29 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 	return 0;
 }
 
+static void hfi1_notify_new_ah(struct ib_device *ibdev,
+			       struct ib_ah_attr *ah_attr,
+			       struct rvt_ah *ah)
+{
+	struct hfi1_ibport *ibp;
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
+	u8 sc5;
+
+	/*
+	 * Do not trust reading anything from rvt_ah at this point as it is not
+	 * done being setup. We can however modify things which we need to set.
+	 */
+
+	ibp = to_iport(ibdev, ah_attr->port_num);
+	ppd = ppd_from_ibp(ibp);
+	sc5 = ibp->sl_to_sc[ah->attr.sl];
+	dd = dd_from_ppd(ppd);
+	ah->vl = sc_to_vlt(dd, sc5);
+	if (ah->vl < num_vls || ah->vl == 15)
+		ah->log_pmtu = ilog2(dd->vld[ah->vl].mtu);
+}
+
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 {
 	struct ib_ah_attr attr;
@@ -1919,6 +1942,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_card_name = get_card_name;
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = hfi1_check_ah;
+	dd->verbs_dev.rdi.driver_f.notify_new_ah = hfi1_notify_new_ah;
 	dd->verbs_dev.rdi.dparms.props.max_ah = hfi1_max_ahs;
 	dd->verbs_dev.rdi.dparms.props.max_pd = hfi1_max_pds;
 	dd->verbs_dev.rdi.flags = (RVT_FLAG_MR_INIT_DRIVER |
