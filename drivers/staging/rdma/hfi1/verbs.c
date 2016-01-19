@@ -1517,7 +1517,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_srq = hfi1_modify_srq;
 	ibdev->query_srq = hfi1_query_srq;
 	ibdev->destroy_srq = hfi1_destroy_srq;
-	ibdev->query_qp = hfi1_query_qp;
 	ibdev->post_srq_recv = hfi1_post_srq_receive;
 
 	/* keep process mad in the driver */

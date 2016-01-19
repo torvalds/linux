@@ -71,9 +71,6 @@ static inline void clear_ahg(struct rvt_qp *qp)
 	qp->s_ahgidx = -1;
 }
 
-int hfi1_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		  int attr_mask, struct ib_qp_init_attr *init_attr);
-
 /**
  * hfi1_compute_aeth - compute the AETH (syndrome + MSN)
  * @qp: the queue pair to compute the AETH for
