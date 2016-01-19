@@ -1381,6 +1381,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_i915_gem_exec_object2 *exec)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_request *req = NULL;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_i915_gem_exec_object2 shadow_exec_entry;
@@ -1602,11 +1603,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		params->batch_obj_vm_offset = i915_gem_obj_offset(batch_obj, vm);
 
 	/* Allocate a request for this batch buffer nice and early. */
-	ret = i915_gem_request_alloc(ring, ctx, &params->request);
-	if (ret)
+	req = i915_gem_request_alloc(ring, ctx);
+	if (IS_ERR(req)) {
+		ret = PTR_ERR(req);
 		goto err_batch_unpin;
+	}
 
-	ret = i915_gem_request_add_to_client(params->request, file);
+	ret = i915_gem_request_add_to_client(req, file);
 	if (ret)
 		goto err_batch_unpin;
 
@@ -1622,6 +1625,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->dispatch_flags          = dispatch_flags;
 	params->batch_obj               = batch_obj;
 	params->ctx                     = ctx;
+	params->request                 = req;
 
 	ret = dev_priv->gt.execbuf_submit(params, args, &eb->vmas);
 
@@ -1645,8 +1649,8 @@ err:
 	 * must be freed again. If it was submitted then it is being tracked
 	 * on the active request list and no clean up is required here.
 	 */
-	if (ret && params->request)
-		i915_gem_request_cancel(params->request);
+	if (ret && req)
+		i915_gem_request_cancel(req);
 
 	mutex_unlock(&dev->struct_mutex);
 

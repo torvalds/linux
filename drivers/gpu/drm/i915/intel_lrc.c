@@ -2520,11 +2520,10 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 	if (ctx != ring->default_context && ring->init_context) {
 		struct drm_i915_gem_request *req;
 
-		ret = i915_gem_request_alloc(ring,
-			ctx, &req);
-		if (ret) {
-			DRM_ERROR("ring create req: %d\n",
-				ret);
+		req = i915_gem_request_alloc(ring, ctx);
+		if (IS_ERR(req)) {
+			ret = PTR_ERR(req);
+			DRM_ERROR("ring create req: %d\n", ret);
 			goto error_ringbuf;
 		}
 

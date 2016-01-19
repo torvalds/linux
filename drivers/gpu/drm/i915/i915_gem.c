@@ -2690,9 +2690,10 @@ void i915_gem_request_free(struct kref *req_ref)
 	kmem_cache_free(req->i915->requests, req);
 }
 
-int i915_gem_request_alloc(struct intel_engine_cs *ring,
-			   struct intel_context *ctx,
-			   struct drm_i915_gem_request **req_out)
+static inline int
+__i915_gem_request_alloc(struct intel_engine_cs *ring,
+			 struct intel_context *ctx,
+			 struct drm_i915_gem_request **req_out)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
 	struct drm_i915_gem_request *req;
@@ -2753,6 +2754,31 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 err:
 	kmem_cache_free(dev_priv->requests, req);
 	return ret;
+}
+
+/**
+ * i915_gem_request_alloc - allocate a request structure
+ *
+ * @engine: engine that we wish to issue the request on.
+ * @ctx: context that the request will be associated with.
+ *       This can be NULL if the request is not directly related to
+ *       any specific user context, in which case this function will
+ *       choose an appropriate context to use.
+ *
+ * Returns a pointer to the allocated request if successful,
+ * or an error code if not.
+ */
+struct drm_i915_gem_request *
+i915_gem_request_alloc(struct intel_engine_cs *engine,
+		       struct intel_context *ctx)
+{
+	struct drm_i915_gem_request *req;
+	int err;
+
+	if (ctx == NULL)
+		ctx = engine->default_context;
+	err = __i915_gem_request_alloc(engine, ctx, &req);
+	return err ? ERR_PTR(err) : req;
 }
 
 void i915_gem_request_cancel(struct drm_i915_gem_request *req)
@@ -3172,9 +3198,13 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			return 0;
 
 		if (*to_req == NULL) {
-			ret = i915_gem_request_alloc(to, to->default_context, to_req);
-			if (ret)
-				return ret;
+			struct drm_i915_gem_request *req;
+
+			req = i915_gem_request_alloc(to, NULL);
+			if (IS_ERR(req))
+				return PTR_ERR(req);
+
+			*to_req = req;
 		}
 
 		trace_i915_gem_ring_sync_to(*to_req, from, from_req);
@@ -3374,9 +3404,9 @@ int i915_gpu_idle(struct drm_device *dev)
 		if (!i915.enable_execlists) {
 			struct drm_i915_gem_request *req;
 
-			ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-			if (ret)
-				return ret;
+			req = i915_gem_request_alloc(ring, NULL);
+			if (IS_ERR(req))
+				return PTR_ERR(req);
 
 			ret = i915_switch_context(req);
 			if (ret) {
@@ -4871,10 +4901,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i) {
 		struct drm_i915_gem_request *req;
 
-		WARN_ON(!ring->default_context);
-
-		ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-		if (ret) {
+		req = i915_gem_request_alloc(ring, NULL);
+		if (IS_ERR(req)) {
+			ret = PTR_ERR(req);
 			i915_gem_cleanup_ringbuffer(dev);
 			goto out;
 		}

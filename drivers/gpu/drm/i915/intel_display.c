@@ -11690,9 +11690,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 					obj->last_write_req);
 	} else {
 		if (!request) {
-			ret = i915_gem_request_alloc(ring, ring->default_context, &request);
-			if (ret)
+			request = i915_gem_request_alloc(ring, NULL);
+			if (IS_ERR(request)) {
+				ret = PTR_ERR(request);
 				goto cleanup_unpin;
+			}
 		}
 
 		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, request,
