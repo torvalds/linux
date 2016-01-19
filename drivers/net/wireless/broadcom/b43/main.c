@@ -1215,10 +1215,10 @@ void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
 	case B43_BUS_BCMA:
 		bcma_cc = &dev->dev->bdev->bus->drv_cc;
 
-		bcma_cc_write32(bcma_cc, BCMA_CC_CHIPCTL_ADDR, 0);
-		bcma_cc_mask32(bcma_cc, BCMA_CC_CHIPCTL_DATA, ~0x4);
-		bcma_cc_set32(bcma_cc, BCMA_CC_CHIPCTL_DATA, 0x4);
-		bcma_cc_mask32(bcma_cc, BCMA_CC_CHIPCTL_DATA, ~0x4);
+		bcma_cc_write32(bcma_cc, BCMA_CC_PMU_CHIPCTL_ADDR, 0);
+		bcma_cc_mask32(bcma_cc, BCMA_CC_PMU_CHIPCTL_DATA, ~0x4);
+		bcma_cc_set32(bcma_cc, BCMA_CC_PMU_CHIPCTL_DATA, 0x4);
+		bcma_cc_mask32(bcma_cc, BCMA_CC_PMU_CHIPCTL_DATA, ~0x4);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
