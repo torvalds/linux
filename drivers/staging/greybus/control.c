@@ -159,7 +159,5 @@ static struct gb_protocol control_protocol = {
 	.minor			= GB_CONTROL_VERSION_MINOR,
 	.connection_init	= gb_control_connection_init,
 	.connection_exit	= gb_control_connection_exit,
-	.flags			= GB_PROTOCOL_SKIP_CONTROL_CONNECTED |
-				  GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED,
 };
 gb_builtin_protocol_driver(control_protocol);

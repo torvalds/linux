@@ -295,15 +295,17 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 /* Inform Interface about active CPorts */
 static int gb_connection_control_connected(struct gb_connection *connection)
 {
-	struct gb_protocol *protocol = connection->protocol;
 	struct gb_control *control;
 	u16 cport_id = connection->intf_cport_id;
 	int ret;
 
-	if (protocol->flags & GB_PROTOCOL_SKIP_CONTROL_CONNECTED)
+	if (gb_connection_is_static(connection))
 		return 0;
 
-	control = connection->bundle->intf->control;
+	control = connection->intf->control;
+
+	if (connection == control->connection)
+		return 0;
 
 	ret = gb_control_connected_operation(control, cport_id);
 	if (ret) {
@@ -319,15 +321,17 @@ static int gb_connection_control_connected(struct gb_connection *connection)
 static void
 gb_connection_control_disconnected(struct gb_connection *connection)
 {
-	struct gb_protocol *protocol = connection->protocol;
 	struct gb_control *control;
 	u16 cport_id = connection->intf_cport_id;
 	int ret;
 
-	if (protocol->flags & GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED)
+	if (gb_connection_is_static(connection))
 		return;
 
-	control = connection->bundle->intf->control;
+	control = connection->intf->control;
+
+	if (connection == control->connection)
+		return;
 
 	ret = gb_control_disconnected_operation(control, cport_id);
 	if (ret) {

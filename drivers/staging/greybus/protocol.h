@@ -14,8 +14,6 @@ struct gb_connection;
 struct gb_operation;
 
 /* Possible flags for protocol drivers */
-#define GB_PROTOCOL_SKIP_CONTROL_CONNECTED	BIT(0)	/* Don't sent connected requests */
-#define GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED	BIT(1)	/* Don't sent disconnected requests */
 #define GB_PROTOCOL_SKIP_VERSION		BIT(3)	/* Don't send get_version() requests */
 
 typedef int (*gb_connection_init_t)(struct gb_connection *);
