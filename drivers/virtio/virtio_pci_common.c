@@ -296,7 +296,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			      struct virtqueue *vqs[],
 			      vq_callback_t *callbacks[],
-			      const char *names[],
+			      const char * const names[],
 			      bool use_msix,
 			      bool per_vq_vectors)
 {
@@ -376,7 +376,7 @@ error_find:
 int vp_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		struct virtqueue *vqs[],
 		vq_callback_t *callbacks[],
-		const char *names[])
+		const char * const names[])
 {
 	int err;
 
