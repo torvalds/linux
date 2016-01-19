@@ -631,29 +631,31 @@ static int wm8960_configure_clocking(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
-	/* check if the sysclk frequency is available. */
-	for (i = 0; i < ARRAY_SIZE(sysclk_divs); ++i) {
-		if (sysclk_divs[i] == -1)
-			continue;
-		sysclk = freq_out / sysclk_divs[i];
-		for (j = 0; j < ARRAY_SIZE(dac_divs); ++j) {
-			if (sysclk == dac_divs[j] * lrclk) {
+	if (wm8960->clk_id != WM8960_SYSCLK_PLL) {
+		/* check if the sysclk frequency is available. */
+		for (i = 0; i < ARRAY_SIZE(sysclk_divs); ++i) {
+			if (sysclk_divs[i] == -1)
+				continue;
+			sysclk = freq_out / sysclk_divs[i];
+			for (j = 0; j < ARRAY_SIZE(dac_divs); ++j) {
+				if (sysclk != dac_divs[j] * lrclk)
+					continue;
 				for (k = 0; k < ARRAY_SIZE(bclk_divs); ++k)
 					if (sysclk == bclk * bclk_divs[k] / 10)
 						break;
 				if (k != ARRAY_SIZE(bclk_divs))
 					break;
 			}
+			if (j != ARRAY_SIZE(dac_divs))
+				break;
 		}
-		if (j != ARRAY_SIZE(dac_divs))
-			break;
-	}
 
-	if (i != ARRAY_SIZE(sysclk_divs)) {
-		goto configure_clock;
-	} else if (wm8960->clk_id != WM8960_SYSCLK_AUTO) {
-		dev_err(codec->dev, "failed to configure clock\n");
-		return -EINVAL;
+		if (i != ARRAY_SIZE(sysclk_divs)) {
+			goto configure_clock;
+		} else if (wm8960->clk_id != WM8960_SYSCLK_AUTO) {
+			dev_err(codec->dev, "failed to configure clock\n");
+			return -EINVAL;
+		}
 	}
 	/* get a available pll out frequency and set pll */
 	for (i = 0; i < ARRAY_SIZE(sysclk_divs); ++i) {
