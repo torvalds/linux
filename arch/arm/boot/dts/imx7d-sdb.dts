@@ -1138,7 +1138,6 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_gpio>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
-	fsl,tuning-step = <2>;
 	vmmc-supply = <&reg_sd1_vmmc>;
 	enable-sdio-wakeup;
 	keep-power-in-suspend;
@@ -1152,7 +1151,6 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	enable-sdio-wakeup;
 	keep-power-in-suspend;
-	fsl,tuning-step = <2>;
 	wifi-host;
 	status = "okay";
 };
@@ -1165,7 +1163,6 @@
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	fsl,tuning-step = <2>;
 	non-removable;
 	status = "okay";
 };

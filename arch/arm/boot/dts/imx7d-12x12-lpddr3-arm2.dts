@@ -971,7 +971,6 @@
 	wp-gpios = <&gpio5 10 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
-	fsl,tuning-step = <2>;
 	vmmc-supply = <&reg_sd2_vmmc>;
 	status = "okay";
 };
@@ -985,7 +984,6 @@
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	fsl,tuning-step = <2>;
 	non-removable;
 	keep-power-in-suspend;
 	status = "okay";
