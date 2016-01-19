@@ -569,6 +569,7 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 
 		if (node_cnt + tree_cnt >= nr_shrink)
 			goto unlock_out;
+		cond_resched();
 	}
 	up_write(&sbi->extent_tree_lock);
 
