@@ -1,6 +1,6 @@
 config INFINIBAND_HFI1
 	tristate "Intel OPA Gen1 support"
-	depends on X86_64
+	depends on X86_64 && INFINIBAND_RDMAVT
 	select MMU_NOTIFIER
 	default m
 	---help---

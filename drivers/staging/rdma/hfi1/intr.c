@@ -98,7 +98,7 @@ static void signal_ib_event(struct hfi1_pportdata *ppd, enum ib_event_type ev)
 	 */
 	if (!(dd->flags & HFI1_INITTED))
 		return;
-	event.device = &dd->verbs_dev.ibdev;
+	event.device = &dd->verbs_dev.rdi.ibdev;
 	event.element.port_num = ppd->port;
 	event.event = ev;
 	ib_dispatch_event(&event);

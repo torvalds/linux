@@ -1903,7 +1903,7 @@ static void verbs_txreq_kmem_cache_ctor(void *obj)
 int hfi1_register_ib_device(struct hfi1_devdata *dd)
 {
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
-	struct ib_device *ibdev = &dev->ibdev;
+	struct ib_device *ibdev = &dev->rdi.ibdev;
 	struct hfi1_pportdata *ppd = dd->pport;
 	unsigned i, lk_tab_size;
 	int ret;
@@ -2069,7 +2069,13 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	strncpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
 
-	ret = ib_register_device(ibdev, hfi1_create_port_files);
+	/*
+	 * Fill in rvt info object.
+	 */
+	dd->verbs_dev.rdi.driver_f.port_callback = hfi1_create_port_files;
+	dd->verbs_dev.rdi.dparms.props.max_pd = hfi1_max_pds;
+
+	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
 		goto err_reg;
 
@@ -2086,7 +2092,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 err_class:
 	hfi1_free_agents(dev);
 err_agents:
-	ib_unregister_device(ibdev);
+	rvt_unregister_device(&dd->verbs_dev.rdi);
 err_reg:
 err_verbs_txreq:
 	kmem_cache_destroy(dev->verbs_txreq_cache);
@@ -2102,13 +2108,12 @@ bail:
 void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 {
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
-	struct ib_device *ibdev = &dev->ibdev;
 
 	hfi1_verbs_unregister_sysfs(dd);
 
 	hfi1_free_agents(dev);
 
-	ib_unregister_device(ibdev);
+	rvt_unregister_device(&dd->verbs_dev.rdi);
 
 	if (!list_empty(&dev->txwait))
 		dd_dev_err(dd, "txwait list not empty!\n");

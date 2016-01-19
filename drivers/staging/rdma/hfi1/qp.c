@@ -1570,7 +1570,7 @@ struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev)
 		return NULL;
 
 	iter->dev = dev;
-	iter->specials = dev->ibdev.phys_port_cnt * 2;
+	iter->specials = dev->rdi.ibdev.phys_port_cnt * 2;
 	if (qp_iter_next(iter)) {
 		kfree(iter);
 		return NULL;
@@ -1610,7 +1610,7 @@ int qp_iter_next(struct qp_iter *iter)
 				struct hfi1_ibport *ibp;
 				int pidx;
 
-				pidx = n % dev->ibdev.phys_port_cnt;
+				pidx = n % dev->rdi.ibdev.phys_port_cnt;
 				ppd = &dd_from_dev(dev)->pport[pidx];
 				ibp = &ppd->ibport_data;
 

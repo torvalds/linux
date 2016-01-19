@@ -860,7 +860,7 @@ static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
 			vl = sc4;
 		} else {
 			sl = (byte_two >> 4) & 0xf;
-			ibp = to_iport(&dd->verbs_dev.ibdev, 1);
+			ibp = to_iport(&dd->verbs_dev.rdi.ibdev, 1);
 			sc5 = ibp->sl_to_sc[sl];
 			vl = sc_to_vlt(dd, sc5);
 			if (vl != sc4) {

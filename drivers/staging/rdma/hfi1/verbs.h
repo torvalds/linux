@@ -62,6 +62,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_mad.h>
+#include <rdma/rdma_vt.h>
 
 struct hfi1_ctxtdata;
 struct hfi1_pportdata;
@@ -749,7 +750,7 @@ struct hfi1_ibport {
 
 struct hfi1_qp_ibdev;
 struct hfi1_ibdev {
-	struct ib_device ibdev;
+	struct rvt_dev_info rdi; /* Must be first */
 	struct list_head pending_mmaps;
 	spinlock_t mmap_offset_lock; /* protect mmap_offset */
 	u32 mmap_offset;
@@ -843,7 +844,10 @@ static inline struct hfi1_qp *to_iqp(struct ib_qp *ibqp)
 
 static inline struct hfi1_ibdev *to_idev(struct ib_device *ibdev)
 {
-	return container_of(ibdev, struct hfi1_ibdev, ibdev);
+	struct rvt_dev_info *rdi;
+
+	rdi = container_of(ibdev, struct rvt_dev_info, ibdev);
+	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
 /*

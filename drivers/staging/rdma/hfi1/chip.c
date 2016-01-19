@@ -9925,7 +9925,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			sdma_all_running(dd);
 
 			/* Signal the IB layer that the port has went active */
-			event.device = &dd->verbs_dev.ibdev;
+			event.device = &dd->verbs_dev.rdi.ibdev;
 			event.element.port_num = ppd->port;
 			event.event = IB_EVENT_PORT_ACTIVE;
 		}
