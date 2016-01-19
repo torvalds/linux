@@ -916,7 +916,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
-		goto free_priv;
+		goto out_runtime_pm_put;
 	}
 
 	mmio_bar = IS_GEN2(dev) ? 1 : 0;
@@ -1121,11 +1121,10 @@ out_uncore_fini:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
-free_priv:
 	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);
-
+out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
 
 	kfree(dev_priv);
