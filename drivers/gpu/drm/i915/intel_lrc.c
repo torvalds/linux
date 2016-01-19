@@ -686,15 +686,9 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
-	int ret;
+	int ret = 0;
 
 	request->ringbuf = request->ctx->engine[request->ring->id].ringbuf;
-
-	if (request->ctx != request->i915->kernel_context) {
-		ret = intel_lr_context_pin(request);
-		if (ret)
-			return ret;
-	}
 
 	if (i915.enable_guc_submission) {
 		/*
@@ -709,7 +703,10 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 			return ret;
 	}
 
-	return 0;
+	if (request->ctx != request->i915->kernel_context)
+		ret = intel_lr_context_pin(request);
+
+	return ret;
 }
 
 static int logical_ring_wait_for_space(struct drm_i915_gem_request *req,
@@ -2391,22 +2388,21 @@ void intel_lr_context_free(struct intel_context *ctx)
 {
 	int i;
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = I915_NUM_RINGS; --i >= 0; ) {
+		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
 		struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
 
-		if (ctx_obj) {
-			struct intel_ringbuffer *ringbuf =
-					ctx->engine[i].ringbuf;
-			struct intel_engine_cs *ring = ringbuf->ring;
+		if (!ctx_obj)
+			continue;
 
-			if (ctx == ctx->i915->kernel_context) {
-				intel_unpin_ringbuffer_obj(ringbuf);
-				i915_gem_object_ggtt_unpin(ctx_obj);
-			}
-			WARN_ON(ctx->engine[ring->id].pin_count);
-			intel_ringbuffer_free(ringbuf);
-			drm_gem_object_unreference(&ctx_obj->base);
+		if (ctx == ctx->i915->kernel_context) {
+			intel_unpin_ringbuffer_obj(ringbuf);
+			i915_gem_object_ggtt_unpin(ctx_obj);
 		}
+
+		WARN_ON(ctx->engine[i].pin_count);
+		intel_ringbuffer_free(ringbuf);
+		drm_gem_object_unreference(&ctx_obj->base);
 	}
 }
 
@@ -2481,7 +2477,7 @@ static void lrc_setup_hardware_status_page(struct intel_engine_cs *ring,
  */
 
 int intel_lr_context_deferred_alloc(struct intel_context *ctx,
-				     struct intel_engine_cs *ring)
+				    struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_gem_object *ctx_obj;

@@ -2679,10 +2679,8 @@ void i915_gem_request_free(struct kref *req_ref)
 		i915_gem_request_remove_from_client(req);
 
 	if (ctx) {
-		if (i915.enable_execlists) {
-			if (ctx != req->i915->kernel_context)
-				intel_lr_context_unpin(req);
-		}
+		if (i915.enable_execlists && ctx != req->i915->kernel_context)
+			intel_lr_context_unpin(req);
 
 		i915_gem_context_unreference(ctx);
 	}

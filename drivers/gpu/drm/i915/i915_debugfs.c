@@ -1960,11 +1960,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		seq_puts(m, "HW context ");
 		describe_ctx(m, ctx);
-		for_each_ring(ring, dev_priv, i) {
-			if (dev_priv->kernel_context == ctx)
-				seq_printf(m, "(default context %s) ",
-					   ring->name);
-		}
+		if (ctx == dev_priv->kernel_context)
+			seq_printf(m, "(kernel context) ");
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');
@@ -2056,12 +2053,10 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		for_each_ring(ring, dev_priv, i) {
-			if (dev_priv->kernel_context != ctx)
+	list_for_each_entry(ctx, &dev_priv->context_list, link)
+		if (ctx != dev_priv->kernel_context)
+			for_each_ring(ring, dev_priv, i)
 				i915_dump_lrc_obj(m, ctx, ring);
-		}
-	}
 
 	mutex_unlock(&dev->struct_mutex);
 
