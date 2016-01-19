@@ -461,18 +461,6 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv)
 		fbc->deactivate(dev_priv);
 }
 
-static void set_no_fbc_reason(struct drm_i915_private *dev_priv,
-			      const char *reason)
-{
-	struct intel_fbc *fbc = &dev_priv->fbc;
-
-	if (fbc->no_fbc_reason == reason)
-		return;
-
-	fbc->no_fbc_reason = reason;
-	DRM_DEBUG_KMS("Disabling FBC: %s\n", reason);
-}
-
 static bool crtc_can_fbc(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
@@ -761,18 +749,18 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
 	if (!cache->plane.visible) {
-		set_no_fbc_reason(dev_priv, "primary plane not visible");
+		fbc->no_fbc_reason = "primary plane not visible";
 		return false;
 	}
 
 	if ((cache->crtc.mode_flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (cache->crtc.mode_flags & DRM_MODE_FLAG_DBLSCAN)) {
-		set_no_fbc_reason(dev_priv, "incompatible mode");
+		fbc->no_fbc_reason = "incompatible mode";
 		return false;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(crtc)) {
-		set_no_fbc_reason(dev_priv, "mode too large for compression");
+		fbc->no_fbc_reason = "mode too large for compression";
 		return false;
 	}
 
@@ -781,29 +769,29 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 */
 	if (cache->fb.tiling_mode != I915_TILING_X ||
 	    cache->fb.fence_reg == I915_FENCE_REG_NONE) {
-		set_no_fbc_reason(dev_priv, "framebuffer not tiled or fenced");
+		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
 		return false;
 	}
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
 	    cache->plane.rotation != BIT(DRM_ROTATE_0)) {
-		set_no_fbc_reason(dev_priv, "rotation unsupported");
+		fbc->no_fbc_reason = "rotation unsupported";
 		return false;
 	}
 
 	if (!stride_is_valid(dev_priv, cache->fb.stride)) {
-		set_no_fbc_reason(dev_priv, "framebuffer stride not supported");
+		fbc->no_fbc_reason = "framebuffer stride not supported";
 		return false;
 	}
 
 	if (!pixel_format_is_valid(dev_priv, cache->fb.pixel_format)) {
-		set_no_fbc_reason(dev_priv, "pixel format is invalid");
+		fbc->no_fbc_reason = "pixel format is invalid";
 		return false;
 	}
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
 	    cache->crtc.hsw_bdw_pixel_rate >= dev_priv->cdclk_freq * 95 / 100) {
-		set_no_fbc_reason(dev_priv, "pixel rate is too big");
+		fbc->no_fbc_reason = "pixel rate is too big";
 		return false;
 	}
 
@@ -819,7 +807,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * important case, we can implement it later. */
 	if (intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache) >
 	    fbc->compressed_fb.size * fbc->threshold) {
-		set_no_fbc_reason(dev_priv, "CFB requirements changed");
+		fbc->no_fbc_reason = "CFB requirements changed";
 		return false;
 	}
 
@@ -829,24 +817,25 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (intel_vgpu_active(dev_priv->dev)) {
-		set_no_fbc_reason(dev_priv, "VGPU is active");
+		fbc->no_fbc_reason = "VGPU is active";
 		return false;
 	}
 
 	if (i915.enable_fbc < 0) {
-		set_no_fbc_reason(dev_priv, "disabled per chip default");
+		fbc->no_fbc_reason = "disabled per chip default";
 		return false;
 	}
 
 	if (!i915.enable_fbc) {
-		set_no_fbc_reason(dev_priv, "disabled per module param");
+		fbc->no_fbc_reason = "disabled per module param";
 		return false;
 	}
 
 	if (!crtc_can_fbc(crtc)) {
-		set_no_fbc_reason(dev_priv, "no enabled pipes can have FBC");
+		fbc->no_fbc_reason = "no enabled pipes can have FBC";
 		return false;
 	}
 
@@ -897,7 +886,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc)
 	mutex_lock(&fbc->lock);
 
 	if (!multiple_pipes_ok(crtc)) {
-		set_no_fbc_reason(dev_priv, "more than one pipe active");
+		fbc->no_fbc_reason = "more than one pipe active";
 		goto deactivate;
 	}
 
@@ -1115,7 +1104,7 @@ void intel_fbc_enable(struct intel_crtc *crtc)
 
 	intel_fbc_update_state_cache(crtc);
 	if (intel_fbc_alloc_cfb(crtc)) {
-		set_no_fbc_reason(dev_priv, "not enough stolen memory");
+		fbc->no_fbc_reason = "not enough stolen memory";
 		goto out;
 	}
 
