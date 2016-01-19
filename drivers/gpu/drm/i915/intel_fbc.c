@@ -735,7 +735,6 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc)
 	 * platforms that need. */
 	if (dev_priv->fbc.activate == ilk_fbc_activate)
 		cache->fb.ilk_ggtt_offset = i915_gem_obj_ggtt_offset(obj);
-	cache->fb.id = fb->base.id;
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.fence_reg = obj->fence_reg;
@@ -858,7 +857,6 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->crtc.plane = crtc->plane;
 	params->crtc.fence_y_offset = get_crtc_fence_y_offset(crtc);
 
-	params->fb.id = cache->fb.id;
 	params->fb.pixel_format = cache->fb.pixel_format;
 	params->fb.stride = cache->fb.stride;
 	params->fb.fence_reg = cache->fb.fence_reg;
