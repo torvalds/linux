@@ -98,6 +98,9 @@
 #define QUP_STATUS_ERROR_FLAGS		0x7c
 
 #define QUP_READ_LIMIT			256
+#define SET_BIT				0x1
+#define RESET_BIT			0x0
+#define ONE_BYTE			0x1
 
 struct qup_i2c_dev {
 	struct device		*dev;
@@ -221,26 +224,42 @@ static int qup_i2c_change_state(struct qup_i2c_dev *qup, u32 state)
 	return 0;
 }
 
-static int qup_i2c_wait_writeready(struct qup_i2c_dev *qup)
+/**
+ * qup_i2c_wait_ready - wait for a give number of bytes in tx/rx path
+ * @qup: The qup_i2c_dev device
+ * @op: The bit/event to wait on
+ * @val: value of the bit to wait on, 0 or 1
+ * @len: The length the bytes to be transferred
+ */
+static int qup_i2c_wait_ready(struct qup_i2c_dev *qup, int op, bool val,
+			      int len)
 {
 	unsigned long timeout;
 	u32 opflags;
 	u32 status;
+	u32 shift = __ffs(op);
 
-	timeout = jiffies + HZ;
+	len *= qup->one_byte_t;
+	/* timeout after a wait of twice the max time */
+	timeout = jiffies + len * 4;
 
 	for (;;) {
 		opflags = readl(qup->base + QUP_OPERATIONAL);
 		status = readl(qup->base + QUP_I2C_STATUS);
 
-		if (!(opflags & QUP_OUT_NOT_EMPTY) &&
-		    !(status & I2C_STATUS_BUS_ACTIVE))
-			return 0;
+		if (((opflags & op) >> shift) == val) {
+			if (op == QUP_OUT_NOT_EMPTY) {
+				if (!(status & I2C_STATUS_BUS_ACTIVE))
+					return 0;
+			} else {
+				return 0;
+			}
+		}
 
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 
-		usleep_range(qup->one_byte_t, qup->one_byte_t * 2);
+		usleep_range(len, len * 2);
 	}
 }
 
@@ -261,13 +280,13 @@ static void qup_i2c_set_write_mode(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 	}
 }
 
-static void qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
+static int qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 {
 	u32 addr = msg->addr << 1;
 	u32 qup_tag;
-	u32 opflags;
 	int idx;
 	u32 val;
+	int ret = 0;
 
 	if (qup->pos == 0) {
 		val = QUP_TAG_START | addr;
@@ -279,9 +298,10 @@ static void qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 
 	while (qup->pos < msg->len) {
 		/* Check that there's space in the FIFO for our pair */
-		opflags = readl(qup->base + QUP_OPERATIONAL);
-		if (opflags & QUP_OUT_FULL)
-			break;
+		ret = qup_i2c_wait_ready(qup, QUP_OUT_FULL, RESET_BIT,
+					 4 * ONE_BYTE);
+		if (ret)
+			return ret;
 
 		if (qup->pos == msg->len - 1)
 			qup_tag = QUP_TAG_STOP;
@@ -300,6 +320,8 @@ static void qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 		qup->pos++;
 		idx++;
 	}
+
+	return ret;
 }
 
 static int qup_i2c_write_one(struct qup_i2c_dev *qup, struct i2c_msg *msg)
@@ -325,7 +347,9 @@ static int qup_i2c_write_one(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 		if (ret)
 			goto err;
 
-		qup_i2c_issue_write(qup, msg);
+		ret = qup_i2c_issue_write(qup, msg);
+		if (ret)
+			goto err;
 
 		ret = qup_i2c_change_state(qup, QUP_RUN_STATE);
 		if (ret)
@@ -347,7 +371,7 @@ static int qup_i2c_write_one(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 	} while (qup->pos < msg->len);
 
 	/* Wait for the outstanding data in the fifo to drain */
-	ret = qup_i2c_wait_writeready(qup);
+	ret = qup_i2c_wait_ready(qup, QUP_OUT_NOT_EMPTY, RESET_BIT, ONE_BYTE);
 
 err:
 	disable_irq(qup->irq);
@@ -384,18 +408,19 @@ static void qup_i2c_issue_read(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 }
 
 
-static void qup_i2c_read_fifo(struct qup_i2c_dev *qup, struct i2c_msg *msg)
+static int qup_i2c_read_fifo(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 {
-	u32 opflags;
 	u32 val = 0;
 	int idx;
+	int ret = 0;
 
 	for (idx = 0; qup->pos < msg->len; idx++) {
 		if ((idx & 1) == 0) {
 			/* Check that FIFO have data */
-			opflags = readl(qup->base + QUP_OPERATIONAL);
-			if (!(opflags & QUP_IN_NOT_EMPTY))
-				break;
+			ret = qup_i2c_wait_ready(qup, QUP_IN_NOT_EMPTY,
+						 SET_BIT, 4 * ONE_BYTE);
+			if (ret)
+				return ret;
 
 			/* Reading 2 words at time */
 			val = readl(qup->base + QUP_IN_FIFO_BASE);
@@ -405,6 +430,8 @@ static void qup_i2c_read_fifo(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 			msg->buf[qup->pos++] = val >> QUP_MSW_SHIFT;
 		}
 	}
+
+	return ret;
 }
 
 static int qup_i2c_read_one(struct qup_i2c_dev *qup, struct i2c_msg *msg)
@@ -450,7 +477,9 @@ static int qup_i2c_read_one(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 			goto err;
 		}
 
-		qup_i2c_read_fifo(qup, msg);
+		ret = qup_i2c_read_fifo(qup, msg);
+		if (ret)
+			goto err;
 	} while (qup->pos < msg->len);
 
 err:
