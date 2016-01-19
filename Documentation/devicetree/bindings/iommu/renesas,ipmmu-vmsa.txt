@@ -7,7 +7,15 @@ connected to the IPMMU through a port called micro-TLB.
 
 Required Properties:
 
-  - compatible: Must contain "renesas,ipmmu-vmsa".
+  - compatible: Must contain SoC-specific and generic entries from below.
+
+    - "renesas,ipmmu-r8a73a4" for the R8A73A4 (R-Mobile APE6) IPMMU.
+    - "renesas,ipmmu-r8a7790" for the R8A7790 (R-Car H2) IPMMU.
+    - "renesas,ipmmu-r8a7791" for the R8A7791 (R-Car M2-W) IPMMU.
+    - "renesas,ipmmu-r8a7793" for the R8A7793 (R-Car M2-N) IPMMU.
+    - "renesas,ipmmu-r8a7794" for the R8A7794 (R-Car E2) IPMMU.
+    - "renesas,ipmmu-vmsa" for generic R-Car Gen2 VMSA-compatible IPMMU.
+
   - reg: Base address and size of the IPMMU registers.
   - interrupts: Specifiers for the MMU fault interrupts. For instances that
     support secure mode two interrupts must be specified, for non-secure and
@@ -27,7 +35,7 @@ node with the following property:
 Example: R8A7791 IPMMU-MX and VSP1-D0 bus master
 
 	ipmmu_mx: mmu@fe951000 {
-		compatible = "renasas,ipmmu-vmsa";
+		compatible = "renasas,ipmmu-r8a7791", "renasas,ipmmu-vmsa";
 		reg = <0 0xfe951000 0 0x1000>;
 		interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 221 IRQ_TYPE_LEVEL_HIGH>;
