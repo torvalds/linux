@@ -1679,24 +1679,6 @@ unsigned hfi1_get_npkeys(struct hfi1_devdata *dd)
 	return ARRAY_SIZE(dd->pport[0].pkeys);
 }
 
-static int query_pkey(struct ib_device *ibdev, u8 port, u16 index,
-		      u16 *pkey)
-{
-	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
-	int ret;
-
-	if (index >= hfi1_get_npkeys(dd)) {
-		ret = -EINVAL;
-		goto bail;
-	}
-
-	*pkey = hfi1_get_pkey(to_iport(ibdev, port), index);
-	ret = 0;
-
-bail:
-	return ret;
-}
-
 /**
  * alloc_ucontext - allocate a ucontest
  * @ibdev: the infiniband device
@@ -1864,7 +1846,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_device = modify_device;
 	ibdev->query_port = query_port;
 	ibdev->modify_port = modify_port;
-	ibdev->query_pkey = query_pkey;
+	ibdev->query_pkey = NULL;
 	ibdev->query_gid = query_gid;
 	ibdev->alloc_ucontext = alloc_ucontext;
 	ibdev->dealloc_ucontext = dealloc_ucontext;
