@@ -70,7 +70,7 @@ module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 
 /* synchronizes the request device file */
-struct mutex devreq_mutex;
+DEFINE_MUTEX(devreq_mutex);
 
 /*
  * Blocks non-priority requests from being queued for servicing.  This
@@ -78,7 +78,7 @@ struct mutex devreq_mutex;
  * for now it's only being used to stall the op addition to the request
  * list
  */
-struct mutex request_mutex;
+DEFINE_MUTEX(request_mutex);
 
 /* hash table for storing operations waiting for matching downcall */
 struct list_head *htable_ops_in_progress;
@@ -159,9 +159,6 @@ static int __init orangefs_init(void)
 			   ret);
 		goto cleanup_kiocb;
 	}
-
-	mutex_init(&devreq_mutex);
-	mutex_init(&request_mutex);
 
 	htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
