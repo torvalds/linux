@@ -13558,7 +13558,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
-			intel_fbc_enable(intel_crtc);
 		}
 
 		if (update_pipe) {
@@ -13570,6 +13569,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		if (!modeset)
 			intel_pre_plane_update(intel_crtc);
+
+		if (crtc->state->active && intel_crtc->atomic.update_fbc)
+			intel_fbc_enable(intel_crtc);
 
 		if (crtc->state->active &&
 		    (crtc->state->planes_changed || update_pipe))

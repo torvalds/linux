@@ -1084,7 +1084,9 @@ out:
  * @crtc: the CRTC
  *
  * This function checks if the given CRTC was chosen for FBC, then enables it if
- * possible. Notice that it doesn't activate FBC.
+ * possible. Notice that it doesn't activate FBC. It is valid to call
+ * intel_fbc_enable multiple times for the same pipe without an
+ * intel_fbc_disable in the middle, as long as it is deactivated.
  */
 void intel_fbc_enable(struct intel_crtc *crtc)
 {
@@ -1097,7 +1099,11 @@ void intel_fbc_enable(struct intel_crtc *crtc)
 	mutex_lock(&fbc->lock);
 
 	if (fbc->enabled) {
-		WARN_ON(fbc->crtc == crtc);
+		WARN_ON(fbc->crtc == NULL);
+		if (fbc->crtc == crtc) {
+			WARN_ON(!crtc->config->enable_fbc);
+			WARN_ON(fbc->active);
+		}
 		goto out;
 	}
 
