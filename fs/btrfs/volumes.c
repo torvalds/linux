@@ -108,7 +108,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	},
 };
 
-const u64 const btrfs_raid_group[BTRFS_NR_RAID_TYPES] = {
+const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID10] = BTRFS_BLOCK_GROUP_RAID10,
 	[BTRFS_RAID_RAID1]  = BTRFS_BLOCK_GROUP_RAID1,
 	[BTRFS_RAID_DUP]    = BTRFS_BLOCK_GROUP_DUP,
