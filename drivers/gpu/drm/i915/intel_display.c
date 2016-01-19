@@ -10912,6 +10912,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_frontbuffer_flip_complete(dev, to_intel_plane(primary)->frontbuffer_bit);
+	intel_fbc_update(crtc);
 	drm_framebuffer_unreference(work->old_fb);
 
 	BUG_ON(atomic_read(&crtc->unpin_work_count) == 0);
