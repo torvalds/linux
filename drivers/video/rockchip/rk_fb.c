@@ -4190,6 +4190,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				       xact, yact, width, height);
 				return 0;
 			}
+			ymirror = 0;
 			local_irq_save(flags);
 			if (dev_drv->ops->wait_frame_start)
 				dev_drv->ops->wait_frame_start(dev_drv, 0);
