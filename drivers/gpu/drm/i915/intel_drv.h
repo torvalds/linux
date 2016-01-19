@@ -1330,7 +1330,6 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 
 /* intel_fbc.c */
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
-void intel_fbc_deactivate(struct intel_crtc *crtc);
 void intel_fbc_pre_update(struct intel_crtc *crtc);
 void intel_fbc_post_update(struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
