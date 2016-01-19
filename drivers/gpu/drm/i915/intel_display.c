@@ -2946,7 +2946,7 @@ u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
 	struct i915_vma *vma;
 	u64 offset;
 
-	intel_fill_fb_ggtt_view(&view, intel_plane->base.fb,
+	intel_fill_fb_ggtt_view(&view, intel_plane->base.state->fb,
 				intel_plane->base.state);
 
 	vma = i915_gem_obj_to_ggtt_view(obj, &view);
