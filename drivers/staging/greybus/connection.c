@@ -19,7 +19,7 @@ static DEFINE_SPINLOCK(gb_connections_lock);
 static DEFINE_MUTEX(gb_connection_mutex);
 
 
-/* This is only used at initialization time; no locking is required. */
+/* Caller holds gb_connection_mutex. */
 static struct gb_connection *
 gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 {
@@ -142,17 +142,6 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	struct ida *id_map = &hd->cport_id_map;
 	int ida_start, ida_end;
 
-	/*
-	 * If a manifest tries to reuse a cport, reject it.  We
-	 * initialize connections serially so we don't need to worry
-	 * about holding the connection lock.
-	 */
-	if (bundle && gb_connection_intf_find(bundle->intf, cport_id)) {
-		dev_err(&bundle->dev, "cport %u already connected\n",
-				cport_id);
-		return NULL;
-	}
-
 	if (hd_cport_id < 0) {
 		ida_start = 0;
 		ida_end = hd->num_cports;
@@ -165,6 +154,11 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	}
 
 	mutex_lock(&gb_connection_mutex);
+
+	if (intf && gb_connection_intf_find(intf, cport_id)) {
+		dev_err(&intf->dev, "cport %u already in use\n", cport_id);
+		goto err_unlock;
+	}
 
 	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
 	if (hd_cport_id < 0)
