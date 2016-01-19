@@ -5124,7 +5124,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 
-	intel_fbc_disable_crtc(intel_crtc);
+	intel_fbc_disable(intel_crtc);
 }
 
 static void haswell_crtc_disable(struct drm_crtc *crtc)
@@ -5176,7 +5176,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 						      true);
 	}
 
-	intel_fbc_disable_crtc(intel_crtc);
+	intel_fbc_disable(intel_crtc);
 }
 
 static void i9xx_pfit_enable(struct intel_crtc *crtc)
@@ -6352,7 +6352,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	if (!IS_GEN2(dev))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	intel_fbc_disable_crtc(intel_crtc);
+	intel_fbc_disable(intel_crtc);
 }
 
 static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
@@ -16041,7 +16041,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_unregister_dsm_handler();
 
-	intel_fbc_disable(dev_priv);
+	intel_fbc_global_disable(dev_priv);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();

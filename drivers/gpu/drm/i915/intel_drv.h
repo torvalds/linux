@@ -1334,8 +1334,8 @@ void intel_fbc_pre_update(struct intel_crtc *crtc);
 void intel_fbc_post_update(struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
 void intel_fbc_enable(struct intel_crtc *crtc);
-void intel_fbc_disable(struct drm_i915_private *dev_priv);
-void intel_fbc_disable_crtc(struct intel_crtc *crtc);
+void intel_fbc_disable(struct intel_crtc *crtc);
+void intel_fbc_global_disable(struct drm_i915_private *dev_priv);
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin);
