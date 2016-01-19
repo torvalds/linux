@@ -998,13 +998,16 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 {
 	unsigned long flags;
 	struct hfi1_devdata *dd;
-	int ret;
+	int ret, nports;
 
-	dd = (struct hfi1_devdata *)ib_alloc_device(sizeof(*dd) + extra);
+	/* extra is * number of ports */
+	nports = extra / sizeof(struct hfi1_pportdata);
+
+	dd = (struct hfi1_devdata *)rvt_alloc_device(sizeof(*dd) + extra,
+						     nports);
 	if (!dd)
 		return ERR_PTR(-ENOMEM);
-	/* extra is * number of ports */
-	dd->num_pports = extra / sizeof(struct hfi1_pportdata);
+	dd->num_pports = nports;
 	dd->pport = (struct hfi1_pportdata *)(dd + 1);
 
 	INIT_LIST_HEAD(&dd->list);
