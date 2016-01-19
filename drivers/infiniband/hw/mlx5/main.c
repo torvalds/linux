@@ -1057,9 +1057,6 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 		return -ENOSYS;
 
 	case MLX5_IB_MMAP_CORE_CLOCK:
-	{
-		phys_addr_t pfn;
-
 		if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 			return -EINVAL;
 
@@ -1082,7 +1079,6 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 			    vma->vm_start,
 			    (unsigned long long)pfn << PAGE_SHIFT);
 		break;
-	}
 
 	default:
 		return -EINVAL;
