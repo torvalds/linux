@@ -49,17 +49,15 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 
 	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
-		struct vsp1_pipeline *pipe;
 
 		if (wpf == NULL)
 			continue;
 
-		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
 		status = vsp1_read(vsp1, VI6_WPF_IRQ_STA(i));
 		vsp1_write(vsp1, VI6_WPF_IRQ_STA(i), ~status & mask);
 
 		if (status & VI6_WFP_IRQ_STA_FRE) {
-			vsp1_pipeline_frame_end(pipe);
+			vsp1_pipeline_frame_end(wpf->pipe);
 			ret = IRQ_HANDLED;
 		}
 	}

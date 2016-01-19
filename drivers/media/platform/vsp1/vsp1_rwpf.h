@@ -25,6 +25,7 @@
 
 struct v4l2_ctrl;
 struct vsp1_dl_manager;
+struct vsp1_pipeline;
 struct vsp1_rwpf;
 struct vsp1_video;
 
@@ -36,6 +37,7 @@ struct vsp1_rwpf {
 	struct vsp1_entity entity;
 	struct v4l2_ctrl_handler ctrls;
 
+	struct vsp1_pipeline *pipe;
 	struct vsp1_video *video;
 
 	unsigned int max_width;

@@ -293,10 +293,12 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 			rwpf = to_rwpf(subdev);
 			pipe->inputs[rwpf->entity.index] = rwpf;
 			rwpf->video->pipe_index = ++pipe->num_inputs;
+			rwpf->pipe = pipe;
 		} else if (e->type == VSP1_ENTITY_WPF) {
 			rwpf = to_rwpf(subdev);
 			pipe->output = rwpf;
 			rwpf->video->pipe_index = 0;
+			rwpf->pipe = pipe;
 		} else if (e->type == VSP1_ENTITY_LIF) {
 			pipe->lif = e;
 		} else if (e->type == VSP1_ENTITY_BRU) {
@@ -384,7 +386,7 @@ static void vsp1_video_pipeline_cleanup(struct vsp1_pipeline *pipe)
 static struct vsp1_vb2_buffer *
 vsp1_video_complete_buffer(struct vsp1_video *video)
 {
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
+	struct vsp1_pipeline *pipe = video->rwpf->pipe;
 	struct vsp1_vb2_buffer *next = NULL;
 	struct vsp1_vb2_buffer *done;
 	unsigned long flags;
@@ -563,7 +565,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vsp1_video *video = vb2_get_drv_priv(vb->vb2_queue);
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
+	struct vsp1_pipeline *pipe = video->rwpf->pipe;
 	struct vsp1_vb2_buffer *buf = to_vsp1_vb2_buffer(vbuf);
 	unsigned long flags;
 	bool empty;
@@ -628,7 +630,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
+	struct vsp1_pipeline *pipe = video->rwpf->pipe;
 	unsigned long flags;
 	int ret;
 
@@ -655,7 +657,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
+	struct vsp1_pipeline *pipe = video->rwpf->pipe;
 	struct vsp1_vb2_buffer *buffer;
 	unsigned long flags;
 	int ret;
@@ -802,8 +804,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * FIXME: This is racy, the ioctl is only protected by the video node
 	 * lock.
 	 */
-	pipe = video->video.entity.pipe
-	     ? to_vsp1_pipeline(&video->video.entity) : &video->pipe;
+	pipe = video->rwpf->pipe ? video->rwpf->pipe : &video->pipe;
 
 	ret = media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
 	if (ret < 0)

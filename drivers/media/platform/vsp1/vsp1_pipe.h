@@ -103,14 +103,6 @@ struct vsp1_pipeline {
 	struct vsp1_dl_list *dl;
 };
 
-static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
-{
-	if (likely(e->pipe))
-		return container_of(e->pipe, struct vsp1_pipeline, pipe);
-	else
-		return NULL;
-}
-
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_init(struct vsp1_pipeline *pipe);
 
