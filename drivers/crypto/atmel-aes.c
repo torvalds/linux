@@ -280,6 +280,7 @@ static const char *atmel_aes_reg_name(u32 offset, char *tmp, size_t sz)
 	case AES_GCMHR(2):
 	case AES_GCMHR(3):
 		snprintf(tmp, sz, "GCMHR[%u]", (offset - AES_GCMHR(0)) >> 2);
+		break;
 
 	default:
 		snprintf(tmp, sz, "0x%02x", offset);
