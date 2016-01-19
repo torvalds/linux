@@ -75,9 +75,9 @@
 #define ORANGEFS_MAX_MOUNT_OPT_LEN        0x00000080
 #define ORANGEFS_MAX_FSKEY_LEN            64
 
-#define MAX_DEV_REQ_UPSIZE (2*sizeof(__s32) +   \
+#define MAX_DEV_REQ_UPSIZE (2 * sizeof(__s32) +   \
 sizeof(__u64) + sizeof(struct orangefs_upcall_s))
-#define MAX_DEV_REQ_DOWNSIZE (2*sizeof(__s32) + \
+#define MAX_DEV_REQ_DOWNSIZE (2 * sizeof(__s32) + \
 sizeof(__u64) + sizeof(struct orangefs_downcall_s))
 
 /* borrowed from irda.h */

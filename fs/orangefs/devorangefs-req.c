@@ -275,10 +275,10 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		     ret);
 
         if (total < MAX_DEV_REQ_DOWNSIZE) {
-		gossip_err("%s: total:%d: must be at least:%lu:\n",
+		gossip_err("%s: total:%d: must be at least:%u:\n",
 			   __func__,
 			   total,
-			   MAX_DEV_REQ_DOWNSIZE);
+			   (unsigned int) MAX_DEV_REQ_DOWNSIZE);
 		ret = -EFAULT;
 		goto out;
 	}
