@@ -898,23 +898,6 @@ static long orangefs_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #endif /* CONFIG_COMPAT is in .config */
 
-/*
- * The following two ioctl32 functions had been refactored into the above
- * CONFIG_COMPAT ifdef, but that was an over simplification that was
- * not noticed until we tried to compile on power pc...
- */
-#if (defined(CONFIG_COMPAT) && !defined(HAVE_REGISTER_IOCTL32_CONVERSION)) || !defined(CONFIG_COMPAT)
-static int orangefs_ioctl32_init(void)
-{
-	return 0;
-}
-
-static void orangefs_ioctl32_cleanup(void)
-{
-	return;
-}
-#endif
-
 /* the assigned character device major number */
 static int orangefs_dev_major;
 
@@ -924,13 +907,6 @@ static int orangefs_dev_major;
  */
 int orangefs_dev_init(void)
 {
-	int ret;
-
-	/* register the ioctl32 sub-system */
-	ret = orangefs_ioctl32_init();
-	if (ret < 0)
-		return ret;
-
 	/* register orangefs-req device  */
 	orangefs_dev_major = register_chrdev(0,
 					  ORANGEFS_REQDEVICE_NAME,
@@ -939,7 +915,6 @@ int orangefs_dev_init(void)
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "Failed to register /dev/%s (error %d)\n",
 			     ORANGEFS_REQDEVICE_NAME, orangefs_dev_major);
-		orangefs_ioctl32_cleanup();
 		return orangefs_dev_major;
 	}
 
@@ -957,8 +932,6 @@ void orangefs_dev_cleanup(void)
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "*** /dev/%s character device unregistered ***\n",
 		     ORANGEFS_REQDEVICE_NAME);
-	/* unregister the ioctl32 sub-system */
-	orangefs_ioctl32_cleanup();
 }
 
 static unsigned int orangefs_devreq_poll(struct file *file,
