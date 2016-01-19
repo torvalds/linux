@@ -495,8 +495,6 @@ void gb_connection_destroy(struct gb_connection *connection)
 	if (WARN_ON(!connection))
 		return;
 
-	gb_connection_legacy_exit(connection);
-
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
