@@ -92,17 +92,6 @@ struct hfi1_packet;
 #define IB_NAK_REMOTE_OPERATIONAL_ERROR 0x63
 #define IB_NAK_INVALID_RD_REQUEST       0x64
 
-/* Flags for checking QP state (see ib_hfi1_state_ops[]) */
-#define HFI1_POST_SEND_OK                0x01
-#define HFI1_POST_RECV_OK                0x02
-#define HFI1_PROCESS_RECV_OK             0x04
-#define HFI1_PROCESS_SEND_OK             0x08
-#define HFI1_PROCESS_NEXT_SEND_OK        0x10
-#define HFI1_FLUSH_SEND			0x20
-#define HFI1_FLUSH_RECV			0x40
-#define HFI1_PROCESS_OR_FLUSH_SEND \
-	(HFI1_PROCESS_SEND_OK | HFI1_FLUSH_SEND)
-
 /* IB Performance Manager status values */
 #define IB_PMA_SAMPLE_STATUS_DONE       0x00
 #define IB_PMA_SAMPLE_STATUS_STARTED    0x01
@@ -256,19 +245,6 @@ struct hfi1_pkt_state {
 #define HFI1_PSN_CREDIT  16
 
 /*
- * Since struct rvt_swqe is not a fixed size, we can't simply index into
- * struct hfi1_qp.s_wq.  This function does the array index computation.
- */
-static inline struct rvt_swqe *get_swqe_ptr(struct rvt_qp *qp,
-					    unsigned n)
-{
-	return (struct rvt_swqe *)((char *)qp->s_wq +
-				     (sizeof(struct rvt_swqe) +
-				      qp->s_max_sge *
-				      sizeof(struct rvt_sge)) * n);
-}
-
-/*
  * Since struct rvt_rwqe is not a fixed size, we can't simply index into
  * struct rvt_rwq.wq.  This function does the array index computation.
  */
@@ -358,11 +334,6 @@ struct hfi1_verbs_counters {
 	u32 excessive_buffer_overrun_errors;
 	u32 vl15_dropped;
 };
-
-static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)
-{
-	return container_of(ibqp, struct rvt_qp, ibqp);
-}
 
 static inline struct hfi1_ibdev *to_idev(struct ib_device *ibdev)
 {
@@ -544,7 +515,9 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle);
 
-void hfi1_do_send(struct work_struct *work);
+void _hfi1_do_send(struct work_struct *work);
+
+void hfi1_do_send(struct rvt_qp *qp);
 
 void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status);
@@ -577,7 +550,7 @@ extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];
 
 extern const u8 hdr_len_by_opcode[];
 
-extern const int ib_hfi1_state_ops[];
+extern const int ib_rvt_state_ops[];
 
 extern __be64 ib_hfi1_sys_image_guid;    /* in network order */
 

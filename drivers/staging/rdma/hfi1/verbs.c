@@ -133,28 +133,6 @@ static void verbs_sdma_complete(
 #define TXREQ_NAME_LEN 24
 
 /*
- * Note that it is OK to post send work requests in the SQE and ERR
- * states; hfi1_do_send() will process them and generate error
- * completions as per IB 1.2 C10-96.
- */
-const int ib_hfi1_state_ops[IB_QPS_ERR + 1] = {
-	[IB_QPS_RESET] = 0,
-	[IB_QPS_INIT] = HFI1_POST_RECV_OK,
-	[IB_QPS_RTR] = HFI1_POST_RECV_OK | HFI1_PROCESS_RECV_OK,
-	[IB_QPS_RTS] = HFI1_POST_RECV_OK | HFI1_PROCESS_RECV_OK |
-	    HFI1_POST_SEND_OK | HFI1_PROCESS_SEND_OK |
-	    HFI1_PROCESS_NEXT_SEND_OK,
-	[IB_QPS_SQD] = HFI1_POST_RECV_OK | HFI1_PROCESS_RECV_OK |
-	    HFI1_POST_SEND_OK | HFI1_PROCESS_SEND_OK,
-	[IB_QPS_SQE] = HFI1_POST_RECV_OK | HFI1_PROCESS_RECV_OK |
-	    HFI1_POST_SEND_OK | HFI1_FLUSH_SEND,
-	[IB_QPS_ERR] = HFI1_POST_RECV_OK | HFI1_FLUSH_RECV |
-	    HFI1_POST_SEND_OK | HFI1_FLUSH_SEND,
-};
-
-static inline void _hfi1_schedule_send(struct rvt_qp *qp);
-
-/*
  * Translate ib_wr_opcode into ib_wc_opcode.
  */
 const enum ib_wc_opcode ib_hfi1_wc_opcode[] = {
@@ -346,169 +324,6 @@ void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, int release)
 }
 
 /**
- * post_one_send - post one RC, UC, or UD send work request
- * @qp: the QP to post on
- * @wr: the work request to send
- */
-static int post_one_send(struct rvt_qp *qp, struct ib_send_wr *wr)
-{
-	struct rvt_swqe *wqe;
-	u32 next;
-	int i;
-	int j;
-	int acc;
-	struct rvt_lkey_table *rkt;
-	struct rvt_pd *pd;
-	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
-	struct hfi1_pportdata *ppd;
-	struct hfi1_ibport *ibp;
-
-	/* IB spec says that num_sge == 0 is OK. */
-	if (unlikely(wr->num_sge > qp->s_max_sge))
-		return -EINVAL;
-
-	ppd = &dd->pport[qp->port_num - 1];
-	ibp = &ppd->ibport_data;
-
-	/*
-	 * Don't allow RDMA reads or atomic operations on UC or
-	 * undefined operations.
-	 * Make sure buffer is large enough to hold the result for atomics.
-	 */
-	if (qp->ibqp.qp_type == IB_QPT_UC) {
-		if ((unsigned) wr->opcode >= IB_WR_RDMA_READ)
-			return -EINVAL;
-	} else if (qp->ibqp.qp_type != IB_QPT_RC) {
-		/* Check IB_QPT_SMI, IB_QPT_GSI, IB_QPT_UD opcode */
-		if (wr->opcode != IB_WR_SEND &&
-		    wr->opcode != IB_WR_SEND_WITH_IMM)
-			return -EINVAL;
-		/* Check UD destination address PD */
-		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
-			return -EINVAL;
-	} else if ((unsigned) wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD)
-		return -EINVAL;
-	else if (wr->opcode >= IB_WR_ATOMIC_CMP_AND_SWP &&
-		   (wr->num_sge == 0 ||
-		    wr->sg_list[0].length < sizeof(u64) ||
-		    wr->sg_list[0].addr & (sizeof(u64) - 1)))
-		return -EINVAL;
-	else if (wr->opcode >= IB_WR_RDMA_READ && !qp->s_max_rd_atomic)
-		return -EINVAL;
-
-	next = qp->s_head + 1;
-	if (next >= qp->s_size)
-		next = 0;
-	if (next == qp->s_last)
-		return -ENOMEM;
-
-	rkt = &to_idev(qp->ibqp.device)->rdi.lkey_table;
-	pd = ibpd_to_rvtpd(qp->ibqp.pd);
-	wqe = get_swqe_ptr(qp, qp->s_head);
-
-
-	if (qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_RC)
-		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
-	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
-		 wr->opcode == IB_WR_RDMA_WRITE ||
-		 wr->opcode == IB_WR_RDMA_READ)
-		memcpy(&wqe->rdma_wr, rdma_wr(wr), sizeof(wqe->rdma_wr));
-	else if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
-		 wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
-		memcpy(&wqe->atomic_wr, atomic_wr(wr), sizeof(wqe->atomic_wr));
-	else
-		memcpy(&wqe->wr, wr, sizeof(wqe->wr));
-
-	wqe->length = 0;
-	j = 0;
-	if (wr->num_sge) {
-		acc = wr->opcode >= IB_WR_RDMA_READ ?
-			IB_ACCESS_LOCAL_WRITE : 0;
-		for (i = 0; i < wr->num_sge; i++) {
-			u32 length = wr->sg_list[i].length;
-			int ok;
-
-			if (length == 0)
-				continue;
-			ok = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j],
-					 &wr->sg_list[i], acc);
-			if (!ok)
-				goto bail_inval_free;
-			wqe->length += length;
-			j++;
-		}
-		wqe->wr.num_sge = j;
-	}
-	if (qp->ibqp.qp_type == IB_QPT_UC ||
-	    qp->ibqp.qp_type == IB_QPT_RC) {
-		if (wqe->length > 0x80000000U)
-			goto bail_inval_free;
-	} else {
-		atomic_inc(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
-	}
-	wqe->ssn = qp->s_ssn++;
-	qp->s_head = next;
-
-	return 0;
-
-bail_inval_free:
-	/* release mr holds */
-	while (j) {
-		struct rvt_sge *sge = &wqe->sg_list[--j];
-
-		rvt_put_mr(sge->mr);
-	}
-	return -EINVAL;
-}
-
-/**
- * post_send - post a send on a QP
- * @ibqp: the QP to post the send on
- * @wr: the list of work requests to post
- * @bad_wr: the first bad WR is put here
- *
- * This may be called from interrupt context.
- */
-static int post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		     struct ib_send_wr **bad_wr)
-{
-	struct rvt_qp *qp = to_iqp(ibqp);
-	struct hfi1_qp_priv *priv = qp->priv;
-	int err = 0;
-	int call_send;
-	unsigned long flags;
-	unsigned nreq = 0;
-
-	spin_lock_irqsave(&qp->s_lock, flags);
-
-	/* Check that state is OK to post send. */
-	if (unlikely(!(ib_hfi1_state_ops[qp->state] & HFI1_POST_SEND_OK))) {
-		spin_unlock_irqrestore(&qp->s_lock, flags);
-		return -EINVAL;
-	}
-
-	/* sq empty and not list -> call send */
-	call_send = qp->s_head == qp->s_last && !wr->next;
-
-	for (; wr; wr = wr->next) {
-		err = post_one_send(qp, wr);
-		if (unlikely(err)) {
-			*bad_wr = wr;
-			goto bail;
-		}
-		nreq++;
-	}
-bail:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-	if (nreq && !call_send)
-		_hfi1_schedule_send(qp);
-	if (nreq && call_send)
-		hfi1_do_send(&priv->s_iowait.iowork);
-	return err;
-}
-
-/**
  * post_receive - post a receive on a QP
  * @ibqp: the QP to post the receive on
  * @wr: the WR to post
@@ -519,13 +334,13 @@ bail:
 static int post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			struct ib_recv_wr **bad_wr)
 {
-	struct rvt_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_rwq *wq = qp->r_rq.wq;
 	unsigned long flags;
 	int ret;
 
 	/* Check that state is OK to post receive. */
-	if (!(ib_hfi1_state_ops[qp->state] & HFI1_POST_RECV_OK) || !wq) {
+	if (!(ib_rvt_state_ops[qp->state] & RVT_POST_RECV_OK) || !wq) {
 		*bad_wr = wr;
 		ret = -EINVAL;
 		goto bail;
@@ -576,7 +391,7 @@ static inline int qp_ok(int opcode, struct hfi1_packet *packet)
 {
 	struct hfi1_ibport *ibp;
 
-	if (!(ib_hfi1_state_ops[packet->qp->state] & HFI1_PROCESS_RECV_OK))
+	if (!(ib_rvt_state_ops[packet->qp->state] & RVT_PROCESS_RECV_OK))
 		goto dropit;
 	if (((opcode & OPCODE_QP_MASK) == packet->qp->allowed_ops) ||
 	    (opcode == IB_OPCODE_CNP))
@@ -737,7 +552,7 @@ static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 	if (!tx) {
 		spin_lock_irqsave(&qp->s_lock, flags);
 		write_seqlock(&dev->iowait_lock);
-		if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK &&
+		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK &&
 		    list_empty(&priv->s_iowait.list)) {
 			dev->n_txwait++;
 			qp->s_flags |= RVT_S_WAIT_TX;
@@ -855,7 +670,7 @@ static int wait_kmem(struct hfi1_ibdev *dev, struct rvt_qp *qp)
 	int ret = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
-	if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK) {
+	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
 		if (list_empty(&priv->s_iowait.list)) {
 			if (list_empty(&dev->memwait))
@@ -1085,7 +900,7 @@ static int no_bufs_available(struct rvt_qp *qp, struct send_context *sc)
 	 * enabling the PIO avail interrupt.
 	 */
 	spin_lock_irqsave(&qp->s_lock, flags);
-	if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK) {
+	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
 		if (list_empty(&priv->s_iowait.list)) {
 			struct hfi1_ibdev *dev = &dd->verbs_dev;
@@ -1812,7 +1627,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_qp = hfi1_modify_qp;
 	ibdev->query_qp = hfi1_query_qp;
 	ibdev->destroy_qp = hfi1_destroy_qp;
-	ibdev->post_send = post_send;
+	ibdev->post_send = NULL;
 	ibdev->post_recv = post_receive;
 	ibdev->post_srq_recv = hfi1_post_srq_receive;
 	ibdev->create_cq = NULL;
@@ -1864,6 +1679,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
+	dd->verbs_dev.rdi.driver_f.do_send = hfi1_do_send;
+	dd->verbs_dev.rdi.driver_f.schedule_send = hfi1_schedule_send;
 
 	/* completeion queue */
 	snprintf(dd->verbs_dev.rdi.dparms.cq_name,

@@ -176,7 +176,7 @@ int hfi1_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 	}
 
 	spin_lock_irqsave(&rq->lock, flags);
-	if (!(ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK)) {
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)) {
 		ret = 0;
 		goto unlock;
 	}
@@ -383,7 +383,7 @@ static void ruc_loopback(struct rvt_qp *sqp)
 
 	/* Return if we are already busy processing a work request. */
 	if ((sqp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT)) ||
-	    !(ib_hfi1_state_ops[sqp->state] & HFI1_PROCESS_OR_FLUSH_SEND))
+	    !(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		goto unlock;
 
 	sqp->s_flags |= RVT_S_BUSY;
@@ -391,11 +391,11 @@ static void ruc_loopback(struct rvt_qp *sqp)
 again:
 	if (sqp->s_last == sqp->s_head)
 		goto clr_busy;
-	wqe = get_swqe_ptr(sqp, sqp->s_last);
+	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
 
 	/* Return if it is not OK to start a new work request. */
-	if (!(ib_hfi1_state_ops[sqp->state] & HFI1_PROCESS_NEXT_SEND_OK)) {
-		if (!(ib_hfi1_state_ops[sqp->state] & HFI1_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
+		if (!(ib_rvt_state_ops[sqp->state] & RVT_FLUSH_SEND))
 			goto clr_busy;
 		/* We are in the error state, flush the work request. */
 		send_status = IB_WC_WR_FLUSH_ERR;
@@ -413,7 +413,7 @@ again:
 	}
 	spin_unlock_irqrestore(&sqp->s_lock, flags);
 
-	if (!qp || !(ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK) ||
+	if (!qp || !(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) ||
 	    qp->ibqp.qp_type != sqp->ibqp.qp_type) {
 		ibp->rvp.n_pkt_drops++;
 		/*
@@ -593,7 +593,7 @@ rnr_nak:
 	if (sqp->s_rnr_retry_cnt < 7)
 		sqp->s_rnr_retry--;
 	spin_lock_irqsave(&sqp->s_lock, flags);
-	if (!(ib_hfi1_state_ops[sqp->state] & HFI1_PROCESS_RECV_OK))
+	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
 	sqp->s_flags |= RVT_S_WAIT_RNR;
 	sqp->s_timer.function = hfi1_rc_rnr_retry;
@@ -802,6 +802,14 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 /* when sending, force a reschedule every one of these periods */
 #define SEND_RESCHED_TIMEOUT (5 * HZ)  /* 5s in jiffies */
 
+void _hfi1_do_send(struct work_struct *work)
+{
+	struct iowait *wait = container_of(work, struct iowait, iowork);
+	struct rvt_qp *qp = iowait_to_qp(wait);
+
+	hfi1_do_send(qp);
+}
+
 /**
  * hfi1_do_send - perform a send on a QP
  * @work: contains a pointer to the QP
@@ -810,10 +818,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
  * exhausted.  Only allow one CPU to send a packet per QP (tasklet).
  * Otherwise, two threads could send packets out of order.
  */
-void hfi1_do_send(struct work_struct *work)
+void hfi1_do_send(struct rvt_qp *qp)
 {
-	struct iowait *wait = container_of(work, struct iowait, iowork);
-	struct rvt_qp *qp = iowait_to_qp(wait);
 	struct hfi1_pkt_state ps;
 	int (*make_req)(struct rvt_qp *qp);
 	unsigned long flags;
@@ -883,7 +889,7 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	u32 old_last, last;
 	unsigned i;
 
-	if (!(ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_OR_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
 
 	for (i = 0; i < wqe->wr.num_sge; i++) {

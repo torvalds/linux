@@ -335,8 +335,8 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			spin_lock_irqsave(&qp->r_lock, flags);
 
 			/* Check for valid receive state. */
-			if (!(ib_hfi1_state_ops[qp->state] &
-			      HFI1_PROCESS_RECV_OK)) {
+			if (!(ib_rvt_state_ops[qp->state] &
+			      RVT_PROCESS_RECV_OK)) {
 				ibp->rvp.n_pkt_drops++;
 			}
 
@@ -790,8 +790,8 @@ static inline void process_rcv_qp_work(struct hfi1_packet *packet)
 
 			qp->r_flags &= ~RVT_R_RSP_SEND;
 			spin_lock_irqsave(&qp->s_lock, flags);
-			if (ib_hfi1_state_ops[qp->state] &
-					HFI1_PROCESS_OR_FLUSH_SEND)
+			if (ib_rvt_state_ops[qp->state] &
+					RVT_PROCESS_OR_FLUSH_SEND)
 				hfi1_schedule_send(qp);
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 		}
