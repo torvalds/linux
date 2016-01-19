@@ -979,12 +979,19 @@ void intel_fbc_update(struct intel_crtc *crtc)
 	mutex_unlock(&fbc->lock);
 }
 
+static unsigned int intel_fbc_get_frontbuffer_bit(struct intel_fbc *fbc)
+{
+	if (fbc->enabled)
+		return to_intel_plane(fbc->crtc->base.primary)->frontbuffer_bit;
+	else
+		return fbc->possible_framebuffer_bits;
+}
+
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	unsigned int fbc_bits;
 
 	if (!fbc_supported(dev_priv))
 		return;
@@ -994,12 +1001,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&fbc->lock);
 
-	if (fbc->enabled)
-		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(fbc->crtc->pipe);
-	else
-		fbc_bits = fbc->possible_framebuffer_bits;
-
-	fbc->busy_bits |= (fbc_bits & frontbuffer_bits);
+	fbc->busy_bits |= intel_fbc_get_frontbuffer_bit(fbc) & frontbuffer_bits;
 
 	if (fbc->busy_bits)
 		__intel_fbc_deactivate(dev_priv);
@@ -1022,7 +1024,8 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 
 	fbc->busy_bits &= ~frontbuffer_bits;
 
-	if (!fbc->busy_bits && fbc->enabled) {
+	if (!fbc->busy_bits && fbc->enabled &&
+	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
 		if (fbc->active)
 			intel_fbc_recompress(dev_priv);
 		else
