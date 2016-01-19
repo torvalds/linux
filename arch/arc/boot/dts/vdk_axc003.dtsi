@@ -10,6 +10,8 @@
  * Device tree for AXC003 CPU card: HS38x UP configuration (VDK version)
  */
 
+/include/ "skeleton_hs.dtsi"
+
 / {
 	compatible = "snps,arc";
 	clock-frequency = <50000000>;

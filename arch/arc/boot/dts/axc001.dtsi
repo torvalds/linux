@@ -11,6 +11,8 @@
  * Note that this file only supports the 770D CPU
  */
 
+/include/ "skeleton.dtsi"
+
 / {
 	compatible = "snps,arc";
 	clock-frequency = <750000000>;	/* 750 MHZ */

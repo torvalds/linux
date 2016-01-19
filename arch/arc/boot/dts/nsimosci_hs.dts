@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
+/include/ "skeleton_hs.dtsi"
 
 / {
 	compatible = "snps,nsimosci_hs";

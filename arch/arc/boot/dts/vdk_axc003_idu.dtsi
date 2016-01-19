@@ -11,6 +11,8 @@
  * HS38x2 (Dual Core) with IDU intc (VDK version)
  */
 
+/include/ "skeleton_hs_idu.dtsi"
+
 / {
 	compatible = "snps,arc";
 	clock-frequency = <50000000>;
