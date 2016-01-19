@@ -202,6 +202,7 @@ int __vfs_setxattr_noperm(struct dentry *dentry, const char *name,
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(__vfs_setxattr_noperm);
 
 
 int
@@ -377,6 +378,33 @@ __vfs_removexattr(struct dentry *dentry, const char *name)
 }
 EXPORT_SYMBOL(__vfs_removexattr);
 
+/**
+ *  __vfs_removexattr_noperm - perform removexattr operation without
+ *  performing permission checks.
+ *
+ *  @dentry - object to perform setxattr on
+ *  @name - xattr name to set
+ *
+ *  returns the result of the internal setxattr or setsecurity operations.
+ *
+ *  This function requires the caller to lock the inode's i_mutex before it
+ *  is executed. It also assumes that the caller will make the appropriate
+ *  permission checks.
+ */
+int
+__vfs_removexattr_noperm(struct dentry *dentry, const char *name)
+{
+	int error;
+
+	error =__vfs_removexattr(dentry, name);
+	if (!error) {
+		fsnotify_xattr(dentry);
+		evm_inode_post_removexattr(dentry, name);
+	}
+	return error;
+}
+EXPORT_SYMBOL_GPL(__vfs_removexattr_noperm);
+
 int
 vfs_removexattr(struct dentry *dentry, const char *name)
 {
@@ -392,12 +420,7 @@ vfs_removexattr(struct dentry *dentry, const char *name)
 	if (error)
 		goto out;
 
-	error = __vfs_removexattr(dentry, name);
-
-	if (!error) {
-		fsnotify_xattr(dentry);
-		evm_inode_post_removexattr(dentry, name);
-	}
+	error = __vfs_removexattr_noperm(dentry, name);
 
 out:
 	inode_unlock(inode);
