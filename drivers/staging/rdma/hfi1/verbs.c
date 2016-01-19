@@ -2074,6 +2074,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	 */
 	dd->verbs_dev.rdi.driver_f.port_callback = hfi1_create_port_files;
 	dd->verbs_dev.rdi.dparms.props.max_pd = hfi1_max_pds;
+	dd->verbs_dev.rdi.flags = (RVT_FLAG_MR_INIT_DRIVER |
+				   RVT_FLAG_QP_INIT_DRIVER |
+				   RVT_FLAG_CQ_INIT_DRIVER);
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
