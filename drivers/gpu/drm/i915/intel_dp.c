@@ -335,8 +335,12 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		release_cl_override = IS_CHERRYVIEW(dev) &&
 			!chv_phy_powergate_ch(dev_priv, phy, ch, true);
 
-		vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev) ?
-				 &chv_dpll[0].dpll : &vlv_dpll[0].dpll);
+		if (vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev) ?
+				     &chv_dpll[0].dpll : &vlv_dpll[0].dpll)) {
+			DRM_ERROR("Failed to force on pll for pipe %c!\n",
+				  pipe_name(pipe));
+			return;
+		}
 	}
 
 	/*

@@ -7600,26 +7600,34 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
  * in cases where we need the PLL enabled even when @pipe is not going to
  * be enabled.
  */
-void vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
-		      const struct dpll *dpll)
+int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
+		     const struct dpll *dpll)
 {
 	struct intel_crtc *crtc =
 		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
-	struct intel_crtc_state pipe_config = {
-		.base.crtc = &crtc->base,
-		.pixel_multiplier = 1,
-		.dpll = *dpll,
-	};
+	struct intel_crtc_state *pipe_config;
+
+	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
+	if (!pipe_config)
+		return -ENOMEM;
+
+	pipe_config->base.crtc = &crtc->base;
+	pipe_config->pixel_multiplier = 1;
+	pipe_config->dpll = *dpll;
 
 	if (IS_CHERRYVIEW(dev)) {
-		chv_compute_dpll(crtc, &pipe_config);
-		chv_prepare_pll(crtc, &pipe_config);
-		chv_enable_pll(crtc, &pipe_config);
+		chv_compute_dpll(crtc, pipe_config);
+		chv_prepare_pll(crtc, pipe_config);
+		chv_enable_pll(crtc, pipe_config);
 	} else {
-		vlv_compute_dpll(crtc, &pipe_config);
-		vlv_prepare_pll(crtc, &pipe_config);
-		vlv_enable_pll(crtc, &pipe_config);
+		vlv_compute_dpll(crtc, pipe_config);
+		vlv_prepare_pll(crtc, pipe_config);
+		vlv_enable_pll(crtc, pipe_config);
 	}
+
+	kfree(pipe_config);
+
+	return 0;
 }
 
 /**
@@ -10793,7 +10801,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
 	struct drm_display_mode *mode;
-	struct intel_crtc_state pipe_config;
+	struct intel_crtc_state *pipe_config;
 	int htot = I915_READ(HTOTAL(cpu_transcoder));
 	int hsync = I915_READ(HSYNC(cpu_transcoder));
 	int vtot = I915_READ(VTOTAL(cpu_transcoder));
@@ -10804,6 +10812,12 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	if (!mode)
 		return NULL;
 
+	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
+	if (!pipe_config) {
+		kfree(mode);
+		return NULL;
+	}
+
 	/*
 	 * Construct a pipe_config sufficient for getting the clock info
 	 * back out of crtc_clock_get.
@@ -10811,14 +10825,14 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	 * Note, if LVDS ever uses a non-1 pixel multiplier, we'll need
 	 * to use a real value here instead.
 	 */
-	pipe_config.cpu_transcoder = (enum transcoder) pipe;
-	pipe_config.pixel_multiplier = 1;
-	pipe_config.dpll_hw_state.dpll = I915_READ(DPLL(pipe));
-	pipe_config.dpll_hw_state.fp0 = I915_READ(FP0(pipe));
-	pipe_config.dpll_hw_state.fp1 = I915_READ(FP1(pipe));
-	i9xx_crtc_clock_get(intel_crtc, &pipe_config);
+	pipe_config->cpu_transcoder = (enum transcoder) pipe;
+	pipe_config->pixel_multiplier = 1;
+	pipe_config->dpll_hw_state.dpll = I915_READ(DPLL(pipe));
+	pipe_config->dpll_hw_state.fp0 = I915_READ(FP0(pipe));
+	pipe_config->dpll_hw_state.fp1 = I915_READ(FP1(pipe));
+	i9xx_crtc_clock_get(intel_crtc, pipe_config);
 
-	mode->clock = pipe_config.port_clock / pipe_config.pixel_multiplier;
+	mode->clock = pipe_config->port_clock / pipe_config->pixel_multiplier;
 	mode->hdisplay = (htot & 0xffff) + 1;
 	mode->htotal = ((htot & 0xffff0000) >> 16) + 1;
 	mode->hsync_start = (hsync & 0xffff) + 1;
@@ -10829,6 +10843,8 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	mode->vsync_end = ((vsync & 0xffff0000) >> 16) + 1;
 
 	drm_mode_set_name(mode);
+
+	kfree(pipe_config);
 
 	return mode;
 }
