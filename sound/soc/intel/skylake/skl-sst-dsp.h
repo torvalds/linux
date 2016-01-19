@@ -58,9 +58,9 @@ struct sst_dsp_device;
 
 #define SKL_ADSP_MMIO_LEN		0x10000
 
-#define SKL_ADSP_W0_STAT_SZ		0x800
+#define SKL_ADSP_W0_STAT_SZ		0x1000
 
-#define SKL_ADSP_W0_UP_SZ		0x800
+#define SKL_ADSP_W0_UP_SZ		0x1000
 
 #define SKL_ADSP_W1_SZ			0x1000
 
@@ -114,6 +114,9 @@ struct skl_dsp_fw_ops {
 	int (*set_state_D0)(struct sst_dsp *ctx);
 	int (*set_state_D3)(struct sst_dsp *ctx);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
+	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, char *mod_name);
+	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);
+
 };
 
 struct skl_dsp_loader_ops {
@@ -121,6 +124,17 @@ struct skl_dsp_loader_ops {
 		struct snd_dma_buffer *dmab, size_t size);
 	int (*free_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab);
+};
+
+struct skl_load_module_info {
+	u16 mod_id;
+	const struct firmware *fw;
+};
+
+struct skl_module_table {
+	struct skl_load_module_info *mod_info;
+	unsigned int usage_cnt;
+	struct list_head list;
 };
 
 void skl_cldma_process_intr(struct sst_dsp *ctx);
@@ -139,7 +153,8 @@ void skl_dsp_free(struct sst_dsp *dsp);
 
 int skl_dsp_boot(struct sst_dsp *ctx);
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
+		struct skl_sst **dsp);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 #endif /*__SKL_SST_DSP_H__*/

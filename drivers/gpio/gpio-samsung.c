@@ -753,7 +753,7 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 #endif
 
 	/* gpiochip_add() prints own failure message on error. */
-	ret = gpiochip_add(gc);
+	ret = gpiochip_add_data(gc, chip);
 	if (ret >= 0)
 		s3c_gpiolib_track(chip);
 }
@@ -862,7 +862,7 @@ static void __init samsung_gpiolib_add_4bit2_chips(struct samsung_gpio_chip *chi
 
 int samsung_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
-	struct samsung_gpio_chip *samsung_chip = container_of(chip, struct samsung_gpio_chip, chip);
+	struct samsung_gpio_chip *samsung_chip = gpiochip_get_data(chip);
 
 	return samsung_chip->irq_base + offset;
 }

@@ -698,7 +698,7 @@ static void ns2501_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ns2501_ops = {
+const struct intel_dvo_dev_ops ns2501_ops = {
 	.init = ns2501_init,
 	.detect = ns2501_detect,
 	.mode_valid = ns2501_mode_valid,

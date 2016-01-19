@@ -546,6 +546,8 @@ const struct psb_ops mdfld_chip_ops = {
 
 	.save_regs = mdfld_save_registers,
 	.restore_regs = mdfld_restore_registers,
+	.save_crtc = gma_crtc_save,
+	.restore_crtc = gma_crtc_restore,
 	.power_down = mdfld_power_down,
 	.power_up = mdfld_power_up,
 };

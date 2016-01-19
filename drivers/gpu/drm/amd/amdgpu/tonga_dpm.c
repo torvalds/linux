@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include "drmP.h"
 #include "amdgpu.h"
-#include "tonga_smumgr.h"
+#include "tonga_smum.h"
 
 MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
 

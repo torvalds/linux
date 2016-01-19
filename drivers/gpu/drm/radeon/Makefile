@@ -58,10 +58,6 @@ $(obj)/evergreen_cs.o: $(obj)/evergreen_reg_safe.h $(obj)/cayman_reg_safe.h
 
 radeon-y := radeon_drv.o
 
-# add UMS driver
-radeon-$(CONFIG_DRM_RADEON_UMS)+= radeon_cp.o radeon_state.o radeon_mem.o \
-	radeon_irq.o r300_cmdbuf.o r600_cp.o r600_blit.o drm_buffer.o
-
 # add KMS driver
 radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	radeon_atombios.o radeon_agp.o atombios_crtc.o radeon_combios.o \

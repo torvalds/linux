@@ -44,7 +44,6 @@
 struct radeon_fbdev {
 	struct drm_fb_helper helper;
 	struct radeon_framebuffer rfb;
-	struct list_head fbdev_list;
 	struct radeon_device *rdev;
 };
 
@@ -283,7 +282,7 @@ out_unref:
 
 	}
 	if (fb && ret) {
-		drm_gem_object_unreference(gobj);
+		drm_gem_object_unreference_unlocked(gobj);
 		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);

@@ -1,9 +1,10 @@
 #ifndef _PARISC_SIGINFO_H
 #define _PARISC_SIGINFO_H
 
-#include <asm-generic/siginfo.h>
+#if defined(__LP64__)
+#define __ARCH_SI_PREAMBLE_SIZE   (4 * sizeof(int))
+#endif
 
-#undef NSIGTRAP
-#define NSIGTRAP	4
+#include <asm-generic/siginfo.h>
 
 #endif

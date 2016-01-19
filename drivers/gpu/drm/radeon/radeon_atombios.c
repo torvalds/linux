@@ -437,7 +437,9 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	}
 
 	/* Fujitsu D3003-S2 board lists DVI-I as DVI-D and VGA */
-	if (((dev->pdev->device == 0x9802) || (dev->pdev->device == 0x9806)) &&
+	if (((dev->pdev->device == 0x9802) ||
+	     (dev->pdev->device == 0x9805) ||
+	     (dev->pdev->device == 0x9806)) &&
 	    (dev->pdev->subsystem_vendor == 0x1734) &&
 	    (dev->pdev->subsystem_device == 0x11bd)) {
 		if (*connector_type == DRM_MODE_CONNECTOR_VGA) {
@@ -446,14 +448,6 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		} else if (*connector_type == DRM_MODE_CONNECTOR_DVID) {
 			*connector_type = DRM_MODE_CONNECTOR_DVII;
 		}
-	}
-
-	/* Fujitsu D3003-S2 board lists DVI-I as DVI-I and VGA */
-	if ((dev->pdev->device == 0x9805) &&
-	    (dev->pdev->subsystem_vendor == 0x1734) &&
-	    (dev->pdev->subsystem_device == 0x11bd)) {
-		if (*connector_type == DRM_MODE_CONNECTOR_VGA)
-			return false;
 	}
 
 	return true;
@@ -1262,6 +1256,13 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		/* not technically a clock, but... */
 		rdev->mode_info.firmware_flags =
 			le16_to_cpu(firmware_info->info.usFirmwareCapability.susAccess);
+
+		if (ASIC_IS_DCE8(rdev)) {
+			rdev->clock.gpupll_outputfreq =
+				le32_to_cpu(firmware_info->info_22.ulGPUPLL_OutputFreq);
+			if (rdev->clock.gpupll_outputfreq == 0)
+				rdev->clock.gpupll_outputfreq = 360000;	/* 3.6 GHz */
+		}
 
 		return true;
 	}

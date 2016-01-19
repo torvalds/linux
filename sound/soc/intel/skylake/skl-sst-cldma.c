@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 
@@ -31,6 +32,53 @@ void skl_cldma_int_disable(struct sst_dsp *ctx)
 {
 	sst_dsp_shim_update_bits_unlocked(ctx,
 			SKL_ADSP_REG_ADSPIC, SKL_ADSPIC_CL_DMA, 0);
+}
+
+static void skl_cldma_stream_run(struct sst_dsp  *ctx, bool enable)
+{
+	unsigned char val;
+	int timeout;
+
+	sst_dsp_shim_update_bits_unlocked(ctx,
+			SKL_ADSP_REG_CL_SD_CTL,
+			CL_SD_CTL_RUN_MASK, CL_SD_CTL_RUN(enable));
+
+	udelay(3);
+	timeout = 300;
+	do {
+		/* waiting for hardware to report that the stream Run bit set */
+		val = sst_dsp_shim_read(ctx, SKL_ADSP_REG_CL_SD_CTL) &
+			CL_SD_CTL_RUN_MASK;
+		if (enable && val)
+			break;
+		else if (!enable && !val)
+			break;
+		udelay(3);
+	} while (--timeout);
+
+	if (timeout == 0)
+		dev_err(ctx->dev, "Failed to set Run bit=%d enable=%d\n", val, enable);
+}
+
+static void skl_cldma_stream_clear(struct sst_dsp  *ctx)
+{
+	/* make sure Run bit is cleared before setting stream register */
+	skl_cldma_stream_run(ctx, 0);
+
+	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
+				CL_SD_CTL_IOCE_MASK, CL_SD_CTL_IOCE(0));
+	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
+				CL_SD_CTL_FEIE_MASK, CL_SD_CTL_FEIE(0));
+	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
+				CL_SD_CTL_DEIE_MASK, CL_SD_CTL_DEIE(0));
+	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
+				CL_SD_CTL_STRM_MASK, CL_SD_CTL_STRM(0));
+
+	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_BDLPL, CL_SD_BDLPLBA(0));
+	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_BDLPU, 0);
+
+	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_CBL, 0);
+	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_LVI, 0);
 }
 
 /* Code loader helper APIs */
@@ -68,6 +116,7 @@ static void skl_cldma_setup_controller(struct sst_dsp  *ctx,
 		struct snd_dma_buffer *dmab_bdl, unsigned int max_size,
 		u32 count)
 {
+	skl_cldma_stream_clear(ctx);
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_BDLPL,
 			CL_SD_BDLPLBA(dmab_bdl->addr));
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_BDLPU,
@@ -107,36 +156,13 @@ static void skl_cldma_cleanup_spb(struct sst_dsp  *ctx)
 	sst_dsp_shim_write_unlocked(ctx, SKL_ADSP_REG_CL_SPBFIFO_SPIB, 0);
 }
 
-static void skl_cldma_trigger(struct sst_dsp  *ctx, bool enable)
-{
-	if (enable)
-		sst_dsp_shim_update_bits_unlocked(ctx,
-			SKL_ADSP_REG_CL_SD_CTL,
-			CL_SD_CTL_RUN_MASK, CL_SD_CTL_RUN(1));
-	else
-		sst_dsp_shim_update_bits_unlocked(ctx,
-			SKL_ADSP_REG_CL_SD_CTL,
-			CL_SD_CTL_RUN_MASK, CL_SD_CTL_RUN(0));
-}
-
 static void skl_cldma_cleanup(struct sst_dsp  *ctx)
 {
 	skl_cldma_cleanup_spb(ctx);
+	skl_cldma_stream_clear(ctx);
 
-	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
-				CL_SD_CTL_IOCE_MASK, CL_SD_CTL_IOCE(0));
-	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
-				CL_SD_CTL_FEIE_MASK, CL_SD_CTL_FEIE(0));
-	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
-				CL_SD_CTL_DEIE_MASK, CL_SD_CTL_DEIE(0));
-	sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_CL_SD_CTL,
-				CL_SD_CTL_STRM_MASK, CL_SD_CTL_STRM(0));
-
-	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_BDLPL, CL_SD_BDLPLBA(0));
-	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_BDLPU, 0);
-
-	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_CBL, 0);
-	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_LVI, 0);
+	ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_data);
+	ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_bdl);
 }
 
 static int skl_cldma_wait_interruptible(struct sst_dsp *ctx)
@@ -164,7 +190,7 @@ cleanup:
 
 static void skl_cldma_stop(struct sst_dsp *ctx)
 {
-	ctx->cl_dev.ops.cl_trigger(ctx, false);
+	skl_cldma_stream_run(ctx, false);
 }
 
 static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
@@ -174,6 +200,21 @@ static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
 	dev_dbg(ctx->dev, "buf_pos_index:%d, trigger:%d\n",
 			ctx->cl_dev.dma_buffer_offset, trigger);
 	dev_dbg(ctx->dev, "spib position: %d\n", ctx->cl_dev.curr_spib_pos);
+
+	/*
+	 * Check if the size exceeds buffer boundary. If it exceeds
+	 * max_buffer size, then copy till buffer size and then copy
+	 * remaining buffer from the start of ring buffer.
+	 */
+	if (ctx->cl_dev.dma_buffer_offset + size > ctx->cl_dev.bufsize) {
+		unsigned int size_b = ctx->cl_dev.bufsize -
+					ctx->cl_dev.dma_buffer_offset;
+		memcpy(ctx->cl_dev.dmab_data.area + ctx->cl_dev.dma_buffer_offset,
+			curr_pos, size_b);
+		size -= size_b;
+		curr_pos += size_b;
+		ctx->cl_dev.dma_buffer_offset = 0;
+	}
 
 	memcpy(ctx->cl_dev.dmab_data.area + ctx->cl_dev.dma_buffer_offset,
 			curr_pos, size);
@@ -291,7 +332,7 @@ int skl_cldma_prepare(struct sst_dsp *ctx)
 	ctx->cl_dev.ops.cl_setup_controller = skl_cldma_setup_controller;
 	ctx->cl_dev.ops.cl_setup_spb = skl_cldma_setup_spb;
 	ctx->cl_dev.ops.cl_cleanup_spb = skl_cldma_cleanup_spb;
-	ctx->cl_dev.ops.cl_trigger = skl_cldma_trigger;
+	ctx->cl_dev.ops.cl_trigger = skl_cldma_stream_run;
 	ctx->cl_dev.ops.cl_cleanup_controller = skl_cldma_cleanup;
 	ctx->cl_dev.ops.cl_copy_to_dmabuf = skl_cldma_copy_to_buf;
 	ctx->cl_dev.ops.cl_stop_dma = skl_cldma_stop;

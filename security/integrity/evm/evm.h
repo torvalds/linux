@@ -21,6 +21,9 @@
 
 #include "../integrity.h"
 
+#define EVM_INIT_HMAC	0x0001
+#define EVM_INIT_X509	0x0002
+
 extern int evm_initialized;
 extern char *evm_hmac;
 extern char *evm_hash;

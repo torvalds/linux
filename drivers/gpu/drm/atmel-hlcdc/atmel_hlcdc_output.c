@@ -146,7 +146,7 @@ atmel_hlcdc_rgb_encoder_mode_set(struct drm_encoder *encoder,
 			   cfg);
 }
 
-static struct drm_encoder_helper_funcs atmel_hlcdc_panel_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs atmel_hlcdc_panel_encoder_helper_funcs = {
 	.mode_fixup = atmel_hlcdc_panel_encoder_mode_fixup,
 	.mode_set = atmel_hlcdc_rgb_encoder_mode_set,
 	.disable = atmel_hlcdc_panel_encoder_disable,
@@ -192,7 +192,7 @@ atmel_hlcdc_rgb_best_encoder(struct drm_connector *connector)
 	return &rgb->encoder;
 }
 
-static struct drm_connector_helper_funcs atmel_hlcdc_panel_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs atmel_hlcdc_panel_connector_helper_funcs = {
 	.get_modes = atmel_hlcdc_panel_get_modes,
 	.mode_valid = atmel_hlcdc_rgb_mode_valid,
 	.best_encoder = atmel_hlcdc_rgb_best_encoder,
@@ -256,7 +256,7 @@ static int atmel_hlcdc_create_panel_output(struct drm_device *dev,
 			       &atmel_hlcdc_panel_encoder_helper_funcs);
 	ret = drm_encoder_init(dev, &panel->base.encoder,
 			       &atmel_hlcdc_panel_encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS);
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret)
 		return ret;
 

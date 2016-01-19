@@ -59,7 +59,7 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int fence_reg_lo, fence_reg_hi;
+	i915_reg_t fence_reg_lo, fence_reg_hi;
 	int fence_pitch_shift;
 
 	if (INTEL_INFO(dev)->gen >= 6) {

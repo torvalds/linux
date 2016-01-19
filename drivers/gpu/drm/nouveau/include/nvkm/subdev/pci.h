@@ -2,6 +2,12 @@
 #define __NVKM_PCI_H__
 #include <core/subdev.h>
 
+enum nvkm_pcie_speed {
+	NVKM_PCIE_SPEED_2_5,
+	NVKM_PCIE_SPEED_5_0,
+	NVKM_PCIE_SPEED_8_0,
+};
+
 struct nvkm_pci {
 	const struct nvkm_pci_func *func;
 	struct nvkm_subdev subdev;
@@ -17,6 +23,11 @@ struct nvkm_pci {
 		bool cma;
 		bool acquired;
 	} agp;
+
+	struct {
+		enum nvkm_pcie_speed speed;
+		u8 width;
+	} pcie;
 
 	bool msi;
 };
@@ -34,4 +45,9 @@ int nv4c_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int g84_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int g94_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int gf100_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
+int gf106_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
+int gk104_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
+
+/* pcie functions */
+int nvkm_pcie_set_link(struct nvkm_pci *, enum nvkm_pcie_speed, u8 width);
 #endif

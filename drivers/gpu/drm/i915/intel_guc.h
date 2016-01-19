@@ -42,8 +42,6 @@ struct i915_guc_client {
 
 	uint32_t wq_offset;
 	uint32_t wq_size;
-
-	spinlock_t wq_lock;		/* Protects all data below	*/
 	uint32_t wq_tail;
 
 	/* GuC submission statistics & status */
@@ -76,11 +74,17 @@ struct intel_guc_fw {
 	uint16_t			guc_fw_minor_wanted;
 	uint16_t			guc_fw_major_found;
 	uint16_t			guc_fw_minor_found;
+
+	uint32_t header_size;
+	uint32_t header_offset;
+	uint32_t rsa_size;
+	uint32_t rsa_offset;
+	uint32_t ucode_size;
+	uint32_t ucode_offset;
 };
 
 struct intel_guc {
 	struct intel_guc_fw guc_fw;
-
 	uint32_t log_flags;
 	struct drm_i915_gem_object *log_obj;
 
@@ -88,8 +92,6 @@ struct intel_guc {
 	struct ida ctx_ids;
 
 	struct i915_guc_client *execbuf_client;
-
-	spinlock_t host2guc_lock;	/* Protects all data below	*/
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_MAX_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/

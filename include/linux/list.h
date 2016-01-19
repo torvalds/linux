@@ -113,6 +113,17 @@ extern void __list_del_entry(struct list_head *entry);
 extern void list_del(struct list_head *entry);
 #endif
 
+#ifdef CONFIG_DEBUG_LIST
+/*
+ * See devm_memremap_pages() which wants DEBUG_LIST=y to assert if one
+ * of the pages it allocates is ever passed to list_add()
+ */
+extern void list_force_poison(struct list_head *entry);
+#else
+/* fallback to the less strict LIST_POISON* definitions */
+#define list_force_poison list_del
+#endif
+
 /**
  * list_replace - replace old entry by new one
  * @old : the element to be replaced

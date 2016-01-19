@@ -42,3 +42,20 @@ config EVM_EXTRA_SMACK_XATTRS
 	  additional info to the calculation, requires existing EVM
 	  labeled file systems to be relabeled.
 
+config EVM_LOAD_X509
+	bool "Load an X509 certificate onto the '.evm' trusted keyring"
+	depends on EVM && INTEGRITY_TRUSTED_KEYRING
+	default n
+	help
+	   Load an X509 certificate onto the '.evm' trusted keyring.
+
+	   This option enables X509 certificate loading from the kernel
+	   onto the '.evm' trusted keyring.  A public key can be used to
+	   verify EVM integrity starting from the 'init' process.
+
+config EVM_X509_PATH
+	string "EVM X509 certificate path"
+	depends on EVM_LOAD_X509
+	default "/etc/keys/x509_evm.der"
+	help
+	   This option defines X509 certificate path.

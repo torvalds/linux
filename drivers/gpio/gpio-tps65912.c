@@ -26,11 +26,9 @@ struct tps65912_gpio_data {
 	struct gpio_chip gpio_chip;
 };
 
-#define to_tgd(gc) container_of(gc, struct tps65912_gpio_data, gpio_chip)
-
 static int tps65912_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912_gpio_data *tps65912_gpio = gpiochip_get_data(gc);
 	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 	int val;
 
@@ -45,7 +43,7 @@ static int tps65912_gpio_get(struct gpio_chip *gc, unsigned offset)
 static void tps65912_gpio_set(struct gpio_chip *gc, unsigned offset,
 			      int value)
 {
-	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912_gpio_data *tps65912_gpio = gpiochip_get_data(gc);
 	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 
 	if (value)
@@ -59,7 +57,7 @@ static void tps65912_gpio_set(struct gpio_chip *gc, unsigned offset,
 static int tps65912_gpio_output(struct gpio_chip *gc, unsigned offset,
 				int value)
 {
-	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912_gpio_data *tps65912_gpio = gpiochip_get_data(gc);
 	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 
 	/* Set the initial value */
@@ -71,7 +69,7 @@ static int tps65912_gpio_output(struct gpio_chip *gc, unsigned offset,
 
 static int tps65912_gpio_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912_gpio_data *tps65912_gpio = gpiochip_get_data(gc);
 	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 
 	return tps65912_clear_bits(tps65912, TPS65912_GPIO1 + offset,
@@ -104,11 +102,11 @@ static int tps65912_gpio_probe(struct platform_device *pdev)
 
 	tps65912_gpio->tps65912 = tps65912;
 	tps65912_gpio->gpio_chip = template_chip;
-	tps65912_gpio->gpio_chip.dev = &pdev->dev;
+	tps65912_gpio->gpio_chip.parent = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		tps65912_gpio->gpio_chip.base = pdata->gpio_base;
 
-	ret = gpiochip_add(&tps65912_gpio->gpio_chip);
+	ret = gpiochip_add_data(&tps65912_gpio->gpio_chip, tps65912_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register gpiochip, %d\n", ret);
 		return ret;

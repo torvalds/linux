@@ -35,6 +35,7 @@
 #include "drm_atomic_helper.h"
 #include "drm_crtc_helper.h"
 #include "linux/clk.h"
+#include "drm_fb_cma_helper.h"
 #include "linux/component.h"
 #include "linux/of_device.h"
 #include "vc4_drv.h"
@@ -327,7 +328,7 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 	/* The pixelvalve can only feed one encoder (and encoders are
 	 * 1:1 with connectors.)
 	 */
-	if (drm_atomic_connectors_for_crtc(state->state, crtc) > 1)
+	if (hweight32(state->connector_mask) > 1)
 		return -EINVAL;
 
 	drm_atomic_crtc_state_for_each_plane(plane, state) {
@@ -476,10 +477,106 @@ static irqreturn_t vc4_crtc_irq_handler(int irq, void *data)
 	return ret;
 }
 
+struct vc4_async_flip_state {
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	struct drm_pending_vblank_event *event;
+
+	struct vc4_seqno_cb cb;
+};
+
+/* Called when the V3D execution for the BO being flipped to is done, so that
+ * we can actually update the plane's address to point to it.
+ */
+static void
+vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
+{
+	struct vc4_async_flip_state *flip_state =
+		container_of(cb, struct vc4_async_flip_state, cb);
+	struct drm_crtc *crtc = flip_state->crtc;
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_plane *plane = crtc->primary;
+
+	vc4_plane_async_set_fb(plane, flip_state->fb);
+	if (flip_state->event) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, flip_state->event);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
+
+	drm_framebuffer_unreference(flip_state->fb);
+	kfree(flip_state);
+
+	up(&vc4->async_modeset);
+}
+
+/* Implements async (non-vblank-synced) page flips.
+ *
+ * The page flip ioctl needs to return immediately, so we grab the
+ * modeset semaphore on the pipe, and queue the address update for
+ * when V3D is done with the BO being flipped to.
+ */
+static int vc4_async_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t flags)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_plane *plane = crtc->primary;
+	int ret = 0;
+	struct vc4_async_flip_state *flip_state;
+	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
+	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+
+	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
+	if (!flip_state)
+		return -ENOMEM;
+
+	drm_framebuffer_reference(fb);
+	flip_state->fb = fb;
+	flip_state->crtc = crtc;
+	flip_state->event = event;
+
+	/* Make sure all other async modesetes have landed. */
+	ret = down_interruptible(&vc4->async_modeset);
+	if (ret) {
+		kfree(flip_state);
+		return ret;
+	}
+
+	/* Immediately update the plane's legacy fb pointer, so that later
+	 * modeset prep sees the state that will be present when the semaphore
+	 * is released.
+	 */
+	drm_atomic_set_fb_for_plane(plane->state, fb);
+	plane->fb = fb;
+
+	vc4_queue_seqno_cb(dev, &flip_state->cb, bo->seqno,
+			   vc4_async_page_flip_complete);
+
+	/* Driver takes ownership of state on successful async commit. */
+	return 0;
+}
+
+static int vc4_page_flip(struct drm_crtc *crtc,
+			 struct drm_framebuffer *fb,
+			 struct drm_pending_vblank_event *event,
+			 uint32_t flags)
+{
+	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		return vc4_async_page_flip(crtc, fb, event, flags);
+	else
+		return drm_atomic_helper_page_flip(crtc, fb, event, flags);
+}
+
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = vc4_crtc_destroy,
-	.page_flip = drm_atomic_helper_page_flip,
+	.page_flip = vc4_page_flip,
 	.set_property = NULL,
 	.cursor_set = NULL, /* handled by drm_mode_cursor_universal */
 	.cursor_move = NULL, /* handled by drm_mode_cursor_universal */
@@ -606,7 +703,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	drm_crtc_init_with_planes(drm, crtc, primary_plane, cursor_plane,
-				  &vc4_crtc_funcs);
+				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 	primary_plane->crtc = crtc;
 	cursor_plane->crtc = crtc;

@@ -56,7 +56,6 @@ void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
 		atomic_dec(&eb->spinning_readers);
 		read_unlock(&eb->lock);
 	}
-	return;
 }
 
 /*
@@ -96,7 +95,6 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 		    waitqueue_active(&eb->read_lock_wq))
 			wake_up(&eb->read_lock_wq);
 	}
-	return;
 }
 
 /*

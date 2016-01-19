@@ -29,16 +29,16 @@
 #define GEN8_CSB_PTR_MASK 0x07
 
 /* Execlists regs */
-#define RING_ELSP(ring)			((ring)->mmio_base+0x230)
-#define RING_EXECLIST_STATUS_LO(ring)	((ring)->mmio_base+0x234)
-#define RING_EXECLIST_STATUS_HI(ring)	((ring)->mmio_base+0x234 + 4)
-#define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
+#define RING_ELSP(ring)				_MMIO((ring)->mmio_base + 0x230)
+#define RING_EXECLIST_STATUS_LO(ring)		_MMIO((ring)->mmio_base + 0x234)
+#define RING_EXECLIST_STATUS_HI(ring)		_MMIO((ring)->mmio_base + 0x234 + 4)
+#define RING_CONTEXT_CONTROL(ring)		_MMIO((ring)->mmio_base + 0x244)
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
 #define   CTX_CTRL_RS_CTX_ENABLE                (1 << 1)
-#define RING_CONTEXT_STATUS_BUF_LO(ring, i)	((ring)->mmio_base+0x370 + (i) * 8)
-#define RING_CONTEXT_STATUS_BUF_HI(ring, i)	((ring)->mmio_base+0x370 + (i) * 8 + 4)
-#define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
+#define RING_CONTEXT_STATUS_BUF_LO(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8)
+#define RING_CONTEXT_STATUS_BUF_HI(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8 + 4)
+#define RING_CONTEXT_STATUS_PTR(ring)		_MMIO((ring)->mmio_base + 0x3a0)
 
 /* Logical Rings */
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
@@ -69,6 +69,11 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 {
 	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
 	ringbuf->tail += 4;
+}
+static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
+					       i915_reg_t reg)
+{
+	intel_logical_ring_emit(ringbuf, i915_mmio_reg_offset(reg));
 }
 
 /* Logical Ring Contexts */

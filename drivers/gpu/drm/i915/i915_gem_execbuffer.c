@@ -249,6 +249,31 @@ static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 		obj->cache_level != I915_CACHE_NONE);
 }
 
+/* Used to convert any address to canonical form.
+ * Starting from gen8, some commands (e.g. STATE_BASE_ADDRESS,
+ * MI_LOAD_REGISTER_MEM and others, see Broadwell PRM Vol2a) require the
+ * addresses to be in a canonical form:
+ * "GraphicsAddress[63:48] are ignored by the HW and assumed to be in correct
+ * canonical form [63:48] == [47]."
+ */
+#define GEN8_HIGH_ADDRESS_BIT 47
+static inline uint64_t gen8_canonical_addr(uint64_t address)
+{
+	return sign_extend64(address, GEN8_HIGH_ADDRESS_BIT);
+}
+
+static inline uint64_t gen8_noncanonical_addr(uint64_t address)
+{
+	return address & ((1ULL << (GEN8_HIGH_ADDRESS_BIT + 1)) - 1);
+}
+
+static inline uint64_t
+relocation_target(struct drm_i915_gem_relocation_entry *reloc,
+		  uint64_t target_offset)
+{
+	return gen8_canonical_addr((int)reloc->delta + target_offset);
+}
+
 static int
 relocate_entry_cpu(struct drm_i915_gem_object *obj,
 		   struct drm_i915_gem_relocation_entry *reloc,
@@ -256,7 +281,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	uint32_t page_offset = offset_in_page(reloc->offset);
-	uint64_t delta = reloc->delta + target_offset;
+	uint64_t delta = relocation_target(reloc, target_offset);
 	char *vaddr;
 	int ret;
 
@@ -264,7 +289,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 				reloc->offset >> PAGE_SHIFT));
 	*(uint32_t *)(vaddr + page_offset) = lower_32_bits(delta);
 
@@ -273,7 +298,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 
 		if (page_offset == 0) {
 			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
 		}
 
@@ -292,7 +317,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint64_t delta = reloc->delta + target_offset;
+	uint64_t delta = relocation_target(reloc, target_offset);
 	uint64_t offset;
 	void __iomem *reloc_page;
 	int ret;
@@ -347,7 +372,7 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	uint32_t page_offset = offset_in_page(reloc->offset);
-	uint64_t delta = (int)reloc->delta + target_offset;
+	uint64_t delta = relocation_target(reloc, target_offset);
 	char *vaddr;
 	int ret;
 
@@ -355,7 +380,7 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 				reloc->offset >> PAGE_SHIFT));
 	clflush_write32(vaddr + page_offset, lower_32_bits(delta));
 
@@ -364,7 +389,7 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 
 		if (page_offset == 0) {
 			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
 		}
 
@@ -395,7 +420,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	target_i915_obj = target_vma->obj;
 	target_obj = &target_vma->obj->base;
 
-	target_offset = target_vma->node.start;
+	target_offset = gen8_canonical_addr(target_vma->node.start);
 
 	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
 	 * pipe_control writes because the gpu doesn't properly redirect them
@@ -599,6 +624,8 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 			flags |= PIN_GLOBAL | PIN_MAPPABLE;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
 			flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+		if (entry->flags & EXEC_OBJECT_PINNED)
+			flags |= entry->offset | PIN_OFFSET_FIXED;
 		if ((flags & PIN_MAPPABLE) == 0)
 			flags |= PIN_HIGH;
 	}
@@ -670,6 +697,10 @@ eb_vma_misplaced(struct i915_vma *vma)
 	    vma->node.start & (entry->alignment - 1))
 		return true;
 
+	if (entry->flags & EXEC_OBJECT_PINNED &&
+	    vma->node.start != entry->offset)
+		return true;
+
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS &&
 	    vma->node.start < BATCH_OFFSET_BIAS)
 		return true;
@@ -695,6 +726,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	struct i915_vma *vma;
 	struct i915_address_space *vm;
 	struct list_head ordered_vmas;
+	struct list_head pinned_vmas;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	int retry;
 
@@ -703,6 +735,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
 	INIT_LIST_HEAD(&ordered_vmas);
+	INIT_LIST_HEAD(&pinned_vmas);
 	while (!list_empty(vmas)) {
 		struct drm_i915_gem_exec_object2 *entry;
 		bool need_fence, need_mappable;
@@ -721,7 +754,9 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			obj->tiling_mode != I915_TILING_NONE;
 		need_mappable = need_fence || need_reloc_mappable(vma);
 
-		if (need_mappable) {
+		if (entry->flags & EXEC_OBJECT_PINNED)
+			list_move_tail(&vma->exec_list, &pinned_vmas);
+		else if (need_mappable) {
 			entry->flags |= __EXEC_OBJECT_NEEDS_MAP;
 			list_move(&vma->exec_list, &ordered_vmas);
 		} else
@@ -731,6 +766,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 		obj->base.pending_write_domain = 0;
 	}
 	list_splice(&ordered_vmas, vmas);
+	list_splice(&pinned_vmas, vmas);
 
 	/* Attempt to pin all of the buffers into the GTT.
 	 * This is done in 3 phases:
@@ -983,6 +1019,21 @@ validate_exec_list(struct drm_device *dev,
 		if (exec[i].flags & invalid_flags)
 			return -EINVAL;
 
+		/* Offset can be used as input (EXEC_OBJECT_PINNED), reject
+		 * any non-page-aligned or non-canonical addresses.
+		 */
+		if (exec[i].flags & EXEC_OBJECT_PINNED) {
+			if (exec[i].offset !=
+			    gen8_canonical_addr(exec[i].offset & PAGE_MASK))
+				return -EINVAL;
+
+			/* From drm_mm perspective address space is continuous,
+			 * so from this point we're always using non-canonical
+			 * form internally.
+			 */
+			exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
+		}
+
 		if (exec[i].alignment && !is_power_of_2(exec[i].alignment))
 			return -EINVAL;
 
@@ -1114,7 +1165,7 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 
 	for (i = 0; i < 4; i++) {
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, GEN7_SO_WRITE_OFFSET(i));
+		intel_ring_emit_reg(ring, GEN7_SO_WRITE_OFFSET(i));
 		intel_ring_emit(ring, 0);
 	}
 
@@ -1241,7 +1292,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 		intel_ring_emit(ring, MI_NOOP);
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, INSTPM);
+		intel_ring_emit_reg(ring, INSTPM);
 		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
 		intel_ring_advance(ring);
 
@@ -1317,7 +1368,8 @@ eb_get_batch(struct eb_vmas *eb)
 	 * Note that actual hangs have only been observed on gen7, but for
 	 * paranoia do it everywhere.
 	 */
-	vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
+	if ((vma->exec_entry->flags & EXEC_OBJECT_PINNED) == 0)
+		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
 
 	return vma->obj;
 }
@@ -1675,6 +1727,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 		/* Copy the new buffer offsets back to the user's exec list. */
 		for (i = 0; i < args->buffer_count; i++) {
+			exec2_list[i].offset =
+				gen8_canonical_addr(exec2_list[i].offset);
 			ret = __copy_to_user(&user_exec_list[i].offset,
 					     &exec2_list[i].offset,
 					     sizeof(user_exec_list[i].offset));
@@ -1740,6 +1794,8 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 		int i;
 
 		for (i = 0; i < args->buffer_count; i++) {
+			exec2_list[i].offset =
+				gen8_canonical_addr(exec2_list[i].offset);
 			ret = __copy_to_user(&user_exec_list[i].offset,
 					     &exec2_list[i].offset,
 					     sizeof(user_exec_list[i].offset));

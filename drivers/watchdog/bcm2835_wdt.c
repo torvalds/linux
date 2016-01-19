@@ -79,7 +79,6 @@ static int bcm2835_wdt_stop(struct watchdog_device *wdog)
 	struct bcm2835_wdt *wdt = watchdog_get_drvdata(wdog);
 
 	writel_relaxed(PM_PASSWORD | PM_RSTC_RESET, wdt->base + PM_RSTC);
-	dev_info(wdog->dev, "Watchdog timer stopped");
 	return 0;
 }
 

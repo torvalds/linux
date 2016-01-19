@@ -122,6 +122,12 @@
 		compatible = "auo,b133htn01";
 		power-supply = <&tps65090_fet6>;
 		backlight = <&backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dp_out>;
+			};
+		};
 	};
 
 	mmc1_pwrseq: mmc1_pwrseq {
@@ -148,7 +154,14 @@
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <2>;
 	samsung,hpd-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
-	panel = <&panel>;
+
+	ports {
+		port {
+			dp_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
 };
 
 &fimd {

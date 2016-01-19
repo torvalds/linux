@@ -35,7 +35,6 @@ MODULE_PARM_DESC(nowayout,
 struct da9055_wdt_data {
 	struct watchdog_device wdt;
 	struct da9055 *da9055;
-	struct kref kref;
 };
 
 static const struct {
@@ -99,24 +98,6 @@ static int da9055_wdt_ping(struct watchdog_device *wdt_dev)
 				 DA9055_WATCHDOG_MASK, 1);
 }
 
-static void da9055_wdt_release_resources(struct kref *r)
-{
-}
-
-static void da9055_wdt_ref(struct watchdog_device *wdt_dev)
-{
-	struct da9055_wdt_data *driver_data = watchdog_get_drvdata(wdt_dev);
-
-	kref_get(&driver_data->kref);
-}
-
-static void da9055_wdt_unref(struct watchdog_device *wdt_dev)
-{
-	struct da9055_wdt_data *driver_data = watchdog_get_drvdata(wdt_dev);
-
-	kref_put(&driver_data->kref, da9055_wdt_release_resources);
-}
-
 static int da9055_wdt_start(struct watchdog_device *wdt_dev)
 {
 	return da9055_wdt_set_timeout(wdt_dev, wdt_dev->timeout);
@@ -138,8 +119,6 @@ static const struct watchdog_ops da9055_wdt_ops = {
 	.stop = da9055_wdt_stop,
 	.ping = da9055_wdt_ping,
 	.set_timeout = da9055_wdt_set_timeout,
-	.ref = da9055_wdt_ref,
-	.unref = da9055_wdt_unref,
 };
 
 static int da9055_wdt_probe(struct platform_device *pdev)
@@ -165,8 +144,6 @@ static int da9055_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(da9055_wdt, nowayout);
 	watchdog_set_drvdata(da9055_wdt, driver_data);
 
-	kref_init(&driver_data->kref);
-
 	ret = da9055_wdt_stop(da9055_wdt);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to stop watchdog, %d\n", ret);
@@ -189,7 +166,6 @@ static int da9055_wdt_remove(struct platform_device *pdev)
 	struct da9055_wdt_data *driver_data = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&driver_data->wdt);
-	kref_put(&driver_data->kref, da9055_wdt_release_resources);
 
 	return 0;
 }

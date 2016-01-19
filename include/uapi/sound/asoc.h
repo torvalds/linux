@@ -243,7 +243,7 @@ struct snd_soc_tplg_manifest {
 	__le32 control_elems;	/* number of control elements */
 	__le32 widget_elems;	/* number of widget elements */
 	__le32 graph_elems;	/* number of graph elements */
-	__le32 dai_elems;	/* number of DAI elements */
+	__le32 pcm_elems;	/* number of PCM elements */
 	__le32 dai_link_elems;	/* number of DAI link elements */
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));

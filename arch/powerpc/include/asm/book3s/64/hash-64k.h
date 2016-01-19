@@ -256,13 +256,6 @@ static inline int pmd_trans_huge(pmd_t pmd)
 		  (_PAGE_PTE | _PAGE_THP_HUGE));
 }
 
-static inline int pmd_trans_splitting(pmd_t pmd)
-{
-	if (pmd_trans_huge(pmd))
-		return pmd_val(pmd) & _PAGE_SPLITTING;
-	return 0;
-}
-
 static inline int pmd_large(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_PTE);
@@ -271,11 +264,6 @@ static inline int pmd_large(pmd_t pmd)
 static inline pmd_t pmd_mknotpresent(pmd_t pmd)
 {
 	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
-}
-
-static inline pmd_t pmd_mksplitting(pmd_t pmd)
-{
-	return __pmd(pmd_val(pmd) | _PAGE_SPLITTING);
 }
 
 #define __HAVE_ARCH_PMD_SAME

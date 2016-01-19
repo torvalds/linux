@@ -638,7 +638,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
-		tps->chip.dev = &client->dev;
+		tps->chip.parent = &client->dev;
 		tps->chip.owner = THIS_MODULE;
 
 		tps->chip.set = tps65010_gpio_set;

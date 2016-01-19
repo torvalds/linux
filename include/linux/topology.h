@@ -34,10 +34,6 @@
 #include <linux/percpu.h>
 #include <asm/topology.h>
 
-#ifndef node_has_online_mem
-#define node_has_online_mem(nid) (1)
-#endif
-
 #ifndef nr_cpus_node
 #define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
 #endif

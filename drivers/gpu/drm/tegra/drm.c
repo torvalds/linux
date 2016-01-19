@@ -106,7 +106,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	.output_poll_changed = tegra_fb_output_poll_changed,
 #endif
 	.atomic_check = drm_atomic_helper_check,
@@ -137,8 +137,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		start = geometry->aperture_start;
 		end = geometry->aperture_end;
 
-		DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
-			  start, end);
+		DRM_DEBUG_DRIVER("IOMMU aperture initialized (%#llx-%#llx)\n",
+				 start, end);
 		drm_mm_init(&tegra->mm, start, end - start + 1);
 	}
 
@@ -260,7 +260,7 @@ static void tegra_drm_context_free(struct tegra_drm_context *context)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_restore_mode(tegra->fbdev);
@@ -277,9 +277,7 @@ host1x_bo_lookup(struct drm_device *drm, struct drm_file *file, u32 handle)
 	if (!gem)
 		return NULL;
 
-	mutex_lock(&drm->struct_mutex);
-	drm_gem_object_unreference(gem);
-	mutex_unlock(&drm->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem);
 
 	bo = to_tegra_bo(gem);
 	return &bo->base;
@@ -473,7 +471,7 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 
 	args->offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
 
-	drm_gem_object_unreference(gem);
+	drm_gem_object_unreference_unlocked(gem);
 
 	return 0;
 }
@@ -683,7 +681,7 @@ static int tegra_gem_set_tiling(struct drm_device *drm, void *data,
 	bo->tiling.mode = mode;
 	bo->tiling.value = value;
 
-	drm_gem_object_unreference(gem);
+	drm_gem_object_unreference_unlocked(gem);
 
 	return 0;
 }
@@ -723,7 +721,7 @@ static int tegra_gem_get_tiling(struct drm_device *drm, void *data,
 		break;
 	}
 
-	drm_gem_object_unreference(gem);
+	drm_gem_object_unreference_unlocked(gem);
 
 	return err;
 }
@@ -748,7 +746,7 @@ static int tegra_gem_set_flags(struct drm_device *drm, void *data,
 	if (args->flags & DRM_TEGRA_GEM_BOTTOM_UP)
 		bo->flags |= TEGRA_BO_BOTTOM_UP;
 
-	drm_gem_object_unreference(gem);
+	drm_gem_object_unreference_unlocked(gem);
 
 	return 0;
 }
@@ -770,7 +768,7 @@ static int tegra_gem_get_flags(struct drm_device *drm, void *data,
 	if (bo->flags & TEGRA_BO_BOTTOM_UP)
 		args->flags |= DRM_TEGRA_GEM_BOTTOM_UP;
 
-	drm_gem_object_unreference(gem);
+	drm_gem_object_unreference_unlocked(gem);
 
 	return 0;
 }
@@ -921,7 +919,8 @@ static void tegra_debugfs_cleanup(struct drm_minor *minor)
 #endif
 
 static struct drm_driver tegra_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
+			   DRIVER_ATOMIC,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,
@@ -991,7 +990,6 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	drm_dev_set_unique(drm, dev_name(&dev->dev));
 	dev_set_drvdata(&dev->dev, drm);
 
 	err = drm_dev_register(drm, 0);
@@ -1023,8 +1021,17 @@ static int host1x_drm_remove(struct host1x_device *dev)
 static int host1x_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	struct tegra_drm *tegra = drm->dev_private;
 
 	drm_kms_helper_poll_disable(drm);
+	tegra_drm_fb_suspend(drm);
+
+	tegra->state = drm_atomic_helper_suspend(drm);
+	if (IS_ERR(tegra->state)) {
+		tegra_drm_fb_resume(drm);
+		drm_kms_helper_poll_enable(drm);
+		return PTR_ERR(tegra->state);
+	}
 
 	return 0;
 }
@@ -1032,7 +1039,10 @@ static int host1x_drm_suspend(struct device *dev)
 static int host1x_drm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	struct tegra_drm *tegra = drm->dev_private;
 
+	drm_atomic_helper_resume(drm, tegra->state);
+	tegra_drm_fb_resume(drm);
 	drm_kms_helper_poll_enable(drm);
 
 	return 0;
@@ -1076,6 +1086,16 @@ static struct host1x_driver host1x_drm_driver = {
 	.subdevs = host1x_drm_subdevs,
 };
 
+static struct platform_driver * const drivers[] = {
+	&tegra_dc_driver,
+	&tegra_hdmi_driver,
+	&tegra_dsi_driver,
+	&tegra_dpaux_driver,
+	&tegra_sor_driver,
+	&tegra_gr2d_driver,
+	&tegra_gr3d_driver,
+};
+
 static int __init host1x_drm_init(void)
 {
 	int err;
@@ -1084,48 +1104,12 @@ static int __init host1x_drm_init(void)
 	if (err < 0)
 		return err;
 
-	err = platform_driver_register(&tegra_dc_driver);
+	err = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (err < 0)
 		goto unregister_host1x;
 
-	err = platform_driver_register(&tegra_dsi_driver);
-	if (err < 0)
-		goto unregister_dc;
-
-	err = platform_driver_register(&tegra_sor_driver);
-	if (err < 0)
-		goto unregister_dsi;
-
-	err = platform_driver_register(&tegra_hdmi_driver);
-	if (err < 0)
-		goto unregister_sor;
-
-	err = platform_driver_register(&tegra_dpaux_driver);
-	if (err < 0)
-		goto unregister_hdmi;
-
-	err = platform_driver_register(&tegra_gr2d_driver);
-	if (err < 0)
-		goto unregister_dpaux;
-
-	err = platform_driver_register(&tegra_gr3d_driver);
-	if (err < 0)
-		goto unregister_gr2d;
-
 	return 0;
 
-unregister_gr2d:
-	platform_driver_unregister(&tegra_gr2d_driver);
-unregister_dpaux:
-	platform_driver_unregister(&tegra_dpaux_driver);
-unregister_hdmi:
-	platform_driver_unregister(&tegra_hdmi_driver);
-unregister_sor:
-	platform_driver_unregister(&tegra_sor_driver);
-unregister_dsi:
-	platform_driver_unregister(&tegra_dsi_driver);
-unregister_dc:
-	platform_driver_unregister(&tegra_dc_driver);
 unregister_host1x:
 	host1x_driver_unregister(&host1x_drm_driver);
 	return err;
@@ -1134,13 +1118,7 @@ module_init(host1x_drm_init);
 
 static void __exit host1x_drm_exit(void)
 {
-	platform_driver_unregister(&tegra_gr3d_driver);
-	platform_driver_unregister(&tegra_gr2d_driver);
-	platform_driver_unregister(&tegra_dpaux_driver);
-	platform_driver_unregister(&tegra_hdmi_driver);
-	platform_driver_unregister(&tegra_sor_driver);
-	platform_driver_unregister(&tegra_dsi_driver);
-	platform_driver_unregister(&tegra_dc_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 	host1x_driver_unregister(&host1x_drm_driver);
 }
 module_exit(host1x_drm_exit);

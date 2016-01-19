@@ -106,7 +106,7 @@ static const struct snd_pcm_hardware atmel_classd_hw = {
 	.rates			= ATMEL_CLASSD_RATES,
 	.rate_min		= 8000,
 	.rate_max		= 96000,
-	.channels_min		= 2,
+	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 256,
@@ -145,7 +145,7 @@ static const struct snd_soc_dai_ops atmel_classd_cpu_dai_ops = {
 
 static struct snd_soc_dai_driver atmel_classd_cpu_dai = {
 	.playback = {
-		.channels_min	= 2,
+		.channels_min	= 1,
 		.channels_max	= 2,
 		.rates		= ATMEL_CLASSD_RATES,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,},
@@ -171,9 +171,13 @@ atmel_classd_platform_configure_dma(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if (params_channels(params) == 1)
+		slave_config->dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	else
+		slave_config->dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
 	slave_config->direction		= DMA_MEM_TO_DEV;
 	slave_config->dst_addr		= dd->phy_base + CLASSD_THR;
-	slave_config->dst_addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES;
 	slave_config->dst_maxburst	= 1;
 	slave_config->src_maxburst	= 1;
 	slave_config->device_fc		= false;
@@ -486,7 +490,7 @@ static struct snd_soc_dai_driver atmel_classd_codec_dai = {
 	.name = ATMEL_CLASSD_CODEC_DAI_NAME,
 	.playback = {
 		.stream_name	= "Playback",
-		.channels_min	= 2,
+		.channels_min	= 1,
 		.channels_max	= 2,
 		.rates		= ATMEL_CLASSD_RATES,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
@@ -636,8 +640,10 @@ static int atmel_classd_probe(struct platform_device *pdev)
 
 	/* register sound card */
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
-	if (!card)
-		return -ENOMEM;
+	if (!card) {
+		ret = -ENOMEM;
+		goto unregister_codec;
+	}
 
 	snd_soc_card_set_drvdata(card, dd);
 	platform_set_drvdata(pdev, card);
@@ -645,16 +651,20 @@ static int atmel_classd_probe(struct platform_device *pdev)
 	ret = atmel_classd_asoc_card_init(dev, card);
 	if (ret) {
 		dev_err(dev, "failed to init sound card\n");
-		return ret;
+		goto unregister_codec;
 	}
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret) {
 		dev_err(dev, "failed to register sound card: %d\n", ret);
-		return ret;
+		goto unregister_codec;
 	}
 
 	return 0;
+
+unregister_codec:
+	snd_soc_unregister_codec(dev);
+	return ret;
 }
 
 static int atmel_classd_remove(struct platform_device *pdev)
