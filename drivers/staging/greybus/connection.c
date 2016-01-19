@@ -464,6 +464,7 @@ err_unbind_protocol:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gb_connection_init);
 
 void gb_connection_exit(struct gb_connection *connection)
 {
@@ -482,6 +483,7 @@ void gb_connection_exit(struct gb_connection *connection)
 
 	gb_connection_unbind_protocol(connection);
 }
+EXPORT_SYMBOL_GPL(gb_connection_exit);
 
 /*
  * Tear down a previously set up connection.

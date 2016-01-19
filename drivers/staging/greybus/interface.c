@@ -183,7 +183,6 @@ void gb_interfaces_remove(struct gb_host_device *hd)
 int gb_interface_init(struct gb_interface *intf, u8 device_id)
 {
 	struct gb_bundle *bundle, *tmp;
-	struct gb_connection *connection;
 	int ret, size;
 	void *manifest;
 
@@ -242,15 +241,6 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 			gb_bundle_destroy(bundle);
 			continue;
 		}
-
-		list_for_each_entry(connection, &bundle->connections,
-							bundle_links) {
-			ret = gb_connection_init(connection);
-			if (ret)
-				break;
-		}
-		if (ret)
-			gb_bundle_destroy(bundle);
 	}
 
 	ret = 0;

@@ -9,7 +9,8 @@ greybus-y :=	core.o		\
 		control.o	\
 		svc.o		\
 		firmware.o	\
-		operation.o
+		operation.o	\
+		legacy.o
 
 gb-phy-y :=	gpbridge.o	\
 		sdio.o	\

@@ -152,21 +152,11 @@ int gb_bundle_add(struct gb_bundle *bundle)
 	return 0;
 }
 
-static void gb_bundle_connections_exit(struct gb_bundle *bundle)
-{
-	struct gb_connection *connection;
-
-	list_for_each_entry(connection, &bundle->connections, bundle_links)
-		gb_connection_exit(connection);
-}
-
 /*
  * Tear down a previously set up bundle.
  */
 void gb_bundle_destroy(struct gb_bundle *bundle)
 {
-	gb_bundle_connections_exit(bundle);
-
 	if (device_is_registered(&bundle->dev))
 		device_del(&bundle->dev);
 
