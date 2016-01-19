@@ -165,7 +165,7 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkb_data = {
 	.core_reg = RK3368_CLKSEL_CON(0),
 	.div_core_shift = 0,
 	.div_core_mask = 0x1f,
-	.mux_core_shift = 15,
+	.mux_core_shift = 7,
 };
 
 static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
