@@ -234,12 +234,6 @@ struct hfi1_mcast {
 	int n_attached;
 };
 
-/* Protection domain */
-struct hfi1_pd {
-	struct ib_pd ibpd;
-	int user;               /* non-zero if created from user space */
-};
-
 /* Address Handle */
 struct hfi1_ah {
 	struct ib_ah ibah;
@@ -776,8 +770,6 @@ struct hfi1_ibdev {
 	u64 n_kmem_wait;
 	u64 n_send_schedule;
 
-	u32 n_pds_allocated;    /* number of PDs allocated for device */
-	spinlock_t n_pds_lock;
 	u32 n_ahs_allocated;    /* number of AHs allocated for device */
 	spinlock_t n_ahs_lock;
 	u32 n_cqs_allocated;    /* number of CQs allocated for device */
@@ -815,11 +807,6 @@ struct hfi1_verbs_counters {
 static inline struct hfi1_mr *to_imr(struct ib_mr *ibmr)
 {
 	return container_of(ibmr, struct hfi1_mr, ibmr);
-}
-
-static inline struct hfi1_pd *to_ipd(struct ib_pd *ibpd)
-{
-	return container_of(ibpd, struct hfi1_pd, ibpd);
 }
 
 static inline struct hfi1_ah *to_iah(struct ib_ah *ibah)
@@ -983,7 +970,7 @@ int hfi1_alloc_lkey(struct hfi1_mregion *mr, int dma_region);
 
 void hfi1_free_lkey(struct hfi1_mregion *mr);
 
-int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct hfi1_pd *pd,
+int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct rvt_pd *pd,
 		 struct hfi1_sge *isge, struct ib_sge *sge, int acc);
 
 int hfi1_rkey_ok(struct hfi1_qp *qp, struct hfi1_sge *sge,

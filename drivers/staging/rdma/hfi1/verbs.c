@@ -368,7 +368,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 	int j;
 	int acc;
 	struct hfi1_lkey_table *rkt;
-	struct hfi1_pd *pd;
+	struct rvt_pd *pd;
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_pportdata *ppd;
 	struct hfi1_ibport *ibp;
@@ -413,7 +413,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 		return -ENOMEM;
 
 	rkt = &to_idev(qp->ibqp.device)->lk_table;
-	pd = to_ipd(qp->ibqp.pd);
+	pd = ibpd_to_rvtpd(qp->ibqp.pd);
 	wqe = get_swqe_ptr(qp, qp->s_head);
 
 
@@ -1394,7 +1394,7 @@ static int query_device(struct ib_device *ibdev,
 	props->max_mr = dev->lk_table.max;
 	props->max_fmr = dev->lk_table.max;
 	props->max_map_per_fmr = 32767;
-	props->max_pd = hfi1_max_pds;
+	props->max_pd = dev->rdi.dparms.props.max_pd;
 	props->max_qp_rd_atom = HFI1_MAX_RDMA_ATOMIC;
 	props->max_qp_init_rd_atom = 255;
 	/* props->max_res_rd_atom */
@@ -1590,61 +1590,6 @@ static int query_gid(struct ib_device *ibdev, u8 port,
 	}
 
 	return ret;
-}
-
-static struct ib_pd *alloc_pd(struct ib_device *ibdev,
-			      struct ib_ucontext *context,
-			      struct ib_udata *udata)
-{
-	struct hfi1_ibdev *dev = to_idev(ibdev);
-	struct hfi1_pd *pd;
-	struct ib_pd *ret;
-
-	/*
-	 * This is actually totally arbitrary.  Some correctness tests
-	 * assume there's a maximum number of PDs that can be allocated.
-	 * We don't actually have this limit, but we fail the test if
-	 * we allow allocations of more than we report for this value.
-	 */
-
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	spin_lock(&dev->n_pds_lock);
-	if (dev->n_pds_allocated == hfi1_max_pds) {
-		spin_unlock(&dev->n_pds_lock);
-		kfree(pd);
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	dev->n_pds_allocated++;
-	spin_unlock(&dev->n_pds_lock);
-
-	/* ib_alloc_pd() will initialize pd->ibpd. */
-	pd->user = udata != NULL;
-
-	ret = &pd->ibpd;
-
-bail:
-	return ret;
-}
-
-static int dealloc_pd(struct ib_pd *ibpd)
-{
-	struct hfi1_pd *pd = to_ipd(ibpd);
-	struct hfi1_ibdev *dev = to_idev(ibpd->device);
-
-	spin_lock(&dev->n_pds_lock);
-	dev->n_pds_allocated--;
-	spin_unlock(&dev->n_pds_lock);
-
-	kfree(pd);
-
-	return 0;
 }
 
 /*
@@ -1920,7 +1865,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 		init_ibport(ppd + i);
 
 	/* Only need to initialize non-zero fields. */
-	spin_lock_init(&dev->n_pds_lock);
+
 	spin_lock_init(&dev->n_ahs_lock);
 	spin_lock_init(&dev->n_cqs_lock);
 	spin_lock_init(&dev->n_qps_lock);
@@ -2029,8 +1974,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->query_gid = query_gid;
 	ibdev->alloc_ucontext = alloc_ucontext;
 	ibdev->dealloc_ucontext = dealloc_ucontext;
-	ibdev->alloc_pd = alloc_pd;
-	ibdev->dealloc_pd = dealloc_pd;
+	ibdev->alloc_pd = NULL;
+	ibdev->dealloc_pd = NULL;
 	ibdev->create_ah = create_ah;
 	ibdev->destroy_ah = destroy_ah;
 	ibdev->modify_ah = modify_ah;

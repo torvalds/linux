@@ -176,7 +176,7 @@ out:
  * Check the IB SGE for validity and initialize our internal version
  * of it.
  */
-int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct hfi1_pd *pd,
+int hfi1_lkey_ok(struct hfi1_lkey_table *rkt, struct rvt_pd *pd,
 		 struct hfi1_sge *isge, struct ib_sge *sge, int acc)
 {
 	struct hfi1_mregion *mr;
@@ -285,7 +285,7 @@ int hfi1_rkey_ok(struct hfi1_qp *qp, struct hfi1_sge *sge,
 	 */
 	rcu_read_lock();
 	if (rkey == 0) {
-		struct hfi1_pd *pd = to_ipd(qp->ibqp.pd);
+		struct rvt_pd *pd = ibpd_to_rvtpd(qp->ibqp.pd);
 		struct hfi1_ibdev *dev = to_idev(pd->ibpd.device);
 
 		if (pd->user)
