@@ -2431,18 +2431,33 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 	}
 }
 
+static bool
+__transport_wait_for_tasks(struct se_cmd *, bool, bool *, bool *,
+			   unsigned long *flags);
+
+static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	__transport_wait_for_tasks(cmd, true, aborted, tas, &flags);
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+}
+
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
 	int ret = 0;
+	bool aborted = false, tas = false;
 
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
 		if (wait_for_tasks && (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
-			transport_wait_for_tasks(cmd);
+			target_wait_free_cmd(cmd, &aborted, &tas);
 
-		ret = transport_put_cmd(cmd);
+		if (!aborted || tas)
+			ret = transport_put_cmd(cmd);
 	} else {
 		if (wait_for_tasks)
-			transport_wait_for_tasks(cmd);
+			target_wait_free_cmd(cmd, &aborted, &tas);
 		/*
 		 * Handle WRITE failure case where transport_generic_new_cmd()
 		 * has already added se_cmd to state_list, but fabric has
@@ -2454,7 +2469,20 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
 
-		ret = transport_put_cmd(cmd);
+		if (!aborted || tas)
+			ret = transport_put_cmd(cmd);
+	}
+	/*
+	 * If the task has been internally aborted due to TMR ABORT_TASK
+	 * or LUN_RESET, target_core_tmr.c is responsible for performing
+	 * the remaining calls to target_put_sess_cmd(), and not the
+	 * callers of this function.
+	 */
+	if (aborted) {
+		pr_debug("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
+		wait_for_completion(&cmd->cmd_wait_comp);
+		cmd->se_tfo->release_cmd(cmd);
+		ret = 1;
 	}
 	return ret;
 }
@@ -2509,6 +2537,7 @@ static void target_release_cmd_kref(struct kref *kref)
 	struct se_cmd *se_cmd = container_of(kref, struct se_cmd, cmd_kref);
 	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned long flags;
+	bool fabric_stop;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (list_empty(&se_cmd->se_cmd_list)) {
@@ -2517,13 +2546,19 @@ static void target_release_cmd_kref(struct kref *kref)
 		se_cmd->se_tfo->release_cmd(se_cmd);
 		return;
 	}
-	if (se_sess->sess_tearing_down && se_cmd->cmd_wait_set) {
+
+	spin_lock(&se_cmd->t_state_lock);
+	fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP);
+	spin_unlock(&se_cmd->t_state_lock);
+
+	if (se_cmd->cmd_wait_set || fabric_stop) {
+		list_del_init(&se_cmd->se_cmd_list);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 		target_free_cmd_mem(se_cmd);
 		complete(&se_cmd->cmd_wait_comp);
 		return;
 	}
-	list_del(&se_cmd->se_cmd_list);
+	list_del_init(&se_cmd->se_cmd_list);
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 	target_free_cmd_mem(se_cmd);
@@ -2555,6 +2590,7 @@ void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 {
 	struct se_cmd *se_cmd;
 	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (se_sess->sess_tearing_down) {
@@ -2564,8 +2600,15 @@ void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 	se_sess->sess_tearing_down = 1;
 	list_splice_init(&se_sess->sess_cmd_list, &se_sess->sess_wait_list);
 
-	list_for_each_entry(se_cmd, &se_sess->sess_wait_list, se_cmd_list)
-		se_cmd->cmd_wait_set = 1;
+	list_for_each_entry(se_cmd, &se_sess->sess_wait_list, se_cmd_list) {
+		rc = kref_get_unless_zero(&se_cmd->cmd_kref);
+		if (rc) {
+			se_cmd->cmd_wait_set = 1;
+			spin_lock(&se_cmd->t_state_lock);
+			se_cmd->transport_state |= CMD_T_FABRIC_STOP;
+			spin_unlock(&se_cmd->t_state_lock);
+		}
+	}
 
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 }
@@ -2578,14 +2621,24 @@ void target_wait_for_sess_cmds(struct se_session *se_sess)
 {
 	struct se_cmd *se_cmd, *tmp_cmd;
 	unsigned long flags;
+	bool tas;
 
 	list_for_each_entry_safe(se_cmd, tmp_cmd,
 				&se_sess->sess_wait_list, se_cmd_list) {
-		list_del(&se_cmd->se_cmd_list);
+		list_del_init(&se_cmd->se_cmd_list);
 
 		pr_debug("Waiting for se_cmd: %p t_state: %d, fabric state:"
 			" %d\n", se_cmd, se_cmd->t_state,
 			se_cmd->se_tfo->get_cmd_state(se_cmd));
+
+		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
+		tas = (se_cmd->transport_state & CMD_T_TAS);
+		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
+
+		if (!target_put_sess_cmd(se_cmd)) {
+			if (tas)
+				target_put_sess_cmd(se_cmd);
+		}
 
 		wait_for_completion(&se_cmd->cmd_wait_comp);
 		pr_debug("After cmd_wait_comp: se_cmd: %p t_state: %d"
@@ -2608,6 +2661,58 @@ void transport_clear_lun_ref(struct se_lun *lun)
 	wait_for_completion(&lun->lun_ref_comp);
 }
 
+static bool
+__transport_wait_for_tasks(struct se_cmd *cmd, bool fabric_stop,
+			   bool *aborted, bool *tas, unsigned long *flags)
+	__releases(&cmd->t_state_lock)
+	__acquires(&cmd->t_state_lock)
+{
+
+	assert_spin_locked(&cmd->t_state_lock);
+	WARN_ON_ONCE(!irqs_disabled());
+
+	if (fabric_stop)
+		cmd->transport_state |= CMD_T_FABRIC_STOP;
+
+	if (cmd->transport_state & CMD_T_ABORTED)
+		*aborted = true;
+
+	if (cmd->transport_state & CMD_T_TAS)
+		*tas = true;
+
+	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) &&
+	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
+		return false;
+
+	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) &&
+	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
+		return false;
+
+	if (!(cmd->transport_state & CMD_T_ACTIVE))
+		return false;
+
+	if (fabric_stop && *aborted)
+		return false;
+
+	cmd->transport_state |= CMD_T_STOP;
+
+	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08llx i_state: %d,"
+		 " t_state: %d, CMD_T_STOP\n", cmd, cmd->tag,
+		 cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
+
+	spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
+
+	wait_for_completion(&cmd->t_transport_stop_comp);
+
+	spin_lock_irqsave(&cmd->t_state_lock, *flags);
+	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
+
+	pr_debug("wait_for_tasks: Stopped wait_for_completion(&cmd->"
+		 "t_transport_stop_comp) for ITT: 0x%08llx\n", cmd->tag);
+
+	return true;
+}
+
 /**
  * transport_wait_for_tasks - wait for completion to occur
  * @cmd:	command to wait
@@ -2618,43 +2723,13 @@ void transport_clear_lun_ref(struct se_lun *lun)
 bool transport_wait_for_tasks(struct se_cmd *cmd)
 {
 	unsigned long flags;
+	bool ret, aborted = false, tas = false;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) &&
-	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return false;
-	}
-
-	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) &&
-	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return false;
-	}
-
-	if (!(cmd->transport_state & CMD_T_ACTIVE)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return false;
-	}
-
-	cmd->transport_state |= CMD_T_STOP;
-
-	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08llx i_state: %d, t_state: %d, CMD_T_STOP\n",
-		cmd, cmd->tag, cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
-
+	ret = __transport_wait_for_tasks(cmd, false, &aborted, &tas, &flags);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	wait_for_completion(&cmd->t_transport_stop_comp);
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
-
-	pr_debug("wait_for_tasks: Stopped wait_for_completion(&cmd->t_transport_stop_comp) for ITT: 0x%08llx\n",
-		cmd->tag);
-
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	return true;
+	return ret;
 }
 EXPORT_SYMBOL(transport_wait_for_tasks);
 
