@@ -828,6 +828,33 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	return true;
 }
 
+static bool intel_fbc_can_enable(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (intel_vgpu_active(dev_priv->dev)) {
+		set_no_fbc_reason(dev_priv, "VGPU is active");
+		return false;
+	}
+
+	if (i915.enable_fbc < 0) {
+		set_no_fbc_reason(dev_priv, "disabled per chip default");
+		return false;
+	}
+
+	if (!i915.enable_fbc) {
+		set_no_fbc_reason(dev_priv, "disabled per module param");
+		return false;
+	}
+
+	if (!crtc_can_fbc(crtc)) {
+		set_no_fbc_reason(dev_priv, "no enabled pipes can have FBC");
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * __intel_fbc_update - activate/deactivate FBC as needed, unlocked
  * @crtc: the CRTC that triggered the update
@@ -997,25 +1024,8 @@ void intel_fbc_enable(struct intel_crtc *crtc)
 	WARN_ON(dev_priv->fbc.active);
 	WARN_ON(dev_priv->fbc.crtc != NULL);
 
-	if (intel_vgpu_active(dev_priv->dev)) {
-		set_no_fbc_reason(dev_priv, "VGPU is active");
+	if (!intel_fbc_can_enable(crtc))
 		goto out;
-	}
-
-	if (i915.enable_fbc < 0) {
-		set_no_fbc_reason(dev_priv, "disabled per chip default");
-		goto out;
-	}
-
-	if (!i915.enable_fbc) {
-		set_no_fbc_reason(dev_priv, "disabled per module param");
-		goto out;
-	}
-
-	if (!crtc_can_fbc(crtc)) {
-		set_no_fbc_reason(dev_priv, "no enabled pipes can have FBC");
-		goto out;
-	}
 
 	if (intel_fbc_alloc_cfb(crtc)) {
 		set_no_fbc_reason(dev_priv, "not enough stolen memory");
