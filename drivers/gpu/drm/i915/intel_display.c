@@ -4927,8 +4927,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config->has_pch_encoder)
 		intel_wait_for_vblank(dev, pipe);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
-
-	intel_fbc_enable(intel_crtc);
 }
 
 /* IPS only exists on ULT machines and is tied to pipe A. */
@@ -5041,8 +5039,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		intel_wait_for_vblank(dev, hsw_workaround_pipe);
 		intel_wait_for_vblank(dev, hsw_workaround_pipe);
 	}
-
-	intel_fbc_enable(intel_crtc);
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force)
@@ -5123,8 +5119,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
-
-	intel_fbc_disable(intel_crtc);
 }
 
 static void haswell_crtc_disable(struct drm_crtc *crtc)
@@ -5175,8 +5169,6 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
 						      true);
 	}
-
-	intel_fbc_disable(intel_crtc);
 }
 
 static void i9xx_pfit_enable(struct intel_crtc *crtc)
@@ -6287,8 +6279,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
-
-	intel_fbc_enable(intel_crtc);
 }
 
 static void i9xx_pfit_disable(struct intel_crtc *crtc)
@@ -6351,8 +6341,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 	if (!IS_GEN2(dev))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
-	intel_fbc_disable(intel_crtc);
 }
 
 static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
@@ -6376,6 +6364,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 
 	dev_priv->display.crtc_disable(crtc);
 	intel_crtc->active = false;
+	intel_fbc_disable(intel_crtc);
 	intel_update_watermarks(crtc);
 	intel_disable_shared_dpll(intel_crtc);
 
@@ -13529,6 +13518,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 			intel_crtc_disable_planes(crtc, crtc_state->plane_mask);
 			dev_priv->display.crtc_disable(crtc);
 			intel_crtc->active = false;
+			intel_fbc_disable(intel_crtc);
 			intel_disable_shared_dpll(intel_crtc);
 
 			/*
@@ -13568,6 +13558,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
+			intel_fbc_enable(intel_crtc);
 		}
 
 		if (update_pipe) {

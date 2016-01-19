@@ -1137,7 +1137,7 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
 	WARN_ON(!mutex_is_locked(&fbc->lock));
 	WARN_ON(!fbc->enabled);
 	WARN_ON(fbc->active);
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	WARN_ON(crtc->active);
 
 	DRM_DEBUG_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
 
