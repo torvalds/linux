@@ -287,7 +287,7 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 	spin_lock_irqsave(&rfkill->lock, flags);
 	prev = rfkill->state & RFKILL_BLOCK_SW;
 
-	if (rfkill->state & RFKILL_BLOCK_SW)
+	if (prev)
 		rfkill->state |= RFKILL_BLOCK_SW_PREV;
 	else
 		rfkill->state &= ~RFKILL_BLOCK_SW_PREV;
