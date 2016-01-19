@@ -190,6 +190,16 @@
 		clock-names = "timer", "pclk";
 	};
 
+	tsadc: tsadc@20060000 {
+		compatible = "rockchip,rk3066-tsadc";
+		reg = <0x20060000 0x100>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "saradc", "apb_pclk";
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+		#io-channel-cells = <1>;
+		status = "disabled";
+	};
+
 	usbphy: phy {
 		compatible = "rockchip,rk3066a-usb-phy", "rockchip,rk3288-usb-phy";
 		rockchip,grf = <&grf>;
