@@ -856,6 +856,54 @@ static void intel_init_dpio(struct drm_i915_private *dev_priv)
 	}
 }
 
+static int i915_workqueues_init(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * The i915 workqueue is primarily used for batched retirement of
+	 * requests (and thus managing bo) once the task has been completed
+	 * by the GPU. i915_gem_retire_requests() is called directly when we
+	 * need high-priority retirement, such as waiting for an explicit
+	 * bo.
+	 *
+	 * It is also used for periodic low-priority events, such as
+	 * idle-timers and recording error state.
+	 *
+	 * All tasks on the workqueue are expected to acquire the dev mutex
+	 * so there is no point in running more than one instance of the
+	 * workqueue at any time.  Use an ordered one.
+	 */
+	dev_priv->wq = alloc_ordered_workqueue("i915", 0);
+	if (dev_priv->wq == NULL)
+		goto out_err;
+
+	dev_priv->hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
+	if (dev_priv->hotplug.dp_wq == NULL)
+		goto out_free_wq;
+
+	dev_priv->gpu_error.hangcheck_wq =
+		alloc_ordered_workqueue("i915-hangcheck", 0);
+	if (dev_priv->gpu_error.hangcheck_wq == NULL)
+		goto out_free_dp_wq;
+
+	return 0;
+
+out_free_dp_wq:
+	destroy_workqueue(dev_priv->hotplug.dp_wq);
+out_free_wq:
+	destroy_workqueue(dev_priv->wq);
+out_err:
+	DRM_ERROR("Failed to allocate workqueues.\n");
+
+	return -ENOMEM;
+}
+
+static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
+{
+	destroy_workqueue(dev_priv->gpu_error.hangcheck_wq);
+	destroy_workqueue(dev_priv->hotplug.dp_wq);
+	destroy_workqueue(dev_priv->wq);
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -897,6 +945,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
+
+	ret = i915_workqueues_init(dev_priv);
+	if (ret < 0)
+		goto out_free_priv;
 
 	intel_pm_setup(dev);
 
@@ -992,41 +1044,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->gtt.mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
 					      aperture_size);
 
-	/* The i915 workqueue is primarily used for batched retirement of
-	 * requests (and thus managing bo) once the task has been completed
-	 * by the GPU. i915_gem_retire_requests() is called directly when we
-	 * need high-priority retirement, such as waiting for an explicit
-	 * bo.
-	 *
-	 * It is also used for periodic low-priority events, such as
-	 * idle-timers and recording error state.
-	 *
-	 * All tasks on the workqueue are expected to acquire the dev mutex
-	 * so there is no point in running more than one instance of the
-	 * workqueue at any time.  Use an ordered one.
-	 */
-	dev_priv->wq = alloc_ordered_workqueue("i915", 0);
-	if (dev_priv->wq == NULL) {
-		DRM_ERROR("Failed to create our workqueue.\n");
-		ret = -ENOMEM;
-		goto out_mtrrfree;
-	}
-
-	dev_priv->hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
-	if (dev_priv->hotplug.dp_wq == NULL) {
-		DRM_ERROR("Failed to create our dp workqueue.\n");
-		ret = -ENOMEM;
-		goto out_freewq;
-	}
-
-	dev_priv->gpu_error.hangcheck_wq =
-		alloc_ordered_workqueue("i915-hangcheck", 0);
-	if (dev_priv->gpu_error.hangcheck_wq == NULL) {
-		DRM_ERROR("Failed to create our hangcheck workqueue.\n");
-		ret = -ENOMEM;
-		goto out_freedpwq;
-	}
-
 	intel_irq_init(dev_priv);
 	intel_uncore_sanitize(dev);
 
@@ -1106,12 +1123,6 @@ out_gem_unload:
 
 	intel_teardown_mchbar(dev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
-	destroy_workqueue(dev_priv->gpu_error.hangcheck_wq);
-out_freedpwq:
-	destroy_workqueue(dev_priv->hotplug.dp_wq);
-out_freewq:
-	destroy_workqueue(dev_priv->wq);
-out_mtrrfree:
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
 out_gtt:
@@ -1124,8 +1135,10 @@ put_bridge:
 	i915_gem_load_cleanup(dev);
 out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
-
+	i915_workqueues_cleanup(dev_priv);
+out_free_priv:
 	kfree(dev_priv);
+
 	return ret;
 }
 
@@ -1202,9 +1215,6 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_teardown_mchbar(dev);
 
-	destroy_workqueue(dev_priv->hotplug.dp_wq);
-	destroy_workqueue(dev_priv->wq);
-	destroy_workqueue(dev_priv->gpu_error.hangcheck_wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
 	i915_global_gtt_cleanup(dev);
@@ -1215,6 +1225,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_gem_load_cleanup(dev);
 	pci_dev_put(dev_priv->bridge_dev);
+	i915_workqueues_cleanup(dev_priv);
 	kfree(dev_priv);
 
 	return 0;
