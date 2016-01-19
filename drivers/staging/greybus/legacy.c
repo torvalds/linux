@@ -12,6 +12,11 @@
 #include "protocol.h"
 
 
+struct legacy_data {
+	size_t num_cports;
+};
+
+
 static int legacy_connection_get_version(struct gb_connection *connection)
 {
 	int ret;
@@ -123,11 +128,23 @@ static void legacy_connection_exit(struct gb_connection *connection)
 static int legacy_probe(struct gb_bundle *bundle,
 			const struct greybus_bundle_id *id)
 {
+	struct legacy_data *data;
 	struct gb_connection *connection;
 	int ret;
 
-	dev_dbg(&bundle->dev, "%s - bundle class = 0x%02x\n", __func__,
-			bundle->class);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->num_cports = 0;
+	list_for_each_entry(connection, &bundle->connections, bundle_links)
+		data->num_cports++;
+
+	dev_dbg(&bundle->dev,
+			"%s - bundle class = 0x%02x, num_cports = %zu\n",
+			__func__, bundle->class, data->num_cports);
+
+	greybus_set_drvdata(bundle, data);
 
 	list_for_each_entry(connection, &bundle->connections, bundle_links) {
 		dev_dbg(&bundle->dev, "enabling connection %s\n",
@@ -145,12 +162,14 @@ err_connections_disable:
 							bundle_links) {
 		legacy_connection_exit(connection);
 	}
+	kfree(data);
 
 	return ret;
 }
 
 static void legacy_disconnect(struct gb_bundle *bundle)
 {
+	struct legacy_data *data = greybus_get_drvdata(bundle);
 	struct gb_connection *connection;
 
 	dev_dbg(&bundle->dev, "%s - bundle class = 0x%02x\n", __func__,
@@ -160,6 +179,8 @@ static void legacy_disconnect(struct gb_bundle *bundle)
 							bundle_links) {
 		legacy_connection_exit(connection);
 	}
+
+	kfree(data);
 }
 
 static const struct greybus_bundle_id legacy_id_table[] = {
