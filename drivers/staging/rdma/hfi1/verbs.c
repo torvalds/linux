@@ -1362,55 +1362,49 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	return ret;
 }
 
-static int query_device(struct ib_device *ibdev,
-			struct ib_device_attr *props,
-			struct ib_udata *uhw)
+/**
+ * hfi1_fill_device_attr - Fill in rvt dev info device attributes.
+ * @dd: the device data structure
+ */
+static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 {
-	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
-	struct hfi1_ibdev *dev = to_idev(ibdev);
+	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 
-	if (uhw->inlen || uhw->outlen)
-		return -EINVAL;
-	memset(props, 0, sizeof(*props));
+	memset(&rdi->dparms.props, 0, sizeof(rdi->dparms.props));
 
-	props->device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
-		IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
-		IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_RC_RNR_NAK_GEN |
-		IB_DEVICE_PORT_ACTIVE_EVENT | IB_DEVICE_SRQ_RESIZE;
-
-	props->page_size_cap = PAGE_SIZE;
-	props->vendor_id =
-		dd->oui1 << 16 | dd->oui2 << 8 | dd->oui3;
-	props->vendor_part_id = dd->pcidev->device;
-	props->hw_ver = dd->minrev;
-	props->sys_image_guid = ib_hfi1_sys_image_guid;
-	props->max_mr_size = ~0ULL;
-	props->max_qp = hfi1_max_qps;
-	props->max_qp_wr = hfi1_max_qp_wrs;
-	props->max_sge = hfi1_max_sges;
-	props->max_sge_rd = hfi1_max_sges;
-	props->max_cq = hfi1_max_cqs;
-	props->max_ah = hfi1_max_ahs;
-	props->max_cqe = hfi1_max_cqes;
-	props->max_mr = dev->rdi.lkey_table.max;
-	props->max_fmr = dev->rdi.lkey_table.max;
-	props->max_map_per_fmr = 32767;
-	props->max_pd = dev->rdi.dparms.props.max_pd;
-	props->max_qp_rd_atom = HFI1_MAX_RDMA_ATOMIC;
-	props->max_qp_init_rd_atom = 255;
-	/* props->max_res_rd_atom */
-	props->max_srq = hfi1_max_srqs;
-	props->max_srq_wr = hfi1_max_srq_wrs;
-	props->max_srq_sge = hfi1_max_srq_sges;
-	/* props->local_ca_ack_delay */
-	props->atomic_cap = IB_ATOMIC_GLOB;
-	props->max_pkeys = hfi1_get_npkeys(dd);
-	props->max_mcast_grp = hfi1_max_mcast_grps;
-	props->max_mcast_qp_attach = hfi1_max_mcast_qp_attached;
-	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
-		props->max_mcast_grp;
-
-	return 0;
+	rdi->dparms.props.device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
+			IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
+			IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_RC_RNR_NAK_GEN |
+			IB_DEVICE_PORT_ACTIVE_EVENT | IB_DEVICE_SRQ_RESIZE;
+	rdi->dparms.props.page_size_cap = PAGE_SIZE;
+	rdi->dparms.props.vendor_id = dd->oui1 << 16 | dd->oui2 << 8 | dd->oui3;
+	rdi->dparms.props.vendor_part_id = dd->pcidev->device;
+	rdi->dparms.props.hw_ver = dd->minrev;
+	rdi->dparms.props.sys_image_guid = ib_hfi1_sys_image_guid;
+	rdi->dparms.props.max_mr_size = ~0ULL;
+	rdi->dparms.props.max_qp = hfi1_max_qps;
+	rdi->dparms.props.max_qp_wr = hfi1_max_qp_wrs;
+	rdi->dparms.props.max_sge = hfi1_max_sges;
+	rdi->dparms.props.max_sge_rd = hfi1_max_sges;
+	rdi->dparms.props.max_cq = hfi1_max_cqs;
+	rdi->dparms.props.max_ah = hfi1_max_ahs;
+	rdi->dparms.props.max_cqe = hfi1_max_cqes;
+	rdi->dparms.props.max_mr = rdi->lkey_table.max;
+	rdi->dparms.props.max_fmr = rdi->lkey_table.max;
+	rdi->dparms.props.max_map_per_fmr = 32767;
+	rdi->dparms.props.max_pd = hfi1_max_pds;
+	rdi->dparms.props.max_qp_rd_atom = HFI1_MAX_RDMA_ATOMIC;
+	rdi->dparms.props.max_qp_init_rd_atom = 255;
+	rdi->dparms.props.max_srq = hfi1_max_srqs;
+	rdi->dparms.props.max_srq_wr = hfi1_max_srq_wrs;
+	rdi->dparms.props.max_srq_sge = hfi1_max_srq_sges;
+	rdi->dparms.props.atomic_cap = IB_ATOMIC_GLOB;
+	rdi->dparms.props.max_pkeys = hfi1_get_npkeys(dd);
+	rdi->dparms.props.max_mcast_grp = hfi1_max_mcast_grps;
+	rdi->dparms.props.max_mcast_qp_attach = hfi1_max_mcast_qp_attached;
+	rdi->dparms.props.max_total_mcast_qp_attach =
+					rdi->dparms.props.max_mcast_qp_attach *
+					rdi->dparms.props.max_mcast_grp;
 }
 
 static inline u16 opa_speed_to_ib(u16 in)
@@ -1797,7 +1791,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->num_comp_vectors = 1;
 	ibdev->dma_device = &dd->pcidev->dev;
-	ibdev->query_device = query_device;
+	ibdev->query_device = NULL;
 	ibdev->modify_device = modify_device;
 	ibdev->query_port = query_port;
 	ibdev->modify_port = modify_port;
@@ -1854,13 +1848,12 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = hfi1_check_ah;
 	dd->verbs_dev.rdi.driver_f.notify_new_ah = hfi1_notify_new_ah;
-	dd->verbs_dev.rdi.dparms.props.max_ah = hfi1_max_ahs;
-	dd->verbs_dev.rdi.dparms.props.max_pd = hfi1_max_pds;
-	dd->verbs_dev.rdi.dparms.props.max_sge = hfi1_max_sges;
+	/*
+	 * Fill in rvt info device attributes.
+	 */
+	hfi1_fill_device_attr(dd);
 
 	/* queue pair */
-	dd->verbs_dev.rdi.dparms.props.max_qp = hfi1_max_qps;
-	dd->verbs_dev.rdi.dparms.props.max_qp_wr = hfi1_max_qp_wrs;
 	dd->verbs_dev.rdi.dparms.qp_table_size = hfi1_qp_table_size;
 	dd->verbs_dev.rdi.dparms.qpn_start = 0;
 	dd->verbs_dev.rdi.dparms.qpn_inc = 1;
