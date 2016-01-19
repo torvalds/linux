@@ -418,6 +418,12 @@
 	};
 };
 
+&mlb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mlb_2>;
+	status = "okay";
+};
+
 &pcie {
 	reset-gpio = <&max7310_b 3 0>;
 	status = "okay";
@@ -643,6 +649,14 @@
 			fsl,pins = <
 				MX6SX_PAD_KEY_ROW4__I2C3_SDA            0x4001b8b1
 				MX6SX_PAD_KEY_COL4__I2C3_SCL            0x4001b8b1
+			>;
+		};
+
+		pinctrl_mlb_2: mlbgrp-2 {
+			fsl,pins = <
+				MX6SX_PAD_ENET2_RX_CLK__MLB_DATA        0x31
+				MX6SX_PAD_ENET2_CRS__MLB_SIG            0x31
+				MX6SX_PAD_ENET2_TX_CLK__MLB_CLK         0x31
 			>;
 		};
 
