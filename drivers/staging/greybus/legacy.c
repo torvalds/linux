@@ -23,7 +23,7 @@ static int legacy_probe(struct gb_bundle *bundle,
 		dev_dbg(&bundle->dev, "enabling connection %s\n",
 				connection->name);
 
-		ret = gb_connection_init(connection);
+		ret = gb_connection_legacy_init(connection);
 		if (ret)
 			goto err_connections_disable;
 	}
@@ -33,7 +33,7 @@ static int legacy_probe(struct gb_bundle *bundle,
 err_connections_disable:
 	list_for_each_entry_reverse(connection, &bundle->connections,
 							bundle_links) {
-		gb_connection_exit(connection);
+		gb_connection_legacy_exit(connection);
 	}
 
 	return ret;
@@ -48,7 +48,7 @@ static void legacy_disconnect(struct gb_bundle *bundle)
 
 	list_for_each_entry_reverse(connection, &bundle->connections,
 							bundle_links) {
-		gb_connection_exit(connection);
+		gb_connection_legacy_exit(connection);
 	}
 }
 

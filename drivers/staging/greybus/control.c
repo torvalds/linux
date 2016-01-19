@@ -116,7 +116,7 @@ int gb_control_enable(struct gb_control *control)
 
 	dev_dbg(&control->connection->intf->dev, "%s\n", __func__);
 
-	ret = gb_connection_init(control->connection);
+	ret = gb_connection_legacy_init(control->connection);
 	if (ret) {
 		dev_err(&control->connection->intf->dev,
 				"failed to enable control connection: %d\n",
@@ -131,7 +131,7 @@ void gb_control_disable(struct gb_control *control)
 {
 	dev_dbg(&control->connection->intf->dev, "%s\n", __func__);
 
-	gb_connection_exit(control->connection);
+	gb_connection_legacy_exit(control->connection);
 }
 
 void gb_control_destroy(struct gb_control *control)

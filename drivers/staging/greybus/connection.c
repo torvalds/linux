@@ -435,7 +435,7 @@ void gb_connection_disable(struct gb_connection *connection)
 }
 EXPORT_SYMBOL_GPL(gb_connection_disable);
 
-int gb_connection_init(struct gb_connection *connection)
+int gb_connection_legacy_init(struct gb_connection *connection)
 {
 	int ret;
 
@@ -464,9 +464,9 @@ err_unbind_protocol:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(gb_connection_init);
+EXPORT_SYMBOL_GPL(gb_connection_legacy_init);
 
-void gb_connection_exit(struct gb_connection *connection)
+void gb_connection_legacy_exit(struct gb_connection *connection)
 {
 	spin_lock_irq(&connection->lock);
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
@@ -483,7 +483,7 @@ void gb_connection_exit(struct gb_connection *connection)
 
 	gb_connection_unbind_protocol(connection);
 }
-EXPORT_SYMBOL_GPL(gb_connection_exit);
+EXPORT_SYMBOL_GPL(gb_connection_legacy_exit);
 
 /*
  * Tear down a previously set up connection.
@@ -495,7 +495,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	if (WARN_ON(!connection))
 		return;
 
-	gb_connection_exit(connection);
+	gb_connection_legacy_exit(connection);
 
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->bundle_links);
