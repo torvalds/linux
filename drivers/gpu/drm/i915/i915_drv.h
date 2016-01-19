@@ -917,6 +917,29 @@ struct intel_fbc {
 	bool enabled;
 	bool active;
 
+	struct intel_fbc_state_cache {
+		struct {
+			unsigned int mode_flags;
+			uint32_t hsw_bdw_pixel_rate;
+		} crtc;
+
+		struct {
+			unsigned int rotation;
+			int src_w;
+			int src_h;
+			bool visible;
+		} plane;
+
+		struct {
+			u64 ilk_ggtt_offset;
+			uint32_t id;
+			uint32_t pixel_format;
+			unsigned int stride;
+			int fence_reg;
+			unsigned int tiling_mode;
+		} fb;
+	} state_cache;
+
 	struct intel_fbc_reg_params {
 		struct {
 			enum pipe pipe;
