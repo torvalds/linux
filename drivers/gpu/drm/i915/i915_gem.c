@@ -2680,7 +2680,7 @@ void i915_gem_request_free(struct kref *req_ref)
 
 	if (ctx) {
 		if (i915.enable_execlists) {
-			if (ctx != req->ring->default_context)
+			if (ctx != req->i915->kernel_context)
 				intel_lr_context_unpin(req);
 		}
 
@@ -2776,7 +2776,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	int err;
 
 	if (ctx == NULL)
-		ctx = engine->default_context;
+		ctx = to_i915(engine->dev)->kernel_context;
 	err = __i915_gem_request_alloc(engine, ctx, &req);
 	return err ? ERR_PTR(err) : req;
 }
@@ -4864,7 +4864,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	 */
 	init_unused_rings(dev);
 
-	BUG_ON(!dev_priv->ring[RCS].default_context);
+	BUG_ON(!dev_priv->kernel_context);
 
 	ret = i915_ppgtt_init_hw(dev);
 	if (ret) {

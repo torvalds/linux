@@ -598,7 +598,7 @@ static int execlists_context_queue(struct drm_i915_gem_request *request)
 	struct drm_i915_gem_request *cursor;
 	int num_elements = 0;
 
-	if (request->ctx != ring->default_context)
+	if (request->ctx != request->i915->kernel_context)
 		intel_lr_context_pin(request);
 
 	i915_gem_request_reference(request);
@@ -690,7 +690,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 
 	request->ringbuf = request->ctx->engine[request->ring->id].ringbuf;
 
-	if (request->ctx != request->ring->default_context) {
+	if (request->ctx != request->i915->kernel_context) {
 		ret = intel_lr_context_pin(request);
 		if (ret)
 			return ret;
@@ -1006,7 +1006,7 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 		struct drm_i915_gem_object *ctx_obj =
 				ctx->engine[ring->id].state;
 
-		if (ctx_obj && (ctx != ring->default_context))
+		if (ctx_obj && (ctx != req->i915->kernel_context))
 			intel_lr_context_unpin(req);
 		list_del(&req->execlist_link);
 		i915_gem_request_unreference(req);
@@ -1529,7 +1529,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 	u8 next_context_status_buffer_hw;
 
 	lrc_setup_hardware_status_page(ring,
-				ring->default_context->engine[ring->id].state);
+				dev_priv->kernel_context->engine[ring->id].state);
 
 	I915_WRITE_IMR(ring, ~(ring->irq_enable_mask | ring->irq_keep_mask));
 	I915_WRITE(RING_HWSTAM(ring->mmio_base), 0xffffffff);
@@ -2005,6 +2005,7 @@ logical_ring_default_irqs(struct intel_engine_cs *ring, unsigned shift)
 static int
 logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
 {
+	struct intel_context *dctx = to_i915(dev)->kernel_context;
 	int ret;
 
 	/* Intentionally left blank. */
@@ -2027,12 +2028,12 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
 	if (ret)
 		goto error;
 
-	ret = intel_lr_context_deferred_alloc(ring->default_context, ring);
+	ret = intel_lr_context_deferred_alloc(dctx, ring);
 	if (ret)
 		goto error;
 
 	/* As this is the default context, always pin it */
-	ret = intel_lr_context_do_pin(ring, ring->default_context);
+	ret = intel_lr_context_do_pin(ring, dctx);
 	if (ret) {
 		DRM_ERROR(
 			"Failed to pin and map ringbuffer %s: %d\n",
@@ -2398,7 +2399,7 @@ void intel_lr_context_free(struct intel_context *ctx)
 					ctx->engine[i].ringbuf;
 			struct intel_engine_cs *ring = ringbuf->ring;
 
-			if (ctx == ring->default_context) {
+			if (ctx == ctx->i915->kernel_context) {
 				intel_unpin_ringbuffer_obj(ringbuf);
 				i915_gem_object_ggtt_unpin(ctx_obj);
 			}
@@ -2517,7 +2518,7 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 	ctx->engine[ring->id].ringbuf = ringbuf;
 	ctx->engine[ring->id].state = ctx_obj;
 
-	if (ctx != ring->default_context && ring->init_context) {
+	if (ctx != ctx->i915->kernel_context && ring->init_context) {
 		struct drm_i915_gem_request *req;
 
 		req = i915_gem_request_alloc(ring, ctx);

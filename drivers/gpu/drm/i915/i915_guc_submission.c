@@ -964,7 +964,7 @@ int i915_guc_submission_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx = dev_priv->ring[RCS].default_context;
+	struct intel_context *ctx = dev_priv->kernel_context;
 	struct i915_guc_client *client;
 
 	/* client for execbuf submission */
@@ -1021,7 +1021,7 @@ int intel_guc_suspend(struct drm_device *dev)
 	if (!i915.enable_guc_submission)
 		return 0;
 
-	ctx = dev_priv->ring[RCS].default_context;
+	ctx = dev_priv->kernel_context;
 
 	data[0] = HOST2GUC_ACTION_ENTER_S_STATE;
 	/* any value greater than GUC_POWER_D0 */
@@ -1047,7 +1047,7 @@ int intel_guc_resume(struct drm_device *dev)
 	if (!i915.enable_guc_submission)
 		return 0;
 
-	ctx = dev_priv->ring[RCS].default_context;
+	ctx = dev_priv->kernel_context;
 
 	data[0] = HOST2GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;

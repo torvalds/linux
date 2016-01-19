@@ -1948,6 +1948,8 @@ struct drm_i915_private {
 		void (*stop_ring)(struct intel_engine_cs *ring);
 	} gt;
 
+	struct intel_context *kernel_context;
+
 	bool edp_low_vswing;
 
 	/* perform PHY state sanity checks? */
