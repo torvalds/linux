@@ -152,16 +152,6 @@ const int ib_hfi1_state_ops[IB_QPS_ERR + 1] = {
 	    HFI1_POST_SEND_OK | HFI1_FLUSH_SEND,
 };
 
-struct hfi1_ucontext {
-	struct ib_ucontext ibucontext;
-};
-
-static inline struct hfi1_ucontext *to_iucontext(struct ib_ucontext
-						  *ibucontext)
-{
-	return container_of(ibucontext, struct hfi1_ucontext, ibucontext);
-}
-
 static inline void _hfi1_schedule_send(struct rvt_qp *qp);
 
 /*
@@ -1679,36 +1669,6 @@ unsigned hfi1_get_npkeys(struct hfi1_devdata *dd)
 	return ARRAY_SIZE(dd->pport[0].pkeys);
 }
 
-/**
- * alloc_ucontext - allocate a ucontest
- * @ibdev: the infiniband device
- * @udata: not used by the driver
- */
-
-static struct ib_ucontext *alloc_ucontext(struct ib_device *ibdev,
-					  struct ib_udata *udata)
-{
-	struct hfi1_ucontext *context;
-	struct ib_ucontext *ret;
-
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
-	if (!context) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	ret = &context->ibucontext;
-
-bail:
-	return ret;
-}
-
-static int dealloc_ucontext(struct ib_ucontext *context)
-{
-	kfree(to_iucontext(context));
-	return 0;
-}
-
 static void init_ibport(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
@@ -1848,8 +1808,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_port = modify_port;
 	ibdev->query_pkey = NULL;
 	ibdev->query_gid = query_gid;
-	ibdev->alloc_ucontext = alloc_ucontext;
-	ibdev->dealloc_ucontext = dealloc_ucontext;
+	ibdev->alloc_ucontext = NULL;
+	ibdev->dealloc_ucontext = NULL;
 	ibdev->alloc_pd = NULL;
 	ibdev->dealloc_pd = NULL;
 	ibdev->create_ah = NULL;
