@@ -311,8 +311,7 @@ static atomic_t rfkill_input_disabled = ATOMIC_INIT(0);
  * @blocked: the new state
  *
  * This function sets the state of all switches of given type,
- * unless a specific switch is claimed by userspace (in which case,
- * that switch is left alone) or suspended.
+ * unless a specific switch is suspended.
  *
  * Caller must have acquired rfkill_global_mutex.
  */
@@ -721,20 +720,12 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(state);
 
-static ssize_t claim_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	return sprintf(buf, "%d\n", 0);
-}
-static DEVICE_ATTR_RO(claim);
-
 static struct attribute *rfkill_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_type.attr,
 	&dev_attr_index.attr,
 	&dev_attr_persistent.attr,
 	&dev_attr_state.attr,
-	&dev_attr_claim.attr,
 	&dev_attr_soft.attr,
 	&dev_attr_hard.attr,
 	NULL,

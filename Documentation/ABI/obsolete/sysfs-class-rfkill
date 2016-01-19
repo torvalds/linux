@@ -18,12 +18,3 @@ Values: 	A numeric value.
 		2: RFKILL_STATE_HARD_BLOCKED
 			transmitter is forced off by something outside of
 			the driver's control.
-
-What:		/sys/class/rfkill/rfkill[0-9]+/claim
-Date:		09-Jul-2007
-KernelVersion	v2.6.22
-Contact:	linux-wireless@vger.kernel.org
-Description:	This file is deprecated because there no longer is a way to
-		claim just control over a single rfkill instance.
-		This file is scheduled to be removed in 2012.
-Values: 	0: Kernel handles events
