@@ -78,9 +78,6 @@ static inline int gb_connection_enable_tx(struct gb_connection *connection)
 void gb_connection_disable_rx(struct gb_connection *connection);
 void gb_connection_disable(struct gb_connection *connection);
 
-int gb_connection_legacy_init(struct gb_connection *connection);
-void gb_connection_legacy_exit(struct gb_connection *connection);
-
 void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 

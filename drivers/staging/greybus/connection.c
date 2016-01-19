@@ -12,10 +12,6 @@
 #include "greybus.h"
 
 
-static int gb_connection_bind_protocol(struct gb_connection *connection);
-static void gb_connection_unbind_protocol(struct gb_connection *connection);
-
-
 static DEFINE_SPINLOCK(gb_connections_lock);
 
 /* This is only used at initialization time; no locking is required. */
@@ -341,24 +337,6 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 }
 
 /*
- * Request protocol version supported by the module.
- */
-static int gb_connection_protocol_get_version(struct gb_connection *connection)
-{
-	int ret;
-
-	ret = gb_protocol_get_version(connection);
-	if (ret) {
-		dev_err(&connection->hd->dev,
-			"%s: failed to get protocol version: %d\n",
-			connection->name, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-/*
  * Cancel all active operations on a connection.
  *
  * Locking: Called with connection lock held and state set to DISABLED.
@@ -526,63 +504,6 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(gb_connection_disable);
 
-static int gb_legacy_request_handler(struct gb_operation *operation)
-{
-	struct gb_protocol *protocol = operation->connection->protocol;
-
-	return protocol->request_recv(operation->type, operation);
-}
-
-int gb_connection_legacy_init(struct gb_connection *connection)
-{
-	gb_request_handler_t handler;
-	int ret;
-
-	ret = gb_connection_bind_protocol(connection);
-	if (ret)
-		return ret;
-
-	if (connection->protocol->request_recv)
-		handler = gb_legacy_request_handler;
-	else
-		handler = NULL;
-
-	ret = gb_connection_enable(connection, handler);
-	if (ret)
-		goto err_unbind_protocol;
-
-	ret = gb_connection_protocol_get_version(connection);
-	if (ret)
-		goto err_disable;
-
-	ret = connection->protocol->connection_init(connection);
-	if (ret)
-		goto err_disable;
-
-	return 0;
-
-err_disable:
-	gb_connection_disable(connection);
-err_unbind_protocol:
-	gb_connection_unbind_protocol(connection);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(gb_connection_legacy_init);
-
-void gb_connection_legacy_exit(struct gb_connection *connection)
-{
-	if (connection->state == GB_CONNECTION_STATE_DISABLED)
-		return;
-
-	gb_connection_disable(connection);
-
-	connection->protocol->connection_exit(connection);
-
-	gb_connection_unbind_protocol(connection);
-}
-EXPORT_SYMBOL_GPL(gb_connection_legacy_exit);
-
 /*
  * Tear down a previously set up connection.
  */
@@ -639,31 +560,3 @@ void gb_connection_latency_tag_disable(struct gb_connection *connection)
 	}
 }
 EXPORT_SYMBOL_GPL(gb_connection_latency_tag_disable);
-
-static int gb_connection_bind_protocol(struct gb_connection *connection)
-{
-	struct gb_protocol *protocol;
-
-	protocol = gb_protocol_get(connection->protocol_id,
-				   connection->major,
-				   connection->minor);
-	if (!protocol) {
-		dev_err(&connection->hd->dev,
-				"protocol 0x%02x version %u.%u not found\n",
-				connection->protocol_id,
-				connection->major, connection->minor);
-		return -EPROTONOSUPPORT;
-	}
-	connection->protocol = protocol;
-
-	return 0;
-}
-
-static void gb_connection_unbind_protocol(struct gb_connection *connection)
-{
-	struct gb_protocol *protocol = connection->protocol;
-
-	gb_protocol_put(protocol);
-
-	connection->protocol = NULL;
-}
