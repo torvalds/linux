@@ -235,29 +235,6 @@ static void rfkill_event(struct rfkill *rfkill)
 	rfkill_send_events(rfkill, RFKILL_OP_CHANGE);
 }
 
-static bool __rfkill_set_hw_state(struct rfkill *rfkill,
-				  bool blocked, bool *change)
-{
-	unsigned long flags;
-	bool prev, any;
-
-	BUG_ON(!rfkill);
-
-	spin_lock_irqsave(&rfkill->lock, flags);
-	prev = !!(rfkill->state & RFKILL_BLOCK_HW);
-	if (blocked)
-		rfkill->state |= RFKILL_BLOCK_HW;
-	else
-		rfkill->state &= ~RFKILL_BLOCK_HW;
-	*change = prev != blocked;
-	any = !!(rfkill->state & RFKILL_BLOCK_ANY);
-	spin_unlock_irqrestore(&rfkill->lock, flags);
-
-	rfkill_led_trigger_event(rfkill);
-
-	return any;
-}
-
 /**
  * rfkill_set_block - wrapper for set_block method
  *
@@ -482,14 +459,26 @@ bool rfkill_get_global_sw_state(const enum rfkill_type type)
 
 bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
 {
-	bool ret, change;
+	unsigned long flags;
+	bool ret, prev;
 
-	ret = __rfkill_set_hw_state(rfkill, blocked, &change);
+	BUG_ON(!rfkill);
+
+	spin_lock_irqsave(&rfkill->lock, flags);
+	prev = !!(rfkill->state & RFKILL_BLOCK_HW);
+	if (blocked)
+		rfkill->state |= RFKILL_BLOCK_HW;
+	else
+		rfkill->state &= ~RFKILL_BLOCK_HW;
+	ret = !!(rfkill->state & RFKILL_BLOCK_ANY);
+	spin_unlock_irqrestore(&rfkill->lock, flags);
+
+	rfkill_led_trigger_event(rfkill);
 
 	if (!rfkill->registered)
 		return ret;
 
-	if (change)
+	if (prev != blocked)
 		schedule_work(&rfkill->uevent_work);
 
 	return ret;
