@@ -642,6 +642,8 @@
 #define	HDP_NONSURFACE_INFO				0xB02
 #define	HDP_NONSURFACE_SIZE				0xB03
 
+#define HDP_DEBUG0  					0xBCC
+
 #define HDP_ADDR_CONFIG  				0xBD2
 #define HDP_MISC_CNTL					0xBD3
 #define 	HDP_FLUSH_INVALIDATE_CACHE			(1 << 0)
