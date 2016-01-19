@@ -3933,8 +3933,8 @@ static u64 access_sw_cpu_##cntr(const struct cntr_entry *entry,		      \
 			      void *context, int vl, int mode, u64 data)      \
 {									      \
 	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;	      \
-	return read_write_cpu(ppd->dd, &ppd->ibport_data.z_ ##cntr,	      \
-			      ppd->ibport_data.cntr, vl,		      \
+	return read_write_cpu(ppd->dd, &ppd->ibport_data.rvp.z_ ##cntr,	      \
+			      ppd->ibport_data.rvp.cntr, vl,		      \
 			      mode, data);				      \
 }
 
@@ -3951,7 +3951,7 @@ static u64 access_ibp_##cntr(const struct cntr_entry *entry,		      \
 	if (vl != CNTR_INVALID_VL)					      \
 		return 0;						      \
 									      \
-	return read_write_sw(ppd->dd, &ppd->ibport_data.n_ ##cntr,	      \
+	return read_write_sw(ppd->dd, &ppd->ibport_data.rvp.n_ ##cntr,	      \
 			     mode, data);				      \
 }
 
@@ -9239,14 +9239,14 @@ static inline int init_cpu_counters(struct hfi1_devdata *dd)
 
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
-		ppd->ibport_data.rc_acks = NULL;
-		ppd->ibport_data.rc_qacks = NULL;
-		ppd->ibport_data.rc_acks = alloc_percpu(u64);
-		ppd->ibport_data.rc_qacks = alloc_percpu(u64);
-		ppd->ibport_data.rc_delayed_comp = alloc_percpu(u64);
-		if ((ppd->ibport_data.rc_acks == NULL) ||
-		    (ppd->ibport_data.rc_delayed_comp == NULL) ||
-		    (ppd->ibport_data.rc_qacks == NULL))
+		ppd->ibport_data.rvp.rc_acks = NULL;
+		ppd->ibport_data.rvp.rc_qacks = NULL;
+		ppd->ibport_data.rvp.rc_acks = alloc_percpu(u64);
+		ppd->ibport_data.rvp.rc_qacks = alloc_percpu(u64);
+		ppd->ibport_data.rvp.rc_delayed_comp = alloc_percpu(u64);
+		if (!ppd->ibport_data.rvp.rc_acks ||
+		    !ppd->ibport_data.rvp.rc_delayed_comp ||
+		    !ppd->ibport_data.rvp.rc_qacks)
 			return -ENOMEM;
 	}
 
@@ -11318,14 +11318,14 @@ static void free_cntrs(struct hfi1_devdata *dd)
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
 		kfree(ppd->cntrs);
 		kfree(ppd->scntrs);
-		free_percpu(ppd->ibport_data.rc_acks);
-		free_percpu(ppd->ibport_data.rc_qacks);
-		free_percpu(ppd->ibport_data.rc_delayed_comp);
+		free_percpu(ppd->ibport_data.rvp.rc_acks);
+		free_percpu(ppd->ibport_data.rvp.rc_qacks);
+		free_percpu(ppd->ibport_data.rvp.rc_delayed_comp);
 		ppd->cntrs = NULL;
 		ppd->scntrs = NULL;
-		ppd->ibport_data.rc_acks = NULL;
-		ppd->ibport_data.rc_qacks = NULL;
-		ppd->ibport_data.rc_delayed_comp = NULL;
+		ppd->ibport_data.rvp.rc_acks = NULL;
+		ppd->ibport_data.rvp.rc_qacks = NULL;
+		ppd->ibport_data.rvp.rc_delayed_comp = NULL;
 	}
 	kfree(dd->portcntrnames);
 	dd->portcntrnames = NULL;

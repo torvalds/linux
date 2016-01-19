@@ -772,7 +772,7 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	return;
 
 queue_ack:
-	this_cpu_inc(*ibp->rc_qacks);
+	this_cpu_inc(*ibp->rvp.rc_qacks);
 	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->s_flags |= HFI1_S_ACK_PENDING | HFI1_S_RESP_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
@@ -900,9 +900,9 @@ static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	if (wqe->wr.opcode == IB_WR_RDMA_READ)
-		ibp->n_rc_resends++;
+		ibp->rvp.n_rc_resends++;
 	else
-		ibp->n_rc_resends += delta_psn(qp->s_psn, psn);
+		ibp->rvp.n_rc_resends += delta_psn(qp->s_psn, psn);
 
 	qp->s_flags &= ~(HFI1_S_WAIT_FENCE | HFI1_S_WAIT_RDMAR |
 			 HFI1_S_WAIT_SSN_CREDIT | HFI1_S_WAIT_PSN |
@@ -925,7 +925,7 @@ static void rc_timeout(unsigned long arg)
 	spin_lock(&qp->s_lock);
 	if (qp->s_flags & HFI1_S_TIMER) {
 		ibp = to_iport(qp->ibqp.device, qp->port_num);
-		ibp->n_rc_timeouts++;
+		ibp->rvp.n_rc_timeouts++;
 		qp->s_flags &= ~HFI1_S_TIMER;
 		del_timer(&qp->s_timer);
 		trace_hfi1_rc_timeout(qp, qp->s_last_psn + 1);
@@ -1104,7 +1104,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	} else {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 
-		this_cpu_inc(*ibp->rc_delayed_comp);
+		this_cpu_inc(*ibp->rvp.rc_delayed_comp);
 		/*
 		 * If send progress not running attempt to progress
 		 * SDMA queue.
@@ -1263,7 +1263,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 
 	switch (aeth >> 29) {
 	case 0:         /* ACK */
-		this_cpu_inc(*ibp->rc_acks);
+		this_cpu_inc(*ibp->rvp.rc_acks);
 		if (qp->s_acked != qp->s_tail) {
 			/*
 			 * We are expecting more ACKs so
@@ -1292,7 +1292,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		goto bail;
 
 	case 1:         /* RNR NAK */
-		ibp->n_rnr_naks++;
+		ibp->rvp.n_rnr_naks++;
 		if (qp->s_acked == qp->s_tail)
 			goto bail;
 		if (qp->s_flags & HFI1_S_WAIT_RNR)
@@ -1307,7 +1307,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		/* The last valid PSN is the previous PSN. */
 		update_last_psn(qp, psn - 1);
 
-		ibp->n_rc_resends += delta_psn(qp->s_psn, psn);
+		ibp->rvp.n_rc_resends += delta_psn(qp->s_psn, psn);
 
 		reset_psn(qp, psn);
 
@@ -1328,7 +1328,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		switch ((aeth >> HFI1_AETH_CREDIT_SHIFT) &
 			HFI1_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
-			ibp->n_seq_naks++;
+			ibp->rvp.n_seq_naks++;
 			/*
 			 * Back up to the responder's expected PSN.
 			 * Note that we might get a NAK in the middle of an
@@ -1341,17 +1341,17 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 
 		case 1: /* Invalid Request */
 			status = IB_WC_REM_INV_REQ_ERR;
-			ibp->n_other_naks++;
+			ibp->rvp.n_other_naks++;
 			goto class_b;
 
 		case 2: /* Remote Access Error */
 			status = IB_WC_REM_ACCESS_ERR;
-			ibp->n_other_naks++;
+			ibp->rvp.n_other_naks++;
 			goto class_b;
 
 		case 3: /* Remote Operation Error */
 			status = IB_WC_REM_OP_ERR;
-			ibp->n_other_naks++;
+			ibp->rvp.n_other_naks++;
 class_b:
 			if (qp->s_last == qp->s_acked) {
 				hfi1_send_complete(qp, wqe, status);
@@ -1402,7 +1402,7 @@ static void rdma_seq_err(struct rvt_qp *qp, struct hfi1_ibport *ibp, u32 psn,
 		wqe = do_rc_completion(qp, wqe, ibp);
 	}
 
-	ibp->n_rdma_seq++;
+	ibp->rvp.n_rdma_seq++;
 	qp->r_flags |= HFI1_R_RDMAR_SEQ;
 	restart_rc(qp, qp->s_last_psn + 1, 0);
 	if (list_empty(&qp->rspwait)) {
@@ -1665,7 +1665,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 		 * Don't queue the NAK if we already sent one.
 		 */
 		if (!qp->r_nak_state) {
-			ibp->n_rc_seqnak++;
+			ibp->rvp.n_rc_seqnak++;
 			qp->r_nak_state = IB_NAK_PSN_ERROR;
 			/* Use the expected PSN. */
 			qp->r_ack_psn = qp->r_psn;
@@ -1697,7 +1697,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 	 */
 	e = NULL;
 	old_req = 1;
-	ibp->n_rc_dupreq++;
+	ibp->rvp.n_rc_dupreq++;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
@@ -2433,7 +2433,7 @@ void hfi1_rc_hdrerr(
 	if (opcode < IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {
 		diff = delta_psn(psn, qp->r_psn);
 		if (!qp->r_nak_state && diff >= 0) {
-			ibp->n_rc_seqnak++;
+			ibp->rvp.n_rc_seqnak++;
 			qp->r_nak_state = IB_NAK_PSN_ERROR;
 			/* Use the expected PSN. */
 			qp->r_ack_psn = qp->r_psn;

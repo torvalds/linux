@@ -104,7 +104,7 @@ static inline struct rvt_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
 	struct rvt_qp *qp = NULL;
 
 	if (unlikely(qpn <= 1)) {
-		qp = rcu_dereference(ibp->qp[qpn]);
+		qp = rcu_dereference(ibp->rvp.qp[qpn]);
 	} else {
 		struct hfi1_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
 		u32 n = qpn_hash(dev->qp_dev, qpn);

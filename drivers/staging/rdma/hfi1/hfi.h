@@ -1855,10 +1855,10 @@ static inline void hfi1_reset_cpu_counters(struct hfi1_devdata *dd)
 
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
-		ppd->ibport_data.z_rc_acks =
-			get_all_cpu_total(ppd->ibport_data.rc_acks);
-		ppd->ibport_data.z_rc_qacks =
-			get_all_cpu_total(ppd->ibport_data.rc_qacks);
+		ppd->ibport_data.rvp.z_rc_acks =
+			get_all_cpu_total(ppd->ibport_data.rvp.rc_acks);
+		ppd->ibport_data.rvp.z_rc_qacks =
+			get_all_cpu_total(ppd->ibport_data.rvp.rc_qacks);
 	}
 }
 

@@ -238,7 +238,7 @@ static void insert_qp(struct hfi1_ibdev *dev, struct rvt_qp *qp)
 	spin_lock_irqsave(&dev->qp_dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num <= 1) {
-		rcu_assign_pointer(ibp->qp[qp->ibqp.qp_num], qp);
+		rcu_assign_pointer(ibp->rvp.qp[qp->ibqp.qp_num], qp);
 	} else {
 		u32 n = qpn_hash(dev->qp_dev, qp->ibqp.qp_num);
 
@@ -263,12 +263,13 @@ static void remove_qp(struct hfi1_ibdev *dev, struct rvt_qp *qp)
 
 	spin_lock_irqsave(&dev->qp_dev->qpt_lock, flags);
 
-	if (rcu_dereference_protected(ibp->qp[0],
+	if (rcu_dereference_protected(ibp->rvp.qp[0],
+				      lockdep_is_held(
+				      &dev->qp_dev->qpt_lock)) == qp) {
+		RCU_INIT_POINTER(ibp->rvp.qp[0], NULL);
+	} else if (rcu_dereference_protected(ibp->rvp.qp[1],
 			lockdep_is_held(&dev->qp_dev->qpt_lock)) == qp) {
-		RCU_INIT_POINTER(ibp->qp[0], NULL);
-	} else if (rcu_dereference_protected(ibp->qp[1],
-			lockdep_is_held(&dev->qp_dev->qpt_lock)) == qp) {
-		RCU_INIT_POINTER(ibp->qp[1], NULL);
+		RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 	} else {
 		struct rvt_qp *q;
 		struct rvt_qp __rcu **qpp;
@@ -317,9 +318,9 @@ static unsigned free_all_qps(struct hfi1_devdata *dd)
 		if (!hfi1_mcast_tree_empty(ibp))
 			qp_inuse++;
 		rcu_read_lock();
-		if (rcu_dereference(ibp->qp[0]))
+		if (rcu_dereference(ibp->rvp.qp[0]))
 			qp_inuse++;
-		if (rcu_dereference(ibp->qp[1]))
+		if (rcu_dereference(ibp->rvp.qp[1]))
 			qp_inuse++;
 		rcu_read_unlock();
 	}
@@ -1467,7 +1468,7 @@ static int iowait_sleep(
 			struct hfi1_ibport *ibp =
 				to_iport(qp->ibqp.device, qp->port_num);
 
-			ibp->n_dmawait++;
+			ibp->rvp.n_dmawait++;
 			qp->s_flags |= HFI1_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
 			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_DMA_DESC);
@@ -1636,9 +1637,9 @@ int qp_iter_next(struct qp_iter *iter)
 				ibp = &ppd->ibport_data;
 
 				if (!(n & 1))
-					qp = rcu_dereference(ibp->qp[0]);
+					qp = rcu_dereference(ibp->rvp.qp[0]);
 				else
-					qp = rcu_dereference(ibp->qp[1]);
+					qp = rcu_dereference(ibp->rvp.qp[1]);
 			} else {
 				qp = rcu_dereference(
 					dev->qp_dev->qp_table[

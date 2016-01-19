@@ -593,7 +593,7 @@ static inline int qp_ok(int opcode, struct hfi1_packet *packet)
 		return 1;
 dropit:
 	ibp = &packet->rcd->ppd->ibport_data;
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 	return 0;
 }
 
@@ -683,7 +683,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	return;
 
 drop:
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 }
 
 /*
@@ -1465,17 +1465,17 @@ static int query_port(struct ib_device *ibdev, u8 port,
 	memset(props, 0, sizeof(*props));
 	props->lid = lid ? lid : 0;
 	props->lmc = ppd->lmc;
-	props->sm_lid = ibp->sm_lid;
-	props->sm_sl = ibp->sm_sl;
+	props->sm_lid = ibp->rvp.sm_lid;
+	props->sm_sl = ibp->rvp.sm_sl;
 	/* OPA logical states match IB logical states */
 	props->state = driver_lstate(ppd);
 	props->phys_state = hfi1_ibphys_portstate(ppd);
-	props->port_cap_flags = ibp->port_cap_flags;
+	props->port_cap_flags = ibp->rvp.port_cap_flags;
 	props->gid_tbl_len = HFI1_GUIDS_PER_PORT;
 	props->max_msg_sz = 0x80000000;
 	props->pkey_tbl_len = hfi1_get_npkeys(dd);
-	props->bad_pkey_cntr = ibp->pkey_violations;
-	props->qkey_viol_cntr = ibp->qkey_violations;
+	props->bad_pkey_cntr = ibp->rvp.pkey_violations;
+	props->qkey_viol_cntr = ibp->rvp.qkey_violations;
 	props->active_width = (u8)opa_width_to_ib(ppd->link_width_active);
 	/* see rate_show() in ib core/sysfs.c */
 	props->active_speed = (u8)opa_speed_to_ib(ppd->link_speed_active);
@@ -1494,7 +1494,7 @@ static int query_port(struct ib_device *ibdev, u8 port,
 				      4096 : hfi1_max_mtu), IB_MTU_4096);
 	props->active_mtu = !valid_ib_mtu(ppd->ibmtu) ? props->max_mtu :
 		mtu_to_enum(ppd->ibmtu, IB_MTU_2048);
-	props->subnet_timeout = ibp->subnet_timeout;
+	props->subnet_timeout = ibp->rvp.subnet_timeout;
 
 	return 0;
 }
@@ -1565,8 +1565,8 @@ static int modify_port(struct ib_device *ibdev, u8 port,
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	int ret = 0;
 
-	ibp->port_cap_flags |= props->set_port_cap_mask;
-	ibp->port_cap_flags &= ~props->clr_port_cap_mask;
+	ibp->rvp.port_cap_flags |= props->set_port_cap_mask;
+	ibp->rvp.port_cap_flags &= ~props->clr_port_cap_mask;
 	if (props->set_port_cap_mask || props->clr_port_cap_mask)
 		hfi1_cap_mask_chg(ibp);
 	if (port_modify_mask & IB_PORT_SHUTDOWN) {
@@ -1575,7 +1575,7 @@ static int modify_port(struct ib_device *ibdev, u8 port,
 		ret = set_link_state(ppd, HLS_DN_DOWNDEF);
 	}
 	if (port_modify_mask & IB_PORT_RESET_QKEY_CNTR)
-		ibp->qkey_violations = 0;
+		ibp->rvp.qkey_violations = 0;
 	return ret;
 }
 
@@ -1591,7 +1591,7 @@ static int query_gid(struct ib_device *ibdev, u8 port,
 		struct hfi1_ibport *ibp = to_iport(ibdev, port);
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 
-		gid->global.subnet_prefix = ibp->gid_prefix;
+		gid->global.subnet_prefix = ibp->rvp.gid_prefix;
 		if (index == 0)
 			gid->global.interface_id = cpu_to_be64(ppd->guid);
 		else if (index < HFI1_GUIDS_PER_PORT)
@@ -1663,7 +1663,7 @@ struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 	attr.dlid = dlid;
 	attr.port_num = ppd_from_ibp(ibp)->port;
 	rcu_read_lock();
-	qp0 = rcu_dereference(ibp->qp[0]);
+	qp0 = rcu_dereference(ibp->rvp.qp[0]);
 	if (qp0)
 		ah = ib_create_ah(qp0->ibqp.pd, &attr);
 	rcu_read_unlock();
@@ -1738,21 +1738,21 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 		ibp->sc_to_sl[i] = i;
 	}
 
-	spin_lock_init(&ibp->lock);
+	spin_lock_init(&ibp->rvp.lock);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
-	ibp->gid_prefix = IB_DEFAULT_GID_PREFIX;
-	ibp->sm_lid = 0;
+	ibp->rvp.gid_prefix = IB_DEFAULT_GID_PREFIX;
+	ibp->rvp.sm_lid = 0;
 	/* Below should only set bits defined in OPA PortInfo.CapabilityMask */
-	ibp->port_cap_flags = IB_PORT_AUTO_MIGR_SUP |
+	ibp->rvp.port_cap_flags = IB_PORT_AUTO_MIGR_SUP |
 		IB_PORT_CAP_MASK_NOTICE_SUP;
-	ibp->pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
-	ibp->pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
-	ibp->pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
-	ibp->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
-	ibp->pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
+	ibp->rvp.pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
+	ibp->rvp.pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
+	ibp->rvp.pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
+	ibp->rvp.pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
+	ibp->rvp.pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
 
-	RCU_INIT_POINTER(ibp->qp[0], NULL);
-	RCU_INIT_POINTER(ibp->qp[1], NULL);
+	RCU_INIT_POINTER(ibp->rvp.qp[0], NULL);
+	RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 }
 
 static void verbs_txreq_kmem_cache_ctor(void *obj)
@@ -1926,6 +1926,15 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.flags = (RVT_FLAG_QP_INIT_DRIVER |
 				   RVT_FLAG_CQ_INIT_DRIVER);
 	dd->verbs_dev.rdi.dparms.lkey_table_size = hfi1_lkey_table_size;
+	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
+	dd->verbs_dev.rdi.dparms.npkeys = hfi1_get_npkeys(dd);
+
+	ppd = dd->pport;
+	for (i = 0; i < dd->num_pports; i++, ppd++)
+		rvt_init_port(&dd->verbs_dev.rdi,
+			      &ppd->ibport_data.rvp,
+			      i,
+			      ppd->pkeys);
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
@@ -2003,7 +2012,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 		svc_type = IB_CC_SVCTYPE_UD;
 		break;
 	default:
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		return;
 	}
 

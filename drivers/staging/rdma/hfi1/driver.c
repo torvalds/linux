@@ -337,7 +337,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			/* Check for valid receive state. */
 			if (!(ib_hfi1_state_ops[qp->state] &
 			      HFI1_PROCESS_RECV_OK)) {
-				ibp->n_pkt_drops++;
+				ibp->rvp.n_pkt_drops++;
 			}
 
 			switch (qp->ibqp.qp_type) {

@@ -82,7 +82,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 	qp = hfi1_lookup_qpn(ibp, swqe->ud_wr.remote_qpn);
 	if (!qp) {
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		rcu_read_unlock();
 		return;
 	}
@@ -94,7 +94,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 	if (dqptype != sqptype ||
 	    !(ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK)) {
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		goto drop;
 	}
 
@@ -173,14 +173,14 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		}
 		if (!ret) {
 			if (qp->ibqp.qp_num == 0)
-				ibp->n_vl15_dropped++;
+				ibp->rvp.n_vl15_dropped++;
 			goto bail_unlock;
 		}
 	}
 	/* Silently drop packets which are too big. */
 	if (unlikely(wc.byte_len > qp->r_len)) {
 		qp->r_flags |= HFI1_R_REUSE_SGE;
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		goto bail_unlock;
 	}
 
@@ -249,7 +249,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	/* Signal completion event if the solicited bit is set. */
 	hfi1_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 		      swqe->wr.send_flags & IB_SEND_SOLICITED);
-	ibp->n_loop_pkts++;
+	ibp->rvp.n_loop_pkts++;
 bail_unlock:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
 drop:
@@ -608,7 +608,7 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 	case IB_MGMT_METHOD_TRAP:
 	case IB_MGMT_METHOD_GET_RESP:
 	case IB_MGMT_METHOD_REPORT_RESP:
-		if (ibp->port_cap_flags & IB_PORT_SM)
+		if (ibp->rvp.port_cap_flags & IB_PORT_SM)
 			return 0;
 		if (pkey == FULL_MGMT_P_KEY) {
 			smp->status |= IB_SMP_UNSUP_METHOD;
@@ -824,7 +824,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		}
 		if (!ret) {
 			if (qp->ibqp.qp_num == 0)
-				ibp->n_vl15_dropped++;
+				ibp->rvp.n_vl15_dropped++;
 			return;
 		}
 	}
@@ -884,5 +884,5 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	return;
 
 drop:
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 }

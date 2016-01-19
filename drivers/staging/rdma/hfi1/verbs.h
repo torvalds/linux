@@ -412,61 +412,16 @@ static inline void inc_opstats(
 
 struct hfi1_ibport {
 	struct rvt_qp __rcu *qp[2];
-	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
+	struct rvt_ibport rvp;
 	struct rvt_ah *sm_ah;
 	struct rvt_ah *smi_ah;
-	struct rb_root mcast_tree;
-	spinlock_t lock;		/* protect changes in this struct */
 
-	/* non-zero when timer is set */
-	unsigned long mkey_lease_timeout;
-	unsigned long trap_timeout;
-	__be64 gid_prefix;      /* in network order */
-	__be64 mkey;
 	__be64 guids[HFI1_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
-	u64 tid;		/* TID for traps */
-	u64 n_rc_resends;
-	u64 n_seq_naks;
-	u64 n_rdma_seq;
-	u64 n_rnr_naks;
-	u64 n_other_naks;
-	u64 n_loop_pkts;
-	u64 n_pkt_drops;
-	u64 n_vl15_dropped;
-	u64 n_rc_timeouts;
-	u64 n_dmawait;
-	u64 n_unaligned;
-	u64 n_rc_dupreq;
-	u64 n_rc_seqnak;
 
-	/* Hot-path per CPU counters to avoid cacheline trading to update */
-	u64 z_rc_acks;
-	u64 z_rc_qacks;
-	u64 z_rc_delayed_comp;
-	u64 __percpu *rc_acks;
-	u64 __percpu *rc_qacks;
-	u64 __percpu *rc_delayed_comp;
-
-	u32 port_cap_flags;
-	u32 pma_sample_start;
-	u32 pma_sample_interval;
-	__be16 pma_counter_select[5];
-	u16 pma_tag;
-	u16 pkey_violations;
-	u16 qkey_violations;
-	u16 mkey_violations;
-	u16 mkey_lease_period;
-	u16 sm_lid;
-	u16 repress_traps;
-	u8 sm_sl;
-	u8 mkeyprot;
-	u8 subnet_timeout;
-	u8 vl_high_limit;
 	/* the first 16 entries are sl_to_vl for !OPA */
 	u8 sl_to_sc[32];
 	u8 sc_to_sl[32];
 };
-
 
 struct hfi1_qp_ibdev;
 struct hfi1_ibdev {

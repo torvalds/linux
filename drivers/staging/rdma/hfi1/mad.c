@@ -91,7 +91,7 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 	int pkey_idx;
 	u32 qpn = ppd_from_ibp(ibp)->sm_trap_qp;
 
-	agent = ibp->send_agent;
+	agent = ibp->rvp.send_agent;
 	if (!agent)
 		return;
 
@@ -100,7 +100,8 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 		return;
 
 	/* o14-2 */
-	if (ibp->trap_timeout && time_before(jiffies, ibp->trap_timeout))
+	if (ibp->rvp.trap_timeout && time_before(jiffies,
+						 ibp->rvp.trap_timeout))
 		return;
 
 	pkey_idx = hfi1_lookup_pkey_idx(ibp, LIM_MGMT_P_KEY);
@@ -121,18 +122,18 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 	smp->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	smp->class_version = OPA_SMI_CLASS_VERSION;
 	smp->method = IB_MGMT_METHOD_TRAP;
-	ibp->tid++;
-	smp->tid = cpu_to_be64(ibp->tid);
+	ibp->rvp.tid++;
+	smp->tid = cpu_to_be64(ibp->rvp.tid);
 	smp->attr_id = IB_SMP_ATTR_NOTICE;
 	/* o14-1: smp->mkey = 0; */
 	memcpy(smp->route.lid.data, data, len);
 
-	spin_lock_irqsave(&ibp->lock, flags);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
 	if (!ibp->sm_ah) {
-		if (ibp->sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
+		if (ibp->rvp.sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
 
-			ah = hfi1_create_qp0_ah(ibp, ibp->sm_lid);
+			ah = hfi1_create_qp0_ah(ibp, ibp->rvp.sm_lid);
 			if (IS_ERR(ah))
 				ret = PTR_ERR(ah);
 			else {
@@ -146,17 +147,17 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 		send_buf->ah = &ibp->sm_ah->ibah;
 		ret = 0;
 	}
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 	if (!ret)
 		ret = ib_post_send_mad(send_buf, NULL);
 	if (!ret) {
 		/* 4.096 usec. */
-		timeout = (4096 * (1UL << ibp->subnet_timeout)) / 1000;
-		ibp->trap_timeout = jiffies + usecs_to_jiffies(timeout);
+		timeout = (4096 * (1UL << ibp->rvp.subnet_timeout)) / 1000;
+		ibp->rvp.trap_timeout = jiffies + usecs_to_jiffies(timeout);
 	} else {
 		ib_free_send_mad(send_buf);
-		ibp->trap_timeout = 0;
+		ibp->rvp.trap_timeout = 0;
 	}
 }
 
@@ -174,10 +175,10 @@ void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
 	memset(&data, 0, sizeof(data));
 
 	if (trap_num == OPA_TRAP_BAD_P_KEY)
-		ibp->pkey_violations++;
+		ibp->rvp.pkey_violations++;
 	else
-		ibp->qkey_violations++;
-	ibp->n_pkt_drops++;
+		ibp->rvp.qkey_violations++;
+	ibp->rvp.n_pkt_drops++;
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
@@ -245,7 +246,7 @@ void hfi1_cap_mask_chg(struct hfi1_ibport *ibp)
 	data.trap_num = OPA_TRAP_CHANGE_CAPABILITY;
 	data.issuer_lid = cpu_to_be32(lid);
 	data.ntc_144.lid = data.issuer_lid;
-	data.ntc_144.new_cap_mask = cpu_to_be32(ibp->port_cap_flags);
+	data.ntc_144.new_cap_mask = cpu_to_be32(ibp->rvp.port_cap_flags);
 
 	send_trap(ibp, &data, sizeof(data));
 }
@@ -407,37 +408,38 @@ static int check_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 	int ret = 0;
 
 	/* Is the mkey in the process of expiring? */
-	if (ibp->mkey_lease_timeout &&
-	    time_after_eq(jiffies, ibp->mkey_lease_timeout)) {
+	if (ibp->rvp.mkey_lease_timeout &&
+	    time_after_eq(jiffies, ibp->rvp.mkey_lease_timeout)) {
 		/* Clear timeout and mkey protection field. */
-		ibp->mkey_lease_timeout = 0;
-		ibp->mkeyprot = 0;
+		ibp->rvp.mkey_lease_timeout = 0;
+		ibp->rvp.mkeyprot = 0;
 	}
 
-	if ((mad_flags & IB_MAD_IGNORE_MKEY) ||  ibp->mkey == 0 ||
-	    ibp->mkey == mkey)
+	if ((mad_flags & IB_MAD_IGNORE_MKEY) ||  ibp->rvp.mkey == 0 ||
+	    ibp->rvp.mkey == mkey)
 		valid_mkey = 1;
 
 	/* Unset lease timeout on any valid Get/Set/TrapRepress */
-	if (valid_mkey && ibp->mkey_lease_timeout &&
+	if (valid_mkey && ibp->rvp.mkey_lease_timeout &&
 	    (mad->method == IB_MGMT_METHOD_GET ||
 	     mad->method == IB_MGMT_METHOD_SET ||
 	     mad->method == IB_MGMT_METHOD_TRAP_REPRESS))
-		ibp->mkey_lease_timeout = 0;
+		ibp->rvp.mkey_lease_timeout = 0;
 
 	if (!valid_mkey) {
 		switch (mad->method) {
 		case IB_MGMT_METHOD_GET:
 			/* Bad mkey not a violation below level 2 */
-			if (ibp->mkeyprot < 2)
+			if (ibp->rvp.mkeyprot < 2)
 				break;
 		case IB_MGMT_METHOD_SET:
 		case IB_MGMT_METHOD_TRAP_REPRESS:
-			if (ibp->mkey_violations != 0xFFFF)
-				++ibp->mkey_violations;
-			if (!ibp->mkey_lease_timeout && ibp->mkey_lease_period)
-				ibp->mkey_lease_timeout = jiffies +
-					ibp->mkey_lease_period * HZ;
+			if (ibp->rvp.mkey_violations != 0xFFFF)
+				++ibp->rvp.mkey_violations;
+			if (!ibp->rvp.mkey_lease_timeout &&
+			    ibp->rvp.mkey_lease_period)
+				ibp->rvp.mkey_lease_timeout = jiffies +
+					ibp->rvp.mkey_lease_period * HZ;
 			/* Generate a trap notice. */
 			bad_mkey(ibp, mad, mkey, dr_slid, return_path,
 				 hop_cnt);
@@ -548,14 +550,14 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	/* Only return the mkey if the protection field allows it. */
 	if (!(smp->method == IB_MGMT_METHOD_GET &&
-	      ibp->mkey != smp->mkey &&
-	      ibp->mkeyprot == 1))
-		pi->mkey = ibp->mkey;
+	      ibp->rvp.mkey != smp->mkey &&
+	      ibp->rvp.mkeyprot == 1))
+		pi->mkey = ibp->rvp.mkey;
 
-	pi->subnet_prefix = ibp->gid_prefix;
-	pi->sm_lid = cpu_to_be32(ibp->sm_lid);
-	pi->ib_cap_mask = cpu_to_be32(ibp->port_cap_flags);
-	pi->mkey_lease_period = cpu_to_be16(ibp->mkey_lease_period);
+	pi->subnet_prefix = ibp->rvp.gid_prefix;
+	pi->sm_lid = cpu_to_be32(ibp->rvp.sm_lid);
+	pi->ib_cap_mask = cpu_to_be32(ibp->rvp.port_cap_flags);
+	pi->mkey_lease_period = cpu_to_be16(ibp->rvp.mkey_lease_period);
 	pi->sm_trap_qp = cpu_to_be32(ppd->sm_trap_qp);
 	pi->sa_qp = cpu_to_be32(ppd->sa_qp);
 
@@ -599,7 +601,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	pi->port_states.portphysstate_portstate =
 		(hfi1_ibphys_portstate(ppd) << 4) | state;
 
-	pi->mkeyprotect_lmc = (ibp->mkeyprot << 6) | ppd->lmc;
+	pi->mkeyprotect_lmc = (ibp->rvp.mkeyprot << 6) | ppd->lmc;
 
 	memset(pi->neigh_mtu.pvlx_to_mtu, 0, sizeof(pi->neigh_mtu.pvlx_to_mtu));
 	for (i = 0; i < ppd->vls_supported; i++) {
@@ -612,7 +614,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	/* don't forget VL 15 */
 	mtu = mtu_to_enum(dd->vld[15].mtu, 2048);
 	pi->neigh_mtu.pvlx_to_mtu[15/2] |= mtu;
-	pi->smsl = ibp->sm_sl & OPA_PI_MASK_SMSL;
+	pi->smsl = ibp->rvp.sm_sl & OPA_PI_MASK_SMSL;
 	pi->operational_vls = hfi1_get_ib_cfg(ppd, HFI1_IB_CFG_OP_VLS);
 	pi->partenforce_filterraw |=
 		(ppd->linkinit_reason & OPA_PI_MASK_LINKINIT_REASON);
@@ -620,17 +622,17 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 		pi->partenforce_filterraw |= OPA_PI_MASK_PARTITION_ENFORCE_IN;
 	if (ppd->part_enforce & HFI1_PART_ENFORCE_OUT)
 		pi->partenforce_filterraw |= OPA_PI_MASK_PARTITION_ENFORCE_OUT;
-	pi->mkey_violations = cpu_to_be16(ibp->mkey_violations);
+	pi->mkey_violations = cpu_to_be16(ibp->rvp.mkey_violations);
 	/* P_KeyViolations are counted by hardware. */
-	pi->pkey_violations = cpu_to_be16(ibp->pkey_violations);
-	pi->qkey_violations = cpu_to_be16(ibp->qkey_violations);
+	pi->pkey_violations = cpu_to_be16(ibp->rvp.pkey_violations);
+	pi->qkey_violations = cpu_to_be16(ibp->rvp.qkey_violations);
 
 	pi->vl.cap = ppd->vls_supported;
-	pi->vl.high_limit = cpu_to_be16(ibp->vl_high_limit);
+	pi->vl.high_limit = cpu_to_be16(ibp->rvp.vl_high_limit);
 	pi->vl.arb_high_cap = (u8)hfi1_get_ib_cfg(ppd, HFI1_IB_CFG_VL_HIGH_CAP);
 	pi->vl.arb_low_cap = (u8)hfi1_get_ib_cfg(ppd, HFI1_IB_CFG_VL_LOW_CAP);
 
-	pi->clientrereg_subnettimeout = ibp->subnet_timeout;
+	pi->clientrereg_subnettimeout = ibp->rvp.subnet_timeout;
 
 	pi->port_link_mode  = cpu_to_be16(OPA_PORT_LINK_MODE_OPA << 10 |
 					  OPA_PORT_LINK_MODE_OPA << 5 |
@@ -1091,9 +1093,9 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	ls_old = driver_lstate(ppd);
 
-	ibp->mkey = pi->mkey;
-	ibp->gid_prefix = pi->subnet_prefix;
-	ibp->mkey_lease_period = be16_to_cpu(pi->mkey_lease_period);
+	ibp->rvp.mkey = pi->mkey;
+	ibp->rvp.gid_prefix = pi->subnet_prefix;
+	ibp->rvp.mkey_lease_period = be16_to_cpu(pi->mkey_lease_period);
 
 	/* Must be a valid unicast LID address. */
 	if ((lid == 0 && ls_old > IB_PORT_INIT) ||
@@ -1133,20 +1135,20 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	     smlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		pr_warn("SubnSet(OPA_PortInfo) smlid invalid 0x%x\n", smlid);
-	} else if (smlid != ibp->sm_lid || msl != ibp->sm_sl) {
+	} else if (smlid != ibp->rvp.sm_lid || msl != ibp->rvp.sm_sl) {
 		pr_warn("SubnSet(OPA_PortInfo) smlid 0x%x\n", smlid);
-		spin_lock_irqsave(&ibp->lock, flags);
+		spin_lock_irqsave(&ibp->rvp.lock, flags);
 		if (ibp->sm_ah) {
-			if (smlid != ibp->sm_lid)
+			if (smlid != ibp->rvp.sm_lid)
 				ibp->sm_ah->attr.dlid = smlid;
-			if (msl != ibp->sm_sl)
+			if (msl != ibp->rvp.sm_sl)
 				ibp->sm_ah->attr.sl = msl;
 		}
-		spin_unlock_irqrestore(&ibp->lock, flags);
-		if (smlid != ibp->sm_lid)
-			ibp->sm_lid = smlid;
-		if (msl != ibp->sm_sl)
-			ibp->sm_sl = msl;
+		spin_unlock_irqrestore(&ibp->rvp.lock, flags);
+		if (smlid != ibp->rvp.sm_lid)
+			ibp->rvp.sm_lid = smlid;
+		if (msl != ibp->rvp.sm_sl)
+			ibp->rvp.sm_sl = msl;
 		event.event = IB_EVENT_SM_CHANGE;
 		ib_dispatch_event(&event);
 	}
@@ -1198,10 +1200,11 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 			smp->status |= IB_SMP_INVALID_FIELD;
 	}
 
-	ibp->mkeyprot = (pi->mkeyprotect_lmc & OPA_PI_MASK_MKEY_PROT_BIT) >> 6;
-	ibp->vl_high_limit = be16_to_cpu(pi->vl.high_limit) & 0xFF;
+	ibp->rvp.mkeyprot =
+		(pi->mkeyprotect_lmc & OPA_PI_MASK_MKEY_PROT_BIT) >> 6;
+	ibp->rvp.vl_high_limit = be16_to_cpu(pi->vl.high_limit) & 0xFF;
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_VL_HIGH_LIMIT,
-				    ibp->vl_high_limit);
+				    ibp->rvp.vl_high_limit);
 
 	if (ppd->vls_supported/2 > ARRAY_SIZE(pi->neigh_mtu.pvlx_to_mtu) ||
 		ppd->vls_supported > ARRAY_SIZE(dd->vld)) {
@@ -1260,15 +1263,15 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	}
 
 	if (pi->mkey_violations == 0)
-		ibp->mkey_violations = 0;
+		ibp->rvp.mkey_violations = 0;
 
 	if (pi->pkey_violations == 0)
-		ibp->pkey_violations = 0;
+		ibp->rvp.pkey_violations = 0;
 
 	if (pi->qkey_violations == 0)
-		ibp->qkey_violations = 0;
+		ibp->rvp.qkey_violations = 0;
 
-	ibp->subnet_timeout =
+	ibp->rvp.subnet_timeout =
 		pi->clientrereg_subnettimeout & OPA_PI_MASK_SUBNET_TIMEOUT;
 
 	crc_enabled = be16_to_cpu(pi->port_ltp_crc_mode);
@@ -3532,9 +3535,9 @@ static int subn_get_opa_sma(__be16 attr_id, struct opa_smp *smp, u32 am,
 					      resp_len);
 		break;
 	case IB_SMP_ATTR_SM_INFO:
-		if (ibp->port_cap_flags & IB_PORT_SM_DISABLED)
+		if (ibp->rvp.port_cap_flags & IB_PORT_SM_DISABLED)
 			return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
-		if (ibp->port_cap_flags & IB_PORT_SM)
+		if (ibp->rvp.port_cap_flags & IB_PORT_SM)
 			return IB_MAD_RESULT_SUCCESS;
 		/* FALLTHROUGH */
 	default:
@@ -3602,9 +3605,9 @@ static int subn_set_opa_sma(__be16 attr_id, struct opa_smp *smp, u32 am,
 					      resp_len);
 		break;
 	case IB_SMP_ATTR_SM_INFO:
-		if (ibp->port_cap_flags & IB_PORT_SM_DISABLED)
+		if (ibp->rvp.port_cap_flags & IB_PORT_SM_DISABLED)
 			return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
-		if (ibp->port_cap_flags & IB_PORT_SM)
+		if (ibp->rvp.port_cap_flags & IB_PORT_SM)
 			return IB_MAD_RESULT_SUCCESS;
 		/* FALLTHROUGH */
 	default:
@@ -4180,7 +4183,7 @@ int hfi1_create_agents(struct hfi1_ibdev *dev)
 			goto err;
 		}
 
-		ibp->send_agent = agent;
+		ibp->rvp.send_agent = agent;
 	}
 
 	return 0;
@@ -4188,9 +4191,9 @@ int hfi1_create_agents(struct hfi1_ibdev *dev)
 err:
 	for (p = 0; p < dd->num_pports; p++) {
 		ibp = &dd->pport[p].ibport_data;
-		if (ibp->send_agent) {
-			agent = ibp->send_agent;
-			ibp->send_agent = NULL;
+		if (ibp->rvp.send_agent) {
+			agent = ibp->rvp.send_agent;
+			ibp->rvp.send_agent = NULL;
 			ib_unregister_mad_agent(agent);
 		}
 	}
@@ -4207,9 +4210,9 @@ void hfi1_free_agents(struct hfi1_ibdev *dev)
 
 	for (p = 0; p < dd->num_pports; p++) {
 		ibp = &dd->pport[p].ibport_data;
-		if (ibp->send_agent) {
-			agent = ibp->send_agent;
-			ibp->send_agent = NULL;
+		if (ibp->rvp.send_agent) {
+			agent = ibp->rvp.send_agent;
+			ibp->rvp.send_agent = NULL;
 			ib_unregister_mad_agent(agent);
 		}
 		if (ibp->sm_ah) {
