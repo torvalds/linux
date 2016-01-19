@@ -904,6 +904,46 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 	destroy_workqueue(dev_priv->wq);
 }
 
+static int i915_mmio_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int mmio_bar;
+	int mmio_size;
+
+	mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	/*
+	 * Before gen4, the registers and the GTT are behind different BARs.
+	 * However, from gen4 onwards, the registers and the GTT are shared
+	 * in the same BAR, so we want to restrict this ioremap from
+	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
+	 * the register BAR remains the same size for all the earlier
+	 * generations up to Ironlake.
+	 */
+	if (INTEL_INFO(dev)->gen < 5)
+		mmio_size = 512 * 1024;
+	else
+		mmio_size = 2 * 1024 * 1024;
+	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
+	if (dev_priv->regs == NULL) {
+		DRM_ERROR("failed to map registers\n");
+
+		return -EIO;
+	}
+
+	/* Try to make sure MCHBAR is enabled before poking at it */
+	intel_setup_mchbar(dev);
+
+	return 0;
+}
+
+static void i915_mmio_cleanup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	intel_teardown_mchbar(dev);
+	pci_iounmap(dev->pdev, dev_priv->regs);
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -919,7 +959,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
 	struct intel_device_info *info, *device_info;
-	int ret = 0, mmio_bar, mmio_size;
+	int ret = 0;
 	uint32_t aperture_size;
 
 	info = (struct intel_device_info *) flags;
@@ -971,25 +1011,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_runtime_pm_put;
 	}
 
-	mmio_bar = IS_GEN2(dev) ? 1 : 0;
-	/* Before gen4, the registers and the GTT are behind different BARs.
-	 * However, from gen4 onwards, the registers and the GTT are shared
-	 * in the same BAR, so we want to restrict this ioremap from
-	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
-	 * the register BAR remains the same size for all the earlier
-	 * generations up to Ironlake.
-	 */
-	if (info->gen < 5)
-		mmio_size = 512*1024;
-	else
-		mmio_size = 2*1024*1024;
-
-	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
-	if (!dev_priv->regs) {
-		DRM_ERROR("failed to map registers\n");
-		ret = -EIO;
+	ret = i915_mmio_setup(dev);
+	if (ret < 0)
 		goto put_bridge;
-	}
 
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev);
@@ -1047,8 +1071,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_irq_init(dev_priv);
 	intel_uncore_sanitize(dev);
 
-	/* Try to make sure MCHBAR is enabled before poking at it */
-	intel_setup_mchbar(dev);
 	intel_opregion_setup(dev);
 
 	i915_gem_load_init(dev);
@@ -1129,7 +1151,7 @@ out_gtt:
 	i915_global_gtt_cleanup(dev);
 out_uncore_fini:
 	intel_uncore_fini(dev);
-	pci_iounmap(dev->pdev, dev_priv->regs);
+	i915_mmio_cleanup(dev);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 	i915_gem_load_cleanup(dev);
@@ -1213,15 +1235,12 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_fbc_cleanup_cfb(dev_priv);
 	i915_gem_cleanup_stolen(dev);
 
-	intel_teardown_mchbar(dev);
-
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
 	i915_global_gtt_cleanup(dev);
 
 	intel_uncore_fini(dev);
-	if (dev_priv->regs != NULL)
-		pci_iounmap(dev->pdev, dev_priv->regs);
+	i915_mmio_cleanup(dev);
 
 	i915_gem_load_cleanup(dev);
 	pci_dev_put(dev_priv->bridge_dev);
