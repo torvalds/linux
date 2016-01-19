@@ -7,6 +7,8 @@
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
 
+#include <trace/events/block.h>
+
 #include "blk.h"
 
 static struct bio *blk_bio_discard_split(struct request_queue *q,
@@ -81,15 +83,28 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	struct bio *new = NULL;
 
 	bio_for_each_segment(bv, bio, iter) {
-		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
-			goto split;
-
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
 		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
+
+		if (sectors + (bv.bv_len >> 9) >
+				blk_max_size_offset(q, bio->bi_iter.bi_sector)) {
+			/*
+			 * Consider this a new segment if we're splitting in
+			 * the middle of this vector.
+			 */
+			if (nsegs < queue_max_segments(q) &&
+			    sectors < blk_max_size_offset(q,
+						bio->bi_iter.bi_sector)) {
+				nsegs++;
+				sectors = blk_max_size_offset(q,
+						bio->bi_iter.bi_sector);
+			}
+			goto split;
+		}
 
 		if (bvprvp && blk_queue_cluster(q)) {
 			if (seg_size + bv.bv_len > queue_max_segment_size(q))
@@ -162,6 +177,7 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 		split->bi_rw |= REQ_NOMERGE;
 
 		bio_chain(split, *bio);
+		trace_block_split(q, split, (*bio)->bi_iter.bi_sector);
 		generic_make_request(*bio);
 		*bio = split;
 	}

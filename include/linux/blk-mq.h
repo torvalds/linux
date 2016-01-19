@@ -188,8 +188,14 @@ void blk_mq_insert_request(struct request *, bool, bool, bool);
 void blk_mq_free_request(struct request *rq);
 void blk_mq_free_hctx_request(struct blk_mq_hw_ctx *, struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
+
+enum {
+	BLK_MQ_REQ_NOWAIT	= (1 << 0), /* return when out of requests */
+	BLK_MQ_REQ_RESERVED	= (1 << 1), /* allocate from reserved pool */
+};
+
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
-		gfp_t gfp, bool reserved);
+		unsigned int flags);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 struct cpumask *blk_mq_tags_cpumask(struct blk_mq_tags *tags);
 
