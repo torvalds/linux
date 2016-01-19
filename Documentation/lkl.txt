@@ -60,6 +60,21 @@ Building LKL on FreeBSD
     $ cd tools/lkl
     $ gmake
 
+Building LKL on Ubuntu
+-----------------------
+
+    $ sudo apt-get install libfuse-dev libarchive-dev xfsprogs
+    
+    # Optional, if you would like to be able to run tests
+    $ sudo apt-get install btrfs-tools
+    
+    $ cd tools/lkl
+    $ make
+    
+    # To check that everything works:
+    $ cd ../..
+    $ make test
+
 
 Building LKL for Windows
 ------------------------
