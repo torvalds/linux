@@ -228,6 +228,10 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 	if (ret)
 		goto free_manifest;
 
+	ret = gb_control_get_bundle_versions(intf->control);
+	if (ret)
+		goto free_manifest;
+
 	/* Register the interface and its bundles. */
 	ret = device_add(&intf->dev);
 	if (ret) {

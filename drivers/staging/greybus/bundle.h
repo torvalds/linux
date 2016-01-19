@@ -16,8 +16,12 @@
 struct gb_bundle {
 	struct device		dev;
 	struct gb_interface	*intf;
+
 	u8			id;
 	u8			class;
+	u8			class_major;
+	u8			class_minor;
+
 	struct list_head	connections;
 	u8			*state;
 
