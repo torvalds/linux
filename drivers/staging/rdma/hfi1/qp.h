@@ -55,6 +55,8 @@
 #include "verbs.h"
 #include "sdma.h"
 
+extern unsigned int hfi1_qp_table_size;
+
 static inline u32 qpn_hash(struct rvt_qp_ibdev *dev, u32 qpn)
 {
 	return hash_32(qpn, dev->qp_table_bits);
@@ -170,18 +172,6 @@ int hfi1_destroy_qp(struct ib_qp *ibqp);
 void hfi1_get_credit(struct rvt_qp *qp, u32 aeth);
 
 /**
- * hfi1_qp_init - allocate QP tables
- * @dev: a pointer to the hfi1_ibdev
- */
-int hfi1_qp_init(struct hfi1_ibdev *dev);
-
-/**
- * hfi1_qp_exit - free the QP related structures
- * @dev: a pointer to the hfi1_ibdev
- */
-void hfi1_qp_exit(struct hfi1_ibdev *dev);
-
-/**
  * hfi1_qp_wakeup - wake up on the indicated event
  * @qp: the QP
  * @flag: flag the qp on which the qp is stalled
@@ -254,5 +244,14 @@ static inline void hfi1_schedule_send(struct rvt_qp *qp)
 }
 
 void hfi1_migrate_qp(struct rvt_qp *qp);
+
+/*
+ * Functions provided by hfi1 driver for rdmavt to use
+ */
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		    gfp_t gfp);
+void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+unsigned free_all_qps(struct rvt_dev_info *rdi);
+void notify_qp_reset(struct rvt_qp *qp);
 
 #endif /* _QP_H */

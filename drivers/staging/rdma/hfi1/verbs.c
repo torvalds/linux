@@ -1720,11 +1720,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	u16 descq_cnt;
 	char buf[TXREQ_NAME_LEN];
 
-	ret = hfi1_qp_init(dev);
-	if (ret)
-		goto err_qp_init;
-
-
 	for (i = 0; i < dd->num_pports; i++)
 		init_ibport(ppd + i);
 
@@ -1820,7 +1815,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_srq = hfi1_modify_srq;
 	ibdev->query_srq = hfi1_query_srq;
 	ibdev->destroy_srq = hfi1_destroy_srq;
-	ibdev->create_qp = hfi1_create_qp;
+	ibdev->create_qp = NULL;
 	ibdev->modify_qp = hfi1_modify_qp;
 	ibdev->query_qp = hfi1_query_qp;
 	ibdev->destroy_qp = hfi1_destroy_qp;
@@ -1861,8 +1856,25 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.notify_new_ah = hfi1_notify_new_ah;
 	dd->verbs_dev.rdi.dparms.props.max_ah = hfi1_max_ahs;
 	dd->verbs_dev.rdi.dparms.props.max_pd = hfi1_max_pds;
-	dd->verbs_dev.rdi.flags = (RVT_FLAG_QP_INIT_DRIVER |
-				   RVT_FLAG_CQ_INIT_DRIVER);
+	dd->verbs_dev.rdi.dparms.props.max_sge = hfi1_max_sges;
+
+	/* queue pair */
+	dd->verbs_dev.rdi.dparms.props.max_qp = hfi1_max_qps;
+	dd->verbs_dev.rdi.dparms.props.max_qp_wr = hfi1_max_qp_wrs;
+	dd->verbs_dev.rdi.dparms.qp_table_size = hfi1_qp_table_size;
+	dd->verbs_dev.rdi.dparms.qpn_start = 0;
+	dd->verbs_dev.rdi.dparms.qpn_inc = 1;
+	dd->verbs_dev.rdi.dparms.qos_shift = dd->qos_shift;
+	dd->verbs_dev.rdi.dparms.qpn_res_start = kdeth_qp << 16;
+	dd->verbs_dev.rdi.dparms.qpn_res_end =
+		dd->verbs_dev.rdi.dparms.qpn_res_start + 65535;
+	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qp_priv_alloc;
+	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
+	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
+	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
+
+	/* misc settings */
+	dd->verbs_dev.rdi.flags = RVT_FLAG_CQ_INIT_DRIVER;
 	dd->verbs_dev.rdi.dparms.lkey_table_size = hfi1_lkey_table_size;
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = hfi1_get_npkeys(dd);
@@ -1895,8 +1907,6 @@ err_agents:
 err_reg:
 err_verbs_txreq:
 	kmem_cache_destroy(dev->verbs_txreq_cache);
-	hfi1_qp_exit(dev);
-err_qp_init:
 	dd_dev_err(dd, "cannot register verbs: %d!\n", -ret);
 bail:
 	return ret;
@@ -1917,7 +1927,6 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	if (!list_empty(&dev->memwait))
 		dd_dev_err(dd, "memwait list not empty!\n");
 
-	hfi1_qp_exit(dev);
 	del_timer_sync(&dev->mem_timer);
 	kmem_cache_destroy(dev->verbs_txreq_cache);
 }
