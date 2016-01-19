@@ -737,7 +737,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		head = req->wb_head;
 
 		spin_lock(&inode->i_lock);
-		if (likely(!PageSwapCache(head->wb_page))) {
+		if (likely(head->wb_page && !PageSwapCache(head->wb_page))) {
 			set_page_private(head->wb_page, 0);
 			ClearPagePrivate(head->wb_page);
 			smp_mb__after_atomic();
@@ -759,7 +759,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 static void
 nfs_mark_request_dirty(struct nfs_page *req)
 {
-	__set_page_dirty_nobuffers(req->wb_page);
+	if (req->wb_page)
+		__set_page_dirty_nobuffers(req->wb_page);
 }
 
 /*
@@ -835,7 +836,8 @@ nfs_request_add_commit_list(struct nfs_page *req, struct nfs_commit_info *cinfo)
 	spin_lock(&cinfo->inode->i_lock);
 	nfs_request_add_commit_list_locked(req, &cinfo->mds->list, cinfo);
 	spin_unlock(&cinfo->inode->i_lock);
-	nfs_mark_page_unstable(req->wb_page, cinfo);
+	if (req->wb_page)
+		nfs_mark_page_unstable(req->wb_page, cinfo);
 }
 EXPORT_SYMBOL_GPL(nfs_request_add_commit_list);
 
@@ -1724,6 +1726,36 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 	return -ENOMEM;
 }
 
+int nfs_commit_file(struct file *file, struct nfs_write_verifier *verf)
+{
+	struct inode *inode = file_inode(file);
+	struct nfs_open_context *open;
+	struct nfs_commit_info cinfo;
+	struct nfs_page *req;
+	int ret;
+
+	open = get_nfs_open_context(nfs_file_open_context(file));
+	req  = nfs_create_request(open, NULL, NULL, 0, i_size_read(inode));
+	if (!req) {
+		ret = -ENOMEM;
+		goto out_put;
+	}
+
+	nfs_init_cinfo_from_inode(&cinfo, inode);
+
+	memcpy(&req->wb_verf, verf, sizeof(struct nfs_write_verifier));
+	nfs_request_add_commit_list(req, &cinfo);
+	ret = nfs_commit_inode(inode, FLUSH_SYNC);
+	if (ret > 0)
+		ret = 0;
+
+	nfs_free_request(req);
+out_put:
+	put_nfs_open_context(open);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nfs_commit_file);
+
 /*
  * COMMIT call returned
  */
@@ -1748,7 +1780,8 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
 		nfs_list_remove_request(req);
-		nfs_clear_page_commit(req->wb_page);
+		if (req->wb_page)
+			nfs_clear_page_commit(req->wb_page);
 
 		dprintk("NFS:       commit (%s/%llu %d@%lld)",
 			req->wb_context->dentry->d_sb->s_id,
