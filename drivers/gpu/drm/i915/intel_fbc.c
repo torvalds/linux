@@ -516,17 +516,6 @@ static bool crtc_can_fbc(struct intel_crtc *crtc)
 	return true;
 }
 
-static bool crtc_is_valid(struct intel_crtc *crtc)
-{
-	if (!intel_crtc_active(&crtc->base))
-		return false;
-
-	if (!to_intel_plane_state(crtc->base.primary->state)->visible)
-		return false;
-
-	return true;
-}
-
 static bool multiple_pipes_ok(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
@@ -752,48 +741,40 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
-/**
- * __intel_fbc_update - activate/deactivate FBC as needed, unlocked
- * @crtc: the CRTC that triggered the update
- *
- * This function completely reevaluates the status of FBC, then activates,
- * deactivates or maintains it on the same state.
- */
-static void __intel_fbc_update(struct intel_crtc *crtc)
+static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_plane *primary;
 	struct drm_framebuffer *fb;
+	struct intel_plane_state *plane_state;
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
-
-	if (!multiple_pipes_ok(dev_priv)) {
-		set_no_fbc_reason(dev_priv, "more than one pipe active");
-		goto out_disable;
+	if (!intel_crtc_active(&crtc->base)) {
+		set_no_fbc_reason(dev_priv, "CRTC not active");
+		return false;
 	}
 
-	if (!dev_priv->fbc.enabled || dev_priv->fbc.crtc != crtc)
-		return;
-
-	if (!crtc_is_valid(crtc)) {
-		set_no_fbc_reason(dev_priv, "no output");
-		goto out_disable;
-	}
-
-	fb = crtc->base.primary->fb;
+	primary = crtc->base.primary;
+	fb = primary->fb;
 	obj = intel_fb_obj(fb);
 	adjusted_mode = &crtc->config->base.adjusted_mode;
+	plane_state = to_intel_plane_state(primary->state);
+
+	if (!plane_state->visible) {
+		set_no_fbc_reason(dev_priv, "primary plane not visible");
+		return false;
+	}
 
 	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
 		set_no_fbc_reason(dev_priv, "incompatible mode");
-		goto out_disable;
+		return false;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(crtc)) {
 		set_no_fbc_reason(dev_priv, "mode too large for compression");
-		goto out_disable;
+		return false;
 	}
 
 	/* The use of a CPU fence is mandatory in order to detect writes
@@ -802,22 +783,22 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
 		set_no_fbc_reason(dev_priv, "framebuffer not tiled or fenced");
-		goto out_disable;
+		return false;
 	}
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
-	    crtc->base.primary->state->rotation != BIT(DRM_ROTATE_0)) {
+	    plane_state->base.rotation != BIT(DRM_ROTATE_0)) {
 		set_no_fbc_reason(dev_priv, "rotation unsupported");
-		goto out_disable;
+		return false;
 	}
 
 	if (!stride_is_valid(dev_priv, fb->pitches[0])) {
 		set_no_fbc_reason(dev_priv, "framebuffer stride not supported");
-		goto out_disable;
+		return false;
 	}
 
 	if (!pixel_format_is_valid(fb)) {
 		set_no_fbc_reason(dev_priv, "pixel format is invalid");
-		goto out_disable;
+		return false;
 	}
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
@@ -825,7 +806,7 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 	    ilk_pipe_pixel_rate(crtc->config) >=
 	    dev_priv->cdclk_freq * 95 / 100) {
 		set_no_fbc_reason(dev_priv, "pixel rate is too big");
-		goto out_disable;
+		return false;
 	}
 
 	/* It is possible for the required CFB size change without a
@@ -841,8 +822,35 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 	if (intel_fbc_calculate_cfb_size(crtc, fb) >
 	    dev_priv->fbc.compressed_fb.size * dev_priv->fbc.threshold) {
 		set_no_fbc_reason(dev_priv, "CFB requirements changed");
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * __intel_fbc_update - activate/deactivate FBC as needed, unlocked
+ * @crtc: the CRTC that triggered the update
+ *
+ * This function completely reevaluates the status of FBC, then activates,
+ * deactivates or maintains it on the same state.
+ */
+static void __intel_fbc_update(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
+
+	if (!multiple_pipes_ok(dev_priv)) {
+		set_no_fbc_reason(dev_priv, "more than one pipe active");
 		goto out_disable;
 	}
+
+	if (!dev_priv->fbc.enabled || dev_priv->fbc.crtc != crtc)
+		return;
+
+	if (!intel_fbc_can_activate(crtc))
+		goto out_disable;
 
 	/* If the scanout has not changed, don't modify the FBC settings.
 	 * Note that we make the fundamental assumption that the fb->obj
@@ -850,7 +858,7 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 	 * without first being decoupled from the scanout and FBC disabled.
 	 */
 	if (dev_priv->fbc.crtc == crtc &&
-	    dev_priv->fbc.fb_id == fb->base.id &&
+	    dev_priv->fbc.fb_id == crtc->base.primary->fb->base.id &&
 	    dev_priv->fbc.y == crtc->base.y &&
 	    dev_priv->fbc.active)
 		return;
