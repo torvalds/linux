@@ -65,7 +65,7 @@
 int hfi1_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			  struct ib_recv_wr **bad_wr)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;
 	unsigned long flags;
 	int ret;
@@ -120,7 +120,7 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 			       struct ib_udata *udata)
 {
 	struct hfi1_ibdev *dev = to_idev(ibpd->device);
-	struct hfi1_srq *srq;
+	struct rvt_srq *srq;
 	u32 sz;
 	struct ib_srq *ret;
 
@@ -229,7 +229,7 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask,
 		    struct ib_udata *udata)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;
 	int ret = 0;
 
@@ -367,7 +367,7 @@ bail:
 
 int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 
 	attr->max_wr = srq->rq.size - 1;
 	attr->max_sge = srq->rq.max_sge;
@@ -381,7 +381,7 @@ int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
  */
 int hfi1_destroy_srq(struct ib_srq *ibsrq)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct hfi1_ibdev *dev = to_idev(ibsrq->device);
 
 	spin_lock(&dev->n_srqs_lock);

@@ -263,14 +263,6 @@ struct hfi1_cq {
 	struct rvt_mmap_info *ip;
 };
 
-struct hfi1_srq {
-	struct ib_srq ibsrq;
-	struct rvt_rq rq;
-	struct rvt_mmap_info *ip;
-	/* send signal when number of RWQEs < limit */
-	u32 limit;
-};
-
 /*
  * hfi1 specific data structures that will be hidden from rvt after the queue
  * pair is made common
@@ -537,11 +529,6 @@ struct hfi1_verbs_counters {
 static inline struct hfi1_cq *to_icq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct hfi1_cq, ibcq);
-}
-
-static inline struct hfi1_srq *to_isrq(struct ib_srq *ibsrq)
-{
-	return container_of(ibsrq, struct hfi1_srq, ibsrq);
 }
 
 static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)
