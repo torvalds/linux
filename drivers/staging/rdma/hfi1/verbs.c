@@ -702,7 +702,7 @@ static void mem_timer(unsigned long data)
 	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
 
 	if (qp)
-		hfi1_qp_wakeup(qp, HFI1_S_WAIT_KMEM);
+		hfi1_qp_wakeup(qp, RVT_S_WAIT_KMEM);
 }
 
 void update_sge(struct rvt_sge_state *ss, u32 length)
@@ -740,12 +740,12 @@ static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 		if (ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_RECV_OK &&
 		    list_empty(&priv->s_iowait.list)) {
 			dev->n_txwait++;
-			qp->s_flags |= HFI1_S_WAIT_TX;
+			qp->s_flags |= RVT_S_WAIT_TX;
 			list_add_tail(&priv->s_iowait.list, &dev->txwait);
-			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_TX);
+			trace_hfi1_qpsleep(qp, RVT_S_WAIT_TX);
 			atomic_inc(&qp->refcount);
 		}
-		qp->s_flags &= ~HFI1_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		write_sequnlock(&dev->iowait_lock);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		tx = ERR_PTR(-EBUSY);
@@ -803,7 +803,7 @@ void hfi1_put_txreq(struct verbs_txreq *tx)
 			list_del_init(&priv->s_iowait.list);
 			/* refcount held until actual wake up */
 			write_sequnlock_irqrestore(&dev->iowait_lock, flags);
-			hfi1_qp_wakeup(qp, HFI1_S_WAIT_TX);
+			hfi1_qp_wakeup(qp, RVT_S_WAIT_TX);
 			break;
 		}
 	} while (read_seqretry(&dev->iowait_lock, seq));
@@ -838,8 +838,8 @@ static void verbs_sdma_complete(
 		 * do the flush work until that QP's
 		 * sdma work has finished.
 		 */
-		if (qp->s_flags & HFI1_S_WAIT_DMA) {
-			qp->s_flags &= ~HFI1_S_WAIT_DMA;
+		if (qp->s_flags & RVT_S_WAIT_DMA) {
+			qp->s_flags &= ~RVT_S_WAIT_DMA;
 			hfi1_schedule_send(qp);
 		}
 	}
@@ -860,13 +860,13 @@ static int wait_kmem(struct hfi1_ibdev *dev, struct rvt_qp *qp)
 		if (list_empty(&priv->s_iowait.list)) {
 			if (list_empty(&dev->memwait))
 				mod_timer(&dev->mem_timer, jiffies + 1);
-			qp->s_flags |= HFI1_S_WAIT_KMEM;
+			qp->s_flags |= RVT_S_WAIT_KMEM;
 			list_add_tail(&priv->s_iowait.list, &dev->memwait);
-			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_KMEM);
+			trace_hfi1_qpsleep(qp, RVT_S_WAIT_KMEM);
 			atomic_inc(&qp->refcount);
 		}
 		write_sequnlock(&dev->iowait_lock);
-		qp->s_flags &= ~HFI1_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		ret = -EBUSY;
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1092,17 +1092,17 @@ static int no_bufs_available(struct rvt_qp *qp, struct send_context *sc)
 			int was_empty;
 
 			dev->n_piowait++;
-			qp->s_flags |= HFI1_S_WAIT_PIO;
+			qp->s_flags |= RVT_S_WAIT_PIO;
 			was_empty = list_empty(&sc->piowait);
 			list_add_tail(&priv->s_iowait.list, &sc->piowait);
-			trace_hfi1_qpsleep(qp, HFI1_S_WAIT_PIO);
+			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
 			atomic_inc(&qp->refcount);
 			/* counting: only call wantpiobuf_intr if first user */
 			if (was_empty)
 				hfi1_sc_wantpiobuf_intr(sc, 1);
 		}
 		write_sequnlock(&dev->iowait_lock);
-		qp->s_flags &= ~HFI1_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		ret = -EBUSY;
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1307,7 +1307,7 @@ bad:
  * @ps: the state of the packet to send
  *
  * Return zero if packet is sent or queued OK.
- * Return non-zero and clear qp->s_flags HFI1_S_BUSY otherwise.
+ * Return non-zero and clear qp->s_flags RVT_S_BUSY otherwise.
  */
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {

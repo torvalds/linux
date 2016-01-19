@@ -63,6 +63,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_mad.h>
 #include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 
 struct hfi1_ctxtdata;
 struct hfi1_pportdata;
@@ -286,84 +287,6 @@ struct hfi1_pkt_state {
 	struct hfi1_pportdata *ppd;
 };
 
-/*
- * Atomic bit definitions for r_aflags.
- */
-#define HFI1_R_WRID_VALID        0
-#define HFI1_R_REWIND_SGE        1
-
-/*
- * Bit definitions for r_flags.
- */
-#define HFI1_R_REUSE_SGE       0x01
-#define HFI1_R_RDMAR_SEQ       0x02
-/* defer ack until end of interrupt session */
-#define HFI1_R_RSP_DEFERED_ACK 0x04
-/* relay ack to send engine */
-#define HFI1_R_RSP_SEND        0x08
-#define HFI1_R_COMM_EST        0x10
-
-/*
- * Bit definitions for s_flags.
- *
- * HFI1_S_SIGNAL_REQ_WR - set if QP send WRs contain completion signaled
- * HFI1_S_BUSY - send tasklet is processing the QP
- * HFI1_S_TIMER - the RC retry timer is active
- * HFI1_S_ACK_PENDING - an ACK is waiting to be sent after RDMA read/atomics
- * HFI1_S_WAIT_FENCE - waiting for all prior RDMA read or atomic SWQEs
- *                         before processing the next SWQE
- * HFI1_S_WAIT_RDMAR - waiting for a RDMA read or atomic SWQE to complete
- *                         before processing the next SWQE
- * HFI1_S_WAIT_RNR - waiting for RNR timeout
- * HFI1_S_WAIT_SSN_CREDIT - waiting for RC credits to process next SWQE
- * HFI1_S_WAIT_DMA - waiting for send DMA queue to drain before generating
- *                  next send completion entry not via send DMA
- * HFI1_S_WAIT_PIO - waiting for a send buffer to be available
- * HFI1_S_WAIT_TX - waiting for a struct verbs_txreq to be available
- * HFI1_S_WAIT_DMA_DESC - waiting for DMA descriptors to be available
- * HFI1_S_WAIT_KMEM - waiting for kernel memory to be available
- * HFI1_S_WAIT_PSN - waiting for a packet to exit the send DMA queue
- * HFI1_S_WAIT_ACK - waiting for an ACK packet before sending more requests
- * HFI1_S_SEND_ONE - send one packet, request ACK, then wait for ACK
- * HFI1_S_ECN - a BECN was queued to the send engine
- */
-#define HFI1_S_SIGNAL_REQ_WR	0x0001
-#define HFI1_S_BUSY		0x0002
-#define HFI1_S_TIMER		0x0004
-#define HFI1_S_RESP_PENDING	0x0008
-#define HFI1_S_ACK_PENDING	0x0010
-#define HFI1_S_WAIT_FENCE	0x0020
-#define HFI1_S_WAIT_RDMAR	0x0040
-#define HFI1_S_WAIT_RNR		0x0080
-#define HFI1_S_WAIT_SSN_CREDIT	0x0100
-#define HFI1_S_WAIT_DMA		0x0200
-#define HFI1_S_WAIT_PIO		0x0400
-#define HFI1_S_WAIT_TX		0x0800
-#define HFI1_S_WAIT_DMA_DESC	0x1000
-#define HFI1_S_WAIT_KMEM		0x2000
-#define HFI1_S_WAIT_PSN		0x4000
-#define HFI1_S_WAIT_ACK		0x8000
-#define HFI1_S_SEND_ONE		0x10000
-#define HFI1_S_UNLIMITED_CREDIT	0x20000
-#define HFI1_S_AHG_VALID		0x40000
-#define HFI1_S_AHG_CLEAR		0x80000
-#define HFI1_S_ECN		0x100000
-
-/*
- * Wait flags that would prevent any packet type from being sent.
- */
-#define HFI1_S_ANY_WAIT_IO (HFI1_S_WAIT_PIO | HFI1_S_WAIT_TX | \
-	HFI1_S_WAIT_DMA_DESC | HFI1_S_WAIT_KMEM)
-
-/*
- * Wait flags that would prevent send work requests from making progress.
- */
-#define HFI1_S_ANY_WAIT_SEND (HFI1_S_WAIT_FENCE | HFI1_S_WAIT_RDMAR | \
-	HFI1_S_WAIT_RNR | HFI1_S_WAIT_SSN_CREDIT | HFI1_S_WAIT_DMA | \
-	HFI1_S_WAIT_PSN | HFI1_S_WAIT_ACK)
-
-#define HFI1_S_ANY_WAIT (HFI1_S_ANY_WAIT_IO | HFI1_S_ANY_WAIT_SEND)
-
 #define HFI1_PSN_CREDIT  16
 
 /*
@@ -507,9 +430,9 @@ static inline struct rvt_qp *iowait_to_qp(struct  iowait *s_iowait)
  */
 static inline int hfi1_send_ok(struct rvt_qp *qp)
 {
-	return !(qp->s_flags & (HFI1_S_BUSY | HFI1_S_ANY_WAIT_IO)) &&
-		(qp->s_hdrwords || (qp->s_flags & HFI1_S_RESP_PENDING) ||
-		 !(qp->s_flags & HFI1_S_ANY_WAIT_SEND));
+	return !(qp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT_IO)) &&
+		(qp->s_hdrwords || (qp->s_flags & RVT_S_RESP_PENDING) ||
+		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
 /*

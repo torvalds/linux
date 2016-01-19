@@ -84,7 +84,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
 		if (atomic_read(&priv->s_iowait.sdma_busy)) {
-			qp->s_flags |= HFI1_S_WAIT_DMA;
+			qp->s_flags |= RVT_S_WAIT_DMA;
 			goto bail;
 		}
 		clear_ahg(qp);
@@ -241,7 +241,7 @@ done:
 	goto unlock;
 
 bail:
-	qp->s_flags &= ~HFI1_S_BUSY;
+	qp->s_flags &= ~RVT_S_BUSY;
 unlock:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return ret;
@@ -332,7 +332,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 inv:
 		if (qp->r_state == OP(SEND_FIRST) ||
 		    qp->r_state == OP(SEND_MIDDLE)) {
-			set_bit(HFI1_R_REWIND_SGE, &qp->r_aflags);
+			set_bit(RVT_R_REWIND_SGE, &qp->r_aflags);
 			qp->r_sge.num_sge = 0;
 		} else
 			hfi1_put_ss(&qp->r_sge);
@@ -382,7 +382,7 @@ inv:
 		goto inv;
 	}
 
-	if (qp->state == IB_QPS_RTR && !(qp->r_flags & HFI1_R_COMM_EST))
+	if (qp->state == IB_QPS_RTR && !(qp->r_flags & RVT_R_COMM_EST))
 		qp_comm_est(qp);
 
 	/* OK, process the packet. */
@@ -391,7 +391,7 @@ inv:
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
 send_first:
-		if (test_and_clear_bit(HFI1_R_REWIND_SGE, &qp->r_aflags))
+		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
 			qp->r_sge = qp->s_rdma_read_sge;
 		else {
 			ret = hfi1_get_rwqe(qp, 0);
@@ -536,7 +536,7 @@ rdma_last_imm:
 		tlen -= (hdrsize + pad + 4);
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
-		if (test_and_clear_bit(HFI1_R_REWIND_SGE, &qp->r_aflags))
+		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
 			hfi1_put_ss(&qp->s_rdma_read_sge);
 		else {
 			ret = hfi1_get_rwqe(qp, 1);
@@ -576,7 +576,7 @@ rdma_last:
 	return;
 
 rewind:
-	set_bit(HFI1_R_REWIND_SGE, &qp->r_aflags);
+	set_bit(RVT_R_REWIND_SGE, &qp->r_aflags);
 	qp->r_sge.num_sge = 0;
 drop:
 	ibp->rvp.n_pkt_drops++;
