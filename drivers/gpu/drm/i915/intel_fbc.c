@@ -56,6 +56,11 @@ static inline bool fbc_on_plane_a_only(struct drm_i915_private *dev_priv)
 	return INTEL_INFO(dev_priv)->gen < 4;
 }
 
+static inline bool no_fbc_on_multiple_pipes(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen <= 3;
+}
+
 /*
  * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
  * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
@@ -481,25 +486,25 @@ static bool crtc_can_fbc(struct intel_crtc *crtc)
 	return true;
 }
 
-static bool multiple_pipes_ok(struct drm_i915_private *dev_priv)
+static bool multiple_pipes_ok(struct intel_crtc *crtc)
 {
-	enum pipe pipe;
-	int n_pipes = 0;
-	struct drm_crtc *crtc;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_plane *primary = crtc->base.primary;
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	enum pipe pipe = crtc->pipe;
 
-	if (INTEL_INFO(dev_priv)->gen > 4)
+	/* Don't even bother tracking anything we don't need. */
+	if (!no_fbc_on_multiple_pipes(dev_priv))
 		return true;
 
-	/* FIXME: we don't have the appropriate state locks to do this here. */
-	for_each_pipe(dev_priv, pipe) {
-		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	WARN_ON(!drm_modeset_is_locked(&primary->mutex));
 
-		if (intel_crtc_active(crtc) &&
-		    to_intel_plane_state(crtc->primary->state)->visible)
-			n_pipes++;
-	}
+	if (to_intel_plane_state(primary->state)->visible)
+		fbc->visible_pipes_mask |= (1 << pipe);
+	else
+		fbc->visible_pipes_mask &= ~(1 << pipe);
 
-	return (n_pipes < 2);
+	return (fbc->visible_pipes_mask & ~(1 << pipe)) != 0;
 }
 
 static int find_compression_threshold(struct drm_i915_private *dev_priv,
@@ -891,7 +896,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc)
 
 	mutex_lock(&fbc->lock);
 
-	if (!multiple_pipes_ok(dev_priv)) {
+	if (!multiple_pipes_ok(crtc)) {
 		set_no_fbc_reason(dev_priv, "more than one pipe active");
 		goto deactivate;
 	}
@@ -1121,6 +1126,28 @@ void intel_fbc_global_disable(struct drm_i915_private *dev_priv)
 	mutex_unlock(&fbc->lock);
 
 	cancel_work_sync(&fbc->work.work);
+}
+
+/**
+ * intel_fbc_init_pipe_state - initialize FBC's CRTC visibility tracking
+ * @dev_priv: i915 device instance
+ *
+ * The FBC code needs to track CRTC visibility since the older platforms can't
+ * have FBC enabled while multiple pipes are used. This function does the
+ * initial setup at driver load to make sure FBC is matching the real hardware.
+ */
+void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
+{
+	struct intel_crtc *crtc;
+
+	/* Don't even bother tracking anything if we don't need. */
+	if (!no_fbc_on_multiple_pipes(dev_priv))
+		return;
+
+	for_each_intel_crtc(dev_priv->dev, crtc)
+		if (intel_crtc_active(&crtc->base) &&
+		    to_intel_plane_state(crtc->base.primary->state)->visible)
+			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);
 }
 
 /**

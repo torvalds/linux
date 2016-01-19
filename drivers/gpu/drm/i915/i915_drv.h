@@ -907,6 +907,7 @@ struct intel_fbc {
 	unsigned threshold;
 	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
+	unsigned int visible_pipes_mask;
 	struct intel_crtc *crtc;
 
 	struct drm_mm_node compressed_fb;

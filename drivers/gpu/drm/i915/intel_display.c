@@ -15912,6 +15912,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 			modeset_put_power_domains(dev_priv, put_domains);
 	}
 	intel_display_set_init_power(dev_priv, false);
+
+	intel_fbc_init_pipe_state(dev_priv);
 }
 
 void intel_display_resume(struct drm_device *dev)
