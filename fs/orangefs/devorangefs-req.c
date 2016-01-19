@@ -85,9 +85,8 @@ static int orangefs_devreq_open(struct inode *inode, struct file *file)
 	mutex_lock(&devreq_mutex);
 
 	if (open_access_count == 0) {
-		ret = generic_file_open(inode, file);
-		if (ret == 0)
-			open_access_count++;
+		open_access_count++;
+		ret = 0;
 	} else {
 		DUMP_DEVICE_ERROR();
 	}
