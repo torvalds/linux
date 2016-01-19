@@ -432,7 +432,7 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 			ret = ib_copy_to_udata(udata, &ip->offset,
 					       sizeof(ip->offset));
 			if (ret)
-				goto bail;
+				return ret;
 		}
 
 		spin_lock_irq(&rdi->pending_lock);
@@ -447,9 +447,7 @@ bail_unlock:
 	spin_unlock_irq(&cq->lock);
 bail_free:
 	vfree(wc);
-bail:
 	return ret;
-
 }
 
 /**
