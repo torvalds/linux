@@ -392,7 +392,8 @@ static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
 
 		sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 		sg = sgl->sg;
-		sg_unmark_end(sg + sgl->cur);
+		if (sgl->cur)
+			sg_unmark_end(sg + sgl->cur - 1);
 		do {
 			i = sgl->cur;
 			plen = min_t(size_t, len, PAGE_SIZE);
