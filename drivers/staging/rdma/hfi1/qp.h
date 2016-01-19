@@ -51,41 +51,11 @@
  */
 
 #include <linux/hash.h>
+#include <rdma/rdmavt_qp.h>
 #include "verbs.h"
 #include "sdma.h"
 
-#define QPN_MAX                 BIT(24)
-#define QPNMAP_ENTRIES          (QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
-
-/*
- * QPN-map pages start out as NULL, they get allocated upon
- * first use and are never deallocated. This way,
- * large bitmaps are not allocated unless large numbers of QPs are used.
- */
-struct qpn_map {
-	void *page;
-};
-
-struct hfi1_qpn_table {
-	spinlock_t lock; /* protect changes in this struct */
-	unsigned flags;         /* flags for QP0/1 allocated for each port */
-	u32 last;               /* last QP number allocated */
-	u32 nmaps;              /* size of the map table */
-	u16 limit;
-	u8  incr;
-	/* bit map of free QP numbers other than 0/1 */
-	struct qpn_map map[QPNMAP_ENTRIES];
-};
-
-struct hfi1_qp_ibdev {
-	u32 qp_table_size;
-	u32 qp_table_bits;
-	struct rvt_qp __rcu **qp_table;
-	spinlock_t qpt_lock;
-	struct hfi1_qpn_table qpn_table;
-};
-
-static inline u32 qpn_hash(struct hfi1_qp_ibdev *dev, u32 qpn)
+static inline u32 qpn_hash(struct rvt_qp_ibdev *dev, u32 qpn)
 {
 	return hash_32(qpn, dev->qp_table_bits);
 }
@@ -107,9 +77,9 @@ static inline struct rvt_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
 		qp = rcu_dereference(ibp->rvp.qp[qpn]);
 	} else {
 		struct hfi1_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
-		u32 n = qpn_hash(dev->qp_dev, qpn);
+		u32 n = qpn_hash(dev->rdi.qp_dev, qpn);
 
-		for (qp = rcu_dereference(dev->qp_dev->qp_table[n]); qp;
+		for (qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]); qp;
 			qp = rcu_dereference(qp->next))
 			if (qp->ibqp.qp_num == qpn)
 				break;

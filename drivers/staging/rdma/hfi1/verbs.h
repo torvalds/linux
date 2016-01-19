@@ -346,11 +346,8 @@ struct hfi1_ibport {
 	u8 sc_to_sl[32];
 };
 
-struct hfi1_qp_ibdev;
 struct hfi1_ibdev {
 	struct rvt_dev_info rdi; /* Must be first */
-
-	struct hfi1_qp_ibdev *qp_dev;
 
 	/* QP numbers are shared by all IB ports */
 	/* protect wait lists */
