@@ -13327,6 +13327,7 @@ static void calc_watermark_data(struct drm_atomic_state *state)
 static int intel_atomic_check(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -13369,7 +13370,7 @@ static int intel_atomic_check(struct drm_device *dev,
 			return ret;
 
 		if (i915.fastboot &&
-		    intel_pipe_config_compare(state->dev,
+		    intel_pipe_config_compare(dev,
 					to_intel_crtc_state(crtc->state),
 					pipe_config, true)) {
 			crtc_state->mode_changed = false;
@@ -13395,9 +13396,9 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 	} else
-		intel_state->cdclk = to_i915(state->dev)->cdclk_freq;
+		intel_state->cdclk = dev_priv->cdclk_freq;
 
-	ret = drm_atomic_helper_check_planes(state->dev, state);
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;
 
