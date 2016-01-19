@@ -234,12 +234,6 @@ static int __init gb_init(void)
 		goto error_operation;
 	}
 
-	retval = gb_svc_protocol_init();
-	if (retval) {
-		pr_err("gb_svc_protocol_init failed\n");
-		goto error_svc;
-	}
-
 	retval = gb_firmware_protocol_init();
 	if (retval) {
 		pr_err("gb_firmware_protocol_init failed\n");
@@ -257,8 +251,6 @@ static int __init gb_init(void)
 error_legacy:
 	gb_firmware_protocol_exit();
 error_firmware:
-	gb_svc_protocol_exit();
-error_svc:
 	gb_operation_exit();
 error_operation:
 	gb_hd_exit();
@@ -275,7 +267,6 @@ static void __exit gb_exit(void)
 {
 	gb_legacy_exit();
 	gb_firmware_protocol_exit();
-	gb_svc_protocol_exit();
 	gb_operation_exit();
 	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);
