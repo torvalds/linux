@@ -404,7 +404,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = intel_irq_install(dev_priv);
 	if (ret)
-		goto cleanup_gem_stolen;
+		goto cleanup_csr;
 
 	intel_setup_gmbus(dev);
 
@@ -458,7 +458,8 @@ cleanup_irq:
 	intel_guc_ucode_fini(dev);
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev);
-cleanup_gem_stolen:
+cleanup_csr:
+	intel_csr_ucode_fini(dev_priv);
 	i915_gem_cleanup_stolen(dev);
 cleanup_vga_switcheroo:
 	vga_switcheroo_unregister_client(dev->pdev);
@@ -945,7 +946,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
-		goto out_freecsr;
+		goto out_uncore_fini;
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1115,8 +1116,7 @@ out_mtrrfree:
 	io_mapping_free(dev_priv->gtt.mappable);
 out_gtt:
 	i915_global_gtt_cleanup(dev);
-out_freecsr:
-	intel_csr_ucode_fini(dev_priv);
+out_uncore_fini:
 	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
@@ -1182,6 +1182,8 @@ int i915_driver_unload(struct drm_device *dev)
 	vga_switcheroo_unregister_client(dev->pdev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 
+	intel_csr_ucode_fini(dev_priv);
+
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_destroy_error_state(dev);
@@ -1201,8 +1203,6 @@ int i915_driver_unload(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 	intel_fbc_cleanup_cfb(dev_priv);
 	i915_gem_cleanup_stolen(dev);
-
-	intel_csr_ucode_fini(dev_priv);
 
 	intel_teardown_mchbar(dev);
 
