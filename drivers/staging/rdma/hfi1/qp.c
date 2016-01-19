@@ -1195,7 +1195,7 @@ struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
 		} else {
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
-			qp->ip = hfi1_create_mmap_info(dev, s,
+			qp->ip = rvt_create_mmap_info(&dev->rdi, s,
 						      ibpd->uobject->context,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
@@ -1223,9 +1223,9 @@ struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
 	spin_unlock(&dev->n_qps_lock);
 
 	if (qp->ip) {
-		spin_lock_irq(&dev->pending_lock);
-		list_add(&qp->ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+		spin_lock_irq(&dev->rdi.pending_lock);
+		list_add(&qp->ip->pending_mmaps, &dev->rdi.pending_mmaps);
+		spin_unlock_irq(&dev->rdi.pending_lock);
 	}
 
 	ret = &qp->ibqp;
@@ -1256,7 +1256,7 @@ struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
 
 bail_ip:
 	if (qp->ip)
-		kref_put(&qp->ip->ref, hfi1_release_mmap_info);
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
 	free_qpn(&dev->qp_dev->qpn_table, qp->ibqp.qp_num);
@@ -1316,7 +1316,7 @@ int hfi1_destroy_qp(struct ib_qp *ibqp)
 	spin_unlock(&dev->n_qps_lock);
 
 	if (qp->ip)
-		kref_put(&qp->ip->ref, hfi1_release_mmap_info);
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
 	vfree(qp->s_wq);

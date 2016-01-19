@@ -1796,11 +1796,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
 
-	INIT_LIST_HEAD(&dev->pending_mmaps);
-	spin_lock_init(&dev->pending_lock);
 	seqlock_init(&dev->iowait_lock);
-	dev->mmap_offset = PAGE_SIZE;
-	spin_lock_init(&dev->mmap_offset_lock);
 	INIT_LIST_HEAD(&dev->txwait);
 	INIT_LIST_HEAD(&dev->memwait);
 
@@ -1906,7 +1902,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->attach_mcast = hfi1_multicast_attach;
 	ibdev->detach_mcast = hfi1_multicast_detach;
 	ibdev->process_mad = hfi1_process_mad;
-	ibdev->mmap = hfi1_mmap;
+	ibdev->mmap = NULL;
 	ibdev->dma_ops = NULL;
 	ibdev->get_port_immutable = port_immutable;
 

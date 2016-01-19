@@ -165,8 +165,8 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip =
-		    hfi1_create_mmap_info(dev, s, ibpd->uobject->context,
-					  srq->rq.wq);
+		    rvt_create_mmap_info(&dev->rdi, s, ibpd->uobject->context,
+					 srq->rq.wq);
 		if (!srq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wq;
@@ -200,9 +200,9 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 	spin_unlock(&dev->n_srqs_lock);
 
 	if (srq->ip) {
-		spin_lock_irq(&dev->pending_lock);
-		list_add(&srq->ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+		spin_lock_irq(&dev->rdi.pending_lock);
+		list_add(&srq->ip->pending_mmaps, &dev->rdi.pending_mmaps);
+		spin_unlock_irq(&dev->rdi.pending_lock);
 	}
 
 	ret = &srq->ibsrq;
@@ -324,7 +324,7 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			struct hfi1_ibdev *dev = to_idev(srq->ibsrq.device);
 			u32 s = sizeof(struct rvt_rwq) + size * sz;
 
-			hfi1_update_mmap_info(dev, ip, s, wq);
+			rvt_update_mmap_info(&dev->rdi, ip, s, wq);
 
 			/*
 			 * Return the offset to mmap.
@@ -341,11 +341,11 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			 * Put user mapping info onto the pending list
 			 * unless it already is on the list.
 			 */
-			spin_lock_irq(&dev->pending_lock);
+			spin_lock_irq(&dev->rdi.pending_lock);
 			if (list_empty(&ip->pending_mmaps))
 				list_add(&ip->pending_mmaps,
-					 &dev->pending_mmaps);
-			spin_unlock_irq(&dev->pending_lock);
+					 &dev->rdi.pending_mmaps);
+			spin_unlock_irq(&dev->rdi.pending_lock);
 		}
 	} else if (attr_mask & IB_SRQ_LIMIT) {
 		spin_lock_irq(&srq->rq.lock);
@@ -388,7 +388,7 @@ int hfi1_destroy_srq(struct ib_srq *ibsrq)
 	dev->n_srqs_allocated--;
 	spin_unlock(&dev->n_srqs_lock);
 	if (srq->ip)
-		kref_put(&srq->ip->ref, hfi1_release_mmap_info);
+		kref_put(&srq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(srq->rq.wq);
 	kfree(srq);

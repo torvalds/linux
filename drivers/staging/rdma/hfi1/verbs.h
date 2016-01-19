@@ -426,9 +426,6 @@ struct hfi1_ibport {
 struct hfi1_qp_ibdev;
 struct hfi1_ibdev {
 	struct rvt_dev_info rdi; /* Must be first */
-	struct list_head pending_mmaps;
-	spinlock_t mmap_offset_lock; /* protect mmap_offset */
-	u32 mmap_offset;
 
 	struct hfi1_qp_ibdev *qp_dev;
 
@@ -440,9 +437,6 @@ struct hfi1_ibdev {
 	struct list_head txreq_free;
 	struct kmem_cache *verbs_txreq_cache;
 	struct timer_list mem_timer;
-
-	/* other waiters */
-	spinlock_t pending_lock;
 
 	u64 n_piowait;
 	u64 n_txwait;
@@ -679,17 +673,6 @@ static inline void hfi1_put_ss(struct rvt_sge_state *ss)
 			ss->sge = *ss->sg_list++;
 	}
 }
-
-void hfi1_release_mmap_info(struct kref *ref);
-
-struct rvt_mmap_info *hfi1_create_mmap_info(struct hfi1_ibdev *dev, u32 size,
-					    struct ib_ucontext *context,
-					    void *obj);
-
-void hfi1_update_mmap_info(struct hfi1_ibdev *dev, struct rvt_mmap_info *ip,
-			   u32 size, void *obj);
-
-int hfi1_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 int hfi1_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
