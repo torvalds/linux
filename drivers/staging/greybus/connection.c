@@ -412,6 +412,7 @@ int gb_connection_enable(struct gb_connection *connection,
 err_svc_destroy:
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
+	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
 	gb_connection_svc_connection_destroy(connection);
