@@ -247,8 +247,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	wc.dlid_path_bits = ah_attr->dlid & ((1 << ppd->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
-	hfi1_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
-		      swqe->wr.send_flags & IB_SEND_SOLICITED);
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
+		     swqe->wr.send_flags & IB_SEND_SOLICITED);
 	ibp->rvp.n_loop_pkts++;
 bail_unlock:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
@@ -878,9 +878,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		dlid & ((1 << ppd_from_ibp(ibp)->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
-	hfi1_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
-		      (ohdr->bth[0] &
-			cpu_to_be32(IB_BTH_SOLICITED)) != 0);
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
+		     (ohdr->bth[0] &
+		      cpu_to_be32(IB_BTH_SOLICITED)) != 0);
 	return;
 
 drop:

@@ -138,7 +138,7 @@ bad_lkey:
 	wc.opcode = IB_WC_RECV;
 	wc.qp = &qp->ibqp;
 	/* Signal solicited completion event. */
-	hfi1_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
 	ret = 0;
 bail:
 	return ret;
@@ -566,8 +566,8 @@ again:
 	wc.sl = qp->remote_ah_attr.sl;
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
-	hfi1_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
-		      wqe->wr.send_flags & IB_SEND_SOLICITED);
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
+		     wqe->wr.send_flags & IB_SEND_SOLICITED);
 
 send_comp:
 	spin_lock_irqsave(&sqp->s_lock, flags);
@@ -909,8 +909,8 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		wc.qp = &qp->ibqp;
 		if (status == IB_WC_SUCCESS)
 			wc.byte_len = wqe->length;
-		hfi1_cq_enter(to_icq(qp->ibqp.send_cq), &wc,
-			      status != IB_WC_SUCCESS);
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
+			     status != IB_WC_SUCCESS);
 	}
 
 	last = qp->s_last;

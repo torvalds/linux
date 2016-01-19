@@ -64,6 +64,7 @@
 #include <rdma/ib_mad.h>
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_qp.h>
+#include <rdma/rdmavt_cq.h>
 
 struct hfi1_ctxtdata;
 struct hfi1_pportdata;
@@ -80,12 +81,6 @@ struct hfi1_packet;
  * compatibility are made.
  */
 #define HFI1_UVERBS_ABI_VERSION       2
-
-/*
- * Define an ib_cq_notify value that is not valid so we know when CQ
- * notifications are armed.
- */
-#define IB_CQ_NONE      (IB_CQ_NEXT_COMP + 1)
 
 #define IB_SEQ_NAK	(3 << 29)
 
@@ -236,35 +231,6 @@ struct hfi1_mcast {
 };
 
 /*
- * This structure is used to contain the head pointer, tail pointer,
- * and completion queue entries as a single memory allocation so
- * it can be mmap'ed into user space.
- */
-struct hfi1_cq_wc {
-	u32 head;               /* index of next entry to fill */
-	u32 tail;               /* index of next ib_poll_cq() entry */
-	union {
-		/* these are actually size ibcq.cqe + 1 */
-		struct ib_uverbs_wc uqueue[0];
-		struct ib_wc kqueue[0];
-	};
-};
-
-/*
- * The completion queue structure.
- */
-struct hfi1_cq {
-	struct ib_cq ibcq;
-	struct kthread_work comptask;
-	struct hfi1_devdata *dd;
-	spinlock_t lock; /* protect changes in this struct */
-	u8 notify;
-	u8 triggered;
-	struct hfi1_cq_wc *queue;
-	struct rvt_mmap_info *ip;
-};
-
-/*
  * hfi1 specific data structures that will be hidden from rvt after the queue
  * pair is made common
  */
@@ -363,8 +329,6 @@ struct hfi1_ibdev {
 	u64 n_kmem_wait;
 	u64 n_send_schedule;
 
-	u32 n_cqs_allocated;    /* number of CQs allocated for device */
-	spinlock_t n_cqs_lock;
 	u32 n_qps_allocated;    /* number of QPs allocated for device */
 	spinlock_t n_qps_lock;
 	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
@@ -394,11 +358,6 @@ struct hfi1_verbs_counters {
 	u32 excessive_buffer_overrun_errors;
 	u32 vl15_dropped;
 };
-
-static inline struct hfi1_cq *to_icq(struct ib_cq *ibcq)
-{
-	return container_of(ibcq, struct hfi1_cq, ibcq);
-}
 
 static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)
 {
@@ -562,28 +521,6 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int hfi1_destroy_srq(struct ib_srq *ibsrq);
-
-int hfi1_cq_init(struct hfi1_devdata *dd);
-
-void hfi1_cq_exit(struct hfi1_devdata *dd);
-
-void hfi1_cq_enter(struct hfi1_cq *cq, struct ib_wc *entry, int sig);
-
-int hfi1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
-
-struct ib_cq *hfi1_create_cq(
-	struct ib_device *ibdev,
-	const struct ib_cq_init_attr *attr,
-	struct ib_ucontext *context,
-	struct ib_udata *udata);
-
-int hfi1_destroy_cq(struct ib_cq *ibcq);
-
-int hfi1_req_notify_cq(
-	struct ib_cq *ibcq,
-	enum ib_cq_notify_flags notify_flags);
-
-int hfi1_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 
 static inline void hfi1_put_ss(struct rvt_sge_state *ss)
 {

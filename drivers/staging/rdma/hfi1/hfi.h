@@ -1009,8 +1009,6 @@ struct hfi1_devdata {
 	u16 psxmitwait_check_rate;
 	/* high volume overflow errors deferred to tasklet */
 	struct tasklet_struct error_tasklet;
-	/* per device cq worker */
-	struct kthread_worker *worker;
 
 	/* MSI-X information */
 	struct hfi1_msix_entry *msix_entries;

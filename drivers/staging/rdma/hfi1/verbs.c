@@ -1719,7 +1719,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 
-	spin_lock_init(&dev->n_cqs_lock);
 	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
 	spin_lock_init(&dev->n_mcast_grps_lock);
@@ -1816,11 +1815,11 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->post_send = post_send;
 	ibdev->post_recv = post_receive;
 	ibdev->post_srq_recv = hfi1_post_srq_receive;
-	ibdev->create_cq = hfi1_create_cq;
-	ibdev->destroy_cq = hfi1_destroy_cq;
-	ibdev->resize_cq = hfi1_resize_cq;
-	ibdev->poll_cq = hfi1_poll_cq;
-	ibdev->req_notify_cq = hfi1_req_notify_cq;
+	ibdev->create_cq = NULL;
+	ibdev->destroy_cq = NULL;
+	ibdev->resize_cq = NULL;
+	ibdev->poll_cq = NULL;
+	ibdev->req_notify_cq = NULL;
 	ibdev->get_dma_mr = NULL;
 	ibdev->reg_user_mr = NULL;
 	ibdev->dereg_mr = NULL;
@@ -1860,14 +1859,20 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.qos_shift = dd->qos_shift;
 	dd->verbs_dev.rdi.dparms.qpn_res_start = kdeth_qp << 16;
 	dd->verbs_dev.rdi.dparms.qpn_res_end =
-		dd->verbs_dev.rdi.dparms.qpn_res_start + 65535;
+	dd->verbs_dev.rdi.dparms.qpn_res_start + 65535;
 	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qp_priv_alloc;
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
 
+	/* completeion queue */
+	snprintf(dd->verbs_dev.rdi.dparms.cq_name,
+		 sizeof(dd->verbs_dev.rdi.dparms.cq_name),
+		 "hfi1_cq%d", dd->unit);
+	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;
+
 	/* misc settings */
-	dd->verbs_dev.rdi.flags = RVT_FLAG_CQ_INIT_DRIVER;
+	dd->verbs_dev.rdi.flags = 0; /* Let rdmavt handle it all */
 	dd->verbs_dev.rdi.dparms.lkey_table_size = hfi1_lkey_table_size;
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = hfi1_get_npkeys(dd);

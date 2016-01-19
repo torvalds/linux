@@ -765,7 +765,6 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 	/* enable chip even if we have an error, so we can debug cause */
 	enable_chip(dd);
 
-	ret = hfi1_cq_init(dd);
 done:
 	/*
 	 * Set status even if port serdes is not initialized
@@ -1312,7 +1311,6 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 	kfree(dd->boardname);
 	vfree(dd->events);
 	vfree(dd->status);
-	hfi1_cq_exit(dd);
 }
 
 /*
