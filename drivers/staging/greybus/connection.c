@@ -386,6 +386,42 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 	}
 }
 
+/*
+ * Cancel all active incoming operations on a connection.
+ *
+ * Locking: Called with connection lock held and state set to ENABLED_TX.
+ */
+static void
+gb_connection_flush_incoming_operations(struct gb_connection *connection,
+						int errno)
+{
+	struct gb_operation *operation;
+	bool incoming;
+
+	while (!list_empty(&connection->operations)) {
+		incoming = false;
+		list_for_each_entry(operation, &connection->operations,
+								links) {
+			if (gb_operation_is_incoming(operation)) {
+				gb_operation_get(operation);
+				incoming = true;
+				break;
+			}
+		}
+
+		if (!incoming)
+			break;
+
+		spin_unlock_irq(&connection->lock);
+
+		/* FIXME: flush, not cancel? */
+		gb_operation_cancel_incoming(operation, errno);
+		gb_operation_put(operation);
+
+		spin_lock_irq(&connection->lock);
+	}
+}
+
 int gb_connection_enable(struct gb_connection *connection,
 				gb_request_handler_t handler)
 {
@@ -449,6 +485,24 @@ err_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gb_connection_enable);
+
+void gb_connection_disable_rx(struct gb_connection *connection)
+{
+	mutex_lock(&connection->mutex);
+
+	spin_lock_irq(&connection->lock);
+	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
+		spin_unlock_irq(&connection->lock);
+		goto out_unlock;
+	}
+	connection->state = GB_CONNECTION_STATE_ENABLED_TX;
+	gb_connection_flush_incoming_operations(connection, -ESHUTDOWN);
+	connection->handler = NULL;
+	spin_unlock_irq(&connection->lock);
+
+out_unlock:
+	mutex_unlock(&connection->mutex);
+}
 
 void gb_connection_disable(struct gb_connection *connection)
 {

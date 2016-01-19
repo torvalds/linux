@@ -75,6 +75,7 @@ static inline int gb_connection_enable_tx(struct gb_connection *connection)
 {
 	return gb_connection_enable(connection, NULL);
 }
+void gb_connection_disable_rx(struct gb_connection *connection);
 void gb_connection_disable(struct gb_connection *connection);
 
 int gb_connection_legacy_init(struct gb_connection *connection);
