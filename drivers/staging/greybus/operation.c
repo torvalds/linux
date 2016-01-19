@@ -218,15 +218,11 @@ static void gb_message_cancel(struct gb_message *message)
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
-	struct gb_protocol *protocol = connection->protocol;
 	int status;
 	int ret;
 
-	if (!protocol)
-		return;
-
-	if (protocol->request_recv) {
-		status = protocol->request_recv(operation->type, operation);
+	if (connection->handler) {
+		status = connection->handler(operation);
 	} else {
 		dev_err(&connection->hd->dev,
 			"%s: unexpected incoming request of type 0x%02x\n",

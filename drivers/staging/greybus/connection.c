@@ -387,7 +387,8 @@ static int gb_connection_protocol_get_version(struct gb_connection *connection)
 	return 0;
 }
 
-int gb_connection_enable(struct gb_connection *connection)
+int gb_connection_enable(struct gb_connection *connection,
+				gb_request_handler_t handler)
 {
 	int ret;
 
@@ -400,6 +401,7 @@ int gb_connection_enable(struct gb_connection *connection)
 		goto err_hd_cport_disable;
 
 	spin_lock_irq(&connection->lock);
+	connection->handler = handler;
 	connection->state = GB_CONNECTION_STATE_ENABLED;
 	spin_unlock_irq(&connection->lock);
 
@@ -435,15 +437,28 @@ void gb_connection_disable(struct gb_connection *connection)
 }
 EXPORT_SYMBOL_GPL(gb_connection_disable);
 
+static int gb_legacy_request_handler(struct gb_operation *operation)
+{
+	struct gb_protocol *protocol = operation->connection->protocol;
+
+	return protocol->request_recv(operation->type, operation);
+}
+
 int gb_connection_legacy_init(struct gb_connection *connection)
 {
+	gb_request_handler_t handler;
 	int ret;
 
 	ret = gb_connection_bind_protocol(connection);
 	if (ret)
 		return ret;
 
-	ret = gb_connection_enable(connection);
+	if (connection->protocol->request_recv)
+		handler = gb_legacy_request_handler;
+	else
+		handler = NULL;
+
+	ret = gb_connection_enable(connection, handler);
 	if (ret)
 		goto err_unbind_protocol;
 
