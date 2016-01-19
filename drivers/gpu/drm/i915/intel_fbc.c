@@ -896,24 +896,16 @@ static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
 	return memcmp(params1, params2, sizeof(*params1)) == 0;
 }
 
-/**
- * __intel_fbc_update - activate/deactivate FBC as needed, unlocked
- * @crtc: the CRTC that triggered the update
- *
- * This function completely reevaluates the status of FBC, then activates,
- * deactivates or maintains it on the same state.
- */
-static void __intel_fbc_update(struct intel_crtc *crtc)
+static void intel_fbc_pre_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct intel_fbc_reg_params old_params;
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
 
 	if (!multiple_pipes_ok(dev_priv)) {
 		set_no_fbc_reason(dev_priv, "more than one pipe active");
-		goto out_disable;
+		goto deactivate;
 	}
 
 	if (!fbc->enabled || fbc->crtc != crtc)
@@ -921,8 +913,25 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 
 	intel_fbc_update_state_cache(crtc);
 
-	if (!intel_fbc_can_activate(crtc))
-		goto out_disable;
+deactivate:
+	__intel_fbc_deactivate(dev_priv);
+}
+
+static void intel_fbc_post_update(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct intel_fbc_reg_params old_params;
+
+	WARN_ON(!mutex_is_locked(&fbc->lock));
+
+	if (!fbc->enabled || fbc->crtc != crtc)
+		return;
+
+	if (!intel_fbc_can_activate(crtc)) {
+		WARN_ON(fbc->active);
+		return;
+	}
 
 	old_params = fbc->params;
 	intel_fbc_get_reg_params(crtc, &fbc->params);
@@ -936,44 +945,9 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 	    intel_fbc_reg_params_equal(&old_params, &fbc->params))
 		return;
 
-	if (intel_fbc_is_active(dev_priv)) {
-		/* We update FBC along two paths, after changing fb/crtc
-		 * configuration (modeswitching) and after page-flipping
-		 * finishes. For the latter, we know that not only did
-		 * we disable the FBC at the start of the page-flip
-		 * sequence, but also more than one vblank has passed.
-		 *
-		 * For the former case of modeswitching, it is possible
-		 * to switch between two FBC valid configurations
-		 * instantaneously so we do need to disable the FBC
-		 * before we can modify its control registers. We also
-		 * have to wait for the next vblank for that to take
-		 * effect. However, since we delay enabling FBC we can
-		 * assume that a vblank has passed since disabling and
-		 * that we can safely alter the registers in the deferred
-		 * callback.
-		 *
-		 * In the scenario that we go from a valid to invalid
-		 * and then back to valid FBC configuration we have
-		 * no strict enforcement that a vblank occurred since
-		 * disabling the FBC. However, along all current pipe
-		 * disabling paths we do need to wait for a vblank at
-		 * some point. And we wait before enabling FBC anyway.
-		 */
-		DRM_DEBUG_KMS("deactivating FBC for update\n");
-		__intel_fbc_deactivate(dev_priv);
-	}
-
+	__intel_fbc_deactivate(dev_priv);
 	intel_fbc_schedule_activation(crtc);
-	fbc->no_fbc_reason = "FBC enabled (not necessarily active)";
-	return;
-
-out_disable:
-	/* Multiple disables should be harmless */
-	if (intel_fbc_is_active(dev_priv)) {
-		DRM_DEBUG_KMS("unsupported config, deactivating FBC\n");
-		__intel_fbc_deactivate(dev_priv);
-	}
+	fbc->no_fbc_reason = "FBC enabled (active or scheduled)";
 }
 
 /*
@@ -991,7 +965,8 @@ void intel_fbc_update(struct intel_crtc *crtc)
 		return;
 
 	mutex_lock(&fbc->lock);
-	__intel_fbc_update(crtc);
+	intel_fbc_pre_update(crtc);
+	intel_fbc_post_update(crtc);
 	mutex_unlock(&fbc->lock);
 }
 
@@ -1045,7 +1020,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		if (fbc->active)
 			intel_fbc_recompress(dev_priv);
 		else
-			__intel_fbc_update(fbc->crtc);
+			intel_fbc_post_update(fbc->crtc);
 	}
 
 	mutex_unlock(&fbc->lock);
