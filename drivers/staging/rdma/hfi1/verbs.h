@@ -247,8 +247,6 @@ static inline void inc_opstats(
 struct hfi1_ibport {
 	struct rvt_qp __rcu *qp[2];
 	struct rvt_ibport rvp;
-	struct rvt_ah *sm_ah;
-	struct rvt_ah *smi_ah;
 
 	__be64 guids[HFI1_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 
@@ -340,8 +338,6 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 		     const struct ib_mad_hdr *in_mad, size_t in_mad_size,
 		     struct ib_mad_hdr *out_mad, size_t *out_mad_size,
 		     u16 *out_mad_pkey_index);
-int hfi1_create_agents(struct hfi1_ibdev *dev);
-void hfi1_free_agents(struct hfi1_ibdev *dev);
 
 /*
  * The PSN_MASK and PSN_SHIFT allow for

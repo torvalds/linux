@@ -129,7 +129,7 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 	memcpy(smp->route.lid.data, data, len);
 
 	spin_lock_irqsave(&ibp->rvp.lock, flags);
-	if (!ibp->sm_ah) {
+	if (!ibp->rvp.sm_ah) {
 		if (ibp->rvp.sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
 
@@ -138,13 +138,13 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 				ret = PTR_ERR(ah);
 			else {
 				send_buf->ah = ah;
-				ibp->sm_ah = ibah_to_rvtah(ah);
+				ibp->rvp.sm_ah = ibah_to_rvtah(ah);
 				ret = 0;
 			}
 		} else
 			ret = -EINVAL;
 	} else {
-		send_buf->ah = &ibp->sm_ah->ibah;
+		send_buf->ah = &ibp->rvp.sm_ah->ibah;
 		ret = 0;
 	}
 	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
@@ -1138,11 +1138,11 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	} else if (smlid != ibp->rvp.sm_lid || msl != ibp->rvp.sm_sl) {
 		pr_warn("SubnSet(OPA_PortInfo) smlid 0x%x\n", smlid);
 		spin_lock_irqsave(&ibp->rvp.lock, flags);
-		if (ibp->sm_ah) {
+		if (ibp->rvp.sm_ah) {
 			if (smlid != ibp->rvp.sm_lid)
-				ibp->sm_ah->attr.dlid = smlid;
+				ibp->rvp.sm_ah->attr.dlid = smlid;
 			if (msl != ibp->rvp.sm_sl)
-				ibp->sm_ah->attr.sl = msl;
+				ibp->rvp.sm_ah->attr.sl = msl;
 		}
 		spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 		if (smlid != ibp->rvp.sm_lid)
@@ -4156,68 +4156,4 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 	}
 
 	return IB_MAD_RESULT_FAILURE;
-}
-
-static void send_handler(struct ib_mad_agent *agent,
-			 struct ib_mad_send_wc *mad_send_wc)
-{
-	ib_free_send_mad(mad_send_wc->send_buf);
-}
-
-int hfi1_create_agents(struct hfi1_ibdev *dev)
-{
-	struct hfi1_devdata *dd = dd_from_dev(dev);
-	struct ib_mad_agent *agent;
-	struct hfi1_ibport *ibp;
-	int p;
-	int ret;
-
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		agent = ib_register_mad_agent(&dev->rdi.ibdev, p + 1,
-					      IB_QPT_SMI,
-					      NULL, 0, send_handler,
-					      NULL, NULL, 0);
-		if (IS_ERR(agent)) {
-			ret = PTR_ERR(agent);
-			goto err;
-		}
-
-		ibp->rvp.send_agent = agent;
-	}
-
-	return 0;
-
-err:
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		if (ibp->rvp.send_agent) {
-			agent = ibp->rvp.send_agent;
-			ibp->rvp.send_agent = NULL;
-			ib_unregister_mad_agent(agent);
-		}
-	}
-
-	return ret;
-}
-
-void hfi1_free_agents(struct hfi1_ibdev *dev)
-{
-	struct hfi1_devdata *dd = dd_from_dev(dev);
-	struct ib_mad_agent *agent;
-	struct hfi1_ibport *ibp;
-	int p;
-
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		if (ibp->rvp.send_agent) {
-			agent = ibp->rvp.send_agent;
-			ibp->rvp.send_agent = NULL;
-			ib_unregister_mad_agent(agent);
-		}
-		if (ibp->sm_ah) {
-			ib_destroy_ah(&ibp->sm_ah->ibah);
-			ibp->sm_ah = NULL;
-		}
-	}
 }

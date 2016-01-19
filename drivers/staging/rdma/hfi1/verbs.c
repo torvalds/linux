@@ -1590,27 +1590,19 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
-		goto err_reg;
-
-	ret = hfi1_create_agents(dev);
-	if (ret)
-		goto err_agents;
+		goto err_verbs_txreq;
 
 	ret = hfi1_verbs_register_sysfs(dd);
 	if (ret)
 		goto err_class;
 
-	goto bail;
+	return ret;
 
 err_class:
-	hfi1_free_agents(dev);
-err_agents:
 	rvt_unregister_device(&dd->verbs_dev.rdi);
-err_reg:
 err_verbs_txreq:
 	kmem_cache_destroy(dev->verbs_txreq_cache);
 	dd_dev_err(dd, "cannot register verbs: %d!\n", -ret);
-bail:
 	return ret;
 }
 
@@ -1619,8 +1611,6 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
 
 	hfi1_verbs_unregister_sysfs(dd);
-
-	hfi1_free_agents(dev);
 
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 
