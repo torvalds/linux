@@ -1248,7 +1248,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT * 8);
-	unsigned pd_size, pd_entries, pts_size;
+	unsigned pd_size, pd_entries;
 	int i, r;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -1266,8 +1266,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	pd_entries = amdgpu_vm_num_pdes(adev);
 
 	/* allocate page table array */
-	pts_size = pd_entries * sizeof(struct amdgpu_vm_pt);
-	vm->page_tables = kzalloc(pts_size, GFP_KERNEL);
+	vm->page_tables = drm_calloc_large(pd_entries, sizeof(struct amdgpu_vm_pt));
 	if (vm->page_tables == NULL) {
 		DRM_ERROR("Cannot allocate memory for page table array\n");
 		return -ENOMEM;
@@ -1327,7 +1326,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++)
 		amdgpu_bo_unref(&vm->page_tables[i].bo);
-	kfree(vm->page_tables);
+	drm_free_large(vm->page_tables);
 
 	amdgpu_bo_unref(&vm->page_directory);
 	fence_put(vm->page_directory_fence);
