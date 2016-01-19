@@ -966,14 +966,12 @@ static unsigned int orangefs_devreq_poll(struct file *file,
 {
 	int poll_revent_mask = 0;
 
-	if (open_access_count == 1) {
-		poll_wait(file, &orangefs_request_list_waitq, poll_table);
+	poll_wait(file, &orangefs_request_list_waitq, poll_table);
 
-		spin_lock(&orangefs_request_list_lock);
-		if (!list_empty(&orangefs_request_list))
-			poll_revent_mask |= POLL_IN;
-		spin_unlock(&orangefs_request_list_lock);
-	}
+	spin_lock(&orangefs_request_list_lock);
+	if (!list_empty(&orangefs_request_list))
+		poll_revent_mask |= POLL_IN;
+	spin_unlock(&orangefs_request_list_lock);
 	return poll_revent_mask;
 }
 
