@@ -139,7 +139,13 @@ static inline int ovl_do_symlink(struct inode *dir, struct dentry *dentry,
 static inline int ovl_do_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	int err = vfs_setxattr(dentry, name, value, size, flags);
+	struct inode *inode = dentry->d_inode;
+	int err;
+
+	inode_lock(inode);
+	err = __vfs_setxattr_noperm(dentry, name, value, size, flags);
+	inode_unlock(inode);
+
 	pr_debug("setxattr(%pd2, \"%s\", \"%*s\", 0x%x) = %i\n",
 		 dentry, name, (int) size, (char *) value, flags, err);
 	return err;
@@ -147,7 +153,13 @@ static inline int ovl_do_setxattr(struct dentry *dentry, const char *name,
 
 static inline int ovl_do_removexattr(struct dentry *dentry, const char *name)
 {
-	int err = vfs_removexattr(dentry, name);
+	struct inode *inode = dentry->d_inode;
+	int err;
+
+	inode_lock(inode);
+	err = __vfs_removexattr_noperm(dentry, name);
+	inode_unlock(inode);
+
 	pr_debug("removexattr(%pd2, \"%s\") = %i\n", dentry, name, err);
 	return err;
 }
