@@ -12,6 +12,11 @@
 #include <linux/slab.h>
 #include "greybus.h"
 
+/* Highest control-protocol version supported */
+#define GB_CONTROL_VERSION_MAJOR	0
+#define GB_CONTROL_VERSION_MINOR	1
+
+
 /* Get Manifest's size from the interface */
 int gb_control_get_manifest_size_operation(struct gb_interface *intf)
 {

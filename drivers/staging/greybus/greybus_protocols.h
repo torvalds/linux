@@ -115,10 +115,6 @@ struct gb_protocol_version_response {
 
 /* Control Protocol */
 
-/* Version of the Greybus control protocol we support */
-#define GB_CONTROL_VERSION_MAJOR		0x00
-#define GB_CONTROL_VERSION_MINOR		0x01
-
 /* Greybus control request types */
 #define GB_CONTROL_TYPE_PROBE_AP		0x02
 #define GB_CONTROL_TYPE_GET_MANIFEST_SIZE	0x03
