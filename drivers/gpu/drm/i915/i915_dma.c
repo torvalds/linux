@@ -1035,6 +1035,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_opregion_setup(dev);
 
 	i915_gem_load(dev);
+	i915_gem_shrinker_init(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
@@ -1098,8 +1099,7 @@ out_power_well:
 	intel_power_domains_fini(dev_priv);
 	drm_vblank_cleanup(dev);
 out_gem_unload:
-	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
-	unregister_shrinker(&dev_priv->mm.shrinker);
+	i915_gem_shrinker_cleanup(dev_priv);
 
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
@@ -1152,8 +1152,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
-	unregister_shrinker(&dev_priv->mm.shrinker);
+	i915_gem_shrinker_cleanup(dev_priv);
 
 	io_mapping_free(dev_priv->gtt.mappable);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);

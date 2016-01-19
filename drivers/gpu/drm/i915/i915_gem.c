@@ -5100,8 +5100,6 @@ i915_gem_load(struct drm_device *dev)
 
 	dev_priv->mm.interruptible = true;
 
-	i915_gem_shrinker_init(dev_priv);
-
 	mutex_init(&dev_priv->fb_tracking.lock);
 }
 
