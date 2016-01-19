@@ -165,6 +165,13 @@ static int greybus_remove(struct device *dev)
 		gb_connection_disable_rx(connection);
 
 	driver->disconnect(bundle);
+
+	/* Catch buggy drivers that fail to disable their connections. */
+	list_for_each_entry(connection, &bundle->connections, bundle_links) {
+		if (WARN_ON(connection->state != GB_CONNECTION_STATE_DISABLED))
+			gb_connection_disable(connection);
+	}
+
 	return 0;
 }
 
