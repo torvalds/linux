@@ -976,7 +976,7 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 	struct hci_dev *hdev = NULL;
 	const struct hci_mgmt_handler *handler;
 	bool var_len, no_hdev;
-	int err;
+	int err = 0;
 
 	BT_DBG("got %zu bytes", msglen);
 
@@ -1060,6 +1060,8 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 
 	if (hdev && chan->hdev_init)
 		chan->hdev_init(sk, hdev);
+	else if (!hdev)
+		goto done;
 
 	cp = buf + sizeof(*hdr);
 
