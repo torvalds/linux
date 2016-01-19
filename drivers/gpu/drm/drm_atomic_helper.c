@@ -2532,8 +2532,10 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
 
-	if (plane->state)
+	if (plane->state) {
 		plane->state->plane = plane;
+		plane->state->rotation = BIT(DRM_ROTATE_0);
+	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 
