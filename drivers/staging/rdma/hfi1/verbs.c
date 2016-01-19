@@ -1507,86 +1507,21 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	strlcpy(ibdev->name + lcpysz, "_%d", IB_DEVICE_NAME_MAX - lcpysz);
 	ibdev->owner = THIS_MODULE;
 	ibdev->node_guid = cpu_to_be64(ppd->guid);
-	ibdev->uverbs_abi_ver = HFI1_UVERBS_ABI_VERSION;
-	ibdev->uverbs_cmd_mask =
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)         |
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)        |
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)          |
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)            |
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)          |
-		(1ull << IB_USER_VERBS_CMD_CREATE_AH)           |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_AH)           |
-		(1ull << IB_USER_VERBS_CMD_QUERY_AH)            |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_AH)          |
-		(1ull << IB_USER_VERBS_CMD_REG_MR)              |
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR)            |
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)           |
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)           |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)          |
-		(1ull << IB_USER_VERBS_CMD_POLL_CQ)             |
-		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)       |
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP)           |
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP)            |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)           |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)          |
-		(1ull << IB_USER_VERBS_CMD_POST_SEND)           |
-		(1ull << IB_USER_VERBS_CMD_POST_RECV)           |
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)        |
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)        |
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)          |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)          |
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)           |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)         |
-		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
-	ibdev->node_type = RDMA_NODE_IB_CA;
 	ibdev->phys_port_cnt = dd->num_pports;
-	ibdev->num_comp_vectors = 1;
 	ibdev->dma_device = &dd->pcidev->dev;
-	ibdev->query_device = NULL;
 	ibdev->modify_device = modify_device;
 	ibdev->query_port = query_port;
 	ibdev->modify_port = modify_port;
-	ibdev->query_pkey = NULL;
 	ibdev->query_gid = query_gid;
-	ibdev->alloc_ucontext = NULL;
-	ibdev->dealloc_ucontext = NULL;
-	ibdev->alloc_pd = NULL;
-	ibdev->dealloc_pd = NULL;
-	ibdev->create_ah = NULL;
-	ibdev->destroy_ah = NULL;
-	ibdev->modify_ah = NULL;
-	ibdev->query_ah = NULL;
 	ibdev->create_srq = hfi1_create_srq;
 	ibdev->modify_srq = hfi1_modify_srq;
 	ibdev->query_srq = hfi1_query_srq;
 	ibdev->destroy_srq = hfi1_destroy_srq;
-	ibdev->create_qp = NULL;
-	ibdev->modify_qp = NULL;
 	ibdev->query_qp = hfi1_query_qp;
-	ibdev->destroy_qp = NULL;
-	ibdev->post_send = NULL;
-	ibdev->post_recv = NULL;
 	ibdev->post_srq_recv = hfi1_post_srq_receive;
-	ibdev->create_cq = NULL;
-	ibdev->destroy_cq = NULL;
-	ibdev->resize_cq = NULL;
-	ibdev->poll_cq = NULL;
-	ibdev->req_notify_cq = NULL;
-	ibdev->get_dma_mr = NULL;
-	ibdev->reg_user_mr = NULL;
-	ibdev->dereg_mr = NULL;
-	ibdev->alloc_mr = NULL;
-	ibdev->map_mr_sg = NULL;
-	ibdev->alloc_fmr = NULL;
-	ibdev->map_phys_fmr = NULL;
-	ibdev->unmap_fmr = NULL;
-	ibdev->dealloc_fmr = NULL;
-	ibdev->attach_mcast = NULL;
-	ibdev->detach_mcast = NULL;
+
+	/* keep process mad in the driver */
 	ibdev->process_mad = hfi1_process_mad;
-	ibdev->mmap = NULL;
-	ibdev->dma_ops = NULL;
 	ibdev->get_port_immutable = port_immutable;
 
 	strncpy(ibdev->node_desc, init_utsname()->nodename,
