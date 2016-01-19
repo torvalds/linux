@@ -170,6 +170,7 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	atomic_set(&connection->op_cycle, 0);
+	mutex_init(&connection->mutex);
 	spin_lock_init(&connection->lock);
 	INIT_LIST_HEAD(&connection->operations);
 
@@ -390,9 +391,14 @@ int gb_connection_enable(struct gb_connection *connection,
 {
 	int ret;
 
+	mutex_lock(&connection->mutex);
+
+	if (connection->state == GB_CONNECTION_STATE_ENABLED)
+		goto out_unlock;
+
 	ret = gb_connection_hd_cport_enable(connection);
 	if (ret)
-		return ret;
+		goto err_unlock;
 
 	ret = gb_connection_svc_connection_create(connection);
 	if (ret)
@@ -407,6 +413,9 @@ int gb_connection_enable(struct gb_connection *connection,
 	if (ret)
 		goto err_svc_destroy;
 
+out_unlock:
+	mutex_unlock(&connection->mutex);
+
 	return 0;
 
 err_svc_destroy:
@@ -418,6 +427,8 @@ err_svc_destroy:
 	gb_connection_svc_connection_destroy(connection);
 err_hd_cport_disable:
 	gb_connection_hd_cport_disable(connection);
+err_unlock:
+	mutex_unlock(&connection->mutex);
 
 	return ret;
 }
@@ -425,8 +436,10 @@ EXPORT_SYMBOL_GPL(gb_connection_enable);
 
 void gb_connection_disable(struct gb_connection *connection)
 {
+	mutex_lock(&connection->mutex);
+
 	if (connection->state == GB_CONNECTION_STATE_DISABLED)
-		return;
+		goto out_unlock;
 
 	gb_connection_control_disconnected(connection);
 
@@ -437,6 +450,9 @@ void gb_connection_disable(struct gb_connection *connection)
 
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
+
+out_unlock:
+	mutex_unlock(&connection->mutex);
 }
 EXPORT_SYMBOL_GPL(gb_connection_disable);
 

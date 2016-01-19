@@ -43,6 +43,7 @@ struct gb_connection {
 	u8				module_major;
 	u8				module_minor;
 
+	struct mutex			mutex;
 	spinlock_t			lock;
 	enum gb_connection_state	state;
 	struct list_head		operations;
