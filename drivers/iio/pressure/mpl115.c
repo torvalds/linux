@@ -117,7 +117,7 @@ static int mpl115_read_raw(struct iio_dev *indio_dev,
 		*val = ret >> 6;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 605;
+		*val = -605;
 		*val2 = 750000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
