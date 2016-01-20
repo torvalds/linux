@@ -1393,34 +1393,6 @@ unsigned int be_cmd_get_initname(struct beiscsi_hba *phba)
 	return tag;
 }
 
-unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba)
-{
-	unsigned int tag = 0;
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_ntwk_link_status_req *req;
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-
-	if (mutex_lock_interruptible(&ctrl->mbox_lock))
-		return 0;
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
-		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
-	}
-
-	wrb = wrb_from_mccq(phba);
-	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			OPCODE_COMMON_NTWK_LINK_STATUS_QUERY,
-			sizeof(*req));
-
-	be_mcc_notify(phba, tag);
-	mutex_unlock(&ctrl->mbox_lock);
-	return tag;
-}
-
 /**
  * be_mgmt_get_boot_shandle()- Get the session handle
  * @phba: device priv structure instance

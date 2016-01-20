@@ -408,6 +408,7 @@ void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
 static void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		struct be_async_event_link_state *evt)
 {
+	phba->port_speed = evt->port_speed;
 	if ((evt->port_link_status == ASYNC_EVENT_LINK_DOWN) ||
 	    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
 	     (evt->port_fault != BEISCSI_PHY_LINK_FAULT_NONE))) {
