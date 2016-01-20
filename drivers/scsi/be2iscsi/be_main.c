@@ -2046,21 +2046,7 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 			num_processed = 0;
 		}
 		if (mcc_compl->flags & CQE_FLAGS_ASYNC_MASK) {
-			/* Interpret flags as an async trailer */
-			if (is_link_state_evt(mcc_compl->flags))
-				/* Interpret compl as a async link evt */
-				beiscsi_async_link_state_process(phba,
-				(struct be_async_event_link_state *) mcc_compl);
-			else {
-				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_MBOX,
-					    "BM_%d :  Unsupported Async Event, flags"
-					    " = 0x%08x\n",
-					    mcc_compl->flags);
-				if (phba->state & BE_ADAPTER_LINK_UP) {
-					phba->state |= BE_ADAPTER_CHECK_BOOT;
-					phba->get_boot = BE_GET_BOOT_RETRIES;
-				}
-			}
+			beiscsi_process_async_event(phba, mcc_compl);
 		} else if (mcc_compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 			be_mcc_compl_process_isr(&phba->ctrl, mcc_compl);
 			atomic_dec(&phba->ctrl.mcc_obj.q.used);
@@ -3866,6 +3852,8 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 	phwi_context->min_eqd = 0;
 	phwi_context->cur_eqd = 0;
 	be_cmd_fw_initialize(&phba->ctrl);
+	/* set optic state to unknown */
+	phba->optic_state = 0xff;
 
 	status = beiscsi_create_eqs(phba, phwi_context);
 	if (status != 0) {
@@ -5678,6 +5666,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 			    "BM_%d : Error getting fw config\n");
 		goto free_port;
 	}
+	mgmt_get_port_name(&phba->ctrl, phba);
 
 	if (enable_msix)
 		find_num_cpus(phba);

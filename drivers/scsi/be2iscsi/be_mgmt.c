@@ -316,6 +316,48 @@ unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 }
 
 /**
+ * mgmt_get_port_name()- Get port name for the function
+ * @ctrl: ptr to Ctrl Info
+ * @phba: ptr to the dev priv structure
+ *
+ * Get the alphanumeric character for port
+ *
+ **/
+int mgmt_get_port_name(struct be_ctrl_info *ctrl,
+		       struct beiscsi_hba *phba)
+{
+	int ret = 0;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_get_port_name *ioctl;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
+	ioctl = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*ioctl), true, 0);
+	be_cmd_hdr_prepare(&ioctl->h.req_hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_GET_PORT_NAME,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+	ret = be_mbox_notify(ctrl);
+	phba->port_name = 0;
+	if (!ret) {
+		phba->port_name = ioctl->p.resp.port_names >>
+				  (phba->fw_config.phys_port * 8) & 0xff;
+	} else {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : GET_PORT_NAME ret 0x%x status 0x%x\n",
+			    ret, ioctl->h.resp_hdr.status);
+	}
+
+	if (phba->port_name == 0)
+		phba->port_name = '?';
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return ret;
+}
+
+/**
  * mgmt_get_fw_config()- Get the FW config for the function
  * @ctrl: ptr to Ctrl Info
  * @phba: ptr to the dev priv structure

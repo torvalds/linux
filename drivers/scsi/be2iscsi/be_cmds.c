@@ -267,26 +267,6 @@ void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
 	spin_unlock(&ctrl->mcc_lock);
 }
 
-bool is_link_state_evt(u32 trailer)
-{
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		  ASYNC_TRAILER_EVENT_CODE_MASK) ==
-		  ASYNC_EVENT_CODE_LINK_STATE);
-}
-
-static bool is_iscsi_evt(u32 trailer)
-{
-	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		  ASYNC_TRAILER_EVENT_CODE_MASK) ==
-		  ASYNC_EVENT_CODE_ISCSI;
-}
-
-static int iscsi_evt_type(u32 trailer)
-{
-	return (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
-		 ASYNC_TRAILER_EVENT_TYPE_MASK;
-}
-
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
 	if (compl->flags != 0) {
@@ -425,7 +405,7 @@ void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
-void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
+static void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		struct be_async_event_link_state *evt)
 {
 	if ((evt->port_link_status == ASYNC_EVENT_LINK_DOWN) ||
@@ -453,6 +433,100 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 	}
 }
 
+static char *beiscsi_port_misconf_event_msg[] = {
+	"Physical Link is functional.",
+	"Optics faulted/incorrectly installed/not installed - Reseat optics, if issue not resolved, replace.",
+	"Optics of two types installed - Remove one optic or install matching pair of optics.",
+	"Incompatible optics - Replace with compatible optics for card to function.",
+	"Unqualified optics - Replace with Avago optics for Warranty and Technical Support.",
+	"Uncertified optics - Replace with Avago Certified optics to enable link operation."
+};
+
+static void beiscsi_process_async_sli(struct beiscsi_hba *phba,
+				      struct be_mcc_compl *compl)
+{
+	struct be_async_event_sli *async_sli;
+	u8 evt_type, state, old_state, le;
+	char *sev = KERN_WARNING;
+	char *msg = NULL;
+
+	evt_type = compl->flags >> ASYNC_TRAILER_EVENT_TYPE_SHIFT;
+	evt_type &= ASYNC_TRAILER_EVENT_TYPE_MASK;
+
+	/* processing only MISCONFIGURED physical port event */
+	if (evt_type != ASYNC_SLI_EVENT_TYPE_MISCONFIGURED)
+		return;
+
+	async_sli = (struct be_async_event_sli *)compl;
+	state = async_sli->event_data1 >>
+		 (phba->fw_config.phys_port * 8) & 0xff;
+	le = async_sli->event_data2 >>
+		 (phba->fw_config.phys_port * 8) & 0xff;
+
+	old_state = phba->optic_state;
+	phba->optic_state = state;
+
+	if (state >= ARRAY_SIZE(beiscsi_port_misconf_event_msg)) {
+		/* fw is reporting a state we don't know, log and return */
+		__beiscsi_log(phba, KERN_ERR,
+			    "BC_%d : Port %c: Unrecognized optic state 0x%x\n",
+			    phba->port_name, async_sli->event_data1);
+		return;
+	}
+
+	if (ASYNC_SLI_LINK_EFFECT_VALID(le)) {
+		/* log link effect for unqualified-4, uncertified-5 optics */
+		if (state > 3)
+			msg = (ASYNC_SLI_LINK_EFFECT_STATE(le)) ?
+				" Link is non-operational." :
+				" Link is operational.";
+		/* 1 - info */
+		if (ASYNC_SLI_LINK_EFFECT_SEV(le) == 1)
+			sev = KERN_INFO;
+		/* 2 - error */
+		if (ASYNC_SLI_LINK_EFFECT_SEV(le) == 2)
+			sev = KERN_ERR;
+	}
+
+	if (old_state != phba->optic_state)
+		__beiscsi_log(phba, sev, "BC_%d : Port %c: %s%s\n",
+			      phba->port_name,
+			      beiscsi_port_misconf_event_msg[state],
+			      !msg ? "" : msg);
+}
+
+void beiscsi_process_async_event(struct beiscsi_hba *phba,
+				struct be_mcc_compl *compl)
+{
+	char *sev = KERN_INFO;
+	u8 evt_code;
+
+	/* interpret flags as an async trailer */
+	evt_code = compl->flags >> ASYNC_TRAILER_EVENT_CODE_SHIFT;
+	evt_code &= ASYNC_TRAILER_EVENT_CODE_MASK;
+	switch (evt_code) {
+	case ASYNC_EVENT_CODE_LINK_STATE:
+		beiscsi_async_link_state_process(phba,
+				(struct be_async_event_link_state *)compl);
+		break;
+	case ASYNC_EVENT_CODE_ISCSI:
+		phba->state |= BE_ADAPTER_CHECK_BOOT;
+		phba->get_boot = BE_GET_BOOT_RETRIES;
+		sev = KERN_ERR;
+		break;
+	case ASYNC_EVENT_CODE_SLI:
+		beiscsi_process_async_sli(phba, compl);
+		break;
+	default:
+		/* event not registered */
+		sev = KERN_ERR;
+	}
+
+	beiscsi_log(phba, sev, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BC_%d : ASYNC Event: status 0x%08x flags 0x%08x\n",
+		    compl->status, compl->flags);
+}
+
 int beiscsi_process_mcc(struct beiscsi_hba *phba)
 {
 	struct be_mcc_compl *compl;
@@ -462,45 +536,10 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 	spin_lock_bh(&phba->ctrl.mcc_cq_lock);
 	while ((compl = be_mcc_compl_get(phba))) {
 		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
-			/* Interpret flags as an async trailer */
-			if (is_link_state_evt(compl->flags))
-				/* Interpret compl as a async link evt */
-				beiscsi_async_link_state_process(phba,
-				   (struct be_async_event_link_state *) compl);
-			else if (is_iscsi_evt(compl->flags)) {
-				switch (iscsi_evt_type(compl->flags)) {
-				case ASYNC_EVENT_NEW_ISCSI_TGT_DISC:
-				case ASYNC_EVENT_NEW_ISCSI_CONN:
-				case ASYNC_EVENT_NEW_TCP_CONN:
-					phba->state |= BE_ADAPTER_CHECK_BOOT;
-					phba->get_boot = BE_GET_BOOT_RETRIES;
-					beiscsi_log(phba, KERN_ERR,
-						    BEISCSI_LOG_CONFIG |
-						    BEISCSI_LOG_MBOX,
-						    "BC_%d : Async iscsi Event,"
-						    " flags handled = 0x%08x\n",
-						    compl->flags);
-					break;
-				default:
-					phba->state |= BE_ADAPTER_CHECK_BOOT;
-					phba->get_boot = BE_GET_BOOT_RETRIES;
-					beiscsi_log(phba, KERN_ERR,
-						    BEISCSI_LOG_CONFIG |
-						    BEISCSI_LOG_MBOX,
-						    "BC_%d : Unsupported Async"
-						    " Event, flags = 0x%08x\n",
-						    compl->flags);
-				}
-			} else
-				beiscsi_log(phba, KERN_ERR,
-					    BEISCSI_LOG_CONFIG |
-					    BEISCSI_LOG_MBOX,
-					    "BC_%d : Unsupported Async Event, flags"
-					    " = 0x%08x\n", compl->flags);
-
+			beiscsi_process_async_event(phba, compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
-				status = be_mcc_compl_process(ctrl, compl);
-				atomic_dec(&phba->ctrl.mcc_obj.q.used);
+			status = be_mcc_compl_process(ctrl, compl);
+			atomic_dec(&phba->ctrl.mcc_obj.q.used);
 		}
 		be_mcc_compl_use(compl);
 		num++;
@@ -1016,7 +1055,7 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *cq)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_mcc_create *req;
+	struct be_cmd_req_mcc_create_ext *req;
 	struct be_dma_mem *q_mem = &mccq->dma_mem;
 	struct be_ctrl_info *ctrl;
 	void *ctxt;
@@ -1032,9 +1071,12 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			OPCODE_COMMON_MCC_CREATE, sizeof(*req));
+			OPCODE_COMMON_MCC_CREATE_EXT, sizeof(*req));
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
+	req->async_evt_bitmap = 1 << ASYNC_EVENT_CODE_LINK_STATE;
+	req->async_evt_bitmap |= 1 << ASYNC_EVENT_CODE_ISCSI;
+	req->async_evt_bitmap |= 1 << ASYNC_EVENT_CODE_SLI;
 
 	AMAP_SET_BITS(struct amap_mcc_context, fid, ctxt,
 		      PCI_FUNC(phba->pcidev->devfn));

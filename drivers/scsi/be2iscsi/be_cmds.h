@@ -119,12 +119,21 @@ struct be_mcc_compl {
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
 #define ASYNC_EVENT_CODE_ISCSI		0x4
+#define ASYNC_EVENT_CODE_SLI		0x11
 
 #define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16	/* bits 16 - 23 */
-#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xF
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xFF
+
+/* iSCSI events */
 #define ASYNC_EVENT_NEW_ISCSI_TGT_DISC	0x4
 #define ASYNC_EVENT_NEW_ISCSI_CONN	0x5
 #define ASYNC_EVENT_NEW_TCP_CONN	0x7
+
+/* SLI events */
+#define ASYNC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
+#define ASYNC_SLI_LINK_EFFECT_VALID(le)		(le & 0x80)
+#define ASYNC_SLI_LINK_EFFECT_SEV(le)		((le >> 1)  & 0x03)
+#define ASYNC_SLI_LINK_EFFECT_STATE(le)		(le & 0x01)
 
 struct be_async_event_trailer {
 	u32 code;
@@ -153,6 +162,16 @@ struct be_async_event_link_state {
 	struct be_async_event_trailer trailer;
 } __packed;
 
+/**
+ * When async-trailer is SLI event, mcc_compl is interpreted as
+ */
+struct be_async_event_sli {
+	u32 event_data1;
+	u32 event_data2;
+	u32 reserved;
+	u32 trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_compl compl;
@@ -172,6 +191,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE			21
+#define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_ADD_TEMPLATE_HEADER_BUFFERS	24
 #define OPCODE_COMMON_REMOVE_TEMPLATE_HEADER_BUFFERS	25
 #define OPCODE_COMMON_GET_CNTL_ATTRIBUTES		32
@@ -183,6 +203,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_EQ_DESTROY			55
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
+#define OPCODE_COMMON_GET_PORT_NAME			77
 
 /**
  * LIST of opcodes that are common between Initiator and Target
@@ -587,10 +608,11 @@ struct amap_mcc_context {
 	u8 rsvd2[32];
 } __packed;
 
-struct be_cmd_req_mcc_create {
+struct be_cmd_req_mcc_create_ext {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 rsvd0;
+	u32 async_evt_bitmap;
 	u8 context[sizeof(struct amap_mcc_context) / 8];
 	struct phys_addr pages[8];
 } __packed;
@@ -748,8 +770,8 @@ struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
 int be_mcc_notify_wait(struct beiscsi_hba *phba, unsigned int tag);
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
 unsigned int alloc_mcc_tag(struct beiscsi_hba *phba);
-void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
-		struct be_async_event_link_state *evt);
+void beiscsi_process_async_event(struct beiscsi_hba *phba,
+				struct be_mcc_compl *compl);
 int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 				    struct be_mcc_compl *compl);
 
@@ -776,8 +798,6 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 		       struct be_queue_info *wrbq,
 		       struct hwi_wrb_context *pwrb_context,
 		       uint8_t ulp_num);
-
-bool is_link_state_evt(u32 trailer);
 
 /* Configuration Functions */
 int be_cmd_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
@@ -1135,6 +1155,21 @@ struct be_cmd_get_all_if_id_req {
 	struct be_cmd_req_hdr hdr;
 	u32 if_count;
 	u32 if_hndl_list[1];
+} __packed;
+
+struct be_cmd_get_port_name {
+	union {
+		struct be_cmd_req_hdr req_hdr;
+		struct be_cmd_resp_hdr resp_hdr;
+	} h;
+	union {
+		struct {
+			u32 reserved;
+		} req;
+		struct {
+			u32 port_names;
+		} resp;
+	} p;
 } __packed;
 
 #define ISCSI_OPCODE_SCSI_DATA_OUT		5
