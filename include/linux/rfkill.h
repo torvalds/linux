@@ -104,7 +104,8 @@ int __must_check rfkill_register(struct rfkill *rfkill);
  *
  * Pause polling -- say transmitter is off for other reasons.
  * NOTE: not necessary for suspend/resume -- in that case the
- * core stops polling anyway
+ * core stops polling anyway (but will also correctly handle
+ * the case of polling having been paused before suspend.)
  */
 void rfkill_pause_polling(struct rfkill *rfkill);
 

@@ -57,6 +57,8 @@ struct rfkill {
 
 	bool			registered;
 	bool			persistent;
+	bool			polling_paused;
+	bool			suspended;
 
 	const struct rfkill_ops	*ops;
 	void			*data;
@@ -786,6 +788,7 @@ void rfkill_pause_polling(struct rfkill *rfkill)
 	if (!rfkill->ops->poll)
 		return;
 
+	rfkill->polling_paused = true;
 	cancel_delayed_work_sync(&rfkill->poll_work);
 }
 EXPORT_SYMBOL(rfkill_pause_polling);
@@ -795,6 +798,11 @@ void rfkill_resume_polling(struct rfkill *rfkill)
 	BUG_ON(!rfkill);
 
 	if (!rfkill->ops->poll)
+		return;
+
+	rfkill->polling_paused = false;
+
+	if (rfkill->suspended)
 		return;
 
 	queue_delayed_work(system_power_efficient_wq,
@@ -807,7 +815,8 @@ static int rfkill_suspend(struct device *dev)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 
-	rfkill_pause_polling(rfkill);
+	rfkill->suspended = true;
+	cancel_delayed_work_sync(&rfkill->poll_work);
 
 	return 0;
 }
@@ -817,12 +826,16 @@ static int rfkill_resume(struct device *dev)
 	struct rfkill *rfkill = to_rfkill(dev);
 	bool cur;
 
+	rfkill->suspended = false;
+
 	if (!rfkill->persistent) {
 		cur = !!(rfkill->state & RFKILL_BLOCK_SW);
 		rfkill_set_block(rfkill, cur);
 	}
 
-	rfkill_resume_polling(rfkill);
+	if (rfkill->ops->poll && !rfkill->polling_paused)
+		queue_delayed_work(system_power_efficient_wq,
+				   &rfkill->poll_work, 0);
 
 	return 0;
 }
