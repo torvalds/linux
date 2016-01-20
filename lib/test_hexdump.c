@@ -42,6 +42,8 @@ static const char * const test_data_8_le[] __initconst = {
 	"e9ac0f9cad319ca6", "0cafb1439919d14c",
 };
 
+#define FILL_CHAR	'#'
+
 static void __init test_hexdump_prepare_test(size_t len, int rowsize,
 					     int groupsize, char *test,
 					     size_t testlen, bool ascii)
@@ -70,7 +72,7 @@ static void __init test_hexdump_prepare_test(size_t len, int rowsize,
 	else
 		result = test_data_1_le;
 
-	memset(test, ' ', testlen);
+	memset(test, FILL_CHAR, testlen);
 
 	/* hex dump */
 	p = test;
@@ -79,14 +81,19 @@ static void __init test_hexdump_prepare_test(size_t len, int rowsize,
 		size_t amount = strlen(q);
 
 		strncpy(p, q, amount);
-		p += amount + 1;
+		p += amount;
+
+		*p++ = ' ';
 	}
 	if (i)
 		p--;
 
 	/* ASCII part */
 	if (ascii) {
-		p = test + rs * 2 + rs / gs + 1;
+		do {
+			*p++ = ' ';
+		} while (p < test + rs * 2 + rs / gs + 1);
+
 		strncpy(p, data_a, l);
 		p += l;
 	}
@@ -134,7 +141,7 @@ static void __init test_hexdump_overflow(bool ascii)
 	bool a;
 	int e, r;
 
-	memset(buf, ' ', sizeof(buf));
+	memset(buf, FILL_CHAR, sizeof(buf));
 
 	r = hex_dump_to_buffer(data_b, 1, 16, 1, buf, l, ascii);
 
@@ -145,14 +152,14 @@ static void __init test_hexdump_overflow(bool ascii)
 	buf[e + 2] = '\0';
 
 	if (!l) {
-		a = r == e && buf[0] == ' ';
+		a = r == e && buf[0] == FILL_CHAR;
 	} else if (l < 3) {
 		a = r == e && buf[0] == '\0';
 	} else if (l < 4) {
 		a = r == e && !strcmp(buf, t);
 	} else if (ascii) {
 		if (l < 51)
-			a = r == e && buf[l - 1] == '\0' && buf[l - 2] == ' ';
+			a = r == e && buf[l - 1] == '\0' && buf[l - 2] == FILL_CHAR;
 		else
 			a = r == e && buf[50] == '\0' && buf[49] == '.';
 	} else {
