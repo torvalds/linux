@@ -124,7 +124,7 @@ struct be_ctrl_info {
 	struct pci_dev *pdev;
 
 	/* Mbox used for cmd request/response */
-	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
+	struct mutex mbox_lock;	/* For serializing mbox cmds to BE card */
 	struct be_dma_mem mbox_mem;
 	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
 	 * is stored for freeing purpose */
