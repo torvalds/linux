@@ -133,12 +133,6 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
 	down(&pHandle->hSem);
-
-	if (pHandle->bExiting) {
-		PRINT_ER("pHandle fail\n");
-		return -EFAULT;
-	}
-
 	spin_lock_irqsave(&pHandle->strCriticalSection, flags);
 
 	pstrMessage = pHandle->pstrMessageList;
