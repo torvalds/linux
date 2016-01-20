@@ -2843,7 +2843,7 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
 		counter = &memcg->kmem;
 		break;
 	case _TCP:
-		counter = &memcg->tcp_mem.memory_allocated;
+		counter = &memcg->tcpmem;
 		break;
 	default:
 		BUG();
@@ -3028,11 +3028,11 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
 
 	mutex_lock(&memcg_limit_mutex);
 
-	ret = page_counter_limit(&memcg->tcp_mem.memory_allocated, limit);
+	ret = page_counter_limit(&memcg->tcpmem, limit);
 	if (ret)
 		goto out;
 
-	if (!memcg->tcp_mem.active) {
+	if (!memcg->tcpmem_active) {
 		/*
 		 * The active flag needs to be written after the static_key
 		 * update. This is what guarantees that the socket activation
@@ -3050,7 +3050,7 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
 		 * patched in yet.
 		 */
 		static_branch_inc(&memcg_sockets_enabled_key);
-		memcg->tcp_mem.active = true;
+		memcg->tcpmem_active = true;
 	}
 out:
 	mutex_unlock(&memcg_limit_mutex);
@@ -3119,7 +3119,7 @@ static ssize_t mem_cgroup_reset(struct kernfs_open_file *of, char *buf,
 		counter = &memcg->kmem;
 		break;
 	case _TCP:
-		counter = &memcg->tcp_mem.memory_allocated;
+		counter = &memcg->tcpmem;
 		break;
 	default:
 		BUG();
@@ -4295,8 +4295,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, &parent->memsw);
 		page_counter_init(&memcg->kmem, &parent->kmem);
-		page_counter_init(&memcg->tcp_mem.memory_allocated,
-				  &parent->tcp_mem.memory_allocated);
+		page_counter_init(&memcg->tcpmem, &parent->tcpmem);
 
 		/*
 		 * No need to take a reference to the parent because cgroup
@@ -4308,7 +4307,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, NULL);
 		page_counter_init(&memcg->kmem, NULL);
-		page_counter_init(&memcg->tcp_mem.memory_allocated, NULL);
+		page_counter_init(&memcg->tcpmem, NULL);
 		/*
 		 * Deeper hierachy with use_hierarchy == false doesn't make
 		 * much sense so let cgroup subsystem know about this
@@ -4374,7 +4373,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
 		static_branch_dec(&memcg_sockets_enabled_key);
 
-	if (memcg->tcp_mem.active)
+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && memcg->tcpmem_active)
 		static_branch_dec(&memcg_sockets_enabled_key);
 
 	memcg_free_kmem(memcg);
@@ -5601,7 +5600,7 @@ void sock_update_memcg(struct sock *sk)
 	memcg = mem_cgroup_from_task(current);
 	if (memcg == root_mem_cgroup)
 		goto out;
-	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && !memcg->tcp_mem.active)
+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && !memcg->tcpmem_active)
 		goto out;
 	if (css_tryget_online(&memcg->css))
 		sk->sk_memcg = memcg;
@@ -5629,15 +5628,14 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
 	gfp_t gfp_mask = GFP_KERNEL;
 
 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-		struct page_counter *counter;
+		struct page_counter *fail;
 
-		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-					    nr_pages, &counter)) {
-			memcg->tcp_mem.memory_pressure = 0;
+		if (page_counter_try_charge(&memcg->tcpmem, nr_pages, &fail)) {
+			memcg->tcpmem_pressure = 0;
 			return true;
 		}
-		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-		memcg->tcp_mem.memory_pressure = 1;
+		page_counter_charge(&memcg->tcpmem, nr_pages);
+		memcg->tcpmem_pressure = 1;
 		return false;
 	}
 
@@ -5660,8 +5658,7 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
 void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
 {
 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-		page_counter_uncharge(&memcg->tcp_mem.memory_allocated,
-				      nr_pages);
+		page_counter_uncharge(&memcg->tcpmem, nr_pages);
 		return;
 	}
 
