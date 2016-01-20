@@ -2893,7 +2893,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	    sdkp->opt_xfer_blocks <= SD_DEF_XFER_BLOCKS &&
 	    sdkp->opt_xfer_blocks * sdp->sector_size >= PAGE_CACHE_SIZE)
 		rw_max = q->limits.io_opt =
-			logical_to_sectors(sdp, sdkp->opt_xfer_blocks);
+			sdkp->opt_xfer_blocks * sdp->sector_size;
 	else
 		rw_max = BLK_DEF_MAX_SECTORS;
 
