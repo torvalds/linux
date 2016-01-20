@@ -30,9 +30,6 @@
 
 #define s2mps11_name(a) (a->hw.init->name)
 
-static struct clk **clk_table;
-static struct clk_onecell_data clk_data;
-
 enum {
 	S2MPS11_CLK_AP = 0,
 	S2MPS11_CLK_CP,
@@ -145,6 +142,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct s2mps11_clk *s2mps11_clks, *s2mps11_clk;
+	struct clk_onecell_data *clk_data;
 	unsigned int s2mps11_reg;
 	int i, ret = 0;
 	enum sec_device_type hwid = platform_get_device_id(pdev)->driver_data;
@@ -156,9 +154,13 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 
 	s2mps11_clk = s2mps11_clks;
 
-	clk_table = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
+	clk_data = devm_kzalloc(&pdev->dev, sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
+		return -ENOMEM;
+
+	clk_data->clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
 				sizeof(struct clk *), GFP_KERNEL);
-	if (!clk_table)
+	if (!clk_data->clks)
 		return -ENOMEM;
 
 	switch (hwid) {
@@ -207,13 +209,12 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto err_reg;
 		}
-		clk_table[i] = s2mps11_clks[i].clk;
+		clk_data->clks[i] = s2mps11_clks[i].clk;
 	}
 
-	clk_data.clks = clk_table;
-	clk_data.clk_num = S2MPS11_CLKS_NUM;
+	clk_data->clk_num = S2MPS11_CLKS_NUM;
 	of_clk_add_provider(s2mps11_clks->clk_np, of_clk_src_onecell_get,
-			&clk_data);
+			clk_data);
 
 	platform_set_drvdata(pdev, s2mps11_clks);
 
