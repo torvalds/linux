@@ -160,7 +160,7 @@ static int __init numa_init_late(void)
 		register_one_node(nid);
 	return 0;
 }
-device_initcall(numa_init_late);
+arch_initcall(numa_init_late);
 
 static int __init parse_debug(char *parm)
 {
