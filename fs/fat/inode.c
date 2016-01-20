@@ -449,6 +449,24 @@ static int fat_calc_dir_size(struct inode *inode)
 	return 0;
 }
 
+static int fat_validate_dir(struct inode *dir)
+{
+	struct super_block *sb = dir->i_sb;
+
+	if (dir->i_nlink < 2) {
+		/* Directory should have "."/".." entries at least. */
+		fat_fs_error(sb, "corrupted directory (invalid entries)");
+		return -EIO;
+	}
+	if (MSDOS_I(dir)->i_start == 0 ||
+	    MSDOS_I(dir)->i_start == MSDOS_SB(sb)->root_cluster) {
+		/* Directory should point valid cluster. */
+		fat_fs_error(sb, "corrupted directory (invalid i_start)");
+		return -EIO;
+	}
+	return 0;
+}
+
 /* doesn't deal with root inode */
 int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 {
@@ -475,6 +493,10 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		MSDOS_I(inode)->mmu_private = inode->i_size;
 
 		set_nlink(inode, fat_subdirs(inode));
+
+		error = fat_validate_dir(inode);
+		if (error < 0)
+			return error;
 	} else { /* not a directory */
 		inode->i_generation |= 1;
 		inode->i_mode = fat_make_mode(sbi, de->attr,
