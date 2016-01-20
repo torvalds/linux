@@ -5684,6 +5684,16 @@ F:	Documentation/networking/i40evf.txt
 F:	drivers/net/ethernet/intel/
 F:	drivers/net/ethernet/intel/*/
 
+INTEL RDMA RNIC DRIVER
+M:     Faisal Latif <faisal.latif@intel.com>
+R:     Chien Tin Tung <chien.tin.tung@intel.com>
+R:     Mustafa Ismail <mustafa.ismail@intel.com>
+R:     Shiraz Saleem <shiraz.saleem@intel.com>
+R:     Tatyana Nikolova <tatyana.e.nikolova@intel.com>
+L:     linux-rdma@vger.kernel.org
+S:     Supported
+F:     drivers/infiniband/hw/i40iw/
+
 INTEL-MID GPIO DRIVER
 M:	David Cohen <david.a.cohen@linux.intel.com>
 L:	linux-gpio@vger.kernel.org
