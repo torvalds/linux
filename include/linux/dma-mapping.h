@@ -129,10 +129,10 @@ static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
 	kmemcheck_mark_initialized(ptr, size);
 	BUG_ON(!valid_dma_direction(dir));
 	addr = ops->map_page(dev, virt_to_page(ptr),
-			     (unsigned long)ptr & ~PAGE_MASK, size,
+			     offset_in_page(ptr), size,
 			     dir, attrs);
 	debug_dma_map_page(dev, virt_to_page(ptr),
-			   (unsigned long)ptr & ~PAGE_MASK, size,
+			   offset_in_page(ptr), size,
 			   dir, addr, true);
 	return addr;
 }
