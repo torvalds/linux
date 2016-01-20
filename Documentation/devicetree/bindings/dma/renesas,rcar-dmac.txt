@@ -14,7 +14,14 @@ not described in these device tree bindings.
 
 Required Properties:
 
-- compatible: must contain "renesas,rcar-dmac"
+- compatible: "renesas,dmac-<soctype>", "renesas,rcar-dmac" as fallback.
+	      Examples with soctypes are:
+		- "renesas,dmac-r8a7790" (R-Car H2)
+		- "renesas,dmac-r8a7791" (R-Car M2-W)
+		- "renesas,dmac-r8a7792" (R-Car V2H)
+		- "renesas,dmac-r8a7793" (R-Car M2-N)
+		- "renesas,dmac-r8a7794" (R-Car E2)
+		- "renesas,dmac-r8a7795" (R-Car H3)
 
 - reg: base address and length of the registers block for the DMAC
 
@@ -35,7 +42,7 @@ Required Properties:
 Example: R8A7790 (R-Car H2) SYS-DMACs
 
 	dmac0: dma-controller@e6700000 {
-		compatible = "renesas,rcar-dmac";
+		compatible = "renesas,dmac-r8a7790", "renesas,rcar-dmac";
 		reg = <0 0xe6700000 0 0x20000>;
 		interrupts = <0 197 IRQ_TYPE_LEVEL_HIGH
 			      0 200 IRQ_TYPE_LEVEL_HIGH
@@ -65,7 +72,7 @@ Example: R8A7790 (R-Car H2) SYS-DMACs
 	};
 
 	dmac1: dma-controller@e6720000 {
-		compatible = "renesas,rcar-dmac";
+		compatible = "renesas,dmac-r8a7790", "renesas,rcar-dmac";
 		reg = <0 0xe6720000 0 0x20000>;
 		interrupts = <0 220 IRQ_TYPE_LEVEL_HIGH
 			      0 216 IRQ_TYPE_LEVEL_HIGH
