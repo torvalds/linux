@@ -760,23 +760,34 @@ static int logical_ring_wait_for_space(struct drm_i915_gem_request *req,
  * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
  * point, the tail *inside* the context is updated and the ELSP written to.
  */
-static void
+static int
 intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 {
-	struct intel_engine_cs *ring = request->ring;
+	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	struct drm_i915_private *dev_priv = request->i915;
 
-	intel_logical_ring_advance(request->ringbuf);
+	intel_logical_ring_advance(ringbuf);
+	request->tail = ringbuf->tail;
 
-	request->tail = request->ringbuf->tail;
+	/*
+	 * Here we add two extra NOOPs as padding to avoid
+	 * lite restore of a context with HEAD==TAIL.
+	 *
+	 * Caller must reserve WA_TAIL_DWORDS for us!
+	 */
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_advance(ringbuf);
 
-	if (intel_ring_stopped(ring))
-		return;
+	if (intel_ring_stopped(request->ring))
+		return 0;
 
 	if (dev_priv->guc.execbuf_client)
 		i915_guc_submit(dev_priv->guc.execbuf_client, request);
 	else
 		execlists_context_queue(request);
+
+	return 0;
 }
 
 static void __wrap_ring_buffer(struct intel_ringbuffer *ringbuf)
@@ -1845,44 +1856,65 @@ static void bxt_a_set_seqno(struct intel_engine_cs *ring, u32 seqno)
 	intel_flush_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
+/*
+ * Reserve space for 2 NOOPs at the end of each request to be
+ * used as a workaround for not being allowed to do lite
+ * restore with HEAD==TAIL (WaIdleLiteRestore).
+ */
+#define WA_TAIL_DWORDS 2
+
+static inline u32 hws_seqno_address(struct intel_engine_cs *engine)
+{
+	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
+}
+
 static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
-	struct intel_engine_cs *ring = ringbuf->ring;
-	u32 cmd;
 	int ret;
 
-	/*
-	 * Reserve space for 2 NOOPs at the end of each request to be
-	 * used as a workaround for not being allowed to do lite
-	 * restore with HEAD==TAIL (WaIdleLiteRestore).
-	 */
-	ret = intel_logical_ring_begin(request, 8);
+	ret = intel_logical_ring_begin(request, 6 + WA_TAIL_DWORDS);
 	if (ret)
 		return ret;
 
-	cmd = MI_STORE_DWORD_IMM_GEN4;
-	cmd |= MI_GLOBAL_GTT;
+	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
+	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
 
-	intel_logical_ring_emit(ringbuf, cmd);
 	intel_logical_ring_emit(ringbuf,
-				(ring->status_page.gfx_addr +
-				(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)));
+				(MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW);
+	intel_logical_ring_emit(ringbuf,
+				hws_seqno_address(request->ring) |
+				MI_FLUSH_DW_USE_GTT);
 	intel_logical_ring_emit(ringbuf, 0);
 	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_advance_and_submit(request);
+	return intel_logical_ring_advance_and_submit(request);
+}
 
-	/*
-	 * Here we add two extra NOOPs as padding to avoid
-	 * lite restore of a context with HEAD==TAIL.
+static int gen8_emit_request_render(struct drm_i915_gem_request *request)
+{
+	struct intel_ringbuffer *ringbuf = request->ringbuf;
+	int ret;
+
+	ret = intel_logical_ring_begin(request, 6 + WA_TAIL_DWORDS);
+	if (ret)
+		return ret;
+
+	/* w/a for post sync ops following a GPGPU operation we
+	 * need a prior CS_STALL, which is emitted by the flush
+	 * following the batch.
 	 */
-	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_advance(ringbuf);
-
-	return 0;
+	intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(5));
+	intel_logical_ring_emit(ringbuf,
+				(PIPE_CONTROL_GLOBAL_GTT_IVB |
+				 PIPE_CONTROL_CS_STALL |
+				 PIPE_CONTROL_QW_WRITE));
+	intel_logical_ring_emit(ringbuf, hws_seqno_address(request->ring));
+	intel_logical_ring_emit(ringbuf, 0);
+	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
+	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
+	return intel_logical_ring_advance_and_submit(request);
 }
 
 static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
@@ -2069,6 +2101,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
 	ring->emit_flush = gen8_emit_flush_render;
+	ring->emit_request = gen8_emit_request_render;
 
 	ring->dev = dev;
 

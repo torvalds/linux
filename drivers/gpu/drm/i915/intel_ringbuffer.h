@@ -426,6 +426,7 @@ intel_write_status_page(struct intel_engine_cs *ring,
  * The area from dword 0x30 to 0x3ff is available for driver usage.
  */
 #define I915_GEM_HWS_INDEX		0x30
+#define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
