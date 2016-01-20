@@ -235,6 +235,51 @@
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
+
+				sai1: sai@02028000 {
+					#sound-dai-cells = <0>;
+					compatible = "fsl,imx6ul-sai", "fsl,imx6sx-sai";
+					reg = <0x02028000 0x4000>;
+					interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6UL_CLK_SAI1_IPG>,
+						 <&clks IMX6UL_CLK_SAI1>,
+						 <&clks IMX6UL_CLK_DUMMY>, <&clks IMX6UL_CLK_DUMMY>;
+					clock-names = "bus", "mclk1", "mclk2", "mclk3";
+					dmas = <&sdma 35 24 0>,
+					       <&sdma 36 24 0>;
+					dma-names = "rx", "tx";
+					status = "disabled";
+				};
+
+				sai2: sai@0202c000 {
+					#sound-dai-cells = <0>;
+					compatible = "fsl,imx6ul-sai", "fsl,imx6sx-sai";
+					reg = <0x0202c000 0x4000>;
+					interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6UL_CLK_SAI2_IPG>,
+						 <&clks IMX6UL_CLK_SAI2>,
+						 <&clks IMX6UL_CLK_DUMMY>, <&clks IMX6UL_CLK_DUMMY>;
+					clock-names = "bus", "mclk1", "mclk2", "mclk3";
+					dmas = <&sdma 37 24 0>,
+					       <&sdma 38 24 0>;
+					dma-names = "rx", "tx";
+					status = "disabled";
+				};
+
+				sai3: sai@02030000 {
+					#sound-dai-cells = <0>;
+					compatible = "fsl,imx6ul-sai", "fsl,imx6sx-sai";
+					reg = <0x02030000 0x4000>;
+					interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6UL_CLK_SAI3_IPG>,
+						 <&clks IMX6UL_CLK_SAI3>,
+						 <&clks IMX6UL_CLK_DUMMY>, <&clks IMX6UL_CLK_DUMMY>;
+					clock-names = "bus", "mclk1", "mclk2", "mclk3";
+					dmas = <&sdma 39 24 0>,
+					       <&sdma 40 24 0>;
+					dma-names = "rx", "tx";
+					status = "disabled";
+				};
 			};
 
 			tsc: tsc@02040000 {
