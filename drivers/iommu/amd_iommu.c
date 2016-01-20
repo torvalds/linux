@@ -1905,7 +1905,7 @@ static void do_attach(struct iommu_dev_data *dev_data,
 	/* Update device table */
 	set_dte_entry(dev_data->devid, domain, ats);
 	if (alias != dev_data->devid)
-		set_dte_entry(dev_data->devid, domain, ats);
+		set_dte_entry(alias, domain, ats);
 
 	device_flush_dte(dev_data);
 }
