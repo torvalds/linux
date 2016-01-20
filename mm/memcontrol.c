@@ -2946,17 +2946,6 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
 	return ret;
 }
 
-static int memcg_init_kmem(struct mem_cgroup *memcg)
-{
-	int ret;
-
-	ret = memcg_propagate_kmem(memcg);
-	if (ret)
-		return ret;
-
-	return tcp_init_cgroup(memcg);
-}
-
 static void memcg_offline_kmem(struct mem_cgroup *memcg)
 {
 	struct cgroup_subsys_state *css;
@@ -3009,7 +2998,6 @@ static void memcg_free_kmem(struct mem_cgroup *memcg)
 		static_branch_dec(&memcg_kmem_enabled_key);
 		WARN_ON(page_counter_read(&memcg->kmem));
 	}
-	tcp_destroy_cgroup(memcg);
 }
 #else
 static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
@@ -3017,14 +3005,7 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
 {
 	return -EINVAL;
 }
-static int memcg_init_kmem(struct mem_cgroup *memcg)
-{
-	return 0;
-}
 static void memcg_offline_kmem(struct mem_cgroup *memcg)
-{
-}
-static void memcg_free_kmem(struct mem_cgroup *memcg)
 {
 }
 #endif /* CONFIG_MEMCG_KMEM */
@@ -4263,9 +4244,14 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 	}
 	mutex_unlock(&memcg_create_mutex);
 
-	ret = memcg_init_kmem(memcg);
+#ifdef CONFIG_MEMCG_KMEM
+	ret = memcg_propagate_kmem(memcg);
 	if (ret)
 		return ret;
+	ret = tcp_init_cgroup(memcg);
+	if (ret)
+		return ret;
+#endif
 
 #ifdef CONFIG_INET
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
@@ -4317,11 +4303,16 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
-	memcg_free_kmem(memcg);
 #ifdef CONFIG_INET
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
 		static_branch_dec(&memcg_sockets_enabled_key);
 #endif
+
+#ifdef CONFIG_MEMCG_KMEM
+	memcg_free_kmem(memcg);
+	tcp_destroy_cgroup(memcg);
+#endif
+
 	__mem_cgroup_free(memcg);
 }
 
