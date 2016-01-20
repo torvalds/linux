@@ -149,6 +149,7 @@ config PCH_CAN
 
 source "drivers/net/can/c_can/Kconfig"
 source "drivers/net/can/cc770/Kconfig"
+source "drivers/net/can/ifi_canfd/Kconfig"
 source "drivers/net/can/m_can/Kconfig"
 source "drivers/net/can/mscan/Kconfig"
 source "drivers/net/can/sja1000/Kconfig"
