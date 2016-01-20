@@ -3357,6 +3357,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 	struct anon_vma *anon_vma;
 	int count, mapcount, ret;
 	bool mlocked;
+	unsigned long flags;
 
 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
 	VM_BUG_ON_PAGE(!PageAnon(page), page);
@@ -3396,7 +3397,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		lru_add_drain();
 
 	/* Prevent deferred_split_scan() touching ->_count */
-	spin_lock(&split_queue_lock);
+	spin_lock_irqsave(&split_queue_lock, flags);
 	count = page_count(head);
 	mapcount = total_mapcount(head);
 	if (!mapcount && count == 1) {
@@ -3404,11 +3405,11 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 			split_queue_len--;
 			list_del(page_deferred_list(head));
 		}
-		spin_unlock(&split_queue_lock);
+		spin_unlock_irqrestore(&split_queue_lock, flags);
 		__split_huge_page(page, list);
 		ret = 0;
 	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount) {
-		spin_unlock(&split_queue_lock);
+		spin_unlock_irqrestore(&split_queue_lock, flags);
 		pr_alert("total_mapcount: %u, page_count(): %u\n",
 				mapcount, count);
 		if (PageTail(page))
@@ -3416,7 +3417,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		dump_page(page, "total_mapcount(head) > 0");
 		BUG();
 	} else {
-		spin_unlock(&split_queue_lock);
+		spin_unlock_irqrestore(&split_queue_lock, flags);
 		unfreeze_page(anon_vma, head);
 		ret = -EBUSY;
 	}
