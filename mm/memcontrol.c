@@ -83,6 +83,9 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
 /* Socket memory accounting disabled? */
 static bool cgroup_memory_nosocket;
 
+/* Kernel memory accounting disabled? */
+static bool cgroup_memory_nokmem;
+
 /* Whether the swap controller is active */
 #ifdef CONFIG_MEMCG_SWAP
 int do_swap_account __read_mostly;
@@ -2925,8 +2928,8 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
 	 * onlined after this point, because it has at least one child
 	 * already.
 	 */
-	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) ||
-	    memcg_kmem_online(parent))
+	if (memcg_kmem_online(parent) ||
+	    (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nokmem))
 		ret = memcg_online_kmem(memcg);
 	mutex_unlock(&memcg_limit_mutex);
 	return ret;
@@ -5638,6 +5641,8 @@ static int __init cgroup_memory(char *s)
 			continue;
 		if (!strcmp(token, "nosocket"))
 			cgroup_memory_nosocket = true;
+		if (!strcmp(token, "nokmem"))
+			cgroup_memory_nokmem = true;
 	}
 	return 0;
 }
