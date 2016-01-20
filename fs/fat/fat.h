@@ -384,6 +384,7 @@ static inline unsigned long fat_dir_hash(int logstart)
 {
 	return hash_32(logstart, FAT_HASH_BITS);
 }
+extern int fat_add_cluster(struct inode *inode);
 
 /* fat/misc.c */
 extern __printf(3, 4) __cold
