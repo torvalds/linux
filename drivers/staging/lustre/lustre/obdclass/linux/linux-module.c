@@ -239,7 +239,7 @@ static ssize_t health_show(struct kobject *kobj, struct attribute *attr,
 		struct obd_device *obd;
 
 		obd = class_num2obd(i);
-		if (obd == NULL || !obd->obd_attached || !obd->obd_set_up)
+		if (!obd || !obd->obd_attached || !obd->obd_set_up)
 			continue;
 
 		LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
@@ -358,7 +358,7 @@ static int obd_device_list_seq_show(struct seq_file *p, void *v)
 	struct obd_device *obd = class_num2obd((int)index);
 	char *status;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
@@ -422,7 +422,7 @@ int class_procfs_init(void)
 	struct dentry *file;
 
 	lustre_kobj = kobject_create_and_add("lustre", fs_kobj);
-	if (lustre_kobj == NULL)
+	if (!lustre_kobj)
 		goto out;
 
 	/* Create the files associated with this kobject */
