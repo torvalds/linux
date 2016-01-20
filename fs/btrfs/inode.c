@@ -9428,43 +9428,6 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out_fail;
 	}
 
-	/* the old inode is freed, create whiteout in its place */
-	if (flags & RENAME_WHITEOUT) {
-		ret = btrfs_find_free_ino(root, &whiteout_objectid);
-		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
-			goto out_fail;
-		}
-
-		whiteout_inode = btrfs_new_inode(trans, root, old_dir,
-						old_dentry->d_name.name, old_dentry->d_name.len,
-						btrfs_ino(old_dir), whiteout_objectid,
-						S_IFCHR | S_IRWXUGO, &whiteout_index);
-
-		if (IS_ERR(whiteout_inode)) {
-			btrfs_abort_transaction(trans, root, ret);
-			goto out_fail;
-		}
-
-		whiteout_inode->i_op = &btrfs_special_inode_operations;
-		init_special_inode(whiteout_inode, whiteout_inode->i_mode,
-			MKDEV(0, 0));
-
-		ret = btrfs_init_inode_security(trans, whiteout_inode, old_dir,
-					&old_dentry->d_name);
-		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
-			goto out_fail;
-		}
-
-		ret = btrfs_add_nondir(trans, old_dir, old_dentry, whiteout_inode,
-					0, whiteout_index);
-		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
-			goto out_fail;
-		}
-	}
-
 	if (new_inode) {
 		inode_inc_iversion(new_inode);
 		new_inode->i_ctime = CURRENT_TIME;
@@ -9506,11 +9469,46 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		btrfs_log_new_name(trans, old_inode, old_dir, parent);
 		btrfs_end_log_trans(root);
 	}
-
-	/* finalize whiteout creation */
+	
+	/* the old dentry is freed, recreate it as a whiteout */
 	if (flags & RENAME_WHITEOUT) {
+		ret = btrfs_find_free_ino(root, &whiteout_objectid);
+		if (ret) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out_fail;
+		}
+
+		whiteout_inode = btrfs_new_inode(trans, root, old_dir,
+						old_dentry->d_name.name, old_dentry->d_name.len,
+						btrfs_ino(old_dir), whiteout_objectid,
+						S_IFCHR | WHITEOUT_MODE, &whiteout_index);
+
+		if (IS_ERR(whiteout_inode)) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out_fail;
+		}
+
+		whiteout_inode->i_op = &btrfs_special_inode_operations;
+		init_special_inode(whiteout_inode, whiteout_inode->i_mode,
+			WHITEOUT_DEV);
+
+		ret = btrfs_init_inode_security(trans, whiteout_inode, old_dir,
+					&old_dentry->d_name);
+		if (ret) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out_fail;
+		}
+
+		ret = btrfs_add_nondir(trans, old_dir, old_dentry, whiteout_inode,
+					0, whiteout_index);
+		if (ret) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out_fail;
+		}
+		
 		btrfs_update_inode(trans, root, whiteout_inode);
 		unlock_new_inode(whiteout_inode);
+		dentry_unlink_inode(old_dentry);
 		d_instantiate(old_dentry, whiteout_inode);
 	}
 out_fail:
