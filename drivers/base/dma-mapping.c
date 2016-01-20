@@ -12,7 +12,6 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <asm-generic/dma-coherent.h>
 
 /*
  * Managed DMA API
@@ -167,7 +166,7 @@ void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 }
 EXPORT_SYMBOL(dmam_free_noncoherent);
 
-#ifdef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 
 static void dmam_coherent_decl_release(struct device *dev, void *res)
 {

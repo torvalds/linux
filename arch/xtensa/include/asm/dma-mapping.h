@@ -13,8 +13,6 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 
-#include <asm-generic/dma-coherent.h>
-
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 

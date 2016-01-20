@@ -11,7 +11,6 @@
 #include <linux/scatterlist.h>
 #include <linux/kmemcheck.h>
 #include <linux/bug.h>
-#include <asm-generic/dma-coherent.h>
 
 /*
  * A dma_addr_t can hold any valid DMA or bus address for the platform.
@@ -86,6 +85,23 @@ static inline int is_device_dma_capable(struct device *dev)
 {
 	return dev->dma_mask != NULL && *dev->dma_mask != DMA_MASK_NONE;
 }
+
+#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
+/*
+ * These three functions are only for dma allocator.
+ * Don't use them in device drivers.
+ */
+int dma_alloc_from_coherent(struct device *dev, ssize_t size,
+				       dma_addr_t *dma_handle, void **ret);
+int dma_release_from_coherent(struct device *dev, int order, void *vaddr);
+
+int dma_mmap_from_coherent(struct device *dev, struct vm_area_struct *vma,
+			    void *cpu_addr, size_t size, int *ret);
+#else
+#define dma_alloc_from_coherent(dev, size, handle, ret) (0)
+#define dma_release_from_coherent(dev, order, vaddr) (0)
+#define dma_mmap_from_coherent(dev, vma, vaddr, order, ret) (0)
+#endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 
 #ifdef CONFIG_HAS_DMA
 #include <asm/dma-mapping.h>
@@ -568,7 +584,13 @@ static inline int dma_get_cache_alignment(void)
 #define DMA_MEMORY_INCLUDES_CHILDREN	0x04
 #define DMA_MEMORY_EXCLUSIVE		0x08
 
-#ifndef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
+int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
+				dma_addr_t device_addr, size_t size, int flags);
+void dma_release_declared_memory(struct device *dev);
+void *dma_mark_declared_memory_occupied(struct device *dev,
+					dma_addr_t device_addr, size_t size);
+#else
 static inline int
 dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 			    dma_addr_t device_addr, size_t size, int flags)
@@ -587,7 +609,7 @@ dma_mark_declared_memory_occupied(struct device *dev,
 {
 	return ERR_PTR(-EBUSY);
 }
-#endif
+#endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 
 /*
  * Managed DMA API
@@ -600,13 +622,13 @@ extern void *dmam_alloc_noncoherent(struct device *dev, size_t size,
 				    dma_addr_t *dma_handle, gfp_t gfp);
 extern void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 				  dma_addr_t dma_handle);
-#ifdef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 extern int dmam_declare_coherent_memory(struct device *dev,
 					phys_addr_t phys_addr,
 					dma_addr_t device_addr, size_t size,
 					int flags);
 extern void dmam_release_declared_memory(struct device *dev);
-#else /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
+#else /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 static inline int dmam_declare_coherent_memory(struct device *dev,
 				phys_addr_t phys_addr, dma_addr_t device_addr,
 				size_t size, gfp_t gfp)
@@ -617,7 +639,7 @@ static inline int dmam_declare_coherent_memory(struct device *dev,
 static inline void dmam_release_declared_memory(struct device *dev)
 {
 }
-#endif /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
+#endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 
 static inline void *dma_alloc_writecombine(struct device *dev, size_t size,
 					   dma_addr_t *dma_addr, gfp_t gfp)
