@@ -275,7 +275,6 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 
 		level = vmpressure_calc_level(scanned, reclaimed);
 
-#ifdef CONFIG_INET
 		if (level > VMPRESSURE_LOW) {
 			/*
 			 * Let the socket buffer allocator know that
@@ -287,7 +286,6 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 			 */
 			memcg->socket_pressure = jiffies + HZ;
 		}
-#endif
 	}
 }
 
