@@ -759,71 +759,71 @@ const DECLARE_BITMAP(cpu_all_bits, NR_CPUS) = CPU_BITS_ALL;
 EXPORT_SYMBOL(cpu_all_bits);
 
 #ifdef CONFIG_INIT_ALL_POSSIBLE
-static DECLARE_BITMAP(cpu_possible_bits, CONFIG_NR_CPUS) __read_mostly
-	= CPU_BITS_ALL;
+static struct cpumask __cpu_possible_mask __read_mostly
+	= {CPU_BITS_ALL};
 #else
-static DECLARE_BITMAP(cpu_possible_bits, CONFIG_NR_CPUS) __read_mostly;
+static struct cpumask __cpu_possible_mask __read_mostly;
 #endif
-const struct cpumask *const cpu_possible_mask = to_cpumask(cpu_possible_bits);
+const struct cpumask *const cpu_possible_mask = &__cpu_possible_mask;
 EXPORT_SYMBOL(cpu_possible_mask);
 
-static DECLARE_BITMAP(cpu_online_bits, CONFIG_NR_CPUS) __read_mostly;
-const struct cpumask *const cpu_online_mask = to_cpumask(cpu_online_bits);
+static struct cpumask __cpu_online_mask __read_mostly;
+const struct cpumask *const cpu_online_mask = &__cpu_online_mask;
 EXPORT_SYMBOL(cpu_online_mask);
 
-static DECLARE_BITMAP(cpu_present_bits, CONFIG_NR_CPUS) __read_mostly;
-const struct cpumask *const cpu_present_mask = to_cpumask(cpu_present_bits);
+static struct cpumask __cpu_present_mask __read_mostly;
+const struct cpumask *const cpu_present_mask = &__cpu_present_mask;
 EXPORT_SYMBOL(cpu_present_mask);
 
-static DECLARE_BITMAP(cpu_active_bits, CONFIG_NR_CPUS) __read_mostly;
-const struct cpumask *const cpu_active_mask = to_cpumask(cpu_active_bits);
+static struct cpumask __cpu_active_mask __read_mostly;
+const struct cpumask *const cpu_active_mask = &__cpu_active_mask;
 EXPORT_SYMBOL(cpu_active_mask);
 
 void set_cpu_possible(unsigned int cpu, bool possible)
 {
 	if (possible)
-		cpumask_set_cpu(cpu, to_cpumask(cpu_possible_bits));
+		cpumask_set_cpu(cpu, &__cpu_possible_mask);
 	else
-		cpumask_clear_cpu(cpu, to_cpumask(cpu_possible_bits));
+		cpumask_clear_cpu(cpu, &__cpu_possible_mask);
 }
 
 void set_cpu_present(unsigned int cpu, bool present)
 {
 	if (present)
-		cpumask_set_cpu(cpu, to_cpumask(cpu_present_bits));
+		cpumask_set_cpu(cpu, &__cpu_present_mask);
 	else
-		cpumask_clear_cpu(cpu, to_cpumask(cpu_present_bits));
+		cpumask_clear_cpu(cpu, &__cpu_present_mask);
 }
 
 void set_cpu_online(unsigned int cpu, bool online)
 {
 	if (online) {
-		cpumask_set_cpu(cpu, to_cpumask(cpu_online_bits));
-		cpumask_set_cpu(cpu, to_cpumask(cpu_active_bits));
+		cpumask_set_cpu(cpu, &__cpu_online_mask);
+		cpumask_set_cpu(cpu, &__cpu_active_mask);
 	} else {
-		cpumask_clear_cpu(cpu, to_cpumask(cpu_online_bits));
+		cpumask_clear_cpu(cpu, &__cpu_online_mask);
 	}
 }
 
 void set_cpu_active(unsigned int cpu, bool active)
 {
 	if (active)
-		cpumask_set_cpu(cpu, to_cpumask(cpu_active_bits));
+		cpumask_set_cpu(cpu, &__cpu_active_mask);
 	else
-		cpumask_clear_cpu(cpu, to_cpumask(cpu_active_bits));
+		cpumask_clear_cpu(cpu, &__cpu_active_mask);
 }
 
 void init_cpu_present(const struct cpumask *src)
 {
-	cpumask_copy(to_cpumask(cpu_present_bits), src);
+	cpumask_copy(&__cpu_present_mask, src);
 }
 
 void init_cpu_possible(const struct cpumask *src)
 {
-	cpumask_copy(to_cpumask(cpu_possible_bits), src);
+	cpumask_copy(&__cpu_possible_mask, src);
 }
 
 void init_cpu_online(const struct cpumask *src)
 {
-	cpumask_copy(to_cpumask(cpu_online_bits), src);
+	cpumask_copy(&__cpu_online_mask, src);
 }
