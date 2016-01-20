@@ -2448,11 +2448,11 @@ static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
 
 /* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
  * is assumed to be a power-of-two. */
-unsigned long intel_compute_tile_offset(struct drm_i915_private *dev_priv,
-					int *x, int *y,
-					uint64_t fb_modifier,
-					unsigned int cpp,
-					unsigned int pitch)
+u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
+			      int *x, int *y,
+			      uint64_t fb_modifier,
+			      unsigned int cpp,
+			      unsigned int pitch)
 {
 	if (fb_modifier != DRM_FORMAT_MOD_NONE) {
 		unsigned int tile_size, tile_width, tile_height;
@@ -2706,14 +2706,12 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int plane = intel_crtc->plane;
-	unsigned long linear_offset;
-	int x = plane_state->src.x1 >> 16;
-	int y = plane_state->src.y1 >> 16;
+	u32 linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
-	int pixel_size;
-
-	pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	int x = plane_state->src.x1 >> 16;
+	int y = plane_state->src.y1 >> 16;
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -2839,7 +2837,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int plane = intel_crtc->plane;
-	unsigned long linear_offset;
+	u32 linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
