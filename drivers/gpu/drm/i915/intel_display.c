@@ -2709,7 +2709,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	u32 linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
-	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	int x = plane_state->src.x1 >> 16;
 	int y = plane_state->src.y1 >> 16;
 
@@ -2769,13 +2769,12 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	if (IS_G4X(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	linear_offset = y * fb->pitches[0] + x * pixel_size;
+	linear_offset = y * fb->pitches[0] + x * cpp;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		intel_crtc->dspaddr_offset =
 			intel_compute_tile_offset(dev_priv, &x, &y,
-						  fb->modifier[0],
-						  pixel_size,
+						  fb->modifier[0], cpp,
 						  fb->pitches[0]);
 		linear_offset -= intel_crtc->dspaddr_offset;
 	} else {
@@ -2792,7 +2791,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 		data and adding to linear_offset*/
 		linear_offset +=
 			(crtc_state->pipe_src_h - 1) * fb->pitches[0] +
-			(crtc_state->pipe_src_w - 1) * pixel_size;
+			(crtc_state->pipe_src_w - 1) * cpp;
 	}
 
 	intel_crtc->adjusted_x = x;
@@ -2840,7 +2839,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	u32 linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
-	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	int x = plane_state->src.x1 >> 16;
 	int y = plane_state->src.y1 >> 16;
 
@@ -2879,11 +2878,10 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	linear_offset = y * fb->pitches[0] + x * pixel_size;
+	linear_offset = y * fb->pitches[0] + x * cpp;
 	intel_crtc->dspaddr_offset =
 		intel_compute_tile_offset(dev_priv, &x, &y,
-					  fb->modifier[0],
-					  pixel_size,
+					  fb->modifier[0], cpp,
 					  fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
 	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
@@ -2897,7 +2895,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 			data and adding to linear_offset*/
 			linear_offset +=
 				(crtc_state->pipe_src_h - 1) * fb->pitches[0] +
-				(crtc_state->pipe_src_w - 1) * pixel_size;
+				(crtc_state->pipe_src_w - 1) * cpp;
 		}
 	}
 
@@ -14682,10 +14680,12 @@ u32 intel_fb_pitch_limit(struct drm_device *dev, uint64_t fb_modifier,
 	u32 gen = INTEL_INFO(dev)->gen;
 
 	if (gen >= 9) {
+		int cpp = drm_format_plane_cpp(pixel_format, 0);
+
 		/* "The stride in bytes must not exceed the of the size of 8K
 		 *  pixels and 32K bytes."
 		 */
-		 return min(8192*drm_format_plane_cpp(pixel_format, 0), 32768);
+		return min(8192 * cpp, 32768);
 	} else if (gen >= 5 && !IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
 		return 32*1024;
 	} else if (gen >= 4) {
