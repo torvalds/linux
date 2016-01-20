@@ -72,8 +72,6 @@ static void __init test_hexdump_prepare_test(size_t len, int rowsize,
 	else
 		result = test_data_1_le;
 
-	memset(test, FILL_CHAR, testlen);
-
 	/* hex dump */
 	p = test;
 	for (i = 0; i < l / gs; i++) {
@@ -109,13 +107,15 @@ static void __init test_hexdump(size_t len, int rowsize, int groupsize,
 	char test[TEST_HEXDUMP_BUF_SIZE];
 	char real[TEST_HEXDUMP_BUF_SIZE];
 
+	memset(real, FILL_CHAR, sizeof(real));
 	hex_dump_to_buffer(data_b, len, rowsize, groupsize, real, sizeof(real),
 			   ascii);
 
+	memset(test, FILL_CHAR, sizeof(test));
 	test_hexdump_prepare_test(len, rowsize, groupsize, test, sizeof(test),
 				  ascii);
 
-	if (strcmp(test, real)) {
+	if (memcmp(test, real, TEST_HEXDUMP_BUF_SIZE)) {
 		pr_err("Len: %zu row: %d group: %d\n", len, rowsize, groupsize);
 		pr_err("Result: '%s'\n", real);
 		pr_err("Expect: '%s'\n", test);
