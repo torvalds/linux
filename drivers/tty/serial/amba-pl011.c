@@ -187,7 +187,7 @@ static const u16 pl011_zte_offsets[REG_ARRAY_SIZE] = {
 	[REG_DMACR] = ZX_UART011_DMACR,
 };
 
-static struct vendor_data vendor_zte = {
+static struct vendor_data vendor_zte __maybe_unused = {
 	.reg_offset		= pl011_zte_offsets,
 	.access_32b		= true,
 	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
