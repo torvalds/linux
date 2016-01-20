@@ -759,23 +759,27 @@ const DECLARE_BITMAP(cpu_all_bits, NR_CPUS) = CPU_BITS_ALL;
 EXPORT_SYMBOL(cpu_all_bits);
 
 #ifdef CONFIG_INIT_ALL_POSSIBLE
-static struct cpumask __cpu_possible_mask __read_mostly
+struct cpumask __cpu_possible_mask __read_mostly
 	= {CPU_BITS_ALL};
 #else
-static struct cpumask __cpu_possible_mask __read_mostly;
+struct cpumask __cpu_possible_mask __read_mostly;
 #endif
+EXPORT_SYMBOL(__cpu_possible_mask);
 const struct cpumask *const cpu_possible_mask = &__cpu_possible_mask;
 EXPORT_SYMBOL(cpu_possible_mask);
 
-static struct cpumask __cpu_online_mask __read_mostly;
+struct cpumask __cpu_online_mask __read_mostly;
+EXPORT_SYMBOL(__cpu_online_mask);
 const struct cpumask *const cpu_online_mask = &__cpu_online_mask;
 EXPORT_SYMBOL(cpu_online_mask);
 
-static struct cpumask __cpu_present_mask __read_mostly;
+struct cpumask __cpu_present_mask __read_mostly;
+EXPORT_SYMBOL(__cpu_present_mask);
 const struct cpumask *const cpu_present_mask = &__cpu_present_mask;
 EXPORT_SYMBOL(cpu_present_mask);
 
-static struct cpumask __cpu_active_mask __read_mostly;
+struct cpumask __cpu_active_mask __read_mostly;
+EXPORT_SYMBOL(__cpu_active_mask);
 const struct cpumask *const cpu_active_mask = &__cpu_active_mask;
 EXPORT_SYMBOL(cpu_active_mask);
 
