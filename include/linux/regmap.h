@@ -162,7 +162,7 @@ typedef void (*regmap_unlock)(void *);
  *		  This field is a duplicate of a similar file in
  *		  'struct regmap_bus' and serves exact same purpose.
  *		   Use it only for "no-bus" cases.
- * @max_register: Optional, specifies the maximum valid register index.
+ * @max_register: Optional, specifies the maximum valid register address.
  * @wr_table:     Optional, points to a struct regmap_access_table specifying
  *                valid ranges for write access.
  * @rd_table:     As above, for read access.
