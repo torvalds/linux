@@ -1254,25 +1254,6 @@ static bool hists__filter_entry_by_dso(struct hists *hists,
 	return false;
 }
 
-void hists__filter_by_dso(struct hists *hists)
-{
-	struct rb_node *nd;
-
-	hists->stats.nr_non_filtered_samples = 0;
-
-	hists__reset_filter_stats(hists);
-	hists__reset_col_len(hists);
-
-	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (hists__filter_entry_by_dso(hists, h))
-			continue;
-
-		hists__remove_entry_filter(hists, h, HIST_FILTER__DSO);
-	}
-}
-
 static bool hists__filter_entry_by_thread(struct hists *hists,
 					  struct hist_entry *he)
 {
@@ -1283,25 +1264,6 @@ static bool hists__filter_entry_by_thread(struct hists *hists,
 	}
 
 	return false;
-}
-
-void hists__filter_by_thread(struct hists *hists)
-{
-	struct rb_node *nd;
-
-	hists->stats.nr_non_filtered_samples = 0;
-
-	hists__reset_filter_stats(hists);
-	hists__reset_col_len(hists);
-
-	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (hists__filter_entry_by_thread(hists, h))
-			continue;
-
-		hists__remove_entry_filter(hists, h, HIST_FILTER__THREAD);
-	}
 }
 
 static bool hists__filter_entry_by_symbol(struct hists *hists,
@@ -1317,25 +1279,6 @@ static bool hists__filter_entry_by_symbol(struct hists *hists,
 	return false;
 }
 
-void hists__filter_by_symbol(struct hists *hists)
-{
-	struct rb_node *nd;
-
-	hists->stats.nr_non_filtered_samples = 0;
-
-	hists__reset_filter_stats(hists);
-	hists__reset_col_len(hists);
-
-	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (hists__filter_entry_by_symbol(hists, h))
-			continue;
-
-		hists__remove_entry_filter(hists, h, HIST_FILTER__SYMBOL);
-	}
-}
-
 static bool hists__filter_entry_by_socket(struct hists *hists,
 					  struct hist_entry *he)
 {
@@ -1348,7 +1291,9 @@ static bool hists__filter_entry_by_socket(struct hists *hists,
 	return false;
 }
 
-void hists__filter_by_socket(struct hists *hists)
+typedef bool (*filter_fn_t)(struct hists *hists, struct hist_entry *he);
+
+static void hists__filter_by_type(struct hists *hists, int type, filter_fn_t filter)
 {
 	struct rb_node *nd;
 
@@ -1360,11 +1305,35 @@ void hists__filter_by_socket(struct hists *hists)
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
-		if (hists__filter_entry_by_socket(hists, h))
+		if (filter(hists, h))
 			continue;
 
-		hists__remove_entry_filter(hists, h, HIST_FILTER__SOCKET);
+		hists__remove_entry_filter(hists, h, type);
 	}
+}
+
+void hists__filter_by_thread(struct hists *hists)
+{
+	hists__filter_by_type(hists, HIST_FILTER__THREAD,
+			      hists__filter_entry_by_thread);
+}
+
+void hists__filter_by_dso(struct hists *hists)
+{
+	hists__filter_by_type(hists, HIST_FILTER__DSO,
+			      hists__filter_entry_by_dso);
+}
+
+void hists__filter_by_symbol(struct hists *hists)
+{
+	hists__filter_by_type(hists, HIST_FILTER__SYMBOL,
+			      hists__filter_entry_by_symbol);
+}
+
+void hists__filter_by_socket(struct hists *hists)
+{
+	hists__filter_by_type(hists, HIST_FILTER__SOCKET,
+			      hists__filter_entry_by_socket);
 }
 
 void events_stats__inc(struct events_stats *stats, u32 type)
