@@ -487,6 +487,15 @@ endmenu
 menu "Port-mapped I/O GPIO drivers"
 	depends on X86 # Unconditional I/O space access
 
+config GPIO_104_DIO_48E
+	tristate "ACCES 104-DIO-48E GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Enables GPIO support for the ACCES 104-DIO-48E family. The base port
+	  address for the device may be configured via the dio_48e_base module
+	  parameter. The interrupt line number for the device may be configured
+	  via the dio_48e_irq module parameter.
+
 config GPIO_104_IDIO_16
 	tristate "ACCES 104-IDIO-16 GPIO support"
 	select GPIOLIB_IRQCHIP
