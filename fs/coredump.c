@@ -118,6 +118,26 @@ int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
 	ret = cn_vprintf(cn, fmt, arg);
 	va_end(arg);
 
+	if (ret == 0) {
+		/*
+		 * Ensure that this coredump name component can't cause the
+		 * resulting corefile path to consist of a ".." or ".".
+		 */
+		if ((cn->used - cur == 1 && cn->corename[cur] == '.') ||
+				(cn->used - cur == 2 && cn->corename[cur] == '.'
+				&& cn->corename[cur+1] == '.'))
+			cn->corename[cur] = '!';
+
+		/*
+		 * Empty names are fishy and could be used to create a "//" in a
+		 * corefile name, causing the coredump to happen one directory
+		 * level too high. Enforce that all components of the core
+		 * pattern are at least one character long.
+		 */
+		if (cn->used == cur)
+			ret = cn_printf(cn, "!");
+	}
+
 	for (; cur < cn->used; ++cur) {
 		if (cn->corename[cur] == '/')
 			cn->corename[cur] = '!';
