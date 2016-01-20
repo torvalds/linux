@@ -485,7 +485,7 @@ static inline int logfs_get_sb_bdev(struct logfs_super *s,
 #endif
 
 /* dev_mtd.c */
-#ifdef CONFIG_MTD
+#if IS_ENABLED(CONFIG_MTD)
 int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr);
 #else
 static inline int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr)
