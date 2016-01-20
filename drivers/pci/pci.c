@@ -1417,7 +1417,7 @@ struct pci_devres {
 
 static void pcim_release(struct device *gendev, void *res)
 {
-	struct pci_dev *dev = container_of(gendev, struct pci_dev, dev);
+	struct pci_dev *dev = to_pci_dev(gendev);
 	struct pci_devres *this = res;
 	int i;
 
@@ -1534,7 +1534,7 @@ void __weak pcibios_release_device(struct pci_dev *dev) {}
  * is the default implementation. Architecture implementations can
  * override this.
  */
-void __weak pcibios_disable_device (struct pci_dev *dev) {}
+void __weak pcibios_disable_device(struct pci_dev *dev) {}
 
 /**
  * pcibios_penalize_isa_irq - penalize an ISA IRQ

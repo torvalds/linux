@@ -122,7 +122,7 @@ static int pcie_phy_wait_ack(void __iomem *dbi_base, int addr)
 }
 
 /* Read from the 16-bit PCIe PHY control registers (not memory-mapped) */
-static int pcie_phy_read(void __iomem *dbi_base, int addr , int *data)
+static int pcie_phy_read(void __iomem *dbi_base, int addr, int *data)
 {
 	u32 val, phy_ctl;
 	int ret;

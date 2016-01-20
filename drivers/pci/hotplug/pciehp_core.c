@@ -62,14 +62,14 @@ MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if OSHP is missing");
 
 #define PCIE_MODULE_NAME "pciehp"
 
-static int set_attention_status (struct hotplug_slot *slot, u8 value);
-static int enable_slot		(struct hotplug_slot *slot);
-static int disable_slot		(struct hotplug_slot *slot);
-static int get_power_status	(struct hotplug_slot *slot, u8 *value);
-static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
-static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
-static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
-static int reset_slot		(struct hotplug_slot *slot, int probe);
+static int set_attention_status(struct hotplug_slot *slot, u8 value);
+static int enable_slot(struct hotplug_slot *slot);
+static int disable_slot(struct hotplug_slot *slot);
+static int get_power_status(struct hotplug_slot *slot, u8 *value);
+static int get_attention_status(struct hotplug_slot *slot, u8 *value);
+static int get_latch_status(struct hotplug_slot *slot, u8 *value);
+static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
+static int reset_slot(struct hotplug_slot *slot, int probe);
 
 /**
  * release_slot - free up the memory used by a slot
