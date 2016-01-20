@@ -405,32 +405,31 @@ void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
-static void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
-		struct be_async_event_link_state *evt)
+static void beiscsi_process_async_link(struct beiscsi_hba *phba,
+				       struct be_mcc_compl *compl)
 {
+	struct be_async_event_link_state *evt;
+
+	evt = (struct be_async_event_link_state *)compl;
+
 	phba->port_speed = evt->port_speed;
-	if ((evt->port_link_status == ASYNC_EVENT_LINK_DOWN) ||
-	    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
-	     (evt->port_fault != BEISCSI_PHY_LINK_FAULT_NONE))) {
-		phba->state = BE_ADAPTER_LINK_DOWN;
-
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Link Down on Port %d\n",
-			    evt->physical_port);
-
-		iscsi_host_for_each_session(phba->shost,
-					    beiscsi_fail_session);
-	} else if ((evt->port_link_status & ASYNC_EVENT_LINK_UP) ||
-		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
-		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {
+	/**
+	 * Check logical link status in ASYNC event.
+	 * This has been newly introduced in SKH-R Firmware 10.0.338.45.
+	 **/
+	if (evt->port_link_status & BE_ASYNC_LINK_UP_MASK) {
 		phba->state = BE_ADAPTER_LINK_UP | BE_ADAPTER_CHECK_BOOT;
 		phba->get_boot = BE_GET_BOOT_RETRIES;
-
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Link UP on Port %d\n",
-			    evt->physical_port);
+		__beiscsi_log(phba, KERN_ERR,
+			      "BC_%d : Link Up on Port %d tag 0x%x\n",
+			      evt->physical_port, evt->event_tag);
+	} else {
+		phba->state = BE_ADAPTER_LINK_DOWN;
+		__beiscsi_log(phba, KERN_ERR,
+			      "BC_%d : Link Down on Port %d tag 0x%x\n",
+			      evt->physical_port, evt->event_tag);
+		iscsi_host_for_each_session(phba->shost,
+					    beiscsi_fail_session);
 	}
 }
 
@@ -507,8 +506,7 @@ void beiscsi_process_async_event(struct beiscsi_hba *phba,
 	evt_code &= ASYNC_TRAILER_EVENT_CODE_MASK;
 	switch (evt_code) {
 	case ASYNC_EVENT_CODE_LINK_STATE:
-		beiscsi_async_link_state_process(phba,
-				(struct be_async_event_link_state *)compl);
+		beiscsi_process_async_link(phba, compl);
 		break;
 	case ASYNC_EVENT_CODE_ISCSI:
 		phba->state |= BE_ADAPTER_CHECK_BOOT;
@@ -524,8 +522,8 @@ void beiscsi_process_async_event(struct beiscsi_hba *phba,
 	}
 
 	beiscsi_log(phba, sev, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-		    "BC_%d : ASYNC Event: status 0x%08x flags 0x%08x\n",
-		    compl->status, compl->flags);
+		    "BC_%d : ASYNC Event %x: status 0x%08x flags 0x%08x\n",
+		    evt_code, compl->status, compl->flags);
 }
 
 int beiscsi_process_mcc(struct beiscsi_hba *phba)
