@@ -154,6 +154,7 @@ config FW_LOADER_USER_HELPER
 config FW_LOADER_USER_HELPER_FALLBACK
 	bool "Fallback user-helper invocation for firmware loading"
 	depends on FW_LOADER
+	default y
 	select FW_LOADER_USER_HELPER
 	help
 	  This option enables / disables the invocation of user-helper
