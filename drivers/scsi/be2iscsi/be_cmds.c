@@ -104,13 +104,16 @@ int be_chk_reset_complete(struct beiscsi_hba *phba)
 	return 0;
 }
 
-void be_mcc_notify(struct beiscsi_hba *phba)
+void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag)
 {
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	u32 val = 0;
 
+	set_bit(MCC_TAG_STATE_RUNNING, &phba->ctrl.ptag_state[tag].tag_state);
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
 	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
+	/* ring doorbell after all of request and state is written */
+	wmb();
 	iowrite32(val, phba->db_va + DB_MCCQ_OFFSET);
 }
 
@@ -122,6 +125,7 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
 		tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
 		phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
 		phba->ctrl.mcc_numtag[tag] = 0;
+		phba->ctrl.ptag_state[tag].tag_state = 0;
 	}
 	if (tag) {
 		phba->ctrl.mcc_tag_available--;
@@ -163,26 +167,25 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 		return -EPERM;
 	}
 
-	/* Set MBX Tag state to Active */
-	mutex_lock(&phba->ctrl.mbox_lock);
-	phba->ctrl.ptag_state[tag].tag_state = MCC_TAG_STATE_RUNNING;
-	mutex_unlock(&phba->ctrl.mbox_lock);
-
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
 				phba->ctrl.mcc_wait[tag],
 				phba->ctrl.mcc_numtag[tag],
 				msecs_to_jiffies(
 				BEISCSI_HOST_MBX_TIMEOUT));
-
+	/**
+	 * If MBOX cmd timeout expired, tag and resource allocated
+	 * for cmd is not freed until FW returns completion.
+	 */
 	if (rc <= 0) {
 		struct be_dma_mem *tag_mem;
-		/* Set MBX Tag state to timeout */
-		mutex_lock(&phba->ctrl.mbox_lock);
-		phba->ctrl.ptag_state[tag].tag_state = MCC_TAG_STATE_TIMEOUT;
-		mutex_unlock(&phba->ctrl.mbox_lock);
 
-		/* Store resource addr to be freed later */
+		/**
+		 * PCI/DMA memory allocated and posted in non-embedded mode
+		 * will have mbx_cmd_mem != NULL.
+		 * Save virtual and bus addresses for the command so that it
+		 * can be freed later.
+		 **/
 		tag_mem = &phba->ctrl.ptag_state[tag].tag_mem_state;
 		if (mbx_cmd_mem) {
 			tag_mem->size = mbx_cmd_mem->size;
@@ -191,19 +194,19 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 		} else
 			tag_mem->size = 0;
 
+		/* first make tag_mem_state visible to all */
+		wmb();
+		set_bit(MCC_TAG_STATE_TIMEOUT,
+				&phba->ctrl.ptag_state[tag].tag_state);
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 			    BEISCSI_LOG_CONFIG,
 			    "BC_%d : MBX Cmd Completion timed out\n");
 		return -EBUSY;
-	} else {
-		rc = 0;
-		/* Set MBX Tag state to completed */
-		mutex_lock(&phba->ctrl.mbox_lock);
-		phba->ctrl.ptag_state[tag].tag_state = MCC_TAG_STATE_COMPLETED;
-		mutex_unlock(&phba->ctrl.mbox_lock);
 	}
 
+	rc = 0;
 	mcc_tag_response = phba->ctrl.mcc_numtag[tag];
 	status = (mcc_tag_response & CQE_STATUS_MASK);
 	addl_status = ((mcc_tag_response & CQE_STATUS_ADDL_MASK) >>
@@ -231,7 +234,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			    mbx_hdr->subsystem,
 			    mbx_hdr->opcode,
 			    status, addl_status);
-
+		rc = -EIO;
 		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
 			mbx_resp_hdr = (struct be_cmd_resp_hdr *) mbx_hdr;
 			beiscsi_log(phba, KERN_WARNING,
@@ -241,17 +244,11 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 				    "Resp_Len : %d Actual_Resp_Len : %d\n",
 				    mbx_resp_hdr->response_length,
 				    mbx_resp_hdr->actual_resp_len);
-
 			rc = -EAGAIN;
-			goto release_mcc_tag;
 		}
-		rc = -EIO;
 	}
 
-release_mcc_tag:
-	/* Release the MCC entry */
 	free_mcc_tag(&phba->ctrl, tag);
-
 	return rc;
 }
 
@@ -354,9 +351,37 @@ int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 {
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	u16 compl_status, extd_status;
+	struct be_dma_mem *tag_mem;
 	unsigned short tag;
 
 	be_dws_le_to_cpu(compl, 4);
+	tag = (compl->tag0 & 0x000000FF);
+
+	if (!test_bit(MCC_TAG_STATE_RUNNING,
+		      &ctrl->ptag_state[tag].tag_state)) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_MBOX |
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+			    "BC_%d : MBX cmd completed but not posted\n");
+		return 0;
+	}
+
+	if (test_bit(MCC_TAG_STATE_TIMEOUT,
+		     &ctrl->ptag_state[tag].tag_state)) {
+		beiscsi_log(phba, KERN_WARNING,
+			    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
+			    BEISCSI_LOG_CONFIG,
+			    "BC_%d : MBX Completion for timeout Command from FW\n");
+		/**
+		 * Check for the size before freeing resource.
+		 * Only for non-embedded cmd, PCI resource is allocated.
+		 **/
+		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
+		if (tag_mem->size)
+			pci_free_consistent(ctrl->pdev, tag_mem->size,
+					tag_mem->va, tag_mem->dma);
+		free_mcc_tag(ctrl, tag);
+		return 0;
+	}
 
 	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
 					CQE_STATUS_COMPL_MASK;
@@ -364,40 +389,16 @@ int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 	 * [31] = valid, [30:24] = Rsvd, [23:16] = wrb, [15:8] = extd_status,
 	 * [7:0] = compl_status
 	 */
-	tag = (compl->tag0 & 0x000000FF);
 	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
 					CQE_STATUS_EXTD_MASK;
-
 	ctrl->mcc_numtag[tag]  = 0x80000000;
 	ctrl->mcc_numtag[tag] |= (compl->tag0 & 0x00FF0000);
 	ctrl->mcc_numtag[tag] |= (extd_status & 0x000000FF) << 8;
 	ctrl->mcc_numtag[tag] |= (compl_status & 0x000000FF);
 
-	if (ctrl->ptag_state[tag].tag_state == MCC_TAG_STATE_RUNNING) {
-		wake_up_interruptible(&ctrl->mcc_wait[tag]);
-	} else if (ctrl->ptag_state[tag].tag_state == MCC_TAG_STATE_TIMEOUT) {
-		struct be_dma_mem *tag_mem;
-		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
-
-		beiscsi_log(phba, KERN_WARNING,
-			    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
-			    BEISCSI_LOG_CONFIG,
-			    "BC_%d : MBX Completion for timeout Command "
-			    "from FW\n");
-		/* Check if memory needs to be freed */
-		if (tag_mem->size)
-			pci_free_consistent(ctrl->pdev, tag_mem->size,
-					    tag_mem->va, tag_mem->dma);
-
-		/* Change tag state */
-		mutex_lock(&phba->ctrl.mbox_lock);
-		ctrl->ptag_state[tag].tag_state = MCC_TAG_STATE_COMPLETED;
-		mutex_unlock(&phba->ctrl.mbox_lock);
-
-		/* Free MCC Tag */
-		free_mcc_tag(ctrl, tag);
-	}
-
+	/* write ordering implied in wake_up_interruptible */
+	clear_bit(MCC_TAG_STATE_RUNNING, &ctrl->ptag_state[tag].tag_state);
+	wake_up_interruptible(&ctrl->mcc_wait[tag]);
 	return 0;
 }
 
@@ -568,9 +569,9 @@ static int be_mcc_wait_compl(struct beiscsi_hba *phba)
  * Success: 0
  * Failure: Non-Zero
  **/
-int be_mcc_notify_wait(struct beiscsi_hba *phba)
+int be_mcc_notify_wait(struct beiscsi_hba *phba, unsigned int tag)
 {
-	be_mcc_notify(phba);
+	be_mcc_notify(phba, tag);
 	return be_mcc_wait_compl(phba);
 }
 
@@ -1439,7 +1440,7 @@ int be_cmd_set_vlan(struct beiscsi_hba *phba,
 	req->interface_hndl = phba->interface_handle;
 	req->vlan_priority = vlan_tag;
 
-	be_mcc_notify(phba);
+	be_mcc_notify(phba, tag);
 	mutex_unlock(&ctrl->mbox_lock);
 
 	return tag;

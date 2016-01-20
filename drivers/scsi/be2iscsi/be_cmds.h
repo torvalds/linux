@@ -745,8 +745,8 @@ int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
 struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
-int be_mcc_notify_wait(struct beiscsi_hba *phba);
-void be_mcc_notify(struct beiscsi_hba *phba);
+int be_mcc_notify_wait(struct beiscsi_hba *phba, unsigned int tag);
+void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
 unsigned int alloc_mcc_tag(struct beiscsi_hba *phba);
 void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		struct be_async_event_link_state *evt);
