@@ -614,7 +614,7 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 		em = lookup_extent_mapping(em_tree, start, (u64)-1);
 		if (!em)
 			break;
-		map = (struct map_lookup *)em->bdev;
+		map = em->map_lookup;
 		for (i = 0; i < map->num_stripes; i++)
 			if (srcdev == map->stripes[i].dev)
 				map->stripes[i].dev = tgtdev;

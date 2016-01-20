@@ -108,7 +108,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	},
 };
 
-const u64 const btrfs_raid_group[BTRFS_NR_RAID_TYPES] = {
+const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID10] = BTRFS_BLOCK_GROUP_RAID10,
 	[BTRFS_RAID_RAID1]  = BTRFS_BLOCK_GROUP_RAID1,
 	[BTRFS_RAID_DUP]    = BTRFS_BLOCK_GROUP_DUP,
@@ -1183,7 +1183,7 @@ again:
 		struct map_lookup *map;
 		int i;
 
-		map = (struct map_lookup *)em->bdev;
+		map = em->map_lookup;
 		for (i = 0; i < map->num_stripes; i++) {
 			u64 end;
 
@@ -2755,7 +2755,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 			free_extent_map(em);
 		return -EINVAL;
 	}
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	lock_chunks(root->fs_info->chunk_root);
 	check_system_chunk(trans, extent_root, map->type);
 	unlock_chunks(root->fs_info->chunk_root);
@@ -4718,7 +4718,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		goto error;
 	}
 	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
-	em->bdev = (struct block_device *)map;
+	em->map_lookup = map;
 	em->start = start;
 	em->len = num_bytes;
 	em->block_start = 0;
@@ -4813,7 +4813,7 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 	}
 
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	item_size = btrfs_chunk_item_size(map->num_stripes);
 	stripe_size = em->orig_block_len;
 
@@ -4968,7 +4968,7 @@ int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset)
 	if (!em)
 		return 1;
 
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	for (i = 0; i < map->num_stripes; i++) {
 		if (map->stripes[i].dev->missing) {
 			miss_ndevs++;
@@ -5048,7 +5048,7 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 		return 1;
 	}
 
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	if (map->type & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1))
 		ret = map->num_stripes;
 	else if (map->type & BTRFS_BLOCK_GROUP_RAID10)
@@ -5084,7 +5084,7 @@ unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
 	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		len = map->stripe_len * nr_data_stripes(map);
 	free_extent_map(em);
@@ -5105,7 +5105,7 @@ int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		ret = 1;
 	free_extent_map(em);
@@ -5264,7 +5264,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		return -EINVAL;
 	}
 
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	offset = logical - em->start;
 
 	stripe_len = map->stripe_len;
@@ -5806,7 +5806,7 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		free_extent_map(em);
 		return -EIO;
 	}
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 
 	length = em->len;
 	rmap_len = map->stripe_len;
@@ -6242,7 +6242,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	}
 
 	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
-	em->bdev = (struct block_device *)map;
+	em->map_lookup = map;
 	em->start = logical;
 	em->len = length;
 	em->orig_start = 0;
@@ -6944,7 +6944,7 @@ void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
 	/* In order to kick the device replace finish process */
 	lock_chunks(root);
 	list_for_each_entry(em, &transaction->pending_chunks, list) {
-		map = (struct map_lookup *)em->bdev;
+		map = em->map_lookup;
 
 		for (i = 0; i < map->num_stripes; i++) {
 			dev = map->stripes[i].dev;

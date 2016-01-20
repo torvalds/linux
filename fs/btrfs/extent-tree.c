@@ -10399,7 +10399,7 @@ btrfs_start_trans_remove_block_group(struct btrfs_fs_info *fs_info,
 	 * more device items and remove one chunk item), but this is done at
 	 * btrfs_remove_chunk() through a call to check_system_chunk().
 	 */
-	map = (struct map_lookup *)em->bdev;
+	map = em->map_lookup;
 	num_items = 3 + map->num_stripes;
 	free_extent_map(em);
 
@@ -10586,7 +10586,7 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 
 	disk_super = fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
-		return 1;
+		return -EINVAL;
 
 	features = btrfs_super_incompat_flags(disk_super);
 	if (features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS)
