@@ -397,7 +397,9 @@ struct beiscsi_hba {
 		 * group together since they are used most frequently
 		 * for cid to cri conversion
 		 */
+#define BEISCSI_PHYS_PORT_MAX	4
 		unsigned int phys_port;
+		/* valid values of phys_port id are 0, 1, 2, 3 */
 		unsigned int eqid_count;
 		unsigned int cqid_count;
 		unsigned int iscsi_cid_start[BEISCSI_ULP_COUNT];
