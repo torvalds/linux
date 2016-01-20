@@ -30,6 +30,15 @@ config PCI_IMX6
 	select PCIEPORTBUS
 	select PCIE_DW
 
+config PCI_IMX6_COMPLIANCE_TEST
+	bool "Enable pcie compliance tests on imx6"
+	depends on PCI_IMX6
+	default n
+	help
+	  Say Y here if you want do the compliance tests on imx6 pcie rc found
+	  on FSL iMX SoCs. The pcie clks wouldn't be turned off, and the link
+	  speed wouldn't be limited to gen1 when the Y is set here.
+
 config EP_MODE_IN_EP_RC_SYS
 	bool "PCI Express EP mode in the IMX6 RC/EP interconnection system"
 	depends on PCI_IMX6

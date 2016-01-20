@@ -530,16 +530,18 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
 	uint32_t tmp;
 	int ret, count;
-
 	/*
 	 * Force Gen1 operation when starting the link.  In case the link is
 	 * started in Gen2 mode, there is a possibility the devices on the
 	 * bus will not be detected at all.  This happens with PCIe switches.
 	 */
-	tmp = readl(pp->dbi_base + PCIE_RC_LCR);
-	tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
-	tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN1;
-	writel(tmp, pp->dbi_base + PCIE_RC_LCR);
+
+	if (!IS_ENABLED(CONFIG_PCI_IMX6_COMPLIANCE_TEST)) {
+		tmp = readl(pp->dbi_base + PCIE_RC_LCR);
+		tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
+		tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN1;
+		writel(tmp, pp->dbi_base + PCIE_RC_LCR);
+	}
 
 	/* Start LTSSM. */
 	if (is_imx7d_pcie(imx6_pcie))
@@ -583,6 +585,16 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 
 	if (ret) {
 		dev_err(pp->dev, "Failed to bring link up!\n");
+		if (!IS_ENABLED(CONFIG_PCI_IMX6_COMPLIANCE_TEST)) {
+			clk_disable_unprepare(imx6_pcie->pcie);
+			clk_disable_unprepare(imx6_pcie->pcie_bus);
+			clk_disable_unprepare(imx6_pcie->pcie_phy);
+			if (is_imx6sx_pcie(imx6_pcie))
+				clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
+			release_bus_freq(BUS_FREQ_HIGH);
+			if (imx6_pcie->pcie_phy_regulator != NULL)
+				regulator_disable(imx6_pcie->pcie_phy_regulator);
+		}
 	} else {
 		tmp = readl(pp->dbi_base + 0x80);
 		dev_dbg(pp->dev, "Link up, Gen=%i\n", (tmp >> 16) & 0xf);
