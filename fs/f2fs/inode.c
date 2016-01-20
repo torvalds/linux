@@ -83,7 +83,7 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 
 	while (start < end) {
 		if (*start++) {
-			f2fs_wait_on_page_writeback(ipage, NODE);
+			f2fs_wait_on_page_writeback(ipage, NODE, true);
 
 			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
 			set_raw_inline(F2FS_I(inode), F2FS_INODE(ipage));
@@ -227,7 +227,7 @@ int update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
 
-	f2fs_wait_on_page_writeback(node_page, NODE);
+	f2fs_wait_on_page_writeback(node_page, NODE, true);
 
 	ri = F2FS_INODE(node_page);
 

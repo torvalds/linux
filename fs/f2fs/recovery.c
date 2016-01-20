@@ -418,7 +418,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	if (err)
 		goto out;
 
-	f2fs_wait_on_page_writeback(dn.node_page, NODE);
+	f2fs_wait_on_page_writeback(dn.node_page, NODE, true);
 
 	get_node_info(sbi, dn.nid, &ni);
 	f2fs_bug_on(sbi, ni.ino != ino_of_node(page));

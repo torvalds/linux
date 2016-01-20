@@ -39,7 +39,7 @@ repeat:
 		cond_resched();
 		goto repeat;
 	}
-	f2fs_wait_on_page_writeback(page, META);
+	f2fs_wait_on_page_writeback(page, META, true);
 	SetPageUptodate(page);
 	return page;
 }
@@ -232,7 +232,7 @@ static int f2fs_write_meta_page(struct page *page,
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto redirty_out;
 
-	f2fs_wait_on_page_writeback(page, META);
+	f2fs_wait_on_page_writeback(page, META, true);
 	write_meta_page(sbi, page);
 	dec_page_count(sbi, F2FS_DIRTY_META);
 	unlock_page(page);

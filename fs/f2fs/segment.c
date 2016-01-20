@@ -223,7 +223,8 @@ int commit_inmem_pages(struct inode *inode, bool abort)
 		if (!abort) {
 			if (cur->page->mapping == inode->i_mapping) {
 				set_page_dirty(cur->page);
-				f2fs_wait_on_page_writeback(cur->page, DATA);
+				f2fs_wait_on_page_writeback(cur->page, DATA,
+									true);
 				if (clear_page_dirty_for_io(cur->page))
 					inode_dec_dirty_pages(inode);
 				trace_f2fs_commit_inmem_page(cur->page, INMEM);
@@ -1416,14 +1417,17 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
 }
 
 void f2fs_wait_on_page_writeback(struct page *page,
-				enum page_type type)
+				enum page_type type, bool ordered)
 {
 	if (PageWriteback(page)) {
 		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
 		if (is_merged_page(sbi, page, type))
 			f2fs_submit_merged_bio(sbi, type, WRITE);
-		wait_on_page_writeback(page);
+		if (ordered)
+			wait_on_page_writeback(page);
+		else
+			wait_for_stable_page(page);
 	}
 }
 
@@ -1439,7 +1443,7 @@ void f2fs_wait_on_encrypted_page_writeback(struct f2fs_sb_info *sbi,
 
 	cpage = find_lock_page(META_MAPPING(sbi), blkaddr);
 	if (cpage) {
-		f2fs_wait_on_page_writeback(cpage, DATA);
+		f2fs_wait_on_page_writeback(cpage, DATA, true);
 		f2fs_put_page(cpage, 1);
 	}
 }

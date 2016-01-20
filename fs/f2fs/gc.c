@@ -446,7 +446,7 @@ next_step:
 
 		/* set page dirty and write it */
 		if (gc_type == FG_GC) {
-			f2fs_wait_on_page_writeback(node_page, NODE);
+			f2fs_wait_on_page_writeback(node_page, NODE, true);
 			set_page_dirty(node_page);
 		} else {
 			if (!PageWriteback(node_page))
@@ -553,7 +553,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 	 * don't cache encrypted data into meta inode until previous dirty
 	 * data were writebacked to avoid racing between GC and flush.
 	 */
-	f2fs_wait_on_page_writeback(page, DATA);
+	f2fs_wait_on_page_writeback(page, DATA, true);
 
 	get_node_info(fio.sbi, dn.nid, &ni);
 	set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
@@ -582,14 +582,14 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 		goto put_page_out;
 
 	set_page_dirty(fio.encrypted_page);
-	f2fs_wait_on_page_writeback(fio.encrypted_page, DATA);
+	f2fs_wait_on_page_writeback(fio.encrypted_page, DATA, true);
 	if (clear_page_dirty_for_io(fio.encrypted_page))
 		dec_page_count(fio.sbi, F2FS_DIRTY_META);
 
 	set_page_writeback(fio.encrypted_page);
 
 	/* allocate block address */
-	f2fs_wait_on_page_writeback(dn.node_page, NODE);
+	f2fs_wait_on_page_writeback(dn.node_page, NODE, true);
 	allocate_data_block(fio.sbi, NULL, fio.blk_addr,
 					&fio.blk_addr, &sum, CURSEG_COLD_DATA);
 	fio.rw = WRITE_SYNC;
@@ -631,7 +631,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.encrypted_page = NULL,
 		};
 		set_page_dirty(page);
-		f2fs_wait_on_page_writeback(page, DATA);
+		f2fs_wait_on_page_writeback(page, DATA, true);
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
 		set_cold_data(page);
