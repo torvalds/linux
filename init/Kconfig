@@ -964,10 +964,13 @@ config MEMCG_SWAP_ENABLED
 	  For those who want to have the feature enabled by default should
 	  select this option (if, for some reason, they need to disable it
 	  then swapaccount=0 does the trick).
+config MEMCG_LEGACY_KMEM
+       bool
 config MEMCG_KMEM
-	bool "Memory Resource Controller Kernel Memory accounting"
+	bool "Legacy Memory Resource Controller Kernel Memory accounting"
 	depends on MEMCG
 	depends on SLUB || SLAB
+	select MEMCG_LEGACY_KMEM
 	help
 	  The Kernel Memory extension for Memory Resource Controller can limit
 	  the amount of memory used by kernel objects in the system. Those are
@@ -1070,6 +1073,11 @@ config CGROUP_FREEZER
 	help
 	  Provides a way to freeze and unfreeze all tasks in a
 	  cgroup.
+
+	  This option affects the ORIGINAL cgroup interface. The cgroup2 memory
+	  controller includes important in-kernel memory consumers per default.
+
+	  If you're using cgroup2, say N.
 
 config CGROUP_HUGETLB
 	bool "HugeTLB controller"
