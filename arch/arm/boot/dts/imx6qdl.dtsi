@@ -923,11 +923,30 @@
 			reg = <0x02100000 0x100000>;
 			ranges;
 
-			caam@02100000 {
-				reg = <0x02100000 0x40000>;
-				interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>,
-					     <0 106 IRQ_TYPE_LEVEL_HIGH>;
-			};
+			crypto: caam@2100000 {
+                                compatible = "fsl,sec-v4.0";
+                                #address-cells = <1>;
+                                #size-cells = <1>;
+                                reg = <0x2100000 0x40000>;
+                                ranges = <0 0x2100000 0x40000>;
+                                interrupt-parent = <&intc>; /* interrupts = <0 92 0x4>; */
+                                clocks = <&clks IMX6QDL_CAAM_MEM>, <&clks IMX6QDL_CAAM_ACLK>, <&clks IMX6QDL_CAAM_IPG> ,<&clks IMX6QDL_CLK_EIM_SLOW>;
+                                clock-names = "caam_mem", "caam_aclk", "caam_ipg", "caam_emi_slow";
+
+                                sec_jr0: jr0@1000 {
+                                        compatible = "fsl,sec-v4.0-job-ring";
+                                        reg = <0x1000 0x1000>;
+                                        interrupt-parent = <&intc>;
+                                        interrupts = <0 105 0x4>;
+                                };
+
+                                sec_jr1: jr1@2000 {
+                                        compatible = "fsl,sec-v4.0-job-ring";
+                                        reg = <0x2000 0x1000>;
+                                        interrupt-parent = <&intc>;
+                                        interrupts = <0 106 0x4>;
+                                };
+				};
 
 			aipstz@0217c000 { /* AIPSTZ2 */
 				reg = <0x0217c000 0x4000>;
