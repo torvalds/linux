@@ -1907,7 +1907,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	memset(param, 0, param_len);
 
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
-	memset(param->sta_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(param->sta_addr);
 
 	switch (pext->alg) {
 	case IW_ENCODE_ALG_NONE:
