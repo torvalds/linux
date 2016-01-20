@@ -417,22 +417,11 @@ static struct be_mcc_compl *be_mcc_compl_get(struct beiscsi_hba *phba)
 }
 
 /**
- * be2iscsi_fail_session(): Closing session with appropriate error
+ * beiscsi_fail_session(): Closing session with appropriate error
  * @cls_session: ptr to session
- *
- * Depending on adapter state appropriate error flag is passed.
  **/
-void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
+void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
 {
-	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
-	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	uint32_t iscsi_err_flag;
-
-	if (phba->state & BE_ADAPTER_STATE_SHUTDOWN)
-		iscsi_err_flag = ISCSI_ERR_INVALID_HOST;
-	else
-		iscsi_err_flag = ISCSI_ERR_CONN_FAILED;
-
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
@@ -450,7 +439,7 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 			    evt->physical_port);
 
 		iscsi_host_for_each_session(phba->shost,
-					    be2iscsi_fail_session);
+					    beiscsi_fail_session);
 	} else if ((evt->port_link_status & ASYNC_EVENT_LINK_UP) ||
 		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
 		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {

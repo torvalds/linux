@@ -5313,7 +5313,6 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba,
 
 static void beiscsi_remove(struct pci_dev *pcidev)
 {
-
 	struct beiscsi_hba *phba = NULL;
 
 	phba = pci_get_drvdata(pcidev);
@@ -5323,31 +5322,14 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 	}
 
 	beiscsi_destroy_def_ifaces(phba);
-	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
 	iscsi_boot_destroy_kset(phba->boot_kset);
 	iscsi_host_remove(phba->shost);
+	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
 	pci_disable_pcie_error_reporting(pcidev);
 	pci_set_drvdata(pcidev, NULL);
 	pci_release_regions(pcidev);
-	pci_disable_device(pcidev);
-}
-
-static void beiscsi_shutdown(struct pci_dev *pcidev)
-{
-
-	struct beiscsi_hba *phba = NULL;
-
-	phba = (struct beiscsi_hba *)pci_get_drvdata(pcidev);
-	if (!phba) {
-		dev_err(&pcidev->dev, "beiscsi_shutdown called with no phba\n");
-		return;
-	}
-
-	phba->state = BE_ADAPTER_STATE_SHUTDOWN;
-	iscsi_host_for_each_session(phba->shost, be2iscsi_fail_session);
-	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
 	pci_disable_device(pcidev);
 }
 
@@ -5670,6 +5652,9 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto hba_free;
 	}
 
+	/*
+	 * FUNCTION_RESET should clean up any stale info in FW for this fn
+	 */
 	ret = beiscsi_cmd_reset_function(phba);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -5857,7 +5842,6 @@ static struct pci_driver beiscsi_pci_driver = {
 	.name = DRV_NAME,
 	.probe = beiscsi_dev_probe,
 	.remove = beiscsi_remove,
-	.shutdown = beiscsi_shutdown,
 	.id_table = beiscsi_pci_id_table,
 	.err_handler = &beiscsi_eeh_handlers
 };
