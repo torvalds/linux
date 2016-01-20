@@ -2706,10 +2706,11 @@ F:	fs/ceph/
 CERTIFICATE HANDLING:
 M:	David Howells <dhowells@redhat.com>
 M:	David Woodhouse <dwmw2@infradead.org>
-L:	keyrings@linux-nfs.org
+L:	keyrings@vger.kernel.org
 S:	Maintained
 F:	Documentation/module-signing.txt
 F:	certs/
+F:	scripts/sign-file.c
 F:	scripts/extract-cert.c
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
