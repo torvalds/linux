@@ -2525,6 +2525,7 @@ static int vop_early_suspend(struct rk_lcdc_driver *dev_drv)
 		return 0;
 
 	dev_drv->suspend_flag = 1;
+	smp_wmb();
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
@@ -2538,8 +2539,10 @@ static int vop_early_suspend(struct rk_lcdc_driver *dev_drv)
 		vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(1));
 		vop_cfg_done(vop_dev);
 
-		if (dev_drv->iommu_enabled && dev_drv->mmu_dev)
-				rockchip_iovmm_deactivate(dev_drv->dev);
+		if (dev_drv->iommu_enabled && dev_drv->mmu_dev) {
+			mdelay(50);
+			rockchip_iovmm_deactivate(dev_drv->dev);
+		}
 
 		spin_unlock(&vop_dev->reg_lock);
 	}
@@ -3640,7 +3643,7 @@ static void vop_shutdown(struct platform_device *pdev)
 	struct rk_lcdc_driver *dev_drv = &vop_dev->driver;
 
 	dev_drv->suspend_flag = 1;
-	mdelay(100);
+	smp_wmb();
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 	kthread_stop(dev_drv->update_regs_thread);
 	vop_deint(vop_dev);

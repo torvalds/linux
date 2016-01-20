@@ -1816,6 +1816,17 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	int count = 100;
 	long timeout;
 	int pagefault = 0;
+
+	if (dev_drv->suspend_flag == 1) {
+#ifdef H_USE_FENCE
+		sw_sync_timeline_inc(dev_drv->timeline, 1);
+#endif
+		for (i = 0; i < regs->win_num; i++) {
+			win_data = &regs->reg_win_data[i];
+			rk_fb_free_dma_buf(dev_drv, win_data);
+		}
+		return;
+	}
 	/* acq_fence wait */
 	for (i = 0; i < regs->win_num; i++) {
 		win_data = &regs->reg_win_data[i];
