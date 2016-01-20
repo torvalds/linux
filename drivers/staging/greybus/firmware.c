@@ -88,10 +88,19 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
 		 firmware->vendor_id, firmware->product_id, stage);
 
+	// FIXME:
+	// Turn to dev_dbg later after everyone has valid bootloaders with good
+	// ids, but leave this as dev_info for now to make it easier to track
+	// down "empty" vid/pid modules.
+	dev_info(&connection->bundle->dev, "Firmware file '%s' requested\n",
+		 firmware_name);
+
 	rc = request_firmware(&firmware->fw, firmware_name,
 		&connection->bundle->dev);
-	dev_dbg(&connection->bundle->dev, "Searched for TFTF %s: %d\n",
-		firmware_name, rc);
+	if (rc)
+		dev_err(&connection->bundle->dev,
+			"Firware request for %s has failed : %d",
+			firmware_name, rc);
 	return rc;
 }
 
