@@ -29,6 +29,7 @@
 #include <linux/iscsi_boot_sysfs.h>
 #include <linux/module.h>
 #include <linux/bsg-lib.h>
+#include <linux/irq_poll.h>
 
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_bsg_iscsi.h>
@@ -895,31 +896,17 @@ static irqreturn_t be_isr_mcc(int irq, void *dev_id)
 static irqreturn_t be_isr_msix(int irq, void *dev_id)
 {
 	struct beiscsi_hba *phba;
-	struct be_eq_entry *eqe = NULL;
 	struct be_queue_info *eq;
-	struct be_queue_info *cq;
-	unsigned int num_eq_processed;
 	struct be_eq_obj *pbe_eq;
 
 	pbe_eq = dev_id;
 	eq = &pbe_eq->q;
-	cq = pbe_eq->cq;
-	eqe = queue_tail_node(eq);
 
 	phba = pbe_eq->phba;
-	num_eq_processed = 0;
-	while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
-				& EQE_VALID_MASK) {
-		irq_poll_sched(&pbe_eq->iopoll);
 
-		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
-		queue_tail_inc(eq);
-		eqe = queue_tail_node(eq);
-		num_eq_processed++;
-	}
-
-	if (num_eq_processed)
-		hwi_ring_eq_db(phba, eq->id, 1,	num_eq_processed, 0, 1);
+	/* disable interrupt till iopoll completes */
+	hwi_ring_eq_db(phba, eq->id, 1,	0, 0, 1);
+	irq_poll_sched(&pbe_eq->iopoll);
 
 	return IRQ_HANDLED;
 }
@@ -996,6 +983,7 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
+
 static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 {
 	struct pci_dev *pcidev = phba->pcidev;
@@ -1070,7 +1058,7 @@ free_msix_irqs:
 
 void hwi_ring_cq_db(struct beiscsi_hba *phba,
 			   unsigned int id, unsigned int num_processed,
-			   unsigned char rearm, unsigned char event)
+			   unsigned char rearm)
 {
 	u32 val = 0;
 
@@ -2042,7 +2030,7 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 
 		if (num_processed >= 32) {
 			hwi_ring_cq_db(phba, mcc_cq->id,
-					num_processed, 0, 0);
+					num_processed, 0);
 			num_processed = 0;
 		}
 		if (mcc_compl->flags & CQE_FLAGS_ASYNC_MASK) {
@@ -2060,24 +2048,25 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 	}
 
 	if (num_processed > 0)
-		hwi_ring_cq_db(phba, mcc_cq->id, num_processed, 1, 0);
+		hwi_ring_cq_db(phba, mcc_cq->id, num_processed, 1);
 
 }
 
 /**
  * beiscsi_process_cq()- Process the Completion Queue
  * @pbe_eq: Event Q on which the Completion has come
+ * @budget: Max number of events to processed
  *
  * return
  *     Number of Completion Entries processed.
  **/
-unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
+unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 {
 	struct be_queue_info *cq;
 	struct sol_cqe *sol;
 	struct dmsg_cqe *dmsg;
+	unsigned int total = 0;
 	unsigned int num_processed = 0;
-	unsigned int tot_nump = 0;
 	unsigned short code = 0, cid = 0;
 	uint16_t cri_index = 0;
 	struct beiscsi_conn *beiscsi_conn;
@@ -2128,12 +2117,12 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		beiscsi_ep = ep->dd_data;
 		beiscsi_conn = beiscsi_ep->conn;
 
-		if (num_processed >= 32) {
-			hwi_ring_cq_db(phba, cq->id,
-					num_processed, 0, 0);
-			tot_nump += num_processed;
+		/* replenish cq */
+		if (num_processed == 32) {
+			hwi_ring_cq_db(phba, cq->id, 32, 0);
 			num_processed = 0;
 		}
+		total++;
 
 		switch (code) {
 		case SOL_CMD_COMPLETE:
@@ -2178,7 +2167,13 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 				    "BM_%d : Ignoring %s[%d] on CID : %d\n",
 				    cqe_desc[code], code, cid);
 			break;
+		case CXN_KILLED_HDR_DIGEST_ERR:
 		case SOL_CMD_KILLED_DATA_DIGEST_ERR:
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
+				    "BM_%d : Cmd Notification %s[%d] on CID : %d\n",
+				    cqe_desc[code], code,  cid);
+			break;
 		case CMD_KILLED_INVALID_STATSN_RCVD:
 		case CMD_KILLED_INVALID_R2T_RCVD:
 		case CMD_CXN_KILLED_LUN_INVALID:
@@ -2204,7 +2199,6 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case CXN_KILLED_PDU_SIZE_EXCEEDS_DSL:
 		case CXN_KILLED_BURST_LEN_MISMATCH:
 		case CXN_KILLED_AHS_RCVD:
-		case CXN_KILLED_HDR_DIGEST_ERR:
 		case CXN_KILLED_UNKNOWN_HDR:
 		case CXN_KILLED_STALE_ITT_TTT_RCVD:
 		case CXN_KILLED_INVALID_ITT_TTT_RCVD:
@@ -2239,13 +2233,12 @@ proc_next_cqe:
 		queue_tail_inc(cq);
 		sol = queue_tail_node(cq);
 		num_processed++;
+		if (total == budget)
+			break;
 	}
 
-	if (num_processed > 0) {
-		tot_nump += num_processed;
-		hwi_ring_cq_db(phba, cq->id, num_processed, 1, 0);
-	}
-	return tot_nump;
+	hwi_ring_cq_db(phba, cq->id, num_processed, 1);
+	return total;
 }
 
 void beiscsi_process_all_cqs(struct work_struct *work)
@@ -2272,7 +2265,7 @@ void beiscsi_process_all_cqs(struct work_struct *work)
 		spin_lock_irqsave(&phba->isr_lock, flags);
 		pbe_eq->todo_cq = false;
 		spin_unlock_irqrestore(&phba->isr_lock, flags);
-		beiscsi_process_cq(pbe_eq);
+		beiscsi_process_cq(pbe_eq, BE2_MAX_NUM_CQ_PROC);
 	}
 
 	/* rearm EQ for further interrupts */
@@ -2281,20 +2274,36 @@ void beiscsi_process_all_cqs(struct work_struct *work)
 
 static int be_iopoll(struct irq_poll *iop, int budget)
 {
-	unsigned int ret;
+	unsigned int ret, num_eq_processed;
 	struct beiscsi_hba *phba;
 	struct be_eq_obj *pbe_eq;
+	struct be_eq_entry *eqe = NULL;
+	struct be_queue_info *eq;
 
+	num_eq_processed = 0;
 	pbe_eq = container_of(iop, struct be_eq_obj, iopoll);
-	ret = beiscsi_process_cq(pbe_eq);
+	phba = pbe_eq->phba;
+	eq = &pbe_eq->q;
+	eqe = queue_tail_node(eq);
+
+	while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32] &
+			EQE_VALID_MASK) {
+		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
+		queue_tail_inc(eq);
+		eqe = queue_tail_node(eq);
+		num_eq_processed++;
+	}
+
+	hwi_ring_eq_db(phba, eq->id, 1, num_eq_processed, 0, 1);
+
+	ret = beiscsi_process_cq(pbe_eq, budget);
 	pbe_eq->cq_count += ret;
 	if (ret < budget) {
-		phba = pbe_eq->phba;
 		irq_poll_complete(iop);
 		beiscsi_log(phba, KERN_INFO,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
-			    "BM_%d : rearm pbe_eq->q.id =%d\n",
-			    pbe_eq->q.id);
+			    "BM_%d : rearm pbe_eq->q.id =%d ret %d\n",
+			    pbe_eq->q.id, ret);
 		hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
 	}
 	return ret;

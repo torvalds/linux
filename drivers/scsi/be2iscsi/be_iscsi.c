@@ -1298,7 +1298,7 @@ static void beiscsi_flush_cq(struct beiscsi_hba *phba)
 	for (i = 0; i < phba->num_cpus; i++) {
 		pbe_eq = &phwi_context->be_eq[i];
 		irq_poll_disable(&pbe_eq->iopoll);
-		beiscsi_process_cq(pbe_eq);
+		beiscsi_process_cq(pbe_eq, BE2_MAX_NUM_CQ_PROC);
 		irq_poll_enable(&pbe_eq->iopoll);
 	}
 }

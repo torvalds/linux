@@ -63,6 +63,7 @@
 #define BE2_SGE			32
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
+#define BE2_MAX_NUM_CQ_PROC	512
 
 #define MAX_CPUS		64
 #define BEISCSI_MAX_NUM_CPUS	7
@@ -848,9 +849,9 @@ void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 
 void hwi_ring_cq_db(struct beiscsi_hba *phba,
 		     unsigned int id, unsigned int num_processed,
-		     unsigned char rearm, unsigned char event);
+		     unsigned char rearm);
 
-unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq);
+unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
 
 static inline bool beiscsi_error(struct beiscsi_hba *phba)
 {
