@@ -466,6 +466,10 @@ beiscsi_set_ipv6(struct Scsi_Host *shost,
 		ret = mgmt_set_ip(phba, iface_param, NULL,
 				  ISCSI_BOOTPROTO_STATIC);
 		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+	case ISCSI_NET_PARAM_VLAN_TAG:
+		ret = beiscsi_set_vlan_tag(shost, iface_param);
+		break;
 	default:
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Param %d not supported\n",
