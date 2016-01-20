@@ -417,7 +417,7 @@ void __init ima_init_policy(void)
 }
 
 /* Make sure we have a valid policy, at least containing some rules. */
-int ima_check_policy()
+int ima_check_policy(void)
 {
 	if (list_empty(&ima_temp_rules))
 		return -EINVAL;
