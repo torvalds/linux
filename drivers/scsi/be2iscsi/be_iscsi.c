@@ -367,13 +367,14 @@ beiscsi_set_vlan_tag(struct Scsi_Host *shost,
 		      struct iscsi_iface_param_info *iface_param)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	int ret = 0;
+	int ret;
 
 	/* Get the Interface Handle */
-	if (mgmt_get_all_if_id(phba)) {
+	ret = mgmt_get_all_if_id(phba);
+	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Getting Interface Handle Failed\n");
-		return -EIO;
+		return ret;
 	}
 
 	switch (iface_param->param) {

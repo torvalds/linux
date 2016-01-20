@@ -1025,8 +1025,9 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 	uint32_t ip_type;
 	int rc;
 
-	if (mgmt_get_all_if_id(phba))
-		return -EIO;
+	rc = mgmt_get_all_if_id(phba);
+	if (rc)
+		return rc;
 
 	ip_type = (ip_param->param == ISCSI_NET_PARAM_IPV6_ADDR) ?
 		BE2_IPV6 : BE2_IPV4 ;
@@ -1195,8 +1196,9 @@ int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
 	uint32_t ioctl_size = sizeof(struct be_cmd_get_if_info_resp);
 	int rc;
 
-	if (mgmt_get_all_if_id(phba))
-		return -EIO;
+	rc = mgmt_get_all_if_id(phba);
+	if (rc)
+		return rc;
 
 	do {
 		rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
