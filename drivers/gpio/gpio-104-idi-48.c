@@ -267,7 +267,8 @@ static int __init idi_48_probe(struct platform_device *pdev)
 		goto err_gpiochip_irqchip_add;
 	}
 
-	err = request_irq(irq, idi_48_irq_handler, 0, name, idi48gpio);
+	err = request_irq(irq, idi_48_irq_handler, IRQF_SHARED, name,
+		idi48gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
 		goto err_request_irq;
