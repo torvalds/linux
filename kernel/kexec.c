@@ -63,15 +63,15 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 	if (ret)
 		goto out_free_image;
 
-	ret = sanity_check_segment_list(image);
-	if (ret)
-		goto out_free_image;
-
-	 /* Enable the special crash kernel control page allocation policy. */
 	if (kexec_on_panic) {
+		/* Enable special crash kernel control page alloc policy. */
 		image->control_page = crashk_res.start;
 		image->type = KEXEC_TYPE_CRASH;
 	}
+
+	ret = sanity_check_segment_list(image);
+	if (ret)
+		goto out_free_image;
 
 	/*
 	 * Find a location for the control code buffer, and add it
