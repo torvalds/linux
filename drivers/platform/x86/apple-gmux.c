@@ -701,18 +701,20 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		gmux_data->gpe = -1;
 	}
 
+	apple_gmux_data = gmux_data;
+	init_completion(&gmux_data->powerchange_done);
+	gmux_enable_interrupts(gmux_data);
+
 	if (vga_switcheroo_register_handler(&gmux_handler)) {
 		ret = -ENODEV;
 		goto err_register_handler;
 	}
 
-	init_completion(&gmux_data->powerchange_done);
-	apple_gmux_data = gmux_data;
-	gmux_enable_interrupts(gmux_data);
-
 	return 0;
 
 err_register_handler:
+	gmux_disable_interrupts(gmux_data);
+	apple_gmux_data = NULL;
 	if (gmux_data->gpe >= 0)
 		acpi_disable_gpe(NULL, gmux_data->gpe);
 err_enable_gpe:
