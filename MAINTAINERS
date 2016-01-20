@@ -4606,8 +4606,7 @@ F:	include/linux/f2fs_fs.h
 F:	include/trace/events/f2fs.h
 
 FUJITSU FR-V (FRV) PORT
-M:	David Howells <dhowells@redhat.com>
-S:	Maintained
+S:	Orphan
 F:	arch/frv/
 
 FUJITSU LAPTOP EXTRAS
