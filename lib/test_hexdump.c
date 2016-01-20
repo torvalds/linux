@@ -44,6 +44,9 @@ static const char * const test_data_8_le[] __initconst = {
 
 #define FILL_CHAR	'#'
 
+static unsigned total_tests __initdata;
+static unsigned failed_tests __initdata;
+
 static void __init test_hexdump_prepare_test(size_t len, int rowsize,
 					     int groupsize, char *test,
 					     size_t testlen, bool ascii)
@@ -107,6 +110,8 @@ static void __init test_hexdump(size_t len, int rowsize, int groupsize,
 	char test[TEST_HEXDUMP_BUF_SIZE];
 	char real[TEST_HEXDUMP_BUF_SIZE];
 
+	total_tests++;
+
 	memset(real, FILL_CHAR, sizeof(real));
 	hex_dump_to_buffer(data_b, len, rowsize, groupsize, real, sizeof(real),
 			   ascii);
@@ -119,6 +124,7 @@ static void __init test_hexdump(size_t len, int rowsize, int groupsize,
 		pr_err("Len: %zu row: %d group: %d\n", len, rowsize, groupsize);
 		pr_err("Result: '%s'\n", real);
 		pr_err("Expect: '%s'\n", test);
+		failed_tests++;
 	}
 }
 
@@ -142,6 +148,8 @@ static void __init test_hexdump_overflow(size_t buflen, size_t len,
 	int rs = rowsize, gs = groupsize;
 	int ae, he, e, f, r;
 	bool a;
+
+	total_tests++;
 
 	memset(buf, FILL_CHAR, sizeof(buf));
 
@@ -175,6 +183,7 @@ static void __init test_hexdump_overflow(size_t buflen, size_t len,
 			len, buflen, strnlen(buf, sizeof(buf)));
 		pr_err("Result: %d '%s'\n", r, buf);
 		pr_err("Expect: %d '%s'\n", e, test);
+		failed_tests++;
 	}
 }
 
@@ -196,8 +205,6 @@ static int __init test_hexdump_init(void)
 	unsigned int i;
 	int rowsize;
 
-	pr_info("Running tests...\n");
-
 	rowsize = (get_random_int() % 2 + 1) * 16;
 	for (i = 0; i < 16; i++)
 		test_hexdump_set(rowsize, false);
@@ -212,7 +219,20 @@ static int __init test_hexdump_init(void)
 	for (i = 0; i <= TEST_HEXDUMP_BUF_SIZE; i++)
 		test_hexdump_overflow_set(i, true);
 
-	return -EINVAL;
+	if (failed_tests == 0)
+		pr_info("all %u tests passed\n", total_tests);
+	else
+		pr_err("failed %u out of %u tests\n", failed_tests, total_tests);
+
+	return failed_tests ? -EINVAL : 0;
 }
 module_init(test_hexdump_init);
+
+static void __exit test_hexdump_exit(void)
+{
+	/* do nothing */
+}
+module_exit(test_hexdump_exit);
+
+MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_LICENSE("Dual BSD/GPL");
