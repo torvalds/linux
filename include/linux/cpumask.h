@@ -720,13 +720,48 @@ extern const DECLARE_BITMAP(cpu_all_bits, NR_CPUS);
 #define for_each_present_cpu(cpu)  for_each_cpu((cpu), cpu_present_mask)
 
 /* Wrappers for arch boot code to manipulate normally-constant masks */
-void set_cpu_possible(unsigned int cpu, bool possible);
-void set_cpu_present(unsigned int cpu, bool present);
-void set_cpu_online(unsigned int cpu, bool online);
-void set_cpu_active(unsigned int cpu, bool active);
 void init_cpu_present(const struct cpumask *src);
 void init_cpu_possible(const struct cpumask *src);
 void init_cpu_online(const struct cpumask *src);
+
+static inline void
+set_cpu_possible(unsigned int cpu, bool possible)
+{
+	if (possible)
+		cpumask_set_cpu(cpu, &__cpu_possible_mask);
+	else
+		cpumask_clear_cpu(cpu, &__cpu_possible_mask);
+}
+
+static inline void
+set_cpu_present(unsigned int cpu, bool present)
+{
+	if (present)
+		cpumask_set_cpu(cpu, &__cpu_present_mask);
+	else
+		cpumask_clear_cpu(cpu, &__cpu_present_mask);
+}
+
+static inline void
+set_cpu_online(unsigned int cpu, bool online)
+{
+	if (online) {
+		cpumask_set_cpu(cpu, &__cpu_online_mask);
+		cpumask_set_cpu(cpu, &__cpu_active_mask);
+	} else {
+		cpumask_clear_cpu(cpu, &__cpu_online_mask);
+	}
+}
+
+static inline void
+set_cpu_active(unsigned int cpu, bool active)
+{
+	if (active)
+		cpumask_set_cpu(cpu, &__cpu_active_mask);
+	else
+		cpumask_clear_cpu(cpu, &__cpu_active_mask);
+}
+
 
 /**
  * to_cpumask - convert an NR_CPUS bitmap to a struct cpumask *
