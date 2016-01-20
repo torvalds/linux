@@ -66,7 +66,6 @@
 #include "internal.h"
 #include <net/sock.h>
 #include <net/ip.h>
-#include <net/tcp_memcontrol.h>
 #include "slab.h"
 
 #include <asm/uaccess.h>
@@ -242,6 +241,7 @@ enum res_type {
 	_MEMSWAP,
 	_OOM_TYPE,
 	_KMEM,
+	_TCP,
 };
 
 #define MEMFILE_PRIVATE(x, val)	((x) << 16 | (val))
@@ -2842,6 +2842,11 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
 	case _KMEM:
 		counter = &memcg->kmem;
 		break;
+#if defined(CONFIG_MEMCG_LEGACY_KMEM) && defined(CONFIG_INET)
+	case _TCP:
+		counter = &memcg->tcp_mem.memory_allocated;
+		break;
+#endif
 	default:
 		BUG();
 	}
@@ -3028,6 +3033,48 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
 #endif /* CONFIG_MEMCG_LEGACY_KMEM */
 
 
+#if defined(CONFIG_MEMCG_LEGACY_KMEM) && defined(CONFIG_INET)
+static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
+{
+	int ret;
+
+	mutex_lock(&memcg_limit_mutex);
+
+	ret = page_counter_limit(&memcg->tcp_mem.memory_allocated, limit);
+	if (ret)
+		goto out;
+
+	if (!memcg->tcp_mem.active) {
+		/*
+		 * The active flag needs to be written after the static_key
+		 * update. This is what guarantees that the socket activation
+		 * function is the last one to run. See sock_update_memcg() for
+		 * details, and note that we don't mark any socket as belonging
+		 * to this memcg until that flag is up.
+		 *
+		 * We need to do this, because static_keys will span multiple
+		 * sites, but we can't control their order. If we mark a socket
+		 * as accounted, but the accounting functions are not patched in
+		 * yet, we'll lose accounting.
+		 *
+		 * We never race with the readers in sock_update_memcg(),
+		 * because when this value change, the code to process it is not
+		 * patched in yet.
+		 */
+		static_branch_inc(&memcg_sockets_enabled_key);
+		memcg->tcp_mem.active = true;
+	}
+out:
+	mutex_unlock(&memcg_limit_mutex);
+	return ret;
+}
+#else
+static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_MEMCG_LEGACY_KMEM && CONFIG_INET */
+
 /*
  * The user of this function is...
  * RES_LIMIT.
@@ -3060,6 +3107,9 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
 		case _KMEM:
 			ret = memcg_update_kmem_limit(memcg, nr_pages);
 			break;
+		case _TCP:
+			ret = memcg_update_tcp_limit(memcg, nr_pages);
+			break;
 		}
 		break;
 	case RES_SOFT_LIMIT:
@@ -3086,6 +3136,11 @@ static ssize_t mem_cgroup_reset(struct kernfs_open_file *of, char *buf,
 	case _KMEM:
 		counter = &memcg->kmem;
 		break;
+#if defined(CONFIG_MEMCG_LEGACY_KMEM) && defined(CONFIG_INET)
+	case _TCP:
+		counter = &memcg->tcp_mem.memory_allocated;
+		break;
+#endif
 	default:
 		BUG();
 	}
@@ -4072,6 +4127,31 @@ static struct cftype mem_cgroup_legacy_files[] = {
 		.seq_show = memcg_slab_show,
 	},
 #endif
+#ifdef CONFIG_INET
+	{
+		.name = "kmem.tcp.limit_in_bytes",
+		.private = MEMFILE_PRIVATE(_TCP, RES_LIMIT),
+		.write = mem_cgroup_write,
+		.read_u64 = mem_cgroup_read_u64,
+	},
+	{
+		.name = "kmem.tcp.usage_in_bytes",
+		.private = MEMFILE_PRIVATE(_TCP, RES_USAGE),
+		.read_u64 = mem_cgroup_read_u64,
+	},
+	{
+		.name = "kmem.tcp.failcnt",
+		.private = MEMFILE_PRIVATE(_TCP, RES_FAILCNT),
+		.write = mem_cgroup_reset,
+		.read_u64 = mem_cgroup_read_u64,
+	},
+	{
+		.name = "kmem.tcp.max_usage_in_bytes",
+		.private = MEMFILE_PRIVATE(_TCP, RES_MAX_USAGE),
+		.write = mem_cgroup_reset,
+		.read_u64 = mem_cgroup_read_u64,
+	},
+#endif
 #endif
 	{ },	/* terminate */
 };
@@ -4241,6 +4321,10 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, &parent->memsw);
 		page_counter_init(&memcg->kmem, &parent->kmem);
+#if defined(CONFIG_MEMCG_LEGACY_KMEM) && defined(CONFIG_INET)
+		page_counter_init(&memcg->tcp_mem.memory_allocated,
+				  &parent->tcp_mem.memory_allocated);
+#endif
 
 		/*
 		 * No need to take a reference to the parent because cgroup
@@ -4252,6 +4336,9 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, NULL);
 		page_counter_init(&memcg->kmem, NULL);
+#if defined(CONFIG_MEMCG_LEGACY_KMEM) && defined(CONFIG_INET)
+		page_counter_init(&memcg->tcp_mem.memory_allocated, NULL);
+#endif
 		/*
 		 * Deeper hierachy with use_hierarchy == false doesn't make
 		 * much sense so let cgroup subsystem know about this
@@ -4267,12 +4354,6 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		return ret;
 
 #ifdef CONFIG_INET
-#ifdef CONFIG_MEMCG_LEGACY_KMEM
-	ret = tcp_init_cgroup(memcg);
-	if (ret)
-		return ret;
-#endif
-
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
 		static_branch_inc(&memcg_sockets_enabled_key);
 #endif
@@ -4330,7 +4411,8 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
 	memcg_free_kmem(memcg);
 
 #if defined(CONFIG_MEMCG_LEGACY_KMEM) && defined(CONFIG_INET)
-	tcp_destroy_cgroup(memcg);
+	if (memcg->tcp_mem.active)
+		static_branch_dec(&memcg_sockets_enabled_key);
 #endif
 
 	__mem_cgroup_free(memcg);
