@@ -1266,9 +1266,6 @@ void hists__filter_by_dso(struct hists *hists)
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
-		if (symbol_conf.exclude_other && !h->parent)
-			continue;
-
 		if (hists__filter_entry_by_dso(hists, h))
 			continue;
 
