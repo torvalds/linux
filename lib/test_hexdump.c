@@ -133,7 +133,9 @@ static void __init test_hexdump_set(int rowsize, bool ascii)
 	test_hexdump(len, rowsize, 1, ascii);
 }
 
-static void __init test_hexdump_overflow(size_t buflen, bool ascii)
+static void __init test_hexdump_overflow(size_t buflen, size_t len,
+					 int rowsize, int groupsize,
+					 bool ascii)
 {
 	char test[TEST_HEXDUMP_BUF_SIZE];
 	char buf[TEST_HEXDUMP_BUF_SIZE];
@@ -176,6 +178,19 @@ static void __init test_hexdump_overflow(size_t buflen, bool ascii)
 	}
 }
 
+static void __init test_hexdump_overflow_set(size_t buflen, bool ascii)
+{
+	unsigned int i = 0;
+	int rs = (get_random_int() % 2 + 1) * 16;
+
+	do {
+		int gs = 1 << i;
+		size_t len = get_random_int() % rs + gs;
+
+		test_hexdump_overflow(buflen, rounddown(len, gs), rs, gs, ascii);
+	} while (i++ < 3);
+}
+
 static int __init test_hexdump_init(void)
 {
 	unsigned int i;
@@ -192,10 +207,10 @@ static int __init test_hexdump_init(void)
 		test_hexdump_set(rowsize, true);
 
 	for (i = 0; i <= TEST_HEXDUMP_BUF_SIZE; i++)
-		test_hexdump_overflow(i, false);
+		test_hexdump_overflow_set(i, false);
 
 	for (i = 0; i <= TEST_HEXDUMP_BUF_SIZE; i++)
-		test_hexdump_overflow(i, true);
+		test_hexdump_overflow_set(i, true);
 
 	return -EINVAL;
 }
