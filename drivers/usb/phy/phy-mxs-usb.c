@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright 2012-2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
  *
@@ -254,7 +254,7 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 /* Return true if the vbus is there */
 static bool mxs_phy_get_vbus_status(struct mxs_phy *mxs_phy)
 {
-	unsigned int vbus_value;
+	unsigned int vbus_value = 0;
 
 	if (!mxs_phy->regmap_anatop)
 		return false;
