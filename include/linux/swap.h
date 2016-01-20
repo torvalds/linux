@@ -368,10 +368,16 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
 #endif
 #ifdef CONFIG_MEMCG_SWAP
 extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
 extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
 #else
 static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 {
+}
+static inline int mem_cgroup_try_charge_swap(struct page *page,
+					     swp_entry_t entry)
+{
+	return 0;
 }
 static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
 {
