@@ -236,6 +236,17 @@
 				};
 			};
 
+			tsc: tsc@02040000 {
+				compatible = "fsl,imx6ul-tsc";
+				reg = <0x02040000 0x4000>, <0x0219c000 0x4000>;
+				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_IPG>,
+					 <&clks IMX6UL_CLK_ADC2>;
+				clock-names = "tsc", "adc";
+				status = "disabled";
+			};
+
 			gpt1: gpt@02098000 {
 				compatible = "fsl,imx6ul-gpt", "fsl,imx6sx-gpt";
 				reg = <0x02098000 0x4000>;
@@ -587,17 +598,6 @@
 					      "enet_clk_ref", "enet_out";
 				fsl,num-tx-queues=<1>;
 				fsl,num-rx-queues=<1>;
-				status = "disabled";
-			};
-
-			tsc: tsc@02040000 {
-				compatible = "fsl,imx6ul-tsc";
-				reg = <0x02040000 0x4000>, <0x0219c000 0x4000>;
-				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6UL_CLK_IPG>,
-					 <&clks IMX6UL_CLK_ADC2>;
-				clock-names = "tsc", "adc";
 				status = "disabled";
 			};
 
