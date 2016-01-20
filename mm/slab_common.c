@@ -503,10 +503,10 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	mutex_lock(&slab_mutex);
 
 	/*
-	 * The memory cgroup could have been deactivated while the cache
+	 * The memory cgroup could have been offlined while the cache
 	 * creation work was pending.
 	 */
-	if (!memcg_kmem_is_active(memcg))
+	if (!memcg_kmem_online(memcg))
 		goto out_unlock;
 
 	idx = memcg_cache_id(memcg);

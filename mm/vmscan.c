@@ -411,7 +411,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
 	struct shrinker *shrinker;
 	unsigned long freed = 0;
 
-	if (memcg && !memcg_kmem_is_active(memcg))
+	if (memcg && !memcg_kmem_online(memcg))
 		return 0;
 
 	if (nr_scanned == 0)

@@ -2378,7 +2378,7 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
 	struct page_counter *counter;
 	int ret;
 
-	if (!memcg_kmem_is_active(memcg))
+	if (!memcg_kmem_online(memcg))
 		return 0;
 
 	if (!page_counter_try_charge(&memcg->kmem, nr_pages, &counter))
@@ -2861,14 +2861,13 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
 }
 
 #ifdef CONFIG_MEMCG_KMEM
-static int memcg_activate_kmem(struct mem_cgroup *memcg)
+static int memcg_online_kmem(struct mem_cgroup *memcg)
 {
 	int err = 0;
 	int memcg_id;
 
 	BUG_ON(memcg->kmemcg_id >= 0);
-	BUG_ON(memcg->kmem_acct_activated);
-	BUG_ON(memcg->kmem_acct_active);
+	BUG_ON(memcg->kmem_state);
 
 	/*
 	 * For simplicity, we won't allow this to be disabled.  It also can't
@@ -2898,14 +2897,13 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg)
 
 	static_branch_inc(&memcg_kmem_enabled_key);
 	/*
-	 * A memory cgroup is considered kmem-active as soon as it gets
+	 * A memory cgroup is considered kmem-online as soon as it gets
 	 * kmemcg_id. Setting the id after enabling static branching will
 	 * guarantee no one starts accounting before all call sites are
 	 * patched.
 	 */
 	memcg->kmemcg_id = memcg_id;
-	memcg->kmem_acct_activated = true;
-	memcg->kmem_acct_active = true;
+	memcg->kmem_state = KMEM_ONLINE;
 out:
 	return err;
 }
@@ -2917,8 +2915,8 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
 
 	mutex_lock(&memcg_limit_mutex);
 	/* Top-level cgroup doesn't propagate from root */
-	if (!memcg_kmem_is_active(memcg)) {
-		ret = memcg_activate_kmem(memcg);
+	if (!memcg_kmem_online(memcg)) {
+		ret = memcg_online_kmem(memcg);
 		if (ret)
 			goto out;
 	}
@@ -2938,11 +2936,12 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
 
 	mutex_lock(&memcg_limit_mutex);
 	/*
-	 * If the parent cgroup is not kmem-active now, it cannot be activated
-	 * after this point, because it has at least one child already.
+	 * If the parent cgroup is not kmem-online now, it cannot be
+	 * onlined after this point, because it has at least one child
+	 * already.
 	 */
-	if (memcg_kmem_is_active(parent))
-		ret = memcg_activate_kmem(memcg);
+	if (memcg_kmem_online(parent))
+		ret = memcg_online_kmem(memcg);
 	mutex_unlock(&memcg_limit_mutex);
 	return ret;
 }
@@ -3590,22 +3589,21 @@ static int memcg_init_kmem(struct mem_cgroup *memcg)
 	return tcp_init_cgroup(memcg);
 }
 
-static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
+static void memcg_offline_kmem(struct mem_cgroup *memcg)
 {
 	struct cgroup_subsys_state *css;
 	struct mem_cgroup *parent, *child;
 	int kmemcg_id;
 
-	if (!memcg->kmem_acct_active)
+	if (memcg->kmem_state != KMEM_ONLINE)
 		return;
-
 	/*
-	 * Clear the 'active' flag before clearing memcg_caches arrays entries.
-	 * Since we take the slab_mutex in memcg_deactivate_kmem_caches(), it
-	 * guarantees no cache will be created for this cgroup after we are
-	 * done (see memcg_create_kmem_cache()).
+	 * Clear the online state before clearing memcg_caches array
+	 * entries. The slab_mutex in memcg_deactivate_kmem_caches()
+	 * guarantees that no cache will be created for this cgroup
+	 * after we are done (see memcg_create_kmem_cache()).
 	 */
-	memcg->kmem_acct_active = false;
+	memcg->kmem_state = KMEM_ALLOCATED;
 
 	memcg_deactivate_kmem_caches(memcg);
 
@@ -3636,9 +3634,9 @@ static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
 	memcg_free_cache_id(kmemcg_id);
 }
 
-static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+static void memcg_free_kmem(struct mem_cgroup *memcg)
 {
-	if (memcg->kmem_acct_activated) {
+	if (memcg->kmem_state == KMEM_ALLOCATED) {
 		memcg_destroy_kmem_caches(memcg);
 		static_branch_dec(&memcg_kmem_enabled_key);
 		WARN_ON(page_counter_read(&memcg->kmem));
@@ -3651,11 +3649,11 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 	return 0;
 }
 
-static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
+static void memcg_offline_kmem(struct mem_cgroup *memcg)
 {
 }
 
-static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+static void memcg_free_kmem(struct mem_cgroup *memcg)
 {
 }
 #endif
@@ -4308,7 +4306,7 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 
 	vmpressure_cleanup(&memcg->vmpressure);
 
-	memcg_deactivate_kmem(memcg);
+	memcg_offline_kmem(memcg);
 
 	wb_memcg_offline(memcg);
 }
@@ -4324,7 +4322,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
-	memcg_destroy_kmem(memcg);
+	memcg_free_kmem(memcg);
 #ifdef CONFIG_INET
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
 		static_branch_dec(&memcg_sockets_enabled_key);
