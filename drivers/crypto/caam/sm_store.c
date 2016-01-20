@@ -36,6 +36,7 @@
 #include "intern.h"
 #include "error.h"
 #include "sm.h"
+#include <linux/of_address.h>
 
 #define SECMEM_KEYMOD_LEN 8
 #define GENMEM_KEYMOD_LEN 16
@@ -1013,6 +1014,8 @@ int caam_sm_startup(struct platform_device *pdev)
 	/* Create the dev */
 #ifdef CONFIG_OF
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-caam-sm");
+	if (np)
+		of_node_clear_flag(np, OF_POPULATED);
 	sm_pdev = of_platform_device_create(np, "caam_sm", ctrldev);
 #else
 	sm_pdev = platform_device_register_data(ctrldev, "caam_sm", 0,
