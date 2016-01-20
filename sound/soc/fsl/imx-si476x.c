@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -98,6 +98,7 @@ static struct snd_soc_card snd_soc_card_imx_3stack = {
 	.name = "imx-audio-si476x",
 	.dai_link = &imx_dai,
 	.num_links = 1,
+	.owner = THIS_MODULE,
 };
 
 static int imx_si476x_probe(struct platform_device *pdev)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -479,6 +479,7 @@ static int imx_wm8958_probe(struct platform_device *pdev)
 	data->dai.dai_fmt |= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF;
 	data->card.set_bias_level = imx_wm8958_set_bias_level;
 	data->card.set_bias_level_post = imx_wm8958_set_bias_level_post;
+	data->card.owner = THIS_MODULE;
 
 	data->card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&data->card, "model");

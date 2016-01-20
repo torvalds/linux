@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -225,6 +225,7 @@ static int imx_sii902x_probe(struct platform_device *pdev)
 			    SND_SOC_DAIFMT_CBS_CFS;
 
 	data->card.dev = &pdev->dev;
+	data->card.owner = THIS_MODULE;
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret)
 		goto fail;

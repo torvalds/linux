@@ -215,6 +215,7 @@ static struct snd_soc_card snd_soc_card_imx_cs42888 = {
 	.num_dapm_widgets = ARRAY_SIZE(imx_cs42888_dapm_widgets),
 	.dapm_routes = audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.owner = THIS_MODULE,
 };
 
 /*
