@@ -2306,7 +2306,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	tile_size = intel_tile_size(dev_priv);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	tile_width = intel_tile_width(dev_priv, cpp, fb->modifier[0]);
+	tile_width = intel_tile_width(dev_priv, fb->modifier[0], cpp);
 	tile_height = tile_size / tile_width;
 
 	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_width);
