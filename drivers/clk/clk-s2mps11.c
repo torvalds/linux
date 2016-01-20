@@ -99,6 +99,7 @@ static struct clk_ops s2mps11_clk_ops = {
 	.recalc_rate	= s2mps11_clk_recalc_rate,
 };
 
+/* This s2mps11_clks_init tructure is common to s2mps11, s2mps13 and s2mps14 */
 static struct clk_init_data s2mps11_clks_init[S2MPS11_CLKS_NUM] = {
 	[S2MPS11_CLK_AP] = {
 		.name = "s2mps11_ap",
@@ -112,37 +113,6 @@ static struct clk_init_data s2mps11_clks_init[S2MPS11_CLKS_NUM] = {
 	},
 	[S2MPS11_CLK_BT] = {
 		.name = "s2mps11_bt",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-};
-
-static struct clk_init_data s2mps13_clks_init[S2MPS11_CLKS_NUM] = {
-	[S2MPS11_CLK_AP] = {
-		.name = "s2mps13_ap",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-	[S2MPS11_CLK_CP] = {
-		.name = "s2mps13_cp",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-	[S2MPS11_CLK_BT] = {
-		.name = "s2mps13_bt",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-};
-
-static struct clk_init_data s2mps14_clks_init[S2MPS11_CLKS_NUM] = {
-	[S2MPS11_CLK_AP] = {
-		.name = "s2mps14_ap",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-	[S2MPS11_CLK_BT] = {
-		.name = "s2mps14_bt",
 		.ops = &s2mps11_clk_ops,
 		.flags = CLK_IS_ROOT,
 	},
@@ -164,12 +134,9 @@ static struct device_node *s2mps11_clk_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
-		if (!clks_init[i].name)
-			continue; /* Skip clocks not present in some devices */
+	for (i = 0; i < S2MPS11_CLKS_NUM; i++)
 		of_property_read_string_index(clk_np, "clock-output-names", i,
 				&clks_init[i].name);
-	}
 
 	return clk_np;
 }
@@ -179,8 +146,8 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct s2mps11_clk *s2mps11_clks, *s2mps11_clk;
 	unsigned int s2mps11_reg;
-	struct clk_init_data *clks_init;
 	int i, ret = 0;
+	enum sec_device_type hwid = platform_get_device_id(pdev)->driver_data;
 
 	s2mps11_clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
 				sizeof(*s2mps11_clk), GFP_KERNEL);
@@ -194,22 +161,18 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	if (!clk_table)
 		return -ENOMEM;
 
-	switch(platform_get_device_id(pdev)->driver_data) {
+	switch (hwid) {
 	case S2MPS11X:
 		s2mps11_reg = S2MPS11_REG_RTC_CTRL;
-		clks_init = s2mps11_clks_init;
 		break;
 	case S2MPS13X:
 		s2mps11_reg = S2MPS13_REG_RTCCTRL;
-		clks_init = s2mps13_clks_init;
 		break;
 	case S2MPS14X:
 		s2mps11_reg = S2MPS14_REG_RTCCTRL;
-		clks_init = s2mps14_clks_init;
 		break;
 	case S5M8767X:
 		s2mps11_reg = S5M8767_REG_CTRL1;
-		clks_init = s2mps11_clks_init;
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid device type\n");
@@ -217,15 +180,15 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	}
 
 	/* Store clocks of_node in first element of s2mps11_clks array */
-	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, clks_init);
+	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, s2mps11_clks_init);
 	if (IS_ERR(s2mps11_clks->clk_np))
 		return PTR_ERR(s2mps11_clks->clk_np);
 
 	for (i = 0; i < S2MPS11_CLKS_NUM; i++, s2mps11_clk++) {
-		if (!clks_init[i].name)
+		if (i == S2MPS11_CLK_CP && hwid == S2MPS14X)
 			continue; /* Skip clocks not present in some devices */
 		s2mps11_clk->iodev = iodev;
-		s2mps11_clk->hw.init = &clks_init[i];
+		s2mps11_clk->hw.init = &s2mps11_clks_init[i];
 		s2mps11_clk->mask = 1 << i;
 		s2mps11_clk->reg = s2mps11_reg;
 
