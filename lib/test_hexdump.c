@@ -133,17 +133,16 @@ static void __init test_hexdump_set(int rowsize, bool ascii)
 	test_hexdump(len, rowsize, 1, ascii);
 }
 
-static void __init test_hexdump_overflow(bool ascii)
+static void __init test_hexdump_overflow(size_t buflen, bool ascii)
 {
-	char buf[56];
+	char buf[TEST_HEXDUMP_BUF_SIZE];
 	const char *t = test_data_1_le[0];
-	size_t l = get_random_int() % sizeof(buf);
 	bool a;
 	int e, r;
 
 	memset(buf, FILL_CHAR, sizeof(buf));
 
-	r = hex_dump_to_buffer(data_b, 1, 16, 1, buf, l, ascii);
+	r = hex_dump_to_buffer(data_b, 1, 16, 1, buf, buflen, ascii);
 
 	if (ascii)
 		e = 50;
@@ -151,15 +150,15 @@ static void __init test_hexdump_overflow(bool ascii)
 		e = 2;
 	buf[e + 2] = '\0';
 
-	if (!l) {
+	if (!buflen) {
 		a = r == e && buf[0] == FILL_CHAR;
-	} else if (l < 3) {
+	} else if (buflen < 3) {
 		a = r == e && buf[0] == '\0';
-	} else if (l < 4) {
+	} else if (buflen < 4) {
 		a = r == e && !strcmp(buf, t);
 	} else if (ascii) {
-		if (l < 51)
-			a = r == e && buf[l - 1] == '\0' && buf[l - 2] == FILL_CHAR;
+		if (buflen < 51)
+			a = r == e && buf[buflen - 1] == '\0' && buf[buflen - 2] == FILL_CHAR;
 		else
 			a = r == e && buf[50] == '\0' && buf[49] == '.';
 	} else {
@@ -167,7 +166,7 @@ static void __init test_hexdump_overflow(bool ascii)
 	}
 
 	if (!a) {
-		pr_err("Len: %zu rc: %u strlen: %zu\n", l, r, strlen(buf));
+		pr_err("Len: %zu rc: %u strlen: %zu\n", buflen, r, strlen(buf));
 		pr_err("Result: '%s'\n", buf);
 	}
 }
@@ -187,11 +186,11 @@ static int __init test_hexdump_init(void)
 	for (i = 0; i < 16; i++)
 		test_hexdump_set(rowsize, true);
 
-	for (i = 0; i < 16; i++)
-		test_hexdump_overflow(false);
+	for (i = 0; i <= TEST_HEXDUMP_BUF_SIZE; i++)
+		test_hexdump_overflow(i, false);
 
-	for (i = 0; i < 16; i++)
-		test_hexdump_overflow(true);
+	for (i = 0; i <= TEST_HEXDUMP_BUF_SIZE; i++)
+		test_hexdump_overflow(i, true);
 
 	return -EINVAL;
 }
