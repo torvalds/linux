@@ -38,6 +38,7 @@ config ARC
 	select OF_EARLY_FLATTREE
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DMA_ATTRS
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
