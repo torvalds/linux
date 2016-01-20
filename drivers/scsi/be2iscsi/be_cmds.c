@@ -590,7 +590,8 @@ int be_mcc_notify_wait(struct beiscsi_hba *phba, unsigned int tag)
  **/
 static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 {
-#define BEISCSI_MBX_RDY_BIT_TIMEOUT	12000	/* 12sec */
+	/* wait 30s for generic non-flash MBOX operation */
+#define BEISCSI_MBX_RDY_BIT_TIMEOUT	30000
 	void __iomem *db = ctrl->db + MPU_MAILBOX_DB_OFFSET;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	unsigned long timeout;
@@ -615,7 +616,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 
 		if (time_after(jiffies, timeout))
 			break;
-		mdelay(1);
+		msleep(20);
 	} while (!ready);
 
 	beiscsi_log(phba, KERN_ERR,
