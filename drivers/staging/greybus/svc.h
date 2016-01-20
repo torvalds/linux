@@ -55,6 +55,7 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 			       u8 tx_mode, u8 tx_gear, u8 tx_nlanes,
 			       u8 rx_mode, u8 rx_gear, u8 rx_nlanes,
 			       u8 flags, u32 quirks);
+int gb_svc_ping(struct gb_svc *svc);
 
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);

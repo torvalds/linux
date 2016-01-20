@@ -363,6 +363,13 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 }
 EXPORT_SYMBOL_GPL(gb_svc_intf_set_power_mode);
 
+int gb_svc_ping(struct gb_svc *svc)
+{
+	return gb_operation_sync(svc->connection, GB_SVC_TYPE_PING,
+				 NULL, 0, NULL, 0);
+}
+EXPORT_SYMBOL_GPL(gb_svc_ping);
+
 static int gb_svc_version_request(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
