@@ -587,47 +587,42 @@ int be_mcc_notify_wait(struct beiscsi_hba *phba)
  **/
 static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 {
-#define BEISCSI_MBX_RDY_BIT_TIMEOUT	4000	/* 4sec */
+#define BEISCSI_MBX_RDY_BIT_TIMEOUT	12000	/* 12sec */
 	void __iomem *db = ctrl->db + MPU_MAILBOX_DB_OFFSET;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	unsigned long timeout;
-	bool read_flag = false;
-	int ret = 0, i;
 	u32 ready;
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(rdybit_check_q);
 
-	if (beiscsi_error(phba))
-		return -EIO;
-
-	timeout = jiffies + (HZ * 110);
-
+	/*
+	 * This BMBX busy wait path is used during init only.
+	 * For the commands executed during init, 5s should suffice.
+	 */
+	timeout = jiffies + msecs_to_jiffies(BEISCSI_MBX_RDY_BIT_TIMEOUT);
 	do {
-		for (i = 0; i < BEISCSI_MBX_RDY_BIT_TIMEOUT; i++) {
-			ready = ioread32(db) & MPU_MAILBOX_DB_RDY_MASK;
-			if (ready) {
-				read_flag = true;
-				break;
-			}
-			mdelay(1);
-		}
+		if (beiscsi_error(phba))
+			return -EIO;
 
-		if (!read_flag) {
-			wait_event_timeout(rdybit_check_q,
-					  (read_flag != true),
-					   HZ * 5);
-		}
-	} while ((time_before(jiffies, timeout)) && !read_flag);
+		ready = ioread32(db);
+		if (ready == 0xffffffff)
+			return -EIO;
 
-	if (!read_flag) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BC_%d : FW Timed Out\n");
-			phba->fw_timeout = true;
-			beiscsi_ue_detect(phba);
-			ret = -EBUSY;
-	}
+		ready &= MPU_MAILBOX_DB_RDY_MASK;
+		if (ready)
+			return 0;
 
-	return ret;
+		if (time_after(jiffies, timeout))
+			break;
+		mdelay(1);
+	} while (!ready);
+
+	beiscsi_log(phba, KERN_ERR,
+			BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			"BC_%d : FW Timed Out\n");
+
+	phba->fw_timeout = true;
+	beiscsi_ue_detect(phba);
+
+	return -EBUSY;
 }
 
 /*
@@ -673,6 +668,9 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status)
 		return status;
+
+	/* RDY is set; small delay before CQE read. */
+	udelay(1);
 
 	if (be_mcc_compl_is_new(compl)) {
 		status = be_mcc_compl_process(ctrl, &mbox->compl);

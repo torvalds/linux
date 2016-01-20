@@ -809,27 +809,39 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
-	struct be_cmd_get_all_if_id_req *req = embedded_payload(wrb);
-	struct be_cmd_get_all_if_id_req *pbe_allid = req;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_get_all_if_id_req *req;
+	struct be_cmd_get_all_if_id_req *pbe_allid;
+	unsigned int tag;
 	int status = 0;
 
-	memset(wrb, 0, sizeof(*wrb));
-
 	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return -ENOMEM;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_NTWK_GET_ALL_IF_ID,
 			   sizeof(*req));
-	status = be_mbox_notify(ctrl);
-	if (!status)
-		phba->interface_handle = pbe_allid->if_hndl_list[0];
-	else {
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+
+	status = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (status) {
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 			    "BG_%d : Failed in mgmt_get_all_if_id\n");
+		return -EBUSY;
 	}
-	spin_unlock(&ctrl->mbox_lock);
+
+	pbe_allid = embedded_payload(wrb);
+	phba->interface_handle = pbe_allid->if_hndl_list[0];
 
 	return status;
 }
