@@ -224,7 +224,7 @@
 			};
 
 			socpll: socpll@17000120 {
-				compatible = "apm,xgene-socpll-clock";
+				compatible = "apm,xgene-socpll-v2-clock";
 				#clock-cells = <1>;
 				clocks = <&refclk 0>;
 				reg = <0x0 0x17000120 0x0 0x1000>;
