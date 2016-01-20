@@ -23,6 +23,7 @@ config M68K
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+	select HAVE_DMA_ATTRS
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
