@@ -1893,6 +1893,8 @@ source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
 
+source "lib/Kconfig.ubsan"
+
 config ARCH_HAS_DEVMEM_IS_ALLOWED
 	bool
 
