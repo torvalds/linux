@@ -122,45 +122,74 @@ static void __close_session(struct ceph_mon_client *monc)
 	ceph_msg_revoke(monc->m_subscribe);
 	ceph_msg_revoke_incoming(monc->m_subscribe_ack);
 	ceph_con_close(&monc->con);
-	monc->cur_mon = -1;
+
 	monc->pending_auth = 0;
 	ceph_auth_reset(monc->auth);
 }
 
 /*
- * Open a session with a (new) monitor.
+ * Pick a new monitor at random and set cur_mon.  If we are repicking
+ * (i.e. cur_mon is already set), be sure to pick a different one.
  */
-static int __open_session(struct ceph_mon_client *monc)
+static void pick_new_mon(struct ceph_mon_client *monc)
 {
-	char r;
+	int old_mon = monc->cur_mon;
+
+	BUG_ON(monc->monmap->num_mon < 1);
+
+	if (monc->monmap->num_mon == 1) {
+		monc->cur_mon = 0;
+	} else {
+		int max = monc->monmap->num_mon;
+		int o = -1;
+		int n;
+
+		if (monc->cur_mon >= 0) {
+			if (monc->cur_mon < monc->monmap->num_mon)
+				o = monc->cur_mon;
+			if (o >= 0)
+				max--;
+		}
+
+		n = prandom_u32() % max;
+		if (o >= 0 && n >= o)
+			n++;
+
+		monc->cur_mon = n;
+	}
+
+	dout("%s mon%d -> mon%d out of %d mons\n", __func__, old_mon,
+	     monc->cur_mon, monc->monmap->num_mon);
+}
+
+/*
+ * Open a session with a new monitor.
+ */
+static void __open_session(struct ceph_mon_client *monc)
+{
 	int ret;
 
-	if (monc->cur_mon < 0) {
-		get_random_bytes(&r, 1);
-		monc->cur_mon = r % monc->monmap->num_mon;
-		dout("open_session num=%d r=%d -> mon%d\n",
-		     monc->monmap->num_mon, r, monc->cur_mon);
-		monc->sub_renew_after = jiffies;  /* i.e., expired */
-		monc->sub_renew_sent = 0;
+	pick_new_mon(monc);
 
-		dout("open_session mon%d opening\n", monc->cur_mon);
-		ceph_con_open(&monc->con,
-			      CEPH_ENTITY_TYPE_MON, monc->cur_mon,
-			      &monc->monmap->mon_inst[monc->cur_mon].addr);
+	monc->sub_renew_after = jiffies; /* i.e., expired */
+	monc->sub_renew_sent = 0;
 
-		/* send an initial keepalive to ensure our timestamp is
-		 * valid by the time we are in an OPENED state */
-		ceph_con_keepalive(&monc->con);
+	dout("%s opening mon%d\n", __func__, monc->cur_mon);
+	ceph_con_open(&monc->con, CEPH_ENTITY_TYPE_MON, monc->cur_mon,
+		      &monc->monmap->mon_inst[monc->cur_mon].addr);
 
-		/* initiatiate authentication handshake */
-		ret = ceph_auth_build_hello(monc->auth,
-					    monc->m_auth->front.iov_base,
-					    monc->m_auth->front_alloc_len);
-		__send_prepared_auth_request(monc, ret);
-	} else {
-		dout("open_session mon%d already open\n", monc->cur_mon);
-	}
-	return 0;
+	/*
+	 * send an initial keepalive to ensure our timestamp is valid
+	 * by the time we are in an OPENED state
+	 */
+	ceph_con_keepalive(&monc->con);
+
+	/* initiate authentication handshake */
+	ret = ceph_auth_build_hello(monc->auth,
+				    monc->m_auth->front.iov_base,
+				    monc->m_auth->front_alloc_len);
+	BUG_ON(ret <= 0);
+	__send_prepared_auth_request(monc, ret);
 }
 
 static bool __sub_expired(struct ceph_mon_client *monc)
@@ -907,7 +936,7 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 
 	mutex_lock(&monc->mutex);
 	__close_session(monc);
-
+	monc->cur_mon = -1;
 	mutex_unlock(&monc->mutex);
 
 	/*
