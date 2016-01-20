@@ -1167,10 +1167,10 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 extern const struct drm_plane_funcs intel_plane_funcs;
 void intel_init_display_hooks(struct drm_i915_private *dev_priv);
 unsigned int intel_fb_xy_to_linear(int x, int y,
-				   const struct drm_framebuffer *fb, int plane);
+				   const struct intel_plane_state *state,
+				   int plane);
 void intel_add_fb_offsets(int *x, int *y,
-			  const struct drm_framebuffer *fb, int plane,
-			  unsigned int rotation);
+			  const struct intel_plane_state *state, int plane);
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
 void intel_mark_busy(struct drm_i915_private *dev_priv);
@@ -1296,8 +1296,7 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 u32 intel_compute_tile_offset(int *x, int *y,
-			      const struct drm_framebuffer *fb, int plane,
-			      unsigned int rotation);
+			      const struct intel_plane_state *state, int plane);
 void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);

@@ -2283,8 +2283,10 @@ static int intel_fb_pitch(const struct drm_framebuffer *fb, int plane,
  * with gen2/3, and 90/270 degree rotations isn't supported on any of them.
  */
 u32 intel_fb_xy_to_linear(int x, int y,
-			  const struct drm_framebuffer *fb, int plane)
+			  const struct intel_plane_state *state,
+			  int plane)
 {
+	const struct drm_framebuffer *fb = state->base.fb;
 	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
 	unsigned int pitch = fb->pitches[plane];
 
@@ -2297,11 +2299,12 @@ u32 intel_fb_xy_to_linear(int x, int y,
  * specify the start of scanout from the beginning of the gtt mapping.
  */
 void intel_add_fb_offsets(int *x, int *y,
-			  const struct drm_framebuffer *fb, int plane,
-			  unsigned int rotation)
+			  const struct intel_plane_state *state,
+			  int plane)
 
 {
-	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(state->base.fb);
+	unsigned int rotation = state->base.rotation;
 
 	if (intel_rotation_90_or_270(rotation)) {
 		*x += intel_fb->rotated[plane].x;
@@ -2408,10 +2411,12 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 }
 
 u32 intel_compute_tile_offset(int *x, int *y,
-			      const struct drm_framebuffer *fb, int plane,
-			      unsigned int rotation)
+			      const struct intel_plane_state *state,
+			      int plane)
 {
-	const struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	const struct drm_i915_private *dev_priv = to_i915(state->base.plane->dev);
+	const struct drm_framebuffer *fb = state->base.fb;
+	unsigned int rotation = state->base.rotation;
 	u32 alignment = intel_surf_alignment(dev_priv, fb->modifier[plane]);
 	int pitch = intel_fb_pitch(fb, plane, rotation);
 
@@ -2835,11 +2840,11 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	if (IS_G4X(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	intel_add_fb_offsets(&x, &y, fb, 0, rotation);
+	intel_add_fb_offsets(&x, &y, plane_state, 0);
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		intel_crtc->dspaddr_offset =
-			intel_compute_tile_offset(&x, &y, fb, 0, rotation);
+			intel_compute_tile_offset(&x, &y, plane_state, 0);
 
 	if (rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
@@ -2848,7 +2853,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 		y += (crtc_state->pipe_src_h - 1);
 	}
 
-	linear_offset = intel_fb_xy_to_linear(x, y, fb, 0);
+	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (INTEL_INFO(dev)->gen < 4)
 		intel_crtc->dspaddr_offset = linear_offset;
@@ -2938,10 +2943,10 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	intel_add_fb_offsets(&x, &y, fb, 0, rotation);
+	intel_add_fb_offsets(&x, &y, plane_state, 0);
 
 	intel_crtc->dspaddr_offset =
-		intel_compute_tile_offset(&x, &y, fb, 0, rotation);
+		intel_compute_tile_offset(&x, &y, plane_state, 0);
 
 	if (rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
@@ -2952,7 +2957,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 		}
 	}
 
-	linear_offset = intel_fb_xy_to_linear(x, y, fb, 0);
+	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
@@ -3179,8 +3184,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 		src_h = drm_rect_height(&r);
 	}
 
-	intel_add_fb_offsets(&src_x, &src_y, fb, 0, rotation);
-	surf_addr = intel_compute_tile_offset(&src_x, &src_y, fb, 0, rotation);
+	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
+	surf_addr = intel_compute_tile_offset(&src_x, &src_y, plane_state, 0);
 
 	/* Sizes are 0 based */
 	src_w--;
