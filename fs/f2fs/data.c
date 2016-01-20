@@ -1477,13 +1477,9 @@ restart:
 		if (f2fs_lookup_extent_cache(inode, index, &ei)) {
 			dn.data_blkaddr = ei.blk + index - ei.fofs;
 		} else {
-			bool restart = false;
-
 			/* hole case */
 			err = get_dnode_of_data(&dn, index, LOOKUP_NODE);
-			if (err || (!err && dn.data_blkaddr == NULL_ADDR))
-				restart = true;
-			if (restart) {
+			if (err || (!err && dn.data_blkaddr == NULL_ADDR)) {
 				f2fs_put_dnode(&dn);
 				f2fs_lock_op(sbi);
 				locked = true;
