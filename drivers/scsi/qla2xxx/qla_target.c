@@ -3580,12 +3580,13 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 		case CTIO_PORT_LOGGED_OUT:
 		case CTIO_PORT_UNAVAILABLE:
 		{
-			int logged_out = (status & 0xFFFF);
+			int logged_out =
+				(status & 0xFFFF) == CTIO_PORT_LOGGED_OUT;
+
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf059,
 			    "qla_target(%d): CTIO with %s status %x "
 			    "received (state %x, se_cmd %p)\n", vha->vp_idx,
-			    (logged_out == CTIO_PORT_LOGGED_OUT) ?
-			    "PORT LOGGED OUT" : "PORT UNAVAILABLE",
+			    logged_out ? "PORT LOGGED OUT" : "PORT UNAVAILABLE",
 			    status, cmd->state, se_cmd);
 
 			if (logged_out && cmd->sess) {
