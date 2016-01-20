@@ -42,18 +42,15 @@ static const char * const test_data_8_le[] __initconst = {
 	"e9ac0f9cad319ca6", "0cafb1439919d14c",
 };
 
-static void __init test_hexdump(size_t len, int rowsize, int groupsize,
-				bool ascii)
+static void __init test_hexdump_prepare_test(size_t len, int rowsize,
+					     int groupsize, char *test,
+					     size_t testlen, bool ascii)
 {
-	char test[32 * 3 + 2 + 32 + 1];
-	char real[32 * 3 + 2 + 32 + 1];
 	char *p;
 	const char * const *result;
 	size_t l = len;
 	int gs = groupsize, rs = rowsize;
 	unsigned int i;
-
-	hex_dump_to_buffer(data_b, l, rs, gs, real, sizeof(real), ascii);
 
 	if (rs != 16 && rs != 32)
 		rs = 16;
@@ -73,7 +70,7 @@ static void __init test_hexdump(size_t len, int rowsize, int groupsize,
 	else
 		result = test_data_1_le;
 
-	memset(test, ' ', sizeof(test));
+	memset(test, ' ', testlen);
 
 	/* hex dump */
 	p = test;
@@ -95,6 +92,21 @@ static void __init test_hexdump(size_t len, int rowsize, int groupsize,
 	}
 
 	*p = '\0';
+}
+
+#define TEST_HEXDUMP_BUF_SIZE		(32 * 3 + 2 + 32 + 1)
+
+static void __init test_hexdump(size_t len, int rowsize, int groupsize,
+				bool ascii)
+{
+	char test[TEST_HEXDUMP_BUF_SIZE];
+	char real[TEST_HEXDUMP_BUF_SIZE];
+
+	hex_dump_to_buffer(data_b, len, rowsize, groupsize, real, sizeof(real),
+			   ascii);
+
+	test_hexdump_prepare_test(len, rowsize, groupsize, test, sizeof(test),
+				  ascii);
 
 	if (strcmp(test, real)) {
 		pr_err("Len: %zu row: %d group: %d\n", len, rowsize, groupsize);
