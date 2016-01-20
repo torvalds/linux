@@ -571,13 +571,6 @@ static void gbaudio_free_codec(struct device *dev,
  * This is the basic hook get things initialized and registered w/ gb
  */
 
-/*
- * GB codec module driver ops
- */
-struct device_driver gb_codec_driver = {
-	.owner = THIS_MODULE,
-};
-
 /* XXX
  * since BE DAI path is not yet properly closed from above layer,
  * dsp dai.mi2s_dai_data.status_mask is still set to STATUS_PORT_STARTED
@@ -625,7 +618,6 @@ static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 static int gbaudio_codec_probe(struct gb_connection *connection)
 {
 	int ret, i;
-	char *driver_name;
 	struct gbaudio_codec_info *gbcodec;
 	struct gb_audio_topology *topology;
 	struct gb_audio_manager_module_descriptor desc;
@@ -668,13 +660,6 @@ static int gbaudio_codec_probe(struct gb_connection *connection)
 	/* update DAI info */
 	for (i = 0; i < gbcodec->num_dais; i++)
 		gbcodec->dais[i].ops = &gbcodec_dai_ops;
-
-	/* FIXME */
-	driver_name = devm_kzalloc(dev, NAME_SIZE, GFP_KERNEL);
-	strlcpy(driver_name, gbcodec->name, NAME_SIZE);
-	gb_codec_driver.name = strsep(&driver_name, ".");
-	dev_dbg(dev, "driver.name:%s\n", gb_codec_driver.name);
-	dev->driver = &gb_codec_driver;
 
 	/* register codec */
 	ret = snd_soc_register_codec(dev, &soc_codec_dev_gbcodec,
