@@ -18,6 +18,4 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &arc_dma_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 #endif

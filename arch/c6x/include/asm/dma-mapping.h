@@ -24,8 +24,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &c6x_dma_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 extern void coherent_mem_init(u32 start, u32 size);
 void *c6x_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		gfp_t gfp, struct dma_attrs *attrs);

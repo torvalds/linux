@@ -21,6 +21,4 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	flush_write_buffers();
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 #endif  /* _ASM_DMA_MAPPING_H */

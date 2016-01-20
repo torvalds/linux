@@ -83,6 +83,4 @@ struct parisc_device;
 void * sba_get_iommu(struct parisc_device *dev);
 #endif
 
-#include <asm-generic/dma-mapping-common.h>
-
 #endif

@@ -28,6 +28,4 @@ void dma_cache_sync(void *vaddr, size_t size,
 	mn10300_dcache_flush_inv();
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 #endif

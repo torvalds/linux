@@ -73,9 +73,6 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 }
 
 #define HAVE_ARCH_DMA_SET_MASK 1
-
-#include <asm-generic/dma-mapping-common.h>
-
 int dma_set_mask(struct device *dev, u64 mask);
 
 /*

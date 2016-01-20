@@ -5,7 +5,6 @@ config TILE
 	def_bool y
 	select HAVE_PERF_EVENTS
 	select USE_PMC if PERF_EVENTS
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT

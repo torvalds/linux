@@ -205,9 +205,6 @@ config HAVE_NMI_WATCHDOG
 config HAVE_ARCH_TRACEHOOK
 	bool
 
-config HAVE_DMA_ATTRS
-	bool
-
 config HAVE_DMA_CONTIGUOUS
 	bool
 

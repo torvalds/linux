@@ -8,8 +8,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &metag_dma_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 /*
  * dma_alloc_noncoherent() returns non-cacheable memory, so there's no need to
  * do any flushing here.

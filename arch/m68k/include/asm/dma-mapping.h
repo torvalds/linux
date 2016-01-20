@@ -8,8 +8,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
         return &m68k_dma_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
