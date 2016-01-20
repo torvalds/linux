@@ -551,6 +551,7 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
 extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
 extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
 extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
+extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
 #else
 static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 {
@@ -564,6 +565,11 @@ static inline int mem_cgroup_try_charge_swap(struct page *page,
 
 static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
 {
+}
+
+static inline long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
+{
+	return get_nr_swap_pages();
 }
 #endif
 
