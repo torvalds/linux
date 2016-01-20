@@ -137,17 +137,26 @@ static void __init test_hexdump_overflow(size_t buflen, bool ascii)
 {
 	char buf[TEST_HEXDUMP_BUF_SIZE];
 	const char *t = test_data_1_le[0];
+	size_t len = 1;
+	int rs = 16, gs = 1;
+	int ae, he, e, r;
 	bool a;
-	int e, r;
 
 	memset(buf, FILL_CHAR, sizeof(buf));
 
-	r = hex_dump_to_buffer(data_b, 1, 16, 1, buf, buflen, ascii);
+	r = hex_dump_to_buffer(data_b, len, rs, gs, buf, buflen, ascii);
+
+	/*
+	 * Caller must provide the data length multiple of groupsize. The
+	 * calculations below are made with that assumption in mind.
+	 */
+	ae = rs * 2 /* hex */ + rs / gs /* spaces */ + 1 /* space */ + len /* ascii */;
+	he = (gs * 2 /* hex */ + 1 /* space */) * len / gs - 1 /* no trailing space */;
 
 	if (ascii)
-		e = 50;
+		e = ae;
 	else
-		e = 2;
+		e = he;
 	buf[e + 2] = '\0';
 
 	if (!buflen) {
