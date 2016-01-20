@@ -1997,7 +1997,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	if (current_is_kswapd()) {
 		if (!zone_reclaimable(zone))
 			force_scan = true;
-		if (!mem_cgroup_lruvec_online(lruvec))
+		if (!mem_cgroup_online(memcg))
 			force_scan = true;
 	}
 	if (!global_reclaim(sc))
