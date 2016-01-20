@@ -56,7 +56,7 @@ static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
 #define BTRFS_FEAT_ATTR_COMPAT(name, feature) \
 	BTRFS_FEAT_ATTR(name, FEAT_COMPAT, BTRFS_FEATURE_COMPAT, feature)
 #define BTRFS_FEAT_ATTR_COMPAT_RO(name, feature) \
-	BTRFS_FEAT_ATTR(name, FEAT_COMPAT_RO, BTRFS_FEATURE_COMPAT, feature)
+	BTRFS_FEAT_ATTR(name, FEAT_COMPAT_RO, BTRFS_FEATURE_COMPAT_RO, feature)
 #define BTRFS_FEAT_ATTR_INCOMPAT(name, feature) \
 	BTRFS_FEAT_ATTR(name, FEAT_INCOMPAT, BTRFS_FEATURE_INCOMPAT, feature)
 
