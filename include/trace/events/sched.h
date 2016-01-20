@@ -875,6 +875,41 @@ TRACE_EVENT(sched_energy_diff,
 		__entry->nrgn, __entry->nrgp)
 );
 
+/*
+ * Tracepoint for schedtune_tasks_update
+ */
+TRACE_EVENT(sched_tune_filter,
+
+	TP_PROTO(int nrg_delta, int cap_delta,
+		 int nrg_gain,  int cap_gain,
+		 int payoff, int region),
+
+	TP_ARGS(nrg_delta, cap_delta, nrg_gain, cap_gain, payoff, region),
+
+	TP_STRUCT__entry(
+		__field( int,	nrg_delta	)
+		__field( int,	cap_delta	)
+		__field( int,	nrg_gain	)
+		__field( int,	cap_gain	)
+		__field( int,	payoff		)
+		__field( int,	region		)
+	),
+
+	TP_fast_assign(
+		__entry->nrg_delta	= nrg_delta;
+		__entry->cap_delta	= cap_delta;
+		__entry->nrg_gain	= nrg_gain;
+		__entry->cap_gain	= cap_gain;
+		__entry->payoff		= payoff;
+		__entry->region		= region;
+	),
+
+	TP_printk("nrg_delta=%d cap_delta=%d nrg_gain=%d cap_gain=%d payoff=%d region=%d",
+		__entry->nrg_delta, __entry->cap_delta,
+		__entry->nrg_gain, __entry->cap_gain,
+		__entry->payoff, __entry->region)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
