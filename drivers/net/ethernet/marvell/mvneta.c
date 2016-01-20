@@ -3242,26 +3242,25 @@ static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 	const struct mvneta_statistic *s;
 	void __iomem *base = pp->base;
 	u32 high, low, val;
+	u64 val64;
 	int i;
 
 	for (i = 0, s = mvneta_statistics;
 	     s < mvneta_statistics + ARRAY_SIZE(mvneta_statistics);
 	     s++, i++) {
-		val = 0;
-
 		switch (s->type) {
 		case T_REG_32:
 			val = readl_relaxed(base + s->offset);
+			pp->ethtool_stats[i] += val;
 			break;
 		case T_REG_64:
 			/* Docs say to read low 32-bit then high */
 			low = readl_relaxed(base + s->offset);
 			high = readl_relaxed(base + s->offset + 4);
-			val = (u64)high << 32 | low;
+			val64 = (u64)high << 32 | low;
+			pp->ethtool_stats[i] += val64;
 			break;
 		}
-
-		pp->ethtool_stats[i] += val;
 	}
 }
 
