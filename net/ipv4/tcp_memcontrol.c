@@ -6,7 +6,7 @@
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
-int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+int tcp_init_cgroup(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
 	struct page_counter *counter_parent = NULL;

@@ -3583,7 +3583,7 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
 }
 
 #ifdef CONFIG_MEMCG_KMEM
-static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+static int memcg_init_kmem(struct mem_cgroup *memcg)
 {
 	int ret;
 
@@ -3591,7 +3591,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 	if (ret)
 		return ret;
 
-	return tcp_init_cgroup(memcg, ss);
+	return tcp_init_cgroup(memcg);
 }
 
 static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
@@ -4274,7 +4274,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 	}
 	mutex_unlock(&memcg_create_mutex);
 
-	ret = memcg_init_kmem(memcg, &memory_cgrp_subsys);
+	ret = memcg_init_kmem(memcg);
 	if (ret)
 		return ret;
 
