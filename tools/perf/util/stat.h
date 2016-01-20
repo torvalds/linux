@@ -74,16 +74,6 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 				   double avg, int cpu, enum aggr_mode aggr);
 
-void perf_evsel__reset_stat_priv(struct perf_evsel *evsel);
-int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel);
-void perf_evsel__free_stat_priv(struct perf_evsel *evsel);
-
-int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
-				      int ncpus, int nthreads);
-void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel);
-
-int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw);
-
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
 void perf_evlist__free_stats(struct perf_evlist *evlist);
 void perf_evlist__reset_stats(struct perf_evlist *evlist);
