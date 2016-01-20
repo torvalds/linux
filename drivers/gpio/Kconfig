@@ -570,6 +570,15 @@ config GPIO_TS5500
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
+config GPIO_WS16C48
+	tristate "WinSystems WS16C48 GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Enables GPIO support for the WinSystems WS16C48. The base port address
+	  for the device may be configured via the ws16c48_base module
+	  parameter. The interrupt line number for the device may be configured
+	  via the ws16c48_irq module parameter.
+
 endmenu
 
 menu "I2C GPIO expanders"
