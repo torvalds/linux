@@ -144,9 +144,8 @@ int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 		offset += cfs_size_round(data->ioc_inllen3);
 	}
 
-	if (data->ioc_inllen4) {
+	if (data->ioc_inllen4)
 		data->ioc_inlbuf4 = &data->ioc_bulk[0] + offset;
-	}
 
 	return 0;
 
@@ -250,9 +249,8 @@ static ssize_t health_show(struct kobject *kobj, struct attribute *attr,
 		class_incref(obd, __func__, current);
 		read_unlock(&obd_dev_lock);
 
-		if (obd_health_check(NULL, obd)) {
+		if (obd_health_check(NULL, obd))
 			healthy = false;
-		}
 		class_decref(obd, __func__, current);
 		read_lock(&obd_dev_lock);
 	}
