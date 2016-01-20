@@ -115,7 +115,7 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	unsigned long mapped_blocks;
-	sector_t phys;
+	sector_t phys, last_block;
 	int err, offset;
 
 	err = fat_bmap(inode, iblock, &phys, &mapped_blocks, create);
@@ -135,8 +135,14 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 		return -EIO;
 	}
 
+	last_block = inode->i_blocks >> (sb->s_blocksize_bits - 9);
 	offset = (unsigned long)iblock & (sbi->sec_per_clus - 1);
-	if (!offset) {
+	/*
+	 * allocate a cluster according to the following.
+	 * 1) no more available blocks
+	 * 2) not part of fallocate region
+	 */
+	if (!offset && !(iblock < last_block)) {
 		/* TODO: multiple cluster allocation would be desirable. */
 		err = fat_add_cluster(inode);
 		if (err)
