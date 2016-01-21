@@ -981,6 +981,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	/* WaDisableSTUnitPowerOptimization:skl,bxt */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
 
+	/* WaOCLCoherentLineFlush:skl,bxt */
+	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
+				    GEN8_LQSC_FLUSH_COHERENT_LINES));
+
 	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt */
 	ret= wa_ring_whitelist_reg(ring, GEN8_CS_CHICKEN1);
 	if (ret)
