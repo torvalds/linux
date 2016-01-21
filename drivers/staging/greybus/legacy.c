@@ -15,7 +15,7 @@
 struct legacy_connection {
 	struct gb_connection *connection;
 	bool initialized;
-	u8 protocol_id;
+	struct gb_protocol *protocol;
 };
 
 struct legacy_data {
@@ -39,42 +39,6 @@ static int legacy_connection_get_version(struct gb_connection *connection)
 	return 0;
 }
 
-static int legacy_connection_bind_protocol(struct legacy_connection *lc)
-{
-	struct gb_connection *connection = lc->connection;
-	struct gb_protocol *protocol;
-	u8 major, minor;
-
-	/*
-	 * The legacy protocols have always been looked up using a hard-coded
-	 * version of 0.1, despite (or perhaps rather, due to) the fact that
-	 * module version negotiation could not take place until after the
-	 * protocol was bound.
-	 */
-	major = 0;
-	minor = 1;
-
-	protocol = gb_protocol_get(lc->protocol_id, major, minor);
-	if (!protocol) {
-		dev_err(&connection->hd->dev,
-				"protocol 0x%02x version %u.%u not found\n",
-				lc->protocol_id, major, minor);
-		return -EPROTONOSUPPORT;
-	}
-	connection->protocol = protocol;
-
-	return 0;
-}
-
-static void legacy_connection_unbind_protocol(struct gb_connection *connection)
-{
-	struct gb_protocol *protocol = connection->protocol;
-
-	gb_protocol_put(protocol);
-
-	connection->protocol = NULL;
-}
-
 static int legacy_request_handler(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
@@ -91,10 +55,6 @@ static int legacy_connection_init(struct legacy_connection *lc)
 	dev_dbg(&connection->bundle->dev, "%s - %s\n", __func__,
 			connection->name);
 
-	ret = legacy_connection_bind_protocol(lc);
-	if (ret)
-		return ret;
-
 	if (connection->protocol->request_recv)
 		handler = legacy_request_handler;
 	else
@@ -102,7 +62,7 @@ static int legacy_connection_init(struct legacy_connection *lc)
 
 	ret = gb_connection_enable(connection, handler);
 	if (ret)
-		goto err_unbind_protocol;
+		return ret;
 
 	ret = legacy_connection_get_version(connection);
 	if (ret)
@@ -118,8 +78,6 @@ static int legacy_connection_init(struct legacy_connection *lc)
 
 err_disable:
 	gb_connection_disable(connection);
-err_unbind_protocol:
-	legacy_connection_unbind_protocol(connection);
 
 	return ret;
 }
@@ -135,8 +93,6 @@ static void legacy_connection_exit(struct legacy_connection *lc)
 
 	connection->protocol->connection_exit(connection);
 
-	legacy_connection_unbind_protocol(connection);
-
 	lc->initialized = false;
 }
 
@@ -145,20 +101,57 @@ static int legacy_connection_create(struct legacy_connection *lc,
 					struct greybus_descriptor_cport *desc)
 {
 	struct gb_connection *connection;
+	struct gb_protocol *protocol;
+	u8 major, minor;
+	int ret;
+
+	/*
+	 * The legacy protocols have always been looked up using a hard-coded
+	 * version of 0.1, despite (or perhaps rather, due to) the fact that
+	 * module version negotiation could not take place until after the
+	 * protocol was bound.
+	 */
+	major = 0;
+	minor = 1;
+
+	protocol = gb_protocol_get(desc->protocol_id, major, minor);
+	if (!protocol) {
+		dev_err(&bundle->dev,
+				"protocol 0x%02x version %u.%u not found\n",
+				desc->protocol_id, major, minor);
+		return -EPROTONOSUPPORT;
+	}
 
 	connection = gb_connection_create(bundle, le16_to_cpu(desc->id));
-	if (IS_ERR(connection))
-		return PTR_ERR(connection);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto err_protocol_put;
+	}
+
+	/*
+	 * NOTE: We need to keep a pointer to the protocol in the actual
+	 *       connection structure for now.
+	 */
+	connection->protocol = protocol;
 
 	lc->connection = connection;
-	lc->protocol_id = desc->protocol_id;
+	lc->protocol = protocol;
 
 	return 0;
+
+err_protocol_put:
+	gb_protocol_put(protocol);
+
+	return ret;
 }
 
 static void legacy_connection_destroy(struct legacy_connection *lc)
 {
+	lc->connection->protocol = NULL;
+
 	gb_connection_destroy(lc->connection);
+
+	gb_protocol_put(lc->protocol);
 }
 
 static int legacy_probe(struct gb_bundle *bundle,
