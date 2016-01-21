@@ -86,16 +86,6 @@
 #define extra_blocks    %arg2
 #define p               %arg2
 
-
-# STACK_SPACE needs to be an odd multiple of 8
-_XMM_SAVE_SIZE  = 10*16
-_GPR_SAVE_SIZE  = 8*8
-_ALIGN_SIZE     = 8
-
-_XMM_SAVE       = 0
-_GPR_SAVE       = _XMM_SAVE + _XMM_SAVE_SIZE
-STACK_SPACE     = _GPR_SAVE + _GPR_SAVE_SIZE + _ALIGN_SIZE
-
 .macro LABEL prefix n
 \prefix\n\():
 .endm
@@ -113,16 +103,7 @@ offset = \_offset
 # JOB* sha1_mb_mgr_flush_avx2(MB_MGR *state)
 # arg 1 : rcx : state
 ENTRY(sha1_mb_mgr_flush_avx2)
-	mov	%rsp, %r10
-	sub     $STACK_SPACE, %rsp
-	and     $~31, %rsp
-	mov     %rbx, _GPR_SAVE(%rsp)
-	mov     %r10, _GPR_SAVE+8*1(%rsp) #save rsp
-	mov	%rbp, _GPR_SAVE+8*3(%rsp)
-	mov	%r12, _GPR_SAVE+8*4(%rsp)
-	mov	%r13, _GPR_SAVE+8*5(%rsp)
-	mov	%r14, _GPR_SAVE+8*6(%rsp)
-	mov	%r15, _GPR_SAVE+8*7(%rsp)
+	push	%rbx
 
 	# If bit (32+3) is set, then all lanes are empty
 	mov     _unused_lanes(state), unused_lanes
@@ -230,16 +211,7 @@ len_is_0:
 	mov     tmp2_w, offset(job_rax)
 
 return:
-
-	mov     _GPR_SAVE(%rsp), %rbx
-	mov     _GPR_SAVE+8*1(%rsp), %r10 #saved rsp
-	mov	_GPR_SAVE+8*3(%rsp), %rbp
-	mov	_GPR_SAVE+8*4(%rsp), %r12
-	mov	_GPR_SAVE+8*5(%rsp), %r13
-	mov	_GPR_SAVE+8*6(%rsp), %r14
-	mov	_GPR_SAVE+8*7(%rsp), %r15
-	mov     %r10, %rsp
-
+	pop	%rbx
 	ret
 
 return_null:
