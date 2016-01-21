@@ -2700,13 +2700,13 @@ static void dce_v10_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
-		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
+		drm_vblank_on(dev, amdgpu_crtc->crtc_id);
 		dce_v10_0_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_pre_modeset(dev, amdgpu_crtc->crtc_id);
+		drm_vblank_off(dev, amdgpu_crtc->crtc_id);
 		if (amdgpu_crtc->enabled) {
 			dce_v10_0_vga_enable(crtc, true);
 			amdgpu_atombios_crtc_blank(crtc, ATOM_ENABLE);
