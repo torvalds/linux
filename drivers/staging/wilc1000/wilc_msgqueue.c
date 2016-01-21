@@ -61,7 +61,7 @@ int wilc_mq_send(struct message_queue *mq,
 
 	if ((!mq) || (send_buf_size == 0) || (!send_buf)) {
 		PRINT_ER("mq or send_buf is null\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
 
 	if (mq->exiting) {
