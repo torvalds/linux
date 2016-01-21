@@ -161,25 +161,26 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence)
 {
-	struct fence *best[AMDGPU_MAX_RINGS] = {};
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
 	struct amdgpu_device *adev = ring->adev;
-
-	unsigned choices[2] = {};
-	unsigned i;
+	struct amdgpu_vm_manager_id *id;
+	int r;
 
 	mutex_lock(&adev->vm_manager.lock);
 
 	/* check if the id is still valid */
 	if (vm_id->id) {
-		unsigned id = vm_id->id;
 		long owner;
 
-		owner = atomic_long_read(&adev->vm_manager.ids[id].owner);
+		id = &adev->vm_manager.ids[vm_id->id];
+		owner = atomic_long_read(&id->owner);
 		if (owner == (long)vm) {
+			list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 			trace_amdgpu_vm_grab_id(vm, vm_id->id, ring->idx);
-			fence_put(adev->vm_manager.ids[id].active);
-			adev->vm_manager.ids[id].active = fence_get(fence);
+
+			fence_put(id->active);
+			id->active = fence_get(fence);
+
 			mutex_unlock(&adev->vm_manager.lock);
 			return 0;
 		}
@@ -188,52 +189,24 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	/* we definately need to flush */
 	vm_id->pd_gpu_addr = ~0ll;
 
-	/* skip over VMID 0, since it is the system VM */
-	for (i = 1; i < adev->vm_manager.nvm; ++i) {
-		struct fence *fence = adev->vm_manager.ids[i].active;
-		struct amdgpu_ring *fring;
+	id = list_first_entry(&adev->vm_manager.ids_lru,
+			      struct amdgpu_vm_manager_id,
+			      list);
+	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
+	atomic_long_set(&id->owner, (long)vm);
 
-		if (fence == NULL) {
-			/* found a free one */
-			vm_id->id = i;
-			trace_amdgpu_vm_grab_id(vm, i, ring->idx);
-			mutex_unlock(&adev->vm_manager.lock);
-			return 0;
-		}
+	vm_id->id = id - adev->vm_manager.ids;
+	trace_amdgpu_vm_grab_id(vm, vm_id->id, ring->idx);
 
-		fring = amdgpu_ring_from_fence(fence);
-		if (best[fring->idx] == NULL ||
-		    fence_is_later(best[fring->idx], fence)) {
-			best[fring->idx] = fence;
-			choices[fring == ring ? 0 : 1] = i;
-		}
+	r = amdgpu_sync_fence(ring->adev, sync, id->active);
+
+	if (!r) {
+		fence_put(id->active);
+		id->active = fence_get(fence);
 	}
 
-	for (i = 0; i < 2; ++i) {
-		struct fence *active;
-		int r;
-
-		if (!choices[i])
-			continue;
-
-		vm_id->id = choices[i];
-		active  = adev->vm_manager.ids[vm_id->id].active;
-		r = amdgpu_sync_fence(ring->adev, sync, active);
-
-		trace_amdgpu_vm_grab_id(vm, choices[i], ring->idx);
-		atomic_long_set(&adev->vm_manager.ids[vm_id->id].owner, (long)vm);
-
-		fence_put(adev->vm_manager.ids[vm_id->id].active);
-		adev->vm_manager.ids[vm_id->id].active = fence_get(fence);
-
-		mutex_unlock(&adev->vm_manager.lock);
-		return r;
-	}
-
-	/* should never happen */
-	BUG();
 	mutex_unlock(&adev->vm_manager.lock);
-	return -EINVAL;
+	return r;
 }
 
 /**
@@ -1356,6 +1329,25 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		fence_put(vm->ids[i].flushed_updates);
 	}
 
+}
+
+/**
+ * amdgpu_vm_manager_init - init the VM manager
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Initialize the VM manager structures
+ */
+void amdgpu_vm_manager_init(struct amdgpu_device *adev)
+{
+	unsigned i;
+
+	INIT_LIST_HEAD(&adev->vm_manager.ids_lru);
+
+	/* skip over VMID 0, since it is the system VM */
+	for (i = 1; i < adev->vm_manager.num_ids; ++i)
+		list_add_tail(&adev->vm_manager.ids[i].list,
+			      &adev->vm_manager.ids_lru);
 }
 
 /**

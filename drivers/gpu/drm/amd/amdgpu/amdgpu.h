@@ -925,18 +925,20 @@ struct amdgpu_vm {
 	spinlock_t		freed_lock;
 };
 
-struct amdgpu_vm_manager {
-	/* protecting IDs */
-	struct mutex				lock;
+struct amdgpu_vm_manager_id {
+	struct list_head	list;
+	struct fence		*active;
+	atomic_long_t		owner;
+};
 
-	struct {
-		struct fence	*active;
-		atomic_long_t	owner;
-	} ids[AMDGPU_NUM_VM];
+struct amdgpu_vm_manager {
+	/* Handling of VMIDs */
+	struct mutex				lock;
+	unsigned				num_ids;
+	struct list_head			ids_lru;
+	struct amdgpu_vm_manager_id		ids[AMDGPU_NUM_VM];
 
 	uint32_t				max_pfn;
-	/* number of VMIDs */
-	unsigned				nvm;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* is vm enabled? */
@@ -946,6 +948,7 @@ struct amdgpu_vm_manager {
 	struct amdgpu_ring                      *vm_pte_funcs_ring;
 };
 
+void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
