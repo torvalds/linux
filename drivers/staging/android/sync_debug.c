@@ -27,7 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/anon_inodes.h>
 #include <linux/time64.h>
-#include "sync.h"
+#include "sw_sync.h"
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -207,11 +207,127 @@ static const struct file_operations sync_info_debugfs_fops = {
 	.release        = single_release,
 };
 
+/*
+ * *WARNING*
+ *
+ * improper use of this can result in deadlocking kernel drivers from userspace.
+ */
+
+/* opening sw_sync create a new sync obj */
+static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
+{
+	struct sw_sync_timeline *obj;
+	char task_comm[TASK_COMM_LEN];
+
+	get_task_comm(task_comm, current);
+
+	obj = sw_sync_timeline_create(task_comm);
+	if (!obj)
+		return -ENOMEM;
+
+	file->private_data = obj;
+
+	return 0;
+}
+
+static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
+{
+	struct sw_sync_timeline *obj = file->private_data;
+
+	sync_timeline_destroy(&obj->obj);
+	return 0;
+}
+
+static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
+				       unsigned long arg)
+{
+	int fd = get_unused_fd_flags(O_CLOEXEC);
+	int err;
+	struct sync_pt *pt;
+	struct sync_fence *fence;
+	struct sw_sync_create_fence_data data;
+
+	if (fd < 0)
+		return fd;
+
+	if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+		err = -EFAULT;
+		goto err;
+	}
+
+	pt = sw_sync_pt_create(obj, data.value);
+	if (!pt) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	data.name[sizeof(data.name) - 1] = '\0';
+	fence = sync_fence_create(data.name, pt);
+	if (!fence) {
+		sync_pt_free(pt);
+		err = -ENOMEM;
+		goto err;
+	}
+
+	data.fence = fd;
+	if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
+		sync_fence_put(fence);
+		err = -EFAULT;
+		goto err;
+	}
+
+	sync_fence_install(fence, fd);
+
+	return 0;
+
+err:
+	put_unused_fd(fd);
+	return err;
+}
+
+static long sw_sync_ioctl_inc(struct sw_sync_timeline *obj, unsigned long arg)
+{
+	u32 value;
+
+	if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
+		return -EFAULT;
+
+	sw_sync_timeline_inc(obj, value);
+
+	return 0;
+}
+
+static long sw_sync_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
+{
+	struct sw_sync_timeline *obj = file->private_data;
+
+	switch (cmd) {
+	case SW_SYNC_IOC_CREATE_FENCE:
+		return sw_sync_ioctl_create_fence(obj, arg);
+
+	case SW_SYNC_IOC_INC:
+		return sw_sync_ioctl_inc(obj, arg);
+
+	default:
+		return -ENOTTY;
+	}
+}
+
+static const struct file_operations sw_sync_debugfs_fops = {
+	.open           = sw_sync_debugfs_open,
+	.release        = sw_sync_debugfs_release,
+	.unlocked_ioctl = sw_sync_ioctl,
+	.compat_ioctl = sw_sync_ioctl,
+};
+
 static __init int sync_debugfs_init(void)
 {
 	dbgfs = debugfs_create_dir("sync", NULL);
 
 	debugfs_create_file("info", 0444, dbgfs, NULL, &sync_info_debugfs_fops);
+	debugfs_create_file("sw_sync", 0644, dbgfs, NULL,
+			    &sw_sync_debugfs_fops);
 
 	return 0;
 }
