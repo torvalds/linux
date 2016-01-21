@@ -21,6 +21,7 @@
 
 #include "common.xml.h"
 #include "state.xml.h"
+#include "state_3d.xml.h"
 #include "cmdstream.xml.h"
 
 /*
@@ -179,12 +180,42 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	unsigned int waitlink_offset = buffer->user_size - 16;
+	u32 link_target, flush = 0;
 
-	/* Replace the last WAIT with an END */
-	buffer->user_size -= 16;
+	if (gpu->exec_state == ETNA_PIPE_2D)
+		flush = VIVS_GL_FLUSH_CACHE_PE2D;
+	else if (gpu->exec_state == ETNA_PIPE_3D)
+		flush = VIVS_GL_FLUSH_CACHE_DEPTH |
+			VIVS_GL_FLUSH_CACHE_COLOR |
+			VIVS_GL_FLUSH_CACHE_TEXTURE |
+			VIVS_GL_FLUSH_CACHE_TEXTUREVS |
+			VIVS_GL_FLUSH_CACHE_SHADER_L2;
 
-	CMD_END(buffer);
-	mb();
+	if (flush) {
+		unsigned int dwords = 7;
+
+		link_target = etnaviv_buffer_reserve(gpu, buffer, dwords);
+
+		CMD_SEM(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+		CMD_STALL(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+		CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_CACHE, flush);
+		if (gpu->exec_state == ETNA_PIPE_3D)
+			CMD_LOAD_STATE(buffer, VIVS_TS_FLUSH_CACHE,
+				       VIVS_TS_FLUSH_CACHE_FLUSH);
+		CMD_SEM(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+		CMD_STALL(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+		CMD_END(buffer);
+
+		etnaviv_buffer_replace_wait(buffer, waitlink_offset,
+					    VIV_FE_LINK_HEADER_OP_LINK |
+					    VIV_FE_LINK_HEADER_PREFETCH(dwords),
+					    link_target);
+	} else {
+		/* Replace the last link-wait with an "END" command */
+		etnaviv_buffer_replace_wait(buffer, waitlink_offset,
+					    VIV_FE_END_HEADER_OP_END, 0);
+	}
 }
 
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
