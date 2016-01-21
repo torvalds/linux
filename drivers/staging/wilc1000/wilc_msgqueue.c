@@ -53,19 +53,19 @@ int wilc_mq_destroy(struct message_queue *mq)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_send(struct message_queue *pHandle,
+int wilc_mq_send(struct message_queue *mq,
 		 const void *pvSendBuffer, u32 u32SendBufferSize)
 {
 	unsigned long flags;
 	struct message *pstrMessage = NULL;
 
-	if ((!pHandle) || (u32SendBufferSize == 0) || (!pvSendBuffer)) {
-		PRINT_ER("pHandle or pvSendBuffer is null\n");
+	if ((!mq) || (u32SendBufferSize == 0) || (!pvSendBuffer)) {
+		PRINT_ER("mq or pvSendBuffer is null\n");
 		return -EFAULT;
 	}
 
-	if (pHandle->exiting) {
-		PRINT_ER("pHandle fail\n");
+	if (mq->exiting) {
+		PRINT_ER("mq fail\n");
 		return -EFAULT;
 	}
 
@@ -83,13 +83,13 @@ int wilc_mq_send(struct message_queue *pHandle,
 		return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&pHandle->lock, flags);
+	spin_lock_irqsave(&mq->lock, flags);
 
 	/* add it to the message queue */
-	if (!pHandle->msg_list) {
-		pHandle->msg_list  = pstrMessage;
+	if (!mq->msg_list) {
+		mq->msg_list  = pstrMessage;
 	} else {
-		struct message *pstrTailMsg = pHandle->msg_list;
+		struct message *pstrTailMsg = mq->msg_list;
 
 		while (pstrTailMsg->next)
 			pstrTailMsg = pstrTailMsg->next;
@@ -97,9 +97,9 @@ int wilc_mq_send(struct message_queue *pHandle,
 		pstrTailMsg->next = pstrMessage;
 	}
 
-	spin_unlock_irqrestore(&pHandle->lock, flags);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
-	up(&pHandle->sem);
+	up(&mq->sem);
 
 	return 0;
 }

@@ -57,7 +57,7 @@ int wilc_mq_create(struct message_queue *mq);
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_send(struct message_queue *pHandle,
+int wilc_mq_send(struct message_queue *mq,
 		 const void *pvSendBuffer, u32 u32SendBufferSize);
 
 /*!
