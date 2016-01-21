@@ -518,13 +518,8 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 		return -ENOMEM;
 	}
 
-	/*
-	 * ADG is special module.
-	 * Use ADG mod without rsnd_mod_init() to make debug easy
-	 * for rsnd_write/rsnd_read
-	 */
-	adg->mod.ops = &adg_ops;
-	adg->mod.priv = priv;
+	rsnd_mod_init(priv, &adg->mod, &adg_ops,
+		      NULL, 0, 0);
 
 	rsnd_adg_get_clkin(priv, adg);
 	rsnd_adg_get_clkout(priv, adg);
