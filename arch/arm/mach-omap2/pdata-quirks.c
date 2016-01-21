@@ -265,7 +265,7 @@ static void __init nokia_n900_legacy_init(void)
 			pr_warn("Thumb binaries may crash randomly without this workaround\n");
 		}
 
-		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		pr_info("RX-51: Registering OMAP3 HWRNG device\n");
 		platform_device_register(&omap3_rom_rng_device);
 
 	}
