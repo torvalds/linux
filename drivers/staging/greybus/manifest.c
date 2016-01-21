@@ -230,8 +230,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
 	struct gb_interface *intf = bundle->intf;
 	struct greybus_descriptor_cport *desc_cport;
-	struct manifest_desc *desc;
-	struct manifest_desc *next;
+	struct manifest_desc *desc, *next, *tmp;
 	LIST_HEAD(list);
 	u8 bundle_id = bundle->id;
 	u16 cport_id;
@@ -251,7 +250,19 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		if (cport_id > CPORT_ID_MAX)
 			goto exit;
 
-		/* Found one, move it to our temporary list. */
+		/*
+		 * Found one, move it to our temporary list after checking for
+		 * duplicates.
+		 */
+		list_for_each_entry(tmp, &list, links) {
+			desc_cport = tmp->data;
+			if (cport_id == desc_cport->id) {
+				dev_err(&bundle->dev,
+						"duplicate CPort %u found\n",
+						cport_id);
+				goto exit;
+			}
+		}
 		list_move(&desc->links, &list);
 		count++;
 	}
