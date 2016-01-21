@@ -367,11 +367,7 @@ static int rsnd_src_stop(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	/*
-	 * stop SRC output only
-	 * see rsnd_src_quit
-	 */
-	rsnd_mod_write(mod, SRC_CTRL, 0x01);
+	rsnd_mod_write(mod, SRC_CTRL, 0);
 
 	return 0;
 }
@@ -408,9 +404,6 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 
 	rsnd_src_irq_disable(mod);
-
-	/* stop both out/in */
-	rsnd_mod_write(mod, SRC_CTRL, 0);
 
 	rsnd_src_halt(mod);
 
