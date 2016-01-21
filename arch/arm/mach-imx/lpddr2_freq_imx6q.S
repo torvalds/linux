@@ -162,33 +162,81 @@ wait_div_update2:
 
 	.endm
 
-	.macro	mmdc_clk_lower_100MHz
-
+	.macro set_timings_below_100MHz_operation
 	/* Set MMDCx_MISC[RALAT] = 2 cycles */
 	ldr	r6, [r8, #0x18]
 	bic	r6, r6, #(0x7 << 6)
 	orr	r6, r6, #(0x2 << 6)
 	str	r6, [r8, #0x18]
 
+	/* Adjust LPDDR2 timmings for 24Mhz operation */
+	ldr	r5, =0x03032073
+	str	r5, [r8, #0xC]  	/* MMDC0_MDCFG0 */
+	ldr	r7, =0x00020482
+	str	r7, [r8, #0x10] 	/* MMDC0_MDCFG1 */
+	ldr	r9, =0x00000049
+	str	r9, [r8, #0x14] 	/* MMDC0_MDCFG2 */
+	ldr	r10, =0x00020333
+	str	r10, [r8, #0x38] 	/* MMDC0_MDCFG3LP */
+
+	/* Check if lpddr2 channel 1 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_below_100Mhz_ch1_timings
+
 	ldr	r6, [r4, #0x18]
 	bic	r6, r6, #(0x7 << 6)
 	orr	r6, r6, #(0x2 << 6)
 	str	r6, [r4, #0x18]
 
-	/* Adjust LPDDR2 timmings for 24Mhz operation */
-	ldr	r6, =0x03032073
-	str	r6, [r8, #0xC]  	/* MMDC0_MDCFG0 */
-	str	r6, [r4, #0xC]  	/* MMDC1_MDCFG0 */
-	ldr	r6, =0x00020482
-	str	r6, [r8, #0x10] 	/* MMDC0_MDCFG1 */
-	str	r6, [r4, #0x10] 	/* MMDC1_MDCFG1 */
-	ldr	r6, =0x00000049
-	str	r6, [r8, #0x14] 	/* MMDC0_MDCFG2 */
-	str	r6, [r4, #0x14] 	/* MMDC1_MDCFG2 */
-	ldr	r6, =0x00020333
-	str	r6, [r8, #0x38] 	/* MMDC0_MDCFG3LP */
-	str	r6, [r4, #0x38] 	/* MMDC1_MDCFG3LP */
+	str	r5, [r4, #0xC]  	/* MMDC1_MDCFG0 */
+	str	r7, [r4, #0x10] 	/* MMDC1_MDCFG1 */
+	str	r9, [r4, #0x14] 	/* MMDC1_MDCFG2 */
+	str	r10, [r4, #0x38] 	/* MMDC1_MDCFG3LP */
 
+skip_below_100Mhz_ch1_timings:
+
+	.endm
+
+	.macro set_timmings_above_100MHz_operation
+	/* Set MMDCx_MISC[RALAT] = 5 cycles */
+	ldr	r6, [r8, #0x18]
+	bic	r6, r6, #(0x7 << 6)
+	orr	r6, r6, #(0x5 << 6)
+	str	r6, [r8, #0x18]
+
+	/* Adjust LPDDR2 timmings for 400Mhz operation */
+	ldr	r5, =0x33374133
+	str	r5, [r8, #0xC]  	/* MMDC0_MDCFG0 */
+	ldr	r7, =0x00100A82
+	str	r7, [r8, #0x10] 	/* MMDC0_MDCFG1 */
+	ldr	r9, =0x00000093
+	str	r9, [r8, #0x14] 	/* MMDC0_MDCFG2 */
+	ldr	r10, =0x001A0889
+	str	r10, [r8, #0x38] 	/* MMDC0_MDCFG3LP */
+
+	/* Check if lpddr2 channel 1 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_above_100Mhz_ch1_timings
+
+	ldr	r6, [r4, #0x18]
+	bic	r6, r6, #(0x7 << 6)
+	orr	r6, r6, #(0x5 << 6)
+	str	r6, [r4, #0x18]
+
+	str	r5, [r4, #0xC]  	/* MMDC1_MDCFG0 */
+	str	r7, [r4, #0x10] 	/* MMDC1_MDCFG1 */
+	str	r9, [r4, #0x14] 	/* MMDC1_MDCFG2 */
+	str	r10, [r4, #0x38] 	/* MMDC1_MDCFG3LP */
+
+skip_above_100Mhz_ch1_timings:
+
+	.endm
+
+	.macro	mmdc_clk_lower_100MHz
+
+	set_timings_below_100MHz_operation
 	/*
 	 * Prior to reducing the DDR frequency (at 528/400 MHz),
 	 * read the Measure unit count bits (MU_UNIT_DEL_NUM)
@@ -229,6 +277,11 @@ force_measure:
 	cmp	r6, #0x0
 	bne	force_measure
 
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_lower_force_measure_ch1
+
 	ldr	r5, =0x8B8
 	ldr	r6, [r4, r5]
 	/* Original MU unit count */
@@ -265,34 +318,13 @@ force_measure_ch1:
 	cmp	r6, #0x0
 	bne	force_measure_ch1
 
+skip_lower_force_measure_ch1:
+
 	.endm
 
 	.macro	mmdc_clk_above_100MHz
 
-	/* Set MMDCx_MISC[RALAT] = 5 cycles */
-	ldr	r6, [r8, #0x18]
-	bic	r6, r6, #(0x7 << 6)
-	orr	r6, r6, #(0x5 << 6)
-	str	r6, [r8, #0x18]
-
-	ldr	r6, [r4, #0x18]
-	bic	r6, r6, #(0x7 << 6)
-	orr	r6, r6, #(0x5 << 6)
-	str	r6, [r4, #0x18]
-
-	/* Adjust LPDDR2 timmings for 400Mhz operation */
-	ldr	r6, =0x33374133
-	str	r6, [r8, #0xC]  	/* MMDC0_MDCFG0 */
-	str	r6, [r4, #0xC]  	/* MMDC1_MDCFG0 */
-	ldr	r6, =0x00100A82
-	str	r6, [r8, #0x10] 	/* MMDC0_MDCFG1 */
-	str	r6, [r4, #0x10] 	/* MMDC1_MDCFG1 */
-	ldr	r6, =0x00000093
-	str	r6, [r8, #0x14] 	/* MMDC0_MDCFG2 */
-	str	r6, [r4, #0x14] 	/* MMDC1_MDCFG2 */
-	ldr	r6, =0x001A0889
-	str	r6, [r8, #0x38] 	/* MMDC0_MDCFG3LP */
-	str	r6, [r4, #0x38] 	/* MMDC1_MDCFG3LP */
+	set_timmings_above_100MHz_operation
 
 	/* Make sure that the PHY measurement unit is NOT in bypass mode */
 	ldr	r5, =0x8B8
@@ -310,6 +342,11 @@ force_measure1:
 	cmp	r6, #0x0
 	bne	force_measure1
 
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_above_force_measure_ch1
+
 	ldr	r5, =0x8B8
 	ldr	r6, [r4, r5]
 	bic	r6, r6, #0x400
@@ -324,6 +361,9 @@ force_measure1_ch1:
 	and	r6, r6, #0x800
 	cmp	r6, #0x0
 	bne	force_measure1_ch1
+
+skip_above_force_measure_ch1:
+
 	.endm
 
 /*
@@ -426,19 +466,25 @@ wait_for_l2_to_idle:
 	orr	r6, r6, #0x01
 	str	r6, [r8, #0x404]
 
-	ldr	r6, [r4, #0x404]
-	orr	r6, r6, #0x01
-	str	r6, [r4, #0x404]
-
 	/* MMDC0_MDPDC disable power down timer */
 	ldr	r6, [r8, #0x4]
 	bic	r6, r6, #0xff00
 	str	r6, [r8, #0x4]
 
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_psd_ch1
+
+	ldr	r6, [r4, #0x404]
+	orr	r6, r6, #0x01
+	str	r6, [r4, #0x404]
+
 	ldr	r6, [r4, #0x4]
 	bic	r6, r6, #0xff00
 	str	r6, [r4, #0x4]
 
+skip_psd_ch1:
 	/* Delay for a while */
 	ldr	r10, =10
 delay1:
@@ -463,6 +509,16 @@ poll_dvfs_set_1:
 	cmp	r6, #0x2000000
 	bne	poll_dvfs_set_1
 
+	/* set SBS step-by-step mode */
+	ldr	r6, [r8, #0x410]
+	orr	r6, r6, #0x100
+	str	r6, [r8, #0x410]
+
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_sbs_ch1
+
 	ldr	r6, [r4, #0x404]
 	orr	r6, r6, #0x200000
 	str	r6, [r4, #0x404]
@@ -473,16 +529,11 @@ poll_dvfs_set_2:
 	cmp	r6, #0x2000000
 	bne	poll_dvfs_set_2
 
-
-	/* set SBS step-by-step mode */
-	ldr	r6, [r8, #0x410]
-	orr	r6, r6, #0x100
-	str	r6, [r8, #0x410]
-
 	ldr	r6, [r4, #0x410]
 	orr	r6, r6, #0x100
 	str	r6, [r4, #0x410]
 
+skip_sbs_ch1:
 	ldr	r10, =100000000
 	cmp	r0, r10
 	bgt	set_ddr_mu_above_100
@@ -524,6 +575,16 @@ poll_dvfs_clear_1:
 	cmp	r6, #0x2000000
 	beq	poll_dvfs_clear_1
 
+	/* Enable Automatic power savings. */
+	ldr	r6, [r8, #0x404]
+	bic	r6, r6, #0x01
+	str	r6, [r8, #0x404]
+
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_enable_psd_ch1
+
 	ldr	r6, [r4, #0x404]
 	bic	r6, r6, #0x200000
 	str	r6, [r4, #0x404]
@@ -534,15 +595,11 @@ poll_dvfs_clear_2:
 	cmp	r6, #0x2000000
 	beq	poll_dvfs_clear_2
 
-	/* Enable Automatic power savings. */
-	ldr	r6, [r8, #0x404]
-	bic	r6, r6, #0x01
-	str	r6, [r8, #0x404]
-
 	ldr	r6, [r4, #0x404]
 	bic	r6, r6, #0x01
 	str	r6, [r4, #0x404]
 
+skip_enable_psd_ch1:
 	ldr	r10, =24000000
 	cmp	r0, r10
 	beq	skip_power_down
@@ -551,6 +608,11 @@ poll_dvfs_clear_2:
 	ldr	r6, [r8, #0x4]
 	orr	r6, r6, #0x5500
 	str	r6, [r8, #0x4]
+
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_power_down
 
 	ldr	r6, [r4, #0x4]
 	orr	r6, r6, #0x5500
@@ -562,10 +624,16 @@ skip_power_down:
 	bic	r6, r6, #0x100
 	str	r6, [r8, #0x410]
 
+	/* Check if lpddr2 channel 2 is enabled */
+	ldr	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	skip_disable_sbs_ch1
+
 	ldr	r6, [r4, #0x410]
 	bic	r6, r6, #0x100
 	str	r6, [r4, #0x410]
 
+skip_disable_sbs_ch1:
 #ifdef CONFIG_CACHE_L2X0
 	/* Enable L2. */
 	ldr	r7, =IMX_IO_P2V(MX6Q_L2_BASE_ADDR)
