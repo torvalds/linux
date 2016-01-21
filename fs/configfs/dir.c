@@ -1070,11 +1070,55 @@ out:
 	return ret;
 }
 
+static int configfs_do_depend_item(struct dentry *subsys_dentry,
+				   struct config_item *target)
+{
+	struct configfs_dirent *p;
+	int ret;
+
+	spin_lock(&configfs_dirent_lock);
+	/* Scan the tree, return 0 if found */
+	ret = configfs_depend_prep(subsys_dentry, target);
+	if (ret)
+		goto out_unlock_dirent_lock;
+
+	/*
+	 * We are sure that the item is not about to be removed by rmdir(), and
+	 * not in the middle of attachment by mkdir().
+	 */
+	p = target->ci_dentry->d_fsdata;
+	p->s_dependent_count += 1;
+
+out_unlock_dirent_lock:
+	spin_unlock(&configfs_dirent_lock);
+
+	return ret;
+}
+
+static inline struct configfs_dirent *
+configfs_find_subsys_dentry(struct configfs_dirent *root_sd,
+			    struct config_item *subsys_item)
+{
+	struct configfs_dirent *p;
+	struct configfs_dirent *ret = NULL;
+
+	list_for_each_entry(p, &root_sd->s_children, s_sibling) {
+		if (p->s_type & CONFIGFS_DIR &&
+		    p->s_element == subsys_item) {
+			ret = p;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+
 int configfs_depend_item(struct configfs_subsystem *subsys,
 			 struct config_item *target)
 {
 	int ret;
-	struct configfs_dirent *p, *root_sd, *subsys_sd = NULL;
+	struct configfs_dirent *subsys_sd;
 	struct config_item *s_item = &subsys->su_group.cg_item;
 	struct dentry *root;
 
@@ -1093,39 +1137,15 @@ int configfs_depend_item(struct configfs_subsystem *subsys,
 	 */
 	mutex_lock(&d_inode(root)->i_mutex);
 
-	root_sd = root->d_fsdata;
-
-	list_for_each_entry(p, &root_sd->s_children, s_sibling) {
-		if (p->s_type & CONFIGFS_DIR) {
-			if (p->s_element == s_item) {
-				subsys_sd = p;
-				break;
-			}
-		}
-	}
-
+	subsys_sd = configfs_find_subsys_dentry(root->d_fsdata, s_item);
 	if (!subsys_sd) {
 		ret = -ENOENT;
 		goto out_unlock_fs;
 	}
 
 	/* Ok, now we can trust subsys/s_item */
+	ret = configfs_do_depend_item(subsys_sd->s_dentry, target);
 
-	spin_lock(&configfs_dirent_lock);
-	/* Scan the tree, return 0 if found */
-	ret = configfs_depend_prep(subsys_sd->s_dentry, target);
-	if (ret)
-		goto out_unlock_dirent_lock;
-
-	/*
-	 * We are sure that the item is not about to be removed by rmdir(), and
-	 * not in the middle of attachment by mkdir().
-	 */
-	p = target->ci_dentry->d_fsdata;
-	p->s_dependent_count += 1;
-
-out_unlock_dirent_lock:
-	spin_unlock(&configfs_dirent_lock);
 out_unlock_fs:
 	mutex_unlock(&d_inode(root)->i_mutex);
 
@@ -1144,8 +1164,7 @@ EXPORT_SYMBOL(configfs_depend_item);
  * configfs_depend_item() because we know that that the client driver is
  * pinned, thus the subsystem is pinned, and therefore configfs is pinned.
  */
-void configfs_undepend_item(struct configfs_subsystem *subsys,
-			    struct config_item *target)
+void configfs_undepend_item(struct config_item *target)
 {
 	struct configfs_dirent *sd;
 
@@ -1167,6 +1186,79 @@ void configfs_undepend_item(struct configfs_subsystem *subsys,
 	spin_unlock(&configfs_dirent_lock);
 }
 EXPORT_SYMBOL(configfs_undepend_item);
+
+/*
+ * caller_subsys is a caller's subsystem not target's. This is used to
+ * determine if we should lock root and check subsys or not. When we are
+ * in the same subsystem as our target there is no need to do locking as
+ * we know that subsys is valid and is not unregistered during this function
+ * as we are called from callback of one of his children and VFS holds a lock
+ * on some inode. Otherwise we have to lock our root to  ensure that target's
+ * subsystem it is not unregistered during this function.
+ */
+int configfs_depend_item_unlocked(struct configfs_subsystem *caller_subsys,
+				  struct config_item *target)
+{
+	struct configfs_subsystem *target_subsys;
+	struct config_group *root, *parent;
+	struct configfs_dirent *subsys_sd;
+	int ret = -ENOENT;
+
+	/* Disallow this function for configfs root */
+	if (configfs_is_root(target))
+		return -EINVAL;
+
+	parent = target->ci_group;
+	/*
+	 * This may happen when someone is trying to depend root
+	 * directory of some subsystem
+	 */
+	if (configfs_is_root(&parent->cg_item)) {
+		target_subsys = to_configfs_subsystem(to_config_group(target));
+		root = parent;
+	} else {
+		target_subsys = parent->cg_subsys;
+		/* Find a cofnigfs root as we may need it for locking */
+		for (root = parent; !configfs_is_root(&root->cg_item);
+		     root = root->cg_item.ci_group)
+			;
+	}
+
+	if (target_subsys != caller_subsys) {
+		/*
+		 * We are in other configfs subsystem, so we have to do
+		 * additional locking to prevent other subsystem from being
+		 * unregistered
+		 */
+		mutex_lock(&d_inode(root->cg_item.ci_dentry)->i_mutex);
+
+		/*
+		 * As we are trying to depend item from other subsystem
+		 * we have to check if this subsystem is still registered
+		 */
+		subsys_sd = configfs_find_subsys_dentry(
+				root->cg_item.ci_dentry->d_fsdata,
+				&target_subsys->su_group.cg_item);
+		if (!subsys_sd)
+			goto out_root_unlock;
+	} else {
+		subsys_sd = target_subsys->su_group.cg_item.ci_dentry->d_fsdata;
+	}
+
+	/* Now we can execute core of depend item */
+	ret = configfs_do_depend_item(subsys_sd->s_dentry, target);
+
+	if (target_subsys != caller_subsys)
+out_root_unlock:
+		/*
+		 * We were called from subsystem other than our target so we
+		 * took some locks so now it's time to release them
+		 */
+		mutex_unlock(&d_inode(root->cg_item.ci_dentry)->i_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(configfs_depend_item_unlocked);
 
 static int configfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {

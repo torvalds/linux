@@ -175,7 +175,7 @@
 
 	ads7846_pins: pinmux_ads7846_pins {
 		pinctrl-single,pins = <
-			0x02 (PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
+			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
 		>;
 	};
 };
@@ -359,7 +359,7 @@
 		ti,debounce-tol = /bits/ 16 <10>;
 		ti,debounce-rep = /bits/ 16 <1>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

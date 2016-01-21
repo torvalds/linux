@@ -1257,7 +1257,7 @@ static struct platform_device omap3_rom_rng_device = {
 static void __init rx51_init_omap3_rom_rng(void)
 {
 	if (omap_type() == OMAP2_DEVICE_TYPE_SEC) {
-		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		pr_info("RX-51: Registering OMAP3 HWRNG device\n");
 		platform_device_register(&omap3_rom_rng_device);
 	}
 }

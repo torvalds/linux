@@ -90,10 +90,10 @@ module_param(device_id_scheme, bool, 0444);
 static bool only_lcd = false;
 module_param(only_lcd, bool, 0444);
 
-static DECLARE_COMPLETION(register_done);
-static DEFINE_MUTEX(register_done_mutex);
-static struct mutex video_list_lock;
-static struct list_head video_bus_head;
+static int register_count;
+static DEFINE_MUTEX(register_count_mutex);
+static DEFINE_MUTEX(video_list_lock);
+static LIST_HEAD(video_bus_head);
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device);
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
@@ -479,12 +479,30 @@ static struct dmi_system_id video_dmi_table[] = {
 	 * as brightness control does not work.
 	 */
 	{
+	 /* https://bugzilla.kernel.org/show_bug.cgi?id=21012 */
+	 .callback = video_disable_backlight_sysfs_if,
+	 .ident = "Toshiba Portege R700",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE R700"),
+		},
+	},
+	{
 	 /* https://bugs.freedesktop.org/show_bug.cgi?id=82634 */
 	 .callback = video_disable_backlight_sysfs_if,
 	 .ident = "Toshiba Portege R830",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE R830"),
+		},
+	},
+	{
+	 /* https://bugzilla.kernel.org/show_bug.cgi?id=21012 */
+	 .callback = video_disable_backlight_sysfs_if,
+	 .ident = "Toshiba Satellite R830",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "SATELLITE R830"),
 		},
 	},
 	/*
@@ -2049,17 +2067,14 @@ int acpi_video_register(void)
 {
 	int ret = 0;
 
-	mutex_lock(&register_done_mutex);
-	if (completion_done(&register_done)) {
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
 		 * don't register the acpi_vide_bus again and return no error.
 		 */
 		goto leave;
 	}
-
-	mutex_init(&video_list_lock);
-	INIT_LIST_HEAD(&video_bus_head);
 
 	dmi_check_system(video_dmi_table);
 
@@ -2071,22 +2086,22 @@ int acpi_video_register(void)
 	 * When the acpi_video_bus is loaded successfully, increase
 	 * the counter reference.
 	 */
-	complete(&register_done);
+	register_count = 1;
 
 leave:
-	mutex_unlock(&register_done_mutex);
+	mutex_unlock(&register_count_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(acpi_video_register);
 
 void acpi_video_unregister(void)
 {
-	mutex_lock(&register_done_mutex);
-	if (completion_done(&register_done)) {
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
 		acpi_bus_unregister_driver(&acpi_video_bus);
-		reinit_completion(&register_done);
+		register_count = 0;
 	}
-	mutex_unlock(&register_done_mutex);
+	mutex_unlock(&register_count_mutex);
 }
 EXPORT_SYMBOL(acpi_video_unregister);
 
@@ -2094,21 +2109,20 @@ void acpi_video_unregister_backlight(void)
 {
 	struct acpi_video_bus *video;
 
-	mutex_lock(&register_done_mutex);
-	if (completion_done(&register_done)) {
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
 		mutex_lock(&video_list_lock);
 		list_for_each_entry(video, &video_bus_head, entry)
 			acpi_video_bus_unregister_backlight(video);
 		mutex_unlock(&video_list_lock);
 	}
-	mutex_unlock(&register_done_mutex);
+	mutex_unlock(&register_count_mutex);
 }
 
 bool acpi_video_handles_brightness_key_presses(void)
 {
 	bool have_video_busses;
 
-	wait_for_completion(&register_done);
 	mutex_lock(&video_list_lock);
 	have_video_busses = !list_empty(&video_bus_head);
 	mutex_unlock(&video_list_lock);
