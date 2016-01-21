@@ -11834,7 +11834,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_plane *plane = plane_state->plane;
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane_state *old_plane_state =
 		to_intel_plane_state(plane->state);
 	int idx = intel_crtc->base.base.id, ret;
@@ -11902,6 +11901,8 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	case DRM_PLANE_TYPE_PRIMARY:
 		intel_crtc->atomic.pre_disable_primary = turn_off;
 		intel_crtc->atomic.post_enable_primary = turn_on;
+		intel_crtc->atomic.disable_fbc = true;
+		intel_crtc->atomic.update_fbc = true;
 
 		if (turn_off) {
 			/*
@@ -11913,26 +11914,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			 * disable.
 			 */
 			intel_crtc->atomic.disable_ips = true;
-
-			intel_crtc->atomic.disable_fbc = true;
 		}
-
-		/*
-		 * FBC does not work on some platforms for rotated
-		 * planes, so disable it when rotation is not 0 and
-		 * update it when rotation is set back to 0.
-		 *
-		 * FIXME: This is redundant with the fbc update done in
-		 * the primary plane enable function except that that
-		 * one is done too late. We eventually need to unify
-		 * this.
-		 */
-
-		if (visible &&
-		    INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
-		    dev_priv->fbc.crtc == intel_crtc &&
-		    plane_state->rotation != BIT(DRM_ROTATE_0))
-			intel_crtc->atomic.disable_fbc = true;
 
 		/*
 		 * BDW signals flip done immediately if the plane
@@ -11942,7 +11924,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		if (turn_on && IS_BROADWELL(dev))
 			intel_crtc->atomic.wait_vblank = true;
 
-		intel_crtc->atomic.update_fbc |= visible || mode_changed;
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
 		break;
