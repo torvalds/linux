@@ -224,7 +224,8 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
-	u32 back, link_target, link_size, reserve_size, extra_size = 0;
+	u32 back, reserve_size, extra_size = 0;
+	u32 link_target, link_dwords;
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
@@ -251,7 +252,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 	/* save offset back into main buffer */
 	back = buffer->user_size + reserve_size - 6 * 4;
-	link_size = 6;
+	link_dwords = 6;
 
 	/* Skip over any extra instructions */
 	link_target += extra_size * sizeof(u32);
@@ -261,10 +262,10 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 			link_target, gpu_va(gpu, cmdbuf), cmdbuf->vaddr);
 
 	/* jump back from cmd to main buffer */
-	CMD_LINK(cmdbuf, link_size, link_target);
+	CMD_LINK(cmdbuf, link_dwords, link_target);
 
 	link_target = gpu_va(gpu, cmdbuf);
-	link_size = cmdbuf->size / 8;
+	link_dwords = cmdbuf->size / 8;
 
 	if (drm_debug & DRM_UT_DRIVER) {
 		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
@@ -297,12 +298,12 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 			gpu->switch_context = false;
 		}
 
-		/* And the link to the first buffer */
-		CMD_LINK(buffer, link_size, link_target);
+		/* And the link to the submitted buffer */
+		CMD_LINK(buffer, link_dwords, link_target);
 
 		/* Update the link target to point to above instructions */
 		link_target = new_target;
-		link_size = extra_size;
+		link_dwords = extra_size;
 	}
 
 	/* trigger event */
@@ -315,7 +316,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 	etnaviv_buffer_replace_wait(buffer, waitlink_offset,
 				    VIV_FE_LINK_HEADER_OP_LINK |
-				    VIV_FE_LINK_HEADER_PREFETCH(link_size),
+				    VIV_FE_LINK_HEADER_PREFETCH(link_dwords),
 				    link_target);
 
 	if (drm_debug & DRM_UT_DRIVER)
