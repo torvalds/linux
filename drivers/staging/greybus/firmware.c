@@ -251,25 +251,23 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 
 	firmware_es2_fixup_vid_pid(firmware);
 
-	/*
-	 * Module's Bootrom needs a way to know (currently), when to start
-	 * sending requests to the AP. The version request is sent before this
-	 * routine is called, and if the module sends the request right after
-	 * receiving version request, the connection->private field will be
-	 * NULL.
-	 *
-	 * Fix this TEMPORARILY by sending an AP_READY request.
-	 */
+	/* Tell bootrom we're ready. */
 	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_AP_READY, NULL, 0,
 				NULL, 0);
 	if (ret) {
 		dev_err(&connection->bundle->dev,
 				"failed to send AP READY: %d\n", ret);
+		goto err_free_firmware;
 	}
 
 	dev_dbg(&connection->bundle->dev, "%s: AP_READY sent\n", __func__);
 
 	return 0;
+
+err_free_firmware:
+	kfree(firmware);
+
+	return ret;
 }
 
 static void gb_firmware_connection_exit(struct gb_connection *connection)
