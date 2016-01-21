@@ -1,0 +1,40 @@
+config DRM_MSM_DSI
+	bool "Enable DSI support in MSM DRM driver"
+	depends on DRM_MSM
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	default y
+	help
+	  Choose this option if you have a need for MIPI DSI connector
+	  support.
+
+if DRM_MSM_DSI
+
+config DRM_MSM_DSI_PLL
+	bool "Enable DSI PLL driver in MSM DRM"
+	default y
+	help
+	  Choose this option to enable DSI PLL driver which provides DSI
+	  source clocks under common clock framework.
+
+config DRM_MSM_DSI_28NM_PHY
+	bool "Enable DSI 28nm PHY driver in MSM DRM"
+	default y
+	help
+	  Choose this option if the 28nm DSI PHY is used on the platform.
+
+config DRM_MSM_DSI_20NM_PHY
+	bool "Enable DSI 20nm PHY driver in MSM DRM"
+	default y
+	help
+	  Choose this option if the 20nm DSI PHY is used on the platform.
+
+config DRM_MSM_DSI_28NM_8960_PHY
+	bool "Enable DSI 28nm 8960 PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 28nm DSI PHY 8960 variant is used on the
+	  platform.
+
+endif
