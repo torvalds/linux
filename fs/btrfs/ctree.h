@@ -2353,6 +2353,9 @@ struct btrfs_map_token {
 	unsigned long offset;
 };
 
+#define BTRFS_BYTES_TO_BLKS(fs_info, bytes) \
+				((bytes) >> (fs_info)->sb->s_blocksize_bits)
+
 static inline void btrfs_init_map_token (struct btrfs_map_token *token)
 {
 	token->kaddr = NULL;
