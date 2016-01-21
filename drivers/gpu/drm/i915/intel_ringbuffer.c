@@ -1133,6 +1133,15 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 	}
 
+	/* WaDisableObjectLevelPreemptionForTrifanOrPolygon:bxt */
+	/* WaDisableObjectLevelPreemptionForInstancedDraw:bxt */
+	/* WaDisableObjectLevelPreemtionForInstanceId:bxt */
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+		ret = wa_ring_whitelist_reg(ring, GEN9_CS_DEBUG_MODE1);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
