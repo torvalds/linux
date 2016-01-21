@@ -423,7 +423,7 @@ static const struct coproc_reg *find_reg(const struct coproc_params *params,
 	for (i = 0; i < num; i++) {
 		const struct coproc_reg *r = &table[i];
 
-		if (params->is_64bit != r->is_64)
+		if (params->is_64bit != r->is_64bit)
 			continue;
 		if (params->CRn != r->CRn)
 			continue;
@@ -1105,7 +1105,7 @@ static int write_demux_regids(u64 __user *uindices)
 static u64 cp15_to_index(const struct coproc_reg *reg)
 {
 	u64 val = KVM_REG_ARM | (15 << KVM_REG_ARM_COPROC_SHIFT);
-	if (reg->is_64) {
+	if (reg->is_64bit) {
 		val |= KVM_REG_SIZE_U64;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);
 		/*

@@ -37,7 +37,7 @@ struct coproc_reg {
 	unsigned long Op1;
 	unsigned long Op2;
 
-	bool is_64;
+	bool is_64bit;
 
 	/* Trapped access from guest, if non-NULL. */
 	bool (*access)(struct kvm_vcpu *,
@@ -141,7 +141,7 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 		return i1->Op1 - i2->Op1;
 	if (i1->Op2 != i2->Op2)
 		return i1->Op2 - i2->Op2;
-	return i2->is_64 - i1->is_64;
+	return i2->is_64bit - i1->is_64bit;
 }
 
 
@@ -150,8 +150,8 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 #define CRm64(_x)       .CRn = _x, .CRm = 0
 #define Op1(_x) 	.Op1 = _x
 #define Op2(_x) 	.Op2 = _x
-#define is64		.is_64 = true
-#define is32		.is_64 = false
+#define is64		.is_64bit = true
+#define is32		.is_64bit = false
 
 bool access_vm_reg(struct kvm_vcpu *vcpu,
 		   const struct coproc_params *p,
