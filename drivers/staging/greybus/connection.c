@@ -112,7 +112,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
 }
 
 /*
- * gb_connection_create() - create a Greybus connection
+ * _gb_connection_create() - create a Greybus connection
  * @hd:			host device of the connection
  * @hd_cport_id:	host-device cport id, or -1 for dynamic allocation
  * @intf:		remote interface, or NULL for static connections
@@ -132,7 +132,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
  * Return: A pointer to the new connection if successful, or NULL otherwise.
  */
 static struct gb_connection *
-gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
+_gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				struct gb_interface *intf,
 				struct gb_bundle *bundle, int cport_id)
 {
@@ -215,23 +215,23 @@ err_unlock:
 struct gb_connection *
 gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id)
 {
-	return gb_connection_create(hd, hd_cport_id, NULL, NULL, 0);
+	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0);
 }
 
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
-	return gb_connection_create(intf->hd, -1, intf, NULL, 0);
+	return _gb_connection_create(intf->hd, -1, intf, NULL, 0);
 }
 
 struct gb_connection *
-gb_connection_create_dynamic(struct gb_bundle *bundle, u16 cport_id)
+gb_connection_create(struct gb_bundle *bundle, u16 cport_id)
 {
 	struct gb_interface *intf = bundle->intf;
 
-	return gb_connection_create(intf->hd, -1, intf, bundle, cport_id);
+	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id);
 }
-EXPORT_SYMBOL_GPL(gb_connection_create_dynamic);
+EXPORT_SYMBOL_GPL(gb_connection_create);
 
 static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 {
