@@ -24,6 +24,8 @@
 		i2c0	= &blsp_i2c2;
 		i2c1	= &blsp_i2c6;
 		i2c3	= &blsp_i2c4;
+		spi0	= &blsp_spi5;
+		spi1	= &blsp_spi3;
 	};
 
 	chosen {
