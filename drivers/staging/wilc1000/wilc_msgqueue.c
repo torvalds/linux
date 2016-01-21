@@ -88,12 +88,12 @@ int wilc_mq_send(struct message_queue *mq,
 	if (!mq->msg_list) {
 		mq->msg_list  = new_msg;
 	} else {
-		struct message *pstrTailMsg = mq->msg_list;
+		struct message *tail_msg = mq->msg_list;
 
-		while (pstrTailMsg->next)
-			pstrTailMsg = pstrTailMsg->next;
+		while (tail_msg->next)
+			tail_msg = tail_msg->next;
 
-		pstrTailMsg->next = new_msg;
+		tail_msg->next = new_msg;
 	}
 
 	spin_unlock_irqrestore(&mq->lock, flags);
