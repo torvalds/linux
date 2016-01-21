@@ -88,18 +88,41 @@ static struct class vibrator_class = {
 
 static DEFINE_IDA(minors);
 
-static int gb_vibrator_connection_init(struct gb_connection *connection)
+static int gb_vibrator_probe(struct gb_bundle *bundle,
+					const struct greybus_bundle_id *id)
 {
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_connection *connection;
 	struct gb_vibrator_device *vib;
 	struct device *dev;
 	int retval;
+
+	if (bundle->num_cports != 1)
+		return -ENODEV;
+
+	cport_desc = &bundle->cport_desc[0];
+	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_VIBRATOR)
+		return -ENODEV;
 
 	vib = kzalloc(sizeof(*vib), GFP_KERNEL);
 	if (!vib)
 		return -ENOMEM;
 
-	vib->connection = connection;
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+						NULL);
+	if (IS_ERR(connection)) {
+		retval = PTR_ERR(connection);
+		goto err_free_vib;
+	}
 	connection->private = vib;
+
+	vib->connection = connection;
+
+	greybus_set_drvdata(bundle, vib);
+
+	retval = gb_connection_enable(connection);
+	if (retval)
+		goto err_connection_destroy;
 
 	/*
 	 * For now we create a device in sysfs for the vibrator, but odds are
@@ -109,9 +132,9 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 	vib->minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
 	if (vib->minor < 0) {
 		retval = vib->minor;
-		goto error;
+		goto err_connection_disable;
 	}
-	dev = device_create(&vibrator_class, &connection->bundle->dev,
+	dev = device_create(&vibrator_class, &bundle->dev,
 			    MKDEV(0, 0), vib, "vibrator%d", vib->minor);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
@@ -136,34 +159,44 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 
 err_ida_remove:
 	ida_simple_remove(&minors, vib->minor);
-error:
+err_connection_disable:
+	gb_connection_disable(connection);
+err_connection_destroy:
+	gb_connection_destroy(connection);
+err_free_vib:
 	kfree(vib);
+
 	return retval;
 }
 
-static void gb_vibrator_connection_exit(struct gb_connection *connection)
+static void gb_vibrator_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_vibrator_device *vib = connection->private;
+	struct gb_vibrator_device *vib = greybus_get_drvdata(bundle);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	sysfs_remove_group(&vib->dev->kobj, vibrator_groups[0]);
 #endif
 	device_unregister(vib->dev);
 	ida_simple_remove(&minors, vib->minor);
+	gb_connection_disable(vib->connection);
+	gb_connection_destroy(vib->connection);
 	kfree(vib);
 }
 
-static struct gb_protocol vibrator_protocol = {
-	.name			= "vibrator",
-	.id			= GREYBUS_PROTOCOL_VIBRATOR,
-	.major			= GB_VIBRATOR_VERSION_MAJOR,
-	.minor			= GB_VIBRATOR_VERSION_MINOR,
-	.connection_init	= gb_vibrator_connection_init,
-	.connection_exit	= gb_vibrator_connection_exit,
-	.request_recv		= NULL,	/* no incoming requests */
+static const struct greybus_bundle_id gb_vibrator_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_VIBRATOR) },
+	{ }
+};
+MODULE_DEVICE_TABLE(greybus, gb_vibrator_id_table);
+
+static struct greybus_driver gb_vibrator_driver = {
+	.name		= "vibrator",
+	.probe		= gb_vibrator_probe,
+	.disconnect	= gb_vibrator_disconnect,
+	.id_table	= gb_vibrator_id_table,
 };
 
-static __init int protocol_init(void)
+static __init int gb_vibrator_init(void)
 {
 	int retval;
 
@@ -171,7 +204,7 @@ static __init int protocol_init(void)
 	if (retval)
 		return retval;
 
-	retval = gb_protocol_register(&vibrator_protocol);
+	retval = greybus_register(&gb_vibrator_driver);
 	if (retval)
 		goto err_class_unregister;
 
@@ -182,14 +215,14 @@ err_class_unregister:
 
 	return retval;
 }
-module_init(protocol_init);
+module_init(gb_vibrator_init);
 
-static __exit void protocol_exit(void)
+static __exit void gb_vibrator_exit(void)
 {
-	gb_protocol_deregister(&vibrator_protocol);
+	greybus_deregister(&gb_vibrator_driver);
 	class_unregister(&vibrator_class);
 	ida_destroy(&minors);
 }
-module_exit(protocol_exit);
+module_exit(gb_vibrator_exit);
 
 MODULE_LICENSE("GPL v2");
