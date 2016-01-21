@@ -358,15 +358,51 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	ret;								\
 })
 
+static enum rsnd_mod_type rsnd_mod_sequence[][RSND_MOD_MAX] = {
+	{
+		/* CAPTURE */
+		RSND_MOD_AUDMAPP,
+		RSND_MOD_AUDMA,
+		RSND_MOD_DVC,
+		RSND_MOD_MIX,
+		RSND_MOD_CTU,
+		RSND_MOD_CMD,
+		RSND_MOD_SRC,
+		RSND_MOD_SSIU,
+		RSND_MOD_SSIM3,
+		RSND_MOD_SSIM2,
+		RSND_MOD_SSIM1,
+		RSND_MOD_SSIP,
+		RSND_MOD_SSI,
+	}, {
+		/* PLAYBACK */
+		RSND_MOD_AUDMAPP,
+		RSND_MOD_AUDMA,
+		RSND_MOD_SSIM3,
+		RSND_MOD_SSIM2,
+		RSND_MOD_SSIM1,
+		RSND_MOD_SSIP,
+		RSND_MOD_SSI,
+		RSND_MOD_SSIU,
+		RSND_MOD_DVC,
+		RSND_MOD_MIX,
+		RSND_MOD_CTU,
+		RSND_MOD_CMD,
+		RSND_MOD_SRC,
+	},
+};
+
 #define rsnd_dai_call(fn, io, param...)				\
 ({								\
 	struct rsnd_mod *mod;					\
+	int type, is_play = rsnd_io_is_play(io);		\
 	int ret = 0, i;						\
 	for (i = 0; i < RSND_MOD_MAX; i++) {			\
-		mod = (io)->mod[i];				\
+		type = rsnd_mod_sequence[is_play][i];		\
+		mod = (io)->mod[type];				\
 		if (!mod)					\
 			continue;				\
-		ret |= rsnd_mod_call(i, io, fn, param);		\
+		ret |= rsnd_mod_call(type, io, fn, param);	\
 	}							\
 	ret;							\
 })
