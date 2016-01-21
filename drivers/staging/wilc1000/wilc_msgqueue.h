@@ -76,7 +76,7 @@ int wilc_mq_send(struct message_queue *mq,
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_recv(struct message_queue *pHandle,
+int wilc_mq_recv(struct message_queue *mq,
 		 void *pvRecvBuffer, u32 u32RecvBufferSize,
 		 u32 *pu32ReceivedLength);
 

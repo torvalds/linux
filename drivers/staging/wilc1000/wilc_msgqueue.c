@@ -109,56 +109,56 @@ int wilc_mq_send(struct message_queue *mq,
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_recv(struct message_queue *pHandle,
+int wilc_mq_recv(struct message_queue *mq,
 		 void *pvRecvBuffer, u32 u32RecvBufferSize,
 		 u32 *pu32ReceivedLength)
 {
 	struct message *pstrMessage;
 	unsigned long flags;
 
-	if ((!pHandle) || (u32RecvBufferSize == 0)
+	if ((!mq) || (u32RecvBufferSize == 0)
 	    || (!pvRecvBuffer) || (!pu32ReceivedLength)) {
-		PRINT_ER("pHandle or pvRecvBuffer is null\n");
+		PRINT_ER("mq or pvRecvBuffer is null\n");
 		return -EINVAL;
 	}
 
-	if (pHandle->exiting) {
-		PRINT_ER("pHandle fail\n");
+	if (mq->exiting) {
+		PRINT_ER("mq fail\n");
 		return -EFAULT;
 	}
 
-	spin_lock_irqsave(&pHandle->lock, flags);
-	pHandle->recv_count++;
-	spin_unlock_irqrestore(&pHandle->lock, flags);
+	spin_lock_irqsave(&mq->lock, flags);
+	mq->recv_count++;
+	spin_unlock_irqrestore(&mq->lock, flags);
 
-	down(&pHandle->sem);
-	spin_lock_irqsave(&pHandle->lock, flags);
+	down(&mq->sem);
+	spin_lock_irqsave(&mq->lock, flags);
 
-	pstrMessage = pHandle->msg_list;
+	pstrMessage = mq->msg_list;
 	if (!pstrMessage) {
-		spin_unlock_irqrestore(&pHandle->lock, flags);
+		spin_unlock_irqrestore(&mq->lock, flags);
 		PRINT_ER("pstrMessage is null\n");
 		return -EFAULT;
 	}
 	/* check buffer size */
 	if (u32RecvBufferSize < pstrMessage->len) {
-		spin_unlock_irqrestore(&pHandle->lock, flags);
-		up(&pHandle->sem);
+		spin_unlock_irqrestore(&mq->lock, flags);
+		up(&mq->sem);
 		PRINT_ER("u32RecvBufferSize overflow\n");
 		return -EOVERFLOW;
 	}
 
 	/* consume the message */
-	pHandle->recv_count--;
+	mq->recv_count--;
 	memcpy(pvRecvBuffer, pstrMessage->buf, pstrMessage->len);
 	*pu32ReceivedLength = pstrMessage->len;
 
-	pHandle->msg_list = pstrMessage->next;
+	mq->msg_list = pstrMessage->next;
 
 	kfree(pstrMessage->buf);
 	kfree(pstrMessage);
 
-	spin_unlock_irqrestore(&pHandle->lock, flags);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return 0;
 }
