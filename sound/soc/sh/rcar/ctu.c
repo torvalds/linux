@@ -24,6 +24,13 @@ struct rsnd_ctu {
 	     i++)
 
 #define rsnd_ctu_get(priv, id) ((struct rsnd_ctu *)(priv->ctu) + id)
+
+static void rsnd_ctu_activation(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, CTU_SWRSR, 0);
+	rsnd_mod_write(mod, CTU_SWRSR, 1);
+}
+
 #define rsnd_ctu_initialize_lock(mod)	__rsnd_ctu_initialize_lock(mod, 1)
 #define rsnd_ctu_initialize_unlock(mod)	__rsnd_ctu_initialize_lock(mod, 0)
 static void __rsnd_ctu_initialize_lock(struct rsnd_mod *mod, u32 enable)
@@ -43,6 +50,8 @@ static int rsnd_ctu_init(struct rsnd_mod *mod,
 			 struct rsnd_priv *priv)
 {
 	rsnd_mod_power_on(mod);
+
+	rsnd_ctu_activation(mod);
 
 	rsnd_ctu_initialize_lock(mod);
 
