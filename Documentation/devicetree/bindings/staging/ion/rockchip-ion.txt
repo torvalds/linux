@@ -1,0 +1,25 @@
+* Rockchip Ion driver
+
+Required properties:
+- compatible: Should be "rockchip,ion"
+
+Optional properties:
+- cma-heap: Allocate continous physicall region.
+  Should define reg with two u32 values:
+    - reg0: base address of cma region
+    - reg1: size of cma region
+- system-heap: Allocate continous virtual region
+
+Examples:
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cma-heap {
+			reg = <0x00000000 0x02000000>;
+		};
+
+		system-heap {
+		};
+	};
