@@ -60,6 +60,15 @@
 #define PWRAP_MAN_CMD_OP_OUTD		(0x9 << 8)
 #define PWRAP_MAN_CMD_OP_OUTQ		(0xa << 8)
 
+/* macro for Watch Dog Timer Source */
+#define PWRAP_WDT_SRC_EN_STAUPD_TRIG		(1 << 25)
+#define PWRAP_WDT_SRC_EN_HARB_STAUPD_DLE	(1 << 20)
+#define PWRAP_WDT_SRC_EN_HARB_STAUPD_ALE	(1 << 6)
+#define PWRAP_WDT_SRC_MASK_ALL			0xffffffff
+#define PWRAP_WDT_SRC_MASK_NO_STAUPD	~(PWRAP_WDT_SRC_EN_STAUPD_TRIG | \
+					  PWRAP_WDT_SRC_EN_HARB_STAUPD_DLE | \
+					  PWRAP_WDT_SRC_EN_HARB_STAUPD_ALE)
+
 /* macro for slave device wrapper registers */
 #define PWRAP_DEW_BASE			0xbc00
 #define PWRAP_DEW_EVENT_OUT_EN		(PWRAP_DEW_BASE + 0x0)
@@ -822,7 +831,7 @@ MODULE_DEVICE_TABLE(of, of_pwrap_match_tbl);
 
 static int pwrap_probe(struct platform_device *pdev)
 {
-	int ret, irq;
+	int ret, irq, wdt_src;
 	struct pmic_wrapper *wrp;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
@@ -912,7 +921,13 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	/* Initialize watchdog, may not be done by the bootloader */
 	pwrap_writel(wrp, 0xf, PWRAP_WDT_UNIT);
-	pwrap_writel(wrp, 0xffffffff, PWRAP_WDT_SRC_EN);
+	/*
+	 * Since STAUPD was not used on mt8173 platform,
+	 * so STAUPD of WDT_SRC which should be turned off
+	 */
+	wdt_src = pwrap_is_mt8173(wrp) ?
+			PWRAP_WDT_SRC_MASK_NO_STAUPD : PWRAP_WDT_SRC_MASK_ALL;
+	pwrap_writel(wrp, wdt_src, PWRAP_WDT_SRC_EN);
 	pwrap_writel(wrp, 0x1, PWRAP_TIMER_EN);
 	pwrap_writel(wrp, ~((1 << 31) | (1 << 1)), PWRAP_INT_EN);
 
