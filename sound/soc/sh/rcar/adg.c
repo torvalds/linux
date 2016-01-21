@@ -519,7 +519,7 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 	}
 
 	rsnd_mod_init(priv, &adg->mod, &adg_ops,
-		      NULL, 0, 0);
+		      NULL, NULL, 0, 0);
 
 	rsnd_adg_get_clkin(priv, adg);
 	rsnd_adg_get_clkout(priv, adg);

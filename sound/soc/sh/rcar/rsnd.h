@@ -233,6 +233,10 @@ struct rsnd_mod {
 	struct rsnd_mod_ops *ops;
 	struct rsnd_priv *priv;
 	struct clk *clk;
+	u32 *(*get_status)(struct rsnd_dai_stream *io,
+			   struct rsnd_mod *mod,
+			   enum rsnd_mod_type type);
+	u32 status;
 };
 /*
  * status
@@ -286,10 +290,13 @@ struct rsnd_mod {
 
 int rsnd_mod_init(struct rsnd_priv *priv,
 		  struct rsnd_mod *mod,
-		   struct rsnd_mod_ops *ops,
-		   struct clk *clk,
-		   enum rsnd_mod_type type,
-		   int id);
+		  struct rsnd_mod_ops *ops,
+		  struct clk *clk,
+		  u32* (*get_status)(struct rsnd_dai_stream *io,
+				     struct rsnd_mod *mod,
+				     enum rsnd_mod_type type),
+		  enum rsnd_mod_type type,
+		  int id);
 void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
 struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
@@ -297,6 +304,10 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 void rsnd_mod_interrupt(struct rsnd_mod *mod,
 			void (*callback)(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io));
+u32 *rsnd_mod_get_status(struct rsnd_dai_stream *io,
+			 struct rsnd_mod *mod,
+			 enum rsnd_mod_type type);
+
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
 		struct device_node *node,
@@ -319,7 +330,7 @@ struct rsnd_dai_stream {
 	struct rsnd_mod *mod[RSND_MOD_MAX];
 	struct rsnd_dai_path_info *info; /* rcar_snd.h */
 	struct rsnd_dai *rdai;
-	u32 mod_status[RSND_MOD_MAX];
+	u32 parent_ssi_status;
 	int byte_pos;
 	int period_pos;
 	int byte_per_period;

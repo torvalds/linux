@@ -172,7 +172,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(mix), &rsnd_mix_ops,
-				    clk, RSND_MOD_MIX, i);
+				    clk, rsnd_mod_get_status, RSND_MOD_MIX, i);
 		if (ret)
 			goto rsnd_mix_probe_done;
 

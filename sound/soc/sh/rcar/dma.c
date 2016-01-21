@@ -681,7 +681,7 @@ struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 	dma_mod = rsnd_mod_get(dma);
 
 	ret = rsnd_mod_init(priv, dma_mod,
-			    ops, NULL, type, dma_id);
+			    ops, NULL, rsnd_mod_get_status, type, dma_id);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

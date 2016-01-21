@@ -615,7 +615,8 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
-				    &rsnd_src_ops, clk, RSND_MOD_SRC, i);
+				    &rsnd_src_ops, clk, rsnd_mod_get_status,
+				    RSND_MOD_SRC, i);
 		if (ret)
 			goto rsnd_src_probe_done;
 

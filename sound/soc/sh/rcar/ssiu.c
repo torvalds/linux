@@ -206,7 +206,8 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssiu),
-				    ops, NULL, RSND_MOD_SSIU, i);
+				    ops, NULL, rsnd_mod_get_status,
+				    RSND_MOD_SSIU, i);
 		if (ret)
 			return ret;
 	}
