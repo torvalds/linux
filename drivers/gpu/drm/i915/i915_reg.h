@@ -6045,6 +6045,8 @@ enum skl_disp_power_wells {
 #define  HDC_FORCE_NON_COHERENT			(1<<4)
 #define  HDC_BARRIER_PERFORMANCE_DISABLE	(1<<10)
 
+#define GEN8_HDC_CHICKEN1			_MMIO(0x7304)
+
 /* GEN9 chicken */
 #define SLICE_ECO_CHICKEN0			_MMIO(0x7308)
 #define   PIXEL_MASK_CAMMING_DISABLE		(1 << 14)

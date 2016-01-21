@@ -986,6 +986,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
+	/* WaAllowUMDToModifyHDCChicken1:skl,bxt */
+	ret = wa_ring_whitelist_reg(ring, GEN8_HDC_CHICKEN1);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
