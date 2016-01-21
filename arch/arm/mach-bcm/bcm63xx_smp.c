@@ -161,7 +161,7 @@ static void __init bcm63138_smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-struct smp_operations bcm63138_smp_ops __initdata = {
+static const struct smp_operations bcm63138_smp_ops __initconst = {
 	.smp_prepare_cpus	= bcm63138_smp_prepare_cpus,
 	.smp_boot_secondary	= bcm63138_smp_boot_secondary,
 };

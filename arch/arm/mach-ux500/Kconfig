@@ -1,6 +1,6 @@
 menuconfig ARCH_U8500
-	bool "ST-Ericsson U8500 Series" if ARCH_MULTI_V7
-	depends on MMU
+	bool "ST-Ericsson U8500 Series"
+	depends on ARCH_MULTI_V7 && MMU
 	select AB8500_CORE
 	select ABX500_CORE
 	select ARCH_REQUIRE_GPIOLIB

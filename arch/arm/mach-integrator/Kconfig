@@ -1,5 +1,6 @@
 config ARCH_INTEGRATOR
-	bool "ARM Ltd. Integrator family" if (ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V6)
+	bool "ARM Ltd. Integrator family"
+	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V6
 	select ARM_AMBA
 	select ARM_PATCH_PHYS_VIRT if MMU
 	select AUTO_ZRELADDR
