@@ -103,6 +103,7 @@ struct etnaviv_gpu {
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf *buffer;
+	int exec_state;
 
 	/* bus base address of memory  */
 	u32 memory_base;

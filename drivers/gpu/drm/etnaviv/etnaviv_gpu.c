@@ -628,6 +628,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	/* Now program the hardware */
 	mutex_lock(&gpu->lock);
 	etnaviv_gpu_hw_init(gpu);
+	gpu->exec_state = -1;
 	mutex_unlock(&gpu->lock);
 
 	pm_runtime_mark_last_busy(gpu->dev);
@@ -877,6 +878,7 @@ static void recover_worker(struct work_struct *work)
 
 	etnaviv_gpu_hw_init(gpu);
 	gpu->switch_context = true;
+	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
 	pm_runtime_mark_last_busy(gpu->dev);
@@ -1475,6 +1477,7 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 	etnaviv_gpu_hw_init(gpu);
 
 	gpu->switch_context = true;
+	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
 
