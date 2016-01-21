@@ -2379,7 +2379,7 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = amdgpu_ring_lock(ring, 3);
+	r = amdgpu_ring_alloc(ring, 3);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n", ring->idx, r);
 		amdgpu_gfx_scratch_free(adev, scratch);
@@ -2388,7 +2388,7 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 	amdgpu_ring_write(ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -2812,7 +2812,7 @@ static int gfx_v7_0_cp_gfx_start(struct amdgpu_device *adev)
 
 	gfx_v7_0_cp_gfx_enable(adev, true);
 
-	r = amdgpu_ring_lock(ring, gfx_v7_0_get_csb_size(adev) + 8);
+	r = amdgpu_ring_alloc(ring, gfx_v7_0_get_csb_size(adev) + 8);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
 		return r;
@@ -2881,7 +2881,7 @@ static int gfx_v7_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	amdgpu_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
 
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 	return 0;
 }

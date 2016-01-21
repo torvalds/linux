@@ -487,7 +487,6 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 
 	if (atomic_dec_and_test(&amdgpu_fence_slab_ref))
 		kmem_cache_destroy(amdgpu_fence_slab);
-	mutex_lock(&adev->ring_lock);
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
@@ -505,7 +504,6 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		del_timer_sync(&ring->fence_drv.fallback_timer);
 		ring->fence_drv.initialized = false;
 	}
-	mutex_unlock(&adev->ring_lock);
 }
 
 /**
@@ -520,7 +518,6 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	mutex_lock(&adev->ring_lock);
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
 		if (!ring || !ring->fence_drv.initialized)
@@ -537,7 +534,6 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev)
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
 	}
-	mutex_unlock(&adev->ring_lock);
 }
 
 /**
@@ -556,7 +552,6 @@ void amdgpu_fence_driver_resume(struct amdgpu_device *adev)
 {
 	int i;
 
-	mutex_lock(&adev->ring_lock);
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
 		if (!ring || !ring->fence_drv.initialized)
@@ -566,7 +561,6 @@ void amdgpu_fence_driver_resume(struct amdgpu_device *adev)
 		amdgpu_irq_get(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
 	}
-	mutex_unlock(&adev->ring_lock);
 }
 
 /**

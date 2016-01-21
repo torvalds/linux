@@ -814,7 +814,6 @@ struct amdgpu_ring {
 	struct amd_gpu_scheduler 	sched;
 
 	spinlock_t              fence_lock;
-	struct mutex		*ring_lock;
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
@@ -1190,12 +1189,9 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
 /* Ring access between begin & end cannot sleep */
 void amdgpu_ring_free_size(struct amdgpu_ring *ring);
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
-int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw);
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
-void amdgpu_ring_unlock_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
-void amdgpu_ring_unlock_undo(struct amdgpu_ring *ring);
 unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
 			    uint32_t **data);
 int amdgpu_ring_restore(struct amdgpu_ring *ring,
@@ -2009,7 +2005,6 @@ struct amdgpu_device {
 
 	/* rings */
 	unsigned			fence_context;
-	struct mutex			ring_lock;
 	unsigned			num_rings;
 	struct amdgpu_ring		*rings[AMDGPU_MAX_RINGS];
 	bool				ib_pool_ready;

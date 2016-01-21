@@ -147,7 +147,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	r = amdgpu_ring_lock(ring, (256 + AMDGPU_NUM_SYNCS * 8) * num_ibs);
+	r = amdgpu_ring_alloc(ring, (256 + AMDGPU_NUM_SYNCS * 8) * num_ibs);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
@@ -155,7 +155,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 
 	r = amdgpu_sync_wait(&ibs->sync);
 	if (r) {
-		amdgpu_ring_unlock_undo(ring);
+		amdgpu_ring_undo(ring);
 		dev_err(adev->dev, "failed to sync wait (%d)\n", r);
 		return r;
 	}
@@ -180,7 +180,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 
 		if (ib->ring != ring || ib->ctx != ctx || ib->vm != vm) {
 			ring->current_ctx = old_ctx;
-			amdgpu_ring_unlock_undo(ring);
+			amdgpu_ring_undo(ring);
 			return -EINVAL;
 		}
 		amdgpu_ring_emit_ib(ring, ib);
@@ -191,7 +191,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		ring->current_ctx = old_ctx;
-		amdgpu_ring_unlock_undo(ring);
+		amdgpu_ring_undo(ring);
 		return r;
 	}
 
@@ -203,7 +203,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
 
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 	return 0;
 }
 

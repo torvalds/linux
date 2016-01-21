@@ -788,14 +788,14 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	r = amdgpu_ring_lock(ring, 16);
+	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
 		DRM_ERROR("amdgpu: vce failed to lock ring %d (%d).\n",
 			  ring->idx, r);
 		return r;
 	}
 	amdgpu_ring_write(ring, VCE_CMD_END);
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)

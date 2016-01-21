@@ -560,7 +560,7 @@ static int cik_sdma_ring_test_ring(struct amdgpu_ring *ring)
 	tmp = 0xCAFEDEAD;
 	adev->wb.wb[index] = cpu_to_le32(tmp);
 
-	r = amdgpu_ring_lock(ring, 5);
+	r = amdgpu_ring_alloc(ring, 5);
 	if (r) {
 		DRM_ERROR("amdgpu: dma failed to lock ring %d (%d).\n", ring->idx, r);
 		amdgpu_wb_free(adev, index);
@@ -571,7 +571,7 @@ static int cik_sdma_ring_test_ring(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, upper_32_bits(gpu_addr));
 	amdgpu_ring_write(ring, 1); /* number of DWs to follow */
 	amdgpu_ring_write(ring, 0xDEADBEEF);
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = le32_to_cpu(adev->wb.wb[index]);

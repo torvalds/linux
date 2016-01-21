@@ -160,7 +160,7 @@ static int uvd_v5_0_hw_init(void *handle)
 		goto done;
 	}
 
-	r = amdgpu_ring_lock(ring, 10);
+	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
 		DRM_ERROR("amdgpu: ring failed to lock UVD ring (%d).\n", r);
 		goto done;
@@ -185,7 +185,7 @@ static int uvd_v5_0_hw_init(void *handle)
 	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_CNTL, 0));
 	amdgpu_ring_write(ring, 3);
 
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 done:
 	/* lower clocks again */
@@ -497,7 +497,7 @@ static int uvd_v5_0_ring_test_ring(struct amdgpu_ring *ring)
 	int r;
 
 	WREG32(mmUVD_CONTEXT_ID, 0xCAFEDEAD);
-	r = amdgpu_ring_lock(ring, 3);
+	r = amdgpu_ring_alloc(ring, 3);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
 			  ring->idx, r);
@@ -505,7 +505,7 @@ static int uvd_v5_0_ring_test_ring(struct amdgpu_ring *ring)
 	}
 	amdgpu_ring_write(ring, PACKET0(mmUVD_CONTEXT_ID, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(mmUVD_CONTEXT_ID);
 		if (tmp == 0xDEADBEEF)

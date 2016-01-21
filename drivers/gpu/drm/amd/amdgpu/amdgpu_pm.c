@@ -623,14 +623,12 @@ force:
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&adev->ring_lock);
-
 	/* update whether vce is active */
 	ps->vce_active = adev->pm.dpm.vce_active;
 
 	ret = amdgpu_dpm_pre_set_power_state(adev);
 	if (ret)
-		goto done;
+		return;
 
 	/* update display watermarks based on new power state */
 	amdgpu_display_bandwidth_update(adev);
@@ -667,9 +665,6 @@ force:
 			amdgpu_dpm_force_performance_level(adev, adev->pm.dpm.forced_level);
 		}
 	}
-
-done:
-	mutex_unlock(&adev->ring_lock);
 }
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
@@ -802,13 +797,11 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 		int i = 0;
 
 		amdgpu_display_bandwidth_update(adev);
-		mutex_lock(&adev->ring_lock);
-			for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
-				struct amdgpu_ring *ring = adev->rings[i];
-				if (ring && ring->ready)
-					amdgpu_fence_wait_empty(ring);
-			}
-		mutex_unlock(&adev->ring_lock);
+		for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+			struct amdgpu_ring *ring = adev->rings[i];
+			if (ring && ring->ready)
+				amdgpu_fence_wait_empty(ring);
+		}
 
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE, NULL, NULL);
 	} else {
