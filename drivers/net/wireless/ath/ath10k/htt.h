@@ -1665,6 +1665,14 @@ struct ath10k_htt {
 		dma_addr_t paddr;
 		struct ath10k_htt_txbuf *vaddr;
 	} txbuf;
+
+	struct {
+		struct htt_q_state *vaddr;
+		dma_addr_t paddr;
+		u16 num_peers;
+		u16 num_tids;
+		enum htt_q_depth_type type;
+	} tx_q_state;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
