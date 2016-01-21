@@ -70,7 +70,7 @@ int wilc_mq_send(struct message_queue *mq,
 	}
 
 	/* construct a new message */
-	new_msg = kmalloc(sizeof(struct message), GFP_ATOMIC);
+	new_msg = kmalloc(sizeof(*new_msg), GFP_ATOMIC);
 	if (!new_msg)
 		return -ENOMEM;
 
