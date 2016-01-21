@@ -1657,11 +1657,18 @@ struct i915_wa_reg {
 	u32 mask;
 };
 
-#define I915_MAX_WA_REGS 16
+/*
+ * RING_MAX_NONPRIV_SLOTS is per-engine but at this point we are only
+ * allowing it for RCS as we don't foresee any requirement of having
+ * a whitelist for other engines. When it is really required for
+ * other engines then the limit need to be increased.
+ */
+#define I915_MAX_WA_REGS (16 + RING_MAX_NONPRIV_SLOTS)
 
 struct i915_workarounds {
 	struct i915_wa_reg reg[I915_MAX_WA_REGS];
 	u32 count;
+	u32 hw_whitelist_count[I915_NUM_RINGS];
 };
 
 struct i915_virtual_gpu {

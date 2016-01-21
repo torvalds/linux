@@ -789,6 +789,22 @@ static int wa_add(struct drm_i915_private *dev_priv,
 
 #define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
 
+static int wa_ring_whitelist_reg(struct intel_engine_cs *ring, i915_reg_t reg)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct i915_workarounds *wa = &dev_priv->workarounds;
+	const uint32_t index = wa->hw_whitelist_count[ring->id];
+
+	if (WARN_ON(index >= RING_MAX_NONPRIV_SLOTS))
+		return -EINVAL;
+
+	WA_WRITE(RING_FORCE_TO_NONPRIV(ring->mmio_base, index),
+		 i915_mmio_reg_offset(reg));
+	wa->hw_whitelist_count[ring->id]++;
+
+	return 0;
+}
+
 static int gen8_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -1117,6 +1133,7 @@ int init_workarounds_ring(struct intel_engine_cs *ring)
 	WARN_ON(ring->id != RCS);
 
 	dev_priv->workarounds.count = 0;
+	dev_priv->workarounds.hw_whitelist_count[RCS] = 0;
 
 	if (IS_BROADWELL(dev))
 		return bdw_init_workarounds(ring);
