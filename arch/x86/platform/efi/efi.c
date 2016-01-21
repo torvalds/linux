@@ -815,6 +815,7 @@ static void __init kexec_enter_virtual_mode(void)
 {
 #ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
+	unsigned int num_pages;
 	void *p;
 
 	efi.systab = NULL;
@@ -825,6 +826,12 @@ static void __init kexec_enter_virtual_mode(void)
 	 */
 	if (!efi_is_native()) {
 		efi_unmap_memmap();
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
+	}
+
+	if (efi_alloc_page_tables()) {
+		pr_err("Failed to allocate EFI page tables\n");
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
 	}
@@ -842,6 +849,14 @@ static void __init kexec_enter_virtual_mode(void)
 	save_runtime_map();
 
 	BUG_ON(!efi.systab);
+
+	num_pages = ALIGN(memmap.nr_map * memmap.desc_size, PAGE_SIZE);
+	num_pages >>= PAGE_SHIFT;
+
+	if (efi_setup_page_tables(memmap.phys_map, num_pages)) {
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
+	}
 
 	efi_sync_low_kernel_mappings();
 
