@@ -337,6 +337,9 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		*status, call ? #func : "");				\
 	if (call)							\
 		ret = (mod)->ops->func(mod, io, param);			\
+	if (ret)							\
+		dev_dbg(dev, "%s[%d] : rsnd_mod_call error %d\n",	\
+			rsnd_mod_name(mod), rsnd_mod_id(mod), ret);	\
 	ret;								\
 })
 
