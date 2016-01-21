@@ -12,9 +12,13 @@
 #include "protocol.h"
 
 
+struct legacy_connection {
+	struct gb_connection *connection;
+};
+
 struct legacy_data {
 	size_t num_cports;
-	struct gb_connection **connections;
+	struct legacy_connection *connections;
 };
 
 
@@ -78,12 +82,16 @@ static int legacy_request_handler(struct gb_operation *operation)
 	return protocol->request_recv(operation->type, operation);
 }
 
-static int legacy_connection_init(struct gb_connection *connection)
+static int legacy_connection_init(struct legacy_connection *lc)
 {
+	struct gb_connection *connection = lc->connection;
 	gb_request_handler_t handler;
 	int ret;
 
-	ret = legacy_connection_bind_protocol(connection);
+	dev_dbg(&connection->bundle->dev, "%s - %s\n", __func__,
+			connection->name);
+
+	ret = legacy_connection_bind_protocol(lc->connection);
 	if (ret)
 		return ret;
 
@@ -114,8 +122,10 @@ err_unbind_protocol:
 	return ret;
 }
 
-static void legacy_connection_exit(struct gb_connection *connection)
+static void legacy_connection_exit(struct legacy_connection *lc)
 {
+	struct gb_connection *connection = lc->connection;
+
 	if (!connection->protocol)
 		return;
 
@@ -126,12 +136,33 @@ static void legacy_connection_exit(struct gb_connection *connection)
 	legacy_connection_unbind_protocol(connection);
 }
 
+static int legacy_connection_create(struct legacy_connection *lc,
+					struct gb_bundle *bundle,
+					struct greybus_descriptor_cport *desc)
+{
+	struct gb_connection *connection;
+
+	connection = gb_connection_create(bundle, le16_to_cpu(desc->id));
+	if (IS_ERR(connection))
+		return PTR_ERR(connection);
+
+	lc->connection = connection;
+	lc->connection->protocol_id = desc->protocol_id;
+
+	return 0;
+}
+
+static void legacy_connection_destroy(struct legacy_connection *lc)
+{
+	gb_connection_destroy(lc->connection);
+}
+
 static int legacy_probe(struct gb_bundle *bundle,
 			const struct greybus_bundle_id *id)
 {
 	struct greybus_descriptor_cport *cport_desc;
 	struct legacy_data *data;
-	struct gb_connection *connection;
+	struct legacy_connection *lc;
 	int i;
 	int ret;
 
@@ -154,27 +185,19 @@ static int legacy_probe(struct gb_bundle *bundle,
 
 	for (i = 0; i < data->num_cports; ++i) {
 		cport_desc = &bundle->cport_desc[i];
+		lc = &data->connections[i];
 
-		connection = gb_connection_create(bundle,
-						le16_to_cpu(cport_desc->id));
-		if (IS_ERR(connection)) {
-			ret = PTR_ERR(connection);
+		ret = legacy_connection_create(lc, bundle, cport_desc);
+		if (ret)
 			goto err_connections_destroy;
-		}
-
-		connection->protocol_id = cport_desc->protocol_id;
-
-		data->connections[i] = connection;
 	}
 
 	greybus_set_drvdata(bundle, data);
 
 	for (i = 0; i < data->num_cports; ++i) {
-		connection = data->connections[i];
-		dev_dbg(&bundle->dev, "enabling connection %s\n",
-				connection->name);
+		lc = &data->connections[i];
 
-		ret = legacy_connection_init(connection);
+		ret = legacy_connection_init(lc);
 		if (ret)
 			goto err_connections_disable;
 	}
@@ -183,10 +206,10 @@ static int legacy_probe(struct gb_bundle *bundle,
 
 err_connections_disable:
 	for (--i; i >= 0; --i)
-		legacy_connection_exit(data->connections[i]);
+		legacy_connection_exit(&data->connections[i]);
 err_connections_destroy:
 	for (i = 0; i < data->num_cports; ++i)
-		gb_connection_destroy(data->connections[i]);
+		legacy_connection_destroy(&data->connections[i]);
 	kfree(data->connections);
 err_free_data:
 	kfree(data);
@@ -203,8 +226,8 @@ static void legacy_disconnect(struct gb_bundle *bundle)
 			bundle->class);
 
 	for (i = 0; i < data->num_cports; ++i) {
-		legacy_connection_exit(data->connections[i]);
-		gb_connection_destroy(data->connections[i]);
+		legacy_connection_exit(&data->connections[i]);
+		legacy_connection_destroy(&data->connections[i]);
 	}
 
 	kfree(data->connections);
