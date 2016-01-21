@@ -4247,7 +4247,8 @@ static int truncate_inline_extent(struct inode *inode,
 		 * read the extent item from disk (data not in the page cache).
 		 */
 		btrfs_release_path(path);
-		return btrfs_truncate_page(inode, offset, page_end - offset, 0);
+		return btrfs_truncate_block(inode, offset, page_end - offset,
+					0);
 	}
 
 	btrfs_set_file_extent_ram_bytes(leaf, fi, size);
@@ -4600,17 +4601,17 @@ error:
 }
 
 /*
- * btrfs_truncate_page - read, zero a chunk and write a page
+ * btrfs_truncate_block - read, zero a chunk and write a block
  * @inode - inode that we're zeroing
  * @from - the offset to start zeroing
  * @len - the length to zero, 0 to zero the entire range respective to the
  *	offset
  * @front - zero up to the offset instead of from the offset on
  *
- * This will find the page for the "from" offset and cow the page and zero the
+ * This will find the block for the "from" offset and cow the block and zero the
  * part we want to zero.  This is used with truncate and hole punching.
  */
-int btrfs_truncate_page(struct inode *inode, loff_t from, loff_t len,
+int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 			int front)
 {
 	struct address_space *mapping = inode->i_mapping;
@@ -4621,18 +4622,19 @@ int btrfs_truncate_page(struct inode *inode, loff_t from, loff_t len,
 	char *kaddr;
 	u32 blocksize = root->sectorsize;
 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	unsigned offset = from & (blocksize - 1);
 	struct page *page;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
 	int ret = 0;
-	u64 page_start;
-	u64 page_end;
+	u64 block_start;
+	u64 block_end;
 
 	if ((offset & (blocksize - 1)) == 0 &&
 	    (!len || ((len & (blocksize - 1)) == 0)))
 		goto out;
+
 	ret = btrfs_delalloc_reserve_space(inode,
-			round_down(from, PAGE_CACHE_SIZE), PAGE_CACHE_SIZE);
+			round_down(from, blocksize), blocksize);
 	if (ret)
 		goto out;
 
@@ -4640,14 +4642,14 @@ again:
 	page = find_or_create_page(mapping, index, mask);
 	if (!page) {
 		btrfs_delalloc_release_space(inode,
-				round_down(from, PAGE_CACHE_SIZE),
-				PAGE_CACHE_SIZE);
+				round_down(from, blocksize),
+				blocksize);
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	page_start = page_offset(page);
-	page_end = page_start + PAGE_CACHE_SIZE - 1;
+	block_start = round_down(from, blocksize);
+	block_end = block_start + blocksize - 1;
 
 	if (!PageUptodate(page)) {
 		ret = btrfs_readpage(NULL, page);
@@ -4664,12 +4666,12 @@ again:
 	}
 	wait_on_page_writeback(page);
 
-	lock_extent_bits(io_tree, page_start, page_end, &cached_state);
+	lock_extent_bits(io_tree, block_start, block_end, &cached_state);
 	set_page_extent_mapped(page);
 
-	ordered = btrfs_lookup_ordered_extent(inode, page_start);
+	ordered = btrfs_lookup_ordered_extent(inode, block_start);
 	if (ordered) {
-		unlock_extent_cached(io_tree, page_start, page_end,
+		unlock_extent_cached(io_tree, block_start, block_end,
 				     &cached_state, GFP_NOFS);
 		unlock_page(page);
 		page_cache_release(page);
@@ -4678,39 +4680,41 @@ again:
 		goto again;
 	}
 
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, page_start, page_end,
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, block_start, block_end,
 			  EXTENT_DIRTY | EXTENT_DELALLOC |
 			  EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			  0, 0, &cached_state, GFP_NOFS);
 
-	ret = btrfs_set_extent_delalloc(inode, page_start, page_end,
+	ret = btrfs_set_extent_delalloc(inode, block_start, block_end,
 					&cached_state);
 	if (ret) {
-		unlock_extent_cached(io_tree, page_start, page_end,
+		unlock_extent_cached(io_tree, block_start, block_end,
 				     &cached_state, GFP_NOFS);
 		goto out_unlock;
 	}
 
-	if (offset != PAGE_CACHE_SIZE) {
+	if (offset != blocksize) {
 		if (!len)
-			len = PAGE_CACHE_SIZE - offset;
+			len = blocksize - offset;
 		kaddr = kmap(page);
 		if (front)
-			memset(kaddr, 0, offset);
+			memset(kaddr + (block_start - page_offset(page)),
+				0, offset);
 		else
-			memset(kaddr + offset, 0, len);
+			memset(kaddr + (block_start - page_offset(page)) +  offset,
+				0, len);
 		flush_dcache_page(page);
 		kunmap(page);
 	}
 	ClearPageChecked(page);
 	set_page_dirty(page);
-	unlock_extent_cached(io_tree, page_start, page_end, &cached_state,
+	unlock_extent_cached(io_tree, block_start, block_end, &cached_state,
 			     GFP_NOFS);
 
 out_unlock:
 	if (ret)
-		btrfs_delalloc_release_space(inode, page_start,
-					     PAGE_CACHE_SIZE);
+		btrfs_delalloc_release_space(inode, block_start,
+					     blocksize);
 	unlock_page(page);
 	page_cache_release(page);
 out:
@@ -4781,11 +4785,11 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	int err = 0;
 
 	/*
-	 * If our size started in the middle of a page we need to zero out the
-	 * rest of the page before we expand the i_size, otherwise we could
+	 * If our size started in the middle of a block we need to zero out the
+	 * rest of the block before we expand the i_size, otherwise we could
 	 * expose stale data.
 	 */
-	err = btrfs_truncate_page(inode, oldsize, 0, 0);
+	err = btrfs_truncate_block(inode, oldsize, 0, 0);
 	if (err)
 		return err;
 

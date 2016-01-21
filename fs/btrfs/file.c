@@ -2310,10 +2310,10 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	int ret = 0;
 	int err = 0;
 	unsigned int rsv_count;
-	bool same_page;
+	bool same_block;
 	bool no_holes = btrfs_fs_incompat(root->fs_info, NO_HOLES);
 	u64 ino_size;
-	bool truncated_page = false;
+	bool truncated_block = false;
 	bool updated_inode = false;
 
 	ret = btrfs_wait_ordered_range(inode, offset, len);
@@ -2321,7 +2321,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		return ret;
 
 	mutex_lock(&inode->i_mutex);
-	ino_size = round_up(inode->i_size, PAGE_CACHE_SIZE);
+	ino_size = round_up(inode->i_size, root->sectorsize);
 	ret = find_first_non_hole(inode, &offset, &len);
 	if (ret < 0)
 		goto out_only_mutex;
@@ -2334,31 +2334,30 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	lockstart = round_up(offset, BTRFS_I(inode)->root->sectorsize);
 	lockend = round_down(offset + len,
 			     BTRFS_I(inode)->root->sectorsize) - 1;
-	same_page = ((offset >> PAGE_CACHE_SHIFT) ==
-		    ((offset + len - 1) >> PAGE_CACHE_SHIFT));
-
+	same_block = (BTRFS_BYTES_TO_BLKS(root->fs_info, offset))
+		== (BTRFS_BYTES_TO_BLKS(root->fs_info, offset + len - 1));
 	/*
-	 * We needn't truncate any page which is beyond the end of the file
+	 * We needn't truncate any block which is beyond the end of the file
 	 * because we are sure there is no data there.
 	 */
 	/*
-	 * Only do this if we are in the same page and we aren't doing the
-	 * entire page.
+	 * Only do this if we are in the same block and we aren't doing the
+	 * entire block.
 	 */
-	if (same_page && len < PAGE_CACHE_SIZE) {
+	if (same_block && len < root->sectorsize) {
 		if (offset < ino_size) {
-			truncated_page = true;
-			ret = btrfs_truncate_page(inode, offset, len, 0);
+			truncated_block = true;
+			ret = btrfs_truncate_block(inode, offset, len, 0);
 		} else {
 			ret = 0;
 		}
 		goto out_only_mutex;
 	}
 
-	/* zero back part of the first page */
+	/* zero back part of the first block */
 	if (offset < ino_size) {
-		truncated_page = true;
-		ret = btrfs_truncate_page(inode, offset, 0, 0);
+		truncated_block = true;
+		ret = btrfs_truncate_block(inode, offset, 0, 0);
 		if (ret) {
 			mutex_unlock(&inode->i_mutex);
 			return ret;
@@ -2393,9 +2392,10 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		if (!ret) {
 			/* zero the front end of the last page */
 			if (tail_start + tail_len < ino_size) {
-				truncated_page = true;
-				ret = btrfs_truncate_page(inode,
-						tail_start + tail_len, 0, 1);
+				truncated_block = true;
+				ret = btrfs_truncate_block(inode,
+							tail_start + tail_len,
+							0, 1);
 				if (ret)
 					goto out_only_mutex;
 			}
@@ -2575,7 +2575,7 @@ out:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			     &cached_state, GFP_NOFS);
 out_only_mutex:
-	if (!updated_inode && truncated_page && !ret && !err) {
+	if (!updated_inode && truncated_block && !ret && !err) {
 		/*
 		 * If we only end up zeroing part of a page, we still need to
 		 * update the inode item, so that all the time fields are
@@ -2695,10 +2695,10 @@ static long btrfs_fallocate(struct file *file, int mode,
 	} else if (offset + len > inode->i_size) {
 		/*
 		 * If we are fallocating from the end of the file onward we
-		 * need to zero out the end of the page if i_size lands in the
-		 * middle of a page.
+		 * need to zero out the end of the block if i_size lands in the
+		 * middle of a block.
 		 */
-		ret = btrfs_truncate_page(inode, inode->i_size, 0, 0);
+		ret = btrfs_truncate_block(inode, inode->i_size, 0, 0);
 		if (ret)
 			goto out;
 	}
