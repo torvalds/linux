@@ -17,7 +17,7 @@ int wilc_mq_create(struct message_queue *pHandle)
 	sema_init(&pHandle->sem, 0);
 	pHandle->pstrMessageList = NULL;
 	pHandle->u32ReceiversCount = 0;
-	pHandle->bExiting = false;
+	pHandle->exiting = false;
 	return 0;
 }
 
@@ -29,7 +29,7 @@ int wilc_mq_create(struct message_queue *pHandle)
  */
 int wilc_mq_destroy(struct message_queue *pHandle)
 {
-	pHandle->bExiting = true;
+	pHandle->exiting = true;
 
 	/* Release any waiting receiver thread. */
 	while (pHandle->u32ReceiversCount > 0) {
@@ -64,7 +64,7 @@ int wilc_mq_send(struct message_queue *pHandle,
 		return -EFAULT;
 	}
 
-	if (pHandle->bExiting) {
+	if (pHandle->exiting) {
 		PRINT_ER("pHandle fail\n");
 		return -EFAULT;
 	}
@@ -123,7 +123,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 		return -EINVAL;
 	}
 
-	if (pHandle->bExiting) {
+	if (pHandle->exiting) {
 		PRINT_ER("pHandle fail\n");
 		return -EFAULT;
 	}
