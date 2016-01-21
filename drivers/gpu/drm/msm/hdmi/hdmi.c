@@ -67,8 +67,6 @@ static irqreturn_t hdmi_irq(int irq, void *dev_id)
 
 static void hdmi_destroy(struct hdmi *hdmi)
 {
-	struct hdmi_phy *phy = hdmi->phy;
-
 	/*
 	 * at this point, hpd has been disabled,
 	 * after flush workq, it's safe to deinit hdcp
@@ -78,8 +76,6 @@ static void hdmi_destroy(struct hdmi *hdmi)
 		destroy_workqueue(hdmi->workq);
 	}
 	hdmi_hdcp_destroy(hdmi);
-	if (phy)
-		phy->funcs->destroy(phy);
 
 	if (hdmi->phy_dev) {
 		put_device(hdmi->phy_dev);
@@ -141,18 +137,6 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 	hdmi->pdev = pdev;
 	hdmi->config = config;
 	spin_lock_init(&hdmi->reg_lock);
-
-	/* not sure about which phy maps to which msm.. probably I miss some */
-	if (config->phy_init) {
-		hdmi->phy = config->phy_init(hdmi);
-
-		if (IS_ERR(hdmi->phy)) {
-			ret = PTR_ERR(hdmi->phy);
-			dev_err(&pdev->dev, "failed to load phy: %d\n", ret);
-			hdmi->phy = NULL;
-			goto fail;
-		}
-	}
 
 	hdmi->mmio = msm_ioremap(pdev, config->mmio_name, "HDMI");
 	if (IS_ERR(hdmi->mmio)) {
@@ -371,15 +355,12 @@ fail:
 static const char *pwr_reg_names_none[] = {};
 static const char *hpd_reg_names_none[] = {};
 
-static struct hdmi_platform_config hdmi_tx_8660_config = {
-		.phy_init = hdmi_phy_8x60_init,
-};
+static struct hdmi_platform_config hdmi_tx_8660_config;
 
 static const char *hpd_reg_names_8960[] = {"core-vdda", "hdmi-mux"};
 static const char *hpd_clk_names_8960[] = {"core_clk", "master_iface_clk", "slave_iface_clk"};
 
 static struct hdmi_platform_config hdmi_tx_8960_config = {
-		.phy_init = hdmi_phy_8960_init,
 		HDMI_CFG(hpd_reg, 8960),
 		HDMI_CFG(hpd_clk, 8960),
 };
@@ -391,7 +372,6 @@ static const char *hpd_clk_names_8x74[] = {"iface_clk", "core_clk", "mdp_core_cl
 static unsigned long hpd_clk_freq_8x74[] = {0, 19200000, 0};
 
 static struct hdmi_platform_config hdmi_tx_8974_config = {
-		.phy_init = hdmi_phy_8x74_init,
 		HDMI_CFG(pwr_reg, 8x74),
 		HDMI_CFG(hpd_reg, 8x74),
 		HDMI_CFG(pwr_clk, 8x74),
@@ -402,7 +382,6 @@ static struct hdmi_platform_config hdmi_tx_8974_config = {
 static const char *hpd_reg_names_8084[] = {"hpd-gdsc", "hpd-5v", "hpd-5v-en"};
 
 static struct hdmi_platform_config hdmi_tx_8084_config = {
-		.phy_init = hdmi_phy_8x74_init,
 		HDMI_CFG(pwr_reg, 8x74),
 		HDMI_CFG(hpd_reg, 8084),
 		HDMI_CFG(pwr_clk, 8x74),
@@ -411,7 +390,6 @@ static struct hdmi_platform_config hdmi_tx_8084_config = {
 };
 
 static struct hdmi_platform_config hdmi_tx_8994_config = {
-		.phy_init = NULL, /* nothing to do for this HDMI PHY 20nm */
 		HDMI_CFG(pwr_reg, 8x74),
 		HDMI_CFG(hpd_reg, none),
 		HDMI_CFG(pwr_clk, 8x74),
@@ -420,7 +398,6 @@ static struct hdmi_platform_config hdmi_tx_8994_config = {
 };
 
 static struct hdmi_platform_config hdmi_tx_8996_config = {
-		.phy_init = NULL,
 		HDMI_CFG(pwr_reg, none),
 		HDMI_CFG(hpd_reg, none),
 		HDMI_CFG(pwr_clk, 8x74),

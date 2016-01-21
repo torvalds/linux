@@ -95,13 +95,13 @@ static void hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 	DBG("power up");
 
 	if (!hdmi->power_on) {
+		hdmi_phy_resource_enable(phy);
 		power_on(bridge);
 		hdmi->power_on = true;
 		hdmi_audio_update(hdmi);
 	}
 
-	if (phy)
-		phy->funcs->powerup(phy, hdmi->pixclock);
+	hdmi_phy_powerup(phy, hdmi->pixclock);
 
 	hdmi_set_mode(hdmi, true);
 
@@ -129,13 +129,13 @@ static void hdmi_bridge_post_disable(struct drm_bridge *bridge)
 	DBG("power down");
 	hdmi_set_mode(hdmi, false);
 
-	if (phy)
-		phy->funcs->powerdown(phy);
+	hdmi_phy_powerdown(phy);
 
 	if (hdmi->power_on) {
 		power_off(bridge);
 		hdmi->power_on = false;
 		hdmi_audio_update(hdmi);
+		hdmi_phy_resource_disable(phy);
 	}
 }
 
