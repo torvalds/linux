@@ -24,3 +24,4 @@ config DRM_MSM_REGISTER_LOGGING
 	  logging can be switched on via msm.reglog=y module param.
 
 source "drivers/gpu/drm/msm/dsi/Kconfig"
+source "drivers/gpu/drm/msm/hdmi/Kconfig"

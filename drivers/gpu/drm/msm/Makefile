@@ -5,15 +5,6 @@ msm-y := \
 	adreno/adreno_gpu.o \
 	adreno/a3xx_gpu.o \
 	adreno/a4xx_gpu.o \
-	hdmi/hdmi.o \
-	hdmi/hdmi_audio.o \
-	hdmi/hdmi_bridge.o \
-	hdmi/hdmi_connector.o \
-	hdmi/hdmi_hdcp.o \
-	hdmi/hdmi_i2c.o \
-	hdmi/hdmi_phy_8960.o \
-	hdmi/hdmi_phy_8x60.o \
-	hdmi/hdmi_phy_8x74.o \
 	edp/edp.o \
 	edp/edp_aux.o \
 	edp/edp_bridge.o \
@@ -56,5 +47,6 @@ msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
 
 obj-$(CONFIG_DRM_MSM_DSI) += dsi/
+obj-$(CONFIG_DRM_MSM_HDMI) += hdmi/
 
 obj-$(CONFIG_DRM_MSM)	+= msm.o

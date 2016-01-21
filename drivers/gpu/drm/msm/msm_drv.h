@@ -242,10 +242,26 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 
 struct hdmi;
+#ifdef CONFIG_DRM_MSM_HDMI
 int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
 		struct drm_encoder *encoder);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
+#else
+static inline int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
+				    struct drm_encoder *encoder)
+{
+	return -EINVAL;
+}
+
+static inline void __init hdmi_register(void)
+{
+}
+
+static inline void __exit hdmi_unregister(void)
+{
+}
+#endif
 
 struct msm_edp;
 void __init msm_edp_register(void);
