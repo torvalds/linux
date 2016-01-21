@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/parser.h>
 #include <linux/module.h>
+#include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/statfs.h>
 #include <linux/seq_file.h>

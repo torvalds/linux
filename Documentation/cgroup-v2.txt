@@ -819,6 +819,78 @@ PAGE_SIZE multiple when read back.
 		the cgroup.  This may not exactly match the number of
 		processes killed but should generally be close.
 
+  memory.stat
+
+	A read-only flat-keyed file which exists on non-root cgroups.
+
+	This breaks down the cgroup's memory footprint into different
+	types of memory, type-specific details, and other information
+	on the state and past events of the memory management system.
+
+	All memory amounts are in bytes.
+
+	The entries are ordered to be human readable, and new entries
+	can show up in the middle. Don't rely on items remaining in a
+	fixed position; use the keys to look up specific values!
+
+	  anon
+
+		Amount of memory used in anonymous mappings such as
+		brk(), sbrk(), and mmap(MAP_ANONYMOUS)
+
+	  file
+
+		Amount of memory used to cache filesystem data,
+		including tmpfs and shared memory.
+
+	  file_mapped
+
+		Amount of cached filesystem data mapped with mmap()
+
+	  file_dirty
+
+		Amount of cached filesystem data that was modified but
+		not yet written back to disk
+
+	  file_writeback
+
+		Amount of cached filesystem data that was modified and
+		is currently being written back to disk
+
+	  inactive_anon
+	  active_anon
+	  inactive_file
+	  active_file
+	  unevictable
+
+		Amount of memory, swap-backed and filesystem-backed,
+		on the internal memory management lists used by the
+		page reclaim algorithm
+
+	  pgfault
+
+		Total number of page faults incurred
+
+	  pgmajfault
+
+		Number of major page faults incurred
+
+  memory.swap.current
+
+	A read-only single value file which exists on non-root
+	cgroups.
+
+	The total amount of swap currently being used by the cgroup
+	and its descendants.
+
+  memory.swap.max
+
+	A read-write single value file which exists on non-root
+	cgroups.  The default is "max".
+
+	Swap usage hard limit.  If a cgroup's swap usage reaches this
+	limit, anonymous meomry of the cgroup will not be swapped out.
+
 
 5-2-2. General Usage
 
@@ -1291,3 +1363,20 @@ allocation from the slack available in other groups or the rest of the
 system than killing the group.  Otherwise, memory.max is there to
 limit this type of spillover and ultimately contain buggy or even
 malicious applications.
+
+The combined memory+swap accounting and limiting is replaced by real
+control over swap space.
+
+The main argument for a combined memory+swap facility in the original
+cgroup design was that global or parental pressure would always be
+able to swap all anonymous memory of a child group, regardless of the
+child's own (possibly untrusted) configuration.  However, untrusted
+groups can sabotage swapping by other means - such as referencing its
+anonymous memory in a tight loop - and an admin can not assume full
+swappability when overcommitting untrusted jobs.
+
+For trusted jobs, on the other hand, a combined counter is not an
+intuitive userspace interface, and it flies in the face of the idea
+that cgroup controllers should account and limit specific physical
+resources.  Swap space is a resource like all others in the system,
+and that's why unified hierarchy allows distributing it separately.

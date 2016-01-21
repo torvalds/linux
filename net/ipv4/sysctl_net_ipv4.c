@@ -24,7 +24,6 @@
 #include <net/cipso_ipv4.h>
 #include <net/inet_frag.h>
 #include <net/ping.h>
-#include <net/tcp_memcontrol.h>
 
 static int zero;
 static int one = 1;
