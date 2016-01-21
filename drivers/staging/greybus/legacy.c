@@ -14,6 +14,7 @@
 
 struct legacy_connection {
 	struct gb_connection *connection;
+	bool initialized;
 };
 
 struct legacy_data {
@@ -112,6 +113,8 @@ static int legacy_connection_init(struct legacy_connection *lc)
 	if (ret)
 		goto err_disable;
 
+	lc->initialized = true;
+
 	return 0;
 
 err_disable:
@@ -126,7 +129,7 @@ static void legacy_connection_exit(struct legacy_connection *lc)
 {
 	struct gb_connection *connection = lc->connection;
 
-	if (!connection->protocol)
+	if (!lc->initialized)
 		return;
 
 	gb_connection_disable(connection);
@@ -134,6 +137,8 @@ static void legacy_connection_exit(struct legacy_connection *lc)
 	connection->protocol->connection_exit(connection);
 
 	legacy_connection_unbind_protocol(connection);
+
+	lc->initialized = false;
 }
 
 static int legacy_connection_create(struct legacy_connection *lc,
