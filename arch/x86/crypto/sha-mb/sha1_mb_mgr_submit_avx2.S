@@ -53,6 +53,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 #include "sha1_mb_mgr_datastruct.S"
 
 
@@ -98,6 +99,7 @@ lane_data       = %r10
 # arg 1 : rcx : state
 # arg 2 : rdx : job
 ENTRY(sha1_mb_mgr_submit_avx2)
+	FRAME_BEGIN
 	push	%rbx
 	push	%r12
 
@@ -192,6 +194,7 @@ len_is_0:
 return:
 	pop	%r12
 	pop	%rbx
+	FRAME_END
 	ret
 
 return_null:
