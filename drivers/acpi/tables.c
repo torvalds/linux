@@ -484,3 +484,13 @@ static int __init acpi_force_table_verification_setup(char *s)
 }
 
 early_param("acpi_force_table_verification", acpi_force_table_verification_setup);
+
+static int __init acpi_force_32bit_fadt_addr(char *s)
+{
+	pr_info("Forcing 32 Bit FADT addresses\n");
+	acpi_gbl_use32_bit_fadt_addresses = TRUE;
+
+	return 0;
+}
+
+early_param("acpi_force_32bit_fadt_addr", acpi_force_32bit_fadt_addr);
