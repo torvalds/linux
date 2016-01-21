@@ -85,10 +85,16 @@ static inline void CMD_STALL(struct etnaviv_cmdbuf *buffer,
 	OUT(buffer, VIV_FE_STALL_TOKEN_FROM(from) | VIV_FE_STALL_TOKEN_TO(to));
 }
 
+static inline void CMD_SEM(struct etnaviv_cmdbuf *buffer, u32 from, u32 to)
+{
+	CMD_LOAD_STATE(buffer, VIVS_GL_SEMAPHORE_TOKEN,
+		       VIVS_GL_SEMAPHORE_TOKEN_FROM(from) |
+		       VIVS_GL_SEMAPHORE_TOKEN_TO(to));
+}
+
 static void etnaviv_cmd_select_pipe(struct etnaviv_cmdbuf *buffer, u8 pipe)
 {
 	u32 flush;
-	u32 stall;
 
 	/*
 	 * This assumes that if we're switching to 2D, we're switching
@@ -101,12 +107,8 @@ static void etnaviv_cmd_select_pipe(struct etnaviv_cmdbuf *buffer, u8 pipe)
 	else
 		flush = VIVS_GL_FLUSH_CACHE_PE2D;
 
-	stall = VIVS_GL_SEMAPHORE_TOKEN_FROM(SYNC_RECIPIENT_FE) |
-		VIVS_GL_SEMAPHORE_TOKEN_TO(SYNC_RECIPIENT_PE);
-
 	CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_CACHE, flush);
-	CMD_LOAD_STATE(buffer, VIVS_GL_SEMAPHORE_TOKEN, stall);
-
+	CMD_SEM(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
 	CMD_STALL(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
 
 	CMD_LOAD_STATE(buffer, VIVS_GL_PIPE_SELECT,
