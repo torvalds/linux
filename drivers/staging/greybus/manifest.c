@@ -228,19 +228,18 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
  */
 static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
-	struct gb_connection *connection;
 	struct gb_interface *intf = bundle->intf;
+	struct greybus_descriptor_cport *desc_cport;
 	struct manifest_desc *desc;
 	struct manifest_desc *next;
+	LIST_HEAD(list);
 	u8 bundle_id = bundle->id;
-	u8 protocol_id;
 	u16 cport_id;
 	u32 count = 0;
+	int i;
 
 	/* Set up all cport descriptors associated with this bundle */
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
-		struct greybus_descriptor_cport *desc_cport;
-
 		if (desc->type != GREYBUS_TYPE_CPORT)
 			continue;
 
@@ -252,16 +251,26 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		if (cport_id > CPORT_ID_MAX)
 			goto exit;
 
-		/* Found one.  Set up its function structure */
-		protocol_id = desc_cport->protocol_id;
-
-		connection = gb_connection_create_dynamic(intf, bundle,
-								cport_id,
-								protocol_id);
-		if (!connection)
-			goto exit;
-
+		/* Found one, move it to our temporary list. */
+		list_move(&desc->links, &list);
 		count++;
+	}
+
+	if (!count)
+		return 0;
+
+	bundle->cport_desc = kcalloc(count, sizeof(*bundle->cport_desc),
+					GFP_KERNEL);
+	if (!bundle->cport_desc)
+		goto exit;
+
+	bundle->num_cports = count;
+
+	i = 0;
+	list_for_each_entry_safe(desc, next, &list, links) {
+		desc_cport = desc->data;
+		memcpy(&bundle->cport_desc[i++], desc_cport,
+				sizeof(*desc_cport));
 
 		/* Release the cport descriptor */
 		release_manifest_descriptor(desc);
@@ -269,7 +278,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 
 	return count;
 exit:
-
+	release_cport_descriptors(&list, bundle_id);
 	/*
 	 * Free all cports for this bundle to avoid 'excess descriptors'
 	 * warnings.

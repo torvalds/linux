@@ -22,6 +22,9 @@ struct gb_bundle {
 	u8			class_major;
 	u8			class_minor;
 
+	size_t			num_cports;
+	struct greybus_descriptor_cport *cport_desc;
+
 	struct list_head	connections;
 	u8			*state;
 

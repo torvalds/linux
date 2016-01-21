@@ -232,6 +232,7 @@ gb_connection_create_dynamic(struct gb_interface *intf,
 	return gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
 								protocol_id);
 }
+EXPORT_SYMBOL_GPL(gb_connection_create_dynamic);
 
 static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 {
@@ -546,6 +547,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	gb_connection_put(connection);
 }
+EXPORT_SYMBOL_GPL(gb_connection_destroy);
 
 void gb_connection_latency_tag_enable(struct gb_connection *connection)
 {

@@ -151,8 +151,14 @@ static int greybus_probe(struct device *dev)
 		return -ENODEV;
 
 	retval = driver->probe(bundle, id);
-	if (retval)
+	if (retval) {
+		/*
+		 * Catch buggy drivers that fail to destroy their connections.
+		 */
+		WARN_ON(!list_empty(&bundle->connections));
+
 		return retval;
+	}
 
 	return 0;
 }
@@ -172,11 +178,8 @@ static int greybus_remove(struct device *dev)
 
 	driver->disconnect(bundle);
 
-	/* Catch buggy drivers that fail to disable their connections. */
-	list_for_each_entry(connection, &bundle->connections, bundle_links) {
-		if (WARN_ON(connection->state != GB_CONNECTION_STATE_DISABLED))
-			gb_connection_disable(connection);
-	}
+	/* Catch buggy drivers that fail to destroy their connections. */
+	WARN_ON(!list_empty(&bundle->connections));
 
 	return 0;
 }

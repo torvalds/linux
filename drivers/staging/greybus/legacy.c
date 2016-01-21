@@ -14,6 +14,7 @@
 
 struct legacy_data {
 	size_t num_cports;
+	struct gb_connection **connections;
 };
 
 
@@ -128,25 +129,44 @@ static void legacy_connection_exit(struct gb_connection *connection)
 static int legacy_probe(struct gb_bundle *bundle,
 			const struct greybus_bundle_id *id)
 {
+	struct greybus_descriptor_cport *cport_desc;
 	struct legacy_data *data;
 	struct gb_connection *connection;
-	int ret;
+	int i;
+	int ret = -ENOMEM;
+
+	dev_dbg(&bundle->dev,
+			"%s - bundle class = 0x%02x, num_cports = %zu\n",
+			__func__, bundle->class, bundle->num_cports);
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->num_cports = 0;
-	list_for_each_entry(connection, &bundle->connections, bundle_links)
-		data->num_cports++;
+	data->num_cports = bundle->num_cports;
+	data->connections = kcalloc(data->num_cports,
+						sizeof(*data->connections),
+						GFP_KERNEL);
+	if (!data->connections)
+		goto err_free_data;
 
-	dev_dbg(&bundle->dev,
-			"%s - bundle class = 0x%02x, num_cports = %zu\n",
-			__func__, bundle->class, data->num_cports);
+	for (i = 0; i < data->num_cports; ++i) {
+		cport_desc = &bundle->cport_desc[i];
+
+		connection = gb_connection_create_dynamic(bundle->intf,
+						bundle,
+						le16_to_cpu(cport_desc->id),
+						cport_desc->protocol_id);
+		if (!connection)
+			goto err_connections_destroy;
+
+		data->connections[i] = connection;
+	}
 
 	greybus_set_drvdata(bundle, data);
 
-	list_for_each_entry(connection, &bundle->connections, bundle_links) {
+	for (i = 0; i < data->num_cports; ++i) {
+		connection = data->connections[i];
 		dev_dbg(&bundle->dev, "enabling connection %s\n",
 				connection->name);
 
@@ -158,10 +178,13 @@ static int legacy_probe(struct gb_bundle *bundle,
 	return 0;
 
 err_connections_disable:
-	list_for_each_entry_reverse(connection, &bundle->connections,
-							bundle_links) {
-		legacy_connection_exit(connection);
-	}
+	for (--i; i >= 0; --i)
+		legacy_connection_exit(data->connections[i]);
+err_connections_destroy:
+	for (i = 0; i < data->num_cports; ++i)
+		gb_connection_destroy(data->connections[i]);
+	kfree(data->connections);
+err_free_data:
 	kfree(data);
 
 	return ret;
@@ -170,16 +193,17 @@ err_connections_disable:
 static void legacy_disconnect(struct gb_bundle *bundle)
 {
 	struct legacy_data *data = greybus_get_drvdata(bundle);
-	struct gb_connection *connection;
+	int i;
 
 	dev_dbg(&bundle->dev, "%s - bundle class = 0x%02x\n", __func__,
 			bundle->class);
 
-	list_for_each_entry_reverse(connection, &bundle->connections,
-							bundle_links) {
-		legacy_connection_exit(connection);
+	for (i = 0; i < data->num_cports; ++i) {
+		legacy_connection_exit(data->connections[i]);
+		gb_connection_destroy(data->connections[i]);
 	}
 
+	kfree(data->connections);
 	kfree(data);
 }
 
