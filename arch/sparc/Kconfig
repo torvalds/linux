@@ -26,7 +26,6 @@ config SPARC
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 	select RTC_SYSTOHC
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_ARCH_JUMP_LABEL if SPARC64
 	select GENERIC_IRQ_SHOW

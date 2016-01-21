@@ -54,7 +54,7 @@
 
 	chosen {
 		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
-		stdout-path = &scif0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@40000000 {
@@ -79,77 +79,77 @@
 			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_1>;
 			label = "SW2-1";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-2 {
 			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_2>;
 			label = "SW2-2";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-3 {
 			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_3>;
 			label = "SW2-3";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-4 {
 			gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_4>;
 			label = "SW2-4";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-a {
 			gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_A>;
 			label = "SW30";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-b {
 			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_B>;
 			label = "SW31";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-c {
 			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_C>;
 			label = "SW32";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-d {
 			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_D>;
 			label = "SW33";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-e {
 			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_E>;
 			label = "SW34";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-f {
 			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_F>;
 			label = "SW35";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 		key-g {
 			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_G>;
 			label = "SW36";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 		};
 	};
@@ -326,7 +326,7 @@
 	};
 
 	du_pins: du {
-		renesas,groups = "du_rgb666", "du_sync", "du_disp", "du_clk_out_0";
+		renesas,groups = "du_rgb888", "du_sync", "du_disp", "du_clk_out_0";
 		renesas,function = "du";
 	};
 
@@ -479,8 +479,6 @@
 	status = "okay";
 
 	flash: flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "spansion,s25fl512s", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
@@ -490,19 +488,25 @@
 		spi-cpol;
 		m25p,fast-read;
 
-		partition@0 {
-			label = "loader";
-			reg = <0x00000000 0x00080000>;
-			read-only;
-		};
-		partition@80000 {
-			label = "user";
-			reg = <0x00080000 0x00580000>;
-			read-only;
-		};
-		partition@600000 {
-			label = "flash";
-			reg = <0x00600000 0x03a00000>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "loader";
+				reg = <0x00000000 0x00080000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "user";
+				reg = <0x00080000 0x00580000>;
+				read-only;
+			};
+			partition@600000 {
+				label = "flash";
+				reg = <0x00600000 0x03a00000>;
+			};
 		};
 	};
 };

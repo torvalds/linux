@@ -359,30 +359,19 @@ static struct platform_driver msm_iommu_ctx_driver = {
 	.remove		= msm_iommu_ctx_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&msm_iommu_driver,
+	&msm_iommu_ctx_driver,
+};
+
 static int __init msm_iommu_driver_init(void)
 {
-	int ret;
-	ret = platform_driver_register(&msm_iommu_driver);
-	if (ret != 0) {
-		pr_err("Failed to register IOMMU driver\n");
-		goto error;
-	}
-
-	ret = platform_driver_register(&msm_iommu_ctx_driver);
-	if (ret != 0) {
-		platform_driver_unregister(&msm_iommu_driver);
-		pr_err("Failed to register IOMMU context driver\n");
-		goto error;
-	}
-
-error:
-	return ret;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit msm_iommu_driver_exit(void)
 {
-	platform_driver_unregister(&msm_iommu_ctx_driver);
-	platform_driver_unregister(&msm_iommu_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 subsys_initcall(msm_iommu_driver_init);

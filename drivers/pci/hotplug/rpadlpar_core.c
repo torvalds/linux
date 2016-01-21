@@ -114,11 +114,10 @@ static struct device_node *find_dlpar_node(char *drc_name, int *node_type)
  */
 static struct slot *find_php_slot(struct device_node *dn)
 {
-	struct list_head *tmp, *n;
-	struct slot *slot;
+	struct slot *slot, *next;
 
-	list_for_each_safe(tmp, n, &rpaphp_slot_head) {
-		slot = list_entry(tmp, struct slot, rpaphp_slot_list);
+	list_for_each_entry_safe(slot, next, &rpaphp_slot_head,
+				 rpaphp_slot_list) {
 		if (slot->dn == dn)
 			return slot;
 	}

@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -252,7 +253,6 @@ static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_rtc,
 	&samsung_device_pwm,
-	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iis0,
 	&smartq_backlight_device,
@@ -383,6 +383,15 @@ void __init smartq_map_io(void)
 	smartq_lcd_mode_set();
 }
 
+static struct gpiod_lookup_table smartq_audio_gpios = {
+	.dev_id = "smartq-audio",
+	.table = {
+		GPIO_LOOKUP("GPL", 12, "headphone detect", 0),
+		GPIO_LOOKUP("GPK", 12, "amplifiers shutdown", 0),
+		{ },
+	},
+};
+
 void __init smartq_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
@@ -390,7 +399,7 @@ void __init smartq_machine_init(void)
 	s3c_hwmon_set_platdata(&smartq_hwmon_pdata);
 	s3c_sdhci1_set_platdata(&smartq_internal_hsmmc_pdata);
 	s3c_sdhci2_set_platdata(&smartq_internal_hsmmc_pdata);
-	s3c24xx_ts_set_platdata(&smartq_touchscreen_pdata);
+	s3c64xx_ts_set_platdata(&smartq_touchscreen_pdata);
 
 	i2c_register_board_info(0, smartq_i2c_devs,
 				ARRAY_SIZE(smartq_i2c_devs));
@@ -402,4 +411,7 @@ void __init smartq_machine_init(void)
 
 	pwm_add_table(smartq_pwm_lookup, ARRAY_SIZE(smartq_pwm_lookup));
 	platform_add_devices(smartq_devices, ARRAY_SIZE(smartq_devices));
+
+	gpiod_add_lookup_table(&smartq_audio_gpios);
+	platform_device_register_simple("smartq-audio", -1, NULL, 0);
 }

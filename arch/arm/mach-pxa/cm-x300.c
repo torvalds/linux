@@ -47,8 +47,8 @@
 #include <asm/setup.h>
 #include <asm/system_info.h>
 
-#include <mach/pxa300.h>
-#include <mach/pxa27x-udc.h>
+#include "pxa300.h"
+#include "pxa27x-udc.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>

@@ -433,6 +433,28 @@ our @typeList = (
 	qr{${Ident}_handler_fn},
 	@typeListMisordered,
 );
+
+our $C90_int_types = qr{(?x:
+	long\s+long\s+int\s+(?:un)?signed|
+	long\s+long\s+(?:un)?signed\s+int|
+	long\s+long\s+(?:un)?signed|
+	(?:(?:un)?signed\s+)?long\s+long\s+int|
+	(?:(?:un)?signed\s+)?long\s+long|
+	int\s+long\s+long\s+(?:un)?signed|
+	int\s+(?:(?:un)?signed\s+)?long\s+long|
+
+	long\s+int\s+(?:un)?signed|
+	long\s+(?:un)?signed\s+int|
+	long\s+(?:un)?signed|
+	(?:(?:un)?signed\s+)?long\s+int|
+	(?:(?:un)?signed\s+)?long|
+	int\s+long\s+(?:un)?signed|
+	int\s+(?:(?:un)?signed\s+)?long|
+
+	int\s+(?:un)?signed|
+	(?:(?:un)?signed\s+)?int
+)};
+
 our @typeListFile = ();
 our @typeListWithAttr = (
 	@typeList,
@@ -4517,7 +4539,7 @@ sub process {
 			#print "LINE<$lines[$ln-1]> len<" . length($lines[$ln-1]) . "\n";
 
 			$has_flow_statement = 1 if ($ctx =~ /\b(goto|return)\b/);
-			$has_arg_concat = 1 if ($ctx =~ /\#\#/);
+			$has_arg_concat = 1 if ($ctx =~ /\#\#/ && $ctx !~ /\#\#\s*(?:__VA_ARGS__|args)\b/);
 
 			$dstat =~ s/^.\s*\#\s*define\s+$Ident(?:\([^\)]*\))?\s*//;
 			$dstat =~ s/$;//g;
@@ -4528,7 +4550,7 @@ sub process {
 			# Flatten any parentheses and braces
 			while ($dstat =~ s/\([^\(\)]*\)/1/ ||
 			       $dstat =~ s/\{[^\{\}]*\}/1/ ||
-			       $dstat =~ s/\[[^\[\]]*\]/1/)
+			       $dstat =~ s/.\[[^\[\]]*\]/1/)
 			{
 			}
 
@@ -4548,7 +4570,8 @@ sub process {
 				union|
 				struct|
 				\.$Ident\s*=\s*|
-				^\"|\"$
+				^\"|\"$|
+				^\[
 			}x;
 			#print "REST<$rest> dstat<$dstat> ctx<$ctx>\n";
 			if ($dstat ne '' &&
@@ -5269,6 +5292,26 @@ sub process {
 				    $fix) {
 					$fixed[$fixlinenr] =~ s/\b$type\b/$kernel_type/;
 				}
+			}
+		}
+
+# check for cast of C90 native int or longer types constants
+		if ($line =~ /(\(\s*$C90_int_types\s*\)\s*)($Constant)\b/) {
+			my $cast = $1;
+			my $const = $2;
+			if (WARN("TYPECAST_INT_CONSTANT",
+				 "Unnecessary typecast of c90 int constant\n" . $herecurr) &&
+			    $fix) {
+				my $suffix = "";
+				my $newconst = $const;
+				$newconst =~ s/${Int_type}$//;
+				$suffix .= 'U' if ($cast =~ /\bunsigned\b/);
+				if ($cast =~ /\blong\s+long\b/) {
+					$suffix .= 'LL';
+				} elsif ($cast =~ /\blong\b/) {
+					$suffix .= 'L';
+				}
+				$fixed[$fixlinenr] =~ s/\Q$cast\E$const\b/$newconst$suffix/;
 			}
 		}
 
