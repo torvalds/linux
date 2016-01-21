@@ -1782,7 +1782,7 @@ static int
 add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, struct thread *thread)
 {
-	if (thread == NULL)
+	if (!sort__has_thread || thread == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s %s(%d) thread",
@@ -2307,10 +2307,12 @@ skip_annotation:
 					     socked_id);
 		/* perf script support */
 		if (browser->he_selection) {
-			nr_options += add_script_opt(browser,
-						     &actions[nr_options],
-						     &options[nr_options],
-						     thread, NULL);
+			if (sort__has_thread && thread) {
+				nr_options += add_script_opt(browser,
+							     &actions[nr_options],
+							     &options[nr_options],
+							     thread, NULL);
+			}
 			/*
 			 * Note that browser->selection != NULL
 			 * when browser->he_selection is not NULL,
