@@ -8,6 +8,7 @@
  * of the License.
  */
 #include <linux/linkage.h>
+#include <asm/frame.h>
 
 /*
  * Calling convention :
@@ -65,16 +66,18 @@ FUNC(sk_load_byte_positive_offset)
 
 /* rsi contains offset and can be scratched */
 #define bpf_slow_path_common(LEN)		\
+	lea	-MAX_BPF_STACK + 32(%rbp), %rdx;\
+	FRAME_BEGIN;				\
 	mov	%rbx, %rdi; /* arg1 == skb */	\
 	push	%r9;				\
 	push	SKBDATA;			\
 /* rsi already has offset */			\
 	mov	$LEN,%ecx;	/* len */	\
-	lea	- MAX_BPF_STACK + 32(%rbp),%rdx;			\
 	call	skb_copy_bits;			\
 	test    %eax,%eax;			\
 	pop	SKBDATA;			\
-	pop	%r9;
+	pop	%r9;				\
+	FRAME_END
 
 
 bpf_slow_path_word:
@@ -99,6 +102,7 @@ bpf_slow_path_byte:
 	ret
 
 #define sk_negative_common(SIZE)				\
+	FRAME_BEGIN;						\
 	mov	%rbx, %rdi; /* arg1 == skb */			\
 	push	%r9;						\
 	push	SKBDATA;					\
@@ -108,6 +112,7 @@ bpf_slow_path_byte:
 	test	%rax,%rax;					\
 	pop	SKBDATA;					\
 	pop	%r9;						\
+	FRAME_END;						\
 	jz	bpf_error
 
 bpf_slow_path_word_neg:
