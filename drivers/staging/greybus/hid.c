@@ -431,7 +431,7 @@ static int gb_hid_connection_init(struct gb_connection *connection)
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
 		ret = PTR_ERR(hid);
-		goto free_ghid;
+		goto err_free_ghid;
 	}
 
 	connection->private = ghid;
@@ -440,17 +440,19 @@ static int gb_hid_connection_init(struct gb_connection *connection)
 
 	ret = gb_hid_init(ghid);
 	if (ret)
-		goto destroy_hid;
+		goto err_destroy_hid;
 
 	ret = hid_add_device(hid);
-	if (!ret)
-		return 0;
+	if (ret) {
+		hid_err(hid, "can't add hid device: %d\n", ret);
+		goto err_destroy_hid;
+	}
 
-	hid_err(hid, "can't add hid device: %d\n", ret);
+	return 0;
 
-destroy_hid:
+err_destroy_hid:
 	hid_destroy_device(hid);
-free_ghid:
+err_free_ghid:
 	kfree(ghid);
 
 	return ret;
