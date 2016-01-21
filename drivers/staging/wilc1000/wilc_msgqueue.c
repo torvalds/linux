@@ -11,13 +11,13 @@
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_create(struct message_queue *pHandle)
+int wilc_mq_create(struct message_queue *mq)
 {
-	spin_lock_init(&pHandle->lock);
-	sema_init(&pHandle->sem, 0);
-	pHandle->msg_list = NULL;
-	pHandle->recv_count = 0;
-	pHandle->exiting = false;
+	spin_lock_init(&mq->lock);
+	sema_init(&mq->sem, 0);
+	mq->msg_list = NULL;
+	mq->recv_count = 0;
+	mq->exiting = false;
 	return 0;
 }
 

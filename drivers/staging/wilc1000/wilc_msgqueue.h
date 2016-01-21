@@ -40,7 +40,7 @@ struct message_queue {
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_create(struct message_queue *pHandle);
+int wilc_mq_create(struct message_queue *mq);
 
 /*!
  *  @brief		Sends a message
