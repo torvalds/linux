@@ -97,13 +97,13 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 	return ret;
 }
 
-static int gb_hid_irq_handler(u8 type, struct gb_operation *op)
+static int gb_hid_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_hid *ghid = connection->private;
 	struct gb_hid_input_report_request *request = op->request->payload;
 
-	if (type != GB_HID_TYPE_IRQ_EVENT) {
+	if (op->type != GB_HID_TYPE_IRQ_EVENT) {
 		dev_err(&connection->bundle->dev,
 			"unsupported unsolicited request\n");
 		return -EINVAL;
@@ -418,64 +418,96 @@ static int gb_hid_init(struct gb_hid *ghid)
 	return 0;
 }
 
-static int gb_hid_connection_init(struct gb_connection *connection)
+static int gb_hid_probe(struct gb_bundle *bundle,
+			const struct greybus_bundle_id *id)
 {
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_connection *connection;
 	struct hid_device *hid;
 	struct gb_hid *ghid;
 	int ret;
+
+	if (bundle->num_cports != 1)
+		return -ENODEV;
+
+	cport_desc = &bundle->cport_desc[0];
+	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_HID)
+		return -ENODEV;
 
 	ghid = kzalloc(sizeof(*ghid), GFP_KERNEL);
 	if (!ghid)
 		return -ENOMEM;
 
-	hid = hid_allocate_device();
-	if (IS_ERR(hid)) {
-		ret = PTR_ERR(hid);
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+						gb_hid_request_handler);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
 		goto err_free_ghid;
 	}
 
 	connection->private = ghid;
 	ghid->connection = connection;
+
+	hid = hid_allocate_device();
+	if (IS_ERR(hid)) {
+		ret = PTR_ERR(hid);
+		goto err_connection_destroy;
+	}
+
 	ghid->hid = hid;
+
+	greybus_set_drvdata(bundle, ghid);
+
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto err_destroy_hid;
 
 	ret = gb_hid_init(ghid);
 	if (ret)
-		goto err_destroy_hid;
+		goto err_connection_disable;
 
 	ret = hid_add_device(hid);
 	if (ret) {
 		hid_err(hid, "can't add hid device: %d\n", ret);
-		goto err_destroy_hid;
+		goto err_connection_disable;
 	}
 
 	return 0;
 
+err_connection_disable:
+	gb_connection_disable(connection);
 err_destroy_hid:
 	hid_destroy_device(hid);
+err_connection_destroy:
+	gb_connection_destroy(connection);
 err_free_ghid:
 	kfree(ghid);
 
 	return ret;
 }
 
-static void gb_hid_connection_exit(struct gb_connection *connection)
+static void gb_hid_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_hid *ghid = connection->private;
+	struct gb_hid *ghid = greybus_get_drvdata(bundle);
 
+	gb_connection_disable(ghid->connection);
 	hid_destroy_device(ghid->hid);
+	gb_connection_destroy(ghid->connection);
 	kfree(ghid);
 }
 
-static struct gb_protocol hid_protocol = {
-	.name			= "hid",
-	.id			= GREYBUS_PROTOCOL_HID,
-	.major			= GB_HID_VERSION_MAJOR,
-	.minor			= GB_HID_VERSION_MINOR,
-	.connection_init	= gb_hid_connection_init,
-	.connection_exit	= gb_hid_connection_exit,
-	.request_recv		= gb_hid_irq_handler,
+static const struct greybus_bundle_id gb_hid_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_HID) },
+	{ }
 };
+MODULE_DEVICE_TABLE(greybus, gb_hid_id_table);
 
-gb_protocol_driver(&hid_protocol);
+static struct greybus_driver gb_hid_driver = {
+	.name		= "hid",
+	.probe		= gb_hid_probe,
+	.disconnect	= gb_hid_disconnect,
+	.id_table	= gb_hid_id_table,
+};
+module_greybus_driver(gb_hid_driver);
 
 MODULE_LICENSE("GPL v2");
