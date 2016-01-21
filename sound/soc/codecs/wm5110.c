@@ -1828,6 +1828,9 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "Voice Control DSP", NULL, "DSP3" },
 	{ "Voice Control DSP", NULL, "SYSCLK" },
 
+	{ "Audio Trace DSP", NULL, "DSP1" },
+	{ "Audio Trace DSP", NULL, "SYSCLK" },
+
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
 
@@ -2171,6 +2174,27 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			.formats = WM5110_FORMATS,
 		},
 	},
+	{
+		.name = "wm5110-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "wm5110-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+	},
 };
 
 static int wm5110_open(struct snd_compr_stream *stream)
@@ -2182,6 +2206,8 @@ static int wm5110_open(struct snd_compr_stream *stream)
 
 	if (strcmp(rtd->codec_dai->name, "wm5110-dsp-voicectrl") == 0) {
 		n_adsp = 2;
+	} else if (strcmp(rtd->codec_dai->name, "wm5110-dsp-trace") == 0) {
+		n_adsp = 0;
 	} else {
 		dev_err(arizona->dev,
 			"No suitable compressed stream for DAI '%s'\n",
@@ -2194,12 +2220,21 @@ static int wm5110_open(struct snd_compr_stream *stream)
 
 static irqreturn_t wm5110_adsp2_irq(int irq, void *data)
 {
-	struct wm5110_priv *florida = data;
-	int ret;
+	struct wm5110_priv *priv = data;
+	struct arizona *arizona = priv->core.arizona;
+	int serviced = 0;
+	int i, ret;
 
-	ret = wm_adsp_compr_handle_irq(&florida->core.adsp[2]);
-	if (ret == -ENODEV)
+	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
+		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
+		if (ret != -ENODEV)
+			serviced++;
+	}
+
+	if (!serviced) {
+		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
 		return IRQ_NONE;
+	}
 
 	return IRQ_HANDLED;
 }

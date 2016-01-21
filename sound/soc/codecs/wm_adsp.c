@@ -2823,7 +2823,6 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 	mutex_lock(&dsp->pwr_lock);
 
 	if (!buf) {
-		adsp_err(dsp, "Spurious buffer IRQ\n");
 		ret = -ENODEV;
 		goto out;
 	}
