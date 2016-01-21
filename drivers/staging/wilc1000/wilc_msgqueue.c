@@ -14,7 +14,7 @@
 int wilc_mq_create(struct message_queue *pHandle)
 {
 	spin_lock_init(&pHandle->strCriticalSection);
-	sema_init(&pHandle->hSem, 0);
+	sema_init(&pHandle->sem, 0);
 	pHandle->pstrMessageList = NULL;
 	pHandle->u32ReceiversCount = 0;
 	pHandle->bExiting = false;
@@ -33,7 +33,7 @@ int wilc_mq_destroy(struct message_queue *pHandle)
 
 	/* Release any waiting receiver thread. */
 	while (pHandle->u32ReceiversCount > 0) {
-		up(&pHandle->hSem);
+		up(&pHandle->sem);
 		pHandle->u32ReceiversCount--;
 	}
 
@@ -99,7 +99,7 @@ int wilc_mq_send(struct message_queue *pHandle,
 
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
-	up(&pHandle->hSem);
+	up(&pHandle->sem);
 
 	return 0;
 }
@@ -132,7 +132,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 	pHandle->u32ReceiversCount++;
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
-	down(&pHandle->hSem);
+	down(&pHandle->sem);
 	spin_lock_irqsave(&pHandle->strCriticalSection, flags);
 
 	pstrMessage = pHandle->pstrMessageList;
@@ -144,7 +144,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 	/* check buffer size */
 	if (u32RecvBufferSize < pstrMessage->len) {
 		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
-		up(&pHandle->hSem);
+		up(&pHandle->sem);
 		PRINT_ER("u32RecvBufferSize overflow\n");
 		return -EOVERFLOW;
 	}
