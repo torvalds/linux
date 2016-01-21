@@ -129,7 +129,8 @@ static void gb_connection_init_name(struct gb_connection *connection)
  * Serialised against concurrent create and destroy using the
  * gb_connection_mutex.
  *
- * Return: A pointer to the new connection if successful, or NULL otherwise.
+ * Return: A pointer to the new connection if successful, or an ERR_PTR
+ * otherwise.
  */
 static struct gb_connection *
 _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
@@ -139,6 +140,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
 	int ida_start, ida_end;
+	int ret;
 
 	if (hd_cport_id < 0) {
 		ida_start = 0;
@@ -148,23 +150,27 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 		ida_end = hd_cport_id + 1;
 	} else {
 		dev_err(&hd->dev, "cport %d not available\n", hd_cport_id);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	mutex_lock(&gb_connection_mutex);
 
 	if (intf && gb_connection_intf_find(intf, cport_id)) {
 		dev_err(&intf->dev, "cport %u already in use\n", cport_id);
+		ret = -EBUSY;
 		goto err_unlock;
 	}
 
-	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
-	if (hd_cport_id < 0)
+	ret = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+	if (ret < 0)
 		goto err_unlock;
+	hd_cport_id = ret;
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
-	if (!connection)
+	if (!connection) {
+		ret = -ENOMEM;
 		goto err_remove_ida;
+	}
 
 	connection->hd_cport_id = hd_cport_id;
 	connection->intf_cport_id = cport_id;
@@ -181,8 +187,10 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	connection->wq = alloc_workqueue("%s:%d", WQ_UNBOUND, 1,
 					 dev_name(&hd->dev), hd_cport_id);
-	if (!connection->wq)
+	if (!connection->wq) {
+		ret = -ENOMEM;
 		goto err_free_connection;
+	}
 
 	kref_init(&connection->kref);
 
@@ -209,7 +217,7 @@ err_remove_ida:
 err_unlock:
 	mutex_unlock(&gb_connection_mutex);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 struct gb_connection *

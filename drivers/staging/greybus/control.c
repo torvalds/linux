@@ -187,8 +187,10 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 		return NULL;
 
 	control->connection = gb_connection_create_control(intf);
-	if (!control->connection) {
-		dev_err(&intf->dev, "failed to create control connection\n");
+	if (IS_ERR(control->connection)) {
+		dev_err(&intf->dev,
+				"failed to create control connection: %ld\n",
+				PTR_ERR(control->connection));
 		kfree(control);
 		return NULL;
 	}

@@ -133,7 +133,7 @@ static int legacy_probe(struct gb_bundle *bundle,
 	struct legacy_data *data;
 	struct gb_connection *connection;
 	int i;
-	int ret = -ENOMEM;
+	int ret;
 
 	dev_dbg(&bundle->dev,
 			"%s - bundle class = 0x%02x, num_cports = %zu\n",
@@ -147,16 +147,20 @@ static int legacy_probe(struct gb_bundle *bundle,
 	data->connections = kcalloc(data->num_cports,
 						sizeof(*data->connections),
 						GFP_KERNEL);
-	if (!data->connections)
+	if (!data->connections) {
+		ret = -ENOMEM;
 		goto err_free_data;
+	}
 
 	for (i = 0; i < data->num_cports; ++i) {
 		cport_desc = &bundle->cport_desc[i];
 
 		connection = gb_connection_create(bundle,
 						le16_to_cpu(cport_desc->id));
-		if (!connection)
+		if (IS_ERR(connection)) {
+			ret = PTR_ERR(connection);
 			goto err_connections_destroy;
+		}
 
 		connection->protocol_id = cport_desc->protocol_id;
 

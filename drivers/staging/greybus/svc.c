@@ -896,8 +896,9 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 	}
 
 	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID);
-	if (!svc->connection) {
-		dev_err(&svc->dev, "failed to create connection\n");
+	if (IS_ERR(svc->connection)) {
+		dev_err(&svc->dev, "failed to create connection: %ld\n",
+				PTR_ERR(svc->connection));
 		goto err_free_input;
 	}
 
