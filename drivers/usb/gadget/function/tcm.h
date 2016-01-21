@@ -16,8 +16,7 @@
 #define UASP_SS_EP_COMP_NUM_STREAMS (1 << UASP_SS_EP_COMP_LOG_STREAMS)
 
 enum {
-	USB_G_STR_CONFIG = USB_GADGET_FIRST_AVAIL_IDX,
-	USB_G_STR_INT_UAS,
+	USB_G_STR_INT_UAS = 0,
 	USB_G_STR_INT_BBB,
 };
 
@@ -40,6 +39,8 @@ struct usbg_tpg {
 	u32 gadget_connect;
 	struct tcm_usbg_nexus *tpg_nexus;
 	atomic_t tpg_port_count;
+
+	struct usb_function_instance *fi;
 };
 
 struct usbg_tport {
@@ -128,6 +129,4 @@ struct f_uas {
 	struct usb_request	*bot_req_out;
 };
 
-extern struct usbg_tpg *the_only_tpg_I_currently_have;
-
-#endif
+#endif /* __TARGET_USB_GADGET_H__ */
