@@ -22,6 +22,7 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-contiguous.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/of_gpio.h>
 #include <linux/rockchip_ion.h>
 
@@ -177,6 +178,7 @@ static long rk_custom_ioctl(struct ion_client *client,
 static int rk_ion_of_heap(struct ion_platform_heap *myheap,
 			  struct device_node *node)
 {
+	unsigned int reg[2] = {0,};
 	int itype;
 
 	for (itype = 0; itype < ARRAY_SIZE(ion_heap_meta); itype++) {
@@ -186,6 +188,15 @@ static int rk_ion_of_heap(struct ion_platform_heap *myheap,
 		myheap->name = node->name;
 		myheap->align = SZ_1M;
 		myheap->id = ion_heap_meta[itype].id;
+		if (!strcmp("cma-heap", node->name)) {
+			myheap->type = ION_HEAP_TYPE_DMA;
+			if (!of_property_read_u32_array(node, "reg", reg, 2)) {
+				myheap->base = reg[0];
+				myheap->size = reg[1];
+				return 1;
+			}
+		}
+
 		if (!strcmp("system-heap", node->name)) {
 			myheap->type = ION_HEAP_TYPE_SYSTEM;
 			return 1;
