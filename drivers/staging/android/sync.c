@@ -101,7 +101,6 @@ EXPORT_SYMBOL(sync_timeline_destroy);
 void sync_timeline_signal(struct sync_timeline *obj)
 {
 	unsigned long flags;
-	LIST_HEAD(signaled_pts);
 	struct fence *fence, *next;
 
 	trace_sync_timeline(obj);
