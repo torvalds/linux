@@ -174,7 +174,7 @@ static void fence_check_cb_func(struct fence *f, struct fence_cb *cb)
 }
 
 /* TODO: implement a create which takes more that one fence */
-struct sync_file *sync_file_create_dma(const char *name, struct fence *fence)
+struct sync_file *sync_file_create(const char *name, struct fence *fence)
 {
 	struct sync_file *sync_file;
 
@@ -195,12 +195,6 @@ struct sync_file *sync_file_create_dma(const char *name, struct fence *fence)
 	sync_file_debug_add(sync_file);
 
 	return sync_file;
-}
-EXPORT_SYMBOL(sync_file_create_dma);
-
-struct sync_file *sync_file_create(const char *name, struct fence *fence)
-{
-	return sync_file_create_dma(name, fence);
 }
 EXPORT_SYMBOL(sync_file_create);
 

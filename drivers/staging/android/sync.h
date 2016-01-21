@@ -185,16 +185,6 @@ struct fence *sync_pt_create(struct sync_timeline *parent, int size);
  */
 struct sync_file *sync_file_create(const char *name, struct fence *fence);
 
-/**
- * sync_file_create_dma() - creates a sync file from dma-fence
- * @name:	name of file to create
- * @pt:	dma-fence to add to the file
- *
- * Creates a sync_file containg @pt.  Once this is called, the fence takes
- * ownership of @pt.
- */
-struct sync_file *sync_file_create_dma(const char *name, struct fence *pt);
-
 /*
  * API for sync_file consumers
  */
