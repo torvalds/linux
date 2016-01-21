@@ -381,17 +381,26 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn(15), CRm( 0), Op1( 4), Op2( 0), is32, access_cbar},
 };
 
+static int check_reg_table(const struct coproc_reg *table, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 1; i < n; i++) {
+		if (cmp_reg(&table[i-1], &table[i]) >= 0) {
+			kvm_err("reg table %p out of order (%d)\n", table, i - 1);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /* Target specific emulation tables */
 static struct kvm_coproc_target_table *target_tables[KVM_ARM_NUM_TARGETS];
 
 void kvm_register_target_coproc_table(struct kvm_coproc_target_table *table)
 {
-	unsigned int i;
-
-	for (i = 1; i < table->num; i++)
-		BUG_ON(cmp_reg(&table->table[i-1],
-			       &table->table[i]) >= 0);
-
+	BUG_ON(check_reg_table(table->table, table->num));
 	target_tables[table->target] = table;
 }
 
@@ -1210,8 +1219,8 @@ void kvm_coproc_table_init(void)
 	unsigned int i;
 
 	/* Make sure tables are unique and in order. */
-	for (i = 1; i < ARRAY_SIZE(cp15_regs); i++)
-		BUG_ON(cmp_reg(&cp15_regs[i-1], &cp15_regs[i]) >= 0);
+	BUG_ON(check_reg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
+	BUG_ON(check_reg_table(invariant_cp15, ARRAY_SIZE(invariant_cp15)));
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_cp15); i++)
