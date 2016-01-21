@@ -219,66 +219,41 @@ void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 	}
 }
 
+/* Append a command buffer to the ring buffer. */
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	struct etnaviv_cmdbuf *cmdbuf)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
-	u32 back, reserve_size, extra_size = 0;
+	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
 
-	/*
-	 * If we need to flush the MMU prior to submitting this buffer, we
-	 * will need to append a mmu flush load state, followed by a new
-	 * link to this buffer - a total of four additional words.
-	 */
-	if (gpu->mmu->need_flush || gpu->switch_context) {
-		/* link command */
-		extra_size += 2;
-		/* flush command */
-		if (gpu->mmu->need_flush)
-			extra_size += 2;
-		/* pipe switch commands */
-		if (gpu->switch_context)
-			extra_size += 8;
-	}
-
-	reserve_size = (6 + extra_size) * 4;
-
-	link_target = etnaviv_buffer_reserve(gpu, buffer, reserve_size / 8);
-
-	/* save offset back into main buffer */
-	back = buffer->user_size + reserve_size - 6 * 4;
-	link_dwords = 6;
-
-	/* Skip over any extra instructions */
-	link_target += extra_size * sizeof(u32);
-
-	if (drm_debug & DRM_UT_DRIVER)
-		pr_info("stream link to 0x%08x @ 0x%08x %p\n",
-			link_target, gpu_va(gpu, cmdbuf), cmdbuf->vaddr);
-
-	/* jump back from cmd to main buffer */
-	CMD_LINK(cmdbuf, link_dwords, link_target);
-
 	link_target = gpu_va(gpu, cmdbuf);
 	link_dwords = cmdbuf->size / 8;
 
-	if (drm_debug & DRM_UT_DRIVER) {
-		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
-			       cmdbuf->vaddr, cmdbuf->size, 0);
-
-		pr_info("link op: %p\n", buffer->vaddr + waitlink_offset);
-		pr_info("addr: 0x%08x\n", link_target);
-		pr_info("back: 0x%08x\n", gpu_va(gpu, buffer) + back);
-		pr_info("event: %d\n", event);
-	}
-
+	/*
+	 * If we need maintanence prior to submitting this buffer, we will
+	 * need to append a mmu flush load state, followed by a new
+	 * link to this buffer - a total of four additional words.
+	 */
 	if (gpu->mmu->need_flush || gpu->switch_context) {
-		u32 new_target = gpu_va(gpu, buffer) + buffer->user_size;
+		u32 target, extra_dwords;
+
+		/* link command */
+		extra_dwords = 1;
+
+		/* flush command */
+		if (gpu->mmu->need_flush)
+			extra_dwords += 1;
+
+		/* pipe switch commands */
+		if (gpu->switch_context)
+			extra_dwords += 4;
+
+		target = etnaviv_buffer_reserve(gpu, buffer, extra_dwords);
 
 		if (gpu->mmu->need_flush) {
 			/* Add the MMU flush */
@@ -302,18 +277,46 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 		CMD_LINK(buffer, link_dwords, link_target);
 
 		/* Update the link target to point to above instructions */
-		link_target = new_target;
-		link_dwords = extra_size;
+		link_target = target;
+		link_dwords = extra_dwords;
 	}
 
-	/* trigger event */
+	/*
+	 * Append a LINK to the submitted command buffer to return to
+	 * the ring buffer.  return_target is the ring target address.
+	 * We need three dwords: event, wait, link.
+	 */
+	return_dwords = 3;
+	return_target = etnaviv_buffer_reserve(gpu, buffer, return_dwords);
+	CMD_LINK(cmdbuf, return_dwords, return_target);
+
+	/*
+	 * Append event, wait and link pointing back to the wait
+	 * command to the ring buffer.
+	 */
 	CMD_LOAD_STATE(buffer, VIVS_GL_EVENT, VIVS_GL_EVENT_EVENT_ID(event) |
 		       VIVS_GL_EVENT_FROM_PE);
-
-	/* append WAIT/LINK to main buffer */
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, gpu_va(gpu, buffer) + (buffer->user_size - 4));
+	CMD_LINK(buffer, 2, return_target + 8);
 
+	if (drm_debug & DRM_UT_DRIVER)
+		pr_info("stream link to 0x%08x @ 0x%08x %p\n",
+			return_target, gpu_va(gpu, cmdbuf), cmdbuf->vaddr);
+
+	if (drm_debug & DRM_UT_DRIVER) {
+		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
+			       cmdbuf->vaddr, cmdbuf->size, 0);
+
+		pr_info("link op: %p\n", buffer->vaddr + waitlink_offset);
+		pr_info("addr: 0x%08x\n", link_target);
+		pr_info("back: 0x%08x\n", return_target);
+		pr_info("event: %d\n", event);
+	}
+
+	/*
+	 * Kick off the submitted command by replacing the previous
+	 * WAIT with a link to the address in the ring buffer.
+	 */
 	etnaviv_buffer_replace_wait(buffer, waitlink_offset,
 				    VIV_FE_LINK_HEADER_OP_LINK |
 				    VIV_FE_LINK_HEADER_PREFETCH(link_dwords),
