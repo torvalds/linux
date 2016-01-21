@@ -201,23 +201,23 @@
 
 		led@4 {
 			label = "lswxl:blue:power";
-			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
 		};
 
 		led@5 {
 			label = "lswxl:red:func";
-			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
-			default-state = "keep";
+			gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@6 {
 			label = "lswxl:red:hdderr0";
-			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
 		};
 
 		led@7 {
 			label = "lswxl:red:hdderr1";
-			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
