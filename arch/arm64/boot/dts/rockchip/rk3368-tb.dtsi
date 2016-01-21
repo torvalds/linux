@@ -55,8 +55,11 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		cma-heap {
+			reg = <0x00000000 0x02000000>;
+		};
+
 		system-heap {
-			rockchip,ion_heap = <0>;
 		};
 	};
 
