@@ -296,9 +296,9 @@ void sctp_transport_route(struct sctp_transport *transport,
 }
 
 /* Hold a reference to a transport.  */
-void sctp_transport_hold(struct sctp_transport *transport)
+int sctp_transport_hold(struct sctp_transport *transport)
 {
-	atomic_inc(&transport->refcnt);
+	return atomic_add_unless(&transport->refcnt, 1, 0);
 }
 
 /* Release a reference to a transport and clean up
