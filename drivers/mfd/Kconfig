@@ -218,7 +218,7 @@ config MFD_DA9062
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+	depends on I2C
 	help
 	  Say yes here for support for the Dialog Semiconductor DA9062 PMIC.
 	  This includes the I2C driver and core APIs.
@@ -230,7 +230,7 @@ config MFD_DA9063
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+	depends on I2C
 	help
 	  Say yes here for support for the Dialog Semiconductor DA9063 PMIC.
 	  This includes the I2C driver and core APIs.
@@ -239,7 +239,7 @@ config MFD_DA9063
 
 config MFD_DA9150
 	tristate "Dialog Semiconductor DA9150 Charger Fuel-Gauge chip"
-	depends on I2C=y
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -469,7 +469,7 @@ config MFD_KEMPLD
 
 config MFD_88PM800
 	tristate "Marvell 88PM800"
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
@@ -481,7 +481,7 @@ config MFD_88PM800
 
 config MFD_88PM805
 	tristate "Marvell 88PM805"
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
@@ -562,7 +562,7 @@ config MFD_MAX77843
 config MFD_MAX8907
 	tristate "Maxim Semiconductor MAX8907 PMIC Support"
 	select MFD_CORE
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
@@ -767,7 +767,7 @@ config MFD_RTSX_PCI
 
 config MFD_RT5033
 	tristate "Richtek RT5033 Power Management IC"
-	depends on I2C=y
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
