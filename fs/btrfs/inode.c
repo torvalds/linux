@@ -9470,7 +9470,6 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		btrfs_end_log_trans(root);
 	}
 	
-	/* the old dentry is freed, recreate it as a whiteout */
 	if (flags & RENAME_WHITEOUT) {
 		ret = btrfs_find_free_ino(root, &whiteout_objectid);
 		if (ret) {
@@ -9484,6 +9483,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						S_IFCHR | WHITEOUT_MODE, &whiteout_index);
 
 		if (IS_ERR(whiteout_inode)) {
+			ret = PTR_ERR(whiteout_inode);
 			btrfs_abort_transaction(trans, root, ret);
 			goto out_fail;
 		}
@@ -9506,10 +9506,14 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_fail;
 		}
 		
-		btrfs_update_inode(trans, root, whiteout_inode);
+		ret = btrfs_update_inode(trans, root, whiteout_inode);
+		if ( ret ) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out_fail;
+		}
+		
 		unlock_new_inode(whiteout_inode);
-		dentry_unlink_inode(old_dentry);
-		d_instantiate(old_dentry, whiteout_inode);
+		iput(whiteout_inode);
 	}
 out_fail:
 	btrfs_end_transaction(trans, root);
