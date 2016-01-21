@@ -110,15 +110,9 @@ struct sync_timeline {
 
 /**
  * struct sync_pt - sync point
- * @fence:		base fence class
+ * @base:		base fence class
  * @child_list:		membership in sync_timeline.child_list_head
  * @active_list:	membership in sync_timeline.active_list_head
- * @signaled_list:	membership in temporary signaled_list on stack
- * @fence:		sync_fence to which the sync_pt belongs
- * @pt_list:		membership in sync_fence.pt_list_head
- * @status:		1: signaled, 0:active, <0: error
- * @timestamp:		time which sync_pt status transitioned from active to
- *			  signaled or error.
  */
 struct sync_pt {
 	struct fence base;
@@ -144,12 +138,11 @@ struct sync_fence_cb {
  * @file:		file representing this fence
  * @kref:		reference count on fence.
  * @name:		name of sync_fence.  Useful for debugging
- * @pt_list_head:	list of sync_pts in the fence.  immutable once fence
- *			  is created
- * @status:		0: signaled, >0:active, <0: error
- *
- * @wq:			wait queue for fence signaling
  * @sync_fence_list:	membership in global fence list
+ * @num_fences		number of sync_pts in the fence
+ * @wq:			wait queue for fence signaling
+ * @status:		0: signaled, >0:active, <0: error
+ * @cbs:		sync_pts callback information
  */
 struct sync_fence {
 	struct file		*file;
@@ -172,9 +165,8 @@ typedef void (*sync_callback_t)(struct sync_fence *fence,
 
 /**
  * struct sync_fence_waiter - metadata for asynchronous waiter on a fence
- * @waiter_list:	membership in sync_fence.waiter_list_head
+ * @work:		wait_queue for the fence waiter
  * @callback:		function pointer to call when fence signals
- * @callback_data:	pointer to pass to @callback
  */
 struct sync_fence_waiter {
 	wait_queue_t work;
@@ -200,7 +192,8 @@ static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
  *
  * Creates a new sync_timeline which will use the implementation specified by
  * @ops.  @size bytes will be allocated allowing for implementation specific
- * data to be kept after the generic sync_timeline struct.
+ * data to be kept after the generic sync_timeline struct. Returns the
+ * sync_timeline object or NULL in case of error.
  */
 struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
 					   int size, const char *name);
@@ -231,7 +224,8 @@ void sync_timeline_signal(struct sync_timeline *obj);
  *
  * Creates a new sync_pt as a child of @parent.  @size bytes will be
  * allocated allowing for implementation specific data to be kept after
- * the generic sync_timeline struct.
+ * the generic sync_timeline struct. Returns the sync_pt object or
+ * NULL in case of error.
  */
 struct sync_pt *sync_pt_create(struct sync_timeline *parent, int size);
 
@@ -275,7 +269,8 @@ struct sync_fence *sync_fence_create_dma(const char *name, struct fence *pt);
  * @b:		fence b
  *
  * Creates a new fence which contains copies of all the sync_pts in both
- * @a and @b.  @a and @b remain valid, independent fences.
+ * @a and @b.  @a and @b remain valid, independent fences. Returns the
+ * new merged fence or NULL in case of error.
  */
 struct sync_fence *sync_fence_merge(const char *name,
 				    struct sync_fence *a, struct sync_fence *b);
@@ -285,7 +280,7 @@ struct sync_fence *sync_fence_merge(const char *name,
  * @fd:		fd referencing a fence
  *
  * Ensures @fd references a valid fence, increments the refcount of the backing
- * file, and returns the fence.
+ * file, and returns the fence. Returns the fence or NULL in case of error.
  */
 struct sync_fence *sync_fence_fdget(int fd);
 
@@ -313,10 +308,10 @@ void sync_fence_install(struct sync_fence *fence, int fd);
  * @fence:		fence to wait on
  * @waiter:		waiter callback struck
  *
- * Returns 1 if @fence has already signaled.
- *
  * Registers a callback to be called when @fence signals or has an error.
  * @waiter should be initialized with sync_fence_waiter_init().
+ *
+ * Returns 1 if @fence has already signaled, 0 if not or <0 if error.
  */
 int sync_fence_wait_async(struct sync_fence *fence,
 			  struct sync_fence_waiter *waiter);
@@ -326,11 +321,11 @@ int sync_fence_wait_async(struct sync_fence *fence,
  * @fence:		fence to wait on
  * @waiter:		waiter callback struck
  *
- * returns 0 if waiter was removed from fence's async waiter list.
- * returns -ENOENT if waiter was not found on fence's async waiter list.
- *
  * Cancels a previously registered async wait.  Will fail gracefully if
  * @waiter was never registered or if @fence has already signaled @waiter.
+ *
+ * Returns 0 if waiter was removed from fence's async waiter list.
+ * Returns -ENOENT if waiter was not found on fence's async waiter list.
  */
 int sync_fence_cancel_async(struct sync_fence *fence,
 			    struct sync_fence_waiter *waiter);
@@ -341,7 +336,9 @@ int sync_fence_cancel_async(struct sync_fence *fence,
  * @tiemout:	timeout in ms
  *
  * Wait for @fence to be signaled or have an error.  Waits indefinitely
- * if @timeout < 0
+ * if @timeout < 0.
+ *
+ * Returns 0 if fence signaled, > 0 if it is still active and <0 on error
  */
 int sync_fence_wait(struct sync_fence *fence, long timeout);
 
