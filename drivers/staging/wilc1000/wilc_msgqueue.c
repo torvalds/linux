@@ -38,7 +38,7 @@ int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
 	}
 
 	while (pHandle->pstrMessageList) {
-		struct message *pstrMessge = pHandle->pstrMessageList->pstrNext;
+		struct message *pstrMessge = pHandle->pstrMessageList->next;
 
 		kfree(pHandle->pstrMessageList);
 		pHandle->pstrMessageList = pstrMessge;
@@ -75,7 +75,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 		return -ENOMEM;
 
 	pstrMessage->len = u32SendBufferSize;
-	pstrMessage->pstrNext = NULL;
+	pstrMessage->next = NULL;
 	pstrMessage->buf = kmemdup(pvSendBuffer, u32SendBufferSize,
 				   GFP_ATOMIC);
 	if (!pstrMessage->buf) {
@@ -91,10 +91,10 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 	} else {
 		struct message *pstrTailMsg = pHandle->pstrMessageList;
 
-		while (pstrTailMsg->pstrNext)
-			pstrTailMsg = pstrTailMsg->pstrNext;
+		while (pstrTailMsg->next)
+			pstrTailMsg = pstrTailMsg->next;
 
-		pstrTailMsg->pstrNext = pstrMessage;
+		pstrTailMsg->next = pstrMessage;
 	}
 
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
@@ -154,7 +154,7 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 	memcpy(pvRecvBuffer, pstrMessage->buf, pstrMessage->len);
 	*pu32ReceivedLength = pstrMessage->len;
 
-	pHandle->pstrMessageList = pstrMessage->pstrNext;
+	pHandle->pstrMessageList = pstrMessage->next;
 
 	kfree(pstrMessage->buf);
 	kfree(pstrMessage);

@@ -16,7 +16,7 @@
 struct message {
 	void *buf;
 	u32 len;
-	struct message *pstrNext;
+	struct message *next;
 };
 
 typedef struct __MessageQueue_struct {
