@@ -58,7 +58,7 @@ int wilc_mq_create(struct message_queue *mq);
  *  @version		1.0
  */
 int wilc_mq_send(struct message_queue *mq,
-		 const void *pvSendBuffer, u32 u32SendBufferSize);
+		 const void *send_buf, u32 u32SendBufferSize);
 
 /*!
  *  @brief		Receives a message

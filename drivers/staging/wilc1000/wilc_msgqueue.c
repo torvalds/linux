@@ -54,13 +54,13 @@ int wilc_mq_destroy(struct message_queue *mq)
  *  @version		1.0
  */
 int wilc_mq_send(struct message_queue *mq,
-		 const void *pvSendBuffer, u32 u32SendBufferSize)
+		 const void *send_buf, u32 u32SendBufferSize)
 {
 	unsigned long flags;
 	struct message *pstrMessage = NULL;
 
-	if ((!mq) || (u32SendBufferSize == 0) || (!pvSendBuffer)) {
-		PRINT_ER("mq or pvSendBuffer is null\n");
+	if ((!mq) || (u32SendBufferSize == 0) || (!send_buf)) {
+		PRINT_ER("mq or send_buf is null\n");
 		return -EFAULT;
 	}
 
@@ -76,7 +76,7 @@ int wilc_mq_send(struct message_queue *mq,
 
 	pstrMessage->len = u32SendBufferSize;
 	pstrMessage->next = NULL;
-	pstrMessage->buf = kmemdup(pvSendBuffer, u32SendBufferSize,
+	pstrMessage->buf = kmemdup(send_buf, u32SendBufferSize,
 				   GFP_ATOMIC);
 	if (!pstrMessage->buf) {
 		kfree(pstrMessage);
