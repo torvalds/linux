@@ -163,6 +163,7 @@ void rsnd_mod_quit(struct rsnd_mod *mod)
 {
 	if (mod->clk)
 		clk_unprepare(mod->clk);
+	mod->clk = NULL;
 }
 
 void rsnd_mod_interrupt(struct rsnd_mod *mod,
