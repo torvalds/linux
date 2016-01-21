@@ -34,7 +34,8 @@ struct dma_alloc_record {
 static DEFINE_SPINLOCK(dma_alloc_lock);
 static LIST_HEAD(dma_alloc_list);
 
-void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_handle, gfp_t gfp)
+static void *frv_dma_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, struct dma_attrs *attrs)
 {
 	struct dma_alloc_record *new;
 	struct list_head *this = &dma_alloc_list;
@@ -84,9 +85,8 @@ void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_hand
 	return NULL;
 }
 
-EXPORT_SYMBOL(dma_alloc_coherent);
-
-void dma_free_coherent(struct device *hwdev, size_t size, void *vaddr, dma_addr_t dma_handle)
+static void frv_dma_free(struct device *hwdev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
 	struct dma_alloc_record *rec;
 	unsigned long flags;
@@ -105,22 +105,9 @@ void dma_free_coherent(struct device *hwdev, size_t size, void *vaddr, dma_addr_
 	BUG();
 }
 
-EXPORT_SYMBOL(dma_free_coherent);
-
-dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
-			  enum dma_data_direction direction)
-{
-	BUG_ON(direction == DMA_NONE);
-
-	frv_cache_wback_inv((unsigned long) ptr, (unsigned long) ptr + size);
-
-	return virt_to_bus(ptr);
-}
-
-EXPORT_SYMBOL(dma_map_single);
-
-int dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
-	       enum dma_data_direction direction)
+static int frv_dma_map_sg(struct device *dev, struct scatterlist *sglist,
+		int nents, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -135,14 +122,49 @@ int dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	return nents;
 }
 
-EXPORT_SYMBOL(dma_map_sg);
-
-dma_addr_t dma_map_page(struct device *dev, struct page *page, unsigned long offset,
-			size_t size, enum dma_data_direction direction)
+static dma_addr_t frv_dma_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t size,
+		enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	BUG_ON(direction == DMA_NONE);
 	flush_dcache_page(page);
 	return (dma_addr_t) page_to_phys(page) + offset;
 }
 
-EXPORT_SYMBOL(dma_map_page);
+static void frv_dma_sync_single_for_device(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
+{
+	flush_write_buffers();
+}
+
+static void frv_dma_sync_sg_for_device(struct device *dev,
+		struct scatterlist *sg, int nelems,
+		enum dma_data_direction direction)
+{
+	flush_write_buffers();
+}
+
+
+static int frv_dma_supported(struct device *dev, u64 mask)
+{
+        /*
+         * we fall back to GFP_DMA when the mask isn't all 1s,
+         * so we can't guarantee allocations that must be
+         * within a tighter range than GFP_DMA..
+         */
+        if (mask < 0x00ffffff)
+                return 0;
+	return 1;
+}
+
+struct dma_map_ops frv_dma_ops = {
+	.alloc			= frv_dma_alloc,
+	.free			= frv_dma_free,
+	.map_page		= frv_dma_map_page,
+	.map_sg			= frv_dma_map_sg,
+	.sync_single_for_device	= frv_dma_sync_single_for_device,
+	.sync_sg_for_device	= frv_dma_sync_sg_for_device,
+	.dma_supported		= frv_dma_supported,
+};
+EXPORT_SYMBOL(frv_dma_ops);

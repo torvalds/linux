@@ -128,32 +128,26 @@ static inline void dw_pcie_writel_rc(struct pcie_port *pp, u32 val, u32 reg)
 static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 			       u32 *val)
 {
-	int ret;
-
 	if (pp->ops->rd_own_conf)
-		ret = pp->ops->rd_own_conf(pp, where, size, val);
-	else
-		ret = dw_pcie_cfg_read(pp->dbi_base + where, size, val);
+		return pp->ops->rd_own_conf(pp, where, size, val);
 
-	return ret;
+	return dw_pcie_cfg_read(pp->dbi_base + where, size, val);
 }
 
 static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 			       u32 val)
 {
-	int ret;
-
 	if (pp->ops->wr_own_conf)
-		ret = pp->ops->wr_own_conf(pp, where, size, val);
-	else
-		ret = dw_pcie_cfg_write(pp->dbi_base + where, size, val);
+		return pp->ops->wr_own_conf(pp, where, size, val);
 
-	return ret;
+	return dw_pcie_cfg_write(pp->dbi_base + where, size, val);
 }
 
 static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 		int type, u64 cpu_addr, u64 pci_addr, u32 size)
 {
+	u32 val;
+
 	dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | index,
 			  PCIE_ATU_VIEWPORT);
 	dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr), PCIE_ATU_LOWER_BASE);
@@ -164,6 +158,12 @@ static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 	dw_pcie_writel_rc(pp, upper_32_bits(pci_addr), PCIE_ATU_UPPER_TARGET);
 	dw_pcie_writel_rc(pp, type, PCIE_ATU_CR1);
 	dw_pcie_writel_rc(pp, PCIE_ATU_ENABLE, PCIE_ATU_CR2);
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	dw_pcie_readl_rc(pp, PCIE_ATU_CR2, &val);
 }
 
 static struct irq_chip dw_msi_irq_chip = {
@@ -384,8 +384,8 @@ int dw_pcie_link_up(struct pcie_port *pp)
 {
 	if (pp->ops->link_up)
 		return pp->ops->link_up(pp);
-	else
-		return 0;
+
+	return 0;
 }
 
 static int dw_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
@@ -571,6 +571,9 @@ static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
 
+	if (pp->ops->rd_other_conf)
+		return pp->ops->rd_other_conf(pp, bus, devfn, where, size, val);
+
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
@@ -604,6 +607,9 @@ static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
+
+	if (pp->ops->wr_other_conf)
+		return pp->ops->wr_other_conf(pp, bus, devfn, where, size, val);
 
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
@@ -658,46 +664,30 @@ static int dw_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			int size, u32 *val)
 {
 	struct pcie_port *pp = bus->sysdata;
-	int ret;
 
 	if (dw_pcie_valid_config(pp, bus, PCI_SLOT(devfn)) == 0) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	if (bus->number != pp->root_bus_nr)
-		if (pp->ops->rd_other_conf)
-			ret = pp->ops->rd_other_conf(pp, bus, devfn,
-						where, size, val);
-		else
-			ret = dw_pcie_rd_other_conf(pp, bus, devfn,
-						where, size, val);
-	else
-		ret = dw_pcie_rd_own_conf(pp, where, size, val);
+	if (bus->number == pp->root_bus_nr)
+		return dw_pcie_rd_own_conf(pp, where, size, val);
 
-	return ret;
+	return dw_pcie_rd_other_conf(pp, bus, devfn, where, size, val);
 }
 
 static int dw_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 			int where, int size, u32 val)
 {
 	struct pcie_port *pp = bus->sysdata;
-	int ret;
 
 	if (dw_pcie_valid_config(pp, bus, PCI_SLOT(devfn)) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (bus->number != pp->root_bus_nr)
-		if (pp->ops->wr_other_conf)
-			ret = pp->ops->wr_other_conf(pp, bus, devfn,
-						where, size, val);
-		else
-			ret = dw_pcie_wr_other_conf(pp, bus, devfn,
-						where, size, val);
-	else
-		ret = dw_pcie_wr_own_conf(pp, where, size, val);
+	if (bus->number == pp->root_bus_nr)
+		return dw_pcie_wr_own_conf(pp, where, size, val);
 
-	return ret;
+	return dw_pcie_wr_other_conf(pp, bus, devfn, where, size, val);
 }
 
 static struct pci_ops dw_pcie_ops = {

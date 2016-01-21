@@ -26,8 +26,8 @@ enum io_pgtable_fmt {
  */
 struct iommu_gather_ops {
 	void (*tlb_flush_all)(void *cookie);
-	void (*tlb_add_flush)(unsigned long iova, size_t size, bool leaf,
-			      void *cookie);
+	void (*tlb_add_flush)(unsigned long iova, size_t size, size_t granule,
+			      bool leaf, void *cookie);
 	void (*tlb_sync)(void *cookie);
 };
 
@@ -130,6 +130,8 @@ struct io_pgtable {
 	struct io_pgtable_cfg	cfg;
 	struct io_pgtable_ops	ops;
 };
+
+#define io_pgtable_ops_to_pgtable(x) container_of((x), struct io_pgtable, ops)
 
 /**
  * struct io_pgtable_init_fns - Alloc/free a set of page tables for a

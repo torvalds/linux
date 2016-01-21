@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/crc32c.h>
 
 static struct crypto_shash *tfm;
 

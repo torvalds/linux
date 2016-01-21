@@ -1041,7 +1041,7 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	struct request *req;
 	int ret;
 
-	req = blk_mq_alloc_request(q, write, GFP_KERNEL, false);
+	req = blk_mq_alloc_request(q, write, 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1094,7 +1094,8 @@ static int nvme_submit_async_admin_req(struct nvme_dev *dev)
 	struct nvme_cmd_info *cmd_info;
 	struct request *req;
 
-	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_ATOMIC, true);
+	req = blk_mq_alloc_request(dev->admin_q, WRITE,
+			BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1119,7 +1120,7 @@ static int nvme_submit_admin_async_cmd(struct nvme_dev *dev,
 	struct request *req;
 	struct nvme_cmd_info *cmd_rq;
 
-	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_KERNEL, false);
+	req = blk_mq_alloc_request(dev->admin_q, WRITE, 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1320,8 +1321,8 @@ static void nvme_abort_req(struct request *req)
 	if (!dev->abort_limit)
 		return;
 
-	abort_req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_ATOMIC,
-									false);
+	abort_req = blk_mq_alloc_request(dev->admin_q, WRITE,
+			BLK_MQ_REQ_NOWAIT);
 	if (IS_ERR(abort_req))
 		return;
 

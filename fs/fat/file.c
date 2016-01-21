@@ -14,7 +14,11 @@
 #include <linux/backing-dev.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
+#include <linux/falloc.h>
 #include "fat.h"
+
+static long fat_fallocate(struct file *file, int mode,
+			  loff_t offset, loff_t len);
 
 static int fat_ioctl_get_attributes(struct inode *inode, u32 __user *user_attr)
 {
@@ -177,6 +181,7 @@ const struct file_operations fat_file_operations = {
 #endif
 	.fsync		= fat_file_fsync,
 	.splice_read	= generic_file_splice_read,
+	.fallocate	= fat_fallocate,
 };
 
 static int fat_cont_expand(struct inode *inode, loff_t size)
@@ -212,6 +217,62 @@ static int fat_cont_expand(struct inode *inode, loff_t size)
 		}
 	}
 out:
+	return err;
+}
+
+/*
+ * Preallocate space for a file. This implements fat's fallocate file
+ * operation, which gets called from sys_fallocate system call. User
+ * space requests len bytes at offset. If FALLOC_FL_KEEP_SIZE is set
+ * we just allocate clusters without zeroing them out. Otherwise we
+ * allocate and zero out clusters via an expanding truncate.
+ */
+static long fat_fallocate(struct file *file, int mode,
+			  loff_t offset, loff_t len)
+{
+	int nr_cluster; /* Number of clusters to be allocated */
+	loff_t mm_bytes; /* Number of bytes to be allocated for file */
+	loff_t ondisksize; /* block aligned on-disk size in bytes*/
+	struct inode *inode = file->f_mapping->host;
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	int err = 0;
+
+	/* No support for hole punch or other fallocate flags. */
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
+		return -EOPNOTSUPP;
+
+	/* No support for dir */
+	if (!S_ISREG(inode->i_mode))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&inode->i_mutex);
+	if (mode & FALLOC_FL_KEEP_SIZE) {
+		ondisksize = inode->i_blocks << 9;
+		if ((offset + len) <= ondisksize)
+			goto error;
+
+		/* First compute the number of clusters to be allocated */
+		mm_bytes = offset + len - ondisksize;
+		nr_cluster = (mm_bytes + (sbi->cluster_size - 1)) >>
+			sbi->cluster_bits;
+
+		/* Start the allocation.We are not zeroing out the clusters */
+		while (nr_cluster-- > 0) {
+			err = fat_add_cluster(inode);
+			if (err)
+				goto error;
+		}
+	} else {
+		if ((offset + len) <= i_size_read(inode))
+			goto error;
+
+		/* This is just an expanding truncate */
+		err = fat_cont_expand(inode, (offset + len));
+	}
+
+error:
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 

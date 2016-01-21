@@ -12,10 +12,10 @@
 #include <linux/delay.h>
 
 #include <asm/irq.h>
-#include <mach/irqs.h>
-#include <mach/devices.h>
-#include <mach/cputype.h>
-#include <mach/regs-usb.h>
+#include "irqs.h"
+#include "devices.h"
+#include "cputype.h"
+#include "regs-usb.h"
 
 int __init pxa_register_device(struct pxa_device_desc *desc,
 				void *data, size_t size)
@@ -73,6 +73,8 @@ int __init pxa_register_device(struct pxa_device_desc *desc,
 }
 
 #if IS_ENABLED(CONFIG_USB) || IS_ENABLED(CONFIG_USB_GADGET)
+#if IS_ENABLED(CONFIG_USB_MV_UDC) || IS_ENABLED(CONFIG_USB_EHCI_MV)
+#if IS_ENABLED(CONFIG_CPU_PXA910) || IS_ENABLED(CONFIG_CPU_PXA168)
 
 /*****************************************************************************
  * The registers read/write routines
@@ -112,9 +114,6 @@ static void u2o_write(void __iomem *base, unsigned int offset,
 	readl_relaxed(base + offset);
 }
 
-#if IS_ENABLED(CONFIG_USB_MV_UDC) || IS_ENABLED(CONFIG_USB_EHCI_MV)
-
-#if IS_ENABLED(CONFIG_CPU_PXA910) || IS_ENABLED(CONFIG_CPU_PXA168)
 
 static DEFINE_MUTEX(phy_lock);
 static int phy_init_cnt;

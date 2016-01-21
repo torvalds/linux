@@ -1044,6 +1044,8 @@ extern int __must_check driver_attach(struct device_driver *drv);
 extern void device_initial_probe(struct device *dev);
 extern int __must_check device_reprobe(struct device *dev);
 
+extern bool device_is_bound(struct device *dev);
+
 /*
  * Easy functions for dynamically creating devices on the fly
  */
