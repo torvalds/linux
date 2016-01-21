@@ -57,7 +57,7 @@ int wilc_mq_send(struct message_queue *mq,
 		 const void *send_buf, u32 send_buf_size)
 {
 	unsigned long flags;
-	struct message *pstrMessage = NULL;
+	struct message *new_msg = NULL;
 
 	if ((!mq) || (send_buf_size == 0) || (!send_buf)) {
 		PRINT_ER("mq or send_buf is null\n");
@@ -70,16 +70,15 @@ int wilc_mq_send(struct message_queue *mq,
 	}
 
 	/* construct a new message */
-	pstrMessage = kmalloc(sizeof(struct message), GFP_ATOMIC);
-	if (!pstrMessage)
+	new_msg = kmalloc(sizeof(struct message), GFP_ATOMIC);
+	if (!new_msg)
 		return -ENOMEM;
 
-	pstrMessage->len = send_buf_size;
-	pstrMessage->next = NULL;
-	pstrMessage->buf = kmemdup(send_buf, send_buf_size,
-				   GFP_ATOMIC);
-	if (!pstrMessage->buf) {
-		kfree(pstrMessage);
+	new_msg->len = send_buf_size;
+	new_msg->next = NULL;
+	new_msg->buf = kmemdup(send_buf, send_buf_size, GFP_ATOMIC);
+	if (!new_msg->buf) {
+		kfree(new_msg);
 		return -ENOMEM;
 	}
 
@@ -87,14 +86,14 @@ int wilc_mq_send(struct message_queue *mq,
 
 	/* add it to the message queue */
 	if (!mq->msg_list) {
-		mq->msg_list  = pstrMessage;
+		mq->msg_list  = new_msg;
 	} else {
 		struct message *pstrTailMsg = mq->msg_list;
 
 		while (pstrTailMsg->next)
 			pstrTailMsg = pstrTailMsg->next;
 
-		pstrTailMsg->next = pstrMessage;
+		pstrTailMsg->next = new_msg;
 	}
 
 	spin_unlock_irqrestore(&mq->lock, flags);
