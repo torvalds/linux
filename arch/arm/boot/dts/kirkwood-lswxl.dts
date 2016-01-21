@@ -1,7 +1,8 @@
 /*
  * Device Tree file for Buffalo Linkstation LS-WXL/WSXL
  *
- * Copyright (C) 2015, rogershimizu@gmail.com
+ * Copyright (C) 2015, 2016
+ * Roger Shimizu <rogershimizu@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -156,21 +157,21 @@
 		button@1 {
 			label = "Function Button";
 			linux,code = <KEY_OPTION>;
-			gpios = <&gpio1 41 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 
 		button@2 {
 			label = "Power-on Switch";
 			linux,code = <KEY_RESERVED>;
 			linux,input-type = <5>;
-			gpios = <&gpio1 42 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 
 		button@3 {
 			label = "Power-auto Switch";
 			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;
-			gpios = <&gpio1 43 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -185,12 +186,12 @@
 
 		led@1 {
 			label = "lswxl:blue:func";
-			gpios = <&gpio1 36 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 
 		led@2 {
 			label = "lswxl:red:alarm";
-			gpios = <&gpio1 49 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};
 
 		led@3 {
@@ -200,23 +201,23 @@
 
 		led@4 {
 			label = "lswxl:blue:power";
-			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		};
 
 		led@5 {
 			label = "lswxl:red:func";
-			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
 
 		led@6 {
 			label = "lswxl:red:hdderr0";
-			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
 		};
 
 		led@7 {
 			label = "lswxl:red:hdderr1";
-			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -225,15 +226,15 @@
 		pinctrl-0 = <&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
 		pinctrl-names = "default";
 
-		gpios = <&gpio0 47 GPIO_ACTIVE_LOW
-			 &gpio0 48 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio1 16 GPIO_ACTIVE_LOW
+			 &gpio1 15 GPIO_ACTIVE_LOW>;
 
 		gpio-fan,speed-map = <0 3
 				1500 2
 				3250 1
 				5000 0>;
 
-		alarm-gpios = <&gpio1 49 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 	};
 
 	restart_poweroff {
@@ -256,7 +257,7 @@
 			enable-active-high;
 			regulator-always-on;
 			regulator-boot-on;
-			gpio = <&gpio0 37 GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		};
 		hdd_power0: regulator@2 {
 			compatible = "regulator-fixed";
