@@ -19,9 +19,10 @@ SoC. Currently known SoC compatibles are:
 And in addition, the compatible shall be extended with the specific
 board. Currently known boards are:
 
+"buffalo,linkstation-lswsxl"
+"buffalo,linkstation-lswxl"
 "buffalo,lschlv2"
 "buffalo,lswvl"
-"buffalo,lswxl"
 "buffalo,lsxhl"
 "buffalo,lsxl"
 "cloudengines,pogo02"
