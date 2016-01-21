@@ -89,6 +89,6 @@ int wilc_mq_recv(struct message_queue *pHandle,
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_destroy(struct message_queue *pHandle);
+int wilc_mq_destroy(struct message_queue *mq);
 
 #endif

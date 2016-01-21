@@ -27,21 +27,21 @@ int wilc_mq_create(struct message_queue *mq)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_destroy(struct message_queue *pHandle)
+int wilc_mq_destroy(struct message_queue *mq)
 {
-	pHandle->exiting = true;
+	mq->exiting = true;
 
 	/* Release any waiting receiver thread. */
-	while (pHandle->recv_count > 0) {
-		up(&pHandle->sem);
-		pHandle->recv_count--;
+	while (mq->recv_count > 0) {
+		up(&mq->sem);
+		mq->recv_count--;
 	}
 
-	while (pHandle->msg_list) {
-		struct message *pstrMessge = pHandle->msg_list->next;
+	while (mq->msg_list) {
+		struct message *pstrMessge = mq->msg_list->next;
 
-		kfree(pHandle->msg_list);
-		pHandle->msg_list = pstrMessge;
+		kfree(mq->msg_list);
+		mq->msg_list = pstrMessge;
 	}
 
 	return 0;
