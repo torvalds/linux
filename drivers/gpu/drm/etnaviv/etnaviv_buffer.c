@@ -132,6 +132,23 @@ static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu,
 }
 
 /*
+ * Safely replace the WAIT of a waitlink with a new command and argument.
+ * The GPU may be executing this WAIT while we're modifying it, so we have
+ * to write it in a specific order to avoid the GPU branching to somewhere
+ * else.  'wl_offset' is the offset to the first byte of the WAIT command.
+ */
+static void etnaviv_buffer_replace_wait(struct etnaviv_cmdbuf *buffer,
+	unsigned int wl_offset, u32 cmd, u32 arg)
+{
+	u32 *lw = buffer->vaddr + wl_offset;
+
+	lw[1] = arg;
+	mb();
+	lw[0] = cmd;
+	mb();
+}
+
+/*
  * Ensure that there is space in the command buffer to contiguously write
  * 'cmd_dwords' 64-bit words into the buffer, wrapping if necessary.
  */
@@ -172,7 +189,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	struct etnaviv_cmdbuf *cmdbuf)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
-	u32 *lw = buffer->vaddr + buffer->user_size - 16;
+	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 back, link_target, link_size, reserve_size, extra_size = 0;
 
 	if (drm_debug & DRM_UT_DRIVER)
@@ -219,8 +236,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
 			       cmdbuf->vaddr, cmdbuf->size, 0);
 
-		pr_info("link op: %p\n", lw);
-		pr_info("link addr: %p\n", lw + 1);
+		pr_info("link op: %p\n", buffer->vaddr + waitlink_offset);
 		pr_info("addr: 0x%08x\n", link_target);
 		pr_info("back: 0x%08x\n", gpu_va(gpu, buffer) + back);
 		pr_info("event: %d\n", event);
@@ -262,12 +278,10 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	CMD_WAIT(buffer);
 	CMD_LINK(buffer, 2, gpu_va(gpu, buffer) + (buffer->user_size - 4));
 
-	/* Change WAIT into a LINK command; write the address first. */
-	*(lw + 1) = link_target;
-	mb();
-	*(lw) = VIV_FE_LINK_HEADER_OP_LINK |
-		VIV_FE_LINK_HEADER_PREFETCH(link_size);
-	mb();
+	etnaviv_buffer_replace_wait(buffer, waitlink_offset,
+				    VIV_FE_LINK_HEADER_OP_LINK |
+				    VIV_FE_LINK_HEADER_PREFETCH(link_size),
+				    link_target);
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
