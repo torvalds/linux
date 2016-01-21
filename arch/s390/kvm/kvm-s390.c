@@ -193,6 +193,17 @@ void kvm_arch_hardware_unsetup(void)
 					 &kvm_clock_notifier);
 }
 
+static void allow_cpu_feat(unsigned long nr)
+{
+	set_bit_inv(nr, kvm_s390_available_cpu_feat);
+}
+
+static void kvm_s390_cpu_feat_init(void)
+{
+	if (MACHINE_HAS_ESOP)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
+}
+
 int kvm_arch_init(void *opaque)
 {
 	kvm_s390_dbf = debug_register("kvm-trace", 32, 1, 7 * sizeof(long));
@@ -203,6 +214,8 @@ int kvm_arch_init(void *opaque)
 		debug_unregister(kvm_s390_dbf);
 		return -ENOMEM;
 	}
+
+	kvm_s390_cpu_feat_init();
 
 	/* Register floating interrupt controller interface. */
 	return kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
