@@ -1447,12 +1447,11 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 {
 	int present;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
-	struct dw_mci_board *brd = slot->host->pdata;
 	struct dw_mci *host = slot->host;
 	int gpio_cd = mmc_gpio_get_cd(mmc);
 
 	/* Use platform get_cd function, else try onboard card detect */
-	if ((brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION) ||
+	if ((mmc->caps & MMC_CAP_NEEDS_POLL) ||
 	    (mmc->caps & MMC_CAP_NONREMOVABLE))
 		present = 1;
 	else if (!IS_ERR_VALUE(gpio_cd))
@@ -2866,23 +2865,13 @@ static void dw_mci_dto_timer(unsigned long arg)
 }
 
 #ifdef CONFIG_OF
-static struct dw_mci_of_quirks {
-	char *quirk;
-	int id;
-} of_quirks[] = {
-	{
-		.quirk	= "broken-cd",
-		.id	= DW_MCI_QUIRK_BROKEN_CARD_DETECTION,
-	},
-};
-
 static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 {
 	struct dw_mci_board *pdata;
 	struct device *dev = host->dev;
 	struct device_node *np = dev->of_node;
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
-	int idx, ret;
+	int ret;
 	u32 clock_frequency;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2896,11 +2885,6 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 			 "num-slots property not found, assuming 1 slot is available\n");
 		pdata->num_slots = 1;
 	}
-
-	/* get quirks */
-	for (idx = 0; idx < ARRAY_SIZE(of_quirks); idx++)
-		if (of_get_property(np, of_quirks[idx].quirk, NULL))
-			pdata->quirks |= of_quirks[idx].id;
 
 	if (of_property_read_u32(np, "fifo-depth", &pdata->fifo_depth))
 		dev_info(dev,
@@ -2934,18 +2918,19 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 static void dw_mci_enable_cd(struct dw_mci *host)
 {
-	struct dw_mci_board *brd = host->pdata;
 	unsigned long irqflags;
 	u32 temp;
 	int i;
+	struct dw_mci_slot *slot;
 
-	/* No need for CD if broken card detection */
-	if (brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
-		return;
-
-	/* No need for CD if all slots have a non-error GPIO */
+	/*
+	 * No need for CD if all slots have a non-error GPIO
+	 * as well as broken card detection is found.
+	 */
 	for (i = 0; i < host->num_slots; i++) {
-		struct dw_mci_slot *slot = host->slot[i];
+		slot = host->slot[i];
+		if (slot->mmc->caps & MMC_CAP_NEEDS_POLL)
+			return;
 
 		if (IS_ERR_VALUE(mmc_gpio_get_cd(slot->mmc)))
 			break;

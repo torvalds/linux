@@ -235,10 +235,8 @@ struct dw_mci_dma_ops {
 };
 
 /* IP Quirks/flags. */
-/* Unreliable card detection */
-#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(0)
 /* Timer for broken data transfer over scheme */
-#define DW_MCI_QUIRK_BROKEN_DTO			BIT(1)
+#define DW_MCI_QUIRK_BROKEN_DTO			BIT(0)
 
 struct dma_pdata;
 
