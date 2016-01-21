@@ -515,6 +515,14 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
+	/* Exclude VG cores with FE2.0 */
+	if (gpu->identity.features & chipFeatures_PIPE_VG &&
+	    gpu->identity.features & chipFeatures_FE20) {
+		dev_info(gpu->dev, "Ignoring GPU with VG and FE2.0\n");
+		ret = -ENXIO;
+		goto fail;
+	}
+
 	ret = etnaviv_hw_reset(gpu);
 	if (ret)
 		goto fail;
