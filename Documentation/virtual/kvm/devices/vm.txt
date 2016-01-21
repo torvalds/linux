@@ -84,3 +84,22 @@ Returns:    -EBUSY in case 1 or more vcpus are already activated (only in write 
 	    -EFAULT if the given address is not accessible from kernel space
 	    -ENOMEM if not enough memory is available to process the ioctl
 	    0 in case of success
+
+3. GROUP: KVM_S390_VM_TOD
+Architectures: s390
+
+3.1. ATTRIBUTE: KVM_S390_VM_TOD_HIGH
+
+Allows user space to set/get the TOD clock extension (u8).
+
+Parameters: address of a buffer in user space to store the data (u8) to
+Returns:    -EFAULT if the given address is not accessible from kernel space
+	    -EINVAL if setting the TOD clock extension to != 0 is not supported
+
+3.2. ATTRIBUTE: KVM_S390_VM_TOD_LOW
+
+Allows user space to set/get bits 0-63 of the TOD clock register as defined in
+the POP (u64).
+
+Parameters: address of a buffer in user space to store the data (u64) to
+Returns:    -EFAULT if the given address is not accessible from kernel space
