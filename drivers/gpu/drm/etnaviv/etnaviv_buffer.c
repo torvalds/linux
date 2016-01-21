@@ -131,6 +131,19 @@ static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu,
 			ptr, len * 4, 0);
 }
 
+/*
+ * Ensure that there is space in the command buffer to contiguously write
+ * 'cmd_dwords' 64-bit words into the buffer, wrapping if necessary.
+ */
+static u32 etnaviv_buffer_reserve(struct etnaviv_gpu *gpu,
+	struct etnaviv_cmdbuf *buffer, unsigned int cmd_dwords)
+{
+	if (buffer->user_size + cmd_dwords * sizeof(u64) > buffer->size)
+		buffer->user_size = 0;
+
+	return gpu_va(gpu, buffer) + buffer->user_size;
+}
+
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
@@ -183,15 +196,10 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 	reserve_size = (6 + extra_size) * 4;
 
-	/*
-	 * if we are going to completely overflow the buffer, we need to wrap.
-	 */
-	if (buffer->user_size + reserve_size > buffer->size)
-		buffer->user_size = 0;
+	link_target = etnaviv_buffer_reserve(gpu, buffer, reserve_size / 8);
 
 	/* save offset back into main buffer */
 	back = buffer->user_size + reserve_size - 6 * 4;
-	link_target = gpu_va(gpu, buffer) + buffer->user_size;
 	link_size = 6;
 
 	/* Skip over any extra instructions */
@@ -206,8 +214,6 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 	link_target = gpu_va(gpu, cmdbuf);
 	link_size = cmdbuf->size / 8;
-
-
 
 	if (drm_debug & DRM_UT_DRIVER) {
 		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
