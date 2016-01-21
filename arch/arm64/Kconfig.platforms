@@ -9,6 +9,7 @@ config ARCH_BERLIN
 	bool "Marvell Berlin SoC Family"
 	select ARCH_REQUIRE_GPIOLIB
 	select DW_APB_ICTL
+	select PINCTRL
 	help
 	  This enables support for Marvell Berlin SoC Family
 
@@ -43,6 +44,7 @@ config ARCH_MEDIATEK
 	bool "Mediatek MT65xx & MT81xx ARMv8 SoC"
 	select ARM_GIC
 	select PINCTRL
+	select MTK_TIMER
 	help
 	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
 
@@ -124,6 +126,12 @@ config ARCH_THUNDER
 	bool "Cavium Inc. Thunder SoC Family"
 	help
 	  This enables support for Cavium's Thunder Family of SoCs.
+
+config ARCH_UNIPHIER
+	bool "Socionext UniPhier SoC Family"
+	select PINCTRL
+	help
+	  This enables support for Socionext UniPhier SoC family.
 
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
