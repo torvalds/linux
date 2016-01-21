@@ -205,6 +205,32 @@ extern void do_IRQ(int, struct pt_regs *);
 
 #if XTENSA_FAKE_NMI
 
+#define IS_POW2(v) (((v) & ((v) - 1)) == 0)
+
+#if !(PROFILING_INTLEVEL == XCHAL_EXCM_LEVEL && \
+      IS_POW2(XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL)))
+#warning "Fake NMI is requested for PMM, but there are other IRQs at or above its level."
+#warning "Fake NMI will be used, but there will be a bugcheck if one of those IRQs fire."
+
+static inline void check_valid_nmi(void)
+{
+	unsigned intread = get_sr(interrupt);
+	unsigned intenable = get_sr(intenable);
+
+	BUG_ON(intread & intenable &
+	       ~(XTENSA_INTLEVEL_ANDBELOW_MASK(PROFILING_INTLEVEL) ^
+		 XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL) ^
+		 BIT(XCHAL_PROFILING_INTERRUPT)));
+}
+
+#else
+
+static inline void check_valid_nmi(void)
+{
+}
+
+#endif
+
 irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id);
 
 DEFINE_PER_CPU(unsigned long, nmi_count);
@@ -219,6 +245,7 @@ void do_nmi(struct pt_regs *regs)
 	old_regs = set_irq_regs(regs);
 	nmi_enter();
 	++*this_cpu_ptr(&nmi_count);
+	check_valid_nmi();
 	xtensa_pmu_irq_handler(0, NULL);
 	nmi_exit();
 	set_irq_regs(old_regs);
