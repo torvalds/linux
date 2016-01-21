@@ -242,14 +242,6 @@ struct dw_mci_dma_ops {
 
 struct dma_pdata;
 
-struct block_settings {
-	unsigned short	max_segs;	/* see blk_queue_max_segments */
-	unsigned int	max_blk_size;	/* maximum size of one mmc block */
-	unsigned int	max_blk_count;	/* maximum number of blocks in one req*/
-	unsigned int	max_req_size;	/* maximum number of bytes in one req*/
-	unsigned int	max_seg_size;	/* see blk_queue_max_segment_size */
-};
-
 /* Board platform data */
 struct dw_mci_board {
 	u32 num_slots;
