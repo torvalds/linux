@@ -5,12 +5,6 @@ msm-y := \
 	adreno/adreno_gpu.o \
 	adreno/a3xx_gpu.o \
 	adreno/a4xx_gpu.o \
-	edp/edp.o \
-	edp/edp_aux.o \
-	edp/edp_bridge.o \
-	edp/edp_connector.o \
-	edp/edp_ctrl.o \
-	edp/edp_phy.o \
 	mdp/mdp_format.o \
 	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \
@@ -48,5 +42,6 @@ msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
 
 obj-$(CONFIG_DRM_MSM_DSI) += dsi/
 obj-$(CONFIG_DRM_MSM_HDMI) += hdmi/
+obj-$(CONFIG_DRM_MSM_EDP) += edp/
 
 obj-$(CONFIG_DRM_MSM)	+= msm.o

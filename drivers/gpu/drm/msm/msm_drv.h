@@ -264,10 +264,25 @@ static inline void __exit hdmi_unregister(void)
 #endif
 
 struct msm_edp;
+#ifdef CONFIG_DRM_MSM_EDP
 void __init msm_edp_register(void);
 void __exit msm_edp_unregister(void);
 int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		struct drm_encoder *encoder);
+#else
+static inline void __init msm_edp_register(void)
+{
+}
+static inline void __exit msm_edp_unregister(void)
+{
+}
+static inline int msm_edp_modeset_init(struct msm_edp *edp,
+				       struct drm_device *dev,
+				       struct drm_encoder *encoder)
+{
+	return -EINVAL;
+}
+#endif
 
 struct msm_dsi;
 enum msm_dsi_encoder_id {
