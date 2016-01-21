@@ -502,10 +502,12 @@ static struct platform_driver hdmi_driver = {
 
 void __init hdmi_register(void)
 {
+	hdmi_phy_driver_register();
 	platform_driver_register(&hdmi_driver);
 }
 
 void __exit hdmi_unregister(void)
 {
 	platform_driver_unregister(&hdmi_driver);
+	hdmi_phy_driver_unregister();
 }

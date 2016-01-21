@@ -155,6 +155,12 @@ static const struct hdmi_phy_funcs hdmi_phy_8x60_funcs = {
 		.powerdown = hdmi_phy_8x60_powerdown,
 };
 
+const struct hdmi_phy_cfg hdmi_phy_8x60_cfg = {
+	.type = MSM_HDMI_PHY_8x60,
+	.powerup = hdmi_phy_8x60_powerup,
+	.powerdown = hdmi_phy_8x60_powerdown,
+};
+
 struct hdmi_phy *hdmi_phy_8x60_init(struct hdmi *hdmi)
 {
 	struct hdmi_phy_8x60 *phy_8x60;

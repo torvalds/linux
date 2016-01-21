@@ -464,6 +464,24 @@ static const struct hdmi_phy_funcs hdmi_phy_8960_funcs = {
 		.powerdown = hdmi_phy_8960_powerdown,
 };
 
+static const char * const hdmi_phy_8960_reg_names[] = {
+	"core-vdda",
+};
+
+static const char * const hdmi_phy_8960_clk_names[] = {
+	"slave_iface_clk",
+};
+
+const struct hdmi_phy_cfg hdmi_phy_8960_cfg = {
+	.type = MSM_HDMI_PHY_8960,
+	.powerup = hdmi_phy_8960_powerup,
+	.powerdown = hdmi_phy_8960_powerdown,
+	.reg_names = hdmi_phy_8960_reg_names,
+	.num_regs = ARRAY_SIZE(hdmi_phy_8960_reg_names),
+	.clk_names = hdmi_phy_8960_clk_names,
+	.num_clks = ARRAY_SIZE(hdmi_phy_8960_clk_names),
+};
+
 struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 {
 	struct hdmi_phy_8960 *phy_8960;

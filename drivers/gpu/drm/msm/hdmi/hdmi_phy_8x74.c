@@ -67,6 +67,26 @@ static const struct hdmi_phy_funcs hdmi_phy_8x74_funcs = {
 		.powerdown = hdmi_phy_8x74_powerdown,
 };
 
+static const char * const hdmi_phy_8x74_reg_names[] = {
+	"core-vdda",
+	"vddio",
+};
+
+static const char * const hdmi_phy_8x74_clk_names[] = {
+	"iface_clk",
+	"alt_iface_clk"
+};
+
+const struct hdmi_phy_cfg hdmi_phy_8x74_cfg = {
+	.type = MSM_HDMI_PHY_8x74,
+	.powerup = hdmi_phy_8x74_powerup,
+	.powerdown = hdmi_phy_8x74_powerdown,
+	.reg_names = hdmi_phy_8x74_reg_names,
+	.num_regs = ARRAY_SIZE(hdmi_phy_8x74_reg_names),
+	.clk_names = hdmi_phy_8x74_clk_names,
+	.num_clks = ARRAY_SIZE(hdmi_phy_8x74_clk_names),
+};
+
 struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi)
 {
 	struct hdmi_phy_8x74 *phy_8x74;
