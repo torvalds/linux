@@ -153,8 +153,7 @@ static int legacy_probe(struct gb_bundle *bundle,
 	for (i = 0; i < data->num_cports; ++i) {
 		cport_desc = &bundle->cport_desc[i];
 
-		connection = gb_connection_create_dynamic(bundle->intf,
-						bundle,
+		connection = gb_connection_create_dynamic(bundle,
 						le16_to_cpu(cport_desc->id));
 		if (!connection)
 			goto err_connections_destroy;

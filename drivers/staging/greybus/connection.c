@@ -225,10 +225,10 @@ gb_connection_create_control(struct gb_interface *intf)
 }
 
 struct gb_connection *
-gb_connection_create_dynamic(struct gb_interface *intf,
-					struct gb_bundle *bundle,
-					u16 cport_id)
+gb_connection_create_dynamic(struct gb_bundle *bundle, u16 cport_id)
 {
+	struct gb_interface *intf = bundle->intf;
+
 	return gb_connection_create(intf->hd, -1, intf, bundle, cport_id);
 }
 EXPORT_SYMBOL_GPL(gb_connection_create_dynamic);
