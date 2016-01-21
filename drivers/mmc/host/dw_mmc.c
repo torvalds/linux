@@ -234,7 +234,6 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 	struct mmc_data	*data;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
-	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 cmdr;
 
 	cmd->error = -EINPROGRESS;
@@ -294,8 +293,8 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 			cmdr |= SDMMC_CMD_DAT_WR;
 	}
 
-	if (drv_data && drv_data->prepare_command)
-		drv_data->prepare_command(slot->host, &cmdr);
+	if (!test_bit(DW_MMC_CARD_NO_USE_HOLD, &slot->flags))
+		cmdr |= SDMMC_CMD_USE_HOLD_REG;
 
 	return cmdr;
 }
