@@ -344,7 +344,7 @@ static void subtree_dec(void *context, const void *value)
 	memcpy(&root_le, value, sizeof(root_le));
 	root = le64_to_cpu(root_le);
 	if (dm_btree_del(info, root))
-		DMERR("btree delete failed\n");
+		DMERR("btree delete failed");
 }
 
 static int subtree_equal(void *context, const void *value1_le, const void *value2_le)
