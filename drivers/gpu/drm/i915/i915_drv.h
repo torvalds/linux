@@ -921,9 +921,9 @@ struct i915_fbc {
 
 	struct intel_fbc_work {
 		bool scheduled;
+		u32 scheduled_vblank;
 		struct work_struct work;
 		struct drm_framebuffer *fb;
-		unsigned long enable_jiffies;
 	} work;
 
 	const char *no_fbc_reason;
