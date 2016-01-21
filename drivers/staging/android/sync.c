@@ -317,62 +317,6 @@ struct sync_fence *sync_fence_merge(const char *name,
 }
 EXPORT_SYMBOL(sync_fence_merge);
 
-int sync_fence_wake_up_wq(wait_queue_t *curr, unsigned mode,
-			  int wake_flags, void *key)
-{
-	struct sync_fence_waiter *wait;
-
-	wait = container_of(curr, struct sync_fence_waiter, work);
-	list_del_init(&wait->work.task_list);
-
-	wait->callback(wait->work.private, wait);
-	return 1;
-}
-
-int sync_fence_wait_async(struct sync_fence *fence,
-			  struct sync_fence_waiter *waiter)
-{
-	int err = atomic_read(&fence->status);
-	unsigned long flags;
-
-	if (err < 0)
-		return err;
-
-	if (!err)
-		return 1;
-
-	init_waitqueue_func_entry(&waiter->work, sync_fence_wake_up_wq);
-	waiter->work.private = fence;
-
-	spin_lock_irqsave(&fence->wq.lock, flags);
-	err = atomic_read(&fence->status);
-	if (err > 0)
-		__add_wait_queue_tail(&fence->wq, &waiter->work);
-	spin_unlock_irqrestore(&fence->wq.lock, flags);
-
-	if (err < 0)
-		return err;
-
-	return !err;
-}
-EXPORT_SYMBOL(sync_fence_wait_async);
-
-int sync_fence_cancel_async(struct sync_fence *fence,
-			    struct sync_fence_waiter *waiter)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	spin_lock_irqsave(&fence->wq.lock, flags);
-	if (!list_empty(&waiter->work.task_list))
-		list_del_init(&waiter->work.task_list);
-	else
-		ret = -ENOENT;
-	spin_unlock_irqrestore(&fence->wq.lock, flags);
-	return ret;
-}
-EXPORT_SYMBOL(sync_fence_cancel_async);
-
 int sync_fence_wait(struct sync_fence *fence, long timeout)
 {
 	long ret;

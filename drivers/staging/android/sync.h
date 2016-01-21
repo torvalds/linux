@@ -159,27 +159,6 @@ struct sync_fence {
 	struct sync_fence_cb	cbs[];
 };
 
-struct sync_fence_waiter;
-typedef void (*sync_callback_t)(struct sync_fence *fence,
-				struct sync_fence_waiter *waiter);
-
-/**
- * struct sync_fence_waiter - metadata for asynchronous waiter on a fence
- * @work:		wait_queue for the fence waiter
- * @callback:		function pointer to call when fence signals
- */
-struct sync_fence_waiter {
-	wait_queue_t work;
-	sync_callback_t callback;
-};
-
-static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
-					  sync_callback_t callback)
-{
-	INIT_LIST_HEAD(&waiter->work.task_list);
-	waiter->callback = callback;
-}
-
 /*
  * API for sync_timeline implementers
  */
@@ -304,33 +283,6 @@ void sync_fence_put(struct sync_fence *fence);
 void sync_fence_install(struct sync_fence *fence, int fd);
 
 /**
- * sync_fence_wait_async() - registers and async wait on the fence
- * @fence:		fence to wait on
- * @waiter:		waiter callback struck
- *
- * Registers a callback to be called when @fence signals or has an error.
- * @waiter should be initialized with sync_fence_waiter_init().
- *
- * Returns 1 if @fence has already signaled, 0 if not or <0 if error.
- */
-int sync_fence_wait_async(struct sync_fence *fence,
-			  struct sync_fence_waiter *waiter);
-
-/**
- * sync_fence_cancel_async() - cancels an async wait
- * @fence:		fence to wait on
- * @waiter:		waiter callback struck
- *
- * Cancels a previously registered async wait.  Will fail gracefully if
- * @waiter was never registered or if @fence has already signaled @waiter.
- *
- * Returns 0 if waiter was removed from fence's async waiter list.
- * Returns -ENOENT if waiter was not found on fence's async waiter list.
- */
-int sync_fence_cancel_async(struct sync_fence *fence,
-			    struct sync_fence_waiter *waiter);
-
-/**
  * sync_fence_wait() - wait on fence
  * @fence:	fence to wait on
  * @tiemout:	timeout in ms
@@ -357,7 +309,5 @@ void sync_dump(void);
 # define sync_fence_debug_remove(fence)
 # define sync_dump()
 #endif
-int sync_fence_wake_up_wq(wait_queue_t *curr, unsigned mode,
-				 int wake_flags, void *key);
 
 #endif /* _LINUX_SYNC_H */
