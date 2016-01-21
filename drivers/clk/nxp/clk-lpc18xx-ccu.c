@@ -222,7 +222,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		div->width = 1;
 
 		div_hw = &div->hw;
-		div_ops = &clk_divider_ops;
+		div_ops = &clk_divider_ro_ops;
 	}
 
 	branch->gate.reg = branch->offset + reg_base;
