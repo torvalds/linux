@@ -118,7 +118,7 @@ static int crypto_init_skcipher_ops_blkcipher(struct crypto_tfm *tfm)
 	skcipher->decrypt = skcipher_decrypt_blkcipher;
 
 	skcipher->ivsize = crypto_blkcipher_ivsize(blkcipher);
-	skcipher->has_setkey = calg->cra_blkcipher.max_keysize;
+	skcipher->keysize = calg->cra_blkcipher.max_keysize;
 
 	return 0;
 }
@@ -211,7 +211,7 @@ static int crypto_init_skcipher_ops_ablkcipher(struct crypto_tfm *tfm)
 	skcipher->ivsize = crypto_ablkcipher_ivsize(ablkcipher);
 	skcipher->reqsize = crypto_ablkcipher_reqsize(ablkcipher) +
 			    sizeof(struct ablkcipher_request);
-	skcipher->has_setkey = calg->cra_ablkcipher.max_keysize;
+	skcipher->keysize = calg->cra_ablkcipher.max_keysize;
 
 	return 0;
 }
