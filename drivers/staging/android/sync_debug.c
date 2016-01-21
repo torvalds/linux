@@ -161,7 +161,7 @@ static void sync_print_sync_file(struct seq_file *s,
 		   sync_status_str(atomic_read(&sync_file->status)));
 
 	for (i = 0; i < sync_file->num_fences; ++i)
-		sync_print_pt(s, sync_file->cbs[i].sync_pt, true);
+		sync_print_pt(s, sync_file->cbs[i].fence, true);
  }
  
 static int sync_debugfs_show(struct seq_file *s, void *unused)

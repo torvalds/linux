@@ -197,7 +197,7 @@ struct sync_file *sync_file_create_dma(const char *name, struct fence *pt)
 	sync_file->num_fences = 1;
 	atomic_set(&sync_file->status, 1);
 
-	sync_file->cbs[0].sync_pt = pt;
+	sync_file->cbs[0].fence = pt;
 	sync_file->cbs[0].sync_file = sync_file;
 	if (fence_add_callback(pt, &sync_file->cbs[0].cb, fence_check_cb_func))
 		atomic_dec(&sync_file->status);
@@ -247,7 +247,7 @@ EXPORT_SYMBOL(sync_file_install);
 static void sync_file_add_pt(struct sync_file *sync_file, int *i,
 			     struct fence *pt)
 {
-	sync_file->cbs[*i].sync_pt = pt;
+	sync_file->cbs[*i].fence = pt;
 	sync_file->cbs[*i].sync_file = sync_file;
 
 	if (!fence_add_callback(pt, &sync_file->cbs[*i].cb,
@@ -279,8 +279,8 @@ struct sync_file *sync_file_merge(const char *name,
 	 * and sync_file_create, this is a reasonable assumption.
 	 */
 	for (i = i_a = i_b = 0; i_a < a->num_fences && i_b < b->num_fences; ) {
-		struct fence *pt_a = a->cbs[i_a].sync_pt;
-		struct fence *pt_b = b->cbs[i_b].sync_pt;
+		struct fence *pt_a = a->cbs[i_a].fence;
+		struct fence *pt_b = b->cbs[i_b].fence;
 
 		if (pt_a->context < pt_b->context) {
 			sync_file_add_pt(sync_file, &i, pt_a);
@@ -302,10 +302,10 @@ struct sync_file *sync_file_merge(const char *name,
 	}
 
 	for (; i_a < a->num_fences; i_a++)
-		sync_file_add_pt(sync_file, &i, a->cbs[i_a].sync_pt);
+		sync_file_add_pt(sync_file, &i, a->cbs[i_a].fence);
 
 	for (; i_b < b->num_fences; i_b++)
-		sync_file_add_pt(sync_file, &i, b->cbs[i_b].sync_pt);
+		sync_file_add_pt(sync_file, &i, b->cbs[i_b].fence);
 
 	if (num_fences > i)
 		atomic_sub(num_fences - i, &sync_file->status);
@@ -328,7 +328,7 @@ int sync_file_wait(struct sync_file *sync_file, long timeout)
 
 	trace_sync_wait(sync_file, 1);
 	for (i = 0; i < sync_file->num_fences; ++i)
-		trace_sync_pt(sync_file->cbs[i].sync_pt);
+		trace_sync_pt(sync_file->cbs[i].fence);
 	ret = wait_event_interruptible_timeout(sync_file->wq,
 					       atomic_read(&sync_file->status) <= 0,
 					       timeout);
@@ -468,9 +468,9 @@ static void sync_file_free(struct kref *kref)
 	int i;
 
 	for (i = 0; i < sync_file->num_fences; ++i) {
-		fence_remove_callback(sync_file->cbs[i].sync_pt,
+		fence_remove_callback(sync_file->cbs[i].fence,
 				      &sync_file->cbs[i].cb);
-		fence_put(sync_file->cbs[i].sync_pt);
+		fence_put(sync_file->cbs[i].fence);
 	}
 
 	kfree(sync_file);
@@ -624,7 +624,7 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	len = sizeof(struct sync_file_info_data);
 
 	for (i = 0; i < sync_file->num_fences; ++i) {
-		struct fence *pt = sync_file->cbs[i].sync_pt;
+		struct fence *pt = sync_file->cbs[i].fence;
 
 		ret = sync_fill_pt_info(pt, (u8 *)data + len, size - len);
 

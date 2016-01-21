@@ -110,7 +110,7 @@ static inline struct sync_timeline *sync_pt_parent(struct sync_pt *pt)
 
 struct sync_file_cb {
 	struct fence_cb cb;
-	struct fence *sync_pt;
+	struct fence *fence;
 	struct sync_file *sync_file;
 };
 
