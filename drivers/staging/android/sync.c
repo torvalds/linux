@@ -90,10 +90,6 @@ void sync_timeline_destroy(struct sync_timeline *obj)
 	 */
 	smp_wmb();
 
-	/*
-	 * signal any children that their parent is going away.
-	 */
-	sync_timeline_signal(obj);
 	sync_timeline_put(obj);
 }
 EXPORT_SYMBOL(sync_timeline_destroy);
