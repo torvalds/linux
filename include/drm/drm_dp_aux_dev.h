@@ -25,36 +25,38 @@
  *
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_dp_aux_dev.h>
+#ifndef DRM_DP_AUX_DEV
+#define DRM_DP_AUX_DEV
 
-MODULE_AUTHOR("David Airlie, Jesse Barnes");
-MODULE_DESCRIPTION("DRM KMS helper");
-MODULE_LICENSE("GPL and additional rights");
+#include <drm/drm_dp_helper.h>
 
-static int __init drm_kms_helper_init(void)
+#ifdef CONFIG_DRM_DP_AUX_CHARDEV
+
+int drm_dp_aux_dev_init(void);
+void drm_dp_aux_dev_exit(void);
+int drm_dp_aux_register_devnode(struct drm_dp_aux *aux);
+void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux);
+
+#else
+
+static inline int drm_dp_aux_dev_init(void)
 {
-	int ret;
-
-	/* Call init functions from specific kms helpers here */
-	ret = drm_fb_helper_modinit();
-	if (ret < 0)
-		goto out;
-
-	ret = drm_dp_aux_dev_init();
-	if (ret < 0)
-		goto out;
-
-out:
-	return ret;
+	return 0;
 }
 
-static void __exit drm_kms_helper_exit(void)
+static inline void drm_dp_aux_dev_exit(void)
 {
-	/* Call exit functions from specific kms helpers here */
-	drm_dp_aux_dev_exit();
 }
 
-module_init(drm_kms_helper_init);
-module_exit(drm_kms_helper_exit);
+static inline int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
+{
+	return 0;
+}
+
+static inline void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
+{
+}
+
+#endif
+
+#endif
