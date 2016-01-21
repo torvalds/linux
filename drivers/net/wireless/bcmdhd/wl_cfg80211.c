@@ -7643,6 +7643,7 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 		brcm_wowlan_config->patterns = NULL;
 		brcm_wowlan_config->n_patterns = 0;
 		brcm_wowlan_config->tcp = NULL;
+		brcm_wowlan_config->nd_config = NULL;
 	} else {
 		WL_ERR(("Can not allocate memory for brcm_wowlan_config,"
 			" So wiphy->wowlan_config is set to NULL\n"));
@@ -11511,13 +11512,14 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 			return err;
 		}
 	}
-
-	err = wl_create_event_handler(cfg);
-	if (err) {
-		WL_ERR(("wl_create_event_handler failed\n"));
-		return err;
+	if (!dhd_download_fw_on_driverload) {
+		err = wl_create_event_handler(cfg);
+		if (err) {
+			WL_ERR(("wl_create_event_handler failed\n"));
+			return err;
+		}
+		wl_init_event_handler(cfg);
 	}
-	wl_init_event_handler(cfg);
 
 	err = wl_init_scan(cfg);
 	if (err) {
@@ -11621,9 +11623,11 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 	DNGL_FUNC(dhd_cfg80211_down, (cfg));
 
 	/* Avoid deadlock from wl_cfg80211_down */
-	mutex_unlock(&cfg->usr_sync);
-	wl_destroy_event_handler(cfg);
-	mutex_lock(&cfg->usr_sync);
+	if (!dhd_download_fw_on_driverload) {
+		mutex_unlock(&cfg->usr_sync);
+		wl_destroy_event_handler(cfg);
+		mutex_lock(&cfg->usr_sync);
+	}
 	wl_flush_eq(cfg);
 	wl_link_down(cfg);
 	if (cfg->p2p_supported) {

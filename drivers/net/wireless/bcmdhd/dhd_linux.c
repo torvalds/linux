@@ -5768,7 +5768,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 
 #ifdef WL_CFG80211
-	wl_cfg80211_down(NULL);
+	if ((dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)) {
+		wl_cfg80211_down(NULL);
+	}
 #endif /* WL_CFG80211 */
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_PROT_ATTACH) {
