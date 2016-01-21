@@ -202,15 +202,12 @@ static bool __sub_expired(struct ceph_mon_client *monc)
  */
 static void __schedule_delayed(struct ceph_mon_client *monc)
 {
-	struct ceph_options *opt = monc->client->options;
 	unsigned long delay;
 
 	if (monc->cur_mon < 0 || __sub_expired(monc)) {
 		delay = 10 * HZ;
 	} else {
-		delay = 20 * HZ;
-		if (opt->monc_ping_timeout > 0)
-			delay = min(delay, opt->monc_ping_timeout / 3);
+		delay = CEPH_MONC_PING_INTERVAL;
 	}
 	dout("__schedule_delayed after %lu\n", delay);
 	schedule_delayed_work(&monc->delayed_work,
@@ -793,10 +790,9 @@ static void delayed_work(struct work_struct *work)
 		__close_session(monc);
 		__open_session(monc);  /* continue hunting */
 	} else {
-		struct ceph_options *opt = monc->client->options;
 		int is_auth = ceph_auth_is_authenticated(monc->auth);
 		if (ceph_con_keepalive_expired(&monc->con,
-					       opt->monc_ping_timeout)) {
+					       CEPH_MONC_PING_TIMEOUT)) {
 			dout("monc keepalive timeout\n");
 			is_auth = 0;
 			__close_session(monc);
