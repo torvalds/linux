@@ -599,7 +599,7 @@ static struct omap_timer_capability_dev_attr capability_alwon_dev_attr = {
 static struct omap_hwmod dm814x_timer1_hwmod = {
 	.name		= "timer1",
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "timer_sys_ck",
+	.main_clk	= "timer1_fck",
 	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
@@ -608,7 +608,7 @@ static struct omap_hwmod dm814x_timer1_hwmod = {
 static struct omap_hwmod_ocp_if dm814x_l4_ls__timer1 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm814x_timer1_hwmod,
-	.clk		= "timer_sys_ck",
+	.clk		= "timer1_fck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -636,7 +636,7 @@ static struct omap_hwmod_ocp_if dm816x_l4_ls__timer1 = {
 static struct omap_hwmod dm814x_timer2_hwmod = {
 	.name		= "timer2",
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "timer_sys_ck",
+	.main_clk	= "timer2_fck",
 	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
@@ -645,7 +645,7 @@ static struct omap_hwmod dm814x_timer2_hwmod = {
 static struct omap_hwmod_ocp_if dm814x_l4_ls__timer2 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm814x_timer2_hwmod,
-	.clk		= "timer_sys_ck",
+	.clk		= "timer2_fck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -1230,8 +1230,6 @@ static struct omap_hwmod_ocp_if dm81xx_tptc3__alwon_l3_fast = {
 
 /*
  * REVISIT: Test and enable the following once clocks work:
- * dm81xx_l4_ls__gpio1
- * dm81xx_l4_ls__gpio2
  * dm81xx_l4_ls__mailbox
  * dm81xx_alwon_l3_slow__gpmc
  * dm81xx_default_l3_slow__usbss
@@ -1250,6 +1248,8 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__wd_timer1,
 	&dm81xx_l4_ls__i2c1,
 	&dm81xx_l4_ls__i2c2,
+	&dm81xx_l4_ls__gpio1,
+	&dm81xx_l4_ls__gpio2,
 	&dm81xx_l4_ls__elm,
 	&dm81xx_l4_ls__mcspi1,
 	&dm81xx_alwon_l3_fast__tpcc,
