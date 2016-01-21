@@ -21,7 +21,7 @@ struct message {
 
 struct message_queue {
 	struct semaphore sem;
-	spinlock_t strCriticalSection;
+	spinlock_t lock;
 	bool bExiting;
 	u32 u32ReceiversCount;
 	struct message *pstrMessageList;
