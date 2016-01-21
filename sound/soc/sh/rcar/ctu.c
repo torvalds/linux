@@ -31,6 +31,12 @@ static void rsnd_ctu_activation(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, CTU_SWRSR, 1);
 }
 
+static void rsnd_ctu_halt(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, CTU_CTUIR, 1);
+	rsnd_mod_write(mod, CTU_SWRSR, 0);
+}
+
 #define rsnd_ctu_initialize_lock(mod)	__rsnd_ctu_initialize_lock(mod, 1)
 #define rsnd_ctu_initialize_unlock(mod)	__rsnd_ctu_initialize_lock(mod, 0)
 static void __rsnd_ctu_initialize_lock(struct rsnd_mod *mod, u32 enable)
@@ -66,6 +72,8 @@ static int rsnd_ctu_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
+	rsnd_ctu_halt(mod);
+
 	rsnd_mod_power_off(mod);
 
 	return 0;
