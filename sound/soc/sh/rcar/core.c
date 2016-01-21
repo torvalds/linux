@@ -330,8 +330,11 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	u8 add  = ((val + __rsnd_mod_add_##func) & 0xF);		\
 	int ret = 0;							\
 	int call = (val == __rsnd_mod_call_##func) && (mod)->ops->func;	\
-	*status = (*status & ~mask) +					\
-		(add << __rsnd_mod_shift_##func);			\
+	if (add == 0xF)							\
+		call = 0;						\
+	else								\
+		*status = (*status & ~mask) +				\
+			(add << __rsnd_mod_shift_##func);		\
 	dev_dbg(dev, "%s[%d]\t0x%08x %s\n",				\
 		rsnd_mod_name(mod), rsnd_mod_id(mod),			\
 		*status, call ? #func : "");				\
