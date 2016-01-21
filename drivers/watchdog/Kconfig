@@ -145,7 +145,7 @@ config MENF21BMC_WATCHDOG
 config TANGOX_WATCHDOG
 	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
 	select WATCHDOG_CORE
-	depends on ARCH_TANGOX || COMPILE_TEST
+	depends on ARCH_TANGO || COMPILE_TEST
 	help
 	  Support for the watchdog in Sigma Designs SMP86xx (tango3)
 	  and SMP87xx (tango4) family chips.
