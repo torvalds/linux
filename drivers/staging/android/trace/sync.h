@@ -33,19 +33,19 @@ TRACE_EVENT(sync_timeline,
 );
 
 TRACE_EVENT(sync_wait,
-	TP_PROTO(struct sync_fence *fence, int begin),
+	TP_PROTO(struct sync_file *sync_file, int begin),
 
-	TP_ARGS(fence, begin),
+	TP_ARGS(sync_file, begin),
 
 	TP_STRUCT__entry(
-			__string(name, fence->name)
+			__string(name, sync_file->name)
 			__field(s32, status)
 			__field(u32, begin)
 	),
 
 	TP_fast_assign(
-			__assign_str(name, fence->name);
-			__entry->status = atomic_read(&fence->status);
+			__assign_str(name, sync_file->name);
+			__entry->status = atomic_read(&sync_file->status);
 			__entry->begin = begin;
 	),
 

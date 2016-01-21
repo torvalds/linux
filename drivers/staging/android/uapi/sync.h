@@ -46,15 +46,15 @@ struct sync_pt_info {
 };
 
 /**
- * struct sync_fence_info_data - data returned from fence info ioctl
+ * struct sync_file_info_data - data returned from fence info ioctl
  * @len:	ioctl caller writes the size of the buffer its passing in.
- *		ioctl returns length of sync_fence_data returned to userspace
- *		including pt_info.
+ *		ioctl returns length of sync_file_info_data returned to
+ *		userspace including pt_info.
  * @name:	name of fence
  * @status:	status of fence. 1: signaled 0:active <0:error
  * @pt_info:	a sync_pt_info struct for every sync_pt in the fence
  */
-struct sync_fence_info_data {
+struct sync_file_info_data {
 	__u32	len;
 	char	name[32];
 	__s32	status;
@@ -83,15 +83,15 @@ struct sync_fence_info_data {
 /**
  * DOC: SYNC_IOC_FENCE_INFO - get detailed information on a fence
  *
- * Takes a struct sync_fence_info_data with extra space allocated for pt_info.
+ * Takes a struct sync_file_info_data with extra space allocated for pt_info.
  * Caller should write the size of the buffer into len.  On return, len is
- * updated to reflect the total size of the sync_fence_info_data including
+ * updated to reflect the total size of the sync_file_info_data including
  * pt_info.
  *
  * pt_info is a buffer containing sync_pt_infos for every sync_pt in the fence.
  * To iterate over the sync_pt_infos, use the sync_pt_info.len field.
  */
 #define SYNC_IOC_FENCE_INFO	_IOWR(SYNC_IOC_MAGIC, 2,\
-	struct sync_fence_info_data)
+	struct sync_file_info_data)
 
 #endif /* _UAPI_LINUX_SYNC_H */
