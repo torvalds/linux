@@ -24,12 +24,11 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/mailbox_client.h>
-#include <linux/scpi_protocol.h>
 #include <linux/slab.h>
-#include <linux/rockchip-mailbox.h>
-#include <linux/rockchip/common.h>
+#include <linux/rockchip/scpi.h>
+#include <linux/rockchip/rk3368-mailbox.h>
 
-#include "scpi_cmd.h"
+#define SCPI_VERSION		0x01000002	/* version: 1.0.0.2 */
 
 #define CMD_ID_SHIFT		0
 #define CMD_ID_MASK		0xff
@@ -52,16 +51,91 @@ static int max_chan_num = 0;
 static DECLARE_BITMAP(bm_mbox_chans, 4);
 static DEFINE_MUTEX(scpi_mtx);
 
-struct scpi_data_buf {
-	int client_id;
-	struct rockchip_mbox_msg *data;
-	struct completion complete;
-	int timeout_ms;
+enum scpi_error_codes {
+	SCPI_SUCCESS = 0, /* Success */
+	SCPI_ERR_PARAM = 1, /* Invalid parameter(s) */
+	SCPI_ERR_ALIGN = 2, /* Invalid alignment */
+	SCPI_ERR_SIZE = 3, /* Invalid size */
+	SCPI_ERR_HANDLER = 4, /* Invalid handler/callback */
+	SCPI_ERR_ACCESS = 5, /* Invalid access/permission denied */
+	SCPI_ERR_RANGE = 6, /* Value out of range */
+	SCPI_ERR_TIMEOUT = 7, /* Timeout has occurred */
+	SCPI_ERR_NOMEM = 8, /* Invalid memory area or pointer */
+	SCPI_ERR_PWRSTATE = 9, /* Invalid power state */
+	SCPI_ERR_SUPPORT = 10, /* Not supported or disabled */
+	SCPI_ERR_DEVICE = 11, /* Device error */
+	SCPI_ERR_MAX
 };
 
-struct scpi_mcu_ver {
-	u32  scpi_ver;
-	char mcu_ver[16];
+enum scpi_client_id {
+	SCPI_CL_NONE,
+	SCPI_CL_CLOCKS,
+	SCPI_CL_DVFS,
+	SCPI_CL_POWER,
+	SCPI_CL_THERMAL,
+	SCPI_CL_DDR,
+	SCPI_CL_SYS,
+	SCPI_MAX,
+};
+
+enum scpi_ddr_cmd {
+	SCPI_DDR_INIT,
+	SCPI_DDR_SET_FREQ,
+	SCPI_DDR_ROUND_RATE,
+	SCPI_DDR_AUTO_SELF_REFRESH,
+	SCPI_DDR_BANDWIDTH_GET,
+	SCPI_DDR_GET_FREQ,
+	SCPI_DDR_SEND_TIMING,
+};
+
+enum scpi_sys_cmd {
+	SCPI_SYS_GET_VERSION,
+	SCPI_SYS_REFRESH_MCU_FREQ,
+	SCPI_SYS_SET_MCU_STATE_SUSPEND,
+	SCPI_SYS_SET_MCU_STATE_RESUME,
+	SCPI_SYS_SET_JTAGMUX_ON_OFF,
+};
+
+enum scpi_std_cmd {
+	SCPI_CMD_INVALID		= 0x00,
+	SCPI_CMD_SCPI_READY		= 0x01,
+	SCPI_CMD_SCPI_CAPABILITIES	= 0x02,
+	SCPI_CMD_EVENT			= 0x03,
+	SCPI_CMD_SET_CSS_PWR_STATE	= 0x04,
+	SCPI_CMD_GET_CSS_PWR_STATE	= 0x05,
+	SCPI_CMD_CFG_PWR_STATE_STAT	= 0x06,
+	SCPI_CMD_GET_PWR_STATE_STAT	= 0x07,
+	SCPI_CMD_SYS_PWR_STATE		= 0x08,
+	SCPI_CMD_L2_READY		= 0x09,
+	SCPI_CMD_SET_AP_TIMER		= 0x0a,
+	SCPI_CMD_CANCEL_AP_TIME		= 0x0b,
+	SCPI_CMD_DVFS_CAPABILITIES	= 0x0c,
+	SCPI_CMD_GET_DVFS_INFO		= 0x0d,
+	SCPI_CMD_SET_DVFS		= 0x0e,
+	SCPI_CMD_GET_DVFS		= 0x0f,
+	SCPI_CMD_GET_DVFS_STAT		= 0x10,
+	SCPI_CMD_SET_RTC		= 0x11,
+	SCPI_CMD_GET_RTC		= 0x12,
+	SCPI_CMD_CLOCK_CAPABILITIES	= 0x13,
+	SCPI_CMD_SET_CLOCK_INDEX	= 0x14,
+	SCPI_CMD_SET_CLOCK_VALUE	= 0x15,
+	SCPI_CMD_GET_CLOCK_VALUE	= 0x16,
+	SCPI_CMD_PSU_CAPABILITIES	= 0x17,
+	SCPI_CMD_SET_PSU		= 0x18,
+	SCPI_CMD_GET_PSU		= 0x19,
+	SCPI_CMD_SENSOR_CAPABILITIES	= 0x1a,
+	SCPI_CMD_SENSOR_INFO		= 0x1b,
+	SCPI_CMD_SENSOR_VALUE		= 0x1c,
+	SCPI_CMD_SENSOR_CFG_PERIODIC	= 0x1d,
+	SCPI_CMD_SENSOR_CFG_BOUNDS	= 0x1e,
+	SCPI_CMD_SENSOR_ASYNC_VALUE	= 0x1f,
+	SCPI_CMD_COUNT
+};
+
+enum scpi_thermal_cmd {
+	SCPI_THERMAL_GET_TSADC_DATA,
+	SCPI_THERMAL_SET_TSADC_CYCLE,
+	SCPI_THERMAL_COUNT
 };
 
 static int high_priority_cmds[] = {
@@ -79,6 +153,18 @@ static int high_priority_cmds[] = {
 	SCPI_CMD_GET_PSU,
 	SCPI_CMD_SENSOR_CFG_PERIODIC,
 	SCPI_CMD_SENSOR_CFG_BOUNDS,
+};
+
+struct scpi_data_buf {
+	int client_id;
+	struct rk3368_mbox_msg *data;
+	struct completion complete;
+	int timeout_ms;
+};
+
+struct scpi_mcu_ver {
+	u32  scpi_ver;
+	char mcu_ver[16];
 };
 
 static struct scpi_opp *scpi_opps[MAX_DVFS_DOMAINS];
@@ -141,7 +227,7 @@ static void scpi_free_mbox_chan(int chan)
 
 static void scpi_rx_callback(struct mbox_client *cl, void *msg)
 {
-	struct rockchip_mbox_msg *data = (struct rockchip_mbox_msg *)msg;
+	struct rk3368_mbox_msg *data = (struct rk3368_mbox_msg *)msg;
 	struct scpi_data_buf *scpi_buf = data->cl_data;
 
 	complete(&scpi_buf->complete);
@@ -151,7 +237,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, int index)
 {
 	struct mbox_chan *chan;
 	struct mbox_client cl;
-	struct rockchip_mbox_msg *data = scpi_buf->data;
+	struct rk3368_mbox_msg *data = scpi_buf->data;
 	u32 status;
 	int ret;
 	int timeout = msecs_to_jiffies(scpi_buf->timeout_ms);
@@ -164,6 +250,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, int index)
 	cl.dev = the_scpi_device;
 	cl.rx_callback = scpi_rx_callback;
 	cl.tx_done = NULL;
+	cl.tx_prepare = NULL;
 	cl.tx_block = false;
 	cl.knows_txdone = false;
 
@@ -196,7 +283,7 @@ free_channel:
 #define SCPI_SETUP_DBUF(scpi_buf, mbox_buf, _client_id,\
 			_cmd, _tx_buf, _rx_buf) \
 do {						\
-	struct rockchip_mbox_msg *pdata = &mbox_buf;	\
+	struct rk3368_mbox_msg *pdata = &mbox_buf;	\
 	pdata->cmd = _cmd;			\
 	pdata->tx_buf = &_tx_buf;		\
 	pdata->tx_size = sizeof(_tx_buf);	\
@@ -210,7 +297,7 @@ do {						\
 #define SCPI_SETUP_DBUF_BY_SIZE(scpi_buf, mbox_buf, _client_id,		\
 				_cmd, _tx_buf, _tx_size, _rx_buf)	\
 do {									\
-	struct rockchip_mbox_msg *pdata = &mbox_buf;			\
+	struct rk3368_mbox_msg *pdata = &mbox_buf;			\
 	pdata->cmd = _cmd;						\
 	pdata->tx_buf = _tx_buf;					\
 	pdata->tx_size = _tx_size;					\
@@ -223,7 +310,7 @@ do {									\
 
 static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 {
-	struct rockchip_mbox_msg *data;
+	struct rk3368_mbox_msg *data;
 	int index;
 
 	if (!scpi_buf || !scpi_buf->data)
@@ -244,7 +331,7 @@ static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 unsigned long scpi_clk_get_val(u16 clk_id)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u32 status;
 		u32 clk_rate;
@@ -262,7 +349,7 @@ EXPORT_SYMBOL_GPL(scpi_clk_get_val);
 int scpi_clk_set_val(u16 clk_id, unsigned long rate)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	int stat;
 	struct __packed {
 		u32 clk_rate;
@@ -281,7 +368,7 @@ EXPORT_SYMBOL_GPL(scpi_clk_set_val);
 struct scpi_opp *scpi_dvfs_get_opps(u8 domain)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u32 status;
 		u32 header;
@@ -328,7 +415,7 @@ EXPORT_SYMBOL_GPL(scpi_dvfs_get_opps);
 int scpi_dvfs_get_idx(u8 domain)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u32 status;
 		u8 dvfs_idx;
@@ -351,7 +438,7 @@ EXPORT_SYMBOL_GPL(scpi_dvfs_get_idx);
 int scpi_dvfs_set_idx(u8 domain, u8 idx)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u8 dvfs_domain;
 		u8 dvfs_idx;
@@ -373,7 +460,7 @@ EXPORT_SYMBOL_GPL(scpi_dvfs_set_idx);
 int scpi_get_sensor(char *name)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u32 status;
 		u16 sensors;
@@ -390,7 +477,7 @@ int scpi_get_sensor(char *name)
 
 	/* This should be handled by a generic macro */
 	do {
-		struct rockchip_mbox_msg *pdata = &mdata;
+		struct rk3368_mbox_msg *pdata = &mdata;
 
 		pdata->cmd = SCPI_CMD_SENSOR_CAPABILITIES;
 		pdata->tx_size = 0;
@@ -425,7 +512,7 @@ EXPORT_SYMBOL_GPL(scpi_get_sensor);
 int scpi_get_sensor_value(u16 sensor, u32 *val)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u32 status;
 		u32 val;
@@ -447,7 +534,7 @@ static int scpi_get_version(u32 old, struct scpi_mcu_ver *ver)
 {
 	int ret;
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed {
 		u32 status;
 		struct scpi_mcu_ver version;
@@ -472,7 +559,7 @@ OUT:
 int scpi_sys_set_mcu_state_suspend(void)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 status;
 	} tx_buf;
@@ -490,7 +577,7 @@ EXPORT_SYMBOL_GPL(scpi_sys_set_mcu_state_suspend);
 int scpi_sys_set_mcu_state_resume(void)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 status;
 	} tx_buf;
@@ -506,10 +593,37 @@ int scpi_sys_set_mcu_state_resume(void)
 }
 EXPORT_SYMBOL_GPL(scpi_sys_set_mcu_state_resume);
 
+int scpi_sys_set_jtagmux_on_off(u32 en)
+{
+	int ret;
+	struct scpi_data_buf sdata;
+	struct rk3368_mbox_msg mdata;
+	struct __packed1 {
+		u32 enable;
+	} tx_buf;
+
+	struct __packed2 {
+		u32 status;
+	} rx_buf;
+
+	tx_buf.enable = en;
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_SYS,
+			SCPI_SYS_SET_JTAGMUX_ON_OFF, tx_buf, rx_buf);
+
+	ret = scpi_execute_cmd(&sdata);
+	if (ret)
+		pr_err("set jtagmux on-off failed, ret=%d\n", ret);
+	else
+		ret = rx_buf.status;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(scpi_sys_set_jtagmux_on_off);
+
 int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type, u32 addr_mcu_el3)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 dram_speed_bin;
 		u32 freq;
@@ -533,7 +647,7 @@ EXPORT_SYMBOL_GPL(scpi_ddr_init);
 int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 clk_rate;
 		u32 lcdc_type;
@@ -553,7 +667,7 @@ EXPORT_SYMBOL_GPL(scpi_ddr_set_clk_rate);
 int scpi_ddr_send_timing(u32 *p, u32 size)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed2 {
 		u32 status;
 	} rx_buf;
@@ -566,7 +680,7 @@ EXPORT_SYMBOL_GPL(scpi_ddr_send_timing);
 int scpi_ddr_round_rate(u32 m_hz)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 clk_rate;
 	} tx_buf;
@@ -589,7 +703,7 @@ EXPORT_SYMBOL_GPL(scpi_ddr_round_rate);
 int scpi_ddr_set_auto_self_refresh(u32 en)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 enable;
 	} tx_buf;
@@ -609,7 +723,7 @@ int scpi_ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0,
 			   struct ddr_bw_info *ddr_bw_ch1)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 status;
 	} tx_buf;
@@ -636,7 +750,7 @@ EXPORT_SYMBOL_GPL(scpi_ddr_bandwidth_get);
 int scpi_ddr_get_clk_rate(void)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 status;
 	} tx_buf;
@@ -659,7 +773,7 @@ int scpi_thermal_get_temperature(void)
 {
 	int ret;
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 status;
 	} tx_buf;
@@ -686,7 +800,7 @@ EXPORT_SYMBOL_GPL(scpi_thermal_get_temperature);
 int scpi_thermal_set_clk_cycle(u32 cycle)
 {
 	struct scpi_data_buf sdata;
-	struct rockchip_mbox_msg mdata;
+	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
 		u32 clk_cycle;
 	} tx_buf;
@@ -704,7 +818,7 @@ int scpi_thermal_set_clk_cycle(u32 cycle)
 EXPORT_SYMBOL_GPL(scpi_thermal_set_clk_cycle);
 
 static struct of_device_id mobx_scpi_of_match[] = {
-	{ .compatible = "rockchip,mbox-scpi"},
+	{ .compatible = "rockchip,rk3368-scpi-legacy"},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, mobx_scpi_of_match);
@@ -746,8 +860,10 @@ static int mobx_scpi_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "Scpi initialize, version: 0x%x, chan nums: %d\n",
-		 mcu_ver.scpi_ver, val);
-	dev_info(&pdev->dev, "MCU version: %s\n", mcu_ver.mcu_ver);
+		 SCPI_VERSION, val);
+
+	if (check_version)
+		dev_info(&pdev->dev, "MCU version: %s\n", mcu_ver.mcu_ver);
 
 	return 0;
 exit:

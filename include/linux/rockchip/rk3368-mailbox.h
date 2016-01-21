@@ -9,7 +9,7 @@
 #ifndef __MAILBOX_ROCKCHIP_H__
 #define __MAILBOX_ROCKCHIP_H__
 
-struct rockchip_mbox_msg {
+struct rk3368_mbox_msg {
 	u32 cmd;
 	int tx_size;
 	void *tx_buf;

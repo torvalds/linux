@@ -85,4 +85,26 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config RK3368_MBOX
+	bool "RK3368 SoC Integrated Mailbox Support"
+	depends on ARCH_ROCKCHIP
+	help
+	  This driver provides support for inter-processor communication
+	  between CPU cores and MCU processor on RK3368 SoC.
+	  Please check it that the Soc you use have Mailbox hardware.
+	  Say Y here if you want to use the Rockchip Mailbox support.
+
+config RK3368_SCPI_PROTOCOL
+	bool "RK3368 SCPI Message Protocol Support"
+	depends on RK3368_MBOX
+	help
+	  System Control and Power Interface (SCPI) Message Protocol is
+	  defined for the purpose of communication between the Application
+	  Cores(AP) and the System Control Processor(SCP). The mailbox
+	  provides a mechanism for inter-processor communication between SCP
+	  and AP.
+
+	  This protocol library provides interface for all the client drivers
+	  making use of the features offered by the SCP.
+
 endif

@@ -22,8 +22,8 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 
-#include <linux/rockchip-mailbox.h>
-#include <linux/scpi_protocol.h>
+#include <linux/rockchip/rk3368-mailbox.h>
+#include <linux/rockchip/scpi.h>
 
 #define MAILBOX_VERSION			"V1.00"
 
@@ -44,17 +44,17 @@
 /* B2A: 2k - 4k */
 #define B2A_BUF(size, idx)		(((idx) + 4) * (size))
 
-struct rockchip_mbox_drv_data {
+struct rk3368_mbox_drv_data {
 	int num_chans;
 };
 
-struct rockchip_mbox_chan {
+struct rk3368_mbox_chan {
 	int idx;
-	struct rockchip_mbox_msg *msg;
-	struct rockchip_mbox *mb;
+	struct rk3368_mbox_msg *msg;
+	struct rk3368_mbox *mb;
 };
 
-struct rockchip_mbox {
+struct rk3368_mbox {
 	struct mbox_controller mbox;
 	struct clk *pclk;
 	void __iomem *mbox_base;
@@ -62,22 +62,22 @@ struct rockchip_mbox {
 	void __iomem *buf_base;
 	/* The maximum size of buf for each channel */
 	u32 buf_size;
-	struct rockchip_mbox_chan *chans;
+	struct rk3368_mbox_chan *chans;
 };
 
 #define MBOX_CHAN_NUMS	4
 int idx_map_irq[MBOX_CHAN_NUMS] = {0, 0, 0, 0};
 
-static inline int chan_to_idx(struct rockchip_mbox *mb,
+static inline int chan_to_idx(struct rk3368_mbox *mb,
 			      struct mbox_chan *chan)
 {
 	return (chan - mb->mbox.chans);
 }
 
-static int rockchip_mbox_send_data(struct mbox_chan *chan, void *data)
+static int rk3368_mbox_send_data(struct mbox_chan *chan, void *data)
 {
-	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
-	struct rockchip_mbox_msg *msg = data;
+	struct rk3368_mbox *mb = dev_get_drvdata(chan->mbox->dev);
+	struct rk3368_mbox_msg *msg = data;
 	int idx = chan_to_idx(mb, chan);
 
 	if (!msg)
@@ -105,29 +105,29 @@ static int rockchip_mbox_send_data(struct mbox_chan *chan, void *data)
 	return 0;
 }
 
-static int rockchip_mbox_startup(struct mbox_chan *chan)
+static int rk3368_mbox_startup(struct mbox_chan *chan)
 {
 	return 0;
 }
 
-static void rockchip_mbox_shutdown(struct mbox_chan *chan)
+static void rk3368_mbox_shutdown(struct mbox_chan *chan)
 {
-	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
+	struct rk3368_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 	int idx = chan_to_idx(mb, chan);
 
 	mb->chans[idx].msg = NULL;
 }
 
-static struct mbox_chan_ops rockchip_mbox_chan_ops = {
-	.send_data	= rockchip_mbox_send_data,
-	.startup	= rockchip_mbox_startup,
-	.shutdown	= rockchip_mbox_shutdown,
+static struct mbox_chan_ops rk3368_mbox_chan_ops = {
+	.send_data	= rk3368_mbox_send_data,
+	.startup	= rk3368_mbox_startup,
+	.shutdown	= rk3368_mbox_shutdown,
 };
 
-static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
+static irqreturn_t rk3368_mbox_irq(int irq, void *dev_id)
 {
 	int idx;
-	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
+	struct rk3368_mbox *mb = (struct rk3368_mbox *)dev_id;
 	u32 status = readl_relaxed(mb->mbox_base + MAILBOX_B2A_STATUS);
 
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
@@ -142,11 +142,11 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static irqreturn_t rockchip_mbox_isr(int irq, void *dev_id)
+static irqreturn_t rk3368_mbox_isr(int irq, void *dev_id)
 {
 	int idx;
-	struct rockchip_mbox_msg *msg = NULL;
-	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
+	struct rk3368_mbox_msg *msg = NULL;
+	struct rk3368_mbox *mb = (struct rk3368_mbox *)dev_id;
 
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
 		if (irq != idx_map_irq[idx])
@@ -176,30 +176,33 @@ static irqreturn_t rockchip_mbox_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct rockchip_mbox_drv_data rk3368_drv_data = {
+static const struct rk3368_mbox_drv_data rk3368_drv_data = {
 	.num_chans = 4,
 };
 
-static struct of_device_id rockchip_mbox_of_match[] = {
-	{ .compatible = "rockchip,rk3368-mailbox", .data = &rk3368_drv_data },
+static const struct of_device_id rk3368_mbox_of_match[] = {
+	{
+		.compatible = "rockchip,rk3368-mbox-legacy",
+		.data = &rk3368_drv_data,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rockchp_mbox_of_match);
 
 #ifdef CONFIG_PM
-static int rockchip_mbox_suspend(struct platform_device *pdev,
-				 pm_message_t state)
+static int rk3368_mbox_suspend(struct platform_device *pdev,
+			       pm_message_t state)
 {
-	struct rockchip_mbox *mb = platform_get_drvdata(pdev);
+	struct rk3368_mbox *mb = platform_get_drvdata(pdev);
 
 	if (scpi_sys_set_mcu_state_suspend())
 		dev_err(mb->mbox.dev, "scpi_sys_set_mcu_state_suspend timeout.\n");
 	return 0;
 }
 
-static int rockchip_mbox_resume(struct platform_device *pdev)
+static int rk3368_mbox_resume(struct platform_device *pdev)
 {
-	struct rockchip_mbox *mb = platform_get_drvdata(pdev);
+	struct rk3368_mbox *mb = platform_get_drvdata(pdev);
 
 	writel_relaxed((1 << mb->mbox.num_chans) - 1,
 		       mb->mbox_base + MAILBOX_B2A_INTEN);
@@ -210,22 +213,22 @@ static int rockchip_mbox_resume(struct platform_device *pdev)
 }
 #endif /* CONFIG_PM */
 
-static int rockchip_mbox_probe(struct platform_device *pdev)
+static int rk3368_mbox_probe(struct platform_device *pdev)
 {
-	struct rockchip_mbox *mb;
+	struct rk3368_mbox *mb;
 	const struct of_device_id *match;
-	const struct rockchip_mbox_drv_data *drv_data;
+	const struct rk3368_mbox_drv_data *drv_data;
 	struct resource *res;
 	int ret, irq, i;
 
-	dev_info(&pdev->dev,
-		 "Rockchip mailbox initialize, version: "MAILBOX_VERSION"\n");
+	dev_info(&pdev->dev, "rk3368-mailbox initialized, version: %s\n",
+		 MAILBOX_VERSION);
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	match = of_match_node(rockchip_mbox_of_match, pdev->dev.of_node);
-	drv_data = (const struct rockchip_mbox_drv_data *)match->data;
+	match = of_match_node(rk3368_mbox_of_match, pdev->dev.of_node);
+	drv_data = (const struct rk3368_mbox_drv_data *)match->data;
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
 	if (!mb)
@@ -245,20 +248,26 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 
 	mb->mbox.dev = &pdev->dev;
 	mb->mbox.num_chans = drv_data->num_chans;
-	mb->mbox.ops = &rockchip_mbox_chan_ops;
+	mb->mbox.ops = &rk3368_mbox_chan_ops;
 	mb->mbox.txdone_irq = true;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
 
-	mb->mbox_base = devm_request_and_ioremap(&pdev->dev, res);
+	mb->mbox_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!mb->mbox_base)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res)
 		return -ENODEV;
+
+	/* Each channel has two buffers for A2B and B2A */
+	mb->buf_size = resource_size(res) / (drv_data->num_chans * 2);
+	mb->buf_base = devm_ioremap_resource(&pdev->dev, res);
+	if (!mb->buf_base)
+		return -ENOMEM;
 
 	mb->pclk = devm_clk_get(&pdev->dev, "pclk_mailbox");
 	if (IS_ERR(mb->pclk)) {
@@ -274,20 +283,14 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Each channel has two buffers for A2B and B2A */
-	mb->buf_size = resource_size(res) / (drv_data->num_chans * 2);
-	mb->buf_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!mb->buf_base)
-		return -ENOMEM;
-
 	for (i = 0; i < mb->mbox.num_chans; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0)
 			return irq;
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq,
-						rockchip_mbox_irq,
-						rockchip_mbox_isr, IRQF_ONESHOT,
+						rk3368_mbox_irq,
+						rk3368_mbox_isr, IRQF_ONESHOT,
 						dev_name(&pdev->dev), mb);
 		if (ret < 0)
 			return ret;
@@ -309,30 +312,30 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rockchip_mbox_remove(struct platform_device *pdev)
+static int rk3368_mbox_remove(struct platform_device *pdev)
 {
-	struct rockchip_mbox *mb = platform_get_drvdata(pdev);
+	struct rk3368_mbox *mb = platform_get_drvdata(pdev);
 
 	mbox_controller_unregister(&mb->mbox);
 
 	return 0;
 }
 
-static struct platform_driver rockchip_mbox_driver = {
-	.probe	= rockchip_mbox_probe,
-	.remove	= rockchip_mbox_remove,
+static struct platform_driver rk3368_mbox_driver = {
+	.probe	= rk3368_mbox_probe,
+	.remove	= rk3368_mbox_remove,
 #ifdef CONFIG_PM
-	.suspend = rockchip_mbox_suspend,
-	.resume	= rockchip_mbox_resume,
+	.suspend = rk3368_mbox_suspend,
+	.resume	= rk3368_mbox_resume,
 #endif /* CONFIG_PM */
 	.driver = {
-		.name = "rockchip-mailbox",
-		.of_match_table = of_match_ptr(rockchip_mbox_of_match),
+		.name = "rk3368-mailbox",
+		.of_match_table = of_match_ptr(rk3368_mbox_of_match),
 	},
 };
 
-static int __init rockchip_mbox_init(void)
+static int __init rk3368_mbox_init(void)
 {
-	return platform_driver_register(&rockchip_mbox_driver);
+	return platform_driver_register(&rk3368_mbox_driver);
 }
-subsys_initcall(rockchip_mbox_init);
+subsys_initcall(rk3368_mbox_init);

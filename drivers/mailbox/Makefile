@@ -17,3 +17,7 @@ obj-$(CONFIG_ALTERA_MBOX)	+= mailbox-altera.o
 obj-$(CONFIG_BCM2835_MBOX)	+= bcm2835-mailbox.o
 
 obj-$(CONFIG_STI_MBOX)		+= mailbox-sti.o
+
+obj-$(CONFIG_RK3368_MBOX)	+= rk3368-mailbox.o
+
+obj-$(CONFIG_RK3368_SCPI_PROTOCOL)	+= scpi_protocol.o
