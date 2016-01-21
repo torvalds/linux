@@ -64,7 +64,6 @@
 #define SSI_NAME "ssi"
 
 struct rsnd_ssi {
-	struct rsnd_ssi *parent;
 	struct rsnd_mod mod;
 	struct rsnd_mod *dma;
 
