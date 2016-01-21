@@ -115,8 +115,7 @@ int wilc_mq_recv(struct message_queue *mq,
 	struct message *msg;
 	unsigned long flags;
 
-	if ((!mq) || (recv_buf_size == 0)
-	    || (!recv_buf) || (!recv_len)) {
+	if ((!mq) || (recv_buf_size == 0) || (!recv_buf) || (!recv_len)) {
 		PRINT_ER("mq or recv_buf is null\n");
 		return -EINVAL;
 	}
