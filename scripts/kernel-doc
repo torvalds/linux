@@ -59,6 +59,12 @@ Output format selection (mutually exclusive):
   -text			Output plain text format.
 
 Output selection (mutually exclusive):
+  -export		Only output documentation for symbols that have been
+			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
+			in the same FILE.
+  -internal		Only output documentation for symbols that have NOT been
+			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
+			in the same FILE.
   -function NAME	Only output documentation for the given function(s)
 			or DOC: section title(s). All other functions and DOC:
 			sections are ignored. May be specified multiple times.
@@ -380,6 +386,7 @@ my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_split_start = '^\s*/\*\*\s*$';
 my $doc_split_sect = '\s*\*\s*(@[\w\s]+):(.*)';
 my $doc_split_end = '^\s*\*/\s*$';
+my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
 
 my %constants;
 my %parameterdescs;
@@ -444,6 +451,12 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$function_only = 2;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
+    } elsif ($cmd eq "-export") { # only exported symbols
+	$function_only = 3;
+	%function_table = ()
+    } elsif ($cmd eq "-internal") { # only non-exported symbols
+	$function_only = 4;
+	%function_table = ()
     } elsif ($cmd eq "-v") {
 	$verbose = 1;
     } elsif (($cmd eq "-h") || ($cmd eq "--help")) {
@@ -1971,8 +1984,10 @@ sub output_declaration {
     my $functype = shift;
     my $func = "output_${functype}_$output_mode";
     if (($function_only==0) ||
-	( $function_only == 1 && defined($function_table{$name})) ||
-	( $function_only == 2 && !($functype eq "function" && defined($function_table{$name}))))
+	( ($function_only == 1 || $function_only == 3) &&
+	  defined($function_table{$name})) ||
+	( ($function_only == 2 || $function_only == 4) &&
+	  !($functype eq "function" && defined($function_table{$name}))))
     {
 	&$func(@_);
 	$section_counter++;
@@ -2673,6 +2688,16 @@ sub process_file($) {
 	print STDERR "Error: Cannot open file $file\n";
 	++$errors;
 	return;
+    }
+
+    # two passes for -export and -internal
+    if ($function_only == 3 || $function_only == 4) {
+	while (<IN>) {
+	    if (/$export_symbol/o) {
+		$function_table{$2} = 1;
+	    }
+	}
+	seek(IN, 0, 0);
     }
 
     $. = 1;
