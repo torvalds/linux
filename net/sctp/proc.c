@@ -165,8 +165,6 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	list_for_each_entry_rcu(transport, &assoc->peer.transport_addr_list,
 			transports) {
 		addr = &transport->ipaddr;
-		if (transport->dead)
-			continue;
 
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
@@ -499,8 +497,6 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 	list_for_each_entry_rcu(tsp, &assoc->peer.transport_addr_list,
 				transports) {
-		if (tsp->dead)
-			continue;
 		/*
 		 * The remote address (ADDR)
 		 */

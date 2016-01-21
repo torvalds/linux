@@ -132,8 +132,6 @@ fail:
  */
 void sctp_transport_free(struct sctp_transport *transport)
 {
-	transport->dead = 1;
-
 	/* Try to delete the heartbeat timer.  */
 	if (del_timer(&transport->hb_timer))
 		sctp_transport_put(transport);
@@ -169,7 +167,7 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
  */
 static void sctp_transport_destroy(struct sctp_transport *transport)
 {
-	if (unlikely(!transport->dead)) {
+	if (unlikely(atomic_read(&transport->refcnt))) {
 		WARN(1, "Attempt to destroy undead transport %p!\n", transport);
 		return;
 	}
