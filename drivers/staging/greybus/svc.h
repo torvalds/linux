@@ -16,6 +16,8 @@ enum gb_svc_state {
 	GB_SVC_STATE_SVC_HELLO,
 };
 
+struct gb_svc_watchdog;
+
 struct gb_svc {
 	struct device		dev;
 
@@ -33,6 +35,7 @@ struct gb_svc {
 
 	struct input_dev        *input;
 	char                    *input_phys;
+	struct gb_svc_watchdog	*watchdog;
 };
 #define to_gb_svc(d) container_of(d, struct gb_svc, d)
 
@@ -56,6 +59,8 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 			       u8 rx_mode, u8 rx_gear, u8 rx_nlanes,
 			       u8 flags, u32 quirks);
 int gb_svc_ping(struct gb_svc *svc);
+int gb_svc_watchdog_create(struct gb_svc *svc);
+void gb_svc_watchdog_destroy(struct gb_svc *svc);
 
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);

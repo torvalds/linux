@@ -8,6 +8,7 @@ greybus-y :=	core.o		\
 		protocol.o	\
 		control.o	\
 		svc.o		\
+		svc_watchdog.o	\
 		firmware.o	\
 		operation.o	\
 		legacy.o

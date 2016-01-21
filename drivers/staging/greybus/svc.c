@@ -436,6 +436,13 @@ static int gb_svc_hello(struct gb_operation *op)
 		return ret;
 	}
 
+	ret = gb_svc_watchdog_create(svc);
+	if (ret) {
+		dev_err(&svc->dev, "failed to create watchdog: %d\n", ret);
+		input_unregister_device(svc->input);
+		device_del(&svc->dev);
+	}
+
 	return 0;
 }
 
@@ -963,6 +970,7 @@ void gb_svc_del(struct gb_svc *svc)
 	 * from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
+		gb_svc_watchdog_destroy(svc);
 		input_unregister_device(svc->input);
 		device_del(&svc->dev);
 	}
