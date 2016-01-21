@@ -49,18 +49,12 @@ static int legacy_request_handler(struct gb_operation *operation)
 static int legacy_connection_init(struct legacy_connection *lc)
 {
 	struct gb_connection *connection = lc->connection;
-	gb_request_handler_t handler;
 	int ret;
 
 	dev_dbg(&connection->bundle->dev, "%s - %s\n", __func__,
 			connection->name);
 
-	if (connection->protocol->request_recv)
-		handler = legacy_request_handler;
-	else
-		handler = NULL;
-
-	ret = gb_connection_enable(connection, handler);
+	ret = gb_connection_enable(connection);
 	if (ret)
 		return ret;
 
@@ -102,6 +96,7 @@ static int legacy_connection_create(struct legacy_connection *lc,
 {
 	struct gb_connection *connection;
 	struct gb_protocol *protocol;
+	gb_request_handler_t handler;
 	u8 major, minor;
 	int ret;
 
@@ -122,7 +117,13 @@ static int legacy_connection_create(struct legacy_connection *lc,
 		return -EPROTONOSUPPORT;
 	}
 
-	connection = gb_connection_create(bundle, le16_to_cpu(desc->id));
+	if (protocol->request_recv)
+		handler = legacy_request_handler;
+	else
+		handler = NULL;
+
+	connection = gb_connection_create(bundle, le16_to_cpu(desc->id),
+						handler);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
 		goto err_protocol_put;

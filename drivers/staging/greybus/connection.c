@@ -118,6 +118,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
  * @intf:		remote interface, or NULL for static connections
  * @bundle:		remote-interface bundle (may be NULL)
  * @cport_id:		remote-interface cport id, or 0 for static connections
+ * @handler:		request handler (may be NULL)
  *
  * Create a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -135,7 +136,8 @@ static void gb_connection_init_name(struct gb_connection *connection)
 static struct gb_connection *
 _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				struct gb_interface *intf,
-				struct gb_bundle *bundle, int cport_id)
+				struct gb_bundle *bundle, int cport_id,
+				gb_request_handler_t handler)
 {
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
@@ -176,8 +178,8 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	connection->intf_cport_id = cport_id;
 	connection->hd = hd;
 	connection->intf = intf;
-
 	connection->bundle = bundle;
+	connection->handler = handler;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	atomic_set(&connection->op_cycle, 0);
@@ -221,23 +223,26 @@ err_unlock:
 }
 
 struct gb_connection *
-gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id)
+gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id,
+					gb_request_handler_t handler)
 {
-	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0);
+	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, handler);
 }
 
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
-	return _gb_connection_create(intf->hd, -1, intf, NULL, 0);
+	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL);
 }
 
 struct gb_connection *
-gb_connection_create(struct gb_bundle *bundle, u16 cport_id)
+gb_connection_create(struct gb_bundle *bundle, u16 cport_id,
+					gb_request_handler_t handler)
 {
 	struct gb_interface *intf = bundle->intf;
 
-	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id);
+	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
+					handler);
 }
 EXPORT_SYMBOL_GPL(gb_connection_create);
 
@@ -424,39 +429,42 @@ gb_connection_flush_incoming_operations(struct gb_connection *connection,
 	}
 }
 
-int gb_connection_enable(struct gb_connection *connection,
-				gb_request_handler_t handler)
+/*
+ * _gb_connection_enable() - enable a connection
+ * @connection:		connection to enable
+ * @rx:			whether to enable incoming requests
+ *
+ * Connection-enable helper for DISABLED->ENABLED, DISABLED->ENABLED_TX, and
+ * ENABLED_TX->ENABLED state transitions.
+ *
+ * Locking: Caller holds connection->mutex.
+ */
+static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 {
 	int ret;
 
-	mutex_lock(&connection->mutex);
-
-	if (connection->state == GB_CONNECTION_STATE_ENABLED)
-		goto out_unlock;
-
+	/* Handle ENABLED_TX -> ENABLED transitions. */
 	if (connection->state == GB_CONNECTION_STATE_ENABLED_TX) {
-		if (!handler)
-			goto out_unlock;
+		if (!(connection->handler && rx))
+			return 0;
 
 		spin_lock_irq(&connection->lock);
-		connection->handler = handler;
 		connection->state = GB_CONNECTION_STATE_ENABLED;
 		spin_unlock_irq(&connection->lock);
 
-		goto out_unlock;
+		return 0;
 	}
 
 	ret = gb_connection_hd_cport_enable(connection);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	ret = gb_connection_svc_connection_create(connection);
 	if (ret)
 		goto err_hd_cport_disable;
 
 	spin_lock_irq(&connection->lock);
-	connection->handler = handler;
-	if (handler)
+	if (connection->handler && rx)
 		connection->state = GB_CONNECTION_STATE_ENABLED;
 	else
 		connection->state = GB_CONNECTION_STATE_ENABLED_TX;
@@ -466,27 +474,59 @@ int gb_connection_enable(struct gb_connection *connection,
 	if (ret)
 		goto err_svc_destroy;
 
-out_unlock:
-	mutex_unlock(&connection->mutex);
-
 	return 0;
 
 err_svc_destroy:
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
-	connection->handler = NULL;
 	spin_unlock_irq(&connection->lock);
 
 	gb_connection_svc_connection_destroy(connection);
 err_hd_cport_disable:
 	gb_connection_hd_cport_disable(connection);
-err_unlock:
+
+	return ret;
+}
+
+int gb_connection_enable(struct gb_connection *connection)
+{
+	int ret = 0;
+
+	mutex_lock(&connection->mutex);
+
+	if (connection->state == GB_CONNECTION_STATE_ENABLED)
+		goto out_unlock;
+
+	ret = _gb_connection_enable(connection, true);
+out_unlock:
 	mutex_unlock(&connection->mutex);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gb_connection_enable);
+
+int gb_connection_enable_tx(struct gb_connection *connection)
+{
+	int ret = 0;
+
+	mutex_lock(&connection->mutex);
+
+	if (connection->state == GB_CONNECTION_STATE_ENABLED) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (connection->state == GB_CONNECTION_STATE_ENABLED_TX)
+		goto out_unlock;
+
+	ret = _gb_connection_enable(connection, false);
+out_unlock:
+	mutex_unlock(&connection->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gb_connection_enable_tx);
 
 void gb_connection_disable_rx(struct gb_connection *connection)
 {
@@ -499,7 +539,6 @@ void gb_connection_disable_rx(struct gb_connection *connection)
 	}
 	connection->state = GB_CONNECTION_STATE_ENABLED_TX;
 	gb_connection_flush_incoming_operations(connection, -ESHUTDOWN);
-	connection->handler = NULL;
 	spin_unlock_irq(&connection->lock);
 
 out_unlock:
@@ -518,7 +557,6 @@ void gb_connection_disable(struct gb_connection *connection)
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
-	connection->handler = NULL;
 	spin_unlock_irq(&connection->lock);
 
 	gb_connection_svc_connection_destroy(connection);

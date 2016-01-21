@@ -55,10 +55,10 @@ struct gb_connection {
 };
 
 struct gb_connection *gb_connection_create_static(struct gb_host_device *hd,
-				u16 hd_cport_id);
+				u16 hd_cport_id, gb_request_handler_t handler);
 struct gb_connection *gb_connection_create_control(struct gb_interface *intf);
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
-				u16 cport_id);
+				u16 cport_id, gb_request_handler_t handler);
 void gb_connection_destroy(struct gb_connection *connection);
 
 static inline bool gb_connection_is_static(struct gb_connection *connection)
@@ -66,12 +66,8 @@ static inline bool gb_connection_is_static(struct gb_connection *connection)
 	return !connection->intf;
 }
 
-int gb_connection_enable(struct gb_connection *connection,
-					gb_request_handler_t handler);
-static inline int gb_connection_enable_tx(struct gb_connection *connection)
-{
-	return gb_connection_enable(connection, NULL);
-}
+int gb_connection_enable(struct gb_connection *connection);
+int gb_connection_enable_tx(struct gb_connection *connection);
 void gb_connection_disable_rx(struct gb_connection *connection);
 void gb_connection_disable(struct gb_connection *connection);
 

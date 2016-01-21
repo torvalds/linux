@@ -895,7 +895,8 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 		goto err_put_device;
 	}
 
-	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID);
+	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
+						gb_svc_request_handler);
 	if (IS_ERR(svc->connection)) {
 		dev_err(&svc->dev, "failed to create connection: %ld\n",
 				PTR_ERR(svc->connection));
@@ -922,7 +923,7 @@ int gb_svc_add(struct gb_svc *svc)
 	 * is added from the connection request handler when enough
 	 * information has been received.
 	 */
-	ret = gb_connection_enable(svc->connection, gb_svc_request_handler);
+	ret = gb_connection_enable(svc->connection);
 	if (ret)
 		return ret;
 
