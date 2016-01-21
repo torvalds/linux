@@ -38,10 +38,10 @@ int wilc_mq_destroy(struct message_queue *mq)
 	}
 
 	while (mq->msg_list) {
-		struct message *pstrMessge = mq->msg_list->next;
+		struct message *msg = mq->msg_list->next;
 
 		kfree(mq->msg_list);
-		mq->msg_list = pstrMessge;
+		mq->msg_list = msg;
 	}
 
 	return 0;
