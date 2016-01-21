@@ -13,13 +13,13 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
-#include <mach/board-eb.h>
-#include <mach/board-pb11mp.h>
-#include <mach/board-pbx.h>
+#include "board-eb.h"
+#include "board-pb11mp.h"
+#include "board-pbx.h"
 
 #include <plat/platsmp.h>
 

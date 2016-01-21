@@ -41,7 +41,7 @@
 
 #include <mach/hardware.h>
 #include <mach/ams-delta-fiq.h>
-#include <mach/camera.h>
+#include "camera.h"
 #include <mach/usb.h>
 
 #include "iomap.h"

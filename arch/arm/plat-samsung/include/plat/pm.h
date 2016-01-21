@@ -41,14 +41,6 @@ static inline int s3c64xx_pm_init(void)
 extern unsigned long s3c_irqwake_intmask;
 extern unsigned long s3c_irqwake_eintmask;
 
-/* IRQ masks for IRQs allowed to go to sleep (see irq.c) */
-extern unsigned long s3c_irqwake_intallow;
-#ifdef CONFIG_PM_SLEEP
-extern unsigned long s3c_irqwake_eintallow;
-#else
-#define s3c_irqwake_eintallow 0
-#endif
-
 /* per-cpu sleep functions */
 
 extern void (*pm_cpu_prep)(void);

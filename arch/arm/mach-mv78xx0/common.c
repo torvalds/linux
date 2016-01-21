@@ -18,13 +18,13 @@
 #include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/mv78xx0.h>
-#include <mach/bridge-regs.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
+#include "mv78xx0.h"
+#include "bridge-regs.h"
 #include "common.h"
 
 static int get_tclk(void);
