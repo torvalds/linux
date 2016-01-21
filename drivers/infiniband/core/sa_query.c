@@ -717,7 +717,9 @@ static int ib_nl_handle_set_timeout(struct sk_buff *skb,
 	struct nlattr *tb[LS_NLA_TYPE_MAX];
 	int ret;
 
-	if (!netlink_capable(skb, CAP_NET_ADMIN))
+	if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
+	    !(NETLINK_CB(skb).sk) ||
+	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	ret = nla_parse(tb, LS_NLA_TYPE_MAX - 1, nlmsg_data(nlh),
@@ -791,7 +793,9 @@ static int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 	int found = 0;
 	int ret;
 
-	if (!netlink_capable(skb, CAP_NET_ADMIN))
+	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
+	    !(NETLINK_CB(skb).sk) ||
+	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	spin_lock_irqsave(&ib_nl_request_lock, flags);
