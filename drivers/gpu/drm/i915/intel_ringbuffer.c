@@ -1098,6 +1098,11 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 			GEN7_HALF_SLICE_CHICKEN1,
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
+	/* WaDisableLSQCROPERFforOCL:skl */
+	ret = wa_ring_whitelist_reg(ring, GEN8_L3SQCREG4);
+	if (ret)
+		return ret;
+
 	return skl_tune_iz_hashing(ring);
 }
 
