@@ -51,6 +51,20 @@ struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
 	return ti;
 }
 
+/*
+ * The only new tasks created are kernel threads that have a predefined starting
+ * point thus no stack copy is required.
+ */
+void setup_thread_stack(struct task_struct *p, struct task_struct *org)
+{
+	struct thread_info *ti = task_thread_info(p);
+	struct thread_info *org_ti = task_thread_info(org);
+
+	ti->flags = org_ti->flags;
+	ti->preempt_count = org_ti->preempt_count;
+	ti->addr_limit = org_ti->addr_limit;
+}
+
 static void kill_thread(struct thread_exit_info *ei)
 {
 	if (WARN_ON(!ei))

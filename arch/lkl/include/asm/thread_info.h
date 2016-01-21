@@ -64,17 +64,7 @@ void threads_cleanup(void);
 
 #define task_thread_info(task)	((struct thread_info *)(task)->stack)
 #define task_stack_page(task)	((task)->stack)
-
-/*
- * Nothing to do here. The only new tasks created are kernel threads that have a
- * predefined starting point thus no stack copy is required as for regular
- * forked tasks.
- */
-static inline void setup_thread_stack(struct task_struct *p,
-				      struct task_struct *org)
-{
-}
-
+void setup_thread_stack(struct task_struct *p, struct task_struct *org);
 #define end_of_stack(p) (&task_thread_info(p)->stackend)
 
 #endif /* __ASSEMBLY__ */
