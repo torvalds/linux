@@ -102,50 +102,44 @@ void sync_timeline_signal(struct sync_timeline *obj)
 {
 	unsigned long flags;
 	LIST_HEAD(signaled_pts);
-	struct sync_pt *pt, *next;
+	struct fence *fence, *next;
 
 	trace_sync_timeline(obj);
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 
-	list_for_each_entry_safe(pt, next, &obj->active_list_head,
+	list_for_each_entry_safe(fence, next, &obj->active_list_head,
 				 active_list) {
-		if (fence_is_signaled_locked(&pt->base))
-			list_del_init(&pt->active_list);
+		if (fence_is_signaled_locked(fence))
+			list_del_init(&fence->active_list);
 	}
 
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
 }
 EXPORT_SYMBOL(sync_timeline_signal);
 
-struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size)
+struct fence *sync_pt_create(struct sync_timeline *obj, int size)
 {
 	unsigned long flags;
-	struct sync_pt *pt;
+	struct fence *fence;
 
-	if (size < sizeof(struct sync_pt))
+	if (size < sizeof(*fence))
 		return NULL;
 
-	pt = kzalloc(size, GFP_KERNEL);
-	if (!pt)
+	fence = kzalloc(size, GFP_KERNEL);
+	if (!fence)
 		return NULL;
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	sync_timeline_get(obj);
-	fence_init(&pt->base, &android_fence_ops, &obj->child_list_lock,
+	fence_init(fence, &android_fence_ops, &obj->child_list_lock,
 		   obj->context, ++obj->value);
-	list_add_tail(&pt->child_list, &obj->child_list_head);
-	INIT_LIST_HEAD(&pt->active_list);
+	list_add_tail(&fence->child_list, &obj->child_list_head);
+	INIT_LIST_HEAD(&fence->active_list);
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
-	return pt;
+	return fence;
 }
 EXPORT_SYMBOL(sync_pt_create);
-
-void sync_pt_free(struct sync_pt *pt)
-{
-	fence_put(&pt->base);
-}
-EXPORT_SYMBOL(sync_pt_free);
 
 static struct sync_file *sync_file_alloc(int size, const char *name)
 {
@@ -184,8 +178,8 @@ static void fence_check_cb_func(struct fence *f, struct fence_cb *cb)
 		wake_up_all(&sync_file->wq);
 }
 
-/* TODO: implement a create which takes more that one sync_pt */
-struct sync_file *sync_file_create_dma(const char *name, struct fence *pt)
+/* TODO: implement a create which takes more that one fence */
+struct sync_file *sync_file_create_dma(const char *name, struct fence *fence)
 {
 	struct sync_file *sync_file;
 
@@ -197,9 +191,10 @@ struct sync_file *sync_file_create_dma(const char *name, struct fence *pt)
 	sync_file->num_fences = 1;
 	atomic_set(&sync_file->status, 1);
 
-	sync_file->cbs[0].fence = pt;
+	sync_file->cbs[0].fence = fence;
 	sync_file->cbs[0].sync_file = sync_file;
-	if (fence_add_callback(pt, &sync_file->cbs[0].cb, fence_check_cb_func))
+	if (fence_add_callback(fence, &sync_file->cbs[0].cb,
+			       fence_check_cb_func))
 		atomic_dec(&sync_file->status);
 
 	sync_file_debug_add(sync_file);
@@ -208,9 +203,9 @@ struct sync_file *sync_file_create_dma(const char *name, struct fence *pt)
 }
 EXPORT_SYMBOL(sync_file_create_dma);
 
-struct sync_file *sync_file_create(const char *name, struct sync_pt *pt)
+struct sync_file *sync_file_create(const char *name, struct fence *fence)
 {
-	return sync_file_create_dma(name, &pt->base);
+	return sync_file_create_dma(name, fence);
 }
 EXPORT_SYMBOL(sync_file_create);
 
@@ -245,14 +240,14 @@ void sync_file_install(struct sync_file *sync_file, int fd)
 EXPORT_SYMBOL(sync_file_install);
 
 static void sync_file_add_pt(struct sync_file *sync_file, int *i,
-			     struct fence *pt)
+			     struct fence *fence)
 {
-	sync_file->cbs[*i].fence = pt;
+	sync_file->cbs[*i].fence = fence;
 	sync_file->cbs[*i].sync_file = sync_file;
 
-	if (!fence_add_callback(pt, &sync_file->cbs[*i].cb,
+	if (!fence_add_callback(fence, &sync_file->cbs[*i].cb,
 				fence_check_cb_func)) {
-		fence_get(pt);
+		fence_get(fence);
 		(*i)++;
 	}
 }
@@ -328,7 +323,7 @@ int sync_file_wait(struct sync_file *sync_file, long timeout)
 
 	trace_sync_wait(sync_file, 1);
 	for (i = 0; i < sync_file->num_fences; ++i)
-		trace_sync_pt(sync_file->cbs[i].fence);
+		trace_fence(sync_file->cbs[i].fence);
 	ret = wait_event_interruptible_timeout(sync_file->wq,
 					       atomic_read(&sync_file->status) <= 0,
 					       timeout);
@@ -356,43 +351,39 @@ EXPORT_SYMBOL(sync_file_wait);
 
 static const char *android_fence_get_driver_name(struct fence *fence)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
 	return parent->ops->driver_name;
 }
 
 static const char *android_fence_get_timeline_name(struct fence *fence)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
 	return parent->name;
 }
 
 static void android_fence_release(struct fence *fence)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 	unsigned long flags;
 
 	spin_lock_irqsave(fence->lock, flags);
-	list_del(&pt->child_list);
-	if (WARN_ON_ONCE(!list_empty(&pt->active_list)))
-		list_del(&pt->active_list);
+	list_del(&fence->child_list);
+	if (WARN_ON_ONCE(!list_empty(&fence->active_list)))
+		list_del(&fence->active_list);
 	spin_unlock_irqrestore(fence->lock, flags);
 
 	sync_timeline_put(parent);
-	fence_free(&pt->base);
+	fence_free(fence);
 }
 
 static bool android_fence_signaled(struct fence *fence)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 	int ret;
 
-	ret = parent->ops->has_signaled(pt);
+	ret = parent->ops->has_signaled(fence);
 	if (ret < 0)
 		fence->status = ret;
 	return ret;
@@ -400,46 +391,42 @@ static bool android_fence_signaled(struct fence *fence)
 
 static bool android_fence_enable_signaling(struct fence *fence)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
 	if (android_fence_signaled(fence))
 		return false;
 
-	list_add_tail(&pt->active_list, &parent->active_list_head);
+	list_add_tail(&fence->active_list, &parent->active_list_head);
 	return true;
 }
 
 static int android_fence_fill_driver_data(struct fence *fence,
 					  void *data, int size)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
 	if (!parent->ops->fill_driver_data)
 		return 0;
-	return parent->ops->fill_driver_data(pt, data, size);
+	return parent->ops->fill_driver_data(fence, data, size);
 }
 
 static void android_fence_value_str(struct fence *fence,
 				    char *str, int size)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
-	if (!parent->ops->pt_value_str) {
+	if (!parent->ops->fence_value_str) {
 		if (size)
 			*str = 0;
 		return;
 	}
-	parent->ops->pt_value_str(pt, str, size);
+	parent->ops->fence_value_str(fence, str, size);
 }
 
 static void android_fence_timeline_value_str(struct fence *fence,
 					     char *str, int size)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
 	if (!parent->ops->timeline_value_str) {
 		if (size)
@@ -624,9 +611,9 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	len = sizeof(struct sync_file_info_data);
 
 	for (i = 0; i < sync_file->num_fences; ++i) {
-		struct fence *pt = sync_file->cbs[i].fence;
+		struct fence *fence = sync_file->cbs[i].fence;
 
-		ret = sync_fill_pt_info(pt, (u8 *)data + len, size - len);
+		ret = sync_fill_pt_info(fence, (u8 *)data + len, size - len);
 
 		if (ret < 0)
 			goto out;

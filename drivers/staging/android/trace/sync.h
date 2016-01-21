@@ -53,20 +53,20 @@ TRACE_EVENT(sync_wait,
 			__get_str(name), __entry->status)
 );
 
-TRACE_EVENT(sync_pt,
-	TP_PROTO(struct fence *pt),
+TRACE_EVENT(fence,
+	TP_PROTO(struct fence *fence),
 
-	TP_ARGS(pt),
+	TP_ARGS(fence),
 
 	TP_STRUCT__entry(
-		__string(timeline, pt->ops->get_timeline_name(pt))
+		__string(timeline, fence->ops->get_timeline_name(fence))
 		__array(char, value, 32)
 	),
 
 	TP_fast_assign(
-		__assign_str(timeline, pt->ops->get_timeline_name(pt));
-		if (pt->ops->fence_value_str) {
-			pt->ops->fence_value_str(pt, __entry->value,
+		__assign_str(timeline, fence->ops->get_timeline_name(fence));
+		if (fence->ops->fence_value_str) {
+			fence->ops->fence_value_str(fence, __entry->value,
 							sizeof(__entry->value));
 		} else {
 			__entry->value[0] = '\0';

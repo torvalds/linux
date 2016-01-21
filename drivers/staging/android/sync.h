@@ -24,7 +24,6 @@
 #include "uapi/sync.h"
 
 struct sync_timeline;
-struct sync_pt;
 struct sync_file;
 
 /**
@@ -39,23 +38,23 @@ struct sync_file;
  *			  as specified by size.  This information is returned
  *			  to userspace by SYNC_IOC_FENCE_INFO.
  * @timeline_value_str: fill str with the value of the sync_timeline's counter
- * @pt_value_str:	fill str with the value of the sync_pt
+ * @fence_value_str:	fill str with the value of the fence
  */
 struct sync_timeline_ops {
 	const char *driver_name;
 
 	/* required */
-	int (*has_signaled)(struct sync_pt *pt);
+	int (*has_signaled)(struct fence *fence);
 
 	/* optional */
-	int (*fill_driver_data)(struct sync_pt *syncpt, void *data, int size);
+	int (*fill_driver_data)(struct fence *fence, void *data, int size);
 
 	/* optional */
 	void (*timeline_value_str)(struct sync_timeline *timeline, char *str,
 				   int size);
 
 	/* optional */
-	void (*pt_value_str)(struct sync_pt *pt, char *str, int size);
+	void (*fence_value_str)(struct fence *fence, char *str, int size);
 };
 
 /**
@@ -66,7 +65,7 @@ struct sync_timeline_ops {
  * @destroyed:		set when sync_timeline is destroyed
  * @child_list_head:	list of children sync_pts for this sync_timeline
  * @child_list_lock:	lock protecting @child_list_head, destroyed, and
- *			  sync_pt.status
+ *			fence.status
  * @active_list_head:	list of active (unsignaled/errored) sync_pts
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
@@ -89,22 +88,9 @@ struct sync_timeline {
 #endif
 };
 
-/**
- * struct sync_pt - sync point
- * @base:		base fence class
- * @child_list:		membership in sync_timeline.child_list_head
- * @active_list:	membership in sync_timeline.active_list_head
- */
-struct sync_pt {
-	struct fence base;
-
-	struct list_head	child_list;
-	struct list_head	active_list;
-};
-
-static inline struct sync_timeline *sync_pt_parent(struct sync_pt *pt)
+static inline struct sync_timeline *fence_parent(struct fence *fence)
 {
-	return container_of(pt->base.lock, struct sync_timeline,
+	return container_of(fence->lock, struct sync_timeline,
 			    child_list_lock);
 }
 
@@ -164,7 +150,7 @@ struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
  *
  * A sync implementation should call this when the @obj is going away
  * (i.e. module unload.)  @obj won't actually be freed until all its children
- * sync_pts are freed.
+ * fences are freed.
  */
 void sync_timeline_destroy(struct sync_timeline *obj);
 
@@ -172,41 +158,32 @@ void sync_timeline_destroy(struct sync_timeline *obj);
  * sync_timeline_signal() - signal a status change on a sync_timeline
  * @obj:	sync_timeline to signal
  *
- * A sync implementation should call this any time one of it's sync_pts
+ * A sync implementation should call this any time one of it's fences
  * has signaled or has an error condition.
  */
 void sync_timeline_signal(struct sync_timeline *obj);
 
 /**
  * sync_pt_create() - creates a sync pt
- * @parent:	sync_pt's parent sync_timeline
+ * @parent:	fence's parent sync_timeline
  * @size:	size to allocate for this pt
  *
- * Creates a new sync_pt as a child of @parent.  @size bytes will be
+ * Creates a new fence as a child of @parent.  @size bytes will be
  * allocated allowing for implementation specific data to be kept after
- * the generic sync_timeline struct. Returns the sync_pt object or
+ * the generic sync_timeline struct. Returns the fence object or
  * NULL in case of error.
  */
-struct sync_pt *sync_pt_create(struct sync_timeline *parent, int size);
+struct fence *sync_pt_create(struct sync_timeline *parent, int size);
 
 /**
- * sync_pt_free() - frees a sync pt
- * @pt:		sync_pt to free
+ * sync_fence_create() - creates a sync fence
+ * @name:	name of fence to create
+ * @fence:	fence to add to the sync_fence
  *
- * This should only be called on sync_pts which have been created but
- * not added to a fence.
+ * Creates a sync_file containg @fence. Once this is called, the sync_file
+ * takes ownership of @fence.
  */
-void sync_pt_free(struct sync_pt *pt);
-
-/**
- * sync_file_create() - creates a sync file
- * @name:	name of file to create
- * @pt:		sync_pt to add to the file
- *
- * Creates a sync_file containg @pt. Once this is called, the sync_file takes
- * ownership of @pt.
- */
-struct sync_file *sync_file_create(const char *name, struct sync_pt *pt);
+struct sync_file *sync_file_create(const char *name, struct fence *fence);
 
 /**
  * sync_file_create_dma() - creates a sync file from dma-fence
@@ -228,7 +205,7 @@ struct sync_file *sync_file_create_dma(const char *name, struct fence *pt);
  * @a:		sync_file a
  * @b:		sync_file b
  *
- * Creates a new sync_file which contains copies of all the sync_pts in both
+ * Creates a new sync_file which contains copies of all the fences in both
  * @a and @b.  @a and @b remain valid, independent sync_file. Returns the
  * new merged sync_file or NULL in case of error.
  */
