@@ -186,9 +186,7 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 	if (!control)
 		return NULL;
 
-	control->connection = gb_connection_create_dynamic(intf, NULL,
-						GB_CONTROL_CPORT_ID,
-						GREYBUS_PROTOCOL_CONTROL);
+	control->connection = gb_connection_create_control(intf);
 	if (!control->connection) {
 		dev_err(&intf->dev, "failed to create control connection\n");
 		kfree(control);
