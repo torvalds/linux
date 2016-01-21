@@ -32,9 +32,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#include <linux/mfd/arizona/registers.h>
-
-#include "arizona.h"
 #include "wm_adsp.h"
 
 #define adsp_crit(_dsp, fmt, ...) \
@@ -2146,29 +2143,8 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 					   struct wm_adsp,
 					   boot_work);
 	int ret;
-	unsigned int val;
 
 	mutex_lock(&dsp->pwr_lock);
-
-	/*
-	 * For simplicity set the DSP clock rate to be the
-	 * SYSCLK rate rather than making it configurable.
-	 */
-	ret = regmap_read(dsp->regmap, ARIZONA_SYSTEM_CLOCK_1, &val);
-	if (ret != 0) {
-		adsp_err(dsp, "Failed to read SYSCLK state: %d\n", ret);
-		goto err_mutex;
-	}
-	val = (val & ARIZONA_SYSCLK_FREQ_MASK)
-		>> ARIZONA_SYSCLK_FREQ_SHIFT;
-
-	ret = regmap_update_bits_async(dsp->regmap,
-				       dsp->base + ADSP2_CLOCKING,
-				       ADSP2_CLK_SEL_MASK, val);
-	if (ret != 0) {
-		adsp_err(dsp, "Failed to set clock rate: %d\n", ret);
-		goto err_mutex;
-	}
 
 	ret = wm_adsp2_ena(dsp);
 	if (ret != 0)
@@ -2209,8 +2185,21 @@ err_mutex:
 	mutex_unlock(&dsp->pwr_lock);
 }
 
+static void wm_adsp2_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
+{
+	int ret;
+
+	ret = regmap_update_bits_async(dsp->regmap,
+				       dsp->base + ADSP2_CLOCKING,
+				       ADSP2_CLK_SEL_MASK,
+				       freq << ADSP2_CLK_SEL_SHIFT);
+	if (ret != 0)
+		adsp_err(dsp, "Failed to set clock rate: %d\n", ret);
+}
+
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event)
+			 struct snd_kcontrol *kcontrol, int event,
+			 unsigned int freq)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
@@ -2220,6 +2209,7 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		wm_adsp2_set_dspclk(dsp, freq);
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	default:

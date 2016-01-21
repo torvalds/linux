@@ -619,7 +619,7 @@ static int wm5102_adsp_power_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
-	unsigned int v;
+	unsigned int v = 0;
 	int ret;
 
 	switch (event) {
@@ -654,7 +654,7 @@ static int wm5102_adsp_power_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	return wm_adsp2_early_event(w, kcontrol, event);
+	return wm_adsp2_early_event(w, kcontrol, event, v);
 }
 
 static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
@@ -1408,7 +1408,7 @@ ARIZONA_MUX_WIDGETS(ISRC2DEC2, "ISRC2DEC2"),
 ARIZONA_MUX_WIDGETS(ISRC2INT1, "ISRC2INT1"),
 ARIZONA_MUX_WIDGETS(ISRC2INT2, "ISRC2INT2"),
 
-WM_ADSP2_E("DSP1", 0, wm5102_adsp_power_ev),
+WM_ADSP2("DSP1", 0, wm5102_adsp_power_ev),
 
 SND_SOC_DAPM_OUTPUT("HPOUT1L"),
 SND_SOC_DAPM_OUTPUT("HPOUT1R"),
