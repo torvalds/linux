@@ -1046,6 +1046,16 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
+	/*
+	 * Actual WA is to disable percontext preemption granularity control
+	 * until D0 which is the default case so this is equivalent to
+	 * !WaDisablePerCtxtPreemptionGranularityControl:skl
+	 */
+	if (IS_SKL_REVID(dev, SKL_REVID_E0, REVID_FOREVER)) {
+		I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+			   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
+	}
+
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
