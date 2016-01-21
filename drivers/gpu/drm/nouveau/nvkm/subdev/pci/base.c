@@ -46,6 +46,14 @@ nvkm_pci_wr32(struct nvkm_pci *pci, u16 addr, u32 data)
 	pci->func->wr32(pci, addr, data);
 }
 
+u32
+nvkm_pci_mask(struct nvkm_pci *pci, u16 addr, u32 mask, u32 value)
+{
+	u32 data = pci->func->rd32(pci, addr);
+	pci->func->wr32(pci, addr, (data & ~mask) | value);
+	return data;
+}
+
 void
 nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 {
@@ -110,6 +118,9 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 		if (ret)
 			return ret;
 	}
+
+	if (pci->func->init)
+		pci->func->init(pci);
 
 	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
 	if (ret)

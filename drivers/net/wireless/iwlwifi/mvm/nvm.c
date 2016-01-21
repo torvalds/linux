@@ -316,7 +316,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
 				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant,
-				  lar_enabled, mac_addr0, mac_addr1);
+				  lar_enabled, mac_addr0, mac_addr1,
+				  mvm->trans->hw_id);
 }
 
 #define MAX_NVM_FILE_LEN	16384
@@ -482,6 +483,7 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			ret = -ENOMEM;
 			break;
 		}
+		kfree(mvm->nvm_sections[section_id].data);
 		mvm->nvm_sections[section_id].data = temp;
 		mvm->nvm_sections[section_id].length = section_size;
 
@@ -562,6 +564,10 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 			case NVM_SECTION_TYPE_PRODUCTION:
 				mvm->nvm_prod_blob.data = temp;
 				mvm->nvm_prod_blob.size  = ret;
+				break;
+			case NVM_SECTION_TYPE_PHY_SKU:
+				mvm->nvm_phy_sku_blob.data = temp;
+				mvm->nvm_phy_sku_blob.size  = ret;
 				break;
 			default:
 				if (section == mvm->cfg->nvm_hw_section_num) {

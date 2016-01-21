@@ -482,7 +482,9 @@ xfs_agfl_verify(
 		    be32_to_cpu(agfl->agfl_bno[i]) >= mp->m_sb.sb_agblocks)
 			return false;
 	}
-	return true;
+
+	return xfs_log_check_lsn(mp,
+				 be64_to_cpu(XFS_BUF_TO_AGFL(bp)->agfl_lsn));
 }
 
 static void
@@ -651,8 +653,8 @@ xfs_alloc_ag_vextent(
 				 -((long)(args->len)));
 	}
 
-	XFS_STATS_INC(xs_allocx);
-	XFS_STATS_ADD(xs_allocb, args->len);
+	XFS_STATS_INC(args->mp, xs_allocx);
+	XFS_STATS_ADD(args->mp, xs_allocb, args->len);
 	return error;
 }
 
@@ -1808,8 +1810,8 @@ xfs_free_ag_extent(
 
 	if (!isfl)
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (long)len);
-	XFS_STATS_INC(xs_freex);
-	XFS_STATS_ADD(xs_freeb, len);
+	XFS_STATS_INC(mp, xs_freex);
+	XFS_STATS_ADD(mp, xs_freeb, len);
 
 	trace_xfs_free_extent(mp, agno, bno, len, isfl, haveleft, haveright);
 
@@ -2259,9 +2261,13 @@ xfs_agf_verify(
  {
 	struct xfs_agf	*agf = XFS_BUF_TO_AGF(bp);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
-	    !uuid_equal(&agf->agf_uuid, &mp->m_sb.sb_meta_uuid))
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (!uuid_equal(&agf->agf_uuid, &mp->m_sb.sb_meta_uuid))
 			return false;
+		if (!xfs_log_check_lsn(mp,
+				be64_to_cpu(XFS_BUF_TO_AGF(bp)->agf_lsn)))
+			return false;
+	}
 
 	if (!(agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
 	      XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
@@ -2503,7 +2509,7 @@ xfs_alloc_vextent(
 		 * Try near allocation first, then anywhere-in-ag after
 		 * the first a.g. fails.
 		 */
-		if ((args->userdata  == XFS_ALLOC_INITIAL_USER_DATA) &&
+		if ((args->userdata & XFS_ALLOC_INITIAL_USER_DATA) &&
 		    (mp->m_flags & XFS_MOUNT_32BITINODES)) {
 			args->fsbno = XFS_AGB_TO_FSB(mp,
 					((mp->m_agfrotor / rotorstep) %
@@ -2634,6 +2640,14 @@ xfs_alloc_vextent(
 		XFS_AG_CHECK_DADDR(mp, XFS_FSB_TO_DADDR(mp, args->fsbno),
 			args->len);
 #endif
+
+		/* Zero the extent if we were asked to do so */
+		if (args->userdata & XFS_ALLOC_USERDATA_ZERO) {
+			error = xfs_zero_extent(args->ip, args->fsbno, args->len);
+			if (error)
+				goto error0;
+		}
+
 	}
 	xfs_perag_put(args->pag);
 	return 0;

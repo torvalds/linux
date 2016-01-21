@@ -39,12 +39,13 @@
 #include <asm/irq.h>
 #include <asm/idle.h>
 #include <asm/io_apic.h>
+#include <asm/i8259.h>
 #include <asm/xen/pci.h>
-#include <xen/page.h>
 #endif
 #include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/page.h>
 
 #include <xen/xen.h>
 #include <xen/hvm.h>
@@ -420,7 +421,7 @@ static int __must_check xen_allocate_irq_gsi(unsigned gsi)
 		return xen_allocate_irq_dynamic();
 
 	/* Legacy IRQ descriptors are already allocated by the arch. */
-	if (gsi < NR_IRQS_LEGACY)
+	if (gsi < nr_legacy_irqs())
 		irq = gsi;
 	else
 		irq = irq_alloc_desc_at(gsi, -1);
@@ -446,7 +447,7 @@ static void xen_free_irq(unsigned irq)
 	kfree(info);
 
 	/* Legacy IRQ descriptors are managed by the arch. */
-	if (irq < NR_IRQS_LEGACY)
+	if (irq < nr_legacy_irqs())
 		return;
 
 	irq_free_desc(irq);

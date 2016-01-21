@@ -5,8 +5,6 @@
 config PINCTRL
 	bool
 
-if PINCTRL
-
 menu "Pin controllers"
 	depends on PINCTRL
 
@@ -66,6 +64,19 @@ config PINCTRL_AT91
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to enable the at91 pinctrl driver
+
+config PINCTRL_AT91PIO4
+	bool "AT91 PIO4 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  Say Y here to enable the at91 pinctrl/gpio driver for Atmel PIO4
+	  controller available on sama5d2 SoC.
 
 config PINCTRL_AMD
 	bool "AMD GPIO pin control"
@@ -261,5 +272,3 @@ config PINCTRL_TB10X
 	select GPIOLIB
 
 endmenu
-
-endif

@@ -58,8 +58,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &serial0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	aliases {
@@ -75,12 +74,11 @@
 };
 
 &extbus {
-	ranges = <0 0x00000000 0x0f000000 0x01000000
-		  1 0x00000000 0x00000000 0x08000000>;
+	ranges = <1 0x00000000 0x42000000 0x02000000>;
 };
 
 &support_card {
-	ranges = <0x00000000 1 0x03f00000 0x00100000>;
+	ranges = <0x00000000 1 0x01f00000 0x00100000>;
 };
 
 &ethsc {

@@ -403,7 +403,7 @@ void tty_schedule_flip(struct tty_port *port)
 	 * flush_to_ldisc() sees buffer data.
 	 */
 	smp_store_release(&buf->tail->commit, buf->tail->used);
-	schedule_work(&buf->work);
+	queue_work(system_unbound_wq, &buf->work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -450,7 +450,7 @@ receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
 		count = disc->ops->receive_buf2(tty, p, f, count);
 	else {
 		count = min_t(int, count, tty->receive_room);
-		if (count)
+		if (count && disc->ops->receive_buf)
 			disc->ops->receive_buf(tty, p, f, count);
 	}
 	return count;
@@ -586,4 +586,14 @@ EXPORT_SYMBOL_GPL(tty_buffer_set_limit);
 void tty_buffer_set_lock_subclass(struct tty_port *port)
 {
 	lockdep_set_subclass(&port->buf.lock, TTY_LOCK_SLAVE);
+}
+
+bool tty_buffer_restart_work(struct tty_port *port)
+{
+	return queue_work(system_unbound_wq, &port->buf.work);
+}
+
+bool tty_buffer_cancel_work(struct tty_port *port)
+{
+	return cancel_work_sync(&port->buf.work);
 }

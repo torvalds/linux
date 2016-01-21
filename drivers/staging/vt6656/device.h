@@ -389,6 +389,8 @@ struct vnt_private {
 	u8 bb_pre_ed_rssi;
 	u8 bb_pre_ed_index;
 
+	u16 wake_up_count;
+
 	/* command timer */
 	struct delayed_work run_command_work;
 

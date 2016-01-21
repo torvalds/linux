@@ -403,7 +403,7 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 		goto return_max;
 	}
 
-	if (ch0 == 0) {
+	if (!ch0) {
 		/* have no data, so return LAST VALUE */
 		ret = chip->als_cur_info.lux;
 		goto out_unlock;
@@ -418,9 +418,9 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	if (p->ratio == 0) {
 		lux = 0;
 	} else {
-		ch0lux = DIV_ROUND_UP((ch0 * p->ch0),
+		ch0lux = DIV_ROUND_UP(ch0 * p->ch0,
 			tsl2X7X_als_gainadj[chip->tsl2x7x_settings.als_gain]);
-		ch1lux = DIV_ROUND_UP((ch1 * p->ch1),
+		ch1lux = DIV_ROUND_UP(ch1 * p->ch1,
 			tsl2X7X_als_gainadj[chip->tsl2x7x_settings.als_gain]);
 		lux = ch0lux - ch1lux;
 	}
@@ -678,7 +678,7 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 
 	/* determine als integration register */
 	als_count = (chip->tsl2x7x_settings.als_time * 100 + 135) / 270;
-	if (als_count == 0)
+	if (!als_count)
 		als_count = 1; /* ensure at least one cycle */
 
 	/* convert back to time (encompasses overrides) */
@@ -825,7 +825,7 @@ void tsl2x7x_prox_calculate(int *data, int length,
 	int sample_sum;
 	int tmp;
 
-	if (length == 0)
+	if (!length)
 		length = 1;
 
 	sample_sum = 0;
@@ -1057,7 +1057,7 @@ static ssize_t tsl2x7x_als_persistence_store(struct device *dev,
 	z = y * TSL2X7X_MIN_ITIME;
 
 	filter_delay =
-		DIV_ROUND_UP(((result.integer * 1000) + result.fract), z);
+		DIV_ROUND_UP((result.integer * 1000) + result.fract, z);
 
 	chip->tsl2x7x_settings.persistence &= 0xF0;
 	chip->tsl2x7x_settings.persistence |= (filter_delay & 0x0F);
@@ -1103,7 +1103,7 @@ static ssize_t tsl2x7x_prox_persistence_store(struct device *dev,
 	z = y * TSL2X7X_MIN_ITIME;
 
 	filter_delay =
-		DIV_ROUND_UP(((result.integer * 1000) + result.fract), z);
+		DIV_ROUND_UP((result.integer * 1000) + result.fract, z);
 
 	chip->tsl2x7x_settings.persistence &= 0x0F;
 	chip->tsl2x7x_settings.persistence |= ((filter_delay << 4) & 0xF0);

@@ -60,7 +60,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __tof
+#ifndef __tof_h__
 #define __tof_h__
 
 #include "fw-api-tof.h"

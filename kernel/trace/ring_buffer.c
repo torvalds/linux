@@ -829,7 +829,7 @@ rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
  * writer is ever on it, the previous pointer never points
  * back to the reader page.
  */
-static int rb_is_reader_page(struct buffer_page *page)
+static bool rb_is_reader_page(struct buffer_page *page)
 {
 	struct list_head *list = page->list.prev;
 
@@ -1887,12 +1887,6 @@ rb_event_index(struct ring_buffer_event *event)
 	return (addr & ~PAGE_MASK) - BUF_PAGE_HDR_SIZE;
 }
 
-static void rb_reset_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
-{
-	cpu_buffer->read_stamp = cpu_buffer->reader_page->page->time_stamp;
-	cpu_buffer->reader_page->read = 0;
-}
-
 static void rb_inc_iter(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
@@ -2270,7 +2264,7 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
 	return skip_time_extend(event);
 }
 
-static inline int rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
+static inline bool rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 				     struct ring_buffer_event *event);
 
 /**
@@ -2498,7 +2492,7 @@ static inline void rb_event_discard(struct ring_buffer_event *event)
 		event->time_delta = 1;
 }
 
-static inline int
+static inline bool
 rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 		   struct ring_buffer_event *event)
 {
@@ -2803,8 +2797,11 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 	event = __rb_reserve_next(cpu_buffer, &info);
 
-	if (unlikely(PTR_ERR(event) == -EAGAIN))
+	if (unlikely(PTR_ERR(event) == -EAGAIN)) {
+		if (info.add_timestamp)
+			info.length -= RB_LEN_TIME_EXTEND;
 		goto again;
+	}
 
 	if (!event)
 		goto out_fail;
@@ -3039,7 +3036,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ring_buffer_write);
 
-static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
+static bool rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = cpu_buffer->reader_page;
 	struct buffer_page *head = rb_set_head_page(cpu_buffer);
@@ -3047,7 +3044,7 @@ static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 
 	/* In case of error, head will be NULL */
 	if (unlikely(!head))
-		return 1;
+		return true;
 
 	return reader->read == rb_page_commit(reader) &&
 		(commit == reader ||
@@ -3626,7 +3623,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 
 	/* Finally update the reader page to the new head */
 	cpu_buffer->reader_page = reader;
-	rb_reset_reader_page(cpu_buffer);
+	cpu_buffer->reader_page->read = 0;
 
 	if (overwrite != cpu_buffer->last_overrun) {
 		cpu_buffer->lost_events = overwrite - cpu_buffer->last_overrun;
@@ -3636,6 +3633,10 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	goto again;
 
  out:
+	/* Update the read_stamp on the first event */
+	if (reader && reader->read == 0)
+		cpu_buffer->read_stamp = reader->page->time_stamp;
+
 	arch_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 
@@ -4267,7 +4268,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_reset);
  * rind_buffer_empty - is the ring buffer empty?
  * @buffer: The ring buffer to test
  */
-int ring_buffer_empty(struct ring_buffer *buffer)
+bool ring_buffer_empty(struct ring_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
@@ -4285,10 +4286,10 @@ int ring_buffer_empty(struct ring_buffer *buffer)
 		local_irq_restore(flags);
 
 		if (!ret)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_empty);
 
@@ -4297,7 +4298,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_empty);
  * @buffer: The ring buffer
  * @cpu: The CPU buffer to test
  */
-int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
+bool ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
@@ -4305,7 +4306,7 @@ int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 	int ret;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
-		return 1;
+		return true;
 
 	cpu_buffer = buffer->buffers[cpu];
 	local_irq_save(flags);

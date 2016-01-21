@@ -76,7 +76,8 @@ static inline void __hlist_nulls_del(struct hlist_nulls_node *n)
 {
 	struct hlist_nulls_node *next = n->next;
 	struct hlist_nulls_node **pprev = n->pprev;
-	*pprev = next;
+
+	WRITE_ONCE(*pprev, next);
 	if (!is_a_nulls(next))
 		next->pprev = pprev;
 }

@@ -163,10 +163,8 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
 void qat_alg_asym_callback(void *resp);
-int qat_algs_init(void);
-void qat_algs_exit(void);
 int qat_algs_register(void);
-int qat_algs_unregister(void);
+void qat_algs_unregister(void);
 int qat_asym_algs_register(void);
 void qat_asym_algs_unregister(void);
 

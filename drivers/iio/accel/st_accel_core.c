@@ -612,6 +612,7 @@ static const struct iio_info accel_info = {
 	.attrs = &st_accel_attribute_group,
 	.read_raw = &st_accel_read_raw,
 	.write_raw = &st_accel_write_raw,
+	.debugfs_reg_access = &st_sensors_debugfs_reg_access,
 };
 
 #ifdef CONFIG_IIO_TRIGGER

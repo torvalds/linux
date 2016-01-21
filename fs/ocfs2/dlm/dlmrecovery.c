@@ -205,7 +205,7 @@ int dlm_launch_recovery_thread(struct dlm_ctxt *dlm)
 	mlog(0, "starting dlm recovery thread...\n");
 
 	dlm->dlm_reco_thread_task = kthread_run(dlm_recovery_thread, dlm,
-						"dlm_reco_thread");
+			"dlm_reco-%s", dlm->name);
 	if (IS_ERR(dlm->dlm_reco_thread_task)) {
 		mlog_errno(PTR_ERR(dlm->dlm_reco_thread_task));
 		dlm->dlm_reco_thread_task = NULL;

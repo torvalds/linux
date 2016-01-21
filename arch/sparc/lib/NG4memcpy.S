@@ -48,9 +48,15 @@
 #ifndef EX_LD
 #define EX_LD(x)	x
 #endif
+#ifndef EX_LD_FP
+#define EX_LD_FP(x)	x
+#endif
 
 #ifndef EX_ST
 #define EX_ST(x)	x
+#endif
+#ifndef EX_ST_FP
+#define EX_ST_FP(x)	x
 #endif
 
 #ifndef EX_RETVAL
@@ -210,17 +216,17 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	sub		%o2, %o4, %o2
 	alignaddr	%o1, %g0, %g1
 	add		%o1, %o4, %o1
-	EX_LD(LOAD(ldd, %g1 + 0x00, %f0))
-1:	EX_LD(LOAD(ldd, %g1 + 0x08, %f2))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x00, %f0))
+1:	EX_LD_FP(LOAD(ldd, %g1 + 0x08, %f2))
 	subcc		%o4, 0x40, %o4
-	EX_LD(LOAD(ldd, %g1 + 0x10, %f4))
-	EX_LD(LOAD(ldd, %g1 + 0x18, %f6))
-	EX_LD(LOAD(ldd, %g1 + 0x20, %f8))
-	EX_LD(LOAD(ldd, %g1 + 0x28, %f10))
-	EX_LD(LOAD(ldd, %g1 + 0x30, %f12))
-	EX_LD(LOAD(ldd, %g1 + 0x38, %f14))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x10, %f4))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x18, %f6))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x20, %f8))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x28, %f10))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x30, %f12))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x38, %f14))
 	faligndata	%f0, %f2, %f16
-	EX_LD(LOAD(ldd, %g1 + 0x40, %f0))
+	EX_LD_FP(LOAD(ldd, %g1 + 0x40, %f0))
 	faligndata	%f2, %f4, %f18
 	add		%g1, 0x40, %g1
 	faligndata	%f4, %f6, %f20
@@ -229,14 +235,14 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	faligndata	%f10, %f12, %f26
 	faligndata	%f12, %f14, %f28
 	faligndata	%f14, %f0, %f30
-	EX_ST(STORE(std, %f16, %o0 + 0x00))
-	EX_ST(STORE(std, %f18, %o0 + 0x08))
-	EX_ST(STORE(std, %f20, %o0 + 0x10))
-	EX_ST(STORE(std, %f22, %o0 + 0x18))
-	EX_ST(STORE(std, %f24, %o0 + 0x20))
-	EX_ST(STORE(std, %f26, %o0 + 0x28))
-	EX_ST(STORE(std, %f28, %o0 + 0x30))
-	EX_ST(STORE(std, %f30, %o0 + 0x38))
+	EX_ST_FP(STORE(std, %f16, %o0 + 0x00))
+	EX_ST_FP(STORE(std, %f18, %o0 + 0x08))
+	EX_ST_FP(STORE(std, %f20, %o0 + 0x10))
+	EX_ST_FP(STORE(std, %f22, %o0 + 0x18))
+	EX_ST_FP(STORE(std, %f24, %o0 + 0x20))
+	EX_ST_FP(STORE(std, %f26, %o0 + 0x28))
+	EX_ST_FP(STORE(std, %f28, %o0 + 0x30))
+	EX_ST_FP(STORE(std, %f30, %o0 + 0x38))
 	add		%o0, 0x40, %o0
 	bne,pt		%icc, 1b
 	 LOAD(prefetch, %g1 + 0x200, #n_reads_strong)

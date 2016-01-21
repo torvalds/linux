@@ -12,7 +12,7 @@
 #include <asm/disabled-features.h>
 #endif
 
-#define NCAPINTS	13	/* N 32-bit words worth of info */
+#define NCAPINTS	14	/* N 32-bit words worth of info */
 #define NBUGINTS	1	/* N 32-bit bug flags */
 
 /*
@@ -216,6 +216,7 @@
 #define X86_FEATURE_PAUSEFILTER ( 8*32+13) /* AMD filtered pause intercept */
 #define X86_FEATURE_PFTHRESHOLD ( 8*32+14) /* AMD pause filter threshold */
 #define X86_FEATURE_VMMCALL     ( 8*32+15) /* Prefer vmmcall to vmcall */
+#define X86_FEATURE_XENPV       ( 8*32+16) /* "" Xen paravirtual guest */
 
 
 /* Intel-defined CPU features, CPUID level 0x00000007:0 (ebx), word 9 */
@@ -254,6 +255,9 @@
 
 /* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:1 (edx), word 12 */
 #define X86_FEATURE_CQM_OCCUP_LLC (12*32+ 0) /* LLC occupancy monitoring if 1 */
+
+/* AMD-defined CPU features, CPUID level 0x80000008 (ebx), word 13 */
+#define X86_FEATURE_CLZERO	(13*32+0) /* CLZERO instruction */
 
 /*
  * BUG word(s)

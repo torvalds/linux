@@ -44,7 +44,7 @@
 
 			clockgen_a9_pll: clockgen-a9-pll {
 				#clock-cells = <1>;
-				compatible = "st,stih407-plls-c32-a9", "st,clkgen-plls-c32";
+				compatible = "st,stih418-plls-c28-a9", "st,clkgen-plls-c32";
 
 				clocks = <&clk_sysin>;
 

@@ -30,8 +30,7 @@
 #define CV_CTLCFG_GEN_SB_ERR       0x2000
 #define CV_CTLCFG_GEN_DB_ERR       0x4000
 
-#define CV_CTLCFG_ECC_AUTO_EN     (CV_CTLCFG_ECC_EN | \
-				   CV_CTLCFG_ECC_CORR_EN)
+#define CV_CTLCFG_ECC_AUTO_EN     (CV_CTLCFG_ECC_EN)
 
 /* SDRAM Controller Address Width Register */
 #define CV_DRAMADDRW_OFST          0x2C
@@ -181,13 +180,11 @@ struct altr_sdram_prv_data {
 	int ecc_irq_clr_mask;
 	int ecc_cnt_rst_offset;
 	int ecc_cnt_rst_mask;
-#ifdef CONFIG_EDAC_DEBUG
 	struct edac_dev_sysfs_attribute *eccmgr_sysfs_attr;
 	int ecc_enable_mask;
 	int ce_set_mask;
 	int ue_set_mask;
 	int ce_ue_trgr_offset;
-#endif
 };
 
 /* Altera SDRAM Memory Controller data */

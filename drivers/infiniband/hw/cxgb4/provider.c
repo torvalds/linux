@@ -209,7 +209,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		if (addr >= rdev->oc_mw_pa)
 			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
 		else {
-			if (is_t5(rdev->lldi.adapter_type))
+			if (!is_t4(rdev->lldi.adapter_type))
 				vma->vm_page_prot =
 					t4_pgprot_wc(vma->vm_page_prot);
 			else
@@ -557,8 +557,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.bind_mw = c4iw_bind_mw;
 	dev->ibdev.dealloc_mw = c4iw_dealloc_mw;
 	dev->ibdev.alloc_mr = c4iw_alloc_mr;
-	dev->ibdev.alloc_fast_reg_page_list = c4iw_alloc_fastreg_pbl;
-	dev->ibdev.free_fast_reg_page_list = c4iw_free_fastreg_pbl;
+	dev->ibdev.map_mr_sg = c4iw_map_mr_sg;
 	dev->ibdev.attach_mcast = c4iw_multicast_attach;
 	dev->ibdev.detach_mcast = c4iw_multicast_detach;
 	dev->ibdev.process_mad = c4iw_process_mad;

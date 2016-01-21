@@ -32,7 +32,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -1027,7 +1026,7 @@ int ipath_init_qp_table(struct ipath_ibdev *idev, int size)
 	idev->qp_table.last = 1;	/* QPN 0 and 1 are special. */
 	idev->qp_table.max = size;
 	idev->qp_table.nmaps = 1;
-	idev->qp_table.table = kzalloc(size * sizeof(*idev->qp_table.table),
+	idev->qp_table.table = kcalloc(size, sizeof(*idev->qp_table.table),
 				       GFP_KERNEL);
 	if (idev->qp_table.table == NULL) {
 		ret = -ENOMEM;

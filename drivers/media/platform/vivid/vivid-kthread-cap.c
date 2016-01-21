@@ -236,8 +236,8 @@ static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
 	void *vbuf;
 
 	if (p == 0 || tpg_g_buffers(tpg) > 1)
-		return vb2_plane_vaddr(&buf->vb, p);
-	vbuf = vb2_plane_vaddr(&buf->vb, 0);
+		return vb2_plane_vaddr(&buf->vb.vb2_buf, p);
+	vbuf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 	for (i = 0; i < p; i++)
 		vbuf += bpl[i] * h / tpg->vdownsampling[i];
 	return vbuf;
@@ -246,7 +246,7 @@ static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
 static int vivid_copy_buffer(struct vivid_dev *dev, unsigned p, u8 *vcapbuf,
 		struct vivid_buffer *vid_cap_buf)
 {
-	bool blank = dev->must_blank[vid_cap_buf->vb.v4l2_buf.index];
+	bool blank = dev->must_blank[vid_cap_buf->vb.vb2_buf.index];
 	struct tpg_data *tpg = &dev->tpg;
 	struct vivid_buffer *vid_out_buf = NULL;
 	unsigned vdiv = dev->fmt_out->vdownsampling[p];
@@ -283,12 +283,12 @@ static int vivid_copy_buffer(struct vivid_dev *dev, unsigned p, u8 *vcapbuf,
 	if (vid_out_buf == NULL)
 		return -ENODATA;
 
-	vid_cap_buf->vb.v4l2_buf.field = vid_out_buf->vb.v4l2_buf.field;
+	vid_cap_buf->vb.field = vid_out_buf->vb.field;
 
 	voutbuf = plane_vaddr(tpg, vid_out_buf, p,
 			      dev->bytesperline_out, dev->fmt_out_rect.height);
 	if (p < dev->fmt_out->buffers)
-		voutbuf += vid_out_buf->vb.v4l2_planes[p].data_offset;
+		voutbuf += vid_out_buf->vb.vb2_buf.planes[p].data_offset;
 	voutbuf += tpg_hdiv(tpg, p, dev->loop_vid_out.left) +
 		(dev->loop_vid_out.top / vdiv) * stride_out;
 	vcapbuf += tpg_hdiv(tpg, p, dev->compose_cap.left) +
@@ -429,17 +429,19 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 	bool is_loop = false;
 
 	if (dev->loop_video && dev->can_loop_video &&
-	    ((vivid_is_svid_cap(dev) && !VIVID_INVALID_SIGNAL(dev->std_signal_mode)) ||
-	     (vivid_is_hdmi_cap(dev) && !VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode))))
+		((vivid_is_svid_cap(dev) &&
+		!VIVID_INVALID_SIGNAL(dev->std_signal_mode)) ||
+		(vivid_is_hdmi_cap(dev) &&
+		!VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode))))
 		is_loop = true;
 
-	buf->vb.v4l2_buf.sequence = dev->vid_cap_seq_count;
+	buf->vb.sequence = dev->vid_cap_seq_count;
 	/*
 	 * Take the timestamp now if the timestamp source is set to
 	 * "Start of Exposure".
 	 */
 	if (dev->tstamp_src_is_soe)
-		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
+		v4l2_get_timestamp(&buf->vb.timestamp);
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE) {
 		/*
 		 * 60 Hz standards start with the bottom field, 50 Hz standards
@@ -447,19 +449,19 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		 * then the field is TOP for 50 Hz and BOTTOM for 60 Hz
 		 * standards.
 		 */
-		buf->vb.v4l2_buf.field = ((dev->vid_cap_seq_count & 1) ^ is_60hz) ?
+		buf->vb.field = ((dev->vid_cap_seq_count & 1) ^ is_60hz) ?
 			V4L2_FIELD_BOTTOM : V4L2_FIELD_TOP;
 		/*
 		 * The sequence counter counts frames, not fields. So divide
 		 * by two.
 		 */
-		buf->vb.v4l2_buf.sequence /= 2;
+		buf->vb.sequence /= 2;
 	} else {
-		buf->vb.v4l2_buf.field = dev->field_cap;
+		buf->vb.field = dev->field_cap;
 	}
-	tpg_s_field(tpg, buf->vb.v4l2_buf.field,
+	tpg_s_field(tpg, buf->vb.field,
 		    dev->field_cap == V4L2_FIELD_ALTERNATE);
-	tpg_s_perc_fill_blank(tpg, dev->must_blank[buf->vb.v4l2_buf.index]);
+	tpg_s_perc_fill_blank(tpg, dev->must_blank[buf->vb.vb2_buf.index]);
 
 	vivid_precalc_copy_rects(dev);
 
@@ -479,13 +481,16 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		}
 		tpg_calc_text_basep(tpg, basep, p, vbuf);
 		if (!is_loop || vivid_copy_buffer(dev, p, vbuf, buf))
-			tpg_fill_plane_buffer(tpg, vivid_get_std_cap(dev), p, vbuf);
+			tpg_fill_plane_buffer(tpg, vivid_get_std_cap(dev),
+					p, vbuf);
 	}
-	dev->must_blank[buf->vb.v4l2_buf.index] = false;
+	dev->must_blank[buf->vb.vb2_buf.index] = false;
 
 	/* Updates stream time, only update at the start of a new frame. */
-	if (dev->field_cap != V4L2_FIELD_ALTERNATE || (buf->vb.v4l2_buf.sequence & 1) == 0)
-		dev->ms_vid_cap = jiffies_to_msecs(jiffies - dev->jiffies_vid_cap);
+	if (dev->field_cap != V4L2_FIELD_ALTERNATE ||
+			(buf->vb.sequence & 1) == 0)
+		dev->ms_vid_cap =
+			jiffies_to_msecs(jiffies - dev->jiffies_vid_cap);
 
 	ms = dev->ms_vid_cap;
 	if (dev->osd_mode <= 1) {
@@ -494,9 +499,9 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 				(ms / (60 * 1000)) % 60,
 				(ms / 1000) % 60,
 				ms % 1000,
-				buf->vb.v4l2_buf.sequence,
+				buf->vb.sequence,
 				(dev->field_cap == V4L2_FIELD_ALTERNATE) ?
-					(buf->vb.v4l2_buf.field == V4L2_FIELD_TOP ?
+					(buf->vb.field == V4L2_FIELD_TOP ?
 					 " top" : " bottom") : "");
 		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 	}
@@ -553,8 +558,8 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 	 * the timestamp now.
 	 */
 	if (!dev->tstamp_src_is_soe)
-		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	buf->vb.v4l2_buf.timestamp.tv_sec += dev->time_wrap_offset;
+		v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
 }
 
 /*
@@ -600,7 +605,7 @@ static void vivid_overlay(struct vivid_dev *dev, struct vivid_buffer *buf)
 	struct tpg_data *tpg = &dev->tpg;
 	unsigned pixsize = tpg_g_twopixelsize(tpg, 0) / 2;
 	void *vbase = dev->fb_vbase_cap;
-	void *vbuf = vb2_plane_vaddr(&buf->vb, 0);
+	void *vbuf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 	unsigned img_width = dev->compose_cap.width;
 	unsigned img_height = dev->compose_cap.height;
 	unsigned stride = tpg->bytesperline[0];
@@ -616,7 +621,7 @@ static void vivid_overlay(struct vivid_dev *dev, struct vivid_buffer *buf)
 		return;
 	if ((dev->overlay_cap_field == V4L2_FIELD_TOP ||
 	     dev->overlay_cap_field == V4L2_FIELD_BOTTOM) &&
-	    dev->overlay_cap_field != buf->vb.v4l2_buf.field)
+	    dev->overlay_cap_field != buf->vb.field)
 		return;
 
 	vbuf += dev->compose_cap.left * pixsize + dev->compose_cap.top * stride;
@@ -699,17 +704,17 @@ static void vivid_thread_vid_cap_tick(struct vivid_dev *dev, int dropped_bufs)
 		/* Fill buffer */
 		vivid_fillbuff(dev, vid_cap_buf);
 		dprintk(dev, 1, "filled buffer %d\n",
-			vid_cap_buf->vb.v4l2_buf.index);
+			vid_cap_buf->vb.vb2_buf.index);
 
 		/* Handle overlay */
 		if (dev->overlay_cap_owner && dev->fb_cap.base &&
-				dev->fb_cap.fmt.pixelformat == dev->fmt_cap->fourcc)
+			dev->fb_cap.fmt.pixelformat == dev->fmt_cap->fourcc)
 			vivid_overlay(dev, vid_cap_buf);
 
-		vb2_buffer_done(&vid_cap_buf->vb, dev->dqbuf_error ?
+		vb2_buffer_done(&vid_cap_buf->vb.vb2_buf, dev->dqbuf_error ?
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		dprintk(dev, 2, "vid_cap buffer %d done\n",
-				vid_cap_buf->vb.v4l2_buf.index);
+				vid_cap_buf->vb.vb2_buf.index);
 	}
 
 	if (vbi_cap_buf) {
@@ -717,10 +722,10 @@ static void vivid_thread_vid_cap_tick(struct vivid_dev *dev, int dropped_bufs)
 			vivid_sliced_vbi_cap_process(dev, vbi_cap_buf);
 		else
 			vivid_raw_vbi_cap_process(dev, vbi_cap_buf);
-		vb2_buffer_done(&vbi_cap_buf->vb, dev->dqbuf_error ?
+		vb2_buffer_done(&vbi_cap_buf->vb.vb2_buf, dev->dqbuf_error ?
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		dprintk(dev, 2, "vbi_cap %d done\n",
-				vbi_cap_buf->vb.v4l2_buf.index);
+				vbi_cap_buf->vb.vb2_buf.index);
 	}
 	dev->dqbuf_error = false;
 
@@ -884,9 +889,9 @@ void vivid_stop_generating_vid_cap(struct vivid_dev *dev, bool *pstreaming)
 			buf = list_entry(dev->vid_cap_active.next,
 					 struct vivid_buffer, list);
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 			dprintk(dev, 2, "vid_cap buffer %d done\n",
-				buf->vb.v4l2_buf.index);
+				buf->vb.vb2_buf.index);
 		}
 	}
 
@@ -897,9 +902,9 @@ void vivid_stop_generating_vid_cap(struct vivid_dev *dev, bool *pstreaming)
 			buf = list_entry(dev->vbi_cap_active.next,
 					 struct vivid_buffer, list);
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 			dprintk(dev, 2, "vbi_cap buffer %d done\n",
-				buf->vb.v4l2_buf.index);
+				buf->vb.vb2_buf.index);
 		}
 	}
 

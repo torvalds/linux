@@ -78,12 +78,14 @@ struct imx_pinctrl_soc_info {
 	struct imx_pin_reg *pin_regs;
 	struct imx_pin_group *groups;
 	unsigned int ngroups;
+	unsigned int group_index;
 	struct imx_pmx_func *functions;
 	unsigned int nfunctions;
 	unsigned int flags;
 };
 
 #define SHARE_MUX_CONF_REG	0x1
+#define ZERO_OFFSET_VALID	0x2
 
 #define NO_MUX		0x0
 #define NO_PAD		0x0

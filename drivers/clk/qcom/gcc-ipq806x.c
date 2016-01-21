@@ -3058,15 +3058,8 @@ static int gcc_ipq806x_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gcc_ipq806x_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_ipq806x_driver = {
 	.probe		= gcc_ipq806x_probe,
-	.remove		= gcc_ipq806x_remove,
 	.driver		= {
 		.name	= "gcc-ipq806x",
 		.of_match_table = gcc_ipq806x_match_table,

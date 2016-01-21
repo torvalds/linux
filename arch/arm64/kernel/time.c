@@ -67,15 +67,9 @@ void __init time_init(void)
 	u32 arch_timer_rate;
 
 	of_clk_init(NULL);
-	clocksource_of_init();
+	clocksource_probe();
 
 	tick_setup_hrtimer_broadcast();
-
-	/*
-	 * Since ACPI or FDT will only one be available in the system,
-	 * we can use acpi_generic_timer_init() here safely
-	 */
-	acpi_generic_timer_init();
 
 	arch_timer_rate = arch_timer_get_rate();
 	if (!arch_timer_rate)

@@ -50,7 +50,6 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_OPS(name)
 
 STA_FILE(aid, sta.aid, D);
-STA_FILE(last_ack_signal, last_ack_signal, D);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
@@ -366,11 +365,10 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(agg_status);
 	DEBUGFS_ADD(ht_capa);
 	DEBUGFS_ADD(vht_capa);
-	DEBUGFS_ADD(last_ack_signal);
 
-	DEBUGFS_ADD_COUNTER(rx_duplicates, num_duplicates);
-	DEBUGFS_ADD_COUNTER(rx_fragments, rx_fragments);
-	DEBUGFS_ADD_COUNTER(tx_filtered, tx_filtered_count);
+	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
+	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
+	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
 		debugfs_create_x32("driver_buffered_tids", 0400,

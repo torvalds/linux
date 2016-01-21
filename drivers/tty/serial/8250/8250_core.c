@@ -569,6 +569,9 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 	for (i = 0; i < nr_uarts; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
+		if (up->port.type == PORT_8250_CIR)
+			continue;
+
 		if (up->port.dev)
 			continue;
 
@@ -1027,13 +1030,24 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		if (up->dl_write)
 			uart->dl_write = up->dl_write;
 
-		if (serial8250_isa_config != NULL)
-			serial8250_isa_config(0, &uart->port,
-					&uart->capabilities);
+		if (uart->port.type != PORT_8250_CIR) {
+			if (serial8250_isa_config != NULL)
+				serial8250_isa_config(0, &uart->port,
+						&uart->capabilities);
 
-		ret = uart_add_one_port(&serial8250_reg, &uart->port);
-		if (ret == 0)
-			ret = uart->port.line;
+			ret = uart_add_one_port(&serial8250_reg,
+						&uart->port);
+			if (ret == 0)
+				ret = uart->port.line;
+		} else {
+			dev_info(uart->port.dev,
+				"skipping CIR port at 0x%lx / 0x%llx, IRQ %d\n",
+				uart->port.iobase,
+				(unsigned long long)uart->port.mapbase,
+				uart->port.irq);
+
+			ret = 0;
+		}
 	}
 	mutex_unlock(&serial_mutex);
 

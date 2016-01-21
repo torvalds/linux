@@ -295,9 +295,9 @@
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
 
+#define DTE_FLAG_IOTLB	(1ULL << 32)
+#define DTE_FLAG_GV	(1ULL << 55)
 #define DTE_FLAG_MASK	(0x3ffULL << 32)
-#define DTE_FLAG_IOTLB	(0x01UL << 32)
-#define DTE_FLAG_GV	(0x01ULL << 55)
 #define DTE_GLX_SHIFT	(56)
 #define DTE_GLX_MASK	(3)
 
@@ -517,11 +517,6 @@ struct amd_iommu {
 	/* pci domain of this IOMMU */
 	u16 pci_seg;
 
-	/* first device this IOMMU handles. read from PCI */
-	u16 first_device;
-	/* last device this IOMMU handles. read from PCI */
-	u16 last_device;
-
 	/* start of exclusion range of that IOMMU */
 	u64 exclusion_start;
 	/* length of exclusion range of that IOMMU */
@@ -529,11 +524,7 @@ struct amd_iommu {
 
 	/* command buffer virtual address */
 	u8 *cmd_buf;
-	/* size of command buffer */
-	u32 cmd_buf_size;
 
-	/* size of event buffer */
-	u32 evt_buf_size;
 	/* event buffer virtual address */
 	u8 *evt_buf;
 
@@ -675,7 +666,7 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
  * If true, the addresses will be flushed on unmap time, not when
  * they are reused
  */
-extern u32 amd_iommu_unmap_flush;
+extern bool amd_iommu_unmap_flush;
 
 /* Smallest max PASID supported by any IOMMU in the system */
 extern u32 amd_iommu_max_pasid;

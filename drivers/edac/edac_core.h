@@ -94,6 +94,8 @@ do {									\
 
 #define edac_dev_name(dev) (dev)->dev_name
 
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
+
 /*
  * The following are the structures to provide for a generic
  * or abstract 'edac_device'. This set of structures and the

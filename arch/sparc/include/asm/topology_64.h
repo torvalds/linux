@@ -31,6 +31,9 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 	 cpu_all_mask : \
 	 cpumask_of_node(pcibus_to_node(bus)))
 
+int __node_distance(int, int);
+#define node_distance(a, b) __node_distance(a, b)
+
 #else /* CONFIG_NUMA */
 
 #include <asm-generic/topology.h>

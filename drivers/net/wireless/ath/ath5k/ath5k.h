@@ -1367,7 +1367,7 @@ struct ath5k_hw {
 	u8			ah_retry_long;
 	u8			ah_retry_short;
 
-	u32			ah_use_32khz_clock;
+	bool			ah_use_32khz_clock;
 
 	u8			ah_coverage_class;
 	bool			ah_ack_bitrate_high;

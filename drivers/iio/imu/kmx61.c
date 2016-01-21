@@ -27,7 +27,6 @@
 #include <linux/iio/trigger_consumer.h>
 
 #define KMX61_DRV_NAME "kmx61"
-#define KMX61_GPIO_NAME "kmx61_int"
 #define KMX61_IRQ_NAME "kmx61_event"
 
 #define KMX61_REG_WHO_AM_I	0x00
@@ -1243,30 +1242,6 @@ static const char *kmx61_match_acpi_device(struct device *dev)
 	return dev_name(dev);
 }
 
-static int kmx61_gpio_probe(struct i2c_client *client, struct kmx61_data *data)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, KMX61_GPIO_NAME, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-	return ret;
-}
-
 static struct iio_dev *kmx61_indiodev_setup(struct kmx61_data *data,
 					    const struct iio_info *info,
 					    const struct iio_chan_spec *chan,
@@ -1359,9 +1334,6 @@ static int kmx61_probe(struct i2c_client *client,
 	ret = kmx61_chip_init(data);
 	if (ret < 0)
 		return ret;
-
-	if (client->irq < 0)
-		client->irq = kmx61_gpio_probe(client, data);
 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

@@ -84,31 +84,38 @@ union xfs_btree_rec {
 /*
  * Generic stats interface
  */
-#define __XFS_BTREE_STATS_INC(type, stat) \
-	XFS_STATS_INC(xs_ ## type ## _2_ ## stat)
-#define XFS_BTREE_STATS_INC(cur, stat)  \
+#define __XFS_BTREE_STATS_INC(mp, type, stat) \
+	XFS_STATS_INC(mp, xs_ ## type ## _2_ ## stat)
+#define XFS_BTREE_STATS_INC(cur, stat)	\
 do {    \
+	struct xfs_mount *__mp = cur->bc_mp; \
 	switch (cur->bc_btnum) {  \
-	case XFS_BTNUM_BNO: __XFS_BTREE_STATS_INC(abtb, stat); break;	\
-	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_INC(abtc, stat); break;	\
-	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_INC(bmbt, stat); break;	\
-	case XFS_BTNUM_INO: __XFS_BTREE_STATS_INC(ibt, stat); break;	\
-	case XFS_BTNUM_FINO: __XFS_BTREE_STATS_INC(fibt, stat); break;	\
+	case XFS_BTNUM_BNO: __XFS_BTREE_STATS_INC(__mp, abtb, stat); break; \
+	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_INC(__mp, abtc, stat); break; \
+	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_INC(__mp, bmbt, stat); break; \
+	case XFS_BTNUM_INO: __XFS_BTREE_STATS_INC(__mp, ibt, stat); break; \
+	case XFS_BTNUM_FINO: __XFS_BTREE_STATS_INC(__mp, fibt, stat); break; \
 	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
 	}       \
 } while (0)
 
-#define __XFS_BTREE_STATS_ADD(type, stat, val) \
-	XFS_STATS_ADD(xs_ ## type ## _2_ ## stat, val)
+#define __XFS_BTREE_STATS_ADD(mp, type, stat, val) \
+	XFS_STATS_ADD(mp, xs_ ## type ## _2_ ## stat, val)
 #define XFS_BTREE_STATS_ADD(cur, stat, val)  \
 do {    \
+	struct xfs_mount *__mp = cur->bc_mp; \
 	switch (cur->bc_btnum) {  \
-	case XFS_BTNUM_BNO: __XFS_BTREE_STATS_ADD(abtb, stat, val); break; \
-	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_ADD(abtc, stat, val); break; \
-	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_ADD(bmbt, stat, val); break; \
-	case XFS_BTNUM_INO: __XFS_BTREE_STATS_ADD(ibt, stat, val); break; \
-	case XFS_BTNUM_FINO: __XFS_BTREE_STATS_ADD(fibt, stat, val); break; \
-	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
+	case XFS_BTNUM_BNO:	\
+		__XFS_BTREE_STATS_ADD(__mp, abtb, stat, val); break; \
+	case XFS_BTNUM_CNT:	\
+		__XFS_BTREE_STATS_ADD(__mp, abtc, stat, val); break; \
+	case XFS_BTNUM_BMAP:	\
+		__XFS_BTREE_STATS_ADD(__mp, bmbt, stat, val); break; \
+	case XFS_BTNUM_INO:	\
+		__XFS_BTREE_STATS_ADD(__mp, ibt, stat, val); break; \
+	case XFS_BTNUM_FINO:	\
+		__XFS_BTREE_STATS_ADD(__mp, fibt, stat, val); break; \
+	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break; \
 	}       \
 } while (0)
 

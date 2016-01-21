@@ -166,7 +166,7 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 
 	/* LND will fill in the address part of the NID */
 	ni->ni_nid = LNET_MKNID(net, 0);
-	ni->ni_last_alive = get_seconds();
+	ni->ni_last_alive = ktime_get_real_seconds();
 	list_add_tail(&ni->ni_list, nilist);
 	return ni;
  failed:
@@ -824,7 +824,7 @@ lnet_match_network_token(char *token, int len, __u32 *ipaddrs, int nip)
 	for (rc = i = 0; !rc && i < nip; i++)
 		rc = cfs_ip_addr_match(ipaddrs[i], &list);
 
-	cfs_ip_addr_free(&list);
+	cfs_expr_list_free_list(&list);
 
 	return rc;
 }

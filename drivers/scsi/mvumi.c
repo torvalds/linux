@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 #include <linux/blkdev.h>
 #include <linux/io.h>
 #include <scsi/scsi.h>
@@ -858,8 +859,8 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 	struct mvumi_hs_page2 *hs_page2;
 	struct mvumi_hs_page4 *hs_page4;
 	struct mvumi_hs_page3 *hs_page3;
-	struct timeval time;
-	unsigned int local_time;
+	u64 time;
+	u64 local_time;
 
 	switch (hs_header->page_code) {
 	case HS_PAGE_HOST_INFO:
@@ -877,9 +878,8 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 		hs_page2->slot_number = 0;
 		hs_page2->intr_level = 0;
 		hs_page2->intr_vector = 0;
-		do_gettimeofday(&time);
-		local_time = (unsigned int) (time.tv_sec -
-						(sys_tz.tz_minuteswest * 60));
+		time = ktime_get_real_seconds();
+		local_time = (time - (sys_tz.tz_minuteswest * 60));
 		hs_page2->seconds_since1970 = local_time;
 		hs_header->checksum = mvumi_calculate_checksum(hs_header,
 						hs_header->frame_length);

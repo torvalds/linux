@@ -17,6 +17,11 @@
 
 void lowpan_netdev_setup(struct net_device *dev, enum lowpan_lltypes lltype)
 {
+	dev->addr_len = EUI64_ADDR_LEN;
+	dev->type = ARPHRD_6LOWPAN;
+	dev->mtu = IPV6_MIN_MTU;
+	dev->priv_flags |= IFF_NO_QUEUE;
+
 	lowpan_priv(dev)->lltype = lltype;
 }
 EXPORT_SYMBOL(lowpan_netdev_setup);

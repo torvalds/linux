@@ -23,8 +23,10 @@
 
 #include <linux/compiler.h>
 
-#ifndef CONFIG_ARM64_64K_PAGES
+#ifdef CONFIG_ARM64_4K_PAGES
 #define THREAD_SIZE_ORDER	2
+#elif defined(CONFIG_ARM64_16K_PAGES)
+#define THREAD_SIZE_ORDER	0
 #endif
 
 #define THREAD_SIZE		16384
@@ -111,7 +113,6 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_RESTORE_SIGMASK	20
 #define TIF_SINGLESTEP		21
 #define TIF_32BIT		22	/* 32bit process */
-#define TIF_SWITCH_MM		23	/* deferred switch_mm */
 
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)

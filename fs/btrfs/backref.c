@@ -355,10 +355,16 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 
 	index = srcu_read_lock(&fs_info->subvol_srcu);
 
-	root = btrfs_read_fs_root_no_name(fs_info, &root_key);
+	root = btrfs_get_fs_root(fs_info, &root_key, false);
 	if (IS_ERR(root)) {
 		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = PTR_ERR(root);
+		goto out;
+	}
+
+	if (btrfs_test_is_dummy_root(root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, index);
+		ret = -ENOENT;
 		goto out;
 	}
 

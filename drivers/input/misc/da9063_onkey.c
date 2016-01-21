@@ -1,5 +1,5 @@
 /*
- * OnKey device driver for DA9063
+ * OnKey device driver for DA9063 and DA9062 PMICs
  * Copyright (C) 2015  Dialog Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or
@@ -24,36 +24,96 @@
 #include <linux/mfd/da9063/core.h>
 #include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
+#include <linux/mfd/da9062/core.h>
+#include <linux/mfd/da9062/registers.h>
+
+struct da906x_chip_config {
+	/* REGS */
+	int onkey_status;
+	int onkey_pwr_signalling;
+	int onkey_fault_log;
+	int onkey_shutdown;
+	/* MASKS */
+	int onkey_nonkey_mask;
+	int onkey_nonkey_lock_mask;
+	int onkey_key_reset_mask;
+	int onkey_shutdown_mask;
+	/* NAMES */
+	const char *name;
+};
 
 struct da9063_onkey {
-	struct da9063 *hw;
 	struct delayed_work work;
 	struct input_dev *input;
 	struct device *dev;
+	struct regmap *regmap;
+	const struct da906x_chip_config *config;
+	char phys[32];
 	bool key_power;
+};
+
+static const struct da906x_chip_config da9063_regs = {
+	/* REGS */
+	.onkey_status = DA9063_REG_STATUS_A,
+	.onkey_pwr_signalling = DA9063_REG_CONTROL_B,
+	.onkey_fault_log = DA9063_REG_FAULT_LOG,
+	.onkey_shutdown = DA9063_REG_CONTROL_F,
+	/* MASKS */
+	.onkey_nonkey_mask = DA9063_NONKEY,
+	.onkey_nonkey_lock_mask = DA9063_NONKEY_LOCK,
+	.onkey_key_reset_mask = DA9063_KEY_RESET,
+	.onkey_shutdown_mask = DA9063_SHUTDOWN,
+	/* NAMES */
+	.name = DA9063_DRVNAME_ONKEY,
+};
+
+static const struct da906x_chip_config da9062_regs = {
+	/* REGS */
+	.onkey_status = DA9062AA_STATUS_A,
+	.onkey_pwr_signalling = DA9062AA_CONTROL_B,
+	.onkey_fault_log = DA9062AA_FAULT_LOG,
+	.onkey_shutdown = DA9062AA_CONTROL_F,
+	/* MASKS */
+	.onkey_nonkey_mask = DA9062AA_NONKEY_MASK,
+	.onkey_nonkey_lock_mask = DA9062AA_NONKEY_LOCK_MASK,
+	.onkey_key_reset_mask = DA9062AA_KEY_RESET_MASK,
+	.onkey_shutdown_mask = DA9062AA_SHUTDOWN_MASK,
+	/* NAMES */
+	.name = "da9062-onkey",
+};
+
+static const struct of_device_id da9063_compatible_reg_id_table[] = {
+	{ .compatible = "dlg,da9063-onkey", .data = &da9063_regs },
+	{ .compatible = "dlg,da9062-onkey", .data = &da9062_regs },
+	{ },
 };
 
 static void da9063_poll_on(struct work_struct *work)
 {
-	struct da9063_onkey *onkey = container_of(work, struct da9063_onkey,
-						  work.work);
+	struct da9063_onkey *onkey = container_of(work,
+						struct da9063_onkey,
+						work.work);
+	const struct da906x_chip_config *config = onkey->config;
 	unsigned int val;
 	int fault_log = 0;
 	bool poll = true;
 	int error;
 
 	/* Poll to see when the pin is released */
-	error = regmap_read(onkey->hw->regmap, DA9063_REG_STATUS_A, &val);
+	error = regmap_read(onkey->regmap,
+			    config->onkey_status,
+			    &val);
 	if (error) {
 		dev_err(onkey->dev,
 			"Failed to read ON status: %d\n", error);
 		goto err_poll;
 	}
 
-	if (!(val & DA9063_NONKEY)) {
-		error = regmap_update_bits(onkey->hw->regmap,
-					   DA9063_REG_CONTROL_B,
-					   DA9063_NONKEY_LOCK, 0);
+	if (!(val & config->onkey_nonkey_mask)) {
+		error = regmap_update_bits(onkey->regmap,
+					   config->onkey_pwr_signalling,
+					   config->onkey_nonkey_lock_mask,
+					   0);
 		if (error) {
 			dev_err(onkey->dev,
 				"Failed to reset the Key Delay %d\n", error);
@@ -70,15 +130,16 @@ static void da9063_poll_on(struct work_struct *work)
 	 * If the fault log KEY_RESET is detected, then clear it
 	 * and shut down the system.
 	 */
-	error = regmap_read(onkey->hw->regmap,
-			    DA9063_REG_FAULT_LOG, &fault_log);
+	error = regmap_read(onkey->regmap,
+			    config->onkey_fault_log,
+			    &fault_log);
 	if (error) {
 		dev_warn(&onkey->input->dev,
 			 "Cannot read FAULT_LOG: %d\n", error);
-	} else if (fault_log & DA9063_KEY_RESET) {
-		error = regmap_write(onkey->hw->regmap,
-				     DA9063_REG_FAULT_LOG,
-				     DA9063_KEY_RESET);
+	} else if (fault_log & config->onkey_key_reset_mask) {
+		error = regmap_write(onkey->regmap,
+				     config->onkey_fault_log,
+				     config->onkey_key_reset_mask);
 		if (error) {
 			dev_warn(&onkey->input->dev,
 				 "Cannot reset KEY_RESET fault log: %d\n",
@@ -88,10 +149,10 @@ static void da9063_poll_on(struct work_struct *work)
 			 * and then send shutdown command
 			 */
 			dev_dbg(&onkey->input->dev,
-				 "Sending SHUTDOWN to DA9063 ...\n");
-			error = regmap_write(onkey->hw->regmap,
-					     DA9063_REG_CONTROL_F,
-					     DA9063_SHUTDOWN);
+				"Sending SHUTDOWN to DA9063 ...\n");
+			error = regmap_write(onkey->regmap,
+					     config->onkey_shutdown,
+					     config->onkey_shutdown_mask);
 			if (error)
 				dev_err(&onkey->input->dev,
 					"Cannot SHUTDOWN DA9063: %d\n",
@@ -107,11 +168,14 @@ err_poll:
 static irqreturn_t da9063_onkey_irq_handler(int irq, void *data)
 {
 	struct da9063_onkey *onkey = data;
+	const struct da906x_chip_config *config = onkey->config;
 	unsigned int val;
 	int error;
 
-	error = regmap_read(onkey->hw->regmap, DA9063_REG_STATUS_A, &val);
-	if (onkey->key_power && !error && (val & DA9063_NONKEY)) {
+	error = regmap_read(onkey->regmap,
+			    config->onkey_status,
+			    &val);
+	if (onkey->key_power && !error && (val & config->onkey_nonkey_mask)) {
 		input_report_key(onkey->input, KEY_POWER, 1);
 		input_sync(onkey->input);
 		schedule_delayed_work(&onkey->work, 0);
@@ -139,8 +203,14 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
 	struct da9063_pdata *pdata = dev_get_platdata(da9063->dev);
 	struct da9063_onkey *onkey;
+	const struct of_device_id *match;
 	int irq;
 	int error;
+
+	match = of_match_node(da9063_compatible_reg_id_table,
+			      pdev->dev.of_node);
+	if (!match)
+		return -ENXIO;
 
 	onkey = devm_kzalloc(&pdev->dev, sizeof(struct da9063_onkey),
 			     GFP_KERNEL);
@@ -149,8 +219,14 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	onkey->config = match->data;
 	onkey->dev = &pdev->dev;
-	onkey->hw = da9063;
+
+	onkey->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!onkey->regmap) {
+		dev_err(&pdev->dev, "Parent regmap unavailable.\n");
+		return -ENXIO;
+	}
 
 	if (pdata)
 		onkey->key_power = pdata->key_power;
@@ -165,8 +241,10 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	onkey->input->name = DA9063_DRVNAME_ONKEY;
-	onkey->input->phys = DA9063_DRVNAME_ONKEY "/input0";
+	onkey->input->name = onkey->config->name;
+	snprintf(onkey->phys, sizeof(onkey->phys), "%s/input0",
+		 onkey->config->name);
+	onkey->input->phys = onkey->phys;
 	onkey->input->dev.parent = &pdev->dev;
 
 	if (onkey->key_power)
@@ -216,11 +294,12 @@ static struct platform_driver da9063_onkey_driver = {
 	.probe	= da9063_onkey_probe,
 	.driver	= {
 		.name	= DA9063_DRVNAME_ONKEY,
+		.of_match_table = da9063_compatible_reg_id_table,
 	},
 };
 module_platform_driver(da9063_onkey_driver);
 
 MODULE_AUTHOR("S Twiss <stwiss.opensource@diasemi.com>");
-MODULE_DESCRIPTION("Onkey device driver for Dialog DA9063");
+MODULE_DESCRIPTION("Onkey device driver for Dialog DA9063 and DA9062");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DA9063_DRVNAME_ONKEY);

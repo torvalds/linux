@@ -39,6 +39,7 @@
  */
 
 #include <assert.h>
+#include <stdarg.h>
 
 extern char strbuf_slopbuf[];
 struct strbuf {
@@ -85,6 +86,7 @@ static inline void strbuf_addstr(struct strbuf *sb, const char *s) {
 
 __attribute__((format(printf,2,3)))
 extern void strbuf_addf(struct strbuf *sb, const char *fmt, ...);
+extern void strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap);
 
 /* XXX: if read fails, any partial read is undone */
 extern ssize_t strbuf_read(struct strbuf *, int fd, ssize_t hint);

@@ -387,6 +387,24 @@
 	};
 };
 
+&pio {
+	spi_pins_a: spi0 {
+		pins_spi {
+			pinmux = <MT8173_PIN_69_SPI_CK__FUNC_SPI_CK_0_>,
+				<MT8173_PIN_70_SPI_MI__FUNC_SPI_MI_0_>,
+				<MT8173_PIN_71_SPI_MO__FUNC_SPI_MO_0_>,
+				<MT8173_PIN_72_SPI_CS__FUNC_SPI_CS_0_>;
+		};
+	};
+};
+
+&spi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_pins_a>;
+	mediatek,pad-select = <0>;
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };

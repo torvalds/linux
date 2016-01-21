@@ -564,7 +564,6 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
  *
  ******************************************************************************/
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 			    struct acpi_buffer *ret_buffer)
@@ -596,7 +595,6 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);
 }
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
  *

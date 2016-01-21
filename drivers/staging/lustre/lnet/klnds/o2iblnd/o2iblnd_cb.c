@@ -40,6 +40,8 @@
 
 #include "o2iblnd.h"
 
+static void kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx);
+
 static void
 kiblnd_tx_done(lnet_ni_t *ni, kib_tx_t *tx)
 {
@@ -178,24 +180,28 @@ kiblnd_post_rx(kib_rx_t *rx, int credit)
 
 	rx->rx_nob = -1;			/* flag posted */
 
+	/* NB: need an extra reference after ib_post_recv because we don't
+	 * own this rx (and rx::rx_conn) anymore, LU-5678.
+	 */
+	kiblnd_conn_addref(conn);
 	rc = ib_post_recv(conn->ibc_cmid->qp, &rx->rx_wrq, &bad_wrq);
-	if (rc != 0) {
+	if (unlikely(rc != 0)) {
 		CERROR("Can't post rx for %s: %d, bad_wrq: %p\n",
 		       libcfs_nid2str(conn->ibc_peer->ibp_nid), rc, bad_wrq);
 		rx->rx_nob = 0;
 	}
 
 	if (conn->ibc_state < IBLND_CONN_ESTABLISHED) /* Initial post */
-		return rc;
+		goto out;
 
-	if (rc != 0) {
+	if (unlikely(rc != 0)) {
 		kiblnd_close_conn(conn, rc);
 		kiblnd_drop_rx(rx);	     /* No more posts for this rx */
-		return rc;
+		goto out;
 	}
 
 	if (credit == IBLND_POSTRX_NO_CREDIT)
-		return 0;
+		goto out;
 
 	spin_lock(&conn->ibc_lock);
 	if (credit == IBLND_POSTRX_PEER_CREDIT)
@@ -205,7 +211,9 @@ kiblnd_post_rx(kib_rx_t *rx, int credit)
 	spin_unlock(&conn->ibc_lock);
 
 	kiblnd_check_sends(conn);
-	return 0;
+out:
+	kiblnd_conn_decref(conn);
+	return rc;
 }
 
 static kib_tx_t *
@@ -253,11 +261,10 @@ kiblnd_handle_completion(kib_conn_t *conn, int txtype, int status, __u64 cookie)
 	}
 
 	if (tx->tx_status == 0) {	       /* success so far */
-		if (status < 0) {	       /* failed? */
+		if (status < 0) /* failed? */
 			tx->tx_status = status;
-		} else if (txtype == IBLND_MSG_GET_REQ) {
+		else if (txtype == IBLND_MSG_GET_REQ)
 			lnet_set_reply_msg_len(ni, tx->tx_lntmsg[1], status);
-		}
 	}
 
 	tx->tx_waiting = 0;
@@ -591,8 +598,7 @@ kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
 	return 0;
 }
 
-void
-kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx)
+static void kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx)
 {
 	kib_net_t *net = ni->ni_data;
 
@@ -610,9 +616,8 @@ kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx)
 	}
 }
 
-int
-kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx,
-	      kib_rdma_desc_t *rd, int nfrags)
+static int kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
+			 int nfrags)
 {
 	kib_hca_dev_t *hdev = tx->tx_pool->tpo_hdev;
 	kib_net_t *net = ni->ni_data;
@@ -649,7 +654,6 @@ kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx,
 
 	return -EINVAL;
 }
-
 
 static int
 kiblnd_setup_rd_iov(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
@@ -834,7 +838,7 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 		/* close_conn will launch failover */
 		rc = -ENETDOWN;
 	} else {
-		rc = ib_post_send(conn->ibc_cmid->qp, tx->tx_wrq, &bad_wrq);
+		rc = ib_post_send(conn->ibc_cmid->qp, &tx->tx_wrq->wr, &bad_wrq);
 	}
 
 	conn->ibc_last_send = jiffies;
@@ -1008,7 +1012,7 @@ kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob)
 {
 	kib_hca_dev_t *hdev = tx->tx_pool->tpo_hdev;
 	struct ib_sge *sge = &tx->tx_sge[tx->tx_nwrq];
-	struct ib_send_wr *wrq = &tx->tx_wrq[tx->tx_nwrq];
+	struct ib_rdma_wr *wrq = &tx->tx_wrq[tx->tx_nwrq];
 	int nob = offsetof(kib_msg_t, ibm_u) + body_nob;
 	struct ib_mr *mr;
 
@@ -1027,12 +1031,12 @@ kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob)
 
 	memset(wrq, 0, sizeof(*wrq));
 
-	wrq->next       = NULL;
-	wrq->wr_id      = kiblnd_ptr2wreqid(tx, IBLND_WID_TX);
-	wrq->sg_list    = sge;
-	wrq->num_sge    = 1;
-	wrq->opcode     = IB_WR_SEND;
-	wrq->send_flags = IB_SEND_SIGNALED;
+	wrq->wr.next       = NULL;
+	wrq->wr.wr_id      = kiblnd_ptr2wreqid(tx, IBLND_WID_TX);
+	wrq->wr.sg_list    = sge;
+	wrq->wr.num_sge    = 1;
+	wrq->wr.opcode     = IB_WR_SEND;
+	wrq->wr.send_flags = IB_SEND_SIGNALED;
 
 	tx->tx_nwrq++;
 }
@@ -1044,7 +1048,7 @@ kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
 	kib_msg_t *ibmsg = tx->tx_msg;
 	kib_rdma_desc_t *srcrd = tx->tx_rd;
 	struct ib_sge *sge = &tx->tx_sge[0];
-	struct ib_send_wr *wrq = &tx->tx_wrq[0];
+	struct ib_rdma_wr *wrq = &tx->tx_wrq[0], *next;
 	int rc  = resid;
 	int srcidx;
 	int dstidx;
@@ -1090,16 +1094,17 @@ kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
 		sge->length = wrknob;
 
 		wrq = &tx->tx_wrq[tx->tx_nwrq];
+		next = wrq + 1;
 
-		wrq->next       = wrq + 1;
-		wrq->wr_id      = kiblnd_ptr2wreqid(tx, IBLND_WID_RDMA);
-		wrq->sg_list    = sge;
-		wrq->num_sge    = 1;
-		wrq->opcode     = IB_WR_RDMA_WRITE;
-		wrq->send_flags = 0;
+		wrq->wr.next       = &next->wr;
+		wrq->wr.wr_id      = kiblnd_ptr2wreqid(tx, IBLND_WID_RDMA);
+		wrq->wr.sg_list    = sge;
+		wrq->wr.num_sge    = 1;
+		wrq->wr.opcode     = IB_WR_RDMA_WRITE;
+		wrq->wr.send_flags = 0;
 
-		wrq->wr.rdma.remote_addr = kiblnd_rd_frag_addr(dstrd, dstidx);
-		wrq->wr.rdma.rkey        = kiblnd_rd_frag_key(dstrd, dstidx);
+		wrq->remote_addr = kiblnd_rd_frag_addr(dstrd, dstidx);
+		wrq->rkey        = kiblnd_rd_frag_key(dstrd, dstidx);
 
 		srcidx = kiblnd_rd_consume_frag(srcrd, srcidx, wrknob);
 		dstidx = kiblnd_rd_consume_frag(dstrd, dstidx, wrknob);
@@ -1422,6 +1427,7 @@ kiblnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	unsigned int payload_offset = lntmsg->msg_offset;
 	unsigned int payload_nob = lntmsg->msg_len;
 	kib_msg_t *ibmsg;
+	kib_rdma_desc_t  *rd;
 	kib_tx_t *tx;
 	int nob;
 	int rc;
@@ -1465,16 +1471,14 @@ kiblnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 		}
 
 		ibmsg = tx->tx_msg;
-
+		rd = &ibmsg->ibm_u.get.ibgm_rd;
 		if ((lntmsg->msg_md->md_options & LNET_MD_KIOV) == 0)
-			rc = kiblnd_setup_rd_iov(ni, tx,
-						 &ibmsg->ibm_u.get.ibgm_rd,
+			rc = kiblnd_setup_rd_iov(ni, tx, rd,
 						 lntmsg->msg_md->md_niov,
 						 lntmsg->msg_md->md_iov.iov,
 						 0, lntmsg->msg_md->md_length);
 		else
-			rc = kiblnd_setup_rd_kiov(ni, tx,
-						  &ibmsg->ibm_u.get.ibgm_rd,
+			rc = kiblnd_setup_rd_kiov(ni, tx, rd,
 						  lntmsg->msg_md->md_niov,
 						  lntmsg->msg_md->md_iov.kiov,
 						  0, lntmsg->msg_md->md_length);
@@ -1485,7 +1489,7 @@ kiblnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 			return -EIO;
 		}
 
-		nob = offsetof(kib_get_msg_t, ibgm_rd.rd_frags[tx->tx_nfrags]);
+		nob = offsetof(kib_get_msg_t, ibgm_rd.rd_frags[rd->rd_nfrags]);
 		ibmsg->ibm_u.get.ibgm_cookie = tx->tx_cookie;
 		ibmsg->ibm_u.get.ibgm_hdr = *hdr;
 
@@ -1650,7 +1654,6 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 	kib_msg_t *rxmsg = rx->rx_msg;
 	kib_conn_t *conn = rx->rx_conn;
 	kib_tx_t *tx;
-	kib_msg_t *txmsg;
 	int nob;
 	int post_credit = IBLND_POSTRX_PEER_CREDIT;
 	int rc = 0;
@@ -1687,7 +1690,10 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 		lnet_finalize(ni, lntmsg, 0);
 		break;
 
-	case IBLND_MSG_PUT_REQ:
+	case IBLND_MSG_PUT_REQ: {
+		kib_msg_t	*txmsg;
+		kib_rdma_desc_t *rd;
+
 		if (mlen == 0) {
 			lnet_finalize(ni, lntmsg, 0);
 			kiblnd_send_completion(rx->rx_conn, IBLND_MSG_PUT_NAK, 0,
@@ -1705,13 +1711,12 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 		}
 
 		txmsg = tx->tx_msg;
+		rd = &txmsg->ibm_u.putack.ibpam_rd;
 		if (kiov == NULL)
-			rc = kiblnd_setup_rd_iov(ni, tx,
-						 &txmsg->ibm_u.putack.ibpam_rd,
+			rc = kiblnd_setup_rd_iov(ni, tx, rd,
 						 niov, iov, offset, mlen);
 		else
-			rc = kiblnd_setup_rd_kiov(ni, tx,
-						  &txmsg->ibm_u.putack.ibpam_rd,
+			rc = kiblnd_setup_rd_kiov(ni, tx, rd,
 						  niov, kiov, offset, mlen);
 		if (rc != 0) {
 			CERROR("Can't setup PUT sink for %s: %d\n",
@@ -1723,7 +1728,7 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 			break;
 		}
 
-		nob = offsetof(kib_putack_msg_t, ibpam_rd.rd_frags[tx->tx_nfrags]);
+		nob = offsetof(kib_putack_msg_t, ibpam_rd.rd_frags[rd->rd_nfrags]);
 		txmsg->ibm_u.putack.ibpam_src_cookie = rxmsg->ibm_u.putreq.ibprm_cookie;
 		txmsg->ibm_u.putack.ibpam_dst_cookie = tx->tx_cookie;
 
@@ -1736,6 +1741,7 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 		/* reposted buffer reserved for PUT_DONE */
 		post_credit = IBLND_POSTRX_NO_CREDIT;
 		break;
+		}
 
 	case IBLND_MSG_GET_REQ:
 		if (lntmsg != NULL) {
@@ -2148,6 +2154,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	unsigned long flags;
 	int rc;
 	struct sockaddr_in *peer_addr;
+
 	LASSERT(!in_interrupt());
 
 	/* cmid inherits 'context' from the corresponding listener id */
@@ -2163,6 +2170,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	if (*kiblnd_tunables.kib_require_priv_port &&
 	    ntohs(peer_addr->sin_port) >= PROT_SOCK) {
 		__u32 ip = ntohl(peer_addr->sin_addr.s_addr);
+
 		CERROR("Peer's port (%pI4h:%hu) is not privileged\n",
 		       &ip, ntohs(peer_addr->sin_port));
 		goto failed;
@@ -3227,7 +3235,7 @@ kiblnd_cq_completion(struct ib_cq *cq, void *arg)
 	 * consuming my CQ I could be called after all completions have
 	 * occurred.  But in this case, ibc_nrx == 0 && ibc_nsends_posted == 0
 	 * and this CQ is about to be destroyed so I NOOP. */
-	kib_conn_t *conn = (kib_conn_t *)arg;
+	kib_conn_t *conn = arg;
 	struct kib_sched_info *sched = conn->ibc_sched;
 	unsigned long flags;
 

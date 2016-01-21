@@ -23,6 +23,8 @@
  * AK4648 is tested.
  */
 
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -128,11 +130,8 @@
 #define I2S		(3 << 0)
 
 /* MD_CTL2 */
-#define FS0		(1 << 0)
-#define FS1		(1 << 1)
-#define FS2		(1 << 2)
-#define FS3		(1 << 5)
-#define FS_MASK		(FS0 | FS1 | FS2 | FS3)
+#define FSs(val)	(((val & 0x7) << 0) | ((val & 0x8) << 2))
+#define PSs(val)	((val & 0x3) << 6)
 
 /* MD_CTL3 */
 #define BST1		(1 << 3)
@@ -147,6 +146,7 @@ struct ak4642_drvdata {
 
 struct ak4642_priv {
 	const struct ak4642_drvdata *drvdata;
+	struct clk *mcko;
 };
 
 /*
@@ -430,56 +430,56 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int ak4642_set_mcko(struct snd_soc_codec *codec,
+			   u32 frequency)
+{
+	u32 fs_list[] = {
+		[0] = 8000,
+		[1] = 12000,
+		[2] = 16000,
+		[3] = 24000,
+		[4] = 7350,
+		[5] = 11025,
+		[6] = 14700,
+		[7] = 22050,
+		[10] = 32000,
+		[11] = 48000,
+		[14] = 29400,
+		[15] = 44100,
+	};
+	u32 ps_list[] = {
+		[0] = 256,
+		[1] = 128,
+		[2] = 64,
+		[3] = 32
+	};
+	int ps, fs;
+
+	for (ps = 0; ps < ARRAY_SIZE(ps_list); ps++) {
+		for (fs = 0; fs < ARRAY_SIZE(fs_list); fs++) {
+			if (frequency == ps_list[ps] * fs_list[fs]) {
+				snd_soc_write(codec, MD_CTL2,
+					      PSs(ps) | FSs(fs));
+				return 0;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u8 rate;
+	struct ak4642_priv *priv = snd_soc_codec_get_drvdata(codec);
+	u32 rate = clk_get_rate(priv->mcko);
 
-	switch (params_rate(params)) {
-	case 7350:
-		rate = FS2;
-		break;
-	case 8000:
-		rate = 0;
-		break;
-	case 11025:
-		rate = FS2 | FS0;
-		break;
-	case 12000:
-		rate = FS0;
-		break;
-	case 14700:
-		rate = FS2 | FS1;
-		break;
-	case 16000:
-		rate = FS1;
-		break;
-	case 22050:
-		rate = FS2 | FS1 | FS0;
-		break;
-	case 24000:
-		rate = FS1 | FS0;
-		break;
-	case 29400:
-		rate = FS3 | FS2 | FS1;
-		break;
-	case 32000:
-		rate = FS3 | FS1;
-		break;
-	case 44100:
-		rate = FS3 | FS2 | FS1 | FS0;
-		break;
-	case 48000:
-		rate = FS3 | FS1 | FS0;
-		break;
-	default:
-		return -EINVAL;
-	}
-	snd_soc_update_bits(codec, MD_CTL2, FS_MASK, rate);
+	if (!rate)
+		rate = params_rate(params) * 256;
 
-	return 0;
+	return ak4642_set_mcko(codec, rate);
 }
 
 static int ak4642_set_bias_level(struct snd_soc_codec *codec,
@@ -532,7 +532,18 @@ static int ak4642_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int ak4642_probe(struct snd_soc_codec *codec)
+{
+	struct ak4642_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	if (priv->mcko)
+		ak4642_set_mcko(codec, clk_get_rate(priv->mcko));
+
+	return 0;
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
+	.probe			= ak4642_probe,
 	.resume			= ak4642_resume,
 	.set_bias_level		= ak4642_set_bias_level,
 	.controls		= ak4642_snd_controls,
@@ -580,19 +591,54 @@ static const struct ak4642_drvdata ak4648_drvdata = {
 	.extended_frequencies = 1,
 };
 
+#ifdef CONFIG_COMMON_CLK
+static struct clk *ak4642_of_parse_mcko(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct clk *clk;
+	const char *clk_name = np->name;
+	const char *parent_clk_name = NULL;
+	u32 rate;
+
+	if (of_property_read_u32(np, "clock-frequency", &rate))
+		return NULL;
+
+	if (of_property_read_bool(np, "clocks"))
+		parent_clk_name = of_clk_get_parent_name(np, 0);
+
+	of_property_read_string(np, "clock-output-names", &clk_name);
+
+	clk = clk_register_fixed_rate(dev, clk_name, parent_clk_name,
+				      (parent_clk_name) ? 0 : CLK_IS_ROOT,
+				      rate);
+	if (!IS_ERR(clk))
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
+
+	return clk;
+}
+#else
+#define ak4642_of_parse_mcko(d) 0
+#endif
+
 static const struct of_device_id ak4642_of_match[];
 static int ak4642_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device *dev = &i2c->dev;
+	struct device_node *np = dev->of_node;
 	const struct ak4642_drvdata *drvdata = NULL;
 	struct regmap *regmap;
 	struct ak4642_priv *priv;
+	struct clk *mcko = NULL;
 
 	if (np) {
 		const struct of_device_id *of_id;
 
-		of_id = of_match_device(ak4642_of_match, &i2c->dev);
+		mcko = ak4642_of_parse_mcko(dev);
+		if (IS_ERR(mcko))
+			mcko = NULL;
+
+		of_id = of_match_device(ak4642_of_match, dev);
 		if (of_id)
 			drvdata = of_id->data;
 	} else {
@@ -600,15 +646,16 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (!drvdata) {
-		dev_err(&i2c->dev, "Unknown device type\n");
+		dev_err(dev, "Unknown device type\n");
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->drvdata = drvdata;
+	priv->mcko = mcko;
 
 	i2c_set_clientdata(i2c, priv);
 
@@ -616,7 +663,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return snd_soc_register_codec(&i2c->dev,
+	return snd_soc_register_codec(dev,
 				      &soc_codec_dev_ak4642, &ak4642_dai, 1);
 }
 

@@ -50,10 +50,7 @@ static int cyttsp4_i2c_probe(struct i2c_client *client,
 	ts = cyttsp4_probe(&cyttsp4_i2c_bus_ops, &client->dev, client->irq,
 			  CYTTSP4_I2C_DATA_SIZE);
 
-	if (IS_ERR(ts))
-		return PTR_ERR(ts);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(ts);
 }
 
 static int cyttsp4_i2c_remove(struct i2c_client *client)

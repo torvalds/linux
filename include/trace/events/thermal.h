@@ -4,6 +4,7 @@
 #if !defined(_TRACE_THERMAL_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_THERMAL_H
 
+#include <linux/devfreq.h>
 #include <linux/thermal.h>
 #include <linux/tracepoint.h>
 
@@ -135,6 +136,58 @@ TRACE_EVENT(thermal_power_cpu_limit,
 		__entry->power)
 );
 
+TRACE_EVENT(thermal_power_devfreq_get_power,
+	TP_PROTO(struct thermal_cooling_device *cdev,
+		 struct devfreq_dev_status *status, unsigned long freq,
+		u32 dynamic_power, u32 static_power),
+
+	TP_ARGS(cdev, status,  freq, dynamic_power, static_power),
+
+	TP_STRUCT__entry(
+		__string(type,         cdev->type    )
+		__field(unsigned long, freq          )
+		__field(u32,           load          )
+		__field(u32,           dynamic_power )
+		__field(u32,           static_power  )
+	),
+
+	TP_fast_assign(
+		__assign_str(type, cdev->type);
+		__entry->freq = freq;
+		__entry->load = (100 * status->busy_time) / status->total_time;
+		__entry->dynamic_power = dynamic_power;
+		__entry->static_power = static_power;
+	),
+
+	TP_printk("type=%s freq=%lu load=%u dynamic_power=%u static_power=%u",
+		__get_str(type), __entry->freq,
+		__entry->load, __entry->dynamic_power, __entry->static_power)
+);
+
+TRACE_EVENT(thermal_power_devfreq_limit,
+	TP_PROTO(struct thermal_cooling_device *cdev, unsigned long freq,
+		unsigned long cdev_state, u32 power),
+
+	TP_ARGS(cdev, freq, cdev_state, power),
+
+	TP_STRUCT__entry(
+		__string(type,         cdev->type)
+		__field(unsigned int,  freq      )
+		__field(unsigned long, cdev_state)
+		__field(u32,           power     )
+	),
+
+	TP_fast_assign(
+		__assign_str(type, cdev->type);
+		__entry->freq = freq;
+		__entry->cdev_state = cdev_state;
+		__entry->power = power;
+	),
+
+	TP_printk("type=%s freq=%u cdev_state=%lu power=%u",
+		__get_str(type), __entry->freq, __entry->cdev_state,
+		__entry->power)
+);
 #endif /* _TRACE_THERMAL_H */
 
 /* This part must be outside protection */

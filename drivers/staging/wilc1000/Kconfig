@@ -1,15 +1,16 @@
-config WILC1000
-	tristate "WILC1000 support (WiFi only)"
-	depends on BROKEN
-	depends on !S390
+config WILC1000_DRIVER
+	bool "WILC1000 support (WiFi only)"
 	depends on CFG80211 && WEXT_CORE && INET
-	depends on MMC || SPI
 	---help---
 	  This module only support IEEE 802.11n WiFi.
 
+if WILC1000_DRIVER
+
+config WILC1000
+	tristate
+
 choice
         prompt "Memory Allocation"
-        depends on WILC1000
         default WILC1000_PREALLOCATE_AT_LOADING_DRIVER
 
 config WILC1000_PREALLOCATE_AT_LOADING_DRIVER
@@ -30,12 +31,12 @@ endchoice
 
 choice
 	prompt "Bus Type"
-	depends on WILC1000
 	default WILC1000_SDIO
 
-	config WILC1000_SDIO
+config WILC1000_SDIO
 	bool "SDIO support"
 	depends on MMC
+	select WILC1000
 	---help---
 	  This module adds support for the SDIO interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 SDIO is a full speed interface.
@@ -46,8 +47,9 @@ choice
 	  To use this interface, pin9 (SDIO_SPI_CFG) must be grounded. Select
 	  this if your platform is using the SDIO bus.
 
-	config WILC1000_SPI
+config WILC1000_SPI
 	depends on SPI
+	select WILC1000
 	bool "SPI support"
 	---help---
 	  This module adds support for the SPI interface of adapters using
@@ -61,7 +63,7 @@ endchoice
 
 config WILC1000_HW_OOB_INTR
 	bool "Use out of band interrupt"
-	depends on WILC1000 && WILC1000_SDIO
+	depends on WILC1000_SDIO
 	default n
 	---help---
 	  This option enables out-of-band interrupt support for the WILC1000
@@ -69,3 +71,5 @@ config WILC1000_HW_OOB_INTR
 	  mechanism for SDIO host controllers that don't support SDIO interrupt.
 	  Select this option If the SDIO host controller in your platform
 	  doesn't support SDIO time devision interrupt.
+
+endif

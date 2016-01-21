@@ -17,12 +17,12 @@ struct nf_ipv6_ops {
 	int (*chk_addr)(struct net *net, const struct in6_addr *addr,
 			const struct net_device *dev, int strict);
 	void (*route_input)(struct sk_buff *skb);
-	int (*fragment)(struct sock *sk, struct sk_buff *skb,
-			int (*output)(struct sock *, struct sk_buff *));
+	int (*fragment)(struct net *net, struct sock *sk, struct sk_buff *skb,
+			int (*output)(struct net *, struct sock *, struct sk_buff *));
 };
 
 #ifdef CONFIG_NETFILTER
-int ip6_route_me_harder(struct sk_buff *skb);
+int ip6_route_me_harder(struct net *net, struct sk_buff *skb);
 __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			unsigned int dataoff, u_int8_t protocol);
 

@@ -626,38 +626,26 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 	return -1;
 }
 
-static char *formats_error_string(struct list_head *formats)
+static char *pmu_formats_string(struct list_head *formats)
 {
 	struct perf_pmu_format *format;
-	char *err, *str;
-	static const char *static_terms = "config,config1,config2,name,"
-					  "period,freq,branch_type,time,"
-					  "call-graph,stack-size\n";
+	char *str;
+	struct strbuf buf;
 	unsigned i = 0;
 
-	if (!asprintf(&str, "valid terms:"))
+	if (!formats)
 		return NULL;
 
+	strbuf_init(&buf, 0);
 	/* sysfs exported terms */
-	list_for_each_entry(format, formats, list) {
-		char c = i++ ? ',' : ' ';
+	list_for_each_entry(format, formats, list)
+		strbuf_addf(&buf, i++ ? ",%s" : "%s",
+			    format->name);
 
-		err = str;
-		if (!asprintf(&str, "%s%c%s", err, c, format->name))
-			goto fail;
-		free(err);
-	}
+	str = strbuf_detach(&buf, NULL);
+	strbuf_release(&buf);
 
-	/* static terms */
-	err = str;
-	if (!asprintf(&str, "%s,%s", err, static_terms))
-		goto fail;
-
-	free(err);
 	return str;
-fail:
-	free(err);
-	return NULL;
 }
 
 /*
@@ -693,9 +681,12 @@ static int pmu_config_term(struct list_head *formats,
 		if (verbose)
 			printf("Invalid event/parameter '%s'\n", term->config);
 		if (err) {
+			char *pmu_term = pmu_formats_string(formats);
+
 			err->idx  = term->err_term;
 			err->str  = strdup("unknown term");
-			err->help = formats_error_string(formats);
+			err->help = parse_events_formats_error_string(pmu_term);
+			free(pmu_term);
 		}
 		return -EINVAL;
 	}
@@ -1017,7 +1008,8 @@ void print_pmu_events(const char *event_glob, bool name_only)
 				goto out_enomem;
 			j++;
 		}
-		if (pmu->selectable) {
+		if (pmu->selectable &&
+		    (event_glob == NULL || strglobmatch(pmu->name, event_glob))) {
 			char *s;
 			if (asprintf(&s, "%s//", pmu->name) < 0)
 				goto out_enomem;
@@ -1035,7 +1027,7 @@ void print_pmu_events(const char *event_glob, bool name_only)
 		printf("  %-50s [Kernel PMU event]\n", aliases[j]);
 		printed++;
 	}
-	if (printed)
+	if (printed && pager_in_use())
 		printf("\n");
 out_free:
 	for (j = 0; j < len; j++)

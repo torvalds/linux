@@ -25,10 +25,26 @@ static const struct intel_lpss_platform_info spt_info = {
 	.clk_rate = 120000000,
 };
 
+static const struct intel_lpss_platform_info bxt_info = {
+	.clk_rate = 100000000,
+};
+
+static const struct intel_lpss_platform_info bxt_i2c_info = {
+	.clk_rate = 133000000,
+};
+
 static const struct acpi_device_id intel_lpss_acpi_ids[] = {
 	/* SPT */
 	{ "INT3446", (kernel_ulong_t)&spt_info },
 	{ "INT3447", (kernel_ulong_t)&spt_info },
+	/* BXT */
+	{ "80860AAC", (kernel_ulong_t)&bxt_i2c_info },
+	{ "80860ABC", (kernel_ulong_t)&bxt_info },
+	{ "80860AC2", (kernel_ulong_t)&bxt_info },
+	/* APL */
+	{ "80865AAC", (kernel_ulong_t)&bxt_i2c_info },
+	{ "80865ABC", (kernel_ulong_t)&bxt_info },
+	{ "80865AC2", (kernel_ulong_t)&bxt_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, intel_lpss_acpi_ids);

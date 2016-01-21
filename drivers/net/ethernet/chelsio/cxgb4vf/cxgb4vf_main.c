@@ -56,7 +56,7 @@
  * Generic information about the driver.
  */
 #define DRV_VERSION "2.0.0-ko"
-#define DRV_DESC "Chelsio T4/T5 Virtual Function (VF) Network Driver"
+#define DRV_DESC "Chelsio T4/T5/T6 Virtual Function (VF) Network Driver"
 
 /*
  * Module Parameters.

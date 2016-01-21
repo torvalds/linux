@@ -93,7 +93,7 @@
 
 /* per video frame buffer */
 struct sh_mobile_ceu_buffer {
-	struct vb2_buffer vb; /* v4l buffer must be first */
+	struct vb2_v4l2_buffer vb; /* v4l buffer must be first */
 	struct list_head queue;
 };
 
@@ -112,7 +112,7 @@ struct sh_mobile_ceu_dev {
 
 	spinlock_t lock;		/* Protects video buffer lists */
 	struct list_head capture;
-	struct vb2_buffer *active;
+	struct vb2_v4l2_buffer *active;
 	struct vb2_alloc_ctx *alloc_ctx;
 
 	struct sh_mobile_ceu_info *pdata;
@@ -152,9 +152,9 @@ struct sh_mobile_ceu_cam {
 	u32 code;
 };
 
-static struct sh_mobile_ceu_buffer *to_ceu_vb(struct vb2_buffer *vb)
+static struct sh_mobile_ceu_buffer *to_ceu_vb(struct vb2_v4l2_buffer *vbuf)
 {
-	return container_of(vb, struct sh_mobile_ceu_buffer, vb);
+	return container_of(vbuf, struct sh_mobile_ceu_buffer, vb);
 }
 
 static void ceu_write(struct sh_mobile_ceu_dev *priv,
@@ -210,11 +210,13 @@ static int sh_mobile_ceu_soft_reset(struct sh_mobile_ceu_dev *pcdev)
  *		  for the current frame format if required
  */
 static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
-			const struct v4l2_format *fmt,
+			const void *parg,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct soc_camera_device *icd = container_of(vq, struct soc_camera_device, vb2_vidq);
+	const struct v4l2_format *fmt = parg;
+	struct soc_camera_device *icd = container_of(vq,
+			struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 
@@ -334,7 +336,8 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 		bottom2	= CDBCR;
 	}
 
-	phys_addr_top = vb2_dma_contig_plane_dma_addr(pcdev->active, 0);
+	phys_addr_top =
+		vb2_dma_contig_plane_dma_addr(&pcdev->active->vb2_buf, 0);
 
 	switch (icd->current_fmt->host_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12:
@@ -369,7 +372,8 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 
 static int sh_mobile_ceu_videobuf_prepare(struct vb2_buffer *vb)
 {
-	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
 
 	/* Added list head initialization on alloc */
 	WARN(!list_empty(&buf->queue), "Buffer %p on queue!\n", vb);
@@ -379,17 +383,19 @@ static int sh_mobile_ceu_videobuf_prepare(struct vb2_buffer *vb)
 
 static void sh_mobile_ceu_videobuf_queue(struct vb2_buffer *vb)
 {
-	struct soc_camera_device *icd = container_of(vb->vb2_queue, struct soc_camera_device, vb2_vidq);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct soc_camera_device *icd = container_of(vb->vb2_queue,
+			struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vb);
+	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
 	unsigned long size;
 
 	size = icd->sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %lu)\n",
-			vb->v4l2_buf.index, vb2_plane_size(vb, 0), size);
+			vb->index, vb2_plane_size(vb, 0), size);
 		goto error;
 	}
 
@@ -416,7 +422,7 @@ static void sh_mobile_ceu_videobuf_queue(struct vb2_buffer *vb)
 		 * we are not interested in the return value of
 		 * sh_mobile_ceu_capture here.
 		 */
-		pcdev->active = vb;
+		pcdev->active = vbuf;
 		sh_mobile_ceu_capture(pcdev);
 	}
 	spin_unlock_irq(&pcdev->lock);
@@ -429,14 +435,16 @@ error:
 
 static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 {
-	struct soc_camera_device *icd = container_of(vb->vb2_queue, struct soc_camera_device, vb2_vidq);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct soc_camera_device *icd = container_of(vb->vb2_queue,
+			struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vb);
+	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 
 	spin_lock_irq(&pcdev->lock);
 
-	if (pcdev->active == vb) {
+	if (pcdev->active == vbuf) {
 		/* disable capture (release DMA buffer), reset */
 		ceu_write(pcdev, CAPSR, 1 << 16);
 		pcdev->active = NULL;
@@ -458,7 +466,9 @@ static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 
 static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 {
-	struct soc_camera_device *icd = container_of(vb->vb2_queue, struct soc_camera_device, vb2_vidq);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct soc_camera_device *icd = container_of(vb->vb2_queue,
+			struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 
@@ -467,7 +477,7 @@ static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 		pcdev->buf_total);
 
 	/* This is for locking debugging only */
-	INIT_LIST_HEAD(&to_ceu_vb(vb)->queue);
+	INIT_LIST_HEAD(&to_ceu_vb(vbuf)->queue);
 	return 0;
 }
 
@@ -504,17 +514,17 @@ static struct vb2_ops sh_mobile_ceu_videobuf_ops = {
 static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 {
 	struct sh_mobile_ceu_dev *pcdev = data;
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	int ret;
 
 	spin_lock(&pcdev->lock);
 
-	vb = pcdev->active;
-	if (!vb)
+	vbuf = pcdev->active;
+	if (!vbuf)
 		/* Stale interrupt from a released buffer */
 		goto out;
 
-	list_del_init(&to_ceu_vb(vb)->queue);
+	list_del_init(&to_ceu_vb(vbuf)->queue);
 
 	if (!list_empty(&pcdev->capture))
 		pcdev->active = &list_entry(pcdev->capture.next,
@@ -523,12 +533,13 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 		pcdev->active = NULL;
 
 	ret = sh_mobile_ceu_capture(pcdev);
-	v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
+	v4l2_get_timestamp(&vbuf->timestamp);
 	if (!ret) {
-		vb->v4l2_buf.field = pcdev->field;
-		vb->v4l2_buf.sequence = pcdev->sequence++;
+		vbuf->field = pcdev->field;
+		vbuf->sequence = pcdev->sequence++;
 	}
-	vb2_buffer_done(vb, ret < 0 ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+	vb2_buffer_done(&vbuf->vb2_buf,
+			ret < 0 ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 
 out:
 	spin_unlock(&pcdev->lock);
@@ -633,7 +644,7 @@ static void sh_mobile_ceu_clock_stop(struct soc_camera_host *ici)
 	spin_lock_irq(&pcdev->lock);
 	if (pcdev->active) {
 		list_del_init(&to_ceu_vb(pcdev->active)->queue);
-		vb2_buffer_done(pcdev->active, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&pcdev->active->vb2_buf, VB2_BUF_STATE_ERROR);
 		pcdev->active = NULL;
 	}
 	spin_unlock_irq(&pcdev->lock);

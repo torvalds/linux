@@ -744,6 +744,52 @@ exports one
    possible that some errors could be lost. With rdimm's, they display the
    contents of the registers
 
+AMD64_EDAC REFERENCE DOCUMENTS USED
+-----------------------------------
+amd64_edac module is based on the following documents
+(available from http://support.amd.com/en-us/search/tech-docs):
+
+1. Title:  BIOS and Kernel Developer's Guide for AMD Athlon 64 and AMD
+	   Opteron Processors
+   AMD publication #: 26094
+   Revision: 3.26
+   Link: http://support.amd.com/TechDocs/26094.PDF
+
+2. Title:  BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh
+	   Processors
+   AMD publication #: 32559
+   Revision: 3.00
+   Issue Date: May 2006
+   Link: http://support.amd.com/TechDocs/32559.pdf
+
+3. Title:  BIOS and Kernel Developer's Guide (BKDG) For AMD Family 10h
+	   Processors
+   AMD publication #: 31116
+   Revision: 3.00
+   Issue Date: September 07, 2007
+   Link: http://support.amd.com/TechDocs/31116.pdf
+
+4. Title: BIOS and Kernel Developer's Guide (BKDG) for AMD Family 15h
+	  Models 30h-3Fh Processors
+   AMD publication #: 49125
+   Revision: 3.06
+   Issue Date: 2/12/2015 (latest release)
+   Link: http://support.amd.com/TechDocs/49125_15h_Models_30h-3Fh_BKDG.pdf
+
+5. Title: BIOS and Kernel Developer's Guide (BKDG) for AMD Family 15h
+	  Models 60h-6Fh Processors
+   AMD publication #: 50742
+   Revision: 3.01
+   Issue Date: 7/23/2015 (latest release)
+   Link: http://support.amd.com/TechDocs/50742_15h_Models_60h-6Fh_BKDG.pdf
+
+6. Title: BIOS and Kernel Developer's Guide (BKDG) for AMD Family 16h
+	  Models 00h-0Fh Processors
+   AMD publication #: 48751
+   Revision: 3.03
+   Issue Date: 2/23/2015 (latest release)
+   Link: http://support.amd.com/TechDocs/48751_16h_bkdg.pdf
+
 CREDITS:
 ========
 

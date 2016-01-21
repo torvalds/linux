@@ -18,7 +18,7 @@
  */
 static inline long atomic64_read(const atomic64_t *v)
 {
-	return ACCESS_ONCE((v)->counter);
+	return READ_ONCE((v)->counter);
 }
 
 /**
@@ -30,7 +30,7 @@ static inline long atomic64_read(const atomic64_t *v)
  */
 static inline void atomic64_set(atomic64_t *v, long i)
 {
-	v->counter = i;
+	WRITE_ONCE(v->counter, i);
 }
 
 /**

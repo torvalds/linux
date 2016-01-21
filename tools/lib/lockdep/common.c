@@ -18,7 +18,7 @@ __attribute__((constructor)) static void liblockdep_init(void)
 
 __attribute__((destructor)) static void liblockdep_exit(void)
 {
-	debug_check_no_locks_held(&current_obj);
+	debug_check_no_locks_held();
 }
 
 struct task_struct *__curr(void)

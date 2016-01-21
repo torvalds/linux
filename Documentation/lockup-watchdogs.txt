@@ -20,8 +20,9 @@ kernel mode for more than 10 seconds (see "Implementation" below for
 details), without letting other interrupts have a chance to run.
 Similarly to the softlockup case, the current stack trace is displayed
 upon detection and the system will stay locked up unless the default
-behavior is changed, which can be done through a compile time knob,
-"BOOTPARAM_HARDLOCKUP_PANIC", and a kernel parameter, "nmi_watchdog"
+behavior is changed, which can be done through a sysctl,
+'hardlockup_panic', a compile time knob, "BOOTPARAM_HARDLOCKUP_PANIC",
+and a kernel parameter, "nmi_watchdog"
 (see "Documentation/kernel-parameters.txt" for details).
 
 The panic option can be used in combination with panic_timeout (this

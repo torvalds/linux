@@ -406,8 +406,10 @@ static int lis3l02dq_initial_setup(struct iio_dev *indio_dev)
 		goto err_ret;
 	}
 
-	/* Read back to check this has worked acts as loose test of correct
-	 * chip */
+	/*
+	 * Read back to check this has worked acts as loose test of correct
+	 * chip
+	 */
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &valtest);
@@ -565,7 +567,7 @@ static int lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 {
 	u8 val;
 	int ret;
-	u8 mask = (1 << (chan->channel2*2 + (dir == IIO_EV_DIR_RISING)));
+	u8 mask = (1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING)));
 
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
@@ -620,7 +622,7 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 	u8 val, control;
 	u8 currentlyset;
 	bool changed = false;
-	u8 mask = (1 << (chan->channel2*2 + (dir == IIO_EV_DIR_RISING)));
+	u8 mask = (1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING)));
 
 	mutex_lock(&indio_dev->mlock);
 	/* read current control */
@@ -800,7 +802,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 static struct spi_driver lis3l02dq_driver = {
 	.driver = {
 		.name = "lis3l02dq",
-		.owner = THIS_MODULE,
 	},
 	.probe = lis3l02dq_probe,
 	.remove = lis3l02dq_remove,

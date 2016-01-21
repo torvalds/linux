@@ -5,10 +5,37 @@
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
 
+#include <linux/const.h>
 #include <uapi/asm/setup.h>
 
 
 #define PARMAREA		0x10400
+
+/*
+ * Machine features detected in head.S
+ */
+
+#define MACHINE_FLAG_VM		_BITUL(0)
+#define MACHINE_FLAG_IEEE	_BITUL(1)
+#define MACHINE_FLAG_CSP	_BITUL(2)
+#define MACHINE_FLAG_MVPG	_BITUL(3)
+#define MACHINE_FLAG_DIAG44	_BITUL(4)
+#define MACHINE_FLAG_IDTE	_BITUL(5)
+#define MACHINE_FLAG_DIAG9C	_BITUL(6)
+#define MACHINE_FLAG_KVM	_BITUL(8)
+#define MACHINE_FLAG_ESOP	_BITUL(9)
+#define MACHINE_FLAG_EDAT1	_BITUL(10)
+#define MACHINE_FLAG_EDAT2	_BITUL(11)
+#define MACHINE_FLAG_LPAR	_BITUL(12)
+#define MACHINE_FLAG_LPP	_BITUL(13)
+#define MACHINE_FLAG_TOPOLOGY	_BITUL(14)
+#define MACHINE_FLAG_TE		_BITUL(15)
+#define MACHINE_FLAG_TLB_LC	_BITUL(17)
+#define MACHINE_FLAG_VX		_BITUL(18)
+#define MACHINE_FLAG_CAD	_BITUL(19)
+
+#define LPP_MAGIC		_BITUL(31)
+#define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
 
 #ifndef __ASSEMBLY__
 
@@ -27,29 +54,6 @@ extern unsigned long memory_end;
 extern unsigned long max_physmem_end;
 
 extern void detect_memory_memblock(void);
-
-/*
- * Machine features detected in head.S
- */
-
-#define MACHINE_FLAG_VM		(1UL << 0)
-#define MACHINE_FLAG_IEEE	(1UL << 1)
-#define MACHINE_FLAG_CSP	(1UL << 2)
-#define MACHINE_FLAG_MVPG	(1UL << 3)
-#define MACHINE_FLAG_DIAG44	(1UL << 4)
-#define MACHINE_FLAG_IDTE	(1UL << 5)
-#define MACHINE_FLAG_DIAG9C	(1UL << 6)
-#define MACHINE_FLAG_KVM	(1UL << 8)
-#define MACHINE_FLAG_ESOP	(1UL << 9)
-#define MACHINE_FLAG_EDAT1	(1UL << 10)
-#define MACHINE_FLAG_EDAT2	(1UL << 11)
-#define MACHINE_FLAG_LPAR	(1UL << 12)
-#define MACHINE_FLAG_LPP	(1UL << 13)
-#define MACHINE_FLAG_TOPOLOGY	(1UL << 14)
-#define MACHINE_FLAG_TE		(1UL << 15)
-#define MACHINE_FLAG_TLB_LC	(1UL << 17)
-#define MACHINE_FLAG_VX		(1UL << 18)
-#define MACHINE_FLAG_CAD	(1UL << 19)
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)

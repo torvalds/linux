@@ -137,10 +137,12 @@ static inline void add_wildcard(char *str)
 static inline void add_uuid(char *str, uuid_le uuid)
 {
 	int len = strlen(str);
-	int i;
 
-	for (i = 0; i < 16; i++)
-		sprintf(str + len + (i << 1), "%02x", uuid.b[i]);
+	sprintf(str + len, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		uuid.b[3], uuid.b[2], uuid.b[1], uuid.b[0],
+		uuid.b[5], uuid.b[4], uuid.b[7], uuid.b[6],
+		uuid.b[8], uuid.b[9], uuid.b[10], uuid.b[11],
+		uuid.b[12], uuid.b[13], uuid.b[14], uuid.b[15]);
 }
 
 /**
@@ -1200,16 +1202,18 @@ static int do_cpu_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
 
-/* Looks like: mei:S:uuid */
+/* Looks like: mei:S:uuid:N:* */
 static int do_mei_entry(const char *filename, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, uuid);
+	DEF_FIELD(symval, mei_cl_device_id, version);
 
 	sprintf(alias, MEI_CL_MODULE_PREFIX);
 	sprintf(alias + strlen(alias), "%s:",  (*name)[0]  ? *name : "*");
 	add_uuid(alias, *uuid);
+	ADD(alias, ":", version != MEI_CL_VERSION_ANY, version);
 
 	strcat(alias, ":*");
 
@@ -1249,6 +1253,23 @@ static int do_ulpi_entry(const char *filename, void *symval,
 	return 1;
 }
 ADD_TO_DEVTABLE("ulpi", ulpi_device_id, do_ulpi_entry);
+
+/* Looks like: hdaudio:vNrNaN */
+static int do_hda_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, hda_device_id, vendor_id);
+	DEF_FIELD(symval, hda_device_id, rev_id);
+	DEF_FIELD(symval, hda_device_id, api_version);
+
+	strcpy(alias, "hdaudio:");
+	ADD(alias, "v", vendor_id != 0, vendor_id);
+	ADD(alias, "r", rev_id != 0, rev_id);
+	ADD(alias, "a", api_version != 0, api_version);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("hdaudio", hda_device_id, do_hda_entry);
 
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)

@@ -438,7 +438,6 @@ struct lovsub_page {
 	struct cl_page_slice lsb_cl;
 };
 
-
 struct lov_thread_info {
 	struct cl_object_conf   lti_stripe_conf;
 	struct lu_fid	   lti_fid;
@@ -611,7 +610,6 @@ int   lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
 			   struct lovsub_lock *sublock,
 			   const struct cl_lock_descr *d, int idx);
 
-
 int   lov_page_init(const struct lu_env *env, struct cl_object *ob,
 			   struct cl_page *page, struct page *vmpage);
 int   lovsub_page_init(const struct lu_env *env, struct cl_object *ob,
@@ -636,9 +634,6 @@ struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 struct lov_io_sub    *lov_page_subio(const struct lu_env *env,
 					 struct lov_io *lio,
 					 const struct cl_page_slice *slice);
-
-void lov_lsm_decref(struct lov_object *lov, struct lov_stripe_md *lsm);
-struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov);
 
 #define lov_foreach_target(lov, var)		    \
 	for (var = 0; var < lov_targets_nr(lov); ++var)

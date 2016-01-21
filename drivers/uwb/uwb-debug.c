@@ -55,7 +55,7 @@
 struct uwb_dbg {
 	struct uwb_pal pal;
 
-	u32 accept;
+	bool accept;
 	struct list_head rsvs;
 
 	struct dentry *root_d;

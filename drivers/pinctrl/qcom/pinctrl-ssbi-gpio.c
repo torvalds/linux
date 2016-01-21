@@ -584,7 +584,7 @@ static void pm8xxx_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 }
 
 #else
-#define msm_gpio_dbg_show NULL
+#define pm8xxx_gpio_dbg_show NULL
 #endif
 
 static struct gpio_chip pm8xxx_gpio_template = {
@@ -672,7 +672,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pctrl->dev = &pdev->dev;
-	pctrl->npins = (unsigned)of_device_get_match_data(&pdev->dev);
+	pctrl->npins = (unsigned long)of_device_get_match_data(&pdev->dev);
 
 	pctrl->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pctrl->regmap) {

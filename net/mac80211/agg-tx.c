@@ -97,7 +97,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.addba_req.action_code = WLAN_ACTION_ADDBA_REQ;
 
 	mgmt->u.action.u.addba_req.dialog_token = dialog_token;
-	capab = (u16)(1 << 1);		/* bit 1 aggregation policy */
+	capab = (u16)(1 << 0);		/* bit 0 A-MSDU support */
+	capab |= (u16)(1 << 1);		/* bit 1 aggregation policy */
 	capab |= (u16)(tid << 2); 	/* bit 5:2 TID number */
 	capab |= (u16)(agg_size << 6);	/* bit 15:6 max size of aggergation */
 
@@ -331,7 +332,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 			return -EALREADY;
 		ret = drv_ampdu_action(local, sta->sdata,
 				       IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
-				       &sta->sta, tid, NULL, 0);
+				       &sta->sta, tid, NULL, 0, false);
 		WARN_ON_ONCE(ret);
 		return 0;
 	}
@@ -381,7 +382,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	tid_tx->tx_stop = reason == AGG_STOP_LOCAL_REQUEST;
 
 	ret = drv_ampdu_action(local, sta->sdata, action,
-			       &sta->sta, tid, NULL, 0);
+			       &sta->sta, tid, NULL, 0, false);
 
 	/* HW shall not deny going back to legacy */
 	if (WARN_ON(ret)) {
@@ -469,7 +470,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	start_seq_num = sta->tid_seq[tid] >> 4;
 
 	ret = drv_ampdu_action(local, sdata, IEEE80211_AMPDU_TX_START,
-			       &sta->sta, tid, &start_seq_num, 0);
+			       &sta->sta, tid, &start_seq_num, 0, false);
 	if (ret) {
 		ht_dbg(sdata,
 		       "BA request denied - HW unavailable for %pM tid %d\n",
@@ -499,7 +500,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, start_seq_num,
-				     local->hw.max_tx_aggregation_subframes,
+				     IEEE80211_MAX_AMPDU_BUF,
 				     tid_tx->timeout);
 }
 
@@ -693,7 +694,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 
 	drv_ampdu_action(local, sta->sdata,
 			 IEEE80211_AMPDU_TX_OPERATIONAL,
-			 &sta->sta, tid, NULL, tid_tx->buf_size);
+			 &sta->sta, tid, NULL, tid_tx->buf_size,
+			 tid_tx->amsdu);
 
 	/*
 	 * synchronize with TX path, while splicing the TX path
@@ -918,10 +920,13 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	struct tid_ampdu_tx *tid_tx;
 	u16 capab, tid;
 	u8 buf_size;
+	bool amsdu;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
+	amsdu = capab & IEEE80211_ADDBA_PARAM_AMSDU_MASK;
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 	buf_size = (capab & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK) >> 6;
+	buf_size = min(buf_size, local->hw.max_tx_aggregation_subframes);
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
@@ -968,6 +973,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		}
 
 		tid_tx->buf_size = buf_size;
+		tid_tx->amsdu = amsdu;
 
 		if (test_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state))
 			ieee80211_agg_tx_operational(local, sta, tid);

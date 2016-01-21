@@ -625,58 +625,6 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		set_tls(regs->ARM_r0);
 		return 0;
 
-#ifdef CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG
-	/*
-	 * Atomically store r1 in *r2 if *r2 is equal to r0 for user space.
-	 * Return zero in r0 if *MEM was changed or non-zero if no exchange
-	 * happened.  Also set the user C flag accordingly.
-	 * If access permissions have to be fixed up then non-zero is
-	 * returned and the operation has to be re-attempted.
-	 *
-	 * *NOTE*: This is a ghost syscall private to the kernel.  Only the
-	 * __kuser_cmpxchg code in entry-armv.S should be aware of its
-	 * existence.  Don't ever use this from user code.
-	 */
-	case NR(cmpxchg):
-	for (;;) {
-		extern void do_DataAbort(unsigned long addr, unsigned int fsr,
-					 struct pt_regs *regs);
-		unsigned long val;
-		unsigned long addr = regs->ARM_r2;
-		struct mm_struct *mm = current->mm;
-		pgd_t *pgd; pmd_t *pmd; pte_t *pte;
-		spinlock_t *ptl;
-
-		regs->ARM_cpsr &= ~PSR_C_BIT;
-		down_read(&mm->mmap_sem);
-		pgd = pgd_offset(mm, addr);
-		if (!pgd_present(*pgd))
-			goto bad_access;
-		pmd = pmd_offset(pgd, addr);
-		if (!pmd_present(*pmd))
-			goto bad_access;
-		pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-		if (!pte_present(*pte) || !pte_write(*pte) || !pte_dirty(*pte)) {
-			pte_unmap_unlock(pte, ptl);
-			goto bad_access;
-		}
-		val = *(unsigned long *)addr;
-		val -= regs->ARM_r0;
-		if (val == 0) {
-			*(unsigned long *)addr = regs->ARM_r1;
-			regs->ARM_cpsr |= PSR_C_BIT;
-		}
-		pte_unmap_unlock(pte, ptl);
-		up_read(&mm->mmap_sem);
-		return val;
-
-		bad_access:
-		up_read(&mm->mmap_sem);
-		/* simulate a write access fault */
-		do_DataAbort(addr, 15 + (1 << 11), regs);
-	}
-#endif
-
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
 		   if not implemented, rather than raising SIGILL.  This

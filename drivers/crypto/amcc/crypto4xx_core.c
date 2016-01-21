@@ -740,26 +740,6 @@ void crypto4xx_return_pd(struct crypto4xx_device *dev,
 	pd_uinfo->state = PD_ENTRY_FREE;
 }
 
-/*
- * derive number of elements in scatterlist
- * Shamlessly copy from talitos.c
- */
-static int get_sg_count(struct scatterlist *sg_list, int nbytes)
-{
-	struct scatterlist *sg = sg_list;
-	int sg_nents = 0;
-
-	while (nbytes) {
-		sg_nents++;
-		if (sg->length > nbytes)
-			break;
-		nbytes -= sg->length;
-		sg = sg_next(sg);
-	}
-
-	return sg_nents;
-}
-
 static u32 get_next_gd(u32 current)
 {
 	if (current != PPC4XX_LAST_GD)
@@ -800,7 +780,7 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 	u32 gd_idx = 0;
 
 	/* figure how many gd is needed */
-	num_gd = get_sg_count(src, datalen);
+	num_gd = sg_nents_for_len(src, datalen);
 	if (num_gd == 1)
 		num_gd = 0;
 
@@ -1284,6 +1264,7 @@ static const struct of_device_id crypto4xx_match[] = {
 	{ .compatible      = "amcc,ppc4xx-crypto",},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, crypto4xx_match);
 
 static struct platform_driver crypto4xx_driver = {
 	.driver = {

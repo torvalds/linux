@@ -60,17 +60,19 @@ to_omap_plane_state(struct drm_plane_state *state)
 }
 
 static int omap_plane_prepare_fb(struct drm_plane *plane,
-				 struct drm_framebuffer *fb,
 				 const struct drm_plane_state *new_state)
 {
-	return omap_framebuffer_pin(fb);
+	if (!new_state->fb)
+		return 0;
+
+	return omap_framebuffer_pin(new_state->fb);
 }
 
 static void omap_plane_cleanup_fb(struct drm_plane *plane,
-				  struct drm_framebuffer *fb,
 				  const struct drm_plane_state *old_state)
 {
-	omap_framebuffer_unpin(fb);
+	if (old_state->fb)
+		omap_framebuffer_unpin(old_state->fb);
 }
 
 static void omap_plane_atomic_update(struct drm_plane *plane,
@@ -106,7 +108,7 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	win.src_x = state->src_x >> 16;
 	win.src_y = state->src_y >> 16;
 
-	switch (state->rotation & 0xf) {
+	switch (state->rotation & DRM_ROTATE_MASK) {
 	case BIT(DRM_ROTATE_90):
 	case BIT(DRM_ROTATE_270):
 		win.src_w = state->src_h >> 16;

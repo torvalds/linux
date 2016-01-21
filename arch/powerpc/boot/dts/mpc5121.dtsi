@@ -77,7 +77,6 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		reg = <0x80000020 0x40>;
-		interrupts = <7 0x8>;
 		ranges = <0x0 0x0 0xfc000000 0x04000000>;
 	};
 
@@ -329,7 +328,15 @@
 		/* LocalPlus controller */
 		lpc@10000 {
 			compatible = "fsl,mpc5121-lpc";
-			reg = <0x10000 0x200>;
+			reg = <0x10000 0x100>;
+		};
+
+		sclpc@10100 {
+			compatible = "fsl,mpc512x-lpbfifo";
+			reg = <0x10100 0x50>;
+			interrupts = <7 0x8>;
+			dmas = <&dma0 26>;
+			dma-names = "rx-tx";
 		};
 
 		pata@10200 {

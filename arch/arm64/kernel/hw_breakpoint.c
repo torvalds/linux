@@ -28,6 +28,7 @@
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 
+#include <asm/compat.h>
 #include <asm/current.h>
 #include <asm/debug-monitors.h>
 #include <asm/hw_breakpoint.h>
@@ -162,6 +163,20 @@ enum hw_breakpoint_ops {
 	HW_BREAKPOINT_UNINSTALL,
 	HW_BREAKPOINT_RESTORE
 };
+
+static int is_compat_bp(struct perf_event *bp)
+{
+	struct task_struct *tsk = bp->hw.target;
+
+	/*
+	 * tsk can be NULL for per-cpu (non-ptrace) breakpoints.
+	 * In this case, use the native interface, since we don't have
+	 * the notion of a "compat CPU" and could end up relying on
+	 * deprecated behaviour if we use unaligned watchpoints in
+	 * AArch64 state.
+	 */
+	return tsk && is_compat_thread(task_thread_info(tsk));
+}
 
 /**
  * hw_breakpoint_slot_setup - Find and setup a perf slot according to
@@ -420,7 +435,7 @@ static int arch_build_bp_info(struct perf_event *bp)
 	 * Watchpoints can be of length 1, 2, 4 or 8 bytes.
 	 */
 	if (info->ctrl.type == ARM_BREAKPOINT_EXECUTE) {
-		if (is_compat_task()) {
+		if (is_compat_bp(bp)) {
 			if (info->ctrl.len != ARM_BREAKPOINT_LEN_2 &&
 			    info->ctrl.len != ARM_BREAKPOINT_LEN_4)
 				return -EINVAL;
@@ -477,7 +492,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	 * AArch32 tasks expect some simple alignment fixups, so emulate
 	 * that here.
 	 */
-	if (is_compat_task()) {
+	if (is_compat_bp(bp)) {
 		if (info->ctrl.len == ARM_BREAKPOINT_LEN_8)
 			alignment_mask = 0x7;
 		else

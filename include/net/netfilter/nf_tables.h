@@ -14,9 +14,11 @@
 
 struct nft_pktinfo {
 	struct sk_buff			*skb;
+	struct net			*net;
 	const struct net_device		*in;
 	const struct net_device		*out;
-	const struct nf_hook_ops	*ops;
+	u8				pf;
+	u8				hook;
 	u8				nhoff;
 	u8				thoff;
 	u8				tprot;
@@ -25,16 +27,15 @@ struct nft_pktinfo {
 };
 
 static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
-				   const struct nf_hook_ops *ops,
 				   struct sk_buff *skb,
 				   const struct nf_hook_state *state)
 {
 	pkt->skb = skb;
+	pkt->net = pkt->xt.net = state->net;
 	pkt->in = pkt->xt.in = state->in;
 	pkt->out = pkt->xt.out = state->out;
-	pkt->ops = ops;
-	pkt->xt.hooknum = ops->hooknum;
-	pkt->xt.family = ops->pf;
+	pkt->hook = pkt->xt.hooknum = state->hook;
+	pkt->pf = pkt->xt.family = state->pf;
 }
 
 /**
@@ -617,6 +618,8 @@ struct nft_expr_ops {
 	void				(*eval)(const struct nft_expr *expr,
 						struct nft_regs *regs,
 						const struct nft_pktinfo *pkt);
+	int				(*clone)(struct nft_expr *dst,
+						 const struct nft_expr *src);
 	unsigned int			size;
 
 	int				(*init)(const struct nft_ctx *ctx,
@@ -659,10 +662,20 @@ void nft_expr_destroy(const struct nft_ctx *ctx, struct nft_expr *expr);
 int nft_expr_dump(struct sk_buff *skb, unsigned int attr,
 		  const struct nft_expr *expr);
 
-static inline void nft_expr_clone(struct nft_expr *dst, struct nft_expr *src)
+static inline int nft_expr_clone(struct nft_expr *dst, struct nft_expr *src)
 {
+	int err;
+
 	__module_get(src->ops->type->owner);
-	memcpy(dst, src, src->ops->size);
+	if (src->ops->clone) {
+		dst->ops = src->ops;
+		err = src->ops->clone(dst, src);
+		if (err < 0)
+			return err;
+	} else {
+		memcpy(dst, src, src->ops->size);
+	}
+	return 0;
 }
 
 /**
@@ -815,8 +828,7 @@ int nft_register_basechain(struct nft_base_chain *basechain,
 void nft_unregister_basechain(struct nft_base_chain *basechain,
 			      unsigned int hook_nops);
 
-unsigned int nft_do_chain(struct nft_pktinfo *pkt,
-			  const struct nf_hook_ops *ops);
+unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
 
 /**
  *	struct nft_table - nf_tables table

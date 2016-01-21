@@ -35,7 +35,6 @@ enum { CH_RX, CH_TX, NUM_CHANNELS };
 #define list_first_mbo(ptr) \
 	list_first_entry(ptr, struct mbo, list)
 
-
 /* IRQ / Polling option */
 static bool polling_req;
 module_param(polling_req, bool, S_IRUGO);
@@ -93,10 +92,9 @@ static int configure_channel(struct most_interface *most_iface,
 		return -EPERM;
 	}
 
-	if (channel_config->direction == MOST_CH_RX) {
-		if (dev->polling_mode)
-			schedule_delayed_work(&dev->rx.dwork,
-					      msecs_to_jiffies(MSEC_PER_SEC / 4));
+	if ((channel_config->direction == MOST_CH_RX) && (dev->polling_mode)) {
+		schedule_delayed_work(&dev->rx.dwork,
+				      msecs_to_jiffies(MSEC_PER_SEC / 4));
 	}
 	dev->is_open[ch_idx] = true;
 
@@ -198,7 +196,7 @@ static void do_rx_work(struct hdm_i2c *dev)
 	struct mbo *mbo;
 	unsigned char msg[MAX_BUF_SIZE_CONTROL];
 	int ret, ch_idx = CH_RX;
-	uint16_t pml, data_size;
+	u16 pml, data_size;
 
 	/* Read PML (2 bytes) */
 	ret = i2c_master_recv(dev->client, msg, 2);
@@ -222,7 +220,8 @@ static void do_rx_work(struct hdm_i2c *dev)
 
 	for (;;) {
 		/* Conditions to wait for: poisoned channel or free buffer
-		   available for reading  */
+		 * available for reading
+		 */
 		if (wait_event_interruptible(dev->rx.waitq,
 					     !dev->is_open[ch_idx] ||
 					     !list_empty(&dev->rx.list))) {
@@ -269,8 +268,9 @@ static void pending_rx_work(struct work_struct *work)
 			schedule_delayed_work(&dev->rx.dwork,
 					      msecs_to_jiffies(MSEC_PER_SEC
 							       / scan_rate));
-	} else
+	} else {
 		enable_irq(dev->client->irq);
+	}
 }
 
 /*
@@ -364,11 +364,11 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev->polling_mode = polling_req || client->irq <= 0;
 	if (!dev->polling_mode) {
 		pr_info("Requesting IRQ: %d\n", client->irq);
-		ret = request_irq(client->irq, most_irq_handler, IRQF_SHARED,
+		ret = request_irq(client->irq, most_irq_handler, 0,
 				  client->name, dev);
 		if (ret) {
-			pr_info("IRQ request failed: %d, "
-				"falling back to polling\n", ret);
+			pr_info("IRQ request failed: %d, falling back to polling\n",
+				ret);
 			dev->polling_mode = true;
 		}
 	}
@@ -416,34 +416,13 @@ MODULE_DEVICE_TABLE(i2c, i2c_id);
 static struct i2c_driver i2c_driver = {
 	.driver = {
 		.name = "hdm_i2c",
-		.owner = THIS_MODULE,
 	},
 	.probe = i2c_probe,
 	.remove = i2c_remove,
 	.id_table = i2c_id,
 };
 
-/**
- * hdm_i2c_init - Driver Registration Routine
- */
-static int __init hdm_i2c_init(void)
-{
-	pr_info("hdm_i2c_init()\n");
-
-	return i2c_add_driver(&i2c_driver);
-}
-
-/**
- * hdm_i2c_exit - Driver Cleanup Routine
- **/
-static void __exit hdm_i2c_exit(void)
-{
-	i2c_del_driver(&i2c_driver);
-	pr_info("hdm_i2c_exit()\n");
-}
-
-module_init(hdm_i2c_init);
-module_exit(hdm_i2c_exit);
+module_i2c_driver(i2c_driver);
 
 MODULE_AUTHOR("Jain Roy Ambi <JainRoy.Ambi@microchip.com>");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");

@@ -10,21 +10,6 @@
 
 #include <asm/bootinfo.h>	/* For cleaner code... */
 
-enum fw_memtypes {
-	fw_dontuse,
-	fw_code,
-	fw_free,
-};
-
-typedef struct {
-	unsigned long base;	/* Within KSEG0 */
-	unsigned int size;	/* bytes */
-	enum fw_memtypes type;	/* fw_memtypes */
-} fw_memblock_t;
-
-/* Maximum number of memory block descriptors. */
-#define FW_MAX_MEMBLOCKS	32
-
 extern int fw_argc;
 extern int *_fw_argv;
 extern int *_fw_envp;
@@ -38,7 +23,6 @@ extern int *_fw_envp;
 
 extern void fw_init_cmdline(void);
 extern char *fw_getcmdline(void);
-extern fw_memblock_t *fw_getmdesc(int);
 extern void fw_meminit(void);
 extern char *fw_getenv(char *name);
 extern unsigned long fw_getenvl(char *name);

@@ -15,6 +15,9 @@
 #include "lpc18xx.dtsi"
 #include "lpc4350.dtsi"
 
+#include "dt-bindings/input/input.h"
+#include "dt-bindings/gpio/gpio.h"
+
 / {
 	model = "Hitex LPC4350 Evaluation Board";
 	compatible = "hitex,lpc4350-eval-board", "nxp,lpc4350";
@@ -33,6 +36,88 @@
 	memory {
 		device_type = "memory";
 		reg = <0x28000000 0x800000>; /* 8 MB */
+	};
+
+	pca_buttons {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+		autorepeat;
+
+		button@0 {
+			label = "joy:right";
+			linux,code = <KEY_RIGHT>;
+			gpios = <&pca_gpio 8 GPIO_ACTIVE_LOW>;
+		};
+
+		button@1 {
+			label = "joy:up";
+			linux,code = <KEY_UP>;
+			gpios = <&pca_gpio 9 GPIO_ACTIVE_LOW>;
+		};
+
+
+		button@2 {
+			label = "joy:enter";
+			linux,code = <KEY_ENTER>;
+			gpios = <&pca_gpio 10 GPIO_ACTIVE_LOW>;
+		};
+
+		button@3 {
+			label = "joy:left";
+			linux,code = <KEY_LEFT>;
+			gpios = <&pca_gpio 11 GPIO_ACTIVE_LOW>;
+		};
+
+		button@4 {
+			label = "joy:down";
+			linux,code = <KEY_DOWN>;
+			gpios = <&pca_gpio 12 GPIO_ACTIVE_LOW>;
+		};
+
+		button@5 {
+			label = "user:sw3";
+			linux,code = <KEY_F1>;
+			gpios = <&pca_gpio 13 GPIO_ACTIVE_LOW>;
+		};
+
+		button@6 {
+			label = "user:sw4";
+			linux,code = <KEY_F2>;
+			gpios = <&pca_gpio 14 GPIO_ACTIVE_LOW>;
+		};
+
+		button@7 {
+			label = "user:sw5";
+			linux,code = <KEY_F3>;
+			gpios = <&pca_gpio 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	pca_leds {
+		compatible = "gpio-leds";
+
+		led0 {
+			label = "ext:led0";
+			gpios = <&pca_gpio 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led1 {
+			label = "ext:led1";
+			gpios = <&pca_gpio 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led2 {
+			label = "ext:led2";
+			gpios = <&pca_gpio 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led3 {
+			label = "ext:led3";
+			gpios = <&pca_gpio 3 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
@@ -186,6 +271,43 @@
 		};
 	};
 
+	i2c0_pins: i2c0-pins {
+		i2c0_pins_cfg {
+			pins = "i2c0_scl", "i2c0_sda";
+			function = "i2c0";
+			input-enable;
+		};
+	};
+
+	spifi_pins: spifi-pins {
+		spifi_clk_cfg {
+			pins = "p3_3";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		spifi_mosi_miso_sio2_3_cfg {
+			pins = "p3_7", "p3_6", "p3_5", "p3_4";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		spifi_cs_cfg {
+			pins = "p3_8";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+	};
+
 	uart0_pins: uart0-pins {
 		uart0_rx_cfg {
 			pins = "pf_11";
@@ -271,11 +393,64 @@
 	clock-frequency = <25000000>;
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <400000>;
+
+	/* NXP SE97BTP with temperature sensor + eeprom */
+	sensor@18 {
+		compatible = "nxp,jc42";
+		reg = <0x18>;
+	};
+
+	eeprom@50 {
+		compatible = "nxp,24c02";
+		reg = <0x50>;
+	};
+
+	pca_gpio: gpio@24 {
+		compatible = "nxp,pca9673";
+		reg = <0x24>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
 &mac {
 	status = "okay";
 	phy-mode = "mii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&enet_mii_pins>;
+};
+
+&spifi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spifi_pins>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x000000 0x040000>; /* 256 KiB */
+		};
+
+		partition@1 {
+			label = "kernel";
+			reg = <0x040000 0x2c0000>; /* 2.75 MiB */
+		};
+
+		partition@2 {
+			label = "rootfs";
+			reg = <0x300000 0x500000>; /* 5 MiB */
+		};
+	};
 };
 
 &uart0 {

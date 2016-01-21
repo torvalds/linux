@@ -34,6 +34,7 @@ struct machine {
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
+	struct perf_env   *env;
 	struct dsos	  dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
@@ -47,9 +48,15 @@ struct machine {
 };
 
 static inline
-struct map *machine__kernel_map(struct machine *machine, enum map_type type)
+struct map *__machine__kernel_map(struct machine *machine, enum map_type type)
 {
 	return machine->vmlinux_maps[type];
+}
+
+static inline
+struct map *machine__kernel_map(struct machine *machine)
+{
+	return __machine__kernel_map(machine, MAP__FUNCTION);
 }
 
 int machine__get_kernel_start(struct machine *machine);

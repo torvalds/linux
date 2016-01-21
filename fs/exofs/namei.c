@@ -80,9 +80,6 @@ static int exofs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 	struct inode *inode;
 	int err;
 
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
-
 	inode = exofs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {

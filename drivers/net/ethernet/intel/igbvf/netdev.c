@@ -1211,7 +1211,7 @@ static int igbvf_poll(struct napi_struct *napi, int budget)
 
 	/* If not enough Rx work done, exit the polling mode */
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		if (adapter->requested_itr & 3)
 			igbvf_set_itr(adapter);
@@ -2615,6 +2615,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_poll_controller	= igbvf_netpoll,
 #endif
 	.ndo_set_features	= igbvf_set_features,
+	.ndo_features_check	= passthru_features_check,
 };
 
 /**

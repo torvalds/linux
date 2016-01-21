@@ -434,7 +434,7 @@ config UPROBE_EVENT
 
 config BPF_EVENTS
 	depends on BPF_SYSCALL
-	depends on KPROBE_EVENT || UPROBE_EVENT
+	depends on (KPROBE_EVENT || UPROBE_EVENT) && PERF_EVENTS
 	bool
 	default y
 	help
@@ -634,6 +634,13 @@ config TRACE_ENUM_MAP_FILE
 	increase the memory footprint of the running kernel.
 
 	If unsure, say N
+
+config TRACING_EVENTS_GPIO
+	bool "Trace gpio events"
+	depends on GPIOLIB
+	default y
+	help
+	  Enable tracing events for gpio subsystem
 
 endif # FTRACE
 

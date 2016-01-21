@@ -939,6 +939,7 @@ int fnic_alloc_rq_frame(struct vnic_rq *rq)
 	struct sk_buff *skb;
 	u16 len;
 	dma_addr_t pa;
+	int r;
 
 	len = FC_FRAME_HEADROOM + FC_MAX_FRAME + FC_FRAME_TAILROOM;
 	skb = dev_alloc_skb(len);
@@ -952,8 +953,19 @@ int fnic_alloc_rq_frame(struct vnic_rq *rq)
 	skb_reset_network_header(skb);
 	skb_put(skb, len);
 	pa = pci_map_single(fnic->pdev, skb->data, len, PCI_DMA_FROMDEVICE);
+
+	r = pci_dma_mapping_error(fnic->pdev, pa);
+	if (r) {
+		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		goto free_skb;
+	}
+
 	fnic_queue_rq_desc(rq, skb, pa, len);
 	return 0;
+
+free_skb:
+	kfree_skb(skb);
+	return r;
 }
 
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf)
@@ -981,6 +993,7 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	struct ethhdr *eth_hdr;
 	struct vlan_ethhdr *vlan_hdr;
 	unsigned long flags;
+	int r;
 
 	if (!fnic->vlan_hw_insert) {
 		eth_hdr = (struct ethhdr *)skb_mac_header(skb);
@@ -1003,18 +1016,27 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 	pa = pci_map_single(fnic->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
 
-	spin_lock_irqsave(&fnic->wq_lock[0], flags);
-	if (!vnic_wq_desc_avail(wq)) {
-		pci_unmap_single(fnic->pdev, pa, skb->len, PCI_DMA_TODEVICE);
-		spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
-		kfree_skb(skb);
-		return;
+	r = pci_dma_mapping_error(fnic->pdev, pa);
+	if (r) {
+		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		goto free_skb;
 	}
+
+	spin_lock_irqsave(&fnic->wq_lock[0], flags);
+	if (!vnic_wq_desc_avail(wq))
+		goto irq_restore;
 
 	fnic_queue_wq_eth_desc(wq, skb, pa, skb->len,
 			       0 /* hw inserts cos value */,
 			       fnic->vlan_id, 1);
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
+	return;
+
+irq_restore:
+	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
+	pci_unmap_single(fnic->pdev, pa, skb->len, PCI_DMA_TODEVICE);
+free_skb:
+	kfree_skb(skb);
 }
 
 /*
@@ -1071,6 +1093,12 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 
 	pa = pci_map_single(fnic->pdev, eth_hdr, tot_len, PCI_DMA_TODEVICE);
 
+	ret = pci_dma_mapping_error(fnic->pdev, pa);
+	if (ret) {
+		printk(KERN_ERR "DMA map failed with error %d\n", ret);
+		goto free_skb_on_err;
+	}
+
 	if ((fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_SEND,
 				(char *)eth_hdr, tot_len)) != 0) {
 		printk(KERN_ERR "fnic ctlr frame trace error!!!");
@@ -1082,15 +1110,17 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 		pci_unmap_single(fnic->pdev, pa,
 				 tot_len, PCI_DMA_TODEVICE);
 		ret = -1;
-		goto fnic_send_frame_end;
+		goto irq_restore;
 	}
 
 	fnic_queue_wq_desc(wq, skb, pa, tot_len, fr_eof(fp),
 			   0 /* hw inserts cos value */,
 			   fnic->vlan_id, 1, 1, 1);
-fnic_send_frame_end:
+
+irq_restore:
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
 
+free_skb_on_err:
 	if (ret)
 		dev_kfree_skb_any(fp_skb(fp));
 

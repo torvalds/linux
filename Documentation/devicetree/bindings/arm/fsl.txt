@@ -128,10 +128,18 @@ Example:
 		reg = <0x0 0x1ee0000 0x0 0x10000>;
 	};
 
-Freescale LS2085A SoC Device Tree Bindings
-------------------------------------------
+Freescale ARMv8 based Layerscape SoC family Device Tree Bindings
+----------------------------------------------------------------
 
-LS2085A ARMv8 based Simulator model
+LS2080A ARMv8 based Simulator model
 Required root node properties:
-    - compatible = "fsl,ls2085a-simu", "fsl,ls2085a";
+    - compatible = "fsl,ls2080a-simu", "fsl,ls2080a";
+
+LS2080A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls2080a-qds", "fsl,ls2080a";
+
+LS2080A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls2080a-rdb", "fsl,ls2080a";
 

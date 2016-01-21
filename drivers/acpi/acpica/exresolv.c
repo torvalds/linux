@@ -209,7 +209,6 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					 * (i.e., dereference the package index)
 					 * Delete the ref object, increment the returned object
 					 */
-					acpi_ut_remove_reference(stack_desc);
 					acpi_ut_add_reference(obj_desc);
 					*stack_ptr = obj_desc;
 				} else {

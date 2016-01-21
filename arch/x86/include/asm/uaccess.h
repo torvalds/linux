@@ -51,13 +51,13 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
 	 * limit, not add it to the address).
 	 */
 	if (__builtin_constant_p(size))
-		return addr > limit - size;
+		return unlikely(addr > limit - size);
 
 	/* Arbitrary sizes? Be careful about overflow */
 	addr += size;
-	if (addr < size)
+	if (unlikely(addr < size))
 		return true;
-	return addr > limit;
+	return unlikely(addr > limit);
 }
 
 #define __range_not_ok(addr, size, limit)				\
@@ -182,7 +182,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     : "=a" (__ret_gu), "=r" (__val_gu)			\
 		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
 	(x) = (__force __typeof__(*(ptr))) __val_gu;			\
-	__ret_gu;							\
+	__builtin_expect(__ret_gu, 0);					\
 })
 
 #define __put_user_x(size, x, ptr, __ret_pu)			\
@@ -278,7 +278,7 @@ extern void __put_user_8(void);
 		__put_user_x(X, __pu_val, ptr, __ret_pu);	\
 		break;						\
 	}							\
-	__ret_pu;						\
+	__builtin_expect(__ret_pu, 0);				\
 })
 
 #define __put_user_size(x, ptr, size, retval, errret)			\
@@ -401,7 +401,7 @@ do {									\
 ({								\
 	int __pu_err;						\
 	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
-	__pu_err;						\
+	__builtin_expect(__pu_err, 0);				\
 })
 
 #define __get_user_nocheck(x, ptr, size)				\
@@ -410,7 +410,7 @@ do {									\
 	unsigned long __gu_val;						\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
-	__gu_err;							\
+	__builtin_expect(__gu_err, 0);					\
 })
 
 /* FIXME: this hack is definitely wrong -AK */

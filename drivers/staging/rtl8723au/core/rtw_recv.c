@@ -626,7 +626,7 @@ void process23a_pwrbit_data(struct rtw_adapter *padapter,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct sta_info *psta = NULL;
+	struct sta_info *psta;
 
 	psta = rtw_get_stainfo23a(pstapriv, pattrib->src);
 
@@ -653,7 +653,7 @@ void process_wmmps_data(struct rtw_adapter *padapter,
 #ifdef CONFIG_8723AU_AP_MODE
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct sta_info *psta = NULL;
+	struct sta_info *psta;
 
 	psta = rtw_get_stainfo23a(pstapriv, pattrib->src);
 
@@ -2151,7 +2151,7 @@ int process_recv_indicatepkts(struct rtw_adapter *padapter,
 static int recv_func_prehandle(struct rtw_adapter *padapter,
 			       struct recv_frame *rframe)
 {
-	int ret = _SUCCESS;
+	int ret;
 
 	/* check the frame crtl field and decache */
 	ret = validate_recv_frame(padapter, rframe);

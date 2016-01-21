@@ -30,7 +30,7 @@
 		regulator-name = "VDD_ETH";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio2 16 0>;  /* gpio line 48 */
+		gpio = <&gpio2 16 GPIO_ACTIVE_HIGH>;  /* gpio line 48 */
 		enable-active-high;
 		regulator-boot-on;
 	};
@@ -155,7 +155,7 @@
 		regulator-name = "vwl1271";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio2 22 0>;
+		gpio = <&gpio2 22 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};
@@ -374,7 +374,7 @@
 
 		/* SPI = 0, IRQ# = 119, 4 = active high level-sensitive */
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
-		ti,audpwron-gpio = <&gpio4 31 0>;  /* gpio line 127 */
+		ti,audpwron-gpio = <&gpio4 31 GPIO_ACTIVE_HIGH>;  /* gpio line 127 */
 
 		vio-supply = <&v1v8>;
 		v2v1-supply = <&v2v1>;

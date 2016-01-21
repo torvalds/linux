@@ -257,6 +257,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	}
 	init_waitqueue_head(&wq->wait);
 	wq->fasync_list = NULL;
+	wq->flags = 0;
 	RCU_INIT_POINTER(ei->socket.wq, wq);
 
 	ei->socket.state = SS_UNCONNECTED;
@@ -373,7 +374,7 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 
 	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
 		  &socket_file_ops);
-	if (unlikely(IS_ERR(file))) {
+	if (IS_ERR(file)) {
 		/* drop dentry, keep inode */
 		ihold(d_inode(path.dentry));
 		path_put(&path);
@@ -1056,27 +1057,20 @@ static int sock_fasync(int fd, struct file *filp, int on)
 	return 0;
 }
 
-/* This function may be called only under socket lock or callback_lock or rcu_lock */
+/* This function may be called only under rcu_lock */
 
-int sock_wake_async(struct socket *sock, int how, int band)
+int sock_wake_async(struct socket_wq *wq, int how, int band)
 {
-	struct socket_wq *wq;
+	if (!wq || !wq->fasync_list)
+		return -1;
 
-	if (!sock)
-		return -1;
-	rcu_read_lock();
-	wq = rcu_dereference(sock->wq);
-	if (!wq || !wq->fasync_list) {
-		rcu_read_unlock();
-		return -1;
-	}
 	switch (how) {
 	case SOCK_WAKE_WAITD:
-		if (test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
+		if (test_bit(SOCKWQ_ASYNC_WAITDATA, &wq->flags))
 			break;
 		goto call_kill;
 	case SOCK_WAKE_SPACE:
-		if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags))
+		if (!test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &wq->flags))
 			break;
 		/* fall through */
 	case SOCK_WAKE_IO:
@@ -1086,7 +1080,7 @@ call_kill:
 	case SOCK_WAKE_URG:
 		kill_fasync(&wq->fasync_list, SIGURG, band);
 	}
-	rcu_read_unlock();
+
 	return 0;
 }
 EXPORT_SYMBOL(sock_wake_async);
@@ -1303,7 +1297,7 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	}
 
 	newfile1 = sock_alloc_file(sock1, flags, NULL);
-	if (unlikely(IS_ERR(newfile1))) {
+	if (IS_ERR(newfile1)) {
 		err = PTR_ERR(newfile1);
 		goto out_put_unused_both;
 	}
@@ -1467,7 +1461,7 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 		goto out_put;
 	}
 	newfile = sock_alloc_file(newsock, flags, sock->sk->sk_prot_creator->name);
-	if (unlikely(IS_ERR(newfile))) {
+	if (IS_ERR(newfile)) {
 		err = PTR_ERR(newfile);
 		put_unused_fd(newfd);
 		sock_release(newsock);
@@ -1702,6 +1696,7 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 	msg.msg_name = addr ? (struct sockaddr *)&address : NULL;
 	/* We assume all kernel code knows the size of sockaddr_storage */
 	msg.msg_namelen = 0;
+	msg.msg_iocb = NULL;
 	if (sock->file->f_flags & O_NONBLOCK)
 		flags |= MSG_DONTWAIT;
 	err = sock_recvmsg(sock, &msg, iov_iter_count(&msg.msg_iter), flags);

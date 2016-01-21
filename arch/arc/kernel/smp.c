@@ -42,8 +42,13 @@ void __init smp_prepare_boot_cpu(void)
 }
 
 /*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
+ * Called from setup_arch() before calling setup_processor()
+ *
+ * - Initialise the CPU possible map early - this describes the CPUs
+ *   which may be present or become present in the system.
+ * - Call early smp init hook. This can initialize a specific multi-core
+ *   IP which is say common to several platforms (hence not part of
+ *   platform specific int_early() hook)
  */
 void __init smp_init_cpus(void)
 {
@@ -51,6 +56,9 @@ void __init smp_init_cpus(void)
 
 	for (i = 0; i < NR_CPUS; i++)
 		set_cpu_possible(i, true);
+
+	if (plat_smp_ops.init_early_smp)
+		plat_smp_ops.init_early_smp();
 }
 
 /* called from init ( ) =>  process 1 */
@@ -72,34 +80,28 @@ void __init smp_cpus_done(unsigned int max_cpus)
 }
 
 /*
- * After power-up, a non Master CPU needs to wait for Master to kick start it
- *
- * The default implementation halts
- *
- * This relies on platform specific support allowing Master to directly set
- * this CPU's PC (to be @first_lines_of_secondary() and kick start it.
- *
- * In lack of such h/w assist, platforms can override this function
- *   - make this function busy-spin on a token, eventually set by Master
- *     (from arc_platform_smp_wakeup_cpu())
- *   - Once token is available, jump to @first_lines_of_secondary
- *     (using inline asm).
- *
- * Alert: can NOT use stack here as it has not been determined/setup for CPU.
- *        If it turns out to be elaborate, it's better to code it in assembly
- *
+ * Default smp boot helper for Run-on-reset case where all cores start off
+ * together. Non-masters need to wait for Master to start running.
+ * This is implemented using a flag in memory, which Non-masters spin-wait on.
+ * Master sets it to cpu-id of core to "ungate" it.
  */
-void __weak arc_platform_smp_wait_to_boot(int cpu)
+static volatile int wake_flag;
+
+static void arc_default_smp_cpu_kick(int cpu, unsigned long pc)
 {
-	/*
-	 * As a hack for debugging - since debugger will single-step over the
-	 * FLAG insn - wrap the halt itself it in a self loop
-	 */
-	__asm__ __volatile__(
-	"1:		\n"
-	"	flag 1	\n"
-	"	b 1b	\n");
+	BUG_ON(cpu == 0);
+	wake_flag = cpu;
 }
+
+void arc_platform_smp_wait_to_boot(int cpu)
+{
+	while (wake_flag != cpu)
+		;
+
+	wake_flag = 0;
+	__asm__ __volatile__("j @first_lines_of_secondary	\n");
+}
+
 
 const char *arc_platform_smp_cpuinfo(void)
 {
@@ -129,8 +131,12 @@ void start_kernel_secondary(void)
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
-	if (machine_desc->init_smp)
-		machine_desc->init_smp(cpu);
+	/* Some SMP H/w setup - for each cpu */
+	if (plat_smp_ops.init_per_cpu)
+		plat_smp_ops.init_per_cpu(cpu);
+
+	if (machine_desc->init_per_cpu)
+		machine_desc->init_per_cpu(cpu);
 
 	arc_local_timer_setup();
 
@@ -161,6 +167,8 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	if (plat_smp_ops.cpu_kick)
 		plat_smp_ops.cpu_kick(cpu,
 				(unsigned long)first_lines_of_secondary);
+	else
+		arc_default_smp_cpu_kick(cpu, (unsigned long)NULL);
 
 	/* wait for 1 sec after kicking the secondary */
 	wait_till = jiffies + HZ;

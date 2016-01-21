@@ -49,18 +49,16 @@ static struct prop_handler prop_handlers[] = {
 		.extract = prop_compression_extract,
 		.inheritable = 1
 	},
-	{
-		.xattr_name = NULL
-	}
 };
 
 void __init btrfs_props_init(void)
 {
-	struct prop_handler *p;
+	int i;
 
 	hash_init(prop_handlers_ht);
 
-	for (p = &prop_handlers[0]; p->xattr_name; p++) {
+	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
+		struct prop_handler *p = &prop_handlers[i];
 		u64 h = btrfs_name_hash(p->xattr_name, strlen(p->xattr_name));
 
 		hash_add(prop_handlers_ht, &p->node, h);
@@ -301,15 +299,16 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 			 struct inode *inode,
 			 struct inode *parent)
 {
-	const struct prop_handler *h;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
+	int i;
 
 	if (!test_bit(BTRFS_INODE_HAS_PROPS,
 		      &BTRFS_I(parent)->runtime_flags))
 		return 0;
 
-	for (h = &prop_handlers[0]; h->xattr_name; h++) {
+	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
+		const struct prop_handler *h = &prop_handlers[i];
 		const char *value;
 		u64 num_bytes;
 

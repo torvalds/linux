@@ -174,6 +174,17 @@ enum imx7d_pads {
 	MX7D_PAD_ENET1_COL = 154,
 };
 
+enum imx7d_lpsr_pads {
+	MX7D_PAD_GPIO1_IO00 = 0,
+	MX7D_PAD_GPIO1_IO01 = 1,
+	MX7D_PAD_GPIO1_IO02 = 2,
+	MX7D_PAD_GPIO1_IO03 = 3,
+	MX7D_PAD_GPIO1_IO04 = 4,
+	MX7D_PAD_GPIO1_IO05 = 5,
+	MX7D_PAD_GPIO1_IO06 = 6,
+	MX7D_PAD_GPIO1_IO07 = 7,
+};
+
 /* Pad names for the pinmux subsystem */
 static const struct pinctrl_pin_desc imx7d_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX7D_PAD_RESERVE0),
@@ -333,13 +344,32 @@ static const struct pinctrl_pin_desc imx7d_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX7D_PAD_ENET1_COL),
 };
 
+/* Pad names for the pinmux subsystem */
+static const struct pinctrl_pin_desc imx7d_lpsr_pinctrl_pads[] = {
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO00),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO01),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO02),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO03),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO04),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO05),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO06),
+	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO07),
+};
+
 static struct imx_pinctrl_soc_info imx7d_pinctrl_info = {
 	.pins = imx7d_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7d_pinctrl_pads),
 };
 
+static struct imx_pinctrl_soc_info imx7d_lpsr_pinctrl_info = {
+	.pins = imx7d_lpsr_pinctrl_pads,
+	.npins = ARRAY_SIZE(imx7d_lpsr_pinctrl_pads),
+	.flags = ZERO_OFFSET_VALID,
+};
+
 static struct of_device_id imx7d_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx7d-iomuxc", .data = &imx7d_pinctrl_info, },
+	{ .compatible = "fsl,imx7d-iomuxc-lpsr", .data = &imx7d_lpsr_pinctrl_info },
 	{ /* sentinel */ }
 };
 

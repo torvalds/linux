@@ -864,13 +864,5 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	arch_timer_init();
 	return 0;
 }
-
-/* Initialize all the generic timers presented in GTDT */
-void __init acpi_generic_timer_init(void)
-{
-	if (acpi_disabled)
-		return;
-
-	acpi_table_parse(ACPI_SIG_GTDT, arch_timer_acpi_init);
-}
+CLOCKSOURCE_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
 #endif

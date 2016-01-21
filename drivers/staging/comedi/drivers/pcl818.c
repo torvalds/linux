@@ -102,15 +102,6 @@
 #include "comedi_isadma.h"
 #include "comedi_8254.h"
 
-/* boards constants */
-
-#define boardPCL818L 0
-#define boardPCL818H 1
-#define boardPCL818HD 2
-#define boardPCL818HG 3
-#define boardPCL818 4
-#define boardPCL718 5
-
 /*
  * Register I/O map
  */
@@ -124,23 +115,22 @@
 #define PCL818_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL818_STATUS_REG			0x08
 #define PCL818_STATUS_NEXT_CHAN_MASK		(0xf << 0)
-#define PCL818_STATUS_INT			(1 << 4)
-#define PCL818_STATUS_MUX			(1 << 5)
-#define PCL818_STATUS_UNI			(1 << 6)
-#define PCL818_STATUS_EOC			(1 << 7)
+#define PCL818_STATUS_INT			BIT(4)
+#define PCL818_STATUS_MUX			BIT(5)
+#define PCL818_STATUS_UNI			BIT(6)
+#define PCL818_STATUS_EOC			BIT(7)
 #define PCL818_CTRL_REG				0x09
-#define PCL818_CTRL_DISABLE_TRIG		(0 << 0)
-#define PCL818_CTRL_SOFT_TRIG			(1 << 0)
-#define PCL818_CTRL_EXT_TRIG			(2 << 0)
-#define PCL818_CTRL_PACER_TRIG			(3 << 0)
-#define PCL818_CTRL_DMAE			(1 << 2)
+#define PCL818_CTRL_TRIG(x)			(((x) & 0x3) << 0)
+#define PCL818_CTRL_DISABLE_TRIG		PCL818_CTRL_TRIG(0)
+#define PCL818_CTRL_SOFT_TRIG			PCL818_CTRL_TRIG(1)
+#define PCL818_CTRL_EXT_TRIG			PCL818_CTRL_TRIG(2)
+#define PCL818_CTRL_PACER_TRIG			PCL818_CTRL_TRIG(3)
+#define PCL818_CTRL_DMAE			BIT(2)
 #define PCL818_CTRL_IRQ(x)			((x) << 4)
-#define PCL818_CTRL_INTE			(1 << 7)
+#define PCL818_CTRL_INTE			BIT(7)
 #define PCL818_CNTENABLE_REG			0x0a
-#define PCL818_CNTENABLE_PACER_ENA		(0 << 0)
-#define PCL818_CNTENABLE_PACER_TRIG0		(1 << 0)
-#define PCL818_CNTENABLE_CNT0_EXT_CLK		(0 << 1)
-#define PCL818_CNTENABLE_CNT0_INT_CLK		(1 << 1)
+#define PCL818_CNTENABLE_PACER_TRIG0		BIT(0)
+#define PCL818_CNTENABLE_CNT0_INT_CLK		BIT(1)	/* 0=ext clk */
 #define PCL818_DO_DI_MSB_REG			0x0b
 #define PCL818_TIMER_BASE			0x0c
 
@@ -740,7 +730,7 @@ static int pcl818_ai_cmd(struct comedi_device *dev,
 	else
 		ctrl |= PCL818_CTRL_EXT_TRIG;
 
-	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
+	outb(0, dev->iobase + PCL818_CNTENABLE_REG);
 
 	if (dma) {
 		/* setup and enable dma for the first buffer */
@@ -902,7 +892,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	pcl818_ai_set_chan_range(dev, 0, 0);
 
 	/* stop pacer */
-	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
+	outb(0, dev->iobase + PCL818_CNTENABLE_REG);
 
 	/* set analog output channels to 0V */
 	for (chan = 0; chan < board->n_aochan; chan++) {

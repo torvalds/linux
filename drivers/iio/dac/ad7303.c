@@ -281,6 +281,12 @@ static int ad7303_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id ad7303_spi_of_match[] = {
+	{ .compatible = "adi,ad7303", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, ad7303_spi_of_match);
+
 static const struct spi_device_id ad7303_spi_ids[] = {
 	{ "ad7303", 0 },
 	{}
@@ -290,7 +296,7 @@ MODULE_DEVICE_TABLE(spi, ad7303_spi_ids);
 static struct spi_driver ad7303_driver = {
 	.driver = {
 		.name = "ad7303",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(ad7303_spi_of_match),
 	},
 	.probe = ad7303_probe,
 	.remove = ad7303_remove,

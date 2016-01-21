@@ -112,7 +112,7 @@
 /*  Bitmap Definition */
 /*  */
 
-#define	BIT_FA_RESET					BIT0
+#define	BIT_FA_RESET					BIT(0)
 
 
 

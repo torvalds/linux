@@ -205,6 +205,32 @@ out:
 	spin_unlock(&sta->tid_rx_lock);
 }
 
+/* process BAR frame, called in NAPI context */
+void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq)
+{
+	struct wil_sta_info *sta = &wil->sta[cid];
+	struct wil_tid_ampdu_rx *r;
+
+	spin_lock(&sta->tid_rx_lock);
+
+	r = sta->tid_rx[tid];
+	if (!r) {
+		wil_err(wil, "BAR for non-existing CID %d TID %d\n", cid, tid);
+		goto out;
+	}
+	if (seq_less(seq, r->head_seq_num)) {
+		wil_err(wil, "BAR Seq 0x%03x preceding head 0x%03x\n",
+			seq, r->head_seq_num);
+		goto out;
+	}
+	wil_dbg_txrx(wil, "BAR: CID %d TID %d Seq 0x%03x head 0x%03x\n",
+		     cid, tid, seq, r->head_seq_num);
+	wil_release_reorder_frames(wil, r, seq);
+
+out:
+	spin_unlock(&sta->tid_rx_lock);
+}
+
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn)
 {

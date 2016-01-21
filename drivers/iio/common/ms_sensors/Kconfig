@@ -1,0 +1,6 @@
+#
+# Measurements Specialties sensors common library
+#
+
+config IIO_MS_SENSORS_I2C
+        tristate

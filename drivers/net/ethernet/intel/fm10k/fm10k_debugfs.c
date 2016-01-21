@@ -37,7 +37,8 @@ static void *fm10k_dbg_desc_seq_start(struct seq_file *s, loff_t *pos)
 }
 
 static void *fm10k_dbg_desc_seq_next(struct seq_file *s,
-				     void __always_unused *v, loff_t *pos)
+				     void __always_unused *v,
+				     loff_t *pos)
 {
 	struct fm10k_ring *ring = s->private;
 
@@ -45,7 +46,7 @@ static void *fm10k_dbg_desc_seq_next(struct seq_file *s,
 }
 
 static void fm10k_dbg_desc_seq_stop(struct seq_file __always_unused *s,
-				    __always_unused void *v)
+				    void __always_unused *v)
 {
 	/* Do nothing. */
 }
@@ -175,7 +176,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 		return;
 
 	/* Generate a folder for each q_vector */
-	sprintf(name, "q_vector.%03d", q_vector->v_idx);
+	snprintf(name, sizeof(name), "q_vector.%03d", q_vector->v_idx);
 
 	q_vector->dbg_q_vector = debugfs_create_dir(name, interface->dbg_intfc);
 	if (!q_vector->dbg_q_vector)
@@ -185,7 +186,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 	for (i = 0; i < q_vector->tx.count; i++) {
 		struct fm10k_ring *ring = &q_vector->tx.ring[i];
 
-		sprintf(name, "tx_ring.%03d", ring->queue_index);
+		snprintf(name, sizeof(name), "tx_ring.%03d", ring->queue_index);
 
 		debugfs_create_file(name, 0600,
 				    q_vector->dbg_q_vector, ring,
@@ -196,7 +197,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 	for (i = 0; i < q_vector->rx.count; i++) {
 		struct fm10k_ring *ring = &q_vector->rx.ring[i];
 
-		sprintf(name, "rx_ring.%03d", ring->queue_index);
+		snprintf(name, sizeof(name), "rx_ring.%03d", ring->queue_index);
 
 		debugfs_create_file(name, 0600,
 				    q_vector->dbg_q_vector, ring,

@@ -52,12 +52,12 @@ static const char *ext4_encrypted_follow_link(struct dentry *dentry, void **cook
 	/* Symlink is encrypted */
 	sd = (struct ext4_encrypted_symlink_data *)caddr;
 	cstr.name = sd->encrypted_path;
-	cstr.len  = le32_to_cpu(sd->len);
+	cstr.len  = le16_to_cpu(sd->len);
 	if ((cstr.len +
 	     sizeof(struct ext4_encrypted_symlink_data) - 1) >
 	    max_size) {
 		/* Symlink data on the disk is corrupted */
-		res = -EIO;
+		res = -EFSCORRUPTED;
 		goto errout;
 	}
 	plen = (cstr.len < EXT4_FNAME_CRYPTO_DIGEST_SIZE*2) ?

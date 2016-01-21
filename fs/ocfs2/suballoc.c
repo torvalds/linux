@@ -1920,7 +1920,10 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 	status = ocfs2_search_chain(ac, handle, bits_wanted, min_bits,
 				    res, &bits_left);
 	if (!status) {
-		hint = ocfs2_group_from_res(res);
+		if (ocfs2_is_cluster_bitmap(ac->ac_inode))
+			hint = res->sr_bg_blkno;
+		else
+			hint = ocfs2_group_from_res(res);
 		goto set_hint;
 	}
 	if (status < 0 && status != -ENOSPC) {

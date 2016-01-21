@@ -130,7 +130,6 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	}
 }
 
-#ifdef CONFIG_PRINTK
 /*
  * __btrfs_std_error decodes expected errors from the caller and
  * invokes the approciate error response.
@@ -140,7 +139,9 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		       unsigned int line, int errno, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
+#ifdef CONFIG_PRINTK
 	const char *errstr;
+#endif
 
 	/*
 	 * Special case: if the error is EROFS, and we're already
@@ -149,6 +150,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
   		return;
 
+#ifdef CONFIG_PRINTK
 	errstr = btrfs_decode_error(errno);
 	if (fmt) {
 		struct va_format vaf;
@@ -166,6 +168,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		printk(KERN_CRIT "BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
 			sb->s_id, function, line, errno, errstr);
 	}
+#endif
 
 	/* Don't go through full error handling during mount */
 	save_error_info(fs_info);
@@ -173,6 +176,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		btrfs_handle_error(fs_info);
 }
 
+#ifdef CONFIG_PRINTK
 static const char * const logtypes[] = {
 	"emergency",
 	"alert",
@@ -211,27 +215,6 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	printk("%sBTRFS %s (device %s): %pV\n", lvl, type, sb->s_id, &vaf);
 
 	va_end(args);
-}
-
-#else
-
-void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
-		       unsigned int line, int errno, const char *fmt, ...)
-{
-	struct super_block *sb = fs_info->sb;
-
-	/*
-	 * Special case: if the error is EROFS, and we're already
-	 * under MS_RDONLY, then it is safe here.
-	 */
-	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
-		return;
-
-	/* Don't go through full error handling during mount */
-	if (sb->s_flags & MS_BORN) {
-		save_error_info(fs_info);
-		btrfs_handle_error(fs_info);
-	}
 }
 #endif
 
@@ -320,6 +303,9 @@ enum {
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
 	Opt_datasum, Opt_treelog, Opt_noinode_cache,
+#ifdef CONFIG_BTRFS_DEBUG
+	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
+#endif
 	Opt_err,
 };
 
@@ -372,6 +358,11 @@ static match_table_t tokens = {
 	{Opt_rescan_uuid_tree, "rescan_uuid_tree"},
 	{Opt_fatal_errors, "fatal_errors=%s"},
 	{Opt_commit_interval, "commit=%d"},
+#ifdef CONFIG_BTRFS_DEBUG
+	{Opt_fragment_data, "fragment=data"},
+	{Opt_fragment_metadata, "fragment=metadata"},
+	{Opt_fragment_all, "fragment=all"},
+#endif
 	{Opt_err, NULL},
 };
 
@@ -738,6 +729,22 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 			}
 			break;
+#ifdef CONFIG_BTRFS_DEBUG
+		case Opt_fragment_all:
+			btrfs_info(root->fs_info, "fragmenting all space");
+			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
+			btrfs_set_opt(info->mount_opt, FRAGMENT_METADATA);
+			break;
+		case Opt_fragment_metadata:
+			btrfs_info(root->fs_info, "fragmenting metadata");
+			btrfs_set_opt(info->mount_opt,
+				      FRAGMENT_METADATA);
+			break;
+		case Opt_fragment_data:
+			btrfs_info(root->fs_info, "fragmenting data");
+			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
+			break;
+#endif
 		case Opt_err:
 			btrfs_info(root->fs_info, "unrecognized mount option '%s'", p);
 			ret = -EINVAL;
@@ -1189,6 +1196,12 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",fatal_errors=panic");
 	if (info->commit_interval != BTRFS_DEFAULT_COMMIT_INTERVAL)
 		seq_printf(seq, ",commit=%d", info->commit_interval);
+#ifdef CONFIG_BTRFS_DEBUG
+	if (btrfs_test_opt(root, FRAGMENT_DATA))
+		seq_puts(seq, ",fragment=data");
+	if (btrfs_test_opt(root, FRAGMENT_METADATA))
+		seq_puts(seq, ",fragment=metadata");
+#endif
 	seq_printf(seq, ",subvolid=%llu",
 		  BTRFS_I(d_inode(dentry))->root->root_key.objectid);
 	seq_puts(seq, ",subvol=");

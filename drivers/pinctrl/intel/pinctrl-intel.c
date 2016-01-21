@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/acpi.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
@@ -24,9 +25,6 @@
 
 #include "pinctrl-intel.h"
 
-/* Maximum number of pads in each group */
-#define NPADS_IN_GPP			24
-
 /* Offset from regs */
 #define PADBAR				0x00c
 #define GPI_IS				0x100
@@ -36,6 +34,7 @@
 #define PADOWN_BITS			4
 #define PADOWN_SHIFT(p)			((p) % 8 * PADOWN_BITS)
 #define PADOWN_MASK(p)			(0xf << PADOWN_SHIFT(p))
+#define PADOWN_GPP(p)			((p) / 8)
 
 /* Offset from pad_regs */
 #define PADCFG0				0x000
@@ -141,7 +140,7 @@ static void __iomem *intel_get_padcfg(struct intel_pinctrl *pctrl, unsigned pin,
 static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	const struct intel_community *community;
-	unsigned padno, gpp, gpp_offset, offset;
+	unsigned padno, gpp, offset, group;
 	void __iomem *padown;
 
 	community = intel_get_community(pctrl, pin);
@@ -151,16 +150,15 @@ static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned pin)
 		return true;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
-	gpp_offset = padno % NPADS_IN_GPP;
-	offset = community->padown_offset + gpp * 16 + (gpp_offset / 8) * 4;
+	group = padno / community->gpp_size;
+	gpp = PADOWN_GPP(padno % community->gpp_size);
+	offset = community->padown_offset + 0x10 * group + gpp * 4;
 	padown = community->regs + offset;
 
 	return !(readl(padown) & PADOWN_MASK(padno));
 }
 
-static bool intel_pad_reserved_for_acpi(struct intel_pinctrl *pctrl,
-					unsigned pin)
+static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	const struct intel_community *community;
 	unsigned padno, gpp, offset;
@@ -173,11 +171,11 @@ static bool intel_pad_reserved_for_acpi(struct intel_pinctrl *pctrl,
 		return false;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
+	gpp = padno / community->gpp_size;
 	offset = community->hostown_offset + gpp * 4;
 	hostown = community->regs + offset;
 
-	return !(readl(hostown) & BIT(padno % NPADS_IN_GPP));
+	return !(readl(hostown) & BIT(padno % community->gpp_size));
 }
 
 static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
@@ -193,7 +191,7 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 		return false;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
+	gpp = padno / community->gpp_size;
 
 	/*
 	 * If PADCFGLOCK and PADCFGLOCKTX bits are both clear for this pad,
@@ -202,12 +200,12 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 	 */
 	offset = community->padcfglock_offset + gpp * 8;
 	value = readl(community->regs + offset);
-	if (value & BIT(pin % NPADS_IN_GPP))
+	if (value & BIT(pin % community->gpp_size))
 		return true;
 
 	offset = community->padcfglock_offset + 4 + gpp * 8;
 	value = readl(community->regs + offset);
-	if (value & BIT(pin % NPADS_IN_GPP))
+	if (value & BIT(pin % community->gpp_size))
 		return true;
 
 	return false;
@@ -216,7 +214,6 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 static bool intel_pad_usable(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	return intel_pad_owned_by_host(pctrl, pin) &&
-		!intel_pad_reserved_for_acpi(pctrl, pin) &&
 		!intel_pad_locked(pctrl, pin);
 }
 
@@ -269,7 +266,7 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "0x%08x 0x%08x", cfg0, cfg1);
 
 	locked = intel_pad_locked(pctrl, pin);
-	acpi = intel_pad_reserved_for_acpi(pctrl, pin);
+	acpi = intel_pad_acpi_mode(pctrl, pin);
 
 	if (locked || acpi) {
 		seq_puts(s, " [");
@@ -597,16 +594,6 @@ static const struct pinctrl_desc intel_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int intel_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void intel_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int intel_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
@@ -654,8 +641,8 @@ static int intel_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static const struct gpio_chip intel_gpio_chip = {
 	.owner = THIS_MODULE,
-	.request = intel_gpio_request,
-	.free = intel_gpio_free,
+	.request = gpiochip_generic_request,
+	.free = gpiochip_generic_free,
 	.direction_input = intel_gpio_direction_input,
 	.direction_output = intel_gpio_direction_output,
 	.get = intel_gpio_get,
@@ -674,8 +661,8 @@ static void intel_gpio_irq_ack(struct irq_data *d)
 	community = intel_get_community(pctrl, pin);
 	if (community) {
 		unsigned padno = pin_to_padno(community, pin);
-		unsigned gpp_offset = padno % NPADS_IN_GPP;
-		unsigned gpp = padno / NPADS_IN_GPP;
+		unsigned gpp_offset = padno % community->gpp_size;
+		unsigned gpp = padno / community->gpp_size;
 
 		writel(BIT(gpp_offset), community->regs + GPI_IS + gpp * 4);
 	}
@@ -696,8 +683,8 @@ static void intel_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 	community = intel_get_community(pctrl, pin);
 	if (community) {
 		unsigned padno = pin_to_padno(community, pin);
-		unsigned gpp_offset = padno % NPADS_IN_GPP;
-		unsigned gpp = padno / NPADS_IN_GPP;
+		unsigned gpp_offset = padno % community->gpp_size;
+		unsigned gpp = padno / community->gpp_size;
 		void __iomem *reg;
 		u32 value;
 
@@ -735,6 +722,16 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 	reg = intel_get_padcfg(pctrl, pin, PADCFG0);
 	if (!reg)
 		return -EINVAL;
+
+	/*
+	 * If the pin is in ACPI mode it is still usable as a GPIO but it
+	 * cannot be used as IRQ because GPI_IS status bit will not be
+	 * updated by the host controller hardware.
+	 */
+	if (intel_pad_acpi_mode(pctrl, pin)) {
+		dev_warn(pctrl->dev, "pin %u cannot be used as IRQ\n", pin);
+		return -EPERM;
+	}
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
@@ -781,8 +778,8 @@ static int intel_gpio_irq_wake(struct irq_data *d, unsigned int on)
 		return -EINVAL;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
-	gpp_offset = padno % NPADS_IN_GPP;
+	gpp = padno / community->gpp_size;
+	gpp_offset = padno % community->gpp_size;
 
 	/* Clear the existing wake status */
 	writel(BIT(gpp_offset), community->regs + GPI_GPE_STS + gpp * 4);
@@ -803,9 +800,11 @@ static int intel_gpio_irq_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-static void intel_gpio_community_irq_handler(struct gpio_chip *gc,
+static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 	const struct intel_community *community)
 {
+	struct gpio_chip *gc = &pctrl->chip;
+	irqreturn_t ret = IRQ_NONE;
 	int gpp;
 
 	for (gpp = 0; gpp < community->ngpps; gpp++) {
@@ -818,38 +817,42 @@ static void intel_gpio_community_irq_handler(struct gpio_chip *gc,
 		/* Only interrupts that are enabled */
 		pending &= enabled;
 
-		for_each_set_bit(gpp_offset, &pending, NPADS_IN_GPP) {
+		for_each_set_bit(gpp_offset, &pending, community->gpp_size) {
 			unsigned padno, irq;
 
 			/*
 			 * The last group in community can have less pins
 			 * than NPADS_IN_GPP.
 			 */
-			padno = gpp_offset + gpp * NPADS_IN_GPP;
+			padno = gpp_offset + gpp * community->gpp_size;
 			if (padno >= community->npins)
 				break;
 
 			irq = irq_find_mapping(gc->irqdomain,
 					       community->pin_base + padno);
 			generic_handle_irq(irq);
+
+			ret |= IRQ_HANDLED;
 		}
 	}
+
+	return ret;
 }
 
-static void intel_gpio_irq_handler(struct irq_desc *desc)
+static irqreturn_t intel_gpio_irq(int irq, void *data)
 {
-	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
-	struct irq_chip *chip = irq_desc_get_chip(desc);
+	const struct intel_community *community;
+	struct intel_pinctrl *pctrl = data;
+	irqreturn_t ret = IRQ_NONE;
 	int i;
 
-	chained_irq_enter(chip, desc);
-
 	/* Need to check all communities for pending interrupts */
-	for (i = 0; i < pctrl->ncommunities; i++)
-		intel_gpio_community_irq_handler(gc, &pctrl->communities[i]);
+	for (i = 0; i < pctrl->ncommunities; i++) {
+		community = &pctrl->communities[i];
+		ret |= intel_gpio_community_irq_handler(pctrl, community);
+	}
 
-	chained_irq_exit(chip, desc);
+	return ret;
 }
 
 static struct irq_chip intel_gpio_irqchip = {
@@ -860,26 +863,6 @@ static struct irq_chip intel_gpio_irqchip = {
 	.irq_set_type = intel_gpio_irq_type,
 	.irq_set_wake = intel_gpio_irq_wake,
 };
-
-static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
-{
-	size_t i;
-
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		const struct intel_community *community;
-		void __iomem *base;
-		unsigned gpp;
-
-		community = &pctrl->communities[i];
-		base = community->regs;
-
-		for (gpp = 0; gpp < community->ngpps; gpp++) {
-			/* Mask and clear all interrupts */
-			writel(0, base + community->ie_offset + gpp * 4);
-			writel(0xffff, base + GPI_IS + gpp * 4);
-		}
-	}
-}
 
 static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 {
@@ -902,21 +885,36 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 				     0, 0, pctrl->soc->npins);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-		gpiochip_remove(&pctrl->chip);
-		return ret;
+		goto fail;
+	}
+
+	/*
+	 * We need to request the interrupt here (instead of providing chip
+	 * to the irq directly) because on some platforms several GPIO
+	 * controllers share the same interrupt line.
+	 */
+	ret = devm_request_irq(pctrl->dev, irq, intel_gpio_irq, IRQF_SHARED,
+			       dev_name(pctrl->dev), pctrl);
+	if (ret) {
+		dev_err(pctrl->dev, "failed to request interrupt\n");
+		goto fail;
 	}
 
 	ret = gpiochip_irqchip_add(&pctrl->chip, &intel_gpio_irqchip, 0,
 				   handle_simple_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add irqchip\n");
-		gpiochip_remove(&pctrl->chip);
-		return ret;
+		goto fail;
 	}
 
 	gpiochip_set_chained_irqchip(&pctrl->chip, &intel_gpio_irqchip, irq,
-				     intel_gpio_irq_handler);
+				     NULL);
 	return 0;
+
+fail:
+	gpiochip_remove(&pctrl->chip);
+
+	return ret;
 }
 
 static int intel_pinctrl_pm_init(struct intel_pinctrl *pctrl)
@@ -1002,7 +1000,8 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 
 		community->regs = regs;
 		community->pad_regs = regs + padbar;
-		community->ngpps = DIV_ROUND_UP(community->npins, NPADS_IN_GPP);
+		community->ngpps = DIV_ROUND_UP(community->npins,
+						community->gpp_size);
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1086,6 +1085,26 @@ int intel_pinctrl_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_suspend);
+
+static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
+{
+	size_t i;
+
+	for (i = 0; i < pctrl->ncommunities; i++) {
+		const struct intel_community *community;
+		void __iomem *base;
+		unsigned gpp;
+
+		community = &pctrl->communities[i];
+		base = community->regs;
+
+		for (gpp = 0; gpp < community->ngpps; gpp++) {
+			/* Mask and clear all interrupts */
+			writel(0, base + community->ie_offset + gpp * 4);
+			writel(0xffff, base + GPI_IS + gpp * 4);
+		}
+	}
+}
 
 int intel_pinctrl_resume(struct device *dev)
 {

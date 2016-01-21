@@ -635,9 +635,7 @@ void
 acpi_ut_free_and_track(void *address,
 		       u32 component, const char *module, u32 line);
 
-#ifdef	ACPI_FUTURE_USAGE
 void acpi_ut_dump_allocation_info(void);
-#endif				/* ACPI_FUTURE_USAGE */
 
 void acpi_ut_dump_allocations(u32 component, const char *module);
 

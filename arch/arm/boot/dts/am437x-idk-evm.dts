@@ -325,7 +325,7 @@
 	pinctrl-1 = <&mmc1_pins_sleep>;
 	vmmc-supply = <&v3_3d>;
 	bus-width = <4>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 };
 
 &qspi {

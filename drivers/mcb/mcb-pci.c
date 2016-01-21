@@ -51,6 +51,7 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->mapbase = pci_resource_start(pdev, 0);
 	if (!priv->mapbase) {
 		dev_err(&pdev->dev, "No PCI resource\n");
+		ret = -ENODEV;
 		goto out_disable;
 	}
 

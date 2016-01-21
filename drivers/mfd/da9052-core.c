@@ -51,6 +51,9 @@ static bool da9052_reg_readable(struct device *dev, unsigned int reg)
 	case DA9052_GPIO_2_3_REG:
 	case DA9052_GPIO_4_5_REG:
 	case DA9052_GPIO_6_7_REG:
+	case DA9052_GPIO_8_9_REG:
+	case DA9052_GPIO_10_11_REG:
+	case DA9052_GPIO_12_13_REG:
 	case DA9052_GPIO_14_15_REG:
 	case DA9052_ID_0_1_REG:
 	case DA9052_ID_2_3_REG:
@@ -178,6 +181,9 @@ static bool da9052_reg_writeable(struct device *dev, unsigned int reg)
 	case DA9052_GPIO_2_3_REG:
 	case DA9052_GPIO_4_5_REG:
 	case DA9052_GPIO_6_7_REG:
+	case DA9052_GPIO_8_9_REG:
+	case DA9052_GPIO_10_11_REG:
+	case DA9052_GPIO_12_13_REG:
 	case DA9052_GPIO_14_15_REG:
 	case DA9052_ID_0_1_REG:
 	case DA9052_ID_2_3_REG:

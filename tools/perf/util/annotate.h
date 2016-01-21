@@ -122,7 +122,7 @@ struct annotated_source {
 	struct list_head   source;
 	struct source_line *lines;
 	int    		   nr_histograms;
-	int    		   sizeof_sym_hist;
+	size_t		   sizeof_sym_hist;
 	struct cyc_hist	   *cycles_hist;
 	struct sym_hist	   histograms[0];
 };

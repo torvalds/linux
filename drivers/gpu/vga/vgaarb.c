@@ -395,8 +395,10 @@ int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible)
 		set_current_state(interruptible ?
 				  TASK_INTERRUPTIBLE :
 				  TASK_UNINTERRUPTIBLE);
-		if (signal_pending(current)) {
-			rc = -EINTR;
+		if (interruptible && signal_pending(current)) {
+			__set_current_state(TASK_RUNNING);
+			remove_wait_queue(&vga_wait_queue, &wait);
+			rc = -ERESTARTSYS;
 			break;
 		}
 		schedule();
@@ -531,7 +533,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 		return false;
 
 	/* Allocate structure */
-	vgadev = kmalloc(sizeof(struct vga_device), GFP_KERNEL);
+	vgadev = kzalloc(sizeof(struct vga_device), GFP_KERNEL);
 	if (vgadev == NULL) {
 		pr_err("failed to allocate pci device\n");
 		/*
@@ -540,8 +542,6 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 		 */
 		return false;
 	}
-
-	memset(vgadev, 0, sizeof(*vgadev));
 
 	/* Take lock & check for duplicates */
 	spin_lock_irqsave(&vga_lock, flags);

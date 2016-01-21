@@ -54,11 +54,11 @@ static int regcache_hw_init(struct regmap *map)
 		return -ENOMEM;
 
 	if (!map->reg_defaults_raw) {
-		u32 cache_bypass = map->cache_bypass;
+		bool cache_bypass = map->cache_bypass;
 		dev_warn(map->dev, "No cache defaults, reading back from HW\n");
 
 		/* Bypass the cache access till data read from HW*/
-		map->cache_bypass = 1;
+		map->cache_bypass = true;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf) {
 			ret = -ENOMEM;
@@ -285,9 +285,9 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 		if (!regcache_reg_needs_sync(map, reg, val))
 			continue;
 
-		map->cache_bypass = 1;
+		map->cache_bypass = true;
 		ret = _regmap_write(map, reg, val);
-		map->cache_bypass = 0;
+		map->cache_bypass = false;
 		if (ret) {
 			dev_err(map->dev, "Unable to sync register %#x. %d\n",
 				reg, ret);
@@ -315,7 +315,7 @@ int regcache_sync(struct regmap *map)
 	int ret = 0;
 	unsigned int i;
 	const char *name;
-	unsigned int bypass;
+	bool bypass;
 
 	BUG_ON(!map->cache_ops);
 
@@ -333,7 +333,7 @@ int regcache_sync(struct regmap *map)
 	map->async = true;
 
 	/* Apply any patch first */
-	map->cache_bypass = 1;
+	map->cache_bypass = true;
 	for (i = 0; i < map->patch_regs; i++) {
 		ret = _regmap_write(map, map->patch[i].reg, map->patch[i].def);
 		if (ret != 0) {
@@ -342,7 +342,7 @@ int regcache_sync(struct regmap *map)
 			goto out;
 		}
 	}
-	map->cache_bypass = 0;
+	map->cache_bypass = false;
 
 	if (map->cache_ops->sync)
 		ret = map->cache_ops->sync(map, 0, map->max_register);
@@ -384,7 +384,7 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 {
 	int ret = 0;
 	const char *name;
-	unsigned int bypass;
+	bool bypass;
 
 	BUG_ON(!map->cache_ops);
 
@@ -637,11 +637,11 @@ static int regcache_sync_block_single(struct regmap *map, void *block,
 		if (!regcache_reg_needs_sync(map, regtmp, val))
 			continue;
 
-		map->cache_bypass = 1;
+		map->cache_bypass = true;
 
 		ret = _regmap_write(map, regtmp, val);
 
-		map->cache_bypass = 0;
+		map->cache_bypass = false;
 		if (ret != 0) {
 			dev_err(map->dev, "Unable to sync register %#x. %d\n",
 				regtmp, ret);
@@ -668,14 +668,14 @@ static int regcache_sync_block_raw_flush(struct regmap *map, const void **data,
 	dev_dbg(map->dev, "Writing %zu bytes for %d registers from 0x%x-0x%x\n",
 		count * val_bytes, count, base, cur - map->reg_stride);
 
-	map->cache_bypass = 1;
+	map->cache_bypass = true;
 
 	ret = _regmap_raw_write(map, base, *data, count * val_bytes);
 	if (ret)
 		dev_err(map->dev, "Unable to sync registers %#x-%#x. %d\n",
 			base, cur - map->reg_stride, ret);
 
-	map->cache_bypass = 0;
+	map->cache_bypass = false;
 
 	*data = NULL;
 

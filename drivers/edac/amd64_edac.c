@@ -173,7 +173,7 @@ static inline int amd64_read_dct_pci_cfg(struct amd64_pvt *pvt, u8 dct,
  * scan the scrub rate mapping table for a close or matching bandwidth value to
  * issue. If requested is too big, then use last maximum value found.
  */
-static int __set_scrub_rate(struct pci_dev *ctl, u32 new_bw, u32 min_rate)
+static int __set_scrub_rate(struct amd64_pvt *pvt, u32 new_bw, u32 min_rate)
 {
 	u32 scrubval;
 	int i;
@@ -201,7 +201,14 @@ static int __set_scrub_rate(struct pci_dev *ctl, u32 new_bw, u32 min_rate)
 
 	scrubval = scrubrates[i].scrubval;
 
-	pci_write_bits32(ctl, SCRCTRL, scrubval, 0x001F);
+	if (pvt->fam == 0x15 && pvt->model == 0x60) {
+		f15h_select_dct(pvt, 0);
+		pci_write_bits32(pvt->F2, F15H_M60H_SCRCTRL, scrubval, 0x001F);
+		f15h_select_dct(pvt, 1);
+		pci_write_bits32(pvt->F2, F15H_M60H_SCRCTRL, scrubval, 0x001F);
+	} else {
+		pci_write_bits32(pvt->F3, SCRCTRL, scrubval, 0x001F);
+	}
 
 	if (scrubval)
 		return scrubrates[i].bandwidth;
@@ -217,11 +224,15 @@ static int set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 	if (pvt->fam == 0xf)
 		min_scrubrate = 0x0;
 
-	/* Erratum #505 */
-	if (pvt->fam == 0x15 && pvt->model < 0x10)
-		f15h_select_dct(pvt, 0);
+	if (pvt->fam == 0x15) {
+		/* Erratum #505 */
+		if (pvt->model < 0x10)
+			f15h_select_dct(pvt, 0);
 
-	return __set_scrub_rate(pvt->F3, bw, min_scrubrate);
+		if (pvt->model == 0x60)
+			min_scrubrate = 0x6;
+	}
+	return __set_scrub_rate(pvt, bw, min_scrubrate);
 }
 
 static int get_scrub_rate(struct mem_ctl_info *mci)
@@ -230,11 +241,15 @@ static int get_scrub_rate(struct mem_ctl_info *mci)
 	u32 scrubval = 0;
 	int i, retval = -EINVAL;
 
-	/* Erratum #505 */
-	if (pvt->fam == 0x15 && pvt->model < 0x10)
-		f15h_select_dct(pvt, 0);
+	if (pvt->fam == 0x15) {
+		/* Erratum #505 */
+		if (pvt->model < 0x10)
+			f15h_select_dct(pvt, 0);
 
-	amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
+		if (pvt->model == 0x60)
+			amd64_read_pci_cfg(pvt->F2, F15H_M60H_SCRCTRL, &scrubval);
+	} else
+		amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
 
 	scrubval = scrubval & 0x001F;
 
@@ -2770,7 +2785,7 @@ static int init_one_instance(struct pci_dev *F2)
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
 	int err = 0, ret;
-	u16 nid = amd_get_node_id(F2);
+	u16 nid = amd_pci_dev_to_node_id(F2);
 
 	ret = -ENOMEM;
 	pvt = kzalloc(sizeof(struct amd64_pvt), GFP_KERNEL);
@@ -2860,7 +2875,7 @@ err_ret:
 static int probe_one_instance(struct pci_dev *pdev,
 			      const struct pci_device_id *mc_type)
 {
-	u16 nid = amd_get_node_id(pdev);
+	u16 nid = amd_pci_dev_to_node_id(pdev);
 	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
 	struct ecc_settings *s;
 	int ret = 0;
@@ -2910,7 +2925,7 @@ static void remove_one_instance(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
-	u16 nid = amd_get_node_id(pdev);
+	u16 nid = amd_pci_dev_to_node_id(pdev);
 	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
 	struct ecc_settings *s = ecc_stngs[nid];
 

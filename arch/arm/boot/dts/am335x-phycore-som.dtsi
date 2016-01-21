@@ -29,8 +29,17 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
-		compatible = "regulator-fixed";
+	regulators {
+		compatible = "simple-bus";
+
+		vcc5v: fixedregulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "vcc5v";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
 	};
 };
 
@@ -233,14 +242,14 @@
 #include "tps65910.dtsi"
 
 &tps {
-	vcc1-supply = <&vbat>;
-	vcc2-supply = <&vbat>;
-	vcc3-supply = <&vbat>;
-	vcc4-supply = <&vbat>;
-	vcc5-supply = <&vbat>;
-	vcc6-supply = <&vbat>;
-	vcc7-supply = <&vbat>;
-	vccio-supply = <&vbat>;
+	vcc1-supply = <&vcc5v>;
+	vcc2-supply = <&vcc5v>;
+	vcc3-supply = <&vcc5v>;
+	vcc4-supply = <&vcc5v>;
+	vcc5-supply = <&vcc5v>;
+	vcc6-supply = <&vcc5v>;
+	vcc7-supply = <&vcc5v>;
+	vccio-supply = <&vcc5v>;
 
 	regulators {
 		vrtc_reg: regulator@0 {
@@ -309,13 +318,6 @@
 			regulator-always-on;
 		};
 	};
-};
-
-&vbat {
-	regulator-name = "vbat";
-	regulator-min-microvolt = <5000000>;
-	regulator-max-microvolt = <5000000>;
-	regulator-boot-on;
 };
 
 /* SPI Busses */

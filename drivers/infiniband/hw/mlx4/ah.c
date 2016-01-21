@@ -76,7 +76,10 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	struct mlx4_dev *dev = ibdev->dev;
 	int is_mcast = 0;
 	struct in6_addr in6;
-	u16 vlan_tag;
+	u16 vlan_tag = 0xffff;
+	union ib_gid sgid;
+	struct ib_gid_attr gid_attr;
+	int ret;
 
 	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
 	if (rdma_is_multicast_addr(&in6)) {
@@ -85,7 +88,17 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	} else {
 		memcpy(ah->av.eth.mac, ah_attr->dmac, ETH_ALEN);
 	}
-	vlan_tag = ah_attr->vlan_id;
+	ret = ib_get_cached_gid(pd->device, ah_attr->port_num,
+				ah_attr->grh.sgid_index, &sgid, &gid_attr);
+	if (ret)
+		return ERR_PTR(ret);
+	memset(ah->av.eth.s_mac, 0, ETH_ALEN);
+	if (gid_attr.ndev) {
+		if (is_vlan_dev(gid_attr.ndev))
+			vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
+		memcpy(ah->av.eth.s_mac, gid_attr.ndev->dev_addr, ETH_ALEN);
+		dev_put(gid_attr.ndev);
+	}
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (ah_attr->sl & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));

@@ -37,90 +37,16 @@
 int sysctl_max_syn_backlog = 256;
 EXPORT_SYMBOL(sysctl_max_syn_backlog);
 
-int reqsk_queue_alloc(struct request_sock_queue *queue,
-		      unsigned int nr_table_entries)
+void reqsk_queue_alloc(struct request_sock_queue *queue)
 {
-	size_t lopt_size = sizeof(struct listen_sock);
-	struct listen_sock *lopt = NULL;
+	spin_lock_init(&queue->rskq_lock);
 
-	nr_table_entries = min_t(u32, nr_table_entries, sysctl_max_syn_backlog);
-	nr_table_entries = max_t(u32, nr_table_entries, 8);
-	nr_table_entries = roundup_pow_of_two(nr_table_entries + 1);
-	lopt_size += nr_table_entries * sizeof(struct request_sock *);
+	spin_lock_init(&queue->fastopenq.lock);
+	queue->fastopenq.rskq_rst_head = NULL;
+	queue->fastopenq.rskq_rst_tail = NULL;
+	queue->fastopenq.qlen = 0;
 
-	if (lopt_size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
-		lopt = kzalloc(lopt_size, GFP_KERNEL |
-					  __GFP_NOWARN |
-					  __GFP_NORETRY);
-	if (!lopt)
-		lopt = vzalloc(lopt_size);
-	if (!lopt)
-		return -ENOMEM;
-
-	get_random_bytes(&lopt->hash_rnd, sizeof(lopt->hash_rnd));
-	spin_lock_init(&queue->syn_wait_lock);
 	queue->rskq_accept_head = NULL;
-	lopt->nr_table_entries = nr_table_entries;
-	lopt->max_qlen_log = ilog2(nr_table_entries);
-
-	spin_lock_bh(&queue->syn_wait_lock);
-	queue->listen_opt = lopt;
-	spin_unlock_bh(&queue->syn_wait_lock);
-
-	return 0;
-}
-
-void __reqsk_queue_destroy(struct request_sock_queue *queue)
-{
-	/* This is an error recovery path only, no locking needed */
-	kvfree(queue->listen_opt);
-}
-
-static inline struct listen_sock *reqsk_queue_yank_listen_sk(
-		struct request_sock_queue *queue)
-{
-	struct listen_sock *lopt;
-
-	spin_lock_bh(&queue->syn_wait_lock);
-	lopt = queue->listen_opt;
-	queue->listen_opt = NULL;
-	spin_unlock_bh(&queue->syn_wait_lock);
-
-	return lopt;
-}
-
-void reqsk_queue_destroy(struct request_sock_queue *queue)
-{
-	/* make all the listen_opt local to us */
-	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
-
-	if (listen_sock_qlen(lopt) != 0) {
-		unsigned int i;
-
-		for (i = 0; i < lopt->nr_table_entries; i++) {
-			struct request_sock *req;
-
-			spin_lock_bh(&queue->syn_wait_lock);
-			while ((req = lopt->syn_table[i]) != NULL) {
-				lopt->syn_table[i] = req->dl_next;
-				/* Because of following del_timer_sync(),
-				 * we must release the spinlock here
-				 * or risk a dead lock.
-				 */
-				spin_unlock_bh(&queue->syn_wait_lock);
-				atomic_inc(&lopt->qlen_dec);
-				if (del_timer_sync(&req->rsk_timer))
-					reqsk_put(req);
-				reqsk_put(req);
-				spin_lock_bh(&queue->syn_wait_lock);
-			}
-			spin_unlock_bh(&queue->syn_wait_lock);
-		}
-	}
-
-	if (WARN_ON(listen_sock_qlen(lopt) != 0))
-		pr_err("qlen %u\n", listen_sock_qlen(lopt));
-	kvfree(lopt);
 }
 
 /*
@@ -174,7 +100,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 	struct sock *lsk = req->rsk_listener;
 	struct fastopen_queue *fastopenq;
 
-	fastopenq = inet_csk(lsk)->icsk_accept_queue.fastopenq;
+	fastopenq = &inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
 	tcp_sk(sk)->fastopen_rsk = NULL;
 	spin_lock_bh(&fastopenq->lock);

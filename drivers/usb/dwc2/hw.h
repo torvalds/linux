@@ -142,6 +142,7 @@
 #define GINTSTS_RESETDET		(1 << 23)
 #define GINTSTS_FET_SUSP		(1 << 22)
 #define GINTSTS_INCOMPL_IP		(1 << 21)
+#define GINTSTS_INCOMPL_SOOUT		(1 << 21)
 #define GINTSTS_INCOMPL_SOIN		(1 << 20)
 #define GINTSTS_OEPINT			(1 << 19)
 #define GINTSTS_IEPINT			(1 << 18)

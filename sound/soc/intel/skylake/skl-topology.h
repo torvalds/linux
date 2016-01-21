@@ -129,6 +129,11 @@ struct skl_src_module_cfg {
 	enum skl_s_freq src_cfg;
 } __packed;
 
+struct notification_mask {
+	u32 notify;
+	u32 enable;
+} __packed;
+
 struct skl_up_down_mixer_cfg {
 	struct skl_base_cfg base_cfg;
 	enum skl_ch_cfg out_ch_cfg;
@@ -153,8 +158,7 @@ enum skl_dma_type {
 union skl_ssp_dma_node {
 	u8 val;
 	struct {
-		u8 dual_mono:1;
-		u8 time_slot:3;
+		u8 time_slot_index:4;
 		u8 i2s_instance:4;
 	} dma_node;
 };
@@ -262,6 +266,34 @@ struct skl_module_cfg {
 	struct skl_pipe *pipe;
 	struct skl_specific_cfg formats_config;
 };
+
+struct skl_pipeline {
+	struct skl_pipe *pipe;
+	struct list_head node;
+};
+
+struct skl_dapm_path_list {
+	struct snd_soc_dapm_path *dapm_path;
+	struct list_head node;
+};
+
+static inline struct skl *get_skl_ctx(struct device *dev)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+
+	return ebus_to_skl(ebus);
+}
+
+int skl_tplg_be_update_params(struct snd_soc_dai *dai,
+	struct skl_pipe_params *params);
+void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
+	struct skl_pipe_params *params, int stream);
+int skl_tplg_init(struct snd_soc_platform *platform,
+				struct hdac_ext_bus *ebus);
+struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
+		struct snd_soc_dai *dai, int stream);
+int skl_tplg_update_pipe_params(struct device *dev,
+		struct skl_module_cfg *mconfig, struct skl_pipe_params *params);
 
 int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
 

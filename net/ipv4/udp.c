@@ -100,7 +100,6 @@
 #include <linux/slab.h>
 #include <net/tcp_states.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/net_namespace.h>
@@ -375,7 +374,8 @@ static inline int compute_score(struct sock *sk, struct net *net,
 			return -1;
 		score += 4;
 	}
-
+	if (sk->sk_incoming_cpu == raw_smp_processor_id())
+		score++;
 	return score;
 }
 
@@ -418,6 +418,9 @@ static inline int compute_score2(struct sock *sk, struct net *net,
 			return -1;
 		score += 4;
 	}
+
+	if (sk->sk_incoming_cpu == raw_smp_processor_id())
+		score++;
 
 	return score;
 }
@@ -1017,29 +1020,16 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 		fl4 = &fl4_stack;
 
-		/* unconnected socket. If output device is enslaved to a VRF
-		 * device lookup source address from VRF table. This mimics
-		 * behavior of ip_route_connect{_init}.
-		 */
-		if (netif_index_is_vrf(net, ipc.oif)) {
-			flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
-					   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-					   (flow_flags | FLOWI_FLAG_VRFSRC |
-					    FLOWI_FLAG_SKIP_NH_OIF),
-					   faddr, saddr, dport,
-					   inet->inet_sport);
-
-			rt = ip_route_output_flow(net, fl4, sk);
-			if (!IS_ERR(rt)) {
-				saddr = fl4->saddr;
-				ip_rt_put(rt);
-			}
-		}
-
 		flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
 				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
 				   flow_flags,
 				   faddr, saddr, dport, inet->inet_sport);
+
+		if (!saddr && ipc.oif) {
+			err = l3mdev_get_saddr(net, ipc.oif, fl4);
+			if (err < 0)
+				goto out;
+		}
 
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
 		rt = ip_route_output_flow(net, fl4, sk);

@@ -294,9 +294,15 @@ process_start:
 			/* We have tried to wakeup the card already */
 			if (adapter->pm_wakeup_fw_try)
 				break;
-			if (adapter->ps_state != PS_STATE_AWAKE ||
-			    adapter->tx_lock_flag)
+			if (adapter->ps_state != PS_STATE_AWAKE)
 				break;
+			if (adapter->tx_lock_flag) {
+				if (adapter->iface_type == MWIFIEX_USB) {
+					if (!adapter->usb_mc_setup)
+						break;
+				} else
+					break;
+			}
 
 			if ((!adapter->scan_chan_gap_enabled &&
 			     adapter->scan_processing) || adapter->data_sent ||
@@ -345,9 +351,16 @@ process_start:
 		 */
 		if ((adapter->ps_state == PS_STATE_SLEEP) ||
 		    (adapter->ps_state == PS_STATE_PRE_SLEEP) ||
-		    (adapter->ps_state == PS_STATE_SLEEP_CFM) ||
-		    adapter->tx_lock_flag){
+		    (adapter->ps_state == PS_STATE_SLEEP_CFM)) {
 			continue;
+		}
+
+		if (adapter->tx_lock_flag) {
+			if (adapter->iface_type == MWIFIEX_USB) {
+				if (!adapter->usb_mc_setup)
+					continue;
+			} else
+				continue;
 		}
 
 		if (!adapter->cmd_sent && !adapter->curr_cmd &&
@@ -358,6 +371,13 @@ process_start:
 				break;
 			}
 		}
+
+		/** If USB Multi channel setup ongoing,
+		 *  wait for ready to tx data.
+		 */
+		if (adapter->iface_type == MWIFIEX_USB &&
+		    adapter->usb_mc_setup)
+			continue;
 
 		if ((adapter->scan_chan_gap_enabled ||
 		     !adapter->scan_processing) &&
@@ -928,6 +948,32 @@ mwifiex_tx_timeout(struct net_device *dev)
 	}
 }
 
+void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = adapter->card;
+	struct mwifiex_private *priv;
+	u16 tx_buf_size;
+	int i, ret;
+
+	card->mc_resync_flag = true;
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+		if (atomic_read(&card->port[i].tx_data_urb_pending)) {
+			mwifiex_dbg(adapter, WARN, "pending data urb in sys\n");
+			return;
+		}
+	}
+
+	card->mc_resync_flag = false;
+	tx_buf_size = 0xffff;
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
+			       HostCmd_ACT_GEN_SET, 0, &tx_buf_size, false);
+	if (ret)
+		mwifiex_dbg(adapter, ERROR,
+			    "send reconfig tx buf size cmd err\n");
+}
+EXPORT_SYMBOL_GPL(mwifiex_multi_chan_resync);
+
 void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 {
 	void *p;
@@ -963,8 +1009,10 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 		cardp = (struct usb_card_rec *)adapter->card;
 		p += sprintf(p, "tx_cmd_urb_pending = %d\n",
 			     atomic_read(&cardp->tx_cmd_urb_pending));
-		p += sprintf(p, "tx_data_urb_pending = %d\n",
-			     atomic_read(&cardp->tx_data_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending_port_0 = %d\n",
+			     atomic_read(&cardp->port[0].tx_data_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending_port_1 = %d\n",
+			     atomic_read(&cardp->port[1].tx_data_urb_pending));
 		p += sprintf(p, "rx_cmd_urb_pending = %d\n",
 			     atomic_read(&cardp->rx_cmd_urb_pending));
 		p += sprintf(p, "rx_data_urb_pending = %d\n",
@@ -1151,6 +1199,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_stop = mwifiex_close,
 	.ndo_start_xmit = mwifiex_hard_start_xmit,
 	.ndo_set_mac_address = mwifiex_set_mac_address,
+	.ndo_validate_addr = eth_validate_addr,
 	.ndo_tx_timeout = mwifiex_tx_timeout,
 	.ndo_get_stats = mwifiex_get_stats,
 	.ndo_set_rx_mode = mwifiex_set_multicast_list,
@@ -1446,6 +1495,26 @@ exit_sem_err:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);
+
+void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
+		  const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!adapter->dev || !(adapter->debug_mask & mask))
+		return;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	dev_info(adapter->dev, "%pV", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(_mwifiex_dbg);
 
 /*
  * This function initializes the module.

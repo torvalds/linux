@@ -161,7 +161,7 @@ static int nd_blk_do_bvec(struct nd_blk_device *blk_dev,
 	return err;
 }
 
-static void nd_blk_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct gendisk *disk = bdev->bd_disk;
@@ -208,6 +208,7 @@ static void nd_blk_make_request(struct request_queue *q, struct bio *bio)
 
  out:
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int nd_blk_rw_bytes(struct nd_namespace_common *ndns,

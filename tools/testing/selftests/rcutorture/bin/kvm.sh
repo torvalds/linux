@@ -75,7 +75,7 @@ usage () {
 while test $# -gt 0
 do
 	case "$1" in
-	--bootargs)
+	--bootargs|--bootarg)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
 		TORTURE_BOOTARGS="$2"
 		shift
@@ -88,7 +88,7 @@ do
 	--buildonly)
 		TORTURE_BUILDONLY=1
 		;;
-	--configs)
+	--configs|--config)
 		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]*$' '^--'
 		configs="$2"
 		shift
@@ -134,7 +134,7 @@ do
 	--no-initrd)
 		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
-	--qemu-args)
+	--qemu-args|--qemu-arg)
 		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
 		TORTURE_QEMU_ARG="$2"
 		shift

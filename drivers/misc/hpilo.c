@@ -2,7 +2,7 @@
  * Driver for the HP iLO management processor.
  *
  * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
- *	David Altobelli <david.altobelli@hp.com>
+ *	David Altobelli <david.altobelli@hpe.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -902,11 +902,11 @@ static void __exit ilo_exit(void)
 MODULE_VERSION("1.4.1");
 MODULE_ALIAS(ILO_NAME);
 MODULE_DESCRIPTION(ILO_NAME);
-MODULE_AUTHOR("David Altobelli <david.altobelli@hp.com>");
+MODULE_AUTHOR("David Altobelli <david.altobelli@hpe.com>");
 MODULE_LICENSE("GPL v2");
 
 module_param(max_ccb, uint, 0444);
-MODULE_PARM_DESC(max_ccb, "Maximum number of HP iLO channels to attach (16)");
+MODULE_PARM_DESC(max_ccb, "Maximum number of HP iLO channels to attach (8-24)(default=16)");
 
 module_init(ilo_init);
 module_exit(ilo_exit);

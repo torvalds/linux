@@ -29,6 +29,7 @@
 
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3
+#define CURSOR_WIN		2
 
 #define ctx_from_connector(c)	container_of(c, struct vidi_context, \
 					connector)
@@ -42,7 +43,6 @@ struct vidi_context {
 	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct edid			*raw_edid;
 	unsigned int			clkdiv;
-	unsigned int			default_win;
 	unsigned long			irq_flags;
 	unsigned int			connected;
 	bool				vblank_on;
@@ -446,8 +446,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	vidi_ctx_initialize(ctx, drm_dev);
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, formats,
 					ARRAY_SIZE(formats), zpos);
@@ -455,7 +454,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[ctx->default_win];
+	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_VIDI,
 					   &vidi_crtc_ops, ctx);
@@ -507,7 +506,6 @@ static int vidi_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->default_win = 0;
 	ctx->pdev = pdev;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);

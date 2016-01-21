@@ -110,7 +110,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	 */
 	for (i = 0; i < num_descriptors; i++) {
 		struct vring_tx_desc *_d = &pmc->pring_va[i];
-		struct vring_tx_desc dd, *d = &dd;
+		struct vring_tx_desc dd = {}, *d = &dd;
 		int j = 0;
 
 		pmc->descriptors[i].va = dma_alloc_coherent(dev,

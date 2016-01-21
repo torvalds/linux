@@ -181,7 +181,7 @@ static int ade7854_reset(struct device *dev)
 	u16 val;
 
 	st->read_reg_16(dev, ADE7854_CONFIG, &val);
-	val |= 1 << 7; /* Software Chip Reset */
+	val |= BIT(7); /* Software Chip Reset */
 
 	return st->write_reg_16(dev, ADE7854_CONFIG, val);
 }
@@ -420,10 +420,10 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 		goto error_ret;
 
 	if (enable)
-		irqen |= 1 << 17; /* 1: interrupt enabled when all periodical
+		irqen |= BIT(17); /* 1: interrupt enabled when all periodical
 				     (at 8 kHz rate) DSP computations finish. */
 	else
-		irqen &= ~(1 << 17);
+		irqen &= ~BIT(17);
 
 	ret = st->write_reg_32(dev, ADE7854_MASK0, irqen);
 	if (ret)

@@ -144,12 +144,12 @@ loop:
 	mutex_unlock(&dst_gc_mutex);
 }
 
-int dst_discard_sk(struct sock *sk, struct sk_buff *skb)
+int dst_discard_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
 }
-EXPORT_SYMBOL(dst_discard_sk);
+EXPORT_SYMBOL(dst_discard_out);
 
 const u32 dst_default_metrics[RTAX_MAX + 1] = {
 	/* This initializer is needed to force linker to place this variable
@@ -177,7 +177,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->xfrm = NULL;
 #endif
 	dst->input = dst_discard;
-	dst->output = dst_discard_sk;
+	dst->output = dst_discard_out;
 	dst->error = 0;
 	dst->obsolete = initial_obsolete;
 	dst->header_len = 0;
@@ -224,7 +224,7 @@ static void ___dst_free(struct dst_entry *dst)
 	 */
 	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP)) {
 		dst->input = dst_discard;
-		dst->output = dst_discard_sk;
+		dst->output = dst_discard_out;
 	}
 	dst->obsolete = DST_OBSOLETE_DEAD;
 }
@@ -301,12 +301,13 @@ void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
 		int newrefcnt;
+		unsigned short nocache = dst->flags & DST_NOCACHE;
 
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		if (unlikely(newrefcnt < 0))
 			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
 					     __func__, dst, newrefcnt);
-		if (unlikely(dst->flags & DST_NOCACHE) && !newrefcnt)
+		if (!newrefcnt && unlikely(nocache))
 			call_rcu(&dst->rcu_head, dst_destroy_rcu);
 	}
 }
@@ -352,7 +353,7 @@ static struct dst_ops md_dst_ops = {
 	.family =		AF_UNSPEC,
 };
 
-static int dst_md_discard_sk(struct sock *sk, struct sk_buff *skb)
+static int dst_md_discard_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	WARN_ONCE(1, "Attempting to call output on metadata dst\n");
 	kfree_skb(skb);
@@ -375,7 +376,7 @@ static void __metadata_dst_init(struct metadata_dst *md_dst, u8 optslen)
 		 DST_METADATA | DST_NOCACHE | DST_NOCOUNT);
 
 	dst->input = dst_md_discard;
-	dst->output = dst_md_discard_sk;
+	dst->output = dst_md_discard_out;
 
 	memset(dst + 1, 0, sizeof(*md_dst) + optslen - sizeof(*dst));
 }
@@ -430,7 +431,7 @@ static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 
 	if (!unregister) {
 		dst->input = dst_discard;
-		dst->output = dst_discard_sk;
+		dst->output = dst_discard_out;
 	} else {
 		dst->dev = dev_net(dst->dev)->loopback_dev;
 		dev_hold(dst->dev);

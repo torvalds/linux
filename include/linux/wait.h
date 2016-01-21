@@ -145,7 +145,7 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
 	list_del(&old->task_list);
 }
 
-typedef int wait_bit_action_f(struct wait_bit_key *);
+typedef int wait_bit_action_f(struct wait_bit_key *, int mode);
 void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
 void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
 void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
@@ -960,10 +960,10 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 	} while (0)
 
 
-extern int bit_wait(struct wait_bit_key *);
-extern int bit_wait_io(struct wait_bit_key *);
-extern int bit_wait_timeout(struct wait_bit_key *);
-extern int bit_wait_io_timeout(struct wait_bit_key *);
+extern int bit_wait(struct wait_bit_key *, int);
+extern int bit_wait_io(struct wait_bit_key *, int);
+extern int bit_wait_timeout(struct wait_bit_key *, int);
+extern int bit_wait_io_timeout(struct wait_bit_key *, int);
 
 /**
  * wait_on_bit - wait for a bit to be cleared

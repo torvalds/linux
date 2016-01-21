@@ -35,8 +35,13 @@
 #define _MEGARAID_SAS_FUSION_H_
 
 /* Fusion defines */
-#define MEGASAS_MAX_SZ_CHAIN_FRAME 1024
+#define MEGASAS_CHAIN_FRAME_SZ_MIN 1024
 #define MFI_FUSION_ENABLE_INTERRUPT_MASK (0x00000009)
+#define MEGASAS_MAX_CHAIN_SHIFT			5
+#define MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK	0x400000
+#define MEGASAS_MAX_CHAIN_SIZE_MASK		0x3E0
+#define MEGASAS_256K_IO				128
+#define MEGASAS_1MB_IO				(MEGASAS_256K_IO * 4)
 #define MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE 256
 #define MEGASAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST   0xF0
 #define MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST         0xF1
@@ -89,6 +94,12 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
 #define THRESHOLD_REPLY_COUNT 50
+#define JBOD_MAPS_COUNT	2
+
+enum MR_FUSION_ADAPTER_TYPE {
+	THUNDERBOLT_SERIES = 0,
+	INVADER_SERIES = 1,
+};
 
 /*
  * Raid Context structure which describes MegaRAID specific IO Parameters
@@ -117,7 +128,9 @@ struct RAID_CONTEXT {
 	u8      numSGE;
 	__le16	configSeqNum;
 	u8      spanArm;
-	u8      resvd2[3];
+	u8      priority;
+	u8	numSGEExt;
+	u8      resvd2;
 };
 
 #define RAID_CTX_SPANARM_ARM_SHIFT	(0)
@@ -486,6 +499,7 @@ struct MPI2_IOC_INIT_REQUEST {
 #define MAX_PHYSICAL_DEVICES 256
 #define MAX_RAIDMAP_PHYSICAL_DEVICES (MAX_PHYSICAL_DEVICES)
 #define MR_DCMD_LD_MAP_GET_INFO             0x0300e101
+#define MR_DCMD_SYSTEM_PD_MAP_GET_INFO      0x0200e102
 #define MR_DCMD_CTRL_SHARED_HOST_MEM_ALLOC  0x010e8485   /* SR-IOV HB alloc*/
 #define MR_DCMD_LD_VF_MAP_GET_ALL_LDS_111   0x03200200
 #define MR_DCMD_LD_VF_MAP_GET_ALL_LDS       0x03150200
@@ -789,6 +803,21 @@ struct MR_FW_RAID_MAP_EXT {
 	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT];
 };
 
+/*
+ *  * define MR_PD_CFG_SEQ structure for system PDs
+ *   */
+struct MR_PD_CFG_SEQ {
+	__le16 seqNum;
+	__le16 devHandle;
+	u8  reserved[4];
+} __packed;
+
+struct MR_PD_CFG_SEQ_NUM_SYNC {
+	__le32 size;
+	__le32 count;
+	struct MR_PD_CFG_SEQ seq[1];
+} __packed;
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	dma_addr_t req_frames_desc_phys;
@@ -828,9 +857,12 @@ struct fusion_context {
 	u32 current_map_sz;
 	u32 drv_map_sz;
 	u32 drv_map_pages;
+	struct MR_PD_CFG_SEQ_NUM_SYNC	*pd_seq_sync[JBOD_MAPS_COUNT];
+	dma_addr_t pd_seq_phys[JBOD_MAPS_COUNT];
 	u8 fast_path_io;
 	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
+	u8 adapter_type;
 };
 
 union desc_value {

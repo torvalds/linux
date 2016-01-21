@@ -100,6 +100,7 @@ void pcibios_free_controller(struct pci_controller *phb)
 	if (phb->is_dynamic)
 		kfree(phb);
 }
+EXPORT_SYMBOL_GPL(pcibios_free_controller);
 
 /*
  * The function is used to return the minimal alignment

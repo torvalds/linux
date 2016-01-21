@@ -89,14 +89,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hpd>;
 	status = "okay";
-};
-
-&ehci {
-	samsung,vbus-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
-};
-
-&fimd {
-	status = "okay";
 
 	display-timings {
 		native-mode = <&timing0>;
@@ -114,6 +106,14 @@
 			vsync-len = <4>;
 		};
 	};
+};
+
+&ehci {
+	samsung,vbus-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+};
+
+&fimd {
+	status = "okay";
 };
 
 &hdmi {

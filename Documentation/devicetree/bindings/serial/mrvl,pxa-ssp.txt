@@ -10,7 +10,6 @@ Required properties:
 				mvrl,pxa168-ssp
 				mrvl,pxa910-ssp
 				mrvl,ce4100-ssp
-				mrvl,lpss-ssp
 
 	- reg:		The memory base
 	- dmas:		Two dma phandles, one for rx, one for tx

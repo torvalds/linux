@@ -19,8 +19,6 @@
 #include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
 #include "tcm_usb_gadget.h"
@@ -1467,23 +1465,21 @@ static void usbg_drop_tport(struct se_wwn *wwn)
 /*
  * If somebody feels like dropping the version property, go ahead.
  */
-static ssize_t usbg_wwn_show_attr_version(
-	struct target_fabric_configfs *tf,
-	char *page)
+static ssize_t usbg_wwn_version_show(struct config_item *item, char *page)
 {
 	return sprintf(page, "usb-gadget fabric module\n");
 }
-TF_WWN_ATTR_RO(usbg, version);
+
+CONFIGFS_ATTR_RO(usbg_wwn_, version);
 
 static struct configfs_attribute *usbg_wwn_attrs[] = {
-	&usbg_wwn_version.attr,
+	&usbg_wwn_attr_version,
 	NULL,
 };
 
-static ssize_t tcm_usbg_tpg_show_enable(
-		struct se_portal_group *se_tpg,
-		char *page)
+static ssize_t tcm_usbg_tpg_enable_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct usbg_tpg  *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", tpg->gadget_connect);
@@ -1492,11 +1488,10 @@ static ssize_t tcm_usbg_tpg_show_enable(
 static int usbg_attach(struct usbg_tpg *);
 static void usbg_detach(struct usbg_tpg *);
 
-static ssize_t tcm_usbg_tpg_store_enable(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t tcm_usbg_tpg_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct usbg_tpg  *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 	unsigned long op;
 	ssize_t ret;
@@ -1523,12 +1518,10 @@ static ssize_t tcm_usbg_tpg_store_enable(
 out:
 	return count;
 }
-TF_TPG_BASE_ATTR(tcm_usbg, enable, S_IRUGO | S_IWUSR);
 
-static ssize_t tcm_usbg_tpg_show_nexus(
-		struct se_portal_group *se_tpg,
-		char *page)
+static ssize_t tcm_usbg_tpg_nexus_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 	struct tcm_usbg_nexus *tv_nexus;
 	ssize_t ret;
@@ -1636,11 +1629,10 @@ out:
 	return ret;
 }
 
-static ssize_t tcm_usbg_tpg_store_nexus(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t tcm_usbg_tpg_nexus_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 	unsigned char i_port[USBG_NAMELEN], *ptr;
 	int ret;
@@ -1670,11 +1662,13 @@ static ssize_t tcm_usbg_tpg_store_nexus(
 		return ret;
 	return count;
 }
-TF_TPG_BASE_ATTR(tcm_usbg, nexus, S_IRUGO | S_IWUSR);
+
+CONFIGFS_ATTR(tcm_usbg_tpg_, enable);
+CONFIGFS_ATTR(tcm_usbg_tpg_, nexus);
 
 static struct configfs_attribute *usbg_base_attrs[] = {
-	&tcm_usbg_tpg_enable.attr,
-	&tcm_usbg_tpg_nexus.attr,
+	&tcm_usbg_tpg_attr_enable,
+	&tcm_usbg_tpg_attr_nexus,
 	NULL,
 };
 
@@ -2018,14 +2012,6 @@ static struct usb_configuration usbg_config_driver = {
 	.bmAttributes           = USB_CONFIG_ATT_SELFPOWER,
 };
 
-static void give_back_ep(struct usb_ep **pep)
-{
-	struct usb_ep *ep = *pep;
-	if (!ep)
-		return;
-	ep->driver_data = NULL;
-}
-
 static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_uas		*fu = to_f_uas(f);
@@ -2045,29 +2031,24 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 			&uasp_bi_ep_comp_desc);
 	if (!ep)
 		goto ep_fail;
-
-	ep->driver_data = fu;
 	fu->ep_in = ep;
 
 	ep = usb_ep_autoconfig_ss(gadget, &uasp_ss_bo_desc,
 			&uasp_bo_ep_comp_desc);
 	if (!ep)
 		goto ep_fail;
-	ep->driver_data = fu;
 	fu->ep_out = ep;
 
 	ep = usb_ep_autoconfig_ss(gadget, &uasp_ss_status_desc,
 			&uasp_status_in_ep_comp_desc);
 	if (!ep)
 		goto ep_fail;
-	ep->driver_data = fu;
 	fu->ep_status = ep;
 
 	ep = usb_ep_autoconfig_ss(gadget, &uasp_ss_cmd_desc,
 			&uasp_cmd_comp_desc);
 	if (!ep)
 		goto ep_fail;
-	ep->driver_data = fu;
 	fu->ep_cmd = ep;
 
 	/* Assume endpoint addresses are the same for both speeds */
@@ -2091,11 +2072,6 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 ep_fail:
 	pr_err("Can't claim all required eps\n");
-
-	give_back_ep(&fu->ep_in);
-	give_back_ep(&fu->ep_out);
-	give_back_ep(&fu->ep_status);
-	give_back_ep(&fu->ep_cmd);
 	return -ENOTSUPP;
 }
 

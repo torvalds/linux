@@ -28,6 +28,7 @@
 #include <linux/mtd/spi-nor.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
+#include <linux/sizes.h>
 
 /* Controller needs driver to swap endian */
 #define QUADSPI_QUIRK_SWAP_ENDIAN	(1 << 0)
@@ -154,15 +155,15 @@
 #define LUT_MODE		4
 #define LUT_MODE2		5
 #define LUT_MODE4		6
-#define LUT_READ		7
-#define LUT_WRITE		8
+#define LUT_FSL_READ		7
+#define LUT_FSL_WRITE		8
 #define LUT_JMP_ON_CS		9
 #define LUT_ADDR_DDR		10
 #define LUT_MODE_DDR		11
 #define LUT_MODE2_DDR		12
 #define LUT_MODE4_DDR		13
-#define LUT_READ_DDR		14
-#define LUT_WRITE_DDR		15
+#define LUT_FSL_READ_DDR		14
+#define LUT_FSL_WRITE_DDR		15
 #define LUT_DATA_LEARN		16
 
 /*
@@ -259,7 +260,6 @@ static struct fsl_qspi_devtype_data imx6ul_data = {
 
 #define FSL_QSPI_MAX_CHIP	4
 struct fsl_qspi {
-	struct mtd_info mtd[FSL_QSPI_MAX_CHIP];
 	struct spi_nor nor[FSL_QSPI_MAX_CHIP];
 	void __iomem *iobase;
 	void __iomem *ahb_addr;
@@ -366,7 +366,7 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 
 	writel(LUT0(CMD, PAD1, cmd) | LUT1(ADDR, PAD1, addrlen),
 			base + QUADSPI_LUT(lut_base));
-	writel(LUT0(DUMMY, PAD1, dummy) | LUT1(READ, PAD4, rxfifo),
+	writel(LUT0(DUMMY, PAD1, dummy) | LUT1(FSL_READ, PAD4, rxfifo),
 			base + QUADSPI_LUT(lut_base + 1));
 
 	/* Write enable */
@@ -387,11 +387,11 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 
 	writel(LUT0(CMD, PAD1, cmd) | LUT1(ADDR, PAD1, addrlen),
 			base + QUADSPI_LUT(lut_base));
-	writel(LUT0(WRITE, PAD1, 0), base + QUADSPI_LUT(lut_base + 1));
+	writel(LUT0(FSL_WRITE, PAD1, 0), base + QUADSPI_LUT(lut_base + 1));
 
 	/* Read Status */
 	lut_base = SEQID_RDSR * 4;
-	writel(LUT0(CMD, PAD1, SPINOR_OP_RDSR) | LUT1(READ, PAD1, 0x1),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RDSR) | LUT1(FSL_READ, PAD1, 0x1),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Erase a sector */
@@ -410,17 +410,17 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 
 	/* READ ID */
 	lut_base = SEQID_RDID * 4;
-	writel(LUT0(CMD, PAD1, SPINOR_OP_RDID) | LUT1(READ, PAD1, 0x8),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RDID) | LUT1(FSL_READ, PAD1, 0x8),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Write Register */
 	lut_base = SEQID_WRSR * 4;
-	writel(LUT0(CMD, PAD1, SPINOR_OP_WRSR) | LUT1(WRITE, PAD1, 0x2),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_WRSR) | LUT1(FSL_WRITE, PAD1, 0x2),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Read Configuration Register */
 	lut_base = SEQID_RDCR * 4;
-	writel(LUT0(CMD, PAD1, SPINOR_OP_RDCR) | LUT1(READ, PAD1, 0x1),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RDCR) | LUT1(FSL_READ, PAD1, 0x1),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Write disable */
@@ -798,8 +798,7 @@ static int fsl_qspi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return 0;
 }
 
-static int fsl_qspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
-			int write_enable)
+static int fsl_qspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 {
 	struct fsl_qspi *q = nor->priv;
 	int ret;
@@ -870,7 +869,7 @@ static int fsl_qspi_read(struct spi_nor *nor, loff_t from,
 		}
 	}
 
-	dev_dbg(q->dev, "cmd [%x],read from 0x%p, len:%d\n",
+	dev_dbg(q->dev, "cmd [%x],read from %p, len:%zd\n",
 		cmd, q->ahb_addr + q->chip_base_addr + from - q->memmap_offs,
 		len);
 
@@ -888,7 +887,7 @@ static int fsl_qspi_erase(struct spi_nor *nor, loff_t offs)
 	int ret;
 
 	dev_dbg(nor->dev, "%dKiB at 0x%08x:0x%08x\n",
-		nor->mtd->erasesize / 1024, q->chip_base_addr, (u32)offs);
+		nor->mtd.erasesize / 1024, q->chip_base_addr, (u32)offs);
 
 	ret = fsl_qspi_runcmd(q, nor->erase_opcode, offs, 0);
 	if (ret)
@@ -1006,19 +1005,16 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	/* iterate the subnodes. */
 	for_each_available_child_of_node(dev->of_node, np) {
-		char modalias[40];
-
 		/* skip the holes */
 		if (!q->has_second_chip)
 			i *= 2;
 
 		nor = &q->nor[i];
-		mtd = &q->mtd[i];
+		mtd = &nor->mtd;
 
-		nor->mtd = mtd;
 		nor->dev = dev;
+		nor->flash_node = np;
 		nor->priv = q;
-		mtd->priv = nor;
 
 		/* fill the hooks */
 		nor->read_reg = fsl_qspi_read_reg;
@@ -1030,10 +1026,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		nor->prepare = fsl_qspi_prep;
 		nor->unprepare = fsl_qspi_unprep;
 
-		ret = of_modalias_node(np, modalias, sizeof(modalias));
-		if (ret < 0)
-			goto mutex_failed;
-
 		ret = of_property_read_u32(np, "spi-max-frequency",
 				&q->clk_rate);
 		if (ret < 0)
@@ -1042,7 +1034,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		/* set the chip address for READID */
 		fsl_qspi_set_base_addr(q, nor);
 
-		ret = spi_nor_scan(nor, modalias, SPI_NOR_QUAD);
+		ret = spi_nor_scan(nor, NULL, SPI_NOR_QUAD);
 		if (ret)
 			goto mutex_failed;
 
@@ -1087,7 +1079,7 @@ last_init_failed:
 		/* skip the holes */
 		if (!q->has_second_chip)
 			i *= 2;
-		mtd_device_unregister(&q->mtd[i]);
+		mtd_device_unregister(&q->nor[i].mtd);
 	}
 mutex_failed:
 	mutex_destroy(&q->lock);
@@ -1107,7 +1099,7 @@ static int fsl_qspi_remove(struct platform_device *pdev)
 		/* skip the holes */
 		if (!q->has_second_chip)
 			i *= 2;
-		mtd_device_unregister(&q->mtd[i]);
+		mtd_device_unregister(&q->nor[i].mtd);
 	}
 
 	/* disable the hardware */

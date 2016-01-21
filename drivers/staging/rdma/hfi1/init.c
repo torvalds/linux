@@ -134,11 +134,8 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 	dd->assigned_node_id = local_node_id;
 
 	dd->rcd = kcalloc(dd->num_rcv_contexts, sizeof(*dd->rcd), GFP_KERNEL);
-	if (!dd->rcd) {
-		dd_dev_err(dd,
-			"Unable to allocate receive context array, failing\n");
+	if (!dd->rcd)
 		goto nomem;
-	}
 
 	/* create one or more kernel contexts */
 	for (i = 0; i < dd->first_user_ctxt; ++i) {
@@ -293,12 +290,14 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		 * The resulting value will be rounded down to the closest
 		 * multiple of dd->rcv_entries.group_size.
 		 */
-		rcd->egrbufs.buffers = kzalloc(sizeof(*rcd->egrbufs.buffers) *
-					       rcd->egrbufs.count, GFP_KERNEL);
+		rcd->egrbufs.buffers = kcalloc(rcd->egrbufs.count,
+					       sizeof(*rcd->egrbufs.buffers),
+					       GFP_KERNEL);
 		if (!rcd->egrbufs.buffers)
 			goto bail;
-		rcd->egrbufs.rcvtids = kzalloc(sizeof(*rcd->egrbufs.rcvtids) *
-					       rcd->egrbufs.count, GFP_KERNEL);
+		rcd->egrbufs.rcvtids = kcalloc(rcd->egrbufs.count,
+					       sizeof(*rcd->egrbufs.rcvtids),
+					       GFP_KERNEL);
 		if (!rcd->egrbufs.rcvtids)
 			goto bail;
 		rcd->egrbufs.size = eager_buffer_size;
@@ -318,12 +317,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		if (ctxt < dd->first_user_ctxt) { /* N/A for PSM contexts */
 			rcd->opstats = kzalloc(sizeof(*rcd->opstats),
 				GFP_KERNEL);
-			if (!rcd->opstats) {
-				dd_dev_err(dd,
-					   "ctxt%u: Unable to allocate per ctxt stats buffer\n",
-					   rcd->ctxt);
+			if (!rcd->opstats)
 				goto bail;
-			}
 		}
 	}
 	return rcd;
@@ -418,6 +413,7 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 	int sl;
 	u16 ccti, ccti_timer, ccti_min;
 	struct cc_state *cc_state;
+	unsigned long flags;
 
 	cca_timer = container_of(t, struct cca_timer, hrtimer);
 	ppd = cca_timer->ppd;
@@ -441,7 +437,7 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 	ccti_min = cc_state->cong_setting.entries[sl].ccti_min;
 	ccti_timer = cc_state->cong_setting.entries[sl].ccti_timer;
 
-	spin_lock(&ppd->cca_timer_lock);
+	spin_lock_irqsave(&ppd->cca_timer_lock, flags);
 
 	ccti = cca_timer->ccti;
 
@@ -450,7 +446,7 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 		set_link_ipg(ppd);
 	}
 
-	spin_unlock(&ppd->cca_timer_lock);
+	spin_unlock_irqrestore(&ppd->cca_timer_lock, flags);
 
 	rcu_read_unlock();
 
@@ -1050,8 +1046,8 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	if (!hfi1_cpulist_count) {
 		u32 count = num_online_cpus();
 
-		hfi1_cpulist = kzalloc(BITS_TO_LONGS(count) *
-				      sizeof(long), GFP_KERNEL);
+		hfi1_cpulist = kcalloc(BITS_TO_LONGS(count), sizeof(long),
+				       GFP_KERNEL);
 		if (hfi1_cpulist)
 			hfi1_cpulist_count = count;
 		else
@@ -1564,7 +1560,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	 * heavy filesystem activity makes these fail, and we can
 	 * use compound pages.
 	 */
-	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
+	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
 
 	/*
 	 * The minimum size of the eager buffers is a groups of MTU-sized

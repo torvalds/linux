@@ -368,23 +368,6 @@ static void sst_media_close(struct snd_pcm_substream *substream,
 	kfree(stream);
 }
 
-static inline unsigned int get_current_pipe_id(struct snd_soc_dai *dai,
-					       struct snd_pcm_substream *substream)
-{
-	struct sst_data *sst = snd_soc_dai_get_drvdata(dai);
-	struct sst_dev_stream_map *map = sst->pdata->pdev_strm_map;
-	struct sst_runtime_stream *stream =
-			substream->runtime->private_data;
-	u32 str_id = stream->stream_info.str_id;
-	unsigned int pipe_id;
-
-	pipe_id = map[str_id].device_id;
-
-	dev_dbg(dai->dev, "got pipe_id = %#x for str_id = %d\n",
-			pipe_id, str_id);
-	return pipe_id;
-}
-
 static int sst_media_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -529,7 +512,7 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 },
 {
 	.name = "compress-cpu-dai",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.ops = &sst_compr_dai_ops,
 	.playback = {
 		.stream_name = "Compress Playback",

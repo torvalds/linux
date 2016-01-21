@@ -1506,7 +1506,6 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 {
 	struct msm_otg_platform_data *pdata;
 	struct extcon_dev *ext_id, *ext_vbus;
-	const struct of_device_id *id;
 	struct device_node *node = pdev->dev.of_node;
 	struct property *prop;
 	int len, ret, words;
@@ -1518,8 +1517,9 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	motg->pdata = pdata;
 
-	id = of_match_device(msm_otg_dt_match, &pdev->dev);
-	pdata->phy_type = (enum msm_usb_phy_type) id->data;
+	pdata->phy_type = (enum msm_usb_phy_type)of_device_get_match_data(&pdev->dev);
+	if (!pdata->phy_type)
+		return 1;
 
 	motg->link_rst = devm_reset_control_get(&pdev->dev, "link");
 	if (IS_ERR(motg->link_rst))
@@ -1529,7 +1529,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	if (IS_ERR(motg->phy_rst))
 		motg->phy_rst = NULL;
 
-	pdata->mode = of_usb_get_dr_mode(node);
+	pdata->mode = usb_get_dr_mode(&pdev->dev);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN)
 		pdata->mode = USB_DR_MODE_OTG;
 

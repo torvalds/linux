@@ -182,7 +182,6 @@ static int cyttsp_spi_remove(struct spi_device *spi)
 static struct spi_driver cyttsp_spi_driver = {
 	.driver = {
 		.name	= CY_SPI_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &cyttsp_pm_ops,
 	},
 	.probe  = cyttsp_spi_probe,

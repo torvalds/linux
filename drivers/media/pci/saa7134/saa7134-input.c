@@ -835,6 +835,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0xffff;
 		raw_decode   = true;
 		break;
+	case SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM:
+		ir_codes     = RC_MAP_LEADTEK_Y04G0051;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = true;
+		break;
 	}
 	if (NULL == ir_codes) {
 		pr_err("Oops: IR config error [card=%d]\n", dev->board);

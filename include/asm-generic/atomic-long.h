@@ -35,7 +35,7 @@ typedef atomic_t atomic_long_t;
 #endif
 
 #define ATOMIC_LONG_READ_OP(mo)						\
-static inline long atomic_long_read##mo(atomic_long_t *l)		\
+static inline long atomic_long_read##mo(const atomic_long_t *l)		\
 {									\
 	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;		\
 									\
@@ -112,19 +112,23 @@ static inline void atomic_long_dec(atomic_long_t *l)
 	ATOMIC_LONG_PFX(_dec)(v);
 }
 
-static inline void atomic_long_add(long i, atomic_long_t *l)
-{
-	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;
-
-	ATOMIC_LONG_PFX(_add)(i, v);
+#define ATOMIC_LONG_OP(op)						\
+static inline void							\
+atomic_long_##op(long i, atomic_long_t *l)				\
+{									\
+	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;		\
+									\
+	ATOMIC_LONG_PFX(_##op)(i, v);					\
 }
 
-static inline void atomic_long_sub(long i, atomic_long_t *l)
-{
-	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;
+ATOMIC_LONG_OP(add)
+ATOMIC_LONG_OP(sub)
+ATOMIC_LONG_OP(and)
+ATOMIC_LONG_OP(or)
+ATOMIC_LONG_OP(xor)
+ATOMIC_LONG_OP(andnot)
 
-	ATOMIC_LONG_PFX(_sub)(i, v);
-}
+#undef ATOMIC_LONG_OP
 
 static inline int atomic_long_sub_and_test(long i, atomic_long_t *l)
 {
@@ -154,19 +158,24 @@ static inline int atomic_long_add_negative(long i, atomic_long_t *l)
 	return ATOMIC_LONG_PFX(_add_negative)(i, v);
 }
 
-static inline long atomic_long_inc_return(atomic_long_t *l)
-{
-	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;
-
-	return (long)ATOMIC_LONG_PFX(_inc_return)(v);
+#define ATOMIC_LONG_INC_DEC_OP(op, mo)					\
+static inline long							\
+atomic_long_##op##_return##mo(atomic_long_t *l)				\
+{									\
+	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;		\
+									\
+	return (long)ATOMIC_LONG_PFX(_##op##_return##mo)(v);		\
 }
+ATOMIC_LONG_INC_DEC_OP(inc,)
+ATOMIC_LONG_INC_DEC_OP(inc, _relaxed)
+ATOMIC_LONG_INC_DEC_OP(inc, _acquire)
+ATOMIC_LONG_INC_DEC_OP(inc, _release)
+ATOMIC_LONG_INC_DEC_OP(dec,)
+ATOMIC_LONG_INC_DEC_OP(dec, _relaxed)
+ATOMIC_LONG_INC_DEC_OP(dec, _acquire)
+ATOMIC_LONG_INC_DEC_OP(dec, _release)
 
-static inline long atomic_long_dec_return(atomic_long_t *l)
-{
-	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;
-
-	return (long)ATOMIC_LONG_PFX(_dec_return)(v);
-}
+#undef ATOMIC_LONG_INC_DEC_OP
 
 static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
 {

@@ -174,6 +174,13 @@ static int adc128_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id adc128_of_match[] = {
+	{ .compatible = "ti,adc128s052", },
+	{ .compatible = "ti,adc122s021", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, adc128_of_match);
+
 static const struct spi_device_id adc128_id[] = {
 	{ "adc128s052", 0},	/* index into adc128_config */
 	{ "adc122s021",	1},
@@ -184,7 +191,7 @@ MODULE_DEVICE_TABLE(spi, adc128_id);
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(adc128_of_match),
 	},
 	.probe = adc128_probe,
 	.remove = adc128_remove,

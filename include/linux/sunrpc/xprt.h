@@ -54,6 +54,8 @@ enum rpc_display_format_t {
 struct rpc_task;
 struct rpc_xprt;
 struct seq_file;
+struct svc_serv;
+struct net;
 
 /*
  * This describes a complete RPC request
@@ -136,6 +138,12 @@ struct rpc_xprt_ops {
 	int		(*enable_swap)(struct rpc_xprt *xprt);
 	void		(*disable_swap)(struct rpc_xprt *xprt);
 	void		(*inject_disconnect)(struct rpc_xprt *xprt);
+	int		(*bc_setup)(struct rpc_xprt *xprt,
+				    unsigned int min_reqs);
+	int		(*bc_up)(struct svc_serv *serv, struct net *net);
+	void		(*bc_free_rqst)(struct rpc_rqst *rqst);
+	void		(*bc_destroy)(struct rpc_xprt *xprt,
+				      unsigned int max_reqs);
 };
 
 /*
@@ -153,6 +161,7 @@ enum xprt_transports {
 	XPRT_TRANSPORT_TCP	= IPPROTO_TCP,
 	XPRT_TRANSPORT_BC_TCP	= IPPROTO_TCP | XPRT_TRANSPORT_BC,
 	XPRT_TRANSPORT_RDMA	= 256,
+	XPRT_TRANSPORT_BC_RDMA	= XPRT_TRANSPORT_RDMA | XPRT_TRANSPORT_BC,
 	XPRT_TRANSPORT_LOCAL	= 257,
 };
 

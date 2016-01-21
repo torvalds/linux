@@ -50,6 +50,7 @@ struct enic_msix_entry {
 	char devname[IFNAMSIZ];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
+	cpumask_var_t affinity_mask;
 };
 
 /* Store only the lower range.  Higher range is given by fw. */
@@ -143,6 +144,7 @@ struct enic {
 	struct vnic_dev *vdev;
 	struct timer_list notify_timer;
 	struct work_struct reset;
+	struct work_struct tx_hang_reset;
 	struct work_struct change_mtu_work;
 	struct msix_entry msix_entry[ENIC_INTR_MAX];
 	struct enic_msix_entry msix[ENIC_INTR_MAX];
@@ -260,6 +262,32 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 static inline unsigned int enic_msix_notify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
+}
+
+static inline bool enic_is_err_intr(struct enic *enic, int intr)
+{
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		return intr == enic_legacy_err_intr();
+	case VNIC_DEV_INTR_MODE_MSIX:
+		return intr == enic_msix_err_intr(enic);
+	case VNIC_DEV_INTR_MODE_MSI:
+	default:
+		return false;
+	}
+}
+
+static inline bool enic_is_notify_intr(struct enic *enic, int intr)
+{
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		return intr == enic_legacy_notify_intr();
+	case VNIC_DEV_INTR_MODE_MSIX:
+		return intr == enic_msix_notify_intr(enic);
+	case VNIC_DEV_INTR_MODE_MSI:
+	default:
+		return false;
+	}
 }
 
 static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)

@@ -566,7 +566,7 @@ static int h_init(struct hash_table *ht, struct entry_space *es, unsigned nr_ent
 
 	ht->es = es;
 	nr_buckets = roundup_pow_of_two(max(nr_entries / 4u, 16u));
-	ht->hash_bits = ffs(nr_buckets) - 1;
+	ht->hash_bits = __ffs(nr_buckets);
 
 	ht->buckets = vmalloc(sizeof(*ht->buckets) * nr_buckets);
 	if (!ht->buckets)

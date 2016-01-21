@@ -832,7 +832,6 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	nmtd->info	   = info;
 	nmtd->mtd.priv	   = chip;
-	nmtd->mtd.owner    = THIS_MODULE;
 	nmtd->set	   = set;
 
 #ifdef CONFIG_MTD_NAND_S3C2410_HWECC
@@ -1016,6 +1015,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		pr_debug("initialising set %d (%p, info %p)\n",
 			 setno, nmtd, info);
 
+		nmtd->mtd.dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
 		nmtd->scan_res = nand_scan_ident(&nmtd->mtd,

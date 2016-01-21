@@ -307,6 +307,8 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 	WARN_ON(ctx->contended);
 
 	if (ctx->trylock_only) {
+		lockdep_assert_held(&ctx->ww_ctx);
+
 		if (!ww_mutex_trylock(&lock->mutex))
 			return -EBUSY;
 		else

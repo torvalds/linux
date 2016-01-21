@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/initrd.h>
 #include <linux/memblock.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
@@ -184,7 +185,7 @@ static void * unflatten_dt_node(const void *blob,
 	struct property *pp, **prev_pp = NULL;
 	const char *pathp;
 	unsigned int l, allocl;
-	static int depth = 0;
+	static int depth;
 	int old_depth;
 	int offset;
 	int has_name = 0;
@@ -436,6 +437,8 @@ static void *kernel_tree_alloc(u64 size, u64 align)
 	return kzalloc(size, GFP_KERNEL);
 }
 
+static DEFINE_MUTEX(of_fdt_unflatten_mutex);
+
 /**
  * of_fdt_unflatten_tree - create tree of device_nodes from flat blob
  *
@@ -447,7 +450,9 @@ static void *kernel_tree_alloc(u64 size, u64 align)
 void of_fdt_unflatten_tree(const unsigned long *blob,
 			struct device_node **mynodes)
 {
+	mutex_lock(&of_fdt_unflatten_mutex);
 	__unflatten_device_tree(blob, mynodes, &kernel_tree_alloc);
+	mutex_unlock(&of_fdt_unflatten_mutex);
 }
 EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 
@@ -813,20 +818,24 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	if (!p || !l)
 		return -ENOENT;
 
+	/* Remove console options if present */
+	l = strchrnul(p, ':') - p;
+
 	/* Get the node specified by stdout-path */
-	offset = fdt_path_offset(fdt, p);
+	offset = fdt_path_offset_namelen(fdt, p, l);
 	if (offset < 0)
 		return -ENODEV;
 
 	while (match->compatible[0]) {
-		unsigned long addr;
+		u64 addr;
+
 		if (fdt_node_check_compatible(fdt, offset, match->compatible)) {
 			match++;
 			continue;
 		}
 
 		addr = fdt_translate_address(fdt, offset);
-		if (!addr)
+		if (addr == OF_BAD_ADDR)
 			return -ENXIO;
 
 		of_setup_earlycon(addr, match->data);
@@ -1037,7 +1046,7 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
-	pr_err("Reserved memory not supported, ignoring range 0x%pa - 0x%pa%s\n",
+	pr_err("Reserved memory not supported, ignoring range %pa - %pa%s\n",
 		  &base, &size, nomap ? " (nomap)" : "");
 	return -ENOSYS;
 }

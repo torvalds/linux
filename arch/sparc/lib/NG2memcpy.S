@@ -34,9 +34,15 @@
 #ifndef EX_LD
 #define EX_LD(x)	x
 #endif
+#ifndef EX_LD_FP
+#define EX_LD_FP(x)	x
+#endif
 
 #ifndef EX_ST
 #define EX_ST(x)	x
+#endif
+#ifndef EX_ST_FP
+#define EX_ST_FP(x)	x
 #endif
 
 #ifndef EX_RETVAL
@@ -134,40 +140,40 @@
 	fsrc2		%x6, %f12; \
 	fsrc2		%x7, %f14;
 #define FREG_LOAD_1(base, x0) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0))
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0))
 #define FREG_LOAD_2(base, x0, x1) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0)); \
-	EX_LD(LOAD(ldd, base + 0x08, %x1));
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0)); \
+	EX_LD_FP(LOAD(ldd, base + 0x08, %x1));
 #define FREG_LOAD_3(base, x0, x1, x2) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0)); \
-	EX_LD(LOAD(ldd, base + 0x08, %x1)); \
-	EX_LD(LOAD(ldd, base + 0x10, %x2));
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0)); \
+	EX_LD_FP(LOAD(ldd, base + 0x08, %x1)); \
+	EX_LD_FP(LOAD(ldd, base + 0x10, %x2));
 #define FREG_LOAD_4(base, x0, x1, x2, x3) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0)); \
-	EX_LD(LOAD(ldd, base + 0x08, %x1)); \
-	EX_LD(LOAD(ldd, base + 0x10, %x2)); \
-	EX_LD(LOAD(ldd, base + 0x18, %x3));
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0)); \
+	EX_LD_FP(LOAD(ldd, base + 0x08, %x1)); \
+	EX_LD_FP(LOAD(ldd, base + 0x10, %x2)); \
+	EX_LD_FP(LOAD(ldd, base + 0x18, %x3));
 #define FREG_LOAD_5(base, x0, x1, x2, x3, x4) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0)); \
-	EX_LD(LOAD(ldd, base + 0x08, %x1)); \
-	EX_LD(LOAD(ldd, base + 0x10, %x2)); \
-	EX_LD(LOAD(ldd, base + 0x18, %x3)); \
-	EX_LD(LOAD(ldd, base + 0x20, %x4));
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0)); \
+	EX_LD_FP(LOAD(ldd, base + 0x08, %x1)); \
+	EX_LD_FP(LOAD(ldd, base + 0x10, %x2)); \
+	EX_LD_FP(LOAD(ldd, base + 0x18, %x3)); \
+	EX_LD_FP(LOAD(ldd, base + 0x20, %x4));
 #define FREG_LOAD_6(base, x0, x1, x2, x3, x4, x5) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0)); \
-	EX_LD(LOAD(ldd, base + 0x08, %x1)); \
-	EX_LD(LOAD(ldd, base + 0x10, %x2)); \
-	EX_LD(LOAD(ldd, base + 0x18, %x3)); \
-	EX_LD(LOAD(ldd, base + 0x20, %x4)); \
-	EX_LD(LOAD(ldd, base + 0x28, %x5));
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0)); \
+	EX_LD_FP(LOAD(ldd, base + 0x08, %x1)); \
+	EX_LD_FP(LOAD(ldd, base + 0x10, %x2)); \
+	EX_LD_FP(LOAD(ldd, base + 0x18, %x3)); \
+	EX_LD_FP(LOAD(ldd, base + 0x20, %x4)); \
+	EX_LD_FP(LOAD(ldd, base + 0x28, %x5));
 #define FREG_LOAD_7(base, x0, x1, x2, x3, x4, x5, x6) \
-	EX_LD(LOAD(ldd, base + 0x00, %x0)); \
-	EX_LD(LOAD(ldd, base + 0x08, %x1)); \
-	EX_LD(LOAD(ldd, base + 0x10, %x2)); \
-	EX_LD(LOAD(ldd, base + 0x18, %x3)); \
-	EX_LD(LOAD(ldd, base + 0x20, %x4)); \
-	EX_LD(LOAD(ldd, base + 0x28, %x5)); \
-	EX_LD(LOAD(ldd, base + 0x30, %x6));
+	EX_LD_FP(LOAD(ldd, base + 0x00, %x0)); \
+	EX_LD_FP(LOAD(ldd, base + 0x08, %x1)); \
+	EX_LD_FP(LOAD(ldd, base + 0x10, %x2)); \
+	EX_LD_FP(LOAD(ldd, base + 0x18, %x3)); \
+	EX_LD_FP(LOAD(ldd, base + 0x20, %x4)); \
+	EX_LD_FP(LOAD(ldd, base + 0x28, %x5)); \
+	EX_LD_FP(LOAD(ldd, base + 0x30, %x6));
 
 	.register	%g2,#scratch
 	.register	%g3,#scratch
@@ -275,11 +281,11 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 nop
 	/* fall through for 0 < low bits < 8 */
 110:	sub		%o4, 64, %g2
-	EX_LD(LOAD_BLK(%g2, %f0))
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+	EX_LD_FP(LOAD_BLK(%g2, %f0))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f4, f6, f8, f10, f12, f14, f16)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_8(f16, f18, f20, f22, f24, f26, f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -290,10 +296,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 120:	sub		%o4, 56, %g2
 	FREG_LOAD_7(%g2, f0, f2, f4, f6, f8, f10, f12)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f4, f6, f8, f10, f12, f16, f18)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_7(f18, f20, f22, f24, f26, f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -304,10 +310,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 130:	sub		%o4, 48, %g2
 	FREG_LOAD_6(%g2, f0, f2, f4, f6, f8, f10)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f4, f6, f8, f10, f16, f18, f20)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_6(f20, f22, f24, f26, f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -318,10 +324,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 140:	sub		%o4, 40, %g2
 	FREG_LOAD_5(%g2, f0, f2, f4, f6, f8)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f4, f6, f8, f16, f18, f20, f22)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_5(f22, f24, f26, f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -332,10 +338,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 150:	sub		%o4, 32, %g2
 	FREG_LOAD_4(%g2, f0, f2, f4, f6)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f4, f6, f16, f18, f20, f22, f24)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_4(f24, f26, f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -346,10 +352,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 160:	sub		%o4, 24, %g2
 	FREG_LOAD_3(%g2, f0, f2, f4)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f4, f16, f18, f20, f22, f24, f26)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_3(f26, f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -360,10 +366,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 170:	sub		%o4, 16, %g2
 	FREG_LOAD_2(%g2, f0, f2)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f2, f16, f18, f20, f22, f24, f26, f28)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_2(f28, f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -374,10 +380,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 180:	sub		%o4, 8, %g2
 	FREG_LOAD_1(%g2, f0)
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
-	EX_LD(LOAD_BLK(%o4, %f16))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f16))
 	FREG_FROB(f0, f16, f18, f20, f22, f24, f26, f28, f30)
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	FREG_MOVE_1(f30)
 	subcc		%g1, 64, %g1
 	add		%o4, 64, %o4
@@ -387,10 +393,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 nop
 
 190:
-1:	EX_ST(STORE_INIT(%g0, %o4 + %g3))
+1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3))
 	subcc		%g1, 64, %g1
-	EX_LD(LOAD_BLK(%o4, %f0))
-	EX_ST(STORE_BLK(%f0, %o4 + %g3))
+	EX_LD_FP(LOAD_BLK(%o4, %f0))
+	EX_ST_FP(STORE_BLK(%f0, %o4 + %g3))
 	add		%o4, 64, %o4
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)

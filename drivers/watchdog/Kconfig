@@ -446,7 +446,7 @@ config MAX63XX_WATCHDOG
 
 config IMX2_WDT
 	tristate "IMX2+ Watchdog"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || ARCH_LAYERSCAPE
 	select REGMAP_MMIO
 	select WATCHDOG_CORE
 	help
@@ -1312,6 +1312,14 @@ config BCM_KONA_WDT_DEBUG
 	  timer hardware registres.
 
 	  If in doubt, say 'N'.
+
+config BCM7038_WDT
+	tristate "BCM7038 Watchdog"
+	select WATCHDOG_CORE
+	help
+	 Watchdog driver for the built-in hardware in Broadcom 7038 SoCs.
+
+	 Say 'Y or 'M' here to enable the driver.
 
 config IMGPDC_WDT
 	tristate "Imagination Technologies PDC Watchdog Timer"

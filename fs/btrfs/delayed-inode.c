@@ -463,6 +463,10 @@ static int __btrfs_add_delayed_deletion_item(struct btrfs_delayed_node *node,
 static void finish_one_item(struct btrfs_delayed_root *delayed_root)
 {
 	int seq = atomic_inc_return(&delayed_root->items_seq);
+
+	/*
+	 * atomic_dec_return implies a barrier for waitqueue_active
+	 */
 	if ((atomic_dec_return(&delayed_root->items) <
 	    BTRFS_DELAYED_BACKGROUND || seq % BTRFS_DELAYED_BATCH == 0) &&
 	    waitqueue_active(&delayed_root->wait))

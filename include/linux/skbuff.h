@@ -463,6 +463,15 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
 	return delta_us;
 }
 
+static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
+				    const struct skb_mstamp *t0)
+{
+	s32 diff = t1->stamp_jiffies - t0->stamp_jiffies;
+
+	if (!diff)
+		diff = t1->stamp_us - t0->stamp_us;
+	return diff > 0;
+}
 
 /** 
  *	struct sk_buff - socket buffer
@@ -1215,7 +1224,7 @@ static inline int skb_cloned(const struct sk_buff *skb)
 
 static inline int skb_unclone(struct sk_buff *skb, gfp_t pri)
 {
-	might_sleep_if(pri & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(pri));
 
 	if (skb_cloned(skb))
 		return pskb_expand_head(skb, 0, 0, pri);
@@ -1299,7 +1308,7 @@ static inline int skb_shared(const struct sk_buff *skb)
  */
 static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
 {
-	might_sleep_if(pri & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(pri));
 	if (skb_shared(skb)) {
 		struct sk_buff *nskb = skb_clone(skb, pri);
 
@@ -1335,7 +1344,7 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
 static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
 					  gfp_t pri)
 {
-	might_sleep_if(pri & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(pri));
 	if (skb_cloned(skb)) {
 		struct sk_buff *nskb = skb_copy(skb, pri);
 

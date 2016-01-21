@@ -339,8 +339,8 @@ static int __ref ensure_zone_is_initialized(struct zone *zone,
 			unsigned long start_pfn, unsigned long num_pages)
 {
 	if (!zone_is_initialized(zone))
-		return init_currently_empty_zone(zone, start_pfn, num_pages,
-						 MEMMAP_HOTPLUG);
+		return init_currently_empty_zone(zone, start_pfn, num_pages);
+
 	return 0;
 }
 
@@ -1232,21 +1232,19 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-int __ref add_memory(int nid, u64 start, u64 size)
+int __ref add_memory_resource(int nid, struct resource *res)
 {
+	u64 start, size;
 	pg_data_t *pgdat = NULL;
 	bool new_pgdat;
 	bool new_node;
-	struct resource *res;
 	int ret;
+
+	start = res->start;
+	size = resource_size(res);
 
 	ret = check_hotplug_memory_range(start, size);
 	if (ret)
-		return ret;
-
-	res = register_memory_resource(start, size);
-	ret = -EEXIST;
-	if (!res)
 		return ret;
 
 	{	/* Stupid hack to suppress address-never-null warning */
@@ -1300,11 +1298,26 @@ error:
 	/* rollback pgdat allocation and others */
 	if (new_pgdat)
 		rollback_node_hotadd(nid, pgdat);
-	release_memory_resource(res);
 	memblock_remove(start, size);
 
 out:
 	mem_hotplug_done();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(add_memory_resource);
+
+int __ref add_memory(int nid, u64 start, u64 size)
+{
+	struct resource *res;
+	int ret;
+
+	res = register_memory_resource(start, size);
+	if (!res)
+		return -EEXIST;
+
+	ret = add_memory_resource(nid, res);
+	if (ret < 0)
+		release_memory_resource(res);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(add_memory);
@@ -1362,23 +1375,30 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
  */
 int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
 {
-	unsigned long pfn;
+	unsigned long pfn, sec_end_pfn;
 	struct zone *zone = NULL;
 	struct page *page;
 	int i;
-	for (pfn = start_pfn;
+	for (pfn = start_pfn, sec_end_pfn = SECTION_ALIGN_UP(start_pfn);
 	     pfn < end_pfn;
-	     pfn += MAX_ORDER_NR_PAGES) {
-		i = 0;
-		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
-		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
-			i++;
-		if (i == MAX_ORDER_NR_PAGES)
+	     pfn = sec_end_pfn + 1, sec_end_pfn += PAGES_PER_SECTION) {
+		/* Make sure the memory section is present first */
+		if (!present_section_nr(pfn_to_section_nr(pfn)))
 			continue;
-		page = pfn_to_page(pfn + i);
-		if (zone && page_zone(page) != zone)
-			return 0;
-		zone = page_zone(page);
+		for (; pfn < sec_end_pfn && pfn < end_pfn;
+		     pfn += MAX_ORDER_NR_PAGES) {
+			i = 0;
+			/* This is just a CONFIG_HOLES_IN_ZONE check.*/
+			while ((i < MAX_ORDER_NR_PAGES) &&
+				!pfn_valid_within(pfn + i))
+				i++;
+			if (i == MAX_ORDER_NR_PAGES)
+				continue;
+			page = pfn_to_page(pfn + i);
+			if (zone && page_zone(page) != zone)
+				return 0;
+			zone = page_zone(page);
+		}
 	}
 	return 1;
 }

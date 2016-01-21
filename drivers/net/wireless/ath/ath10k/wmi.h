@@ -73,6 +73,25 @@ struct wmi_cmd_hdr {
 #define HTC_PROTOCOL_VERSION    0x0002
 #define WMI_PROTOCOL_VERSION    0x0002
 
+/*
+ * There is no signed version of __le32, so for a temporary solution come
+ * up with our own version. The idea is from fs/ntfs/types.h.
+ *
+ * Use a_ prefix so that it doesn't conflict if we get proper support to
+ * linux/types.h.
+ */
+typedef __s32 __bitwise a_sle32;
+
+static inline a_sle32 a_cpu_to_sle32(s32 val)
+{
+	return (__force a_sle32)cpu_to_le32(val);
+}
+
+static inline s32 a_sle32_to_cpu(a_sle32 val)
+{
+	return le32_to_cpu((__force __le32)val);
+}
+
 enum wmi_service {
 	WMI_SERVICE_BEACON_OFFLOAD = 0,
 	WMI_SERVICE_SCAN_OFFLOAD,
@@ -753,6 +772,7 @@ struct wmi_cmd_map {
 	u32 mu_cal_start_cmdid;
 	u32 set_cca_params_cmdid;
 	u32 pdev_bss_chan_info_request_cmdid;
+	u32 pdev_enable_adaptive_cca_cmdid;
 };
 
 /*
@@ -1362,6 +1382,9 @@ enum wmi_10_2_cmd_id {
 	WMI_10_2_VDEV_ATF_REQUEST_CMDID,
 	WMI_10_2_PEER_ATF_REQUEST_CMDID,
 	WMI_10_2_PDEV_GET_TEMPERATURE_CMDID,
+	WMI_10_2_MU_CAL_START_CMDID,
+	WMI_10_2_SET_LTEU_CONFIG_CMDID,
+	WMI_10_2_SET_CCA_PARAMS,
 	WMI_10_2_PDEV_UTF_CMDID = WMI_10_2_END_CMDID - 1,
 };
 
@@ -3642,8 +3665,18 @@ struct wmi_pdev_get_tpc_config_cmd {
 	__le32 param;
 } __packed;
 
+#define WMI_TPC_CONFIG_PARAM		1
 #define WMI_TPC_RATE_MAX		160
 #define WMI_TPC_TX_N_CHAIN		4
+#define WMI_TPC_PREAM_TABLE_MAX		10
+#define WMI_TPC_FLAG			3
+#define WMI_TPC_BUF_SIZE		10
+
+enum wmi_tpc_table_type {
+	WMI_TPC_TABLE_TYPE_CDD = 0,
+	WMI_TPC_TABLE_TYPE_STBC = 1,
+	WMI_TPC_TABLE_TYPE_TXBF = 2,
+};
 
 enum wmi_tpc_config_event_flag {
 	WMI_TPC_CONFIG_EVENT_FLAG_TABLE_CDD	= 0x1,
@@ -3657,7 +3690,7 @@ struct wmi_pdev_tpc_config_event {
 	__le32 phy_mode;
 	__le32 twice_antenna_reduction;
 	__le32 twice_max_rd_power;
-	s32 twice_antenna_gain;
+	a_sle32 twice_antenna_gain;
 	__le32 power_limit;
 	__le32 rate_max;
 	__le32 num_tx_chain;
@@ -3833,6 +3866,111 @@ struct wmi_pdev_stats_tx {
 	__le32 txop_ovf;
 } __packed;
 
+struct wmi_10_4_pdev_stats_tx {
+	/* Num HTT cookies queued to dispatch list */
+	__le32 comp_queued;
+
+	/* Num HTT cookies dispatched */
+	__le32 comp_delivered;
+
+	/* Num MSDU queued to WAL */
+	__le32 msdu_enqued;
+
+	/* Num MPDU queue to WAL */
+	__le32 mpdu_enqued;
+
+	/* Num MSDUs dropped by WMM limit */
+	__le32 wmm_drop;
+
+	/* Num Local frames queued */
+	__le32 local_enqued;
+
+	/* Num Local frames done */
+	__le32 local_freed;
+
+	/* Num queued to HW */
+	__le32 hw_queued;
+
+	/* Num PPDU reaped from HW */
+	__le32 hw_reaped;
+
+	/* Num underruns */
+	__le32 underrun;
+
+	/* HW Paused. */
+	__le32  hw_paused;
+
+	/* Num PPDUs cleaned up in TX abort */
+	__le32 tx_abort;
+
+	/* Num MPDUs requed by SW */
+	__le32 mpdus_requed;
+
+	/* excessive retries */
+	__le32 tx_ko;
+
+	/* data hw rate code */
+	__le32 data_rc;
+
+	/* Scheduler self triggers */
+	__le32 self_triggers;
+
+	/* frames dropped due to excessive sw retries */
+	__le32 sw_retry_failure;
+
+	/* illegal rate phy errors  */
+	__le32 illgl_rate_phy_err;
+
+	/* wal pdev continuous xretry */
+	__le32 pdev_cont_xretry;
+
+	/* wal pdev tx timeouts */
+	__le32 pdev_tx_timeout;
+
+	/* wal pdev resets  */
+	__le32 pdev_resets;
+
+	/* frames dropped due to non-availability of stateless TIDs */
+	__le32 stateless_tid_alloc_failure;
+
+	__le32 phy_underrun;
+
+	/* MPDU is more than txop limit */
+	__le32 txop_ovf;
+
+	/* Number of Sequences posted */
+	__le32 seq_posted;
+
+	/* Number of Sequences failed queueing */
+	__le32 seq_failed_queueing;
+
+	/* Number of Sequences completed */
+	__le32 seq_completed;
+
+	/* Number of Sequences restarted */
+	__le32 seq_restarted;
+
+	/* Number of MU Sequences posted */
+	__le32 mu_seq_posted;
+
+	/* Num MPDUs flushed by SW, HWPAUSED,SW TXABORT(Reset,channel change) */
+	__le32 mpdus_sw_flush;
+
+	/* Num MPDUs filtered by HW, all filter condition (TTL expired) */
+	__le32 mpdus_hw_filter;
+
+	/* Num MPDUs truncated by PDG
+	 * (TXOP, TBTT, PPDU_duration based on rate, dyn_bw)
+	 */
+	__le32 mpdus_truncated;
+
+	/* Num MPDUs that was tried but didn't receive ACK or BA */
+	__le32 mpdus_ack_failed;
+
+	/* Num MPDUs that was dropped due to expiry. */
+	__le32 mpdus_expired;
+} __packed;
+
 struct wmi_pdev_stats_rx {
 	/* Cnts any change in ring routing mid-ppdu */
 	__le32 mid_ppdu_route_change;
@@ -4006,6 +4144,16 @@ struct wmi_10_2_pdev_stats {
 	struct wmi_pdev_stats_extra extra;
 } __packed;
 
+struct wmi_10_4_pdev_stats {
+	struct wmi_pdev_stats_base base;
+	struct wmi_10_4_pdev_stats_tx tx;
+	struct wmi_pdev_stats_rx rx;
+	__le32 rx_ovfl_errs;
+	struct wmi_pdev_stats_mem mem;
+	__le32 sram_free_size;
+	struct wmi_pdev_stats_extra extra;
+} __packed;
+
 /*
  * VDEV statistics
  * TODO: add all VDEV stats here
@@ -4045,6 +4193,23 @@ struct wmi_10_2_peer_stats {
 struct wmi_10_2_4_peer_stats {
 	struct wmi_10_2_peer_stats common;
 	__le32 unknown_value; /* FIXME: what is this word? */
+} __packed;
+
+struct wmi_10_4_peer_stats {
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_rssi;
+	__le32 peer_rssi_seq_num;
+	__le32 peer_tx_rate;
+	__le32 peer_rx_rate;
+	__le32 current_per;
+	__le32 retries;
+	__le32 tx_rate_count;
+	__le32 max_4ms_frame_len;
+	__le32 total_sub_frames;
+	__le32 tx_bytes;
+	__le32 num_pkt_loss_overflow[4];
+	__le32 num_pkt_loss_excess_retry[4];
+	__le32 peer_rssi_changed;
 } __packed;
 
 struct wmi_10_2_pdev_ext_stats {
@@ -4252,6 +4417,11 @@ enum wmi_rate_preamble {
 	WMI_RATE_PREAMBLE_HT,
 	WMI_RATE_PREAMBLE_VHT,
 };
+
+#define ATH10K_HW_NSS(rate)		(1 + (((rate) >> 4) & 0x3))
+#define ATH10K_HW_PREAMBLE(rate)	(((rate) >> 6) & 0x3)
+#define ATH10K_HW_RATECODE(rate, nss, preamble)	\
+	(((preamble) << 6) | ((nss) << 4) | (rate))
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
@@ -6060,13 +6230,24 @@ enum wmi_txbf_conf {
 	WMI_TXBF_CONF_AFTER_ASSOC,
 };
 
+#define	WMI_CCA_DETECT_LEVEL_AUTO	0
+#define	WMI_CCA_DETECT_MARGIN_AUTO	0
+
+struct wmi_pdev_set_adaptive_cca_params {
+	__le32 enable;
+	__le32 cca_detect_level;
+	__le32 cca_detect_margin;
+} __packed;
+
 struct ath10k;
 struct ath10k_vif;
 struct ath10k_fw_stats_pdev;
 struct ath10k_fw_stats_peer;
+struct ath10k_fw_stats;
 
 int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
+void ath10k_wmi_free_host_mem(struct ath10k *ar);
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 
@@ -6144,4 +6325,16 @@ void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar, const void *phyerr_buf,
 				 int left_len, struct wmi_phyerr_ev_arg *arg);
+void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,
+				      struct ath10k_fw_stats *fw_stats,
+				      char *buf);
+void ath10k_wmi_10x_op_fw_stats_fill(struct ath10k *ar,
+				     struct ath10k_fw_stats *fw_stats,
+				     char *buf);
+size_t ath10k_wmi_fw_stats_num_peers(struct list_head *head);
+size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
+void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
+				      struct ath10k_fw_stats *fw_stats,
+				      char *buf);
+
 #endif /* _WMI_H_ */

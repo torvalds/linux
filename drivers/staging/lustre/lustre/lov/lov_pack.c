@@ -100,26 +100,6 @@ void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm)
 			     le16_to_cpu(lmm->lmm_stripe_count));
 }
 
-void lov_dump_lmm(int level, void *lmm)
-{
-	int magic;
-
-	magic = le32_to_cpu(((struct lov_mds_md *)lmm)->lmm_magic);
-	switch (magic) {
-	case LOV_MAGIC_V1:
-		lov_dump_lmm_v1(level, (struct lov_mds_md_v1 *)lmm);
-		break;
-	case LOV_MAGIC_V3:
-		lov_dump_lmm_v3(level, (struct lov_mds_md_v3 *)lmm);
-		break;
-	default:
-		CDEBUG(level, "unrecognized lmm_magic %x, assuming %x\n",
-		       magic, LOV_MAGIC_V1);
-		lov_dump_lmm_common(level, lmm);
-		break;
-	}
-}
-
 /* Pack LOV object metadata for disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.
  *
@@ -273,7 +253,6 @@ __u16 lov_get_stripecnt(struct lov_obd *lov, __u32 magic, __u16 stripe_count)
 	return stripe_count;
 }
 
-
 static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 {
 	int rc;
@@ -346,7 +325,6 @@ int lov_free_memmd(struct lov_stripe_md **lsmp)
 	}
 	return refc;
 }
-
 
 /* Unpack LOV object metadata from disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.

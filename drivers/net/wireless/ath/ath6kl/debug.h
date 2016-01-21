@@ -59,6 +59,8 @@ enum ath6kl_war {
 	ATH6KL_WAR_INVALID_RATE,
 };
 
+int ath6kl_read_tgt_stats(struct ath6kl *ar, struct ath6kl_vif *vif);
+
 #ifdef CONFIG_ATH6KL_DEBUG
 
 void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...);

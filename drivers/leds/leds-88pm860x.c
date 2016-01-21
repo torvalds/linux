@@ -142,6 +142,7 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 			of_property_read_u32(np, "marvell,88pm860x-iset",
 					     &iset);
 			data->iset = PM8606_LED_CURRENT(iset);
+			of_node_put(np);
 			break;
 		}
 	}

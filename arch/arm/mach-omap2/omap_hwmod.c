@@ -890,6 +890,36 @@ static int _init_opt_clks(struct omap_hwmod *oh)
 	return ret;
 }
 
+static void _enable_optional_clocks(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_opt_clk *oc;
+	int i;
+
+	pr_debug("omap_hwmod: %s: enabling optional clocks\n", oh->name);
+
+	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
+		if (oc->_clk) {
+			pr_debug("omap_hwmod: enable %s:%s\n", oc->role,
+				 __clk_get_name(oc->_clk));
+			clk_enable(oc->_clk);
+		}
+}
+
+static void _disable_optional_clocks(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_opt_clk *oc;
+	int i;
+
+	pr_debug("omap_hwmod: %s: disabling optional clocks\n", oh->name);
+
+	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
+		if (oc->_clk) {
+			pr_debug("omap_hwmod: disable %s:%s\n", oc->role,
+				 __clk_get_name(oc->_clk));
+			clk_disable(oc->_clk);
+		}
+}
+
 /**
  * _enable_clocks - enable hwmod main clock and interface clocks
  * @oh: struct omap_hwmod *
@@ -916,6 +946,9 @@ static int _enable_clocks(struct omap_hwmod *oh)
 		if (os->_clk && (os->flags & OCPIF_SWSUP_IDLE))
 			clk_enable(os->_clk);
 	}
+
+	if (oh->flags & HWMOD_OPT_CLKS_NEEDED)
+		_enable_optional_clocks(oh);
 
 	/* The opt clocks are controlled by the device driver. */
 
@@ -948,39 +981,12 @@ static int _disable_clocks(struct omap_hwmod *oh)
 			clk_disable(os->_clk);
 	}
 
+	if (oh->flags & HWMOD_OPT_CLKS_NEEDED)
+		_disable_optional_clocks(oh);
+
 	/* The opt clocks are controlled by the device driver. */
 
 	return 0;
-}
-
-static void _enable_optional_clocks(struct omap_hwmod *oh)
-{
-	struct omap_hwmod_opt_clk *oc;
-	int i;
-
-	pr_debug("omap_hwmod: %s: enabling optional clocks\n", oh->name);
-
-	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
-		if (oc->_clk) {
-			pr_debug("omap_hwmod: enable %s:%s\n", oc->role,
-				 __clk_get_name(oc->_clk));
-			clk_enable(oc->_clk);
-		}
-}
-
-static void _disable_optional_clocks(struct omap_hwmod *oh)
-{
-	struct omap_hwmod_opt_clk *oc;
-	int i;
-
-	pr_debug("omap_hwmod: %s: disabling optional clocks\n", oh->name);
-
-	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
-		if (oc->_clk) {
-			pr_debug("omap_hwmod: disable %s:%s\n", oc->role,
-				 __clk_get_name(oc->_clk));
-			clk_disable(oc->_clk);
-		}
 }
 
 /**

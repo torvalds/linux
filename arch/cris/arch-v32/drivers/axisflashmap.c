@@ -361,7 +361,7 @@ static int __init init_axis_flash(void)
 
 #if 0 /* Dump flash memory so we can see what is going on */
 	if (main_mtd) {
-		int sectoraddr, i;
+		int sectoraddr;
 		for (sectoraddr = 0; sectoraddr < 2*65536+4096;
 				sectoraddr += PAGESIZE) {
 			main_mtd->read(main_mtd, sectoraddr, PAGESIZE, &len,
@@ -369,21 +369,7 @@ static int __init init_axis_flash(void)
 			printk(KERN_INFO
 			       "Sector at %d (length %d):\n",
 			       sectoraddr, len);
-			for (i = 0; i < PAGESIZE; i += 16) {
-				printk(KERN_INFO
-				       "%02x %02x %02x %02x "
-				       "%02x %02x %02x %02x "
-				       "%02x %02x %02x %02x "
-				       "%02x %02x %02x %02x\n",
-				       page[i] & 255, page[i+1] & 255,
-				       page[i+2] & 255, page[i+3] & 255,
-				       page[i+4] & 255, page[i+5] & 255,
-				       page[i+6] & 255, page[i+7] & 255,
-				       page[i+8] & 255, page[i+9] & 255,
-				       page[i+10] & 255, page[i+11] & 255,
-				       page[i+12] & 255, page[i+13] & 255,
-				       page[i+14] & 255, page[i+15] & 255);
-			}
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1, page, PAGESIZE, false);
 		}
 	}
 #endif
@@ -417,25 +403,11 @@ static int __init init_axis_flash(void)
 
 #if 0 /* Dump partition table so we can see what is going on */
 		printk(KERN_INFO
-		       "axisflashmap: flash read %d bytes at 0x%08x, data: "
-		       "%02x %02x %02x %02x %02x %02x %02x %02x\n",
-		       len, CONFIG_ETRAX_PTABLE_SECTOR,
-		       page[0] & 255, page[1] & 255,
-		       page[2] & 255, page[3] & 255,
-		       page[4] & 255, page[5] & 255,
-		       page[6] & 255, page[7] & 255);
+		       "axisflashmap: flash read %d bytes at 0x%08x, data: %8ph\n",
+		       len, CONFIG_ETRAX_PTABLE_SECTOR, page);
 		printk(KERN_INFO
-		       "axisflashmap: partition table offset %d, data: "
-		       "%02x %02x %02x %02x %02x %02x %02x %02x\n",
-		       PARTITION_TABLE_OFFSET,
-		       page[PARTITION_TABLE_OFFSET+0] & 255,
-		       page[PARTITION_TABLE_OFFSET+1] & 255,
-		       page[PARTITION_TABLE_OFFSET+2] & 255,
-		       page[PARTITION_TABLE_OFFSET+3] & 255,
-		       page[PARTITION_TABLE_OFFSET+4] & 255,
-		       page[PARTITION_TABLE_OFFSET+5] & 255,
-		       page[PARTITION_TABLE_OFFSET+6] & 255,
-		       page[PARTITION_TABLE_OFFSET+7] & 255);
+		       "axisflashmap: partition table offset %d, data: %8ph\n",
+		       PARTITION_TABLE_OFFSET, page + PARTITION_TABLE_OFFSET);
 #endif
 	}
 

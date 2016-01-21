@@ -22,7 +22,7 @@
 
 #include <media/media-entity.h>
 #include <media/v4l2-dev.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 struct dma_chan;
 struct xvip_composite_device;

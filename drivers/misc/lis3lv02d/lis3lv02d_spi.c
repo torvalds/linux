@@ -138,7 +138,6 @@ static SIMPLE_DEV_PM_OPS(lis3lv02d_spi_pm, lis3lv02d_spi_suspend,
 static struct spi_driver lis302dl_spi_driver = {
 	.driver	 = {
 		.name   = DRV_NAME,
-		.owner  = THIS_MODULE,
 		.pm	= &lis3lv02d_spi_pm,
 		.of_match_table = of_match_ptr(lis302dl_spi_dt_ids),
 	},

@@ -6,12 +6,6 @@
 
 #include <linux/dma-mapping.h>
 
-static inline int
-pci_dma_supported(struct pci_dev *hwdev, u64 mask)
-{
-	return dma_supported(hwdev == NULL ? NULL : &hwdev->dev, mask);
-}
-
 static inline void *
 pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 		     dma_addr_t *dma_handle)

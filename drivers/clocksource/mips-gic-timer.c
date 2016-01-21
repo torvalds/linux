@@ -140,9 +140,10 @@ static cycle_t gic_hpt_read(struct clocksource *cs)
 }
 
 static struct clocksource gic_clocksource = {
-	.name	= "GIC",
-	.read	= gic_hpt_read,
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.name		= "GIC",
+	.read		= gic_hpt_read,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.archdata	= { .vdso_clock_mode = VDSO_CLOCK_GIC },
 };
 
 static void __init __gic_clocksource_init(void)

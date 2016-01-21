@@ -731,7 +731,7 @@ static int uclogic_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 0;
 }
 
-static void uclogic_input_configured(struct hid_device *hdev,
+static int uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
 	char *name;
@@ -741,7 +741,7 @@ static void uclogic_input_configured(struct hid_device *hdev,
 
 	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
 	if (!hi->report)
-		return;
+		return 0;
 
 	field = hi->report->field[0];
 
@@ -774,6 +774,8 @@ static void uclogic_input_configured(struct hid_device *hdev,
 			hi->input->name = name;
 		}
 	}
+
+	return 0;
 }
 
 /**

@@ -30,8 +30,8 @@
 int mic_open(struct inode *inode, struct file *f)
 {
 	struct mic_vdev *mvdev;
-	struct mic_device *mdev = container_of(inode->i_cdev,
-		struct mic_device, cdev);
+	struct mic_device *mdev = container_of(f->private_data,
+		struct mic_device, miscdev);
 
 	mvdev = kzalloc(sizeof(*mvdev), GFP_KERNEL);
 	if (!mvdev)

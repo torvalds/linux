@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
+#include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
 #include <asm/io.h>
@@ -70,6 +71,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 	memcpy(cpcmd_buf, cmd, cmdlen);
 	ASCEBC(cpcmd_buf, cmdlen);
 
+	diag_stat_inc(DIAG_STAT_X008);
 	if (response) {
 		memset(response, 0, rlen);
 		response_len = rlen;

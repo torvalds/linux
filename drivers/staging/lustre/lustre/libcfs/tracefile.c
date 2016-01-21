@@ -39,7 +39,6 @@
  * Author: Phil Schwan <phil@clusterfs.com>
  */
 
-
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
 #include "tracefile.h"
@@ -124,7 +123,7 @@ int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 	 * from here: this will lead to infinite recursion.
 	 */
 
-	for (i = 0; i + tcd->tcd_cur_stock_pages < TCD_STOCK_PAGES ; ++ i) {
+	for (i = 0; i + tcd->tcd_cur_stock_pages < TCD_STOCK_PAGES ; ++i) {
 		struct cfs_trace_page *tage;
 
 		tage = cfs_tage_alloc(gfp);
@@ -370,7 +369,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	/* indent message according to the nesting level */
 	while (depth-- > 0) {
 		*(debug_buf++) = '.';
-		++ tage->used;
+		++tage->used;
 	}
 
 	strcpy(debug_buf, file);
@@ -652,6 +651,7 @@ void cfs_trace_debug_print(void)
 		while (p < ((char *)page_address(page) + tage->used)) {
 			struct ptldebug_header *hdr;
 			int len;
+
 			hdr = (void *)p;
 			p += sizeof(*hdr);
 			file = p;
@@ -810,7 +810,7 @@ int cfs_trace_allocate_string_buffer(char **str, int nob)
 	if (nob > 2 * PAGE_CACHE_SIZE)	    /* string must be "sensible" */
 		return -EINVAL;
 
-	*str = kmalloc(nob, GFP_IOFS | __GFP_ZERO);
+	*str = kmalloc(nob, GFP_KERNEL | __GFP_ZERO);
 	if (*str == NULL)
 		return -ENOMEM;
 

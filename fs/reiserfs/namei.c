@@ -712,9 +712,6 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
 
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
-
 	retval = dquot_initialize(dir);
 	if (retval)
 		return retval;

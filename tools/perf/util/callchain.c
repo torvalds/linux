@@ -51,10 +51,12 @@ static int parse_callchain_order(const char *value)
 {
 	if (!strncmp(value, "caller", strlen(value))) {
 		callchain_param.order = ORDER_CALLER;
+		callchain_param.order_set = true;
 		return 0;
 	}
 	if (!strncmp(value, "callee", strlen(value))) {
 		callchain_param.order = ORDER_CALLEE;
+		callchain_param.order_set = true;
 		return 0;
 	}
 	return -1;
@@ -77,12 +79,14 @@ static int parse_callchain_sort_key(const char *value)
 	return -1;
 }
 
-int
-parse_callchain_report_opt(const char *arg)
+static int
+__parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 {
 	char *tok;
 	char *endptr;
 	bool minpcnt_set = false;
+	bool record_opt_set = false;
+	bool try_stack_size = false;
 
 	symbol_conf.use_callchain = true;
 
@@ -100,6 +104,28 @@ parse_callchain_report_opt(const char *arg)
 		    !parse_callchain_order(tok) ||
 		    !parse_callchain_sort_key(tok)) {
 			/* parsing ok - move on to the next */
+			try_stack_size = false;
+			goto next;
+		} else if (allow_record_opt && !record_opt_set) {
+			if (parse_callchain_record(tok, &callchain_param))
+				goto try_numbers;
+
+			/* assume that number followed by 'dwarf' is stack size */
+			if (callchain_param.record_mode == CALLCHAIN_DWARF)
+				try_stack_size = true;
+
+			record_opt_set = true;
+			goto next;
+		}
+
+try_numbers:
+		if (try_stack_size) {
+			unsigned long size = 0;
+
+			if (get_stack_size(tok, &size) < 0)
+				return -1;
+			callchain_param.dump_size = size;
+			try_stack_size = false;
 		} else if (!minpcnt_set) {
 			/* try to get the min percent */
 			callchain_param.min_percent = strtod(tok, &endptr);
@@ -112,7 +138,7 @@ parse_callchain_report_opt(const char *arg)
 			if (tok == endptr)
 				return -1;
 		}
-
+next:
 		arg = NULL;
 	}
 
@@ -121,6 +147,16 @@ parse_callchain_report_opt(const char *arg)
 		return -1;
 	}
 	return 0;
+}
+
+int parse_callchain_report_opt(const char *arg)
+{
+	return __parse_callchain_report_opt(arg, false);
+}
+
+int parse_callchain_top_opt(const char *arg)
+{
+	return __parse_callchain_report_opt(arg, true);
 }
 
 int perf_callchain_config(const char *var, const char *value)

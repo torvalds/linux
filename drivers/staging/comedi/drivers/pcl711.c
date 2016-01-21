@@ -49,7 +49,7 @@
 #define PCL711_TIMER_BASE	0x00
 #define PCL711_AI_LSB_REG	0x04
 #define PCL711_AI_MSB_REG	0x05
-#define PCL711_AI_MSB_DRDY	(1 << 4)
+#define PCL711_AI_MSB_DRDY	BIT(4)
 #define PCL711_AO_LSB_REG(x)	(0x04 + ((x) * 2))
 #define PCL711_AO_MSB_REG(x)	(0x05 + ((x) * 2))
 #define PCL711_DI_LSB_REG	0x06
@@ -60,16 +60,17 @@
 #define PCL711_AI_GAIN(x)	(((x) & 0xf) << 0)
 #define PCL711_MUX_REG		0x0a
 #define PCL711_MUX_CHAN(x)	(((x) & 0xf) << 0)
-#define PCL711_MUX_CS0		(1 << 4)
-#define PCL711_MUX_CS1		(1 << 5)
+#define PCL711_MUX_CS0		BIT(4)
+#define PCL711_MUX_CS1		BIT(5)
 #define PCL711_MUX_DIFF		(PCL711_MUX_CS0 | PCL711_MUX_CS1)
 #define PCL711_MODE_REG		0x0b
-#define PCL711_MODE_DEFAULT	(0 << 0)
-#define PCL711_MODE_SOFTTRIG	(1 << 0)
-#define PCL711_MODE_EXT		(2 << 0)
-#define PCL711_MODE_EXT_IRQ	(3 << 0)
-#define PCL711_MODE_PACER	(4 << 0)
-#define PCL711_MODE_PACER_IRQ	(6 << 0)
+#define PCL711_MODE(x)		(((x) & 0x7) << 0)
+#define PCL711_MODE_DEFAULT	PCL711_MODE(0)
+#define PCL711_MODE_SOFTTRIG	PCL711_MODE(1)
+#define PCL711_MODE_EXT		PCL711_MODE(2)
+#define PCL711_MODE_EXT_IRQ	PCL711_MODE(3)
+#define PCL711_MODE_PACER	PCL711_MODE(4)
+#define PCL711_MODE_PACER_IRQ	PCL711_MODE(6)
 #define PCL711_MODE_IRQ(x)	(((x) & 0x7) << 4)
 #define PCL711_SOFTTRIG_REG	0x0c
 #define PCL711_SOFTTRIG		(0 << 0)  /* any value will work */

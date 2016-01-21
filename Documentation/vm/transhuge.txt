@@ -170,6 +170,16 @@ A lower value leads to gain less thp performance. Value of
 max_ptes_none can waste cpu time very little, you can
 ignore it.
 
+max_ptes_swap specifies how many pages can be brought in from
+swap when collapsing a group of pages into a transparent huge page.
+
+/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_swap
+
+A higher value can cause excessive swap IO and waste
+memory. A lower value can prevent THPs from being
+collapsed, resulting fewer pages being collapsed into
+THPs, and lower memory access performance.
+
 == Boot parameter ==
 
 You can change the sysfs boot time defaults of Transparent Hugepage

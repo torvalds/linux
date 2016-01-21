@@ -216,13 +216,14 @@ int saa7134_buffer_count(unsigned int size, unsigned int count)
 
 int saa7134_buffer_startpage(struct saa7134_buf *buf)
 {
-	return saa7134_buffer_pages(vb2_plane_size(&buf->vb2, 0)) * buf->vb2.v4l2_buf.index;
+	return saa7134_buffer_pages(vb2_plane_size(&buf->vb2.vb2_buf, 0))
+			* buf->vb2.vb2_buf.index;
 }
 
 unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 {
 	unsigned long base;
-	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
+	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2.vb2_buf, 0);
 
 	base  = saa7134_buffer_startpage(buf) * 4096;
 	base += dma->sgl[0].offset;
@@ -308,9 +309,9 @@ void saa7134_buffer_finish(struct saa7134_dev *dev,
 	core_dbg("buffer_finish %p\n", q->curr);
 
 	/* finish current buffer */
-	v4l2_get_timestamp(&q->curr->vb2.v4l2_buf.timestamp);
-	q->curr->vb2.v4l2_buf.sequence = q->seq_nr++;
-	vb2_buffer_done(&q->curr->vb2, state);
+	v4l2_get_timestamp(&q->curr->vb2.timestamp);
+	q->curr->vb2.sequence = q->seq_nr++;
+	vb2_buffer_done(&q->curr->vb2.vb2_buf, state);
 	q->curr = NULL;
 }
 
@@ -375,7 +376,8 @@ void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q)
 	if (!list_empty(&q->queue)) {
 		list_for_each_safe(pos, n, &q->queue) {
 			 tmp = list_entry(pos, struct saa7134_buf, entry);
-			 vb2_buffer_done(&tmp->vb2, VB2_BUF_STATE_ERROR);
+			 vb2_buffer_done(&tmp->vb2.vb2_buf,
+					 VB2_BUF_STATE_ERROR);
 			 list_del(pos);
 			 tmp = NULL;
 		}
@@ -949,9 +951,9 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 	pci_set_master(pci_dev);
-	if (!pci_dma_supported(pci_dev, DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
+	if (err) {
 		pr_warn("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
-		err = -EIO;
 		goto fail1;
 	}
 

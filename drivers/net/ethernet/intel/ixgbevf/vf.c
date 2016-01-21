@@ -469,6 +469,46 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 }
 
 /**
+ *  ixgbevf_update_xcast_mode - Update Multicast mode
+ *  @hw: pointer to the HW structure
+ *  @netdev: pointer to net device structure
+ *  @xcast_mode: new multicast mode
+ *
+ *  Updates the Multicast Mode of VF.
+ **/
+static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw,
+				     struct net_device *netdev, int xcast_mode)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	u32 msgbuf[2];
+	s32 err;
+
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_12:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	msgbuf[0] = IXGBE_VF_UPDATE_XCAST_MODE;
+	msgbuf[1] = xcast_mode;
+
+	err = mbx->ops.write_posted(hw, msgbuf, 2);
+	if (err)
+		return err;
+
+	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	if (err)
+		return err;
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+	if (msgbuf[0] == (IXGBE_VF_UPDATE_XCAST_MODE | IXGBE_VT_MSGTYPE_NACK))
+		return -EPERM;
+
+	return 0;
+}
+
+/**
  *  ixgbevf_set_vfta_vf - Set/Unset VLAN filter table address
  *  @hw: pointer to the HW structure
  *  @vlan: 12 bit VLAN ID
@@ -727,6 +767,7 @@ static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.check_link		= ixgbevf_check_mac_link_vf,
 	.set_rar		= ixgbevf_set_rar_vf,
 	.update_mc_addr_list	= ixgbevf_update_mc_addr_list_vf,
+	.update_xcast_mode	= ixgbevf_update_xcast_mode,
 	.set_uc_addr		= ixgbevf_set_uc_addr_vf,
 	.set_vfta		= ixgbevf_set_vfta_vf,
 };

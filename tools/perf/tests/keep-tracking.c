@@ -90,8 +90,8 @@ int test__keep_tracking(void)
 	evsel->attr.enable_on_exec = 0;
 
 	if (perf_evlist__open(evlist) < 0) {
-		fprintf(stderr, " (not supported)");
-		err = 0;
+		pr_debug("Unable to open dummy and cycles event\n");
+		err = TEST_SKIP;
 		goto out_err;
 	}
 

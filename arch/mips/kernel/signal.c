@@ -36,7 +36,6 @@
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
 #include <asm/war.h>
-#include <asm/vdso.h>
 #include <asm/dsp.h>
 #include <asm/inst.h>
 #include <asm/msa.h>
@@ -752,16 +751,15 @@ static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
 struct mips_abi mips_abi = {
 #ifdef CONFIG_TRAD_SIGNALS
 	.setup_frame	= setup_frame,
-	.signal_return_offset = offsetof(struct mips_vdso, signal_trampoline),
 #endif
 	.setup_rt_frame = setup_rt_frame,
-	.rt_signal_return_offset =
-		offsetof(struct mips_vdso, rt_signal_trampoline),
 	.restart	= __NR_restart_syscall,
 
 	.off_sc_fpregs = offsetof(struct sigcontext, sc_fpregs),
 	.off_sc_fpc_csr = offsetof(struct sigcontext, sc_fpc_csr),
 	.off_sc_used_math = offsetof(struct sigcontext, sc_used_math),
+
+	.vdso		= &vdso_image,
 };
 
 static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
@@ -801,11 +799,11 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	if (sig_uses_siginfo(&ksig->ka))
-		ret = abi->setup_rt_frame(vdso + abi->rt_signal_return_offset,
+		ret = abi->setup_rt_frame(vdso + abi->vdso->off_rt_sigreturn,
 					  ksig, regs, oldset);
 	else
-		ret = abi->setup_frame(vdso + abi->signal_return_offset, ksig,
-				       regs, oldset);
+		ret = abi->setup_frame(vdso + abi->vdso->off_sigreturn,
+				       ksig, regs, oldset);
 
 	signal_setup_done(ret, ksig, 0);
 }

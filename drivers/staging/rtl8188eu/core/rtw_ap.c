@@ -1795,7 +1795,7 @@ int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
 		plist = plist->next;
 
 		issue_action_spct_ch_switch(padapter, psta->hwaddr, new_ch, ch_offset);
-		psta->expire_to = ((pstapriv->expire_to * 2) > 5) ? 5 : (pstapriv->expire_to * 2);
+		psta->expire_to = min_t(unsigned int, pstapriv->expire_to * 2, 5);
 	}
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 

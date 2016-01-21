@@ -229,7 +229,7 @@ config IMX_SDMA
 	  Support the i.MX SDMA engine. This engine is integrated into
 	  Freescale i.MX25/31/35/51/53/6 chips.
 
-config IDMA64
+config INTEL_IDMA64
 	tristate "Intel integrated DMA 64-bit support"
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
@@ -486,7 +486,7 @@ config TI_EDMA
 	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select TI_PRIV_EDMA
+	select TI_DMA_CROSSBAR if ARCH_OMAP
 	default n
 	help
 	  Enable support for the TI EDMA controller. This DMA

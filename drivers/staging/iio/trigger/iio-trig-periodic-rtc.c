@@ -39,7 +39,7 @@ static int iio_trig_periodic_rtc_set_state(struct iio_trigger *trig, bool state)
 	dev_dbg(&trig_info->rtc->dev, "trigger frequency is %u\n",
 		trig_info->frequency);
 	ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, state);
-	if (ret == 0)
+	if (!ret)
 		trig_info->state = state;
 
 	return ret;

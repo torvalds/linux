@@ -1171,19 +1171,31 @@ err_no_rxchan:
 static int pl022_dma_autoprobe(struct pl022 *pl022)
 {
 	struct device *dev = &pl022->adev->dev;
+	struct dma_chan *chan;
+	int err;
 
 	/* automatically configure DMA channels from platform, normally using DT */
-	pl022->dma_rx_channel = dma_request_slave_channel(dev, "rx");
-	if (!pl022->dma_rx_channel)
+	chan = dma_request_slave_channel_reason(dev, "rx");
+	if (IS_ERR(chan)) {
+		err = PTR_ERR(chan);
 		goto err_no_rxchan;
+	}
 
-	pl022->dma_tx_channel = dma_request_slave_channel(dev, "tx");
-	if (!pl022->dma_tx_channel)
+	pl022->dma_rx_channel = chan;
+
+	chan = dma_request_slave_channel_reason(dev, "tx");
+	if (IS_ERR(chan)) {
+		err = PTR_ERR(chan);
 		goto err_no_txchan;
+	}
+
+	pl022->dma_tx_channel = chan;
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!pl022->dummypage)
+	if (!pl022->dummypage) {
+		err = -ENOMEM;
 		goto err_no_dummypage;
+	}
 
 	return 0;
 
@@ -1194,7 +1206,7 @@ err_no_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
 err_no_rxchan:
-	return -ENODEV;
+	return err;
 }
 		
 static void terminate_dma(struct pl022 *pl022)
@@ -2236,6 +2248,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* Get DMA channels, try autoconfiguration first */
 	status = pl022_dma_autoprobe(pl022);
+	if (status == -EPROBE_DEFER) {
+		dev_dbg(dev, "deferring probe to get DMA channel\n");
+		goto err_no_irq;
+	}
 
 	/* If that failed, use channels from platform_info */
 	if (status == 0)

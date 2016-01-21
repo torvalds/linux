@@ -752,7 +752,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_device *device = mad_agent_priv->agent.device;
 	u8 port_num;
 	struct ib_wc mad_wc;
-	struct ib_send_wr *send_wr = &mad_send_wr->send_wr;
+	struct ib_ud_wr *send_wr = &mad_send_wr->send_wr;
 	size_t mad_size = port_mad_size(mad_agent_priv->qp_info->port_priv);
 	u16 out_mad_pkey_index = 0;
 	u16 drslid;
@@ -761,7 +761,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 
 	if (rdma_cap_ib_switch(device) &&
 	    smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
-		port_num = send_wr->wr.ud.port_num;
+		port_num = send_wr->port_num;
 	else
 		port_num = mad_agent_priv->agent.port_num;
 
@@ -832,9 +832,9 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	}
 
 	build_smp_wc(mad_agent_priv->agent.qp,
-		     send_wr->wr_id, drslid,
-		     send_wr->wr.ud.pkey_index,
-		     send_wr->wr.ud.port_num, &mad_wc);
+		     send_wr->wr.wr_id, drslid,
+		     send_wr->pkey_index,
+		     send_wr->port_num, &mad_wc);
 
 	if (opa && smp->base_version == OPA_MGMT_BASE_VERSION) {
 		mad_wc.byte_len = mad_send_wr->send_buf.hdr_len
@@ -894,7 +894,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 
 	local->mad_send_wr = mad_send_wr;
 	if (opa) {
-		local->mad_send_wr->send_wr.wr.ud.pkey_index = out_mad_pkey_index;
+		local->mad_send_wr->send_wr.pkey_index = out_mad_pkey_index;
 		local->return_wc_byte_len = mad_size;
 	}
 	/* Reference MAD agent until send side of local completion handled */
@@ -1039,14 +1039,14 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 
 	mad_send_wr->sg_list[1].lkey = mad_agent->qp->pd->local_dma_lkey;
 
-	mad_send_wr->send_wr.wr_id = (unsigned long) mad_send_wr;
-	mad_send_wr->send_wr.sg_list = mad_send_wr->sg_list;
-	mad_send_wr->send_wr.num_sge = 2;
-	mad_send_wr->send_wr.opcode = IB_WR_SEND;
-	mad_send_wr->send_wr.send_flags = IB_SEND_SIGNALED;
-	mad_send_wr->send_wr.wr.ud.remote_qpn = remote_qpn;
-	mad_send_wr->send_wr.wr.ud.remote_qkey = IB_QP_SET_QKEY;
-	mad_send_wr->send_wr.wr.ud.pkey_index = pkey_index;
+	mad_send_wr->send_wr.wr.wr_id = (unsigned long) mad_send_wr;
+	mad_send_wr->send_wr.wr.sg_list = mad_send_wr->sg_list;
+	mad_send_wr->send_wr.wr.num_sge = 2;
+	mad_send_wr->send_wr.wr.opcode = IB_WR_SEND;
+	mad_send_wr->send_wr.wr.send_flags = IB_SEND_SIGNALED;
+	mad_send_wr->send_wr.remote_qpn = remote_qpn;
+	mad_send_wr->send_wr.remote_qkey = IB_QP_SET_QKEY;
+	mad_send_wr->send_wr.pkey_index = pkey_index;
 
 	if (rmpp_active) {
 		ret = alloc_send_rmpp_list(mad_send_wr, mad_size, gfp_mask);
@@ -1151,7 +1151,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	/* Set WR ID to find mad_send_wr upon completion */
 	qp_info = mad_send_wr->mad_agent_priv->qp_info;
-	mad_send_wr->send_wr.wr_id = (unsigned long)&mad_send_wr->mad_list;
+	mad_send_wr->send_wr.wr.wr_id = (unsigned long)&mad_send_wr->mad_list;
 	mad_send_wr->mad_list.mad_queue = &qp_info->send_queue;
 
 	mad_agent = mad_send_wr->send_buf.mad_agent;
@@ -1179,7 +1179,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
-		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr,
+		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr.wr,
 				   &bad_send_wr);
 		list = &qp_info->send_queue.list;
 	} else {
@@ -1244,7 +1244,7 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		 * request associated with the completion
 		 */
 		next_send_buf = send_buf->next;
-		mad_send_wr->send_wr.wr.ud.ah = send_buf->ah;
+		mad_send_wr->send_wr.ah = send_buf->ah;
 
 		if (((struct ib_mad_hdr *) send_buf->mad)->mgmt_class ==
 		    IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
@@ -1811,6 +1811,11 @@ static int validate_mad(const struct ib_mad_hdr *mad_hdr,
 		if (qp_num == 0)
 			valid = 1;
 	} else {
+		/* CM attributes other than ClassPortInfo only use Send method */
+		if ((mad_hdr->mgmt_class == IB_MGMT_CLASS_CM) &&
+		    (mad_hdr->attr_id != IB_MGMT_CLASSPORTINFO_ATTR_ID) &&
+		    (mad_hdr->method != IB_MGMT_METHOD_SEND))
+			goto out;
 		/* Filter GSI packets sent to QP0 */
 		if (qp_num != 0)
 			valid = 1;
@@ -1877,7 +1882,7 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 					  ((1 << lmc) - 1)));
 		} else {
 			if (ib_get_cached_gid(device, port_num,
-					      attr.grh.sgid_index, &sgid))
+					      attr.grh.sgid_index, &sgid, NULL))
 				return 0;
 			return !memcmp(sgid.raw, rwc->recv_buf.grh->dgid.raw,
 				       16);
@@ -2457,7 +2462,7 @@ retry:
 	ib_mad_complete_send_wr(mad_send_wr, &mad_send_wc);
 
 	if (queued_send_wr) {
-		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr,
+		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr.wr,
 				   &bad_send_wr);
 		if (ret) {
 			dev_err(&port_priv->device->dev,
@@ -2515,7 +2520,7 @@ static void mad_error_handler(struct ib_mad_port_private *port_priv,
 			struct ib_send_wr *bad_send_wr;
 
 			mad_send_wr->retry = 0;
-			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr,
+			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr.wr,
 					&bad_send_wr);
 			if (ret)
 				ib_mad_send_done_handler(port_priv, wc);
@@ -2713,7 +2718,7 @@ static void local_completions(struct work_struct *work)
 			build_smp_wc(recv_mad_agent->agent.qp,
 				     (unsigned long) local->mad_send_wr,
 				     be16_to_cpu(IB_LID_PERMISSIVE),
-				     local->mad_send_wr->send_wr.wr.ud.pkey_index,
+				     local->mad_send_wr->send_wr.pkey_index,
 				     recv_mad_agent->agent.port_num, &wc);
 
 			local->mad_priv->header.recv_wc.wc = &wc;

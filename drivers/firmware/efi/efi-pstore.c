@@ -103,7 +103,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 
 /**
  * efi_pstore_scan_sysfs_enter
- * @entry: scanning entry
+ * @pos: scanning entry
  * @next: next entry
  * @head: list head
  */
@@ -400,3 +400,4 @@ module_exit(efivars_pstore_exit);
 
 MODULE_DESCRIPTION("EFI variable backend for pstore");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:efivars");

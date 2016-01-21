@@ -47,7 +47,8 @@ repeat:
 /*
  * We guarantee no failure on the returned page.
  */
-struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
+static struct page *__get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index,
+							bool is_meta)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
 	struct page *page;
@@ -58,6 +59,9 @@ struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 		.blk_addr = index,
 		.encrypted_page = NULL,
 	};
+
+	if (unlikely(!is_meta))
+		fio.rw &= ~REQ_META;
 repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page) {
@@ -89,6 +93,17 @@ repeat:
 		f2fs_stop_checkpoint(sbi);
 out:
 	return page;
+}
+
+struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
+{
+	return __get_meta_page(sbi, index, true);
+}
+
+/* for POR only */
+struct page *get_tmp_page(struct f2fs_sb_info *sbi, pgoff_t index)
+{
+	return __get_meta_page(sbi, index, false);
 }
 
 bool is_valid_blkaddr(struct f2fs_sb_info *sbi, block_t blkaddr, int type)
@@ -125,7 +140,8 @@ bool is_valid_blkaddr(struct f2fs_sb_info *sbi, block_t blkaddr, int type)
 /*
  * Readahead CP/NAT/SIT/SSA pages
  */
-int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type)
+int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
+							int type, bool sync)
 {
 	block_t prev_blk_addr = 0;
 	struct page *page;
@@ -133,9 +149,12 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
 		.type = META,
-		.rw = READ_SYNC | REQ_META | REQ_PRIO,
+		.rw = sync ? (READ_SYNC | REQ_META | REQ_PRIO) : READA,
 		.encrypted_page = NULL,
 	};
+
+	if (unlikely(type == META_POR))
+		fio.rw &= ~REQ_META;
 
 	for (; nrpages-- > 0; blkno++) {
 
@@ -196,7 +215,7 @@ void ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index)
 	f2fs_put_page(page, 0);
 
 	if (readahead)
-		ra_meta_pages(sbi, index, MAX_BIO_BLOCKS(sbi), META_POR);
+		ra_meta_pages(sbi, index, MAX_BIO_BLOCKS(sbi), META_POR, true);
 }
 
 static int f2fs_write_meta_page(struct page *page,
@@ -257,7 +276,7 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 						long nr_to_write)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
-	pgoff_t index = 0, end = LONG_MAX;
+	pgoff_t index = 0, end = LONG_MAX, prev = LONG_MAX;
 	struct pagevec pvec;
 	long nwritten = 0;
 	struct writeback_control wbc = {
@@ -276,6 +295,13 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
+
+			if (prev == LONG_MAX)
+				prev = page->index - 1;
+			if (nr_to_write != LONG_MAX && page->index != prev + 1) {
+				pagevec_release(&pvec);
+				goto stop;
+			}
 
 			lock_page(page);
 
@@ -297,13 +323,14 @@ continue_unlock:
 				break;
 			}
 			nwritten++;
+			prev = page->index;
 			if (unlikely(nwritten >= nr_to_write))
 				break;
 		}
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-
+stop:
 	if (nwritten)
 		f2fs_submit_merged_bio(sbi, type, WRITE);
 
@@ -495,7 +522,7 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
 	orphan_blocks = __start_sum_addr(sbi) - 1 - __cp_payload(sbi);
 
-	ra_meta_pages(sbi, start_blk, orphan_blocks, META_CP);
+	ra_meta_pages(sbi, start_blk, orphan_blocks, META_CP, true);
 
 	for (i = 0; i < orphan_blocks; i++) {
 		struct page *page = get_meta_page(sbi, start_blk + i);
@@ -1000,6 +1027,11 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	start_blk = __start_cp_addr(sbi);
 
+	/* need to wait for end_io results */
+	wait_on_all_pages_writeback(sbi);
+	if (unlikely(f2fs_cp_error(sbi)))
+		return;
+
 	/* write out checkpoint buffer at block 0 */
 	update_meta_page(sbi, ckpt, start_blk++);
 
@@ -1109,6 +1141,9 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	if (cpc->reason == CP_RECOVERY)
 		f2fs_msg(sbi->sb, KERN_NOTICE,
 			"checkpoint: version = %llx", ckpt_ver);
+
+	/* do checkpoint periodically */
+	sbi->cp_expires = round_jiffies_up(jiffies + HZ * sbi->cp_interval);
 out:
 	mutex_unlock(&sbi->cp_mutex);
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish checkpoint");

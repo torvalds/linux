@@ -27,10 +27,6 @@ Optional properties:
 - vbus-supply: reference to the VBUS regulator
 - maximum-speed: limit the maximum connection speed to "full-speed".
 - tpl-support: TPL (Targeted Peripheral List) feature for targeted hosts
-- fsl,usbmisc: (FSL only) phandler of non-core register device, with one
-  argument that indicate usb controller index
-- disable-over-current: (FSL only) disable over current detect
-- external-vbus-divider: (FSL only) enables off-chip resistor divider for Vbus
 - itc-setting: interrupt threshold control register control, the setting
   should be aligned with ITC bits at register USBCMD.
 - ahb-burst-config: it is vendor dependent, the required value should be
@@ -41,11 +37,28 @@ Optional properties:
 - tx-burst-size-dword: it is vendor dependent, the tx burst size in dword
   (4 bytes), This register represents the maximum length of a the burst
   in 32-bit words while moving data from system memory to the USB
-  bus, changing this value takes effect only the SBUSCFG.AHBBRST is 0.
+  bus, the value of this property will only take effect if property
+  "ahb-burst-config" is set to 0, if this property is missing the reset
+  default of the hardware implementation will be used.
 - rx-burst-size-dword: it is vendor dependent, the rx burst size in dword
   (4 bytes), This register represents the maximum length of a the burst
   in 32-bit words while moving data from the USB bus to system memory,
-  changing this value takes effect only the SBUSCFG.AHBBRST is 0.
+  the value of this property will only take effect if property
+  "ahb-burst-config" is set to 0, if this property is missing the reset
+  default of the hardware implementation will be used.
+- extcon: phandles to external connector devices. First phandle should point to
+  external connector, which provide "USB" cable events, the second should point
+  to external connector device, which provide "USB-HOST" cable events. If one
+  of the external connector devices is not required, empty <0> phandle should
+  be specified.
+- phy-clkgate-delay-us: the delay time (us) between putting the PHY into
+  low power mode and gating the PHY clock.
+
+i.mx specific properties
+- fsl,usbmisc: phandler of non-core register device, with one
+  argument that indicate usb controller index
+- disable-over-current: disable over current detect
+- external-vbus-divider: enables off-chip resistor divider for Vbus
 
 Example:
 
@@ -62,4 +75,6 @@ Example:
 		ahb-burst-config = <0x0>;
 		tx-burst-size-dword = <0x10>; /* 64 bytes */
 		rx-burst-size-dword = <0x10>;
+		extcon = <0>, <&usb_id>;
+		phy-clkgate-delay-us = <400>;
 	};

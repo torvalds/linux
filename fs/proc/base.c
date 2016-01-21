@@ -430,13 +430,10 @@ static int proc_pid_wchan(struct seq_file *m, struct pid_namespace *ns,
 
 	wchan = get_wchan(task);
 
-	if (lookup_symbol_name(wchan, symname) < 0) {
-		if (!ptrace_may_access(task, PTRACE_MODE_READ))
-			return 0;
-		seq_printf(m, "%lu", wchan);
-	} else {
+	if (wchan && ptrace_may_access(task, PTRACE_MODE_READ) && !lookup_symbol_name(wchan, symname))
 		seq_printf(m, "%s", symname);
-	}
+	else
+		seq_putc(m, '0');
 
 	return 0;
 }
@@ -1035,6 +1032,16 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
 	return simple_read_from_buffer(buf, count, ppos, buffer, len);
 }
 
+/*
+ * /proc/pid/oom_adj exists solely for backwards compatibility with previous
+ * kernels.  The effective policy is defined by oom_score_adj, which has a
+ * different scale: oom_adj grew exponentially and oom_score_adj grows linearly.
+ * Values written to oom_adj are simply mapped linearly to oom_score_adj.
+ * Processes that become oom disabled via oom_adj will still be oom disabled
+ * with this implementation.
+ *
+ * oom_adj cannot be removed since existing userspace binaries use it.
+ */
 static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
@@ -2487,6 +2494,7 @@ static ssize_t proc_coredump_filter_write(struct file *file,
 	mm = get_task_mm(task);
 	if (!mm)
 		goto out_no_mm;
+	ret = 0;
 
 	for (i = 0, mask = 1; i < MMF_DUMP_FILTER_BITS; i++, mask <<= 1) {
 		if (val & mask)

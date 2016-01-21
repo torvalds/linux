@@ -105,7 +105,7 @@ static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
 		atomic_inc(&exynos_crtc->pending_update);
 	}
 
-	drm_atomic_helper_commit_planes(dev, state);
+	drm_atomic_helper_commit_planes(dev, state, false);
 
 	exynos_atomic_wait_for_commit(state);
 
@@ -405,25 +405,25 @@ static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 
 static const struct drm_ioctl_desc exynos_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exynos_drm_gem_create_ioctl,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET, exynos_drm_gem_get_ioctl,
-			DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION, vidi_connection_ioctl,
-			DRM_UNLOCKED | DRM_AUTH),
+			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER, exynos_g2d_get_ver_ioctl,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exynos_g2d_set_cmdlist_ioctl,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY, exynos_drm_ipp_get_property,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY, exynos_drm_ipp_set_property,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF, exynos_drm_ipp_queue_buf,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL, exynos_drm_ipp_cmd_ctrl,
-			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -449,7 +449,7 @@ static struct drm_driver exynos_drm_driver = {
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,
 	.set_busid		= drm_platform_set_busid,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
 	.gem_free_object	= exynos_drm_gem_free_object,
@@ -529,8 +529,10 @@ static struct platform_driver *const exynos_drm_kms_drivers[] = {
 #ifdef CONFIG_DRM_EXYNOS_DSI
 	&dsi_driver,
 #endif
-#ifdef CONFIG_DRM_EXYNOS_HDMI
+#ifdef CONFIG_DRM_EXYNOS_MIXER
 	&mixer_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_HDMI
 	&hdmi_driver,
 #endif
 #ifdef CONFIG_DRM_EXYNOS_VIDI

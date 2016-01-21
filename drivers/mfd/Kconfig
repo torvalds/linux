@@ -60,6 +60,17 @@ config MFD_AAT2870_CORE
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_ATMEL_FLEXCOM
+	tristate "Atmel Flexcom (Flexible Serial Communication Unit)"
+	select MFD_CORE
+	depends on OF
+	help
+	  Select this to get support for Atmel Flexcom. This is a wrapper
+	  which embeds a SPI controller, a I2C controller and a USART. Only
+	  one function can be used at a time. The choice is done at boot time
+	  by the probe function of this MFD driver according to a device tree
+	  property.
+
 config MFD_ATMEL_HLCDC
 	tristate "Atmel HLCDC (High-end LCD Controller)"
 	select MFD_CORE
@@ -725,9 +736,10 @@ config MFD_RTSX_PCI
 	select MFD_CORE
 	help
 	  This supports for Realtek PCI-Express card reader including rts5209,
-	  rts5229, rtl8411, etc. Realtek card reader supports access to many
-	  types of memory cards, such as Memory Stick, Memory Stick Pro,
-	  Secure Digital and MultiMediaCard.
+	  rts5227, rts522A, rts5229, rts5249, rts524A, rts525A, rtl8411, etc.
+	  Realtek card reader supports access to many types of memory cards,
+	  such as Memory Stick, Memory Stick Pro, Secure Digital and
+	  MultiMediaCard.
 
 config MFD_RT5033
 	tristate "Richtek RT5033 Power Management IC"
@@ -1059,6 +1071,7 @@ config MFD_PALMAS
 config TPS6105X
 	tristate "TI TPS61050/61052 Boost Converters"
 	depends on I2C
+	select REGMAP_I2C
 	select REGULATOR
 	select MFD_CORE
 	select REGULATOR_FIXED_VOLTAGE
@@ -1471,7 +1484,7 @@ config MFD_WM8994
 
 config MFD_STW481X
 	tristate "Support for ST Microelectronics STw481x"
-	depends on I2C && ARCH_NOMADIK
+	depends on I2C && (ARCH_NOMADIK || COMPILE_TEST)
 	select REGMAP_I2C
 	select MFD_CORE
 	help

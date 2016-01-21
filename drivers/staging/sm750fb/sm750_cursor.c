@@ -1,19 +1,19 @@
-#include<linux/module.h>
-#include<linux/kernel.h>
-#include<linux/errno.h>
-#include<linux/string.h>
-#include<linux/mm.h>
-#include<linux/slab.h>
-#include<linux/delay.h>
-#include<linux/fb.h>
-#include<linux/ioport.h>
-#include<linux/init.h>
-#include<linux/pci.h>
-#include<linux/vmalloc.h>
-#include<linux/pagemap.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/fb.h>
+#include <linux/ioport.h>
+#include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/vmalloc.h>
+#include <linux/pagemap.h>
 #include <linux/console.h>
-#include<linux/platform_device.h>
-#include<linux/screen_info.h>
+#include <linux/platform_device.h>
+#include <linux/screen_info.h>
 
 #include "sm750.h"
 #include "sm750_help.h"
@@ -129,26 +129,6 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		mask = *pmsk++;
 		data = 0;
 
-		/* either method below works well,
-		 * but method 2 shows no lag
-		 * and method 1 seems a bit wrong*/
-#if 0
-		if (rop == ROP_XOR)
-			opr = mask ^ color;
-		else
-			opr = mask & color;
-
-		for (j = 0; j < 8; j++) {
-
-			if (opr & (0x80 >> j)) {
-				/* use fg color,id = 2 */
-				data |= 2 << (j*2);
-			} else {
-				/* use bg color,id = 1 */
-				data |= 1 << (j*2);
-			}
-		}
-#else
 		for (j = 0; j < 8; j++) {
 			if (mask & (0x80>>j)) {
 				if (rop == ROP_XOR)
@@ -160,15 +140,10 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 				data |= ((opr & (0x80>>j))?2:1)<<(j*2);
 			}
 		}
-#endif
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-#if 0
-		if (!((i+1)&(pitch-1)))   /* below line equal to is line */
-#else
 		if ((i+1) % pitch == 0)
-#endif
 		{
 			/* need a return */
 			pstart += offset;
@@ -209,29 +184,10 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 		mask = *pmsk++;
 		data = 0;
 
-		/* either method below works well, but method 2 shows no lag */
-#if 0
-		if (rop == ROP_XOR)
-			opr = mask ^ color;
-		else
-			opr = mask & color;
-
-		for (j = 0; j < 8; j++) {
-
-			if (opr & (0x80 >> j)) {
-				/* use fg color,id = 2 */
-				data |= 2 << (j*2);
-			} else {
-				/* use bg color,id = 1 */
-				data |= 1 << (j*2);
-			}
-		}
-#else
 		for (j = 0; j < 8; j++) {
 			if (mask & (1<<j))
 				data |= ((color & (1<<j))?1:2)<<(j*2);
 		}
-#endif
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/

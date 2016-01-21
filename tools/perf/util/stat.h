@@ -20,7 +20,7 @@ enum perf_stat_evsel_id {
 	PERF_STAT_EVSEL_ID__MAX,
 };
 
-struct perf_stat {
+struct perf_stat_evsel {
 	struct stats		res_stats[3];
 	enum perf_stat_evsel_id	id;
 };
@@ -31,6 +31,7 @@ enum aggr_mode {
 	AGGR_SOCKET,
 	AGGR_CORE,
 	AGGR_THREAD,
+	AGGR_UNSET,
 };
 
 struct perf_stat_config {

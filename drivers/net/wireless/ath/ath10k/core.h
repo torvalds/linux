@@ -214,6 +214,7 @@ struct ath10k_fw_stats_pdev {
 	s32 hw_queued;
 	s32 hw_reaped;
 	s32 underrun;
+	u32 hw_paused;
 	s32 tx_abort;
 	s32 mpdus_requed;
 	u32 tx_ko;
@@ -226,6 +227,16 @@ struct ath10k_fw_stats_pdev {
 	u32 pdev_resets;
 	u32 phy_underrun;
 	u32 txop_ovf;
+	u32 seq_posted;
+	u32 seq_failed_queueing;
+	u32 seq_completed;
+	u32 seq_restarted;
+	u32 mu_seq_posted;
+	u32 mpdus_sw_flush;
+	u32 mpdus_hw_filter;
+	u32 mpdus_truncated;
+	u32 mpdus_ack_failed;
+	u32 mpdus_expired;
 
 	/* PDEV RX stats */
 	s32 mid_ppdu_route_change;
@@ -242,12 +253,37 @@ struct ath10k_fw_stats_pdev {
 	s32 phy_errs;
 	s32 phy_err_drop;
 	s32 mpdu_errs;
+	s32 rx_ovfl_errs;
 };
 
 struct ath10k_fw_stats {
 	struct list_head pdevs;
 	struct list_head vdevs;
 	struct list_head peers;
+};
+
+#define ATH10K_TPC_TABLE_TYPE_FLAG	1
+#define ATH10K_TPC_PREAM_TABLE_END	0xFFFF
+
+struct ath10k_tpc_table {
+	u32 pream_idx[WMI_TPC_RATE_MAX];
+	u8 rate_code[WMI_TPC_RATE_MAX];
+	char tpc_value[WMI_TPC_RATE_MAX][WMI_TPC_TX_N_CHAIN * WMI_TPC_BUF_SIZE];
+};
+
+struct ath10k_tpc_stats {
+	u32 reg_domain;
+	u32 chan_freq;
+	u32 phy_mode;
+	u32 twice_antenna_reduction;
+	u32 twice_max_rd_power;
+	s32 twice_antenna_gain;
+	u32 power_limit;
+	u32 num_tx_chain;
+	u32 ctl;
+	u32 rate_max;
+	u8 flag[WMI_TPC_FLAG];
+	struct ath10k_tpc_table tpc_table[WMI_TPC_FLAG];
 };
 
 struct ath10k_dfs_stats {
@@ -378,6 +414,11 @@ struct ath10k_debug {
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
 
+	/* used for tpc-dump storage, protected by data-lock */
+	struct ath10k_tpc_stats *tpc_stats;
+
+	struct completion tpc_complete;
+
 	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;
 	u32 fw_dbglog_level;
@@ -467,6 +508,9 @@ enum ath10k_fw_features {
 	 * frames in raw mode.
 	 */
 	ATH10K_FW_FEATURE_RAW_MODE_SUPPORT = 10,
+
+	/* Firmware Supports Adaptive CCA*/
+	ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA = 11,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -592,6 +636,7 @@ struct ath10k {
 
 	struct ath10k_hw_params {
 		u32 id;
+		u16 dev_id;
 		const char *name;
 		u32 patch_load_addr;
 		int uart_pin;
@@ -611,6 +656,11 @@ struct ath10k {
 		bool continuous_frag_desc;
 
 		u32 channel_counters_freq_hz;
+
+		/* Mgmt tx descriptors threshold for limiting probe response
+		 * frames.
+		 */
+		u32 max_probe_resp_desc_thres;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;
@@ -642,10 +692,19 @@ struct ath10k {
 		struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
 	} swap;
 
-	char spec_board_id[100];
-	bool spec_board_loaded;
+	struct {
+		u32 vendor;
+		u32 device;
+		u32 subsystem_vendor;
+		u32 subsystem_device;
+
+		bool bmi_ids_valid;
+		u8 bmi_board_id;
+		u8 bmi_chip_id;
+	} id;
 
 	int fw_api;
+	int bd_api;
 	enum ath10k_cal_mode cal_mode;
 
 	struct {
@@ -680,15 +739,13 @@ struct ath10k {
 	bool monitor_started;
 	unsigned int filter_flags;
 	unsigned long dev_flags;
-	u32 dfs_block_radar_events;
+	bool dfs_block_radar_events;
 
 	/* protected by conf_mutex */
 	bool radar_enabled;
 	int num_started_vdevs;
 
 	/* Protected by conf-mutex */
-	u8 supp_tx_chainmask;
-	u8 supp_rx_chainmask;
 	u8 cfg_tx_chainmask;
 	u8 cfg_rx_chainmask;
 
@@ -771,9 +828,12 @@ struct ath10k {
 	struct {
 		/* protected by conf_mutex */
 		const struct firmware *utf;
+		char utf_version[32];
+		const void *utf_firmware_data;
+		size_t utf_firmware_len;
 		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
 		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
-
+		enum ath10k_fw_wmi_op_version op_version;
 		/* protected by data_lock */
 		bool utf_monitor;
 	} testmode;

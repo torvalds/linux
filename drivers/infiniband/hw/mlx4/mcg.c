@@ -222,7 +222,7 @@ static int send_mad_to_wire(struct mlx4_ib_demux_ctx *ctx, struct ib_mad *mad)
 	spin_unlock_irqrestore(&dev->sm_lock, flags);
 	return mlx4_ib_send_to_wire(dev, mlx4_master_func_num(dev->dev),
 				    ctx->port, IB_QPT_GSI, 0, 1, IB_QP1_QKEY,
-				    &ah_attr, NULL, mad);
+				    &ah_attr, NULL, 0xffff, mad);
 }
 
 static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,

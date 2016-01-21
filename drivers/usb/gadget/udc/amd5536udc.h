@@ -526,14 +526,11 @@ struct udc {
 	struct udc_ep			ep[UDC_EP_NUM];
 	struct usb_gadget_driver	*driver;
 	/* operational flags */
-	unsigned			active : 1,
-					stall_ep0in : 1,
+	unsigned			stall_ep0in : 1,
 					waiting_zlp_ack_ep0in : 1,
 					set_cfg_not_acked : 1,
-					irq_registered : 1,
 					data_ep_enabled : 1,
 					data_ep_queued : 1,
-					mem_region : 1,
 					sys_suspended : 1,
 					connected;
 

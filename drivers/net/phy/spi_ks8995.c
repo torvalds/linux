@@ -343,7 +343,6 @@ static int ks8995_remove(struct spi_device *spi)
 static struct spi_driver ks8995_driver = {
 	.driver = {
 		.name	    = "spi-ks8995",
-		.owner	   = THIS_MODULE,
 	},
 	.probe	  = ks8995_probe,
 	.remove	  = ks8995_remove,

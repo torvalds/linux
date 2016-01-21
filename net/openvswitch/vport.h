@@ -140,7 +140,7 @@ struct vport_ops {
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	void (*send)(struct vport *, struct sk_buff *);
+	netdev_tx_t (*send) (struct sk_buff *skb);
 	struct module *owner;
 	struct list_head list;
 };
@@ -196,12 +196,34 @@ static inline const char *ovs_vport_name(struct vport *vport)
 	return vport->dev->name;
 }
 
-int ovs_vport_ops_register(struct vport_ops *ops);
+int __ovs_vport_ops_register(struct vport_ops *ops);
+#define ovs_vport_ops_register(ops)		\
+	({					\
+		(ops)->owner = THIS_MODULE;	\
+		__ovs_vport_ops_register(ops);	\
+	})
+
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 
-static inline void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
+static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
+						     const struct ip_tunnel_key *key,
+						     u32 mark,
+						     struct flowi4 *fl,
+						     u8 protocol)
 {
-	vport->ops->send(vport, skb);
+	struct rtable *rt;
+
+	memset(fl, 0, sizeof(*fl));
+	fl->daddr = key->u.ipv4.dst;
+	fl->saddr = key->u.ipv4.src;
+	fl->flowi4_tos = RT_TOS(key->tos);
+	fl->flowi4_mark = mark;
+	fl->flowi4_proto = protocol;
+
+	rt = ip_route_output_key(net, fl);
+	return rt;
 }
+
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
 
 #endif /* vport.h */

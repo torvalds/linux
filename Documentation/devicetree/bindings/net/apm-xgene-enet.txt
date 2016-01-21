@@ -37,6 +37,14 @@ Required properties for ethernet interfaces that have external PHY:
 
 Optional properties:
 - status: Should be "ok" or "disabled" for enabled/disabled. Default is "ok".
+- tx-delay: Delay value for RGMII bridge TX clock.
+	    Valid values are between 0 to 7, that maps to
+	    417, 717, 1020, 1321, 1611, 1913, 2215, 2514 ps
+	    Default value is 4, which corresponds to 1611 ps
+- rx-delay: Delay value for RGMII bridge RX clock.
+	    Valid values are between 0 to 7, that maps to
+	    273, 589, 899, 1222, 1480, 1806, 2147, 2464 ps
+	    Default value is 2, which corresponds to 899 ps
 
 Example:
 	menetclk: menetclk {
@@ -72,5 +80,7 @@ Example:
 
 /* Board-specific peripheral configurations */
 &menet {
+	tx-delay = <4>;
+	rx-delay = <2>;
         status = "ok";
 };

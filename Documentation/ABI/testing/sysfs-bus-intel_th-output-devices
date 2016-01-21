@@ -1,0 +1,13 @@
+What:		/sys/bus/intel_th/devices/<intel_th_id>-<device><id>/active
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Description:	(RW) Writes of 1 or 0 enable or disable trace output to this
+		output device. Reads return current status.
+
+What:		/sys/bus/intel_th/devices/<intel_th_id>-msc<msc-id>/port
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Description:	(RO) Port number, corresponding to this output device on the
+		switch (GTH).

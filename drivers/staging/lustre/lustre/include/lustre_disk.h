@@ -52,24 +52,6 @@
 #include "../../include/linux/lnet/types.h"
 #include <linux/backing-dev.h>
 
-/****************** on-disk files *********************/
-
-#define MDT_LOGS_DIR		"LOGS"  /* COMPAT_146 */
-#define MOUNT_CONFIGS_DIR	"CONFIGS"
-#define CONFIGS_FILE		"mountdata"
-/** Persistent mount data are stored on the disk in this file. */
-#define MOUNT_DATA_FILE		MOUNT_CONFIGS_DIR"/"CONFIGS_FILE
-#define LAST_RCVD		"last_rcvd"
-#define LOV_OBJID		"lov_objid"
-#define LOV_OBJSEQ		"lov_objseq"
-#define HEALTH_CHECK		"health_check"
-#define CAPA_KEYS		"capa_keys"
-#define CHANGELOG_USERS		"changelog_users"
-#define MGS_NIDTBL_DIR		"NIDTBL_VERSIONS"
-#define QMT_DIR			"quota_master"
-#define QSD_DIR			"quota_slave"
-#define HSM_ACTIONS		"hsm_actions"
-
 /****************** persistent mount data *********************/
 
 #define LDD_F_SV_TYPE_MDT   0x0001
@@ -79,130 +61,6 @@
 			    LDD_F_SV_TYPE_OST  | \
 			    LDD_F_SV_TYPE_MGS)
 #define LDD_F_SV_ALL	0x0008
-/** need an index assignment */
-#define LDD_F_NEED_INDEX    0x0010
-/** never registered */
-#define LDD_F_VIRGIN	0x0020
-/** update the config logs for this server */
-#define LDD_F_UPDATE	0x0040
-/** rewrite the LDD */
-#define LDD_F_REWRITE_LDD   0x0080
-/** regenerate config logs for this fs or server */
-#define LDD_F_WRITECONF     0x0100
-/** COMPAT_14 */
-#define LDD_F_UPGRADE14     0x0200
-/** process as lctl conf_param */
-#define LDD_F_PARAM	 0x0400
-/** all nodes are specified as service nodes */
-#define LDD_F_NO_PRIMNODE   0x1000
-/** IR enable flag */
-#define LDD_F_IR_CAPABLE    0x2000
-/** the MGS refused to register the target. */
-#define LDD_F_ERROR	 0x4000
-/** process at lctl conf_param */
-#define LDD_F_PARAM2		0x8000
-
-/* opc for target register */
-#define LDD_F_OPC_REG   0x10000000
-#define LDD_F_OPC_UNREG 0x20000000
-#define LDD_F_OPC_READY 0x40000000
-#define LDD_F_OPC_MASK  0xf0000000
-
-#define LDD_F_ONDISK_MASK  (LDD_F_SV_TYPE_MASK)
-
-#define LDD_F_MASK	  0xFFFF
-
-enum ldd_mount_type {
-	LDD_MT_EXT3 = 0,
-	LDD_MT_LDISKFS,
-	LDD_MT_SMFS,
-	LDD_MT_REISERFS,
-	LDD_MT_LDISKFS2,
-	LDD_MT_ZFS,
-	LDD_MT_LAST
-};
-
-static inline char *mt_str(enum ldd_mount_type mt)
-{
-	static char *mount_type_string[] = {
-		"ext3",
-		"ldiskfs",
-		"smfs",
-		"reiserfs",
-		"ldiskfs2",
-		"zfs",
-	};
-	return mount_type_string[mt];
-}
-
-static inline char *mt_type(enum ldd_mount_type mt)
-{
-	static char *mount_type_string[] = {
-		"osd-ldiskfs",
-		"osd-ldiskfs",
-		"osd-smfs",
-		"osd-reiserfs",
-		"osd-ldiskfs",
-		"osd-zfs",
-	};
-	return mount_type_string[mt];
-}
-
-#define LDD_INCOMPAT_SUPP 0
-#define LDD_ROCOMPAT_SUPP 0
-
-#define LDD_MAGIC 0x1dd00001
-
-/* On-disk configuration file. In host-endian order. */
-struct lustre_disk_data {
-	__u32      ldd_magic;
-	__u32      ldd_feature_compat;  /* compatible feature flags */
-	__u32      ldd_feature_rocompat;/* read-only compatible feature flags */
-	__u32      ldd_feature_incompat;/* incompatible feature flags */
-
-	__u32      ldd_config_ver;      /* config rewrite count - not used */
-	__u32      ldd_flags;	   /* LDD_SV_TYPE */
-	__u32      ldd_svindex;	 /* server index (0001), must match
-					   svname */
-	__u32      ldd_mount_type;      /* target fs type LDD_MT_* */
-	char       ldd_fsname[64];      /* filesystem this server is part of,
-					   MTI_NAME_MAXLEN */
-	char       ldd_svname[64];      /* this server's name (lustre-mdt0001)*/
-	__u8       ldd_uuid[40];	/* server UUID (COMPAT_146) */
-
-/*200*/ char       ldd_userdata[1024 - 200]; /* arbitrary user string */
-/*1024*/__u8       ldd_padding[4096 - 1024];
-/*4096*/char       ldd_mount_opts[4096]; /* target fs mount opts */
-/*8192*/char       ldd_params[4096];     /* key=value pairs */
-};
-
-
-#define IS_MDT(data)    ((data)->lsi_flags & LDD_F_SV_TYPE_MDT)
-#define IS_OST(data)    ((data)->lsi_flags & LDD_F_SV_TYPE_OST)
-#define IS_MGS(data)    ((data)->lsi_flags & LDD_F_SV_TYPE_MGS)
-#define IS_SERVER(data) ((data)->lsi_flags & (LDD_F_SV_TYPE_MGS | \
-			 LDD_F_SV_TYPE_MDT | LDD_F_SV_TYPE_OST))
-#define MT_STR(data)    mt_str((data)->ldd_mount_type)
-
-/* Make the mdt/ost server obd name based on the filesystem name */
-static inline int server_make_name(__u32 flags, __u16 index, char *fs,
-				   char *name)
-{
-	if (flags & (LDD_F_SV_TYPE_MDT | LDD_F_SV_TYPE_OST)) {
-		if (!(flags & LDD_F_SV_ALL))
-			sprintf(name, "%.8s%c%s%04x", fs,
-				(flags & LDD_F_VIRGIN) ? ':' :
-					((flags & LDD_F_WRITECONF) ? '=' : '-'),
-				(flags & LDD_F_SV_TYPE_MDT) ? "MDT" : "OST",
-				index);
-	} else if (flags & LDD_F_SV_TYPE_MGS) {
-		sprintf(name, "MGS");
-	} else {
-		CERROR("unknown server type %#x\n", flags);
-		return 1;
-	}
-	return 0;
-}
 
 /****************** mount command *********************/
 
@@ -248,7 +106,6 @@ struct lustre_mount_data {
 #define LMD_FLG_HSM		0x4000	/* Start coordinator */
 
 #define lmd_is_client(x) ((x)->lmd_flags & LMD_FLG_CLIENT)
-
 
 /****************** last_rcvd file *********************/
 
@@ -365,7 +222,8 @@ static inline void check_lcd(char *obd_name, int index,
 			     struct lsd_client_data *lcd)
 {
 	int length = sizeof(lcd->lcd_uuid);
-	if (strnlen((char*)lcd->lcd_uuid, length) == length) {
+
+	if (strnlen((char *)lcd->lcd_uuid, length) == length) {
 		lcd->lcd_uuid[length - 1] = '\0';
 
 		LCONSOLE_ERROR("the client UUID (%s) on %s for exports stored in last_rcvd(index = %d) is bad!\n",
@@ -378,6 +236,7 @@ static inline void lsd_le_to_cpu(struct lr_server_data *buf,
 				 struct lr_server_data *lsd)
 {
 	int i;
+
 	memcpy(lsd->lsd_uuid, buf->lsd_uuid, sizeof(lsd->lsd_uuid));
 	lsd->lsd_last_transno     = le64_to_cpu(buf->lsd_last_transno);
 	lsd->lsd_compat14	 = le64_to_cpu(buf->lsd_compat14);
@@ -405,6 +264,7 @@ static inline void lsd_cpu_to_le(struct lr_server_data *lsd,
 				 struct lr_server_data *buf)
 {
 	int i;
+
 	memcpy(buf->lsd_uuid, lsd->lsd_uuid, sizeof(buf->lsd_uuid));
 	buf->lsd_last_transno     = cpu_to_le64(lsd->lsd_last_transno);
 	buf->lsd_compat14	 = cpu_to_le64(lsd->lsd_compat14);
@@ -512,7 +372,6 @@ struct lustre_sb_info {
 #define	    get_mount_flags(sb)	   (s2lsi(sb)->lsi_lmd->lmd_flags)
 #define	    get_mntdev_name(sb)	   (s2lsi(sb)->lsi_lmd->lmd_dev)
 
-
 /****************** mount lookup info *********************/
 
 struct lustre_mount_info {
@@ -525,20 +384,12 @@ struct lustre_mount_info {
 /****************** prototypes *********************/
 
 /* obd_mount.c */
-int server_name2fsname(const char *svname, char *fsname, const char **endptr);
-int server_name2index(const char *svname, __u32 *idx, const char **endptr);
-int server_name2svname(const char *label, char *svname, const char **endptr,
-		       size_t svsize);
 
-int lustre_put_lsi(struct super_block *sb);
-int lustre_start_simple(char *obdname, char *type, char *uuid,
-			char *s1, char *s2, char *s3, char *s4);
 int lustre_start_mgc(struct super_block *sb);
 void lustre_register_client_fill_super(int (*cfs)(struct super_block *sb,
 						  struct vfsmount *mnt));
 void lustre_register_kill_super_cb(void (*cfs)(struct super_block *sb));
 int lustre_common_put_super(struct super_block *sb);
-
 
 int mgc_fsname2resid(char *fsname, struct ldlm_res_id *res_id, int type);
 

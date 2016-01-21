@@ -1049,12 +1049,12 @@ search a specific keyring, so using keyrings in this way is of limited utility.
 NOTES ON ACCESSING PAYLOAD CONTENTS
 ===================================
 
-The simplest payload is just a number in key->payload.value. In this case,
-there's no need to indulge in RCU or locking when accessing the payload.
+The simplest payload is just data stored in key->payload directly.  In this
+case, there's no need to indulge in RCU or locking when accessing the payload.
 
-More complex payload contents must be allocated and a pointer to them set in
-key->payload.data. One of the following ways must be selected to access the
-data:
+More complex payload contents must be allocated and pointers to them set in the
+key->payload.data[] array.  One of the following ways must be selected to
+access the data:
 
  (1) Unmodifiable key type.
 
@@ -1091,6 +1091,13 @@ data:
      use of call_rcu() and, if the payload is of variable size, the length of
      the payload. key->datalen cannot be relied upon to be consistent with the
      payload just dereferenced if the key's semaphore is not held.
+
+     Note that key->payload.data[0] has a shadow that is marked for __rcu
+     usage.  This is called key->payload.rcu_data0.  The following accessors
+     wrap the RCU calls to this element:
+
+	rcu_assign_keypointer(struct key *key, void *data);
+	void *rcu_dereference_key(struct key *key);
 
 
 ===================
@@ -1143,8 +1150,7 @@ The structure has a number of fields, some of which are mandatory:
 
 	struct key_preparsed_payload {
 		char		*description;
-		void		*type_data[2];
-		void		*payload;
+		union key_payload payload;
 		const void	*data;
 		size_t		datalen;
 		size_t		quotalen;
@@ -1160,10 +1166,9 @@ The structure has a number of fields, some of which are mandatory:
      attached as a string to the description field.  This will be used for the
      key description if the caller of add_key() passes NULL or "".
 
-     The method can attach anything it likes to type_data[] and payload.  These
-     are merely passed along to the instantiate() or update() operations.  If
-     set, the expiry time will be applied to the key if it is instantiated from
-     this data.
+     The method can attach anything it likes to payload.  This is merely passed
+     along to the instantiate() or update() operations.  If set, the expiry
+     time will be applied to the key if it is instantiated from this data.
 
      The method should return 0 if successful or a negative error code
      otherwise.
@@ -1172,11 +1177,10 @@ The structure has a number of fields, some of which are mandatory:
  (*) void (*free_preparse)(struct key_preparsed_payload *prep);
 
      This method is only required if the preparse() method is provided,
-     otherwise it is unused.  It cleans up anything attached to the
-     description, type_data and payload fields of the key_preparsed_payload
-     struct as filled in by the preparse() method.  It will always be called
-     after preparse() returns successfully, even if instantiate() or update()
-     succeed.
+     otherwise it is unused.  It cleans up anything attached to the description
+     and payload fields of the key_preparsed_payload struct as filled in by the
+     preparse() method.  It will always be called after preparse() returns
+     successfully, even if instantiate() or update() succeed.
 
 
  (*) int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);
@@ -1196,6 +1200,11 @@ The structure has a number of fields, some of which are mandatory:
      anything else from gaining access to the key.
 
      It is safe to sleep in this method.
+
+     generic_key_instantiate() is provided to simply copy the data from
+     prep->payload.data[] to key->payload.data[], with RCU-safe assignment on
+     the first element.  It will then clear prep->payload.data[] so that the
+     free_preparse method doesn't release the data.
 
 
  (*) int (*update)(struct key *key, const void *data, size_t datalen);

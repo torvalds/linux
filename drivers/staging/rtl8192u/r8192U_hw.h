@@ -55,17 +55,17 @@ typedef enum _BaseBand_Config_Type{
 #define BB_ANTATTEN_CHAN14	0x0c
 #define BB_ANTENNA_B 0x40
 
-#define BB_HOST_BANG (1<<30)
-#define BB_HOST_BANG_EN (1<<2)
-#define BB_HOST_BANG_CLK (1<<1)
-#define BB_HOST_BANG_RW (1<<3)
+#define BB_HOST_BANG		BIT(30)
+#define BB_HOST_BANG_EN		BIT(2)
+#define BB_HOST_BANG_CLK	BIT(1)
+#define BB_HOST_BANG_RW		BIT(3)
 #define BB_HOST_BANG_DATA	 1
 
 //#if (RTL819X_FPGA_VER & RTL819X_FPGA_VIVI_070920)
 #define AFR			0x010
-#define AFR_CardBEn		(1<<0)
-#define AFR_CLKRUN_SEL		(1<<1)
-#define AFR_FuncRegEn		(1<<2)
+#define AFR_CardBEn		BIT(0)
+#define AFR_CLKRUN_SEL		BIT(1)
+#define AFR_FuncRegEn		BIT(2)
 #define RTL8190_EEPROM_ID	0x8129
 #define EEPROM_VID		0x02
 #define EEPROM_PID		0x04
@@ -126,38 +126,39 @@ enum _RTL8192Usb_HW {
 #define TCR_LRL_OFFSET		0
 #define TCR_SRL_OFFSET		8
 #define TCR_MXDMA_OFFSET	21
-#define TCR_SAT			BIT24		// Enable Rate depedent ack timeout timer
+#define TCR_SAT			BIT(24)	// Enable Rate depedent ack timeout timer
 	RCR			= 0x044, // Receive Configuration Register
-#define MAC_FILTER_MASK ((1<<0) | (1<<1) | (1<<2) | (1<<3) | (1<<5) | \
-		(1<<12) | (1<<18) | (1<<19) | (1<<20) | (1<<21) | (1<<22) | (1<<23))
-#define RX_FIFO_THRESHOLD_MASK ((1<<13) | (1<<14) | (1<<15))
+#define MAC_FILTER_MASK (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(5) | \
+			 BIT(12) | BIT(18) | BIT(19) | BIT(20) | BIT(21) | \
+			 BIT(22) | BIT(23))
+#define RX_FIFO_THRESHOLD_MASK (BIT(13) | BIT(14) | BIT(15))
 #define RX_FIFO_THRESHOLD_SHIFT 13
 #define RX_FIFO_THRESHOLD_128 3
 #define RX_FIFO_THRESHOLD_256 4
 #define RX_FIFO_THRESHOLD_512 5
 #define RX_FIFO_THRESHOLD_1024 6
 #define RX_FIFO_THRESHOLD_NONE 7
-#define MAX_RX_DMA_MASK ((1<<8) | (1<<9) | (1<<10))
+#define MAX_RX_DMA_MASK 	(BIT(8) | BIT(9) | BIT(10))
 #define RCR_MXDMA_OFFSET	8
 #define RCR_FIFO_OFFSET		13
-#define RCR_ONLYERLPKT		BIT31			// Early Receiving based on Packet Size.
-#define RCR_ENCS2		BIT30			// Enable Carrier Sense Detection Method 2
-#define RCR_ENCS1		BIT29			// Enable Carrier Sense Detection Method 1
-#define RCR_ENMBID		BIT27			// Enable Multiple BssId.
-#define RCR_ACKTXBW		(BIT24|BIT25)		// TXBW Setting of ACK frames
-#define RCR_CBSSID		BIT23			// Accept BSSID match packet
-#define RCR_APWRMGT		BIT22			// Accept power management packet
-#define	RCR_ADD3		BIT21			// Accept address 3 match packet
-#define RCR_AMF			BIT20			// Accept management type frame
-#define RCR_ACF			BIT19			// Accept control type frame
-#define RCR_ADF			BIT18			// Accept data type frame
-#define RCR_RXFTH		BIT13			// Rx FIFO Threshold
-#define RCR_AICV		BIT12			// Accept ICV error packet
-#define	RCR_ACRC32		BIT5			// Accept CRC32 error packet
-#define	RCR_AB			BIT3			// Accept broadcast packet
-#define	RCR_AM			BIT2			// Accept multicast packet
-#define	RCR_APM			BIT1			// Accept physical match packet
-#define	RCR_AAP			BIT0			// Accept all unicast packet
+#define RCR_ONLYERLPKT		BIT(31)			// Early Receiving based on Packet Size.
+#define RCR_ENCS2		BIT(30)			// Enable Carrier Sense Detection Method 2
+#define RCR_ENCS1		BIT(29)			// Enable Carrier Sense Detection Method 1
+#define RCR_ENMBID		BIT(27)			// Enable Multiple BssId.
+#define RCR_ACKTXBW		(BIT(24) | BIT(25))	// TXBW Setting of ACK frames
+#define RCR_CBSSID		BIT(23)			// Accept BSSID match packet
+#define RCR_APWRMGT		BIT(22)			// Accept power management packet
+#define	RCR_ADD3		BIT(21)			// Accept address 3 match packet
+#define RCR_AMF			BIT(20)			// Accept management type frame
+#define RCR_ACF			BIT(19)			// Accept control type frame
+#define RCR_ADF			BIT(18)			// Accept data type frame
+#define RCR_RXFTH		BIT(13)			// Rx FIFO Threshold
+#define RCR_AICV		BIT(12)			// Accept ICV error packet
+#define	RCR_ACRC32		BIT(5)			// Accept CRC32 error packet
+#define	RCR_AB			BIT(3)			// Accept broadcast packet
+#define	RCR_AM			BIT(2)			// Accept multicast packet
+#define	RCR_APM			BIT(1)			// Accept physical match packet
+#define	RCR_AAP			BIT(0)			// Accept all unicast packet
 	SLOT_TIME		= 0x049, // Slot Time Register
 	ACK_TIMEOUT		= 0x04c, // Ack Timeout Register
 	PIFS_TIME		= 0x04d, // PIFS time
@@ -180,12 +181,12 @@ enum _RTL8192Usb_HW {
 	WCAMI			= 0x0A4, // Software write CAM input content
 	RCAMO			= 0x0A8, // Software read/write CAM config
 	SECR			= 0x0B0, //Security Configuration Register
-#define	SCR_TxUseDK		BIT0			//Force Tx Use Default Key
-#define SCR_RxUseDK		BIT1			//Force Rx Use Default Key
-#define SCR_TxEncEnable		BIT2			//Enable Tx Encryption
-#define SCR_RxDecEnable		BIT3			//Enable Rx Decryption
-#define SCR_SKByA2		BIT4			//Search kEY BY A2
-#define SCR_NoSKMC		BIT5			//No Key Search for Multicast
+#define	SCR_TxUseDK		BIT(0)			//Force Tx Use Default Key
+#define SCR_RxUseDK		BIT(1)			//Force Rx Use Default Key
+#define SCR_TxEncEnable		BIT(2)			//Enable Tx Encryption
+#define SCR_RxDecEnable		BIT(3)			//Enable Rx Decryption
+#define SCR_SKByA2		BIT(4)			//Search kEY BY A2
+#define SCR_NoSKMC		BIT(5)			//No Key Search for Multicast
 #define SCR_UseDK		0x01
 #define SCR_TxSecEnable		0x02
 #define SCR_RxSecEnable		0x04
@@ -226,13 +227,13 @@ enum _RTL8192Usb_HW {
 ////       8190 AcmHwCtrl bits                                    (offset 0x171, 1 byte)
 ////----------------------------------------------------------------------------
 //
-#define AcmHw_HwEn              BIT0
-#define AcmHw_BeqEn             BIT1
-#define AcmHw_ViqEn             BIT2
-#define AcmHw_VoqEn             BIT3
-#define AcmHw_BeqStatus         BIT4
-#define AcmHw_ViqStatus         BIT5
-#define AcmHw_VoqStatus         BIT6
+#define AcmHw_HwEn              BIT(0)
+#define AcmHw_BeqEn             BIT(1)
+#define AcmHw_ViqEn             BIT(2)
+#define AcmHw_VoqEn             BIT(3)
+#define AcmHw_BeqStatus         BIT(4)
+#define AcmHw_ViqStatus         BIT(5)
+#define AcmHw_VoqStatus         BIT(6)
 
 	AcmFwCtrl		= 0x172, // ACM Firmware Control Register
 	AES_11N_FIX		= 0x173,
@@ -281,18 +282,18 @@ enum _RTL8192Usb_HW {
 	NHM_RPI_COUNTER5	= 0x269, // Noise Histogram RPI counter5, the fraction of signal strength in (NHM_THRESHOLD4, NHM_THRESHOLD5].
 	NHM_RPI_COUNTER6	= 0x26A, // Noise Histogram RPI counter6, the fraction of signal strength in (NHM_THRESHOLD5, NHM_THRESHOLD6].
 	NHM_RPI_COUNTER7	= 0x26B, // Noise Histogram RPI counter7, the fraction of signal strength in (NHM_THRESHOLD6, NHM_THRESHOLD7].
-#define	BW_OPMODE_11J			BIT0
-#define	BW_OPMODE_5G			BIT1
-#define	BW_OPMODE_20MHZ			BIT2
+#define	BW_OPMODE_11J			BIT(0)
+#define	BW_OPMODE_5G			BIT(1)
+#define	BW_OPMODE_20MHZ			BIT(2)
 	BW_OPMODE		= 0x300, // Bandwidth operation mode
 	MSR			= 0x303, // Media Status register
-#define MSR_LINK_MASK      ((1<<0)|(1<<1))
+#define MSR_LINK_MASK      (BIT(0)|BIT(1))
 #define MSR_LINK_MANAGED   2
 #define MSR_LINK_NONE      0
 #define MSR_LINK_SHIFT     0
 #define MSR_LINK_ADHOC     1
 #define MSR_LINK_MASTER    3
-#define MSR_LINK_ENEDCA	   (1<<4)
+#define MSR_LINK_ENEDCA	   BIT(4)
 	RETRY_LIMIT		= 0x304, // Retry Limit [15:8]-short, [7:0]-long
 #define RETRY_LIMIT_SHORT_SHIFT 8
 #define RETRY_LIMIT_LONG_SHIFT 0
@@ -304,27 +305,27 @@ enum _RTL8192Usb_HW {
 #define RRSR_RSC_LOWSUBCHNL		0x400000
 #define RRSR_RSC_UPSUBCHANL		0x200000
 #define RRSR_SHORT					0x800000
-#define RRSR_1M						BIT0
-#define RRSR_2M						BIT1
-#define RRSR_5_5M					BIT2
-#define RRSR_11M					BIT3
-#define RRSR_6M						BIT4
-#define RRSR_9M						BIT5
-#define RRSR_12M					BIT6
-#define RRSR_18M					BIT7
-#define RRSR_24M					BIT8
-#define RRSR_36M					BIT9
-#define RRSR_48M					BIT10
-#define RRSR_54M					BIT11
-#define RRSR_MCS0					BIT12
-#define RRSR_MCS1					BIT13
-#define RRSR_MCS2					BIT14
-#define RRSR_MCS3					BIT15
-#define RRSR_MCS4					BIT16
-#define RRSR_MCS5					BIT17
-#define RRSR_MCS6					BIT18
-#define RRSR_MCS7					BIT19
-#define BRSR_AckShortPmb			BIT23		// CCK ACK: use Short Preamble or not.
+#define RRSR_1M						BIT(0)
+#define RRSR_2M						BIT(1)
+#define RRSR_5_5M					BIT(2)
+#define RRSR_11M					BIT(3)
+#define RRSR_6M						BIT(4)
+#define RRSR_9M						BIT(5)
+#define RRSR_12M					BIT(6)
+#define RRSR_18M					BIT(7)
+#define RRSR_24M					BIT(8)
+#define RRSR_36M					BIT(9)
+#define RRSR_48M					BIT(10)
+#define RRSR_54M					BIT(11)
+#define RRSR_MCS0					BIT(12)
+#define RRSR_MCS1					BIT(13)
+#define RRSR_MCS2					BIT(14)
+#define RRSR_MCS3					BIT(15)
+#define RRSR_MCS4					BIT(16)
+#define RRSR_MCS5					BIT(17)
+#define RRSR_MCS6					BIT(18)
+#define RRSR_MCS7					BIT(19)
+#define BRSR_AckShortPmb			BIT(23)		// CCK ACK: use Short Preamble or not.
 	RATR0			= 0x320, // Rate Adaptive Table register1
 	UFWP			= 0x318,
 	DRIVER_RSSI		= 0x32c,					// Driver tell Firmware current RSSI
@@ -380,10 +381,10 @@ enum _RTL8192Usb_HW {
 	MacBlkCtrl		= 0x403, // Mac block on/off control register
 
 	EPROM_CMD		= 0xfe58,
-#define Cmd9346CR_9356SEL	(1<<4)
-#define EPROM_CMD_RESERVED_MASK (1<<5)
+#define Cmd9346CR_9356SEL	BIT(4)
+#define EPROM_CMD_RESERVED_MASK BIT(5)
 #define EPROM_CMD_OPERATING_MODE_SHIFT 6
-#define EPROM_CMD_OPERATING_MODE_MASK ((1<<7)|(1<<6))
+#define EPROM_CMD_OPERATING_MODE_MASK (BIT(7) | BIT(6))
 #define EPROM_CMD_CONFIG 0x3
 #define EPROM_CMD_NORMAL 0
 #define EPROM_CMD_LOAD 1

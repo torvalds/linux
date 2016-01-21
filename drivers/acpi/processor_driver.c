@@ -200,7 +200,8 @@ static int acpi_pss_perf_init(struct acpi_processor *pr,
 		goto err_remove_sysfs_thermal;
 	}
 
-	sysfs_remove_link(&pr->cdev->device.kobj, "device");
+	return 0;
+
  err_remove_sysfs_thermal:
 	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
  err_thermal_unregister:
@@ -241,6 +242,10 @@ static int __acpi_processor_start(struct acpi_device *device)
 
 	if (pr->flags.need_hotplug_init)
 		return 0;
+
+	result = acpi_cppc_processor_probe(pr);
+	if (result)
+		return -ENODEV;
 
 	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
 		acpi_processor_power_init(pr);
@@ -286,6 +291,8 @@ static int acpi_processor_stop(struct device *dev)
 	acpi_processor_power_exit(pr);
 
 	acpi_pss_perf_exit(pr, device);
+
+	acpi_cppc_processor_exit(pr);
 
 	return 0;
 }

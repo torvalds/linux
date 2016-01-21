@@ -344,7 +344,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	/* Both presence and absence of sram regulator are valid cases. */
 	sram_reg = regulator_get_exclusive(cpu_dev, "sram");
 
-	ret = of_init_opp_table(cpu_dev);
+	ret = dev_pm_opp_of_add_table(cpu_dev);
 	if (ret) {
 		pr_warn("no OPP table for cpu%d\n", cpu);
 		goto out_free_resources;
@@ -378,7 +378,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	return 0;
 
 out_free_opp_table:
-	of_free_opp_table(cpu_dev);
+	dev_pm_opp_of_remove_table(cpu_dev);
 
 out_free_resources:
 	if (!IS_ERR(proc_reg))
@@ -404,7 +404,7 @@ static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 	if (!IS_ERR(info->inter_clk))
 		clk_put(info->inter_clk);
 
-	of_free_opp_table(info->cpu_dev);
+	dev_pm_opp_of_remove_table(info->cpu_dev);
 }
 
 static int mtk_cpufreq_init(struct cpufreq_policy *policy)

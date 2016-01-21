@@ -386,6 +386,7 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 #define IWL_MAX_HW_QUEUES		32
 #define IWL_MAX_TID_COUNT	8
 #define IWL_FRAME_LIMIT	64
+#define IWL_MAX_RX_HW_QUEUES	16
 
 /**
  * enum iwl_wowlan_status - WoWLAN image/device status
@@ -408,6 +409,7 @@ enum iwl_d3_status {
  * @STATUS_TRANS_GOING_IDLE: shutting down the trans, only special commands
  *	are sent
  * @STATUS_TRANS_IDLE: the trans is idle - general commands are not to be sent
+ * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -418,6 +420,7 @@ enum iwl_trans_status {
 	STATUS_FW_ERROR,
 	STATUS_TRANS_GOING_IDLE,
 	STATUS_TRANS_IDLE,
+	STATUS_TRANS_DEAD,
 };
 
 /**
@@ -654,6 +657,8 @@ enum iwl_d0i3_mode {
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
+ * @num_rx_queues: number of RX queues allocated by the transport;
+ *	the transport must set this before calling iwl_drv_start()
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_headroom: room needed for the transport's private use before the
@@ -692,6 +697,8 @@ struct iwl_trans {
 
 	bool pm_support;
 	bool ltr_enabled;
+
+	u8 num_rx_queues;
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;

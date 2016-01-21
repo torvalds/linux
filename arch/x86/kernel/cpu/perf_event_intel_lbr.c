@@ -151,10 +151,10 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 * No need to reprogram LBR_SELECT in a PMI, as it
 	 * did not change.
 	 */
-	if (cpuc->lbr_sel && !pmi) {
+	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config;
+	if (!pmi)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
-	}
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	orig_debugctl = debugctl;
@@ -239,7 +239,7 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 	}
 
 	mask = x86_pmu.lbr_nr - 1;
-	tos = intel_pmu_lbr_tos();
+	tos = task_ctx->tos;
 	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
 		wrmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
@@ -247,6 +247,7 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
+	wrmsrl(x86_pmu.lbr_tos, tos);
 	task_ctx->lbr_stack_state = LBR_NONE;
 }
 
@@ -270,6 +271,7 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
+	task_ctx->tos = tos;
 	task_ctx->lbr_stack_state = LBR_VALID;
 }
 
@@ -555,6 +557,8 @@ static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 	if (br_type & PERF_SAMPLE_BRANCH_IND_JUMP)
 		mask |= X86_BR_IND_JMP;
 
+	if (br_type & PERF_SAMPLE_BRANCH_CALL)
+		mask |= X86_BR_CALL | X86_BR_ZERO_CALL;
 	/*
 	 * stash actual user request into reg, it may
 	 * be used by fixup code for some CPU
@@ -890,6 +894,7 @@ static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
 };
 
 static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
@@ -905,6 +910,7 @@ static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL
 						| LBR_RETURN | LBR_CALL_STACK,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
 };
 
 /* core */

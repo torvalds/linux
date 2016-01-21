@@ -23,7 +23,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
-#include <asm/smp_plat.h>
 #include <asm/smp_twd.h>
 
 /* set up by the platform code */
@@ -34,6 +33,8 @@ static unsigned long twd_timer_rate;
 static DEFINE_PER_CPU(bool, percpu_setup_called);
 
 static struct clock_event_device __percpu *twd_evt;
+static unsigned int twd_features =
+		CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 static int twd_ppi;
 
 static int twd_shutdown(struct clock_event_device *clk)
@@ -294,8 +295,7 @@ static void twd_timer_setup(void)
 	writel_relaxed(0, twd_base + TWD_TIMER_CONTROL);
 
 	clk->name = "local_timer";
-	clk->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
-			CLOCK_EVT_FEAT_C3STOP;
+	clk->features = twd_features;
 	clk->rating = 350;
 	clk->set_state_shutdown = twd_shutdown;
 	clk->set_state_periodic = twd_set_periodic;
@@ -350,6 +350,8 @@ static int __init twd_local_timer_common_register(struct device_node *np)
 		goto out_irq;
 
 	twd_get_clock(np);
+	if (!of_property_read_bool(np, "always-on"))
+		twd_features |= CLOCK_EVT_FEAT_C3STOP;
 
 	/*
 	 * Immediately configure the timer on the boot CPU, unless we need
@@ -391,9 +393,6 @@ int __init twd_local_timer_register(struct twd_local_timer *tlt)
 static void __init twd_local_timer_of_register(struct device_node *np)
 {
 	int err;
-
-	if (!is_smp() || !setup_max_cpus)
-		return;
 
 	twd_ppi = irq_of_parse_and_map(np, 0);
 	if (!twd_ppi) {

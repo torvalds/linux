@@ -19,9 +19,7 @@ obj-y				+= vma.o
 # vDSO images to build
 vdso_img-$(VDSO64-y)		+= 64
 vdso_img-$(VDSOX32-y)		+= x32
-vdso_img-$(VDSO32-y)		+= 32-int80
-vdso_img-$(CONFIG_IA32_EMULATION)	+= 32-syscall
-vdso_img-$(VDSO32-y)		+= 32-sysenter
+vdso_img-$(VDSO32-y)		+= 32
 
 obj-$(VDSO32-y)			+= vdso32-setup.o
 
@@ -69,7 +67,7 @@ $(obj)/vdso-image-%.c: $(obj)/vdso%.so.dbg $(obj)/vdso%.so $(obj)/vdso2c FORCE
 CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \
        $(filter -g%,$(KBUILD_CFLAGS)) $(call cc-option, -fno-stack-protector) \
        -fno-omit-frame-pointer -foptimize-sibling-calls \
-       -DDISABLE_BRANCH_PROFILING
+       -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO
 
 $(vobjs): KBUILD_CFLAGS += $(CFL)
 
@@ -122,15 +120,6 @@ $(obj)/%.so: $(obj)/%.so.dbg
 $(obj)/vdsox32.so.dbg: $(src)/vdsox32.lds $(vobjx32s) FORCE
 	$(call if_changed,vdso)
 
-#
-# Build multiple 32-bit vDSO images to choose from at boot time.
-#
-vdso32.so-$(VDSO32-y)		+= int80
-vdso32.so-$(CONFIG_IA32_EMULATION)	+= syscall
-vdso32.so-$(VDSO32-y)		+= sysenter
-
-vdso32-images			= $(vdso32.so-y:%=vdso32-%.so)
-
 CPPFLAGS_vdso32.lds = $(CPPFLAGS_vdso.lds)
 VDSO_LDFLAGS_vdso32.lds = -m32 -Wl,-m,elf_i386 -Wl,-soname=linux-gate.so.1
 
@@ -139,14 +128,12 @@ VDSO_LDFLAGS_vdso32.lds = -m32 -Wl,-m,elf_i386 -Wl,-soname=linux-gate.so.1
 override obj-dirs = $(dir $(obj)) $(obj)/vdso32/
 
 targets += vdso32/vdso32.lds
-targets += vdso32/note.o vdso32/vclock_gettime.o $(vdso32.so-y:%=vdso32/%.o)
+targets += vdso32/note.o vdso32/vclock_gettime.o vdso32/system_call.o
 targets += vdso32/vclock_gettime.o
 
-$(obj)/vdso32.o: $(vdso32-images:%=$(obj)/%)
-
-KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS))
-$(vdso32-images:%=$(obj)/%.dbg): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
-$(vdso32-images:%=$(obj)/%.dbg): asflags-$(CONFIG_X86_64) += -m32
+KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS)) -DBUILD_VDSO
+$(obj)/vdso32.so.dbg: KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
+$(obj)/vdso32.so.dbg: asflags-$(CONFIG_X86_64) += -m32
 
 KBUILD_CFLAGS_32 := $(filter-out -m64,$(KBUILD_CFLAGS))
 KBUILD_CFLAGS_32 := $(filter-out -mcmodel=kernel,$(KBUILD_CFLAGS_32))
@@ -157,13 +144,13 @@ KBUILD_CFLAGS_32 += $(call cc-option, -fno-stack-protector)
 KBUILD_CFLAGS_32 += $(call cc-option, -foptimize-sibling-calls)
 KBUILD_CFLAGS_32 += -fno-omit-frame-pointer
 KBUILD_CFLAGS_32 += -DDISABLE_BRANCH_PROFILING
-$(vdso32-images:%=$(obj)/%.dbg): KBUILD_CFLAGS = $(KBUILD_CFLAGS_32)
+$(obj)/vdso32.so.dbg: KBUILD_CFLAGS = $(KBUILD_CFLAGS_32)
 
-$(vdso32-images:%=$(obj)/%.dbg): $(obj)/vdso32-%.so.dbg: FORCE \
-				 $(obj)/vdso32/vdso32.lds \
-				 $(obj)/vdso32/vclock_gettime.o \
-				 $(obj)/vdso32/note.o \
-				 $(obj)/vdso32/%.o
+$(obj)/vdso32.so.dbg: FORCE \
+		      $(obj)/vdso32/vdso32.lds \
+		      $(obj)/vdso32/vclock_gettime.o \
+		      $(obj)/vdso32/note.o \
+		      $(obj)/vdso32/system_call.o
 	$(call if_changed,vdso)
 
 #
@@ -206,4 +193,4 @@ $(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso FORCE
 PHONY += vdso_install $(vdso_img_insttargets)
 vdso_install: $(vdso_img_insttargets) FORCE
 
-clean-files := vdso32-syscall* vdso32-sysenter* vdso32-int80* vdso64* vdso-image-*.c vdsox32.so*
+clean-files := vdso32.so vdso32.so.dbg vdso64* vdso-image-*.c vdsox32.so*

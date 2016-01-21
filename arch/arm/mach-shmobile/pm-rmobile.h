@@ -12,10 +12,6 @@
 
 #include <linux/pm_domain.h>
 
-#define DEFAULT_DEV_LATENCY_NS	250000
-
-struct platform_device;
-
 struct rmobile_pm_domain {
 	struct generic_pm_domain genpd;
 	struct dev_power_governor *gov;
@@ -24,11 +20,6 @@ struct rmobile_pm_domain {
 	void __iomem *base;
 	unsigned int bit_shift;
 	bool no_debug;
-};
-
-struct pm_domain_device {
-	const char *domain_name;
-	struct platform_device *pdev;
 };
 
 #endif /* PM_RMOBILE_H */

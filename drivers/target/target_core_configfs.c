@@ -40,8 +40,6 @@
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 
 #include "target_core_internal.h"
 #include "target_core_alua.h"
@@ -78,12 +76,6 @@ extern struct t10_alua_lu_gp *default_lu_gp;
 static LIST_HEAD(g_tf_list);
 static DEFINE_MUTEX(g_tf_lock);
 
-struct target_core_configfs_attribute {
-	struct configfs_attribute attr;
-	ssize_t (*show)(void *, char *);
-	ssize_t (*store)(void *, const char *, size_t);
-};
-
 static struct config_group target_core_hbagroup;
 static struct config_group alua_group;
 static struct config_group alua_lu_gps_group;
@@ -97,24 +89,15 @@ item_to_hba(struct config_item *item)
 /*
  * Attributes for /sys/kernel/config/target/
  */
-static ssize_t target_core_attr_show(struct config_item *item,
-				      struct configfs_attribute *attr,
-				      char *page)
+static ssize_t target_core_item_version_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page, "Target Engine Core ConfigFS Infrastructure %s"
 		" on %s/%s on "UTS_RELEASE"\n", TARGET_CORE_VERSION,
 		utsname()->sysname, utsname()->machine);
 }
 
-static struct configfs_item_operations target_core_fabric_item_ops = {
-	.show_attribute = target_core_attr_show,
-};
-
-static struct configfs_attribute target_core_item_attr_version = {
-	.ca_owner	= THIS_MODULE,
-	.ca_name	= "version",
-	.ca_mode	= S_IRUGO,
-};
+CONFIGFS_ATTR_RO(target_core_item_, version);
 
 static struct target_fabric_configfs *target_core_get_fabric(
 	const char *name)
@@ -273,7 +256,6 @@ static struct configfs_attribute *target_core_fabric_item_attrs[] = {
  * Provides Fabrics Groups and Item Attributes for /sys/kernel/config/target/
  */
 static struct config_item_type target_core_fabrics_item = {
-	.ct_item_ops	= &target_core_fabric_item_ops,
 	.ct_group_ops	= &target_core_fabric_group_ops,
 	.ct_attrs	= target_core_fabric_item_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -476,47 +458,54 @@ EXPORT_SYMBOL(target_unregister_template);
 // Stop functions called by external Target Fabrics Modules
 //############################################################################*/
 
-/* Start functions for struct config_item_type tb_dev_attrib_cit */
-#define DEF_TB_DEV_ATTRIB_SHOW(_name)					\
-static ssize_t show_##_name(struct se_dev_attrib *da, char *page)	\
-{									\
-	return snprintf(page, PAGE_SIZE, "%u\n", da->_name);		\
+static inline struct se_dev_attrib *to_attrib(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct se_dev_attrib,
+			da_group);
 }
 
-DEF_TB_DEV_ATTRIB_SHOW(emulate_model_alias);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_dpo);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_fua_write);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_fua_read);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_write_cache);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_ua_intlck_ctrl);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_tas);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_tpu);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_tpws);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_caw);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_3pc);
-DEF_TB_DEV_ATTRIB_SHOW(pi_prot_type);
-DEF_TB_DEV_ATTRIB_SHOW(hw_pi_prot_type);
-DEF_TB_DEV_ATTRIB_SHOW(pi_prot_format);
-DEF_TB_DEV_ATTRIB_SHOW(enforce_pr_isids);
-DEF_TB_DEV_ATTRIB_SHOW(is_nonrot);
-DEF_TB_DEV_ATTRIB_SHOW(emulate_rest_reord);
-DEF_TB_DEV_ATTRIB_SHOW(force_pr_aptpl);
-DEF_TB_DEV_ATTRIB_SHOW(hw_block_size);
-DEF_TB_DEV_ATTRIB_SHOW(block_size);
-DEF_TB_DEV_ATTRIB_SHOW(hw_max_sectors);
-DEF_TB_DEV_ATTRIB_SHOW(optimal_sectors);
-DEF_TB_DEV_ATTRIB_SHOW(hw_queue_depth);
-DEF_TB_DEV_ATTRIB_SHOW(queue_depth);
-DEF_TB_DEV_ATTRIB_SHOW(max_unmap_lba_count);
-DEF_TB_DEV_ATTRIB_SHOW(max_unmap_block_desc_count);
-DEF_TB_DEV_ATTRIB_SHOW(unmap_granularity);
-DEF_TB_DEV_ATTRIB_SHOW(unmap_granularity_alignment);
-DEF_TB_DEV_ATTRIB_SHOW(max_write_same_len);
+/* Start functions for struct config_item_type tb_dev_attrib_cit */
+#define DEF_CONFIGFS_ATTRIB_SHOW(_name)					\
+static ssize_t _name##_show(struct config_item *item, char *page)	\
+{									\
+	return snprintf(page, PAGE_SIZE, "%u\n", to_attrib(item)->_name); \
+}
 
-#define DEF_TB_DEV_ATTRIB_STORE_U32(_name)				\
-static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_model_alias);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_dpo);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_fua_write);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_fua_read);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_write_cache);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_ua_intlck_ctrl);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_tas);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_tpu);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_tpws);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_caw);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_3pc);
+DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
+DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
+DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_format);
+DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
+DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_rest_reord);
+DEF_CONFIGFS_ATTRIB_SHOW(force_pr_aptpl);
+DEF_CONFIGFS_ATTRIB_SHOW(hw_block_size);
+DEF_CONFIGFS_ATTRIB_SHOW(block_size);
+DEF_CONFIGFS_ATTRIB_SHOW(hw_max_sectors);
+DEF_CONFIGFS_ATTRIB_SHOW(optimal_sectors);
+DEF_CONFIGFS_ATTRIB_SHOW(hw_queue_depth);
+DEF_CONFIGFS_ATTRIB_SHOW(queue_depth);
+DEF_CONFIGFS_ATTRIB_SHOW(max_unmap_lba_count);
+DEF_CONFIGFS_ATTRIB_SHOW(max_unmap_block_desc_count);
+DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity);
+DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity_alignment);
+DEF_CONFIGFS_ATTRIB_SHOW(max_write_same_len);
+
+#define DEF_CONFIGFS_ATTRIB_STORE_U32(_name)				\
+static ssize_t _name##_store(struct config_item *item, const char *page,\
 		size_t count)						\
 {									\
+	struct se_dev_attrib *da = to_attrib(item);			\
 	u32 val;							\
 	int ret;							\
 									\
@@ -527,16 +516,17 @@ static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
 	return count;							\
 }
 
-DEF_TB_DEV_ATTRIB_STORE_U32(max_unmap_lba_count);
-DEF_TB_DEV_ATTRIB_STORE_U32(max_unmap_block_desc_count);
-DEF_TB_DEV_ATTRIB_STORE_U32(unmap_granularity);
-DEF_TB_DEV_ATTRIB_STORE_U32(unmap_granularity_alignment);
-DEF_TB_DEV_ATTRIB_STORE_U32(max_write_same_len);
+DEF_CONFIGFS_ATTRIB_STORE_U32(max_unmap_lba_count);
+DEF_CONFIGFS_ATTRIB_STORE_U32(max_unmap_block_desc_count);
+DEF_CONFIGFS_ATTRIB_STORE_U32(unmap_granularity);
+DEF_CONFIGFS_ATTRIB_STORE_U32(unmap_granularity_alignment);
+DEF_CONFIGFS_ATTRIB_STORE_U32(max_write_same_len);
 
-#define DEF_TB_DEV_ATTRIB_STORE_BOOL(_name)				\
-static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
+#define DEF_CONFIGFS_ATTRIB_STORE_BOOL(_name)				\
+static ssize_t _name##_store(struct config_item *item, const char *page,	\
 		size_t count)						\
 {									\
+	struct se_dev_attrib *da = to_attrib(item);			\
 	bool flag;							\
 	int ret;							\
 									\
@@ -547,14 +537,14 @@ static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
 	return count;							\
 }
 
-DEF_TB_DEV_ATTRIB_STORE_BOOL(emulate_fua_write);
-DEF_TB_DEV_ATTRIB_STORE_BOOL(emulate_caw);
-DEF_TB_DEV_ATTRIB_STORE_BOOL(emulate_3pc);
-DEF_TB_DEV_ATTRIB_STORE_BOOL(enforce_pr_isids);
-DEF_TB_DEV_ATTRIB_STORE_BOOL(is_nonrot);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_fua_write);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_caw);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_3pc);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(enforce_pr_isids);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(is_nonrot);
 
-#define DEF_TB_DEV_ATTRIB_STORE_STUB(_name)				\
-static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
+#define DEF_CONFIGFS_ATTRIB_STORE_STUB(_name)				\
+static ssize_t _name##_store(struct config_item *item, const char *page,\
 		size_t count)						\
 {									\
 	printk_once(KERN_WARNING					\
@@ -562,8 +552,8 @@ static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
 	return count;							\
 }
 
-DEF_TB_DEV_ATTRIB_STORE_STUB(emulate_dpo);
-DEF_TB_DEV_ATTRIB_STORE_STUB(emulate_fua_read);
+DEF_CONFIGFS_ATTRIB_STORE_STUB(emulate_dpo);
+DEF_CONFIGFS_ATTRIB_STORE_STUB(emulate_fua_read);
 
 static void dev_set_t10_wwn_model_alias(struct se_device *dev)
 {
@@ -578,9 +568,10 @@ static void dev_set_t10_wwn_model_alias(struct se_device *dev)
 	snprintf(&dev->t10_wwn.model[0], 16, "%s", configname);
 }
 
-static ssize_t store_emulate_model_alias(struct se_dev_attrib *da,
+static ssize_t emulate_model_alias_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
@@ -606,9 +597,10 @@ static ssize_t store_emulate_model_alias(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_emulate_write_cache(struct se_dev_attrib *da,
+static ssize_t emulate_write_cache_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	bool flag;
 	int ret;
 
@@ -627,9 +619,10 @@ static ssize_t store_emulate_write_cache(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_emulate_ua_intlck_ctrl(struct se_dev_attrib *da,
+static ssize_t emulate_ua_intlck_ctrl_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	u32 val;
 	int ret;
 
@@ -654,9 +647,10 @@ static ssize_t store_emulate_ua_intlck_ctrl(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_emulate_tas(struct se_dev_attrib *da,
+static ssize_t emulate_tas_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	bool flag;
 	int ret;
 
@@ -677,9 +671,10 @@ static ssize_t store_emulate_tas(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_emulate_tpu(struct se_dev_attrib *da,
+static ssize_t emulate_tpu_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	bool flag;
 	int ret;
 
@@ -702,9 +697,10 @@ static ssize_t store_emulate_tpu(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_emulate_tpws(struct se_dev_attrib *da,
+static ssize_t emulate_tpws_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	bool flag;
 	int ret;
 
@@ -727,9 +723,10 @@ static ssize_t store_emulate_tpws(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_pi_prot_type(struct se_dev_attrib *da,
+static ssize_t pi_prot_type_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	int old_prot = da->pi_prot_type, ret;
 	struct se_device *dev = da->da_dev;
 	u32 flag;
@@ -787,9 +784,10 @@ static ssize_t store_pi_prot_type(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_pi_prot_format(struct se_dev_attrib *da,
+static ssize_t pi_prot_format_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
@@ -824,9 +822,10 @@ static ssize_t store_pi_prot_format(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_force_pr_aptpl(struct se_dev_attrib *da,
+static ssize_t force_pr_aptpl_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	bool flag;
 	int ret;
 
@@ -845,9 +844,10 @@ static ssize_t store_force_pr_aptpl(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_emulate_rest_reord(struct se_dev_attrib *da,
+static ssize_t emulate_rest_reord_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	bool flag;
 	int ret;
 
@@ -869,9 +869,10 @@ static ssize_t store_emulate_rest_reord(struct se_dev_attrib *da,
 /*
  * Note, this can only be called on unexported SE Device Object.
  */
-static ssize_t store_queue_depth(struct se_dev_attrib *da,
+static ssize_t queue_depth_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	struct se_device *dev = da->da_dev;
 	u32 val;
 	int ret;
@@ -905,9 +906,10 @@ static ssize_t store_queue_depth(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_optimal_sectors(struct se_dev_attrib *da,
+static ssize_t optimal_sectors_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	u32 val;
 	int ret;
 
@@ -934,9 +936,10 @@ static ssize_t store_optimal_sectors(struct se_dev_attrib *da,
 	return count;
 }
 
-static ssize_t store_block_size(struct se_dev_attrib *da,
+static ssize_t block_size_store(struct config_item *item,
 		const char *page, size_t count)
 {
+	struct se_dev_attrib *da = to_attrib(item);
 	u32 val;
 	int ret;
 
@@ -967,50 +970,35 @@ static ssize_t store_block_size(struct se_dev_attrib *da,
 	return count;
 }
 
-CONFIGFS_EATTR_STRUCT(target_backend_dev_attrib, se_dev_attrib);
-#define TB_DEV_ATTR(_backend, _name, _mode)				\
-static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name = \
-	__CONFIGFS_EATTR(_name, _mode,					\
-	show_##_name,							\
-	store_##_name);
-
-#define TB_DEV_ATTR_RO(_backend, _name)					\
-static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name = \
-	__CONFIGFS_EATTR_RO(_name,					\
-	show_##_name);
-
-TB_DEV_ATTR(target_core, emulate_model_alias, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_dpo, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_fua_write, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_fua_read, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_write_cache, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_ua_intlck_ctrl, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_tas, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_tpu, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_tpws, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_caw, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_3pc, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, pi_prot_type, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR_RO(target_core, hw_pi_prot_type);
-TB_DEV_ATTR(target_core, pi_prot_format, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, enforce_pr_isids, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, is_nonrot, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, emulate_rest_reord, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, force_pr_aptpl, S_IRUGO | S_IWUSR)
-TB_DEV_ATTR_RO(target_core, hw_block_size);
-TB_DEV_ATTR(target_core, block_size, S_IRUGO | S_IWUSR)
-TB_DEV_ATTR_RO(target_core, hw_max_sectors);
-TB_DEV_ATTR(target_core, optimal_sectors, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR_RO(target_core, hw_queue_depth);
-TB_DEV_ATTR(target_core, queue_depth, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, max_unmap_lba_count, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, max_unmap_block_desc_count, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, unmap_granularity, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, unmap_granularity_alignment, S_IRUGO | S_IWUSR);
-TB_DEV_ATTR(target_core, max_write_same_len, S_IRUGO | S_IWUSR);
-
-CONFIGFS_EATTR_STRUCT(target_core_dev_attrib, se_dev_attrib);
-CONFIGFS_EATTR_OPS(target_core_dev_attrib, se_dev_attrib, da_group);
+CONFIGFS_ATTR(, emulate_model_alias);
+CONFIGFS_ATTR(, emulate_dpo);
+CONFIGFS_ATTR(, emulate_fua_write);
+CONFIGFS_ATTR(, emulate_fua_read);
+CONFIGFS_ATTR(, emulate_write_cache);
+CONFIGFS_ATTR(, emulate_ua_intlck_ctrl);
+CONFIGFS_ATTR(, emulate_tas);
+CONFIGFS_ATTR(, emulate_tpu);
+CONFIGFS_ATTR(, emulate_tpws);
+CONFIGFS_ATTR(, emulate_caw);
+CONFIGFS_ATTR(, emulate_3pc);
+CONFIGFS_ATTR(, pi_prot_type);
+CONFIGFS_ATTR_RO(, hw_pi_prot_type);
+CONFIGFS_ATTR(, pi_prot_format);
+CONFIGFS_ATTR(, enforce_pr_isids);
+CONFIGFS_ATTR(, is_nonrot);
+CONFIGFS_ATTR(, emulate_rest_reord);
+CONFIGFS_ATTR(, force_pr_aptpl);
+CONFIGFS_ATTR_RO(, hw_block_size);
+CONFIGFS_ATTR(, block_size);
+CONFIGFS_ATTR_RO(, hw_max_sectors);
+CONFIGFS_ATTR(, optimal_sectors);
+CONFIGFS_ATTR_RO(, hw_queue_depth);
+CONFIGFS_ATTR(, queue_depth);
+CONFIGFS_ATTR(, max_unmap_lba_count);
+CONFIGFS_ATTR(, max_unmap_block_desc_count);
+CONFIGFS_ATTR(, unmap_granularity);
+CONFIGFS_ATTR(, unmap_granularity_alignment);
+CONFIGFS_ATTR(, max_write_same_len);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1018,43 +1006,38 @@ CONFIGFS_EATTR_OPS(target_core_dev_attrib, se_dev_attrib, da_group);
  * these.
  */
 struct configfs_attribute *sbc_attrib_attrs[] = {
-	&target_core_dev_attrib_emulate_model_alias.attr,
-	&target_core_dev_attrib_emulate_dpo.attr,
-	&target_core_dev_attrib_emulate_fua_write.attr,
-	&target_core_dev_attrib_emulate_fua_read.attr,
-	&target_core_dev_attrib_emulate_write_cache.attr,
-	&target_core_dev_attrib_emulate_ua_intlck_ctrl.attr,
-	&target_core_dev_attrib_emulate_tas.attr,
-	&target_core_dev_attrib_emulate_tpu.attr,
-	&target_core_dev_attrib_emulate_tpws.attr,
-	&target_core_dev_attrib_emulate_caw.attr,
-	&target_core_dev_attrib_emulate_3pc.attr,
-	&target_core_dev_attrib_pi_prot_type.attr,
-	&target_core_dev_attrib_hw_pi_prot_type.attr,
-	&target_core_dev_attrib_pi_prot_format.attr,
-	&target_core_dev_attrib_enforce_pr_isids.attr,
-	&target_core_dev_attrib_is_nonrot.attr,
-	&target_core_dev_attrib_emulate_rest_reord.attr,
-	&target_core_dev_attrib_force_pr_aptpl.attr,
-	&target_core_dev_attrib_hw_block_size.attr,
-	&target_core_dev_attrib_block_size.attr,
-	&target_core_dev_attrib_hw_max_sectors.attr,
-	&target_core_dev_attrib_optimal_sectors.attr,
-	&target_core_dev_attrib_hw_queue_depth.attr,
-	&target_core_dev_attrib_queue_depth.attr,
-	&target_core_dev_attrib_max_unmap_lba_count.attr,
-	&target_core_dev_attrib_max_unmap_block_desc_count.attr,
-	&target_core_dev_attrib_unmap_granularity.attr,
-	&target_core_dev_attrib_unmap_granularity_alignment.attr,
-	&target_core_dev_attrib_max_write_same_len.attr,
+	&attr_emulate_model_alias,
+	&attr_emulate_dpo,
+	&attr_emulate_fua_write,
+	&attr_emulate_fua_read,
+	&attr_emulate_write_cache,
+	&attr_emulate_ua_intlck_ctrl,
+	&attr_emulate_tas,
+	&attr_emulate_tpu,
+	&attr_emulate_tpws,
+	&attr_emulate_caw,
+	&attr_emulate_3pc,
+	&attr_pi_prot_type,
+	&attr_hw_pi_prot_type,
+	&attr_pi_prot_format,
+	&attr_enforce_pr_isids,
+	&attr_is_nonrot,
+	&attr_emulate_rest_reord,
+	&attr_force_pr_aptpl,
+	&attr_hw_block_size,
+	&attr_block_size,
+	&attr_hw_max_sectors,
+	&attr_optimal_sectors,
+	&attr_hw_queue_depth,
+	&attr_queue_depth,
+	&attr_max_unmap_lba_count,
+	&attr_max_unmap_block_desc_count,
+	&attr_unmap_granularity,
+	&attr_unmap_granularity_alignment,
+	&attr_max_write_same_len,
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);
-
-TB_DEV_ATTR_RO(target_pt, hw_pi_prot_type);
-TB_DEV_ATTR_RO(target_pt, hw_block_size);
-TB_DEV_ATTR_RO(target_pt, hw_max_sectors);
-TB_DEV_ATTR_RO(target_pt, hw_queue_depth);
 
 /*
  * Minimal dev_attrib attributes for devices passing through CDBs.
@@ -1062,56 +1045,39 @@ TB_DEV_ATTR_RO(target_pt, hw_queue_depth);
  * backwards compatibility.
  */
 struct configfs_attribute *passthrough_attrib_attrs[] = {
-	&target_pt_dev_attrib_hw_pi_prot_type.attr,
-	&target_pt_dev_attrib_hw_block_size.attr,
-	&target_pt_dev_attrib_hw_max_sectors.attr,
-	&target_pt_dev_attrib_hw_queue_depth.attr,
+	&attr_hw_pi_prot_type,
+	&attr_hw_block_size,
+	&attr_hw_max_sectors,
+	&attr_hw_queue_depth,
 	NULL,
 };
 EXPORT_SYMBOL(passthrough_attrib_attrs);
 
-static struct configfs_item_operations target_core_dev_attrib_ops = {
-	.show_attribute		= target_core_dev_attrib_attr_show,
-	.store_attribute	= target_core_dev_attrib_attr_store,
-};
-
-TB_CIT_SETUP_DRV(dev_attrib, &target_core_dev_attrib_ops, NULL);
+TB_CIT_SETUP_DRV(dev_attrib, NULL, NULL);
 
 /* End functions for struct config_item_type tb_dev_attrib_cit */
 
 /*  Start functions for struct config_item_type tb_dev_wwn_cit */
 
-CONFIGFS_EATTR_STRUCT(target_core_dev_wwn, t10_wwn);
-#define SE_DEV_WWN_ATTR(_name, _mode)					\
-static struct target_core_dev_wwn_attribute target_core_dev_wwn_##_name = \
-		__CONFIGFS_EATTR(_name, _mode,				\
-		target_core_dev_wwn_show_attr_##_name,			\
-		target_core_dev_wwn_store_attr_##_name);
-
-#define SE_DEV_WWN_ATTR_RO(_name);					\
-do {									\
-	static struct target_core_dev_wwn_attribute			\
-			target_core_dev_wwn_##_name =			\
-		__CONFIGFS_EATTR_RO(_name,				\
-		target_core_dev_wwn_show_attr_##_name);			\
-} while (0);
+static struct t10_wwn *to_t10_wwn(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct t10_wwn, t10_wwn_group);
+}
 
 /*
  * VPD page 0x80 Unit serial
  */
-static ssize_t target_core_dev_wwn_show_attr_vpd_unit_serial(
-	struct t10_wwn *t10_wwn,
-	char *page)
+static ssize_t target_wwn_vpd_unit_serial_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page, "T10 VPD Unit Serial Number: %s\n",
-		&t10_wwn->unit_serial[0]);
+		&to_t10_wwn(item)->unit_serial[0]);
 }
 
-static ssize_t target_core_dev_wwn_store_attr_vpd_unit_serial(
-	struct t10_wwn *t10_wwn,
-	const char *page,
-	size_t count)
+static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);
 	struct se_device *dev = t10_wwn->t10_dev;
 	unsigned char buf[INQUIRY_VPD_SERIAL_LEN];
 
@@ -1167,15 +1133,13 @@ static ssize_t target_core_dev_wwn_store_attr_vpd_unit_serial(
 	return count;
 }
 
-SE_DEV_WWN_ATTR(vpd_unit_serial, S_IRUGO | S_IWUSR);
-
 /*
  * VPD page 0x83 Protocol Identifier
  */
-static ssize_t target_core_dev_wwn_show_attr_vpd_protocol_identifier(
-	struct t10_wwn *t10_wwn,
-	char *page)
+static ssize_t target_wwn_vpd_protocol_identifier_show(struct config_item *item,
+		char *page)
 {
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);
 	struct t10_vpd *vpd;
 	unsigned char buf[VPD_TMP_BUF_SIZE];
 	ssize_t len = 0;
@@ -1199,25 +1163,15 @@ static ssize_t target_core_dev_wwn_show_attr_vpd_protocol_identifier(
 	return len;
 }
 
-static ssize_t target_core_dev_wwn_store_attr_vpd_protocol_identifier(
-	struct t10_wwn *t10_wwn,
-	const char *page,
-	size_t count)
-{
-	return -ENOSYS;
-}
-
-SE_DEV_WWN_ATTR(vpd_protocol_identifier, S_IRUGO | S_IWUSR);
-
 /*
  * Generic wrapper for dumping VPD identifiers by association.
  */
 #define DEF_DEV_WWN_ASSOC_SHOW(_name, _assoc)				\
-static ssize_t target_core_dev_wwn_show_attr_##_name(			\
-	struct t10_wwn *t10_wwn,					\
-	char *page)							\
+static ssize_t target_wwn_##_name##_show(struct config_item *item,	\
+		char *page)						\
 {									\
-	struct t10_vpd *vpd;							\
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);			\
+	struct t10_vpd *vpd;						\
 	unsigned char buf[VPD_TMP_BUF_SIZE];				\
 	ssize_t len = 0;						\
 									\
@@ -1249,84 +1203,39 @@ static ssize_t target_core_dev_wwn_show_attr_##_name(			\
 	return len;							\
 }
 
-/*
- * VPD page 0x83 Association: Logical Unit
- */
+/* VPD page 0x83 Association: Logical Unit */
 DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_logical_unit, 0x00);
-
-static ssize_t target_core_dev_wwn_store_attr_vpd_assoc_logical_unit(
-	struct t10_wwn *t10_wwn,
-	const char *page,
-	size_t count)
-{
-	return -ENOSYS;
-}
-
-SE_DEV_WWN_ATTR(vpd_assoc_logical_unit, S_IRUGO | S_IWUSR);
-
-/*
- * VPD page 0x83 Association: Target Port
- */
+/* VPD page 0x83 Association: Target Port */
 DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_target_port, 0x10);
-
-static ssize_t target_core_dev_wwn_store_attr_vpd_assoc_target_port(
-	struct t10_wwn *t10_wwn,
-	const char *page,
-	size_t count)
-{
-	return -ENOSYS;
-}
-
-SE_DEV_WWN_ATTR(vpd_assoc_target_port, S_IRUGO | S_IWUSR);
-
-/*
- * VPD page 0x83 Association: SCSI Target Device
- */
+/* VPD page 0x83 Association: SCSI Target Device */
 DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_scsi_target_device, 0x20);
 
-static ssize_t target_core_dev_wwn_store_attr_vpd_assoc_scsi_target_device(
-	struct t10_wwn *t10_wwn,
-	const char *page,
-	size_t count)
-{
-	return -ENOSYS;
-}
-
-SE_DEV_WWN_ATTR(vpd_assoc_scsi_target_device, S_IRUGO | S_IWUSR);
-
-CONFIGFS_EATTR_OPS(target_core_dev_wwn, t10_wwn, t10_wwn_group);
+CONFIGFS_ATTR(target_wwn_, vpd_unit_serial);
+CONFIGFS_ATTR_RO(target_wwn_, vpd_protocol_identifier);
+CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_logical_unit);
+CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_target_port);
+CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_scsi_target_device);
 
 static struct configfs_attribute *target_core_dev_wwn_attrs[] = {
-	&target_core_dev_wwn_vpd_unit_serial.attr,
-	&target_core_dev_wwn_vpd_protocol_identifier.attr,
-	&target_core_dev_wwn_vpd_assoc_logical_unit.attr,
-	&target_core_dev_wwn_vpd_assoc_target_port.attr,
-	&target_core_dev_wwn_vpd_assoc_scsi_target_device.attr,
+	&target_wwn_attr_vpd_unit_serial,
+	&target_wwn_attr_vpd_protocol_identifier,
+	&target_wwn_attr_vpd_assoc_logical_unit,
+	&target_wwn_attr_vpd_assoc_target_port,
+	&target_wwn_attr_vpd_assoc_scsi_target_device,
 	NULL,
 };
 
-static struct configfs_item_operations target_core_dev_wwn_ops = {
-	.show_attribute		= target_core_dev_wwn_attr_show,
-	.store_attribute	= target_core_dev_wwn_attr_store,
-};
-
-TB_CIT_SETUP(dev_wwn, &target_core_dev_wwn_ops, NULL, target_core_dev_wwn_attrs);
+TB_CIT_SETUP(dev_wwn, NULL, NULL, target_core_dev_wwn_attrs);
 
 /*  End functions for struct config_item_type tb_dev_wwn_cit */
 
 /*  Start functions for struct config_item_type tb_dev_pr_cit */
 
-CONFIGFS_EATTR_STRUCT(target_core_dev_pr, se_device);
-#define SE_DEV_PR_ATTR(_name, _mode)					\
-static struct target_core_dev_pr_attribute target_core_dev_pr_##_name = \
-	__CONFIGFS_EATTR(_name, _mode,					\
-	target_core_dev_pr_show_attr_##_name,				\
-	target_core_dev_pr_store_attr_##_name);
-
-#define SE_DEV_PR_ATTR_RO(_name);					\
-static struct target_core_dev_pr_attribute target_core_dev_pr_##_name =	\
-	__CONFIGFS_EATTR_RO(_name,					\
-	target_core_dev_pr_show_attr_##_name);
+static struct se_device *pr_to_dev(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct se_device,
+			dev_pr_group);
+}
 
 static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 		char *page)
@@ -1367,9 +1276,9 @@ static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
 	return len;
 }
 
-static ssize_t target_core_dev_pr_show_attr_res_holder(struct se_device *dev,
-		char *page)
+static ssize_t target_pr_res_holder_show(struct config_item *item, char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
 	int ret;
 
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
@@ -1384,11 +1293,10 @@ static ssize_t target_core_dev_pr_show_attr_res_holder(struct se_device *dev,
 	return ret;
 }
 
-SE_DEV_PR_ATTR_RO(res_holder);
-
-static ssize_t target_core_dev_pr_show_attr_res_pr_all_tgt_pts(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_pr_all_tgt_pts_show(struct config_item *item,
+		char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
 	ssize_t len = 0;
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -1406,22 +1314,17 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_all_tgt_pts(
 	return len;
 }
 
-SE_DEV_PR_ATTR_RO(res_pr_all_tgt_pts);
-
-static ssize_t target_core_dev_pr_show_attr_res_pr_generation(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_pr_generation_show(struct config_item *item,
+		char *page)
 {
-	return sprintf(page, "0x%08x\n", dev->t10_pr.pr_generation);
+	return sprintf(page, "0x%08x\n", pr_to_dev(item)->t10_pr.pr_generation);
 }
 
-SE_DEV_PR_ATTR_RO(res_pr_generation);
 
-/*
- * res_pr_holder_tg_port
- */
-static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_pr_holder_tg_port_show(struct config_item *item,
+		char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
 	struct se_node_acl *se_nacl;
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg;
@@ -1453,11 +1356,11 @@ out_unlock:
 	return len;
 }
 
-SE_DEV_PR_ATTR_RO(res_pr_holder_tg_port);
 
-static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_pr_registered_i_pts_show(struct config_item *item,
+		char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
 	const struct target_core_fabric_ops *tfo;
 	struct t10_pr_registration *pr_reg;
 	unsigned char buf[384];
@@ -1495,11 +1398,9 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
 	return len;
 }
 
-SE_DEV_PR_ATTR_RO(res_pr_registered_i_pts);
-
-static ssize_t target_core_dev_pr_show_attr_res_pr_type(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_pr_type_show(struct config_item *item, char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
 	struct t10_pr_registration *pr_reg;
 	ssize_t len = 0;
 
@@ -1516,11 +1417,10 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_type(
 	return len;
 }
 
-SE_DEV_PR_ATTR_RO(res_pr_type);
-
-static ssize_t target_core_dev_pr_show_attr_res_type(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_type_show(struct config_item *item, char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
+
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
 	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
@@ -1529,11 +1429,11 @@ static ssize_t target_core_dev_pr_show_attr_res_type(
 		return sprintf(page, "SPC3_PERSISTENT_RESERVATIONS\n");
 }
 
-SE_DEV_PR_ATTR_RO(res_type);
-
-static ssize_t target_core_dev_pr_show_attr_res_aptpl_active(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
+		char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
+
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
 
@@ -1541,14 +1441,11 @@ static ssize_t target_core_dev_pr_show_attr_res_aptpl_active(
 		(dev->t10_pr.pr_aptpl_active) ? "Activated" : "Disabled");
 }
 
-SE_DEV_PR_ATTR_RO(res_aptpl_active);
-
-/*
- * res_aptpl_metadata
- */
-static ssize_t target_core_dev_pr_show_attr_res_aptpl_metadata(
-		struct se_device *dev, char *page)
+static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
+		char *page)
 {
+	struct se_device *dev = pr_to_dev(item);
+
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
 
@@ -1580,11 +1477,10 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
-	struct se_device *dev,
-	const char *page,
-	size_t count)
+static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_device *dev = pr_to_dev(item);
 	unsigned char *i_fabric = NULL, *i_port = NULL, *isid = NULL;
 	unsigned char *t_fabric = NULL, *t_port = NULL;
 	char *orig, *ptr, *opts;
@@ -1765,37 +1661,44 @@ out:
 	return (ret == 0) ? count : ret;
 }
 
-SE_DEV_PR_ATTR(res_aptpl_metadata, S_IRUGO | S_IWUSR);
 
-CONFIGFS_EATTR_OPS(target_core_dev_pr, se_device, dev_pr_group);
+CONFIGFS_ATTR_RO(target_pr_, res_holder);
+CONFIGFS_ATTR_RO(target_pr_, res_pr_all_tgt_pts);
+CONFIGFS_ATTR_RO(target_pr_, res_pr_generation);
+CONFIGFS_ATTR_RO(target_pr_, res_pr_holder_tg_port);
+CONFIGFS_ATTR_RO(target_pr_, res_pr_registered_i_pts);
+CONFIGFS_ATTR_RO(target_pr_, res_pr_type);
+CONFIGFS_ATTR_RO(target_pr_, res_type);
+CONFIGFS_ATTR_RO(target_pr_, res_aptpl_active);
+CONFIGFS_ATTR(target_pr_, res_aptpl_metadata);
 
 static struct configfs_attribute *target_core_dev_pr_attrs[] = {
-	&target_core_dev_pr_res_holder.attr,
-	&target_core_dev_pr_res_pr_all_tgt_pts.attr,
-	&target_core_dev_pr_res_pr_generation.attr,
-	&target_core_dev_pr_res_pr_holder_tg_port.attr,
-	&target_core_dev_pr_res_pr_registered_i_pts.attr,
-	&target_core_dev_pr_res_pr_type.attr,
-	&target_core_dev_pr_res_type.attr,
-	&target_core_dev_pr_res_aptpl_active.attr,
-	&target_core_dev_pr_res_aptpl_metadata.attr,
+	&target_pr_attr_res_holder,
+	&target_pr_attr_res_pr_all_tgt_pts,
+	&target_pr_attr_res_pr_generation,
+	&target_pr_attr_res_pr_holder_tg_port,
+	&target_pr_attr_res_pr_registered_i_pts,
+	&target_pr_attr_res_pr_type,
+	&target_pr_attr_res_type,
+	&target_pr_attr_res_aptpl_active,
+	&target_pr_attr_res_aptpl_metadata,
 	NULL,
 };
 
-static struct configfs_item_operations target_core_dev_pr_ops = {
-	.show_attribute		= target_core_dev_pr_attr_show,
-	.store_attribute	= target_core_dev_pr_attr_store,
-};
-
-TB_CIT_SETUP(dev_pr, &target_core_dev_pr_ops, NULL, target_core_dev_pr_attrs);
+TB_CIT_SETUP(dev_pr, NULL, NULL, target_core_dev_pr_attrs);
 
 /*  End functions for struct config_item_type tb_dev_pr_cit */
 
 /*  Start functions for struct config_item_type tb_dev_cit */
 
-static ssize_t target_core_show_dev_info(void *p, char *page)
+static inline struct se_device *to_device(struct config_item *item)
 {
-	struct se_device *dev = p;
+	return container_of(to_config_group(item), struct se_device, dev_group);
+}
+
+static ssize_t target_dev_info_show(struct config_item *item, char *page)
+{
+	struct se_device *dev = to_device(item);
 	int bl = 0;
 	ssize_t read_bytes = 0;
 
@@ -1806,35 +1709,17 @@ static ssize_t target_core_show_dev_info(void *p, char *page)
 	return read_bytes;
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_info = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "info",
-		    .ca_mode = S_IRUGO },
-	.show	= target_core_show_dev_info,
-	.store	= NULL,
-};
-
-static ssize_t target_core_store_dev_control(
-	void *p,
-	const char *page,
-	size_t count)
+static ssize_t target_dev_control_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 
 	return dev->transport->set_configfs_dev_params(dev, page, count);
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_control = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "control",
-		    .ca_mode = S_IWUSR },
-	.show	= NULL,
-	.store	= target_core_store_dev_control,
-};
-
-static ssize_t target_core_show_dev_alias(void *p, char *page)
+static ssize_t target_dev_alias_show(struct config_item *item, char *page)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 
 	if (!(dev->dev_flags & DF_USING_ALIAS))
 		return 0;
@@ -1842,12 +1727,10 @@ static ssize_t target_core_show_dev_alias(void *p, char *page)
 	return snprintf(page, PAGE_SIZE, "%s\n", dev->dev_alias);
 }
 
-static ssize_t target_core_store_dev_alias(
-	void *p,
-	const char *page,
-	size_t count)
+static ssize_t target_dev_alias_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	struct se_hba *hba = dev->se_hba;
 	ssize_t read_bytes;
 
@@ -1874,17 +1757,9 @@ static ssize_t target_core_store_dev_alias(
 	return read_bytes;
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_alias = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "alias",
-		    .ca_mode =  S_IRUGO | S_IWUSR },
-	.show	= target_core_show_dev_alias,
-	.store	= target_core_store_dev_alias,
-};
-
-static ssize_t target_core_show_dev_udev_path(void *p, char *page)
+static ssize_t target_dev_udev_path_show(struct config_item *item, char *page)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 
 	if (!(dev->dev_flags & DF_USING_UDEV_PATH))
 		return 0;
@@ -1892,12 +1767,10 @@ static ssize_t target_core_show_dev_udev_path(void *p, char *page)
 	return snprintf(page, PAGE_SIZE, "%s\n", dev->udev_path);
 }
 
-static ssize_t target_core_store_dev_udev_path(
-	void *p,
-	const char *page,
-	size_t count)
+static ssize_t target_dev_udev_path_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	struct se_hba *hba = dev->se_hba;
 	ssize_t read_bytes;
 
@@ -1925,27 +1798,17 @@ static ssize_t target_core_store_dev_udev_path(
 	return read_bytes;
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_udev_path = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "udev_path",
-		    .ca_mode =  S_IRUGO | S_IWUSR },
-	.show	= target_core_show_dev_udev_path,
-	.store	= target_core_store_dev_udev_path,
-};
-
-static ssize_t target_core_show_dev_enable(void *p, char *page)
+static ssize_t target_dev_enable_show(struct config_item *item, char *page)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 
 	return snprintf(page, PAGE_SIZE, "%d\n", !!(dev->dev_flags & DF_CONFIGURED));
 }
 
-static ssize_t target_core_store_dev_enable(
-	void *p,
-	const char *page,
-	size_t count)
+static ssize_t target_dev_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	char *ptr;
 	int ret;
 
@@ -1962,17 +1825,9 @@ static ssize_t target_core_store_dev_enable(
 	return count;
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_enable = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "enable",
-		    .ca_mode =  S_IRUGO | S_IWUSR },
-	.show	= target_core_show_dev_enable,
-	.store	= target_core_store_dev_enable,
-};
-
-static ssize_t target_core_show_alua_lu_gp(void *p, char *page)
+static ssize_t target_dev_alua_lu_gp_show(struct config_item *item, char *page)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	struct config_item *lu_ci;
 	struct t10_alua_lu_gp *lu_gp;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
@@ -1994,12 +1849,10 @@ static ssize_t target_core_show_alua_lu_gp(void *p, char *page)
 	return len;
 }
 
-static ssize_t target_core_store_alua_lu_gp(
-	void *p,
-	const char *page,
-	size_t count)
+static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	struct se_hba *hba = dev->se_hba;
 	struct t10_alua_lu_gp *lu_gp = NULL, *lu_gp_new = NULL;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
@@ -2076,17 +1929,9 @@ static ssize_t target_core_store_alua_lu_gp(
 	return count;
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_alua_lu_gp = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "alua_lu_gp",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= target_core_show_alua_lu_gp,
-	.store	= target_core_store_alua_lu_gp,
-};
-
-static ssize_t target_core_show_dev_lba_map(void *p, char *page)
+static ssize_t target_dev_lba_map_show(struct config_item *item, char *page)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	struct t10_alua_lba_map *map;
 	struct t10_alua_lba_map_member *mem;
 	char *b = page;
@@ -2129,12 +1974,10 @@ static ssize_t target_core_show_dev_lba_map(void *p, char *page)
 	return bl;
 }
 
-static ssize_t target_core_store_dev_lba_map(
-	void *p,
-	const char *page,
-	size_t count)
+static ssize_t target_dev_lba_map_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	struct se_device *dev = p;
+	struct se_device *dev = to_device(item);
 	struct t10_alua_lba_map *lba_map = NULL;
 	struct list_head lba_list;
 	char *map_entries, *ptr;
@@ -2246,22 +2089,22 @@ out:
 	return count;
 }
 
-static struct target_core_configfs_attribute target_core_attr_dev_lba_map = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "lba_map",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= target_core_show_dev_lba_map,
-	.store	= target_core_store_dev_lba_map,
-};
+CONFIGFS_ATTR_RO(target_dev_, info);
+CONFIGFS_ATTR_WO(target_dev_, control);
+CONFIGFS_ATTR(target_dev_, alias);
+CONFIGFS_ATTR(target_dev_, udev_path);
+CONFIGFS_ATTR(target_dev_, enable);
+CONFIGFS_ATTR(target_dev_, alua_lu_gp);
+CONFIGFS_ATTR(target_dev_, lba_map);
 
 static struct configfs_attribute *target_core_dev_attrs[] = {
-	&target_core_attr_dev_info.attr,
-	&target_core_attr_dev_control.attr,
-	&target_core_attr_dev_alias.attr,
-	&target_core_attr_dev_udev_path.attr,
-	&target_core_attr_dev_enable.attr,
-	&target_core_attr_dev_alua_lu_gp.attr,
-	&target_core_attr_dev_lba_map.attr,
+	&target_dev_attr_info,
+	&target_dev_attr_control,
+	&target_dev_attr_alias,
+	&target_dev_attr_udev_path,
+	&target_dev_attr_enable,
+	&target_dev_attr_alua_lu_gp,
+	&target_dev_attr_lba_map,
 	NULL,
 };
 
@@ -2275,42 +2118,8 @@ static void target_core_dev_release(struct config_item *item)
 	target_free_device(dev);
 }
 
-static ssize_t target_core_dev_show(struct config_item *item,
-				     struct configfs_attribute *attr,
-				     char *page)
-{
-	struct config_group *dev_cg = to_config_group(item);
-	struct se_device *dev =
-		container_of(dev_cg, struct se_device, dev_group);
-	struct target_core_configfs_attribute *tc_attr = container_of(
-			attr, struct target_core_configfs_attribute, attr);
-
-	if (!tc_attr->show)
-		return -EINVAL;
-
-	return tc_attr->show(dev, page);
-}
-
-static ssize_t target_core_dev_store(struct config_item *item,
-				      struct configfs_attribute *attr,
-				      const char *page, size_t count)
-{
-	struct config_group *dev_cg = to_config_group(item);
-	struct se_device *dev =
-		container_of(dev_cg, struct se_device, dev_group);
-	struct target_core_configfs_attribute *tc_attr = container_of(
-			attr, struct target_core_configfs_attribute, attr);
-
-	if (!tc_attr->store)
-		return -EINVAL;
-
-	return tc_attr->store(dev, page, count);
-}
-
 static struct configfs_item_operations target_core_dev_item_ops = {
 	.release		= target_core_dev_release,
-	.show_attribute		= target_core_dev_show,
-	.store_attribute	= target_core_dev_store,
 };
 
 TB_CIT_SETUP(dev, &target_core_dev_item_ops, NULL, target_core_dev_attrs);
@@ -2319,38 +2128,25 @@ TB_CIT_SETUP(dev, &target_core_dev_item_ops, NULL, target_core_dev_attrs);
 
 /* Start functions for struct config_item_type target_core_alua_lu_gp_cit */
 
-CONFIGFS_EATTR_STRUCT(target_core_alua_lu_gp, t10_alua_lu_gp);
-#define SE_DEV_ALUA_LU_ATTR(_name, _mode)				\
-static struct target_core_alua_lu_gp_attribute				\
-			target_core_alua_lu_gp_##_name =		\
-	__CONFIGFS_EATTR(_name, _mode,					\
-	target_core_alua_lu_gp_show_attr_##_name,			\
-	target_core_alua_lu_gp_store_attr_##_name);
-
-#define SE_DEV_ALUA_LU_ATTR_RO(_name)					\
-static struct target_core_alua_lu_gp_attribute				\
-			target_core_alua_lu_gp_##_name =		\
-	__CONFIGFS_EATTR_RO(_name,					\
-	target_core_alua_lu_gp_show_attr_##_name);
-
-/*
- * lu_gp_id
- */
-static ssize_t target_core_alua_lu_gp_show_attr_lu_gp_id(
-	struct t10_alua_lu_gp *lu_gp,
-	char *page)
+static inline struct t10_alua_lu_gp *to_lu_gp(struct config_item *item)
 {
+	return container_of(to_config_group(item), struct t10_alua_lu_gp,
+			lu_gp_group);
+}
+
+static ssize_t target_lu_gp_lu_gp_id_show(struct config_item *item, char *page)
+{
+	struct t10_alua_lu_gp *lu_gp = to_lu_gp(item);
+
 	if (!lu_gp->lu_gp_valid_id)
 		return 0;
-
 	return sprintf(page, "%hu\n", lu_gp->lu_gp_id);
 }
 
-static ssize_t target_core_alua_lu_gp_store_attr_lu_gp_id(
-	struct t10_alua_lu_gp *lu_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_lu_gp_lu_gp_id_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct t10_alua_lu_gp *lu_gp = to_lu_gp(item);
 	struct config_group *alua_lu_gp_cg = &lu_gp->lu_gp_group;
 	unsigned long lu_gp_id;
 	int ret;
@@ -2379,15 +2175,9 @@ static ssize_t target_core_alua_lu_gp_store_attr_lu_gp_id(
 	return count;
 }
 
-SE_DEV_ALUA_LU_ATTR(lu_gp_id, S_IRUGO | S_IWUSR);
-
-/*
- * members
- */
-static ssize_t target_core_alua_lu_gp_show_attr_members(
-	struct t10_alua_lu_gp *lu_gp,
-	char *page)
+static ssize_t target_lu_gp_members_show(struct config_item *item, char *page)
 {
+	struct t10_alua_lu_gp *lu_gp = to_lu_gp(item);
 	struct se_device *dev;
 	struct se_hba *hba;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
@@ -2419,13 +2209,12 @@ static ssize_t target_core_alua_lu_gp_show_attr_members(
 	return len;
 }
 
-SE_DEV_ALUA_LU_ATTR_RO(members);
-
-CONFIGFS_EATTR_OPS(target_core_alua_lu_gp, t10_alua_lu_gp, lu_gp_group);
+CONFIGFS_ATTR(target_lu_gp_, lu_gp_id);
+CONFIGFS_ATTR_RO(target_lu_gp_, members);
 
 static struct configfs_attribute *target_core_alua_lu_gp_attrs[] = {
-	&target_core_alua_lu_gp_lu_gp_id.attr,
-	&target_core_alua_lu_gp_members.attr,
+	&target_lu_gp_attr_lu_gp_id,
+	&target_lu_gp_attr_members,
 	NULL,
 };
 
@@ -2439,8 +2228,6 @@ static void target_core_alua_lu_gp_release(struct config_item *item)
 
 static struct configfs_item_operations target_core_alua_lu_gp_ops = {
 	.release		= target_core_alua_lu_gp_release,
-	.show_attribute		= target_core_alua_lu_gp_attr_show,
-	.store_attribute	= target_core_alua_lu_gp_attr_store,
 };
 
 static struct config_item_type target_core_alua_lu_gp_cit = {
@@ -2511,36 +2298,23 @@ static struct config_item_type target_core_alua_lu_gps_cit = {
 
 /* Start functions for struct config_item_type target_core_alua_tg_pt_gp_cit */
 
-CONFIGFS_EATTR_STRUCT(target_core_alua_tg_pt_gp, t10_alua_tg_pt_gp);
-#define SE_DEV_ALUA_TG_PT_ATTR(_name, _mode)				\
-static struct target_core_alua_tg_pt_gp_attribute			\
-			target_core_alua_tg_pt_gp_##_name =		\
-	__CONFIGFS_EATTR(_name, _mode,					\
-	target_core_alua_tg_pt_gp_show_attr_##_name,			\
-	target_core_alua_tg_pt_gp_store_attr_##_name);
-
-#define SE_DEV_ALUA_TG_PT_ATTR_RO(_name)				\
-static struct target_core_alua_tg_pt_gp_attribute			\
-			target_core_alua_tg_pt_gp_##_name =		\
-	__CONFIGFS_EATTR_RO(_name,					\
-	target_core_alua_tg_pt_gp_show_attr_##_name);
-
-/*
- * alua_access_state
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_access_state(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static inline struct t10_alua_tg_pt_gp *to_tg_pt_gp(struct config_item *item)
 {
-	return sprintf(page, "%d\n",
-		atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state));
+	return container_of(to_config_group(item), struct t10_alua_tg_pt_gp,
+			tg_pt_gp_group);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_alua_access_state_show(struct config_item *item,
+		char *page)
 {
+	return sprintf(page, "%d\n",
+		atomic_read(&to_tg_pt_gp(item)->tg_pt_gp_alua_access_state));
+}
+
+static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	struct se_device *dev = tg_pt_gp->tg_pt_gp_dev;
 	unsigned long tmp;
 	int new_state, ret;
@@ -2582,24 +2356,18 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 	return (!ret) ? count : -EINVAL;
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(alua_access_state, S_IRUGO | S_IWUSR);
-
-/*
- * alua_access_status
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_access_status(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_alua_access_status_show(struct config_item *item,
+		char *page)
 {
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	return sprintf(page, "%s\n",
 		core_alua_dump_status(tg_pt_gp->tg_pt_gp_alua_access_status));
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_status(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_alua_access_status_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	unsigned long tmp;
 	int new_status, ret;
 
@@ -2630,43 +2398,31 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_status(
 	return count;
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(alua_access_status, S_IRUGO | S_IWUSR);
-
-/*
- * alua_access_type
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_access_type(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_alua_access_type_show(struct config_item *item,
+		char *page)
 {
-	return core_alua_show_access_type(tg_pt_gp, page);
+	return core_alua_show_access_type(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_type(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_alua_access_type_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	return core_alua_store_access_type(tg_pt_gp, page, count);
+	return core_alua_store_access_type(to_tg_pt_gp(item), page, count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(alua_access_type, S_IRUGO | S_IWUSR);
-
-/*
- * alua_supported_states
- */
-
-#define SE_DEV_ALUA_SUPPORT_STATE_SHOW(_name, _var, _bit)		\
-static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_support_##_name( \
-	struct t10_alua_tg_pt_gp *t, char *p)				\
+#define ALUA_SUPPORTED_STATE_ATTR(_name, _bit)				\
+static ssize_t target_tg_pt_gp_alua_support_##_name##_show(		\
+		struct config_item *item, char *p)			\
 {									\
-	return sprintf(p, "%d\n", !!(t->_var & _bit));			\
-}
-
-#define SE_DEV_ALUA_SUPPORT_STATE_STORE(_name, _var, _bit)		\
-static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_support_##_name(\
-	struct t10_alua_tg_pt_gp *t, const char *p, size_t c)		\
+	struct t10_alua_tg_pt_gp *t = to_tg_pt_gp(item);		\
+	return sprintf(p, "%d\n",					\
+		!!(t->tg_pt_gp_alua_supported_states & _bit));		\
+}									\
+									\
+static ssize_t target_tg_pt_gp_alua_support_##_name##_store(		\
+		struct config_item *item, const char *p, size_t c)	\
 {									\
+	struct t10_alua_tg_pt_gp *t = to_tg_pt_gp(item);		\
 	unsigned long tmp;						\
 	int ret;							\
 									\
@@ -2687,70 +2443,32 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_support_##_name(\
 		return -EINVAL;						\
 	}								\
 	if (tmp)							\
-		t->_var |= _bit;					\
+		t->tg_pt_gp_alua_supported_states |= _bit;		\
 	else								\
-		t->_var &= ~_bit;					\
+		t->tg_pt_gp_alua_supported_states &= ~_bit;		\
 									\
 	return c;							\
 }
 
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(transitioning,
-			       tg_pt_gp_alua_supported_states, ALUA_T_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(transitioning,
-				tg_pt_gp_alua_supported_states, ALUA_T_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_transitioning, S_IRUGO | S_IWUSR);
+ALUA_SUPPORTED_STATE_ATTR(transitioning, ALUA_T_SUP);
+ALUA_SUPPORTED_STATE_ATTR(offline, ALUA_O_SUP);
+ALUA_SUPPORTED_STATE_ATTR(lba_dependent, ALUA_LBD_SUP);
+ALUA_SUPPORTED_STATE_ATTR(unavailable, ALUA_U_SUP);
+ALUA_SUPPORTED_STATE_ATTR(standby, ALUA_S_SUP);
+ALUA_SUPPORTED_STATE_ATTR(active_optimized, ALUA_AO_SUP);
+ALUA_SUPPORTED_STATE_ATTR(active_nonoptimized, ALUA_AN_SUP);
 
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(offline,
-			       tg_pt_gp_alua_supported_states, ALUA_O_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(offline,
-				tg_pt_gp_alua_supported_states, ALUA_O_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_offline, S_IRUGO | S_IWUSR);
-
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(lba_dependent,
-			       tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(lba_dependent,
-				tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO);
-
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(unavailable,
-			       tg_pt_gp_alua_supported_states, ALUA_U_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(unavailable,
-				tg_pt_gp_alua_supported_states, ALUA_U_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_unavailable, S_IRUGO | S_IWUSR);
-
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(standby,
-			       tg_pt_gp_alua_supported_states, ALUA_S_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(standby,
-				tg_pt_gp_alua_supported_states, ALUA_S_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_standby, S_IRUGO | S_IWUSR);
-
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(active_optimized,
-			       tg_pt_gp_alua_supported_states, ALUA_AO_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(active_optimized,
-				tg_pt_gp_alua_supported_states, ALUA_AO_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_active_optimized, S_IRUGO | S_IWUSR);
-
-SE_DEV_ALUA_SUPPORT_STATE_SHOW(active_nonoptimized,
-			       tg_pt_gp_alua_supported_states, ALUA_AN_SUP);
-SE_DEV_ALUA_SUPPORT_STATE_STORE(active_nonoptimized,
-				tg_pt_gp_alua_supported_states, ALUA_AN_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_active_nonoptimized, S_IRUGO | S_IWUSR);
-
-/*
- * alua_write_metadata
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_write_metadata(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_alua_write_metadata_show(
+		struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", tg_pt_gp->tg_pt_gp_write_metadata);
+	return sprintf(page, "%d\n",
+		to_tg_pt_gp(item)->tg_pt_gp_write_metadata);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_write_metadata(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_alua_write_metadata_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	unsigned long tmp;
 	int ret;
 
@@ -2770,110 +2488,71 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_write_metadata(
 	return count;
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(alua_write_metadata, S_IRUGO | S_IWUSR);
-
-
-
-/*
- * nonop_delay_msecs
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_nonop_delay_msecs(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_nonop_delay_msecs_show(struct config_item *item,
+		char *page)
 {
-	return core_alua_show_nonop_delay_msecs(tg_pt_gp, page);
-
+	return core_alua_show_nonop_delay_msecs(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_nonop_delay_msecs(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_nonop_delay_msecs_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	return core_alua_store_nonop_delay_msecs(tg_pt_gp, page, count);
+	return core_alua_store_nonop_delay_msecs(to_tg_pt_gp(item), page,
+			count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(nonop_delay_msecs, S_IRUGO | S_IWUSR);
-
-/*
- * trans_delay_msecs
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_trans_delay_msecs(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_trans_delay_msecs_show(struct config_item *item,
+		char *page)
 {
-	return core_alua_show_trans_delay_msecs(tg_pt_gp, page);
+	return core_alua_show_trans_delay_msecs(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_trans_delay_msecs(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_trans_delay_msecs_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	return core_alua_store_trans_delay_msecs(tg_pt_gp, page, count);
+	return core_alua_store_trans_delay_msecs(to_tg_pt_gp(item), page,
+			count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(trans_delay_msecs, S_IRUGO | S_IWUSR);
-
-/*
- * implicit_trans_secs
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_implicit_trans_secs(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_implicit_trans_secs_show(
+		struct config_item *item, char *page)
 {
-	return core_alua_show_implicit_trans_secs(tg_pt_gp, page);
+	return core_alua_show_implicit_trans_secs(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_implicit_trans_secs(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_implicit_trans_secs_store(
+		struct config_item *item, const char *page, size_t count)
 {
-	return core_alua_store_implicit_trans_secs(tg_pt_gp, page, count);
+	return core_alua_store_implicit_trans_secs(to_tg_pt_gp(item), page,
+			count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(implicit_trans_secs, S_IRUGO | S_IWUSR);
-
-/*
- * preferred
- */
-
-static ssize_t target_core_alua_tg_pt_gp_show_attr_preferred(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_preferred_show(struct config_item *item,
+		char *page)
 {
-	return core_alua_show_preferred_bit(tg_pt_gp, page);
+	return core_alua_show_preferred_bit(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_preferred(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_preferred_store(struct config_item *item,
+		const char *page, size_t count)
 {
-	return core_alua_store_preferred_bit(tg_pt_gp, page, count);
+	return core_alua_store_preferred_bit(to_tg_pt_gp(item), page, count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(preferred, S_IRUGO | S_IWUSR);
-
-/*
- * tg_pt_gp_id
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_tg_pt_gp_id(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_tg_pt_gp_id_show(struct config_item *item,
+		char *page)
 {
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
+
 	if (!tg_pt_gp->tg_pt_gp_valid_id)
 		return 0;
-
 	return sprintf(page, "%hu\n", tg_pt_gp->tg_pt_gp_id);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_tg_pt_gp_id(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	const char *page,
-	size_t count)
+static ssize_t target_tg_pt_gp_tg_pt_gp_id_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	struct config_group *alua_tg_pt_gp_cg = &tg_pt_gp->tg_pt_gp_group;
 	unsigned long tg_pt_gp_id;
 	int ret;
@@ -2902,15 +2581,10 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_tg_pt_gp_id(
 	return count;
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(tg_pt_gp_id, S_IRUGO | S_IWUSR);
-
-/*
- * members
- */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_members(
-	struct t10_alua_tg_pt_gp *tg_pt_gp,
-	char *page)
+static ssize_t target_tg_pt_gp_members_show(struct config_item *item,
+		char *page)
 {
+	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	struct se_lun *lun;
 	ssize_t len = 0, cur_len;
 	unsigned char buf[TG_PT_GROUP_NAME_BUF];
@@ -2942,29 +2616,42 @@ static ssize_t target_core_alua_tg_pt_gp_show_attr_members(
 	return len;
 }
 
-SE_DEV_ALUA_TG_PT_ATTR_RO(members);
-
-CONFIGFS_EATTR_OPS(target_core_alua_tg_pt_gp, t10_alua_tg_pt_gp,
-			tg_pt_gp_group);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_access_state);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_access_status);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_access_type);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_transitioning);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_offline);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_lba_dependent);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_unavailable);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_standby);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_optimized);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_nonoptimized);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_write_metadata);
+CONFIGFS_ATTR(target_tg_pt_gp_, nonop_delay_msecs);
+CONFIGFS_ATTR(target_tg_pt_gp_, trans_delay_msecs);
+CONFIGFS_ATTR(target_tg_pt_gp_, implicit_trans_secs);
+CONFIGFS_ATTR(target_tg_pt_gp_, preferred);
+CONFIGFS_ATTR(target_tg_pt_gp_, tg_pt_gp_id);
+CONFIGFS_ATTR_RO(target_tg_pt_gp_, members);
 
 static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
-	&target_core_alua_tg_pt_gp_alua_access_state.attr,
-	&target_core_alua_tg_pt_gp_alua_access_status.attr,
-	&target_core_alua_tg_pt_gp_alua_access_type.attr,
-	&target_core_alua_tg_pt_gp_alua_support_transitioning.attr,
-	&target_core_alua_tg_pt_gp_alua_support_offline.attr,
-	&target_core_alua_tg_pt_gp_alua_support_lba_dependent.attr,
-	&target_core_alua_tg_pt_gp_alua_support_unavailable.attr,
-	&target_core_alua_tg_pt_gp_alua_support_standby.attr,
-	&target_core_alua_tg_pt_gp_alua_support_active_nonoptimized.attr,
-	&target_core_alua_tg_pt_gp_alua_support_active_optimized.attr,
-	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
-	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
-	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
-	&target_core_alua_tg_pt_gp_implicit_trans_secs.attr,
-	&target_core_alua_tg_pt_gp_preferred.attr,
-	&target_core_alua_tg_pt_gp_tg_pt_gp_id.attr,
-	&target_core_alua_tg_pt_gp_members.attr,
+	&target_tg_pt_gp_attr_alua_access_state,
+	&target_tg_pt_gp_attr_alua_access_status,
+	&target_tg_pt_gp_attr_alua_access_type,
+	&target_tg_pt_gp_attr_alua_support_transitioning,
+	&target_tg_pt_gp_attr_alua_support_offline,
+	&target_tg_pt_gp_attr_alua_support_lba_dependent,
+	&target_tg_pt_gp_attr_alua_support_unavailable,
+	&target_tg_pt_gp_attr_alua_support_standby,
+	&target_tg_pt_gp_attr_alua_support_active_nonoptimized,
+	&target_tg_pt_gp_attr_alua_support_active_optimized,
+	&target_tg_pt_gp_attr_alua_write_metadata,
+	&target_tg_pt_gp_attr_nonop_delay_msecs,
+	&target_tg_pt_gp_attr_trans_delay_msecs,
+	&target_tg_pt_gp_attr_implicit_trans_secs,
+	&target_tg_pt_gp_attr_preferred,
+	&target_tg_pt_gp_attr_tg_pt_gp_id,
+	&target_tg_pt_gp_attr_members,
 	NULL,
 };
 
@@ -2978,8 +2665,6 @@ static void target_core_alua_tg_pt_gp_release(struct config_item *item)
 
 static struct configfs_item_operations target_core_alua_tg_pt_gp_ops = {
 	.release		= target_core_alua_tg_pt_gp_release,
-	.show_attribute		= target_core_alua_tg_pt_gp_attr_show,
-	.store_attribute	= target_core_alua_tg_pt_gp_attr_store,
 };
 
 static struct config_item_type target_core_alua_tg_pt_gp_cit = {
@@ -3237,34 +2922,24 @@ static struct configfs_group_operations target_core_hba_group_ops = {
 	.drop_item		= target_core_drop_subdev,
 };
 
-CONFIGFS_EATTR_STRUCT(target_core_hba, se_hba);
-#define SE_HBA_ATTR(_name, _mode)				\
-static struct target_core_hba_attribute				\
-		target_core_hba_##_name =			\
-		__CONFIGFS_EATTR(_name, _mode,			\
-		target_core_hba_show_attr_##_name,		\
-		target_core_hba_store_attr_##_name);
 
-#define SE_HBA_ATTR_RO(_name)					\
-static struct target_core_hba_attribute				\
-		target_core_hba_##_name =			\
-		__CONFIGFS_EATTR_RO(_name,			\
-		target_core_hba_show_attr_##_name);
-
-static ssize_t target_core_hba_show_attr_hba_info(
-	struct se_hba *hba,
-	char *page)
+static inline struct se_hba *to_hba(struct config_item *item)
 {
+	return container_of(to_config_group(item), struct se_hba, hba_group);
+}
+
+static ssize_t target_hba_info_show(struct config_item *item, char *page)
+{
+	struct se_hba *hba = to_hba(item);
+
 	return sprintf(page, "HBA Index: %d plugin: %s version: %s\n",
 			hba->hba_id, hba->backend->ops->name,
 			TARGET_CORE_VERSION);
 }
 
-SE_HBA_ATTR_RO(hba_info);
-
-static ssize_t target_core_hba_show_attr_hba_mode(struct se_hba *hba,
-				char *page)
+static ssize_t target_hba_mode_show(struct config_item *item, char *page)
 {
+	struct se_hba *hba = to_hba(item);
 	int hba_mode = 0;
 
 	if (hba->hba_flags & HBA_FLAGS_PSCSI_MODE)
@@ -3273,9 +2948,10 @@ static ssize_t target_core_hba_show_attr_hba_mode(struct se_hba *hba,
 	return sprintf(page, "%d\n", hba_mode);
 }
 
-static ssize_t target_core_hba_store_attr_hba_mode(struct se_hba *hba,
-				const char *page, size_t count)
+static ssize_t target_hba_mode_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_hba *hba = to_hba(item);
 	unsigned long mode_flag;
 	int ret;
 
@@ -3304,9 +2980,8 @@ static ssize_t target_core_hba_store_attr_hba_mode(struct se_hba *hba,
 	return count;
 }
 
-SE_HBA_ATTR(hba_mode, S_IRUGO | S_IWUSR);
-
-CONFIGFS_EATTR_OPS(target_core_hba, se_hba, hba_group);
+CONFIGFS_ATTR_RO(target_, hba_info);
+CONFIGFS_ATTR(target_, hba_mode);
 
 static void target_core_hba_release(struct config_item *item)
 {
@@ -3316,15 +2991,13 @@ static void target_core_hba_release(struct config_item *item)
 }
 
 static struct configfs_attribute *target_core_hba_attrs[] = {
-	&target_core_hba_hba_info.attr,
-	&target_core_hba_hba_mode.attr,
+	&target_attr_hba_info,
+	&target_attr_hba_mode,
 	NULL,
 };
 
 static struct configfs_item_operations target_core_hba_item_ops = {
 	.release		= target_core_hba_release,
-	.show_attribute		= target_core_hba_attr_show,
-	.store_attribute	= target_core_hba_attr_store,
 };
 
 static struct config_item_type target_core_hba_cit = {

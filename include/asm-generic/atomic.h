@@ -127,7 +127,7 @@ ATOMIC_OP(xor, ^)
  * Atomically reads the value of @v.
  */
 #ifndef atomic_read
-#define atomic_read(v)	ACCESS_ONCE((v)->counter)
+#define atomic_read(v)	READ_ONCE((v)->counter)
 #endif
 
 /**
@@ -137,7 +137,7 @@ ATOMIC_OP(xor, ^)
  *
  * Atomically sets the value of @v to @i.
  */
-#define atomic_set(v, i) (((v)->counter) = (i))
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #include <linux/irqflags.h>
 

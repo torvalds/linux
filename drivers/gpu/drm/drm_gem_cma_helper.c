@@ -481,12 +481,9 @@ int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
 			   struct vm_area_struct *vma)
 {
 	struct drm_gem_cma_object *cma_obj;
-	struct drm_device *dev = obj->dev;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
 	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	mutex_unlock(&dev->struct_mutex);
 	if (ret < 0)
 		return ret;
 

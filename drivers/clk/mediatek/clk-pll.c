@@ -317,7 +317,7 @@ void __init mtk_clk_register_plls(struct device_node *node,
 		const struct mtk_pll_data *plls, int num_plls, struct clk_onecell_data *clk_data)
 {
 	void __iomem *base;
-	int r, i;
+	int i;
 	struct clk *clk;
 
 	base = of_iomap(node, 0);
@@ -339,9 +339,4 @@ void __init mtk_clk_register_plls(struct device_node *node,
 
 		clk_data->clks[pll->id] = clk;
 	}
-
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
-	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
 }

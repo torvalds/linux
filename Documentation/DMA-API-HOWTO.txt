@@ -681,6 +681,11 @@ or:
 
 as appropriate.
 
+PLEASE NOTE:  The 'nents' argument to dma_sync_sg_for_cpu() and
+	      dma_sync_sg_for_device() must be the same passed to
+	      dma_map_sg(). It is _NOT_ the count returned by
+	      dma_map_sg().
+
 After the last DMA transfer call one of the DMA unmap routines
 dma_unmap_{single,sg}(). If you don't touch the data from the first
 dma_map_*() call till dma_unmap_*(), then you don't have to call the

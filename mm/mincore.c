@@ -234,7 +234,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 
 	/* This also avoids any overflows on PAGE_CACHE_ALIGN */
 	pages = len >> PAGE_SHIFT;
-	pages += (len & ~PAGE_MASK) != 0;
+	pages += (offset_in_page(len)) != 0;
 
 	if (!access_ok(VERIFY_WRITE, vec, pages))
 		return -EFAULT;

@@ -137,9 +137,9 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 	if (ret < 0)
 		return ret;
 
-	if (!key->payload.data)
+	token = key->payload.data[0];
+	if (!token)
 		return -EKEYREJECTED;
-	token = key->payload.data;
 
 	sec = rxrpc_security_lookup(token->security_index);
 	if (!sec)

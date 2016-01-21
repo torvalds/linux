@@ -111,6 +111,7 @@
 #include <asm/mce.h>
 #include <asm/alternative.h>
 #include <asm/prom.h>
+#include <asm/microcode.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -480,34 +481,34 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 
 #ifdef CONFIG_KEXEC_CORE
 
+/* 16M alignment for crash kernel regions */
+#define CRASH_ALIGN		(16 << 20)
+
 /*
  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
  * would limit the kernel to the low 512 MiB due to mapping restrictions.
  * On 64bit, old kexec-tools need to under 896MiB.
  */
 #ifdef CONFIG_X86_32
-# define CRASH_KERNEL_ADDR_LOW_MAX	(512 << 20)
-# define CRASH_KERNEL_ADDR_HIGH_MAX	(512 << 20)
+# define CRASH_ADDR_LOW_MAX	(512 << 20)
+# define CRASH_ADDR_HIGH_MAX	(512 << 20)
 #else
-# define CRASH_KERNEL_ADDR_LOW_MAX	(896UL<<20)
-# define CRASH_KERNEL_ADDR_HIGH_MAX	MAXMEM
+# define CRASH_ADDR_LOW_MAX	(896UL << 20)
+# define CRASH_ADDR_HIGH_MAX	MAXMEM
 #endif
 
-static void __init reserve_crashkernel_low(void)
+static int __init reserve_crashkernel_low(void)
 {
 #ifdef CONFIG_X86_64
-	const unsigned long long alignment = 16<<20;	/* 16M */
-	unsigned long long low_base = 0, low_size = 0;
+	unsigned long long base, low_base = 0, low_size = 0;
 	unsigned long total_low_mem;
-	unsigned long long base;
-	bool auto_set = false;
 	int ret;
 
-	total_low_mem = memblock_mem_size(1UL<<(32-PAGE_SHIFT));
+	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
+
 	/* crashkernel=Y,low */
-	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
-						&low_size, &base);
-	if (ret != 0) {
+	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
+	if (ret) {
 		/*
 		 * two parts from lib/swiotlb.c:
 		 * -swiotlb size: user-specified with swiotlb= or default.
@@ -517,52 +518,52 @@ static void __init reserve_crashkernel_low(void)
 		 * make sure we allocate enough extra low memory so that we
 		 * don't run out of DMA buffers for 32-bit devices.
 		 */
-		low_size = max(swiotlb_size_or_default() + (8UL<<20), 256UL<<20);
-		auto_set = true;
+		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
 	} else {
 		/* passed with crashkernel=0,low ? */
 		if (!low_size)
-			return;
+			return 0;
 	}
 
-	low_base = memblock_find_in_range(low_size, (1ULL<<32),
-					low_size, alignment);
-
+	low_base = memblock_find_in_range(low_size, 1ULL << 32, low_size, CRASH_ALIGN);
 	if (!low_base) {
-		if (!auto_set)
-			pr_info("crashkernel low reservation failed - No suitable area found.\n");
-
-		return;
+		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
+		       (unsigned long)(low_size >> 20));
+		return -ENOMEM;
 	}
 
-	memblock_reserve(low_base, low_size);
+	ret = memblock_reserve(low_base, low_size);
+	if (ret) {
+		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
+		return ret;
+	}
+
 	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
-			(unsigned long)(low_size >> 20),
-			(unsigned long)(low_base >> 20),
-			(unsigned long)(total_low_mem >> 20));
+		(unsigned long)(low_size >> 20),
+		(unsigned long)(low_base >> 20),
+		(unsigned long)(total_low_mem >> 20));
+
 	crashk_low_res.start = low_base;
 	crashk_low_res.end   = low_base + low_size - 1;
 	insert_resource(&iomem_resource, &crashk_low_res);
 #endif
+	return 0;
 }
 
 static void __init reserve_crashkernel(void)
 {
-	const unsigned long long alignment = 16<<20;	/* 16M */
-	unsigned long long total_mem;
-	unsigned long long crash_size, crash_base;
+	unsigned long long crash_size, crash_base, total_mem;
 	bool high = false;
 	int ret;
 
 	total_mem = memblock_phys_mem_size();
 
 	/* crashkernel=XM */
-	ret = parse_crashkernel(boot_command_line, total_mem,
-			&crash_size, &crash_base);
+	ret = parse_crashkernel(boot_command_line, total_mem, &crash_size, &crash_base);
 	if (ret != 0 || crash_size <= 0) {
 		/* crashkernel=X,high */
 		ret = parse_crashkernel_high(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+					     &crash_size, &crash_base);
 		if (ret != 0 || crash_size <= 0)
 			return;
 		high = true;
@@ -573,11 +574,10 @@ static void __init reserve_crashkernel(void)
 		/*
 		 *  kexec want bzImage is below CRASH_KERNEL_ADDR_MAX
 		 */
-		crash_base = memblock_find_in_range(alignment,
-					high ? CRASH_KERNEL_ADDR_HIGH_MAX :
-					       CRASH_KERNEL_ADDR_LOW_MAX,
-					crash_size, alignment);
-
+		crash_base = memblock_find_in_range(CRASH_ALIGN,
+						    high ? CRASH_ADDR_HIGH_MAX
+							 : CRASH_ADDR_LOW_MAX,
+						    crash_size, CRASH_ALIGN);
 		if (!crash_base) {
 			pr_info("crashkernel reservation failed - No suitable area found.\n");
 			return;
@@ -587,26 +587,32 @@ static void __init reserve_crashkernel(void)
 		unsigned long long start;
 
 		start = memblock_find_in_range(crash_base,
-				 crash_base + crash_size, crash_size, 1<<20);
+					       crash_base + crash_size,
+					       crash_size, 1 << 20);
 		if (start != crash_base) {
 			pr_info("crashkernel reservation failed - memory is in use.\n");
 			return;
 		}
 	}
-	memblock_reserve(crash_base, crash_size);
+	ret = memblock_reserve(crash_base, crash_size);
+	if (ret) {
+		pr_err("%s: Error reserving crashkernel memblock.\n", __func__);
+		return;
+	}
 
-	printk(KERN_INFO "Reserving %ldMB of memory at %ldMB "
-			"for crashkernel (System RAM: %ldMB)\n",
-			(unsigned long)(crash_size >> 20),
-			(unsigned long)(crash_base >> 20),
-			(unsigned long)(total_mem >> 20));
+	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
+		memblock_free(crash_base, crash_size);
+		return;
+	}
+
+	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
+		(unsigned long)(crash_size >> 20),
+		(unsigned long)(crash_base >> 20),
+		(unsigned long)(total_mem >> 20));
 
 	crashk_res.start = crash_base;
 	crashk_res.end   = crash_base + crash_size - 1;
 	insert_resource(&iomem_resource, &crashk_res);
-
-	if (crash_base >= (1ULL<<32))
-		reserve_crashkernel_low();
 }
 #else
 static void __init reserve_crashkernel(void)
@@ -1079,8 +1085,10 @@ void __init setup_arch(char **cmdline_p)
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
 
-	if (efi_enabled(EFI_BOOT))
+	if (efi_enabled(EFI_BOOT)) {
+		efi_fake_memmap();
 		efi_find_mirror();
+	}
 
 	/*
 	 * The EFI specification says that boot service code won't be called
@@ -1180,7 +1188,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	clone_pgd_range(initial_page_table,
 			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
-			KERNEL_PGD_PTRS);
+			min(KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
 #endif
 
 	tboot_probe();

@@ -39,37 +39,40 @@
 #define CABLE_NAME_MAX		30
 
 static const char *extcon_name[] =  {
-	[EXTCON_NONE]		= "NONE",
+	[EXTCON_NONE]			= "NONE",
 
 	/* USB external connector */
-	[EXTCON_USB]		= "USB",
-	[EXTCON_USB_HOST]	= "USB-HOST",
+	[EXTCON_USB]			= "USB",
+	[EXTCON_USB_HOST]		= "USB-HOST",
 
-	/* Charger external connector */
-	[EXTCON_TA]		= "TA",
-	[EXTCON_FAST_CHARGER]	= "FAST-CHARGER",
-	[EXTCON_SLOW_CHARGER]	= "SLOW-CHARGER",
-	[EXTCON_CHARGE_DOWNSTREAM] = "CHARGE-DOWNSTREAM",
+	/* Charging external connector */
+	[EXTCON_CHG_USB_SDP]		= "SDP",
+	[EXTCON_CHG_USB_DCP]		= "DCP",
+	[EXTCON_CHG_USB_CDP]		= "CDP",
+	[EXTCON_CHG_USB_ACA]		= "ACA",
+	[EXTCON_CHG_USB_FAST]		= "FAST-CHARGER",
+	[EXTCON_CHG_USB_SLOW]		= "SLOW-CHARGER",
 
-	/* Audio/Video external connector */
-	[EXTCON_LINE_IN]	= "LINE-IN",
-	[EXTCON_LINE_OUT]	= "LINE-OUT",
-	[EXTCON_MICROPHONE]	= "MICROPHONE",
-	[EXTCON_HEADPHONE]	= "HEADPHONE",
+	/* Jack external connector */
+	[EXTCON_JACK_MICROPHONE]	= "MICROPHONE",
+	[EXTCON_JACK_HEADPHONE]		= "HEADPHONE",
+	[EXTCON_JACK_LINE_IN]		= "LINE-IN",
+	[EXTCON_JACK_LINE_OUT]		= "LINE-OUT",
+	[EXTCON_JACK_VIDEO_IN]		= "VIDEO-IN",
+	[EXTCON_JACK_VIDEO_OUT]		= "VIDEO-OUT",
+	[EXTCON_JACK_SPDIF_IN]		= "SPDIF-IN",
+	[EXTCON_JACK_SPDIF_OUT]		= "SPDIF-OUT",
 
-	[EXTCON_HDMI]		= "HDMI",
-	[EXTCON_MHL]		= "MHL",
-	[EXTCON_DVI]		= "DVI",
-	[EXTCON_VGA]		= "VGA",
-	[EXTCON_SPDIF_IN]	= "SPDIF-IN",
-	[EXTCON_SPDIF_OUT]	= "SPDIF-OUT",
-	[EXTCON_VIDEO_IN]	= "VIDEO-IN",
-	[EXTCON_VIDEO_OUT]	= "VIDEO-OUT",
+	/* Display external connector */
+	[EXTCON_DISP_HDMI]		= "HDMI",
+	[EXTCON_DISP_MHL]		= "MHL",
+	[EXTCON_DISP_DVI]		= "DVI",
+	[EXTCON_DISP_VGA]		= "VGA",
 
-	/* Etc external connector */
-	[EXTCON_DOCK]		= "DOCK",
-	[EXTCON_JIG]		= "JIG",
-	[EXTCON_MECHANICAL]	= "MECHANICAL",
+	/* Miscellaneous external connector */
+	[EXTCON_DOCK]			= "DOCK",
+	[EXTCON_JIG]			= "JIG",
+	[EXTCON_MECHANICAL]		= "MECHANICAL",
 
 	NULL,
 };

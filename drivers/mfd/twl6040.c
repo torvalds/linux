@@ -647,6 +647,8 @@ static int twl6040_probe(struct i2c_client *client,
 
 	twl6040->clk32k = devm_clk_get(&client->dev, "clk32k");
 	if (IS_ERR(twl6040->clk32k)) {
+		if (PTR_ERR(twl6040->clk32k) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 		dev_info(&client->dev, "clk32k is not handled\n");
 		twl6040->clk32k = NULL;
 	}

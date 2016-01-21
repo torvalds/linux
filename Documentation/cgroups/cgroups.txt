@@ -637,6 +637,10 @@ void exit(struct task_struct *task)
 
 Called during task exit.
 
+void free(struct task_struct *task)
+
+Called when the task_struct is freed.
+
 void bind(struct cgroup *root)
 (cgroup_mutex held by caller)
 

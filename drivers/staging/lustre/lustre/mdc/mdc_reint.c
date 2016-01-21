@@ -127,7 +127,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	if ((op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) == 0)
 		req_capsule_set_size(&req->rq_pill, &RMF_MDT_EPOCH, RCL_CLIENT,
 				     0);
@@ -144,8 +143,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	rpc_lock = obd->u.cli.cl_rpc_lock;
 
 	if (op_data->op_attr.ia_valid & (ATTR_MTIME | ATTR_CTIME))
-		CDEBUG(D_INODE, "setting mtime "CFS_TIME_T
-		       ", ctime "CFS_TIME_T"\n",
+		CDEBUG(D_INODE, "setting mtime %ld, ctime %ld\n",
 		       LTIME_S(op_data->op_attr.ia_mtime),
 		       LTIME_S(op_data->op_attr.ia_ctime));
 	mdc_setattr_pack(req, op_data, ea, ealen, ea2, ea2len);
@@ -243,7 +241,6 @@ rebuild:
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
 			     op_data->op_namelen + 1);
 	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_CLIENT,
@@ -271,7 +268,7 @@ rebuild:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = get_seconds() + resends;
+		req->rq_sent = ktime_get_real_seconds() + resends;
 	}
 	level = LUSTRE_IMP_FULL;
  resend:
@@ -296,18 +293,6 @@ rebuild:
 		} else {
 			CDEBUG(D_HA, "resend cross eviction\n");
 			return -EIO;
-		}
-	} else if (rc == 0) {
-		struct mdt_body *body;
-		struct lustre_capa *capa;
-
-		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		LASSERT(body);
-		if (body->valid & OBD_MD_FLMDSCAPA) {
-			capa = req_capsule_server_get(&req->rq_pill,
-						      &RMF_CAPA1);
-			if (capa == NULL)
-				rc = -EPROTO;
 		}
 	}
 
@@ -343,7 +328,6 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
 			     op_data->op_namelen + 1);
 
@@ -393,8 +377,6 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_set_capa_size(req, &RMF_CAPA2, op_data->op_capa2);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
 			     op_data->op_namelen + 1);
 
@@ -452,8 +434,6 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 		return -ENOMEM;
 	}
 
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_set_capa_size(req, &RMF_CAPA2, op_data->op_capa2);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT, oldlen + 1);
 	req_capsule_set_size(&req->rq_pill, &RMF_SYMTGT, RCL_CLIENT, newlen+1);
 

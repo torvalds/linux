@@ -1247,11 +1247,9 @@ static int efx_init_io(struct efx_nic *efx)
 	 * masks event though they reject 46 bit masks.
 	 */
 	while (dma_mask > 0x7fffffffUL) {
-		if (dma_supported(&pci_dev->dev, dma_mask)) {
-			rc = dma_set_mask_and_coherent(&pci_dev->dev, dma_mask);
-			if (rc == 0)
-				break;
-		}
+		rc = dma_set_mask_and_coherent(&pci_dev->dev, dma_mask);
+		if (rc == 0)
+			break;
 		dma_mask >>= 1;
 	}
 	if (rc) {
@@ -2062,7 +2060,7 @@ static void efx_init_napi_channel(struct efx_channel *channel)
 	netif_napi_add(channel->napi_dev, &channel->napi_str,
 		       efx_poll, napi_weight);
 	napi_hash_add(&channel->napi_str);
-	efx_channel_init_lock(channel);
+	efx_channel_busy_poll_init(channel);
 }
 
 static void efx_init_napi(struct efx_nic *efx)
@@ -2125,7 +2123,7 @@ static int efx_busy_poll(struct napi_struct *napi)
 	if (!netif_running(efx->net_dev))
 		return LL_FLUSH_FAILED;
 
-	if (!efx_channel_lock_poll(channel))
+	if (!efx_channel_try_lock_poll(channel))
 		return LL_FLUSH_BUSY;
 
 	old_rx_packets = channel->rx_queue.rx_packets;
@@ -3424,7 +3422,7 @@ out:
  * with our request for slot reset the mmio_enabled callback will never be
  * called, and the link_reset callback is not used by AER or EEH mechanisms.
  */
-static struct pci_error_handlers efx_err_handlers = {
+static const struct pci_error_handlers efx_err_handlers = {
 	.error_detected = efx_io_error_detected,
 	.slot_reset	= efx_io_slot_reset,
 	.resume		= efx_io_resume,

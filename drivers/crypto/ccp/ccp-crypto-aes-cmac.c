@@ -118,10 +118,19 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	if (rctx->buf_count) {
 		sg_init_one(&rctx->buf_sg, rctx->buf, rctx->buf_count);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->buf_sg);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
 	}
 
-	if (nbytes)
+	if (nbytes) {
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, req->src);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
+	}
 
 	if (need_pad) {
 		int pad_length = block_size - (len & (block_size - 1));
@@ -132,6 +141,10 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 		rctx->pad[0] = 0x80;
 		sg_init_one(&rctx->pad_sg, rctx->pad, pad_length);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->pad_sg);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
 	}
 	if (sg) {
 		sg_mark_end(sg);
@@ -161,6 +174,11 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.u.aes.cmac_final = final;
 
 	ret = ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
+
+	return ret;
+
+e_free:
+	sg_free_table(&rctx->data_sg);
 
 	return ret;
 }

@@ -1,5 +1,6 @@
 config WIL6210
 	tristate "Wilocity 60g WiFi card wil6210 support"
+	select WANT_DEV_COREDUMP
 	depends on CFG80211
 	depends on PCI
 	default n

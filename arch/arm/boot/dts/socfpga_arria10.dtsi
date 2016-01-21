@@ -519,6 +519,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02200 0x100>;
 			interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -528,6 +529,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02300 0x100>;
 			interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -537,6 +539,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02400 0x100>;
 			interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -546,6 +549,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02500 0x100>;
 			interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -555,6 +559,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02600 0x100>;
 			interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -658,6 +663,7 @@
 			interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -692,6 +698,8 @@
 			compatible = "snps,dwc2";
 			reg = <0xffb40000 0xffff>;
 			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_clk>;
+			clock-names = "otg";
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
 			status = "disabled";

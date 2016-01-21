@@ -209,12 +209,6 @@ int inet_frags_init(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frags_init);
 
-void inet_frags_init_net(struct netns_frags *nf)
-{
-	init_frag_mem_limit(nf);
-}
-EXPORT_SYMBOL(inet_frags_init_net);
-
 void inet_frags_fini(struct inet_frags *f)
 {
 	cancel_work_sync(&f->frags_work);

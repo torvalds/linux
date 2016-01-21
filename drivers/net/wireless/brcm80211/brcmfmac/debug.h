@@ -37,6 +37,7 @@
 #define BRCMF_SDIO_VAL		0x00020000
 #define BRCMF_MSGBUF_VAL	0x00040000
 #define BRCMF_PCIE_VAL		0x00080000
+#define BRCMF_FWCON_VAL		0x00100000
 
 /* set default print format */
 #undef pr_fmt
@@ -78,6 +79,7 @@ do {								\
 #define BRCMF_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
 #define BRCMF_EVENT_ON()	(brcmf_msg_level & BRCMF_EVENT_VAL)
 #define BRCMF_FIL_ON()		(brcmf_msg_level & BRCMF_FIL_VAL)
+#define BRCMF_FWCON_ON()	(brcmf_msg_level & BRCMF_FWCON_VAL)
 
 #else /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
@@ -90,6 +92,7 @@ do {								\
 #define BRCMF_GLOM_ON()		0
 #define BRCMF_EVENT_ON()	0
 #define BRCMF_FIL_ON()		0
+#define BRCMF_FWCON_ON()	0
 
 #endif /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
@@ -106,8 +109,8 @@ struct brcmf_pub;
 #ifdef DEBUG
 void brcmf_debugfs_init(void);
 void brcmf_debugfs_exit(void);
-int brcmf_debugfs_attach(struct brcmf_pub *drvr);
-void brcmf_debugfs_detach(struct brcmf_pub *drvr);
+int brcmf_debug_attach(struct brcmf_pub *drvr);
+void brcmf_debug_detach(struct brcmf_pub *drvr);
 struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
 int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
 			    int (*read_fn)(struct seq_file *seq, void *data));
@@ -118,11 +121,11 @@ static inline void brcmf_debugfs_init(void)
 static inline void brcmf_debugfs_exit(void)
 {
 }
-static inline int brcmf_debugfs_attach(struct brcmf_pub *drvr)
+static inline int brcmf_debug_attach(struct brcmf_pub *drvr)
 {
 	return 0;
 }
-static inline void brcmf_debugfs_detach(struct brcmf_pub *drvr)
+static inline void brcmf_debug_detach(struct brcmf_pub *drvr)
 {
 }
 static inline

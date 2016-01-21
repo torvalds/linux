@@ -110,6 +110,7 @@ enum perf_sw_ids {
 	PERF_COUNT_SW_ALIGNMENT_FAULTS		= 7,
 	PERF_COUNT_SW_EMULATION_FAULTS		= 8,
 	PERF_COUNT_SW_DUMMY			= 9,
+	PERF_COUNT_SW_BPF_OUTPUT		= 10,
 
 	PERF_COUNT_SW_MAX,			/* non-ABI */
 };
@@ -168,6 +169,7 @@ enum perf_branch_sample_type_shift {
 
 	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT	= 11, /* call/ret stack */
 	PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT	= 12, /* indirect jumps */
+	PERF_SAMPLE_BRANCH_CALL_SHIFT		= 13, /* direct call */
 
 	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* non-ABI */
 };
@@ -188,6 +190,7 @@ enum perf_branch_sample_type {
 
 	PERF_SAMPLE_BRANCH_CALL_STACK	= 1U << PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT,
 	PERF_SAMPLE_BRANCH_IND_JUMP	= 1U << PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT,
+	PERF_SAMPLE_BRANCH_CALL		= 1U << PERF_SAMPLE_BRANCH_CALL_SHIFT,
 
 	PERF_SAMPLE_BRANCH_MAX		= 1U << PERF_SAMPLE_BRANCH_MAX_SHIFT,
 };
@@ -476,7 +479,7 @@ struct perf_event_mmap_page {
 	 *   u64 delta;
 	 *
 	 *   quot = (cyc >> time_shift);
-	 *   rem = cyc & ((1 << time_shift) - 1);
+	 *   rem = cyc & (((u64)1 << time_shift) - 1);
 	 *   delta = time_offset + quot * time_mult +
 	 *              ((rem * time_mult) >> time_shift);
 	 *
@@ -507,7 +510,7 @@ struct perf_event_mmap_page {
 	 * And vice versa:
 	 *
 	 *   quot = cyc >> time_shift;
-	 *   rem  = cyc & ((1 << time_shift) - 1);
+	 *   rem  = cyc & (((u64)1 << time_shift) - 1);
 	 *   timestamp = time_zero + quot * time_mult +
 	 *               ((rem * time_mult) >> time_shift);
 	 */

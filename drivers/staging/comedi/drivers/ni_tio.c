@@ -167,15 +167,15 @@ static inline unsigned GI_HW_ARM_SEL_MASK(enum ni_gpct_variant variant)
 	}
 }
 
-static int ni_tio_has_gate2_registers(const struct ni_gpct_device *counter_dev)
+static bool ni_tio_has_gate2_registers(const struct ni_gpct_device *counter_dev)
 {
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
 	default:
-		return 0;
+		return false;
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
-		return 1;
+		return true;
 	}
 }
 

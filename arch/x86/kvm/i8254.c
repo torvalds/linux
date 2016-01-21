@@ -35,6 +35,7 @@
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
 
+#include "ioapic.h"
 #include "irq.h"
 #include "i8254.h"
 #include "x86.h"
@@ -333,7 +334,8 @@ static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 	s64 interval;
 
-	if (!irqchip_in_kernel(kvm) || ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
+	if (!ioapic_in_kernel(kvm) ||
+	    ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
 		return;
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
@@ -418,6 +420,7 @@ void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val, int hpet_legacy_s
 	u8 saved_mode;
 	if (hpet_legacy_start) {
 		/* save existing mode for later reenablement */
+		WARN_ON(channel != 0);
 		saved_mode = kvm->arch.vpit->pit_state.channels[0].mode;
 		kvm->arch.vpit->pit_state.channels[0].mode = 0xff; /* disable timer */
 		pit_load_count(kvm, channel, val);

@@ -217,7 +217,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		      u32 xdr_off, int write_len,
 		      struct svc_rdma_req_map *vec)
 {
-	struct ib_send_wr write_wr;
+	struct ib_rdma_wr write_wr;
 	struct ib_sge *sge;
 	int xdr_sge_no;
 	int sge_no;
@@ -282,17 +282,17 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 	/* Prepare WRITE WR */
 	memset(&write_wr, 0, sizeof write_wr);
 	ctxt->wr_op = IB_WR_RDMA_WRITE;
-	write_wr.wr_id = (unsigned long)ctxt;
-	write_wr.sg_list = &sge[0];
-	write_wr.num_sge = sge_no;
-	write_wr.opcode = IB_WR_RDMA_WRITE;
-	write_wr.send_flags = IB_SEND_SIGNALED;
-	write_wr.wr.rdma.rkey = rmr;
-	write_wr.wr.rdma.remote_addr = to;
+	write_wr.wr.wr_id = (unsigned long)ctxt;
+	write_wr.wr.sg_list = &sge[0];
+	write_wr.wr.num_sge = sge_no;
+	write_wr.wr.opcode = IB_WR_RDMA_WRITE;
+	write_wr.wr.send_flags = IB_SEND_SIGNALED;
+	write_wr.rkey = rmr;
+	write_wr.remote_addr = to;
 
 	/* Post It */
 	atomic_inc(&rdma_stat_write);
-	if (svc_rdma_send(xprt, &write_wr))
+	if (svc_rdma_send(xprt, &write_wr.wr))
 		goto err;
 	return write_len - bc;
  err:

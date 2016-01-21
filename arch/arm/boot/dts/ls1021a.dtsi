@@ -53,6 +53,7 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		crypto = &crypto;
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;
 		ethernet2 = &enet2;
@@ -146,6 +147,45 @@
 			compatible = "fsl,ls1021a-scfg", "syscon";
 			reg = <0x0 0x1570000 0x0 0x10000>;
 			big-endian;
+		};
+
+		crypto: crypto@1700000 {
+			compatible = "fsl,sec-v5.0", "fsl,sec-v4.0";
+			fsl,sec-era = <7>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg		 = <0x0 0x1700000 0x0 0x100000>;
+			ranges		 = <0x0 0x0 0x1700000 0x100000>;
+			interrupts	 = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+
+			sec_jr0: jr@10000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x10000 0x10000>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr1: jr@20000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x20000 0x10000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr2: jr@30000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x30000 0x10000>;
+				interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr3: jr@40000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x40000 0x10000>;
+				interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 		};
 
 		clockgen: clocking@1ee1000 {
@@ -405,6 +445,7 @@
 			model = "eTSEC";
 			fsl,magic-packet;
 			ranges;
+			dma-coherent;
 
 			queue-group@2d10000 {
 				#address-cells = <2>;
@@ -433,6 +474,7 @@
 			interrupt-parent = <&gic>;
 			model = "eTSEC";
 			ranges;
+			dma-coherent;
 
 			queue-group@2d50000  {
 				#address-cells = <2>;
@@ -461,6 +503,7 @@
 			interrupt-parent = <&gic>;
 			model = "eTSEC";
 			ranges;
+			dma-coherent;
 
 			queue-group@2d90000  {
 				#address-cells = <2>;
@@ -494,6 +537,7 @@
 			reg = <0x0 0x3100000 0x0 0x10000>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
+			snps,quirk-frame-length-adjustment = <0x20>;
 		};
 	};
 };

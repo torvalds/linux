@@ -115,7 +115,7 @@ Switch ID
 ^^^^^^^^^
 
 The switchdev driver must implement the switchdev op switchdev_port_attr_get
-for SWITCHDEV_ATTR_PORT_PARENT_ID for each port netdev, returning the same
+for SWITCHDEV_ATTR_ID_PORT_PARENT_ID for each port netdev, returning the same
 physical ID for each port of a switch.  The ID must be unique between switches
 on the same system.  The ID does not need to be unique between switches on
 different systems.
@@ -178,7 +178,7 @@ entries are installed, for example, using iproute2 bridge cmd:
 	bridge fdb add ADDR dev DEV [vlan VID] [self]
 
 The driver should use the helper switchdev_port_fdb_xxx ops for ndo_fdb_xxx
-ops, and handle add/delete/dump of SWITCHDEV_OBJ_PORT_FDB object using
+ops, and handle add/delete/dump of SWITCHDEV_OBJ_ID_PORT_FDB object using
 switchdev_port_obj_xxx ops.
 
 XXX: what should be done if offloading this rule to hardware fails (for
@@ -233,26 +233,27 @@ the bridge's FDB.  It's possible, but not optimal, to enable learning on the
 device port and on the bridge port, and disable learning_sync.
 
 To support learning and learning_sync port attributes, the driver implements
-switchdev op switchdev_port_attr_get/set for SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS.
-The driver should initialize the attributes to the hardware defaults.
+switchdev op switchdev_port_attr_get/set for
+SWITCHDEV_ATTR_PORT_ID_BRIDGE_FLAGS. The driver should initialize the attributes
+to the hardware defaults.
 
 FDB Ageing
 ^^^^^^^^^^
 
-There are two FDB ageing models supported: 1) ageing by the device, and 2)
-ageing by the kernel.  Ageing by the device is preferred if many FDB entries
-are supported.  The driver calls call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
-...) to age out the FDB entry.  In this model, ageing by the kernel should be
-turned off.  XXX: how to turn off ageing in kernel on a per-port basis or
-otherwise prevent the kernel from ageing out the FDB entry?
+The bridge will skip ageing FDB entries marked with NTF_EXT_LEARNED and it is
+the responsibility of the port driver/device to age out these entries.  If the
+port device supports ageing, when the FDB entry expires, it will notify the
+driver which in turn will notify the bridge with SWITCHDEV_FDB_DEL.  If the
+device does not support ageing, the driver can simulate ageing using a
+garbage collection timer to monitor FBD entries.  Expired entries will be
+notified to the bridge using SWITCHDEV_FDB_DEL.  See rocker driver for
+example of driver running ageing timer.
 
-In the kernel ageing model, the standard bridge ageing mechanism is used to age
-out stale FDB entries.  To keep an FDB entry "alive", the driver should refresh
-the FDB entry by calling call_switchdev_notifiers(SWITCHDEV_FDB_ADD, ...).  The
+To keep an NTF_EXT_LEARNED entry "alive", the driver should refresh the FDB
+entry by calling call_switchdev_notifiers(SWITCHDEV_FDB_ADD, ...).  The
 notification will reset the FDB entry's last-used time to now.  The driver
 should rate limit refresh notifications, for example, no more than once a
-second.  If the FDB entry expires, fdb_delete is called to remove entry from
-the device.
+second.  (The last-used time is visible using the bridge -s fdb option).
 
 STP State Change on Port
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -260,7 +261,7 @@ STP State Change on Port
 Internally or with a third-party STP protocol implementation (e.g. mstpd), the
 bridge driver maintains the STP state for ports, and will notify the switch
 driver of STP state change on a port using the switchdev op
-switchdev_attr_port_set for SWITCHDEV_ATTR_PORT_STP_UPDATE.
+switchdev_attr_port_set for SWITCHDEV_ATTR_PORT_ID_STP_UPDATE.
 
 State is one of BR_STATE_*.  The switch driver can use STP state updates to
 update ingress packet filter list for the port.  For example, if port is
@@ -277,8 +278,8 @@ Flooding L2 domain
 For a given L2 VLAN domain, the switch device should flood multicast/broadcast
 and unknown unicast packets to all ports in domain, if allowed by port's
 current STP state.  The switch driver, knowing which ports are within which
-vlan L2 domain, can program the switch device for flooding.  The packet should
-also be sent to the port netdev for processing by the bridge driver.  The
+vlan L2 domain, can program the switch device for flooding.  The packet may
+be sent to the port netdev for processing by the bridge driver.  The
 bridge should not reflood the packet to the same ports the device flooded,
 otherwise there will be duplicate packets on the wire.
 
@@ -296,6 +297,9 @@ It is possible for the switch device to not handle flooding and push the
 packets up to the bridge driver for flooding.  This is not ideal as the number
 of ports scale in the L2 domain as the device is much more efficient at
 flooding packets that software.
+
+If supported by the device, flood control can be offloaded to it, preventing
+certain netdevs from flooding unicast traffic for which there is no FDB entry.
 
 IGMP Snooping
 ^^^^^^^^^^^^^
@@ -316,9 +320,9 @@ SWITCHDEV_OBJ_IPV[4|6]_FIB object using switchdev_port_obj_xxx ops.
 switchdev_port_obj_add is used for both adding a new FIB entry to the device,
 or modifying an existing entry on the device.
 
-XXX: Currently, only SWITCHDEV_OBJ_IPV4_FIB objects are supported.
+XXX: Currently, only SWITCHDEV_OBJ_ID_IPV4_FIB objects are supported.
 
-SWITCHDEV_OBJ_IPV4_FIB object passes:
+SWITCHDEV_OBJ_ID_IPV4_FIB object passes:
 
 	struct switchdev_obj_ipv4_fib {         /* IPV4_FIB */
 		u32 dst;
@@ -369,3 +373,22 @@ The driver can monitor for updates to arp_tbl using the netevent notifier
 NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
 for the routes as arp_tbl updates.  The driver implements ndo_neigh_destroy
 to know when arp_tbl neighbor entries are purged from the port.
+
+Transaction item queue
+^^^^^^^^^^^^^^^^^^^^^^
+
+For switchdev ops attr_set and obj_add, there is a 2 phase transaction model
+used. First phase is to "prepare" anything needed, including various checks,
+memory allocation, etc. The goal is to handle the stuff that is not unlikely
+to fail here. The second phase is to "commit" the actual changes.
+
+Switchdev provides an inftrastructure for sharing items (for example memory
+allocations) between the two phases.
+
+The object created by a driver in "prepare" phase and it is queued up by:
+switchdev_trans_item_enqueue()
+During the "commit" phase, the driver gets the object by:
+switchdev_trans_item_dequeue()
+
+If a transaction is aborted during "prepare" phase, switchdev code will handle
+cleanup of the queued-up objects.

@@ -171,10 +171,6 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 {
 	int i;
 
-	mutex_lock(&cpufreq_governor_lock);
-	if (!policy->governor_enabled)
-		goto out_unlock;
-
 	if (!all_cpus) {
 		/*
 		 * Use raw_smp_processor_id() to avoid preemptible warnings.
@@ -188,9 +184,6 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 		for_each_cpu(i, policy->cpus)
 			__gov_queue_work(i, dbs_data, delay);
 	}
-
-out_unlock:
-	mutex_unlock(&cpufreq_governor_lock);
 }
 EXPORT_SYMBOL_GPL(gov_queue_work);
 
@@ -229,12 +222,23 @@ static void dbs_timer(struct work_struct *work)
 	struct cpu_dbs_info *cdbs = container_of(work, struct cpu_dbs_info,
 						 dwork.work);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
-	struct cpufreq_policy *policy = shared->policy;
-	struct dbs_data *dbs_data = policy->governor_data;
+	struct cpufreq_policy *policy;
+	struct dbs_data *dbs_data;
 	unsigned int sampling_rate, delay;
 	bool modify_all = true;
 
 	mutex_lock(&shared->timer_mutex);
+
+	policy = shared->policy;
+
+	/*
+	 * Governor might already be disabled and there is no point continuing
+	 * with the work-handler.
+	 */
+	if (!policy)
+		goto unlock;
+
+	dbs_data = policy->governor_data;
 
 	if (dbs_data->cdata->governor == GOV_CONSERVATIVE) {
 		struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
@@ -252,6 +256,7 @@ static void dbs_timer(struct work_struct *work)
 	delay = dbs_data->cdata->gov_dbs_timer(cdbs, dbs_data, modify_all);
 	gov_queue_work(dbs_data, policy, delay, modify_all);
 
+unlock:
 	mutex_unlock(&shared->timer_mutex);
 }
 
@@ -348,29 +353,21 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 	set_sampling_rate(dbs_data, max(dbs_data->min_sampling_rate,
 					latency * LATENCY_MULTIPLIER));
 
-	if (!have_governor_per_policy()) {
-		if (WARN_ON(cpufreq_get_global_kobject())) {
-			ret = -EINVAL;
-			goto cdata_exit;
-		}
+	if (!have_governor_per_policy())
 		cdata->gdbs_data = dbs_data;
-	}
 
 	ret = sysfs_create_group(get_governor_parent_kobj(policy),
 				 get_sysfs_attr(dbs_data));
 	if (ret)
-		goto put_kobj;
+		goto reset_gdbs_data;
 
 	policy->governor_data = dbs_data;
 
 	return 0;
 
-put_kobj:
-	if (!have_governor_per_policy()) {
+reset_gdbs_data:
+	if (!have_governor_per_policy())
 		cdata->gdbs_data = NULL;
-		cpufreq_put_global_kobject();
-	}
-cdata_exit:
 	cdata->exit(dbs_data, !policy->governor->initialized);
 free_common_dbs_info:
 	free_common_dbs_info(policy, cdata);
@@ -394,10 +391,8 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy,
 		sysfs_remove_group(get_governor_parent_kobj(policy),
 				   get_sysfs_attr(dbs_data));
 
-		if (!have_governor_per_policy()) {
+		if (!have_governor_per_policy())
 			cdata->gdbs_data = NULL;
-			cpufreq_put_global_kobject();
-		}
 
 		cdata->exit(dbs_data, policy->governor->initialized == 1);
 		kfree(dbs_data);
@@ -463,7 +458,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 			cdata->get_cpu_dbs_info_s(cpu);
 
 		cs_dbs_info->down_skip = 0;
-		cs_dbs_info->enable = 1;
 		cs_dbs_info->requested_freq = policy->cur;
 	} else {
 		struct od_ops *od_ops = cdata->gov_ops;
@@ -482,25 +476,24 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 				 struct dbs_data *dbs_data)
 {
-	struct common_dbs_data *cdata = dbs_data->cdata;
-	unsigned int cpu = policy->cpu;
-	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(cpu);
+	struct cpu_dbs_info *cdbs = dbs_data->cdata->get_cpu_cdbs(policy->cpu);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
 
 	/* State should be equivalent to START */
 	if (!shared || !shared->policy)
 		return -EBUSY;
 
+	/*
+	 * Work-handler must see this updated, as it should not proceed any
+	 * further after governor is disabled. And so timer_mutex is taken while
+	 * updating this value.
+	 */
+	mutex_lock(&shared->timer_mutex);
+	shared->policy = NULL;
+	mutex_unlock(&shared->timer_mutex);
+
 	gov_cancel_work(dbs_data, policy);
 
-	if (cdata->governor == GOV_CONSERVATIVE) {
-		struct cs_cpu_dbs_info_s *cs_dbs_info =
-			cdata->get_cpu_dbs_info_s(cpu);
-
-		cs_dbs_info->enable = 0;
-	}
-
-	shared->policy = NULL;
 	mutex_destroy(&shared->timer_mutex);
 	return 0;
 }

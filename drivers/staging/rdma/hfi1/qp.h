@@ -52,6 +52,7 @@
 
 #include <linux/hash.h>
 #include "verbs.h"
+#include "sdma.h"
 
 #define QPN_MAX                 (1 << 24)
 #define QPNMAP_ENTRIES          (QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
@@ -114,6 +115,20 @@ static inline struct hfi1_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
 				break;
 	}
 	return qp;
+}
+
+/**
+ * clear_ahg - reset ahg status in qp
+ * @qp - qp pointer
+ */
+static inline void clear_ahg(struct hfi1_qp *qp)
+{
+	qp->s_hdr->ahgcount = 0;
+	qp->s_flags &= ~(HFI1_S_AHG_VALID | HFI1_S_AHG_CLEAR);
+	if (qp->s_sde && qp->s_ahgidx >= 0)
+		sdma_ahg_free(qp->s_sde, qp->s_ahgidx);
+	qp->s_ahgidx = -1;
+	qp->s_sde = NULL;
 }
 
 /**

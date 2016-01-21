@@ -168,11 +168,6 @@ struct pmic_arb_ver_ops {
 	u32 (*irq_clear)(u8 n);
 };
 
-static inline u32 pmic_arb_base_read(struct spmi_pmic_arb_dev *dev, u32 offset)
-{
-	return readl_relaxed(dev->rd_base + offset);
-}
-
 static inline void pmic_arb_base_write(struct spmi_pmic_arb_dev *dev,
 				       u32 offset, u32 val)
 {
@@ -193,7 +188,7 @@ static inline void pmic_arb_set_rd_cmd(struct spmi_pmic_arb_dev *dev,
  */
 static void pa_read_data(struct spmi_pmic_arb_dev *dev, u8 *buf, u32 reg, u8 bc)
 {
-	u32 data = pmic_arb_base_read(dev, reg);
+	u32 data = __raw_readl(dev->rd_base + reg);
 	memcpy(buf, &data, (bc & 3) + 1);
 }
 
@@ -208,7 +203,7 @@ pa_write_data(struct spmi_pmic_arb_dev *dev, const u8 *buf, u32 reg, u8 bc)
 {
 	u32 data = 0;
 	memcpy(&data, buf, (bc & 3) + 1);
-	pmic_arb_base_write(dev, reg, data);
+	__raw_writel(data, dev->wr_base + reg);
 }
 
 static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
@@ -365,7 +360,7 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 		opc = PMIC_ARB_OP_EXT_WRITE;
 	else if (opc >= 0x30 && opc <= 0x37)
 		opc = PMIC_ARB_OP_EXT_WRITEL;
-	else if (opc >= 0x80 && opc <= 0xFF)
+	else if (opc >= 0x80)
 		opc = PMIC_ARB_OP_ZERO_WRITE;
 	else
 		return -EINVAL;
@@ -657,7 +652,7 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 		"intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
 
-	if (d->of_node != controller)
+	if (irq_domain_get_of_node(d) != controller)
 		return -EINVAL;
 	if (intsize != 4)
 		return -EINVAL;

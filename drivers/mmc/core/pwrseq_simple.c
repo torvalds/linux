@@ -23,18 +23,21 @@ struct mmc_pwrseq_simple {
 	struct mmc_pwrseq pwrseq;
 	bool clk_enabled;
 	struct clk *ext_clk;
-	int nr_gpios;
-	struct gpio_desc *reset_gpios[0];
+	struct gpio_descs *reset_gpios;
 };
 
 static void mmc_pwrseq_simple_set_gpios_value(struct mmc_pwrseq_simple *pwrseq,
 					      int value)
 {
 	int i;
+	struct gpio_descs *reset_gpios = pwrseq->reset_gpios;
+	int values[reset_gpios->ndescs];
 
-	for (i = 0; i < pwrseq->nr_gpios; i++)
-		if (!IS_ERR(pwrseq->reset_gpios[i]))
-			gpiod_set_value_cansleep(pwrseq->reset_gpios[i], value);
+	for (i = 0; i < reset_gpios->ndescs; i++)
+		values[i] = value;
+
+	gpiod_set_array_value_cansleep(reset_gpios->ndescs, reset_gpios->desc,
+				       values);
 }
 
 static void mmc_pwrseq_simple_pre_power_on(struct mmc_host *host)
@@ -75,11 +78,8 @@ static void mmc_pwrseq_simple_free(struct mmc_host *host)
 {
 	struct mmc_pwrseq_simple *pwrseq = container_of(host->pwrseq,
 					struct mmc_pwrseq_simple, pwrseq);
-	int i;
 
-	for (i = 0; i < pwrseq->nr_gpios; i++)
-		if (!IS_ERR(pwrseq->reset_gpios[i]))
-			gpiod_put(pwrseq->reset_gpios[i]);
+	gpiod_put_array(pwrseq->reset_gpios);
 
 	if (!IS_ERR(pwrseq->ext_clk))
 		clk_put(pwrseq->ext_clk);
@@ -98,14 +98,9 @@ struct mmc_pwrseq *mmc_pwrseq_simple_alloc(struct mmc_host *host,
 					   struct device *dev)
 {
 	struct mmc_pwrseq_simple *pwrseq;
-	int i, nr_gpios, ret = 0;
+	int ret = 0;
 
-	nr_gpios = of_gpio_named_count(dev->of_node, "reset-gpios");
-	if (nr_gpios < 0)
-		nr_gpios = 0;
-
-	pwrseq = kzalloc(sizeof(struct mmc_pwrseq_simple) + nr_gpios *
-			 sizeof(struct gpio_desc *), GFP_KERNEL);
+	pwrseq = kzalloc(sizeof(*pwrseq), GFP_KERNEL);
 	if (!pwrseq)
 		return ERR_PTR(-ENOMEM);
 
@@ -116,22 +111,12 @@ struct mmc_pwrseq *mmc_pwrseq_simple_alloc(struct mmc_host *host,
 		goto free;
 	}
 
-	for (i = 0; i < nr_gpios; i++) {
-		pwrseq->reset_gpios[i] = gpiod_get_index(dev, "reset", i,
-							 GPIOD_OUT_HIGH);
-		if (IS_ERR(pwrseq->reset_gpios[i]) &&
-		    PTR_ERR(pwrseq->reset_gpios[i]) != -ENOENT &&
-		    PTR_ERR(pwrseq->reset_gpios[i]) != -ENOSYS) {
-			ret = PTR_ERR(pwrseq->reset_gpios[i]);
-
-			while (i--)
-				gpiod_put(pwrseq->reset_gpios[i]);
-
-			goto clk_put;
-		}
+	pwrseq->reset_gpios = gpiod_get_array(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(pwrseq->reset_gpios)) {
+		ret = PTR_ERR(pwrseq->reset_gpios);
+		goto clk_put;
 	}
 
-	pwrseq->nr_gpios = nr_gpios;
 	pwrseq->pwrseq.ops = &mmc_pwrseq_simple_ops;
 
 	return &pwrseq->pwrseq;

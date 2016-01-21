@@ -38,6 +38,7 @@ config SND_OXFW
 	   * Mackie(Loud) Tapco Link.Firewire
 	   * Mackie(Loud) d.2 pro/d.4 pro
 	   * Mackie(Loud) U.420/U.420d
+	   * TASCAM FireOne
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxfw.
@@ -119,5 +120,32 @@ config SND_BEBOB
 
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.
+
+config SND_FIREWIRE_DIGI00X
+	tristate "Digidesign Digi 002/003 family support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to include support for Digidesign Digi 002/003 family.
+	  * Digi 002 Console
+	  * Digi 002 Rack
+	  * Digi 003 Console
+	  * Digi 003 Rack
+	  * Digi 003 Rack+
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called snd-firewire-digi00x.
+
+config SND_FIREWIRE_TASCAM
+	tristate "TASCAM FireWire series support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to include support for TASCAM.
+	  * FW-1884
+	  * FW-1082
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called snd-firewire-tascam.
 
 endif # SND_FIREWIRE

@@ -126,7 +126,10 @@ struct kvm_vcpu_arch {
 	 * here.
 	 */
 
-	/* Don't run the guest on this vcpu */
+	/* vcpu power-off state */
+	bool power_off;
+
+	 /* Don't run the guest (internal implementation need) */
 	bool pause;
 
 	/* IO related fields */

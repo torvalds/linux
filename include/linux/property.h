@@ -27,6 +27,12 @@ enum dev_prop_type {
 	DEV_PROP_MAX,
 };
 
+enum dev_dma_attr {
+	DEV_DMA_NOT_SUPPORTED,
+	DEV_DMA_NON_COHERENT,
+	DEV_DMA_COHERENT,
+};
+
 bool device_property_present(struct device *dev, const char *propname);
 int device_property_read_u8_array(struct device *dev, const char *propname,
 				  u8 *val, size_t nval);
@@ -40,6 +46,8 @@ int device_property_read_string_array(struct device *dev, const char *propname,
 				      const char **val, size_t nval);
 int device_property_read_string(struct device *dev, const char *propname,
 				const char **val);
+int device_property_match_string(struct device *dev,
+				 const char *propname, const char *string);
 
 bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname);
 int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,
@@ -59,6 +67,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 				      size_t nval);
 int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val);
+int fwnode_property_match_string(struct fwnode_handle *fwnode,
+				 const char *propname, const char *string);
 
 struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child);
@@ -164,7 +174,9 @@ struct property_set {
 
 void device_add_property_set(struct device *dev, struct property_set *pset);
 
-bool device_dma_is_coherent(struct device *dev);
+bool device_dma_supported(struct device *dev);
+
+enum dev_dma_attr device_get_dma_attr(struct device *dev);
 
 int device_get_phy_mode(struct device *dev);
 

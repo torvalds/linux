@@ -1,30 +1,29 @@
 /*
-    comedi/drivers/serial2002.c
-    Skeleton code for a Comedi driver
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2002 Anders Blomdell <anders.blomdell@control.lth.se>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * serial2002.c
+ * Comedi driver for serial connected hardware
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2002 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-Driver: serial2002
-Description: Driver for serial connected hardware
-Devices:
-Author: Anders Blomdell
-Updated: Fri,  7 Jun 2002 12:56:45 -0700
-Status: in development
-
-*/
+ * Driver: serial2002
+ * Description: Driver for serial connected hardware
+ * Devices:
+ * Author: Anders Blomdell
+ * Updated: Fri,  7 Jun 2002 12:56:45 -0700
+ * Status: in development
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
@@ -102,7 +101,7 @@ static long serial2002_tty_ioctl(struct file *f, unsigned op,
 	if (f->f_op->unlocked_ioctl)
 		return f->f_op->unlocked_ioctl(f, op, param);
 
-	return -ENOSYS;
+	return -ENOTTY;
 }
 
 static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
@@ -176,7 +175,7 @@ static int serial2002_tty_read(struct file *f, int timeout)
 					result = ch;
 					break;
 				}
-				udelay(100);
+				usleep_range(100, 1000);
 			}
 		}
 		set_fs(oldfs);

@@ -151,7 +151,7 @@ int omap4iss_get_external_info(struct iss_pipeline *pipe,
 
 	ctrl = v4l2_ctrl_find(pipe->external->ctrl_handler,
 			      V4L2_CID_PIXEL_RATE);
-	if (ctrl == NULL) {
+	if (!ctrl) {
 		dev_warn(iss->dev, "no pixel rate control in subdev %s\n",
 			 pipe->external->name);
 		return -EPIPE;
@@ -422,7 +422,7 @@ static int iss_pipeline_pm_power_one(struct media_entity *entity, int change)
 	subdev = media_entity_type(entity) == MEDIA_ENT_T_V4L2_SUBDEV
 	       ? media_entity_to_v4l2_subdev(entity) : NULL;
 
-	if (entity->use_count == 0 && change > 0 && subdev != NULL) {
+	if (entity->use_count == 0 && change > 0 && subdev) {
 		int ret;
 
 		ret = v4l2_subdev_call(subdev, core, s_power, 1);
@@ -433,7 +433,7 @@ static int iss_pipeline_pm_power_one(struct media_entity *entity, int change)
 	entity->use_count += change;
 	WARN_ON(entity->use_count < 0);
 
-	if (entity->use_count == 0 && change < 0 && subdev != NULL)
+	if (entity->use_count == 0 && change < 0 && subdev)
 		v4l2_subdev_call(subdev, core, s_power, 0);
 
 	return 0;
@@ -469,8 +469,8 @@ static int iss_pipeline_pm_power(struct media_entity *entity, int change)
 
 	media_entity_graph_walk_start(&graph, first);
 
-	while ((first = media_entity_graph_walk_next(&graph))
-	       && first != entity)
+	while ((first = media_entity_graph_walk_next(&graph)) &&
+	       first != entity)
 		if (media_entity_type(first) != MEDIA_ENT_T_DEVNODE)
 			iss_pipeline_pm_power_one(first, -change);
 
@@ -541,7 +541,7 @@ static int iss_pipeline_link_notify(struct media_link *link, u32 flags,
 	}
 
 	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-		(flags & MEDIA_LNK_FL_ENABLED)) {
+	    (flags & MEDIA_LNK_FL_ENABLED)) {
 		ret = iss_pipeline_pm_power(source, sink_use);
 		if (ret < 0)
 			return ret;
@@ -590,7 +590,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
+		if (!pad ||
 		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
 
@@ -658,7 +658,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
+		if (!pad ||
 		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
 
@@ -919,7 +919,7 @@ static int __iss_subclk_update(struct iss_device *iss)
 }
 
 int omap4iss_subclk_enable(struct iss_device *iss,
-			    enum iss_subclk_resource res)
+			   enum iss_subclk_resource res)
 {
 	iss->subclk_resources |= res;
 
@@ -927,7 +927,7 @@ int omap4iss_subclk_enable(struct iss_device *iss,
 }
 
 int omap4iss_subclk_disable(struct iss_device *iss,
-			     enum iss_subclk_resource res)
+			    enum iss_subclk_resource res)
 {
 	iss->subclk_resources &= ~res;
 
@@ -1050,7 +1050,7 @@ struct iss_device *omap4iss_get(struct iss_device *iss)
 {
 	struct iss_device *__iss = iss;
 
-	if (iss == NULL)
+	if (!iss)
 		return NULL;
 
 	mutex_lock(&iss->iss_mutex);
@@ -1065,7 +1065,7 @@ struct iss_device *omap4iss_get(struct iss_device *iss)
 	iss_enable_interrupts(iss);
 
 out:
-	if (__iss != NULL)
+	if (__iss)
 		iss->ref_count++;
 	mutex_unlock(&iss->iss_mutex);
 
@@ -1080,7 +1080,7 @@ out:
  */
 void omap4iss_put(struct iss_device *iss)
 {
-	if (iss == NULL)
+	if (!iss)
 		return;
 
 	mutex_lock(&iss->iss_mutex);
@@ -1137,12 +1137,12 @@ static void iss_unregister_entities(struct iss_device *iss)
  */
 static struct v4l2_subdev *
 iss_register_subdev_group(struct iss_device *iss,
-		     struct iss_subdev_i2c_board_info *board_info)
+			  struct iss_subdev_i2c_board_info *board_info)
 {
 	struct v4l2_subdev *sensor = NULL;
 	unsigned int first;
 
-	if (board_info->board_info == NULL)
+	if (!board_info->board_info)
 		return NULL;
 
 	for (first = 1; board_info->board_info; ++board_info, first = 0) {
@@ -1150,7 +1150,7 @@ iss_register_subdev_group(struct iss_device *iss,
 		struct i2c_adapter *adapter;
 
 		adapter = i2c_get_adapter(board_info->i2c_adapter_id);
-		if (adapter == NULL) {
+		if (!adapter) {
 			dev_err(iss->dev,
 				"%s: Unable to get I2C adapter %d for device %s\n",
 				__func__, board_info->i2c_adapter_id,
@@ -1160,7 +1160,7 @@ iss_register_subdev_group(struct iss_device *iss,
 
 		subdev = v4l2_i2c_new_subdev_board(&iss->v4l2_dev, adapter,
 				board_info->board_info, NULL);
-		if (subdev == NULL) {
+		if (!subdev) {
 			dev_err(iss->dev, "Unable to register subdev %s\n",
 				board_info->board_info->type);
 			continue;
@@ -1228,7 +1228,7 @@ static int iss_register_entities(struct iss_device *iss)
 		unsigned int pad;
 
 		sensor = iss_register_subdev_group(iss, subdevs->subdevs);
-		if (sensor == NULL)
+		if (!sensor)
 			continue;
 
 		sensor->host_priv = subdevs;
@@ -1369,7 +1369,7 @@ static int iss_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	if (pdata == NULL)
+	if (!pdata)
 		return -EINVAL;
 
 	iss = devm_kzalloc(&pdev->dev, sizeof(*iss), GFP_KERNEL);
@@ -1406,7 +1406,7 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error;
 
-	if (omap4iss_get(iss) == NULL)
+	if (!omap4iss_get(iss))
 		goto error;
 
 	ret = iss_reset(iss);
@@ -1440,12 +1440,13 @@ static int iss_probe(struct platform_device *pdev)
 		 iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_REVISION));
 
 	/* Interrupt */
-	iss->irq_num = platform_get_irq(pdev, 0);
-	if (iss->irq_num <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
 		dev_err(iss->dev, "No IRQ resource\n");
 		ret = -ENODEV;
 		goto error_iss;
 	}
+	iss->irq_num = ret;
 
 	if (devm_request_irq(iss->dev, iss->irq_num, iss_isr, IRQF_SHARED,
 			     "OMAP4 ISS", iss)) {

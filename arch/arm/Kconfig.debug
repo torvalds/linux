@@ -123,29 +123,23 @@ choice
 		    0x80020000      | 0xf0020000     | UART8
 		    0x80024000      | 0xf0024000     | UART9
 
-	config AT91_DEBUG_LL_DBGU0
-		bool "Kernel low-level debugging on rm9200, 9260/9g20, 9261/9g10, 9rl, 9x5, 9n12"
-		select DEBUG_AT91_UART
+	config DEBUG_AT91_UART
+		bool "Kernel low-level debugging on Atmel SoCs"
 		depends on ARCH_AT91
-		depends on SOC_AT91RM9200 || SOC_AT91SAM9
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the serial port on atmel devices.
 
-	config AT91_DEBUG_LL_DBGU1
-		bool "Kernel low-level debugging on 9263, 9g45 and sama5d3"
-		select DEBUG_AT91_UART
-		depends on ARCH_AT91
-		depends on SOC_AT91SAM9 || SOC_SAMA5
+		  SOC                  DEBUG_UART_PHYS   DEBUG_UART_VIRT  PORT
+		  rm9200, 9260/9g20,   0xfffff200        0xfefff200       DBGU
+		  9261/9g10, 9rl
+		  9263, 9g45, sama5d3  0xffffee00        0xfeffee00       DBGU
+		  sama5d4              0xfc00c000        0xfb00c000       USART3
+		  sama5d4              0xfc069000        0xfb069000       DBGU
+		  sama5d2              0xf8020000        0xf7020000       UART1
 
-	config AT91_DEBUG_LL_DBGU2
-		bool "Kernel low-level debugging on sama5d4"
-		select DEBUG_AT91_UART
-		depends on ARCH_AT91
-		depends on SOC_SAMA5
-
-	config AT91_DEBUG_LL_DBGU3
-		bool "Kernel low-level debugging on sama5d2"
-		select DEBUG_AT91_UART
-		depends on ARCH_AT91
-		depends on SOC_SAMA5
+		  Please adjust DEBUG_UART_PHYS configuration options based on
+		  your needs.
 
 	config DEBUG_BCM2835
 		bool "Kernel low-level debugging on BCM2835 PL011 UART"
@@ -1249,10 +1243,6 @@ choice
 
 endchoice
 
-config DEBUG_AT91_UART
-	bool
-	depends on ARCH_AT91
-
 config DEBUG_EXYNOS_UART
 	bool
 
@@ -1485,7 +1475,8 @@ config DEBUG_UART_PHYS
 		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
 		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
 		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || \
-		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0
+		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0 || \
+		DEBUG_AT91_UART
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
@@ -1621,8 +1612,7 @@ config DEBUG_UNCOMPRESS
 config UNCOMPRESS_INCLUDE
 	string
 	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M || \
-					ARCH_SHMOBILE_LEGACY
+					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
 	default "mach/uncompress.h"
 
 config EARLY_PRINTK

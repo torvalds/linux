@@ -514,7 +514,7 @@ int  __genwqe_execute_ddcb(struct genwqe_dev *cd,
 /**
  * __genwqe_execute_raw_ddcb() - Execute DDCB request without addr translation
  *
- * This version will not do address translation or any modifcation of
+ * This version will not do address translation or any modification of
  * the DDCB data. It is used e.g. for the MoveFlash DDCB which is
  * entirely prepared by the driver itself. That means the appropriate
  * DMA addresses are already in the DDCB and do not need any

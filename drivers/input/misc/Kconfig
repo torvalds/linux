@@ -94,11 +94,11 @@ config INPUT_BMA150
 	  module will be called bma150.
 
 config INPUT_E3X0_BUTTON
-	tristate "NI Ettus Research USRP E3x0 Button support."
+	tristate "NI Ettus Research USRP E3xx Button support."
 	default n
 	help
 	  Say Y here to enable support for the NI Ettus Research
-	  USRP E3x0 Button.
+	  USRP E3xx Button.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called e3x0_button.
@@ -599,11 +599,11 @@ config INPUT_DA9055_ONKEY
 	  will be called da9055_onkey.
 
 config INPUT_DA9063_ONKEY
-	tristate "Dialog DA9063 OnKey"
-	depends on MFD_DA9063
+	tristate "Dialog DA9062/63 OnKey"
+	depends on MFD_DA9063 || MFD_DA9062
 	help
-	  Support the ONKEY of Dialog DA9063 Power Management IC as an
-	  input device reporting power button statue.
+	  Support the ONKEY of Dialog DA9063 and DA9062 Power Management ICs
+	  as an input device capable of reporting the power button status.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.

@@ -403,16 +403,11 @@ static const char *pwr_codes = "1.5W2.0W2.5W3.5W";
 
 int qsfp_mod_present(struct hfi1_pportdata *ppd)
 {
-	if (HFI1_CAP_IS_KSET(QSFP_ENABLED)) {
-		struct hfi1_devdata *dd = ppd->dd;
-		u64 reg;
+	struct hfi1_devdata *dd = ppd->dd;
+	u64 reg;
 
-		reg = read_csr(dd,
-			dd->hfi1_id ? ASIC_QSFP2_IN : ASIC_QSFP1_IN);
-		return !(reg & QSFP_HFI0_MODPRST_N);
-	}
-	/* always return cable present */
-	return 1;
+	reg = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_IN : ASIC_QSFP1_IN);
+	return !(reg & QSFP_HFI0_MODPRST_N);
 }
 
 /*

@@ -325,21 +325,26 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 			(!pHTInfo->bCurTxBW40MHz && pHTInfo->bCurShortGI20MHz);
 
 		pra->upper_rssi_threshold_ratr =
-				(pra->upper_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->upper_rssi_threshold_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		pra->middle_rssi_threshold_ratr =
-				(pra->middle_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->middle_rssi_threshold_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
 			pra->low_rssi_threshold_ratr =
-				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+			      (pra->low_rssi_threshold_ratr_40M & (~BIT(31))) |
+			      ((bshort_gi_enabled) ? BIT(31) : 0);
 		} else {
 			pra->low_rssi_threshold_ratr =
-			(pra->low_rssi_threshold_ratr_20M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+			(pra->low_rssi_threshold_ratr_20M & (~BIT(31))) |
+			((bshort_gi_enabled) ? BIT(31) : 0);
 		}
 		/* cosa add for test */
 		pra->ping_rssi_ratr =
-				(pra->ping_rssi_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->ping_rssi_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		/* 2007/10/08 MH We support RA smooth scheme now. When it is the first
 		   time to link with AP. We will not change upper/lower threshold. If
@@ -2378,7 +2383,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 	if (tmp1byte == 0xff)
 		return;
 
-	if (tmp1byte&BIT6 || tmp1byte&BIT0) {
+	if (tmp1byte & BIT(6) || tmp1byte & BIT(0)) {
 		/*
 		 * Here we only set bPbcPressed to TRUE
 		 * After trigger PBC, the variable will be set to FALSE

@@ -99,7 +99,7 @@ static int vmlfb_alloc_vram_area(struct vram_area *va, unsigned max_order,
 		 * below the first 16MB.
 		 */
 
-		flags = __GFP_DMA | __GFP_HIGH;
+		flags = __GFP_DMA | __GFP_HIGH | __GFP_KSWAPD_RECLAIM;
 		va->logical =
 			 __get_free_pages(flags, --max_order);
 	} while (va->logical == 0 && max_order > min_order);

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2012-2014 Broadcom Corporation
+# Copyright (C) 2012-2015 Broadcom Corporation
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -12,6 +12,9 @@
 
 # Cygnus
 obj-$(CONFIG_ARCH_BCM_CYGNUS) +=  bcm_cygnus.o
+
+# Northstar Plus
+obj-$(CONFIG_ARCH_BCM_NSP) += bcm_nsp.o
 
 # BCM281XX
 obj-$(CONFIG_ARCH_BCM_281XX)	+= board_bcm281xx.o

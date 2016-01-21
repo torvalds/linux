@@ -474,7 +474,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 			f->name = fn = child->name;
 		}
 		f->ngroups++;
-	};
+	}
 
 	/* Get groups for each function */
 	idxf = 0;

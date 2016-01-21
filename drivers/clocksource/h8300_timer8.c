@@ -215,7 +215,6 @@ static int timer8_setup(struct timer8_priv *p,
 	int irq;
 	int ret;
 
-	memset(p, 0, sizeof(*p));
 	p->pdev = pdev;
 
 	res = platform_get_resource(p->pdev, IORESOURCE_MEM, 0);

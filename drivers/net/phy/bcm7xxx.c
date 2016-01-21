@@ -12,12 +12,12 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/delay.h>
+#include "bcm-phy-lib.h"
 #include <linux/bitops.h>
 #include <linux/brcmphy.h>
 #include <linux/mdio.h>
 
 /* Broadcom BCM7xxx internal PHY registers */
-#define MII_BCM7XXX_CHANNEL_WIDTH	0x2000
 
 /* 40nm only register definitions */
 #define MII_BCM7XXX_100TX_AUX_CTL	0x10
@@ -25,7 +25,6 @@
 #define MII_BCM7XXX_100TX_DISC		0x14
 #define MII_BCM7XXX_AUX_MODE		0x1d
 #define  MII_BCM7XX_64CLK_MDIO		BIT(12)
-#define MII_BCM7XXX_CORE_BASE1E		0x1e
 #define MII_BCM7XXX_TEST		0x1f
 #define  MII_BCM7XXX_SHD_MODE_2		BIT(2)
 
@@ -46,39 +45,13 @@
 #define AFE_VDAC_OTHERS_0		MISC_ADDR(0x39, 3)
 #define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
 
-#define CORE_EXPB0			0xb0
-
-static void phy_write_exp(struct phy_device *phydev,
-					u16 reg, u16 value)
-{
-	phy_write(phydev, MII_BCM54XX_EXP_SEL, MII_BCM54XX_EXP_SEL_ER | reg);
-	phy_write(phydev, MII_BCM54XX_EXP_DATA, value);
-}
-
-static void phy_write_misc(struct phy_device *phydev,
-					u16 reg, u16 chl, u16 value)
-{
-	int tmp;
-
-	phy_write(phydev, MII_BCM54XX_AUX_CTL, MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
-
-	tmp = phy_read(phydev, MII_BCM54XX_AUX_CTL);
-	tmp |= MII_BCM54XX_AUXCTL_ACTL_SMDSP_ENA;
-	phy_write(phydev, MII_BCM54XX_AUX_CTL, tmp);
-
-	tmp = (chl * MII_BCM7XXX_CHANNEL_WIDTH) | reg;
-	phy_write(phydev, MII_BCM54XX_EXP_SEL, tmp);
-
-	phy_write(phydev, MII_BCM54XX_EXP_DATA, value);
-}
-
 static void r_rc_cal_reset(struct phy_device *phydev)
 {
 	/* Reset R_CAL/RC_CAL Engine */
-	phy_write_exp(phydev, 0x00b0, 0x0010);
+	bcm_phy_write_exp(phydev, 0x00b0, 0x0010);
 
 	/* Disable Reset R_AL/RC_CAL Engine */
-	phy_write_exp(phydev, 0x00b0, 0x0000);
+	bcm_phy_write_exp(phydev, 0x00b0, 0x0000);
 }
 
 static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
@@ -86,38 +59,38 @@ static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
 	/* Increase VCO range to prevent unlocking problem of PLL at low
 	 * temp
 	 */
-	phy_write_misc(phydev, PLL_PLLCTRL_1, 0x0048);
+	bcm_phy_write_misc(phydev, PLL_PLLCTRL_1, 0x0048);
 
 	/* Change Ki to 011 */
-	phy_write_misc(phydev, PLL_PLLCTRL_2, 0x021b);
+	bcm_phy_write_misc(phydev, PLL_PLLCTRL_2, 0x021b);
 
 	/* Disable loading of TVCO buffer to bandgap, set bandgap trim
 	 * to 111
 	 */
-	phy_write_misc(phydev, PLL_PLLCTRL_4, 0x0e20);
+	bcm_phy_write_misc(phydev, PLL_PLLCTRL_4, 0x0e20);
 
 	/* Adjust bias current trim by -3 */
-	phy_write_misc(phydev, DSP_TAP10, 0x690b);
+	bcm_phy_write_misc(phydev, DSP_TAP10, 0x690b);
 
 	/* Switch to CORE_BASE1E */
-	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0xd);
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0xd);
 
 	r_rc_cal_reset(phydev);
 
 	/* write AFE_RXCONFIG_0 */
-	phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
 
 	/* write AFE_RXCONFIG_1 */
-	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9a3f);
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9a3f);
 
 	/* write AFE_RX_LP_COUNTER */
-	phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
+	bcm_phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
 
 	/* write AFE_HPF_TRIM_OTHERS */
-	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x000b);
+	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x000b);
 
 	/* write AFTE_TX_CONFIG */
-	phy_write_misc(phydev, AFE_TX_CONFIG, 0x0800);
+	bcm_phy_write_misc(phydev, AFE_TX_CONFIG, 0x0800);
 
 	return 0;
 }
@@ -125,36 +98,36 @@ static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
 static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 {
 	/* AFE_RXCONFIG_0 */
-	phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb15);
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb15);
 
 	/* AFE_RXCONFIG_1 */
-	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
 
 	/* AFE_RXCONFIG_2, set rCal offset for HT=0 code and LT=-2 code */
-	phy_write_misc(phydev, AFE_RXCONFIG_2, 0x2003);
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_2, 0x2003);
 
 	/* AFE_RX_LP_COUNTER, set RX bandwidth to maximum */
-	phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
+	bcm_phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
 
 	/* AFE_TX_CONFIG, set 100BT Cfeed=011 to improve rise/fall time */
-	phy_write_misc(phydev, AFE_TX_CONFIG, 0x431);
+	bcm_phy_write_misc(phydev, AFE_TX_CONFIG, 0x431);
 
 	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
-	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
+	bcm_phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
 
 	/* AFE_VDAC_OTHERS_0, set 1000BT Cidac=010 for all ports */
-	phy_write_misc(phydev, AFE_VDAC_OTHERS_0, 0xa020);
+	bcm_phy_write_misc(phydev, AFE_VDAC_OTHERS_0, 0xa020);
 
 	/* AFE_HPF_TRIM_OTHERS, set 100Tx/10BT to -4.5% swing and set rCal
 	 * offset for HT=0 code
 	 */
-	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
+	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
 
 	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
-	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0x0010);
 
 	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
-	phy_write_misc(phydev, DSP_TAP10, 0x011b);
+	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
 
 	/* Reset R_CAL/RC_CAL engine */
 	r_rc_cal_reset(phydev);
@@ -165,74 +138,27 @@ static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
 {
 	/* AFE_RXCONFIG_1, provide more margin for INL/DNL measurement */
-	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
 
 	/* AFE_TX_CONFIG, set 100BT Cfeed=011 to improve rise/fall time */
-	phy_write_misc(phydev, AFE_TX_CONFIG, 0x431);
+	bcm_phy_write_misc(phydev, AFE_TX_CONFIG, 0x431);
 
 	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
-	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
+	bcm_phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
 
 	/* AFE_HPF_TRIM_OTHERS, set 100Tx/10BT to -4.5% swing and set rCal
 	 * offset for HT=0 code
 	 */
-	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
+	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
 
 	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
-	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0x0010);
 
 	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
-	phy_write_misc(phydev, DSP_TAP10, 0x011b);
+	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
 
 	/* Reset R_CAL/RC_CAL engine */
 	r_rc_cal_reset(phydev);
-
-	return 0;
-}
-
-static int bcm7xxx_apd_enable(struct phy_device *phydev)
-{
-	int val;
-
-	/* Enable powering down of the DLL during auto-power down */
-	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_SCR3);
-	if (val < 0)
-		return val;
-
-	val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
-	bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
-
-	/* Enable auto-power down */
-	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_APD);
-	if (val < 0)
-		return val;
-
-	val |= BCM54XX_SHD_APD_EN;
-	return bcm54xx_shadow_write(phydev, BCM54XX_SHD_APD, val);
-}
-
-static int bcm7xxx_eee_enable(struct phy_device *phydev)
-{
-	int val;
-
-	val = phy_read_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
-				    MDIO_MMD_AN, phydev->addr);
-	if (val < 0)
-		return val;
-
-	/* Enable general EEE feature at the PHY level */
-	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
-
-	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
-			       MDIO_MMD_AN, phydev->addr, val);
-
-	/* Advertise supported modes */
-	val = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
-				    MDIO_MMD_AN, phydev->addr);
-
-	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
-	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
-			       MDIO_MMD_AN, phydev->addr, val);
 
 	return 0;
 }
@@ -273,11 +199,11 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = bcm7xxx_eee_enable(phydev);
+	ret = bcm_phy_enable_eee(phydev);
 	if (ret)
 		return ret;
 
-	return bcm7xxx_apd_enable(phydev);
+	return bcm_phy_enable_apd(phydev, true);
 }
 
 static int bcm7xxx_28nm_resume(struct phy_device *phydev)

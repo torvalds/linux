@@ -6,7 +6,7 @@
 #include <linux/uaccess.h>
 
 /* Bit 63 of XCR0 is reserved for future expansion */
-#define XSTATE_EXTEND_MASK	(~(XSTATE_FPSSE | (1ULL << 63)))
+#define XFEATURE_MASK_EXTEND	(~(XFEATURE_MASK_FPSSE | (1ULL << 63)))
 
 #define XSTATE_CPUID		0x0000000d
 
@@ -19,14 +19,18 @@
 #define XSAVE_YMM_OFFSET    (XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET)
 
 /* Supported features which support lazy state saving */
-#define XSTATE_LAZY	(XSTATE_FP | XSTATE_SSE | XSTATE_YMM		      \
-			| XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
+#define XFEATURE_MASK_LAZY	(XFEATURE_MASK_FP | \
+				 XFEATURE_MASK_SSE | \
+				 XFEATURE_MASK_YMM | \
+				 XFEATURE_MASK_OPMASK |	\
+				 XFEATURE_MASK_ZMM_Hi256 | \
+				 XFEATURE_MASK_Hi16_ZMM)
 
 /* Supported features which require eager state saving */
-#define XSTATE_EAGER	(XSTATE_BNDREGS | XSTATE_BNDCSR)
+#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR)
 
 /* All currently supported features */
-#define XCNTXT_MASK	(XSTATE_LAZY | XSTATE_EAGER)
+#define XCNTXT_MASK	(XFEATURE_MASK_LAZY | XFEATURE_MASK_EAGER)
 
 #ifdef CONFIG_X86_64
 #define REX_PREFIX	"0x48, "
@@ -40,6 +44,7 @@ extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
 extern void update_regset_xstate_info(unsigned int size, u64 xstate_mask);
 
+void fpu__xstate_clear_all_cpu_caps(void);
 void *get_xsave_addr(struct xregs_state *xsave, int xstate);
 const void *get_xsave_field_ptr(int xstate_field);
 

@@ -124,9 +124,10 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
 {
 	void **ptr, *addr;
 
-	ptr = devres_alloc(devm_memremap_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+			dev_to_node(dev));
 	if (!ptr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	addr = memremap(offset, size, flags);
 	if (addr) {
@@ -141,9 +142,8 @@ EXPORT_SYMBOL(devm_memremap);
 
 void devm_memunmap(struct device *dev, void *addr)
 {
-	WARN_ON(devres_destroy(dev, devm_memremap_release, devm_memremap_match,
-			       addr));
-	memunmap(addr);
+	WARN_ON(devres_release(dev, devm_memremap_release,
+				devm_memremap_match, addr));
 }
 EXPORT_SYMBOL(devm_memunmap);
 
@@ -176,8 +176,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
 
-	page_map = devres_alloc(devm_memremap_pages_release,
-			sizeof(*page_map), GFP_KERNEL);
+	page_map = devres_alloc_node(devm_memremap_pages_release,
+			sizeof(*page_map), GFP_KERNEL, dev_to_node(dev));
 	if (!page_map)
 		return ERR_PTR(-ENOMEM);
 
@@ -185,7 +185,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 
 	nid = dev_to_node(dev);
 	if (nid < 0)
-		nid = 0;
+		nid = numa_mem_id();
 
 	error = arch_add_memory(nid, res->start, resource_size(res), true);
 	if (error) {

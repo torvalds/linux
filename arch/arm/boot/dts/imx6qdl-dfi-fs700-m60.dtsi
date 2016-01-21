@@ -38,7 +38,7 @@
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "sst,sst25vf040b", "m25p80";
+		compatible = "sst,sst25vf040b", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};

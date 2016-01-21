@@ -68,7 +68,7 @@ struct nfc_ops {
 	int (*activate_target)(struct nfc_dev *dev, struct nfc_target *target,
 			       u32 protocol);
 	void (*deactivate_target)(struct nfc_dev *dev,
-				  struct nfc_target *target);
+				  struct nfc_target *target, u8 mode);
 	int (*im_transceive)(struct nfc_dev *dev, struct nfc_target *target,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);

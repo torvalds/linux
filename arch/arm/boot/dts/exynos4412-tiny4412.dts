@@ -13,6 +13,7 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "FriendlyARM TINY4412 board based on Exynos4412";
@@ -31,26 +32,26 @@
 
 		led1 {
 			label = "led1";
-			gpios = <&gpm4 0 1>;
+			gpios = <&gpm4 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 			linux,default-trigger = "heartbeat";
 		};
 
 		led2 {
 			label = "led2";
-			gpios = <&gpm4 1 1>;
+			gpios = <&gpm4 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led3 {
 			label = "led3";
-			gpios = <&gpm4 2 1>;
+			gpios = <&gpm4 2 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led4 {
 			label = "led4";
-			gpios = <&gpm4 3 1>;
+			gpios = <&gpm4 3 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 			linux,default-trigger = "mmc0";
 		};

@@ -553,65 +553,6 @@ static void choke_destroy(struct Qdisc *sch)
 	choke_free(q->tab);
 }
 
-static struct Qdisc *choke_leaf(struct Qdisc *sch, unsigned long arg)
-{
-	return NULL;
-}
-
-static unsigned long choke_get(struct Qdisc *sch, u32 classid)
-{
-	return 0;
-}
-
-static void choke_put(struct Qdisc *q, unsigned long cl)
-{
-}
-
-static unsigned long choke_bind(struct Qdisc *sch, unsigned long parent,
-				u32 classid)
-{
-	return 0;
-}
-
-static struct tcf_proto __rcu **choke_find_tcf(struct Qdisc *sch,
-					       unsigned long cl)
-{
-	struct choke_sched_data *q = qdisc_priv(sch);
-
-	if (cl)
-		return NULL;
-	return &q->filter_list;
-}
-
-static int choke_dump_class(struct Qdisc *sch, unsigned long cl,
-			  struct sk_buff *skb, struct tcmsg *tcm)
-{
-	tcm->tcm_handle |= TC_H_MIN(cl);
-	return 0;
-}
-
-static void choke_walk(struct Qdisc *sch, struct qdisc_walker *arg)
-{
-	if (!arg->stop) {
-		if (arg->fn(sch, 1, arg) < 0) {
-			arg->stop = 1;
-			return;
-		}
-		arg->count++;
-	}
-}
-
-static const struct Qdisc_class_ops choke_class_ops = {
-	.leaf		=	choke_leaf,
-	.get		=	choke_get,
-	.put		=	choke_put,
-	.tcf_chain	=	choke_find_tcf,
-	.bind_tcf	=	choke_bind,
-	.unbind_tcf	=	choke_put,
-	.dump		=	choke_dump_class,
-	.walk		=	choke_walk,
-};
-
 static struct sk_buff *choke_peek_head(struct Qdisc *sch)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);

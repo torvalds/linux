@@ -58,7 +58,8 @@ int	xfs_get_blocks(struct inode *inode, sector_t offset,
 		       struct buffer_head *map_bh, int create);
 int	xfs_get_blocks_direct(struct inode *inode, sector_t offset,
 			      struct buffer_head *map_bh, int create);
-void	xfs_end_io_dax_write(struct buffer_head *bh, int uptodate);
+int	xfs_get_blocks_dax_fault(struct inode *inode, sector_t offset,
+			         struct buffer_head *map_bh, int create);
 
 extern void xfs_count_page_state(struct page *, int *, int *);
 

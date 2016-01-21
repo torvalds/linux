@@ -116,6 +116,13 @@ static inline u32 media_entity_subtype(struct media_entity *entity)
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
 #define MEDIA_ENTITY_ENUM_MAX_ID	64
 
+/*
+ * The number of pads can't be bigger than the number of entities,
+ * as the worse-case scenario is to have one entity linked up to
+ * MEDIA_ENTITY_ENUM_MAX_ID - 1 entities.
+ */
+#define MEDIA_ENTITY_MAX_PADS		(MEDIA_ENTITY_ENUM_MAX_ID - 1)
+
 struct media_entity_graph {
 	struct {
 		struct media_entity *entity;

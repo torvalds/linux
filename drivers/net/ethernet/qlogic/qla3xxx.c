@@ -1736,8 +1736,6 @@ static void ql_get_drvinfo(struct net_device *ndev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(qdev->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->regdump_len = 0;
-	drvinfo->eedump_len = 0;
 }
 
 static u32 ql_get_msglevel(struct net_device *ndev)

@@ -97,9 +97,10 @@ static void mxr_vp_buffer_set(struct mxr_layer *layer,
 		mxr_reg_vp_buffer(layer->mdev, luma_addr, chroma_addr);
 		return;
 	}
-	luma_addr[0] = vb2_dma_contig_plane_dma_addr(&buf->vb, 0);
+	luma_addr[0] = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
 	if (layer->fmt->num_subframes == 2) {
-		chroma_addr[0] = vb2_dma_contig_plane_dma_addr(&buf->vb, 1);
+		chroma_addr[0] =
+			vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 1);
 	} else {
 		/* FIXME: mxr_get_plane_size compute integer division,
 		 * which is slow and should not be performed in interrupt */

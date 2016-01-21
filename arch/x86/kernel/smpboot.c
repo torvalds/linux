@@ -509,7 +509,7 @@ void __inquire_remote_apic(int apicid)
  */
 #define UDELAY_10MS_DEFAULT 10000
 
-static unsigned int init_udelay = INT_MAX;
+static unsigned int init_udelay = UINT_MAX;
 
 static int __init cpu_init_udelay(char *str)
 {
@@ -522,14 +522,15 @@ early_param("cpu_init_udelay", cpu_init_udelay);
 static void __init smp_quirk_init_udelay(void)
 {
 	/* if cmdline changed it from default, leave it alone */
-	if (init_udelay != INT_MAX)
+	if (init_udelay != UINT_MAX)
 		return;
 
 	/* if modern processor, use no delay */
 	if (((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 == 6)) ||
-	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF)))
+	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF))) {
 		init_udelay = 0;
-
+		return;
+	}
 	/* else, use legacy delay */
 	init_udelay = UDELAY_10MS_DEFAULT;
 }

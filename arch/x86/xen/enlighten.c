@@ -75,6 +75,7 @@
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
 #include <asm/pat.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -1191,7 +1192,7 @@ static const struct pv_info xen_info __initconst = {
 #ifdef CONFIG_X86_64
 	.extra_user_64bit_cs = FLAT_USER_CS64,
 #endif
-
+	.features = 0,
 	.name = "Xen",
 };
 
@@ -1534,6 +1535,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
+	if (xen_initial_domain())
+		pv_info.features |= PV_SUPPORTED_RTC;
 	pv_init_ops = xen_init_ops;
 	pv_apic_ops = xen_apic_ops;
 	if (!xen_pvh_domain()) {
@@ -1885,8 +1888,10 @@ EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
 static void xen_set_cpu_features(struct cpuinfo_x86 *c)
 {
-	if (xen_pv_domain())
+	if (xen_pv_domain()) {
 		clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+		set_cpu_cap(c, X86_FEATURE_XENPV);
+	}
 }
 
 const struct hypervisor_x86 x86_hyper_xen = {
@@ -1899,3 +1904,17 @@ const struct hypervisor_x86 x86_hyper_xen = {
 	.set_cpu_features       = xen_set_cpu_features,
 };
 EXPORT_SYMBOL(x86_hyper_xen);
+
+#ifdef CONFIG_HOTPLUG_CPU
+void xen_arch_register_cpu(int num)
+{
+	arch_register_cpu(num);
+}
+EXPORT_SYMBOL(xen_arch_register_cpu);
+
+void xen_arch_unregister_cpu(int num)
+{
+	arch_unregister_cpu(num);
+}
+EXPORT_SYMBOL(xen_arch_unregister_cpu);
+#endif

@@ -595,8 +595,7 @@ static void parse_model_mode(char *buf, struct hda_bus *bus,
 static void parse_chip_name_mode(char *buf, struct hda_bus *bus,
 				 struct hda_codec **codecp)
 {
-	kfree((*codecp)->core.chip_name);
-	(*codecp)->core.chip_name = kstrdup(buf, GFP_KERNEL);
+	snd_hda_codec_set_name(*codecp, buf);
 }
 
 #define DEFINE_PARSE_ID_MODE(name) \

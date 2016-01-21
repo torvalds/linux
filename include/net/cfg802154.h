@@ -27,6 +27,16 @@
 struct wpan_phy;
 struct wpan_phy_cca;
 
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+struct ieee802154_llsec_device_key;
+struct ieee802154_llsec_seclevel;
+struct ieee802154_llsec_params;
+struct ieee802154_llsec_device;
+struct ieee802154_llsec_table;
+struct ieee802154_llsec_key_id;
+struct ieee802154_llsec_key;
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
+
 struct cfg802154_ops {
 	struct net_device * (*add_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 							   const char *name,
@@ -65,6 +75,51 @@ struct cfg802154_ops {
 				struct wpan_dev *wpan_dev, bool mode);
 	int	(*set_ackreq_default)(struct wpan_phy *wpan_phy,
 				      struct wpan_dev *wpan_dev, bool ackreq);
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+	void	(*get_llsec_table)(struct wpan_phy *wpan_phy,
+				   struct wpan_dev *wpan_dev,
+				   struct ieee802154_llsec_table **table);
+	void	(*lock_llsec_table)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev);
+	void	(*unlock_llsec_table)(struct wpan_phy *wpan_phy,
+				      struct wpan_dev *wpan_dev);
+	/* TODO remove locking/get table callbacks, this is part of the
+	 * nl802154 interface and should be accessible from ieee802154 layer.
+	 */
+	int	(*get_llsec_params)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev,
+				    struct ieee802154_llsec_params *params);
+	int	(*set_llsec_params)(struct wpan_phy *wpan_phy,
+				    struct wpan_dev *wpan_dev,
+				    const struct ieee802154_llsec_params *params,
+				    int changed);
+	int	(*add_llsec_key)(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const struct ieee802154_llsec_key_id *id,
+				 const struct ieee802154_llsec_key *key);
+	int	(*del_llsec_key)(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const struct ieee802154_llsec_key_id *id);
+	int	(*add_seclevel)(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const struct ieee802154_llsec_seclevel *sl);
+	int	(*del_seclevel)(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 const struct ieee802154_llsec_seclevel *sl);
+	int	(*add_device)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev,
+			      const struct ieee802154_llsec_device *dev);
+	int	(*del_device)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev, __le64 extended_addr);
+	int	(*add_devkey)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev,
+			      __le64 extended_addr,
+			      const struct ieee802154_llsec_device_key *key);
+	int	(*del_devkey)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev,
+			      __le64 extended_addr,
+			      const struct ieee802154_llsec_device_key *key);
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
 static inline bool
@@ -167,6 +222,102 @@ struct wpan_phy {
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
+struct ieee802154_addr {
+	u8 mode;
+	__le16 pan_id;
+	union {
+		__le16 short_addr;
+		__le64 extended_addr;
+	};
+};
+
+struct ieee802154_llsec_key_id {
+	u8 mode;
+	u8 id;
+	union {
+		struct ieee802154_addr device_addr;
+		__le32 short_source;
+		__le64 extended_source;
+	};
+};
+
+#define IEEE802154_LLSEC_KEY_SIZE 16
+
+struct ieee802154_llsec_key {
+	u8 frame_types;
+	u32 cmd_frame_ids;
+	/* TODO replace with NL802154_KEY_SIZE */
+	u8 key[IEEE802154_LLSEC_KEY_SIZE];
+};
+
+struct ieee802154_llsec_key_entry {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id id;
+	struct ieee802154_llsec_key *key;
+};
+
+struct ieee802154_llsec_params {
+	bool enabled;
+
+	__be32 frame_counter;
+	u8 out_level;
+	struct ieee802154_llsec_key_id out_key;
+
+	__le64 default_key_source;
+
+	__le16 pan_id;
+	__le64 hwaddr;
+	__le64 coord_hwaddr;
+	__le16 coord_shortaddr;
+};
+
+struct ieee802154_llsec_table {
+	struct list_head keys;
+	struct list_head devices;
+	struct list_head security_levels;
+};
+
+struct ieee802154_llsec_seclevel {
+	struct list_head list;
+
+	u8 frame_type;
+	u8 cmd_frame_id;
+	bool device_override;
+	u32 sec_levels;
+};
+
+struct ieee802154_llsec_device {
+	struct list_head list;
+
+	__le16 pan_id;
+	__le16 short_addr;
+	__le64 hwaddr;
+	u32 frame_counter;
+	bool seclevel_exempt;
+
+	u8 key_mode;
+	struct list_head keys;
+};
+
+struct ieee802154_llsec_device_key {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id key_id;
+	u32 frame_counter;
+};
+
+struct wpan_dev_header_ops {
+	/* TODO create callback currently assumes ieee802154_mac_cb inside
+	 * skb->cb. This should be changed to give these information as
+	 * parameter.
+	 */
+	int	(*create)(struct sk_buff *skb, struct net_device *dev,
+			  const struct ieee802154_addr *daddr,
+			  const struct ieee802154_addr *saddr,
+			  unsigned int len);
+};
+
 struct wpan_dev {
 	struct wpan_phy *wpan_phy;
 	int iftype;
@@ -174,6 +325,8 @@ struct wpan_dev {
 	/* the remainder of this struct should be private to cfg802154 */
 	struct list_head list;
 	struct net_device *netdev;
+
+	const struct wpan_dev_header_ops *header_ops;
 
 	/* lowpan interface, set when the wpan_dev belongs to one lowpan_dev */
 	struct net_device *lowpan_dev;
@@ -204,6 +357,17 @@ struct wpan_dev {
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
+
+static inline int
+wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
+		     const struct ieee802154_addr *daddr,
+		     const struct ieee802154_addr *saddr,
+		     unsigned int len)
+{
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+
+	return wpan_dev->header_ops->create(skb, dev, daddr, saddr, len);
+}
 
 struct wpan_phy *
 wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size);

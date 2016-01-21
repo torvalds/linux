@@ -92,6 +92,15 @@ config PWM_BCM2835
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bcm2835.
 
+config PWM_BERLIN
+	tristate "Marvell Berlin PWM support"
+	depends on ARCH_BERLIN
+	help
+	  PWM framework driver for Marvell Berlin SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-berlin.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS
@@ -100,6 +109,16 @@ config PWM_BFIN
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bfin.
+
+config PWM_BRCMSTB
+	tristate "Broadcom STB PWM support"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	help
+	  Generic PWM framework driver for the Broadcom Set-top-Box
+	  SoCs (BCM7xxx).
+
+	  To compile this driver as a module, choose M Here: the module
+	  will be called pwm-brcmstb.c.
 
 config PWM_CLPS711X
 	tristate "CLPS711X PWM support"
@@ -230,6 +249,17 @@ config PWM_LPSS_PLATFORM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss-platform.
 
+config PWM_MTK_DISP
+	tristate "MediaTek display PWM driver"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Generic PWM framework driver for MediaTek disp-pwm device.
+	  The PWM is used to control the backlight brightness for display.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-mtk-disp.
+
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
 	depends on ARCH_MXS && OF
@@ -242,7 +272,7 @@ config PWM_MXS
 
 config PWM_PCA9685
 	tristate "NXP PCA9685 PWM driver"
-	depends on OF && I2C
+	depends on I2C
 	select REGMAP_I2C
 	help
 	  Generic PWM framework driver for NXP PCA9685 LED controller.
@@ -267,6 +297,17 @@ config PWM_PXA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-pxa.
+
+config PWM_RCAR
+	tristate "Renesas R-Car PWM support"
+	depends on ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver exposes the PWM Timer controller found in Renesas
+	  R-Car chips through the PWM API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-rcar.
 
 config PWM_RENESAS_TPU
 	tristate "Renesas TPU PWM support"
@@ -338,7 +379,7 @@ config PWM_TEGRA
 
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
-	depends on SOC_AM33XX || ARCH_DAVINCI_DA8XX
+	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX
 	help
 	  PWM driver support for the ECAP APWM controller found on AM33XX
 	  TI SOC
@@ -348,7 +389,7 @@ config  PWM_TIECAP
 
 config  PWM_TIEHRPWM
 	tristate "EHRPWM PWM support"
-	depends on SOC_AM33XX || ARCH_DAVINCI_DA8XX
+	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX
 	help
 	  PWM driver support for the EHRPWM controller found on AM33XX
 	  TI SOC
@@ -358,7 +399,7 @@ config  PWM_TIEHRPWM
 
 config  PWM_TIPWMSS
 	bool
-	default y if SOC_AM33XX && (PWM_TIECAP || PWM_TIEHRPWM)
+	default y if (ARCH_OMAP2PLUS) && (PWM_TIECAP || PWM_TIEHRPWM)
 	help
 	  PWM Subsystem driver support for AM33xx SOC.
 

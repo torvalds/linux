@@ -221,9 +221,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
 		priv->tx_sge[i].lkey = priv->pd->local_dma_lkey;
 
-	priv->tx_wr.opcode	= IB_WR_SEND;
-	priv->tx_wr.sg_list	= priv->tx_sge;
-	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
+	priv->tx_wr.wr.opcode		= IB_WR_SEND;
+	priv->tx_wr.wr.sg_list		= priv->tx_sge;
+	priv->tx_wr.wr.send_flags	= IB_SEND_SIGNALED;
 
 	priv->rx_sge[0].lkey = priv->pd->local_dma_lkey;
 

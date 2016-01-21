@@ -509,6 +509,18 @@ static bool dapm_kcontrol_set_value(const struct snd_kcontrol *kcontrol,
 }
 
 /**
+ * snd_soc_dapm_kcontrol_widget() - Returns the widget associated to a
+ *   kcontrol
+ * @kcontrol: The kcontrol
+ */
+struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(
+				struct snd_kcontrol *kcontrol)
+{
+	return dapm_kcontrol_get_wlist(kcontrol)->widgets[0];
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_widget);
+
+/**
  * snd_soc_dapm_kcontrol_dapm() - Returns the dapm context associated to a
  *  kcontrol
  * @kcontrol: The kcontrol
@@ -779,7 +791,7 @@ static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
  * Determine if a kcontrol is shared. If it is, look it up. If it isn't,
  * create it. Either way, add the widget into the control's widget list
  */
-static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
+static int dapm_create_or_share_kcontrol(struct snd_soc_dapm_widget *w,
 	int kci)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
@@ -810,6 +822,7 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 			switch (w->id) {
 			case snd_soc_dapm_switch:
 			case snd_soc_dapm_mixer:
+			case snd_soc_dapm_pga:
 				wname_in_long_name = true;
 				kcname_in_long_name = true;
 				break;
@@ -899,7 +912,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 				continue;
 
 			if (!w->kcontrols[i]) {
-				ret = dapm_create_or_share_mixmux_kcontrol(w, i);
+				ret = dapm_create_or_share_kcontrol(w, i);
 				if (ret < 0)
 					return ret;
 			}
@@ -952,7 +965,7 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 		return -EINVAL;
 	}
 
-	ret = dapm_create_or_share_mixmux_kcontrol(w, 0);
+	ret = dapm_create_or_share_kcontrol(w, 0);
 	if (ret < 0)
 		return ret;
 
@@ -967,9 +980,13 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 /* create new dapm volume control */
 static int dapm_new_pga(struct snd_soc_dapm_widget *w)
 {
-	if (w->num_kcontrols)
-		dev_err(w->dapm->dev,
-			"ASoC: PGA controls not supported: '%s'\n", w->name);
+	int i, ret;
+
+	for (i = 0; i < w->num_kcontrols; i++) {
+		ret = dapm_create_or_share_kcontrol(w, i);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -2276,6 +2293,12 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 	kfree(w);
 }
 
+void snd_soc_dapm_reset_cache(struct snd_soc_dapm_context *dapm)
+{
+	dapm->path_sink_cache.widget = NULL;
+	dapm->path_source_cache.widget = NULL;
+}
+
 /* free all dapm widgets and resources */
 static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
@@ -2286,6 +2309,7 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 			continue;
 		snd_soc_dapm_free_widget(w);
 	}
+	snd_soc_dapm_reset_cache(dapm);
 }
 
 static struct snd_soc_dapm_widget *dapm_find_widget(
@@ -3473,11 +3497,29 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+		if (source->driver->ops && source->driver->ops->startup) {
+			ret = source->driver->ops->startup(&substream, source);
+			if (ret < 0) {
+				dev_err(source->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
+			}
+			source->active++;
+		}
 		ret = soc_dai_hw_params(&substream, params, source);
 		if (ret < 0)
 			goto out;
 
 		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+		if (sink->driver->ops && sink->driver->ops->startup) {
+			ret = sink->driver->ops->startup(&substream, sink);
+			if (ret < 0) {
+				dev_err(sink->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
+			}
+			sink->active++;
+		}
 		ret = soc_dai_hw_params(&substream, params, sink);
 		if (ret < 0)
 			goto out;
@@ -3497,6 +3539,18 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0 && ret != -ENOTSUPP)
 			dev_warn(sink->dev, "ASoC: Failed to mute: %d\n", ret);
 		ret = 0;
+
+		source->active--;
+		if (source->driver->ops && source->driver->ops->shutdown) {
+			substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+			source->driver->ops->shutdown(&substream, source);
+		}
+
+		sink->active--;
+		if (sink->driver->ops && sink->driver->ops->shutdown) {
+			substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+			sink->driver->ops->shutdown(&substream, sink);
+		}
 		break;
 
 	default:

@@ -132,10 +132,10 @@ test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
 
 test-liberty.bin:
-	$(CC) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty
+	$(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty
 
 test-liberty-z.bin:
-	$(CC) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty -lz
+	$(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty -lz
 
 test-cplus-demangle.bin:
 	$(BUILD) -liberty

@@ -71,4 +71,18 @@ config BCM2835_MBOX
 	  the services of the Videocore. Say Y here if you want to use the
 	  BCM2835 Mailbox.
 
+config STI_MBOX
+	tristate "STI Mailbox framework support"
+	depends on ARCH_STI && OF
+	help
+	  Mailbox implementation for STMicroelectonics family chips with
+	  hardware for interprocessor communication.
+
+config MAILBOX_TEST
+	tristate "Mailbox Test Client"
+	depends on OF
+	help
+	  Test client to help with testing new Controller driver
+	  implementations.
+
 endif

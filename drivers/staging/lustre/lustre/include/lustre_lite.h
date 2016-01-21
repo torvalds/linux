@@ -55,7 +55,6 @@
 
 #include "lustre/lustre_user.h"
 
-
 struct lustre_rw_params {
 	int		lrp_lock_mode;
 	ldlm_policy_data_t lrp_policy;

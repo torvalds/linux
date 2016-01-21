@@ -214,7 +214,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 			break;
 
 		if (clkidx >= MSTP_MAX_CLOCKS) {
-			pr_err("%s: invalid clock %s %s index %u)\n",
+			pr_err("%s: invalid clock %s %s index %u\n",
 			       __func__, np->name, name, clkidx);
 			continue;
 		}
@@ -257,6 +257,10 @@ int cpg_mstp_attach_dev(struct generic_pm_domain *domain, struct device *dev)
 					   &clkspec)) {
 		if (of_device_is_compatible(clkspec.np,
 					    "renesas,cpg-mstp-clocks"))
+			goto found;
+
+		/* BSC on r8a73a4/sh73a0 uses zb_clk instead of an mstp clock */
+		if (!strcmp(clkspec.np->name, "zb_clk"))
 			goto found;
 
 		of_node_put(clkspec.np);

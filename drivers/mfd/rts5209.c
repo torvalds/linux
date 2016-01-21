@@ -138,11 +138,7 @@ static int rts5209_card_power_on(struct rtsx_pcr *pcr, int card)
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL, pwr_mask, pwr_on);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PWR_GATE_CTRL,
 			LDO3318_PWR_MASK, 0x00);
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 static int rts5209_card_power_off(struct rtsx_pcr *pcr, int card)

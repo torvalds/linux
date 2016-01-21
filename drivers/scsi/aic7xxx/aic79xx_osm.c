@@ -925,7 +925,6 @@ struct scsi_host_template aic79xx_driver_template = {
 	.slave_configure	= ahd_linux_slave_configure,
 	.target_alloc		= ahd_linux_target_alloc,
 	.target_destroy		= ahd_linux_target_destroy,
-	.use_blk_tags		= 1,
 };
 
 /******************************** Bus DMA *************************************/

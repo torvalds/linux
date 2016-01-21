@@ -67,6 +67,8 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_TIME,
 	PARSE_EVENTS__TERM_TYPE_CALLGRAPH,
 	PARSE_EVENTS__TERM_TYPE_STACKSIZE,
+	PARSE_EVENTS__TERM_TYPE_NOINHERIT,
+	PARSE_EVENTS__TERM_TYPE_INHERIT
 };
 
 struct parse_events_term {
@@ -118,7 +120,18 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, char *name);
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
-				char *sys, char *event);
+				char *sys, char *event,
+				struct parse_events_error *error,
+				struct list_head *head_config);
+int parse_events_load_bpf(struct parse_events_evlist *data,
+			  struct list_head *list,
+			  char *bpf_file_name,
+			  bool source);
+/* Provide this function for perf test */
+struct bpf_object;
+int parse_events_load_bpf_obj(struct parse_events_evlist *data,
+			      struct list_head *list,
+			      struct bpf_object *obj);
 int parse_events_add_numeric(struct parse_events_evlist *data,
 			     struct list_head *list,
 			     u32 type, u64 config,
@@ -155,5 +168,6 @@ int print_hwcache_events(const char *event_glob, bool name_only);
 extern int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
+char *parse_events_formats_error_string(char *additional_terms);
 
 #endif /* __PERF_PARSE_EVENTS_H */

@@ -1,5 +1,3 @@
-subdir-y := configfs
-
 # List of programs to build
 hostprogs-y := dnotify_test
 

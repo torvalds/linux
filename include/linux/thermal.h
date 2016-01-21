@@ -44,9 +44,11 @@
 #define THERMAL_WEIGHT_DEFAULT 0
 
 /* Unit conversion macros */
-#define KELVIN_TO_CELSIUS(t)	(long)(((long)t-2732 >= 0) ?	\
-				((long)t-2732+5)/10 : ((long)t-2732-5)/10)
-#define CELSIUS_TO_KELVIN(t)	((t)*10+2732)
+#define DECI_KELVIN_TO_CELSIUS(t)	({			\
+	long _t = (t);						\
+	((_t-2732 >= 0) ? (_t-2732+5)/10 : (_t-2732-5)/10);	\
+})
+#define CELSIUS_TO_DECI_KELVIN(t)	((t)*10+2732)
 #define DECI_KELVIN_TO_MILLICELSIUS_WITH_OFFSET(t, off) (((t) - (off)) * 100)
 #define DECI_KELVIN_TO_MILLICELSIUS(t) DECI_KELVIN_TO_MILLICELSIUS_WITH_OFFSET(t, 2732)
 #define MILLICELSIUS_TO_DECI_KELVIN_WITH_OFFSET(t, off) (((t) / 100) + (off))
@@ -436,7 +438,8 @@ static inline void thermal_zone_device_unregister(
 static inline int thermal_zone_bind_cooling_device(
 	struct thermal_zone_device *tz, int trip,
 	struct thermal_cooling_device *cdev,
-	unsigned long upper, unsigned long lower)
+	unsigned long upper, unsigned long lower,
+	unsigned int weight)
 { return -ENODEV; }
 static inline int thermal_zone_unbind_cooling_device(
 	struct thermal_zone_device *tz, int trip,

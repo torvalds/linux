@@ -138,18 +138,6 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
-static void hsw_crt_pre_enable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE, "SPLL already enabled\n");
-	I915_WRITE(SPLL_CTL,
-		   SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC);
-	POSTING_READ(SPLL_CTL);
-	udelay(20);
-}
-
 /* Note: The caller is required to filter out dpms modes not supported by the
  * platform. */
 static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
@@ -158,7 +146,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	u32 adpa;
 
 	if (INTEL_INFO(dev)->gen >= 5)
@@ -216,19 +204,6 @@ static void pch_post_disable_crt(struct intel_encoder *encoder)
 	intel_disable_crt(encoder);
 }
 
-static void hsw_crt_post_disable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val;
-
-	DRM_DEBUG_KMS("Disabling SPLL\n");
-	val = I915_READ(SPLL_CTL);
-	WARN_ON(!(val & SPLL_PLL_ENABLE));
-	I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
-	POSTING_READ(SPLL_CTL);
-}
-
 static void intel_enable_crt(struct intel_encoder *encoder)
 {
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
@@ -280,6 +255,10 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	if (HAS_DDI(dev)) {
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_SPLL;
 		pipe_config->port_clock = 135000 * 2;
+
+		pipe_config->dpll_hw_state.wrpll = 0;
+		pipe_config->dpll_hw_state.spll =
+			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
 	}
 
 	return true;
@@ -376,7 +355,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 hotplug_en, orig, stat;
+	u32 stat;
 	bool ret = false;
 	int i, tries = 0;
 
@@ -395,12 +374,12 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 		tries = 2;
 	else
 		tries = 1;
-	hotplug_en = orig = I915_READ(PORT_HOTPLUG_EN);
-	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
 	for (i = 0; i < tries ; i++) {
 		/* turn on the FORCE_DETECT */
-		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+		i915_hotplug_interrupt_update(dev_priv,
+					      CRT_HOTPLUG_FORCE_DETECT,
+					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
 		if (wait_for((I915_READ(PORT_HOTPLUG_EN) &
 			      CRT_HOTPLUG_FORCE_DETECT) == 0,
@@ -415,8 +394,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	/* clear the interrupt we just generated, if any */
 	I915_WRITE(PORT_HOTPLUG_STAT, CRT_HOTPLUG_INT_STATUS);
 
-	/* and put the bits back */
-	I915_WRITE(PORT_HOTPLUG_EN, orig);
+	i915_hotplug_interrupt_update(dev_priv, CRT_HOTPLUG_FORCE_DETECT, 0);
 
 	return ret;
 }
@@ -861,8 +839,6 @@ void intel_crt_init(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
-		crt->base.pre_enable = hsw_crt_pre_enable;
-		crt->base.post_disable = hsw_crt_post_disable;
 	} else {
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;
@@ -891,7 +867,7 @@ void intel_crt_init(struct drm_device *dev)
 		u32 fdi_config = FDI_RX_POLARITY_REVERSED_LPT |
 				 FDI_RX_LINK_REVERSAL_OVERRIDE;
 
-		dev_priv->fdi_rx_config = I915_READ(_FDI_RXA_CTL) & fdi_config;
+		dev_priv->fdi_rx_config = I915_READ(FDI_RX_CTL(PIPE_A)) & fdi_config;
 	}
 
 	intel_crt_reset(connector);

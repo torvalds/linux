@@ -1577,15 +1577,6 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 #endif
 
 	/*
-	 * If the port is the middle of closing, bail out now
-	 */
-	if (info->port.flags & ASYNC_CLOSING) {
-		wait_event_interruptible_tty(tty, info->port.close_wait,
-				!(info->port.flags & ASYNC_CLOSING));
-		return (info->port.flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
-	}
-
-	/*
 	 * Start up serial port
 	 */
 	retval = cy_startup(info, tty);

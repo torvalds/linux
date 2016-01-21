@@ -115,7 +115,6 @@ static inline void cls_set_cts_flow_control(struct channel_t *ch)
 		&ch->ch_cls_uart->isr_fcr);
 
 	ch->ch_t_tlevel = 16;
-
 }
 
 static inline void cls_set_ixon_flow_control(struct channel_t *ch)
@@ -161,7 +160,6 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 	writeb((UART_FCR_ENABLE_FIFO | UART_16654_FCR_RXTRIGGER_16 |
 		UART_16654_FCR_TXTRIGGER_16 | UART_FCR_CLEAR_RCVR),
 		&ch->ch_cls_uart->isr_fcr);
-
 }
 
 static inline void cls_set_no_output_flow_control(struct channel_t *ch)
@@ -205,7 +203,6 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 	ch->ch_r_watermark = 0;
 	ch->ch_t_tlevel = 16;
 	ch->ch_r_tlevel = 16;
-
 }
 
 static inline void cls_set_rts_flow_control(struct channel_t *ch)
@@ -244,7 +241,6 @@ static inline void cls_set_rts_flow_control(struct channel_t *ch)
 
 	ch->ch_r_watermark = 4;
 	ch->ch_r_tlevel = 8;
-
 }
 
 static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
@@ -286,7 +282,6 @@ static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 	writeb((UART_FCR_ENABLE_FIFO | UART_16654_FCR_RXTRIGGER_16 |
 		UART_16654_FCR_TXTRIGGER_16 | UART_FCR_CLEAR_RCVR),
 		&ch->ch_cls_uart->isr_fcr);
-
 }
 
 static inline void cls_set_no_input_flow_control(struct channel_t *ch)
@@ -325,7 +320,6 @@ static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 
 	ch->ch_t_tlevel = 16;
 	ch->ch_r_tlevel = 16;
-
 }
 
 /*
@@ -384,7 +378,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 
 	/* Here we try to figure out what caused the interrupt to happen */
 	while (1) {
-
 		isr = readb(&ch->ch_cls_uart->isr_fcr);
 
 		/* Bail if no pending interrupt on port */
@@ -445,7 +438,7 @@ static void cls_param(struct tty_struct *tty)
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
 
-	un = (struct un_t *) tty->driver_data;
+	un = (struct un_t *)tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
@@ -478,7 +471,6 @@ static void cls_param(struct tty_struct *tty)
 		ch->ch_old_baud = 0;
 		return;
 	} else if (ch->ch_custom_speed) {
-
 		baud = ch->ch_custom_speed;
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
@@ -526,7 +518,7 @@ static void cls_param(struct tty_struct *tty)
 		 * unit is NOT open
 		 */
 		if (!(ch->ch_tun.un_flags & UN_ISOPEN) &&
-					 (un->un_type == DGNC_PRINT))
+		    (un->un_type == DGNC_PRINT))
 			baud = C_BAUD(ch->ch_pun.un_tty) & 0xff;
 		else
 			baud = C_BAUD(ch->ch_tun.un_tty) & 0xff;
@@ -540,7 +532,7 @@ static void cls_param(struct tty_struct *tty)
 		jindex = baud;
 
 		if ((iindex >= 0) && (iindex < 4) && (jindex >= 0) &&
-								(jindex < 16)) {
+		    (jindex < 16)) {
 			baud = bauds[iindex][jindex];
 		} else {
 			baud = 0;
@@ -628,13 +620,13 @@ static void cls_param(struct tty_struct *tty)
 	 * we are in hardware flow control mode, or CLOCAL/FORCEDCD is not set.
 	 */
 	if ((ch->ch_digi.digi_flags & CTSPACE) ||
-		(ch->ch_digi.digi_flags & RTSPACE) ||
-		(ch->ch_c_cflag & CRTSCTS) ||
-		!(ch->ch_digi.digi_flags & DIGI_FORCEDCD) ||
-		!(ch->ch_c_cflag & CLOCAL))
-			ier |= UART_IER_MSI;
+	    (ch->ch_digi.digi_flags & RTSPACE) ||
+	    (ch->ch_c_cflag & CRTSCTS) ||
+	    !(ch->ch_digi.digi_flags & DIGI_FORCEDCD) ||
+	    !(ch->ch_c_cflag & CLOCAL))
+		ier |= UART_IER_MSI;
 	else
-			ier &= ~UART_IER_MSI;
+		ier &= ~UART_IER_MSI;
 
 	ier |= UART_IER_THRI;
 
@@ -649,7 +641,7 @@ static void cls_param(struct tty_struct *tty)
 		 * disable flow control
 		 */
 		if ((ch->ch_startc == _POSIX_VDISABLE) ||
-					 (ch->ch_stopc == _POSIX_VDISABLE))
+		    (ch->ch_stopc == _POSIX_VDISABLE))
 			cls_set_no_output_flow_control(ch);
 		else
 			cls_set_ixon_flow_control(ch);
@@ -665,7 +657,7 @@ static void cls_param(struct tty_struct *tty)
 		 * flow control
 		 */
 		if ((ch->ch_startc == _POSIX_VDISABLE) ||
-				(ch->ch_stopc == _POSIX_VDISABLE))
+		    (ch->ch_stopc == _POSIX_VDISABLE))
 			cls_set_no_input_flow_control(ch);
 		else
 			cls_set_ixoff_flow_control(ch);
@@ -684,7 +676,7 @@ static void cls_param(struct tty_struct *tty)
  */
 static void cls_tasklet(unsigned long data)
 {
-	struct dgnc_board *bd = (struct dgnc_board *) data;
+	struct dgnc_board *bd = (struct dgnc_board *)data;
 	struct channel_t *ch;
 	unsigned long flags;
 	int i;
@@ -710,7 +702,6 @@ static void cls_tasklet(unsigned long data)
 	 * If board is ready, parse deeper to see if there is anything to do.
 	 */
 	if ((state == BOARD_READY) && (ports > 0)) {
-
 		/* Loop on each port */
 		for (i = 0; i < ports; i++) {
 			ch = bd->channels[i];
@@ -746,7 +737,6 @@ static void cls_tasklet(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&bd->bd_intr_lock, flags);
-
 }
 
 /*
@@ -854,10 +844,8 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * Discard character if we are ignoring the error mask.
 		*/
 		if (linestatus & error_mask)  {
-			unsigned char discard;
-
 			linestatus = 0;
-			discard = readb(&ch->ch_cls_uart->txrx);
+			readb(&ch->ch_cls_uart->txrx);
 			continue;
 		}
 
@@ -916,7 +904,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
 
-	un = (struct un_t *) tty->driver_data;
+	un = (struct un_t *)tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return -ENXIO;
 
@@ -945,7 +933,7 @@ static void cls_flush_uart_write(struct channel_t *ch)
 		return;
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
-						&ch->ch_cls_uart->isr_fcr);
+	       &ch->ch_cls_uart->isr_fcr);
 	udelay(10);
 
 	ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
@@ -991,7 +979,7 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 	/* If port is "stopped", don't send any data to the UART */
 	if ((ch->ch_flags & CH_FORCED_STOP) ||
-				 (ch->ch_flags & CH_BREAK_SENDING))
+	    (ch->ch_flags & CH_BREAK_SENDING))
 		goto exit_unlock;
 
 	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
@@ -1008,7 +996,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	n = min(n, qlen);
 
 	while (n > 0) {
-
 		/*
 		 * If RTS Toggle mode is on, turn on RTS now if not already set,
 		 * and make sure we get an event when the data transfer has
@@ -1182,7 +1169,7 @@ static void cls_uart_init(struct channel_t *ch)
 	readb(&ch->ch_cls_uart->txrx);
 
 	writeb((UART_FCR_ENABLE_FIFO|UART_FCR_CLEAR_RCVR|UART_FCR_CLEAR_XMIT),
-						 &ch->ch_cls_uart->isr_fcr);
+	       &ch->ch_cls_uart->isr_fcr);
 	udelay(10);
 
 	ch->ch_flags |= (CH_FIFO_ENABLED | CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
@@ -1309,6 +1296,5 @@ static void cls_vpd(struct dgnc_board *brd)
 	}
 	pr_info("\n");
 
-	if (re_map_vpdbase)
-		iounmap(re_map_vpdbase);
+	iounmap(re_map_vpdbase);
 }

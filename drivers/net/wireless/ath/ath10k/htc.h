@@ -312,8 +312,6 @@ struct ath10k_htc_ep {
 	int max_ep_message_len;
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
-	int ul_is_polled; /* call HIF to get tx completions */
-	int dl_is_polled; /* call HIF to fetch rx (not implemented) */
 
 	u8 seq_no; /* for debugging */
 	int tx_credits;
@@ -355,5 +353,7 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 		    struct sk_buff *packet);
 struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size);
+void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
 
 #endif

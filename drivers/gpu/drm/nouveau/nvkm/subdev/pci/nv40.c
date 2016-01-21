@@ -44,7 +44,7 @@ nv40_pci_wr32(struct nvkm_pci *pci, u16 addr, u32 data)
 	nvkm_wr32(device, 0x088000 + addr, data);
 }
 
-static void
+void
 nv40_pci_msi_rearm(struct nvkm_pci *pci)
 {
 	nvkm_pci_wr08(pci, 0x0068, 0xff);

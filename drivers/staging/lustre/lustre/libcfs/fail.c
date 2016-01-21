@@ -35,10 +35,10 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-unsigned long cfs_fail_loc = 0;
+unsigned long cfs_fail_loc;
 EXPORT_SYMBOL(cfs_fail_loc);
 
-unsigned int cfs_fail_val = 0;
+unsigned int cfs_fail_val;
 EXPORT_SYMBOL(cfs_fail_val);
 
 DECLARE_WAIT_QUEUE_HEAD(cfs_race_waitq);

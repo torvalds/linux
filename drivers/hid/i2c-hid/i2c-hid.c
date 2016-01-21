@@ -1028,6 +1028,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	snprintf(hid->name, sizeof(hid->name), "%s %04hX:%04hX",
 		 client->name, hid->vendor, hid->product);
+	strlcpy(hid->phys, dev_name(&client->dev), sizeof(hid->phys));
 
 	ret = hid_add_device(hid);
 	if (ret) {

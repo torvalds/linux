@@ -949,7 +949,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		if (!req) {
 			err = -ENOMEM;
 			break;
-		};
+		}
 
 		err = copy_from_user(req, argp, sizeof(struct ubi_rnvol_req));
 		if (err) {

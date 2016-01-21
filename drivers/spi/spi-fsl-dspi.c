@@ -167,7 +167,7 @@ static inline int is_double_byte_mode(struct fsl_dspi *dspi)
 {
 	unsigned int val;
 
-	regmap_read(dspi->regmap, SPI_CTAR(dspi->cs), &val);
+	regmap_read(dspi->regmap, SPI_CTAR(0), &val);
 
 	return ((val & SPI_FRAME_BITS_MASK) == SPI_FRAME_BITS(8)) ? 0 : 1;
 }
@@ -257,7 +257,7 @@ static u32 dspi_data_to_pushr(struct fsl_dspi *dspi, int tx_word)
 
 	return	SPI_PUSHR_TXDATA(d16) |
 		SPI_PUSHR_PCS(dspi->cs) |
-		SPI_PUSHR_CTAS(dspi->cs) |
+		SPI_PUSHR_CTAS(0) |
 		SPI_PUSHR_CONT;
 }
 
@@ -290,7 +290,7 @@ static int dspi_eoq_write(struct fsl_dspi *dspi)
 		 */
 		if (tx_word && (dspi->len == 1)) {
 			dspi->dataflags |= TRAN_STATE_WORD_ODD_NUM;
-			regmap_update_bits(dspi->regmap, SPI_CTAR(dspi->cs),
+			regmap_update_bits(dspi->regmap, SPI_CTAR(0),
 					SPI_FRAME_BITS_MASK, SPI_FRAME_BITS(8));
 			tx_word = 0;
 		}
@@ -339,7 +339,7 @@ static int dspi_tcfq_write(struct fsl_dspi *dspi)
 
 	if (tx_word && (dspi->len == 1)) {
 		dspi->dataflags |= TRAN_STATE_WORD_ODD_NUM;
-		regmap_update_bits(dspi->regmap, SPI_CTAR(dspi->cs),
+		regmap_update_bits(dspi->regmap, SPI_CTAR(0),
 				SPI_FRAME_BITS_MASK, SPI_FRAME_BITS(8));
 		tx_word = 0;
 	}
@@ -407,11 +407,8 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		regmap_update_bits(dspi->regmap, SPI_MCR,
 				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
 				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
-		regmap_write(dspi->regmap, SPI_CTAR(dspi->cs),
+		regmap_write(dspi->regmap, SPI_CTAR(0),
 				dspi->cur_chip->ctar_val);
-		if (transfer->speed_hz)
-			regmap_write(dspi->regmap, SPI_CTAR(dspi->cs),
-					dspi->cur_chip->ctar_val);
 
 		trans_mode = dspi->devtype_data->trans_mode;
 		switch (trans_mode) {
@@ -569,7 +566,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 		if (!dspi->len) {
 			if (dspi->dataflags & TRAN_STATE_WORD_ODD_NUM) {
 				regmap_update_bits(dspi->regmap,
-						   SPI_CTAR(dspi->cs),
+						   SPI_CTAR(0),
 						   SPI_FRAME_BITS_MASK,
 						   SPI_FRAME_BITS(16));
 				dspi->dataflags &= ~TRAN_STATE_WORD_ODD_NUM;

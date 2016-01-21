@@ -21,7 +21,8 @@
 struct bus_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct medialb_bus *bus, char *buf);
-	ssize_t (*store)(struct medialb_bus *bus, const char *buf, size_t count);
+	ssize_t (*store)(struct medialb_bus *bus, const char *buf,
+			 size_t count);
 };
 
 static ssize_t state_show(struct medialb_bus *bus, char *buf)

@@ -145,7 +145,7 @@
 	status = "okay";
 
 	flash: m25p80@0 {
-		compatible = "sst,w25q256";
+		compatible = "sst,w25q256", "jedec,spi-nor";
 		spi-max-frequency = <30000000>;
 		reg = <0>;
 	};
@@ -154,7 +154,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

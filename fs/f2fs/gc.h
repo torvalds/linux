@@ -19,12 +19,6 @@
 #define LIMIT_INVALID_BLOCK	40 /* percentage over total user space */
 #define LIMIT_FREE_BLOCK	40 /* percentage over invalid + free space */
 
-/*
- * with this macro, we can control the max time we do garbage collection,
- * when user triggers batch mode gc by ioctl.
- */
-#define F2FS_BATCH_GC_MAX_NUM		16
-
 /* Search max. number of dirty segments to select a victim segment */
 #define DEF_MAX_VICTIM_SEARCH 4096 /* covers 8GB */
 

@@ -19,6 +19,8 @@ static int no_handler_test(void)
 	u64 val;
 	int i;
 
+	SKIP_IF(!ebb_is_supported());
+
 	event_init_named(&event, 0x1001e, "cycles");
 	event_leader_ebb_init(&event);
 

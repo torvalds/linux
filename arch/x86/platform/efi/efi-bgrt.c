@@ -50,9 +50,14 @@ void __init efi_bgrt_init(void)
 		       bgrt_tab->version);
 		return;
 	}
-	if (bgrt_tab->status != 1) {
-		pr_err("Ignoring BGRT: invalid status %u (expected 1)\n",
+	if (bgrt_tab->status & 0xfe) {
+		pr_err("Ignoring BGRT: reserved status bits are non-zero %u\n",
 		       bgrt_tab->status);
+		return;
+	}
+	if (bgrt_tab->status != 1) {
+		pr_debug("Ignoring BGRT: invalid status %u (expected 1)\n",
+			 bgrt_tab->status);
 		return;
 	}
 	if (bgrt_tab->image_type != 0) {

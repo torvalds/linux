@@ -742,6 +742,12 @@
 #define MMUBE1_VBE4		0x00000002
 #define MMUBE1_VBE5		0x00000001
 
+#define TMRN_TMCFG0      16	/* Thread Management Configuration Register 0 */
+#define TMRN_TMCFG0_NPRIBITS       0x003f0000 /* Bits of thread priority */
+#define TMRN_TMCFG0_NPRIBITS_SHIFT 16
+#define TMRN_TMCFG0_NATHRD         0x00003f00 /* Number of active threads */
+#define TMRN_TMCFG0_NATHRD_SHIFT   8
+#define TMRN_TMCFG0_NTHRD          0x0000003f /* Number of threads */
 #define TMRN_IMSR0	0x120	/* Initial MSR Register 0 (e6500) */
 #define TMRN_IMSR1	0x121	/* Initial MSR Register 1 (e6500) */
 #define TMRN_INIA0	0x140	/* Next Instruction Address Register 0 */

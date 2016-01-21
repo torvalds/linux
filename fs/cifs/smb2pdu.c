@@ -660,7 +660,7 @@ ssetup_ntlmssp_authenticate:
 			goto ssetup_exit;
 		}
 
-		msg = spnego_key->payload.data;
+		msg = spnego_key->payload.data[0];
 		/*
 		 * check version field to make sure that cifs.upcall is
 		 * sending us a response in an expected form
@@ -1151,12 +1151,129 @@ add_lease_context(struct TCP_Server_Info *server, struct kvec *iov,
 	return 0;
 }
 
+static struct create_durable_v2 *
+create_durable_v2_buf(struct cifs_fid *pfid)
+{
+	struct create_durable_v2 *buf;
+
+	buf = kzalloc(sizeof(struct create_durable_v2), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct create_durable_v2, dcontext));
+	buf->ccontext.DataLength = cpu_to_le32(sizeof(struct durable_context_v2));
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_durable_v2, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+
+	buf->dcontext.Timeout = 0; /* Should this be configurable by workload */
+	buf->dcontext.Flags = cpu_to_le32(SMB2_DHANDLE_FLAG_PERSISTENT);
+	get_random_bytes(buf->dcontext.CreateGuid, 16);
+	memcpy(pfid->create_guid, buf->dcontext.CreateGuid, 16);
+
+	/* SMB2_CREATE_DURABLE_HANDLE_REQUEST is "DH2Q" */
+	buf->Name[0] = 'D';
+	buf->Name[1] = 'H';
+	buf->Name[2] = '2';
+	buf->Name[3] = 'Q';
+	return buf;
+}
+
+static struct create_durable_handle_reconnect_v2 *
+create_reconnect_durable_v2_buf(struct cifs_fid *fid)
+{
+	struct create_durable_handle_reconnect_v2 *buf;
+
+	buf = kzalloc(sizeof(struct create_durable_handle_reconnect_v2),
+			GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset =
+		cpu_to_le16(offsetof(struct create_durable_handle_reconnect_v2,
+				     dcontext));
+	buf->ccontext.DataLength =
+		cpu_to_le32(sizeof(struct durable_reconnect_context_v2));
+	buf->ccontext.NameOffset =
+		cpu_to_le16(offsetof(struct create_durable_handle_reconnect_v2,
+			    Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+
+	buf->dcontext.Fid.PersistentFileId = fid->persistent_fid;
+	buf->dcontext.Fid.VolatileFileId = fid->volatile_fid;
+	buf->dcontext.Flags = cpu_to_le32(SMB2_DHANDLE_FLAG_PERSISTENT);
+	memcpy(buf->dcontext.CreateGuid, fid->create_guid, 16);
+
+	/* SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2 is "DH2C" */
+	buf->Name[0] = 'D';
+	buf->Name[1] = 'H';
+	buf->Name[2] = '2';
+	buf->Name[3] = 'C';
+	return buf;
+}
+
 static int
-add_durable_context(struct kvec *iov, unsigned int *num_iovec,
+add_durable_v2_context(struct kvec *iov, unsigned int *num_iovec,
 		    struct cifs_open_parms *oparms)
 {
 	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
+
+	iov[num].iov_base = create_durable_v2_buf(oparms->fid);
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = sizeof(struct create_durable_v2);
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset =
+			cpu_to_le32(sizeof(struct smb2_create_req) - 4 +
+								iov[1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_durable_v2));
+	inc_rfc1001_len(&req->hdr, sizeof(struct create_durable_v2));
+	*num_iovec = num + 1;
+	return 0;
+}
+
+static int
+add_durable_reconnect_v2_context(struct kvec *iov, unsigned int *num_iovec,
+		    struct cifs_open_parms *oparms)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+
+	/* indicate that we don't need to relock the file */
+	oparms->reconnect = false;
+
+	iov[num].iov_base = create_reconnect_durable_v2_buf(oparms->fid);
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = sizeof(struct create_durable_handle_reconnect_v2);
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset =
+			cpu_to_le32(sizeof(struct smb2_create_req) - 4 +
+								iov[1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength,
+			sizeof(struct create_durable_handle_reconnect_v2));
+	inc_rfc1001_len(&req->hdr,
+			sizeof(struct create_durable_handle_reconnect_v2));
+	*num_iovec = num + 1;
+	return 0;
+}
+
+static int
+add_durable_context(struct kvec *iov, unsigned int *num_iovec,
+		    struct cifs_open_parms *oparms, bool use_persistent)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+
+	if (use_persistent) {
+		if (oparms->reconnect)
+			return add_durable_reconnect_v2_context(iov, num_iovec,
+								oparms);
+		else
+			return add_durable_v2_context(iov, num_iovec, oparms);
+	}
 
 	if (oparms->reconnect) {
 		iov[num].iov_base = create_reconnect_durable_buf(oparms->fid);
@@ -1275,7 +1392,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 			ccontext->Next =
 				cpu_to_le32(server->vals->create_lease_size);
 		}
-		rc = add_durable_context(iov, &num_iovecs, oparms);
+
+		rc = add_durable_context(iov, &num_iovecs, oparms,
+					tcon->use_persistent);
 		if (rc) {
 			cifs_small_buf_release(req);
 			kfree(copy_path);

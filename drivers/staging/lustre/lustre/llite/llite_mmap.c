@@ -258,8 +258,6 @@ out:
 	return result;
 }
 
-
-
 static inline int to_fault_error(int result)
 {
 	switch (result) {

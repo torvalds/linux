@@ -19,7 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * this code is specificly written as a driver for the speakup screenreview
- * package and is not a general device driver.  */
+ * package and is not a general device driver.
+ */
 
 #include <linux/unistd.h>
 #include <linux/miscdevice.h> /* for misc_register, and SYNTH_MINOR */

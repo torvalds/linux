@@ -462,7 +462,6 @@ MODULE_DEVICE_TABLE(of, at25_of_match);
 static struct spi_driver at25_driver = {
 	.driver = {
 		.name		= "at25",
-		.owner		= THIS_MODULE,
 		.of_match_table = at25_of_match,
 	},
 	.probe		= at25_probe,

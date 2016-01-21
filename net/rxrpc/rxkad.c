@@ -67,7 +67,7 @@ static int rxkad_init_connection_security(struct rxrpc_connection *conn)
 
 	_enter("{%d},{%x}", conn->debug_id, key_serial(conn->key));
 
-	token = conn->key->payload.data;
+	token = conn->key->payload.data[0];
 	conn->security_ix = token->security_index;
 
 	ci = crypto_alloc_blkcipher("pcbc(fcrypt)", 0, CRYPTO_ALG_ASYNC);
@@ -125,7 +125,7 @@ static void rxkad_prime_packet_security(struct rxrpc_connection *conn)
 	if (!conn->key)
 		return;
 
-	token = conn->key->payload.data;
+	token = conn->key->payload.data[0];
 	memcpy(&iv, token->kad->session_key, sizeof(iv));
 
 	desc.tfm = conn->cipher;
@@ -221,7 +221,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	rxkhdr.checksum = 0;
 
 	/* encrypt from the session key */
-	token = call->conn->key->payload.data;
+	token = call->conn->key->payload.data[0];
 	memcpy(&iv, token->kad->session_key, sizeof(iv));
 	desc.tfm = call->conn->cipher;
 	desc.info = iv.x;
@@ -433,7 +433,7 @@ static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
 	skb_to_sgvec(skb, sg, 0, skb->len);
 
 	/* decrypt from the session key */
-	token = call->conn->key->payload.data;
+	token = call->conn->key->payload.data[0];
 	memcpy(&iv, token->kad->session_key, sizeof(iv));
 	desc.tfm = call->conn->cipher;
 	desc.info = iv.x;
@@ -780,7 +780,7 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	if (conn->security_level < min_level)
 		goto protocol_error;
 
-	token = conn->key->payload.data;
+	token = conn->key->payload.data[0];
 
 	/* build the response packet */
 	memset(&resp, 0, sizeof(resp));
@@ -848,12 +848,12 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 		}
 	}
 
-	ASSERT(conn->server_key->payload.data != NULL);
+	ASSERT(conn->server_key->payload.data[0] != NULL);
 	ASSERTCMP((unsigned long) ticket & 7UL, ==, 0);
 
-	memcpy(&iv, &conn->server_key->type_data, sizeof(iv));
+	memcpy(&iv, &conn->server_key->payload.data[2], sizeof(iv));
 
-	desc.tfm = conn->server_key->payload.data;
+	desc.tfm = conn->server_key->payload.data[0];
 	desc.info = iv.x;
 	desc.flags = 0;
 

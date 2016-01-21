@@ -203,11 +203,13 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	 * - disconnect single STA, already disconnected
 	 * - disconnect all
 	 *
-	 * For "disconnect all", there are 2 options:
+	 * For "disconnect all", there are 3 options:
 	 * - bssid == NULL
+	 * - bssid is broadcast address (ff:ff:ff:ff:ff:ff)
 	 * - bssid is our MAC address
 	 */
-	if (bssid && memcmp(ndev->dev_addr, bssid, ETH_ALEN)) {
+	if (bssid && !is_broadcast_ether_addr(bssid) &&
+	    !ether_addr_equal_unaligned(ndev->dev_addr, bssid)) {
 		cid = wil_find_cid(wil, bssid);
 		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
@@ -420,7 +422,7 @@ static void wil_connect_worker(struct work_struct *work)
 		wil->sta[cid].status = wil_sta_connected;
 		netif_tx_wake_all_queues(ndev);
 	} else {
-		wil->sta[cid].status = wil_sta_unused;
+		wil_disconnect_cid(wil, cid, WLAN_REASON_UNSPECIFIED, true);
 	}
 }
 
@@ -765,6 +767,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (wil->hw_version == HW_VER_UNKNOWN)
 		return -ENODEV;
 
+	set_bit(wil_status_resetting, wil->status);
+
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	wil_bcast_fini(wil);
@@ -851,6 +855,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 void wil_fw_error_recovery(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "starting fw error recovery\n");
+
+	if (test_bit(wil_status_resetting, wil->status)) {
+		wil_info(wil, "Reset already in progress\n");
+		return;
+	}
+
 	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
 }

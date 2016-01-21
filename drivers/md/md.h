@@ -87,10 +87,16 @@ struct md_rdev {
 					 * array and could again if we did a partial
 					 * resync from the bitmap
 					 */
-	sector_t	recovery_offset;/* If this device has been partially
+	union {
+		sector_t recovery_offset;/* If this device has been partially
 					 * recovered, this is where we were
 					 * up to.
 					 */
+		sector_t journal_tail;	/* If this device is a journal device,
+					 * this is the journal tail (journal
+					 * recovery start point)
+					 */
+	};
 
 	atomic_t	nr_pending;	/* number of pending requests.
 					 * only maintained for arrays that
@@ -172,6 +178,11 @@ enum flag_bits {
 				 * This device is seen locally but not
 				 * by the whole cluster
 				 */
+	Journal,		/* This device is used as journal for
+				 * raid-5/6.
+				 * Usually, this device should be faster
+				 * than other devices in the array
+				 */
 };
 
 #define BB_LEN_MASK	(0x00000000000001FFULL)
@@ -221,6 +232,8 @@ struct mddev {
 #define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
 				 * md_ioctl checked on it.
 				 */
+#define MD_JOURNAL_CLEAN 5	/* A raid with journal is already clean */
+#define MD_HAS_JOURNAL	6	/* The raid array has journal feature set */
 
 	int				suspended;
 	atomic_t			active_io;
@@ -553,7 +566,9 @@ static inline char * mdname (struct mddev * mddev)
 static inline int sysfs_link_rdev(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
-	if (!test_bit(Replacement, &rdev->flags) && mddev->kobj.sd) {
+	if (!test_bit(Replacement, &rdev->flags) &&
+	    !test_bit(Journal, &rdev->flags) &&
+	    mddev->kobj.sd) {
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		return sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
 	} else
@@ -563,7 +578,9 @@ static inline int sysfs_link_rdev(struct mddev *mddev, struct md_rdev *rdev)
 static inline void sysfs_unlink_rdev(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
-	if (!test_bit(Replacement, &rdev->flags) && mddev->kobj.sd) {
+	if (!test_bit(Replacement, &rdev->flags) &&
+	    !test_bit(Journal, &rdev->flags) &&
+	    mddev->kobj.sd) {
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		sysfs_remove_link(&mddev->kobj, nm);
 	}
@@ -658,7 +675,7 @@ extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
 
 extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
-extern void md_reload_sb(struct mddev *mddev);
+extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);

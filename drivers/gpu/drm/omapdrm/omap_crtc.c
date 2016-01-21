@@ -412,9 +412,6 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 		dispc_mgr_go(omap_crtc->channel);
 		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
 	}
-
-	crtc->invert_dimensions = !!(crtc->primary->state->rotation &
-				    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270)));
 }
 
 static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,

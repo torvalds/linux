@@ -103,34 +103,24 @@ void rtl823a_phy_rf6052setccktxpower(struct rtw_adapter *Adapter,
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	u32 TxAGC[2] = {0, 0}, tmpval = 0;
-	bool TurboScanOff = false;
 	u8 idx1, idx2;
 	u8 *ptr;
-
-	/*  According to SD3 eechou's suggestion, we need to disable
-	    turbo scan for RU. */
-	/*  Otherwise, external PA will be broken if power index > 0x20. */
-	if (pHalData->EEPROMRegulatory != 0 || pHalData->ExternalPA)
-		TurboScanOff = true;
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		TxAGC[RF_PATH_A] = 0x3f3f3f3f;
 		TxAGC[RF_PATH_B] = 0x3f3f3f3f;
 
-		TurboScanOff = true;/* disable turbo scan */
-
-		if (TurboScanOff) {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] = pPowerlevel[idx1] |
-					(pPowerlevel[idx1] << 8) |
-					(pPowerlevel[idx1] << 16) |
-					(pPowerlevel[idx1] << 24);
-				/*  2010/10/18 MH For external PA module.
-				    We need to limit power index to be less
-				    than 0x20. */
-				if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
-					TxAGC[idx1] = 0x20;
-			}
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			TxAGC[idx1] = pPowerlevel[idx1] |
+				(pPowerlevel[idx1] << 8) |
+				(pPowerlevel[idx1] << 16) |
+				(pPowerlevel[idx1] << 24);
+			/*
+			 * 2010/10/18 MH For external PA module. We need
+			 * to limit power index to be less than 0x20.
+			 */
+			if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
+				TxAGC[idx1] = 0x20;
 		}
 	} else {
 /*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx
@@ -194,7 +184,7 @@ static void getPowerBase(struct rtw_adapter *Adapter, u8 *pPowerLevel,
 			 u8 Channel, u32 *OfdmBase, u32 *MCSBase)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u32 powerBase0, powerBase1;
+	u32 ofdm, mcs;
 	u8 Legacy_pwrdiff = 0;
 	s8 HT20_pwrdiff = 0;
 	u8 i, powerlevel[2];
@@ -202,11 +192,10 @@ static void getPowerBase(struct rtw_adapter *Adapter, u8 *pPowerLevel,
 	for (i = 0; i < 2; i++) {
 		powerlevel[i] = pPowerLevel[i];
 		Legacy_pwrdiff = pHalData->TxPwrLegacyHtDiff[i][Channel-1];
-		powerBase0 = powerlevel[i] + Legacy_pwrdiff;
+		ofdm = powerlevel[i] + Legacy_pwrdiff;
 
-		powerBase0 = powerBase0 << 24 | powerBase0 << 16 |
-			powerBase0 << 8 | powerBase0;
-		*(OfdmBase + i) = powerBase0;
+		ofdm = ofdm << 24 | ofdm << 16 | ofdm << 8 | ofdm;
+		*(OfdmBase + i) = ofdm;
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -215,10 +204,9 @@ static void getPowerBase(struct rtw_adapter *Adapter, u8 *pPowerLevel,
 			HT20_pwrdiff = pHalData->TxPwrHt20Diff[i][Channel-1];
 			powerlevel[i] += HT20_pwrdiff;
 		}
-		powerBase1 = powerlevel[i];
-		powerBase1 = powerBase1 << 24 | powerBase1 << 16 |
-			powerBase1 << 8 | powerBase1;
-		*(MCSBase + i) = powerBase1;
+		mcs = powerlevel[i];
+		mcs = mcs << 24 | mcs << 16 | mcs << 8 | mcs;
+		*(MCSBase + i) = mcs;
 	}
 }
 

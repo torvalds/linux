@@ -3,11 +3,11 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <api/fs/fs.h>
-#include <api/fs/tracefs.h>
-#include <api/fs/debugfs.h>
 #include "tests.h"
 #include "debug.h"
+#include "util.h"
 #include <linux/hw_breakpoint.h>
+#include <api/fs/fs.h>
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
@@ -1260,25 +1260,24 @@ test__checkevent_breakpoint_len_rw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_rw(evlist);
 }
 
+static int test__checkevent_precise_max_modifier(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_SOFTWARE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_SW_TASK_CLOCK == evsel->attr.config);
+	return 0;
+}
+
 static int count_tracepoints(void)
 {
-	char events_path[PATH_MAX];
 	struct dirent *events_ent;
-	const char *mountpoint;
 	DIR *events_dir;
 	int cnt = 0;
 
-	mountpoint = tracefs_find_mountpoint();
-	if (mountpoint) {
-		scnprintf(events_path, PATH_MAX, "%s/events",
-			  mountpoint);
-	} else {
-		mountpoint = debugfs_find_mountpoint();
-		scnprintf(events_path, PATH_MAX, "%s/tracing/events",
-			  mountpoint);
-	}
-
-	events_dir = opendir(events_path);
+	events_dir = opendir(tracing_events_path);
 
 	TEST_ASSERT_VAL("Can't open events dir", events_dir);
 
@@ -1295,7 +1294,7 @@ static int count_tracepoints(void)
 			continue;
 
 		scnprintf(sys_path, PATH_MAX, "%s/%s",
-			  events_path, events_ent->d_name);
+			  tracing_events_path, events_ent->d_name);
 
 		sys_dir = opendir(sys_path);
 		TEST_ASSERT_VAL("Can't open sys dir", sys_dir);
@@ -1575,6 +1574,11 @@ static struct evlist_test test__events[] = {
 		.check = test__checkevent_exclude_idle_modifier_1,
 		.id    = 46,
 	},
+	{
+		.name  = "task-clock:P,cycles",
+		.check = test__checkevent_precise_max_modifier,
+		.id    = 47,
+	},
 };
 
 static struct evlist_test test__events_pmu[] = {
@@ -1750,6 +1754,17 @@ static int test_pmu_events(void)
 	return ret;
 }
 
+static void debug_warn(const char *warn, va_list params)
+{
+	char msg[1024];
+
+	if (!verbose)
+		return;
+
+	vsnprintf(msg, sizeof(msg), warn, params);
+	fprintf(stderr, " Warning: %s\n", msg);
+}
+
 int test__parse_events(void)
 {
 	int ret1, ret2 = 0;
@@ -1760,6 +1775,8 @@ do {							\
 	if (!ret2)					\
 		ret2 = ret1;				\
 } while (0)
+
+	set_warning_routine(debug_warn);
 
 	TEST_EVENTS(test__events);
 

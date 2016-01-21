@@ -608,17 +608,15 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 
 	/* Check for error interrupt */
 	if (isr & XCAN_IXR_ERROR_MASK) {
-		if (skb) {
+		if (skb)
 			cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
-		}
 
 		/* Check for Ack error interrupt */
 		if (err_status & XCAN_ESR_ACKER_MASK) {
 			stats->tx_errors++;
 			if (skb) {
 				cf->can_id |= CAN_ERR_ACK;
-				cf->data[3] |= CAN_ERR_PROT_LOC_ACK;
+				cf->data[3] = CAN_ERR_PROT_LOC_ACK;
 			}
 		}
 
@@ -654,8 +652,7 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 			stats->rx_errors++;
 			if (skb) {
 				cf->can_id |= CAN_ERR_PROT;
-				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ |
-						CAN_ERR_PROT_LOC_CRC_DEL;
+				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 			}
 		}
 			priv->can.can_stats.bus_error++;

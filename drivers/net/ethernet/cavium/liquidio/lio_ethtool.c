@@ -153,7 +153,6 @@ lio_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	strncpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
 		ETHTOOL_FWVERS_LEN);
 	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
-	drvinfo->regdump_len = OCT_ETHTOOL_REGDUMP_LEN;
 }
 
 static void

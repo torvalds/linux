@@ -234,8 +234,8 @@ static int lx_pcm_open(struct snd_pcm_substream *substream)
 
 	/* the clock rate cannot be changed */
 	board_rate = chip->board_sample_rate;
-	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_RATE,
-					   board_rate, board_rate);
+	err = snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_RATE,
+					   board_rate);
 
 	if (err < 0) {
 		dev_warn(chip->card->dev, "could not constrain periods\n");

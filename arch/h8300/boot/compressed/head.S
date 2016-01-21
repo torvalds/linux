@@ -9,8 +9,8 @@
 	.section	.text..startup,"ax"
 	.global	startup
 startup:
+	mov.l	#startup, sp
 	mov.l	er0, er4
-	mov.l	er0, sp
 	mov.l	#__sbss, er0
 	mov.l	#__ebss, er1
 	sub.l	er0, er1
@@ -24,7 +24,7 @@ startup:
 	bne	1b
 	jsr	@decompress_kernel
 	mov.l	er4, er0
-	jmp	@0x400000
+	jmp	@output
 
 	.align	9
 fake_headers_as_bzImage:

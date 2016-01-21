@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -37,11 +33,8 @@ static unsigned reg11 = 0x6040;
 module_param(reg11, uint, 0);
 MODULE_PARM_DESC(reg11, "Register 11h value");
 
-
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	if (par->gpio.cs != -1)
@@ -84,9 +77,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	switch (par->info->var.rotate) {
 	/* R4Eh - Set GDDRAM X address counter */
 	/* R4Fh - Set GDDRAM Y address counter */
@@ -114,8 +104,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register 11h */
 		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
@@ -147,7 +135,7 @@ static int set_var(struct fbtft_par *par)
     VRP0 VRP1 PRP0 PRP1 PKP0 PKP1 PKP2 PKP3 PKP4 PKP5
     VRN0 VRN1 PRN0 PRN1 PKN0 PKN1 PKN2 PKN3 PKN4 PKN5
 */
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
@@ -156,12 +144,10 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	};
 	int i, j;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* apply mask */
 	for (i = 0; i < 2; i++)
 		for (j = 0; j < 10; j++)
-			CURVE(i, j) &= mask[i*par->gamma.num_values + j];
+			CURVE(i, j) &= mask[i * par->gamma.num_values + j];
 
 	write_reg(par, 0x0030, CURVE(0, 5) << 8 | CURVE(0, 4));
 	write_reg(par, 0x0031, CURVE(0, 7) << 8 | CURVE(0, 6));
@@ -178,7 +164,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 16,
 	.width = WIDTH,
@@ -193,6 +178,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "solomon,ssd1289", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

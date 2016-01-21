@@ -517,7 +517,8 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 	if (of_find_property(np, "nvidia,needs-ghost-filter", NULL))
 		kbc->use_ghost_filter = true;
 
-	if (of_find_property(np, "nvidia,wakeup-source", NULL))
+	if (of_property_read_bool(np, "wakeup-source") ||
+	    of_property_read_bool(np, "nvidia,wakeup-source")) /* legacy */
 		kbc->wakeup = true;
 
 	if (!of_get_property(np, "nvidia,kbc-row-pins", &proplen)) {
@@ -705,7 +706,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	input_set_drvdata(kbc->idev, kbc);
 
 	err = devm_request_irq(&pdev->dev, kbc->irq, tegra_kbc_isr,
-			  IRQF_NO_SUSPEND | IRQF_TRIGGER_HIGH, pdev->name, kbc);
+			       IRQF_TRIGGER_HIGH, pdev->name, kbc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to request keyboard IRQ\n");
 		return err;

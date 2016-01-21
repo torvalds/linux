@@ -60,7 +60,6 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-#ifdef	ACPI_FUTURE_USAGE
 static acpi_status
 acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 			     u32 level, void *context, void **return_value);
@@ -68,7 +67,6 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 static acpi_status
 acpi_ns_get_max_depth(acpi_handle obj_handle,
 		      u32 level, void *context, void **return_value);
-#endif				/* ACPI_FUTURE_USAGE */
 
 /*******************************************************************************
  *
@@ -625,7 +623,6 @@ cleanup:
 	return (AE_OK);
 }
 
-#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_objects
@@ -680,9 +677,7 @@ acpi_ns_dump_objects(acpi_object_type type,
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
-#endif				/* ACPI_FUTURE_USAGE */
 
-#ifdef	ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_one_object_path, acpi_ns_get_max_depth
@@ -810,7 +805,6 @@ acpi_ns_dump_object_paths(acpi_object_type type,
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
-#endif				/* ACPI_FUTURE_USAGE */
 
 /*******************************************************************************
  *

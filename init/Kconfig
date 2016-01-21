@@ -2030,13 +2030,6 @@ config INIT_ALL_POSSIBLE
 	  it was better to provide this option than to break all the archs
 	  and have several arch maintainers pursuing me down dark alleys.
 
-config STOP_MACHINE
-	bool
-	default y
-	depends on (SMP && MODULE_UNLOAD) || HOTPLUG_CPU
-	help
-	  Need stop_machine() primitive.
-
 source "block/Kconfig"
 
 config PREEMPT_NOTIFIERS

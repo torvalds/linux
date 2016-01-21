@@ -99,6 +99,23 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 }
 EXPORT_SYMBOL(clk_set_rate);
 
+long clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	if (unlikely(!clk_good(clk)))
+		return 0;
+	if (clk->rates && *clk->rates) {
+		unsigned long *r = clk->rates;
+
+		while (*r && (*r != rate))
+			r++;
+		if (!*r) {
+			return clk->rate;
+		}
+	}
+	return rate;
+}
+EXPORT_SYMBOL(clk_round_rate);
+
 int clk_enable(struct clk *clk)
 {
 	if (unlikely(!clk_good(clk)))

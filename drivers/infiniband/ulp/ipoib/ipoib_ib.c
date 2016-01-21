@@ -518,19 +518,19 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 
 	ipoib_build_sge(priv, tx_req);
 
-	priv->tx_wr.wr_id 	     = wr_id;
-	priv->tx_wr.wr.ud.remote_qpn = qpn;
-	priv->tx_wr.wr.ud.ah 	     = address;
+	priv->tx_wr.wr.wr_id	= wr_id;
+	priv->tx_wr.remote_qpn	= qpn;
+	priv->tx_wr.ah		= address;
 
 	if (head) {
-		priv->tx_wr.wr.ud.mss	 = skb_shinfo(skb)->gso_size;
-		priv->tx_wr.wr.ud.header = head;
-		priv->tx_wr.wr.ud.hlen	 = hlen;
-		priv->tx_wr.opcode	 = IB_WR_LSO;
+		priv->tx_wr.mss		= skb_shinfo(skb)->gso_size;
+		priv->tx_wr.header	= head;
+		priv->tx_wr.hlen	= hlen;
+		priv->tx_wr.wr.opcode	= IB_WR_LSO;
 	} else
-		priv->tx_wr.opcode	 = IB_WR_SEND;
+		priv->tx_wr.wr.opcode	= IB_WR_SEND;
 
-	return ib_post_send(priv->qp, &priv->tx_wr, &bad_wr);
+	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
 void ipoib_send(struct net_device *dev, struct sk_buff *skb,
@@ -583,9 +583,9 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags |= IB_SEND_IP_CSUM;
 	else
-		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 
 	if (++priv->tx_outstanding == ipoib_sendq_size) {
 		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");

@@ -27,10 +27,10 @@
 /* Some fake data */
 
 static const s16 fakedata[] = {
-	[voltage0] = 7,
-	[diffvoltage1m2] = -33,
-	[diffvoltage3m4] = -2,
-	[accelx] = 344,
+	[DUMMY_INDEX_VOLTAGE_0] = 7,
+	[DUMMY_INDEX_DIFFVOLTAGE_1M2] = -33,
+	[DUMMY_INDEX_DIFFVOLTAGE_3M4] = -2,
+	[DUMMY_INDEX_ACCELX] = 344,
 };
 
 /**

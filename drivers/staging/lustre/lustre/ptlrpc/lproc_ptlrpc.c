@@ -35,7 +35,6 @@
  */
 #define DEBUG_SUBSYSTEM S_CLASS
 
-
 #include "../include/obd_support.h"
 #include "../include/obd.h"
 #include "../include/lprocfs_status.h"
@@ -43,7 +42,6 @@
 #include "../include/lustre_net.h"
 #include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
-
 
 static struct ll_rpc_opcode {
 	__u32       opcode;
@@ -54,7 +52,7 @@ static struct ll_rpc_opcode {
 	{ OST_SETATTR,      "ost_setattr" },
 	{ OST_READ,	 "ost_read" },
 	{ OST_WRITE,	"ost_write" },
-	{ OST_CREATE ,      "ost_create" },
+	{ OST_CREATE,       "ost_create" },
 	{ OST_DESTROY,      "ost_destroy" },
 	{ OST_GET_INFO,     "ost_get_info" },
 	{ OST_CONNECT,      "ost_connect" },
@@ -166,6 +164,7 @@ const char *ll_opcode2str(__u32 opcode)
 	 *	ptlrpc_internal.h needs to be modified.
 	 */
 	__u32 offset = opcode_offset(opcode);
+
 	LASSERTF(offset < LUSTRE_MAX_OPCODES,
 		 "offset %u >= LUSTRE_MAX_OPCODES %u\n",
 		 offset, LUSTRE_MAX_OPCODES);
@@ -239,6 +238,7 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	}
 	for (i = 0; i < LUSTRE_MAX_OPCODES; i++) {
 		__u32 opcode = ll_rpc_opcode_table[i].opcode;
+
 		lprocfs_counter_init(svc_stats,
 				     EXTRA_MAX_OPCODES + i, svc_counter_config,
 				     ll_opcode2str(opcode), "usec");
@@ -270,6 +270,7 @@ ptlrpc_lprocfs_req_history_len_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "%d\n", total);
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_req_history_len);
 
 static int
@@ -322,8 +323,8 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ptlrpc_lprocfs_req_history_max);
 
+LPROC_SEQ_FOPS(ptlrpc_lprocfs_req_history_max);
 
 static ssize_t threads_min_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
@@ -420,7 +421,6 @@ LUSTRE_RW_ATTR(threads_max);
  * \addtogoup nrs
  * @{
  */
-extern struct nrs_core nrs_core;
 
 /**
  * Translates \e ptlrpc_nrs_pol_state values to human-readable strings.
@@ -453,7 +453,7 @@ static const char *nrs_state2str(enum ptlrpc_nrs_pol_state state)
  * \param[in] policy The policy
  * \param[out] info  Holds returned status information
  */
-void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
+static void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 				struct ptlrpc_nrs_pol_info *info)
 {
 	LASSERT(policy != NULL);
@@ -714,6 +714,7 @@ out:
 
 	return rc < 0 ? rc : count;
 }
+
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_nrs);
 
 /** @} nrs */
@@ -891,36 +892,6 @@ ptlrpc_lprocfs_svc_req_history_next(struct seq_file *s,
 	return NULL;
 }
 
-/* common ost/mdt so_req_printer */
-void target_print_req(void *seq_file, struct ptlrpc_request *req)
-{
-	/* Called holding srv_lock with irqs disabled.
-	 * Print specific req contents and a newline.
-	 * CAVEAT EMPTOR: check request message length before printing!!!
-	 * You might have received any old crap so you must be just as
-	 * careful here as the service's request parser!!! */
-	struct seq_file *sf = seq_file;
-
-	switch (req->rq_phase) {
-	case RQ_PHASE_NEW:
-		/* still awaiting a service thread's attention, or rejected
-		 * because the generic request message didn't unpack */
-		seq_printf(sf, "<not swabbed>\n");
-		break;
-	case RQ_PHASE_INTERPRET:
-		/* being handled, so basic msg swabbed, and opc is valid
-		 * but racing with mds_handle() */
-	case RQ_PHASE_COMPLETE:
-		/* been handled by mds_handle() reply state possibly still
-		 * volatile */
-		seq_printf(sf, "opc %d\n", lustre_msg_get_opc(req->rq_reqmsg));
-		break;
-	default:
-		DEBUG_REQ(D_ERROR, req, "bad phase %d", req->rq_phase);
-	}
-}
-EXPORT_SYMBOL(target_print_req);
-
 static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 {
 	struct ptlrpc_service *svc = s->private;
@@ -938,23 +909,26 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 	rc = ptlrpc_lprocfs_svc_req_history_seek(svcpt, srhi, srhi->srhi_seq);
 
 	if (rc == 0) {
+		char nidstr[LNET_NIDSTR_SIZE];
+
 		req = srhi->srhi_req;
 
+		libcfs_nid2str_r(req->rq_self, nidstr, sizeof(nidstr));
 		/* Print common req fields.
 		 * CAVEAT EMPTOR: we're racing with the service handler
 		 * here.  The request could contain any old crap, so you
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!! */
-		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%ld:%lds(%+lds) ",
-			   req->rq_history_seq, libcfs_nid2str(req->rq_self),
+		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld:%lds(%+lds) ",
+			   req->rq_history_seq, nidstr,
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),
-			   req->rq_arrival_time.tv_sec,
-			   req->rq_sent - req->rq_arrival_time.tv_sec,
-			   req->rq_sent - req->rq_deadline);
+			   (s64)req->rq_arrival_time.tv_sec,
+			   (long)(req->rq_sent - req->rq_arrival_time.tv_sec),
+			   (long)(req->rq_sent - req->rq_deadline));
 		if (svc->srv_ops.so_req_printer == NULL)
-			seq_printf(s, "\n");
+			seq_putc(s, '\n');
 		else
 			svc->srv_ops.so_req_printer(s, srhi->srhi_req);
 	}
@@ -990,7 +964,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 	struct ptlrpc_service *svc = m->private;
 	struct ptlrpc_service_part *svcpt;
 	struct dhms ts;
-	time_t worstt;
+	time64_t worstt;
 	unsigned int cur;
 	unsigned int worst;
 	int i;
@@ -1005,17 +979,18 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 		cur	= at_get(&svcpt->scp_at_estimate);
 		worst	= svcpt->scp_at_estimate.at_worst_ever;
 		worstt	= svcpt->scp_at_estimate.at_worst_time;
-		s2dhms(&ts, get_seconds() - worstt);
+		s2dhms(&ts, ktime_get_real_seconds() - worstt);
 
-		seq_printf(m, "%10s : cur %3u  worst %3u (at %ld, "
+		seq_printf(m, "%10s : cur %3u  worst %3u (at %lld, "
 			      DHMS_FMT" ago) ", "service",
-			      cur, worst, worstt, DHMS_VARS(&ts));
+			      cur, worst, (s64)worstt, DHMS_VARS(&ts));
 
 		lprocfs_at_hist_helper(m, &svcpt->scp_at_estimate);
 	}
 
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_timeouts);
 
 static ssize_t high_priority_ratio_show(struct kobject *kobj,
@@ -1208,55 +1183,6 @@ void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd)
 }
 EXPORT_SYMBOL(ptlrpc_lprocfs_unregister_obd);
 
-
-#define BUFLEN (UUID_MAX + 5)
-
-int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *off)
-{
-	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
-	char *kbuf;
-	char *tmpbuf;
-
-	kbuf = kzalloc(BUFLEN, GFP_NOFS);
-	if (!kbuf)
-		return -ENOMEM;
-
-	/*
-	 * OBD_ALLOC() will zero kbuf, but we only copy BUFLEN - 1
-	 * bytes into kbuf, to ensure that the string is NUL-terminated.
-	 * UUID_MAX should include a trailing NUL already.
-	 */
-	if (copy_from_user(kbuf, buffer,
-			       min_t(unsigned long, BUFLEN - 1, count))) {
-		count = -EFAULT;
-		goto out;
-	}
-	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
-	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writing client's
-	 * uuid/nid to procfs "evict_client" entry. However,
-	 * obd_export_evict_by_uuid() will call ldebugfs_remove() to destroy
-	 * the proc entries under the being destroyed export{}, so I have
-	 * to drop the lock at first here.
-	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __func__, current);
-
-	if (strncmp(tmpbuf, "nid:", 4) == 0)
-		obd_export_evict_by_nid(obd, tmpbuf + 4);
-	else if (strncmp(tmpbuf, "uuid:", 5) == 0)
-		obd_export_evict_by_uuid(obd, tmpbuf + 5);
-	else
-		obd_export_evict_by_uuid(obd, tmpbuf);
-
-	class_decref(obd, __func__, current);
-
-out:
-	kfree(kbuf);
-	return count;
-}
-EXPORT_SYMBOL(lprocfs_wr_evict_client);
-
 #undef BUFLEN
 
 int lprocfs_wr_ping(struct file *file, const char __user *buffer,
@@ -1266,7 +1192,10 @@ int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 	struct ptlrpc_request *req;
 	int rc;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	LPROCFS_CLIMP_EXIT(obd);
 	if (req == NULL)
@@ -1328,7 +1257,7 @@ int lprocfs_wr_import(struct file *file, const char __user *buffer,
 		*ptr = 0;
 		do_reconn = 0;
 		ptr += strlen("::");
-		inst = simple_strtol(ptr, &endptr, 10);
+		inst = simple_strtoul(ptr, &endptr, 10);
 		if (*endptr) {
 			CERROR("config: wrong instance # %s\n", ptr);
 		} else if (inst != imp->imp_connect_data.ocd_instance) {
@@ -1355,8 +1284,12 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 {
 	struct obd_device *obd = m->private;
 	struct obd_import *imp = obd->u.cli.cl_import;
+	int rc;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
 	LPROCFS_CLIMP_EXIT(obd);
 
@@ -1379,7 +1312,10 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 	if (val != 0 && val != 1)
 		return -ERANGE;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	spin_lock(&imp->imp_lock);
 	imp->imp_no_pinger_recover = !val;
 	spin_unlock(&imp->imp_lock);

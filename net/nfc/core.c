@@ -449,7 +449,7 @@ error:
  * @dev: The nfc device that found the target
  * @target_idx: index of the target that must be deactivated
  */
-int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
+int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode)
 {
 	int rc = 0;
 
@@ -476,7 +476,7 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 	if (dev->ops->check_presence)
 		del_timer_sync(&dev->check_pres_timer);
 
-	dev->ops->deactivate_target(dev, dev->active_target);
+	dev->ops->deactivate_target(dev, dev->active_target, mode);
 	dev->active_target = NULL;
 
 error:

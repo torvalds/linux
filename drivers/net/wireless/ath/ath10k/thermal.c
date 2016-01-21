@@ -215,6 +215,6 @@ err_cooling_destroy:
 
 void ath10k_thermal_unregister(struct ath10k *ar)
 {
-	thermal_cooling_device_unregister(ar->thermal.cdev);
 	sysfs_remove_link(&ar->dev->kobj, "cooling_device");
+	thermal_cooling_device_unregister(ar->thermal.cdev);
 }

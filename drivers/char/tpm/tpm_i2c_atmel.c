@@ -217,7 +217,6 @@ static struct i2c_driver i2c_atmel_driver = {
 	.remove = i2c_atmel_remove,
 	.driver = {
 		.name = I2C_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &i2c_atmel_pm_ops,
 		.of_match_table = of_match_ptr(i2c_atmel_of_match),
 	},

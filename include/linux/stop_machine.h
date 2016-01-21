@@ -33,6 +33,8 @@ void stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			 struct cpu_stop_work *work_buf);
 int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
 int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
+void stop_machine_park(int cpu);
+void stop_machine_unpark(int cpu);
 
 #else	/* CONFIG_SMP */
 
@@ -97,7 +99,7 @@ static inline int try_stop_cpus(const struct cpumask *cpumask,
  * grabbing every spinlock (and more).  So the "read" side to such a
  * lock is anything which disables preemption.
  */
-#if defined(CONFIG_STOP_MACHINE) && defined(CONFIG_SMP)
+#if defined(CONFIG_SMP) || defined(CONFIG_HOTPLUG_CPU)
 
 /**
  * stop_machine: freeze the machine on all CPUs and run this function
@@ -116,7 +118,7 @@ int stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus);
 
 int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 				   const struct cpumask *cpus);
-#else	 /* CONFIG_STOP_MACHINE && CONFIG_SMP */
+#else	/* CONFIG_SMP || CONFIG_HOTPLUG_CPU */
 
 static inline int stop_machine(cpu_stop_fn_t fn, void *data,
 				 const struct cpumask *cpus)
@@ -135,5 +137,5 @@ static inline int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 	return stop_machine(fn, data, cpus);
 }
 
-#endif	/* CONFIG_STOP_MACHINE && CONFIG_SMP */
+#endif	/* CONFIG_SMP || CONFIG_HOTPLUG_CPU */
 #endif	/* _LINUX_STOP_MACHINE */

@@ -695,26 +695,6 @@ int acpi_device_add(struct acpi_device *device,
 	return result;
 }
 
-struct acpi_device *acpi_get_next_child(struct device *dev,
-					struct acpi_device *child)
-{
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	struct list_head *head, *next;
-
-	if (!adev)
-		return NULL;
-
-	head = &adev->children;
-	if (list_empty(head))
-		return NULL;
-
-	if (!child)
-		return list_first_entry(head, struct acpi_device, node);
-
-	next = child->node.next;
-	return next == head ? NULL : list_entry(next, struct acpi_device, node);
-}
-
 /* --------------------------------------------------------------------------
                                  Device Enumeration
    -------------------------------------------------------------------------- */
@@ -1184,7 +1164,7 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
 	if (!id)
 		return;
 
-	id->id = kstrdup(dev_id, GFP_KERNEL);
+	id->id = kstrdup_const(dev_id, GFP_KERNEL);
 	if (!id->id) {
 		kfree(id);
 		return;
@@ -1322,10 +1302,52 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp)
 	struct acpi_hardware_id *id, *tmp;
 
 	list_for_each_entry_safe(id, tmp, &pnp->ids, list) {
-		kfree(id->id);
+		kfree_const(id->id);
 		kfree(id);
 	}
 	kfree(pnp->unique_id);
+}
+
+/**
+ * acpi_dma_supported - Check DMA support for the specified device.
+ * @adev: The pointer to acpi device
+ *
+ * Return false if DMA is not supported. Otherwise, return true
+ */
+bool acpi_dma_supported(struct acpi_device *adev)
+{
+	if (!adev)
+		return false;
+
+	if (adev->flags.cca_seen)
+		return true;
+
+	/*
+	* Per ACPI 6.0 sec 6.2.17, assume devices can do cache-coherent
+	* DMA on "Intel platforms".  Presumably that includes all x86 and
+	* ia64, and other arches will set CONFIG_ACPI_CCA_REQUIRED=y.
+	*/
+	if (!IS_ENABLED(CONFIG_ACPI_CCA_REQUIRED))
+		return true;
+
+	return false;
+}
+
+/**
+ * acpi_get_dma_attr - Check the supported DMA attr for the specified device.
+ * @adev: The pointer to acpi device
+ *
+ * Return enum dev_dma_attr.
+ */
+enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
+{
+	if (!acpi_dma_supported(adev))
+		return DEV_DMA_NOT_SUPPORTED;
+
+	if (adev->flags.coherent_dma)
+		return DEV_DMA_COHERENT;
+	else
+		return DEV_DMA_NON_COHERENT;
 }
 
 static void acpi_init_coherency(struct acpi_device *adev)
@@ -1472,7 +1494,7 @@ bool acpi_device_is_present(struct acpi_device *adev)
 }
 
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
-				       char *idstr,
+				       const char *idstr,
 				       const struct acpi_device_id **matchid)
 {
 	const struct acpi_device_id *devid;
@@ -1491,7 +1513,7 @@ static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 	return false;
 }
 
-static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,
+static struct acpi_scan_handler *acpi_scan_match_handler(const char *idstr,
 					const struct acpi_device_id **matchid)
 {
 	struct acpi_scan_handler *handler;
@@ -1932,4 +1954,43 @@ int __init acpi_scan_init(void)
  out:
 	mutex_unlock(&acpi_scan_lock);
 	return result;
+}
+
+static struct acpi_probe_entry *ape;
+static int acpi_probe_count;
+static DEFINE_SPINLOCK(acpi_probe_lock);
+
+static int __init acpi_match_madt(struct acpi_subtable_header *header,
+				  const unsigned long end)
+{
+	if (!ape->subtable_valid || ape->subtable_valid(header, ape))
+		if (!ape->probe_subtbl(header, end))
+			acpi_probe_count++;
+
+	return 0;
+}
+
+int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
+{
+	int count = 0;
+
+	if (acpi_disabled)
+		return 0;
+
+	spin_lock(&acpi_probe_lock);
+	for (ape = ap_head; nr; ape++, nr--) {
+		if (ACPI_COMPARE_NAME(ACPI_SIG_MADT, ape->id)) {
+			acpi_probe_count = 0;
+			acpi_table_parse_madt(ape->type, acpi_match_madt, 0);
+			count += acpi_probe_count;
+		} else {
+			int res;
+			res = acpi_table_parse(ape->id, ape->probe_table);
+			if (!res)
+				count++;
+		}
+	}
+	spin_unlock(&acpi_probe_lock);
+
+	return count;
 }

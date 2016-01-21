@@ -18,8 +18,4 @@ struct hsu_dma_slave {
 	int		chan_id;
 };
 
-struct hsu_dma_platform_data {
-	unsigned short	nr_channels;
-};
-
 #endif /* _PLATFORM_DATA_DMA_HSU_H */

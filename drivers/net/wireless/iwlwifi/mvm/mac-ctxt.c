@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -484,16 +486,18 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
 		iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-				      IWL_MVM_TX_FIFO_VO, wdg_timeout);
+				      IWL_MVM_OFFCHANNEL_QUEUE,
+				      IWL_MVM_TX_FIFO_VO, 0, wdg_timeout);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue,
-				      IWL_MVM_TX_FIFO_MCAST, wdg_timeout);
+		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue, vif->cab_queue,
+				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
-					      iwl_mvm_ac_to_tx_fifo[ac],
+					      vif->hw_queue[ac],
+					      iwl_mvm_ac_to_tx_fifo[ac], 0,
 					      wdg_timeout);
 		break;
 	}
@@ -509,14 +513,19 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE, 0);
+		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
+				    IWL_MVM_OFFCHANNEL_QUEUE, IWL_MAX_TID_COUNT,
+				    0);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_mvm_disable_txq(mvm, vif->cab_queue, 0);
+		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
+				    IWL_MAX_TID_COUNT, 0);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac], 0);
+			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac],
+					    vif->hw_queue[ac],
+					    IWL_MAX_TID_COUNT, 0);
 	}
 }
 
@@ -834,6 +843,9 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	ctxt_sta->listen_interval = cpu_to_le32(mvm->hw->conf.listen_interval);
 	ctxt_sta->assoc_id = cpu_to_le32(vif->bss_conf.aid);
 
+	if (vif->probe_req_reg && vif->bss_conf.assoc && vif->p2p)
+		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
+
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
 
@@ -1128,6 +1140,7 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
 				   u32 action)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_ctx_cmd cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_AP || vif->p2p);
@@ -1137,10 +1150,16 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 
 	/*
 	 * pass probe requests and beacons from other APs (needed
-	 * for ht protection)
+	 * for ht protection); when there're no any associated station
+	 * don't ask FW to pass beacons to prevent unnecessary wake-ups.
 	 */
-	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST |
-					MAC_FILTER_IN_BEACON);
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
+	if (mvmvif->ap_assoc_sta_count) {
+		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
+		IWL_DEBUG_HC(mvm, "Asking FW to pass beacons\n");
+	} else {
+		IWL_DEBUG_HC(mvm, "No need to receive beacons\n");
+	}
 
 	/* Fill the data specific for ap mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap,

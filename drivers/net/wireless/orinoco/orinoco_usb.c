@@ -1576,6 +1576,7 @@ static int ezusb_probe(struct usb_interface *interface,
 				ezusb_hard_reset, NULL);
 	if (!priv) {
 		err("Couldn't allocate orinocodev");
+		retval = -ENOMEM;
 		goto exit;
 	}
 

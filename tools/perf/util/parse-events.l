@@ -115,6 +115,8 @@ do {							\
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
+bpf_object	.*\.(o|bpf)
+bpf_source	.*\.c
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
@@ -122,7 +124,7 @@ num_raw_hex	[a-fA-F0-9]+
 name		[a-zA-Z_*?][a-zA-Z0-9_*?.]*
 name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.]*
 /* If you add a modifier you need to update check_modifier() */
-modifier_event	[ukhpGHSDI]+
+modifier_event	[ukhpPGHSDI]+
 modifier_bp	[rwx]{1,3}
 
 %%
@@ -159,6 +161,8 @@ modifier_bp	[rwx]{1,3}
 		}
 
 {event_pmu}	|
+{bpf_object}	|
+{bpf_source}	|
 {event}		{
 			BEGIN(INITIAL);
 			REWIND(1);
@@ -174,7 +178,7 @@ modifier_bp	[rwx]{1,3}
 
 <config>{
 	/*
-	 * Please update formats_error_string any time
+	 * Please update parse_events_formats_error_string any time
 	 * new static term is added.
 	 */
 config			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG); }
@@ -187,6 +191,8 @@ branch_type		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE
 time			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_TIME); }
 call-graph		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CALLGRAPH); }
 stack-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_STACKSIZE); }
+inherit			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_INHERIT); }
+no-inherit		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOINHERIT); }
 ,			{ return ','; }
 "/"			{ BEGIN(INITIAL); return '/'; }
 {name_minus}		{ return str(yyscanner, PE_NAME); }
@@ -264,6 +270,8 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
+{bpf_object}		{ return str(yyscanner, PE_BPF_OBJECT); }
+{bpf_source}		{ return str(yyscanner, PE_BPF_SOURCE); }
 {name}			{ return pmu_str_check(yyscanner); }
 "/"			{ BEGIN(config); return '/'; }
 -			{ return '-'; }

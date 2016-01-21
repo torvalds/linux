@@ -759,7 +759,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	min = ESDHC_TUNE_CTRL_MIN;
 	while (min < ESDHC_TUNE_CTRL_MAX) {
 		esdhc_prepare_tuning(host, min);
-		if (!mmc_send_tuning(host->mmc))
+		if (!mmc_send_tuning(host->mmc, opcode, NULL))
 			break;
 		min += ESDHC_TUNE_CTRL_STEP;
 	}
@@ -768,7 +768,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	max = min + ESDHC_TUNE_CTRL_STEP;
 	while (max < ESDHC_TUNE_CTRL_MAX) {
 		esdhc_prepare_tuning(host, max);
-		if (mmc_send_tuning(host->mmc)) {
+		if (mmc_send_tuning(host->mmc, opcode, NULL)) {
 			max -= ESDHC_TUNE_CTRL_STEP;
 			break;
 		}
@@ -778,7 +778,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	/* use average delay to get the best timing */
 	avg = (min + max) / 2;
 	esdhc_prepare_tuning(host, avg);
-	ret = mmc_send_tuning(host->mmc);
+	ret = mmc_send_tuning(host->mmc, opcode, NULL);
 	esdhc_post_tuning(host);
 
 	dev_dbg(mmc_dev(host->mmc), "tunning %s at 0x%x ret %d\n",

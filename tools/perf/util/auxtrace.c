@@ -926,6 +926,8 @@ s64 perf_event__process_auxtrace(struct perf_tool *tool,
 #define PERF_ITRACE_DEFAULT_PERIOD		100000
 #define PERF_ITRACE_DEFAULT_CALLCHAIN_SZ	16
 #define PERF_ITRACE_MAX_CALLCHAIN_SZ		1024
+#define PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ	64
+#define PERF_ITRACE_MAX_LAST_BRANCH_SZ		1024
 
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts)
 {
@@ -936,6 +938,7 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts)
 	synth_opts->period_type = PERF_ITRACE_DEFAULT_PERIOD_TYPE;
 	synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
 	synth_opts->callchain_sz = PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;
+	synth_opts->last_branch_sz = PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ;
 }
 
 /*
@@ -950,6 +953,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 	const char *p;
 	char *endptr;
 	bool period_type_set = false;
+	bool period_set = false;
 
 	synth_opts->set = true;
 
@@ -971,6 +975,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 				p += 1;
 			if (isdigit(*p)) {
 				synth_opts->period = strtoull(p, &endptr, 10);
+				period_set = true;
 				p = endptr;
 				while (*p == ' ' || *p == ',')
 					p += 1;
@@ -1041,6 +1046,23 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 				synth_opts->callchain_sz = val;
 			}
 			break;
+		case 'l':
+			synth_opts->last_branch = true;
+			synth_opts->last_branch_sz =
+					PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ;
+			while (*p == ' ' || *p == ',')
+				p += 1;
+			if (isdigit(*p)) {
+				unsigned int val;
+
+				val = strtoul(p, &endptr, 10);
+				p = endptr;
+				if (!val ||
+				    val > PERF_ITRACE_MAX_LAST_BRANCH_SZ)
+					goto out_err;
+				synth_opts->last_branch_sz = val;
+			}
+			break;
 		case ' ':
 		case ',':
 			break;
@@ -1053,7 +1075,7 @@ out:
 		if (!period_type_set)
 			synth_opts->period_type =
 					PERF_ITRACE_DEFAULT_PERIOD_TYPE;
-		if (!synth_opts->period)
+		if (!period_set)
 			synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
 	}
 

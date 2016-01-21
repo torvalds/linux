@@ -87,6 +87,7 @@
 
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
+#define CURSOR_WIN	4
 
 struct fimd_driver_data {
 	unsigned int timing_base;
@@ -153,7 +154,6 @@ struct fimd_context {
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
 	struct regmap			*sysreg;
-	unsigned int			default_win;
 	unsigned long			irq_flags;
 	u32				vidcon0;
 	u32				vidcon1;
@@ -949,8 +949,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	ctx->pipe = priv->pipe++;
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, fimd_formats,
 					ARRAY_SIZE(fimd_formats), zpos);
@@ -958,7 +957,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[ctx->default_win];
+	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &fimd_crtc_ops, ctx);

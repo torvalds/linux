@@ -12,6 +12,7 @@ config SND_MFLD_MACHINE
 
 config SND_SST_MFLD_PLATFORM
 	tristate
+	select SND_SOC_COMPRESS
 
 config SND_SST_IPC
 	tristate
@@ -138,4 +139,18 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 config SND_SOC_INTEL_SKYLAKE
 	tristate
 	select SND_HDA_EXT_CORE
+	select SND_SOC_TOPOLOGY
 	select SND_SOC_INTEL_SST
+
+config SND_SOC_INTEL_SKL_RT286_MACH
+	tristate "ASoC Audio driver for SKL with RT286 I2S mode"
+	depends on X86 && ACPI && I2C
+	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SKYLAKE
+	select SND_SOC_RT286
+	select SND_SOC_DMIC
+	help
+	   This adds support for ASoC machine driver for Skylake platforms
+	   with RT286 I2S audio codec.
+	   Say Y if you have such a device
+	   If unsure select "N".

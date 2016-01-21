@@ -848,7 +848,7 @@ static void lenovo_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static void lenovo_input_configured(struct hid_device *hdev,
+static int lenovo_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
 	switch (hdev->product) {
@@ -863,6 +863,8 @@ static void lenovo_input_configured(struct hid_device *hdev,
 			}
 			break;
 	}
+
+	return 0;
 }
 
 

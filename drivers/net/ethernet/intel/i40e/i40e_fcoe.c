@@ -272,10 +272,8 @@ out:
 /**
  * i40e_fcoe_sw_init - sets up the HW for FCoE
  * @pf: pointer to PF
- *
- * Returns 0 if FCoE is supported otherwise the error code
  **/
-int i40e_init_pf_fcoe(struct i40e_pf *pf)
+void i40e_init_pf_fcoe(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 val;
@@ -286,14 +284,14 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 	pf->fcoe_hmc_filt_num = 0;
 
 	if (!pf->hw.func_caps.fcoe) {
-		dev_info(&pf->pdev->dev, "FCoE capability is disabled\n");
-		return 0;
+		dev_dbg(&pf->pdev->dev, "FCoE capability is disabled\n");
+		return;
 	}
 
 	if (!pf->hw.func_caps.dcb) {
 		dev_warn(&pf->pdev->dev,
 			 "Hardware is not DCB capable not enabling FCoE.\n");
-		return 0;
+		return;
 	}
 
 	/* enable FCoE hash filter */
@@ -326,7 +324,6 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 	wr32(hw, I40E_GLFCOE_RCTL, val);
 
 	dev_info(&pf->pdev->dev, "FCoE is supported.\n");
-	return 0;
 }
 
 /**
@@ -1519,10 +1516,12 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 	 * same PCI function.
 	 */
 	netdev->dev_port = 1;
+	spin_lock_bh(&vsi->mac_filter_list_lock);
 	i40e_add_filter(vsi, hw->mac.san_addr, 0, false, false);
 	i40e_add_filter(vsi, (u8[6]) FC_FCOE_FLOGI_MAC, 0, false, false);
 	i40e_add_filter(vsi, FIP_ALL_FCOE_MACS, 0, false, false);
 	i40e_add_filter(vsi, FIP_ALL_ENODE_MACS, 0, false, false);
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* use san mac */
 	ether_addr_copy(netdev->dev_addr, hw->mac.san_addr);

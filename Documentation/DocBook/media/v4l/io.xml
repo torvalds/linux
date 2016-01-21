@@ -1006,8 +1006,14 @@ must set this to 0.</entry>
 	  <row>
 	    <entry><constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant></entry>
 	    <entry>11</entry>
-	    <entry>Buffer for Software Defined Radio (SDR), see <xref
-		linkend="sdr" />.</entry>
+	    <entry>Buffer for Software Defined Radio (SDR) capture stream, see
+		<xref linkend="sdr" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_TYPE_SDR_OUTPUT</constant></entry>
+	    <entry>12</entry>
+	    <entry>Buffer for Software Defined Radio (SDR) output stream, see
+		<xref linkend="sdr" />.</entry>
 	  </row>
 	</tbody>
       </tgroup>

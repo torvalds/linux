@@ -4074,6 +4074,17 @@ reject:
 	return iscsit_add_reject(conn, ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
 }
 
+static bool iscsi_target_check_conn_state(struct iscsi_conn *conn)
+{
+	bool ret;
+
+	spin_lock_bh(&conn->state_lock);
+	ret = (conn->conn_state != TARG_CONN_STATE_LOGGED_IN);
+	spin_unlock_bh(&conn->state_lock);
+
+	return ret;
+}
+
 int iscsi_target_rx_thread(void *arg)
 {
 	int ret, rc;
@@ -4091,7 +4102,7 @@ int iscsi_target_rx_thread(void *arg)
 	 * incoming iscsi/tcp socket I/O, and/or failing the connection.
 	 */
 	rc = wait_for_completion_interruptible(&conn->rx_login_comp);
-	if (rc < 0)
+	if (rc < 0 || iscsi_target_check_conn_state(conn))
 		return 0;
 
 	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND) {

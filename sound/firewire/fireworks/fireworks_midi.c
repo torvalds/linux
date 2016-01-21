@@ -73,10 +73,10 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&efw->lock, flags);
 
 	if (up)
-		amdtp_stream_midi_trigger(&efw->tx_stream,
+		amdtp_am824_midi_trigger(&efw->tx_stream,
 					  substrm->number, substrm);
 	else
-		amdtp_stream_midi_trigger(&efw->tx_stream,
+		amdtp_am824_midi_trigger(&efw->tx_stream,
 					  substrm->number, NULL);
 
 	spin_unlock_irqrestore(&efw->lock, flags);
@@ -90,11 +90,11 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&efw->lock, flags);
 
 	if (up)
-		amdtp_stream_midi_trigger(&efw->rx_stream,
-					  substrm->number, substrm);
+		amdtp_am824_midi_trigger(&efw->rx_stream,
+					 substrm->number, substrm);
 	else
-		amdtp_stream_midi_trigger(&efw->rx_stream,
-					  substrm->number, NULL);
+		amdtp_am824_midi_trigger(&efw->rx_stream,
+					 substrm->number, NULL);
 
 	spin_unlock_irqrestore(&efw->lock, flags);
 }

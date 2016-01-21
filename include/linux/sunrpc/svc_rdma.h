@@ -105,11 +105,9 @@ struct svc_rdma_chunk_sge {
 };
 struct svc_rdma_fastreg_mr {
 	struct ib_mr *mr;
-	void *kva;
-	struct ib_fast_reg_page_list *page_list;
-	int page_list_len;
+	struct scatterlist *sg;
+	int sg_nents;
 	unsigned long access_flags;
-	unsigned long map_len;
 	enum dma_data_direction direction;
 	struct list_head frmr_list;
 };
@@ -228,8 +226,12 @@ extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
 			      struct svc_rdma_fastreg_mr *);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
-extern struct svc_xprt_class svc_rdma_class;
 extern void svc_rdma_prep_reply_hdr(struct svc_rqst *);
+
+extern struct svc_xprt_class svc_rdma_class;
+#ifdef CONFIG_SUNRPC_BACKCHANNEL
+extern struct svc_xprt_class svc_rdma_bc_class;
+#endif
 
 /* svc_rdma.c */
 extern int svc_rdma_init(void);

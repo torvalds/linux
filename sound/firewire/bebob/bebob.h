@@ -31,7 +31,7 @@
 #include "../fcp.h"
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../cmp.h"
 
 /* basic register addresses on DM1000/DM1100/DM1500 */
@@ -70,9 +70,9 @@ struct snd_bebob_meter_spec {
 	int (*get)(struct snd_bebob *bebob, u32 *target, unsigned int size);
 };
 struct snd_bebob_spec {
-	struct snd_bebob_clock_spec *clock;
-	struct snd_bebob_rate_spec *rate;
-	struct snd_bebob_meter_spec *meter;
+	const struct snd_bebob_clock_spec *clock;
+	const struct snd_bebob_rate_spec *rate;
+	const struct snd_bebob_meter_spec *meter;
 };
 
 struct snd_bebob {
@@ -235,19 +235,19 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob);
 int snd_bebob_create_hwdep_device(struct snd_bebob *bebob);
 
 /* model specific operations */
-extern struct snd_bebob_spec phase88_rack_spec;
-extern struct snd_bebob_spec phase24_series_spec;
-extern struct snd_bebob_spec yamaha_go_spec;
-extern struct snd_bebob_spec saffirepro_26_spec;
-extern struct snd_bebob_spec saffirepro_10_spec;
-extern struct snd_bebob_spec saffire_le_spec;
-extern struct snd_bebob_spec saffire_spec;
-extern struct snd_bebob_spec maudio_fw410_spec;
-extern struct snd_bebob_spec maudio_audiophile_spec;
-extern struct snd_bebob_spec maudio_solo_spec;
-extern struct snd_bebob_spec maudio_ozonic_spec;
-extern struct snd_bebob_spec maudio_nrv10_spec;
-extern struct snd_bebob_spec maudio_special_spec;
+extern const struct snd_bebob_spec phase88_rack_spec;
+extern const struct snd_bebob_spec phase24_series_spec;
+extern const struct snd_bebob_spec yamaha_go_spec;
+extern const struct snd_bebob_spec saffirepro_26_spec;
+extern const struct snd_bebob_spec saffirepro_10_spec;
+extern const struct snd_bebob_spec saffire_le_spec;
+extern const struct snd_bebob_spec saffire_spec;
+extern const struct snd_bebob_spec maudio_fw410_spec;
+extern const struct snd_bebob_spec maudio_audiophile_spec;
+extern const struct snd_bebob_spec maudio_solo_spec;
+extern const struct snd_bebob_spec maudio_ozonic_spec;
+extern const struct snd_bebob_spec maudio_nrv10_spec;
+extern const struct snd_bebob_spec maudio_special_spec;
 int snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814);
 int snd_bebob_maudio_load_firmware(struct fw_unit *unit);
 

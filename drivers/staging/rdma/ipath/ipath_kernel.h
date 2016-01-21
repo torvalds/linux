@@ -44,6 +44,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/scatterlist.h>
+#include <linux/sched.h>
 #include <asm/io.h>
 #include <rdma/ib_verbs.h>
 
@@ -162,7 +163,7 @@ struct ipath_portdata {
 	struct pid *port_pid;
 	struct pid *port_subpid[INFINIPATH_MAX_SUBPORT];
 	/* same size as task_struct .comm[] */
-	char port_comm[16];
+	char port_comm[TASK_COMM_LEN];
 	/* pkeys set by this use of this port */
 	u16 port_pkeys[4];
 	/* so file ops can get at unit */

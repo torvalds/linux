@@ -9,8 +9,10 @@
 #define BITMAP_MAJOR_LO 3
 /* version 4 insists the bitmap is in little-endian order
  * with version 3, it is host-endian which is non-portable
+ * Version 5 is currently set only for clustered devices
  */
 #define BITMAP_MAJOR_HI 4
+#define BITMAP_MAJOR_CLUSTERED 5
 #define	BITMAP_MAJOR_HOSTENDIAN 3
 
 /*
@@ -255,7 +257,7 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
 int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int degraded);
 void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted);
 void bitmap_close_sync(struct bitmap *bitmap);
-void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector);
+void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force);
 
 void bitmap_unplug(struct bitmap *bitmap);
 void bitmap_daemon_work(struct mddev *mddev);

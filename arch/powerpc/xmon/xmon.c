@@ -242,6 +242,7 @@ Commands:\n\
 "  u	dump TLB\n"
 #endif
 "  ?	help\n"
+"  # n	limit output to n lines per page (for dp, dpa, dl)\n"
 "  zr	reboot\n\
   zh	halt\n"
 ;
@@ -833,6 +834,16 @@ static void remove_cpu_bpts(void)
 	write_ciabr(0);
 }
 
+static void set_lpp_cmd(void)
+{
+	unsigned long lpp;
+
+	if (!scanhex(&lpp)) {
+		printf("Invalid number.\n");
+		lpp = 0;
+	}
+	xmon_set_pagination_lpp(lpp);
+}
 /* Command interpreting routine */
 static char *last_cmd;
 
@@ -923,6 +934,9 @@ cmds(struct pt_regs *excp)
 			return cmd;
 		case '?':
 			xmon_puts(help_string);
+			break;
+		case '#':
+			set_lpp_cmd();
 			break;
 		case 'b':
 			bpt_cmds();
@@ -2072,6 +2086,9 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 static void dump_one_paca(int cpu)
 {
 	struct paca_struct *p;
+#ifdef CONFIG_PPC_STD_MMU_64
+	int i = 0;
+#endif
 
 	if (setjmp(bus_error_jmp) != 0) {
 		printf("*** Error dumping paca for cpu 0x%x!\n", cpu);
@@ -2085,12 +2102,12 @@ static void dump_one_paca(int cpu)
 
 	printf("paca for cpu 0x%x @ %p:\n", cpu, p);
 
-	printf(" %-*s = %s\n", 16, "possible", cpu_possible(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 16, "present", cpu_present(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 16, "online", cpu_online(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 20, "possible", cpu_possible(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 20, "present", cpu_present(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 20, "online", cpu_online(cpu) ? "yes" : "no");
 
 #define DUMP(paca, name, format) \
-	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 16, #name, 18, paca->name, \
+	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 20, #name, 18, paca->name, \
 		offsetof(struct paca_struct, name));
 
 	DUMP(p, lock_token, "x");
@@ -2102,11 +2119,41 @@ static void dump_one_paca(int cpu)
 #ifdef CONFIG_PPC_BOOK3S_64
 	DUMP(p, mc_emergency_sp, "p");
 	DUMP(p, in_mce, "x");
+	DUMP(p, hmi_event_available, "x");
 #endif
 	DUMP(p, data_offset, "lx");
 	DUMP(p, hw_cpu_id, "x");
 	DUMP(p, cpu_start, "x");
 	DUMP(p, kexec_state, "x");
+#ifdef CONFIG_PPC_STD_MMU_64
+	for (i = 0; i < SLB_NUM_BOLTED; i++) {
+		u64 esid, vsid;
+
+		if (!p->slb_shadow_ptr)
+			continue;
+
+		esid = be64_to_cpu(p->slb_shadow_ptr->save_area[i].esid);
+		vsid = be64_to_cpu(p->slb_shadow_ptr->save_area[i].vsid);
+
+		if (esid || vsid) {
+			printf(" slb_shadow[%d]:       = 0x%016lx 0x%016lx\n",
+				i, esid, vsid);
+		}
+	}
+	DUMP(p, vmalloc_sllp, "x");
+	DUMP(p, slb_cache_ptr, "x");
+	for (i = 0; i < SLB_CACHE_ENTRIES; i++)
+		printf(" slb_cache[%d]:        = 0x%016lx\n", i, p->slb_cache[i]);
+#endif
+	DUMP(p, dscr_default, "llx");
+#ifdef CONFIG_PPC_BOOK3E
+	DUMP(p, pgd, "p");
+	DUMP(p, kernel_pgd, "p");
+	DUMP(p, tcd_ptr, "p");
+	DUMP(p, mc_kstack, "p");
+	DUMP(p, crit_kstack, "p");
+	DUMP(p, dbg_kstack, "p");
+#endif
 	DUMP(p, __current, "p");
 	DUMP(p, kstack, "lx");
 	DUMP(p, stab_rr, "lx");
@@ -2117,7 +2164,27 @@ static void dump_one_paca(int cpu)
 	DUMP(p, io_sync, "x");
 	DUMP(p, irq_work_pending, "x");
 	DUMP(p, nap_state_lost, "x");
+	DUMP(p, sprg_vdso, "llx");
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	DUMP(p, tm_scratch, "llx");
+#endif
+
+#ifdef CONFIG_PPC_POWERNV
+	DUMP(p, core_idle_state_ptr, "p");
+	DUMP(p, thread_idle_state, "x");
+	DUMP(p, thread_mask, "x");
+	DUMP(p, subcore_sibling_mask, "x");
+#endif
+
+	DUMP(p, user_time, "llx");
+	DUMP(p, system_time, "llx");
+	DUMP(p, user_time_scaled, "llx");
+	DUMP(p, starttime, "llx");
+	DUMP(p, starttime_user, "llx");
+	DUMP(p, startspurr, "llx");
+	DUMP(p, utime_sspurr, "llx");
+	DUMP(p, stolen_time, "llx");
 #undef DUMP
 
 	catch_memory_errors = 0;
@@ -2166,7 +2233,9 @@ dump(void)
 
 #ifdef CONFIG_PPC64
 	if (c == 'p') {
+		xmon_start_pagination();
 		dump_pacas();
+		xmon_end_pagination();
 		return;
 	}
 #endif
@@ -2315,10 +2384,12 @@ dump_log_buf(void)
 	sync();
 
 	kmsg_dump_rewind_nolock(&dumper);
+	xmon_start_pagination();
 	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
 		buf[len] = '\0';
 		printf("%s", buf);
 	}
+	xmon_end_pagination();
 
 	sync();
 	/* wait a little while to see if we get a machine check */

@@ -19,7 +19,7 @@ Optional properties:
 	   must correspond to the PCLK clocking the internal logic
 	   of the block. Just listing one clock (the first one) is
 	   deprecated.
-- clocks-names:
+- clock-names:
 	   When present, the first clock listed must be named
 	   "uartclk" and the second clock listed must be named
 	   "apb_pclk"

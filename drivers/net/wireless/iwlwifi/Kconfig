@@ -142,6 +142,7 @@ config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
 	depends on EVENT_TRACING
+	default y
 	help
 	  Say Y here to trace all commands, including TX frames and IO
 	  accesses, sent to the device. If you say yes, iwlwifi will

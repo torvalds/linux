@@ -14,6 +14,28 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_IMX_OCOTP
+	tristate "i.MX6 On-Chip OTP Controller support"
+	depends on SOC_IMX6
+	help
+	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
+	  i.MX6 SoCs, providing access to 4 Kbits of one-time programmable
+	  eFuses.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-imx-ocotp.
+
+config NVMEM_MXS_OCOTP
+	tristate "Freescale MXS On-Chip OTP Memory Support"
+	depends on ARCH_MXS || COMPILE_TEST
+	help
+	  If you say Y here, you will get readonly access to the
+	  One Time Programmable memory pages that are stored
+	  on the Freescale i.MX23/i.MX28 processor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-mxs-ocotp.
+
 config QCOM_QFPROM
 	tristate "QCOM QFPROM Support"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -25,6 +47,16 @@ config QCOM_QFPROM
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_qfprom.
 
+config ROCKCHIP_EFUSE
+	tristate "Rockchip eFuse Support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	help
+	  This is a simple drive to dump specified values of Rockchip SoC
+	  from eFuse, such as cpu-leakage.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_rockchip_efuse.
+
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"
 	depends on ARCH_SUNXI
@@ -35,5 +67,15 @@ config NVMEM_SUNXI_SID
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_sunxi_sid.
+
+config NVMEM_VF610_OCOTP
+	tristate "VF610 SoC OCOTP support"
+	depends on SOC_VF610 || COMPILE_TEST
+	help
+	  This is a driver for the 'OCOTP' peripheral available on Vybrid
+	  devices like VF5xx and VF6xx.
+
+	  This driver can also be build as a module. If so, the module will
+	  be called nvmem-vf610-ocotp.
 
 endif

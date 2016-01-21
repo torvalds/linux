@@ -55,8 +55,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/ioport.h>
@@ -755,7 +753,7 @@ static int mpsc_alloc_ring_mem(struct mpsc_port_info *pi)
 		pi->port.line);
 
 	if (!pi->dma_region) {
-		if (!dma_supported(pi->port.dev, 0xffffffff)) {
+		if (!dma_set_mask(pi->port.dev, 0xffffffff)) {
 			printk(KERN_ERR "MPSC: Inadequate DMA support\n");
 			rc = -ENXIO;
 		} else if ((pi->dma_region = dma_alloc_noncoherent(pi->port.dev,
@@ -2108,26 +2106,11 @@ static int mpsc_drv_probe(struct platform_device *dev)
 	return rc;
 }
 
-static int mpsc_drv_remove(struct platform_device *dev)
-{
-	pr_debug("mpsc_drv_exit: Removing MPSC %d\n", dev->id);
-
-	if (dev->id < MPSC_NUM_CTLRS) {
-		uart_remove_one_port(&mpsc_reg, &mpsc_ports[dev->id].port);
-		mpsc_release_port((struct uart_port *)
-				&mpsc_ports[dev->id].port);
-		mpsc_drv_unmap_regs(&mpsc_ports[dev->id]);
-		return 0;
-	} else {
-		return -ENODEV;
-	}
-}
-
 static struct platform_driver mpsc_driver = {
 	.probe	= mpsc_drv_probe,
-	.remove	= mpsc_drv_remove,
 	.driver	= {
-		.name	= MPSC_CTLR_NAME,
+		.name			= MPSC_CTLR_NAME,
+		.suppress_bind_attrs	= true,
 	},
 };
 
@@ -2156,22 +2139,10 @@ static int __init mpsc_drv_init(void)
 
 	return rc;
 }
+device_initcall(mpsc_drv_init);
 
-static void __exit mpsc_drv_exit(void)
-{
-	platform_driver_unregister(&mpsc_driver);
-	platform_driver_unregister(&mpsc_shared_driver);
-	uart_unregister_driver(&mpsc_reg);
-	memset(mpsc_ports, 0, sizeof(mpsc_ports));
-	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));
-}
-
-module_init(mpsc_drv_init);
-module_exit(mpsc_drv_exit);
-
+/*
 MODULE_AUTHOR("Mark A. Greer <mgreer@mvista.com>");
 MODULE_DESCRIPTION("Generic Marvell MPSC serial/UART driver");
-MODULE_VERSION(MPSC_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV_MAJOR(MPSC_MAJOR);
-MODULE_ALIAS("platform:" MPSC_CTLR_NAME);
+*/

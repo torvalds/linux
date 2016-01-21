@@ -10,6 +10,26 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <linux/err.h>
+
+enum libbpf_errno {
+	__LIBBPF_ERRNO__START = 4000,
+
+	/* Something wrong in libelf */
+	LIBBPF_ERRNO__LIBELF = __LIBBPF_ERRNO__START,
+	LIBBPF_ERRNO__FORMAT,	/* BPF object format invalid */
+	LIBBPF_ERRNO__KVERSION,	/* Incorrect or no 'version' section */
+	LIBBPF_ERRNO__ENDIAN,	/* Endian missmatch */
+	LIBBPF_ERRNO__INTERNAL,	/* Internal error in libbpf */
+	LIBBPF_ERRNO__RELOC,	/* Relocation failed */
+	LIBBPF_ERRNO__LOAD,	/* Load program failure for unknown reason */
+	LIBBPF_ERRNO__VERIFY,	/* Kernel verifier blocks program loading */
+	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
+	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
+	__LIBBPF_ERRNO__END,
+};
+
+int libbpf_strerror(int err, char *buf, size_t size);
 
 /*
  * In include/linux/compiler-gcc.h, __printf is defined. However
@@ -36,6 +56,7 @@ void bpf_object__close(struct bpf_object *object);
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
 const char *bpf_object__get_name(struct bpf_object *obj);
+unsigned int bpf_object__get_kversion(struct bpf_object *obj);
 
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\
@@ -63,7 +84,7 @@ int bpf_program__set_private(struct bpf_program *prog, void *priv,
 int bpf_program__get_private(struct bpf_program *prog,
 			     void **ppriv);
 
-const char *bpf_program__title(struct bpf_program *prog, bool dup);
+const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
 int bpf_program__fd(struct bpf_program *prog);
 

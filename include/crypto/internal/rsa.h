@@ -20,8 +20,11 @@ struct rsa_key {
 	MPI d;
 };
 
-int rsa_parse_key(struct rsa_key *rsa_key, const void *key,
-		  unsigned int key_len);
+int rsa_parse_pub_key(struct rsa_key *rsa_key, const void *key,
+		      unsigned int key_len);
+
+int rsa_parse_priv_key(struct rsa_key *rsa_key, const void *key,
+		       unsigned int key_len);
 
 void rsa_free_key(struct rsa_key *rsa_key);
 #endif

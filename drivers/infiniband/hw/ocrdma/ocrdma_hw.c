@@ -47,6 +47,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "ocrdma.h"
 #include "ocrdma_hw.h"
@@ -578,6 +579,8 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 
 	cmd->async_event_bitmap = BIT(OCRDMA_ASYNC_GRP5_EVE_CODE);
 	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_RDMA_EVE_CODE);
+	/* Request link events on this  MQ. */
+	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_LINK_EVE_CODE);
 
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
@@ -678,11 +681,33 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 	int dev_event = 0;
 	int type = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_TYPE_MASK) >>
 	    OCRDMA_AE_MCQE_EVENT_TYPE_SHIFT;
+	u16 qpid = cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK;
+	u16 cqid = cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK;
 
-	if (cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPVALID)
-		qp = dev->qp_tbl[cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK];
-	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID)
-		cq = dev->cq_tbl[cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK];
+	/*
+	 * Some FW version returns wrong qp or cq ids in CQEs.
+	 * Checking whether the IDs are valid
+	 */
+
+	if (cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPVALID) {
+		if (qpid < dev->attr.max_qp)
+			qp = dev->qp_tbl[qpid];
+		if (qp == NULL) {
+			pr_err("ocrdma%d:Async event - qpid %u is not valid\n",
+			       dev->id, qpid);
+			return;
+		}
+	}
+
+	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID) {
+		if (cqid < dev->attr.max_cq)
+			cq = dev->cq_tbl[cqid];
+		if (cq == NULL) {
+			pr_err("ocrdma%d:Async event - cqid %u is not valid\n",
+			       dev->id, cqid);
+			return;
+		}
+	}
 
 	memset(&ib_evt, 0, sizeof(ib_evt));
 
@@ -796,20 +821,42 @@ static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
 	}
 }
 
+static void ocrdma_process_link_state(struct ocrdma_dev *dev,
+				      struct ocrdma_ae_mcqe *cqe)
+{
+	struct ocrdma_ae_lnkst_mcqe *evt;
+	u8 lstate;
+
+	evt = (struct ocrdma_ae_lnkst_mcqe *)cqe;
+	lstate = ocrdma_get_ae_link_state(evt->speed_state_ptn);
+
+	if (!(lstate & OCRDMA_AE_LSC_LLINK_MASK))
+		return;
+
+	if (dev->flags & OCRDMA_FLAGS_LINK_STATUS_INIT)
+		ocrdma_update_link_state(dev, (lstate & OCRDMA_LINK_ST_MASK));
+}
+
 static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 {
 	/* async CQE processing */
 	struct ocrdma_ae_mcqe *cqe = ae_cqe;
 	u32 evt_code = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_CODE_MASK) >>
 			OCRDMA_AE_MCQE_EVENT_CODE_SHIFT;
-
-	if (evt_code == OCRDMA_ASYNC_RDMA_EVE_CODE)
+	switch (evt_code) {
+	case OCRDMA_ASYNC_LINK_EVE_CODE:
+		ocrdma_process_link_state(dev, cqe);
+		break;
+	case OCRDMA_ASYNC_RDMA_EVE_CODE:
 		ocrdma_dispatch_ibevent(dev, cqe);
-	else if (evt_code == OCRDMA_ASYNC_GRP5_EVE_CODE)
+		break;
+	case OCRDMA_ASYNC_GRP5_EVE_CODE:
 		ocrdma_process_grp5_aync(dev, cqe);
-	else
+		break;
+	default:
 		pr_err("%s(%d) invalid evt code=0x%x\n", __func__,
 		       dev->id, evt_code);
+	}
 }
 
 static void ocrdma_process_mcqe(struct ocrdma_dev *dev, struct ocrdma_mcqe *cqe)
@@ -1340,7 +1387,8 @@ mbx_err:
 	return status;
 }
 
-int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed,
+			      u8 *lnk_state)
 {
 	int status = -ENOMEM;
 	struct ocrdma_get_link_speed_rsp *rsp;
@@ -1361,8 +1409,11 @@ int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
 		goto mbx_err;
 
 	rsp = (struct ocrdma_get_link_speed_rsp *)cmd;
-	*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
-			>> OCRDMA_PHY_PS_SHIFT;
+	if (lnk_speed)
+		*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
+			      >> OCRDMA_PHY_PS_SHIFT;
+	if (lnk_state)
+		*lnk_state = (rsp->res_lnk_st & OCRDMA_LINK_ST_MASK);
 
 mbx_err:
 	kfree(cmd);
@@ -2448,6 +2499,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
 	union ib_gid sgid, zgid;
+	struct ib_gid_attr sgid_attr;
 	u32 vlan_id = 0xFFFF;
 	u8 mac_addr[6];
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
@@ -2466,10 +2518,14 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
 	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
 	       sizeof(cmd->params.dgid));
-	status = ocrdma_query_gid(&dev->ibdev, 1,
-			ah_attr->grh.sgid_index, &sgid);
-	if (status)
-		return status;
+
+	status = ib_get_cached_gid(&dev->ibdev, 1, ah_attr->grh.sgid_index,
+				   &sgid, &sgid_attr);
+	if (!status && sgid_attr.ndev) {
+		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
+		memcpy(mac_addr, sgid_attr.ndev->dev_addr, ETH_ALEN);
+		dev_put(sgid_attr.ndev);
+	}
 
 	memset(&zgid, 0, sizeof(zgid));
 	if (!memcmp(&sgid, &zgid, sizeof(zgid)))
@@ -2486,17 +2542,16 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
-	if (attr_mask & IB_QP_VID) {
-		vlan_id = attrs->vlan_id;
-	} else if (dev->pfc_state) {
-		vlan_id = 0;
-		pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
-			dev->id);
-		pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
-			dev->id);
-	}
 
-	if (vlan_id < 0x1000) {
+	if (vlan_id == 0xFFFF)
+		vlan_id = 0;
+	if (vlan_id || dev->pfc_state) {
+		if (!vlan_id) {
+			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
+			       dev->id);
+			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
+			       dev->id);
+		}
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;

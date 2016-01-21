@@ -347,13 +347,18 @@ For the first case, the MFD drivers do not need to do anything. The
 resulting child platform device will have its ACPI_COMPANION() set to point
 to the parent device.
 
-If the ACPI namespace has a device that we can match using an ACPI id,
-the id should be set like:
+If the ACPI namespace has a device that we can match using an ACPI id or ACPI
+adr, the cell should be set like:
+
+	static struct mfd_cell_acpi_match my_subdevice_cell_acpi_match = {
+		.pnpid = "XYZ0001",
+		.adr = 0,
+	};
 
 	static struct mfd_cell my_subdevice_cell = {
 		.name = "my_subdevice",
 		/* set the resources relative to the parent */
-		.acpi_pnpid = "XYZ0001",
+		.acpi_match = &my_subdevice_cell_acpi_match,
 	};
 
 The ACPI id "XYZ0001" is then used to lookup an ACPI device directly under

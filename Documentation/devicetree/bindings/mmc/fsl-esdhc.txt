@@ -22,6 +22,8 @@ Optional properties:
   - voltage-ranges : two cells are required, first cell specifies minimum
     slot voltage (mV), second cell specifies maximum slot voltage (mV).
     Several ranges could be specified.
+  - little-endian : If the host controller is little-endian mode, specify
+    this property. The default endian mode is big-endian.
 
 Example:
 

@@ -56,6 +56,11 @@
 #define START_BP_BUFNUM_1	0x2A
 #define START_RING_NUM_1	264
 
+#define XG_START_CPU_BUFNUM_1	12
+#define XG_START_ETH_BUFNUM_1	2
+#define XG_START_BP_BUFNUM_1	0x22
+#define XG_START_RING_NUM_1	264
+
 #define X2_START_CPU_BUFNUM_0	0
 #define X2_START_ETH_BUFNUM_0	0
 #define X2_START_BP_BUFNUM_0	0x20
@@ -150,11 +155,11 @@ struct xgene_enet_pdata {
 	enum xgene_enet_id enet_id;
 	struct xgene_enet_desc_ring *tx_ring;
 	struct xgene_enet_desc_ring *rx_ring;
+	u16 tx_level;
+	u16 txc_level;
 	char *dev_name;
 	u32 rx_buff_cnt;
 	u32 tx_qcnt_hi;
-	u32 cp_qcnt_hi;
-	u32 cp_qcnt_low;
 	u32 rx_irq;
 	u32 txc_irq;
 	u8 cq_cnt;
@@ -179,6 +184,8 @@ struct xgene_enet_pdata {
 	u8 bp_bufnum;
 	u16 ring_num;
 	u32 mss;
+	u8 tx_delay;
+	u8 rx_delay;
 };
 
 struct xgene_indirect_ctl {

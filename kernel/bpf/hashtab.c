@@ -17,7 +17,7 @@
 struct bpf_htab {
 	struct bpf_map map;
 	struct hlist_head *buckets;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	u32 count;	/* number of elements in this hashtable */
 	u32 n_buckets;	/* number of hash buckets */
 	u32 elem_size;	/* size of each element in bytes */
@@ -64,12 +64,35 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 */
 		goto free_htab;
 
-	err = -ENOMEM;
+	if (htab->map.value_size >= (1 << (KMALLOC_SHIFT_MAX - 1)) -
+	    MAX_BPF_STACK - sizeof(struct htab_elem))
+		/* if value_size is bigger, the user space won't be able to
+		 * access the elements via bpf syscall. This check also makes
+		 * sure that the elem_size doesn't overflow and it's
+		 * kmalloc-able later in htab_map_update_elem()
+		 */
+		goto free_htab;
+
+	htab->elem_size = sizeof(struct htab_elem) +
+			  round_up(htab->map.key_size, 8) +
+			  htab->map.value_size;
+
 	/* prevent zero size kmalloc and check for u32 overflow */
 	if (htab->n_buckets == 0 ||
 	    htab->n_buckets > U32_MAX / sizeof(struct hlist_head))
 		goto free_htab;
 
+	if ((u64) htab->n_buckets * sizeof(struct hlist_head) +
+	    (u64) htab->elem_size * htab->map.max_entries >=
+	    U32_MAX - PAGE_SIZE)
+		/* make sure page count doesn't overflow */
+		goto free_htab;
+
+	htab->map.pages = round_up(htab->n_buckets * sizeof(struct hlist_head) +
+				   htab->elem_size * htab->map.max_entries,
+				   PAGE_SIZE) >> PAGE_SHIFT;
+
+	err = -ENOMEM;
 	htab->buckets = kmalloc_array(htab->n_buckets, sizeof(struct hlist_head),
 				      GFP_USER | __GFP_NOWARN);
 
@@ -82,12 +105,9 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	for (i = 0; i < htab->n_buckets; i++)
 		INIT_HLIST_HEAD(&htab->buckets[i]);
 
-	spin_lock_init(&htab->lock);
+	raw_spin_lock_init(&htab->lock);
 	htab->count = 0;
 
-	htab->elem_size = sizeof(struct htab_elem) +
-			  round_up(htab->map.key_size, 8) +
-			  htab->map.value_size;
 	return &htab->map;
 
 free_htab:
@@ -218,7 +238,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* allocate new element outside of lock */
-	l_new = kmalloc(htab->elem_size, GFP_ATOMIC);
+	l_new = kmalloc(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN);
 	if (!l_new)
 		return -ENOMEM;
 
@@ -230,7 +250,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	l_new->hash = htab_map_hash(l_new->key, key_size);
 
 	/* bpf_map_update_elem() can be called in_irq() */
-	spin_lock_irqsave(&htab->lock, flags);
+	raw_spin_lock_irqsave(&htab->lock, flags);
 
 	head = select_bucket(htab, l_new->hash);
 
@@ -266,11 +286,11 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	} else {
 		htab->count++;
 	}
-	spin_unlock_irqrestore(&htab->lock, flags);
+	raw_spin_unlock_irqrestore(&htab->lock, flags);
 
 	return 0;
 err:
-	spin_unlock_irqrestore(&htab->lock, flags);
+	raw_spin_unlock_irqrestore(&htab->lock, flags);
 	kfree(l_new);
 	return ret;
 }
@@ -291,7 +311,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 
 	hash = htab_map_hash(key, key_size);
 
-	spin_lock_irqsave(&htab->lock, flags);
+	raw_spin_lock_irqsave(&htab->lock, flags);
 
 	head = select_bucket(htab, hash);
 
@@ -304,7 +324,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 		ret = 0;
 	}
 
-	spin_unlock_irqrestore(&htab->lock, flags);
+	raw_spin_unlock_irqrestore(&htab->lock, flags);
 	return ret;
 }
 

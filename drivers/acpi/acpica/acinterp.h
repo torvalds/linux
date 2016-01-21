@@ -397,12 +397,10 @@ void
 acpi_ex_dump_operands(union acpi_operand_object **operands,
 		      const char *opcode_name, u32 num_opcodes);
 
-#ifdef	ACPI_FUTURE_USAGE
 void
 acpi_ex_dump_object_descriptor(union acpi_operand_object *object, u32 flags);
 
 void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags);
-#endif				/* ACPI_FUTURE_USAGE */
 
 /*
  * exnames - AML namestring support

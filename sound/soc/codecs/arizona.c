@@ -147,6 +147,8 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 						   0x4f5, 0x0da);
 		}
 		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -314,6 +316,7 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"Tone Generator 2",
 	"Haptics",
 	"AEC",
+	"AEC2",
 	"Mic Mute Mixer",
 	"Noise Generator",
 	"IN1L",
@@ -421,6 +424,7 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x05,
 	0x06,  /* Haptics */
 	0x08,  /* AEC */
+	0x09,  /* AEC2 */
 	0x0c,  /* Noise mixer */
 	0x0d,  /* Comfort noise */
 	0x10,  /* IN1L */
@@ -524,6 +528,32 @@ EXPORT_SYMBOL_GPL(arizona_mixer_values);
 
 const DECLARE_TLV_DB_SCALE(arizona_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(arizona_mixer_tlv);
+
+const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+	"12kHz", "24kHz", "48kHz", "96kHz", "192kHz",
+	"11.025kHz", "22.05kHz", "44.1kHz", "88.2kHz", "176.4kHz",
+	"4kHz", "8kHz", "16kHz", "32kHz",
+};
+EXPORT_SYMBOL_GPL(arizona_sample_rate_text);
+
+const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+	0x10, 0x11, 0x12, 0x13,
+};
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val);
+
+const char *arizona_sample_rate_val_to_name(unsigned int rate_val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arizona_sample_rate_val); ++i) {
+		if (arizona_sample_rate_val[i] == rate_val)
+			return arizona_sample_rate_text[i];
+	}
+
+	return "Illegal";
+}
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val_to_name);
 
 const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE] = {
 	"SYNCCLK rate", "8kHz", "16kHz", "ASYNCCLK rate",
@@ -689,6 +719,15 @@ static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 				    ARIZONA_IN_VU, val);
 }
 
+bool arizona_input_analog(struct snd_soc_codec *codec, int shift)
+{
+	unsigned int reg = ARIZONA_IN1L_CONTROL + ((shift / 2) * 8);
+	unsigned int val = snd_soc_read(codec, reg);
+
+	return !(val & ARIZONA_IN1_MODE_MASK);
+}
+EXPORT_SYMBOL_GPL(arizona_input_analog);
+
 int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
@@ -725,6 +764,9 @@ int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
 		if (reg == 0)
 			arizona_in_set_vu(codec, 0);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -805,6 +847,8 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		default:
 			break;
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -979,24 +1023,18 @@ void arizona_init_dvfs(struct arizona_priv *priv)
 }
 EXPORT_SYMBOL_GPL(arizona_init_dvfs);
 
-static unsigned int arizona_sysclk_48k_rates[] = {
+static unsigned int arizona_opclk_ref_48k_rates[] = {
 	6144000,
 	12288000,
 	24576000,
 	49152000,
-	73728000,
-	98304000,
-	147456000,
 };
 
-static unsigned int arizona_sysclk_44k1_rates[] = {
+static unsigned int arizona_opclk_ref_44k1_rates[] = {
 	5644800,
 	11289600,
 	22579200,
 	45158400,
-	67737600,
-	90316800,
-	135475200,
 };
 
 static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
@@ -1021,11 +1059,11 @@ static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 	}
 
 	if (refclk % 8000)
-		rates = arizona_sysclk_44k1_rates;
+		rates = arizona_opclk_ref_44k1_rates;
 	else
-		rates = arizona_sysclk_48k_rates;
+		rates = arizona_opclk_ref_48k_rates;
 
-	for (ref = 0; ref < ARRAY_SIZE(arizona_sysclk_48k_rates) &&
+	for (ref = 0; ref < ARRAY_SIZE(arizona_opclk_ref_48k_rates) &&
 		     rates[ref] <= refclk; ref++) {
 		div = 1;
 		while (rates[ref] / div >= freq && div < 32) {
@@ -1499,7 +1537,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	bool reconfig;
 	unsigned int aif_tx_state, aif_rx_state;
 
-	if (params_rate(params) % 8000)
+	if (params_rate(params) % 4000)
 		rates = &arizona_44k1_bclk_rates[0];
 	else
 		rates = &arizona_48k_bclk_rates[0];
@@ -1866,6 +1904,11 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	case WM5110:
 	case WM8280:
 		if (fll->arizona->rev < 3 || sync)
+			return init_ratio;
+		break;
+	case WM8998:
+	case WM1814:
+		if (sync)
 			return init_ratio;
 		break;
 	default:

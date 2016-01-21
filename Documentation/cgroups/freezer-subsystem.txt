@@ -50,7 +50,7 @@ being frozen. This allows the bash example above and gdb to run as
 expected.
 
 The cgroup freezer is hierarchical. Freezing a cgroup freezes all
-tasks beloning to the cgroup and all its descendant cgroups. Each
+tasks belonging to the cgroup and all its descendant cgroups. Each
 cgroup has its own state (self-state) and the state inherited from the
 parent (parent-state). Iff both states are THAWED, the cgroup is
 THAWED.

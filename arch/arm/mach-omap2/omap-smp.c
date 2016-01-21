@@ -143,9 +143,9 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * Ensure that CPU power state is set to ON to avoid CPU
 		 * powerdomain transition on wfi
 		 */
-		clkdm_wakeup(cpu1_clkdm);
-		omap_set_pwrdm_state(cpu1_pwrdm, PWRDM_POWER_ON);
-		clkdm_allow_idle(cpu1_clkdm);
+		clkdm_wakeup_nolock(cpu1_clkdm);
+		pwrdm_set_next_pwrst(cpu1_pwrdm, PWRDM_POWER_ON);
+		clkdm_allow_idle_nolock(cpu1_clkdm);
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD)) {
 			while (gic_dist_disabled()) {

@@ -101,23 +101,12 @@ static int ad714x_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ad714x_spi_remove(struct spi_device *spi)
-{
-	struct ad714x_chip *chip = spi_get_drvdata(spi);
-
-	ad714x_remove(chip);
-
-	return 0;
-}
-
 static struct spi_driver ad714x_spi_driver = {
 	.driver = {
 		.name	= "ad714x_captouch",
-		.owner	= THIS_MODULE,
 		.pm	= &ad714x_spi_pm,
 	},
 	.probe		= ad714x_spi_probe,
-	.remove		= ad714x_spi_remove,
 };
 
 module_spi_driver(ad714x_spi_driver);

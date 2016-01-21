@@ -422,18 +422,35 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 	u64 qp_mask = 0;
 	int err = 0;
 
+	if (!attr || (attr & ~MLX4_UPDATE_QP_SUPPORTED_ATTRS))
+		return -EINVAL;
+
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
 	cmd = (struct mlx4_update_qp_context *)mailbox->buf;
 
-	if (!attr || (attr & ~MLX4_UPDATE_QP_SUPPORTED_ATTRS))
-		return -EINVAL;
-
 	if (attr & MLX4_UPDATE_QP_SMAC) {
 		pri_addr_path_mask |= 1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX;
 		cmd->qp_context.pri_path.grh_mylmc = params->smac_index;
+	}
+
+	if (attr & MLX4_UPDATE_QP_ETH_SRC_CHECK_MC_LB) {
+		if (!(dev->caps.flags2
+		      & MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
+			mlx4_warn(dev,
+				  "Trying to set src check LB, but it isn't supported\n");
+			err = -ENOTSUPP;
+			goto out;
+		}
+		pri_addr_path_mask |=
+			1ULL << MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB;
+		if (params->flags &
+		    MLX4_UPDATE_QP_PARAMS_FLAGS_ETH_CHECK_MC_LB) {
+			cmd->qp_context.pri_path.fl |=
+				MLX4_FL_ETH_SRC_CHECK_MC_LB;
+		}
 	}
 
 	if (attr & MLX4_UPDATE_QP_VSD) {
@@ -458,7 +475,7 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 	err = mlx4_cmd(dev, mailbox->dma, qpn & 0xffffff, 0,
 		       MLX4_CMD_UPDATE_QP, MLX4_CMD_TIME_CLASS_A,
 		       MLX4_CMD_NATIVE);
-
+out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }

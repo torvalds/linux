@@ -56,7 +56,7 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
 
-	if (vaddr == NULL)
+	if (!vaddr)
 		return ERR_PTR(-ENOMEM);
 
 	return vaddr;
@@ -352,6 +352,7 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 	heap->id = heap_data->id;
 	return heap;
 }
+EXPORT_SYMBOL(ion_heap_create);
 
 void ion_heap_destroy(struct ion_heap *heap)
 {
@@ -379,3 +380,4 @@ void ion_heap_destroy(struct ion_heap *heap)
 		       heap->type);
 	}
 }
+EXPORT_SYMBOL(ion_heap_destroy);

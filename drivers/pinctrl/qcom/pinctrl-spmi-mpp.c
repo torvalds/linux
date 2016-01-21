@@ -604,16 +604,6 @@ static void pmic_mpp_set(struct gpio_chip *chip, unsigned pin, int value)
 	pmic_mpp_config_set(state->ctrl, pin, &config, 1);
 }
 
-static int pmic_mpp_request(struct gpio_chip *chip, unsigned base)
-{
-	return pinctrl_request_gpio(chip->base + base);
-}
-
-static void pmic_mpp_free(struct gpio_chip *chip, unsigned base)
-{
-	pinctrl_free_gpio(chip->base + base);
-}
-
 static int pmic_mpp_of_xlate(struct gpio_chip *chip,
 			     const struct of_phandle_args *gpio_desc,
 			     u32 *flags)
@@ -653,8 +643,8 @@ static const struct gpio_chip pmic_mpp_gpio_template = {
 	.direction_output	= pmic_mpp_direction_output,
 	.get			= pmic_mpp_get,
 	.set			= pmic_mpp_set,
-	.request		= pmic_mpp_request,
-	.free			= pmic_mpp_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.of_xlate		= pmic_mpp_of_xlate,
 	.to_irq			= pmic_mpp_to_irq,
 	.dbg_show		= pmic_mpp_dbg_show,

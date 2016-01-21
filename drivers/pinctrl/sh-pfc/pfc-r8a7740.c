@@ -3651,38 +3651,38 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {
-	PINMUX_IRQ(irq_pin(0), 2,   13),	/* IRQ0A */
-	PINMUX_IRQ(irq_pin(1), 20),		/* IRQ1A */
-	PINMUX_IRQ(irq_pin(2), 11,  12),	/* IRQ2A */
-	PINMUX_IRQ(irq_pin(3), 10,  14),	/* IRQ3A */
-	PINMUX_IRQ(irq_pin(4), 15,  172),	/* IRQ4A */
-	PINMUX_IRQ(irq_pin(5), 0,   1),		/* IRQ5A */
-	PINMUX_IRQ(irq_pin(6), 121, 173),	/* IRQ6A */
-	PINMUX_IRQ(irq_pin(7), 120, 209),	/* IRQ7A */
-	PINMUX_IRQ(irq_pin(8), 119),		/* IRQ8A */
-	PINMUX_IRQ(irq_pin(9), 118, 210),	/* IRQ9A */
-	PINMUX_IRQ(irq_pin(10), 19),		/* IRQ10A */
-	PINMUX_IRQ(irq_pin(11), 104),		/* IRQ11A */
-	PINMUX_IRQ(irq_pin(12), 42,  97),	/* IRQ12A */
-	PINMUX_IRQ(irq_pin(13), 64,  98),	/* IRQ13A */
-	PINMUX_IRQ(irq_pin(14), 63,  99),	/* IRQ14A */
-	PINMUX_IRQ(irq_pin(15), 62,  100),	/* IRQ15A */
-	PINMUX_IRQ(irq_pin(16), 68,  211),	/* IRQ16A */
-	PINMUX_IRQ(irq_pin(17), 69),		/* IRQ17A */
-	PINMUX_IRQ(irq_pin(18), 70),		/* IRQ18A */
-	PINMUX_IRQ(irq_pin(19), 71),		/* IRQ19A */
-	PINMUX_IRQ(irq_pin(20), 67),		/* IRQ20A */
-	PINMUX_IRQ(irq_pin(21), 202),		/* IRQ21A */
-	PINMUX_IRQ(irq_pin(22), 95),		/* IRQ22A */
-	PINMUX_IRQ(irq_pin(23), 96),		/* IRQ23A */
-	PINMUX_IRQ(irq_pin(24), 180),		/* IRQ24A */
-	PINMUX_IRQ(irq_pin(25), 38),		/* IRQ25A */
-	PINMUX_IRQ(irq_pin(26), 58,  81),	/* IRQ26A */
-	PINMUX_IRQ(irq_pin(27), 57,  168),	/* IRQ27A */
-	PINMUX_IRQ(irq_pin(28), 56,  169),	/* IRQ28A */
-	PINMUX_IRQ(irq_pin(29), 50,  170),	/* IRQ29A */
-	PINMUX_IRQ(irq_pin(30), 49,  171),	/* IRQ30A */
-	PINMUX_IRQ(irq_pin(31), 41,  167),	/* IRQ31A */
+	PINMUX_IRQ(2,   13),	/* IRQ0A */
+	PINMUX_IRQ(20),		/* IRQ1A */
+	PINMUX_IRQ(11,  12),	/* IRQ2A */
+	PINMUX_IRQ(10,  14),	/* IRQ3A */
+	PINMUX_IRQ(15,  172),	/* IRQ4A */
+	PINMUX_IRQ(0,   1),	/* IRQ5A */
+	PINMUX_IRQ(121, 173),	/* IRQ6A */
+	PINMUX_IRQ(120, 209),	/* IRQ7A */
+	PINMUX_IRQ(119),	/* IRQ8A */
+	PINMUX_IRQ(118, 210),	/* IRQ9A */
+	PINMUX_IRQ(19),		/* IRQ10A */
+	PINMUX_IRQ(104),	/* IRQ11A */
+	PINMUX_IRQ(42,  97),	/* IRQ12A */
+	PINMUX_IRQ(64,  98),	/* IRQ13A */
+	PINMUX_IRQ(63,  99),	/* IRQ14A */
+	PINMUX_IRQ(62,  100),	/* IRQ15A */
+	PINMUX_IRQ(68,  211),	/* IRQ16A */
+	PINMUX_IRQ(69),		/* IRQ17A */
+	PINMUX_IRQ(70),		/* IRQ18A */
+	PINMUX_IRQ(71),		/* IRQ19A */
+	PINMUX_IRQ(67),		/* IRQ20A */
+	PINMUX_IRQ(202),	/* IRQ21A */
+	PINMUX_IRQ(95),		/* IRQ22A */
+	PINMUX_IRQ(96),		/* IRQ23A */
+	PINMUX_IRQ(180),	/* IRQ24A */
+	PINMUX_IRQ(38),		/* IRQ25A */
+	PINMUX_IRQ(58,  81),	/* IRQ26A */
+	PINMUX_IRQ(57,  168),	/* IRQ27A */
+	PINMUX_IRQ(56,  169),	/* IRQ28A */
+	PINMUX_IRQ(50,  170),	/* IRQ29A */
+	PINMUX_IRQ(49,  171),	/* IRQ30A */
+	PINMUX_IRQ(41,  167),	/* IRQ31A */
 };
 
 #define PORTnCR_PULMD_OFF	(0 << 6)
@@ -3774,8 +3774,8 @@ const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.cfg_regs	= pinmux_config_regs,
 	.data_regs	= pinmux_data_regs,
 
-	.gpio_data	= pinmux_data,
-	.gpio_data_size	= ARRAY_SIZE(pinmux_data),
+	.pinmux_data	= pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 
 	.gpio_irq	= pinmux_irqs,
 	.gpio_irq_size	= ARRAY_SIZE(pinmux_irqs),

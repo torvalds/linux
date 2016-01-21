@@ -592,7 +592,7 @@ void nicvf_cmp_queue_config(struct nicvf *nic, struct queue_set *qs,
 	/* Set threshold value for interrupt generation */
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_THRESH, qidx, cq->thresh);
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_CFG2,
-			      qidx, nic->cq_coalesce_usecs);
+			      qidx, CMP_QUEUE_TIMER_THRESH);
 }
 
 /* Configures transmit queue */

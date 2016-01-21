@@ -41,9 +41,11 @@ static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 					 struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	bool chan_switch = local->hw.wiphy->features &
 			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
-	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW);
+	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
+			  !ifmgd->tdls_wider_bw_prohibited;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	bool vht = sband && sband->vht_cap.vht_supported;
@@ -331,8 +333,8 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 
 	/* proceed to downgrade the chandef until usable or the same */
 	while (uc.width > max_width &&
-	       !cfg80211_reg_can_beacon(sdata->local->hw.wiphy,
-					&uc, sdata->wdev.iftype))
+	       !cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
+					      sdata->wdev.iftype))
 		ieee80211_chandef_downgrade(&uc);
 
 	if (!cfg80211_chandef_identical(&uc, &sta->tdls_chandef)) {
@@ -589,12 +591,19 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 		offset = noffset;
 	}
 
-	/* if HT support is only added in TDLS, we need an HT-operation IE */
+	/*
+	 * if HT support is only added in TDLS, we need an HT-operation IE.
+	 * add the IE as required by IEEE802.11-2012 9.23.3.2.
+	 */
 	if (!ap_sta->sta.ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
+		u16 prot = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED |
+			   IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT |
+			   IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT;
+
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
-		/* send an empty HT operation IE */
 		ieee80211_ie_build_ht_oper(pos, &sta->sta.ht_cap,
-					   &sdata->vif.bss_conf.chandef, 0);
+					   &sdata->vif.bss_conf.chandef, prot,
+					   true);
 	}
 
 	ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);

@@ -40,6 +40,9 @@
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
+#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR0 	0x8616
+#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR1 	0x8617
+#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR2 	0x8618
 
 #define VCE_V3_0_FW_SIZE	(384 * 1024)
 #define VCE_V3_0_STACK_SIZE	(64 * 1024)
@@ -130,9 +133,11 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 
 		/* set BUSY flag */
 		WREG32_P(mmVCE_STATUS, 1, ~1);
-
-		WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK,
-			~VCE_VCPU_CNTL__CLK_EN_MASK);
+		if (adev->asic_type >= CHIP_STONEY)
+			WREG32_P(mmVCE_VCPU_CNTL, 1, ~0x200001);
+		else
+			WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK,
+				~VCE_VCPU_CNTL__CLK_EN_MASK);
 
 		WREG32_P(mmVCE_SOFT_RESET,
 			 VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
@@ -205,8 +210,9 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 	u32 tmp;
 	unsigned ret;
 
-	/* Fiji is single pipe */
-	if (adev->asic_type == CHIP_FIJI) {
+	/* Fiji, Stoney are single pipe */
+	if ((adev->asic_type == CHIP_FIJI) ||
+	    (adev->asic_type == CHIP_STONEY)){
 		ret = AMDGPU_VCE_HARVEST_VCE1;
 		return ret;
 	}
@@ -390,8 +396,12 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 	WREG32(mmVCE_LMI_SWAP_CNTL, 0);
 	WREG32(mmVCE_LMI_SWAP_CNTL1, 0);
 	WREG32(mmVCE_LMI_VM_CTRL, 0);
-
-	WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR, (adev->vce.gpu_addr >> 8));
+	if (adev->asic_type >= CHIP_STONEY) {
+		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR0, (adev->vce.gpu_addr >> 8));
+		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR1, (adev->vce.gpu_addr >> 8));
+		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR2, (adev->vce.gpu_addr >> 8));
+	} else
+		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR, (adev->vce.gpu_addr >> 8));
 	offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 	size = VCE_V3_0_FW_SIZE;
 	WREG32(mmVCE_VCPU_CACHE_OFFSET0, offset & 0x7fffffff);
@@ -575,6 +585,11 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	DRM_DEBUG("IH: VCE\n");
+
+	WREG32_P(mmVCE_SYS_INT_STATUS,
+		VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK,
+		~VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK);
+
 	switch (entry->src_data) {
 	case 0:
 		amdgpu_fence_process(&adev->vce.ring[0]);
@@ -643,7 +658,6 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
 	.emit_semaphore = amdgpu_vce_ring_emit_semaphore,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.is_lockup = amdgpu_ring_test_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 

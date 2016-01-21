@@ -82,7 +82,6 @@
 #include "constants.h"
 #include "tof.h"
 
-#define IWL_INVALID_MAC80211_QUEUE	0xff
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
 #define IWL_RSSI_OFFSET 50
@@ -323,11 +322,11 @@ enum iwl_bt_force_ant_mode {
 struct iwl_mvm_vif_bf_data {
 	bool bf_enabled;
 	bool ba_enabled;
-	s8 ave_beacon_signal;
-	s8 last_cqm_event;
-	s8 bt_coex_min_thold;
-	s8 bt_coex_max_thold;
-	s8 last_bt_coex_event;
+	int ave_beacon_signal;
+	int last_cqm_event;
+	int bt_coex_min_thold;
+	int bt_coex_max_thold;
+	int last_bt_coex_event;
 };
 
 /**
@@ -338,6 +337,8 @@ struct iwl_mvm_vif_bf_data {
  * @bssid: BSSID for this (client) interface
  * @associated: indicates that we're currently associated, used only for
  *	managing the firmware state in iwl_mvm_bss_info_changed_station()
+ * @ap_assoc_sta_count: count of stations associated to us - valid only
+ *	if VIF type is AP
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
@@ -367,6 +368,7 @@ struct iwl_mvm_vif {
 
 	u8 bssid[ETH_ALEN];
 	bool associated;
+	u8 ap_assoc_sta_count;
 
 	bool uploaded;
 	bool ap_ibss_active;
@@ -602,7 +604,14 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
-	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
+	struct {
+		/* Map to HW queue */
+		u32 hw_queue_to_mac80211;
+		u8 hw_queue_refcount;
+		bool setup_reserved;
+		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
+	} queue_info[IWL_MAX_HW_QUEUES];
+	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
@@ -649,7 +658,7 @@ struct iwl_mvm {
 	const struct iwl_fw_bcast_filter *bcast_filters;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
-		u32 override; /* u32 for debugfs_create_bool */
+		bool override;
 		struct iwl_bcast_filter_cmd cmd;
 	} dbgfs_bcast_filtering;
 #endif
@@ -673,12 +682,13 @@ struct iwl_mvm {
 	bool disable_power_off;
 	bool disable_power_off_d3;
 
-	u32 scan_iter_notif_enabled; /* must be u32 for debugfs_create_bool */
+	bool scan_iter_notif_enabled;
 
 	struct debugfs_blob_wrapper nvm_hw_blob;
 	struct debugfs_blob_wrapper nvm_sw_blob;
 	struct debugfs_blob_wrapper nvm_calib_blob;
 	struct debugfs_blob_wrapper nvm_prod_blob;
+	struct debugfs_blob_wrapper nvm_phy_sku_blob;
 
 	struct iwl_mvm_frame_stats drv_rx_stats;
 	spinlock_t drv_stats_lock;
@@ -729,7 +739,7 @@ struct iwl_mvm {
 	int n_nd_channels;
 	bool net_detect;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	u32 d3_wake_sysassert; /* must be u32 for debugfs_create_bool */
+	bool d3_wake_sysassert;
 	bool d3_test_active;
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;
@@ -912,6 +922,12 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
+static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
+}
+
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 {
 	bool nvm_lar = mvm->nvm_data->lar_enabled;
@@ -939,11 +955,6 @@ static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC);
 }
 
-static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
-{
-	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_SCD_CFG);
-}
-
 static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
@@ -962,6 +973,12 @@ static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
+}
+
+static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
+{
+	/* firmware flag isn't defined yet */
+	return false;
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1019,7 +1036,7 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status);
 #else
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
-int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, bool sync);
+int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags);
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
 static inline void iwl_mvm_set_tx_cmd_ccmp(struct ieee80211_tx_info *info,
@@ -1136,7 +1153,6 @@ void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif);
-
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -1349,14 +1365,20 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 }
 
 /* hw scheduler queue config */
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
-			const struct iwl_trans_txq_scd_cfg *cfg,
+void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
 			unsigned int wdg_timeout);
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags);
+/*
+ * Disable a TXQ.
+ * Note that in non-DQA mode the %mac80211_queue and %tid params are ignored.
+ */
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			 u8 tid, u8 flags);
+int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 minq, u8 maxq);
 
 static inline
-void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
-			   u8 fifo, unsigned int wdg_timeout)
+void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			   u8 fifo, u16 ssn, unsigned int wdg_timeout)
 {
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
@@ -1365,13 +1387,13 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
 
-	iwl_mvm_enable_txq(mvm, queue, 0, &cfg, wdg_timeout);
+	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
 }
 
 static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
-					  int fifo, int sta_id, int tid,
-					  int frame_limit, u16 ssn,
-					  unsigned int wdg_timeout)
+					  int mac80211_queue, int fifo,
+					  int sta_id, int tid, int frame_limit,
+					  u16 ssn, unsigned int wdg_timeout)
 {
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
@@ -1381,7 +1403,7 @@ static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
 		.aggregate = true,
 	};
 
-	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg, wdg_timeout);
+	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
 }
 
 /* Thermal management and CT-kill */

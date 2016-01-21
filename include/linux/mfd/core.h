@@ -18,6 +18,12 @@
 
 struct irq_domain;
 
+/* Matches ACPI PNP id, either _HID or _CID, or ACPI _ADR */
+struct mfd_cell_acpi_match {
+	const char			*pnpid;
+	const unsigned long long	adr;
+};
+
 /*
  * This struct describes the MFD part ("cell").
  * After registration the copy of this structure will become the platform data
@@ -44,8 +50,8 @@ struct mfd_cell {
 	 */
 	const char		*of_compatible;
 
-	/* Matches ACPI PNP id, either _HID or _CID */
-	const char		*acpi_pnpid;
+	/* Matches ACPI */
+	const struct mfd_cell_acpi_match	*acpi_match;
 
 	/*
 	 * These resources can be specified relative to the parent device.

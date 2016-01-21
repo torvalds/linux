@@ -1029,7 +1029,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	if (of_find_property(np, "dr_mode", NULL))
-		tegra_phy->mode = of_usb_get_dr_mode(np);
+		tegra_phy->mode = usb_get_dr_mode(&pdev->dev);
 	else
 		tegra_phy->mode = USB_DR_MODE_HOST;
 

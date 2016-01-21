@@ -184,7 +184,7 @@ xfs_qm_dqpurge(
 	 */
 	ASSERT(!list_empty(&dqp->q_lru));
 	list_lru_del(&qi->qi_lru, &dqp->q_lru);
-	XFS_STATS_DEC(xs_qm_dquot_unused);
+	XFS_STATS_DEC(mp, xs_qm_dquot_unused);
 
 	xfs_qm_dqdestroy(dqp);
 	return 0;
@@ -448,11 +448,11 @@ xfs_qm_dquot_isolate(
 	 */
 	if (dqp->q_nrefs) {
 		xfs_dqunlock(dqp);
-		XFS_STATS_INC(xs_qm_dqwants);
+		XFS_STATS_INC(dqp->q_mount, xs_qm_dqwants);
 
 		trace_xfs_dqreclaim_want(dqp);
 		list_lru_isolate(lru, &dqp->q_lru);
-		XFS_STATS_DEC(xs_qm_dquot_unused);
+		XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot_unused);
 		return LRU_REMOVED;
 	}
 
@@ -496,19 +496,19 @@ xfs_qm_dquot_isolate(
 
 	ASSERT(dqp->q_nrefs == 0);
 	list_lru_isolate_move(lru, &dqp->q_lru, &isol->dispose);
-	XFS_STATS_DEC(xs_qm_dquot_unused);
+	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot_unused);
 	trace_xfs_dqreclaim_done(dqp);
-	XFS_STATS_INC(xs_qm_dqreclaims);
+	XFS_STATS_INC(dqp->q_mount, xs_qm_dqreclaims);
 	return LRU_REMOVED;
 
 out_miss_busy:
 	trace_xfs_dqreclaim_busy(dqp);
-	XFS_STATS_INC(xs_qm_dqreclaim_misses);
+	XFS_STATS_INC(dqp->q_mount, xs_qm_dqreclaim_misses);
 	return LRU_SKIP;
 
 out_unlock_dirty:
 	trace_xfs_dqreclaim_busy(dqp);
-	XFS_STATS_INC(xs_qm_dqreclaim_misses);
+	XFS_STATS_INC(dqp->q_mount, xs_qm_dqreclaim_misses);
 	xfs_dqunlock(dqp);
 	spin_lock(lru_lock);
 	return LRU_RETRY;
@@ -525,7 +525,7 @@ xfs_qm_shrink_scan(
 	unsigned long		freed;
 	int			error;
 
-	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
+	if ((sc->gfp_mask & (__GFP_FS|__GFP_DIRECT_RECLAIM)) != (__GFP_FS|__GFP_DIRECT_RECLAIM))
 		return 0;
 
 	INIT_LIST_HEAD(&isol.buffers);

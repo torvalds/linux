@@ -42,7 +42,6 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-
 #include "../include/lustre_log.h"
 
 static void print_llogd_body(struct llogd_body *d)
@@ -78,13 +77,12 @@ void lustre_swab_ost_id(struct ost_id *oid)
 }
 EXPORT_SYMBOL(lustre_swab_ost_id);
 
-void lustre_swab_llog_id(struct llog_logid *log_id)
+static void lustre_swab_llog_id(struct llog_logid *log_id)
 {
 	__swab64s(&log_id->lgl_oi.oi.oi_id);
 	__swab64s(&log_id->lgl_oi.oi.oi_seq);
 	__swab32s(&log_id->lgl_ogen);
 }
-EXPORT_SYMBOL(lustre_swab_llog_id);
 
 void lustre_swab_llogd_body(struct llogd_body *d)
 {
@@ -109,13 +107,12 @@ void lustre_swab_llogd_conn_body(struct llogd_conn_body *d)
 }
 EXPORT_SYMBOL(lustre_swab_llogd_conn_body);
 
-void lustre_swab_ll_fid(struct ll_fid *fid)
+static void lustre_swab_ll_fid(struct ll_fid *fid)
 {
 	__swab64s(&fid->id);
 	__swab32s(&fid->generation);
 	__swab32s(&fid->f_type);
 }
-EXPORT_SYMBOL(lustre_swab_ll_fid);
 
 void lustre_swab_lu_seq_range(struct lu_seq_range *range)
 {

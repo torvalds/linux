@@ -555,11 +555,11 @@ static int tegra_sor_compute_params(struct tegra_sor *sor,
 	error = div_s64(active_sym - approx, tu_size);
 	error *= params->num_clocks;
 
-	if (error <= 0 && abs64(error) < params->error) {
+	if (error <= 0 && abs(error) < params->error) {
 		params->active_count = div_u64(active_count, f);
 		params->active_polarity = active_polarity;
 		params->active_frac = active_frac;
-		params->error = abs64(error);
+		params->error = abs(error);
 		params->tu_size = tu_size;
 
 		if (error == 0)

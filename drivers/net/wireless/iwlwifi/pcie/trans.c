@@ -592,10 +592,8 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0) {
-				ret = 0;
-				goto out;
-			}
+			if (ret >= 0)
+				return 0;
 
 			usleep_range(200, 1000);
 			t += 200;
@@ -604,10 +602,6 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	}
 
 	IWL_ERR(trans, "Couldn't prepare the card\n");
-
-out:
-	iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-		      CSR_RESET_LINK_PWR_MGMT_DISABLED);
 
 	return ret;
 }

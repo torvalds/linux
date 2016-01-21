@@ -181,7 +181,7 @@ struct emac_instance {
 	struct mal_commac		commac;
 
 	/* PHY infos */
-	u32				phy_mode;
+	int				phy_mode;
 	u32				phy_map;
 	u32				phy_address;
 	u32				phy_feat_exc;

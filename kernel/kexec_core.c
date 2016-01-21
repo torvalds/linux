@@ -6,7 +6,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
-#define pr_fmt(fmt)	"kexec: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/capability.h>
 #include <linux/mm.h>
@@ -1027,7 +1027,7 @@ static int __init crash_notes_memory_init(void)
 
 	crash_notes = __alloc_percpu(size, align);
 	if (!crash_notes) {
-		pr_warn("Kexec: Memory allocation for saving cpu register states failed\n");
+		pr_warn("Memory allocation for saving cpu register states failed\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -1149,7 +1149,7 @@ static int __init parse_crashkernel_simple(char *cmdline,
 	if (*cur == '@')
 		*crash_base = memparse(cur+1, &cur);
 	else if (*cur != ' ' && *cur != '\0') {
-		pr_warn("crashkernel: unrecognized char\n");
+		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
 		return -EINVAL;
 	}
 
@@ -1186,12 +1186,12 @@ static int __init parse_crashkernel_suffix(char *cmdline,
 
 	/* check with suffix */
 	if (strncmp(cur, suffix, strlen(suffix))) {
-		pr_warn("crashkernel: unrecognized char\n");
+		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
 		return -EINVAL;
 	}
 	cur += strlen(suffix);
 	if (*cur != ' ' && *cur != '\0') {
-		pr_warn("crashkernel: unrecognized char\n");
+		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
 		return -EINVAL;
 	}
 

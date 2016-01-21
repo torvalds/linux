@@ -691,7 +691,7 @@ static void *bnx2x_frag_alloc(const struct bnx2x_fastpath *fp, gfp_t gfp_mask)
 {
 	if (fp->rx_frag_size) {
 		/* GFP_KERNEL allocations are used only during initialization */
-		if (unlikely(gfp_mask & __GFP_WAIT))
+		if (unlikely(gfpflags_allow_blocking(gfp_mask)))
 			return (void *)__get_free_page(gfp_mask);
 
 		return netdev_alloc_frag(fp->rx_frag_size);
@@ -3430,25 +3430,29 @@ static u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 	return rc;
 }
 
-#if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
+/* VXLAN: 4 = 1 (for linear data BD) + 3 (2 for PBD and last BD) */
+#define BNX2X_NUM_VXLAN_TSO_WIN_SUB_BDS         4
+
+/* Regular: 3 = 1 (for linear data BD) + 2 (for PBD and last BD) */
+#define BNX2X_NUM_TSO_WIN_SUB_BDS               3
+
+#if (MAX_SKB_FRAGS >= MAX_FETCH_BD - BDS_PER_TX_PKT)
 /* check if packet requires linearization (packet is too fragmented)
    no need to check fragmentation if page size > 8K (there will be no
    violation to FW restrictions) */
 static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			     u32 xmit_type)
 {
-	int to_copy = 0;
-	int hlen = 0;
-	int first_bd_sz = 0;
+	int first_bd_sz = 0, num_tso_win_sub = BNX2X_NUM_TSO_WIN_SUB_BDS;
+	int to_copy = 0, hlen = 0;
 
-	/* 3 = 1 (for linear data BD) + 2 (for PBD and last BD) */
-	if (skb_shinfo(skb)->nr_frags >= (MAX_FETCH_BD - 3)) {
+	if (xmit_type & XMIT_GSO_ENC)
+		num_tso_win_sub = BNX2X_NUM_VXLAN_TSO_WIN_SUB_BDS;
 
+	if (skb_shinfo(skb)->nr_frags >= (MAX_FETCH_BD - num_tso_win_sub)) {
 		if (xmit_type & XMIT_GSO) {
 			unsigned short lso_mss = skb_shinfo(skb)->gso_size;
-			/* Check if LSO packet needs to be copied:
-			   3 = 1 (for headers BD) + 2 (for PBD and last BD) */
-			int wnd_size = MAX_FETCH_BD - 3;
+			int wnd_size = MAX_FETCH_BD - num_tso_win_sub;
 			/* Number of windows to check */
 			int num_wnds = skb_shinfo(skb)->nr_frags - wnd_size;
 			int wnd_idx = 0;

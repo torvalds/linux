@@ -200,28 +200,28 @@ extern int _cond_resched(void);
 
 #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
 
-/*
- * abs() handles unsigned and signed longs, ints, shorts and chars.  For all
- * input types abs() returns a signed long.
- * abs() should not be used for 64-bit types (s64, u64, long long) - use abs64()
- * for those.
+/**
+ * abs - return absolute value of an argument
+ * @x: the value.  If it is unsigned type, it is converted to signed type first
+ *   (s64, long or int depending on its size).
+ *
+ * Return: an absolute value of x.  If x is 64-bit, macro's return type is s64,
+ *   otherwise it is signed long.
  */
-#define abs(x) ({						\
-		long ret;					\
-		if (sizeof(x) == sizeof(long)) {		\
-			long __x = (x);				\
-			ret = (__x < 0) ? -__x : __x;		\
-		} else {					\
-			int __x = (x);				\
-			ret = (__x < 0) ? -__x : __x;		\
-		}						\
-		ret;						\
-	})
-
-#define abs64(x) ({				\
-		s64 __x = (x);			\
-		(__x < 0) ? -__x : __x;		\
-	})
+#define abs(x) __builtin_choose_expr(sizeof(x) == sizeof(s64), ({	\
+		s64 __x = (x);						\
+		(__x < 0) ? -__x : __x;					\
+	}), ({								\
+		long ret;						\
+		if (sizeof(x) == sizeof(long)) {			\
+			long __x = (x);					\
+			ret = (__x < 0) ? -__x : __x;			\
+		} else {						\
+			int __x = (x);					\
+			ret = (__x < 0) ? -__x : __x;			\
+		}							\
+		ret;							\
+	}))
 
 /**
  * reciprocal_scale - "scale" a value into range [0, ep_ro)
@@ -413,6 +413,8 @@ extern __printf(2, 3)
 char *kasprintf(gfp_t gfp, const char *fmt, ...);
 extern __printf(2, 0)
 char *kvasprintf(gfp_t gfp, const char *fmt, va_list args);
+extern __printf(2, 0)
+const char *kvasprintf_const(gfp_t gfp, const char *fmt, va_list args);
 
 extern __scanf(2, 3)
 int sscanf(const char *, const char *, ...);

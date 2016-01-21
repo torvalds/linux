@@ -138,16 +138,6 @@ static int tb10x_gpio_direction_out(struct gpio_chip *chip,
 	return 0;
 }
 
-static int tb10x_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void tb10x_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct tb10x_gpio *tb10x_gpio = to_tb10x_gpio(chip);
@@ -213,8 +203,8 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	tb10x_gpio->gc.get		= tb10x_gpio_get;
 	tb10x_gpio->gc.direction_output	= tb10x_gpio_direction_out;
 	tb10x_gpio->gc.set		= tb10x_gpio_set;
-	tb10x_gpio->gc.request		= tb10x_gpio_request;
-	tb10x_gpio->gc.free		= tb10x_gpio_free;
+	tb10x_gpio->gc.request		= gpiochip_generic_request;
+	tb10x_gpio->gc.free		= gpiochip_generic_free;
 	tb10x_gpio->gc.base		= -1;
 	tb10x_gpio->gc.ngpio		= ngpio;
 	tb10x_gpio->gc.can_sleep	= false;

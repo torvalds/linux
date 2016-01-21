@@ -153,7 +153,7 @@ static int rsnd_dvc_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_dvc_soft_reset(mod);
 
@@ -175,7 +175,7 @@ static int rsnd_dvc_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }
@@ -282,7 +282,7 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_dvc_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_dvc *)(priv->dvc) + id)->mod;
+	return rsnd_mod_get((struct rsnd_dvc *)(priv->dvc) + id);
 }
 
 static void rsnd_of_parse_dvc(struct platform_device *pdev,
@@ -333,10 +333,8 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv)) {
-		dev_warn(dev, "CMD is not supported on Gen1\n");
-		return -EINVAL;
-	}
+	if (rsnd_is_gen1(priv))
+		return 0;
 
 	rsnd_of_parse_dvc(pdev, of_data, priv);
 
@@ -361,7 +359,7 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 
 		dvc->info = &info->dvc_info[i];
 
-		ret = rsnd_mod_init(priv, &dvc->mod, &rsnd_dvc_ops,
+		ret = rsnd_mod_init(priv, rsnd_mod_get(dvc), &rsnd_dvc_ops,
 			      clk, RSND_MOD_DVC, i);
 		if (ret)
 			return ret;
@@ -377,6 +375,6 @@ void rsnd_dvc_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_dvc(dvc, priv, i) {
-		rsnd_mod_quit(&dvc->mod);
+		rsnd_mod_quit(rsnd_mod_get(dvc));
 	}
 }

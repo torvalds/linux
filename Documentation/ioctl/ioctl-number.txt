@@ -81,6 +81,9 @@ Code  Seq#(hex)	Include File		Comments
 0x22	all	scsi/sg.h
 '#'	00-3F	IEEE 1394 Subsystem	Block for the entire subsystem
 '$'	00-0F	linux/perf_counter.h, linux/perf_event.h
+'%'	00-0F	include/uapi/linux/stm.h
+					System Trace Module subsystem
+					<mailto:alexander.shishkin@linux.intel.com>
 '&'	00-07	drivers/firewire/nosy-user.h
 '1'	00-1F	<linux/timepps.h>	PPS kit from Ulrich Windl
 					<ftp://ftp.de.kernel.org/pub/linux/daemons/ntp/PPS/>
@@ -149,6 +152,7 @@ Code  Seq#(hex)	Include File		Comments
 'K'	all	linux/kd.h
 'L'	00-1F	linux/loop.h		conflict!
 'L'	10-1F	drivers/scsi/mpt2sas/mpt2sas_ctl.h	conflict!
+'L'	20-2F	linux/lightnvm.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
 'M'	all	linux/soundcard.h	conflict!

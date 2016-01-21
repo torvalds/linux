@@ -44,3 +44,11 @@ Implementation note: Linux will look for the property "linux,stdout-path" or
 on PowerPC "stdout" if "stdout-path" is not found.  However, the
 "linux,stdout-path" and "stdout" properties are deprecated. New platforms
 should only use the "stdout-path" property.
+
+linux,booted-from-kexec
+-----------------------
+
+This property is set (currently only on PowerPC, and only needed on
+book3e) by some versions of kexec-tools to tell the new kernel that it
+is being booted by kexec, as the booting environment may differ (e.g.
+a different secondary CPU release mechanism)

@@ -149,7 +149,9 @@
 	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	rockchip,default-sample-phase = <158>;
 	disable-wp;
+	mmc-hs200-1_8v;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	non-removable;
 	num-slots = <1>;
@@ -355,6 +357,10 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_bus4>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	vmmc-supply = <&vcc33_sys>;
 	vqmmc-supply = <&vcc18_wl>;
 };
@@ -541,18 +547,6 @@
 	tpm {
 		tpm_int_h: tpm-int-h {
 			rockchip,pins = <7 4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	/*
-	 * On Marvell-based hardware this is a no-connect.  Make sure we enable
-	 * the pullup so that the line doesn't float.  The pullup shouldn't
-	 * hurt on Broadcom-based hardware since the other side is actively
-	 * driving this signal.  As proof: we've already got a pullup on RX.
-	 */
-	uart0 {
-		uart0_cts: uart0-cts {
-			rockchip,pins = <4 18 RK_FUNC_1 &pcfg_pull_up>;
 		};
 	};
 

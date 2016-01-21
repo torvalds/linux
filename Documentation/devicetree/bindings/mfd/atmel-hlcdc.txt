@@ -15,7 +15,7 @@ Required properties:
 
 The HLCDC IP exposes two subdevices:
  - a PWM chip: see ../pwm/atmel-hlcdc-pwm.txt
- - a Display Controller: see ../drm/atmel-hlcdc-dc.txt
+ - a Display Controller: see ../display/atmel-hlcdc-dc.txt
 
 Example:
 

@@ -357,8 +357,6 @@ int mmc_sd_switch_hs(struct mmc_card *card)
 	if (card->sw_caps.hs_max_dtr == 0)
 		return 0;
 
-	err = -EIO;
-
 	status = kmalloc(64, GFP_KERNEL);
 	if (!status) {
 		pr_err("%s: could not allocate a buffer for "
@@ -628,9 +626,25 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 	 * SDR104 mode SD-cards. Note that tuning is mandatory for SDR104.
 	 */
 	if (!mmc_host_is_spi(card->host) &&
-	    (card->sd_bus_speed == UHS_SDR50_BUS_SPEED ||
-	     card->sd_bus_speed == UHS_SDR104_BUS_SPEED))
+		(card->sd_bus_speed == UHS_SDR50_BUS_SPEED ||
+		 card->sd_bus_speed == UHS_DDR50_BUS_SPEED ||
+		 card->sd_bus_speed == UHS_SDR104_BUS_SPEED)) {
 		err = mmc_execute_tuning(card);
+
+		/*
+		 * As SD Specifications Part1 Physical Layer Specification
+		 * Version 3.01 says, CMD19 tuning is available for unlocked
+		 * cards in transfer state of 1.8V signaling mode. The small
+		 * difference between v3.00 and 3.01 spec means that CMD19
+		 * tuning is also available for DDR50 mode.
+		 */
+		if (err && card->sd_bus_speed == UHS_DDR50_BUS_SPEED) {
+			pr_warn("%s: ddr50 tuning failed\n",
+				mmc_hostname(card->host));
+			err = 0;
+		}
+	}
+
 out:
 	kfree(status);
 
@@ -786,9 +800,7 @@ static int mmc_sd_get_ro(struct mmc_host *host)
 	if (!host->ops->get_ro)
 		return -1;
 
-	mmc_host_clk_hold(host);
 	ro = host->ops->get_ro(host);
-	mmc_host_clk_release(host);
 
 	return ro;
 }
@@ -1231,14 +1243,13 @@ int mmc_attach_sd(struct mmc_host *host)
 
 	mmc_release_host(host);
 	err = mmc_add_card(host->card);
-	mmc_claim_host(host);
 	if (err)
 		goto remove_card;
 
+	mmc_claim_host(host);
 	return 0;
 
 remove_card:
-	mmc_release_host(host);
 	mmc_remove_card(host->card);
 	host->card = NULL;
 	mmc_claim_host(host);

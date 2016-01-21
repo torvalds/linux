@@ -139,9 +139,6 @@ static int __init pt_pmu_hw_init(void)
 	long i;
 
 	attrs = NULL;
-	ret = -ENODEV;
-	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT))
-		goto fail;
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
@@ -1130,6 +1127,10 @@ static __init int pt_init(void)
 	int ret, cpu, prior_warn = 0;
 
 	BUILD_BUG_ON(sizeof(struct topa) > PAGE_SIZE);
+
+	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT))
+		return -ENODEV;
+
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		u64 ctl;

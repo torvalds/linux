@@ -132,24 +132,18 @@ static struct resource gpio_ich_res[] = {
 	},
 };
 
-enum lpc_cells {
-	LPC_WDT = 0,
-	LPC_GPIO,
+static struct mfd_cell lpc_ich_wdt_cell = {
+	.name = "iTCO_wdt",
+	.num_resources = ARRAY_SIZE(wdt_ich_res),
+	.resources = wdt_ich_res,
+	.ignore_resource_conflicts = true,
 };
 
-static struct mfd_cell lpc_ich_cells[] = {
-	[LPC_WDT] = {
-		.name = "iTCO_wdt",
-		.num_resources = ARRAY_SIZE(wdt_ich_res),
-		.resources = wdt_ich_res,
-		.ignore_resource_conflicts = true,
-	},
-	[LPC_GPIO] = {
-		.name = "gpio_ich",
-		.num_resources = ARRAY_SIZE(gpio_ich_res),
-		.resources = gpio_ich_res,
-		.ignore_resource_conflicts = true,
-	},
+static struct mfd_cell lpc_ich_gpio_cell = {
+	.name = "gpio_ich",
+	.num_resources = ARRAY_SIZE(gpio_ich_res),
+	.resources = gpio_ich_res,
+	.ignore_resource_conflicts = true,
 };
 
 /* chipset related info */
@@ -841,7 +835,7 @@ static int lpc_ich_finalize_wdt_cell(struct pci_dev *dev)
 	struct itco_wdt_platform_data *pdata;
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 	struct lpc_ich_info *info;
-	struct mfd_cell *cell = &lpc_ich_cells[LPC_WDT];
+	struct mfd_cell *cell = &lpc_ich_wdt_cell;
 
 	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -860,7 +854,7 @@ static int lpc_ich_finalize_wdt_cell(struct pci_dev *dev)
 static void lpc_ich_finalize_gpio_cell(struct pci_dev *dev)
 {
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
-	struct mfd_cell *cell = &lpc_ich_cells[LPC_GPIO];
+	struct mfd_cell *cell = &lpc_ich_gpio_cell;
 
 	cell->platform_data = &lpc_chipset_info[priv->chipset];
 	cell->pdata_size = sizeof(struct lpc_ich_info);
@@ -904,7 +898,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
-		lpc_ich_cells[LPC_GPIO].num_resources--;
+		lpc_ich_gpio_cell.num_resources--;
 		goto gpe0_done;
 	}
 
@@ -918,7 +912,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 		 * the platform_device subsystem doesn't see this resource
 		 * or it will register an invalid region.
 		 */
-		lpc_ich_cells[LPC_GPIO].num_resources--;
+		lpc_ich_gpio_cell.num_resources--;
 		acpi_conflict = true;
 	} else {
 		lpc_ich_enable_acpi_space(dev);
@@ -958,12 +952,12 @@ gpe0_done:
 
 	lpc_ich_finalize_gpio_cell(dev);
 	ret = mfd_add_devices(&dev->dev, PLATFORM_DEVID_AUTO,
-			      &lpc_ich_cells[LPC_GPIO], 1, NULL, 0, NULL);
+			      &lpc_ich_gpio_cell, 1, NULL, 0, NULL);
 
 gpio_done:
 	if (acpi_conflict)
 		pr_warn("Resource conflict(s) found affecting %s\n",
-				lpc_ich_cells[LPC_GPIO].name);
+				lpc_ich_gpio_cell.name);
 	return ret;
 }
 
@@ -1007,7 +1001,7 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	 */
 	if (lpc_chipset_info[priv->chipset].iTCO_version == 1) {
 		/* Don't register iomem for TCO ver 1 */
-		lpc_ich_cells[LPC_WDT].num_resources--;
+		lpc_ich_wdt_cell.num_resources--;
 	} else if (lpc_chipset_info[priv->chipset].iTCO_version == 2) {
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
@@ -1035,7 +1029,7 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 		goto wdt_done;
 
 	ret = mfd_add_devices(&dev->dev, PLATFORM_DEVID_AUTO,
-			      &lpc_ich_cells[LPC_WDT], 1, NULL, 0, NULL);
+			      &lpc_ich_wdt_cell, 1, NULL, 0, NULL);
 
 wdt_done:
 	return ret;

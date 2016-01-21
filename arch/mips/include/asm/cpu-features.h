@@ -131,11 +131,7 @@
 #endif
 
 #ifndef cpu_has_rixi
-# ifdef CONFIG_64BIT
-# define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
-# else /* CONFIG_32BIT */
-# define cpu_has_rixi		((cpu_data[0].options & MIPS_CPU_RIXI) && !cpu_has_64bits)
-# endif
+#define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
 #endif
 
 #ifndef cpu_has_mmips

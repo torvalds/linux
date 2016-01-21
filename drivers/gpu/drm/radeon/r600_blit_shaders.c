@@ -32,7 +32,7 @@
  * R6xx+ cards need to use the 3D engine to blit data which requires
  * quite a bit of hw state setup.  Rather than pull the whole 3D driver
  * (which normally generates the 3D state) into the DRM, we opt to use
- * statically generated state tables.  The regsiter state and shaders
+ * statically generated state tables.  The register state and shaders
  * were hand generated to support blitting functionality.  See the 3D
  * driver or documentation for descriptions of the registers and
  * shader instructions.

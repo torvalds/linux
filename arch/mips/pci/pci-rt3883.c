@@ -432,8 +432,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	/* find the interrupt controller child node */
 	for_each_child_of_node(np, child) {
-		if (of_get_property(child, "interrupt-controller", NULL) &&
-		    of_node_get(child)) {
+		if (of_get_property(child, "interrupt-controller", NULL)) {
 			rpc->intc_of_node = child;
 			break;
 		}
@@ -449,8 +448,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	/* find the PCI host bridge child node */
 	for_each_child_of_node(np, child) {
 		if (child->type &&
-		    of_node_cmp(child->type, "pci") == 0 &&
-		    of_node_get(child)) {
+		    of_node_cmp(child->type, "pci") == 0) {
 			rpc->pci_controller.of_node = child;
 			break;
 		}

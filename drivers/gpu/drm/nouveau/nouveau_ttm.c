@@ -29,6 +29,9 @@
 #include "nouveau_gem.h"
 
 #include "drm_legacy.h"
+
+#include <core/tegra.h>
+
 static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
@@ -338,7 +341,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct nvkm_pci *pci = device->pci;
 	struct drm_device *dev = drm->dev;
-	u32 bits;
+	u8 bits;
 	int ret;
 
 	if (pci && pci->agp.bridge) {
@@ -350,20 +353,31 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	bits = nvxx_mmu(&drm->device)->dma_bits;
 	if (nvxx_device(&drm->device)->func->pci) {
-		if (drm->agp.bridge ||
-		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
+		if (drm->agp.bridge)
 			bits = 32;
+	} else if (device->func->tegra) {
+		struct nvkm_device_tegra *tegra = device->func->tegra(device);
 
-		ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(bits));
-		if (ret)
-			return ret;
+		/*
+		 * If the platform can use a IOMMU, then the addressable DMA
+		 * space is constrained by the IOMMU bit
+		 */
+		if (tegra->func->iommu_bit)
+			bits = min(bits, tegra->func->iommu_bit);
 
-		ret = pci_set_consistent_dma_mask(dev->pdev,
-						  DMA_BIT_MASK(bits));
-		if (ret)
-			pci_set_consistent_dma_mask(dev->pdev,
-						    DMA_BIT_MASK(32));
 	}
+
+	ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
+	if (ret && bits != 32) {
+		bits = 32;
+		ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
+	}
+	if (ret)
+		return ret;
+
+	ret = dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(bits));
+	if (ret)
+		dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(32));
 
 	ret = nouveau_ttm_global_init(drm);
 	if (ret)

@@ -1490,6 +1490,7 @@ static const struct of_device_id mmc_omap_match[] = {
 	{ .compatible = "ti,omap2420-mmc", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, mmc_omap_match);
 #endif
 
 static struct platform_driver mmc_omap_driver = {

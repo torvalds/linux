@@ -17,31 +17,18 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
+static const struct mv88e6xxx_switch_id mv88e6131_table[] = {
+	{ PORT_SWITCH_ID_6085, "Marvell 88E6085" },
+	{ PORT_SWITCH_ID_6095, "Marvell 88E6095/88E6095F" },
+	{ PORT_SWITCH_ID_6131, "Marvell 88E6131" },
+	{ PORT_SWITCH_ID_6131_B2, "Marvell 88E6131 (B2)" },
+	{ PORT_SWITCH_ID_6185, "Marvell 88E6185" },
+};
+
 static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	int ret;
-
-	if (bus == NULL)
-		return NULL;
-
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
-	if (ret >= 0) {
-		int ret_masked = ret & 0xfff0;
-
-		if (ret_masked == PORT_SWITCH_ID_6085)
-			return "Marvell 88E6085";
-		if (ret_masked == PORT_SWITCH_ID_6095)
-			return "Marvell 88E6095/88E6095F";
-		if (ret == PORT_SWITCH_ID_6131_B2)
-			return "Marvell 88E6131 (B2)";
-		if (ret_masked == PORT_SWITCH_ID_6131)
-			return "Marvell 88E6131";
-		if (ret_masked == PORT_SWITCH_ID_6185)
-			return "Marvell 88E6185";
-	}
-
-	return NULL;
+	return mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6131_table,
+				     ARRAY_SIZE(mv88e6131_table));
 }
 
 static int mv88e6131_setup_global(struct dsa_switch *ds)
@@ -178,7 +165,6 @@ struct dsa_switch_driver mv88e6131_switch_driver = {
 	.set_addr		= mv88e6xxx_set_addr_direct,
 	.phy_read		= mv88e6131_phy_read,
 	.phy_write		= mv88e6131_phy_write,
-	.poll_link		= mv88e6xxx_poll_link,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,

@@ -176,6 +176,11 @@ static const struct etraxfs_gpio_info etraxfs_gpio_artpec3 = {
 	.rw_intr_pins	= ARTPEC3_rw_intr_pins,
 };
 
+static struct etraxfs_gpio_chip *to_etraxfs(struct gpio_chip *gc)
+{
+	return container_of(gc, struct etraxfs_gpio_chip, bgc.gc);
+}
+
 static unsigned int etraxfs_gpio_chip_to_port(struct gpio_chip *gc)
 {
 	return gc->label[0] - 'A';
@@ -220,7 +225,8 @@ static unsigned int etraxfs_gpio_to_group_pin(struct etraxfs_gpio_chip *chip,
 
 static void etraxfs_gpio_irq_ack(struct irq_data *d)
 {
-	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct etraxfs_gpio_chip *chip =
+		to_etraxfs(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
@@ -229,7 +235,8 @@ static void etraxfs_gpio_irq_ack(struct irq_data *d)
 
 static void etraxfs_gpio_irq_mask(struct irq_data *d)
 {
-	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct etraxfs_gpio_chip *chip =
+		to_etraxfs(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
@@ -241,7 +248,8 @@ static void etraxfs_gpio_irq_mask(struct irq_data *d)
 
 static void etraxfs_gpio_irq_unmask(struct irq_data *d)
 {
-	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct etraxfs_gpio_chip *chip =
+		to_etraxfs(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
@@ -253,7 +261,8 @@ static void etraxfs_gpio_irq_unmask(struct irq_data *d)
 
 static int etraxfs_gpio_irq_set_type(struct irq_data *d, u32 type)
 {
-	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct etraxfs_gpio_chip *chip =
+		to_etraxfs(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 	u32 cfg;
@@ -289,7 +298,8 @@ static int etraxfs_gpio_irq_set_type(struct irq_data *d, u32 type)
 
 static int etraxfs_gpio_irq_request_resources(struct irq_data *d)
 {
-	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct etraxfs_gpio_chip *chip =
+		to_etraxfs(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 	int ret = -EBUSY;
@@ -319,7 +329,8 @@ out:
 
 static void etraxfs_gpio_irq_release_resources(struct irq_data *d)
 {
-	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct etraxfs_gpio_chip *chip =
+		to_etraxfs(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 

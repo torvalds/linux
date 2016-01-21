@@ -1081,6 +1081,7 @@ void __init prom_free_prom_memory(void)
 
 int octeon_prune_device_tree(void);
 
+extern const char __appended_dtb;
 extern const char __dtb_octeon_3xxx_begin;
 extern const char __dtb_octeon_68xx_begin;
 void __init device_tree_init(void)
@@ -1088,11 +1089,19 @@ void __init device_tree_init(void)
 	const void *fdt;
 	bool do_prune;
 
+#ifdef CONFIG_MIPS_ELF_APPENDED_DTB
+	if (!fdt_check_header(&__appended_dtb)) {
+		fdt = &__appended_dtb;
+		do_prune = false;
+		pr_info("Using appended Device Tree.\n");
+	} else
+#endif
 	if (octeon_bootinfo->minor_version >= 3 && octeon_bootinfo->fdt_addr) {
 		fdt = phys_to_virt(octeon_bootinfo->fdt_addr);
 		if (fdt_check_header(fdt))
 			panic("Corrupt Device Tree passed to kernel.");
 		do_prune = false;
+		pr_info("Using passed Device Tree.\n");
 	} else if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 		fdt = &__dtb_octeon_68xx_begin;
 		do_prune = true;
@@ -1106,8 +1115,6 @@ void __init device_tree_init(void)
 	if (do_prune) {
 		octeon_prune_device_tree();
 		pr_info("Using internal Device Tree.\n");
-	} else {
-		pr_info("Using passed Device Tree.\n");
 	}
 	unflatten_and_copy_device_tree();
 }

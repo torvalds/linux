@@ -1090,7 +1090,7 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local, int replayed)
 	/* Launch the commit thread */
 	if (!local) {
 		osb->commit_task = kthread_run(ocfs2_commit_thread, osb,
-					       "ocfs2cmt");
+				"ocfs2cmt-%s", osb->uuid_str);
 		if (IS_ERR(osb->commit_task)) {
 			status = PTR_ERR(osb->commit_task);
 			osb->commit_task = NULL;
@@ -1507,7 +1507,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 		goto out;
 
 	osb->recovery_thread_task =  kthread_run(__ocfs2_recovery_thread, osb,
-						 "ocfs2rec");
+			"ocfs2rec-%s", osb->uuid_str);
 	if (IS_ERR(osb->recovery_thread_task)) {
 		mlog_errno((int)PTR_ERR(osb->recovery_thread_task));
 		osb->recovery_thread_task = NULL;
@@ -2021,6 +2021,7 @@ struct ocfs2_orphan_filldir_priv {
 	struct dir_context	ctx;
 	struct inode		*head;
 	struct ocfs2_super	*osb;
+	enum ocfs2_orphan_reco_type orphan_reco_type;
 };
 
 static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
@@ -2036,11 +2037,21 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 	if (name_len == 2 && !strncmp("..", name, 2))
 		return 0;
 
+	/* do not include dio entry in case of orphan scan */
+	if ((p->orphan_reco_type == ORPHAN_NO_NEED_TRUNCATE) &&
+			(!strncmp(name, OCFS2_DIO_ORPHAN_PREFIX,
+			OCFS2_DIO_ORPHAN_PREFIX_LEN)))
+		return 0;
+
 	/* Skip bad inodes so that recovery can continue */
 	iter = ocfs2_iget(p->osb, ino,
 			  OCFS2_FI_FLAG_ORPHAN_RECOVERY, 0);
 	if (IS_ERR(iter))
 		return 0;
+
+	if (!strncmp(name, OCFS2_DIO_ORPHAN_PREFIX,
+			OCFS2_DIO_ORPHAN_PREFIX_LEN))
+		OCFS2_I(iter)->ip_flags |= OCFS2_INODE_DIO_ORPHAN_ENTRY;
 
 	/* Skip inodes which are already added to recover list, since dio may
 	 * happen concurrently with unlink/rename */
@@ -2060,14 +2071,16 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 
 static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 			       int slot,
-			       struct inode **head)
+			       struct inode **head,
+			       enum ocfs2_orphan_reco_type orphan_reco_type)
 {
 	int status;
 	struct inode *orphan_dir_inode = NULL;
 	struct ocfs2_orphan_filldir_priv priv = {
 		.ctx.actor = ocfs2_orphan_filldir,
 		.osb = osb,
-		.head = *head
+		.head = *head,
+		.orphan_reco_type = orphan_reco_type
 	};
 
 	orphan_dir_inode = ocfs2_get_system_file_inode(osb,
@@ -2170,7 +2183,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 	trace_ocfs2_recover_orphans(slot);
 
 	ocfs2_mark_recovering_orphan_dir(osb, slot);
-	ret = ocfs2_queue_orphans(osb, slot, &inode);
+	ret = ocfs2_queue_orphans(osb, slot, &inode, orphan_reco_type);
 	ocfs2_clear_recovering_orphan_dir(osb, slot);
 
 	/* Error here should be noted, but we want to continue with as
@@ -2186,25 +2199,51 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		iter = oi->ip_next_orphan;
 		oi->ip_next_orphan = NULL;
 
-		mutex_lock(&inode->i_mutex);
-		ret = ocfs2_rw_lock(inode, 1);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto next;
-		}
-		/*
-		 * We need to take and drop the inode lock to
-		 * force read inode from disk.
-		 */
-		ret = ocfs2_inode_lock(inode, &di_bh, 1);
-		if (ret) {
-			mlog_errno(ret);
-			goto unlock_rw;
-		}
+		if (oi->ip_flags & OCFS2_INODE_DIO_ORPHAN_ENTRY) {
+			mutex_lock(&inode->i_mutex);
+			ret = ocfs2_rw_lock(inode, 1);
+			if (ret < 0) {
+				mlog_errno(ret);
+				goto unlock_mutex;
+			}
+			/*
+			 * We need to take and drop the inode lock to
+			 * force read inode from disk.
+			 */
+			ret = ocfs2_inode_lock(inode, &di_bh, 1);
+			if (ret) {
+				mlog_errno(ret);
+				goto unlock_rw;
+			}
 
-		di = (struct ocfs2_dinode *)di_bh->b_data;
+			di = (struct ocfs2_dinode *)di_bh->b_data;
 
-		if (inode->i_nlink == 0) {
+			if (di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL)) {
+				ret = ocfs2_truncate_file(inode, di_bh,
+						i_size_read(inode));
+				if (ret < 0) {
+					if (ret != -ENOSPC)
+						mlog_errno(ret);
+					goto unlock_inode;
+				}
+
+				ret = ocfs2_del_inode_from_orphan(osb, inode,
+						di_bh, 0, 0);
+				if (ret)
+					mlog_errno(ret);
+			}
+unlock_inode:
+			ocfs2_inode_unlock(inode, 1);
+			brelse(di_bh);
+			di_bh = NULL;
+unlock_rw:
+			ocfs2_rw_unlock(inode, 1);
+unlock_mutex:
+			mutex_unlock(&inode->i_mutex);
+
+			/* clear dio flag in ocfs2_inode_info */
+			oi->ip_flags &= ~OCFS2_INODE_DIO_ORPHAN_ENTRY;
+		} else {
 			spin_lock(&oi->ip_lock);
 			/* Set the proper information to get us going into
 			 * ocfs2_delete_inode. */
@@ -2212,28 +2251,6 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 			spin_unlock(&oi->ip_lock);
 		}
 
-		if ((orphan_reco_type == ORPHAN_NEED_TRUNCATE) &&
-				(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL))) {
-			ret = ocfs2_truncate_file(inode, di_bh,
-					i_size_read(inode));
-			if (ret < 0) {
-				if (ret != -ENOSPC)
-					mlog_errno(ret);
-				goto unlock_inode;
-			}
-
-			ret = ocfs2_del_inode_from_orphan(osb, inode, di_bh, 0, 0);
-			if (ret)
-				mlog_errno(ret);
-		} /* else if ORPHAN_NO_NEED_TRUNCATE, do nothing */
-unlock_inode:
-		ocfs2_inode_unlock(inode, 1);
-		brelse(di_bh);
-		di_bh = NULL;
-unlock_rw:
-		ocfs2_rw_unlock(inode, 1);
-next:
-		mutex_unlock(&inode->i_mutex);
 		iput(inode);
 		inode = iter;
 	}

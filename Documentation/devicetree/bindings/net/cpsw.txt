@@ -30,16 +30,28 @@ Optional properties:
 - dual_emac		: Specifies Switch to act as Dual EMAC
 - syscon		: Phandle to the system control device node, which is
 			  the control module device of the am33x
+- mode-gpios		: Should be added if one/multiple gpio lines are
+			  required to be driven so that cpsw data lines
+			  can be connected to the phy via selective mux.
+			  For example in dra72x-evm, pcf gpio has to be
+			  driven low so that cpsw slave 0 and phy data
+			  lines are connected via mux.
+
 
 Slave Properties:
 Required properties:
-- phy_id		: Specifies slave phy id
 - phy-mode		: See ethernet.txt file in the same directory
 
 Optional properties:
 - dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
 - mac-address		: See ethernet.txt file in the same directory
+- phy_id		: Specifies slave phy id
 - phy-handle		: See ethernet.txt file in the same directory
+
+Slave sub-nodes:
+- fixed-link		: See fixed-link.txt file in the same directory
+			  Either the property phy_id, or the sub-node
+			  fixed-link can be specified
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.

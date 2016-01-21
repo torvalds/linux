@@ -283,6 +283,8 @@ config SND_SOC_IMX_MC13783
 config SND_SOC_FSL_ASOC_CARD
 	tristate "Generic ASoC Sound Card with ASRC support"
 	depends on OF && I2C
+	# enforce SND_SOC_FSL_ASOC_CARD=m if SND_AC97_CODEC=m:
+	depends on SND_AC97_CODEC || SND_AC97_CODEC=n
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_FSL_ESAI

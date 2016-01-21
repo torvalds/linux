@@ -124,7 +124,7 @@ void mic_bh_handler(struct work_struct *work);
 /* Helper API to obtain the MIC PCIe device */
 static inline struct device *mic_dev(struct mic_vdev *mvdev)
 {
-	return mvdev->mdev->sdev->parent;
+	return &mvdev->mdev->pdev->dev;
 }
 
 /* Helper API to check if a virtio device is initialized */

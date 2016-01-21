@@ -76,6 +76,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/crc32.h>
 #include <asm/unaligned.h>
 
 #include <linux/sw842.h>
@@ -98,6 +99,7 @@
 #define I2_BITS		(8)
 #define I4_BITS		(9)
 #define I8_BITS		(8)
+#define CRC_BITS	(32)
 
 #define REPEAT_BITS_MAX		(0x3f)
 #define SHORT_DATA_BITS_MAX	(0x7)

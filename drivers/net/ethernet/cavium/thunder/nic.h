@@ -120,10 +120,9 @@
  * Calculated for SCLK of 700Mhz
  * value written should be a 1/16th of what is expected
  *
- * 1 tick per 0.05usec = value of 2.2
- * This 10% would be covered in CQ timer thresh value
+ * 1 tick per 0.025usec
  */
-#define NICPF_CLK_PER_INT_TICK		2
+#define NICPF_CLK_PER_INT_TICK		1
 
 /* Time to wait before we decide that a SQ is stuck.
  *

@@ -502,7 +502,7 @@
 
 		reg = <0x38>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <31 0>;
+		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 
 		reset-gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
 
@@ -563,7 +563,7 @@
 
 	vmmc-supply = <&dcdc4>;
 	bus-width = <4>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 };
 
 &usb2_phy1 {

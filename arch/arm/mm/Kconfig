@@ -419,28 +419,24 @@ config CPU_THUMBONLY
 config CPU_32v3
 	bool
 	select CPU_USE_DOMAINS if MMU
-	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v4
 	bool
 	select CPU_USE_DOMAINS if MMU
-	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v4T
 	bool
 	select CPU_USE_DOMAINS if MMU
-	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v5
 	bool
 	select CPU_USE_DOMAINS if MMU
-	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
 
@@ -805,14 +801,6 @@ config TLS_REG_EMUL
 	  a few prototypes like that in existence) and therefore access to
 	  that required register must be emulated.
 
-config NEEDS_SYSCALL_FOR_CMPXCHG
-	bool
-	select NEED_KUSER_HELPERS
-	help
-	  SMP on a pre-ARMv6 processor?  Well OK then.
-	  Forget about fast user space cmpxchg support.
-	  It is just not possible.
-
 config NEED_KUSER_HELPERS
 	bool
 
@@ -985,6 +973,16 @@ config CACHE_TAUROS2
 	help
 	  This option enables the Tauros2 L2 cache controller (as
 	  found on PJ1/PJ4).
+
+config CACHE_UNIPHIER
+	bool "Enable the UniPhier outer cache controller"
+	depends on ARCH_UNIPHIER
+	default y
+	select OUTER_CACHE
+	select OUTER_CACHE_SYNC
+	help
+	  This option enables the UniPhier outer cache (system cache)
+	  controller.
 
 config CACHE_XSC3L2
 	bool "Enable the L2 cache on XScale3"

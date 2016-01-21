@@ -137,7 +137,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 */
 		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		/* The ordering of elements in the buffer via an enum */
-		.scan_index = voltage0,
+		.scan_index = DUMMY_INDEX_VOLTAGE_0,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 'u', /* unsigned */
 			.realbits = 13, /* 13 bits */
@@ -176,7 +176,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 * sampling_frequency
 		 * The frequency in Hz at which the channels are sampled
 		 */
-		.scan_index = diffvoltage1m2,
+		.scan_index = DUMMY_INDEX_DIFFVOLTAGE_1M2,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
 			.realbits = 12, /* 12 bits */
@@ -194,7 +194,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
-		.scan_index = diffvoltage3m4,
+		.scan_index = DUMMY_INDEX_DIFFVOLTAGE_3M4,
 		.scan_type = {
 			.sign = 's',
 			.realbits = 11,
@@ -221,7 +221,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |
 		BIT(IIO_CHAN_INFO_CALIBBIAS),
 		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
-		.scan_index = accelx,
+		.scan_index = DUMMY_INDEX_ACCELX,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
 			.realbits = 16, /* 16 bits */
@@ -364,8 +364,7 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 				ret = IIO_VAL_INT_PLUS_MICRO;
 				break;
 			case 1:
-				/* all differential adc channels ->
-				 * 0.000001344 */
+				/* all differential adc -> 0.000001344 */
 				*val = 0;
 				*val2 = 1344;
 				ret = IIO_VAL_INT_PLUS_NANO;

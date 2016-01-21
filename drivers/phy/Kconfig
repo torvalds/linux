@@ -206,6 +206,15 @@ config PHY_HIX5HD2_SATA
 	help
 	  Support for SATA PHY on Hisilicon hix5hd2 Soc.
 
+config PHY_MT65XX_USB3
+	tristate "Mediatek USB3.0 PHY Driver"
+	depends on ARCH_MEDIATEK && OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver
+	  for mt65xx SoCs. it supports two usb2.0 ports and
+	  one usb3.0 port.
+
 config PHY_SUN4I_USB
 	tristate "Allwinner sunxi SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
@@ -224,6 +233,7 @@ config PHY_SUN9I_USB
 	tristate "Allwinner sun9i SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
+	depends on USB_COMMON
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner
@@ -370,5 +380,14 @@ config PHY_BRCMSTB_SATA
 	help
 	  Enable this to support the SATA3 PHY on 28nm Broadcom STB SoCs.
 	  Likely useful only with CONFIG_SATA_BRCMSTB enabled.
+
+config PHY_CYGNUS_PCIE
+	tristate "Broadcom Cygnus PCIe PHY driver"
+	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
 
 endmenu

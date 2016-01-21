@@ -124,7 +124,10 @@ static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
 	_ER(WBINVD,		 54)		\
 	_ER(XSETBV,		 55)		\
 	_ER(APIC_WRITE,		 56)		\
-	_ER(INVPCID,		 58)
+	_ER(INVPCID,		 58)		\
+	_ER(PML_FULL,		 62)		\
+	_ER(XSAVES,		 63)		\
+	_ER(XRSTORS,		 64)
 
 #define SVM_EXIT_REASONS \
 	_ER(EXIT_READ_CR0,	0x000)		\
@@ -352,15 +355,18 @@ static int kvm_nested_vmexit_handler(struct trace_seq *s, struct pevent_record *
 union kvm_mmu_page_role {
 	unsigned word;
 	struct {
-		unsigned glevels:4;
 		unsigned level:4;
+		unsigned cr4_pae:1;
 		unsigned quadrant:2;
-		unsigned pad_for_nice_hex_output:6;
 		unsigned direct:1;
 		unsigned access:3;
 		unsigned invalid:1;
-		unsigned cr4_pge:1;
 		unsigned nxe:1;
+		unsigned cr0_wp:1;
+		unsigned smep_and_not_wp:1;
+		unsigned smap_and_not_wp:1;
+		unsigned pad_for_nice_hex_output:8;
+		unsigned smm:8;
 	};
 };
 
@@ -385,15 +391,18 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
 	if (pevent_is_file_bigendian(event->pevent) ==
 	    pevent_is_host_bigendian(event->pevent)) {
 
-		trace_seq_printf(s, "%u/%u q%u%s %s%s %spge %snxe",
+		trace_seq_printf(s, "%u q%u%s %s%s %spae %snxe %swp%s%s%s",
 				 role.level,
-				 role.glevels,
 				 role.quadrant,
 				 role.direct ? " direct" : "",
 				 access_str[role.access],
 				 role.invalid ? " invalid" : "",
-				 role.cr4_pge ? "" : "!",
-				 role.nxe ? "" : "!");
+				 role.cr4_pae ? "" : "!",
+				 role.nxe ? "" : "!",
+				 role.cr0_wp ? "" : "!",
+				 role.smep_and_not_wp ? " smep" : "",
+				 role.smap_and_not_wp ? " smap" : "",
+				 role.smm ? " smm" : "");
 	} else
 		trace_seq_printf(s, "WORD: %08x", role.word);
 

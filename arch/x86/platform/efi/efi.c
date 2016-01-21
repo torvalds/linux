@@ -194,7 +194,7 @@ static void __init do_add_efi_memmap(void)
 int __init efi_memblock_x86_reserve_range(void)
 {
 	struct efi_info *e = &boot_params.efi_info;
-	unsigned long pmap;
+	phys_addr_t pmap;
 
 	if (efi_enabled(EFI_PARAVIRT))
 		return 0;
@@ -209,7 +209,7 @@ int __init efi_memblock_x86_reserve_range(void)
 #else
 	pmap = (e->efi_memmap |	((__u64)e->efi_memmap_hi << 32));
 #endif
-	memmap.phys_map		= (void *)pmap;
+	memmap.phys_map		= pmap;
 	memmap.nr_map		= e->efi_memmap_size /
 				  e->efi_memdesc_size;
 	memmap.desc_size	= e->efi_memdesc_size;
@@ -222,7 +222,7 @@ int __init efi_memblock_x86_reserve_range(void)
 	return 0;
 }
 
-static void __init print_efi_memmap(void)
+void __init efi_print_memmap(void)
 {
 #ifdef EFI_DEBUG
 	efi_memory_desc_t *md;
@@ -524,7 +524,7 @@ void __init efi_init(void)
 		return;
 
 	if (efi_enabled(EFI_DBG))
-		print_efi_memmap();
+		efi_print_memmap();
 
 	efi_esrt_init();
 }
@@ -1017,24 +1017,6 @@ u32 efi_mem_type(unsigned long phys_addr)
 	return 0;
 }
 
-u64 efi_mem_attributes(unsigned long phys_addr)
-{
-	efi_memory_desc_t *md;
-	void *p;
-
-	if (!efi_enabled(EFI_MEMMAP))
-		return 0;
-
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
-		if ((md->phys_addr <= phys_addr) &&
-		    (phys_addr < (md->phys_addr +
-				  (md->num_pages << EFI_PAGE_SHIFT))))
-			return md->attribute;
-	}
-	return 0;
-}
-
 static int __init arch_parse_efi_cmdline(char *str)
 {
 	if (!str) {
@@ -1044,8 +1026,6 @@ static int __init arch_parse_efi_cmdline(char *str)
 
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
-	if (parse_option_str(str, "debug"))
-		set_bit(EFI_DBG, &efi.flags);
 
 	return 0;
 }

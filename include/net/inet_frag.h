@@ -108,7 +108,15 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-void inet_frags_init_net(struct netns_frags *nf);
+static inline int inet_frags_init_net(struct netns_frags *nf)
+{
+	return percpu_counter_init(&nf->mem, 0, GFP_KERNEL);
+}
+static inline void inet_frags_uninit_net(struct netns_frags *nf)
+{
+	percpu_counter_destroy(&nf->mem);
+}
+
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
@@ -152,11 +160,6 @@ static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
 	__percpu_counter_add(&nf->mem, i, frag_percpu_counter_batch);
-}
-
-static inline void init_frag_mem_limit(struct netns_frags *nf)
-{
-	percpu_counter_init(&nf->mem, 0, GFP_KERNEL);
 }
 
 static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)

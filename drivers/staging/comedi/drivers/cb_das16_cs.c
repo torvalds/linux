@@ -1,36 +1,37 @@
 /*
-    comedi/drivers/das16cs.c
-    Driver for Computer Boards PC-CARD DAS16/16.
+ * cb_das16_cs.c
+ * Driver for Computer Boards PC-CARD DAS16/16.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000, 2001, 2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * PCMCIA support code for this driver is adapted from the dummy_cs.c
+ * driver of the Linux PCMCIA Card Services package.
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000, 2001, 2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    PCMCIA support code for this driver is adapted from the dummy_cs.c
-    driver of the Linux PCMCIA Card Services package.
-
-    The initial developer of the original code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-*/
 /*
-Driver: cb_das16_cs
-Description: Computer Boards PC-CARD DAS16/16
-Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs), PC-CARD DAS16/16-AO
-Author: ds
-Updated: Mon, 04 Nov 2002 20:04:21 -0800
-Status: experimental
-*/
+ * Driver: cb_das16_cs
+ * Description: Computer Boards PC-CARD DAS16/16
+ * Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs),
+ *   PC-CARD DAS16/16-AO
+ * Author: ds
+ * Updated: Mon, 04 Nov 2002 20:04:21 -0800
+ * Status: experimental
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -40,38 +41,86 @@ Status: experimental
 
 #include "comedi_8254.h"
 
-#define DAS16CS_ADC_DATA		0
-#define DAS16CS_DIO_MUX			2
-#define DAS16CS_MISC1			4
-#define DAS16CS_MISC2			6
-#define DAS16CS_TIMER_BASE		8
-#define DAS16CS_DIO			16
+/*
+ * Register I/O map
+ */
+#define DAS16CS_AI_DATA_REG		0x00
+#define DAS16CS_AI_MUX_REG		0x02
+#define DAS16CS_AI_MUX_HI_CHAN(x)	(((x) & 0xf) << 4)
+#define DAS16CS_AI_MUX_LO_CHAN(x)	(((x) & 0xf) << 0)
+#define DAS16CS_AI_MUX_SINGLE_CHAN(x)	(DAS16CS_AI_MUX_HI_CHAN(x) |	\
+					 DAS16CS_AI_MUX_LO_CHAN(x))
+#define DAS16CS_MISC1_REG		0x04
+#define DAS16CS_MISC1_INTE		BIT(15)	/* 1=enable; 0=disable */
+#define DAS16CS_MISC1_INT_SRC(x)	(((x) & 0x7) << 12) /* interrupt src */
+#define DAS16CS_MISC1_INT_SRC_NONE	DAS16CS_MISC1_INT_SRC(0)
+#define DAS16CS_MISC1_INT_SRC_PACER	DAS16CS_MISC1_INT_SRC(1)
+#define DAS16CS_MISC1_INT_SRC_EXT	DAS16CS_MISC1_INT_SRC(2)
+#define DAS16CS_MISC1_INT_SRC_FNE	DAS16CS_MISC1_INT_SRC(3)
+#define DAS16CS_MISC1_INT_SRC_FHF	DAS16CS_MISC1_INT_SRC(4)
+#define DAS16CS_MISC1_INT_SRC_EOS	DAS16CS_MISC1_INT_SRC(5)
+#define DAS16CS_MISC1_INT_SRC_MASK	DAS16CS_MISC1_INT_SRC(7)
+#define DAS16CS_MISC1_OVR		BIT(10)	/* ro - 1=FIFO overflow */
+#define DAS16CS_MISC1_AI_CONV(x)	(((x) & 0x3) << 8) /* AI convert src */
+#define DAS16CS_MISC1_AI_CONV_SW	DAS16CS_MISC1_AI_CONV(0)
+#define DAS16CS_MISC1_AI_CONV_EXT_NEG	DAS16CS_MISC1_AI_CONV(1)
+#define DAS16CS_MISC1_AI_CONV_EXT_POS	DAS16CS_MISC1_AI_CONV(2)
+#define DAS16CS_MISC1_AI_CONV_PACER	DAS16CS_MISC1_AI_CONV(3)
+#define DAS16CS_MISC1_AI_CONV_MASK	DAS16CS_MISC1_AI_CONV(3)
+#define DAS16CS_MISC1_EOC		BIT(7)	/* ro - 0=busy; 1=ready */
+#define DAS16CS_MISC1_SEDIFF		BIT(5)	/* 0=diff; 1=se */
+#define DAS16CS_MISC1_INTB		BIT(4)	/* ro - 0=latched; 1=cleared */
+#define DAS16CS_MISC1_MA_MASK		(0xf << 0) /* ro - current ai mux */
+#define DAS16CS_MISC1_DAC1CS		BIT(3)	/* wo - DAC1 chip select */
+#define DAS16CS_MISC1_DACCLK		BIT(2)	/* wo - Serial DAC clock */
+#define DAS16CS_MISC1_DACSD		BIT(1)	/* wo - Serial DAC data */
+#define DAS16CS_MISC1_DAC0CS		BIT(0)	/* wo - DAC0 chip select */
+#define DAS16CS_MISC1_DAC_MASK		(0x0f << 0)
+#define DAS16CS_MISC2_REG		0x06
+#define DAS16CS_MISC2_BME		BIT(14)	/* 1=burst enable; 0=disable */
+#define DAS16CS_MISC2_AI_GAIN(x)	(((x) & 0xf) << 8) /* AI gain */
+#define DAS16CS_MISC2_AI_GAIN_1		DAS16CS_MISC2_AI_GAIN(4) /* +/-10V */
+#define DAS16CS_MISC2_AI_GAIN_2		DAS16CS_MISC2_AI_GAIN(0) /* +/-5V */
+#define DAS16CS_MISC2_AI_GAIN_4		DAS16CS_MISC2_AI_GAIN(1) /* +/-2.5V */
+#define DAS16CS_MISC2_AI_GAIN_8		DAS16CS_MISC2_AI_GAIN(2) /* +-1.25V */
+#define DAS16CS_MISC2_AI_GAIN_MASK	DAS16CS_MISC2_AI_GAIN(0xf)
+#define DAS16CS_MISC2_UDIR		BIT(7)	/* 1=dio7:4 output; 0=input */
+#define DAS16CS_MISC2_LDIR		BIT(6)	/* 1=dio3:0 output; 0=input */
+#define DAS16CS_MISC2_TRGPOL		BIT(5)	/* 1=active lo; 0=hi */
+#define DAS16CS_MISC2_TRGSEL		BIT(4)	/* 1=edge; 0=level */
+#define DAS16CS_MISC2_FFNE		BIT(3)	/* ro - 1=FIFO not empty */
+#define DAS16CS_MISC2_TRGCLR		BIT(3)	/* wo - 1=clr (monstable) */
+#define DAS16CS_MISC2_CLK2		BIT(2)	/* 1=10 MHz; 0=1 MHz */
+#define DAS16CS_MISC2_CTR1		BIT(1)	/* 1=int. 100 kHz; 0=ext. clk */
+#define DAS16CS_MISC2_TRG0		BIT(0)	/* 1=enable; 0=disable */
+#define DAS16CS_TIMER_BASE		0x08
+#define DAS16CS_DIO_REG			0x10
 
 struct das16cs_board {
 	const char *name;
 	int device_id;
-	int n_ao_chans;
+	unsigned int has_ao:1;
+	unsigned int has_4dio:1;
 };
 
 static const struct das16cs_board das16cs_boards[] = {
 	{
 		.name		= "PC-CARD DAS16/16-AO",
 		.device_id	= 0x0039,
-		.n_ao_chans	= 2,
+		.has_ao		= 1,
+		.has_4dio	= 1,
 	}, {
 		.name		= "PCM-DAS16s/16",
 		.device_id	= 0x4009,
-		.n_ao_chans	= 0,
 	}, {
 		.name		= "PC-CARD DAS16/16",
 		.device_id	= 0x0000,	/* unknown */
-		.n_ao_chans	= 0,
 	},
 };
 
 struct das16cs_private {
-	unsigned short status1;
-	unsigned short status2;
+	unsigned short misc1;
+	unsigned short misc2;
 };
 
 static const struct comedi_lrange das16cs_ai_range = {
@@ -90,15 +139,16 @@ static int das16cs_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + DAS16CS_MISC1);
-	if (status & 0x0080)
+	status = inw(dev->iobase + DAS16CS_MISC1_REG);
+	if (status & DAS16CS_MISC1_EOC)
 		return 0;
 	return -EBUSY;
 }
 
-static int das16cs_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das16cs_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -107,37 +157,43 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	outw(chan, dev->iobase + DAS16CS_DIO_MUX);
+	outw(DAS16CS_AI_MUX_SINGLE_CHAN(chan),
+	     dev->iobase + DAS16CS_AI_MUX_REG);
 
-	devpriv->status1 &= ~0xf320;
-	devpriv->status1 |= (aref == AREF_DIFF) ? 0 : 0x0020;
-	outw(devpriv->status1, dev->iobase + DAS16CS_MISC1);
+	/* disable interrupts, software convert */
+	devpriv->misc1 &= ~(DAS16CS_MISC1_INTE | DAS16CS_MISC1_INT_SRC_MASK |
+			      DAS16CS_MISC1_AI_CONV_MASK);
+	if (aref == AREF_DIFF)
+		devpriv->misc1 &= ~DAS16CS_MISC1_SEDIFF;
+	else
+		devpriv->misc1 |= DAS16CS_MISC1_SEDIFF;
+	outw(devpriv->misc1, dev->iobase + DAS16CS_MISC1_REG);
 
-	devpriv->status2 &= ~0xff00;
+	devpriv->misc2 &= ~(DAS16CS_MISC2_BME | DAS16CS_MISC2_AI_GAIN_MASK);
 	switch (range) {
 	case 0:
-		devpriv->status2 |= 0x800;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_1;
 		break;
 	case 1:
-		devpriv->status2 |= 0x000;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_2;
 		break;
 	case 2:
-		devpriv->status2 |= 0x100;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_4;
 		break;
 	case 3:
-		devpriv->status2 |= 0x200;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_8;
 		break;
 	}
-	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2);
+	outw(devpriv->misc2, dev->iobase + DAS16CS_MISC2_REG);
 
 	for (i = 0; i < insn->n; i++) {
-		outw(0, dev->iobase + DAS16CS_ADC_DATA);
+		outw(0, dev->iobase + DAS16CS_AI_DATA_REG);
 
 		ret = comedi_timeout(dev, s, insn, das16cs_ai_eoc, 0);
 		if (ret)
 			return ret;
 
-		data[i] = inw(dev->iobase + DAS16CS_ADC_DATA);
+		data[i] = inw(dev->iobase + DAS16CS_AI_DATA_REG);
 	}
 
 	return i;
@@ -151,39 +207,43 @@ static int das16cs_ao_insn_write(struct comedi_device *dev,
 	struct das16cs_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = s->readback[chan];
-	unsigned short status1;
+	unsigned short misc1;
 	int bit;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		outw(devpriv->status1, dev->iobase + DAS16CS_MISC1);
+		outw(devpriv->misc1, dev->iobase + DAS16CS_MISC1_REG);
 		udelay(1);
 
-		status1 = devpriv->status1 & ~0xf;
+		/* raise the DACxCS line for the non-selected channel */
+		misc1 = devpriv->misc1 & ~DAS16CS_MISC1_DAC_MASK;
 		if (chan)
-			status1 |= 0x0001;
+			misc1 |= DAS16CS_MISC1_DAC0CS;
 		else
-			status1 |= 0x0008;
+			misc1 |= DAS16CS_MISC1_DAC1CS;
 
-		outw(status1, dev->iobase + DAS16CS_MISC1);
+		outw(misc1, dev->iobase + DAS16CS_MISC1_REG);
 		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
-			int b = (val >> bit) & 0x1;
-
-			b <<= 1;
-			outw(status1 | b | 0x0000, dev->iobase + DAS16CS_MISC1);
+			if ((val >> bit) & 0x1)
+				misc1 |= DAS16CS_MISC1_DACSD;
+			else
+				misc1 &= ~DAS16CS_MISC1_DACSD;
+			outw(misc1, dev->iobase + DAS16CS_MISC1_REG);
 			udelay(1);
-			outw(status1 | b | 0x0004, dev->iobase + DAS16CS_MISC1);
+			outw(misc1 | DAS16CS_MISC1_DACCLK,
+			     dev->iobase + DAS16CS_MISC1_REG);
 			udelay(1);
 		}
 		/*
 		 * Make both DAC0CS and DAC1CS high to load
 		 * the new data and update analog the output
 		 */
-		outw(status1 | 0x9, dev->iobase + DAS16CS_MISC1);
+		outw(misc1 | DAS16CS_MISC1_DAC0CS | DAS16CS_MISC1_DAC1CS,
+		     dev->iobase + DAS16CS_MISC1_REG);
 	}
 	s->readback[chan] = val;
 
@@ -196,9 +256,9 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + DAS16CS_DIO);
+		outw(s->state, dev->iobase + DAS16CS_DIO_REG);
 
-	data[1] = inw(dev->iobase + DAS16CS_DIO);
+	data[1] = inw(dev->iobase + DAS16CS_DIO_REG);
 
 	return insn->n;
 }
@@ -222,11 +282,52 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->status2 &= ~0x00c0;
-	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
-	devpriv->status2 |= (s->io_bits & 0x0f) ? 0x0040 : 0;
+	if (s->io_bits & 0xf0)
+		devpriv->misc2 |= DAS16CS_MISC2_UDIR;
+	else
+		devpriv->misc2 &= ~DAS16CS_MISC2_UDIR;
+	if (s->io_bits & 0x0f)
+		devpriv->misc2 |= DAS16CS_MISC2_LDIR;
+	else
+		devpriv->misc2 &= ~DAS16CS_MISC2_LDIR;
+	outw(devpriv->misc2, dev->iobase + DAS16CS_MISC2_REG);
 
-	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2);
+	return insn->n;
+}
+
+static int das16cs_counter_insn_config(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
+{
+	struct das16cs_private *devpriv = dev->private;
+
+	switch (data[0]) {
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		switch (data[1]) {
+		case 0:	/* internal 100 kHz */
+			devpriv->misc2 |= DAS16CS_MISC2_CTR1;
+			break;
+		case 1:	/* external */
+			devpriv->misc2 &= ~DAS16CS_MISC2_CTR1;
+			break;
+		default:
+			return -EINVAL;
+		}
+		outw(devpriv->misc2, dev->iobase + DAS16CS_MISC2_REG);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		if (devpriv->misc2 & DAS16CS_MISC2_CTR1) {
+			data[1] = 0;
+			data[2] = I8254_OSC_BASE_100KHZ;
+		} else {
+			data[1] = 1;
+			data[2] = 0;	/* unknown */
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return insn->n;
 }
@@ -278,26 +379,25 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	if (!dev->pacer)
 		return -ENOMEM;
 
-	ret = comedi_alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 16;
 	s->maxdata	= 0xffff;
 	s->range_table	= &das16cs_ai_range;
-	s->len_chanlist	= 16;
-	s->insn_read	= das16cs_ai_rinsn;
+	s->insn_read	= das16cs_ai_insn_read;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* analog output subdevice */
-	if (board->n_ao_chans) {
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
-		s->n_chan	= board->n_ao_chans;
+		s->n_chan	= 2;
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= &das16cs_ao_insn_write;
@@ -309,15 +409,25 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	/* digital i/o subdevice */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 8;
+	s->n_chan	= board->has_4dio ? 4 : 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= das16cs_dio_insn_bits;
 	s->insn_config	= das16cs_dio_insn_config;
+
+	/* Counter subdevice (8254) */
+	s = &dev->subdevices[3];
+	comedi_8254_subdevice_init(s, dev->pacer);
+
+	dev->pacer->insn_config = das16cs_counter_insn_config;
+
+	/* counters 1 and 2 are used internally for the pacer */
+	comedi_8254_set_busy(dev->pacer, 1, true);
+	comedi_8254_set_busy(dev->pacer, 2, true);
 
 	return 0;
 }

@@ -211,7 +211,7 @@
 #define ARGI_ARG4                       ARG_NONE
 #define ARGI_ARG5                       ARG_NONE
 #define ARGI_ARG6                       ARG_NONE
-#define ARGI_BANK_FIELD_OP              ARGI_INVALID_OPCODE
+#define ARGI_BANK_FIELD_OP              ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_BIT_AND_OP                 ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_BIT_NAND_OP                ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_BIT_NOR_OP                 ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
@@ -307,7 +307,7 @@
 #define ARGI_SLEEP_OP                   ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_STALL_OP                   ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_STATICSTRING_OP            ARGI_INVALID_OPCODE
-#define ARGI_STORE_OP                   ARGI_LIST2 (ARGI_DATAREFOBJ, ARGI_TARGETREF)
+#define ARGI_STORE_OP                   ARGI_LIST2 (ARGI_DATAREFOBJ, ARGI_STORE_TARGET)
 #define ARGI_STRING_OP                  ARGI_INVALID_OPCODE
 #define ARGI_SUBTRACT_OP                ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_THERMAL_ZONE_OP            ARGI_INVALID_OPCODE

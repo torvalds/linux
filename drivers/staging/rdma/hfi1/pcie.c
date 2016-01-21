@@ -946,9 +946,21 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 			    __func__);
 	}
 
+retry:
+
+	if (therm) {
+		/*
+		 * toggle SPICO_ENABLE to get back to the state
+		 * just after the firmware load
+		 */
+		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
+			WRITE_SBUS_RECEIVER, 0x00000040);
+		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
+			WRITE_SBUS_RECEIVER, 0x00000140);
+	}
+
 	/* step 3: download SBus Master firmware */
 	/* step 4: download PCIe Gen3 SerDes firmware */
-retry:
 	dd_dev_info(dd, "%s: downloading firmware\n", __func__);
 	ret = load_pcie_firmware(dd);
 	if (ret)
@@ -1187,6 +1199,7 @@ retry:
 
 	/* clear the DC reset */
 	write_csr(dd, CCE_DC_CTRL, 0);
+
 	/* Set the LED off */
 	if (is_a0(dd))
 		setextled(dd, 0);

@@ -35,6 +35,14 @@ struct nfcmrvl_platform_data {
 	unsigned int flow_control;
 	/* Tell if firmware supports break control for power management */
 	unsigned int break_control;
+
+
+	/*
+	 * I2C specific
+	 */
+
+	unsigned int irq;
+	unsigned int irq_polarity;
 };
 
 #endif /* _NFCMRVL_PTF_H_ */

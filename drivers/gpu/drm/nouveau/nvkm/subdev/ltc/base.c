@@ -67,6 +67,20 @@ nvkm_ltc_zbc_depth_get(struct nvkm_ltc *ltc, int index, const u32 depth)
 	return index;
 }
 
+void
+nvkm_ltc_invalidate(struct nvkm_ltc *ltc)
+{
+	if (ltc->func->invalidate)
+		ltc->func->invalidate(ltc);
+}
+
+void
+nvkm_ltc_flush(struct nvkm_ltc *ltc)
+{
+	if (ltc->func->flush)
+		ltc->func->flush(ltc);
+}
+
 static void
 nvkm_ltc_intr(struct nvkm_subdev *subdev)
 {

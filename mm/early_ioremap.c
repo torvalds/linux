@@ -126,7 +126,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 	/*
 	 * Mappings have to be page-aligned
 	 */
-	offset = phys_addr & ~PAGE_MASK;
+	offset = offset_in_page(phys_addr);
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 
@@ -189,7 +189,7 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 	if (WARN_ON(virt_addr < fix_to_virt(FIX_BTMAP_BEGIN)))
 		return;
 
-	offset = virt_addr & ~PAGE_MASK;
+	offset = offset_in_page(virt_addr);
 	nrpages = PAGE_ALIGN(offset + size) >> PAGE_SHIFT;
 
 	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
@@ -234,7 +234,7 @@ void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
 	char *p;
 
 	while (size) {
-		slop = src & ~PAGE_MASK;
+		slop = offset_in_page(src);
 		clen = size;
 		if (clen > MAX_MAP_CHUNK - slop)
 			clen = MAX_MAP_CHUNK - slop;

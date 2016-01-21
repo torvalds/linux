@@ -39,6 +39,10 @@
 
 #define OAP_MAGIC 8675309
 
+extern atomic_t osc_pool_req_count;
+extern unsigned int osc_reqpool_maxreqcount;
+extern struct ptlrpc_request_pool *osc_rq_pool;
+
 struct lu_env;
 
 enum async_flags {
@@ -128,7 +132,7 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 
 int osc_process_config_base(struct obd_device *obd, struct lustre_cfg *cfg);
 int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
-		  struct list_head *ext_list, int cmd, pdl_policy_t p);
+		  struct list_head *ext_list, int cmd);
 int osc_lru_shrink(struct client_obd *cli, int target);
 
 extern spinlock_t osc_ast_guard;
@@ -181,6 +185,7 @@ struct osc_quota_info {
 	struct hlist_node oqi_hash;
 	u32	  oqi_id;
 };
+
 int osc_quota_setup(struct obd_device *obd);
 int osc_quota_cleanup(struct obd_device *obd);
 int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],

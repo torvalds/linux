@@ -123,6 +123,7 @@ config RENESAS_INTC_IRQPIN
 
 config RENESAS_IRQC
 	bool
+	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
 config ST_IRQCHIP
@@ -187,3 +188,8 @@ config IMX_GPCV2
 	select IRQ_DOMAIN
 	help
 	  Enables the wakeup IRQs for IMX platforms with GPCv2 block
+
+config IRQ_MXS
+	def_bool y if MACH_ASM9260 || ARCH_MXS
+	select IRQ_DOMAIN
+	select STMP_DEVICE

@@ -51,11 +51,9 @@ static const struct altr_sdram_prv_data c5_data = {
 	.ecc_irq_clr_mask   = (CV_DRAMINTR_INTRCLR | CV_DRAMINTR_INTREN),
 	.ecc_cnt_rst_offset = CV_DRAMINTR_OFST,
 	.ecc_cnt_rst_mask   = CV_DRAMINTR_INTRCLR,
-#ifdef CONFIG_EDAC_DEBUG
 	.ce_ue_trgr_offset  = CV_CTLCFG_OFST,
 	.ce_set_mask        = CV_CTLCFG_GEN_SB_ERR,
 	.ue_set_mask        = CV_CTLCFG_GEN_DB_ERR,
-#endif
 };
 
 static const struct altr_sdram_prv_data a10_data = {
@@ -72,11 +70,9 @@ static const struct altr_sdram_prv_data a10_data = {
 	.ecc_irq_clr_mask   = (A10_INTSTAT_SBEERR | A10_INTSTAT_DBEERR),
 	.ecc_cnt_rst_offset = A10_ECCCTRL1_OFST,
 	.ecc_cnt_rst_mask   = A10_ECC_CNT_RESET_MASK,
-#ifdef CONFIG_EDAC_DEBUG
 	.ce_ue_trgr_offset  = A10_DIAGINTTEST_OFST,
 	.ce_set_mask        = A10_DIAGINT_TSERRA_MASK,
 	.ue_set_mask        = A10_DIAGINT_TDERRA_MASK,
-#endif
 };
 
 static irqreturn_t altr_sdram_mc_err_handler(int irq, void *dev_id)
@@ -116,7 +112,6 @@ static irqreturn_t altr_sdram_mc_err_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-#ifdef CONFIG_EDAC_DEBUG
 static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 					    const char __user *data,
 					    size_t count, loff_t *ppos)
@@ -191,14 +186,15 @@ static const struct file_operations altr_sdr_mc_debug_inject_fops = {
 
 static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 {
-	if (mci->debugfs)
-		debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
-				    &altr_sdr_mc_debug_inject_fops);
+	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
+		return;
+
+	if (!mci->debugfs)
+		return;
+
+	edac_debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
+				 &altr_sdr_mc_debug_inject_fops);
 }
-#else
-static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
-{}
-#endif
 
 /* Get total memory size from Open Firmware DTB */
 static unsigned long get_total_mem(void)

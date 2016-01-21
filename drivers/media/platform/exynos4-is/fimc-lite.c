@@ -28,7 +28,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/exynos-fimc.h>
 
@@ -200,7 +200,7 @@ static int fimc_lite_reinit(struct fimc_lite *fimc, bool suspend)
 	/* Release unused buffers */
 	while (!suspend && !list_empty(&fimc->pending_buf_q)) {
 		buf = fimc_lite_pending_queue_pop(fimc);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	/* If suspending put unused buffers onto pending queue */
 	while (!list_empty(&fimc->active_buf_q)) {
@@ -208,7 +208,7 @@ static int fimc_lite_reinit(struct fimc_lite *fimc, bool suspend)
 		if (suspend)
 			fimc_lite_pending_queue_add(fimc, buf);
 		else
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -254,8 +254,6 @@ static irqreturn_t flite_irq_handler(int irq, void *priv)
 	struct fimc_lite *fimc = priv;
 	struct flite_buffer *vbuf;
 	unsigned long flags;
-	struct timeval *tv;
-	struct timespec ts;
 	u32 intsrc;
 
 	spin_lock_irqsave(&fimc->slock, flags);
@@ -294,13 +292,10 @@ static irqreturn_t flite_irq_handler(int irq, void *priv)
 	    test_bit(ST_FLITE_RUN, &fimc->state) &&
 	    !list_empty(&fimc->active_buf_q)) {
 		vbuf = fimc_lite_active_queue_pop(fimc);
-		ktime_get_ts(&ts);
-		tv = &vbuf->vb.v4l2_buf.timestamp;
-		tv->tv_sec = ts.tv_sec;
-		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-		vbuf->vb.v4l2_buf.sequence = fimc->frame_count++;
+		v4l2_get_timestamp(&vbuf->vb.timestamp);
+		vbuf->vb.sequence = fimc->frame_count++;
 		flite_hw_mask_dma_buffer(fimc, vbuf->index);
-		vb2_buffer_done(&vbuf->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&vbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	if (test_bit(ST_FLITE_CONFIG, &fimc->state))
@@ -360,10 +355,11 @@ static void stop_streaming(struct vb2_queue *q)
 	fimc_lite_stop_capture(fimc, false);
 }
 
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
+static int queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned int *num_buffers, unsigned int *num_planes,
 		       unsigned int sizes[], void *allocators[])
 {
+	const struct v4l2_format *pfmt = parg;
 	const struct v4l2_pix_format_mplane *pixm = NULL;
 	struct fimc_lite *fimc = vq->drv_priv;
 	struct flite_frame *frame = &fimc->out_frame;
@@ -422,8 +418,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct flite_buffer *buf
-		= container_of(vb, struct flite_buffer, vb);
+		= container_of(vbuf, struct flite_buffer, vb);
 	struct fimc_lite *fimc = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long flags;
 
@@ -1637,7 +1634,7 @@ static int fimc_lite_resume(struct device *dev)
 		if (list_empty(&fimc->pending_buf_q))
 			break;
 		buf = fimc_lite_pending_queue_pop(fimc);
-		buffer_queue(&buf->vb);
+		buffer_queue(&buf->vb.vb2_buf);
 	}
 	return 0;
 }

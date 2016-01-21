@@ -59,6 +59,7 @@ struct hci_uart;
 struct hci_uart_proto {
 	unsigned int id;
 	const char *name;
+	unsigned int manufacturer;
 	unsigned int init_speed;
 	unsigned int oper_speed;
 	int (*open)(struct hci_uart *hu);
@@ -85,7 +86,6 @@ struct hci_uart {
 
 	struct sk_buff		*tx_skb;
 	unsigned long		tx_state;
-	spinlock_t		rx_lock;
 
 	unsigned int init_speed;
 	unsigned int oper_speed;

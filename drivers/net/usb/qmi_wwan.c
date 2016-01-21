@@ -229,11 +229,11 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	u8 *buf = intf->cur_altsetting->extra;
 	int len = intf->cur_altsetting->extralen;
 	struct usb_interface_descriptor *desc = &intf->cur_altsetting->desc;
-	struct usb_cdc_union_desc *cdc_union = NULL;
-	struct usb_cdc_ether_desc *cdc_ether = NULL;
-	u32 found = 0;
+	struct usb_cdc_union_desc *cdc_union;
+	struct usb_cdc_ether_desc *cdc_ether;
 	struct usb_driver *driver = driver_of(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
+	struct usb_cdc_parsed_header hdr;
 
 	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) <
 		      sizeof(struct qmi_wwan_state)));
@@ -243,63 +243,9 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	info->data = intf;
 
 	/* and a number of CDC descriptors */
-	while (len > 3) {
-		struct usb_descriptor_header *h = (void *)buf;
-
-		/* ignore any misplaced descriptors */
-		if (h->bDescriptorType != USB_DT_CS_INTERFACE)
-			goto next_desc;
-
-		/* buf[2] is CDC descriptor subtype */
-		switch (buf[2]) {
-		case USB_CDC_HEADER_TYPE:
-			if (found & 1 << USB_CDC_HEADER_TYPE) {
-				dev_dbg(&intf->dev, "extra CDC header\n");
-				goto err;
-			}
-			if (h->bLength != sizeof(struct usb_cdc_header_desc)) {
-				dev_dbg(&intf->dev, "CDC header len %u\n",
-					h->bLength);
-				goto err;
-			}
-			break;
-		case USB_CDC_UNION_TYPE:
-			if (found & 1 << USB_CDC_UNION_TYPE) {
-				dev_dbg(&intf->dev, "extra CDC union\n");
-				goto err;
-			}
-			if (h->bLength != sizeof(struct usb_cdc_union_desc)) {
-				dev_dbg(&intf->dev, "CDC union len %u\n",
-					h->bLength);
-				goto err;
-			}
-			cdc_union = (struct usb_cdc_union_desc *)buf;
-			break;
-		case USB_CDC_ETHERNET_TYPE:
-			if (found & 1 << USB_CDC_ETHERNET_TYPE) {
-				dev_dbg(&intf->dev, "extra CDC ether\n");
-				goto err;
-			}
-			if (h->bLength != sizeof(struct usb_cdc_ether_desc)) {
-				dev_dbg(&intf->dev, "CDC ether len %u\n",
-					h->bLength);
-				goto err;
-			}
-			cdc_ether = (struct usb_cdc_ether_desc *)buf;
-			break;
-		}
-
-		/* Remember which CDC functional descriptors we've seen.  Works
-		 * for all types we care about, of which USB_CDC_ETHERNET_TYPE
-		 * (0x0f) is the highest numbered
-		 */
-		if (buf[2] < 32)
-			found |= 1 << buf[2];
-
-next_desc:
-		len -= h->bLength;
-		buf += h->bLength;
-	}
+	cdc_parse_cdc_header(&hdr, intf, buf, len);
+	cdc_union = hdr.usb_cdc_union_desc;
+	cdc_ether = hdr.usb_cdc_ether_desc;
 
 	/* Use separate control and data interfaces if we found a CDC Union */
 	if (cdc_union) {
@@ -539,6 +485,10 @@ static const struct usb_device_id products[] = {
 					      USB_CDC_PROTO_NONE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* HP lt4112 LTE/HSPA+ Gobi 4G Module (Huawei me906e) */
+		USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0x581d, USB_CLASS_VENDOR_SPEC, 1, 7),
+		.driver_info = (unsigned long)&qmi_wwan_info,
+	},
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
@@ -775,6 +725,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x2357, 0x9000, 4)},	/* TP-LINK MA260 */
 	{QMI_FIXED_INTF(0x1bc7, 0x1200, 5)},	/* Telit LE920 */
 	{QMI_FIXED_INTF(0x1bc7, 0x1201, 2)},	/* Telit LE920 */
+	{QMI_FIXED_INTF(0x1c9e, 0x9b01, 3)},	/* XS Stick W100-2 from 4G Systems */
 	{QMI_FIXED_INTF(0x0b3c, 0xc000, 4)},	/* Olivetti Olicard 100 */
 	{QMI_FIXED_INTF(0x0b3c, 0xc001, 4)},	/* Olivetti Olicard 120 */
 	{QMI_FIXED_INTF(0x0b3c, 0xc002, 4)},	/* Olivetti Olicard 140 */
@@ -791,7 +742,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x413c, 0x81a9, 8)},	/* Dell Wireless 5808e Gobi(TM) 4G LTE Mobile Broadband Card */
 	{QMI_FIXED_INTF(0x413c, 0x81b1, 8)},	/* Dell Wireless 5809e Gobi(TM) 4G LTE Mobile Broadband Card */
 	{QMI_FIXED_INTF(0x03f0, 0x4e1d, 8)},	/* HP lt4111 LTE/EV-DO/HSPA+ Gobi 4G Module */
-	{QMI_FIXED_INTF(0x03f0, 0x581d, 4)},	/* HP lt4112 LTE/HSPA+ Gobi 4G Module (Huawei me906e) */
+	{QMI_FIXED_INTF(0x22de, 0x9061, 3)},	/* WeTelecom WPD-600N */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
@@ -822,6 +773,7 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x05c6, 0x9245)},	/* Samsung Gobi 2000 Modem device (VL176) */
 	{QMI_GOBI_DEVICE(0x03f0, 0x251d)},	/* HP Gobi 2000 Modem device (VP412) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9215)},	/* Acer Gobi 2000 Modem device (VP413) */
+	{QMI_FIXED_INTF(0x05c6, 0x9215, 4)},	/* Quectel EC20 Mini PCIe */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9265)},	/* Asus Gobi 2000 Modem device (VR305) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9235)},	/* Top Global Gobi 2000 Modem device (VR306) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9275)},	/* iRex Technologies Gobi 2000 Modem device (VR307) */
@@ -853,10 +805,24 @@ static const struct usb_device_id products[] = {
 };
 MODULE_DEVICE_TABLE(usb, products);
 
+static bool quectel_ec20_detected(struct usb_interface *intf)
+{
+	struct usb_device *dev = interface_to_usbdev(intf);
+
+	if (dev->actconfig &&
+	    le16_to_cpu(dev->descriptor.idVendor) == 0x05c6 &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x9215 &&
+	    dev->actconfig->desc.bNumInterfaces == 5)
+		return true;
+
+	return false;
+}
+
 static int qmi_wwan_probe(struct usb_interface *intf,
 			  const struct usb_device_id *prod)
 {
 	struct usb_device_id *id = (struct usb_device_id *)prod;
+	struct usb_interface_descriptor *desc = &intf->cur_altsetting->desc;
 
 	/* Workaround to enable dynamic IDs.  This disables usbnet
 	 * blacklisting functionality.  Which, if required, can be
@@ -866,6 +832,12 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 	if (!id->driver_info) {
 		dev_dbg(&intf->dev, "setting defaults for dynamic device id\n");
 		id->driver_info = (unsigned long)&qmi_wwan_info;
+	}
+
+	/* Quectel EC20 quirk where we've QMI on interface 4 instead of 0 */
+	if (quectel_ec20_detected(intf) && desc->bInterfaceNumber == 0) {
+		dev_dbg(&intf->dev, "Quectel EC20 quirk, skipping interface 0\n");
+		return -ENODEV;
 	}
 
 	return usbnet_probe(intf, id);

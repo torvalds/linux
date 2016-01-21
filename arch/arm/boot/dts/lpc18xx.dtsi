@@ -68,6 +68,46 @@
 	};
 
 	soc {
+		sct_pwm: pwm@40000000 {
+			compatible = "nxp,lpc1850-sct-pwm";
+			reg = <0x40000000 0x1000>;
+			clocks =<&ccu1 CLK_CPU_SCT>;
+			clock-names = "pwm";
+			resets = <&rgu 37>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		dmac: dma-controller@40002000 {
+			compatible = "arm,pl080", "arm,primecell";
+			arm,primecell-periphid = <0x00041080>;
+			reg = <0x40002000 0x1000>;
+			interrupts = <2>;
+			clocks = <&ccu1 CLK_CPU_DMA>;
+			clock-names = "apb_pclk";
+			resets = <&rgu 19>;
+			#dma-cells = <2>;
+			dma-channels = <8>;
+			dma-requests = <16>;
+			lli-bus-interface-ahb1;
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb1;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
+		};
+
+		spifi: flash-controller@40003000 {
+			compatible = "nxp,lpc1773-spifi";
+			reg = <0x40003000 0x1000>, <0x14000000 0x4000000>;
+			reg-names = "spifi", "flash";
+			interrupts = <30>;
+			clocks = <&ccu1 CLK_SPIFI>, <&ccu1 CLK_CPU_SPIFI>;
+			clock-names = "spifi", "reg";
+			resets = <&rgu 53>;
+			status = "disabled";
+		};
+
 		mmcsd: mmcsd@40004000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x40004000 0x1000>;
@@ -75,6 +115,7 @@
 			num-slots = <1>;
 			clocks = <&ccu2 CLK_SDIO>, <&ccu1 CLK_CPU_SDIO>;
 			clock-names = "ciu", "biu";
+			resets = <&rgu 20>;
 			status = "disabled";
 		};
 
@@ -83,6 +124,7 @@
 			reg = <0x40006100 0x100>;
 			interrupts = <8>;
 			clocks = <&ccu1 CLK_CPU_USB0>;
+			resets = <&rgu 17>;
 			phys = <&usb0_otg_phy>;
 			phy-names = "usb";
 			has-transaction-translator;
@@ -94,6 +136,7 @@
 			reg = <0x40007100 0x100>;
 			interrupts = <9>;
 			clocks = <&ccu1 CLK_CPU_USB1>;
+			resets = <&rgu 18>;
 			status = "disabled";
 		};
 
@@ -102,6 +145,7 @@
 			reg = <0x40005000 0x1000>;
 			clocks = <&ccu1 CLK_CPU_EMCDIV>, <&ccu1 CLK_CPU_EMC>;
 			clock-names = "mpmcclk", "apb_pclk";
+			resets = <&rgu 21>;
 			#address-cells = <2>;
 			#size-cells = <1>;
 			ranges = <0 0 0x1c000000 0x1000000
@@ -118,6 +162,7 @@
 			interrupt-names = "combined";
 			clocks = <&cgu BASE_LCD_CLK>, <&ccu1 CLK_CPU_LCD>;
 			clock-names = "clcdclk", "apb_pclk";
+			resets = <&rgu 16>;
 			status = "disabled";
 		};
 
@@ -128,6 +173,8 @@
 			interrupt-names	= "macirq";
 			clocks = <&ccu1 CLK_CPU_ETHERNET>;
 			clock-names = "stmmaceth";
+			resets = <&rgu 22>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 		};
 
@@ -135,11 +182,19 @@
 			compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
 			reg = <0x40043000 0x1000>;
 			clocks = <&ccu1 CLK_CPU_CREG>;
+			resets = <&rgu 5>;
 
 			usb0_otg_phy: phy@004 {
 				compatible = "nxp,lpc1850-usb-otg-phy";
 				clocks = <&ccu1 CLK_USB0>;
 				#phy-cells = <0>;
+			};
+
+			dmamux: dma-mux@11c {
+				compatible = "nxp,lpc1850-dmamux";
+				#dma-cells = <3>;
+				dma-requests = <64>;
+				dma-masters = <&dmac>;
 			};
 		};
 
@@ -178,6 +233,22 @@
 				      "base_ssp0_clk",  "base_sdio_clk";
 		};
 
+		rgu: reset-controller@40053000 {
+			compatible = "nxp,lpc1850-rgu";
+			reg = <0x40053000 0x1000>;
+			clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_BUS>;
+			clock-names = "delay", "reg";
+			#reset-cells = <1>;
+		};
+
+		watchdog@40080000 {
+			compatible = "nxp,lpc1850-wwdt";
+			reg = <0x40080000 0x24>;
+			interrupts = <49>;
+			clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_WWDT>;
+			clock-names = "wdtclk", "reg";
+		};
+
 		uart0: serial@40081000 {
 			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x40081000 0x1000>;
@@ -185,6 +256,12 @@
 			interrupts = <24>;
 			clocks = <&ccu2 CLK_APB0_UART0>, <&ccu1 CLK_CPU_UART0>;
 			clock-names = "uartclk", "reg";
+			resets = <&rgu 44>;
+			dmas = <&dmamux  1 1 2
+				&dmamux  2 1 2
+				&dmamux 11 2 2
+				&dmamux 12 2 2>;
+			dma-names = "tx", "rx", "tx", "rx";
 			status = "disabled";
 		};
 
@@ -195,6 +272,10 @@
 			interrupts = <25>;
 			clocks = <&ccu2 CLK_APB0_UART1>, <&ccu1 CLK_CPU_UART1>;
 			clock-names = "uartclk", "reg";
+			resets = <&rgu 45>;
+			dmas = <&dmamux 3 1 2
+				&dmamux 4 1 2>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -204,6 +285,10 @@
 			interrupts = <22>;
 			clocks = <&ccu2 CLK_APB0_SSP0>, <&ccu1 CLK_CPU_SSP0>;
 			clock-names = "sspclk", "apb_pclk";
+			resets = <&rgu 50>;
+			dmas = <&dmamux  9 0 2
+				&dmamux 10 0 2>;
+			dma-names = "rx", "tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -215,6 +300,7 @@
 			interrupts = <12>;
 			clocks = <&ccu1 CLK_CPU_TIMER0>;
 			clock-names = "timerclk";
+			resets = <&rgu 32>;
 		};
 
 		timer1: timer@40085000 {
@@ -223,6 +309,7 @@
 			interrupts = <13>;
 			clocks = <&ccu1 CLK_CPU_TIMER1>;
 			clock-names = "timerclk";
+			resets = <&rgu 33>;
 		};
 
 		pinctrl: pinctrl@40086000 {
@@ -231,11 +318,23 @@
 			clocks = <&ccu1 CLK_CPU_SCU>;
 		};
 
+		i2c0: i2c@400a1000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400a1000 0x1000>;
+			interrupts = <18>;
+			clocks = <&ccu1 CLK_APB1_I2C0>;
+			resets = <&rgu 48>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		can1: can@400a4000 {
 			compatible = "bosch,c_can";
 			reg = <0x400a4000 0x1000>;
 			interrupts = <43>;
 			clocks = <&ccu1 CLK_APB1_CAN1>;
+			resets = <&rgu 54>;
 			status = "disabled";
 		};
 
@@ -246,6 +345,10 @@
 			interrupts = <26>;
 			clocks = <&ccu2 CLK_APB2_UART2>, <&ccu1 CLK_CPU_UART2>;
 			clock-names = "uartclk", "reg";
+			resets = <&rgu 46>;
+			dmas = <&dmamux 5 1 2
+				&dmamux 6 1 2>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -256,6 +359,12 @@
 			interrupts = <27>;
 			clocks = <&ccu2 CLK_APB2_UART3>, <&ccu1 CLK_CPU_UART3>;
 			clock-names = "uartclk", "reg";
+			resets = <&rgu 47>;
+			dmas = <&dmamux  7 1 2
+				&dmamux  8 1 2
+				&dmamux 13 3 2
+				&dmamux 14 3 2>;
+			dma-names = "tx", "rx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -265,6 +374,7 @@
 			interrupts = <14>;
 			clocks = <&ccu1 CLK_CPU_TIMER2>;
 			clock-names = "timerclk";
+			resets = <&rgu 34>;
 		};
 
 		timer3: timer@400c4000 {
@@ -273,6 +383,7 @@
 			interrupts = <15>;
 			clocks = <&ccu1 CLK_CPU_TIMER3>;
 			clock-names = "timerclk";
+			resets = <&rgu 35>;
 		};
 
 		ssp1: spi@400c5000 {
@@ -281,6 +392,28 @@
 			interrupts = <23>;
 			clocks = <&ccu2 CLK_APB2_SSP1>, <&ccu1 CLK_CPU_SSP1>;
 			clock-names = "sspclk", "apb_pclk";
+			resets = <&rgu 51>;
+			dmas = <&dmamux 11 2 2
+				&dmamux 12 2 2
+				&dmamux  3 3 2
+				&dmamux  4 3 2
+				&dmamux  5 2 2
+				&dmamux  6 2 2
+				&dmamux 13 2 2
+				&dmamux 14 2 2>;
+			dma-names = "rx", "tx", "tx", "rx",
+				    "tx", "rx", "rx", "tx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@400e0000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400e0000 0x1000>;
+			interrupts = <19>;
+			clocks = <&ccu1 CLK_APB3_I2C1>;
+			resets = <&rgu 49>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -291,6 +424,7 @@
 			reg = <0x400e2000 0x1000>;
 			interrupts = <51>;
 			clocks = <&ccu1 CLK_APB3_CAN0>;
+			resets = <&rgu 55>;
 			status = "disabled";
 		};
 

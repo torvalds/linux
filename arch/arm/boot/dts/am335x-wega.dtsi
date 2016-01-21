@@ -11,6 +11,17 @@
 	model = "Phytec AM335x phyBOARD-WEGA";
 	compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx";
 
+	regulators {
+		compatible = "simple-bus";
+
+		vcc3v3: fixedregulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "vcc3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+		};
+	};
 };
 
 /* CAN Busses */
@@ -80,7 +91,7 @@
 };
 
 &mmc1 {
-	vmmc-supply = <&vmmc_reg>;
+	vmmc-supply = <&vcc3v3>;
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;

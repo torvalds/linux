@@ -57,6 +57,15 @@ config ACPI_SYSTEM_POWER_STATES_SUPPORT
 config ACPI_CCA_REQUIRED
 	bool
 
+config ACPI_DEBUGGER
+	bool "AML debugger interface (EXPERIMENTAL)"
+	select ACPI_DEBUG
+	help
+	  Enable in-kernel debugging of AML facilities: statistics, internal
+	  object dump, single step control method execution.
+	  This is still under development, currently enabling this only
+	  results in the compilation of the ACPICA debugger files.
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
@@ -197,11 +206,25 @@ config ACPI_PROCESSOR_IDLE
 	bool
 	select CPU_IDLE
 
+config ACPI_CPPC_LIB
+	bool
+	depends on ACPI_PROCESSOR
+	depends on !ACPI_CPU_FREQ_PSS
+	select MAILBOX
+	select PCC
+	help
+	  If this option is enabled, this file implements common functionality
+	  to parse CPPC tables as described in the ACPI 5.1+ spec. The
+	  routines implemented are meant to be used by other
+	  drivers to control CPU performance using CPPC semantics.
+	  If your platform does not support CPPC in firmware,
+	  leave this option disabled.
+
 config ACPI_PROCESSOR
 	tristate "Processor"
-	depends on X86 || IA64
-	select ACPI_PROCESSOR_IDLE
-	select ACPI_CPU_FREQ_PSS
+	depends on X86 || IA64 || ARM64
+	select ACPI_PROCESSOR_IDLE if X86 || IA64
+	select ACPI_CPU_FREQ_PSS if X86 || IA64
 	default y
 	help
 	  This driver adds support for the ACPI Processor package. It is required

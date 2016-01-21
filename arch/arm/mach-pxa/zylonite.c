@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
 
@@ -120,11 +121,14 @@ static inline void zylonite_init_leds(void) {}
 #endif
 
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
+static struct pwm_lookup zylonite_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.1", 1, "pwm-backlight.0", NULL, 10000,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data zylonite_backlight_data = {
-	.pwm_id		= 3,
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	.pwm_period_ns	= 10000,
 	.enable_gpio	= -1,
 };
 
@@ -206,6 +210,7 @@ static struct pxafb_mach_info zylonite_sharp_lcd_info = {
 
 static void __init zylonite_init_lcd(void)
 {
+	pwm_add_table(zylonite_pwm_lookup, ARRAY_SIZE(zylonite_pwm_lookup));
 	platform_device_register(&zylonite_backlight_device);
 
 	if (lcd_id & 0x20) {

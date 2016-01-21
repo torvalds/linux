@@ -36,16 +36,6 @@ static inline struct lpc18xx_gpio_chip *to_lpc18xx_gpio(struct gpio_chip *chip)
 	return container_of(chip, struct lpc18xx_gpio_chip, gpio);
 }
 
-static int lpc18xx_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(offset);
-}
-
-static void lpc18xx_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(offset);
-}
-
 static void lpc18xx_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
@@ -95,8 +85,8 @@ static int lpc18xx_gpio_direction_output(struct gpio_chip *chip,
 
 static struct gpio_chip lpc18xx_chip = {
 	.label			= "lpc18xx/43xx-gpio",
-	.request		= lpc18xx_gpio_request,
-	.free			= lpc18xx_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.direction_input	= lpc18xx_gpio_direction_input,
 	.direction_output	= lpc18xx_gpio_direction_output,
 	.set			= lpc18xx_gpio_set,

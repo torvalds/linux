@@ -1092,8 +1092,8 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 					  struct rtw_ieee802_11_elems *elems,
 					  int show_errors);
 
-u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len,
-		     unsigned char *source, unsigned int *frlen);
+u8 *rtw_set_fixed_ie(void *pbuf, unsigned int len,
+		     void *source, unsigned int *frlen);
 u8 *rtw_set_ie(u8 *pbuf, int index, uint len, u8 *source, uint *frlen);
 
 enum secondary_ch_offset {

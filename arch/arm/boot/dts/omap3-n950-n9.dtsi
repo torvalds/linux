@@ -27,7 +27,7 @@
 		regulator-name = "VEMMC";
 		regulator-min-microvolt = <2900000>;
 		regulator-max-microvolt = <2900000>;
-		gpio = <&gpio5 29 0>; /* gpio line 157 */
+		gpio = <&gpio5 29 GPIO_ACTIVE_HIGH>; /* gpio line 157 */
 		startup-delay-us = <150>;
 		enable-active-high;
 	};

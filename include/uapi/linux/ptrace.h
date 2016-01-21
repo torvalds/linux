@@ -64,6 +64,8 @@ struct ptrace_peeksiginfo_args {
 #define PTRACE_GETSIGMASK	0x420a
 #define PTRACE_SETSIGMASK	0x420b
 
+#define PTRACE_SECCOMP_GET_FILTER	0x420c
+
 /* Read signals from a shared (process wide) queue */
 #define PTRACE_PEEKSIGINFO_SHARED	(1 << 0)
 

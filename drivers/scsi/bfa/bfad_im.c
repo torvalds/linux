@@ -800,7 +800,6 @@ struct scsi_host_template bfad_im_scsi_host_template = {
 	.shost_attrs = bfad_im_host_attrs,
 	.max_sectors = BFAD_MAX_SECTORS,
 	.vendor_id = BFA_PCI_VENDOR_ID_BROCADE,
-	.use_blk_tags = 1,
 };
 
 struct scsi_host_template bfad_im_vport_template = {
@@ -822,7 +821,6 @@ struct scsi_host_template bfad_im_vport_template = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = bfad_im_vport_attrs,
 	.max_sectors = BFAD_MAX_SECTORS,
-	.use_blk_tags = 1,
 };
 
 bfa_status_t

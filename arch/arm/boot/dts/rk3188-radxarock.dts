@@ -90,6 +90,21 @@
 		};
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SPDIF";
+
+		simple-audio-card,dai-link@1 {  /* S/PDIF - S/PDIF */
+			cpu { sound-dai = <&spdif>; };
+			codec { sound-dai = <&spdif_out>; };
+		};
+	};
+
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
 	ir_recv: gpio-ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio0 10 1>;
@@ -289,6 +304,8 @@
 	vmmc-supply = <&vcc_sd0>;
 
 	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
 	disable-wp;
 };
 
@@ -341,6 +358,10 @@
 			rockchip,pins = <2 31 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&spdif {
+	status = "okay";
 };
 
 &uart0 {

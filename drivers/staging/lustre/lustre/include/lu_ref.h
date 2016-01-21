@@ -107,7 +107,6 @@
  * @{
  */
 
-
 /*
  * dummy data structures/functions to pass compile for now.
  * We need to reimplement them with kref.

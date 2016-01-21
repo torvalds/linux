@@ -1,0 +1,23 @@
+Dialog Semiconductor DA9150 Fuel-Gauge Power Supply bindings
+
+Required properties:
+- compatible: "dlg,da9150-fuel-gauge" for DA9150 Fuel-Gauge Power Supply
+
+Optional properties:
+- dlg,update-interval: Interval time (milliseconds) between battery level checks.
+- dlg,warn-soc-level: Battery discharge level (%) where warning event raised.
+      [1 - 100]
+- dlg,crit-soc-level: Battery discharge level (%) where critical event raised.
+  This value should be lower than the warning level.
+      [1 - 100]
+
+
+Example:
+
+	fuel-gauge {
+		compatible = "dlg,da9150-fuel-gauge";
+
+		dlg,update-interval = <10000>;
+		dlg,warn-soc-level = /bits/ 8 <15>;
+		dlg,crit-soc-level = /bits/ 8 <5>;
+	};

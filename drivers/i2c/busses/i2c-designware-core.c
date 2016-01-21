@@ -165,7 +165,7 @@ static char *abort_sources[] = {
 		"lost arbitration",
 };
 
-u32 dw_readl(struct dw_i2c_dev *dev, int offset)
+static u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 {
 	u32 value;
 
@@ -181,7 +181,7 @@ u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 		return value;
 }
 
-void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
+static void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 {
 	if (dev->accessor_flags & ACCESS_SWAP)
 		b = swab32(b);
@@ -438,7 +438,7 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	__i2c_dw_enable(dev, true);
 
 	/* Clear and enable interrupts */
-	i2c_dw_clear_int(dev);
+	dw_readl(dev, DW_IC_CLR_INTR);
 	dw_writel(dev, DW_IC_INTR_DEFAULT_MASK, DW_IC_INTR_MASK);
 }
 
@@ -618,7 +618,7 @@ static int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 /*
  * Prepare controller for a transaction and call i2c_dw_xfer_msg
  */
-int
+static int
 i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
@@ -702,14 +702,17 @@ done_nolock:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(i2c_dw_xfer);
 
-u32 i2c_dw_func(struct i2c_adapter *adap)
+static u32 i2c_dw_func(struct i2c_adapter *adap)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
 	return dev->functionality;
 }
-EXPORT_SYMBOL_GPL(i2c_dw_func);
+
+static struct i2c_algorithm i2c_dw_algo = {
+	.master_xfer	= i2c_dw_xfer,
+	.functionality	= i2c_dw_func,
+};
 
 static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 {
@@ -770,7 +773,7 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
  * Interrupt service routine. This gets called whenever an I2C interrupt
  * occurs.
  */
-irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
+static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 {
 	struct dw_i2c_dev *dev = dev_id;
 	u32 stat, enabled;
@@ -810,23 +813,15 @@ irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 tx_aborted:
 	if ((stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET)) || dev->msg_err)
 		complete(&dev->cmd_complete);
+	else if (unlikely(dev->accessor_flags & ACCESS_INTR_MASK)) {
+		/* workaround to trigger pending interrupt */
+		stat = dw_readl(dev, DW_IC_INTR_MASK);
+		i2c_dw_disable_int(dev);
+		dw_writel(dev, stat, DW_IC_INTR_MASK);
+	}
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_GPL(i2c_dw_isr);
-
-void i2c_dw_enable(struct dw_i2c_dev *dev)
-{
-       /* Enable the adapter */
-	__i2c_dw_enable(dev, true);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_enable);
-
-u32 i2c_dw_is_enabled(struct dw_i2c_dev *dev)
-{
-	return dw_readl(dev, DW_IC_ENABLE);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_is_enabled);
 
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
@@ -839,12 +834,6 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_dw_disable);
 
-void i2c_dw_clear_int(struct dw_i2c_dev *dev)
-{
-	dw_readl(dev, DW_IC_CLR_INTR);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_clear_int);
-
 void i2c_dw_disable_int(struct dw_i2c_dev *dev)
 {
 	dw_writel(dev, 0, DW_IC_INTR_MASK);
@@ -856,6 +845,41 @@ u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev)
 	return dw_readl(dev, DW_IC_COMP_PARAM_1);
 }
 EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
+
+int i2c_dw_probe(struct dw_i2c_dev *dev)
+{
+	struct i2c_adapter *adap = &dev->adapter;
+	int r;
+
+	init_completion(&dev->cmd_complete);
+	mutex_init(&dev->lock);
+
+	r = i2c_dw_init(dev);
+	if (r)
+		return r;
+
+	snprintf(adap->name, sizeof(adap->name),
+		 "Synopsys DesignWare I2C adapter");
+	adap->algo = &i2c_dw_algo;
+	adap->dev.parent = dev->dev;
+	i2c_set_adapdata(adap, dev);
+
+	i2c_dw_disable_int(dev);
+	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr, IRQF_SHARED,
+			     dev_name(dev->dev), dev);
+	if (r) {
+		dev_err(dev->dev, "failure requesting irq %i: %d\n",
+			dev->irq, r);
+		return r;
+	}
+
+	r = i2c_add_numbered_adapter(adap);
+	if (r)
+		dev_err(dev->dev, "failure adding adapter: %d\n", r);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_probe);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
 MODULE_LICENSE("GPL");

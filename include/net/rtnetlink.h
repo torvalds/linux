@@ -122,8 +122,10 @@ struct rtnl_af_ops {
 	int			family;
 
 	int			(*fill_link_af)(struct sk_buff *skb,
-						const struct net_device *dev);
-	size_t			(*get_link_af_size)(const struct net_device *dev);
+						const struct net_device *dev,
+						u32 ext_filter_mask);
+	size_t			(*get_link_af_size)(const struct net_device *dev,
+						    u32 ext_filter_mask);
 
 	int			(*validate_link_af)(const struct net_device *dev,
 						    const struct nlattr *attr);

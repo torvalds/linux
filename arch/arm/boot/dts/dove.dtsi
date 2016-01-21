@@ -263,12 +263,13 @@
 			};
 
 			crypto: crypto-engine@30000 {
-				compatible = "marvell,orion-crypto";
-				reg = <0x30000 0x10000>,
-				      <0xffffe000 0x800>;
-				reg-names = "regs", "sram";
+				compatible = "marvell,dove-crypto";
+				reg = <0x30000 0x10000>;
+				reg-names = "regs";
 				interrupts = <31>;
 				clocks = <&gate_clk 15>;
+				marvell,crypto-srams = <&crypto_sram>;
+				marvell,crypto-sram-size = <0x800>;
 				status = "okay";
 			};
 
@@ -766,6 +767,14 @@
 				reg = <0x820000 0x1000>;
 				interrupts = <47>;
 				status = "disabled";
+			};
+
+			crypto_sram: sa-sram@ffffe000 {
+				compatible = "mmio-sram";
+				reg = <0xffffe000 0x800>;
+				clocks = <&gate_clk 15>;
+				#address-cells = <1>;
+				#size-cells = <1>;
 			};
 		};
 	};

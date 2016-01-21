@@ -75,5 +75,6 @@
 #define ANON_INODE_FS_MAGIC	0x09041934
 #define BTRFS_TEST_MAGIC	0x73727279
 #define NSFS_MAGIC		0x6e736673
+#define BPF_FS_MAGIC		0xcafe4a11
 
 #endif /* __LINUX_MAGIC_H__ */

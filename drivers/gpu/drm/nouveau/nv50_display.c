@@ -68,7 +68,6 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 		 const s32 *oclass, u8 head, void *data, u32 size,
 		 struct nv50_chan *chan)
 {
-	const u32 handle = (oclass[0] << 16) | head;
 	struct nvif_sclass *sclass;
 	int ret, i, n;
 
@@ -81,7 +80,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 	while (oclass[0]) {
 		for (i = 0; i < n; i++) {
 			if (sclass[i].oclass == oclass[0]) {
-				ret = nvif_object_init(disp, handle, oclass[0],
+				ret = nvif_object_init(disp, 0, oclass[0],
 						       data, size, &chan->user);
 				if (ret == 0)
 					nvif_object_map(&chan->user);
@@ -231,8 +230,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (!dmac->ptr)
 		return -ENOMEM;
 
-	ret = nvif_object_init(&device->object, 0xd0000000,
-			       NV_DMA_FROM_MEMORY, &(struct nv_dma_v0) {
+	ret = nvif_object_init(&device->object, 0, NV_DMA_FROM_MEMORY,
+			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_PCI_US,
 					.access = NV_DMA_V0_ACCESS_RD,
 					.start = dmac->handle + 0x0000,

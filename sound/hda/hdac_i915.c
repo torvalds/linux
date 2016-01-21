@@ -23,6 +23,19 @@
 
 static struct i915_audio_component *hdac_acomp;
 
+/**
+ * snd_hdac_set_codec_wakeup - Enable / disable HDMI/DP codec wakeup
+ * @bus: HDA core bus
+ * @enable: enable or disable the wakeup
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function should be called during the chip reset, also called at
+ * resume for updating STATESTS register read.
+ *
+ * Returns zero for success or a negative error code.
+ */
 int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 {
 	struct i915_audio_component *acomp = bus->audio_component;
@@ -45,6 +58,19 @@ int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_set_codec_wakeup);
 
+/**
+ * snd_hdac_display_power - Power up / down the power refcount
+ * @bus: HDA core bus
+ * @enable: power up or down
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function manages a refcount and calls the i915 get_power() and
+ * put_power() ops accordingly, toggling the codec wakeup, too.
+ *
+ * Returns zero for success or a negative error code.
+ */
 int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
 {
 	struct i915_audio_component *acomp = bus->audio_component;
@@ -71,6 +97,16 @@ int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_display_power);
 
+/**
+ * snd_hdac_get_display_clk - Get CDCLK in kHz
+ * @bus: HDA core bus
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function queries CDCLK value in kHz from the graphics driver and
+ * returns the value.  A negative code is returned in error.
+ */
 int snd_hdac_get_display_clk(struct hdac_bus *bus)
 {
 	struct i915_audio_component *acomp = bus->audio_component;
@@ -134,6 +170,17 @@ static int hdac_component_master_match(struct device *dev, void *data)
 	return !strcmp(dev->driver->name, "i915");
 }
 
+/**
+ * snd_hdac_i915_register_notifier - Register i915 audio component ops
+ * @aops: i915 audio component ops
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function sets the given ops to be called by the i915 graphics driver.
+ *
+ * Returns zero for success or a negative error code.
+ */
 int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
 {
 	if (WARN_ON(!hdac_acomp))
@@ -144,6 +191,18 @@ int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops 
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_register_notifier);
 
+/**
+ * snd_hdac_i915_init - Initialize i915 audio component
+ * @bus: HDA core bus
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function initializes and sets up the audio component to communicate
+ * with i915 graphics driver.
+ *
+ * Returns zero for success or a negative error code.
+ */
 int snd_hdac_i915_init(struct hdac_bus *bus)
 {
 	struct component_match *match = NULL;
@@ -187,6 +246,17 @@ out_err:
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_init);
 
+/**
+ * snd_hdac_i915_exit - Finalize i915 audio component
+ * @bus: HDA core bus
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function releases the i915 audio component that has been used.
+ *
+ * Returns zero for success or a negative error code.
+ */
 int snd_hdac_i915_exit(struct hdac_bus *bus)
 {
 	struct device *dev = bus->dev;

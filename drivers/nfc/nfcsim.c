@@ -246,7 +246,7 @@ static int nfcsim_activate_target(struct nfc_dev *nfc_dev,
 }
 
 static void nfcsim_deactivate_target(struct nfc_dev *nfc_dev,
-				     struct nfc_target *target)
+				     struct nfc_target *target, u8 mode)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 

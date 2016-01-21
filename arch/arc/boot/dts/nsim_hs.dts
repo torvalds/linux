@@ -11,7 +11,16 @@
 
 / {
 	compatible = "snps,nsim_hs";
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&core_intc>;
+
+	memory {
+		device_type = "memory";
+		/* CONFIG_LINUX_LINK_BASE needs to match low mem start */
+		reg = <0x0 0x80000000 0x0 0x20000000	/* 512 MB low mem */
+		       0x1 0x00000000 0x0 0x40000000>;	/* 1 GB highmem */
+	};
 
 	chosen {
 		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8";
@@ -26,8 +35,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		/* child and parent address space 1:1 mapped */
-		ranges;
+		/* only perip space at end of low mem accessible */
+		ranges = <0x80000000 0x0 0x80000000 0x80000000>;
 
 		core_intc: core-interrupt-controller {
 			compatible = "snps,archs-intc";

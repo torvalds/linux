@@ -40,8 +40,7 @@ static int is_dx_dir(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
-	if (EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
-		     EXT4_FEATURE_COMPAT_DIR_INDEX) &&
+	if (ext4_has_feature_dir_index(inode->i_sb) &&
 	    ((ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) ||
 	     ((inode->i_size >> sb->s_blocksize_bits) == 1) ||
 	     ext4_has_inline_data(inode)))
@@ -621,14 +620,14 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 	while ((char *) de < top) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 buf, buf_size, offset))
-			return -EIO;
+			return -EFSCORRUPTED;
 		nlen = EXT4_DIR_REC_LEN(de->name_len);
 		rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
 		de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
 		offset += rlen;
 	}
 	if ((char *) de > top)
-		return -EIO;
+		return -EFSCORRUPTED;
 
 	return 0;
 }

@@ -174,9 +174,12 @@ mic_fail_no_key:
 	 * a driver that supports HW encryption. Send up the key idx only if
 	 * the key is set.
 	 */
-	mac80211_ev_michael_mic_failure(rx->sdata,
-					rx->key ? rx->key->conf.keyidx : -1,
-					(void *) skb->data, NULL, GFP_ATOMIC);
+	cfg80211_michael_mic_failure(rx->sdata->dev, hdr->addr2,
+				     is_multicast_ether_addr(hdr->addr1) ?
+				     NL80211_KEYTYPE_GROUP :
+				     NL80211_KEYTYPE_PAIRWISE,
+				     rx->key ? rx->key->conf.keyidx : -1,
+				     NULL, GFP_ATOMIC);
 	return RX_DROP_UNUSABLE;
 }
 

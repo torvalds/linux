@@ -138,6 +138,7 @@ static const struct of_device_id rng_match[] = {
 	{ .compatible      = "pasemi,pwrficient-rng", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, rng_match);
 
 static struct platform_driver rng_driver = {
 	.driver = {

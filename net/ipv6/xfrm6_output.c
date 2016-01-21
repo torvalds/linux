@@ -132,7 +132,14 @@ int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 	return xfrm_output(sk, skb);
 }
 
-static int __xfrm6_output(struct sock *sk, struct sk_buff *skb)
+static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	struct xfrm_state *x = skb_dst(skb)->xfrm;
+
+	return x->outer_mode->afinfo->output_finish(sk, skb);
+}
+
+static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct xfrm_state *x = dst->xfrm;
@@ -142,7 +149,7 @@ static int __xfrm6_output(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_NETFILTER
 	if (!x) {
 		IP6CB(skb)->flags |= IP6SKB_REROUTED;
-		return dst_output_sk(sk, skb);
+		return dst_output(net, sk, skb);
 	}
 #endif
 
@@ -165,16 +172,17 @@ static int __xfrm6_output(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (toobig || dst_allfrag(skb_dst(skb)))
-		return ip6_fragment(sk, skb,
-				    x->outer_mode->afinfo->output_finish);
+		return ip6_fragment(net, sk, skb,
+				    __xfrm6_output_finish);
 
 skip_frag:
 	return x->outer_mode->afinfo->output_finish(sk, skb);
 }
 
-int xfrm6_output(struct sock *sk, struct sk_buff *skb)
+int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING, sk, skb,
-			    NULL, skb_dst(skb)->dev, __xfrm6_output,
+	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
+			    net, sk, skb,  NULL, skb_dst(skb)->dev,
+			    __xfrm6_output,
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }

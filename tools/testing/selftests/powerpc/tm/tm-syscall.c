@@ -77,13 +77,23 @@ pid_t getppid_tm(bool suspend)
 	exit(-1);
 }
 
+static inline bool have_htm_nosc(void)
+{
+#ifdef PPC_FEATURE2_HTM_NOSC
+	return ((long)get_auxv_entry(AT_HWCAP2) & PPC_FEATURE2_HTM_NOSC);
+#else
+	printf("PPC_FEATURE2_HTM_NOSC not defined, can't check AT_HWCAP2\n");
+	return false;
+#endif
+}
+
 int tm_syscall(void)
 {
 	unsigned count = 0;
 	struct timeval end, now;
 
-	SKIP_IF(!((long)get_auxv_entry(AT_HWCAP2)
-		  & PPC_FEATURE2_HTM_NOSC));
+	SKIP_IF(!have_htm_nosc());
+
 	setbuf(stdout, NULL);
 
 	printf("Testing transactional syscalls for %d seconds...\n", TEST_DURATION);

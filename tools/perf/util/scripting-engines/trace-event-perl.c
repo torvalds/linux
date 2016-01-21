@@ -221,6 +221,7 @@ static void define_event_symbols(struct event_format *event,
 		break;
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_STRING:
 	case PRINT_BITMASK:
 		break;

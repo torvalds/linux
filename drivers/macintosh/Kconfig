@@ -166,9 +166,8 @@ config INPUT_ADBHID
 	  Say Y here if you want to have ADB (Apple Desktop Bus) HID devices
 	  such as keyboards, mice, joysticks, trackpads  or graphic tablets
 	  handled by the input layer.  If you say Y here, make sure to say Y to
-	  the corresponding drivers "Keyboard support" (CONFIG_INPUT_KEYBDEV),
-	  "Mouse Support" (CONFIG_INPUT_MOUSEDEV) and "Event interface
-	  support" (CONFIG_INPUT_EVDEV) as well.
+	  the corresponding drivers "Mouse Support" (CONFIG_INPUT_MOUSEDEV) and
+	  "Event interface support" (CONFIG_INPUT_EVDEV) as well.
 
 	  If unsure, say Y.
 

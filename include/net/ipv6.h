@@ -205,6 +205,7 @@ extern rwlock_t ip6_ra_lock;
  */
 
 struct ipv6_txoptions {
+	atomic_t		refcnt;
 	/* Length of this structure */
 	int			tot_len;
 
@@ -217,7 +218,7 @@ struct ipv6_txoptions {
 	struct ipv6_opt_hdr	*dst0opt;
 	struct ipv6_rt_hdr	*srcrt;	/* Routing Header */
 	struct ipv6_opt_hdr	*dst1opt;
-
+	struct rcu_head		rcu;
 	/* Option buffer, as read by IPV6_PKTOPTIONS, starts here. */
 };
 
@@ -251,6 +252,24 @@ struct ipv6_fl_socklist {
 	struct ip6_flowlabel		*fl;
 	struct rcu_head			rcu;
 };
+
+static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
+{
+	struct ipv6_txoptions *opt;
+
+	rcu_read_lock();
+	opt = rcu_dereference(np->opt);
+	if (opt && !atomic_inc_not_zero(&opt->refcnt))
+		opt = NULL;
+	rcu_read_unlock();
+	return opt;
+}
+
+static inline void txopt_put(struct ipv6_txoptions *opt)
+{
+	if (opt && atomic_dec_and_test(&opt->refcnt))
+		kfree_rcu(opt, rcu);
+}
 
 struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk, __be32 label);
 struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions *opt_space,
@@ -490,6 +509,7 @@ struct ip6_create_arg {
 	u32 user;
 	const struct in6_addr *src;
 	const struct in6_addr *dst;
+	int iif;
 	u8 ecn;
 };
 
@@ -807,12 +827,12 @@ static inline u8 ip6_tclass(__be32 flowinfo)
 int ipv6_rcv(struct sk_buff *skb, struct net_device *dev,
 	     struct packet_type *pt, struct net_device *orig_dev);
 
-int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb);
+int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 /*
  *	upper-layer output functions
  */
-int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
+int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	     struct ipv6_txoptions *opt, int tclass);
 
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
@@ -849,7 +869,7 @@ static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 
 int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
 		   struct flowi6 *fl6);
-struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
+struct dst_entry *ip6_dst_lookup_flow(const struct sock *sk, struct flowi6 *fl6,
 				      const struct in6_addr *final_dst);
 struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
 					 const struct in6_addr *final_dst);
@@ -860,14 +880,13 @@ struct dst_entry *ip6_blackhole_route(struct net *net,
  *	skb processing functions
  */
 
-int ip6_output(struct sock *sk, struct sk_buff *skb);
+int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip6_forward(struct sk_buff *skb);
 int ip6_input(struct sk_buff *skb);
 int ip6_mc_input(struct sk_buff *skb);
 
-int __ip6_local_out(struct sk_buff *skb);
-int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb);
-int ip6_local_out(struct sk_buff *skb);
+int __ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb);
+int ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 /*
  *	Extension header (options) processing

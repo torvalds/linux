@@ -183,7 +183,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 
 	store->chunk_size = chunk_size;
 	store->chunk_mask = chunk_size - 1;
-	store->chunk_shift = ffs(chunk_size) - 1;
+	store->chunk_shift = __ffs(chunk_size);
 
 	return 0;
 }

@@ -31,7 +31,6 @@
 struct m25p {
 	struct spi_device	*spi;
 	struct spi_nor		spi_nor;
-	struct mtd_info		mtd;
 	u8			command[MAX_CMD_SIZE];
 };
 
@@ -62,8 +61,7 @@ static int m25p_cmdsz(struct spi_nor *nor)
 	return 1 + nor->addr_width;
 }
 
-static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
-			int wr_en)
+static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
@@ -159,7 +157,7 @@ static int m25p80_erase(struct spi_nor *nor, loff_t offset)
 	struct m25p *flash = nor->priv;
 
 	dev_dbg(nor->dev, "%dKiB at 0x%08x\n",
-		flash->mtd.erasesize / 1024, (u32)offset);
+		flash->spi_nor.mtd.erasesize / 1024, (u32)offset);
 
 	/* Set up command buffer. */
 	flash->command[0] = nor->erase_opcode;
@@ -201,11 +199,10 @@ static int m25p_probe(struct spi_device *spi)
 	nor->read_reg = m25p80_read_reg;
 
 	nor->dev = &spi->dev;
-	nor->mtd = &flash->mtd;
+	nor->flash_node = spi->dev.of_node;
 	nor->priv = flash;
 
 	spi_set_drvdata(spi, flash);
-	flash->mtd.priv = nor;
 	flash->spi = spi;
 
 	if (spi->mode & SPI_RX_QUAD)
@@ -214,7 +211,7 @@ static int m25p_probe(struct spi_device *spi)
 		mode = SPI_NOR_DUAL;
 
 	if (data && data->name)
-		flash->mtd.name = data->name;
+		nor->mtd.name = data->name;
 
 	/* For some (historical?) reason many platforms provide two different
 	 * names in flash_platform_data: "name" and "type". Quite often name is
@@ -232,7 +229,7 @@ static int m25p_probe(struct spi_device *spi)
 
 	ppdata.of_node = spi->dev.of_node;
 
-	return mtd_device_parse_register(&flash->mtd, NULL, &ppdata,
+	return mtd_device_parse_register(&nor->mtd, NULL, &ppdata,
 			data ? data->parts : NULL,
 			data ? data->nr_parts : 0);
 }
@@ -243,7 +240,7 @@ static int m25p_remove(struct spi_device *spi)
 	struct m25p	*flash = spi_get_drvdata(spi);
 
 	/* Clean up MTD stuff. */
-	return mtd_device_unregister(&flash->mtd);
+	return mtd_device_unregister(&flash->spi_nor.mtd);
 }
 
 /*
@@ -304,7 +301,6 @@ MODULE_DEVICE_TABLE(of, m25p_of_table);
 static struct spi_driver m25p80_driver = {
 	.driver = {
 		.name	= "m25p80",
-		.owner	= THIS_MODULE,
 		.of_match_table = m25p_of_table,
 	},
 	.id_table	= m25p_ids,

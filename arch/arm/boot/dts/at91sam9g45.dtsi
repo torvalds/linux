@@ -114,7 +114,7 @@
 			};
 
 			pmc: pmc@fffffc00 {
-				compatible = "atmel,at91sam9g45-pmc";
+				compatible = "atmel,at91sam9g45-pmc", "syscon";
 				reg = <0xfffffc00 0x100>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				interrupt-controller;

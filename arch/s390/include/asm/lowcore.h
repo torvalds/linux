@@ -67,7 +67,7 @@ struct _lowcore {
 	__u8	pad_0x00c4[0x00c8-0x00c4];	/* 0x00c4 */
 	__u32	stfl_fac_list;			/* 0x00c8 */
 	__u8	pad_0x00cc[0x00e8-0x00cc];	/* 0x00cc */
-	__u32	mcck_interruption_code[2];	/* 0x00e8 */
+	__u64	mcck_interruption_code;		/* 0x00e8 */
 	__u8	pad_0x00f0[0x00f4-0x00f0];	/* 0x00f0 */
 	__u32	external_damage_code;		/* 0x00f4 */
 	__u64	failing_storage_address;	/* 0x00f8 */
@@ -132,7 +132,14 @@ struct _lowcore {
 	/* Address space pointer. */
 	__u64	kernel_asce;			/* 0x0358 */
 	__u64	user_asce;			/* 0x0360 */
-	__u64	current_pid;			/* 0x0368 */
+
+	/*
+	 * The lpp and current_pid fields form a
+	 * 64-bit value that is set as program
+	 * parameter with the LPP instruction.
+	 */
+	__u32	lpp;				/* 0x0368 */
+	__u32	current_pid;			/* 0x036c */
 
 	/* SMP info area */
 	__u32	cpu_nr;				/* 0x0370 */

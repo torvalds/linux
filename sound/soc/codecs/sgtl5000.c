@@ -189,6 +189,7 @@ static int power_vag_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, SGTL5000_CHIP_ANA_POWER,
 			SGTL5000_VAG_POWERUP, SGTL5000_VAG_POWERUP);
+		msleep(400);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:

@@ -267,7 +267,6 @@ static void pv_wait_head(struct qspinlock *lock, struct mcs_spinlock *node)
 		}
 
 		if (!lp) { /* ONCE */
-			WRITE_ONCE(pn->state, vcpu_hashed);
 			lp = pv_hash(lock, pn);
 
 			/*
@@ -275,11 +274,9 @@ static void pv_wait_head(struct qspinlock *lock, struct mcs_spinlock *node)
 			 * when we observe _Q_SLOW_VAL in __pv_queued_spin_unlock()
 			 * we'll be sure to be able to observe our hash entry.
 			 *
-			 *   [S] pn->state
 			 *   [S] <hash>                 [Rmw] l->locked == _Q_SLOW_VAL
 			 *       MB                           RMB
 			 * [RmW] l->locked = _Q_SLOW_VAL  [L] <unhash>
-			 *                                [L] pn->state
 			 *
 			 * Matches the smp_rmb() in __pv_queued_spin_unlock().
 			 */
@@ -364,8 +361,7 @@ __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 	 * vCPU is harmless other than the additional latency in completing
 	 * the unlock.
 	 */
-	if (READ_ONCE(node->state) == vcpu_hashed)
-		pv_kick(node->cpu);
+	pv_kick(node->cpu);
 }
 /*
  * Include the architecture specific callee-save thunk of the

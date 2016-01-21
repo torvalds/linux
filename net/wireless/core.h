@@ -137,6 +137,7 @@ struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;
 	struct rb_node rbn;
+	u64 ts_boottime;
 	unsigned long ts;
 	unsigned long refcount;
 	atomic_t hold;

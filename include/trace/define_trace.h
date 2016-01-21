@@ -86,7 +86,7 @@
 #undef DECLARE_TRACE
 #define DECLARE_TRACE(name, proto, args)
 
-#ifdef CONFIG_EVENT_TRACING
+#ifdef TRACEPOINTS_ENABLED
 #include <trace/trace_events.h>
 #include <trace/perf.h>
 #endif

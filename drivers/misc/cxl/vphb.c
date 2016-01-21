@@ -290,8 +290,10 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 		return;
 
 	phb = afu->phb;
+	afu->phb = NULL;
 
 	pci_remove_root_bus(phb->bus);
+	pcibios_free_controller(phb);
 }
 
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)

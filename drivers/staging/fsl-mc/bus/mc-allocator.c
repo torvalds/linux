@@ -111,7 +111,7 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 		goto out;
 
 	resource = mc_dev->resource;
-	if (WARN_ON(resource->data != mc_dev))
+	if (WARN_ON(!resource || resource->data != mc_dev))
 		goto out;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
@@ -277,14 +277,14 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
  * portal is allocated from its own MC bus.
  */
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
-					uint16_t mc_io_flags,
+					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io)
 {
 	struct fsl_mc_device *mc_bus_dev;
 	struct fsl_mc_bus *mc_bus;
 	phys_addr_t mc_portal_phys_addr;
 	size_t mc_portal_size;
-	struct fsl_mc_device *mc_adev;
+	struct fsl_mc_device *dpmcp_dev;
 	int error = -EINVAL;
 	struct fsl_mc_resource *resource = NULL;
 	struct fsl_mc_io *mc_io = NULL;
@@ -304,23 +304,23 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (error < 0)
 		return error;
 
-	mc_adev = resource->data;
-	if (WARN_ON(!mc_adev))
+	dpmcp_dev = resource->data;
+	if (WARN_ON(!dpmcp_dev))
 		goto error_cleanup_resource;
 
-	if (WARN_ON(mc_adev->obj_desc.region_count == 0))
+	if (WARN_ON(dpmcp_dev->obj_desc.region_count == 0))
 		goto error_cleanup_resource;
 
-	mc_portal_phys_addr = mc_adev->regions[0].start;
-	mc_portal_size = mc_adev->regions[0].end -
-			 mc_adev->regions[0].start + 1;
+	mc_portal_phys_addr = dpmcp_dev->regions[0].start;
+	mc_portal_size = dpmcp_dev->regions[0].end -
+			 dpmcp_dev->regions[0].start + 1;
 
 	if (WARN_ON(mc_portal_size != mc_bus_dev->mc_io->portal_size))
 		goto error_cleanup_resource;
 
 	error = fsl_create_mc_io(&mc_bus_dev->dev,
 				 mc_portal_phys_addr,
-				 mc_portal_size, resource,
+				 mc_portal_size, dpmcp_dev,
 				 mc_io_flags, &mc_io);
 	if (error < 0)
 		goto error_cleanup_resource;
@@ -342,12 +342,22 @@ EXPORT_SYMBOL_GPL(fsl_mc_portal_allocate);
  */
 void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 {
+	struct fsl_mc_device *dpmcp_dev;
 	struct fsl_mc_resource *resource;
 
-	resource = mc_io->resource;
-	if (WARN_ON(resource->type != FSL_MC_POOL_DPMCP))
+	/*
+	 * Every mc_io obtained by calling fsl_mc_portal_allocate() is supposed
+	 * to have a DPMCP object associated with.
+	 */
+	dpmcp_dev = mc_io->dpmcp_dev;
+	if (WARN_ON(!dpmcp_dev))
 		return;
-	if (WARN_ON(!resource->data))
+
+	resource = dpmcp_dev->resource;
+	if (WARN_ON(!resource || resource->type != FSL_MC_POOL_DPMCP))
+		return;
+
+	if (WARN_ON(resource->data != dpmcp_dev))
 		return;
 
 	fsl_destroy_mc_io(mc_io);
@@ -363,31 +373,14 @@ EXPORT_SYMBOL_GPL(fsl_mc_portal_free);
 int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
 {
 	int error;
-	uint16_t token;
-	struct fsl_mc_resource *resource = mc_io->resource;
-	struct fsl_mc_device *mc_dev = resource->data;
+	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
 
-	if (WARN_ON(resource->type != FSL_MC_POOL_DPMCP))
+	if (WARN_ON(!dpmcp_dev))
 		return -EINVAL;
 
-	if (WARN_ON(!mc_dev))
-		return -EINVAL;
-
-	error = dpmcp_open(mc_io, mc_dev->obj_desc.id, &token);
+	error = dpmcp_reset(mc_io, 0, dpmcp_dev->mc_handle);
 	if (error < 0) {
-		dev_err(&mc_dev->dev, "dpmcp_open() failed: %d\n", error);
-		return error;
-	}
-
-	error = dpmcp_reset(mc_io, token);
-	if (error < 0) {
-		dev_err(&mc_dev->dev, "dpmcp_reset() failed: %d\n", error);
-		return error;
-	}
-
-	error = dpmcp_close(mc_io, token);
-	if (error < 0) {
-		dev_err(&mc_dev->dev, "dpmcp_close() failed: %d\n", error);
+		dev_err(&dpmcp_dev->dev, "dpmcp_reset() failed: %d\n", error);
 		return error;
 	}
 
@@ -481,30 +474,27 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	enum fsl_mc_pool_type pool_type;
 	struct fsl_mc_device *mc_bus_dev;
 	struct fsl_mc_bus *mc_bus;
-	int error = -EINVAL;
+	int error;
 
 	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
-		goto error;
+		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
 	if (WARN_ON(mc_bus_dev->dev.bus != &fsl_mc_bus_type))
-		goto error;
+		return -EINVAL;
 
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	error = object_type_to_pool_type(mc_dev->obj_desc.type, &pool_type);
 	if (error < 0)
-		goto error;
+		return error;
 
 	error = fsl_mc_resource_pool_add_device(mc_bus, pool_type, mc_dev);
 	if (error < 0)
-		goto error;
+		return error;
 
-	dev_info(&mc_dev->dev,
-		 "Allocatable MC object device bound to fsl_mc_allocator driver");
+	dev_dbg(&mc_dev->dev,
+		"Allocatable MC object device bound to fsl_mc_allocator driver");
 	return 0;
-error:
-
-	return error;
 }
 
 /**
@@ -513,20 +503,20 @@ error:
  */
 static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
-	int error = -EINVAL;
+	int error;
 
 	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
-		goto out;
+		return -EINVAL;
 
-	error = fsl_mc_resource_pool_remove_device(mc_dev);
-	if (error < 0)
-		goto out;
+	if (mc_dev->resource) {
+		error = fsl_mc_resource_pool_remove_device(mc_dev);
+		if (error < 0)
+			return error;
+	}
 
-	dev_info(&mc_dev->dev,
-		 "Allocatable MC object device unbound from fsl_mc_allocator driver");
-	error = 0;
-out:
-	return error;
+	dev_dbg(&mc_dev->dev,
+		"Allocatable MC object device unbound from fsl_mc_allocator driver");
+	return 0;
 }
 
 static const struct fsl_mc_device_match_id match_id_table[] = {

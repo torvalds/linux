@@ -415,7 +415,7 @@ typedef struct ieee_param {
 /* QOS control */
 #define IEEE80211_QCTL_TID              0x000F
 
-#define	FC_QOS_BIT					BIT7
+#define	FC_QOS_BIT					BIT(7)
 #define IsDataFrame(pdu)			( ((pdu[0] & 0x0C)==0x08) ? true : false )
 #define	IsLegacyDataFrame(pdu)	(IsDataFrame(pdu) && (!(pdu[0]&FC_QOS_BIT)) )
 //added by wb. Is this right?
@@ -1565,10 +1565,10 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 } RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
-#define RF_CHANGE_BY_SW BIT31
-#define RF_CHANGE_BY_HW BIT30
-#define RF_CHANGE_BY_PS BIT29
-#define RF_CHANGE_BY_IPS BIT28
+#define RF_CHANGE_BY_SW		BIT(31)
+#define RF_CHANGE_BY_HW		BIT(30)
+#define RF_CHANGE_BY_PS		BIT(29)
+#define RF_CHANGE_BY_IPS	BIT(28)
 #define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
 
 typedef enum

@@ -25,7 +25,7 @@
 unsigned long xen_get_swiotlb_free_pages(unsigned int order)
 {
 	struct memblock_region *reg;
-	gfp_t flags = __GFP_NOWARN;
+	gfp_t flags = __GFP_NOWARN|__GFP_KSWAPD_RECLAIM;
 
 	for_each_memblock(memory, reg) {
 		if (reg->base < (phys_addr_t)0xffffffff) {
@@ -48,22 +48,22 @@ static void dma_cache_maint(dma_addr_t handle, unsigned long offset,
 	size_t size, enum dma_data_direction dir, enum dma_cache_op op)
 {
 	struct gnttab_cache_flush cflush;
-	unsigned long pfn;
+	unsigned long xen_pfn;
 	size_t left = size;
 
-	pfn = (handle >> PAGE_SHIFT) + offset / PAGE_SIZE;
-	offset %= PAGE_SIZE;
+	xen_pfn = (handle >> XEN_PAGE_SHIFT) + offset / XEN_PAGE_SIZE;
+	offset %= XEN_PAGE_SIZE;
 
 	do {
 		size_t len = left;
 	
 		/* buffers in highmem or foreign pages cannot cross page
 		 * boundaries */
-		if (len + offset > PAGE_SIZE)
-			len = PAGE_SIZE - offset;
+		if (len + offset > XEN_PAGE_SIZE)
+			len = XEN_PAGE_SIZE - offset;
 
 		cflush.op = 0;
-		cflush.a.dev_bus_addr = pfn << PAGE_SHIFT;
+		cflush.a.dev_bus_addr = xen_pfn << XEN_PAGE_SHIFT;
 		cflush.offset = offset;
 		cflush.length = len;
 
@@ -79,7 +79,7 @@ static void dma_cache_maint(dma_addr_t handle, unsigned long offset,
 			HYPERVISOR_grant_table_op(GNTTABOP_cache_flush, &cflush, 1);
 
 		offset = 0;
-		pfn++;
+		xen_pfn++;
 		left -= len;
 	} while (left);
 }
@@ -138,10 +138,29 @@ void __xen_dma_sync_single_for_device(struct device *hwdev,
 }
 
 bool xen_arch_need_swiotlb(struct device *dev,
-			   unsigned long pfn,
-			   unsigned long bfn)
+			   phys_addr_t phys,
+			   dma_addr_t dev_addr)
 {
-	return (!hypercall_cflush && (pfn != bfn) && !is_device_dma_coherent(dev));
+	unsigned int xen_pfn = XEN_PFN_DOWN(phys);
+	unsigned int bfn = XEN_PFN_DOWN(dev_addr);
+
+	/*
+	 * The swiotlb buffer should be used if
+	 *	- Xen doesn't have the cache flush hypercall
+	 *	- The Linux page refers to foreign memory
+	 *	- The device doesn't support coherent DMA request
+	 *
+	 * The Linux page may be spanned acrros multiple Xen page, although
+	 * it's not possible to have a mix of local and foreign Xen page.
+	 * Furthermore, range_straddles_page_boundary is already checking
+	 * if buffer is physically contiguous in the host RAM.
+	 *
+	 * Therefore we only need to check the first Xen page to know if we
+	 * require a bounce buffer because the device doesn't support coherent
+	 * memory and we are not able to flush the cache.
+	 */
+	return (!hypercall_cflush && (xen_pfn != bfn) &&
+		!is_device_dma_coherent(dev));
 }
 
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,

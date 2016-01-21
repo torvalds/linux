@@ -95,6 +95,9 @@ EXPORT_SYMBOL(drm_platform_set_busid);
  * subsystem, initializing a drm_device structure and calling the driver's
  * .load() function.
  *
+ * NOTE: This function is deprecated, please use drm_dev_alloc() and
+ * drm_dev_register() instead and remove your ->load() callback.
+ *
  * Return: 0 on success or a negative error code on failure.
  */
 int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device)

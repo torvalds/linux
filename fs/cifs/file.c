@@ -1553,7 +1553,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 
 out:
 	if (flock->fl_flags & FL_POSIX && !rc)
-		rc = posix_lock_file_wait(file, flock);
+		rc = locks_lock_file_wait(file, flock);
 	return rc;
 }
 
@@ -3380,7 +3380,7 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 	struct page *page, *tpage;
 	unsigned int expected_index;
 	int rc;
-	gfp_t gfp = GFP_KERNEL & mapping_gfp_mask(mapping);
+	gfp_t gfp = mapping_gfp_constraint(mapping, GFP_KERNEL);
 
 	INIT_LIST_HEAD(tmplist);
 

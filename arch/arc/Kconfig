@@ -76,6 +76,10 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	def_bool y
+	depends on ARC_MMU_V4
+
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
@@ -190,6 +194,16 @@ config NR_CPUS
 	range 2 4096
 	default "4"
 
+config ARC_SMP_HALT_ON_RESET
+	bool "Enable Halt-on-reset boot mode"
+	default y if ARC_UBOOT_SUPPORT
+	help
+	  In SMP configuration cores can be configured as Halt-on-reset
+	  or they could all start at same time. For Halt-on-reset, non
+	  masters are parked until Master kicks them so they can start of
+	  at designated entry point. For other case, all jump to common
+	  entry point and spin wait for Master's signal.
+
 endif	#SMP
 
 menuconfig ARC_CACHE
@@ -278,6 +292,8 @@ choice
 	default ARC_MMU_V2 if ARC_CPU_750D
 	default ARC_MMU_V4 if ARC_CPU_HS
 
+if ISA_ARCOMPACT
+
 config ARC_MMU_V1
 	bool "MMU v1"
 	help
@@ -296,6 +312,8 @@ config ARC_MMU_V3
 	  Introduced with ARC700 4.10: New Features
 	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
 	  Shared Address Spaces (SASID)
+
+endif
 
 config ARC_MMU_V4
 	bool "MMU v4"
@@ -427,6 +445,29 @@ config LINUX_LINK_BASE
 	  However some customers have peripherals mapped at this addr, so
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
+	  This needs to match memory start address specified in Device Tree
+
+config HIGHMEM
+	bool "High Memory Support"
+	help
+	  With ARC 2G:2G address split, only upper 2G is directly addressable by
+	  kernel. Enable this to potentially allow access to rest of 2G and PAE
+	  in future
+
+config ARC_HAS_PAE40
+	bool "Support for the 40-bit Physical Address Extension"
+	default n
+	depends on ISA_ARCV2
+	select HIGHMEM
+	help
+	  Enable access to physical memory beyond 4G, only supported on
+	  ARC cores with 40 bit Physical Addressing support
+
+config ARCH_PHYS_ADDR_T_64BIT
+	def_bool ARC_HAS_PAE40
+
+config ARCH_DMA_ADDR_T_64BIT
+	bool
 
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"

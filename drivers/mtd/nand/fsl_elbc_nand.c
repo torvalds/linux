@@ -715,7 +715,7 @@ static int fsl_elbc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
  * waitfunc.
  */
 static int fsl_elbc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required)
+				const uint8_t *buf, int oob_required, int page)
 {
 	fsl_elbc_write_buf(mtd, buf, mtd->writesize);
 	fsl_elbc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -728,7 +728,7 @@ static int fsl_elbc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
  */
 static int fsl_elbc_write_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 				uint32_t offset, uint32_t data_len,
-				const uint8_t *buf, int oob_required)
+				const uint8_t *buf, int oob_required, int page)
 {
 	fsl_elbc_write_buf(mtd, buf, mtd->writesize);
 	fsl_elbc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -747,7 +747,7 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 
 	/* Fill in fsl_elbc_mtd structure */
 	priv->mtd.priv = chip;
-	priv->mtd.owner = THIS_MODULE;
+	priv->mtd.dev.parent = priv->dev;
 
 	/* set timeout to maximum */
 	priv->fmr = 15 << FMR_CWTO_SHIFT;
@@ -946,6 +946,7 @@ static const struct of_device_id fsl_elbc_nand_match[] = {
 	{ .compatible = "fsl,elbc-fcm-nand", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, fsl_elbc_nand_match);
 
 static struct platform_driver fsl_elbc_nand_driver = {
 	.driver = {

@@ -25,7 +25,6 @@
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 
 #include <asm/microcode_intel.h>
 #include <asm/processor.h>

@@ -2263,7 +2263,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 }
 
 static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
-				    struct nfc_target *target)
+				    struct nfc_target *target, u8 mode)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct sk_buff *skb;

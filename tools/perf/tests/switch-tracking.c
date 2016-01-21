@@ -366,7 +366,7 @@ int test__switch_tracking(void)
 
 	/* Third event */
 	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
-		fprintf(stderr, " (no sched_switch)");
+		pr_debug("No sched_switch\n");
 		err = 0;
 		goto out;
 	}
@@ -442,7 +442,7 @@ int test__switch_tracking(void)
 	}
 
 	if (perf_evlist__open(evlist) < 0) {
-		fprintf(stderr, " (not supported)");
+		pr_debug("Not supported\n");
 		err = 0;
 		goto out;
 	}

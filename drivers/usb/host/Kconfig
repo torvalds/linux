@@ -348,16 +348,6 @@ config USB_ISP1362_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1362-hcd.
 
-config USB_FUSBH200_HCD
-	tristate "FUSBH200 HCD support"
-	depends on USB
-	---help---
-	Faraday FUSBH200 is designed to meet USB2.0 EHCI specification
-	with minor modification.
-
-	To compile this driver as a module, choose M here: the
-	module will be called fusbh200-hcd.
-
 config USB_FOTG210_HCD
 	tristate "FOTG210 HCD support"
 	depends on USB

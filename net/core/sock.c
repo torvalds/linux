@@ -422,13 +422,23 @@ static void sock_warn_obsolete_bsdism(const char *name)
 	}
 }
 
-#define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
+static bool sock_needs_netstamp(const struct sock *sk)
+{
+	switch (sk->sk_family) {
+	case AF_UNSPEC:
+	case AF_UNIX:
+		return false;
+	default:
+		return true;
+	}
+}
 
 static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
 {
 	if (sk->sk_flags & flags) {
 		sk->sk_flags &= ~flags;
-		if (!(sk->sk_flags & SK_FLAGS_TIMESTAMP))
+		if (sock_needs_netstamp(sk) &&
+		    !(sk->sk_flags & SK_FLAGS_TIMESTAMP))
 			net_disable_timestamp();
 	}
 }
@@ -862,7 +872,8 @@ set_rcvbuf:
 
 		if (val & SOF_TIMESTAMPING_OPT_ID &&
 		    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)) {
-			if (sk->sk_protocol == IPPROTO_TCP) {
+			if (sk->sk_protocol == IPPROTO_TCP &&
+			    sk->sk_type == SOCK_STREAM) {
 				if (sk->sk_state != TCP_ESTABLISHED) {
 					ret = -EINVAL;
 					break;
@@ -986,6 +997,10 @@ set_rcvbuf:
 		sk->sk_max_pacing_rate = val;
 		sk->sk_pacing_rate = min(sk->sk_pacing_rate,
 					 sk->sk_max_pacing_rate);
+		break;
+
+	case SO_INCOMING_CPU:
+		sk->sk_incoming_cpu = val;
 		break;
 
 	default:
@@ -1514,7 +1529,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		skb_queue_head_init(&newsk->sk_receive_queue);
 		skb_queue_head_init(&newsk->sk_write_queue);
 
-		spin_lock_init(&newsk->sk_dst_lock);
 		rwlock_init(&newsk->sk_callback_lock);
 		lockdep_set_class_and_name(&newsk->sk_callback_lock,
 				af_callback_keys + newsk->sk_family,
@@ -1537,7 +1551,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 			 */
 			is_charged = sk_filter_charge(newsk, filter);
 
-		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk))) {
+		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk, sk))) {
 			/* It is still raw copy of parent, so invalidate
 			 * destructor and make plain sk_free() */
 			newsk->sk_destruct = NULL;
@@ -1578,7 +1592,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		if (newsk->sk_prot->sockets_allocated)
 			sk_sockets_allocated_inc(newsk);
 
-		if (newsk->sk_flags & SK_FLAGS_TIMESTAMP)
+		if (sock_needs_netstamp(sk) &&
+		    newsk->sk_flags & SK_FLAGS_TIMESTAMP)
 			net_enable_timestamp();
 	}
 out:
@@ -1590,7 +1605,7 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
 	u32 max_segs = 1;
 
-	__sk_dst_set(sk, dst);
+	sk_dst_set(sk, dst);
 	sk->sk_route_caps = dst->dev->features;
 	if (sk->sk_route_caps & NETIF_F_GSO)
 		sk->sk_route_caps |= NETIF_F_GSO_SOFTWARE;
@@ -1638,6 +1653,28 @@ void sock_wfree(struct sk_buff *skb)
 		__sk_free(sk);
 }
 EXPORT_SYMBOL(sock_wfree);
+
+void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
+{
+	skb_orphan(skb);
+	skb->sk = sk;
+#ifdef CONFIG_INET
+	if (unlikely(!sk_fullsock(sk))) {
+		skb->destructor = sock_edemux;
+		sock_hold(sk);
+		return;
+	}
+#endif
+	skb->destructor = sock_wfree;
+	skb_set_hash_from_sk(skb, sk);
+	/*
+	 * We used to take a refcount on sk, but following operation
+	 * is enough to guarantee sk_free() wont free this sock until
+	 * all in-flight packets are completed
+	 */
+	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
+}
+EXPORT_SYMBOL(skb_set_owner_w);
 
 void skb_orphan_partial(struct sk_buff *skb)
 {
@@ -1776,7 +1813,7 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 {
 	DEFINE_WAIT(wait);
 
-	clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 	for (;;) {
 		if (!timeo)
 			break;
@@ -1822,7 +1859,7 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 		if (sk_wmem_alloc_get(sk) < sk->sk_sndbuf)
 			break;
 
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		err = -EAGAIN;
 		if (!timeo)
@@ -1852,6 +1889,32 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 }
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
+int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
+		   struct sockcm_cookie *sockc)
+{
+	struct cmsghdr *cmsg;
+
+	for_each_cmsghdr(cmsg, msg) {
+		if (!CMSG_OK(msg, cmsg))
+			return -EINVAL;
+		if (cmsg->cmsg_level != SOL_SOCKET)
+			continue;
+		switch (cmsg->cmsg_type) {
+		case SO_MARK:
+			if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+				return -EPERM;
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+				return -EINVAL;
+			sockc->mark = *(u32 *)CMSG_DATA(cmsg);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(sock_cmsg_send);
+
 /* On 32bit arches, an skb frag is limited to 2^15 */
 #define SKB_FRAG_PAGE_ORDER	get_order(32768)
 
@@ -1879,8 +1942,10 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
 
 	pfrag->offset = 0;
 	if (SKB_FRAG_PAGE_ORDER) {
-		pfrag->page = alloc_pages((gfp & ~__GFP_WAIT) | __GFP_COMP |
-					  __GFP_NOWARN | __GFP_NORETRY,
+		/* Avoid direct reclaim but allow kswapd to wake */
+		pfrag->page = alloc_pages((gfp & ~__GFP_DIRECT_RECLAIM) |
+					  __GFP_COMP | __GFP_NOWARN |
+					  __GFP_NORETRY,
 					  SKB_FRAG_PAGE_ORDER);
 		if (likely(pfrag->page)) {
 			pfrag->size = PAGE_SIZE << SKB_FRAG_PAGE_ORDER;
@@ -1981,9 +2046,9 @@ int sk_wait_data(struct sock *sk, long *timeo, const struct sk_buff *skb)
 	DEFINE_WAIT(wait);
 
 	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	rc = sk_wait_event(sk, timeo, skb_peek_tail(&sk->sk_receive_queue) != skb);
-	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	finish_wait(sk_sleep(sk), &wait);
 	return rc;
 }
@@ -2321,7 +2386,6 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	} else
 		sk->sk_wq	=	NULL;
 
-	spin_lock_init(&sk->sk_dst_lock);
 	rwlock_init(&sk->sk_callback_lock);
 	lockdep_set_class_and_name(&sk->sk_callback_lock,
 			af_callback_keys + sk->sk_family,
@@ -2353,6 +2417,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_max_pacing_rate = ~0U;
 	sk->sk_pacing_rate = ~0U;
+	sk->sk_incoming_cpu = -1;
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
 	 * (Documentation/RCU/rculist_nulls.txt for details)
@@ -2479,7 +2544,8 @@ void sock_enable_timestamp(struct sock *sk, int flag)
 		 * time stamping, but time stamping might have been on
 		 * already because of the other one
 		 */
-		if (!(previous_flags & SK_FLAGS_TIMESTAMP))
+		if (sock_needs_netstamp(sk) &&
+		    !(previous_flags & SK_FLAGS_TIMESTAMP))
 			net_enable_timestamp();
 	}
 }
@@ -2758,7 +2824,7 @@ static int req_prot_init(const struct proto *prot)
 
 	rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
 					   rsk_prot->obj_size, 0,
-					   0, NULL);
+					   prot->slab_flags, NULL);
 
 	if (!rsk_prot->slab) {
 		pr_crit("%s: Can't create request sock SLAB cache!\n",

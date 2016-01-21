@@ -711,6 +711,7 @@ static const struct of_device_id moxart_mmc_match[] = {
 	{ .compatible = "faraday,ftsdc010" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, moxart_mmc_match);
 
 static struct platform_driver moxart_mmc_driver = {
 	.probe      = moxart_probe,

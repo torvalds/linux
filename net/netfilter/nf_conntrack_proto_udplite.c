@@ -48,6 +48,7 @@ static inline struct udplite_net *udplite_pernet(struct net *net)
 
 static bool udplite_pkt_to_tuple(const struct sk_buff *skb,
 				 unsigned int dataoff,
+				 struct net *net,
 				 struct nf_conntrack_tuple *tuple)
 {
 	const struct udphdr *hp;

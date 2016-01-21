@@ -591,8 +591,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	if (trace_thermal_power_cpu_get_power_enabled()) {
 		u32 ncpus = cpumask_weight(&cpufreq_device->allowed_cpus);
 
-		load_cpu = devm_kcalloc(&cdev->device, ncpus, sizeof(*load_cpu),
-					GFP_KERNEL);
+		load_cpu = kcalloc(ncpus, sizeof(*load_cpu), GFP_KERNEL);
 	}
 
 	for_each_cpu(cpu, &cpufreq_device->allowed_cpus) {
@@ -615,8 +614,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	dynamic_power = get_dynamic_power(cpufreq_device, freq);
 	ret = get_static_power(cpufreq_device, tz, freq, &static_power);
 	if (ret) {
-		if (load_cpu)
-			devm_kfree(&cdev->device, load_cpu);
+		kfree(load_cpu);
 		return ret;
 	}
 
@@ -625,7 +623,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 			&cpufreq_device->allowed_cpus,
 			freq, load_cpu, i, dynamic_power, static_power);
 
-		devm_kfree(&cdev->device, load_cpu);
+		kfree(load_cpu);
 	}
 
 	*power = static_power + dynamic_power;

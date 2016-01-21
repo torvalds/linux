@@ -138,7 +138,8 @@ at91_clk_register_system(struct at91_pmc *pmc, const char *name,
 
 	clk = clk_register(NULL, &sys->hw);
 	if (IS_ERR(clk)) {
-		free_irq(sys->irq, sys);
+		if (irq)
+			free_irq(sys->irq, sys);
 		kfree(sys);
 	}
 

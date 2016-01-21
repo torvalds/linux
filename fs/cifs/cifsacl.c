@@ -58,16 +58,15 @@ cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 	 * dereference payload.data!
 	 */
 	if (prep->datalen <= sizeof(key->payload)) {
-		key->payload.value = 0;
-		memcpy(&key->payload.value, prep->data, prep->datalen);
-		key->datalen = prep->datalen;
-		return 0;
+		key->payload.data[0] = NULL;
+		memcpy(&key->payload, prep->data, prep->datalen);
+	} else {
+		payload = kmemdup(prep->data, prep->datalen, GFP_KERNEL);
+		if (!payload)
+			return -ENOMEM;
+		key->payload.data[0] = payload;
 	}
-	payload = kmemdup(prep->data, prep->datalen, GFP_KERNEL);
-	if (!payload)
-		return -ENOMEM;
 
-	key->payload.data = payload;
 	key->datalen = prep->datalen;
 	return 0;
 }
@@ -76,7 +75,7 @@ static inline void
 cifs_idmap_key_destroy(struct key *key)
 {
 	if (key->datalen > sizeof(key->payload))
-		kfree(key->payload.data);
+		kfree(key->payload.data[0]);
 }
 
 static struct key_type cifs_idmap_key_type = {
@@ -233,8 +232,8 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 	 * it could be.
 	 */
 	ksid = sidkey->datalen <= sizeof(sidkey->payload) ?
-		(struct cifs_sid *)&sidkey->payload.value :
-		(struct cifs_sid *)sidkey->payload.data;
+		(struct cifs_sid *)&sidkey->payload :
+		(struct cifs_sid *)sidkey->payload.data[0];
 
 	ksid_size = CIFS_SID_BASE_SIZE + (ksid->num_subauth * sizeof(__le32));
 	if (ksid_size > sidkey->datalen) {
@@ -307,14 +306,14 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	if (sidtype == SIDOWNER) {
 		kuid_t uid;
 		uid_t id;
-		memcpy(&id, &sidkey->payload.value, sizeof(uid_t));
+		memcpy(&id, &sidkey->payload.data[0], sizeof(uid_t));
 		uid = make_kuid(&init_user_ns, id);
 		if (uid_valid(uid))
 			fuid = uid;
 	} else {
 		kgid_t gid;
 		gid_t id;
-		memcpy(&id, &sidkey->payload.value, sizeof(gid_t));
+		memcpy(&id, &sidkey->payload.data[0], sizeof(gid_t));
 		gid = make_kgid(&init_user_ns, id);
 		if (gid_valid(gid))
 			fgid = gid;

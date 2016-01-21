@@ -29,8 +29,11 @@ static bool			no_callchain;
 static bool			latency_format;
 static bool			system_wide;
 static bool			print_flags;
+static bool			nanosecs;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+
+unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
@@ -48,6 +51,8 @@ enum perf_output_field {
 	PERF_OUTPUT_SRCLINE         = 1U << 12,
 	PERF_OUTPUT_PERIOD          = 1U << 13,
 	PERF_OUTPUT_IREGS	    = 1U << 14,
+	PERF_OUTPUT_BRSTACK	    = 1U << 15,
+	PERF_OUTPUT_BRSTACKSYM	    = 1U << 16,
 };
 
 struct output_option {
@@ -69,6 +74,8 @@ struct output_option {
 	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
 	{.str = "period", .field = PERF_OUTPUT_PERIOD},
 	{.str = "iregs", .field = PERF_OUTPUT_IREGS},
+	{.str = "brstack", .field = PERF_OUTPUT_BRSTACK},
+	{.str = "brstacksym", .field = PERF_OUTPUT_BRSTACKSYM},
 };
 
 /* default set to maintain compatibility with current format */
@@ -415,9 +422,83 @@ static void print_sample_start(struct perf_sample *sample,
 		secs = nsecs / NSECS_PER_SEC;
 		nsecs -= secs * NSECS_PER_SEC;
 		usecs = nsecs / NSECS_PER_USEC;
-		printf("%5lu.%06lu: ", secs, usecs);
+		if (nanosecs)
+			printf("%5lu.%09llu: ", secs, nsecs);
+		else
+			printf("%5lu.%06lu: ", secs, usecs);
 	}
 }
+
+static inline char
+mispred_str(struct branch_entry *br)
+{
+	if (!(br->flags.mispred  || br->flags.predicted))
+		return '-';
+
+	return br->flags.predicted ? 'P' : 'M';
+}
+
+static void print_sample_brstack(union perf_event *event __maybe_unused,
+			  struct perf_sample *sample,
+			  struct thread *thread __maybe_unused,
+			  struct perf_event_attr *attr __maybe_unused)
+{
+	struct branch_stack *br = sample->branch_stack;
+	u64 i;
+
+	if (!(br && br->nr))
+		return;
+
+	for (i = 0; i < br->nr; i++) {
+		printf(" 0x%"PRIx64"/0x%"PRIx64"/%c/%c/%c/%d ",
+			br->entries[i].from,
+			br->entries[i].to,
+			mispred_str( br->entries + i),
+			br->entries[i].flags.in_tx? 'X' : '-',
+			br->entries[i].flags.abort? 'A' : '-',
+			br->entries[i].flags.cycles);
+	}
+}
+
+static void print_sample_brstacksym(union perf_event *event __maybe_unused,
+			  struct perf_sample *sample,
+			  struct thread *thread __maybe_unused,
+			  struct perf_event_attr *attr __maybe_unused)
+{
+	struct branch_stack *br = sample->branch_stack;
+	struct addr_location alf, alt;
+	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	u64 i, from, to;
+
+	if (!(br && br->nr))
+		return;
+
+	for (i = 0; i < br->nr; i++) {
+
+		memset(&alf, 0, sizeof(alf));
+		memset(&alt, 0, sizeof(alt));
+		from = br->entries[i].from;
+		to   = br->entries[i].to;
+
+		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, from, &alf);
+		if (alf.map)
+			alf.sym = map__find_symbol(alf.map, alf.addr, NULL);
+
+		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, to, &alt);
+		if (alt.map)
+			alt.sym = map__find_symbol(alt.map, alt.addr, NULL);
+
+		symbol__fprintf_symname_offs(alf.sym, &alf, stdout);
+		putchar('/');
+		symbol__fprintf_symname_offs(alt.sym, &alt, stdout);
+		printf("/%c/%c/%c/%d ",
+			mispred_str( br->entries + i),
+			br->entries[i].flags.in_tx? 'X' : '-',
+			br->entries[i].flags.abort? 'A' : '-',
+			br->entries[i].flags.cycles);
+	}
+}
+
 
 static void print_sample_addr(union perf_event *event,
 			  struct perf_sample *sample,
@@ -471,7 +552,7 @@ static void print_sample_bts(union perf_event *event,
 			}
 		}
 		perf_evsel__print_ip(evsel, sample, al, print_opts,
-				     PERF_MAX_STACK_DEPTH);
+				     scripting_max_stack);
 	}
 
 	/* print branch_to information */
@@ -548,11 +629,16 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 
 		perf_evsel__print_ip(evsel, sample, al,
 				     output[attr->type].print_ip_opts,
-				     PERF_MAX_STACK_DEPTH);
+				     scripting_max_stack);
 	}
 
 	if (PRINT_FIELD(IREGS))
 		print_sample_iregs(event, sample, thread, attr);
+
+	if (PRINT_FIELD(BRSTACK))
+		print_sample_brstack(event, sample, thread, attr);
+	else if (PRINT_FIELD(BRSTACKSYM))
+		print_sample_brstacksym(event, sample, thread, attr);
 
 	printf("\n");
 }
@@ -680,7 +766,10 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 
 	set_print_ip_opts(&evsel->attr);
 
-	return perf_evsel__check_attr(evsel, scr->session);
+	if (evsel->attr.sample_type)
+		err = perf_evsel__check_attr(evsel, scr->session);
+
+	return err;
 }
 
 static int process_comm_event(struct perf_tool *tool,
@@ -1672,7 +1761,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff,period,iregs,flags", parse_output_fields),
+		     "addr,symoff,period,iregs,brstack,brstacksym,flags", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
@@ -1695,6 +1784,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('\0', "show-switch-events", &script.show_switch_events,
 		    "Show context switch events (if recorded)"),
 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_BOOLEAN(0, "ns", &nanosecs,
+		    "Use 9 decimal places when displaying time"),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options",
 			    itrace_parse_synth_opts),
@@ -1740,6 +1831,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 	}
 
+	if (itrace_synth_opts.callchain &&
+	    itrace_synth_opts.callchain_sz > scripting_max_stack)
+		scripting_max_stack = itrace_synth_opts.callchain_sz;
+
 	/* make sure PERF_EXEC_PATH is set for scripts */
 	perf_set_argv_exec_path(perf_exec_path());
 
@@ -1752,9 +1847,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		rep_script_path = get_script_path(argv[0], REPORT_SUFFIX);
 
 		if (!rec_script_path && !rep_script_path) {
-			fprintf(stderr, " Couldn't find script %s\n\n See perf"
+			usage_with_options_msg(script_usage, options,
+				"Couldn't find script `%s'\n\n See perf"
 				" script -l for available scripts.\n", argv[0]);
-			usage_with_options(script_usage, options);
 		}
 
 		if (is_top_script(argv[0])) {
@@ -1765,10 +1860,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			rep_args = has_required_arg(rep_script_path);
 			rec_args = (argc - 1) - rep_args;
 			if (rec_args < 0) {
-				fprintf(stderr, " %s script requires options."
+				usage_with_options_msg(script_usage, options,
+					"`%s' script requires options."
 					"\n\n See perf script -l for available "
 					"scripts and options.\n", argv[0]);
-				usage_with_options(script_usage, options);
 			}
 		}
 

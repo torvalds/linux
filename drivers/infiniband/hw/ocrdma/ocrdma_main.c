@@ -63,8 +63,6 @@ MODULE_DESCRIPTION(OCRDMA_ROCE_DRV_DESC " " OCRDMA_ROCE_DRV_VERSION);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static LIST_HEAD(ocrdma_dev_list);
-static DEFINE_SPINLOCK(ocrdma_devlist_lock);
 static DEFINE_IDR(ocrdma_dev_id);
 
 void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
@@ -182,8 +180,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
 
 	dev->ibdev.alloc_mr = ocrdma_alloc_mr;
-	dev->ibdev.alloc_fast_reg_page_list = ocrdma_alloc_frmr_page_list;
-	dev->ibdev.free_fast_reg_page_list = ocrdma_free_frmr_page_list;
+	dev->ibdev.map_mr_sg = ocrdma_map_mr_sg;
 
 	/* mandatory to support user space verbs consumer. */
 	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;
@@ -293,6 +290,7 @@ static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
 static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 {
 	int status = 0, i;
+	u8 lstate = 0;
 	struct ocrdma_dev *dev;
 
 	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
@@ -322,12 +320,14 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	if (status)
 		goto alloc_err;
 
+	/* Query Link state and update */
+	status = ocrdma_mbx_get_link_speed(dev, NULL, &lstate);
+	if (!status)
+		ocrdma_update_link_state(dev, lstate);
+
 	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
 		if (device_create_file(&dev->ibdev.dev, ocrdma_attributes[i]))
 			goto sysfs_err;
-	spin_lock(&ocrdma_devlist_lock);
-	list_add_tail_rcu(&dev->entry, &ocrdma_dev_list);
-	spin_unlock(&ocrdma_devlist_lock);
 	/* Init stats */
 	ocrdma_add_port_stats(dev);
 	/* Interrupt Moderation */
@@ -356,9 +356,8 @@ idr_err:
 	return NULL;
 }
 
-static void ocrdma_remove_free(struct rcu_head *rcu)
+static void ocrdma_remove_free(struct ocrdma_dev *dev)
 {
-	struct ocrdma_dev *dev = container_of(rcu, struct ocrdma_dev, rcu);
 
 	idr_remove(&ocrdma_dev_id, dev->id);
 	kfree(dev->mbx_cmd);
@@ -375,18 +374,12 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	ib_unregister_device(&dev->ibdev);
 
 	ocrdma_rem_port_stats(dev);
-
-	spin_lock(&ocrdma_devlist_lock);
-	list_del_rcu(&dev->entry);
-	spin_unlock(&ocrdma_devlist_lock);
-
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
-
-	call_rcu(&dev->rcu, ocrdma_remove_free);
+	ocrdma_remove_free(dev);
 }
 
-static int ocrdma_open(struct ocrdma_dev *dev)
+static int ocrdma_dispatch_port_active(struct ocrdma_dev *dev)
 {
 	struct ib_event port_event;
 
@@ -397,32 +390,9 @@ static int ocrdma_open(struct ocrdma_dev *dev)
 	return 0;
 }
 
-static int ocrdma_close(struct ocrdma_dev *dev)
+static int ocrdma_dispatch_port_error(struct ocrdma_dev *dev)
 {
-	int i;
-	struct ocrdma_qp *qp, **cur_qp;
 	struct ib_event err_event;
-	struct ib_qp_attr attrs;
-	int attr_mask = IB_QP_STATE;
-
-	attrs.qp_state = IB_QPS_ERR;
-	mutex_lock(&dev->dev_lock);
-	if (dev->qp_tbl) {
-		cur_qp = dev->qp_tbl;
-		for (i = 0; i < OCRDMA_MAX_QP; i++) {
-			qp = cur_qp[i];
-			if (qp && qp->ibqp.qp_type != IB_QPT_GSI) {
-				/* change the QP state to ERROR */
-				_ocrdma_modify_qp(&qp->ibqp, &attrs, attr_mask);
-
-				err_event.event = IB_EVENT_QP_FATAL;
-				err_event.element.qp = &qp->ibqp;
-				err_event.device = &dev->ibdev;
-				ib_dispatch_event(&err_event);
-			}
-		}
-	}
-	mutex_unlock(&dev->dev_lock);
 
 	err_event.event = IB_EVENT_PORT_ERR;
 	err_event.element.port_num = 1;
@@ -433,7 +403,7 @@ static int ocrdma_close(struct ocrdma_dev *dev)
 
 static void ocrdma_shutdown(struct ocrdma_dev *dev)
 {
-	ocrdma_close(dev);
+	ocrdma_dispatch_port_error(dev);
 	ocrdma_remove(dev);
 }
 
@@ -444,16 +414,26 @@ static void ocrdma_shutdown(struct ocrdma_dev *dev)
 static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)
 {
 	switch (event) {
-	case BE_DEV_UP:
-		ocrdma_open(dev);
-		break;
-	case BE_DEV_DOWN:
-		ocrdma_close(dev);
-		break;
 	case BE_DEV_SHUTDOWN:
 		ocrdma_shutdown(dev);
 		break;
+	default:
+		break;
 	}
+}
+
+void ocrdma_update_link_state(struct ocrdma_dev *dev, u8 lstate)
+{
+	if (!(dev->flags & OCRDMA_FLAGS_LINK_STATUS_INIT)) {
+		dev->flags |= OCRDMA_FLAGS_LINK_STATUS_INIT;
+		if (!lstate)
+			return;
+	}
+
+	if (!lstate)
+		ocrdma_dispatch_port_error(dev);
+	else
+		ocrdma_dispatch_port_active(dev);
 }
 
 static struct ocrdma_driver ocrdma_drv = {

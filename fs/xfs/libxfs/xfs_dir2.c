@@ -271,7 +271,7 @@ xfs_dir_createname(
 		rval = xfs_dir_ino_validate(tp->t_mountp, inum);
 		if (rval)
 			return rval;
-		XFS_STATS_INC(xs_dir_create);
+		XFS_STATS_INC(dp->i_mount, xs_dir_create);
 	}
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
@@ -365,7 +365,7 @@ xfs_dir_lookup(
 	int		lock_mode;
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_lookup);
+	XFS_STATS_INC(dp->i_mount, xs_dir_lookup);
 
 	/*
 	 * We need to use KM_NOFS here so that lockdep will not throw false
@@ -444,7 +444,7 @@ xfs_dir_removename(
 	int		v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_remove);
+	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)

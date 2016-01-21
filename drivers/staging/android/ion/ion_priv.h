@@ -346,7 +346,8 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  * to keep a pool of pre allocated memory to use from your heap.  Keeping
  * a pool of memory that is ready for dma, ie any cached mapping have been
  * invalidated from the cache, provides a significant performance benefit on
- * many systems */
+ * many systems
+ */
 
 /**
  * struct ion_page_pool - pagepool struct

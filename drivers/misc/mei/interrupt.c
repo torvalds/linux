@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mei.h>
 
@@ -147,6 +148,9 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 		cb->read_time = jiffies;
 		cl_dbg(dev, cl, "completed read length = %lu\n", cb->buf_idx);
 		list_move_tail(&cb->list, &complete_list->list);
+	} else {
+		pm_runtime_mark_last_busy(dev->dev);
+		pm_request_autosuspend(dev->dev);
 	}
 
 out:

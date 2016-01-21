@@ -115,9 +115,9 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
-	depends on ARCH_AT91 || AVR32
+	depends on ARCH_AT91 || AVR32 || COMPILE_TEST
 	select SERIAL_CORE
-	select SERIAL_MCTRL_GPIO
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
 	  AT91 and AT32 processors.
@@ -571,7 +571,7 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	tristate "IMX serial port support"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
 	help
@@ -582,6 +582,7 @@ config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
 	depends on SERIAL_IMX=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON if OF
 	help
 	  If you have enabled the serial port on the Freescale IMX
 	  CPU you can make it the console by answering Y to this option.
@@ -743,7 +744,7 @@ config SERIAL_SH_SCI_CONSOLE
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
-	depends on SERIAL_SH_SCI && SH_DMAE
+	depends on SERIAL_SH_SCI && DMA_ENGINE
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
@@ -1408,7 +1409,7 @@ config SERIAL_PCH_UART_CONSOLE
 	  warnings and which allows logins in single user mode).
 
 config SERIAL_MXS_AUART
-	depends on ARCH_MXS
+	depends on ARCH_MXS || COMPILE_TEST
 	tristate "MXS AUART support"
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -1545,6 +1546,7 @@ config SERIAL_FSL_LPUART_CONSOLE
 	bool "Console on Freescale lpuart serial port"
 	depends on SERIAL_FSL_LPUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  If you have enabled the lpuart serial port on the Freescale SoCs,
 	  you can make it the console by answering Y to this option.

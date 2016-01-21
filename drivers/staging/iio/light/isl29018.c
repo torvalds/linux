@@ -117,12 +117,10 @@ static int isl29018_set_integration_time(struct isl29018_chip *chip,
 {
 	int i, ret;
 	unsigned int int_time, new_int_time;
-	struct isl29018_scale new_scale;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i) {
 		if (utime == isl29018_int_utimes[chip->type][i]) {
 			new_int_time = i;
-			new_scale = isl29018_scales[new_int_time][0];
 			break;
 		}
 	}
@@ -370,7 +368,7 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
 		if (chan->type == IIO_LIGHT) {
-			if (val != 0) {
+			if (val) {
 				mutex_unlock(&chip->lock);
 				return -EINVAL;
 			}
@@ -716,7 +714,7 @@ static int isl29018_probe(struct i2c_client *client,
 	int dev_id = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		return -ENOMEM;
 	}

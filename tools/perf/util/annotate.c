@@ -548,8 +548,11 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr < sym->start || addr >= sym->end)
+	if (addr < sym->start || addr >= sym->end) {
+		pr_debug("%s(%d): ERANGE! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 "\n",
+		       __func__, __LINE__, sym->name, sym->start, addr, sym->end);
 		return -ERANGE;
+	}
 
 	offset = addr - sym->start;
 	h = annotation__histogram(notes, evidx);
@@ -1081,6 +1084,7 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	struct kcore_extract kce;
 	bool delete_extract = false;
 	int lineno = 0;
+	int nline;
 
 	if (filename)
 		symbol__join_symfs(symfs_filename, filename);
@@ -1176,6 +1180,9 @@ fallback:
 
 		ret = decompress_to_file(m.ext, symfs_filename, fd);
 
+		if (ret)
+			pr_err("Cannot decompress %s %s\n", m.ext, symfs_filename);
+
 		free(m.ext);
 		close(fd);
 
@@ -1201,13 +1208,25 @@ fallback:
 	pr_debug("Executing: %s\n", command);
 
 	file = popen(command, "r");
-	if (!file)
+	if (!file) {
+		pr_err("Failure running %s\n", command);
+		/*
+		 * If we were using debug info should retry with
+		 * original binary.
+		 */
 		goto out_remove_tmp;
+	}
 
-	while (!feof(file))
+	nline = 0;
+	while (!feof(file)) {
 		if (symbol__parse_objdump_line(sym, map, file, privsize,
 			    &lineno) < 0)
 			break;
+		nline++;
+	}
+
+	if (nline == 0)
+		pr_err("No output from %s\n", command);
 
 	/*
 	 * kallsyms does not have symbol sizes so there may a nop at the end.
@@ -1601,6 +1620,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	len = symbol__size(sym);
 
 	if (print_lines) {
+		srcline_full_filename = full_paths;
 		symbol__get_source_line(sym, map, evsel, &source_line, len);
 		print_summary(&source_line, dso->long_name);
 	}

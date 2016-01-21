@@ -471,7 +471,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 
 	if (dev_isalive(netdev)) {
 		struct switchdev_attr attr = {
-			.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+			.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 			.flags = SWITCHDEV_F_NO_RECURSE,
 		};
 
@@ -1003,15 +1003,12 @@ static ssize_t show_trans_timeout(struct netdev_queue *queue,
 }
 
 #ifdef CONFIG_XPS
-static inline unsigned int get_netdev_queue_index(struct netdev_queue *queue)
+static unsigned int get_netdev_queue_index(struct netdev_queue *queue)
 {
 	struct net_device *dev = queue->dev;
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < dev->num_tx_queues; i++)
-		if (queue == &dev->_tx[i])
-			break;
-
+	i = queue - dev->_tx;
 	BUG_ON(i >= dev->num_tx_queues);
 
 	return i;

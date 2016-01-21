@@ -10139,8 +10139,8 @@ static void __bnx2x_del_vxlan_port(struct bnx2x *bp, u16 port)
 		DP(BNX2X_MSG_SP, "Invalid vxlan port\n");
 		return;
 	}
-	bp->vxlan_dst_port--;
-	if (bp->vxlan_dst_port)
+	bp->vxlan_dst_port_count--;
+	if (bp->vxlan_dst_port_count)
 		return;
 
 	if (netif_running(bp->dev)) {
@@ -13207,7 +13207,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 
 	/* VF with OLD Hypervisor or old PF do not support filtering */
 	if (IS_PF(bp)) {
-		if (CHIP_IS_E1x(bp))
+		if (chip_is_e1x)
 			bp->accept_any_vlan = true;
 		else
 			dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;

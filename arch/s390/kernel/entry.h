@@ -16,12 +16,9 @@ void io_int_handler(void);
 void mcck_int_handler(void);
 void restart_int_handler(void);
 void restart_call_handler(void);
-void psw_idle(struct s390_idle_data *, unsigned long);
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
-
-int alloc_vector_registers(struct task_struct *tsk);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);

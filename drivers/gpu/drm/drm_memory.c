@@ -38,7 +38,7 @@
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 
 #ifdef HAVE_PAGE_AGP
 # include <asm/agp.h>
@@ -111,14 +111,14 @@ int drm_unbind_agp(struct agp_memory * handle)
 	return agp_unbind_memory(handle);
 }
 
-#else  /*  __OS_HAS_AGP  */
+#else /*  CONFIG_AGP  */
 static inline void *agp_remap(unsigned long offset, unsigned long size,
 			      struct drm_device * dev)
 {
 	return NULL;
 }
 
-#endif				/* agp */
+#endif /* CONFIG_AGP */
 
 void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {

@@ -100,7 +100,7 @@ static const struct net_device_ops cdc_mbim_netdev_ops = {
 	.ndo_stop             = usbnet_stop,
 	.ndo_start_xmit       = usbnet_start_xmit,
 	.ndo_tx_timeout       = usbnet_tx_timeout,
-	.ndo_change_mtu       = usbnet_change_mtu,
+	.ndo_change_mtu       = cdc_ncm_change_mtu,
 	.ndo_set_mac_address  = eth_mac_addr,
 	.ndo_validate_addr    = eth_validate_addr,
 	.ndo_vlan_rx_add_vid  = cdc_mbim_rx_add_vid,
@@ -158,7 +158,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
 		goto err;
 
-	ret = cdc_ncm_bind_common(dev, intf, data_altsetting, 0);
+	ret = cdc_ncm_bind_common(dev, intf, data_altsetting, dev->driver_info->data);
 	if (ret)
 		goto err;
 
@@ -342,7 +342,7 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	in6_dev_put(in6_dev);
 
 	/* ipv6_stub != NULL if in6_dev_get returned an inet6_dev */
-	ipv6_stub->ndisc_send_na(netdev, NULL, &iph->saddr, &msg->target,
+	ipv6_stub->ndisc_send_na(netdev, &iph->saddr, &msg->target,
 				 is_router /* router */,
 				 true /* solicited */,
 				 false /* override */,
@@ -582,6 +582,26 @@ static const struct driver_info cdc_mbim_info_zlp = {
 	.tx_fixup = cdc_mbim_tx_fixup,
 };
 
+/* The spefication explicitly allows NDPs to be placed anywhere in the
+ * frame, but some devices fail unless the NDP is placed after the IP
+ * packets.  Using the CDC_NCM_FLAG_NDP_TO_END flags to force this
+ * behaviour.
+ *
+ * Note: The current implementation of this feature restricts each NTB
+ * to a single NDP, implying that multiplexed sessions cannot share an
+ * NTB. This might affect performace for multiplexed sessions.
+ */
+static const struct driver_info cdc_mbim_info_ndp_to_end = {
+	.description = "CDC MBIM",
+	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
+	.bind = cdc_mbim_bind,
+	.unbind = cdc_mbim_unbind,
+	.manage_power = cdc_mbim_manage_power,
+	.rx_fixup = cdc_mbim_rx_fixup,
+	.tx_fixup = cdc_mbim_tx_fixup,
+	.data = CDC_NCM_FLAG_NDP_TO_END,
+};
+
 static const struct usb_device_id mbim_devs[] = {
 	/* This duplicate NCM entry is intentional. MBIM devices can
 	 * be disguised as NCM by default, and this is necessary to
@@ -596,6 +616,10 @@ static const struct usb_device_id mbim_devs[] = {
 	/* ZLP conformance whitelist: All Ericsson MBIM devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bdb, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
+	},
+	/* Huawei E3372 fails unless NDP comes after the IP packets */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x12d1, 0x157d, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&cdc_mbim_info_ndp_to_end,
 	},
 	/* default entry */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),

@@ -167,6 +167,8 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	const struct palmas_device_data *dev_data;
 
 	match = of_match_device(of_palmas_gpio_match, &pdev->dev);
+	if (!match)
+		return -ENODEV;
 	dev_data = match->data;
 	if (!dev_data)
 		dev_data = &palmas_dev_data;

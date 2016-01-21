@@ -2211,6 +2211,12 @@ static const struct dev_pm_ops trf7970a_pm_ops = {
 			trf7970a_pm_runtime_resume, NULL)
 };
 
+static const struct of_device_id trf7970a_of_match[] = {
+	{ .compatible = "ti,trf7970a", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, trf7970a_of_match);
+
 static const struct spi_device_id trf7970a_id_table[] = {
 	{ "trf7970a", 0 },
 	{ }
@@ -2223,7 +2229,7 @@ static struct spi_driver trf7970a_spi_driver = {
 	.id_table	= trf7970a_id_table,
 	.driver		= {
 		.name	= "trf7970a",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(trf7970a_of_match),
 		.pm	= &trf7970a_pm_ops,
 	},
 };

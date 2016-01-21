@@ -1066,7 +1066,7 @@ int device_add(struct device *dev)
 		dev->kobj.parent = kobj;
 
 	/* use parent numa_node */
-	if (parent)
+	if (parent && (dev_to_node(dev) == NUMA_NO_NODE))
 		set_dev_node(dev, dev_to_node(parent));
 
 	/* first, register with generic layer. */

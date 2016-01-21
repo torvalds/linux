@@ -5,7 +5,7 @@
 #include <uapi/linux/in.h>
 #include <uapi/linux/tcp.h>
 #include <uapi/linux/filter.h>
-
+#include <uapi/linux/pkt_cls.h>
 #include "bpf_helpers.h"
 
 /* compiler workaround */
@@ -63,5 +63,27 @@ int bpf_prog1(struct __sk_buff *skb)
 	}
 
 	return 0;
+}
+SEC("redirect_xmit")
+int _redirect_xmit(struct __sk_buff *skb)
+{
+	return bpf_redirect(skb->ifindex + 1, 0);
+}
+SEC("redirect_recv")
+int _redirect_recv(struct __sk_buff *skb)
+{
+	return bpf_redirect(skb->ifindex + 1, 1);
+}
+SEC("clone_redirect_xmit")
+int _clone_redirect_xmit(struct __sk_buff *skb)
+{
+	bpf_clone_redirect(skb, skb->ifindex + 1, 0);
+	return TC_ACT_SHOT;
+}
+SEC("clone_redirect_recv")
+int _clone_redirect_recv(struct __sk_buff *skb)
+{
+	bpf_clone_redirect(skb, skb->ifindex + 1, 1);
+	return TC_ACT_SHOT;
 }
 char _license[] SEC("license") = "GPL";

@@ -22,7 +22,9 @@
 
 #include "brcmnand.h"
 
-struct iproc_nand_soc_priv {
+struct iproc_nand_soc {
+	struct brcmnand_soc soc;
+
 	void __iomem *idm_base;
 	void __iomem *ext_base;
 	spinlock_t idm_lock;
@@ -37,7 +39,8 @@ struct iproc_nand_soc_priv {
 
 static bool iproc_nand_intc_ack(struct brcmnand_soc *soc)
 {
-	struct iproc_nand_soc_priv *priv = soc->priv;
+	struct iproc_nand_soc *priv =
+			container_of(soc, struct iproc_nand_soc, soc);
 	void __iomem *mmio = priv->ext_base + IPROC_NAND_CTLR_READY_OFFSET;
 	u32 val = brcmnand_readl(mmio);
 
@@ -51,7 +54,8 @@ static bool iproc_nand_intc_ack(struct brcmnand_soc *soc)
 
 static void iproc_nand_intc_set(struct brcmnand_soc *soc, bool en)
 {
-	struct iproc_nand_soc_priv *priv = soc->priv;
+	struct iproc_nand_soc *priv =
+			container_of(soc, struct iproc_nand_soc, soc);
 	void __iomem *mmio = priv->idm_base + IPROC_NAND_IO_CTRL_OFFSET;
 	u32 val;
 	unsigned long flags;
@@ -72,7 +76,8 @@ static void iproc_nand_intc_set(struct brcmnand_soc *soc, bool en)
 
 static void iproc_nand_apb_access(struct brcmnand_soc *soc, bool prepare)
 {
-	struct iproc_nand_soc_priv *priv = soc->priv;
+	struct iproc_nand_soc *priv =
+			container_of(soc, struct iproc_nand_soc, soc);
 	void __iomem *mmio = priv->idm_base + IPROC_NAND_IO_CTRL_OFFSET;
 	u32 val;
 	unsigned long flags;
@@ -94,17 +99,14 @@ static void iproc_nand_apb_access(struct brcmnand_soc *soc, bool prepare)
 static int iproc_nand_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct iproc_nand_soc_priv *priv;
+	struct iproc_nand_soc *priv;
 	struct brcmnand_soc *soc;
 	struct resource *res;
-
-	soc = devm_kzalloc(dev, sizeof(*soc), GFP_KERNEL);
-	if (!soc)
-		return -ENOMEM;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+	soc = &priv->soc;
 
 	spin_lock_init(&priv->idm_lock);
 
@@ -118,8 +120,6 @@ static int iproc_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->ext_base))
 		return PTR_ERR(priv->ext_base);
 
-	soc->pdev = pdev;
-	soc->priv = priv;
 	soc->ctlrdy_ack = iproc_nand_intc_ack;
 	soc->ctlrdy_set_enabled = iproc_nand_intc_set;
 	soc->prepare_data_bus = iproc_nand_apb_access;

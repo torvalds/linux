@@ -101,6 +101,7 @@ struct iwl_ssid_ie {
 
 #define IWL_FULL_SCAN_MULTIPLIER 5
 #define IWL_FAST_SCHED_SCAN_ITERATIONS 3
+#define IWL_MAX_SCHED_SCAN_PLANS 2
 
 enum scan_framework_client {
 	SCAN_CLIENT_SCHED_SCAN		= BIT(0),
@@ -359,7 +360,7 @@ struct iwl_scan_req_lmac {
 	/* SCAN_REQ_PERIODIC_PARAMS_API_S */
 	__le32 iter_num;
 	__le32 delay;
-	struct iwl_scan_schedule_lmac schedule[2];
+	struct iwl_scan_schedule_lmac schedule[IWL_MAX_SCHED_SCAN_PLANS];
 	struct iwl_scan_channel_opt channel_opt[2];
 	u8 data[];
 } __packed;
@@ -582,7 +583,7 @@ struct iwl_scan_umac_schedule {
  */
 struct iwl_scan_req_umac_tail {
 	/* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
-	struct iwl_scan_umac_schedule schedule[2];
+	struct iwl_scan_umac_schedule schedule[IWL_MAX_SCHED_SCAN_PLANS];
 	__le16 delay;
 	__le16 reserved;
 	/* SCAN_PROBE_PARAMS_API_S_VER_1 */

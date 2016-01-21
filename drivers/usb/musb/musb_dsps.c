@@ -666,7 +666,7 @@ static int get_musb_port_mode(struct device *dev)
 {
 	enum usb_dr_mode mode;
 
-	mode = of_usb_get_dr_mode(dev->of_node);
+	mode = usb_get_dr_mode(dev);
 	switch (mode) {
 	case USB_DR_MODE_HOST:
 		return MUSB_PORT_MODE_HOST;
@@ -746,6 +746,19 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	ret = of_property_read_u32(dn, "mentor,multipoint", &val);
 	if (!ret && val)
 		config->multipoint = true;
+
+	config->maximum_speed = usb_get_maximum_speed(&parent->dev);
+	switch (config->maximum_speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		break;
+	case USB_SPEED_SUPER:
+		dev_warn(dev, "ignore incorrect maximum_speed "
+				"(super-speed) setting in dts");
+		/* fall through */
+	default:
+		config->maximum_speed = USB_SPEED_HIGH;
+	}
 
 	ret = platform_device_add_data(musb, &pdata, sizeof(pdata));
 	if (ret) {

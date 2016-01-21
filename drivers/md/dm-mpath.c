@@ -1533,49 +1533,38 @@ out:
 	return r;
 }
 
-static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
-			   unsigned long arg)
+static int multipath_prepare_ioctl(struct dm_target *ti,
+		struct block_device **bdev, fmode_t *mode)
 {
 	struct multipath *m = ti->private;
-	struct pgpath *pgpath;
-	struct block_device *bdev;
-	fmode_t mode;
 	unsigned long flags;
 	int r;
-
-	bdev = NULL;
-	mode = 0;
-	r = 0;
 
 	spin_lock_irqsave(&m->lock, flags);
 
 	if (!m->current_pgpath)
 		__choose_pgpath(m, 0);
 
-	pgpath = m->current_pgpath;
-
-	if (pgpath) {
-		bdev = pgpath->path.dev->bdev;
-		mode = pgpath->path.dev->mode;
+	if (m->current_pgpath) {
+		if (!m->queue_io) {
+			*bdev = m->current_pgpath->path.dev->bdev;
+			*mode = m->current_pgpath->path.dev->mode;
+			r = 0;
+		} else {
+			/* pg_init has not started or completed */
+			r = -ENOTCONN;
+		}
+	} else {
+		/* No path is available */
+		if (m->queue_if_no_path)
+			r = -ENOTCONN;
+		else
+			r = -EIO;
 	}
-
-	if ((pgpath && m->queue_io) || (!pgpath && m->queue_if_no_path))
-		r = -ENOTCONN;
-	else if (!bdev)
-		r = -EIO;
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	/*
-	 * Only pass ioctls through if the device sizes match exactly.
-	 */
-	if (!bdev || ti->len != i_size_read(bdev->bd_inode) >> SECTOR_SHIFT) {
-		int err = scsi_verify_blk_ioctl(NULL, cmd);
-		if (err)
-			r = err;
-	}
-
-	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+	if (r == -ENOTCONN) {
 		spin_lock_irqsave(&m->lock, flags);
 		if (!m->current_pg) {
 			/* Path status changed, redo selection */
@@ -1587,7 +1576,12 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 		dm_table_run_md_queue_async(m->ti->table);
 	}
 
-	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	/*
+	 * Only pass ioctls through if the device sizes match exactly.
+	 */
+	if (!r && ti->len != i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+		return 1;
+	return r;
 }
 
 static int multipath_iterate_devices(struct dm_target *ti,
@@ -1690,7 +1684,7 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
@@ -1703,7 +1697,7 @@ static struct target_type multipath_target = {
 	.resume = multipath_resume,
 	.status = multipath_status,
 	.message = multipath_message,
-	.ioctl  = multipath_ioctl,
+	.prepare_ioctl = multipath_prepare_ioctl,
 	.iterate_devices = multipath_iterate_devices,
 	.busy = multipath_busy,
 };

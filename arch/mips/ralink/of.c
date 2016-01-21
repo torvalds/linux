@@ -74,8 +74,6 @@ void __init plat_mem_setup(void)
 	 */
 	__dt_setup_arch(__dtb_start);
 
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
-
 	of_scan_flat_dt(early_init_dt_find_memory, NULL);
 	if (memory_dtb)
 		of_scan_flat_dt(early_init_dt_scan_memory, NULL);

@@ -770,9 +770,12 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 			}
 		}
 
+		/* preserve IF_COUNTER flag */
+		qpc->pri_path.vlan_control &=
+			MLX4_CTRL_ETH_SRC_CHECK_IF_COUNTER;
 		if (vp_oper->state.link_state == IFLA_VF_LINK_STATE_DISABLE &&
 		    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP) {
-			qpc->pri_path.vlan_control =
+			qpc->pri_path.vlan_control |=
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED |
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_UNTAGGED |
@@ -780,12 +783,12 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED |
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
 		} else if (0 != vp_oper->state.default_vlan) {
-			qpc->pri_path.vlan_control =
+			qpc->pri_path.vlan_control |=
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
 		} else { /* priority tagged */
-			qpc->pri_path.vlan_control =
+			qpc->pri_path.vlan_control |=
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
 		}
@@ -1238,8 +1241,10 @@ static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 	return 0;
 
 undo:
-	for (--i; i >= base; --i)
+	for (--i; i >= 0; --i) {
 		rb_erase(&res_arr[i]->node, root);
+		list_del_init(&res_arr[i]->list);
+	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
 
@@ -3762,9 +3767,6 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	update_gid(dev, inbox, (u8)slave);
 	adjust_proxy_tun_qkey(dev, vhcr, qpc);
 	orig_sched_queue = qpc->pri_path.sched_queue;
-	err = update_vport_qp_param(dev, inbox, slave, qpn);
-	if (err)
-		return err;
 
 	err = get_res(dev, slave, qpn, RES_QP, &qp);
 	if (err)
@@ -3773,6 +3775,10 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 		err = -EBUSY;
 		goto out;
 	}
+
+	err = update_vport_qp_param(dev, inbox, slave, qpn);
+	if (err)
+		goto out;
 
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 out:
@@ -4208,7 +4214,9 @@ static int add_eth_header(struct mlx4_dev *dev, int slave,
 
 }
 
-#define MLX4_UPD_QP_PATH_MASK_SUPPORTED (1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX)
+#define MLX4_UPD_QP_PATH_MASK_SUPPORTED      (                                \
+	1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX                     |\
+	1ULL << MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB)
 int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,
 			   struct mlx4_cmd_mailbox *inbox,
@@ -4230,6 +4238,16 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 	if (cmd->qp_mask || cmd->secondary_addr_path_mask ||
 	    (pri_addr_path_mask & ~MLX4_UPD_QP_PATH_MASK_SUPPORTED))
 		return -EPERM;
+
+	if ((pri_addr_path_mask &
+	     (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB)) &&
+		!(dev->caps.flags2 &
+		  MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
+			mlx4_warn(dev,
+				  "Src check LB for slave %d isn't supported\n",
+				   slave);
+		return -ENOTSUPP;
+	}
 
 	/* Just change the smac for the QP */
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
@@ -4288,9 +4306,10 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		return -EOPNOTSUPP;
 
 	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
-	ctrl->port = mlx4_slave_convert_port(dev, slave, ctrl->port);
-	if (ctrl->port <= 0)
+	err = mlx4_slave_convert_port(dev, slave, ctrl->port);
+	if (err <= 0)
 		return -EINVAL;
+	ctrl->port = err;
 	qpn = be32_to_cpu(ctrl->qpn) & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
 	if (err) {
@@ -4934,26 +4953,41 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 	struct res_counter *counter;
 	struct res_counter *tmp;
 	int err;
-	int index;
+	int *counters_arr = NULL;
+	int i, j;
 
 	err = move_all_busy(dev, slave, RES_COUNTER);
 	if (err)
 		mlx4_warn(dev, "rem_slave_counters: Could not move all counters - too busy for slave %d\n",
 			  slave);
 
-	spin_lock_irq(mlx4_tlock(dev));
-	list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
-		if (counter->com.owner == slave) {
-			index = counter->com.res_id;
-			rb_erase(&counter->com.node,
-				 &tracker->res_tree[RES_COUNTER]);
-			list_del(&counter->com.list);
-			kfree(counter);
-			__mlx4_counter_free(dev, index);
+	counters_arr = kmalloc_array(dev->caps.max_counters,
+				     sizeof(*counters_arr), GFP_KERNEL);
+	if (!counters_arr)
+		return;
+
+	do {
+		i = 0;
+		j = 0;
+		spin_lock_irq(mlx4_tlock(dev));
+		list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
+			if (counter->com.owner == slave) {
+				counters_arr[i++] = counter->com.res_id;
+				rb_erase(&counter->com.node,
+					 &tracker->res_tree[RES_COUNTER]);
+				list_del(&counter->com.list);
+				kfree(counter);
+			}
+		}
+		spin_unlock_irq(mlx4_tlock(dev));
+
+		while (j < i) {
+			__mlx4_counter_free(dev, counters_arr[j++]);
 			mlx4_release_resource(dev, slave, RES_COUNTER, 1, 0);
 		}
-	}
-	spin_unlock_irq(mlx4_tlock(dev));
+	} while (i);
+
+	kfree(counters_arr);
 }
 
 static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)

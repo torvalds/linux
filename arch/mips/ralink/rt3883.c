@@ -153,4 +153,6 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	soc_info->mem_size_max = RT3883_MEM_SIZE_MAX;
 
 	rt2880_pinmux_data = rt3883_pinmux_data;
+
+	ralink_soc == RT3883_SOC;
 }

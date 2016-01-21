@@ -1,0 +1,17 @@
+AK4613 I2C transmitter
+
+This device supports I2C mode only.
+
+Required properties:
+
+- compatible : "asahi-kasei,ak4613"
+- reg : The chip select number on the I2C bus
+
+Example:
+
+&i2c {
+	ak4613: ak4613@0x10 {
+		compatible = "asahi-kasei,ak4613";
+		reg = <0x10>;
+	};
+};

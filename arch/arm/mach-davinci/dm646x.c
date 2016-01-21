@@ -531,8 +531,7 @@ static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 /*----------------------------------------------------------------------*/
 
 /* Four Transfer Controllers on DM646x */
-static s8
-dm646x_queue_priority_mapping[][2] = {
+static s8 dm646x_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 4},
 	{1, 0},
@@ -541,65 +540,63 @@ dm646x_queue_priority_mapping[][2] = {
 	{-1, -1},
 };
 
-static struct edma_soc_info edma_cc0_info = {
+static struct edma_soc_info dm646x_edma_pdata = {
 	.queue_priority_mapping	= dm646x_queue_priority_mapping,
 	.default_queue		= EVENTQ_1,
 };
 
-static struct edma_soc_info *dm646x_edma_info[EDMA_MAX_CC] = {
-	&edma_cc0_info,
-};
-
 static struct resource edma_resources[] = {
 	{
-		.name	= "edma_cc0",
+		.name	= "edma3_cc",
 		.start	= 0x01c00000,
 		.end	= 0x01c00000 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc0",
+		.name	= "edma3_tc0",
 		.start	= 0x01c10000,
 		.end	= 0x01c10000 + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc1",
+		.name	= "edma3_tc1",
 		.start	= 0x01c10400,
 		.end	= 0x01c10400 + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc2",
+		.name	= "edma3_tc2",
 		.start	= 0x01c10800,
 		.end	= 0x01c10800 + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc3",
+		.name	= "edma3_tc3",
 		.start	= 0x01c10c00,
 		.end	= 0x01c10c00 + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma0",
+		.name	= "edma3_ccint",
 		.start	= IRQ_CCINT0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.name	= "edma0_err",
+		.name	= "edma3_ccerrint",
 		.start	= IRQ_CCERRINT,
 		.flags	= IORESOURCE_IRQ,
 	},
 	/* not using TC*_ERR */
 };
 
-static struct platform_device dm646x_edma_device = {
-	.name			= "edma",
-	.id			= 0,
-	.dev.platform_data	= dm646x_edma_info,
-	.num_resources		= ARRAY_SIZE(edma_resources),
-	.resource		= edma_resources,
+static const struct platform_device_info dm646x_edma_device __initconst = {
+	.name		= "edma",
+	.id		= 0,
+	.dma_mask	= DMA_BIT_MASK(32),
+	.res		= edma_resources,
+	.num_res	= ARRAY_SIZE(edma_resources),
+	.data		= &dm646x_edma_pdata,
+	.size_data	= sizeof(dm646x_edma_pdata),
 };
 
 static struct resource dm646x_mcasp0_resources[] = {
@@ -936,9 +933,12 @@ void dm646x_setup_vpif(struct vpif_display_config *display_config,
 
 int __init dm646x_init_edma(struct edma_rsv_info *rsv)
 {
-	edma_cc0_info.rsv = rsv;
+	struct platform_device *edma_pdev;
 
-	return platform_device_register(&dm646x_edma_device);
+	dm646x_edma_pdata.rsv = rsv;
+
+	edma_pdev = platform_device_register_full(&dm646x_edma_device);
+	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
 
 void __init dm646x_init(void)

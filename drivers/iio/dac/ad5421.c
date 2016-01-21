@@ -524,7 +524,6 @@ static int ad5421_probe(struct spi_device *spi)
 static struct spi_driver ad5421_driver = {
 	.driver = {
 		   .name = "ad5421",
-		   .owner = THIS_MODULE,
 	},
 	.probe = ad5421_probe,
 };

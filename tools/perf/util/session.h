@@ -89,6 +89,8 @@ struct machine *perf_session__findnew_machine(struct perf_session *session, pid_
 }
 
 struct thread *perf_session__findnew(struct perf_session *session, pid_t pid);
+struct thread *perf_session__register_idle_thread(struct perf_session *session);
+
 size_t perf_session__fprintf(struct perf_session *session, FILE *fp);
 
 size_t perf_session__fprintf_dsos(struct perf_session *session, FILE *fp);

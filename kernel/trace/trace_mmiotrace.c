@@ -314,7 +314,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	entry->rw			= *rw;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, 0, pc);
+		trace_buffer_unlock_commit(tr, buffer, event, 0, pc);
 }
 
 void mmio_trace_rw(struct mmiotrace_rw *rw)
@@ -344,7 +344,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	entry->map			= *map;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, 0, pc);
+		trace_buffer_unlock_commit(tr, buffer, event, 0, pc);
 }
 
 void mmio_trace_mapping(struct mmiotrace_map *map)

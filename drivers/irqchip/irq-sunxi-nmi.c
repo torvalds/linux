@@ -8,6 +8,9 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define DRV_NAME	"sunxi-nmi"
+#define pr_fmt(fmt)	DRV_NAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -96,8 +99,8 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	default:
 		irq_gc_unlock(gc);
-		pr_err("%s: Cannot assign multiple trigger modes to IRQ %d.\n",
-			__func__, data->irq);
+		pr_err("Cannot assign multiple trigger modes to IRQ %d.\n",
+			data->irq);
 		return -EBADR;
 	}
 
@@ -130,30 +133,29 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 
 	domain = irq_domain_add_linear(node, 1, &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%s: Could not register interrupt domain.\n", node->name);
+		pr_err("Could not register interrupt domain.\n");
 		return -ENOMEM;
 	}
 
-	ret = irq_alloc_domain_generic_chips(domain, 1, 2, node->name,
+	ret = irq_alloc_domain_generic_chips(domain, 1, 2, DRV_NAME,
 					     handle_fasteoi_irq, clr, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		 pr_err("%s: Could not allocate generic interrupt chip.\n",
-			 node->name);
-		 goto fail_irqd_remove;
+		pr_err("Could not allocate generic interrupt chip.\n");
+		goto fail_irqd_remove;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_err("%s: unable to parse irq\n", node->name);
+		pr_err("unable to parse irq\n");
 		ret = -EINVAL;
 		goto fail_irqd_remove;
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->reg_base = of_iomap(node, 0);
+	gc->reg_base = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (!gc->reg_base) {
-		pr_err("%s: unable to map resource\n", node->name);
+		pr_err("unable to map resource\n");
 		ret = -ENOMEM;
 		goto fail_irqd_remove;
 	}

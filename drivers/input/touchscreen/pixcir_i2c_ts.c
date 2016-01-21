@@ -377,8 +377,6 @@ static int __maybe_unused pixcir_i2c_ts_suspend(struct device *dev)
 				goto unlock;
 			}
 		}
-
-		enable_irq_wake(client->irq);
 	} else if (input->users) {
 		ret = pixcir_stop(ts);
 	}
@@ -399,7 +397,6 @@ static int __maybe_unused pixcir_i2c_ts_resume(struct device *dev)
 	mutex_lock(&input->mutex);
 
 	if (device_may_wakeup(&client->dev)) {
-		disable_irq_wake(client->irq);
 
 		if (!input->users) {
 			ret = pixcir_stop(ts);
@@ -564,14 +561,6 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 		return error;
 
 	i2c_set_clientdata(client, tsdata);
-	device_init_wakeup(&client->dev, 1);
-
-	return 0;
-}
-
-static int pixcir_i2c_ts_remove(struct i2c_client *client)
-{
-	device_init_wakeup(&client->dev, 0);
 
 	return 0;
 }
@@ -609,7 +598,6 @@ static struct i2c_driver pixcir_i2c_ts_driver = {
 		.of_match_table = of_match_ptr(pixcir_of_match),
 	},
 	.probe		= pixcir_i2c_ts_probe,
-	.remove		= pixcir_i2c_ts_remove,
 	.id_table	= pixcir_i2c_ts_id,
 };
 

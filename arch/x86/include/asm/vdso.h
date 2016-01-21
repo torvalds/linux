@@ -26,7 +26,7 @@ struct vdso_image {
 	long sym___kernel_sigreturn;
 	long sym___kernel_rt_sigreturn;
 	long sym___kernel_vsyscall;
-	long sym_VDSO32_SYSENTER_RETURN;
+	long sym_int80_landing_pad;
 };
 
 #ifdef CONFIG_X86_64
@@ -38,13 +38,7 @@ extern const struct vdso_image vdso_image_x32;
 #endif
 
 #if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-extern const struct vdso_image vdso_image_32_int80;
-#ifdef CONFIG_COMPAT
-extern const struct vdso_image vdso_image_32_syscall;
-#endif
-extern const struct vdso_image vdso_image_32_sysenter;
-
-extern const struct vdso_image *selected_vdso32;
+extern const struct vdso_image vdso_image_32;
 #endif
 
 extern void __init init_vdso_image(const struct vdso_image *image);

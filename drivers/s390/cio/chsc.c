@@ -1080,28 +1080,10 @@ void __init chsc_init_cleanup(void)
 	free_page((unsigned long)sei_page);
 }
 
-int chsc_enable_facility(int operation_code)
+int __chsc_enable_facility(struct chsc_sda_area *sda_area, int operation_code)
 {
-	unsigned long flags;
 	int ret;
-	struct {
-		struct chsc_header request;
-		u8 reserved1:4;
-		u8 format:4;
-		u8 reserved2;
-		u16 operation_code;
-		u32 reserved3;
-		u32 reserved4;
-		u32 operation_data_area[252];
-		struct chsc_header response;
-		u32 reserved5:4;
-		u32 format2:4;
-		u32 reserved6:24;
-	} __attribute__ ((packed)) *sda_area;
 
-	spin_lock_irqsave(&chsc_page_lock, flags);
-	memset(chsc_page, 0, PAGE_SIZE);
-	sda_area = chsc_page;
 	sda_area->request.length = 0x0400;
 	sda_area->request.code = 0x0031;
 	sda_area->operation_code = operation_code;
@@ -1119,10 +1101,25 @@ int chsc_enable_facility(int operation_code)
 	default:
 		ret = chsc_error_from_response(sda_area->response.code);
 	}
+out:
+	return ret;
+}
+
+int chsc_enable_facility(int operation_code)
+{
+	struct chsc_sda_area *sda_area;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&chsc_page_lock, flags);
+	memset(chsc_page, 0, PAGE_SIZE);
+	sda_area = chsc_page;
+
+	ret = __chsc_enable_facility(sda_area, operation_code);
 	if (ret != 0)
 		CIO_CRW_EVENT(2, "chsc: sda (oc=%x) failed (rc=%04x)\n",
 			      operation_code, sda_area->response.code);
-out:
+
 	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }

@@ -52,6 +52,8 @@
 		NETIF_MSG_RX_ERR| \
 		NETIF_MSG_TX_ERR)
 
+#define SH_ETH_OFFSET_INVALID	((u16)~0)
+
 #define SH_ETH_OFFSET_DEFAULTS			\
 	[0 ... SH_ETH_MAX_REGISTER_OFFSET - 1] = SH_ETH_OFFSET_INVALID
 
@@ -403,6 +405,28 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 
 static void sh_eth_rcv_snd_disable(struct net_device *ndev);
 static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev);
+
+static void sh_eth_write(struct net_device *ndev, u32 data, int enum_index)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return;
+
+	iowrite32(data, mdp->addr + offset);
+}
+
+static u32 sh_eth_read(struct net_device *ndev, int enum_index)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return ~0U;
+
+	return ioread32(mdp->addr + offset);
+}
 
 static bool sh_eth_is_gether(struct sh_eth_private *mdp)
 {
@@ -1098,7 +1122,7 @@ static struct mdiobb_ops bb_ops = {
 static void sh_eth_ring_free(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int i;
+	int ringsize, i;
 
 	/* Free Rx skb ringbuffer */
 	if (mdp->rx_skbuff) {
@@ -1115,6 +1139,20 @@ static void sh_eth_ring_free(struct net_device *ndev)
 	}
 	kfree(mdp->tx_skbuff);
 	mdp->tx_skbuff = NULL;
+
+	if (mdp->rx_ring) {
+		ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
+		dma_free_coherent(NULL, ringsize, mdp->rx_ring,
+				  mdp->rx_desc_dma);
+		mdp->rx_ring = NULL;
+	}
+
+	if (mdp->tx_ring) {
+		ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
+		dma_free_coherent(NULL, ringsize, mdp->tx_ring,
+				  mdp->tx_desc_dma);
+		mdp->tx_ring = NULL;
+	}
 }
 
 /* format skb and descriptor buffer */
@@ -1129,6 +1167,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	int tx_ringsize = sizeof(*txdesc) * mdp->num_tx_ring;
 	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN + 32 - 1;
 	dma_addr_t dma_addr;
+	u32 buf_len;
 
 	mdp->cur_rx = 0;
 	mdp->cur_tx = 0;
@@ -1149,16 +1188,16 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		/* RX descriptor */
 		rxdesc = &mdp->rx_ring[i];
 		/* The size of the buffer is a multiple of 32 bytes. */
-		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 32);
-		dma_addr = dma_map_single(&ndev->dev, skb->data,
-					  rxdesc->buffer_length,
+		buf_len = ALIGN(mdp->rx_buf_sz, 32);
+		rxdesc->len = cpu_to_edmac(mdp, buf_len << 16);
+		dma_addr = dma_map_single(&ndev->dev, skb->data, buf_len,
 					  DMA_FROM_DEVICE);
 		if (dma_mapping_error(&ndev->dev, dma_addr)) {
 			kfree_skb(skb);
 			break;
 		}
 		mdp->rx_skbuff[i] = skb;
-		rxdesc->addr = dma_addr;
+		rxdesc->addr = cpu_to_edmac(mdp, dma_addr);
 		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
 		/* Rx descriptor address set */
@@ -1173,7 +1212,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	mdp->dirty_rx = (u32) (i - mdp->num_rx_ring);
 
 	/* Mark the last entry as wrapping the ring. */
-	rxdesc->status |= cpu_to_edmac(mdp, RD_RDEL);
+	rxdesc->status |= cpu_to_edmac(mdp, RD_RDLE);
 
 	memset(mdp->tx_ring, 0, tx_ringsize);
 
@@ -1182,7 +1221,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		mdp->tx_skbuff[i] = NULL;
 		txdesc = &mdp->tx_ring[i];
 		txdesc->status = cpu_to_edmac(mdp, TD_TFP);
-		txdesc->buffer_length = 0;
+		txdesc->len = cpu_to_edmac(mdp, 0);
 		if (i == 0) {
 			/* Tx descriptor address set */
 			sh_eth_write(ndev, mdp->tx_desc_dma, TDLAR);
@@ -1199,7 +1238,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 static int sh_eth_ring_init(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int rx_ringsize, tx_ringsize, ret = 0;
+	int rx_ringsize, tx_ringsize;
 
 	/* +26 gets the maximum ethernet encapsulation, +7 & ~7 because the
 	 * card needs room to do 8 byte alignment, +2 so we can reserve
@@ -1212,28 +1251,22 @@ static int sh_eth_ring_init(struct net_device *ndev)
 		mdp->rx_buf_sz += NET_IP_ALIGN;
 
 	/* Allocate RX and TX skb rings */
-	mdp->rx_skbuff = kmalloc_array(mdp->num_rx_ring,
-				       sizeof(*mdp->rx_skbuff), GFP_KERNEL);
-	if (!mdp->rx_skbuff) {
-		ret = -ENOMEM;
-		return ret;
-	}
+	mdp->rx_skbuff = kcalloc(mdp->num_rx_ring, sizeof(*mdp->rx_skbuff),
+				 GFP_KERNEL);
+	if (!mdp->rx_skbuff)
+		return -ENOMEM;
 
-	mdp->tx_skbuff = kmalloc_array(mdp->num_tx_ring,
-				       sizeof(*mdp->tx_skbuff), GFP_KERNEL);
-	if (!mdp->tx_skbuff) {
-		ret = -ENOMEM;
-		goto skb_ring_free;
-	}
+	mdp->tx_skbuff = kcalloc(mdp->num_tx_ring, sizeof(*mdp->tx_skbuff),
+				 GFP_KERNEL);
+	if (!mdp->tx_skbuff)
+		goto ring_free;
 
 	/* Allocate all Rx descriptors. */
 	rx_ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
 	mdp->rx_ring = dma_alloc_coherent(NULL, rx_ringsize, &mdp->rx_desc_dma,
 					  GFP_KERNEL);
-	if (!mdp->rx_ring) {
-		ret = -ENOMEM;
-		goto desc_ring_free;
-	}
+	if (!mdp->rx_ring)
+		goto ring_free;
 
 	mdp->dirty_rx = 0;
 
@@ -1241,42 +1274,15 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	tx_ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
 	mdp->tx_ring = dma_alloc_coherent(NULL, tx_ringsize, &mdp->tx_desc_dma,
 					  GFP_KERNEL);
-	if (!mdp->tx_ring) {
-		ret = -ENOMEM;
-		goto desc_ring_free;
-	}
-	return ret;
+	if (!mdp->tx_ring)
+		goto ring_free;
+	return 0;
 
-desc_ring_free:
-	/* free DMA buffer */
-	dma_free_coherent(NULL, rx_ringsize, mdp->rx_ring, mdp->rx_desc_dma);
-
-skb_ring_free:
-	/* Free Rx and Tx skb ring buffer */
+ring_free:
+	/* Free Rx and Tx skb ring buffer and DMA buffer */
 	sh_eth_ring_free(ndev);
-	mdp->tx_ring = NULL;
-	mdp->rx_ring = NULL;
 
-	return ret;
-}
-
-static void sh_eth_free_dma_buffer(struct sh_eth_private *mdp)
-{
-	int ringsize;
-
-	if (mdp->rx_ring) {
-		ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
-		dma_free_coherent(NULL, ringsize, mdp->rx_ring,
-				  mdp->rx_desc_dma);
-		mdp->rx_ring = NULL;
-	}
-
-	if (mdp->tx_ring) {
-		ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
-		dma_free_coherent(NULL, ringsize, mdp->tx_ring,
-				  mdp->tx_desc_dma);
-		mdp->tx_ring = NULL;
-	}
+	return -ENOMEM;
 }
 
 static int sh_eth_dev_init(struct net_device *ndev, bool start)
@@ -1416,14 +1422,16 @@ static int sh_eth_txfree(struct net_device *ndev)
 		if (txdesc->status & cpu_to_edmac(mdp, TD_TACT))
 			break;
 		/* TACT bit must be checked before all the following reads */
-		rmb();
+		dma_rmb();
 		netif_info(mdp, tx_done, ndev,
 			   "tx entry %d status 0x%08x\n",
 			   entry, edmac_to_cpu(mdp, txdesc->status));
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
-			dma_unmap_single(&ndev->dev, txdesc->addr,
-					 txdesc->buffer_length, DMA_TO_DEVICE);
+			dma_unmap_single(&ndev->dev,
+					 edmac_to_cpu(mdp, txdesc->addr),
+					 edmac_to_cpu(mdp, txdesc->len) >> 16,
+					 DMA_TO_DEVICE);
 			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
 			mdp->tx_skbuff[entry] = NULL;
 			free_num++;
@@ -1433,7 +1441,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 			txdesc->status |= cpu_to_edmac(mdp, TD_TDLE);
 
 		ndev->stats.tx_packets++;
-		ndev->stats.tx_bytes += txdesc->buffer_length;
+		ndev->stats.tx_bytes += edmac_to_cpu(mdp, txdesc->len) >> 16;
 	}
 	return free_num;
 }
@@ -1452,15 +1460,16 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	u32 desc_status;
 	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN + 32 - 1;
 	dma_addr_t dma_addr;
+	u32 buf_len;
 
 	boguscnt = min(boguscnt, *quota);
 	limit = boguscnt;
 	rxdesc = &mdp->rx_ring[entry];
 	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
 		/* RACT bit must be checked before all the following reads */
-		rmb();
+		dma_rmb();
 		desc_status = edmac_to_cpu(mdp, rxdesc->status);
-		pkt_len = rxdesc->frame_length;
+		pkt_len = edmac_to_cpu(mdp, rxdesc->len) & RD_RFL;
 
 		if (--boguscnt < 0)
 			break;
@@ -1481,6 +1490,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		if (mdp->cd->shift_rd0)
 			desc_status >>= 16;
 
+		skb = mdp->rx_skbuff[entry];
 		if (desc_status & (RD_RFS1 | RD_RFS2 | RD_RFS3 | RD_RFS4 |
 				   RD_RFS5 | RD_RFS6 | RD_RFS10)) {
 			ndev->stats.rx_errors++;
@@ -1496,16 +1506,16 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 				ndev->stats.rx_missed_errors++;
 			if (desc_status & RD_RFS10)
 				ndev->stats.rx_over_errors++;
-		} else {
+		} else	if (skb) {
+			dma_addr = edmac_to_cpu(mdp, rxdesc->addr);
 			if (!mdp->cd->hw_swap)
 				sh_eth_soft_swap(
-					phys_to_virt(ALIGN(rxdesc->addr, 4)),
+					phys_to_virt(ALIGN(dma_addr, 4)),
 					pkt_len + 2);
-			skb = mdp->rx_skbuff[entry];
 			mdp->rx_skbuff[entry] = NULL;
 			if (mdp->cd->rpadir)
 				skb_reserve(skb, NET_IP_ALIGN);
-			dma_unmap_single(&ndev->dev, rxdesc->addr,
+			dma_unmap_single(&ndev->dev, dma_addr,
 					 ALIGN(mdp->rx_buf_sz, 32),
 					 DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
@@ -1525,7 +1535,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		entry = mdp->dirty_rx % mdp->num_rx_ring;
 		rxdesc = &mdp->rx_ring[entry];
 		/* The size of the buffer is 32 byte boundary. */
-		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 32);
+		buf_len = ALIGN(mdp->rx_buf_sz, 32);
+		rxdesc->len = cpu_to_edmac(mdp, buf_len << 16);
 
 		if (mdp->rx_skbuff[entry] == NULL) {
 			skb = netdev_alloc_skb(ndev, skbuff_size);
@@ -1533,8 +1544,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 				break;	/* Better luck next round. */
 			sh_eth_set_receive_align(skb);
 			dma_addr = dma_map_single(&ndev->dev, skb->data,
-						  rxdesc->buffer_length,
-						  DMA_FROM_DEVICE);
+						  buf_len, DMA_FROM_DEVICE);
 			if (dma_mapping_error(&ndev->dev, dma_addr)) {
 				kfree_skb(skb);
 				break;
@@ -1542,12 +1552,12 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			mdp->rx_skbuff[entry] = skb;
 
 			skb_checksum_none_assert(skb);
-			rxdesc->addr = dma_addr;
+			rxdesc->addr = cpu_to_edmac(mdp, dma_addr);
 		}
-		wmb(); /* RACT bit must be set after all the above writes */
+		dma_wmb(); /* RACT bit must be set after all the above writes */
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
-				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDEL);
+				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDLE);
 		else
 			rxdesc->status |=
 				cpu_to_edmac(mdp, RD_RACT | RD_RFP);
@@ -2239,10 +2249,8 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 
 		sh_eth_dev_exit(ndev);
 
-		/* Free all the skbuffs in the Rx queue. */
+		/* Free all the skbuffs in the Rx queue and the DMA buffers. */
 		sh_eth_ring_free(ndev);
-		/* Free DMA buffer */
-		sh_eth_free_dma_buffer(mdp);
 	}
 
 	/* Set new parameters */
@@ -2352,8 +2360,8 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < mdp->num_rx_ring; i++) {
 		rxdesc = &mdp->rx_ring[i];
-		rxdesc->status = 0;
-		rxdesc->addr = 0xBADF00D0;
+		rxdesc->status = cpu_to_edmac(mdp, 0);
+		rxdesc->addr = cpu_to_edmac(mdp, 0xBADF00D0);
 		dev_kfree_skb(mdp->rx_skbuff[i]);
 		mdp->rx_skbuff[i] = NULL;
 	}
@@ -2371,6 +2379,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_txdesc *txdesc;
+	dma_addr_t dma_addr;
 	u32 entry;
 	unsigned long flags;
 
@@ -2393,17 +2402,17 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	txdesc = &mdp->tx_ring[entry];
 	/* soft swap. */
 	if (!mdp->cd->hw_swap)
-		sh_eth_soft_swap(phys_to_virt(ALIGN(txdesc->addr, 4)),
-				 skb->len + 2);
-	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
-				      DMA_TO_DEVICE);
-	if (dma_mapping_error(&ndev->dev, txdesc->addr)) {
+		sh_eth_soft_swap(PTR_ALIGN(skb->data, 4), skb->len + 2);
+	dma_addr = dma_map_single(&ndev->dev, skb->data, skb->len,
+				  DMA_TO_DEVICE);
+	if (dma_mapping_error(&ndev->dev, dma_addr)) {
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
-	txdesc->buffer_length = skb->len;
+	txdesc->addr = cpu_to_edmac(mdp, dma_addr);
+	txdesc->len  = cpu_to_edmac(mdp, skb->len << 16);
 
-	wmb(); /* TACT bit must be set after all the above writes */
+	dma_wmb(); /* TACT bit must be set after all the above writes */
 	if (entry >= mdp->num_tx_ring - 1)
 		txdesc->status |= cpu_to_edmac(mdp, TD_TACT | TD_TDLE);
 	else
@@ -2487,11 +2496,8 @@ static int sh_eth_close(struct net_device *ndev)
 
 	free_irq(ndev->irq, ndev);
 
-	/* Free all the skbuffs in the Rx queue. */
+	/* Free all the skbuffs in the Rx queue and the DMA buffer. */
 	sh_eth_ring_free(ndev);
-
-	/* free DMA buffer */
-	sh_eth_free_dma_buffer(mdp);
 
 	pm_runtime_put_sync(&mdp->pdev->dev);
 

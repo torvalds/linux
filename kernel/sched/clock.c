@@ -1,7 +1,7 @@
 /*
  * sched_clock for unstable cpu clocks
  *
- *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra
  *
  *  Updates and enhancements:
  *    Copyright (C) 2008 Red Hat, Inc. Steven Rostedt <srostedt@redhat.com>

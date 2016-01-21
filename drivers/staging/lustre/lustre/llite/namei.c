@@ -100,7 +100,6 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 	return 0;
 }
 
-
 /*
  * Get an inode by inode number (already instantiated by the intent lookup).
  * Returns inode or NULL
@@ -409,7 +408,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 {
 	struct inode *inode = NULL;
 	__u64 bits = 0;
-	int rc;
+	int rc = 0;
 
 	/* NB 1 request reference will be taken away by ll_intent_lock()
 	 * when I return */
@@ -439,8 +438,10 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		struct dentry *alias;
 
 		alias = ll_splice_alias(inode, *de);
-		if (IS_ERR(alias))
-			return PTR_ERR(alias);
+		if (IS_ERR(alias)) {
+			rc = PTR_ERR(alias);
+			goto out;
+		}
 		*de = alias;
 	} else if (!it_disposition(it, DISP_LOOKUP_NEG)  &&
 		   !it_disposition(it, DISP_OPEN_CREATE)) {
@@ -471,7 +472,11 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		}
 	}
 
-	return 0;
+out:
+	if (rc != 0 && it->it_op & IT_OPEN)
+		ll_open_cleanup((*de)->d_sb, request);
+
+	return rc;
 }
 
 static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
@@ -668,7 +673,6 @@ out_release:
 	return rc;
 }
 
-
 /* We depend on "mode" being set with the proper file type/umask by now */
 static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 {
@@ -864,34 +868,6 @@ static inline void ll_get_child_fid(struct dentry *child, struct lu_fid *fid)
 		*fid = *ll_inode2fid(d_inode(child));
 }
 
-/**
- * Remove dir entry
- **/
-int ll_rmdir_entry(struct inode *dir, char *name, int namelen)
-{
-	struct ptlrpc_request *request = NULL;
-	struct md_op_data *op_data;
-	int rc;
-
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p)\n",
-	       namelen, name, dir->i_ino, dir->i_generation, dir);
-
-	op_data = ll_prep_md_op_data(NULL, dir, NULL, name, strlen(name),
-				     S_IFDIR, LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data))
-		return PTR_ERR(op_data);
-	op_data->op_cli_flags |= CLI_RM_ENTRY;
-	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
-	ll_finish_md_op_data(op_data);
-	if (rc == 0) {
-		ll_update_times(request, dir);
-		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_RMDIR, 1);
-	}
-
-	ptlrpc_req_finished(request);
-	return rc;
-}
-
 int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 {
 	struct mdt_body *body;
@@ -899,7 +875,6 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	struct lov_stripe_md *lsm = NULL;
 	struct obd_trans_info oti = { 0 };
 	struct obdo *oa;
-	struct obd_capa *oc = NULL;
 	int rc;
 
 	/* req is swabbed so this is safe */
@@ -928,7 +903,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	}
 	LASSERT(rc >= sizeof(*lsm));
 
-	OBDO_ALLOC(oa);
+	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
 	if (oa == NULL) {
 		rc = -ENOMEM;
 		goto out_free_memmd;
@@ -951,21 +926,14 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 		}
 	}
 
-	if (body->valid & OBD_MD_FLOSSCAPA) {
-		rc = md_unpack_capa(ll_i2mdexp(dir), request, &RMF_CAPA2, &oc);
-		if (rc)
-			goto out_free_memmd;
-	}
-
 	rc = obd_destroy(NULL, ll_i2dtexp(dir), oa, lsm, &oti,
-			 ll_i2mdexp(dir), oc);
-	capa_put(oc);
+			 ll_i2mdexp(dir));
 	if (rc)
 		CERROR("obd destroy objid "DOSTID" error %d\n",
 		       POSTID(&lsm->lsm_oi), rc);
 out_free_memmd:
 	obd_free_memmd(ll_i2dtexp(dir), &lsm);
-	OBDO_FREE(oa);
+	kmem_cache_free(obdo_cachep, oa);
 out:
 	return rc;
 }

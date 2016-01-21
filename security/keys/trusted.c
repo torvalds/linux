@@ -862,12 +862,19 @@ static int datablob_parse(char *datablob, struct trusted_key_payload *p,
 static struct trusted_key_options *trusted_options_alloc(void)
 {
 	struct trusted_key_options *options;
+	int tpm2;
+
+	tpm2 = tpm_is_tpm2(TPM_ANY_NUM);
+	if (tpm2 < 0)
+		return NULL;
 
 	options = kzalloc(sizeof *options, GFP_KERNEL);
 	if (options) {
 		/* set any non-zero defaults */
 		options->keytype = SRK_keytype;
-		options->keyhandle = SRKHANDLE;
+
+		if (!tpm2)
+			options->keyhandle = SRKHANDLE;
 	}
 	return options;
 }
@@ -905,6 +912,11 @@ static int trusted_instantiate(struct key *key,
 	int ret = 0;
 	int key_cmd;
 	size_t key_len;
+	int tpm2;
+
+	tpm2 = tpm_is_tpm2(TPM_ANY_NUM);
+	if (tpm2 < 0)
+		return tpm2;
 
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
@@ -932,12 +944,20 @@ static int trusted_instantiate(struct key *key,
 		goto out;
 	}
 
+	if (!options->keyhandle) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	dump_payload(payload);
 	dump_options(options);
 
 	switch (key_cmd) {
 	case Opt_load:
-		ret = key_unseal(payload, options);
+		if (tpm2)
+			ret = tpm_unseal_trusted(TPM_ANY_NUM, payload, options);
+		else
+			ret = key_unseal(payload, options);
 		dump_payload(payload);
 		dump_options(options);
 		if (ret < 0)
@@ -950,7 +970,10 @@ static int trusted_instantiate(struct key *key,
 			pr_info("trusted_key: key_create failed (%d)\n", ret);
 			goto out;
 		}
-		ret = key_seal(payload, options);
+		if (tpm2)
+			ret = tpm_seal_trusted(TPM_ANY_NUM, payload, options);
+		else
+			ret = key_seal(payload, options);
 		if (ret < 0)
 			pr_info("trusted_key: key_seal failed (%d)\n", ret);
 		break;
@@ -984,13 +1007,16 @@ static void trusted_rcu_free(struct rcu_head *rcu)
  */
 static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 {
-	struct trusted_key_payload *p = key->payload.data;
+	struct trusted_key_payload *p;
 	struct trusted_key_payload *new_p;
 	struct trusted_key_options *new_o;
 	size_t datalen = prep->datalen;
 	char *datablob;
 	int ret = 0;
 
+	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+		return -ENOKEY;
+	p = key->payload.data[0];
 	if (!p->migratable)
 		return -EPERM;
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
@@ -1018,6 +1044,13 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 		kfree(new_p);
 		goto out;
 	}
+
+	if (!new_o->keyhandle) {
+		ret = -EINVAL;
+		kfree(new_p);
+		goto out;
+	}
+
 	/* copy old key values, and reseal with new pcrs */
 	new_p->migratable = p->migratable;
 	new_p->key_len = p->key_len;
@@ -1084,12 +1117,12 @@ static long trusted_read(const struct key *key, char __user *buffer,
  */
 static void trusted_destroy(struct key *key)
 {
-	struct trusted_key_payload *p = key->payload.data;
+	struct trusted_key_payload *p = key->payload.data[0];
 
 	if (!p)
 		return;
 	memset(p->key, 0, p->key_len);
-	kfree(key->payload.data);
+	kfree(key->payload.data[0]);
 }
 
 struct key_type key_type_trusted = {

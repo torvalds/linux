@@ -355,6 +355,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 	}
 
+	nci_core_rsp_packet(ndev, rsp_opcode, skb);
 end:
 	kfree_skb(skb);
 

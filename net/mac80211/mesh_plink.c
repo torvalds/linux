@@ -60,7 +60,9 @@ static bool rssi_threshold_check(struct ieee80211_sub_if_data *sdata,
 {
 	s32 rssi_threshold = sdata->u.mesh.mshcfg.rssi_threshold;
 	return rssi_threshold == 0 ||
-	       (sta && (s8) -ewma_signal_read(&sta->avg_signal) > rssi_threshold);
+	       (sta &&
+		(s8)-ewma_signal_read(&sta->rx_stats.avg_signal) >
+						rssi_threshold);
 }
 
 /**
@@ -226,6 +228,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			    2 + sizeof(struct ieee80211_meshconf_ie) +
 			    2 + sizeof(struct ieee80211_ht_cap) +
 			    2 + sizeof(struct ieee80211_ht_operation) +
+			    2 + sizeof(struct ieee80211_vht_cap) +
+			    2 + sizeof(struct ieee80211_vht_operation) +
 			    2 + 8 + /* peering IE */
 			    sdata->u.mesh.ie_len);
 	if (!skb)
@@ -306,7 +310,9 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
 		if (mesh_add_ht_cap_ie(sdata, skb) ||
-		    mesh_add_ht_oper_ie(sdata, skb))
+		    mesh_add_ht_oper_ie(sdata, skb) ||
+		    mesh_add_vht_cap_ie(sdata, skb) ||
+		    mesh_add_vht_oper_ie(sdata, skb))
 			goto free;
 	}
 
@@ -386,7 +392,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	rates = ieee80211_sta_get_rates(sdata, elems, band, &basic_rates);
 
 	spin_lock_bh(&sta->mesh->plink_lock);
-	sta->last_rx = jiffies;
+	sta->rx_stats.last_rx = jiffies;
 
 	/* rates and capabilities don't change during peering */
 	if (sta->mesh->plink_state == NL80211_PLINK_ESTAB &&
@@ -401,6 +407,9 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 					      elems->ht_cap_elem, sta))
 		changed |= IEEE80211_RC_BW_CHANGED;
+
+	ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
+					    elems->vht_cap_elem, sta);
 
 	if (bw != sta->sta.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;
@@ -677,6 +686,9 @@ static bool llid_in_use(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata)
+			continue;
+
 		if (!memcmp(&sta->mesh->llid, &llid, sizeof(llid))) {
 			in_use = true;
 			break;

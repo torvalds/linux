@@ -8,7 +8,28 @@ regulators that can be controlled over I2C.
 
 Following properties should be present in main device node of the MFD chip.
 
-Optional node:
+Optional properties:
+- inb1-supply:  The input supply for BUCK1
+- inb2-supply:  The input supply for BUCK2
+- inb3-supply:  The input supply for BUCK3
+- inb4-supply:  The input supply for BUCK4
+- inb5-supply:  The input supply for BUCK5
+- inb6-supply:  The input supply for BUCK6
+- inb7-supply:  The input supply for BUCK7
+- inb8-supply:  The input supply for BUCK8
+- inb9-supply:  The input supply for BUCK9
+- inb10-supply: The input supply for BUCK10
+- inl1-supply:  The input supply for LDO8 and LDO15
+- inl2-supply:  The input supply for LDO17, LDO27, LDO30 and LDO35
+- inl3-supply:  The input supply for LDO3, LDO5, LDO6 and LDO7
+- inl4-supply:  The input supply for LDO10, LDO11, LDO13 and LDO14
+- inl5-supply:  The input supply for LDO9 and LDO19
+- inl6-supply:  The input supply for LDO4, LDO21, LDO24 and LDO33
+- inl7-supply:  The input supply for LDO18, LDO20, LDO28 and LDO29
+- inl9-supply:  The input supply for LDO12, LDO23, LDO25, LDO26, LDO32 and LDO34
+- inl10-supply: The input supply for LDO1 and LDO2
+
+Optional nodes:
 - regulators : The regulators of max77802 have to be instantiated
   under subnode named "regulators" using the following format.
 
@@ -57,6 +78,8 @@ Example:
 		reg = <0x09>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		inb1-supply = <&parent_reg>;
 
 		regulators {
 			ldo1_reg: LDO1 {

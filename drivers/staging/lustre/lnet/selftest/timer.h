@@ -40,7 +40,7 @@
 
 typedef struct {
 	struct list_head stt_list;
-	unsigned long    stt_expires;
+	time64_t         stt_expires;
 	void             (*stt_func) (void *);
 	void             *stt_data;
 } stt_timer_t;

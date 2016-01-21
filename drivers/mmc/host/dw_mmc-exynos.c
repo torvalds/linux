@@ -446,7 +446,7 @@ out:
 	return loc;
 }
 
-static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot)
+static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 {
 	struct dw_mci *host = slot->host;
 	struct dw_mci_exynos_priv_data *priv = host->priv;
@@ -461,7 +461,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot)
 		mci_writel(host, TMOUT, ~0);
 		smpl = dw_mci_exynos_move_next_clksmpl(host);
 
-		if (!mmc_send_tuning(mmc))
+		if (!mmc_send_tuning(mmc, opcode, NULL))
 			candiates |= (1 << smpl);
 
 	} while (start_smpl != smpl);

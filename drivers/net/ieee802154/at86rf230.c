@@ -31,6 +31,7 @@
 #include <linux/skbuff.h>
 #include <linux/of_gpio.h>
 #include <linux/ieee802154.h>
+#include <linux/debugfs.h>
 
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
@@ -80,7 +81,16 @@ struct at86rf230_state_change {
 	u8 from_state;
 	u8 to_state;
 
-	bool irq_enable;
+	bool free;
+};
+
+struct at86rf230_trac {
+	u64 success;
+	u64 success_data_pending;
+	u64 success_wait_for_ack;
+	u64 channel_access_failure;
+	u64 no_ack;
+	u64 invalid;
 };
 
 struct at86rf230_local {
@@ -95,14 +105,14 @@ struct at86rf230_local {
 	struct completion state_complete;
 	struct at86rf230_state_change state;
 
-	struct at86rf230_state_change irq;
-
 	unsigned long cal_timeout;
 	bool is_tx;
 	bool is_tx_from_off;
 	u8 tx_retry;
 	struct sk_buff *tx_skb;
 	struct at86rf230_state_change tx;
+
+	struct at86rf230_trac trac;
 };
 
 #define AT86RF2XX_NUMREGS 0x3F
@@ -110,8 +120,7 @@ struct at86rf230_local {
 static void
 at86rf230_async_state_change(struct at86rf230_local *lp,
 			     struct at86rf230_state_change *ctx,
-			     const u8 state, void (*complete)(void *context),
-			     const bool irq_enable);
+			     const u8 state, void (*complete)(void *context));
 
 static inline void
 at86rf230_sleep(struct at86rf230_local *lp)
@@ -340,8 +349,10 @@ at86rf230_async_error_recover(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 
 	lp->is_tx = 0;
-	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON, NULL, false);
+	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON, NULL);
 	ieee802154_wake_queue(lp->hw);
+	if (ctx->free)
+		kfree(ctx);
 }
 
 static inline void
@@ -351,15 +362,14 @@ at86rf230_async_error(struct at86rf230_local *lp,
 	dev_err(&lp->spi->dev, "spi_async error %d\n", rc);
 
 	at86rf230_async_state_change(lp, ctx, STATE_FORCE_TRX_OFF,
-				     at86rf230_async_error_recover, false);
+				     at86rf230_async_error_recover);
 }
 
 /* Generic function to get some register value in async mode */
 static void
-at86rf230_async_read_reg(struct at86rf230_local *lp, const u8 reg,
+at86rf230_async_read_reg(struct at86rf230_local *lp, u8 reg,
 			 struct at86rf230_state_change *ctx,
-			 void (*complete)(void *context),
-			 const bool irq_enable)
+			 void (*complete)(void *context))
 {
 	int rc;
 
@@ -367,22 +377,24 @@ at86rf230_async_read_reg(struct at86rf230_local *lp, const u8 reg,
 
 	tx_buf[0] = (reg & CMD_REG_MASK) | CMD_REG;
 	ctx->msg.complete = complete;
-	ctx->irq_enable = irq_enable;
 	rc = spi_async(lp->spi, &ctx->msg);
-	if (rc) {
-		if (irq_enable)
-			enable_irq(ctx->irq);
-
+	if (rc)
 		at86rf230_async_error(lp, ctx, rc);
-	}
 }
 
-static inline u8 at86rf230_state_to_force(u8 state)
+static void
+at86rf230_async_write_reg(struct at86rf230_local *lp, u8 reg, u8 val,
+			  struct at86rf230_state_change *ctx,
+			  void (*complete)(void *context))
 {
-	if (state == STATE_TX_ON)
-		return STATE_FORCE_TX_ON;
-	else
-		return STATE_FORCE_TRX_OFF;
+	int rc;
+
+	ctx->buf[0] = (reg & CMD_REG_MASK) | CMD_REG | CMD_WRITE;
+	ctx->buf[1] = val;
+	ctx->msg.complete = complete;
+	rc = spi_async(lp->spi, &ctx->msg);
+	if (rc)
+		at86rf230_async_error(lp, ctx, rc);
 }
 
 static void
@@ -426,12 +438,11 @@ at86rf230_async_state_assert(void *context)
 				u8 state = ctx->to_state;
 
 				if (lp->tx_retry >= AT86RF2XX_MAX_TX_RETRIES)
-					state = at86rf230_state_to_force(state);
+					state = STATE_FORCE_TRX_OFF;
 				lp->tx_retry++;
 
 				at86rf230_async_state_change(lp, ctx, state,
-							     ctx->complete,
-							     ctx->irq_enable);
+							     ctx->complete);
 				return;
 			}
 		}
@@ -452,8 +463,7 @@ static enum hrtimer_restart at86rf230_async_state_timer(struct hrtimer *timer)
 	struct at86rf230_local *lp = ctx->lp;
 
 	at86rf230_async_read_reg(lp, RG_TRX_STATUS, ctx,
-				 at86rf230_async_state_assert,
-				 ctx->irq_enable);
+				 at86rf230_async_state_assert);
 
 	return HRTIMER_NORESTART;
 }
@@ -558,14 +568,12 @@ at86rf230_async_state_change_start(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 	u8 *buf = ctx->buf;
 	const u8 trx_state = buf[1] & TRX_STATE_MASK;
-	int rc;
 
 	/* Check for "possible" STATE_TRANSITION_IN_PROGRESS */
 	if (trx_state == STATE_TRANSITION_IN_PROGRESS) {
 		udelay(1);
 		at86rf230_async_read_reg(lp, RG_TRX_STATUS, ctx,
-					 at86rf230_async_state_change_start,
-					 ctx->irq_enable);
+					 at86rf230_async_state_change_start);
 		return;
 	}
 
@@ -582,31 +590,20 @@ at86rf230_async_state_change_start(void *context)
 	/* Going into the next step for a state change which do a timing
 	 * relevant delay.
 	 */
-	buf[0] = (RG_TRX_STATE & CMD_REG_MASK) | CMD_REG | CMD_WRITE;
-	buf[1] = ctx->to_state;
-	ctx->msg.complete = at86rf230_async_state_delay;
-	rc = spi_async(lp->spi, &ctx->msg);
-	if (rc) {
-		if (ctx->irq_enable)
-			enable_irq(ctx->irq);
-
-		at86rf230_async_error(lp, ctx, rc);
-	}
+	at86rf230_async_write_reg(lp, RG_TRX_STATE, ctx->to_state, ctx,
+				  at86rf230_async_state_delay);
 }
 
 static void
 at86rf230_async_state_change(struct at86rf230_local *lp,
 			     struct at86rf230_state_change *ctx,
-			     const u8 state, void (*complete)(void *context),
-			     const bool irq_enable)
+			     const u8 state, void (*complete)(void *context))
 {
 	/* Initialization for the state change context */
 	ctx->to_state = state;
 	ctx->complete = complete;
-	ctx->irq_enable = irq_enable;
 	at86rf230_async_read_reg(lp, RG_TRX_STATUS, ctx,
-				 at86rf230_async_state_change_start,
-				 irq_enable);
+				 at86rf230_async_state_change_start);
 }
 
 static void
@@ -628,8 +625,7 @@ at86rf230_sync_state_change(struct at86rf230_local *lp, unsigned int state)
 	unsigned long rc;
 
 	at86rf230_async_state_change(lp, &lp->state, state,
-				     at86rf230_sync_state_change_complete,
-				     false);
+				     at86rf230_sync_state_change_complete);
 
 	rc = wait_for_completion_timeout(&lp->state_complete,
 					 msecs_to_jiffies(100));
@@ -647,9 +643,8 @@ at86rf230_tx_complete(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 
-	enable_irq(ctx->irq);
-
 	ieee802154_xmit_complete(lp->hw, lp->tx_skb, false);
+	kfree(ctx);
 }
 
 static void
@@ -659,7 +654,7 @@ at86rf230_tx_on(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 
 	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON,
-				     at86rf230_tx_complete, true);
+				     at86rf230_tx_complete);
 }
 
 static void
@@ -667,28 +662,33 @@ at86rf230_tx_trac_check(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
-	const u8 *buf = ctx->buf;
-	const u8 trac = (buf[1] & 0xe0) >> 5;
 
-	/* If trac status is different than zero we need to do a state change
-	 * to STATE_FORCE_TRX_OFF then STATE_RX_AACK_ON to recover the
-	 * transceiver.
-	 */
-	if (trac)
-		at86rf230_async_state_change(lp, ctx, STATE_FORCE_TRX_OFF,
-					     at86rf230_tx_on, true);
-	else
-		at86rf230_tx_on(context);
-}
+	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS)) {
+		u8 trac = TRAC_MASK(ctx->buf[1]);
 
-static void
-at86rf230_tx_trac_status(void *context)
-{
-	struct at86rf230_state_change *ctx = context;
-	struct at86rf230_local *lp = ctx->lp;
+		switch (trac) {
+		case TRAC_SUCCESS:
+			lp->trac.success++;
+			break;
+		case TRAC_SUCCESS_DATA_PENDING:
+			lp->trac.success_data_pending++;
+			break;
+		case TRAC_CHANNEL_ACCESS_FAILURE:
+			lp->trac.channel_access_failure++;
+			break;
+		case TRAC_NO_ACK:
+			lp->trac.no_ack++;
+			break;
+		case TRAC_INVALID:
+			lp->trac.invalid++;
+			break;
+		default:
+			WARN_ONCE(1, "received tx trac status %d\n", trac);
+			break;
+		}
+	}
 
-	at86rf230_async_read_reg(lp, RG_TRX_STATE, ctx,
-				 at86rf230_tx_trac_check, true);
+	at86rf230_async_state_change(lp, ctx, STATE_TX_ON, at86rf230_tx_on);
 }
 
 static void
@@ -696,7 +696,6 @@ at86rf230_rx_read_frame_complete(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
-	u8 rx_local_buf[AT86RF2XX_MAX_BUF];
 	const u8 *buf = ctx->buf;
 	struct sk_buff *skb;
 	u8 len, lqi;
@@ -708,27 +707,44 @@ at86rf230_rx_read_frame_complete(void *context)
 	}
 	lqi = buf[2 + len];
 
-	memcpy(rx_local_buf, buf + 2, len);
-	ctx->trx.len = 2;
-	enable_irq(ctx->irq);
-
 	skb = dev_alloc_skb(IEEE802154_MTU);
 	if (!skb) {
 		dev_vdbg(&lp->spi->dev, "failed to allocate sk_buff\n");
+		kfree(ctx);
 		return;
 	}
 
-	memcpy(skb_put(skb, len), rx_local_buf, len);
+	memcpy(skb_put(skb, len), buf + 2, len);
 	ieee802154_rx_irqsafe(lp->hw, skb, lqi);
+	kfree(ctx);
 }
 
 static void
-at86rf230_rx_read_frame(void *context)
+at86rf230_rx_trac_check(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 	u8 *buf = ctx->buf;
 	int rc;
+
+	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS)) {
+		u8 trac = TRAC_MASK(buf[1]);
+
+		switch (trac) {
+		case TRAC_SUCCESS:
+			lp->trac.success++;
+			break;
+		case TRAC_SUCCESS_WAIT_FOR_ACK:
+			lp->trac.success_wait_for_ack++;
+			break;
+		case TRAC_INVALID:
+			lp->trac.invalid++;
+			break;
+		default:
+			WARN_ONCE(1, "received rx trac status %d\n", trac);
+			break;
+		}
+	}
 
 	buf[0] = CMD_FB;
 	ctx->trx.len = AT86RF2XX_MAX_BUF;
@@ -736,35 +752,23 @@ at86rf230_rx_read_frame(void *context)
 	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
 		ctx->trx.len = 2;
-		enable_irq(ctx->irq);
 		at86rf230_async_error(lp, ctx, rc);
 	}
 }
 
 static void
-at86rf230_rx_trac_check(void *context)
+at86rf230_irq_trx_end(void *context)
 {
-	/* Possible check on trac status here. This could be useful to make
-	 * some stats why receive is failed. Not used at the moment, but it's
-	 * maybe timing relevant. Datasheet doesn't say anything about this.
-	 * The programming guide say do it so.
-	 */
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
 
-	at86rf230_rx_read_frame(context);
-}
-
-static void
-at86rf230_irq_trx_end(struct at86rf230_local *lp)
-{
 	if (lp->is_tx) {
 		lp->is_tx = 0;
-		at86rf230_async_state_change(lp, &lp->irq,
-					     STATE_FORCE_TX_ON,
-					     at86rf230_tx_trac_status,
-					     true);
+		at86rf230_async_read_reg(lp, RG_TRX_STATE, ctx,
+					 at86rf230_tx_trac_check);
 	} else {
-		at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
-					 at86rf230_rx_trac_check, true);
+		at86rf230_async_read_reg(lp, RG_TRX_STATE, ctx,
+					 at86rf230_rx_trac_check);
 	}
 }
 
@@ -774,32 +778,59 @@ at86rf230_irq_status(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 	const u8 *buf = ctx->buf;
-	const u8 irq = buf[1];
+	u8 irq = buf[1];
+
+	enable_irq(lp->spi->irq);
 
 	if (irq & IRQ_TRX_END) {
-		at86rf230_irq_trx_end(lp);
+		at86rf230_irq_trx_end(ctx);
 	} else {
-		enable_irq(ctx->irq);
 		dev_err(&lp->spi->dev, "not supported irq %02x received\n",
 			irq);
+		kfree(ctx);
 	}
+}
+
+static void
+at86rf230_setup_spi_messages(struct at86rf230_local *lp,
+			     struct at86rf230_state_change *state)
+{
+	state->lp = lp;
+	state->irq = lp->spi->irq;
+	spi_message_init(&state->msg);
+	state->msg.context = state;
+	state->trx.len = 2;
+	state->trx.tx_buf = state->buf;
+	state->trx.rx_buf = state->buf;
+	spi_message_add_tail(&state->trx, &state->msg);
+	hrtimer_init(&state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	state->timer.function = at86rf230_async_state_timer;
 }
 
 static irqreturn_t at86rf230_isr(int irq, void *data)
 {
 	struct at86rf230_local *lp = data;
-	struct at86rf230_state_change *ctx = &lp->irq;
-	u8 *buf = ctx->buf;
+	struct at86rf230_state_change *ctx;
 	int rc;
 
 	disable_irq_nosync(irq);
 
-	buf[0] = (RG_IRQ_STATUS & CMD_REG_MASK) | CMD_REG;
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx) {
+		enable_irq(irq);
+		return IRQ_NONE;
+	}
+
+	at86rf230_setup_spi_messages(lp, ctx);
+	/* tell on error handling to free ctx */
+	ctx->free = true;
+
+	ctx->buf[0] = (RG_IRQ_STATUS & CMD_REG_MASK) | CMD_REG;
 	ctx->msg.complete = at86rf230_irq_status;
 	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
-		enable_irq(irq);
 		at86rf230_async_error(lp, ctx, rc);
+		enable_irq(irq);
 		return IRQ_NONE;
 	}
 
@@ -811,21 +842,14 @@ at86rf230_write_frame_complete(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
-	u8 *buf = ctx->buf;
-	int rc;
 
 	ctx->trx.len = 2;
 
-	if (gpio_is_valid(lp->slp_tr)) {
+	if (gpio_is_valid(lp->slp_tr))
 		at86rf230_slp_tr_rising_edge(lp);
-	} else {
-		buf[0] = (RG_TRX_STATE & CMD_REG_MASK) | CMD_REG | CMD_WRITE;
-		buf[1] = STATE_BUSY_TX;
-		ctx->msg.complete = NULL;
-		rc = spi_async(lp->spi, &ctx->msg);
-		if (rc)
-			at86rf230_async_error(lp, ctx, rc);
-	}
+	else
+		at86rf230_async_write_reg(lp, RG_TRX_STATE, STATE_BUSY_TX, ctx,
+					  NULL);
 }
 
 static void
@@ -858,7 +882,7 @@ at86rf230_xmit_tx_on(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 
 	at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
-				     at86rf230_write_frame, false);
+				     at86rf230_write_frame);
 }
 
 static void
@@ -871,12 +895,10 @@ at86rf230_xmit_start(void *context)
 	if (lp->is_tx_from_off) {
 		lp->is_tx_from_off = false;
 		at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
-					     at86rf230_write_frame,
-					     false);
+					     at86rf230_write_frame);
 	} else {
 		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
-					     at86rf230_xmit_tx_on,
-					     false);
+					     at86rf230_xmit_tx_on);
 	}
 }
 
@@ -899,7 +921,7 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	if (time_is_before_jiffies(lp->cal_timeout)) {
 		lp->is_tx_from_off = true;
 		at86rf230_async_state_change(lp, ctx, STATE_TRX_OFF,
-					     at86rf230_xmit_start, false);
+					     at86rf230_xmit_start);
 	} else {
 		at86rf230_xmit_start(ctx);
 	}
@@ -919,6 +941,10 @@ static int
 at86rf230_start(struct ieee802154_hw *hw)
 {
 	struct at86rf230_local *lp = hw->priv;
+
+	/* reset trac stats on start */
+	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS))
+		memset(&lp->trac, 0, sizeof(struct at86rf230_trac));
 
 	at86rf230_awake(lp);
 	enable_irq(lp->spi->irq);
@@ -1354,10 +1380,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 		return rc;
 
 	irq_type = irq_get_trigger_type(lp->spi->irq);
-	if (irq_type == IRQ_TYPE_EDGE_RISING ||
-	    irq_type == IRQ_TYPE_EDGE_FALLING)
-		dev_warn(&lp->spi->dev,
-			 "Using edge triggered irq's are not recommended!\n");
 	if (irq_type == IRQ_TYPE_EDGE_FALLING ||
 	    irq_type == IRQ_TYPE_LEVEL_LOW)
 		irq_pol = IRQ_ACTIVE_LOW;
@@ -1583,42 +1605,65 @@ not_supp:
 	return rc;
 }
 
-static void
-at86rf230_setup_spi_messages(struct at86rf230_local *lp)
+#ifdef CONFIG_IEEE802154_AT86RF230_DEBUGFS
+static struct dentry *at86rf230_debugfs_root;
+
+static int at86rf230_stats_show(struct seq_file *file, void *offset)
 {
-	lp->state.lp = lp;
-	lp->state.irq = lp->spi->irq;
-	spi_message_init(&lp->state.msg);
-	lp->state.msg.context = &lp->state;
-	lp->state.trx.len = 2;
-	lp->state.trx.tx_buf = lp->state.buf;
-	lp->state.trx.rx_buf = lp->state.buf;
-	spi_message_add_tail(&lp->state.trx, &lp->state.msg);
-	hrtimer_init(&lp->state.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	lp->state.timer.function = at86rf230_async_state_timer;
+	struct at86rf230_local *lp = file->private;
 
-	lp->irq.lp = lp;
-	lp->irq.irq = lp->spi->irq;
-	spi_message_init(&lp->irq.msg);
-	lp->irq.msg.context = &lp->irq;
-	lp->irq.trx.len = 2;
-	lp->irq.trx.tx_buf = lp->irq.buf;
-	lp->irq.trx.rx_buf = lp->irq.buf;
-	spi_message_add_tail(&lp->irq.trx, &lp->irq.msg);
-	hrtimer_init(&lp->irq.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	lp->irq.timer.function = at86rf230_async_state_timer;
-
-	lp->tx.lp = lp;
-	lp->tx.irq = lp->spi->irq;
-	spi_message_init(&lp->tx.msg);
-	lp->tx.msg.context = &lp->tx;
-	lp->tx.trx.len = 2;
-	lp->tx.trx.tx_buf = lp->tx.buf;
-	lp->tx.trx.rx_buf = lp->tx.buf;
-	spi_message_add_tail(&lp->tx.trx, &lp->tx.msg);
-	hrtimer_init(&lp->tx.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	lp->tx.timer.function = at86rf230_async_state_timer;
+	seq_printf(file, "SUCCESS:\t\t%8llu\n", lp->trac.success);
+	seq_printf(file, "SUCCESS_DATA_PENDING:\t%8llu\n",
+		   lp->trac.success_data_pending);
+	seq_printf(file, "SUCCESS_WAIT_FOR_ACK:\t%8llu\n",
+		   lp->trac.success_wait_for_ack);
+	seq_printf(file, "CHANNEL_ACCESS_FAILURE:\t%8llu\n",
+		   lp->trac.channel_access_failure);
+	seq_printf(file, "NO_ACK:\t\t\t%8llu\n", lp->trac.no_ack);
+	seq_printf(file, "INVALID:\t\t%8llu\n", lp->trac.invalid);
+	return 0;
 }
+
+static int at86rf230_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, at86rf230_stats_show, inode->i_private);
+}
+
+static const struct file_operations at86rf230_stats_fops = {
+	.open		= at86rf230_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int at86rf230_debugfs_init(struct at86rf230_local *lp)
+{
+	char debugfs_dir_name[DNAME_INLINE_LEN + 1] = "at86rf230-";
+	struct dentry *stats;
+
+	strncat(debugfs_dir_name, dev_name(&lp->spi->dev), DNAME_INLINE_LEN);
+
+	at86rf230_debugfs_root = debugfs_create_dir(debugfs_dir_name, NULL);
+	if (!at86rf230_debugfs_root)
+		return -ENOMEM;
+
+	stats = debugfs_create_file("trac_stats", S_IRUGO,
+				    at86rf230_debugfs_root, lp,
+				    &at86rf230_stats_fops);
+	if (!stats)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void at86rf230_debugfs_remove(void)
+{
+	debugfs_remove_recursive(at86rf230_debugfs_root);
+}
+#else
+static int at86rf230_debugfs_init(struct at86rf230_local *lp) { return 0; }
+static void at86rf230_debugfs_remove(void) { }
+#endif
 
 static int at86rf230_probe(struct spi_device *spi)
 {
@@ -1681,7 +1726,8 @@ static int at86rf230_probe(struct spi_device *spi)
 		goto free_dev;
 	}
 
-	at86rf230_setup_spi_messages(lp);
+	at86rf230_setup_spi_messages(lp, &lp->state);
+	at86rf230_setup_spi_messages(lp, &lp->tx);
 
 	rc = at86rf230_detect_device(lp);
 	if (rc < 0)
@@ -1715,12 +1761,18 @@ static int at86rf230_probe(struct spi_device *spi)
 	/* going into sleep by default */
 	at86rf230_sleep(lp);
 
-	rc = ieee802154_register_hw(lp->hw);
+	rc = at86rf230_debugfs_init(lp);
 	if (rc)
 		goto free_dev;
 
+	rc = ieee802154_register_hw(lp->hw);
+	if (rc)
+		goto free_debugfs;
+
 	return rc;
 
+free_debugfs:
+	at86rf230_debugfs_remove();
 free_dev:
 	ieee802154_free_hw(lp->hw);
 
@@ -1735,6 +1787,7 @@ static int at86rf230_remove(struct spi_device *spi)
 	at86rf230_write_subreg(lp, SR_IRQ_MASK, 0);
 	ieee802154_unregister_hw(lp->hw);
 	ieee802154_free_hw(lp->hw);
+	at86rf230_debugfs_remove();
 	dev_dbg(&spi->dev, "unregistered at86rf230\n");
 
 	return 0;
@@ -1763,7 +1816,6 @@ static struct spi_driver at86rf230_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(at86rf230_of_match),
 		.name	= "at86rf230",
-		.owner	= THIS_MODULE,
 	},
 	.probe      = at86rf230_probe,
 	.remove     = at86rf230_remove,

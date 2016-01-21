@@ -340,8 +340,12 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
 	}
-	if (IS_ERR(dentry))
+
+	if (IS_ERR(dentry)) {
 		mutex_unlock(&parent->d_inode->i_mutex);
+		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
+	}
+
 	return dentry;
 }
 

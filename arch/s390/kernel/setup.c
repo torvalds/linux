@@ -764,9 +764,6 @@ static int __init setup_hwcaps(void)
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
-	case 0x9672:
-		strcpy(elf_platform, "g5");
-		break;
 	case 0x2064:
 	case 0x2066:
 	default:	/* Use "z900" as default for 64 bit kernels. */

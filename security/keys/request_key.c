@@ -271,7 +271,7 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 			if (cred->request_key_auth) {
 				authkey = cred->request_key_auth;
 				down_read(&authkey->sem);
-				rka = authkey->payload.data;
+				rka = authkey->payload.data[0];
 				if (!test_bit(KEY_FLAG_REVOKED,
 					      &authkey->flags))
 					dest_keyring =
@@ -596,7 +596,7 @@ int wait_for_key_construction(struct key *key, bool intr)
 		return -ERESTARTSYS;
 	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
 		smp_rmb();
-		return key->type_data.reject_error;
+		return key->reject_error;
 	}
 	return key_validate(key);
 }

@@ -341,7 +341,6 @@ fini:
 
 static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
-
 	drm_fb_helper_unregister_fbi(&fbdev->base);
 	drm_fb_helper_release_fbi(&fbdev->base);
 

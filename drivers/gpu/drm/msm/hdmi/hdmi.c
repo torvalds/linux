@@ -328,6 +328,9 @@ fail:
 	.item ## _names = item ##_names_ ## entry, \
 	.item ## _cnt   = ARRAY_SIZE(item ## _names_ ## entry)
 
+static const char *pwr_reg_names_none[] = {};
+static const char *hpd_reg_names_none[] = {};
+
 static struct hdmi_platform_config hdmi_tx_8660_config = {
 		.phy_init = hdmi_phy_8x60_init,
 };
@@ -367,18 +370,26 @@ static struct hdmi_platform_config hdmi_tx_8084_config = {
 		.hpd_freq      = hpd_clk_freq_8x74,
 };
 
-static const char *hpd_reg_names_8x94[] = {};
-
 static struct hdmi_platform_config hdmi_tx_8994_config = {
 		.phy_init = NULL, /* nothing to do for this HDMI PHY 20nm */
 		HDMI_CFG(pwr_reg, 8x74),
-		HDMI_CFG(hpd_reg, 8x94),
+		HDMI_CFG(hpd_reg, none),
+		HDMI_CFG(pwr_clk, 8x74),
+		HDMI_CFG(hpd_clk, 8x74),
+		.hpd_freq      = hpd_clk_freq_8x74,
+};
+
+static struct hdmi_platform_config hdmi_tx_8996_config = {
+		.phy_init = NULL,
+		HDMI_CFG(pwr_reg, none),
+		HDMI_CFG(hpd_reg, none),
 		HDMI_CFG(pwr_clk, 8x74),
 		HDMI_CFG(hpd_clk, 8x74),
 		.hpd_freq      = hpd_clk_freq_8x74,
 };
 
 static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,hdmi-tx-8996", .data = &hdmi_tx_8996_config },
 	{ .compatible = "qcom,hdmi-tx-8994", .data = &hdmi_tx_8994_config },
 	{ .compatible = "qcom,hdmi-tx-8084", .data = &hdmi_tx_8084_config },
 	{ .compatible = "qcom,hdmi-tx-8974", .data = &hdmi_tx_8974_config },

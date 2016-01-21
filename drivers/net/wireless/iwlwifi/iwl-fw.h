@@ -105,8 +105,8 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
-	unsigned long _api[BITS_TO_LONGS(IWL_API_MAX_BITS)];
-	unsigned long _capa[BITS_TO_LONGS(IWL_CAPABILITIES_MAX_BITS)];
+	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
+	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
 };
 
 static inline bool

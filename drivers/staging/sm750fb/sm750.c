@@ -1,30 +1,27 @@
-#include<linux/kernel.h>
-#include<linux/module.h>
-#include<linux/errno.h>
-#include<linux/string.h>
-#include<linux/mm.h>
-#include<linux/slab.h>
-#include<linux/delay.h>
-#include<linux/fb.h>
-#include<linux/ioport.h>
-#include<linux/init.h>
-#include<linux/pci.h>
-#include<linux/mm_types.h>
-#include<linux/vmalloc.h>
-#include<linux/pagemap.h>
-#include<linux/screen_info.h>
-#include<linux/vmalloc.h>
-#include<linux/pagemap.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/fb.h>
+#include <linux/ioport.h>
+#include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/mm_types.h>
+#include <linux/vmalloc.h>
+#include <linux/pagemap.h>
+#include <linux/screen_info.h>
+#include <linux/vmalloc.h>
+#include <linux/pagemap.h>
 #include <linux/console.h>
 #include <asm/fb.h>
 #include "sm750.h"
-#include "sm750_hw.h"
 #include "sm750_accel.h"
 #include "sm750_cursor.h"
 
 #include "modedb.h"
-
-int smi_indent;
 
 /*
  * #ifdef __BIG_ENDIAN
@@ -34,10 +31,6 @@ int smi_indent;
  * size_t count, loff_t *ppos);
  * #endif
  */
-
-typedef void (*PROC_SPEC_SETUP)(struct lynx_share*, char *);
-typedef int (*PROC_SPEC_MAP)(struct lynx_share*, struct pci_dev*);
-typedef int (*PROC_SPEC_INITHW)(struct lynx_share*, struct pci_dev*);
 
 /* common var for all device */
 static int g_hwcursor = 1;
@@ -129,16 +122,16 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 		return -ENXIO;
 	}
 
-	cursor->disable(cursor);
+	hw_cursor_disable(cursor);
 	if (fbcursor->set & FB_CUR_SETSIZE)
-		cursor->setSize(cursor,
-				fbcursor->image.width,
-				fbcursor->image.height);
+		hw_cursor_setSize(cursor,
+				  fbcursor->image.width,
+				  fbcursor->image.height);
 
 	if (fbcursor->set & FB_CUR_SETPOS)
-		cursor->setPos(cursor,
-			       fbcursor->image.dx - info->var.xoffset,
-			       fbcursor->image.dy - info->var.yoffset);
+		hw_cursor_setPos(cursor,
+				 fbcursor->image.dx - info->var.xoffset,
+				 fbcursor->image.dy - info->var.yoffset);
 
 	if (fbcursor->set & FB_CUR_SETCMAP) {
 		/* get the 16bit color of kernel means */
@@ -152,18 +145,18 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 		      ((info->cmap.green[fbcursor->image.bg_color] & 0xfc00) >> 5) |
 		      ((info->cmap.blue[fbcursor->image.bg_color] & 0xf800) >> 11);
 
-		cursor->setColor(cursor, fg, bg);
+		hw_cursor_setColor(cursor, fg, bg);
 	}
 
 	if (fbcursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETIMAGE)) {
-		cursor->setData(cursor,
-				fbcursor->rop,
-				fbcursor->image.data,
-				fbcursor->mask);
+		hw_cursor_setData(cursor,
+				  fbcursor->rop,
+				  fbcursor->image.data,
+				  fbcursor->mask);
 	}
 
 	if (fbcursor->enable)
-		cursor->enable(cursor);
+		hw_cursor_enable(cursor);
 
 	return 0;
 }
@@ -172,7 +165,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 				const struct fb_fillrect *region)
 {
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	unsigned int base, pitch, Bpp, rop;
 	u32 color;
 
@@ -180,7 +173,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 		return;
 
 	par = info->par;
-	share = par->share;
+	sm750_dev = par->dev;
 
 	/*
 	 * each time 2d function begin to work,below three variable always need
@@ -198,27 +191,27 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	 * If not use spin_lock,system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (share->dual)
-		spin_lock(&share->slock);
+	if (sm750_dev->dual)
+		spin_lock(&sm750_dev->slock);
 
-	share->accel.de_fillrect(&share->accel,
-				 base, pitch, Bpp,
-				 region->dx, region->dy,
-				 region->width, region->height,
-				 color, rop);
-	if (share->dual)
-		spin_unlock(&share->slock);
+	sm750_dev->accel.de_fillrect(&sm750_dev->accel,
+				     base, pitch, Bpp,
+				     region->dx, region->dy,
+				     region->width, region->height,
+				     color, rop);
+	if (sm750_dev->dual)
+		spin_unlock(&sm750_dev->slock);
 }
 
 static void lynxfb_ops_copyarea(struct fb_info *info,
 				const struct fb_copyarea *region)
 {
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	unsigned int base, pitch, Bpp;
 
 	par = info->par;
-	share = par->share;
+	sm750_dev = par->dev;
 
 	/*
 	 * each time 2d function begin to work,below three variable always need
@@ -232,15 +225,16 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (share->dual)
-		spin_lock(&share->slock);
+	if (sm750_dev->dual)
+		spin_lock(&sm750_dev->slock);
 
-	share->accel.de_copyarea(&share->accel,
-				 base, pitch, region->sx, region->sy,
-				 base, pitch, Bpp, region->dx, region->dy,
-				 region->width, region->height, HW_ROP2_COPY);
-	if (share->dual)
-		spin_unlock(&share->slock);
+	sm750_dev->accel.de_copyarea(&sm750_dev->accel,
+				     base, pitch, region->sx, region->sy,
+				     base, pitch, Bpp, region->dx, region->dy,
+				     region->width, region->height,
+				     HW_ROP2_COPY);
+	if (sm750_dev->dual)
+		spin_unlock(&sm750_dev->slock);
 }
 
 static void lynxfb_ops_imageblit(struct fb_info *info,
@@ -249,10 +243,10 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	unsigned int base, pitch, Bpp;
 	unsigned int fgcol, bgcol;
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 
 	par = info->par;
-	share = par->share;
+	sm750_dev = par->dev;
 	/*
 	 * each time 2d function begin to work,below three variable always need
 	 * be set, seems we can put them together in some place
@@ -280,17 +274,17 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (share->dual)
-		spin_lock(&share->slock);
+	if (sm750_dev->dual)
+		spin_lock(&sm750_dev->slock);
 
-	share->accel.de_imageblit(&share->accel,
-				  image->data, image->width >> 3, 0,
-				  base, pitch, Bpp,
-				  image->dx, image->dy,
-				  image->width, image->height,
-				  fgcol, bgcol, HW_ROP2_COPY);
-	if (share->dual)
-		spin_unlock(&share->slock);
+	sm750_dev->accel.de_imageblit(&sm750_dev->accel,
+				      image->data, image->width >> 3, 0,
+				      base, pitch, Bpp,
+				      image->dx, image->dy,
+				      image->width, image->height,
+				      fgcol, bgcol, HW_ROP2_COPY);
+	if (sm750_dev->dual)
+		spin_unlock(&sm750_dev->slock);
 }
 
 static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
@@ -304,13 +298,12 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
 
 	par = info->par;
 	crtc = &par->crtc;
-	return crtc->proc_panDisplay(crtc, var, info);
+	return hw_sm750_pan_display(crtc, var, info);
 }
 
 static int lynxfb_ops_set_par(struct fb_info *info)
 {
 	struct lynxfb_par *par;
-	struct lynx_share *share;
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
 	struct fb_var_screeninfo *var;
@@ -323,7 +316,6 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 
 	ret = 0;
 	par = info->par;
-	share = par->share;
 	crtc = &par->crtc;
 	output = &par->output;
 	var = &info->var;
@@ -331,7 +323,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 
 	/* fix structur is not so FIX ... */
 	line_length = var->xres_virtual * var->bits_per_pixel / 8;
-	line_length = PADDING(crtc->line_pad, line_length);
+	line_length = ALIGN(line_length, crtc->line_pad);
 	fix->line_length = line_length;
 	pr_info("fix->line_length = %d\n", fix->line_length);
 
@@ -384,9 +376,9 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 		pr_err("pixel bpp format not satisfied\n.");
 		return ret;
 	}
-	ret = crtc->proc_setMode(crtc, var, fix);
+	ret = hw_sm750_crtc_setMode(crtc, var, fix);
 	if (!ret)
-		ret = output->proc_setMode(output, var, fix);
+		ret = hw_sm750_output_setMode(output, var, fix);
 	return ret;
 }
 
@@ -402,14 +394,14 @@ static inline unsigned int chan_to_field(unsigned int chan,
 static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct fb_info *info;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	int ret;
 
 	if (mesg.event == pdev->dev.power.power_state.event)
 		return 0;
 
 	ret = 0;
-	share = pci_get_drvdata(pdev);
+	sm750_dev = pci_get_drvdata(pdev);
 	switch (mesg.event) {
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_PRETHAW:
@@ -419,11 +411,11 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 	console_lock();
 	if (mesg.event & PM_EVENT_SLEEP) {
-		info = share->fbinfo[0];
+		info = sm750_dev->fbinfo[0];
 		if (info)
 			/* 1 means do suspend */
 			fb_set_suspend(info, 1);
-		info = share->fbinfo[1];
+		info = sm750_dev->fbinfo[1];
 		if (info)
 			/* 1 means do suspend */
 			fb_set_suspend(info, 1);
@@ -433,10 +425,6 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 			pr_err("error:%d occurred in pci_save_state\n", ret);
 			return ret;
 		}
-
-		/* set chip to sleep mode */
-		if (share->suspend)
-			(*share->suspend)(share);
 
 		pci_disable_device(pdev);
 		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
@@ -454,7 +442,7 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 static int lynxfb_resume(struct pci_dev *pdev)
 {
 	struct fb_info *info;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
@@ -463,7 +451,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 	int ret;
 
 	ret = 0;
-	share = pci_get_drvdata(pdev);
+	sm750_dev = pci_get_drvdata(pdev);
 
 	console_lock();
 
@@ -482,12 +470,10 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		}
 		pci_set_master(pdev);
 	}
-	if (share->resume)
-		(*share->resume)(share);
 
-	hw_sm750_inithw(share, pdev);
+	hw_sm750_inithw(sm750_dev, pdev);
 
-	info = share->fbinfo[0];
+	info = sm750_dev->fbinfo[0];
 
 	if (info) {
 		par = info->par;
@@ -499,7 +485,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		fb_set_suspend(info, 0);
 	}
 
-	info = share->fbinfo[1];
+	info = sm750_dev->fbinfo[1];
 
 	if (info) {
 		par = info->par;
@@ -511,6 +497,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		fb_set_suspend(info, 0);
 	}
 
+	pdev->dev.power.power_state.event = PM_EVENT_RESUME;
 	console_unlock();
 	return ret;
 }
@@ -522,32 +509,16 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
-	struct lynx_share *share;
-	int ret;
 	resource_size_t request;
 
 	par = info->par;
 	crtc = &par->crtc;
 	output = &par->output;
-	share = par->share;
-	ret = 0;
 
 	pr_debug("check var:%dx%d-%d\n",
 		 var->xres,
 		 var->yres,
 		 var->bits_per_pixel);
-
-	switch (var->bits_per_pixel) {
-	case 8:
-	case 16:
-	case 24: /* support 24 bpp for only lynx712/722/720 */
-	case 32:
-		break;
-	default:
-		pr_err("bpp %d not supported\n", var->bits_per_pixel);
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	switch (var->bits_per_pixel) {
 	case 8:
@@ -583,8 +554,8 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	default:
-		ret = -EINVAL;
-		break;
+		pr_err("bpp %d not supported\n", var->bits_per_pixel);
+		return -EINVAL;
 	}
 	var->height = var->width = -1;
 	var->accel_flags = 0;/* FB_ACCELF_TEXT; */
@@ -593,18 +564,14 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	request = var->xres_virtual * (var->bits_per_pixel >> 3);
 	/* defaulty crtc->channel go with par->index */
 
-	request = PADDING(crtc->line_pad, request);
+	request = ALIGN(request, crtc->line_pad);
 	request = request * var->yres_virtual;
 	if (crtc->vidmem_size < request) {
 		pr_err("not enough video memory for mode\n");
 		return -ENOMEM;
 	}
 
-	ret = output->proc_checkMode(output, var);
-	if (!ret)
-		ret = crtc->proc_checkMode(crtc, var);
-exit:
-	return ret;
+	return hw_sm750_crtc_checkMode(crtc, var);
 }
 
 static int lynxfb_ops_setcolreg(unsigned regno,
@@ -637,7 +604,7 @@ static int lynxfb_ops_setcolreg(unsigned regno,
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
-		ret = crtc->proc_setColReg(crtc, regno, red, green, blue);
+		ret = hw_sm750_setColReg(crtc, regno, red, green, blue);
 		goto exit;
 	}
 
@@ -675,68 +642,57 @@ static int lynxfb_ops_blank(int blank, struct fb_info *info)
 static int sm750fb_set_drv(struct lynxfb_par *par)
 {
 	int ret;
-	struct lynx_share *share;
-	struct sm750_share *spec_share;
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_output *output;
 	struct lynxfb_crtc *crtc;
 
 	ret = 0;
 
-	share = par->share;
-	spec_share = container_of(share, struct sm750_share, share);
+	sm750_dev = par->dev;
 	output = &par->output;
 	crtc = &par->crtc;
 
-	crtc->vidmem_size = (share->dual) ? share->vidmem_size >> 1 :
-			     share->vidmem_size;
+	crtc->vidmem_size = (sm750_dev->dual) ? sm750_dev->vidmem_size >> 1 :
+			     sm750_dev->vidmem_size;
 	/* setup crtc and output member */
-	spec_share->hwCursor = g_hwcursor;
+	sm750_dev->hwCursor = g_hwcursor;
 
-	crtc->proc_setMode = hw_sm750_crtc_setMode;
-	crtc->proc_checkMode = hw_sm750_crtc_checkMode;
-	crtc->proc_setColReg = hw_sm750_setColReg;
-	crtc->proc_panDisplay = hw_sm750_pan_display;
-	crtc->clear = hw_sm750_crtc_clear;
 	crtc->line_pad = 16;
 	crtc->xpanstep = 8;
 	crtc->ypanstep = 1;
 	crtc->ywrapstep = 0;
 
-	output->proc_setMode = hw_sm750_output_setMode;
-	output->proc_checkMode = hw_sm750_output_checkMode;
-
-	output->proc_setBLANK = (share->revid == SM750LE_REVISION_ID) ?
+	output->proc_setBLANK = (sm750_dev->revid == SM750LE_REVISION_ID) ?
 				 hw_sm750le_setBLANK : hw_sm750_setBLANK;
-	output->clear = hw_sm750_output_clear;
 	/* chip specific phase */
-	share->accel.de_wait = (share->revid == SM750LE_REVISION_ID) ?
-				hw_sm750le_deWait : hw_sm750_deWait;
-	switch (spec_share->state.dataflow) {
+	sm750_dev->accel.de_wait = (sm750_dev->revid == SM750LE_REVISION_ID) ?
+				    hw_sm750le_deWait : hw_sm750_deWait;
+	switch (sm750_dev->dataflow) {
 	case sm750_simul_pri:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_primary;
 		crtc->oScreen = 0;
-		crtc->vScreen = share->pvMem;
+		crtc->vScreen = sm750_dev->pvMem;
 		pr_info("use simul primary mode\n");
 		break;
 	case sm750_simul_sec:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_secondary;
 		crtc->oScreen = 0;
-		crtc->vScreen = share->pvMem;
+		crtc->vScreen = sm750_dev->pvMem;
 		break;
 	case sm750_dual_normal:
 		if (par->index == 0) {
 			output->paths = sm750_panel;
 			crtc->channel = sm750_primary;
 			crtc->oScreen = 0;
-			crtc->vScreen = share->pvMem;
+			crtc->vScreen = sm750_dev->pvMem;
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_secondary;
 			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (share->vidmem_size >> 1);
-			crtc->vScreen = share->pvMem + crtc->oScreen;
+			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
+			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
 		break;
 	case sm750_dual_swap:
@@ -744,13 +700,13 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 			output->paths = sm750_panel;
 			crtc->channel = sm750_secondary;
 			crtc->oScreen = 0;
-			crtc->vScreen = share->pvMem;
+			crtc->vScreen = sm750_dev->pvMem;
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_primary;
 			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (share->vidmem_size >> 1);
-			crtc->vScreen = share->pvMem + crtc->oScreen;
+			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
+			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
 		break;
 	default:
@@ -777,7 +733,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 {
 	int i;
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
 	struct fb_var_screeninfo *var;
@@ -801,7 +757,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	ret = 0;
 	par = (struct lynxfb_par *)info->par;
-	share = par->share;
+	sm750_dev = par->dev;
 	crtc = &par->crtc;
 	output = &par->output;
 	var = &info->var;
@@ -818,28 +774,22 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	 * must be set after crtc member initialized
 	 */
 	crtc->cursor.offset = crtc->oScreen + crtc->vidmem_size - 1024;
-	crtc->cursor.mmio = share->pvReg + 0x800f0 + (int)crtc->channel * 0x140;
+	crtc->cursor.mmio = sm750_dev->pvReg +
+		0x800f0 + (int)crtc->channel * 0x140;
 
 	pr_info("crtc->cursor.mmio = %p\n", crtc->cursor.mmio);
 	crtc->cursor.maxH = crtc->cursor.maxW = 64;
 	crtc->cursor.size = crtc->cursor.maxH * crtc->cursor.maxW * 2 / 8;
-	crtc->cursor.disable = hw_cursor_disable;
-	crtc->cursor.enable = hw_cursor_enable;
-	crtc->cursor.setColor = hw_cursor_setColor;
-	crtc->cursor.setPos = hw_cursor_setPos;
-	crtc->cursor.setSize = hw_cursor_setSize;
-	crtc->cursor.setData = hw_cursor_setData;
-	crtc->cursor.vstart = share->pvMem + crtc->cursor.offset;
+	crtc->cursor.vstart = sm750_dev->pvMem + crtc->cursor.offset;
 
-	crtc->cursor.share = share;
-		memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
+	memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
 	if (!g_hwcursor) {
 		lynxfb_ops.fb_cursor = NULL;
-		crtc->cursor.disable(&crtc->cursor);
+		hw_cursor_disable(&crtc->cursor);
 	}
 
 	/* set info->fbops, must be set before fb_find_mode */
-	if (!share->accel_off) {
+	if (!sm750_dev->accel_off) {
 		/* use 2d acceleration */
 		lynxfb_ops.fb_fillrect = lynxfb_ops_fillrect;
 		lynxfb_ops.fb_copyarea = lynxfb_ops_copyarea;
@@ -903,8 +853,8 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	par->info = info;
 
 	/* set info */
-	line_length = PADDING(crtc->line_pad,
-			      (var->xres_virtual * var->bits_per_pixel / 8));
+	line_length = ALIGN((var->xres_virtual * var->bits_per_pixel / 8),
+			    crtc->line_pad);
 
 	info->pseudo_palette = &par->pseudo_palette[0];
 	info->screen_base = crtc->vScreen;
@@ -922,7 +872,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	strlcpy(fix->id, fixId[index], sizeof(fix->id));
 
-	fix->smem_start = crtc->oScreen + share->vidmem_start;
+	fix->smem_start = crtc->oScreen + sm750_dev->vidmem_start;
 	pr_info("fix->smem_start = %lx\n", fix->smem_start);
 	/*
 	 * according to mmap experiment from user space application,
@@ -935,9 +885,9 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	pr_info("fix->smem_len = %x\n", fix->smem_len);
 	info->screen_size = fix->smem_len;
 	fix->line_length = line_length;
-	fix->mmio_start = share->vidreg_start;
+	fix->mmio_start = sm750_dev->vidreg_start;
 	pr_info("fix->mmio_start = %lx\n", fix->mmio_start);
-	fix->mmio_len = share->vidreg_size;
+	fix->mmio_len = sm750_dev->vidreg_size;
 	pr_info("fix->mmio_len = %x\n", fix->mmio_len);
 	switch (var->bits_per_pixel) {
 	case 8:
@@ -976,27 +926,19 @@ exit:
 }
 
 /*	chip specific g_option configuration routine */
-static void sm750fb_setup(struct lynx_share *share, char *src)
+static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 {
-	struct sm750_share *spec_share;
 	char *opt;
-#ifdef CAP_EXPENSION
-	char *exp_res;
-#endif
 	int swap;
 
-	spec_share = container_of(share, struct sm750_share, share);
-#ifdef CAP_EXPENSIION
-	exp_res = NULL;
-#endif
 	swap = 0;
 
-	spec_share->state.initParm.chip_clk = 0;
-	spec_share->state.initParm.mem_clk = 0;
-	spec_share->state.initParm.master_clk = 0;
-	spec_share->state.initParm.powerMode = 0;
-	spec_share->state.initParm.setAllEngOff = 0;
-	spec_share->state.initParm.resetMemory = 1;
+	sm750_dev->initParm.chip_clk = 0;
+	sm750_dev->initParm.mem_clk = 0;
+	sm750_dev->initParm.master_clk = 0;
+	sm750_dev->initParm.powerMode = 0;
+	sm750_dev->initParm.setAllEngOff = 0;
+	sm750_dev->initParm.resetMemory = 1;
 
 	/* defaultly turn g_hwcursor on for both view */
 	g_hwcursor = 3;
@@ -1013,17 +955,13 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 		if (!strncmp(opt, "swap", strlen("swap")))
 			swap = 1;
 		else if (!strncmp(opt, "nocrt", strlen("nocrt")))
-			spec_share->state.nocrt = 1;
+			sm750_dev->nocrt = 1;
 		else if (!strncmp(opt, "36bit", strlen("36bit")))
-			spec_share->state.pnltype = sm750_doubleTFT;
+			sm750_dev->pnltype = sm750_doubleTFT;
 		else if (!strncmp(opt, "18bit", strlen("18bit")))
-			spec_share->state.pnltype = sm750_dualTFT;
+			sm750_dev->pnltype = sm750_dualTFT;
 		else if (!strncmp(opt, "24bit", strlen("24bit")))
-			spec_share->state.pnltype = sm750_24TFT;
-#ifdef CAP_EXPANSION
-		else if (!strncmp(opt, "exp:", strlen("exp:")))
-			exp_res = opt + strlen("exp:");
-#endif
+			sm750_dev->pnltype = sm750_24TFT;
 		else if (!strncmp(opt, "nohwc0", strlen("nohwc0")))
 			g_hwcursor &= ~0x1;
 		else if (!strncmp(opt, "nohwc1", strlen("nohwc1")))
@@ -1042,33 +980,25 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 			}
 		}
 	}
-#ifdef CAP_EXPANSION
-	if (getExpRes(exp_res,
-		      &spec_share->state.xLCD,
-		      &spec_share->state.yLCD)) {
-		/* seems exp_res is not valid */
-		spec_share->state.xLCD = spec_share->state.yLCD = 0;
-	}
-#endif
 
 NO_PARAM:
-	if (share->revid != SM750LE_REVISION_ID) {
-		if (share->dual) {
+	if (sm750_dev->revid != SM750LE_REVISION_ID) {
+		if (sm750_dev->dual) {
 			if (swap)
-				spec_share->state.dataflow = sm750_dual_swap;
+				sm750_dev->dataflow = sm750_dual_swap;
 			else
-				spec_share->state.dataflow = sm750_dual_normal;
+				sm750_dev->dataflow = sm750_dual_normal;
 		} else {
 			if (swap)
-				spec_share->state.dataflow = sm750_simul_sec;
+				sm750_dev->dataflow = sm750_simul_sec;
 			else
-				spec_share->state.dataflow = sm750_simul_pri;
+				sm750_dev->dataflow = sm750_simul_pri;
 		}
 	} else {
 		/* SM750LE only have one crt channel */
-		spec_share->state.dataflow = sm750_simul_sec;
+		sm750_dev->dataflow = sm750_simul_sec;
 		/* sm750le do not have complex attributes */
-		spec_share->state.nocrt = 0;
+		sm750_dev->nocrt = 0;
 	}
 }
 
@@ -1076,10 +1006,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct fb_info *info[] = {NULL, NULL};
-	struct lynx_share *share = NULL;
-
-	struct sm750_share *spec_share = NULL;
-	size_t spec_offset = 0;
+	struct sm750_dev *sm750_dev = NULL;
 	int fbidx;
 
 	/* enable device */
@@ -1088,69 +1015,62 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		goto err_enable;
 	}
 
-	/*
-	 * though offset of share in sm750_share is 0,
-	 * we use this marcro as the same
-	 */
-	spec_offset = offsetof(struct sm750_share, share);
-
-	spec_share = kzalloc(sizeof(*spec_share), GFP_KERNEL);
-	if (!spec_share) {
+	sm750_dev = kzalloc(sizeof(*sm750_dev), GFP_KERNEL);
+	if (!sm750_dev) {
 		pr_err("Could not allocate memory for share.\n");
 		goto err_share;
 	}
 
-	/* setting share structure */
-	share = (struct lynx_share *)(&(spec_share->share));
-	share->fbinfo[0] = share->fbinfo[1] = NULL;
-	share->devid = pdev->device;
-	share->revid = pdev->revision;
+	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
+	sm750_dev->devid = pdev->device;
+	sm750_dev->revid = pdev->revision;
 
-	pr_info("share->revid = %02x\n", share->revid);
-	share->pdev = pdev;
-	share->mtrr_off = g_nomtrr;
-	share->mtrr.vram = 0;
-	share->accel_off = g_noaccel;
-	share->dual = g_dualview;
-	spin_lock_init(&share->slock);
+	pr_info("share->revid = %02x\n", sm750_dev->revid);
+	sm750_dev->pdev = pdev;
+	sm750_dev->mtrr_off = g_nomtrr;
+	sm750_dev->mtrr.vram = 0;
+	sm750_dev->accel_off = g_noaccel;
+	sm750_dev->dual = g_dualview;
+	spin_lock_init(&sm750_dev->slock);
 
-	if (!share->accel_off) {
+	if (!sm750_dev->accel_off) {
 		/*
 		 * hook deInit and 2d routines, notes that below hw_xxx
 		 * routine can work on most of lynx chips
 		 * if some chip need specific function,
 		 * please hook it in smXXX_set_drv routine
 		 */
-		share->accel.de_init = hw_de_init;
-		share->accel.de_fillrect = hw_fillrect;
-		share->accel.de_copyarea = hw_copyarea;
-		share->accel.de_imageblit = hw_imageblit;
+		sm750_dev->accel.de_init = hw_de_init;
+		sm750_dev->accel.de_fillrect = hw_fillrect;
+		sm750_dev->accel.de_copyarea = hw_copyarea;
+		sm750_dev->accel.de_imageblit = hw_imageblit;
 		pr_info("enable 2d acceleration\n");
 	} else {
 		pr_info("disable 2d acceleration\n");
 	}
 
 	/* call chip specific setup routine  */
-	sm750fb_setup(share, g_settings);
+	sm750fb_setup(sm750_dev, g_settings);
 
 	/* call chip specific mmap routine */
-	if (hw_sm750_map(share, pdev)) {
+	if (hw_sm750_map(sm750_dev, pdev)) {
 		pr_err("Memory map failed\n");
 		goto err_map;
 	}
 
-	if (!share->mtrr_off)
-		share->mtrr.vram = arch_phys_wc_add(share->vidmem_start,
-						    share->vidmem_size);
+	if (!sm750_dev->mtrr_off)
+		sm750_dev->mtrr.vram = arch_phys_wc_add(sm750_dev->vidmem_start,
+							sm750_dev->vidmem_size);
 
-	memset_io(share->pvMem, 0, share->vidmem_size);
+	memset_io(sm750_dev->pvMem, 0, sm750_dev->vidmem_size);
 
-	pr_info("sm%3x mmio address = %p\n", share->devid, share->pvReg);
+	pr_info("sm%3x mmio address = %p\n", sm750_dev->devid,
+		sm750_dev->pvReg);
 
-	pci_set_drvdata(pdev, share);
+	pci_set_drvdata(pdev, sm750_dev);
 
 	/* call chipInit routine */
-	hw_sm750_inithw(share, pdev);
+	hw_sm750_inithw(sm750_dev, pdev);
 
 	/* allocate frame buffer info structor according to g_dualview */
 	fbidx = 0;
@@ -1167,9 +1087,9 @@ ALLOC_FB:
 		int errno;
 
 		pr_info("framebuffer #%d alloc okay\n", fbidx);
-		share->fbinfo[fbidx] = info[fbidx];
+		sm750_dev->fbinfo[fbidx] = info[fbidx];
 		par = info[fbidx]->par;
-		par->share = share;
+		par->dev = sm750_dev;
 
 		/* set fb_info structure */
 		if (lynxfb_set_fbinfo(info[fbidx], fbidx)) {
@@ -1197,7 +1117,7 @@ ALLOC_FB:
 
 	/* no dual view by far */
 	fbidx++;
-	if (share->dual && fbidx < 2)
+	if (sm750_dev->dual && fbidx < 2)
 		goto ALLOC_FB;
 
 	return 0;
@@ -1212,7 +1132,7 @@ err_info0_set:
 	framebuffer_release(info[0]);
 err_info0_alloc:
 err_map:
-	kfree(spec_share);
+	kfree(sm750_dev);
 err_share:
 err_enable:
 	return -ENODEV;
@@ -1221,34 +1141,29 @@ err_enable:
 static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info;
-	struct lynx_share *share;
-	void *spec_share;
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par;
 	int cnt;
 
 	cnt = 2;
-	share = pci_get_drvdata(pdev);
+	sm750_dev = pci_get_drvdata(pdev);
 
 	while (cnt-- > 0) {
-		info = share->fbinfo[cnt];
+		info = sm750_dev->fbinfo[cnt];
 		if (!info)
 			continue;
 		par = info->par;
 
 		unregister_framebuffer(info);
-		/* clean crtc & output allocations */
-		par->crtc.clear(&par->crtc);
-		par->output.clear(&par->output);
 		/* release frame buffer */
 		framebuffer_release(info);
 	}
-	arch_phys_wc_del(share->mtrr.vram);
+	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
-	iounmap(share->pvReg);
-	iounmap(share->pvMem);
-	spec_share = container_of(share, struct sm750_share, share);
+	iounmap(sm750_dev->pvReg);
+	iounmap(sm750_dev->pvMem);
 	kfree(g_settings);
-	kfree(spec_share);
+	kfree(sm750_dev);
 	pci_set_drvdata(pdev, NULL);
 }
 

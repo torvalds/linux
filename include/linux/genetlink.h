@@ -8,7 +8,7 @@
 extern void genl_lock(void);
 extern void genl_unlock(void);
 #ifdef CONFIG_LOCKDEP
-extern int lockdep_genl_is_held(void);
+extern bool lockdep_genl_is_held(void);
 #endif
 
 /* for synchronisation between af_netlink and genetlink */

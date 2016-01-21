@@ -41,6 +41,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/ctype.h>
+#include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
@@ -689,15 +690,42 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 	kfree(ctx);
 }
 
+/* we need to override the usbnet change_mtu ndo for two reasons:
+ *  - respect the negotiated maximum datagram size
+ *  - avoid unwanted changes to rx and tx buffers
+ */
+int cdc_ncm_change_mtu(struct net_device *net, int new_mtu)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	int maxmtu = ctx->max_datagram_size - cdc_ncm_eth_hlen(dev);
+
+	if (new_mtu <= 0 || new_mtu > maxmtu)
+		return -EINVAL;
+	net->mtu = new_mtu;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cdc_ncm_change_mtu);
+
+static const struct net_device_ops cdc_ncm_netdev_ops = {
+	.ndo_open	     = usbnet_open,
+	.ndo_stop	     = usbnet_stop,
+	.ndo_start_xmit	     = usbnet_start_xmit,
+	.ndo_tx_timeout	     = usbnet_tx_timeout,
+	.ndo_change_mtu	     = cdc_ncm_change_mtu,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr   = eth_validate_addr,
+};
+
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting, int drvflags)
 {
-	const struct usb_cdc_union_desc *union_desc = NULL;
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *driver;
 	u8 *buf;
 	int len;
 	int temp;
 	u8 iface_no;
+	struct usb_cdc_parsed_header hdr;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -722,69 +750,18 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	len = intf->cur_altsetting->extralen;
 
 	/* parse through descriptors associated with control interface */
-	while ((len > 0) && (buf[0] > 2) && (buf[0] <= len)) {
+	cdc_parse_cdc_header(&hdr, intf, buf, len);
 
-		if (buf[1] != USB_DT_CS_INTERFACE)
-			goto advance;
-
-		switch (buf[2]) {
-		case USB_CDC_UNION_TYPE:
-			if (buf[0] < sizeof(*union_desc))
-				break;
-
-			union_desc = (const struct usb_cdc_union_desc *)buf;
-			/* the master must be the interface we are probing */
-			if (intf->cur_altsetting->desc.bInterfaceNumber !=
-			    union_desc->bMasterInterface0) {
-				dev_dbg(&intf->dev, "bogus CDC Union\n");
-				goto error;
-			}
-			ctx->data = usb_ifnum_to_if(dev->udev,
-						    union_desc->bSlaveInterface0);
-			break;
-
-		case USB_CDC_ETHERNET_TYPE:
-			if (buf[0] < sizeof(*(ctx->ether_desc)))
-				break;
-
-			ctx->ether_desc =
-					(const struct usb_cdc_ether_desc *)buf;
-			break;
-
-		case USB_CDC_NCM_TYPE:
-			if (buf[0] < sizeof(*(ctx->func_desc)))
-				break;
-
-			ctx->func_desc = (const struct usb_cdc_ncm_desc *)buf;
-			break;
-
-		case USB_CDC_MBIM_TYPE:
-			if (buf[0] < sizeof(*(ctx->mbim_desc)))
-				break;
-
-			ctx->mbim_desc = (const struct usb_cdc_mbim_desc *)buf;
-			break;
-
-		case USB_CDC_MBIM_EXTENDED_TYPE:
-			if (buf[0] < sizeof(*(ctx->mbim_extended_desc)))
-				break;
-
-			ctx->mbim_extended_desc =
-				(const struct usb_cdc_mbim_extended_desc *)buf;
-			break;
-
-		default:
-			break;
-		}
-advance:
-		/* advance to next descriptor */
-		temp = buf[0];
-		buf += temp;
-		len -= temp;
-	}
+	if (hdr.usb_cdc_union_desc)
+		ctx->data = usb_ifnum_to_if(dev->udev,
+					    hdr.usb_cdc_union_desc->bSlaveInterface0);
+	ctx->ether_desc = hdr.usb_cdc_ether_desc;
+	ctx->func_desc = hdr.usb_cdc_ncm_desc;
+	ctx->mbim_desc = hdr.usb_cdc_mbim_desc;
+	ctx->mbim_extended_desc = hdr.usb_cdc_mbim_extended_desc;
 
 	/* some buggy devices have an IAD but no CDC Union */
-	if (!union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
+	if (!hdr.usb_cdc_union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
 		ctx->data = usb_ifnum_to_if(dev->udev, intf->cur_altsetting->desc.bInterfaceNumber + 1);
 		dev_dbg(&intf->dev, "CDC Union missing - got slave from IAD\n");
 	}
@@ -873,6 +850,9 @@ advance:
 
 	/* add our sysfs attrs */
 	dev->net->sysfs_groups[0] = &cdc_ncm_sysfs_attr_group;
+
+	/* must handle MTU changes */
+	dev->net->netdev_ops = &cdc_ncm_netdev_ops;
 
 	return 0;
 
@@ -1006,9 +986,17 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 	* NTH16 header as we would normally do. NDP isn't written to the SKB yet, and
 	* the wNdpIndex field in the header is actually not consistent with reality. It will be later.
 	*/
-	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END)
+	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {
 		if (ctx->delayed_ndp16->dwSignature == sign)
 			return ctx->delayed_ndp16;
+
+		/* We can only push a single NDP to the end. Return
+		 * NULL to send what we've already got and queue this
+		 * skb for later.
+		 */
+		else if (ctx->delayed_ndp16->dwSignature)
+			return NULL;
+	}
 
 	/* follow the chain of NDPs, looking for a match */
 	while (ndpoffset) {
@@ -1599,6 +1587,24 @@ static const struct usb_device_id cdc_devs[] = {
 	  .bInterfaceSubClass = USB_CDC_SUBCLASS_NCM,
 	  .bInterfaceProtocol = USB_CDC_PROTO_NONE,
 	  .driver_info = (unsigned long) &wwan_info,
+	},
+
+	/* DW5812 LTE Verizon Mobile Broadband Card
+	 * Unlike DW5550 this device requires FLAG_NOARP
+	 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x81bb,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_noarp_info,
+	},
+
+	/* DW5813 LTE AT&T Mobile Broadband Card
+	 * Unlike DW5550 this device requires FLAG_NOARP
+	 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x81bc,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_noarp_info,
 	},
 
 	/* Dell branded MBM devices like DW5550 */

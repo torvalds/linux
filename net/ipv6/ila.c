@@ -91,7 +91,7 @@ static void update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
 	*(__be64 *)&ip6h->daddr = p->locator;
 }
 
-static int ila_output(struct sock *sk, struct sk_buff *skb)
+static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 
@@ -100,7 +100,7 @@ static int ila_output(struct sock *sk, struct sk_buff *skb)
 
 	update_ipv6_locator(skb, ila_params_lwtunnel(dst->lwtstate));
 
-	return dst->lwtstate->orig_output(sk, skb);
+	return dst->lwtstate->orig_output(net, sk, skb);
 
 drop:
 	kfree_skb(skb);

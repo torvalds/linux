@@ -57,6 +57,35 @@ xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 }
 
 /*
+ * Routine to zero an extent on disk allocated to the specific inode.
+ *
+ * The VFS functions take a linearised filesystem block offset, so we have to
+ * convert the sparse xfs fsb to the right format first.
+ * VFS types are real funky, too.
+ */
+int
+xfs_zero_extent(
+	struct xfs_inode *ip,
+	xfs_fsblock_t	start_fsb,
+	xfs_off_t	count_fsb)
+{
+	struct xfs_mount *mp = ip->i_mount;
+	xfs_daddr_t	sector = xfs_fsb_to_db(ip, start_fsb);
+	sector_t	block = XFS_BB_TO_FSBT(mp, sector);
+	ssize_t		size = XFS_FSB_TO_B(mp, count_fsb);
+
+	if (IS_DAX(VFS_I(ip)))
+		return dax_clear_blocks(VFS_I(ip), block, size);
+
+	/*
+	 * let the block layer decide on the fastest method of
+	 * implementing the zeroing.
+	 */
+	return sb_issue_zeroout(mp->m_super, block, count_fsb, GFP_NOFS);
+
+}
+
+/*
  * Routine to be called at transaction's end by xfs_bmapi, xfs_bunmapi
  * caller.  Frees all the extents that need freeing, which must be done
  * last due to locking considerations.  We never free any extents in
@@ -229,6 +258,13 @@ xfs_bmap_rtalloc(
 		xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
 			ap->wasdel ? XFS_TRANS_DQ_DELRTBCOUNT :
 					XFS_TRANS_DQ_RTBCOUNT, (long) ralen);
+
+		/* Zero the extent if we were asked to do so */
+		if (ap->userdata & XFS_ALLOC_USERDATA_ZERO) {
+			error = xfs_zero_extent(ap->ip, ap->blkno, ap->length);
+			if (error)
+				return error;
+		}
 	} else {
 		ap->length = 0;
 	}
@@ -1027,7 +1063,7 @@ xfs_alloc_file_space(
 		xfs_bmap_init(&free_list, &firstfsb);
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
 					allocatesize_fsb, alloc_type, &firstfsb,
-					0, imapp, &nimaps, &free_list);
+					resblks, imapp, &nimaps, &free_list);
 		if (error) {
 			goto error0;
 		}

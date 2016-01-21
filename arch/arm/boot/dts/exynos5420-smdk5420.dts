@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos5420.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Samsung SMDK5420 board based on EXYNOS5420";
@@ -69,7 +70,7 @@
 		regulator-name = "VBUS0";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpg0 5 0>;
+		gpio = <&gpg0 5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb300_vbus_en>;
 		enable-active-high;
@@ -80,7 +81,7 @@
 		regulator-name = "VBUS1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpg1 4 0>;
+		gpio = <&gpg1 4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb301_vbus_en>;
 		enable-active-high;
@@ -98,10 +99,7 @@
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <4>;
 	status = "okay";
-};
 
-&fimd {
-	status = "okay";
 	display-timings {
 		native-mode = <&timing0>;
 		timing0: timing@0 {
@@ -118,9 +116,13 @@
 	};
 };
 
+&fimd {
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
-	hpd-gpio = <&gpx3 7 0>;
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
 };

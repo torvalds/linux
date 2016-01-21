@@ -54,6 +54,7 @@
 	MODULE_ALIAS(MLXSW_MODULE_ALIAS_PREFIX kind)
 
 #define MLXSW_DEVICE_KIND_SWITCHX2 "switchx2"
+#define MLXSW_DEVICE_KIND_SPECTRUM "spectrum"
 
 struct mlxsw_core;
 struct mlxsw_driver;
@@ -153,6 +154,10 @@ struct mlxsw_config_profile {
 	u8	max_flood_tables;
 	u8	max_vid_flood_tables;
 	u8	flood_mode;
+	u8	max_fid_offset_flood_tables;
+	u16	fid_offset_flood_table_size;
+	u8	max_fid_flood_tables;
+	u16	fid_flood_table_size;
 	u16	max_ib_mc;
 	u16	max_pkey;
 	u8	ar_sec;

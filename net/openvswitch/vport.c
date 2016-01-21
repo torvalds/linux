@@ -71,7 +71,7 @@ static struct hlist_head *hash_bucket(const struct net *net, const char *name)
 	return &dev_table[hash & (VPORT_HASH_BUCKETS - 1)];
 }
 
-int ovs_vport_ops_register(struct vport_ops *ops)
+int __ovs_vport_ops_register(struct vport_ops *ops)
 {
 	int err = -EEXIST;
 	struct vport_ops *o;
@@ -87,7 +87,7 @@ errout:
 	ovs_unlock();
 	return err;
 }
-EXPORT_SYMBOL_GPL(ovs_vport_ops_register);
+EXPORT_SYMBOL_GPL(__ovs_vport_ops_register);
 
 void ovs_vport_ops_unregister(struct vport_ops *ops)
 {
@@ -256,8 +256,8 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
  *
  * @vport: vport to delete.
  *
- * Detaches @vport from its datapath and destroys it.  It is possible to fail
- * for reasons such as lack of memory.  ovs_mutex must be held.
+ * Detaches @vport from its datapath and destroys it.  ovs_mutex must
+ * be held.
  */
 void ovs_vport_del(struct vport *vport)
 {
@@ -479,3 +479,33 @@ void ovs_vport_deferred_free(struct vport *vport)
 	call_rcu(&vport->rcu, free_vport_rcu);
 }
 EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
+
+static unsigned int packet_length(const struct sk_buff *skb)
+{
+	unsigned int length = skb->len - ETH_HLEN;
+
+	if (skb->protocol == htons(ETH_P_8021Q))
+		length -= VLAN_HLEN;
+
+	return length;
+}
+
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
+{
+	int mtu = vport->dev->mtu;
+
+	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
+		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
+				     vport->dev->name,
+				     packet_length(skb), mtu);
+		vport->dev->stats.tx_errors++;
+		goto drop;
+	}
+
+	skb->dev = vport->dev;
+	vport->ops->send(skb);
+	return;
+
+drop:
+	kfree_skb(skb);
+}

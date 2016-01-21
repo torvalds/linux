@@ -47,6 +47,11 @@
 	model = "Marvell Armada 1500-mini (BG2CD) SoC";
 	compatible = "marvell,berlin2cd", "marvell,berlin";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -56,6 +61,14 @@
 			device_type = "cpu";
 			next-level-cache = <&l2>;
 			reg = <0>;
+
+			clocks = <&chip_clk CLKID_CPU>;
+			clock-latency = <100000>;
+			operating-points = <
+				/* kHz    uV */
+				800000  1200000
+				600000  1200000
+			>;
 		};
 	};
 
@@ -366,6 +379,13 @@
 			phys = <&usb_phy1>;
 			phy-names = "usb-phy";
 			status = "disabled";
+		};
+
+		pwm: pwm@f20000 {
+			compatible = "marvell,berlin-pwm";
+			reg = <0xf20000 0x40>;
+			clocks = <&chip_clk CLKID_CFG>;
+			#pwm-cells = <3>;
 		};
 
 		apb@fc0000 {

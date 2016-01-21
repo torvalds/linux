@@ -277,7 +277,13 @@ struct ipath_mr {
  * in qp->s_max_sge.
  */
 struct ipath_swqe {
-	struct ib_send_wr wr;	/* don't use wr.sg_list */
+	union {
+		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_ud_wr ud_wr;
+		struct ib_rdma_wr rdma_wr;
+		struct ib_atomic_wr atomic_wr;
+	};
+
 	u32 psn;		/* first packet sequence number */
 	u32 lpsn;		/* last packet sequence number */
 	u32 ssn;		/* send sequence number */

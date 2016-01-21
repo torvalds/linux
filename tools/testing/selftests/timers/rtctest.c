@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	/* Turn on update interrupts (one per second) */
 	retval = ioctl(fd, RTC_UIE_ON, 0);
 	if (retval == -1) {
-		if (errno == ENOTTY) {
+		if (errno == EINVAL) {
 			fprintf(stderr,
 				"\n...Update IRQs not supported.\n");
 			goto test_READ;

@@ -1,6 +1,6 @@
 * Clock Block on Freescale QorIQ Platforms
 
-Freescale qoriq chips take primary clocking input from the external
+Freescale QorIQ chips take primary clocking input from the external
 SYSCLK signal. The SYSCLK input (frequency) is multiplied using
 multiple phase locked loops (PLL) to create a variety of frequencies
 which can then be passed to a variety of internal logic, including
@@ -13,14 +13,16 @@ which the chip complies.
 Chassis Version		Example Chips
 ---------------		-------------
 1.0			p4080, p5020, p5040
-2.0			t4240, b4860, t1040
+2.0			t4240, b4860
 
 1. Clock Block Binding
 
 Required properties:
-- compatible: Should contain a specific clock block compatible string
-	and a single chassis clock compatible string.
-	Clock block strings include, but not limited to, one of the:
+- compatible: Should contain a chip-specific clock block compatible
+	string and (if applicable) may contain a chassis-version clock
+	compatible string.
+
+	Chip-specific strings are of the form "fsl,<chip>-clockgen", such as:
 	* "fsl,p2041-clockgen"
 	* "fsl,p3041-clockgen"
 	* "fsl,p4080-clockgen"
@@ -30,15 +32,14 @@ Required properties:
 	* "fsl,b4420-clockgen"
 	* "fsl,b4860-clockgen"
 	* "fsl,ls1021a-clockgen"
-	Chassis clock strings include:
+	Chassis-version clock strings include:
 	* "fsl,qoriq-clockgen-1.0": for chassis 1.0 clocks
 	* "fsl,qoriq-clockgen-2.0": for chassis 2.0 clocks
 - reg: Describes the address of the device's resources within the
 	address space defined by its parent bus, and resource zero
 	represents the clock register set
-- clock-frequency: Input system clock frequency
 
-Recommended properties:
+Optional properties:
 - ranges: Allows valid translation between child's address space and
 	parent's. Must be present if the device has sub-nodes.
 - #address-cells: Specifies the number of cells used to represent
@@ -47,8 +48,46 @@ Recommended properties:
 - #size-cells: Specifies the number of cells used to represent
 	the size of an address. Must be present if the device has
 	sub-nodes and set to 1 if present
+- clock-frequency: Input system clock frequency (SYSCLK)
+- clocks: If clock-frequency is not specified, sysclk may be provided
+	as an input clock.  Either clock-frequency or clocks must be
+	provided.
 
-2. Clock Provider/Consumer Binding
+2. Clock Provider
+
+The clockgen node should act as a clock provider, though in older device
+trees the children of the clockgen node are the clock providers.
+
+When the clockgen node is a clock provider, #clock-cells = <2>.
+The first cell of the clock specifier is the clock type, and the
+second cell is the clock index for the specified type.
+
+	Type#	Name		Index Cell
+	0	sysclk		must be 0
+	1	cmux		index (n in CLKCnCSR)
+	2	hwaccel		index (n in CLKCGnHWACSR)
+	3	fman		0 for fm1, 1 for fm2
+	4	platform pll	0=pll, 1=pll/2, 2=pll/3, 3=pll/4
+
+3. Example
+
+	clockgen: global-utilities@e1000 {
+		compatible = "fsl,p5020-clockgen", "fsl,qoriq-clockgen-1.0";
+		clock-frequency = <133333333>;
+		reg = <0xe1000 0x1000>;
+		#clock-cells = <2>;
+	};
+
+	fman@400000 {
+		...
+		clocks = <&clockgen 3 0>;
+		...
+	};
+}
+4. Legacy Child Nodes
+
+NOTE: These nodes are deprecated.  Kernels should continue to support
+device trees with these nodes, but new device trees should not use them.
 
 Most of the bindings are from the common clock binding[1].
  [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -82,7 +121,7 @@ Recommended properties:
 - reg: Should be the offset and length of clock block base address.
 	The length should be 4.
 
-Example for clock block and clock provider:
+Legacy Example:
 / {
 	clockgen: global-utilities@e1000 {
 		compatible = "fsl,p5020-clockgen", "fsl,qoriq-clockgen-1.0";
@@ -142,7 +181,7 @@ Example for clock block and clock provider:
 	};
 };
 
-Example for clock consumer:
+Example for legacy clock consumer:
 
 / {
 	cpu0: PowerPC,e5500@0 {

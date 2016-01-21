@@ -23,11 +23,13 @@
 #define STATUS_E2_BIT		2	/* Int 2 enable */
 #define STATUS_A1_BIT		3	/* Int 1 active */
 #define STATUS_A2_BIT		4	/* Int 2 active */
+#define STATUS_AE_BIT		5	/* Exception active */
 
 #define STATUS_E1_MASK		(1<<STATUS_E1_BIT)
 #define STATUS_E2_MASK		(1<<STATUS_E2_BIT)
 #define STATUS_A1_MASK		(1<<STATUS_A1_BIT)
 #define STATUS_A2_MASK		(1<<STATUS_A2_BIT)
+#define STATUS_AE_MASK		(1<<STATUS_AE_BIT)
 #define STATUS_IE_MASK		(STATUS_E1_MASK | STATUS_E2_MASK)
 
 /* Other Interrupt Handling related Aux regs */
@@ -40,6 +42,8 @@
 #define AUX_IPULSE		0x415
 
 #define ISA_INIT_STATUS_BITS	STATUS_IE_MASK
+
+#define ISA_SLEEP_ARG		0x3
 
 #ifndef __ASSEMBLY__
 
@@ -91,7 +95,19 @@ static inline void arch_local_irq_restore(unsigned long flags)
 /*
  * Unconditionally Enable IRQs
  */
-extern void arch_local_irq_enable(void);
+static inline void arch_local_irq_enable(void)
+{
+	unsigned long temp;
+
+	__asm__ __volatile__(
+	"	lr   %0, [status32]	\n"
+	"	or   %0, %0, %1		\n"
+	"	flag %0			\n"
+	: "=&r"(temp)
+	: "n"((STATUS_E1_MASK | STATUS_E2_MASK))
+	: "cc", "memory");
+}
+
 
 /*
  * Unconditionally Disable IRQs

@@ -428,8 +428,8 @@ vpfe_video_get_next_buffer(struct vpfe_video_device *video)
 			   struct vpfe_cap_buffer, list);
 
 	list_del(&video->next_frm->list);
-	video->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
-	return vb2_dma_contig_plane_dma_addr(&video->next_frm->vb, 0);
+	video->next_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+	return vb2_dma_contig_plane_dma_addr(&video->next_frm->vb.vb2_buf, 0);
 }
 
 /* schedule the next buffer which is available on dma queue */
@@ -448,8 +448,8 @@ void vpfe_video_schedule_next_buffer(struct vpfe_video_device *video)
 		video->cur_frm = video->next_frm;
 
 	list_del(&video->next_frm->list);
-	video->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
-	addr = vb2_dma_contig_plane_dma_addr(&video->next_frm->vb, 0);
+	video->next_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+	addr = vb2_dma_contig_plane_dma_addr(&video->next_frm->vb.vb2_buf, 0);
 	video->ops->queue(vpfe_dev, addr);
 	video->state = VPFE_VIDEO_BUFFER_QUEUED;
 }
@@ -460,7 +460,7 @@ void vpfe_video_schedule_bottom_field(struct vpfe_video_device *video)
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	unsigned long addr;
 
-	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb.vb2_buf, 0);
 	addr += video->field_off;
 	video->ops->queue(vpfe_dev, addr);
 }
@@ -470,8 +470,8 @@ void vpfe_video_process_buffer_complete(struct vpfe_video_device *video)
 {
 	struct vpfe_pipeline *pipe = &video->pipe;
 
-	v4l2_get_timestamp(&video->cur_frm->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_DONE);
+	v4l2_get_timestamp(&video->cur_frm->vb.timestamp);
+	vb2_buffer_done(&video->cur_frm->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	if (pipe->state == VPFE_PIPELINE_STREAM_CONTINUOUS)
 		video->cur_frm = video->next_frm;
 }
@@ -1078,7 +1078,7 @@ vpfe_g_dv_timings(struct file *file, void *fh,
  * the buffer nbuffers and buffer size
  */
 static int
-vpfe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+vpfe_buffer_queue_setup(struct vb2_queue *vq, const void *parg,
 			unsigned int *nbuffers, unsigned int *nplanes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -1138,12 +1138,13 @@ static int vpfe_buffer_prepare(struct vb2_buffer *vb)
 
 static void vpfe_buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	/* Get the file handle object and device object */
 	struct vpfe_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
 	struct vpfe_video_device *video = fh->video;
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct vpfe_pipeline *pipe = &video->pipe;
-	struct vpfe_cap_buffer *buf = container_of(vb,
+	struct vpfe_cap_buffer *buf = container_of(vbuf,
 				struct vpfe_cap_buffer, vb);
 	unsigned long flags;
 	unsigned long empty;
@@ -1203,10 +1204,10 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Remove buffer from the buffer queue */
 	list_del(&video->cur_frm->list);
 	/* Mark state of the current frame to active */
-	video->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
+	video->cur_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
 	/* Initialize field_id and started member */
 	video->field_id = 0;
-	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb.vb2_buf, 0);
 	video->ops->queue(vpfe_dev, addr);
 	video->state = VPFE_VIDEO_BUFFER_QUEUED;
 
@@ -1214,10 +1215,12 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret) {
 		struct vpfe_cap_buffer *buf, *tmp;
 
-		vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_QUEUED);
+		vb2_buffer_done(&video->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_QUEUED);
 		list_for_each_entry_safe(buf, tmp, &video->dma_queue, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 		goto unlock_out;
 	}
@@ -1234,7 +1237,8 @@ streamoff:
 
 static int vpfe_buffer_init(struct vb2_buffer *vb)
 {
-	struct vpfe_cap_buffer *buf = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct vpfe_cap_buffer *buf = container_of(vbuf,
 						   struct vpfe_cap_buffer, vb);
 
 	INIT_LIST_HEAD(&buf->list);
@@ -1249,13 +1253,14 @@ static void vpfe_stop_streaming(struct vb2_queue *vq)
 
 	/* release all active buffers */
 	if (video->cur_frm == video->next_frm) {
-		vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&video->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	} else {
 		if (video->cur_frm != NULL)
-			vb2_buffer_done(&video->cur_frm->vb,
+			vb2_buffer_done(&video->cur_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 		if (video->next_frm != NULL)
-			vb2_buffer_done(&video->next_frm->vb,
+			vb2_buffer_done(&video->next_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 	}
 
@@ -1263,16 +1268,18 @@ static void vpfe_stop_streaming(struct vb2_queue *vq)
 		video->next_frm = list_entry(video->dma_queue.next,
 						struct vpfe_cap_buffer, list);
 		list_del(&video->next_frm->list);
-		vb2_buffer_done(&video->next_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&video->next_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	}
 }
 
 static void vpfe_buf_cleanup(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vpfe_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
 	struct vpfe_video_device *video = fh->video;
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
-	struct vpfe_cap_buffer *buf = container_of(vb,
+	struct vpfe_cap_buffer *buf = container_of(vbuf,
 					struct vpfe_cap_buffer, vb);
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buf_cleanup\n");

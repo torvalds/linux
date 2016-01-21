@@ -59,11 +59,6 @@ struct mds_group_info {
 	int group;
 };
 
-struct mds_capa_info {
-	struct obd_uuid	*uuid;
-	struct lustre_capa_key *capa;
-};
-
 #define MDD_OBD_NAME     "mdd_obd"
 #define MDD_OBD_UUID     "mdd_obd_uuid"
 

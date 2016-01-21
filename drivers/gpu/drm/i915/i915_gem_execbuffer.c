@@ -590,10 +590,17 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		flags |= PIN_GLOBAL;
 
 	if (!drm_mm_node_allocated(&vma->node)) {
+		/* Wa32bitGeneralStateOffset & Wa32bitInstructionBaseOffset,
+		 * limit address to the first 4GBs for unflagged objects.
+		 */
+		if ((entry->flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) == 0)
+			flags |= PIN_ZONE_4G;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
 			flags |= PIN_GLOBAL | PIN_MAPPABLE;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
 			flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+		if ((flags & PIN_MAPPABLE) == 0)
+			flags |= PIN_HIGH;
 	}
 
 	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
@@ -670,6 +677,10 @@ eb_vma_misplaced(struct i915_vma *vma)
 	/* avoid costly ping-pong once a batch bo ended up non-mappable */
 	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
 		return !only_mappable_for_reloc(entry->flags);
+
+	if ((entry->flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) == 0 &&
+	    (vma->node.start + vma->node.size - 1) >> 32)
+		return true;
 
 	return false;
 }
@@ -934,7 +945,21 @@ i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 	if (exec->flags & __I915_EXEC_UNKNOWN_FLAGS)
 		return false;
 
-	return ((exec->batch_start_offset | exec->batch_len) & 0x7) == 0;
+	/* Kernel clipping was a DRI1 misfeature */
+	if (exec->num_cliprects || exec->cliprects_ptr)
+		return false;
+
+	if (exec->DR4 == 0xffffffff) {
+		DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
+		exec->DR4 = 0;
+	}
+	if (exec->DR1 || exec->DR4)
+		return false;
+
+	if ((exec->batch_start_offset | exec->batch_len) & 0x7)
+		return false;
+
+	return true;
 }
 
 static int
@@ -1009,7 +1034,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 	}
 
 	if (i915.enable_execlists && !ctx->engine[ring->id].state) {
-		int ret = intel_lr_context_deferred_create(ctx, ring);
+		int ret = intel_lr_context_deferred_alloc(ctx, ring);
 		if (ret) {
 			DRM_DEBUG("Could not create LRC %u: %d\n", ctx_id, ret);
 			return ERR_PTR(ret);
@@ -1098,47 +1123,6 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
-static int
-i915_emit_box(struct drm_i915_gem_request *req,
-	      struct drm_clip_rect *box,
-	      int DR1, int DR4)
-{
-	struct intel_engine_cs *ring = req->ring;
-	int ret;
-
-	if (box->y2 <= box->y1 || box->x2 <= box->x1 ||
-	    box->y2 <= 0 || box->x2 <= 0) {
-		DRM_ERROR("Bad box %d,%d..%d,%d\n",
-			  box->x1, box->y1, box->x2, box->y2);
-		return -EINVAL;
-	}
-
-	if (INTEL_INFO(ring->dev)->gen >= 4) {
-		ret = intel_ring_begin(req, 4);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO_I965);
-		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
-		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
-		intel_ring_emit(ring, DR4);
-	} else {
-		ret = intel_ring_begin(req, 6);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO);
-		intel_ring_emit(ring, DR1);
-		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
-		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
-		intel_ring_emit(ring, DR4);
-		intel_ring_emit(ring, 0);
-	}
-	intel_ring_advance(ring);
-
-	return 0;
-}
-
 static struct drm_i915_gem_object*
 i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
@@ -1197,65 +1181,21 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas)
 {
-	struct drm_clip_rect *cliprects = NULL;
 	struct drm_device *dev = params->dev;
 	struct intel_engine_cs *ring = params->ring;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 exec_start, exec_len;
 	int instp_mode;
 	u32 instp_mask;
-	int i, ret = 0;
-
-	if (args->num_cliprects != 0) {
-		if (ring != &dev_priv->ring[RCS]) {
-			DRM_DEBUG("clip rectangles are only valid with the render ring\n");
-			return -EINVAL;
-		}
-
-		if (INTEL_INFO(dev)->gen >= 5) {
-			DRM_DEBUG("clip rectangles are only valid on pre-gen5\n");
-			return -EINVAL;
-		}
-
-		if (args->num_cliprects > UINT_MAX / sizeof(*cliprects)) {
-			DRM_DEBUG("execbuf with %u cliprects\n",
-				  args->num_cliprects);
-			return -EINVAL;
-		}
-
-		cliprects = kcalloc(args->num_cliprects,
-				    sizeof(*cliprects),
-				    GFP_KERNEL);
-		if (cliprects == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		if (copy_from_user(cliprects,
-				   to_user_ptr(args->cliprects_ptr),
-				   sizeof(*cliprects)*args->num_cliprects)) {
-			ret = -EFAULT;
-			goto error;
-		}
-	} else {
-		if (args->DR4 == 0xffffffff) {
-			DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
-			args->DR4 = 0;
-		}
-
-		if (args->DR1 || args->DR4 || args->cliprects_ptr) {
-			DRM_DEBUG("0 cliprects but dirt in cliprects fields\n");
-			return -EINVAL;
-		}
-	}
+	int ret;
 
 	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
 	if (ret)
-		goto error;
+		return ret;
 
 	ret = i915_switch_context(params->request);
 	if (ret)
-		goto error;
+		return ret;
 
 	WARN(params->ctx->ppgtt && params->ctx->ppgtt->pd_dirty_rings & (1<<ring->id),
 	     "%s didn't clear reload\n", ring->name);
@@ -1268,22 +1208,19 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	case I915_EXEC_CONSTANTS_REL_SURFACE:
 		if (instp_mode != 0 && ring != &dev_priv->ring[RCS]) {
 			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
-			ret = -EINVAL;
-			goto error;
+			return -EINVAL;
 		}
 
 		if (instp_mode != dev_priv->relative_constants_mode) {
 			if (INTEL_INFO(dev)->gen < 4) {
 				DRM_DEBUG("no rel constants on pre-gen4\n");
-				ret = -EINVAL;
-				goto error;
+				return -EINVAL;
 			}
 
 			if (INTEL_INFO(dev)->gen > 5 &&
 			    instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
 				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
-				ret = -EINVAL;
-				goto error;
+				return -EINVAL;
 			}
 
 			/* The HW changed the meaning on this bit on gen6 */
@@ -1293,15 +1230,14 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 		break;
 	default:
 		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
-		ret = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 
 	if (ring == &dev_priv->ring[RCS] &&
-			instp_mode != dev_priv->relative_constants_mode) {
+	    instp_mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(params->request, 4);
 		if (ret)
-			goto error;
+			return ret;
 
 		intel_ring_emit(ring, MI_NOOP);
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
@@ -1315,42 +1251,25 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
 		ret = i915_reset_gen7_sol_offsets(dev, params->request);
 		if (ret)
-			goto error;
+			return ret;
 	}
 
 	exec_len   = args->batch_len;
 	exec_start = params->batch_obj_vm_offset +
 		     params->args_batch_start_offset;
 
-	if (cliprects) {
-		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box(params->request, &cliprects[i],
-					    args->DR1, args->DR4);
-			if (ret)
-				goto error;
-
-			ret = ring->dispatch_execbuffer(params->request,
-							exec_start, exec_len,
-							params->dispatch_flags);
-			if (ret)
-				goto error;
-		}
-	} else {
-		ret = ring->dispatch_execbuffer(params->request,
-						exec_start, exec_len,
-						params->dispatch_flags);
-		if (ret)
-			return ret;
-	}
+	ret = ring->dispatch_execbuffer(params->request,
+					exec_start, exec_len,
+					params->dispatch_flags);
+	if (ret)
+		return ret;
 
 	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 	i915_gem_execbuffer_retire_commands(params);
 
-error:
-	kfree(cliprects);
-	return ret;
+	return 0;
 }
 
 /**

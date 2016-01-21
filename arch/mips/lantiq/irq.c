@@ -369,8 +369,8 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		if (of_address_to_resource(node, i, &res))
 			panic("Failed to get icu memory range");
 
-		if (request_mem_region(res.start, resource_size(&res),
-					res.name) < 0)
+		if (!request_mem_region(res.start, resource_size(&res),
+					res.name))
 			pr_err("Failed to request icu memory");
 
 		ltq_icu_membase[i] = ioremap_nocache(res.start,
@@ -449,8 +449,8 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		if (ret != exin_avail)
 			panic("failed to load external irq resources");
 
-		if (request_mem_region(res.start, resource_size(&res),
-							res.name) < 0)
+		if (!request_mem_region(res.start, resource_size(&res),
+							res.name))
 			pr_err("Failed to request eiu memory");
 
 		ltq_eiu_membase = ioremap_nocache(res.start,

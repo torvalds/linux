@@ -296,6 +296,10 @@ static int usb_probe_interface(struct device *dev)
 	if (udev->authorized == 0) {
 		dev_err(&intf->dev, "Device is not authorized for usage\n");
 		return error;
+	} else if (intf->authorized == 0) {
+		dev_err(&intf->dev, "Interface %d is not authorized for usage\n",
+				intf->altsetting->desc.bInterfaceNumber);
+		return error;
 	}
 
 	id = usb_match_dynamic_id(intf, driver);
@@ -417,12 +421,10 @@ static int usb_unbind_interface(struct device *dev)
 		if (ep->streams == 0)
 			continue;
 		if (j == 0) {
-			eps = kmalloc(USB_MAXENDPOINTS * sizeof(void *),
+			eps = kmalloc_array(USB_MAXENDPOINTS, sizeof(void *),
 				      GFP_KERNEL);
-			if (!eps) {
-				dev_warn(dev, "oom, leaking streams\n");
+			if (!eps)
 				break;
-			}
 		}
 		eps[j++] = ep;
 	}
@@ -507,6 +509,10 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 
 	if (dev->driver)
 		return -EBUSY;
+
+	/* reject claim if interface is not authorized */
+	if (!iface->authorized)
+		return -ENODEV;
 
 	udev = interface_to_usbdev(iface);
 

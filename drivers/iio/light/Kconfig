@@ -50,6 +50,19 @@ config APDS9300
 	 To compile this driver as a module, choose M here: the
 	 module will be called apds9300.
 
+config APDS9960
+	tristate "Avago APDS9960 gesture/RGB/ALS/proximity sensor"
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the Avago
+	  APDS9960 gesture/RGB/ALS/proximity sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apds9960
+
 config BH1750
 	tristate "ROHM BH1750 ambient light sensor"
 	depends on I2C
@@ -286,6 +299,16 @@ config TSL4531
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called tsl4531.
+
+config US5182D
+	tristate "UPISEMI light and proximity sensor"
+	depends on I2C
+	help
+	 If you say yes here you get support for the UPISEMI US5182D
+	 ambient light and proximity sensor.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called us5182d.
 
 config VCNL4000
 	tristate "VCNL4000 combined ALS and proximity sensor"

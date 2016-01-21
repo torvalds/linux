@@ -194,21 +194,15 @@ static int btsdio_open(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	sdio_claim_host(data->func);
 
 	err = sdio_enable_func(data->func);
-	if (err < 0) {
-		clear_bit(HCI_RUNNING, &hdev->flags);
+	if (err < 0)
 		goto release;
-	}
 
 	err = sdio_claim_irq(data->func, btsdio_interrupt);
 	if (err < 0) {
 		sdio_disable_func(data->func);
-		clear_bit(HCI_RUNNING, &hdev->flags);
 		goto release;
 	}
 
@@ -228,9 +222,6 @@ static int btsdio_close(struct hci_dev *hdev)
 	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	sdio_claim_host(data->func);
 
@@ -260,9 +251,6 @@ static int btsdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:

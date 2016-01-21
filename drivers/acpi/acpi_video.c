@@ -77,6 +77,12 @@ module_param(allow_duplicates, bool, 0644);
 static int disable_backlight_sysfs_if = -1;
 module_param(disable_backlight_sysfs_if, int, 0444);
 
+static bool device_id_scheme = false;
+module_param(device_id_scheme, bool, 0444);
+
+static bool only_lcd = false;
+module_param(only_lcd, bool, 0444);
+
 static int register_count;
 static DEFINE_MUTEX(register_count_mutex);
 static struct mutex video_list_lock;
@@ -394,6 +400,18 @@ static int video_disable_backlight_sysfs_if(
 	return 0;
 }
 
+static int video_set_device_id_scheme(const struct dmi_system_id *d)
+{
+	device_id_scheme = true;
+	return 0;
+}
+
+static int video_enable_only_lcd(const struct dmi_system_id *d)
+{
+	only_lcd = true;
+	return 0;
+}
+
 static struct dmi_system_id video_dmi_table[] = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
@@ -453,6 +471,33 @@ static struct dmi_system_id video_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE R830"),
+		},
+	},
+	/*
+	 * Some machine's _DOD IDs don't have bit 31(Device ID Scheme) set
+	 * but the IDs actually follow the Device ID Scheme.
+	 */
+	{
+	 /* https://bugzilla.kernel.org/show_bug.cgi?id=104121 */
+	 .callback = video_set_device_id_scheme,
+	 .ident = "ESPRIMO Mobile M9410",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Mobile M9410"),
+		},
+	},
+	/*
+	 * Some machines have multiple video output devices, but only the one
+	 * that is the type of LCD can do the backlight control so we should not
+	 * register backlight interface for other video output devices.
+	 */
+	{
+	 /* https://bugzilla.kernel.org/show_bug.cgi?id=104121 */
+	 .callback = video_enable_only_lcd,
+	 .ident = "ESPRIMO Mobile M9410",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Mobile M9410"),
 		},
 	},
 	{}
@@ -1003,7 +1048,7 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 
 	attribute = acpi_video_get_device_attr(video, device_id);
 
-	if (attribute && attribute->device_id_scheme) {
+	if (attribute && (attribute->device_id_scheme || device_id_scheme)) {
 		switch (attribute->display_type) {
 		case ACPI_VIDEO_DISPLAY_CRT:
 			data->flags.crt = 1;
@@ -1568,15 +1613,6 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 	static int count;
 	char *name;
 
-	/*
-	 * Do not create backlight device for video output
-	 * device that is not in the enumerated list.
-	 */
-	if (!acpi_video_device_in_dod(device)) {
-		dev_dbg(&device->dev->dev, "not in _DOD list, ignore\n");
-		return;
-	}
-
 	result = acpi_video_init_brightness(device);
 	if (result)
 		return;
@@ -1657,6 +1693,22 @@ static void acpi_video_run_bcl_for_osi(struct acpi_video_bus *video)
 	mutex_unlock(&video->device_list_lock);
 }
 
+static bool acpi_video_should_register_backlight(struct acpi_video_device *dev)
+{
+	/*
+	 * Do not create backlight device for video output
+	 * device that is not in the enumerated list.
+	 */
+	if (!acpi_video_device_in_dod(dev)) {
+		dev_dbg(&dev->dev->dev, "not in _DOD list, ignore\n");
+		return false;
+	}
+
+	if (only_lcd)
+		return dev->flags.lcd;
+	return true;
+}
+
 static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev;
@@ -1670,8 +1722,10 @@ static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 		return 0;
 
 	mutex_lock(&video->device_list_lock);
-	list_for_each_entry(dev, &video->video_device_list, entry)
-		acpi_video_dev_register_backlight(dev);
+	list_for_each_entry(dev, &video->video_device_list, entry) {
+		if (acpi_video_should_register_backlight(dev))
+			acpi_video_dev_register_backlight(dev);
+	}
 	mutex_unlock(&video->device_list_lock);
 
 	video->backlight_registered = true;

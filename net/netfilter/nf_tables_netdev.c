@@ -17,13 +17,13 @@
 
 static inline void
 nft_netdev_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
-			    const struct nf_hook_ops *ops, struct sk_buff *skb,
+			    struct sk_buff *skb,
 			    const struct nf_hook_state *state)
 {
 	struct iphdr *iph, _iph;
 	u32 len, thoff;
 
-	nft_set_pktinfo(pkt, ops, skb, state);
+	nft_set_pktinfo(pkt, skb, state);
 
 	iph = skb_header_pointer(skb, skb_network_offset(skb), sizeof(*iph),
 				 &_iph);
@@ -48,7 +48,6 @@ nft_netdev_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 
 static inline void
 __nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
-			      const struct nf_hook_ops *ops,
 			      struct sk_buff *skb,
 			      const struct nf_hook_state *state)
 {
@@ -82,33 +81,32 @@ __nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 }
 
 static inline void nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
-					       const struct nf_hook_ops *ops,
 					       struct sk_buff *skb,
 					       const struct nf_hook_state *state)
 {
-	nft_set_pktinfo(pkt, ops, skb, state);
-	__nft_netdev_set_pktinfo_ipv6(pkt, ops, skb, state);
+	nft_set_pktinfo(pkt, skb, state);
+	__nft_netdev_set_pktinfo_ipv6(pkt, skb, state);
 }
 
 static unsigned int
-nft_do_chain_netdev(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 		    const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
-	switch (eth_hdr(skb)->h_proto) {
+	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		nft_netdev_set_pktinfo_ipv4(&pkt, ops, skb, state);
+		nft_netdev_set_pktinfo_ipv4(&pkt, skb, state);
 		break;
 	case htons(ETH_P_IPV6):
-		nft_netdev_set_pktinfo_ipv6(&pkt, ops, skb, state);
+		nft_netdev_set_pktinfo_ipv6(&pkt, skb, state);
 		break;
 	default:
-		nft_set_pktinfo(&pkt, ops, skb, state);
+		nft_set_pktinfo(&pkt, skb, state);
 		break;
 	}
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
 static struct nft_af_info nft_af_netdev __read_mostly = {

@@ -54,7 +54,7 @@ nv50_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 	}
 }
 
-int
+static int
 nv50_gpio_location(int line, u32 *reg, u32 *shift)
 {
 	const u32 nv50_gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };

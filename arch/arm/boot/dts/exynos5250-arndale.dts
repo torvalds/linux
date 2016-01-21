@@ -129,10 +129,6 @@
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <4>;
-};
-
-&fimd {
-	status = "okay";
 
 	display-timings {
 		native-mode = <&timing0>;
@@ -150,6 +146,10 @@
 			vsync-len = <6>;
 		};
 	};
+};
+
+&fimd {
+	status = "okay";
 };
 
 &hdmi {

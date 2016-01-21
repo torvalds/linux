@@ -130,3 +130,81 @@ These clock IDs are defined in:
     ch3_unused mipipll          4       BCM_CYGNUS_MIPIPLL_CH3_UNUSED
     ch4_unused mipipll          5       BCM_CYGNUS_MIPIPLL_CH4_UNUSED
     ch5_unused mipipll          6       BCM_CYGNUS_MIPIPLL_CH5_UNUSED
+
+Northstar and Northstar Plus
+------
+PLL and leaf clock compatible strings for Northstar and Northstar Plus are:
+ "brcm,nsp-armpll"
+ "brcm,nsp-genpll"
+ "brcm,nsp-lcpll0"
+
+The following table defines the set of PLL/clock index and ID for Northstar and
+Northstar Plus.  These clock IDs are defined in:
+    "include/dt-bindings/clock/bcm-nsp.h"
+
+    Clock	Source		Index	ID
+    ---		-----		-----	---------
+    crystal	N/A		N/A	N/A
+
+    armpll	crystal		N/A	N/A
+
+    genpll	crystal		0	BCM_NSP_GENPLL
+    phy		genpll		1	BCM_NSP_GENPLL_PHY_CLK
+    ethernetclk	genpll		2	BCM_NSP_GENPLL_ENET_SW_CLK
+    usbclk	genpll		3	BCM_NSP_GENPLL_USB_PHY_REF_CLK
+    iprocfast	genpll		4	BCM_NSP_GENPLL_IPROCFAST_CLK
+    sata1	genpll		5	BCM_NSP_GENPLL_SATA1_CLK
+    sata2	genpll		6	BCM_NSP_GENPLL_SATA2_CLK
+
+    lcpll0	crystal		0	BCM_NSP_LCPLL0
+    pcie_phy	lcpll0		1	BCM_NSP_LCPLL0_PCIE_PHY_REF_CLK
+    sdio	lcpll0		2	BCM_NSP_LCPLL0_SDIO_CLK
+    ddr_phy	lcpll0		3	BCM_NSP_LCPLL0_DDR_PHY_CLK
+
+Northstar 2
+-----------
+PLL and leaf clock compatible strings for Northstar 2 are:
+    "brcm,ns2-genpll-scr"
+    "brcm,ns2-genpll-sw"
+    "brcm,ns2-lcpll-ddr"
+    "brcm,ns2-lcpll-ports"
+
+The following table defines the set of PLL/clock index and ID for Northstar 2.
+These clock IDs are defined in:
+    "include/dt-bindings/clock/bcm-ns2.h"
+
+    Clock	Source		Index	ID
+    ---		-----		-----	---------
+    crystal	N/A		N/A	N/A
+
+    genpll_scr	crystal		0	BCM_NS2_GENPLL_SCR
+    scr		genpll_scr	1	BCM_NS2_GENPLL_SCR_SCR_CLK
+    fs		genpll_scr	2	BCM_NS2_GENPLL_SCR_FS_CLK
+    audio_ref	genpll_scr	3	BCM_NS2_GENPLL_SCR_AUDIO_CLK
+    ch3_unused	genpll_scr	4	BCM_NS2_GENPLL_SCR_CH3_UNUSED
+    ch4_unused	genpll_scr	5	BCM_NS2_GENPLL_SCR_CH4_UNUSED
+    ch5_unused	genpll_scr	6	BCM_NS2_GENPLL_SCR_CH5_UNUSED
+
+    genpll_sw	crystal		0	BCM_NS2_GENPLL_SW
+    rpe		genpll_sw	1	BCM_NS2_GENPLL_SW_RPE_CLK
+    250		genpll_sw	2	BCM_NS2_GENPLL_SW_250_CLK
+    nic		genpll_sw	3	BCM_NS2_GENPLL_SW_NIC_CLK
+    chimp	genpll_sw	4	BCM_NS2_GENPLL_SW_CHIMP_CLK
+    port	genpll_sw	5	BCM_NS2_GENPLL_SW_PORT_CLK
+    sdio	genpll_sw	6	BCM_NS2_GENPLL_SW_SDIO_CLK
+
+    lcpll_ddr	crystal		0	BCM_NS2_LCPLL_DDR
+    pcie_sata_usb lcpll_ddr	1	BCM_NS2_LCPLL_DDR_PCIE_SATA_USB_CLK
+    ddr		lcpll_ddr	2	BCM_NS2_LCPLL_DDR_DDR_CLK
+    ch2_unused	lcpll_ddr	3	BCM_NS2_LCPLL_DDR_CH2_UNUSED
+    ch3_unused	lcpll_ddr	4	BCM_NS2_LCPLL_DDR_CH3_UNUSED
+    ch4_unused	lcpll_ddr	5	BCM_NS2_LCPLL_DDR_CH4_UNUSED
+    ch5_unused	lcpll_ddr	6	BCM_NS2_LCPLL_DDR_CH5_UNUSED
+
+    lcpll_ports	crystal		0	BCM_NS2_LCPLL_PORTS
+    wan		lcpll_ports	1	BCM_NS2_LCPLL_PORTS_WAN_CLK
+    rgmii	lcpll_ports	2	BCM_NS2_LCPLL_PORTS_RGMII_CLK
+    ch2_unused	lcpll_ports	3	BCM_NS2_LCPLL_PORTS_CH2_UNUSED
+    ch3_unused	lcpll_ports	4	BCM_NS2_LCPLL_PORTS_CH3_UNUSED
+    ch4_unused	lcpll_ports	5	BCM_NS2_LCPLL_PORTS_CH4_UNUSED
+    ch5_unused	lcpll_ports	6	BCM_NS2_LCPLL_PORTS_CH5_UNUSED

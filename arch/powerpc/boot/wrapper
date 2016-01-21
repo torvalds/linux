@@ -63,6 +63,23 @@ usage() {
     exit 1
 }
 
+run_cmd() {
+    if [ "$V" = 1 ]; then
+        $* 2>&1
+    else
+        local msg
+
+        set +e
+        msg=$($* 2>&1)
+
+        if [ $? -ne "0" ]; then
+                echo $msg
+                exit 1
+        fi
+        set -e
+    fi
+}
+
 while [ "$#" -gt 0 ]; do
     case "$1" in
     -o)
@@ -456,12 +473,12 @@ ps3)
 
     ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
-    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
-        skip=$overlay_dest seek=$system_reset_kernel  \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$overlay_dest seek=$system_reset_kernel          \
         count=$overlay_size bs=1
 
-    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
-        skip=$system_reset_overlay seek=$overlay_dest \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$system_reset_overlay seek=$overlay_dest         \
         count=$overlay_size bs=1
 
     odir="$(dirname "$ofile.bin")"

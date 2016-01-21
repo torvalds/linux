@@ -25,9 +25,10 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
+#include <net/nfc/nci.h>
 #include <linux/platform_data/st-nci.h>
 
-#include "ndlc.h"
+#include "st-nci.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 
@@ -50,16 +51,13 @@ struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
 	struct llt_ndlc *ndlc;
 
+	bool irq_active;
+
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
-};
 
-#define SPI_DUMP_SKB(info, skb)					\
-do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump(KERN_DEBUG, "spi: ", DUMP_PREFIX_OFFSET,	\
-		       16, 1, (skb)->data, (skb)->len, 0);	\
-} while (0)
+	struct st_nci_se_status se_status;
+};
 
 static int st_nci_spi_enable(void *phy_id)
 {
@@ -70,8 +68,10 @@ static int st_nci_spi_enable(void *phy_id)
 	gpio_set_value(phy->gpio_reset, 1);
 	usleep_range(80000, 85000);
 
-	if (phy->ndlc->powered == 0)
+	if (phy->ndlc->powered == 0 && phy->irq_active == 0) {
 		enable_irq(phy->spi_dev->irq);
+		phy->irq_active = true;
+	}
 
 	return 0;
 }
@@ -81,6 +81,7 @@ static void st_nci_spi_disable(void *phy_id)
 	struct st_nci_spi_phy *phy = phy_id;
 
 	disable_irq_nosync(phy->spi_dev->irq);
+	phy->irq_active = false;
 }
 
 /*
@@ -94,14 +95,13 @@ static int st_nci_spi_write(void *phy_id, struct sk_buff *skb)
 	struct st_nci_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_dev;
 	struct sk_buff *skb_rx;
-	u8 buf[ST_NCI_SPI_MAX_SIZE];
+	u8 buf[ST_NCI_SPI_MAX_SIZE + NCI_DATA_HDR_SIZE +
+	       ST_NCI_FRAME_HEADROOM + ST_NCI_FRAME_TAILROOM];
 	struct spi_transfer spi_xfer = {
 		.tx_buf = skb->data,
 		.rx_buf = buf,
 		.len = skb->len,
 	};
-
-	SPI_DUMP_SKB("st_nci_spi_write", skb);
 
 	if (phy->ndlc->hard_fault != 0)
 		return phy->ndlc->hard_fault;
@@ -178,8 +178,6 @@ static int st_nci_spi_read(struct st_nci_spi_phy *phy,
 
 	skb_put(*skb, len);
 	memcpy((*skb)->data + ST_NCI_SPI_MIN_SIZE, buf, len);
-
-	SPI_DUMP_SKB("spi frame read", *skb);
 
 	return 0;
 }
@@ -258,6 +256,11 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 
 	phy->irq_polarity = irq_get_trigger_type(dev->irq);
 
+	phy->se_status.is_ese_present =
+				of_property_read_bool(pp, "ese-present");
+	phy->se_status.is_uicc_present =
+				of_property_read_bool(pp, "uicc-present");
+
 	return 0;
 }
 #else
@@ -289,6 +292,9 @@ static int st_nci_spi_request_resources(struct spi_device *dev)
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;
 	}
+
+	phy->se_status.is_ese_present = pdata->is_ese_present;
+	phy->se_status.is_uicc_present = pdata->is_uicc_present;
 
 	return 0;
 }
@@ -340,12 +346,13 @@ static int st_nci_spi_probe(struct spi_device *dev)
 
 	r = ndlc_probe(phy, &spi_phy_ops, &dev->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
-			&phy->ndlc);
+			&phy->ndlc, &phy->se_status);
 	if (r < 0) {
 		nfc_err(&dev->dev, "Unable to register ndlc layer\n");
 		return r;
 	}
 
+	phy->irq_active = true;
 	r = devm_request_threaded_irq(&dev->dev, dev->irq, NULL,
 				st_nci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,
@@ -377,7 +384,6 @@ MODULE_DEVICE_TABLE(of, of_st_nci_spi_match);
 
 static struct spi_driver st_nci_spi_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = ST_NCI_SPI_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st_nci_spi_match),
 	},

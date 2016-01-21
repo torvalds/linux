@@ -181,6 +181,11 @@ xfs_fs_map_blocks(
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
 
 		if (!nimaps || imap.br_startblock == HOLESTARTBLOCK) {
+			/*
+			 * xfs_iomap_write_direct() expects to take ownership of
+			 * the shared ilock.
+			 */
+			xfs_ilock(ip, XFS_ILOCK_SHARED);
 			error = xfs_iomap_write_direct(ip, offset, length,
 						       &imap, nimaps);
 			if (error)

@@ -919,8 +919,6 @@ static void nilfs_btree_split(struct nilfs_bmap *btree,
 			      int level, __u64 *keyp, __u64 *ptrp)
 {
 	struct nilfs_btree_node *node, *right;
-	__u64 newkey;
-	__u64 newptr;
 	int nchildren, n, move, ncblk;
 
 	node = nilfs_btree_get_nonroot_node(path, level);
@@ -941,9 +939,6 @@ static void nilfs_btree_split(struct nilfs_bmap *btree,
 		mark_buffer_dirty(path[level].bp_bh);
 	if (!buffer_dirty(path[level].bp_sib_bh))
 		mark_buffer_dirty(path[level].bp_sib_bh);
-
-	newkey = nilfs_btree_node_get_key(right, 0);
-	newptr = path[level].bp_newreq.bpr_ptr;
 
 	if (move) {
 		path[level].bp_index -= nilfs_btree_node_get_nchildren(node);
@@ -1856,7 +1851,7 @@ int nilfs_btree_convert_and_insert(struct nilfs_bmap *btree,
 				   __u64 key, __u64 ptr,
 				   const __u64 *keys, const __u64 *ptrs, int n)
 {
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
 	union nilfs_bmap_ptr_req dreq, nreq, *di, *ni;
 	struct nilfs_bmap_stats stats;
 	int ret;

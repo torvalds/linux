@@ -15,7 +15,7 @@
 	compatible = "hisilicon,hix5hd2";
 
 	chosen {
-		bootargs = "console=ttyAMA0,115200 earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	cpus {

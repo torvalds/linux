@@ -377,7 +377,7 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 
 		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
 			if (make_nop)
-				ret = make_nop((void *)ehdr, shdr->sh_offset + relp->r_offset);
+				ret = make_nop((void *)ehdr, _w(shdr->sh_offset) + _w(relp->r_offset));
 			if (warn_on_notrace_sect && !once) {
 				printf("Section %s has mcount callers being ignored\n",
 				       txtname);

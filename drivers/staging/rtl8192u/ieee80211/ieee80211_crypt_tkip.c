@@ -185,8 +185,7 @@ static inline u16 Mk16_le(u16 *v)
 }
 
 
-static const u16 Sbox[256] =
-{
+static const u16 Sbox[256] = {
 	0xC6A5, 0xF884, 0xEE99, 0xF68D, 0xFF0D, 0xD6BD, 0xDEB1, 0x9154,
 	0x6050, 0x0203, 0xCEA9, 0x567D, 0xE719, 0xB562, 0x4DE6, 0xEC9A,
 	0x8F45, 0x1F9D, 0x8940, 0xFA87, 0xEF15, 0xB2EB, 0x8EC9, 0xFB0B,
@@ -257,8 +256,10 @@ static void tkip_mixing_phase1(u16 *TTAK, const u8 *TK, const u8 *TA, u32 IV32)
 static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 			       u16 IV16)
 {
-	/* Make temporary area overlap WEP seed so that the final copy can be
-	 * avoided on little endian hosts. */
+	/*
+	 * Make temporary area overlap WEP seed so that the final copy can be
+	 * avoided on little endian hosts.
+	 */
 	u16 *PPK = (u16 *) &WEPSeed[4];
 
 	/* Step 1 - make copy of TTAK and bring in TSC */
@@ -284,8 +285,10 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	PPK[4] += RotR1(PPK[3]);
 	PPK[5] += RotR1(PPK[4]);
 
-	/* Step 3 - bring in last of TK bits, assign 24-bit WEP IV value
-	 * WEPSeed[0..2] is transmitted as WEP IV */
+	/*
+	 * Step 3 - bring in last of TK bits, assign 24-bit WEP IV value
+	 * WEPSeed[0..2] is transmitted as WEP IV
+	 */
 	WEPSeed[0] = Hi8(IV16);
 	WEPSeed[1] = (Hi8(IV16) | 0x20) & 0x7F;
 	WEPSeed[2] = Lo8(IV16);
@@ -294,6 +297,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 #ifdef __BIG_ENDIAN
 	{
 		int i;
+
 		for (i = 0; i < 6; i++)
 			PPK[i] = (PPK[i] << 8) | (PPK[i] >> 8);
 	}
@@ -304,7 +308,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
-		int len;
+	int len;
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
@@ -320,17 +324,15 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
 
-	if (!tcb_desc->bHwSec)
-	{
+	if (!tcb_desc->bHwSec) {
 		if (!tkey->tx_phase1_done) {
 			tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
-					tkey->tx_iv32);
+					   tkey->tx_iv32);
 			tkey->tx_phase1_done = 1;
 		}
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
-	}
-	else
-	tkey->tx_phase1_done = 1;
+	} else
+		tkey->tx_phase1_done = 1;
 
 
 	len = skb->len - hdr_len;
@@ -338,14 +340,11 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	memmove(pos, pos + 8, hdr_len);
 	pos += hdr_len;
 
-	if (tcb_desc->bHwSec)
-	{
+	if (tcb_desc->bHwSec) {
 		*pos++ = Hi8(tkey->tx_iv16);
 		*pos++ = (Hi8(tkey->tx_iv16) | 0x20) & 0x7F;
 		*pos++ = Lo8(tkey->tx_iv16);
-	}
-	else
-	{
+	} else {
 		*pos++ = rc4key[0];
 		*pos++ = rc4key[1];
 		*pos++ = rc4key[2];
@@ -357,8 +356,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = (tkey->tx_iv32 >> 16) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 24) & 0xff;
 
-	if (!tcb_desc->bHwSec)
-	{
+	if (!tcb_desc->bHwSec) {
 		icv = skb_put(skb, 4);
 		crc = ~crc32_le(~0, pos, len);
 		icv[0] = crc;
@@ -367,7 +365,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		icv[3] = crc >> 24;
 		crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
 		sg_init_one(&sg, pos, len+4);
-		ret= crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
+		ret = crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 	}
 
 	tkey->tx_iv16++;
@@ -398,6 +396,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 crc;
 	struct scatterlist sg;
 	int plen;
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
@@ -429,8 +428,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
 	pos += 8;
 
-	if (!tcb_desc->bHwSec)
-	{
+	if (!tcb_desc->bHwSec) {
 		if (iv32 < tkey->rx_iv32 ||
 		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
 			if (net_ratelimit()) {
@@ -471,8 +469,11 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		if (memcmp(icv, pos + plen, 4) != 0) {
 			if (iv32 != tkey->rx_iv32) {
-				/* Previously cached Phase1 result was already lost, so
-				* it needs to be recalculated for the next packet. */
+				/*
+				 * Previously cached Phase1 result was already
+				 * lost, so it needs to be recalculated for the
+				 * next packet.
+				 */
 				tkey->rx_phase1_done = 0;
 			}
 			if (net_ratelimit()) {
@@ -485,8 +486,10 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	}
 
-	/* Update real counters only after Michael MIC verification has
-	 * completed */
+	/*
+	 * Update real counters only after Michael MIC verification has
+	 * completed.
+	 */
 	tkey->rx_iv32_new = iv32;
 	tkey->rx_iv16_new = iv16;
 
@@ -571,9 +574,8 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 
 	// { david, 2006.9.1
 	// fix the wpa process with wmm enabled.
-	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl)))
 		tkey->tx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
-	}
 	// }
 	pos = skb_put(skb, 8);
 
@@ -606,7 +608,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv)
+					int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -620,17 +622,17 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	michael_mic_hdr(skb, tkey->rx_hdr);
 	// { david, 2006.9.1
 	// fix the wpa process with wmm enabled.
-	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl)))
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
-	}
 	// }
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
-				skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
+			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtl_80211_hdr_4addr *hdr;
 		hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
@@ -641,8 +643,10 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 	}
 
-	/* Update TSC counters for RX now that the packet verification has
-	 * completed. */
+	/*
+	 * Update TSC counters for RX now that the packet verification has
+	 * completed.
+	 */
 	tkey->rx_iv32 = tkey->rx_iv32_new;
 	tkey->rx_iv16 = tkey->rx_iv16_new;
 
@@ -702,6 +706,7 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 		/* Return the sequence number of the last transmitted frame. */
 		u16 iv16 = tkey->tx_iv16;
 		u32 iv32 = tkey->tx_iv32;
+
 		if (iv16 == 0)
 			iv32--;
 		iv16--;
@@ -720,6 +725,7 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 static char *ieee80211_tkip_print_stats(char *p, void *priv)
 {
 	struct ieee80211_tkip_data *tkip = priv;
+
 	p += sprintf(p, "key[%d] alg=TKIP key_set=%d "
 		     "tx_pn=%02x%02x%02x%02x%02x%02x "
 		     "rx_pn=%02x%02x%02x%02x%02x%02x "

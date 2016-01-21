@@ -175,8 +175,6 @@ struct ath10k_pci {
 
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
-	struct ath10k_hif_cb msg_callbacks_current;
-
 	/* Copy Engine used for Diagnostic Accesses */
 	struct ath10k_ce_pipe *ce_diag;
 
@@ -221,6 +219,12 @@ struct ath10k_pci {
 	 * powersave register state changes.
 	 */
 	bool ps_awake;
+
+	/* pci power save, disable for QCA988X and QCA99X0.
+	 * Writing 'false' to this variable avoids frequent locking
+	 * on MMIO read/write.
+	 */
+	bool pci_ps;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
@@ -230,7 +234,8 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 
 #define ATH10K_PCI_RX_POST_RETRY_MS 50
 #define ATH_PCI_RESET_WAIT_MAX 10 /* ms */
-#define PCIE_WAKE_TIMEOUT 10000	/* 10ms */
+#define PCIE_WAKE_TIMEOUT 30000	/* 30ms */
+#define PCIE_WAKE_LATE_US 10000	/* 10ms */
 
 #define BAR_NUM 0
 

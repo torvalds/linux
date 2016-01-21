@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/mfd/core.h>
@@ -33,7 +33,7 @@ static int tps6105x_regulator_enable(struct regulator_dev *rdev)
 	int ret;
 
 	/* Activate voltage mode */
-	ret = tps6105x_mask_and_set(tps6105x, TPS6105X_REG_0,
+	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
 		TPS6105X_REG0_MODE_MASK,
 		TPS6105X_REG0_MODE_VOLTAGE << TPS6105X_REG0_MODE_SHIFT);
 	if (ret)
@@ -48,7 +48,7 @@ static int tps6105x_regulator_disable(struct regulator_dev *rdev)
 	int ret;
 
 	/* Set into shutdown mode */
-	ret = tps6105x_mask_and_set(tps6105x, TPS6105X_REG_0,
+	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
 		TPS6105X_REG0_MODE_MASK,
 		TPS6105X_REG0_MODE_SHUTDOWN << TPS6105X_REG0_MODE_SHIFT);
 	if (ret)
@@ -60,10 +60,10 @@ static int tps6105x_regulator_disable(struct regulator_dev *rdev)
 static int tps6105x_regulator_is_enabled(struct regulator_dev *rdev)
 {
 	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	u8 regval;
+	unsigned int regval;
 	int ret;
 
-	ret = tps6105x_get(tps6105x, TPS6105X_REG_0, &regval);
+	ret = regmap_read(tps6105x->regmap, TPS6105X_REG_0, &regval);
 	if (ret)
 		return ret;
 	regval &= TPS6105X_REG0_MODE_MASK;
@@ -78,10 +78,10 @@ static int tps6105x_regulator_is_enabled(struct regulator_dev *rdev)
 static int tps6105x_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	u8 regval;
+	unsigned int regval;
 	int ret;
 
-	ret = tps6105x_get(tps6105x, TPS6105X_REG_0, &regval);
+	ret = regmap_read(tps6105x->regmap, TPS6105X_REG_0, &regval);
 	if (ret)
 		return ret;
 
@@ -96,7 +96,7 @@ static int tps6105x_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
 	int ret;
 
-	ret = tps6105x_mask_and_set(tps6105x, TPS6105X_REG_0,
+	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
 				    TPS6105X_REG0_VOLTAGE_MASK,
 				    selector << TPS6105X_REG0_VOLTAGE_SHIFT);
 	if (ret)

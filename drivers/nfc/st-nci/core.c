@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 
 #include "st-nci.h"
-#include "st-nci_se.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 
@@ -98,7 +97,7 @@ static int st_nci_prop_rsp_packet(struct nci_dev *ndev,
 	return 0;
 }
 
-static struct nci_prop_ops st_nci_prop_ops[] = {
+static struct nci_driver_ops st_nci_prop_ops[] = {
 	{
 		.opcode = nci_opcode_pack(NCI_GID_PROPRIETARY,
 					  ST_NCI_CORE_PROP),
@@ -124,7 +123,7 @@ static struct nci_ops st_nci_ops = {
 };
 
 int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
-		       int phy_tailroom)
+		 int phy_tailroom, struct st_nci_se_status *se_status)
 {
 	struct st_nci_info *info;
 	int r;
@@ -153,14 +152,23 @@ int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 
 	nci_set_drvdata(ndlc->ndev, info);
 
+	r = st_nci_vendor_cmds_init(ndlc->ndev);
+	if (r) {
+		pr_err("Cannot register proprietary vendor cmds\n");
+		goto err_reg_dev;
+	}
+
 	r = nci_register_device(ndlc->ndev);
 	if (r) {
 		pr_err("Cannot register nfc device to nci core\n");
-		nci_free_device(ndlc->ndev);
-		return r;
+		goto err_reg_dev;
 	}
 
-	return st_nci_se_init(ndlc->ndev);
+	return st_nci_se_init(ndlc->ndev, se_status);
+
+err_reg_dev:
+	nci_free_device(ndlc->ndev);
+	return r;
 }
 EXPORT_SYMBOL_GPL(st_nci_probe);
 

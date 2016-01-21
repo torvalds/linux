@@ -875,6 +875,7 @@ static const struct of_device_id of_twl6030_match_tbl[] = {
 	},
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_twl6030_match_tbl);
 
 static int twl6030_gpadc_probe(struct platform_device *pdev)
 {

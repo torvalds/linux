@@ -5,6 +5,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
+ * Copyright 2015	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -858,6 +859,8 @@ struct station_del_parameters {
 /**
  * enum cfg80211_station_type - the type of station being modified
  * @CFG80211_STA_AP_CLIENT: client of an AP interface
+ * @CFG80211_STA_AP_CLIENT_UNASSOC: client of an AP interface that is still
+ *	unassociated (update properties for this type of client is permitted)
  * @CFG80211_STA_AP_MLME_CLIENT: client of an AP interface that has
  *	the AP MLME in the device
  * @CFG80211_STA_AP_STA: AP station on managed interface
@@ -873,6 +876,7 @@ struct station_del_parameters {
  */
 enum cfg80211_station_type {
 	CFG80211_STA_AP_CLIENT,
+	CFG80211_STA_AP_CLIENT_UNASSOC,
 	CFG80211_STA_AP_MLME_CLIENT,
 	CFG80211_STA_AP_STA,
 	CFG80211_STA_IBSS,
@@ -1498,13 +1502,26 @@ struct cfg80211_match_set {
 };
 
 /**
+ * struct cfg80211_sched_scan_plan - scan plan for scheduled scan
+ *
+ * @interval: interval between scheduled scan iterations. In seconds.
+ * @iterations: number of scan iterations in this scan plan. Zero means
+ *	infinite loop.
+ *	The last scan plan will always have this parameter set to zero,
+ *	all other scan plans will have a finite number of iterations.
+ */
+struct cfg80211_sched_scan_plan {
+	u32 interval;
+	u32 iterations;
+};
+
+/**
  * struct cfg80211_sched_scan_request - scheduled scan request description
  *
  * @ssids: SSIDs to scan for (passed in the probe_reqs in active scans)
  * @n_ssids: number of SSIDs
  * @n_channels: total number of channels to scan
  * @scan_width: channel width for scanning
- * @interval: interval between each scheduled scan cycle
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
  * @flags: bit field of flags controlling operation
@@ -1523,6 +1540,9 @@ struct cfg80211_match_set {
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
  *	are 0 in the mask should be randomised, bits that are 1 should
  *	be taken from the @mac_addr
+ * @scan_plans: scan plans to be executed in this scheduled scan. Lowest
+ *	index must be executed first.
+ * @n_scan_plans: number of scan plans, at least 1.
  * @rcu_head: RCU callback used to free the struct
  * @owner_nlportid: netlink portid of owner (if this should is a request
  *	owned by a particular socket)
@@ -1536,7 +1556,6 @@ struct cfg80211_sched_scan_request {
 	int n_ssids;
 	u32 n_channels;
 	enum nl80211_bss_scan_width scan_width;
-	u32 interval;
 	const u8 *ie;
 	size_t ie_len;
 	u32 flags;
@@ -1544,6 +1563,8 @@ struct cfg80211_sched_scan_request {
 	int n_match_sets;
 	s32 min_rssi_thold;
 	u32 delay;
+	struct cfg80211_sched_scan_plan *scan_plans;
+	int n_scan_plans;
 
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
@@ -1570,6 +1591,26 @@ enum cfg80211_signal_type {
 	CFG80211_SIGNAL_TYPE_NONE,
 	CFG80211_SIGNAL_TYPE_MBM,
 	CFG80211_SIGNAL_TYPE_UNSPEC,
+};
+
+/**
+ * struct cfg80211_inform_bss - BSS inform data
+ * @chan: channel the frame was received on
+ * @scan_width: scan width that was used
+ * @signal: signal strength value, according to the wiphy's
+ *	signal type
+ * @boottime_ns: timestamp (CLOCK_BOOTTIME) when the information was
+ *	received; should match the time when the frame was actually
+ *	received by the device (not just by the host, in case it was
+ *	buffered on the device) and be accurate to about 10ms.
+ *	If the frame isn't buffered, just passing the return value of
+ *	ktime_get_boot_ns() is likely appropriate.
+ */
+struct cfg80211_inform_bss {
+	struct ieee80211_channel *chan;
+	enum nl80211_bss_scan_width scan_width;
+	s32 signal;
+	u64 boottime_ns;
 };
 
 /**
@@ -2358,6 +2399,10 @@ struct cfg80211_qos_map {
  * @set_power_mgmt: Configure WLAN power management. A timeout value of -1
  *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
+ *	After configuration, the driver should (soon) send an event indicating
+ *	the current level is above/below the configured threshold; this may
+ *	need some care when the configuration is changed (without first being
+ *	disabled.)
  * @set_cqm_txe_config: Configure connection quality monitor TX error
  *	thresholds.
  * @sched_scan_start: Tell the driver to start a scheduled scan.
@@ -2971,12 +3016,21 @@ enum wiphy_vendor_command_flags {
  * @doit: callback for the operation, note that wdev is %NULL if the
  *	flags didn't ask for a wdev and non-%NULL otherwise; the data
  *	pointer may be %NULL if userspace provided no data at all
+ * @dumpit: dump callback, for transferring bigger/multiple items. The
+ *	@storage points to cb->args[5], ie. is preserved over the multiple
+ *	dumpit calls.
+ * It's recommended to not have the same sub command with both @doit and
+ * @dumpit, so that userspace can assume certain ones are get and others
+ * are used with dump requests.
  */
 struct wiphy_vendor_command {
 	struct nl80211_vendor_cmd_info info;
 	u32 flags;
 	int (*doit)(struct wiphy *wiphy, struct wireless_dev *wdev,
 		    const void *data, int data_len);
+	int (*dumpit)(struct wiphy *wiphy, struct wireless_dev *wdev,
+		      struct sk_buff *skb, const void *data, int data_len,
+		      unsigned long *storage);
 };
 
 /**
@@ -3044,6 +3098,12 @@ struct wiphy_vendor_command {
  *	include fixed IEs like supported rates
  * @max_sched_scan_ie_len: same as max_scan_ie_len, but for scheduled
  *	scans
+ * @max_sched_scan_plans: maximum number of scan plans (scan interval and number
+ *	of iterations) for scheduled scan supported by the device.
+ * @max_sched_scan_plan_interval: maximum interval (in seconds) for a
+ *	single scan plan supported by the device.
+ * @max_sched_scan_plan_iterations: maximum number of iterations for a single
+ *	scan plan supported by the device.
  * @coverage_class: current coverage class
  * @fw_version: firmware version for ethtool reporting
  * @hw_version: hardware version for ethtool reporting
@@ -3151,6 +3211,9 @@ struct wiphy {
 	u8 max_match_sets;
 	u16 max_scan_ie_len;
 	u16 max_sched_scan_ie_len;
+	u32 max_sched_scan_plans;
+	u32 max_sched_scan_plan_interval;
+	u32 max_sched_scan_plan_iterations;
 
 	int n_cipher_suites;
 	const u32 *cipher_suites;
@@ -3946,14 +4009,11 @@ void cfg80211_sched_scan_stopped(struct wiphy *wiphy);
 void cfg80211_sched_scan_stopped_rtnl(struct wiphy *wiphy);
 
 /**
- * cfg80211_inform_bss_width_frame - inform cfg80211 of a received BSS frame
- *
+ * cfg80211_inform_bss_frame_data - inform cfg80211 of a received BSS frame
  * @wiphy: the wiphy reporting the BSS
- * @rx_channel: The channel the frame was received on
- * @scan_width: width of the control channel
+ * @data: the BSS metadata
  * @mgmt: the management frame (probe response or beacon)
  * @len: length of the management frame
- * @signal: the signal strength, type depends on the wiphy's signal_type
  * @gfp: context flags
  *
  * This informs cfg80211 that BSS information was found and
@@ -3963,11 +4023,26 @@ void cfg80211_sched_scan_stopped_rtnl(struct wiphy *wiphy);
  * Or %NULL on error.
  */
 struct cfg80211_bss * __must_check
+cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
+			       struct cfg80211_inform_bss *data,
+			       struct ieee80211_mgmt *mgmt, size_t len,
+			       gfp_t gfp);
+
+static inline struct cfg80211_bss * __must_check
 cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
 				struct ieee80211_channel *rx_channel,
 				enum nl80211_bss_scan_width scan_width,
 				struct ieee80211_mgmt *mgmt, size_t len,
-				s32 signal, gfp_t gfp);
+				s32 signal, gfp_t gfp)
+{
+	struct cfg80211_inform_bss data = {
+		.chan = rx_channel,
+		.scan_width = scan_width,
+		.signal = signal,
+	};
+
+	return cfg80211_inform_bss_frame_data(wiphy, &data, mgmt, len, gfp);
+}
 
 static inline struct cfg80211_bss * __must_check
 cfg80211_inform_bss_frame(struct wiphy *wiphy,
@@ -3975,9 +4050,13 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  struct ieee80211_mgmt *mgmt, size_t len,
 			  s32 signal, gfp_t gfp)
 {
-	return cfg80211_inform_bss_width_frame(wiphy, rx_channel,
-					       NL80211_BSS_CHAN_WIDTH_20,
-					       mgmt, len, signal, gfp);
+	struct cfg80211_inform_bss data = {
+		.chan = rx_channel,
+		.scan_width = NL80211_BSS_CHAN_WIDTH_20,
+		.signal = signal,
+	};
+
+	return cfg80211_inform_bss_frame_data(wiphy, &data, mgmt, len, gfp);
 }
 
 /**
@@ -3994,11 +4073,10 @@ enum cfg80211_bss_frame_type {
 };
 
 /**
- * cfg80211_inform_bss_width - inform cfg80211 of a new BSS
+ * cfg80211_inform_bss_data - inform cfg80211 of a new BSS
  *
  * @wiphy: the wiphy reporting the BSS
- * @rx_channel: The channel the frame was received on
- * @scan_width: width of the control channel
+ * @data: the BSS metadata
  * @ftype: frame type (if known)
  * @bssid: the BSSID of the BSS
  * @tsf: the TSF sent by the peer in the beacon/probe response (or 0)
@@ -4006,7 +4084,6 @@ enum cfg80211_bss_frame_type {
  * @beacon_interval: the beacon interval announced by the peer
  * @ie: additional IEs sent by the peer
  * @ielen: length of the additional IEs
- * @signal: the signal strength, type depends on the wiphy's signal_type
  * @gfp: context flags
  *
  * This informs cfg80211 that BSS information was found and
@@ -4016,13 +4093,32 @@ enum cfg80211_bss_frame_type {
  * Or %NULL on error.
  */
 struct cfg80211_bss * __must_check
+cfg80211_inform_bss_data(struct wiphy *wiphy,
+			 struct cfg80211_inform_bss *data,
+			 enum cfg80211_bss_frame_type ftype,
+			 const u8 *bssid, u64 tsf, u16 capability,
+			 u16 beacon_interval, const u8 *ie, size_t ielen,
+			 gfp_t gfp);
+
+static inline struct cfg80211_bss * __must_check
 cfg80211_inform_bss_width(struct wiphy *wiphy,
 			  struct ieee80211_channel *rx_channel,
 			  enum nl80211_bss_scan_width scan_width,
 			  enum cfg80211_bss_frame_type ftype,
 			  const u8 *bssid, u64 tsf, u16 capability,
 			  u16 beacon_interval, const u8 *ie, size_t ielen,
-			  s32 signal, gfp_t gfp);
+			  s32 signal, gfp_t gfp)
+{
+	struct cfg80211_inform_bss data = {
+		.chan = rx_channel,
+		.scan_width = scan_width,
+		.signal = signal,
+	};
+
+	return cfg80211_inform_bss_data(wiphy, &data, ftype, bssid, tsf,
+					capability, beacon_interval, ie, ielen,
+					gfp);
+}
 
 static inline struct cfg80211_bss * __must_check
 cfg80211_inform_bss(struct wiphy *wiphy,
@@ -4032,11 +4128,15 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 		    u16 beacon_interval, const u8 *ie, size_t ielen,
 		    s32 signal, gfp_t gfp)
 {
-	return cfg80211_inform_bss_width(wiphy, rx_channel,
-					 NL80211_BSS_CHAN_WIDTH_20, ftype,
-					 bssid, tsf, capability,
-					 beacon_interval, ie, ielen, signal,
-					 gfp);
+	struct cfg80211_inform_bss data = {
+		.chan = rx_channel,
+		.scan_width = NL80211_BSS_CHAN_WIDTH_20,
+		.signal = signal,
+	};
+
+	return cfg80211_inform_bss_data(wiphy, &data, ftype, bssid, tsf,
+					capability, beacon_interval, ie, ielen,
+					gfp);
 }
 
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,

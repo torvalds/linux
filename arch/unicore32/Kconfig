@@ -222,7 +222,7 @@ config I2C_BATTERY_BQ27200
 	tristate "I2C Battery BQ27200 Support"
 	select I2C_PUV3
 	select POWER_SUPPLY
-	select BATTERY_BQ27x00
+	select BATTERY_BQ27XXX
 
 config I2C_EEPROM_AT24
 	tristate "I2C EEPROMs AT24 support"

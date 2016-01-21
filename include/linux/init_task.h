@@ -25,13 +25,6 @@
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
 
-#ifdef CONFIG_CGROUPS
-#define INIT_GROUP_RWSEM(sig)						\
-	.group_rwsem = __RWSEM_INITIALIZER(sig.group_rwsem),
-#else
-#define INIT_GROUP_RWSEM(sig)
-#endif
-
 #ifdef CONFIG_CPUSETS
 #define INIT_CPUSET_SEQ(tsk)							\
 	.mems_allowed_seq = SEQCNT_ZERO(tsk.mems_allowed_seq),
@@ -59,12 +52,12 @@ extern struct fs_struct init_fs;
 	.rlim		= INIT_RLIMITS,					\
 	.cputimer	= { 						\
 		.cputime_atomic	= INIT_CPUTIME_ATOMIC,			\
-		.running	= 0,					\
+		.running	= false,				\
+		.checking_timer = false,				\
 	},								\
 	INIT_PREV_CPUTIME(sig)						\
 	.cred_guard_mutex =						\
 		 __MUTEX_INITIALIZER(sig.cred_guard_mutex),		\
-	INIT_GROUP_RWSEM(sig)						\
 }
 
 extern struct nsproxy init_nsproxy;

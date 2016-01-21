@@ -339,6 +339,12 @@ static const struct regmap_config hda_regmap_cfg = {
 	.use_single_rw = true,
 };
 
+/**
+ * snd_hdac_regmap_init - Initialize regmap for HDA register accesses
+ * @codec: the codec object
+ *
+ * Returns zero for success or a negative error code.
+ */
 int snd_hdac_regmap_init(struct hdac_device *codec)
 {
 	struct regmap *regmap;
@@ -352,6 +358,10 @@ int snd_hdac_regmap_init(struct hdac_device *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_init);
 
+/**
+ * snd_hdac_regmap_init - Release the regmap from HDA codec
+ * @codec: the codec object
+ */
 void snd_hdac_regmap_exit(struct hdac_device *codec)
 {
 	if (codec->regmap) {

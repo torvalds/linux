@@ -152,9 +152,9 @@ static inline pending_ring_idx_t pending_index(unsigned i)
 static int xenvif_rx_ring_slots_needed(struct xenvif *vif)
 {
 	if (vif->gso_mask)
-		return DIV_ROUND_UP(vif->dev->gso_max_size, PAGE_SIZE) + 1;
+		return DIV_ROUND_UP(vif->dev->gso_max_size, XEN_PAGE_SIZE) + 1;
 	else
-		return DIV_ROUND_UP(vif->dev->mtu, PAGE_SIZE);
+		return DIV_ROUND_UP(vif->dev->mtu, XEN_PAGE_SIZE);
 }
 
 static bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue)
@@ -258,20 +258,94 @@ static struct xenvif_rx_meta *get_next_rx_buffer(struct xenvif_queue *queue,
 						 struct netrx_pending_operations *npo)
 {
 	struct xenvif_rx_meta *meta;
-	struct xen_netif_rx_request *req;
+	struct xen_netif_rx_request req;
 
-	req = RING_GET_REQUEST(&queue->rx, queue->rx.req_cons++);
+	RING_COPY_REQUEST(&queue->rx, queue->rx.req_cons++, &req);
 
 	meta = npo->meta + npo->meta_prod++;
 	meta->gso_type = XEN_NETIF_GSO_TYPE_NONE;
 	meta->gso_size = 0;
 	meta->size = 0;
-	meta->id = req->id;
+	meta->id = req.id;
 
 	npo->copy_off = 0;
-	npo->copy_gref = req->gref;
+	npo->copy_gref = req.gref;
 
 	return meta;
+}
+
+struct gop_frag_copy {
+	struct xenvif_queue *queue;
+	struct netrx_pending_operations *npo;
+	struct xenvif_rx_meta *meta;
+	int head;
+	int gso_type;
+
+	struct page *page;
+};
+
+static void xenvif_setup_copy_gop(unsigned long gfn,
+				  unsigned int offset,
+				  unsigned int *len,
+				  struct gop_frag_copy *info)
+{
+	struct gnttab_copy *copy_gop;
+	struct xen_page_foreign *foreign;
+	/* Convenient aliases */
+	struct xenvif_queue *queue = info->queue;
+	struct netrx_pending_operations *npo = info->npo;
+	struct page *page = info->page;
+
+	BUG_ON(npo->copy_off > MAX_BUFFER_OFFSET);
+
+	if (npo->copy_off == MAX_BUFFER_OFFSET)
+		info->meta = get_next_rx_buffer(queue, npo);
+
+	if (npo->copy_off + *len > MAX_BUFFER_OFFSET)
+		*len = MAX_BUFFER_OFFSET - npo->copy_off;
+
+	copy_gop = npo->copy + npo->copy_prod++;
+	copy_gop->flags = GNTCOPY_dest_gref;
+	copy_gop->len = *len;
+
+	foreign = xen_page_foreign(page);
+	if (foreign) {
+		copy_gop->source.domid = foreign->domid;
+		copy_gop->source.u.ref = foreign->gref;
+		copy_gop->flags |= GNTCOPY_source_gref;
+	} else {
+		copy_gop->source.domid = DOMID_SELF;
+		copy_gop->source.u.gmfn = gfn;
+	}
+	copy_gop->source.offset = offset;
+
+	copy_gop->dest.domid = queue->vif->domid;
+	copy_gop->dest.offset = npo->copy_off;
+	copy_gop->dest.u.ref = npo->copy_gref;
+
+	npo->copy_off += *len;
+	info->meta->size += *len;
+
+	/* Leave a gap for the GSO descriptor. */
+	if (info->head && ((1 << info->gso_type) & queue->vif->gso_mask))
+		queue->rx.req_cons++;
+
+	info->head = 0; /* There must be something in this buffer now */
+}
+
+static void xenvif_gop_frag_copy_grant(unsigned long gfn,
+				       unsigned offset,
+				       unsigned int len,
+				       void *data)
+{
+	unsigned int bytes;
+
+	while (len) {
+		bytes = len;
+		xenvif_setup_copy_gop(gfn, offset, &bytes, data);
+		offset += bytes;
+		len -= bytes;
+	}
 }
 
 /*
@@ -283,83 +357,52 @@ static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb
 				 struct page *page, unsigned long size,
 				 unsigned long offset, int *head)
 {
-	struct gnttab_copy *copy_gop;
-	struct xenvif_rx_meta *meta;
+	struct gop_frag_copy info = {
+		.queue = queue,
+		.npo = npo,
+		.head = *head,
+		.gso_type = XEN_NETIF_GSO_TYPE_NONE,
+	};
 	unsigned long bytes;
-	int gso_type = XEN_NETIF_GSO_TYPE_NONE;
+
+	if (skb_is_gso(skb)) {
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
+			info.gso_type = XEN_NETIF_GSO_TYPE_TCPV4;
+		else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
+			info.gso_type = XEN_NETIF_GSO_TYPE_TCPV6;
+	}
 
 	/* Data must not cross a page boundary. */
 	BUG_ON(size + offset > PAGE_SIZE<<compound_order(page));
 
-	meta = npo->meta + npo->meta_prod - 1;
+	info.meta = npo->meta + npo->meta_prod - 1;
 
 	/* Skip unused frames from start of page */
 	page += offset >> PAGE_SHIFT;
 	offset &= ~PAGE_MASK;
 
 	while (size > 0) {
-		struct xen_page_foreign *foreign;
-
 		BUG_ON(offset >= PAGE_SIZE);
-		BUG_ON(npo->copy_off > MAX_BUFFER_OFFSET);
-
-		if (npo->copy_off == MAX_BUFFER_OFFSET)
-			meta = get_next_rx_buffer(queue, npo);
 
 		bytes = PAGE_SIZE - offset;
 		if (bytes > size)
 			bytes = size;
 
-		if (npo->copy_off + bytes > MAX_BUFFER_OFFSET)
-			bytes = MAX_BUFFER_OFFSET - npo->copy_off;
-
-		copy_gop = npo->copy + npo->copy_prod++;
-		copy_gop->flags = GNTCOPY_dest_gref;
-		copy_gop->len = bytes;
-
-		foreign = xen_page_foreign(page);
-		if (foreign) {
-			copy_gop->source.domid = foreign->domid;
-			copy_gop->source.u.ref = foreign->gref;
-			copy_gop->flags |= GNTCOPY_source_gref;
-		} else {
-			copy_gop->source.domid = DOMID_SELF;
-			copy_gop->source.u.gmfn =
-				virt_to_gfn(page_address(page));
-		}
-		copy_gop->source.offset = offset;
-
-		copy_gop->dest.domid = queue->vif->domid;
-		copy_gop->dest.offset = npo->copy_off;
-		copy_gop->dest.u.ref = npo->copy_gref;
-
-		npo->copy_off += bytes;
-		meta->size += bytes;
-
-		offset += bytes;
+		info.page = page;
+		gnttab_foreach_grant_in_range(page, offset, bytes,
+					      xenvif_gop_frag_copy_grant,
+					      &info);
 		size -= bytes;
+		offset = 0;
 
-		/* Next frame */
-		if (offset == PAGE_SIZE && size) {
+		/* Next page */
+		if (size) {
 			BUG_ON(!PageCompound(page));
 			page++;
-			offset = 0;
 		}
-
-		/* Leave a gap for the GSO descriptor. */
-		if (skb_is_gso(skb)) {
-			if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
-				gso_type = XEN_NETIF_GSO_TYPE_TCPV4;
-			else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
-				gso_type = XEN_NETIF_GSO_TYPE_TCPV6;
-		}
-
-		if (*head && ((1 << gso_type) & queue->vif->gso_mask))
-			queue->rx.req_cons++;
-
-		*head = 0; /* There must be something in this buffer now. */
-
 	}
+
+	*head = info.head;
 }
 
 /*
@@ -381,7 +424,7 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	struct xenvif *vif = netdev_priv(skb->dev);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int i;
-	struct xen_netif_rx_request *req;
+	struct xen_netif_rx_request req;
 	struct xenvif_rx_meta *meta;
 	unsigned char *data;
 	int head = 1;
@@ -400,15 +443,15 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 
 	/* Set up a GSO prefix descriptor, if necessary */
 	if ((1 << gso_type) & vif->gso_prefix_mask) {
-		req = RING_GET_REQUEST(&queue->rx, queue->rx.req_cons++);
+		RING_COPY_REQUEST(&queue->rx, queue->rx.req_cons++, &req);
 		meta = npo->meta + npo->meta_prod++;
 		meta->gso_type = gso_type;
 		meta->gso_size = skb_shinfo(skb)->gso_size;
 		meta->size = 0;
-		meta->id = req->id;
+		meta->id = req.id;
 	}
 
-	req = RING_GET_REQUEST(&queue->rx, queue->rx.req_cons++);
+	RING_COPY_REQUEST(&queue->rx, queue->rx.req_cons++, &req);
 	meta = npo->meta + npo->meta_prod++;
 
 	if ((1 << gso_type) & vif->gso_mask) {
@@ -420,9 +463,9 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	}
 
 	meta->size = 0;
-	meta->id = req->id;
+	meta->id = req.id;
 	npo->copy_off = 0;
-	npo->copy_gref = req->gref;
+	npo->copy_gref = req.gref;
 
 	data = skb->data;
 	while (data < skb_tail_pointer(skb)) {
@@ -636,9 +679,7 @@ static void tx_add_credit(struct xenvif_queue *queue)
 	 * Allow a burst big enough to transmit a jumbo packet of up to 128kB.
 	 * Otherwise the interface can seize up due to insufficient credit.
 	 */
-	max_burst = RING_GET_REQUEST(&queue->tx, queue->tx.req_cons)->size;
-	max_burst = min(max_burst, 131072UL);
-	max_burst = max(max_burst, queue->credit_bytes);
+	max_burst = max(131072UL, queue->credit_bytes);
 
 	/* Take care that adding a new chunk of credit doesn't wrap to zero. */
 	max_credit = queue->remaining_credit + queue->credit_bytes;
@@ -668,7 +709,7 @@ static void xenvif_tx_err(struct xenvif_queue *queue,
 		spin_unlock_irqrestore(&queue->response_lock, flags);
 		if (cons == end)
 			break;
-		txp = RING_GET_REQUEST(&queue->tx, cons++);
+		RING_COPY_REQUEST(&queue->tx, cons++, txp);
 	} while (1);
 	queue->tx.req_cons = cons;
 }
@@ -735,8 +776,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 		if (drop_err)
 			txp = &dropped_tx;
 
-		memcpy(txp, RING_GET_REQUEST(&queue->tx, cons + slots),
-		       sizeof(*txp));
+		RING_COPY_REQUEST(&queue->tx, cons + slots, txp);
 
 		/* If the guest submitted a frame >= 64 KiB then
 		 * first->size overflowed and following slots will
@@ -758,7 +798,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 		first->size -= txp->size;
 		slots++;
 
-		if (unlikely((txp->offset + txp->size) > PAGE_SIZE)) {
+		if (unlikely((txp->offset + txp->size) > XEN_PAGE_SIZE)) {
 			netdev_err(queue->vif->dev, "Cross page boundary, txp->offset: %u, size: %u\n",
 				 txp->offset, txp->size);
 			xenvif_fatal_tx_err(queue->vif);
@@ -1069,8 +1109,7 @@ static int xenvif_get_extras(struct xenvif_queue *queue,
 			return -EBADR;
 		}
 
-		memcpy(&extra, RING_GET_REQUEST(&queue->tx, cons),
-		       sizeof(extra));
+		RING_COPY_REQUEST(&queue->tx, cons, &extra);
 		if (unlikely(!extra.type ||
 			     extra.type >= XEN_NETIF_EXTRA_TYPE_MAX)) {
 			queue->tx.req_cons = ++cons;
@@ -1279,7 +1318,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 
 		idx = queue->tx.req_cons;
 		rmb(); /* Ensure that we see the request before we copy it. */
-		memcpy(&txreq, RING_GET_REQUEST(&queue->tx, idx), sizeof(txreq));
+		RING_COPY_REQUEST(&queue->tx, idx, &txreq);
 
 		/* Credit-based scheduling. */
 		if (txreq.size > queue->remaining_credit &&
@@ -1339,11 +1378,11 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 		}
 
 		/* No crossing a page as the payload mustn't fragment. */
-		if (unlikely((txreq.offset + txreq.size) > PAGE_SIZE)) {
+		if (unlikely((txreq.offset + txreq.size) > XEN_PAGE_SIZE)) {
 			netdev_err(queue->vif->dev,
 				   "txreq.offset: %u, size: %u, end: %lu\n",
 				   txreq.offset, txreq.size,
-				   (unsigned long)(txreq.offset&~PAGE_MASK) + txreq.size);
+				   (unsigned long)(txreq.offset&~XEN_PAGE_MASK) + txreq.size);
 			xenvif_fatal_tx_err(queue->vif);
 			break;
 		}
@@ -1409,7 +1448,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			virt_to_gfn(skb->data);
 		queue->tx_copy_ops[*copy_ops].dest.domid = DOMID_SELF;
 		queue->tx_copy_ops[*copy_ops].dest.offset =
-			offset_in_page(skb->data);
+			offset_in_page(skb->data) & ~XEN_PAGE_MASK;
 
 		queue->tx_copy_ops[*copy_ops].len = data_len;
 		queue->tx_copy_ops[*copy_ops].flags = GNTCOPY_source_gref;
@@ -1894,7 +1933,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 		goto err;
 
 	txs = (struct xen_netif_tx_sring *)addr;
-	BACK_RING_INIT(&queue->tx, txs, PAGE_SIZE);
+	BACK_RING_INIT(&queue->tx, txs, XEN_PAGE_SIZE);
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
 				     &rx_ring_ref, 1, &addr);
@@ -1902,7 +1941,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 		goto err;
 
 	rxs = (struct xen_netif_rx_sring *)addr;
-	BACK_RING_INIT(&queue->rx, rxs, PAGE_SIZE);
+	BACK_RING_INIT(&queue->rx, rxs, XEN_PAGE_SIZE);
 
 	return 0;
 

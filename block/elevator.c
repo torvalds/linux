@@ -420,7 +420,7 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	 * 	noxmerges: Only simple one-hit cache try
 	 * 	merges:	   All merge tries attempted
 	 */
-	if (blk_queue_nomerges(q))
+	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
 		return ELEVATOR_NO_MERGE;
 
 	/*

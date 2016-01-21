@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/hi6220-clock.h>
 
 / {
 	compatible = "hisilicon,hi6220";
@@ -164,8 +165,48 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0xf8015000 0x0 0x1000>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ao_ctrl 36>, <&ao_ctrl 36>;
+			clocks = <&ao_ctrl HI6220_UART0_PCLK>,
+				 <&ao_ctrl HI6220_UART0_PCLK>;
 			clock-names = "uartclk", "apb_pclk";
+		};
+
+		uart1: uart@f7111000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x0 0xf7111000 0x0 0x1000>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_ctrl HI6220_UART1_PCLK>,
+				 <&sys_ctrl HI6220_UART1_PCLK>;
+			clock-names = "uartclk", "apb_pclk";
+			status = "disabled";
+		};
+
+		uart2: uart@f7112000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x0 0xf7112000 0x0 0x1000>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_ctrl HI6220_UART2_PCLK>,
+				 <&sys_ctrl HI6220_UART2_PCLK>;
+			clock-names = "uartclk", "apb_pclk";
+			status = "disabled";
+		};
+
+		uart3: uart@f7113000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x0 0xf7113000 0x0 0x1000>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_ctrl HI6220_UART3_PCLK>,
+				 <&sys_ctrl HI6220_UART3_PCLK>;
+			clock-names = "uartclk", "apb_pclk";
+		};
+
+		uart4: uart@f7114000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x0 0xf7114000 0x0 0x1000>;
+			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_ctrl HI6220_UART4_PCLK>,
+				 <&sys_ctrl HI6220_UART4_PCLK>;
+			clock-names = "uartclk", "apb_pclk";
+			status = "disabled";
 		};
 	};
 };

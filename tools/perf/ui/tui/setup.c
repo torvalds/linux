@@ -141,10 +141,6 @@ int ui__init(void)
 
 	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
 
-	ui_helpline__init();
-	ui_browser__init();
-	tui_progress__init();
-
 	signal(SIGSEGV, ui__signal_backtrace);
 	signal(SIGFPE, ui__signal_backtrace);
 	signal(SIGINT, ui__signal);
@@ -152,6 +148,10 @@ int ui__init(void)
 	signal(SIGTERM, ui__signal);
 
 	perf_error__register(&perf_tui_eops);
+
+	ui_helpline__init();
+	ui_browser__init();
+	tui_progress__init();
 
 	hist_browser__init_hpp();
 out:

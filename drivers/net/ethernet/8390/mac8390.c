@@ -454,34 +454,22 @@ MODULE_AUTHOR("David Huggins-Daines <dhd@debian.org> and others");
 MODULE_DESCRIPTION("Macintosh NS8390-based Nubus Ethernet driver");
 MODULE_LICENSE("GPL");
 
-/* overkill, of course */
-static struct net_device *dev_mac8390[15];
-int init_module(void)
+static struct net_device *dev_mac8390;
+
+int __init init_module(void)
 {
-	int i;
-	for (i = 0; i < 15; i++) {
-		struct net_device *dev = mac8390_probe(-1);
-		if (IS_ERR(dev))
-			break;
-		dev_mac890[i] = dev;
-	}
-	if (!i) {
-		pr_notice("No useable cards found, driver NOT installed.\n");
-		return -ENODEV;
+	dev_mac8390 = mac8390_probe(-1);
+	if (IS_ERR(dev_mac8390)) {
+		pr_warn("mac8390: No card found\n");
+		return PTR_ERR(dev_mac8390);
 	}
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
-	int i;
-	for (i = 0; i < 15; i++) {
-		struct net_device *dev = dev_mac890[i];
-		if (dev) {
-			unregister_netdev(dev);
-			free_netdev(dev);
-		}
-	}
+	unregister_netdev(dev_mac8390);
+	free_netdev(dev_mac8390);
 }
 
 #endif /* MODULE */

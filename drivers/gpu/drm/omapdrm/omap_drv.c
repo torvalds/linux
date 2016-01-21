@@ -96,7 +96,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	dispc_runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state, false);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	omap_atomic_wait_for_completion(dev, old_state);
@@ -626,12 +626,12 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 }
 
 static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
-	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, ioctl_set_param, DRM_UNLOCKED|DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, ioctl_set_param, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, ioctl_gem_cpu_prep, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, ioctl_gem_cpu_fini, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info, DRM_AUTH),
 };
 
 /*
@@ -753,7 +753,7 @@ static void dev_lastclose(struct drm_device *dev)
 {
 	int i;
 
-	/* we don't support vga-switcheroo.. so just make sure the fbdev
+	/* we don't support vga_switcheroo.. so just make sure the fbdev
 	 * mode is active
 	 */
 	struct omap_drm_private *priv = dev->dev_private;
@@ -839,7 +839,7 @@ static struct drm_driver omap_drm_driver = {
 	.preclose = dev_preclose,
 	.postclose = dev_postclose,
 	.set_busid = drm_platform_set_busid,
-	.get_vblank_counter = drm_vblank_count,
+	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,
 #ifdef CONFIG_DEBUG_FS

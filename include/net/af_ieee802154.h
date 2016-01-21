@@ -1,5 +1,5 @@
 /*
- * IEEE 802.15.4 inteface for userspace
+ * IEEE 802.15.4 interface for userspace
  *
  * Copyright 2007, 2008 Siemens AG
  *

@@ -17,8 +17,8 @@
 #include "helpers/sysfs.h"
 
 static struct option set_opts[] = {
-	{ .name = "perf-bias",	.has_arg = optional_argument,	.flag = NULL,	.val = 'b'},
-	{ },
+     {"perf-bias", optional_argument, NULL, 'b'},
+     { },
 };
 
 static void print_wrong_arg_exit(void)

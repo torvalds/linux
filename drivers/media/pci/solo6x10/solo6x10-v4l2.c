@@ -26,6 +26,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "solo6x10.h"
@@ -191,13 +192,14 @@ static int solo_v4l2_set_ch(struct solo_dev *solo_dev, u8 ch)
 static void solo_fillbuf(struct solo_dev *solo_dev,
 			 struct vb2_buffer *vb)
 {
-	dma_addr_t vbuf;
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	dma_addr_t addr;
 	unsigned int fdma_addr;
 	int error = -1;
 	int i;
 
-	vbuf = vb2_dma_contig_plane_dma_addr(vb, 0);
-	if (!vbuf)
+	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	if (!addr)
 		goto finish_buf;
 
 	if (erase_off(solo_dev)) {
@@ -213,7 +215,7 @@ static void solo_fillbuf(struct solo_dev *solo_dev,
 		fdma_addr = SOLO_DISP_EXT_ADDR + (solo_dev->old_write *
 				(SOLO_HW_BPL * solo_vlines(solo_dev)));
 
-		error = solo_p2m_dma_t(solo_dev, 0, vbuf, fdma_addr,
+		error = solo_p2m_dma_t(solo_dev, 0, addr, fdma_addr,
 				       solo_bytesperline(solo_dev),
 				       solo_vlines(solo_dev), SOLO_HW_BPL);
 	}
@@ -222,8 +224,8 @@ finish_buf:
 	if (!error) {
 		vb2_set_plane_payload(vb, 0,
 			solo_vlines(solo_dev) * solo_bytesperline(solo_dev));
-		vb->v4l2_buf.sequence = solo_dev->sequence++;
-		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
+		vbuf->sequence = solo_dev->sequence++;
+		v4l2_get_timestamp(&vbuf->timestamp);
 	}
 
 	vb2_buffer_done(vb, error ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
@@ -256,7 +258,7 @@ static void solo_thread_try(struct solo_dev *solo_dev)
 
 		spin_unlock(&solo_dev->slock);
 
-		solo_fillbuf(solo_dev, &vb->vb);
+		solo_fillbuf(solo_dev, &vb->vb.vb2_buf);
 	}
 
 	assert_spin_locked(&solo_dev->slock);
@@ -311,7 +313,7 @@ static void solo_stop_thread(struct solo_dev *solo_dev)
 	solo_dev->kthread = NULL;
 }
 
-static int solo_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int solo_queue_setup(struct vb2_queue *q, const void *parg,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -345,10 +347,11 @@ static void solo_stop_streaming(struct vb2_queue *q)
 
 static void solo_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct solo_dev *solo_dev = vb2_get_drv_priv(vq);
 	struct solo_vb2_buf *solo_vb =
-		container_of(vb, struct solo_vb2_buf, vb);
+		container_of(vbuf, struct solo_vb2_buf, vb);
 
 	spin_lock(&solo_dev->slock);
 	list_add_tail(&solo_vb->list, &solo_dev->vidq_active);
@@ -675,7 +678,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	solo_dev->vidq.mem_ops = &vb2_dma_contig_memops;
 	solo_dev->vidq.drv_priv = solo_dev;
 	solo_dev->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	solo_dev->vidq.gfp_flags = __GFP_DMA32;
+	solo_dev->vidq.gfp_flags = __GFP_DMA32 | __GFP_KSWAPD_RECLAIM;
 	solo_dev->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_dev->vidq.lock = &solo_dev->lock;
 	ret = vb2_queue_init(&solo_dev->vidq);

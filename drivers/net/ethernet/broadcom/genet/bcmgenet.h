@@ -304,13 +304,12 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_RXDMA_MBDONE		(1 << 13)
 #define UMAC_IRQ_RXDMA_PDONE		(1 << 14)
 #define UMAC_IRQ_RXDMA_BDONE		(1 << 15)
-#define UMAC_IRQ_RXDMA_DONE		(UMAC_IRQ_RXDMA_PDONE | \
-					 UMAC_IRQ_RXDMA_BDONE)
+#define UMAC_IRQ_RXDMA_DONE		UMAC_IRQ_RXDMA_MBDONE
 #define UMAC_IRQ_TXDMA_MBDONE		(1 << 16)
 #define UMAC_IRQ_TXDMA_PDONE		(1 << 17)
 #define UMAC_IRQ_TXDMA_BDONE		(1 << 18)
-#define UMAC_IRQ_TXDMA_DONE		(UMAC_IRQ_TXDMA_PDONE | \
-					 UMAC_IRQ_TXDMA_BDONE)
+#define UMAC_IRQ_TXDMA_DONE		UMAC_IRQ_TXDMA_MBDONE
+
 /* Only valid for GENETv3+ */
 #define UMAC_IRQ_MDIO_DONE		(1 << 23)
 #define UMAC_IRQ_MDIO_ERROR		(1 << 24)
@@ -386,7 +385,7 @@ struct bcmgenet_mib_counters {
 #define DMA_RING_BUFFER_SIZE_MASK	0xFFFF
 
 /* DMA interrupt threshold register */
-#define DMA_INTR_THRESHOLD_MASK		0x00FF
+#define DMA_INTR_THRESHOLD_MASK		0x01FF
 
 /* DMA XON/XOFF register */
 #define DMA_XON_THREHOLD_MASK		0xFFFF
@@ -674,6 +673,7 @@ int bcmgenet_mii_init(struct net_device *dev);
 int bcmgenet_mii_config(struct net_device *dev);
 int bcmgenet_mii_probe(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
+void bcmgenet_mii_reset(struct net_device *dev);
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable);
 void bcmgenet_mii_setup(struct net_device *dev);
 

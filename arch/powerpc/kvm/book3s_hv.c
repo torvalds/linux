@@ -224,6 +224,12 @@ static void kvmppc_core_vcpu_put_hv(struct kvm_vcpu *vcpu)
 
 static void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr)
 {
+	/*
+	 * Check for illegal transactional state bit combination
+	 * and if we find it, force the TS field to a safe state.
+	 */
+	if ((msr & MSR_TS_MASK) == MSR_TS_MASK)
+		msr &= ~MSR_TS_MASK;
 	vcpu->arch.shregs.msr = msr;
 	kvmppc_end_cede(vcpu);
 }
@@ -2019,7 +2025,7 @@ static bool can_split_piggybacked_subcores(struct core_info *cip)
 			return false;
 		n_subcores += (cip->subcore_threads[sub] - 1) >> 1;
 	}
-	if (n_subcores > 3 || large_sub < 0)
+	if (large_sub < 0 || !subcore_config_ok(n_subcores + 1, 2))
 		return false;
 
 	/*

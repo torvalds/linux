@@ -504,16 +504,16 @@ struct nand_ecc_ctrl {
 	int (*read_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint8_t *buf, int oob_required, int page);
 	int (*write_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,
-			const uint8_t *buf, int oob_required);
+			const uint8_t *buf, int oob_required, int page);
 	int (*read_page)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint8_t *buf, int oob_required, int page);
 	int (*read_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint32_t offs, uint32_t len, uint8_t *buf, int page);
 	int (*write_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint32_t offset, uint32_t data_len,
-			const uint8_t *data_buf, int oob_required);
+			const uint8_t *data_buf, int oob_required, int page);
 	int (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
-			const uint8_t *buf, int oob_required);
+			const uint8_t *buf, int oob_required, int page);
 	int (*write_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
 			int page);
 	int (*read_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
@@ -544,7 +544,7 @@ struct nand_buffers {
  *			flash device
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the
  *			flash device.
- * @dn:			[BOARDSPECIFIC] device node describing this instance
+ * @flash_node:		[BOARDSPECIFIC] device node describing this instance
  * @read_byte:		[REPLACEABLE] read one byte from the chip
  * @read_word:		[REPLACEABLE] read one word from the chip
  * @write_byte:		[REPLACEABLE] write a single byte to the chip on the
@@ -556,10 +556,6 @@ struct nand_buffers {
  * @block_markbad:	[REPLACEABLE] mark a block bad
  * @cmd_ctrl:		[BOARDSPECIFIC] hardwarespecific function for controlling
  *			ALE/CLE/nCE. Also used to write command and address
- * @init_size:		[BOARDSPECIFIC] hardwarespecific function for setting
- *			mtd->oobsize, mtd->writesize and so on.
- *			@id_data contains the 8 bytes values of NAND_CMD_READID.
- *			Return with the bus width.
  * @dev_ready:		[BOARDSPECIFIC] hardwarespecific function for accessing
  *			device ready/busy line. If set to NULL no access to
  *			ready/busy is available and the ready/busy information
@@ -647,7 +643,7 @@ struct nand_chip {
 	void __iomem *IO_ADDR_R;
 	void __iomem *IO_ADDR_W;
 
-	struct device_node *dn;
+	struct device_node *flash_node;
 
 	uint8_t (*read_byte)(struct mtd_info *mtd);
 	u16 (*read_word)(struct mtd_info *mtd);
@@ -658,8 +654,6 @@ struct nand_chip {
 	int (*block_bad)(struct mtd_info *mtd, loff_t ofs, int getchip);
 	int (*block_markbad)(struct mtd_info *mtd, loff_t ofs);
 	void (*cmd_ctrl)(struct mtd_info *mtd, int dat, unsigned int ctrl);
-	int (*init_size)(struct mtd_info *mtd, struct nand_chip *this,
-			u8 *id_data);
 	int (*dev_ready)(struct mtd_info *mtd);
 	void (*cmdfunc)(struct mtd_info *mtd, unsigned command, int column,
 			int page_addr);
@@ -1030,4 +1024,9 @@ struct nand_sdr_timings {
 
 /* get timing characteristics from ONFI timing mode. */
 const struct nand_sdr_timings *onfi_async_timing_mode_to_sdr_timings(int mode);
+
+int nand_check_erased_ecc_chunk(void *data, int datalen,
+				void *ecc, int ecclen,
+				void *extraoob, int extraooblen,
+				int threshold);
 #endif /* __LINUX_MTD_NAND_H */

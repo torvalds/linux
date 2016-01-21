@@ -313,24 +313,78 @@ void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 				      struct sk_buff *event_skb)
 {
 	struct mwifiex_ie_types_multi_chan_info *chan_info;
-	u16 status;
+	struct mwifiex_ie_types_mc_group_info *grp_info;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_ie_types_header *tlv;
+	u16 tlv_buf_left, tlv_type, tlv_len;
+	int intf_num, bss_type, bss_num, i;
+	struct mwifiex_private *intf_priv;
 
+	tlv_buf_left = event_skb->len - sizeof(u32);
 	chan_info = (void *)event_skb->data + sizeof(u32);
 
-	if (le16_to_cpu(chan_info->header.type) != TLV_TYPE_MULTI_CHAN_INFO) {
-		mwifiex_dbg(priv->adapter, ERROR,
+	if (le16_to_cpu(chan_info->header.type) != TLV_TYPE_MULTI_CHAN_INFO ||
+	    tlv_buf_left < sizeof(struct mwifiex_ie_types_multi_chan_info)) {
+		mwifiex_dbg(adapter, ERROR,
 			    "unknown TLV in chan_info event\n");
 		return;
 	}
 
-	status = le16_to_cpu(chan_info->status);
+	adapter->usb_mc_status = le16_to_cpu(chan_info->status);
+	mwifiex_dbg(adapter, EVENT, "multi chan operation %s\n",
+		    adapter->usb_mc_status ? "started" : "over");
 
-	if (status) {
-		mwifiex_dbg(priv->adapter, EVENT,
-			    "multi-channel operation started\n");
-	} else {
-		mwifiex_dbg(priv->adapter, EVENT,
-			    "multi-channel operation over\n");
+	tlv_buf_left -= sizeof(struct mwifiex_ie_types_multi_chan_info);
+	tlv = (struct mwifiex_ie_types_header *)chan_info->tlv_buffer;
+
+	while (tlv_buf_left >= (int)sizeof(struct mwifiex_ie_types_header)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_len  = le16_to_cpu(tlv->len);
+		if ((sizeof(struct mwifiex_ie_types_header) + tlv_len) >
+		    tlv_buf_left) {
+			mwifiex_dbg(adapter, ERROR, "wrong tlv: tlvLen=%d,\t"
+				    "tlvBufLeft=%d\n", tlv_len, tlv_buf_left);
+			break;
+		}
+		if (tlv_type != TLV_TYPE_MC_GROUP_INFO) {
+			mwifiex_dbg(adapter, ERROR, "wrong tlv type: 0x%x\n",
+				    tlv_type);
+			break;
+		}
+
+		grp_info = (struct mwifiex_ie_types_mc_group_info *)tlv;
+		intf_num = grp_info->intf_num;
+		for (i = 0; i < intf_num; i++) {
+			bss_type = grp_info->bss_type_numlist[i] >> 4;
+			bss_num = grp_info->bss_type_numlist[i] & BSS_NUM_MASK;
+			intf_priv = mwifiex_get_priv_by_id(adapter, bss_num,
+							   bss_type);
+			if (!intf_priv) {
+				mwifiex_dbg(adapter, ERROR,
+					    "Invalid bss_type bss_num\t"
+					    "in multi channel event\n");
+				continue;
+			}
+			if (adapter->iface_type == MWIFIEX_USB) {
+				u8 ep;
+
+				ep = grp_info->hid_num.usb_ep_num;
+				if (ep == MWIFIEX_USB_EP_DATA ||
+				    ep == MWIFIEX_USB_EP_DATA_CH2)
+					intf_priv->usb_port = ep;
+			}
+		}
+
+		tlv_buf_left -= sizeof(struct mwifiex_ie_types_header) +
+				tlv_len;
+		tlv = (void *)((u8 *)tlv + tlv_len +
+			       sizeof(struct mwifiex_ie_types_header));
+	}
+
+	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->tx_lock_flag = true;
+		adapter->usb_mc_setup = true;
+		mwifiex_multi_chan_resync(adapter);
 	}
 }
 
@@ -562,7 +616,9 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->tx_lock_flag = false;
 		if (adapter->pps_uapsd_mode && adapter->gen_null_pkt) {
 			if (mwifiex_check_last_packet_indication(priv)) {
-				if (adapter->data_sent) {
+				if (adapter->data_sent ||
+				    (adapter->if_ops.is_port_ready &&
+				     !adapter->if_ops.is_port_ready(priv))) {
 					adapter->ps_state = PS_STATE_AWAKE;
 					adapter->pm_wakeup_card_req = false;
 					adapter->pm_wakeup_fw_try = false;
