@@ -68,9 +68,6 @@ static void sync_timeline_free(struct kref *kref)
 
 	sync_timeline_debug_remove(obj);
 
-	if (obj->ops->release_obj)
-		obj->ops->release_obj(obj);
-
 	kfree(obj);
 }
 
@@ -382,9 +379,6 @@ static void android_fence_release(struct fence *fence)
 	if (WARN_ON_ONCE(!list_empty(&pt->active_list)))
 		list_del(&pt->active_list);
 	spin_unlock_irqrestore(fence->lock, flags);
-
-	if (parent->ops->free_pt)
-		parent->ops->free_pt(pt);
 
 	sync_timeline_put(parent);
 	fence_free(&pt->base);
