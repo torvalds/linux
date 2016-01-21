@@ -2173,8 +2173,6 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	ecc->write_page	= gpmi_ecc_write_page;
 	ecc->read_oob	= gpmi_ecc_read_oob;
 	ecc->write_oob	= gpmi_ecc_write_oob;
-	ecc->read_page_raw = gpmi_ecc_read_page_raw;
-	ecc->write_page_raw = gpmi_ecc_write_page_raw;
 	ecc->read_oob_raw = gpmi_ecc_read_oob_raw;
 	ecc->write_oob_raw = gpmi_ecc_write_oob_raw;
 	ecc->mode	= NAND_ECC_HW;
