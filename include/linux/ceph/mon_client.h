@@ -72,6 +72,9 @@ struct ceph_mon_client {
 	unsigned long sub_renew_sent;
 	struct ceph_connection con;
 
+	bool had_a_connection;
+	int hunt_mult; /* [1..CEPH_MONC_HUNT_MAX_MULT] */
+
 	/* pending generic requests */
 	struct rb_root generic_request_tree;
 	int num_generic_requests;

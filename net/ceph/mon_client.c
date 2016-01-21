@@ -171,6 +171,12 @@ static void __open_session(struct ceph_mon_client *monc)
 
 	pick_new_mon(monc);
 
+	if (monc->had_a_connection) {
+		monc->hunt_mult *= CEPH_MONC_HUNT_BACKOFF;
+		if (monc->hunt_mult > CEPH_MONC_HUNT_MAX_MULT)
+			monc->hunt_mult = CEPH_MONC_HUNT_MAX_MULT;
+	}
+
 	monc->sub_renew_after = jiffies; /* i.e., expired */
 	monc->sub_renew_sent = 0;
 
@@ -192,11 +198,6 @@ static void __open_session(struct ceph_mon_client *monc)
 	__send_prepared_auth_request(monc, ret);
 }
 
-static bool __sub_expired(struct ceph_mon_client *monc)
-{
-	return time_after_eq(jiffies, monc->sub_renew_after);
-}
-
 /*
  * Reschedule delayed work timer.
  */
@@ -204,11 +205,11 @@ static void __schedule_delayed(struct ceph_mon_client *monc)
 {
 	unsigned long delay;
 
-	if (monc->cur_mon < 0 || __sub_expired(monc)) {
-		delay = 10 * HZ;
-	} else {
+	if (monc->hunting)
+		delay = CEPH_MONC_HUNT_INTERVAL * monc->hunt_mult;
+	else
 		delay = CEPH_MONC_PING_INTERVAL;
-	}
+
 	dout("__schedule_delayed after %lu\n", delay);
 	schedule_delayed_work(&monc->delayed_work,
 			      round_jiffies_relative(delay));
@@ -902,6 +903,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->hunting = true;
 	monc->sub_renew_after = jiffies;
 	monc->sub_renew_sent = 0;
+	monc->had_a_connection = false;
+	monc->hunt_mult = 1;
 
 	INIT_DELAYED_WORK(&monc->delayed_work, delayed_work);
 	monc->generic_request_tree = RB_ROOT;
@@ -959,6 +962,10 @@ static void finish_hunting(struct ceph_mon_client *monc)
 	if (monc->hunting) {
 		dout("%s found mon%d\n", __func__, monc->cur_mon);
 		monc->hunting = false;
+		monc->had_a_connection = true;
+		monc->hunt_mult /= 2; /* reduce by 50% */
+		if (monc->hunt_mult < 1)
+			monc->hunt_mult = 1;
 	}
 }
 
