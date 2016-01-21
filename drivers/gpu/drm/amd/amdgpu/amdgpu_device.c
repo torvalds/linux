@@ -41,6 +41,9 @@
 #include "atom.h"
 #include "amdgpu_atombios.h"
 #include "amd_pcie.h"
+#ifdef CONFIG_DRM_AMDGPU_SI
+#include "si.h"
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #include "cik.h"
 #endif
@@ -1231,6 +1234,17 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		if (r)
 			return r;
 		break;
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_VERDE:
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_OLAND:
+	case CHIP_HAINAN:
+		r = si_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
