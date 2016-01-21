@@ -23,7 +23,7 @@ struct message_queue {
 	struct semaphore sem;
 	spinlock_t lock;
 	bool exiting;
-	u32 u32ReceiversCount;
+	u32 recv_count;
 	struct message *pstrMessageList;
 };
 

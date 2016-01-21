@@ -16,7 +16,7 @@ int wilc_mq_create(struct message_queue *pHandle)
 	spin_lock_init(&pHandle->lock);
 	sema_init(&pHandle->sem, 0);
 	pHandle->pstrMessageList = NULL;
-	pHandle->u32ReceiversCount = 0;
+	pHandle->recv_count = 0;
 	pHandle->exiting = false;
 	return 0;
 }
@@ -32,9 +32,9 @@ int wilc_mq_destroy(struct message_queue *pHandle)
 	pHandle->exiting = true;
 
 	/* Release any waiting receiver thread. */
-	while (pHandle->u32ReceiversCount > 0) {
+	while (pHandle->recv_count > 0) {
 		up(&pHandle->sem);
-		pHandle->u32ReceiversCount--;
+		pHandle->recv_count--;
 	}
 
 	while (pHandle->pstrMessageList) {
@@ -129,7 +129,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 	}
 
 	spin_lock_irqsave(&pHandle->lock, flags);
-	pHandle->u32ReceiversCount++;
+	pHandle->recv_count++;
 	spin_unlock_irqrestore(&pHandle->lock, flags);
 
 	down(&pHandle->sem);
@@ -150,7 +150,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 	}
 
 	/* consume the message */
-	pHandle->u32ReceiversCount--;
+	pHandle->recv_count--;
 	memcpy(pvRecvBuffer, pstrMessage->buf, pstrMessage->len);
 	*pu32ReceivedLength = pstrMessage->len;
 
