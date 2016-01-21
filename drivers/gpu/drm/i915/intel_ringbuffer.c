@@ -1136,8 +1136,13 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 	/* WaDisableObjectLevelPreemptionForTrifanOrPolygon:bxt */
 	/* WaDisableObjectLevelPreemptionForInstancedDraw:bxt */
 	/* WaDisableObjectLevelPreemtionForInstanceId:bxt */
+	/* WaDisableLSQCROPERFforOCL:bxt */
 	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		ret = wa_ring_whitelist_reg(ring, GEN9_CS_DEBUG_MODE1);
+		if (ret)
+			return ret;
+
+		ret = wa_ring_whitelist_reg(ring, GEN8_L3SQCREG4);
 		if (ret)
 			return ret;
 	}
