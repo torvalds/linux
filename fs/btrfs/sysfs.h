@@ -90,4 +90,7 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
 				struct kobject *parent);
 int btrfs_sysfs_add_device(struct btrfs_fs_devices *fs_devs);
 void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs);
+void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
+		u64 bit, enum btrfs_feature_set set);
+
 #endif /* _BTRFS_SYSFS_H_ */

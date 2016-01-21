@@ -782,6 +782,36 @@ failure:
 	return error;
 }
 
+
+/*
+ * Change per-fs features in /sys/fs/btrfs/UUID/features to match current
+ * values in superblock. Call after any changes to incompat/compat_ro flags
+ */
+void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
+		u64 bit, enum btrfs_feature_set set)
+{
+	struct btrfs_fs_devices *fs_devs;
+	struct kobject *fsid_kobj;
+	u64 features;
+	int ret;
+
+	if (!fs_info)
+		return;
+
+	features = get_features(fs_info, set);
+	ASSERT(bit & supported_feature_masks[set]);
+
+	fs_devs = fs_info->fs_devices;
+	fsid_kobj = &fs_devs->fsid_kobj;
+
+	/*
+	 * FIXME: this is too heavy to update just one value, ideally we'd like
+	 * to use sysfs_update_group but some refactoring is needed first.
+	 */
+	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
+	ret = sysfs_create_group(fsid_kobj, &btrfs_feature_attr_group);
+}
+
 static int btrfs_init_debugfs(void)
 {
 #ifdef CONFIG_DEBUG_FS
