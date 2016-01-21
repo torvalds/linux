@@ -86,8 +86,8 @@ job_rax         = %rax
 len             = %rax
 DWORD_len	= %eax
 
-lane            = %rbp
-tmp3            = %rbp
+lane            = %r12
+tmp3            = %r12
 
 tmp             = %r9
 DWORD_tmp	= %r9d
@@ -99,7 +99,7 @@ lane_data       = %r10
 # arg 2 : rdx : job
 ENTRY(sha1_mb_mgr_submit_avx2)
 	push	%rbx
-	push	%rbp
+	push	%r12
 
 	mov     _unused_lanes(state), unused_lanes
 	mov	unused_lanes, lane
@@ -190,7 +190,7 @@ len_is_0:
 	movl    DWORD_tmp, _result_digest+1*16(job_rax)
 
 return:
-	pop	%rbp
+	pop	%r12
 	pop	%rbx
 	ret
 
