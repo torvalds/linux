@@ -37,7 +37,7 @@ struct cleancache_ops {
 	void (*invalidate_fs)(int);
 };
 
-extern int cleancache_register_ops(struct cleancache_ops *ops);
+extern int cleancache_register_ops(const struct cleancache_ops *ops);
 extern void __cleancache_init_fs(struct super_block *);
 extern void __cleancache_init_shared_fs(struct super_block *);
 extern int  __cleancache_get_page(struct page *);
