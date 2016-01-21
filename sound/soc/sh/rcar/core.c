@@ -369,6 +369,9 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 	if (!mod)
 		return -EIO;
 
+	if (io->mod[type] == mod)
+		return 0;
+
 	if (io->mod[type])
 		return -EINVAL;
 
