@@ -910,6 +910,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
+	int ret;
 
 	/* WaEnableLbsSlaRetryTimerDecrement:skl */
 	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
@@ -979,6 +980,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 
 	/* WaDisableSTUnitPowerOptimization:skl,bxt */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
+
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt */
+	ret= wa_ring_whitelist_reg(ring, GEN8_CS_CHICKEN1);
+	if (ret)
+		return ret;
 
 	return 0;
 }
