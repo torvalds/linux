@@ -49,28 +49,6 @@
 static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 
 /**
- * amdgpu_ring_free_size - update the free size
- *
- * @adev: amdgpu_device pointer
- * @ring: amdgpu_ring structure holding ring information
- *
- * Update the free dw slots in the ring buffer (all asics).
- */
-void amdgpu_ring_free_size(struct amdgpu_ring *ring)
-{
-	uint32_t rptr = amdgpu_ring_get_rptr(ring);
-
-	/* This works because ring_size is a power of 2 */
-	ring->ring_free_dw = rptr + (ring->ring_size / 4);
-	ring->ring_free_dw -= ring->wptr;
-	ring->ring_free_dw &= ring->ptr_mask;
-	if (!ring->ring_free_dw) {
-		/* this is an empty ring */
-		ring->ring_free_dw = ring->ring_size / 4;
-	}
-}
-
-/**
  * amdgpu_ring_alloc - allocate space on the ring buffer
  *
  * @adev: amdgpu_device pointer
@@ -82,24 +60,16 @@ void amdgpu_ring_free_size(struct amdgpu_ring *ring)
  */
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 {
-	int r;
-
-	/* make sure we aren't trying to allocate more space than there is on the ring */
-	if (ndw > (ring->ring_size / 4))
-		return -ENOMEM;
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
-	amdgpu_ring_free_size(ring);
 	ndw = (ndw + ring->align_mask) & ~ring->align_mask;
-	while (ndw > (ring->ring_free_dw - 1)) {
-		amdgpu_ring_free_size(ring);
-		if (ndw < ring->ring_free_dw) {
-			break;
-		}
-		r = amdgpu_fence_wait_next(ring);
-		if (r)
-			return r;
-	}
+
+	/* Make sure we aren't trying to allocate more space
+	 * than the maximum for one submission
+	 */
+	if (WARN_ON_ONCE(ndw > ring->max_dw))
+		return -ENOMEM;
+
 	ring->count_dw = ndw;
 	ring->wptr_old = ring->wptr;
 	return 0;
@@ -326,7 +296,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		}
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
-	ring->ring_free_dw = ring->ring_size / 4;
+	ring->max_dw = DIV_ROUND_UP(ring->ring_size / 4,
+				    amdgpu_sched_hw_submission);
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
@@ -406,25 +377,18 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	struct amdgpu_ring *ring = (void *)(((uint8_t*)adev) + roffset);
 
 	uint32_t rptr, wptr, rptr_next;
-	unsigned count, i, j;
-
-	amdgpu_ring_free_size(ring);
-	count = (ring->ring_size / 4) - ring->ring_free_dw;
+	unsigned i;
 
 	wptr = amdgpu_ring_get_wptr(ring);
-	seq_printf(m, "wptr: 0x%08x [%5d]\n",
-		   wptr, wptr);
+	seq_printf(m, "wptr: 0x%08x [%5d]\n", wptr, wptr);
 
 	rptr = amdgpu_ring_get_rptr(ring);
-	seq_printf(m, "rptr: 0x%08x [%5d]\n",
-		   rptr, rptr);
-
 	rptr_next = le32_to_cpu(*ring->next_rptr_cpu_addr);
+
+	seq_printf(m, "rptr: 0x%08x [%5d]\n", rptr, rptr);
 
 	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
 		   ring->wptr, ring->wptr);
-	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
-	seq_printf(m, "%u dwords in ring\n", count);
 
 	if (!ring->ready)
 		return 0;
@@ -433,11 +397,20 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	 * packet that is the root issue
 	 */
 	i = (rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
-	for (j = 0; j <= (count + 32); j++) {
+	while (i != rptr) {
 		seq_printf(m, "r[%5d]=0x%08x", i, ring->ring[i]);
-		if (rptr == i)
+		if (i == rptr)
 			seq_puts(m, " *");
-		if (rptr_next == i)
+		if (i == rptr_next)
+			seq_puts(m, " #");
+		seq_puts(m, "\n");
+		i = (i + 1) & ring->ptr_mask;
+	}
+	while (i != wptr) {
+		seq_printf(m, "r[%5d]=0x%08x", i, ring->ring[i]);
+		if (i == rptr)
+			seq_puts(m, " *");
+		if (i == rptr_next)
 			seq_puts(m, " #");
 		seq_puts(m, "\n");
 		i = (i + 1) & ring->ptr_mask;

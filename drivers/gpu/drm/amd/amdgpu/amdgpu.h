@@ -822,7 +822,7 @@ struct amdgpu_ring {
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		ring_size;
-	unsigned		ring_free_dw;
+	unsigned		max_dw;
 	int			count_dw;
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
@@ -1186,8 +1186,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
-/* Ring access between begin & end cannot sleep */
-void amdgpu_ring_free_size(struct amdgpu_ring *ring);
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
@@ -2163,7 +2161,6 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 	ring->ring[ring->wptr++] = v;
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw--;
-	ring->ring_free_dw--;
 }
 
 static inline struct amdgpu_sdma_instance *
