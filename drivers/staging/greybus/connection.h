@@ -38,7 +38,6 @@ struct gb_connection {
 	gb_request_handler_t		handler;
 
 	struct gb_protocol		*protocol;
-	u8				protocol_id;
 	u8				module_major;
 	u8				module_minor;
 

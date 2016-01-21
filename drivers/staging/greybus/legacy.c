@@ -15,6 +15,7 @@
 struct legacy_connection {
 	struct gb_connection *connection;
 	bool initialized;
+	u8 protocol_id;
 };
 
 struct legacy_data {
@@ -38,8 +39,9 @@ static int legacy_connection_get_version(struct gb_connection *connection)
 	return 0;
 }
 
-static int legacy_connection_bind_protocol(struct gb_connection *connection)
+static int legacy_connection_bind_protocol(struct legacy_connection *lc)
 {
+	struct gb_connection *connection = lc->connection;
 	struct gb_protocol *protocol;
 	u8 major, minor;
 
@@ -52,14 +54,11 @@ static int legacy_connection_bind_protocol(struct gb_connection *connection)
 	major = 0;
 	minor = 1;
 
-	protocol = gb_protocol_get(connection->protocol_id,
-				   major,
-				   minor);
+	protocol = gb_protocol_get(lc->protocol_id, major, minor);
 	if (!protocol) {
 		dev_err(&connection->hd->dev,
 				"protocol 0x%02x version %u.%u not found\n",
-				connection->protocol_id,
-				major, minor);
+				lc->protocol_id, major, minor);
 		return -EPROTONOSUPPORT;
 	}
 	connection->protocol = protocol;
@@ -92,7 +91,7 @@ static int legacy_connection_init(struct legacy_connection *lc)
 	dev_dbg(&connection->bundle->dev, "%s - %s\n", __func__,
 			connection->name);
 
-	ret = legacy_connection_bind_protocol(lc->connection);
+	ret = legacy_connection_bind_protocol(lc);
 	if (ret)
 		return ret;
 
@@ -152,7 +151,7 @@ static int legacy_connection_create(struct legacy_connection *lc,
 		return PTR_ERR(connection);
 
 	lc->connection = connection;
-	lc->connection->protocol_id = desc->protocol_id;
+	lc->protocol_id = desc->protocol_id;
 
 	return 0;
 }
