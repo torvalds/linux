@@ -1511,6 +1511,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	release_firmware(fw);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
+		release_firmware(fw);
 		return -EINVAL;
 	}
 
