@@ -2538,9 +2538,11 @@ ENTRY(aesni_cbc_dec)
 ENDPROC(aesni_cbc_dec)
 
 #ifdef __x86_64__
+.pushsection .rodata
 .align 16
 .Lbswap_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+.popsection
 
 /*
  * _aesni_inc_init:	internal ABI
