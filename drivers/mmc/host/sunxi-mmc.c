@@ -711,7 +711,10 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 
 	case MMC_POWER_UP:
-		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
+		host->ferror = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
+						     ios->vdd);
+		if (host->ferror)
+			return;
 
 		host->ferror = sunxi_mmc_init_host(mmc);
 		if (host->ferror)
