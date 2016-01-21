@@ -15,6 +15,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/module.h>
 #include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -29,6 +30,8 @@
 #include "sync.h"
 
 #ifdef CONFIG_DEBUG_FS
+
+static struct dentry *dbgfs;
 
 static LIST_HEAD(sync_timeline_list_head);
 static DEFINE_SPINLOCK(sync_timeline_list_lock);
@@ -192,13 +195,13 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int sync_debugfs_open(struct inode *inode, struct file *file)
+static int sync_info_debugfs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, sync_debugfs_show, inode->i_private);
 }
 
-static const struct file_operations sync_debugfs_fops = {
-	.open           = sync_debugfs_open,
+static const struct file_operations sync_info_debugfs_fops = {
+	.open           = sync_info_debugfs_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
 	.release        = single_release,
@@ -206,10 +209,20 @@ static const struct file_operations sync_debugfs_fops = {
 
 static __init int sync_debugfs_init(void)
 {
-	debugfs_create_file("sync", S_IRUGO, NULL, NULL, &sync_debugfs_fops);
+	dbgfs = debugfs_create_dir("sync", NULL);
+
+	debugfs_create_file("info", 0444, dbgfs, NULL, &sync_info_debugfs_fops);
+
 	return 0;
 }
 late_initcall(sync_debugfs_init);
+
+static __exit void sync_debugfs_exit(void)
+{
+	if (dbgfs)
+		debugfs_remove_recursive(dbgfs);
+}
+module_exit(sync_debugfs_exit);
 
 #define DUMP_CHUNK 256
 static char sync_dump_buf[64 * 1024];
