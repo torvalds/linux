@@ -24,7 +24,7 @@ struct message_queue {
 	spinlock_t lock;
 	bool exiting;
 	u32 recv_count;
-	struct message *pstrMessageList;
+	struct message *msg_list;
 };
 
 /*!

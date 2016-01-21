@@ -15,7 +15,7 @@ int wilc_mq_create(struct message_queue *pHandle)
 {
 	spin_lock_init(&pHandle->lock);
 	sema_init(&pHandle->sem, 0);
-	pHandle->pstrMessageList = NULL;
+	pHandle->msg_list = NULL;
 	pHandle->recv_count = 0;
 	pHandle->exiting = false;
 	return 0;
@@ -37,11 +37,11 @@ int wilc_mq_destroy(struct message_queue *pHandle)
 		pHandle->recv_count--;
 	}
 
-	while (pHandle->pstrMessageList) {
-		struct message *pstrMessge = pHandle->pstrMessageList->next;
+	while (pHandle->msg_list) {
+		struct message *pstrMessge = pHandle->msg_list->next;
 
-		kfree(pHandle->pstrMessageList);
-		pHandle->pstrMessageList = pstrMessge;
+		kfree(pHandle->msg_list);
+		pHandle->msg_list = pstrMessge;
 	}
 
 	return 0;
@@ -86,10 +86,10 @@ int wilc_mq_send(struct message_queue *pHandle,
 	spin_lock_irqsave(&pHandle->lock, flags);
 
 	/* add it to the message queue */
-	if (!pHandle->pstrMessageList) {
-		pHandle->pstrMessageList  = pstrMessage;
+	if (!pHandle->msg_list) {
+		pHandle->msg_list  = pstrMessage;
 	} else {
-		struct message *pstrTailMsg = pHandle->pstrMessageList;
+		struct message *pstrTailMsg = pHandle->msg_list;
 
 		while (pstrTailMsg->next)
 			pstrTailMsg = pstrTailMsg->next;
@@ -135,7 +135,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 	down(&pHandle->sem);
 	spin_lock_irqsave(&pHandle->lock, flags);
 
-	pstrMessage = pHandle->pstrMessageList;
+	pstrMessage = pHandle->msg_list;
 	if (!pstrMessage) {
 		spin_unlock_irqrestore(&pHandle->lock, flags);
 		PRINT_ER("pstrMessage is null\n");
@@ -154,7 +154,7 @@ int wilc_mq_recv(struct message_queue *pHandle,
 	memcpy(pvRecvBuffer, pstrMessage->buf, pstrMessage->len);
 	*pu32ReceivedLength = pstrMessage->len;
 
-	pHandle->pstrMessageList = pstrMessage->next;
+	pHandle->msg_list = pstrMessage->next;
 
 	kfree(pstrMessage->buf);
 	kfree(pstrMessage);
