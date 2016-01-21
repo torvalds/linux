@@ -110,14 +110,13 @@ int wilc_mq_send(struct message_queue *mq,
  *  @version		1.0
  */
 int wilc_mq_recv(struct message_queue *mq,
-		 void *recv_buf, u32 recv_buf_size,
-		 u32 *pu32ReceivedLength)
+		 void *recv_buf, u32 recv_buf_size, u32 *recv_len)
 {
 	struct message *pstrMessage;
 	unsigned long flags;
 
 	if ((!mq) || (recv_buf_size == 0)
-	    || (!recv_buf) || (!pu32ReceivedLength)) {
+	    || (!recv_buf) || (!recv_len)) {
 		PRINT_ER("mq or recv_buf is null\n");
 		return -EINVAL;
 	}
@@ -151,7 +150,7 @@ int wilc_mq_recv(struct message_queue *mq,
 	/* consume the message */
 	mq->recv_count--;
 	memcpy(recv_buf, pstrMessage->buf, pstrMessage->len);
-	*pu32ReceivedLength = pstrMessage->len;
+	*recv_len = pstrMessage->len;
 
 	mq->msg_list = pstrMessage->next;
 
