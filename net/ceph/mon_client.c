@@ -171,6 +171,7 @@ static void __open_session(struct ceph_mon_client *monc)
 
 	pick_new_mon(monc);
 
+	monc->hunting = true;
 	if (monc->had_a_connection) {
 		monc->hunt_mult *= CEPH_MONC_HUNT_BACKOFF;
 		if (monc->hunt_mult > CEPH_MONC_HUNT_MAX_MULT)
@@ -196,6 +197,16 @@ static void __open_session(struct ceph_mon_client *monc)
 				    monc->m_auth->front_alloc_len);
 	BUG_ON(ret <= 0);
 	__send_prepared_auth_request(monc, ret);
+}
+
+static void reopen_session(struct ceph_mon_client *monc)
+{
+	if (!monc->hunting)
+		pr_info("mon%d %s session lost, hunting for new mon\n",
+		    monc->cur_mon, ceph_pr_addr(&monc->con.peer_addr.in_addr));
+
+	__close_session(monc);
+	__open_session(monc);
 }
 
 /*
@@ -788,17 +799,15 @@ static void delayed_work(struct work_struct *work)
 	dout("monc delayed_work\n");
 	mutex_lock(&monc->mutex);
 	if (monc->hunting) {
-		__close_session(monc);
-		__open_session(monc);  /* continue hunting */
+		dout("%s continuing hunt\n", __func__);
+		reopen_session(monc);
 	} else {
 		int is_auth = ceph_auth_is_authenticated(monc->auth);
 		if (ceph_con_keepalive_expired(&monc->con,
 					       CEPH_MONC_PING_TIMEOUT)) {
 			dout("monc keepalive timeout\n");
 			is_auth = 0;
-			__close_session(monc);
-			monc->hunting = true;
-			__open_session(monc);
+			reopen_session(monc);
 		}
 
 		if (!monc->hunting) {
@@ -900,9 +909,6 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		      &monc->client->msgr);
 
 	monc->cur_mon = -1;
-	monc->hunting = true;
-	monc->sub_renew_after = jiffies;
-	monc->sub_renew_sent = 0;
 	monc->had_a_connection = false;
 	monc->hunt_mult = 1;
 
@@ -1157,16 +1163,9 @@ static void mon_fault(struct ceph_connection *con)
 	if (!con->private)
 		goto out;
 
-	if (!monc->hunting)
-		pr_info("mon%d %s session lost, "
-			"hunting for new mon\n", monc->cur_mon,
-			ceph_pr_addr(&monc->con.peer_addr.in_addr));
-
-	__close_session(monc);
 	if (!monc->hunting) {
-		/* start hunting */
-		monc->hunting = true;
-		__open_session(monc);
+		dout("%s hunting for new mon\n", __func__);
+		reopen_session(monc);
 	} else {
 		/* already hunting, let's wait a bit */
 		__schedule_delayed(monc);
