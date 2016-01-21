@@ -11,7 +11,7 @@
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_create(WILC_MsgQueueHandle *pHandle)
+int wilc_mq_create(struct message_queue *pHandle)
 {
 	spin_lock_init(&pHandle->strCriticalSection);
 	sema_init(&pHandle->hSem, 0);
@@ -27,7 +27,7 @@ int wilc_mq_create(WILC_MsgQueueHandle *pHandle)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
+int wilc_mq_destroy(struct message_queue *pHandle)
 {
 	pHandle->bExiting = true;
 
@@ -53,8 +53,8 @@ int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
-			     const void *pvSendBuffer, u32 u32SendBufferSize)
+int wilc_mq_send(struct message_queue *pHandle,
+		 const void *pvSendBuffer, u32 u32SendBufferSize)
 {
 	unsigned long flags;
 	struct message *pstrMessage = NULL;
@@ -110,9 +110,9 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
-			     void *pvRecvBuffer, u32 u32RecvBufferSize,
-			     u32 *pu32ReceivedLength)
+int wilc_mq_recv(struct message_queue *pHandle,
+		 void *pvRecvBuffer, u32 u32RecvBufferSize,
+		 u32 *pu32ReceivedLength)
 {
 	struct message *pstrMessage;
 	unsigned long flags;

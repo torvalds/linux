@@ -19,13 +19,13 @@ struct message {
 	struct message *next;
 };
 
-typedef struct __MessageQueue_struct {
+struct message_queue {
 	struct semaphore hSem;
 	spinlock_t strCriticalSection;
 	bool bExiting;
 	u32 u32ReceiversCount;
 	struct message *pstrMessageList;
-} WILC_MsgQueueHandle;
+};
 
 /*!
  *  @brief		Creates a new Message queue
@@ -40,7 +40,7 @@ typedef struct __MessageQueue_struct {
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_create(WILC_MsgQueueHandle *pHandle);
+int wilc_mq_create(struct message_queue *pHandle);
 
 /*!
  *  @brief		Sends a message
@@ -57,8 +57,8 @@ int wilc_mq_create(WILC_MsgQueueHandle *pHandle);
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
-			     const void *pvSendBuffer, u32 u32SendBufferSize);
+int wilc_mq_send(struct message_queue *pHandle,
+		 const void *pvSendBuffer, u32 u32SendBufferSize);
 
 /*!
  *  @brief		Receives a message
@@ -76,9 +76,9 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
-			     void *pvRecvBuffer, u32 u32RecvBufferSize,
-			     u32 *pu32ReceivedLength);
+int wilc_mq_recv(struct message_queue *pHandle,
+		 void *pvRecvBuffer, u32 u32RecvBufferSize,
+		 u32 *pu32ReceivedLength);
 
 /*!
  *  @brief		Destroys an existing  Message queue
@@ -89,6 +89,6 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle);
+int wilc_mq_destroy(struct message_queue *pHandle);
 
 #endif
