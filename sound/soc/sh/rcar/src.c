@@ -495,9 +495,7 @@ static int rsnd_src_probe_(struct rsnd_mod *mod,
 			return ret;
 	}
 
-	src->dma = rsnd_dma_attach(io, mod, 0);
-	if (IS_ERR(src->dma))
-		return PTR_ERR(src->dma);
+	ret = rsnd_dma_attach(io, mod, &src->dma, 0);
 
 	return ret;
 }
