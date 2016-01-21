@@ -16,6 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+
+#include <linux/bsearch.h>
 #include <linux/mm.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
@@ -414,29 +416,32 @@ static const struct coproc_reg *get_target_table(unsigned target, size_t *num)
 	return table->table;
 }
 
+#define reg_to_match_value(x)						\
+	({								\
+		unsigned long val;					\
+		val  = (x)->CRn << 11;					\
+		val |= (x)->CRm << 7;					\
+		val |= (x)->Op1 << 4;					\
+		val |= (x)->Op2 << 1;					\
+		val |= !(x)->is_64bit;					\
+		val;							\
+	 })
+
+static int match_reg(const void *key, const void *elt)
+{
+	const unsigned long pval = (unsigned long)key;
+	const struct coproc_reg *r = elt;
+
+	return pval - reg_to_match_value(r);
+}
+
 static const struct coproc_reg *find_reg(const struct coproc_params *params,
 					 const struct coproc_reg table[],
 					 unsigned int num)
 {
-	unsigned int i;
+	unsigned long pval = reg_to_match_value(params);
 
-	for (i = 0; i < num; i++) {
-		const struct coproc_reg *r = &table[i];
-
-		if (params->is_64bit != r->is_64bit)
-			continue;
-		if (params->CRn != r->CRn)
-			continue;
-		if (params->CRm != r->CRm)
-			continue;
-		if (params->Op1 != r->Op1)
-			continue;
-		if (params->Op2 != r->Op2)
-			continue;
-
-		return r;
-	}
-	return NULL;
+	return bsearch((void *)pval, table, num, sizeof(table[0]), match_reg);
 }
 
 static int emulate_cp15(struct kvm_vcpu *vcpu,
