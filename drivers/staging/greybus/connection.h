@@ -59,8 +59,7 @@ struct gb_connection *gb_connection_create_static(struct gb_host_device *hd,
 				u16 hd_cport_id);
 struct gb_connection *gb_connection_create_control(struct gb_interface *intf);
 struct gb_connection *gb_connection_create_dynamic(struct gb_interface *intf,
-				struct gb_bundle *bundle, u16 cport_id,
-				u8 protocol_id);
+				struct gb_bundle *bundle, u16 cport_id);
 void gb_connection_destroy(struct gb_connection *connection);
 
 static inline bool gb_connection_is_static(struct gb_connection *connection)

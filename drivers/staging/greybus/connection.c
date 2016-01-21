@@ -118,7 +118,6 @@ static void gb_connection_init_name(struct gb_connection *connection)
  * @intf:		remote interface, or NULL for static connections
  * @bundle:		remote-interface bundle (may be NULL)
  * @cport_id:		remote-interface cport id, or 0 for static connections
- * @protocol_id:	protocol id
  *
  * Create a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -135,8 +134,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
 static struct gb_connection *
 gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				struct gb_interface *intf,
-				struct gb_bundle *bundle, int cport_id,
-				u8 protocol_id)
+				struct gb_bundle *bundle, int cport_id)
 {
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
@@ -172,8 +170,6 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	connection->intf_cport_id = cport_id;
 	connection->hd = hd;
 	connection->intf = intf;
-
-	connection->protocol_id = protocol_id;
 
 	connection->bundle = bundle;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
@@ -219,22 +215,21 @@ err_unlock:
 struct gb_connection *
 gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id)
 {
-	return gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, 0);
+	return gb_connection_create(hd, hd_cport_id, NULL, NULL, 0);
 }
 
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
-	return gb_connection_create(intf->hd, -1, intf, NULL, 0, 0);
+	return gb_connection_create(intf->hd, -1, intf, NULL, 0);
 }
 
 struct gb_connection *
 gb_connection_create_dynamic(struct gb_interface *intf,
 					struct gb_bundle *bundle,
-					u16 cport_id, u8 protocol_id)
+					u16 cport_id)
 {
-	return gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
-								protocol_id);
+	return gb_connection_create(intf->hd, -1, intf, bundle, cport_id);
 }
 EXPORT_SYMBOL_GPL(gb_connection_create_dynamic);
 

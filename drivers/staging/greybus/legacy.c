@@ -155,10 +155,11 @@ static int legacy_probe(struct gb_bundle *bundle,
 
 		connection = gb_connection_create_dynamic(bundle->intf,
 						bundle,
-						le16_to_cpu(cport_desc->id),
-						cport_desc->protocol_id);
+						le16_to_cpu(cport_desc->id));
 		if (!connection)
 			goto err_connections_destroy;
+
+		connection->protocol_id = cport_desc->protocol_id;
 
 		data->connections[i] = connection;
 	}
