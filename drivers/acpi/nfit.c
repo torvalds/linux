@@ -2372,7 +2372,7 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	acpi_size sz;
 	int rc;
 
-	status = acpi_get_table_with_size("NFIT", 0, &tbl, &sz);
+	status = acpi_get_table_with_size(ACPI_SIG_NFIT, 0, &tbl, &sz);
 	if (ACPI_FAILURE(status)) {
 		/* This is ok, we could have an nvdimm hotplugged later */
 		dev_dbg(dev, "failed to find NFIT at startup\n");
