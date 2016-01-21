@@ -29,7 +29,6 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 {
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
-	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 data;
 
@@ -38,6 +37,7 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 
 	if (mix) {
 		struct rsnd_dai *rdai;
+		struct rsnd_mod *src;
 		struct rsnd_dai_stream *tio;
 		int i;
 		u32 path[] = {
@@ -57,15 +57,19 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 		data = 0;
 		for_each_rsnd_dai(rdai, priv, i) {
 			tio = &rdai->playback;
+			src = rsnd_io_to_mod_src(tio);
 			if (mix == rsnd_io_to_mod_mix(tio))
 				data |= path[rsnd_mod_id(src)];
 
 			tio = &rdai->capture;
+			src = rsnd_io_to_mod_src(tio);
 			if (mix == rsnd_io_to_mod_mix(tio))
 				data |= path[rsnd_mod_id(src)];
 		}
 
 	} else {
+		struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+
 		u32 path[] = {
 			[0] = 0x30000,
 			[1] = 0x30001,
