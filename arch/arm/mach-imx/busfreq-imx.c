@@ -903,12 +903,16 @@ static int bus_freq_pm_notify(struct notifier_block *nb, unsigned long event,
 	mutex_lock(&bus_freq_mutex);
 
 	if (event == PM_SUSPEND_PREPARE) {
+		if (cpu_is_imx7d() && imx_src_is_m4_enabled())
+			imx_mu_lpm_ready(false);
 		high_bus_count++;
 		set_high_bus_freq(1);
 		busfreq_suspended = 1;
 	} else if (event == PM_POST_SUSPEND) {
 		busfreq_suspended = 0;
 		high_bus_count--;
+		if (cpu_is_imx7d() && imx_src_is_m4_enabled())
+			imx_mu_lpm_ready(true);
 		schedule_delayed_work(&bus_freq_daemon,
 			usecs_to_jiffies(5000000));
 	}
@@ -1158,8 +1162,10 @@ static int busfreq_probe(struct platform_device *pdev)
 			high_bus_count++;
 	}
 
-	if (cpu_is_imx7d() && imx_src_is_m4_enabled())
+	if (cpu_is_imx7d() && imx_src_is_m4_enabled()) {
 		high_bus_count++;
+		imx_mu_lpm_ready(true);
+	}
 
 	if (err) {
 		dev_err(busfreq_dev, "Busfreq init of ddr controller failed\n");

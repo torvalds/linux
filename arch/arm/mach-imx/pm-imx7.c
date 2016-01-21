@@ -772,7 +772,6 @@ static int imx7_pm_enter(suspend_state_t state)
 				/* restore M4 to run mode */
 				imx_mu_set_m4_run_mode();
 				/* gpc wakeup */
-				imx_mu_lpm_ready(true);
 			}
 		}
 		/* clear LPSR resume address */
