@@ -112,7 +112,7 @@ int wilc_mq_send(struct message_queue *mq,
 int wilc_mq_recv(struct message_queue *mq,
 		 void *recv_buf, u32 recv_buf_size, u32 *recv_len)
 {
-	struct message *pstrMessage;
+	struct message *msg;
 	unsigned long flags;
 
 	if ((!mq) || (recv_buf_size == 0)
@@ -133,14 +133,14 @@ int wilc_mq_recv(struct message_queue *mq,
 	down(&mq->sem);
 	spin_lock_irqsave(&mq->lock, flags);
 
-	pstrMessage = mq->msg_list;
-	if (!pstrMessage) {
+	msg = mq->msg_list;
+	if (!msg) {
 		spin_unlock_irqrestore(&mq->lock, flags);
-		PRINT_ER("pstrMessage is null\n");
+		PRINT_ER("msg is null\n");
 		return -EFAULT;
 	}
 	/* check buffer size */
-	if (recv_buf_size < pstrMessage->len) {
+	if (recv_buf_size < msg->len) {
 		spin_unlock_irqrestore(&mq->lock, flags);
 		up(&mq->sem);
 		PRINT_ER("recv_buf_size overflow\n");
@@ -149,13 +149,13 @@ int wilc_mq_recv(struct message_queue *mq,
 
 	/* consume the message */
 	mq->recv_count--;
-	memcpy(recv_buf, pstrMessage->buf, pstrMessage->len);
-	*recv_len = pstrMessage->len;
+	memcpy(recv_buf, msg->buf, msg->len);
+	*recv_len = msg->len;
 
-	mq->msg_list = pstrMessage->next;
+	mq->msg_list = msg->next;
 
-	kfree(pstrMessage->buf);
-	kfree(pstrMessage);
+	kfree(msg->buf);
+	kfree(msg);
 
 	spin_unlock_irqrestore(&mq->lock, flags);
 
