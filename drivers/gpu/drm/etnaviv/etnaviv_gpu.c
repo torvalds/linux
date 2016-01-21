@@ -1103,7 +1103,7 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 	size_t nr_bos)
 {
 	struct etnaviv_cmdbuf *cmdbuf;
-	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo[0]),
+	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
 				 sizeof(*cmdbuf));
 
 	cmdbuf = kzalloc(sz, GFP_KERNEL);
@@ -1147,11 +1147,12 @@ static void retire_worker(struct work_struct *work)
 		fence_put(cmdbuf->fence);
 
 		for (i = 0; i < cmdbuf->nr_bos; i++) {
-			struct etnaviv_gem_object *etnaviv_obj = cmdbuf->bo[i];
+			struct etnaviv_vram_mapping *mapping = cmdbuf->bo_map[i];
+			struct etnaviv_gem_object *etnaviv_obj = mapping->object;
 
 			atomic_dec(&etnaviv_obj->gpu_active);
 			/* drop the refcount taken in etnaviv_gpu_submit */
-			etnaviv_gem_put_iova(gpu, &etnaviv_obj->base);
+			etnaviv_gem_mapping_unreference(mapping);
 		}
 
 		etnaviv_gpu_cmdbuf_free(cmdbuf);
@@ -1309,11 +1310,10 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-		u32 iova;
 
-		/* Each cmdbuf takes a refcount on the iova */
-		etnaviv_gem_get_iova(gpu, &etnaviv_obj->base, &iova);
-		cmdbuf->bo[i] = etnaviv_obj;
+		/* Each cmdbuf takes a refcount on the mapping */
+		etnaviv_gem_mapping_reference(submit->bos[i].mapping);
+		cmdbuf->bo_map[i] = submit->bos[i].mapping;
 		atomic_inc(&etnaviv_obj->gpu_active);
 
 		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)

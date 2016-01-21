@@ -187,12 +187,11 @@ static void submit_unpin_objects(struct etnaviv_gem_submit *submit)
 	int i;
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-
 		if (submit->bos[i].flags & BO_PINNED)
-			etnaviv_gem_put_iova(submit->gpu, &etnaviv_obj->base);
+			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
 
 		submit->bos[i].iova = 0;
+		submit->bos[i].mapping = NULL;
 		submit->bos[i].flags &= ~BO_PINNED;
 	}
 }
@@ -203,15 +202,18 @@ static int submit_pin_objects(struct etnaviv_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-		u32 iova;
+		struct etnaviv_vram_mapping *mapping;
 
-		ret = etnaviv_gem_get_iova(submit->gpu, &etnaviv_obj->base,
-					   &iova);
-		if (ret)
+		mapping = etnaviv_gem_mapping_get(&etnaviv_obj->base,
+						  submit->gpu);
+		if (IS_ERR(mapping)) {
+			ret = PTR_ERR(mapping);
 			break;
+		}
 
 		submit->bos[i].flags |= BO_PINNED;
-		submit->bos[i].iova = iova;
+		submit->bos[i].mapping = mapping;
+		submit->bos[i].iova = mapping->iova;
 	}
 
 	return ret;
