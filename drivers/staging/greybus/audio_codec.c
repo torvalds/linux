@@ -541,7 +541,8 @@ static struct gbaudio_codec_info *gbaudio_get_codec(struct device *dev,
 	gbcodec->dev_id = dev_id;
 	dev_set_drvdata(dev, gbcodec);
 	gbcodec->dev = dev;
-	strlcpy(gbcodec->name, dev_name(dev), NAME_SIZE);
+	snprintf(gbcodec->name, NAME_SIZE, "%s.%s", dev->driver->name,
+		 dev_name(dev));
 
 	mutex_lock(&gb_codec_list_lock);
 	list_add(&gbcodec->list, &gb_codec_list);
