@@ -38,7 +38,7 @@ int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
 	}
 
 	while (pHandle->pstrMessageList) {
-		Message *pstrMessge = pHandle->pstrMessageList->pstrNext;
+		struct message *pstrMessge = pHandle->pstrMessageList->pstrNext;
 
 		kfree(pHandle->pstrMessageList);
 		pHandle->pstrMessageList = pstrMessge;
@@ -57,7 +57,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 			     const void *pvSendBuffer, u32 u32SendBufferSize)
 {
 	unsigned long flags;
-	Message *pstrMessage = NULL;
+	struct message *pstrMessage = NULL;
 
 	if ((!pHandle) || (u32SendBufferSize == 0) || (!pvSendBuffer)) {
 		PRINT_ER("pHandle or pvSendBuffer is null\n");
@@ -70,7 +70,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 	}
 
 	/* construct a new message */
-	pstrMessage = kmalloc(sizeof(Message), GFP_ATOMIC);
+	pstrMessage = kmalloc(sizeof(struct message), GFP_ATOMIC);
 	if (!pstrMessage)
 		return -ENOMEM;
 
@@ -89,7 +89,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 	if (!pHandle->pstrMessageList) {
 		pHandle->pstrMessageList  = pstrMessage;
 	} else {
-		Message *pstrTailMsg = pHandle->pstrMessageList;
+		struct message *pstrTailMsg = pHandle->pstrMessageList;
 
 		while (pstrTailMsg->pstrNext)
 			pstrTailMsg = pstrTailMsg->pstrNext;
@@ -114,7 +114,7 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 			     void *pvRecvBuffer, u32 u32RecvBufferSize,
 			     u32 *pu32ReceivedLength)
 {
-	Message *pstrMessage;
+	struct message *pstrMessage;
 	unsigned long flags;
 
 	if ((!pHandle) || (u32RecvBufferSize == 0)
