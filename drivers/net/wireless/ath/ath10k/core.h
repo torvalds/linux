@@ -512,6 +512,15 @@ enum ath10k_fw_features {
 	/* Firmware supports management frame protection */
 	ATH10K_FW_FEATURE_MFP_SUPPORT = 12,
 
+	/* Firmware supports pull-push model where host shares it's software
+	 * queue state with firmware and firmware generates fetch requests
+	 * telling host which queues to dequeue tx from.
+	 *
+	 * Primary function of this is improved MU-MIMO performance with
+	 * multiple clients.
+	 */
+	ATH10K_FW_FEATURE_PEER_FLOW_CONTROL = 13,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
