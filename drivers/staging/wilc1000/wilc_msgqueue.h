@@ -15,7 +15,7 @@
 /* Message Queue type is a structure */
 struct message {
 	void *buf;
-	u32 u32Length;
+	u32 len;
 	struct message *pstrNext;
 };
 

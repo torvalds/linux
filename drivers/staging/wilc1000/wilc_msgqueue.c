@@ -74,7 +74,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 	if (!pstrMessage)
 		return -ENOMEM;
 
-	pstrMessage->u32Length = u32SendBufferSize;
+	pstrMessage->len = u32SendBufferSize;
 	pstrMessage->pstrNext = NULL;
 	pstrMessage->buf = kmemdup(pvSendBuffer, u32SendBufferSize,
 				   GFP_ATOMIC);
@@ -142,7 +142,7 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 		return -EFAULT;
 	}
 	/* check buffer size */
-	if (u32RecvBufferSize < pstrMessage->u32Length)	{
+	if (u32RecvBufferSize < pstrMessage->len) {
 		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 		up(&pHandle->hSem);
 		PRINT_ER("u32RecvBufferSize overflow\n");
@@ -151,8 +151,8 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 
 	/* consume the message */
 	pHandle->u32ReceiversCount--;
-	memcpy(pvRecvBuffer, pstrMessage->buf, pstrMessage->u32Length);
-	*pu32ReceivedLength = pstrMessage->u32Length;
+	memcpy(pvRecvBuffer, pstrMessage->buf, pstrMessage->len);
+	*pu32ReceivedLength = pstrMessage->len;
 
 	pHandle->pstrMessageList = pstrMessage->pstrNext;
 
