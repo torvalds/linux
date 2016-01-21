@@ -895,8 +895,7 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 		goto err_put_device;
 	}
 
-	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
-							GREYBUS_PROTOCOL_SVC);
+	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID);
 	if (!svc->connection) {
 		dev_err(&svc->dev, "failed to create connection\n");
 		goto err_free_input;

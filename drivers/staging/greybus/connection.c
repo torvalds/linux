@@ -217,11 +217,9 @@ err_unlock:
 }
 
 struct gb_connection *
-gb_connection_create_static(struct gb_host_device *hd,
-					u16 hd_cport_id, u8 protocol_id)
+gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id)
 {
-	return gb_connection_create(hd, hd_cport_id, NULL, NULL, 0,
-								protocol_id);
+	return gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, 0);
 }
 
 struct gb_connection *
