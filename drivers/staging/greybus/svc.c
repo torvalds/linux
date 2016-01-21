@@ -7,6 +7,7 @@
  * Released under the GPLv2 only.
  */
 
+#include <linux/input.h>
 #include <linux/workqueue.h>
 
 #include "greybus.h"
@@ -15,6 +16,7 @@
 #define CPORT_FLAGS_CSD_N       BIT(1)
 #define CPORT_FLAGS_CSV_N       BIT(2)
 
+#define SVC_KEY_ARA_BUTTON	KEY_A
 
 struct gb_svc_deferred_request {
 	struct work_struct work;
@@ -420,6 +422,13 @@ static int gb_svc_hello(struct gb_operation *op)
 		return ret;
 	}
 
+	ret = input_register_device(svc->input);
+	if (ret) {
+		dev_err(&svc->dev, "failed to register input: %d\n", ret);
+		device_del(&svc->dev);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -690,6 +699,53 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 	return 0;
 }
 
+static int gb_svc_key_code_map(struct gb_svc *svc, u16 key_code, u16 *code)
+{
+	switch (key_code) {
+	case GB_KEYCODE_ARA:
+		*code = SVC_KEY_ARA_BUTTON;
+		break;
+	default:
+		dev_warn(&svc->dev, "unknown keycode received: %u\n", key_code);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int gb_svc_key_event_recv(struct gb_operation *op)
+{
+	struct gb_svc *svc = op->connection->private;
+	struct gb_message *request = op->request;
+	struct gb_svc_key_event_request *key;
+	u16 code;
+	u8 event;
+	int ret;
+
+	if (request->payload_size < sizeof(*key)) {
+		dev_warn(&svc->dev, "short key request received (%zu < %zu)\n",
+			 request->payload_size, sizeof(*key));
+		return -EINVAL;
+	}
+
+	key = request->payload;
+
+	ret = gb_svc_key_code_map(svc, le16_to_cpu(key->key_code), &code);
+	if (ret < 0)
+		return ret;
+
+	event = key->key_event;
+	if ((event != GB_SVC_KEY_PRESSED) && (event != GB_SVC_KEY_RELEASED)) {
+		dev_warn(&svc->dev, "unknown key event received: %u\n", event);
+		return -EINVAL;
+	}
+
+	input_report_key(svc->input, code, (event == GB_SVC_KEY_PRESSED));
+	input_sync(svc->input);
+
+	return 0;
+}
+
 static int gb_svc_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
@@ -745,10 +801,40 @@ static int gb_svc_request_handler(struct gb_operation *op)
 		return gb_svc_intf_hot_unplug_recv(op);
 	case GB_SVC_TYPE_INTF_RESET:
 		return gb_svc_intf_reset_recv(op);
+	case GB_SVC_TYPE_KEY_EVENT:
+		return gb_svc_key_event_recv(op);
 	default:
 		dev_warn(&svc->dev, "unsupported request 0x%02x\n", type);
 		return -EINVAL;
 	}
+}
+
+static struct input_dev *gb_svc_input_create(struct gb_svc *svc)
+{
+	struct input_dev *input_dev;
+
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		return ERR_PTR(-ENOMEM);
+
+	input_dev->name = dev_name(&svc->dev);
+	svc->input_phys = kasprintf(GFP_KERNEL, "greybus-%s/input0",
+				    input_dev->name);
+	if (!svc->input_phys)
+		goto err_free_input;
+
+	input_dev->phys = svc->input_phys;
+	input_dev->dev.parent = &svc->dev;
+
+	input_set_drvdata(input_dev, svc);
+
+	input_set_capability(input_dev, EV_KEY, SVC_KEY_ARA_BUTTON);
+
+	return input_dev;
+
+err_free_input:
+	input_free_device(svc->input);
+	return ERR_PTR(-ENOMEM);
 }
 
 static void gb_svc_release(struct device *dev)
@@ -759,6 +845,7 @@ static void gb_svc_release(struct device *dev)
 		gb_connection_destroy(svc->connection);
 	ida_destroy(&svc->device_id_map);
 	destroy_workqueue(svc->wq);
+	kfree(svc->input_phys);
 	kfree(svc);
 }
 
@@ -794,17 +881,29 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 	svc->state = GB_SVC_STATE_RESET;
 	svc->hd = hd;
 
+	svc->input = gb_svc_input_create(svc);
+	if (IS_ERR(svc->input)) {
+		dev_err(&svc->dev, "failed to create input device: %ld\n",
+			PTR_ERR(svc->input));
+		goto err_put_device;
+	}
+
 	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
 							GREYBUS_PROTOCOL_SVC);
 	if (!svc->connection) {
 		dev_err(&svc->dev, "failed to create connection\n");
-		put_device(&svc->dev);
-		return NULL;
+		goto err_free_input;
 	}
 
 	svc->connection->private = svc;
 
 	return svc;
+
+err_free_input:
+	input_free_device(svc->input);
+err_put_device:
+	put_device(&svc->dev);
+	return NULL;
 }
 
 int gb_svc_add(struct gb_svc *svc)
@@ -825,13 +924,16 @@ int gb_svc_add(struct gb_svc *svc)
 
 void gb_svc_del(struct gb_svc *svc)
 {
-	/*
-	 * The SVC device may have been registered from the request handler.
-	 */
-	if (device_is_registered(&svc->dev))
-		device_del(&svc->dev);
-
 	gb_connection_disable(svc->connection);
+
+	/*
+	 * The SVC device and input device may have been registered
+	 * from the request handler.
+	 */
+	if (device_is_registered(&svc->dev)) {
+		input_unregister_device(svc->input);
+		device_del(&svc->dev);
+	}
 
 	flush_workqueue(svc->wq);
 }

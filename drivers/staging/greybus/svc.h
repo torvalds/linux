@@ -30,6 +30,9 @@ struct gb_svc {
 
 	u8 protocol_major;
 	u8 protocol_minor;
+
+	struct input_dev        *input;
+	char                    *input_phys;
 };
 #define to_gb_svc(d) container_of(d, struct gb_svc, d)
 

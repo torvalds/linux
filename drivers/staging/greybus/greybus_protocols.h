@@ -781,6 +781,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_ROUTE_DESTROY	0x0c
 #define GB_SVC_TYPE_INTF_SET_PWRM	0x10
 #define GB_SVC_TYPE_INTF_EJECT		0x11
+#define GB_SVC_TYPE_KEY_EVENT		0x12
 
 /*
  * SVC version request/response has the same payload as
@@ -928,6 +929,15 @@ struct gb_svc_intf_set_pwrm_request {
 
 struct gb_svc_intf_set_pwrm_response {
 	__le16	result_code;
+} __packed;
+
+struct gb_svc_key_event_request {
+	__le16  key_code;
+#define GB_KEYCODE_ARA         0x00
+
+	__u8    key_event;
+#define GB_SVC_KEY_RELEASED    0x00
+#define GB_SVC_KEY_PRESSED     0x01
 } __packed;
 
 /* RAW */
