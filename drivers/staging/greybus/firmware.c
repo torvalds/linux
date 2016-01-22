@@ -14,8 +14,6 @@
 struct gb_firmware {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
-	u32			vendor_id;
-	u32			product_id;
 };
 
 static void free_firmware(struct gb_firmware *firmware)
@@ -31,7 +29,7 @@ static void free_firmware(struct gb_firmware *firmware)
  * This fetches VID/PID (over firmware protocol) for es2 chip only, when VID/PID
  * already sent during hotplug are 0.
  *
- * Otherwise, we keep firmware->vendor_id/product_id same as what's passed
+ * Otherwise, we keep intf->vendor_id/product_id same as what's passed
  * during hotplug.
  */
 static void firmware_es2_fixup_vid_pid(struct gb_firmware *firmware)
@@ -59,11 +57,18 @@ static void firmware_es2_fixup_vid_pid(struct gb_firmware *firmware)
 		return;
 	}
 
-	firmware->vendor_id = le32_to_cpu(response.vendor_id);
-	firmware->product_id = le32_to_cpu(response.product_id);
+	/*
+	 * NOTE: This is hacked, so that the same values of VID/PID can be used
+	 * by next firmware level as well. The uevent for bootrom will still
+	 * have VID/PID as 0, though after this point the sysfs files will start
+	 * showing the updated values. But yeah, that's a bit racy as the same
+	 * sysfs files would be showing 0 before this point.
+	 */
+	intf->vendor_id = le32_to_cpu(response.vendor_id);
+	intf->product_id = le32_to_cpu(response.product_id);
 
 	dev_dbg(&connection->bundle->dev, "Firmware got vid (0x%x)/pid (0x%x)\n",
-		firmware->vendor_id, firmware->product_id);
+		intf->vendor_id, intf->product_id);
 }
 
 /* This returns path of the firmware blob on the disk */
@@ -86,7 +91,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	snprintf(firmware_name, sizeof(firmware_name),
 		 "ara_%08x_%08x_%08x_%08x_%02x.tftf",
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
-		 firmware->vendor_id, firmware->product_id, stage);
+		 intf->vendor_id, intf->product_id, stage);
 
 	// FIXME:
 	// Turn to dev_dbg later after everyone has valid bootloaders with good
@@ -245,9 +250,6 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 
 	firmware->connection = connection;
 	connection->private = firmware;
-
-	firmware->vendor_id = connection->intf->vendor_id;
-	firmware->product_id = connection->intf->product_id;
 
 	firmware_es2_fixup_vid_pid(firmware);
 

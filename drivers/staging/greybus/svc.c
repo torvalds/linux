@@ -464,6 +464,8 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
+	u32 vendor_id = 0;
+	u32 product_id = 0;
 	int ret;
 
 	/* The request message size has already been verified. */
@@ -474,6 +476,14 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 
 	intf = gb_interface_find(hd, intf_id);
 	if (intf) {
+		/*
+		 * For ES2, we need to maintain the same vendor/product ids we
+		 * got from bootrom, otherwise userspace can't distinguish
+		 * between modules.
+		 */
+		vendor_id = intf->vendor_id;
+		product_id = intf->product_id;
+
 		/*
 		 * We have received a hotplug request for an interface that
 		 * already exists.
@@ -505,6 +515,20 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
 	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
 	intf->serial_number = le64_to_cpu(request->data.serial_number);
+
+	/*
+	 * Use VID/PID specified at hotplug if:
+	 * - Bridge ASIC chip isn't ES2
+	 * - Received non-zero Vendor/Product ids
+	 *
+	 * Otherwise, use the ids we received from bootrom.
+	 */
+	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
+	    intf->ddbl1_product_id == ES2_DDBL1_PROD_ID &&
+	    intf->vendor_id == 0 && intf->product_id == 0) {
+		intf->vendor_id = vendor_id;
+		intf->product_id = product_id;
+	}
 
 	ret = gb_svc_read_and_clear_module_boot_status(intf);
 	if (ret) {
