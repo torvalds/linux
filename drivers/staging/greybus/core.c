@@ -125,6 +125,8 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 		if (add_uevent_var(env, "BUNDLE=%u", bundle->id))
 			return -ENOMEM;
+		if (add_uevent_var(env, "BUNDLE_CLASS=%02x", bundle->class))
+			return -ENOMEM;
 	}
 
 	return 0;
