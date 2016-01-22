@@ -1018,18 +1018,27 @@ static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 	return send_link;
 }
 
-static void drm_dp_check_port_guid(struct drm_dp_mst_branch *mstb,
-				   struct drm_dp_mst_port *port)
+static void drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, u8 *guid)
 {
 	int ret;
-	if (port->dpcd_rev >= 0x12) {
-		port->guid_valid = drm_dp_validate_guid(mstb->mgr, port->guid);
-		if (!port->guid_valid) {
-			ret = drm_dp_send_dpcd_write(mstb->mgr,
-						     port,
-						     DP_GUID,
-						     16, port->guid);
-			port->guid_valid = true;
+
+	memcpy(mstb->guid, guid, 16);
+
+	if (!drm_dp_validate_guid(mstb->mgr, mstb->guid)) {
+		if (mstb->port_parent) {
+			ret = drm_dp_send_dpcd_write(
+					mstb->mgr,
+					mstb->port_parent,
+					DP_GUID,
+					16,
+					mstb->guid);
+		} else {
+
+			ret = drm_dp_dpcd_write(
+					mstb->mgr->aux,
+					DP_GUID,
+					mstb->guid,
+					16);
 		}
 	}
 }
@@ -1086,7 +1095,6 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 	port->dpcd_rev = port_msg->dpcd_revision;
 	port->num_sdp_streams = port_msg->num_sdp_streams;
 	port->num_sdp_stream_sinks = port_msg->num_sdp_stream_sinks;
-	memcpy(port->guid, port_msg->peer_guid, 16);
 
 	/* manage mstb port lists with mgr lock - take a reference
 	   for this list */
@@ -1099,11 +1107,9 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 
 	if (old_ddps != port->ddps) {
 		if (port->ddps) {
-			drm_dp_check_port_guid(mstb, port);
 			if (!port->input)
 				drm_dp_send_enum_path_resources(mstb->mgr, mstb, port);
 		} else {
-			port->guid_valid = false;
 			port->available_pbn = 0;
 			}
 	}
@@ -1161,9 +1167,7 @@ static void drm_dp_update_port(struct drm_dp_mst_branch *mstb,
 	if (old_ddps != port->ddps) {
 		dowork = true;
 		if (port->ddps) {
-			drm_dp_check_port_guid(mstb, port);
 		} else {
-			port->guid_valid = false;
 			port->available_pbn = 0;
 		}
 	}
@@ -1220,12 +1224,13 @@ static struct drm_dp_mst_branch *get_mst_branch_device_by_guid_helper(
 	struct drm_dp_mst_branch *found_mstb;
 	struct drm_dp_mst_port *port;
 
+	if (memcmp(mstb->guid, guid, 16) == 0)
+		return mstb;
+
+
 	list_for_each_entry(port, &mstb->ports, next) {
 		if (!port->mstb)
 			continue;
-
-		if (port->guid_valid && memcmp(port->guid, guid, 16) == 0)
-			return port->mstb;
 
 		found_mstb = get_mst_branch_device_by_guid_helper(port->mstb, guid);
 
@@ -1245,10 +1250,7 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device_by_guid(
 	/* find the port by iterating down */
 	mutex_lock(&mgr->lock);
 
-	if (mgr->guid_valid && memcmp(mgr->guid, guid, 16) == 0)
-		mstb = mgr->mst_primary;
-	else
-		mstb = get_mst_branch_device_by_guid_helper(mgr->mst_primary, guid);
+	mstb = get_mst_branch_device_by_guid_helper(mgr->mst_primary, guid);
 
 	if (mstb)
 		kref_get(&mstb->kref);
@@ -1566,6 +1568,9 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 				       txmsg->reply.u.link_addr.ports[i].num_sdp_streams,
 				       txmsg->reply.u.link_addr.ports[i].num_sdp_stream_sinks);
 			}
+
+			drm_dp_check_mstb_guid(mstb, txmsg->reply.u.link_addr.guid);
+
 			for (i = 0; i < txmsg->reply.u.link_addr.nports; i++) {
 				drm_dp_add_port(mstb, mgr->dev, &txmsg->reply.u.link_addr.ports[i]);
 			}
@@ -2006,20 +2011,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 		}
 
-
-		/* sort out guid */
-		ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, mgr->guid, 16);
-		if (ret != 16) {
-			DRM_DEBUG_KMS("failed to read DP GUID %d\n", ret);
-			goto out_unlock;
-		}
-
-		mgr->guid_valid = drm_dp_validate_guid(mgr, mgr->guid);
-		if (!mgr->guid_valid) {
-			ret = drm_dp_dpcd_write(mgr->aux, DP_GUID, mgr->guid, 16);
-			mgr->guid_valid = true;
-		}
-
 		queue_work(system_long_wq, &mgr->work);
 
 		ret = 0;
@@ -2241,6 +2232,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 			}
 
 			drm_dp_update_port(mstb, &msg.u.conn_stat);
+
 			DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n", msg.u.conn_stat.port_number, msg.u.conn_stat.legacy_device_plug_status, msg.u.conn_stat.displayport_device_plug_status, msg.u.conn_stat.message_capability_status, msg.u.conn_stat.input_port, msg.u.conn_stat.peer_device_type);
 		} else if (msg.req_type == DP_RESOURCE_STATUS_NOTIFY) {
 			drm_dp_send_up_ack_reply(mgr, mgr->mst_primary, msg.req_type, seqno, false);
