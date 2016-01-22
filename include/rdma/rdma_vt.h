@@ -136,7 +136,8 @@ struct rvt_ibport {
 	 */
 	u16 *pkey_table;
 
-	/* TODO: Move sm_ah and smi_ah into here as well*/
+	struct rvt_ah *sm_ah;
+	struct rvt_ah *smi_ah;
 };
 
 #define RVT_CQN_MAX 16 /* maximum length of cq name */
@@ -263,6 +264,9 @@ struct rvt_driver_provided {
 			       int attr_mask, struct ib_udata *udata);
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
+
+	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 };
 
 struct rvt_dev_info {

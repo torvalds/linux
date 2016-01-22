@@ -416,6 +416,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 		goto bail_cq;
 	}
 
+	rvt_create_mad_agents(rdi);
+
 	rvt_pr_info(rdi, "Registration with rdmavt done.\n");
 	return ret;
 
@@ -437,6 +439,8 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 	trace_rvt_dbg(rdi, "Driver is unregistering.");
 	if (!rdi)
 		return;
+
+	rvt_free_mad_agents(rdi);
 
 	ib_unregister_device(&rdi->ibdev);
 	rvt_cq_exit(rdi);

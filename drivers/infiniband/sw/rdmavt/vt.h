@@ -59,6 +59,7 @@
 #include "mcast.h"
 #include "mmap.h"
 #include "cq.h"
+#include "mad.h"
 
 #define rvt_pr_info(rdi, fmt, ...) \
 	__rvt_pr_info(rdi->driver_f.get_pci_dev(rdi), \

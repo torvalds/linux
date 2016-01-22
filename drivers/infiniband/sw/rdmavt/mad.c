@@ -45,6 +45,7 @@
  *
  */
 
+#include <rdma/ib_mad.h>
 #include "mad.h"
 
 /**
@@ -83,3 +84,74 @@ int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 	 */
 	return IB_MAD_RESULT_FAILURE;
 }
+
+static void rvt_send_mad_handler(struct ib_mad_agent *agent,
+				 struct ib_mad_send_wc *mad_send_wc)
+{
+	ib_free_send_mad(mad_send_wc->send_buf);
+}
+
+int rvt_create_mad_agents(struct rvt_dev_info *rdi)
+{
+	struct ib_mad_agent *agent;
+	struct rvt_ibport *rvp;
+	int p;
+	int ret;
+
+	for (p = 0; p < rdi->dparms.nports; p++) {
+		rvp = rdi->ports[p];
+		agent = ib_register_mad_agent(&rdi->ibdev, p + 1,
+					      IB_QPT_SMI,
+					      NULL, 0, rvt_send_mad_handler,
+					      NULL, NULL, 0);
+		if (IS_ERR(agent)) {
+			ret = PTR_ERR(agent);
+			goto err;
+		}
+
+		rvp->send_agent = agent;
+
+		if (rdi->driver_f.notify_create_mad_agent)
+			rdi->driver_f.notify_create_mad_agent(rdi, p);
+	}
+
+	return 0;
+
+err:
+	for (p = 0; p < rdi->dparms.nports; p++) {
+		rvp = rdi->ports[p];
+		if (rvp->send_agent) {
+			agent = rvp->send_agent;
+			rvp->send_agent = NULL;
+			ib_unregister_mad_agent(agent);
+			if (rdi->driver_f.notify_free_mad_agent)
+				rdi->driver_f.notify_free_mad_agent(rdi, p);
+		}
+	}
+
+	return ret;
+}
+
+void rvt_free_mad_agents(struct rvt_dev_info *rdi)
+{
+	struct ib_mad_agent *agent;
+	struct rvt_ibport *rvp;
+	int p;
+
+	for (p = 0; p < rdi->dparms.nports; p++) {
+		rvp = rdi->ports[p];
+		if (rvp->send_agent) {
+			agent = rvp->send_agent;
+			rvp->send_agent = NULL;
+			ib_unregister_mad_agent(agent);
+		}
+		if (rvp->sm_ah) {
+			ib_destroy_ah(&rvp->sm_ah->ibah);
+			rvp->sm_ah = NULL;
+		}
+
+		if (rdi->driver_f.notify_free_mad_agent)
+			rdi->driver_f.notify_free_mad_agent(rdi, p);
+	}
+}
+
