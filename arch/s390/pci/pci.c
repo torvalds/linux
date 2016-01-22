@@ -275,15 +275,10 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 
 	idx = zdev->bars[bar].map_idx;
 	spin_lock(&zpci_iomap_lock);
-	if (zpci_iomap_start[idx].count++) {
-		BUG_ON(zpci_iomap_start[idx].fh != zdev->fh ||
-		       zpci_iomap_start[idx].bar != bar);
-	} else {
-		zpci_iomap_start[idx].fh = zdev->fh;
-		zpci_iomap_start[idx].bar = bar;
-	}
 	/* Detect overrun */
-	BUG_ON(!zpci_iomap_start[idx].count);
+	WARN_ON(!++zpci_iomap_start[idx].count);
+	zpci_iomap_start[idx].fh = zdev->fh;
+	zpci_iomap_start[idx].bar = bar;
 	spin_unlock(&zpci_iomap_lock);
 
 	return (void __iomem *) ZPCI_ADDR(idx) + offset;
@@ -302,7 +297,7 @@ void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
 
 	spin_lock(&zpci_iomap_lock);
 	/* Detect underrun */
-	BUG_ON(!zpci_iomap_start[idx].count);
+	WARN_ON(!zpci_iomap_start[idx].count);
 	if (!--zpci_iomap_start[idx].count) {
 		zpci_iomap_start[idx].fh = 0;
 		zpci_iomap_start[idx].bar = 0;
