@@ -75,10 +75,14 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		return SIGBUS;
 
 	if (get_isa16_mode(regs->cp0_epc)) {
-		err = __put_user(ir >> 16, (u16 __user *)(&fr->emul));
-		err |= __put_user(ir & 0xffff, (u16 __user *)((long)(&fr->emul) + 2));
-		err |= __put_user(BREAK_MATH >> 16, (u16 __user *)(&fr->badinst));
-		err |= __put_user(BREAK_MATH & 0xffff, (u16 __user *)((long)(&fr->badinst) + 2));
+		err = __put_user(ir >> 16,
+				 (u16 __user *)(&fr->emul));
+		err |= __put_user(ir & 0xffff,
+				  (u16 __user *)((long)(&fr->emul) + 2));
+		err |= __put_user(BREAK_MATH >> 16,
+				  (u16 __user *)(&fr->badinst));
+		err |= __put_user(BREAK_MATH & 0xffff,
+				  (u16 __user *)((long)(&fr->badinst) + 2));
 	} else {
 		err = __put_user(ir, &fr->emul);
 		err |= __put_user((mips_instruction)BREAK_MATH, &fr->badinst);
@@ -125,8 +129,10 @@ int do_dsemulret(struct pt_regs *xcp)
 	 *  - Is the following memory word the BD_COOKIE?
 	 */
 	if (get_isa16_mode(xcp->cp0_epc)) {
-		err = __get_user(instr[0], (u16 __user *)(&fr->badinst));
-		err |= __get_user(instr[1], (u16 __user *)((long)(&fr->badinst) + 2));
+		err = __get_user(instr[0],
+				 (u16 __user *)(&fr->badinst));
+		err |= __get_user(instr[1],
+				  (u16 __user *)((long)(&fr->badinst) + 2));
 		insn = (instr[0] << 16) | instr[1];
 	} else {
 		err = __get_user(insn, &fr->badinst);
