@@ -382,7 +382,7 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
  * operation since client-core seems to be exiting too often
  * or if we were interrupted.
  */
-int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
+static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 {
 	int ret = -EINVAL;
 	DEFINE_WAIT(wait_entry);
@@ -488,7 +488,7 @@ int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
  *      cancellation upcall anyway.  the only way to exit this is to either
  *      timeout or have the cancellation be serviced properly.
  */
-int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
+static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 {
 	int ret = -EINVAL;
 	DEFINE_WAIT(wait_entry);

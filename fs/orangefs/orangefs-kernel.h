@@ -474,8 +474,6 @@ void purge_inprogress_ops(void);
 /*
  * defined in waitqueue.c
  */
-int wait_for_matching_downcall(struct orangefs_kernel_op_s *op);
-int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op);
 void purge_waiting_ops(void);
 
 /*
