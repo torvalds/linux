@@ -256,6 +256,13 @@ struct rvt_driver_provided {
 			      struct rvt_ah *);
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 			 enum ib_qp_type type, u8 port, gfp_t gfp);
+	/**
+	 * Return 0 if modification is valid, -errno otherwise
+	 */
+	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
+			       int attr_mask, struct ib_udata *udata);
+	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
+			  int attr_mask, struct ib_udata *udata);
 };
 
 struct rvt_dev_info {

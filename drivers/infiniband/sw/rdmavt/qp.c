@@ -970,6 +970,10 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				attr_mask, link))
 		goto inval;
 
+	if (rdi->driver_f.check_modify_qp &&
+	    rdi->driver_f.check_modify_qp(qp, attr, attr_mask, udata))
+		goto inval;
+
 	if (attr_mask & IB_QP_AV) {
 		if (attr->ah_attr.dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
@@ -1165,6 +1169,9 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
 		qp->s_max_rd_atomic = attr->max_rd_atomic;
+
+	if (rdi->driver_f.modify_qp)
+		rdi->driver_f.modify_qp(qp, attr, attr_mask, udata);
 
 	spin_unlock(&qp->s_lock);
 	spin_unlock_irq(&qp->r_lock);
