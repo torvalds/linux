@@ -433,7 +433,8 @@ struct address_space {
 	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
 	/* Protected by tree_lock together with the radix tree */
 	unsigned long		nrpages;	/* number of total pages */
-	unsigned long		nrshadows;	/* number of shadow entries */
+	/* number of shadow or DAX exceptional entries */
+	unsigned long		nrexceptional;
 	pgoff_t			writeback_index;/* writeback starts here */
 	const struct address_space_operations *a_ops;	/* methods */
 	unsigned long		flags;		/* error bits/gfp mask */
