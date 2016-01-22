@@ -393,7 +393,6 @@ static int execlists_update_context(struct drm_i915_gem_request *rq)
 	uint32_t *reg_state = rq->ctx->engine[ring->id].lrc_reg_state;
 
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
-	reg_state[CTX_RING_BUFFER_START+1] = rq->ringbuf->vma->node.start;
 
 	if (ppgtt && !USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
 		/* True 32b PPGTT with dynamic page allocation: update PDP
@@ -1067,6 +1066,7 @@ static int intel_lr_context_do_pin(struct intel_engine_cs *ring,
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
 	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
 	struct page *lrc_state_page;
+	uint32_t *lrc_reg_state;
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
@@ -1088,7 +1088,9 @@ static int intel_lr_context_do_pin(struct intel_engine_cs *ring,
 
 	ctx->engine[ring->id].lrc_vma = i915_gem_obj_to_ggtt(ctx_obj);
 	intel_lr_context_descriptor_update(ctx, ring);
-	ctx->engine[ring->id].lrc_reg_state = kmap(lrc_state_page);
+	lrc_reg_state = kmap(lrc_state_page);
+	lrc_reg_state[CTX_RING_BUFFER_START+1] = ringbuf->vma->node.start;
+	ctx->engine[ring->id].lrc_reg_state = lrc_reg_state;
 	ctx_obj->dirty = true;
 
 	/* Invalidate GuC TLB. */

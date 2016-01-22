@@ -560,29 +560,6 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	return 0;
 }
 
-#define CTX_RING_BUFFER_START		0x08
-
-/* Update the ringbuffer pointer in a saved context image */
-static void lr_context_update(struct drm_i915_gem_request *rq)
-{
-	enum intel_ring_id ring_id = rq->ring->id;
-	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring_id].state;
-	struct drm_i915_gem_object *rb_obj = rq->ringbuf->obj;
-	struct page *page;
-	uint32_t *reg_state;
-
-	BUG_ON(!ctx_obj);
-	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
-	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
-
-	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
-	reg_state = kmap_atomic(page);
-
-	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);
-
-	kunmap_atomic(reg_state);
-}
-
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @client:	the guc client where commands will go through
@@ -596,10 +573,6 @@ int i915_guc_submit(struct i915_guc_client *client,
 	struct intel_guc *guc = client->guc;
 	enum intel_ring_id ring_id = rq->ring->id;
 	int q_ret, b_ret;
-
-	/* Need this because of the deferred pin ctx and ring */
-	/* Shall we move this right after ring is pinned? */
-	lr_context_update(rq);
 
 	q_ret = guc_add_workqueue_item(client, rq);
 	if (q_ret == 0)
