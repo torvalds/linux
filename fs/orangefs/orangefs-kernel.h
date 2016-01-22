@@ -476,7 +476,6 @@ void purge_inprogress_ops(void);
  */
 int wait_for_matching_downcall(struct orangefs_kernel_op_s *op);
 int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op);
-void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op);
 void purge_waiting_ops(void);
 
 /*

@@ -296,7 +296,7 @@ static inline void remove_op_from_request_list(struct orangefs_kernel_op_s *op)
 	spin_unlock(&orangefs_request_list_lock);
 }
 
-void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
+static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
 {
 	/*
 	 * handle interrupted cases depending on what state we were in when
