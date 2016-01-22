@@ -192,4 +192,19 @@ extern unsigned int min_timer_period_us;
 extern unsigned int lapic_timer_advance_ns;
 
 extern struct static_key kvm_no_apic_vcpu;
+
+/* Same "calling convention" as do_div:
+ * - divide (n << 32) by base
+ * - put result in n
+ * - return remainder
+ */
+#define do_shl32_div32(n, base)					\
+	({							\
+	    u32 __quot, __rem;					\
+	    asm("divl %2" : "=a" (__quot), "=d" (__rem)		\
+			: "rm" (base), "0" (0), "1" ((u32) n));	\
+	    n = __quot;						\
+	    __rem;						\
+	 })
+
 #endif

@@ -1196,14 +1196,8 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 
 static uint32_t div_frac(uint32_t dividend, uint32_t divisor)
 {
-	uint32_t quotient, remainder;
-
-	/* Don't try to replace with do_div(), this one calculates
-	 * "(dividend << 32) / divisor" */
-	__asm__ ( "divl %4"
-		  : "=a" (quotient), "=d" (remainder)
-		  : "0" (0), "1" (dividend), "r" (divisor) );
-	return quotient;
+	do_shl32_div32(dividend, divisor);
+	return dividend;
 }
 
 static void kvm_get_time_scale(uint32_t scaled_khz, uint32_t base_khz,
