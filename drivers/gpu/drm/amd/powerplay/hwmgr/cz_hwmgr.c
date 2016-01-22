@@ -1700,6 +1700,54 @@ static void cz_hw_print_display_cfg(
 	return -EINVAL;
 }
 
+static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, int level)
+{
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMin,
+				(1 << level));
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMax,
+				(1 << level));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int cz_print_clock_levels(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, char *buf)
+{
+	struct phm_clock_voltage_dependency_table *sclk_table =
+			hwmgr->dyn_state.vddc_dependency_on_sclk;
+	int i, now, size = 0;
+
+	switch (type) {
+	case PP_SCLK:
+		now = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC,
+				ixTARGET_AND_CURRENT_PROFILE_INDEX),
+				TARGET_AND_CURRENT_PROFILE_INDEX,
+				CURR_SCLK_INDEX);
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->entries[i].clk / 100,
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+	return size;
+}
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
@@ -1719,6 +1767,9 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.set_cpu_power_state = cz_set_cpu_power_state,
 	.store_cc6_data = cz_store_cc6_data,
 	.get_dal_power_level= cz_get_dal_power_level,
+	.force_clock_level = cz_force_clock_level,
+	.print_clock_levels = cz_print_clock_levels,
+
 };
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)
