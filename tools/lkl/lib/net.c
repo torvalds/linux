@@ -65,6 +65,28 @@ int lkl_if_down(int ifindex)
 	return err;
 }
 
+int lkl_if_set_mtu(int ifindex, int mtu)
+{
+	struct lkl_ifreq ifr;
+	int err, sock;
+
+	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_DGRAM, 0);
+	if (sock < 0)
+		return sock;
+
+	err = ifindex_to_name(sock, &ifr, ifindex);
+	if (err < 0)
+		return err;
+
+	ifr.lkl_ifr_mtu = mtu;
+
+	err = lkl_sys_ioctl(sock, LKL_SIOCSIFMTU, (long)&ifr);
+
+	lkl_sys_close(sock);
+
+	return err;
+}
+
 int lkl_if_set_ipv4(int ifindex, unsigned int addr, unsigned int netmask_len)
 {
 	struct lkl_ifreq ifr;
