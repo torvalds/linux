@@ -411,19 +411,19 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 	/* Get the destination QP number. */
 	qp_num = be32_to_cpu(ohdr->bth[1]) & QIB_QPN_MASK;
 	if (qp_num == QIB_MULTICAST_QPN) {
-		struct qib_mcast *mcast;
-		struct qib_mcast_qp *p;
+		struct rvt_mcast *mcast;
+		struct rvt_mcast_qp *p;
 
 		if (lnh != QIB_LRH_GRH)
 			goto drop;
-		mcast = qib_mcast_find(ibp, &hdr->u.l.grh.dgid);
+		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid);
 		if (mcast == NULL)
 			goto drop;
 		this_cpu_inc(ibp->pmastats->n_multicast_rcv);
 		list_for_each_entry_rcu(p, &mcast->qp_list, list)
 			qib_qp_rcv(rcd, hdr, 1, data, tlen, p->qp);
 		/*
-		 * Notify qib_multicast_detach() if it is waiting for us
+		 * Notify rvt_multicast_detach() if it is waiting for us
 		 * to finish.
 		 */
 		if (atomic_dec_return(&mcast->refcount) <= 1)
@@ -1657,7 +1657,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	/* Only need to initialize non-zero fields. */
 	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
-	spin_lock_init(&dev->n_mcast_grps_lock);
 	init_timer(&dev->mem_timer);
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
@@ -1780,8 +1779,8 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->map_phys_fmr = NULL;
 	ibdev->unmap_fmr = NULL;
 	ibdev->dealloc_fmr = NULL;
-	ibdev->attach_mcast = qib_multicast_attach;
-	ibdev->detach_mcast = qib_multicast_detach;
+	ibdev->attach_mcast = NULL;
+	ibdev->detach_mcast = NULL;
 	ibdev->process_mad = qib_process_mad;
 	ibdev->mmap = NULL;
 	ibdev->dma_ops = NULL;

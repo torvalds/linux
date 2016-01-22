@@ -185,25 +185,6 @@ struct qib_pio_header {
 } __packed;
 
 /*
- * There is one struct qib_mcast for each multicast GID.
- * All attached QPs are then stored as a list of
- * struct qib_mcast_qp.
- */
-struct qib_mcast_qp {
-	struct list_head list;
-	struct rvt_qp *qp;
-};
-
-struct qib_mcast {
-	struct rb_node rb_node;
-	union ib_gid mgid;
-	struct list_head qp_list;
-	wait_queue_head_t wait;
-	atomic_t refcount;
-	int n_attached;
-};
-
-/*
  * qib specific data structure that will be hidden from rvt after the queue pair
  * is made common.
  */
@@ -291,8 +272,6 @@ struct qib_ibdev {
 	spinlock_t n_qps_lock;
 	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
 	spinlock_t n_srqs_lock;
-	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
-	spinlock_t n_mcast_grps_lock;
 #ifdef CONFIG_DEBUG_FS
 	/* per HCA debugfs */
 	struct dentry *qib_ibdev_dbg;
@@ -373,20 +352,12 @@ static inline int qib_cmp24(u32 a, u32 b)
 	return (((int) a) - ((int) b)) << 8;
 }
 
-struct qib_mcast *qib_mcast_find(struct qib_ibport *ibp, union ib_gid *mgid);
-
 int qib_snapshot_counters(struct qib_pportdata *ppd, u64 *swords,
 			  u64 *rwords, u64 *spkts, u64 *rpkts,
 			  u64 *xmit_wait);
 
 int qib_get_counters(struct qib_pportdata *ppd,
 		     struct qib_verbs_counters *cntrs);
-
-int qib_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
-
-int qib_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
-
-int qib_mcast_tree_empty(struct qib_ibport *ibp);
 
 __be32 qib_compute_aeth(struct rvt_qp *qp);
 
