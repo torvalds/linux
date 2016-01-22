@@ -1201,13 +1201,30 @@ inval:
  */
 int rvt_destroy_qp(struct ib_qp *ibqp)
 {
-	/*
-	 * VT-DRIVER-API: qp_flush()
-	 * Driver provies a mechanism to flush and wait for that flush to
-	 * finish.
-	 */
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
 
-	return -EOPNOTSUPP;
+	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_lock);
+	rvt_reset_qp(rdi, qp, ibqp->qp_type);
+	spin_unlock(&qp->s_lock);
+	spin_unlock_irq(&qp->r_lock);
+
+	/* qpn is now available for use again */
+	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
+
+	spin_lock(&rdi->n_qps_lock);
+	rdi->n_qps_allocated--;
+	spin_unlock(&rdi->n_qps_lock);
+
+	if (qp->ip)
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
+	else
+		vfree(qp->r_rq.wq);
+	vfree(qp->s_wq);
+	rdi->driver_f.qp_priv_free(rdi, qp);
+	kfree(qp);
+	return 0;
 }
 
 int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
