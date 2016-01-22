@@ -1759,8 +1759,8 @@ static int qib_query_gid(struct ib_device *ibdev, u8 port,
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 {
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
-	if (ah_attr->dlid >= QIB_MULTICAST_LID_BASE &&
-	    ah_attr->dlid != QIB_PERMISSIVE_LID &&
+	if (ah_attr->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
+	    ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE) &&
 	    !(ah_attr->ah_flags & IB_AH_GRH))
 		goto bail;
 	if ((ah_attr->ah_flags & IB_AH_GRH) &&
