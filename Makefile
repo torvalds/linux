@@ -998,6 +998,8 @@ prepare2: prepare3 outputmakefile asm-generic
 prepare1: prepare2 $(version_h) include/generated/utsrelease.h \
                    include/config/auto.conf
 	$(cmd_crmodverdir)
+	$(Q)test -e include/generated/autoksyms.h || \
+	    touch   include/generated/autoksyms.h
 
 archprepare: archheaders archscripts prepare1 scripts_basic
 
