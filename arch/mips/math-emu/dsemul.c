@@ -38,6 +38,7 @@ struct emuframe {
  */
 int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 {
+	int isa16 = get_isa16_mode(regs->cp0_epc);
 	mips_instruction break_math;
 	struct emuframe __user *fr;
 	int err;
@@ -47,7 +48,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		return -1;
 
 	/* microMIPS instructions */
-	if (get_isa16_mode(regs->cp0_epc)) {
+	if (isa16) {
 		union mips_instruction insn = { .word = ir };
 
 		/* NOP16 aka MOVE16 $0, $0 */
@@ -81,7 +82,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	 * multiprocessor support.  For Linux we use a BREAK 514
 	 * instruction causing a breakpoint exception.
 	 */
-	break_math = BREAK_MATH(get_isa16_mode(regs->cp0_epc));
+	break_math = BREAK_MATH(isa16);
 
 	/* Ensure that the two instructions are in the same cache line */
 	fr = (struct emuframe __user *)
@@ -91,7 +92,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	if (unlikely(!access_ok(VERIFY_WRITE, fr, sizeof(struct emuframe))))
 		return SIGBUS;
 
-	if (get_isa16_mode(regs->cp0_epc)) {
+	if (isa16) {
 		err = __put_user(ir >> 16,
 				 (u16 __user *)(&fr->emul));
 		err |= __put_user(ir & 0xffff,
@@ -113,8 +114,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		return SIGBUS;
 	}
 
-	regs->cp0_epc = ((unsigned long) &fr->emul) |
-		get_isa16_mode(regs->cp0_epc);
+	regs->cp0_epc = (unsigned long)&fr->emul | isa16;
 
 	flush_cache_sigtramp((unsigned long)&fr->emul);
 
@@ -123,6 +123,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 
 int do_dsemulret(struct pt_regs *xcp)
 {
+	int isa16 = get_isa16_mode(xcp->cp0_epc);
 	struct emuframe __user *fr;
 	unsigned long epc;
 	u32 insn, cookie;
@@ -145,7 +146,7 @@ int do_dsemulret(struct pt_regs *xcp)
 	 *  - Is the instruction pointed to by the EPC an BREAK_MATH?
 	 *  - Is the following memory word the BD_COOKIE?
 	 */
-	if (get_isa16_mode(xcp->cp0_epc)) {
+	if (isa16) {
 		err = __get_user(instr[0],
 				 (u16 __user *)(&fr->badinst));
 		err |= __get_user(instr[1],
@@ -156,8 +157,8 @@ int do_dsemulret(struct pt_regs *xcp)
 	}
 	err |= __get_user(cookie, &fr->cookie);
 
-	if (unlikely(err || insn != BREAK_MATH(get_isa16_mode(xcp->cp0_epc)) ||
-		     cookie != BD_COOKIE)) {
+	if (unlikely(err ||
+		     insn != BREAK_MATH(isa16) || cookie != BD_COOKIE)) {
 		MIPS_FPU_EMU_INC_STATS(errors);
 		return 0;
 	}
