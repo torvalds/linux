@@ -67,6 +67,24 @@ static void rvt_cleanup(void)
 }
 module_exit(rvt_cleanup);
 
+struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
+{
+	struct rvt_dev_info *rdi = ERR_PTR(-ENOMEM);
+
+	rdi = (struct rvt_dev_info *)ib_alloc_device(size);
+	if (!rdi)
+		return rdi;
+
+	rdi->ports = kcalloc(nports,
+			     sizeof(struct rvt_ibport **),
+			     GFP_KERNEL);
+	if (!rdi->ports)
+		ib_dealloc_device(&rdi->ibdev);
+
+	return rdi;
+}
+EXPORT_SYMBOL(rvt_alloc_device);
+
 static int rvt_query_device(struct ib_device *ibdev,
 			    struct ib_device_attr *props,
 			    struct ib_udata *uhw)
@@ -434,18 +452,6 @@ EXPORT_SYMBOL(rvt_unregister_device);
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
 		  int portnum, u16 *pkey_table)
 {
-	if (!rdi->dparms.nports) {
-		rvt_pr_err(rdi, "Driver says it has no ports.\n");
-		return -EINVAL;
-	}
-
-	rdi->ports = kcalloc(rdi->dparms.nports,
-			     sizeof(struct rvt_ibport **),
-			     GFP_KERNEL);
-	if (!rdi->ports) {
-		rvt_pr_err(rdi, "Could not allocate port mem.\n");
-		return -ENOMEM;
-	}
 
 	rdi->ports[portnum] = port;
 	rdi->ports[portnum]->pkey_table = pkey_table;
