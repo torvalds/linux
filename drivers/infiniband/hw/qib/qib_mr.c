@@ -99,7 +99,7 @@ struct ib_mr *qib_get_dma_mr(struct ib_pd *pd, int acc)
 	struct ib_mr *ret;
 	int rval;
 
-	if (to_ipd(pd)->user) {
+	if (ibpd_to_rvtpd(pd)->user) {
 		ret = ERR_PTR(-EPERM);
 		goto bail;
 	}

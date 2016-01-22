@@ -152,7 +152,7 @@ out:
  * Check the IB SGE for validity and initialize our internal version
  * of it.
  */
-int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
+int qib_lkey_ok(struct qib_lkey_table *rkt, struct rvt_pd *pd,
 		struct qib_sge *isge, struct ib_sge *sge, int acc)
 {
 	struct qib_mregion *mr;
@@ -263,7 +263,7 @@ int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
 	 */
 	rcu_read_lock();
 	if (rkey == 0) {
-		struct qib_pd *pd = to_ipd(qp->ibqp.pd);
+		struct rvt_pd *pd = ibpd_to_rvtpd(qp->ibqp.pd);
 		struct qib_ibdev *dev = to_idev(pd->ibpd.device);
 
 		if (pd->user)
@@ -341,7 +341,7 @@ bail:
 int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr)
 {
 	struct qib_lkey_table *rkt = &to_idev(qp->ibqp.device)->lk_table;
-	struct qib_pd *pd = to_ipd(qp->ibqp.pd);
+	struct rvt_pd *pd = ibpd_to_rvtpd(qp->ibqp.pd);
 	struct qib_mr *mr = to_imr(wr->mr);
 	struct qib_mregion *mrg;
 	u32 key = wr->key;

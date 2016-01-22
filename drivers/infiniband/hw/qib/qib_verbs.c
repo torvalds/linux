@@ -346,7 +346,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	int ret;
 	unsigned long flags;
 	struct qib_lkey_table *rkt;
-	struct qib_pd *pd;
+	struct rvt_pd *pd;
 	int avoid_schedule = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
@@ -397,7 +397,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	}
 
 	rkt = &to_idev(qp->ibqp.device)->lk_table;
-	pd = to_ipd(qp->ibqp.pd);
+	pd = ibpd_to_rvtpd(qp->ibqp.pd);
 	wqe = get_swqe_ptr(qp, qp->s_head);
 
 	if (qp->ibqp.qp_type != IB_QPT_UC &&
@@ -1604,7 +1604,7 @@ static int qib_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_mr = dev->lk_table.max;
 	props->max_fmr = dev->lk_table.max;
 	props->max_map_per_fmr = 32767;
-	props->max_pd = ib_qib_max_pds;
+	props->max_pd = dev->rdi.dparms.props.max_pd;
 	props->max_qp_rd_atom = QIB_MAX_RDMA_ATOMIC;
 	props->max_qp_init_rd_atom = 255;
 	/* props->max_res_rd_atom */
@@ -1754,61 +1754,6 @@ static int qib_query_gid(struct ib_device *ibdev, u8 port,
 	}
 
 	return ret;
-}
-
-static struct ib_pd *qib_alloc_pd(struct ib_device *ibdev,
-				  struct ib_ucontext *context,
-				  struct ib_udata *udata)
-{
-	struct qib_ibdev *dev = to_idev(ibdev);
-	struct qib_pd *pd;
-	struct ib_pd *ret;
-
-	/*
-	 * This is actually totally arbitrary.  Some correctness tests
-	 * assume there's a maximum number of PDs that can be allocated.
-	 * We don't actually have this limit, but we fail the test if
-	 * we allow allocations of more than we report for this value.
-	 */
-
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	spin_lock(&dev->n_pds_lock);
-	if (dev->n_pds_allocated == ib_qib_max_pds) {
-		spin_unlock(&dev->n_pds_lock);
-		kfree(pd);
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	dev->n_pds_allocated++;
-	spin_unlock(&dev->n_pds_lock);
-
-	/* ib_alloc_pd() will initialize pd->ibpd. */
-	pd->user = udata != NULL;
-
-	ret = &pd->ibpd;
-
-bail:
-	return ret;
-}
-
-static int qib_dealloc_pd(struct ib_pd *ibpd)
-{
-	struct qib_pd *pd = to_ipd(ibpd);
-	struct qib_ibdev *dev = to_idev(ibpd->device);
-
-	spin_lock(&dev->n_pds_lock);
-	dev->n_pds_allocated--;
-	spin_unlock(&dev->n_pds_lock);
-
-	kfree(pd);
-
-	return 0;
 }
 
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
@@ -2115,7 +2060,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 	spin_lock_init(&dev->qpt_lock);
-	spin_lock_init(&dev->n_pds_lock);
 	spin_lock_init(&dev->n_ahs_lock);
 	spin_lock_init(&dev->n_cqs_lock);
 	spin_lock_init(&dev->n_qps_lock);
@@ -2239,8 +2183,8 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->query_gid = qib_query_gid;
 	ibdev->alloc_ucontext = qib_alloc_ucontext;
 	ibdev->dealloc_ucontext = qib_dealloc_ucontext;
-	ibdev->alloc_pd = qib_alloc_pd;
-	ibdev->dealloc_pd = qib_dealloc_pd;
+	ibdev->alloc_pd = NULL;
+	ibdev->dealloc_pd = NULL;
 	ibdev->create_ah = qib_create_ah;
 	ibdev->destroy_ah = qib_destroy_ah;
 	ibdev->modify_ah = qib_modify_ah;

@@ -222,12 +222,6 @@ struct qib_mcast {
 	int n_attached;
 };
 
-/* Protection domain */
-struct qib_pd {
-	struct ib_pd ibpd;
-	int user;               /* non-zero if created from user space */
-};
-
 /* Address Handle */
 struct qib_ah {
 	struct ib_ah ibah;
@@ -819,11 +813,6 @@ static inline struct qib_mr *to_imr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct qib_mr, ibmr);
 }
 
-static inline struct qib_pd *to_ipd(struct ib_pd *ibpd)
-{
-	return container_of(ibpd, struct qib_pd, ibpd);
-}
-
 static inline struct qib_ah *to_iah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct qib_ah, ibah);
@@ -994,7 +983,7 @@ int qib_alloc_lkey(struct qib_mregion *mr, int dma_region);
 
 void qib_free_lkey(struct qib_mregion *mr);
 
-int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
+int qib_lkey_ok(struct qib_lkey_table *rkt, struct rvt_pd *pd,
 		struct qib_sge *isge, struct ib_sge *sge, int acc);
 
 int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
