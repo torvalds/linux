@@ -231,6 +231,8 @@ struct rvt_driver_provided {
 				gfp_t gfp);
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 	void (*notify_qp_reset)(struct rvt_qp *qp);
+	void (*schedule_send)(struct rvt_qp *qp);
+	void (*do_send)(struct rvt_qp *qp);
 
 	/*--------------------*/
 	/* Optional functions */
@@ -310,6 +312,11 @@ static inline struct rvt_dev_info *ib_to_rvt(struct ib_device *ibdev)
 static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
 {
 	return container_of(ibsrq, struct rvt_srq, ibsrq);
+}
+
+static inline struct rvt_qp *ibqp_to_rvtqp(struct ib_qp *ibqp)
+{
+	return container_of(ibqp, struct rvt_qp, ibqp);
 }
 
 static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)

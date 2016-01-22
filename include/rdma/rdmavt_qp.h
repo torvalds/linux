@@ -129,6 +129,17 @@
 /* Number of bits to pay attention to in the opcode for checking qp type */
 #define RVT_OPCODE_QP_MASK 0xE0
 
+/* Flags for checking QP state (see ib_rvt_state_ops[]) */
+#define RVT_POST_SEND_OK                0x01
+#define RVT_POST_RECV_OK                0x02
+#define RVT_PROCESS_RECV_OK             0x04
+#define RVT_PROCESS_SEND_OK             0x08
+#define RVT_PROCESS_NEXT_SEND_OK        0x10
+#define RVT_FLUSH_SEND			0x20
+#define RVT_FLUSH_RECV			0x40
+#define RVT_PROCESS_OR_FLUSH_SEND \
+	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
+
 /*
  * Send work request queue entry.
  * The size of the sg_list is determined when the QP is created and stored
@@ -372,5 +383,20 @@ struct rvt_qp_ibdev {
 	spinlock_t qpt_lock; /* qptable lock */
 	struct rvt_qpn_table qpn_table;
 };
+
+/*
+ * Since struct rvt_swqe is not a fixed size, we can't simply index into
+ * struct hfi1_qp.s_wq.  This function does the array index computation.
+ */
+static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
+						unsigned n)
+{
+	return (struct rvt_swqe *)((char *)qp->s_wq +
+				     (sizeof(struct rvt_swqe) +
+				      qp->s_max_sge *
+				      sizeof(struct rvt_sge)) * n);
+}
+
+extern const int  ib_rvt_state_ops[];
 
 #endif          /* DEF_RDMAVT_INCQP_H */
