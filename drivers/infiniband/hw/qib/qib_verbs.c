@@ -1760,7 +1760,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->destroy_srq = qib_destroy_srq;
 	ibdev->create_qp = NULL;
 	ibdev->modify_qp = qib_modify_qp;
-	ibdev->query_qp = qib_query_qp;
+	ibdev->query_qp = NULL;
 	ibdev->destroy_qp = qib_destroy_qp;
 	ibdev->post_send = NULL;
 	ibdev->post_recv = NULL;
@@ -1814,6 +1814,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.dparms.qpn_res_end = QIB_KD_QP; /* Reserve one QP */
 	dd->verbs_dev.rdi.dparms.qpn_inc = 1;
 	dd->verbs_dev.rdi.dparms.qos_shift = 1;
+	dd->verbs_dev.rdi.dparms.psn_mask = QIB_PSN_MASK;
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = qib_get_npkeys(dd);
 	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;

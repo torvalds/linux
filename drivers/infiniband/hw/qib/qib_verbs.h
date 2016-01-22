@@ -369,9 +369,6 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 
 int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata);
-
-int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		 int attr_mask, struct ib_qp_init_attr *init_attr);
 /*
  * Functions provided by qib driver for rdmavt to use
  */

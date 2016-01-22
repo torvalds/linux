@@ -804,56 +804,6 @@ bail:
 	return ret;
 }
 
-int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		 int attr_mask, struct ib_qp_init_attr *init_attr)
-{
-	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
-
-	attr->qp_state = qp->state;
-	attr->cur_qp_state = attr->qp_state;
-	attr->path_mtu = qp->path_mtu;
-	attr->path_mig_state = qp->s_mig_state;
-	attr->qkey = qp->qkey;
-	attr->rq_psn = qp->r_psn & QIB_PSN_MASK;
-	attr->sq_psn = qp->s_next_psn & QIB_PSN_MASK;
-	attr->dest_qp_num = qp->remote_qpn;
-	attr->qp_access_flags = qp->qp_access_flags;
-	attr->cap.max_send_wr = qp->s_size - 1;
-	attr->cap.max_recv_wr = qp->ibqp.srq ? 0 : qp->r_rq.size - 1;
-	attr->cap.max_send_sge = qp->s_max_sge;
-	attr->cap.max_recv_sge = qp->r_rq.max_sge;
-	attr->cap.max_inline_data = 0;
-	attr->ah_attr = qp->remote_ah_attr;
-	attr->alt_ah_attr = qp->alt_ah_attr;
-	attr->pkey_index = qp->s_pkey_index;
-	attr->alt_pkey_index = qp->s_alt_pkey_index;
-	attr->en_sqd_async_notify = 0;
-	attr->sq_draining = qp->s_draining;
-	attr->max_rd_atomic = qp->s_max_rd_atomic;
-	attr->max_dest_rd_atomic = qp->r_max_rd_atomic;
-	attr->min_rnr_timer = qp->r_min_rnr_timer;
-	attr->port_num = qp->port_num;
-	attr->timeout = qp->timeout;
-	attr->retry_cnt = qp->s_retry_cnt;
-	attr->rnr_retry = qp->s_rnr_retry_cnt;
-	attr->alt_port_num = qp->alt_ah_attr.port_num;
-	attr->alt_timeout = qp->alt_timeout;
-
-	init_attr->event_handler = qp->ibqp.event_handler;
-	init_attr->qp_context = qp->ibqp.qp_context;
-	init_attr->send_cq = qp->ibqp.send_cq;
-	init_attr->recv_cq = qp->ibqp.recv_cq;
-	init_attr->srq = qp->ibqp.srq;
-	init_attr->cap = attr->cap;
-	if (qp->s_flags & RVT_S_SIGNAL_REQ_WR)
-		init_attr->sq_sig_type = IB_SIGNAL_REQ_WR;
-	else
-		init_attr->sq_sig_type = IB_SIGNAL_ALL_WR;
-	init_attr->qp_type = qp->ibqp.qp_type;
-	init_attr->port_num = qp->port_num;
-	return 0;
-}
-
 /**
  * qib_compute_aeth - compute the AETH (syndrome + MSN)
  * @qp: the queue pair to compute the AETH for
