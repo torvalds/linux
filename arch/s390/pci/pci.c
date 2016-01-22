@@ -541,7 +541,7 @@ static void zpci_irq_exit(void)
 
 static int zpci_alloc_iomap(struct zpci_dev *zdev)
 {
-	int entry;
+	unsigned long entry;
 
 	spin_lock(&zpci_iomap_lock);
 	entry = find_first_zero_bit(zpci_iomap, ZPCI_IOMAP_MAX_ENTRIES);
