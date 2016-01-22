@@ -103,24 +103,6 @@ enum orangefs_vfs_op_states {
 	OP_VFS_STATE_PURGED = 8,
 };
 
-#define set_op_state_waiting(op)     ((op)->op_state = OP_VFS_STATE_WAITING)
-#define set_op_state_inprogress(op)  ((op)->op_state = OP_VFS_STATE_INPROGR)
-static inline void set_op_state_serviced(struct orangefs_kernel_op_s *op)
-{
-	op->op_state = OP_VFS_STATE_SERVICED;
-	wake_up_interruptible(&op->waitq);
-}
-static inline void set_op_state_purged(struct orangefs_kernel_op_s *op)
-{
-	op->op_state |= OP_VFS_STATE_PURGED;
-	wake_up_interruptible(&op->waitq);
-}
-
-#define op_state_waiting(op)     ((op)->op_state & OP_VFS_STATE_WAITING)
-#define op_state_in_progress(op) ((op)->op_state & OP_VFS_STATE_INPROGR)
-#define op_state_serviced(op)    ((op)->op_state & OP_VFS_STATE_SERVICED)
-#define op_state_purged(op)      ((op)->op_state & OP_VFS_STATE_PURGED)
-
 #define get_op(op)					\
 	do {						\
 		atomic_inc(&(op)->ref_count);	\
@@ -258,6 +240,24 @@ struct orangefs_kernel_op_s {
 
 	struct list_head list;
 };
+
+#define set_op_state_waiting(op)     ((op)->op_state = OP_VFS_STATE_WAITING)
+#define set_op_state_inprogress(op)  ((op)->op_state = OP_VFS_STATE_INPROGR)
+static inline void set_op_state_serviced(struct orangefs_kernel_op_s *op)
+{
+	op->op_state = OP_VFS_STATE_SERVICED;
+	wake_up_interruptible(&op->waitq);
+}
+static inline void set_op_state_purged(struct orangefs_kernel_op_s *op)
+{
+	op->op_state |= OP_VFS_STATE_PURGED;
+	wake_up_interruptible(&op->waitq);
+}
+
+#define op_state_waiting(op)     ((op)->op_state & OP_VFS_STATE_WAITING)
+#define op_state_in_progress(op) ((op)->op_state & OP_VFS_STATE_INPROGR)
+#define op_state_serviced(op)    ((op)->op_state & OP_VFS_STATE_SERVICED)
+#define op_state_purged(op)      ((op)->op_state & OP_VFS_STATE_PURGED)
 
 /* per inode private orangefs info */
 struct orangefs_inode_s {
