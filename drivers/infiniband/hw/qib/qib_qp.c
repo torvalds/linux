@@ -494,12 +494,12 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	if (qp->s_flags & QIB_S_ANY_WAIT_SEND)
 		qp->s_flags &= ~QIB_S_ANY_WAIT_SEND;
 
-	spin_lock(&dev->pending_lock);
+	spin_lock(&dev->rdi.pending_lock);
 	if (!list_empty(&priv->iowait) && !(qp->s_flags & QIB_S_BUSY)) {
 		qp->s_flags &= ~QIB_S_ANY_WAIT_IO;
 		list_del_init(&priv->iowait);
 	}
-	spin_unlock(&dev->pending_lock);
+	spin_unlock(&dev->rdi.pending_lock);
 
 	if (!(qp->s_flags & QIB_S_BUSY)) {
 		qp->s_hdrwords = 0;
@@ -702,10 +702,10 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	case IB_QPS_RESET:
 		if (qp->state != IB_QPS_RESET) {
 			qp->state = IB_QPS_RESET;
-			spin_lock(&dev->pending_lock);
+			spin_lock(&dev->rdi.pending_lock);
 			if (!list_empty(&priv->iowait))
 				list_del_init(&priv->iowait);
-			spin_unlock(&dev->pending_lock);
+			spin_unlock(&dev->rdi.pending_lock);
 			qp->s_flags &= ~(QIB_S_TIMER | QIB_S_ANY_WAIT);
 			spin_unlock(&qp->s_lock);
 			spin_unlock_irq(&qp->r_lock);
@@ -1158,7 +1158,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		} else {
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
-			qp->ip = qib_create_mmap_info(dev, s,
+			qp->ip = rvt_create_mmap_info(&dev->rdi, s,
 						      ibpd->uobject->context,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
@@ -1186,9 +1186,9 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	spin_unlock(&dev->n_qps_lock);
 
 	if (qp->ip) {
-		spin_lock_irq(&dev->pending_lock);
-		list_add(&qp->ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+		spin_lock_irq(&dev->rdi.pending_lock);
+		list_add(&qp->ip->pending_mmaps, &dev->rdi.pending_mmaps);
+		spin_unlock_irq(&dev->rdi.pending_lock);
 	}
 
 	ret = &qp->ibqp;
@@ -1196,7 +1196,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 
 bail_ip:
 	if (qp->ip)
-		kref_put(&qp->ip->ref, qib_release_mmap_info);
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
 	free_qpn(&dev->qpn_table, qp->ibqp.qp_num);
@@ -1230,10 +1230,10 @@ int qib_destroy_qp(struct ib_qp *ibqp)
 	spin_lock_irq(&qp->s_lock);
 	if (qp->state != IB_QPS_RESET) {
 		qp->state = IB_QPS_RESET;
-		spin_lock(&dev->pending_lock);
+		spin_lock(&dev->rdi.pending_lock);
 		if (!list_empty(&priv->iowait))
 			list_del_init(&priv->iowait);
-		spin_unlock(&dev->pending_lock);
+		spin_unlock(&dev->rdi.pending_lock);
 		qp->s_flags &= ~(QIB_S_TIMER | QIB_S_ANY_WAIT);
 		spin_unlock_irq(&qp->s_lock);
 		cancel_work_sync(&priv->s_work);
@@ -1256,7 +1256,7 @@ int qib_destroy_qp(struct ib_qp *ibqp)
 	spin_unlock(&dev->n_qps_lock);
 
 	if (qp->ip)
-		kref_put(&qp->ip->ref, qib_release_mmap_info);
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
 	vfree(qp->s_wq);

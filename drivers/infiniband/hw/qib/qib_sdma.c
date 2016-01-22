@@ -697,7 +697,7 @@ busy:
 		tx->dwords = dwords;
 		priv->s_tx = tx;
 		dev = &ppd->dd->verbs_dev;
-		spin_lock(&dev->pending_lock);
+		spin_lock(&dev->rdi.pending_lock);
 		if (list_empty(&priv->iowait)) {
 			struct qib_ibport *ibp;
 
@@ -706,7 +706,7 @@ busy:
 			qp->s_flags |= QIB_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->iowait, &dev->dmawait);
 		}
-		spin_unlock(&dev->pending_lock);
+		spin_unlock(&dev->rdi.pending_lock);
 		qp->s_flags &= ~QIB_S_BUSY;
 		spin_unlock(&qp->s_lock);
 		ret = -EBUSY;

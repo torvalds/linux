@@ -264,7 +264,7 @@ struct ib_cq *qib_create_cq(struct ib_device *ibdev,
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
 
-		cq->ip = qib_create_mmap_info(dev, sz, context, wc);
+		cq->ip = rvt_create_mmap_info(&dev->rdi, sz, context, wc);
 		if (!cq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wc;
@@ -290,9 +290,9 @@ struct ib_cq *qib_create_cq(struct ib_device *ibdev,
 	spin_unlock(&dev->n_cqs_lock);
 
 	if (cq->ip) {
-		spin_lock_irq(&dev->pending_lock);
-		list_add(&cq->ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+		spin_lock_irq(&dev->rdi.pending_lock);
+		list_add(&cq->ip->pending_mmaps, &dev->rdi.pending_mmaps);
+		spin_unlock_irq(&dev->rdi.pending_lock);
 	}
 
 	/*
@@ -342,7 +342,7 @@ int qib_destroy_cq(struct ib_cq *ibcq)
 	dev->n_cqs_allocated--;
 	spin_unlock(&dev->n_cqs_lock);
 	if (cq->ip)
-		kref_put(&cq->ip->ref, qib_release_mmap_info);
+		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(cq->queue);
 	kfree(cq);
@@ -468,7 +468,7 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 		struct qib_ibdev *dev = to_idev(ibcq->device);
 		struct rvt_mmap_info *ip = cq->ip;
 
-		qib_update_mmap_info(dev, ip, sz, wc);
+		rvt_update_mmap_info(&dev->rdi, ip, sz, wc);
 
 		/*
 		 * Return the offset to mmap.
@@ -481,10 +481,10 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 				goto bail;
 		}
 
-		spin_lock_irq(&dev->pending_lock);
+		spin_lock_irq(&dev->rdi.pending_lock);
 		if (list_empty(&ip->pending_mmaps))
-			list_add(&ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+			list_add(&ip->pending_mmaps, &dev->rdi.pending_mmaps);
+		spin_unlock_irq(&dev->rdi.pending_lock);
 	}
 
 	ret = 0;

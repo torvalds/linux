@@ -428,9 +428,6 @@ struct qib_ibport {
 
 struct qib_ibdev {
 	struct rvt_dev_info rdi;
-	struct list_head pending_mmaps;
-	spinlock_t mmap_offset_lock; /* protect mmap_offset */
-	u32 mmap_offset;
 
 	/* QP numbers are shared by all IB ports */
 	struct qib_qpn_table qpn_table;
@@ -444,7 +441,6 @@ struct qib_ibdev {
 	struct qib_pio_header *pio_hdrs;
 	dma_addr_t pio_hdrs_phys;
 	/* list of QPs waiting for RNR timer */
-	spinlock_t pending_lock; /* protect wait lists, PMA counters, etc. */
 	u32 qp_table_size; /* size of the hash table */
 	u32 qp_rnd; /* random bytes for hash */
 	spinlock_t qpt_lock;
@@ -682,17 +678,6 @@ static inline void qib_put_ss(struct rvt_sge_state *ss)
 			ss->sge = *ss->sg_list++;
 	}
 }
-
-void qib_release_mmap_info(struct kref *ref);
-
-struct rvt_mmap_info *qib_create_mmap_info(struct qib_ibdev *dev, u32 size,
-					   struct ib_ucontext *context,
-					   void *obj);
-
-void qib_update_mmap_info(struct qib_ibdev *dev, struct rvt_mmap_info *ip,
-			  u32 size, void *obj);
-
-int qib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
