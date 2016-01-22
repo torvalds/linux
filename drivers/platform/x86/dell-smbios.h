@@ -1,0 +1,50 @@
+/*
+ *  Common functions for kernel modules using Dell SMBIOS
+ *
+ *  Copyright (c) Red Hat <mjg@redhat.com>
+ *  Copyright (c) 2014 Gabriele Mazzotta <gabriele.mzt@gmail.com>
+ *  Copyright (c) 2014 Pali Rohár <pali.rohar@gmail.com>
+ *
+ *  Based on documentation in the libsmbios package:
+ *  Copyright (C) 2005-2014 Dell Inc.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
+ */
+
+#ifndef _DELL_SMBIOS_H_
+#define _DELL_SMBIOS_H_
+
+/* This structure will be modified by the firmware when we enter
+ * system management mode, hence the volatiles */
+
+struct calling_interface_buffer {
+	u16 class;
+	u16 select;
+	volatile u32 input[4];
+	volatile u32 output[4];
+} __packed;
+
+struct calling_interface_token {
+	u16 tokenID;
+	u16 location;
+	union {
+		u16 value;
+		u16 stringlength;
+	};
+};
+
+extern struct calling_interface_buffer *buffer;
+extern struct calling_interface_token *da_tokens;
+
+void get_buffer(void);
+void clear_buffer(void);
+void release_buffer(void);
+struct calling_interface_buffer *
+dell_send_request(struct calling_interface_buffer *buffer,
+		  int class, int select);
+
+int find_token_id(int tokenid);
+int find_token_location(int tokenid);
+#endif
