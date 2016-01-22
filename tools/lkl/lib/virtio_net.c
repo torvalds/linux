@@ -3,6 +3,8 @@
 #include "virtio.h"
 #include "endian.h"
 
+#define BIT(x) (1ULL << x)
+
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
 	void *sem;
@@ -95,7 +97,7 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	dev->dev.vendor_id = 0;
 	dev->dev.device_features = 0;
 	if (mac)
-		dev->dev.device_features |= LKL_VIRTIO_NET_F_MAC;
+		dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
 	dev->dev.config_gen = 0;
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
