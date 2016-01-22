@@ -486,6 +486,7 @@ static int qib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			 struct ib_send_wr **bad_wr)
 {
 	struct qib_qp *qp = to_iqp(ibqp);
+	struct qib_qp_priv *priv = qp->priv;
 	int err = 0;
 	int scheduled = 0;
 
@@ -499,7 +500,7 @@ static int qib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	/* Try to do the send work in the caller's context. */
 	if (!scheduled)
-		qib_do_send(&qp->s_work);
+		qib_do_send(&priv->s_work);
 
 bail:
 	return err;
@@ -730,12 +731,14 @@ static void mem_timer(unsigned long data)
 	struct qib_ibdev *dev = (struct qib_ibdev *) data;
 	struct list_head *list = &dev->memwait;
 	struct qib_qp *qp = NULL;
+	struct qib_qp_priv *priv = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->pending_lock, flags);
 	if (!list_empty(list)) {
-		qp = list_entry(list->next, struct qib_qp, iowait);
-		list_del_init(&qp->iowait);
+		priv = list_entry(list->next, struct qib_qp_priv, iowait);
+		qp = priv->owner;
+		list_del_init(&priv->iowait);
 		atomic_inc(&qp->refcount);
 		if (!list_empty(list))
 			mod_timer(&dev->mem_timer, jiffies + 1);
@@ -950,6 +953,7 @@ static void copy_io(u32 __iomem *piobuf, struct qib_sge_state *ss,
 static noinline struct qib_verbs_txreq *__get_txreq(struct qib_ibdev *dev,
 					   struct qib_qp *qp)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_verbs_txreq *tx;
 	unsigned long flags;
 
@@ -965,10 +969,10 @@ static noinline struct qib_verbs_txreq *__get_txreq(struct qib_ibdev *dev,
 		tx = list_entry(l, struct qib_verbs_txreq, txreq.list);
 	} else {
 		if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK &&
-		    list_empty(&qp->iowait)) {
+		    list_empty(&priv->iowait)) {
 			dev->n_txwait++;
 			qp->s_flags |= QIB_S_WAIT_TX;
-			list_add_tail(&qp->iowait, &dev->txwait);
+			list_add_tail(&priv->iowait, &dev->txwait);
 		}
 		qp->s_flags &= ~QIB_S_BUSY;
 		spin_unlock(&dev->pending_lock);
@@ -1004,6 +1008,7 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 {
 	struct qib_ibdev *dev;
 	struct qib_qp *qp;
+	struct qib_qp_priv *priv;
 	unsigned long flags;
 
 	qp = tx->qp;
@@ -1030,8 +1035,10 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 
 	if (!list_empty(&dev->txwait)) {
 		/* Wake up first QP wanting a free struct */
-		qp = list_entry(dev->txwait.next, struct qib_qp, iowait);
-		list_del_init(&qp->iowait);
+		priv = list_entry(dev->txwait.next, struct qib_qp_priv,
+				  iowait);
+		qp = priv->owner;
+		list_del_init(&priv->iowait);
 		atomic_inc(&qp->refcount);
 		spin_unlock_irqrestore(&dev->pending_lock, flags);
 
@@ -1057,6 +1064,7 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 {
 	struct qib_qp *qp, *nqp;
+	struct qib_qp_priv *qpp, *nqpp;
 	struct qib_qp *qps[20];
 	struct qib_ibdev *dev;
 	unsigned i, n;
@@ -1066,15 +1074,17 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 	spin_lock(&dev->pending_lock);
 
 	/* Search wait list for first QP wanting DMA descriptors. */
-	list_for_each_entry_safe(qp, nqp, &dev->dmawait, iowait) {
+	list_for_each_entry_safe(qpp, nqpp, &dev->dmawait, iowait) {
+		qp = qpp->owner;
+		nqp = nqpp->owner;
 		if (qp->port_num != ppd->port)
 			continue;
 		if (n == ARRAY_SIZE(qps))
 			break;
-		if (qp->s_tx->txreq.sg_count > avail)
+		if (qpp->s_tx->txreq.sg_count > avail)
 			break;
-		avail -= qp->s_tx->txreq.sg_count;
-		list_del_init(&qp->iowait);
+		avail -= qpp->s_tx->txreq.sg_count;
+		list_del_init(&qpp->iowait);
 		atomic_inc(&qp->refcount);
 		qps[n++] = qp;
 	}
@@ -1102,6 +1112,7 @@ static void sdma_complete(struct qib_sdma_txreq *cookie, int status)
 	struct qib_verbs_txreq *tx =
 		container_of(cookie, struct qib_verbs_txreq, txreq);
 	struct qib_qp *qp = tx->qp;
+	struct qib_qp_priv *priv = qp->priv;
 
 	spin_lock(&qp->s_lock);
 	if (tx->wqe)
@@ -1118,9 +1129,9 @@ static void sdma_complete(struct qib_sdma_txreq *cookie, int status)
 		}
 		qib_rc_send_complete(qp, hdr);
 	}
-	if (atomic_dec_and_test(&qp->s_dma_busy)) {
+	if (atomic_dec_and_test(&priv->s_dma_busy)) {
 		if (qp->state == IB_QPS_RESET)
-			wake_up(&qp->wait_dma);
+			wake_up(&priv->wait_dma);
 		else if (qp->s_flags & QIB_S_WAIT_DMA) {
 			qp->s_flags &= ~QIB_S_WAIT_DMA;
 			qib_schedule_send(qp);
@@ -1133,17 +1144,18 @@ static void sdma_complete(struct qib_sdma_txreq *cookie, int status)
 
 static int wait_kmem(struct qib_ibdev *dev, struct qib_qp *qp)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) {
 		spin_lock(&dev->pending_lock);
-		if (list_empty(&qp->iowait)) {
+		if (list_empty(&priv->iowait)) {
 			if (list_empty(&dev->memwait))
 				mod_timer(&dev->mem_timer, jiffies + 1);
 			qp->s_flags |= QIB_S_WAIT_KMEM;
-			list_add_tail(&qp->iowait, &dev->memwait);
+			list_add_tail(&priv->iowait, &dev->memwait);
 		}
 		spin_unlock(&dev->pending_lock);
 		qp->s_flags &= ~QIB_S_BUSY;
@@ -1158,6 +1170,7 @@ static int qib_verbs_send_dma(struct qib_qp *qp, struct qib_ib_header *hdr,
 			      u32 hdrwords, struct qib_sge_state *ss, u32 len,
 			      u32 plen, u32 dwords)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
 	struct qib_devdata *dd = dd_from_dev(dev);
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
@@ -1168,9 +1181,9 @@ static int qib_verbs_send_dma(struct qib_qp *qp, struct qib_ib_header *hdr,
 	u32 ndesc;
 	int ret;
 
-	tx = qp->s_tx;
+	tx = priv->s_tx;
 	if (tx) {
-		qp->s_tx = NULL;
+		priv->s_tx = NULL;
 		/* resend previously constructed packet */
 		ret = qib_sdma_verbs_send(ppd, tx->ss, tx->dwords, tx);
 		goto bail;
@@ -1260,6 +1273,7 @@ bail_tx:
  */
 static int no_bufs_available(struct qib_qp *qp)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
 	struct qib_devdata *dd;
 	unsigned long flags;
@@ -1274,10 +1288,10 @@ static int no_bufs_available(struct qib_qp *qp)
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) {
 		spin_lock(&dev->pending_lock);
-		if (list_empty(&qp->iowait)) {
+		if (list_empty(&priv->iowait)) {
 			dev->n_piowait++;
 			qp->s_flags |= QIB_S_WAIT_PIO;
-			list_add_tail(&qp->iowait, &dev->piowait);
+			list_add_tail(&priv->iowait, &dev->piowait);
 			dd = dd_from_dev(dev);
 			dd->f_wantpiobuf_intr(dd, 1);
 		}
@@ -1534,6 +1548,7 @@ void qib_ib_piobufavail(struct qib_devdata *dd)
 	struct qib_qp *qp;
 	unsigned long flags;
 	unsigned i, n;
+	struct qib_qp_priv *priv;
 
 	list = &dev->piowait;
 	n = 0;
@@ -1548,8 +1563,9 @@ void qib_ib_piobufavail(struct qib_devdata *dd)
 	while (!list_empty(list)) {
 		if (n == ARRAY_SIZE(qps))
 			goto full;
-		qp = list_entry(list->next, struct qib_qp, iowait);
-		list_del_init(&qp->iowait);
+		priv = list_entry(list->next, struct qib_qp_priv, iowait);
+		qp = priv->owner;
+		list_del_init(&priv->iowait);
 		atomic_inc(&qp->refcount);
 		qps[n++] = qp;
 	}
@@ -2330,11 +2346,12 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
  */
 void qib_schedule_send(struct qib_qp *qp)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	if (qib_send_ok(qp)) {
 		struct qib_ibport *ibp =
 			to_iport(qp->ibqp.device, qp->port_num);
 		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
-		queue_work(ppd->qib_wq, &qp->s_work);
+		queue_work(ppd->qib_wq, &priv->s_work);
 	}
 }

@@ -45,6 +45,7 @@
  */
 int qib_make_uc_req(struct qib_qp *qp)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_other_headers *ohdr;
 	struct qib_swqe *wqe;
 	unsigned long flags;
@@ -63,7 +64,7 @@ int qib_make_uc_req(struct qib_qp *qp)
 		if (qp->s_last == qp->s_head)
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
-		if (atomic_read(&qp->s_dma_busy)) {
+		if (atomic_read(&priv->s_dma_busy)) {
 			qp->s_flags |= QIB_S_WAIT_DMA;
 			goto bail;
 		}
@@ -72,9 +73,9 @@ int qib_make_uc_req(struct qib_qp *qp)
 		goto done;
 	}
 
-	ohdr = &qp->s_hdr->u.oth;
+	ohdr = &priv->s_hdr->u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr->u.l.oth;
+		ohdr = &priv->s_hdr->u.l.oth;
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;

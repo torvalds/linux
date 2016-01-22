@@ -513,7 +513,9 @@ int qib_sdma_running(struct qib_pportdata *ppd)
 static void complete_sdma_err_req(struct qib_pportdata *ppd,
 				  struct qib_verbs_txreq *tx)
 {
-	atomic_inc(&tx->qp->s_dma_busy);
+	struct qib_qp_priv *priv = tx->qp->priv;
+
+	atomic_inc(&priv->s_dma_busy);
 	/* no sdma descriptors, so no unmap_desc */
 	tx->txreq.start_idx = 0;
 	tx->txreq.next_descq_idx = 0;
@@ -543,6 +545,7 @@ int qib_sdma_verbs_send(struct qib_pportdata *ppd,
 	u64 sdmadesc[2];
 	u32 dwoffset;
 	dma_addr_t addr;
+	struct qib_qp_priv *priv;
 
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
 
@@ -644,8 +647,8 @@ retry:
 		descqp[0] |= cpu_to_le64(SDMA_DESC_DMA_HEAD);
 	if (tx->txreq.flags & QIB_SDMA_TXREQ_F_INTREQ)
 		descqp[0] |= cpu_to_le64(SDMA_DESC_INTR);
-
-	atomic_inc(&tx->qp->s_dma_busy);
+	priv = tx->qp->priv;
+	atomic_inc(&priv->s_dma_busy);
 	tx->txreq.next_descq_idx = tail;
 	ppd->dd->f_sdma_update_tail(ppd, tail);
 	ppd->sdma_descq_added += tx->txreq.sg_count;
@@ -663,6 +666,7 @@ unmap:
 		unmap_desc(ppd, tail);
 	}
 	qp = tx->qp;
+	priv = qp->priv;
 	qib_put_txreq(tx);
 	spin_lock(&qp->r_lock);
 	spin_lock(&qp->s_lock);
@@ -679,6 +683,7 @@ unmap:
 
 busy:
 	qp = tx->qp;
+	priv = qp->priv;
 	spin_lock(&qp->s_lock);
 	if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) {
 		struct qib_ibdev *dev;
@@ -690,16 +695,16 @@ busy:
 		 */
 		tx->ss = ss;
 		tx->dwords = dwords;
-		qp->s_tx = tx;
+		priv->s_tx = tx;
 		dev = &ppd->dd->verbs_dev;
 		spin_lock(&dev->pending_lock);
-		if (list_empty(&qp->iowait)) {
+		if (list_empty(&priv->iowait)) {
 			struct qib_ibport *ibp;
 
 			ibp = &ppd->ibport_data;
 			ibp->n_dmawait++;
 			qp->s_flags |= QIB_S_WAIT_DMA_DESC;
-			list_add_tail(&qp->iowait, &dev->dmawait);
+			list_add_tail(&priv->iowait, &dev->dmawait);
 		}
 		spin_unlock(&dev->pending_lock);
 		qp->s_flags &= ~QIB_S_BUSY;

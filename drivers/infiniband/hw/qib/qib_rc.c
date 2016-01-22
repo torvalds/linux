@@ -230,6 +230,7 @@ bail:
  */
 int qib_make_rc_req(struct qib_qp *qp)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
 	struct qib_other_headers *ohdr;
 	struct qib_sge_state *ss;
@@ -244,9 +245,9 @@ int qib_make_rc_req(struct qib_qp *qp)
 	int ret = 0;
 	int delta;
 
-	ohdr = &qp->s_hdr->u.oth;
+	ohdr = &priv->s_hdr->u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr->u.l.oth;
+		ohdr = &priv->s_hdr->u.l.oth;
 
 	/*
 	 * The lock is needed to synchronize between the sending tasklet,
@@ -266,7 +267,7 @@ int qib_make_rc_req(struct qib_qp *qp)
 		if (qp->s_last == qp->s_head)
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
-		if (atomic_read(&qp->s_dma_busy)) {
+		if (atomic_read(&priv->s_dma_busy)) {
 			qp->s_flags |= QIB_S_WAIT_DMA;
 			goto bail;
 		}

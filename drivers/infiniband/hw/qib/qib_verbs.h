@@ -413,6 +413,21 @@ struct qib_ack_entry {
 };
 
 /*
+ * qib specific data structure that will be hidden from rvt after the queue pair
+ * is made common.
+ */
+struct qib_qp;
+struct qib_qp_priv {
+	struct qib_ib_header *s_hdr;    /* next packet header to send */
+	struct list_head iowait;        /* link for wait PIO buf */
+	atomic_t s_dma_busy;
+	struct qib_verbs_txreq *s_tx;
+	struct work_struct s_work;
+	wait_queue_head_t wait_dma;
+	struct qib_qp *owner;
+};
+
+/*
  * Variables prefixed with s_ are for the requester (sender).
  * Variables prefixed with r_ are for the responder (receiver).
  * Variables prefixed with ack_ are for responder replies.
@@ -422,13 +437,13 @@ struct qib_ack_entry {
  */
 struct qib_qp {
 	struct ib_qp ibqp;
+	struct qib_qp_priv *priv;
 	/* read mostly fields above and below */
 	struct ib_ah_attr remote_ah_attr;
 	struct ib_ah_attr alt_ah_attr;
 	struct qib_qp __rcu *next;            /* link list for QPN hash table */
 	struct qib_swqe *s_wq;  /* send work queue */
 	struct qib_mmap_info *ip;
-	struct qib_ib_header *s_hdr;     /* next packet header to send */
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
 	enum ib_mtu path_mtu;
@@ -486,11 +501,11 @@ struct qib_qp {
 	spinlock_t s_lock ____cacheline_aligned_in_smp;
 	struct qib_sge_state *s_cur_sge;
 	u32 s_flags;
-	struct qib_verbs_txreq *s_tx;
+
 	struct qib_swqe *s_wqe;
 	struct qib_sge_state s_sge;     /* current send request data */
 	struct qib_mregion *s_rdma_mr;
-	atomic_t s_dma_busy;
+
 	u32 s_cur_size;         /* size of send packet in bytes */
 	u32 s_len;              /* total length of s_sge */
 	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
@@ -521,11 +536,6 @@ struct qib_qp {
 
 	struct qib_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
-	struct list_head iowait;        /* link for wait PIO buf */
-
-	struct work_struct s_work;
-
-	wait_queue_head_t wait_dma;
 
 	struct qib_sge r_sg_list[0] /* verified SGEs */
 		____cacheline_aligned_in_smp;

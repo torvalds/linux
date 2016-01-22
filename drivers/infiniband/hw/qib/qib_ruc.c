@@ -675,6 +675,7 @@ u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
 			 u32 bth0, u32 bth2)
 {
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	u16 lrh0;
 	u32 nwords;
@@ -685,17 +686,18 @@ void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
 	nwords = (qp->s_cur_size + extra_bytes) >> 2;
 	lrh0 = QIB_LRH_BTH;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		qp->s_hdrwords += qib_make_grh(ibp, &qp->s_hdr->u.l.grh,
+		qp->s_hdrwords += qib_make_grh(ibp, &priv->s_hdr->u.l.grh,
 					       &qp->remote_ah_attr.grh,
 					       qp->s_hdrwords, nwords);
 		lrh0 = QIB_LRH_GRH;
 	}
 	lrh0 |= ibp->sl_to_vl[qp->remote_ah_attr.sl] << 12 |
 		qp->remote_ah_attr.sl << 4;
-	qp->s_hdr->lrh[0] = cpu_to_be16(lrh0);
-	qp->s_hdr->lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
-	qp->s_hdr->lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	qp->s_hdr->lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
+	priv->s_hdr->lrh[0] = cpu_to_be16(lrh0);
+	priv->s_hdr->lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	priv->s_hdr->lrh[2] =
+			cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
+	priv->s_hdr->lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
 				       qp->remote_ah_attr.src_path_bits);
 	bth0 |= qib_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
@@ -717,7 +719,9 @@ void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
  */
 void qib_do_send(struct work_struct *work)
 {
-	struct qib_qp *qp = container_of(work, struct qib_qp, s_work);
+	struct qib_qp_priv *priv = container_of(work, struct qib_qp_priv,
+						s_work);
+	struct qib_qp *qp = priv->owner;
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	int (*make_req)(struct qib_qp *qp);
@@ -756,7 +760,7 @@ void qib_do_send(struct work_struct *work)
 			 * If the packet cannot be sent now, return and
 			 * the send tasklet will be woken up later.
 			 */
-			if (qib_verbs_send(qp, qp->s_hdr, qp->s_hdrwords,
+			if (qib_verbs_send(qp, priv->s_hdr, qp->s_hdrwords,
 					   qp->s_cur_sge, qp->s_cur_size))
 				break;
 			/* Record that s_hdr is empty. */
