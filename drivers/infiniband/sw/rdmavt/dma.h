@@ -2,7 +2,7 @@
 #define DEF_RDMAVTDMA_H
 
 /*
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
