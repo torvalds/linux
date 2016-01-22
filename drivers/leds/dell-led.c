@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/dell-led.h>
+#include "../platform/x86/dell-smbios.h"
 
 MODULE_AUTHOR("Louis Davis/Jim Dailey");
 MODULE_DESCRIPTION("Dell LED Control Driver");
@@ -59,22 +60,6 @@ struct app_wmi_args {
 #define GLOBAL_MIC_MUTE_ENABLE	0x364
 #define GLOBAL_MIC_MUTE_DISABLE	0x365
 
-struct dell_bios_data_token {
-	u16 tokenid;
-	u16 location;
-	u16 value;
-};
-
-struct __attribute__ ((__packed__)) dell_bios_calling_interface {
-	struct	dmi_header header;
-	u16	cmd_io_addr;
-	u8	cmd_io_code;
-	u32	supported_cmds;
-	struct	dell_bios_data_token damap[];
-};
-
-static struct dell_bios_data_token dell_mic_tokens[2];
-
 static int dell_wmi_perform_query(struct app_wmi_args *args)
 {
 	struct app_wmi_args *bios_return;
@@ -112,42 +97,23 @@ static int dell_wmi_perform_query(struct app_wmi_args *args)
 	return rc;
 }
 
-static void __init find_micmute_tokens(const struct dmi_header *dm, void *dummy)
-{
-	struct dell_bios_calling_interface *calling_interface;
-	struct dell_bios_data_token *token;
-	int token_size = sizeof(struct dell_bios_data_token);
-	int i = 0;
-
-	if (dm->type == 0xda && dm->length > 17) {
-		calling_interface = container_of(dm,
-				struct dell_bios_calling_interface, header);
-
-		token = &calling_interface->damap[i];
-		while (token->tokenid != 0xffff) {
-			if (token->tokenid == GLOBAL_MIC_MUTE_DISABLE)
-				memcpy(&dell_mic_tokens[0], token, token_size);
-			else if (token->tokenid == GLOBAL_MIC_MUTE_ENABLE)
-				memcpy(&dell_mic_tokens[1], token, token_size);
-
-			i++;
-			token = &calling_interface->damap[i];
-		}
-	}
-}
-
 static int dell_micmute_led_set(int state)
 {
+	struct calling_interface_token *token;
 	struct app_wmi_args args;
-	struct dell_bios_data_token *token;
 
 	if (!wmi_has_guid(DELL_APP_GUID))
 		return -ENODEV;
 
-	if (state == 0 || state == 1)
-		token = &dell_mic_tokens[state];
+	if (state == 0)
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
+	else if (state == 1)
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 	else
 		return -EINVAL;
+
+	if (!token)
+		return -ENODEV;
 
 	memset(&args, 0, sizeof(struct app_wmi_args));
 
@@ -176,14 +142,6 @@ int dell_app_wmi_led_set(int whichled, int on)
 	return state;
 }
 EXPORT_SYMBOL_GPL(dell_app_wmi_led_set);
-
-static int __init dell_micmute_led_init(void)
-{
-	memset(dell_mic_tokens, 0, sizeof(struct dell_bios_data_token) * 2);
-	dmi_walk(find_micmute_tokens, NULL);
-
-	return 0;
-}
 
 struct bios_args {
 	unsigned char length;
@@ -329,9 +287,6 @@ static int __init dell_led_init(void)
 
 	if (!wmi_has_guid(DELL_LED_BIOS_GUID) && !wmi_has_guid(DELL_APP_GUID))
 		return -ENODEV;
-
-	if (wmi_has_guid(DELL_APP_GUID))
-		error = dell_micmute_led_init();
 
 	if (wmi_has_guid(DELL_LED_BIOS_GUID)) {
 		error = led_off();
