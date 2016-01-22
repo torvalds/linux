@@ -87,6 +87,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_PCM1681 if I2C
+	select SND_SOC_PCM179X_I2C if I2C
 	select SND_SOC_PCM179X_SPI if SPI_MASTER
 	select SND_SOC_PCM3008
 	select SND_SOC_PCM3168A_I2C if I2C
@@ -528,6 +529,14 @@ config SND_SOC_PCM1681
 
 config SND_SOC_PCM179X
 	tristate
+
+config SND_SOC_PCM179X_I2C
+	tristate "Texas Instruments PCM179X CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_PCM179X
+	help
+	  Enable support for Texas Instruments PCM179x CODEC.
+	  Select this if your PCM179x is connected via an I2C bus.
 
 config SND_SOC_PCM179X_SPI
 	tristate "Texas Instruments PCM179X CODEC (SPI)"
