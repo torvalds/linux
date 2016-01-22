@@ -265,7 +265,6 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 			      unsigned long max)
 {
 	struct zpci_dev *zdev =	to_zpci(pdev);
-	u64 addr;
 	int idx;
 
 	if ((bar & 7) != bar)
@@ -284,8 +283,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 	BUG_ON(!zpci_iomap_start[idx].count);
 	spin_unlock(&zpci_iomap_lock);
 
-	addr = ZPCI_IOMAP_ADDR_BASE | ((u64) idx << 48);
-	return (void __iomem *) addr + offset;
+	return (void __iomem *) ZPCI_ADDR(idx) + offset;
 }
 EXPORT_SYMBOL(pci_iomap_range);
 
@@ -297,9 +295,8 @@ EXPORT_SYMBOL(pci_iomap);
 
 void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
 {
-	unsigned int idx;
+	unsigned int idx = ZPCI_IDX(addr);
 
-	idx = (((__force u64) addr) & ~ZPCI_IOMAP_ADDR_BASE) >> 48;
 	spin_lock(&zpci_iomap_lock);
 	/* Detect underrun */
 	BUG_ON(!zpci_iomap_start[idx].count);
@@ -611,8 +608,7 @@ static int zpci_setup_bus_resources(struct zpci_dev *zdev,
 		if (zdev->bars[i].val & 4)
 			flags |= IORESOURCE_MEM_64;
 
-		addr = ZPCI_IOMAP_ADDR_BASE + ((u64) entry << 48);
-
+		addr = ZPCI_ADDR(entry);
 		size = 1UL << zdev->bars[i].size;
 
 		res = __alloc_res(zdev, addr, size, flags);

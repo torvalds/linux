@@ -21,6 +21,7 @@ struct zpci_iomap_entry {
 
 extern struct zpci_iomap_entry *zpci_iomap_start;
 
+#define ZPCI_ADDR(idx) (ZPCI_IOMAP_ADDR_BASE | ((u64) idx << 48))
 #define ZPCI_IDX(addr)								\
 	(((__force u64) addr & ZPCI_IOMAP_ADDR_IDX_MASK) >> 48)
 #define ZPCI_OFFSET(addr)							\
