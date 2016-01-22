@@ -3134,7 +3134,6 @@ void btrfs_run_delayed_iputs(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	down_read(&fs_info->delayed_iput_sem);
 	spin_lock(&fs_info->delayed_iput_lock);
 	while (!list_empty(&fs_info->delayed_iputs)) {
 		struct btrfs_inode *inode;
@@ -3153,7 +3152,6 @@ void btrfs_run_delayed_iputs(struct btrfs_root *root)
 		spin_lock(&fs_info->delayed_iput_lock);
 	}
 	spin_unlock(&fs_info->delayed_iput_lock);
-	up_read(&root->fs_info->delayed_iput_sem);
 }
 
 /*
@@ -4874,26 +4872,6 @@ next:
 	return err;
 }
 
-static int wait_snapshoting_atomic_t(atomic_t *a)
-{
-	schedule();
-	return 0;
-}
-
-static void wait_for_snapshot_creation(struct btrfs_root *root)
-{
-	while (true) {
-		int ret;
-
-		ret = btrfs_start_write_no_snapshoting(root);
-		if (ret)
-			break;
-		wait_on_atomic_t(&root->will_be_snapshoted,
-				 wait_snapshoting_atomic_t,
-				 TASK_UNINTERRUPTIBLE);
-	}
-}
-
 static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -4925,7 +4903,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		 * truncation, it must capture all writes that happened before
 		 * this truncation.
 		 */
-		wait_for_snapshot_creation(root);
+		btrfs_wait_for_snapshot_creation(root);
 		ret = btrfs_cont_expand(inode, oldsize, newsize);
 		if (ret) {
 			btrfs_end_write_no_snapshoting(root);
