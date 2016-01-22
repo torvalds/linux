@@ -755,6 +755,17 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (inject.session == NULL)
 		return -1;
 
+	if (inject.build_ids) {
+		/*
+		 * to make sure the mmap records are ordered correctly
+		 * and so that the correct especially due to jitted code
+		 * mmaps. We cannot generate the buildid hit list and
+		 * inject the jit mmaps at the same time for now.
+		 */
+		inject.tool.ordered_events = true;
+		inject.tool.ordering_requires_timestamps = true;
+	}
+
 	ret = symbol__init(&inject.session->header.env);
 	if (ret < 0)
 		goto out_delete;
