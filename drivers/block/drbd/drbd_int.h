@@ -536,9 +536,6 @@ struct drbd_bitmap; /* opaque for drbd_device */
 /* definition of bits in bm_flags to be used in drbd_bm_lock
  * and drbd_bitmap_io and friends. */
 enum bm_flag {
-	/* do we need to kfree, or vfree bm_pages? */
-	BM_P_VMALLOCED = 0x10000, /* internal use only, will be masked out */
-
 	/* currently locked for bulk operation */
 	BM_LOCKED_MASK = 0xf,
 
