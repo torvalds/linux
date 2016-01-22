@@ -14,6 +14,7 @@ int rk_fb_get_extern_screen(struct rk_screen *screen)
 	memcpy(screen, rk_screen, sizeof(struct rk_screen));
 	screen->dsp_lut = NULL;
 	screen->cabc_lut = NULL;
+	screen->type = SCREEN_NULL;
 
 	return 0;
 }
