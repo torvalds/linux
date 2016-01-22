@@ -1825,7 +1825,7 @@ static int
 add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 	    char **optstr, struct map *map)
 {
-	if (map == NULL)
+	if (!sort__has_dso || map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s %s DSO",
@@ -1850,7 +1850,7 @@ static int
 add_map_opt(struct hist_browser *browser __maybe_unused,
 	    struct popup_action *act, char **optstr, struct map *map)
 {
-	if (map == NULL)
+	if (!sort__has_dso || map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Browse map details") < 0)
