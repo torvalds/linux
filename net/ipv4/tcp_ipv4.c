@@ -73,7 +73,6 @@
 #include <net/timewait_sock.h>
 #include <net/xfrm.h>
 #include <net/secure_seq.h>
-#include <net/tcp_memcontrol.h>
 #include <net/busy_poll.h>
 
 #include <linux/inet.h>

@@ -611,6 +611,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
 			Format: <string>
 			nosocket -- Disable socket memory accounting.
+			nokmem -- Disable kernel memory accounting.
 
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
