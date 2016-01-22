@@ -245,7 +245,10 @@ struct rvt_dev_info {
 	 * allocating space for this structure.
 	 *
 	 * The driver will also be responsible for filling in certain members of
-	 * dparms.props
+	 * dparms.props. The driver needs to fill in dparms exactly as it would
+	 * want values reported to a ULP. This will be returned to the caller
+	 * in rdmavt's device. The driver should also therefore refrain from
+	 * modifying this directly after registration with rdmavt.
 	 */
 
 	/* Driver specific properties */

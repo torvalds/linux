@@ -68,10 +68,15 @@ static int rvt_query_device(struct ib_device *ibdev,
 			    struct ib_device_attr *props,
 			    struct ib_udata *uhw)
 {
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 	/*
-	 * Return rvt_dev_info.props contents
+	 * Return rvt_dev_info.dparms.props contents
 	 */
-	return -EOPNOTSUPP;
+	*props = rdi->dparms.props;
+	return 0;
 }
 
 static int rvt_modify_device(struct ib_device *device,
