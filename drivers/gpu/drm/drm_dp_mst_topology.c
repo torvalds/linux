@@ -1998,17 +1998,17 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		mgr->mst_primary = mstb;
 		kref_get(&mgr->mst_primary->kref);
 
+		ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
+							 DP_MST_EN | DP_UP_REQ_EN | DP_UPSTREAM_IS_SRC);
+		if (ret < 0) {
+			goto out_unlock;
+		}
+
 		{
 			struct drm_dp_payload reset_pay;
 			reset_pay.start_slot = 0;
 			reset_pay.num_slots = 0x3f;
 			drm_dp_dpcd_write_payload(mgr, 0, &reset_pay);
-		}
-
-		ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
-					 DP_MST_EN | DP_UP_REQ_EN | DP_UPSTREAM_IS_SRC);
-		if (ret < 0) {
-			goto out_unlock;
 		}
 
 		queue_work(system_long_wq, &mgr->work);
