@@ -389,7 +389,7 @@ static int qat_hal_check_ae_alive(struct icp_qat_fw_loader_handle *handle)
 {
 	unsigned int base_cnt, cur_cnt;
 	unsigned char ae;
-	unsigned int times = MAX_RETRY_TIMES;
+	int times = MAX_RETRY_TIMES;
 
 	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
 		qat_hal_rd_ae_csr(handle, ae, PROFILE_COUNT,
@@ -402,7 +402,7 @@ static int qat_hal_check_ae_alive(struct icp_qat_fw_loader_handle *handle)
 			cur_cnt &= 0xffff;
 		} while (times-- && (cur_cnt == base_cnt));
 
-		if (!times) {
+		if (times < 0) {
 			pr_err("QAT: AE%d is inactive!!\n", ae);
 			return -EFAULT;
 		}
@@ -453,7 +453,11 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 	void __iomem *csr_addr =
 			(void __iomem *)((uintptr_t)handle->hal_ep_csr_addr_v +
 			ESRAM_AUTO_INIT_CSR_OFFSET);
-	unsigned int csr_val, times = 30;
+	unsigned int csr_val;
+	int times = 30;
+
+	if (handle->pci_dev->device == ADF_C3XXX_PCI_DEVICE_ID)
+		return 0;
 
 	csr_val = ADF_CSR_RD(csr_addr, 0);
 	if ((csr_val & ESRAM_AUTO_TINIT) && (csr_val & ESRAM_AUTO_TINIT_DONE))
@@ -467,7 +471,7 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wait_cycles(handle, 0, ESRAM_AUTO_INIT_USED_CYCLES, 0);
 		csr_val = ADF_CSR_RD(csr_addr, 0);
 	} while (!(csr_val & ESRAM_AUTO_TINIT_DONE) && times--);
-	if ((!times)) {
+	if ((times < 0)) {
 		pr_err("QAT: Fail to init eSram!\n");
 		return -EFAULT;
 	}
@@ -658,7 +662,7 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 			ret = qat_hal_wait_cycles(handle, ae, 20, 1);
 		} while (ret && times--);
 
-		if (!times) {
+		if (times < 0) {
 			pr_err("QAT: clear GPR of AE %d failed", ae);
 			return -EINVAL;
 		}
@@ -693,14 +697,12 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_bar *misc_bar =
 			&pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)];
-	struct adf_bar *sram_bar =
-			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
+	struct adf_bar *sram_bar;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
 
-	handle->hal_sram_addr_v = sram_bar->virt_addr;
 	handle->hal_cap_g_ctl_csr_addr_v =
 		(void __iomem *)((uintptr_t)misc_bar->virt_addr +
 				 ICP_QAT_CAP_OFFSET);
@@ -714,6 +716,11 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 		(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v +
 				 LOCAL_TO_XFER_REG_OFFSET);
 	handle->pci_dev = pci_info->pci_dev;
+	if (handle->pci_dev->device != ADF_C3XXX_PCI_DEVICE_ID) {
+		sram_bar =
+			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
+		handle->hal_sram_addr_v = sram_bar->virt_addr;
+	}
 	handle->fw_auth = (handle->pci_dev->device ==
 			   ADF_DH895XCC_PCI_DEVICE_ID) ? false : true;
 	handle->hal_handle = kzalloc(sizeof(*handle->hal_handle), GFP_KERNEL);
