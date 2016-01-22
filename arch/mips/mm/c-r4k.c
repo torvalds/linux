@@ -1311,6 +1311,7 @@ static void probe_pcache(void)
 		break;
 
 	case CPU_ALCHEMY:
+	case CPU_I6400:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
 
