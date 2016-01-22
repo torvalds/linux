@@ -201,7 +201,9 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 
 		obj = vram->object;
 
+		mutex_lock(&obj->lock);
 		pages = etnaviv_gem_get_pages(obj);
+		mutex_unlock(&obj->lock);
 		if (pages) {
 			int j;
 
