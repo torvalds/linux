@@ -38,6 +38,7 @@ struct emuframe {
  */
 int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 {
+	mips_instruction break_math;
 	struct emuframe __user *fr;
 	int err;
 
@@ -65,6 +66,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	 * branches, but gives us a cleaner interface to the exception
 	 * handler (single entry point).
 	 */
+	break_math = BREAK_MATH(get_isa16_mode(regs->cp0_epc));
 
 	/* Ensure that the two instructions are in the same cache line */
 	fr = (struct emuframe __user *)
@@ -79,13 +81,13 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 				 (u16 __user *)(&fr->emul));
 		err |= __put_user(ir & 0xffff,
 				  (u16 __user *)((long)(&fr->emul) + 2));
-		err |= __put_user(BREAK_MATH >> 16,
+		err |= __put_user(break_math >> 16,
 				  (u16 __user *)(&fr->badinst));
-		err |= __put_user(BREAK_MATH & 0xffff,
+		err |= __put_user(break_math & 0xffff,
 				  (u16 __user *)((long)(&fr->badinst) + 2));
 	} else {
 		err = __put_user(ir, &fr->emul);
-		err |= __put_user((mips_instruction)BREAK_MATH, &fr->badinst);
+		err |= __put_user(break_math, &fr->badinst);
 	}
 
 	err |= __put_user((mips_instruction)BD_COOKIE, &fr->cookie);
@@ -139,7 +141,8 @@ int do_dsemulret(struct pt_regs *xcp)
 	}
 	err |= __get_user(cookie, &fr->cookie);
 
-	if (unlikely(err || (insn != BREAK_MATH) || (cookie != BD_COOKIE))) {
+	if (unlikely(err || insn != BREAK_MATH(get_isa16_mode(xcp->cp0_epc)) ||
+		     cookie != BD_COOKIE)) {
 		MIPS_FPU_EMU_INC_STATS(errors);
 		return 0;
 	}
