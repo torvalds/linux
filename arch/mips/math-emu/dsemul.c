@@ -31,18 +31,20 @@ struct emuframe {
 	unsigned long		epc;
 };
 
+/*
+ * Set up an emulation frame for instruction IR, from a delay slot of
+ * a branch jumping to CPC.  Return 0 if successful, -1 if no emulation
+ * required, otherwise a signal number causing a frame setup failure.
+ */
 int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 {
 	struct emuframe __user *fr;
 	int err;
 
+	/* NOP is easy */
 	if ((get_isa16_mode(regs->cp0_epc) && ((ir >> 16) == MM_NOP16)) ||
-		(ir == 0)) {
-		/* NOP is easy */
-		regs->cp0_epc = cpc;
-		clear_delay_slot(regs);
-		return 0;
-	}
+	    (ir == 0))
+		return -1;
 
 	pr_debug("dsemul %lx %lx\n", regs->cp0_epc, cpc);
 
