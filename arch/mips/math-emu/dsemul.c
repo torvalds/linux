@@ -78,13 +78,8 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	 * Algorithmics used a system call instruction, and
 	 * borrowed that vector.  MIPS/Linux version is a bit
 	 * more heavyweight in the interests of portability and
-	 * multiprocessor support.  For Linux we generate a
-	 * an unaligned access and force an address error exception.
-	 *
-	 * For embedded systems (stand-alone) we prefer to use a
-	 * non-existing CP1 instruction. This prevents us from emulating
-	 * branches, but gives us a cleaner interface to the exception
-	 * handler (single entry point).
+	 * multiprocessor support.  For Linux we use a BREAK 514
+	 * instruction causing a breakpoint exception.
 	 */
 	break_math = BREAK_MATH(get_isa16_mode(regs->cp0_epc));
 
