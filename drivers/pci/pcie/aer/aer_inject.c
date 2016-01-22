@@ -124,16 +124,13 @@ static struct pci_ops *__find_pci_bus_ops(struct pci_bus *bus)
 static struct pci_bus_ops *pci_bus_ops_pop(void)
 {
 	unsigned long flags;
-	struct pci_bus_ops *bus_ops = NULL;
+	struct pci_bus_ops *bus_ops;
 
 	spin_lock_irqsave(&inject_lock, flags);
-	if (list_empty(&pci_bus_ops_list))
-		bus_ops = NULL;
-	else {
-		struct list_head *lh = pci_bus_ops_list.next;
-		list_del(lh);
-		bus_ops = list_entry(lh, struct pci_bus_ops, list);
-	}
+	bus_ops = list_first_entry_or_null(&pci_bus_ops_list,
+					   struct pci_bus_ops, list);
+	if (bus_ops)
+		list_del(&bus_ops->list);
 	spin_unlock_irqrestore(&inject_lock, flags);
 	return bus_ops;
 }
