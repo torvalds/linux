@@ -409,6 +409,7 @@ static inline int dell_smi_error(int value)
 
 static int dell_rfkill_set(void *data, bool blocked)
 {
+	struct calling_interface_buffer *buffer;
 	int disable = blocked ? 1 : 0;
 	unsigned long radio = (unsigned long)data;
 	int hwswitch_bit = (unsigned long)data - 1;
@@ -416,7 +417,7 @@ static int dell_rfkill_set(void *data, bool blocked)
 	int status;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 
 	dell_smbios_send_request(17, 11);
 	ret = buffer->output[0];
@@ -451,7 +452,8 @@ static int dell_rfkill_set(void *data, bool blocked)
 
 /* Must be called with the buffer held */
 static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
-					int status)
+					int status,
+					struct calling_interface_buffer *buffer)
 {
 	if (status & BIT(0)) {
 		/* Has hw-switch, sync sw_state to BIOS */
@@ -474,12 +476,13 @@ static void dell_rfkill_update_hw_state(struct rfkill *rfkill, int radio,
 
 static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 {
+	struct calling_interface_buffer *buffer;
 	int radio = ((unsigned long)data & 0xF);
 	int hwswitch;
 	int status;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 
 	dell_smbios_send_request(17, 11);
 	ret = buffer->output[0];
@@ -514,12 +517,13 @@ static struct dentry *dell_laptop_dir;
 
 static int dell_debugfs_show(struct seq_file *s, void *data)
 {
+	struct calling_interface_buffer *buffer;
 	int hwswitch_state;
 	int hwswitch_ret;
 	int status;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 
 	dell_smbios_send_request(17, 11);
 	ret = buffer->output[0];
@@ -613,11 +617,12 @@ static const struct file_operations dell_debugfs_fops = {
 
 static void dell_update_rfkill(struct work_struct *ignored)
 {
+	struct calling_interface_buffer *buffer;
 	int hwswitch = 0;
 	int status;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 
 	dell_smbios_send_request(17, 11);
 	ret = buffer->output[0];
@@ -637,16 +642,17 @@ static void dell_update_rfkill(struct work_struct *ignored)
 
 	if (wifi_rfkill) {
 		dell_rfkill_update_hw_state(wifi_rfkill, 1, status, hwswitch);
-		dell_rfkill_update_sw_state(wifi_rfkill, 1, status);
+		dell_rfkill_update_sw_state(wifi_rfkill, 1, status, buffer);
 	}
 	if (bluetooth_rfkill) {
 		dell_rfkill_update_hw_state(bluetooth_rfkill, 2, status,
 					    hwswitch);
-		dell_rfkill_update_sw_state(bluetooth_rfkill, 2, status);
+		dell_rfkill_update_sw_state(bluetooth_rfkill, 2, status,
+					    buffer);
 	}
 	if (wwan_rfkill) {
 		dell_rfkill_update_hw_state(wwan_rfkill, 3, status, hwswitch);
-		dell_rfkill_update_sw_state(wwan_rfkill, 3, status);
+		dell_rfkill_update_sw_state(wwan_rfkill, 3, status, buffer);
 	}
 
  out:
@@ -694,6 +700,7 @@ static struct notifier_block dell_laptop_rbtn_notifier = {
 
 static int __init dell_setup_rfkill(void)
 {
+	struct calling_interface_buffer *buffer;
 	int status, ret, whitelisted;
 	const char *product;
 
@@ -709,7 +716,7 @@ static int __init dell_setup_rfkill(void)
 	if (!force_rfkill && !whitelisted)
 		return 0;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 	dell_smbios_send_request(17, 11);
 	ret = buffer->output[0];
 	status = buffer->output[1];
@@ -866,6 +873,7 @@ static void dell_cleanup_rfkill(void)
 
 static int dell_send_intensity(struct backlight_device *bd)
 {
+	struct calling_interface_buffer *buffer;
 	int token;
 	int ret;
 
@@ -873,7 +881,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 	if (token == -1)
 		return -ENODEV;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 	buffer->input[0] = token;
 	buffer->input[1] = bd->props.brightness;
 
@@ -890,6 +898,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 
 static int dell_get_intensity(struct backlight_device *bd)
 {
+	struct calling_interface_buffer *buffer;
 	int token;
 	int ret;
 
@@ -897,7 +906,7 @@ static int dell_get_intensity(struct backlight_device *bd)
 	if (token == -1)
 		return -ENODEV;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 	buffer->input[0] = token;
 
 	if (power_supply_is_system_supplied() > 0)
@@ -1154,10 +1163,11 @@ static bool kbd_led_present;
 
 static int kbd_get_info(struct kbd_info *info)
 {
+	struct calling_interface_buffer *buffer;
 	u8 units;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 
 	buffer->input[0] = 0x0;
 	dell_smbios_send_request(4, 11);
@@ -1243,9 +1253,10 @@ static int kbd_set_level(struct kbd_state *state, u8 level)
 
 static int kbd_get_state(struct kbd_state *state)
 {
+	struct calling_interface_buffer *buffer;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 
 	buffer->input[0] = 0x1;
 	dell_smbios_send_request(4, 11);
@@ -1274,9 +1285,10 @@ static int kbd_get_state(struct kbd_state *state)
 
 static int kbd_set_state(struct kbd_state *state)
 {
+	struct calling_interface_buffer *buffer;
 	int ret;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 	buffer->input[0] = 0x2;
 	buffer->input[1] = BIT(state->mode_bit) & 0xFFFF;
 	buffer->input[1] |= (state->triggers & 0xFF) << 16;
@@ -1313,6 +1325,7 @@ static int kbd_set_state_safe(struct kbd_state *state, struct kbd_state *old)
 
 static int kbd_set_token_bit(u8 bit)
 {
+	struct calling_interface_buffer *buffer;
 	int id;
 	int ret;
 
@@ -1323,7 +1336,7 @@ static int kbd_set_token_bit(u8 bit)
 	if (id == -1)
 		return -EINVAL;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 	buffer->input[0] = da_tokens[id].location;
 	buffer->input[1] = da_tokens[id].value;
 	dell_smbios_send_request(1, 0);
@@ -1335,6 +1348,7 @@ static int kbd_set_token_bit(u8 bit)
 
 static int kbd_get_token_bit(u8 bit)
 {
+	struct calling_interface_buffer *buffer;
 	int id;
 	int ret;
 	int val;
@@ -1346,7 +1360,7 @@ static int kbd_get_token_bit(u8 bit)
 	if (id == -1)
 		return -EINVAL;
 
-	dell_smbios_get_buffer();
+	buffer = dell_smbios_get_buffer();
 	buffer->input[0] = da_tokens[id].location;
 	dell_smbios_send_request(0, 0);
 	ret = buffer->output[0];
@@ -1972,6 +1986,7 @@ static void kbd_led_exit(void)
 
 static int __init dell_init(void)
 {
+	struct calling_interface_buffer *buffer;
 	int max_intensity = 0;
 	int token;
 	int ret;
@@ -2017,7 +2032,7 @@ static int __init dell_init(void)
 
 	token = find_token_location(BRIGHTNESS_TOKEN);
 	if (token != -1) {
-		dell_smbios_get_buffer();
+		buffer = dell_smbios_get_buffer();
 		buffer->input[0] = token;
 		dell_smbios_send_request(0, 2);
 		if (buffer->output[0] == 0)

@@ -41,10 +41,11 @@ static int da_num_tokens;
 struct calling_interface_token *da_tokens;
 EXPORT_SYMBOL_GPL(da_tokens);
 
-void dell_smbios_get_buffer(void)
+struct calling_interface_buffer *dell_smbios_get_buffer(void)
 {
 	mutex_lock(&buffer_mutex);
 	dell_smbios_clear_buffer();
+	return buffer;
 }
 EXPORT_SYMBOL_GPL(dell_smbios_get_buffer);
 
