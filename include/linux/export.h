@@ -65,7 +65,18 @@ extern struct module __this_module;
 	__attribute__((section("___ksymtab" sec "+" #sym), unused))	\
 	= { (unsigned long)&sym, __kstrtab_##sym }
 
-#ifdef CONFIG_TRIM_UNUSED_KSYMS
+#if defined(__KSYM_DEPS__)
+
+/*
+ * For fine grained build dependencies, we want to tell the build system
+ * about each possible exported symbol even if they're not actually exported.
+ * We use a string pattern that is unlikely to be valid code that the build
+ * system filters out from the preprocessor output (see ksym_dep_filter
+ * in scripts/Kbuild.include).
+ */
+#define __EXPORT_SYMBOL(sym, sec)	=== __KSYM_##sym ===
+
+#elif defined(CONFIG_TRIM_UNUSED_KSYMS)
 
 #include <linux/kconfig.h>
 #include <generated/autoksyms.h>

@@ -358,6 +358,7 @@ static void parse_dep_file(void *map, size_t len)
 
 			/* Ignore certain dependencies */
 			if (strrcmp(s, "include/generated/autoconf.h") &&
+			    strrcmp(s, "include/generated/autoksyms.h") &&
 			    strrcmp(s, "arch/um/include/uml-config.h") &&
 			    strrcmp(s, "include/linux/kconfig.h") &&
 			    strrcmp(s, ".ver")) {
