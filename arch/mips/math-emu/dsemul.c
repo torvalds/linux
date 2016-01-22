@@ -43,9 +43,29 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	int err;
 
 	/* NOP is easy */
-	if ((get_isa16_mode(regs->cp0_epc) && ((ir >> 16) == MM_NOP16)) ||
-	    (ir == 0))
+	if (ir == 0)
 		return -1;
+
+	/* microMIPS instructions */
+	if (get_isa16_mode(regs->cp0_epc)) {
+		union mips_instruction insn = { .word = ir };
+
+		/* NOP16 aka MOVE16 $0, $0 */
+		if ((ir >> 16) == MM_NOP16)
+			return -1;
+
+		/* ADDIUPC */
+		if (insn.mm_a_format.opcode == mm_addiupc_op) {
+			unsigned int rs;
+			s32 v;
+
+			rs = (((insn.mm_a_format.rs + 0x1e) & 0xf) + 2);
+			v = regs->cp0_epc & ~3;
+			v += insn.mm_a_format.simmediate << 2;
+			regs->regs[rs] = (long)v;
+			return -1;
+		}
+	}
 
 	pr_debug("dsemul %lx %lx\n", regs->cp0_epc, cpc);
 
