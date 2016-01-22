@@ -127,4 +127,13 @@ static inline void rvt_get_mr(struct rvt_mregion *mr)
 	atomic_inc(&mr->refcount);
 }
 
+static inline void rvt_put_ss(struct rvt_sge_state *ss)
+{
+	while (ss->num_sge) {
+		rvt_put_mr(ss->sge.mr);
+		if (--ss->num_sge)
+			ss->sge = *ss->sg_list++;
+	}
+}
+
 #endif          /* DEF_RDMAVT_INCMRH */

@@ -355,6 +355,7 @@ struct rvt_srq {
 #define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE           (PAGE_SIZE * BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE - 1)
+#define RVT_QPN_MASK		    0xFFFFFF
 
 /*
  * QPN-map pages start out as NULL, they get allocated upon
@@ -397,6 +398,25 @@ static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
 				      sizeof(struct rvt_sge)) * n);
 }
 
+/*
+ * Since struct rvt_rwqe is not a fixed size, we can't simply index into
+ * struct rvt_rwq.wq.  This function does the array index computation.
+ */
+static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
+{
+	return (struct rvt_rwqe *)
+		((char *)rq->wq->wq +
+		 (sizeof(struct rvt_rwqe) +
+		  rq->max_sge * sizeof(struct ib_sge)) * n);
+}
+
 extern const int  ib_rvt_state_ops[];
+
+struct rvt_dev_info;
+void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends);
+int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
+void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn);
+void rvt_dec_qp_cnt(struct rvt_dev_info *rdi);
 
 #endif          /* DEF_RDMAVT_INCQP_H */

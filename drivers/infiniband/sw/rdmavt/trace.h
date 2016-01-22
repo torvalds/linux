@@ -77,6 +77,37 @@ TRACE_EVENT(rvt_dbg,
 	TP_printk("[%s]: %s", __get_str(dev), __get_str(msg))
 );
 
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM rvt_qphash
+DECLARE_EVENT_CLASS(rvt_qphash_template,
+	TP_PROTO(struct rvt_qp *qp, u32 bucket),
+	TP_ARGS(qp, bucket),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(u32, bucket)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->bucket = bucket;
+	),
+	TP_printk(
+		"[%s] qpn 0x%x bucket %u",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->bucket
+	)
+);
+
+DEFINE_EVENT(rvt_qphash_template, rvt_qpinsert,
+	TP_PROTO(struct rvt_qp *qp, u32 bucket),
+	TP_ARGS(qp, bucket));
+
+DEFINE_EVENT(rvt_qphash_template, rvt_qpremove,
+	TP_PROTO(struct rvt_qp *qp, u32 bucket),
+	TP_ARGS(qp, bucket));
+
 #endif /* __RDMAVT_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

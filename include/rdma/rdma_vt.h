@@ -55,6 +55,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/hash.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdmavt_mr.h>
 #include <rdma/rdmavt_qp.h>
@@ -194,6 +195,10 @@ struct rvt_driver_params {
 	u8 qos_shift;
 	char cq_name[RVT_CQN_MAX];
 	int node;
+	int max_rdma_atomic;
+	int psn_mask;
+	int psn_shift;
+	int psn_modify_mask;
 };
 
 /* Protection domain */
@@ -233,6 +238,15 @@ struct rvt_driver_provided {
 	void (*notify_qp_reset)(struct rvt_qp *qp);
 	void (*schedule_send)(struct rvt_qp *qp);
 	void (*do_send)(struct rvt_qp *qp);
+	int (*get_pmtu_from_attr)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+				  struct ib_qp_attr *attr);
+	void (*flush_qp_waiters)(struct rvt_qp *qp);
+	void (*stop_send_queue)(struct rvt_qp *qp);
+	void (*quiesce_qp)(struct rvt_qp *qp);
+	void (*notify_error_qp)(struct rvt_qp *qp);
+	u32 (*mtu_from_qp)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			   u32 pmtu);
+	int (*mtu_to_path_mtu)(u32 mtu);
 
 	/*--------------------*/
 	/* Optional functions */
@@ -338,6 +352,34 @@ static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,
 		return 0;
 	else
 		return rdi->ports[port_index]->pkey_table[index];
+}
+
+/**
+ * rvt_lookup_qpn - return the QP with the given QPN
+ * @ibp: the ibport
+ * @qpn: the QP number to look up
+ *
+ * The caller must hold the rcu_read_lock(), and keep the lock until
+ * the returned qp is no longer in use.
+ */
+/* TODO: Remove this and put in rdmavt/qp.h when no longer needed by drivers */
+static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
+					    struct rvt_ibport *rvp,
+					    u32 qpn) __must_hold(RCU)
+{
+	struct rvt_qp *qp = NULL;
+
+	if (unlikely(qpn <= 1)) {
+		qp = rcu_dereference(rvp->qp[qpn]);
+	} else {
+		u32 n = hash_32(qpn, rdi->qp_dev->qp_table_bits);
+
+		for (qp = rcu_dereference(rdi->qp_dev->qp_table[n]); qp;
+			qp = rcu_dereference(qp->next))
+			if (qp->ibqp.qp_num == qpn)
+				break;
+	}
+	return qp;
 }
 
 int rvt_register_device(struct rvt_dev_info *rvd);
