@@ -691,7 +691,7 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 
 	lid = be16_to_cpu(pip->lid);
 	/* Must be a valid unicast LID address. */
-	if (lid == 0 || lid >= QIB_MULTICAST_LID_BASE)
+	if (lid == 0 || lid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 		smp->status |= IB_SMP_INVALID_FIELD;
 	else if (ppd->lid != lid || ppd->lmc != (pip->mkeyprot_resv_lmc & 7)) {
 		if (ppd->lid != lid)
@@ -706,7 +706,7 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	smlid = be16_to_cpu(pip->sm_lid);
 	msl = pip->neighbormtu_mastersmsl & 0xF;
 	/* Must be a valid unicast LID address. */
-	if (smlid == 0 || smlid >= QIB_MULTICAST_LID_BASE)
+	if (smlid == 0 || smlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 		smp->status |= IB_SMP_INVALID_FIELD;
 	else if (smlid != ibp->sm_lid || msl != ibp->sm_sl) {
 		spin_lock_irqsave(&ibp->lock, flags);

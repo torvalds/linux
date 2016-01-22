@@ -646,7 +646,7 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 
 	/* Check for a valid destination LID (see ch. 7.11.1). */
 	lid = be16_to_cpu(hdr->lrh[1]);
-	if (lid < QIB_MULTICAST_LID_BASE) {
+	if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 		lid &= ~((1 << ppd->lmc) - 1);
 		if (unlikely(lid != ppd->lid))
 			goto drop;

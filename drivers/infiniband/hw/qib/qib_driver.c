@@ -319,7 +319,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		if (tlen < 24)
 			goto drop;
 
-		if (lid < QIB_MULTICAST_LID_BASE) {
+		if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 			lid &= ~((1 << ppd->lmc) - 1);
 			if (unlikely(lid != ppd->lid))
 				goto drop;
