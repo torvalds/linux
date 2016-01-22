@@ -236,8 +236,6 @@ out:
 static void __exit orangefs_exit(void)
 {
 	int i = 0;
-	struct orangefs_kernel_op_s *cur_op = NULL;
-
 	gossip_debug(GOSSIP_INIT_DEBUG, "orangefs: orangefs_exit called\n");
 
 	unregister_filesystem(&orangefs_fs_type);
@@ -245,27 +243,9 @@ static void __exit orangefs_exit(void)
 	orangefs_sysfs_exit();
 	fsid_key_table_finalize();
 	orangefs_dev_cleanup();
-	/* clear out all pending upcall op requests */
-	spin_lock(&orangefs_request_list_lock);
-	while (!list_empty(&orangefs_request_list)) {
-		cur_op = list_entry(orangefs_request_list.next,
-				    struct orangefs_kernel_op_s,
-				    list);
-		list_del(&cur_op->list);
-		gossip_debug(GOSSIP_INIT_DEBUG,
-			     "Freeing unhandled upcall request type %d\n",
-			     cur_op->upcall.type);
-		op_release(cur_op);
-	}
-	spin_unlock(&orangefs_request_list_lock);
-
+	BUG_ON(!list_empty(&orangefs_request_list));
 	for (i = 0; i < hash_table_size; i++)
-		while (!list_empty(&htable_ops_in_progress[i])) {
-			cur_op = list_entry(htable_ops_in_progress[i].next,
-					    struct orangefs_kernel_op_s,
-					    list);
-			op_release(cur_op);
-		}
+		BUG_ON(!list_empty(&htable_ops_in_progress[i]));
 
 	kiocb_cache_finalize();
 	orangefs_inode_cache_finalize();
