@@ -16,6 +16,9 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
+static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *);
+static int wait_for_matching_downcall(struct orangefs_kernel_op_s *);
+
 /*
  * What we do in this function is to walk the list of operations that are
  * present in the request queue and mark them as purged.
