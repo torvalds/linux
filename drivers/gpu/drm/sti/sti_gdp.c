@@ -361,6 +361,31 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 	}
 }
 
+/**
+ * sti_gdp_get_dst
+ * @dev: device
+ * @dst: requested destination size
+ * @src: source size
+ *
+ * Return the cropped / clamped destination size
+ *
+ * RETURNS:
+ * cropped / clamped destination size
+ */
+static int sti_gdp_get_dst(struct device *dev, int dst, int src)
+{
+	if (dst == src)
+		return dst;
+
+	if (dst < src) {
+		dev_dbg(dev, "WARNING: GDP scale not supported, will crop\n");
+		return dst;
+	}
+
+	dev_dbg(dev, "WARNING: GDP scale not supported, will clamp\n");
+	return src;
+}
+
 static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 				  struct drm_plane_state *oldstate)
 {
@@ -399,8 +424,8 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	/* src_x are in 16.16 format */
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX);
+	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX);
 
 	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
 		      crtc->base.id, sti_mixer_to_str(mixer),
@@ -448,10 +473,11 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 
 	/* input parameters */
 	top_field->gam_gdp_pmp = fb->pitches[0];
-	top_field->gam_gdp_size = clamp_val(src_h, 0, GAM_GDP_SIZE_MAX) << 16 |
-				  clamp_val(src_w, 0, GAM_GDP_SIZE_MAX);
+	top_field->gam_gdp_size = src_h << 16 | src_w;
 
-	/* output parameters */
+	/* output parameters (clamped / cropped) */
+	dst_w = sti_gdp_get_dst(gdp->dev, dst_w, src_w);
+	dst_h = sti_gdp_get_dst(gdp->dev, dst_h, src_h);
 	ydo = sti_vtg_get_line_number(*mode, dst_y);
 	yds = sti_vtg_get_line_number(*mode, dst_y + dst_h - 1);
 	xdo = sti_vtg_get_pixel_number(*mode, dst_x);
