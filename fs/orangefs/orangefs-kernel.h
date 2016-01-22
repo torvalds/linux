@@ -270,9 +270,6 @@ struct orangefs_inode_s {
 	 * with this object
 	 */
 	unsigned long pinode_flags;
-
-	/* All allocated orangefs_inode_s objects are chained to a list */
-	struct list_head list;
 };
 
 #define P_ATIME_FLAG 0
