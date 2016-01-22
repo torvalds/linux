@@ -2606,32 +2606,31 @@ EXPORT_SYMBOL(drm_dp_check_act_status);
  */
 int drm_dp_calc_pbn_mode(int clock, int bpp)
 {
-	fixed20_12 pix_bw;
-	fixed20_12 fbpp;
-	fixed20_12 result;
-	fixed20_12 margin, tmp;
-	u32 res;
+	u64 kbps;
+	s64 peak_kbps;
+	u32 numerator;
+	u32 denominator;
 
-	pix_bw.full = dfixed_const(clock);
-	fbpp.full = dfixed_const(bpp);
-	tmp.full = dfixed_const(8);
-	fbpp.full = dfixed_div(fbpp, tmp);
+	kbps = clock * bpp;
 
-	result.full = dfixed_mul(pix_bw, fbpp);
-	margin.full = dfixed_const(54);
-	tmp.full = dfixed_const(64);
-	margin.full = dfixed_div(margin, tmp);
-	result.full = dfixed_div(result, margin);
+	/*
+	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
+	 * The unit of 54/64Mbytes/sec is an arbitrary unit chosen based on
+	 * common multiplier to render an integer PBN for all link rate/lane
+	 * counts combinations
+	 * calculate
+	 * peak_kbps *= (1006/1000)
+	 * peak_kbps *= (64/54)
+	 * peak_kbps *= 8    convert to bytes
+	 */
 
-	margin.full = dfixed_const(1006);
-	tmp.full = dfixed_const(1000);
-	margin.full = dfixed_div(margin, tmp);
-	result.full = dfixed_mul(result, margin);
+	numerator = 64 * 1006;
+	denominator = 54 * 8 * 1000 * 1000;
 
-	result.full = dfixed_div(result, tmp);
-	result.full = dfixed_ceil(result);
-	res = dfixed_trunc(result);
-	return res;
+	kbps *= numerator;
+	peak_kbps = drm_fixp_from_fraction(kbps, denominator);
+
+	return drm_fixp2int_ceil(peak_kbps);
 }
 EXPORT_SYMBOL(drm_dp_calc_pbn_mode);
 
@@ -2639,11 +2638,23 @@ static int test_calc_pbn_mode(void)
 {
 	int ret;
 	ret = drm_dp_calc_pbn_mode(154000, 30);
-	if (ret != 689)
+	if (ret != 689) {
+		DRM_ERROR("PBN calculation test failed - clock %d, bpp %d, expected PBN %d, actual PBN %d.\n",
+				154000, 30, 689, ret);
 		return -EINVAL;
+	}
 	ret = drm_dp_calc_pbn_mode(234000, 30);
-	if (ret != 1047)
+	if (ret != 1047) {
+		DRM_ERROR("PBN calculation test failed - clock %d, bpp %d, expected PBN %d, actual PBN %d.\n",
+				234000, 30, 1047, ret);
 		return -EINVAL;
+	}
+	ret = drm_dp_calc_pbn_mode(297000, 24);
+	if (ret != 1063) {
+		DRM_ERROR("PBN calculation test failed - clock %d, bpp %d, expected PBN %d, actual PBN %d.\n",
+				297000, 24, 1063, ret);
+		return -EINVAL;
+	}
 	return 0;
 }
 
