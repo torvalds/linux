@@ -379,7 +379,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 			/* Check for valid receive state. */
 			if (!(ib_qib_state_ops[qp->state] &
 			      QIB_PROCESS_RECV_OK)) {
-				ibp->n_pkt_drops++;
+				ibp->rvp.n_pkt_drops++;
 				goto unlock;
 			}
 
@@ -399,7 +399,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 				    IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {
 					diff = qib_cmp24(psn, qp->r_psn);
 					if (!qp->r_nak_state && diff >= 0) {
-						ibp->n_rc_seqnak++;
+						ibp->rvp.n_rc_seqnak++;
 						qp->r_nak_state =
 							IB_NAK_PSN_ERROR;
 						/* Use the expected PSN. */

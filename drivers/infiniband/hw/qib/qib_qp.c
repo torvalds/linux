@@ -231,9 +231,9 @@ static void insert_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 	spin_lock_irqsave(&dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num == 0)
-		rcu_assign_pointer(ibp->qp0, qp);
+		rcu_assign_pointer(ibp->rvp.qp[0], qp);
 	else if (qp->ibqp.qp_num == 1)
-		rcu_assign_pointer(ibp->qp1, qp);
+		rcu_assign_pointer(ibp->rvp.qp[1], qp);
 	else {
 		qp->next = dev->qp_table[n];
 		rcu_assign_pointer(dev->qp_table[n], qp);
@@ -255,12 +255,12 @@ static void remove_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 
 	spin_lock_irqsave(&dev->qpt_lock, flags);
 
-	if (rcu_dereference_protected(ibp->qp0,
+	if (rcu_dereference_protected(ibp->rvp.qp[0],
+				      lockdep_is_held(&dev->qpt_lock)) == qp) {
+		RCU_INIT_POINTER(ibp->rvp.qp[0], NULL);
+	} else if (rcu_dereference_protected(ibp->rvp.qp[1],
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		RCU_INIT_POINTER(ibp->qp0, NULL);
-	} else if (rcu_dereference_protected(ibp->qp1,
-			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		RCU_INIT_POINTER(ibp->qp1, NULL);
+		RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 	} else {
 		struct rvt_qp *q;
 		struct rvt_qp __rcu **qpp;
@@ -306,9 +306,9 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 		if (!qib_mcast_tree_empty(ibp))
 			qp_inuse++;
 		rcu_read_lock();
-		if (rcu_dereference(ibp->qp0))
+		if (rcu_dereference(ibp->rvp.qp[0]))
 			qp_inuse++;
-		if (rcu_dereference(ibp->qp1))
+		if (rcu_dereference(ibp->rvp.qp[1]))
 			qp_inuse++;
 		rcu_read_unlock();
 	}
@@ -344,9 +344,9 @@ struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
 	rcu_read_lock();
 	if (unlikely(qpn <= 1)) {
 		if (qpn == 0)
-			qp = rcu_dereference(ibp->qp0);
+			qp = rcu_dereference(ibp->rvp.qp[0]);
 		else
-			qp = rcu_dereference(ibp->qp1);
+			qp = rcu_dereference(ibp->rvp.qp[1]);
 		if (qp)
 			atomic_inc(&qp->refcount);
 	} else {

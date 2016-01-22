@@ -586,7 +586,7 @@ static void qib_qp_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
 
 	/* Check for valid receive state. */
 	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK)) {
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		goto unlock;
 	}
 
@@ -716,7 +716,7 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 	return;
 
 drop:
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 }
 
 /*
@@ -1256,7 +1256,7 @@ err_tx:
 	qib_put_txreq(tx);
 	ret = wait_kmem(dev, qp);
 unaligned:
-	ibp->n_unaligned++;
+	ibp->rvp.n_unaligned++;
 bail:
 	return ret;
 bail_tx:
@@ -1647,16 +1647,16 @@ static int qib_query_port(struct ib_device *ibdev, u8 port,
 	memset(props, 0, sizeof(*props));
 	props->lid = lid ? lid : be16_to_cpu(IB_LID_PERMISSIVE);
 	props->lmc = ppd->lmc;
-	props->sm_lid = ibp->sm_lid;
-	props->sm_sl = ibp->sm_sl;
+	props->sm_lid = ibp->rvp.sm_lid;
+	props->sm_sl = ibp->rvp.sm_sl;
 	props->state = dd->f_iblink_state(ppd->lastibcstat);
 	props->phys_state = dd->f_ibphys_portstate(ppd->lastibcstat);
-	props->port_cap_flags = ibp->port_cap_flags;
+	props->port_cap_flags = ibp->rvp.port_cap_flags;
 	props->gid_tbl_len = QIB_GUIDS_PER_PORT;
 	props->max_msg_sz = 0x80000000;
 	props->pkey_tbl_len = qib_get_npkeys(dd);
-	props->bad_pkey_cntr = ibp->pkey_violations;
-	props->qkey_viol_cntr = ibp->qkey_violations;
+	props->bad_pkey_cntr = ibp->rvp.pkey_violations;
+	props->qkey_viol_cntr = ibp->rvp.qkey_violations;
 	props->active_width = ppd->link_width_active;
 	/* See rate_show() */
 	props->active_speed = ppd->link_speed_active;
@@ -1684,7 +1684,7 @@ static int qib_query_port(struct ib_device *ibdev, u8 port,
 		mtu = IB_MTU_2048;
 	}
 	props->active_mtu = mtu;
-	props->subnet_timeout = ibp->subnet_timeout;
+	props->subnet_timeout = ibp->rvp.subnet_timeout;
 
 	return 0;
 }
@@ -1734,14 +1734,14 @@ static int qib_modify_port(struct ib_device *ibdev, u8 port,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
-	ibp->port_cap_flags |= props->set_port_cap_mask;
-	ibp->port_cap_flags &= ~props->clr_port_cap_mask;
+	ibp->rvp.port_cap_flags |= props->set_port_cap_mask;
+	ibp->rvp.port_cap_flags &= ~props->clr_port_cap_mask;
 	if (props->set_port_cap_mask || props->clr_port_cap_mask)
 		qib_cap_mask_chg(ibp);
 	if (port_modify_mask & IB_PORT_SHUTDOWN)
 		qib_set_linkstate(ppd, QIB_IB_LINKDOWN);
 	if (port_modify_mask & IB_PORT_RESET_QKEY_CNTR)
-		ibp->qkey_violations = 0;
+		ibp->rvp.qkey_violations = 0;
 	return 0;
 }
 
@@ -1757,7 +1757,7 @@ static int qib_query_gid(struct ib_device *ibdev, u8 port,
 		struct qib_ibport *ibp = to_iport(ibdev, port);
 		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
-		gid->global.subnet_prefix = ibp->gid_prefix;
+		gid->global.subnet_prefix = ibp->rvp.gid_prefix;
 		if (index == 0)
 			gid->global.interface_id = ppd->guid;
 		else if (index < QIB_GUIDS_PER_PORT)
@@ -1787,7 +1787,7 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	attr.dlid = dlid;
 	attr.port_num = ppd_from_ibp(ibp)->port;
 	rcu_read_lock();
-	qp0 = rcu_dereference(ibp->qp0);
+	qp0 = rcu_dereference(ibp->rvp.qp[0]);
 	if (qp0)
 		ah = ib_create_ah(qp0->ibqp.pd, &attr);
 	rcu_read_unlock();
@@ -1876,22 +1876,22 @@ static void init_ibport(struct qib_pportdata *ppd)
 	struct qib_verbs_counters cntrs;
 	struct qib_ibport *ibp = &ppd->ibport_data;
 
-	spin_lock_init(&ibp->lock);
+	spin_lock_init(&ibp->rvp.lock);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
-	ibp->gid_prefix = IB_DEFAULT_GID_PREFIX;
-	ibp->sm_lid = be16_to_cpu(IB_LID_PERMISSIVE);
-	ibp->port_cap_flags = IB_PORT_SYS_IMAGE_GUID_SUP |
+	ibp->rvp.gid_prefix = IB_DEFAULT_GID_PREFIX;
+	ibp->rvp.sm_lid = be16_to_cpu(IB_LID_PERMISSIVE);
+	ibp->rvp.port_cap_flags = IB_PORT_SYS_IMAGE_GUID_SUP |
 		IB_PORT_CLIENT_REG_SUP | IB_PORT_SL_MAP_SUP |
 		IB_PORT_TRAP_SUP | IB_PORT_AUTO_MIGR_SUP |
 		IB_PORT_DR_NOTICE_SUP | IB_PORT_CAP_MASK_NOTICE_SUP |
 		IB_PORT_OTHER_LOCAL_CHANGES_SUP;
 	if (ppd->dd->flags & QIB_HAS_LINK_LATENCY)
-		ibp->port_cap_flags |= IB_PORT_LINK_LATENCY_SUP;
-	ibp->pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
-	ibp->pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
-	ibp->pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
-	ibp->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
-	ibp->pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
+		ibp->rvp.port_cap_flags |= IB_PORT_LINK_LATENCY_SUP;
+	ibp->rvp.pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
+	ibp->rvp.pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
+	ibp->rvp.pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
+	ibp->rvp.pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
+	ibp->rvp.pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
 
 	/* Snapshot current HW counters to "clear" them. */
 	qib_get_counters(ppd, &cntrs);
@@ -1911,8 +1911,8 @@ static void init_ibport(struct qib_pportdata *ppd)
 	ibp->z_excessive_buffer_overrun_errors =
 		cntrs.excessive_buffer_overrun_errors;
 	ibp->z_vl15_dropped = cntrs.vl15_dropped;
-	RCU_INIT_POINTER(ibp->qp0, NULL);
-	RCU_INIT_POINTER(ibp->qp1, NULL);
+	RCU_INIT_POINTER(ibp->rvp.qp[0], NULL);
+	RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 }
 
 static int qib_port_immutable(struct ib_device *ibdev, u8 port_num,

@@ -114,8 +114,8 @@ struct qib_mcast *qib_mcast_find(struct qib_ibport *ibp, union ib_gid *mgid)
 	unsigned long flags;
 	struct qib_mcast *mcast;
 
-	spin_lock_irqsave(&ibp->lock, flags);
-	n = ibp->mcast_tree.rb_node;
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
+	n = ibp->rvp.mcast_tree.rb_node;
 	while (n) {
 		int ret;
 
@@ -129,11 +129,11 @@ struct qib_mcast *qib_mcast_find(struct qib_ibport *ibp, union ib_gid *mgid)
 			n = n->rb_right;
 		else {
 			atomic_inc(&mcast->refcount);
-			spin_unlock_irqrestore(&ibp->lock, flags);
+			spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 			goto bail;
 		}
 	}
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 	mcast = NULL;
 
@@ -153,11 +153,11 @@ bail:
 static int qib_mcast_add(struct qib_ibdev *dev, struct qib_ibport *ibp,
 			 struct qib_mcast *mcast, struct qib_mcast_qp *mqp)
 {
-	struct rb_node **n = &ibp->mcast_tree.rb_node;
+	struct rb_node **n = &ibp->rvp.mcast_tree.rb_node;
 	struct rb_node *pn = NULL;
 	int ret;
 
-	spin_lock_irq(&ibp->lock);
+	spin_lock_irq(&ibp->rvp.lock);
 
 	while (*n) {
 		struct qib_mcast *tmcast;
@@ -212,12 +212,12 @@ static int qib_mcast_add(struct qib_ibdev *dev, struct qib_ibport *ibp,
 
 	atomic_inc(&mcast->refcount);
 	rb_link_node(&mcast->rb_node, pn, n);
-	rb_insert_color(&mcast->rb_node, &ibp->mcast_tree);
+	rb_insert_color(&mcast->rb_node, &ibp->rvp.mcast_tree);
 
 	ret = 0;
 
 bail:
-	spin_unlock_irq(&ibp->lock);
+	spin_unlock_irq(&ibp->rvp.lock);
 
 	return ret;
 }
@@ -294,13 +294,13 @@ int qib_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET)
 		return -EINVAL;
 
-	spin_lock_irq(&ibp->lock);
+	spin_lock_irq(&ibp->rvp.lock);
 
 	/* Find the GID in the mcast table. */
-	n = ibp->mcast_tree.rb_node;
+	n = ibp->rvp.mcast_tree.rb_node;
 	while (1) {
 		if (n == NULL) {
-			spin_unlock_irq(&ibp->lock);
+			spin_unlock_irq(&ibp->rvp.lock);
 			return -EINVAL;
 		}
 
@@ -329,13 +329,13 @@ int qib_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 		/* If this was the last attached QP, remove the GID too. */
 		if (list_empty(&mcast->qp_list)) {
-			rb_erase(&mcast->rb_node, &ibp->mcast_tree);
+			rb_erase(&mcast->rb_node, &ibp->rvp.mcast_tree);
 			last = 1;
 		}
 		break;
 	}
 
-	spin_unlock_irq(&ibp->lock);
+	spin_unlock_irq(&ibp->rvp.lock);
 	/* QP not attached */
 	if (!delp)
 		return -EINVAL;
@@ -359,5 +359,5 @@ int qib_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 int qib_mcast_tree_empty(struct qib_ibport *ibp)
 {
-	return ibp->mcast_tree.rb_node == NULL;
+	return !(ibp->rvp.mcast_tree.rb_node);
 }

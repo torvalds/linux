@@ -5497,7 +5497,7 @@ static void try_7322_ipg(struct qib_pportdata *ppd)
 	unsigned delay;
 	int ret;
 
-	agent = ibp->send_agent;
+	agent = ibp->rvp.send_agent;
 	if (!agent)
 		goto retry;
 

@@ -279,7 +279,8 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 			if (!(qp->alt_ah_attr.ah_flags & IB_AH_GRH))
 				goto err;
 			guid = get_sguid(ibp, qp->alt_ah_attr.grh.sgid_index);
-			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->gid_prefix, guid))
+			if (!gid_ok(&hdr->u.l.grh.dgid,
+				    ibp->rvp.gid_prefix, guid))
 				goto err;
 			if (!gid_ok(&hdr->u.l.grh.sgid,
 			    qp->alt_ah_attr.grh.dgid.global.subnet_prefix,
@@ -311,7 +312,8 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 				goto err;
 			guid = get_sguid(ibp,
 					 qp->remote_ah_attr.grh.sgid_index);
-			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->gid_prefix, guid))
+			if (!gid_ok(&hdr->u.l.grh.dgid,
+				    ibp->rvp.gid_prefix, guid))
 				goto err;
 			if (!gid_ok(&hdr->u.l.grh.sgid,
 			    qp->remote_ah_attr.grh.dgid.global.subnet_prefix,
@@ -409,7 +411,7 @@ again:
 
 	if (!qp || !(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) ||
 	    qp->ibqp.qp_type != sqp->ibqp.qp_type) {
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		/*
 		 * For RC, the requester would timeout and retry so
 		 * shortcut the timeouts and just signal too many retries.
@@ -566,7 +568,7 @@ again:
 
 send_comp:
 	spin_lock_irqsave(&sqp->s_lock, flags);
-	ibp->n_loop_pkts++;
+	ibp->rvp.n_loop_pkts++;
 flush_send:
 	sqp->s_rnr_retry = sqp->s_rnr_retry_cnt;
 	qib_send_complete(sqp, wqe, send_status);
@@ -576,7 +578,7 @@ rnr_nak:
 	/* Handle RNR NAK */
 	if (qp->ibqp.qp_type == IB_QPT_UC)
 		goto send_comp;
-	ibp->n_rnr_naks++;
+	ibp->rvp.n_rnr_naks++;
 	/*
 	 * Note: we don't need the s_lock held since the BUSY flag
 	 * makes this single threaded.
@@ -663,7 +665,7 @@ u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 	hdr->next_hdr = IB_GRH_NEXT_HDR;
 	hdr->hop_limit = grh->hop_limit;
 	/* The SGID is 32-bit aligned. */
-	hdr->sgid.global.subnet_prefix = ibp->gid_prefix;
+	hdr->sgid.global.subnet_prefix = ibp->rvp.gid_prefix;
 	hdr->sgid.global.interface_id = grh->sgid_index ?
 		ibp->guids[grh->sgid_index - 1] : ppd_from_ibp(ibp)->guid;
 	hdr->dgid = grh->dgid;

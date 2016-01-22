@@ -527,7 +527,7 @@ rewind:
 	set_bit(QIB_R_REWIND_SGE, &qp->r_aflags);
 	qp->r_sge.num_sge = 0;
 drop:
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 	return;
 
 op_err:

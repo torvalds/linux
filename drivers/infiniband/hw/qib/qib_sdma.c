@@ -702,7 +702,7 @@ busy:
 			struct qib_ibport *ibp;
 
 			ibp = &ppd->ibport_data;
-			ibp->n_dmawait++;
+			ibp->rvp.n_dmawait++;
 			qp->s_flags |= QIB_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->iowait, &dev->dmawait);
 		}

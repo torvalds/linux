@@ -245,6 +245,13 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 		alloc_percpu(struct qib_pma_counters);
 	if (!ppd->ibport_data.pmastats)
 		return -ENOMEM;
+	ppd->ibport_data.rvp.rc_acks = alloc_percpu(u64);
+	ppd->ibport_data.rvp.rc_qacks = alloc_percpu(u64);
+	ppd->ibport_data.rvp.rc_delayed_comp = alloc_percpu(u64);
+	if (!(ppd->ibport_data.rvp.rc_acks) ||
+	    !(ppd->ibport_data.rvp.rc_qacks) ||
+	    !(ppd->ibport_data.rvp.rc_delayed_comp))
+		return -ENOMEM;
 
 	if (qib_cc_table_size < IB_CCT_MIN_ENTRIES)
 		goto bail;
@@ -632,6 +639,9 @@ wq_error:
 static void qib_free_pportdata(struct qib_pportdata *ppd)
 {
 	free_percpu(ppd->ibport_data.pmastats);
+	free_percpu(ppd->ibport_data.rvp.rc_acks);
+	free_percpu(ppd->ibport_data.rvp.rc_qacks);
+	free_percpu(ppd->ibport_data.rvp.rc_delayed_comp);
 	ppd->ibport_data.pmastats = NULL;
 }
 

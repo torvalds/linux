@@ -62,7 +62,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 	qp = qib_lookup_qpn(ibp, swqe->ud_wr.remote_qpn);
 	if (!qp) {
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		return;
 	}
 
@@ -73,7 +73,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 	if (dqptype != sqptype ||
 	    !(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK)) {
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		goto drop;
 	}
 
@@ -153,14 +153,14 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		}
 		if (!ret) {
 			if (qp->ibqp.qp_num == 0)
-				ibp->n_vl15_dropped++;
+				ibp->rvp.n_vl15_dropped++;
 			goto bail_unlock;
 		}
 	}
 	/* Silently drop packets which are too big. */
 	if (unlikely(wc.byte_len > qp->r_len)) {
 		qp->r_flags |= QIB_R_REUSE_SGE;
-		ibp->n_pkt_drops++;
+		ibp->rvp.n_pkt_drops++;
 		goto bail_unlock;
 	}
 
@@ -219,7 +219,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	/* Signal completion event if the solicited bit is set. */
 	qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 		     swqe->wr.send_flags & IB_SEND_SOLICITED);
-	ibp->n_loop_pkts++;
+	ibp->rvp.n_loop_pkts++;
 bail_unlock:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
 drop:
@@ -546,7 +546,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		}
 		if (!ret) {
 			if (qp->ibqp.qp_num == 0)
-				ibp->n_vl15_dropped++;
+				ibp->rvp.n_vl15_dropped++;
 			return;
 		}
 	}
@@ -589,5 +589,5 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	return;
 
 drop:
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 }

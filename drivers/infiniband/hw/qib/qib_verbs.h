@@ -401,21 +401,10 @@ struct qib_pma_counters {
 };
 
 struct qib_ibport {
-	struct rvt_qp __rcu *qp0;
-	struct rvt_qp __rcu *qp1;
-	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
+	struct rvt_ibport rvp;
 	struct rvt_ah *sm_ah;
 	struct rvt_ah *smi_ah;
-	struct rb_root mcast_tree;
-	spinlock_t lock;		/* protect changes in this struct */
-
-	/* non-zero when timer is set */
-	unsigned long mkey_lease_timeout;
-	unsigned long trap_timeout;
-	__be64 gid_prefix;      /* in network order */
-	__be64 mkey;
 	__be64 guids[QIB_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
-	u64 tid;		/* TID for traps */
 	struct qib_pma_counters __percpu *pmastats;
 	u64 z_unicast_xmit;     /* starting count for PMA */
 	u64 z_unicast_rcv;      /* starting count for PMA */
@@ -434,41 +423,8 @@ struct qib_ibport {
 	u32 z_local_link_integrity_errors;      /* starting count for PMA */
 	u32 z_excessive_buffer_overrun_errors;  /* starting count for PMA */
 	u32 z_vl15_dropped;                     /* starting count for PMA */
-	u32 n_rc_resends;
-	u32 n_rc_acks;
-	u32 n_rc_qacks;
-	u32 n_rc_delayed_comp;
-	u32 n_seq_naks;
-	u32 n_rdma_seq;
-	u32 n_rnr_naks;
-	u32 n_other_naks;
-	u32 n_loop_pkts;
-	u32 n_pkt_drops;
-	u32 n_vl15_dropped;
-	u32 n_rc_timeouts;
-	u32 n_dmawait;
-	u32 n_unaligned;
-	u32 n_rc_dupreq;
-	u32 n_rc_seqnak;
-	u32 port_cap_flags;
-	u32 pma_sample_start;
-	u32 pma_sample_interval;
-	__be16 pma_counter_select[5];
-	u16 pma_tag;
-	u16 pkey_violations;
-	u16 qkey_violations;
-	u16 mkey_violations;
-	u16 mkey_lease_period;
-	u16 sm_lid;
-	u16 repress_traps;
-	u8 sm_sl;
-	u8 mkeyprot;
-	u8 subnet_timeout;
-	u8 vl_high_limit;
 	u8 sl_to_vl[16];
-
 };
-
 
 struct qib_ibdev {
 	struct rvt_dev_info rdi;
