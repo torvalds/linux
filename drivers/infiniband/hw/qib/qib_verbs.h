@@ -464,10 +464,6 @@ __be32 qib_compute_aeth(struct rvt_qp *qp);
 
 struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn);
 
-struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
-			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata);
-
 int qib_destroy_qp(struct ib_qp *ibqp);
 
 int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
@@ -477,12 +473,15 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		 int attr_mask, struct ib_qp_init_attr *init_attr);
-
-unsigned qib_free_all_qps(struct qib_devdata *dd);
-
-void qib_init_qpn_table(struct qib_devdata *dd, struct rvt_qpn_table *qpt);
-
-void qib_free_qpn_table(struct rvt_qpn_table *qpt);
+/*
+ * Functions provided by qib driver for rdmavt to use
+ */
+unsigned qib_free_all_qps(struct rvt_dev_info *rdi);
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp);
+void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+void notify_qp_reset(struct rvt_qp *qp);
+int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
+	      enum ib_qp_type type, u8 port, gfp_t gfp);
 
 #ifdef CONFIG_DEBUG_FS
 
