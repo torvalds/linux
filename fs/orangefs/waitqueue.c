@@ -36,7 +36,6 @@ void purge_waiting_ops(void)
 		spin_lock(&op->lock);
 		set_op_state_purged(op);
 		spin_unlock(&op->lock);
-		wake_up_interruptible(&op->waitq);
 	}
 	spin_unlock(&orangefs_request_list_lock);
 }

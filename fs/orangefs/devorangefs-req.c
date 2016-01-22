@@ -415,8 +415,6 @@ wakeup:
 		set_op_state_serviced(op);
 		spin_unlock(&op->lock);
 
-		wake_up_interruptible(&op->waitq);
-
 		while (1) {
 			spin_lock(&op->lock);
 			prepare_to_wait_exclusive(
@@ -464,17 +462,14 @@ wakeup:
 	} else {
 		/*
 		 * tell the vfs op waiting on a waitqueue that
-		 * this op is done
-		 */
-		spin_lock(&op->lock);
-		set_op_state_serviced(op);
-		spin_unlock(&op->lock);
-		/*
+		 * this op is done -
 		 * for every other operation (i.e. non-I/O), we need to
 		 * wake up the callers for downcall completion
 		 * notification
 		 */
-		wake_up_interruptible(&op->waitq);
+		spin_lock(&op->lock);
+		set_op_state_serviced(op);
+		spin_unlock(&op->lock);
 	}
 out:
 	return ret;

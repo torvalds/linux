@@ -303,7 +303,6 @@ void purge_inprogress_ops(void)
 				get_opname_string(op));
 			set_op_state_purged(op);
 			spin_unlock(&op->lock);
-			wake_up_interruptible(&op->waitq);
 		}
 	}
 }
