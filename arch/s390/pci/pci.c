@@ -270,7 +270,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 	struct zpci_dev *zdev =	to_zpci(pdev);
 	int idx;
 
-	if ((bar & 7) != bar)
+	if (!pci_resource_len(pdev, bar))
 		return NULL;
 
 	idx = zdev->bars[bar].map_idx;
