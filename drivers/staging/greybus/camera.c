@@ -70,11 +70,19 @@ static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
 		.gb_format = 0x01,
 	},
 	{
-		.mbus_code = V4L2_MBUS_FMT_YUYV8_1_5X8,
+		.mbus_code = V4L2_MBUS_FMT_NV12_1x8,
+		.gb_format = 0x12,
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_NV21_1x8,
+		.gb_format = 0x13,
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_YU12_1x8,
 		.gb_format = 0x16,
 	},
 	{
-		.mbus_code = V4L2_MBUS_FMT_YVYU8_1_5X8,
+		.mbus_code = V4L2_MBUS_FMT_YV12_1x8,
 		.gb_format = 0x17,
 	},
 	{
