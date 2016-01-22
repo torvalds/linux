@@ -223,7 +223,8 @@ struct rvt_driver_provided {
 	const char * (*get_card_name)(struct rvt_dev_info *rdi);
 	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
 	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
-	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+				gfp_t gfp);
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 	void (*notify_qp_reset)(struct rvt_qp *qp);
 
@@ -234,7 +235,7 @@ struct rvt_driver_provided {
 	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
 			      struct rvt_ah *);
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port);
+			 enum ib_qp_type type, u8 port, gfp_t gfp);
 };
 
 struct rvt_dev_info {
