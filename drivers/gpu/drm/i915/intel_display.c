@@ -2473,6 +2473,22 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		intel_fb_offset_to_xy(&x, &y, fb, i);
 
 		/*
+		 * The fence (if used) is aligned to the start of the object
+		 * so having the framebuffer wrap around across the edge of the
+		 * fenced region doesn't really work. We have no API to configure
+		 * the fence start offset within the object (nor could we probably
+		 * on gen2/3). So it's just easier if we just require that the
+		 * fb layout agrees with the fence layout. We already check that the
+		 * fb stride matches the fence stride elsewhere.
+		 */
+		if (i915_gem_object_is_tiled(intel_fb->obj) &&
+		    (x + width) * cpp > fb->pitches[i]) {
+			DRM_DEBUG("bad fb plane %d offset: 0x%x\n",
+				  i, fb->offsets[i]);
+			return -EINVAL;
+		}
+
+		/*
 		 * First pixel of the framebuffer from
 		 * the start of the normal gtt mapping.
 		 */
