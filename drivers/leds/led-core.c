@@ -98,7 +98,10 @@ static void set_brightness_delayed(struct work_struct *ws)
 						led_cdev->delayed_set_value);
 	else
 		ret = -ENOTSUPP;
-	if (ret < 0)
+	if (ret < 0 &&
+	    /* LED HW might have been unplugged, therefore don't warn */
+	    !(ret == -ENODEV && (led_cdev->flags & LED_UNREGISTERING) &&
+	    (led_cdev->flags & LED_HW_PLUGGABLE)))
 		dev_err(led_cdev->dev,
 			"Setting an LED's brightness failed (%d)\n", ret);
 }
