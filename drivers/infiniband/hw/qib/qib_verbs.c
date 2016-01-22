@@ -133,16 +133,6 @@ const int ib_qib_state_ops[IB_QPS_ERR + 1] = {
 	    QIB_POST_SEND_OK | QIB_FLUSH_SEND,
 };
 
-struct qib_ucontext {
-	struct ib_ucontext ibucontext;
-};
-
-static inline struct qib_ucontext *to_iucontext(struct ib_ucontext
-						  *ibucontext)
-{
-	return container_of(ibucontext, struct qib_ucontext, ibucontext);
-}
-
 /*
  * Translate ib_wr_opcode into ib_wc_opcode.
  */
@@ -1841,36 +1831,6 @@ unsigned qib_get_pkey(struct qib_ibport *ibp, unsigned index)
 	return ret;
 }
 
-/**
- * qib_alloc_ucontext - allocate a ucontest
- * @ibdev: the infiniband device
- * @udata: not used by the QLogic_IB driver
- */
-
-static struct ib_ucontext *qib_alloc_ucontext(struct ib_device *ibdev,
-					      struct ib_udata *udata)
-{
-	struct qib_ucontext *context;
-	struct ib_ucontext *ret;
-
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
-	if (!context) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	ret = &context->ibucontext;
-
-bail:
-	return ret;
-}
-
-static int qib_dealloc_ucontext(struct ib_ucontext *context)
-{
-	kfree(to_iucontext(context));
-	return 0;
-}
-
 static void init_ibport(struct qib_pportdata *ppd)
 {
 	struct qib_verbs_counters cntrs;
@@ -2062,8 +2022,8 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->modify_port = qib_modify_port;
 	ibdev->query_pkey = NULL;
 	ibdev->query_gid = qib_query_gid;
-	ibdev->alloc_ucontext = qib_alloc_ucontext;
-	ibdev->dealloc_ucontext = qib_dealloc_ucontext;
+	ibdev->alloc_ucontext = NULL;
+	ibdev->dealloc_ucontext = NULL;
 	ibdev->alloc_pd = NULL;
 	ibdev->dealloc_pd = NULL;
 	ibdev->create_ah = NULL;
