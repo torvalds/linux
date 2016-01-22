@@ -189,6 +189,16 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port,
 	return -EOPNOTSUPP;
 }
 
+struct rvt_ucontext {
+	struct ib_ucontext ibucontext;
+};
+
+static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
+						*ibucontext)
+{
+	return container_of(ibucontext, struct rvt_ucontext, ibucontext);
+}
+
 /**
  * rvt_alloc_ucontext - Allocate a user context
  * @ibdev: Vers IB dev
@@ -197,7 +207,12 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port,
 static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
 					      struct ib_udata *udata)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	struct rvt_ucontext *context;
+
+	context = kmalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return ERR_PTR(-ENOMEM);
+	return &context->ibucontext;
 }
 
 /**
@@ -206,7 +221,8 @@ static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
  */
 static int rvt_dealloc_ucontext(struct ib_ucontext *context)
 {
-	return -EOPNOTSUPP;
+	kfree(to_iucontext(context));
+	return 0;
 }
 
 static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
