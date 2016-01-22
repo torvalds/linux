@@ -734,8 +734,8 @@ static void mem_timer(unsigned long data)
 
 	if (qp) {
 		spin_lock_irqsave(&qp->s_lock, flags);
-		if (qp->s_flags & QIB_S_WAIT_KMEM) {
-			qp->s_flags &= ~QIB_S_WAIT_KMEM;
+		if (qp->s_flags & RVT_S_WAIT_KMEM) {
+			qp->s_flags &= ~RVT_S_WAIT_KMEM;
 			qib_schedule_send(qp);
 		}
 		spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -958,10 +958,10 @@ static noinline struct qib_verbs_txreq *__get_txreq(struct qib_ibdev *dev,
 		if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK &&
 		    list_empty(&priv->iowait)) {
 			dev->n_txwait++;
-			qp->s_flags |= QIB_S_WAIT_TX;
+			qp->s_flags |= RVT_S_WAIT_TX;
 			list_add_tail(&priv->iowait, &dev->txwait);
 		}
-		qp->s_flags &= ~QIB_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		spin_unlock(&dev->rdi.pending_lock);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		tx = ERR_PTR(-EBUSY);
@@ -1030,8 +1030,8 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 		spin_unlock_irqrestore(&dev->rdi.pending_lock, flags);
 
 		spin_lock_irqsave(&qp->s_lock, flags);
-		if (qp->s_flags & QIB_S_WAIT_TX) {
-			qp->s_flags &= ~QIB_S_WAIT_TX;
+		if (qp->s_flags & RVT_S_WAIT_TX) {
+			qp->s_flags &= ~RVT_S_WAIT_TX;
 			qib_schedule_send(qp);
 		}
 		spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1081,8 +1081,8 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 	for (i = 0; i < n; i++) {
 		qp = qps[i];
 		spin_lock(&qp->s_lock);
-		if (qp->s_flags & QIB_S_WAIT_DMA_DESC) {
-			qp->s_flags &= ~QIB_S_WAIT_DMA_DESC;
+		if (qp->s_flags & RVT_S_WAIT_DMA_DESC) {
+			qp->s_flags &= ~RVT_S_WAIT_DMA_DESC;
 			qib_schedule_send(qp);
 		}
 		spin_unlock(&qp->s_lock);
@@ -1119,8 +1119,8 @@ static void sdma_complete(struct qib_sdma_txreq *cookie, int status)
 	if (atomic_dec_and_test(&priv->s_dma_busy)) {
 		if (qp->state == IB_QPS_RESET)
 			wake_up(&priv->wait_dma);
-		else if (qp->s_flags & QIB_S_WAIT_DMA) {
-			qp->s_flags &= ~QIB_S_WAIT_DMA;
+		else if (qp->s_flags & RVT_S_WAIT_DMA) {
+			qp->s_flags &= ~RVT_S_WAIT_DMA;
 			qib_schedule_send(qp);
 		}
 	}
@@ -1141,11 +1141,11 @@ static int wait_kmem(struct qib_ibdev *dev, struct rvt_qp *qp)
 		if (list_empty(&priv->iowait)) {
 			if (list_empty(&dev->memwait))
 				mod_timer(&dev->mem_timer, jiffies + 1);
-			qp->s_flags |= QIB_S_WAIT_KMEM;
+			qp->s_flags |= RVT_S_WAIT_KMEM;
 			list_add_tail(&priv->iowait, &dev->memwait);
 		}
 		spin_unlock(&dev->rdi.pending_lock);
-		qp->s_flags &= ~QIB_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		ret = -EBUSY;
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1277,13 +1277,13 @@ static int no_bufs_available(struct rvt_qp *qp)
 		spin_lock(&dev->rdi.pending_lock);
 		if (list_empty(&priv->iowait)) {
 			dev->n_piowait++;
-			qp->s_flags |= QIB_S_WAIT_PIO;
+			qp->s_flags |= RVT_S_WAIT_PIO;
 			list_add_tail(&priv->iowait, &dev->piowait);
 			dd = dd_from_dev(dev);
 			dd->f_wantpiobuf_intr(dd, 1);
 		}
 		spin_unlock(&dev->rdi.pending_lock);
-		qp->s_flags &= ~QIB_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		ret = -EBUSY;
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1396,7 +1396,7 @@ done:
  * @len: the length of the packet in bytes
  *
  * Return zero if packet is sent or queued OK.
- * Return non-zero and clear qp->s_flags QIB_S_BUSY otherwise.
+ * Return non-zero and clear qp->s_flags RVT_S_BUSY otherwise.
  */
 int qib_verbs_send(struct rvt_qp *qp, struct qib_ib_header *hdr,
 		   u32 hdrwords, struct rvt_sge_state *ss, u32 len)
@@ -1564,8 +1564,8 @@ full:
 		qp = qps[i];
 
 		spin_lock_irqsave(&qp->s_lock, flags);
-		if (qp->s_flags & QIB_S_WAIT_PIO) {
-			qp->s_flags &= ~QIB_S_WAIT_PIO;
+		if (qp->s_flags & RVT_S_WAIT_PIO) {
+			qp->s_flags &= ~RVT_S_WAIT_PIO;
 			qib_schedule_send(qp);
 		}
 		spin_unlock_irqrestore(&qp->s_lock, flags);

@@ -414,7 +414,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 						 */
 						if (list_empty(&qp->rspwait)) {
 							qp->r_flags |=
-								QIB_R_RSP_NAK;
+								RVT_R_RSP_NAK;
 							atomic_inc(
 								&qp->refcount);
 							list_add_tail(
@@ -583,14 +583,14 @@ move_along:
 	 */
 	list_for_each_entry_safe(qp, nqp, &rcd->qp_wait_list, rspwait) {
 		list_del_init(&qp->rspwait);
-		if (qp->r_flags & QIB_R_RSP_NAK) {
-			qp->r_flags &= ~QIB_R_RSP_NAK;
+		if (qp->r_flags & RVT_R_RSP_NAK) {
+			qp->r_flags &= ~RVT_R_RSP_NAK;
 			qib_send_rc_ack(qp);
 		}
-		if (qp->r_flags & QIB_R_RSP_SEND) {
+		if (qp->r_flags & RVT_R_RSP_SEND) {
 			unsigned long flags;
 
-			qp->r_flags &= ~QIB_R_RSP_SEND;
+			qp->r_flags &= ~RVT_R_RSP_SEND;
 			spin_lock_irqsave(&qp->s_lock, flags);
 			if (ib_qib_state_ops[qp->state] &
 					QIB_PROCESS_OR_FLUSH_SEND)

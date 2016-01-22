@@ -703,11 +703,11 @@ busy:
 
 			ibp = &ppd->ibport_data;
 			ibp->rvp.n_dmawait++;
-			qp->s_flags |= QIB_S_WAIT_DMA_DESC;
+			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->iowait, &dev->dmawait);
 		}
 		spin_unlock(&dev->rdi.pending_lock);
-		qp->s_flags &= ~QIB_S_BUSY;
+		qp->s_flags &= ~RVT_S_BUSY;
 		spin_unlock(&qp->s_lock);
 		ret = -EBUSY;
 	} else {

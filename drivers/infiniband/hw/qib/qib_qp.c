@@ -386,7 +386,7 @@ static void qib_reset_qp(struct rvt_qp *qp, enum ib_qp_type type)
 	qp->qkey = 0;
 	qp->qp_access_flags = 0;
 	atomic_set(&priv->s_dma_busy, 0);
-	qp->s_flags &= QIB_S_SIGNAL_REQ_WR;
+	qp->s_flags &= RVT_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
 	qp->s_wqe = NULL;
 	qp->s_draining = 0;
@@ -431,7 +431,7 @@ static void clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 {
 	unsigned n;
 
-	if (test_and_clear_bit(QIB_R_REWIND_SGE, &qp->r_aflags))
+	if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
 		qib_put_ss(&qp->s_rdma_read_sge);
 
 	qib_put_ss(&qp->r_sge);
@@ -496,22 +496,22 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 
 	qp->state = IB_QPS_ERR;
 
-	if (qp->s_flags & (QIB_S_TIMER | QIB_S_WAIT_RNR)) {
-		qp->s_flags &= ~(QIB_S_TIMER | QIB_S_WAIT_RNR);
+	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
+		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
 		del_timer(&qp->s_timer);
 	}
 
-	if (qp->s_flags & QIB_S_ANY_WAIT_SEND)
-		qp->s_flags &= ~QIB_S_ANY_WAIT_SEND;
+	if (qp->s_flags & RVT_S_ANY_WAIT_SEND)
+		qp->s_flags &= ~RVT_S_ANY_WAIT_SEND;
 
 	spin_lock(&dev->rdi.pending_lock);
-	if (!list_empty(&priv->iowait) && !(qp->s_flags & QIB_S_BUSY)) {
-		qp->s_flags &= ~QIB_S_ANY_WAIT_IO;
+	if (!list_empty(&priv->iowait) && !(qp->s_flags & RVT_S_BUSY)) {
+		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
 		list_del_init(&priv->iowait);
 	}
 	spin_unlock(&dev->rdi.pending_lock);
 
-	if (!(qp->s_flags & QIB_S_BUSY)) {
+	if (!(qp->s_flags & RVT_S_BUSY)) {
 		qp->s_hdrwords = 0;
 		if (qp->s_rdma_mr) {
 			rvt_put_mr(qp->s_rdma_mr);
@@ -533,7 +533,7 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	wc.qp = &qp->ibqp;
 	wc.opcode = IB_WC_RECV;
 
-	if (test_and_clear_bit(QIB_R_WRID_VALID, &qp->r_aflags)) {
+	if (test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags)) {
 		wc.wr_id = qp->r_wr_id;
 		wc.status = err;
 		qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
@@ -716,7 +716,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			if (!list_empty(&priv->iowait))
 				list_del_init(&priv->iowait);
 			spin_unlock(&dev->rdi.pending_lock);
-			qp->s_flags &= ~(QIB_S_TIMER | QIB_S_ANY_WAIT);
+			qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
 			spin_unlock(&qp->s_lock);
 			spin_unlock_irq(&qp->r_lock);
 			/* Stop the sending work queue and retry timer */
@@ -739,7 +739,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	case IB_QPS_RTR:
 		/* Allow event to retrigger if QP set to RTR more than once */
-		qp->r_flags &= ~QIB_R_COMM_EST;
+		qp->r_flags &= ~RVT_R_COMM_EST;
 		qp->state = new_state;
 		break;
 
@@ -910,7 +910,7 @@ int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->recv_cq = qp->ibqp.recv_cq;
 	init_attr->srq = qp->ibqp.srq;
 	init_attr->cap = attr->cap;
-	if (qp->s_flags & QIB_S_SIGNAL_REQ_WR)
+	if (qp->s_flags & RVT_S_SIGNAL_REQ_WR)
 		init_attr->sq_sig_type = IB_SIGNAL_REQ_WR;
 	else
 		init_attr->sq_sig_type = IB_SIGNAL_ALL_WR;
@@ -1128,7 +1128,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		qp->s_size = init_attr->cap.max_send_wr + 1;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
-			qp->s_flags = QIB_S_SIGNAL_REQ_WR;
+			qp->s_flags = RVT_S_SIGNAL_REQ_WR;
 		dev = to_idev(ibpd->device);
 		dd = dd_from_dev(dev);
 		err = alloc_qpn(dd, &dev->rdi.qp_dev->qpn_table,
@@ -1244,7 +1244,7 @@ int qib_destroy_qp(struct ib_qp *ibqp)
 		if (!list_empty(&priv->iowait))
 			list_del_init(&priv->iowait);
 		spin_unlock(&dev->rdi.pending_lock);
-		qp->s_flags &= ~(QIB_S_TIMER | QIB_S_ANY_WAIT);
+		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
 		spin_unlock_irq(&qp->s_lock);
 		cancel_work_sync(&priv->s_work);
 		del_timer_sync(&qp->s_timer);
@@ -1318,20 +1318,20 @@ void qib_get_credit(struct rvt_qp *qp, u32 aeth)
 	 * honor the credit field.
 	 */
 	if (credit == QIB_AETH_CREDIT_INVAL) {
-		if (!(qp->s_flags & QIB_S_UNLIMITED_CREDIT)) {
-			qp->s_flags |= QIB_S_UNLIMITED_CREDIT;
-			if (qp->s_flags & QIB_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~QIB_S_WAIT_SSN_CREDIT;
+		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
+			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
+			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
+				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
 				qib_schedule_send(qp);
 			}
 		}
-	} else if (!(qp->s_flags & QIB_S_UNLIMITED_CREDIT)) {
+	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
 		/* Compute new LSN (i.e., MSN + credit) */
 		credit = (aeth + credit_table[credit]) & QIB_MSN_MASK;
 		if (qib_cmp24(credit, qp->s_lsn) > 0) {
 			qp->s_lsn = credit;
-			if (qp->s_flags & QIB_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~QIB_S_WAIT_SSN_CREDIT;
+			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
+				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
 				qib_schedule_send(qp);
 			}
 		}

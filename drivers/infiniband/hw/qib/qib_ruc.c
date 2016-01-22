@@ -190,7 +190,7 @@ int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 	qp->r_wr_id = wqe->wr_id;
 
 	ret = 1;
-	set_bit(QIB_R_WRID_VALID, &qp->r_aflags);
+	set_bit(RVT_R_WRID_VALID, &qp->r_aflags);
 	if (handler) {
 		u32 n;
 
@@ -378,11 +378,11 @@ static void qib_ruc_loopback(struct rvt_qp *sqp)
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
 	/* Return if we are already busy processing a work request. */
-	if ((sqp->s_flags & (QIB_S_BUSY | QIB_S_ANY_WAIT)) ||
+	if ((sqp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT)) ||
 	    !(ib_qib_state_ops[sqp->state] & QIB_PROCESS_OR_FLUSH_SEND))
 		goto unlock;
 
-	sqp->s_flags |= QIB_S_BUSY;
+	sqp->s_flags |= RVT_S_BUSY;
 
 again:
 	if (sqp->s_last == sqp->s_head)
@@ -547,7 +547,7 @@ again:
 	if (release)
 		qib_put_ss(&qp->r_sge);
 
-	if (!test_and_clear_bit(QIB_R_WRID_VALID, &qp->r_aflags))
+	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 		goto send_comp;
 
 	if (wqe->wr.opcode == IB_WR_RDMA_WRITE_WITH_IMM)
@@ -592,7 +592,7 @@ rnr_nak:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_qib_state_ops[sqp->state] & QIB_PROCESS_RECV_OK))
 		goto clr_busy;
-	sqp->s_flags |= QIB_S_WAIT_RNR;
+	sqp->s_flags |= RVT_S_WAIT_RNR;
 	sqp->s_timer.function = qib_rc_rnr_retry;
 	sqp->s_timer.expires = jiffies +
 		usecs_to_jiffies(ib_qib_rnr_table[qp->r_min_rnr_timer]);
@@ -622,7 +622,7 @@ serr:
 	if (sqp->ibqp.qp_type == IB_QPT_RC) {
 		int lastwqe = qib_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
 
-		sqp->s_flags &= ~QIB_S_BUSY;
+		sqp->s_flags &= ~RVT_S_BUSY;
 		spin_unlock_irqrestore(&sqp->s_lock, flags);
 		if (lastwqe) {
 			struct ib_event ev;
@@ -635,7 +635,7 @@ serr:
 		goto done;
 	}
 clr_busy:
-	sqp->s_flags &= ~QIB_S_BUSY;
+	sqp->s_flags &= ~RVT_S_BUSY;
 unlock:
 	spin_unlock_irqrestore(&sqp->s_lock, flags);
 done:
@@ -751,7 +751,7 @@ void qib_do_send(struct work_struct *work)
 		return;
 	}
 
-	qp->s_flags |= QIB_S_BUSY;
+	qp->s_flags |= RVT_S_BUSY;
 
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
@@ -794,7 +794,7 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
 	/* See ch. 11.2.4.1 and 10.7.3.1 */
-	if (!(qp->s_flags & QIB_S_SIGNAL_REQ_WR) ||
+	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
 	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
 	    status != IB_WC_SUCCESS) {
 		struct ib_wc wc;

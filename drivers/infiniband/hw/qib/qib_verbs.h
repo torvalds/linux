@@ -262,78 +262,6 @@ struct qib_qp_priv {
 	struct rvt_qp *owner;
 };
 
-/*
- * Atomic bit definitions for r_aflags.
- */
-#define QIB_R_WRID_VALID        0
-#define QIB_R_REWIND_SGE        1
-
-/*
- * Bit definitions for r_flags.
- */
-#define QIB_R_REUSE_SGE 0x01
-#define QIB_R_RDMAR_SEQ 0x02
-#define QIB_R_RSP_NAK   0x04
-#define QIB_R_RSP_SEND  0x08
-#define QIB_R_COMM_EST  0x10
-
-/*
- * Bit definitions for s_flags.
- *
- * QIB_S_SIGNAL_REQ_WR - set if QP send WRs contain completion signaled
- * QIB_S_BUSY - send tasklet is processing the QP
- * QIB_S_TIMER - the RC retry timer is active
- * QIB_S_ACK_PENDING - an ACK is waiting to be sent after RDMA read/atomics
- * QIB_S_WAIT_FENCE - waiting for all prior RDMA read or atomic SWQEs
- *                         before processing the next SWQE
- * QIB_S_WAIT_RDMAR - waiting for a RDMA read or atomic SWQE to complete
- *                         before processing the next SWQE
- * QIB_S_WAIT_RNR - waiting for RNR timeout
- * QIB_S_WAIT_SSN_CREDIT - waiting for RC credits to process next SWQE
- * QIB_S_WAIT_DMA - waiting for send DMA queue to drain before generating
- *                  next send completion entry not via send DMA
- * QIB_S_WAIT_PIO - waiting for a send buffer to be available
- * QIB_S_WAIT_TX - waiting for a struct qib_verbs_txreq to be available
- * QIB_S_WAIT_DMA_DESC - waiting for DMA descriptors to be available
- * QIB_S_WAIT_KMEM - waiting for kernel memory to be available
- * QIB_S_WAIT_PSN - waiting for a packet to exit the send DMA queue
- * QIB_S_WAIT_ACK - waiting for an ACK packet before sending more requests
- * QIB_S_SEND_ONE - send one packet, request ACK, then wait for ACK
- */
-#define QIB_S_SIGNAL_REQ_WR	0x0001
-#define QIB_S_BUSY		0x0002
-#define QIB_S_TIMER		0x0004
-#define QIB_S_RESP_PENDING	0x0008
-#define QIB_S_ACK_PENDING	0x0010
-#define QIB_S_WAIT_FENCE	0x0020
-#define QIB_S_WAIT_RDMAR	0x0040
-#define QIB_S_WAIT_RNR		0x0080
-#define QIB_S_WAIT_SSN_CREDIT	0x0100
-#define QIB_S_WAIT_DMA		0x0200
-#define QIB_S_WAIT_PIO		0x0400
-#define QIB_S_WAIT_TX		0x0800
-#define QIB_S_WAIT_DMA_DESC	0x1000
-#define QIB_S_WAIT_KMEM		0x2000
-#define QIB_S_WAIT_PSN		0x4000
-#define QIB_S_WAIT_ACK		0x8000
-#define QIB_S_SEND_ONE		0x10000
-#define QIB_S_UNLIMITED_CREDIT	0x20000
-
-/*
- * Wait flags that would prevent any packet type from being sent.
- */
-#define QIB_S_ANY_WAIT_IO (QIB_S_WAIT_PIO | QIB_S_WAIT_TX | \
-	QIB_S_WAIT_DMA_DESC | QIB_S_WAIT_KMEM)
-
-/*
- * Wait flags that would prevent send work requests from making progress.
- */
-#define QIB_S_ANY_WAIT_SEND (QIB_S_WAIT_FENCE | QIB_S_WAIT_RDMAR | \
-	QIB_S_WAIT_RNR | QIB_S_WAIT_SSN_CREDIT | QIB_S_WAIT_DMA | \
-	QIB_S_WAIT_PSN | QIB_S_WAIT_ACK)
-
-#define QIB_S_ANY_WAIT (QIB_S_ANY_WAIT_IO | QIB_S_ANY_WAIT_SEND)
-
 #define QIB_PSN_CREDIT  16
 
 /*
@@ -473,9 +401,9 @@ static inline struct qib_ibdev *to_idev(struct ib_device *ibdev)
  */
 static inline int qib_send_ok(struct rvt_qp *qp)
 {
-	return !(qp->s_flags & (QIB_S_BUSY | QIB_S_ANY_WAIT_IO)) &&
-		(qp->s_hdrwords || (qp->s_flags & QIB_S_RESP_PENDING) ||
-		 !(qp->s_flags & QIB_S_ANY_WAIT_SEND));
+	return !(qp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT_IO)) &&
+		(qp->s_hdrwords || (qp->s_flags & RVT_S_RESP_PENDING) ||
+		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
 /*
