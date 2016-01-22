@@ -222,8 +222,8 @@ static void __schedule_delayed(struct ceph_mon_client *monc)
 		delay = CEPH_MONC_PING_INTERVAL;
 
 	dout("__schedule_delayed after %lu\n", delay);
-	schedule_delayed_work(&monc->delayed_work,
-			      round_jiffies_relative(delay));
+	mod_delayed_work(system_wq, &monc->delayed_work,
+			 round_jiffies_relative(delay));
 }
 
 const char *ceph_sub_str[] = {
@@ -1166,9 +1166,9 @@ static void mon_fault(struct ceph_connection *con)
 	if (!monc->hunting) {
 		dout("%s hunting for new mon\n", __func__);
 		reopen_session(monc);
-	} else {
-		/* already hunting, let's wait a bit */
 		__schedule_delayed(monc);
+	} else {
+		dout("%s already hunting\n", __func__);
 	}
 out:
 	mutex_unlock(&monc->mutex);
