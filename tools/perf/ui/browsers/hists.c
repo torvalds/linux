@@ -2263,10 +2263,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		}
 
-		if (!sort__has_sym)
-			goto add_exit_option;
-
-		if (browser->selection == NULL)
+		if (!sort__has_sym || browser->selection == NULL)
 			goto skip_annotation;
 
 		if (sort__mode == SORT_MODE__BRANCH) {
@@ -2333,7 +2330,6 @@ skip_annotation:
 					     &options[nr_options], NULL, NULL);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
-add_exit_option:
 		nr_options += add_exit_opt(browser, &actions[nr_options],
 					   &options[nr_options]);
 
