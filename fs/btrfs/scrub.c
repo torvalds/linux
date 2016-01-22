@@ -4279,7 +4279,7 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 		return PTR_ERR(inode);
 
 	/* Avoid truncate/dio/punch hole.. */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	inode_dio_wait(inode);
 
 	physical_for_dev_replace = nocow_ctx->physical_for_dev_replace;
@@ -4358,7 +4358,7 @@ next_page:
 	}
 	ret = COPY_COMPLETE;
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	iput(inode);
 	return ret;
 }

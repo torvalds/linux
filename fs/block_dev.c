@@ -346,9 +346,9 @@ static loff_t block_llseek(struct file *file, loff_t offset, int whence)
 	struct inode *bd_inode = bdev_file_inode(file);
 	loff_t retval;
 
-	mutex_lock(&bd_inode->i_mutex);
+	inode_lock(bd_inode);
 	retval = fixed_size_llseek(file, offset, whence, i_size_read(bd_inode));
-	mutex_unlock(&bd_inode->i_mutex);
+	inode_unlock(bd_inode);
 	return retval;
 }
 	
@@ -1142,9 +1142,9 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 {
 	unsigned bsize = bdev_logical_block_size(bdev);
 
-	mutex_lock(&bdev->bd_inode->i_mutex);
+	inode_lock(bdev->bd_inode);
 	i_size_write(bdev->bd_inode, size);
-	mutex_unlock(&bdev->bd_inode->i_mutex);
+	inode_unlock(bdev->bd_inode);
 	while (bsize < PAGE_CACHE_SIZE) {
 		if (size & bsize)
 			break;
@@ -1741,9 +1741,9 @@ static void blkdev_vm_open(struct vm_area_struct *vma)
 	struct inode *bd_inode = bdev_file_inode(vma->vm_file);
 	struct block_device *bdev = I_BDEV(bd_inode);
 
-	mutex_lock(&bd_inode->i_mutex);
+	inode_lock(bd_inode);
 	bdev->bd_map_count++;
-	mutex_unlock(&bd_inode->i_mutex);
+	inode_unlock(bd_inode);
 }
 
 static void blkdev_vm_close(struct vm_area_struct *vma)
@@ -1751,9 +1751,9 @@ static void blkdev_vm_close(struct vm_area_struct *vma)
 	struct inode *bd_inode = bdev_file_inode(vma->vm_file);
 	struct block_device *bdev = I_BDEV(bd_inode);
 
-	mutex_lock(&bd_inode->i_mutex);
+	inode_lock(bd_inode);
 	bdev->bd_map_count--;
-	mutex_unlock(&bd_inode->i_mutex);
+	inode_unlock(bd_inode);
 }
 
 static const struct vm_operations_struct blkdev_dax_vm_ops = {
@@ -1777,7 +1777,7 @@ static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 	struct block_device *bdev = I_BDEV(bd_inode);
 
 	file_accessed(file);
-	mutex_lock(&bd_inode->i_mutex);
+	inode_lock(bd_inode);
 	bdev->bd_map_count++;
 	if (IS_DAX(bd_inode)) {
 		vma->vm_ops = &blkdev_dax_vm_ops;
@@ -1785,7 +1785,7 @@ static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 	} else {
 		vma->vm_ops = &blkdev_default_vm_ops;
 	}
-	mutex_unlock(&bd_inode->i_mutex);
+	inode_unlock(bd_inode);
 
 	return 0;
 }

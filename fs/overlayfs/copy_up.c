@@ -248,9 +248,9 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (err)
 		goto out_cleanup;
 
-	mutex_lock(&newdentry->d_inode->i_mutex);
+	inode_lock(newdentry->d_inode);
 	err = ovl_set_attr(newdentry, stat);
-	mutex_unlock(&newdentry->d_inode->i_mutex);
+	inode_unlock(newdentry->d_inode);
 	if (err)
 		goto out_cleanup;
 

@@ -240,7 +240,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	ip_oldflags = ip->flags;
 	i_oldflags = inode->i_flags;
@@ -358,7 +358,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	}
 
  out_unlock:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	mnt_drop_write_file(file);
 	return ret;
 }
@@ -881,7 +881,7 @@ out_up_read:
 out_dput:
 	dput(dentry);
 out_unlock:
-	mutex_unlock(&dir->i_mutex);
+	inode_unlock(dir);
 	return error;
 }
 
@@ -1393,18 +1393,18 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ra_index += cluster;
 		}
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)
 			BTRFS_I(inode)->force_compress = compress_type;
 		ret = cluster_pages_for_defrag(inode, pages, i, cluster);
 		if (ret < 0) {
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 			goto out_ra;
 		}
 
 		defrag_count += ret;
 		balance_dirty_pages_ratelimited(inode->i_mapping);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		if (newer_than) {
 			if (newer_off == (u64)-1)
@@ -1465,9 +1465,9 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 out_ra:
 	if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		BTRFS_I(inode)->force_compress = BTRFS_COMPRESS_NONE;
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	if (!file)
 		kfree(ra);
@@ -2430,7 +2430,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		goto out_dput;
 	}
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/*
 	 * Don't allow to delete a subvolume with send in progress. This is
@@ -2543,7 +2543,7 @@ out_up_write:
 		spin_unlock(&dest->root_item_lock);
 	}
 out_unlock_inode:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	if (!err) {
 		d_invalidate(dentry);
 		btrfs_invalidate_inodes(dest);
@@ -2559,7 +2559,7 @@ out_unlock_inode:
 out_dput:
 	dput(dentry);
 out_unlock_dir:
-	mutex_unlock(&dir->i_mutex);
+	inode_unlock(dir);
 out_drop_write:
 	mnt_drop_write_file(file);
 out:
@@ -2857,8 +2857,8 @@ static inline void lock_extent_range(struct inode *inode, u64 off, u64 len)
 
 static void btrfs_double_inode_unlock(struct inode *inode1, struct inode *inode2)
 {
-	mutex_unlock(&inode1->i_mutex);
-	mutex_unlock(&inode2->i_mutex);
+	inode_unlock(inode1);
+	inode_unlock(inode2);
 }
 
 static void btrfs_double_inode_lock(struct inode *inode1, struct inode *inode2)
@@ -2866,8 +2866,8 @@ static void btrfs_double_inode_lock(struct inode *inode1, struct inode *inode2)
 	if (inode1 < inode2)
 		swap(inode1, inode2);
 
-	mutex_lock_nested(&inode1->i_mutex, I_MUTEX_PARENT);
-	mutex_lock_nested(&inode2->i_mutex, I_MUTEX_CHILD);
+	inode_lock_nested(inode1, I_MUTEX_PARENT);
+	inode_lock_nested(inode2, I_MUTEX_CHILD);
 }
 
 static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
@@ -3026,7 +3026,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		return 0;
 
 	if (same_inode) {
-		mutex_lock(&src->i_mutex);
+		inode_lock(src);
 
 		ret = extent_same_check_offsets(src, loff, &len, olen);
 		if (ret)
@@ -3101,7 +3101,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	btrfs_cmp_data_free(&cmp);
 out_unlock:
 	if (same_inode)
-		mutex_unlock(&src->i_mutex);
+		inode_unlock(src);
 	else
 		btrfs_double_inode_unlock(src, dst);
 
@@ -3749,7 +3749,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	if (!same_inode) {
 		btrfs_double_inode_lock(src, inode);
 	} else {
-		mutex_lock(&src->i_mutex);
+		inode_lock(src);
 	}
 
 	/* determine range to clone */
@@ -3820,7 +3820,7 @@ out_unlock:
 	if (!same_inode)
 		btrfs_double_inode_unlock(src, inode);
 	else
-		mutex_unlock(&src->i_mutex);
+		inode_unlock(src);
 	return ret;
 }
 

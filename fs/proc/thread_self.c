@@ -52,7 +52,7 @@ int proc_setup_thread_self(struct super_block *s)
 	struct pid_namespace *ns = s->s_fs_info;
 	struct dentry *thread_self;
 
-	mutex_lock(&root_inode->i_mutex);
+	inode_lock(root_inode);
 	thread_self = d_alloc_name(s->s_root, "thread-self");
 	if (thread_self) {
 		struct inode *inode = new_inode_pseudo(s);
@@ -71,7 +71,7 @@ int proc_setup_thread_self(struct super_block *s)
 	} else {
 		thread_self = ERR_PTR(-ENOMEM);
 	}
-	mutex_unlock(&root_inode->i_mutex);
+	inode_unlock(root_inode);
 	if (IS_ERR(thread_self)) {
 		pr_err("proc_fill_super: can't allocate /proc/thread_self\n");
 		return PTR_ERR(thread_self);

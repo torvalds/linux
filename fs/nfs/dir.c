@@ -940,7 +940,7 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 	dfprintk(FILE, "NFS: llseek dir(%pD2, %lld, %d)\n",
 			filp, offset, whence);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	switch (whence) {
 		case 1:
 			offset += filp->f_pos;
@@ -957,7 +957,7 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 		dir_ctx->duped = 0;
 	}
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return offset;
 }
 
@@ -972,9 +972,9 @@ static int nfs_fsync_dir(struct file *filp, loff_t start, loff_t end,
 
 	dfprintk(FILE, "NFS: fsync dir(%pD2) datasync %d\n", filp, datasync);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return 0;
 }
 
