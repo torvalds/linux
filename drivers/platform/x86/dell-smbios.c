@@ -60,8 +60,7 @@ void dell_smbios_release_buffer(void)
 }
 EXPORT_SYMBOL_GPL(dell_smbios_release_buffer);
 
-struct calling_interface_buffer *
-dell_smbios_send_request(int class, int select)
+void dell_smbios_send_request(int class, int select)
 {
 	struct smi_cmd command;
 
@@ -75,8 +74,6 @@ dell_smbios_send_request(int class, int select)
 	buffer->select = select;
 
 	dcdbas_smi_request(&command);
-
-	return buffer;
 }
 EXPORT_SYMBOL_GPL(dell_smbios_send_request);
 
