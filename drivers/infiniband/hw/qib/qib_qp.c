@@ -439,7 +439,8 @@ static void clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 			if (qp->ibqp.qp_type == IB_QPT_UD ||
 			    qp->ibqp.qp_type == IB_QPT_SMI ||
 			    qp->ibqp.qp_type == IB_QPT_GSI)
-				atomic_dec(&to_iah(wqe->ud_wr.ah)->refcount);
+				atomic_dec(
+				 &ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 			if (++qp->s_last >= qp->s_size)
 				qp->s_last = 0;
 		}
@@ -596,7 +597,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_AV) {
 		if (attr->ah_attr.dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
-		if (qib_check_ah(qp->ibqp.device, &attr->ah_attr))
+		if (rvt_check_ah(qp->ibqp.device, &attr->ah_attr))
 			goto inval;
 	}
 
@@ -604,7 +605,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (attr->alt_ah_attr.dlid >=
 		    be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
-		if (qib_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
+		if (rvt_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
 			goto inval;
 		if (attr->alt_pkey_index >= qib_get_npkeys(dd_from_dev(dev)))
 			goto inval;

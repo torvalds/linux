@@ -109,7 +109,7 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 				ret = PTR_ERR(ah);
 			else {
 				send_buf->ah = ah;
-				ibp->sm_ah = to_iah(ah);
+				ibp->sm_ah = ibah_to_rvtah(ah);
 				ret = 0;
 			}
 		} else

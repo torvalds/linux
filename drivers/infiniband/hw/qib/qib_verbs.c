@@ -443,7 +443,7 @@ static int qib_post_one_send(struct rvt_qp *qp, struct ib_send_wr *wr,
 				  qp->port_num - 1)->ibmtu) {
 		goto bail_inval_free;
 	} else {
-		atomic_inc(&to_iah(ud_wr(wr)->ah)->refcount);
+		atomic_inc(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 		avoid_schedule = 1;
 	}
 	wqe->ssn = qp->s_ssn++;
@@ -1771,74 +1771,10 @@ static int qib_query_gid(struct ib_device *ibdev, u8 port,
 
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 {
-	/* A multicast address requires a GRH (see ch. 8.4.1). */
-	if (ah_attr->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
-	    ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE) &&
-	    !(ah_attr->ah_flags & IB_AH_GRH))
-		goto bail;
-	if ((ah_attr->ah_flags & IB_AH_GRH) &&
-	    ah_attr->grh.sgid_index >= QIB_GUIDS_PER_PORT)
-		goto bail;
-	if (ah_attr->dlid == 0)
-		goto bail;
-	if (ah_attr->port_num < 1 ||
-	    ah_attr->port_num > ibdev->phys_port_cnt)
-		goto bail;
-	if (ah_attr->static_rate != IB_RATE_PORT_CURRENT &&
-	    ib_rate_to_mult(ah_attr->static_rate) < 0)
-		goto bail;
 	if (ah_attr->sl > 15)
-		goto bail;
+		return -EINVAL;
+
 	return 0;
-bail:
-	return -EINVAL;
-}
-
-/**
- * qib_create_ah - create an address handle
- * @pd: the protection domain
- * @ah_attr: the attributes of the AH
- *
- * This may be called from interrupt context.
- */
-static struct ib_ah *qib_create_ah(struct ib_pd *pd,
-				   struct ib_ah_attr *ah_attr)
-{
-	struct qib_ah *ah;
-	struct ib_ah *ret;
-	struct qib_ibdev *dev = to_idev(pd->device);
-	unsigned long flags;
-
-	if (qib_check_ah(pd->device, ah_attr)) {
-		ret = ERR_PTR(-EINVAL);
-		goto bail;
-	}
-
-	ah = kmalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	spin_lock_irqsave(&dev->n_ahs_lock, flags);
-	if (dev->n_ahs_allocated == ib_qib_max_ahs) {
-		spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
-		kfree(ah);
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
-	dev->n_ahs_allocated++;
-	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
-
-	/* ib_create_ah() will initialize ah->ibah. */
-	ah->attr = *ah_attr;
-	atomic_set(&ah->refcount, 0);
-
-	ret = &ah->ibah;
-
-bail:
-	return ret;
 }
 
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
@@ -1856,51 +1792,6 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 		ah = ib_create_ah(qp0->ibqp.pd, &attr);
 	rcu_read_unlock();
 	return ah;
-}
-
-/**
- * qib_destroy_ah - destroy an address handle
- * @ibah: the AH to destroy
- *
- * This may be called from interrupt context.
- */
-static int qib_destroy_ah(struct ib_ah *ibah)
-{
-	struct qib_ibdev *dev = to_idev(ibah->device);
-	struct qib_ah *ah = to_iah(ibah);
-	unsigned long flags;
-
-	if (atomic_read(&ah->refcount) != 0)
-		return -EBUSY;
-
-	spin_lock_irqsave(&dev->n_ahs_lock, flags);
-	dev->n_ahs_allocated--;
-	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
-
-	kfree(ah);
-
-	return 0;
-}
-
-static int qib_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
-{
-	struct qib_ah *ah = to_iah(ibah);
-
-	if (qib_check_ah(ibah->device, ah_attr))
-		return -EINVAL;
-
-	ah->attr = *ah_attr;
-
-	return 0;
-}
-
-static int qib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
-{
-	struct qib_ah *ah = to_iah(ibah);
-
-	*ah_attr = ah->attr;
-
-	return 0;
 }
 
 /**
@@ -2073,7 +1964,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 	spin_lock_init(&dev->qpt_lock);
-	spin_lock_init(&dev->n_ahs_lock);
 	spin_lock_init(&dev->n_cqs_lock);
 	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
@@ -2175,10 +2065,10 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->dealloc_ucontext = qib_dealloc_ucontext;
 	ibdev->alloc_pd = NULL;
 	ibdev->dealloc_pd = NULL;
-	ibdev->create_ah = qib_create_ah;
-	ibdev->destroy_ah = qib_destroy_ah;
-	ibdev->modify_ah = qib_modify_ah;
-	ibdev->query_ah = qib_query_ah;
+	ibdev->create_ah = NULL;
+	ibdev->destroy_ah = NULL;
+	ibdev->modify_ah = NULL;
+	ibdev->query_ah = NULL;
 	ibdev->create_srq = qib_create_srq;
 	ibdev->modify_srq = qib_modify_srq;
 	ibdev->query_srq = qib_query_srq;
@@ -2220,7 +2110,9 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.port_callback = qib_create_port_files;
 	dd->verbs_dev.rdi.driver_f.get_card_name = qib_get_card_name;
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = qib_get_pci_dev;
+	dd->verbs_dev.rdi.driver_f.check_ah = qib_check_ah;
 	dd->verbs_dev.rdi.dparms.props.max_pd = ib_qib_max_pds;
+	dd->verbs_dev.rdi.dparms.props.max_ah = ib_qib_max_ahs;
 	dd->verbs_dev.rdi.flags = (RVT_FLAG_QP_INIT_DRIVER |
 				   RVT_FLAG_CQ_INIT_DRIVER);
 	dd->verbs_dev.rdi.dparms.lkey_table_size = qib_lkey_table_size;
