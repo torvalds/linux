@@ -50,6 +50,8 @@
 #include "vt.h"
 #include "trace.h"
 
+#define RVT_UVERBS_ABI_VERSION 2
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("RDMA Verbs Transport Library");
 
@@ -347,6 +349,47 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, dealloc_pd);
 	spin_lock_init(&rdi->n_pds_lock);
 	rdi->n_pds_allocated = 0;
+
+	/*
+	 * There are some things which could be set by underlying drivers but
+	 * really should be up to rdmavt to set. For instance drivers can't know
+	 * exactly which functions rdmavt supports, nor do they know the ABI
+	 * version, so we do all of this sort of stuff here.
+	 */
+	rdi->ibdev.uverbs_abi_ver = RVT_UVERBS_ABI_VERSION;
+	rdi->ibdev.uverbs_cmd_mask =
+		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)         |
+		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)        |
+		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)          |
+		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)            |
+		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)          |
+		(1ull << IB_USER_VERBS_CMD_CREATE_AH)           |
+		(1ull << IB_USER_VERBS_CMD_MODIFY_AH)           |
+		(1ull << IB_USER_VERBS_CMD_QUERY_AH)            |
+		(1ull << IB_USER_VERBS_CMD_DESTROY_AH)          |
+		(1ull << IB_USER_VERBS_CMD_REG_MR)              |
+		(1ull << IB_USER_VERBS_CMD_DEREG_MR)            |
+		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
+		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)           |
+		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)           |
+		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)          |
+		(1ull << IB_USER_VERBS_CMD_POLL_CQ)             |
+		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)       |
+		(1ull << IB_USER_VERBS_CMD_CREATE_QP)           |
+		(1ull << IB_USER_VERBS_CMD_QUERY_QP)            |
+		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)           |
+		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)          |
+		(1ull << IB_USER_VERBS_CMD_POST_SEND)           |
+		(1ull << IB_USER_VERBS_CMD_POST_RECV)           |
+		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)        |
+		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)        |
+		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)          |
+		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)          |
+		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)           |
+		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)         |
+		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
+	rdi->ibdev.node_type = RDMA_NODE_IB_CA;
+	rdi->ibdev.num_comp_vectors = 1;
 
 	/* We are now good to announce we exist */
 	ret =  ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
