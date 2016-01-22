@@ -413,7 +413,7 @@ config ARC_HAS_RTC
 	default n
 	depends on !SMP
 
-config ARC_HAS_GRTC
+config ARC_HAS_GFRC
 	bool "SMP synchronized 64-bit cycle counter"
 	default y
 	depends on SMP
