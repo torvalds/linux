@@ -45,6 +45,7 @@
 #include <linux/completion.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/rdma_vt.h>
 
 struct qib_ctxtdata;
 struct qib_pportdata;
@@ -752,7 +753,7 @@ struct qib_ibport {
 
 
 struct qib_ibdev {
-	struct ib_device ibdev;
+	struct rvt_dev_info rdi;
 	struct list_head pending_mmaps;
 	spinlock_t mmap_offset_lock; /* protect mmap_offset */
 	u32 mmap_offset;
@@ -845,7 +846,10 @@ static inline struct qib_qp *to_iqp(struct ib_qp *ibqp)
 
 static inline struct qib_ibdev *to_idev(struct ib_device *ibdev)
 {
-	return container_of(ibdev, struct qib_ibdev, ibdev);
+	struct rvt_dev_info *rdi;
+
+	rdi = container_of(ibdev, struct rvt_dev_info, ibdev);
+	return container_of(rdi, struct qib_ibdev, rdi);
 }
 
 /*

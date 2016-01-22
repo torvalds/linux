@@ -1028,7 +1028,7 @@ static int set_pkeys(struct qib_devdata *dd, u8 port, u16 *pkeys)
 		(void) dd->f_set_ib_cfg(ppd, QIB_IB_CFG_PKEYS, 0);
 
 		event.event = IB_EVENT_PKEY_CHANGE;
-		event.device = &dd->verbs_dev.ibdev;
+		event.device = &dd->verbs_dev.rdi.ibdev;
 		event.element.port_num = port;
 		ib_dispatch_event(&event);
 	}
@@ -2483,7 +2483,8 @@ int qib_create_agents(struct qib_ibdev *dev)
 
 	for (p = 0; p < dd->num_pports; p++) {
 		ibp = &dd->pport[p].ibport_data;
-		agent = ib_register_mad_agent(&dev->ibdev, p + 1, IB_QPT_SMI,
+		agent = ib_register_mad_agent(&dev->rdi.ibdev, p + 1,
+					      IB_QPT_SMI,
 					      NULL, 0, send_handler,
 					      NULL, NULL, 0);
 		if (IS_ERR(agent)) {

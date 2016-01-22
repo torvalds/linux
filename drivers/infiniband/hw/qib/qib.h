@@ -52,6 +52,7 @@
 #include <linux/kref.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <rdma/rdma_vt.h>
 
 #include "qib_common.h"
 #include "qib_verbs.h"
