@@ -222,7 +222,10 @@ struct rvt_driver_provided {
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
 	const char * (*get_card_name)(struct rvt_dev_info *rdi);
 	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
-	void (*free_all_qps)(struct rvt_dev_info *rdi);
+	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
+	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+	void (*notify_qp_reset)(struct rvt_qp *qp);
 
 	/*--------------------*/
 	/* Optional functions */
@@ -230,6 +233,8 @@ struct rvt_driver_provided {
 	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
 	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
 			      struct rvt_ah *);
+	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
+			 enum ib_qp_type type, u8 port);
 };
 
 struct rvt_dev_info {
@@ -262,7 +267,10 @@ struct rvt_dev_info {
 	int flags;
 	struct rvt_ibport **ports;
 
+	/* QP */
 	struct rvt_qp_ibdev *qp_dev;
+	u32 n_qps_allocated;    /* number of QPs allocated for device */
+	spinlock_t n_qps_lock; /* keep track of number of qps */
 
 	/* memory maps */
 	struct list_head pending_mmaps;

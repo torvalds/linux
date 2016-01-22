@@ -362,6 +362,7 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 
 	ib_unregister_device(&rdi->ibdev);
 	rvt_mr_exit(rdi);
+	rvt_qp_exit(rdi);
 }
 EXPORT_SYMBOL(rvt_unregister_device);
 
