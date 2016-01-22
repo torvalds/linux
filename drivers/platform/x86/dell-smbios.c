@@ -54,11 +54,11 @@ void dell_smbios_clear_buffer(void)
 }
 EXPORT_SYMBOL_GPL(dell_smbios_clear_buffer);
 
-void release_buffer(void)
+void dell_smbios_release_buffer(void)
 {
 	mutex_unlock(&buffer_mutex);
 }
-EXPORT_SYMBOL_GPL(release_buffer);
+EXPORT_SYMBOL_GPL(dell_smbios_release_buffer);
 
 struct calling_interface_buffer *
 dell_send_request(struct calling_interface_buffer *buffer,
