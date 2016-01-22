@@ -377,8 +377,8 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 			spin_lock(&qp->r_lock);
 
 			/* Check for valid receive state. */
-			if (!(ib_qib_state_ops[qp->state] &
-			      QIB_PROCESS_RECV_OK)) {
+			if (!(ib_rvt_state_ops[qp->state] &
+			      RVT_PROCESS_RECV_OK)) {
 				ibp->rvp.n_pkt_drops++;
 				goto unlock;
 			}
@@ -592,8 +592,8 @@ move_along:
 
 			qp->r_flags &= ~RVT_R_RSP_SEND;
 			spin_lock_irqsave(&qp->s_lock, flags);
-			if (ib_qib_state_ops[qp->state] &
-					QIB_PROCESS_OR_FLUSH_SEND)
+			if (ib_rvt_state_ops[qp->state] &
+					RVT_PROCESS_OR_FLUSH_SEND)
 				qib_schedule_send(qp);
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 		}

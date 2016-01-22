@@ -375,7 +375,7 @@ static void clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 
 	if (clr_sends) {
 		while (qp->s_last != qp->s_head) {
-			struct rvt_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
+			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 			unsigned i;
 
 			for (i = 0; i < wqe->wr.num_sge; i++) {
@@ -521,7 +521,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata)
 {
 	struct qib_ibdev *dev = to_idev(ibqp->device);
-	struct rvt_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct qib_qp_priv *priv = qp->priv;
 	enum ib_qp_state cur_state, new_state;
 	struct ib_event ev;
@@ -809,7 +809,7 @@ bail:
 int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		 int attr_mask, struct ib_qp_init_attr *init_attr)
 {
-	struct rvt_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 
 	attr->qp_state = qp->state;
 	attr->cur_qp_state = attr->qp_state;
@@ -931,7 +931,7 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
 		return ERR_PTR(-ENOMEM);
 	}
 	init_waitqueue_head(&priv->wait_dma);
-	INIT_WORK(&priv->s_work, qib_do_send);
+	INIT_WORK(&priv->s_work, _qib_do_send);
 	INIT_LIST_HEAD(&priv->iowait);
 
 	return priv;
@@ -956,7 +956,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
  */
 int qib_destroy_qp(struct ib_qp *ibqp)
 {
-	struct rvt_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct qib_ibdev *dev = to_idev(ibqp->device);
 	struct qib_qp_priv *priv = qp->priv;
 
@@ -1095,7 +1095,7 @@ void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
 	struct rvt_qp *qp = iter->qp;
 	struct qib_qp_priv *priv = qp->priv;
 
-	wqe = get_swqe_ptr(qp, qp->s_last);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	seq_printf(s,
 		   "N %d QP%u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u) QP%u LID %x\n",
 		   iter->n,

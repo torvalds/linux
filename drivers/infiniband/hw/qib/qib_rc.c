@@ -84,7 +84,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 	u32 bth2;
 
 	/* Don't send an ACK if we aren't supposed to. */
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto bail;
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
@@ -260,8 +260,8 @@ int qib_make_rc_req(struct rvt_qp *qp)
 	    qib_make_rc_ack(dev, qp, ohdr, pmtu))
 		goto done;
 
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_SEND_OK)) {
-		if (!(ib_qib_state_ops[qp->state] & QIB_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
+		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
 		if (qp->s_last == qp->s_head)
@@ -271,7 +271,7 @@ int qib_make_rc_req(struct rvt_qp *qp)
 			qp->s_flags |= RVT_S_WAIT_DMA;
 			goto bail;
 		}
-		wqe = get_swqe_ptr(qp, qp->s_last);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		qib_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
 			IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
 		/* will get called again */
@@ -295,10 +295,10 @@ int qib_make_rc_req(struct rvt_qp *qp)
 	bth0 = 0;
 
 	/* Send a request. */
-	wqe = get_swqe_ptr(qp, qp->s_cur);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
 	switch (qp->s_state) {
 	default:
-		if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_NEXT_SEND_OK))
+		if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_NEXT_SEND_OK))
 			goto bail;
 		/*
 		 * Resend an old request or start a new one.
@@ -666,7 +666,7 @@ void qib_send_rc_ack(struct rvt_qp *qp)
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto unlock;
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
@@ -759,7 +759,7 @@ void qib_send_rc_ack(struct rvt_qp *qp)
 	goto done;
 
 queue_ack:
-	if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) {
+	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		this_cpu_inc(*ibp->rvp.rc_qacks);
 		qp->s_flags |= RVT_S_ACK_PENDING | RVT_S_RESP_PENDING;
 		qp->s_nak_state = qp->r_nak_state;
@@ -786,7 +786,7 @@ done:
 static void reset_psn(struct rvt_qp *qp, u32 psn)
 {
 	u32 n = qp->s_acked;
-	struct rvt_swqe *wqe = get_swqe_ptr(qp, n);
+	struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, n);
 	u32 opcode;
 
 	qp->s_cur = n;
@@ -809,7 +809,7 @@ static void reset_psn(struct rvt_qp *qp, u32 psn)
 			n = 0;
 		if (n == qp->s_tail)
 			break;
-		wqe = get_swqe_ptr(qp, n);
+		wqe = rvt_get_swqe_ptr(qp, n);
 		diff = qib_cmp24(psn, wqe->psn);
 		if (diff < 0)
 			break;
@@ -870,7 +870,7 @@ done:
  */
 static void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 {
-	struct rvt_swqe *wqe = get_swqe_ptr(qp, qp->s_acked);
+	struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	struct qib_ibport *ibp;
 
 	if (qp->s_retry == 0) {
@@ -951,7 +951,7 @@ static void reset_sending_psn(struct rvt_qp *qp, u32 psn)
 
 	/* Find the work request corresponding to the given PSN. */
 	for (;;) {
-		wqe = get_swqe_ptr(qp, n);
+		wqe = rvt_get_swqe_ptr(qp, n);
 		if (qib_cmp24(psn, wqe->lpsn) <= 0) {
 			if (wqe->wr.opcode == IB_WR_RDMA_READ)
 				qp->s_sending_psn = wqe->lpsn + 1;
@@ -978,7 +978,7 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct qib_ib_header *hdr)
 	u32 opcode;
 	u32 psn;
 
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_OR_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
 
 	/* Find out where the BTH is */
@@ -1004,11 +1004,11 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct qib_ib_header *hdr)
 	 */
 	if ((psn & IB_BTH_REQ_ACK) && qp->s_acked != qp->s_tail &&
 	    !(qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR | RVT_S_WAIT_PSN)) &&
-	    (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
+	    (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		start_timer(qp);
 
 	while (qp->s_last != qp->s_acked) {
-		wqe = get_swqe_ptr(qp, qp->s_last);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		if (qib_cmp24(wqe->lpsn, qp->s_sending_psn) >= 0 &&
 		    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
@@ -1101,7 +1101,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		if (++qp->s_cur >= qp->s_size)
 			qp->s_cur = 0;
 		qp->s_acked = qp->s_cur;
-		wqe = get_swqe_ptr(qp, qp->s_cur);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
 		if (qp->s_acked != qp->s_tail) {
 			qp->s_state = OP(SEND_LAST);
 			qp->s_psn = wqe->psn;
@@ -1111,7 +1111,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 			qp->s_acked = 0;
 		if (qp->state == IB_QPS_SQD && qp->s_acked == qp->s_cur)
 			qp->s_draining = 0;
-		wqe = get_swqe_ptr(qp, qp->s_acked);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	}
 	return wqe;
 }
@@ -1152,7 +1152,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	ack_psn = psn;
 	if (aeth >> 29)
 		ack_psn--;
-	wqe = get_swqe_ptr(qp, qp->s_acked);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 
 	/*
@@ -1361,7 +1361,7 @@ static void rdma_seq_err(struct rvt_qp *qp, struct qib_ibport *ibp, u32 psn,
 		del_timer(&qp->s_timer);
 	}
 
-	wqe = get_swqe_ptr(qp, qp->s_acked);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 
 	while (qib_cmp24(psn, wqe->lpsn) > 0) {
 		if (wqe->wr.opcode == IB_WR_RDMA_READ ||
@@ -1438,7 +1438,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 	}
 
 	spin_lock_irqsave(&qp->s_lock, flags);
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto ack_done;
 
 	/* Ignore invalid responses. */
@@ -1469,7 +1469,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 
 	if (unlikely(qp->s_acked == qp->s_tail))
 		goto ack_done;
-	wqe = get_swqe_ptr(qp, qp->s_acked);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	status = IB_WC_SUCCESS;
 
 	switch (opcode) {
@@ -1488,7 +1488,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		    opcode != OP(RDMA_READ_RESPONSE_FIRST))
 			goto ack_done;
 		hdrsize += 4;
-		wqe = get_swqe_ptr(qp, qp->s_acked);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
 			goto ack_op_err;
 		/*
@@ -1554,7 +1554,7 @@ read_middle:
 		 * have to be careful to copy the data to the right
 		 * location.
 		 */
-		wqe = get_swqe_ptr(qp, qp->s_acked);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 		qp->s_rdma_read_len = restart_sge(&qp->s_rdma_read_sge,
 						  wqe, psn, pmtu);
 		goto read_last;

@@ -672,7 +672,7 @@ unmap:
 	spin_lock(&qp->s_lock);
 	if (qp->ibqp.qp_type == IB_QPT_RC) {
 		/* XXX what about error sending RDMA read responses? */
-		if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK)
+		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)
 			qib_error_qp(qp, IB_WC_GENERAL_ERR);
 	} else if (qp->s_wqe)
 		qib_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
@@ -685,7 +685,7 @@ busy:
 	qp = tx->qp;
 	priv = qp->priv;
 	spin_lock(&qp->s_lock);
-	if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) {
+	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		struct qib_ibdev *dev;
 
 		/*

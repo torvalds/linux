@@ -72,17 +72,6 @@ struct qib_verbs_txreq;
 #define IB_NAK_REMOTE_OPERATIONAL_ERROR 0x63
 #define IB_NAK_INVALID_RD_REQUEST       0x64
 
-/* Flags for checking QP state (see ib_qib_state_ops[]) */
-#define QIB_POST_SEND_OK                0x01
-#define QIB_POST_RECV_OK                0x02
-#define QIB_PROCESS_RECV_OK             0x04
-#define QIB_PROCESS_SEND_OK             0x08
-#define QIB_PROCESS_NEXT_SEND_OK        0x10
-#define QIB_FLUSH_SEND			0x20
-#define QIB_FLUSH_RECV			0x40
-#define QIB_PROCESS_OR_FLUSH_SEND \
-	(QIB_PROCESS_SEND_OK | QIB_FLUSH_SEND)
-
 /* IB Performance Manager status values */
 #define IB_PMA_SAMPLE_STATUS_DONE       0x00
 #define IB_PMA_SAMPLE_STATUS_STARTED    0x01
@@ -231,19 +220,6 @@ struct qib_qp_priv {
 #define QIB_PSN_CREDIT  16
 
 /*
- * Since struct rvt_swqe is not a fixed size, we can't simply index into
- * struct rvt_qp.s_wq.  This function does the array index computation.
- */
-static inline struct rvt_swqe *get_swqe_ptr(struct rvt_qp *qp,
-					    unsigned n)
-{
-	return (struct rvt_swqe *)((char *)qp->s_wq +
-				     (sizeof(struct rvt_swqe) +
-				      qp->s_max_sge *
-				      sizeof(struct rvt_sge)) * n);
-}
-
-/*
  * Since struct rvt_rwqe is not a fixed size, we can't simply index into
  * struct rvt_rwq.wq.  This function does the array index computation.
  */
@@ -338,11 +314,6 @@ struct qib_verbs_counters {
 	u32 excessive_buffer_overrun_errors;
 	u32 vl15_dropped;
 };
-
-static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)
-{
-	return container_of(ibqp, struct rvt_qp, ibqp);
-}
 
 static inline struct qib_ibdev *to_idev(struct ib_device *ibdev)
 {
@@ -528,7 +499,9 @@ u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 void qib_make_ruc_header(struct rvt_qp *qp, struct qib_other_headers *ohdr,
 			 u32 bth0, u32 bth2);
 
-void qib_do_send(struct work_struct *work);
+void _qib_do_send(struct work_struct *work);
+
+void qib_do_send(struct rvt_qp *qp);
 
 void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		       enum ib_wc_status status);
@@ -573,7 +546,7 @@ extern const enum ib_wc_opcode ib_qib_wc_opcode[];
 #define IB_PHYSPORTSTATE_CFG_ENH 0x10
 #define IB_PHYSPORTSTATE_CFG_WAIT_ENH 0x13
 
-extern const int ib_qib_state_ops[];
+extern const int ib_rvt_state_ops[];
 
 extern __be64 ib_qib_sys_image_guid;    /* in network order */
 

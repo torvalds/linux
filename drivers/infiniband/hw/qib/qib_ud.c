@@ -72,7 +72,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 			IB_QPT_UD : qp->ibqp.qp_type;
 
 	if (dqptype != sqptype ||
-	    !(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK)) {
+	    !(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)) {
 		ibp->rvp.n_pkt_drops++;
 		goto drop;
 	}
@@ -252,8 +252,8 @@ int qib_make_ud_req(struct rvt_qp *qp)
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_NEXT_SEND_OK)) {
-		if (!(ib_qib_state_ops[qp->state] & QIB_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
+		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
 		if (qp->s_last == qp->s_head)
@@ -263,7 +263,7 @@ int qib_make_ud_req(struct rvt_qp *qp)
 			qp->s_flags |= RVT_S_WAIT_DMA;
 			goto bail;
 		}
-		wqe = get_swqe_ptr(qp, qp->s_last);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		qib_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
 		goto done;
 	}
@@ -271,7 +271,7 @@ int qib_make_ud_req(struct rvt_qp *qp)
 	if (qp->s_cur == qp->s_head)
 		goto bail;
 
-	wqe = get_swqe_ptr(qp, qp->s_cur);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
 	next_cur = qp->s_cur + 1;
 	if (next_cur >= qp->s_size)
 		next_cur = 0;

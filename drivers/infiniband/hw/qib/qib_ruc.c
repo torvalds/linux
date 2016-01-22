@@ -158,7 +158,7 @@ int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 	}
 
 	spin_lock_irqsave(&rq->lock, flags);
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK)) {
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)) {
 		ret = 0;
 		goto unlock;
 	}
@@ -379,7 +379,7 @@ static void qib_ruc_loopback(struct rvt_qp *sqp)
 
 	/* Return if we are already busy processing a work request. */
 	if ((sqp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT)) ||
-	    !(ib_qib_state_ops[sqp->state] & QIB_PROCESS_OR_FLUSH_SEND))
+	    !(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		goto unlock;
 
 	sqp->s_flags |= RVT_S_BUSY;
@@ -387,11 +387,11 @@ static void qib_ruc_loopback(struct rvt_qp *sqp)
 again:
 	if (sqp->s_last == sqp->s_head)
 		goto clr_busy;
-	wqe = get_swqe_ptr(sqp, sqp->s_last);
+	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
 
 	/* Return if it is not OK to start a new work reqeust. */
-	if (!(ib_qib_state_ops[sqp->state] & QIB_PROCESS_NEXT_SEND_OK)) {
-		if (!(ib_qib_state_ops[sqp->state] & QIB_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
+		if (!(ib_rvt_state_ops[sqp->state] & RVT_FLUSH_SEND))
 			goto clr_busy;
 		/* We are in the error state, flush the work request. */
 		send_status = IB_WC_WR_FLUSH_ERR;
@@ -409,7 +409,7 @@ again:
 	}
 	spin_unlock_irqrestore(&sqp->s_lock, flags);
 
-	if (!qp || !(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) ||
+	if (!qp || !(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) ||
 	    qp->ibqp.qp_type != sqp->ibqp.qp_type) {
 		ibp->rvp.n_pkt_drops++;
 		/*
@@ -590,7 +590,7 @@ rnr_nak:
 	if (sqp->s_rnr_retry_cnt < 7)
 		sqp->s_rnr_retry--;
 	spin_lock_irqsave(&sqp->s_lock, flags);
-	if (!(ib_qib_state_ops[sqp->state] & QIB_PROCESS_RECV_OK))
+	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
 	sqp->s_flags |= RVT_S_WAIT_RNR;
 	sqp->s_timer.function = qib_rc_rnr_retry;
@@ -711,19 +711,26 @@ void qib_make_ruc_header(struct rvt_qp *qp, struct qib_other_headers *ohdr,
 	this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 }
 
+void _qib_do_send(struct work_struct *work)
+{
+	struct qib_qp_priv *priv = container_of(work, struct qib_qp_priv,
+						s_work);
+	struct rvt_qp *qp = priv->owner;
+
+	qib_do_send(qp);
+}
+
 /**
  * qib_do_send - perform a send on a QP
- * @work: contains a pointer to the QP
+ * @qp: pointer to the QP
  *
  * Process entries in the send work queue until credit or queue is
  * exhausted.  Only allow one CPU to send a packet per QP (tasklet).
  * Otherwise, two threads could send packets out of order.
  */
-void qib_do_send(struct work_struct *work)
+void qib_do_send(struct rvt_qp *qp)
 {
-	struct qib_qp_priv *priv = container_of(work, struct qib_qp_priv,
-						s_work);
-	struct rvt_qp *qp = priv->owner;
+	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	int (*make_req)(struct rvt_qp *qp);
@@ -780,7 +787,7 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	u32 old_last, last;
 	unsigned i;
 
-	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_OR_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
 
 	for (i = 0; i < wqe->wr.num_sge; i++) {
