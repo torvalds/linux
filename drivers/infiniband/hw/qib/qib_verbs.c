@@ -1777,6 +1777,24 @@ int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 	return 0;
 }
 
+static void qib_notify_new_ah(struct ib_device *ibdev,
+			      struct ib_ah_attr *ah_attr,
+			      struct rvt_ah *ah)
+{
+	struct qib_ibport *ibp;
+	struct qib_pportdata *ppd;
+
+	/*
+	 * Do not trust reading anything from rvt_ah at this point as it is not
+	 * done being setup. We can however modify things which we need to set.
+	 */
+
+	ibp = to_iport(ibdev, ah_attr->port_num);
+	ppd = ppd_from_ibp(ibp);
+	ah->vl = ibp->sl_to_vl[ah->attr.sl];
+	ah->log_pmtu = ilog2(ppd->ibmtu);
+}
+
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 {
 	struct ib_ah_attr attr;
@@ -2111,6 +2129,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_card_name = qib_get_card_name;
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = qib_get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = qib_check_ah;
+	dd->verbs_dev.rdi.driver_f.notify_new_ah = qib_notify_new_ah;
 	dd->verbs_dev.rdi.dparms.props.max_pd = ib_qib_max_pds;
 	dd->verbs_dev.rdi.dparms.props.max_ah = ib_qib_max_ahs;
 	dd->verbs_dev.rdi.flags = (RVT_FLAG_QP_INIT_DRIVER |
