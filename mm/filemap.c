@@ -482,6 +482,12 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 {
 	int err = 0;
 
+	if (dax_mapping(mapping) && mapping->nrexceptional) {
+		err = dax_writeback_mapping_range(mapping, lstart, lend);
+		if (err)
+			return err;
+	}
+
 	if (mapping->nrpages) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
