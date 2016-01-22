@@ -38,7 +38,7 @@ lib_objs = $(patsubst %.c,%.o, $(lib_source))
 objs = $(patsubst %.c,%.o, $(source))
 execs += $(patsubst %.c,%, $(source))
 
-ifeq ($(OUTPUT_FORMAT),elf64-x86-64))
+ifeq ($(OUTPUT_FORMAT),elf64-x86-64)
 lib += lib/liblkl-hijack.so
 hijack_objs = $(patsubst %.c,%.o,$(wildcard lib/hijack/*.c))
 objs += $(hijack_objs)
