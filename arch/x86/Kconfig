@@ -2472,10 +2472,16 @@ config ISA_DMA_API
 	  Enables ISA-style DMA support for devices requiring such controllers.
 	  If unsure, say Y.
 
+config ISA_BUS
+	bool "ISA bus support"
+	help
+	  Enables ISA bus support for devices requiring such controllers.
+
 if X86_32
 
 config ISA
 	bool "ISA support"
+	depends on ISA_BUS
 	---help---
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
