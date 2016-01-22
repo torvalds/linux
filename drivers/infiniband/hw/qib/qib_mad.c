@@ -101,7 +101,7 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 	memcpy(smp->data, data, len);
 
 	spin_lock_irqsave(&ibp->rvp.lock, flags);
-	if (!ibp->sm_ah) {
+	if (!ibp->rvp.sm_ah) {
 		if (ibp->rvp.sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
 
@@ -110,13 +110,13 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 				ret = PTR_ERR(ah);
 			else {
 				send_buf->ah = ah;
-				ibp->sm_ah = ibah_to_rvtah(ah);
+				ibp->rvp.sm_ah = ibah_to_rvtah(ah);
 				ret = 0;
 			}
 		} else
 			ret = -EINVAL;
 	} else {
-		send_buf->ah = &ibp->sm_ah->ibah;
+		send_buf->ah = &ibp->rvp.sm_ah->ibah;
 		ret = 0;
 	}
 	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
@@ -712,11 +712,11 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		smp->status |= IB_SMP_INVALID_FIELD;
 	else if (smlid != ibp->rvp.sm_lid || msl != ibp->rvp.sm_sl) {
 		spin_lock_irqsave(&ibp->rvp.lock, flags);
-		if (ibp->sm_ah) {
+		if (ibp->rvp.sm_ah) {
 			if (smlid != ibp->rvp.sm_lid)
-				ibp->sm_ah->attr.dlid = smlid;
+				ibp->rvp.sm_ah->attr.dlid = smlid;
 			if (msl != ibp->rvp.sm_sl)
-				ibp->sm_ah->attr.sl = msl;
+				ibp->rvp.sm_ah->attr.sl = msl;
 		}
 		spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 		if (smlid != ibp->rvp.sm_lid)
@@ -2445,12 +2445,6 @@ bail:
 	return ret;
 }
 
-static void send_handler(struct ib_mad_agent *agent,
-			 struct ib_mad_send_wc *mad_send_wc)
-{
-	ib_free_send_mad(mad_send_wc->send_buf);
-}
-
 static void xmit_wait_timer_func(unsigned long opaque)
 {
 	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
@@ -2475,71 +2469,28 @@ done:
 	mod_timer(&ppd->cong_stats.timer, jiffies + HZ);
 }
 
-int qib_create_agents(struct qib_ibdev *dev)
+void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 {
-	struct qib_devdata *dd = dd_from_dev(dev);
-	struct ib_mad_agent *agent;
-	struct qib_ibport *ibp;
-	int p;
-	int ret;
+	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = container_of(ibdev,
+					      struct qib_devdata, verbs_dev);
 
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		agent = ib_register_mad_agent(&dev->rdi.ibdev, p + 1,
-					      IB_QPT_SMI,
-					      NULL, 0, send_handler,
-					      NULL, NULL, 0);
-		if (IS_ERR(agent)) {
-			ret = PTR_ERR(agent);
-			goto err;
-		}
-
-		/* Initialize xmit_wait structure */
-		dd->pport[p].cong_stats.counter = 0;
-		init_timer(&dd->pport[p].cong_stats.timer);
-		dd->pport[p].cong_stats.timer.function = xmit_wait_timer_func;
-		dd->pport[p].cong_stats.timer.data =
-			(unsigned long)(&dd->pport[p]);
-		dd->pport[p].cong_stats.timer.expires = 0;
-		add_timer(&dd->pport[p].cong_stats.timer);
-
-		ibp->rvp.send_agent = agent;
-	}
-
-	return 0;
-
-err:
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		if (ibp->rvp.send_agent) {
-			agent = ibp->rvp.send_agent;
-			ibp->rvp.send_agent = NULL;
-			ib_unregister_mad_agent(agent);
-		}
-	}
-
-	return ret;
+	/* Initialize xmit_wait structure */
+	dd->pport[port_idx].cong_stats.counter = 0;
+	init_timer(&dd->pport[port_idx].cong_stats.timer);
+	dd->pport[port_idx].cong_stats.timer.function = xmit_wait_timer_func;
+	dd->pport[port_idx].cong_stats.timer.data =
+		(unsigned long)(&dd->pport[port_idx]);
+	dd->pport[port_idx].cong_stats.timer.expires = 0;
+	add_timer(&dd->pport[port_idx].cong_stats.timer);
 }
 
-void qib_free_agents(struct qib_ibdev *dev)
+void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 {
-	struct qib_devdata *dd = dd_from_dev(dev);
-	struct ib_mad_agent *agent;
-	struct qib_ibport *ibp;
-	int p;
+	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = container_of(ibdev,
+					      struct qib_devdata, verbs_dev);
 
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		if (ibp->rvp.send_agent) {
-			agent = ibp->rvp.send_agent;
-			ibp->rvp.send_agent = NULL;
-			ib_unregister_mad_agent(agent);
-		}
-		if (ibp->sm_ah) {
-			ib_destroy_ah(&ibp->sm_ah->ibah);
-			ibp->sm_ah = NULL;
-		}
-		if (dd->pport[p].cong_stats.timer.data)
-			del_timer_sync(&dd->pport[p].cong_stats.timer);
-	}
+	if (dd->pport[port_idx].cong_stats.timer.data)
+		del_timer_sync(&dd->pport[port_idx].cong_stats.timer);
 }

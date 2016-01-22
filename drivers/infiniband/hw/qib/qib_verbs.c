@@ -2084,23 +2084,16 @@ int qib_register_ib_device(struct qib_devdata *dd)
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
-		goto err_reg;
-
-	ret = qib_create_agents(dev);
-	if (ret)
-		goto err_agents;
+		goto err_tx;
 
 	ret = qib_verbs_register_sysfs(dd);
 	if (ret)
 		goto err_class;
 
-	goto bail;
+	return ret;
 
 err_class:
-	qib_free_agents(dev);
-err_agents:
 	rvt_unregister_device(&dd->verbs_dev.rdi);
-err_reg:
 err_tx:
 	while (!list_empty(&dev->txreq_free)) {
 		struct list_head *l = dev->txreq_free.next;
@@ -2117,7 +2110,6 @@ err_tx:
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 err_hdrs:
 	qib_dev_err(dd, "cannot register verbs: %d!\n", -ret);
-bail:
 	return ret;
 }
 
@@ -2126,8 +2118,6 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 	struct qib_ibdev *dev = &dd->verbs_dev;
 
 	qib_verbs_unregister_sysfs(dd);
-
-	qib_free_agents(dev);
 
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 

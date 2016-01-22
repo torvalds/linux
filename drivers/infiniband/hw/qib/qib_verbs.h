@@ -307,8 +307,6 @@ struct qib_pma_counters {
 
 struct qib_ibport {
 	struct rvt_ibport rvp;
-	struct rvt_ah *sm_ah;
-	struct rvt_ah *smi_ah;
 	__be64 guids[QIB_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 	struct qib_pma_counters __percpu *pmastats;
 	u64 z_unicast_xmit;     /* starting count for PMA */
@@ -433,8 +431,8 @@ int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		    const struct ib_mad_hdr *in, size_t in_mad_size,
 		    struct ib_mad_hdr *out, size_t *out_mad_size,
 		    u16 *out_mad_pkey_index);
-int qib_create_agents(struct qib_ibdev *dev);
-void qib_free_agents(struct qib_ibdev *dev);
+void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx);
+void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx);
 
 /*
  * Compare the lower 24 bits of the two values.
