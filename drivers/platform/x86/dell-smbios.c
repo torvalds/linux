@@ -31,8 +31,7 @@ struct calling_interface_structure {
 	struct calling_interface_token tokens[];
 } __packed;
 
-struct calling_interface_buffer *buffer;
-EXPORT_SYMBOL_GPL(buffer);
+static struct calling_interface_buffer *buffer;
 static DEFINE_MUTEX(buffer_mutex);
 
 static int da_command_address;

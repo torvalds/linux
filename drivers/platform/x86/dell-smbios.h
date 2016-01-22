@@ -35,7 +35,6 @@ struct calling_interface_token {
 	};
 };
 
-extern struct calling_interface_buffer *buffer;
 extern struct calling_interface_token *da_tokens;
 
 struct calling_interface_buffer *dell_smbios_get_buffer(void);
