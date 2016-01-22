@@ -436,9 +436,8 @@ static void null_del_dev(struct nullb *nullb)
 static void null_lnvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
-	struct nvm_dev *dev = rqd->dev;
 
-	dev->mt->end_io(rqd, error);
+	nvm_end_io(rqd, error);
 
 	blk_put_request(rq);
 }
