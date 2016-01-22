@@ -1244,14 +1244,47 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		  struct ib_recv_wr **bad_wr)
 {
-	/*
-	 * When a packet arrives the driver needs to call up to rvt to process
-	 * the packet. The UD, RC, UC processing will be done in rvt, however
-	 * the driver should be able to override this if it so choses. Perhaps a
-	 * set of function pointers set up at registration time.
-	 */
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
+	struct rvt_rwq *wq = qp->r_rq.wq;
+	unsigned long flags;
 
-	return -EOPNOTSUPP;
+	/* Check that state is OK to post receive. */
+	if (!(ib_rvt_state_ops[qp->state] & RVT_POST_RECV_OK) || !wq) {
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
+	for (; wr; wr = wr->next) {
+		struct rvt_rwqe *wqe;
+		u32 next;
+		int i;
+
+		if ((unsigned)wr->num_sge > qp->r_rq.max_sge) {
+			*bad_wr = wr;
+			return -EINVAL;
+		}
+
+		spin_lock_irqsave(&qp->r_rq.lock, flags);
+		next = wq->head + 1;
+		if (next >= qp->r_rq.size)
+			next = 0;
+		if (next == wq->tail) {
+			spin_unlock_irqrestore(&qp->r_rq.lock, flags);
+			*bad_wr = wr;
+			return -ENOMEM;
+		}
+
+		wqe = rvt_get_rwqe_ptr(&qp->r_rq, wq->head);
+		wqe->wr_id = wr->wr_id;
+		wqe->num_sge = wr->num_sge;
+		for (i = 0; i < wr->num_sge; i++)
+			wqe->sg_list[i] = wr->sg_list[i];
+		/* Make sure queue entry is written before the head index. */
+		smp_wmb();
+		wq->head = next;
+		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
+	}
+	return 0;
 }
 
 /**
