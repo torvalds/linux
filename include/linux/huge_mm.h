@@ -120,15 +120,15 @@ extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
 				    unsigned long start,
 				    unsigned long end,
 				    long adjust_next);
-extern bool __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
-		spinlock_t **ptl);
+extern spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd,
+		struct vm_area_struct *vma);
 /* mmap_sem must be held on entry */
-static inline bool pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
-		spinlock_t **ptl)
+static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
+		struct vm_area_struct *vma)
 {
 	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
 	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
-		return __pmd_trans_huge_lock(pmd, vma, ptl);
+		return __pmd_trans_huge_lock(pmd, vma);
 	else
 		return false;
 }
@@ -190,10 +190,10 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
 					 long adjust_next)
 {
 }
-static inline bool pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
-		spinlock_t **ptl)
+static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
+		struct vm_area_struct *vma)
 {
-	return false;
+	return NULL;
 }
 
 static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
