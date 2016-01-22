@@ -4638,7 +4638,8 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
 	pte_t *pte;
 	spinlock_t *ptl;
 
-	if (pmd_trans_huge_lock(pmd, vma, &ptl)) {
+	ptl = pmd_trans_huge_lock(pmd, vma);
+	if (ptl) {
 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
 			mc.precharge += HPAGE_PMD_NR;
 		spin_unlock(ptl);
@@ -4826,7 +4827,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 	union mc_target target;
 	struct page *page;
 
-	if (pmd_trans_huge_lock(pmd, vma, &ptl)) {
+	ptl = pmd_trans_huge_lock(pmd, vma);
+	if (ptl) {
 		if (mc.precharge < HPAGE_PMD_NR) {
 			spin_unlock(ptl);
 			return 0;
