@@ -457,8 +457,6 @@ static int loadtime_init(struct qib_devdata *dd)
 	init_timer(&dd->intrchk_timer);
 	dd->intrchk_timer.function = verify_interrupt;
 	dd->intrchk_timer.data = (unsigned long) dd;
-
-	ret = qib_cq_init(dd);
 done:
 	return ret;
 }
@@ -1435,7 +1433,6 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	}
 	kfree(tmp);
 	kfree(dd->boardname);
-	qib_cq_exit(dd);
 }
 
 /*

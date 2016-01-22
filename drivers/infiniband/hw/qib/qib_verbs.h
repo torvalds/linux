@@ -46,6 +46,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_cq.h>
 
 struct qib_ctxtdata;
 struct qib_pportdata;
@@ -60,12 +61,6 @@ struct qib_verbs_txreq;
  * compatibility are made.
  */
 #define QIB_UVERBS_ABI_VERSION       2
-
-/*
- * Define an ib_cq_notify value that is not valid so we know when CQ
- * notifications are armed.
- */
-#define IB_CQ_NONE      (IB_CQ_NEXT_COMP + 1)
 
 #define IB_SEQ_NAK	(3 << 29)
 
@@ -220,35 +215,6 @@ struct qib_mcast {
 };
 
 /*
- * This structure is used to contain the head pointer, tail pointer,
- * and completion queue entries as a single memory allocation so
- * it can be mmap'ed into user space.
- */
-struct qib_cq_wc {
-	u32 head;               /* index of next entry to fill */
-	u32 tail;               /* index of next ib_poll_cq() entry */
-	union {
-		/* these are actually size ibcq.cqe + 1 */
-		struct ib_uverbs_wc uqueue[0];
-		struct ib_wc kqueue[0];
-	};
-};
-
-/*
- * The completion queue structure.
- */
-struct qib_cq {
-	struct ib_cq ibcq;
-	struct kthread_work comptask;
-	struct qib_devdata *dd;
-	spinlock_t lock; /* protect changes in this struct */
-	u8 notify;
-	u8 triggered;
-	struct qib_cq_wc *queue;
-	struct rvt_mmap_info *ip;
-};
-
-/*
  * qib specific data structure that will be hidden from rvt after the queue pair
  * is made common.
  */
@@ -345,8 +311,6 @@ struct qib_ibdev {
 	u32 n_piowait;
 	u32 n_txwait;
 
-	u32 n_cqs_allocated;    /* number of CQs allocated for device */
-	spinlock_t n_cqs_lock;
 	u32 n_qps_allocated;    /* number of QPs allocated for device */
 	spinlock_t n_qps_lock;
 	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
@@ -374,11 +338,6 @@ struct qib_verbs_counters {
 	u32 excessive_buffer_overrun_errors;
 	u32 vl15_dropped;
 };
-
-static inline struct qib_cq *to_icq(struct ib_cq *ibcq)
-{
-	return container_of(ibcq, struct qib_cq, ibcq);
-}
 
 static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)
 {
@@ -544,25 +503,6 @@ int qib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 int qib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int qib_destroy_srq(struct ib_srq *ibsrq);
-
-int qib_cq_init(struct qib_devdata *dd);
-
-void qib_cq_exit(struct qib_devdata *dd);
-
-void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int sig);
-
-int qib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
-
-struct ib_cq *qib_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *context,
-			    struct ib_udata *udata);
-
-int qib_destroy_cq(struct ib_cq *ibcq);
-
-int qib_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
-
-int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 
 void mr_rcu_callback(struct rcu_head *list);
 

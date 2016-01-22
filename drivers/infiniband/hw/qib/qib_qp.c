@@ -473,7 +473,7 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	if (test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags)) {
 		wc.wr_id = qp->r_wr_id;
 		wc.status = err;
-		qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
 	}
 	wc.status = IB_WC_WR_FLUSH_ERR;
 
@@ -496,7 +496,7 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 			wc.wr_id = get_rwqe_ptr(&qp->r_rq, tail)->wr_id;
 			if (++tail >= qp->r_rq.size)
 				tail = 0;
-			qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
 		}
 		wq->tail = tail;
 

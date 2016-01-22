@@ -415,7 +415,7 @@ last_imm:
 		wc.dlid_path_bits = 0;
 		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
-		qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
 			     (ohdr->bth[0] &
 				cpu_to_be32(IB_BTH_SOLICITED)) != 0);
 		break;

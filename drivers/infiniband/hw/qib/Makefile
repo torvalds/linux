@@ -1,6 +1,6 @@
 obj-$(CONFIG_INFINIBAND_QIB) += ib_qib.o
 
-ib_qib-y := qib_cq.o qib_diag.o qib_driver.o qib_eeprom.o \
+ib_qib-y := qib_diag.o qib_driver.o qib_eeprom.o \
 	qib_file_ops.o qib_fs.o qib_init.o qib_intr.o \
 	qib_mad.o qib_pcie.o qib_pio_copy.o \
 	qib_qp.o qib_qsfp.o qib_rc.o qib_ruc.o qib_sdma.o qib_srq.o \

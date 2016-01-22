@@ -1909,7 +1909,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 		init_ibport(ppd + i);
 
 	/* Only need to initialize non-zero fields. */
-	spin_lock_init(&dev->n_cqs_lock);
 	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
 	spin_lock_init(&dev->n_mcast_grps_lock);
@@ -2021,11 +2020,11 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->post_send = qib_post_send;
 	ibdev->post_recv = qib_post_receive;
 	ibdev->post_srq_recv = qib_post_srq_receive;
-	ibdev->create_cq = qib_create_cq;
-	ibdev->destroy_cq = qib_destroy_cq;
-	ibdev->resize_cq = qib_resize_cq;
-	ibdev->poll_cq = qib_poll_cq;
-	ibdev->req_notify_cq = qib_req_notify_cq;
+	ibdev->create_cq = NULL;
+	ibdev->destroy_cq = NULL;
+	ibdev->resize_cq = NULL;
+	ibdev->poll_cq = NULL;
+	ibdev->req_notify_cq = NULL;
 	ibdev->get_dma_mr = NULL;
 	ibdev->reg_user_mr = NULL;
 	ibdev->dereg_mr = NULL;
@@ -2059,7 +2058,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.free_all_qps = qib_free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
 
-	dd->verbs_dev.rdi.flags = RVT_FLAG_CQ_INIT_DRIVER;
+	dd->verbs_dev.rdi.flags = 0;
 
 	dd->verbs_dev.rdi.dparms.lkey_table_size = qib_lkey_table_size;
 	dd->verbs_dev.rdi.dparms.qp_table_size = ib_qib_qp_table_size;
@@ -2070,6 +2069,10 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.dparms.qos_shift = 1;
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = qib_get_npkeys(dd);
+	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;
+	snprintf(dd->verbs_dev.rdi.dparms.cq_name,
+		 sizeof(dd->verbs_dev.rdi.dparms.cq_name),
+		 "qib_cq%d", dd->unit);
 
 	qib_fill_device_attr(dd);
 
