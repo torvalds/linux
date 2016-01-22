@@ -305,6 +305,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, query_srq);
 
 	/* Multicast */
+	rvt_driver_mcast_init(rdi);
 	CHECK_DRIVER_OVERRIDE(rdi, attach_mcast);
 	CHECK_DRIVER_OVERRIDE(rdi, detach_mcast);
 

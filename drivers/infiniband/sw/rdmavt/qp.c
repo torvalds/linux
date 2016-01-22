@@ -240,6 +240,8 @@ static unsigned rvt_free_all_qps(struct rvt_dev_info *rdi)
 	if (rdi->driver_f.free_all_qps)
 		qp_inuse = rdi->driver_f.free_all_qps(rdi);
 
+	qp_inuse += rvt_mcast_tree_empty(rdi);
+
 	if (!rdi->qp_dev)
 		return qp_inuse;
 

@@ -306,6 +306,11 @@ struct rvt_dev_info {
 	struct kthread_worker *worker; /* per device cq worker */
 	u32 n_cqs_allocated;    /* number of CQs allocated for device */
 	spinlock_t n_cqs_lock; /* protect count of in use cqs */
+
+	/* Multicast */
+	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
+	spinlock_t n_mcast_grps_lock;
+
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
@@ -399,8 +404,11 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 					   void *obj);
 void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
 			  u32 size, void *obj);
+int rvt_reg_mr(struct rvt_qp *qp, struct ib_reg_wr *wr);
+struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid);
 
 /* Temporary export */
 void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		  enum ib_qp_type type);
+
 #endif          /* DEF_RDMA_VT_H */

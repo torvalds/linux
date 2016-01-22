@@ -50,6 +50,7 @@
 
 #include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
+#include <rdma/ib_verbs.h>
 /*
  * Atomic bit definitions for r_aflags.
  */
@@ -386,8 +387,27 @@ struct rvt_qp_ibdev {
 };
 
 /*
+ * There is one struct rvt_mcast for each multicast GID.
+ * All attached QPs are then stored as a list of
+ * struct rvt_mcast_qp.
+ */
+struct rvt_mcast_qp {
+	struct list_head list;
+	struct rvt_qp *qp;
+};
+
+struct rvt_mcast {
+	struct rb_node rb_node;
+	union ib_gid mgid;
+	struct list_head qp_list;
+	wait_queue_head_t wait;
+	atomic_t refcount;
+	int n_attached;
+};
+
+/*
  * Since struct rvt_swqe is not a fixed size, we can't simply index into
- * struct hfi1_qp.s_wq.  This function does the array index computation.
+ * struct rvt_qp.s_wq.  This function does the array index computation.
  */
 static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
 						unsigned n)
