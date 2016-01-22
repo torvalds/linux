@@ -37,8 +37,7 @@ static DEFINE_MUTEX(buffer_mutex);
 static int da_command_address;
 static int da_command_code;
 static int da_num_tokens;
-struct calling_interface_token *da_tokens;
-EXPORT_SYMBOL_GPL(da_tokens);
+static struct calling_interface_token *da_tokens;
 
 struct calling_interface_buffer *dell_smbios_get_buffer(void)
 {
