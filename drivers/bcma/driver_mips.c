@@ -337,12 +337,9 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 
 void bcma_core_mips_early_init(struct bcma_drv_mips *mcore)
 {
-	struct bcma_bus *bus = mcore->core->bus;
-
 	if (mcore->early_setup_done)
 		return;
 
-	bcma_chipco_serial_init(&bus->drv_cc);
 	bcma_core_mips_flash_detect(mcore);
 
 	mcore->early_setup_done = true;
