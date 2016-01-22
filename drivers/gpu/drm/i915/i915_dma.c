@@ -808,6 +808,9 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			DRM_INFO("Display fused off, disabling\n");
 			info->num_pipes = 0;
+		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
+			DRM_INFO("PipeC fused off\n");
+			info->num_pipes -= 1;
 		}
 	} else if (info->num_pipes > 0 && INTEL_INFO(dev)->gen == 9) {
 		u32 dfsm = I915_READ(SKL_DFSM);

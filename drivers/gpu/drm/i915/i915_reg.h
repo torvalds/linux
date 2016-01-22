@@ -5949,6 +5949,7 @@ enum skl_disp_power_wells {
 #define  ILK_INTERNAL_GRAPHICS_DISABLE	(1 << 31)
 #define  ILK_INTERNAL_DISPLAY_DISABLE	(1 << 30)
 #define  ILK_DISPLAY_DEBUG_DISABLE	(1 << 29)
+#define  IVB_PIPE_C_DISABLE		(1 << 28)
 #define  ILK_HDCP_DISABLE		(1 << 25)
 #define  ILK_eDP_A_DISABLE		(1 << 24)
 #define  HSW_CDCLK_LIMIT		(1 << 24)
