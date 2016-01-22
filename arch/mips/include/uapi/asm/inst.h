@@ -529,7 +529,7 @@ enum MIPS6e_i8_func {
 };
 
 /*
- * (microMIPS & MIPS16e) NOP instruction.
+ * (microMIPS) NOP instruction.
  */
 #define MM_NOP16	0x0c00
 
@@ -679,7 +679,7 @@ struct fp0_format {		/* FPU multiply and add format (MIPS32) */
 	;))))))
 };
 
-struct mm_fp0_format {		/* FPU multipy and add format (microMIPS) */
+struct mm_fp0_format {		/* FPU multiply and add format (microMIPS) */
 	__BITFIELD_FIELD(unsigned int opcode : 6,
 	__BITFIELD_FIELD(unsigned int ft : 5,
 	__BITFIELD_FIELD(unsigned int fs : 5,
