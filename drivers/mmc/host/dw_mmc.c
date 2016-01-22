@@ -3063,8 +3063,10 @@ int dw_mci_probe(struct dw_mci *host)
 	}
 
 	/* Reset all blocks */
-	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_ALL_RESET_FLAGS))
-		return -ENODEV;
+	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_ALL_RESET_FLAGS)) {
+		ret = -ENODEV;
+		goto err_clk_ciu;
+	}
 
 	host->dma_ops = host->pdata->dma_ops;
 	dw_mci_init_dma(host);
