@@ -357,8 +357,8 @@ static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
  * @qp: the QP to reset
  * @type: the QP type
  */
-static void reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		     enum ib_qp_type type)
+void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		  enum ib_qp_type type)
 {
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
@@ -409,6 +409,7 @@ static void reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	}
 	qp->r_sge.num_sge = 0;
 }
+EXPORT_SYMBOL(rvt_reset_qp);
 
 /**
  * rvt_create_qp - create a queue pair for a device
@@ -543,7 +544,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		}
 		qp->ibqp.qp_num = err;
 		qp->port_num = init_attr->port_num;
-		reset_qp(rdi, qp, init_attr->qp_type);
+		rvt_reset_qp(rdi, qp, init_attr->qp_type);
 		break;
 
 	default:

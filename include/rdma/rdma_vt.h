@@ -338,4 +338,7 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
 			  u32 size, void *obj);
 
+/* Temporary export */
+void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		  enum ib_qp_type type);
 #endif          /* DEF_RDMA_VT_H */

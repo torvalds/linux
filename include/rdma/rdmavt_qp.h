@@ -48,6 +48,7 @@
  *
  */
 
+#include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
 /*
  * Atomic bit definitions for r_aflags.
