@@ -48,6 +48,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include "vt.h"
+#include "trace.h"
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("RDMA Verbs Transport Library");
@@ -259,7 +260,8 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 		return -EINVAL;
 	}
 
-	/* Once we get past here we can use the rvt_pr macros */
+	/* Once we get past here we can use rvt_pr macros and tracepoints */
+	trace_rvt_dbg(rdi, "Driver attempting registration");
 	rvt_mmap_init(rdi);
 
 	/* Dev Ops */
@@ -370,6 +372,7 @@ EXPORT_SYMBOL(rvt_register_device);
 
 void rvt_unregister_device(struct rvt_dev_info *rdi)
 {
+	trace_rvt_dbg(rdi, "Driver is unregistering.");
 	if (!rdi)
 		return;
 
