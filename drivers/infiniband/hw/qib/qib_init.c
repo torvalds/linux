@@ -1131,9 +1131,12 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 {
 	unsigned long flags;
 	struct qib_devdata *dd;
-	int ret;
+	int ret, nports;
 
-	dd = (struct qib_devdata *) ib_alloc_device(sizeof(*dd) + extra);
+	/* extra is * number of ports */
+	nports = extra / sizeof(struct qib_pportdata);
+	dd = (struct qib_devdata *)rvt_alloc_device(sizeof(*dd) + extra,
+						    nports);
 	if (!dd)
 		return ERR_PTR(-ENOMEM);
 
