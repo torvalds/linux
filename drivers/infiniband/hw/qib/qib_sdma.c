@@ -533,12 +533,12 @@ static void complete_sdma_err_req(struct qib_pportdata *ppd,
  * 3) The SGE addresses are suitable for passing to dma_map_single().
  */
 int qib_sdma_verbs_send(struct qib_pportdata *ppd,
-			struct qib_sge_state *ss, u32 dwords,
+			struct rvt_sge_state *ss, u32 dwords,
 			struct qib_verbs_txreq *tx)
 {
 	unsigned long flags;
-	struct qib_sge *sge;
-	struct qib_qp *qp;
+	struct rvt_sge *sge;
+	struct rvt_qp *qp;
 	int ret = 0;
 	u16 tail;
 	__le64 *descqp;
@@ -624,7 +624,7 @@ retry:
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= QIB_SEGSZ) {
+			if (++sge->n >= RVT_SEGSZ) {
 				if (++sge->m >= sge->mr->mapsz)
 					break;
 				sge->n = 0;

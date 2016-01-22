@@ -43,11 +43,11 @@
  *
  * Return 1 if constructed; otherwise, return 0.
  */
-int qib_make_uc_req(struct qib_qp *qp)
+int qib_make_uc_req(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_other_headers *ohdr;
-	struct qib_swqe *wqe;
+	struct rvt_swqe *wqe;
 	unsigned long flags;
 	u32 hwords;
 	u32 bth0;
@@ -241,7 +241,7 @@ unlock:
  * Called at interrupt level.
  */
 void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
-		int has_grh, void *data, u32 tlen, struct qib_qp *qp)
+		int has_grh, void *data, u32 tlen, struct rvt_qp *qp)
 {
 	struct qib_other_headers *ohdr;
 	u32 opcode;
@@ -439,7 +439,7 @@ rdma_first:
 			int ok;
 
 			/* Check rkey */
-			ok = qib_rkey_ok(qp, &qp->r_sge.sge, qp->r_len,
+			ok = rvt_rkey_ok(qp, &qp->r_sge.sge, qp->r_len,
 					 vaddr, rkey, IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok))
 				goto drop;

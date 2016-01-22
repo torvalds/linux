@@ -466,7 +466,7 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 
 	if (cq->ip) {
 		struct qib_ibdev *dev = to_idev(ibcq->device);
-		struct qib_mmap_info *ip = cq->ip;
+		struct rvt_mmap_info *ip = cq->ip;
 
 		qib_update_mmap_info(dev, ip, sz, wc);
 

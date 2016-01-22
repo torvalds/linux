@@ -210,7 +210,7 @@ struct qib_pio_header {
  */
 struct qib_mcast_qp {
 	struct list_head list;
-	struct qib_qp *qp;
+	struct rvt_qp *qp;
 };
 
 struct qib_mcast {
@@ -227,20 +227,6 @@ struct qib_ah {
 	struct ib_ah ibah;
 	struct ib_ah_attr attr;
 	atomic_t refcount;
-};
-
-/*
- * This structure is used by qib_mmap() to validate an offset
- * when an mmap() request is made.  The vm_area_struct then uses
- * this as its vm_private_data.
- */
-struct qib_mmap_info {
-	struct list_head pending_mmaps;
-	struct ib_ucontext *context;
-	void *obj;
-	__u64 offset;
-	struct kref ref;
-	unsigned size;
 };
 
 /*
@@ -269,154 +255,21 @@ struct qib_cq {
 	u8 notify;
 	u8 triggered;
 	struct qib_cq_wc *queue;
-	struct qib_mmap_info *ip;
-};
-
-/*
- * A segment is a linear region of low physical memory.
- * XXX Maybe we should use phys addr here and kmap()/kunmap().
- * Used by the verbs layer.
- */
-struct qib_seg {
-	void *vaddr;
-	size_t length;
-};
-
-/* The number of qib_segs that fit in a page. */
-#define QIB_SEGSZ     (PAGE_SIZE / sizeof(struct qib_seg))
-
-struct qib_segarray {
-	struct qib_seg segs[QIB_SEGSZ];
-};
-
-struct qib_mregion {
-	struct ib_pd *pd;       /* shares refcnt of ibmr.pd */
-	u64 user_base;          /* User's address for this region */
-	u64 iova;               /* IB start address of this region */
-	size_t length;
-	u32 lkey;
-	u32 offset;             /* offset (bytes) to start of region */
-	int access_flags;
-	u32 max_segs;           /* number of qib_segs in all the arrays */
-	u32 mapsz;              /* size of the map array */
-	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
-	u8  lkey_published;     /* in global table */
-	struct completion comp; /* complete when refcount goes to zero */
-	struct rcu_head list;
-	atomic_t refcount;
-	struct qib_segarray *map[0];    /* the segments */
-};
-
-/*
- * These keep track of the copy progress within a memory region.
- * Used by the verbs layer.
- */
-struct qib_sge {
-	struct qib_mregion *mr;
-	void *vaddr;            /* kernel virtual address of segment */
-	u32 sge_length;         /* length of the SGE */
-	u32 length;             /* remaining length of the segment */
-	u16 m;                  /* current index: mr->map[m] */
-	u16 n;                  /* current index: mr->map[m]->segs[n] */
-};
-
-/* Memory region */
-struct qib_mr {
-	struct ib_mr ibmr;
-	struct ib_umem *umem;
-	u64 *pages;
-	u32 npages;
-	struct qib_mregion mr;  /* must be last */
-};
-
-/*
- * Send work request queue entry.
- * The size of the sg_list is determined when the QP is created and stored
- * in qp->s_max_sge.
- */
-struct qib_swqe {
-	union {
-		struct ib_send_wr wr;   /* don't use wr.sg_list */
-		struct ib_ud_wr ud_wr;
-		struct ib_reg_wr reg_wr;
-		struct ib_rdma_wr rdma_wr;
-		struct ib_atomic_wr atomic_wr;
-	};
-	u32 psn;                /* first packet sequence number */
-	u32 lpsn;               /* last packet sequence number */
-	u32 ssn;                /* send sequence number */
-	u32 length;             /* total length of data in sg_list */
-	struct qib_sge sg_list[0];
-};
-
-/*
- * Receive work request queue entry.
- * The size of the sg_list is determined when the QP (or SRQ) is created
- * and stored in qp->r_rq.max_sge (or srq->rq.max_sge).
- */
-struct qib_rwqe {
-	u64 wr_id;
-	u8 num_sge;
-	struct ib_sge sg_list[0];
-};
-
-/*
- * This structure is used to contain the head pointer, tail pointer,
- * and receive work queue entries as a single memory allocation so
- * it can be mmap'ed into user space.
- * Note that the wq array elements are variable size so you can't
- * just index into the array to get the N'th element;
- * use get_rwqe_ptr() instead.
- */
-struct qib_rwq {
-	u32 head;               /* new work requests posted to the head */
-	u32 tail;               /* receives pull requests from here. */
-	struct qib_rwqe wq[0];
-};
-
-struct qib_rq {
-	struct qib_rwq *wq;
-	u32 size;               /* size of RWQE array */
-	u8 max_sge;
-	spinlock_t lock /* protect changes in this struct */
-		____cacheline_aligned_in_smp;
+	struct rvt_mmap_info *ip;
 };
 
 struct qib_srq {
 	struct ib_srq ibsrq;
-	struct qib_rq rq;
-	struct qib_mmap_info *ip;
+	struct rvt_rq rq;
+	struct rvt_mmap_info *ip;
 	/* send signal when number of RWQEs < limit */
 	u32 limit;
-};
-
-struct qib_sge_state {
-	struct qib_sge *sg_list;      /* next SGE to be used if any */
-	struct qib_sge sge;   /* progress state for the current SGE */
-	u32 total_len;
-	u8 num_sge;
-};
-
-/*
- * This structure holds the information that the send tasklet needs
- * to send a RDMA read response or atomic operation.
- */
-struct qib_ack_entry {
-	u8 opcode;
-	u8 sent;
-	u32 psn;
-	u32 lpsn;
-	union {
-		struct qib_sge rdma_sge;
-		u64 atomic_data;
-	};
 };
 
 /*
  * qib specific data structure that will be hidden from rvt after the queue pair
  * is made common.
  */
-struct qib_qp;
 struct qib_qp_priv {
 	struct qib_ib_header *s_hdr;    /* next packet header to send */
 	struct list_head iowait;        /* link for wait PIO buf */
@@ -424,121 +277,7 @@ struct qib_qp_priv {
 	struct qib_verbs_txreq *s_tx;
 	struct work_struct s_work;
 	wait_queue_head_t wait_dma;
-	struct qib_qp *owner;
-};
-
-/*
- * Variables prefixed with s_ are for the requester (sender).
- * Variables prefixed with r_ are for the responder (receiver).
- * Variables prefixed with ack_ are for responder replies.
- *
- * Common variables are protected by both r_rq.lock and s_lock in that order
- * which only happens in modify_qp() or changing the QP 'state'.
- */
-struct qib_qp {
-	struct ib_qp ibqp;
-	struct qib_qp_priv *priv;
-	/* read mostly fields above and below */
-	struct ib_ah_attr remote_ah_attr;
-	struct ib_ah_attr alt_ah_attr;
-	struct qib_qp __rcu *next;            /* link list for QPN hash table */
-	struct qib_swqe *s_wq;  /* send work queue */
-	struct qib_mmap_info *ip;
-	unsigned long timeout_jiffies;  /* computed from timeout */
-
-	enum ib_mtu path_mtu;
-	u32 remote_qpn;
-	u32 pmtu;		/* decoded from path_mtu */
-	u32 qkey;               /* QKEY for this QP (for UD or RD) */
-	u32 s_size;             /* send work queue size */
-	u32 s_rnr_timeout;      /* number of milliseconds for RNR timeout */
-
-	u8 state;               /* QP state */
-	u8 qp_access_flags;
-	u8 alt_timeout;         /* Alternate path timeout for this QP */
-	u8 timeout;             /* Timeout for this QP */
-	u8 s_srate;
-	u8 s_mig_state;
-	u8 port_num;
-	u8 s_pkey_index;        /* PKEY index to use */
-	u8 s_alt_pkey_index;    /* Alternate path PKEY index to use */
-	u8 r_max_rd_atomic;     /* max number of RDMA read/atomic to receive */
-	u8 s_max_rd_atomic;     /* max number of RDMA read/atomic to send */
-	u8 s_retry_cnt;         /* number of times to retry */
-	u8 s_rnr_retry_cnt;
-	u8 r_min_rnr_timer;     /* retry timeout value for RNR NAKs */
-	u8 s_max_sge;           /* size of s_wq->sg_list */
-	u8 s_draining;
-
-	/* start of read/write fields */
-
-	atomic_t refcount ____cacheline_aligned_in_smp;
-	wait_queue_head_t wait;
-
-
-	struct qib_ack_entry s_ack_queue[QIB_MAX_RDMA_ATOMIC + 1]
-		____cacheline_aligned_in_smp;
-	struct qib_sge_state s_rdma_read_sge;
-
-	spinlock_t r_lock ____cacheline_aligned_in_smp;      /* used for APM */
-	unsigned long r_aflags;
-	u64 r_wr_id;            /* ID for current receive WQE */
-	u32 r_ack_psn;          /* PSN for next ACK or atomic ACK */
-	u32 r_len;              /* total length of r_sge */
-	u32 r_rcv_len;          /* receive data len processed */
-	u32 r_psn;              /* expected rcv packet sequence number */
-	u32 r_msn;              /* message sequence number */
-
-	u8 r_state;             /* opcode of last packet received */
-	u8 r_flags;
-	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
-
-	struct list_head rspwait;       /* link for waititing to respond */
-
-	struct qib_sge_state r_sge;     /* current receive data */
-	struct qib_rq r_rq;             /* receive work queue */
-
-	spinlock_t s_lock ____cacheline_aligned_in_smp;
-	struct qib_sge_state *s_cur_sge;
-	u32 s_flags;
-
-	struct qib_swqe *s_wqe;
-	struct qib_sge_state s_sge;     /* current send request data */
-	struct qib_mregion *s_rdma_mr;
-
-	u32 s_cur_size;         /* size of send packet in bytes */
-	u32 s_len;              /* total length of s_sge */
-	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
-	u32 s_next_psn;         /* PSN for next request */
-	u32 s_last_psn;         /* last response PSN processed */
-	u32 s_sending_psn;      /* lowest PSN that is being sent */
-	u32 s_sending_hpsn;     /* highest PSN that is being sent */
-	u32 s_psn;              /* current packet sequence number */
-	u32 s_ack_rdma_psn;     /* PSN for sending RDMA read responses */
-	u32 s_ack_psn;          /* PSN for acking sends and RDMA writes */
-	u32 s_head;             /* new entries added here */
-	u32 s_tail;             /* next entry to process */
-	u32 s_cur;              /* current work queue entry */
-	u32 s_acked;            /* last un-ACK'ed entry */
-	u32 s_last;             /* last completed entry */
-	u32 s_ssn;              /* SSN of tail entry */
-	u32 s_lsn;              /* limit sequence number (credit) */
-	u16 s_hdrwords;         /* size of s_hdr in 32 bit words */
-	u16 s_rdma_ack_cnt;
-	u8 s_state;             /* opcode of last packet sent */
-	u8 s_ack_state;         /* opcode of packet to ACK */
-	u8 s_nak_state;         /* non-zero if NAK is pending */
-	u8 r_nak_state;         /* non-zero if NAK is pending */
-	u8 s_retry;             /* requester retry counter */
-	u8 s_rnr_retry;         /* requester RNR retry counter */
-	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
-	u8 s_tail_ack_queue;    /* index into s_ack_queue[] */
-
-	struct qib_sge_state s_ack_rdma_sge;
-	struct timer_list s_timer;
-
-	struct qib_sge r_sg_list[0] /* verified SGEs */
-		____cacheline_aligned_in_smp;
+	struct rvt_qp *owner;
 };
 
 /*
@@ -616,27 +355,27 @@ struct qib_qp {
 #define QIB_PSN_CREDIT  16
 
 /*
- * Since struct qib_swqe is not a fixed size, we can't simply index into
- * struct qib_qp.s_wq.  This function does the array index computation.
+ * Since struct rvt_swqe is not a fixed size, we can't simply index into
+ * struct rvt_qp.s_wq.  This function does the array index computation.
  */
-static inline struct qib_swqe *get_swqe_ptr(struct qib_qp *qp,
-					      unsigned n)
+static inline struct rvt_swqe *get_swqe_ptr(struct rvt_qp *qp,
+					    unsigned n)
 {
-	return (struct qib_swqe *)((char *)qp->s_wq +
-				     (sizeof(struct qib_swqe) +
+	return (struct rvt_swqe *)((char *)qp->s_wq +
+				     (sizeof(struct rvt_swqe) +
 				      qp->s_max_sge *
-				      sizeof(struct qib_sge)) * n);
+				      sizeof(struct rvt_sge)) * n);
 }
 
 /*
- * Since struct qib_rwqe is not a fixed size, we can't simply index into
- * struct qib_rwq.wq.  This function does the array index computation.
+ * Since struct rvt_rwqe is not a fixed size, we can't simply index into
+ * struct rvt_rwq.wq.  This function does the array index computation.
  */
-static inline struct qib_rwqe *get_rwqe_ptr(struct qib_rq *rq, unsigned n)
+static inline struct rvt_rwqe *get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 {
-	return (struct qib_rwqe *)
+	return (struct rvt_rwqe *)
 		((char *) rq->wq->wq +
-		 (sizeof(struct qib_rwqe) +
+		 (sizeof(struct rvt_rwqe) +
 		  rq->max_sge * sizeof(struct ib_sge)) * n);
 }
 
@@ -660,16 +399,6 @@ struct qib_qpn_table {
 	struct qpn_map map[QPNMAP_ENTRIES];
 };
 
-#define MAX_LKEY_TABLE_BITS 23
-
-struct qib_lkey_table {
-	spinlock_t lock; /* protect changes in this struct */
-	u32 next;               /* next unused index (speeds search) */
-	u32 gen;                /* generation count */
-	u32 max;                /* size of the table */
-	struct qib_mregion __rcu **table;
-};
-
 struct qib_opcode_stats {
 	u64 n_packets;          /* number of packets */
 	u64 n_bytes;            /* total number of bytes */
@@ -687,8 +416,8 @@ struct qib_pma_counters {
 };
 
 struct qib_ibport {
-	struct qib_qp __rcu *qp0;
-	struct qib_qp __rcu *qp1;
+	struct rvt_qp __rcu *qp0;
+	struct rvt_qp __rcu *qp1;
 	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
 	struct qib_ah *sm_ah;
 	struct qib_ah *smi_ah;
@@ -761,18 +490,16 @@ struct qib_ibdev {
 	struct list_head pending_mmaps;
 	spinlock_t mmap_offset_lock; /* protect mmap_offset */
 	u32 mmap_offset;
-	struct qib_mregion __rcu *dma_mr;
 
 	/* QP numbers are shared by all IB ports */
 	struct qib_qpn_table qpn_table;
-	struct qib_lkey_table lk_table;
 	struct list_head piowait;       /* list for wait PIO buf */
 	struct list_head dmawait;	/* list for wait DMA */
 	struct list_head txwait;        /* list for wait qib_verbs_txreq */
 	struct list_head memwait;       /* list for wait kernel memory */
 	struct list_head txreq_free;
 	struct timer_list mem_timer;
-	struct qib_qp __rcu **qp_table;
+	struct rvt_qp __rcu **qp_table;
 	struct qib_pio_header *pio_hdrs;
 	dma_addr_t pio_hdrs_phys;
 	/* list of QPs waiting for RNR timer */
@@ -818,11 +545,6 @@ struct qib_verbs_counters {
 	u32 vl15_dropped;
 };
 
-static inline struct qib_mr *to_imr(struct ib_mr *ibmr)
-{
-	return container_of(ibmr, struct qib_mr, ibmr);
-}
-
 static inline struct qib_ah *to_iah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct qib_ah, ibah);
@@ -838,9 +560,9 @@ static inline struct qib_srq *to_isrq(struct ib_srq *ibsrq)
 	return container_of(ibsrq, struct qib_srq, ibsrq);
 }
 
-static inline struct qib_qp *to_iqp(struct ib_qp *ibqp)
+static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)
 {
-	return container_of(ibqp, struct qib_qp, ibqp);
+	return container_of(ibqp, struct rvt_qp, ibqp);
 }
 
 static inline struct qib_ibdev *to_idev(struct ib_device *ibdev)
@@ -855,7 +577,7 @@ static inline struct qib_ibdev *to_idev(struct ib_device *ibdev)
  * Send if not busy or waiting for I/O and either
  * a RC response is pending or we can process send work requests.
  */
-static inline int qib_send_ok(struct qib_qp *qp)
+static inline int qib_send_ok(struct rvt_qp *qp)
 {
 	return !(qp->s_flags & (QIB_S_BUSY | QIB_S_ANY_WAIT_IO)) &&
 		(qp->s_hdrwords || (qp->s_flags & QIB_S_RESP_PENDING) ||
@@ -865,7 +587,7 @@ static inline int qib_send_ok(struct qib_qp *qp)
 /*
  * This must be called with s_lock held.
  */
-void qib_schedule_send(struct qib_qp *qp);
+void qib_schedule_send(struct rvt_qp *qp);
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 {
@@ -916,9 +638,9 @@ int qib_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
 
 int qib_mcast_tree_empty(struct qib_ibport *ibp);
 
-__be32 qib_compute_aeth(struct qib_qp *qp);
+__be32 qib_compute_aeth(struct rvt_qp *qp);
 
-struct qib_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn);
+struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn);
 
 struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
@@ -926,7 +648,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 
 int qib_destroy_qp(struct ib_qp *ibqp);
 
-int qib_error_qp(struct qib_qp *qp, enum ib_wc_status err);
+int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 
 int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata);
@@ -952,7 +674,7 @@ void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
 
 #endif
 
-void qib_get_credit(struct qib_qp *qp, u32 aeth);
+void qib_get_credit(struct rvt_qp *qp, u32 aeth);
 
 unsigned qib_pkt_delay(u32 plen, u8 snd_mult, u8 rcv_mult);
 
@@ -960,19 +682,19 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail);
 
 void qib_put_txreq(struct qib_verbs_txreq *tx);
 
-int qib_verbs_send(struct qib_qp *qp, struct qib_ib_header *hdr,
-		   u32 hdrwords, struct qib_sge_state *ss, u32 len);
+int qib_verbs_send(struct rvt_qp *qp, struct qib_ib_header *hdr,
+		   u32 hdrwords, struct rvt_sge_state *ss, u32 len);
 
-void qib_copy_sge(struct qib_sge_state *ss, void *data, u32 length,
+void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
 		  int release);
 
-void qib_skip_sge(struct qib_sge_state *ss, u32 length, int release);
+void qib_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
 
 void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
-		int has_grh, void *data, u32 tlen, struct qib_qp *qp);
+		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
-		int has_grh, void *data, u32 tlen, struct qib_qp *qp);
+		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 
@@ -980,24 +702,14 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 
 void qib_rc_rnr_retry(unsigned long arg);
 
-void qib_rc_send_complete(struct qib_qp *qp, struct qib_ib_header *hdr);
+void qib_rc_send_complete(struct rvt_qp *qp, struct qib_ib_header *hdr);
 
-void qib_rc_error(struct qib_qp *qp, enum ib_wc_status err);
+void qib_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 
-int qib_post_ud_send(struct qib_qp *qp, struct ib_send_wr *wr);
+int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
 
 void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
-		int has_grh, void *data, u32 tlen, struct qib_qp *qp);
-
-int qib_alloc_lkey(struct qib_mregion *mr, int dma_region);
-
-void qib_free_lkey(struct qib_mregion *mr);
-
-int qib_lkey_ok(struct qib_lkey_table *rkt, struct rvt_pd *pd,
-		struct qib_sge *isge, struct ib_sge *sge, int acc);
-
-int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
-		u32 len, u64 vaddr, u32 rkey, int acc);
+		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 int qib_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			 struct ib_recv_wr **bad_wr);
@@ -1033,93 +745,53 @@ int qib_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
 
 int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 
-struct ib_mr *qib_get_dma_mr(struct ib_pd *pd, int acc);
-
-struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-			      u64 virt_addr, int mr_access_flags,
-			      struct ib_udata *udata);
-
-int qib_dereg_mr(struct ib_mr *ibmr);
-
-struct ib_mr *qib_alloc_mr(struct ib_pd *pd,
-			   enum ib_mr_type mr_type,
-			   u32 max_entries);
-
-int qib_map_mr_sg(struct ib_mr *ibmr,
-		  struct scatterlist *sg,
-		  int sg_nents);
-
-int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr);
-
-struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
-			     struct ib_fmr_attr *fmr_attr);
-
-int qib_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
-		     int list_len, u64 iova);
-
-int qib_unmap_fmr(struct list_head *fmr_list);
-
-int qib_dealloc_fmr(struct ib_fmr *ibfmr);
-
-static inline void qib_get_mr(struct qib_mregion *mr)
-{
-	atomic_inc(&mr->refcount);
-}
-
 void mr_rcu_callback(struct rcu_head *list);
 
-static inline void qib_put_mr(struct qib_mregion *mr)
-{
-	if (unlikely(atomic_dec_and_test(&mr->refcount)))
-		call_rcu(&mr->list, mr_rcu_callback);
-}
-
-static inline void qib_put_ss(struct qib_sge_state *ss)
+static inline void qib_put_ss(struct rvt_sge_state *ss)
 {
 	while (ss->num_sge) {
-		qib_put_mr(ss->sge.mr);
+		rvt_put_mr(ss->sge.mr);
 		if (--ss->num_sge)
 			ss->sge = *ss->sg_list++;
 	}
 }
 
-
 void qib_release_mmap_info(struct kref *ref);
 
-struct qib_mmap_info *qib_create_mmap_info(struct qib_ibdev *dev, u32 size,
+struct rvt_mmap_info *qib_create_mmap_info(struct qib_ibdev *dev, u32 size,
 					   struct ib_ucontext *context,
 					   void *obj);
 
-void qib_update_mmap_info(struct qib_ibdev *dev, struct qib_mmap_info *ip,
+void qib_update_mmap_info(struct qib_ibdev *dev, struct rvt_mmap_info *ip,
 			  u32 size, void *obj);
 
 int qib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
-int qib_get_rwqe(struct qib_qp *qp, int wr_id_only);
+int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
-void qib_migrate_qp(struct qib_qp *qp);
+void qib_migrate_qp(struct rvt_qp *qp);
 
 int qib_ruc_check_hdr(struct qib_ibport *ibp, struct qib_ib_header *hdr,
-		      int has_grh, struct qib_qp *qp, u32 bth0);
+		      int has_grh, struct rvt_qp *qp, u32 bth0);
 
 u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 		 struct ib_global_route *grh, u32 hwords, u32 nwords);
 
-void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
+void qib_make_ruc_header(struct rvt_qp *qp, struct qib_other_headers *ohdr,
 			 u32 bth0, u32 bth2);
 
 void qib_do_send(struct work_struct *work);
 
-void qib_send_complete(struct qib_qp *qp, struct qib_swqe *wqe,
+void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		       enum ib_wc_status status);
 
-void qib_send_rc_ack(struct qib_qp *qp);
+void qib_send_rc_ack(struct rvt_qp *qp);
 
-int qib_make_rc_req(struct qib_qp *qp);
+int qib_make_rc_req(struct rvt_qp *qp);
 
-int qib_make_uc_req(struct qib_qp *qp);
+int qib_make_uc_req(struct rvt_qp *qp);
 
-int qib_make_ud_req(struct qib_qp *qp);
+int qib_make_ud_req(struct rvt_qp *qp);
 
 int qib_register_ib_device(struct qib_devdata *);
 
@@ -1157,7 +829,7 @@ extern const int ib_qib_state_ops[];
 
 extern __be64 ib_qib_sys_image_guid;    /* in network order */
 
-extern unsigned int ib_qib_lkey_table_size;
+extern unsigned int ib_rvt_lkey_table_size;
 
 extern unsigned int ib_qib_max_cqes;
 

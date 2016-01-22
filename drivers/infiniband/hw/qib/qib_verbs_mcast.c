@@ -39,7 +39,7 @@
  * qib_mcast_qp_alloc - alloc a struct to link a QP to mcast GID struct
  * @qp: the QP to link
  */
-static struct qib_mcast_qp *qib_mcast_qp_alloc(struct qib_qp *qp)
+static struct qib_mcast_qp *qib_mcast_qp_alloc(struct rvt_qp *qp)
 {
 	struct qib_mcast_qp *mqp;
 
@@ -56,7 +56,7 @@ bail:
 
 static void qib_mcast_qp_free(struct qib_mcast_qp *mqp)
 {
-	struct qib_qp *qp = mqp->qp;
+	struct rvt_qp *qp = mqp->qp;
 
 	/* Notify qib_destroy_qp() if it is waiting. */
 	if (atomic_dec_and_test(&qp->refcount))
@@ -224,7 +224,7 @@ bail:
 
 int qib_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
-	struct qib_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = to_iqp(ibqp);
 	struct qib_ibdev *dev = to_idev(ibqp->device);
 	struct qib_ibport *ibp;
 	struct qib_mcast *mcast;
@@ -282,7 +282,7 @@ bail:
 
 int qib_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
-	struct qib_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = to_iqp(ibqp);
 	struct qib_ibdev *dev = to_idev(ibqp->device);
 	struct qib_ibport *ibp = to_iport(ibqp->device, qp->port_num);
 	struct qib_mcast *mcast = NULL;

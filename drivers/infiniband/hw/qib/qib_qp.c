@@ -221,7 +221,7 @@ static inline unsigned qpn_hash(struct qib_ibdev *dev, u32 qpn)
  * Put the QP into the hash table.
  * The hash table holds a reference to the QP.
  */
-static void insert_qp(struct qib_ibdev *dev, struct qib_qp *qp)
+static void insert_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 {
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	unsigned long flags;
@@ -246,7 +246,7 @@ static void insert_qp(struct qib_ibdev *dev, struct qib_qp *qp)
  * Remove the QP from the table so it can't be found asynchronously by
  * the receive interrupt routine.
  */
-static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
+static void remove_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 {
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
@@ -262,8 +262,8 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
 		RCU_INIT_POINTER(ibp->qp1, NULL);
 	} else {
-		struct qib_qp *q;
-		struct qib_qp __rcu **qpp;
+		struct rvt_qp *q;
+		struct rvt_qp __rcu **qpp;
 
 		removed = 0;
 		qpp = &dev->qp_table[n];
@@ -297,7 +297,7 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 {
 	struct qib_ibdev *dev = &dd->verbs_dev;
 	unsigned long flags;
-	struct qib_qp *qp;
+	struct rvt_qp *qp;
 	unsigned n, qp_inuse = 0;
 
 	for (n = 0; n < dd->num_pports; n++) {
@@ -337,9 +337,9 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
  * The caller is responsible for decrementing the QP reference count
  * when done.
  */
-struct qib_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
+struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
 {
-	struct qib_qp *qp = NULL;
+	struct rvt_qp *qp = NULL;
 
 	rcu_read_lock();
 	if (unlikely(qpn <= 1)) {
@@ -369,7 +369,7 @@ struct qib_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
  * @qp: the QP to reset
  * @type: the QP type
  */
-static void qib_reset_qp(struct qib_qp *qp, enum ib_qp_type type)
+static void qib_reset_qp(struct rvt_qp *qp, enum ib_qp_type type)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	qp->remote_qpn = 0;
@@ -417,7 +417,7 @@ static void qib_reset_qp(struct qib_qp *qp, enum ib_qp_type type)
 	qp->r_sge.num_sge = 0;
 }
 
-static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
+static void clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 {
 	unsigned n;
 
@@ -428,13 +428,13 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 
 	if (clr_sends) {
 		while (qp->s_last != qp->s_head) {
-			struct qib_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
+			struct rvt_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
 			unsigned i;
 
 			for (i = 0; i < wqe->wr.num_sge; i++) {
-				struct qib_sge *sge = &wqe->sg_list[i];
+				struct rvt_sge *sge = &wqe->sg_list[i];
 
-				qib_put_mr(sge->mr);
+				rvt_put_mr(sge->mr);
 			}
 			if (qp->ibqp.qp_type == IB_QPT_UD ||
 			    qp->ibqp.qp_type == IB_QPT_SMI ||
@@ -444,7 +444,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 				qp->s_last = 0;
 		}
 		if (qp->s_rdma_mr) {
-			qib_put_mr(qp->s_rdma_mr);
+			rvt_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;
 		}
 	}
@@ -453,11 +453,11 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 		return;
 
 	for (n = 0; n < ARRAY_SIZE(qp->s_ack_queue); n++) {
-		struct qib_ack_entry *e = &qp->s_ack_queue[n];
+		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
 
 		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
 		    e->rdma_sge.mr) {
-			qib_put_mr(e->rdma_sge.mr);
+			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
 	}
@@ -473,7 +473,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
  * The QP r_lock and s_lock should be held and interrupts disabled.
  * If we are already in error state, just return.
  */
-int qib_error_qp(struct qib_qp *qp, enum ib_wc_status err)
+int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
@@ -503,7 +503,7 @@ int qib_error_qp(struct qib_qp *qp, enum ib_wc_status err)
 	if (!(qp->s_flags & QIB_S_BUSY)) {
 		qp->s_hdrwords = 0;
 		if (qp->s_rdma_mr) {
-			qib_put_mr(qp->s_rdma_mr);
+			rvt_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;
 		}
 		if (priv->s_tx) {
@@ -530,7 +530,7 @@ int qib_error_qp(struct qib_qp *qp, enum ib_wc_status err)
 	wc.status = IB_WC_WR_FLUSH_ERR;
 
 	if (qp->r_rq.wq) {
-		struct qib_rwq *wq;
+		struct rvt_rwq *wq;
 		u32 head;
 		u32 tail;
 
@@ -573,7 +573,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata)
 {
 	struct qib_ibdev *dev = to_idev(ibqp->device);
-	struct qib_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = to_iqp(ibqp);
 	struct qib_qp_priv *priv = qp->priv;
 	enum ib_qp_state cur_state, new_state;
 	struct ib_event ev;
@@ -861,7 +861,7 @@ bail:
 int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		 int attr_mask, struct ib_qp_init_attr *init_attr)
 {
-	struct qib_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = to_iqp(ibqp);
 
 	attr->qp_state = qp->state;
 	attr->cur_qp_state = attr->qp_state;
@@ -914,7 +914,7 @@ int qib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * Returns the AETH.
  */
-__be32 qib_compute_aeth(struct qib_qp *qp)
+__be32 qib_compute_aeth(struct rvt_qp *qp)
 {
 	u32 aeth = qp->r_msn & QIB_MSN_MASK;
 
@@ -927,7 +927,7 @@ __be32 qib_compute_aeth(struct qib_qp *qp)
 	} else {
 		u32 min, max, x;
 		u32 credits;
-		struct qib_rwq *wq = qp->r_rq.wq;
+		struct rvt_rwq *wq = qp->r_rq.wq;
 		u32 head;
 		u32 tail;
 
@@ -982,9 +982,9 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata)
 {
-	struct qib_qp *qp;
+	struct rvt_qp *qp;
 	int err;
-	struct qib_swqe *swq = NULL;
+	struct rvt_swqe *swq = NULL;
 	struct qib_ibdev *dev;
 	struct qib_devdata *dd;
 	size_t sz;
@@ -1033,9 +1033,9 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	case IB_QPT_UC:
 	case IB_QPT_RC:
 	case IB_QPT_UD:
-		sz = sizeof(struct qib_sge) *
+		sz = sizeof(struct rvt_sge) *
 			init_attr->cap.max_send_sge +
-			sizeof(struct qib_swqe);
+			sizeof(struct rvt_swqe);
 		swq = __vmalloc((init_attr->cap.max_send_wr + 1) * sz,
 				gfp, PAGE_KERNEL);
 		if (swq == NULL) {
@@ -1080,14 +1080,14 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 			qp->r_rq.size = init_attr->cap.max_recv_wr + 1;
 			qp->r_rq.max_sge = init_attr->cap.max_recv_sge;
 			sz = (sizeof(struct ib_sge) * qp->r_rq.max_sge) +
-				sizeof(struct qib_rwqe);
+				sizeof(struct rvt_rwqe);
 			if (gfp != GFP_NOIO)
 				qp->r_rq.wq = vmalloc_user(
-						sizeof(struct qib_rwq) +
+						sizeof(struct rvt_rwq) +
 						qp->r_rq.size * sz);
 			else
 				qp->r_rq.wq = __vmalloc(
-						sizeof(struct qib_rwq) +
+						sizeof(struct rvt_rwq) +
 						qp->r_rq.size * sz,
 						gfp, PAGE_KERNEL);
 
@@ -1155,7 +1155,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 				goto bail_ip;
 			}
 		} else {
-			u32 s = sizeof(struct qib_rwq) + qp->r_rq.size * sz;
+			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
 			qp->ip = qib_create_mmap_info(dev, s,
 						      ibpd->uobject->context,
@@ -1221,7 +1221,7 @@ bail:
  */
 int qib_destroy_qp(struct ib_qp *ibqp)
 {
-	struct qib_qp *qp = to_iqp(ibqp);
+	struct rvt_qp *qp = to_iqp(ibqp);
 	struct qib_ibdev *dev = to_idev(ibqp->device);
 	struct qib_qp_priv *priv = qp->priv;
 
@@ -1297,7 +1297,7 @@ void qib_free_qpn_table(struct qib_qpn_table *qpt)
  *
  * The QP s_lock should be held.
  */
-void qib_get_credit(struct qib_qp *qp, u32 aeth)
+void qib_get_credit(struct rvt_qp *qp, u32 aeth)
 {
 	u32 credit = (aeth >> QIB_AETH_CREDIT_SHIFT) & QIB_AETH_CREDIT_MASK;
 
@@ -1331,7 +1331,7 @@ void qib_get_credit(struct qib_qp *qp, u32 aeth)
 
 struct qib_qp_iter {
 	struct qib_ibdev *dev;
-	struct qib_qp *qp;
+	struct rvt_qp *qp;
 	int n;
 };
 
@@ -1357,8 +1357,8 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 	struct qib_ibdev *dev = iter->dev;
 	int n = iter->n;
 	int ret = 1;
-	struct qib_qp *pqp = iter->qp;
-	struct qib_qp *qp;
+	struct rvt_qp *pqp = iter->qp;
+	struct rvt_qp *qp;
 
 	for (; n < dev->qp_table_size; n++) {
 		if (pqp)
@@ -1381,8 +1381,8 @@ static const char * const qp_type_str[] = {
 
 void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
 {
-	struct qib_swqe *wqe;
-	struct qib_qp *qp = iter->qp;
+	struct rvt_swqe *wqe;
+	struct rvt_qp *qp = iter->qp;
 	struct qib_qp_priv *priv = qp->priv;
 
 	wqe = get_swqe_ptr(qp, qp->s_last);
