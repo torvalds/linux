@@ -42,25 +42,31 @@
 
 #include "qib.h"
 
-#define BITS_PER_PAGE           (PAGE_SIZE*BITS_PER_BYTE)
-#define BITS_PER_PAGE_MASK      (BITS_PER_PAGE-1)
+/*
+ * mask field which was present in now deleted qib_qpn_table
+ * is not present in rvt_qpn_table. Defining the same field
+ * as qpt_mask here instead of adding the mask field to
+ * rvt_qpn_table.
+ */
+static u16 qpt_mask;
 
-static inline unsigned mk_qpn(struct qib_qpn_table *qpt,
-			      struct qpn_map *map, unsigned off)
+static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
+			      struct rvt_qpn_map *map, unsigned off)
 {
-	return (map - qpt->map) * BITS_PER_PAGE + off;
+	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
 }
 
-static inline unsigned find_next_offset(struct qib_qpn_table *qpt,
-					struct qpn_map *map, unsigned off,
+static inline unsigned find_next_offset(struct rvt_qpn_table *qpt,
+					struct rvt_qpn_map *map, unsigned off,
 					unsigned n)
 {
-	if (qpt->mask) {
+	if (qpt_mask) {
 		off++;
-		if (((off & qpt->mask) >> 1) >= n)
-			off = (off | qpt->mask) + 2;
-	} else
-		off = find_next_zero_bit(map->page, BITS_PER_PAGE, off);
+		if (((off & qpt_mask) >> 1) >= n)
+			off = (off | qpt_mask) + 2;
+	} else {
+		off = find_next_zero_bit(map->page, RVT_BITS_PER_PAGE, off);
+	}
 	return off;
 }
 
@@ -101,7 +107,7 @@ static u32 credit_table[31] = {
 	32768                   /* 1E */
 };
 
-static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map,
+static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
 			 gfp_t gfp)
 {
 	unsigned long page = get_zeroed_page(gfp);
@@ -122,11 +128,11 @@ static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map,
  * Allocate the next available QPN or
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
-static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
+static int alloc_qpn(struct qib_devdata *dd, struct rvt_qpn_table *qpt,
 		     enum ib_qp_type type, u8 port, gfp_t gfp)
 {
 	u32 i, offset, max_scan, qpn;
-	struct qpn_map *map;
+	struct rvt_qpn_map *map;
 	u32 ret;
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
@@ -144,12 +150,12 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 	}
 
 	qpn = qpt->last + 2;
-	if (qpn >= QPN_MAX)
+	if (qpn >= RVT_QPN_MAX)
 		qpn = 2;
-	if (qpt->mask && ((qpn & qpt->mask) >> 1) >= dd->n_krcv_queues)
-		qpn = (qpn | qpt->mask) + 2;
-	offset = qpn & BITS_PER_PAGE_MASK;
-	map = &qpt->map[qpn / BITS_PER_PAGE];
+	if (qpt_mask && ((qpn & qpt_mask) >> 1) >= dd->n_krcv_queues)
+		qpn = (qpn | qpt_mask) + 2;
+	offset = qpn & RVT_BITS_PER_PAGE_MASK;
+	map = &qpt->map[qpn / RVT_BITS_PER_PAGE];
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
@@ -174,14 +180,14 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 			 * We just need to be sure we don't loop
 			 * forever.
 			 */
-		} while (offset < BITS_PER_PAGE && qpn < QPN_MAX);
+		} while (offset < RVT_BITS_PER_PAGE && qpn < RVT_QPN_MAX);
 		/*
 		 * In order to keep the number of pages allocated to a
 		 * minimum, we scan the all existing pages before increasing
 		 * the size of the bitmap table.
 		 */
 		if (++i > max_scan) {
-			if (qpt->nmaps == QPNMAP_ENTRIES)
+			if (qpt->nmaps == RVT_QPNMAP_ENTRIES)
 				break;
 			map = &qpt->map[qpt->nmaps++];
 			offset = 0;
@@ -201,19 +207,19 @@ bail:
 	return ret;
 }
 
-static void free_qpn(struct qib_qpn_table *qpt, u32 qpn)
+static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 {
-	struct qpn_map *map;
+	struct rvt_qpn_map *map;
 
-	map = qpt->map + qpn / BITS_PER_PAGE;
+	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
 	if (map->page)
-		clear_bit(qpn & BITS_PER_PAGE_MASK, map->page);
+		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
 }
 
 static inline unsigned qpn_hash(struct qib_ibdev *dev, u32 qpn)
 {
 	return jhash_1word(qpn, dev->qp_rnd) &
-		(dev->qp_table_size - 1);
+		(dev->rdi.qp_dev->qp_table_size - 1);
 }
 
 
@@ -228,18 +234,18 @@ static void insert_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
 
 	atomic_inc(&qp->refcount);
-	spin_lock_irqsave(&dev->qpt_lock, flags);
+	spin_lock_irqsave(&dev->rdi.qp_dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num == 0)
 		rcu_assign_pointer(ibp->rvp.qp[0], qp);
 	else if (qp->ibqp.qp_num == 1)
 		rcu_assign_pointer(ibp->rvp.qp[1], qp);
 	else {
-		qp->next = dev->qp_table[n];
-		rcu_assign_pointer(dev->qp_table[n], qp);
+		qp->next = dev->rdi.qp_dev->qp_table[n];
+		rcu_assign_pointer(dev->rdi.qp_dev->qp_table[n], qp);
 	}
 
-	spin_unlock_irqrestore(&dev->qpt_lock, flags);
+	spin_unlock_irqrestore(&dev->rdi.qp_dev->qpt_lock, flags);
 }
 
 /*
@@ -252,34 +258,36 @@ static void remove_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
 	unsigned long flags;
 	int removed = 1;
+	spinlock_t *qpt_lock_ptr; /* Pointer to make checkpatch happy */
 
-	spin_lock_irqsave(&dev->qpt_lock, flags);
+	spin_lock_irqsave(&dev->rdi.qp_dev->qpt_lock, flags);
 
+	qpt_lock_ptr = &dev->rdi.qp_dev->qpt_lock;
 	if (rcu_dereference_protected(ibp->rvp.qp[0],
-				      lockdep_is_held(&dev->qpt_lock)) == qp) {
+				      lockdep_is_held(qpt_lock_ptr)) == qp) {
 		RCU_INIT_POINTER(ibp->rvp.qp[0], NULL);
 	} else if (rcu_dereference_protected(ibp->rvp.qp[1],
-			lockdep_is_held(&dev->qpt_lock)) == qp) {
+			lockdep_is_held(&dev->rdi.qp_dev->qpt_lock)) == qp) {
 		RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 	} else {
 		struct rvt_qp *q;
 		struct rvt_qp __rcu **qpp;
 
 		removed = 0;
-		qpp = &dev->qp_table[n];
+		qpp = &dev->rdi.qp_dev->qp_table[n];
 		for (; (q = rcu_dereference_protected(*qpp,
-				lockdep_is_held(&dev->qpt_lock))) != NULL;
+				lockdep_is_held(qpt_lock_ptr))) != NULL;
 				qpp = &q->next)
 			if (q == qp) {
 				RCU_INIT_POINTER(*qpp,
 					rcu_dereference_protected(qp->next,
-					 lockdep_is_held(&dev->qpt_lock)));
+					 lockdep_is_held(qpt_lock_ptr)));
 				removed = 1;
 				break;
 			}
 	}
 
-	spin_unlock_irqrestore(&dev->qpt_lock, flags);
+	spin_unlock_irqrestore(&dev->rdi.qp_dev->qpt_lock, flags);
 	if (removed) {
 		synchronize_rcu();
 		atomic_dec(&qp->refcount);
@@ -299,6 +307,7 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 	unsigned long flags;
 	struct rvt_qp *qp;
 	unsigned n, qp_inuse = 0;
+	spinlock_t *qpt_lock_ptr; /* Pointer to make checkpatch happy */
 
 	for (n = 0; n < dd->num_pports; n++) {
 		struct qib_ibport *ibp = &dd->pport[n].ibport_data;
@@ -313,17 +322,18 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 		rcu_read_unlock();
 	}
 
-	spin_lock_irqsave(&dev->qpt_lock, flags);
-	for (n = 0; n < dev->qp_table_size; n++) {
-		qp = rcu_dereference_protected(dev->qp_table[n],
-			lockdep_is_held(&dev->qpt_lock));
-		RCU_INIT_POINTER(dev->qp_table[n], NULL);
+	spin_lock_irqsave(&dev->rdi.qp_dev->qpt_lock, flags);
+	qpt_lock_ptr = &dev->rdi.qp_dev->qpt_lock;
+	for (n = 0; n < dev->rdi.qp_dev->qp_table_size; n++) {
+		qp = rcu_dereference_protected(dev->rdi.qp_dev->qp_table[n],
+					       lockdep_is_held(qpt_lock_ptr));
+		RCU_INIT_POINTER(dev->rdi.qp_dev->qp_table[n], NULL);
 
 		for (; qp; qp = rcu_dereference_protected(qp->next,
-					lockdep_is_held(&dev->qpt_lock)))
+					lockdep_is_held(qpt_lock_ptr)))
 			qp_inuse++;
 	}
-	spin_unlock_irqrestore(&dev->qpt_lock, flags);
+	spin_unlock_irqrestore(&dev->rdi.qp_dev->qpt_lock, flags);
 	synchronize_rcu();
 
 	return qp_inuse;
@@ -353,7 +363,7 @@ struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
 		struct qib_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
 		unsigned n = qpn_hash(dev, qpn);
 
-		for (qp = rcu_dereference(dev->qp_table[n]); qp;
+		for (qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]); qp;
 			qp = rcu_dereference(qp->next))
 			if (qp->ibqp.qp_num == qpn) {
 				atomic_inc(&qp->refcount);
@@ -1121,8 +1131,8 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 			qp->s_flags = QIB_S_SIGNAL_REQ_WR;
 		dev = to_idev(ibpd->device);
 		dd = dd_from_dev(dev);
-		err = alloc_qpn(dd, &dev->qpn_table, init_attr->qp_type,
-				init_attr->port_num, gfp);
+		err = alloc_qpn(dd, &dev->rdi.qp_dev->qpn_table,
+				init_attr->qp_type, init_attr->port_num, gfp);
 		if (err < 0) {
 			ret = ERR_PTR(err);
 			vfree(qp->r_rq.wq);
@@ -1199,7 +1209,7 @@ bail_ip:
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
-	free_qpn(&dev->qpn_table, qp->ibqp.qp_num);
+	free_qpn(&dev->rdi.qp_dev->qpn_table, qp->ibqp.qp_num);
 bail_qp:
 	kfree(priv->s_hdr);
 	kfree(priv);
@@ -1250,7 +1260,7 @@ int qib_destroy_qp(struct ib_qp *ibqp)
 		spin_unlock_irq(&qp->s_lock);
 
 	/* all user's cleaned up, mark it available */
-	free_qpn(&dev->qpn_table, qp->ibqp.qp_num);
+	free_qpn(&dev->rdi.qp_dev->qpn_table, qp->ibqp.qp_num);
 	spin_lock(&dev->n_qps_lock);
 	dev->n_qps_allocated--;
 	spin_unlock(&dev->n_qps_lock);
@@ -1270,19 +1280,19 @@ int qib_destroy_qp(struct ib_qp *ibqp)
  * qib_init_qpn_table - initialize the QP number table for a device
  * @qpt: the QPN table
  */
-void qib_init_qpn_table(struct qib_devdata *dd, struct qib_qpn_table *qpt)
+void qib_init_qpn_table(struct qib_devdata *dd, struct rvt_qpn_table *qpt)
 {
 	spin_lock_init(&qpt->lock);
 	qpt->last = 1;          /* start with QPN 2 */
 	qpt->nmaps = 1;
-	qpt->mask = dd->qpn_mask;
+	qpt_mask = dd->qpn_mask;
 }
 
 /**
  * qib_free_qpn_table - free the QP number table for a device
  * @qpt: the QPN table
  */
-void qib_free_qpn_table(struct qib_qpn_table *qpt)
+void qib_free_qpn_table(struct rvt_qpn_table *qpt)
 {
 	int i;
 
@@ -1361,11 +1371,11 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 	struct rvt_qp *pqp = iter->qp;
 	struct rvt_qp *qp;
 
-	for (; n < dev->qp_table_size; n++) {
+	for (; n < dev->rdi.qp_dev->qp_table_size; n++) {
 		if (pqp)
 			qp = rcu_dereference(pqp->next);
 		else
-			qp = rcu_dereference(dev->qp_table[n]);
+			qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]);
 		pqp = qp;
 		if (qp) {
 			iter->qp = qp;

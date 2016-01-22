@@ -1946,24 +1946,29 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	unsigned i, ctxt;
 	int ret;
 
-	dev->qp_table_size = ib_qib_qp_table_size;
+	/* allocate parent object */
+	dev->rdi.qp_dev = kzalloc(sizeof(*dev->rdi.qp_dev), GFP_KERNEL);
+	if (!dev->rdi.qp_dev)
+		return -ENOMEM;
+	dev->rdi.qp_dev->qp_table_size = ib_qib_qp_table_size;
+	dev->rdi.qp_dev->qp_table_bits = ilog2(ib_qib_qp_table_size);
 	get_random_bytes(&dev->qp_rnd, sizeof(dev->qp_rnd));
-	dev->qp_table = kmalloc_array(
-				dev->qp_table_size,
-				sizeof(*dev->qp_table),
+	dev->rdi.qp_dev->qp_table = kmalloc_array(
+				dev->rdi.qp_dev->qp_table_size,
+				sizeof(*dev->rdi.qp_dev->qp_table),
 				GFP_KERNEL);
-	if (!dev->qp_table) {
+	if (!dev->rdi.qp_dev->qp_table) {
 		ret = -ENOMEM;
 		goto err_qpt;
 	}
-	for (i = 0; i < dev->qp_table_size; i++)
-		RCU_INIT_POINTER(dev->qp_table[i], NULL);
+	for (i = 0; i < dev->rdi.qp_dev->qp_table_size; i++)
+		RCU_INIT_POINTER(dev->rdi.qp_dev->qp_table[i], NULL);
 
 	for (i = 0; i < dd->num_pports; i++)
 		init_ibport(ppd + i);
 
 	/* Only need to initialize non-zero fields. */
-	spin_lock_init(&dev->qpt_lock);
+	spin_lock_init(&dev->rdi.qp_dev->qpt_lock);
 	spin_lock_init(&dev->n_cqs_lock);
 	spin_lock_init(&dev->n_qps_lock);
 	spin_lock_init(&dev->n_srqs_lock);
@@ -1972,7 +1977,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
 
-	qib_init_qpn_table(dd, &dev->qpn_table);
+	qib_init_qpn_table(dd, &dev->rdi.qp_dev->qpn_table);
 
 	INIT_LIST_HEAD(&dev->piowait);
 	INIT_LIST_HEAD(&dev->dmawait);
@@ -2159,7 +2164,7 @@ err_tx:
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 err_hdrs:
-	kfree(dev->qp_table);
+	kfree(dev->rdi.qp_dev->qp_table);
 err_qpt:
 	qib_dev_err(dd, "cannot register verbs: %d!\n", -ret);
 bail:
@@ -2192,7 +2197,7 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 			    qps_inuse);
 
 	del_timer_sync(&dev->mem_timer);
-	qib_free_qpn_table(&dev->qpn_table);
+	qib_free_qpn_table(&dev->rdi.qp_dev->qpn_table);
 	while (!list_empty(&dev->txreq_free)) {
 		struct list_head *l = dev->txreq_free.next;
 		struct qib_verbs_txreq *tx;
@@ -2206,7 +2211,7 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 				  dd->pport->sdma_descq_cnt *
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
-	kfree(dev->qp_table);
+	kfree(dev->rdi.qp_dev->qp_table);
 }
 
 /*
