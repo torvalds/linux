@@ -138,6 +138,8 @@ struct rvt_ibport {
 	/* TODO: Move sm_ah and smi_ah into here as well*/
 };
 
+#define RVT_CQN_MAX 16 /* maximum length of cq name */
+
 /*
  * Things that are driver specific, module parameters in hfi1 and qib
  */
@@ -190,6 +192,8 @@ struct rvt_driver_params {
 	int nports;
 	int npkeys;
 	u8 qos_shift;
+	char cq_name[RVT_CQN_MAX];
+	int node;
 };
 
 /* Protection domain */
@@ -281,6 +285,11 @@ struct rvt_dev_info {
 	spinlock_t mmap_offset_lock; /* protect mmap_offset */
 	u32 mmap_offset;
 	spinlock_t pending_lock; /* protect pending mmap list */
+
+	/* CQ */
+	struct kthread_worker *worker; /* per device cq worker */
+	u32 n_cqs_allocated;    /* number of CQs allocated for device */
+	spinlock_t n_cqs_lock; /* protect count of in use cqs */
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)

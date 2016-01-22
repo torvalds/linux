@@ -324,6 +324,11 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, mmap);
 
 	/* Completion queues */
+	ret = rvt_driver_cq_init(rdi);
+	if (ret) {
+		pr_err("Error in driver CQ init.\n");
+		goto bail_mr;
+	}
 	CHECK_DRIVER_OVERRIDE(rdi, create_cq);
 	CHECK_DRIVER_OVERRIDE(rdi, destroy_cq);
 	CHECK_DRIVER_OVERRIDE(rdi, poll_cq);
@@ -344,11 +349,14 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	ret =  ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
 	if (ret) {
 		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
-		goto bail_mr;
+		goto bail_cq;
 	}
 
 	rvt_pr_info(rdi, "Registration with rdmavt done.\n");
 	return ret;
+
+bail_cq:
+	rvt_cq_exit(rdi);
 
 bail_mr:
 	rvt_mr_exit(rdi);
@@ -366,6 +374,7 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 		return;
 
 	ib_unregister_device(&rdi->ibdev);
+	rvt_cq_exit(rdi);
 	rvt_mr_exit(rdi);
 	rvt_qp_exit(rdi);
 }

@@ -1,13 +1,14 @@
-#ifndef DEF_RVTCQ_H
-#define DEF_RVTCQ_H
+#ifndef DEF_RDMAVT_INCCQ_H
+#define DEF_RDMAVT_INCCQ_H
 
 /*
- * Copyright(c) 2015 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
+ *
+ * Copyright(c) 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,6 +20,8 @@
  * General Public License for more details.
  *
  * BSD LICENSE
+ *
+ * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,17 +51,49 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
-#include <rdma/rdmavt_cq.h>
+#include <linux/kthread.h>
+#include <rdma/ib_user_verbs.h>
 
-struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *context,
-			    struct ib_udata *udata);
-int rvt_destroy_cq(struct ib_cq *ibcq);
-int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
-int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
-int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
-int rvt_driver_cq_init(struct rvt_dev_info *rdi);
-void rvt_cq_exit(struct rvt_dev_info *rdi);
-#endif          /* DEF_RVTCQ_H */
+/*
+ * Define an ib_cq_notify value that is not valid so we know when CQ
+ * notifications are armed.
+ */
+#define RVT_CQ_NONE      (IB_CQ_NEXT_COMP + 1)
+
+/*
+ * This structure is used to contain the head pointer, tail pointer,
+ * and completion queue entries as a single memory allocation so
+ * it can be mmap'ed into user space.
+ */
+struct rvt_cq_wc {
+	u32 head;               /* index of next entry to fill */
+	u32 tail;               /* index of next ib_poll_cq() entry */
+	union {
+		/* these are actually size ibcq.cqe + 1 */
+		struct ib_uverbs_wc uqueue[0];
+		struct ib_wc kqueue[0];
+	};
+};
+
+/*
+ * The completion queue structure.
+ */
+struct rvt_cq {
+	struct ib_cq ibcq;
+	struct kthread_work comptask;
+	spinlock_t lock; /* protect changes in this struct */
+	u8 notify;
+	u8 triggered;
+	struct rvt_dev_info *rdi;
+	struct rvt_cq_wc *queue;
+	struct rvt_mmap_info *ip;
+};
+
+static inline struct rvt_cq *ibcq_to_rvtcq(struct ib_cq *ibcq)
+{
+	return container_of(ibcq, struct rvt_cq, ibcq);
+}
+
+void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited);
+
+#endif          /* DEF_RDMAVT_INCCQH */
