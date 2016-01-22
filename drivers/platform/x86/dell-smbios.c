@@ -44,15 +44,15 @@ EXPORT_SYMBOL_GPL(da_tokens);
 void dell_smbios_get_buffer(void)
 {
 	mutex_lock(&buffer_mutex);
-	clear_buffer();
+	dell_smbios_clear_buffer();
 }
 EXPORT_SYMBOL_GPL(dell_smbios_get_buffer);
 
-void clear_buffer(void)
+void dell_smbios_clear_buffer(void)
 {
 	memset(buffer, 0, sizeof(struct calling_interface_buffer));
 }
-EXPORT_SYMBOL_GPL(clear_buffer);
+EXPORT_SYMBOL_GPL(dell_smbios_clear_buffer);
 
 void release_buffer(void)
 {

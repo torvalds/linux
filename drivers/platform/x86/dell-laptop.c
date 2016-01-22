@@ -425,7 +425,7 @@ static int dell_rfkill_set(void *data, bool blocked)
 	if (ret != 0)
 		goto out;
 
-	clear_buffer();
+	dell_smbios_clear_buffer();
 
 	buffer->input[0] = 0x2;
 	dell_send_request(buffer, 17, 11);
@@ -438,7 +438,7 @@ static int dell_rfkill_set(void *data, bool blocked)
 	    (status & BIT(0)) && !(status & BIT(16)))
 		disable = 1;
 
-	clear_buffer();
+	dell_smbios_clear_buffer();
 
 	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
 	dell_send_request(buffer, 17, 11);
@@ -456,7 +456,7 @@ static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 	if (status & BIT(0)) {
 		/* Has hw-switch, sync sw_state to BIOS */
 		int block = rfkill_blocked(rfkill);
-		clear_buffer();
+		dell_smbios_clear_buffer();
 		buffer->input[0] = (1 | (radio << 8) | (block << 16));
 		dell_send_request(buffer, 17, 11);
 	} else {
@@ -490,7 +490,7 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 		return;
 	}
 
-	clear_buffer();
+	dell_smbios_clear_buffer();
 
 	buffer->input[0] = 0x2;
 	dell_send_request(buffer, 17, 11);
@@ -525,7 +525,7 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 	ret = buffer->output[0];
 	status = buffer->output[1];
 
-	clear_buffer();
+	dell_smbios_clear_buffer();
 
 	buffer->input[0] = 0x2;
 	dell_send_request(buffer, 17, 11);
@@ -626,7 +626,7 @@ static void dell_update_rfkill(struct work_struct *ignored)
 	if (ret != 0)
 		goto out;
 
-	clear_buffer();
+	dell_smbios_clear_buffer();
 
 	buffer->input[0] = 0x2;
 	dell_send_request(buffer, 17, 11);
