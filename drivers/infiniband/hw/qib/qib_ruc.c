@@ -141,14 +141,14 @@ int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 	unsigned long flags;
 	struct rvt_rq *rq;
 	struct rvt_rwq *wq;
-	struct qib_srq *srq;
+	struct rvt_srq *srq;
 	struct rvt_rwqe *wqe;
 	void (*handler)(struct ib_event *, void *);
 	u32 tail;
 	int ret;
 
 	if (qp->ibqp.srq) {
-		srq = to_isrq(qp->ibqp.srq);
+		srq = ibsrq_to_rvtsrq(qp->ibqp.srq);
 		handler = srq->ibsrq.event_handler;
 		rq = &srq->rq;
 	} else {

@@ -1046,7 +1046,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		sz = sizeof(*qp);
 		sg_list_sz = 0;
 		if (init_attr->srq) {
-			struct qib_srq *srq = to_isrq(init_attr->srq);
+			struct rvt_srq *srq = ibsrq_to_rvtsrq(init_attr->srq);
 
 			if (srq->rq.max_sge > 1)
 				sg_list_sz = sizeof(*qp->r_sg_list) *

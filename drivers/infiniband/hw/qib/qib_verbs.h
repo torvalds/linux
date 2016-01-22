@@ -251,14 +251,6 @@ struct qib_cq {
 	struct rvt_mmap_info *ip;
 };
 
-struct qib_srq {
-	struct ib_srq ibsrq;
-	struct rvt_rq rq;
-	struct rvt_mmap_info *ip;
-	/* send signal when number of RWQEs < limit */
-	u32 limit;
-};
-
 /*
  * qib specific data structure that will be hidden from rvt after the queue pair
  * is made common.
@@ -537,11 +529,6 @@ struct qib_verbs_counters {
 static inline struct qib_cq *to_icq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct qib_cq, ibcq);
-}
-
-static inline struct qib_srq *to_isrq(struct ib_srq *ibsrq)
-{
-	return container_of(ibsrq, struct qib_srq, ibsrq);
 }
 
 static inline struct rvt_qp *to_iqp(struct ib_qp *ibqp)

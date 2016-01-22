@@ -48,7 +48,7 @@
 int qib_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			 struct ib_recv_wr **bad_wr)
 {
-	struct qib_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;
 	unsigned long flags;
 	int ret;
@@ -103,7 +103,7 @@ struct ib_srq *qib_create_srq(struct ib_pd *ibpd,
 			      struct ib_udata *udata)
 {
 	struct qib_ibdev *dev = to_idev(ibpd->device);
-	struct qib_srq *srq;
+	struct rvt_srq *srq;
 	u32 sz;
 	struct ib_srq *ret;
 
@@ -212,7 +212,7 @@ int qib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		   enum ib_srq_attr_mask attr_mask,
 		   struct ib_udata *udata)
 {
-	struct qib_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;
 	int ret = 0;
 
@@ -350,7 +350,7 @@ bail:
 
 int qib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 {
-	struct qib_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 
 	attr->max_wr = srq->rq.size - 1;
 	attr->max_sge = srq->rq.max_sge;
@@ -364,7 +364,7 @@ int qib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
  */
 int qib_destroy_srq(struct ib_srq *ibsrq)
 {
-	struct qib_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct qib_ibdev *dev = to_idev(ibsrq->device);
 
 	spin_lock(&dev->n_srqs_lock);
