@@ -589,6 +589,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	bool write = flags & FAULT_FLAG_WRITE;
 	struct block_device *bdev;
 	pgoff_t size, pgoff;
+	loff_t lstart, lend;
 	sector_t block;
 	int result = 0;
 
@@ -643,15 +644,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		goto fallback;
 	}
 
-	/*
-	 * If we allocated new storage, make sure no process has any
-	 * zero pages covering this hole
-	 */
-	if (buffer_new(&bh)) {
-		i_mmap_unlock_read(mapping);
-		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
-		i_mmap_lock_read(mapping);
-	}
+	/* make sure no process has any zero pages covering this hole */
+	lstart = pgoff << PAGE_SHIFT;
+	lend = lstart + PMD_SIZE - 1; /* inclusive */
+	i_mmap_unlock_read(mapping);
+	unmap_mapping_range(mapping, lstart, PMD_SIZE, 0);
+	truncate_inode_pages_range(mapping, lstart, lend);
+	i_mmap_lock_read(mapping);
 
 	/*
 	 * If a truncate happened while we were allocating blocks, we may
@@ -665,7 +664,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		goto out;
 	}
 	if ((pgoff | PG_PMD_COLOUR) >= size) {
-		dax_pmd_dbg(&bh, address, "pgoff unaligned");
+		dax_pmd_dbg(&bh, address,
+				"offset + huge page size > file size");
 		goto fallback;
 	}
 
