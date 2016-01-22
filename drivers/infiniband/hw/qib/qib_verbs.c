@@ -1841,24 +1841,6 @@ unsigned qib_get_pkey(struct qib_ibport *ibp, unsigned index)
 	return ret;
 }
 
-static int qib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
-			  u16 *pkey)
-{
-	struct qib_devdata *dd = dd_from_ibdev(ibdev);
-	int ret;
-
-	if (index >= qib_get_npkeys(dd)) {
-		ret = -EINVAL;
-		goto bail;
-	}
-
-	*pkey = qib_get_pkey(to_iport(ibdev, port), index);
-	ret = 0;
-
-bail:
-	return ret;
-}
-
 /**
  * qib_alloc_ucontext - allocate a ucontest
  * @ibdev: the infiniband device
@@ -1961,7 +1943,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	struct qib_ibdev *dev = &dd->verbs_dev;
 	struct ib_device *ibdev = &dev->rdi.ibdev;
 	struct qib_pportdata *ppd = dd->pport;
-	unsigned i;
+	unsigned i, ctxt;
 	int ret;
 
 	dev->qp_table_size = ib_qib_qp_table_size;
@@ -2073,7 +2055,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->modify_device = qib_modify_device;
 	ibdev->query_port = qib_query_port;
 	ibdev->modify_port = qib_modify_port;
-	ibdev->query_pkey = qib_query_pkey;
+	ibdev->query_pkey = NULL;
 	ibdev->query_gid = qib_query_gid;
 	ibdev->alloc_ucontext = qib_alloc_ucontext;
 	ibdev->dealloc_ucontext = qib_dealloc_ucontext;
@@ -2131,6 +2113,17 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.flags = (RVT_FLAG_QP_INIT_DRIVER |
 				   RVT_FLAG_CQ_INIT_DRIVER);
 	dd->verbs_dev.rdi.dparms.lkey_table_size = qib_lkey_table_size;
+	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
+	dd->verbs_dev.rdi.dparms.npkeys = qib_get_npkeys(dd);
+
+	ppd = dd->pport;
+	for (i = 0; i < dd->num_pports; i++, ppd++) {
+		ctxt = ppd->hw_pidx;
+		rvt_init_port(&dd->verbs_dev.rdi,
+			      &ppd->ibport_data.rvp,
+			      i,
+			      dd->rcd[ctxt]->pkeys);
+	}
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
