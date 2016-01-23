@@ -86,9 +86,6 @@ int service_operation(struct orangefs_kernel_op_s *op,
 	sigset_t orig_sigset;
 	int ret = 0;
 
-	/* irqflags and wait_entry are only used IF the client-core aborts */
-	unsigned long irqflags;
-
 	DEFINE_WAIT(wait_entry);
 
 	op->upcall.tgid = current->tgid;
@@ -230,11 +227,9 @@ retry_servicing:
 			 * let process sleep for a few seconds so shared
 			 * memory system can be initialized.
 			 */
-			spin_lock_irqsave(&op->lock, irqflags);
 			prepare_to_wait(&orangefs_bufmap_init_waitq,
 					&wait_entry,
 					TASK_INTERRUPTIBLE);
-			spin_unlock_irqrestore(&op->lock, irqflags);
 
 			/*
 			 * Wait for orangefs_bufmap_initialize() to wake me up
@@ -251,9 +246,7 @@ retry_servicing:
 				     "Is shared memory available? (%d).\n",
 				     orangefs_get_bufmap_init());
 
-			spin_lock_irqsave(&op->lock, irqflags);
 			finish_wait(&orangefs_bufmap_init_waitq, &wait_entry);
-			spin_unlock_irqrestore(&op->lock, irqflags);
 
 			if (orangefs_get_bufmap_init() == 0) {
 				gossip_err("%s:The shared memory system has not started in %d seconds after the client core restarted.  Aborting user's request(%s).\n",
