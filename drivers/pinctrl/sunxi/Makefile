@@ -1,5 +1,5 @@
 # Core
-obj-$(CONFIG_PINCTRL_SUNXI_COMMON)	+= pinctrl-sunxi.o
+obj-y					+= pinctrl-sunxi.o
 
 # SoC Drivers
 obj-$(CONFIG_PINCTRL_SUN4I_A10)		+= pinctrl-sun4i-a10.o
