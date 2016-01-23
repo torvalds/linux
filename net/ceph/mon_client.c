@@ -1155,22 +1155,17 @@ static void mon_fault(struct ceph_connection *con)
 {
 	struct ceph_mon_client *monc = con->private;
 
-	if (!monc)
-		return;
-
-	dout("mon_fault\n");
 	mutex_lock(&monc->mutex);
-	if (!con->private)
-		goto out;
-
-	if (!monc->hunting) {
-		dout("%s hunting for new mon\n", __func__);
-		reopen_session(monc);
-		__schedule_delayed(monc);
-	} else {
-		dout("%s already hunting\n", __func__);
+	dout("%s mon%d\n", __func__, monc->cur_mon);
+	if (monc->cur_mon >= 0) {
+		if (!monc->hunting) {
+			dout("%s hunting for new mon\n", __func__);
+			reopen_session(monc);
+			__schedule_delayed(monc);
+		} else {
+			dout("%s already hunting\n", __func__);
+		}
 	}
-out:
 	mutex_unlock(&monc->mutex);
 }
 
