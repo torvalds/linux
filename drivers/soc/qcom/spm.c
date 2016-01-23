@@ -288,7 +288,7 @@ static struct spm_driver_data *spm_get_drv(struct platform_device *pdev,
 	struct spm_driver_data *drv = NULL;
 	struct device_node *cpu_node, *saw_node;
 	int cpu;
-	bool found;
+	bool found = 0;
 
 	for_each_possible_cpu(cpu) {
 		cpu_node = of_cpu_device_node_get(cpu);
