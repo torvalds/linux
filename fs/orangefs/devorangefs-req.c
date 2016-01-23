@@ -418,8 +418,11 @@ wakeup:
 		 * that this op is done
 		 */
 		spin_lock(&op->lock);
-		if (!op_state_given_up(op))
-			set_op_state_serviced(op);
+		if (unlikely(op_state_given_up(op))) {
+			spin_unlock(&op->lock);
+			goto out;
+		}
+		set_op_state_serviced(op);
 		spin_unlock(&op->lock);
 
 		while (1) {
@@ -433,22 +436,19 @@ wakeup:
 				break;
 			}
 			spin_unlock(&op->lock);
-
-			if (!signal_pending(current)) {
-				int timeout = op_timeout_secs * HZ;
-				if (!schedule_timeout(timeout)) {
-					gossip_debug(GOSSIP_DEV_DEBUG,
-						"%s: timed out.\n",
-						__func__);
-					break;
-				}
-				continue;
+			if (unlikely(signal_pending(current))) {
+				gossip_debug(GOSSIP_DEV_DEBUG,
+					"%s: signal on I/O wait, aborting\n",
+					__func__);
+				break;
 			}
 
-			gossip_debug(GOSSIP_DEV_DEBUG,
-				"%s: signal on I/O wait, aborting\n",
-				__func__);
-			break;
+			if (!schedule_timeout(op_timeout_secs * HZ)) {
+				gossip_debug(GOSSIP_DEV_DEBUG,
+					"%s: timed out.\n",
+					__func__);
+				break;
+			}
 		}
 
 		spin_lock(&op->lock);
