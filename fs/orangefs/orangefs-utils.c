@@ -597,7 +597,7 @@ void orangefs_op_initialize(struct orangefs_kernel_op_s *op)
 {
 	if (op) {
 		spin_lock(&op->lock);
-		op->io_completed = 0;
+		init_completion(&op->done);
 
 		op->upcall.type = ORANGEFS_VFS_OP_INVALID;
 		op->downcall.type = ORANGEFS_VFS_OP_INVALID;

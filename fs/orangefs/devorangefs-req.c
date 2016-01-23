@@ -398,6 +398,17 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	}
 
 wakeup:
+	/*
+	 * tell the vfs op waiting on a waitqueue
+	 * that this op is done
+	 */
+	spin_lock(&op->lock);
+	if (unlikely(op_state_given_up(op))) {
+		spin_unlock(&op->lock);
+		goto out;
+	}
+	set_op_state_serviced(op);
+	spin_unlock(&op->lock);
 
 	/*
 	 * If this operation is an I/O operation we need to wait
@@ -411,61 +422,17 @@ wakeup:
 	 * the buffers are done being used.
 	 */
 	if (op->downcall.type == ORANGEFS_VFS_OP_FILE_IO) {
-		DEFINE_WAIT(wait_entry);
-
-		/*
-		 * tell the vfs op waiting on a waitqueue
-		 * that this op is done
-		 */
-		spin_lock(&op->lock);
-		if (unlikely(op_state_given_up(op))) {
-			spin_unlock(&op->lock);
-			goto out;
+		long n = wait_for_completion_interruptible_timeout(&op->done,
+							op_timeout_secs * HZ);
+		if (unlikely(n < 0)) {
+			gossip_debug(GOSSIP_DEV_DEBUG,
+				"%s: signal on I/O wait, aborting\n",
+				__func__);
+		} else if (unlikely(n == 0)) {
+			gossip_debug(GOSSIP_DEV_DEBUG,
+				"%s: timed out.\n",
+				__func__);
 		}
-		set_op_state_serviced(op);
-		spin_unlock(&op->lock);
-
-		while (1) {
-			spin_lock(&op->lock);
-			prepare_to_wait_exclusive(
-				&op->io_completion_waitq,
-				&wait_entry,
-				TASK_INTERRUPTIBLE);
-			if (op->io_completed) {
-				spin_unlock(&op->lock);
-				break;
-			}
-			spin_unlock(&op->lock);
-			if (unlikely(signal_pending(current))) {
-				gossip_debug(GOSSIP_DEV_DEBUG,
-					"%s: signal on I/O wait, aborting\n",
-					__func__);
-				break;
-			}
-
-			if (!schedule_timeout(op_timeout_secs * HZ)) {
-				gossip_debug(GOSSIP_DEV_DEBUG,
-					"%s: timed out.\n",
-					__func__);
-				break;
-			}
-		}
-
-		spin_lock(&op->lock);
-		finish_wait(&op->io_completion_waitq, &wait_entry);
-		spin_unlock(&op->lock);
-	} else {
-		/*
-		 * tell the vfs op waiting on a waitqueue that
-		 * this op is done -
-		 * for every other operation (i.e. non-I/O), we need to
-		 * wake up the callers for downcall completion
-		 * notification
-		 */
-		spin_lock(&op->lock);
-		if (!op_state_given_up(op))
-			set_op_state_serviced(op);
-		spin_unlock(&op->lock);
 	}
 out:
 	op_release(op);

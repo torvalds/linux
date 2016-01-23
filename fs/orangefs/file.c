@@ -16,10 +16,7 @@
 
 #define wake_up_daemon_for_return(op)			\
 do {							\
-	spin_lock(&op->lock);                           \
-	op->io_completed = 1;                           \
-	spin_unlock(&op->lock);                         \
-	wake_up_interruptible(&op->io_completion_waitq);\
+	complete(&op->done);				\
 } while (0)
 
 /*

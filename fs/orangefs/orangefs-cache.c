@@ -119,7 +119,6 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		spin_lock_init(&new_op->lock);
 		init_waitqueue_head(&new_op->waitq);
 
-		init_waitqueue_head(&new_op->io_completion_waitq);
 		atomic_set(&new_op->ref_count, 1);
 
 		orangefs_op_initialize(new_op);

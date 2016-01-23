@@ -201,8 +201,7 @@ struct orangefs_kernel_op_s {
 	wait_queue_head_t waitq;
 	spinlock_t lock;
 
-	int io_completed;
-	wait_queue_head_t io_completion_waitq;
+	struct completion done;
 
 	atomic_t ref_count;
 
