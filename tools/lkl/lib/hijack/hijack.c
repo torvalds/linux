@@ -182,7 +182,7 @@ int ioctl(int fd, unsigned long req, ...)
 
 	if (!is_lklfd(fd))
 		return host_ioctl(fd, req, arg);
-	return lkl_call(__lkl__NR_fcntl, 3, fd, lkl_ioctl_req_xlate(req), arg);
+	return lkl_call(__lkl__NR_ioctl, 3, fd, lkl_ioctl_req_xlate(req), arg);
 }
 
 
