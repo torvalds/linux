@@ -1815,12 +1815,21 @@ static void wait_panel_off(struct intel_dp *intel_dp)
 
 static void wait_panel_power_cycle(struct intel_dp *intel_dp)
 {
+	ktime_t panel_power_on_time;
+	s64 panel_power_off_duration;
+
 	DRM_DEBUG_KMS("Wait for panel power cycle\n");
+
+	/* take the difference of currrent time and panel power off time
+	 * and then make panel wait for t11_t12 if needed. */
+	panel_power_on_time = ktime_get_boottime();
+	panel_power_off_duration = ktime_ms_delta(panel_power_on_time, intel_dp->panel_power_off_time);
 
 	/* When we disable the VDD override bit last we have to do the manual
 	 * wait. */
-	wait_remaining_ms_from_jiffies(intel_dp->last_power_cycle,
-				       intel_dp->panel_power_cycle_delay);
+	if (panel_power_off_duration < (s64)intel_dp->panel_power_cycle_delay)
+		wait_remaining_ms_from_jiffies(jiffies,
+				       intel_dp->panel_power_cycle_delay - panel_power_off_duration);
 
 	wait_panel_status(intel_dp, IDLE_CYCLE_MASK, IDLE_CYCLE_VALUE);
 }
@@ -1972,7 +1981,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 
 	if ((pp & POWER_TARGET_ON) == 0)
-		intel_dp->last_power_cycle = jiffies;
+		intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_put(dev_priv, power_domain);
@@ -2121,7 +2130,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
-	intel_dp->last_power_cycle = jiffies;
+	intel_dp->panel_power_off_time = ktime_get_boottime();
 	wait_panel_off(intel_dp);
 
 	/* We got a reference when we enabled the VDD. */
@@ -5120,7 +5129,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 static void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
 {
-	intel_dp->last_power_cycle = jiffies;
+	intel_dp->panel_power_off_time = ktime_get_boottime();
 	intel_dp->last_power_on = jiffies;
 	intel_dp->last_backlight_off = jiffies;
 }

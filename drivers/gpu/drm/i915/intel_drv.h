@@ -771,9 +771,9 @@ struct intel_dp {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
-	unsigned long last_power_cycle;
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
+	ktime_t panel_power_off_time;
 
 	struct notifier_block edp_notifier;
 
