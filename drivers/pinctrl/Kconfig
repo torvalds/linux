@@ -168,37 +168,6 @@ config PINCTRL_ST
 	select PINCONF
 	select GPIOLIB_IRQCHIP
 
-config PINCTRL_TEGRA
-	bool
-	select PINMUX
-	select PINCONF
-
-config PINCTRL_TEGRA20
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA30
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA114
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA124
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA210
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA_XUSB
-	def_bool y if ARCH_TEGRA
-	select GENERIC_PHY
-	select PINCONF
-	select PINMUX
-
 config PINCTRL_TZ1090
 	bool "Toumaz Xenif TZ1090 pin control driver"
 	depends on SOC_TZ1090
@@ -259,6 +228,7 @@ source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
+source "drivers/pinctrl/tegra/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
