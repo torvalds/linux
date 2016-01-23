@@ -381,9 +381,8 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 		if (args->csa_cachethis == 0)
 			return htonl(NFS4ERR_RETRY_UNCACHED_REP);
 
-		/* The ca_maxresponsesize_cached is 0 with no DRC */
-		else if (args->csa_cachethis == 1)
-			return htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
+		/* Liar! We never allowed you to set csa_cachethis != 0 */
+		return htonl(NFS4ERR_SEQ_FALSE_RETRY);
 	}
 
 	/* Wraparound */
@@ -499,6 +498,10 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out_unlock;
 
 	cps->slotid = args->csa_slotid;
+
+	/* The ca_maxresponsesize_cached is 0 with no DRC */
+	if (args->csa_cachethis != 0)
+		return htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
 
 	/*
 	 * Check for pending referring calls.  If a match is found, a
