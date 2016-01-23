@@ -624,7 +624,7 @@ static u16 sunxi_nfc_randomizer_step(u16 state, int count)
 static u16 sunxi_nfc_randomizer_state(struct mtd_info *mtd, int page, bool ecc)
 {
 	const u16 *seeds = sunxi_nfc_randomizer_page_seeds;
-	int mod = mtd->erasesize / mtd->writesize;
+	int mod = mtd_div_by_ws(mtd->erasesize, mtd);
 
 	if (mod > ARRAY_SIZE(sunxi_nfc_randomizer_page_seeds))
 		mod = ARRAY_SIZE(sunxi_nfc_randomizer_page_seeds);
