@@ -105,10 +105,9 @@ static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inod
 	ssize_t ret;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
-	if (!new_op) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!new_op)
+		return -ENOMEM;
+
 	/* synchronous I/O */
 	new_op->upcall.req.io.async_vfs_io = ORANGEFS_VFS_SYNC_IO;
 	new_op->upcall.req.io.readahead_size = readahead_size;
@@ -234,12 +233,9 @@ populate_shared_memory:
 
 	/*
 	 * tell the device file owner waiting on I/O that this read has
-	 * completed and it can return now.  in this exact case, on
-	 * wakeup the daemon will free the op, so we *cannot* touch it
-	 * after this.
+	 * completed and it can return now.
 	 */
 	wake_up_daemon_for_return(new_op);
-	new_op = NULL;
 
 out:
 	if (buffer_index >= 0) {
@@ -249,10 +245,7 @@ out:
 			     __func__, handle, buffer_index);
 		buffer_index = -1;
 	}
-	if (new_op) {
-		op_release(new_op);
-		new_op = NULL;
-	}
+	op_release(new_op);
 	return ret;
 }
 

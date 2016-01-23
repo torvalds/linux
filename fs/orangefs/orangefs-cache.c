@@ -120,7 +120,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		init_waitqueue_head(&new_op->waitq);
 
 		init_waitqueue_head(&new_op->io_completion_waitq);
-		atomic_set(&new_op->ref_count, 0);
+		atomic_set(&new_op->ref_count, 1);
 
 		orangefs_op_initialize(new_op);
 
@@ -149,14 +149,13 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 	return new_op;
 }
 
-void op_release(struct orangefs_kernel_op_s *orangefs_op)
+void __op_release(struct orangefs_kernel_op_s *orangefs_op)
 {
 	if (orangefs_op) {
 		gossip_debug(GOSSIP_CACHE_DEBUG,
 			     "Releasing OP (%p: %llu)\n",
 			     orangefs_op,
 			     llu(orangefs_op->tag));
-		orangefs_op_initialize(orangefs_op);
 		kmem_cache_free(op_cache, orangefs_op);
 	} else {
 		gossip_err("NULL pointer in op_release\n");

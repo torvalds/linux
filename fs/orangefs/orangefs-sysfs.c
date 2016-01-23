@@ -773,10 +773,8 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 		op_alloc_type = ORANGEFS_VFS_OP_PERF_COUNT;
 
 	new_op = op_alloc(op_alloc_type);
-	if (!new_op) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!new_op)
+		return -ENOMEM;
 
 	/* Can't do a service_operation if the client is not running... */
 	rc = is_daemon_in_service();
@@ -931,11 +929,7 @@ out:
 		}
 	}
 
-	/*
-	 * if we got ENOMEM, then op_alloc probably failed...
-	 */
-	if (rc != -ENOMEM)
-		op_release(new_op);
+	op_release(new_op);
 
 	return rc;
 
@@ -1039,10 +1033,8 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		     kobj_id);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_PARAM);
-	if (!new_op) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!new_op)
+		return -EINVAL; /* sic */
 
 	/* Can't do a service_operation if the client is not running... */
 	rc = is_daemon_in_service();
@@ -1269,15 +1261,9 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 	}
 
 out:
-	/*
-	 * if we got ENOMEM, then op_alloc probably failed...
-	 */
-	if (rc == -ENOMEM)
-		rc = 0;
-	else
-		op_release(new_op);
+	op_release(new_op);
 
-	if (rc == 0)
+	if (rc == -ENOMEM || rc == 0)
 		rc = -EINVAL;
 
 	return rc;

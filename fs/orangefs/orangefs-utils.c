@@ -429,19 +429,15 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 	ret = copy_attributes_from_inode(inode,
 		       &new_op->upcall.req.setattr.attributes,
 		       iattr);
-	if (ret < 0) {
-		op_release(new_op);
-		return ret;
-	}
-
-	ret = service_operation(new_op, __func__,
+	if (ret >= 0) {
+		ret = service_operation(new_op, __func__,
 				get_interruptible_flag(inode));
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_inode_setattr: returning %d\n",
-		     ret);
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "orangefs_inode_setattr: returning %d\n",
+			     ret);
+	}
 
-	/* when request is serviced properly, free req op struct */
 	op_release(new_op);
 
 	/*

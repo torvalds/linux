@@ -271,6 +271,7 @@ void purge_inprogress_ops(void)
 		struct orangefs_kernel_op_s *op;
 		struct orangefs_kernel_op_s *next;
 
+		spin_lock(&htable_ops_in_progress_lock);
 		list_for_each_entry_safe(op,
 					 next,
 					 &htable_ops_in_progress[i],
@@ -284,6 +285,7 @@ void purge_inprogress_ops(void)
 			set_op_state_purged(op);
 			spin_unlock(&op->lock);
 		}
+		spin_unlock(&htable_ops_in_progress_lock);
 	}
 }
 

@@ -279,25 +279,6 @@ retry_servicing:
 	return ret;
 }
 
-static inline void remove_op_from_request_list(struct orangefs_kernel_op_s *op)
-{
-	struct list_head *tmp = NULL;
-	struct list_head *tmp_safe = NULL;
-	struct orangefs_kernel_op_s *tmp_op = NULL;
-
-	spin_lock(&orangefs_request_list_lock);
-	list_for_each_safe(tmp, tmp_safe, &orangefs_request_list) {
-		tmp_op = list_entry(tmp,
-				    struct orangefs_kernel_op_s,
-				    list);
-		if (tmp_op && (tmp_op == op)) {
-			list_del(&tmp_op->list);
-			break;
-		}
-	}
-	spin_unlock(&orangefs_request_list_lock);
-}
-
 static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
 {
 	/*
@@ -334,6 +315,7 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 	}
 
 	spin_lock(&op->lock);
+	op->op_state |= OP_VFS_STATE_GIVEN_UP;
 
 	if (op_state_waiting(op)) {
 		/*
@@ -341,7 +323,9 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 		 * list.
 		 */
 		spin_unlock(&op->lock);
-		remove_op_from_request_list(op);
+		spin_lock(&orangefs_request_list_lock);
+		list_del(&op->list);
+		spin_unlock(&orangefs_request_list_lock);
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "Interrupted: Removed op %p from request_list\n",
 			     op);
