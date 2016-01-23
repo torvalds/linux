@@ -542,7 +542,7 @@ static int __allocate_data_blocks(struct inode *inode, loff_t offset,
 	struct dnode_of_data dn;
 	u64 start = F2FS_BYTES_TO_BLK(offset);
 	u64 len = F2FS_BYTES_TO_BLK(count);
-	bool allocated;
+	bool allocated = false;
 	u64 end_offset;
 	int err = 0;
 
@@ -584,7 +584,7 @@ static int __allocate_data_blocks(struct inode *inode, loff_t offset,
 		f2fs_put_dnode(&dn);
 		f2fs_unlock_op(sbi);
 
-		f2fs_balance_fs(sbi, dn.node_changed);
+		f2fs_balance_fs(sbi, allocated);
 	}
 	return err;
 
@@ -594,7 +594,7 @@ sync_out:
 	f2fs_put_dnode(&dn);
 out:
 	f2fs_unlock_op(sbi);
-	f2fs_balance_fs(sbi, dn.node_changed);
+	f2fs_balance_fs(sbi, allocated);
 	return err;
 }
 
@@ -688,14 +688,14 @@ get_next:
 	if (dn.ofs_in_node >= end_offset) {
 		if (allocated)
 			sync_inode_page(&dn);
-		allocated = false;
 		f2fs_put_dnode(&dn);
 
 		if (create) {
 			f2fs_unlock_op(sbi);
-			f2fs_balance_fs(sbi, dn.node_changed);
+			f2fs_balance_fs(sbi, allocated);
 			f2fs_lock_op(sbi);
 		}
+		allocated = false;
 
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, pgofs, mode);
@@ -753,7 +753,7 @@ put_out:
 unlock_out:
 	if (create) {
 		f2fs_unlock_op(sbi);
-		f2fs_balance_fs(sbi, dn.node_changed);
+		f2fs_balance_fs(sbi, allocated);
 	}
 out:
 	trace_f2fs_map_blocks(inode, map, err);
