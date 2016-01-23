@@ -62,7 +62,7 @@ static void ll_release(struct dentry *de)
 
 	LASSERT(de != NULL);
 	lld = ll_d2d(de);
-	if (lld == NULL) /* NFS copies the de->d_op methods (bug 4655) */
+	if (!lld) /* NFS copies the de->d_op methods (bug 4655) */
 		return;
 
 	if (lld->lld_it) {
@@ -131,7 +131,7 @@ static int find_cbdata(struct inode *inode)
 		return rc;
 
 	lsm = ccc_inode_lsm_get(inode);
-	if (lsm == NULL)
+	if (!lsm)
 		return rc;
 
 	rc = obd_find_cbdata(sbi->ll_dt_exp, lsm, return_if_equal, NULL);
@@ -184,13 +184,13 @@ int ll_d_init(struct dentry *de)
 		de, de, de->d_parent, d_inode(de),
 		d_count(de));
 
-	if (de->d_fsdata == NULL) {
+	if (!de->d_fsdata) {
 		struct ll_dentry_data *lld;
 
 		lld = kzalloc(sizeof(*lld), GFP_NOFS);
 		if (likely(lld)) {
 			spin_lock(&de->d_lock);
-			if (likely(de->d_fsdata == NULL)) {
+			if (likely(!de->d_fsdata)) {
 				de->d_fsdata = lld;
 				__d_lustre_invalidate(de);
 			} else {
@@ -328,7 +328,7 @@ static int ll_revalidate_dentry(struct dentry *dentry,
 	if (lookup_flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	do_statahead_enter(dir, &dentry, d_inode(dentry) == NULL);
+	do_statahead_enter(dir, &dentry, !d_inode(dentry));
 	ll_statahead_mark(dir, dentry);
 	return 1;
 }
