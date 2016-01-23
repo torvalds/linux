@@ -361,7 +361,7 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 	dprintk("%s enter. slotid %u seqid %u\n",
 		__func__, args->csa_slotid, args->csa_sequenceid);
 
-	if (args->csa_slotid >= NFS41_BC_MAX_CALLBACKS)
+	if (args->csa_slotid > tbl->server_highest_slotid)
 		return htonl(NFS4ERR_BADSLOT);
 
 	slot = tbl->slots + args->csa_slotid;
@@ -489,8 +489,8 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	       sizeof(res->csr_sessionid));
 	res->csr_sequenceid = args->csa_sequenceid;
 	res->csr_slotid = args->csa_slotid;
-	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
-	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
+	res->csr_highestslotid = tbl->server_highest_slotid;
+	res->csr_target_highestslotid = tbl->target_highest_slotid;
 
 	status = validate_seqid(tbl, args);
 	if (status)
