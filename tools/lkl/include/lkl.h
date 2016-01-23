@@ -171,6 +171,15 @@ int lkl_if_up(int ifindex);
 int lkl_if_down(int ifindex);
 
 /**
+ * lkl_if_set_mtu - set MTU on interface
+ *
+ * @ifindex - the ifindex of the interface
+ * @mtu - the requested MTU size
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_if_set_mtu(int ifindex, int mtu);
+
+/**
  * lkl_if_set_ipv4 - set IPv4 address on interface
  *
  * @ifindex - the ifindex of the interface

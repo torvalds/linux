@@ -35,6 +35,7 @@ hijack_init(void)
 {
 	int ret, i, dev_null, nd_id = -1, nd_ifindex = -1;
 	char *tap = getenv("LKL_HIJACK_NET_TAP");
+	char *mtu_str = getenv("LKL_HIJACK_NET_MTU");
 	char *ip = getenv("LKL_HIJACK_NET_IP");
 	char *netmask_len = getenv("LKL_HIJACK_NET_NETMASK_LEN");
 	char *gateway = getenv("LKL_HIJACK_NET_GATEWAY");
@@ -103,6 +104,14 @@ no_tap:
 		else
 			fprintf(stderr, "failed to get ifindex for netdev id %d: %s\n",
 				nd_id, lkl_strerror(nd_ifindex));
+	}
+
+	if (nd_ifindex >= 0 && mtu_str) {
+		int mtu = atoi(mtu_str);
+
+		ret = lkl_if_set_mtu(nd_ifindex, mtu);
+		if (ret < 0)
+			fprintf(stderr, "failed to set MTU: %s\n", lkl_strerror(ret));
 	}
 
 	if (nd_ifindex >= 0 && ip && netmask_len) {
