@@ -331,10 +331,7 @@ static void jffs2_put_super (struct super_block *sb)
 
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
-	if (jffs2_blocks_use_vmalloc(c))
-		vfree(c->blocks);
-	else
-		kfree(c->blocks);
+	kvfree(c->blocks);
 	jffs2_flash_cleanup(c);
 	kfree(c->inocache_list);
 	jffs2_clear_xattr_subsystem(c);
