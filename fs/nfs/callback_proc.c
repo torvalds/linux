@@ -375,6 +375,8 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 	if (args->csa_sequenceid == slot->seq_nr) {
 		dprintk("%s seqid %u is a replay\n",
 			__func__, args->csa_sequenceid);
+		if (tbl->highest_used_slotid != NFS4_NO_SLOT)
+			return htonl(NFS4ERR_DELAY);
 		/* Signal process_op to set this error on next op */
 		if (args->csa_cachethis == 0)
 			return htonl(NFS4ERR_RETRY_UNCACHED_REP);
