@@ -774,8 +774,8 @@ static int clcdfb_of_dma_setup(struct clcd_fb *fb)
 
 static int clcdfb_of_dma_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
-	return dma_mmap_writecombine(&fb->dev->dev, vma, fb->fb.screen_base,
-			fb->fb.fix.smem_start, fb->fb.fix.smem_len);
+	return dma_mmap_wc(&fb->dev->dev, vma, fb->fb.screen_base,
+			   fb->fb.fix.smem_start, fb->fb.fix.smem_len);
 }
 
 static void clcdfb_of_dma_remove(struct clcd_fb *fb)
