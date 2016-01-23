@@ -624,46 +624,6 @@ int service_operation(struct orangefs_kernel_op_s *op,
 		      const char *op_name,
 		      int flags);
 
-/*
- * handles two possible error cases, depending on context.
- *
- * by design, our vfs i/o errors need to be handled in one of two ways,
- * depending on where the error occured.
- *
- * if the error happens in the waitqueue code because we either timed
- * out or a signal was raised while waiting, we need to cancel the
- * userspace i/o operation and free the op manually.  this is done to
- * avoid having the device start writing application data to our shared
- * bufmap pages without us expecting it.
- *
- * FIXME: POSSIBLE OPTIMIZATION:
- * However, if we timed out or if we got a signal AND our upcall was never
- * picked off the queue (i.e. we were in OP_VFS_STATE_WAITING), then we don't
- * need to send a cancellation upcall. The way we can handle this is
- * set error_exit to 2 in such cases and 1 whenever cancellation has to be
- * sent and have handle_error
- * take care of this situation as well..
- *
- * if a orangefs sysint level error occured and i/o has been completed,
- * there is no need to cancel the operation, as the user has finished
- * using the bufmap page and so there is no danger in this case.  in
- * this case, we wake up the device normally so that it may free the
- * op, as normal.
- *
- * note the only reason this is a macro is because both read and write
- * cases need the exact same handling code.
- */
-#define handle_io_error()					\
-do {								\
-	if (!op_state_serviced(new_op)) {			\
-		orangefs_cancel_op_in_progress(new_op->tag);	\
-	} else {						\
-		wake_up_daemon_for_return(new_op);		\
-	}							\
-	orangefs_bufmap_put(bufmap, buffer_index);				\
-	buffer_index = -1;					\
-} while (0)
-
 #define get_interruptible_flag(inode) \
 	((ORANGEFS_SB(inode->i_sb)->flags & ORANGEFS_OPT_INTR) ? \
 		ORANGEFS_OP_INTERRUPTIBLE : 0)
