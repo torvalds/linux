@@ -435,9 +435,7 @@ wakeup:
 			spin_unlock(&op->lock);
 
 			if (!signal_pending(current)) {
-				int timeout =
-				    MSECS_TO_JIFFIES(1000 *
-						     op_timeout_secs);
+				int timeout = op_timeout_secs * HZ;
 				if (!schedule_timeout(timeout)) {
 					gossip_debug(GOSSIP_DEV_DEBUG,
 						"%s: timed out.\n",

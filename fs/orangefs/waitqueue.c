@@ -235,8 +235,8 @@ retry_servicing:
 			 * Wait for orangefs_bufmap_initialize() to wake me up
 			 * within the allotted time.
 			 */
-			ret = schedule_timeout(MSECS_TO_JIFFIES
-				(1000 * ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS));
+			ret = schedule_timeout(
+				ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS * HZ);
 
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "Value returned from schedule_timeout:"
@@ -375,8 +375,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 			 * subsequent attempts, we retry exactly once
 			 * with timeouts
 			 */
-			if (!schedule_timeout(MSECS_TO_JIFFIES
-			      (1000 * op_timeout_secs))) {
+			if (!schedule_timeout(op_timeout_secs * HZ)) {
 				gossip_debug(GOSSIP_WAIT_DEBUG,
 					     "*** %s:"
 					     " operation timed out (tag"
@@ -469,8 +468,7 @@ static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 			     "%s:About to call schedule_timeout.\n",
 			     __func__);
 		spin_unlock(&op->lock);
-		ret =
-		    schedule_timeout(MSECS_TO_JIFFIES(1000 * op_timeout_secs));
+		ret = schedule_timeout(op_timeout_secs * HZ);
 
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "%s:Value returned from schedule_timeout(%d).\n",

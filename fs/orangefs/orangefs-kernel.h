@@ -80,11 +80,6 @@ sizeof(__u64) + sizeof(struct orangefs_upcall_s))
 #define MAX_DEV_REQ_DOWNSIZE (2 * sizeof(__s32) + \
 sizeof(__u64) + sizeof(struct orangefs_downcall_s))
 
-/* borrowed from irda.h */
-#ifndef MSECS_TO_JIFFIES
-#define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)
-#endif
-
 /*
  * valid orangefs kernel operation states
  *

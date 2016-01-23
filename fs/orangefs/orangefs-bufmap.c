@@ -377,13 +377,11 @@ static int wait_for_a_slot(struct slot_args *slargs, int *buffer_index)
 			break;
 
 		if (!signal_pending(current)) {
-			int timeout =
-			    MSECS_TO_JIFFIES(1000 * slot_timeout_secs);
 			gossip_debug(GOSSIP_BUFMAP_DEBUG,
 				     "[BUFMAP]: waiting %d "
 				     "seconds for a slot\n",
 				     slot_timeout_secs);
-			if (!schedule_timeout(timeout)) {
+			if (!schedule_timeout(slot_timeout_secs * HZ)) {
 				gossip_debug(GOSSIP_BUFMAP_DEBUG,
 					     "*** wait_for_a_slot timed out\n");
 				ret = -ETIMEDOUT;
