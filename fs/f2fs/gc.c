@@ -838,7 +838,14 @@ gc_more:
 
 	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed)) {
 		gc_type = FG_GC;
+		/*
+		 * If there is no victim and no prefree segment but still not
+		 * enough free sections, we should flush dent/node blocks and do
+		 * garbage collections.
+		 */
 		if (__get_victim(sbi, &segno, gc_type) || prefree_segments(sbi))
+			write_checkpoint(sbi, &cpc);
+		else if (has_not_enough_free_secs(sbi, 0))
 			write_checkpoint(sbi, &cpc);
 	}
 
