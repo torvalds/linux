@@ -593,22 +593,6 @@ int orangefs_cancel_op_in_progress(__u64 tag)
 	return ret;
 }
 
-void orangefs_op_initialize(struct orangefs_kernel_op_s *op)
-{
-	if (op) {
-		spin_lock(&op->lock);
-		init_completion(&op->done);
-
-		op->upcall.type = ORANGEFS_VFS_OP_INVALID;
-		op->downcall.type = ORANGEFS_VFS_OP_INVALID;
-		op->downcall.status = -1;
-
-		op->op_state = OP_VFS_STATE_UNKNOWN;
-		op->tag = 0;
-		spin_unlock(&op->lock);
-	}
-}
-
 void orangefs_make_bad_inode(struct inode *inode)
 {
 	if (is_root_handle(inode)) {

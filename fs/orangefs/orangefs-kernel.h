@@ -565,8 +565,6 @@ int orangefs_inode_getattr(struct inode *inode, __u32 mask);
 
 int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
 
-void orangefs_op_initialize(struct orangefs_kernel_op_s *op);
-
 void orangefs_make_bad_inode(struct inode *inode);
 
 void orangefs_block_signals(sigset_t *);

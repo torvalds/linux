@@ -111,17 +111,22 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 {
 	struct orangefs_kernel_op_s *new_op = NULL;
 
-	new_op = kmem_cache_alloc(op_cache, ORANGEFS_CACHE_ALLOC_FLAGS);
+	new_op = kmem_cache_zalloc(op_cache, ORANGEFS_CACHE_ALLOC_FLAGS);
 	if (new_op) {
-		memset(new_op, 0, sizeof(struct orangefs_kernel_op_s));
-
 		INIT_LIST_HEAD(&new_op->list);
 		spin_lock_init(&new_op->lock);
 		init_waitqueue_head(&new_op->waitq);
 
 		atomic_set(&new_op->ref_count, 1);
 
-		orangefs_op_initialize(new_op);
+		init_completion(&new_op->done);
+
+		new_op->upcall.type = ORANGEFS_VFS_OP_INVALID;
+		new_op->downcall.type = ORANGEFS_VFS_OP_INVALID;
+		new_op->downcall.status = -1;
+
+		new_op->op_state = OP_VFS_STATE_UNKNOWN;
+		new_op->tag = 0;
 
 		/* initialize the op specific tag and upcall credentials */
 		spin_lock(&next_tag_value_lock);
