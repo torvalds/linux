@@ -85,7 +85,7 @@ static int orangefs_devreq_open(struct inode *inode, struct file *file)
 	mutex_lock(&devreq_mutex);
 
 	if (open_access_count == 0) {
-		open_access_count++;
+		open_access_count = 1;
 		ret = 0;
 	} else {
 		DUMP_DEVICE_ERROR();
@@ -533,12 +533,11 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 	if (orangefs_get_bufmap_init())
 		orangefs_bufmap_finalize();
 
-	open_access_count--;
+	open_access_count = -1;
 
 	unmounted = mark_all_pending_mounts();
 	gossip_debug(GOSSIP_DEV_DEBUG, "ORANGEFS Device Close: Filesystem(s) %s\n",
 		     (unmounted ? "UNMOUNTED" : "MOUNTED"));
-	mutex_unlock(&devreq_mutex);
 
 	/*
 	 * Walk through the list of ops in the request list, mark them
@@ -552,6 +551,8 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 	purge_inprogress_ops();
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "pvfs2-client-core: device close complete\n");
+	open_access_count = 0;
+	mutex_unlock(&devreq_mutex);
 	return 0;
 }
 
