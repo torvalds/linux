@@ -144,4 +144,7 @@ static inline u32 ath79_reset_rr(unsigned reg)
 void ath79_device_reset_set(u32 mask);
 void ath79_device_reset_clear(u32 mask);
 
+void ath79_misc_irq_init(void __iomem *regs, int irq,
+			int irq_base, bool is_ar71xx);
+
 #endif /* __ASM_MACH_ATH79_H */
