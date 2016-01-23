@@ -1045,7 +1045,7 @@ leave:
 	if (orphan_dir) {
 		/* This was locked for us in ocfs2_prepare_orphan_dir() */
 		ocfs2_inode_unlock(orphan_dir, 1);
-		mutex_unlock(&orphan_dir->i_mutex);
+		inode_unlock(orphan_dir);
 		iput(orphan_dir);
 	}
 
@@ -1664,7 +1664,7 @@ bail:
 	if (orphan_dir) {
 		/* This was locked for us in ocfs2_prepare_orphan_dir() */
 		ocfs2_inode_unlock(orphan_dir, 1);
-		mutex_unlock(&orphan_dir->i_mutex);
+		inode_unlock(orphan_dir);
 		iput(orphan_dir);
 	}
 
@@ -2121,11 +2121,11 @@ static int ocfs2_lookup_lock_orphan_dir(struct ocfs2_super *osb,
 		return ret;
 	}
 
-	mutex_lock(&orphan_dir_inode->i_mutex);
+	inode_lock(orphan_dir_inode);
 
 	ret = ocfs2_inode_lock(orphan_dir_inode, &orphan_dir_bh, 1);
 	if (ret < 0) {
-		mutex_unlock(&orphan_dir_inode->i_mutex);
+		inode_unlock(orphan_dir_inode);
 		iput(orphan_dir_inode);
 
 		mlog_errno(ret);
@@ -2226,7 +2226,7 @@ out:
 
 	if (ret) {
 		ocfs2_inode_unlock(orphan_dir_inode, 1);
-		mutex_unlock(&orphan_dir_inode->i_mutex);
+		inode_unlock(orphan_dir_inode);
 		iput(orphan_dir_inode);
 	}
 
@@ -2495,7 +2495,7 @@ out:
 			ocfs2_free_alloc_context(inode_ac);
 
 		/* Unroll orphan dir locking */
-		mutex_unlock(&orphan_dir->i_mutex);
+		inode_unlock(orphan_dir);
 		ocfs2_inode_unlock(orphan_dir, 1);
 		iput(orphan_dir);
 	}
@@ -2602,7 +2602,7 @@ leave:
 	if (orphan_dir) {
 		/* This was locked for us in ocfs2_prepare_orphan_dir() */
 		ocfs2_inode_unlock(orphan_dir, 1);
-		mutex_unlock(&orphan_dir->i_mutex);
+		inode_unlock(orphan_dir);
 		iput(orphan_dir);
 	}
 
@@ -2689,7 +2689,7 @@ int ocfs2_add_inode_to_orphan(struct ocfs2_super *osb,
 
 bail_unlock_orphan:
 	ocfs2_inode_unlock(orphan_dir_inode, 1);
-	mutex_unlock(&orphan_dir_inode->i_mutex);
+	inode_unlock(orphan_dir_inode);
 	iput(orphan_dir_inode);
 
 	ocfs2_free_dir_lookup_result(&orphan_insert);
@@ -2721,10 +2721,10 @@ int ocfs2_del_inode_from_orphan(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	mutex_lock(&orphan_dir_inode->i_mutex);
+	inode_lock(orphan_dir_inode);
 	status = ocfs2_inode_lock(orphan_dir_inode, &orphan_dir_bh, 1);
 	if (status < 0) {
-		mutex_unlock(&orphan_dir_inode->i_mutex);
+		inode_unlock(orphan_dir_inode);
 		iput(orphan_dir_inode);
 		mlog_errno(status);
 		goto bail;
@@ -2770,7 +2770,7 @@ bail_commit:
 
 bail_unlock_orphan:
 	ocfs2_inode_unlock(orphan_dir_inode, 1);
-	mutex_unlock(&orphan_dir_inode->i_mutex);
+	inode_unlock(orphan_dir_inode);
 	brelse(orphan_dir_bh);
 	iput(orphan_dir_inode);
 
@@ -2834,12 +2834,12 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 		goto leave;
 	}
 
-	mutex_lock(&orphan_dir_inode->i_mutex);
+	inode_lock(orphan_dir_inode);
 
 	status = ocfs2_inode_lock(orphan_dir_inode, &orphan_dir_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
-		mutex_unlock(&orphan_dir_inode->i_mutex);
+		inode_unlock(orphan_dir_inode);
 		iput(orphan_dir_inode);
 		goto leave;
 	}
@@ -2901,7 +2901,7 @@ out_commit:
 	ocfs2_commit_trans(osb, handle);
 orphan_unlock:
 	ocfs2_inode_unlock(orphan_dir_inode, 1);
-	mutex_unlock(&orphan_dir_inode->i_mutex);
+	inode_unlock(orphan_dir_inode);
 	iput(orphan_dir_inode);
 leave:
 

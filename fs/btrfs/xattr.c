@@ -126,7 +126,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	 * locks the inode's i_mutex before calling setxattr or removexattr.
 	 */
 	if (flags & XATTR_REPLACE) {
-		ASSERT(mutex_is_locked(&inode->i_mutex));
+		ASSERT(inode_is_locked(inode));
 		di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode),
 					name, name_len, 0);
 		if (!di)

@@ -1944,14 +1944,14 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t written = 0;
 	ssize_t err;
 
-	mutex_lock(&vi->i_mutex);
+	inode_lock(vi);
 	/* We can write back this queue in page reclaim. */
 	current->backing_dev_info = inode_to_bdi(vi);
 	err = ntfs_prepare_file_for_write(iocb, from);
 	if (iov_iter_count(from) && !err)
 		written = ntfs_perform_write(file, from, iocb->ki_pos);
 	current->backing_dev_info = NULL;
-	mutex_unlock(&vi->i_mutex);
+	inode_unlock(vi);
 	if (likely(written > 0)) {
 		err = generic_write_sync(file, iocb->ki_pos, written);
 		if (err < 0)
@@ -1996,7 +1996,7 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	err = filemap_write_and_wait_range(vi->i_mapping, start, end);
 	if (err)
 		return err;
-	mutex_lock(&vi->i_mutex);
+	inode_lock(vi);
 
 	BUG_ON(S_ISDIR(vi->i_mode));
 	if (!datasync || !NInoNonResident(NTFS_I(vi)))
@@ -2015,7 +2015,7 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	else
 		ntfs_warning(vi->i_sb, "Failed to f%ssync inode 0x%lx.  Error "
 				"%u.", datasync ? "data" : "", vi->i_ino, -ret);
-	mutex_unlock(&vi->i_mutex);
+	inode_unlock(vi);
 	return ret;
 }
 

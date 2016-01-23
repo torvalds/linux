@@ -113,7 +113,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		ext4_unwritten_wait(inode);
 	}
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
 		goto out;
@@ -169,7 +169,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	ret = __generic_file_write_iter(iocb, from);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (ret > 0) {
 		ssize_t err;
@@ -186,7 +186,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return ret;
 
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	if (aio_mutex)
 		mutex_unlock(aio_mutex);
 	return ret;
@@ -563,11 +563,11 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 	int blkbits;
 	int ret = 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	isize = i_size_read(inode);
 	if (offset >= isize) {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		return -ENXIO;
 	}
 
@@ -615,7 +615,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		dataoff = (loff_t)last << blkbits;
 	} while (last <= end);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (dataoff > isize)
 		return -ENXIO;
@@ -636,11 +636,11 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 	int blkbits;
 	int ret = 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	isize = i_size_read(inode);
 	if (offset >= isize) {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		return -ENXIO;
 	}
 
@@ -691,7 +691,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 		break;
 	} while (last <= end);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (holeoff > isize)
 		holeoff = isize;

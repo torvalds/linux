@@ -1003,7 +1003,7 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	isize = i_size_read(inode);
 
@@ -1113,6 +1113,6 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret == 1)
 		ret = 0;
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }

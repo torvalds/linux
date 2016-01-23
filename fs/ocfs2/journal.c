@@ -2088,7 +2088,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		return status;
 	}
 
-	mutex_lock(&orphan_dir_inode->i_mutex);
+	inode_lock(orphan_dir_inode);
 	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
@@ -2106,7 +2106,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 out_cluster:
 	ocfs2_inode_unlock(orphan_dir_inode, 0);
 out:
-	mutex_unlock(&orphan_dir_inode->i_mutex);
+	inode_unlock(orphan_dir_inode);
 	iput(orphan_dir_inode);
 	return status;
 }
@@ -2196,7 +2196,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		oi->ip_next_orphan = NULL;
 
 		if (oi->ip_flags & OCFS2_INODE_DIO_ORPHAN_ENTRY) {
-			mutex_lock(&inode->i_mutex);
+			inode_lock(inode);
 			ret = ocfs2_rw_lock(inode, 1);
 			if (ret < 0) {
 				mlog_errno(ret);
@@ -2235,7 +2235,7 @@ unlock_inode:
 unlock_rw:
 			ocfs2_rw_unlock(inode, 1);
 unlock_mutex:
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 
 			/* clear dio flag in ocfs2_inode_info */
 			oi->ip_flags &= ~OCFS2_INODE_DIO_ORPHAN_ENTRY;
