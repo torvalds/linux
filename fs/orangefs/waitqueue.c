@@ -376,79 +376,77 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 		}
 		spin_unlock(&op->lock);
 
-		if (!signal_pending(current)) {
+		if (unlikely(signal_pending(current))) {
+			gossip_debug(GOSSIP_WAIT_DEBUG,
+				     "*** %s:"
+				     " operation interrupted by a signal (tag "
+				     "%llu, op %p)\n",
+				     __func__,
+				     llu(op->tag),
+				     op);
+			orangefs_clean_up_interrupted_operation(op);
+			ret = -EINTR;
+			break;
+		}
+
+		/*
+		 * if this was our first attempt and client-core
+		 * has not purged our operation, we are happy to
+		 * simply wait
+		 */
+		spin_lock(&op->lock);
+		if (op->attempts == 0 && !op_state_purged(op)) {
+			spin_unlock(&op->lock);
+			schedule();
+		} else {
+			spin_unlock(&op->lock);
 			/*
-			 * if this was our first attempt and client-core
-			 * has not purged our operation, we are happy to
-			 * simply wait
+			 * subsequent attempts, we retry exactly once
+			 * with timeouts
 			 */
-			spin_lock(&op->lock);
-			if (op->attempts == 0 && !op_state_purged(op)) {
-				spin_unlock(&op->lock);
-				schedule();
-			} else {
-				spin_unlock(&op->lock);
-				/*
-				 * subsequent attempts, we retry exactly once
-				 * with timeouts
-				 */
-				if (!schedule_timeout(MSECS_TO_JIFFIES
-				      (1000 * op_timeout_secs))) {
-					gossip_debug(GOSSIP_WAIT_DEBUG,
-						     "*** %s:"
-						     " operation timed out (tag"
-						     " %llu, %p, att %d)\n",
-						     __func__,
-						     llu(op->tag),
-						     op,
-						     op->attempts);
-					ret = -ETIMEDOUT;
-					orangefs_clean_up_interrupted_operation
-					    (op);
-					break;
-				}
-			}
-			spin_lock(&op->lock);
-			op->attempts++;
-			/*
-			 * if the operation was purged in the meantime, it
-			 * is better to requeue it afresh but ensure that
-			 * we have not been purged repeatedly. This could
-			 * happen if client-core crashes when an op
-			 * is being serviced, so we requeue the op, client
-			 * core crashes again so we requeue the op, client
-			 * core starts, and so on...
-			 */
-			if (op_state_purged(op)) {
-				ret = (op->attempts < ORANGEFS_PURGE_RETRY_COUNT) ?
-					 -EAGAIN :
-					 -EIO;
-				spin_unlock(&op->lock);
+			if (!schedule_timeout(MSECS_TO_JIFFIES
+			      (1000 * op_timeout_secs))) {
 				gossip_debug(GOSSIP_WAIT_DEBUG,
 					     "*** %s:"
-					     " operation purged (tag "
-					     "%llu, %p, att %d)\n",
+					     " operation timed out (tag"
+					     " %llu, %p, att %d)\n",
 					     __func__,
 					     llu(op->tag),
 					     op,
 					     op->attempts);
+				ret = -ETIMEDOUT;
 				orangefs_clean_up_interrupted_operation(op);
 				break;
 			}
-			spin_unlock(&op->lock);
-			continue;
 		}
-
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "*** %s:"
-			     " operation interrupted by a signal (tag "
-			     "%llu, op %p)\n",
-			     __func__,
-			     llu(op->tag),
-			     op);
-		orangefs_clean_up_interrupted_operation(op);
-		ret = -EINTR;
-		break;
+		spin_lock(&op->lock);
+		op->attempts++;
+		/*
+		 * if the operation was purged in the meantime, it
+		 * is better to requeue it afresh but ensure that
+		 * we have not been purged repeatedly. This could
+		 * happen if client-core crashes when an op
+		 * is being serviced, so we requeue the op, client
+		 * core crashes again so we requeue the op, client
+		 * core starts, and so on...
+		 */
+		if (op_state_purged(op)) {
+			ret = (op->attempts < ORANGEFS_PURGE_RETRY_COUNT) ?
+				 -EAGAIN :
+				 -EIO;
+			spin_unlock(&op->lock);
+			gossip_debug(GOSSIP_WAIT_DEBUG,
+				     "*** %s:"
+				     " operation purged (tag "
+				     "%llu, %p, att %d)\n",
+				     __func__,
+				     llu(op->tag),
+				     op,
+				     op->attempts);
+			orangefs_clean_up_interrupted_operation(op);
+			break;
+		}
+		spin_unlock(&op->lock);
 	}
 
 	spin_lock(&op->lock);
