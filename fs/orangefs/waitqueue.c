@@ -279,35 +279,8 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 	 * the interruption is detected.  there is a coarse grained lock
 	 * across the operation.
 	 *
-	 * NOTE: be sure not to reverse lock ordering by locking an op lock
-	 * while holding the request_list lock.  Here, we first lock the op
-	 * and then lock the appropriate list.
+	 * Called with op->lock held.
 	 */
-	if (!op) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			    "%s: op is null, ignoring\n",
-			     __func__);
-		return;
-	}
-
-	/*
-	 * one more sanity check, make sure it's in one of the possible states
-	 * or don't try to cancel it
-	 */
-	if (!(op_state_waiting(op) ||
-	      op_state_in_progress(op) ||
-	      op_state_serviced(op) ||
-	      op_state_purged(op))) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s: op %p not in a valid state (%0x), "
-			     "ignoring\n",
-			     __func__,
-			     op,
-			     op->op_state);
-		return;
-	}
-
-	spin_lock(&op->lock);
 	op->op_state |= OP_VFS_STATE_GIVEN_UP;
 
 	if (op_state_waiting(op)) {
@@ -374,7 +347,6 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 			ret = 0;
 			break;
 		}
-		spin_unlock(&op->lock);
 
 		if (unlikely(signal_pending(current))) {
 			gossip_debug(GOSSIP_WAIT_DEBUG,
@@ -394,7 +366,6 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 		 * has not purged our operation, we are happy to
 		 * simply wait
 		 */
-		spin_lock(&op->lock);
 		if (op->attempts == 0 && !op_state_purged(op)) {
 			spin_unlock(&op->lock);
 			schedule();
@@ -415,6 +386,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 					     op,
 					     op->attempts);
 				ret = -ETIMEDOUT;
+				spin_lock(&op->lock);
 				orangefs_clean_up_interrupted_operation(op);
 				break;
 			}
@@ -434,7 +406,6 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 			ret = (op->attempts < ORANGEFS_PURGE_RETRY_COUNT) ?
 				 -EAGAIN :
 				 -EIO;
-			spin_unlock(&op->lock);
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "*** %s:"
 				     " operation purged (tag "
@@ -481,7 +452,6 @@ static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 			ret = 0;
 			break;
 		}
-		spin_unlock(&op->lock);
 
 		if (signal_pending(current)) {
 			gossip_debug(GOSSIP_WAIT_DEBUG,
@@ -498,6 +468,7 @@ static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "%s:About to call schedule_timeout.\n",
 			     __func__);
+		spin_unlock(&op->lock);
 		ret =
 		    schedule_timeout(MSECS_TO_JIFFIES(1000 * op_timeout_secs));
 
@@ -510,6 +481,7 @@ static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 				     "%s:*** operation timed out: %p\n",
 				     __func__,
 				     op);
+			spin_lock(&op->lock);
 			orangefs_clean_up_interrupted_operation(op);
 			ret = -ETIMEDOUT;
 			break;
