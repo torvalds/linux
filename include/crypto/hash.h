@@ -260,6 +260,18 @@ static inline void crypto_free_ahash(struct crypto_ahash *tfm)
 	crypto_destroy_tfm(tfm, crypto_ahash_tfm(tfm));
 }
 
+/**
+ * crypto_has_ahash() - Search for the availability of an ahash.
+ * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
+ *	      ahash
+ * @type: specifies the type of the ahash
+ * @mask: specifies the mask for the ahash
+ *
+ * Return: true when the ahash is known to the kernel crypto API; false
+ *	   otherwise
+ */
+int crypto_has_ahash(const char *alg_name, u32 type, u32 mask);
+
 static inline unsigned int crypto_ahash_alignmask(
 	struct crypto_ahash *tfm)
 {

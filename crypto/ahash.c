@@ -542,6 +542,12 @@ struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_ahash);
 
+int crypto_has_ahash(const char *alg_name, u32 type, u32 mask)
+{
+	return crypto_type_has_alg(alg_name, &crypto_ahash_type, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_has_ahash);
+
 static int ahash_prepare_alg(struct ahash_alg *alg)
 {
 	struct crypto_alg *base = &alg->halg.base;
