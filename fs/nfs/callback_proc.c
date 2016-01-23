@@ -367,7 +367,7 @@ validate_seqid(const struct nfs4_slot_table *tbl, const struct nfs4_slot *slot,
 	if (args->csa_sequenceid == slot->seq_nr) {
 		dprintk("%s seqid %u is a replay\n",
 			__func__, args->csa_sequenceid);
-		if (tbl->highest_used_slotid != NFS4_NO_SLOT)
+		if (nfs4_test_locked_slot(tbl, slot->slot_nr))
 			return htonl(NFS4ERR_DELAY);
 		/* Signal process_op to set this error on next op */
 		if (args->csa_cachethis == 0)
@@ -476,12 +476,18 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out_unlock;
 	}
 
+	status = htonl(NFS4ERR_BADSLOT);
+	slot = nfs4_lookup_slot(tbl, args->csa_slotid);
+	if (IS_ERR(slot))
+		goto out_unlock;
 	status = validate_seqid(tbl, slot, args);
 	if (status)
 		goto out_unlock;
-
-	cps->slotid = args->csa_slotid;
-	tbl->highest_used_slotid = args->csa_slotid;
+	if (!nfs4_try_to_lock_slot(tbl, slot)) {
+		status = htonl(NFS4ERR_DELAY);
+		goto out_unlock;
+	}
+	cps->slot = slot;
 
 	memcpy(&res->csr_sessionid, &args->csa_sessionid,
 	       sizeof(res->csr_sessionid));
