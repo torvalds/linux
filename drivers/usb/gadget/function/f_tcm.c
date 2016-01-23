@@ -1073,39 +1073,66 @@ out:
 	usbg_cleanup_cmd(cmd);
 }
 
+static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
+		struct tcm_usbg_nexus *tv_nexus, u32 scsi_tag)
+{
+	struct se_session *se_sess = tv_nexus->tvn_se_sess;
+	struct usbg_cmd *cmd;
+	int tag;
+
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	if (tag < 0)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = &((struct usbg_cmd *)se_sess->sess_cmd_map)[tag];
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->se_cmd.map_tag = tag;
+	cmd->se_cmd.tag = cmd->tag = scsi_tag;
+	cmd->fu = fu;
+
+	return cmd;
+}
+
+static void usbg_release_cmd(struct se_cmd *);
+
 static int usbg_submit_command(struct f_uas *fu,
 		void *cmdbuf, unsigned int len)
 {
 	struct command_iu *cmd_iu = cmdbuf;
 	struct usbg_cmd *cmd;
-	struct usbg_tpg *tpg;
-	struct tcm_usbg_nexus *tv_nexus;
+	struct usbg_tpg *tpg = fu->tpg;
+	struct tcm_usbg_nexus *tv_nexus = tpg->tpg_nexus;
 	u32 cmd_len;
+	u16 scsi_tag;
 
 	if (cmd_iu->iu_id != IU_ID_COMMAND) {
 		pr_err("Unsupported type %d\n", cmd_iu->iu_id);
 		return -EINVAL;
 	}
 
-	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-	if (!cmd)
-		return -ENOMEM;
+	tv_nexus = tpg->tpg_nexus;
+	if (!tv_nexus) {
+		pr_err("Missing nexus, ignoring command\n");
+		return -EINVAL;
+	}
 
-	cmd->fu = fu;
+	cmd_len = (cmd_iu->len & ~0x3) + 16;
+	if (cmd_len > USBG_MAX_CMD)
+		return -EINVAL;
+
+	scsi_tag = be16_to_cpup(&cmd_iu->tag);
+	cmd = usbg_get_cmd(fu, tv_nexus, scsi_tag);
+	if (IS_ERR(cmd)) {
+		pr_err("usbg_get_cmd failed\n");
+		return -ENOMEM;
+	}
 
 	/* XXX until I figure out why I can't free in on complete */
 	kref_init(&cmd->ref);
 	kref_get(&cmd->ref);
 
-	tpg = fu->tpg;
-	cmd_len = (cmd_iu->len & ~0x3) + 16;
-	if (cmd_len > USBG_MAX_CMD)
-		goto err;
-
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
-	cmd->tag = be16_to_cpup(&cmd_iu->tag);
-	cmd->se_cmd.tag = cmd->tag;
 	if (fu->flags & USBG_USE_STREAMS) {
 		if (cmd->tag > UASP_SS_EP_COMP_NUM_STREAMS)
 			goto err;
@@ -1115,12 +1142,6 @@ static int usbg_submit_command(struct f_uas *fu,
 			cmd->stream = &fu->stream[cmd->tag - 1];
 	} else {
 		cmd->stream = &fu->stream[0];
-	}
-
-	tv_nexus = tpg->tpg_nexus;
-	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
-		goto err;
 	}
 
 	switch (cmd_iu->prio_attr & 0x7) {
@@ -1148,7 +1169,7 @@ static int usbg_submit_command(struct f_uas *fu,
 
 	return 0;
 err:
-	kfree(cmd);
+	usbg_release_cmd(&cmd->se_cmd);
 	return -EINVAL;
 }
 
@@ -1190,7 +1211,7 @@ static int bot_submit_command(struct f_uas *fu,
 {
 	struct bulk_cb_wrap *cbw = cmdbuf;
 	struct usbg_cmd *cmd;
-	struct usbg_tpg *tpg;
+	struct usbg_tpg *tpg = fu->tpg;
 	struct tcm_usbg_nexus *tv_nexus;
 	u32 cmd_len;
 
@@ -1207,28 +1228,25 @@ static int bot_submit_command(struct f_uas *fu,
 	if (cmd_len < 1 || cmd_len > 16)
 		return -EINVAL;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-	if (!cmd)
-		return -ENOMEM;
+	tv_nexus = tpg->tpg_nexus;
+	if (!tv_nexus) {
+		pr_err("Missing nexus, ignoring command\n");
+		return -ENODEV;
+	}
 
-	cmd->fu = fu;
+	cmd = usbg_get_cmd(fu, tv_nexus, cbw->Tag);
+	if (IS_ERR(cmd)) {
+		pr_err("usbg_get_cmd failed\n");
+		return -ENOMEM;
+	}
 
 	/* XXX until I figure out why I can't free in on complete */
 	kref_init(&cmd->ref);
 	kref_get(&cmd->ref);
 
-	tpg = fu->tpg;
-
 	memcpy(cmd->cmd_buf, cbw->CDB, cmd_len);
 
 	cmd->bot_tag = cbw->Tag;
-
-	tv_nexus = tpg->tpg_nexus;
-	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
-		goto err;
-	}
-
 	cmd->prio_attr = TCM_SIMPLE_TAG;
 	cmd->unpacked_lun = cbw->Lun;
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;
@@ -1239,9 +1257,6 @@ static int bot_submit_command(struct f_uas *fu,
 	queue_work(tpg->workqueue, &cmd->work);
 
 	return 0;
-err:
-	kfree(cmd);
-	return -EINVAL;
 }
 
 /* Start fabric.c code */
@@ -1294,8 +1309,10 @@ static void usbg_release_cmd(struct se_cmd *se_cmd)
 {
 	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd,
 			se_cmd);
+	struct se_session *se_sess = se_cmd->se_sess;
+
 	kfree(cmd->data_buf);
-	kfree(cmd);
+	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
 static int usbg_shutdown_session(struct se_session *se_sess)
@@ -1607,7 +1624,9 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 		goto out_unlock;
 	}
 
-	tv_nexus->tvn_se_sess = target_alloc_session(&tpg->se_tpg, 0, 0,
+	tv_nexus->tvn_se_sess = target_alloc_session(&tpg->se_tpg,
+						     USB_G_DEFAULT_SESSION_TAGS,
+						     sizeof(struct usbg_cmd),
 						     TARGET_PROT_NORMAL, name,
 						     tv_nexus, usbg_alloc_sess_cb);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
