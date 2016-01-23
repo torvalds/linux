@@ -640,9 +640,9 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 		while (*s && *s != sep)
 			s++;
 
-		mutex_lock(&dir->i_mutex);
+		inode_lock(dir);
 		child = lookup_one_len(p, dentry, s - p);
-		mutex_unlock(&dir->i_mutex);
+		inode_unlock(dir);
 		dput(dentry);
 		dentry = child;
 	} while (!IS_ERR(dentry));

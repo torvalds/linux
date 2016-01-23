@@ -439,7 +439,7 @@ static int vvp_io_setattr_start(const struct lu_env *env,
 	struct inode	*inode = ccc_object_inode(io->ci_obj);
 	int result = 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	if (cl_io_is_trunc(io))
 		result = vvp_io_setattr_trunc(env, ios, inode,
 					io->u.ci_setattr.sa_attr.lvb_size);
@@ -459,7 +459,7 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 		 * because osc has already notified to destroy osc_extents. */
 		vvp_do_vmtruncate(inode, io->u.ci_setattr.sa_attr.lvb_size);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 }
 
 static void vvp_io_setattr_fini(const struct lu_env *env,

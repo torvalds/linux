@@ -89,7 +89,7 @@ EXPORT_SYMBOL(dcache_dir_close);
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	mutex_lock(&d_inode(dentry)->i_mutex);
+	inode_lock(d_inode(dentry));
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
@@ -97,7 +97,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 			if (offset >= 0)
 				break;
 		default:
-			mutex_unlock(&d_inode(dentry)->i_mutex);
+			inode_unlock(d_inode(dentry));
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -124,7 +124,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 			spin_unlock(&dentry->d_lock);
 		}
 	}
-	mutex_unlock(&d_inode(dentry)->i_mutex);
+	inode_unlock(d_inode(dentry));
 	return offset;
 }
 EXPORT_SYMBOL(dcache_dir_lseek);
@@ -941,7 +941,7 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 	if (err)
 		return err;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = sync_mapping_buffers(inode->i_mapping);
 	if (!(inode->i_state & I_DIRTY_ALL))
 		goto out;
@@ -953,7 +953,7 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 		ret = err;
 
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }
 EXPORT_SYMBOL(__generic_file_fsync);

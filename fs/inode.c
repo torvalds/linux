@@ -495,7 +495,7 @@ void clear_inode(struct inode *inode)
 	 */
 	spin_lock_irq(&inode->i_data.tree_lock);
 	BUG_ON(inode->i_data.nrpages);
-	BUG_ON(inode->i_data.nrshadows);
+	BUG_ON(inode->i_data.nrexceptional);
 	spin_unlock_irq(&inode->i_data.tree_lock);
 	BUG_ON(!list_empty(&inode->i_data.private_list));
 	BUG_ON(!(inode->i_state & I_FREEING));
@@ -966,9 +966,9 @@ void lock_two_nondirectories(struct inode *inode1, struct inode *inode2)
 		swap(inode1, inode2);
 
 	if (inode1 && !S_ISDIR(inode1->i_mode))
-		mutex_lock(&inode1->i_mutex);
+		inode_lock(inode1);
 	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
-		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_NONDIR2);
+		inode_lock_nested(inode2, I_MUTEX_NONDIR2);
 }
 EXPORT_SYMBOL(lock_two_nondirectories);
 
@@ -980,9 +980,9 @@ EXPORT_SYMBOL(lock_two_nondirectories);
 void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
 {
 	if (inode1 && !S_ISDIR(inode1->i_mode))
-		mutex_unlock(&inode1->i_mutex);
+		inode_unlock(inode1);
 	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
-		mutex_unlock(&inode2->i_mutex);
+		inode_unlock(inode2);
 }
 EXPORT_SYMBOL(unlock_two_nondirectories);
 

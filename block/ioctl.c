@@ -455,12 +455,12 @@ static int blkdev_daxset(struct block_device *bdev, unsigned long argp)
 	if (arg && !blkdev_dax_capable(bdev))
 		return -ENOTTY;
 
-	mutex_lock(&bdev->bd_inode->i_mutex);
+	inode_lock(bdev->bd_inode);
 	if (bdev->bd_map_count == 0)
 		inode_set_flags(bdev->bd_inode, arg, S_DAX);
 	else
 		rc = -EBUSY;
-	mutex_unlock(&bdev->bd_inode->i_mutex);
+	inode_unlock(bdev->bd_inode);
 	return rc;
 }
 #else

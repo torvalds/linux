@@ -1650,12 +1650,12 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	 * bother, maybe that's a sign this just isn't a good file to
 	 * hand out a delegation on.
 	 */
-	if (is_deleg && !mutex_trylock(&inode->i_mutex))
+	if (is_deleg && !inode_trylock(inode))
 		return -EAGAIN;
 
 	if (is_deleg && arg == F_WRLCK) {
 		/* Write delegations are not currently supported: */
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		WARN_ON_ONCE(1);
 		return -EINVAL;
 	}
@@ -1732,7 +1732,7 @@ out:
 	spin_unlock(&ctx->flc_lock);
 	locks_dispose_list(&dispose);
 	if (is_deleg)
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	if (!error && !my_fl)
 		*flp = NULL;
 	return error;

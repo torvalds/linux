@@ -1307,13 +1307,13 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 		return;
 
 	/* Be careful if suid/sgid is set */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/* reload atomically mode/uid/gid now that lock held */
 	mode = inode->i_mode;
 	uid = inode->i_uid;
 	gid = inode->i_gid;
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	/* We ignore suid/sgid if there are no mappings for them in the ns */
 	if (!kuid_has_mapping(bprm->cred->user_ns, uid) ||

@@ -540,10 +540,10 @@ int configfs_create_file(struct config_item * item, const struct configfs_attrib
 	umode_t mode = (attr->ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_NORMAL);
+	inode_lock_nested(d_inode(dir), I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) attr, mode,
 				     CONFIGFS_ITEM_ATTR);
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 
 	return error;
 }
@@ -562,10 +562,10 @@ int configfs_create_bin_file(struct config_item *item,
 	umode_t mode = (bin_attr->cb_attr.ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_NORMAL);
+	inode_lock_nested(dir->d_inode, I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) bin_attr, mode,
 				     CONFIGFS_ITEM_BIN_ATTR);
-	mutex_unlock(&dir->d_inode->i_mutex);
+	inode_unlock(dir->d_inode);
 
 	return error;
 }
