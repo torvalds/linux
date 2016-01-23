@@ -2463,9 +2463,9 @@ static void i915_guc_client_info(struct seq_file *m,
 
 	for_each_ring(ring, dev_priv, i) {
 		seq_printf(m, "\tSubmissions: %llu %s\n",
-				client->submissions[i],
+				client->submissions[ring->guc_id],
 				ring->name);
-		tot += client->submissions[i];
+		tot += client->submissions[ring->guc_id];
 	}
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
@@ -2502,10 +2502,10 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC submissions:\n");
 	for_each_ring(ring, dev_priv, i) {
-		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x %9d\n",
-			ring->name, guc.submissions[i],
-			guc.last_seqno[i], guc.last_seqno[i]);
-		total += guc.submissions[i];
+		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
+			ring->name, guc.submissions[ring->guc_id],
+			guc.last_seqno[ring->guc_id]);
+		total += guc.submissions[ring->guc_id];
 	}
 	seq_printf(m, "\t%s: %llu\n", "Total", total);
 

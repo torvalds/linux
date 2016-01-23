@@ -44,6 +44,13 @@
 #define GUC_MAX_GPU_CONTEXTS		1024
 #define	GUC_INVALID_CTX_ID		GUC_MAX_GPU_CONTEXTS
 
+#define GUC_RENDER_ENGINE		0
+#define GUC_VIDEO_ENGINE		1
+#define GUC_BLITTER_ENGINE		2
+#define GUC_VIDEOENHANCE_ENGINE		3
+#define GUC_VIDEO_ENGINE2		4
+#define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
+
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
@@ -285,7 +292,7 @@ struct guc_context_desc {
 	u64 db_trigger_phy;
 	u16 db_id;
 
-	struct guc_execlist_context lrc[I915_NUM_RINGS];
+	struct guc_execlist_context lrc[GUC_MAX_ENGINES_NUM];
 
 	u8 attribute;
 
@@ -344,7 +351,7 @@ struct guc_policy {
 } __packed;
 
 struct guc_policies {
-	struct guc_policy policy[GUC_CTX_PRIORITY_NUM][I915_NUM_RINGS];
+	struct guc_policy policy[GUC_CTX_PRIORITY_NUM][GUC_MAX_ENGINES_NUM];
 
 	/* In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
@@ -388,14 +395,14 @@ struct guc_mmio_regset {
 
 struct guc_mmio_reg_state {
 	struct guc_mmio_regset global_reg;
-	struct guc_mmio_regset engine_reg[I915_NUM_RINGS];
+	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINES_NUM];
 
 	/* MMIO registers that are set as non privileged */
 	struct __packed {
 		u32 mmio_start;
 		u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
 		u32 count;
-	} mmio_white_list[I915_NUM_RINGS];
+	} mmio_white_list[GUC_MAX_ENGINES_NUM];
 } __packed;
 
 /* GuC Additional Data Struct */
@@ -406,7 +413,7 @@ struct guc_ads {
 	u32 golden_context_lrca;
 	u32 scheduler_policies;
 	u32 reserved0[3];
-	u32 eng_state_size[I915_NUM_RINGS];
+	u32 eng_state_size[GUC_MAX_ENGINES_NUM];
 	u32 reserved2[4];
 } __packed;
 

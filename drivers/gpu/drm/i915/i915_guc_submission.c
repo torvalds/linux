@@ -376,6 +376,8 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 static void guc_init_ctx_desc(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_engine_cs *ring;
 	struct intel_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
@@ -388,10 +390,8 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct guc_execlist_context *lrc = &desc.lrc[i];
-		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
-		struct intel_engine_cs *ring;
+	for_each_ring(ring, dev_priv, i) {
+		struct guc_execlist_context *lrc = &desc.lrc[ring->guc_id];
 		struct drm_i915_gem_object *obj;
 		uint64_t ctx_desc;
 
@@ -406,7 +406,6 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		if (!obj)
 			break;	/* XXX: continue? */
 
-		ring = ringbuf->ring;
 		ctx_desc = intel_lr_context_descriptor(ctx, ring);
 		lrc->context_desc = (u32)ctx_desc;
 
@@ -414,16 +413,16 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->ring_lcra = i915_gem_obj_ggtt_offset(obj) +
 				LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
-				(ring->id << GUC_ELC_ENGINE_OFFSET);
+				(ring->guc_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ringbuf->obj;
+		obj = ctx->engine[i].ringbuf->obj;
 
 		lrc->ring_begin = i915_gem_obj_ggtt_offset(obj);
 		lrc->ring_end = lrc->ring_begin + obj->base.size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
 
-		desc.engines_used |= (1 << ring->id);
+		desc.engines_used |= (1 << ring->guc_id);
 	}
 
 	WARN_ON(desc.engines_used == 0);
@@ -510,7 +509,6 @@ int i915_guc_wq_check_space(struct i915_guc_client *gc)
 static int guc_add_workqueue_item(struct i915_guc_client *gc,
 				  struct drm_i915_gem_request *rq)
 {
-	enum intel_ring_id ring_id = rq->ring->id;
 	struct guc_wq_item *wqi;
 	void *base;
 	u32 tail, wq_len, wq_off, space;
@@ -544,7 +542,7 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	wq_len = sizeof(struct guc_wq_item) / sizeof(u32) - 1;
 	wqi->header = WQ_TYPE_INORDER |
 			(wq_len << WQ_LEN_SHIFT) |
-			(ring_id << WQ_TARGET_SHIFT) |
+			(rq->ring->guc_id << WQ_TARGET_SHIFT) |
 			WQ_NO_WCFLUSH_WAIT;
 
 	/* The GuC wants only the low-order word of the context descriptor */
@@ -571,14 +569,14 @@ int i915_guc_submit(struct i915_guc_client *client,
 		    struct drm_i915_gem_request *rq)
 {
 	struct intel_guc *guc = client->guc;
-	enum intel_ring_id ring_id = rq->ring->id;
+	unsigned int engine_id = rq->ring->guc_id;
 	int q_ret, b_ret;
 
 	q_ret = guc_add_workqueue_item(client, rq);
 	if (q_ret == 0)
 		b_ret = guc_ring_doorbell(client);
 
-	client->submissions[ring_id] += 1;
+	client->submissions[engine_id] += 1;
 	if (q_ret) {
 		client->q_fail += 1;
 		client->retcode = q_ret;
@@ -588,8 +586,8 @@ int i915_guc_submit(struct i915_guc_client *client,
 	} else {
 		client->retcode = 0;
 	}
-	guc->submissions[ring_id] += 1;
-	guc->last_seqno[ring_id] = rq->seqno;
+	guc->submissions[engine_id] += 1;
+	guc->last_seqno[engine_id] = rq->seqno;
 
 	return q_ret;
 }
@@ -821,7 +819,7 @@ static void init_guc_policies(struct guc_policies *policies)
 	policies->max_num_work_items = POLICY_MAX_NUM_WI;
 
 	for (p = 0; p < GUC_CTX_PRIORITY_NUM; p++) {
-		for (i = 0; i < I915_NUM_RINGS; i++) {
+		for (i = GUC_RENDER_ENGINE; i < GUC_MAX_ENGINES_NUM; i++) {
 			policy = &policies->policy[p][i];
 
 			policy->execution_quantum = 1000000;
@@ -873,7 +871,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	ads->golden_context_lrca = ring->status_page.gfx_addr;
 
 	for_each_ring(ring, dev_priv, i)
-		ads->eng_state_size[i] = intel_lr_context_size(ring);
+		ads->eng_state_size[ring->guc_id] = intel_lr_context_size(ring);
 
 	/* GuC scheduling policies */
 	policies = (void *)ads + sizeof(struct guc_ads);
@@ -885,12 +883,12 @@ static void guc_create_ads(struct intel_guc *guc)
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		reg_state->mmio_white_list[i].mmio_start =
-			dev_priv->ring[i].mmio_base + GUC_MMIO_WHITE_LIST_START;
+	for_each_ring(ring, dev_priv, i) {
+		reg_state->mmio_white_list[ring->guc_id].mmio_start =
+			ring->mmio_base + GUC_MMIO_WHITE_LIST_START;
 
 		/* Nothing to be saved or restored for now. */
-		reg_state->mmio_white_list[i].count = 0;
+		reg_state->mmio_white_list[ring->guc_id].count = 0;
 	}
 
 	ads->reg_state_addr = ads->scheduler_policies +

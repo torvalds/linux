@@ -2088,6 +2088,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->name = "render ring";
 	ring->id = RCS;
 	ring->exec_id = I915_EXEC_RENDER;
+	ring->guc_id = GUC_RENDER_ENGINE;
 	ring->mmio_base = RENDER_RING_BASE;
 
 	logical_ring_default_irqs(ring, GEN8_RCS_IRQ_SHIFT);
@@ -2139,6 +2140,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->name = "bsd ring";
 	ring->id = VCS;
 	ring->exec_id = I915_EXEC_BSD;
+	ring->guc_id = GUC_VIDEO_ENGINE;
 	ring->mmio_base = GEN6_BSD_RING_BASE;
 
 	logical_ring_default_irqs(ring, GEN8_VCS1_IRQ_SHIFT);
@@ -2155,6 +2157,7 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->name = "bsd2 ring";
 	ring->id = VCS2;
 	ring->exec_id = I915_EXEC_BSD;
+	ring->guc_id = GUC_VIDEO_ENGINE2;
 	ring->mmio_base = GEN8_BSD2_RING_BASE;
 
 	logical_ring_default_irqs(ring, GEN8_VCS2_IRQ_SHIFT);
@@ -2171,6 +2174,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->name = "blitter ring";
 	ring->id = BCS;
 	ring->exec_id = I915_EXEC_BLT;
+	ring->guc_id = GUC_BLITTER_ENGINE;
 	ring->mmio_base = BLT_RING_BASE;
 
 	logical_ring_default_irqs(ring, GEN8_BCS_IRQ_SHIFT);
@@ -2187,6 +2191,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->name = "video enhancement ring";
 	ring->id = VECS;
 	ring->exec_id = I915_EXEC_VEBOX;
+	ring->guc_id = GUC_VIDEOENHANCE_ENGINE;
 	ring->mmio_base = VEBOX_RING_BASE;
 
 	logical_ring_default_irqs(ring, GEN8_VECS_IRQ_SHIFT);

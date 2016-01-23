@@ -46,7 +46,7 @@ struct i915_guc_client {
 	uint32_t wq_head;
 
 	/* GuC submission statistics & status */
-	uint64_t submissions[I915_NUM_RINGS];
+	uint64_t submissions[GUC_MAX_ENGINES_NUM];
 	uint32_t q_fail;
 	uint32_t b_fail;
 	int retcode;
@@ -106,8 +106,8 @@ struct intel_guc {
 	uint32_t action_fail;		/* Total number of failures	*/
 	int32_t action_err;		/* Last error code		*/
 
-	uint64_t submissions[I915_NUM_RINGS];
-	uint32_t last_seqno[I915_NUM_RINGS];
+	uint64_t submissions[GUC_MAX_ENGINES_NUM];
+	uint32_t last_seqno[GUC_MAX_ENGINES_NUM];
 };
 
 /* intel_guc_loader.c */
