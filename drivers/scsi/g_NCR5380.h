@@ -14,80 +14,66 @@
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#ifdef NCR53C400
+#ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define BIOSPARAM
 #define NCR5380_BIOSPARAM generic_NCR5380_biosparam
 #else
 #define NCR5380_BIOSPARAM NULL
 #endif
 
-#ifndef ASM
-
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 16
-#endif
-
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
 
 #ifndef SCSI_G_NCR5380_MEM
+#define DRV_MODULE_NAME "g_NCR5380"
 
-#define NCR5380_map_config port
 #define NCR5380_map_type int
 #define NCR5380_map_name port
-#define NCR5380_instance_name io_port
-#define NCR53C400_register_offset 0
-#define NCR53C400_address_adjust 8
 
-#ifdef NCR53C400
+#ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define NCR5380_region_size 16
 #else
 #define NCR5380_region_size 8
 #endif
 
-#define NCR5380_read(reg) (inb(NCR5380_map_name + (reg)))
-#define NCR5380_write(reg, value) (outb((value), (NCR5380_map_name + (reg))))
+#define NCR5380_read(reg) \
+	inb(instance->io_port + (reg))
+#define NCR5380_write(reg, value) \
+	outb(value, instance->io_port + (reg))
 
 #define NCR5380_implementation_fields \
-    NCR5380_map_type NCR5380_map_name
-
-#define NCR5380_local_declare() \
-    register NCR5380_implementation_fields
-
-#define NCR5380_setup(instance) \
-    NCR5380_map_name = (NCR5380_map_type)((instance)->NCR5380_instance_name)
+	int c400_ctl_status; \
+	int c400_blk_cnt; \
+	int c400_host_buf; \
+	int io_width;
 
 #else 
 /* therefore SCSI_G_NCR5380_MEM */
+#define DRV_MODULE_NAME "g_NCR5380_mmio"
 
-#define NCR5380_map_config memory
 #define NCR5380_map_type unsigned long
 #define NCR5380_map_name base
-#define NCR5380_instance_name base
-#define NCR53C400_register_offset 0x108
-#define NCR53C400_address_adjust 0
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
 #define NCR5380_region_size 0x3a00
 
-#define NCR5380_read(reg) readb(iomem + NCR53C400_mem_base + (reg))
-#define NCR5380_write(reg, value) writeb(value, iomem + NCR53C400_mem_base + (reg))
+#define NCR5380_read(reg) \
+	readb(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+	      NCR53C400_mem_base + (reg))
+#define NCR5380_write(reg, value) \
+	writeb(value, ((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+	       NCR53C400_mem_base + (reg))
 
 #define NCR5380_implementation_fields \
-    NCR5380_map_type NCR5380_map_name; \
-    void __iomem *iomem;
-
-#define NCR5380_local_declare() \
-    register void __iomem *iomem
-
-#define NCR5380_setup(instance) \
-    iomem = (((struct NCR5380_hostdata *)(instance)->hostdata)->iomem)
+	void __iomem *iomem; \
+	int c400_ctl_status; \
+	int c400_blk_cnt; \
+	int c400_host_buf;
 
 #endif
+
+#define NCR5380_dma_xfer_len(instance, cmd, phase) \
+        generic_NCR5380_dma_xfer_len(cmd)
 
 #define NCR5380_intr generic_NCR5380_intr
 #define NCR5380_queue_command generic_NCR5380_queue_command
@@ -102,7 +88,7 @@
 #define BOARD_NCR53C400	1
 #define BOARD_NCR53C400A 2
 #define BOARD_DTC3181E	3
+#define BOARD_HP_C2502	4
 
-#endif /* ndef ASM */
 #endif /* GENERIC_NCR5380_H */
 
