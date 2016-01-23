@@ -101,6 +101,7 @@ static bool catalog_entry_domain_is_valid(unsigned domain)
 EVENT_DEFINE_RANGE_FORMAT(domain, config, 0, 3);
 /* u16 */
 EVENT_DEFINE_RANGE_FORMAT(core, config, 16, 31);
+EVENT_DEFINE_RANGE_FORMAT(chip, config, 16, 31);
 EVENT_DEFINE_RANGE_FORMAT(vcpu, config, 16, 31);
 /* u32, see "data_offset" */
 EVENT_DEFINE_RANGE_FORMAT(offset, config, 32, 63);
@@ -115,6 +116,7 @@ static struct attribute *format_attrs[] = {
 	&format_attr_domain.attr,
 	&format_attr_offset.attr,
 	&format_attr_core.attr,
+	&format_attr_chip.attr,
 	&format_attr_vcpu.attr,
 	&format_attr_lpar.attr,
 	NULL,
@@ -289,10 +291,16 @@ static char *event_fmt(struct hv_24x7_event_data *event, unsigned domain)
 	const char *sindex;
 	const char *lpar;
 
-	if (is_physical_domain(domain)) {
+	switch (domain) {
+	case HV_PERF_DOMAIN_PHYS_CHIP:
+		lpar = "0x0";
+		sindex = "chip";
+		break;
+	case HV_PERF_DOMAIN_PHYS_CORE:
 		lpar = "0x0";
 		sindex = "core";
-	} else {
+		break;
+	default:
 		lpar = "?";
 		sindex = "vcpu";
 	}
@@ -1089,10 +1097,16 @@ static int add_event_to_24x7_request(struct perf_event *event,
 		return -EINVAL;
 	}
 
-	if (is_physical_domain(event_get_domain(event)))
+	switch (event_get_domain(event)) {
+	case HV_PERF_DOMAIN_PHYS_CHIP:
+		idx = event_get_chip(event);
+		break;
+	case HV_PERF_DOMAIN_PHYS_CORE:
 		idx = event_get_core(event);
-	else
+		break;
+	default:
 		idx = event_get_vcpu(event);
+	}
 
 	i = request_buffer->num_requests++;
 	req = &request_buffer->requests[i];
