@@ -506,7 +506,7 @@ struct iwl_trans_config {
 	bool sw_csum_tx;
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
- 
+
 	u32 sdio_adma_addr;
 };
 

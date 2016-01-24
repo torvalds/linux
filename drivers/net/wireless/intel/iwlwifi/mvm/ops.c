@@ -392,7 +392,6 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[PHY_OPS_GROUP] = HCMD_ARR(iwl_mvm_phy_names),
 };
 
-
 /* this forward declaration can avoid to export the function */
 static void iwl_mvm_async_handlers_wk(struct work_struct *wk);
 static void iwl_mvm_d0i3_exit_work(struct work_struct *wk);

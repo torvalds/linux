@@ -34,7 +34,6 @@
 #include <linux/sched.h>
 #include <net/ip6_checksum.h>
 #include <net/tso.h>
-#include <net/ip6_checksum.h>
 
 #include "iwl-debug.h"
 #include "iwl-csr.h"
