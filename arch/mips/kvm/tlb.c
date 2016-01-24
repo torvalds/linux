@@ -35,17 +35,17 @@
 #define PRIx64 "llx"
 
 atomic_t kvm_mips_instance;
-EXPORT_SYMBOL(kvm_mips_instance);
+EXPORT_SYMBOL_GPL(kvm_mips_instance);
 
 /* These function pointers are initialized once the KVM module is loaded */
 kvm_pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
-EXPORT_SYMBOL(kvm_mips_gfn_to_pfn);
+EXPORT_SYMBOL_GPL(kvm_mips_gfn_to_pfn);
 
 void (*kvm_mips_release_pfn_clean)(kvm_pfn_t pfn);
-EXPORT_SYMBOL(kvm_mips_release_pfn_clean);
+EXPORT_SYMBOL_GPL(kvm_mips_release_pfn_clean);
 
 bool (*kvm_mips_is_error_pfn)(kvm_pfn_t pfn);
-EXPORT_SYMBOL(kvm_mips_is_error_pfn);
+EXPORT_SYMBOL_GPL(kvm_mips_is_error_pfn);
 
 uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
@@ -111,7 +111,7 @@ void kvm_mips_dump_host_tlbs(void)
 	mtc0_tlbw_hazard();
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(kvm_mips_dump_host_tlbs);
+EXPORT_SYMBOL_GPL(kvm_mips_dump_host_tlbs);
 
 void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 {
@@ -139,7 +139,7 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
 	}
 }
-EXPORT_SYMBOL(kvm_mips_dump_guest_tlbs);
+EXPORT_SYMBOL_GPL(kvm_mips_dump_guest_tlbs);
 
 static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 {
@@ -191,7 +191,7 @@ unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 
 	return (kvm->arch.guest_pmap[gfn] << PAGE_SHIFT) + offset;
 }
-EXPORT_SYMBOL(kvm_mips_translate_guest_kseg0_to_hpa);
+EXPORT_SYMBOL_GPL(kvm_mips_translate_guest_kseg0_to_hpa);
 
 /* XXXKYMA: Must be called with interrupts disabled */
 /* set flush_dcache_mask == 0 if no dcache flush required */
@@ -308,7 +308,7 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	return kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
 				       flush_dcache_mask);
 }
-EXPORT_SYMBOL(kvm_mips_handle_kseg0_tlb_fault);
+EXPORT_SYMBOL_GPL(kvm_mips_handle_kseg0_tlb_fault);
 
 int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	struct kvm_vcpu *vcpu)
@@ -351,7 +351,7 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 
 	return 0;
 }
-EXPORT_SYMBOL(kvm_mips_handle_commpage_tlb_fault);
+EXPORT_SYMBOL_GPL(kvm_mips_handle_commpage_tlb_fault);
 
 int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 					 struct kvm_mips_tlb *tlb,
@@ -401,7 +401,7 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	return kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
 				       tlb->tlb_mask);
 }
-EXPORT_SYMBOL(kvm_mips_handle_mapped_seg_tlb_fault);
+EXPORT_SYMBOL_GPL(kvm_mips_handle_mapped_seg_tlb_fault);
 
 int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 {
@@ -422,7 +422,7 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 
 	return index;
 }
-EXPORT_SYMBOL(kvm_mips_guest_tlb_lookup);
+EXPORT_SYMBOL_GPL(kvm_mips_guest_tlb_lookup);
 
 int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 {
@@ -458,7 +458,7 @@ int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 
 	return idx;
 }
-EXPORT_SYMBOL(kvm_mips_host_tlb_lookup);
+EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_lookup);
 
 int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 {
@@ -505,44 +505,7 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 
 	return 0;
 }
-EXPORT_SYMBOL(kvm_mips_host_tlb_inv);
-
-/* XXXKYMA: Fix Guest USER/KERNEL no longer share the same ASID */
-int kvm_mips_host_tlb_inv_index(struct kvm_vcpu *vcpu, int index)
-{
-	unsigned long flags, old_entryhi;
-
-	if (index >= current_cpu_data.tlbsize)
-		BUG();
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-
-	write_c0_entryhi(UNIQUE_ENTRYHI(index));
-	mtc0_tlbw_hazard();
-
-	write_c0_index(index);
-	mtc0_tlbw_hazard();
-
-	write_c0_entrylo0(0);
-	mtc0_tlbw_hazard();
-
-	write_c0_entrylo1(0);
-	mtc0_tlbw_hazard();
-
-	tlb_write_indexed();
-	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
-
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
-
-	local_irq_restore(flags);
-
-	return 0;
-}
+EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_inv);
 
 void kvm_mips_flush_host_tlb(int skip_kseg0)
 {
@@ -594,7 +557,7 @@ void kvm_mips_flush_host_tlb(int skip_kseg0)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(kvm_mips_flush_host_tlb);
+EXPORT_SYMBOL_GPL(kvm_mips_flush_host_tlb);
 
 void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 			     struct kvm_vcpu *vcpu)
@@ -642,7 +605,7 @@ void kvm_local_flush_tlb_all(void)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(kvm_local_flush_tlb_all);
+EXPORT_SYMBOL_GPL(kvm_local_flush_tlb_all);
 
 /**
  * kvm_mips_migrate_count() - Migrate timer.
@@ -673,8 +636,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	local_irq_save(flags);
 
-	if (((vcpu->arch.
-	      guest_kernel_asid[cpu] ^ asid_cache(cpu)) & ASID_VERSION_MASK)) {
+	if ((vcpu->arch.guest_kernel_asid[cpu] ^ asid_cache(cpu)) &
+							ASID_VERSION_MASK) {
 		kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm, cpu, vcpu);
 		vcpu->arch.guest_kernel_asid[cpu] =
 		    vcpu->arch.guest_kernel_mm.context.asid[cpu];
@@ -739,7 +702,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_restore(flags);
 
 }
-EXPORT_SYMBOL(kvm_arch_vcpu_load);
+EXPORT_SYMBOL_GPL(kvm_arch_vcpu_load);
 
 /* ASID can change if another task is scheduled during preemption */
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -768,7 +731,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(kvm_arch_vcpu_put);
+EXPORT_SYMBOL_GPL(kvm_arch_vcpu_put);
 
 uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
 {
@@ -813,4 +776,4 @@ uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
 
 	return inst;
 }
-EXPORT_SYMBOL(kvm_get_inst);
+EXPORT_SYMBOL_GPL(kvm_get_inst);
