@@ -72,6 +72,14 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.minor_features3;
 		break;
 
+	case ETNAVIV_PARAM_GPU_FEATURES_5:
+		*value = gpu->identity.minor_features4;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_6:
+		*value = gpu->identity.minor_features5;
+		break;
+
 	case ETNAVIV_PARAM_GPU_STREAM_COUNT:
 		*value = gpu->identity.stream_count;
 		break;
@@ -112,6 +120,10 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.num_constants;
 		break;
 
+	case ETNAVIV_PARAM_GPU_NUM_VARYINGS:
+		*value = gpu->identity.varyings_count;
+		break;
+
 	default:
 		DBG("%s: invalid param: %u", dev_name(gpu->dev), param);
 		return -EINVAL;
@@ -131,10 +143,13 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 {
 	if (gpu->identity.minor_features0 &
 	    chipMinorFeatures0_MORE_MINOR_FEATURES) {
-		u32 specs[2];
+		u32 specs[4];
+		unsigned int streams;
 
 		specs[0] = gpu_read(gpu, VIVS_HI_CHIP_SPECS);
 		specs[1] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_2);
+		specs[2] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_3);
+		specs[3] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_4);
 
 		gpu->identity.stream_count = etnaviv_field(specs[0],
 					VIVS_HI_CHIP_SPECS_STREAM_COUNT);
@@ -158,6 +173,15 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 					VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT);
 		gpu->identity.num_constants = etnaviv_field(specs[1],
 					VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS);
+
+		gpu->identity.varyings_count = etnaviv_field(specs[2],
+					VIVS_HI_CHIP_SPECS_3_VARYINGS_COUNT);
+
+		/* This overrides the value from older register if non-zero */
+		streams = etnaviv_field(specs[3],
+					VIVS_HI_CHIP_SPECS_4_STREAM_COUNT);
+		if (streams)
+			gpu->identity.stream_count = streams;
 	}
 
 	/* Fill in the stream count if not specified */
@@ -239,6 +263,30 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 
 	if (gpu->identity.num_constants == 0)
 		gpu->identity.num_constants = 168;
+
+	if (gpu->identity.varyings_count == 0) {
+		if (gpu->identity.minor_features1 & chipMinorFeatures1_HALTI0)
+			gpu->identity.varyings_count = 12;
+		else
+			gpu->identity.varyings_count = 8;
+	}
+
+	/*
+	 * For some cores, two varyings are consumed for position, so the
+	 * maximum varying count needs to be reduced by one.
+	 */
+	if (etnaviv_is_model_rev(gpu, GC5000, 0x5434) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5245) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, GC3000, 0x5435) ||
+	    etnaviv_is_model_rev(gpu, GC2200, 0x5244) ||
+	    etnaviv_is_model_rev(gpu, GC2100, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, GC1500, 0x5246) ||
+	    etnaviv_is_model_rev(gpu, GC880, 0x5107) ||
+	    etnaviv_is_model_rev(gpu, GC880, 0x5106))
+		gpu->identity.varyings_count -= 1;
 }
 
 static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
@@ -305,6 +353,8 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		gpu->identity.minor_features1 = 0;
 		gpu->identity.minor_features2 = 0;
 		gpu->identity.minor_features3 = 0;
+		gpu->identity.minor_features4 = 0;
+		gpu->identity.minor_features5 = 0;
 	} else
 		gpu->identity.minor_features0 =
 				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_0);
@@ -317,6 +367,10 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_2);
 		gpu->identity.minor_features3 =
 				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_3);
+		gpu->identity.minor_features4 =
+				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_4);
+		gpu->identity.minor_features5 =
+				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_5);
 	}
 
 	/* GC600 idle register reports zero bits where modules aren't present */
@@ -645,6 +699,10 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 		   gpu->identity.minor_features2);
 	seq_printf(m, "\t minor_features3: 0x%08x\n",
 		   gpu->identity.minor_features3);
+	seq_printf(m, "\t minor_features4: 0x%08x\n",
+		   gpu->identity.minor_features4);
+	seq_printf(m, "\t minor_features5: 0x%08x\n",
+		   gpu->identity.minor_features5);
 
 	seq_puts(m, "\tspecs\n");
 	seq_printf(m, "\t stream_count:  %d\n",
@@ -667,6 +725,8 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 			gpu->identity.instruction_count);
 	seq_printf(m, "\t num_constants: %d\n",
 			gpu->identity.num_constants);
+	seq_printf(m, "\t varyings_count: %d\n",
+			gpu->identity.varyings_count);
 
 	seq_printf(m, "\taxi: 0x%08x\n", axi);
 	seq_printf(m, "\tidle: 0x%08x\n", idle);
