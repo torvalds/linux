@@ -13,6 +13,7 @@ obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
 obj-$(CONFIG_SMP) += smp.o mxhead.o
 obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
+obj-$(CONFIG_HAVE_HW_BREAKPOINT) += hw_breakpoint.o
 
 AFLAGS_head.o += -mtext-section-literals
 AFLAGS_mxhead.o += -mtext-section-literals

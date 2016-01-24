@@ -39,6 +39,7 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/traps.h>
+#include <asm/hw_breakpoint.h>
 
 /*
  * Machine specific interrupt handlers
@@ -338,9 +339,22 @@ do_unaligned_user (struct pt_regs *regs)
 }
 #endif
 
+/* Handle debug events.
+ * When CONFIG_HAVE_HW_BREAKPOINT is on this handler is called with
+ * preemption disabled to avoid rescheduling and keep mapping of hardware
+ * breakpoint structures to debug registers intact, so that
+ * DEBUGCAUSE.DBNUM could be used in case of data breakpoint hit.
+ */
 void
 do_debug(struct pt_regs *regs)
 {
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	int ret = check_hw_breakpoint(regs);
+
+	preempt_enable();
+	if (ret == 0)
+		return;
+#endif
 	__die_if_kernel("Breakpoint in kernel", regs, SIGKILL);
 
 	/* If in user mode, send SIGTRAP signal to current process */

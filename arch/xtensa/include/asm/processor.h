@@ -130,11 +130,10 @@ struct thread_struct {
 	unsigned long bad_vaddr; /* last user fault */
 	unsigned long bad_uaddr; /* last kernel fault accessing user space */
 	unsigned long error_code;
-
-	unsigned long ibreak[XCHAL_NUM_IBREAK];
-	unsigned long dbreaka[XCHAL_NUM_DBREAK];
-	unsigned long dbreakc[XCHAL_NUM_DBREAK];
-
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
+	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
+#endif
 	/* Make structure 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
 };
