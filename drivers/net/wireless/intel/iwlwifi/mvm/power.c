@@ -577,7 +577,6 @@ void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 
 struct iwl_power_vifs {
 	struct iwl_mvm *mvm;
-	struct ieee80211_vif *bf_vif;
 	struct ieee80211_vif *bss_vif;
 	struct ieee80211_vif *p2p_vif;
 	struct ieee80211_vif *ap_vif;
@@ -650,11 +649,6 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 		if (mvmvif->phy_ctxt)
 			if (mvmvif->phy_ctxt->id < MAX_PHYS)
 				power_iterator->bss_active = true;
-
-		if (mvmvif->bf_data.bf_enabled &&
-		    !WARN_ON(power_iterator->bf_vif))
-			power_iterator->bf_vif = vif;
-
 		break;
 
 	default:
@@ -959,21 +953,19 @@ static int iwl_mvm_power_set_ps(struct iwl_mvm *mvm)
 }
 
 static int iwl_mvm_power_set_ba(struct iwl_mvm *mvm,
-				struct iwl_power_vifs *vifs)
+				struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_vif *mvmvif;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool ba_enable;
 
-	if (!vifs->bf_vif)
+	if (!mvmvif->bf_data.bf_enabled)
 		return 0;
 
-	mvmvif = iwl_mvm_vif_from_mac80211(vifs->bf_vif);
-
 	ba_enable = !(!mvmvif->pm_enabled || mvm->ps_disabled ||
-		      !vifs->bf_vif->bss_conf.ps ||
+		      !vif->bss_conf.ps ||
 		      iwl_mvm_vif_low_latency(mvmvif));
 
-	return iwl_mvm_update_beacon_abort(mvm, vifs->bf_vif, ba_enable);
+	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
 }
 
 int iwl_mvm_power_update_ps(struct iwl_mvm *mvm)
@@ -994,7 +986,10 @@ int iwl_mvm_power_update_ps(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	return iwl_mvm_power_set_ba(mvm, &vifs);
+	if (vifs.bss_vif)
+		return iwl_mvm_power_set_ba(mvm, vifs.bss_vif);
+
+	return 0;
 }
 
 int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
@@ -1029,7 +1024,10 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 			return ret;
 	}
 
-	return iwl_mvm_power_set_ba(mvm, &vifs);
+	if (vifs.bss_vif)
+		return iwl_mvm_power_set_ba(mvm, vifs.bss_vif);
+
+	return 0;
 }
 
 int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
