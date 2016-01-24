@@ -418,7 +418,7 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 {
 	unsigned int i;
 
-	if (!rcrtc->enabled)
+	if (!rcrtc->crtc.state->active)
 		return;
 
 	rcar_du_crtc_get(rcrtc);
@@ -445,26 +445,17 @@ static void rcar_du_crtc_enable(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
-	if (rcrtc->enabled)
-		return;
-
 	rcar_du_crtc_get(rcrtc);
 	rcar_du_crtc_start(rcrtc);
-
-	rcrtc->enabled = true;
 }
 
 static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
-	if (!rcrtc->enabled)
-		return;
-
 	rcar_du_crtc_stop(rcrtc);
 	rcar_du_crtc_put(rcrtc);
 
-	rcrtc->enabled = false;
 	rcrtc->outputs = 0;
 }
 
@@ -589,7 +580,6 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->group = rgrp;
 	rcrtc->mmio_offset = mmio_offsets[index];
 	rcrtc->index = index;
-	rcrtc->enabled = false;
 
 	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc,
 					&rgrp->planes[index % 2].plane,
