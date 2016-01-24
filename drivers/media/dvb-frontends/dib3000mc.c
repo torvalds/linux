@@ -2,7 +2,7 @@
  * Driver for DiBcom DiB3000MC/P-demodulator.
  *
  * Copyright (C) 2004-7 DiBcom (http://www.dibcom.fr/)
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * This code is partially based on the previous dib3000mc.c .
  *
@@ -939,6 +939,6 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 	.read_ucblocks        = dib3000mc_read_unc_blocks,
 };
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 3000MC/P COFDM demodulator");
 MODULE_LICENSE("GPL");

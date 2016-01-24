@@ -2589,7 +2589,7 @@ static struct dvb_frontend_ops dib9000_ops = {
 	.read_ucblocks = dib9000_read_unc_blocks,
 };
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
-MODULE_AUTHOR("Olivier Grenie <ogrenie@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
+MODULE_AUTHOR("Olivier Grenie <olivier.grenie@parrot.com>");
 MODULE_DESCRIPTION("Driver for the DiBcom 9000 COFDM demodulator");
 MODULE_LICENSE("GPL");

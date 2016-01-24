@@ -4516,6 +4516,6 @@ void *dib8000_attach(struct dib8000_ops *ops)
 }
 EXPORT_SYMBOL(dib8000_attach);
 
-MODULE_AUTHOR("Olivier Grenie <Olivier.Grenie@dibcom.fr, " "Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Olivier Grenie <Olivier.Grenie@parrot.com, Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 8000 ISDB-T demodulator");
 MODULE_LICENSE("GPL");

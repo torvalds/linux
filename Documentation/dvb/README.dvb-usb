@@ -190,7 +190,7 @@ and watch another one.
 Patches, comments and suggestions are very very welcome.
 
 3. Acknowledgements
-   Amaury Demol (ademol@dibcom.fr) and Francois Kanounnikoff from DiBcom for
+   Amaury Demol (Amaury.Demol@parrot.com) and Francois Kanounnikoff from DiBcom for
     providing specs, code and help, on which the dvb-dibusb, dib3000mb and
     dib3000mc are based.
 

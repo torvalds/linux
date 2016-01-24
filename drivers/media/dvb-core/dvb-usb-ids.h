@@ -1,6 +1,6 @@
 /* dvb-usb-ids.h is part of the DVB USB library.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de) see
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de) see
  * dvb-usb-init.c for copyright information.
  *
  * a header file containing define's for the USB device supported by the

@@ -2834,7 +2834,7 @@ static struct dvb_frontend_ops dib7000p_ops = {
 	.read_ucblocks = dib7000p_read_unc_blocks,
 };
 
-MODULE_AUTHOR("Olivier Grenie <ogrenie@dibcom.fr>");
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Olivier Grenie <olivie.grenie@parrot.com>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 7000PC COFDM demodulator");
 MODULE_LICENSE("GPL");

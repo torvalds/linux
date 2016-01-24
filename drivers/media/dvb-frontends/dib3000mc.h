@@ -2,7 +2,7 @@
  * Driver for DiBcom DiB3000MC/P-demodulator.
  *
  * Copyright (C) 2004-6 DiBcom (http://www.dibcom.fr/)
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher\@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * This code is partially based on the previous dib3000mc.c .
  *

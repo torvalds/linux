@@ -1,7 +1,7 @@
 /* Common header-file of the Linux driver for the TwinhanDTV Alpha/MagicBoxII
  * USB2.0 DVB-T receiver.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *
