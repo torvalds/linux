@@ -269,6 +269,11 @@
 		status = "disabled";
 	};
 
+	pmugrf: syscon@ff320000 {
+		compatible = "rockchip,rk3399-pmugrf", "syscon";
+		reg = <0x0 0xff320000 0x0 0x1000>;
+	};
+
 	uart4: serial@ff370000 {
 		compatible = "rockchip,rk3399-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff370000 0x0 0x100>;
