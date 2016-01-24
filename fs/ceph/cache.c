@@ -106,7 +106,7 @@ static uint16_t ceph_fscache_inode_get_aux(const void *cookie_netfs_data,
 
 	memset(&aux, 0, sizeof(aux));
 	aux.mtime = inode->i_mtime;
-	aux.size = inode->i_size;
+	aux.size = i_size_read(inode);
 
 	memcpy(buffer, &aux, sizeof(aux));
 
@@ -117,9 +117,7 @@ static void ceph_fscache_inode_get_attr(const void *cookie_netfs_data,
 					uint64_t *size)
 {
 	const struct ceph_inode_info* ci = cookie_netfs_data;
-	const struct inode* inode = &ci->vfs_inode;
-
-	*size = inode->i_size;
+	*size = i_size_read(&ci->vfs_inode);
 }
 
 static enum fscache_checkaux ceph_fscache_inode_check_aux(
@@ -134,7 +132,7 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 
 	memset(&aux, 0, sizeof(aux));
 	aux.mtime = inode->i_mtime;
-	aux.size = inode->i_size;
+	aux.size = i_size_read(inode);
 
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
