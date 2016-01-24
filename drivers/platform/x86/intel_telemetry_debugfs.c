@@ -96,9 +96,11 @@
 	} \
 }
 
+#ifdef CONFIG_PM_SLEEP
 static u8 suspend_prep_ok;
 static u32 suspend_shlw_ctr_temp, suspend_deep_ctr_temp;
 static u64 suspend_shlw_res_temp, suspend_deep_res_temp;
+#endif
 
 struct telemetry_susp_stats {
 	u32 shlw_swake_ctr;
