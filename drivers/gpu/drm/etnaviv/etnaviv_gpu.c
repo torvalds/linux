@@ -511,8 +511,8 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 
 	if (gpu->identity.model == 0) {
 		dev_err(gpu->dev, "Unknown GPU model\n");
-		pm_runtime_put_autosuspend(gpu->dev);
-		return -ENXIO;
+		ret = -ENXIO;
+		goto fail;
 	}
 
 	ret = etnaviv_hw_reset(gpu);
