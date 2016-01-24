@@ -252,7 +252,7 @@ struct rxrpc_connection {
 	struct rxrpc_security	*security;	/* applied security module */
 	struct key		*key;		/* security for this connection (client) */
 	struct key		*server_key;	/* security for this service */
-	struct crypto_blkcipher	*cipher;	/* encryption handle */
+	struct crypto_skcipher	*cipher;	/* encryption handle */
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
 	unsigned long		events;
 #define RXRPC_CONN_CHALLENGE	0		/* send challenge packet */
