@@ -201,6 +201,7 @@ struct bcma_host_ops {
 #define  BCMA_PKG_ID_BCM4707	1
 #define  BCMA_PKG_ID_BCM4708	2
 #define  BCMA_PKG_ID_BCM4709	0
+#define BCMA_CHIP_ID_BCM47094	53030
 #define BCMA_CHIP_ID_BCM53018	53018
 
 /* Board types (on PCI usually equals to the subsystem dev id) */

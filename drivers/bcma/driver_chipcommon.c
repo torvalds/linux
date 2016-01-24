@@ -197,6 +197,7 @@ u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 		struct bcma_bus *bus = cc->core->bus;
 
 		if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4707 &&
+		    bus->chipinfo.id != BCMA_CHIP_ID_BCM47094 &&
 		    bus->chipinfo.id != BCMA_CHIP_ID_BCM53018)
 			bcma_core_set_clockmode(cc->core,
 						ticks ? BCMA_CLKMODE_FAST : BCMA_CLKMODE_DYNAMIC);
