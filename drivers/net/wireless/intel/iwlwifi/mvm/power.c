@@ -877,26 +877,6 @@ int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd, flags, false);
 }
 
-static int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif,
-				       bool enable)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_beacon_filter_cmd cmd = {
-		IWL_BF_CMD_CONFIG_DEFAULTS,
-		.bf_enable_beacon_filter = cpu_to_le32(1),
-	};
-
-	if (!mvmvif->bf_data.bf_enabled)
-		return 0;
-
-	if (mvm->cur_ucode == IWL_UCODE_WOWLAN)
-		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
-
-	mvmvif->bf_data.ba_enabled = enable;
-	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd, 0, false);
-}
-
 static int _iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
 					  u32 flags, bool d0i3)
@@ -956,16 +936,23 @@ static int iwl_mvm_power_set_ba(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	bool ba_enable;
+	struct iwl_beacon_filter_cmd cmd = {
+		IWL_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter = cpu_to_le32(1),
+	};
 
 	if (!mvmvif->bf_data.bf_enabled)
 		return 0;
 
-	ba_enable = !(!mvmvif->pm_enabled || mvm->ps_disabled ||
-		      !vif->bss_conf.ps ||
-		      iwl_mvm_vif_low_latency(mvmvif));
+	if (mvm->cur_ucode == IWL_UCODE_WOWLAN)
+		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
 
-	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
+	mvmvif->bf_data.ba_enabled = !(!mvmvif->pm_enabled ||
+				       mvm->ps_disabled ||
+				       !vif->bss_conf.ps ||
+				       iwl_mvm_vif_low_latency(mvmvif));
+
+	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd, 0, false);
 }
 
 int iwl_mvm_power_update_ps(struct iwl_mvm *mvm)
