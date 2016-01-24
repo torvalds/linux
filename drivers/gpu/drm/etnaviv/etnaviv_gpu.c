@@ -120,6 +120,9 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 	return 0;
 }
 
+#define etnaviv_field(val, field) \
+	(((val) & field##__MASK) >> field##__SHIFT)
+
 static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 {
 	if (gpu->identity.minor_features0 &
@@ -129,37 +132,28 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 		specs[0] = gpu_read(gpu, VIVS_HI_CHIP_SPECS);
 		specs[1] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_2);
 
-		gpu->identity.stream_count =
-			(specs[0] & VIVS_HI_CHIP_SPECS_STREAM_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_STREAM_COUNT__SHIFT;
-		gpu->identity.register_max =
-			(specs[0] & VIVS_HI_CHIP_SPECS_REGISTER_MAX__MASK)
-				>> VIVS_HI_CHIP_SPECS_REGISTER_MAX__SHIFT;
-		gpu->identity.thread_count =
-			(specs[0] & VIVS_HI_CHIP_SPECS_THREAD_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_THREAD_COUNT__SHIFT;
-		gpu->identity.vertex_cache_size =
-			(specs[0] & VIVS_HI_CHIP_SPECS_VERTEX_CACHE_SIZE__MASK)
-				>> VIVS_HI_CHIP_SPECS_VERTEX_CACHE_SIZE__SHIFT;
-		gpu->identity.shader_core_count =
-			(specs[0] & VIVS_HI_CHIP_SPECS_SHADER_CORE_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_SHADER_CORE_COUNT__SHIFT;
-		gpu->identity.pixel_pipes =
-			(specs[0] & VIVS_HI_CHIP_SPECS_PIXEL_PIPES__MASK)
-				>> VIVS_HI_CHIP_SPECS_PIXEL_PIPES__SHIFT;
+		gpu->identity.stream_count = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_STREAM_COUNT);
+		gpu->identity.register_max = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_REGISTER_MAX);
+		gpu->identity.thread_count = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_THREAD_COUNT);
+		gpu->identity.vertex_cache_size = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_VERTEX_CACHE_SIZE);
+		gpu->identity.shader_core_count = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_SHADER_CORE_COUNT);
+		gpu->identity.pixel_pipes = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_PIXEL_PIPES);
 		gpu->identity.vertex_output_buffer_size =
-			(specs[0] & VIVS_HI_CHIP_SPECS_VERTEX_OUTPUT_BUFFER_SIZE__MASK)
-				>> VIVS_HI_CHIP_SPECS_VERTEX_OUTPUT_BUFFER_SIZE__SHIFT;
+			etnaviv_field(specs[0],
+				VIVS_HI_CHIP_SPECS_VERTEX_OUTPUT_BUFFER_SIZE);
 
-		gpu->identity.buffer_size =
-			(specs[1] & VIVS_HI_CHIP_SPECS_2_BUFFER_SIZE__MASK)
-				>> VIVS_HI_CHIP_SPECS_2_BUFFER_SIZE__SHIFT;
-		gpu->identity.instruction_count =
-			(specs[1] & VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT__SHIFT;
-		gpu->identity.num_constants =
-			(specs[1] & VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS__MASK)
-				>> VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS__SHIFT;
+		gpu->identity.buffer_size = etnaviv_field(specs[1],
+					VIVS_HI_CHIP_SPECS_2_BUFFER_SIZE);
+		gpu->identity.instruction_count = etnaviv_field(specs[1],
+					VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT);
+		gpu->identity.num_constants = etnaviv_field(specs[1],
+					VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS);
 	}
 
 	/* Fill in the stream count if not specified */
@@ -251,12 +245,10 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	chipIdentity = gpu_read(gpu, VIVS_HI_CHIP_IDENTITY);
 
 	/* Special case for older graphic cores. */
-	if (((chipIdentity & VIVS_HI_CHIP_IDENTITY_FAMILY__MASK)
-	     >> VIVS_HI_CHIP_IDENTITY_FAMILY__SHIFT) ==  0x01) {
+	if (etnaviv_field(chipIdentity, VIVS_HI_CHIP_IDENTITY_FAMILY) == 0x01) {
 		gpu->identity.model    = chipModel_GC500;
-		gpu->identity.revision =
-			(chipIdentity & VIVS_HI_CHIP_IDENTITY_REVISION__MASK)
-			>> VIVS_HI_CHIP_IDENTITY_REVISION__SHIFT;
+		gpu->identity.revision = etnaviv_field(chipIdentity,
+					 VIVS_HI_CHIP_IDENTITY_REVISION);
 	} else {
 
 		gpu->identity.model = gpu_read(gpu, VIVS_HI_CHIP_MODEL);
