@@ -120,9 +120,12 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 				       unsigned int *flags,
 				       struct gb_camera_stream_config *streams)
 {
+	struct gb_interface *intf = gcam->connection->intf;
+	struct gb_svc *svc = gcam->connection->hd->svc;
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
 	struct ap_csi_config_request csi_cfg;
+
 	unsigned int nstreams = *num_streams;
 	unsigned int i;
 	size_t req_size;
@@ -142,6 +145,57 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
+	/*
+	 * Setup unipro link speed before actually issuing configuration
+	 * to the camera module, to assure unipro network speed is set
+	 * before CSI interfaces gets configured
+	 */
+	if (nstreams) {
+		ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
+						 GB_SVC_UNIPRO_HS_SERIES_A,
+						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+						 GB_SVC_PWRM_RXTERMINATION |
+						 GB_SVC_PWRM_TXTERMINATION, 0);
+		if (ret < 0)
+			goto done;
+
+		ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
+						 GB_SVC_UNIPRO_HS_SERIES_A,
+						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+						 GB_SVC_PWRM_RXTERMINATION |
+						 GB_SVC_PWRM_TXTERMINATION, 0);
+		if (ret < 0)
+			goto done;
+	} else {
+		ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
+						 GB_SVC_UNIPRO_HS_SERIES_A,
+						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+						 1, 2,
+						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+						 1, 2,
+						 0, 0);
+		if (ret < 0) {
+			gcam_err(gcam, "can't take camera link to PWM-G1 auto: %d\n",
+				 ret);
+			goto done;
+		}
+
+		ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
+						 GB_SVC_UNIPRO_HS_SERIES_A,
+						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+						 1, 2,
+						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+						 1, 2,
+						 0, 0);
+		if (ret < 0) {
+			gcam_err(gcam, "can't take AP link to PWM-G1 auto: %d\n",
+				 ret);
+			goto done;
+		}
+	}
+
 	req->num_streams = nstreams;
 	req->flags = *flags;
 	req->padding = 0;
@@ -159,19 +213,19 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 				GB_CAMERA_TYPE_CONFIGURE_STREAMS,
 				req, req_size, resp, resp_size);
 	if (ret < 0)
-		goto done;
+		goto set_unipro_slow_mode;
 
 	if (resp->num_streams > nstreams) {
 		gcam_dbg(gcam, "got #streams %u > request %u\n",
 			 resp->num_streams, nstreams);
 		ret = -EIO;
-		goto done;
+		goto set_unipro_slow_mode;
 	}
 
 	if (resp->padding != 0) {
 		gcam_dbg(gcam, "response padding != 0");
 		ret = -EIO;
-		goto done;
+		goto set_unipro_slow_mode;
 	}
 
 	*flags = resp->flags;
@@ -190,7 +244,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		if (cfg->padding[0] || cfg->padding[1] || cfg->padding[2]) {
 			gcam_dbg(gcam, "stream #%u padding != 0", i);
 			ret = -EIO;
-			goto done;
+			goto set_unipro_slow_mode;
 		}
 	}
 
@@ -218,6 +272,36 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 
 	*num_streams = resp->num_streams;
 	ret = 0;
+
+	kfree(req);
+	kfree(resp);
+	return ret;
+
+set_unipro_slow_mode:
+	ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
+					 GB_SVC_UNIPRO_HS_SERIES_A,
+					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+					 1, 2,
+					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+					 1, 2,
+					 0, 0);
+	if (ret < 0) {
+		gcam_err(gcam, "can't take camera link to PWM-G1 auto: %d\n",
+			 ret);
+		goto done;
+	}
+
+	gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
+				   GB_SVC_UNIPRO_HS_SERIES_A,
+				   GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+				   1, 2,
+				   GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+				   1, 2,
+				   0, 0);
+	if (ret < 0)
+		gcam_err(gcam, "can't take AP link to PWM-G1 auto: %d\n",
+			 ret);
+
 
 done:
 	kfree(req);
@@ -766,24 +850,6 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 		goto error;
 
 	gcam->data_connected = true;
-
-	ret = gb_svc_intf_set_power_mode(svc, connection->intf->interface_id,
-					 GB_SVC_UNIPRO_HS_SERIES_A,
-					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-					 GB_SVC_PWRM_RXTERMINATION |
-					 GB_SVC_PWRM_TXTERMINATION, 0);
-	if (ret < 0)
-		goto error;
-
-	ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
-					 GB_SVC_UNIPRO_HS_SERIES_A,
-					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-					 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-					 GB_SVC_PWRM_RXTERMINATION |
-					 GB_SVC_PWRM_TXTERMINATION, 0);
-	if (ret < 0)
-		goto error;
 
 	ret = gb_camera_debugfs_init(gcam);
 	if (ret < 0)
