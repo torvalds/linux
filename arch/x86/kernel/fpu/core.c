@@ -437,7 +437,7 @@ void fpu__clear(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
 
-	if (!use_eager_fpu()) {
+	if (!use_eager_fpu() || !static_cpu_has(X86_FEATURE_FPU)) {
 		/* FPU state will be reallocated lazily at the first use. */
 		fpu__drop(fpu);
 	} else {
