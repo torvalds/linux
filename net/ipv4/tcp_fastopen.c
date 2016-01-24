@@ -1,3 +1,4 @@
+#include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

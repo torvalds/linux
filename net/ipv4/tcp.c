@@ -247,6 +247,7 @@
 
 #define pr_fmt(fmt) "TCP: " fmt
 
+#include <crypto/hash.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -266,7 +267,6 @@
 #include <linux/swap.h>
 #include <linux/cache.h>
 #include <linux/err.h>
-#include <linux/crypto.h>
 #include <linux/time.h>
 #include <linux/slab.h>
 
@@ -2939,17 +2939,26 @@ static bool tcp_md5sig_pool_populated = false;
 
 static void __tcp_alloc_md5sig_pool(void)
 {
+	struct crypto_ahash *hash;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		if (!per_cpu(tcp_md5sig_pool, cpu).md5_desc.tfm) {
-			struct crypto_hash *hash;
+	hash = crypto_alloc_ahash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR_OR_NULL(hash))
+		return;
 
-			hash = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-			if (IS_ERR_OR_NULL(hash))
-				return;
-			per_cpu(tcp_md5sig_pool, cpu).md5_desc.tfm = hash;
-		}
+	for_each_possible_cpu(cpu) {
+		struct ahash_request *req;
+
+		if (per_cpu(tcp_md5sig_pool, cpu).md5_req)
+			continue;
+
+		req = ahash_request_alloc(hash, GFP_KERNEL);
+		if (!req)
+			return;
+
+		ahash_request_set_callback(req, 0, NULL, NULL);
+
+		per_cpu(tcp_md5sig_pool, cpu).md5_req = req;
 	}
 	/* before setting tcp_md5sig_pool_populated, we must commit all writes
 	 * to memory. See smp_rmb() in tcp_get_md5sig_pool()
@@ -2999,7 +3008,6 @@ int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 {
 	struct scatterlist sg;
 	struct tcphdr hdr;
-	int err;
 
 	/* We are not allowed to change tcphdr, make a local copy */
 	memcpy(&hdr, th, sizeof(hdr));
@@ -3007,8 +3015,8 @@ int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 
 	/* options aren't included in the hash */
 	sg_init_one(&sg, &hdr, sizeof(hdr));
-	err = crypto_hash_update(&hp->md5_desc, &sg, sizeof(hdr));
-	return err;
+	ahash_request_set_crypt(hp->md5_req, &sg, NULL, sizeof(hdr));
+	return crypto_ahash_update(hp->md5_req);
 }
 EXPORT_SYMBOL(tcp_md5_hash_header);
 
@@ -3017,7 +3025,7 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 {
 	struct scatterlist sg;
 	const struct tcphdr *tp = tcp_hdr(skb);
-	struct hash_desc *desc = &hp->md5_desc;
+	struct ahash_request *req = hp->md5_req;
 	unsigned int i;
 	const unsigned int head_data_len = skb_headlen(skb) > header_len ?
 					   skb_headlen(skb) - header_len : 0;
@@ -3027,7 +3035,8 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 	sg_init_table(&sg, 1);
 
 	sg_set_buf(&sg, ((u8 *) tp) + header_len, head_data_len);
-	if (crypto_hash_update(desc, &sg, head_data_len))
+	ahash_request_set_crypt(req, &sg, NULL, head_data_len);
+	if (crypto_ahash_update(req))
 		return 1;
 
 	for (i = 0; i < shi->nr_frags; ++i) {
@@ -3037,7 +3046,8 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 
 		sg_set_page(&sg, page, skb_frag_size(f),
 			    offset_in_page(offset));
-		if (crypto_hash_update(desc, &sg, skb_frag_size(f)))
+		ahash_request_set_crypt(req, &sg, NULL, skb_frag_size(f));
+		if (crypto_ahash_update(req))
 			return 1;
 	}
 
@@ -3054,7 +3064,8 @@ int tcp_md5_hash_key(struct tcp_md5sig_pool *hp, const struct tcp_md5sig_key *ke
 	struct scatterlist sg;
 
 	sg_init_one(&sg, key->key, key->keylen);
-	return crypto_hash_update(&hp->md5_desc, &sg, key->keylen);
+	ahash_request_set_crypt(hp->md5_req, &sg, NULL, key->keylen);
+	return crypto_ahash_update(hp->md5_req);
 }
 EXPORT_SYMBOL(tcp_md5_hash_key);
 
