@@ -231,14 +231,15 @@ void fpstate_init(union fpregs_state *state)
 }
 EXPORT_SYMBOL_GPL(fpstate_init);
 
-/*
- * Copy the current task's FPU state to a new task's FPU context.
- *
- * In both the 'eager' and the 'lazy' case we save hardware registers
- * directly to the destination buffer.
- */
-static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
+int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
+	dst_fpu->counter = 0;
+	dst_fpu->fpregs_active = 0;
+	dst_fpu->last_cpu = -1;
+
+	if (!src_fpu->fpstate_active || !cpu_has_fpu)
+		return 0;
+
 	WARN_ON_FPU(src_fpu != &current->thread.fpu);
 
 	/*
@@ -251,10 +252,9 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	/*
 	 * Save current FPU registers directly into the child
 	 * FPU context, without any memory-to-memory copying.
-	 *
-	 * If the FPU context got destroyed in the process (FNSAVE
-	 * done on old CPUs) then copy it back into the source
-	 * context and mark the current task for lazy restore.
+	 * In lazy mode, if the FPU context isn't loaded into
+	 * fpregs, CR0.TS will be set and do_device_not_available
+	 * will load the FPU context.
 	 *
 	 * We have to do all this with preemption disabled,
 	 * mostly because of the FNSAVE case, because in that
@@ -274,16 +274,6 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 			fpregs_deactivate(src_fpu);
 	}
 	preempt_enable();
-}
-
-int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
-{
-	dst_fpu->counter = 0;
-	dst_fpu->fpregs_active = 0;
-	dst_fpu->last_cpu = -1;
-
-	if (src_fpu->fpstate_active && cpu_has_fpu)
-		fpu_copy(dst_fpu, src_fpu);
 
 	return 0;
 }
