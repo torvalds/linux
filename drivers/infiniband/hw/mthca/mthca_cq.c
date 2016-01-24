@@ -608,9 +608,6 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			entry->opcode    = IB_WC_FETCH_ADD;
 			entry->byte_len  = MTHCA_ATOMIC_BYTE_LEN;
 			break;
-		case MTHCA_OPCODE_BIND_MW:
-			entry->opcode    = IB_WC_BIND_MW;
-			break;
 		default:
 			entry->opcode    = MTHCA_OPCODE_INVALID;
 			break;
