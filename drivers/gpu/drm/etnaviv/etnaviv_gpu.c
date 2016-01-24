@@ -173,7 +173,7 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	/* Convert the register max value */
 	if (gpu->identity.register_max)
 		gpu->identity.register_max = 1 << gpu->identity.register_max;
-	else if (gpu->identity.model == 0x0400)
+	else if (gpu->identity.model == chipModel_GC400)
 		gpu->identity.register_max = 32;
 	else
 		gpu->identity.register_max = 64;
@@ -181,10 +181,10 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	/* Convert thread count */
 	if (gpu->identity.thread_count)
 		gpu->identity.thread_count = 1 << gpu->identity.thread_count;
-	else if (gpu->identity.model == 0x0400)
+	else if (gpu->identity.model == chipModel_GC400)
 		gpu->identity.thread_count = 64;
-	else if (gpu->identity.model == 0x0500 ||
-		 gpu->identity.model == 0x0530)
+	else if (gpu->identity.model == chipModel_GC500 ||
+		 gpu->identity.model == chipModel_GC530)
 		gpu->identity.thread_count = 128;
 	else
 		gpu->identity.thread_count = 256;
@@ -206,7 +206,7 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	if (gpu->identity.vertex_output_buffer_size) {
 		gpu->identity.vertex_output_buffer_size =
 			1 << gpu->identity.vertex_output_buffer_size;
-	} else if (gpu->identity.model == 0x0400) {
+	} else if (gpu->identity.model == chipModel_GC400) {
 		if (gpu->identity.revision < 0x4000)
 			gpu->identity.vertex_output_buffer_size = 512;
 		else if (gpu->identity.revision < 0x4200)
@@ -219,9 +219,9 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 
 	switch (gpu->identity.instruction_count) {
 	case 0:
-		if ((gpu->identity.model == 0x2000 &&
+		if ((gpu->identity.model == chipModel_GC2000 &&
 		     gpu->identity.revision == 0x5108) ||
-		    gpu->identity.model == 0x880)
+		    gpu->identity.model == chipModel_GC880)
 			gpu->identity.instruction_count = 512;
 		else
 			gpu->identity.instruction_count = 256;
@@ -253,7 +253,7 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	/* Special case for older graphic cores. */
 	if (((chipIdentity & VIVS_HI_CHIP_IDENTITY_FAMILY__MASK)
 	     >> VIVS_HI_CHIP_IDENTITY_FAMILY__SHIFT) ==  0x01) {
-		gpu->identity.model    = 0x500; /* gc500 */
+		gpu->identity.model    = chipModel_GC500;
 		gpu->identity.revision =
 			(chipIdentity & VIVS_HI_CHIP_IDENTITY_REVISION__MASK)
 			>> VIVS_HI_CHIP_IDENTITY_REVISION__SHIFT;
@@ -269,12 +269,12 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		 * same.  Only for GC400 family.
 		 */
 		if ((gpu->identity.model & 0xff00) == 0x0400 &&
-		    gpu->identity.model != 0x0420) {
+		    gpu->identity.model != chipModel_GC420) {
 			gpu->identity.model = gpu->identity.model & 0x0400;
 		}
 
 		/* Another special case */
-		if (gpu->identity.model == 0x300 &&
+		if (gpu->identity.model == chipModel_GC300 &&
 		    gpu->identity.revision == 0x2201) {
 			u32 chipDate = gpu_read(gpu, VIVS_HI_CHIP_DATE);
 			u32 chipTime = gpu_read(gpu, VIVS_HI_CHIP_TIME);
@@ -295,11 +295,13 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	gpu->identity.features = gpu_read(gpu, VIVS_HI_CHIP_FEATURE);
 
 	/* Disable fast clear on GC700. */
-	if (gpu->identity.model == 0x700)
+	if (gpu->identity.model == chipModel_GC700)
 		gpu->identity.features &= ~chipFeatures_FAST_CLEAR;
 
-	if ((gpu->identity.model == 0x500 && gpu->identity.revision < 2) ||
-	    (gpu->identity.model == 0x300 && gpu->identity.revision < 0x2000)) {
+	if ((gpu->identity.model == chipModel_GC500 &&
+	     gpu->identity.revision < 2) ||
+	    (gpu->identity.model == chipModel_GC300 &&
+	     gpu->identity.revision < 0x2000)) {
 
 		/*
 		 * GC500 rev 1.x and GC300 rev < 2.0 doesn't have these
@@ -466,7 +468,8 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		  VIVS_HI_AXI_CONFIG_ARCACHE(2));
 
 	/* GC2000 rev 5108 needs a special bus config */
-	if (gpu->identity.model == 0x2000 && gpu->identity.revision == 0x5108) {
+	if (gpu->identity.model == chipModel_GC2000 &&
+	    gpu->identity.revision == 0x5108) {
 		u32 bus_config = gpu_read(gpu, VIVS_MC_BUS_CONFIG);
 		bus_config &= ~(VIVS_MC_BUS_CONFIG_FE_BUS_CONFIG__MASK |
 				VIVS_MC_BUS_CONFIG_TX_BUS_CONFIG__MASK);
