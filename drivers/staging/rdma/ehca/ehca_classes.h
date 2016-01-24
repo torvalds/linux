@@ -316,9 +316,8 @@ struct ehca_mr_pginfo {
 
 	union {
 		struct { /* type EHCA_MR_PGI_PHYS section */
-			int num_phys_buf;
-			struct ib_phys_buf *phys_buf_array;
-			u64 next_buf;
+			u64 addr;
+			u16 size;
 		} phy;
 		struct { /* type EHCA_MR_PGI_USER section */
 			struct ib_umem *region;

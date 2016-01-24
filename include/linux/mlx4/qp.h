@@ -194,7 +194,7 @@ struct mlx4_qp_context {
 	u8			mtu_msgmax;
 	u8			rq_size_stride;
 	u8			sq_size_stride;
-	u8			rlkey;
+	u8			rlkey_roce_mode;
 	__be32			usr_page;
 	__be32			local_qpn;
 	__be32			remote_qpn;
@@ -204,7 +204,8 @@ struct mlx4_qp_context {
 	u32			reserved1;
 	__be32			next_send_psn;
 	__be32			cqn_send;
-	u32			reserved2[2];
+	__be16                  roce_entropy;
+	__be16                  reserved2[3];
 	__be32			last_acked_psn;
 	__be32			ssn;
 	__be32			params2;
@@ -486,5 +487,15 @@ static inline struct mlx4_qp *__mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
 }
 
 void mlx4_qp_remove(struct mlx4_dev *dev, struct mlx4_qp *qp);
+
+static inline u16 folded_qp(u32 q)
+{
+	u16 res;
+
+	res = ((q & 0xff) ^ ((q & 0xff0000) >> 16)) | (q & 0xff00);
+	return res;
+}
+
+u16 mlx4_qp_roce_entropy(struct mlx4_dev *dev, u32 qpn);
 
 #endif /* MLX4_QP_H */
