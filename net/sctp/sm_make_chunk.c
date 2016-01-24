@@ -45,6 +45,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <crypto/hash.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/ip.h>
@@ -52,7 +53,6 @@
 #include <linux/net.h>
 #include <linux/inet.h>
 #include <linux/scatterlist.h>
-#include <linux/crypto.h>
 #include <linux/slab.h>
 #include <net/sock.h>
 
@@ -1606,7 +1606,6 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 {
 	sctp_cookie_param_t *retval;
 	struct sctp_signed_cookie *cookie;
-	struct scatterlist sg;
 	int headersize, bodysize;
 
 	/* Header size is static data prior to the actual cookie, including
@@ -1663,16 +1662,19 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	       ntohs(init_chunk->chunk_hdr->length), raw_addrs, addrs_len);
 
 	if (sctp_sk(ep->base.sk)->hmac) {
-		struct hash_desc desc;
+		SHASH_DESC_ON_STACK(desc, sctp_sk(ep->base.sk)->hmac);
+		int err;
 
 		/* Sign the message.  */
-		sg_init_one(&sg, &cookie->c, bodysize);
-		desc.tfm = sctp_sk(ep->base.sk)->hmac;
-		desc.flags = 0;
+		desc->tfm = sctp_sk(ep->base.sk)->hmac;
+		desc->flags = 0;
 
-		if (crypto_hash_setkey(desc.tfm, ep->secret_key,
-				       sizeof(ep->secret_key)) ||
-		    crypto_hash_digest(&desc, &sg, bodysize, cookie->signature))
+		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
+					  sizeof(ep->secret_key)) ?:
+		      crypto_shash_digest(desc, (u8 *)&cookie->c, bodysize,
+					  cookie->signature);
+		shash_desc_zero(desc);
+		if (err)
 			goto free_cookie;
 	}
 
@@ -1697,12 +1699,10 @@ struct sctp_association *sctp_unpack_cookie(
 	struct sctp_cookie *bear_cookie;
 	int headersize, bodysize, fixed_size;
 	__u8 *digest = ep->digest;
-	struct scatterlist sg;
 	unsigned int len;
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
 	ktime_t kt;
-	struct hash_desc desc;
 
 	/* Header size is static data prior to the actual cookie, including
 	 * any padding.
@@ -1733,16 +1733,23 @@ struct sctp_association *sctp_unpack_cookie(
 		goto no_hmac;
 
 	/* Check the signature.  */
-	sg_init_one(&sg, bear_cookie, bodysize);
-	desc.tfm = sctp_sk(ep->base.sk)->hmac;
-	desc.flags = 0;
+	{
+		SHASH_DESC_ON_STACK(desc, sctp_sk(ep->base.sk)->hmac);
+		int err;
 
-	memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
-	if (crypto_hash_setkey(desc.tfm, ep->secret_key,
-			       sizeof(ep->secret_key)) ||
-	    crypto_hash_digest(&desc, &sg, bodysize, digest)) {
-		*error = -SCTP_IERROR_NOMEM;
-		goto fail;
+		desc->tfm = sctp_sk(ep->base.sk)->hmac;
+		desc->flags = 0;
+
+		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
+					  sizeof(ep->secret_key)) ?:
+		      crypto_shash_digest(desc, (u8 *)bear_cookie, bodysize,
+					  digest);
+		shash_desc_zero(desc);
+
+		if (err) {
+			*error = -SCTP_IERROR_NOMEM;
+			goto fail;
+		}
 	}
 
 	if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {

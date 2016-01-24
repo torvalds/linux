@@ -82,7 +82,7 @@ struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
 struct sctp_ssnmap;
-struct crypto_hash;
+struct crypto_shash;
 
 
 #include <net/sctp/tsnmap.h>
@@ -166,7 +166,7 @@ struct sctp_sock {
 	struct sctp_pf *pf;
 
 	/* Access to HMAC transform. */
-	struct crypto_hash *hmac;
+	struct crypto_shash *hmac;
 	char *sctp_hmac_alg;
 
 	/* What is our base endpointer? */
@@ -1235,7 +1235,7 @@ struct sctp_endpoint {
 	/* SCTP AUTH: array of the HMACs that will be allocated
 	 * we need this per association so that we don't serialize
 	 */
-	struct crypto_hash **auth_hmacs;
+	struct crypto_shash **auth_hmacs;
 
 	/* SCTP-AUTH: hmacs for the endpoint encoded into parameter */
 	 struct sctp_hmac_algo_param *auth_hmacs_list;
