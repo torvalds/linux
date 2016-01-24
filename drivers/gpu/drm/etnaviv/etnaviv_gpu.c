@@ -120,6 +120,10 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 	return 0;
 }
 
+
+#define etnaviv_is_model_rev(gpu, mod, rev) \
+	((gpu)->identity.model == chipModel_##mod && \
+	 (gpu)->identity.revision == rev)
 #define etnaviv_field(val, field) \
 	(((val) & field##__MASK) >> field##__SHIFT)
 
@@ -213,8 +217,7 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 
 	switch (gpu->identity.instruction_count) {
 	case 0:
-		if ((gpu->identity.model == chipModel_GC2000 &&
-		     gpu->identity.revision == 0x5108) ||
+		if (etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
 		    gpu->identity.model == chipModel_GC880)
 			gpu->identity.instruction_count = 512;
 		else
@@ -266,8 +269,7 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		}
 
 		/* Another special case */
-		if (gpu->identity.model == chipModel_GC300 &&
-		    gpu->identity.revision == 0x2201) {
+		if (etnaviv_is_model_rev(gpu, GC300, 0x2201)) {
 			u32 chipDate = gpu_read(gpu, VIVS_HI_CHIP_DATE);
 			u32 chipTime = gpu_read(gpu, VIVS_HI_CHIP_TIME);
 
@@ -435,10 +437,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
 	u16 prefetch;
 
-	if (gpu->identity.model == chipModel_GC320 &&
-	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400 &&
-	    (gpu->identity.revision == 0x5007 ||
-	     gpu->identity.revision == 0x5220)) {
+	if ((etnaviv_is_model_rev(gpu, GC320, 0x5007) ||
+	     etnaviv_is_model_rev(gpu, GC320, 0x5220)) &&
+	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400) {
 		u32 mc_memory_debug;
 
 		mc_memory_debug = gpu_read(gpu, VIVS_MC_DEBUG_MEMORY) & ~0xff;
@@ -460,8 +461,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		  VIVS_HI_AXI_CONFIG_ARCACHE(2));
 
 	/* GC2000 rev 5108 needs a special bus config */
-	if (gpu->identity.model == chipModel_GC2000 &&
-	    gpu->identity.revision == 0x5108) {
+	if (etnaviv_is_model_rev(gpu, GC2000, 0x5108)) {
 		u32 bus_config = gpu_read(gpu, VIVS_MC_BUS_CONFIG);
 		bus_config &= ~(VIVS_MC_BUS_CONFIG_FE_BUS_CONFIG__MASK |
 				VIVS_MC_BUS_CONFIG_TX_BUS_CONFIG__MASK);
