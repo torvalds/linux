@@ -752,7 +752,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 #ifdef CONFIG_MATH_EMULATION
-	if (read_cr0() & X86_CR0_EM) {
+	if (!boot_cpu_has(X86_FEATURE_FPU) && (read_cr0() & X86_CR0_EM)) {
 		struct math_emu_info info = { };
 
 		conditional_sti(regs);
