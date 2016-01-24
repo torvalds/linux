@@ -567,6 +567,7 @@
  *	by the kernel.
  *	@buf pointer to buffer containing the file contents.
  *	@size length of the file contents.
+ *	@id kernel read file identifier
  *	Return 0 if permission is granted.
  * @task_fix_setuid:
  *	Update the module's state after setting one or more of the user
@@ -1464,7 +1465,8 @@ union security_list_options {
 	int (*kernel_fw_from_file)(struct file *file, char *buf, size_t size);
 	int (*kernel_module_request)(char *kmod_name);
 	int (*kernel_module_from_file)(struct file *file);
-	int (*kernel_post_read_file)(struct file *file, char *buf, loff_t size);
+	int (*kernel_post_read_file)(struct file *file, char *buf, loff_t size,
+				     enum kernel_read_file_id id);
 	int (*task_fix_setuid)(struct cred *new, const struct cred *old,
 				int flags);
 	int (*task_setpgid)(struct task_struct *p, pid_t pgid);

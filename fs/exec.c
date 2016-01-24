@@ -833,7 +833,7 @@ int kernel_read(struct file *file, loff_t offset,
 EXPORT_SYMBOL(kernel_read);
 
 int kernel_read_file(struct file *file, void **buf, loff_t *size,
-		     loff_t max_size)
+		     loff_t max_size, enum kernel_read_file_id id)
 {
 	loff_t i_size, pos;
 	ssize_t bytes = 0;
@@ -871,7 +871,7 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 		goto out;
 	}
 
-	ret = security_kernel_post_read_file(file, *buf, i_size);
+	ret = security_kernel_post_read_file(file, *buf, i_size, id);
 	if (!ret)
 		*size = pos;
 

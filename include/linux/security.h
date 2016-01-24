@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 
 struct linux_binprm;
 struct cred;
@@ -301,7 +302,8 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode);
 int security_kernel_fw_from_file(struct file *file, char *buf, size_t size);
 int security_kernel_module_request(char *kmod_name);
 int security_kernel_module_from_file(struct file *file);
-int security_kernel_post_read_file(struct file *file, char *buf, loff_t size);
+int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
+				   enum kernel_read_file_id id);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
 int security_task_setpgid(struct task_struct *p, pid_t pgid);
@@ -868,7 +870,8 @@ static inline int security_kernel_module_from_file(struct file *file)
 }
 
 static inline int security_kernel_post_read_file(struct file *file,
-						 char *buf, loff_t size)
+						 char *buf, loff_t size,
+						 enum kernel_read_file_id id)
 {
 	return 0;
 }
