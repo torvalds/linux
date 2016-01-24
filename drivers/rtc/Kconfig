@@ -212,6 +212,15 @@ config RTC_DRV_DS1307
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1307.
 
+config RTC_DRV_DS1307_HWMON
+	bool "HWMON support for rtc-ds1307"
+	depends on RTC_DRV_DS1307 && HWMON
+	depends on !(RTC_DRV_DS1307=y && HWMON=m)
+	default y
+	help
+	  Say Y here if you want to expose temperature sensor data on
+	  rtc-ds1307 (only DS3231)
+
 config RTC_DRV_DS1374
 	tristate "Dallas/Maxim DS1374"
 	help
