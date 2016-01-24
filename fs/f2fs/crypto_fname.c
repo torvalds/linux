@@ -15,11 +15,9 @@
  *
  * This has not yet undergone a rigorous security audit.
  */
-#include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/skcipher.h>
 #include <keys/encrypted-type.h>
 #include <keys/user-type.h>
-#include <linux/crypto.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/key.h>
@@ -70,10 +68,10 @@ static int f2fs_fname_encrypt(struct inode *inode,
 			const struct qstr *iname, struct f2fs_str *oname)
 {
 	u32 ciphertext_len;
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_F2FS_COMPLETION_RESULT(ecr);
 	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
-	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 	char iv[F2FS_CRYPTO_BLOCK_SIZE];
 	struct scatterlist src_sg, dst_sg;
@@ -99,14 +97,14 @@ static int f2fs_fname_encrypt(struct inode *inode,
 	}
 
 	/* Allocate request */
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
 			"%s: crypto_request_alloc() failed\n", __func__);
 		kfree(alloc_buf);
 		return -ENOMEM;
 	}
-	ablkcipher_request_set_callback(req,
+	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			f2fs_dir_crypt_complete, &ecr);
 
@@ -121,15 +119,15 @@ static int f2fs_fname_encrypt(struct inode *inode,
 	/* Create encryption request */
 	sg_init_one(&src_sg, workbuf, ciphertext_len);
 	sg_init_one(&dst_sg, oname->name, ciphertext_len);
-	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
-	res = crypto_ablkcipher_encrypt(req);
+	skcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
+	res = crypto_skcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
 	kfree(alloc_buf);
-	ablkcipher_request_free(req);
+	skcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(KERN_ERR
 				"%s: Error (error code %d)\n", __func__, res);
@@ -148,11 +146,11 @@ static int f2fs_fname_encrypt(struct inode *inode,
 static int f2fs_fname_decrypt(struct inode *inode,
 			const struct f2fs_str *iname, struct f2fs_str *oname)
 {
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_F2FS_COMPLETION_RESULT(ecr);
 	struct scatterlist src_sg, dst_sg;
 	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
-	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 	char iv[F2FS_CRYPTO_BLOCK_SIZE];
 	unsigned lim = max_name_len(inode);
@@ -161,13 +159,13 @@ static int f2fs_fname_decrypt(struct inode *inode,
 		return -EIO;
 
 	/* Allocate request */
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
 			"%s: crypto_request_alloc() failed\n",  __func__);
 		return -ENOMEM;
 	}
-	ablkcipher_request_set_callback(req,
+	skcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		f2fs_dir_crypt_complete, &ecr);
 
@@ -177,14 +175,14 @@ static int f2fs_fname_decrypt(struct inode *inode,
 	/* Create decryption request */
 	sg_init_one(&src_sg, iname->name, iname->len);
 	sg_init_one(&dst_sg, oname->name, oname->len);
-	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, iv);
-	res = crypto_ablkcipher_decrypt(req);
+	skcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, iv);
+	res = crypto_skcipher_decrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	ablkcipher_request_free(req);
+	skcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(KERN_ERR
 			"%s: Error in f2fs_fname_decrypt (error code %d)\n",
