@@ -539,7 +539,7 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 					   struct iwl_nvm_data *data,
 					   const __le16 *mac_override,
 					   const __le16 *nvm_hw,
-					   u32 mac_addr0, u32 mac_addr1)
+					   __le32 mac_addr0, __le32 mac_addr1)
 {
 	const u8 *hw_addr;
 
@@ -583,7 +583,8 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 
 		if (!is_valid_ether_addr(data->hw_addr))
 			IWL_ERR_DEV(dev,
-				    "mac address from hw section is not valid\n");
+				    "mac address (%pM) from hw section is not valid\n",
+				    data->hw_addr);
 
 		return;
 	}
@@ -597,7 +598,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
 		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported,
-		   u32 mac_addr0, u32 mac_addr1)
+		   __le32 mac_addr0, __le32 mac_addr1)
 {
 	struct iwl_nvm_data *data;
 	u32 sku;
