@@ -19,7 +19,7 @@
 
 #include <linux/completion.h>
 #include <linux/firmware.h>
-#include <linux/crypto.h>
+#include <crypto/hash.h>
 #include <crypto/sha.h>
 
 #include "s3fwrn5.h"
@@ -429,8 +429,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 {
 	struct s3fwrn5_fw_image *fw = &fw_info->fw;
 	u8 hash_data[SHA1_DIGEST_SIZE];
-	struct scatterlist sg;
-	struct hash_desc desc;
+	struct crypto_shash *tfm;
 	u32 image_size, off;
 	int ret;
 
@@ -438,12 +437,31 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 
 	/* Compute SHA of firmware data */
 
-	sg_init_one(&sg, fw->image, image_size);
-	desc.tfm = crypto_alloc_hash("sha1", 0, CRYPTO_ALG_ASYNC);
-	crypto_hash_init(&desc);
-	crypto_hash_update(&desc, &sg, image_size);
-	crypto_hash_final(&desc, hash_data);
-	crypto_free_hash(desc.tfm);
+	tfm = crypto_alloc_shash("sha1", 0, 0);
+	if (IS_ERR(tfm)) {
+		ret = PTR_ERR(tfm);
+		dev_err(&fw_info->ndev->nfc_dev->dev,
+			"Cannot allocate shash (code=%d)\n", ret);
+		goto out;
+	}
+
+	{
+		SHASH_DESC_ON_STACK(desc, tfm);
+
+		desc->tfm = tfm;
+		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		ret = crypto_shash_digest(desc, fw->image, image_size,
+					  hash_data);
+		shash_desc_zero(desc);
+	}
+
+	crypto_free_shash(tfm);
+	if (ret) {
+		dev_err(&fw_info->ndev->nfc_dev->dev,
+			"Cannot compute hash (code=%d)\n", ret);
+		goto out;
+	}
 
 	/* Firmware update process */
 
