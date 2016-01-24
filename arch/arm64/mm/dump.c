@@ -46,7 +46,7 @@ enum address_markers_idx {
 	PCI_START_NR,
 	PCI_END_NR,
 	MODULES_START_NR,
-	MODUELS_END_NR,
+	MODULES_END_NR,
 	KERNEL_SPACE_NR,
 };
 
