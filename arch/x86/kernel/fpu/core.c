@@ -114,6 +114,10 @@ void __kernel_fpu_begin(void)
 	kernel_fpu_disable();
 
 	if (fpu->fpregs_active) {
+		/*
+		 * Ignore return value -- we don't care if reg state
+		 * is clobbered.
+		 */
 		copy_fpregs_to_fpstate(fpu);
 	} else {
 		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
@@ -189,8 +193,12 @@ void fpu__save(struct fpu *fpu)
 
 	preempt_disable();
 	if (fpu->fpregs_active) {
-		if (!copy_fpregs_to_fpstate(fpu))
-			fpregs_deactivate(fpu);
+		if (!copy_fpregs_to_fpstate(fpu)) {
+			if (use_eager_fpu())
+				copy_kernel_to_fpregs(&fpu->state);
+			else
+				fpregs_deactivate(fpu);
+		}
 	}
 	preempt_enable();
 }
@@ -259,7 +267,11 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	preempt_disable();
 	if (!copy_fpregs_to_fpstate(dst_fpu)) {
 		memcpy(&src_fpu->state, &dst_fpu->state, xstate_size);
-		fpregs_deactivate(src_fpu);
+
+		if (use_eager_fpu())
+			copy_kernel_to_fpregs(&src_fpu->state);
+		else
+			fpregs_deactivate(src_fpu);
 	}
 	preempt_enable();
 }
