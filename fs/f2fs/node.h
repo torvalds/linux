@@ -379,6 +379,21 @@ static inline int is_node(struct page *page, int type)
 #define is_fsync_dnode(page)	is_node(page, FSYNC_BIT_SHIFT)
 #define is_dent_dnode(page)	is_node(page, DENT_BIT_SHIFT)
 
+static inline int is_inline_node(struct page *page)
+{
+	return PageChecked(page);
+}
+
+static inline void set_inline_node(struct page *page)
+{
+	SetPageChecked(page);
+}
+
+static inline void clear_inline_node(struct page *page)
+{
+	ClearPageChecked(page);
+}
+
 static inline void set_cold_node(struct inode *inode, struct page *page)
 {
 	struct f2fs_node *rn = F2FS_NODE(page);

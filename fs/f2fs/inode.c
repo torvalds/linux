@@ -263,6 +263,10 @@ int update_inode(struct inode *inode, struct page *node_page)
 	set_cold_node(inode, node_page);
 	clear_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
 
+	/* deleted inode */
+	if (inode->i_nlink == 0)
+		clear_inline_node(node_page);
+
 	return set_page_dirty(node_page);
 }
 

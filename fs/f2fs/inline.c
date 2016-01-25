@@ -159,6 +159,7 @@ no_update:
 
 	/* clear inline data and flag after data writeback */
 	truncate_inline_inode(dn->inode_page, 0);
+	clear_inline_node(dn->inode_page);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
 	f2fs_clear_inline_inode(dn->inode);
@@ -233,6 +234,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
 	set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
 
 	sync_inode_page(&dn);
+	clear_inline_node(dn.inode_page);
 	f2fs_put_dnode(&dn);
 	return 0;
 }
