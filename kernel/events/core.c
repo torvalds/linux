@@ -8489,6 +8489,8 @@ SYSCALL_DEFINE5(perf_event_open,
 	perf_event__header_size(event);
 	perf_event__id_header_size(event);
 
+	event->owner = current;
+
 	perf_install_in_context(ctx, event, event->cpu);
 	perf_unpin_context(ctx);
 
@@ -8497,8 +8499,6 @@ SYSCALL_DEFINE5(perf_event_open,
 	mutex_unlock(&ctx->mutex);
 
 	put_online_cpus();
-
-	event->owner = current;
 
 	mutex_lock(&current->perf_event_mutex);
 	list_add_tail(&event->owner_entry, &current->perf_event_list);
