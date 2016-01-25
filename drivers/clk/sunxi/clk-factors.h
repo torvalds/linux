@@ -22,6 +22,7 @@ struct clk_factors_config {
 struct factors_request {
 	unsigned long rate;
 	unsigned long parent_rate;
+	u8 parent_index;
 	u8 n;
 	u8 k;
 	u8 m;
@@ -34,6 +35,7 @@ struct factors_data {
 	int muxmask;
 	const struct clk_factors_config *table;
 	void (*getter)(struct factors_request *req);
+	void (*recalc)(struct factors_request *req);
 	const char *name;
 };
 
@@ -42,6 +44,7 @@ struct clk_factors {
 	void __iomem *reg;
 	const struct clk_factors_config *config;
 	void (*get_factors)(struct factors_request *req);
+	void (*recalc)(struct factors_request *req);
 	spinlock_t *lock;
 	/* for cleanup */
 	struct clk_mux *mux;

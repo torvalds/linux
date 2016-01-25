@@ -63,6 +63,26 @@ static unsigned long clk_factors_recalc_rate(struct clk_hw *hw,
 	if (config->pwidth != SUNXI_FACTORS_NOT_APPLICABLE)
 		p = FACTOR_GET(config->pshift, config->pwidth, reg);
 
+	if (factors->recalc) {
+		struct factors_request factors_req = {
+			.parent_rate = parent_rate,
+			.n = n,
+			.k = k,
+			.m = m,
+			.p = p,
+		};
+
+		/* get mux details from mux clk structure */
+		if (factors->mux)
+			factors_req.parent_index =
+				(reg >> factors->mux->shift) &
+				factors->mux->mask;
+
+		factors->recalc(&factors_req);
+
+		return factors_req.rate;
+	}
+
 	/* Calculate the rate */
 	rate = (parent_rate * (n + config->n_start) * (k + 1) >> p) / (m + 1);
 
@@ -87,6 +107,7 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_factors_determine_rate(struct clk_hw *hw,
 				      struct clk_rate_request *req)
 {
+	struct clk_factors *factors = to_clk_factors(hw);
 	struct clk_hw *parent, *best_parent = NULL;
 	int i, num_parents;
 	unsigned long parent_rate, best = 0, child_rate, best_child_rate = 0;
@@ -94,6 +115,10 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 	/* find the parent that can help provide the fastest rate <= rate */
 	num_parents = clk_hw_get_num_parents(hw);
 	for (i = 0; i < num_parents; i++) {
+		struct factors_request factors_req = {
+			.rate = req->rate,
+			.parent_index = i,
+		};
 		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
@@ -102,8 +127,9 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 		else
 			parent_rate = clk_hw_get_rate(parent);
 
-		child_rate = clk_factors_round_rate(hw, req->rate,
-						    &parent_rate);
+		factors_req.parent_rate = parent_rate;
+		factors->get_factors(&factors_req);
+		child_rate = factors_req.rate;
 
 		if (child_rate <= req->rate && child_rate > best_child_rate) {
 			best_parent = parent;
@@ -202,6 +228,7 @@ struct clk *sunxi_factors_register(struct device_node *node,
 	factors->reg = reg;
 	factors->config = data->table;
 	factors->get_factors = data->getter;
+	factors->recalc = data->recalc;
 	factors->lock = lock;
 
 	/* Add a gate if this factor clock can be gated */
