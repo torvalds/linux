@@ -9,6 +9,7 @@ if MTD_SPI_NOR
 
 config MTD_MT81xx_NOR
 	tristate "Mediatek MT81xx SPI NOR flash controller"
+	depends on HAS_IOMEM
 	help
 	  This enables access to SPI NOR flash, using MT81xx SPI NOR flash
 	  controller. This controller does not support generic SPI BUS, it only
