@@ -1003,6 +1003,12 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 data[NR_MEASUREMENT_CHARS];
 	} __attribute__ ((packed)) *scmc_area;
 
+	chp->shared = -1;
+	chp->cmg = -1;
+
+	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
+		return 0;
+
 	spin_lock_irq(&chsc_page_lock);
 	memset(chsc_page, 0, PAGE_SIZE);
 	scmc_area = chsc_page;
@@ -1023,11 +1029,9 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 			      scmc_area->response.code);
 		goto out;
 	}
-	if (scmc_area->not_valid) {
-		chp->cmg = -1;
-		chp->shared = -1;
+	if (scmc_area->not_valid)
 		goto out;
-	}
+
 	chp->cmg = scmc_area->cmg;
 	chp->shared = scmc_area->shared;
 	if (chp->cmg != 2 && chp->cmg != 3) {
