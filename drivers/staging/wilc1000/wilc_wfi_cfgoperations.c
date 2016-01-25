@@ -2131,8 +2131,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
-		wilc_enable_ps = false;
-		wilc_set_power_mgmt(vif, 0, 0);
 		wilc_connecting = 0;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_P2P_CLIENT\n");
 
@@ -2141,6 +2139,9 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->monitor_flag = 0;
 		vif->iftype = CLIENT_MODE;
 		wilc_set_operation_mode(vif, STATION_MODE);
+
+		wilc_enable_ps = false;
+		wilc_set_power_mgmt(vif, 0, 0);
 		break;
 
 	case NL80211_IFTYPE_AP:
@@ -2163,14 +2164,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		wilc_optaining_ip = true;
 		mod_timer(&wilc_during_ip_timer,
 			  jiffies + msecs_to_jiffies(during_ip_time));
-		wilc_set_power_mgmt(vif, 0, 0);
-		wilc_enable_ps = false;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_GO\n");
 
 		wilc_set_operation_mode(vif, AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		vif->iftype = GO_MODE;
+
+		wilc_enable_ps = false;
+		wilc_set_power_mgmt(vif, 0, 0);
 		break;
 
 	default:
