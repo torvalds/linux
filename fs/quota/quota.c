@@ -768,6 +768,7 @@ static int quotactl_cmd_write(int cmd)
 	switch (cmd) {
 	case Q_GETFMT:
 	case Q_GETINFO:
+	case Q_GETQUOTA:
 	case Q_GETNEXTQUOTA:
 	case Q_SYNC:
 	case Q_XGETQSTAT:
