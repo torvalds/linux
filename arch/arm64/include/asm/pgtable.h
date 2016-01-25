@@ -422,15 +422,16 @@ static inline void pmd_clear(pmd_t *pmdp)
 	set_pmd(pmdp, __pmd(0));
 }
 
-static inline pte_t *pmd_page_vaddr(pmd_t pmd)
+static inline phys_addr_t pmd_page_paddr(pmd_t pmd)
 {
-	return __va(pmd_val(pmd) & PHYS_MASK & (s32)PAGE_MASK);
+	return pmd_val(pmd) & PHYS_MASK & (s32)PAGE_MASK;
 }
 
 /* Find an entry in the third-level page table. */
 #define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
-#define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + pte_index(addr))
+#define pte_offset_phys(dir,addr)	(pmd_page_paddr(*(dir)) + pte_index(addr) * sizeof(pte_t))
+#define pte_offset_kernel(dir,addr)	((pte_t *)__va(pte_offset_phys((dir), (addr))))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
 #define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))
@@ -465,20 +466,22 @@ static inline void pud_clear(pud_t *pudp)
 	set_pud(pudp, __pud(0));
 }
 
-static inline pmd_t *pud_page_vaddr(pud_t pud)
+static inline phys_addr_t pud_page_paddr(pud_t pud)
 {
-	return __va(pud_val(pud) & PHYS_MASK & (s32)PAGE_MASK);
+	return pud_val(pud) & PHYS_MASK & (s32)PAGE_MASK;
 }
 
 /* Find an entry in the second-level page table. */
 #define pmd_index(addr)		(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
 
-static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
-{
-	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(addr);
-}
+#define pmd_offset_phys(dir, addr)	(pud_page_paddr(*(dir)) + pmd_index(addr) * sizeof(pmd_t))
+#define pmd_offset(dir, addr)		((pmd_t *)__va(pmd_offset_phys((dir), (addr))))
 
 #define pud_page(pud)		pfn_to_page(__phys_to_pfn(pud_val(pud) & PHYS_MASK))
+
+#else
+
+#define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
 
 #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
 
@@ -501,20 +504,22 @@ static inline void pgd_clear(pgd_t *pgdp)
 	set_pgd(pgdp, __pgd(0));
 }
 
-static inline pud_t *pgd_page_vaddr(pgd_t pgd)
+static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 {
-	return __va(pgd_val(pgd) & PHYS_MASK & (s32)PAGE_MASK);
+	return pgd_val(pgd) & PHYS_MASK & (s32)PAGE_MASK;
 }
 
 /* Find an entry in the frst-level page table. */
 #define pud_index(addr)		(((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
-{
-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(addr);
-}
+#define pud_offset_phys(dir, addr)	(pgd_page_paddr(*(dir)) + pud_index(addr) * sizeof(pud_t))
+#define pud_offset(dir, addr)		((pud_t *)__va(pud_offset_phys((dir), (addr))))
 
 #define pgd_page(pgd)		pfn_to_page(__phys_to_pfn(pgd_val(pgd) & PHYS_MASK))
+
+#else
+
+#define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
 
 #endif  /* CONFIG_PGTABLE_LEVELS > 3 */
 
@@ -523,7 +528,9 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
 /* to find an entry in a page-table-directory */
 #define pgd_index(addr)		(((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
 
-#define pgd_offset(mm, addr)	((mm)->pgd+pgd_index(addr))
+#define pgd_offset_raw(pgd, addr)	((pgd) + pgd_index(addr))
+
+#define pgd_offset(mm, addr)	(pgd_offset_raw((mm)->pgd, (addr)))
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
