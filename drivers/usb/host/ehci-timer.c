@@ -237,6 +237,7 @@ static void ehci_handle_start_intr_unlinks(struct ehci_hcd *ehci)
 				ehci->intr_unlink_wait_cycle))
 			break;
 		list_del_init(&qh->unlink_node);
+		qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
 		start_unlink_intr(ehci, qh);
 	}
 

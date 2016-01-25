@@ -911,7 +911,7 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		 */
 	} else {
 		qh = (struct ehci_qh *) urb->hcpriv;
-		qh->exception = 1;
+		qh->unlink_reason |= QH_UNLINK_REQUESTED;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 			if (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)
@@ -972,10 +972,13 @@ rescan:
 		goto done;
 	}
 
-	qh->exception = 1;
+	qh->unlink_reason |= QH_UNLINK_REQUESTED;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:
-		WARN_ON(!list_empty(&qh->qtd_list));
+		if (list_empty(&qh->qtd_list))
+			qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
+		else
+			WARN_ON(1);
 		if (usb_endpoint_type(&ep->desc) != USB_ENDPOINT_XFER_INT)
 			start_unlink_async(ehci, qh);
 		else
@@ -1042,7 +1045,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			 * re-linking will call qh_refresh().
 			 */
 			usb_settoggle(qh->ps.udev, epnum, is_out, 0);
-			qh->exception = 1;
+			qh->unlink_reason |= QH_UNLINK_REQUESTED;
 			if (eptype == USB_ENDPOINT_XFER_BULK)
 				start_unlink_async(ehci, qh);
 			else

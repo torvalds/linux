@@ -432,13 +432,19 @@ struct ehci_qh {
 	u8			xacterrs;	/* XactErr retry counter */
 #define	QH_XACTERR_MAX		32		/* XactErr retry limit */
 
+	u8			unlink_reason;
+#define QH_UNLINK_HALTED	0x01		/* Halt flag is set */
+#define QH_UNLINK_SHORT_READ	0x02		/* Recover from a short read */
+#define QH_UNLINK_DUMMY_OVERLAY	0x04		/* QH overlayed the dummy TD */
+#define QH_UNLINK_SHUTDOWN	0x08		/* The HC isn't running */
+#define QH_UNLINK_QUEUE_EMPTY	0x10		/* Reached end of the queue */
+#define QH_UNLINK_REQUESTED	0x20		/* Disable, reset, or dequeue */
+
 	u8			gap_uf;		/* uframes split/csplit gap */
 
 	unsigned		is_out:1;	/* bulk or intr OUT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
 	unsigned		dequeue_during_giveback:1;
-	unsigned		exception:1;	/* got a fault, or an unlink
-						   was requested */
 	unsigned		should_be_inactive:1;
 };
 

@@ -394,6 +394,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 					goto retry_xacterr;
 				}
 				stopped = 1;
+				qh->unlink_reason |= QH_UNLINK_HALTED;
 
 			/* magic dummy for some short reads; qh won't advance.
 			 * that silicon quirk can kick in with this dummy too.
@@ -408,6 +409,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 					&& !(qtd->hw_alt_next
 						& EHCI_LIST_END(ehci))) {
 				stopped = 1;
+				qh->unlink_reason |= QH_UNLINK_SHORT_READ;
 			}
 
 		/* stop scanning when we reach qtds the hc is using */
@@ -420,8 +422,10 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			stopped = 1;
 
 			/* cancel everything if we halt, suspend, etc */
-			if (ehci->rh_state < EHCI_RH_RUNNING)
+			if (ehci->rh_state < EHCI_RH_RUNNING) {
 				last_status = -ESHUTDOWN;
+				qh->unlink_reason |= QH_UNLINK_SHUTDOWN;
+			}
 
 			/* this qtd is active; skip it unless a previous qtd
 			 * for its urb faulted, or its urb was canceled.
@@ -538,10 +542,10 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * except maybe high bandwidth ...
 	 */
 	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci))
-		qh->exception = 1;
+		qh->unlink_reason |= QH_UNLINK_DUMMY_OVERLAY;
 
 	/* Let the caller know if the QH needs to be unlinked. */
-	return qh->exception;
+	return qh->unlink_reason;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1003,7 +1007,7 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	qh->qh_state = QH_STATE_LINKED;
 	qh->xacterrs = 0;
-	qh->exception = 0;
+	qh->unlink_reason = 0;
 	/* qtd completions reported later by interrupt */
 
 	enable_async(ehci);
@@ -1395,6 +1399,7 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 
 	/* If nothing else is being unlinked, unlink the last empty QH */
 	if (list_empty(&ehci->async_unlink) && qh_to_unlink) {
+		qh_to_unlink->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
 		start_unlink_async(ehci, qh_to_unlink);
 		--count;
 	}

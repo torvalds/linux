@@ -595,7 +595,7 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	}
 	qh->qh_state = QH_STATE_LINKED;
 	qh->xacterrs = 0;
-	qh->exception = 0;
+	qh->unlink_reason = 0;
 
 	/* update per-qh bandwidth for debugfs */
 	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->ps.bw_period
