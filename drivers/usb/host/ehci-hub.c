@@ -347,7 +347,8 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		goto done;
 	ehci->rh_state = EHCI_RH_SUSPENDED;
 
-	end_unlink_async(ehci);
+	/* Any IAA cycle that started before the suspend is now invalid */
+	end_iaa_cycle(ehci);
 	unlink_empty_async_suspended(ehci);
 	ehci_handle_start_intr_unlinks(ehci);
 	ehci_handle_intr_unlinks(ehci);

@@ -306,6 +306,7 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 /*-------------------------------------------------------------------------*/
 
+static void end_iaa_cycle(struct ehci_hcd *ehci);
 static void end_unlink_async(struct ehci_hcd *ehci);
 static void unlink_empty_async(struct ehci_hcd *ehci);
 static void unlink_empty_async_suspended(struct ehci_hcd *ehci);
@@ -758,7 +759,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
 		if (ehci->iaa_in_progress)
 			COUNT(ehci->stats.iaa);
-		end_unlink_async(ehci);
+		end_iaa_cycle(ehci);
 	}
 
 	/* remote wakeup [4.3.1] */

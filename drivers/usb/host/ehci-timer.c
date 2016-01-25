@@ -361,7 +361,7 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	}
 
 	ehci_dbg(ehci, "IAA watchdog: status %x cmd %x\n", status, cmd);
-	end_unlink_async(ehci);
+	end_iaa_cycle(ehci);
 }
 
 

@@ -1283,17 +1283,13 @@ static void single_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 static void start_iaa_cycle(struct ehci_hcd *ehci)
 {
-	/* Do nothing if an IAA cycle is already running */
-	if (ehci->iaa_in_progress)
-		return;
-	ehci->iaa_in_progress = true;
-
 	/* If the controller isn't running, we don't have to wait for it */
 	if (unlikely(ehci->rh_state < EHCI_RH_RUNNING)) {
 		end_unlink_async(ehci);
 
-	/* Otherwise start a new IAA cycle */
-	} else if (likely(ehci->rh_state == EHCI_RH_RUNNING)) {
+	/* Otherwise start a new IAA cycle if one isn't already running */
+	} else if (ehci->rh_state == EHCI_RH_RUNNING &&
+			!ehci->iaa_in_progress) {
 
 		/* Make sure the unlinks are all visible to the hardware */
 		wmb();
@@ -1301,23 +1297,29 @@ static void start_iaa_cycle(struct ehci_hcd *ehci)
 		ehci_writel(ehci, ehci->command | CMD_IAAD,
 				&ehci->regs->command);
 		ehci_readl(ehci, &ehci->regs->command);
+		ehci->iaa_in_progress = true;
 		ehci_enable_event(ehci, EHCI_HRTIMER_IAA_WATCHDOG, true);
 	}
 }
 
-/* the async qh for the qtds being unlinked are now gone from the HC */
-
-static void end_unlink_async(struct ehci_hcd *ehci)
+static void end_iaa_cycle(struct ehci_hcd *ehci)
 {
-	struct ehci_qh		*qh;
-	bool			early_exit;
-
 	if (ehci->has_synopsys_hc_bug)
 		ehci_writel(ehci, (u32) ehci->async->qh_dma,
 			    &ehci->regs->async_next);
 
 	/* The current IAA cycle has ended */
 	ehci->iaa_in_progress = false;
+
+	end_unlink_async(ehci);
+}
+
+/* See if the async qh for the qtds being unlinked are now gone from the HC */
+
+static void end_unlink_async(struct ehci_hcd *ehci)
+{
+	struct ehci_qh		*qh;
+	bool			early_exit;
 
 	if (list_empty(&ehci->async_unlink))
 		return;
