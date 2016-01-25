@@ -524,7 +524,8 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 		if ((u8MacStatus == MAC_DISCONNECTED) &&
 		    (pstrConnectInfo->u16ConnectStatus == SUCCESSFUL_STATUSCODE)) {
 			u16ConnectStatus = WLAN_STATUS_UNSPECIFIED_FAILURE;
-			wilc_wlan_set_bssid(priv->dev, NullBssid);
+			wilc_wlan_set_bssid(priv->dev, NullBssid,
+					    STATION_MODE);
 			eth_zero_addr(wilc_connected_ssid);
 
 			if (!pstrWFIDrv->p2p_connect)
@@ -577,7 +578,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 		p2p_recv_random = 0x00;
 		wilc_ie = false;
 		eth_zero_addr(priv->au8AssociatedBss);
-		wilc_wlan_set_bssid(priv->dev, NullBssid);
+		wilc_wlan_set_bssid(priv->dev, NullBssid, STATION_MODE);
 		eth_zero_addr(wilc_connected_ssid);
 
 		if (!pstrWFIDrv->p2p_connect)
@@ -903,7 +904,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (!pstrWFIDrv->p2p_connect)
 		wlan_channel = pstrNetworkInfo->u8channel;
 
-	wilc_wlan_set_bssid(dev, pstrNetworkInfo->au8bssid);
+	wilc_wlan_set_bssid(dev, pstrNetworkInfo->au8bssid, STATION_MODE);
 
 	s32Error = wilc_set_join_req(vif, pstrNetworkInfo->au8bssid, sme->ssid,
 				     sme->ssid_len, sme->ie, sme->ie_len,
@@ -937,7 +938,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 	if (!pstrWFIDrv->p2p_connect)
 		wlan_channel = INVALID_CHANNEL;
-	wilc_wlan_set_bssid(priv->dev, NullBssid);
+	wilc_wlan_set_bssid(priv->dev, NullBssid, STATION_MODE);
 
 	PRINT_D(CFG80211_DBG, "Disconnecting with reason code(%d)\n", reason_code);
 
@@ -2400,7 +2401,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (s32Error != 0)
 		PRINT_ER("Error in setting channel\n");
 
-	wilc_wlan_set_bssid(dev, wl->vif[0]->src_addr);
+	wilc_wlan_set_bssid(dev, wl->vif[0]->src_addr, AP_MODE);
 
 	s32Error = wilc_add_beacon(vif, settings->beacon_interval,
 				   settings->dtim_period, beacon->head_len,
@@ -2444,7 +2445,7 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	PRINT_D(HOSTAPD_DBG, "Deleting beacon\n");
 
-	wilc_wlan_set_bssid(dev, NullBssid);
+	wilc_wlan_set_bssid(dev, NullBssid, AP_MODE);
 
 	s32Error = wilc_del_beacon(vif);
 

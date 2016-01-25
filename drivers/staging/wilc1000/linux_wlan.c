@@ -288,26 +288,19 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	bssid = mac_header + 10;
 	bssid1 = mac_header + 4;
 
-	for (i = 0; i < wilc->vif_num; i++)
-		if (!memcmp(bssid1, wilc->vif[i]->bssid, ETH_ALEN) ||
-		    !memcmp(bssid, wilc->vif[i]->bssid, ETH_ALEN))
-			return wilc->vif[i]->ndev;
+	for (i = 0; i < wilc->vif_num; i++) {
+		if (wilc->vif[i]->mode == STATION_MODE)
+			if (!memcmp(bssid, wilc->vif[i]->bssid, ETH_ALEN))
+				return wilc->vif[i]->ndev;
+		if (wilc->vif[i]->mode == AP_MODE)
+			if (!memcmp(bssid1, wilc->vif[i]->bssid, ETH_ALEN))
+				return wilc->vif[i]->ndev;
+	}
 
-	PRINT_INFO(INIT_DBG, "Invalide handle\n");
-	for (i = 0; i < 25; i++)
-		PRINT_D(INIT_DBG, "%02x ", mac_header[i]);
-	bssid = mac_header + 18;
-	bssid1 = mac_header + 12;
-	for (i = 0; i < wilc->vif_num; i++)
-		if (!memcmp(bssid1, wilc->vif[i]->bssid, ETH_ALEN) ||
-		    !memcmp(bssid, wilc->vif[i]->bssid, ETH_ALEN))
-			return wilc->vif[i]->ndev;
-
-	PRINT_INFO(INIT_DBG, "\n");
 	return NULL;
 }
 
-int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
 {
 	int i = 0;
 	int ret = -1;
@@ -320,6 +313,7 @@ int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
 	for (i = 0; i < wilc->vif_num; i++)
 		if (wilc->vif[i]->ndev == wilc_netdev) {
 			memcpy(wilc->vif[i]->bssid, bssid, 6);
+			wilc->vif[i]->mode = mode;
 			ret = 0;
 			break;
 		}

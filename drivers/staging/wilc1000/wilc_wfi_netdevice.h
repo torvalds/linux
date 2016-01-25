@@ -160,6 +160,7 @@ struct wilc_vif {
 	u8 bssid[ETH_ALEN];
 	struct host_if_drv *hif_drv;
 	struct net_device *ndev;
+	u8 mode;
 };
 
 struct wilc {
@@ -236,6 +237,6 @@ int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type, int gpio,
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 int wilc_wlan_get_firmware(struct net_device *dev);
-int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid);
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
 
 #endif
