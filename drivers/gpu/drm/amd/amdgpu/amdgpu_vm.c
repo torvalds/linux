@@ -696,42 +696,32 @@ static int amdgpu_vm_update_ptes(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @gtt: GART instance to use for mapping
- * @vm: requested vm
- * @mapping: mapped range and flags to use for the update
- * @addr: addr to set the area to
  * @gtt_flags: flags as they are used for GTT
+ * @vm: requested vm
+ * @start: start of mapped range
+ * @last: last mapped entry
+ * @flags: flags for the entries
+ * @addr: addr to set the area to
  * @fence: optional resulting fence
  *
- * Fill in the page table entries for @mapping.
+ * Fill in the page table entries between @start and @last.
  * Returns 0 for success, -EINVAL for failure.
- *
- * Object have to be reserved and mutex must be locked!
  */
 static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				       struct amdgpu_gart *gtt,
 				       uint32_t gtt_flags,
 				       struct amdgpu_vm *vm,
-				       struct amdgpu_bo_va_mapping *mapping,
-				       uint64_t addr, struct fence **fence)
+				       uint64_t start, uint64_t last,
+				       uint32_t flags, uint64_t addr,
+				       struct fence **fence)
 {
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	unsigned nptes, ncmds, ndw;
-	uint32_t flags = gtt_flags;
 	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
 	int r;
 
-	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
-	 * but in case of something, we filter the flags in first place
-	 */
-	if (!(mapping->flags & AMDGPU_PTE_READABLE))
-		flags &= ~AMDGPU_PTE_READABLE;
-	if (!(mapping->flags & AMDGPU_PTE_WRITEABLE))
-		flags &= ~AMDGPU_PTE_WRITEABLE;
-
-	trace_amdgpu_vm_bo_update(mapping);
-
-	nptes = mapping->it.last - mapping->it.start + 1;
+	nptes = last - start + 1;
 
 	/*
 	 * reserve space for one command every (1 << BLOCK_SIZE)
@@ -773,10 +763,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	ib->length_dw = 0;
 
-	r = amdgpu_vm_update_ptes(adev, gtt, gtt_flags, vm, ib,
-				  mapping->it.start, mapping->it.last + 1,
-				  addr + mapping->offset, flags);
-
+	r = amdgpu_vm_update_ptes(adev, gtt, gtt_flags, vm, ib, start,
+				  last + 1, addr, flags);
 	if (r) {
 		amdgpu_ib_free(adev, ib);
 		kfree(ib);
@@ -804,6 +792,68 @@ error_free:
 	amdgpu_ib_free(adev, ib);
 	kfree(ib);
 	return r;
+}
+
+/**
+ * amdgpu_vm_bo_split_mapping - split a mapping into smaller chunks
+ *
+ * @adev: amdgpu_device pointer
+ * @gtt: GART instance to use for mapping
+ * @vm: requested vm
+ * @mapping: mapped range and flags to use for the update
+ * @addr: addr to set the area to
+ * @gtt_flags: flags as they are used for GTT
+ * @fence: optional resulting fence
+ *
+ * Split the mapping into smaller chunks so that each update fits
+ * into a SDMA IB.
+ * Returns 0 for success, -EINVAL for failure.
+ */
+static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
+				      struct amdgpu_gart *gtt,
+				      uint32_t gtt_flags,
+				      struct amdgpu_vm *vm,
+				      struct amdgpu_bo_va_mapping *mapping,
+				      uint64_t addr, struct fence **fence)
+{
+	const uint64_t max_size = 64ULL * 1024ULL * 1024ULL / AMDGPU_GPU_PAGE_SIZE;
+
+	uint64_t start = mapping->it.start;
+	uint32_t flags = gtt_flags;
+	int r;
+
+	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
+	 * but in case of something, we filter the flags in first place
+	 */
+	if (!(mapping->flags & AMDGPU_PTE_READABLE))
+		flags &= ~AMDGPU_PTE_READABLE;
+	if (!(mapping->flags & AMDGPU_PTE_WRITEABLE))
+		flags &= ~AMDGPU_PTE_WRITEABLE;
+
+	trace_amdgpu_vm_bo_update(mapping);
+
+	addr += mapping->offset;
+
+	if (!gtt || ((gtt == &adev->gart) && (flags == gtt_flags)))
+		return amdgpu_vm_bo_update_mapping(adev, gtt, gtt_flags, vm,
+						   start, mapping->it.last,
+						   flags, addr, fence);
+
+	while (start != mapping->it.last + 1) {
+		uint64_t last;
+
+		last = min((uint64_t)mapping->it.last, start + max_size);
+		r = amdgpu_vm_bo_update_mapping(adev, gtt, gtt_flags, vm,
+						start, last, flags, addr,
+						fence);
+		if (r)
+			return r;
+
+		start = last + 1;
+		addr += max_size;
+	}
+
+	return 0;
 }
 
 /**
@@ -855,8 +905,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	spin_unlock(&vm->status_lock);
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
-		r = amdgpu_vm_bo_update_mapping(adev, gtt, flags, vm, mapping, addr,
-						&bo_va->last_pt_update);
+		r = amdgpu_vm_bo_split_mapping(adev, gtt, flags, vm, mapping, addr,
+					       &bo_va->last_pt_update);
 		if (r)
 			return r;
 	}
@@ -902,8 +952,8 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 		spin_unlock(&vm->freed_lock);
-		r = amdgpu_vm_bo_update_mapping(adev, NULL, 0, vm, mapping,
-						0, NULL);
+		r = amdgpu_vm_bo_split_mapping(adev, NULL, 0, vm, mapping,
+					       0, NULL);
 		kfree(mapping);
 		if (r)
 			return r;
