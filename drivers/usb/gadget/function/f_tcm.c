@@ -41,13 +41,6 @@ static inline struct f_uas *to_f_uas(struct usb_function *f)
 	return container_of(f, struct f_uas, function);
 }
 
-static void usbg_cmd_release(struct kref *);
-
-static inline void usbg_cleanup_cmd(struct usbg_cmd *cmd)
-{
-	kref_put(&cmd->ref, usbg_cmd_release);
-}
-
 /* Start bot.c code */
 
 static int bot_enqueue_cmd_cbw(struct f_uas *fu)
@@ -68,7 +61,7 @@ static void bot_status_complete(struct usb_ep *ep, struct usb_request *req)
 	struct usbg_cmd *cmd = req->context;
 	struct f_uas *fu = cmd->fu;
 
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 	if (req->status < 0) {
 		pr_err("ERR %s(%d)\n", __func__, __LINE__);
 		return;
@@ -605,7 +598,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	case UASP_QUEUE_COMMAND:
-		usbg_cleanup_cmd(cmd);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		usb_ep_queue(fu->ep_cmd, fu->cmd.req, GFP_ATOMIC);
 		break;
 
@@ -615,7 +608,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 	return;
 
 cleanup:
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static int uasp_send_status_response(struct usbg_cmd *cmd)
@@ -977,7 +970,7 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 	return;
 
 cleanup:
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static int usbg_prepare_w_request(struct usbg_cmd *cmd, struct usb_request *req)
@@ -1046,7 +1039,7 @@ static void usbg_cmd_work(struct work_struct *work)
 	struct se_cmd *se_cmd;
 	struct tcm_usbg_nexus *tv_nexus;
 	struct usbg_tpg *tpg;
-	int dir;
+	int dir, flags = (TARGET_SCF_UNKNOWN_SIZE | TARGET_SCF_ACK_KREF);
 
 	se_cmd = &cmd->se_cmd;
 	tpg = cmd->fu->tpg;
@@ -1060,9 +1053,9 @@ static void usbg_cmd_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess,
-			cmd->cmd_buf, cmd->sense_iu.sense, cmd->unpacked_lun,
-			0, cmd->prio_attr, dir, TARGET_SCF_UNKNOWN_SIZE) < 0)
+	if (target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess, cmd->cmd_buf,
+			      cmd->sense_iu.sense, cmd->unpacked_lun, 0,
+			      cmd->prio_attr, dir, flags) < 0)
 		goto out;
 
 	return;
@@ -1070,7 +1063,7 @@ static void usbg_cmd_work(struct work_struct *work)
 out:
 	transport_send_check_condition_and_sense(se_cmd,
 			TCM_UNSUPPORTED_SCSI_OPCODE, 1);
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
@@ -1126,11 +1119,6 @@ static int usbg_submit_command(struct f_uas *fu,
 		pr_err("usbg_get_cmd failed\n");
 		return -ENOMEM;
 	}
-
-	/* XXX until I figure out why I can't free in on complete */
-	kref_init(&cmd->ref);
-	kref_get(&cmd->ref);
-
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
 	if (fu->flags & USBG_USE_STREAMS) {
@@ -1203,7 +1191,7 @@ static void bot_cmd_work(struct work_struct *work)
 out:
 	transport_send_check_condition_and_sense(se_cmd,
 				TCM_UNSUPPORTED_SCSI_OPCODE, 1);
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static int bot_submit_command(struct f_uas *fu,
@@ -1239,11 +1227,6 @@ static int bot_submit_command(struct f_uas *fu,
 		pr_err("usbg_get_cmd failed\n");
 		return -ENOMEM;
 	}
-
-	/* XXX until I figure out why I can't free in on complete */
-	kref_init(&cmd->ref);
-	kref_get(&cmd->ref);
-
 	memcpy(cmd->cmd_buf, cbw->CDB, cmd_len);
 
 	cmd->bot_tag = cbw->Tag;
@@ -1295,14 +1278,6 @@ static u16 usbg_get_tag(struct se_portal_group *se_tpg)
 static u32 usbg_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
-}
-
-static void usbg_cmd_release(struct kref *ref)
-{
-	struct usbg_cmd *cmd = container_of(ref, struct usbg_cmd,
-			ref);
-
-	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static void usbg_release_cmd(struct se_cmd *se_cmd)
@@ -1745,11 +1720,7 @@ static void usbg_port_unlink(struct se_portal_group *se_tpg,
 
 static int usbg_check_stop_free(struct se_cmd *se_cmd)
 {
-	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd,
-			se_cmd);
-
-	kref_put(&cmd->ref, usbg_cmd_release);
-	return 1;
+	return target_put_sess_cmd(se_cmd);
 }
 
 static const struct target_core_fabric_ops usbg_ops = {
