@@ -627,6 +627,7 @@ static struct i2c_adapter *piix4_main_adapters[PIIX4_MAX_ADAPTERS];
 static struct i2c_adapter *piix4_aux_adapter;
 
 static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
+			     bool sb800_main, unsigned short port,
 			     const char *name, struct i2c_adapter **padap)
 {
 	struct i2c_adapter *adap;
@@ -641,7 +642,8 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	adap->algo = &smbus_algorithm;
+	adap->algo = sb800_main ? &piix4_smbus_algorithm_sb800
+				: &smbus_algorithm;
 
 	adapdata = kzalloc(sizeof(*adapdata), GFP_KERNEL);
 	if (adapdata == NULL) {
@@ -651,6 +653,8 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 	}
 
 	adapdata->smba = smba;
+	adapdata->sb800_main = sb800_main;
+	adapdata->port = port;
 
 	/* set up the sysfs linkage to our parent device */
 	adap->dev.parent = &dev->dev;
@@ -680,17 +684,11 @@ static int piix4_add_adapters_sb800(struct pci_dev *dev, unsigned short smba)
 	int retval;
 
 	for (port = 0; port < PIIX4_MAX_ADAPTERS; port++) {
-		retval = piix4_add_adapter(dev, smba,
+		retval = piix4_add_adapter(dev, smba, true, port,
 					   piix4_main_port_names_sb800[port],
 					   &piix4_main_adapters[port]);
 		if (retval < 0)
 			goto error;
-
-		piix4_main_adapters[port]->algo = &piix4_smbus_algorithm_sb800;
-
-		adapdata = i2c_get_adapdata(piix4_main_adapters[port]);
-		adapdata->sb800_main = true;
-		adapdata->port = port;
 	}
 
 	return retval;
@@ -748,7 +746,7 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			return retval;
 
 		/* Try to register main SMBus adapter, give up if we can't */
-		retval = piix4_add_adapter(dev, retval, "main",
+		retval = piix4_add_adapter(dev, retval, false, 0, "main",
 					   &piix4_main_adapters[0]);
 		if (retval < 0)
 			return retval;
@@ -775,7 +773,8 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (retval > 0) {
 		/* Try to add the aux adapter if it exists,
 		 * piix4_add_adapter will clean up if this fails */
-		piix4_add_adapter(dev, retval, piix4_aux_port_name_sb800,
+		piix4_add_adapter(dev, retval, false, 0,
+				  piix4_aux_port_name_sb800,
 				  &piix4_aux_adapter);
 	}
 
