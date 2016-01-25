@@ -186,8 +186,10 @@ static int load_timings(struct tegra_mc *mc, struct device_node *node)
 		timing = &mc->timings[i++];
 
 		err = load_one_timing(mc, timing, child);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
+		}
 	}
 
 	return 0;
@@ -210,9 +212,9 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 			continue;
 
 		err = load_timings(mc, node);
+		of_node_put(node);
 		if (err)
 			return err;
-		of_node_put(node);
 		break;
 	}
 
