@@ -340,9 +340,6 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 	finish_wait(&vc4->job_wait_queue, &wait);
 	trace_vc4_wait_for_seqno_end(dev, seqno);
 
-	if (ret && ret != -ERESTARTSYS)
-		DRM_ERROR("timeout waiting for render thread idle\n");
-
 	return ret;
 }
 
