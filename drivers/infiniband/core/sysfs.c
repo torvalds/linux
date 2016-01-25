@@ -336,7 +336,6 @@ static ssize_t _show_port_gid_attr(struct ib_port *p,
 	union ib_gid gid;
 	struct ib_gid_attr gid_attr = {};
 	ssize_t ret;
-	va_list args;
 
 	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid,
 			   &gid_attr);
@@ -348,7 +347,6 @@ static ssize_t _show_port_gid_attr(struct ib_port *p,
 err:
 	if (gid_attr.ndev)
 		dev_put(gid_attr.ndev);
-	va_end(args);
 	return ret;
 }
 
