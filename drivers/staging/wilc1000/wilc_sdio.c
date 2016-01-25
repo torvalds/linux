@@ -42,6 +42,7 @@ static wilc_sdio_t g_sdio;
 
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
 static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
+static int sdio_init(struct wilc *wilc);
 
 static void wilc_sdio_interrupt(struct sdio_func *func)
 {
@@ -142,11 +143,82 @@ static void linux_sdio_remove(struct sdio_func *func)
 	wilc_netdev_cleanup(sdio_get_drvdata(func));
 }
 
+static int sdio_reset(struct wilc *wilc)
+{
+	sdio_cmd52_t cmd;
+	int ret;
+	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
+
+	cmd.read_write = 1;
+	cmd.function = 0;
+	cmd.raw = 0;
+	cmd.address = 0x6;
+	cmd.data = 0x8;
+	ret = wilc_sdio_cmd52(wilc, &cmd);
+	if (ret) {
+		dev_err(&func->dev, "Fail cmd 52, reset cmd ...\n");
+		return ret;
+	}
+	return 0;
+}
+
+static int wilc_sdio_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wilc *wilc = sdio_get_drvdata(func);
+	int ret;
+
+	dev_info(dev, "sdio suspend\n");
+	chip_wakeup(wilc);
+
+	if (!wilc->suspend_event) {
+		wilc_chip_sleep_manually(wilc);
+	} else {
+		host_sleep_notify(wilc);
+		chip_allow_sleep(wilc);
+	}
+
+	ret = sdio_reset(wilc);
+	if (ret) {
+		dev_err(&func->dev, "Fail reset sdio\n");
+		return ret;
+	}
+	sdio_claim_host(func);
+
+	return 0;
+}
+
+static int wilc_sdio_resume(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wilc *wilc = sdio_get_drvdata(func);
+
+	dev_info(dev, "sdio resume\n");
+	sdio_release_host(func);
+	chip_wakeup(wilc);
+	sdio_init(wilc);
+
+	if (wilc->suspend_event)
+		host_wakeup_notify(wilc);
+
+	chip_allow_sleep(wilc);
+
+	return 0;
+}
+
+static const struct dev_pm_ops wilc_sdio_pm_ops = {
+	.suspend = wilc_sdio_suspend,
+	.resume = wilc_sdio_resume,
+};
+
 static struct sdio_driver wilc1000_sdio_driver = {
 	.name		= SDIO_MODALIAS,
 	.id_table	= wilc_sdio_ids,
 	.probe		= linux_sdio_probe,
 	.remove		= linux_sdio_remove,
+	.drv = {
+		.pm = &wilc_sdio_pm_ops,
+	}
 };
 module_driver(wilc1000_sdio_driver,
 	      sdio_register_driver,

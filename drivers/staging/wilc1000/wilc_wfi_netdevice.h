@@ -215,6 +215,7 @@ struct wilc {
 	const struct firmware *firmware;
 
 	struct device *dev;
+	bool suspend_event;
 };
 
 struct WILC_WFI_mon_priv {
