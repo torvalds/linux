@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 
 #include <asm/cio.h>
@@ -224,8 +225,9 @@ out_unreg:
 
 void chsc_chp_offline(struct chp_id chpid)
 {
-	char dbf_txt[15];
+	struct channel_path *chp = chpid_to_chp(chpid);
 	struct chp_link link;
+	char dbf_txt[15];
 
 	sprintf(dbf_txt, "chpr%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
@@ -236,6 +238,11 @@ void chsc_chp_offline(struct chp_id chpid)
 	link.chpid = chpid;
 	/* Wait until previous actions have settled. */
 	css_wait_for_slow_path();
+
+	mutex_lock(&chp->lock);
+	chp_update_desc(chp);
+	mutex_unlock(&chp->lock);
+
 	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &link);
 }
 
@@ -690,8 +697,9 @@ static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 
 void chsc_chp_online(struct chp_id chpid)
 {
-	char dbf_txt[15];
+	struct channel_path *chp = chpid_to_chp(chpid);
 	struct chp_link link;
+	char dbf_txt[15];
 
 	sprintf(dbf_txt, "cadd%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
@@ -701,6 +709,11 @@ void chsc_chp_online(struct chp_id chpid)
 		link.chpid = chpid;
 		/* Wait until previous actions have settled. */
 		css_wait_for_slow_path();
+
+		mutex_lock(&chp->lock);
+		chp_update_desc(chp);
+		mutex_unlock(&chp->lock);
+
 		for_each_subchannel_staged(__s390_process_res_acc, NULL,
 					   &link);
 		css_schedule_reprobe();
