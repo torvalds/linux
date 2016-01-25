@@ -466,14 +466,11 @@ int chp_new(struct chp_id chpid)
 		ret = -ENODEV;
 		goto out_free;
 	}
-	/* Get channel-measurement characteristics. */
-	if (css_chsc_characteristics.scmc && css_chsc_characteristics.secm) {
-		ret = chsc_get_channel_measurement_chars(chp);
-		if (ret)
-			goto out_free;
-	} else {
-		chp->cmg = -1;
-	}
+
+	ret = chsc_get_channel_measurement_chars(chp);
+	if (ret)
+		goto out_free;
+
 	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
 	/* make it known to the system */
