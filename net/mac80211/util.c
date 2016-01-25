@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015	Intel Deutschland GmbH
+ * Copyright (C) 2015-2016	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2671,6 +2671,18 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 		sband = local->hw.wiphy->bands[status->band];
 		bitrate = sband->bitrates[status->rate_idx].bitrate;
 		ri.legacy = DIV_ROUND_UP(bitrate, (1 << shift));
+
+		if (status->flag & RX_FLAG_MACTIME_PLCP_START) {
+			/* TODO: handle HT/VHT preambles */
+			if (status->band == IEEE80211_BAND_5GHZ) {
+				ts += 20 << shift;
+				mpdu_offset += 2;
+			} else if (status->flag & RX_FLAG_SHORTPRE) {
+				ts += 96;
+			} else {
+				ts += 192;
+			}
+		}
 	}
 
 	rate = cfg80211_calculate_bitrate(&ri);

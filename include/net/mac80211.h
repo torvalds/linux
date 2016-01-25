@@ -1010,6 +1010,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_MACTIME_END: The timestamp passed in the RX status (@mactime
  *	field) is valid and contains the time the last symbol of the MPDU
  *	(including FCS) was received.
+ * @RX_FLAG_MACTIME_PLCP_START: The timestamp passed in the RX status (@mactime
+ *	field) is valid and contains the time the SYNC preamble was received.
  * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_VHT: VHT MCS was used and rate_index is MCS index
@@ -1058,6 +1060,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
 	RX_FLAG_DECRYPTED		= BIT(1),
+	RX_FLAG_MACTIME_PLCP_START	= BIT(2),
 	RX_FLAG_MMIC_STRIPPED		= BIT(3),
 	RX_FLAG_IV_STRIPPED		= BIT(4),
 	RX_FLAG_FAILED_FCS_CRC		= BIT(5),
