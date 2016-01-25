@@ -973,9 +973,9 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 
 static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 {
-	int i, s;
 	struct platform_device *pdev = hisi_hba->pdev;
 	struct device *dev = &pdev->dev;
+	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
 
 	spin_lock_init(&hisi_hba->lock);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -1035,13 +1035,13 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 
 	memset(hisi_hba->itct, 0, s);
 
-	hisi_hba->slot_info = devm_kcalloc(dev, HISI_SAS_COMMAND_ENTRIES,
+	hisi_hba->slot_info = devm_kcalloc(dev, max_command_entries,
 					   sizeof(struct hisi_sas_slot),
 					   GFP_KERNEL);
 	if (!hisi_hba->slot_info)
 		goto err_out;
 
-	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_iost);
+	s = max_command_entries * sizeof(struct hisi_sas_iost);
 	hisi_hba->iost = dma_alloc_coherent(dev, s, &hisi_hba->iost_dma,
 					    GFP_KERNEL);
 	if (!hisi_hba->iost)
@@ -1049,7 +1049,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 
 	memset(hisi_hba->iost, 0, s);
 
-	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_breakpoint);
+	s = max_command_entries * sizeof(struct hisi_sas_breakpoint);
 	hisi_hba->breakpoint = dma_alloc_coherent(dev, s,
 				&hisi_hba->breakpoint_dma, GFP_KERNEL);
 	if (!hisi_hba->breakpoint)
@@ -1057,7 +1057,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 
 	memset(hisi_hba->breakpoint, 0, s);
 
-	hisi_hba->slot_index_count = HISI_SAS_COMMAND_ENTRIES;
+	hisi_hba->slot_index_count = max_command_entries;
 	s = hisi_hba->slot_index_count / sizeof(unsigned long);
 	hisi_hba->slot_index_tags = devm_kzalloc(dev, s, GFP_KERNEL);
 	if (!hisi_hba->slot_index_tags)
@@ -1075,7 +1075,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 		goto err_out;
 	memset(hisi_hba->initial_fis, 0, s);
 
-	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_breakpoint) * 2;
+	s = max_command_entries * sizeof(struct hisi_sas_breakpoint) * 2;
 	hisi_hba->sata_breakpoint = dma_alloc_coherent(dev, s,
 				&hisi_hba->sata_breakpoint_dma, GFP_KERNEL);
 	if (!hisi_hba->sata_breakpoint)
@@ -1098,7 +1098,7 @@ err_out:
 static void hisi_sas_free(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
-	int i, s;
+	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		s = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
@@ -1123,12 +1123,12 @@ static void hisi_sas_free(struct hisi_hba *hisi_hba)
 		dma_free_coherent(dev, s,
 				  hisi_hba->itct, hisi_hba->itct_dma);
 
-	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_iost);
+	s = max_command_entries * sizeof(struct hisi_sas_iost);
 	if (hisi_hba->iost)
 		dma_free_coherent(dev, s,
 				  hisi_hba->iost, hisi_hba->iost_dma);
 
-	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_breakpoint);
+	s = max_command_entries * sizeof(struct hisi_sas_breakpoint);
 	if (hisi_hba->breakpoint)
 		dma_free_coherent(dev, s,
 				  hisi_hba->breakpoint,
@@ -1141,7 +1141,7 @@ static void hisi_sas_free(struct hisi_hba *hisi_hba)
 				  hisi_hba->initial_fis,
 				  hisi_hba->initial_fis_dma);
 
-	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_breakpoint) * 2;
+	s = max_command_entries * sizeof(struct hisi_sas_breakpoint) * 2;
 	if (hisi_hba->sata_breakpoint)
 		dma_free_coherent(dev, s,
 				  hisi_hba->sata_breakpoint,
@@ -1273,8 +1273,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
 	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_SGE_PAGE_CNT);
-	shost->can_queue = HISI_SAS_COMMAND_ENTRIES;
-	shost->cmd_per_lun = HISI_SAS_COMMAND_ENTRIES;
+	shost->can_queue = hisi_hba->hw->max_command_entries;
+	shost->cmd_per_lun = hisi_hba->hw->max_command_entries;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = &hisi_hba->pdev->dev;
