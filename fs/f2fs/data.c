@@ -1627,7 +1627,6 @@ static int f2fs_write_end(struct file *file,
 	if (pos + copied > i_size_read(inode)) {
 		i_size_write(inode, pos + copied);
 		mark_inode_dirty(inode);
-		update_inode_page(inode);
 	}
 
 	f2fs_put_page(page, 1);
