@@ -1617,10 +1617,10 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 	case X86_VENDOR_AMD: {
 		u32 ebx = cpuid_ebx(0x80000007);
 
-		mce_amd_feature_init(c);
 		mce_flags.overflow_recov = !!(ebx & BIT(0));
 		mce_flags.succor	 = !!(ebx & BIT(1));
 		mce_flags.smca		 = !!(ebx & BIT(3));
+		mce_amd_feature_init(c);
 
 		break;
 		}
