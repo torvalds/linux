@@ -149,9 +149,7 @@ asmlinkage void secondary_start_kernel(void)
 	 * TTBR0 is only used for the identity mapping at this stage. Make it
 	 * point to zero page to avoid speculatively fetching new entries.
 	 */
-	cpu_set_reserved_ttbr0();
-	local_flush_tlb_all();
-	cpu_set_default_tcr_t0sz();
+	cpu_uninstall_idmap();
 
 	preempt_disable();
 	trace_hardirqs_off();
