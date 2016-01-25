@@ -45,8 +45,8 @@
 #include "chip.h"
 #include "firmware.h"
 
-#define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2000)
-#define CTL_DONE_TIMEOUT	msecs_to_jiffies(2000)
+#define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2500)
+#define CTL_DONE_TIMEOUT	msecs_to_jiffies(2500)
 
 #ifdef DEBUG
 
