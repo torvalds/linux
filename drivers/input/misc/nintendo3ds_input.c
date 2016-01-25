@@ -379,16 +379,16 @@ static void vkb_input_poll_cb_mouse(struct vkb_ctx_t *vkb, int buttons, struct i
 			report_key_button(BTN_MIDDLE, BUTTON_X);
 
 	if (BUTTON_HELD(buttons, BUTTON_UP)) {
-		input_report_rel(idev, REL_X, +5);
-		input_sync(idev);
-	} else if (BUTTON_HELD(buttons, BUTTON_DOWN)) {
-		input_report_rel(idev, REL_X, -5);
-		input_sync(idev);
-	} else if (BUTTON_HELD(buttons, BUTTON_LEFT)) {
 		input_report_rel(idev, REL_Y, -5);
 		input_sync(idev);
-	} else if (BUTTON_HELD(buttons, BUTTON_RIGHT)) {
+	} else if (BUTTON_HELD(buttons, BUTTON_DOWN)) {
 		input_report_rel(idev, REL_Y, +5);
+		input_sync(idev);
+	} else if (BUTTON_HELD(buttons, BUTTON_LEFT)) {
+		input_report_rel(idev, REL_X, -5);
+		input_sync(idev);
+	} else if (BUTTON_HELD(buttons, BUTTON_RIGHT)) {
+		input_report_rel(idev, REL_X, +5);
 		input_sync(idev);
 	}
 
@@ -563,7 +563,7 @@ static int nintendo3ds_input_remove(struct platform_device *plat_pdev)
 }
 
 static const struct of_device_id nintendo3ds_input_of_match[] = {
-	{ .compatible = "arm,nintendo3ds_input", },
+	{ .compatible = "nintendo3ds-input", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, nintendo3ds_input_of_match);
@@ -572,7 +572,7 @@ static struct platform_driver nintendo3ds_input_driver = {
 	.probe	= nintendo3ds_input_probe,
 	.remove	= nintendo3ds_input_remove,
 	.driver	= {
-		.name = "nintendo3ds_input",
+		.name = "nintendo3ds-input",
 		.owner = THIS_MODULE,
 		.of_match_table = nintendo3ds_input_of_match,
 	},
@@ -594,4 +594,4 @@ module_exit(nintendo3ds_input_exit_driver);
 MODULE_DESCRIPTION("Nintendo 3DS input driver");
 MODULE_AUTHOR("Sergi Granell, <xerpi.g.12@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:nintendo3ds_input");
+MODULE_ALIAS("platform:nintendo3ds-input");
