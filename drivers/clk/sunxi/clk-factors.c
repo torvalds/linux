@@ -172,7 +172,7 @@ struct clk *sunxi_factors_register(struct device_node *node,
 	struct clk_hw *mux_hw = NULL;
 	const char *clk_name = node->name;
 	const char *parents[FACTORS_MAX_PARENTS];
-	int i = 0;
+	int ret, i = 0;
 
 	/* if we have a mux, we will have >1 parents */
 	i = of_clk_parent_fill(node, parents, FACTORS_MAX_PARENTS);
@@ -188,7 +188,7 @@ struct clk *sunxi_factors_register(struct device_node *node,
 
 	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
 	if (!factors)
-		return NULL;
+		goto err_factors;
 
 	/* set up factors properties */
 	factors->reg = reg;
@@ -199,10 +199,8 @@ struct clk *sunxi_factors_register(struct device_node *node,
 	/* Add a gate if this factor clock can be gated */
 	if (data->enable) {
 		gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-		if (!gate) {
-			kfree(factors);
-			return NULL;
-		}
+		if (!gate)
+			goto err_gate;
 
 		/* set up gate properties */
 		gate->reg = reg;
@@ -214,11 +212,8 @@ struct clk *sunxi_factors_register(struct device_node *node,
 	/* Add a mux if this factor clock can be muxed */
 	if (data->mux) {
 		mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
-		if (!mux) {
-			kfree(factors);
-			kfree(gate);
-			return NULL;
-		}
+		if (!mux)
+			goto err_mux;
 
 		/* set up gate properties */
 		mux->reg = reg;
@@ -233,11 +228,30 @@ struct clk *sunxi_factors_register(struct device_node *node,
 			mux_hw, &clk_mux_ops,
 			&factors->hw, &clk_factors_ops,
 			gate_hw, &clk_gate_ops, 0);
+	if (IS_ERR(clk))
+		goto err_register;
 
-	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		clk_register_clkdev(clk, clk_name, NULL);
-	}
+	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	if (ret)
+		goto err_provider;
+
+	ret = clk_register_clkdev(clk, clk_name, NULL);
+	if (ret)
+		goto err_clkdev;
 
 	return clk;
+
+err_clkdev:
+	of_clk_del_provider(node);
+err_provider:
+	/* TODO: The composite clock stuff will leak a bit here. */
+	clk_unregister(clk);
+err_register:
+	kfree(mux);
+err_mux:
+	kfree(gate);
+err_gate:
+	kfree(factors);
+err_factors:
+	return NULL;
 }
