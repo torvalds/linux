@@ -421,6 +421,7 @@ __mmap_switched:
 	adr_l	x2, __bss_stop
 	sub	x2, x2, x0
 	bl	__pi_memset
+	dsb	ishst				// Make zero page visible to PTW
 
 	adr_l	sp, initial_sp, x4
 	mov	x4, sp
