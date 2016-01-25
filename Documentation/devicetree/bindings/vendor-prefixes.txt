@@ -170,6 +170,7 @@ opencores	OpenCores.org
 option	Option NV
 ortustech	Ortus Technology Co., Ltd.
 ovti	OmniVision Technologies
+ORCL	Oracle Corporation
 panasonic	Panasonic Corporation
 parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
@@ -227,6 +228,7 @@ startek	Startek
 ste	ST-Ericsson
 stericsson	ST-Ericsson
 synology	Synology, Inc.
+SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
 tcl	Toby Churchill Ltd.
 technologic	Technologic Systems
