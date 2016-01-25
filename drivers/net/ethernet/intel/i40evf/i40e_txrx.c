@@ -1626,9 +1626,27 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	l4.hdr = skb_transport_header(skb);
 
 	if (skb->encapsulation) {
-		switch (ip_hdr(skb)->protocol) {
+		/* define outer network header type */
+		if (*tx_flags & I40E_TX_FLAGS_IPV4) {
+			if (*tx_flags & I40E_TX_FLAGS_TSO)
+				*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV4;
+			else
+				*cd_tunneling |=
+					 I40E_TX_CTX_EXT_IP_IPV4_NO_CSUM;
+			l4_proto = ip.v4->protocol;
+		} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
+			*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV6;
+			l4_proto = ip.v6->nexthdr;
+		}
+
+		/* define outer transport */
+		switch (l4_proto) {
 		case IPPROTO_UDP:
 			l4_tunnel = I40E_TXD_CTX_UDP_TUNNELING;
+			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
+			break;
+		case IPPROTO_GRE:
+			l4_tunnel = I40E_TXD_CTX_GRE_TUNNELING;
 			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
 			break;
 		default:
@@ -1638,17 +1656,7 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		/* switch L4 header pointer from outer to inner */
 		ip.hdr = skb_inner_network_header(skb);
 		l4.hdr = skb_inner_transport_header(skb);
-
-		if (*tx_flags & I40E_TX_FLAGS_IPV4) {
-			if (*tx_flags & I40E_TX_FLAGS_TSO) {
-				*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV4;
-			} else {
-				*cd_tunneling |=
-					 I40E_TX_CTX_EXT_IP_IPV4_NO_CSUM;
-			}
-		} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
-			*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV6;
-		}
+		l4_proto = 0;
 
 		/* Now set the ctx descriptor fields */
 		*cd_tunneling |= (skb_network_header_len(skb) >> 2) <<
@@ -1657,10 +1665,13 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 				   ((skb_inner_network_offset(skb) -
 					skb_transport_offset(skb)) >> 1) <<
 				   I40E_TXD_CTX_QW0_NATLEN_SHIFT;
-		if (ip.v6->version == 6) {
-			*tx_flags &= ~I40E_TX_FLAGS_IPV4;
+
+		/* reset type as we transition from outer to inner headers */
+		*tx_flags &= ~(I40E_TX_FLAGS_IPV4 | I40E_TX_FLAGS_IPV6);
+		if (ip.v4->version == 4)
+			*tx_flags |= I40E_TX_FLAGS_IPV4;
+		if (ip.v6->version == 6)
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
-		}
 	}
 
 	/* Enable IP checksum offloads */
