@@ -497,6 +497,7 @@ config SND_SOC_ICS43432
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
+	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
         tristate
