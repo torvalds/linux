@@ -127,7 +127,6 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	/* src_x are in 16.16 format */
 	int src_w = state->src_w >> 16;
 	int src_h = state->src_h >> 16;
-	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
 	struct drm_gem_cma_object *cma_obj;
 	u32 y, x;
 	u32 val;
@@ -193,12 +192,6 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	val = y << 16 | x;
 	writel(val, cursor->regs + CUR_AWE);
 
-	if (first_prepare) {
-		/* Set and fetch CLUT */
-		writel(cursor->clut_paddr, cursor->regs + CUR_CML);
-		writel(CUR_CTL_CLUT_UPDATE, cursor->regs + CUR_CTL);
-	}
-
 	/* Set memory location, size, and position */
 	writel(cursor->pixmap.paddr, cursor->regs + CUR_PML);
 	writel(cursor->width, cursor->regs + CUR_PMP);
@@ -207,6 +200,10 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	y = sti_vtg_get_line_number(*mode, dst_y);
 	x = sti_vtg_get_pixel_number(*mode, dst_x);
 	writel((y << 16) | x, cursor->regs + CUR_VPO);
+
+	/* Set and fetch CLUT */
+	writel(cursor->clut_paddr, cursor->regs + CUR_CML);
+	writel(CUR_CTL_CLUT_UPDATE, cursor->regs + CUR_CTL);
 
 	plane->status = STI_PLANE_UPDATED;
 }
