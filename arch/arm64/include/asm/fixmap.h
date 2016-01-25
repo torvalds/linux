@@ -62,6 +62,16 @@ enum fixed_addresses {
 
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
 	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
+
+	/*
+	 * Used for kernel page table creation, so unmapped memory may be used
+	 * for tables.
+	 */
+	FIX_PTE,
+	FIX_PMD,
+	FIX_PUD,
+	FIX_PGD,
+
 	__end_of_fixed_addresses
 };
 
