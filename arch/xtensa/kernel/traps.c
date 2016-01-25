@@ -40,11 +40,6 @@
 #include <asm/processor.h>
 #include <asm/traps.h>
 
-#ifdef CONFIG_KGDB
-extern int gdb_enter;
-extern int return_from_debug_flag;
-#endif
-
 /*
  * Machine specific interrupt handlers
  */
@@ -344,20 +339,6 @@ do_unaligned_user (struct pt_regs *regs)
 void
 do_debug(struct pt_regs *regs)
 {
-#ifdef CONFIG_KGDB
-	/* If remote debugging is configured AND enabled, we give control to
-	 * kgdb.  Otherwise, we fall through, perhaps giving control to the
-	 * native debugger.
-	 */
-
-	if (gdb_enter) {
-		extern void gdb_handle_exception(struct pt_regs *);
-		gdb_handle_exception(regs);
-		return_from_debug_flag = 1;
-		return;
-	}
-#endif
-
 	__die_if_kernel("Breakpoint in kernel", regs, SIGKILL);
 
 	/* If in user mode, send SIGTRAP signal to current process */
