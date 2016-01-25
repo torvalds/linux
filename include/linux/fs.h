@@ -433,7 +433,8 @@ struct address_space {
 	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
 	/* Protected by tree_lock together with the radix tree */
 	unsigned long		nrpages;	/* number of total pages */
-	unsigned long		nrshadows;	/* number of shadow entries */
+	/* number of shadow or DAX exceptional entries */
+	unsigned long		nrexceptional;
 	pgoff_t			writeback_index;/* writeback starts here */
 	const struct address_space_operations *a_ops;	/* methods */
 	unsigned long		flags;		/* error bits/gfp mask */
@@ -713,6 +714,31 @@ enum inode_i_mutex_lock_class
 	I_MUTEX_NONDIR2,
 	I_MUTEX_PARENT2,
 };
+
+static inline void inode_lock(struct inode *inode)
+{
+	mutex_lock(&inode->i_mutex);
+}
+
+static inline void inode_unlock(struct inode *inode)
+{
+	mutex_unlock(&inode->i_mutex);
+}
+
+static inline int inode_trylock(struct inode *inode)
+{
+	return mutex_trylock(&inode->i_mutex);
+}
+
+static inline int inode_is_locked(struct inode *inode)
+{
+	return mutex_is_locked(&inode->i_mutex);
+}
+
+static inline void inode_lock_nested(struct inode *inode, unsigned subclass)
+{
+	mutex_lock_nested(&inode->i_mutex, subclass);
+}
 
 void lock_two_nondirectories(struct inode *, struct inode*);
 void unlock_two_nondirectories(struct inode *, struct inode*);
@@ -3047,8 +3073,8 @@ static inline bool dir_emit_dots(struct file *file, struct dir_context *ctx)
 }
 static inline bool dir_relax(struct inode *inode)
 {
-	mutex_unlock(&inode->i_mutex);
-	mutex_lock(&inode->i_mutex);
+	inode_unlock(inode);
+	inode_lock(inode);
 	return !IS_DEADDIR(inode);
 }
 

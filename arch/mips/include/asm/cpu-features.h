@@ -414,4 +414,11 @@
 # define cpu_has_small_pages	(cpu_data[0].options & MIPS_CPU_SP)
 #endif
 
+#ifndef cpu_has_nan_legacy
+#define cpu_has_nan_legacy	(cpu_data[0].options & MIPS_CPU_NAN_LEGACY)
+#endif
+#ifndef cpu_has_nan_2008
+#define cpu_has_nan_2008	(cpu_data[0].options & MIPS_CPU_NAN_2008)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */

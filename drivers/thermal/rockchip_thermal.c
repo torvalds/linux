@@ -38,7 +38,7 @@ enum tshut_mode {
 };
 
 /**
- * the system Temperature Sensors tshut(tshut) polarity
+ * The system Temperature Sensors tshut(tshut) polarity
  * the bit 8 is tshut polarity.
  * 0: low active, 1: high active
  */
@@ -57,10 +57,10 @@ enum sensor_id {
 };
 
 /**
-* The conversion table has the adc value and temperature.
-* ADC_DECREMENT is the adc value decremnet.(e.g. v2_code_table)
-* ADC_INCREMNET is the adc value incremnet.(e.g. v3_code_table)
-*/
+ * The conversion table has the adc value and temperature.
+ * ADC_DECREMENT: the adc value is of diminishing.(e.g. v2_code_table)
+ * ADC_INCREMENT: the adc value is incremental.(e.g. v3_code_table)
+ */
 enum adc_sort_mode {
 	ADC_DECREMENT = 0,
 	ADC_INCREMENT,
@@ -72,16 +72,17 @@ enum adc_sort_mode {
  */
 #define SOC_MAX_SENSORS	2
 
+/**
+ * struct chip_tsadc_table: hold information about chip-specific differences
+ * @id: conversion table
+ * @length: size of conversion table
+ * @data_mask: mask to apply on data inputs
+ * @mode: sort mode of this adc variant (incrementing or decrementing)
+ */
 struct chip_tsadc_table {
 	const struct tsadc_table *id;
-
-	/* the array table size*/
 	unsigned int length;
-
-	/* that analogic mask data */
 	u32 data_mask;
-
-	/* the sort mode is adc value that increment or decrement in table */
 	enum adc_sort_mode mode;
 };
 
@@ -153,6 +154,7 @@ struct rockchip_thermal_data {
 #define TSADCV2_SHUT_2GPIO_SRC_EN(chn)		BIT(4 + (chn))
 #define TSADCV2_SHUT_2CRU_SRC_EN(chn)		BIT(8 + (chn))
 
+#define TSADCV1_INT_PD_CLEAR_MASK		~BIT(16)
 #define TSADCV2_INT_PD_CLEAR_MASK		~BIT(8)
 
 #define TSADCV2_DATA_MASK			0xfff
@@ -166,6 +168,51 @@ struct rockchip_thermal_data {
 struct tsadc_table {
 	u32 code;
 	int temp;
+};
+
+/**
+ * Note:
+ * Code to Temperature mapping of the Temperature sensor is a piece wise linear
+ * curve.Any temperature, code faling between to 2 give temperatures can be
+ * linearly interpolated.
+ * Code to Temperature mapping should be updated based on sillcon results.
+ */
+static const struct tsadc_table v1_code_table[] = {
+	{TSADCV3_DATA_MASK, -40000},
+	{436, -40000},
+	{431, -35000},
+	{426, -30000},
+	{421, -25000},
+	{416, -20000},
+	{411, -15000},
+	{406, -10000},
+	{401, -5000},
+	{395, 0},
+	{390, 5000},
+	{385, 10000},
+	{380, 15000},
+	{375, 20000},
+	{370, 25000},
+	{364, 30000},
+	{359, 35000},
+	{354, 40000},
+	{349, 45000},
+	{343, 50000},
+	{338, 55000},
+	{333, 60000},
+	{328, 65000},
+	{322, 70000},
+	{317, 75000},
+	{312, 80000},
+	{307, 85000},
+	{301, 90000},
+	{296, 95000},
+	{291, 100000},
+	{286, 105000},
+	{280, 110000},
+	{275, 115000},
+	{270, 120000},
+	{264, 125000},
 };
 
 static const struct tsadc_table v2_code_table[] = {
@@ -243,6 +290,44 @@ static const struct tsadc_table v3_code_table[] = {
 	{169, 120000},
 	{171, 125000},
 	{TSADCV3_DATA_MASK, 125000},
+};
+
+static const struct tsadc_table v4_code_table[] = {
+	{TSADCV3_DATA_MASK, -40000},
+	{431, -40000},
+	{426, -35000},
+	{421, -30000},
+	{415, -25000},
+	{410, -20000},
+	{405, -15000},
+	{399, -10000},
+	{394, -5000},
+	{389, 0},
+	{383, 5000},
+	{378, 10000},
+	{373, 15000},
+	{367, 20000},
+	{362, 25000},
+	{357, 30000},
+	{351, 35000},
+	{346, 40000},
+	{340, 45000},
+	{335, 50000},
+	{330, 55000},
+	{324, 60000},
+	{319, 65000},
+	{313, 70000},
+	{308, 75000},
+	{302, 80000},
+	{297, 85000},
+	{291, 90000},
+	{286, 95000},
+	{281, 100000},
+	{275, 105000},
+	{270, 110000},
+	{264, 115000},
+	{259, 120000},
+	{253, 125000},
 };
 
 static u32 rk_tsadcv2_temp_to_code(struct chip_tsadc_table table,
@@ -368,6 +453,14 @@ static void rk_tsadcv2_initialize(void __iomem *regs,
 		       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
 }
 
+static void rk_tsadcv1_irq_ack(void __iomem *regs)
+{
+	u32 val;
+
+	val = readl_relaxed(regs + TSADCV2_INT_PD);
+	writel_relaxed(val & TSADCV1_INT_PD_CLEAR_MASK, regs + TSADCV2_INT_PD);
+}
+
 static void rk_tsadcv2_irq_ack(void __iomem *regs)
 {
 	u32 val;
@@ -429,6 +522,29 @@ static void rk_tsadcv2_tshut_mode(int chn, void __iomem *regs,
 	writel_relaxed(val, regs + TSADCV2_INT_EN);
 }
 
+static const struct rockchip_tsadc_chip rk3228_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channel for tsadc */
+
+	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv1_irq_ack,
+	.control = rk_tsadcv2_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = v1_code_table,
+		.length = ARRAY_SIZE(v1_code_table),
+		.data_mask = TSADCV3_DATA_MASK,
+		.mode = ADC_DECREMENT,
+	},
+};
+
 static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 1, /* cpu sensor is channel 1 */
 	.chn_id[SENSOR_GPU] = 2, /* gpu sensor is channel 2 */
@@ -477,7 +593,35 @@ static const struct rockchip_tsadc_chip rk3368_tsadc_data = {
 	},
 };
 
+static const struct rockchip_tsadc_chip rk3399_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	.chn_num = 2, /* two channels for tsadc */
+
+	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv1_irq_ack,
+	.control = rk_tsadcv2_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = v4_code_table,
+		.length = ARRAY_SIZE(v4_code_table),
+		.data_mask = TSADCV3_DATA_MASK,
+		.mode = ADC_DECREMENT,
+	},
+};
+
 static const struct of_device_id of_rockchip_thermal_match[] = {
+	{
+		.compatible = "rockchip,rk3228-tsadc",
+		.data = (void *)&rk3228_tsadc_data,
+	},
 	{
 		.compatible = "rockchip,rk3288-tsadc",
 		.data = (void *)&rk3288_tsadc_data,
@@ -485,6 +629,10 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rk3368-tsadc",
 		.data = (void *)&rk3368_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk3399-tsadc",
+		.data = (void *)&rk3399_tsadc_data,
 	},
 	{ /* end */ },
 };
@@ -617,7 +765,7 @@ rockchip_thermal_register_sensor(struct platform_device *pdev,
 	return 0;
 }
 
-/*
+/**
  * Reset TSADC Controller, reset all tsadc registers.
  */
 static void rockchip_thermal_reset_controller(struct reset_control *reset)

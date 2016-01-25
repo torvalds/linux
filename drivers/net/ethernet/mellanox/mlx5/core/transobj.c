@@ -32,9 +32,9 @@
 
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
-#include "transobj.h"
+#include <linux/mlx5/transobj.h>
 
-int mlx5_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn)
+int mlx5_core_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn)
 {
 	u32 in[MLX5_ST_SZ_DW(alloc_transport_domain_in)];
 	u32 out[MLX5_ST_SZ_DW(alloc_transport_domain_out)];
@@ -53,8 +53,9 @@ int mlx5_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn)
 
 	return err;
 }
+EXPORT_SYMBOL(mlx5_core_alloc_transport_domain);
 
-void mlx5_dealloc_transport_domain(struct mlx5_core_dev *dev, u32 tdn)
+void mlx5_core_dealloc_transport_domain(struct mlx5_core_dev *dev, u32 tdn)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_transport_domain_in)];
 	u32 out[MLX5_ST_SZ_DW(dealloc_transport_domain_out)];
@@ -68,6 +69,7 @@ void mlx5_dealloc_transport_domain(struct mlx5_core_dev *dev, u32 tdn)
 
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_core_dealloc_transport_domain);
 
 int mlx5_core_create_rq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *rqn)
 {
@@ -94,6 +96,7 @@ int mlx5_core_modify_rq(struct mlx5_core_dev *dev, u32 rqn, u32 *in, int inlen)
 	memset(out, 0, sizeof(out));
 	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_core_modify_rq);
 
 void mlx5_core_destroy_rq(struct mlx5_core_dev *dev, u32 rqn)
 {
@@ -107,6 +110,18 @@ void mlx5_core_destroy_rq(struct mlx5_core_dev *dev, u32 rqn)
 
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
+
+int mlx5_core_query_rq(struct mlx5_core_dev *dev, u32 rqn, u32 *out)
+{
+	u32 in[MLX5_ST_SZ_DW(query_rq_in)] = {0};
+	int outlen = MLX5_ST_SZ_BYTES(query_rq_out);
+
+	MLX5_SET(query_rq_in, in, opcode, MLX5_CMD_OP_QUERY_RQ);
+	MLX5_SET(query_rq_in, in, rqn, rqn);
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, outlen);
+}
+EXPORT_SYMBOL(mlx5_core_query_rq);
 
 int mlx5_core_create_sq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *sqn)
 {
@@ -133,6 +148,7 @@ int mlx5_core_modify_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *in, int inlen)
 	memset(out, 0, sizeof(out));
 	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_core_modify_sq);
 
 void mlx5_core_destroy_sq(struct mlx5_core_dev *dev, u32 sqn)
 {
@@ -146,6 +162,18 @@ void mlx5_core_destroy_sq(struct mlx5_core_dev *dev, u32 sqn)
 
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
+
+int mlx5_core_query_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *out)
+{
+	u32 in[MLX5_ST_SZ_DW(query_sq_in)] = {0};
+	int outlen = MLX5_ST_SZ_BYTES(query_sq_out);
+
+	MLX5_SET(query_sq_in, in, opcode, MLX5_CMD_OP_QUERY_SQ);
+	MLX5_SET(query_sq_in, in, sqn, sqn);
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, outlen);
+}
+EXPORT_SYMBOL(mlx5_core_query_sq);
 
 int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *tirn)
@@ -162,6 +190,7 @@ int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
 
 	return err;
 }
+EXPORT_SYMBOL(mlx5_core_create_tir);
 
 int mlx5_core_modify_tir(struct mlx5_core_dev *dev, u32 tirn, u32 *in,
 			 int inlen)
@@ -187,6 +216,7 @@ void mlx5_core_destroy_tir(struct mlx5_core_dev *dev, u32 tirn)
 
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_core_destroy_tir);
 
 int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *tisn)
@@ -203,6 +233,19 @@ int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
 
 	return err;
 }
+EXPORT_SYMBOL(mlx5_core_create_tis);
+
+int mlx5_core_modify_tis(struct mlx5_core_dev *dev, u32 tisn, u32 *in,
+			 int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_tis_out)] = {0};
+
+	MLX5_SET(modify_tis_in, in, tisn, tisn);
+	MLX5_SET(modify_tis_in, in, opcode, MLX5_CMD_OP_MODIFY_TIS);
+
+	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
+}
+EXPORT_SYMBOL(mlx5_core_modify_tis);
 
 void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
 {
@@ -216,6 +259,7 @@ void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
 
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_core_destroy_tis);
 
 int mlx5_core_create_rmp(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *rmpn)

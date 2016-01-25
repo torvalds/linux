@@ -1961,9 +1961,9 @@ static struct mountpoint *lock_mount(struct path *path)
 	struct vfsmount *mnt;
 	struct dentry *dentry = path->dentry;
 retry:
-	mutex_lock(&dentry->d_inode->i_mutex);
+	inode_lock(dentry->d_inode);
 	if (unlikely(cant_mount(dentry))) {
-		mutex_unlock(&dentry->d_inode->i_mutex);
+		inode_unlock(dentry->d_inode);
 		return ERR_PTR(-ENOENT);
 	}
 	namespace_lock();
@@ -1974,13 +1974,13 @@ retry:
 			mp = new_mountpoint(dentry);
 		if (IS_ERR(mp)) {
 			namespace_unlock();
-			mutex_unlock(&dentry->d_inode->i_mutex);
+			inode_unlock(dentry->d_inode);
 			return mp;
 		}
 		return mp;
 	}
 	namespace_unlock();
-	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	inode_unlock(path->dentry->d_inode);
 	path_put(path);
 	path->mnt = mnt;
 	dentry = path->dentry = dget(mnt->mnt_root);
@@ -1992,7 +1992,7 @@ static void unlock_mount(struct mountpoint *where)
 	struct dentry *dentry = where->m_dentry;
 	put_mountpoint(where);
 	namespace_unlock();
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	inode_unlock(dentry->d_inode);
 }
 
 static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)

@@ -160,10 +160,10 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	efivar_entry_size(entry, &size);
 	efivar_entry_add(entry, &efivarfs_list);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	inode->i_private = entry;
 	i_size_write(inode, size + sizeof(entry->var.Attributes));
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	d_add(dentry, inode);
 
 	return 0;

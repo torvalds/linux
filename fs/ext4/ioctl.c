@@ -330,7 +330,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 		return err;
 
 	err = -EPERM;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	/* Is it quota file? Do not allow user to mess with it */
 	if (IS_NOQUOTA(inode))
 		goto out_unlock;
@@ -381,7 +381,7 @@ out_dirty:
 out_stop:
 	ext4_journal_stop(handle);
 out_unlock:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return err;
 }
@@ -464,9 +464,9 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		flags = ext4_mask_flags(inode->i_mode, flags);
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		err = ext4_ioctl_setflags(inode, flags);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -497,7 +497,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto setversion_out;
 		}
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);
@@ -512,7 +512,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ext4_journal_stop(handle);
 
 unlock_out:
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 setversion_out:
 		mnt_drop_write_file(filp);
 		return err;
@@ -658,9 +658,9 @@ group_add_out:
 		 * ext4_ext_swap_inode_data before we switch the
 		 * inode format to prevent read.
 		 */
-		mutex_lock(&(inode->i_mutex));
+		inode_lock((inode));
 		err = ext4_ext_migrate(inode);
-		mutex_unlock(&(inode->i_mutex));
+		inode_unlock((inode));
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -876,11 +876,11 @@ encryption_policy_out:
 		flags = ext4_xflags_to_iflags(fa.fsx_xflags);
 		flags = ext4_mask_flags(inode->i_mode, flags);
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		flags = (ei->i_flags & ~EXT4_FL_XFLAG_VISIBLE) |
 			 (flags & EXT4_FL_XFLAG_VISIBLE);
 		err = ext4_ioctl_setflags(inode, flags);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		mnt_drop_write_file(filp);
 		if (err)
 			return err;

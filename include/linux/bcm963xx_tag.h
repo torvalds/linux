@@ -1,5 +1,7 @@
-#ifndef __BCM963XX_TAG_H
-#define __BCM963XX_TAG_H
+#ifndef __LINUX_BCM963XX_TAG_H__
+#define __LINUX_BCM963XX_TAG_H__
+
+#include <linux/types.h>
 
 #define TAGVER_LEN		4	/* Length of Tag Version */
 #define TAGLAYOUT_LEN		4	/* Length of FlashLayoutVer */
@@ -10,8 +12,7 @@
 #define CHIPID_LEN		6	/* Chip Id Length */
 #define IMAGE_LEN		10	/* Length of Length Field */
 #define ADDRESS_LEN		12	/* Length of Address field */
-#define DUALFLAG_LEN		2	/* Dual Image flag Length */
-#define INACTIVEFLAG_LEN	2	/* Inactie Flag Length */
+#define IMAGE_SEQUENCE_LEN	4	/* Image sequence Length */
 #define RSASIG_LEN		20	/* Length of RSA Signature in tag */
 #define TAGINFO1_LEN		30	/* Length of vendor information field1 in tag */
 #define FLASHLAYOUTVER_LEN	4	/* Length of Flash Layout Version String tag */
@@ -25,6 +26,11 @@
 	"AGPF-S0", \
 	"DWV-S0", \
 }
+
+/* Extended flash address, needs to be subtracted
+ * from bcm_tag flash image offsets.
+ */
+#define BCM963XX_EXTENDED_SIZE	0xBFC00000
 
 /*
  * The broadcom firmware assumes the rootfs starts the image,
@@ -65,10 +71,10 @@ struct bcm_tag {
 	char kernel_address[ADDRESS_LEN];
 	/* 128-137: Size of kernel */
 	char kernel_length[IMAGE_LEN];
-	/* 138-139: Unused at the moment */
-	char dual_image[DUALFLAG_LEN];
-	/* 140-141: Unused at the moment */
-	char inactive_flag[INACTIVEFLAG_LEN];
+	/* 138-141: Image sequence number
+	 * (to be incremented when flashed with a new image)
+	 */
+	char image_sequence[IMAGE_SEQUENCE_LEN];
 	/* 142-161: RSA Signature (not used; some vendors may use this) */
 	char rsa_signature[RSASIG_LEN];
 	/* 162-191: Compilation and related information (not used in OpenWrt) */
@@ -93,4 +99,4 @@ struct bcm_tag {
 	char reserved2[16];
 };
 
-#endif /* __BCM63XX_TAG_H */
+#endif /* __LINUX_BCM63XX_TAG_H__ */

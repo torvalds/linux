@@ -2201,7 +2201,6 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->poll_cq = ipath_poll_cq;
 	dev->req_notify_cq = ipath_req_notify_cq;
 	dev->get_dma_mr = ipath_get_dma_mr;
-	dev->reg_phys_mr = ipath_reg_phys_mr;
 	dev->reg_user_mr = ipath_reg_user_mr;
 	dev->dereg_mr = ipath_dereg_mr;
 	dev->alloc_fmr = ipath_alloc_fmr;

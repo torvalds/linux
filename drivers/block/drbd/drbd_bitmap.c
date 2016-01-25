@@ -364,12 +364,9 @@ static void bm_free_pages(struct page **pages, unsigned long number)
 	}
 }
 
-static void bm_vk_free(void *ptr, int v)
+static inline void bm_vk_free(void *ptr)
 {
-	if (v)
-		vfree(ptr);
-	else
-		kfree(ptr);
+	kvfree(ptr);
 }
 
 /*
@@ -379,7 +376,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 {
 	struct page **old_pages = b->bm_pages;
 	struct page **new_pages, *page;
-	unsigned int i, bytes, vmalloced = 0;
+	unsigned int i, bytes;
 	unsigned long have = b->bm_number_of_pages;
 
 	BUG_ON(have == 0 && old_pages != NULL);
@@ -401,7 +398,6 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 				PAGE_KERNEL);
 		if (!new_pages)
 			return NULL;
-		vmalloced = 1;
 	}
 
 	if (want >= have) {
@@ -411,7 +407,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 			page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
 			if (!page) {
 				bm_free_pages(new_pages + have, i - have);
-				bm_vk_free(new_pages, vmalloced);
+				bm_vk_free(new_pages);
 				return NULL;
 			}
 			/* we want to know which page it is
@@ -426,11 +422,6 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 		bm_free_pages(old_pages + want, have - want);
 		*/
 	}
-
-	if (vmalloced)
-		b->bm_flags |= BM_P_VMALLOCED;
-	else
-		b->bm_flags &= ~BM_P_VMALLOCED;
 
 	return new_pages;
 }
@@ -469,7 +460,7 @@ void drbd_bm_cleanup(struct drbd_device *device)
 	if (!expect(device->bitmap))
 		return;
 	bm_free_pages(device->bitmap->bm_pages, device->bitmap->bm_number_of_pages);
-	bm_vk_free(device->bitmap->bm_pages, (BM_P_VMALLOCED & device->bitmap->bm_flags));
+	bm_vk_free(device->bitmap->bm_pages);
 	kfree(device->bitmap);
 	device->bitmap = NULL;
 }
@@ -643,7 +634,6 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 	unsigned long want, have, onpages; /* number of pages */
 	struct page **npages, **opages = NULL;
 	int err = 0, growing;
-	int opages_vmalloced;
 
 	if (!expect(b))
 		return -ENOMEM;
@@ -655,8 +645,6 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 
 	if (capacity == b->bm_dev_capacity)
 		goto out;
-
-	opages_vmalloced = (BM_P_VMALLOCED & b->bm_flags);
 
 	if (capacity == 0) {
 		spin_lock_irq(&b->bm_lock);
@@ -671,7 +659,7 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 		b->bm_dev_capacity = 0;
 		spin_unlock_irq(&b->bm_lock);
 		bm_free_pages(opages, onpages);
-		bm_vk_free(opages, opages_vmalloced);
+		bm_vk_free(opages);
 		goto out;
 	}
 	bits  = BM_SECT_TO_BIT(ALIGN(capacity, BM_SECT_PER_BIT));
@@ -744,7 +732,7 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 
 	spin_unlock_irq(&b->bm_lock);
 	if (opages != npages)
-		bm_vk_free(opages, opages_vmalloced);
+		bm_vk_free(opages);
 	if (!growing)
 		b->bm_set = bm_count_bits(b);
 	drbd_info(device, "resync bitmap: bits=%lu words=%lu pages=%lu\n", bits, words, want);

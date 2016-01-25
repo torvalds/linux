@@ -229,14 +229,14 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	if (HFSPLUS_IS_RSRC(inode))
 		inode = HFSPLUS_I(inode)->rsrc_inode;
 	if (atomic_dec_and_test(&HFSPLUS_I(inode)->opencnt)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		hfsplus_file_truncate(inode);
 		if (inode->i_flags & S_DEAD) {
 			hfsplus_delete_cat(inode->i_ino,
 					   HFSPLUS_SB(sb)->hidden_dir, NULL);
 			hfsplus_delete_inode(inode);
 		}
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	return 0;
 }
@@ -286,7 +286,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (error)
 		return error;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/*
 	 * Sync inode metadata into the catalog and extent trees.
@@ -327,7 +327,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return error;
 }

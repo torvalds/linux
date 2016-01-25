@@ -2420,6 +2420,8 @@ F:	arch/mips/kernel/*bmips*
 F:	arch/mips/boot/dts/brcm/bcm*.dts*
 F:	drivers/irqchip/irq-bcm7*
 F:	drivers/irqchip/irq-brcmstb*
+F:	include/linux/bcm963xx_nvram.h
+F:	include/linux/bcm963xx_tag.h
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Prashant Sreedharan <prashant@broadcom.com>
@@ -5780,10 +5782,8 @@ INTEL TELEMETRY DRIVER
 M:	Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	drivers/platform/x86/intel_telemetry_core.c
 F:	arch/x86/include/asm/intel_telemetry.h
-F:	drivers/platform/x86/intel_telemetry_pltdrv.c
-F:	drivers/platform/x86/intel_telemetry_debugfs.c
+F:	drivers/platform/x86/intel_telemetry*
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
@@ -6218,6 +6218,14 @@ F:	arch/arm64/include/uapi/asm/kvm*
 F:	arch/arm64/include/asm/kvm*
 F:	arch/arm64/kvm/
 
+KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
+M:	James Hogan <james.hogan@imgtec.com>
+L:	linux-mips@linux-mips.org
+S:	Supported
+F:	arch/mips/include/uapi/asm/kvm*
+F:	arch/mips/include/asm/kvm*
+F:	arch/mips/kvm/
+
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
 W:	http://kernel.org/pub/linux/utils/kernel/kexec/
@@ -6314,6 +6322,12 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/l3mdev
 F:	include/net/l3mdev.h
+
+LANTIQ MIPS ARCHITECTURE
+M:	John Crispin <blogic@openwrt.org>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/lantiq
 
 LAPB module
 L:	linux-x25@vger.kernel.org
@@ -7151,27 +7165,45 @@ W:	https://linuxtv.org
 S:	Odd Fixes
 F:	drivers/media/radio/radio-miropcm20*
 
-Mellanox MLX5 core VPI driver
-M:	Eli Cohen <eli@mellanox.com>
+MELLANOX MLX4 core VPI driver
+M:	Yishai Hadas <yishaih@mellanox.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
+S:	Supported
+F:	drivers/net/ethernet/mellanox/mlx4/
+F:	include/linux/mlx4/
+
+MELLANOX MLX4 IB driver
+M:	Yishai Hadas <yishaih@mellanox.com>
+L:	linux-rdma@vger.kernel.org
+W:	http://www.mellanox.com
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://openfabrics.org/~eli/connect-ib.git
+S:	Supported
+F:	drivers/infiniband/hw/mlx4/
+F:	include/linux/mlx4/
+
+MELLANOX MLX5 core VPI driver
+M:	Matan Barak <matanb@mellanox.com>
+M:	Leon Romanovsky <leonro@mellanox.com>
+L:	netdev@vger.kernel.org
+L:	linux-rdma@vger.kernel.org
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
 S:	Supported
 F:	drivers/net/ethernet/mellanox/mlx5/core/
 F:	include/linux/mlx5/
 
-Mellanox MLX5 IB driver
-M:	Eli Cohen <eli@mellanox.com>
+MELLANOX MLX5 IB driver
+M:	Matan Barak <matanb@mellanox.com>
+M:	Leon Romanovsky <leonro@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.mellanox.com
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://openfabrics.org/~eli/connect-ib.git
 S:	Supported
-F:	include/linux/mlx5/
 F:	drivers/infiniband/hw/mlx5/
+F:	include/linux/mlx5/
 
 MELEXIS MLX90614 DRIVER
 M:	Crt Mori <cmo@melexis.com>
@@ -7701,6 +7733,12 @@ S:	Supported
 W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
 F:	drivers/ntb/hw/intel/
+
+NTB AMD DRIVER
+M:	Xiangliang Yu <Xiangliang.Yu@amd.com>
+L:	linux-ntb@googlegroups.com
+S:	Supported
+F:	drivers/ntb/hw/amd/
 
 NTFS FILESYSTEM
 M:	Anton Altaparmakov <anton@tuxera.com>
@@ -8974,6 +9012,12 @@ M:	Paul Mackerras <paulus@samba.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
+
+RALINK MIPS ARCHITECTURE
+M:	John Crispin <blogic@openwrt.org>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/ralink
 
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
@@ -10453,9 +10497,11 @@ S:	Maintained
 F:	drivers/net/ethernet/dlink/sundance.c
 
 SUPERH
+M:	Yoshinori Sato <ysato@users.sourceforge.jp>
+M:	Rich Felker <dalias@libc.org>
 L:	linux-sh@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-S:	Orphan
+S:	Maintained
 F:	Documentation/sh/
 F:	arch/sh/
 F:	drivers/sh/
