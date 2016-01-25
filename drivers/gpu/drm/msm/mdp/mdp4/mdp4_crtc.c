@@ -575,13 +575,6 @@ uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc)
 	return mdp4_crtc->vblank.irqmask;
 }
 
-void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	DBG("%s: cancel: %p", mdp4_crtc->name, file);
-	complete_flip(crtc, file);
-}
-
 /* set dma config, ie. the format the encoder wants. */
 void mdp4_crtc_set_config(struct drm_crtc *crtc, uint32_t config)
 {
