@@ -384,20 +384,6 @@ static void __init __map_memblock(phys_addr_t start, phys_addr_t end)
 static void __init map_mem(void)
 {
 	struct memblock_region *reg;
-	phys_addr_t limit;
-
-	/*
-	 * Temporarily limit the memblock range. We need to do this as
-	 * create_mapping requires puds, pmds and ptes to be allocated from
-	 * memory addressable from the initial direct kernel mapping.
-	 *
-	 * The initial direct kernel mapping, located at swapper_pg_dir, gives
-	 * us PUD_SIZE (with SECTION maps) or PMD_SIZE (without SECTION maps,
-	 * memory starting from PHYS_OFFSET (which must be aligned to 2MB as
-	 * per Documentation/arm64/booting.txt).
-	 */
-	limit = PHYS_OFFSET + SWAPPER_INIT_MAP_SIZE;
-	memblock_set_current_limit(limit);
 
 	/* map all the memory banks */
 	for_each_memblock(memory, reg) {
@@ -409,29 +395,8 @@ static void __init map_mem(void)
 		if (memblock_is_nomap(reg))
 			continue;
 
-		if (ARM64_SWAPPER_USES_SECTION_MAPS) {
-			/*
-			 * For the first memory bank align the start address and
-			 * current memblock limit to prevent create_mapping() from
-			 * allocating pte page tables from unmapped memory. With
-			 * the section maps, if the first block doesn't end on section
-			 * size boundary, create_mapping() will try to allocate a pte
-			 * page, which may be returned from an unmapped area.
-			 * When section maps are not used, the pte page table for the
-			 * current limit is already present in swapper_pg_dir.
-			 */
-			if (start < limit)
-				start = ALIGN(start, SECTION_SIZE);
-			if (end < limit) {
-				limit = end & SECTION_MASK;
-				memblock_set_current_limit(limit);
-			}
-		}
 		__map_memblock(start, end);
 	}
-
-	/* Limit no longer required. */
-	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 }
 
 static void __init fixup_executable(void)
