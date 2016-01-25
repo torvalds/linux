@@ -1274,7 +1274,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		kfree(g_key_gtk_params.seq);
 		g_key_gtk_params.seq = NULL;
 
-		wilc_set_machw_change_vir_if(netdev, false);
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
@@ -2116,10 +2115,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	del_timer(&wilc_during_ip_timer);
 	PRINT_D(GENERIC_DBG, "Changing virtual interface, enable scan\n");
 
-	if (g_ptk_keys_saved && g_gtk_keys_saved) {
-		wilc_set_machw_change_vir_if(dev, true);
-	}
-
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
 		wilc_connecting = 0;
@@ -2261,7 +2256,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			}
 
 			refresh_scan(priv, 1, true);
-			wilc_set_machw_change_vir_if(dev, false);
 
 			if (wl->initialized)	{
 				for (i = 0; i < num_reg_frame; i++) {

@@ -1024,14 +1024,13 @@ int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
-	wilc_set_machw_change_vir_if(ndev, false);
-
 	wilc_get_mac_address(vif, mac_add);
 	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
 
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
 			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
+			wilc_set_operation_mode(vif, vif->iftype);
 			break;
 		}
 	}

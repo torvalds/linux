@@ -1578,35 +1578,3 @@ _fail_:
 
 	return ret;
 }
-
-u16 wilc_set_machw_change_vir_if(struct net_device *dev, bool value)
-{
-	u16 ret;
-	u32 reg;
-	struct wilc_vif *vif;
-	struct wilc *wilc;
-
-	vif = netdev_priv(dev);
-	wilc = vif->wilc;
-
-	mutex_lock(&wilc->hif_cs);
-	ret = wilc->hif_func->hif_read_reg(wilc, WILC_CHANGING_VIR_IF,
-					       &reg);
-	if (!ret)
-		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
-
-	if (value)
-		reg |= BIT(31);
-	else
-		reg &= ~BIT(31);
-
-	ret = wilc->hif_func->hif_write_reg(wilc, WILC_CHANGING_VIR_IF,
-						reg);
-
-	if (!ret)
-		PRINT_ER("Error while writing reg WILC_CHANGING_VIR_IF\n");
-
-	mutex_unlock(&wilc->hif_cs);
-
-	return ret;
-}
