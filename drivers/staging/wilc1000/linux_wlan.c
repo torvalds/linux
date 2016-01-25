@@ -391,9 +391,6 @@ static int linux_wlan_txq_task(void *vp)
 			}
 
 			if (ret == WILC_TX_ERR_NO_BUF) {
-				do {
-					msleep(TX_BACKOFF_WEIGHT_UNIT_MS << backoff_weight);
-				} while (0);
 				backoff_weight += TX_BACKOFF_WEIGHT_INCR_STEP;
 				if (backoff_weight > TX_BACKOFF_WEIGHT_MAX)
 					backoff_weight = TX_BACKOFF_WEIGHT_MAX;
@@ -1403,7 +1400,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		release_firmware(wilc->firmware);
 
 	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
-		wilc_lock_timeout(wilc, &close_exit_sync, 12 * 1000);
+		wilc_lock_timeout(wilc, &close_exit_sync, 5 * 1000);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
 			if (wilc->vif[i]->ndev)
