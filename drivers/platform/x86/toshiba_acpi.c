@@ -2289,6 +2289,54 @@ static ssize_t usb_three_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(usb_three);
 
+static ssize_t cooling_method_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	int state;
+	int ret;
+
+	ret = toshiba_cooling_method_get(toshiba, &state);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d %d\n", state, toshiba->max_cooling_method);
+}
+
+static ssize_t cooling_method_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	int state;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Check for supported values
+	 * Depending on the laptop model, some only support these two:
+	 * 0 - Maximum Performance
+	 * 1 - Battery Optimized
+	 *
+	 * While some others support all three methods:
+	 * 0 - Maximum Performance
+	 * 1 - Performance
+	 * 2 - Battery Optimized
+	 */
+	if (state < 0 || state > toshiba->max_cooling_method)
+		return -EINVAL;
+
+	ret = toshiba_cooling_method_set(toshiba, state);
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_RW(cooling_method);
+
 static struct attribute *toshiba_attributes[] = {
 	&dev_attr_version.attr,
 	&dev_attr_fan.attr,
@@ -2305,6 +2353,7 @@ static struct attribute *toshiba_attributes[] = {
 	&dev_attr_kbd_function_keys.attr,
 	&dev_attr_panel_power_on.attr,
 	&dev_attr_usb_three.attr,
+	&dev_attr_cooling_method.attr,
 	NULL,
 };
 
@@ -2339,6 +2388,8 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 		exists = (drv->panel_power_on_supported) ? true : false;
 	else if (attr == &dev_attr_usb_three.attr)
 		exists = (drv->usb_three_supported) ? true : false;
+	else if (attr == &dev_attr_cooling_method.attr)
+		exists = (drv->cooling_method_supported) ? true : false;
 
 	return exists ? attr->mode : 0;
 }
