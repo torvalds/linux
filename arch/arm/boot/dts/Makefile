@@ -189,6 +189,7 @@ dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-is2.dtb \
 	kirkwood-km_kirkwood.dtb \
 	kirkwood-laplug.dtb \
+	kirkwood-linkstation-lsqvl.dtb \
 	kirkwood-linkstation-lsvl.dtb \
 	kirkwood-linkstation-lswsxl.dtb \
 	kirkwood-linkstation-lswvl.dtb \
