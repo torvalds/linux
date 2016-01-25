@@ -135,10 +135,10 @@ void imx6_up_lpddr2_freq_change(u32 freq, int bus_freq_mode) {}
 
 #if !defined(CONFIG_SOC_IMX6Q)
 u32 mx6_ddr3_freq_change_start, mx6_ddr3_freq_change_end;
-u32 wfe_ddr3_freq_change_start, wfe_ddr3_freq_change_end;
+u32 wfe_smp_freq_change_start, wfe_smp_freq_change_end;
 void mx6_ddr3_freq_change(u32 freq, void *ddr_settings,
 	bool dll_mode, void *iomux_offsets) {}
-void wfe_ddr3_freq_change(u32 cpuid, u32 *ddr_freq_change_done) {}
+void wfe_smp_freq_change(u32 cpuid, u32 *ddr_freq_change_done) {}
 #endif
 
 #if !defined(CONFIG_SOC_IMX7D)

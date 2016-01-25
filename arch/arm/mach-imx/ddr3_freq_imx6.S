@@ -44,14 +44,9 @@
 #define ANADIG_DIGPROG     0x260
 
 .extern iram_tlb_phys_addr
-#ifdef CONFIG_SMP
-.extern imx_scu_base
-#endif
 
 .globl mx6_ddr3_freq_change_start
 .globl mx6_ddr3_freq_change_end
-.globl wfe_ddr3_freq_change_start
-.globl wfe_ddr3_freq_change_end
 
 	.align 3
 
@@ -1080,77 +1075,3 @@ done:
 	 */
 	.ltorg
 mx6_ddr3_freq_change_end:
-
-#ifdef CONFIG_SMP
-	.align 3
-
-ENTRY(wfe_ddr3_freq_change)
-wfe_ddr3_freq_change_start:
-	push	{r4 - r11, lr}
-
-	mov	r6, r0
-	mov	r7, r1
-
-	dsb
-	isb
-
-	disable_l1_dcache
-
-	isb
-
-	/* Turn off SMP bit. */
-	mrc	p15, 0, r8, c1, c0, 1
-	bic	r8, r8, #0x40
-	mcr	p15, 0, r8, c1, c0, 1
-
-	isb
-
-	/* Inform the SCU we are going to enter WFE. */
-	push	{r0 - r11, lr}
-
-	ldr	r0,=imx_scu_base
-	ldr	r0, [r0]
-	mov	r1, #SCU_PM_DORMANT
-	ldr	r3, =scu_power_mode
-	mov	lr, pc
-	mov	pc, r3
-
-	pop	{r0 - r11, lr}
-
-go_back_wfe:
-	wfe
-
-	ldr	r3, [r7]
-	cmp	r3, #1
-	beq	go_back_wfe
-
-	/* Turn ON SMP bit. */
-	mrc	p15, 0, r8, c1, c0, 1
-	orr	r8, r8, #0x40
-	mcr	p15, 0, r8, c1, c0, 1
-
-	isb
-	/* Enable L1 data cache. */
-	mrc	p15, 0, r8, c1, c0, 0
-	orr	r8, r8, #0x4
-	mcr	p15, 0, r8, c1, c0, 0
-	isb
-
-	/* Inform the SCU we have exited WFE. */
-	push	{r0 - r11, lr}
-
-	ldr	r0,=imx_scu_base
-	ldr	r0, [r0]
-	mov	r1, #SCU_PM_NORMAL
-	ldr	r3, =scu_power_mode
-	mov	lr, pc
-	mov	pc, r3
-
-	pop	{r0 - r11, lr}
-
-	/* Pop all saved registers. */
-	pop	{r4 - r11, lr}
-	mov	pc, lr
-	.ltorg
-wfe_ddr3_freq_change_end:
-#endif
