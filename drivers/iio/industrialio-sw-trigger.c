@@ -167,9 +167,7 @@ static int __init iio_sw_trigger_init(void)
 		configfs_register_default_group(&iio_configfs_subsys.su_group,
 						"triggers",
 						&iio_triggers_group_type);
-	if (IS_ERR(iio_triggers_group))
-		return PTR_ERR(iio_triggers_group);
-	return 0;
+	return PTR_ERR_OR_ZERO(iio_triggers_group);
 }
 module_init(iio_sw_trigger_init);
 

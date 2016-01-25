@@ -722,7 +722,7 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 #ifdef CONFIG_GPIOLIB
 		/* add GPIOs */
 		priv->gpio_chip.label = KBUILD_MODNAME;
-		priv->gpio_chip.dev = &priv->i2c->dev;
+		priv->gpio_chip.parent = &priv->i2c->dev;
 		priv->gpio_chip.owner = THIS_MODULE;
 		priv->gpio_chip.direction_output =
 				cxd2820r_gpio_direction_output;

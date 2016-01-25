@@ -97,12 +97,6 @@ void default_idle_call(void)
 static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		      int next_state)
 {
-	/* Fall back to the default arch idle method on errors. */
-	if (next_state < 0) {
-		default_idle_call();
-		return next_state;
-	}
-
 	/*
 	 * The idle task must be scheduled, it is pointless to go to idle, just
 	 * update no idle residency and return.

@@ -400,7 +400,7 @@ static void udl_crtc_commit(struct drm_crtc *crtc)
 	udl_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
-static struct drm_crtc_helper_funcs udl_helper_funcs = {
+static const struct drm_crtc_helper_funcs udl_helper_funcs = {
 	.dpms = udl_crtc_dpms,
 	.mode_fixup = udl_crtc_mode_fixup,
 	.mode_set = udl_crtc_mode_set,

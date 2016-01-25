@@ -752,7 +752,7 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	int eqn_not_used;
-	int irqn;
+	unsigned int irqn;
 	int err;
 	u32 i;
 
@@ -806,7 +806,7 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	void *in;
 	void *cqc;
 	int inlen;
-	int irqn_not_used;
+	unsigned int irqn_not_used;
 	int eqn;
 	int err;
 
@@ -1517,7 +1517,7 @@ static int mlx5e_create_drop_cq(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	int eqn_not_used;
-	int irqn;
+	unsigned int irqn;
 	int err;
 
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
@@ -2241,7 +2241,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		goto err_unmap_free_uar;
 	}
 
-	err = mlx5_alloc_transport_domain(mdev, &priv->tdn);
+	err = mlx5_core_alloc_transport_domain(mdev, &priv->tdn);
 	if (err) {
 		mlx5_core_err(mdev, "alloc td failed, %d\n", err);
 		goto err_dealloc_pd;
@@ -2324,7 +2324,7 @@ err_destroy_mkey:
 	mlx5_core_destroy_mkey(mdev, &priv->mr);
 
 err_dealloc_transport_domain:
-	mlx5_dealloc_transport_domain(mdev, priv->tdn);
+	mlx5_core_dealloc_transport_domain(mdev, priv->tdn);
 
 err_dealloc_pd:
 	mlx5_core_dealloc_pd(mdev, priv->pdn);
@@ -2356,7 +2356,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5e_close_drop_rq(priv);
 	mlx5e_destroy_tises(priv);
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
-	mlx5_dealloc_transport_domain(priv->mdev, priv->tdn);
+	mlx5_core_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
 	free_netdev(netdev);

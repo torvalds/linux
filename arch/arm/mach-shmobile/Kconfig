@@ -1,6 +1,8 @@
 config ARCH_SHMOBILE
 	bool
-	select ZONE_DMA if ARM_LPAE
+
+config ARCH_SHMOBILE_MULTI
+	bool
 
 config PM_RCAR
 	bool
@@ -29,10 +31,11 @@ config ARCH_RMOBILE
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
 
-menuconfig ARCH_SHMOBILE_MULTI
-	bool "Renesas ARM SoCs" if ARCH_MULTI_V7
-	depends on MMU
+menuconfig ARCH_RENESAS
+	bool "Renesas ARM SoCs"
+	depends on ARCH_MULTI_V7 && MMU
 	select ARCH_SHMOBILE
+	select ARCH_SHMOBILE_MULTI
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ARM_GIC
@@ -40,8 +43,9 @@ menuconfig ARCH_SHMOBILE_MULTI
 	select NO_IOPORT_MAP
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
+	select ZONE_DMA if ARM_LPAE
 
-if ARCH_SHMOBILE_MULTI
+if ARCH_RENESAS
 
 #comment "Renesas ARM SoCs System Type"
 

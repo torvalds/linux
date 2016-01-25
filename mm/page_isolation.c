@@ -196,8 +196,10 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 {
 	unsigned long pfn;
 	struct page *page;
-	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
-	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
+
+	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
+	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
+
 	for (pfn = start_pfn;
 	     pfn < end_pfn;
 	     pfn += pageblock_nr_pages) {

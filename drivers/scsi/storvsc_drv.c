@@ -390,7 +390,7 @@ module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
 module_param(storvsc_vcpus_per_sub_channel, int, S_IRUGO);
-MODULE_PARM_DESC(vcpus_per_sub_channel, "Ratio of VCPUs to subchannels");
+MODULE_PARM_DESC(storvsc_vcpus_per_sub_channel, "Ratio of VCPUs to subchannels");
 /*
  * Timeout in seconds for all devices managed by this driver.
  */

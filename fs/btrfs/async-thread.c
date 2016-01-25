@@ -97,7 +97,7 @@ static struct __btrfs_workqueue *
 __btrfs_alloc_workqueue(const char *name, unsigned int flags, int limit_active,
 			 int thresh)
 {
-	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_KERNEL);
 
 	if (!ret)
 		return NULL;
@@ -148,7 +148,7 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 					      int limit_active,
 					      int thresh)
 {
-	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_KERNEL);
 
 	if (!ret)
 		return NULL;

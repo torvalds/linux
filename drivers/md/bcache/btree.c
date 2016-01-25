@@ -1741,6 +1741,7 @@ static void bch_btree_gc(struct cache_set *c)
 	do {
 		ret = btree_root(gc_root, c, &op, &writes, &stats);
 		closure_sync(&writes);
+		cond_resched();
 
 		if (ret && ret != -EAGAIN)
 			pr_warn("gc failed!");
@@ -2162,8 +2163,10 @@ int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
 		rw_lock(true, b, b->level);
 
 		if (b->key.ptr[0] != btree_ptr ||
-		    b->seq != seq + 1)
+                   b->seq != seq + 1) {
+                       op->lock = b->level;
 			goto out;
+               }
 	}
 
 	SET_KEY_PTRS(check_key, 1);

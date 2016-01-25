@@ -787,7 +787,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_STATE_NEED_DATA		1 /* target needs data to continue */
 #define QLA_TGT_STATE_DATA_IN		2 /* Data arrived + target processing */
 #define QLA_TGT_STATE_PROCESSED		3 /* target done processing */
-#define QLA_TGT_STATE_ABORTED		4 /* Command aborted */
+
 
 /* Special handles */
 #define QLA_TGT_NULL_HANDLE	0
@@ -835,6 +835,7 @@ struct qla_tgt {
 	 * HW lock.
 	 */
 	int irq_cmd_count;
+	int atio_irq_cmd_count;
 
 	int datasegs_per_cmd, datasegs_per_cont, sg_tablesize;
 
@@ -883,6 +884,7 @@ struct qla_tgt {
 
 struct qla_tgt_sess_op {
 	struct scsi_qla_host *vha;
+	uint32_t chip_reset;
 	struct atio_from_isp atio;
 	struct work_struct work;
 	struct list_head cmd_list;
@@ -896,6 +898,19 @@ enum qla_sess_deletion {
 	QLA_SESS_DELETION_IN_PROGRESS	= 2,
 };
 
+typedef enum {
+	QLT_PLOGI_LINK_SAME_WWN,
+	QLT_PLOGI_LINK_CONFLICT,
+	QLT_PLOGI_LINK_MAX
+} qlt_plogi_link_t;
+
+typedef struct {
+	struct list_head		list;
+	struct imm_ntfy_from_isp	iocb;
+	port_id_t			id;
+	int				ref_count;
+} qlt_plogi_ack_t;
+
 /*
  * Equivilant to IT Nexus (Initiator-Target)
  */
@@ -907,8 +922,8 @@ struct qla_tgt_sess {
 	unsigned int deleted:2;
 	unsigned int local:1;
 	unsigned int logout_on_delete:1;
-	unsigned int plogi_ack_needed:1;
 	unsigned int keep_nport_handle:1;
+	unsigned int send_els_logo:1;
 
 	unsigned char logout_completed;
 
@@ -925,9 +940,7 @@ struct qla_tgt_sess {
 	uint8_t port_name[WWN_SIZE];
 	struct work_struct free_work;
 
-	union {
-		struct imm_ntfy_from_isp tm_iocb;
-	};
+	qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 };
 
 struct qla_tgt_cmd {
@@ -949,6 +962,7 @@ struct qla_tgt_cmd {
 	unsigned int term_exchg:1;
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
+	unsigned int aborted:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -1120,6 +1134,14 @@ static inline uint32_t sid_to_key(const uint8_t *s_id)
 	return key;
 }
 
+static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
+{
+	memset(p, 0, sizeof(*p));
+	p->b.domain = s_id[0];
+	p->b.area = s_id[1];
+	p->b.al_pa = s_id[2];
+}
+
 /*
  * Exported symbols from qla_target.c LLD logic used by qla2xxx code..
  */
@@ -1135,7 +1157,7 @@ extern void qlt_enable_vha(struct scsi_qla_host *);
 extern void qlt_vport_create(struct scsi_qla_host *, struct qla_hw_data *);
 extern void qlt_rff_id(struct scsi_qla_host *, struct ct_sns_req *);
 extern void qlt_init_atio_q_entries(struct scsi_qla_host *);
-extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *);
+extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *, uint8_t);
 extern void qlt_24xx_config_rings(struct scsi_qla_host *);
 extern void qlt_24xx_config_nvram_stage1(struct scsi_qla_host *,
 	struct nvram_24xx *);

@@ -5,7 +5,6 @@ config UNICORE32
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_MEMBLOCK
 	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_DMA_ATTRS
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select GENERIC_ATOMIC64
@@ -32,9 +31,6 @@ config NO_IOPORT_MAP
 	bool
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 config LOCKDEP_SUPPORT

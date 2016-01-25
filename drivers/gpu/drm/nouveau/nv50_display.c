@@ -28,8 +28,16 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
+#include <nvif/cl5070.h>
+#include <nvif/cl507a.h>
+#include <nvif/cl507b.h>
+#include <nvif/cl507c.h>
+#include <nvif/cl507d.h>
+#include <nvif/cl507e.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -773,7 +781,6 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	 */
 	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
 			     (nv_connector->underscan == UNDERSCAN_AUTO &&
-			      nv_connector->edid &&
 			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
 		u32 bX = nv_connector->underscan_hborder;
 		u32 bY = nv_connector->underscan_vborder;
@@ -1717,7 +1724,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_dac_func, type);
+	drm_encoder_init(connector->dev, encoder, &nv50_dac_func, type, NULL);
 	drm_encoder_helper_add(encoder, &nv50_dac_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -1961,10 +1968,17 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
-			if (mode->clock < 165000)
-				proto = 0x1;
-			else
-				proto = 0x5;
+			proto = 0x1;
+			/* Only enable dual-link if:
+			 *  - Need to (i.e. rate > 165MHz)
+			 *  - DCB says we can
+			 *  - Not an HDMI monitor, since there's no dual-link
+			 *    on HDMI.
+			 */
+			if (mode->clock >= 165000 &&
+			    nv_encoder->dcb->duallink_possible &&
+			    !drm_detect_hdmi_monitor(nv_connector->edid))
+				proto |= 0x4;
 		} else {
 			proto = 0x2;
 		}
@@ -2125,7 +2139,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type);
+	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type, NULL);
 	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -2305,7 +2319,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type);
+	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type, NULL);
 	drm_encoder_helper_add(encoder, &nv50_pior_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);

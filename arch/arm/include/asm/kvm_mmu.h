@@ -182,7 +182,8 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
 }
 
-static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
+					       kvm_pfn_t pfn,
 					       unsigned long size,
 					       bool ipa_uncached)
 {
@@ -246,7 +247,7 @@ static inline void __kvm_flush_dcache_pte(pte_t pte)
 static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
 {
 	unsigned long size = PMD_SIZE;
-	pfn_t pfn = pmd_pfn(pmd);
+	kvm_pfn_t pfn = pmd_pfn(pmd);
 
 	while (size) {
 		void *va = kmap_atomic_pfn(pfn);

@@ -971,7 +971,7 @@ filelayout_mark_request_commit(struct nfs_page *req,
 	u32 i, j;
 
 	if (fl->commit_through_mds) {
-		nfs_request_add_commit_list(req, &cinfo->mds->list, cinfo);
+		nfs_request_add_commit_list(req, cinfo);
 	} else {
 		/* Note that we are calling nfs4_fl_calc_j_index on each page
 		 * that ends up being committed to a data server.  An attractive

@@ -50,6 +50,9 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_WRITEBACK,	/* # of pages under writeback */
 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
 	MEM_CGROUP_STAT_NSTATS,
+	/* default hierarchy stats */
+	MEMCG_SOCK,
+	MEMCG_NR_STAT,
 };
 
 struct mem_cgroup_reclaim_cookie {
@@ -85,15 +88,9 @@ enum mem_cgroup_events_target {
 	MEM_CGROUP_NTARGETS,
 };
 
-struct cg_proto {
-	struct page_counter	memory_allocated;	/* Current allocated memory. */
-	int			memory_pressure;
-	bool			active;
-};
-
 #ifdef CONFIG_MEMCG
 struct mem_cgroup_stat_cpu {
-	long count[MEM_CGROUP_STAT_NSTATS];
+	long count[MEMCG_NR_STAT];
 	unsigned long events[MEMCG_NR_EVENTS];
 	unsigned long nr_page_events;
 	unsigned long targets[MEM_CGROUP_NTARGETS];
@@ -152,6 +149,12 @@ struct mem_cgroup_thresholds {
 	struct mem_cgroup_threshold_ary *spare;
 };
 
+enum memcg_kmem_state {
+	KMEM_NONE,
+	KMEM_ALLOCATED,
+	KMEM_ONLINE,
+};
+
 /*
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
@@ -163,8 +166,12 @@ struct mem_cgroup {
 
 	/* Accounted resources */
 	struct page_counter memory;
+	struct page_counter swap;
+
+	/* Legacy consumer-oriented counters */
 	struct page_counter memsw;
 	struct page_counter kmem;
+	struct page_counter tcpmem;
 
 	/* Normal memory consumption range */
 	unsigned long low;
@@ -177,9 +184,6 @@ struct mem_cgroup {
 
 	/* vmpressure notifications */
 	struct vmpressure vmpressure;
-
-	/* css_online() has been completed */
-	int initialized;
 
 	/*
 	 * Should the accounting and control be hierarchical, per subtree?
@@ -227,14 +231,16 @@ struct mem_cgroup {
 	 */
 	struct mem_cgroup_stat_cpu __percpu *stat;
 
-#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
-	struct cg_proto tcp_mem;
-#endif
-#if defined(CONFIG_MEMCG_KMEM)
+	unsigned long		socket_pressure;
+
+	/* Legacy tcp memory accounting */
+	bool			tcpmem_active;
+	int			tcpmem_pressure;
+
+#ifndef CONFIG_SLOB
         /* Index in the kmem_cache->memcg_params.memcg_caches array */
 	int kmemcg_id;
-	bool kmem_acct_activated;
-	bool kmem_acct_active;
+	enum memcg_kmem_state kmem_state;
 #endif
 
 	int last_scanned_node;
@@ -247,10 +253,6 @@ struct mem_cgroup {
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head cgwb_list;
 	struct wb_domain cgwb_domain;
-#endif
-
-#ifdef CONFIG_INET
-	unsigned long		socket_pressure;
 #endif
 
 	/* List of events which userspace want to receive */
@@ -280,10 +282,12 @@ static inline void mem_cgroup_events(struct mem_cgroup *memcg,
 bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
 
 int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
-			  gfp_t gfp_mask, struct mem_cgroup **memcgp);
+			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
+			  bool compound);
 void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
-			      bool lrucare);
-void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg);
+			      bool lrucare, bool compound);
+void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+		bool compound);
 void mem_cgroup_uncharge(struct page *page);
 void mem_cgroup_uncharge_list(struct list_head *page_list);
 
@@ -354,6 +358,13 @@ static inline bool mem_cgroup_disabled(void)
 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
 }
 
+static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
+{
+	if (mem_cgroup_disabled())
+		return true;
+	return !!(memcg->css.flags & CSS_ONLINE);
+}
+
 /*
  * For memory reclaim.
  */
@@ -361,20 +372,6 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 		int nr_pages);
-
-static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
-{
-	struct mem_cgroup_per_zone *mz;
-	struct mem_cgroup *memcg;
-
-	if (mem_cgroup_disabled())
-		return true;
-
-	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
-	memcg = mz->memcg;
-
-	return !!(memcg->css.flags & CSS_ONLINE);
-}
 
 static inline
 unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
@@ -515,7 +512,8 @@ static inline bool mem_cgroup_low(struct mem_cgroup *root,
 
 static inline int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask,
-					struct mem_cgroup **memcgp)
+					struct mem_cgroup **memcgp,
+					bool compound)
 {
 	*memcgp = NULL;
 	return 0;
@@ -523,12 +521,13 @@ static inline int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 
 static inline void mem_cgroup_commit_charge(struct page *page,
 					    struct mem_cgroup *memcg,
-					    bool lrucare)
+					    bool lrucare, bool compound)
 {
 }
 
 static inline void mem_cgroup_cancel_charge(struct page *page,
-					    struct mem_cgroup *memcg)
+					    struct mem_cgroup *memcg,
+					    bool compound)
 {
 }
 
@@ -586,13 +585,13 @@ static inline bool mem_cgroup_disabled(void)
 	return true;
 }
 
-static inline bool
-mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 {
 	return true;
 }
 
-static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
+static inline bool
+mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
 {
 	return true;
 }
@@ -703,15 +702,13 @@ void sock_update_memcg(struct sock *sk);
 void sock_release_memcg(struct sock *sk);
 bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
 void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
-#if defined(CONFIG_MEMCG) && defined(CONFIG_INET)
+#ifdef CONFIG_MEMCG
 extern struct static_key_false memcg_sockets_enabled_key;
 #define mem_cgroup_sockets_enabled static_branch_unlikely(&memcg_sockets_enabled_key)
 static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 {
-#ifdef CONFIG_MEMCG_KMEM
-	if (memcg->tcp_mem.memory_pressure)
+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && memcg->tcpmem_pressure)
 		return true;
-#endif
 	do {
 		if (time_before(jiffies, memcg->socket_pressure))
 			return true;
@@ -726,7 +723,7 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 }
 #endif
 
-#ifdef CONFIG_MEMCG_KMEM
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
 extern struct static_key_false memcg_kmem_enabled_key;
 
 extern int memcg_nr_cache_ids;
@@ -746,9 +743,9 @@ static inline bool memcg_kmem_enabled(void)
 	return static_branch_unlikely(&memcg_kmem_enabled_key);
 }
 
-static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+static inline bool memcg_kmem_online(struct mem_cgroup *memcg)
 {
-	return memcg->kmem_acct_active;
+	return memcg->kmem_state == KMEM_ONLINE;
 }
 
 /*
@@ -846,7 +843,7 @@ static inline bool memcg_kmem_enabled(void)
 	return false;
 }
 
-static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+static inline bool memcg_kmem_online(struct mem_cgroup *memcg)
 {
 	return false;
 }
@@ -882,5 +879,6 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
 static inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
 {
 }
-#endif /* CONFIG_MEMCG_KMEM */
+#endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+
 #endif /* _LINUX_MEMCONTROL_H */

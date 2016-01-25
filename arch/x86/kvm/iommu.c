@@ -43,11 +43,11 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm);
 static void kvm_iommu_put_pages(struct kvm *kvm,
 				gfn_t base_gfn, unsigned long npages);
 
-static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
+static kvm_pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
 			   unsigned long npages)
 {
 	gfn_t end_gfn;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 
 	pfn     = gfn_to_pfn_memslot(slot, gfn);
 	end_gfn = gfn + npages;
@@ -62,7 +62,8 @@ static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
 	return pfn;
 }
 
-static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
+static void kvm_unpin_pages(struct kvm *kvm, kvm_pfn_t pfn,
+		unsigned long npages)
 {
 	unsigned long i;
 
@@ -73,7 +74,7 @@ static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
 int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
 	gfn_t gfn, end_gfn;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 	int r = 0;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
 	int flags;
@@ -275,7 +276,7 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 {
 	struct iommu_domain *domain;
 	gfn_t end_gfn, gfn;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 	u64 phys;
 
 	domain  = kvm->arch.iommu_domain;

@@ -47,6 +47,8 @@ static void amd_sched_rq_init(struct amd_sched_rq *rq)
 static void amd_sched_rq_add_entity(struct amd_sched_rq *rq,
 				    struct amd_sched_entity *entity)
 {
+	if (!list_empty(&entity->list))
+		return;
 	spin_lock(&rq->lock);
 	list_add_tail(&entity->list, &rq->entities);
 	spin_unlock(&rq->lock);
@@ -55,6 +57,8 @@ static void amd_sched_rq_add_entity(struct amd_sched_rq *rq,
 static void amd_sched_rq_remove_entity(struct amd_sched_rq *rq,
 				       struct amd_sched_entity *entity)
 {
+	if (list_empty(&entity->list))
+		return;
 	spin_lock(&rq->lock);
 	list_del_init(&entity->list);
 	if (rq->current_entity == entity)
@@ -137,9 +141,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 
 	atomic_set(&entity->fence_seq, 0);
 	entity->fence_context = fence_context_alloc(1);
-
-	/* Add the entity to the run queue */
-	amd_sched_rq_add_entity(rq, entity);
 
 	return 0;
 }
@@ -302,9 +303,11 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 	spin_unlock(&entity->queue_lock);
 
 	/* first job wakes up scheduler */
-	if (first)
+	if (first) {
+		/* Add the entity to the run queue */
+		amd_sched_rq_add_entity(entity->rq, entity);
 		amd_sched_wakeup(sched);
-
+	}
 	return added;
 }
 
@@ -349,14 +352,17 @@ static struct amd_sched_entity *
 amd_sched_select_entity(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_entity *entity;
+	int i;
 
 	if (!amd_sched_ready(sched))
 		return NULL;
 
 	/* Kernel run queue has higher priority than normal run queue*/
-	entity = amd_sched_rq_select_entity(&sched->kernel_rq);
-	if (entity == NULL)
-		entity = amd_sched_rq_select_entity(&sched->sched_rq);
+	for (i = 0; i < AMD_SCHED_MAX_PRIORITY; i++) {
+		entity = amd_sched_rq_select_entity(&sched->sched_rq[i]);
+		if (entity)
+			break;
+	}
 
 	return entity;
 }
@@ -478,12 +484,13 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   struct amd_sched_backend_ops *ops,
 		   unsigned hw_submission, long timeout, const char *name)
 {
+	int i;
 	sched->ops = ops;
 	sched->hw_submission_limit = hw_submission;
 	sched->name = name;
 	sched->timeout = timeout;
-	amd_sched_rq_init(&sched->sched_rq);
-	amd_sched_rq_init(&sched->kernel_rq);
+	for (i = 0; i < AMD_SCHED_MAX_PRIORITY; i++)
+		amd_sched_rq_init(&sched->sched_rq[i]);
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);

@@ -430,7 +430,7 @@ The rationale for using gotos is:
 		return result;
 	}
 
-A common type of bug to be aware of it "one err bugs" which look like this:
+A common type of bug to be aware of is "one err bugs" which look like this:
 
 	err:
 		kfree(foo->bar);

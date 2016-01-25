@@ -250,6 +250,7 @@ config USB_GADGET_TARGET
 	tristate "USB Gadget Target Fabric Module"
 	depends on TARGET_CORE
 	select USB_LIBCOMPOSITE
+	select USB_F_TCM
 	help
 	  This fabric is an USB gadget. Two USB protocols are supported that is
 	  BBB or BOT (Bulk Only Transport) and UAS (USB Attached SCSI). BOT is

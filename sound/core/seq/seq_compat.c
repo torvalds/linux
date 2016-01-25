@@ -49,11 +49,12 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 	struct snd_seq_port_info *data;
 	mm_segment_t fs;
 
-	data = memdup_user(data32, sizeof(*data32));
-	if (IS_ERR(data))
-		return PTR_ERR(data);
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-	if (get_user(data->flags, &data32->flags) ||
+	if (copy_from_user(data, data32, sizeof(*data32)) ||
+	    get_user(data->flags, &data32->flags) ||
 	    get_user(data->time_queue, &data32->time_queue))
 		goto error;
 	data->kernel = NULL;

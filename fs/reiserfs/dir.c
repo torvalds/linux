@@ -38,11 +38,11 @@ static int reiserfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 	if (err)
 		return err;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	reiserfs_write_lock(inode->i_sb);
 	err = reiserfs_commit_for_inode(inode);
 	reiserfs_write_unlock(inode->i_sb);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	if (err < 0)
 		return err;
 	return 0;

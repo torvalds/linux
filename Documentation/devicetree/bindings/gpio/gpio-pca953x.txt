@@ -25,6 +25,7 @@ Required properties:
 	ti,tca6416
 	ti,tca6424
 	ti,tca9539
+	onsemi,pca9654
 	exar,xra1202
 
 Example:

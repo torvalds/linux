@@ -54,7 +54,7 @@ static int r8a7791_smp_boot_secondary(unsigned int cpu,
 	return shmobile_smp_apmu_boot_secondary(cpu, idle);
 }
 
-struct smp_operations r8a7791_smp_ops __initdata = {
+const struct smp_operations r8a7791_smp_ops __initconst = {
 	.smp_prepare_cpus	= r8a7791_smp_prepare_cpus,
 	.smp_boot_secondary	= r8a7791_smp_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

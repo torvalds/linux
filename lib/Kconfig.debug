@@ -580,6 +580,14 @@ config DEBUG_VM_RB
 
 	  If unsure, say N.
 
+config DEBUG_VM_PGFLAGS
+	bool "Debug page-flags operations"
+	depends on DEBUG_VM
+	help
+	  Enables extra validation on page flags operations.
+
+	  If unsure, say N.
+
 config DEBUG_VIRTUAL
 	bool "Debug VM translations"
 	depends on DEBUG_KERNEL && X86
@@ -1589,7 +1597,6 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	depends on HAVE_LATENCYTOP_SUPPORT
 	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
@@ -1886,6 +1893,8 @@ source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
 
+source "lib/Kconfig.ubsan"
+
 config ARCH_HAS_DEVMEM_IS_ALLOWED
 	bool
 
@@ -1912,7 +1921,6 @@ config STRICT_DEVMEM
 config IO_STRICT_DEVMEM
 	bool "Filter I/O access to /dev/mem"
 	depends on STRICT_DEVMEM
-	default STRICT_DEVMEM
 	---help---
 	  If this option is disabled, you allow userspace (root) access to all
 	  io-memory regardless of whether a driver is actively using that

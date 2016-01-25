@@ -93,7 +93,7 @@ format in the sign-off area:
 Also, some patches may have kernel version prerequisites.  This can be
 specified in the following format in the sign-off area:
 
-     Cc:  <stable@vger.kernel.org> # 3.3.x-
+     Cc: <stable@vger.kernel.org> # 3.3.x-
 
    The tag has the meaning of:
      git cherry-pick <this commit>

@@ -181,7 +181,7 @@ static int psb_save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-	struct drm_connector *connector;
+	struct gma_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
@@ -198,12 +198,12 @@ static int psb_save_display_registers(struct drm_device *dev)
 	drm_modeset_lock_all(dev);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (drm_helper_crtc_in_use(crtc))
-			crtc->funcs->save(crtc);
+			dev_priv->ops->save_crtc(crtc);
 	}
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		if (connector->funcs->save)
-			connector->funcs->save(connector);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
+		if (connector->save)
+			connector->save(&connector->base);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -219,7 +219,7 @@ static int psb_restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-	struct drm_connector *connector;
+	struct gma_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
@@ -238,11 +238,11 @@ static int psb_restore_display_registers(struct drm_device *dev)
 	drm_modeset_lock_all(dev);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (drm_helper_crtc_in_use(crtc))
-			crtc->funcs->restore(crtc);
+			dev_priv->ops->restore_crtc(crtc);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		if (connector->funcs->restore)
-			connector->funcs->restore(connector);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
+		if (connector->restore)
+			connector->restore(&connector->base);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -354,6 +354,8 @@ const struct psb_ops psb_chip_ops = {
 	.init_pm = psb_init_pm,
 	.save_regs = psb_save_display_registers,
 	.restore_regs = psb_restore_display_registers,
+	.save_crtc = gma_crtc_save,
+	.restore_crtc = gma_crtc_restore,
 	.power_down = psb_power_down,
 	.power_up = psb_power_up,
 };

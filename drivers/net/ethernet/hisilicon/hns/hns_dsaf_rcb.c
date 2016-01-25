@@ -369,8 +369,17 @@ int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common)
 	dsaf_write_dev(rcb_common, RCB_COM_CFG_ENDIAN_REG,
 		       HNS_RCB_COMMON_ENDIAN);
 
-	dsaf_write_dev(rcb_common, RCB_COM_CFG_FNA_REG, 0x0);
-	dsaf_write_dev(rcb_common, RCB_COM_CFG_FA_REG, 0x1);
+	if (AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver)) {
+		dsaf_write_dev(rcb_common, RCB_COM_CFG_FNA_REG, 0x0);
+		dsaf_write_dev(rcb_common, RCB_COM_CFG_FA_REG, 0x1);
+	} else {
+		dsaf_set_dev_bit(rcb_common, RCBV2_COM_CFG_USER_REG,
+				 RCB_COM_CFG_FNA_B, false);
+		dsaf_set_dev_bit(rcb_common, RCBV2_COM_CFG_USER_REG,
+				 RCB_COM_CFG_FA_B, true);
+		dsaf_set_dev_bit(rcb_common, RCBV2_COM_CFG_TSO_MODE_REG,
+				 RCB_COM_TSO_MODE_B, HNS_TSO_MODE_8BD_32K);
+	}
 
 	return 0;
 }

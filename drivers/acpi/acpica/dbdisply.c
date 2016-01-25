@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -599,12 +599,14 @@ void acpi_db_display_calling_tree(void)
 
 void acpi_db_display_object_type(char *object_arg)
 {
+	acpi_size arg;
 	acpi_handle handle;
 	struct acpi_device_info *info;
 	acpi_status status;
 	u32 i;
 
-	handle = ACPI_TO_POINTER(strtoul(object_arg, NULL, 16));
+	arg = strtoul(object_arg, NULL, 16);
+	handle = ACPI_TO_POINTER(arg);
 
 	status = acpi_get_object_info(handle, &info);
 	if (ACPI_FAILURE(status)) {

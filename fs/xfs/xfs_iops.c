@@ -1205,8 +1205,8 @@ xfs_diflags_to_iflags(
 		inode->i_flags |= S_SYNC;
 	if (flags & XFS_DIFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
-	/* XXX: Also needs an on-disk per inode flag! */
-	if (ip->i_mount->m_flags & XFS_MOUNT_DAX)
+	if (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
+	    ip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
 		inode->i_flags |= S_DAX;
 }
 

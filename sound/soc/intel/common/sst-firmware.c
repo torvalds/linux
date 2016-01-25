@@ -51,8 +51,22 @@ struct sst_dma {
 
 static inline void sst_memcpy32(volatile void __iomem *dest, void *src, u32 bytes)
 {
+	u32 tmp = 0;
+	int i, m, n;
+	const u8 *src_byte = src;
+
+	m = bytes / 4;
+	n = bytes % 4;
+
 	/* __iowrite32_copy use 32bit size values so divide by 4 */
-	__iowrite32_copy((void *)dest, src, bytes/4);
+	__iowrite32_copy((void *)dest, src, m);
+
+	if (n) {
+		for (i = 0; i < n; i++)
+			tmp |= (u32)*(src_byte + m * 4 + i) << (i * 8);
+		__iowrite32_copy((void *)(dest + m * 4), &tmp, 1);
+	}
+
 }
 
 static void sst_dma_transfer_complete(void *arg)
@@ -1014,8 +1028,8 @@ EXPORT_SYMBOL_GPL(sst_module_runtime_restore);
 
 /* register a DSP memory block for use with FW based modules */
 struct sst_mem_block *sst_mem_block_register(struct sst_dsp *dsp, u32 offset,
-	u32 size, enum sst_mem_type type, struct sst_block_ops *ops, u32 index,
-	void *private)
+	u32 size, enum sst_mem_type type, const struct sst_block_ops *ops,
+	u32 index, void *private)
 {
 	struct sst_mem_block *block;
 

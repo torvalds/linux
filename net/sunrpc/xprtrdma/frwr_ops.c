@@ -190,12 +190,11 @@ static int
 frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	     struct rpcrdma_create_data_internal *cdata)
 {
-	struct ib_device_attr *devattr = &ia->ri_devattr;
 	int depth, delta;
 
 	ia->ri_max_frmr_depth =
 			min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
-			      devattr->max_fast_reg_page_list_len);
+			      ia->ri_device->attrs.max_fast_reg_page_list_len);
 	dprintk("RPC:       %s: device's max FR page list len = %u\n",
 		__func__, ia->ri_max_frmr_depth);
 
@@ -222,8 +221,8 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	}
 
 	ep->rep_attr.cap.max_send_wr *= depth;
-	if (ep->rep_attr.cap.max_send_wr > devattr->max_qp_wr) {
-		cdata->max_requests = devattr->max_qp_wr / depth;
+	if (ep->rep_attr.cap.max_send_wr > ia->ri_device->attrs.max_qp_wr) {
+		cdata->max_requests = ia->ri_device->attrs.max_qp_wr / depth;
 		if (!cdata->max_requests)
 			return -EINVAL;
 		ep->rep_attr.cap.max_send_wr = cdata->max_requests *
