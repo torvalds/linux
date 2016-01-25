@@ -57,6 +57,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/fixmap.h>
 #include <linux/mmdebug.h>
 
 extern void __pte_error(const char *file, int line, unsigned long val);
@@ -438,6 +439,10 @@ static inline phys_addr_t pmd_page_paddr(pmd_t pmd)
 #define pte_unmap(pte)			do { } while (0)
 #define pte_unmap_nested(pte)		do { } while (0)
 
+#define pte_set_fixmap(addr)		((pte_t *)set_fixmap_offset(FIX_PTE, addr))
+#define pte_set_fixmap_offset(pmd, addr)	pte_set_fixmap(pte_offset_phys(pmd, addr))
+#define pte_clear_fixmap()		clear_fixmap(FIX_PTE)
+
 #define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
 
 /*
@@ -477,11 +482,20 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
 #define pmd_offset_phys(dir, addr)	(pud_page_paddr(*(dir)) + pmd_index(addr) * sizeof(pmd_t))
 #define pmd_offset(dir, addr)		((pmd_t *)__va(pmd_offset_phys((dir), (addr))))
 
+#define pmd_set_fixmap(addr)		((pmd_t *)set_fixmap_offset(FIX_PMD, addr))
+#define pmd_set_fixmap_offset(pud, addr)	pmd_set_fixmap(pmd_offset_phys(pud, addr))
+#define pmd_clear_fixmap()		clear_fixmap(FIX_PMD)
+
 #define pud_page(pud)		pfn_to_page(__phys_to_pfn(pud_val(pud) & PHYS_MASK))
 
 #else
 
 #define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
+
+/* Match pmd_offset folding in <asm/generic/pgtable-nopmd.h> */
+#define pmd_set_fixmap(addr)		NULL
+#define pmd_set_fixmap_offset(pudp, addr)	((pmd_t *)pudp)
+#define pmd_clear_fixmap()
 
 #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
 
@@ -515,11 +529,20 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 #define pud_offset_phys(dir, addr)	(pgd_page_paddr(*(dir)) + pud_index(addr) * sizeof(pud_t))
 #define pud_offset(dir, addr)		((pud_t *)__va(pud_offset_phys((dir), (addr))))
 
+#define pud_set_fixmap(addr)		((pud_t *)set_fixmap_offset(FIX_PUD, addr))
+#define pud_set_fixmap_offset(pgd, addr)	pud_set_fixmap(pud_offset_phys(pgd, addr))
+#define pud_clear_fixmap()		clear_fixmap(FIX_PUD)
+
 #define pgd_page(pgd)		pfn_to_page(__phys_to_pfn(pgd_val(pgd) & PHYS_MASK))
 
 #else
 
 #define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
+
+/* Match pud_offset folding in <asm/generic/pgtable-nopud.h> */
+#define pud_set_fixmap(addr)		NULL
+#define pud_set_fixmap_offset(pgdp, addr)	((pud_t *)pgdp)
+#define pud_clear_fixmap()
 
 #endif  /* CONFIG_PGTABLE_LEVELS > 3 */
 
@@ -534,6 +557,9 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+
+#define pgd_set_fixmap(addr)	((pgd_t *)set_fixmap_offset(FIX_PGD, addr))
+#define pgd_clear_fixmap()	clear_fixmap(FIX_PGD)
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
