@@ -416,7 +416,8 @@ static void chp_release(struct device *dev)
  * chp_update_desc - update channel-path description
  * @chp - channel-path
  *
- * Update the channel-path description of the specified channel-path.
+ * Update the channel-path description of the specified channel-path
+ * including channel measurement related information.
  * Return zero on success, non-zero otherwise.
  */
 int chp_update_desc(struct channel_path *chp)
@@ -428,8 +429,10 @@ int chp_update_desc(struct channel_path *chp)
 		return rc;
 
 	rc = chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+	if (rc)
+		return rc;
 
-	return rc;
+	return chsc_get_channel_measurement_chars(chp);
 }
 
 /**
@@ -466,11 +469,6 @@ int chp_new(struct chp_id chpid)
 		ret = -ENODEV;
 		goto out_free;
 	}
-
-	ret = chsc_get_channel_measurement_chars(chp);
-	if (ret)
-		goto out_free;
-
 	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
 	/* make it known to the system */
