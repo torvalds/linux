@@ -354,18 +354,9 @@ static void drm_events_release(struct drm_file *file_priv)
 {
 	struct drm_device *dev = file_priv->minor->dev;
 	struct drm_pending_event *e, *et;
-	struct drm_pending_vblank_event *v, *vt;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-
-	/* Remove pending flips */
-	list_for_each_entry_safe(v, vt, &dev->vblank_event_list, base.link)
-		if (v->base.file_priv == file_priv) {
-			list_del(&v->base.link);
-			drm_vblank_put(dev, v->pipe);
-			v->base.destroy(&v->base);
-		}
 
 	/* Unlink pending events */
 	list_for_each_entry_safe(e, et, &file_priv->pending_event_list,
