@@ -511,20 +511,19 @@ static int wilc1000_firmware_download(struct net_device *dev)
 }
 
 static int linux_wlan_init_test_config(struct net_device *dev,
-				       struct wilc *wilc)
+				       struct wilc_vif *vif)
 {
 	unsigned char c_val[64];
 	unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xff};
-
+	struct wilc *wilc = vif->wilc;
 	struct wilc_priv *priv;
 	struct host_if_drv *hif_drv;
 
 	PRINT_D(TX_DBG, "Start configuring Firmware\n");
-	get_random_bytes(&mac_add[5], 1);
-	get_random_bytes(&mac_add[4], 1);
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
 	PRINT_D(INIT_DBG, "Host = %p\n", hif_drv);
+	wilc_get_mac_address(vif, mac_add);
 
 	PRINT_D(INIT_DBG, "MAC address is : %02x-%02x-%02x-%02x-%02x-%02x\n",
 		mac_add[0], mac_add[1], mac_add[2],
@@ -944,7 +943,7 @@ int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif)
 			Firmware_ver[size] = '\0';
 			PRINT_D(INIT_DBG, "***** Firmware Ver = %s  *******\n", Firmware_ver);
 		}
-		ret = linux_wlan_init_test_config(dev, wl);
+		ret = linux_wlan_init_test_config(dev, vif);
 
 		if (ret < 0) {
 			PRINT_ER("Failed to configure firmware\n");
