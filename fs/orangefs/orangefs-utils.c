@@ -78,24 +78,55 @@ __s32 fsid_of_op(struct orangefs_kernel_op_s *op)
 	return fsid;
 }
 
-static void orangefs_set_inode_flags(struct inode *inode,
-				     struct ORANGEFS_sys_attr_s *attrs)
+static int orangefs_inode_flags(struct ORANGEFS_sys_attr_s *attrs)
 {
+	int flags = 0;
 	if (attrs->flags & ORANGEFS_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
+		flags |= S_IMMUTABLE;
 	else
-		inode->i_flags &= ~S_IMMUTABLE;
-
+		flags &= ~S_IMMUTABLE;
 	if (attrs->flags & ORANGEFS_APPEND_FL)
-		inode->i_flags |= S_APPEND;
+		flags |= S_APPEND;
 	else
-		inode->i_flags &= ~S_APPEND;
-
+		flags &= ~S_APPEND;
 	if (attrs->flags & ORANGEFS_NOATIME_FL)
-		inode->i_flags |= S_NOATIME;
+		flags |= S_NOATIME;
 	else
-		inode->i_flags &= ~S_NOATIME;
+		flags &= ~S_NOATIME;
+	return flags;
+}
 
+static int orangefs_inode_perms(struct ORANGEFS_sys_attr_s *attrs)
+{
+	int perm_mode = 0;
+
+	if (attrs->perms & ORANGEFS_O_EXECUTE)
+		perm_mode |= S_IXOTH;
+	if (attrs->perms & ORANGEFS_O_WRITE)
+		perm_mode |= S_IWOTH;
+	if (attrs->perms & ORANGEFS_O_READ)
+		perm_mode |= S_IROTH;
+
+	if (attrs->perms & ORANGEFS_G_EXECUTE)
+		perm_mode |= S_IXGRP;
+	if (attrs->perms & ORANGEFS_G_WRITE)
+		perm_mode |= S_IWGRP;
+	if (attrs->perms & ORANGEFS_G_READ)
+		perm_mode |= S_IRGRP;
+
+	if (attrs->perms & ORANGEFS_U_EXECUTE)
+		perm_mode |= S_IXUSR;
+	if (attrs->perms & ORANGEFS_U_WRITE)
+		perm_mode |= S_IWUSR;
+	if (attrs->perms & ORANGEFS_U_READ)
+		perm_mode |= S_IRUSR;
+
+	if (attrs->perms & ORANGEFS_G_SGID)
+		perm_mode |= S_ISGID;
+	if (attrs->perms & ORANGEFS_U_SUID)
+		perm_mode |= S_ISUID;
+
+	return perm_mode;
 }
 
 /* NOTE: symname is ignored unless the inode is a sym link */
@@ -104,7 +135,6 @@ static int copy_attributes_to_inode(struct inode *inode,
 				    char *symname)
 {
 	int ret = -1;
-	int perm_mode = 0;
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	loff_t inode_size = 0;
 	loff_t rounded_up_size = 0;
@@ -134,7 +164,7 @@ static int copy_attributes_to_inode(struct inode *inode,
 
 	switch (attrs->objtype) {
 	case ORANGEFS_TYPE_METAFILE:
-		orangefs_set_inode_flags(inode, attrs);
+		inode->i_flags = orangefs_inode_flags(attrs);
 		if (attrs->mask & ORANGEFS_ATTR_SYS_SIZE) {
 			inode_size = (loff_t) attrs->size;
 			rounded_up_size =
@@ -179,33 +209,7 @@ static int copy_attributes_to_inode(struct inode *inode,
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
 
-	if (attrs->perms & ORANGEFS_O_EXECUTE)
-		perm_mode |= S_IXOTH;
-	if (attrs->perms & ORANGEFS_O_WRITE)
-		perm_mode |= S_IWOTH;
-	if (attrs->perms & ORANGEFS_O_READ)
-		perm_mode |= S_IROTH;
-
-	if (attrs->perms & ORANGEFS_G_EXECUTE)
-		perm_mode |= S_IXGRP;
-	if (attrs->perms & ORANGEFS_G_WRITE)
-		perm_mode |= S_IWGRP;
-	if (attrs->perms & ORANGEFS_G_READ)
-		perm_mode |= S_IRGRP;
-
-	if (attrs->perms & ORANGEFS_U_EXECUTE)
-		perm_mode |= S_IXUSR;
-	if (attrs->perms & ORANGEFS_U_WRITE)
-		perm_mode |= S_IWUSR;
-	if (attrs->perms & ORANGEFS_U_READ)
-		perm_mode |= S_IRUSR;
-
-	if (attrs->perms & ORANGEFS_G_SGID)
-		perm_mode |= S_ISGID;
-	if (attrs->perms & ORANGEFS_U_SUID)
-		perm_mode |= S_ISUID;
-
-	inode->i_mode = perm_mode;
+	inode->i_mode = orangefs_inode_perms(attrs);
 
 	if (is_root_handle(inode)) {
 		/* special case: mark the root inode as sticky */
