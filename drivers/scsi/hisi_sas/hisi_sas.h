@@ -270,17 +270,7 @@ struct hisi_sas_iost {
 };
 
 struct hisi_sas_err_record {
-	/* dw0 */
-	__le32 dma_err_type;
-
-	/* dw1 */
-	__le32 trans_tx_fail_type;
-
-	/* dw2 */
-	__le32 trans_rx_fail_type;
-
-	/* dw3 */
-	u32 rsvd;
+	u32	data[4];
 };
 
 struct hisi_sas_initial_fis {

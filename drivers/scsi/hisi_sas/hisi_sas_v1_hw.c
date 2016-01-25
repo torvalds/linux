@@ -288,6 +288,20 @@ struct hisi_sas_complete_v1_hdr {
 	__le32 data;
 };
 
+struct hisi_sas_err_record_v1 {
+	/* dw0 */
+	__le32 dma_err_type;
+
+	/* dw1 */
+	__le32 trans_tx_fail_type;
+
+	/* dw2 */
+	__le32 trans_rx_fail_type;
+
+	/* dw3 */
+	u32 rsvd;
+};
+
 enum {
 	HISI_SAS_PHY_BCAST_ACK = 0,
 	HISI_SAS_PHY_SL_PHY_ENABLED,
@@ -1098,7 +1112,7 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 			   struct hisi_sas_slot *slot)
 {
 	struct task_status_struct *ts = &task->task_status;
-	struct hisi_sas_err_record *err_record = slot->status_buffer;
+	struct hisi_sas_err_record_v1 *err_record = slot->status_buffer;
 	struct device *dev = &hisi_hba->pdev->dev;
 
 	switch (task->task_proto) {
@@ -1222,7 +1236,6 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	struct domain_device *device;
 	enum exec_status sts;
 	struct hisi_sas_complete_v1_hdr *complete_queue =
-			(struct hisi_sas_complete_v1_hdr *)
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v1_hdr *complete_hdr;
 	u32 cmplt_hdr_data;
