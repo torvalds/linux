@@ -3134,8 +3134,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	id = hdev->id;
 
-	hci_leds_exit(hdev);
-
 	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock(&hci_dev_list_lock);

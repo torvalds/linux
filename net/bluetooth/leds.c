@@ -55,7 +55,7 @@ static struct led_trigger *led_allocate_basic(struct hci_dev *hdev,
 	if (!htrig->led_trigger.name)
 		goto err_alloc;
 
-	if (led_trigger_register(&htrig->led_trigger))
+	if (devm_led_trigger_register(&hdev->dev, &htrig->led_trigger))
 		goto err_register;
 
 	return &htrig->led_trigger;
@@ -71,10 +71,4 @@ void hci_leds_init(struct hci_dev *hdev)
 {
 	/* initialize power_led */
 	hdev->power_led = led_allocate_basic(hdev, power_activate, "power");
-}
-
-void hci_leds_exit(struct hci_dev *hdev)
-{
-	if (hdev->power_led)
-		led_trigger_unregister(hdev->power_led);
 }
