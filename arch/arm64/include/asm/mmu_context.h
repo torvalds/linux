@@ -74,7 +74,7 @@ static inline bool __cpu_uses_extended_idmap(void)
 /*
  * Set TCR.T0SZ to its default value (based on VA_BITS)
  */
-static inline void cpu_set_default_tcr_t0sz(void)
+static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 {
 	unsigned long tcr;
 
@@ -87,8 +87,11 @@ static inline void cpu_set_default_tcr_t0sz(void)
 	"	msr	tcr_el1, %0	;"
 	"	isb"
 	: "=&r" (tcr)
-	: "r"(TCR_T0SZ(VA_BITS)), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
+	: "r"(t0sz), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
 }
+
+#define cpu_set_default_tcr_t0sz()	__cpu_set_tcr_t0sz(TCR_T0SZ(VA_BITS))
+#define cpu_set_idmap_tcr_t0sz()	__cpu_set_tcr_t0sz(idmap_t0sz)
 
 /*
  * Remove the idmap from TTBR0_EL1 and install the pgd of the active mm.
@@ -112,6 +115,15 @@ static inline void cpu_uninstall_idmap(void)
 
 	if (mm != &init_mm)
 		cpu_switch_mm(mm->pgd, mm);
+}
+
+static inline void cpu_install_idmap(void)
+{
+	cpu_set_reserved_ttbr0();
+	local_flush_tlb_all();
+	cpu_set_idmap_tcr_t0sz();
+
+	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
 
 /*
