@@ -121,7 +121,7 @@ PNAME(mux_i2s_2ch_p)		= { "i2s_2ch_src", "i2s_2ch_frac",
 				    "dummy", "xin12m" };
 PNAME(mux_spdif_8ch_p)		= { "spdif_8ch_pre", "spdif_8ch_frac",
 				    "ext_i2s", "xin12m" };
-PNAME(mux_edp_24m_p)		= { "dummy", "xin24m" };
+PNAME(mux_edp_24m_p)		= { "xin24m", "dummy" };
 PNAME(mux_vip_out_p)		= { "vip_src", "xin24m" };
 PNAME(mux_usbphy480m_p)		= { "usbotg_out", "xin24m" };
 PNAME(mux_hsic_usbphy480m_p)	= { "usbotg_out", "dummy" };
