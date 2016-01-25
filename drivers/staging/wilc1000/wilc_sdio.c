@@ -42,7 +42,7 @@ static wilc_sdio_t g_sdio;
 
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
 static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
-static int sdio_init(struct wilc *wilc);
+static int sdio_init(struct wilc *wilc, bool resume);
 
 static void wilc_sdio_interrupt(struct sdio_func *func)
 {
@@ -196,7 +196,7 @@ static int wilc_sdio_resume(struct device *dev)
 	dev_info(dev, "sdio resume\n");
 	sdio_release_host(func);
 	chip_wakeup(wilc);
-	sdio_init(wilc);
+	sdio_init(wilc, true);
 
 	if (wilc->suspend_event)
 		host_wakeup_notify(wilc);
@@ -667,16 +667,17 @@ static int sdio_deinit(struct wilc *wilc)
 	return 1;
 }
 
-static int sdio_init(struct wilc *wilc)
+static int sdio_init(struct wilc *wilc, bool resume)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	sdio_cmd52_t cmd;
 	int loop, ret;
 	u32 chipid;
 
-	memset(&g_sdio, 0, sizeof(wilc_sdio_t));
-
-	g_sdio.irq_gpio = (wilc->dev_irq_num);
+	if (!resume) {
+		memset(&g_sdio, 0, sizeof(wilc_sdio_t));
+		g_sdio.irq_gpio = (wilc->dev_irq_num);
+	}
 
 	/**
 	 *      function 0 csa enable
@@ -766,16 +767,19 @@ static int sdio_init(struct wilc *wilc)
 	/**
 	 *      make sure can read back chip id correctly
 	 **/
-	if (!sdio_read_reg(wilc, 0x1000, &chipid)) {
-		dev_err(&func->dev, "Fail cmd read chip id...\n");
-		goto _fail_;
+	if (!resume) {
+		if (!sdio_read_reg(wilc, 0x1000, &chipid)) {
+			dev_err(&func->dev, "Fail cmd read chip id...\n");
+			goto _fail_;
+		}
+		dev_err(&func->dev, "chipid (%08x)\n", chipid);
+		if ((chipid & 0xfff) > 0x2a0)
+			g_sdio.has_thrpt_enh3 = 1;
+		else
+			g_sdio.has_thrpt_enh3 = 0;
+		dev_info(&func->dev, "has_thrpt_enh3 = %d...\n",
+			 g_sdio.has_thrpt_enh3);
 	}
-	dev_err(&func->dev, "chipid (%08x)\n", chipid);
-	if ((chipid & 0xfff) > 0x2a0)
-		g_sdio.has_thrpt_enh3 = 1;
-	else
-		g_sdio.has_thrpt_enh3 = 0;
-	dev_info(&func->dev, "has_thrpt_enh3 = %d...\n", g_sdio.has_thrpt_enh3);
 
 	return 1;
 

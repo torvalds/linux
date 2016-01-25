@@ -227,7 +227,7 @@ struct rxq_entry_t {
  ********************************************/
 struct wilc;
 struct wilc_hif_func {
-	int (*hif_init)(struct wilc *);
+	int (*hif_init)(struct wilc *, bool resume);
 	int (*hif_deinit)(struct wilc *);
 	int (*hif_read_reg)(struct wilc *, u32, u32 *);
 	int (*hif_write_reg)(struct wilc *, u32, u32);
