@@ -275,6 +275,7 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_AXI_OUTSTANDING_MAX_NUM(x)		VAL_MASK(x, 5, 13)
 #define  V_NOC_HURRY_W_MODE(x)			VAL_MASK(x, 2, 20)
 #define  V_NOC_HURRY_W_VALUE(x)			VAL_MASK(x, 2, 22)
+#define  V_REG_DONE_FRM(x)			VAL_MASK(x, 1, 24)
 #define  V_DSP_FP_STANDBY(x)			VAL_MASK(x, 1, 31)
 #define DSP_CTRL0			0x00000010
 #define  V_DSP_OUT_MODE(x)			VAL_MASK(x, 4, 0)
@@ -326,9 +327,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_MIPI_DEN_POL(x)			VAL_MASK(x, 1, 30)
 #define  V_MIPI_DCLK_POL(x)			VAL_MASK(x, 1, 31)
 #define DSP_BG				0x00000018
-#define  V_DSP_BG_BLUE(x)			VAL_MASK(x, 8, 0)
-#define  V_DSP_BG_GREEN(x)			VAL_MASK(x, 8, 8)
-#define  V_DSP_BG_RED(x)			VAL_MASK(x, 8, 16)
+#define  V_DSP_BG_BLUE(x)			VAL_MASK(x, 10, 0)
+#define  V_DSP_BG_GREEN(x)			VAL_MASK(x, 10, 10)
+#define  V_DSP_BG_RED(x)			VAL_MASK(x, 10, 20)
 #define MCU_CTRL			0x0000001c
 #define  V_MCU_PIX_TOTAL(x)			VAL_MASK(x, 6, 0)
 #define  V_MCU_CS_PST(x)			VAL_MASK(x, 4, 6)
@@ -788,6 +789,7 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define POST_SCL_CTRL			0x00000180
 #define  V_POST_HOR_SD_EN(x)			VAL_MASK(x, 1, 0)
 #define  V_POST_VER_SD_EN(x)			VAL_MASK(x, 1, 1)
+#define  V_DSP_OUT_RGB_YUV(x)			VAL_MASK(x, 1, 2)
 #define POST_DSP_VACT_INFO_F1		0x00000184
 #define  V_DSP_VACT_END_POST(x)			VAL_MASK(x, 13, 0)
 #define  V_DSP_VACT_ST_POST(x)			VAL_MASK(x, 13, 16)
@@ -1119,24 +1121,24 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_BLANKING_VALUE_CONFIG_EN(x)		VAL_MASK(x, 1, 24)
 #define MCU_BYPASS_PORT			0x000002ac
 #define WIN0_DSP_BG			0x000002b0
-#define  V_WIN0_DSP_BG_BLUE(x)			VAL_MASK(x, 8, 0)
-#define  V_WIN0_DSP_BG_GREEN(x)			VAL_MASK(x, 8, 8)
-#define  V_WIN0_DSP_BG_RED(x)			VAL_MASK(x, 8, 16)
+#define  V_WIN0_DSP_BG_BLUE(x)			VAL_MASK(x, 10, 0)
+#define  V_WIN0_DSP_BG_GREEN(x)			VAL_MASK(x, 10, 10)
+#define  V_WIN0_DSP_BG_RED(x)			VAL_MASK(x, 10, 20)
 #define  V_WIN0_BG_EN(x)			VAL_MASK(x, 1, 31)
 #define WIN1_DSP_BG			0x000002b4
-#define  V_WIN1_DSP_BG_BLUE(x)			VAL_MASK(x, 8, 0)
-#define  V_WIN1_DSP_BG_GREEN(x)			VAL_MASK(x, 8, 8)
-#define  V_WIN1_DSP_BG_RED(x)			VAL_MASK(x, 8, 16)
+#define  V_WIN1_DSP_BG_BLUE(x)			VAL_MASK(x, 10, 0)
+#define  V_WIN1_DSP_BG_GREEN(x)			VAL_MASK(x, 10, 10)
+#define  V_WIN1_DSP_BG_RED(x)			VAL_MASK(x, 10, 20)
 #define  V_WIN1_BG_EN(x)			VAL_MASK(x, 1, 31)
 #define WIN2_DSP_BG			0x000002b8
-#define  V_WIN2_DSP_BG_BLUE(x)			VAL_MASK(x, 8, 0)
-#define  V_WIN2_DSP_BG_GREEN(x)			VAL_MASK(x, 8, 8)
-#define  V_WIN2_DSP_BG_RED(x)			VAL_MASK(x, 8, 16)
+#define  V_WIN2_DSP_BG_BLUE(x)			VAL_MASK(x, 10, 0)
+#define  V_WIN2_DSP_BG_GREEN(x)			VAL_MASK(x, 10, 10)
+#define  V_WIN2_DSP_BG_RED(x)			VAL_MASK(x, 10, 20)
 #define  V_WIN2_BG_EN(x)			VAL_MASK(x, 1, 31)
 #define WIN3_DSP_BG			0x000002bc
-#define  V_WIN3_DSP_BG_BLUE(x)			VAL_MASK(x, 8, 0)
-#define  V_WIN3_DSP_BG_GREEN(x)			VAL_MASK(x, 8, 8)
-#define  V_WIN3_DSP_BG_RED(x)			VAL_MASK(x, 8, 16)
+#define  V_WIN3_DSP_BG_BLUE(x)			VAL_MASK(x, 10, 0)
+#define  V_WIN3_DSP_BG_GREEN(x)			VAL_MASK(x, 10, 10)
+#define  V_WIN3_DSP_BG_RED(x)			VAL_MASK(x, 10, 20)
 #define  V_WIN3_BG_EN(x)			VAL_MASK(x, 1, 31)
 #define YUV2YUV_WIN			0x000002c0
 #define  V_WIN0_YUV2YUV_EN(x)			VAL_MASK(x, 1, 0)
@@ -1321,6 +1323,8 @@ struct vop_device {
 	struct clk		*hclk;		/*lcdc AHP clk*/
 	struct clk		*dclk;		/*lcdc dclk*/
 	struct clk		*aclk;		/*lcdc share memory frequency*/
+	struct clk		*hclk_noc;
+	struct clk		*aclk_noc;
 	u32 pixclock;
 
 	u32 standby;				/*1:standby,0:wrok*/
