@@ -202,6 +202,8 @@ struct clk *sunxi_factors_register(struct device_node *node,
 		if (!gate)
 			goto err_gate;
 
+		factors->gate = gate;
+
 		/* set up gate properties */
 		gate->reg = reg;
 		gate->bit_idx = data->enable;
@@ -214,6 +216,8 @@ struct clk *sunxi_factors_register(struct device_node *node,
 		mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
 		if (!mux)
 			goto err_mux;
+
+		factors->mux = mux;
 
 		/* set up gate properties */
 		mux->reg = reg;
@@ -254,4 +258,25 @@ err_gate:
 	kfree(factors);
 err_factors:
 	return NULL;
+}
+
+void sunxi_factors_unregister(struct device_node *node, struct clk *clk)
+{
+	struct clk_hw *hw = __clk_get_hw(clk);
+	struct clk_factors *factors;
+	const char *name;
+
+	if (!hw)
+		return;
+
+	factors = to_clk_factors(hw);
+	name = clk_hw_get_name(hw);
+
+	/* No unregister call for clkdev_* */
+	of_clk_del_provider(node);
+	/* TODO: The composite clock stuff will leak a bit here. */
+	clk_unregister(clk);
+	kfree(factors->mux);
+	kfree(factors->gate);
+	kfree(factors);
 }

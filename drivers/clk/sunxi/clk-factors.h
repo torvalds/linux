@@ -34,11 +34,16 @@ struct clk_factors {
 	const struct clk_factors_config *config;
 	void (*get_factors) (u32 *rate, u32 parent, u8 *n, u8 *k, u8 *m, u8 *p);
 	spinlock_t *lock;
+	/* for cleanup */
+	struct clk_mux *mux;
+	struct clk_gate *gate;
 };
 
 struct clk *sunxi_factors_register(struct device_node *node,
 				   const struct factors_data *data,
 				   spinlock_t *lock,
 				   void __iomem *reg);
+
+void sunxi_factors_unregister(struct device_node *node, struct clk *clk);
 
 #endif
