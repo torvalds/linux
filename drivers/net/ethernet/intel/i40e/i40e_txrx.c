@@ -2392,12 +2392,21 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 				struct i40e_ring *tx_ring,
 				u32 *cd_tunneling)
 {
-	struct ipv6hdr *this_ipv6_hdr;
-	unsigned int this_tcp_hdrlen;
-	struct iphdr *this_ip_hdr;
-	u32 network_hdr_len;
-	u8 l4_hdr = 0;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
+	union {
+		struct tcphdr *tcp;
+		struct udphdr *udp;
+		unsigned char *hdr;
+	} l4;
 	u32 l4_tunnel = 0;
+	u8 l4_proto = 0;
+
+	ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_transport_header(skb);
 
 	if (skb->encapsulation) {
 		switch (ip_hdr(skb)->protocol) {
@@ -2411,10 +2420,10 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		default:
 			return;
 		}
-		network_hdr_len = skb_inner_network_header_len(skb);
-		this_ip_hdr = inner_ip_hdr(skb);
-		this_ipv6_hdr = inner_ipv6_hdr(skb);
-		this_tcp_hdrlen = inner_tcp_hdrlen(skb);
+
+		/* switch L4 header pointer from outer to inner */
+		ip.hdr = skb_inner_network_header(skb);
+		l4.hdr = skb_inner_transport_header(skb);
 
 		if (*tx_flags & I40E_TX_FLAGS_IPV4) {
 			if (*tx_flags & I40E_TX_FLAGS_TSO) {
@@ -2434,20 +2443,15 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 				   ((skb_inner_network_offset(skb) -
 					skb_transport_offset(skb)) >> 1) <<
 				   I40E_TXD_CTX_QW0_NATLEN_SHIFT;
-		if (this_ip_hdr->version == 6) {
+		if (ip.v6->version == 6) {
 			*tx_flags &= ~I40E_TX_FLAGS_IPV4;
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
 		}
-	} else {
-		network_hdr_len = skb_network_header_len(skb);
-		this_ip_hdr = ip_hdr(skb);
-		this_ipv6_hdr = ipv6_hdr(skb);
-		this_tcp_hdrlen = tcp_hdrlen(skb);
 	}
 
 	/* Enable IP checksum offloads */
 	if (*tx_flags & I40E_TX_FLAGS_IPV4) {
-		l4_hdr = this_ip_hdr->protocol;
+		l4_proto = ip.v4->protocol;
 		/* the stack computes the IP header already, the only time we
 		 * need the hardware to recompute it is in the case of TSO.
 		 */
@@ -2456,26 +2460,23 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		} else {
 			*td_cmd |= I40E_TX_DESC_CMD_IIPT_IPV4;
 		}
-		/* Now set the td_offset for IP header length */
-		*td_offset = (network_hdr_len >> 2) <<
-			      I40E_TX_DESC_LENGTH_IPLEN_SHIFT;
 	} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
-		l4_hdr = this_ipv6_hdr->nexthdr;
+		l4_proto = ip.v6->nexthdr;
 		*td_cmd |= I40E_TX_DESC_CMD_IIPT_IPV6;
-		/* Now set the td_offset for IP header length */
-		*td_offset = (network_hdr_len >> 2) <<
-			      I40E_TX_DESC_LENGTH_IPLEN_SHIFT;
 	}
+
+	/* Now set the td_offset for IP header length */
+	*td_offset = ((l4.hdr - ip.hdr) / 4) << I40E_TX_DESC_LENGTH_IPLEN_SHIFT;
 	/* words in MACLEN + dwords in IPLEN + dwords in L4Len */
 	*td_offset |= (skb_network_offset(skb) >> 1) <<
 		       I40E_TX_DESC_LENGTH_MACLEN_SHIFT;
 
 	/* Enable L4 checksum offloads */
-	switch (l4_hdr) {
+	switch (l4_proto) {
 	case IPPROTO_TCP:
 		/* enable checksum offloads */
 		*td_cmd |= I40E_TX_DESC_CMD_L4T_EOFT_TCP;
-		*td_offset |= (this_tcp_hdrlen >> 2) <<
+		*td_offset |= l4.tcp->doff <<
 			       I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 		break;
 	case IPPROTO_SCTP:
