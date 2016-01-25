@@ -27,6 +27,7 @@ $(warning LSE atomics not supported by binutils)
 endif
 
 KBUILD_CFLAGS	+= -mgeneral-regs-only $(lseinstr)
+KBUILD_CFLAGS	+= $(call cc-option, -mpc-relative-literal-loads)
 KBUILD_AFLAGS	+= $(lseinstr)
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
