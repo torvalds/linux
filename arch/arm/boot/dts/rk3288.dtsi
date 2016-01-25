@@ -630,6 +630,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			assigned-clocks = <&cru SCLK_EDP_24M>;
+			assigned-clock-parents = <&xin24m>;
+
 			/*
 			 * Note: Although SCLK_* are the working clocks
 			 * of device without including on the NOC, needed for
