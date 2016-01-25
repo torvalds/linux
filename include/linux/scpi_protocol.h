@@ -33,6 +33,7 @@ enum scpi_sensor_class {
 	VOLTAGE,
 	CURRENT,
 	POWER,
+	ENERGY,
 };
 
 struct scpi_sensor_info {

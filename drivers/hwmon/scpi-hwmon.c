@@ -114,6 +114,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 {
 	u16 nr_sensors, i;
 	int num_temp = 0, num_volt = 0, num_current = 0, num_power = 0;
+	int num_energy = 0;
 	struct scpi_ops *scpi_ops;
 	struct device *hwdev, *dev = &pdev->dev;
 	struct scpi_sensors *scpi_sensors;
@@ -181,6 +182,13 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 			snprintf(sensor->label, sizeof(sensor->input),
 				 "power%d_label", num_power + 1);
 			num_power++;
+			break;
+		case ENERGY:
+			snprintf(sensor->input, sizeof(sensor->input),
+				 "energy%d_input", num_energy + 1);
+			snprintf(sensor->label, sizeof(sensor->input),
+				 "energy%d_label", num_energy + 1);
+			num_energy++;
 			break;
 		default:
 			continue;
