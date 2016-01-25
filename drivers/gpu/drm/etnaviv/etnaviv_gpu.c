@@ -596,10 +596,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
-	/* TODO: we will leak here memory - fix it! */
-
 	gpu->mmu = etnaviv_iommu_new(gpu, iommu, version);
 	if (!gpu->mmu) {
+		iommu_domain_free(iommu);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -609,7 +608,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	if (!gpu->buffer) {
 		ret = -ENOMEM;
 		dev_err(gpu->dev, "could not create command buffer\n");
-		goto fail;
+		goto destroy_iommu;
 	}
 	if (gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
 		ret = -EINVAL;
@@ -639,6 +638,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 free_buffer:
 	etnaviv_gpu_cmdbuf_free(gpu->buffer);
 	gpu->buffer = NULL;
+destroy_iommu:
+	etnaviv_iommu_destroy(gpu->mmu);
+	gpu->mmu = NULL;
 fail:
 	pm_runtime_mark_last_busy(gpu->dev);
 	pm_runtime_put_autosuspend(gpu->dev);
