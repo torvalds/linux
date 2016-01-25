@@ -23,7 +23,7 @@ struct factors_data {
 	int enable;
 	int mux;
 	int muxmask;
-	struct clk_factors_config *table;
+	const struct clk_factors_config *table;
 	void (*getter) (u32 *rate, u32 parent_rate, u8 *n, u8 *k, u8 *m, u8 *p);
 	const char *name;
 };
@@ -31,7 +31,7 @@ struct factors_data {
 struct clk_factors {
 	struct clk_hw hw;
 	void __iomem *reg;
-	struct clk_factors_config *config;
+	const struct clk_factors_config *config;
 	void (*get_factors) (u32 *rate, u32 parent, u8 *n, u8 *k, u8 *m, u8 *p);
 	spinlock_t *lock;
 };

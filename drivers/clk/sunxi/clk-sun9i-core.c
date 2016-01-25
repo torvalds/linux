@@ -71,7 +71,7 @@ static void sun9i_a80_get_pll4_factors(u32 *freq, u32 parent_rate,
 	*p_ret = p;
 }
 
-static struct clk_factors_config sun9i_a80_pll4_config = {
+static const struct clk_factors_config sun9i_a80_pll4_config = {
 	.mshift = 18,
 	.mwidth = 1,
 	.nshift = 8,
@@ -134,7 +134,7 @@ static void sun9i_a80_get_gt_factors(u32 *freq, u32 parent_rate,
 	*m = div;
 }
 
-static struct clk_factors_config sun9i_a80_gt_config = {
+static const struct clk_factors_config sun9i_a80_gt_config = {
 	.mshift = 0,
 	.mwidth = 2,
 };
@@ -199,7 +199,7 @@ static void sun9i_a80_get_ahb_factors(u32 *freq, u32 parent_rate,
 	*p = _p;
 }
 
-static struct clk_factors_config sun9i_a80_ahb_config = {
+static const struct clk_factors_config sun9i_a80_ahb_config = {
 	.pshift = 0,
 	.pwidth = 2,
 };
@@ -289,7 +289,7 @@ static void sun9i_a80_get_apb1_factors(u32 *freq, u32 parent_rate,
 	*p = calcp;
 }
 
-static struct clk_factors_config sun9i_a80_apb1_config = {
+static const struct clk_factors_config sun9i_a80_apb1_config = {
 	.mshift = 0,
 	.mwidth = 5,
 	.pshift = 16,

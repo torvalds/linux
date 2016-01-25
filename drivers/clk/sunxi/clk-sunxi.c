@@ -608,7 +608,7 @@ static void sun7i_a20_get_out_factors(u32 *freq, u32 parent_rate,
  * sunxi_factors_clk_setup() - Setup function for factor clocks
  */
 
-static struct clk_factors_config sun4i_pll1_config = {
+static const struct clk_factors_config sun4i_pll1_config = {
 	.nshift = 8,
 	.nwidth = 5,
 	.kshift = 4,
@@ -619,7 +619,7 @@ static struct clk_factors_config sun4i_pll1_config = {
 	.pwidth = 2,
 };
 
-static struct clk_factors_config sun6i_a31_pll1_config = {
+static const struct clk_factors_config sun6i_a31_pll1_config = {
 	.nshift	= 8,
 	.nwidth = 5,
 	.kshift = 4,
@@ -629,7 +629,7 @@ static struct clk_factors_config sun6i_a31_pll1_config = {
 	.n_start = 1,
 };
 
-static struct clk_factors_config sun8i_a23_pll1_config = {
+static const struct clk_factors_config sun8i_a23_pll1_config = {
 	.nshift = 8,
 	.nwidth = 5,
 	.kshift = 4,
@@ -641,14 +641,14 @@ static struct clk_factors_config sun8i_a23_pll1_config = {
 	.n_start = 1,
 };
 
-static struct clk_factors_config sun4i_pll5_config = {
+static const struct clk_factors_config sun4i_pll5_config = {
 	.nshift = 8,
 	.nwidth = 5,
 	.kshift = 4,
 	.kwidth = 2,
 };
 
-static struct clk_factors_config sun6i_a31_pll6_config = {
+static const struct clk_factors_config sun6i_a31_pll6_config = {
 	.nshift	= 8,
 	.nwidth = 5,
 	.kshift = 4,
@@ -656,12 +656,12 @@ static struct clk_factors_config sun6i_a31_pll6_config = {
 	.n_start = 1,
 };
 
-static struct clk_factors_config sun5i_a13_ahb_config = {
+static const struct clk_factors_config sun5i_a13_ahb_config = {
 	.pshift = 4,
 	.pwidth = 2,
 };
 
-static struct clk_factors_config sun4i_apb1_config = {
+static const struct clk_factors_config sun4i_apb1_config = {
 	.mshift = 0,
 	.mwidth = 5,
 	.pshift = 16,
@@ -669,7 +669,7 @@ static struct clk_factors_config sun4i_apb1_config = {
 };
 
 /* user manual says "n" but it's really "p" */
-static struct clk_factors_config sun7i_a20_out_config = {
+static const struct clk_factors_config sun7i_a20_out_config = {
 	.mshift = 8,
 	.mwidth = 5,
 	.pshift = 20,

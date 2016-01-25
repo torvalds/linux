@@ -62,7 +62,7 @@ static void sun4i_a10_get_mod0_factors(u32 *freq, u32 parent_rate,
 }
 
 /* user manual says "n" but it's really "p" */
-static struct clk_factors_config sun4i_a10_mod0_config = {
+static const struct clk_factors_config sun4i_a10_mod0_config = {
 	.mshift = 0,
 	.mwidth = 4,
 	.pshift = 16,

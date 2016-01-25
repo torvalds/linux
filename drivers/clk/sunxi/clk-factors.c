@@ -48,7 +48,7 @@ static unsigned long clk_factors_recalc_rate(struct clk_hw *hw,
 	u32 reg;
 	unsigned long rate;
 	struct clk_factors *factors = to_clk_factors(hw);
-	struct clk_factors_config *config = factors->config;
+	const struct clk_factors_config *config = factors->config;
 
 	/* Fetch the register value */
 	reg = readl(factors->reg);
@@ -123,7 +123,7 @@ static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 	u8 n = 0, k = 0, m = 0, p = 0;
 	u32 reg;
 	struct clk_factors *factors = to_clk_factors(hw);
-	struct clk_factors_config *config = factors->config;
+	const struct clk_factors_config *config = factors->config;
 	unsigned long flags = 0;
 
 	factors->get_factors((u32 *)&rate, (u32)parent_rate, &n, &k, &m, &p);
