@@ -1459,8 +1459,10 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 	}
 }
 
+#ifdef	CONFIG_PM
+
 /* The root hub is suspended; unlink all the async QHs */
-static void __maybe_unused unlink_empty_async_suspended(struct ehci_hcd *ehci)
+static void unlink_empty_async_suspended(struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
 
@@ -1469,8 +1471,9 @@ static void __maybe_unused unlink_empty_async_suspended(struct ehci_hcd *ehci)
 		WARN_ON(!list_empty(&qh->qtd_list));
 		single_unlink_async(ehci, qh);
 	}
-	start_iaa_cycle(ehci);
 }
+
+#endif
 
 /* makes sure the async qh will become idle */
 /* caller must own ehci->lock */
