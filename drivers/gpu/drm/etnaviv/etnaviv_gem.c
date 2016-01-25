@@ -361,8 +361,10 @@ void *etnaviv_gem_vaddr(struct drm_gem_object *obj)
 	if (!etnaviv_obj->vaddr) {
 		struct page **pages = etnaviv_gem_get_pages(etnaviv_obj);
 
-		if (IS_ERR(pages))
-			return ERR_CAST(pages);
+		if (IS_ERR(pages)) {
+			mutex_unlock(&etnaviv_obj->lock);
+			return NULL;
+		}
 
 		etnaviv_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
