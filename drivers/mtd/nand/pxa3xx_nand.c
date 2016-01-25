@@ -131,11 +131,23 @@
 #define READ_ID_BYTES		7
 
 /* macros for registers read/write */
-#define nand_writel(info, off, val)	\
-	writel_relaxed((val), (info)->mmio_base + (off))
+#define nand_writel(info, off, val)					\
+	do {								\
+		dev_vdbg(&info->pdev->dev,				\
+			 "%s():%d nand_writel(0x%x, 0x%04x)\n",		\
+			 __func__, __LINE__, (val), (off));		\
+		writel_relaxed((val), (info)->mmio_base + (off));	\
+	} while (0)
 
-#define nand_readl(info, off)		\
-	readl_relaxed((info)->mmio_base + (off))
+#define nand_readl(info, off)						\
+	({								\
+		unsigned int _v;					\
+		_v = readl_relaxed((info)->mmio_base + (off));		\
+		dev_vdbg(&info->pdev->dev,				\
+			 "%s():%d nand_readl(0x%04x) = 0x%x\n",		\
+			 __func__, __LINE__, (off), _v);		\
+		_v;							\
+	})
 
 /* error code and state */
 enum {
