@@ -31,6 +31,7 @@ config DIGICOLOR_TIMER
 	bool "Digicolor timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	select CLKSRC_MMIO
+	depends on HAS_IOMEM
 	help
 	  Enables the support for the digicolor timer driver.
 
@@ -78,6 +79,7 @@ config ORION_TIMER
 config SUN4I_TIMER
 	bool "Sun4i timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help
 	  Enables support for the Sun4i timer.
@@ -99,6 +101,7 @@ config TEGRA_TIMER
 config VT8500_TIMER
 	bool "VT8500 timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  Enables support for the VT8500 driver.
 
@@ -134,6 +137,7 @@ config CLKSRC_NOMADIK_MTU_SCHED_CLOCK
 config CLKSRC_DBX500_PRCMU
 	bool "Clocksource PRCMU Timer" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  Use the always on PRCMU Timer as clocksource
 
@@ -251,6 +255,7 @@ config CLKSRC_EXYNOS_MCT
 config CLKSRC_SAMSUNG_PWM
 	bool "PWM timer drvier for Samsung S3C, S5P" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  This is a new clocksource driver for the PWM timer found in
 	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
@@ -260,6 +265,7 @@ config CLKSRC_SAMSUNG_PWM
 config FSL_FTM_TIMER
 	bool "Freescale FlexTimer Module driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help
 	  Support for Freescale FlexTimer Module (FTM) timer.
@@ -364,6 +370,7 @@ config CLKSRC_TANGO_XTAL
 config CLKSRC_PXA
 	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help
 	  This enables OST0 support available on PXA and SA-11x0
