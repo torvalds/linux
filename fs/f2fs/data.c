@@ -67,7 +67,6 @@ static void f2fs_write_end_io(struct bio *bio)
 		f2fs_restore_and_release_control_page(&page);
 
 		if (unlikely(bio->bi_error)) {
-			set_page_dirty(page);
 			set_bit(AS_EIO, &page->mapping->flags);
 			f2fs_stop_checkpoint(sbi);
 		}
