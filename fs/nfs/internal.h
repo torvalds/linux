@@ -484,7 +484,7 @@ void nfs_retry_commit(struct list_head *page_list,
 		      struct nfs_commit_info *cinfo,
 		      u32 ds_commit_idx);
 void nfs_commitdata_release(struct nfs_commit_data *data);
-void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
+void nfs_request_add_commit_list(struct nfs_page *req,
 				 struct nfs_commit_info *cinfo);
 void nfs_request_add_commit_list_locked(struct nfs_page *req,
 		struct list_head *dst,

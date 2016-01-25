@@ -914,7 +914,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	if ((mode & ~FALLOC_FL_KEEP_SIZE) || gfs2_is_jdata(ip))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
@@ -946,7 +946,7 @@ out_unlock:
 	gfs2_glock_dq(&gh);
 out_uninit:
 	gfs2_holder_uninit(&gh);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }
 

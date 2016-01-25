@@ -1,0 +1,16 @@
+What:		/sys/class/infiniband/<hca>/ports/<port-number>/gid_attrs/ndevs/<gid-index>
+Date:		November 29, 2015
+KernelVersion:	4.4.0
+Contact:	linux-rdma@vger.kernel.org
+Description: 	The net-device's name associated with the GID resides
+		at index <gid-index>.
+
+What:		/sys/class/infiniband/<hca>/ports/<port-number>/gid_attrs/types/<gid-index>
+Date:		November 29, 2015
+KernelVersion:	4.4.0
+Contact:	linux-rdma@vger.kernel.org
+Description: 	The RoCE type of the associated GID resides at index <gid-index>.
+		This could either be "IB/RoCE v1" for IB and RoCE v1 based GODs
+		or "RoCE v2" for RoCE v2 based GIDs.
+
+

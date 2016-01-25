@@ -403,7 +403,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 	 * 1. Need inode mutex to operate transient pages.
 	 */
 	if (iov_iter_rw(iter) == READ)
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 
 	LASSERT(obj->cob_transient_pages == 0);
 	while (iov_iter_count(iter)) {
@@ -454,7 +454,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 out:
 	LASSERT(obj->cob_transient_pages == 0);
 	if (iov_iter_rw(iter) == READ)
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 	if (tot_bytes > 0) {
 		if (iov_iter_rw(iter) == WRITE) {

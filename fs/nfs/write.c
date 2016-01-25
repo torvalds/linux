@@ -830,11 +830,10 @@ EXPORT_SYMBOL_GPL(nfs_request_add_commit_list_locked);
  * holding the nfs_page lock.
  */
 void
-nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
-			    struct nfs_commit_info *cinfo)
+nfs_request_add_commit_list(struct nfs_page *req, struct nfs_commit_info *cinfo)
 {
 	spin_lock(cinfo->lock);
-	nfs_request_add_commit_list_locked(req, dst, cinfo);
+	nfs_request_add_commit_list_locked(req, &cinfo->mds->list, cinfo);
 	spin_unlock(cinfo->lock);
 	nfs_mark_page_unstable(req->wb_page, cinfo);
 }
@@ -892,7 +891,7 @@ nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 {
 	if (pnfs_mark_request_commit(req, lseg, cinfo, ds_commit_idx))
 		return;
-	nfs_request_add_commit_list(req, &cinfo->mds->list, cinfo);
+	nfs_request_add_commit_list(req, cinfo);
 }
 
 static void

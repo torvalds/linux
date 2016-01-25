@@ -4872,9 +4872,9 @@ static int perf_fasync(int fd, struct file *filp, int on)
 	struct perf_event *event = filp->private_data;
 	int retval;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	retval = fasync_helper(fd, filp, on, &event->fasync);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (retval < 0)
 		return retval;
