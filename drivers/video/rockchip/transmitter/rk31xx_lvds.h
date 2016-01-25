@@ -18,7 +18,8 @@
 #define v_MIPIPHY_LANE0_EN(x)   (BITS_MASK(x, 1, 8) | BITS_EN(1, 8))
 #define v_MIPIDPI_FORCEX_EN(x)  (BITS_MASK(x, 1, 9) | BITS_EN(1, 9))
 
-/* RK3368_GRF_SOC_CON7 */
+/* RK3368_GRF_SOC_CON7 0x41c*/
+/* RK3366_GRF_SOC_CON5 0x414*/
 #define v_RK3368_LVDS_OUTPUT_FORMAT(x) (BITS_MASK(x, 3, 13) | BITS_EN(3, 13))
 #define v_RK3368_LVDS_MSBSEL(x)        (BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
 #define v_RK3368_LVDSMODE_EN(x)        (BITS_MASK(x, 1, 12) | BITS_EN(1, 12))
@@ -113,12 +114,16 @@ enum {
 #define v_LANE1_EN(x)           BITS_MASK(x, 1, 6)
 #define v_LANE0_EN(x)           BITS_MASK(x, 1, 7)
 
-#define GRF_SOC_CON7_LVDS	0x041c
-#define GRF_SOC_CON15_LVDS      0x043c
+#define RK3368_GRF_SOC_CON7_LVDS	0x041c
+#define RK3368_GRF_SOC_CON15_LVDS	0x043c
+#define RK3366_GRF_SOC_CON5_LVDS	0x0414
+#define RK3366_GRF_SOC_CON6_LVDS	0x0418
 #define v_RK3368_FORCE_JETAG(x) (BITS_MASK(x, 1, 13) | BITS_EN(1, 13))
+
 enum {
 	LVDS_SOC_RK312X,
-	LVDS_SOC_RK3368
+	LVDS_SOC_RK3368,
+	LVDS_SOC_RK3366
 };
 
 struct rk_lvds_drvdata  {
