@@ -36,6 +36,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
@@ -219,6 +220,10 @@ struct toshiba_acpi_dev {
 };
 
 static struct toshiba_acpi_dev *toshiba_acpi;
+
+static bool disable_hotkeys;
+module_param(disable_hotkeys, bool, 0444);
+MODULE_PARM_DESC(disable_hotkeys, "Disables the hotkeys activation");
 
 static const struct acpi_device_id toshiba_device_ids[] = {
 	{"TOS6200", 0},
@@ -2691,6 +2696,11 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	const struct key_entry *keymap = toshiba_acpi_keymap;
 	acpi_handle ec_handle;
 	int error;
+
+	if (disable_hotkeys) {
+		pr_info("Hotkeys disabled by module parameter\n");
+		return 0;
+	}
 
 	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID)) {
 		pr_info("WMI event detected, hotkeys will not be monitored\n");
