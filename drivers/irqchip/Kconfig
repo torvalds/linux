@@ -154,6 +154,7 @@ config TB10X_IRQC
 config TS4800_IRQ
 	tristate "TS-4800 IRQ controller"
 	select IRQ_DOMAIN
+	depends on HAS_IOMEM
 	help
 	  Support for the TS-4800 FPGA IRQ controller
 
