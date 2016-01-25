@@ -754,6 +754,8 @@ struct kvm_arch {
 
 	bool irqchip_split;
 	u8 nr_reserved_ioapic_pins;
+
+	bool disabled_lapic_found;
 };
 
 struct kvm_vm_stat {
