@@ -246,49 +246,45 @@ CLK_OF_DECLARE(sun6i_a31_ahb1, "allwinner,sun6i-a31-ahb1-clk", sun6i_ahb1_clk_se
  * parent_rate is always 24Mhz
  */
 
-static void sun4i_get_pll1_factors(u32 *freq, u32 parent_rate,
-				   u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun4i_get_pll1_factors(struct factors_request *req)
 {
 	u8 div;
 
 	/* Normalize value to a 6M multiple */
-	div = *freq / 6000000;
-	*freq = 6000000 * div;
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
+	div = req->rate / 6000000;
+	req->rate = 6000000 * div;
 
 	/* m is always zero for pll1 */
-	*m = 0;
+	req->m = 0;
 
 	/* k is 1 only on these cases */
-	if (*freq >= 768000000 || *freq == 42000000 || *freq == 54000000)
-		*k = 1;
+	if (req->rate >= 768000000 || req->rate == 42000000 ||
+			req->rate == 54000000)
+		req->k = 1;
 	else
-		*k = 0;
+		req->k = 0;
 
 	/* p will be 3 for divs under 10 */
 	if (div < 10)
-		*p = 3;
+		req->p = 3;
 
 	/* p will be 2 for divs between 10 - 20 and odd divs under 32 */
 	else if (div < 20 || (div < 32 && (div & 1)))
-		*p = 2;
+		req->p = 2;
 
 	/* p will be 1 for even divs under 32, divs under 40 and odd pairs
 	 * of divs between 40-62 */
 	else if (div < 40 || (div < 64 && (div & 2)))
-		*p = 1;
+		req->p = 1;
 
 	/* any other entries have p = 0 */
 	else
-		*p = 0;
+		req->p = 0;
 
 	/* calculate a suitable n based on k and p */
-	div <<= *p;
-	div /= (*k + 1);
-	*n = div / 4;
+	div <<= req->p;
+	div /= (req->k + 1);
+	req->n = div / 4;
 }
 
 /**
@@ -297,15 +293,14 @@ static void sun4i_get_pll1_factors(u32 *freq, u32 parent_rate,
  * rate = parent_rate * (n + 1) * (k + 1) / (m + 1);
  * parent_rate should always be 24MHz
  */
-static void sun6i_a31_get_pll1_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun6i_a31_get_pll1_factors(struct factors_request *req)
 {
 	/*
 	 * We can operate only on MHz, this will make our life easier
 	 * later.
 	 */
-	u32 freq_mhz = *freq / 1000000;
-	u32 parent_freq_mhz = parent_rate / 1000000;
+	u32 freq_mhz = req->rate / 1000000;
+	u32 parent_freq_mhz = req->parent_rate / 1000000;
 
 	/*
 	 * Round down the frequency to the closest multiple of either
@@ -319,28 +314,20 @@ static void sun6i_a31_get_pll1_factors(u32 *freq, u32 parent_rate,
 	else
 		freq_mhz = round_freq_16;
 
-	*freq = freq_mhz * 1000000;
-
-	/*
-	 * If the factors pointer are null, we were just called to
-	 * round down the frequency.
-	 * Exit.
-	 */
-	if (n == NULL)
-		return;
+	req->rate = freq_mhz * 1000000;
 
 	/* If the frequency is a multiple of 32 MHz, k is always 3 */
 	if (!(freq_mhz % 32))
-		*k = 3;
+		req->k = 3;
 	/* If the frequency is a multiple of 9 MHz, k is always 2 */
 	else if (!(freq_mhz % 9))
-		*k = 2;
+		req->k = 2;
 	/* If the frequency is a multiple of 8 MHz, k is always 1 */
 	else if (!(freq_mhz % 8))
-		*k = 1;
+		req->k = 1;
 	/* Otherwise, we don't use the k factor */
 	else
-		*k = 0;
+		req->k = 0;
 
 	/*
 	 * If the frequency is a multiple of 2 but not a multiple of
@@ -351,27 +338,28 @@ static void sun6i_a31_get_pll1_factors(u32 *freq, u32 parent_rate,
 	 * somehow relates to this frequency.
 	 */
 	if ((freq_mhz % 6) == 2 || (freq_mhz % 6) == 4)
-		*m = 2;
+		req->m = 2;
 	/*
 	 * If the frequency is a multiple of 6MHz, but the factor is
 	 * odd, m will be 3
 	 */
 	else if ((freq_mhz / 6) & 1)
-		*m = 3;
+		req->m = 3;
 	/* Otherwise, we end up with m = 1 */
 	else
-		*m = 1;
+		req->m = 1;
 
 	/* Calculate n thanks to the above factors we already got */
-	*n = freq_mhz * (*m + 1) / ((*k + 1) * parent_freq_mhz) - 1;
+	req->n = freq_mhz * (req->m + 1) / ((req->k + 1) * parent_freq_mhz)
+		 - 1;
 
 	/*
 	 * If n end up being outbound, and that we can still decrease
 	 * m, do it.
 	 */
-	if ((*n + 1) > 31 && (*m + 1) > 1) {
-		*n = (*n + 1) / 2 - 1;
-		*m = (*m + 1) / 2 - 1;
+	if ((req->n + 1) > 31 && (req->m + 1) > 1) {
+		req->n = (req->n + 1) / 2 - 1;
+		req->m = (req->m + 1) / 2 - 1;
 	}
 }
 
@@ -382,45 +370,41 @@ static void sun6i_a31_get_pll1_factors(u32 *freq, u32 parent_rate,
  * parent_rate is always 24Mhz
  */
 
-static void sun8i_a23_get_pll1_factors(u32 *freq, u32 parent_rate,
-				   u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun8i_a23_get_pll1_factors(struct factors_request *req)
 {
 	u8 div;
 
 	/* Normalize value to a 6M multiple */
-	div = *freq / 6000000;
-	*freq = 6000000 * div;
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
+	div = req->rate / 6000000;
+	req->rate = 6000000 * div;
 
 	/* m is always zero for pll1 */
-	*m = 0;
+	req->m = 0;
 
 	/* k is 1 only on these cases */
-	if (*freq >= 768000000 || *freq == 42000000 || *freq == 54000000)
-		*k = 1;
+	if (req->rate >= 768000000 || req->rate == 42000000 ||
+			req->rate == 54000000)
+		req->k = 1;
 	else
-		*k = 0;
+		req->k = 0;
 
 	/* p will be 2 for divs under 20 and odd divs under 32 */
 	if (div < 20 || (div < 32 && (div & 1)))
-		*p = 2;
+		req->p = 2;
 
 	/* p will be 1 for even divs under 32, divs under 40 and odd pairs
 	 * of divs between 40-62 */
 	else if (div < 40 || (div < 64 && (div & 2)))
-		*p = 1;
+		req->p = 1;
 
 	/* any other entries have p = 0 */
 	else
-		*p = 0;
+		req->p = 0;
 
 	/* calculate a suitable n based on k and p */
-	div <<= *p;
-	div /= (*k + 1);
-	*n = div / 4 - 1;
+	div <<= req->p;
+	div /= (req->k + 1);
+	req->n = div / 4 - 1;
 }
 
 /**
@@ -430,29 +414,24 @@ static void sun8i_a23_get_pll1_factors(u32 *freq, u32 parent_rate,
  * parent_rate is always 24Mhz
  */
 
-static void sun4i_get_pll5_factors(u32 *freq, u32 parent_rate,
-				   u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun4i_get_pll5_factors(struct factors_request *req)
 {
 	u8 div;
 
 	/* Normalize value to a parent_rate multiple (24M) */
-	div = *freq / parent_rate;
-	*freq = parent_rate * div;
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
+	div = req->rate / req->parent_rate;
+	req->rate = req->parent_rate * div;
 
 	if (div < 31)
-		*k = 0;
+		req->k = 0;
 	else if (div / 2 < 31)
-		*k = 1;
+		req->k = 1;
 	else if (div / 3 < 31)
-		*k = 2;
+		req->k = 2;
 	else
-		*k = 3;
+		req->k = 3;
 
-	*n = DIV_ROUND_UP(div, (*k+1));
+	req->n = DIV_ROUND_UP(div, (req->k + 1));
 }
 
 /**
@@ -462,24 +441,19 @@ static void sun4i_get_pll5_factors(u32 *freq, u32 parent_rate,
  * parent_rate is always 24Mhz
  */
 
-static void sun6i_a31_get_pll6_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun6i_a31_get_pll6_factors(struct factors_request *req)
 {
 	u8 div;
 
 	/* Normalize value to a parent_rate multiple (24M) */
-	div = *freq / parent_rate;
-	*freq = parent_rate * div;
+	div = req->rate / req->parent_rate;
+	req->rate = req->parent_rate * div;
 
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
+	req->k = div / 32;
+	if (req->k > 3)
+		req->k = 3;
 
-	*k = div / 32;
-	if (*k > 3)
-		*k = 3;
-
-	*n = DIV_ROUND_UP(div, (*k+1)) - 1;
+	req->n = DIV_ROUND_UP(div, (req->k + 1)) - 1;
 }
 
 /**
@@ -488,37 +462,32 @@ static void sun6i_a31_get_pll6_factors(u32 *freq, u32 parent_rate,
  * rate = parent_rate >> p
  */
 
-static void sun5i_a13_get_ahb_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun5i_a13_get_ahb_factors(struct factors_request *req)
 {
 	u32 div;
 
 	/* divide only */
-	if (parent_rate < *freq)
-		*freq = parent_rate;
+	if (req->parent_rate < req->rate)
+		req->rate = req->parent_rate;
 
 	/*
 	 * user manual says valid speed is 8k ~ 276M, but tests show it
 	 * can work at speeds up to 300M, just after reparenting to pll6
 	 */
-	if (*freq < 8000)
-		*freq = 8000;
-	if (*freq > 300000000)
-		*freq = 300000000;
+	if (req->rate < 8000)
+		req->rate = 8000;
+	if (req->rate > 300000000)
+		req->rate = 300000000;
 
-	div = order_base_2(DIV_ROUND_UP(parent_rate, *freq));
+	div = order_base_2(DIV_ROUND_UP(req->parent_rate, req->rate));
 
 	/* p = 0 ~ 3 */
 	if (div > 3)
 		div = 3;
 
-	*freq = parent_rate >> div;
+	req->rate = req->parent_rate >> div;
 
-	/* we were called to round the frequency, we can now return */
-	if (p == NULL)
-		return;
-
-	*p = div;
+	req->p = div;
 }
 
 /**
@@ -527,39 +496,34 @@ static void sun5i_a13_get_ahb_factors(u32 *freq, u32 parent_rate,
  * rate = (parent_rate >> p) / (m + 1);
  */
 
-static void sun4i_get_apb1_factors(u32 *freq, u32 parent_rate,
-				   u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun4i_get_apb1_factors(struct factors_request *req)
 {
 	u8 calcm, calcp;
+	int div;
 
-	if (parent_rate < *freq)
-		*freq = parent_rate;
+	if (req->parent_rate < req->rate)
+		req->rate = req->parent_rate;
 
-	parent_rate = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	/* Invalid rate! */
-	if (parent_rate > 32)
+	if (div > 32)
 		return;
 
-	if (parent_rate <= 4)
+	if (div <= 4)
 		calcp = 0;
-	else if (parent_rate <= 8)
+	else if (div <= 8)
 		calcp = 1;
-	else if (parent_rate <= 16)
+	else if (div <= 16)
 		calcp = 2;
 	else
 		calcp = 3;
 
-	calcm = (parent_rate >> calcp) - 1;
+	calcm = (req->parent_rate >> calcp) - 1;
 
-	*freq = (parent_rate >> calcp) / (calcm + 1);
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
-
-	*m = calcm;
-	*p = calcp;
+	req->rate = (req->parent_rate >> calcp) / (calcm + 1);
+	req->m = calcm;
+	req->p = calcp;
 }
 
 
@@ -571,17 +535,16 @@ static void sun4i_get_apb1_factors(u32 *freq, u32 parent_rate,
  * rate = (parent_rate >> p) / (m + 1);
  */
 
-static void sun7i_a20_get_out_factors(u32 *freq, u32 parent_rate,
-				      u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun7i_a20_get_out_factors(struct factors_request *req)
 {
 	u8 div, calcm, calcp;
 
 	/* These clocks can only divide, so we will never be able to achieve
 	 * frequencies higher than the parent frequency */
-	if (*freq > parent_rate)
-		*freq = parent_rate;
+	if (req->rate > req->parent_rate)
+		req->rate = req->parent_rate;
 
-	div = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	if (div < 32)
 		calcp = 0;
@@ -594,14 +557,9 @@ static void sun7i_a20_get_out_factors(u32 *freq, u32 parent_rate,
 
 	calcm = DIV_ROUND_UP(div, 1 << calcp);
 
-	*freq = (parent_rate >> calcp) / calcm;
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
-
-	*m = calcm - 1;
-	*p = calcp;
+	req->rate = (req->parent_rate >> calcp) / calcm;
+	req->m = calcm - 1;
+	req->p = calcp;
 }
 
 /**

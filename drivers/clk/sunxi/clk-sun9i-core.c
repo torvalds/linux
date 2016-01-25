@@ -32,15 +32,14 @@
  * p and m are named div1 and div2 in Allwinner's SDK
  */
 
-static void sun9i_a80_get_pll4_factors(u32 *freq, u32 parent_rate,
-				       u8 *n_ret, u8 *k, u8 *m_ret, u8 *p_ret)
+static void sun9i_a80_get_pll4_factors(struct factors_request *req)
 {
 	int n;
 	int m = 1;
 	int p = 1;
 
 	/* Normalize value to a 6 MHz multiple (24 MHz / 4) */
-	n = DIV_ROUND_UP(*freq, 6000000);
+	n = DIV_ROUND_UP(req->rate, 6000000);
 
 	/* If n is too large switch to steps of 12 MHz */
 	if (n > 255) {
@@ -60,15 +59,10 @@ static void sun9i_a80_get_pll4_factors(u32 *freq, u32 parent_rate,
 	else if (n < 12)
 		n = 12;
 
-	*freq = ((24000000 * n) >> p) / (m + 1);
-
-	/* we were called to round the frequency, we can now return */
-	if (n_ret == NULL)
-		return;
-
-	*n_ret = n;
-	*m_ret = m;
-	*p_ret = p;
+	req->rate = ((24000000 * n) >> p) / (m + 1);
+	req->n = n;
+	req->m = m;
+	req->p = p;
 }
 
 static const struct clk_factors_config sun9i_a80_pll4_config = {
@@ -111,27 +105,21 @@ CLK_OF_DECLARE(sun9i_a80_pll4, "allwinner,sun9i-a80-pll4-clk", sun9i_a80_pll4_se
  * rate = parent_rate / (m + 1);
  */
 
-static void sun9i_a80_get_gt_factors(u32 *freq, u32 parent_rate,
-				     u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun9i_a80_get_gt_factors(struct factors_request *req)
 {
 	u32 div;
 
-	if (parent_rate < *freq)
-		*freq = parent_rate;
+	if (req->parent_rate < req->rate)
+		req->rate = req->parent_rate;
 
-	div = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	/* maximum divider is 4 */
 	if (div > 4)
 		div = 4;
 
-	*freq = parent_rate / div;
-
-	/* we were called to round the frequency, we can now return */
-	if (!m)
-		return;
-
-	*m = div;
+	req->rate = req->parent_rate / div;
+	req->m = div;
 }
 
 static const struct clk_factors_config sun9i_a80_gt_config = {
@@ -176,27 +164,21 @@ CLK_OF_DECLARE(sun9i_a80_gt, "allwinner,sun9i-a80-gt-clk", sun9i_a80_gt_setup);
  * rate = parent_rate >> p;
  */
 
-static void sun9i_a80_get_ahb_factors(u32 *freq, u32 parent_rate,
-				      u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun9i_a80_get_ahb_factors(struct factors_request *req)
 {
 	u32 _p;
 
-	if (parent_rate < *freq)
-		*freq = parent_rate;
+	if (req->parent_rate < req->rate)
+		req->rate = req->parent_rate;
 
-	_p = order_base_2(DIV_ROUND_UP(parent_rate, *freq));
+	_p = order_base_2(DIV_ROUND_UP(req->parent_rate, req->rate));
 
 	/* maximum p is 3 */
 	if (_p > 3)
 		_p = 3;
 
-	*freq = parent_rate >> _p;
-
-	/* we were called to round the frequency, we can now return */
-	if (!p)
-		return;
-
-	*p = _p;
+	req->rate = req->parent_rate >> _p;
+	req->p = _p;
 }
 
 static const struct clk_factors_config sun9i_a80_ahb_config = {
@@ -262,31 +244,22 @@ CLK_OF_DECLARE(sun9i_a80_apb0, "allwinner,sun9i-a80-apb0-clk", sun9i_a80_apb0_se
  * rate = (parent_rate >> p) / (m + 1);
  */
 
-static void sun9i_a80_get_apb1_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun9i_a80_get_apb1_factors(struct factors_request *req)
 {
 	u32 div;
-	u8 calcm, calcp;
 
-	if (parent_rate < *freq)
-		*freq = parent_rate;
+	if (req->parent_rate < req->rate)
+		req->rate = req->parent_rate;
 
-	div = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	/* Highest possible divider is 256 (p = 3, m = 31) */
 	if (div > 256)
 		div = 256;
 
-	calcp = order_base_2(div);
-	calcm = (parent_rate >> calcp) - 1;
-	*freq = (parent_rate >> calcp) / (calcm + 1);
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
-
-	*m = calcm;
-	*p = calcp;
+	req->p = order_base_2(div);
+	req->m = (req->parent_rate >> req->p) - 1;
+	req->rate = (req->parent_rate >> req->p) / (req->m + 1);
 }
 
 static const struct clk_factors_config sun9i_a80_apb1_config = {

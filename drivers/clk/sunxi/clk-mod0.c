@@ -28,17 +28,16 @@
  * rate = (parent_rate >> p) / (m + 1);
  */
 
-static void sun4i_a10_get_mod0_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun4i_a10_get_mod0_factors(struct factors_request *req)
 {
 	u8 div, calcm, calcp;
 
 	/* These clocks can only divide, so we will never be able to achieve
 	 * frequencies higher than the parent frequency */
-	if (*freq > parent_rate)
-		*freq = parent_rate;
+	if (req->rate > req->parent_rate)
+		req->rate = req->parent_rate;
 
-	div = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	if (div < 16)
 		calcp = 0;
@@ -51,14 +50,9 @@ static void sun4i_a10_get_mod0_factors(u32 *freq, u32 parent_rate,
 
 	calcm = DIV_ROUND_UP(div, 1 << calcp);
 
-	*freq = (parent_rate >> calcp) / calcm;
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
-
-	*m = calcm - 1;
-	*p = calcp;
+	req->rate = (req->parent_rate >> calcp) / calcm;
+	req->m = calcm - 1;
+	req->p = calcp;
 }
 
 /* user manual says "n" but it's really "p" */

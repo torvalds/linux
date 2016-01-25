@@ -73,8 +73,13 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 				   unsigned long *parent_rate)
 {
 	struct clk_factors *factors = to_clk_factors(hw);
-	factors->get_factors((u32 *)&rate, (u32)*parent_rate,
-			     NULL, NULL, NULL, NULL);
+	struct factors_request req = {
+		.rate = rate,
+		.parent_rate = *parent_rate,
+	};
+
+	factors->get_factors(&req);
+
 
 	return rate;
 }
@@ -120,13 +125,16 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
-	u8 n = 0, k = 0, m = 0, p = 0;
+	struct factors_request req = {
+		.rate = rate,
+		.parent_rate = parent_rate,
+	};
 	u32 reg;
 	struct clk_factors *factors = to_clk_factors(hw);
 	const struct clk_factors_config *config = factors->config;
 	unsigned long flags = 0;
 
-	factors->get_factors((u32 *)&rate, (u32)parent_rate, &n, &k, &m, &p);
+	factors->get_factors(&req);
 
 	if (factors->lock)
 		spin_lock_irqsave(factors->lock, flags);
@@ -135,10 +143,10 @@ static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg = readl(factors->reg);
 
 	/* Set up the new factors - macros do not do anything if width is 0 */
-	reg = FACTOR_SET(config->nshift, config->nwidth, reg, n);
-	reg = FACTOR_SET(config->kshift, config->kwidth, reg, k);
-	reg = FACTOR_SET(config->mshift, config->mwidth, reg, m);
-	reg = FACTOR_SET(config->pshift, config->pwidth, reg, p);
+	reg = FACTOR_SET(config->nshift, config->nwidth, reg, req.n);
+	reg = FACTOR_SET(config->kshift, config->kwidth, reg, req.k);
+	reg = FACTOR_SET(config->mshift, config->mwidth, reg, req.m);
+	reg = FACTOR_SET(config->pshift, config->pwidth, reg, req.p);
 
 	/* Apply them now */
 	writel(reg, factors->reg);

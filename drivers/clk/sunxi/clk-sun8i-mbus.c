@@ -26,8 +26,7 @@
  * rate = parent_rate / (m + 1);
  */
 
-static void sun8i_a23_get_mbus_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun8i_a23_get_mbus_factors(struct factors_request *req)
 {
 	u8 div;
 
@@ -35,21 +34,16 @@ static void sun8i_a23_get_mbus_factors(u32 *freq, u32 parent_rate,
 	 * These clocks can only divide, so we will never be able to
 	 * achieve frequencies higher than the parent frequency
 	 */
-	if (*freq > parent_rate)
-		*freq = parent_rate;
+	if (req->rate > req->parent_rate)
+		req->rate = req->parent_rate;
 
-	div = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	if (div > 8)
 		div = 8;
 
-	*freq = parent_rate / div;
-
-	/* we were called to round the frequency, we can now return */
-	if (m == NULL)
-		return;
-
-	*m = div - 1;
+	req->rate = req->parent_rate / div;
+	req->m = div - 1;
 }
 
 static struct clk_factors_config sun8i_a23_mbus_config = {
