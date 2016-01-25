@@ -89,21 +89,6 @@ static unsigned long clk_factors_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
-				   unsigned long *parent_rate)
-{
-	struct clk_factors *factors = to_clk_factors(hw);
-	struct factors_request req = {
-		.rate = rate,
-		.parent_rate = *parent_rate,
-	};
-
-	factors->get_factors(&req);
-
-
-	return rate;
-}
-
 static int clk_factors_determine_rate(struct clk_hw *hw,
 				      struct clk_rate_request *req)
 {
@@ -189,7 +174,6 @@ static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_factors_ops = {
 	.determine_rate = clk_factors_determine_rate,
 	.recalc_rate = clk_factors_recalc_rate,
-	.round_rate = clk_factors_round_rate,
 	.set_rate = clk_factors_set_rate,
 };
 
