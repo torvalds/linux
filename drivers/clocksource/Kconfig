@@ -30,6 +30,7 @@ config CLKSRC_MMIO
 config DIGICOLOR_TIMER
 	bool "Digicolor timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
 	help
 	  Enables the support for the digicolor timer driver.
 
@@ -55,6 +56,7 @@ config ARMADA_370_XP_TIMER
 	bool "Armada 370 and XP timer driver" if COMPILE_TEST
 	depends on ARM
 	select CLKSRC_OF
+	select CLKSRC_MMIO
 	help
 	  Enables the support for the Armada 370 and XP timer driver.
 
@@ -89,6 +91,7 @@ config SUN5I_HSTIMER
 
 config TEGRA_TIMER
 	bool "Tegra timer driver" if COMPILE_TEST
+	select CLKSRC_MMIO
 	depends on ARM
 	help
 	  Enables support for the Tegra driver.
@@ -263,6 +266,7 @@ config FSL_FTM_TIMER
 
 config VF_PIT_TIMER
 	bool
+	select CLKSRC_MMIO
 	help
 	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
 
@@ -394,6 +398,7 @@ config CLKSRC_ST_LPC
 	bool "Low power clocksource found in the LPC" if COMPILE_TEST
 	select CLKSRC_OF if OF
 	depends on HAS_IOMEM
+	select CLKSRC_MMIO
 	help
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
