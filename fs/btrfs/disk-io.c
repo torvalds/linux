@@ -1787,7 +1787,6 @@ static int cleaner_kthread(void *arg)
 	int again;
 	struct btrfs_trans_handle *trans;
 
-	set_freezable();
 	do {
 		again = 0;
 
