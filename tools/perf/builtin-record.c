@@ -49,7 +49,9 @@ struct record {
 	const char		*progname;
 	int			realtime_prio;
 	bool			no_buildid;
+	bool			no_buildid_set;
 	bool			no_buildid_cache;
+	bool			no_buildid_cache_set;
 	bool			buildid_all;
 	unsigned long long	samples;
 };
@@ -1097,10 +1099,12 @@ struct option __record_options[] = {
 	OPT_BOOLEAN('P', "period", &record.opts.period, "Record the sample period"),
 	OPT_BOOLEAN('n', "no-samples", &record.opts.no_samples,
 		    "don't sample"),
-	OPT_BOOLEAN('N', "no-buildid-cache", &record.no_buildid_cache,
-		    "do not update the buildid cache"),
-	OPT_BOOLEAN('B', "no-buildid", &record.no_buildid,
-		    "do not collect buildids in perf.data"),
+	OPT_BOOLEAN_SET('N', "no-buildid-cache", &record.no_buildid_cache,
+			&record.no_buildid_cache_set,
+			"do not update the buildid cache"),
+	OPT_BOOLEAN_SET('B', "no-buildid", &record.no_buildid,
+			&record.no_buildid_set,
+			"do not collect buildids in perf.data"),
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
