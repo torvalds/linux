@@ -348,7 +348,9 @@ static int ux500_suspend(struct device *dev)
 	struct ux500_glue	*glue = dev_get_drvdata(dev);
 	struct musb		*musb = glue_to_musb(glue);
 
-	usb_phy_set_suspend(musb->xceiv, 1);
+	if (musb)
+		usb_phy_set_suspend(musb->xceiv, 1);
+
 	clk_disable_unprepare(glue->clk);
 
 	return 0;
@@ -366,7 +368,8 @@ static int ux500_resume(struct device *dev)
 		return ret;
 	}
 
-	usb_phy_set_suspend(musb->xceiv, 0);
+	if (musb)
+		usb_phy_set_suspend(musb->xceiv, 0);
 
 	return 0;
 }
