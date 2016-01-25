@@ -967,22 +967,19 @@ static void
 chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 			  struct cmg_chars *chars)
 {
-	struct cmg_chars *cmg_chars;
 	int i, mask;
 
-	cmg_chars = chp->cmg_chars;
 	for (i = 0; i < NR_MEASUREMENT_CHARS; i++) {
 		mask = 0x80 >> (i + 3);
 		if (cmcv & mask)
-			cmg_chars->values[i] = chars->values[i];
+			chp->cmg_chars.values[i] = chars->values[i];
 		else
-			cmg_chars->values[i] = 0;
+			chp->cmg_chars.values[i] = 0;
 	}
 }
 
 int chsc_get_channel_measurement_chars(struct channel_path *chp)
 {
-	struct cmg_chars *cmg_chars;
 	int ccode, ret;
 
 	struct {
@@ -1005,11 +1002,6 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 zeroes3;
 		u32 data[NR_MEASUREMENT_CHARS];
 	} __attribute__ ((packed)) *scmc_area;
-
-	chp->cmg_chars = NULL;
-	cmg_chars = kmalloc(sizeof(*cmg_chars), GFP_KERNEL);
-	if (!cmg_chars)
-		return -ENOMEM;
 
 	spin_lock_irq(&chsc_page_lock);
 	memset(chsc_page, 0, PAGE_SIZE);
@@ -1042,14 +1034,10 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		/* No cmg-dependent data. */
 		goto out;
 	}
-	chp->cmg_chars = cmg_chars;
 	chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
 				  (struct cmg_chars *) &scmc_area->data);
 out:
 	spin_unlock_irq(&chsc_page_lock);
-	if (!chp->cmg_chars)
-		kfree(cmg_chars);
-
 	return ret;
 }
 

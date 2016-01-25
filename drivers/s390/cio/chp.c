@@ -139,11 +139,11 @@ static ssize_t chp_measurement_chars_read(struct file *filp,
 
 	device = container_of(kobj, struct device, kobj);
 	chp = to_channelpath(device);
-	if (!chp->cmg_chars)
+	if (chp->cmg == -1)
 		return 0;
 
-	return memory_read_from_buffer(buf, count, &off,
-				chp->cmg_chars, sizeof(struct cmg_chars));
+	return memory_read_from_buffer(buf, count, &off, &chp->cmg_chars,
+				       sizeof(chp->cmg_chars));
 }
 
 static struct bin_attribute chp_measurement_chars_attr = {
