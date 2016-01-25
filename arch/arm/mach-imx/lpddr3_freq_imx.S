@@ -242,6 +242,20 @@
 	ldr	r7, =0x8
 	str	r7, [r5, #DDRPHY_OFFSETW_CON2]
 
+	/* LPDDR2 and LPDDR3 has different setting */
+	ldr	r8, [r4, #DDRC_MSTR]
+	ands	r8, r8, #0x4
+	beq	15f
+
+	ldr	r7, =0x08080808
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON0]
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON1]
+	ldr	r7, =0x0a0a0808
+	str	r7, [r5, #DDRPHY_CA_DSKEW_CON2]
+	ldr	r7, =0x0a0a0a0a
+	str	r7, [r5, #DDRPHY_CA_WLDSKEW_CON0]
+	b	14f
+15:
 	ldr	r7, [r9, #ANADIG_DIGPROG]
 	and	r7, r7, #0x11
 	cmp	r7, #0x10
