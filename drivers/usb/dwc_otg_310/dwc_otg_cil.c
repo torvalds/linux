@@ -2855,8 +2855,12 @@ void dwc_otg_hc_halt(dwc_otg_core_if_t *core_if,
 		hc->halt_status = halt_status;
 
 		hcchar.d32 = DWC_READ_REG32(&hc_regs->hcchar);
-		if (hcchar.b.chen == 0) {
+		if ((hcchar.b.chen == 0) ||
+		    (!hc->do_split &&
+		    ((hc->ep_type == DWC_OTG_EP_TYPE_ISOC) ||
+		    (hc->ep_type == DWC_OTG_EP_TYPE_INTR)))) {
 			/*
+			 * hcchar.b.chen is 0 means that:
 			 * The channel is either already halted or it hasn't
 			 * started yet. In DMA mode, the transfer may halt if
 			 * it finishes normally or a condition occurs that
@@ -2866,7 +2870,16 @@ void dwc_otg_hc_halt(dwc_otg_core_if_t *core_if,
 			 * to a channel, but not started yet when an URB is
 			 * dequeued. Don't want to halt a channel that hasn't
 			 * started yet.
+			 * If channel is used for non-split periodic transfer
+			 * according to DWC Programming Guide:
+			 * '3.5 Halting a Channel': Channel disable must not
+			 * be programmed for non-split periodic channels. At
+			 * the end of the next uframe/frame (in the worst
+			 * case), the core generates a channel halted and
+			 * disables the channel automatically.
 			 */
+			DWC_PRINTF("%s: hcchar.b.chen %d, ep_type %d\n",
+				   __func__, hcchar.b.chen, hc->ep_type);
 			return;
 		}
 	}
