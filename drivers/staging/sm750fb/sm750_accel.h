@@ -268,7 +268,7 @@ int hw_imageblit(struct lynx_accel *accel,
 		 u32 dx,
 		 u32 dy,       /* Starting coordinate of destination surface */
 		 u32 width,
-		 u32 height,   /* width and height of rectange in pixel value */
+		 u32 height,   /* width and height of rectangle in pixel value */
 		 u32 fColor,   /* Foreground color (corresponding to a 1 in the monochrome data */
 		 u32 bColor,   /* Background color (corresponding to a 0 in the monochrome data */
 		 u32 rop2);

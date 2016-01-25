@@ -53,7 +53,7 @@ struct lynx_accel {
 	/* base virtual address of de data port */
 	volatile unsigned char __iomem *dpPortBase;
 
-	/* function fointers */
+	/* function pointers */
 	void (*de_init)(struct lynx_accel *);
 
 	int (*de_wait)(void);/* see if hardware ready to work */

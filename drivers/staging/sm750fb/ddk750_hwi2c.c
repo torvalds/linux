@@ -127,7 +127,7 @@ static unsigned int hw_i2c_write_data(
 		if (hw_i2c_wait_tx_done() != 0)
 			break;
 
-		/* Substract length */
+		/* Subtract length */
 		length -= (count + 1);
 
 		/* Total byte written */
@@ -194,7 +194,7 @@ static unsigned int hw_i2c_read_data(
 		for (i = 0; i <= count; i++)
 			*buf++ = PEEK32(I2C_DATA0 + i);
 
-		/* Substract length by 16 */
+		/* Subtract length by 16 */
 		length -= (count + 1);
 
 		/* Number of bytes read. */

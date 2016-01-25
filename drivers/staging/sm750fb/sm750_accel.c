@@ -53,7 +53,7 @@ void hw_de_init(struct lynx_accel *accel)
 		FIELD_CLEAR(DE_STRETCH_FORMAT, ADDRESSING)&
 		FIELD_CLEAR(DE_STRETCH_FORMAT, SOURCE_HEIGHT);
 
-	/* DE_STRETCH bpp format need be initilized in setMode routine */
+	/* DE_STRETCH bpp format need be initialized in setMode routine */
 	write_dpr(accel, DE_STRETCH_FORMAT, (read_dpr(accel, DE_STRETCH_FORMAT) & clr) | reg);
 
 	/* disable clipping and transparent */
@@ -305,7 +305,7 @@ int hw_imageblit(struct lynx_accel *accel,
 		 u32 dx,
 		 u32 dy,       /* Starting coordinate of destination surface */
 		 u32 width,
-		 u32 height,   /* width and height of rectange in pixel value */
+		 u32 height,   /* width and height of rectangle in pixel value */
 		 u32 fColor,   /* Foreground color (corresponding to a 1 in the monochrome data */
 		 u32 bColor,   /* Background color (corresponding to a 0 in the monochrome data */
 		 u32 rop2)     /* ROP value */

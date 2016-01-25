@@ -142,7 +142,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		break;
 		}
 	} else {
-		/* for 750LE ,no DVI chip initilization makes Monitor no signal */
+		/* for 750LE ,no DVI chip initialization makes Monitor no signal */
 		/* Set up GPIO for software I2C to program DVI chip in the
 		   Xilinx SP605 board, in order to have video signal.
 		 */
