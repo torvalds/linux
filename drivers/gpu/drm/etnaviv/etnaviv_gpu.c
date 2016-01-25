@@ -1563,6 +1563,7 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct etnaviv_gpu *gpu;
+	u32 dma_mask;
 	int err = 0;
 
 	gpu = devm_kzalloc(dev, sizeof(*gpu), GFP_KERNEL);
@@ -1573,12 +1574,16 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	mutex_init(&gpu->lock);
 
 	/*
-	 * Set the GPU base address to the start of physical memory.  This
-	 * ensures that if we have up to 2GB, the v1 MMU can address the
-	 * highest memory.  This is important as command buffers may be
-	 * allocated outside of this limit.
+	 * Set the GPU linear window to be at the end of the DMA window, where
+	 * the CMA area is likely to reside. This ensures that we are able to
+	 * map the command buffers while having the linear window overlap as
+	 * much RAM as possible, so we can optimize mappings for other buffers.
 	 */
-	gpu->memory_base = PHYS_OFFSET;
+	dma_mask = (u32)dma_get_required_mask(dev);
+	if (dma_mask < PHYS_OFFSET + SZ_2G)
+		gpu->memory_base = PHYS_OFFSET;
+	else
+		gpu->memory_base = dma_mask - SZ_2G + 1;
 
 	/* Map registers: */
 	gpu->mmio = etnaviv_ioremap(pdev, NULL, dev_name(gpu->dev));
