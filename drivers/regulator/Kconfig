@@ -760,12 +760,6 @@ config REGULATOR_TPS65910
 	help
 	  This driver supports TPS65910/TPS65911 voltage regulator chips.
 
-config REGULATOR_TPS65912
-	tristate "TI TPS65912 Power regulator"
-	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
-	help
-	    This driver supports TPS65912 voltage regulator chip.
-
 config REGULATOR_TPS80031
 	tristate "TI TPS80031/TPS80032 power regualtor driver"
 	depends on MFD_TPS80031

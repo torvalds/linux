@@ -1180,32 +1180,6 @@ config MFD_TPS65910
 	  if you say yes here you get support for the TPS65910 series of
 	  Power Management chips.
 
-config MFD_TPS65912
-	bool "TI TPS65912 Power Management chip"
-	depends on GPIOLIB
-	select MFD_CORE
-	help
-	  If you say yes here you get support for the TPS65912 series of
-	  PM chips.
-
-config MFD_TPS65912_I2C
-	bool "TI TPS65912 Power Management chip with I2C"
-	select MFD_CORE
-	select MFD_TPS65912
-	depends on I2C=y && GPIOLIB
-	help
-	  If you say yes here you get support for the TPS65912 series of
-	  PM chips with I2C interface.
-
-config MFD_TPS65912_SPI
-	bool "TI TPS65912 Power Management chip with SPI"
-	select MFD_CORE
-	select MFD_TPS65912
-	depends on SPI_MASTER && GPIOLIB
-	help
-	  If you say yes here you get support for the TPS65912 series of
-	  PM chips with SPI interface.
-
 config MFD_TPS80031
 	bool "TI TPS80031/TPS80032 Power Management chips"
 	depends on I2C=y
