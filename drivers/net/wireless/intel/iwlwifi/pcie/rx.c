@@ -2,6 +2,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -730,7 +731,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 		iwl_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
 }
 
-static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
+static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 rb_size, enabled = 0;
@@ -759,13 +760,13 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	for (i = 0; i < trans->num_rx_queues; i++) {
 		/* Tell device where to find RBD free table in DRAM */
 		iwl_pcie_write_prph_64(trans, RFH_Q_FRBDCB_BA_LSB(i),
-				       (u64)(rxq->bd_dma));
+				       (u64)(trans_pcie->rxq[i].bd_dma));
 		/* Tell device where to find RBD used table in DRAM */
 		iwl_pcie_write_prph_64(trans, RFH_Q_URBDCB_BA_LSB(i),
-				       (u64)(rxq->used_bd_dma));
+				       (u64)(trans_pcie->rxq[i].used_bd_dma));
 		/* Tell device where in DRAM to update its Rx status */
 		iwl_pcie_write_prph_64(trans, RFH_Q_URBD_STTS_WPTR_LSB(i),
-				       rxq->rb_stts_dma);
+				       trans_pcie->rxq[i].rb_stts_dma);
 		/* Reset device indice tables */
 		iwl_write_prph(trans, RFH_Q_FRBDCB_WIDX(i), 0);
 		iwl_write_prph(trans, RFH_Q_FRBDCB_RIDX(i), 0);
@@ -806,6 +807,12 @@ static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
 	INIT_LIST_HEAD(&rxq->rx_used);
 	rxq->free_count = 0;
 	rxq->used_count = 0;
+}
+
+static int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
+{
+	WARN_ON(1);
+	return 0;
 }
 
 int iwl_pcie_rx_init(struct iwl_trans *trans)
@@ -857,6 +864,10 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 
 		iwl_pcie_rx_init_rxb_lists(rxq);
 
+		if (!rxq->napi.poll)
+			netif_napi_add(&trans_pcie->napi_dev, &rxq->napi,
+				       iwl_pcie_dummy_napi_poll, 64);
+
 		spin_unlock(&rxq->lock);
 	}
 
@@ -878,7 +889,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 
 	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL, def_rxq);
 	if (trans->cfg->mq_rx_supported) {
-		iwl_pcie_rx_mq_hw_init(trans, def_rxq);
+		iwl_pcie_rx_mq_hw_init(trans);
 	} else {
 		iwl_pcie_rxq_restock(trans, def_rxq);
 		iwl_pcie_rx_hw_init(trans, def_rxq);
@@ -940,6 +951,9 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 					  rxq->used_bd, rxq->used_bd_dma);
 		rxq->used_bd_dma = 0;
 		rxq->used_bd = NULL;
+
+		if (rxq->napi.poll)
+			netif_napi_del(&rxq->napi);
 	}
 	kfree(trans_pcie->rxq);
 }
@@ -1055,7 +1069,12 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		iwl_op_mode_rx(trans->op_mode, &trans_pcie->napi, &rxcb);
+		if (rxq->id == 0)
+			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
+				       &rxcb);
+		else
+			iwl_op_mode_rx_rss(trans->op_mode, &rxq->napi,
+					   &rxcb, rxq->id);
 
 		if (reclaim) {
 			kzfree(txq->entries[cmd_index].free_buf);
@@ -1236,8 +1255,8 @@ restart:
 	if (unlikely(emergency && count))
 		iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC, rxq);
 
-	if (trans_pcie->napi.poll)
-		napi_gro_flush(&trans_pcie->napi, false);
+	if (rxq->napi.poll)
+		napi_gro_flush(&rxq->napi, false);
 }
 
 /*

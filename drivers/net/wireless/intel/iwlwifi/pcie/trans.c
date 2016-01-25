@@ -1428,12 +1428,6 @@ static void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr,
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 
-static int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
-{
-	WARN_ON(1);
-	return 0;
-}
-
 static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 				     const struct iwl_trans_config *trans_cfg)
 {
@@ -1470,11 +1464,8 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	 * As this function may be called again in some corner cases don't
 	 * do anything if NAPI was already initialized.
 	 */
-	if (!trans_pcie->napi.poll) {
+	if (trans_pcie->napi_dev.reg_state != NETREG_DUMMY)
 		init_dummy_netdev(&trans_pcie->napi_dev);
-		netif_napi_add(&trans_pcie->napi_dev, &trans_pcie->napi,
-			       iwl_pcie_dummy_napi_poll, 64);
-	}
 }
 
 void iwl_trans_pcie_free(struct iwl_trans *trans)
@@ -1497,9 +1488,6 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	iounmap(trans_pcie->hw_base);
 	pci_release_regions(trans_pcie->pci_dev);
 	pci_disable_device(trans_pcie->pci_dev);
-
-	if (trans_pcie->napi.poll)
-		netif_napi_del(&trans_pcie->napi);
 
 	iwl_pcie_free_fw_monitor(trans);
 

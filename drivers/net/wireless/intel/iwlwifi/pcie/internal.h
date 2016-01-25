@@ -136,6 +136,7 @@ struct iwl_rxq {
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
+	struct napi_struct napi;
 	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
 };
 
@@ -345,7 +346,6 @@ struct iwl_trans_pcie {
 	struct iwl_drv *drv;
 
 	struct net_device napi_dev;
-	struct napi_struct napi;
 
 	struct __percpu iwl_tso_hdr_page *tso_hdr_page;
 
