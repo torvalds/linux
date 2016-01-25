@@ -49,6 +49,11 @@
 #define DEF_LVT_OFF		0x2
 #define DEF_INT_TYPE_APIC	0x2
 
+/* Scalable MCA: */
+
+/* Threshold LVT offset is at MSR0xC0000410[15:12] */
+#define SMCA_THR_LVT_OFF	0xF000
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -142,6 +147,14 @@ static int lvt_off_valid(struct threshold_block *b, int apic, u32 lo, u32 hi)
 	}
 
 	if (apic != msr) {
+		/*
+		 * On SMCA CPUs, LVT offset is programmed at a different MSR, and
+		 * the BIOS provides the value. The original field where LVT offset
+		 * was set is reserved. Return early here:
+		 */
+		if (mce_flags.smca)
+			return 0;
+
 		pr_err(FW_BUG "cpu %d, invalid threshold interrupt offset %d "
 		       "for bank %d, block %d (MSR%08X=0x%x%08x)\n",
 		       b->cpu, apic, b->bank, b->block, b->address, hi, lo);
@@ -300,7 +313,19 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 				goto init;
 
 			b.interrupt_enable = 1;
-			new	= (high & MASK_LVTOFF_HI) >> 20;
+
+			if (mce_flags.smca) {
+				u32 smca_low, smca_high;
+
+				/* Gather LVT offset for thresholding: */
+				if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
+					break;
+
+				new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
+			} else {
+				new = (high & MASK_LVTOFF_HI) >> 20;
+			}
+
 			offset  = setup_APIC_mce_threshold(offset, new);
 
 			if ((offset == new) &&
