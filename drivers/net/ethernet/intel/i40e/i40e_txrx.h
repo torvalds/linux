@@ -153,7 +153,6 @@ enum i40e_dyn_idx_t {
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 #define I40E_MIN_DESC_PENDING	4
 
-#define I40E_TX_FLAGS_CSUM		BIT(0)
 #define I40E_TX_FLAGS_HW_VLAN		BIT(1)
 #define I40E_TX_FLAGS_SW_VLAN		BIT(2)
 #define I40E_TX_FLAGS_TSO		BIT(3)

@@ -1602,12 +1602,13 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
  * @tx_flags: pointer to Tx flags currently set
  * @td_cmd: Tx descriptor command bits to set
  * @td_offset: Tx descriptor header offsets to set
+ * @tx_ring: Tx descriptor ring
  * @cd_tunneling: ptr to context desc bits
  **/
-static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
-				u32 *td_cmd, u32 *td_offset,
-				struct i40e_ring *tx_ring,
-				u32 *cd_tunneling)
+static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
+			       u32 *td_cmd, u32 *td_offset,
+			       struct i40e_ring *tx_ring,
+			       u32 *cd_tunneling)
 {
 	union {
 		struct iphdr *v4;
@@ -1623,6 +1624,9 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	u32 offset, cmd = 0, tunnel = 0;
 	__be16 frag_off;
 	u8 l4_proto = 0;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
 
 	ip.hdr = skb_network_header(skb);
 	l4.hdr = skb_transport_header(skb);
@@ -1666,7 +1670,11 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
 			break;
 		default:
-			return;
+			if (*tx_flags & I40E_TX_FLAGS_TSO)
+				return -1;
+
+			skb_checksum_help(skb);
+			return 0;
 		}
 
 		/* compute tunnel header size */
@@ -1730,11 +1738,16 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			  I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 		break;
 	default:
-		break;
+		if (*tx_flags & I40E_TX_FLAGS_TSO)
+			return -1;
+		skb_checksum_help(skb);
+		return 0;
 	}
 
 	*td_cmd |= cmd;
 	*td_offset |= offset;
+
+	return 1;
 }
 
 /**
@@ -2150,12 +2163,10 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;
 
 	/* Always offload the checksum, since it's in the data descriptor */
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		tx_flags |= I40E_TX_FLAGS_CSUM;
-
-		i40e_tx_enable_csum(skb, &tx_flags, &td_cmd, &td_offset,
-				    tx_ring, &cd_tunneling);
-	}
+	tso = i40e_tx_enable_csum(skb, &tx_flags, &td_cmd, &td_offset,
+				  tx_ring, &cd_tunneling);
+	if (tso < 0)
+		goto out_drop;
 
 	i40e_create_tx_ctx(tx_ring, cd_type_cmd_tso_mss,
 			   cd_tunneling, cd_l2tag2);
