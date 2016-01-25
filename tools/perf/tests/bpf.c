@@ -71,6 +71,15 @@ static struct {
 		(NR_ITERS + 1) / 4,
 	},
 #endif
+	{
+		LLVM_TESTCASE_BPF_RELOCATION,
+		"Test BPF relocation checker",
+		"[bpf_relocation_test]",
+		"fix 'perf test LLVM' first",
+		"libbpf error when dealing with relocation",
+		NULL,
+		0,
+	},
 };
 
 static int do_test(struct bpf_object *obj, int (*func)(void),
@@ -190,7 +199,7 @@ static int __test__bpf(int idx)
 
 	ret = test_llvm__fetch_bpf_obj(&obj_buf, &obj_buf_sz,
 				       bpf_testcase_table[idx].prog_id,
-				       true);
+				       true, NULL);
 	if (ret != TEST_OK || !obj_buf || !obj_buf_sz) {
 		pr_debug("Unable to get BPF object, %s\n",
 			 bpf_testcase_table[idx].msg_compile_fail);
@@ -202,14 +211,21 @@ static int __test__bpf(int idx)
 
 	obj = prepare_bpf(obj_buf, obj_buf_sz,
 			  bpf_testcase_table[idx].name);
-	if (!obj) {
+	if ((!!bpf_testcase_table[idx].target_func) != (!!obj)) {
+		if (!obj)
+			pr_debug("Fail to load BPF object: %s\n",
+				 bpf_testcase_table[idx].msg_load_fail);
+		else
+			pr_debug("Success unexpectedly: %s\n",
+				 bpf_testcase_table[idx].msg_load_fail);
 		ret = TEST_FAIL;
 		goto out;
 	}
 
-	ret = do_test(obj,
-		      bpf_testcase_table[idx].target_func,
-		      bpf_testcase_table[idx].expect_result);
+	if (obj)
+		ret = do_test(obj,
+			      bpf_testcase_table[idx].target_func,
+			      bpf_testcase_table[idx].expect_result);
 out:
 	bpf__clear();
 	return ret;
