@@ -378,7 +378,7 @@ static struct dvb_device dvbdev_ca = {
 int av7110_ca_register(struct av7110 *av7110)
 {
 	return dvb_register_device(&av7110->dvb_adapter, &av7110->ca_dev,
-				   &dvbdev_ca, av7110, DVB_DEVICE_CA);
+				   &dvbdev_ca, av7110, DVB_DEVICE_CA, 0);
 }
 
 void av7110_ca_unregister(struct av7110 *av7110)

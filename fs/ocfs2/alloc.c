@@ -164,7 +164,7 @@ static int ocfs2_dinode_insert_check(struct ocfs2_extent_tree *et,
 				     struct ocfs2_extent_rec *rec);
 static int ocfs2_dinode_sanity_check(struct ocfs2_extent_tree *et);
 static void ocfs2_dinode_fill_root_el(struct ocfs2_extent_tree *et);
-static struct ocfs2_extent_tree_operations ocfs2_dinode_et_ops = {
+static const struct ocfs2_extent_tree_operations ocfs2_dinode_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_dinode_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_dinode_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_dinode_update_clusters,
@@ -286,7 +286,7 @@ static void ocfs2_xattr_value_update_clusters(struct ocfs2_extent_tree *et,
 	le32_add_cpu(&vb->vb_xv->xr_clusters, clusters);
 }
 
-static struct ocfs2_extent_tree_operations ocfs2_xattr_value_et_ops = {
+static const struct ocfs2_extent_tree_operations ocfs2_xattr_value_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_xattr_value_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_xattr_value_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_xattr_value_update_clusters,
@@ -332,7 +332,7 @@ static void ocfs2_xattr_tree_update_clusters(struct ocfs2_extent_tree *et,
 	le32_add_cpu(&xb->xb_attrs.xb_root.xt_clusters, clusters);
 }
 
-static struct ocfs2_extent_tree_operations ocfs2_xattr_tree_et_ops = {
+static const struct ocfs2_extent_tree_operations ocfs2_xattr_tree_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_xattr_tree_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_xattr_tree_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_xattr_tree_update_clusters,
@@ -379,7 +379,7 @@ static void ocfs2_dx_root_fill_root_el(struct ocfs2_extent_tree *et)
 	et->et_root_el = &dx_root->dr_list;
 }
 
-static struct ocfs2_extent_tree_operations ocfs2_dx_root_et_ops = {
+static const struct ocfs2_extent_tree_operations ocfs2_dx_root_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_dx_root_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_dx_root_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_dx_root_update_clusters,
@@ -425,7 +425,7 @@ ocfs2_refcount_tree_extent_contig(struct ocfs2_extent_tree *et,
 	return CONTIG_NONE;
 }
 
-static struct ocfs2_extent_tree_operations ocfs2_refcount_tree_et_ops = {
+static const struct ocfs2_extent_tree_operations ocfs2_refcount_tree_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_refcount_tree_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_refcount_tree_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_refcount_tree_update_clusters,
@@ -438,7 +438,7 @@ static void __ocfs2_init_extent_tree(struct ocfs2_extent_tree *et,
 				     struct buffer_head *bh,
 				     ocfs2_journal_access_func access,
 				     void *obj,
-				     struct ocfs2_extent_tree_operations *ops)
+				     const struct ocfs2_extent_tree_operations *ops)
 {
 	et->et_ops = ops;
 	et->et_root_bh = bh;
@@ -5719,7 +5719,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 		goto bail;
 	}
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 
 	if (ocfs2_truncate_log_needs_flush(osb)) {
 		ret = __ocfs2_flush_truncate_log(osb);
@@ -5776,7 +5776,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 out:
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 bail:
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
@@ -5832,7 +5832,7 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
 
-	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
+	BUG_ON(inode_trylock(tl_inode));
 
 	start_cluster = ocfs2_blocks_to_clusters(osb->sb, start_blk);
 
@@ -5980,7 +5980,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
 
-	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
+	BUG_ON(inode_trylock(tl_inode));
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
 
@@ -6008,7 +6008,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 		goto out;
 	}
 
-	mutex_lock(&data_alloc_inode->i_mutex);
+	inode_lock(data_alloc_inode);
 
 	status = ocfs2_inode_lock(data_alloc_inode, &data_alloc_bh, 1);
 	if (status < 0) {
@@ -6035,7 +6035,7 @@ out_unlock:
 	ocfs2_inode_unlock(data_alloc_inode, 1);
 
 out_mutex:
-	mutex_unlock(&data_alloc_inode->i_mutex);
+	inode_unlock(data_alloc_inode);
 	iput(data_alloc_inode);
 
 out:
@@ -6047,9 +6047,9 @@ int ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	int status;
 	struct inode *tl_inode = osb->osb_tl_inode;
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 	status = __ocfs2_flush_truncate_log(osb);
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	return status;
 }
@@ -6174,8 +6174,7 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 	}
 
 bail:
-	if (tl_inode)
-		iput(tl_inode);
+	iput(tl_inode);
 	brelse(tl_bh);
 
 	if (status < 0) {
@@ -6209,7 +6208,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 		(unsigned long long)le64_to_cpu(tl_copy->i_blkno),
 		num_recs);
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 	for(i = 0; i < num_recs; i++) {
 		if (ocfs2_truncate_log_needs_flush(osb)) {
 			status = __ocfs2_flush_truncate_log(osb);
@@ -6240,7 +6239,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 	}
 
 bail_up:
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	return status;
 }
@@ -6347,7 +6346,7 @@ static int ocfs2_free_cached_blocks(struct ocfs2_super *osb,
 		goto out;
 	}
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret) {
@@ -6396,7 +6395,7 @@ out_unlock:
 	ocfs2_inode_unlock(inode, 1);
 	brelse(di_bh);
 out_mutex:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	iput(inode);
 out:
 	while(head) {
@@ -6440,7 +6439,7 @@ static int ocfs2_free_cached_clusters(struct ocfs2_super *osb,
 	handle_t *handle;
 	int ret = 0;
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 
 	while (head) {
 		if (ocfs2_truncate_log_needs_flush(osb)) {
@@ -6472,7 +6471,7 @@ static int ocfs2_free_cached_clusters(struct ocfs2_super *osb,
 		}
 	}
 
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	while (head) {
 		/* Premature exit may have left some dangling items. */
@@ -7356,7 +7355,7 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		goto out;
 	}
 
-	mutex_lock(&main_bm_inode->i_mutex);
+	inode_lock(main_bm_inode);
 
 	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 0);
 	if (ret < 0) {
@@ -7423,7 +7422,7 @@ out_unlock:
 	ocfs2_inode_unlock(main_bm_inode, 0);
 	brelse(main_bm_bh);
 out_mutex:
-	mutex_unlock(&main_bm_inode->i_mutex);
+	inode_unlock(main_bm_inode);
 	iput(main_bm_inode);
 out:
 	return ret;

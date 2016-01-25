@@ -64,8 +64,12 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 
 static void __init *early_alloc(unsigned long sz)
 {
-	void *ptr = __va(memblock_alloc(sz, sz));
-	BUG_ON(!ptr);
+	phys_addr_t phys;
+	void *ptr;
+
+	phys = memblock_alloc(sz, sz);
+	BUG_ON(!phys);
+	ptr = __va(phys);
 	memset(ptr, 0, sz);
 	return ptr;
 }
@@ -81,55 +85,19 @@ static void split_pmd(pmd_t *pmd, pte_t *pte)
 	do {
 		/*
 		 * Need to have the least restrictive permissions available
-		 * permissions will be fixed up later. Default the new page
-		 * range as contiguous ptes.
+		 * permissions will be fixed up later
 		 */
-		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC_CONT));
+		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
 		pfn++;
 	} while (pte++, i++, i < PTRS_PER_PTE);
 }
 
-/*
- * Given a PTE with the CONT bit set, determine where the CONT range
- * starts, and clear the entire range of PTE CONT bits.
- */
-static void clear_cont_pte_range(pte_t *pte, unsigned long addr)
-{
-	int i;
-
-	pte -= CONT_RANGE_OFFSET(addr);
-	for (i = 0; i < CONT_PTES; i++) {
-		set_pte(pte, pte_mknoncont(*pte));
-		pte++;
-	}
-	flush_tlb_all();
-}
-
-/*
- * Given a range of PTEs set the pfn and provided page protection flags
- */
-static void __populate_init_pte(pte_t *pte, unsigned long addr,
-				unsigned long end, phys_addr_t phys,
-				pgprot_t prot)
-{
-	unsigned long pfn = __phys_to_pfn(phys);
-
-	do {
-		/* clear all the bits except the pfn, then apply the prot */
-		set_pte(pte, pfn_pte(pfn, prot));
-		pte++;
-		pfn++;
-		addr += PAGE_SIZE;
-	} while (addr != end);
-}
-
 static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
-				  unsigned long end, phys_addr_t phys,
+				  unsigned long end, unsigned long pfn,
 				  pgprot_t prot,
 				  void *(*alloc)(unsigned long size))
 {
 	pte_t *pte;
-	unsigned long next;
 
 	if (pmd_none(*pmd) || pmd_sect(*pmd)) {
 		pte = alloc(PTRS_PER_PTE * sizeof(pte_t));
@@ -142,27 +110,9 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		next = min(end, (addr + CONT_SIZE) & CONT_MASK);
-		if (((addr | next | phys) & ~CONT_MASK) == 0) {
-			/* a block of CONT_PTES  */
-			__populate_init_pte(pte, addr, next, phys,
-					    __pgprot(pgprot_val(prot) | PTE_CONT));
-		} else {
-			/*
-			 * If the range being split is already inside of a
-			 * contiguous range but this PTE isn't going to be
-			 * contiguous, then we want to unmark the adjacent
-			 * ranges, then update the portion of the range we
-			 * are interrested in.
-			 */
-			 clear_cont_pte_range(pte, addr);
-			 __populate_init_pte(pte, addr, next, phys, prot);
-		}
-
-		pte += (next - addr) >> PAGE_SHIFT;
-		phys += next - addr;
-		addr = next;
-	} while (addr != end);
+		set_pte(pte, pfn_pte(pfn, prot));
+		pfn++;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
 static void split_pud(pud_t *old_pud, pmd_t *pmd)
@@ -223,7 +173,8 @@ static void alloc_init_pmd(struct mm_struct *mm, pud_t *pud,
 				}
 			}
 		} else {
-			alloc_init_pte(pmd, addr, next, phys, prot, alloc);
+			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys),
+				       prot, alloc);
 		}
 		phys += next - addr;
 	} while (pmd++, addr = next, addr != end);
@@ -300,6 +251,14 @@ static void  __create_mapping(struct mm_struct *mm, pgd_t *pgd,
 {
 	unsigned long addr, length, end, next;
 
+	/*
+	 * If the virtual and physical address don't have the same offset
+	 * within a page, we cannot map the region as the caller expects.
+	 */
+	if (WARN_ON((phys ^ virt) & ~PAGE_MASK))
+		return;
+
+	phys &= PAGE_MASK;
 	addr = virt & PAGE_MASK;
 	length = PAGE_ALIGN(size + (virt & ~PAGE_MASK));
 
@@ -329,7 +288,7 @@ static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 			&phys, virt);
 		return;
 	}
-	__create_mapping(&init_mm, pgd_offset_k(virt & PAGE_MASK), phys, virt,
+	__create_mapping(&init_mm, pgd_offset_k(virt), phys, virt,
 			 size, prot, early_alloc);
 }
 
@@ -350,7 +309,7 @@ static void create_mapping_late(phys_addr_t phys, unsigned long virt,
 		return;
 	}
 
-	return __create_mapping(&init_mm, pgd_offset_k(virt & PAGE_MASK),
+	return __create_mapping(&init_mm, pgd_offset_k(virt),
 				phys, virt, size, prot, late_alloc);
 }
 
@@ -421,6 +380,8 @@ static void __init map_mem(void)
 
 		if (start >= end)
 			break;
+		if (memblock_is_nomap(reg))
+			continue;
 
 		if (ARM64_SWAPPER_USES_SECTION_MAPS) {
 			/*
@@ -504,6 +465,9 @@ void __init paging_init(void)
 	bootmem_init();
 
 	empty_zero_page = virt_to_page(zero_page);
+
+	/* Ensure the zero page is visible to the page table walker */
+	dsb(ishst);
 
 	/*
 	 * TTBR0 is only used for the identity mapping at this stage. Make it

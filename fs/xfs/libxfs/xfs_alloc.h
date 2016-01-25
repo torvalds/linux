@@ -235,5 +235,6 @@ xfs_alloc_get_rec(
 
 int xfs_read_agf(struct xfs_mount *mp, struct xfs_trans *tp,
 			xfs_agnumber_t agno, int flags, struct xfs_buf **bpp);
+int xfs_alloc_fix_freelist(struct xfs_alloc_arg *args, int flags);
 
 #endif	/* __XFS_ALLOC_H__ */

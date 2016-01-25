@@ -184,13 +184,13 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
 
 #define RK3368_CLKSEL0(_offs, _aclkm)					\
 	{								\
-		.reg = RK3288_CLKSEL_CON(0 + _offs),			\
+		.reg = RK3368_CLKSEL_CON(0 + _offs),			\
 		.val = HIWORD_UPDATE(_aclkm, RK3368_DIV_ACLKM_MASK,	\
 				RK3368_DIV_ACLKM_SHIFT),		\
 	}
 #define RK3368_CLKSEL1(_offs, _atclk, _pdbg)				\
 	{								\
-		.reg = RK3288_CLKSEL_CON(1 + _offs),			\
+		.reg = RK3368_CLKSEL_CON(1 + _offs),			\
 		.val = HIWORD_UPDATE(_atclk, RK3368_DIV_ATCLK_MASK,	\
 				RK3368_DIV_ATCLK_SHIFT) |		\
 		       HIWORD_UPDATE(_pdbg, RK3368_DIV_PCLK_DBG_MASK,	\
@@ -819,6 +819,13 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 };
 
 static const char *const rk3368_critical_clocks[] __initconst = {
+	"aclk_bus",
+	"aclk_peri",
+	/*
+	 * pwm1 supplies vdd_logic on a lot of boards, is currently unhandled
+	 * but needs to stay enabled there (including its parents) at all times.
+	 */
+	"pclk_pwm1",
 	"pclk_pd_pmu",
 };
 
@@ -882,6 +889,6 @@ static void __init rk3368_clk_init(struct device_node *np)
 	rockchip_register_softrst(np, 15, reg_base + RK3368_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK3368_GLB_SRST_FST);
+	rockchip_register_restart_notifier(RK3368_GLB_SRST_FST, NULL);
 }
 CLK_OF_DECLARE(rk3368_cru, "rockchip,rk3368-cru", rk3368_clk_init);

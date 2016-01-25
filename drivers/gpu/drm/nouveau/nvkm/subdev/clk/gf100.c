@@ -188,7 +188,7 @@ gf100_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		return read_clk(clk, 0x08);
 	case nv_clk_src_copy:
 		return read_clk(clk, 0x09);
-	case nv_clk_src_daemon:
+	case nv_clk_src_pmu:
 		return read_clk(clk, 0x0c);
 	case nv_clk_src_vdec:
 		return read_clk(clk, 0x0e);
@@ -325,7 +325,7 @@ gf100_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	    (ret = calc_clk(clk, cstate, 0x07, nv_clk_src_hubk06)) ||
 	    (ret = calc_clk(clk, cstate, 0x08, nv_clk_src_hubk01)) ||
 	    (ret = calc_clk(clk, cstate, 0x09, nv_clk_src_copy)) ||
-	    (ret = calc_clk(clk, cstate, 0x0c, nv_clk_src_daemon)) ||
+	    (ret = calc_clk(clk, cstate, 0x0c, nv_clk_src_pmu)) ||
 	    (ret = calc_clk(clk, cstate, 0x0e, nv_clk_src_vdec)))
 		return ret;
 
@@ -447,7 +447,7 @@ gf100_clk = {
 		{ nv_clk_src_rop    , 0x04 },
 		{ nv_clk_src_mem    , 0x05, 0, "memory", 1000 },
 		{ nv_clk_src_vdec   , 0x06 },
-		{ nv_clk_src_daemon , 0x0a },
+		{ nv_clk_src_pmu    , 0x0a },
 		{ nv_clk_src_hubk07 , 0x0b },
 		{ nv_clk_src_max }
 	}

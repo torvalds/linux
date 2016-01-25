@@ -105,7 +105,7 @@ struct vport *ovs_netdev_link(struct vport *vport, const char *name)
 
 	rtnl_lock();
 	err = netdev_master_upper_dev_link(vport->dev,
-					   get_dpdev(vport->dp));
+					   get_dpdev(vport->dp), NULL, NULL);
 	if (err)
 		goto error_unlock;
 
@@ -180,9 +180,13 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
 		ovs_netdev_detach_dev(vport);
 
-	/* Early release so we can unregister the device */
+	/* We can be invoked by both explicit vport deletion and
+	 * underlying netdev deregistration; delete the link only
+	 * if it's not already shutting down.
+	 */
+	if (vport->dev->reg_state == NETREG_REGISTERED)
+		rtnl_delete_link(vport->dev);
 	dev_put(vport->dev);
-	rtnl_delete_link(vport->dev);
 	vport->dev = NULL;
 	rtnl_unlock();
 

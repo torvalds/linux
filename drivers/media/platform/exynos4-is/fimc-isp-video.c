@@ -287,7 +287,7 @@ static int isp_video_open(struct file *file)
 		goto rel_fh;
 
 	if (v4l2_fh_is_singular_file(file)) {
-		mutex_lock(&me->parent->graph_mutex);
+		mutex_lock(&me->graph_obj.mdev->graph_mutex);
 
 		ret = fimc_pipeline_call(ve, open, me, true);
 
@@ -295,7 +295,7 @@ static int isp_video_open(struct file *file)
 		if (ret == 0)
 			me->use_count++;
 
-		mutex_unlock(&me->parent->graph_mutex);
+		mutex_unlock(&me->graph_obj.mdev->graph_mutex);
 	}
 	if (!ret)
 		goto unlock;
@@ -311,7 +311,7 @@ static int isp_video_release(struct file *file)
 	struct fimc_isp *isp = video_drvdata(file);
 	struct fimc_is_video *ivc = &isp->video_capture;
 	struct media_entity *entity = &ivc->ve.vdev.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 
 	mutex_lock(&isp->video_lock);
 
@@ -466,8 +466,7 @@ static int isp_video_pipeline_validate(struct fimc_isp *isp)
 
 		/* Retrieve format at the source pad */
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		sd = media_entity_to_v4l2_subdev(pad->entity);
@@ -617,7 +616,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	vdev->lock = &isp->video_lock;
 
 	iv->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vdev->entity, 1, &iv->pad, 0);
+	ret = media_entity_pads_init(&vdev->entity, 1, &iv->pad);
 	if (ret < 0)
 		return ret;
 

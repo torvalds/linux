@@ -421,7 +421,7 @@ static void lowcomms_write_space(struct sock *sk)
 
 	if (test_and_clear_bit(CF_APP_LIMITED, &con->flags)) {
 		con->sock->sk->sk_write_pending--;
-		clear_bit(SOCK_ASYNC_NOSPACE, &con->sock->flags);
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &con->sock->flags);
 	}
 
 	if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags))
@@ -1448,7 +1448,7 @@ static void send_to_sock(struct connection *con)
 					      msg_flags);
 			if (ret == -EAGAIN || ret == 0) {
 				if (ret == -EAGAIN &&
-				    test_bit(SOCK_ASYNC_NOSPACE, &con->sock->flags) &&
+				    test_bit(SOCKWQ_ASYNC_NOSPACE, &con->sock->flags) &&
 				    !test_and_set_bit(CF_APP_LIMITED, &con->flags)) {
 					/* Notify TCP that we're limited by the
 					 * application window size.

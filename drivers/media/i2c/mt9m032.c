@@ -799,7 +799,7 @@ static int mt9m032_probe(struct i2c_client *client,
 
 	sensor->subdev.ctrl_handler = &sensor->ctrls;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sensor->subdev.entity, 1, &sensor->pad, 0);
+	ret = media_entity_pads_init(&sensor->subdev.entity, 1, &sensor->pad);
 	if (ret < 0)
 		goto error_ctrl;
 

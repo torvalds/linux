@@ -23,6 +23,7 @@
 
 struct mdp4_lcdc_encoder {
 	struct drm_encoder base;
+	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct clk *lcdc_clk;
 	unsigned long int pixclock;
@@ -338,7 +339,7 @@ static void mdp4_lcdc_encoder_disable(struct drm_encoder *encoder)
 	struct mdp4_lcdc_encoder *mdp4_lcdc_encoder =
 			to_mdp4_lcdc_encoder(encoder);
 	struct mdp4_kms *mdp4_kms = get_kms(encoder);
-	struct drm_panel *panel = mdp4_lcdc_encoder->panel;
+	struct drm_panel *panel;
 	int i, ret;
 
 	if (WARN_ON(!mdp4_lcdc_encoder->enabled))
@@ -346,6 +347,7 @@ static void mdp4_lcdc_encoder_disable(struct drm_encoder *encoder)
 
 	mdp4_write(mdp4_kms, REG_MDP4_LCDC_ENABLE, 0);
 
+	panel = of_drm_find_panel(mdp4_lcdc_encoder->panel_node);
 	if (panel) {
 		drm_panel_disable(panel);
 		drm_panel_unprepare(panel);
@@ -381,7 +383,7 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 			to_mdp4_lcdc_encoder(encoder);
 	unsigned long pc = mdp4_lcdc_encoder->pixclock;
 	struct mdp4_kms *mdp4_kms = get_kms(encoder);
-	struct drm_panel *panel = mdp4_lcdc_encoder->panel;
+	struct drm_panel *panel;
 	int i, ret;
 
 	if (WARN_ON(mdp4_lcdc_encoder->enabled))
@@ -414,6 +416,7 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 	if (ret)
 		dev_err(dev->dev, "failed to enable lcdc_clk: %d\n", ret);
 
+	panel = of_drm_find_panel(mdp4_lcdc_encoder->panel_node);
 	if (panel) {
 		drm_panel_prepare(panel);
 		drm_panel_enable(panel);
@@ -442,7 +445,7 @@ long mdp4_lcdc_round_pixclk(struct drm_encoder *encoder, unsigned long rate)
 
 /* initialize encoder */
 struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
-		struct drm_panel *panel)
+		struct device_node *panel_node)
 {
 	struct drm_encoder *encoder = NULL;
 	struct mdp4_lcdc_encoder *mdp4_lcdc_encoder;
@@ -455,12 +458,12 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	mdp4_lcdc_encoder->panel = panel;
+	mdp4_lcdc_encoder->panel_node = panel_node;
 
 	encoder = &mdp4_lcdc_encoder->base;
 
 	drm_encoder_init(dev, encoder, &mdp4_lcdc_encoder_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 	drm_encoder_helper_add(encoder, &mdp4_lcdc_encoder_helper_funcs);
 
 	/* TODO: do we need different pll in other cases? */

@@ -34,6 +34,12 @@
  * node. We use "r5" hash borrowed from reiserfs.
  */
 
+/*
+ * Lot's of the key helpers require a struct ubifs_info *c as the first parameter.
+ * But we are not using it at all currently. That's designed for future extensions of
+ * different c->key_format. But right now, there is only one key type, UBIFS_SIMPLE_KEY_FMT.
+ */
+
 #ifndef __UBIFS_KEY_H__
 #define __UBIFS_KEY_H__
 

@@ -502,7 +502,7 @@ static int vidioc_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuf
 	/* check if overlay is running */
 	if (IS_OVERLAY_ACTIVE(fh) != 0) {
 		if (vv->video_fh != fh) {
-			DEB_D("refusing to change framebuffer informations while overlay is active in another open\n");
+			DEB_D("refusing to change framebuffer information while overlay is active in another open\n");
 			return -EBUSY;
 		}
 	}

@@ -102,9 +102,60 @@ init_waitqueue_func_entry(wait_queue_t *q, wait_queue_func_t func)
 	q->func		= func;
 }
 
+/**
+ * waitqueue_active -- locklessly test for waiters on the queue
+ * @q: the waitqueue to test for waiters
+ *
+ * returns true if the wait list is not empty
+ *
+ * NOTE: this function is lockless and requires care, incorrect usage _will_
+ * lead to sporadic and non-obvious failure.
+ *
+ * Use either while holding wait_queue_head_t::lock or when used for wakeups
+ * with an extra smp_mb() like:
+ *
+ *      CPU0 - waker                    CPU1 - waiter
+ *
+ *                                      for (;;) {
+ *      @cond = true;                     prepare_to_wait(&wq, &wait, state);
+ *      smp_mb();                         // smp_mb() from set_current_state()
+ *      if (waitqueue_active(wq))         if (@cond)
+ *        wake_up(wq);                      break;
+ *                                        schedule();
+ *                                      }
+ *                                      finish_wait(&wq, &wait);
+ *
+ * Because without the explicit smp_mb() it's possible for the
+ * waitqueue_active() load to get hoisted over the @cond store such that we'll
+ * observe an empty wait list while the waiter might not observe @cond.
+ *
+ * Also note that this 'optimization' trades a spin_lock() for an smp_mb(),
+ * which (when the lock is uncontended) are of roughly equal cost.
+ */
 static inline int waitqueue_active(wait_queue_head_t *q)
 {
 	return !list_empty(&q->task_list);
+}
+
+/**
+ * wq_has_sleeper - check if there are any waiting processes
+ * @wq: wait queue head
+ *
+ * Returns true if wq has waiting processes
+ *
+ * Please refer to the comment for waitqueue_active.
+ */
+static inline bool wq_has_sleeper(wait_queue_head_t *wq)
+{
+	/*
+	 * We need to be sure we are in sync with the
+	 * add_wait_queue modifications to the wait queue.
+	 *
+	 * This memory barrier should be paired with one on the
+	 * waiting side.
+	 */
+	smp_mb();
+	return waitqueue_active(wq);
 }
 
 extern void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
@@ -145,7 +196,7 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
 	list_del(&old->task_list);
 }
 
-typedef int wait_bit_action_f(struct wait_bit_key *);
+typedef int wait_bit_action_f(struct wait_bit_key *, int mode);
 void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
 void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
 void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
@@ -960,10 +1011,10 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 	} while (0)
 
 
-extern int bit_wait(struct wait_bit_key *);
-extern int bit_wait_io(struct wait_bit_key *);
-extern int bit_wait_timeout(struct wait_bit_key *);
-extern int bit_wait_io_timeout(struct wait_bit_key *);
+extern int bit_wait(struct wait_bit_key *, int);
+extern int bit_wait_io(struct wait_bit_key *, int);
+extern int bit_wait_timeout(struct wait_bit_key *, int);
+extern int bit_wait_io_timeout(struct wait_bit_key *, int);
 
 /**
  * wait_on_bit - wait for a bit to be cleared

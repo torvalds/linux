@@ -147,6 +147,13 @@ static const char *wm8960_3d_upper_cutoff[] = {"High", "Low"};
 static const char *wm8960_3d_lower_cutoff[] = {"Low", "High"};
 static const char *wm8960_alcfunc[] = {"Off", "Right", "Left", "Stereo"};
 static const char *wm8960_alcmode[] = {"ALC", "Limiter"};
+static const char *wm8960_adc_data_output_sel[] = {
+	"Left Data = Left ADC;  Right Data = Right ADC",
+	"Left Data = Left ADC;  Right Data = Left ADC",
+	"Left Data = Right ADC; Right Data = Right ADC",
+	"Left Data = Right ADC; Right Data = Left ADC",
+};
+static const char *wm8960_dmonomix[] = {"Stereo", "Mono"};
 
 static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_DACCTL1, 5, 4, wm8960_polarity),
@@ -155,6 +162,8 @@ static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_3D, 5, 2, wm8960_3d_lower_cutoff),
 	SOC_ENUM_SINGLE(WM8960_ALC1, 7, 4, wm8960_alcfunc),
 	SOC_ENUM_SINGLE(WM8960_ALC3, 8, 2, wm8960_alcmode),
+	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 2, 4, wm8960_adc_data_output_sel),
+	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 4, 2, wm8960_dmonomix),
 };
 
 static const int deemph_settings[] = { 0, 32000, 44100, 48000 };
@@ -229,7 +238,7 @@ SOC_DOUBLE_R_TLV("Capture Volume", WM8960_LINVOL, WM8960_RINVOL,
 SOC_DOUBLE_R("Capture Volume ZC Switch", WM8960_LINVOL, WM8960_RINVOL,
 	6, 1, 0),
 SOC_DOUBLE_R("Capture Switch", WM8960_LINVOL, WM8960_RINVOL,
-	7, 1, 0),
+	7, 1, 1),
 
 SOC_SINGLE_TLV("Right Input Boost Mixer RINPUT3 Volume",
 	       WM8960_INBMIX1, 4, 7, 0, lineinboost_tlv),
@@ -295,6 +304,9 @@ SOC_SINGLE_TLV("Right Output Mixer Boost Bypass Volume",
 	       WM8960_BYPASS2, 4, 7, 1, bypass_tlv),
 SOC_SINGLE_TLV("Right Output Mixer RINPUT3 Volume",
 	       WM8960_ROUTMIX, 4, 7, 1, bypass_tlv),
+
+SOC_ENUM("ADC Data Output Select", wm8960_enum[6]),
+SOC_ENUM("DAC Mono Mix", wm8960_enum[7]),
 };
 
 static const struct snd_kcontrol_new wm8960_lin_boost[] = {
@@ -401,8 +413,8 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Left Boost Mixer", "LINPUT2 Switch", "LINPUT2" },
 	{ "Left Boost Mixer", "LINPUT3 Switch", "LINPUT3" },
 
-	{ "Left Input Mixer", "Boost Switch", "Left Boost Mixer", },
-	{ "Left Input Mixer", NULL, "LINPUT1", },  /* Really Boost Switch */
+	{ "Left Input Mixer", "Boost Switch", "Left Boost Mixer" },
+	{ "Left Input Mixer", "Boost Switch", "LINPUT1" },  /* Really Boost Switch */
 	{ "Left Input Mixer", NULL, "LINPUT2" },
 	{ "Left Input Mixer", NULL, "LINPUT3" },
 
@@ -410,8 +422,8 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Right Boost Mixer", "RINPUT2 Switch", "RINPUT2" },
 	{ "Right Boost Mixer", "RINPUT3 Switch", "RINPUT3" },
 
-	{ "Right Input Mixer", "Boost Switch", "Right Boost Mixer", },
-	{ "Right Input Mixer", NULL, "RINPUT1", },  /* Really Boost Switch */
+	{ "Right Input Mixer", "Boost Switch", "Right Boost Mixer" },
+	{ "Right Input Mixer", "Boost Switch", "RINPUT1" },  /* Really Boost Switch */
 	{ "Right Input Mixer", NULL, "RINPUT2" },
 	{ "Right Input Mixer", NULL, "RINPUT3" },
 
@@ -419,11 +431,11 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Right ADC", NULL, "Right Input Mixer" },
 
 	{ "Left Output Mixer", "LINPUT3 Switch", "LINPUT3" },
-	{ "Left Output Mixer", "Boost Bypass Switch", "Left Boost Mixer"} ,
+	{ "Left Output Mixer", "Boost Bypass Switch", "Left Boost Mixer" },
 	{ "Left Output Mixer", "PCM Playback Switch", "Left DAC" },
 
 	{ "Right Output Mixer", "RINPUT3 Switch", "RINPUT3" },
-	{ "Right Output Mixer", "Boost Bypass Switch", "Right Boost Mixer" } ,
+	{ "Right Output Mixer", "Boost Bypass Switch", "Right Boost Mixer" },
 	{ "Right Output Mixer", "PCM Playback Switch", "Right DAC" },
 
 	{ "LOUT1 PGA", NULL, "Left Output Mixer" },

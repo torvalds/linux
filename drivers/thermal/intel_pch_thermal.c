@@ -136,7 +136,7 @@ struct pch_dev_ops {
 
 
 /* dev ops for Wildcat Point */
-static struct pch_dev_ops pch_dev_ops_wpt = {
+static const struct pch_dev_ops pch_dev_ops_wpt = {
 	.hw_init = pch_wpt_init,
 	.get_temp = pch_wpt_get_temp,
 };

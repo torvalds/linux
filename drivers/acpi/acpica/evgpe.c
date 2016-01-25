@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,8 +92,8 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
 		ACPI_SET_BIT(gpe_register_info->enable_for_run,
 			     (u8)register_bit);
 	}
-	gpe_register_info->enable_mask = gpe_register_info->enable_for_run;
 
+	gpe_register_info->enable_mask = gpe_register_info->enable_for_run;
 	return_ACPI_STATUS(AE_OK);
 }
 

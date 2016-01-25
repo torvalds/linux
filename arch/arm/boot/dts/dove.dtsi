@@ -33,6 +33,12 @@
 		marvell,tauros2-cache-features = <0>;
 	};
 
+	gpu-subsystem {
+		compatible = "marvell,dove-gpu-subsystem";
+		cores = <&gpu>;
+		status = "disabled";
+	};
+
 	i2c-mux {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
@@ -460,6 +466,12 @@
 					#clock-cells = <1>;
 				};
 
+				divider_clk: core-clock@0064 {
+					compatible = "marvell,dove-divider-clock";
+					reg = <0x0064 0x8>;
+					#clock-cells = <1>;
+				};
+
 				pinctrl: pin-ctrl@0200 {
 					compatible = "marvell,dove-pinctrl";
 					reg = <0x0200 0x14>,
@@ -775,6 +787,16 @@
 				clocks = <&gate_clk 15>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+			};
+
+			gpu: gpu@840000 {
+				clocks = <&divider_clk 1>;
+				clock-names = "core";
+				compatible = "vivante,gc";
+				interrupts = <48>;
+				power-domains = <&gpu_domain>;
+				reg = <0x840000 0x4000>;
+				status = "disabled";
 			};
 		};
 	};

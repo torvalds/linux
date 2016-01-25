@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/skbuff.h>
@@ -237,7 +239,7 @@ static int __init nf_conntrack_irc_init(void)
 	int i, ret;
 
 	if (max_dcc_channels < 1) {
-		printk(KERN_ERR "nf_ct_irc: max_dcc_channels must not be zero\n");
+		pr_err("max_dcc_channels must not be zero\n");
 		return -EINVAL;
 	}
 
@@ -267,8 +269,7 @@ static int __init nf_conntrack_irc_init(void)
 
 		ret = nf_conntrack_helper_register(&irc[i]);
 		if (ret) {
-			printk(KERN_ERR "nf_ct_irc: failed to register helper "
-			       "for pf: %u port: %u\n",
+			pr_err("failed to register helper for pf: %u port: %u\n",
 			       irc[i].tuple.src.l3num, ports[i]);
 			nf_conntrack_irc_fini();
 			return ret;

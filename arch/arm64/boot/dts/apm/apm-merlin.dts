@@ -70,3 +70,15 @@
 &xgenet1 {
 	status = "ok";
 };
+
+&mmc0 {
+	status = "ok";
+};
+
+&i2c4 {
+	rtc68: rtc@68 {
+		compatible = "dallas,ds1337";
+		reg = <0x68>;
+		status = "ok";
+	};
+};

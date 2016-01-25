@@ -182,6 +182,11 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
 	__u64 wire_mid = le64_to_cpu(hdr->MessageId);
 
+	if (hdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
+		cifs_dbg(VFS, "encrypted frame parsing not supported yet");
+		return NULL;
+	}
+
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if ((mid->mid == wire_mid) &&
@@ -1692,7 +1697,7 @@ struct smb_version_operations smb30_operations = {
 	.get_lease_key = smb2_get_lease_key,
 	.set_lease_key = smb2_set_lease_key,
 	.new_lease_key = smb2_new_lease_key,
-	.generate_signingkey = generate_smb3signingkey,
+	.generate_signingkey = generate_smb30signingkey,
 	.calc_signature = smb3_calc_signature,
 	.set_integrity  = smb3_set_integrity,
 	.is_read_op = smb21_is_read_op,
@@ -1779,7 +1784,7 @@ struct smb_version_operations smb311_operations = {
 	.get_lease_key = smb2_get_lease_key,
 	.set_lease_key = smb2_set_lease_key,
 	.new_lease_key = smb2_new_lease_key,
-	.generate_signingkey = generate_smb3signingkey,
+	.generate_signingkey = generate_smb311signingkey,
 	.calc_signature = smb3_calc_signature,
 	.set_integrity  = smb3_set_integrity,
 	.is_read_op = smb21_is_read_op,
@@ -1838,7 +1843,7 @@ struct smb_version_values smb21_values = {
 struct smb_version_values smb30_values = {
 	.version_string = SMB30_VERSION_STRING,
 	.protocol_id = SMB30_PROT_ID,
-	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU | SMB2_GLOBAL_CAP_PERSISTENT_HANDLES,
+	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU | SMB2_GLOBAL_CAP_PERSISTENT_HANDLES | SMB2_GLOBAL_CAP_ENCRYPTION,
 	.large_lock_type = 0,
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
@@ -1858,7 +1863,7 @@ struct smb_version_values smb30_values = {
 struct smb_version_values smb302_values = {
 	.version_string = SMB302_VERSION_STRING,
 	.protocol_id = SMB302_PROT_ID,
-	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU | SMB2_GLOBAL_CAP_PERSISTENT_HANDLES,
+	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU | SMB2_GLOBAL_CAP_PERSISTENT_HANDLES | SMB2_GLOBAL_CAP_ENCRYPTION,
 	.large_lock_type = 0,
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,

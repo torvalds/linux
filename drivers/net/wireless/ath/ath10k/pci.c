@@ -57,12 +57,6 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 #define ATH10K_PCI_TARGET_WAIT 3000
 #define ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS 3
 
-#define QCA988X_2_0_DEVICE_ID	(0x003c)
-#define QCA6164_2_1_DEVICE_ID	(0x0041)
-#define QCA6174_2_1_DEVICE_ID	(0x003e)
-#define QCA99X0_2_0_DEVICE_ID	(0x0040)
-#define QCA9377_1_0_DEVICE_ID	(0x0042)
-
 static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
 	{ PCI_VDEVICE(ATHEROS, QCA6164_2_1_DEVICE_ID) }, /* PCI-E QCA6164 V2.1 */
@@ -92,7 +86,9 @@ static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
 	{ QCA6174_2_1_DEVICE_ID, QCA6174_HW_3_2_CHIP_ID_REV },
 
 	{ QCA99X0_2_0_DEVICE_ID, QCA99X0_HW_2_0_CHIP_ID_REV },
+
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_0_CHIP_ID_REV },
+	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_1_CHIP_ID_REV },
 };
 
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar);
@@ -111,8 +107,10 @@ static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_tx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_rx_cb(struct ath10k_ce_pipe *ce_state);
+static void ath10k_pci_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
+static void ath10k_pci_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state);
 
-static const struct ce_attr host_ce_config_wlan[] = {
+static struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.flags = CE_ATTR_FLAGS,
@@ -128,7 +126,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 0,
 		.src_sz_max = 2048,
 		.dest_nentries = 512,
-		.recv_cb = ath10k_pci_htc_rx_cb,
+		.recv_cb = ath10k_pci_htt_htc_rx_cb,
 	},
 
 	/* CE2: target->host WMI */
@@ -189,6 +187,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 0,
 		.src_sz_max = 2048,
 		.dest_nentries = 128,
+		.recv_cb = ath10k_pci_pktlog_rx_cb,
 	},
 
 	/* CE9 target autonomous qcache memcpy */
@@ -217,7 +216,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 };
 
 /* Target firmware's Copy Engine configuration. */
-static const struct ce_pipe_config target_ce_config_wlan[] = {
+static struct ce_pipe_config target_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.pipenum = __cpu_to_le32(0),
@@ -330,7 +329,7 @@ static const struct ce_pipe_config target_ce_config_wlan[] = {
  * This table is derived from the CE_PCI TABLE, above.
  * It is passed to the Target at startup for use by firmware.
  */
-static const struct service_to_pipe target_service_to_ce_map_wlan[] = {
+static struct service_to_pipe target_service_to_ce_map_wlan[] = {
 	{
 		__cpu_to_le32(ATH10K_HTC_SVC_ID_WMI_DATA_VO),
 		__cpu_to_le32(PIPEDIR_OUT),	/* out = UL = host -> target */
@@ -487,6 +486,9 @@ static int ath10k_pci_force_wake(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned long flags;
 	int ret = 0;
+
+	if (ar_pci->pci_ps)
+		return ret;
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
 
@@ -1206,6 +1208,25 @@ static void ath10k_pci_process_rx_cb(struct ath10k_ce_pipe *ce_state,
 static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state)
 {
 	ath10k_pci_process_rx_cb(ce_state, ath10k_htc_rx_completion_handler);
+}
+
+static void ath10k_pci_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state)
+{
+	/* CE4 polling needs to be done whenever CE pipe which transports
+	 * HTT Rx (target->host) is processed.
+	 */
+	ath10k_ce_per_engine_service(ce_state->ar, 4);
+
+	ath10k_pci_process_rx_cb(ce_state, ath10k_htc_rx_completion_handler);
+}
+
+/* Called by lower (CE) layer when data is received from the Target.
+ * Only 10.4 firmware uses separate CE to transfer pktlog data.
+ */
+static void ath10k_pci_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state)
+{
+	ath10k_pci_process_rx_cb(ce_state,
+				 ath10k_htt_rx_pktlog_completion_handler);
 }
 
 /* Called by lower (CE) layer when a send to HTT Target completes. */
@@ -2027,6 +2048,29 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	return 0;
 }
 
+static void ath10k_pci_override_ce_config(struct ath10k *ar)
+{
+	struct ce_attr *attr;
+	struct ce_pipe_config *config;
+
+	/* For QCA6174 we're overriding the Copy Engine 5 configuration,
+	 * since it is currently used for other feature.
+	 */
+
+	/* Override Host's Copy Engine 5 configuration */
+	attr = &host_ce_config_wlan[5];
+	attr->src_sz_max = 0;
+	attr->dest_nentries = 0;
+
+	/* Override Target firmware's Copy Engine configuration */
+	config = &target_ce_config_wlan[5];
+	config->pipedir = __cpu_to_le32(PIPEDIR_OUT);
+	config->nbytes_max = __cpu_to_le32(2048);
+
+	/* Map from service/endpoint to Copy Engine */
+	target_service_to_ce_map_wlan[15].pipenum = __cpu_to_le32(1);
+}
+
 static int ath10k_pci_alloc_pipes(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -2439,12 +2483,10 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 	u32 val;
 	int ret = 0;
 
-	if (ar_pci->pci_ps == 0) {
-		ret = ath10k_pci_force_wake(ar);
-		if (ret) {
-			ath10k_err(ar, "failed to wake up target: %d\n", ret);
-			return ret;
-		}
+	ret = ath10k_pci_force_wake(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to wake up target: %d\n", ret);
+		return ret;
 	}
 
 	/* Suspend/Resume resets the PCI configuration space, so we have to
@@ -2551,13 +2593,10 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
-	if (ar_pci->pci_ps == 0) {
-		ret = ath10k_pci_force_wake(ar);
-		if (ret) {
-			ath10k_warn(ar, "failed to wake device up on irq: %d\n",
-				    ret);
-			return IRQ_NONE;
-		}
+	ret = ath10k_pci_force_wake(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wake device up on irq: %d\n", ret);
+		return IRQ_NONE;
 	}
 
 	if (ar_pci->num_msi_intrs == 0) {
@@ -3020,6 +3059,9 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_core_destroy;
 	}
 
+	if (QCA_REV_6174(ar))
+		ath10k_pci_override_ce_config(ar);
+
 	ret = ath10k_pci_alloc_pipes(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to allocate copy engine pipes: %d\n",
@@ -3027,16 +3069,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_sleep;
 	}
 
+	ret = ath10k_pci_force_wake(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wake up device : %d\n", ret);
+		goto err_free_pipes;
+	}
+
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_irq_disable(ar);
-
-	if (ar_pci->pci_ps == 0) {
-		ret = ath10k_pci_force_wake(ar);
-		if (ret) {
-			ath10k_warn(ar, "failed to wake up device : %d\n", ret);
-			goto err_free_pipes;
-		}
-	}
 
 	ret = ath10k_pci_init_irq(ar);
 	if (ret) {

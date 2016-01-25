@@ -100,7 +100,7 @@ static void insert_inode_item_key(struct btrfs_root *root)
 static void setup_file_extents(struct btrfs_root *root)
 {
 	int slot = 0;
-	u64 disk_bytenr = 1 * 1024 * 1024;
+	u64 disk_bytenr = SZ_1M;
 	u64 offset = 0;
 
 	/* First we want a hole */

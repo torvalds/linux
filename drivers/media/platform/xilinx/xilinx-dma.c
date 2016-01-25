@@ -49,8 +49,7 @@ xvip_dma_remote_subdev(struct media_pad *local, u32 *pad)
 	struct media_pad *remote;
 
 	remote = media_entity_remote_pad(local);
-	if (remote == NULL ||
-	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
 
 	if (pad)
@@ -113,8 +112,7 @@ static int xvip_pipeline_start_stop(struct xvip_pipeline *pipe, bool start)
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;
@@ -181,19 +179,26 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 {
 	struct media_entity_graph graph;
 	struct media_entity *entity = &start->video.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int num_inputs = 0;
 	unsigned int num_outputs = 0;
+	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
 
 	/* Walk the graph to locate the video nodes. */
+	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		return ret;
+	}
+
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 		struct xvip_dma *dma;
 
-		if (entity->type != MEDIA_ENT_T_DEVNODE_V4L)
+		if (entity->function != MEDIA_ENT_F_IO_V4L)
 			continue;
 
 		dma = to_xvip_dma(media_entity_to_video_device(entity));
@@ -207,6 +212,8 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	media_entity_graph_walk_cleanup(&graph);
 
 	/* We need exactly one output and zero or one input. */
 	if (num_outputs != 1 || num_inputs > 1)
@@ -677,7 +684,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	dma->pad.flags = type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 		       ? MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
 
-	ret = media_entity_init(&dma->video.entity, 1, &dma->pad, 0);
+	ret = media_entity_pads_init(&dma->video.entity, 1, &dma->pad);
 	if (ret < 0)
 		goto error;
 

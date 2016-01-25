@@ -1414,6 +1414,7 @@ static int pxad_probe(struct platform_device *op)
 	pdev->slave.dst_addr_widths = widths;
 	pdev->slave.directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
 	pdev->slave.residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
+	pdev->slave.descriptor_reuse = true;
 
 	pdev->slave.dev = &op->dev;
 	ret = pxad_init_dmadev(op, pdev, dma_channels);

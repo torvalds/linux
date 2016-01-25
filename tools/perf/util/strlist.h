@@ -13,11 +13,18 @@ struct str_node {
 
 struct strlist {
 	struct rblist rblist;
-	bool	       dupstr;
+	bool	      dupstr;
+	bool	      file_only;
 };
 
+/*
+ * @file_only: When dirname is present, only consider entries as filenames,
+ *             that should not be added to the list if dirname/entry is not
+ *             found
+ */
 struct strlist_config {
 	bool dont_dupstr;
+	bool file_only;
 	const char *dirname;
 };
 

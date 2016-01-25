@@ -406,6 +406,7 @@ static struct apic __refdata apic_x2apic_uv_x = {
 
 	.cpu_mask_to_apicid_and		= uv_cpu_mask_to_apicid_and,
 
+	.send_IPI			= uv_send_IPI_one,
 	.send_IPI_mask			= uv_send_IPI_mask,
 	.send_IPI_mask_allbutself	= uv_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= uv_send_IPI_allbutself,

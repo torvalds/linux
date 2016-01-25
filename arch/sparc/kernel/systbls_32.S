@@ -35,18 +35,18 @@ sys_call_table:
 /*80*/	.long sys_setgroups16, sys_getpgrp, sys_setgroups, sys_setitimer, sys_ftruncate64
 /*85*/	.long sys_swapon, sys_getitimer, sys_setuid, sys_sethostname, sys_setgid
 /*90*/	.long sys_dup2, sys_setfsuid, sys_fcntl, sys_select, sys_setfsgid
-/*95*/	.long sys_fsync, sys_setpriority, sys_nis_syscall, sys_nis_syscall, sys_nis_syscall
+/*95*/	.long sys_fsync, sys_setpriority, sys_socket, sys_connect, sys_accept
 /*100*/	.long sys_getpriority, sys_rt_sigreturn, sys_rt_sigaction, sys_rt_sigprocmask, sys_rt_sigpending
 /*105*/	.long sys_rt_sigtimedwait, sys_rt_sigqueueinfo, sys_rt_sigsuspend, sys_setresuid, sys_getresuid
-/*110*/	.long sys_setresgid, sys_getresgid, sys_setregid, sys_nis_syscall, sys_nis_syscall
-/*115*/	.long sys_getgroups, sys_gettimeofday, sys_getrusage, sys_nis_syscall, sys_getcwd
+/*110*/	.long sys_setresgid, sys_getresgid, sys_setregid, sys_recvmsg, sys_sendmsg
+/*115*/	.long sys_getgroups, sys_gettimeofday, sys_getrusage, sys_getsockopt, sys_getcwd
 /*120*/	.long sys_readv, sys_writev, sys_settimeofday, sys_fchown16, sys_fchmod
-/*125*/	.long sys_nis_syscall, sys_setreuid16, sys_setregid16, sys_rename, sys_truncate
-/*130*/	.long sys_ftruncate, sys_flock, sys_lstat64, sys_nis_syscall, sys_nis_syscall
-/*135*/	.long sys_nis_syscall, sys_mkdir, sys_rmdir, sys_utimes, sys_stat64
-/*140*/	.long sys_sendfile64, sys_nis_syscall, sys_futex, sys_gettid, sys_getrlimit
+/*125*/	.long sys_recvfrom, sys_setreuid16, sys_setregid16, sys_rename, sys_truncate
+/*130*/	.long sys_ftruncate, sys_flock, sys_lstat64, sys_sendto, sys_shutdown
+/*135*/	.long sys_socketpair, sys_mkdir, sys_rmdir, sys_utimes, sys_stat64
+/*140*/	.long sys_sendfile64, sys_getpeername, sys_futex, sys_gettid, sys_getrlimit
 /*145*/	.long sys_setrlimit, sys_pivot_root, sys_prctl, sys_pciconfig_read, sys_pciconfig_write
-/*150*/	.long sys_nis_syscall, sys_inotify_init, sys_inotify_add_watch, sys_poll, sys_getdents64
+/*150*/	.long sys_getsockname, sys_inotify_init, sys_inotify_add_watch, sys_poll, sys_getdents64
 /*155*/	.long sys_fcntl64, sys_inotify_rm_watch, sys_statfs, sys_fstatfs, sys_oldumount
 /*160*/	.long sys_sched_setaffinity, sys_sched_getaffinity, sys_getdomainname, sys_setdomainname, sys_nis_syscall
 /*165*/	.long sys_quotactl, sys_set_tid_address, sys_mount, sys_ustat, sys_setxattr
@@ -87,4 +87,5 @@ sys_call_table:
 /*335*/	.long sys_syncfs, sys_sendmmsg, sys_setns, sys_process_vm_readv, sys_process_vm_writev
 /*340*/	.long sys_ni_syscall, sys_kcmp, sys_finit_module, sys_sched_setattr, sys_sched_getattr
 /*345*/	.long sys_renameat2, sys_seccomp, sys_getrandom, sys_memfd_create, sys_bpf
-/*350*/	.long sys_execveat, sys_membarrier
+/*350*/	.long sys_execveat, sys_membarrier, sys_userfaultfd, sys_bind, sys_listen
+/*355*/	.long sys_setsockopt, sys_mlock2

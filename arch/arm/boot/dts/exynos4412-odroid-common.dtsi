@@ -177,10 +177,6 @@
 	assigned-clock-rates = <0>, <176000000>;
 };
 
-&g2d {
-	status = "okay";
-};
-
 &hdmi {
 	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";

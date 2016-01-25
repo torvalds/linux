@@ -45,14 +45,9 @@ struct lp3943_gpio {
 	u16 input_mask;		/* 1 = GPIO is input direction, 0 = output */
 };
 
-static inline struct lp3943_gpio *to_lp3943_gpio(struct gpio_chip *_chip)
-{
-	return container_of(_chip, struct lp3943_gpio, chip);
-}
-
 static int lp3943_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp3943_gpio *lp3943_gpio = to_lp3943_gpio(chip);
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
 	struct lp3943 *lp3943 = lp3943_gpio->lp3943;
 
 	/* Return an error if the pin is already assigned */
@@ -64,7 +59,7 @@ static int lp3943_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void lp3943_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp3943_gpio *lp3943_gpio = to_lp3943_gpio(chip);
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
 	struct lp3943 *lp3943 = lp3943_gpio->lp3943;
 
 	clear_bit(offset, &lp3943->pin_used);
@@ -82,7 +77,7 @@ static int lp3943_gpio_set_mode(struct lp3943_gpio *lp3943_gpio, u8 offset,
 
 static int lp3943_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp3943_gpio *lp3943_gpio = to_lp3943_gpio(chip);
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
 
 	lp3943_gpio->input_mask |= BIT(offset);
 
@@ -138,7 +133,7 @@ static int lp3943_get_gpio_out_status(struct lp3943_gpio *lp3943_gpio,
 
 static int lp3943_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp3943_gpio *lp3943_gpio = to_lp3943_gpio(chip);
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
 
 	/*
 	 * Limitation:
@@ -157,7 +152,7 @@ static int lp3943_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void lp3943_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct lp3943_gpio *lp3943_gpio = to_lp3943_gpio(chip);
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
 	u8 data;
 
 	if (value)
@@ -171,7 +166,7 @@ static void lp3943_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int lp3943_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 					int value)
 {
-	struct lp3943_gpio *lp3943_gpio = to_lp3943_gpio(chip);
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
 
 	lp3943_gpio_set(chip, offset, value);
 	lp3943_gpio->input_mask &= ~BIT(offset);
@@ -205,11 +200,11 @@ static int lp3943_gpio_probe(struct platform_device *pdev)
 
 	lp3943_gpio->lp3943 = lp3943;
 	lp3943_gpio->chip = lp3943_gpio_chip;
-	lp3943_gpio->chip.dev = &pdev->dev;
+	lp3943_gpio->chip.parent = &pdev->dev;
 
 	platform_set_drvdata(pdev, lp3943_gpio);
 
-	return gpiochip_add(&lp3943_gpio->chip);
+	return gpiochip_add_data(&lp3943_gpio->chip, lp3943_gpio);
 }
 
 static int lp3943_gpio_remove(struct platform_device *pdev)

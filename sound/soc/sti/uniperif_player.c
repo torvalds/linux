@@ -251,8 +251,7 @@ static void uni_player_set_channel_status(struct uniperif *player,
 	 * set one.
 	 */
 	mutex_lock(&player->ctrl_lock);
-	if (runtime && (player->stream_settings.iec958.status[3]
-					== IEC958_AES3_CON_FS_NOTID)) {
+	if (runtime) {
 		switch (runtime->rate) {
 		case 22050:
 			player->stream_settings.iec958.status[3] =
@@ -669,6 +668,7 @@ static int uni_player_startup(struct snd_pcm_substream *substream,
 {
 	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
 	struct uniperif *player = priv->dai_data.uni;
+	player->substream = substream;
 
 	player->clk_adj = 0;
 
@@ -950,6 +950,8 @@ static void uni_player_shutdown(struct snd_pcm_substream *substream,
 	if (player->state != UNIPERIF_STATE_STOPPED)
 		/* Stop the player */
 		uni_player_stop(player);
+
+	player->substream = NULL;
 }
 
 static int uni_player_parse_dt_clk_glue(struct platform_device *pdev,
@@ -989,7 +991,7 @@ static int uni_player_parse_dt(struct platform_device *pdev,
 	if (!info)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pnode, "version", &player->ver) ||
+	if (of_property_read_u32(pnode, "st,version", &player->ver) ||
 	    player->ver == SND_ST_UNIPERIF_VERSION_UNKNOWN) {
 		dev_err(dev, "Unknown uniperipheral version ");
 		return -EINVAL;
@@ -998,13 +1000,13 @@ static int uni_player_parse_dt(struct platform_device *pdev,
 	if (player->ver >= SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
 		info->underflow_enabled = 1;
 
-	if (of_property_read_u32(pnode, "uniperiph-id", &info->id)) {
+	if (of_property_read_u32(pnode, "st,uniperiph-id", &info->id)) {
 		dev_err(dev, "uniperipheral id not defined");
 		return -EINVAL;
 	}
 
 	/* Read the device mode property */
-	if (of_property_read_string(pnode, "mode", &mode)) {
+	if (of_property_read_string(pnode, "st,mode", &mode)) {
 		dev_err(dev, "uniperipheral mode not defined");
 		return -EINVAL;
 	}

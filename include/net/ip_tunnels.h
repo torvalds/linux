@@ -273,32 +273,34 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 }
 
 int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
-int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
-		  __be32 src, __be32 dst, u8 proto,
-		  u8 tos, u8 ttl, __be16 df, bool xnet);
+void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
+		   __be32 src, __be32 dst, u8 proto,
+		   u8 tos, u8 ttl, __be16 df, bool xnet);
 struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags);
 
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);
 
-static inline void iptunnel_xmit_stats(int err,
-				       struct net_device_stats *err_stats,
-				       struct pcpu_sw_netstats __percpu *stats)
+static inline void iptunnel_xmit_stats(struct net_device *dev, int pkt_len)
 {
-	if (err > 0) {
-		struct pcpu_sw_netstats *tstats = get_cpu_ptr(stats);
+	if (pkt_len > 0) {
+		struct pcpu_sw_netstats *tstats = get_cpu_ptr(dev->tstats);
 
 		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += err;
+		tstats->tx_bytes += pkt_len;
 		tstats->tx_packets++;
 		u64_stats_update_end(&tstats->syncp);
 		put_cpu_ptr(tstats);
-	} else if (err < 0) {
-		err_stats->tx_errors++;
-		err_stats->tx_aborted_errors++;
 	} else {
-		err_stats->tx_dropped++;
+		struct net_device_stats *err_stats = &dev->stats;
+
+		if (pkt_len < 0) {
+			err_stats->tx_errors++;
+			err_stats->tx_aborted_errors++;
+		} else {
+			err_stats->tx_dropped++;
+		}
 	}
 }
 

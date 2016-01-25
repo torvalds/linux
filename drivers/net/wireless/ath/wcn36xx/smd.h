@@ -44,6 +44,15 @@ struct wcn36xx_fw_msg_status_rsp {
 	u32	status;
 } __packed;
 
+/* wcn3620 returns this for tigger_ba */
+
+struct wcn36xx_fw_msg_status_rsp_v2 {
+	u8	bss_id[6];
+	u32	status __packed;
+	u16	count_following_candidates __packed;
+	/* candidate list follows */
+};
+
 struct wcn36xx_hal_ind_msg {
 	struct list_head list;
 	u8 *msg;

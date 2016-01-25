@@ -137,7 +137,7 @@ static const match_table_t tokens = {
 };
 
 
-STATIC unsigned long
+STATIC int
 suffix_kstrtoint(char *s, unsigned int base, int *res)
 {
 	int	last, shift_left_factor = 0, _res;
@@ -1714,8 +1714,8 @@ xfs_init_zones(void)
 
 	xfs_inode_zone =
 		kmem_zone_init_flags(sizeof(xfs_inode_t), "xfs_inode",
-			KM_ZONE_HWALIGN | KM_ZONE_RECLAIM | KM_ZONE_SPREAD,
-			xfs_fs_inode_init_once);
+			KM_ZONE_HWALIGN | KM_ZONE_RECLAIM | KM_ZONE_SPREAD |
+			KM_ZONE_ACCOUNT, xfs_fs_inode_init_once);
 	if (!xfs_inode_zone)
 		goto out_destroy_efi_zone;
 

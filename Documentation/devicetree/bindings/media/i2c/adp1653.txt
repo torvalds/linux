@@ -12,12 +12,13 @@ There are two LED outputs available - flash and indicator. One LED is
 represented by one child node, nodes need to be named "flash" and "indicator".
 
 Required properties of the LED child node:
-- max-microamp : see Documentation/devicetree/bindings/leds/common.txt
+- led-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
 
 Required properties of the flash LED child node:
 
 - flash-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
 - flash-timeout-us : see Documentation/devicetree/bindings/leds/common.txt
+- led-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
 
 Example:
 
@@ -29,9 +30,9 @@ Example:
 		flash {
 			flash-timeout-us = <500000>;
 			flash-max-microamp = <320000>;
-			max-microamp = <50000>;
+			led-max-microamp = <50000>;
 		};
 		indicator {
-			max-microamp = <17500>;
+			led-max-microamp = <17500>;
 		};
 	};

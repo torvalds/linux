@@ -613,7 +613,7 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(sdev->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS);
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -738,8 +738,6 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_backlight;
-
-	connector->encoder = encoder;
 
 	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	drm_object_property_set_value(&connector->base,

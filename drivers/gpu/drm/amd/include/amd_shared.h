@@ -85,6 +85,27 @@ enum amd_powergating_state {
 	AMD_PG_STATE_UNGATE,
 };
 
+enum amd_pm_state_type {
+	/* not used for dpm */
+	POWER_STATE_TYPE_DEFAULT,
+	POWER_STATE_TYPE_POWERSAVE,
+	/* user selectable states */
+	POWER_STATE_TYPE_BATTERY,
+	POWER_STATE_TYPE_BALANCED,
+	POWER_STATE_TYPE_PERFORMANCE,
+	/* internal states */
+	POWER_STATE_TYPE_INTERNAL_UVD,
+	POWER_STATE_TYPE_INTERNAL_UVD_SD,
+	POWER_STATE_TYPE_INTERNAL_UVD_HD,
+	POWER_STATE_TYPE_INTERNAL_UVD_HD2,
+	POWER_STATE_TYPE_INTERNAL_UVD_MVC,
+	POWER_STATE_TYPE_INTERNAL_BOOT,
+	POWER_STATE_TYPE_INTERNAL_THERMAL,
+	POWER_STATE_TYPE_INTERNAL_ACPI,
+	POWER_STATE_TYPE_INTERNAL_ULV,
+	POWER_STATE_TYPE_INTERNAL_3DPERF,
+};
+
 struct amd_ip_funcs {
 	/* sets up early driver state (pre sw_init), does not configure hw - Optional */
 	int (*early_init)(void *handle);

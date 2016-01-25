@@ -44,9 +44,6 @@ __switch_to:
 	* don't need to do anything special to return it
 	*/
 
-	/* hardware memory barrier */
-	sync
-
 	/*
 	 * switch to new task, contained in r1
 	 * Temp reg r3 is required to get the ptr to store val

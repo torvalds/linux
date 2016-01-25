@@ -100,6 +100,7 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->adev->gem.mutex);
 	drm_gem_object_release(&bo->gem_base);
+	amdgpu_bo_unref(&bo->parent);
 	kfree(bo->metadata);
 	kfree(bo);
 }

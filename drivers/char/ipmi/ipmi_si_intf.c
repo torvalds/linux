@@ -105,7 +105,8 @@ enum si_intf_state {
 enum si_type {
     SI_KCS, SI_SMIC, SI_BT
 };
-static char *si_to_str[] = { "kcs", "smic", "bt" };
+
+static const char * const si_to_str[] = { "kcs", "smic", "bt" };
 
 #define DEVICE_NAME "ipmi_si"
 
@@ -1230,13 +1231,13 @@ static int smi_start_processing(void       *send_info,
 
 	new_smi->intf = intf;
 
-	/* Try to claim any interrupts. */
-	if (new_smi->irq_setup)
-		new_smi->irq_setup(new_smi);
-
 	/* Set up the timer that drives the interface. */
 	setup_timer(&new_smi->si_timer, smi_timeout, (long)new_smi);
 	smi_mod_timer(new_smi, jiffies + SI_TIMEOUT_JIFFIES);
+
+	/* Try to claim any interrupts. */
+	if (new_smi->irq_setup)
+		new_smi->irq_setup(new_smi);
 
 	/*
 	 * Check if the user forcefully enabled the daemon.
@@ -1341,7 +1342,7 @@ static unsigned int num_slave_addrs;
 
 #define IPMI_IO_ADDR_SPACE  0
 #define IPMI_MEM_ADDR_SPACE 1
-static char *addr_space_to_str[] = { "i/o", "mem" };
+static const char * const addr_space_to_str[] = { "i/o", "mem" };
 
 static int hotmod_handler(const char *val, struct kernel_param *kp);
 
@@ -1723,27 +1724,31 @@ static int mem_setup(struct smi_info *info)
  */
 enum hotmod_op { HM_ADD, HM_REMOVE };
 struct hotmod_vals {
-	char *name;
-	int  val;
+	const char *name;
+	const int  val;
 };
-static struct hotmod_vals hotmod_ops[] = {
+
+static const struct hotmod_vals hotmod_ops[] = {
 	{ "add",	HM_ADD },
 	{ "remove",	HM_REMOVE },
 	{ NULL }
 };
-static struct hotmod_vals hotmod_si[] = {
+
+static const struct hotmod_vals hotmod_si[] = {
 	{ "kcs",	SI_KCS },
 	{ "smic",	SI_SMIC },
 	{ "bt",		SI_BT },
 	{ NULL }
 };
-static struct hotmod_vals hotmod_as[] = {
+
+static const struct hotmod_vals hotmod_as[] = {
 	{ "mem",	IPMI_MEM_ADDR_SPACE },
 	{ "i/o",	IPMI_IO_ADDR_SPACE },
 	{ NULL }
 };
 
-static int parse_str(struct hotmod_vals *v, int *val, char *name, char **curr)
+static int parse_str(const struct hotmod_vals *v, int *val, char *name,
+		     char **curr)
 {
 	char *s;
 	int  i;
@@ -2554,7 +2559,6 @@ static void ipmi_pci_remove(struct pci_dev *pdev)
 {
 	struct smi_info *info = pci_get_drvdata(pdev);
 	cleanup_one_si(info);
-	pci_disable_device(pdev);
 }
 
 static const struct pci_device_id ipmi_pci_devices[] = {
@@ -2870,7 +2874,7 @@ static int ipmi_parisc_remove(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_device_id ipmi_parisc_tbl[] = {
+static const struct parisc_device_id ipmi_parisc_tbl[] = {
 	{ HPHW_MC, HVERSION_REV_ANY_ID, 0x004, 0xC0 },
 	{ 0, }
 };
@@ -3444,8 +3448,8 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 
 static const struct ipmi_default_vals
 {
-	int type;
-	int port;
+	const int type;
+	const int port;
 } ipmi_defaults[] =
 {
 	{ .type = SI_KCS, .port = 0xca2 },

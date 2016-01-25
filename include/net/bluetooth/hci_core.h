@@ -77,6 +77,7 @@ struct discovery_state {
 	u8			last_adv_data_len;
 	bool			report_invalid_rssi;
 	bool			result_filtering;
+	bool			limited;
 	s8			rssi;
 	u16			uuid_count;
 	u8			(*uuids)[16];
@@ -327,6 +328,14 @@ struct hci_dev {
 	struct work_struct	cmd_work;
 	struct work_struct	tx_work;
 
+	struct work_struct	discov_update;
+	struct work_struct	bg_scan_update;
+	struct work_struct	scan_update;
+	struct work_struct	connectable_update;
+	struct work_struct	discoverable_update;
+	struct delayed_work	le_scan_disable;
+	struct delayed_work	le_scan_restart;
+
 	struct sk_buff_head	rx_q;
 	struct sk_buff_head	raw_q;
 	struct sk_buff_head	cmd_q;
@@ -369,9 +378,6 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
-
-	struct delayed_work	le_scan_disable;
-	struct delayed_work	le_scan_restart;
 
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_AD_LENGTH];
@@ -875,7 +881,7 @@ struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle);
 
 struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 				     u8 dst_type, u8 sec_level,
-				     u16 conn_timeout, u8 role);
+				     u16 conn_timeout);
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
 				u8 role);
@@ -1036,7 +1042,6 @@ struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 					    bdaddr_t *addr, u8 addr_type);
 void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
-void hci_conn_params_clear_all(struct hci_dev *hdev);
 void hci_conn_params_clear_disabled(struct hci_dev *hdev);
 
 struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
@@ -1279,31 +1284,41 @@ static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
 	mutex_unlock(&hci_cb_list_lock);
 }
 
-static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
+static inline void *eir_get_data(u8 *eir, size_t eir_len, u8 type,
+				 size_t *data_len)
 {
 	size_t parsed = 0;
 
-	if (data_len < 2)
-		return false;
+	if (eir_len < 2)
+		return NULL;
 
-	while (parsed < data_len - 1) {
-		u8 field_len = data[0];
+	while (parsed < eir_len - 1) {
+		u8 field_len = eir[0];
 
 		if (field_len == 0)
 			break;
 
 		parsed += field_len + 1;
 
-		if (parsed > data_len)
+		if (parsed > eir_len)
 			break;
 
-		if (data[1] == type)
-			return true;
+		if (eir[1] != type) {
+			eir += field_len + 1;
+			continue;
+		}
 
-		data += field_len + 1;
+		/* Zero length data */
+		if (field_len == 1)
+			return NULL;
+
+		if (data_len)
+			*data_len = field_len - 1;
+
+		return &eir[2];
 	}
 
-	return false;
+	return NULL;
 }
 
 static inline bool hci_bdaddr_is_rpa(bdaddr_t *bdaddr, u8 addr_type)
@@ -1431,10 +1446,8 @@ int mgmt_new_settings(struct hci_dev *hdev);
 void mgmt_index_added(struct hci_dev *hdev);
 void mgmt_index_removed(struct hci_dev *hdev);
 void mgmt_set_powered_failed(struct hci_dev *hdev, int err);
-int mgmt_powered(struct hci_dev *hdev, u8 powered);
-int mgmt_update_adv_data(struct hci_dev *hdev);
-void mgmt_discoverable_timeout(struct hci_dev *hdev);
-void mgmt_adv_timeout_expired(struct hci_dev *hdev);
+void mgmt_power_on(struct hci_dev *hdev, int err);
+void __mgmt_power_off(struct hci_dev *hdev);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);
 void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
@@ -1473,6 +1486,8 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status);
 void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 				    u8 status);
 void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
+void mgmt_start_discovery_complete(struct hci_dev *hdev, u8 status);
+void mgmt_stop_discovery_complete(struct hci_dev *hdev, u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len);
@@ -1487,8 +1502,15 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
 void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			 u8 bdaddr_type, u8 store_hint, u16 min_interval,
 			 u16 max_interval, u16 latency, u16 timeout);
-void mgmt_reenable_advertising(struct hci_dev *hdev);
 void mgmt_smp_complete(struct hci_conn *conn, bool complete);
+bool mgmt_get_connectable(struct hci_dev *hdev);
+void mgmt_set_connectable_complete(struct hci_dev *hdev, u8 status);
+void mgmt_set_discoverable_complete(struct hci_dev *hdev, u8 status);
+u8 mgmt_get_adv_discov_flags(struct hci_dev *hdev);
+void mgmt_advertising_added(struct sock *sk, struct hci_dev *hdev,
+			    u8 instance);
+void mgmt_advertising_removed(struct sock *sk, struct hci_dev *hdev,
+			      u8 instance);
 
 u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
 		      u16 to_multiplier);

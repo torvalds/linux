@@ -17,7 +17,6 @@
 
 #include <linux/types.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -66,51 +65,49 @@ struct dim_channel {
 	u16 done_sw_buffers_number; /*< Done software buffers number. */
 };
 
+u8 dim_startup(void *dim_base_address, u32 mlb_clock);
 
-u8 DIM_Startup(void *dim_base_address, u32 mlb_clock);
+void dim_shutdown(void);
 
-void DIM_Shutdown(void);
+bool dim_get_lock_state(void);
 
-bool DIM_GetLockState(void);
+u16 dim_norm_ctrl_async_buffer_size(u16 buf_size);
 
-u16 DIM_NormCtrlAsyncBufferSize(u16 buf_size);
+u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length);
 
-u16 DIM_NormIsocBufferSize(u16 buf_size, u16 packet_length);
+u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame);
 
-u16 DIM_NormSyncBufferSize(u16 buf_size, u16 bytes_per_frame);
+u8 dim_init_control(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		    u16 max_buffer_size);
 
-u8 DIM_InitControl(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		   u16 max_buffer_size);
+u8 dim_init_async(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		  u16 max_buffer_size);
 
-u8 DIM_InitAsync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		 u16 max_buffer_size);
+u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 packet_length);
 
-u8 DIM_InitIsoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 packet_length);
+u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 bytes_per_frame);
 
-u8 DIM_InitSync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 bytes_per_frame);
+u8 dim_destroy_channel(struct dim_channel *ch);
 
-u8 DIM_DestroyChannel(struct dim_channel *ch);
+void dim_service_irq(struct dim_channel *const *channels);
 
-void DIM_ServiceIrq(struct dim_channel *const *channels);
+u8 dim_service_channel(struct dim_channel *ch);
 
-u8 DIM_ServiceChannel(struct dim_channel *ch);
+struct dim_ch_state_t *dim_get_channel_state(struct dim_channel *ch,
+					     struct dim_ch_state_t *state_ptr);
 
-struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
-		struct dim_ch_state_t *dim_ch_state_ptr);
+bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
+			u16 buffer_size);
 
-bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr,
-		       u16 buffer_size);
+bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
-bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number);
+u32 dimcb_io_read(u32 *ptr32);
 
-u32 DIMCB_IoRead(u32 *ptr32);
+void dimcb_io_write(u32 *ptr32, u32 value);
 
-void DIMCB_IoWrite(u32 *ptr32, u32 value);
-
-void DIMCB_OnError(u8 error_id, const char *error_message);
-
+void dimcb_on_error(u8 error_id, const char *error_message);
 
 #ifdef __cplusplus
 }

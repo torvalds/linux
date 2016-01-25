@@ -321,39 +321,58 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	list_add_tail(&dev->list, &dmi_devices);
 }
 
-static void __init dmi_save_dev_onboard(int instance, int segment, int bus,
-					int devfn, const char *name)
+static void __init dmi_save_dev_pciaddr(int instance, int segment, int bus,
+					int devfn, const char *name, int type)
 {
-	struct dmi_dev_onboard *onboard_dev;
+	struct dmi_dev_onboard *dev;
 
-	onboard_dev = dmi_alloc(sizeof(*onboard_dev) + strlen(name) + 1);
-	if (!onboard_dev)
+	/* Ignore invalid values */
+	if (type == DMI_DEV_TYPE_DEV_SLOT &&
+	    segment == 0xFFFF && bus == 0xFF && devfn == 0xFF)
 		return;
 
-	onboard_dev->instance = instance;
-	onboard_dev->segment = segment;
-	onboard_dev->bus = bus;
-	onboard_dev->devfn = devfn;
+	dev = dmi_alloc(sizeof(*dev) + strlen(name) + 1);
+	if (!dev)
+		return;
 
-	strcpy((char *)&onboard_dev[1], name);
-	onboard_dev->dev.type = DMI_DEV_TYPE_DEV_ONBOARD;
-	onboard_dev->dev.name = (char *)&onboard_dev[1];
-	onboard_dev->dev.device_data = onboard_dev;
+	dev->instance = instance;
+	dev->segment = segment;
+	dev->bus = bus;
+	dev->devfn = devfn;
 
-	list_add(&onboard_dev->dev.list, &dmi_devices);
+	strcpy((char *)&dev[1], name);
+	dev->dev.type = type;
+	dev->dev.name = (char *)&dev[1];
+	dev->dev.device_data = dev;
+
+	list_add(&dev->dev.list, &dmi_devices);
 }
 
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 {
-	const u8 *d = (u8 *) dm + 5;
+	const char *name;
+	const u8 *d = (u8 *)dm;
 
 	/* Skip disabled device */
-	if ((*d & 0x80) == 0)
+	if ((d[0x5] & 0x80) == 0)
 		return;
 
-	dmi_save_dev_onboard(*(d+1), *(u16 *)(d+2), *(d+4), *(d+5),
-			     dmi_string_nosave(dm, *(d-1)));
-	dmi_save_one_device(*d & 0x7f, dmi_string_nosave(dm, *(d - 1)));
+	name = dmi_string_nosave(dm, d[0x4]);
+	dmi_save_dev_pciaddr(d[0x6], *(u16 *)(d + 0x7), d[0x9], d[0xA], name,
+			     DMI_DEV_TYPE_DEV_ONBOARD);
+	dmi_save_one_device(d[0x5] & 0x7f, name);
+}
+
+static void __init dmi_save_system_slot(const struct dmi_header *dm)
+{
+	const u8 *d = (u8 *)dm;
+
+	/* Need SMBIOS 2.6+ structure */
+	if (dm->length < 0x11)
+		return;
+	dmi_save_dev_pciaddr(*(u16 *)(d + 0x9), *(u16 *)(d + 0xD), d[0xF],
+			     d[0x10], dmi_string_nosave(dm, d[0x4]),
+			     DMI_DEV_TYPE_DEV_SLOT);
 }
 
 static void __init count_mem_devices(const struct dmi_header *dm, void *v)
@@ -425,6 +444,9 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 		dmi_save_ident(dm, DMI_CHASSIS_VERSION, 6);
 		dmi_save_ident(dm, DMI_CHASSIS_SERIAL, 7);
 		dmi_save_ident(dm, DMI_CHASSIS_ASSET_TAG, 8);
+		break;
+	case 9:		/* System Slots */
+		dmi_save_system_slot(dm);
 		break;
 	case 10:	/* Onboard Devices Information */
 		dmi_save_devices(dm);
@@ -521,6 +543,7 @@ static int __init dmi_present(const u8 *buf)
 			dmi_ver = smbios_ver;
 		else
 			dmi_ver = (buf[14] & 0xF0) << 4 | (buf[14] & 0x0F);
+		dmi_ver <<= 8;
 		dmi_num = get_unaligned_le16(buf + 12);
 		dmi_len = get_unaligned_le16(buf + 6);
 		dmi_base = get_unaligned_le32(buf + 8);
@@ -528,15 +551,14 @@ static int __init dmi_present(const u8 *buf)
 		if (dmi_walk_early(dmi_decode) == 0) {
 			if (smbios_ver) {
 				pr_info("SMBIOS %d.%d present.\n",
-				       dmi_ver >> 8, dmi_ver & 0xFF);
+					dmi_ver >> 16, (dmi_ver >> 8) & 0xFF);
 			} else {
 				smbios_entry_point_size = 15;
 				memcpy(smbios_entry_point, buf,
 				       smbios_entry_point_size);
 				pr_info("Legacy DMI %d.%d present.\n",
-				       dmi_ver >> 8, dmi_ver & 0xFF);
+					dmi_ver >> 16, (dmi_ver >> 8) & 0xFF);
 			}
-			dmi_ver <<= 8;
 			dmi_format_ids(dmi_ids_string, sizeof(dmi_ids_string));
 			printk(KERN_DEBUG "DMI: %s\n", dmi_ids_string);
 			return 0;
@@ -869,7 +891,7 @@ EXPORT_SYMBOL(dmi_name_in_vendors);
  *	@from: previous device found in search, or %NULL for new search.
  *
  *	Iterates through the list of known onboard devices. If a device is
- *	found with a matching @vendor and @device, a pointer to its device
+ *	found with a matching @type and @name, a pointer to its device
  *	structure is returned.  Otherwise, %NULL is returned.
  *	A new search is initiated by passing %NULL as the @from argument.
  *	If @from is not %NULL, searches continue from next device.

@@ -826,10 +826,10 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  * reserved, the validation sequence is checked against the validation
  * sequence of the process currently reserving the buffer,
  * and if the current validation sequence is greater than that of the process
- * holding the reservation, the function returns -EAGAIN. Otherwise it sleeps
+ * holding the reservation, the function returns -EDEADLK. Otherwise it sleeps
  * waiting for the buffer to become unreserved, after which it retries
  * reserving.
- * The caller should, when receiving an -EAGAIN error
+ * The caller should, when receiving an -EDEADLK error
  * release all its buffer reservations, wait for @bo to become unreserved, and
  * then rerun the validation with the same validation sequence. This procedure
  * will always guarantee that the process with the lowest validation sequence

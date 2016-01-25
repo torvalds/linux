@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -269,7 +269,8 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
-		if (walk_state->opcode == AML_UNLOAD_OP) {
+		if (GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
+		    ARGP_SUPERNAME) {
 			/*
 			 * acpi_ps_get_next_namestring has increased the AML pointer,
 			 * so we need to restore the saved AML pointer for method call.
@@ -696,7 +697,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
  *
  * PARAMETERS:  walk_state          - Current state
  *              parser_state        - Current parser state object
- *              arg_type            - The argument type (AML_*_ARG)
+ *              arg_type            - The parser argument type (ARGP_*)
  *              return_arg          - Where the next arg is returned
  *
  * RETURN:      Status, and an op object containing the next argument.
@@ -733,6 +734,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 		if (!arg) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
+
 		acpi_ps_get_next_simple_arg(parser_state, arg_type, arg);
 		break;
 
@@ -798,6 +800,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_TARGET:
 	case ARGP_SUPERNAME:
 	case ARGP_SIMPLENAME:
+	case ARGP_NAME_OR_REF:
 
 		subop = acpi_ps_peek_opcode(parser_state);
 		if (subop == 0 ||
@@ -814,17 +817,17 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
-			/* To support super_name arg of Unload */
+			/* super_name allows argument to be a method call */
 
-			if (walk_state->opcode == AML_UNLOAD_OP) {
+			if (arg_type == ARGP_SUPERNAME) {
 				status =
 				    acpi_ps_get_next_namepath(walk_state,
 							      parser_state, arg,
-							      1);
+							      ACPI_POSSIBLE_METHOD_CALL);
 
 				/*
-				 * If the super_name arg of Unload is a method call,
-				 * we have restored the AML pointer, just free this Arg
+				 * If the super_name argument is a method call, we have
+				 * already restored the AML pointer, just free this Arg
 				 */
 				if (arg->common.aml_opcode ==
 				    AML_INT_METHODCALL_OP) {
@@ -835,7 +838,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				status =
 				    acpi_ps_get_next_namepath(walk_state,
 							      parser_state, arg,
-							      0);
+							      ACPI_NOT_METHOD_CALL);
 			}
 		} else {
 			/* Single complex argument, nothing returned */

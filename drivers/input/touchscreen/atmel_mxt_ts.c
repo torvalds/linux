@@ -113,8 +113,8 @@ struct t7_config {
 #define MXT_T9_DETECT		(1 << 7)
 
 struct t9_range {
-	u16 x;
-	u16 y;
+	__le16 x;
+	__le16 y;
 } __packed;
 
 /* MXT_TOUCH_MULTI_T9 orient */
@@ -216,6 +216,7 @@ struct mxt_data {
 	unsigned int irq;
 	unsigned int max_x;
 	unsigned int max_y;
+	bool xy_switch;
 	bool in_bootloader;
 	u16 mem_size;
 	u8 t100_aux_ampl;
@@ -1665,8 +1666,8 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	if (error)
 		return error;
 
-	le16_to_cpus(&range.x);
-	le16_to_cpus(&range.y);
+	data->max_x = get_unaligned_le16(&range.x);
+	data->max_y = get_unaligned_le16(&range.y);
 
 	error =  __mxt_read_reg(client,
 				object->start_address + MXT_T9_ORIENT,
@@ -1674,23 +1675,7 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	if (error)
 		return error;
 
-	/* Handle default values */
-	if (range.x == 0)
-		range.x = 1023;
-
-	if (range.y == 0)
-		range.y = 1023;
-
-	if (orient & MXT_T9_ORIENT_SWITCH) {
-		data->max_x = range.y;
-		data->max_y = range.x;
-	} else {
-		data->max_x = range.x;
-		data->max_y = range.y;
-	}
-
-	dev_dbg(&client->dev,
-		"Touchscreen size X%uY%u\n", data->max_x, data->max_y);
+	data->xy_switch = orient & MXT_T9_ORIENT_SWITCH;
 
 	return 0;
 }
@@ -1708,13 +1693,14 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	if (!object)
 		return -EINVAL;
 
+	/* read touchscreen dimensions */
 	error = __mxt_read_reg(client,
 			       object->start_address + MXT_T100_XRANGE,
 			       sizeof(range_x), &range_x);
 	if (error)
 		return error;
 
-	le16_to_cpus(&range_x);
+	data->max_x = get_unaligned_le16(&range_x);
 
 	error = __mxt_read_reg(client,
 			       object->start_address + MXT_T100_YRANGE,
@@ -1722,36 +1708,24 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	if (error)
 		return error;
 
-	le16_to_cpus(&range_y);
+	data->max_y = get_unaligned_le16(&range_y);
 
+	/* read orientation config */
 	error =  __mxt_read_reg(client,
 				object->start_address + MXT_T100_CFG1,
 				1, &cfg);
 	if (error)
 		return error;
 
+	data->xy_switch = cfg & MXT_T100_CFG_SWITCHXY;
+
+	/* allocate aux bytes */
 	error =  __mxt_read_reg(client,
 				object->start_address + MXT_T100_TCHAUX,
 				1, &tchaux);
 	if (error)
 		return error;
 
-	/* Handle default values */
-	if (range_x == 0)
-		range_x = 1023;
-
-	if (range_y == 0)
-		range_y = 1023;
-
-	if (cfg & MXT_T100_CFG_SWITCHXY) {
-		data->max_x = range_y;
-		data->max_y = range_x;
-	} else {
-		data->max_x = range_x;
-		data->max_y = range_y;
-	}
-
-	/* allocate aux bytes */
 	aux = 6;
 
 	if (tchaux & MXT_T100_TCHAUX_VECT)
@@ -1766,9 +1740,6 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	dev_dbg(&client->dev,
 		"T100 aux mappings vect:%u ampl:%u area:%u\n",
 		data->t100_aux_vect, data->t100_aux_ampl, data->t100_aux_area);
-
-	dev_info(&client->dev,
-		 "T100 Touchscreen size X%uY%u\n", data->max_x, data->max_y);
 
 	return 0;
 }
@@ -1828,6 +1799,19 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 		return -EINVAL;
 	}
 
+	/* Handle default values and orientation switch */
+	if (data->max_x == 0)
+		data->max_x = 1023;
+
+	if (data->max_y == 0)
+		data->max_y = 1023;
+
+	if (data->xy_switch)
+		swap(data->max_x, data->max_y);
+
+	dev_info(dev, "Touchscreen size X%uY%u\n", data->max_x, data->max_y);
+
+	/* Register input device */
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		dev_err(dev, "Failed to allocate memory\n");
@@ -2487,6 +2471,31 @@ static struct mxt_acpi_platform_data samus_platform_data[] = {
 	{ }
 };
 
+static unsigned int chromebook_tp_buttons[] = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	BTN_LEFT
+};
+
+static struct mxt_acpi_platform_data chromebook_platform_data[] = {
+	{
+		/* Touchpad */
+		.hid	= "ATML0000",
+		.pdata	= {
+			.t19_num_keys	= ARRAY_SIZE(chromebook_tp_buttons),
+			.t19_keymap	= chromebook_tp_buttons,
+		},
+	},
+	{
+		/* Touchscreen */
+		.hid	= "ATML0001",
+	},
+	{ }
+};
+
 static const struct dmi_system_id mxt_dmi_table[] = {
 	{
 		/* 2015 Google Pixel */
@@ -2496,6 +2505,14 @@ static const struct dmi_system_id mxt_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Samus"),
 		},
 		.driver_data = samus_platform_data,
+	},
+	{
+		/* Other Google Chromebooks */
+		.ident = "Chromebook",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+		},
+		.driver_data = chromebook_platform_data,
 	},
 	{ }
 };
@@ -2701,6 +2718,7 @@ static const struct i2c_device_id mxt_id[] = {
 	{ "qt602240_ts", 0 },
 	{ "atmel_mxt_ts", 0 },
 	{ "atmel_mxt_tp", 0 },
+	{ "maxtouch", 0 },
 	{ "mXT224", 0 },
 	{ }
 };

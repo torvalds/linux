@@ -106,7 +106,7 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 			cpu_top->pkgs++;
 		}
 	}
-	if (!cpu_top->core_info[0].pkg == -1)
+	if (!(cpu_top->core_info[0].pkg == -1))
 		cpu_top->pkgs++;
 
 	/* Intel's cores count is not consecutively numbered, there may

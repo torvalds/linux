@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>

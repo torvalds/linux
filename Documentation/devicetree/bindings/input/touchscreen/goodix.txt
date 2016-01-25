@@ -13,6 +13,17 @@ Required properties:
  - interrupt-parent	: Interrupt controller to which the chip is connected
  - interrupts		: Interrupt to which the chip is connected
 
+Optional properties:
+
+ - irq-gpios		: GPIO pin used for IRQ. The driver uses the
+			  interrupt gpio pin as output to reset the device.
+ - reset-gpios		: GPIO pin used for reset
+
+ - touchscreen-inverted-x  : X axis is inverted (boolean)
+ - touchscreen-inverted-y  : Y axis is inverted (boolean)
+ - touchscreen-swapped-x-y : X and Y axis are swapped (boolean)
+                             (swapping is done after inverting the axis)
+
 Example:
 
 	i2c@00000000 {
@@ -23,6 +34,9 @@ Example:
 			reg = <0x5d>;
 			interrupt-parent = <&gpio>;
 			interrupts = <0 0>;
+
+			irq-gpios = <&gpio1 0 0>;
+			reset-gpios = <&gpio1 1 0>;
 		};
 
 		/* ... */

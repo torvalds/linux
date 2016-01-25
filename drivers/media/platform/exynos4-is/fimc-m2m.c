@@ -739,7 +739,7 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 		return PTR_ERR(fimc->m2m.m2m_dev);
 	}
 
-	ret = media_entity_init(&vfd->entity, 0, NULL, 0);
+	ret = media_entity_pads_init(&vfd->entity, 0, NULL);
 	if (ret)
 		goto err_me;
 

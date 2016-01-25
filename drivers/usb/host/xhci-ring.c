@@ -68,6 +68,7 @@
 #include <linux/slab.h>
 #include "xhci.h"
 #include "xhci-trace.h"
+#include "xhci-mtk.h"
 
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
@@ -1583,7 +1584,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			 */
 			bogus_port_status = true;
 			goto cleanup;
-		} else {
+		} else if (!test_bit(faked_port_index,
+				     &bus_state->resuming_ports)) {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			bus_state->resume_done[faked_port_index] = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
@@ -3074,16 +3076,21 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 {
 	u32 maxp, total_packet_count;
 
-	if (xhci->hci_version < 0x100)
+	/* MTK xHCI is mostly 0.97 but contains some features from 1.0 */
+	if (xhci->hci_version < 0x100 && !(xhci->quirks & XHCI_MTK_HOST))
 		return ((td_total_len - transferred) >> 10);
-
-	maxp = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
-	total_packet_count = DIV_ROUND_UP(td_total_len, maxp);
 
 	/* One TRB with a zero-length data packet. */
 	if (num_trbs_left == 0 || (transferred == 0 && trb_buff_len == 0) ||
 	    trb_buff_len == td_total_len)
 		return 0;
+
+	/* for MTK xHCI, TD size doesn't include this TRB */
+	if (xhci->quirks & XHCI_MTK_HOST)
+		trb_buff_len = 0;
+
+	maxp = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+	total_packet_count = DIV_ROUND_UP(td_total_len, maxp);
 
 	/* Queueing functions don't count the current TRB into transferred */
 	return (total_packet_count - ((transferred + trb_buff_len) / maxp));
@@ -3472,7 +3479,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		field |= 0x1;
 
 	/* xHCI 1.0/1.1 6.4.1.2.1: Transfer Type field */
-	if (xhci->hci_version >= 0x100) {
+	if ((xhci->hci_version >= 0x100) || (xhci->quirks & XHCI_MTK_HOST)) {
 		if (urb->transfer_buffer_length > 0) {
 			if (setup->bRequestType & USB_DIR_IN)
 				field |= TRB_TX_TYPE(TRB_DATA_IN);

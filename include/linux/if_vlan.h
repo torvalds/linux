@@ -73,7 +73,7 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
 
-static inline bool is_vlan_dev(struct net_device *dev)
+static inline bool is_vlan_dev(const struct net_device *dev)
 {
         return dev->priv_flags & IFF_802_1Q_VLAN;
 }
@@ -621,7 +621,7 @@ static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
 						     NETIF_F_SG |
 						     NETIF_F_HIGHDMA |
 						     NETIF_F_FRAGLIST |
-						     NETIF_F_GEN_CSUM |
+						     NETIF_F_HW_CSUM |
 						     NETIF_F_HW_VLAN_CTAG_TX |
 						     NETIF_F_HW_VLAN_STAG_TX);
 

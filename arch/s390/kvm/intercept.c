@@ -54,9 +54,6 @@ void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc)
 static int handle_noop(struct kvm_vcpu *vcpu)
 {
 	switch (vcpu->arch.sie_block->icptcode) {
-	case 0x0:
-		vcpu->stat.exit_null++;
-		break;
 	case 0x10:
 		vcpu->stat.exit_external_request++;
 		break;
@@ -338,8 +335,10 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 {
+	if (kvm_is_ucontrol(vcpu->kvm))
+		return -EOPNOTSUPP;
+
 	switch (vcpu->arch.sie_block->icptcode) {
-	case 0x00:
 	case 0x10:
 	case 0x18:
 		return handle_noop(vcpu);

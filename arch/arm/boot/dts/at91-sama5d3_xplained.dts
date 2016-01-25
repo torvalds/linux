@@ -315,7 +315,7 @@
 			label = "PB_USER";
 			gpios = <&pioE 29 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

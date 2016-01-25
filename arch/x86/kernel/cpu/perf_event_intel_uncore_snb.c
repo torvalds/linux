@@ -417,7 +417,7 @@ static void snb_uncore_imc_event_del(struct perf_event *event, int flags)
 	}
 }
 
-static int snb_pci2phy_map_init(int devid)
+int snb_pci2phy_map_init(int devid)
 {
 	struct pci_dev *dev = NULL;
 	struct pci2phy_map *map;

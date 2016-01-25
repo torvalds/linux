@@ -70,7 +70,7 @@ static inline void hlist_bl_set_first(struct hlist_bl_head *h,
 
 static inline int hlist_bl_empty(const struct hlist_bl_head *h)
 {
-	return !((unsigned long)h->first & ~LIST_BL_LOCKMASK);
+	return !((unsigned long)READ_ONCE(h->first) & ~LIST_BL_LOCKMASK);
 }
 
 static inline void hlist_bl_add_head(struct hlist_bl_node *n,

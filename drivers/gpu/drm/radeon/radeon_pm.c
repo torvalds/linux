@@ -713,7 +713,7 @@ static struct attribute *hwmon_attributes[] = {
 static umode_t hwmon_attributes_visible(struct kobject *kobj,
 					struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct radeon_device *rdev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
@@ -1756,7 +1756,9 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev)
 	 */
 	for (crtc = 0; (crtc < rdev->num_crtc) && in_vbl; crtc++) {
 		if (rdev->pm.active_crtcs & (1 << crtc)) {
-			vbl_status = radeon_get_crtc_scanoutpos(rdev->ddev, crtc, 0,
+			vbl_status = radeon_get_crtc_scanoutpos(rdev->ddev,
+								crtc,
+								USE_REAL_VBLANKSTART,
 								&vpos, &hpos, NULL, NULL,
 								&rdev->mode_info.crtcs[crtc]->base.hwmode);
 			if ((vbl_status & DRM_SCANOUTPOS_VALID) &&

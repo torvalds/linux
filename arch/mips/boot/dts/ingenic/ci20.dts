@@ -42,3 +42,67 @@
 &uart4 {
 	status = "okay";
 };
+
+&nemc {
+	status = "okay";
+
+	nandc: nand-controller@1 {
+		compatible = "ingenic,jz4780-nand";
+		reg = <1 0 0x1000000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ingenic,bch-controller = <&bch>;
+
+		ingenic,nemc-tAS = <10>;
+		ingenic,nemc-tAH = <5>;
+		ingenic,nemc-tBP = <10>;
+		ingenic,nemc-tAW = <15>;
+		ingenic,nemc-tSTRV = <100>;
+
+		nand@1 {
+			reg = <1>;
+
+			nand-ecc-step-size = <1024>;
+			nand-ecc-strength = <24>;
+			nand-ecc-mode = "hw";
+			nand-on-flash-bbt;
+
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <2>;
+				#size-cells = <2>;
+
+				partition@0 {
+					label = "u-boot-spl";
+					reg = <0x0 0x0 0x0 0x800000>;
+				};
+
+				partition@0x800000 {
+					label = "u-boot";
+					reg = <0x0 0x800000 0x0 0x200000>;
+				};
+
+				partition@0xa00000 {
+					label = "u-boot-env";
+					reg = <0x0 0xa00000 0x0 0x200000>;
+				};
+
+				partition@0xc00000 {
+					label = "boot";
+					reg = <0x0 0xc00000 0x0 0x4000000>;
+				};
+
+				partition@0x8c00000 {
+					label = "system";
+					reg = <0x0 0x4c00000 0x1 0xfb400000>;
+				};
+			};
+		};
+	};
+};
+
+&bch {
+	status = "okay";
+};

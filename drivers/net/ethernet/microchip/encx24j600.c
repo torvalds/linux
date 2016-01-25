@@ -600,21 +600,10 @@ static void encx24j600_set_rxfilter_mode(struct encx24j600_priv *priv)
 
 static int encx24j600_hw_init(struct encx24j600_priv *priv)
 {
-	struct net_device *dev = priv->ndev;
 	int ret = 0;
-	u16 eidled;
 	u16 macon2;
 
 	priv->hw_enabled = false;
-
-	eidled = encx24j600_read_reg(priv, EIDLED);
-	if (((eidled & DEVID_MASK) >> DEVID_SHIFT) != ENCX24J600_DEV_ID) {
-		ret = -EINVAL;
-		goto err_out;
-	}
-
-	netif_info(priv, drv, dev, "Silicon rev ID: 0x%02x\n",
-		   (eidled & REVID_MASK) >> REVID_SHIFT);
 
 	/* PHY Leds: link status,
 	 * LEDA: Link State + collision events
@@ -655,7 +644,6 @@ static int encx24j600_hw_init(struct encx24j600_priv *priv)
 	if (netif_msg_hw(priv))
 		encx24j600_dump_config(priv, "Hw is initialized");
 
-err_out:
 	return ret;
 }
 
@@ -1004,6 +992,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 
 	struct net_device *ndev;
 	struct encx24j600_priv *priv;
+	u16 eidled;
 
 	ndev = alloc_etherdev(sizeof(struct encx24j600_priv));
 
@@ -1072,10 +1061,21 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
+	eidled = encx24j600_read_reg(priv, EIDLED);
+	if (((eidled & DEVID_MASK) >> DEVID_SHIFT) != ENCX24J600_DEV_ID) {
+		ret = -EINVAL;
+		goto out_unregister;
+	}
+
+	netif_info(priv, probe, ndev, "Silicon rev ID: 0x%02x\n",
+		   (eidled & REVID_MASK) >> REVID_SHIFT);
+
 	netif_info(priv, drv, priv->ndev, "MAC address %pM\n", ndev->dev_addr);
 
 	return ret;
 
+out_unregister:
+	unregister_netdev(priv->ndev);
 out_free:
 	free_netdev(ndev);
 

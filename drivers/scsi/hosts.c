@@ -333,6 +333,17 @@ static void scsi_host_dev_release(struct device *dev)
 		kfree(queuedata);
 	}
 
+	if (shost->shost_state == SHOST_CREATED) {
+		/*
+		 * Free the shost_dev device name here if scsi_host_alloc()
+		 * and scsi_host_put() have been called but neither
+		 * scsi_host_add() nor scsi_host_remove() has been called.
+		 * This avoids that the memory allocated for the shost_dev
+		 * name is leaked.
+		 */
+		kfree(dev_name(&shost->shost_dev));
+	}
+
 	scsi_destroy_command_freelist(shost);
 	if (shost_use_blk_mq(shost)) {
 		if (shost->tag_set.tags)

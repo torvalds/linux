@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,8 +126,9 @@ struct acpi_exception_info {
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
 #define AE_ACCESS                       EXCEP_ENV (0x001D)
+#define AE_IO_ERROR                     EXCEP_ENV (0x001E)
 
-#define AE_CODE_ENV_MAX                 0x001D
+#define AE_CODE_ENV_MAX                 0x001E
 
 /*
  * Programmer exceptions
@@ -263,7 +264,8 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 		  "There are no more Owner IDs available for ACPI tables or control methods"),
 	EXCEP_TXT("AE_NOT_CONFIGURED",
 		  "The interface is not part of the current subsystem configuration"),
-	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation")
+	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation"),
+	EXCEP_TXT("AE_IO_ERROR", "An I/O error occurred")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_pgm[] = {

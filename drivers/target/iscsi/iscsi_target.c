@@ -1333,7 +1333,7 @@ iscsit_check_dataout_hdr(struct iscsi_conn *conn, unsigned char *buf,
 			/*
 			 * Check if a delayed TASK_ABORTED status needs to
 			 * be sent now if the ISCSI_FLAG_CMD_FINAL has been
-			 * received with the unsolicitied data out.
+			 * received with the unsolicited data out.
 			 */
 			if (hdr->flags & ISCSI_FLAG_CMD_FINAL)
 				iscsit_stop_dataout_timer(cmd);
@@ -3435,7 +3435,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 
 			if ((tpg->tpg_attrib.generate_node_acls == 0) &&
 			    (tpg->tpg_attrib.demo_mode_discovery == 0) &&
-			    (!core_tpg_get_initiator_node_acl(&tpg->tpg_se_tpg,
+			    (!target_tpg_has_node_acl(&tpg->tpg_se_tpg,
 				cmd->conn->sess->sess_ops->InitiatorName))) {
 				continue;
 			}
@@ -4074,6 +4074,17 @@ reject:
 	return iscsit_add_reject(conn, ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
 }
 
+static bool iscsi_target_check_conn_state(struct iscsi_conn *conn)
+{
+	bool ret;
+
+	spin_lock_bh(&conn->state_lock);
+	ret = (conn->conn_state != TARG_CONN_STATE_LOGGED_IN);
+	spin_unlock_bh(&conn->state_lock);
+
+	return ret;
+}
+
 int iscsi_target_rx_thread(void *arg)
 {
 	int ret, rc;
@@ -4091,7 +4102,7 @@ int iscsi_target_rx_thread(void *arg)
 	 * incoming iscsi/tcp socket I/O, and/or failing the connection.
 	 */
 	rc = wait_for_completion_interruptible(&conn->rx_login_comp);
-	if (rc < 0)
+	if (rc < 0 || iscsi_target_check_conn_state(conn))
 		return 0;
 
 	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND) {
@@ -4448,9 +4459,6 @@ int iscsit_close_connection(
 
 		return 0;
 	}
-	spin_unlock_bh(&sess->conn_lock);
-
-	return 0;
 }
 
 int iscsit_close_session(struct iscsi_session *sess)

@@ -186,9 +186,7 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 	if (status < 0)
 		return status;
 
-	dev_vdbg(dev, "%s: %02x %02x %02x, %02x %02x %02x %02x\n",
-		"read", buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6]);
+	dev_vdbg(dev, "%s: %3ph, %4ph\n", "read", &buf[0], &buf[3]);
 
 	/* Decode the registers */
 	time->tm_sec = bcd2bin(buf[DS1305_SEC]);
@@ -232,9 +230,7 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
 	*bp++ = bin2bcd(time->tm_mon + 1);
 	*bp++ = bin2bcd(time->tm_year - 100);
 
-	dev_dbg(dev, "%s: %02x %02x %02x, %02x %02x %02x %02x\n",
-		"write", buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6], buf[7]);
+	dev_dbg(dev, "%s: %3ph, %4ph\n", "write", &buf[1], &buf[4]);
 
 	/* use write-then-read since dma from stack is nonportable */
 	return spi_write_then_read(ds1305->spi, buf, sizeof(buf),

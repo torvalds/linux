@@ -1,0 +1,26 @@
+RT5616 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5616".
+
+- reg : The I2C address of the device.
+
+Pins on the device (for linking into audio routes) for RT5616:
+
+  * IN1P
+  * IN2P
+  * IN2N
+  * LOUTL
+  * LOUTR
+  * HPOL
+  * HPOR
+
+Example:
+
+codec: rt5616@1b {
+	compatible = "realtek,rt5616";
+	reg = <0x1b>;
+};

@@ -297,8 +297,6 @@ static bool rt5677_volatile_register(struct device *dev, unsigned int reg)
 	case RT5677_HAP_GENE_CTRL2:
 	case RT5677_PWR_DSP_ST:
 	case RT5677_PRIV_DATA:
-	case RT5677_PLL1_CTRL2:
-	case RT5677_PLL2_CTRL2:
 	case RT5677_ASRC_22:
 	case RT5677_ASRC_23:
 	case RT5677_VAD_CTRL5:
@@ -1386,90 +1384,90 @@ static const struct snd_kcontrol_new rt5677_dac_r_mix[] = {
 };
 
 static const struct snd_kcontrol_new rt5677_sto1_dac_l_mix[] = {
-	SOC_DAPM_SINGLE("ST L Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("ST L Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_ST_DAC1_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 L Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 L Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_DAC1_L_STO_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC2 L Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC2 L Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_DAC2_L_STO_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 R Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 R Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_DAC1_R_STO_L_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_sto1_dac_r_mix[] = {
-	SOC_DAPM_SINGLE("ST R Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("ST R Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_ST_DAC1_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 R Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 R Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_DAC1_R_STO_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC2 R Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC2 R Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_DAC2_R_STO_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 L Switch", RT5677_STO1_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 L Switch", RT5677_STO1_DAC_MIXER,
 			RT5677_M_DAC1_L_STO_R_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_mono_dac_l_mix[] = {
-	SOC_DAPM_SINGLE("ST L Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("ST L Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_ST_DAC2_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 L Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 L Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_DAC1_L_MONO_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC2 L Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC2 L Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_DAC2_L_MONO_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC2 R Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC2 R Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_DAC2_R_MONO_L_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_mono_dac_r_mix[] = {
-	SOC_DAPM_SINGLE("ST R Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("ST R Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_ST_DAC2_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 R Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 R Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_DAC1_R_MONO_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC2 R Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC2 R Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_DAC2_R_MONO_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC2 L Switch", RT5677_MONO_DAC_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC2 L Switch", RT5677_MONO_DAC_MIXER,
 			RT5677_M_DAC2_L_MONO_R_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_dd1_l_mix[] = {
-	SOC_DAPM_SINGLE("Sto DAC Mix L Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Sto DAC Mix L Switch", RT5677_DD1_MIXER,
 			RT5677_M_STO_L_DD1_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("Mono DAC Mix L Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Mono DAC Mix L Switch", RT5677_DD1_MIXER,
 			RT5677_M_MONO_L_DD1_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC3 L Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC3 L Switch", RT5677_DD1_MIXER,
 			RT5677_M_DAC3_L_DD1_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC3 R Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC3 R Switch", RT5677_DD1_MIXER,
 			RT5677_M_DAC3_R_DD1_L_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_dd1_r_mix[] = {
-	SOC_DAPM_SINGLE("Sto DAC Mix R Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Sto DAC Mix R Switch", RT5677_DD1_MIXER,
 			RT5677_M_STO_R_DD1_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("Mono DAC Mix R Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Mono DAC Mix R Switch", RT5677_DD1_MIXER,
 			RT5677_M_MONO_R_DD1_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC3 R Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC3 R Switch", RT5677_DD1_MIXER,
 			RT5677_M_DAC3_R_DD1_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC3 L Switch", RT5677_DD1_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC3 L Switch", RT5677_DD1_MIXER,
 			RT5677_M_DAC3_L_DD1_R_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_dd2_l_mix[] = {
-	SOC_DAPM_SINGLE("Sto DAC Mix L Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Sto DAC Mix L Switch", RT5677_DD2_MIXER,
 			RT5677_M_STO_L_DD2_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("Mono DAC Mix L Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Mono DAC Mix L Switch", RT5677_DD2_MIXER,
 			RT5677_M_MONO_L_DD2_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC4 L Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC4 L Switch", RT5677_DD2_MIXER,
 			RT5677_M_DAC4_L_DD2_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC4 R Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC4 R Switch", RT5677_DD2_MIXER,
 			RT5677_M_DAC4_R_DD2_L_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5677_dd2_r_mix[] = {
-	SOC_DAPM_SINGLE("Sto DAC Mix R Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Sto DAC Mix R Switch", RT5677_DD2_MIXER,
 			RT5677_M_STO_R_DD2_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("Mono DAC Mix R Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("Mono DAC Mix R Switch", RT5677_DD2_MIXER,
 			RT5677_M_MONO_R_DD2_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC4 R Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC4 R Switch", RT5677_DD2_MIXER,
 			RT5677_M_DAC4_R_DD2_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC4 L Switch", RT5677_DD2_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC4 L Switch", RT5677_DD2_MIXER,
 			RT5677_M_DAC4_L_DD2_R_SFT, 1, 1),
 };
 
@@ -2596,6 +2594,21 @@ static int rt5677_vref_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5677_filter_power_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		msleep(50);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLL1", RT5677_PWR_ANLG2, RT5677_PWR_PLL1_BIT,
 		0, rt5677_set_pll1_event, SND_SOC_DAPM_PRE_PMU |
@@ -3072,19 +3085,26 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 
 	/* DAC Mixer */
 	SND_SOC_DAPM_SUPPLY("dac stereo1 filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_S1F_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_S1F_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("dac mono2 left filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_M2F_L_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_M2F_L_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("dac mono2 right filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_M2F_R_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_M2F_R_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("dac mono3 left filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_M3F_L_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_M3F_L_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("dac mono3 right filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_M3F_R_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_M3F_R_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("dac mono4 left filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_M4F_L_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_M4F_L_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("dac mono4 right filter", RT5677_PWR_DIG2,
-		RT5677_PWR_DAC_M4F_R_BIT, 0, NULL, 0),
+		RT5677_PWR_DAC_M4F_R_BIT, 0, rt5677_filter_power_event,
+		SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_MIXER("Stereo DAC MIXL", SND_SOC_NOPM, 0, 0,
 		rt5677_sto1_dac_l_mix, ARRAY_SIZE(rt5677_sto1_dac_l_mix)),
@@ -4674,7 +4694,7 @@ static void rt5677_init_gpio(struct i2c_client *i2c)
 
 	rt5677->gpio_chip = rt5677_template_chip;
 	rt5677->gpio_chip.ngpio = RT5677_GPIO_NUM;
-	rt5677->gpio_chip.dev = &i2c->dev;
+	rt5677->gpio_chip.parent = &i2c->dev;
 	rt5677->gpio_chip.base = -1;
 
 	ret = gpiochip_add(&rt5677->gpio_chip);
@@ -4766,7 +4786,7 @@ static int rt5677_remove(struct snd_soc_codec *codec)
 
 	regmap_write(rt5677->regmap, RT5677_RESET, 0x10ec);
 	gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
-	gpiod_set_value_cansleep(rt5677->reset_pin, 0);
+	gpiod_set_value_cansleep(rt5677->reset_pin, 1);
 
 	return 0;
 }
@@ -4781,7 +4801,7 @@ static int rt5677_suspend(struct snd_soc_codec *codec)
 		regcache_mark_dirty(rt5677->regmap);
 
 		gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
-		gpiod_set_value_cansleep(rt5677->reset_pin, 0);
+		gpiod_set_value_cansleep(rt5677->reset_pin, 1);
 	}
 
 	return 0;
@@ -4792,8 +4812,11 @@ static int rt5677_resume(struct snd_soc_codec *codec)
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
 	if (!rt5677->dsp_vad_en) {
+		rt5677->pll_src = 0;
+		rt5677->pll_in = 0;
+		rt5677->pll_out = 0;
 		gpiod_set_value_cansleep(rt5677->pow_ldo2, 1);
-		gpiod_set_value_cansleep(rt5677->reset_pin, 1);
+		gpiod_set_value_cansleep(rt5677->reset_pin, 0);
 		if (rt5677->pow_ldo2 || rt5677->reset_pin)
 			msleep(10);
 
@@ -5138,7 +5161,7 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 	rt5677->reset_pin = devm_gpiod_get_optional(&i2c->dev,
-			"realtek,reset", GPIOD_OUT_HIGH);
+			"realtek,reset", GPIOD_OUT_LOW);
 	if (IS_ERR(rt5677->reset_pin)) {
 		ret = PTR_ERR(rt5677->reset_pin);
 		dev_err(&i2c->dev, "Failed to request RESET: %d\n", ret);

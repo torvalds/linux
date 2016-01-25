@@ -361,6 +361,9 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
 			       unsigned int nr_pages, struct page **pages);
 unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
 			int tag, unsigned int nr_pages, struct page **pages);
+unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
+			int tag, unsigned int nr_entries,
+			struct page **entries, pgoff_t *indices);
 
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
 			pgoff_t index, unsigned flags);
@@ -394,10 +397,21 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
  */
 static inline pgoff_t page_to_pgoff(struct page *page)
 {
+	pgoff_t pgoff;
+
 	if (unlikely(PageHeadHuge(page)))
 		return page->index << compound_order(page);
-	else
+
+	if (likely(!PageTransTail(page)))
 		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+
+	/*
+	 *  We don't initialize ->index for tail pages: calculate based on
+	 *  head page
+	 */
+	pgoff = compound_head(page)->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+	pgoff += page - compound_head(page);
+	return pgoff;
 }
 
 /*
@@ -433,18 +447,9 @@ extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 				unsigned int flags);
 extern void unlock_page(struct page *page);
 
-static inline void __set_page_locked(struct page *page)
-{
-	__set_bit(PG_locked, &page->flags);
-}
-
-static inline void __clear_page_locked(struct page *page)
-{
-	__clear_bit(PG_locked, &page->flags);
-}
-
 static inline int trylock_page(struct page *page)
 {
+	page = compound_head(page);
 	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
 }
 
@@ -497,9 +502,9 @@ extern int wait_on_page_bit_killable_timeout(struct page *page,
 
 static inline int wait_on_page_locked_killable(struct page *page)
 {
-	if (PageLocked(page))
-		return wait_on_page_bit_killable(page, PG_locked);
-	return 0;
+	if (!PageLocked(page))
+		return 0;
+	return wait_on_page_bit_killable(compound_head(page), PG_locked);
 }
 
 extern wait_queue_head_t *page_waitqueue(struct page *page);
@@ -518,7 +523,7 @@ static inline void wake_up_page(struct page *page, int bit)
 static inline void wait_on_page_locked(struct page *page)
 {
 	if (PageLocked(page))
-		wait_on_page_bit(page, PG_locked);
+		wait_on_page_bit(compound_head(page), PG_locked);
 }
 
 /* 
@@ -664,17 +669,17 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask);
 
 /*
  * Like add_to_page_cache_locked, but used to add newly allocated pages:
- * the page is new, so we can just run __set_page_locked() against it.
+ * the page is new, so we can just run __SetPageLocked() against it.
  */
 static inline int add_to_page_cache(struct page *page,
 		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
 {
 	int error;
 
-	__set_page_locked(page);
+	__SetPageLocked(page);
 	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
 	if (unlikely(error))
-		__clear_page_locked(page);
+		__ClearPageLocked(page);
 	return error;
 }
 

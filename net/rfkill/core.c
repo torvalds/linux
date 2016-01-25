@@ -49,7 +49,6 @@
 struct rfkill {
 	spinlock_t		lock;
 
-	const char		*name;
 	enum rfkill_type	type;
 
 	unsigned long		state;
@@ -73,6 +72,7 @@ struct rfkill {
 	struct delayed_work	poll_work;
 	struct work_struct	uevent_work;
 	struct work_struct	sync_work;
+	char			name[];
 };
 #define to_rfkill(d)	container_of(d, struct rfkill, dev)
 
@@ -876,14 +876,14 @@ struct rfkill * __must_check rfkill_alloc(const char *name,
 	if (WARN_ON(type == RFKILL_TYPE_ALL || type >= NUM_RFKILL_TYPES))
 		return NULL;
 
-	rfkill = kzalloc(sizeof(*rfkill), GFP_KERNEL);
+	rfkill = kzalloc(sizeof(*rfkill) + strlen(name) + 1, GFP_KERNEL);
 	if (!rfkill)
 		return NULL;
 
 	spin_lock_init(&rfkill->lock);
 	INIT_LIST_HEAD(&rfkill->node);
 	rfkill->type = type;
-	rfkill->name = name;
+	strcpy(rfkill->name, name);
 	rfkill->ops = ops;
 	rfkill->data = ops_data;
 

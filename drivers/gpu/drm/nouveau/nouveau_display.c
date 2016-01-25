@@ -39,6 +39,7 @@
 
 #include "nouveau_fence.h"
 
+#include <nvif/cl0046.h>
 #include <nvif/event.h>
 
 static int
@@ -246,7 +247,7 @@ static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
 int
 nouveau_framebuffer_init(struct drm_device *dev,
 			 struct nouveau_framebuffer *nv_fb,
-			 struct drm_mode_fb_cmd2 *mode_cmd,
+			 const struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct nouveau_bo *nvbo)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
@@ -272,7 +273,7 @@ nouveau_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
-				struct drm_mode_fb_cmd2 *mode_cmd)
+				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct nouveau_framebuffer *nouveau_fb;
 	struct drm_gem_object *gem;
@@ -829,7 +830,6 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	struct drm_device *dev = drm->dev;
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
-	int crtcid = -1;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
@@ -841,15 +841,19 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
-		/* Vblank timestamps/counts are only correct on >= NV-50 */
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
-			crtcid = s->crtc;
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+			drm_arm_vblank_event(dev, s->crtc, s->event);
+		} else {
+			drm_send_vblank_event(dev, s->crtc, s->event);
 
-		drm_send_vblank_event(dev, crtcid, s->event);
+			/* Give up ownership of vblank for page-flipped crtc */
+			drm_vblank_put(dev, s->crtc);
+		}
 	}
-
-	/* Give up ownership of vblank for page-flipped crtc */
-	drm_vblank_put(dev, s->crtc);
+	else {
+		/* Give up ownership of vblank for page-flipped crtc */
+		drm_vblank_put(dev, s->crtc);
+	}
 
 	list_del(&s->head);
 	if (ps)

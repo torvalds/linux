@@ -541,7 +541,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 					   &offset, block_count);
 	if (ret < 0) {
 		dev_err(&state->i2c->dev,
-			"%s: firmare could not be uploaded\n",
+			"%s: firmware could not be uploaded\n",
 			KBUILD_MODNAME);
 		goto error;
 	}
@@ -565,7 +565,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 
 	if (len != offset) {
 		dev_err(&state->i2c->dev,
-			"%s: firmare len mismatch %04x != %04x\n",
+			"%s: firmware len mismatch %04x != %04x\n",
 			KBUILD_MODNAME, len, offset);
 		ret = -EINVAL;
 		goto error;

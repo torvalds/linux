@@ -13,6 +13,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/console.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -33,6 +34,29 @@ struct uniphier8250_priv {
 	struct clk *clk;
 	spinlock_t atomic_write_lock;
 };
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+static int __init uniphier_early_console_setup(struct earlycon_device *device,
+					       const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	/* This hardware always expects MMIO32 register interface. */
+	device->port.iotype = UPIO_MEM32;
+	device->port.regshift = 2;
+
+	/*
+	 * Do not touch the divisor register in early_serial8250_setup();
+	 * we assume it has been initialized by a boot loader.
+	 */
+	device->baud = 0;
+
+	return early_serial8250_setup(device, options);
+}
+OF_EARLYCON_DECLARE(uniphier, "socionext,uniphier-uart",
+		    uniphier_early_console_setup);
+#endif
 
 /*
  * The register map is slightly different from that of 8250.
@@ -115,12 +139,16 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
  */
 static int uniphier_serial_dl_read(struct uart_8250_port *up)
 {
-	return readl(up->port.membase + UNIPHIER_UART_DLR);
+	int offset = UNIPHIER_UART_DLR << up->port.regshift;
+
+	return readl(up->port.membase + offset);
 }
 
 static void uniphier_serial_dl_write(struct uart_8250_port *up, int value)
 {
-	writel(value, up->port.membase + UNIPHIER_UART_DLR);
+	int offset = UNIPHIER_UART_DLR << up->port.regshift;
+
+	writel(value, up->port.membase + offset);
 }
 
 static int uniphier_of_serial_setup(struct device *dev, struct uart_port *port,

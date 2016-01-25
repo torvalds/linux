@@ -76,6 +76,7 @@
 #define ESDHC_STD_TUNING_EN		(1 << 24)
 /* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
 #define ESDHC_TUNING_START_TAP		0x1
+#define ESDHC_TUNING_STEP_MASK		0x00070000
 #define ESDHC_TUNING_STEP_SHIFT		16
 
 /* pinctrl state */
@@ -489,9 +490,11 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
 				tuning_ctrl = readl(host->ioaddr + ESDHC_TUNING_CTRL);
 				tuning_ctrl |= ESDHC_STD_TUNING_EN | ESDHC_TUNING_START_TAP;
-				if (imx_data->boarddata.tuning_step)
+				if (imx_data->boarddata.tuning_step) {
+					tuning_ctrl &= ~ESDHC_TUNING_STEP_MASK;
 					tuning_ctrl |= imx_data->boarddata.tuning_step << ESDHC_TUNING_STEP_SHIFT;
-					writel(tuning_ctrl, host->ioaddr + ESDHC_TUNING_CTRL);
+				}
+				writel(tuning_ctrl, host->ioaddr + ESDHC_TUNING_CTRL);
 			} else {
 				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
 			}
