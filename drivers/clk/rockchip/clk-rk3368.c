@@ -362,7 +362,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	COMPOSITE_FRAC(0, "i2s_2ch_frac", "i2s_2ch_src", CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(54), 0,
 			RK3368_CLKGATE_CON(5), 14, GFLAGS),
-	COMPOSITE_NODIV(SCLK_I2S_2CH, "sclk_i2s_2ch", mux_i2s_2ch_p, 0,
+	COMPOSITE_NODIV(SCLK_I2S_2CH, "sclk_i2s_2ch", mux_i2s_2ch_p, CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(53), 8, 2, MFLAGS,
 			RK3368_CLKGATE_CON(5), 15, GFLAGS),
 
