@@ -6,6 +6,7 @@ menu "Analog to digital converters"
 config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB || COMPILE_TEST
+	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
