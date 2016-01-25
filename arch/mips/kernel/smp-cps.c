@@ -202,6 +202,9 @@ static void boot_core(unsigned core)
 	/* Ensure its coherency is disabled */
 	write_gcr_co_coherence(0);
 
+	/* Start it with the legacy memory map and exception base */
+	write_gcr_co_reset_ext_base(CM_GCR_RESET_EXT_BASE_UEB);
+
 	/* Ensure the core can access the GCRs */
 	access = read_gcr_access();
 	access |= 1 << (CM_GCR_ACCESS_ACCESSEN_SHF + core);
