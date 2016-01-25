@@ -12,4 +12,5 @@ obj-$(CONFIG_RESET_CONTROLLER)	+= softrst.o
 
 obj-y	+= clk-rk3188.o
 obj-y	+= clk-rk3288.o
+obj-y	+= clk-rk3366.o
 obj-y	+= clk-rk3368.o
