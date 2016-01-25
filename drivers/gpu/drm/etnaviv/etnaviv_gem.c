@@ -357,21 +357,33 @@ void *etnaviv_gem_vmap(struct drm_gem_object *obj)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
+	if (etnaviv_obj->vaddr)
+		return etnaviv_obj->vaddr;
+
 	mutex_lock(&etnaviv_obj->lock);
-	if (!etnaviv_obj->vaddr) {
-		struct page **pages = etnaviv_gem_get_pages(etnaviv_obj);
-
-		if (IS_ERR(pages)) {
-			mutex_unlock(&etnaviv_obj->lock);
-			return NULL;
-		}
-
-		etnaviv_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
-				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
-	}
+	/*
+	 * Need to check again, as we might have raced with another thread
+	 * while waiting for the mutex.
+	 */
+	if (!etnaviv_obj->vaddr)
+		etnaviv_obj->vaddr = etnaviv_obj->ops->vmap(etnaviv_obj);
 	mutex_unlock(&etnaviv_obj->lock);
 
 	return etnaviv_obj->vaddr;
+}
+
+static void *etnaviv_gem_vmap_impl(struct etnaviv_gem_object *obj)
+{
+	struct page **pages;
+
+	lockdep_assert_held(&obj->lock);
+
+	pages = etnaviv_gem_get_pages(obj);
+	if (IS_ERR(pages))
+		return NULL;
+
+	return vmap(pages, obj->base.size >> PAGE_SHIFT,
+			VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 }
 
 static inline enum dma_data_direction etnaviv_op_to_dma_dir(u32 op)
@@ -524,6 +536,7 @@ static void etnaviv_gem_shmem_release(struct etnaviv_gem_object *etnaviv_obj)
 static const struct etnaviv_gem_ops etnaviv_gem_shmem_ops = {
 	.get_pages = etnaviv_gem_shmem_get_pages,
 	.release = etnaviv_gem_shmem_release,
+	.vmap = etnaviv_gem_vmap_impl,
 };
 
 void etnaviv_gem_free_object(struct drm_gem_object *obj)
@@ -868,6 +881,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 static const struct etnaviv_gem_ops etnaviv_gem_userptr_ops = {
 	.get_pages = etnaviv_gem_userptr_get_pages,
 	.release = etnaviv_gem_userptr_release,
+	.vmap = etnaviv_gem_vmap_impl,
 };
 
 int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,

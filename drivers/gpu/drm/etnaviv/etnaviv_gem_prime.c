@@ -77,9 +77,17 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 	drm_prime_gem_destroy(&etnaviv_obj->base, etnaviv_obj->sgt);
 }
 
+static void *etnaviv_gem_prime_vmap_impl(struct etnaviv_gem_object *etnaviv_obj)
+{
+	lockdep_assert_held(&etnaviv_obj->lock);
+
+	return dma_buf_vmap(etnaviv_obj->base.import_attach->dmabuf);
+}
+
 static const struct etnaviv_gem_ops etnaviv_gem_prime_ops = {
 	/* .get_pages should never be called */
 	.release = etnaviv_gem_prime_release,
+	.vmap = etnaviv_gem_prime_vmap_impl,
 };
 
 struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
