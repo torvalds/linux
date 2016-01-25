@@ -106,7 +106,6 @@ struct omap_drm_private {
 
 	/* atomic commit */
 	struct {
-		struct list_head events;
 		wait_queue_head_t wait;
 		u32 pending;
 		spinlock_t lock;	/* Protects commit.pending */
