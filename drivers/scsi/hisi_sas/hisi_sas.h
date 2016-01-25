@@ -248,18 +248,7 @@ struct hisi_sas_itct {
 	__le64 sas_addr;
 	__le64 qw2;
 	__le64 qw3;
-	__le64 qw4;
-	__le64 qw_sata_ncq0_3;
-	__le64 qw_sata_ncq7_4;
-	__le64 qw_sata_ncq11_8;
-	__le64 qw_sata_ncq15_12;
-	__le64 qw_sata_ncq19_16;
-	__le64 qw_sata_ncq23_20;
-	__le64 qw_sata_ncq27_24;
-	__le64 qw_sata_ncq31_28;
-	__le64 qw_non_ncq_iptt;
-	__le64 qw_rsvd0;
-	__le64 qw_rsvd1;
+	__le64 qw4_15[12];
 };
 
 struct hisi_sas_iost {
