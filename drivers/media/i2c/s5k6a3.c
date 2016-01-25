@@ -333,7 +333,7 @@ static int s5k6a3_probe(struct i2c_client *client,
 	sensor->format.height = S5K6A3_DEFAULT_HEIGHT;
 
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, 1, &sensor->pad, 0);
+	ret = media_entity_pads_init(&sd->entity, 1, &sensor->pad);
 	if (ret < 0)
 		return ret;
 

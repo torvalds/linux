@@ -251,7 +251,7 @@ static void parse_config_file(const char *map, size_t len)
 }
 
 /* test is s ends in sub */
-static int strrcmp(char *s, char *sub)
+static int strrcmp(const char *s, const char *sub)
 {
 	int slen = strlen(s);
 	int sublen = strlen(sub);

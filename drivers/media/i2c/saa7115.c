@@ -46,7 +46,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <asm/div64.h>
 
 #define VRES_60HZ	(480+16)

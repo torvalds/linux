@@ -247,10 +247,7 @@ init:
 	tpc_strand_info(-1);
 
 	ld b32 $r4 D[$r0 + #tpc_count]
-	mov $r5 NV_PGRAPH_GPC0_TPC0
-	ld b32 $r6 D[$r0 + #gpc_id]
-	shl b32 $r6 15
-	add b32 $r5 $r6
+	gpc_addr($r5, NV_PGRAPH_GPC0_TPC0)
 	tpc_strand_init_tpc_loop:
 		add b32 $r14 $r5 NV_TPC_STRAND_CNT
 		call(nv_rd32)

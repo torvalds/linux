@@ -93,16 +93,15 @@ static struct list_head *crypto_more_spawns(struct crypto_alg *alg,
 {
 	struct crypto_spawn *spawn, *n;
 
-	if (list_empty(stack))
+	spawn = list_first_entry_or_null(stack, struct crypto_spawn, list);
+	if (!spawn)
 		return NULL;
 
-	spawn = list_first_entry(stack, struct crypto_spawn, list);
-	n = list_entry(spawn->list.next, struct crypto_spawn, list);
+	n = list_next_entry(spawn, list);
 
 	if (spawn->alg && &n->list != stack && !n->alg)
 		n->alg = (n->list.next == stack) ? alg :
-			 &list_entry(n->list.next, struct crypto_spawn,
-				     list)->inst->alg;
+			 &list_next_entry(n, list)->inst->alg;
 
 	list_move(&spawn->list, secondary_spawns);
 

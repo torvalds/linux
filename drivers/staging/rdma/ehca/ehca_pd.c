@@ -119,6 +119,5 @@ int ehca_init_pd_cache(void)
 
 void ehca_cleanup_pd_cache(void)
 {
-	if (pd_cache)
-		kmem_cache_destroy(pd_cache);
+	kmem_cache_destroy(pd_cache);
 }

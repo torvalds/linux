@@ -11,7 +11,7 @@
  * Copyright (C) 2012 ARM Limited
  */
 
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
@@ -164,7 +164,7 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	void __iomem *base;
-	struct bgpio_chip *mmc_gpio_chip;
+	struct gpio_chip *mmc_gpio_chip;
 	int master;
 	u32 dt_hbi;
 
@@ -201,8 +201,8 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	bgpio_init(mmc_gpio_chip, &pdev->dev, 0x4, base + SYS_MCI,
 			NULL, NULL, NULL, NULL, 0);
-	mmc_gpio_chip->gc.ngpio = 2;
-	gpiochip_add(&mmc_gpio_chip->gc);
+	mmc_gpio_chip->ngpio = 2;
+	gpiochip_add(mmc_gpio_chip);
 
 	return mfd_add_devices(&pdev->dev, PLATFORM_DEVID_AUTO,
 			vexpress_sysreg_cells,

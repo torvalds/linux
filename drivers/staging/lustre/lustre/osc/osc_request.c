@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -104,7 +104,7 @@ struct osc_enqueue_args {
 static void osc_release_ppga(struct brw_page **ppga, u32 count);
 static int brw_interpret(const struct lu_env *env,
 			 struct ptlrpc_request *req, void *data, int rc);
-int osc_cleanup(struct obd_device *obd);
+static int osc_cleanup(struct obd_device *obd);
 
 /* Pack OSC object metadata for disk storage (LE byte order). */
 static int osc_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
@@ -431,8 +431,9 @@ static int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 				      oinfo->oi_cb_up, oinfo, rqset);
 }
 
-int osc_real_create(struct obd_export *exp, struct obdo *oa,
-		    struct lov_stripe_md **ea, struct obd_trans_info *oti)
+static int osc_real_create(struct obd_export *exp, struct obdo *oa,
+			   struct lov_stripe_md **ea,
+			   struct obd_trans_info *oti)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
@@ -689,9 +690,9 @@ static int osc_can_send_destroy(struct client_obd *cli)
 	return 0;
 }
 
-int osc_create(const struct lu_env *env, struct obd_export *exp,
-	       struct obdo *oa, struct lov_stripe_md **ea,
-	       struct obd_trans_info *oti)
+static int osc_create(const struct lu_env *env, struct obd_export *exp,
+		      struct obdo *oa, struct lov_stripe_md **ea,
+		      struct obd_trans_info *oti)
 {
 	int rc = 0;
 
@@ -2726,7 +2727,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		}
 
 		*((u64 *)val) = *reply;
-	out:
+out:
 		ptlrpc_req_finished(req);
 		return rc;
 	} else if (KEY_IS(KEY_FIEMAP)) {
@@ -3255,33 +3256,33 @@ static int osc_process_config(struct obd_device *obd, u32 len, void *buf)
 }
 
 struct obd_ops osc_obd_ops = {
-	.o_owner		= THIS_MODULE,
-	.o_setup		= osc_setup,
-	.o_precleanup	   = osc_precleanup,
-	.o_cleanup	      = osc_cleanup,
-	.o_add_conn	     = client_import_add_conn,
-	.o_del_conn	     = client_import_del_conn,
-	.o_connect	      = client_connect_import,
-	.o_reconnect	    = osc_reconnect,
-	.o_disconnect	   = osc_disconnect,
-	.o_statfs	       = osc_statfs,
-	.o_statfs_async	 = osc_statfs_async,
-	.o_packmd	       = osc_packmd,
-	.o_unpackmd	     = osc_unpackmd,
-	.o_create	       = osc_create,
-	.o_destroy	      = osc_destroy,
-	.o_getattr	      = osc_getattr,
-	.o_getattr_async	= osc_getattr_async,
-	.o_setattr	      = osc_setattr,
-	.o_setattr_async	= osc_setattr_async,
-	.o_find_cbdata	  = osc_find_cbdata,
-	.o_iocontrol	    = osc_iocontrol,
-	.o_get_info	     = osc_get_info,
-	.o_set_info_async       = osc_set_info_async,
-	.o_import_event	 = osc_import_event,
-	.o_process_config       = osc_process_config,
-	.o_quotactl	     = osc_quotactl,
-	.o_quotacheck	   = osc_quotacheck,
+	.owner          = THIS_MODULE,
+	.setup          = osc_setup,
+	.precleanup     = osc_precleanup,
+	.cleanup        = osc_cleanup,
+	.add_conn       = client_import_add_conn,
+	.del_conn       = client_import_del_conn,
+	.connect        = client_connect_import,
+	.reconnect      = osc_reconnect,
+	.disconnect     = osc_disconnect,
+	.statfs         = osc_statfs,
+	.statfs_async   = osc_statfs_async,
+	.packmd         = osc_packmd,
+	.unpackmd       = osc_unpackmd,
+	.create         = osc_create,
+	.destroy        = osc_destroy,
+	.getattr        = osc_getattr,
+	.getattr_async  = osc_getattr_async,
+	.setattr        = osc_setattr,
+	.setattr_async  = osc_setattr_async,
+	.find_cbdata    = osc_find_cbdata,
+	.iocontrol      = osc_iocontrol,
+	.get_info       = osc_get_info,
+	.set_info_async = osc_set_info_async,
+	.import_event   = osc_import_event,
+	.process_config = osc_process_config,
+	.quotactl       = osc_quotactl,
+	.quotacheck     = osc_quotacheck,
 };
 
 extern struct lu_kmem_descr osc_caches[];
@@ -3357,7 +3358,7 @@ static void /*__exit*/ osc_exit(void)
 	ptlrpc_free_rq_pool(osc_rq_pool);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Object Storage Client (OSC)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(LUSTRE_VERSION_STRING);

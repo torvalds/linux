@@ -17,8 +17,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 
-#include <mach/addr-map.h>
-
 #include "clk.h"
 
 #define APBC_RTC	0x28
@@ -65,7 +63,8 @@ static const char *disp_parent[] = {"pll1_2", "pll1_12"};
 static const char *ccic_parent[] = {"pll1_2", "pll1_12"};
 static const char *ccic_phy_parent[] = {"pll1_6", "pll1_12"};
 
-void __init pxa910_clk_init(void)
+void __init pxa910_clk_init(phys_addr_t mpmu_phys, phys_addr_t apmu_phys,
+			    phys_addr_t apbc_phys, phys_addr_t apbcp_phys)
 {
 	struct clk *clk;
 	struct clk *uart_pll;
@@ -74,25 +73,25 @@ void __init pxa910_clk_init(void)
 	void __iomem *apbcp_base;
 	void __iomem *apbc_base;
 
-	mpmu_base = ioremap(APB_PHYS_BASE + 0x50000, SZ_4K);
+	mpmu_base = ioremap(mpmu_phys, SZ_4K);
 	if (mpmu_base == NULL) {
 		pr_err("error to ioremap MPMU base\n");
 		return;
 	}
 
-	apmu_base = ioremap(AXI_PHYS_BASE + 0x82800, SZ_4K);
+	apmu_base = ioremap(apmu_phys, SZ_4K);
 	if (apmu_base == NULL) {
 		pr_err("error to ioremap APMU base\n");
 		return;
 	}
 
-	apbcp_base = ioremap(APB_PHYS_BASE + 0x3b000, SZ_4K);
+	apbcp_base = ioremap(apbcp_phys, SZ_4K);
 	if (apbcp_base == NULL) {
 		pr_err("error to ioremap APBC extension base\n");
 		return;
 	}
 
-	apbc_base = ioremap(APB_PHYS_BASE + 0x15000, SZ_4K);
+	apbc_base = ioremap(apbc_phys, SZ_4K);
 	if (apbc_base == NULL) {
 		pr_err("error to ioremap APBC base\n");
 		return;

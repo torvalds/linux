@@ -295,16 +295,16 @@ module owner. This is done for you if you use the i2c helper functions.
 
 If integration with the media framework is needed, you must initialize the
 media_entity struct embedded in the v4l2_subdev struct (entity field) by
-calling media_entity_init():
+calling media_entity_pads_init(), if the entity has pads:
 
 	struct media_pad *pads = &my_sd->pads;
 	int err;
 
-	err = media_entity_init(&sd->entity, npads, pads, 0);
+	err = media_entity_pads_init(&sd->entity, npads, pads);
 
 The pads array must have been previously initialized. There is no need to
-manually set the struct media_entity type and name fields, but the revision
-field must be initialized if needed.
+manually set the struct media_entity function and name fields, but the
+revision field must be initialized if needed.
 
 A reference to the entity will be automatically acquired/released when the
 subdev device node (if any) is opened/closed.
@@ -695,12 +695,12 @@ difference is that the inode argument is omitted since it is never used.
 
 If integration with the media framework is needed, you must initialize the
 media_entity struct embedded in the video_device struct (entity field) by
-calling media_entity_init():
+calling media_entity_pads_init():
 
 	struct media_pad *pad = &my_vdev->pad;
 	int err;
 
-	err = media_entity_init(&vdev->entity, 1, pad, 0);
+	err = media_entity_pads_init(&vdev->entity, 1, pad);
 
 The pads array must have been previously initialized. There is no need to
 manually set the struct media_entity type and name fields.

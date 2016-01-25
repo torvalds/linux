@@ -301,7 +301,7 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 		goto out;
 	}
 
-	mutex_lock(&main_bm_inode->i_mutex);
+	inode_lock(main_bm_inode);
 
 	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (ret < 0) {
@@ -375,7 +375,7 @@ out_unlock:
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
-	mutex_unlock(&main_bm_inode->i_mutex);
+	inode_unlock(main_bm_inode);
 	iput(main_bm_inode);
 
 out:
@@ -486,7 +486,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out;
 	}
 
-	mutex_lock(&main_bm_inode->i_mutex);
+	inode_lock(main_bm_inode);
 
 	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (ret < 0) {
@@ -590,7 +590,7 @@ out_unlock:
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
-	mutex_unlock(&main_bm_inode->i_mutex);
+	inode_unlock(main_bm_inode);
 	iput(main_bm_inode);
 
 out:

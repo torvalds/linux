@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: exstorob - AML Interpreter object store support, store to object
+ * Module Name: exstorob - AML object store support, store to object
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -203,8 +203,9 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 			ACPI_FREE(target_desc->string.pointer);
 		}
 
-		target_desc->string.pointer = ACPI_ALLOCATE_ZEROED((acpi_size)
-								   length + 1);
+		target_desc->string.pointer =
+		    ACPI_ALLOCATE_ZEROED((acpi_size) length + 1);
+
 		if (!target_desc->string.pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}

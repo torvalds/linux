@@ -317,7 +317,6 @@ mic_dma_prep_memcpy_lock(struct dma_chan *ch, dma_addr_t dma_dest,
 	struct mic_dma_chan *mic_ch = to_mic_dma_chan(ch);
 	struct device *dev = mic_dma_ch_to_device(mic_ch);
 	int result;
-	struct dma_async_tx_descriptor *tx = NULL;
 
 	if (!len && !flags)
 		return NULL;
@@ -325,13 +324,10 @@ mic_dma_prep_memcpy_lock(struct dma_chan *ch, dma_addr_t dma_dest,
 	spin_lock(&mic_ch->prep_lock);
 	result = mic_dma_do_dma(mic_ch, flags, dma_src, dma_dest, len);
 	if (result >= 0)
-		tx = allocate_tx(mic_ch);
-
-	if (!tx)
-		dev_err(dev, "Error enqueueing dma, error=%d\n", result);
-
+		return allocate_tx(mic_ch);
+	dev_err(dev, "Error enqueueing dma, error=%d\n", result);
 	spin_unlock(&mic_ch->prep_lock);
-	return tx;
+	return NULL;
 }
 
 static struct dma_async_tx_descriptor *
@@ -339,14 +335,13 @@ mic_dma_prep_interrupt_lock(struct dma_chan *ch, unsigned long flags)
 {
 	struct mic_dma_chan *mic_ch = to_mic_dma_chan(ch);
 	int ret;
-	struct dma_async_tx_descriptor *tx = NULL;
 
 	spin_lock(&mic_ch->prep_lock);
 	ret = mic_dma_do_dma(mic_ch, flags, 0, 0, 0);
 	if (!ret)
-		tx = allocate_tx(mic_ch);
+		return allocate_tx(mic_ch);
 	spin_unlock(&mic_ch->prep_lock);
-	return tx;
+	return NULL;
 }
 
 /* Return the status of the transaction */

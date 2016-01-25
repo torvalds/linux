@@ -54,7 +54,8 @@
 #define IDMA64C_CTLL_LLP_S_EN		(1 << 28)	/* src block chain */
 
 /* Bitfields in CTL_HI */
-#define IDMA64C_CTLH_BLOCK_TS(x)	((x) & ((1 << 17) - 1))
+#define IDMA64C_CTLH_BLOCK_TS_MASK	((1 << 17) - 1)
+#define IDMA64C_CTLH_BLOCK_TS(x)	((x) & IDMA64C_CTLH_BLOCK_TS_MASK)
 #define IDMA64C_CTLH_DONE		(1 << 17)
 
 /* Bitfields in CFG_LO */

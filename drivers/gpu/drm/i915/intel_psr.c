@@ -191,9 +191,6 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-			   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
-
 	/* Enable AUX frame sync at sink */
 	if (dev_priv->psr.aux_frame_sync)
 		drm_dp_dpcd_writeb(&intel_dp->aux,
@@ -270,25 +267,20 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	uint32_t max_sleep_time = 0x1f;
-	/* Lately it was identified that depending on panel idle frame count
-	 * calculated at HW can be off by 1. So let's use what came
-	 * from VBT + 1.
-	 * There are also other cases where panel demands at least 4
-	 * but VBT is not being set. To cover these 2 cases lets use
-	 * at least 5 when VBT isn't set to be on the safest side.
+	/*
+	 * Let's respect VBT in case VBT asks a higher idle_frame value.
+	 * Let's use 6 as the minimum to cover all known cases including
+	 * the off-by-one issue that HW has in some cases. Also there are
+	 * cases where sink should be able to train
+	 * with the 5 or 6 idle patterns.
 	 */
-	uint32_t idle_frames = dev_priv->vbt.psr.idle_frames ?
-			       dev_priv->vbt.psr.idle_frames + 1 : 5;
+	uint32_t idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
 	uint32_t val = 0x0;
-	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
-	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) {
-		/* Sink should be able to train with the 5 or 6 idle patterns */
-		idle_frames += 4;
-	}
+	if (IS_HASWELL(dev))
+		val |= EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
 	I915_WRITE(EDP_PSR_CTL, val |
-		   (IS_BROADWELL(dev) ? 0 : link_entry_time) |
 		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
 		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
 		   EDP_PSR_ENABLE);
@@ -335,8 +327,8 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (!IS_VALLEYVIEW(dev) && ((dev_priv->vbt.psr.full_link) ||
-				    (dig_port->port != PORT_A))) {
+	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+	    ((dev_priv->vbt.psr.full_link) || (dig_port->port != PORT_A))) {
 		DRM_DEBUG_KMS("PSR condition failed: Link Standby requested/needed but not supported on this platform\n");
 		return false;
 	}
@@ -414,9 +406,14 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 				skl_psr_setup_su_vsc(intel_dp);
 		}
 
-		/* Avoid continuous PSR exit by masking memup and hpd */
+		/*
+		 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD.
+		 * Also mask LPSP to avoid dependency on other drivers that
+		 * might block runtime_pm besides preventing other hw tracking
+		 * issues now we can rely on frontbuffer tracking.
+		 */
 		I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD);
+			   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
@@ -522,10 +519,14 @@ void intel_psr_disable(struct intel_dp *intel_dp)
 		return;
 	}
 
+	/* Disable PSR on Source */
 	if (HAS_DDI(dev))
 		hsw_psr_disable(intel_dp);
 	else
 		vlv_psr_disable(intel_dp);
+
+	/* Disable PSR on Sink */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
 	dev_priv->psr.enabled = NULL;
 	mutex_unlock(&dev_priv->psr.lock);
@@ -644,7 +645,7 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 	 * Single frame update is already supported on BDW+ but it requires
 	 * many W/A and it isn't really needed.
 	 */
-	if (!IS_VALLEYVIEW(dev))
+	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev))
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -737,25 +738,9 @@ void intel_psr_flush(struct drm_device *dev,
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	if (HAS_DDI(dev)) {
-		/*
-		 * By definition every flush should mean invalidate + flush,
-		 * however on core platforms let's minimize the
-		 * disable/re-enable so we can avoid the invalidate when flip
-		 * originated the flush.
-		 */
-		if (frontbuffer_bits && origin != ORIGIN_FLIP)
-			intel_psr_exit(dev);
-	} else {
-		/*
-		 * On Valleyview and Cherryview we don't use hardware tracking
-		 * so any plane updates or cursor moves don't result in a PSR
-		 * invalidating. Which means we need to manually fake this in
-		 * software for all flushes.
-		 */
-		if (frontbuffer_bits)
-			intel_psr_exit(dev);
-	}
+	/* By definition flush = invalidate + flush */
+	if (frontbuffer_bits)
+		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		if (!work_busy(&dev_priv->psr.work.work))

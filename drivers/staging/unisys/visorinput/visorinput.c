@@ -523,7 +523,7 @@ visorinput_channel_interrupt(struct visor_device *dev)
 	struct ultra_inputreport r;
 	int scancode, keycode;
 	struct input_dev *visorinput_dev;
-	int xmotion, ymotion, zmotion, button;
+	int xmotion, ymotion, button;
 	int i;
 
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
@@ -604,12 +604,10 @@ visorinput_channel_interrupt(struct visor_device *dev)
 			}
 			break;
 		case inputaction_wheel_rotate_away:
-			zmotion = r.activity.arg1;
 			input_report_rel(visorinput_dev, REL_WHEEL, 1);
 			input_sync(visorinput_dev);
 			break;
 		case inputaction_wheel_rotate_toward:
-			zmotion = r.activity.arg1;
 			input_report_rel(visorinput_dev, REL_WHEEL, -1);
 			input_sync(visorinput_dev);
 			break;

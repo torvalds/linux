@@ -314,7 +314,7 @@ static const struct ide_tp_ops trm290_tp_ops = {
 	.output_data		= ide_output_data,
 };
 
-static struct ide_dma_ops trm290_dma_ops = {
+static const struct ide_dma_ops trm290_dma_ops = {
 	.dma_host_set		= trm290_dma_host_set,
 	.dma_setup 		= trm290_dma_setup,
 	.dma_start 		= trm290_dma_start,

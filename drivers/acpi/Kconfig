@@ -58,13 +58,24 @@ config ACPI_CCA_REQUIRED
 	bool
 
 config ACPI_DEBUGGER
-	bool "AML debugger interface (EXPERIMENTAL)"
+	bool "AML debugger interface"
 	select ACPI_DEBUG
 	help
-	  Enable in-kernel debugging of AML facilities: statistics, internal
-	  object dump, single step control method execution.
+	  Enable in-kernel debugging of AML facilities: statistics,
+	  internal object dump, single step control method execution.
 	  This is still under development, currently enabling this only
 	  results in the compilation of the ACPICA debugger files.
+
+if ACPI_DEBUGGER
+
+config ACPI_DEBUGGER_USER
+	tristate "Userspace debugger accessiblity"
+	depends on DEBUG_FS
+	help
+	  Export /sys/kernel/debug/acpi/acpidbg for userspace utilities
+	  to access the debugger functionalities.
+
+endif
 
 config ACPI_SLEEP
 	bool

@@ -579,48 +579,54 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 	return 0;
 }
 
-/* negative channel means no channel */
-static inline void ni_set_ai_dma_channel(struct comedi_device *dev, int channel)
+static inline void ni_set_ai_dma_channel(struct comedi_device *dev,
+					 unsigned channel)
 {
-	unsigned bits = 0;
-
-	if (channel >= 0)
-		bits = ni_stc_dma_channel_select_bitfield(channel);
+	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
 
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
 			NI_E_DMA_AI_SEL_MASK, NI_E_DMA_AI_SEL(bits));
 }
 
-/* negative channel means no channel */
-static inline void ni_set_ao_dma_channel(struct comedi_device *dev, int channel)
+static inline void ni_set_ai_dma_no_channel(struct comedi_device *dev)
 {
-	unsigned bits = 0;
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AI_SEL_MASK, 0);
+}
 
-	if (channel >= 0)
-		bits = ni_stc_dma_channel_select_bitfield(channel);
+static inline void ni_set_ao_dma_channel(struct comedi_device *dev,
+					 unsigned channel)
+{
+	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
 
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
 			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
 }
 
-/* negative channel means no channel */
+static inline void ni_set_ao_dma_no_channel(struct comedi_device *dev)
+{
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AO_SEL_MASK, 0);
+}
+
 static inline void ni_set_gpct_dma_channel(struct comedi_device *dev,
 					   unsigned gpct_index,
-					   int channel)
+					   unsigned channel)
 {
-	unsigned bits = 0;
-
-	if (channel >= 0)
-		bits = ni_stc_dma_channel_select_bitfield(channel);
+	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
 
 	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
 			NI_E_DMA_G0_G1_SEL_MASK(gpct_index),
 			NI_E_DMA_G0_G1_SEL(gpct_index, bits));
 }
 
-/* negative mite_channel means no channel */
+static inline void ni_set_gpct_dma_no_channel(struct comedi_device *dev,
+					      unsigned gpct_index)
+{
+	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
+			NI_E_DMA_G0_G1_SEL_MASK(gpct_index), 0);
+}
+
 static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
-					  int mite_channel)
+					  unsigned mite_channel)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
@@ -628,16 +634,26 @@ static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
 	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
-	if (mite_channel >= 0) {
-		/*
-		 * XXX just guessing ni_stc_dma_channel_select_bitfield()
-		 * returns the right bits, under the assumption the cdio dma
-		 * selection works just like ai/ao/gpct.
-		 * Definitely works for dma channels 0 and 1.
-		 */
-		bits = ni_stc_dma_channel_select_bitfield(mite_channel);
-		devpriv->cdio_dma_select_reg |= NI_M_CDIO_DMA_SEL_CDO(bits);
-	}
+	/*
+	 * XXX just guessing ni_stc_dma_channel_select_bitfield()
+	 * returns the right bits, under the assumption the cdio dma
+	 * selection works just like ai/ao/gpct.
+	 * Definitely works for dma channels 0 and 1.
+	 */
+	bits = ni_stc_dma_channel_select_bitfield(mite_channel);
+	devpriv->cdio_dma_select_reg |= NI_M_CDIO_DMA_SEL_CDO(bits);
+	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
+	mmiowb();
+	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+}
+
+static inline void ni_set_cdo_dma_no_channel(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
 	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
@@ -745,7 +761,7 @@ static void ni_release_ai_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan) {
-		ni_set_ai_dma_channel(dev, -1);
+		ni_set_ai_dma_no_channel(dev);
 		mite_release_channel(devpriv->ai_mite_chan);
 		devpriv->ai_mite_chan = NULL;
 	}
@@ -761,7 +777,7 @@ static void ni_release_ao_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan) {
-		ni_set_ao_dma_channel(dev, -1);
+		ni_set_ao_dma_no_channel(dev);
 		mite_release_channel(devpriv->ao_mite_chan);
 		devpriv->ao_mite_chan = NULL;
 	}
@@ -781,7 +797,7 @@ static void ni_release_gpct_mite_channel(struct comedi_device *dev,
 		struct mite_channel *mite_chan =
 		    devpriv->counter_dev->counters[gpct_index].mite_chan;
 
-		ni_set_gpct_dma_channel(dev, gpct_index, -1);
+		ni_set_gpct_dma_no_channel(dev, gpct_index);
 		ni_tio_set_mite_channel(&devpriv->
 					counter_dev->counters[gpct_index],
 					NULL);
@@ -799,7 +815,7 @@ static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
-		ni_set_cdo_dma_channel(dev, -1);
+		ni_set_cdo_dma_no_channel(dev);
 		mite_release_channel(devpriv->cdo_mite_chan);
 		devpriv->cdo_mite_chan = NULL;
 	}
@@ -1516,13 +1532,17 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned short *array = data;
 	unsigned int *larray = data;
 	unsigned int i;
+#ifdef PCIDMA
+	__le16 *barray = data;
+	__le32 *blarray = data;
+#endif
 
 	for (i = 0; i < nsamples; i++) {
 #ifdef PCIDMA
 		if (s->subdev_flags & SDF_LSAMPL)
-			larray[i] = le32_to_cpu(larray[i]);
+			larray[i] = le32_to_cpu(blarray[i]);
 		else
-			array[i] = le16_to_cpu(array[i]);
+			array[i] = le16_to_cpu(barray[i]);
 #endif
 		if (s->subdev_flags & SDF_LSAMPL)
 			larray[i] += devpriv->ai_offset[chan_index];
@@ -2574,6 +2594,9 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int nsamples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned short *array = data;
 	unsigned int i;
+#ifdef PCIDMA
+	__le16 buf, *barray = data;
+#endif
 
 	for (i = 0; i < nsamples; i++) {
 		unsigned int range = CR_RANGE(cmd->chanlist[chan_index]);
@@ -2586,10 +2609,11 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
 #ifdef PCIDMA
-		val = cpu_to_le16(val);
-#endif
+		buf = cpu_to_le16(val);
+		barray[i] = buf;
+#else
 		array[i] = val;
-
+#endif
 		chan_index++;
 		chan_index %= cmd->chanlist_len;
 	}

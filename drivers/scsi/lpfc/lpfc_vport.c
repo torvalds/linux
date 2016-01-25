@@ -393,6 +393,14 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	*(struct lpfc_vport **)fc_vport->dd_data = vport;
 	vport->fc_vport = fc_vport;
 
+	/* At this point we are fully registered with SCSI Layer.  */
+	vport->load_flag |= FC_ALLOW_FDMI;
+	if (phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) {
+		/* Setup appropriate attribute masks */
+		vport->fdmi_hba_mask = phba->pport->fdmi_hba_mask;
+		vport->fdmi_port_mask = phba->pport->fdmi_port_mask;
+	}
+
 	/*
 	 * In SLI4, the vpi must be activated before it can be used
 	 * by the port.

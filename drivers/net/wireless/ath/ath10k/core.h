@@ -81,26 +81,20 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 	return "unknown";
 }
 
+enum ath10k_skb_flags {
+	ATH10K_SKB_F_NO_HWCRYPT = BIT(0),
+	ATH10K_SKB_F_DTIM_ZERO = BIT(1),
+	ATH10K_SKB_F_DELIVER_CAB = BIT(2),
+	ATH10K_SKB_F_MGMT = BIT(3),
+	ATH10K_SKB_F_QOS = BIT(4),
+};
+
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
+	u8 flags;
 	u8 eid;
-	u8 vdev_id;
-	enum ath10k_hw_txrx_mode txmode;
-	bool is_protected;
-
-	struct {
-		u8 tid;
-		u16 freq;
-		bool is_offchan;
-		bool nohwcrypt;
-		struct ath10k_htt_txbuf *txbuf;
-		u32 txbuf_paddr;
-	} __packed htt;
-
-	struct {
-		bool dtim_zero;
-		bool deliver_cab;
-	} bcn;
+	u16 msdu_id;
+	struct ieee80211_vif *vif;
 } __packed;
 
 struct ath10k_skb_rxcb {
@@ -151,6 +145,7 @@ struct ath10k_wmi {
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
 	const struct wmi_ops *ops;
+	const struct wmi_peer_flags_map *peer_flags;
 
 	u32 num_mem_chunks;
 	u32 rx_decap_mode;
@@ -512,6 +507,9 @@ enum ath10k_fw_features {
 	/* Firmware Supports Adaptive CCA*/
 	ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA = 11,
 
+	/* Firmware supports management frame protection */
+	ATH10K_FW_FEATURE_MFP_SUPPORT = 12,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -534,6 +532,9 @@ enum ath10k_dev_flags {
 
 	/* Disable HW crypto engine */
 	ATH10K_FLAG_HW_CRYPTO_DISABLED,
+
+	/* Bluetooth coexistance enabled */
+	ATH10K_FLAG_BTCOEX,
 };
 
 enum ath10k_cal_mode {
@@ -661,6 +662,9 @@ struct ath10k {
 		 * frames.
 		 */
 		u32 max_probe_resp_desc_thres;
+
+		/* The padding bytes's location is different on various chips */
+		enum ath10k_hw_4addr_pad hw_4addr_pad;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;

@@ -876,16 +876,6 @@ static const struct drm_connector_helper_funcs qxl_connector_helper_funcs = {
 	.best_encoder = qxl_best_encoder,
 };
 
-static void qxl_conn_save(struct drm_connector *connector)
-{
-	DRM_DEBUG("\n");
-}
-
-static void qxl_conn_restore(struct drm_connector *connector)
-{
-	DRM_DEBUG("\n");
-}
-
 static enum drm_connector_status qxl_conn_detect(
 			struct drm_connector *connector,
 			bool force)
@@ -932,10 +922,8 @@ static void qxl_conn_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs qxl_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = qxl_conn_save,
-	.restore = qxl_conn_restore,
 	.detect = qxl_conn_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes_nomerge,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = qxl_conn_set_property,
 	.destroy = qxl_conn_destroy,
 };
@@ -980,7 +968,7 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 			   &qxl_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
 
 	drm_encoder_init(dev, &qxl_output->enc, &qxl_enc_funcs,
-			 DRM_MODE_ENCODER_VIRTUAL);
+			 DRM_MODE_ENCODER_VIRTUAL, NULL);
 
 	/* we get HPD via client monitors config */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;

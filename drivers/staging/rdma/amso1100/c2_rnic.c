@@ -81,7 +81,6 @@
 static int c2_adapter_init(struct c2_dev *c2dev)
 {
 	struct c2wr_init_req wr;
-	int err;
 
 	memset(&wr, 0, sizeof(wr));
 	c2_wr_set_id(&wr, CCWR_INIT);
@@ -94,9 +93,7 @@ static int c2_adapter_init(struct c2_dev *c2dev)
 	wr.q2_host_msg_pool = cpu_to_be64(c2dev->aeq.host_dma);
 
 	/* Post the init message */
-	err = vq_send_wr(c2dev, (union c2wr *) & wr);
-
-	return err;
+	return vq_send_wr(c2dev, (union c2wr *) & wr);
 }
 
 /*

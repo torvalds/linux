@@ -52,6 +52,7 @@ enum hist_column {
 	HISTC_MEM_IADDR_SYMBOL,
 	HISTC_TRANSACTION,
 	HISTC_CYCLES,
+	HISTC_TRACE,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -114,8 +115,8 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
 				      struct symbol *parent,
 				      struct branch_info *bi,
-				      struct mem_info *mi, u64 period,
-				      u64 weight, u64 transaction,
+				      struct mem_info *mi,
+				      struct perf_sample *sample,
 				      bool sample_self);
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg);
@@ -184,6 +185,11 @@ static inline struct hists *evsel__hists(struct perf_evsel *evsel)
 }
 
 int hists__init(void);
+int __hists__init(struct hists *hists);
+
+struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
+bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
+				  struct rb_root *root, struct hist_entry *he);
 
 struct perf_hpp {
 	char *buf;
@@ -261,10 +267,20 @@ void perf_hpp__append_sort_keys(void);
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
+bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);
+bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists);
 
-static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format)
+static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
+					 struct hists *hists)
 {
-	return format->elide;
+	if (format->elide)
+		return true;
+
+	if (perf_hpp__is_dynamic_entry(format) &&
+	    !perf_hpp__defined_dynamic_entry(format, hists))
+		return true;
+
+	return false;
 }
 
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);

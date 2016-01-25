@@ -72,8 +72,7 @@ enum batadv_subtype {
  * enum batadv_iv_flags - flags used in B.A.T.M.A.N. IV OGM packets
  * @BATADV_NOT_BEST_NEXT_HOP: flag is set when ogm packet is forwarded and was
  *     previously received from someone else than the best neighbor.
- * @BATADV_PRIMARIES_FIRST_HOP: flag is set when the primary interface address
- *     is used, and the packet travels its first hop.
+ * @BATADV_PRIMARIES_FIRST_HOP: flag unused.
  * @BATADV_DIRECTLINK: flag is for the first hop or if rebroadcasted from a
  *     one hop neighbor on the interface where it was originally received.
  */

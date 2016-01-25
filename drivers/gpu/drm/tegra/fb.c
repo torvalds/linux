@@ -10,6 +10,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/console.h>
+
 #include "drm.h"
 #include "gem.h"
 
@@ -86,7 +88,7 @@ static int tegra_fb_create_handle(struct drm_framebuffer *framebuffer,
 	return drm_gem_handle_create(file, &fb->planes[0]->gem, handle);
 }
 
-static struct drm_framebuffer_funcs tegra_fb_funcs = {
+static const struct drm_framebuffer_funcs tegra_fb_funcs = {
 	.destroy = tegra_fb_destroy,
 	.create_handle = tegra_fb_create_handle,
 };
@@ -411,5 +413,27 @@ void tegra_drm_fb_exit(struct drm_device *drm)
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_exit(tegra->fbdev);
+#endif
+}
+
+void tegra_drm_fb_suspend(struct drm_device *drm)
+{
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	struct tegra_drm *tegra = drm->dev_private;
+
+	console_lock();
+	drm_fb_helper_set_suspend(&tegra->fbdev->base, 1);
+	console_unlock();
+#endif
+}
+
+void tegra_drm_fb_resume(struct drm_device *drm)
+{
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	struct tegra_drm *tegra = drm->dev_private;
+
+	console_lock();
+	drm_fb_helper_set_suspend(&tegra->fbdev->base, 0);
+	console_unlock();
 #endif
 }

@@ -614,7 +614,6 @@ int ehca_post_srq_recv(struct ib_srq *srq,
 static const u8 ib_wc_opcode[255] = {
 	[0x01] = IB_WC_RECV+1,
 	[0x02] = IB_WC_RECV_RDMA_WITH_IMM+1,
-	[0x04] = IB_WC_BIND_MW+1,
 	[0x08] = IB_WC_FETCH_ADD+1,
 	[0x10] = IB_WC_COMP_SWAP+1,
 	[0x20] = IB_WC_RDMA_WRITE+1,

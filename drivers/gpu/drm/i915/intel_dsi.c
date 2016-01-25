@@ -266,15 +266,17 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 }
 
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	struct drm_display_mode *adjusted_mode = &config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	DRM_DEBUG_KMS("\n");
+
+	pipe_config->has_dsi_encoder = true;
 
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
@@ -367,7 +369,7 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_dsi_device_ready(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_dsi_device_ready(encoder);
@@ -462,6 +464,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 	intel_panel_enable_backlight(intel_dsi->attached_connector);
 }
 
+static void intel_dsi_prepare(struct intel_encoder *intel_encoder);
+
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -474,13 +478,16 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
+	intel_dsi_prepare(encoder);
+	intel_enable_dsi_pll(encoder);
+
 	/* Panel Enable over CRC PMIC */
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
 
 	msleep(intel_dsi->panel_on_delay);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/*
 		 * Disable DPOunit clock gating, can stall pipe
 		 * and we need DPLL REFA always enabled
@@ -677,8 +684,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		 * Enable bit does not get set. To check whether DSI Port C
 		 * was enabled in BIOS, check the Pipe B enable bit
 		 */
-		if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
-		    (port == PORT_C))
+		if (IS_VALLEYVIEW(dev) && port == PORT_C)
 			dpi_enabled = I915_READ(PIPECONF(PIPE_B)) &
 							PIPECONF_ENABLE;
 
@@ -699,6 +705,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	u32 pclk = 0;
 	DRM_DEBUG_KMS("\n");
 
+	pipe_config->has_dsi_encoder = true;
+
 	/*
 	 * DPLL_MD is not used in case of DSI, reading will get some default value
 	 * set dpll_md = 0
@@ -707,7 +715,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 
 	if (IS_BROXTON(encoder->base.dev))
 		pclk = bxt_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
-	else if (IS_VALLEYVIEW(encoder->base.dev))
+	else if (IS_VALLEYVIEW(encoder->base.dev) ||
+		 IS_CHERRYVIEW(encoder->base.dev))
 		pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
 
 	if (!pclk)
@@ -860,7 +869,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		if (IS_VALLEYVIEW(dev)) {
+		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 			/*
 			 * escape clock divider, 20MHz, shared for A and C.
 			 * device ready must be off when doing this! txclkesc?
@@ -876,21 +885,12 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 			I915_WRITE(MIPI_CTRL(port), tmp |
 					READ_REQUEST_PRIORITY_HIGH);
 		} else if (IS_BROXTON(dev)) {
-			/*
-			 * FIXME:
-			 * BXT can connect any PIPE to any MIPI port.
-			 * Select the pipe based on the MIPI port read from
-			 * VBT for now. Pick PIPE A for MIPI port A and C
-			 * for port C.
-			 */
+			enum pipe pipe = intel_crtc->pipe;
+
 			tmp = I915_READ(MIPI_CTRL(port));
 			tmp &= ~BXT_PIPE_SELECT_MASK;
 
-			if (port == PORT_A)
-				tmp |= BXT_PIPE_SELECT_A;
-			else if (port == PORT_C)
-				tmp |= BXT_PIPE_SELECT_C;
-
+			tmp |= BXT_PIPE_SELECT(pipe);
 			I915_WRITE(MIPI_CTRL(port), tmp);
 		}
 
@@ -1026,15 +1026,6 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	}
 }
 
-static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
-{
-	DRM_DEBUG_KMS("\n");
-
-	intel_dsi_prepare(encoder);
-	intel_enable_dsi_pll(encoder);
-
-}
-
 static enum drm_connector_status
 intel_dsi_detect(struct drm_connector *connector, bool force)
 {
@@ -1129,7 +1120,7 @@ void intel_dsi_init(struct drm_device *dev)
 	if (!dev_priv->vbt.has_mipi)
 		return;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");
@@ -1152,11 +1143,10 @@ void intel_dsi_init(struct drm_device *dev)
 
 	connector = &intel_connector->base;
 
-	drm_encoder_init(dev, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI);
+	drm_encoder_init(dev, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI,
+			 NULL);
 
-	/* XXX: very likely not all of these are needed */
 	intel_encoder->compute_config = intel_dsi_compute_config;
-	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
 	intel_encoder->enable = intel_dsi_enable_nop;
 	intel_encoder->disable = intel_dsi_pre_disable;

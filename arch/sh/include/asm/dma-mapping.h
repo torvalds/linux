@@ -11,8 +11,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 
 #define DMA_ERROR_CODE 0
 
-#include <asm-generic/dma-mapping-common.h>
-
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction dir);
 

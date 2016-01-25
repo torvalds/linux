@@ -42,8 +42,6 @@ struct i915_guc_client {
 
 	uint32_t wq_offset;
 	uint32_t wq_size;
-
-	spinlock_t wq_lock;		/* Protects all data below	*/
 	uint32_t wq_tail;
 
 	/* GuC submission statistics & status */
@@ -94,8 +92,6 @@ struct intel_guc {
 	struct ida ctx_ids;
 
 	struct i915_guc_client *execbuf_client;
-
-	spinlock_t host2guc_lock;	/* Protects all data below	*/
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_MAX_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/

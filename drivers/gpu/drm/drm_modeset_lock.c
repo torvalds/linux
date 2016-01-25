@@ -40,17 +40,15 @@
  * The basic usage pattern is to:
  *
  *     drm_modeset_acquire_init(&ctx)
- *   retry:
+ *     retry:
  *     foreach (lock in random_ordered_set_of_locks) {
- *       ret = drm_modeset_lock(lock, &ctx)
- *       if (ret == -EDEADLK) {
- *          drm_modeset_backoff(&ctx);
- *          goto retry;
- *       }
+ *         ret = drm_modeset_lock(lock, &ctx)
+ *         if (ret == -EDEADLK) {
+ *             drm_modeset_backoff(&ctx);
+ *             goto retry;
+ *         }
  *     }
- *
  *     ... do stuff ...
- *
  *     drm_modeset_drop_locks(&ctx);
  *     drm_modeset_acquire_fini(&ctx);
  */

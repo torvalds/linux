@@ -98,11 +98,6 @@ int ehca_reg_maxmr(struct ehca_shca *shca,
 
 int ehca_dereg_internal_maxmr(struct ehca_shca *shca);
 
-int ehca_mr_chk_buf_and_calc_size(struct ib_phys_buf *phys_buf_array,
-				  int num_phys_buf,
-				  u64 *iova_start,
-				  u64 *size);
-
 int ehca_fmr_check_page_list(struct ehca_mr *e_fmr,
 			     u64 *page_list,
 			     int list_len);

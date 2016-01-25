@@ -893,11 +893,10 @@ static void fwserial_destroy(struct kref *kref)
 	kfree(serial);
 }
 
-void fwtty_port_put(struct fwtty_port *port)
+static void fwtty_port_put(struct fwtty_port *port)
 {
 	kref_put(&port->serial->kref, fwserial_destroy);
 }
-EXPORT_SYMBOL(fwtty_port_put);
 
 static void fwtty_port_dtr_rts(struct tty_port *tty_port, int on)
 {

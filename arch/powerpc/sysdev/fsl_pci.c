@@ -21,10 +21,12 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/string.h>
+#include <linux/fsl/edac.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
@@ -215,6 +217,19 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	 * hose->dma_window_size still get set.
 	 */
 	setup_inbound = !is_kdump();
+
+	if (of_device_is_compatible(hose->dn, "fsl,bsc9132-pcie")) {
+		/*
+		 * BSC9132 Rev1.0 has an issue where all the PEX inbound
+		 * windows have implemented the default target value as 0xf
+		 * for CCSR space.In all Freescale legacy devices the target
+		 * of 0xf is reserved for local memory space. 9132 Rev1.0
+		 * now has local mempry space mapped to target 0x0 instead of
+		 * 0xf. Hence adding a workaround to remove the target 0xf
+		 * defined for memory space from Inbound window attributes.
+		 */
+		piwar &= ~PIWAR_TGI_LOCAL;
+	}
 
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_2_2) {
@@ -1255,6 +1270,25 @@ void fsl_pcibios_fixup_phb(struct pci_controller *phb)
 #endif
 }
 
+static int add_err_dev(struct platform_device *pdev)
+{
+	struct platform_device *errdev;
+	struct mpc85xx_edac_pci_plat_data pd = {
+		.of_node = pdev->dev.of_node
+	};
+
+	errdev = platform_device_register_resndata(&pdev->dev,
+						   "mpc85xx-pci-edac",
+						   PLATFORM_DEVID_AUTO,
+						   pdev->resource,
+						   pdev->num_resources,
+						   &pd, sizeof(pd));
+	if (IS_ERR(errdev))
+		return PTR_ERR(errdev);
+
+	return 0;
+}
+
 static int fsl_pci_probe(struct platform_device *pdev)
 {
 	struct device_node *node;
@@ -1262,8 +1296,13 @@ static int fsl_pci_probe(struct platform_device *pdev)
 
 	node = pdev->dev.of_node;
 	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
+	if (ret)
+		return ret;
 
-	mpc85xx_pci_err_probe(pdev);
+	ret = add_err_dev(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "couldn't register error device: %d\n",
+			ret);
 
 	return 0;
 }

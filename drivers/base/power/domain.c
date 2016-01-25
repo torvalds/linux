@@ -20,6 +20,8 @@
 #include <linux/suspend.h>
 #include <linux/export.h>
 
+#include "power.h"
+
 #define GENPD_RETRY_MAX_MS	250		/* Approximate */
 
 #define GENPD_DEV_CALLBACK(genpd, type, callback, dev)		\
@@ -1188,9 +1190,10 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 	}
 
 	dev->power.subsys_data->domain_data = &gpd_data->base;
-	dev->pm_domain = &genpd->domain;
 
 	spin_unlock_irq(&dev->power.lock);
+
+	dev_pm_domain_set(dev, &genpd->domain);
 
 	return gpd_data;
 
@@ -1205,9 +1208,10 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 static void genpd_free_dev_data(struct device *dev,
 				struct generic_pm_domain_data *gpd_data)
 {
+	dev_pm_domain_set(dev, NULL);
+
 	spin_lock_irq(&dev->power.lock);
 
-	dev->pm_domain = NULL;
 	dev->power.subsys_data->domain_data = NULL;
 
 	spin_unlock_irq(&dev->power.lock);
@@ -1263,6 +1267,7 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__pm_genpd_add_device);
 
 /**
  * pm_genpd_remove_device - Remove a device from an I/O PM domain.
@@ -1313,6 +1318,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pm_genpd_remove_device);
 
 /**
  * pm_genpd_add_subdomain - Add a subdomain to an I/O PM domain.

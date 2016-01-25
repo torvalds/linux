@@ -677,9 +677,7 @@ void wbc_account_io(struct writeback_control *wbc, struct page *page,
 	if (!wbc->wb)
 		return;
 
-	rcu_read_lock();
 	id = mem_cgroup_css_from_page(page)->id;
-	rcu_read_unlock();
 
 	if (id == wbc->wb_id) {
 		wbc->wb_bytes += bytes;

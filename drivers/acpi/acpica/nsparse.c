@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,8 +141,8 @@ acpi_ns_one_complete_parse(u32 pass_number,
 
 	/* Parse the AML */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "*PARSE* pass %u parse\n",
-			  pass_number));
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "*PARSE* pass %u parse\n", pass_number));
 	status = acpi_ps_parse_aml(walk_state);
 
 cleanup:
@@ -181,6 +181,7 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	 * performs another complete parse of the AML.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));
+
 	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1,
 					    table_index, start_node);
 	if (ACPI_FAILURE(status)) {

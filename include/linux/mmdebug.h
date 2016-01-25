@@ -56,4 +56,10 @@ void dump_mm(const struct mm_struct *mm);
 #define VIRTUAL_BUG_ON(cond) do { } while (0)
 #endif
 
+#ifdef CONFIG_DEBUG_VM_PGFLAGS
+#define VM_BUG_ON_PGFLAGS(cond, page) VM_BUG_ON_PAGE(cond, page)
+#else
+#define VM_BUG_ON_PGFLAGS(cond, page) BUILD_BUG_ON_INVALID(cond)
+#endif
+
 #endif

@@ -326,6 +326,7 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 	} else if (S_ISLNK(ip->i_mode)) {
 		if (!VXFS_ISIMMED(vip)) {
 			ip->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(ip);
 			ip->i_mapping->a_ops = &vxfs_aops;
 		} else {
 			ip->i_op = &simple_symlink_inode_operations;

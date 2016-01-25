@@ -30,8 +30,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 
-#include <mach/pxa25x.h>
-#include <mach/gumstix.h>
+#include "pxa25x.h"
+#include "gumstix.h"
 #include <linux/platform_data/video-pxafb.h>
 
 #include "generic.h"

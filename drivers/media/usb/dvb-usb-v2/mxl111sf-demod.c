@@ -35,7 +35,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 struct mxl111sf_demod_state {
 	struct mxl111sf_state *mxl_state;
 
-	struct mxl111sf_demod_config *cfg;
+	const struct mxl111sf_demod_config *cfg;
 
 	struct dvb_frontend fe;
 };
@@ -579,7 +579,7 @@ static struct dvb_frontend_ops mxl111sf_demod_ops = {
 };
 
 struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_demod_config *cfg)
+				   const struct mxl111sf_demod_config *cfg)
 {
 	struct mxl111sf_demod_state *state = NULL;
 

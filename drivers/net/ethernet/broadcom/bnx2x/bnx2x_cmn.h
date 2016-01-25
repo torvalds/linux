@@ -570,13 +570,6 @@ int bnx2x_enable_msix(struct bnx2x *bp);
 int bnx2x_enable_msi(struct bnx2x *bp);
 
 /**
- * bnx2x_low_latency_recv - LL callback
- *
- * @napi:	napi structure
- */
-int bnx2x_low_latency_recv(struct napi_struct *napi);
-
-/**
  * bnx2x_alloc_mem_bp - allocate memories outsize main driver structure
  *
  * @bp:		driver handle

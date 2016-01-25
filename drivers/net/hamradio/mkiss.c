@@ -797,6 +797,11 @@ static void mkiss_close(struct tty_struct *tty)
 	 */
 	if (!atomic_dec_and_test(&ax->refcnt))
 		down(&ax->dead_sem);
+	/*
+	 * Halt the transmit queue so that a new transmit cannot scribble
+	 * on our buffers
+	 */
+	netif_stop_queue(ax->dev);
 
 	/* Free all AX25 frame buffers. */
 	kfree(ax->rbuff);

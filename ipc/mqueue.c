@@ -795,7 +795,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 
 	ro = mnt_want_write(mnt);	/* we'll drop it in any case */
 	error = 0;
-	mutex_lock(&d_inode(root)->i_mutex);
+	inode_lock(d_inode(root));
 	path.dentry = lookup_one_len(name->name, root, strlen(name->name));
 	if (IS_ERR(path.dentry)) {
 		error = PTR_ERR(path.dentry);
@@ -841,7 +841,7 @@ out_putfd:
 		put_unused_fd(fd);
 		fd = error;
 	}
-	mutex_unlock(&d_inode(root)->i_mutex);
+	inode_unlock(d_inode(root));
 	if (!ro)
 		mnt_drop_write(mnt);
 out_putname:
@@ -866,7 +866,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	err = mnt_want_write(mnt);
 	if (err)
 		goto out_name;
-	mutex_lock_nested(&d_inode(mnt->mnt_root)->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(d_inode(mnt->mnt_root), I_MUTEX_PARENT);
 	dentry = lookup_one_len(name->name, mnt->mnt_root,
 				strlen(name->name));
 	if (IS_ERR(dentry)) {
@@ -884,7 +884,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	dput(dentry);
 
 out_unlock:
-	mutex_unlock(&d_inode(mnt->mnt_root)->i_mutex);
+	inode_unlock(d_inode(mnt->mnt_root));
 	if (inode)
 		iput(inode);
 	mnt_drop_write(mnt);
@@ -1438,7 +1438,7 @@ static int __init init_mqueue_fs(void)
 
 	mqueue_inode_cachep = kmem_cache_create("mqueue_inode_cache",
 				sizeof(struct mqueue_inode_info), 0,
-				SLAB_HWCACHE_ALIGN, init_once);
+				SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT, init_once);
 	if (mqueue_inode_cachep == NULL)
 		return -ENOMEM;
 

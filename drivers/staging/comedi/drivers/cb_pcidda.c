@@ -51,13 +51,13 @@
 
 /* DAC registers */
 #define CB_DDA_DA_CTRL_REG		0x00	   /* D/A Control Register  */
-#define CB_DDA_DA_CTRL_SU		(1 << 0)   /*  Simultaneous update  */
-#define CB_DDA_DA_CTRL_EN		(1 << 1)   /*  Enable specified DAC */
+#define CB_DDA_DA_CTRL_SU		BIT(0)   /*  Simultaneous update  */
+#define CB_DDA_DA_CTRL_EN		BIT(1)   /*  Enable specified DAC */
 #define CB_DDA_DA_CTRL_DAC(x)		((x) << 2) /*  Specify DAC channel  */
 #define CB_DDA_DA_CTRL_RANGE2V5		(0 << 6)   /*  2.5V range           */
 #define CB_DDA_DA_CTRL_RANGE5V		(2 << 6)   /*  5V range             */
 #define CB_DDA_DA_CTRL_RANGE10V		(3 << 6)   /*  10V range            */
-#define CB_DDA_DA_CTRL_UNIP		(1 << 8)   /*  Unipolar range       */
+#define CB_DDA_DA_CTRL_UNIP		BIT(8)   /*  Unipolar range       */
 
 #define DACALIBRATION1	4	/*  D/A CALIBRATION REGISTER 1 */
 /* write bits */

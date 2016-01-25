@@ -104,6 +104,12 @@ struct amd_sched_backend_ops {
 	struct fence *(*run_job)(struct amd_sched_job *sched_job);
 };
 
+enum amd_sched_priority {
+	AMD_SCHED_PRIORITY_KERNEL = 0,
+	AMD_SCHED_PRIORITY_NORMAL,
+	AMD_SCHED_MAX_PRIORITY
+};
+
 /**
  * One scheduler is implemented for each hardware ring
 */
@@ -112,8 +118,7 @@ struct amd_gpu_scheduler {
 	uint32_t			hw_submission_limit;
 	long				timeout;
 	const char			*name;
-	struct amd_sched_rq		sched_rq;
-	struct amd_sched_rq		kernel_rq;
+	struct amd_sched_rq		sched_rq[AMD_SCHED_MAX_PRIORITY];
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;

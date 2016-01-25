@@ -17,25 +17,11 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/rcupdate.h>
-#include <linux/static_key.h>
+#include <linux/tracepoint-defs.h>
 
 struct module;
 struct tracepoint;
 struct notifier_block;
-
-struct tracepoint_func {
-	void *func;
-	void *data;
-	int prio;
-};
-
-struct tracepoint {
-	const char *name;		/* Tracepoint name */
-	struct static_key key;
-	void (*regfunc)(void);
-	void (*unregfunc)(void);
-	struct tracepoint_func __rcu *funcs;
-};
 
 struct trace_enum_map {
 	const char		*system;
@@ -171,8 +157,8 @@ extern void syscall_unregfunc(void);
 				TP_PROTO(data_proto),			\
 				TP_ARGS(data_args),			\
 				TP_CONDITION(cond),			\
-				rcu_irq_enter(),			\
-				rcu_irq_exit());			\
+				rcu_irq_enter_irqson(),			\
+				rcu_irq_exit_irqson());			\
 	}
 #else
 #define __DECLARE_TRACE_RCU(name, proto, args, cond, data_proto, data_args)
@@ -493,6 +479,10 @@ extern void syscall_unregfunc(void);
 #define TRACE_EVENT_FN(name, proto, args, struct,		\
 		assign, print, reg, unreg)			\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_FN_COND(name, proto, args, cond, struct,		\
+		assign, print, reg, unreg)			\
+	DECLARE_TRACE_CONDITION(name, PARAMS(proto),	\
+			PARAMS(args), PARAMS(cond))
 #define TRACE_EVENT_CONDITION(name, proto, args, cond,		\
 			      struct, assign, print)		\
 	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\

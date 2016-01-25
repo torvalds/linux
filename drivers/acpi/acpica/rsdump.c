@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -483,6 +483,7 @@ static void acpi_rs_dump_address_common(union acpi_resource_data *resource)
 
 static void acpi_rs_out_string(char *title, char *value)
 {
+
 	acpi_os_printf("%27s : %s", title, value);
 	if (!*value) {
 		acpi_os_printf("[NULL NAMESTRING]");
@@ -497,21 +498,25 @@ static void acpi_rs_out_integer8(char *title, u8 value)
 
 static void acpi_rs_out_integer16(char *title, u16 value)
 {
+
 	acpi_os_printf("%27s : %4.4X\n", title, value);
 }
 
 static void acpi_rs_out_integer32(char *title, u32 value)
 {
+
 	acpi_os_printf("%27s : %8.8X\n", title, value);
 }
 
 static void acpi_rs_out_integer64(char *title, u64 value)
 {
+
 	acpi_os_printf("%27s : %8.8X%8.8X\n", title, ACPI_FORMAT_UINT64(value));
 }
 
 static void acpi_rs_out_title(char *title)
 {
+
 	acpi_os_printf("%27s : ", title);
 }
 
@@ -544,6 +549,7 @@ static void acpi_rs_dump_short_byte_list(u8 length, u8 * data)
 	for (i = 0; i < length; i++) {
 		acpi_os_printf("%X ", data[i]);
 	}
+
 	acpi_os_printf("\n");
 }
 

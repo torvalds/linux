@@ -664,7 +664,7 @@ replicas continue to be exactly same.
 		if one rbind mounts a tree within the same subtree 'n' times
 		the number of mounts created is an exponential function of 'n'.
 		Having unbindable mount can help prune the unneeded bind
-		mounts. Here is a example.
+		mounts. Here is an example.
 
 		step 1:
 		   let's say the root tree has just two directories with

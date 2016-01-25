@@ -19,26 +19,29 @@ static int proc_thread_self_readlink(struct dentry *dentry, char __user *buffer,
 	return readlink_copy(buffer, buflen, tmp);
 }
 
-static const char *proc_thread_self_follow_link(struct dentry *dentry, void **cookie)
+static const char *proc_thread_self_get_link(struct dentry *dentry,
+					     struct inode *inode,
+					     struct delayed_call *done)
 {
-	struct pid_namespace *ns = dentry->d_sb->s_fs_info;
+	struct pid_namespace *ns = inode->i_sb->s_fs_info;
 	pid_t tgid = task_tgid_nr_ns(current, ns);
 	pid_t pid = task_pid_nr_ns(current, ns);
 	char *name;
 
 	if (!pid)
 		return ERR_PTR(-ENOENT);
-	name = kmalloc(PROC_NUMBUF + 6 + PROC_NUMBUF, GFP_KERNEL);
-	if (!name)
-		return ERR_PTR(-ENOMEM);
+	name = kmalloc(PROC_NUMBUF + 6 + PROC_NUMBUF,
+				dentry ? GFP_KERNEL : GFP_ATOMIC);
+	if (unlikely(!name))
+		return dentry ? ERR_PTR(-ENOMEM) : ERR_PTR(-ECHILD);
 	sprintf(name, "%d/task/%d", tgid, pid);
-	return *cookie = name;
+	set_delayed_call(done, kfree_link, name);
+	return name;
 }
 
 static const struct inode_operations proc_thread_self_inode_operations = {
 	.readlink	= proc_thread_self_readlink,
-	.follow_link	= proc_thread_self_follow_link,
-	.put_link	= kfree_put_link,
+	.get_link	= proc_thread_self_get_link,
 };
 
 static unsigned thread_self_inum;
@@ -49,7 +52,7 @@ int proc_setup_thread_self(struct super_block *s)
 	struct pid_namespace *ns = s->s_fs_info;
 	struct dentry *thread_self;
 
-	mutex_lock(&root_inode->i_mutex);
+	inode_lock(root_inode);
 	thread_self = d_alloc_name(s->s_root, "thread-self");
 	if (thread_self) {
 		struct inode *inode = new_inode_pseudo(s);
@@ -68,7 +71,7 @@ int proc_setup_thread_self(struct super_block *s)
 	} else {
 		thread_self = ERR_PTR(-ENOMEM);
 	}
-	mutex_unlock(&root_inode->i_mutex);
+	inode_unlock(root_inode);
 	if (IS_ERR(thread_self)) {
 		pr_err("proc_fill_super: can't allocate /proc/thread_self\n");
 		return PTR_ERR(thread_self);

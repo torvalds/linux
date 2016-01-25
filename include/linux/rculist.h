@@ -179,32 +179,31 @@ static inline void list_replace_rcu(struct list_head *old,
 }
 
 /**
- * list_splice_init_rcu - splice an RCU-protected list into an existing list.
+ * __list_splice_init_rcu - join an RCU-protected list into an existing list.
  * @list:	the RCU-protected list to splice
- * @head:	the place in the list to splice the first list into
+ * @prev:	points to the last element of the existing list
+ * @next:	points to the first element of the existing list
  * @sync:	function to sync: synchronize_rcu(), synchronize_sched(), ...
  *
- * @head can be RCU-read traversed concurrently with this function.
+ * The list pointed to by @prev and @next can be RCU-read traversed
+ * concurrently with this function.
  *
  * Note that this function blocks.
  *
- * Important note: the caller must take whatever action is necessary to
- *	prevent any other updates to @head.  In principle, it is possible
- *	to modify the list as soon as sync() begins execution.
- *	If this sort of thing becomes necessary, an alternative version
- *	based on call_rcu() could be created.  But only if -really-
- *	needed -- there is no shortage of RCU API members.
+ * Important note: the caller must take whatever action is necessary to prevent
+ * any other updates to the existing list.  In principle, it is possible to
+ * modify the list as soon as sync() begins execution. If this sort of thing
+ * becomes necessary, an alternative version based on call_rcu() could be
+ * created.  But only if -really- needed -- there is no shortage of RCU API
+ * members.
  */
-static inline void list_splice_init_rcu(struct list_head *list,
-					struct list_head *head,
-					void (*sync)(void))
+static inline void __list_splice_init_rcu(struct list_head *list,
+					  struct list_head *prev,
+					  struct list_head *next,
+					  void (*sync)(void))
 {
 	struct list_head *first = list->next;
 	struct list_head *last = list->prev;
-	struct list_head *at = head->next;
-
-	if (list_empty(list))
-		return;
 
 	/*
 	 * "first" and "last" tracking list, so initialize it.  RCU readers
@@ -231,10 +230,40 @@ static inline void list_splice_init_rcu(struct list_head *list,
 	 * this function.
 	 */
 
-	last->next = at;
-	rcu_assign_pointer(list_next_rcu(head), first);
-	first->prev = head;
-	at->prev = last;
+	last->next = next;
+	rcu_assign_pointer(list_next_rcu(prev), first);
+	first->prev = prev;
+	next->prev = last;
+}
+
+/**
+ * list_splice_init_rcu - splice an RCU-protected list into an existing list,
+ *                        designed for stacks.
+ * @list:	the RCU-protected list to splice
+ * @head:	the place in the existing list to splice the first list into
+ * @sync:	function to sync: synchronize_rcu(), synchronize_sched(), ...
+ */
+static inline void list_splice_init_rcu(struct list_head *list,
+					struct list_head *head,
+					void (*sync)(void))
+{
+	if (!list_empty(list))
+		__list_splice_init_rcu(list, head, head->next, sync);
+}
+
+/**
+ * list_splice_tail_init_rcu - splice an RCU-protected list into an existing
+ *                             list, designed for queues.
+ * @list:	the RCU-protected list to splice
+ * @head:	the place in the existing list to splice the first list into
+ * @sync:	function to sync: synchronize_rcu(), synchronize_sched(), ...
+ */
+static inline void list_splice_tail_init_rcu(struct list_head *list,
+					     struct list_head *head,
+					     void (*sync)(void))
+{
+	if (!list_empty(list))
+		__list_splice_init_rcu(list, head->prev, head, sync);
 }
 
 /**
@@ -303,6 +332,42 @@ static inline void list_splice_init_rcu(struct list_head *list,
 	for (pos = list_entry_rcu((head)->next, typeof(*pos), member); \
 		&pos->member != (head); \
 		pos = list_entry_rcu(pos->member.next, typeof(*pos), member))
+
+/**
+ * list_entry_lockless - get the struct for this entry
+ * @ptr:        the &struct list_head pointer.
+ * @type:       the type of the struct this is embedded in.
+ * @member:     the name of the list_head within the struct.
+ *
+ * This primitive may safely run concurrently with the _rcu list-mutation
+ * primitives such as list_add_rcu(), but requires some implicit RCU
+ * read-side guarding.  One example is running within a special
+ * exception-time environment where preemption is disabled and where
+ * lockdep cannot be invoked (in which case updaters must use RCU-sched,
+ * as in synchronize_sched(), call_rcu_sched(), and friends).  Another
+ * example is when items are added to the list, but never deleted.
+ */
+#define list_entry_lockless(ptr, type, member) \
+	container_of((typeof(ptr))lockless_dereference(ptr), type, member)
+
+/**
+ * list_for_each_entry_lockless - iterate over rcu list of given type
+ * @pos:	the type * to use as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the list_struct within the struct.
+ *
+ * This primitive may safely run concurrently with the _rcu list-mutation
+ * primitives such as list_add_rcu(), but requires some implicit RCU
+ * read-side guarding.  One example is running within a special
+ * exception-time environment where preemption is disabled and where
+ * lockdep cannot be invoked (in which case updaters must use RCU-sched,
+ * as in synchronize_sched(), call_rcu_sched(), and friends).  Another
+ * example is when items are added to the list, but never deleted.
+ */
+#define list_for_each_entry_lockless(pos, head, member) \
+	for (pos = list_entry_lockless((head)->next, typeof(*pos), member); \
+	     &pos->member != (head); \
+	     pos = list_entry_lockless(pos->member.next, typeof(*pos), member))
 
 /**
  * list_for_each_entry_continue_rcu - continue iteration over list of given type

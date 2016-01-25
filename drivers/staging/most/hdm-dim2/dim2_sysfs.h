@@ -16,9 +16,7 @@
 #ifndef DIM2_SYSFS_H
 #define	DIM2_SYSFS_H
 
-
 #include <linux/kobject.h>
-
 
 struct medialb_bus {
 	struct kobject kobj_group;
@@ -34,6 +32,5 @@ void dim2_sysfs_destroy(struct medialb_bus *bus);
  * must deliver MediaLB state as true if locked or false if unlocked
  */
 bool dim2_sysfs_get_state_cb(void);
-
 
 #endif	/* DIM2_SYSFS_H */

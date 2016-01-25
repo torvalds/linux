@@ -797,7 +797,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 		netdev_info(ndev, "using MII interface\n");
 	else
 		netdev_info(ndev, "using RMII interface\n");
-	phydev = phy_connect(ndev, dev_name(&phydev->dev),
+	phydev = phy_connect(ndev, phydev_name(phydev),
 			     &lpc_handle_link_change,
 			     lpc_phy_interface_mode(&pldat->pdev->dev));
 
@@ -816,15 +816,14 @@ static int lpc_mii_probe(struct net_device *ndev)
 	pldat->duplex = -1;
 	pldat->phy_dev = phydev;
 
-	netdev_info(ndev,
-		"attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
+	phy_attached_info(phydev);
+
 	return 0;
 }
 
 static int lpc_mii_init(struct netdata_local *pldat)
 {
-	int err = -ENXIO, i;
+	int err = -ENXIO;
 
 	pldat->mii_bus = mdiobus_alloc();
 	if (!pldat->mii_bus) {
@@ -851,19 +850,10 @@ static int lpc_mii_init(struct netdata_local *pldat)
 	pldat->mii_bus->priv = pldat;
 	pldat->mii_bus->parent = &pldat->pdev->dev;
 
-	pldat->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!pldat->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out_1;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		pldat->mii_bus->irq[i] = PHY_POLL;
-
 	platform_set_drvdata(pldat->pdev, pldat->mii_bus);
 
 	if (mdiobus_register(pldat->mii_bus))
-		goto err_out_free_mdio_irq;
+		goto err_out_unregister_bus;
 
 	if (lpc_mii_probe(pldat->ndev) != 0)
 		goto err_out_unregister_bus;
@@ -872,9 +862,6 @@ static int lpc_mii_init(struct netdata_local *pldat)
 
 err_out_unregister_bus:
 	mdiobus_unregister(pldat->mii_bus);
-err_out_free_mdio_irq:
-	kfree(pldat->mii_bus->irq);
-err_out_1:
 	mdiobus_free(pldat->mii_bus);
 err_out:
 	return err;

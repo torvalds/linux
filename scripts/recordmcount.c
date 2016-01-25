@@ -586,7 +586,7 @@ main(int argc, char *argv[])
 			do_file(file);
 			break;
 		case SJ_FAIL:    /* error in do_file or below */
-			sprintf("%s: failed\n", file);
+			fprintf(stderr, "%s: failed\n", file);
 			++n_error;
 			break;
 		case SJ_SUCCEED:    /* premature success */

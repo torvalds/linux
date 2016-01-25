@@ -245,8 +245,7 @@ static void ehca_destroy_slab_caches(void)
 	ehca_cleanup_cq_cache();
 	ehca_cleanup_pd_cache();
 #ifdef CONFIG_PPC_64K_PAGES
-	if (ctblk_cache)
-		kmem_cache_destroy(ctblk_cache);
+	kmem_cache_destroy(ctblk_cache);
 #endif
 }
 
@@ -512,13 +511,9 @@ static int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.req_notify_cq	    = ehca_req_notify_cq;
 	/* shca->ib_device.req_ncomp_notif  = ehca_req_ncomp_notif; */
 	shca->ib_device.get_dma_mr	    = ehca_get_dma_mr;
-	shca->ib_device.reg_phys_mr	    = ehca_reg_phys_mr;
 	shca->ib_device.reg_user_mr	    = ehca_reg_user_mr;
-	shca->ib_device.query_mr	    = ehca_query_mr;
 	shca->ib_device.dereg_mr	    = ehca_dereg_mr;
-	shca->ib_device.rereg_phys_mr	    = ehca_rereg_phys_mr;
 	shca->ib_device.alloc_mw	    = ehca_alloc_mw;
-	shca->ib_device.bind_mw		    = ehca_bind_mw;
 	shca->ib_device.dealloc_mw	    = ehca_dealloc_mw;
 	shca->ib_device.alloc_fmr	    = ehca_alloc_fmr;
 	shca->ib_device.map_phys_fmr	    = ehca_map_phys_fmr;

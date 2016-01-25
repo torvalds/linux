@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,6 +135,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
 			break;
 		}
 	}
+
 	acpi_os_printf("\"");
 
 	if (i == max_length && string[i]) {
@@ -238,6 +239,14 @@ void acpi_ut_repair_name(char *name)
 	u32 original_name;
 
 	ACPI_FUNCTION_NAME(ut_repair_name);
+
+	/*
+	 * Special case for the root node. This can happen if we get an
+	 * error during the execution of module-level code.
+	 */
+	if (ACPI_COMPARE_NAME(name, "\\___")) {
+		return;
+	}
 
 	ACPI_MOVE_NAME(&original_name, name);
 
