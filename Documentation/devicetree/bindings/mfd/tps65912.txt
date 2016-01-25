@@ -1,0 +1,50 @@
+* TPS65912 Power Management Integrated Circuit bindings
+
+Required properties:
+ - compatible		: Should be "ti,tps65912".
+ - reg			: Slave address or chip select number (I2C / SPI).
+ - interrupt-parent	: The parent interrupt controller.
+ - interrupts		: The interrupt line the device is connected to.
+ - interrupt-controller	: Marks the device node as an interrupt controller.
+ - #interrupt-cells	: The number of cells to describe an IRQ, should be 2.
+			    The first cell is the IRQ number.
+			    The second cell is the flags, encoded as trigger
+			    masks from ../interrupt-controller/interrupts.txt.
+ - gpio-controller	: Marks the device node as a GPIO Controller.
+ - #gpio-cells		: Should be two.  The first cell is the pin number and
+			    the second cell is used to specify flags.
+			    See ../gpio/gpio.txt for more information.
+ - regulators:		: List of child nodes that specify the regulator
+			    initialization data. Child nodes must be named
+			    after their hardware counterparts: dcdc[1-4] and
+			    ldo[1-10]. Each child nodes is defined using the
+			    standard binding for regulators.
+
+Example:
+
+	pmic: tps65912@2d {
+		compatible = "ti,tps65912";
+		reg = <0x2d>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		regulators {
+			dcdc1 {
+				regulator-name = "vdd_core";
+				regulator-min-microvolt = <912000>;
+				regulator-max-microvolt = <1144000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <1900000>;
+				regulator-max-microvolt = <1900000>;
+			};
+		};
+	};
