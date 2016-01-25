@@ -62,6 +62,7 @@
 #include <asm/memblock.h>
 #include <asm/efi.h>
 #include <asm/xen/hypervisor.h>
+#include <asm/mmu_context.h>
 
 phys_addr_t __fdt_pointer __initdata;
 
