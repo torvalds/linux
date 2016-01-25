@@ -2261,6 +2261,8 @@ fail_subdev:
 	} while (--i >= 0);
 
 fail:
+	nvkm_device_fini(device, false);
+
 	nvdev_error(device, "init failed with %d\n", ret);
 	return ret;
 }
