@@ -572,6 +572,34 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 }
 EXPORT_SYMBOL(rfkill_set_states);
 
+static const char * const rfkill_types[] = {
+	NULL, /* RFKILL_TYPE_ALL */
+	"wlan",
+	"bluetooth",
+	"ultrawideband",
+	"wimax",
+	"wwan",
+	"gps",
+	"fm",
+	"nfc",
+};
+
+enum rfkill_type rfkill_find_type(const char *name)
+{
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(rfkill_types) != NUM_RFKILL_TYPES);
+
+	if (!name)
+		return RFKILL_TYPE_ALL;
+
+	for (i = 1; i < NUM_RFKILL_TYPES; i++)
+		if (!strcmp(name, rfkill_types[i]))
+			return i;
+	return RFKILL_TYPE_ALL;
+}
+EXPORT_SYMBOL(rfkill_find_type);
+
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
@@ -581,38 +609,12 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(name);
 
-static const char *rfkill_get_type_str(enum rfkill_type type)
-{
-	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_NFC + 1);
-
-	switch (type) {
-	case RFKILL_TYPE_WLAN:
-		return "wlan";
-	case RFKILL_TYPE_BLUETOOTH:
-		return "bluetooth";
-	case RFKILL_TYPE_UWB:
-		return "ultrawideband";
-	case RFKILL_TYPE_WIMAX:
-		return "wimax";
-	case RFKILL_TYPE_WWAN:
-		return "wwan";
-	case RFKILL_TYPE_GPS:
-		return "gps";
-	case RFKILL_TYPE_FM:
-		return "fm";
-	case RFKILL_TYPE_NFC:
-		return "nfc";
-	default:
-		BUG();
-	}
-}
-
 static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 
-	return sprintf(buf, "%s\n", rfkill_get_type_str(rfkill->type));
+	return sprintf(buf, "%s\n", rfkill_types[rfkill->type]);
 }
 static DEVICE_ATTR_RO(type);
 
@@ -750,7 +752,7 @@ static int rfkill_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (error)
 		return error;
 	error = add_uevent_var(env, "RFKILL_TYPE=%s",
-			       rfkill_get_type_str(rfkill->type));
+			       rfkill_types[rfkill->type]);
 	if (error)
 		return error;
 	spin_lock_irqsave(&rfkill->lock, flags);
