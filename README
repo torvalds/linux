@@ -204,24 +204,6 @@ make bzImage modules modules_install install
 then follow the instructions above for loading MDB from the linux command 
 line.
 
-Limitations of Linux with Kernel Debuggers
-
-Linux uses the swapgs instruction in x86_64 mode to swap gs frames between 
-user space and kernel space transitions. You can set breakpoints on and 
-around a swapgs instruction, however, the system may crash due to how the 
-instruction works if you attempt to step between user space and kernel 
-space after this instruction has been executed up to the instruction that 
-performs a sysret. This is a very rare instance that typically will not 
-be encountered but don't try to step into a section of code with a swapgs 
-instruction that subsequently calls some sort of system return. On Linux 
-you will see something like this in the disassembly:
-
-swapgs
-rex64 sysret
-
-Don't try to step in between these two instructions. It's safe to do so 
-after the sysret executes but not between them. 
-
 Support or Contact
 Need to report a bug or issue with the MDB Linux Kernel Debugger? Please 
 post it to Issues.
