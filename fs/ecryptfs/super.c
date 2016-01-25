@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/file.h>
-#include <linux/crypto.h>
 #include <linux/statfs.h>
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
