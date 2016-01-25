@@ -107,6 +107,12 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	return hisi_hba->hw->prep_ssp(hisi_hba, slot, is_tmf, tmf);
 }
 
+static int hisi_sas_task_prep_ata(struct hisi_hba *hisi_hba,
+				  struct hisi_sas_slot *slot)
+{
+	return hisi_hba->hw->prep_stp(hisi_hba, slot);
+}
+
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 			      int is_tmf, struct hisi_sas_tmf_task *tmf,
 			      int *pass)
@@ -230,6 +236,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		rc = hisi_sas_task_prep_ata(hisi_hba, slot);
+		break;
 	default:
 		dev_err(dev, "task prep: unknown/unsupported proto (0x%x)\n",
 			task->task_proto);

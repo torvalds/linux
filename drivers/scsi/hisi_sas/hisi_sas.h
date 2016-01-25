@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
 
 #define DRV_VERSION "v1.0"
@@ -35,6 +36,7 @@
 
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024)
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028
+#define HISI_SAS_MAX_STP_RESP_SZ 28
 
 #define DEV_IS_EXPANDER(type) \
 	((type == SAS_EDGE_EXPANDER_DEVICE) || \
@@ -134,6 +136,8 @@ struct hisi_sas_hw {
 			struct hisi_sas_slot *slot, int is_tmf,
 			struct hisi_sas_tmf_task *tmf);
 	int (*prep_smp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_slot *slot);
+	int (*prep_stp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_slot *slot, int abort);
