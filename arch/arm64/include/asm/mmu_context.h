@@ -127,6 +127,25 @@ static inline void cpu_install_idmap(void)
 }
 
 /*
+ * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
+ * avoiding the possibility of conflicting TLB entries being allocated.
+ */
+static inline void cpu_replace_ttbr1(pgd_t *pgd)
+{
+	typedef void (ttbr_replace_func)(phys_addr_t);
+	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
+	ttbr_replace_func *replace_phys;
+
+	phys_addr_t pgd_phys = virt_to_phys(pgd);
+
+	replace_phys = (void *)virt_to_phys(idmap_cpu_replace_ttbr1);
+
+	cpu_install_idmap();
+	replace_phys(pgd_phys);
+	cpu_uninstall_idmap();
+}
+
+/*
  * It would be nice to return ASIDs back to the allocator, but unfortunately
  * that introduces a race with a generation rollover where we could erroneously
  * free an ASID allocated in a future generation. We could workaround this by
