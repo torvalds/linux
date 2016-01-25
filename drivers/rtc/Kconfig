@@ -1593,7 +1593,7 @@ config RTC_DRV_MOXART
 
 config RTC_DRV_MT6397
 	tristate "Mediatek Real Time Clock driver"
-	depends on MFD_MT6397 || COMPILE_TEST
+	depends on MFD_MT6397 || (COMPILE_TEST && IRQ_DOMAIN)
 	help
 	  This selects the Mediatek(R) RTC driver. RTC is part of Mediatek
 	  MT6397 PMIC. You should enable MT6397 PMIC MFD before select
