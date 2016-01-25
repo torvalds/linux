@@ -26,9 +26,11 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <bcm47xx.h>
-#include <linux/if_ether.h>
+#include <linux/bcm47xx_nvram.h>
+#include <linux/bcma/bcma.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
+#include <linux/ssb/ssb.h>
 
 static void create_key(const char *prefix, const char *postfix,
 		       const char *name, char *buf, int len)
@@ -599,7 +601,7 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 	bcm47xx_sprom_fill_auto(sprom, prefix, fallback);
 }
 
-#if defined(CONFIG_BCM47XX_SSB)
+#if IS_BUILTIN(CONFIG_SSB) && IS_ENABLED(CONFIG_SSB_SPROM)
 static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 {
 	char prefix[10];
@@ -622,7 +624,7 @@ static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 }
 #endif
 
-#if defined(CONFIG_BCM47XX_BCMA)
+#if IS_BUILTIN(CONFIG_BCMA)
 /*
  * Having many NVRAM entries for PCI devices led to repeating prefixes like
  * pci/1/1/ all the time and wasting flash space. So at some point Broadcom
@@ -706,19 +708,30 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 }
 #endif
 
+static unsigned int bcm47xx_sprom_registered;
+
 /*
  * On bcm47xx we need to register SPROM fallback handler very early, so we can't
  * use anything like platform device / driver for this.
  */
-void bcm47xx_sprom_register_fallbacks(void)
+int bcm47xx_sprom_register_fallbacks(void)
 {
-#if defined(CONFIG_BCM47XX_SSB)
+	if (bcm47xx_sprom_registered)
+		return 0;
+
+#if IS_BUILTIN(CONFIG_SSB) && IS_ENABLED(CONFIG_SSB_SPROM)
 	if (ssb_arch_register_fallback_sprom(&bcm47xx_get_sprom_ssb))
 		pr_warn("Failed to register ssb SPROM handler\n");
 #endif
 
-#if defined(CONFIG_BCM47XX_BCMA)
+#if IS_BUILTIN(CONFIG_BCMA)
 	if (bcma_arch_register_fallback_sprom(&bcm47xx_get_sprom_bcma))
 		pr_warn("Failed to register bcma SPROM handler\n");
 #endif
+
+	bcm47xx_sprom_registered = 1;
+
+	return 0;
 }
+
+fs_initcall(bcm47xx_sprom_register_fallbacks);

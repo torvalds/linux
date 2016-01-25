@@ -197,6 +197,7 @@ config BCM47XX
 	select GPIOLIB
 	select LEDS_GPIO_REGISTER
 	select BCM47XX_NVRAM
+	select BCM47XX_SPROM
 	help
 	 Support for BCM47XX based boards
 
