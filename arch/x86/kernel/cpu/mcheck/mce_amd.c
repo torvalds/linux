@@ -267,14 +267,59 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
+static int
+prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
+			int offset, u32 misc_high)
+{
+	unsigned int cpu = smp_processor_id();
+	struct threshold_block b;
+	int new;
+
+	if (!block)
+		per_cpu(bank_map, cpu) |= (1 << bank);
+
+	memset(&b, 0, sizeof(b));
+	b.cpu			= cpu;
+	b.bank			= bank;
+	b.block			= block;
+	b.address		= addr;
+	b.interrupt_capable	= lvt_interrupt_supported(bank, misc_high);
+
+	if (!b.interrupt_capable)
+		goto done;
+
+	b.interrupt_enable = 1;
+
+	if (mce_flags.smca) {
+		u32 smca_low, smca_high;
+
+		/* Gather LVT offset for thresholding: */
+		if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
+			goto out;
+
+		new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
+	} else {
+		new = (misc_high & MASK_LVTOFF_HI) >> 20;
+	}
+
+	offset = setup_APIC_mce_threshold(offset, new);
+
+	if ((offset == new) && (mce_threshold_vector != amd_threshold_interrupt))
+		mce_threshold_vector = amd_threshold_interrupt;
+
+done:
+	mce_threshold_block_init(&b, offset);
+
+out:
+	return offset;
+}
+
 /* cpu init entry point, called from mce.c with preempt off */
 void mce_amd_feature_init(struct cpuinfo_x86 *c)
 {
-	struct threshold_block b;
-	unsigned int cpu = smp_processor_id();
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block;
-	int offset = -1, new;
+	int offset = -1;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
@@ -299,41 +344,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			     (high & MASK_LOCKED_HI))
 				continue;
 
-			if (!block)
-				per_cpu(bank_map, cpu) |= (1 << bank);
-
-			memset(&b, 0, sizeof(b));
-			b.cpu			= cpu;
-			b.bank			= bank;
-			b.block			= block;
-			b.address		= address;
-			b.interrupt_capable	= lvt_interrupt_supported(bank, high);
-
-			if (!b.interrupt_capable)
-				goto init;
-
-			b.interrupt_enable = 1;
-
-			if (mce_flags.smca) {
-				u32 smca_low, smca_high;
-
-				/* Gather LVT offset for thresholding: */
-				if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
-					break;
-
-				new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
-			} else {
-				new = (high & MASK_LVTOFF_HI) >> 20;
-			}
-
-			offset  = setup_APIC_mce_threshold(offset, new);
-
-			if ((offset == new) &&
-			    (mce_threshold_vector != amd_threshold_interrupt))
-				mce_threshold_vector = amd_threshold_interrupt;
-
-init:
-			mce_threshold_block_init(&b, offset);
+			offset = prepare_threshold_block(bank, block, address, offset, high);
 		}
 	}
 
