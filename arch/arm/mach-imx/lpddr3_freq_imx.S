@@ -117,6 +117,11 @@
 	ldr	r7, =0x1
 	str	r7, [r4, #DDRC_PCTRL_0]
 
+	/* enable auto self-refresh */
+	ldr	r7, [r4, #DDRC_PWRCTL]
+	orr	r7, r7, #(1 << 0)
+	str	r7, [r4, #DDRC_PWRCTL]
+
 	.endm
 
 	.macro	switch_to_below_100m

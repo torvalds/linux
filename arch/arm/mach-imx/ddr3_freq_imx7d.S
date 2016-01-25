@@ -228,6 +228,11 @@
 	ldr	r7, =0x0
 	str	r7, [r4, #DDRC_DBG1]
 
+	/* enable auto self-refresh */
+	ldr	r7, [r4, #DDRC_PWRCTL]
+	orr	r7, r7, #(1 << 0)
+	str	r7, [r4, #DDRC_PWRCTL]
+
 	.endm
 
 	.macro	switch_to_533m
@@ -420,6 +425,11 @@
 
 	ldr	r7, =0x0
 	str	r7, [r4, #DDRC_DBG1]
+
+	/* enable auto self-refresh */
+	ldr	r7, [r4, #DDRC_PWRCTL]
+	orr	r7, r7, #(1 << 0)
+	str	r7, [r4, #DDRC_PWRCTL]
 
 	.endm
 
