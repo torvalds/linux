@@ -306,6 +306,17 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 				printk(KERN_INFO "\t\tunknown persistent item\n");
 			}
 			break;
+		case BTRFS_TEMPORARY_ITEM_KEY:
+			printk(KERN_INFO "\t\ttemporary item objectid %llu offset %llu\n",
+					key.objectid, key.offset);
+			switch (key.objectid) {
+			case BTRFS_BALANCE_OBJECTID:
+				printk(KERN_INFO "\t\tbalance status\n");
+				break;
+			default:
+				printk(KERN_INFO "\t\tunknown temporary item\n");
+			}
+			break;
 		case BTRFS_DEV_REPLACE_KEY:
 			printk(KERN_INFO "\t\tdev replace\n");
 			break;
