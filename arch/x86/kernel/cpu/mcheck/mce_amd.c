@@ -84,6 +84,13 @@ struct thresh_restart {
 
 static inline bool is_shared_bank(int bank)
 {
+	/*
+	 * Scalable MCA provides for only one core to have access to the MSRs of
+	 * a shared bank.
+	 */
+	if (mce_flags.smca)
+		return false;
+
 	/* Bank 4 is for northbridge reporting and is thus shared */
 	return (bank == 4);
 }
