@@ -16140,24 +16140,3 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  VSYNC: %08x\n", error->transcoder[i].vsync);
 	}
 }
-
-void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(dev, crtc) {
-		struct intel_unpin_work *work;
-
-		spin_lock_irq(&dev->event_lock);
-
-		work = crtc->unpin_work;
-
-		if (work && work->event &&
-		    work->event->base.file_priv == file) {
-			kfree(work->event);
-			work->event = NULL;
-		}
-
-		spin_unlock_irq(&dev->event_lock);
-	}
-}
