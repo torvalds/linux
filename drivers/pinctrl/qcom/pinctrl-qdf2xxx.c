@@ -32,6 +32,9 @@
 
 static struct msm_pinctrl_soc_data qdf2xxx_pinctrl;
 
+/* A reasonable limit to the number of GPIOS */
+#define MAX_GPIOS	256
+
 static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pinctrl_pin_desc *pins;
@@ -42,11 +45,13 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 
 	/* Query the number of GPIOs from ACPI */
 	ret = device_property_read_u32(&pdev->dev, "num-gpios", &num_gpios);
-	if (ret < 0)
-		return ret;
-
-	if (!num_gpios) {
+	if (ret < 0) {
 		dev_warn(&pdev->dev, "missing num-gpios property\n");
+		return ret;
+	}
+
+	if (!num_gpios || num_gpios > MAX_GPIOS) {
+		dev_warn(&pdev->dev, "invalid num-gpios property\n");
 		return -ENODEV;
 	}
 
@@ -54,6 +59,9 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 		sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
 	groups = devm_kcalloc(&pdev->dev, num_gpios,
 		sizeof(struct msm_pingroup), GFP_KERNEL);
+
+	if (!pins || !groups)
+		return -ENOMEM;
 
 	for (i = 0; i < num_gpios; i++) {
 		pins[i].number = i;

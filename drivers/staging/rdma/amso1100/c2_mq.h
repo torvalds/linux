@@ -93,14 +93,14 @@ static __inline__ int c2_mq_full(struct c2_mq *q)
 	return q->priv == (be16_to_cpu(*q->shared) + q->q_size - 1) % q->q_size;
 }
 
-extern void c2_mq_lconsume(struct c2_mq *q, u32 wqe_count);
-extern void *c2_mq_alloc(struct c2_mq *q);
-extern void c2_mq_produce(struct c2_mq *q);
-extern void *c2_mq_consume(struct c2_mq *q);
-extern void c2_mq_free(struct c2_mq *q);
-extern void c2_mq_req_init(struct c2_mq *q, u32 index, u32 q_size, u32 msg_size,
+void c2_mq_lconsume(struct c2_mq *q, u32 wqe_count);
+void *c2_mq_alloc(struct c2_mq *q);
+void c2_mq_produce(struct c2_mq *q);
+void *c2_mq_consume(struct c2_mq *q);
+void c2_mq_free(struct c2_mq *q);
+void c2_mq_req_init(struct c2_mq *q, u32 index, u32 q_size, u32 msg_size,
 		       u8 __iomem *pool_start, u16 __iomem *peer, u32 type);
-extern void c2_mq_rep_init(struct c2_mq *q, u32 index, u32 q_size, u32 msg_size,
+void c2_mq_rep_init(struct c2_mq *q, u32 index, u32 q_size, u32 msg_size,
 			   u8 *pool_start, u16 __iomem *peer, u32 type);
 
 #endif				/* _C2_MQ_H_ */

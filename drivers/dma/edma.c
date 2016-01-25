@@ -484,7 +484,7 @@ static void edma_read_slot(struct edma_cc *ecc, unsigned slot,
  */
 static int edma_alloc_slot(struct edma_cc *ecc, int slot)
 {
-	if (slot > 0) {
+	if (slot >= 0) {
 		slot = EDMA_CHAN_SLOT(slot);
 		/* Requesting entry paRAM slot for a HW triggered channel. */
 		if (ecc->chmap_exist && slot < ecc->num_channels)
@@ -2314,6 +2314,10 @@ static int edma_probe(struct platform_device *pdev)
 		edma_set_chmap(&ecc->slave_chans[i], ecc->dummy_slot);
 	}
 
+	ecc->dma_slave.filter.map = info->slave_map;
+	ecc->dma_slave.filter.mapcnt = info->slavecnt;
+	ecc->dma_slave.filter.fn = edma_filter_fn;
+
 	ret = dma_async_device_register(&ecc->dma_slave);
 	if (ret) {
 		dev_err(dev, "slave ddev registration failed (%d)\n", ret);
@@ -2421,7 +2425,13 @@ static struct platform_driver edma_driver = {
 	},
 };
 
+static int edma_tptc_probe(struct platform_device *pdev)
+{
+	return 0;
+}
+
 static struct platform_driver edma_tptc_driver = {
+	.probe		= edma_tptc_probe,
 	.driver = {
 		.name	= "edma3-tptc",
 		.of_match_table = edma_tptc_of_ids,

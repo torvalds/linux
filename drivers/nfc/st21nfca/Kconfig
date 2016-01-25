@@ -1,20 +1,15 @@
 config NFC_ST21NFCA
-	tristate "STMicroelectronics ST21NFCA NFC driver"
-	depends on NFC_HCI
+	tristate
 	select CRC_CCITT
-	default n
 	---help---
 	  STMicroelectronics ST21NFCA core driver. It implements the chipset
 	  HCI logic and hooks into the NFC kernel APIs. Physical layers will
 	  register against it.
 
-	  To compile this driver as a module, choose m here. The module will
-	  be called st21nfca.
-	  Say N if unsure.
-
 config NFC_ST21NFCA_I2C
-	tristate "NFC ST21NFCA i2c support"
-	depends on NFC_ST21NFCA && I2C && NFC_SHDLC
+	tristate "STMicroelectronics ST21NFCA NFC driver (I2C)"
+	depends on NFC_HCI && I2C && NFC_SHDLC
+	select NFC_ST21NFCA
 	---help---
 	  This module adds support for the STMicroelectronics st21nfca i2c interface.
 	  Select this if your platform is using the i2c bus.

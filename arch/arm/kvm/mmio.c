@@ -210,8 +210,11 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	if (!ret) {
 		/* We handled the access successfully in the kernel. */
+		vcpu->stat.mmio_exit_kernel++;
 		kvm_handle_mmio_return(vcpu, run);
 		return 1;
+	} else {
+		vcpu->stat.mmio_exit_user++;
 	}
 
 	run->exit_reason	= KVM_EXIT_MMIO;

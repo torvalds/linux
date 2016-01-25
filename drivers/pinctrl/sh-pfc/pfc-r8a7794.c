@@ -15,25 +15,6 @@
 #include "core.h"
 #include "sh_pfc.h"
 
-#define PORT_GP_26(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
-	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
-	PORT_GP_1(bank, 4,  fn, sfx), PORT_GP_1(bank, 5,  fn, sfx),	\
-	PORT_GP_1(bank, 6,  fn, sfx), PORT_GP_1(bank, 7,  fn, sfx),	\
-	PORT_GP_1(bank, 8,  fn, sfx), PORT_GP_1(bank, 9,  fn, sfx),	\
-	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx),	\
-	PORT_GP_1(bank, 12, fn, sfx), PORT_GP_1(bank, 13, fn, sfx),	\
-	PORT_GP_1(bank, 14, fn, sfx), PORT_GP_1(bank, 15, fn, sfx),	\
-	PORT_GP_1(bank, 16, fn, sfx), PORT_GP_1(bank, 17, fn, sfx),	\
-	PORT_GP_1(bank, 18, fn, sfx), PORT_GP_1(bank, 19, fn, sfx),	\
-	PORT_GP_1(bank, 20, fn, sfx), PORT_GP_1(bank, 21, fn, sfx),	\
-	PORT_GP_1(bank, 22, fn, sfx), PORT_GP_1(bank, 23, fn, sfx),	\
-	PORT_GP_1(bank, 24, fn, sfx), PORT_GP_1(bank, 25, fn, sfx)
-
-#define PORT_GP_28(bank, fn, sfx)					\
-	PORT_GP_26(bank, fn, sfx),					\
-	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx)
-
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_32(0, fn, sfx),						\
 	PORT_GP_26(1, fn, sfx),						\
@@ -618,28 +599,28 @@ enum {
 static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
-	PINMUX_DATA(A2_MARK, FN_A2),
-	PINMUX_DATA(WE0_N_MARK, FN_WE0_N),
-	PINMUX_DATA(WE1_N_MARK, FN_WE1_N),
-	PINMUX_DATA(DACK0_MARK, FN_DACK0),
-	PINMUX_DATA(USB0_PWEN_MARK, FN_USB0_PWEN),
-	PINMUX_DATA(USB0_OVC_MARK, FN_USB0_OVC),
-	PINMUX_DATA(USB1_PWEN_MARK, FN_USB1_PWEN),
-	PINMUX_DATA(USB1_OVC_MARK, FN_USB1_OVC),
-	PINMUX_DATA(SD0_CLK_MARK, FN_SD0_CLK),
-	PINMUX_DATA(SD0_CMD_MARK, FN_SD0_CMD),
-	PINMUX_DATA(SD0_DATA0_MARK, FN_SD0_DATA0),
-	PINMUX_DATA(SD0_DATA1_MARK, FN_SD0_DATA1),
-	PINMUX_DATA(SD0_DATA2_MARK, FN_SD0_DATA2),
-	PINMUX_DATA(SD0_DATA3_MARK, FN_SD0_DATA3),
-	PINMUX_DATA(SD0_CD_MARK, FN_SD0_CD),
-	PINMUX_DATA(SD0_WP_MARK, FN_SD0_WP),
-	PINMUX_DATA(SD1_CLK_MARK, FN_SD1_CLK),
-	PINMUX_DATA(SD1_CMD_MARK, FN_SD1_CMD),
-	PINMUX_DATA(SD1_DATA0_MARK, FN_SD1_DATA0),
-	PINMUX_DATA(SD1_DATA1_MARK, FN_SD1_DATA1),
-	PINMUX_DATA(SD1_DATA2_MARK, FN_SD1_DATA2),
-	PINMUX_DATA(SD1_DATA3_MARK, FN_SD1_DATA3),
+	PINMUX_SINGLE(A2),
+	PINMUX_SINGLE(WE0_N),
+	PINMUX_SINGLE(WE1_N),
+	PINMUX_SINGLE(DACK0),
+	PINMUX_SINGLE(USB0_PWEN),
+	PINMUX_SINGLE(USB0_OVC),
+	PINMUX_SINGLE(USB1_PWEN),
+	PINMUX_SINGLE(USB1_OVC),
+	PINMUX_SINGLE(SD0_CLK),
+	PINMUX_SINGLE(SD0_CMD),
+	PINMUX_SINGLE(SD0_DATA0),
+	PINMUX_SINGLE(SD0_DATA1),
+	PINMUX_SINGLE(SD0_DATA2),
+	PINMUX_SINGLE(SD0_DATA3),
+	PINMUX_SINGLE(SD0_CD),
+	PINMUX_SINGLE(SD0_WP),
+	PINMUX_SINGLE(SD1_CLK),
+	PINMUX_SINGLE(SD1_CMD),
+	PINMUX_SINGLE(SD1_DATA0),
+	PINMUX_SINGLE(SD1_DATA1),
+	PINMUX_SINGLE(SD1_DATA2),
+	PINMUX_SINGLE(SD1_DATA3),
 
 	/* IPSR0 */
 	PINMUX_IPSR_DATA(IP0_0, SD1_CD),
@@ -2644,6 +2625,21 @@ static const unsigned int scifb2_ctrl_pins[] = {
 static const unsigned int scifb2_ctrl_mux[] = {
 	SCIFB2_RTS_N_MARK, SCIFB2_CTS_N_MARK,
 };
+/* - SCIF Clock ------------------------------------------------------------- */
+static const unsigned int scif_clk_pins[] = {
+	/* SCIF_CLK */
+	RCAR_GP_PIN(1, 23),
+};
+static const unsigned int scif_clk_mux[] = {
+	SCIF_CLK_MARK,
+};
+static const unsigned int scif_clk_b_pins[] = {
+	/* SCIF_CLK */
+	RCAR_GP_PIN(3, 29),
+};
+static const unsigned int scif_clk_b_mux[] = {
+	SCIF_CLK_B_MARK,
+};
 /* - SDHI0 ------------------------------------------------------------------ */
 static const unsigned int sdhi0_data1_pins[] = {
 	/* D0 */
@@ -3071,6 +3067,8 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scifb2_data),
 	SH_PFC_PIN_GROUP(scifb2_clk),
 	SH_PFC_PIN_GROUP(scifb2_ctrl),
+	SH_PFC_PIN_GROUP(scif_clk),
+	SH_PFC_PIN_GROUP(scif_clk_b),
 	SH_PFC_PIN_GROUP(sdhi0_data1),
 	SH_PFC_PIN_GROUP(sdhi0_data4),
 	SH_PFC_PIN_GROUP(sdhi0_ctrl),
@@ -3354,6 +3352,11 @@ static const char * const scifb2_groups[] = {
 	"scifb2_ctrl",
 };
 
+static const char * const scif_clk_groups[] = {
+	"scif_clk",
+	"scif_clk_b",
+};
+
 static const char * const sdhi0_groups[] = {
 	"sdhi0_data1",
 	"sdhi0_data4",
@@ -3441,6 +3444,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(scifb0),
 	SH_PFC_FUNCTION(scifb1),
 	SH_PFC_FUNCTION(scifb2),
+	SH_PFC_FUNCTION(scif_clk),
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
 	SH_PFC_FUNCTION(sdhi2),

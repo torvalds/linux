@@ -947,8 +947,6 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr);
 int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr);
-int c4iw_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
-		 struct ib_mw_bind *mw_bind);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
 int c4iw_destroy_listen(struct iw_cm_id *cm_id);
@@ -968,17 +966,6 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
-struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
-					struct ib_phys_buf *buffer_list,
-					int num_phys_buf,
-					int acc,
-					u64 *iova_start);
-int c4iw_reregister_phys_mem(struct ib_mr *mr,
-				     int mr_rereg_mask,
-				     struct ib_pd *pd,
-				     struct ib_phys_buf *buffer_list,
-				     int num_phys_buf,
-				     int acc, u64 *iova_start);
 int c4iw_dereg_mr(struct ib_mr *ib_mr);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,

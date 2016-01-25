@@ -55,7 +55,7 @@ gk20a_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gk104_grctx_generate_rop_active_fbps(gr);
 
-	nvkm_mask(device, 0x5044b0, 0x8000000, 0x8000000);
+	nvkm_mask(device, 0x5044b0, 0x08000000, 0x08000000);
 
 	gf100_gr_wait_idle(gr);
 

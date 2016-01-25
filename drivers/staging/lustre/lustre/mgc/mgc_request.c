@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -463,7 +463,7 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 	}
 	spin_unlock(&config_list_lock);
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 
@@ -1293,7 +1293,7 @@ static int mgc_process_recover_log(struct obd_device *obd,
 	struct page **pages;
 	int nrpages;
 	bool eof = true;
-	bool mne_swab = false;
+	bool mne_swab;
 	int i;
 	int ealen;
 	int rc;
@@ -1698,20 +1698,20 @@ out:
 }
 
 static struct obd_ops mgc_obd_ops = {
-	.o_owner	= THIS_MODULE,
-	.o_setup	= mgc_setup,
-	.o_precleanup   = mgc_precleanup,
-	.o_cleanup      = mgc_cleanup,
-	.o_add_conn     = client_import_add_conn,
-	.o_del_conn     = client_import_del_conn,
-	.o_connect      = client_connect_import,
-	.o_disconnect   = client_disconnect_export,
-	/* .o_enqueue      = mgc_enqueue, */
-	/* .o_iocontrol    = mgc_iocontrol, */
-	.o_set_info_async = mgc_set_info_async,
-	.o_get_info       = mgc_get_info,
-	.o_import_event = mgc_import_event,
-	.o_process_config = mgc_process_config,
+	.owner          = THIS_MODULE,
+	.setup          = mgc_setup,
+	.precleanup     = mgc_precleanup,
+	.cleanup        = mgc_cleanup,
+	.add_conn       = client_import_add_conn,
+	.del_conn       = client_import_del_conn,
+	.connect        = client_connect_import,
+	.disconnect     = client_disconnect_export,
+	/* .enqueue     = mgc_enqueue, */
+	/* .iocontrol   = mgc_iocontrol, */
+	.set_info_async = mgc_set_info_async,
+	.get_info       = mgc_get_info,
+	.import_event   = mgc_import_event,
+	.process_config = mgc_process_config,
 };
 
 static int __init mgc_init(void)
@@ -1725,7 +1725,7 @@ static void /*__exit*/ mgc_exit(void)
 	class_unregister_type(LUSTRE_MGC_NAME);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Management Client");
 MODULE_LICENSE("GPL");
 

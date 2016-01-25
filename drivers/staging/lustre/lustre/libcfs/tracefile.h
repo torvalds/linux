@@ -39,7 +39,12 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include "linux/linux-tracefile.h"
+typedef enum {
+	CFS_TCD_TYPE_PROC = 0,
+	CFS_TCD_TYPE_SOFTIRQ,
+	CFS_TCD_TYPE_IRQ,
+	CFS_TCD_TYPE_MAX
+} cfs_trace_buf_type_t;
 
 /* trace file lock routines */
 
@@ -70,7 +75,6 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 			     const char *knl_str, char *append);
 int cfs_trace_allocate_string_buffer(char **str, int nob);
-void cfs_trace_free_string_buffer(char *str, int nob);
 int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob);
 int cfs_trace_daemon_command(char *str);
 int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob);
@@ -196,14 +200,6 @@ extern union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS];
 struct page_collection {
 	struct list_head	pc_pages;
 	/*
-	 * spin-lock protecting ->pc_pages. It is taken by smp_call_function()
-	 * call-back functions. XXX nikita: Which is horrible: all processors
-	 * receive NMI at the same time only to be serialized by this
-	 * lock. Probably ->pc_pages should be replaced with an array of
-	 * NR_CPUS elements accessed locklessly.
-	 */
-	spinlock_t	pc_lock;
-	/*
 	 * if this flag is set, collect_pages() will spill both
 	 * ->tcd_daemon_pages and ->tcd_pages to the ->pc_pages. Otherwise,
 	 * only ->tcd_pages are spilled.
@@ -260,13 +256,6 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking);
 void cfs_trace_unlock_tcd(struct cfs_trace_cpu_data *tcd, int walking);
 
-/**
- * trace_buf_type_t, trace_buf_idx_get() and trace_console_buffers[][]
- * are not public libcfs API; they should be defined in
- * platform-specific tracefile include files
- * (see, for example, linux-tracefile.h).
- */
-
 extern char *cfs_trace_console_buffers[NR_CPUS][CFS_TCD_TYPE_MAX];
 cfs_trace_buf_type_t cfs_trace_buf_idx_get(void);
 
@@ -277,12 +266,6 @@ cfs_trace_get_console_buffer(void)
 	unsigned int j = cfs_trace_buf_idx_get();
 
 	return cfs_trace_console_buffers[i][j];
-}
-
-static inline void
-cfs_trace_put_console_buffer(char *buffer)
-{
-	put_cpu();
 }
 
 static inline struct cfs_trace_cpu_data *

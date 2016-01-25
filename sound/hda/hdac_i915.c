@@ -118,6 +118,72 @@ int snd_hdac_get_display_clk(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_get_display_clk);
 
+/* There is a fixed mapping between audio pin node and display port
+ * on current Intel platforms:
+ * Pin Widget 5 - PORT B (port = 1 in i915 driver)
+ * Pin Widget 6 - PORT C (port = 2 in i915 driver)
+ * Pin Widget 7 - PORT D (port = 3 in i915 driver)
+ */
+static int pin2port(hda_nid_t pin_nid)
+{
+	return pin_nid - 4;
+}
+
+/**
+ * snd_hdac_sync_audio_rate - Set N/CTS based on the sample rate
+ * @bus: HDA core bus
+ * @nid: the pin widget NID
+ * @rate: the sample rate to set
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function sets N/CTS value based on the given sample rate.
+ * Returns zero for success, or a negative error code.
+ */
+int snd_hdac_sync_audio_rate(struct hdac_bus *bus, hda_nid_t nid, int rate)
+{
+	struct i915_audio_component *acomp = bus->audio_component;
+
+	if (!acomp || !acomp->ops || !acomp->ops->sync_audio_rate)
+		return -ENODEV;
+	return acomp->ops->sync_audio_rate(acomp->dev, pin2port(nid), rate);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_sync_audio_rate);
+
+/**
+ * snd_hdac_acomp_get_eld - Get the audio state and ELD via component
+ * @bus: HDA core bus
+ * @nid: the pin widget NID
+ * @audio_enabled: the pointer to store the current audio state
+ * @buffer: the buffer pointer to store ELD bytes
+ * @max_bytes: the max bytes to be stored on @buffer
+ *
+ * This function is supposed to be used only by a HD-audio controller
+ * driver that needs the interaction with i915 graphics.
+ *
+ * This function queries the current state of the audio on the given
+ * digital port and fetches the ELD bytes onto the given buffer.
+ * It returns the number of bytes for the total ELD data, zero for
+ * invalid ELD, or a negative error code.
+ *
+ * The return size is the total bytes required for the whole ELD bytes,
+ * thus it may be over @max_bytes.  If it's over @max_bytes, it implies
+ * that only a part of ELD bytes have been fetched.
+ */
+int snd_hdac_acomp_get_eld(struct hdac_bus *bus, hda_nid_t nid,
+			   bool *audio_enabled, char *buffer, int max_bytes)
+{
+	struct i915_audio_component *acomp = bus->audio_component;
+
+	if (!acomp || !acomp->ops || !acomp->ops->get_eld)
+		return -ENODEV;
+
+	return acomp->ops->get_eld(acomp->dev, pin2port(nid), audio_enabled,
+				   buffer, max_bytes);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_acomp_get_eld);
+
 static int hdac_component_master_bind(struct device *dev)
 {
 	struct i915_audio_component *acomp = hdac_acomp;
@@ -240,7 +306,7 @@ out_master_del:
 out_err:
 	kfree(acomp);
 	bus->audio_component = NULL;
-	dev_err(dev, "failed to add i915 component master (%d)\n", ret);
+	dev_info(dev, "failed to add i915 component master (%d)\n", ret);
 
 	return ret;
 }

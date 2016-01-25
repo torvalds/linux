@@ -19,6 +19,10 @@ extern unsigned long min_low_pfn;
  * highest page
  */
 extern unsigned long max_pfn;
+/*
+ * highest possible page
+ */
+extern unsigned long long max_possible_pfn;
 
 #ifndef CONFIG_NO_BOOTMEM
 /*

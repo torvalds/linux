@@ -67,22 +67,6 @@ omap_postcore_initcall(omap3_l3_init);
 
 static inline void omap_init_sti(void) {}
 
-#if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
-
-static struct platform_device omap_pcm = {
-	.name	= "omap-pcm-audio",
-	.id	= -1,
-};
-
-static void omap_init_audio(void)
-{
-	platform_device_register(&omap_pcm);
-}
-
-#else
-static inline void omap_init_audio(void) {}
-#endif
-
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
@@ -212,13 +196,12 @@ static int __init omap2_init_devices(void)
 	if (!of_have_populated_dt())
 		pinctrl_provide_dummies();
 
-	/*
-	 * please keep these calls, and their implementations above,
-	 * in alphabetical order so they're easier to sort through.
-	 */
-	omap_init_audio();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
+		/*
+		 * please keep these calls, and their implementations above,
+		 * in alphabetical order so they're easier to sort through.
+		 */
 		omap_init_mcspi();
 		omap_init_sham();
 		omap_init_aes();

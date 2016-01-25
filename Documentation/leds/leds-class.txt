@@ -52,6 +52,19 @@ above leaves scope for further attributes should they be needed. If sections
 of the name don't apply, just leave that section blank.
 
 
+Brightness setting API
+======================
+
+LED subsystem core exposes following API for setting brightness:
+
+    - led_set_brightness : it is guaranteed not to sleep, passing LED_OFF stops
+		blinking,
+    - led_set_brightness_sync : for use cases when immediate effect is desired -
+		it can block the caller for the time required for accessing
+		device registers and can sleep, passing LED_OFF stops hardware
+		blinking, returns -EBUSY if software blink fallback is enabled.
+
+
 Hardware accelerated blink of LEDs
 ==================================
 

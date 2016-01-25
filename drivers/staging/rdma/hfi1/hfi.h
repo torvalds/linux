@@ -100,6 +100,26 @@ extern unsigned long hfi1_cap_mask;
 			HFI1_CAP_MISC_MASK)
 
 /*
+ * Control context is always 0 and handles the error packets.
+ * It also handles the VL15 and multicast packets.
+ */
+#define HFI1_CTRL_CTXT    0
+
+/*
+ * Driver context will store software counters for each of the events
+ * associated with these status registers
+ */
+#define NUM_CCE_ERR_STATUS_COUNTERS 41
+#define NUM_RCV_ERR_STATUS_COUNTERS 64
+#define NUM_MISC_ERR_STATUS_COUNTERS 13
+#define NUM_SEND_PIO_ERR_STATUS_COUNTERS 36
+#define NUM_SEND_DMA_ERR_STATUS_COUNTERS 4
+#define NUM_SEND_EGRESS_ERR_STATUS_COUNTERS 64
+#define NUM_SEND_ERR_STATUS_COUNTERS 3
+#define NUM_SEND_CTXT_ERR_STATUS_COUNTERS 5
+#define NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS 24
+
+/*
  * per driver stats, either not device nor port-specific, or
  * summed over all of the devices and ports.
  * They are described by name via ipathfs filesystem, so layout
@@ -138,15 +158,6 @@ extern const struct pci_error_handlers hfi1_pci_err_handler;
 #ifdef CONFIG_DEBUG_FS
 struct hfi1_opcode_stats_perctx;
 #endif
-
-/*
- * struct ps_state keeps state associated with RX queue "prescanning"
- * (prescanning for FECNs, and BECNs), if prescanning is in use.
- */
-struct ps_state {
-	u32 ps_head;
-	int initialized;
-};
 
 struct ctxt_eager_bufs {
 	ssize_t size;            /* total size of eager buffers */
@@ -243,7 +254,7 @@ struct hfi1_ctxtdata {
 	/* chip offset of PIO buffers for this ctxt */
 	u32 piobufs;
 	/* per-context configuration flags */
-	u16 flags;
+	u32 flags;
 	/* per-context event flags for fileops/intr communication */
 	unsigned long event_flags;
 	/* WAIT_RCV that timed out, no interrupt */
@@ -301,10 +312,6 @@ struct hfi1_ctxtdata {
 	struct task_struct *progress;
 	struct list_head sdma_queues;
 	spinlock_t sdma_qlock;
-
-#ifdef CONFIG_PRESCAN_RXQ
-	struct ps_state ps_state;
-#endif /* CONFIG_PRESCAN_RXQ */
 
 	/*
 	 * The interrupt handler for a particular receive context can vary
@@ -706,6 +713,8 @@ struct hfi1_pportdata {
 	u64 link_downed;
 	/* number of times link retrained successfully */
 	u64 link_up;
+	/* number of times a link unknown frame was reported */
+	u64 unknown_frame_count;
 	/* port_ltp_crc_mode is returned in 'portinfo' MADs */
 	u16 port_ltp_crc_mode;
 	/* port_crc_mode_enabled is the crc we support */
@@ -1053,6 +1062,26 @@ struct hfi1_devdata {
 	atomic_t drop_packet;
 	u8 do_drop;
 
+	/*
+	 * Software counters for the status bits defined by the
+	 * associated error status registers
+	 */
+	u64 cce_err_status_cnt[NUM_CCE_ERR_STATUS_COUNTERS];
+	u64 rcv_err_status_cnt[NUM_RCV_ERR_STATUS_COUNTERS];
+	u64 misc_err_status_cnt[NUM_MISC_ERR_STATUS_COUNTERS];
+	u64 send_pio_err_status_cnt[NUM_SEND_PIO_ERR_STATUS_COUNTERS];
+	u64 send_dma_err_status_cnt[NUM_SEND_DMA_ERR_STATUS_COUNTERS];
+	u64 send_egress_err_status_cnt[NUM_SEND_EGRESS_ERR_STATUS_COUNTERS];
+	u64 send_err_status_cnt[NUM_SEND_ERR_STATUS_COUNTERS];
+
+	/* Software counter that spans all contexts */
+	u64 sw_ctxt_err_status_cnt[NUM_SEND_CTXT_ERR_STATUS_COUNTERS];
+	/* Software counter that spans all DMA engines */
+	u64 sw_send_dma_eng_err_status_cnt[
+		NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS];
+	/* Software counter that aggregates all cce_err_status errors */
+	u64 sw_cce_err_status_aggregate;
+
 	/* receive interrupt functions */
 	rhf_rcv_function_ptr *rhf_rcv_function_map;
 	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];
@@ -1061,12 +1090,10 @@ struct hfi1_devdata {
 	 * Handlers for outgoing data so that snoop/capture does not
 	 * have to have its hooks in the send path
 	 */
-	int (*process_pio_send)(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
-				u32 hdrwords, struct hfi1_sge_state *ss,
-				u32 len, u32 plen, u32 dwords, u64 pbc);
-	int (*process_dma_send)(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
-				u32 hdrwords, struct hfi1_sge_state *ss,
-				u32 len, u32 plen, u32 dwords, u64 pbc);
+	int (*process_pio_send)(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+				u64 pbc);
+	int (*process_dma_send)(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+				u64 pbc);
 	void (*pio_inline_send)(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 				u64 pbc, const void *from, size_t count);
 
@@ -1084,6 +1111,10 @@ struct hfi1_devdata {
 	/* Save the enabled LCB error bits */
 	u64 lcb_err_en;
 	u8 dc_shutdown;
+
+	/* receive context tail dummy address */
+	__le64 *rcvhdrtail_dummy_kvaddr;
+	dma_addr_t rcvhdrtail_dummy_physaddr;
 };
 
 /* 8051 firmware version helper */
@@ -1414,26 +1445,12 @@ void reset_link_credits(struct hfi1_devdata *dd);
 void assign_remote_cm_au_table(struct hfi1_devdata *dd, u8 vcu);
 
 int snoop_recv_handler(struct hfi1_packet *packet);
-int snoop_send_dma_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
-			   u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			   u32 plen, u32 dwords, u64 pbc);
-int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
-			   u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			   u32 plen, u32 dwords, u64 pbc);
+int snoop_send_dma_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			   u64 pbc);
+int snoop_send_pio_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			   u64 pbc);
 void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 			   u64 pbc, const void *from, size_t count);
-
-/* for use in system calls, where we want to know device type, etc. */
-#define ctxt_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->uctxt)
-#define subctxt_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->subctxt)
-#define tidcursor_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->tidcursor)
-#define user_sdma_pkt_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->pq)
-#define user_sdma_comp_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->cq)
 
 static inline struct hfi1_devdata *dd_from_ppd(struct hfi1_pportdata *ppd)
 {
@@ -1570,8 +1587,8 @@ void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val);
  */
 #define DEFAULT_RCVHDR_ENTSIZE 32
 
-int hfi1_get_user_pages(unsigned long, size_t, struct page **);
-void hfi1_release_user_pages(struct page **, size_t);
+int hfi1_acquire_user_pages(unsigned long, size_t, bool, struct page **);
+void hfi1_release_user_pages(struct page **, size_t, bool);
 
 static inline void clear_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 {
@@ -1612,7 +1629,6 @@ void hfi1_pcie_flr(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *);
 void request_msix(struct hfi1_devdata *, u32 *, struct hfi1_msix_entry *);
 void hfi1_enable_intx(struct pci_dev *);
-void hfi1_nomsix(struct hfi1_devdata *);
 void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
@@ -1649,7 +1665,7 @@ void update_sge(struct hfi1_sge_state *ss, u32 length);
 extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
 extern unsigned int user_credit_return_threshold;
-extern uint num_rcv_contexts;
+extern int num_user_contexts;
 extern unsigned n_krcvqs;
 extern u8 krcvqs[];
 extern int krcvqsset;
@@ -1713,7 +1729,7 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	else
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
-	if (is_a0(dd))
+	if (is_ax(dd))
 		/* turn off send-side job key checks - A0 erratum */
 		return base_sc_integrity &
 		       ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
@@ -1740,7 +1756,7 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
-	if (is_a0(dd))
+	if (is_ax(dd))
 		/* turn off send-side job key checks - A0 erratum */
 		return base_sdma_integrity &
 		       ~SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;

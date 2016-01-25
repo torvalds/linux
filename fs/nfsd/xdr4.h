@@ -491,6 +491,15 @@ struct nfsd4_fallocate {
 	u64		falloc_length;
 };
 
+struct nfsd4_clone {
+	/* request */
+	stateid_t	cl_src_stateid;
+	stateid_t	cl_dst_stateid;
+	u64		cl_src_pos;
+	u64		cl_dst_pos;
+	u64		cl_count;
+};
+
 struct nfsd4_seek {
 	/* request */
 	stateid_t	seek_stateid;
@@ -555,6 +564,7 @@ struct nfsd4_op {
 		/* NFSv4.2 */
 		struct nfsd4_fallocate		allocate;
 		struct nfsd4_fallocate		deallocate;
+		struct nfsd4_clone		clone;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;

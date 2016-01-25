@@ -37,11 +37,6 @@
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
 
-static u32 __adler32(u32 cksum, unsigned char const *p, size_t len)
-{
-	return zlib_adler32(cksum, p, len);
-}
-
 static int adler32_cra_init(struct crypto_tfm *tfm)
 {
 	u32 *key = crypto_tfm_ctx(tfm);
@@ -79,14 +74,14 @@ static int adler32_update(struct shash_desc *desc, const u8 *data,
 {
 	u32 *cksump = shash_desc_ctx(desc);
 
-	*cksump = __adler32(*cksump, data, len);
+	*cksump = zlib_adler32(*cksump, data, len);
 	return 0;
 }
 
 static int __adler32_finup(u32 *cksump, const u8 *data, unsigned int len,
 			   u8 *out)
 {
-	*(u32 *)out = __adler32(*cksump, data, len);
+	*(u32 *)out = zlib_adler32(*cksump, data, len);
 	return 0;
 }
 

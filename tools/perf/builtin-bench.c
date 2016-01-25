@@ -16,7 +16,7 @@
  */
 #include "perf.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "builtin.h"
 #include "bench/bench.h"
 

@@ -24,7 +24,7 @@ and also the generic series names
 - #interrupt-cells : should be set to 2 for IRQ number and flags
   The first cell is the IRQ number.
   The second cell is the flags, encoded as the trigger masks from
-  Documentation/devicetree/bindings/interrupts.txt
+  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - interrupt-parent : The parent interrupt controller.
 
 Optional properties:

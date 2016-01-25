@@ -570,13 +570,13 @@ static int hfs_file_release(struct inode *inode, struct file *file)
 	if (HFS_IS_RSRC(inode))
 		inode = HFS_I(inode)->rsrc_inode;
 	if (atomic_dec_and_test(&HFS_I(inode)->opencnt)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		hfs_file_truncate(inode);
 		//if (inode->i_flags & S_DEAD) {
 		//	hfs_delete_cat(inode->i_ino, HFSPLUS_SB(sb).hidden_dir, NULL);
 		//	hfs_delete_inode(inode);
 		//}
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	return 0;
 }
@@ -656,7 +656,7 @@ static int hfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (ret)
 		return ret;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/* sync the inode to buffers */
 	ret = write_inode_now(inode, 0);
@@ -668,7 +668,7 @@ static int hfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	err = sync_blockdev(sb->s_bdev);
 	if (!ret)
 		ret = err;
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }
 

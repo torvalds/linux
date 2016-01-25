@@ -226,6 +226,8 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
 
+	mutex_init(&priv->event_read_lock);
+
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_open(dev, priv);
 
@@ -511,14 +513,28 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	ssize_t ret = 0;
+	ssize_t ret;
 
 	if (!access_ok(VERIFY_WRITE, buffer, count))
 		return -EFAULT;
 
-	spin_lock_irq(&dev->event_lock);
+	ret = mutex_lock_interruptible(&file_priv->event_read_lock);
+	if (ret)
+		return ret;
+
 	for (;;) {
-		if (list_empty(&file_priv->event_list)) {
+		struct drm_pending_event *e = NULL;
+
+		spin_lock_irq(&dev->event_lock);
+		if (!list_empty(&file_priv->event_list)) {
+			e = list_first_entry(&file_priv->event_list,
+					struct drm_pending_event, link);
+			file_priv->event_space += e->event->length;
+			list_del(&e->link);
+		}
+		spin_unlock_irq(&dev->event_lock);
+
+		if (e == NULL) {
 			if (ret)
 				break;
 
@@ -527,36 +543,36 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 				break;
 			}
 
-			spin_unlock_irq(&dev->event_lock);
+			mutex_unlock(&file_priv->event_read_lock);
 			ret = wait_event_interruptible(file_priv->event_wait,
 						       !list_empty(&file_priv->event_list));
-			spin_lock_irq(&dev->event_lock);
-			if (ret < 0)
-				break;
-
-			ret = 0;
+			if (ret >= 0)
+				ret = mutex_lock_interruptible(&file_priv->event_read_lock);
+			if (ret)
+				return ret;
 		} else {
-			struct drm_pending_event *e;
+			unsigned length = e->event->length;
 
-			e = list_first_entry(&file_priv->event_list,
-					     struct drm_pending_event, link);
-			if (e->event->length + ret > count)
-				break;
-
-			if (__copy_to_user_inatomic(buffer + ret,
-						    e->event, e->event->length)) {
-				if (ret == 0)
-					ret = -EFAULT;
+			if (length > count - ret) {
+put_back_event:
+				spin_lock_irq(&dev->event_lock);
+				file_priv->event_space -= length;
+				list_add(&e->link, &file_priv->event_list);
+				spin_unlock_irq(&dev->event_lock);
 				break;
 			}
 
-			file_priv->event_space += e->event->length;
-			ret += e->event->length;
-			list_del(&e->link);
+			if (copy_to_user(buffer + ret, e->event, length)) {
+				if (ret == 0)
+					ret = -EFAULT;
+				goto put_back_event;
+			}
+
+			ret += length;
 			e->destroy(e);
 		}
 	}
-	spin_unlock_irq(&dev->event_lock);
+	mutex_unlock(&file_priv->event_read_lock);
 
 	return ret;
 }

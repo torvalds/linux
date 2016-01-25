@@ -238,7 +238,6 @@ struct sbmac_softc {
 	struct napi_struct	napi;
 	struct phy_device	*phy_dev;	/* the associated PHY device */
 	struct mii_bus		*mii_bus;	/* the MII bus */
-	int			phy_irq[PHY_MAX_ADDR];
 	spinlock_t		sbm_lock;	/* spin lock */
 	int			sbm_devflags;	/* current device flags */
 
@@ -2250,9 +2249,6 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	sc->mii_bus->priv = sc;
 	sc->mii_bus->read = sbmac_mii_read;
 	sc->mii_bus->write = sbmac_mii_write;
-	sc->mii_bus->irq = sc->phy_irq;
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		sc->mii_bus->irq[i] = SBMAC_PHY_INT;
 
 	sc->mii_bus->parent = &pldev->dev;
 	/*
@@ -2358,20 +2354,15 @@ static int sbmac_mii_probe(struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	struct phy_device *phy_dev;
-	int i;
 
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		phy_dev = sc->mii_bus->phy_map[i];
-		if (phy_dev)
-			break;
-	}
+	phy_dev = phy_find_first(sc->mii_bus);
 	if (!phy_dev) {
 		printk(KERN_ERR "%s: no PHY found\n", dev->name);
 		return -ENXIO;
 	}
 
-	phy_dev = phy_connect(dev, dev_name(&phy_dev->dev), &sbmac_mii_poll,
-			      PHY_INTERFACE_MODE_GMII);
+	phy_dev = phy_connect(dev, dev_name(&phy_dev->mdio.dev),
+			      &sbmac_mii_poll, PHY_INTERFACE_MODE_GMII);
 	if (IS_ERR(phy_dev)) {
 		printk(KERN_ERR "%s: could not attach to PHY\n", dev->name);
 		return PTR_ERR(phy_dev);
@@ -2388,11 +2379,10 @@ static int sbmac_mii_probe(struct net_device *dev)
 			      SUPPORTED_MII |
 			      SUPPORTED_Pause |
 			      SUPPORTED_Asym_Pause;
-	phy_dev->advertising = phy_dev->supported;
 
-	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phy_dev->drv->name,
-		dev_name(&phy_dev->dev), phy_dev->irq);
+	phy_attached_info(phy_dev);
+
+	phy_dev->advertising = phy_dev->supported;
 
 	sc->phy_dev = phy_dev;
 

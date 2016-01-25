@@ -67,17 +67,53 @@ struct netdev_event_work {
 	struct netdev_event_work_cmd	cmds[ROCE_NETDEV_CALLBACK_SZ];
 };
 
+static const struct {
+	bool (*is_supported)(const struct ib_device *device, u8 port_num);
+	enum ib_gid_type gid_type;
+} PORT_CAP_TO_GID_TYPE[] = {
+	{rdma_protocol_roce_eth_encap, IB_GID_TYPE_ROCE},
+	{rdma_protocol_roce_udp_encap, IB_GID_TYPE_ROCE_UDP_ENCAP},
+};
+
+#define CAP_TO_GID_TABLE_SIZE	ARRAY_SIZE(PORT_CAP_TO_GID_TYPE)
+
+unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port)
+{
+	int i;
+	unsigned int ret_flags = 0;
+
+	if (!rdma_protocol_roce(ib_dev, port))
+		return 1UL << IB_GID_TYPE_IB;
+
+	for (i = 0; i < CAP_TO_GID_TABLE_SIZE; i++)
+		if (PORT_CAP_TO_GID_TYPE[i].is_supported(ib_dev, port))
+			ret_flags |= 1UL << PORT_CAP_TO_GID_TYPE[i].gid_type;
+
+	return ret_flags;
+}
+EXPORT_SYMBOL(roce_gid_type_mask_support);
+
 static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
 		       u8 port, union ib_gid *gid,
 		       struct ib_gid_attr *gid_attr)
 {
-	switch (gid_op) {
-	case GID_ADD:
-		ib_cache_gid_add(ib_dev, port, gid, gid_attr);
-		break;
-	case GID_DEL:
-		ib_cache_gid_del(ib_dev, port, gid, gid_attr);
-		break;
+	int i;
+	unsigned long gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
+
+	for (i = 0; i < IB_GID_TYPE_SIZE; i++) {
+		if ((1UL << i) & gid_type_mask) {
+			gid_attr->gid_type = i;
+			switch (gid_op) {
+			case GID_ADD:
+				ib_cache_gid_add(ib_dev, port,
+						 gid, gid_attr);
+				break;
+			case GID_DEL:
+				ib_cache_gid_del(ib_dev, port,
+						 gid, gid_attr);
+				break;
+			}
+		}
 	}
 }
 
@@ -103,18 +139,6 @@ static enum bonding_slave_state is_eth_active_slave_of_bonding_rcu(struct net_de
 	return BONDING_SLAVE_STATE_NA;
 }
 
-static bool is_upper_dev_rcu(struct net_device *dev, struct net_device *upper)
-{
-	struct net_device *_upper = NULL;
-	struct list_head *iter;
-
-	netdev_for_each_all_upper_dev_rcu(dev, _upper, iter)
-		if (_upper == upper)
-			break;
-
-	return _upper == upper;
-}
-
 #define REQUIRED_BOND_STATES		(BONDING_SLAVE_STATE_ACTIVE |	\
 					 BONDING_SLAVE_STATE_NA)
 static int is_eth_port_of_netdev(struct ib_device *ib_dev, u8 port,
@@ -132,7 +156,7 @@ static int is_eth_port_of_netdev(struct ib_device *ib_dev, u8 port,
 	if (!real_dev)
 		real_dev = event_ndev;
 
-	res = ((is_upper_dev_rcu(rdma_ndev, event_ndev) &&
+	res = ((rdma_is_upper_dev_rcu(rdma_ndev, event_ndev) &&
 	       (is_eth_active_slave_of_bonding_rcu(rdma_ndev, real_dev) &
 		REQUIRED_BOND_STATES)) ||
 	       real_dev == rdma_ndev);
@@ -178,7 +202,7 @@ static int upper_device_filter(struct ib_device *ib_dev, u8 port,
 		return 1;
 
 	rcu_read_lock();
-	res = is_upper_dev_rcu(rdma_ndev, event_ndev);
+	res = rdma_is_upper_dev_rcu(rdma_ndev, event_ndev);
 	rcu_read_unlock();
 
 	return res;
@@ -203,10 +227,12 @@ static void enum_netdev_default_gids(struct ib_device *ib_dev,
 				     u8 port, struct net_device *event_ndev,
 				     struct net_device *rdma_ndev)
 {
+	unsigned long gid_type_mask;
+
 	rcu_read_lock();
 	if (!rdma_ndev ||
 	    ((rdma_ndev != event_ndev &&
-	      !is_upper_dev_rcu(rdma_ndev, event_ndev)) ||
+	      !rdma_is_upper_dev_rcu(rdma_ndev, event_ndev)) ||
 	     is_eth_active_slave_of_bonding_rcu(rdma_ndev,
 						netdev_master_upper_dev_get_rcu(rdma_ndev)) ==
 	     BONDING_SLAVE_STATE_INACTIVE)) {
@@ -215,7 +241,9 @@ static void enum_netdev_default_gids(struct ib_device *ib_dev,
 	}
 	rcu_read_unlock();
 
-	ib_cache_gid_set_default_gid(ib_dev, port, rdma_ndev,
+	gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
+
+	ib_cache_gid_set_default_gid(ib_dev, port, rdma_ndev, gid_type_mask,
 				     IB_CACHE_GID_DEFAULT_MODE_SET);
 }
 
@@ -234,12 +262,17 @@ static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
 
 	rcu_read_lock();
 
-	if (is_upper_dev_rcu(rdma_ndev, event_ndev) &&
+	if (rdma_is_upper_dev_rcu(rdma_ndev, event_ndev) &&
 	    is_eth_active_slave_of_bonding_rcu(rdma_ndev, real_dev) ==
 	    BONDING_SLAVE_STATE_INACTIVE) {
+		unsigned long gid_type_mask;
+
 		rcu_read_unlock();
 
+		gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
+
 		ib_cache_gid_set_default_gid(ib_dev, port, rdma_ndev,
+					     gid_type_mask,
 					     IB_CACHE_GID_DEFAULT_MODE_DELETE);
 	} else {
 		rcu_read_unlock();

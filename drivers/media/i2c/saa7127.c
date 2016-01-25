@@ -54,7 +54,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/saa7127.h>
+#include <media/i2c/saa7127.h>
 
 static int debug;
 static int test_image;

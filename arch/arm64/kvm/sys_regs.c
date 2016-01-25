@@ -29,6 +29,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_host.h>
@@ -219,9 +220,9 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
  * All writes will set the KVM_ARM64_DEBUG_DIRTY flag to ensure the
  * hyp.S code switches between host and guest values in future.
  */
-static inline void reg_to_dbg(struct kvm_vcpu *vcpu,
-			      struct sys_reg_params *p,
-			      u64 *dbg_reg)
+static void reg_to_dbg(struct kvm_vcpu *vcpu,
+		       struct sys_reg_params *p,
+		       u64 *dbg_reg)
 {
 	u64 val = p->regval;
 
@@ -234,18 +235,18 @@ static inline void reg_to_dbg(struct kvm_vcpu *vcpu,
 	vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
 }
 
-static inline void dbg_to_reg(struct kvm_vcpu *vcpu,
-			      struct sys_reg_params *p,
-			      u64 *dbg_reg)
+static void dbg_to_reg(struct kvm_vcpu *vcpu,
+		       struct sys_reg_params *p,
+		       u64 *dbg_reg)
 {
 	p->regval = *dbg_reg;
 	if (p->is_32bit)
 		p->regval &= 0xffffffffUL;
 }
 
-static inline bool trap_bvr(struct kvm_vcpu *vcpu,
-			    struct sys_reg_params *p,
-			    const struct sys_reg_desc *rd)
+static bool trap_bvr(struct kvm_vcpu *vcpu,
+		     struct sys_reg_params *p,
+		     const struct sys_reg_desc *rd)
 {
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
 
@@ -279,15 +280,15 @@ static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	return 0;
 }
 
-static inline void reset_bvr(struct kvm_vcpu *vcpu,
-			     const struct sys_reg_desc *rd)
+static void reset_bvr(struct kvm_vcpu *vcpu,
+		      const struct sys_reg_desc *rd)
 {
 	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg] = rd->val;
 }
 
-static inline bool trap_bcr(struct kvm_vcpu *vcpu,
-			    struct sys_reg_params *p,
-			    const struct sys_reg_desc *rd)
+static bool trap_bcr(struct kvm_vcpu *vcpu,
+		     struct sys_reg_params *p,
+		     const struct sys_reg_desc *rd)
 {
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
 
@@ -322,15 +323,15 @@ static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	return 0;
 }
 
-static inline void reset_bcr(struct kvm_vcpu *vcpu,
-			     const struct sys_reg_desc *rd)
+static void reset_bcr(struct kvm_vcpu *vcpu,
+		      const struct sys_reg_desc *rd)
 {
 	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg] = rd->val;
 }
 
-static inline bool trap_wvr(struct kvm_vcpu *vcpu,
-			    struct sys_reg_params *p,
-			    const struct sys_reg_desc *rd)
+static bool trap_wvr(struct kvm_vcpu *vcpu,
+		     struct sys_reg_params *p,
+		     const struct sys_reg_desc *rd)
 {
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
 
@@ -365,15 +366,15 @@ static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	return 0;
 }
 
-static inline void reset_wvr(struct kvm_vcpu *vcpu,
-			     const struct sys_reg_desc *rd)
+static void reset_wvr(struct kvm_vcpu *vcpu,
+		      const struct sys_reg_desc *rd)
 {
 	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg] = rd->val;
 }
 
-static inline bool trap_wcr(struct kvm_vcpu *vcpu,
-			    struct sys_reg_params *p,
-			    const struct sys_reg_desc *rd)
+static bool trap_wcr(struct kvm_vcpu *vcpu,
+		     struct sys_reg_params *p,
+		     const struct sys_reg_desc *rd)
 {
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
 
@@ -407,8 +408,8 @@ static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	return 0;
 }
 
-static inline void reset_wcr(struct kvm_vcpu *vcpu,
-			     const struct sys_reg_desc *rd)
+static void reset_wcr(struct kvm_vcpu *vcpu,
+		      const struct sys_reg_desc *rd)
 {
 	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg] = rd->val;
 }
@@ -722,9 +723,9 @@ static bool trap_debug32(struct kvm_vcpu *vcpu,
  * system is in.
  */
 
-static inline bool trap_xvr(struct kvm_vcpu *vcpu,
-			    struct sys_reg_params *p,
-			    const struct sys_reg_desc *rd)
+static bool trap_xvr(struct kvm_vcpu *vcpu,
+		     struct sys_reg_params *p,
+		     const struct sys_reg_desc *rd)
 {
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
 

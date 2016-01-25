@@ -108,7 +108,6 @@ struct lp872x {
 	struct lp872x_platform_data *pdata;
 	int num_regulators;
 	enum lp872x_dvs_state dvs_pin;
-	int dvs_gpio;
 };
 
 /* LP8720/LP8725 shared voltage table for LDOs */
@@ -520,6 +519,7 @@ static struct regulator_ops lp8725_buck_ops = {
 static struct regulator_desc lp8720_regulator_desc[] = {
 	{
 		.name = "ldo1",
+		.of_match = of_match_ptr("ldo1"),
 		.id = LP8720_ID_LDO1,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -533,6 +533,7 @@ static struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo2",
+		.of_match = of_match_ptr("ldo2"),
 		.id = LP8720_ID_LDO2,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -546,6 +547,7 @@ static struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo3",
+		.of_match = of_match_ptr("ldo3"),
 		.id = LP8720_ID_LDO3,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -559,6 +561,7 @@ static struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo4",
+		.of_match = of_match_ptr("ldo4"),
 		.id = LP8720_ID_LDO4,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp8720_ldo4_vtbl),
@@ -572,6 +575,7 @@ static struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo5",
+		.of_match = of_match_ptr("ldo5"),
 		.id = LP8720_ID_LDO5,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -585,6 +589,7 @@ static struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "buck",
+		.of_match = of_match_ptr("buck"),
 		.id = LP8720_ID_BUCK,
 		.ops = &lp8720_buck_ops,
 		.n_voltages = ARRAY_SIZE(lp8720_buck_vtbl),
@@ -599,6 +604,7 @@ static struct regulator_desc lp8720_regulator_desc[] = {
 static struct regulator_desc lp8725_regulator_desc[] = {
 	{
 		.name = "ldo1",
+		.of_match = of_match_ptr("ldo1"),
 		.id = LP8725_ID_LDO1,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -612,6 +618,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo2",
+		.of_match = of_match_ptr("ldo2"),
 		.id = LP8725_ID_LDO2,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -625,6 +632,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo3",
+		.of_match = of_match_ptr("ldo3"),
 		.id = LP8725_ID_LDO3,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -638,6 +646,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo4",
+		.of_match = of_match_ptr("ldo4"),
 		.id = LP8725_ID_LDO4,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -651,6 +660,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo5",
+		.of_match = of_match_ptr("ldo5"),
 		.id = LP8725_ID_LDO5,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
@@ -664,6 +674,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "lilo1",
+		.of_match = of_match_ptr("lilo1"),
 		.id = LP8725_ID_LILO1,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp8725_lilo_vtbl),
@@ -677,6 +688,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "lilo2",
+		.of_match = of_match_ptr("lilo2"),
 		.id = LP8725_ID_LILO2,
 		.ops = &lp872x_ldo_ops,
 		.n_voltages = ARRAY_SIZE(lp8725_lilo_vtbl),
@@ -690,6 +702,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "buck1",
+		.of_match = of_match_ptr("buck1"),
 		.id = LP8725_ID_BUCK1,
 		.ops = &lp8725_buck_ops,
 		.n_voltages = ARRAY_SIZE(lp8725_buck_vtbl),
@@ -701,6 +714,7 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "buck2",
+		.of_match = of_match_ptr("buck2"),
 		.id = LP8725_ID_BUCK2,
 		.ops = &lp8725_buck_ops,
 		.n_voltages = ARRAY_SIZE(lp8725_buck_vtbl),
@@ -737,7 +751,6 @@ static int lp872x_init_dvs(struct lp872x *lp)
 	}
 
 	lp->dvs_pin = pinstate;
-	lp->dvs_gpio = gpio;
 
 	return 0;
 

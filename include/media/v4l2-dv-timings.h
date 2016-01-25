@@ -107,12 +107,14 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
  * @standard:	  the timings according to the standard.
  * @pclock_delta: maximum delta in Hz between standard->pixelclock and
  * 		the measured timings.
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * match.
  *
  * Returns true if the two timings match, returns false otherwise.
  */
 bool v4l2_match_dv_timings(const struct v4l2_dv_timings *measured,
 			   const struct v4l2_dv_timings *standard,
-			   unsigned pclock_delta);
+			   unsigned pclock_delta, bool match_reduced_fps);
 
 /**
  * v4l2_print_dv_timings() - log the contents of a dv_timings struct
@@ -182,5 +184,26 @@ bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
  * "Horizontal and Vertical Screen Size or Aspect Ratio"
  */
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
+
+/*
+ * reduce_fps - check if conditions for reduced fps are true.
+ * bt - v4l2 timing structure
+ * For different timings reduced fps is allowed if following conditions
+ * are met -
+ * For CVT timings: if reduced blanking v2 (vsync == 8) is true.
+ * For CEA861 timings: if V4L2_DV_FL_CAN_REDUCE_FPS flag is true.
+ */
+static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
+{
+	if ((bt->standards & V4L2_DV_BT_STD_CVT) && (bt->vsync == 8))
+		return true;
+
+	if ((bt->standards & V4L2_DV_BT_STD_CEA861) &&
+	    (bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS))
+		return true;
+
+	return false;
+}
+
 
 #endif

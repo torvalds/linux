@@ -321,6 +321,16 @@ static inline int pfn_valid(unsigned long pfn)
 #define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn((void *)(kaddr)))
 #define page_to_virt(page) pfn_to_kaddr(page_to_pfn(page))
 
+/*
+ * The kernel text is mapped at MEM_SV_START as read-only.  To allow
+ * modifying kernel text, it is also mapped at PAGE_OFFSET as read-write.
+ * This macro converts a kernel address to its writable kernel text mapping,
+ * which is used to modify the text code on a running kernel by kgdb,
+ * ftrace, kprobe, jump label, etc.
+ */
+#define ktext_writable_addr(kaddr) \
+	((unsigned long)(kaddr) - MEM_SV_START + PAGE_OFFSET)
+
 struct mm_struct;
 extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 extern pte_t *virt_to_kpte(unsigned long kaddr);

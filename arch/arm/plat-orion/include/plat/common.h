@@ -75,8 +75,6 @@ void __init orion_spi_init(unsigned long mapbase);
 
 void __init orion_spi_1_init(unsigned long mapbase);
 
-void __init orion_wdt_init(void);
-
 void __init orion_xor0_init(unsigned long mapbase_low,
 			    unsigned long mapbase_high,
 			    unsigned long irq_0,

@@ -13,7 +13,7 @@
 #include <asm/div64.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/mt9v011.h>
+#include <media/i2c/mt9v011.h>
 
 MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
@@ -454,7 +454,7 @@ static int mt9v011_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
 	.s_ctrl = mt9v011_s_ctrl,
 };
 

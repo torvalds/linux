@@ -1,0 +1,6 @@
+config SCSI_HISI_SAS
+	tristate "HiSilicon SAS"
+	select SCSI_SAS_LIBSAS
+	select BLK_DEV_INTEGRITY
+	help
+		This driver supports HiSilicon's SAS HBA

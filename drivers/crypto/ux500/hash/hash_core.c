@@ -41,22 +41,6 @@ static int hash_mode;
 module_param(hash_mode, int, 0);
 MODULE_PARM_DESC(hash_mode, "CPU or DMA mode. CPU = 0 (default), DMA = 1");
 
-/**
- * Pre-calculated empty message digests.
- */
-static const u8 zero_message_hash_sha1[SHA1_DIGEST_SIZE] = {
-	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
-	0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
-	0xaf, 0xd8, 0x07, 0x09
-};
-
-static const u8 zero_message_hash_sha256[SHA256_DIGEST_SIZE] = {
-	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
-	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
-	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
-	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
-};
-
 /* HMAC-SHA1, no key */
 static const u8 zero_message_hmac_sha1[SHA1_DIGEST_SIZE] = {
 	0xfb, 0xdb, 0x1d, 0x1b, 0x18, 0xaa, 0x6c, 0x08,
@@ -242,13 +226,13 @@ static int get_empty_message_digest(
 
 	if (HASH_OPER_MODE_HASH == ctx->config.oper_mode) {
 		if (HASH_ALGO_SHA1 == ctx->config.algorithm) {
-			memcpy(zero_hash, &zero_message_hash_sha1[0],
+			memcpy(zero_hash, &sha1_zero_message_hash[0],
 			       SHA1_DIGEST_SIZE);
 			*zero_hash_size = SHA1_DIGEST_SIZE;
 			*zero_digest = true;
 		} else if (HASH_ALGO_SHA256 ==
 				ctx->config.algorithm) {
-			memcpy(zero_hash, &zero_message_hash_sha256[0],
+			memcpy(zero_hash, &sha256_zero_message_hash[0],
 			       SHA256_DIGEST_SIZE);
 			*zero_hash_size = SHA256_DIGEST_SIZE;
 			*zero_digest = true;

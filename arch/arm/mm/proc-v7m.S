@@ -12,6 +12,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/memory.h>
 #include <asm/v7m.h>
 #include "proc-macros.S"
 
@@ -97,19 +98,19 @@ __v7m_setup:
 	mov	r5, #0x00800000
 	str	r5, [r0, V7M_SCB_SHPR3]	@ set PendSV priority
 
-	@ SVC to run the kernel in this mode
+	@ SVC to switch to handler mode. Notice that this requires sp to
+	@ point to writeable memory because the processor saves
+	@ some registers to the stack.
 	badr	r1, 1f
 	ldr	r5, [r12, #11 * 4]	@ read the SVC vector entry
 	str	r1, [r12, #11 * 4]	@ write the temporary SVC vector entry
 	mov	r6, lr			@ save LR
-	mov	r7, sp			@ save SP
-	ldr	sp, =__v7m_setup_stack_top
+	ldr	sp, =init_thread_union + THREAD_START_SP
 	cpsie	i
 	svc	#0
 1:	cpsid	i
 	str	r5, [r12, #11 * 4]	@ restore the original SVC vector entry
 	mov	lr, r6			@ restore LR
-	mov	sp, r7			@ restore SP
 
 	@ Special-purpose control register
 	mov	r1, #1
@@ -122,11 +123,6 @@ __v7m_setup:
 	str	r12, [r0, V7M_SCB_CCR]
 	ret	lr
 ENDPROC(__v7m_setup)
-
-	.align 2
-__v7m_setup_stack:
-	.space	4 * 8				@ 8 registers
-__v7m_setup_stack_top:
 
 	define_processor_functions v7m, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
 

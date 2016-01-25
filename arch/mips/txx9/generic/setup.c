@@ -689,7 +689,7 @@ static int txx9_iocled_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct txx9_iocled_data *data =
 		container_of(chip, struct txx9_iocled_data, chip);
-	return data->cur_val & (1 << offset);
+	return !!(data->cur_val & (1 << offset));
 }
 
 static void txx9_iocled_set(struct gpio_chip *chip, unsigned int offset,

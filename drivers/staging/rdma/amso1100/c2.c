@@ -87,11 +87,6 @@ static struct pci_device_id c2_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, c2_pci_table);
 
-static void c2_print_macaddr(struct net_device *netdev)
-{
-	pr_debug("%s: MAC %pM, IRQ %u\n", netdev->name, netdev->dev_addr, netdev->irq);
-}
-
 static void c2_set_rxbufsize(struct c2_port *c2_port)
 {
 	struct net_device *netdev = c2_port->netdev;
@@ -116,7 +111,8 @@ static int c2_tx_ring_alloc(struct c2_ring *tx_ring, void *vaddr,
 	struct c2_element *elem;
 	int i;
 
-	tx_ring->start = kmalloc(sizeof(*elem) * tx_ring->count, GFP_KERNEL);
+	tx_ring->start = kmalloc_array(tx_ring->count, sizeof(*elem),
+				       GFP_KERNEL);
 	if (!tx_ring->start)
 		return -ENOMEM;
 
@@ -165,7 +161,8 @@ static int c2_rx_ring_alloc(struct c2_ring *rx_ring, void *vaddr,
 	struct c2_element *elem;
 	int i;
 
-	rx_ring->start = kmalloc(sizeof(*elem) * rx_ring->count, GFP_KERNEL);
+	rx_ring->start = kmalloc_array(rx_ring->count, sizeof(*elem),
+				       GFP_KERNEL);
 	if (!rx_ring->start)
 		return -ENOMEM;
 
@@ -908,7 +905,8 @@ static struct net_device *c2_devinit(struct c2_dev *c2dev,
 	/* Validate the MAC address */
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		pr_debug("Invalid MAC Address\n");
-		c2_print_macaddr(netdev);
+		pr_debug("%s: MAC %pM, IRQ %u\n", netdev->name,
+			 netdev->dev_addr, netdev->irq);
 		free_netdev(netdev);
 		return NULL;
 	}
@@ -1142,7 +1140,8 @@ static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	}
 
 	/* Print out the MAC address */
-	c2_print_macaddr(netdev);
+	pr_debug("%s: MAC %pM, IRQ %u\n", netdev->name, netdev->dev_addr,
+		 netdev->irq);
 
 	ret = c2_rnic_init(c2dev);
 	if (ret) {

@@ -12,7 +12,6 @@
 #define __ASM_ARCH_SETUP_H
 
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <linux/init.h>
 #include <linux/mfd/abx500/ab8500.h>
 
@@ -23,8 +22,6 @@ void __init ux500_setup_id(void);
 extern void __init ux500_init_irq(void);
 
 extern struct device *ux500_soc_device_init(const char *soc_id);
-
-extern void ux500_timer_init(void);
 
 extern void ux500_cpu_die(unsigned int cpu);
 

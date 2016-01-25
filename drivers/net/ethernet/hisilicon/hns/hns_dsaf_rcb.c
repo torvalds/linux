@@ -136,17 +136,35 @@ void hns_rcb_int_ctrl_hw(struct hnae_queue *q, u32 flag, u32 mask)
 
 void hns_rcb_int_clr_hw(struct hnae_queue *q, u32 flag)
 {
-	u32 clr = 1;
-
 	if (flag & RCB_INT_FLAG_TX) {
-		dsaf_write_dev(q, RCB_RING_INTSTS_TX_RING_REG, clr);
-		dsaf_write_dev(q, RCB_RING_INTSTS_TX_OVERTIME_REG, clr);
+		dsaf_write_dev(q, RCB_RING_INTSTS_TX_RING_REG, 1);
+		dsaf_write_dev(q, RCB_RING_INTSTS_TX_OVERTIME_REG, 1);
 	}
 
 	if (flag & RCB_INT_FLAG_RX) {
-		dsaf_write_dev(q, RCB_RING_INTSTS_RX_RING_REG, clr);
-		dsaf_write_dev(q, RCB_RING_INTSTS_RX_OVERTIME_REG, clr);
+		dsaf_write_dev(q, RCB_RING_INTSTS_RX_RING_REG, 1);
+		dsaf_write_dev(q, RCB_RING_INTSTS_RX_OVERTIME_REG, 1);
 	}
+}
+
+void hns_rcbv2_int_ctrl_hw(struct hnae_queue *q, u32 flag, u32 mask)
+{
+	u32 int_mask_en = !!mask;
+
+	if (flag & RCB_INT_FLAG_TX)
+		dsaf_write_dev(q, RCB_RING_INTMSK_TXWL_REG, int_mask_en);
+
+	if (flag & RCB_INT_FLAG_RX)
+		dsaf_write_dev(q, RCB_RING_INTMSK_RXWL_REG, int_mask_en);
+}
+
+void hns_rcbv2_int_clr_hw(struct hnae_queue *q, u32 flag)
+{
+	if (flag & RCB_INT_FLAG_TX)
+		dsaf_write_dev(q, RCBV2_TX_RING_INT_STS_REG, 1);
+
+	if (flag & RCB_INT_FLAG_RX)
+		dsaf_write_dev(q, RCBV2_RX_RING_INT_STS_REG, 1);
 }
 
 /**
@@ -193,6 +211,7 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 			       (u32)dma);
 		dsaf_write_dev(q, RCB_RING_RX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
+
 		dsaf_write_dev(q, RCB_RING_RX_RING_BD_LEN_REG,
 			       bd_size_type);
 		dsaf_write_dev(q, RCB_RING_RX_RING_BD_NUM_REG,
@@ -204,6 +223,7 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 			       (u32)dma);
 		dsaf_write_dev(q, RCB_RING_TX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
+
 		dsaf_write_dev(q, RCB_RING_TX_RING_BD_LEN_REG,
 			       bd_size_type);
 		dsaf_write_dev(q, RCB_RING_TX_RING_BD_NUM_REG,
@@ -232,9 +252,6 @@ void hns_rcb_init_hw(struct ring_pair_cb *ring)
 static void hns_rcb_set_port_desc_cnt(struct rcb_common_cb *rcb_common,
 				      u32 port_idx, u32 desc_cnt)
 {
-	if (port_idx >= HNS_RCB_SERVICE_NW_ENGINE_NUM)
-		port_idx = 0;
-
 	dsaf_write_dev(rcb_common, RCB_CFG_BD_NUM_REG + port_idx * 4,
 		       desc_cnt);
 }
@@ -249,8 +266,6 @@ static int  hns_rcb_set_port_coalesced_frames(struct rcb_common_cb *rcb_common,
 					      u32 port_idx,
 					      u32 coalesced_frames)
 {
-	if (port_idx >= HNS_RCB_SERVICE_NW_ENGINE_NUM)
-		port_idx = 0;
 	if (coalesced_frames >= rcb_common->desc_num ||
 	    coalesced_frames > HNS_RCB_MAX_COALESCED_FRAMES)
 		return -EINVAL;
@@ -354,6 +369,18 @@ int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common)
 	dsaf_write_dev(rcb_common, RCB_COM_CFG_ENDIAN_REG,
 		       HNS_RCB_COMMON_ENDIAN);
 
+	if (AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver)) {
+		dsaf_write_dev(rcb_common, RCB_COM_CFG_FNA_REG, 0x0);
+		dsaf_write_dev(rcb_common, RCB_COM_CFG_FA_REG, 0x1);
+	} else {
+		dsaf_set_dev_bit(rcb_common, RCBV2_COM_CFG_USER_REG,
+				 RCB_COM_CFG_FNA_B, false);
+		dsaf_set_dev_bit(rcb_common, RCBV2_COM_CFG_USER_REG,
+				 RCB_COM_CFG_FA_B, true);
+		dsaf_set_dev_bit(rcb_common, RCBV2_COM_CFG_TSO_MODE_REG,
+				 RCB_COM_TSO_MODE_B, HNS_TSO_MODE_8BD_32K);
+	}
+
 	return 0;
 }
 
@@ -387,19 +414,23 @@ static void hns_rcb_ring_get_cfg(struct hnae_queue *q, int ring_type)
 	struct rcb_common_cb *rcb_common;
 	struct ring_pair_cb *ring_pair_cb;
 	u32 buf_size;
-	u16 desc_num;
-	int irq_idx;
+	u16 desc_num, mdnum_ppkt;
+	bool irq_idx, is_ver1;
 
 	ring_pair_cb = container_of(q, struct ring_pair_cb, q);
+	is_ver1 = AE_IS_VER1(ring_pair_cb->rcb_common->dsaf_dev->dsaf_ver);
 	if (ring_type == RX_RING) {
 		ring = &q->rx_ring;
 		ring->io_base = ring_pair_cb->q.io_base;
 		irq_idx = HNS_RCB_IRQ_IDX_RX;
+		mdnum_ppkt = HNS_RCB_RING_MAX_BD_PER_PKT;
 	} else {
 		ring = &q->tx_ring;
 		ring->io_base = (u8 __iomem *)ring_pair_cb->q.io_base +
 			HNS_RCB_TX_REG_OFFSET;
 		irq_idx = HNS_RCB_IRQ_IDX_TX;
+		mdnum_ppkt = is_ver1 ? HNS_RCB_RING_MAX_TXBD_PER_PKT :
+				 HNS_RCBV2_RING_MAX_TXBD_PER_PKT;
 	}
 
 	rcb_common = ring_pair_cb->rcb_common;
@@ -414,7 +445,7 @@ static void hns_rcb_ring_get_cfg(struct hnae_queue *q, int ring_type)
 
 	ring->buf_size = buf_size;
 	ring->desc_num = desc_num;
-	ring->max_desc_num_per_pkt = HNS_RCB_RING_MAX_BD_PER_PKT;
+	ring->max_desc_num_per_pkt = mdnum_ppkt;
 	ring->max_raw_data_sz_per_desc = HNS_RCB_MAX_PKT_SIZE;
 	ring->max_pkt_size = HNS_RCB_MAX_PKT_SIZE;
 	ring->next_to_use = 0;
@@ -445,14 +476,22 @@ static int hns_rcb_get_port(struct rcb_common_cb *rcb_common, int ring_idx)
 	return port;
 }
 
+#define SERVICE_RING_IRQ_IDX(v1) \
+	((v1) ? HNS_SERVICE_RING_IRQ_IDX : HNSV2_SERVICE_RING_IRQ_IDX)
+#define DEBUG_RING_IRQ_IDX(v1) \
+	((v1) ? HNS_DEBUG_RING_IRQ_IDX : HNSV2_DEBUG_RING_IRQ_IDX)
+#define DEBUG_RING_IRQ_OFFSET(v1) \
+	((v1) ? HNS_DEBUG_RING_IRQ_OFFSET : HNSV2_DEBUG_RING_IRQ_OFFSET)
 static int hns_rcb_get_base_irq_idx(struct rcb_common_cb *rcb_common)
 {
 	int comm_index = rcb_common->comm_index;
+	bool is_ver1 = AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver);
 
 	if (comm_index == HNS_DSAF_COMM_SERVICE_NW_IDX)
-		return HNS_SERVICE_RING_IRQ_IDX;
+		return SERVICE_RING_IRQ_IDX(is_ver1);
 	else
-		return HNS_DEBUG_RING_IRQ_IDX + (comm_index - 1) * 2;
+		return  DEBUG_RING_IRQ_IDX(is_ver1) +
+			(comm_index - 1) * DEBUG_RING_IRQ_OFFSET(is_ver1);
 }
 
 #define RCB_COMM_BASE_TO_RING_BASE(base, ringid)\
@@ -468,6 +507,9 @@ void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common)
 	u32 ring_num = rcb_common->ring_num;
 	int base_irq_idx = hns_rcb_get_base_irq_idx(rcb_common);
 	struct device_node *np = rcb_common->dsaf_dev->dev->of_node;
+	struct platform_device *pdev =
+		to_platform_device(rcb_common->dsaf_dev->dev);
+	bool is_ver1 = AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver);
 
 	for (i = 0; i < ring_num; i++) {
 		ring_pair_cb = &rcb_common->ring_pair_cb[i];
@@ -477,10 +519,12 @@ void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common)
 		ring_pair_cb->q.io_base =
 			RCB_COMM_BASE_TO_RING_BASE(rcb_common->io_base, i);
 		ring_pair_cb->port_id_in_dsa = hns_rcb_get_port(rcb_common, i);
-		ring_pair_cb->virq[HNS_RCB_IRQ_IDX_TX]
-			= irq_of_parse_and_map(np, base_irq_idx + i * 2);
-		ring_pair_cb->virq[HNS_RCB_IRQ_IDX_RX]
-			= irq_of_parse_and_map(np, base_irq_idx + i * 2 + 1);
+		ring_pair_cb->virq[HNS_RCB_IRQ_IDX_TX] =
+		is_ver1 ? irq_of_parse_and_map(np, base_irq_idx + i * 2) :
+			  platform_get_irq(pdev, base_irq_idx + i * 3 + 1);
+		ring_pair_cb->virq[HNS_RCB_IRQ_IDX_RX] =
+		is_ver1 ? irq_of_parse_and_map(np, base_irq_idx + i * 2 + 1) :
+			  platform_get_irq(pdev, base_irq_idx + i * 3);
 		ring_pair_cb->q.phy_base =
 			RCB_COMM_BASE_TO_RING_BASE(rcb_common->phy_base, i);
 		hns_rcb_ring_pair_get_cfg(ring_pair_cb);

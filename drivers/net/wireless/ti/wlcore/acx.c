@@ -534,9 +534,9 @@ int wl12xx_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	for (i = 0; i < CONF_SG_PARAMS_MAX; i++)
+	for (i = 0; i < WLCORE_CONF_SG_PARAMS_MAX; i++)
 		param->params[i] = cpu_to_le32(c->params[i]);
-	param->param_idx = CONF_SG_PARAMS_ALL;
+	param->param_idx = WLCORE_CONF_SG_PARAMS_ALL;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
 	if (ret < 0) {

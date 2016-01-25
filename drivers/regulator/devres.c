@@ -164,8 +164,11 @@ int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 		consumers[i].consumer = NULL;
 
 	for (i = 0; i < num_consumers; i++) {
-		consumers[i].consumer = devm_regulator_get(dev,
-							   consumers[i].supply);
+		consumers[i].consumer = _devm_regulator_get(dev,
+							    consumers[i].supply,
+							    consumers[i].optional ?
+								OPTIONAL_GET :
+								NORMAL_GET);
 		if (IS_ERR(consumers[i].consumer)) {
 			ret = PTR_ERR(consumers[i].consumer);
 			dev_err(dev, "Failed to get supply '%s': %d\n",

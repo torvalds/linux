@@ -2041,11 +2041,11 @@ static void bcmgenet_init_tx_napi(struct bcmgenet_priv *priv)
 
 	for (i = 0; i < priv->hw_params->tx_queues; ++i) {
 		ring = &priv->tx_rings[i];
-		netif_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll, 64);
+		netif_tx_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll, 64);
 	}
 
 	ring = &priv->tx_rings[DESC_INDEX];
-	netif_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll, 64);
+	netif_tx_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll, 64);
 }
 
 static void bcmgenet_enable_tx_napi(struct bcmgenet_priv *priv)

@@ -35,6 +35,7 @@
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
+#include <xen/interface/platform.h>
 
 long privcmd_call(unsigned call, unsigned long a1,
 		unsigned long a2, unsigned long a3,
@@ -49,6 +50,12 @@ int HYPERVISOR_memory_op(unsigned int cmd, void *arg);
 int HYPERVISOR_physdev_op(int cmd, void *arg);
 int HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args);
 int HYPERVISOR_tmem_op(void *arg);
+int HYPERVISOR_platform_op_raw(void *arg);
+static inline int HYPERVISOR_platform_op(struct xen_platform_op *op)
+{
+	op->interface_version = XENPF_INTERFACE_VERSION;
+	return HYPERVISOR_platform_op_raw(op);
+}
 int HYPERVISOR_multicall(struct multicall_entry *calls, uint32_t nr);
 
 static inline int

@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -2070,32 +2070,13 @@ static int kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 
 static int kiblnd_hdev_get_attr(kib_hca_dev_t *hdev)
 {
-	struct ib_device_attr *attr;
-	int rc;
-
 	/* It's safe to assume a HCA can handle a page size
 	 * matching that of the native system */
 	hdev->ibh_page_shift = PAGE_SHIFT;
 	hdev->ibh_page_size  = 1 << PAGE_SHIFT;
 	hdev->ibh_page_mask  = ~((__u64)hdev->ibh_page_size - 1);
 
-	LIBCFS_ALLOC(attr, sizeof(*attr));
-	if (attr == NULL) {
-		CERROR("Out of memory\n");
-		return -ENOMEM;
-	}
-
-	rc = ib_query_device(hdev->ibh_ibdev, attr);
-	if (rc == 0)
-		hdev->ibh_mr_size = attr->max_mr_size;
-
-	LIBCFS_FREE(attr, sizeof(*attr));
-
-	if (rc != 0) {
-		CERROR("Failed to query IB device: %d\n", rc);
-		return rc;
-	}
-
+	hdev->ibh_mr_size = hdev->ibh_ibdev->attrs.max_mr_size;
 	if (hdev->ibh_mr_size == ~0ULL) {
 		hdev->ibh_mr_shift = 64;
 		return 0;
@@ -2865,7 +2846,7 @@ static int __init kiblnd_module_init(void)
 	return 0;
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Kernel OpenIB gen2 LND v2.00");
 MODULE_LICENSE("GPL");
 

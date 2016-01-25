@@ -1157,12 +1157,12 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 					iocb->ki_filp->f_mapping;
 
 			/* will be released by direct_io_worker */
-			mutex_lock(&inode->i_mutex);
+			inode_lock(inode);
 
 			retval = filemap_write_and_wait_range(mapping, offset,
 							      end - 1);
 			if (retval) {
-				mutex_unlock(&inode->i_mutex);
+				inode_unlock(inode);
 				kmem_cache_free(dio_cache, dio);
 				goto out;
 			}
@@ -1173,7 +1173,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	dio->i_size = i_size_read(inode);
 	if (iov_iter_rw(iter) == READ && offset >= dio->i_size) {
 		if (dio->flags & DIO_LOCKING)
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 		kmem_cache_free(dio_cache, dio);
 		retval = 0;
 		goto out;
@@ -1295,7 +1295,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	 * of protecting us from looking up uninitialized blocks.
 	 */
 	if (iov_iter_rw(iter) == READ && (dio->flags & DIO_LOCKING))
-		mutex_unlock(&dio->inode->i_mutex);
+		inode_unlock(dio->inode);
 
 	/*
 	 * The only time we want to leave bios in flight is when a successful

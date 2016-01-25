@@ -132,7 +132,8 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    (!skb->dev || skb->dev->features & NETIF_F_V4_CSUM)) {
+		    (!skb->dev || skb->dev->features &
+		     (NETIF_F_IP_CSUM | NETIF_F_HW_CSUM))) {
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			skb->csum_start = skb_headroom(skb) +
 					  skb_network_offset(skb) +

@@ -2680,6 +2680,7 @@ static const struct regmap_config gcc_msm8974_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0x1fc0,
 	.fast_io	= true,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct qcom_cc_desc gcc_msm8974_desc = {
@@ -2717,7 +2718,7 @@ static void msm8974_pro_clock_override(void)
 
 static int gcc_msm8974_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	int ret;
 	struct device *dev = &pdev->dev;
 	bool pro;
 	const struct of_device_id *id;
@@ -2730,16 +2731,13 @@ static int gcc_msm8974_probe(struct platform_device *pdev)
 	if (pro)
 		msm8974_pro_clock_override();
 
-	/* Temporary until RPM clocks supported */
-	clk = clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 19200000);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_board_clk(dev, "xo_board", "xo", 19200000);
+	if (ret)
+		return ret;
 
-	/* Should move to DT node? */
-	clk = clk_register_fixed_rate(dev, "sleep_clk_src", NULL,
-				      CLK_IS_ROOT, 32768);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_sleep_clk(dev);
+	if (ret)
+		return ret;
 
 	return qcom_cc_probe(pdev, &gcc_msm8974_desc);
 }

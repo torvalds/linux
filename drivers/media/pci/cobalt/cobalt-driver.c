@@ -21,9 +21,9 @@
  */
 
 #include <linux/delay.h>
-#include <media/adv7604.h>
-#include <media/adv7842.h>
-#include <media/adv7511.h>
+#include <media/i2c/adv7604.h>
+#include <media/i2c/adv7842.h>
+#include <media/i2c/adv7511.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 

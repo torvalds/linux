@@ -16,7 +16,9 @@ my $P = $0;
 my $V = '0.26';
 
 use Getopt::Long qw(:config no_auto_abbrev);
+use Cwd;
 
+my $cur_path = fastgetcwd() . '/';
 my $lk_path = "./";
 my $email = 1;
 my $email_usename = 1;
@@ -429,6 +431,8 @@ foreach my $file (@ARGV) {
 	}
     }
     if ($from_filename) {
+	$file =~ s/^\Q${cur_path}\E//;	#strip any absolute path
+	$file =~ s/^\Q${lk_path}\E//;	#or the path to the lk tree
 	push(@files, $file);
 	if ($file ne "MAINTAINERS" && -f $file && ($keywords || $file_emails)) {
 	    open(my $f, '<', $file)

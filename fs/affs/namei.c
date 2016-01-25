@@ -344,6 +344,7 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 		return -ENOSPC;
 
 	inode->i_op = &affs_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_data.a_ops = &affs_symlink_aops;
 	inode->i_mode = S_IFLNK | 0777;
 	mode_to_prot(inode);

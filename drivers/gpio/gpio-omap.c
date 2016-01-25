@@ -93,7 +93,7 @@ static void omap_gpio_unmask_irq(struct irq_data *d);
 static inline struct gpio_bank *omap_irq_data_get_bank(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
-	return container_of(chip, struct gpio_bank, chip);
+	return gpiochip_get_data(chip);
 }
 
 static void omap_set_gpio_direction(struct gpio_bank *bank, int gpio,
@@ -661,7 +661,7 @@ static int omap_gpio_wake_enable(struct irq_data *d, unsigned int enable)
 
 static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
+	struct gpio_bank *bank = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	/*
@@ -681,7 +681,7 @@ static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
+	struct gpio_bank *bank = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
@@ -954,7 +954,7 @@ static int omap_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	void __iomem *reg;
 	int dir;
 
-	bank = container_of(chip, struct gpio_bank, chip);
+	bank = gpiochip_get_data(chip);
 	reg = bank->base + bank->regs->direction;
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	dir = !!(readl_relaxed(reg) & BIT(offset));
@@ -967,7 +967,7 @@ static int omap_gpio_input(struct gpio_chip *chip, unsigned offset)
 	struct gpio_bank *bank;
 	unsigned long flags;
 
-	bank = container_of(chip, struct gpio_bank, chip);
+	bank = gpiochip_get_data(chip);
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	omap_set_gpio_direction(bank, offset, 1);
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
@@ -978,7 +978,7 @@ static int omap_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_bank *bank;
 
-	bank = container_of(chip, struct gpio_bank, chip);
+	bank = gpiochip_get_data(chip);
 
 	if (omap_gpio_is_input(bank, offset))
 		return omap_get_gpio_datain(bank, offset);
@@ -991,7 +991,7 @@ static int omap_gpio_output(struct gpio_chip *chip, unsigned offset, int value)
 	struct gpio_bank *bank;
 	unsigned long flags;
 
-	bank = container_of(chip, struct gpio_bank, chip);
+	bank = gpiochip_get_data(chip);
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	bank->set_dataout(bank, offset, value);
 	omap_set_gpio_direction(bank, offset, 0);
@@ -1005,7 +1005,7 @@ static int omap_gpio_debounce(struct gpio_chip *chip, unsigned offset,
 	struct gpio_bank *bank;
 	unsigned long flags;
 
-	bank = container_of(chip, struct gpio_bank, chip);
+	bank = gpiochip_get_data(chip);
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	omap2_set_gpio_debounce(bank, offset, debounce);
@@ -1019,7 +1019,7 @@ static void omap_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	struct gpio_bank *bank;
 	unsigned long flags;
 
-	bank = container_of(chip, struct gpio_bank, chip);
+	bank = gpiochip_get_data(chip);
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	bank->set_dataout(bank, offset, value);
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
@@ -1090,7 +1090,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	if (bank->is_mpuio) {
 		bank->chip.label = "mpuio";
 		if (bank->regs->wkup_en)
-			bank->chip.dev = &omap_mpuio_device.dev;
+			bank->chip.parent = &omap_mpuio_device.dev;
 		bank->chip.base = OMAP_MPUIO(0);
 	} else {
 		bank->chip.label = "gpio";
@@ -1098,7 +1098,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	}
 	bank->chip.ngpio = bank->width;
 
-	ret = gpiochip_add(&bank->chip);
+	ret = gpiochip_add_data(&bank->chip, bank);
 	if (ret) {
 		dev_err(bank->dev, "Could not register gpio chip %d\n", ret);
 		return ret;
@@ -1197,7 +1197,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	}
 
 	bank->dev = dev;
-	bank->chip.dev = dev;
+	bank->chip.parent = dev;
 	bank->chip.owner = THIS_MODULE;
 	bank->dbck_flag = pdata->dbck_flag;
 	bank->stride = pdata->bank_stride;

@@ -108,7 +108,6 @@ static struct phy_driver teranetics_driver[] = {
 	.config_aneg    = teranetics_config_aneg,
 	.read_status	= teranetics_read_status,
 	.match_phy_device = teranetics_match_phy_device,
-	.driver		= { .owner = THIS_MODULE,},
 },
 };
 

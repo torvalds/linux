@@ -1188,10 +1188,16 @@ xlog_iodone(xfs_buf_t *bp)
 	int			aborted = 0;
 
 	/*
-	 * Race to shutdown the filesystem if we see an error.
+	 * Race to shutdown the filesystem if we see an error or the iclog is in
+	 * IOABORT state. The IOABORT state is only set in DEBUG mode to inject
+	 * CRC errors into log recovery.
 	 */
-	if (XFS_TEST_ERROR(bp->b_error, l->l_mp,
-			XFS_ERRTAG_IODONE_IOERR, XFS_RANDOM_IODONE_IOERR)) {
+	if (XFS_TEST_ERROR(bp->b_error, l->l_mp, XFS_ERRTAG_IODONE_IOERR,
+			   XFS_RANDOM_IODONE_IOERR) ||
+	    iclog->ic_state & XLOG_STATE_IOABORT) {
+		if (iclog->ic_state & XLOG_STATE_IOABORT)
+			iclog->ic_state &= ~XLOG_STATE_IOABORT;
+
 		xfs_buf_ioerror_alert(bp, __func__);
 		xfs_buf_stale(bp);
 		xfs_force_shutdown(l->l_mp, SHUTDOWN_LOG_IO_ERROR);
@@ -1838,6 +1844,23 @@ xlog_sync(
 	/* calculcate the checksum */
 	iclog->ic_header.h_crc = xlog_cksum(log, &iclog->ic_header,
 					    iclog->ic_datap, size);
+#ifdef DEBUG
+	/*
+	 * Intentionally corrupt the log record CRC based on the error injection
+	 * frequency, if defined. This facilitates testing log recovery in the
+	 * event of torn writes. Hence, set the IOABORT state to abort the log
+	 * write on I/O completion and shutdown the fs. The subsequent mount
+	 * detects the bad CRC and attempts to recover.
+	 */
+	if (log->l_badcrc_factor &&
+	    (prandom_u32() % log->l_badcrc_factor == 0)) {
+		iclog->ic_header.h_crc &= 0xAAAAAAAA;
+		iclog->ic_state |= XLOG_STATE_IOABORT;
+		xfs_warn(log->l_mp,
+	"Intentionally corrupted log record at LSN 0x%llx. Shutdown imminent.",
+			 be64_to_cpu(iclog->ic_header.h_lsn));
+	}
+#endif
 
 	bp->b_io_length = BTOBB(count);
 	bp->b_fspriv = iclog;
@@ -2045,12 +2068,14 @@ xlog_print_tic_res(
 	    "QM_DQCLUSTER",
 	    "QM_QINOCREATE",
 	    "QM_QUOTAOFF_END",
-	    "SB_UNIT",
 	    "FSYNC_TS",
 	    "GROWFSRT_ALLOC",
 	    "GROWFSRT_ZERO",
 	    "GROWFSRT_FREE",
-	    "SWAPEXT"
+	    "SWAPEXT",
+	    "CHECKPOINT",
+	    "ICREATE",
+	    "CREATE_TMPFILE"
 	};
 
 	xfs_warn(mp, "xlog_write: reservation summary:");
@@ -2791,11 +2816,19 @@ xlog_state_do_callback(
 		}
 	} while (!ioerrors && loopdidcallbacks);
 
-	/*
-	 * make one last gasp attempt to see if iclogs are being left in
-	 * limbo..
-	 */
 #ifdef DEBUG
+	/*
+	 * Make one last gasp attempt to see if iclogs are being left in limbo.
+	 * If the above loop finds an iclog earlier than the current iclog and
+	 * in one of the syncing states, the current iclog is put into
+	 * DO_CALLBACK and the callbacks are deferred to the completion of the
+	 * earlier iclog. Walk the iclogs in order and make sure that no iclog
+	 * is in DO_CALLBACK unless an earlier iclog is in one of the syncing
+	 * states.
+	 *
+	 * Note that SYNCING|IOABORT is a valid state so we cannot just check
+	 * for ic_state == SYNCING.
+	 */
 	if (funcdidcallbacks) {
 		first_iclog = iclog = log->l_iclog;
 		do {
@@ -2810,7 +2843,7 @@ xlog_state_do_callback(
 			 * IOERROR - give up hope all ye who enter here
 			 */
 			if (iclog->ic_state == XLOG_STATE_WANT_SYNC ||
-			    iclog->ic_state == XLOG_STATE_SYNCING ||
+			    iclog->ic_state & XLOG_STATE_SYNCING ||
 			    iclog->ic_state == XLOG_STATE_DONE_SYNC ||
 			    iclog->ic_state == XLOG_STATE_IOERROR )
 				break;

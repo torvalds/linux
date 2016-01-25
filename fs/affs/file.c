@@ -33,11 +33,11 @@ affs_file_release(struct inode *inode, struct file *filp)
 		 inode->i_ino, atomic_read(&AFFS_I(inode)->i_opencnt));
 
 	if (atomic_dec_and_test(&AFFS_I(inode)->i_opencnt)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		if (inode->i_size != AFFS_I(inode)->mmu_private)
 			affs_truncate(inode);
 		affs_free_prealloc(inode);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 
 	return 0;
@@ -958,12 +958,12 @@ int affs_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	if (err)
 		return err;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = write_inode_now(inode, 0);
 	err = sync_blockdev(inode->i_sb->s_bdev);
 	if (!ret)
 		ret = err;
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }
 const struct file_operations affs_file_operations = {

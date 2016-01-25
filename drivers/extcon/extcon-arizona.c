@@ -1201,10 +1201,58 @@ static void arizona_micd_set_level(struct arizona *arizona, int index,
 	regmap_update_bits(arizona->regmap, reg, mask, level);
 }
 
-static int arizona_extcon_device_get_pdata(struct arizona *arizona)
+static int arizona_extcon_get_micd_configs(struct device *dev,
+					   struct arizona *arizona)
+{
+	const char * const prop = "wlf,micd-configs";
+	const int entries_per_config = 3;
+	struct arizona_micd_config *micd_configs;
+	int nconfs, ret;
+	int i, j;
+	u32 *vals;
+
+	nconfs = device_property_read_u32_array(arizona->dev, prop, NULL, 0);
+	if (nconfs <= 0)
+		return 0;
+
+	vals = kcalloc(nconfs, sizeof(u32), GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
+
+	ret = device_property_read_u32_array(arizona->dev, prop, vals, nconfs);
+	if (ret < 0)
+		goto out;
+
+	nconfs /= entries_per_config;
+
+	micd_configs = devm_kzalloc(dev,
+				    nconfs * sizeof(struct arizona_micd_range),
+				    GFP_KERNEL);
+	if (!micd_configs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0, j = 0; i < nconfs; ++i) {
+		micd_configs[i].src = vals[j++] ? ARIZONA_ACCDET_SRC : 0;
+		micd_configs[i].bias = vals[j++];
+		micd_configs[i].gpio = vals[j++];
+	}
+
+	arizona->pdata.micd_configs = micd_configs;
+	arizona->pdata.num_micd_configs = nconfs;
+
+out:
+	kfree(vals);
+	return ret;
+}
+
+static int arizona_extcon_device_get_pdata(struct device *dev,
+					   struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
 	unsigned int val = ARIZONA_ACCDET_MODE_HPL;
+	int ret;
 
 	device_property_read_u32(arizona->dev, "wlf,hpdet-channel", &val);
 	switch (val) {
@@ -1230,11 +1278,28 @@ static int arizona_extcon_device_get_pdata(struct arizona *arizona)
 	device_property_read_u32(arizona->dev, "wlf,micd-dbtime",
 				 &pdata->micd_dbtime);
 
-	device_property_read_u32(arizona->dev, "wlf,micd-timeout",
+	device_property_read_u32(arizona->dev, "wlf,micd-timeout-ms",
 				 &pdata->micd_timeout);
 
 	pdata->micd_force_micbias = device_property_read_bool(arizona->dev,
 						"wlf,micd-force-micbias");
+
+	pdata->micd_software_compare = device_property_read_bool(arizona->dev,
+						"wlf,micd-software-compare");
+
+	pdata->jd_invert = device_property_read_bool(arizona->dev,
+						     "wlf,jd-invert");
+
+	device_property_read_u32(arizona->dev, "wlf,gpsw", &pdata->gpsw);
+
+	pdata->jd_gpio5 = device_property_read_bool(arizona->dev,
+						    "wlf,use-jd2");
+	pdata->jd_gpio5_nopull = device_property_read_bool(arizona->dev,
+						"wlf,use-jd2-nopull");
+
+	ret = arizona_extcon_get_micd_configs(dev, arizona);
+	if (ret < 0)
+		dev_err(arizona->dev, "Failed to read micd configs: %d\n", ret);
 
 	return 0;
 }
@@ -1257,7 +1322,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (!dev_get_platdata(arizona->dev))
-		arizona_extcon_device_get_pdata(arizona);
+		arizona_extcon_device_get_pdata(&pdev->dev, arizona);
 
 	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
 	if (IS_ERR(info->micvdd)) {

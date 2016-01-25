@@ -107,10 +107,10 @@ static void v4l2_flash_set_led_brightness(struct v4l2_flash *v4l2_flash,
 		if (ctrls[LED_MODE]->val != V4L2_FLASH_LED_MODE_TORCH)
 			return;
 
-		led_set_brightness(&v4l2_flash->fled_cdev->led_cdev,
+		led_set_brightness_sync(&v4l2_flash->fled_cdev->led_cdev,
 					brightness);
 	} else {
-		led_set_brightness(&v4l2_flash->iled_cdev->led_cdev,
+		led_set_brightness_sync(&v4l2_flash->iled_cdev->led_cdev,
 					brightness);
 	}
 }
@@ -206,11 +206,11 @@ static int v4l2_flash_s_ctrl(struct v4l2_ctrl *c)
 	case V4L2_CID_FLASH_LED_MODE:
 		switch (c->val) {
 		case V4L2_FLASH_LED_MODE_NONE:
-			led_set_brightness(led_cdev, LED_OFF);
+			led_set_brightness_sync(led_cdev, LED_OFF);
 			return led_set_flash_strobe(fled_cdev, false);
 		case V4L2_FLASH_LED_MODE_FLASH:
 			/* Turn the torch LED off */
-			led_set_brightness(led_cdev, LED_OFF);
+			led_set_brightness_sync(led_cdev, LED_OFF);
 			if (ctrls[STROBE_SOURCE]) {
 				external_strobe = (ctrls[STROBE_SOURCE]->val ==
 					V4L2_FLASH_STROBE_SOURCE_EXTERNAL);
@@ -651,11 +651,11 @@ struct v4l2_flash *v4l2_flash_init(
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	strlcpy(sd->name, config->dev_name, sizeof(sd->name));
 
-	ret = media_entity_init(&sd->entity, 0, NULL, 0);
+	ret = media_entity_pads_init(&sd->entity, 0, NULL);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+	sd->entity.function = MEDIA_ENT_F_FLASH;
 
 	ret = v4l2_flash_init_controls(v4l2_flash, config);
 	if (ret < 0)

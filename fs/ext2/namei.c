@@ -183,6 +183,7 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 	if (l > sizeof (EXT2_I(inode)->i_data)) {
 		/* slow symlink */
 		inode->i_op = &ext2_symlink_inode_operations;
+		inode_nohighmem(inode);
 		if (test_opt(inode->i_sb, NOBH))
 			inode->i_mapping->a_ops = &ext2_nobh_aops;
 		else

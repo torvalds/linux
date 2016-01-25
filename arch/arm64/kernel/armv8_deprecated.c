@@ -62,7 +62,7 @@ struct insn_emulation {
 };
 
 static LIST_HEAD(insn_emulation);
-static int nr_insn_emulated;
+static int nr_insn_emulated __initdata;
 static DEFINE_RAW_SPINLOCK(insn_emulation_lock);
 
 static void register_emulation_hooks(struct insn_emulation_ops *ops)
@@ -173,7 +173,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	return ret;
 }
 
-static void register_insn_emulation(struct insn_emulation_ops *ops)
+static void __init register_insn_emulation(struct insn_emulation_ops *ops)
 {
 	unsigned long flags;
 	struct insn_emulation *insn;
@@ -237,7 +237,7 @@ static struct ctl_table ctl_abi[] = {
 	{ }
 };
 
-static void register_insn_emulation_sysctl(struct ctl_table *table)
+static void __init register_insn_emulation_sysctl(struct ctl_table *table)
 {
 	unsigned long flags;
 	int i = 0;

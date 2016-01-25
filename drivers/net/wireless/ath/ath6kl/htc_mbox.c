@@ -2222,8 +2222,9 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 	}
 
 	if (status) {
-		ath6kl_err("failed to get pending recv messages: %d\n",
-			   status);
+		if (status != -ECANCELED)
+			ath6kl_err("failed to get pending recv messages: %d\n",
+				   status);
 
 		/* cleanup any packets in sync completion queue */
 		list_for_each_entry_safe(packets, tmp_pkt, &comp_pktq, list) {

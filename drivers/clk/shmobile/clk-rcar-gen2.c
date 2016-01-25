@@ -115,7 +115,7 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	 *
 	 * Using experimental measurements, it seems that no more than
 	 * ~10 iterations are needed, independently of the CPU rate.
-	 * Since this value might be dependant of external xtal rate, pll1
+	 * Since this value might be dependent on external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
 	 * "super" safe value.
 	 */
@@ -262,7 +262,7 @@ static struct clk * __init cpg_adsp_clk_register(struct rcar_gen2_cpg *cpg)
  * 1  1  0	30 / 2		x172/2	x208/2	x106
  * 1  1  1	30 / 2		x172/2	x208/2	x88
  *
- * *1 :	Table 7.6 indicates VCO ouput (PLLx = VCO/2)
+ * *1 :	Table 7.6 indicates VCO output (PLLx = VCO/2)
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
 					 (((md) & BIT(13)) >> 12) | \

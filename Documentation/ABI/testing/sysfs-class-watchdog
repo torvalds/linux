@@ -1,0 +1,51 @@
+What:		/sys/class/watchdog/watchdogn/bootstatus
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It contains status of the watchdog
+		device at boot. It is equivalent to WDIOC_GETBOOTSTATUS of
+		ioctl interface.
+
+What:		/sys/class/watchdog/watchdogn/identity
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It contains identity string of
+		watchdog device.
+
+What:		/sys/class/watchdog/watchdogn/nowayout
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. While reading, it gives '1' if that
+		device supports nowayout feature else, it gives '0'.
+
+What:		/sys/class/watchdog/watchdogn/state
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It gives active/inactive status of
+		watchdog device.
+
+What:		/sys/class/watchdog/watchdogn/status
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It contains watchdog device's
+		internal status bits. It is equivalent to WDIOC_GETSTATUS
+		of ioctl interface.
+
+What:		/sys/class/watchdog/watchdogn/timeleft
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It contains value of time left for
+		reset generation. It is equivalent to WDIOC_GETTIMELEFT of
+		ioctl interface.
+
+What:		/sys/class/watchdog/watchdogn/timeout
+Date:		August 2015
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It is read to know about current
+		value of timeout programmed.

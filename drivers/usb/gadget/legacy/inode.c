@@ -1137,10 +1137,9 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 						dev->gadget->ep0, dev->req,
 						GFP_KERNEL);
 				}
+				spin_lock_irq(&dev->lock);
 				if (retval < 0) {
-					spin_lock_irq (&dev->lock);
 					clean_req (dev->gadget->ep0, dev->req);
-					spin_unlock_irq (&dev->lock);
 				} else
 					retval = len;
 
@@ -1522,10 +1521,10 @@ static void destroy_ep_files (struct dev_data *dev)
 		spin_unlock_irq (&dev->lock);
 
 		/* break link to dcache */
-		mutex_lock (&parent->i_mutex);
+		inode_lock(parent);
 		d_delete (dentry);
 		dput (dentry);
-		mutex_unlock (&parent->i_mutex);
+		inode_unlock(parent);
 
 		spin_lock_irq (&dev->lock);
 	}

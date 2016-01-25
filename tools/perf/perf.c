@@ -9,16 +9,18 @@
 #include "builtin.h"
 
 #include "util/env.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "util/cache.h"
 #include "util/quote.h"
-#include "util/run-command.h"
+#include <subcmd/run-command.h>
 #include "util/parse-events.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/bpf-loader.h"
 #include "util/debug.h"
 #include <api/fs/tracing_path.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <time.h>
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
@@ -39,6 +41,7 @@ struct cmd_struct {
 static struct cmd_struct commands[] = {
 	{ "buildid-cache", cmd_buildid_cache, 0 },
 	{ "buildid-list", cmd_buildid_list, 0 },
+	{ "config",	cmd_config,	0 },
 	{ "diff",	cmd_diff,	0 },
 	{ "evlist",	cmd_evlist,	0 },
 	{ "help",	cmd_help,	0 },
@@ -118,7 +121,7 @@ static void commit_pager_choice(void)
 {
 	switch (use_pager) {
 	case 0:
-		setenv("PERF_PAGER", "cat", 1);
+		setenv(PERF_PAGER_ENVIRONMENT, "cat", 1);
 		break;
 	case 1:
 		/* setup_pager(); */
@@ -182,9 +185,9 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 		if (!prefixcmp(cmd, CMD_EXEC_PATH)) {
 			cmd += strlen(CMD_EXEC_PATH);
 			if (*cmd == '=')
-				perf_set_argv_exec_path(cmd + 1);
+				set_argv_exec_path(cmd + 1);
 			else {
-				puts(perf_exec_path());
+				puts(get_argv_exec_path());
 				exit(0);
 			}
 		} else if (!strcmp(cmd, "--html-path")) {
@@ -383,6 +386,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 		use_pager = 1;
 	commit_pager_choice();
 
+	perf_env__set_cmdline(&perf_env, argc, argv);
 	status = p->fn(argc, argv, prefix);
 	exit_browser(status);
 	perf_env__exit(&perf_env);
@@ -528,13 +532,19 @@ int main(int argc, const char **argv)
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
 
+	/* libsubcmd init */
+	exec_cmd_init("perf", PREFIX, PERF_EXEC_PATH, EXEC_PATH_ENVIRONMENT);
+	pager_init(PERF_PAGER_ENVIRONMENT);
+
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
 	cacheline_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
 
-	cmd = perf_extract_argv0_path(argv[0]);
+	cmd = extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
+
+	srandom(time(NULL));
 
 	/* get debugfs/tracefs mount point from /proc/mounts */
 	tracing_path_mount();
