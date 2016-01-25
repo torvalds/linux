@@ -9032,10 +9032,14 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np = netdev_priv(netdev);
 	np->vsi = vsi;
 
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM	  |
-				   NETIF_F_GSO_UDP_TUNNEL |
-				   NETIF_F_GSO_GRE	  |
-				   NETIF_F_TSO		  |
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM	       |
+				   NETIF_F_IPV6_CSUM	       |
+				   NETIF_F_TSO		       |
+				   NETIF_F_TSO6		       |
+				   NETIF_F_TSO_ECN	       |
+				   NETIF_F_GSO_GRE	       |
+				   NETIF_F_GSO_UDP_TUNNEL      |
+				   NETIF_F_GSO_UDP_TUNNEL_CSUM |
 				   0;
 
 	netdev->features = NETIF_F_SG		       |
@@ -9057,6 +9061,8 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
 		netdev->features |= NETIF_F_NTUPLE;
+	if (pf->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE)
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
