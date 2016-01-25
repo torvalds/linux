@@ -2402,7 +2402,9 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		struct udphdr *udp;
 		unsigned char *hdr;
 	} l4;
+	unsigned char *exthdr;
 	u32 l4_tunnel = 0;
+	__be16 frag_off;
 	u8 l4_proto = 0;
 
 	ip.hdr = skb_network_header(skb);
@@ -2419,7 +2421,12 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			l4_proto = ip.v4->protocol;
 		} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
 			*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV6;
+
+			exthdr = ip.hdr + sizeof(*ip.v6);
 			l4_proto = ip.v6->nexthdr;
+			if (l4.hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data,
+						 &l4_proto, &frag_off);
 		}
 
 		/* define outer transport */
@@ -2469,8 +2476,13 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			*td_cmd |= I40E_TX_DESC_CMD_IIPT_IPV4;
 		}
 	} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
-		l4_proto = ip.v6->nexthdr;
 		*td_cmd |= I40E_TX_DESC_CMD_IIPT_IPV6;
+
+		exthdr = ip.hdr + sizeof(*ip.v6);
+		l4_proto = ip.v6->nexthdr;
+		if (l4.hdr != exthdr)
+			ipv6_skip_exthdr(skb, exthdr - skb->data,
+					 &l4_proto, &frag_off);
 	}
 
 	/* Now set the td_offset for IP header length */
