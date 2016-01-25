@@ -1341,14 +1341,60 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 	 * after the IAA interrupt occurs.  In self-defense, always go
 	 * through two IAA cycles for each QH.
 	 */
-	else if (qh->qh_state == QH_STATE_UNLINK_WAIT) {
+	else if (qh->qh_state == QH_STATE_UNLINK) {
+		/*
+		 * Second IAA cycle has finished.  Process only the first
+		 * waiting QH (NVIDIA (?) bug).
+		 */
+		list_move_tail(&qh->unlink_node, &ehci->async_idle);
+	}
+
+	/*
+	 * AMD/ATI (?) bug: The HC can continue to use an active QH long
+	 * after the IAA interrupt occurs.  To prevent problems, QHs that
+	 * may still be active will wait until 2 ms have passed with no
+	 * change to the hw_current and hw_token fields (this delay occurs
+	 * between the two IAA cycles).
+	 *
+	 * The EHCI spec (4.8.2) says that active QHs must not be removed
+	 * from the async schedule and recommends waiting until the QH
+	 * goes inactive.  This is ridiculous because the QH will _never_
+	 * become inactive if the endpoint NAKs indefinitely.
+	 */
+
+	/* Some reasons for unlinking guarantee the QH can't be active */
+	else if (qh->unlink_reason & (QH_UNLINK_HALTED |
+			QH_UNLINK_SHORT_READ | QH_UNLINK_DUMMY_OVERLAY))
+		goto DelayDone;
+
+	/* The QH can't be active if the queue was and still is empty... */
+	else if	((qh->unlink_reason & QH_UNLINK_QUEUE_EMPTY) &&
+			list_empty(&qh->qtd_list))
+		goto DelayDone;
+
+	/* ... or if the QH has halted */
+	else if	(qh->hw->hw_token & cpu_to_hc32(ehci, QTD_STS_HALT))
+		goto DelayDone;
+
+	/* Otherwise we have to wait until the QH stops changing */
+	else {
+		__hc32		qh_current, qh_token;
+
+		qh_current = qh->hw->hw_current;
+		qh_token = qh->hw->hw_token;
+		if (qh_current != ehci->old_current ||
+				qh_token != ehci->old_token) {
+			ehci->old_current = qh_current;
+			ehci->old_token = qh_token;
+			ehci_enable_event(ehci,
+					EHCI_HRTIMER_ACTIVE_UNLINK, true);
+			return;
+		}
+ DelayDone:
 		qh->qh_state = QH_STATE_UNLINK;
 		early_exit = true;
 	}
-
-	/* Otherwise process only the first waiting QH (NVIDIA bug?) */
-	else
-		list_move_tail(&qh->unlink_node, &ehci->async_idle);
+	ehci->old_current = ~0;		/* Prepare for next QH */
 
 	/* Start a new IAA cycle if any QHs are waiting for it */
 	if (!list_empty(&ehci->async_unlink))

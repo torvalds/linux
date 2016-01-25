@@ -110,6 +110,7 @@ enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
 	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
 	EHCI_HRTIMER_FREE_ITDS,		/* Wait for unused iTDs and siTDs */
+	EHCI_HRTIMER_ACTIVE_UNLINK,	/* Wait while unlinking an active QH */
 	EHCI_HRTIMER_START_UNLINK_INTR, /* Unlink empty interrupt QHs */
 	EHCI_HRTIMER_ASYNC_UNLINKS,	/* Unlink empty async QHs */
 	EHCI_HRTIMER_IAA_WATCHDOG,	/* Handle lost IAA interrupts */
@@ -156,6 +157,8 @@ struct ehci_hcd {			/* one per controller */
 	struct list_head	async_idle;
 	unsigned		async_unlink_cycle;
 	unsigned		async_count;	/* async activity count */
+	__hc32			old_current;	/* Test for QH becoming */
+	__hc32			old_token;	/*  inactive during unlink */
 
 	/* periodic schedule support */
 #define	DEFAULT_I_TDPS		1024		/* some HCs can do less */

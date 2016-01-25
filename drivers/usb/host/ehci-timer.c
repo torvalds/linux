@@ -72,6 +72,7 @@ static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_DEAD */
 	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
 	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_FREE_ITDS */
+	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_ACTIVE_UNLINK */
 	5 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_START_UNLINK_INTR */
 	6 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_ASYNC_UNLINKS */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_IAA_WATCHDOG */
@@ -395,6 +396,7 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_handle_controller_death,	/* EHCI_HRTIMER_POLL_DEAD */
 	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
 	end_free_itds,			/* EHCI_HRTIMER_FREE_ITDS */
+	end_unlink_async,		/* EHCI_HRTIMER_ACTIVE_UNLINK */
 	ehci_handle_start_intr_unlinks,	/* EHCI_HRTIMER_START_UNLINK_INTR */
 	unlink_empty_async,		/* EHCI_HRTIMER_ASYNC_UNLINKS */
 	ehci_iaa_watchdog,		/* EHCI_HRTIMER_IAA_WATCHDOG */
