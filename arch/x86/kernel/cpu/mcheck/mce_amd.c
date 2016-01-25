@@ -28,7 +28,7 @@
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
 
-#define NR_BLOCKS         9
+#define NR_BLOCKS         5
 #define THRESHOLD_MAX     0xFFF
 #define INT_TYPE_APIC     0x00020000
 #define MASK_VALID_HI     0x80000000
