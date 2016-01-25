@@ -416,21 +416,21 @@ int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif;
 	struct wilc *wilc;
-	int ret = 0;
+	int chip_id, ret = 0;
 	const struct firmware *wilc_firmware;
 	char *firmware;
 
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	if (vif->iftype == AP_MODE) {
-		firmware = AP_FIRMWARE;
-	} else if (vif->iftype == STATION_MODE) {
-		firmware = STA_FIRMWARE;
-	} else {
-		PRINT_D(INIT_DBG, "Get P2P_CONCURRENCY_FIRMWARE\n");
-		firmware = P2P_CONCURRENCY_FIRMWARE;
-	}
+	chip_id = wilc_get_chipid(wilc, 0);
+
+	if (chip_id < 0x1003a0)
+		firmware = FIRMWARE_1002;
+	else
+		firmware = FIRMWARE_1003;
+
+	netdev_info(dev, "loading firmware %s\n", firmware);
 
 	if (!vif) {
 		PRINT_ER("vif is NULL\n");
