@@ -467,7 +467,7 @@ static void imx6_pcie_host_init(struct pcie_port *pp)
 
 static int imx6_pcie_link_up(struct pcie_port *pp)
 {
-	u32 rc, debug_r0, rx_valid;
+	u32 rc;
 	int count = 5;
 
 	/*
@@ -501,21 +501,6 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 		 */
 		usleep_range(1000, 2000);
 	}
-	/*
-	 * From L0, initiate MAC entry to gen2 if EP/RC supports gen2.
-	 * Wait 2ms (LTSSM timeout is 24ms, PHY lock is ~5us in gen2).
-	 * If (MAC/LTSSM.state == Recovery.RcvrLock)
-	 * && (PHY/rx_valid==0) then pulse PHY/rx_reset. Transition
-	 * to gen2 is stuck
-	 */
-	pcie_phy_read(pp->dbi_base, PCIE_PHY_RX_ASIC_OUT, &rx_valid);
-	debug_r0 = readl(pp->dbi_base + PCIE_PHY_DEBUG_R0);
-
-	if (rx_valid & PCIE_PHY_RX_ASIC_OUT_VALID)
-		return 0;
-
-	if ((debug_r0 & 0x3f) != 0x0d)
-		return 0;
 
 	return 0;
 }
