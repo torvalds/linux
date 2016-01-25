@@ -1364,7 +1364,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
 	if (!devdata)
 		return NULL;
-	memset(devdata, '\0', sizeof(struct visornic_devdata));
 	devdata->dev = dev;
 	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
