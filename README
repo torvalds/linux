@@ -206,9 +206,6 @@ line.
 
 Limitations of Linux with Kernel Debuggers
 
-Linux x86_64 kernels are not architected to support kernel debuggers natively 
-and there are several areas of Linux which are blacked out to kernel 
-debuggers due to how Linux is designed for its x86_64 architecture kernels. 
 Linux uses the swapgs instruction in x86_64 mode to swap gs frames between 
 user space and kernel space transitions. You can set breakpoints on and 
 around a swapgs instruction, however, the system may crash due to how the 
@@ -223,15 +220,7 @@ swapgs
 rex64 sysret
 
 Don't try to step in between these two instructions. It's safe to do so 
-after the sysret executes but not between them. Debugging NMI handlers 
-in Linux can be done but the system may not be recoverable after you 
-have debugged these sections of code in the NMI handlers due to a how 
-Linux designed it's NMI callbacks. If you want to debug linux without 
-many of these limitations use MDB in Direct Mode when you compile it. 
-Direct Mode allows MDB to take control of the debugger hardware from the 
-operating system and removes many of the blacked out areas of the operating 
-system and allows you to debug them. Direct Mode will not help you with 
-the swapgs instruction problem however.
+after the sysret executes but not between them. 
 
 Support or Contact
 Need to report a bug or issue with the MDB Linux Kernel Debugger? Please 
