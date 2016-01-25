@@ -90,12 +90,11 @@ unsigned long usb_hcds_loaded;
 EXPORT_SYMBOL_GPL(usb_hcds_loaded);
 
 /* host controllers we manage */
-LIST_HEAD (usb_bus_list);
-EXPORT_SYMBOL_GPL (usb_bus_list);
+DEFINE_IDR (usb_bus_idr);
+EXPORT_SYMBOL_GPL (usb_bus_idr);
 
 /* used when allocating bus numbers */
 #define USB_MAXBUS		64
-static DECLARE_BITMAP(busmap, USB_MAXBUS);
 
 /* used when updating list of hcds */
 DEFINE_MUTEX(usb_bus_list_lock);	/* exported only for usbfs */
@@ -996,8 +995,6 @@ static void usb_bus_init (struct usb_bus *bus)
 	bus->bandwidth_int_reqs  = 0;
 	bus->bandwidth_isoc_reqs = 0;
 	mutex_init(&bus->usb_address0_mutex);
-
-	INIT_LIST_HEAD (&bus->bus_list);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1018,16 +1015,12 @@ static int usb_register_bus(struct usb_bus *bus)
 	int busnum;
 
 	mutex_lock(&usb_bus_list_lock);
-	busnum = find_next_zero_bit(busmap, USB_MAXBUS, 1);
-	if (busnum >= USB_MAXBUS) {
-		printk (KERN_ERR "%s: too many buses\n", usbcore_name);
+	busnum = idr_alloc(&usb_bus_idr, bus, 1, USB_MAXBUS, GFP_KERNEL);
+	if (busnum < 0) {
+		pr_err("%s: failed to get bus number\n", usbcore_name);
 		goto error_find_busnum;
 	}
-	set_bit(busnum, busmap);
 	bus->busnum = busnum;
-
-	/* Add it to the local list of buses */
-	list_add (&bus->bus_list, &usb_bus_list);
 	mutex_unlock(&usb_bus_list_lock);
 
 	usb_notify_add_bus(bus);
@@ -1059,12 +1052,10 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	 * itself up
 	 */
 	mutex_lock(&usb_bus_list_lock);
-	list_del (&bus->bus_list);
+	idr_remove(&usb_bus_idr, bus->busnum);
 	mutex_unlock(&usb_bus_list_lock);
 
 	usb_notify_remove_bus(bus);
-
-	clear_bit(bus->busnum, busmap);
 }
 
 /**
