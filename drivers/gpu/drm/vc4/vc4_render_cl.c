@@ -321,15 +321,6 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	list_add_tail(&to_vc4_bo(&setup->rcl->base)->unref_head,
 		      &exec->unref_list);
 
-	rcl_u8(setup, VC4_PACKET_TILE_RENDERING_MODE_CONFIG);
-	rcl_u32(setup,
-		(setup->color_write ? (setup->color_write->paddr +
-				       args->color_write.offset) :
-		 0));
-	rcl_u16(setup, args->width);
-	rcl_u16(setup, args->height);
-	rcl_u16(setup, args->color_write.bits);
-
 	/* The tile buffer gets cleared when the previous tile is stored.  If
 	 * the clear values changed between frames, then the tile buffer has
 	 * stale clear values in it, so we have to do a store in None mode (no
@@ -348,6 +339,15 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 		rcl_u16(setup, VC4_LOADSTORE_TILE_BUFFER_NONE);
 		rcl_u32(setup, 0); /* no address, since we're in None mode */
 	}
+
+	rcl_u8(setup, VC4_PACKET_TILE_RENDERING_MODE_CONFIG);
+	rcl_u32(setup,
+		(setup->color_write ? (setup->color_write->paddr +
+				       args->color_write.offset) :
+		 0));
+	rcl_u16(setup, args->width);
+	rcl_u16(setup, args->height);
+	rcl_u16(setup, args->color_write.bits);
 
 	for (y = min_y_tile; y <= max_y_tile; y++) {
 		for (x = min_x_tile; x <= max_x_tile; x++) {
