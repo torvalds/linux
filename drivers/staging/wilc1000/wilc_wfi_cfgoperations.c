@@ -74,6 +74,10 @@ static const struct ieee80211_txrx_stypes
 	}
 };
 
+static const struct wiphy_wowlan_support wowlan_support = {
+	.flags = WIPHY_WOWLAN_ANY
+};
+
 #define WILC_WFI_DWELL_PASSIVE 100
 #define WILC_WFI_DWELL_ACTIVE  40
 
@@ -2673,6 +2677,36 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	return 0;
 }
 
+static int wilc_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
+{
+	struct wilc_priv *priv = wiphy_priv(wiphy);
+	struct wilc_vif *vif = netdev_priv(priv->dev);
+
+	if (!wow && wilc_wlan_get_num_conn_ifcs(vif->wilc))
+		vif->wilc->suspend_event = true;
+	else
+		vif->wilc->suspend_event = false;
+
+	return 0;
+}
+
+static int wilc_resume(struct wiphy *wiphy)
+{
+	struct wilc_priv *priv = wiphy_priv(wiphy);
+	struct wilc_vif *vif = netdev_priv(priv->dev);
+
+	netdev_info(vif->ndev, "cfg resume\n");
+	return 0;
+}
+
+static void wilc_set_wakeup(struct wiphy *wiphy, bool enabled)
+{
+	struct wilc_priv *priv = wiphy_priv(wiphy);
+	struct wilc_vif *vif = netdev_priv(priv->dev);
+
+	netdev_info(vif->ndev, "cfg set wake up = %d\n", enabled);
+}
+
 static struct cfg80211_ops wilc_cfg80211_ops = {
 	.set_monitor_channel = set_channel,
 	.scan = scan,
@@ -2707,6 +2741,10 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.mgmt_frame_register = wilc_mgmt_frame_register,
 	.set_power_mgmt = set_power_mgmt,
 	.set_cqm_rssi_config = set_cqm_rssi_config,
+
+	.suspend = wilc_suspend,
+	.resume = wilc_resume,
+	.set_wakeup = wilc_set_wakeup,
 
 };
 
@@ -2792,6 +2830,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net, struct device *de
 	sema_init(&(priv->SemHandleUpdateStats), 1);
 	priv->wdev = wdev;
 	wdev->wiphy->max_scan_ssids = MAX_NUM_PROBED_SSID;
+	wdev->wiphy->wowlan = &wowlan_support;
 	wdev->wiphy->max_num_pmkids = WILC_MAX_NUM_PMKIDS;
 	PRINT_INFO(CFG80211_DBG, "Max number of PMKIDs = %d\n", wdev->wiphy->max_num_pmkids);
 
