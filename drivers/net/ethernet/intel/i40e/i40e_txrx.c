@@ -1391,9 +1391,6 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(rx_ptype);
 	bool ipv4 = false, ipv6 = false;
 	bool ipv4_tunnel, ipv6_tunnel;
-	__wsum rx_udp_csum;
-	struct iphdr *iph;
-	__sum16 csum;
 
 	ipv4_tunnel = (rx_ptype >= I40E_RX_PTYPE_GRENAT4_MAC_PAY3) &&
 		     (rx_ptype <= I40E_RX_PTYPE_GRENAT4_MACVLAN_IPV6_ICMP_PAY4);
@@ -1443,37 +1440,12 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	if (rx_error & BIT(I40E_RX_DESC_ERROR_PPRS_SHIFT))
 		return;
 
-	/* If VXLAN/GENEVE traffic has an outer UDPv4 checksum we need to check
-	 * it in the driver, hardware does not do it for us.
-	 * Since L3L4P bit was set we assume a valid IHL value (>=5)
-	 * so the total length of IPv4 header is IHL*4 bytes
-	 * The UDP_0 bit *may* bet set if the *inner* header is UDP
+	/* The hardware supported by this driver does not validate outer
+	 * checksums for tunneled VXLAN or GENEVE frames.  I don't agree
+	 * with it but the specification states that you "MAY validate", it
+	 * doesn't make it a hard requirement so if we have validated the
+	 * inner checksum report CHECKSUM_UNNECESSARY.
 	 */
-	if (!(vsi->back->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE) &&
-	    (ipv4_tunnel)) {
-		skb->transport_header = skb->mac_header +
-					sizeof(struct ethhdr) +
-					(ip_hdr(skb)->ihl * 4);
-
-		/* Add 4 bytes for VLAN tagged packets */
-		skb->transport_header += (skb->protocol == htons(ETH_P_8021Q) ||
-					  skb->protocol == htons(ETH_P_8021AD))
-					  ? VLAN_HLEN : 0;
-
-		if ((ip_hdr(skb)->protocol == IPPROTO_UDP) &&
-		    (udp_hdr(skb)->check != 0)) {
-			rx_udp_csum = udp_csum(skb);
-			iph = ip_hdr(skb);
-			csum = csum_tcpudp_magic(
-					iph->saddr, iph->daddr,
-					(skb->len - skb_transport_offset(skb)),
-					IPPROTO_UDP, rx_udp_csum);
-
-			if (udp_hdr(skb)->check != csum)
-				goto checksum_fail;
-
-		} /* else its GRE and so no outer UDP header */
-	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->csum_level = ipv4_tunnel || ipv6_tunnel;
@@ -2452,15 +2424,6 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		if (this_ip_hdr->version == 6) {
 			*tx_flags &= ~I40E_TX_FLAGS_IPV4;
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
-		}
-		if ((tx_ring->flags & I40E_TXR_FLAGS_OUTER_UDP_CSUM) &&
-		    (l4_tunnel == I40E_TXD_CTX_UDP_TUNNELING)        &&
-		    (*cd_tunneling & I40E_TXD_CTX_QW0_EXT_IP_MASK)) {
-			oudph->check = ~csum_tcpudp_magic(oiph->saddr,
-					oiph->daddr,
-					(skb->len - skb_transport_offset(skb)),
-					IPPROTO_UDP, 0);
-			*cd_tunneling |= I40E_TXD_CTX_QW0_L4T_CS_MASK;
 		}
 	} else {
 		network_hdr_len = skb_network_header_len(skb);

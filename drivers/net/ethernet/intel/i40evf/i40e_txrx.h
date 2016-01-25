@@ -275,7 +275,6 @@ struct i40e_ring {
 
 	u16 flags;
 #define I40E_TXR_FLAGS_WB_ON_ITR	BIT(0)
-#define I40E_TXR_FLAGS_OUTER_UDP_CSUM	BIT(1)
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;

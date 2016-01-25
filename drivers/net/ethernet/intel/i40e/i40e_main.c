@@ -7474,8 +7474,6 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		tx_ring->dcb_tc = 0;
 		if (vsi->back->flags & I40E_FLAG_WB_ON_ITR_CAPABLE)
 			tx_ring->flags = I40E_TXR_FLAGS_WB_ON_ITR;
-		if (vsi->back->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE)
-			tx_ring->flags |= I40E_TXR_FLAGS_OUTER_UDP_CSUM;
 		vsi->tx_rings[i] = tx_ring;
 
 		rx_ring = &tx_ring[1];
