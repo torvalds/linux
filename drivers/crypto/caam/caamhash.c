@@ -1360,8 +1360,6 @@ static int ahash_digest(struct ahash_request *req)
 	}
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ahash_edesc) +
 			  DESC_JOB_IO_LEN;
-	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
-					    sec4_sg_bytes, DMA_TO_DEVICE);
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->src_nents = src_nents;
 	edesc->chained = chained;
@@ -1386,7 +1384,8 @@ static int ahash_digest(struct ahash_request *req)
 	}
 	append_seq_in_ptr(desc, src_dma, req->nbytes, options);
 
-	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
+	if (edesc->sec4_sg_dma)
+		dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
 				   edesc->sec4_sg_bytes, DMA_TO_DEVICE);
 
 	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
@@ -1768,7 +1767,8 @@ static int ahash_update_first(struct ahash_request *req)
 		if (ret)
 			return ret;
 
-		dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
+		if (edesc->sec4_sg_dma)
+			dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
 					   sec4_sg_bytes, DMA_TO_DEVICE);
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
