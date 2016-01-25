@@ -126,15 +126,15 @@ void
 sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 {
 	struct pt_regs *thread_regs;
+	const int NGPRS = TREG_LAST_GPR + 1;
 
 	if (task == NULL)
 		return;
 
-	/* Initialize to zero. */
-	memset(gdb_regs, 0, NUMREGBYTES);
-
 	thread_regs = task_pt_regs(task);
-	memcpy(gdb_regs, thread_regs, TREG_LAST_GPR * sizeof(unsigned long));
+	memcpy(gdb_regs, thread_regs, NGPRS * sizeof(unsigned long));
+	memset(&gdb_regs[NGPRS], 0,
+	       (TILEGX_PC_REGNUM - NGPRS) * sizeof(unsigned long));
 	gdb_regs[TILEGX_PC_REGNUM] = thread_regs->pc;
 	gdb_regs[TILEGX_FAULTNUM_REGNUM] = thread_regs->faultnum;
 }
