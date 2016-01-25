@@ -434,10 +434,6 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	/* assume the worst case */
 	ndw += vm->max_pde_used * 6;
 
-	/* update too big for an IB */
-	if (ndw > 0xfffff)
-		return -ENOMEM;
-
 	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!ib)
 		return -ENOMEM;
@@ -742,10 +738,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		/* two extra commands for begin/end of fragment */
 		ndw += 2 * 10;
 	}
-
-	/* update too big for an IB */
-	if (ndw > 0xfffff)
-		return -ENOMEM;
 
 	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!ib)
