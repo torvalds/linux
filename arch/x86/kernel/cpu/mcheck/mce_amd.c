@@ -54,6 +54,14 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
+/*
+ * OS is required to set the MCAX bit to acknowledge that it is now using the
+ * new MSR ranges and new registers under each bank. It also means that the OS
+ * will configure deferred errors in the new MCx_CONFIG register. If the bit is
+ * not set, uncorrectable errors will cause a system panic.
+ */
+#define SMCA_MCAX_EN_OFF	0x1
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -292,6 +300,12 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 
 	if (mce_flags.smca) {
 		u32 smca_low, smca_high;
+		u32 smca_addr = MSR_AMD64_SMCA_MCx_CONFIG(bank);
+
+		if (!rdmsr_safe(smca_addr, &smca_low, &smca_high)) {
+			smca_high |= SMCA_MCAX_EN_OFF;
+			wrmsr(smca_addr, smca_low, smca_high);
+		}
 
 		/* Gather LVT offset for thresholding: */
 		if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
