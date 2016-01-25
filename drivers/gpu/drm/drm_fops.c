@@ -264,6 +264,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	INIT_LIST_HEAD(&priv->fbs);
 	mutex_init(&priv->fbs_lock);
 	INIT_LIST_HEAD(&priv->blobs);
+	INIT_LIST_HEAD(&priv->pending_event_list);
 	INIT_LIST_HEAD(&priv->event_list);
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
@@ -365,6 +366,13 @@ static void drm_events_release(struct drm_file *file_priv)
 			drm_vblank_put(dev, v->pipe);
 			v->base.destroy(&v->base);
 		}
+
+	/* Unlink pending events */
+	list_for_each_entry_safe(e, et, &file_priv->pending_event_list,
+				 pending_link) {
+		list_del(&e->pending_link);
+		e->file_priv = NULL;
+	}
 
 	/* Remove unconsumed events */
 	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
@@ -712,6 +720,7 @@ int drm_event_reserve_init_locked(struct drm_device *dev,
 	file_priv->event_space -= e->length;
 
 	p->event = e;
+	list_add(&p->pending_link, &file_priv->pending_event_list);
 	p->file_priv = file_priv;
 
 	/* we *could* pass this in as arg, but everyone uses kfree: */
@@ -774,7 +783,10 @@ void drm_event_cancel_free(struct drm_device *dev,
 {
 	unsigned long flags;
 	spin_lock_irqsave(&dev->event_lock, flags);
-	p->file_priv->event_space += p->event->length;
+	if (p->file_priv) {
+		p->file_priv->event_space += p->event->length;
+		list_del(&p->pending_link);
+	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	p->destroy(p);
 }
@@ -788,11 +800,22 @@ EXPORT_SYMBOL(drm_event_cancel_free);
  * This function sends the event @e, initialized with drm_event_reserve_init(),
  * to its associated userspace DRM file. Callers must already hold
  * dev->event_lock, see drm_send_event() for the unlocked version.
+ *
+ * Note that the core will take care of unlinking and disarming events when the
+ * corresponding DRM file is closed. Drivers need not worry about whether the
+ * DRM file for this event still exists and can call this function upon
+ * completion of the asynchronous work unconditionally.
  */
 void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 {
 	assert_spin_locked(&dev->event_lock);
 
+	if (!e->file_priv) {
+		e->destroy(e);
+		return;
+	}
+
+	list_del(&e->pending_link);
 	list_add_tail(&e->link,
 		      &e->file_priv->event_list);
 	wake_up_interruptible(&e->file_priv->event_wait);
@@ -807,6 +830,11 @@ EXPORT_SYMBOL(drm_send_event_locked);
  * This function sends the event @e, initialized with drm_event_reserve_init(),
  * to its associated userspace DRM file. This function acquires dev->event_lock,
  * see drm_send_event_locked() for callers which already hold this lock.
+ *
+ * Note that the core will take care of unlinking and disarming events when the
+ * corresponding DRM file is closed. Drivers need not worry about whether the
+ * DRM file for this event still exists and can call this function upon
+ * completion of the asynchronous work unconditionally.
  */
 void drm_send_event(struct drm_device *dev, struct drm_pending_event *e)
 {

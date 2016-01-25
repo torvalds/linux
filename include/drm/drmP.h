@@ -283,6 +283,7 @@ struct drm_ioctl_desc {
 struct drm_pending_event {
 	struct drm_event *event;
 	struct list_head link;
+	struct list_head pending_link;
 	struct drm_file *file_priv;
 	pid_t pid; /* pid of requester, no guarantee it's valid by the time
 		      we deliver the event, for tracing only */
@@ -346,6 +347,7 @@ struct drm_file {
 	struct list_head blobs;
 
 	wait_queue_head_t event_wait;
+	struct list_head pending_event_list;
 	struct list_head event_list;
 	int event_space;
 
