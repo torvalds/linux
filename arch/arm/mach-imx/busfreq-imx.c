@@ -40,6 +40,9 @@
 #define LOW_AUDIO_CLK		50000000
 #define HIGH_AUDIO_CLK		100000000
 
+#define MMDC_MDMISC_DDR_TYPE_DDR3	0
+#define MMDC_MDMISC_DDR_TYPE_LPDDR2	1
+
 unsigned int ddr_med_rate;
 unsigned int ddr_normal_rate;
 unsigned long ddr_freq_change_total_size;
@@ -65,12 +68,14 @@ extern unsigned long iram_tlb_phys_addr;
 extern int unsigned long iram_tlb_base_addr;
 
 extern int init_mmdc_lpddr2_settings(struct platform_device *dev);
+extern int init_mmdc_lpddr2_settings_mx6q(struct platform_device *dev);
 extern int init_mmdc_ddr3_settings_imx6_up(struct platform_device *dev);
 extern int init_mmdc_ddr3_settings_imx6_smp(struct platform_device *dev);
 extern int init_ddrc_ddr_settings(struct platform_device *dev);
 extern int update_ddr_freq_imx_smp(int ddr_rate);
 extern int update_ddr_freq_imx6_up(int ddr_rate);
 extern int update_lpddr2_freq(int ddr_rate);
+extern int update_lpddr2_freq_smp(int ddr_rate);
 
 DEFINE_MUTEX(bus_freq_mutex);
 
@@ -221,7 +226,10 @@ static void enter_lpm_imx6_smp(void)
 	if (audio_bus_count) {
 		/* Need to ensure that PLL2_PFD_400M is kept ON. */
 		clk_prepare_enable(pll2_400_clk);
-		update_ddr_freq_imx_smp(LOW_AUDIO_CLK);
+		if (ddr_type == MMDC_MDMISC_DDR_TYPE_DDR3)
+			update_ddr_freq_imx_smp(LOW_AUDIO_CLK);
+		else if (ddr_type == MMDC_MDMISC_DDR_TYPE_LPDDR2)
+			update_lpddr2_freq(LOW_AUDIO_CLK);
 		/* Make sure periph clk's parent also got updated */
 		imx_clk_set_parent(periph_clk2_sel_clk, pll3_clk);
 		imx_clk_set_parent(periph_pre_clk, pll2_200_clk);
@@ -230,7 +238,10 @@ static void enter_lpm_imx6_smp(void)
 		low_bus_freq_mode = 0;
 		cur_bus_freq_mode = BUS_FREQ_AUDIO;
 	} else {
-		update_ddr_freq_imx_smp(LPAPM_CLK);
+		if (ddr_type == MMDC_MDMISC_DDR_TYPE_DDR3)
+			update_ddr_freq_imx_smp(LPAPM_CLK);
+		else if (ddr_type == MMDC_MDMISC_DDR_TYPE_LPDDR2)
+			update_lpddr2_freq_smp(LPAPM_CLK);
 		/* Make sure periph clk's parent also got updated */
 		imx_clk_set_parent(periph_clk2_sel_clk, osc_clk);
 		/* Set periph_clk parent to OSC via periph_clk2_sel */
@@ -298,13 +309,16 @@ static void exit_lpm_imx6_smp(void)
 {
 	struct clk *periph_clk_parent;
 
-	if (cpu_is_imx6q())
+	if (cpu_is_imx6q() && ddr_type == MMDC_MDMISC_DDR_TYPE_DDR3)
 		periph_clk_parent = pll2_bus_clk;
 	else
 		periph_clk_parent = pll2_400_clk;
 
 	clk_prepare_enable(pll2_400_clk);
-	update_ddr_freq_imx_smp(ddr_normal_rate);
+	if (ddr_type == MMDC_MDMISC_DDR_TYPE_DDR3)
+		update_ddr_freq_imx_smp(ddr_normal_rate);
+	else if (ddr_type == MMDC_MDMISC_DDR_TYPE_LPDDR2)
+		update_lpddr2_freq_smp(ddr_normal_rate);
 	/* Make sure periph clk's parent also got updated */
 	imx_clk_set_parent(periph_clk2_sel_clk, pll3_clk);
 	imx_clk_set_parent(periph_pre_clk, periph_clk_parent);
@@ -1148,9 +1162,11 @@ static int busfreq_probe(struct platform_device *pdev)
 		else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
 			err = init_mmdc_lpddr2_settings(pdev);
 	} else if (cpu_is_imx6q() || cpu_is_imx6dl()) {
-		err = init_mmdc_ddr3_settings_imx6_smp(pdev);
-	} else if (cpu_is_imx6q() || cpu_is_imx6dl()) {
-		err = init_mmdc_ddr3_settings_imx6_smp(pdev);
+		ddr_type = imx_mmdc_get_ddr_type();
+		if (ddr_type == MMDC_MDMISC_DDR_TYPE_DDR3)
+			err = init_mmdc_ddr3_settings_imx6_smp(pdev);
+		else if (ddr_type == MMDC_MDMISC_DDR_TYPE_LPDDR2)
+			err = init_mmdc_lpddr2_settings_mx6q(pdev);
 	} else if (cpu_is_imx6sl()) {
 		err = init_mmdc_lpddr2_settings(pdev);
 	}
