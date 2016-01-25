@@ -165,7 +165,16 @@ ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
 endif
 endif
 
+# Set FEATURE_TESTS to 'all' so all possible feature checkers are executed.
+# Without this setting the output feature dump file misses some features, for
+# example, liberty. Select all checkers so we won't get an incomplete feature
+# dump file.
 ifeq ($(config),1)
+ifdef MAKECMDGOALS
+ifeq ($(filter feature-dump,$(MAKECMDGOALS)),feature-dump)
+FEATURE_TESTS := all
+endif
+endif
 include config/Makefile
 endif
 
