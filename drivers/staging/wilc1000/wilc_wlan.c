@@ -522,6 +522,7 @@ static inline void chip_allow_sleep(struct wilc *wilc)
 	wilc->hif_func->hif_read_reg(wilc, 0xf0, &reg);
 
 	wilc->hif_func->hif_write_reg(wilc, 0xf0, reg & ~BIT(0));
+	wilc->hif_func->hif_write_reg(wilc, 0xfa, 0);
 }
 
 static inline void chip_wakeup(struct wilc *wilc)
@@ -543,6 +544,8 @@ static inline void chip_wakeup(struct wilc *wilc)
 
 		} while (wilc_get_chipid(wilc, true) == 0);
 	} else if ((wilc->io_type & 0x1) == HIF_SDIO)	 {
+		wilc->hif_func->hif_write_reg(wilc, 0xfa, 1);
+		udelay(200);
 		wilc->hif_func->hif_read_reg(wilc, 0xf0, &reg);
 		do {
 			wilc->hif_func->hif_write_reg(wilc, 0xf0,
@@ -567,11 +570,7 @@ static inline void chip_wakeup(struct wilc *wilc)
 	}
 
 	if (chip_ps_state == CHIP_SLEEPING_MANUAL) {
-		wilc->hif_func->hif_read_reg(wilc, 0x1C0C, &reg);
-		reg &= ~BIT(0);
-		wilc->hif_func->hif_write_reg(wilc, 0x1C0C, reg);
-
-		if (wilc_get_chipid(wilc, false) >= 0x1002b0) {
+		if (wilc_get_chipid(wilc, false) < 0x1002b0) {
 			u32 val32;
 
 			wilc->hif_func->hif_read_reg(wilc, 0x1e1c, &val32);
@@ -596,6 +595,20 @@ void wilc_chip_sleep_manually(struct wilc *wilc)
 	wilc->hif_func->hif_write_reg(wilc, 0x10a8, 1);
 
 	chip_ps_state = CHIP_SLEEPING_MANUAL;
+	release_bus(wilc, RELEASE_ONLY);
+}
+
+void host_wakeup_notify(struct wilc *wilc)
+{
+	acquire_bus(wilc, ACQUIRE_ONLY);
+	wilc->hif_func->hif_write_reg(wilc, 0x10b0, 1);
+	release_bus(wilc, RELEASE_ONLY);
+}
+
+void host_sleep_notify(struct wilc *wilc)
+{
+	acquire_bus(wilc, ACQUIRE_ONLY);
+	wilc->hif_func->hif_write_reg(wilc, 0x10ac, 1);
 	release_bus(wilc, RELEASE_ONLY);
 }
 
@@ -701,9 +714,6 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 					break;
 				}
 				PRINT_WRN(GENERIC_DBG, "[wilc txq]: warn, vmm table not clear yet, wait...\n");
-				release_bus(wilc, RELEASE_ALLOW_SLEEP);
-				usleep_range(3000, 3000);
-				acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
 			}
 		} while (!wilc->quit);
 
@@ -736,9 +746,6 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 					break;
 				} else {
 					release_bus(wilc, RELEASE_ALLOW_SLEEP);
-					usleep_range(3000, 3000);
-					acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
-					PRINT_WRN(GENERIC_DBG, "Can't get VMM entery - reg = %2x\n", reg);
 				}
 			} while (--timeout);
 			if (timeout <= 0) {
@@ -1156,7 +1163,7 @@ int wilc_wlan_start(struct wilc *wilc)
 #ifdef WILC_EXT_PA_INV_TX_RX
 	reg |= WILC_HAVE_EXT_PA_INV_TX_RX;
 #endif
-
+	reg |= WILC_HAVE_USE_IRQ_AS_HOST_WAKE;
 	reg |= WILC_HAVE_LEGACY_RF_SETTINGS;
 #ifdef XTAL_24
 	reg |= WILC_HAVE_XTAL_24;
