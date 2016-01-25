@@ -626,7 +626,7 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 
 static int mpc5121_nfc_probe(struct platform_device *op)
 {
-	struct device_node *rootnode, *dn = op->dev.of_node;
+	struct device_node *dn = op->dev.of_node;
 	struct clk *clk;
 	struct device *dev = &op->dev;
 	struct mpc5121_nfc_prv *prv;
@@ -712,18 +712,15 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->ecc.mode = NAND_ECC_SOFT;
 
 	/* Support external chip-select logic on ADS5121 board */
-	rootnode = of_find_node_by_path("/");
-	if (of_device_is_compatible(rootnode, "fsl,mpc5121ads")) {
+	if (of_machine_is_compatible("fsl,mpc5121ads")) {
 		retval = ads5121_chipselect_init(mtd);
 		if (retval) {
 			dev_err(dev, "Chipselect init error!\n");
-			of_node_put(rootnode);
 			return retval;
 		}
 
 		chip->select_chip = ads5121_select_chip;
 	}
-	of_node_put(rootnode);
 
 	/* Enable NFC clock */
 	clk = devm_clk_get(dev, "ipg");
