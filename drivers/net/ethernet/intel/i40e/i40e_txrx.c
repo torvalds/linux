@@ -2267,7 +2267,7 @@ out:
 static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		    u8 *hdr_len, u64 *cd_type_cmd_tso_mss)
 {
-	u32 cd_cmd, cd_tso_len, cd_mss;
+	u64 cd_cmd, cd_tso_len, cd_mss;
 	struct ipv6hdr *ipv6h;
 	struct tcphdr *tcph;
 	struct iphdr *iph;
@@ -2309,10 +2309,9 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	cd_cmd = I40E_TX_CTX_DESC_TSO;
 	cd_tso_len = skb->len - *hdr_len;
 	cd_mss = skb_shinfo(skb)->gso_size;
-	*cd_type_cmd_tso_mss |= ((u64)cd_cmd << I40E_TXD_CTX_QW1_CMD_SHIFT) |
-				((u64)cd_tso_len <<
-				 I40E_TXD_CTX_QW1_TSO_LEN_SHIFT) |
-				((u64)cd_mss << I40E_TXD_CTX_QW1_MSS_SHIFT);
+	*cd_type_cmd_tso_mss |= (cd_cmd << I40E_TXD_CTX_QW1_CMD_SHIFT) |
+				(cd_tso_len << I40E_TXD_CTX_QW1_TSO_LEN_SHIFT) |
+				(cd_mss << I40E_TXD_CTX_QW1_MSS_SHIFT);
 	return 1;
 }
 
