@@ -16,6 +16,7 @@
 #include <linux/memblock.h>
 #include <linux/start_kernel.h>
 
+#include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -108,15 +109,6 @@ static void __init clear_pgds(unsigned long start,
 		set_pgd(pgd_offset_k(start), __pgd(0));
 }
 
-static void __init cpu_set_ttbr1(unsigned long ttbr1)
-{
-	asm(
-	"	msr	ttbr1_el1, %0\n"
-	"	isb"
-	:
-	: "r" (ttbr1));
-}
-
 void __init kasan_init(void)
 {
 	struct memblock_region *reg;
@@ -130,8 +122,8 @@ void __init kasan_init(void)
 	 * setup will be finished.
 	 */
 	memcpy(tmp_pg_dir, swapper_pg_dir, sizeof(tmp_pg_dir));
-	cpu_set_ttbr1(__pa(tmp_pg_dir));
-	flush_tlb_all();
+	dsb(ishst);
+	cpu_replace_ttbr1(tmp_pg_dir);
 
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
@@ -165,8 +157,7 @@ void __init kasan_init(void)
 			pfn_pte(virt_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
 
 	memset(kasan_zero_page, 0, PAGE_SIZE);
-	cpu_set_ttbr1(__pa(swapper_pg_dir));
-	flush_tlb_all();
+	cpu_replace_ttbr1(swapper_pg_dir);
 
 	/* At this point kasan is fully initialized. Enable error messages */
 	init_task.kasan_depth = 0;
