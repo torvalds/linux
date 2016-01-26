@@ -1028,7 +1028,7 @@ iso_stream_alloc(gfp_t mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
-	stream = kzalloc(sizeof *stream, mem_flags);
+	stream = kzalloc(sizeof(*stream), mem_flags);
 	if (likely(stream != NULL)) {
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
@@ -1196,7 +1196,7 @@ static struct ehci_iso_sched *
 iso_sched_alloc(unsigned packets, gfp_t mem_flags)
 {
 	struct ehci_iso_sched	*iso_sched;
-	int			size = sizeof *iso_sched;
+	int			size = sizeof(*iso_sched);
 
 	size += packets * sizeof(struct ehci_iso_packet);
 	iso_sched = kzalloc(size, mem_flags);
@@ -1315,7 +1315,7 @@ itd_urb_transaction(
 			}
 		}
 
-		memset(itd, 0, sizeof *itd);
+		memset(itd, 0, sizeof(*itd));
 		itd->itd_dma = itd_dma;
 		itd->frame = NO_FRAME;
 		list_add(&itd->itd_list, &sched->td_list);
@@ -2109,7 +2109,7 @@ sitd_urb_transaction(
 			}
 		}
 
-		memset(sitd, 0, sizeof *sitd);
+		memset(sitd, 0, sizeof(*sitd));
 		sitd->sitd_dma = sitd_dma;
 		sitd->frame = NO_FRAME;
 		list_add(&sitd->sitd_list, &iso_sched->td_list);
