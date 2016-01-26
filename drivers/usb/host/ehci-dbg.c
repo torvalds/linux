@@ -46,7 +46,7 @@ static void dbg_hcs_params(struct ehci_hcd *ehci, char *label)
 			/* FIXME MIPS won't readb() ... */
 			byte = readb(&ehci->caps->portroute[(i >> 1)]);
 			sprintf(tmp, "%d ",
-				((i & 0x1) ? ((byte)&0xf) : ((byte>>4)&0xf)));
+				(i & 0x1) ? byte & 0xf : (byte >> 4) & 0xf);
 			strcat(buf, tmp);
 		}
 		ehci_dbg(ehci, "%s portroute %s\n", label, buf);
@@ -257,14 +257,14 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		"%s%sport:%d status %06x %d %s%s%s%s%s%s "
 		"sig=%s%s%s%s%s%s%s%s%s%s%s",
 		label, label[0] ? " " : "", port, status,
-		status>>25,/*device address */
-		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_ACK ?
+		status >> 25, /*device address */
+		(status & PORT_SSTS) >> 23 == PORTSC_SUSPEND_STS_ACK ?
 						" ACK" : "",
-		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_NYET ?
+		(status & PORT_SSTS) >> 23 == PORTSC_SUSPEND_STS_NYET ?
 						" NYET" : "",
-		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_STALL ?
+		(status & PORT_SSTS) >> 23 == PORTSC_SUSPEND_STS_STALL ?
 						" STALL" : "",
-		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_ERR ?
+		(status & PORT_SSTS) >> 23 == PORTSC_SUSPEND_STS_ERR ?
 						" ERR" : "",
 		(status & PORT_POWER) ? " POWER" : "",
 		(status & PORT_OWNER) ? " OWNER" : "",
@@ -846,7 +846,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	if (dev_is_pci(hcd->self.controller)) {
 		struct pci_dev	*pdev;
 		u32		offset, cap, cap2;
-		unsigned	count = 256/4;
+		unsigned	count = 256 / 4;
 
 		pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
 		offset = HCC_EXT_CAPS(ehci_readl(ehci,
@@ -1058,7 +1058,7 @@ static int debug_periodic_open(struct inode *inode, struct file *file)
 	if (!buf)
 		return -ENOMEM;
 
-	buf->alloc_size = (sizeof(void *) == 4 ? 6 : 8)*PAGE_SIZE;
+	buf->alloc_size = (sizeof(void *) == 4 ? 6 : 8) * PAGE_SIZE;
 	file->private_data = buf;
 	return 0;
 }
