@@ -8916,21 +8916,20 @@ void perf_event_delayed_put(struct task_struct *task)
 		WARN_ON_ONCE(task->perf_event_ctxp[ctxn]);
 }
 
-struct perf_event *perf_event_get(unsigned int fd)
+struct file *perf_event_get(unsigned int fd)
 {
-	int err;
-	struct fd f;
-	struct perf_event *event;
+	struct file *file;
 
-	err = perf_fget_light(fd, &f);
-	if (err)
-		return ERR_PTR(err);
+	file = fget_raw(fd);
+	if (!file)
+		return ERR_PTR(-EBADF);
 
-	event = f.file->private_data;
-	atomic_long_inc(&event->refcount);
-	fdput(f);
+	if (file->f_op != &perf_fops) {
+		fput(file);
+		return ERR_PTR(-EBADF);
+	}
 
-	return event;
+	return file;
 }
 
 const struct perf_event_attr *perf_event_attrs(struct perf_event *event)
