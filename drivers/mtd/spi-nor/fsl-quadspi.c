@@ -213,6 +213,7 @@ enum fsl_qspi_devtype {
 	FSL_QUADSPI_IMX6SX,
 	FSL_QUADSPI_IMX7D,
 	FSL_QUADSPI_IMX6UL,
+	FSL_QUADSPI_LS1021A,
 };
 
 struct fsl_qspi_devtype_data {
@@ -256,6 +257,14 @@ static struct fsl_qspi_devtype_data imx6ul_data = {
 	.ahb_buf_size = 1024,
 	.driver_data = QUADSPI_QUIRK_TKT253890
 		       | QUADSPI_QUIRK_4X_INT_CLK,
+};
+
+static struct fsl_qspi_devtype_data ls1021a_data = {
+	.devtype = FSL_QUADSPI_LS1021A,
+	.rxfifo = 128,
+	.txfifo = 64,
+	.ahb_buf_size = 1024,
+	.driver_data = 0,
 };
 
 #define FSL_QSPI_MAX_CHIP	4
@@ -812,6 +821,7 @@ static const struct of_device_id fsl_qspi_dt_ids[] = {
 	{ .compatible = "fsl,imx6sx-qspi", .data = (void *)&imx6sx_data, },
 	{ .compatible = "fsl,imx7d-qspi", .data = (void *)&imx7d_data, },
 	{ .compatible = "fsl,imx6ul-qspi", .data = (void *)&imx6ul_data, },
+	{ .compatible = "fsl,ls1021a-qspi", .data = (void *)&ls1021a_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_qspi_dt_ids);
