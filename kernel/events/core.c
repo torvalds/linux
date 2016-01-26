@@ -1041,9 +1041,8 @@ static void put_ctx(struct perf_event_context *ctx)
  * perf_event_context::mutex nests and those are:
  *
  *  - perf_event_exit_task_context()	[ child , 0 ]
- *      __perf_event_exit_task()
- *        sync_child_event()
- *          put_event()			[ parent, 1 ]
+ *      perf_event_exit_event()
+ *        put_event()			[ parent, 1 ]
  *
  *  - perf_event_init_context()		[ parent, 0 ]
  *      inherit_task_group()
@@ -1846,7 +1845,8 @@ static void __perf_event_disable(struct perf_event *event,
  * remains valid.  This condition is satisifed when called through
  * perf_event_for_each_child or perf_event_for_each because they
  * hold the top-level event's child_mutex, so any descendant that
- * goes to exit will block in sync_child_event.
+ * goes to exit will block in perf_event_exit_event().
+ *
  * When called from perf_pending_event it's OK because event->ctx
  * is the current context on this CPU and preemption is disabled,
  * hence we can't get into perf_event_task_sched_out for this context.
@@ -4086,7 +4086,7 @@ static void _perf_event_reset(struct perf_event *event)
 /*
  * Holding the top-level event's child_mutex means that any
  * descendant process that has inherited this event will block
- * in sync_child_event if it goes to exit, thus satisfying the
+ * in perf_event_exit_event() if it goes to exit, thus satisfying the
  * task existence requirements of perf_event_enable/disable.
  */
 static void perf_event_for_each_child(struct perf_event *event,
@@ -8681,33 +8681,15 @@ static void sync_child_event(struct perf_event *child_event,
 		     &parent_event->child_total_time_enabled);
 	atomic64_add(child_event->total_time_running,
 		     &parent_event->child_total_time_running);
-
-	/*
-	 * Remove this event from the parent's list
-	 */
-	WARN_ON_ONCE(parent_event->ctx->parent_ctx);
-	mutex_lock(&parent_event->child_mutex);
-	list_del_init(&child_event->child_list);
-	mutex_unlock(&parent_event->child_mutex);
-
-	/*
-	 * Make sure user/parent get notified, that we just
-	 * lost one event.
-	 */
-	perf_event_wakeup(parent_event);
-
-	/*
-	 * Release the parent event, if this was the last
-	 * reference to it.
-	 */
-	put_event(parent_event);
 }
 
 static void
-__perf_event_exit_task(struct perf_event *child_event,
-			 struct perf_event_context *child_ctx,
-			 struct task_struct *child)
+perf_event_exit_event(struct perf_event *child_event,
+		      struct perf_event_context *child_ctx,
+		      struct task_struct *child)
 {
+	struct perf_event *parent_event = child_event->parent;
+
 	/*
 	 * Do not destroy the 'original' grouping; because of the context
 	 * switch optimization the original events could've ended up in a
@@ -8723,23 +8705,39 @@ __perf_event_exit_task(struct perf_event *child_event,
 	raw_spin_lock_irq(&child_ctx->lock);
 	WARN_ON_ONCE(child_ctx->is_active);
 
-	if (!!child_event->parent)
+	if (parent_event)
 		perf_group_detach(child_event);
 	list_del_event(child_event, child_ctx);
+	child_event->state = PERF_EVENT_STATE_EXIT;
 	raw_spin_unlock_irq(&child_ctx->lock);
 
 	/*
-	 * It can happen that the parent exits first, and has events
-	 * that are still around due to the child reference. These
-	 * events need to be zapped.
+	 * Parent events are governed by their filedesc, retain them.
 	 */
-	if (child_event->parent) {
-		sync_child_event(child_event, child);
-		free_event(child_event);
-	} else {
-		child_event->state = PERF_EVENT_STATE_EXIT;
+	if (!parent_event) {
 		perf_event_wakeup(child_event);
+		return;
 	}
+	/*
+	 * Child events can be cleaned up.
+	 */
+
+	sync_child_event(child_event, child);
+
+	/*
+	 * Remove this event from the parent's list
+	 */
+	WARN_ON_ONCE(parent_event->ctx->parent_ctx);
+	mutex_lock(&parent_event->child_mutex);
+	list_del_init(&child_event->child_list);
+	mutex_unlock(&parent_event->child_mutex);
+
+	/*
+	 * Kick perf_poll() for is_event_hup().
+	 */
+	perf_event_wakeup(parent_event);
+	free_event(child_event);
+	put_event(parent_event);
 }
 
 static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
@@ -8765,10 +8763,9 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 *
 	 * We can recurse on the same lock type through:
 	 *
-	 *   __perf_event_exit_task()
-	 *     sync_child_event()
-	 *       put_event()
-	 *         mutex_lock(&ctx->mutex)
+	 *   perf_event_exit_event()
+	 *     put_event()
+	 *       mutex_lock(&ctx->mutex)
 	 *
 	 * But since its the parent context it won't be the same instance.
 	 */
@@ -8805,7 +8802,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	perf_event_task(child, child_ctx, 0);
 
 	list_for_each_entry_safe(child_event, next, &child_ctx->event_list, event_entry)
-		__perf_event_exit_task(child_event, child_ctx, child);
+		perf_event_exit_event(child_event, child_ctx, child);
 
 	mutex_unlock(&child_ctx->mutex);
 
