@@ -618,7 +618,7 @@ u64 read_system_reg(u32 id)
 static bool
 feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
 {
-	int val = cpuid_feature_extract_field(reg, entry->field_pos);
+	int val = cpuid_feature_extract_field(reg, entry->field_pos, entry->sign);
 
 	return val >= entry->min_field_value;
 }
