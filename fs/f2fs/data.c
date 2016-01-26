@@ -631,6 +631,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 		goto out;
 	}
 
+next_dnode:
 	if (create)
 		f2fs_lock_op(sbi);
 
@@ -643,69 +644,9 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 		goto unlock_out;
 	}
 
-	if (dn.data_blkaddr == NEW_ADDR || dn.data_blkaddr == NULL_ADDR) {
-		if (create) {
-			if (unlikely(f2fs_cp_error(sbi))) {
-				err = -EIO;
-				goto put_out;
-			}
-			err = __allocate_data_block(&dn);
-			if (err)
-				goto put_out;
-			allocated = true;
-			map->m_flags = F2FS_MAP_NEW;
-		} else {
-			if (flag != F2FS_GET_BLOCK_FIEMAP ||
-						dn.data_blkaddr != NEW_ADDR) {
-				if (flag == F2FS_GET_BLOCK_BMAP)
-					err = -ENOENT;
-				goto put_out;
-			}
-
-			/*
-			 * preallocated unwritten block should be mapped
-			 * for fiemap.
-			 */
-			if (dn.data_blkaddr == NEW_ADDR)
-				map->m_flags = F2FS_MAP_UNWRITTEN;
-		}
-	}
-
-	map->m_flags |= F2FS_MAP_MAPPED;
-	map->m_pblk = dn.data_blkaddr;
-	map->m_len = 1;
-
 	end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
-	dn.ofs_in_node++;
-	pgofs++;
 
-get_next:
-	if (map->m_len >= maxblocks)
-		goto sync_out;
-
-	if (dn.ofs_in_node >= end_offset) {
-		if (allocated)
-			sync_inode_page(&dn);
-		f2fs_put_dnode(&dn);
-
-		if (create) {
-			f2fs_unlock_op(sbi);
-			f2fs_balance_fs(sbi, allocated);
-			f2fs_lock_op(sbi);
-		}
-		allocated = false;
-
-		set_new_dnode(&dn, inode, NULL, NULL, 0);
-		err = get_dnode_of_data(&dn, pgofs, mode);
-		if (err) {
-			if (err == -ENOENT)
-				err = 0;
-			goto unlock_out;
-		}
-
-		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
-	}
-
+next_block:
 	blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
 
 	if (blkaddr == NEW_ADDR || blkaddr == NULL_ADDR) {
@@ -718,35 +659,57 @@ get_next:
 			if (err)
 				goto sync_out;
 			allocated = true;
-			map->m_flags |= F2FS_MAP_NEW;
+			map->m_flags = F2FS_MAP_NEW;
 			blkaddr = dn.data_blkaddr;
 		} else {
-			/*
-			 * we only merge preallocated unwritten blocks
-			 * for fiemap.
-			 */
 			if (flag != F2FS_GET_BLOCK_FIEMAP ||
-					blkaddr != NEW_ADDR)
+						blkaddr != NEW_ADDR) {
+				if (flag == F2FS_GET_BLOCK_BMAP)
+					err = -ENOENT;
 				goto sync_out;
+			}
 		}
 	}
 
-	/* Give more consecutive addresses for the readahead */
-	if ((map->m_pblk != NEW_ADDR &&
+	if (map->m_len == 0) {
+		/* preallocated unwritten block should be mapped for fiemap. */
+		if (blkaddr == NEW_ADDR)
+			map->m_flags |= F2FS_MAP_UNWRITTEN;
+		map->m_flags |= F2FS_MAP_MAPPED;
+
+		map->m_pblk = blkaddr;
+		map->m_len = 1;
+	} else if ((map->m_pblk != NEW_ADDR &&
 			blkaddr == (map->m_pblk + ofs)) ||
-			(map->m_pblk == NEW_ADDR &&
-			blkaddr == NEW_ADDR)) {
+			(map->m_pblk == NEW_ADDR && blkaddr == NEW_ADDR)) {
 		ofs++;
-		dn.ofs_in_node++;
-		pgofs++;
 		map->m_len++;
-		goto get_next;
+	} else {
+		goto sync_out;
+	}
+
+	dn.ofs_in_node++;
+	pgofs++;
+
+	if (map->m_len < maxblocks) {
+		if (dn.ofs_in_node < end_offset)
+			goto next_block;
+
+		if (allocated)
+			sync_inode_page(&dn);
+		f2fs_put_dnode(&dn);
+
+		if (create) {
+			f2fs_unlock_op(sbi);
+			f2fs_balance_fs(sbi, allocated);
+		}
+		allocated = false;
+		goto next_dnode;
 	}
 
 sync_out:
 	if (allocated)
 		sync_inode_page(&dn);
-put_out:
 	f2fs_put_dnode(&dn);
 unlock_out:
 	if (create) {
