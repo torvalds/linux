@@ -560,7 +560,7 @@ static void check_reg_format(struct check *c, struct node *dt,
 	size_cells = node_size_cells(node->parent);
 	entrylen = (addr_cells + size_cells) * sizeof(cell_t);
 
-	if ((prop->val.len % entrylen) != 0)
+	if (!entrylen || (prop->val.len % entrylen) != 0)
 		FAIL(c, "\"reg\" property in %s has invalid length (%d bytes) "
 		     "(#address-cells == %d, #size-cells == %d)",
 		     node->fullpath, prop->val.len, addr_cells, size_cells);
