@@ -209,6 +209,14 @@ bool kvm_vcpu_has_pending_irqs(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 
+#ifdef CONFIG_KVM_ARM_VGIC_V3
+void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
+#else
+static inline void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
+{
+}
+#endif
+
 /**
  * kvm_vgic_get_max_vcpus - Get the maximum number of VCPUs allowed by HW
  *
