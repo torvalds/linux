@@ -74,8 +74,7 @@ static void f2fs_write_end_io(struct bio *bio)
 		dec_page_count(sbi, F2FS_WRITEBACK);
 	}
 
-	if (!get_pages(sbi, F2FS_WRITEBACK) &&
-			!list_empty(&sbi->cp_wait.task_list))
+	if (!get_pages(sbi, F2FS_WRITEBACK) && wq_has_sleeper(&sbi->cp_wait))
 		wake_up(&sbi->cp_wait);
 
 	bio_put(bio);
