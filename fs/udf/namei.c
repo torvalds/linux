@@ -165,7 +165,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 	struct fileIdentDesc *fi = NULL;
 	loff_t f_pos;
 	int block, flen;
-	unsigned char *fname = NULL;
+	unsigned char *fname = NULL, *copy_name = NULL;
 	unsigned char *nameptr;
 	uint8_t lfi;
 	uint16_t liu;
@@ -236,7 +236,15 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 				nameptr = (uint8_t *)(fibh->ebh->b_data +
 						      poffset - lfi);
 			else {
-				nameptr = fname;
+				if (!copy_name) {
+					copy_name = kmalloc(UDF_NAME_LEN,
+							    GFP_NOFS);
+					if (!copy_name) {
+						fi = ERR_PTR(-ENOMEM);
+						goto out_err;
+					}
+				}
+				nameptr = copy_name;
 				memcpy(nameptr, fi->fileIdent + liu,
 					lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
@@ -279,6 +287,7 @@ out_err:
 out_ok:
 	brelse(epos.bh);
 	kfree(fname);
+	kfree(copy_name);
 
 	return fi;
 }
