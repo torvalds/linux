@@ -4838,7 +4838,7 @@ static inline int need_do_async_reclaim(struct btrfs_space_info *space_info,
 	u64 thresh = div_factor_fine(space_info->total_bytes, 98);
 
 	/* If we're just plain full then async reclaim just slows us down. */
-	if (space_info->bytes_used >= thresh)
+	if ((space_info->bytes_used + space_info->bytes_reserved) >= thresh)
 		return 0;
 
 	return (used >= thresh && !btrfs_fs_closing(fs_info) &&
