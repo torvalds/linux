@@ -304,18 +304,10 @@ void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 		unsigned int div = (RREG32(DENTIST_DISPCLK_CNTL) &
 			DENTIST_DPREFCLK_WDIVIDER_MASK) >>
 			DENTIST_DPREFCLK_WDIVIDER_SHIFT;
-
-		if (div < 128 && div >= 96)
-			div -= 64;
-		else if (div >= 64)
-			div = div / 2 - 16;
-		else if (div >= 8)
-			div /= 4;
-		else
-			div = 0;
+		div = radeon_audio_decode_dfs_div(div);
 
 		if (div)
-			clock /= div;
+			clock = clock * 100 / div;
 
 		WREG32(DCE8_DCCG_AUDIO_DTO1_PHASE, 24000);
 		WREG32(DCE8_DCCG_AUDIO_DTO1_MODULE, clock);
