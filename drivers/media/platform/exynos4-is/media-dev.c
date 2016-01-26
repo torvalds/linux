@@ -446,8 +446,10 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	else
 		pd->fimc_bus_type = pd->sensor_bus_type;
 
-	if (WARN_ON(index >= ARRAY_SIZE(fmd->sensor)))
+	if (WARN_ON(index >= ARRAY_SIZE(fmd->sensor))) {
+		of_node_put(rem);
 		return -EINVAL;
+	}
 
 	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_OF;
 	fmd->sensor[index].asd.match.of.node = rem;
