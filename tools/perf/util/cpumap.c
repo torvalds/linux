@@ -8,6 +8,10 @@
 #include <linux/bitmap.h>
 #include "asm/bug.h"
 
+static int max_cpu_num;
+static int max_node_num;
+static int *cpunode_map;
+
 static struct cpu_map *cpu_map__default_new(void)
 {
 	struct cpu_map *cpus;
@@ -484,6 +488,32 @@ static void set_max_node_num(void)
 out:
 	if (ret)
 		pr_err("Failed to read max nodes, using default of %d\n", max_node_num);
+}
+
+int cpu__max_node(void)
+{
+	if (unlikely(!max_node_num))
+		set_max_node_num();
+
+	return max_node_num;
+}
+
+int cpu__max_cpu(void)
+{
+	if (unlikely(!max_cpu_num))
+		set_max_cpu_num();
+
+	return max_cpu_num;
+}
+
+int cpu__get_node(int cpu)
+{
+	if (unlikely(cpunode_map == NULL)) {
+		pr_debug("cpu_map not initialized\n");
+		return -1;
+	}
+
+	return cpunode_map[cpu];
 }
 
 static int init_cpunode_map(void)
