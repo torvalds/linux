@@ -431,12 +431,12 @@ static int sdhci_pre_dma_transfer(struct sdhci_host *host,
 {
 	int sg_count;
 
-	if (data->host_cookie == COOKIE_MAPPED) {
-		data->host_cookie = COOKIE_GIVEN;
+	/*
+	 * If the data buffers are already mapped, return the previous
+	 * dma_map_sg() result.
+	 */
+	if (data->host_cookie == COOKIE_PRE_MAPPED)
 		return data->sg_count;
-	}
-
-	WARN_ON(data->host_cookie == COOKIE_GIVEN);
 
 	sg_count = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 				data->flags & MMC_DATA_WRITE ?
@@ -2094,7 +2094,7 @@ static void sdhci_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
 	mrq->data->host_cookie = COOKIE_UNMAPPED;
 
 	if (host->flags & SDHCI_REQ_USE_DMA)
-		sdhci_pre_dma_transfer(host, mrq->data, COOKIE_MAPPED);
+		sdhci_pre_dma_transfer(host, mrq->data, COOKIE_PRE_MAPPED);
 }
 
 static void sdhci_card_event(struct mmc_host *mmc)

@@ -316,8 +316,8 @@ struct sdhci_adma2_64_desc {
 
 enum sdhci_cookie {
 	COOKIE_UNMAPPED,
-	COOKIE_MAPPED,
-	COOKIE_GIVEN,
+	COOKIE_PRE_MAPPED,	/* mapped by sdhci_pre_req() */
+	COOKIE_MAPPED,		/* mapped by sdhci_prepare_data() */
 };
 
 struct sdhci_host {
