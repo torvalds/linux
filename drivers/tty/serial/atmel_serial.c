@@ -2479,13 +2479,13 @@ static int __init atmel_console_init(void)
 		struct atmel_uart_data *pdata =
 			dev_get_platdata(&atmel_default_console_device->dev);
 		int id = pdata->num;
-		struct atmel_uart_port *port = &atmel_ports[id];
+		struct atmel_uart_port *atmel_port = &atmel_ports[id];
 
-		port->backup_imr = 0;
-		port->uart.line = id;
+		atmel_port->backup_imr = 0;
+		atmel_port->uart.line = id;
 
 		add_preferred_console(ATMEL_DEVICENAME, id, NULL);
-		ret = atmel_init_port(port, atmel_default_console_device);
+		ret = atmel_init_port(atmel_port, atmel_default_console_device);
 		if (ret)
 			return ret;
 		register_console(&atmel_console);
@@ -2600,23 +2600,23 @@ static int atmel_serial_resume(struct platform_device *pdev)
 #define atmel_serial_resume NULL
 #endif
 
-static void atmel_serial_probe_fifos(struct atmel_uart_port *port,
+static void atmel_serial_probe_fifos(struct atmel_uart_port *atmel_port,
 				     struct platform_device *pdev)
 {
-	port->fifo_size = 0;
-	port->rts_low = 0;
-	port->rts_high = 0;
+	atmel_port->fifo_size = 0;
+	atmel_port->rts_low = 0;
+	atmel_port->rts_high = 0;
 
 	if (of_property_read_u32(pdev->dev.of_node,
 				 "atmel,fifo-size",
-				 &port->fifo_size))
+				 &atmel_port->fifo_size))
 		return;
 
-	if (!port->fifo_size)
+	if (!atmel_port->fifo_size)
 		return;
 
-	if (port->fifo_size < ATMEL_MIN_FIFO_SIZE) {
-		port->fifo_size = 0;
+	if (atmel_port->fifo_size < ATMEL_MIN_FIFO_SIZE) {
+		atmel_port->fifo_size = 0;
 		dev_err(&pdev->dev, "Invalid FIFO size\n");
 		return;
 	}
@@ -2629,22 +2629,22 @@ static void atmel_serial_probe_fifos(struct atmel_uart_port *port,
 	 * Threshold to a reasonably high value respecting this 16 data
 	 * empirical rule when possible.
 	 */
-	port->rts_high = max_t(int, port->fifo_size >> 1,
-			       port->fifo_size - ATMEL_RTS_HIGH_OFFSET);
-	port->rts_low  = max_t(int, port->fifo_size >> 2,
-			       port->fifo_size - ATMEL_RTS_LOW_OFFSET);
+	atmel_port->rts_high = max_t(int, atmel_port->fifo_size >> 1,
+			       atmel_port->fifo_size - ATMEL_RTS_HIGH_OFFSET);
+	atmel_port->rts_low  = max_t(int, atmel_port->fifo_size >> 2,
+			       atmel_port->fifo_size - ATMEL_RTS_LOW_OFFSET);
 
 	dev_info(&pdev->dev, "Using FIFO (%u data)\n",
-		 port->fifo_size);
+		 atmel_port->fifo_size);
 	dev_dbg(&pdev->dev, "RTS High Threshold : %2u data\n",
-		port->rts_high);
+		atmel_port->rts_high);
 	dev_dbg(&pdev->dev, "RTS Low Threshold  : %2u data\n",
-		port->rts_low);
+		atmel_port->rts_low);
 }
 
 static int atmel_serial_probe(struct platform_device *pdev)
 {
-	struct atmel_uart_port *port;
+	struct atmel_uart_port *atmel_port;
 	struct device_node *np = pdev->dev.of_node;
 	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 	void *data;
@@ -2675,87 +2675,88 @@ static int atmel_serial_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	port = &atmel_ports[ret];
-	port->backup_imr = 0;
-	port->uart.line = ret;
-	atmel_serial_probe_fifos(port, pdev);
+	atmel_port = &atmel_ports[ret];
+	atmel_port->backup_imr = 0;
+	atmel_port->uart.line = ret;
+	atmel_serial_probe_fifos(atmel_port, pdev);
 
-	spin_lock_init(&port->lock_suspended);
+	spin_lock_init(&atmel_port->lock_suspended);
 
-	ret = atmel_init_port(port, pdev);
+	ret = atmel_init_port(atmel_port, pdev);
 	if (ret)
 		goto err_clear_bit;
 
-	port->gpios = mctrl_gpio_init(&port->uart, 0);
-	if (IS_ERR(port->gpios)) {
-		ret = PTR_ERR(port->gpios);
+	atmel_port->gpios = mctrl_gpio_init(&atmel_port->uart, 0);
+	if (IS_ERR(atmel_port->gpios)) {
+		ret = PTR_ERR(atmel_port->gpios);
 		goto err_clear_bit;
 	}
 
-	if (!atmel_use_pdc_rx(&port->uart)) {
+	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
 		ret = -ENOMEM;
 		data = kmalloc(sizeof(struct atmel_uart_char)
 				* ATMEL_SERIAL_RINGSIZE, GFP_KERNEL);
 		if (!data)
 			goto err_alloc_ring;
-		port->rx_ring.buf = data;
+		atmel_port->rx_ring.buf = data;
 	}
 
-	rs485_enabled = port->uart.rs485.flags & SER_RS485_ENABLED;
+	rs485_enabled = atmel_port->uart.rs485.flags & SER_RS485_ENABLED;
 
-	ret = uart_add_one_port(&atmel_uart, &port->uart);
+	ret = uart_add_one_port(&atmel_uart, &atmel_port->uart);
 	if (ret)
 		goto err_add_port;
 
 #ifdef CONFIG_SERIAL_ATMEL_CONSOLE
-	if (atmel_is_console_port(&port->uart)
+	if (atmel_is_console_port(&atmel_port->uart)
 			&& ATMEL_CONSOLE_DEVICE->flags & CON_ENABLED) {
 		/*
 		 * The serial core enabled the clock for us, so undo
 		 * the clk_prepare_enable() in atmel_console_setup()
 		 */
-		clk_disable_unprepare(port->clk);
+		clk_disable_unprepare(atmel_port->clk);
 	}
 #endif
 
 	device_init_wakeup(&pdev->dev, 1);
-	platform_set_drvdata(pdev, port);
+	platform_set_drvdata(pdev, atmel_port);
 
 	/*
 	 * The peripheral clock has been disabled by atmel_init_port():
 	 * enable it before accessing I/O registers
 	 */
-	clk_prepare_enable(port->clk);
+	clk_prepare_enable(atmel_port->clk);
 
 	if (rs485_enabled) {
-		atmel_uart_writel(&port->uart, ATMEL_US_MR,
+		atmel_uart_writel(&atmel_port->uart, ATMEL_US_MR,
 				  ATMEL_US_USMODE_NORMAL);
-		atmel_uart_writel(&port->uart, ATMEL_US_CR, ATMEL_US_RTSEN);
+		atmel_uart_writel(&atmel_port->uart, ATMEL_US_CR,
+				  ATMEL_US_RTSEN);
 	}
 
 	/*
 	 * Get port name of usart or uart
 	 */
-	atmel_get_ip_name(&port->uart);
+	atmel_get_ip_name(&atmel_port->uart);
 
 	/*
 	 * The peripheral clock can now safely be disabled till the port
 	 * is used
 	 */
-	clk_disable_unprepare(port->clk);
+	clk_disable_unprepare(atmel_port->clk);
 
 	return 0;
 
 err_add_port:
-	kfree(port->rx_ring.buf);
-	port->rx_ring.buf = NULL;
+	kfree(atmel_port->rx_ring.buf);
+	atmel_port->rx_ring.buf = NULL;
 err_alloc_ring:
-	if (!atmel_is_console_port(&port->uart)) {
-		clk_put(port->clk);
-		port->clk = NULL;
+	if (!atmel_is_console_port(&atmel_port->uart)) {
+		clk_put(atmel_port->clk);
+		atmel_port->clk = NULL;
 	}
 err_clear_bit:
-	clear_bit(port->uart.line, atmel_ports_in_use);
+	clear_bit(atmel_port->uart.line, atmel_ports_in_use);
 err:
 	return ret;
 }
