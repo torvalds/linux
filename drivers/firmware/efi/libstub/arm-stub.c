@@ -18,6 +18,8 @@
 
 #include "efistub.h"
 
+bool __nokaslr;
+
 static int efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
 {
 	static efi_guid_t const var_guid = EFI_GLOBAL_VARIABLE_GUID;
@@ -207,14 +209,6 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 		pr_efi_err(sys_table, "Failed to find DRAM base\n");
 		goto fail;
 	}
-	status = handle_kernel_image(sys_table, image_addr, &image_size,
-				     &reserve_addr,
-				     &reserve_size,
-				     dram_base, image);
-	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table, "Failed to relocate kernel\n");
-		goto fail;
-	}
 
 	/*
 	 * Get the command line from EFI, using the LOADED_IMAGE
@@ -224,7 +218,28 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	cmdline_ptr = efi_convert_cmdline(sys_table, image, &cmdline_size);
 	if (!cmdline_ptr) {
 		pr_efi_err(sys_table, "getting command line via LOADED_IMAGE_PROTOCOL\n");
-		goto fail_free_image;
+		goto fail;
+	}
+
+	/* check whether 'nokaslr' was passed on the command line */
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+		static const u8 default_cmdline[] = CONFIG_CMDLINE;
+		const u8 *str, *cmdline = cmdline_ptr;
+
+		if (IS_ENABLED(CONFIG_CMDLINE_FORCE))
+			cmdline = default_cmdline;
+		str = strstr(cmdline, "nokaslr");
+		if (str == cmdline || (str > cmdline && *(str - 1) == ' '))
+			__nokaslr = true;
+	}
+
+	status = handle_kernel_image(sys_table, image_addr, &image_size,
+				     &reserve_addr,
+				     &reserve_size,
+				     dram_base, image);
+	if (status != EFI_SUCCESS) {
+		pr_efi_err(sys_table, "Failed to relocate kernel\n");
+		goto fail_free_cmdline;
 	}
 
 	status = efi_parse_options(cmdline_ptr);
@@ -244,7 +259,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 
 		if (status != EFI_SUCCESS) {
 			pr_efi_err(sys_table, "Failed to load device tree!\n");
-			goto fail_free_cmdline;
+			goto fail_free_image;
 		}
 	}
 
@@ -286,12 +301,11 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	efi_free(sys_table, initrd_size, initrd_addr);
 	efi_free(sys_table, fdt_size, fdt_addr);
 
-fail_free_cmdline:
-	efi_free(sys_table, cmdline_size, (unsigned long)cmdline_ptr);
-
 fail_free_image:
 	efi_free(sys_table, image_size, *image_addr);
 	efi_free(sys_table, reserve_size, reserve_addr);
+fail_free_cmdline:
+	efi_free(sys_table, cmdline_size, (unsigned long)cmdline_ptr);
 fail:
 	return EFI_ERROR;
 }
