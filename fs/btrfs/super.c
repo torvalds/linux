@@ -58,6 +58,7 @@
 #include "dev-replace.h"
 #include "free-space-cache.h"
 #include "backref.h"
+#include "sysfs.h"
 #include "tests/btrfs-tests.h"
 
 #include "qgroup.h"
@@ -485,6 +486,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				btrfs_clear_opt(info->mount_opt, NODATACOW);
 				btrfs_clear_opt(info->mount_opt, NODATASUM);
 				btrfs_set_fs_incompat(info, COMPRESS_LZO);
+				btrfs_sysfs_feature_update(root->fs_info,
+					BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO,
+					FEAT_INCOMPAT);
 				no_compress = 0;
 			} else if (strncmp(args[0].from, "no", 2) == 0) {
 				compress_type = "no";
