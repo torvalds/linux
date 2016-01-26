@@ -203,6 +203,8 @@ void __init plat_mem_setup(void)
 	fdt_start = fw_getenvl("fdt_start");
 	if (fdt_start)
 		__dt_setup_arch((void *)KSEG0ADDR(fdt_start));
+	else if (fw_arg0 == -2)
+		__dt_setup_arch((void *)KSEG0ADDR(fw_arg1));
 #ifdef CONFIG_BUILTIN_DTB
 	else
 		__dt_setup_arch(__dtb_start);
