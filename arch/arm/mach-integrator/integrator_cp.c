@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <linux/irqchip.h>
 #include <linux/gfp.h>
-#include <linux/mtd/physmap.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -43,13 +42,7 @@
 /* Base address to the CP controller */
 static void __iomem *intcp_con_base;
 
-#define INTCP_PA_FLASH_BASE		0x24000000
-
 #define INTCP_PA_CLCD_BASE		0xc0000000
-
-#define INTCP_FLASHPROG			0x04
-#define CINTEGRATOR_FLASHPROG_FLVPPEN	(1 << 0)
-#define CINTEGRATOR_FLASHPROG_FLWREN	(1 << 1)
 
 /*
  * Logical      Physical
@@ -106,48 +99,6 @@ static void __init intcp_map_io(void)
 {
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
-
-/*
- * Flash handling.
- */
-static int intcp_flash_init(struct platform_device *dev)
-{
-	u32 val;
-
-	val = readl(intcp_con_base + INTCP_FLASHPROG);
-	val |= CINTEGRATOR_FLASHPROG_FLWREN;
-	writel(val, intcp_con_base + INTCP_FLASHPROG);
-
-	return 0;
-}
-
-static void intcp_flash_exit(struct platform_device *dev)
-{
-	u32 val;
-
-	val = readl(intcp_con_base + INTCP_FLASHPROG);
-	val &= ~(CINTEGRATOR_FLASHPROG_FLVPPEN|CINTEGRATOR_FLASHPROG_FLWREN);
-	writel(val, intcp_con_base + INTCP_FLASHPROG);
-}
-
-static void intcp_flash_set_vpp(struct platform_device *pdev, int on)
-{
-	u32 val;
-
-	val = readl(intcp_con_base + INTCP_FLASHPROG);
-	if (on)
-		val |= CINTEGRATOR_FLASHPROG_FLVPPEN;
-	else
-		val &= ~CINTEGRATOR_FLASHPROG_FLVPPEN;
-	writel(val, intcp_con_base + INTCP_FLASHPROG);
-}
-
-static struct physmap_flash_data intcp_flash_data = {
-	.width		= 4,
-	.init		= intcp_flash_init,
-	.exit		= intcp_flash_exit,
-	.set_vpp	= intcp_flash_set_vpp,
-};
 
 /*
  * It seems that the card insertion interrupt remains active after
@@ -260,8 +211,6 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 		"aaci", &mmc_data),
 	OF_DEV_AUXDATA("arm,primecell", INTCP_PA_CLCD_BASE,
 		"clcd", &clcd_data),
-	OF_DEV_AUXDATA("cfi-flash", INTCP_PA_FLASH_BASE,
-		"physmap-flash", &intcp_flash_data),
 	{ /* sentinel */ },
 };
 
