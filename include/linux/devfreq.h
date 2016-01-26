@@ -19,6 +19,13 @@
 
 #define DEVFREQ_NAME_LEN 16
 
+/* DEVFREQ notifier interface */
+#define DEVFREQ_TRANSITION_NOTIFIER	(0)
+
+/* Transition notifiers of DEVFREQ_TRANSITION_NOTIFIER */
+#define	DEVFREQ_PRECHANGE		(0)
+#define DEVFREQ_POSTCHANGE		(1)
+
 struct devfreq;
 
 /**
@@ -143,6 +150,7 @@ struct devfreq_governor {
  * @trans_table:	Statistics of devfreq transitions
  * @time_in_state:	Statistics of devfreq states
  * @last_stat_updated:	The last time stat updated
+ * @transition_notifier_list: list head of DEVFREQ_TRANSITION_NOTIFIER notifier
  *
  * This structure stores the devfreq information for a give device.
  *
@@ -177,6 +185,13 @@ struct devfreq {
 	unsigned int *trans_table;
 	unsigned long *time_in_state;
 	unsigned long last_stat_updated;
+
+	struct srcu_notifier_head transition_notifier_list;
+};
+
+struct devfreq_freqs {
+	unsigned long old;
+	unsigned long new;
 };
 
 #if defined(CONFIG_PM_DEVFREQ)
@@ -207,7 +222,20 @@ extern int devm_devfreq_register_opp_notifier(struct device *dev,
 					      struct devfreq *devfreq);
 extern void devm_devfreq_unregister_opp_notifier(struct device *dev,
 						struct devfreq *devfreq);
-
+extern int devfreq_register_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list);
+extern int devfreq_unregister_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list);
+extern int devm_devfreq_register_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list);
+extern void devm_devfreq_unregister_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list);
 extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 						int index);
 
@@ -307,6 +335,35 @@ static inline int devm_devfreq_register_opp_notifier(struct device *dev,
 
 static inline void devm_devfreq_unregister_opp_notifier(struct device *dev,
 							struct devfreq *devfreq)
+{
+}
+
+static inline int devfreq_register_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list)
+{
+	return 0;
+}
+
+static inline int devfreq_unregister_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list)
+{
+	return 0;
+}
+
+static inline int devm_devfreq_register_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+	return 0;
+}
+
+static inline void devm_devfreq_unregister_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
 {
 }
 
