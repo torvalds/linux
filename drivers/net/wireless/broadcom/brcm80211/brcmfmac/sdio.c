@@ -3615,7 +3615,6 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 	const struct sdiod_drive_str *str_tab = NULL;
 	u32 str_mask;
 	u32 str_shift;
-	u32 base;
 	u32 i;
 	u32 drivestrength_sel = 0;
 	u32 cc_data_temp;
@@ -3658,14 +3657,15 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 	}
 
 	if (str_tab != NULL) {
+		struct brcmf_core *pmu = brcmf_chip_get_pmu(ci);
+
 		for (i = 0; str_tab[i].strength != 0; i++) {
 			if (drivestrength >= str_tab[i].strength) {
 				drivestrength_sel = str_tab[i].sel;
 				break;
 			}
 		}
-		base = brcmf_chip_get_chipcommon(ci)->base;
-		addr = CORE_CC_REG(base, chipcontrol_addr);
+		addr = CORE_CC_REG(pmu->base, chipcontrol_addr);
 		brcmf_sdiod_regwl(sdiodev, addr, 1, NULL);
 		cc_data_temp = brcmf_sdiod_regrl(sdiodev, addr, NULL);
 		cc_data_temp &= ~str_mask;
@@ -3835,8 +3835,7 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		goto fail;
 
 	/* set PMUControl so a backplane reset does PMU state reload */
-	reg_addr = CORE_CC_REG(brcmf_chip_get_chipcommon(bus->ci)->base,
-			       pmucontrol);
+	reg_addr = CORE_CC_REG(brcmf_chip_get_pmu(bus->ci)->base, pmucontrol);
 	reg_val = brcmf_sdiod_regrl(bus->sdiodev, reg_addr, &err);
 	if (err)
 		goto fail;

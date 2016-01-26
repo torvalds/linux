@@ -85,6 +85,7 @@ struct brcmf_chip *brcmf_chip_attach(void *ctx,
 void brcmf_chip_detach(struct brcmf_chip *chip);
 struct brcmf_core *brcmf_chip_get_core(struct brcmf_chip *chip, u16 coreid);
 struct brcmf_core *brcmf_chip_get_chipcommon(struct brcmf_chip *chip);
+struct brcmf_core *brcmf_chip_get_pmu(struct brcmf_chip *pub);
 bool brcmf_chip_iscoreup(struct brcmf_core *core);
 void brcmf_chip_coredisable(struct brcmf_core *core, u32 prereset, u32 reset);
 void brcmf_chip_resetcore(struct brcmf_core *core, u32 prereset, u32 reset,
