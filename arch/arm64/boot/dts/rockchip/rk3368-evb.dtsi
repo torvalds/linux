@@ -152,7 +152,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
