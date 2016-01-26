@@ -315,7 +315,7 @@ void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 			div = 0;
 
 		if (div)
-			clock = rdev->clock.gpupll_outputfreq * 10 / div;
+			clock /= div;
 
 		WREG32(DCE8_DCCG_AUDIO_DTO1_PHASE, 24000);
 		WREG32(DCE8_DCCG_AUDIO_DTO1_MODULE, clock);
