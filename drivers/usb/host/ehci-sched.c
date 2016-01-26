@@ -330,6 +330,7 @@ static int __maybe_unused same_tt(struct usb_device *dev1,
 static inline unsigned char tt_start_uframe(struct ehci_hcd *ehci, __hc32 mask)
 {
 	unsigned char smask = hc32_to_cpu(ehci, mask) & QH_SMASK;
+
 	if (!smask) {
 		ehci_err(ehci, "invalid empty smask!\n");
 		/* uframe 7 can't have bw so this will indicate failure */
@@ -345,6 +346,7 @@ max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 30, 0 };
 static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
 {
 	int i;
+
 	for (i = 0; i < 7; i++) {
 		if (max_tt_usecs[i] < tt_usecs[i]) {
 			tt_usecs[i+1] += tt_usecs[i] - max_tt_usecs[i];
