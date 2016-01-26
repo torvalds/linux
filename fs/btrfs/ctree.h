@@ -3448,8 +3448,7 @@ u64 btrfs_csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes);
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
 						 unsigned num_items)
 {
-	return (root->nodesize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
-		2 * num_items;
+	return root->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
 }
 
 /*
