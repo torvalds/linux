@@ -1003,6 +1003,9 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	WARN_ON(host->cmd);
 
+	/* Initially, a command has no error */
+	cmd->error = 0;
+
 	/* Wait max 10 ms */
 	timeout = 10;
 
@@ -1096,8 +1099,6 @@ static void sdhci_finish_command(struct sdhci_host *host)
 			host->cmd->resp[0] = sdhci_readl(host, SDHCI_RESPONSE);
 		}
 	}
-
-	host->cmd->error = 0;
 
 	/* Finished CMD23, now send actual command. */
 	if (host->cmd == host->mrq->sbc) {
