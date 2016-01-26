@@ -1574,6 +1574,7 @@ endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_JITTERENTROPY
 	tristate "Jitterentropy Non-Deterministic Random Number Generator"
+	select CRYPTO_RNG
 	help
 	  The Jitterentropy RNG is a noise that is intended
 	  to provide seed to another RNG. The RNG does not
