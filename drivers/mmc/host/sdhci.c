@@ -2078,8 +2078,7 @@ static void sdhci_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
 	struct sdhci_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
 
-	if (data->host_cookie == COOKIE_GIVEN ||
-	    data->host_cookie == COOKIE_MAPPED)
+	if (data->host_cookie != COOKIE_UNMAPPED)
 		dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 			     data->flags & MMC_DATA_WRITE ?
 			       DMA_TO_DEVICE : DMA_FROM_DEVICE);
