@@ -1086,8 +1086,8 @@ static void put_ctx(struct perf_event_context *ctx)
  * Lock order:
  *	task_struct::perf_event_mutex
  *	  perf_event_context::mutex
- *	    perf_event_context::lock
  *	    perf_event::child_mutex;
+ *	      perf_event_context::lock
  *	    perf_event::mmap_mutex
  *	    mmap_sem
  */
