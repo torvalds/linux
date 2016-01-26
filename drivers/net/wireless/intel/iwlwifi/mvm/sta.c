@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +69,18 @@
 #include "mvm.h"
 #include "sta.h"
 #include "rs.h"
+
+/*
+ * New version of ADD_STA_sta command added new fields at the end of the
+ * structure, so sending the size of the relevant API's structure is enough to
+ * support both API versions.
+ */
+static inline int iwl_mvm_add_sta_cmd_size(struct iwl_mvm *mvm)
+{
+	return iwl_mvm_has_new_rx_api(mvm) ?
+		sizeof(struct iwl_mvm_add_sta_cmd) :
+		sizeof(struct iwl_mvm_add_sta_cmd_v7);
+}
 
 static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 				    enum nl80211_iftype iftype)
@@ -187,7 +201,8 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		cpu_to_le32(mpdu_dens << STA_FLG_AGG_MPDU_DENS_SHIFT);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(add_sta_cmd),
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					  iwl_mvm_add_sta_cmd_size(mvm),
 					  &add_sta_cmd, &status);
 	if (ret)
 		return ret;
@@ -357,7 +372,8 @@ int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	cmd.station_flags_msk = cpu_to_le32(STA_FLG_DRAIN_FLOW);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					  iwl_mvm_add_sta_cmd_size(mvm),
 					  &cmd, &status);
 	if (ret)
 		return ret;
@@ -623,7 +639,8 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 	if (addr)
 		memcpy(cmd.addr, addr, ETH_ALEN);
 
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					  iwl_mvm_add_sta_cmd_size(mvm),
 					  &cmd, &status);
 	if (ret)
 		return ret;
@@ -819,7 +836,7 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 #define IWL_MAX_RX_BA_SESSIONS 16
 
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		       int tid, u16 ssn, bool start)
+		       int tid, u16 ssn, bool start, u8 buf_size)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {};
@@ -839,6 +856,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (start) {
 		cmd.add_immediate_ba_tid = (u8) tid;
 		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+		cmd.rx_ba_window = cpu_to_le16((u16)buf_size);
 	} else {
 		cmd.remove_immediate_ba_tid = (u8) tid;
 	}
@@ -846,7 +864,8 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 				  STA_MODIFY_REMOVE_BA_TID;
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					  iwl_mvm_add_sta_cmd_size(mvm),
 					  &cmd, &status);
 	if (ret)
 		return ret;
@@ -904,7 +923,8 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	cmd.tid_disable_tx = cpu_to_le16(mvm_sta->tid_disable_agg);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					  iwl_mvm_add_sta_cmd_size(mvm),
 					  &cmd, &status);
 	if (ret)
 		return ret;
@@ -1640,7 +1660,8 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC,
+				   iwl_mvm_add_sta_cmd_size(mvm), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }
@@ -1731,7 +1752,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA,
 				   CMD_ASYNC | CMD_WANT_ASYNC_CALLBACK,
-				   sizeof(cmd), &cmd);
+				   iwl_mvm_add_sta_cmd_size(mvm), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }
@@ -1766,7 +1787,8 @@ void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC,
+				   iwl_mvm_add_sta_cmd_size(mvm), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }

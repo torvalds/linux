@@ -401,7 +401,7 @@ void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 
 /* AMPDU */
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		       int tid, u16 ssn, bool start);
+		       int tid, u16 ssn, bool start, u8 buf_size);
 int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
