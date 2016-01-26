@@ -152,7 +152,7 @@ static void perf_ctx_unlock(struct perf_cpu_context *cpuctx,
 
 static bool is_kernel_event(struct perf_event *event)
 {
-	return event->owner == TASK_TOMBSTONE;
+	return READ_ONCE(event->owner) == TASK_TOMBSTONE;
 }
 
 /*
@@ -1651,7 +1651,7 @@ out:
  */
 static bool is_orphaned_event(struct perf_event *event)
 {
-	return event && !is_kernel_event(event) && !event->owner;
+	return event && !is_kernel_event(event) && !READ_ONCE(event->owner);
 }
 
 /*
@@ -3733,14 +3733,13 @@ static void perf_remove_from_owner(struct perf_event *event)
 	struct task_struct *owner;
 
 	rcu_read_lock();
-	owner = ACCESS_ONCE(event->owner);
 	/*
-	 * Matches the smp_wmb() in perf_event_exit_task(). If we observe
-	 * !owner it means the list deletion is complete and we can indeed
-	 * free this event, otherwise we need to serialize on
+	 * Matches the smp_store_release() in perf_event_exit_task(). If we
+	 * observe !owner it means the list deletion is complete and we can
+	 * indeed free this event, otherwise we need to serialize on
 	 * owner->perf_event_mutex.
 	 */
-	smp_read_barrier_depends();
+	owner = lockless_dereference(event->owner);
 	if (owner) {
 		/*
 		 * Since delayed_put_task_struct() also drops the last
@@ -3768,8 +3767,10 @@ static void perf_remove_from_owner(struct perf_event *event)
 		 * ensured they're done, and we can proceed with freeing the
 		 * event.
 		 */
-		if (event->owner)
+		if (event->owner) {
 			list_del_init(&event->owner_entry);
+			smp_store_release(&event->owner, NULL);
+		}
 		mutex_unlock(&owner->perf_event_mutex);
 		put_task_struct(owner);
 	}
@@ -8829,8 +8830,7 @@ void perf_event_exit_task(struct task_struct *child)
 		 * the owner, closes a race against perf_release() where
 		 * we need to serialize on the owner->perf_event_mutex.
 		 */
-		smp_wmb();
-		event->owner = NULL;
+		smp_store_release(&event->owner, NULL);
 	}
 	mutex_unlock(&child->perf_event_mutex);
 
