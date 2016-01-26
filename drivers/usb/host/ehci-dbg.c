@@ -982,7 +982,7 @@ static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
 {
 	struct debug_buffer *buf;
 
-	buf = kzalloc(sizeof(struct debug_buffer), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 
 	if (buf) {
 		buf->bus = bus;
