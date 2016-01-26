@@ -568,6 +568,10 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
 
 	unsigned count;
 
+	/* Abort early if there isn't anything to do */
+	if (pe_start == pe_end)
+		return;
+
 	/* system pages are non continuously */
 	if (gtt || !(flags & AMDGPU_PTE_VALID) || (frag_start >= frag_end)) {
 
@@ -622,9 +626,9 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 				  uint64_t start, uint64_t end,
 				  uint64_t dst, uint32_t flags)
 {
-	uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
-	uint64_t last_pte = ~0, last_dst = ~0;
-	unsigned count = 0;
+	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
+
+	uint64_t last_pe_start = ~0, last_pe_end = ~0, last_dst = ~0;
 	uint64_t addr;
 
 	/* walk over the address space and update the page tables */
@@ -632,40 +636,36 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 		uint64_t pt_idx = addr >> amdgpu_vm_block_size;
 		struct amdgpu_bo *pt = vm->page_tables[pt_idx].entry.robj;
 		unsigned nptes;
-		uint64_t pte;
+		uint64_t pe_start;
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
 		else
 			nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
 
-		pte = amdgpu_bo_gpu_offset(pt);
-		pte += (addr & mask) * 8;
+		pe_start = amdgpu_bo_gpu_offset(pt);
+		pe_start += (addr & mask) * 8;
 
-		if ((last_pte + 8 * count) != pte) {
+		if (last_pe_end != pe_start) {
 
-			if (count) {
-				amdgpu_vm_frag_ptes(adev, gtt, gtt_flags, ib,
-						    last_pte, last_pte + 8 * count,
-						    last_dst, flags);
-			}
+			amdgpu_vm_frag_ptes(adev, gtt, gtt_flags, ib,
+					    last_pe_start, last_pe_end,
+					    last_dst, flags);
 
-			count = nptes;
-			last_pte = pte;
+			last_pe_start = pe_start;
+			last_pe_end = pe_start + 8 * nptes;
 			last_dst = dst;
 		} else {
-			count += nptes;
+			last_pe_end += 8 * nptes;
 		}
 
 		addr += nptes;
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
 
-	if (count) {
-		amdgpu_vm_frag_ptes(adev, gtt, gtt_flags, ib,
-				    last_pte, last_pte + 8 * count,
-				    last_dst, flags);
-	}
+	amdgpu_vm_frag_ptes(adev, gtt, gtt_flags, ib,
+			    last_pe_start, last_pe_end,
+			    last_dst, flags);
 }
 
 /**
