@@ -4531,9 +4531,7 @@ static void ixgbe_clear_vxlan_port(struct ixgbe_adapter *adapter)
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VXLANCTRL, 0);
-#ifdef CONFIG_IXGBE_VXLAN
 		adapter->vxlan_port = 0;
-#endif
 		break;
 	default:
 		break;
@@ -7561,9 +7559,6 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	} hdr;
 	struct tcphdr *th;
 	struct sk_buff *skb;
-#ifdef CONFIG_IXGBE_VXLAN
-	u8 encap = false;
-#endif /* CONFIG_IXGBE_VXLAN */
 	__be16 vlan_id;
 
 	/* if ring doesn't have a interrupt vector, cannot perform ATR */
@@ -7579,28 +7574,21 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	/* snag network header to get L4 type and address */
 	skb = first->skb;
 	hdr.network = skb_network_header(skb);
-	if (!skb->encapsulation) {
-		th = tcp_hdr(skb);
-	} else {
+	th = tcp_hdr(skb);
 #ifdef CONFIG_IXGBE_VXLAN
+	if (skb->encapsulation &&
+	    first->protocol == htons(ETH_P_IP) &&
+	    hdr.ipv4->protocol != IPPROTO_UDP) {
 		struct ixgbe_adapter *adapter = q_vector->adapter;
 
-		if (!adapter->vxlan_port)
-			return;
-		if (first->protocol != htons(ETH_P_IP) ||
-		    hdr.ipv4->version != IPVERSION ||
-		    hdr.ipv4->protocol != IPPROTO_UDP) {
-			return;
+		/* verify the port is recognized as VXLAN */
+		if (adapter->vxlan_port &&
+		    udp_hdr(skb)->dest == adapter->vxlan_port) {
+			hdr.network = skb_inner_network_header(skb);
+			th = inner_tcp_hdr(skb);
 		}
-		if (ntohs(udp_hdr(skb)->dest) != adapter->vxlan_port)
-			return;
-		encap = true;
-		hdr.network = skb_inner_network_header(skb);
-		th = inner_tcp_hdr(skb);
-#else
-		return;
-#endif /* CONFIG_IXGBE_VXLAN */
 	}
+#endif /* CONFIG_IXGBE_VXLAN */
 
 	/* Currently only IPv4/IPv6 with TCP is supported */
 	switch (hdr.ipv4->version) {
@@ -7682,10 +7670,8 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 		break;
 	}
 
-#ifdef CONFIG_IXGBE_VXLAN
-	if (encap)
+	if (hdr.network != skb_network_header(skb))
 		input.formatted.flow_type |= IXGBE_ATR_L4TYPE_TUNNEL_MASK;
-#endif /* CONFIG_IXGBE_VXLAN */
 
 	/* This assumes the Rx queue and Tx queue are bound to the same CPU */
 	ixgbe_fdir_add_signature_filter_82599(&q_vector->adapter->hw,
@@ -8554,7 +8540,6 @@ static void ixgbe_add_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u16 new_port = ntohs(port);
 
 	if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
 		return;
@@ -8562,18 +8547,18 @@ static void ixgbe_add_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 	if (sa_family == AF_INET6)
 		return;
 
-	if (adapter->vxlan_port == new_port)
+	if (adapter->vxlan_port == port)
 		return;
 
 	if (adapter->vxlan_port) {
 		netdev_info(dev,
 			    "Hit Max num of VXLAN ports, not adding port %d\n",
-			    new_port);
+			    ntohs(port));
 		return;
 	}
 
-	adapter->vxlan_port = new_port;
-	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, new_port);
+	adapter->vxlan_port = port;
+	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, ntohs(port));
 }
 
 /**
@@ -8586,7 +8571,6 @@ static void ixgbe_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 				 __be16 port)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	u16 new_port = ntohs(port);
 
 	if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
 		return;
@@ -8594,9 +8578,9 @@ static void ixgbe_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 	if (sa_family == AF_INET6)
 		return;
 
-	if (adapter->vxlan_port != new_port) {
+	if (adapter->vxlan_port != port) {
 		netdev_info(dev, "Port %d was not found, not deleting\n",
-			    new_port);
+			    ntohs(port));
 		return;
 	}
 
@@ -9264,17 +9248,6 @@ skip_sriov:
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
-
-#ifdef CONFIG_IXGBE_VXLAN
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-		netdev->hw_enc_features |= NETIF_F_RXCSUM;
-		break;
-	default:
-		break;
-	}
-#endif /* CONFIG_IXGBE_VXLAN */
 
 #ifdef CONFIG_IXGBE_DCB
 	netdev->dcbnl_ops = &dcbnl_ops;
