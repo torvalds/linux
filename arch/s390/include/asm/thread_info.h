@@ -54,11 +54,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #define TIF_NOTIFY_RESUME	0	/* callback before returning to user */
 #define TIF_SIGPENDING		1	/* signal pending */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
-#define TIF_SYSCALL_TRACE	3	/* syscall trace active */
-#define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
-#define TIF_SECCOMP		5	/* secure computing */
-#define TIF_SYSCALL_TRACEPOINT	6	/* syscall tracepoint instrumentation */
-#define TIF_UPROBE		7	/* breakpointed or single-stepping */
+#define TIF_UPROBE		3	/* breakpointed or single-stepping */
+#define TIF_GUARDED_STORAGE	4	/* load guarded storage control block */
+#define TIF_SYSCALL_TRACE	8	/* syscall trace active */
+#define TIF_SYSCALL_AUDIT	9	/* syscall auditing active */
+#define TIF_SECCOMP		10	/* secure computing */
+#define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
 #define TIF_31BIT		16	/* 32bit process */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	18	/* restore signal mask in do_signal() */
@@ -76,5 +77,6 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #define _TIF_UPROBE		_BITUL(TIF_UPROBE)
 #define _TIF_31BIT		_BITUL(TIF_31BIT)
 #define _TIF_SINGLE_STEP	_BITUL(TIF_SINGLE_STEP)
+#define _TIF_GUARDED_STORAGE	_BITUL(TIF_GUARDED_STORAGE)
 
 #endif /* _ASM_THREAD_INFO_H */
