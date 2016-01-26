@@ -539,6 +539,7 @@ static int __allocate_data_blocks(struct inode *inode, loff_t offset,
 
 	map.m_lblk = F2FS_BYTES_TO_BLK(offset);
 	map.m_len = F2FS_BYTES_TO_BLK(count);
+	map.m_next_pgofs = NULL;
 
 	return f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_DIO);
 }
@@ -586,8 +587,12 @@ next_dnode:
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, pgofs, mode);
 	if (err) {
-		if (err == -ENOENT)
+		if (err == -ENOENT) {
 			err = 0;
+			if (map->m_next_pgofs)
+				*map->m_next_pgofs =
+					get_next_page_offset(&dn, pgofs);
+		}
 		goto unlock_out;
 	}
 
@@ -609,6 +614,11 @@ next_block:
 			map->m_flags = F2FS_MAP_NEW;
 			blkaddr = dn.data_blkaddr;
 		} else {
+			if (flag == F2FS_GET_BLOCK_FIEMAP &&
+						blkaddr == NULL_ADDR) {
+				if (map->m_next_pgofs)
+					*map->m_next_pgofs = pgofs + 1;
+			}
 			if (flag != F2FS_GET_BLOCK_FIEMAP ||
 						blkaddr != NEW_ADDR) {
 				if (flag == F2FS_GET_BLOCK_BMAP)
@@ -669,13 +679,15 @@ out:
 }
 
 static int __get_data_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh, int create, int flag)
+			struct buffer_head *bh, int create, int flag,
+			pgoff_t *next_pgofs)
 {
 	struct f2fs_map_blocks map;
 	int ret;
 
 	map.m_lblk = iblock;
 	map.m_len = bh->b_size >> inode->i_blkbits;
+	map.m_next_pgofs = next_pgofs;
 
 	ret = f2fs_map_blocks(inode, &map, create, flag);
 	if (!ret) {
@@ -687,16 +699,18 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 }
 
 static int get_data_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create, int flag)
+			struct buffer_head *bh_result, int create, int flag,
+			pgoff_t *next_pgofs)
 {
-	return __get_data_block(inode, iblock, bh_result, create, flag);
+	return __get_data_block(inode, iblock, bh_result, create,
+							flag, next_pgofs);
 }
 
 static int get_data_block_dio(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
 	return __get_data_block(inode, iblock, bh_result, create,
-						F2FS_GET_BLOCK_DIO);
+						F2FS_GET_BLOCK_DIO, NULL);
 }
 
 static int get_data_block_bmap(struct inode *inode, sector_t iblock,
@@ -707,7 +721,7 @@ static int get_data_block_bmap(struct inode *inode, sector_t iblock,
 		return -EFBIG;
 
 	return __get_data_block(inode, iblock, bh_result, create,
-						F2FS_GET_BLOCK_BMAP);
+						F2FS_GET_BLOCK_BMAP, NULL);
 }
 
 static inline sector_t logical_to_blk(struct inode *inode, loff_t offset)
@@ -725,6 +739,7 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 {
 	struct buffer_head map_bh;
 	sector_t start_blk, last_blk;
+	pgoff_t next_pgofs;
 	loff_t isize;
 	u64 logical = 0, phys = 0, size = 0;
 	u32 flags = 0;
@@ -760,14 +775,15 @@ next:
 	map_bh.b_size = len;
 
 	ret = get_data_block(inode, start_blk, &map_bh, 0,
-					F2FS_GET_BLOCK_FIEMAP);
+					F2FS_GET_BLOCK_FIEMAP, &next_pgofs);
 	if (ret)
 		goto out;
 
 	/* HOLE */
 	if (!buffer_mapped(&map_bh)) {
+		start_blk = next_pgofs;
 		/* Go through holes util pass the EOF */
-		if (blk_to_logical(inode, start_blk++) < isize)
+		if (blk_to_logical(inode, start_blk) < isize)
 			goto prep_next;
 		/* Found a hole beyond isize means no more extents.
 		 * Note that the premise is that filesystems don't
@@ -835,6 +851,7 @@ static int f2fs_mpage_readpages(struct address_space *mapping,
 	map.m_lblk = 0;
 	map.m_len = 0;
 	map.m_flags = 0;
+	map.m_next_pgofs = NULL;
 
 	for (page_idx = 0; nr_pages; page_idx++, nr_pages--) {
 
@@ -873,7 +890,7 @@ static int f2fs_mpage_readpages(struct address_space *mapping,
 			map.m_len = last_block - block_in_file;
 
 			if (f2fs_map_blocks(inode, &map, 0,
-							F2FS_GET_BLOCK_READ))
+						F2FS_GET_BLOCK_READ))
 				goto set_error_page;
 		}
 got_it:

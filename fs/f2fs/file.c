@@ -1647,7 +1647,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 					struct f2fs_defragment *range)
 {
 	struct inode *inode = file_inode(filp);
-	struct f2fs_map_blocks map;
+	struct f2fs_map_blocks map = { .m_next_pgofs = NULL };
 	struct extent_info ei;
 	pgoff_t pg_start, pg_end;
 	unsigned int blk_per_seg = sbi->blocks_per_seg;
