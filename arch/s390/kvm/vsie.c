@@ -312,6 +312,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		scb_s->eca |= scb_o->eca & 0x00020000U;
 		scb_s->ecd |= scb_o->ecd & 0x20000000U;
 	}
+	/* Run-time-Instrumentation */
+	if (test_kvm_facility(vcpu->kvm, 64))
+		scb_s->ecb3 |= scb_o->ecb3 & 0x01U;
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
@@ -464,6 +467,13 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		unpin_guest_page(vcpu->kvm, gpa, hpa);
 		scb_s->gvrd = 0;
 	}
+
+	hpa = scb_s->riccbd;
+	if (hpa) {
+		gpa = scb_o->riccbd & ~0x3fUL;
+		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		scb_s->riccbd = 0;
+	}
 }
 
 /*
@@ -537,6 +547,22 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
 		if (rc == -EINVAL)
 			rc = set_validity_icpt(scb_s, 0x1310U);
+		if (rc)
+			goto unpin;
+		scb_s->gvrd = hpa;
+	}
+
+	gpa = scb_o->riccbd & ~0x3fUL;
+	if (gpa && (scb_s->ecb3 & 0x01U)) {
+		if (!(gpa & ~0x1fffUL)) {
+			rc = set_validity_icpt(scb_s, 0x0043U);
+			goto unpin;
+		}
+		/* 64 bytes cannot cross page boundaries */
+		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
+		if (rc == -EINVAL)
+			rc = set_validity_icpt(scb_s, 0x0043U);
+		/* Validity 0x0044 will be checked by SIE */
 		if (rc)
 			goto unpin;
 		scb_s->gvrd = hpa;
