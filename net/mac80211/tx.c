@@ -710,6 +710,10 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 
 	info->control.short_preamble = txrc.short_preamble;
 
+	/* don't ask rate control when rate already injected via radiotap */
+	if (info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)
+		return TX_CONTINUE;
+
 	if (tx->sta)
 		assoc = test_sta_flag(tx->sta, WLAN_STA_ASSOC);
 
@@ -1665,15 +1669,24 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx(sdata, sta, skb, false);
 }
 
-static bool ieee80211_parse_tx_radiotap(struct sk_buff *skb)
+static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
+					struct sk_buff *skb)
 {
 	struct ieee80211_radiotap_iterator iterator;
 	struct ieee80211_radiotap_header *rthdr =
 		(struct ieee80211_radiotap_header *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_supported_band *sband =
+		local->hw.wiphy->bands[info->band];
 	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
 						   NULL);
 	u16 txflags;
+	u16 rate = 0;
+	bool rate_found = false;
+	u8 rate_retries = 0;
+	u16 rate_flags = 0;
+	u8 mcs_known, mcs_flags;
+	int i;
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
 		       IEEE80211_TX_CTL_DONTFRAG;
@@ -1724,6 +1737,35 @@ static bool ieee80211_parse_tx_radiotap(struct sk_buff *skb)
 				info->flags |= IEEE80211_TX_CTL_NO_ACK;
 			break;
 
+		case IEEE80211_RADIOTAP_RATE:
+			rate = *iterator.this_arg;
+			rate_flags = 0;
+			rate_found = true;
+			break;
+
+		case IEEE80211_RADIOTAP_DATA_RETRIES:
+			rate_retries = *iterator.this_arg;
+			break;
+
+		case IEEE80211_RADIOTAP_MCS:
+			mcs_known = iterator.this_arg[0];
+			mcs_flags = iterator.this_arg[1];
+			if (!(mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_MCS))
+				break;
+
+			rate_found = true;
+			rate = iterator.this_arg[2];
+			rate_flags = IEEE80211_TX_RC_MCS;
+
+			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_GI &&
+			    mcs_flags & IEEE80211_RADIOTAP_MCS_SGI)
+				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
+
+			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_BW &&
+			    mcs_flags & IEEE80211_RADIOTAP_MCS_BW_40)
+				rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+			break;
+
 		/*
 		 * Please update the file
 		 * Documentation/networking/mac80211-injection.txt
@@ -1737,6 +1779,32 @@ static bool ieee80211_parse_tx_radiotap(struct sk_buff *skb)
 
 	if (ret != -ENOENT) /* ie, if we didn't simply run out of fields */
 		return false;
+
+	if (rate_found) {
+		info->control.flags |= IEEE80211_TX_CTRL_RATE_INJECT;
+
+		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+			info->control.rates[i].idx = -1;
+			info->control.rates[i].flags = 0;
+			info->control.rates[i].count = 0;
+		}
+
+		if (rate_flags & IEEE80211_TX_RC_MCS) {
+			info->control.rates[0].idx = rate;
+		} else {
+			for (i = 0; i < sband->n_bitrates; i++) {
+				if (rate * 5 != sband->bitrates[i].bitrate)
+					continue;
+
+				info->control.rates[0].idx = i;
+				break;
+			}
+		}
+
+		info->control.rates[0].flags = rate_flags;
+		info->control.rates[0].count = min_t(u8, rate_retries + 1,
+						     local->hw.max_rate_tries);
+	}
 
 	/*
 	 * remove the radiotap header
@@ -1819,7 +1887,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		      IEEE80211_TX_CTL_INJECTED;
 
 	/* process and remove the injection radiotap header */
-	if (!ieee80211_parse_tx_radiotap(skb))
+	if (!ieee80211_parse_tx_radiotap(local, skb))
 		goto fail;
 
 	rcu_read_lock();

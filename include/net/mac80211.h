@@ -708,12 +708,14 @@ enum mac80211_tx_info_flags {
  *	protocol frame (e.g. EAP)
  * @IEEE80211_TX_CTRL_PS_RESPONSE: This frame is a response to a poll
  *	frame (PS-Poll or uAPSD).
+ * @IEEE80211_TX_CTRL_RATE_INJECT: This frame is injected with rate information
  *
  * These flags are used in tx_info->control.flags.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_PORT_CTRL_PROTO	= BIT(0),
 	IEEE80211_TX_CTRL_PS_RESPONSE		= BIT(1),
+	IEEE80211_TX_CTRL_RATE_INJECT		= BIT(2),
 };
 
 /*
