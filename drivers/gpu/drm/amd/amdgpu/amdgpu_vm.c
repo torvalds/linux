@@ -624,23 +624,18 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
  *
  * Global and local mutex must be locked!
  */
-static int amdgpu_vm_update_ptes(struct amdgpu_device *adev,
-				 struct amdgpu_gart *gtt,
-				 uint32_t gtt_flags,
-				 struct amdgpu_vm *vm,
-				 struct amdgpu_ib *ib,
-				 uint64_t start, uint64_t end,
-				 uint64_t dst, uint32_t flags)
+static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
+				  struct amdgpu_gart *gtt,
+				  uint32_t gtt_flags,
+				  struct amdgpu_vm *vm,
+				  struct amdgpu_ib *ib,
+				  uint64_t start, uint64_t end,
+				  uint64_t dst, uint32_t flags)
 {
 	uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
 	uint64_t last_pte = ~0, last_dst = ~0;
-	void *owner = AMDGPU_FENCE_OWNER_VM;
 	unsigned count = 0;
 	uint64_t addr;
-
-	/* sync to everything on unmapping */
-	if (!(flags & AMDGPU_PTE_VALID))
-		owner = AMDGPU_FENCE_OWNER_UNDEFINED;
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; ) {
@@ -648,12 +643,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 		struct amdgpu_bo *pt = vm->page_tables[pt_idx].entry.robj;
 		unsigned nptes;
 		uint64_t pte;
-		int r;
-
-		amdgpu_sync_resv(adev, &ib->sync, pt->tbo.resv, owner);
-		r = reservation_object_reserve_shared(pt->tbo.resv);
-		if (r)
-			return r;
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -687,8 +676,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 				    last_pte, last_pte + 8 * count,
 				    last_dst, flags);
 	}
-
-	return 0;
 }
 
 /**
@@ -716,10 +703,15 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				       struct fence **fence)
 {
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
+	void *owner = AMDGPU_FENCE_OWNER_VM;
 	unsigned nptes, ncmds, ndw;
 	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
 	int r;
+
+	/* sync to everything on unmapping */
+	if (!(flags & AMDGPU_PTE_VALID))
+		owner = AMDGPU_FENCE_OWNER_UNDEFINED;
 
 	nptes = last - start + 1;
 
@@ -761,15 +753,17 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		return r;
 	}
 
-	ib->length_dw = 0;
+	r = amdgpu_sync_resv(adev, &ib->sync, vm->page_directory->tbo.resv,
+			     owner);
+	if (r)
+		goto error_free;
 
-	r = amdgpu_vm_update_ptes(adev, gtt, gtt_flags, vm, ib, start,
-				  last + 1, addr, flags);
-	if (r) {
-		amdgpu_ib_free(adev, ib);
-		kfree(ib);
-		return r;
-	}
+	r = reservation_object_reserve_shared(vm->page_directory->tbo.resv);
+	if (r)
+		goto error_free;
+
+	amdgpu_vm_update_ptes(adev, gtt, gtt_flags, vm, ib, start, last + 1,
+			      addr, flags);
 
 	amdgpu_vm_pad_ib(adev, ib);
 	WARN_ON(ib->length_dw > ndw);
