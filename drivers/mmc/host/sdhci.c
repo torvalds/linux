@@ -2960,6 +2960,9 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->flags &= ~SDHCI_USE_SDMA;
 
 	if (host->flags & SDHCI_USE_ADMA) {
+		dma_addr_t dma;
+		void *buf;
+
 		/*
 		 * The DMA descriptor table size is calculated as the maximum
 		 * number of segments times 2, to allow for an alignment
@@ -2975,45 +2978,28 @@ int sdhci_add_host(struct sdhci_host *host)
 					      SDHCI_ADMA2_32_DESC_SZ;
 			host->desc_sz = SDHCI_ADMA2_32_DESC_SZ;
 		}
-		host->adma_table = dma_alloc_coherent(mmc_dev(mmc),
-						      host->adma_table_sz,
-						      &host->adma_addr,
-						      GFP_KERNEL);
+
 		host->align_buffer_sz = SDHCI_MAX_SEGS * SDHCI_ADMA2_ALIGN;
-		host->align_buffer = dma_alloc_coherent(mmc_dev(mmc),
-							host->align_buffer_sz,
-							&host->align_addr,
-							GFP_KERNEL);
-		if (!host->adma_table || !host->align_buffer) {
-			if (host->adma_table)
-				dma_free_coherent(mmc_dev(mmc),
-						  host->adma_table_sz,
-						  host->adma_table,
-						  host->adma_addr);
-			if (host->align_buffer)
-				dma_free_coherent(mmc_dev(mmc),
-						  host->align_buffer_sz,
-						  host->align_buffer,
-						  host->align_addr);
+		buf = dma_alloc_coherent(mmc_dev(mmc), host->align_buffer_sz +
+					 host->adma_table_sz, &dma, GFP_KERNEL);
+		if (!buf) {
 			pr_warn("%s: Unable to allocate ADMA buffers - falling back to standard DMA\n",
 				mmc_hostname(mmc));
 			host->flags &= ~SDHCI_USE_ADMA;
-			host->adma_table = NULL;
-			host->align_buffer = NULL;
-		} else if (host->adma_addr & (SDHCI_ADMA2_DESC_ALIGN - 1)) {
+		} else if ((dma + host->align_buffer_sz) &
+			   (SDHCI_ADMA2_DESC_ALIGN - 1)) {
 			pr_warn("%s: unable to allocate aligned ADMA descriptor\n",
 				mmc_hostname(mmc));
 			host->flags &= ~SDHCI_USE_ADMA;
-			dma_free_coherent(mmc_dev(mmc), host->adma_table_sz,
-					  host->adma_table, host->adma_addr);
-			dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz,
-					  host->align_buffer, host->align_addr);
-			host->adma_table = NULL;
-			host->align_buffer = NULL;
-		}
+			dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz +
+					  host->adma_table_sz, buf, dma);
+		} else {
+			host->align_buffer = buf;
+			host->align_addr = dma;
 
-		/* dma_alloc_coherent returns page aligned and sized buffers */
-		BUG_ON(host->align_addr & SDHCI_ADMA2_MASK);
+			host->adma_table = buf + host->align_buffer_sz;
+			host->adma_addr = dma + host->align_buffer_sz;
+		}
 	}
 
 	/*
@@ -3473,12 +3459,10 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	if (!IS_ERR(mmc->supply.vqmmc))
 		regulator_disable(mmc->supply.vqmmc);
 
-	if (host->adma_table)
-		dma_free_coherent(mmc_dev(mmc), host->adma_table_sz,
-				  host->adma_table, host->adma_addr);
 	if (host->align_buffer)
-		dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz,
-				  host->align_buffer, host->align_addr);
+		dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz +
+				  host->adma_table_sz, host->align_buffer,
+				  host->align_addr);
 
 	host->adma_table = NULL;
 	host->align_buffer = NULL;
