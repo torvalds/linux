@@ -564,7 +564,7 @@ struct ehci_sitd {
 	__hc32			hw_results;		/* EHCI table 3-11 */
 #define	SITD_IOC	(1 << 31)	/* interrupt on completion */
 #define	SITD_PAGE	(1 << 30)	/* buffer 0/1 */
-#define	SITD_LENGTH(x)	(0x3ff & ((x)>>16))
+#define	SITD_LENGTH(x)	(((x) >> 16) & 0x3ff)
 #define	SITD_STS_ACTIVE	(1 << 7)	/* HC may execute this */
 #define	SITD_STS_ERR	(1 << 6)	/* error from TT */
 #define	SITD_STS_DBE	(1 << 5)	/* data buffer error (in HC) */
