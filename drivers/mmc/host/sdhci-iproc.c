@@ -247,11 +247,6 @@ err:
 	return ret;
 }
 
-static int sdhci_iproc_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
-}
-
 static struct platform_driver sdhci_iproc_driver = {
 	.driver = {
 		.name = "sdhci-iproc",
@@ -259,7 +254,7 @@ static struct platform_driver sdhci_iproc_driver = {
 		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_iproc_probe,
-	.remove = sdhci_iproc_remove,
+	.remove = sdhci_pltfm_unregister,
 };
 module_platform_driver(sdhci_iproc_driver);
 
