@@ -521,6 +521,7 @@ static int __init dmi_present(const u8 *buf)
 			dmi_ver = smbios_ver;
 		else
 			dmi_ver = (buf[14] & 0xF0) << 4 | (buf[14] & 0x0F);
+		dmi_ver <<= 8;
 		dmi_num = get_unaligned_le16(buf + 12);
 		dmi_len = get_unaligned_le16(buf + 6);
 		dmi_base = get_unaligned_le32(buf + 8);
@@ -528,15 +529,14 @@ static int __init dmi_present(const u8 *buf)
 		if (dmi_walk_early(dmi_decode) == 0) {
 			if (smbios_ver) {
 				pr_info("SMBIOS %d.%d present.\n",
-				       dmi_ver >> 8, dmi_ver & 0xFF);
+					dmi_ver >> 16, (dmi_ver >> 8) & 0xFF);
 			} else {
 				smbios_entry_point_size = 15;
 				memcpy(smbios_entry_point, buf,
 				       smbios_entry_point_size);
 				pr_info("Legacy DMI %d.%d present.\n",
-				       dmi_ver >> 8, dmi_ver & 0xFF);
+					dmi_ver >> 16, (dmi_ver >> 8) & 0xFF);
 			}
-			dmi_ver <<= 8;
 			dmi_format_ids(dmi_ids_string, sizeof(dmi_ids_string));
 			printk(KERN_DEBUG "DMI: %s\n", dmi_ids_string);
 			return 0;

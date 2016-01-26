@@ -1291,7 +1291,8 @@ out:
  * on error we return an unlocked page and the error value
  * on success we return a locked page and 0
  */
-static int prepare_uptodate_page(struct page *page, u64 pos,
+static int prepare_uptodate_page(struct inode *inode,
+				 struct page *page, u64 pos,
 				 bool force_uptodate)
 {
 	int ret = 0;
@@ -1305,6 +1306,10 @@ static int prepare_uptodate_page(struct page *page, u64 pos,
 		if (!PageUptodate(page)) {
 			unlock_page(page);
 			return -EIO;
+		}
+		if (page->mapping != inode->i_mapping) {
+			unlock_page(page);
+			return -EAGAIN;
 		}
 	}
 	return 0;
@@ -1324,6 +1329,7 @@ static noinline int prepare_pages(struct inode *inode, struct page **pages,
 	int faili;
 
 	for (i = 0; i < num_pages; i++) {
+again:
 		pages[i] = find_or_create_page(inode->i_mapping, index + i,
 					       mask | __GFP_WRITE);
 		if (!pages[i]) {
@@ -1333,13 +1339,17 @@ static noinline int prepare_pages(struct inode *inode, struct page **pages,
 		}
 
 		if (i == 0)
-			err = prepare_uptodate_page(pages[i], pos,
+			err = prepare_uptodate_page(inode, pages[i], pos,
 						    force_uptodate);
-		if (i == num_pages - 1)
-			err = prepare_uptodate_page(pages[i],
+		if (!err && i == num_pages - 1)
+			err = prepare_uptodate_page(inode, pages[i],
 						    pos + write_bytes, false);
 		if (err) {
 			page_cache_release(pages[i]);
+			if (err == -EAGAIN) {
+				err = 0;
+				goto again;
+			}
 			faili = i - 1;
 			goto fail;
 		}
@@ -2924,6 +2934,9 @@ const struct file_operations btrfs_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_ioctl,
 #endif
+	.copy_file_range = btrfs_copy_file_range,
+	.clone_file_range = btrfs_clone_file_range,
+	.dedupe_file_range = btrfs_dedupe_file_range,
 };
 
 void btrfs_auto_defrag_exit(void)

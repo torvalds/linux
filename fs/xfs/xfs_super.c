@@ -137,7 +137,7 @@ static const match_table_t tokens = {
 };
 
 
-STATIC unsigned long
+STATIC int
 suffix_kstrtoint(char *s, unsigned int base, int *res)
 {
 	int	last, shift_left_factor = 0, _res;

@@ -429,22 +429,14 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 					 mirror, lseg->pls_range.offset,
 					 lseg->pls_range.length, NFS4ERR_NXIO,
 					 OP_ILLEGAL, GFP_NOIO);
-		if (fail_return) {
-			pnfs_error_mark_layout_for_return(ino, lseg);
-			if (ff_layout_has_available_ds(lseg))
-				pnfs_set_retry_layoutget(lseg->pls_layout);
-			else
-				pnfs_clear_retry_layoutget(lseg->pls_layout);
-
-		} else {
+		if (!fail_return) {
 			if (ff_layout_has_available_ds(lseg))
 				set_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
 					&lseg->pls_layout->plh_flags);
-			else {
+			else
 				pnfs_error_mark_layout_for_return(ino, lseg);
-				pnfs_clear_retry_layoutget(lseg->pls_layout);
-			}
-		}
+		} else
+			pnfs_error_mark_layout_for_return(ino, lseg);
 	}
 out_update_creds:
 	if (ff_layout_update_mirror_cred(mirror, ds))

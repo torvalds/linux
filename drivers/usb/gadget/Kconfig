@@ -127,6 +127,12 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 	   a module parameter as well.
 	   If unsure, say 2.
 
+config U_SERIAL_CONSOLE
+	bool "Serial gadget console support"
+	depends on USB_G_SERIAL
+	help
+	   It supports the serial gadget can be used as a console.
+
 source "drivers/usb/gadget/udc/Kconfig"
 
 #

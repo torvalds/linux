@@ -39,7 +39,7 @@
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
-#include <media/si4713.h>
+#include <linux/platform_data/media/si4713.h>
 #include <linux/platform_data/leds-lp55xx.h>
 
 #include <linux/platform_data/tsl2563.h>
@@ -48,7 +48,7 @@
 #include <video/omap-panel-data.h>
 
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
-#include <media/ir-rx51.h>
+#include <linux/platform_data/media/ir-rx51.h>
 #endif
 
 #include "mux.h"

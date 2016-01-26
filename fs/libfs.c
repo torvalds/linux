@@ -1019,17 +1019,12 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-void kfree_put_link(struct inode *unused, void *cookie)
+/* Because kfree isn't assignment-compatible with void(void*) ;-/ */
+void kfree_link(void *p)
 {
-	kfree(cookie);
+	kfree(p);
 }
-EXPORT_SYMBOL(kfree_put_link);
-
-void free_page_put_link(struct inode *unused, void *cookie)
-{
-	free_page((unsigned long) cookie);
-}
-EXPORT_SYMBOL(free_page_put_link);
+EXPORT_SYMBOL(kfree_link);
 
 /*
  * nop .set_page_dirty method so that people can use .page_mkwrite on
@@ -1092,14 +1087,15 @@ simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(simple_nosetlease);
 
-const char *simple_follow_link(struct dentry *dentry, void **cookie)
+const char *simple_get_link(struct dentry *dentry, struct inode *inode,
+			    struct delayed_call *done)
 {
-	return d_inode(dentry)->i_link;
+	return inode->i_link;
 }
-EXPORT_SYMBOL(simple_follow_link);
+EXPORT_SYMBOL(simple_get_link);
 
 const struct inode_operations simple_symlink_inode_operations = {
-	.follow_link = simple_follow_link,
+	.get_link = simple_get_link,
 	.readlink = generic_readlink
 };
 EXPORT_SYMBOL(simple_symlink_inode_operations);

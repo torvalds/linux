@@ -1265,15 +1265,17 @@ static bool cma_protocol_roce(const struct rdma_cm_id *id)
 	return cma_protocol_roce_dev_port(device, port_num);
 }
 
-static bool cma_match_net_dev(const struct rdma_id_private *id_priv,
-			      const struct net_device *net_dev)
+static bool cma_match_net_dev(const struct rdma_cm_id *id,
+			      const struct net_device *net_dev,
+			      u8 port_num)
 {
-	const struct rdma_addr *addr = &id_priv->id.route.addr;
+	const struct rdma_addr *addr = &id->route.addr;
 
 	if (!net_dev)
 		/* This request is an AF_IB request or a RoCE request */
-		return addr->src_addr.ss_family == AF_IB ||
-		       cma_protocol_roce(&id_priv->id);
+		return (!id->port_num || id->port_num == port_num) &&
+		       (addr->src_addr.ss_family == AF_IB ||
+			cma_protocol_roce_dev_port(id->device, port_num));
 
 	return !addr->dev_addr.bound_dev_if ||
 	       (net_eq(dev_net(net_dev), addr->dev_addr.net) &&
@@ -1295,13 +1297,13 @@ static struct rdma_id_private *cma_find_listener(
 	hlist_for_each_entry(id_priv, &bind_list->owners, node) {
 		if (cma_match_private_data(id_priv, ib_event->private_data)) {
 			if (id_priv->id.device == cm_id->device &&
-			    cma_match_net_dev(id_priv, net_dev))
+			    cma_match_net_dev(&id_priv->id, net_dev, req->port))
 				return id_priv;
 			list_for_each_entry(id_priv_dev,
 					    &id_priv->listen_list,
 					    listen_list) {
 				if (id_priv_dev->id.device == cm_id->device &&
-				    cma_match_net_dev(id_priv_dev, net_dev))
+				    cma_match_net_dev(&id_priv_dev->id, net_dev, req->port))
 					return id_priv_dev;
 			}
 		}

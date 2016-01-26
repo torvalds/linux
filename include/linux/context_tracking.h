@@ -86,7 +86,7 @@ static inline void context_tracking_init(void) { }
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 static inline void guest_enter(void)
 {
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		vtime_guest_enter(current);
 	else
 		current->flags |= PF_VCPU;
@@ -100,7 +100,7 @@ static inline void guest_exit(void)
 	if (context_tracking_is_enabled())
 		__context_tracking_exit(CONTEXT_GUEST);
 
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		vtime_guest_exit(current);
 	else
 		current->flags &= ~PF_VCPU;

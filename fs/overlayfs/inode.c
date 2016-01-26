@@ -131,57 +131,23 @@ out_dput:
 	return err;
 }
 
-
-struct ovl_link_data {
-	struct dentry *realdentry;
-	void *cookie;
-};
-
-static const char *ovl_follow_link(struct dentry *dentry, void **cookie)
+static const char *ovl_get_link(struct dentry *dentry,
+				struct inode *inode,
+				struct delayed_call *done)
 {
 	struct dentry *realdentry;
 	struct inode *realinode;
-	struct ovl_link_data *data = NULL;
-	const char *ret;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	realdentry = ovl_dentry_real(dentry);
 	realinode = realdentry->d_inode;
 
-	if (WARN_ON(!realinode->i_op->follow_link))
+	if (WARN_ON(!realinode->i_op->get_link))
 		return ERR_PTR(-EPERM);
 
-	if (realinode->i_op->put_link) {
-		data = kmalloc(sizeof(struct ovl_link_data), GFP_KERNEL);
-		if (!data)
-			return ERR_PTR(-ENOMEM);
-		data->realdentry = realdentry;
-	}
-
-	ret = realinode->i_op->follow_link(realdentry, cookie);
-	if (IS_ERR_OR_NULL(ret)) {
-		kfree(data);
-		return ret;
-	}
-
-	if (data)
-		data->cookie = *cookie;
-
-	*cookie = data;
-
-	return ret;
-}
-
-static void ovl_put_link(struct inode *unused, void *c)
-{
-	struct inode *realinode;
-	struct ovl_link_data *data = c;
-
-	if (!data)
-		return;
-
-	realinode = data->realdentry->d_inode;
-	realinode->i_op->put_link(realinode, data->cookie);
-	kfree(data);
+	return realinode->i_op->get_link(realdentry, realinode, done);
 }
 
 static int ovl_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
@@ -378,8 +344,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 
 static const struct inode_operations ovl_symlink_inode_operations = {
 	.setattr	= ovl_setattr,
-	.follow_link	= ovl_follow_link,
-	.put_link	= ovl_put_link,
+	.get_link	= ovl_get_link,
 	.readlink	= ovl_readlink,
 	.getattr	= ovl_getattr,
 	.setxattr	= ovl_setxattr,

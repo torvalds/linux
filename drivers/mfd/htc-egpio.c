@@ -163,7 +163,7 @@ static int egpio_get(struct gpio_chip *chip, unsigned offset)
 	value = egpio_readw(ei, reg);
 	pr_debug("readw(%p + %x) = %x\n",
 			ei->base_addr, reg << ei->bus_shift, value);
-	return value & bit;
+	return !!(value & bit);
 }
 
 static int egpio_direction_input(struct gpio_chip *chip, unsigned offset)

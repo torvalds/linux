@@ -2251,10 +2251,8 @@ int ehca_init_mrmw_cache(void)
 
 void ehca_cleanup_mrmw_cache(void)
 {
-	if (mr_cache)
-		kmem_cache_destroy(mr_cache);
-	if (mw_cache)
-		kmem_cache_destroy(mw_cache);
+	kmem_cache_destroy(mr_cache);
+	kmem_cache_destroy(mw_cache);
 }
 
 static inline int ehca_init_top_bmap(struct ehca_top_bmap *ehca_top_bmap,

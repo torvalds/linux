@@ -385,7 +385,7 @@ static const struct dvb_tuner_ops max2165_tuner_ops = {
 	.info = {
 		.name           = "Maxim MAX2165",
 		.frequency_min  = 470000000,
-		.frequency_max  = 780000000,
+		.frequency_max  = 862000000,
 		.frequency_step =     50000,
 	},
 

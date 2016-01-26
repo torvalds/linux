@@ -1185,8 +1185,6 @@ void __init tsc_init(void)
 	u64 lpj;
 	int cpu;
 
-	x86_init.timers.tsc_pre_init();
-
 	if (!cpu_has_tsc) {
 		setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
 		return;

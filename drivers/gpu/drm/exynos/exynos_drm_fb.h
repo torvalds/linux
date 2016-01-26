@@ -12,7 +12,7 @@
  */
 
 #ifndef _EXYNOS_DRM_FB_H_
-#define _EXYNOS_DRM_FB_H
+#define _EXYNOS_DRM_FB_H_
 
 #include "exynos_drm_gem.h"
 

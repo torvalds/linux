@@ -45,7 +45,7 @@ struct adfs_dir_ops;
 struct adfs_sb_info {
 	union { struct {
 		struct adfs_discmap *s_map;	/* bh list containing map	 */
-		struct adfs_dir_ops *s_dir;	/* directory operations		 */
+		const struct adfs_dir_ops *s_dir; /* directory operations	 */
 		};
 		struct rcu_head rcu;		/* used only at shutdown time	 */
 	};
@@ -168,8 +168,8 @@ void __adfs_error(struct super_block *sb, const char *function,
 extern const struct inode_operations adfs_dir_inode_operations;
 extern const struct file_operations adfs_dir_operations;
 extern const struct dentry_operations adfs_dentry_operations;
-extern struct adfs_dir_ops adfs_f_dir_ops;
-extern struct adfs_dir_ops adfs_fplus_dir_ops;
+extern const struct adfs_dir_ops adfs_f_dir_ops;
+extern const struct adfs_dir_ops adfs_fplus_dir_ops;
 
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);

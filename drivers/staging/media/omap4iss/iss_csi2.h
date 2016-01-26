@@ -151,6 +151,7 @@ struct iss_csi2_device {
 void omap4iss_csi2_isr(struct iss_csi2_device *csi2);
 int omap4iss_csi2_reset(struct iss_csi2_device *csi2);
 int omap4iss_csi2_init(struct iss_device *iss);
+int omap4iss_csi2_create_links(struct iss_device *iss);
 void omap4iss_csi2_cleanup(struct iss_device *iss);
 void omap4iss_csi2_unregister_entities(struct iss_csi2_device *csi2);
 int omap4iss_csi2_register_entities(struct iss_csi2_device *csi2,

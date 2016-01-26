@@ -360,6 +360,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 		break;
 	case ROMFH_SYM:
 		i->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(i);
 		i->i_data.a_ops = &romfs_aops;
 		mode |= S_IRWXUGO;
 		break;

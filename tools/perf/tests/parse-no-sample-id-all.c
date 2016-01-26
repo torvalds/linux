@@ -67,7 +67,7 @@ struct test_attr_event {
  *
  * Return: %0 on success, %-1 if the test fails.
  */
-int test__parse_no_sample_id_all(void)
+int test__parse_no_sample_id_all(int subtest __maybe_unused)
 {
 	int err;
 

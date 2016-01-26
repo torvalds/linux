@@ -117,7 +117,7 @@ However when a driver supports these ioctls it must also support
     <para>We recommended the <application>v4l2-dbg</application>
 utility over calling these ioctls directly. It is available from the
 LinuxTV v4l-dvb repository; see <ulink
-url="http://linuxtv.org/repo/">http://linuxtv.org/repo/</ulink> for
+url="https://linuxtv.org/repo/">https://linuxtv.org/repo/</ulink> for
 access instructions.</para>
 
     <!-- Note for convenience vidioc-dbg-g-chip-info.sgml

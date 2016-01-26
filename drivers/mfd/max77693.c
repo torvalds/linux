@@ -334,7 +334,7 @@ MODULE_DEVICE_TABLE(i2c, max77693_i2c_id);
 
 static int max77693_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77693 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev)) {
@@ -347,7 +347,7 @@ static int max77693_suspend(struct device *dev)
 
 static int max77693_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77693 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev)) {

@@ -604,6 +604,13 @@ found:
 		}
 	}
 
+	/*
+	 * Clear b_error if this is a lookup from a caller that doesn't expect
+	 * valid data to be found in the buffer.
+	 */
+	if (!(flags & XBF_READ))
+		xfs_buf_ioerror(bp, 0);
+
 	XFS_STATS_INC(target->bt_mount, xb_get);
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	return bp;
@@ -1045,7 +1052,7 @@ xfs_buf_ioend_work(
 	xfs_buf_ioend(bp);
 }
 
-void
+static void
 xfs_buf_ioend_async(
 	struct xfs_buf	*bp)
 {
@@ -1632,13 +1639,9 @@ xfs_setsize_buftarg(
 	btp->bt_meta_sectormask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
-		char name[BDEVNAME_SIZE];
-
-		bdevname(btp->bt_bdev, name);
-
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %s",
-			sectorsize, name);
+			"Cannot set_blocksize to %u on device %pg",
+			sectorsize, btp->bt_bdev);
 		return -EINVAL;
 	}
 

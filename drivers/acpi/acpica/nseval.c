@@ -135,7 +135,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 
 	/* Get the full pathname to the object, for use in warning messages */
 
-	info->full_pathname = acpi_ns_get_external_pathname(info->node);
+	info->full_pathname = acpi_ns_get_normalized_pathname(info->node, TRUE);
 	if (!info->full_pathname) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}

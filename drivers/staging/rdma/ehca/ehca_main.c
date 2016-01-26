@@ -245,8 +245,7 @@ static void ehca_destroy_slab_caches(void)
 	ehca_cleanup_cq_cache();
 	ehca_cleanup_pd_cache();
 #ifdef CONFIG_PPC_64K_PAGES
-	if (ctblk_cache)
-		kmem_cache_destroy(ctblk_cache);
+	kmem_cache_destroy(ctblk_cache);
 #endif
 }
 

@@ -190,8 +190,8 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 #endif /* CONFIG_CIFS_ACL */
 	} else {
 		int temp;
-		temp = strncmp(ea_name, POSIX_ACL_XATTR_ACCESS,
-			strlen(POSIX_ACL_XATTR_ACCESS));
+		temp = strncmp(ea_name, XATTR_NAME_POSIX_ACL_ACCESS,
+			strlen(XATTR_NAME_POSIX_ACL_ACCESS));
 		if (temp == 0) {
 #ifdef CONFIG_CIFS_POSIX
 			if (sb->s_flags & MS_POSIXACL)
@@ -203,8 +203,8 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 #else
 			cifs_dbg(FYI, "set POSIX ACL not supported\n");
 #endif
-		} else if (strncmp(ea_name, POSIX_ACL_XATTR_DEFAULT,
-				   strlen(POSIX_ACL_XATTR_DEFAULT)) == 0) {
+		} else if (strncmp(ea_name, XATTR_NAME_POSIX_ACL_DEFAULT,
+				   strlen(XATTR_NAME_POSIX_ACL_DEFAULT)) == 0) {
 #ifdef CONFIG_CIFS_POSIX
 			if (sb->s_flags & MS_POSIXACL)
 				rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
@@ -292,8 +292,8 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
 				full_path, ea_name, ea_value, buf_size,
 				cifs_sb->local_nls, cifs_remap(cifs_sb));
-	} else if (strncmp(ea_name, POSIX_ACL_XATTR_ACCESS,
-			  strlen(POSIX_ACL_XATTR_ACCESS)) == 0) {
+	} else if (strncmp(ea_name, XATTR_NAME_POSIX_ACL_ACCESS,
+			  strlen(XATTR_NAME_POSIX_ACL_ACCESS)) == 0) {
 #ifdef CONFIG_CIFS_POSIX
 		if (sb->s_flags & MS_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
@@ -303,8 +303,8 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 #else
 		cifs_dbg(FYI, "Query POSIX ACL not supported yet\n");
 #endif /* CONFIG_CIFS_POSIX */
-	} else if (strncmp(ea_name, POSIX_ACL_XATTR_DEFAULT,
-			  strlen(POSIX_ACL_XATTR_DEFAULT)) == 0) {
+	} else if (strncmp(ea_name, XATTR_NAME_POSIX_ACL_DEFAULT,
+			  strlen(XATTR_NAME_POSIX_ACL_DEFAULT)) == 0) {
 #ifdef CONFIG_CIFS_POSIX
 		if (sb->s_flags & MS_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,

@@ -2430,7 +2430,6 @@ static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
  */
 
 static int s5p_jpeg_queue_setup(struct vb2_queue *vq,
-			   const void *parg,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -2621,7 +2620,7 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	}
 
 	dst_buf->timecode = src_buf->timecode;
-	dst_buf->timestamp = src_buf->timestamp;
+	dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 	dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst_buf->flags |=
 		src_buf->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
@@ -2752,7 +2751,7 @@ static irqreturn_t exynos3250_jpeg_irq(int irq, void *dev_id)
 	dst_buf = v4l2_m2m_dst_buf_remove(curr_ctx->fh.m2m_ctx);
 
 	dst_buf->timecode = src_buf->timecode;
-	dst_buf->timestamp = src_buf->timestamp;
+	dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 
 	v4l2_m2m_buf_done(src_buf, state);
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)

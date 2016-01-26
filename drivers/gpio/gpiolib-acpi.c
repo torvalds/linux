@@ -417,10 +417,15 @@ static int acpi_find_gpio(struct acpi_resource *ares, void *data)
 		 * ActiveLow is only specified for GpioInt resource. If
 		 * GpioIo is used then the only way to set the flag is
 		 * to use _DSD "gpios" property.
+		 * Note: we expect here:
+		 * - ACPI_ACTIVE_LOW == GPIO_ACTIVE_LOW
+		 * - ACPI_ACTIVE_HIGH == GPIO_ACTIVE_HIGH
 		 */
-		if (lookup->info.gpioint)
-			lookup->info.active_low =
-				agpio->polarity == ACPI_ACTIVE_LOW;
+		if (lookup->info.gpioint) {
+			lookup->info.polarity = agpio->polarity;
+			lookup->info.triggering = agpio->triggering;
+		}
+
 	}
 
 	return 1;
@@ -447,7 +452,7 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 	if (info) {
 		*info = lookup->info;
 		if (lookup->active_low)
-			info->active_low = lookup->active_low;
+			info->polarity = lookup->active_low;
 	}
 	return 0;
 }
@@ -595,6 +600,7 @@ struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {
 	int idx, i;
+	unsigned int irq_flags;
 
 	for (i = 0, idx = 0; idx <= index; i++) {
 		struct acpi_gpio_info info;
@@ -603,8 +609,23 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 		desc = acpi_get_gpiod_by_index(adev, NULL, i, &info);
 		if (IS_ERR(desc))
 			break;
-		if (info.gpioint && idx++ == index)
-			return gpiod_to_irq(desc);
+		if (info.gpioint && idx++ == index) {
+			int irq = gpiod_to_irq(desc);
+
+			if (irq < 0)
+				return irq;
+
+			irq_flags = acpi_dev_get_irq_type(info.triggering,
+							  info.polarity);
+
+			/* Set type if specified and different than the current one */
+			if (irq_flags != IRQ_TYPE_NONE &&
+			    irq_flags != irq_get_trigger_type(irq))
+				irq_set_irq_type(irq, irq_flags);
+
+			return irq;
+		}
+
 	}
 	return -ENOENT;
 }
@@ -921,4 +942,47 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 			count = crs_count;
 	}
 	return count;
+}
+
+struct acpi_crs_lookup {
+	struct list_head node;
+	struct acpi_device *adev;
+	const char *con_id;
+};
+
+static DEFINE_MUTEX(acpi_crs_lookup_lock);
+static LIST_HEAD(acpi_crs_lookup_list);
+
+bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
+{
+	struct acpi_crs_lookup *l, *lookup = NULL;
+
+	/* Never allow fallback if the device has properties */
+	if (adev->data.properties || adev->driver_gpios)
+		return false;
+
+	mutex_lock(&acpi_crs_lookup_lock);
+
+	list_for_each_entry(l, &acpi_crs_lookup_list, node) {
+		if (l->adev == adev) {
+			lookup = l;
+			break;
+		}
+	}
+
+	if (!lookup) {
+		lookup = kmalloc(sizeof(*lookup), GFP_KERNEL);
+		if (lookup) {
+			lookup->adev = adev;
+			lookup->con_id = con_id;
+			list_add_tail(&lookup->node, &acpi_crs_lookup_list);
+		}
+	}
+
+	mutex_unlock(&acpi_crs_lookup_lock);
+
+	return lookup &&
+		((!lookup->con_id && !con_id) ||
+		 (lookup->con_id && con_id &&
+		  strcmp(lookup->con_id, con_id) == 0));
 }

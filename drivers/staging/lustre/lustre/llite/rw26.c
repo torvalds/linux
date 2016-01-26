@@ -298,7 +298,10 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 		}
 
 		if (likely(do_io)) {
-			cl_2queue_add(queue, clp);
+			/*
+			 * Add a page to the incoming page list of 2-queue.
+			 */
+			cl_page_list_add(&queue->c2_qin, clp);
 
 			/*
 			 * Set page clip to tell transfer formation engine

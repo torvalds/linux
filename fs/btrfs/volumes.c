@@ -3548,12 +3548,11 @@ again:
 
 			ret = btrfs_force_chunk_alloc(trans, chunk_root,
 						      BTRFS_BLOCK_GROUP_DATA);
+			btrfs_end_transaction(trans, chunk_root);
 			if (ret < 0) {
 				mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 				goto error;
 			}
-
-			btrfs_end_transaction(trans, chunk_root);
 			chunk_reserved = 1;
 		}
 

@@ -1,7 +1,7 @@
 #ifndef __ASM_ARCH_CAMERA_H_
 #define __ASM_ARCH_CAMERA_H_
 
-#include <media/omap1_camera.h>
+#include <linux/platform_data/media/omap1_camera.h>
 
 void omap1_camera_init(void *);
 

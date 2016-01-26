@@ -855,7 +855,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		xhci_hub_report_usb2_link_state(&status, raw_port_status);
 	}
 	if (bus_state->port_c_suspend & (1 << wIndex))
-		status |= 1 << USB_PORT_FEAT_C_SUSPEND;
+		status |= USB_PORT_STAT_C_SUSPEND << 16;
 
 	return status;
 }

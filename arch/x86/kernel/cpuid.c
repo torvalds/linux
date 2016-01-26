@@ -58,28 +58,6 @@ static void cpuid_smp_cpuid(void *cmd_block)
 		    &cmd->eax, &cmd->ebx, &cmd->ecx, &cmd->edx);
 }
 
-static loff_t cpuid_seek(struct file *file, loff_t offset, int orig)
-{
-	loff_t ret;
-	struct inode *inode = file->f_mapping->host;
-
-	mutex_lock(&inode->i_mutex);
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case 1:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-	mutex_unlock(&inode->i_mutex);
-	return ret;
-}
-
 static ssize_t cpuid_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
@@ -132,7 +110,7 @@ static int cpuid_open(struct inode *inode, struct file *file)
  */
 static const struct file_operations cpuid_fops = {
 	.owner = THIS_MODULE,
-	.llseek = cpuid_seek,
+	.llseek = no_seek_end_llseek,
 	.read = cpuid_read,
 	.open = cpuid_open,
 };

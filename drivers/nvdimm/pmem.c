@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
 #include <linux/moduleparam.h>
+#include <linux/badblocks.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
@@ -41,11 +42,25 @@ struct pmem_device {
 	phys_addr_t		data_offset;
 	void __pmem		*virt_addr;
 	size_t			size;
+	struct badblocks	bb;
 };
 
 static int pmem_major;
 
-static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
+static bool is_bad_pmem(struct badblocks *bb, sector_t sector, unsigned int len)
+{
+	if (bb->count) {
+		sector_t first_bad;
+		int num_bad;
+
+		return !!badblocks_check(bb, sector, len / 512, &first_bad,
+				&num_bad);
+	}
+
+	return false;
+}
+
+static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			unsigned int len, unsigned int off, int rw,
 			sector_t sector)
 {
@@ -54,6 +69,8 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	void __pmem *pmem_addr = pmem->virt_addr + pmem_off;
 
 	if (rw == READ) {
+		if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
+			return -EIO;
 		memcpy_from_pmem(mem + off, pmem_addr, len);
 		flush_dcache_page(page);
 	} else {
@@ -62,10 +79,12 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	}
 
 	kunmap_atomic(mem);
+	return 0;
 }
 
 static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 {
+	int rc = 0;
 	bool do_acct;
 	unsigned long start;
 	struct bio_vec bvec;
@@ -74,9 +93,15 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 
 	do_acct = nd_iostat_start(bio, &start);
-	bio_for_each_segment(bvec, bio, iter)
-		pmem_do_bvec(pmem, bvec.bv_page, bvec.bv_len, bvec.bv_offset,
-				bio_data_dir(bio), iter.bi_sector);
+	bio_for_each_segment(bvec, bio, iter) {
+		rc = pmem_do_bvec(pmem, bvec.bv_page, bvec.bv_len,
+				bvec.bv_offset, bio_data_dir(bio),
+				iter.bi_sector);
+		if (rc) {
+			bio->bi_error = rc;
+			break;
+		}
+	}
 	if (do_acct)
 		nd_iostat_end(bio, start);
 
@@ -91,13 +116,22 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, int rw)
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
+	int rc;
 
-	pmem_do_bvec(pmem, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	rc = pmem_do_bvec(pmem, page, PAGE_CACHE_SIZE, 0, rw, sector);
 	if (rw & WRITE)
 		wmb_pmem();
-	page_endio(page, rw & WRITE, 0);
 
-	return 0;
+	/*
+	 * The ->rw_page interface is subtle and tricky.  The core
+	 * retries on any error, so we can only invoke page_endio() in
+	 * the successful completion case.  Otherwise, we'll see crashes
+	 * caused by double completion.
+	 */
+	if (rc == 0)
+		page_endio(page, rw & WRITE, 0);
+
+	return rc;
 }
 
 static long pmem_direct_access(struct block_device *bdev, sector_t sector,
@@ -195,7 +229,12 @@ static int pmem_attach_disk(struct device *dev,
 	disk->driverfs_dev = dev;
 	set_capacity(disk, (pmem->size - pmem->data_offset) / 512);
 	pmem->pmem_disk = disk;
+	devm_exit_badblocks(dev, &pmem->bb);
+	if (devm_init_badblocks(dev, &pmem->bb))
+		return -ENOMEM;
+	nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
 
+	disk->bb = &pmem->bb;
 	add_disk(disk);
 	revalidate_disk(disk);
 
@@ -212,9 +251,13 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 		return -EFAULT;
 	}
 
-	if (rw == READ)
+	if (rw == READ) {
+		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
+
+		if (unlikely(is_bad_pmem(&pmem->bb, offset / 512, sz_align)))
+			return -EIO;
 		memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
-	else {
+	} else {
 		memcpy_to_pmem(pmem->virt_addr + offset, buf, size);
 		wmb_pmem();
 	}
@@ -238,13 +281,10 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn);
-	if (rc == 0 || rc == -EBUSY)
+	if (rc == -ENODEV)
+		/* no info block, do init */;
+	else
 		return rc;
-
-	/* section alignment for simple hotplug */
-	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN
-			|| pmem->phys_addr & ND_PFN_MASK)
-		return -ENODEV;
 
 	nd_region = to_nd_region(nd_pfn->dev.parent);
 	if (nd_region->ro) {
@@ -263,9 +303,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	 * ->direct_access() to those that are included in the memmap.
 	 */
 	if (nd_pfn->mode == PFN_MODE_PMEM)
-		offset = ALIGN(SZ_8K + 64 * npfns, PMD_SIZE);
+		offset = ALIGN(SZ_8K + 64 * npfns, nd_pfn->align);
 	else if (nd_pfn->mode == PFN_MODE_RAM)
-		offset = SZ_8K;
+		offset = ALIGN(SZ_8K, nd_pfn->align);
 	else
 		goto err;
 
@@ -275,6 +315,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	pfn_sb->npfns = cpu_to_le64(npfns);
 	memcpy(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN);
 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
+	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
 	pfn_sb->version_major = cpu_to_le16(1);
 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
 	pfn_sb->checksum = cpu_to_le64(checksum);
@@ -326,21 +367,11 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
 	if (rc)
 		return rc;
 
-	if (PAGE_SIZE != SZ_4K) {
-		dev_err(dev, "only supported on systems with 4K PAGE_SIZE\n");
-		return -ENXIO;
-	}
-	if (nsio->res.start & ND_PFN_MASK) {
-		dev_err(dev, "%s not memory hotplug section aligned\n",
-				dev_name(&ndns->dev));
-		return -ENXIO;
-	}
-
 	pfn_sb = nd_pfn->pfn_sb;
 	offset = le64_to_cpu(pfn_sb->dataoff);
 	nd_pfn->mode = le32_to_cpu(nd_pfn->pfn_sb->mode);
 	if (nd_pfn->mode == PFN_MODE_RAM) {
-		if (offset != SZ_8K)
+		if (offset < SZ_8K)
 			return -EINVAL;
 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
 		altmap = NULL;
@@ -389,6 +420,9 @@ static int nd_pmem_probe(struct device *dev)
 	pmem->ndns = ndns;
 	dev_set_drvdata(dev, pmem);
 	ndns->rw_bytes = pmem_rw_bytes;
+	if (devm_init_badblocks(dev, &pmem->bb))
+		return -ENOMEM;
+	nvdimm_namespace_add_poison(ndns, &pmem->bb, 0);
 
 	if (is_nd_btt(dev))
 		return nvdimm_namespace_attach_btt(ndns);

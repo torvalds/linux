@@ -1,4 +1,4 @@
-menuconfig WL1251
+config WL1251
 	tristate "TI wl1251 driver support"
 	depends on MAC80211
 	select FW_LOADER

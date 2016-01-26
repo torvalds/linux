@@ -6,10 +6,12 @@
 
 extern const char test_llvm__bpf_base_prog[];
 extern const char test_llvm__bpf_test_kbuild_prog[];
+extern const char test_llvm__bpf_test_prologue_prog[];
 
 enum test_llvm__testcase {
 	LLVM_TESTCASE_BASE,
 	LLVM_TESTCASE_KBUILD,
+	LLVM_TESTCASE_BPF_PROLOGUE,
 	__LLVM_TESTCASE_MAX,
 };
 

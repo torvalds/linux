@@ -472,6 +472,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
 
+	apic_extnmi=	[APIC,X86] External NMI delivery setting
+			Format: { bsp (default) | all | none }
+			bsp:  External NMI is delivered only to CPU 0
+			all:  External NMIs are broadcast to all CPUs as a
+			      backup of CPU 0
+			none: External NMI is masked for all CPUs. This is
+			      useful so that a dump capture kernel won't be
+			      shot down by NMI
+
 	autoconf=	[IPV6]
 			See Documentation/networking/ipv6.txt.
 
@@ -721,16 +730,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
+		uart[8250],mmio16,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
 		uart[8250],0x<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.
 			MMIO inter-register address stride is either 8-bit
-			(mmio) or 32-bit (mmio32).
-			If none of [io|mmio|mmio32], <addr> is assumed to be
-			equivalent to 'mmio'. 'options' are specified in the
-			same format described for ttyS above; if unspecified,
+			(mmio), 16-bit (mmio16), or 32-bit (mmio32).
+			If none of [io|mmio|mmio16|mmio32], <addr> is assumed
+			to be equivalent to 'mmio'. 'options' are specified in
+			the same format described for ttyS above; if unspecified,
 			the h/w is not re-initialized.
 
 		hvc<n>	Use the hypervisor console device <n>. This is for
@@ -1002,10 +1012,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unspecified, the h/w is not initialized.
 
 		pl011,<addr>
+		pl011,mmio32,<addr>
 			Start an early, polled-mode console on a pl011 serial
 			port at the specified address. The pl011 serial port
 			must already be setup and configured. Options are not
-			yet supported.
+			yet supported.  If 'mmio32' is specified, then only
+			the driver will use only 32-bit accessors to read/write
+			the device registers.
 
 		msm_serial,<addr>
 			Start an early, polled-mode console on an msm serial
@@ -2575,8 +2588,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
 
-	nousb		[USB] Disable the USB subsystem
-
 	nowatchdog	[KNL] Disable both lockup detectors, i.e.
                         soft-lockup and NMI watchdog (hard-lockup).
 
@@ -3296,18 +3307,35 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutorture.verbose= [KNL]
 			Enable additional printk() statements.
 
+	rcupdate.rcu_cpu_stall_suppress= [KNL]
+			Suppress RCU CPU stall warning messages.
+
+	rcupdate.rcu_cpu_stall_timeout= [KNL]
+			Set timeout for RCU CPU stall warning messages.
+
 	rcupdate.rcu_expedited= [KNL]
 			Use expedited grace-period primitives, for
 			example, synchronize_rcu_expedited() instead
 			of synchronize_rcu().  This reduces latency,
 			but can increase CPU utilization, degrade
 			real-time latency, and degrade energy efficiency.
+			No effect on CONFIG_TINY_RCU kernels.
 
-	rcupdate.rcu_cpu_stall_suppress= [KNL]
-			Suppress RCU CPU stall warning messages.
+	rcupdate.rcu_normal= [KNL]
+			Use only normal grace-period primitives,
+			for example, synchronize_rcu() instead of
+			synchronize_rcu_expedited().  This improves
+			real-time latency, CPU utilization, and
+			energy efficiency, but can expose users to
+			increased grace-period latency.  This parameter
+			overrides rcupdate.rcu_expedited.  No effect on
+			CONFIG_TINY_RCU kernels.
 
-	rcupdate.rcu_cpu_stall_timeout= [KNL]
-			Set timeout for RCU CPU stall warning messages.
+	rcupdate.rcu_normal_after_boot= [KNL]
+			Once boot has completed (that is, after
+			rcu_end_inkernel_boot() has been invoked), use
+			only normal grace-period primitives.  No effect
+			on CONFIG_TINY_RCU kernels.
 
 	rcupdate.rcu_task_stall_timeout= [KNL]
 			Set timeout in jiffies for RCU task stall warning
@@ -3874,6 +3902,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	usbcore.usbfs_snoop=
 			[USB] Set to log all usbfs traffic (default 0 = off).
 
+	usbcore.usbfs_snoop_max=
+			[USB] Maximum number of bytes to snoop in each URB
+			(default = 65536).
+
 	usbcore.blinkenlights=
 			[USB] Set to cycle leds on hubs (default 0 = off).
 
@@ -3893,6 +3925,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[USB] Specifies timeout for the initial 64-byte
                         USB_REQ_GET_DESCRIPTOR request in milliseconds
 			(default 5000 = 5.0 seconds).
+
+	usbcore.nousb	[USB] Disable the USB subsystem
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
@@ -4113,6 +4147,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			see Documentation/watchdog/watchdog-parameters.txt
 			or other driver-specific files in the
 			Documentation/watchdog/ directory.
+
+	workqueue.watchdog_thresh=
+			If CONFIG_WQ_WATCHDOG is configured, workqueue can
+			warn stall conditions and dump internal state to
+			help debugging.  0 disables workqueue stall
+			detection; otherwise, it's the stall threshold
+			duration in seconds.  The default value is 30 and
+			it can be updated at runtime by writing to the
+			corresponding sysfs file.
 
 	workqueue.disable_numa
 			By default, all work items queued to unbound

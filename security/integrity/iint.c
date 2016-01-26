@@ -234,12 +234,13 @@ int __init integrity_read_file(const char *path, char **data)
 	}
 
 	rc = integrity_kernel_read(file, 0, buf, size);
-	if (rc < 0)
-		kfree(buf);
-	else if (rc != size)
-		rc = -EIO;
-	else
+	if (rc == size) {
 		*data = buf;
+	} else {
+		kfree(buf);
+		if (rc >= 0)
+			rc = -EIO;
+	}
 out:
 	fput(file);
 	return rc;

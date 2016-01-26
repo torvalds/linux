@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
+#include <linux/firmware.h>
 #include <sound/pcm.h>
 #include "skl.h"
 
@@ -519,6 +520,9 @@ static void skl_remove(struct pci_dev *pci)
 {
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct skl *skl = ebus_to_skl(ebus);
+
+	if (skl->tplg)
+		release_firmware(skl->tplg);
 
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);

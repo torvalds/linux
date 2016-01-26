@@ -327,8 +327,24 @@ supported.
 
    * device_terminate_all
      - Aborts all the pending and ongoing transfers on the channel
-     - This command should operate synchronously on the channel,
-       terminating right away all the channels
+     - For aborted transfers the complete callback should not be called
+     - Can be called from atomic context or from within a complete
+       callback of a descriptor. Must not sleep. Drivers must be able
+       to handle this correctly.
+     - Termination may be asynchronous. The driver does not have to
+       wait until the currently active transfer has completely stopped.
+       See device_synchronize.
+
+   * device_synchronize
+     - Must synchronize the termination of a channel to the current
+       context.
+     - Must make sure that memory for previously submitted
+       descriptors is no longer accessed by the DMA controller.
+     - Must make sure that all complete callbacks for previously
+       submitted descriptors have finished running and none are
+       scheduled to run.
+     - May sleep.
+
 
 Misc notes (stuff that should be documented, but don't really know
 where to put them)

@@ -61,8 +61,8 @@ static const struct nla_policy xt_osf_policy[OSF_ATTR_MAX + 1] = {
 	[OSF_ATTR_FINGER]	= { .len = sizeof(struct xt_osf_user_finger) },
 };
 
-static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
-			       const struct nlmsghdr *nlh,
+static int xt_osf_add_callback(struct net *net, struct sock *ctnl,
+			       struct sk_buff *skb, const struct nlmsghdr *nlh,
 			       const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
@@ -104,7 +104,8 @@ static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
 	return err;
 }
 
-static int xt_osf_remove_callback(struct sock *ctnl, struct sk_buff *skb,
+static int xt_osf_remove_callback(struct net *net, struct sock *ctnl,
+				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
 				  const struct nlattr * const osf_attrs[])
 {

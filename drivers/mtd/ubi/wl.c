@@ -603,6 +603,7 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 	return 0;
 }
 
+static int __erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk);
 /**
  * do_sync_erase - run the erase worker synchronously.
  * @ubi: UBI device description object
@@ -615,22 +616,19 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 static int do_sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 			 int vol_id, int lnum, int torture)
 {
-	struct ubi_work *wl_wrk;
+	struct ubi_work wl_wrk;
 
 	dbg_wl("sync erase of PEB %i", e->pnum);
 
-	wl_wrk = kmalloc(sizeof(struct ubi_work), GFP_NOFS);
-	if (!wl_wrk)
-		return -ENOMEM;
+	wl_wrk.e = e;
+	wl_wrk.vol_id = vol_id;
+	wl_wrk.lnum = lnum;
+	wl_wrk.torture = torture;
 
-	wl_wrk->e = e;
-	wl_wrk->vol_id = vol_id;
-	wl_wrk->lnum = lnum;
-	wl_wrk->torture = torture;
-
-	return erase_worker(ubi, wl_wrk, 0);
+	return __erase_worker(ubi, &wl_wrk);
 }
 
+static int ensure_wear_leveling(struct ubi_device *ubi, int nested);
 /**
  * wear_leveling_worker - wear-leveling worker function.
  * @ubi: UBI device description object
@@ -652,6 +650,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 #endif
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
+	int dst_leb_clean = 0;
 
 	kfree(wrk);
 	if (shutdown)
@@ -756,6 +755,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 	err = ubi_io_read_vid_hdr(ubi, e1->pnum, vid_hdr, 0);
 	if (err && err != UBI_IO_BITFLIPS) {
+		dst_leb_clean = 1;
 		if (err == UBI_IO_FF) {
 			/*
 			 * We are trying to move PEB without a VID header. UBI
@@ -801,10 +801,12 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			 * protection queue.
 			 */
 			protect = 1;
+			dst_leb_clean = 1;
 			goto out_not_moved;
 		}
 		if (err == MOVE_RETRY) {
 			scrubbing = 1;
+			dst_leb_clean = 1;
 			goto out_not_moved;
 		}
 		if (err == MOVE_TARGET_BITFLIPS || err == MOVE_TARGET_WR_ERR ||
@@ -830,6 +832,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 					ubi->erroneous_peb_count);
 				goto out_error;
 			}
+			dst_leb_clean = 1;
 			erroneous = 1;
 			goto out_not_moved;
 		}
@@ -900,15 +903,24 @@ out_not_moved:
 		wl_tree_add(e1, &ubi->scrub);
 	else
 		wl_tree_add(e1, &ubi->used);
+	if (dst_leb_clean) {
+		wl_tree_add(e2, &ubi->free);
+		ubi->free_count++;
+	}
+
 	ubi_assert(!ubi->move_to_put);
 	ubi->move_from = ubi->move_to = NULL;
 	ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
 	ubi_free_vid_hdr(ubi, vid_hdr);
-	err = do_sync_erase(ubi, e2, vol_id, lnum, torture);
-	if (err)
-		goto out_ro;
+	if (dst_leb_clean) {
+		ensure_wear_leveling(ubi, 1);
+	} else {
+		err = do_sync_erase(ubi, e2, vol_id, lnum, torture);
+		if (err)
+			goto out_ro;
+	}
 
 	mutex_unlock(&ubi->move_mutex);
 	return 0;
@@ -1014,7 +1026,7 @@ out_unlock:
 }
 
 /**
- * erase_worker - physical eraseblock erase worker function.
+ * __erase_worker - physical eraseblock erase worker function.
  * @ubi: UBI device description object
  * @wl_wrk: the work object
  * @shutdown: non-zero if the worker has to free memory and exit
@@ -1025,8 +1037,7 @@ out_unlock:
  * needed. Returns zero in case of success and a negative error code in case of
  * failure.
  */
-static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
-			int shutdown)
+static int __erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk)
 {
 	struct ubi_wl_entry *e = wl_wrk->e;
 	int pnum = e->pnum;
@@ -1034,21 +1045,11 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	int lnum = wl_wrk->lnum;
 	int err, available_consumed = 0;
 
-	if (shutdown) {
-		dbg_wl("cancel erasure of PEB %d EC %d", pnum, e->ec);
-		kfree(wl_wrk);
-		wl_entry_destroy(ubi, e);
-		return 0;
-	}
-
 	dbg_wl("erase PEB %d EC %d LEB %d:%d",
 	       pnum, e->ec, wl_wrk->vol_id, wl_wrk->lnum);
 
 	err = sync_erase(ubi, e, wl_wrk->torture);
 	if (!err) {
-		/* Fine, we've erased it successfully */
-		kfree(wl_wrk);
-
 		spin_lock(&ubi->wl_lock);
 		wl_tree_add(e, &ubi->free);
 		ubi->free_count++;
@@ -1066,7 +1067,6 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	}
 
 	ubi_err(ubi, "failed to erase PEB %d, error %d", pnum, err);
-	kfree(wl_wrk);
 
 	if (err == -EINTR || err == -ENOMEM || err == -EAGAIN ||
 	    err == -EBUSY) {
@@ -1075,6 +1075,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		/* Re-schedule the LEB for erasure */
 		err1 = schedule_erase(ubi, e, vol_id, lnum, 0);
 		if (err1) {
+			wl_entry_destroy(ubi, e);
 			err = err1;
 			goto out_ro;
 		}
@@ -1148,6 +1149,25 @@ out_ro:
 	}
 	ubi_ro_mode(ubi);
 	return err;
+}
+
+static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
+			  int shutdown)
+{
+	int ret;
+
+	if (shutdown) {
+		struct ubi_wl_entry *e = wl_wrk->e;
+
+		dbg_wl("cancel erasure of PEB %d EC %d", e->pnum, e->ec);
+		kfree(wl_wrk);
+		wl_entry_destroy(ubi, e);
+		return 0;
+	}
+
+	ret = __erase_worker(ubi, wl_wrk);
+	kfree(wl_wrk);
+	return ret;
 }
 
 /**

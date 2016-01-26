@@ -113,7 +113,7 @@ static int ar934x_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 		__raw_writel(BIT(offset), ctrl->base + AR71XX_GPIO_REG_CLEAR);
 
 	__raw_writel(
-		__raw_readl(ctrl->base + AR71XX_GPIO_REG_OE) & BIT(offset),
+		__raw_readl(ctrl->base + AR71XX_GPIO_REG_OE) & ~BIT(offset),
 		ctrl->base + AR71XX_GPIO_REG_OE);
 
 	spin_unlock_irqrestore(&ctrl->lock, flags);

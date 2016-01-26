@@ -1655,7 +1655,7 @@ extern const struct dev_pm_ops snd_soc_pm_ops;
 /* Helper functions */
 static inline void snd_soc_dapm_mutex_lock(struct snd_soc_dapm_context *dapm)
 {
-	mutex_lock(&dapm->card->dapm_mutex);
+	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 }
 
 static inline void snd_soc_dapm_mutex_unlock(struct snd_soc_dapm_context *dapm)

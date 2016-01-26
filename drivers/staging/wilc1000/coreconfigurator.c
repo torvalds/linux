@@ -287,7 +287,7 @@ static inline u16 get_asoc_id(u8 *data)
 	return asoc_id;
 }
 
-u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
+static u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 {
 	u16 u16index;
 
@@ -315,7 +315,7 @@ u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 
 /* This function gets the current channel information from
  * the 802.11n beacon/probe response frame */
-u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
+static u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
 {
 	u16 index;
 
@@ -344,7 +344,7 @@ u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
  *  @date			1 Mar 2012
  *  @version		1.0
  */
-s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
+s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
 	u8 u8MsgType = 0;
@@ -436,7 +436,7 @@ s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 		/* Get DTIM Period */
 		pu8TimElm = get_tim_elm(pu8msa, u16RxLen + FCS_LEN, u8index);
-		if (pu8TimElm != NULL)
+		if (pu8TimElm)
 			pstrNetworkInfo->u8DtimPeriod = pu8TimElm[3];
 		pu8IEs = &pu8msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
 		u16IEsLen = u16RxLen - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
@@ -466,12 +466,12 @@ s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
  *  @date		1 Mar 2012
  *  @version		1.0
  */
-s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
+s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo)
 {
 	s32 s32Error = 0;
 
-	if (pstrNetworkInfo != NULL) {
-		if (pstrNetworkInfo->pu8IEs != NULL) {
+	if (pstrNetworkInfo) {
+		if (pstrNetworkInfo->pu8IEs) {
 			kfree(pstrNetworkInfo->pu8IEs);
 			pstrNetworkInfo->pu8IEs = NULL;
 		} else {
@@ -499,7 +499,7 @@ s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
+s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
 	s32 s32Error = 0;
@@ -551,12 +551,12 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
+s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *pstrConnectRespInfo)
 {
 	s32 s32Error = 0;
 
-	if (pstrConnectRespInfo != NULL) {
-		if (pstrConnectRespInfo->pu8RespIEs != NULL) {
+	if (pstrConnectRespInfo) {
+		if (pstrConnectRespInfo->pu8RespIEs) {
 			kfree(pstrConnectRespInfo->pu8RespIEs);
 			pstrConnectRespInfo->pu8RespIEs = NULL;
 		} else {
@@ -588,7 +588,8 @@ s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
+s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
+			 u32 count, u32 drv)
 {
 	s32 counter = 0, ret = 0;
 
@@ -596,11 +597,11 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 		for (counter = 0; counter < count; counter++) {
 			PRINT_INFO(CORECONFIG_DBG, "Sending CFG packet [%d][%d]\n", !counter,
 				   (counter == count - 1));
-			if (!wilc_wlan_cfg_get(!counter,
+			if (!wilc_wlan_cfg_get(wilc, !counter,
 					       wids[counter].id,
 					       (counter == count - 1),
 					       drv)) {
-				ret = -1;
+				ret = -ETIMEDOUT;
 				printk("[Sendconfigpkt]Get Timed out\n");
 				break;
 			}
@@ -611,18 +612,17 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 					wids[counter].id,
 					wids[counter].val,
 					wids[counter].size);
-
 		}
 	} else if (mode == SET_CFG) {
 		for (counter = 0; counter < count; counter++) {
 			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", wids[counter].id);
-			if (!wilc_wlan_cfg_set(!counter,
+			if (!wilc_wlan_cfg_set(wilc, !counter,
 					       wids[counter].id,
 					       wids[counter].val,
 					       wids[counter].size,
 					       (counter == count - 1),
 					       drv)) {
-				ret = -1;
+				ret = -ETIMEDOUT;
 				printk("[Sendconfigpkt]Set Timed out\n");
 				break;
 			}

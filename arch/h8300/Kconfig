@@ -17,6 +17,7 @@ config H8300
 	select HAVE_MEMBLOCK
 	select HAVE_DMA_ATTRS
 	select CLKSRC_OF
+	select H8300_TMR8
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y

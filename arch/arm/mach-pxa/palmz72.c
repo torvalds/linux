@@ -49,7 +49,7 @@
 #include <mach/palm27x.h>
 
 #include <mach/pm.h>
-#include <linux/platform_data/camera-pxa.h>
+#include <linux/platform_data/media/camera-pxa.h>
 
 #include <media/soc_camera.h>
 

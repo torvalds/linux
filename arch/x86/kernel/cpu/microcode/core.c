@@ -129,8 +129,8 @@ void __init load_ucode_bsp(void)
 	if (!have_cpuid_p())
 		return;
 
-	vendor = x86_vendor();
-	family = x86_family();
+	vendor = x86_cpuid_vendor();
+	family = x86_cpuid_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
@@ -165,8 +165,8 @@ void load_ucode_ap(void)
 	if (!have_cpuid_p())
 		return;
 
-	vendor = x86_vendor();
-	family = x86_family();
+	vendor = x86_cpuid_vendor();
+	family = x86_cpuid_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
@@ -206,8 +206,8 @@ void reload_early_microcode(void)
 {
 	int vendor, family;
 
-	vendor = x86_vendor();
-	family = x86_family();
+	vendor = x86_cpuid_vendor();
+	family = x86_cpuid_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:

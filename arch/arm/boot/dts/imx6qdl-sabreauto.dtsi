@@ -113,14 +113,14 @@
 &clks {
 	assigned-clocks = <&clks IMX6QDL_PLL4_BYPASS_SRC>,
 			  <&clks IMX6QDL_PLL4_BYPASS>,
-			  <&clks IMX6QDL_CLK_PLL4_POST_DIV>,
 			  <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
-			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+			  <&clks IMX6QDL_CLK_PLL4_POST_DIV>;
 	assigned-clock-parents = <&clks IMX6QDL_CLK_LVDS2_IN>,
 				 <&clks IMX6QDL_PLL4_BYPASS_SRC>,
 				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
 				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
-	assigned-clock-rates = <0>, <0>, <24576000>;
+	assigned-clock-rates = <0>, <0>, <0>, <0>, <24576000>;
 };
 
 &ecspi1 {

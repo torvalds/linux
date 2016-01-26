@@ -68,7 +68,6 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate);
 void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
 void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status);
 void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status);
-void prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 void prism2sta_ev_alloc(wlandevice_t *wlandev);
 
 int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp);

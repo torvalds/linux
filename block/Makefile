@@ -8,7 +8,7 @@ obj-$(CONFIG_BLOCK) := bio.o elevator.o blk-core.o blk-tag.o blk-sysfs.o \
 			blk-iopoll.o blk-lib.o blk-mq.o blk-mq-tag.o \
 			blk-mq-sysfs.o blk-mq-cpu.o blk-mq-cpumap.o ioctl.o \
 			genhd.o scsi_ioctl.o partition-generic.o ioprio.o \
-			partitions/
+			badblocks.o partitions/
 
 obj-$(CONFIG_BOUNCE)	+= bounce.o
 obj-$(CONFIG_BLK_DEV_BSG)	+= bsg.o

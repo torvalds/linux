@@ -223,8 +223,8 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 
 	/* wait for XDATA to be cleared */
 	cnt = 0;
-	while (!(mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) &
-		 ~XRDATA) && (cnt < 100000))
+	while ((mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) & XRDATA) &&
+	       (cnt < 100000))
 		cnt++;
 
 	/* Release TX state machine */

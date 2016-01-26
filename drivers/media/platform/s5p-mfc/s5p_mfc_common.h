@@ -308,7 +308,7 @@ struct s5p_mfc_dev {
 	struct s5p_mfc_pm	pm;
 	struct s5p_mfc_variant	*variant;
 	int num_inst;
-	spinlock_t irqlock;	/* lock when operating on videobuf2 queues */
+	spinlock_t irqlock;	/* lock when operating on context */
 	spinlock_t condlock;	/* lock when changing/checking if a context is
 					ready to be processed */
 	struct mutex mfc_mutex; /* video_device lock */
@@ -653,7 +653,7 @@ struct s5p_mfc_ctx {
 		unsigned int bits;
 	} slice_size;
 
-	struct s5p_mfc_codec_ops *c_ops;
+	const struct s5p_mfc_codec_ops *c_ops;
 
 	struct v4l2_ctrl *ctrls[MFC_MAX_CTRLS];
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -694,13 +694,7 @@ struct mfc_control {
 
 /* Macro for making hardware specific calls */
 #define s5p_mfc_hw_call(f, op, args...) \
-	((f && f->op) ? f->op(args) : -ENODEV)
-
-#define s5p_mfc_hw_call_void(f, op, args...) \
-do { \
-	if (f && f->op) \
-		f->op(args); \
-} while (0)
+	((f && f->op) ? f->op(args) : (typeof(f->op(args)))(-ENODEV))
 
 #define fh_to_ctx(__fh) container_of(__fh, struct s5p_mfc_ctx, fh)
 #define ctrl_to_ctx(__ctrl) \
@@ -710,6 +704,8 @@ void clear_work_bit(struct s5p_mfc_ctx *ctx);
 void set_work_bit(struct s5p_mfc_ctx *ctx);
 void clear_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
+int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev);
+void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq);
 
 #define HAS_PORTNUM(dev)	(dev ? (dev->variant ? \
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)

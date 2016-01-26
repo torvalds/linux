@@ -141,7 +141,7 @@ err:
 
 static void nf_tables_bridge_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.bridge);
+	nft_unregister_afinfo(net, net->nft.bridge);
 	kfree(net->nft.bridge);
 }
 

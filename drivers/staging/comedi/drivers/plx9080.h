@@ -1,4 +1,5 @@
-/* plx9080.h
+/*
+ * plx9080.h
  *
  * Copyright (C) 2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
@@ -33,8 +34,10 @@ struct plx_dma_desc {
 	__le32 local_start_addr;
 	/* transfer_size is in bytes, only first 23 bits of register are used */
 	__le32 transfer_size;
-	/* address of next descriptor (quad word aligned), plus some
-	 * additional bits (see PLX_DMA0_DESCRIPTOR_REG) */
+	/*
+	 * address of next descriptor (quad word aligned), plus some
+	 * additional bits (see PLX_DMA0_DESCRIPTOR_REG)
+	 */
 	__le32 next;
 };
 
@@ -46,23 +49,31 @@ struct plx_dma_desc {
 **
 **********************************************************************/
 
-#define PLX_LAS0RNG_REG         0x0000	/* L, Local Addr Space 0 Range Register */
-#define PLX_LAS1RNG_REG         0x00f0	/* L, Local Addr Space 1 Range Register */
+/* L, Local Addr Space 0 Range Register */
+#define PLX_LAS0RNG_REG         0x0000
+/* L, Local Addr Space 1 Range Register */
+#define PLX_LAS1RNG_REG         0x00f0
 #define  LRNG_IO           0x00000001	/* Map to: 1=I/O, 0=Mem */
 #define  LRNG_ANY32        0x00000000	/* Locate anywhere in 32 bit */
 #define  LRNG_LT1MB        0x00000002	/* Locate in 1st meg */
 #define  LRNG_ANY64        0x00000004	/* Locate anywhere in 64 bit */
-#define  LRNG_MEM_MASK     0xfffffff0	/*  bits that specify range for memory io */
-#define  LRNG_IO_MASK     0xfffffffa	/*  bits that specify range for normal io */
-
-#define PLX_LAS0MAP_REG         0x0004	/* L, Local Addr Space 0 Remap Register */
-#define PLX_LAS1MAP_REG         0x00f4	/* L, Local Addr Space 1 Remap Register */
+/*  bits that specify range for memory io */
+#define  LRNG_MEM_MASK     0xfffffff0
+/*  bits that specify range for normal io */
+#define  LRNG_IO_MASK     0xfffffffa
+/* L, Local Addr Space 0 Remap Register */
+#define PLX_LAS0MAP_REG         0x0004
+/* L, Local Addr Space 1 Remap Register */
+#define PLX_LAS1MAP_REG         0x00f4
 #define  LMAP_EN           0x00000001	/* Enable slave decode */
-#define  LMAP_MEM_MASK     0xfffffff0	/*  bits that specify decode for memory io */
-#define  LMAP_IO_MASK     0xfffffffa	/*  bits that specify decode bits for normal io */
+/*  bits that specify decode for memory io */
+#define  LMAP_MEM_MASK     0xfffffff0
+/*  bits that specify decode bits for normal io */
+#define  LMAP_IO_MASK     0xfffffffa
 
-/* Mode/Arbitration Register.
-*/
+/*
+ * Mode/Arbitration Register.
+ */
 #define PLX_MARB_REG         0x8	/* L, Local Arbitration Register */
 #define PLX_DMAARB_REG      0xac
 enum marb_bits {
@@ -72,35 +83,45 @@ enum marb_bits {
 	MARB_LPEN = 0x00020000,	/* Pause Timer Enable */
 	MARB_BREQ = 0x00040000,	/* Local Bus BREQ Enable */
 	MARB_DMA_PRIORITY_MASK = 0x00180000,
-	MARB_LBDS_GIVE_UP_BUS_MODE = 0x00200000,	/* local bus direct slave give up bus mode */
-	MARB_DS_LLOCK_ENABLE = 0x00400000,	/* direct slave LLOCKo# enable */
+	/* local bus direct slave give up bus mode */
+	MARB_LBDS_GIVE_UP_BUS_MODE = 0x00200000,
+	/* direct slave LLOCKo# enable */
+	MARB_DS_LLOCK_ENABLE = 0x00400000,
 	MARB_PCI_REQUEST_MODE = 0x00800000,
 	MARB_PCIv21_MODE = 0x01000000,	/* pci specification v2.1 mode */
 	MARB_PCI_READ_NO_WRITE_MODE = 0x02000000,
 	MARB_PCI_READ_WITH_WRITE_FLUSH_MODE = 0x04000000,
-	MARB_GATE_TIMER_WITH_BREQ = 0x08000000,	/* gate local bus latency timer with BREQ */
+	/* gate local bus latency timer with BREQ */
+	MARB_GATE_TIMER_WITH_BREQ = 0x08000000,
 	MARB_PCI_READ_NO_FLUSH_MODE = 0x10000000,
 	MARB_USE_SUBSYSTEM_IDS = 0x20000000,
 };
 
 #define PLX_BIGEND_REG 0xc
 enum bigend_bits {
-	BIGEND_CONFIG = 0x1,	/* use big endian ordering for configuration register accesses */
+	/* use big endian ordering for configuration register accesses */
+	BIGEND_CONFIG = 0x1,
 	BIGEND_DIRECT_MASTER = 0x2,
 	BIGEND_DIRECT_SLAVE_LOCAL0 = 0x4,
 	BIGEND_ROM = 0x8,
-	BIGEND_BYTE_LANE = 0x10,	/* use byte lane consisting of most significant bits instead of least significant */
+	/*
+	 * use byte lane consisting of most significant bits instead of
+	 * least significant
+	 */
+	BIGEND_BYTE_LANE = 0x10,
 	BIGEND_DIRECT_SLAVE_LOCAL1 = 0x20,
 	BIGEND_DMA1 = 0x40,
 	BIGEND_DMA0 = 0x80,
 };
 
-/* Note: The Expansion ROM  stuff is only relevant to the PC environment.
+/*
+** Note: The Expansion ROM  stuff is only relevant to the PC environment.
 **       This expansion ROM code is executed by the host CPU at boot time.
 **       For this reason no bit definitions are provided here.
-*/
+ */
 #define PLX_ROMRNG_REG         0x0010	/* L, Expn ROM Space Range Register */
-#define PLX_ROMMAP_REG         0x0014	/* L, Local Addr Space Range Register */
+/* L, Local Addr Space Range Register */
+#define PLX_ROMMAP_REG         0x0014
 
 #define PLX_REGION0_REG         0x0018	/* L, Local Bus Region 0 Descriptor */
 #define  RGN_WIDTH         0x00000002	/* Local bus width bits */
@@ -190,7 +211,8 @@ enum bigend_bits {
 #define  ICS_TA_DMA0       0x02000000	/* Target Abort - DMA #0 */
 #define  ICS_TA_DMA1       0x04000000	/* Target Abort - DMA #1 */
 #define  ICS_TA_RA         0x08000000	/* Target Abort - Retry Timeout */
-#define  ICS_MBIA(x)       (0x10000000 << ((x) & 0x3))	/*  mailbox x is active */
+/*  mailbox x is active */
+#define  ICS_MBIA(x)       (0x10000000 << ((x) & 0x3))
 
 #define PLX_CONTROL_REG        0x006C	/* L, EEPROM Cntl & PCI Cmd Codes */
 #define  CTL_RDMA          0x0000000E	/* DMA Read Command */
@@ -221,28 +243,38 @@ enum bigend_bits {
 #define  PLX_EN_BTERM_BIT	0x80	/*  enable BTERM# input */
 #define  PLX_DMA_LOCAL_BURST_EN_BIT	0x100	/*  enable local burst mode */
 #define  PLX_EN_CHAIN_BIT	0x200	/*  enables chaining */
-#define  PLX_EN_DMA_DONE_INTR_BIT	0x400	/*  enables interrupt on dma done */
-#define  PLX_LOCAL_ADDR_CONST_BIT	0x800	/*  hold local address constant (don't increment) */
-#define  PLX_DEMAND_MODE_BIT	0x1000	/*  enables demand-mode for dma transfer */
+/*  enables interrupt on dma done */
+#define  PLX_EN_DMA_DONE_INTR_BIT	0x400
+/*  hold local address constant (don't increment) */
+#define  PLX_LOCAL_ADDR_CONST_BIT	0x800
+/*  enables demand-mode for dma transfer */
+#define  PLX_DEMAND_MODE_BIT	0x1000
 #define  PLX_EOT_ENABLE_BIT	0x4000
 #define  PLX_STOP_MODE_BIT 0x8000
-#define  PLX_DMA_INTR_PCI_BIT	0x20000	/*  routes dma interrupt to pci bus (instead of local bus) */
+/*  routes dma interrupt to pci bus (instead of local bus) */
+#define  PLX_DMA_INTR_PCI_BIT	0x20000
 
-#define PLX_DMA0_PCI_ADDRESS_REG	0x84	/*  pci address that dma transfers start at */
+/*  pci address that dma transfers start at */
+#define PLX_DMA0_PCI_ADDRESS_REG	0x84
 #define PLX_DMA1_PCI_ADDRESS_REG	0x98
 
-#define PLX_DMA0_LOCAL_ADDRESS_REG	0x88	/*  local address that dma transfers start at */
+/*  local address that dma transfers start at */
+#define PLX_DMA0_LOCAL_ADDRESS_REG	0x88
 #define PLX_DMA1_LOCAL_ADDRESS_REG	0x9c
 
-#define PLX_DMA0_TRANSFER_SIZE_REG	0x8c	/*  number of bytes to transfer (first 23 bits) */
+/*  number of bytes to transfer (first 23 bits) */
+#define PLX_DMA0_TRANSFER_SIZE_REG	0x8c
 #define PLX_DMA1_TRANSFER_SIZE_REG	0xa0
 
 #define PLX_DMA0_DESCRIPTOR_REG	0x90	/*  descriptor pointer register */
 #define PLX_DMA1_DESCRIPTOR_REG	0xa4
-#define  PLX_DESC_IN_PCI_BIT	0x1	/*  descriptor is located in pci space (not local space) */
+/*  descriptor is located in pci space (not local space) */
+#define  PLX_DESC_IN_PCI_BIT	0x1
 #define  PLX_END_OF_CHAIN_BIT	0x2	/*  end of chain bit */
-#define  PLX_INTR_TERM_COUNT	0x4	/*  interrupt when this descriptor's transfer is finished */
-#define  PLX_XFER_LOCAL_TO_PCI 0x8	/*  transfer from local to pci bus (not pci to local) */
+/*  interrupt when this descriptor's transfer is finished */
+#define  PLX_INTR_TERM_COUNT	0x4
+/*  transfer from local to pci bus (not pci to local) */
+#define  PLX_XFER_LOCAL_TO_PCI 0x8
 
 #define PLX_DMA0_CS_REG	0xa8	/*  command status register */
 #define PLX_DMA1_CS_REG	0xa9
@@ -288,10 +320,11 @@ enum bigend_bits {
 #define MBX_STS_PCIRESET   0x00000100	/* Host issued PCI reset request */
 #define MBX_STS_BUSY       0x00000080	/* PUTS is in progress */
 #define MBX_STS_ERROR      0x00000040	/* PUTS has failed */
-#define MBX_STS_RESERVED   0x000000c0	/* Undefined -> status in transition.
-					   We are in process of changing
-					   bits; we SET Error bit before
-					   RESET of Busy bit */
+/*
+ * Undefined -> status in transition. We are in process of changing bits;
+ * we SET Error bit before RESET of Busy bit
+ */
+#define MBX_STS_RESERVED   0x000000c0
 
 #define MBX_RESERVED_5     0x00000020	/* FYI: reserved/unused bit */
 #define MBX_RESERVED_4     0x00000010	/* FYI: reserved/unused bit */
@@ -320,12 +353,12 @@ enum bigend_bits {
 #define MBX_CMD_BSWAP_0    0x8c000000	/* use scheme 0 */
 #define MBX_CMD_BSWAP_1    0x8c000001	/* use scheme 1 */
 
-#define MBX_CMD_SETHMS     0x8d000000	/* setup host memory access window
-					   size */
-#define MBX_CMD_SETHBA     0x8e000000	/* setup host memory access base
-					   address */
-#define MBX_CMD_MGO        0x8f000000	/* perform memory setup and continue
-					   (IE. Done) */
+/* setup host memory access window size */
+#define MBX_CMD_SETHMS     0x8d000000
+/* setup host memory access base address */
+#define MBX_CMD_SETHBA     0x8e000000
+/* perform memory setup and continue (IE. Done) */
+#define MBX_CMD_MGO        0x8f000000
 #define MBX_CMD_NOOP       0xFF000000	/* dummy, illegal command */
 
 /*****************************************/
@@ -348,7 +381,8 @@ enum bigend_bits {
 /***************************************/
 
 #define MBX_BTYPE_MASK          0x0000ffff	/* PUTS Board Type Register */
-#define MBX_BTYPE_FAMILY_MASK   0x0000ff00	/* PUTS Board Family Register */
+/* PUTS Board Family Register */
+#define MBX_BTYPE_FAMILY_MASK   0x0000ff00
 #define MBX_BTYPE_SUBTYPE_MASK  0x000000ff	/* PUTS Board Subtype */
 
 #define MBX_BTYPE_PLX9060       0x00000100	/* PLX family type */
@@ -378,12 +412,12 @@ enum bigend_bits {
 
 /* system allocates this many bytes for address mapping mailbox space */
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
-#define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
+#define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360 - 1)
 
 static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 {
 	void __iomem *dma_cs_addr;
-	uint8_t dma_status;
+	u8 dma_status;
 	const int timeout = 10000;
 	unsigned int i;
 

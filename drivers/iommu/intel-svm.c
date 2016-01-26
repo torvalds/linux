@@ -484,6 +484,23 @@ struct page_req_dsc {
 };
 
 #define PRQ_RING_MASK ((0x1000 << PRQ_ORDER) - 0x10)
+
+static bool access_error(struct vm_area_struct *vma, struct page_req_dsc *req)
+{
+	unsigned long requested = 0;
+
+	if (req->exe_req)
+		requested |= VM_EXEC;
+
+	if (req->rd_req)
+		requested |= VM_READ;
+
+	if (req->wr_req)
+		requested |= VM_WRITE;
+
+	return (requested & ~vma->vm_flags) != 0;
+}
+
 static irqreturn_t prq_event_thread(int irq, void *d)
 {
 	struct intel_iommu *iommu = d;
@@ -537,6 +554,9 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		down_read(&svm->mm->mmap_sem);
 		vma = find_extend_vma(svm->mm, address);
 		if (!vma || address < vma->vm_start)
+			goto invalid;
+
+		if (access_error(vma, req))
 			goto invalid;
 
 		ret = handle_mm_fault(svm->mm, vma, address,

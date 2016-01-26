@@ -3063,6 +3063,23 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_UCODE_REV:
 		msr_info->data = 0x01000065;
 		break;
+	case MSR_F15H_IC_CFG: {
+
+		int family, model;
+
+		family = guest_cpuid_family(vcpu);
+		model  = guest_cpuid_model(vcpu);
+
+		if (family < 0 || model < 0)
+			return kvm_get_msr_common(vcpu, msr_info);
+
+		msr_info->data = 0;
+
+		if (family == 0x15 &&
+		    (model >= 0x2 && model < 0x20))
+			msr_info->data = 0x1E;
+		}
+		break;
 	default:
 		return kvm_get_msr_common(vcpu, msr_info);
 	}
@@ -3443,6 +3460,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_run *kvm_run = vcpu->run;
 	u32 exit_code = svm->vmcb->control.exit_code;
+
+	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
 
 	if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))
 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
@@ -3917,8 +3936,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs[VCPU_REGS_RAX] = svm->vmcb->save.rax;
 	vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
-
-	trace_kvm_exit(svm->vmcb->control.exit_code, vcpu, KVM_ISA_SVM);
 
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
 		kvm_before_handle_nmi(&svm->vcpu);
