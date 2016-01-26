@@ -266,8 +266,7 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	struct regmap *map = mt9v032->regmap;
 	int ret;
 
-	if (mt9v032->reset_gpio)
-		gpiod_set_value_cansleep(mt9v032->reset_gpio, 1);
+	gpiod_set_value_cansleep(mt9v032->reset_gpio, 1);
 
 	ret = clk_set_rate(mt9v032->clk, mt9v032->sysclk);
 	if (ret < 0)
