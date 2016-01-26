@@ -568,9 +568,16 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = rsnd_dai_call(start, io, priv);
 		if (ret < 0)
 			goto dai_trigger_end;
+
+		ret = rsnd_dai_call(irq, io, priv, 1);
+		if (ret < 0)
+			goto dai_trigger_end;
+
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		ret = rsnd_dai_call(stop, io, priv);
+		ret = rsnd_dai_call(irq, io, priv, 0);
+
+		ret |= rsnd_dai_call(stop, io, priv);
 
 		ret |= rsnd_dai_call(quit, io, priv);
 

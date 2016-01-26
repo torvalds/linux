@@ -249,6 +249,9 @@ struct rsnd_mod_ops {
 	int (*stop)(struct rsnd_mod *mod,
 		    struct rsnd_dai_stream *io,
 		    struct rsnd_priv *priv);
+	int (*irq)(struct rsnd_mod *mod,
+		   struct rsnd_dai_stream *io,
+		   struct rsnd_priv *priv, int enable);
 	int (*pcm_new)(struct rsnd_mod *mod,
 		       struct rsnd_dai_stream *io,
 		       struct snd_soc_pcm_runtime *rtd);
@@ -293,6 +296,7 @@ struct rsnd_mod {
 #define __rsnd_mod_shift_stop		8
 #define __rsnd_mod_shift_probe		28 /* always called */
 #define __rsnd_mod_shift_remove		28 /* always called */
+#define __rsnd_mod_shift_irq		28 /* always called */
 #define __rsnd_mod_shift_pcm_new	28 /* always called */
 #define __rsnd_mod_shift_fallback	28 /* always called */
 #define __rsnd_mod_shift_hw_params	28 /* always called */
@@ -303,6 +307,7 @@ struct rsnd_mod {
 #define __rsnd_mod_add_quit		-1
 #define __rsnd_mod_add_start		 1
 #define __rsnd_mod_add_stop		-1
+#define __rsnd_mod_add_irq		0
 #define __rsnd_mod_add_pcm_new		0
 #define __rsnd_mod_add_fallback		0
 #define __rsnd_mod_add_hw_params	0
@@ -313,6 +318,7 @@ struct rsnd_mod {
 #define __rsnd_mod_call_quit		1
 #define __rsnd_mod_call_start		0
 #define __rsnd_mod_call_stop		1
+#define __rsnd_mod_call_irq		0
 #define __rsnd_mod_call_pcm_new		0
 #define __rsnd_mod_call_fallback	0
 #define __rsnd_mod_call_hw_params	0

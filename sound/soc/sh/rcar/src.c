@@ -271,9 +271,10 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 		rsnd_adg_set_convert_timing_gen2(mod, io);
 }
 
-#define rsnd_src_irq_enable(mod)  rsnd_src_irq_ctrol(mod, 1)
-#define rsnd_src_irq_disable(mod) rsnd_src_irq_ctrol(mod, 0)
-static void rsnd_src_irq_ctrol(struct rsnd_mod *mod, int enable)
+static int rsnd_src_irq(struct rsnd_mod *mod,
+			struct rsnd_dai_stream *io,
+			struct rsnd_priv *priv,
+			int enable)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 sys_int_val, int_val, sys_int_mask;
@@ -305,6 +306,8 @@ static void rsnd_src_irq_ctrol(struct rsnd_mod *mod, int enable)
 	rsnd_mod_write(mod, SRC_INT_ENABLE0, int_val);
 	rsnd_mod_bset(mod, SCU_SYS_INT_EN0, sys_int_mask, sys_int_val);
 	rsnd_mod_bset(mod, SCU_SYS_INT_EN1, sys_int_mask, sys_int_val);
+
+	return 0;
 }
 
 static void rsnd_src_status_clear(struct rsnd_mod *mod)
@@ -381,8 +384,6 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 
 	rsnd_src_status_clear(mod);
 
-	rsnd_src_irq_enable(mod);
-
 	/* reset sync convert_rate */
 	src->sync.val = 0;
 
@@ -394,8 +395,6 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	rsnd_src_irq_disable(mod);
 
 	rsnd_src_halt(mod);
 
@@ -455,7 +454,7 @@ static int rsnd_src_probe_(struct rsnd_mod *mod,
 		/*
 		 * IRQ is not supported on non-DT
 		 * see
-		 *	rsnd_src_irq_enable()
+		 *	rsnd_src_irq()
 		 */
 		ret = devm_request_irq(dev, irq,
 				       rsnd_src_interrupt,
@@ -518,6 +517,7 @@ static struct rsnd_mod_ops rsnd_src_ops = {
 	.quit	= rsnd_src_quit,
 	.start	= rsnd_src_start,
 	.stop	= rsnd_src_stop,
+	.irq	= rsnd_src_irq,
 	.hw_params = rsnd_src_hw_params,
 	.pcm_new = rsnd_src_pcm_new,
 };
