@@ -11,16 +11,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* this file is part of ehci-hcd.c */
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 
-/* check the values in the HCSPARAMS register
+/*
+ * check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
  */
@@ -46,7 +44,7 @@ static void dbg_hcs_params(struct ehci_hcd *ehci, char *label)
 
 		buf[0] = 0;
 		for (i = 0; i < HCS_N_PORTS(params); i++) {
-			// FIXME MIPS won't readb() ...
+			/* FIXME MIPS won't readb() ... */
 			byte = readb(&ehci->caps->portroute[(i >> 1)]);
 			sprintf(tmp, "%d ",
 				((i & 0x1) ? ((byte)&0xf) : ((byte>>4)&0xf)));
@@ -63,10 +61,11 @@ static inline void dbg_hcs_params(struct ehci_hcd *ehci, char *label) {}
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 
-/* check the values in the HCCPARAMS register
+/*
+ * check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
  * see EHCI Spec, Table 2-5 for each value
- * */
+ */
 static void dbg_hcc_params(struct ehci_hcd *ehci, char *label)
 {
 	u32	params = ehci_readl(ehci, &ehci->caps->hcc_params);
@@ -515,7 +514,8 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 
 	*next = 0;
 
-	/* dumps a snapshot of the async schedule.
+	/*
+	 * dumps a snapshot of the async schedule.
 	 * usually empty except for long-term bulk reads, or head.
 	 * one QH per line, and TDs we know about
 	 */
@@ -647,7 +647,8 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 	size -= temp;
 	next += temp;
 
-	/* dump a snapshot of the periodic schedule.
+	/*
+	 * dump a snapshot of the periodic schedule.
 	 * iso changes, interrupt usually doesn't.
 	 */
 	spin_lock_irqsave(&ehci->lock, flags);
@@ -861,7 +862,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	}
 #endif
 
-	// FIXME interpret both types of params
+	/* FIXME interpret both types of params */
 	i = ehci_readl(ehci, &ehci->caps->hcs_params);
 	temp = scnprintf(next, size, "structural params 0x%08x\n", i);
 	size -= temp;
