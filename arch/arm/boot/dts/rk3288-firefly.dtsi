@@ -208,7 +208,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -509,7 +508,6 @@
 };
 
 &sdio0 {
-	broken-cd;
 	bus-width = <4>;
 	disable-wp;
 	non-removable;

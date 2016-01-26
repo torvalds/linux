@@ -272,7 +272,6 @@
 		compatible = "rockchip,rk3036-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x1021c000 0x4000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		broken-cd;
 		bus-width = <8>;
 		cap-mmc-highspeed;
 		clock-frequency = <37500000>;

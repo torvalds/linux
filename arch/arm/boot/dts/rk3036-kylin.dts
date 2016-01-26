@@ -345,7 +345,6 @@
 &sdio {
 	status = "okay";
 
-	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
