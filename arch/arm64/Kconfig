@@ -756,6 +756,15 @@ endmenu
 
 menu "Boot options"
 
+config ARM64_ACPI_PARKING_PROTOCOL
+	bool "Enable support for the ARM64 ACPI parking protocol"
+	depends on ACPI
+	help
+	  Enable support for the ARM64 ACPI parking protocol. If disabled
+	  the kernel will not allow booting through the ARM64 ACPI parking
+	  protocol even if the corresponding data is present in the ACPI
+	  MADT table.
+
 config CMDLINE
 	string "Default kernel command string"
 	default ""
