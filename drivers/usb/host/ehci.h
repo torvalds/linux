@@ -870,11 +870,6 @@ static inline u32 hc32_to_cpup(const struct ehci_hcd *ehci, const __hc32 *x)
 #define ehci_warn(ehci, fmt, args...) \
 	dev_warn(ehci_to_hcd(ehci)->self.controller, fmt, ## args)
 
-
-#ifndef CONFIG_DYNAMIC_DEBUG
-#define STUB_DEBUG_FILES
-#endif
-
 /*-------------------------------------------------------------------------*/
 
 /* Declarations of things exported for use by ehci platform drivers */

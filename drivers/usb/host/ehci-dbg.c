@@ -341,7 +341,7 @@ dbg_port(struct ehci_hcd *ehci, const char *label, int port, u32 status)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef STUB_DEBUG_FILES
+#ifndef CONFIG_DYNAMIC_DEBUG
 
 static inline void create_debug_files(struct ehci_hcd *bus) { }
 static inline void remove_debug_files(struct ehci_hcd *bus) { }
@@ -1120,4 +1120,4 @@ static inline void remove_debug_files(struct ehci_hcd *ehci)
 	debugfs_remove_recursive(ehci->debug_dir);
 }
 
-#endif /* STUB_DEBUG_FILES */
+#endif /* CONFIG_DYNAMIC_DEBUG */
