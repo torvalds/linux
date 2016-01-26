@@ -337,7 +337,7 @@ struct ehci_qtd {
 /*-------------------------------------------------------------------------*/
 
 /* type tag from {qh,itd,sitd,fstn}->hw_next */
-#define Q_NEXT_TYPE(ehci,dma)	((dma) & cpu_to_hc32(ehci, 3 << 1))
+#define Q_NEXT_TYPE(ehci, dma)	((dma) & cpu_to_hc32(ehci, 3 << 1))
 
 /*
  * Now the following defines are not converted using the
@@ -353,7 +353,8 @@ struct ehci_qtd {
 #define Q_TYPE_FSTN	(3 << 1)
 
 /* next async queue entry, or pointer to interrupt/periodic QH */
-#define QH_NEXT(ehci,dma)	(cpu_to_hc32(ehci, (((u32)dma)&~0x01f)|Q_TYPE_QH))
+#define QH_NEXT(ehci, dma) \
+		(cpu_to_hc32(ehci, (((u32) dma) & ~0x01f) | Q_TYPE_QH))
 
 /* for periodic/async schedules and qtd lists, mark end of list */
 #define EHCI_LIST_END(ehci)	cpu_to_hc32(ehci, 1) /* "null pointer" to hw */
