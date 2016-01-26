@@ -859,6 +859,12 @@ struct iwl_mvm {
 
 	u32 ciphers[6];
 	struct iwl_mvm_tof_data tof_data;
+
+	/*
+	 * Drop beacons from other APs in AP mode when there are no connected
+	 * clients.
+	 */
+	bool drop_bcn_ap_mode;
 };
 
 /* Extract MVM priv from op_mode and _hw */

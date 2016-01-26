@@ -744,7 +744,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		 * wake-ups.
 		 */
 		cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
-		if (mvmvif->ap_assoc_sta_count) {
+		if (mvmvif->ap_assoc_sta_count || !mvm->drop_bcn_ap_mode) {
 			cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
 			IWL_DEBUG_HC(mvm, "Asking FW to pass beacons\n");
 		} else {
