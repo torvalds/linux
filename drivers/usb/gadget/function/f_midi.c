@@ -56,7 +56,6 @@ static const char f_midi_longname[] = "MIDI Gadget";
  * USB <- IN endpoint  <- rawmidi
  */
 struct gmidi_in_port {
-	struct f_midi *midi;
 	int active;
 	uint8_t cable;
 	uint8_t state;
@@ -1192,7 +1191,6 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 			goto setup_fail;
 		}
 
-		port->midi = midi;
 		port->active = 0;
 		port->cable = i;
 		midi->in_port[i] = port;
