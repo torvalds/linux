@@ -330,7 +330,7 @@ static int __maybe_unused same_tt(struct usb_device *dev1,
  */
 static inline unsigned char tt_start_uframe(struct ehci_hcd *ehci, __hc32 mask)
 {
-	unsigned char smask = QH_SMASK & hc32_to_cpu(ehci, mask);
+	unsigned char smask = hc32_to_cpu(ehci, mask) & QH_SMASK;
 	if (!smask) {
 		ehci_err(ehci, "invalid empty smask!\n");
 		/* uframe 7 can't have bw so this will indicate failure */
@@ -409,11 +409,11 @@ static int tt_available (
 		 * must be empty, so as to not illegally delay
 		 * already scheduled transactions
 		 */
-		if (125 < usecs) {
+		if (usecs > 125) {
 			int ufs = (usecs / 125);
 
 			for (i = uframe; i < (uframe + ufs) && i < 8; i++)
-				if (0 < tt_usecs[i])
+				if (tt_usecs[i] > 0)
 					return 0;
 		}
 
