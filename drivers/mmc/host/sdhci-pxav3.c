@@ -137,6 +137,10 @@ static int armada_38x_quirks(struct platform_device *pdev,
 
 	host->quirks &= ~SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
 	host->quirks |= SDHCI_QUIRK_MISSING_CAPS;
+
+	host->caps = sdhci_readl(host, SDHCI_CAPABILITIES);
+	host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "conf-sdio3");
 	if (res) {
@@ -150,7 +154,6 @@ static int armada_38x_quirks(struct platform_device *pdev,
 		 * Configuration register, if the adjustment is not done,
 		 * remove them from the capabilities.
 		 */
-		host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
 		host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50);
 
 		dev_warn(&pdev->dev, "conf-sdio3 register not found: disabling SDR50 and DDR50 modes.\nConsider updating your dtb\n");
@@ -161,7 +164,6 @@ static int armada_38x_quirks(struct platform_device *pdev,
 	 * controller has different capabilities than the ones shown
 	 * in its registers
 	 */
-	host->caps = sdhci_readl(host, SDHCI_CAPABILITIES);
 	if (of_property_read_bool(np, "no-1-8-v")) {
 		host->caps &= ~SDHCI_CAN_VDD_180;
 		host->mmc->caps &= ~MMC_CAP_1_8V_DDR;
