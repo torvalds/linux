@@ -19,8 +19,7 @@ static struct kset *manager_kset;
 
 static LIST_HEAD(modules_list);
 static DEFINE_RWLOCK(modules_lock);
-
-static int current_module_id;
+static DEFINE_IDA(module_id);
 
 /* helpers */
 static struct gb_audio_manager_module *gb_audio_manager_get_locked(int id)
@@ -43,12 +42,16 @@ int gb_audio_manager_add(struct gb_audio_manager_module_descriptor *desc)
 {
 	struct gb_audio_manager_module *module;
 	unsigned long flags;
+	int id;
 	int err;
 
+	id = ida_simple_get(&module_id, 0, 0, GFP_KERNEL);
 	err = gb_audio_manager_module_create(&module, manager_kset,
-					     current_module_id++, desc);
-	if (err)
+					     id, desc);
+	if (err) {
+		ida_simple_remove(&module_id, id);
 		return err;
+	}
 
 	/* Add it to the list */
 	write_lock_irqsave(&modules_lock, flags);
@@ -72,6 +75,7 @@ int gb_audio_manager_remove(int id)
 		return -EINVAL;
 	}
 
+	ida_simple_remove(&module_id, module->id);
 	list_del(&module->list);
 	kobject_put(&module->kobj);
 	write_unlock_irqrestore(&modules_lock, flags);
@@ -175,6 +179,7 @@ static void __exit manager_exit(void)
 {
 	gb_audio_manager_remove_all();
 	kset_unregister(manager_kset);
+	ida_destroy(&module_id);
 }
 
 module_init(manager_init);
