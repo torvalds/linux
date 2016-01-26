@@ -188,7 +188,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_sitd	*last_sitd_to_free;
 
 	/* per root hub port */
-	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];
+	unsigned long		reset_done[EHCI_MAX_ROOT_PORTS];
 
 	/* bit vectors (one bit per port) */
 	unsigned long		bus_suspended;		/* which ports were
@@ -319,8 +319,8 @@ struct ehci_qtd {
 #define HALT_BIT(ehci)		cpu_to_hc32(ehci, QTD_STS_HALT)
 #define STATUS_BIT(ehci)	cpu_to_hc32(ehci, QTD_STS_STS)
 
-	__hc32			hw_buf [5];        /* see EHCI 3.5.4 */
-	__hc32			hw_buf_hi [5];        /* Appendix B */
+	__hc32			hw_buf[5];        /* see EHCI 3.5.4 */
+	__hc32			hw_buf_hi[5];        /* Appendix B */
 
 	/* the rest is HCD-private */
 	dma_addr_t		qtd_dma;		/* qtd address */
@@ -408,8 +408,8 @@ struct ehci_qh_hw {
 	__hc32			hw_qtd_next;
 	__hc32			hw_alt_next;
 	__hc32			hw_token;
-	__hc32			hw_buf [5];
-	__hc32			hw_buf_hi [5];
+	__hc32			hw_buf[5];
+	__hc32			hw_buf_hi[5];
 } __attribute__ ((aligned(32)));
 
 struct ehci_qh {
@@ -471,7 +471,7 @@ struct ehci_iso_sched {
 	struct list_head	td_list;
 	unsigned		span;
 	unsigned		first_packet;
-	struct ehci_iso_packet	packet [0];
+	struct ehci_iso_packet	packet[0];
 };
 
 /*
@@ -519,7 +519,7 @@ struct ehci_iso_stream {
 struct ehci_itd {
 	/* first part defined by EHCI spec */
 	__hc32			hw_next;           /* see EHCI 3.3.1 */
-	__hc32			hw_transaction [8]; /* see EHCI 3.3.2 */
+	__hc32			hw_transaction[8]; /* see EHCI 3.3.2 */
 #define EHCI_ISOC_ACTIVE        (1<<31)        /* activate transfer this slot */
 #define EHCI_ISOC_BUF_ERR       (1<<30)        /* Data buffer error */
 #define EHCI_ISOC_BABBLE        (1<<29)        /* babble detected */
@@ -529,8 +529,8 @@ struct ehci_itd {
 
 #define ITD_ACTIVE(ehci)	cpu_to_hc32(ehci, EHCI_ISOC_ACTIVE)
 
-	__hc32			hw_bufp [7];	/* see EHCI 3.3.3 */
-	__hc32			hw_bufp_hi [7];	/* Appendix B */
+	__hc32			hw_bufp[7];	/* see EHCI 3.3.3 */
+	__hc32			hw_bufp_hi[7];	/* Appendix B */
 
 	/* the rest is HCD-private */
 	dma_addr_t		itd_dma;	/* for this itd */
@@ -574,9 +574,9 @@ struct ehci_sitd {
 
 #define SITD_ACTIVE(ehci)	cpu_to_hc32(ehci, SITD_STS_ACTIVE)
 
-	__hc32			hw_buf [2];		/* EHCI table 3-12 */
+	__hc32			hw_buf[2];		/* EHCI table 3-12 */
 	__hc32			hw_backpointer;		/* EHCI table 3-13 */
-	__hc32			hw_buf_hi [2];		/* Appendix B */
+	__hc32			hw_buf_hi[2];		/* Appendix B */
 
 	/* the rest is HCD-private */
 	dma_addr_t		sitd_dma;
