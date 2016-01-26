@@ -28,7 +28,9 @@
 #include "xhci.h"
 #include "xhci-trace.h"
 
-#define PORT2_SSIC_CONFIG_REG2	0x883c
+#define SSIC_PORT_NUM		2
+#define SSIC_PORT_CFG2		0x880c
+#define SSIC_PORT_CFG2_OFFSET	0x30
 #define PROG_DONE		(1 << 30)
 #define SSIC_PORT_UNUSED	(1 << 31)
 
@@ -321,28 +323,36 @@ static void xhci_pme_quirk(struct usb_hcd *hcd, bool suspend)
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	u32 val;
 	void __iomem *reg;
+	int i;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 		 pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI) {
 
-		reg = (void __iomem *) xhci->cap_regs + PORT2_SSIC_CONFIG_REG2;
+		for (i = 0; i < SSIC_PORT_NUM; i++) {
+			reg = (void __iomem *) xhci->cap_regs +
+					SSIC_PORT_CFG2 +
+					i * SSIC_PORT_CFG2_OFFSET;
 
-		/* Notify SSIC that SSIC profile programming is not done */
-		val = readl(reg) & ~PROG_DONE;
-		writel(val, reg);
+			/*
+			 * Notify SSIC that SSIC profile programming
+			 * is not done.
+			 */
+			val = readl(reg) & ~PROG_DONE;
+			writel(val, reg);
 
-		/* Mark SSIC port as unused(suspend) or used(resume) */
-		val = readl(reg);
-		if (suspend)
-			val |= SSIC_PORT_UNUSED;
-		else
-			val &= ~SSIC_PORT_UNUSED;
-		writel(val, reg);
+			/* Mark SSIC port as unused(suspend) or used(resume) */
+			val = readl(reg);
+			if (suspend)
+				val |= SSIC_PORT_UNUSED;
+			else
+				val &= ~SSIC_PORT_UNUSED;
+			writel(val, reg);
 
-		/* Notify SSIC that SSIC profile programming is done */
-		val = readl(reg) | PROG_DONE;
-		writel(val, reg);
-		readl(reg);
+			/* Notify SSIC that SSIC profile programming is done */
+			val = readl(reg) | PROG_DONE;
+			writel(val, reg);
+			readl(reg);
+		}
 	}
 
 	reg = (void __iomem *) xhci->cap_regs + 0x80a4;
