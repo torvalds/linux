@@ -8,7 +8,7 @@
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
-#ifdef CONFIG_ARM_KERNMEM_PERMS
+#ifdef CONFIG_DEBUG_RODATA
 #include <asm/pgtable.h>
 #endif
 
@@ -94,7 +94,7 @@ SECTIONS
 		HEAD_TEXT
 	}
 
-#ifdef CONFIG_ARM_KERNMEM_PERMS
+#ifdef CONFIG_DEBUG_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);
 #endif
 
@@ -117,7 +117,7 @@ SECTIONS
 			ARM_CPU_KEEP(PROC_INFO)
 	}
 
-#ifdef CONFIG_DEBUG_RODATA
+#ifdef CONFIG_DEBUG_ALIGN_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);
 #endif
 	RO_DATA(PAGE_SIZE)
@@ -153,7 +153,7 @@ SECTIONS
 	_etext = .;			/* End of text and rodata section */
 
 #ifndef CONFIG_XIP_KERNEL
-# ifdef CONFIG_ARM_KERNMEM_PERMS
+# ifdef CONFIG_DEBUG_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);
 # else
 	. = ALIGN(PAGE_SIZE);
@@ -231,7 +231,7 @@ SECTIONS
 	__data_loc = ALIGN(4);		/* location in binary */
 	. = PAGE_OFFSET + TEXT_OFFSET;
 #else
-#ifdef CONFIG_ARM_KERNMEM_PERMS
+#ifdef CONFIG_DEBUG_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);
 #else
 	. = ALIGN(THREAD_SIZE);
