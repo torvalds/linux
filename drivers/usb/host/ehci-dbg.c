@@ -35,8 +35,7 @@ static void dbg_hcs_params(struct ehci_hcd *ehci, char *label)
 		HCS_N_PCC(params),
 		HCS_PORTROUTED(params) ? "" : " ordered",
 		HCS_PPC(params) ? "" : " !ppc",
-		HCS_N_PORTS(params)
-		);
+		HCS_N_PORTS(params));
 	/* Port routing, per EHCI 0.95 Spec, Section 2.2.5 */
 	if (HCS_PORTROUTED(params)) {
 		int i;
@@ -189,8 +188,7 @@ dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
 		(status & STS_FLR) ? " FLR" : "",
 		(status & STS_PCD) ? " PCD" : "",
 		(status & STS_ERR) ? " ERR" : "",
-		(status & STS_INT) ? " INT" : ""
-		);
+		(status & STS_INT) ? " INT" : "");
 }
 
 static int __maybe_unused
@@ -205,8 +203,7 @@ dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
 		(enable & STS_FLR) ? " FLR" : "",
 		(enable & STS_PCD) ? " PCD" : "",
 		(enable & STS_ERR) ? " ERR" : "",
-		(enable & STS_INT) ? " INT" : ""
-		);
+		(enable & STS_INT) ? " INT" : "");
 }
 
 static const char *const fls_strings[] = { "1024", "512", "256", "??" };
@@ -232,8 +229,7 @@ dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
 		(command & CMD_PSE) ? " Periodic" : "",
 		fls_strings[(command >> 2) & 0x3],
 		(command & CMD_RESET) ? " Reset" : "",
-		(command & CMD_RUN) ? "RUN" : "HALT"
-		);
+		(command & CMD_RUN) ? "RUN" : "HALT");
 }
 
 static int
