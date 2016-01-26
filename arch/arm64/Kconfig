@@ -798,6 +798,35 @@ config RELOCATABLE
 	  relocation pass at runtime even if the kernel is loaded at the
 	  same address it was linked at.
 
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image"
+	select ARM64_MODULE_PLTS
+	select RELOCATABLE
+	help
+	  Randomizes the virtual address at which the kernel image is
+	  loaded, as a security feature that deters exploit attempts
+	  relying on knowledge of the location of kernel internals.
+
+	  It is the bootloader's job to provide entropy, by passing a
+	  random u64 value in /chosen/kaslr-seed at kernel entry.
+
+	  If unsure, say N.
+
+config RANDOMIZE_MODULE_REGION_FULL
+	bool "Randomize the module region independently from the core kernel"
+	depends on RANDOMIZE_BASE
+	default y
+	help
+	  Randomizes the location of the module region without considering the
+	  location of the core kernel. This way, it is impossible for modules
+	  to leak information about the location of core kernel data structures
+	  but it does imply that function calls between modules and the core
+	  kernel will need to be resolved via veneers in the module PLT.
+
+	  When this option is not set, the module region will be randomized over
+	  a limited range that contains the [_stext, _etext] interval of the
+	  core kernel, so branch relocations are always in range.
+
 endmenu
 
 menu "Boot options"

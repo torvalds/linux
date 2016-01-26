@@ -31,4 +31,10 @@ struct mod_arch_specific {
 u64 module_emit_plt_entry(struct module *mod, const Elf64_Rela *rela,
 			  Elf64_Sym *sym);
 
+#ifdef CONFIG_RANDOMIZE_BASE
+extern u64 module_alloc_base;
+#else
+#define module_alloc_base	((u64)_etext - MODULES_VSIZE)
+#endif
+
 #endif /* __ASM_MODULE_H */

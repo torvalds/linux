@@ -210,6 +210,7 @@ section_table:
 ENTRY(stext)
 	bl	preserve_boot_args
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
+	mov	x23, xzr			// KASLR offset, defaults to 0
 	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
@@ -313,7 +314,7 @@ ENDPROC(preserve_boot_args)
 __create_page_tables:
 	adrp	x25, idmap_pg_dir
 	adrp	x26, swapper_pg_dir
-	mov	x27, lr
+	mov	x28, lr
 
 	/*
 	 * Invalidate the idmap and swapper page tables to avoid potential
@@ -392,6 +393,7 @@ __create_page_tables:
 	 */
 	mov	x0, x26				// swapper_pg_dir
 	ldr	x5, =KIMAGE_VADDR
+	add	x5, x5, x23			// add KASLR displacement
 	create_pgd_entry x0, x5, x3, x6
 	ldr	w6, kernel_img_size
 	add	x6, x6, x5
@@ -408,8 +410,7 @@ __create_page_tables:
 	dmb	sy
 	bl	__inval_cache_range
 
-	mov	lr, x27
-	ret
+	ret	x28
 ENDPROC(__create_page_tables)
 
 kernel_img_size:
@@ -421,6 +422,7 @@ kernel_img_size:
  */
 	.set	initial_sp, init_thread_union + THREAD_START_SP
 __mmap_switched:
+	mov	x28, lr				// preserve LR
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
 	isb
@@ -449,19 +451,26 @@ __mmap_switched:
 	ldr	x13, [x9, #-8]
 	cmp	w12, #R_AARCH64_RELATIVE
 	b.ne	1f
-	str	x13, [x11]
+	add	x13, x13, x23			// relocate
+	str	x13, [x11, x23]
 	b	0b
 
 1:	cmp	w12, #R_AARCH64_ABS64
 	b.ne	0b
 	add	x12, x12, x12, lsl #1		// symtab offset: 24x top word
 	add	x12, x8, x12, lsr #(32 - 3)	// ... shifted into bottom word
+	ldrsh	w14, [x12, #6]			// Elf64_Sym::st_shndx
 	ldr	x15, [x12, #8]			// Elf64_Sym::st_value
+	cmp	w14, #-0xf			// SHN_ABS (0xfff1) ?
+	add	x14, x15, x23			// relocate
+	csel	x15, x14, x15, ne
 	add	x15, x13, x15
-	str	x15, [x11]
+	str	x15, [x11, x23]
 	b	0b
 
-2:
+2:	adr_l	x8, kimage_vaddr		// make relocated kimage_vaddr
+	dc	cvac, x8			// value visible to secondaries
+	dsb	sy				// with MMU off
 #endif
 
 	adr_l	sp, initial_sp, x4
@@ -470,13 +479,23 @@ __mmap_switched:
 	msr	sp_el0, x4			// Save thread_info
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
-	ldr	x4, =KIMAGE_VADDR		// Save the offset between
+	ldr_l	x4, kimage_vaddr		// Save the offset between
 	sub	x4, x4, x24			// the kernel virtual and
 	str_l	x4, kimage_voffset, x5		// physical mappings
 
 	mov	x29, #0
 #ifdef CONFIG_KASAN
 	bl	kasan_early_init
+#endif
+#ifdef CONFIG_RANDOMIZE_BASE
+	cbnz	x23, 0f				// already running randomized?
+	mov	x0, x21				// pass FDT address in x0
+	bl	kaslr_early_init		// parse FDT for KASLR options
+	cbz	x0, 0f				// KASLR disabled? just proceed
+	mov	x23, x0				// record KASLR offset
+	ret	x28				// we must enable KASLR, return
+						// to __enable_mmu()
+0:
 #endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
@@ -486,6 +505,10 @@ ENDPROC(__mmap_switched)
  * hotplug and needs to have the same protections as the text region
  */
 	.section ".text","ax"
+
+ENTRY(kimage_vaddr)
+	.quad		_text - TEXT_OFFSET
+
 /*
  * If we're fortunate enough to boot at EL2, ensure that the world is
  * sane before dropping to EL1.
@@ -651,7 +674,7 @@ ENTRY(secondary_startup)
 	adrp	x26, swapper_pg_dir
 	bl	__cpu_setup			// initialise processor
 
-	ldr	x8, =KIMAGE_VADDR
+	ldr	x8, kimage_vaddr
 	ldr	w9, 0f
 	sub	x27, x8, w9, sxtw		// address to jump to after enabling the MMU
 	b	__enable_mmu
@@ -684,6 +707,7 @@ ENDPROC(__secondary_switched)
  */
 	.section	".idmap.text", "ax"
 __enable_mmu:
+	mrs	x18, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
@@ -701,6 +725,25 @@ __enable_mmu:
 	ic	iallu
 	dsb	nsh
 	isb
+#ifdef CONFIG_RANDOMIZE_BASE
+	mov	x19, x0				// preserve new SCTLR_EL1 value
+	blr	x27
+
+	/*
+	 * If we return here, we have a KASLR displacement in x23 which we need
+	 * to take into account by discarding the current kernel mapping and
+	 * creating a new one.
+	 */
+	msr	sctlr_el1, x18			// disable the MMU
+	isb
+	bl	__create_page_tables		// recreate kernel mapping
+
+	msr	sctlr_el1, x19			// re-enable the MMU
+	isb
+	ic	ialluis				// flush instructions fetched
+	isb					// via old mapping
+	add	x27, x27, x23			// relocated __mmap_switched
+#endif
 	br	x27
 ENDPROC(__enable_mmu)
 

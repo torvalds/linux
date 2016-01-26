@@ -388,3 +388,32 @@ static int __init topology_init(void)
 	return 0;
 }
 subsys_initcall(topology_init);
+
+/*
+ * Dump out kernel offset information on panic.
+ */
+static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
+			      void *p)
+{
+	u64 const kaslr_offset = kimage_vaddr - KIMAGE_VADDR;
+
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_offset > 0) {
+		pr_emerg("Kernel Offset: 0x%llx from 0x%lx\n",
+			 kaslr_offset, KIMAGE_VADDR);
+	} else {
+		pr_emerg("Kernel Offset: disabled\n");
+	}
+	return 0;
+}
+
+static struct notifier_block kernel_offset_notifier = {
+	.notifier_call = dump_kernel_offset
+};
+
+static int __init register_kernel_offset_dumper(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &kernel_offset_notifier);
+	return 0;
+}
+__initcall(register_kernel_offset_dumper);
