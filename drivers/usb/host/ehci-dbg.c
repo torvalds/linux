@@ -1071,6 +1071,7 @@ static int debug_bandwidth_open(struct inode *inode, struct file *file)
 static int debug_periodic_open(struct inode *inode, struct file *file)
 {
 	struct debug_buffer *buf;
+
 	buf = alloc_buffer(inode->i_private, fill_periodic_buffer);
 	if (!buf)
 		return -ENOMEM;
