@@ -285,6 +285,24 @@ void component_match_add_release(struct device *master,
 }
 EXPORT_SYMBOL(component_match_add_release);
 
+static void free_master(struct master *master)
+{
+	struct component_match *match = master->match;
+	int i;
+
+	list_del(&master->node);
+
+	if (match) {
+		for (i = 0; i < match->num; i++) {
+			struct component *c = match->compare[i].component;
+			if (c)
+				c->master = NULL;
+		}
+	}
+
+	kfree(master);
+}
+
 int component_master_add_with_match(struct device *dev,
 	const struct component_master_ops *ops,
 	struct component_match *match)
@@ -311,11 +329,9 @@ int component_master_add_with_match(struct device *dev,
 
 	ret = try_to_bring_up_master(master, NULL);
 
-	if (ret < 0) {
-		/* Delete off the list if we weren't successful */
-		list_del(&master->node);
-		kfree(master);
-	}
+	if (ret < 0)
+		free_master(master);
+
 	mutex_unlock(&component_mutex);
 
 	return ret < 0 ? ret : 0;
@@ -326,25 +342,12 @@ void component_master_del(struct device *dev,
 	const struct component_master_ops *ops)
 {
 	struct master *master;
-	int i;
 
 	mutex_lock(&component_mutex);
 	master = __master_find(dev, ops);
 	if (master) {
-		struct component_match *match = master->match;
-
 		take_down_master(master);
-
-		list_del(&master->node);
-
-		if (match) {
-			for (i = 0; i < match->num; i++) {
-				struct component *c = match->compare[i].component;
-				if (c)
-					c->master = NULL;
-			}
-		}
-		kfree(master);
+		free_master(master);
 	}
 	mutex_unlock(&component_mutex);
 }
