@@ -557,6 +557,8 @@ enum regmap_endian regmap_get_val_endian(struct device *dev,
 			endian = REGMAP_ENDIAN_BIG;
 		else if (of_property_read_bool(np, "little-endian"))
 			endian = REGMAP_ENDIAN_LITTLE;
+		else if (of_property_read_bool(np, "native-endian"))
+			endian = REGMAP_ENDIAN_NATIVE;
 
 		/* If the endianness was specified in DT, use that */
 		if (endian != REGMAP_ENDIAN_DEFAULT)

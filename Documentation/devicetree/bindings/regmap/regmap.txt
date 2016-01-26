@@ -5,15 +5,18 @@ Index     Device     Endianness properties
 ---------------------------------------------------
 1         BE         'big-endian'
 2         LE         'little-endian'
+3	  Native     'native-endian'
 
 For one device driver, which will run in different scenarios above
 on different SoCs using the devicetree, we need one way to simplify
 this.
 
-Required properties:
-- {big,little}-endian: these are boolean properties, if absent
-  meaning that the CPU and the Device are in the same endianness mode,
-  these properties are for register values and all the buffers only.
+Optional properties:
+- {big,little,native}-endian: these are boolean properties, if absent
+  then the implementation will choose a default based on the device
+  being controlled.  These properties are for register values and all
+  the buffers only.  Native endian means that the CPU and device have
+  the same endianness.
 
 Examples:
 Scenario 1 : CPU in LE mode & device in LE mode.
