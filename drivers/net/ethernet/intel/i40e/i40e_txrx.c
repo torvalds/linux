@@ -2044,7 +2044,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	struct tcphdr *th;
 	unsigned int hlen;
 	u32 flex_ptype, dtype_cmd;
-	u8 l4_proto;
+	int l4_proto;
 	u16 i;
 
 	/* make sure ATR is enabled */
@@ -2062,25 +2062,23 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	if (!(tx_flags & (I40E_TX_FLAGS_IPV4 | I40E_TX_FLAGS_IPV6)))
 		return;
 
-	if (!(tx_flags & I40E_TX_FLAGS_UDP_TUNNEL)) {
-		/* snag network header to get L4 type and address */
-		hdr.network = skb_network_header(skb);
-
-		/* access ihl as u8 to avoid unaligned access on ia64 */
-		if (tx_flags & I40E_TX_FLAGS_IPV4)
-			hlen = (hdr.network[0] & 0x0F) << 2;
-		else
-			hlen = sizeof(struct ipv6hdr);
-	} else {
-		hdr.network = skb_inner_network_header(skb);
-		hlen = skb_inner_network_header_len(skb);
-	}
+	/* snag network header to get L4 type and address */
+	hdr.network = (tx_flags & I40E_TX_FLAGS_UDP_TUNNEL) ?
+		      skb_inner_network_header(skb) : skb_network_header(skb);
 
 	/* Note: tx_flags gets modified to reflect inner protocols in
 	 * tx_enable_csum function if encap is enabled.
 	 */
-	l4_proto = (tx_flags & I40E_TX_FLAGS_IPV4) ? hdr.ipv4->protocol :
-						     hdr.ipv6->nexthdr;
+	if (tx_flags & I40E_TX_FLAGS_IPV4) {
+		/* access ihl as u8 to avoid unaligned access on ia64 */
+		hlen = (hdr.network[0] & 0x0F) << 2;
+		l4_proto = hdr.ipv4->protocol;
+	} else {
+		hlen = hdr.network - skb->data;
+		l4_proto = ipv6_find_hdr(skb, &hlen, IPPROTO_TCP, NULL, NULL);
+		hlen -= hdr.network - skb->data;
+	}
+
 	if (l4_proto != IPPROTO_TCP)
 		return;
 
