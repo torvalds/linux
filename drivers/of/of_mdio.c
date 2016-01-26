@@ -256,11 +256,19 @@ static int of_phy_match(struct device *dev, void *phy_np)
 struct phy_device *of_phy_find_device(struct device_node *phy_np)
 {
 	struct device *d;
+	struct mdio_device *mdiodev;
+
 	if (!phy_np)
 		return NULL;
 
 	d = bus_find_device(&mdio_bus_type, NULL, phy_np, of_phy_match);
-	return d ? to_phy_device(d) : NULL;
+	if (d) {
+		mdiodev = to_mdio_device(d);
+		if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY)
+			return to_phy_device(d);
+	}
+
+	return NULL;
 }
 EXPORT_SYMBOL(of_phy_find_device);
 
