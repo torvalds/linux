@@ -363,20 +363,18 @@ static inline enum page_cache_mode pgprot2cachemode(pgprot_t pgprot)
 }
 static inline pgprot_t pgprot_4k_2_large(pgprot_t pgprot)
 {
+	pgprotval_t val = pgprot_val(pgprot);
 	pgprot_t new;
-	unsigned long val;
 
-	val = pgprot_val(pgprot);
 	pgprot_val(new) = (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
 		((val & _PAGE_PAT) << (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
 	return new;
 }
 static inline pgprot_t pgprot_large_2_4k(pgprot_t pgprot)
 {
+	pgprotval_t val = pgprot_val(pgprot);
 	pgprot_t new;
-	unsigned long val;
 
-	val = pgprot_val(pgprot);
 	pgprot_val(new) = (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
 			  ((val & _PAGE_PAT_LARGE) >>
 			   (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
