@@ -50,6 +50,24 @@ static void __detach_extent_node(struct f2fs_sb_info *sbi,
 
 	if (et->cached_en == en)
 		et->cached_en = NULL;
+	kmem_cache_free(extent_node_slab, en);
+}
+
+/*
+ * Flow to release an extent_node:
+ * 1. list_del_init
+ * 2. __detach_extent_node
+ * 3. kmem_cache_free.
+ */
+static void __release_extent_node(struct f2fs_sb_info *sbi,
+			struct extent_tree *et, struct extent_node *en)
+{
+	spin_lock(&sbi->extent_lock);
+	if (!list_empty(&en->list))
+		list_del_init(&en->list);
+	spin_unlock(&sbi->extent_lock);
+
+	__detach_extent_node(sbi, et, en);
 }
 
 static struct extent_tree *__grab_extent_tree(struct inode *inode)
@@ -140,17 +158,10 @@ static unsigned int __free_extent_tree(struct f2fs_sb_info *sbi,
 		next = rb_next(node);
 		en = rb_entry(node, struct extent_node, rb_node);
 
-		if (free_all) {
-			spin_lock(&sbi->extent_lock);
-			if (!list_empty(&en->list))
-				list_del_init(&en->list);
-			spin_unlock(&sbi->extent_lock);
-		}
-
-		if (free_all || list_empty(&en->list)) {
+		if (free_all)
+			__release_extent_node(sbi, et, en);
+		else if (list_empty(&en->list))
 			__detach_extent_node(sbi, et, en);
-			kmem_cache_free(extent_node_slab, en);
-		}
 		node = next;
 	}
 
@@ -329,7 +340,6 @@ lookup_neighbors:
 
 static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
 				struct extent_tree *et, struct extent_info *ei,
-				struct extent_node **den,
 				struct extent_node *prev_ex,
 				struct extent_node *next_ex)
 {
@@ -342,10 +352,8 @@ static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
 	}
 
 	if (next_ex && __is_front_mergeable(ei, &next_ex->ei)) {
-		if (en) {
-			__detach_extent_node(sbi, et, prev_ex);
-			*den = prev_ex;
-		}
+		if (en)
+			__release_extent_node(sbi, et, prev_ex);
 		next_ex->ei.fofs = ei->fofs;
 		next_ex->ei.blk = ei->blk;
 		next_ex->ei.len += ei->len;
@@ -479,7 +487,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 		if (parts)
 			__try_update_largest_extent(et, en);
 		else
-			__detach_extent_node(sbi, et, en);
+			__release_extent_node(sbi, et, en);
 
 		/*
 		 * if original extent is split into zero or two parts, extent
@@ -493,26 +501,18 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 
 		/* update in global extent list */
 		spin_lock(&sbi->extent_lock);
-		if (!parts && !list_empty(&en->list))
-			list_del(&en->list);
 		if (en1)
 			list_add_tail(&en1->list, &sbi->extent_list);
 		spin_unlock(&sbi->extent_lock);
-
-		/* release extent node */
-		if (!parts)
-			kmem_cache_free(extent_node_slab, en);
 
 		en = next_en;
 	}
 
 	/* 3. update extent in extent cache */
 	if (blkaddr) {
-		struct extent_node *den = NULL;
 
 		set_extent_info(&ei, fofs, blkaddr, len);
-		en1 = __try_merge_extent_node(sbi, et, &ei, &den,
-							prev_en, next_en);
+		en1 = __try_merge_extent_node(sbi, et, &ei, prev_en, next_en);
 		if (!en1)
 			en1 = __insert_extent_tree(sbi, et, &ei,
 						insert_p, insert_parent);
@@ -532,12 +532,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 			else
 				list_move_tail(&en1->list, &sbi->extent_list);
 		}
-		if (den && !list_empty(&den->list))
-			list_del(&den->list);
 		spin_unlock(&sbi->extent_lock);
-
-		if (den)
-			kmem_cache_free(extent_node_slab, den);
 	}
 
 	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
