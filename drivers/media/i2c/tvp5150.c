@@ -37,6 +37,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct tvp5150 {
 	struct v4l2_subdev sd;
+	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
 	struct v4l2_rect rect;
 
@@ -826,17 +827,6 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 	}
 }
 
-static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_mbus_code_enum *code)
-{
-	if (code->pad || code->index)
-		return -EINVAL;
-
-	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	return 0;
-}
-
 static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
@@ -964,6 +954,38 @@ static int tvp5150_g_mbus_config(struct v4l2_subdev *sd,
 	cfg->type = decoder->mbus_type;
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING
 		   | V4L2_MBUS_FIELD_EVEN_LOW | V4L2_MBUS_DATA_ACTIVE_HIGH;
+
+	return 0;
+}
+
+/****************************************************************************
+			V4L2 subdev pad ops
+ ****************************************************************************/
+static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
+{
+	if (code->pad || code->index)
+		return -EINVAL;
+
+	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	return 0;
+}
+
+static int tvp5150_enum_frame_size(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	if (fse->index >= 8 || fse->code != MEDIA_BUS_FMT_UYVY8_2X8)
+		return -EINVAL;
+
+	fse->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fse->min_width = decoder->rect.width;
+	fse->max_width = decoder->rect.width;
+	fse->min_height = decoder->rect.height / 2;
+	fse->max_height = decoder->rect.height / 2;
 
 	return 0;
 }
@@ -1132,6 +1154,7 @@ static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
 
 static const struct v4l2_subdev_pad_ops tvp5150_pad_ops = {
 	.enum_mbus_code = tvp5150_enum_mbus_code,
+	.enum_frame_size = tvp5150_enum_frame_size,
 	.set_fmt = tvp5150_fill_fmt,
 	.get_fmt = tvp5150_fill_fmt,
 };
@@ -1287,6 +1310,14 @@ static int tvp5150_probe(struct i2c_client *c,
 	}
 
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	core->pad.flags = MEDIA_PAD_FL_SOURCE;
+	res = media_entity_pads_init(&sd->entity, 1, &core->pad);
+	if (res < 0)
+		return res;
+#endif
 
 	res = tvp5150_detect_version(core);
 	if (res < 0)
