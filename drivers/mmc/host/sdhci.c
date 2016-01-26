@@ -559,37 +559,39 @@ static void sdhci_adma_table_post(struct sdhci_host *host,
 	void *align;
 	char *buffer;
 	unsigned long flags;
-	bool has_unaligned;
 
 	if (data->flags & MMC_DATA_READ)
 		direction = DMA_FROM_DEVICE;
 	else
 		direction = DMA_TO_DEVICE;
 
-	/* Do a quick scan of the SG list for any unaligned mappings */
-	has_unaligned = false;
-	for_each_sg(data->sg, sg, host->sg_count, i)
-		if (sg_dma_address(sg) & SDHCI_ADMA2_MASK) {
-			has_unaligned = true;
-			break;
-		}
+	if (data->flags & MMC_DATA_READ) {
+		bool has_unaligned = false;
 
-	if (has_unaligned && data->flags & MMC_DATA_READ) {
-		dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
-			data->sg_len, direction);
-
-		align = host->align_buffer;
-
-		for_each_sg(data->sg, sg, host->sg_count, i) {
+		/* Do a quick scan of the SG list for any unaligned mappings */
+		for_each_sg(data->sg, sg, host->sg_count, i)
 			if (sg_dma_address(sg) & SDHCI_ADMA2_MASK) {
-				size = SDHCI_ADMA2_ALIGN -
-				       (sg_dma_address(sg) & SDHCI_ADMA2_MASK);
+				has_unaligned = true;
+				break;
+			}
 
-				buffer = sdhci_kmap_atomic(sg, &flags);
-				memcpy(buffer, align, size);
-				sdhci_kunmap_atomic(buffer, &flags);
+		if (has_unaligned) {
+			dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
+				data->sg_len, direction);
 
-				align += SDHCI_ADMA2_ALIGN;
+			align = host->align_buffer;
+
+			for_each_sg(data->sg, sg, host->sg_count, i) {
+				if (sg_dma_address(sg) & SDHCI_ADMA2_MASK) {
+					size = SDHCI_ADMA2_ALIGN -
+					       (sg_dma_address(sg) & SDHCI_ADMA2_MASK);
+
+					buffer = sdhci_kmap_atomic(sg, &flags);
+					memcpy(buffer, align, size);
+					sdhci_kunmap_atomic(buffer, &flags);
+
+					align += SDHCI_ADMA2_ALIGN;
+				}
 			}
 		}
 	}
