@@ -551,6 +551,8 @@ struct dnode_of_data {
 	unsigned int ofs_in_node;	/* data offset in the node page */
 	bool inode_page_locked;		/* inode page is locked or not */
 	bool node_changed;		/* is node block changed */
+	char cur_level;			/* level of hole node page */
+	char max_level;			/* level of current page located */
 	block_t	data_blkaddr;		/* block address of the node block */
 };
 
@@ -1793,6 +1795,7 @@ int need_dentry_mark(struct f2fs_sb_info *, nid_t);
 bool is_checkpointed_node(struct f2fs_sb_info *, nid_t);
 bool need_inode_block_update(struct f2fs_sb_info *, nid_t);
 void get_node_info(struct f2fs_sb_info *, nid_t, struct node_info *);
+pgoff_t get_next_page_offset(struct dnode_of_data *, pgoff_t);
 int get_dnode_of_data(struct dnode_of_data *, pgoff_t, int);
 int truncate_inode_blocks(struct inode *, pgoff_t);
 int truncate_xattr_node(struct inode *, struct page *);

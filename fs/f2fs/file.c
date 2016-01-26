@@ -358,7 +358,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 		} else if (err == -ENOENT) {
 			/* direct node does not exists */
 			if (whence == SEEK_DATA) {
-				pgofs = PGOFS_OF_NEXT_DNODE(pgofs, inode);
+				pgofs = get_next_page_offset(&dn, pgofs);
 				continue;
 			} else {
 				goto found;
