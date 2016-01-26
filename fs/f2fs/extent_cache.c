@@ -33,6 +33,7 @@ static struct extent_node *__attach_extent_node(struct f2fs_sb_info *sbi,
 
 	en->ei = *ei;
 	INIT_LIST_HEAD(&en->list);
+	en->et = et;
 
 	rb_link_node(&en->rb_node, parent, p);
 	rb_insert_color(&en->rb_node, &et->root);
@@ -63,8 +64,8 @@ static void __release_extent_node(struct f2fs_sb_info *sbi,
 			struct extent_tree *et, struct extent_node *en)
 {
 	spin_lock(&sbi->extent_lock);
-	if (!list_empty(&en->list))
-		list_del_init(&en->list);
+	f2fs_bug_on(sbi, list_empty(&en->list));
+	list_del_init(&en->list);
 	spin_unlock(&sbi->extent_lock);
 
 	__detach_extent_node(sbi, et, en);
@@ -147,7 +148,7 @@ static struct extent_node *__init_extent_tree(struct f2fs_sb_info *sbi,
 }
 
 static unsigned int __free_extent_tree(struct f2fs_sb_info *sbi,
-					struct extent_tree *et, bool free_all)
+					struct extent_tree *et)
 {
 	struct rb_node *node, *next;
 	struct extent_node *en;
@@ -157,11 +158,7 @@ static unsigned int __free_extent_tree(struct f2fs_sb_info *sbi,
 	while (node) {
 		next = rb_next(node);
 		en = rb_entry(node, struct extent_node, rb_node);
-
-		if (free_all)
-			__release_extent_node(sbi, et, en);
-		else if (list_empty(&en->list))
-			__detach_extent_node(sbi, et, en);
+		__release_extent_node(sbi, et, en);
 		node = next;
 	}
 
@@ -532,7 +529,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 	}
 
 	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
-		__free_extent_tree(sbi, et, true);
+		__free_extent_tree(sbi, et);
 
 	write_unlock(&et->lock);
 
@@ -541,14 +538,10 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 
 unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 {
-	struct extent_tree *treevec[EXT_TREE_VEC_SIZE];
 	struct extent_tree *et, *next;
-	struct extent_node *en, *tmp;
-	unsigned long ino = F2FS_ROOT_INO(sbi);
-	unsigned int found;
+	struct extent_node *en;
 	unsigned int node_cnt = 0, tree_cnt = 0;
 	int remained;
-	bool do_free = false;
 
 	if (!test_opt(sbi, EXTENT_CACHE))
 		return 0;
@@ -563,10 +556,10 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	list_for_each_entry_safe(et, next, &sbi->zombie_list, list) {
 		if (atomic_read(&et->node_cnt)) {
 			write_lock(&et->lock);
-			node_cnt += __free_extent_tree(sbi, et, true);
+			node_cnt += __free_extent_tree(sbi, et);
 			write_unlock(&et->lock);
 		}
-
+		f2fs_bug_on(sbi, atomic_read(&et->node_cnt));
 		list_del_init(&et->list);
 		radix_tree_delete(&sbi->extent_tree_root, et->ino);
 		kmem_cache_free(extent_tree_slab, et);
@@ -587,42 +580,29 @@ free_node:
 	remained = nr_shrink - (node_cnt + tree_cnt);
 
 	spin_lock(&sbi->extent_lock);
-	list_for_each_entry_safe(en, tmp, &sbi->extent_list, list) {
-		if (!remained--)
+	for (; remained > 0; remained--) {
+		if (list_empty(&sbi->extent_list))
 			break;
+		en = list_first_entry(&sbi->extent_list,
+					struct extent_node, list);
+		et = en->et;
+		if (!write_trylock(&et->lock)) {
+			/* refresh this extent node's position in extent list */
+			list_move_tail(&en->list, &sbi->extent_list);
+			continue;
+		}
+
 		list_del_init(&en->list);
-		do_free = true;
+		spin_unlock(&sbi->extent_lock);
+
+		__detach_extent_node(sbi, et, en);
+
+		write_unlock(&et->lock);
+		node_cnt++;
+		spin_lock(&sbi->extent_lock);
 	}
 	spin_unlock(&sbi->extent_lock);
 
-	if (do_free == false)
-		goto unlock_out;
-
-	/*
-	 * reset ino for searching victims from beginning of global extent tree.
-	 */
-	ino = F2FS_ROOT_INO(sbi);
-
-	while ((found = radix_tree_gang_lookup(&sbi->extent_tree_root,
-				(void **)treevec, ino, EXT_TREE_VEC_SIZE))) {
-		unsigned i;
-
-		ino = treevec[found - 1]->ino + 1;
-		for (i = 0; i < found; i++) {
-			struct extent_tree *et = treevec[i];
-
-			if (!atomic_read(&et->node_cnt))
-				continue;
-
-			if (write_trylock(&et->lock)) {
-				node_cnt += __free_extent_tree(sbi, et, false);
-				write_unlock(&et->lock);
-			}
-
-			if (node_cnt + tree_cnt >= nr_shrink)
-				goto unlock_out;
-		}
-	}
 unlock_out:
 	up_write(&sbi->extent_tree_lock);
 out:
@@ -641,7 +621,7 @@ unsigned int f2fs_destroy_extent_node(struct inode *inode)
 		return 0;
 
 	write_lock(&et->lock);
-	node_cnt = __free_extent_tree(sbi, et, true);
+	node_cnt = __free_extent_tree(sbi, et);
 	write_unlock(&et->lock);
 
 	return node_cnt;
