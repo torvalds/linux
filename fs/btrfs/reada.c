@@ -953,8 +953,11 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 int btrfs_reada_wait(void *handle)
 {
 	struct reada_control *rc = handle;
+	struct btrfs_fs_info *fs_info = rc->root->fs_info;
 
 	while (atomic_read(&rc->elems)) {
+		if (!atomic_read(&fs_info->reada_works_cnt))
+			reada_start_machine(fs_info);
 		wait_event_timeout(rc->wait, atomic_read(&rc->elems) == 0,
 				   5 * HZ);
 		dump_devs(rc->root->fs_info,
@@ -971,9 +974,13 @@ int btrfs_reada_wait(void *handle)
 int btrfs_reada_wait(void *handle)
 {
 	struct reada_control *rc = handle;
+	struct btrfs_fs_info *fs_info = rc->root->fs_info;
 
 	while (atomic_read(&rc->elems)) {
-		wait_event(rc->wait, atomic_read(&rc->elems) == 0);
+		if (!atomic_read(&fs_info->reada_works_cnt))
+			reada_start_machine(fs_info);
+		wait_event_timeout(rc->wait, atomic_read(&rc->elems) == 0,
+				   (HZ + 9) / 10);
 	}
 
 	kref_put(&rc->refcnt, reada_control_release);
