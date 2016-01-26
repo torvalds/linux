@@ -465,16 +465,12 @@ static void sdhci_adma_mark_end(void *desc)
 static int sdhci_adma_table_pre(struct sdhci_host *host,
 	struct mmc_data *data)
 {
-	void *desc;
-	void *align;
-	dma_addr_t addr;
-	dma_addr_t align_addr;
-	int len, offset;
-
 	struct scatterlist *sg;
-	int i;
-	char *buffer;
 	unsigned long flags;
+	dma_addr_t addr, align_addr;
+	void *desc, *align;
+	char *buffer;
+	int len, offset, i;
 
 	/*
 	 * The spec does not specify endianness of descriptor table.
@@ -495,10 +491,9 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		len = sg_dma_len(sg);
 
 		/*
-		 * The SDHCI specification states that ADMA
-		 * addresses must be 32-bit aligned. If they
-		 * aren't, then we use a bounce buffer for
-		 * the (up to three) bytes that screw up the
+		 * The SDHCI specification states that ADMA addresses must
+		 * be 32-bit aligned. If they aren't, then we use a bounce
+		 * buffer for the (up to three) bytes that screw up the
 		 * alignment.
 		 */
 		offset = (SDHCI_ADMA2_ALIGN - (addr & SDHCI_ADMA2_MASK)) &
@@ -542,19 +537,13 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 	}
 
 	if (host->quirks & SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC) {
-		/*
-		* Mark the last descriptor as the terminating descriptor
-		*/
+		/* Mark the last descriptor as the terminating descriptor */
 		if (desc != host->adma_table) {
 			desc -= host->desc_sz;
 			sdhci_adma_mark_end(desc);
 		}
 	} else {
-		/*
-		* Add a terminating entry.
-		*/
-
-		/* nop, end, valid */
+		/* Add a terminating entry - nop, end, valid */
 		sdhci_adma_write_desc(host, desc, 0, 0, ADMA2_NOP_END_VALID);
 	}
 	return 0;
