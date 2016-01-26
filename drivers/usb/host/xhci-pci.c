@@ -370,6 +370,7 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
+	int			ret;
 
 	/*
 	 * Systems with the TI redriver that loses port status change events
@@ -384,7 +385,11 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	if (xhci->quirks & XHCI_SSIC_PORT_UNUSED)
 		xhci_ssic_port_unused_quirk(hcd, true);
 
-	return xhci_suspend(xhci, do_wakeup);
+	ret = xhci_suspend(xhci, do_wakeup);
+	if (ret && (xhci->quirks & XHCI_SSIC_PORT_UNUSED))
+		xhci_ssic_port_unused_quirk(hcd, false);
+
+	return ret;
 }
 
 static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
