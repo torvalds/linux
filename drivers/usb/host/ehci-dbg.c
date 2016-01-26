@@ -357,6 +357,7 @@ static const struct file_operations debug_async_fops = {
 	.release	= debug_close,
 	.llseek		= default_llseek,
 };
+
 static const struct file_operations debug_bandwidth_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_bandwidth_open,
@@ -364,6 +365,7 @@ static const struct file_operations debug_bandwidth_fops = {
 	.release	= debug_close,
 	.llseek		= default_llseek,
 };
+
 static const struct file_operations debug_periodic_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_periodic_open,
@@ -371,6 +373,7 @@ static const struct file_operations debug_periodic_fops = {
 	.release	= debug_close,
 	.llseek		= default_llseek,
 };
+
 static const struct file_operations debug_registers_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_registers_open,
