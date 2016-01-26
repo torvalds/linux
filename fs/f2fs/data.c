@@ -497,7 +497,6 @@ got_it:
 static int __allocate_data_block(struct dnode_of_data *dn)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
-	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	struct f2fs_summary sum;
 	struct node_info ni;
 	int seg = CURSEG_WARM_DATA;
@@ -525,7 +524,7 @@ alloc:
 	set_data_blkaddr(dn);
 
 	/* update i_size */
-	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
+	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), dn->inode) +
 							dn->ofs_in_node;
 	if (i_size_read(dn->inode) < ((loff_t)(fofs + 1) << PAGE_CACHE_SHIFT))
 		i_size_write(dn->inode,
@@ -592,7 +591,7 @@ next_dnode:
 		goto unlock_out;
 	}
 
-	end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
+	end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
 
 next_block:
 	blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);

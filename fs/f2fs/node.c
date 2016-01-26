@@ -407,10 +407,10 @@ cache:
  * The maximum depth is four.
  * Offset[0] will have raw inode offset.
  */
-static int get_node_path(struct f2fs_inode_info *fi, long block,
+static int get_node_path(struct inode *inode, long block,
 				int offset[4], unsigned int noffset[4])
 {
-	const long direct_index = ADDRS_PER_INODE(fi);
+	const long direct_index = ADDRS_PER_INODE(inode);
 	const long direct_blks = ADDRS_PER_BLOCK;
 	const long dptrs_per_blk = NIDS_PER_BLOCK;
 	const long indirect_blks = ADDRS_PER_BLOCK * NIDS_PER_BLOCK;
@@ -498,7 +498,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 	int level, i;
 	int err = 0;
 
-	level = get_node_path(F2FS_I(dn->inode), index, offset, noffset);
+	level = get_node_path(dn->inode, index, offset, noffset);
 
 	nids[0] = dn->inode->i_ino;
 	npage[0] = dn->inode_page;
@@ -792,7 +792,7 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 
 	trace_f2fs_truncate_inode_blocks_enter(inode, from);
 
-	level = get_node_path(F2FS_I(inode), from, offset, noffset);
+	level = get_node_path(inode, from, offset, noffset);
 restart:
 	page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(page)) {

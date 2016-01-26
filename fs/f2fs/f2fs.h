@@ -1538,9 +1538,9 @@ static inline int f2fs_has_inline_xattr(struct inode *inode)
 	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_XATTR);
 }
 
-static inline unsigned int addrs_per_inode(struct f2fs_inode_info *fi)
+static inline unsigned int addrs_per_inode(struct inode *inode)
 {
-	if (f2fs_has_inline_xattr(&fi->vfs_inode))
+	if (f2fs_has_inline_xattr(inode))
 		return DEF_ADDRS_PER_INODE - F2FS_INLINE_XATTR_ADDRS;
 	return DEF_ADDRS_PER_INODE;
 }
@@ -1694,10 +1694,10 @@ static inline void *f2fs_kvzalloc(size_t size, gfp_t flags)
 	 (F2FS_I(i)->i_acl_mode) : ((i)->i_mode))
 
 /* get offset of first page in next direct node */
-#define PGOFS_OF_NEXT_DNODE(pgofs, fi)				\
-	((pgofs < ADDRS_PER_INODE(fi)) ? ADDRS_PER_INODE(fi) :	\
-	(pgofs - ADDRS_PER_INODE(fi) + ADDRS_PER_BLOCK) /	\
-	ADDRS_PER_BLOCK * ADDRS_PER_BLOCK + ADDRS_PER_INODE(fi))
+#define PGOFS_OF_NEXT_DNODE(pgofs, inode)				\
+	((pgofs < ADDRS_PER_INODE(inode)) ? ADDRS_PER_INODE(inode) :	\
+	(pgofs - ADDRS_PER_INODE(inode) + ADDRS_PER_BLOCK) /	\
+	ADDRS_PER_BLOCK * ADDRS_PER_BLOCK + ADDRS_PER_INODE(inode))
 
 /*
  * file.c
@@ -1916,7 +1916,7 @@ int f2fs_release_page(struct page *, gfp_t);
  */
 int start_gc_thread(struct f2fs_sb_info *);
 void stop_gc_thread(struct f2fs_sb_info *);
-block_t start_bidx_of_node(unsigned int, struct f2fs_inode_info *);
+block_t start_bidx_of_node(unsigned int, struct inode *);
 int f2fs_gc(struct f2fs_sb_info *, bool);
 void build_gc_manager(struct f2fs_sb_info *);
 

@@ -486,7 +486,7 @@ next_step:
  * as indirect or double indirect node blocks, are given, it must be a caller's
  * bug.
  */
-block_t start_bidx_of_node(unsigned int node_ofs, struct f2fs_inode_info *fi)
+block_t start_bidx_of_node(unsigned int node_ofs, struct inode *inode)
 {
 	unsigned int indirect_blks = 2 * NIDS_PER_BLOCK + 4;
 	unsigned int bidx;
@@ -503,7 +503,7 @@ block_t start_bidx_of_node(unsigned int node_ofs, struct f2fs_inode_info *fi)
 		int dec = (node_ofs - indirect_blks - 3) / (NIDS_PER_BLOCK + 1);
 		bidx = node_ofs - 5 - dec;
 	}
-	return bidx * ADDRS_PER_BLOCK + ADDRS_PER_INODE(fi);
+	return bidx * ADDRS_PER_BLOCK + ADDRS_PER_INODE(inode);
 }
 
 static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
@@ -722,7 +722,7 @@ next_step:
 				continue;
 			}
 
-			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
+			start_bidx = start_bidx_of_node(nofs, inode);
 			data_page = get_read_data_page(inode,
 					start_bidx + ofs_in_node, READA, true);
 			if (IS_ERR(data_page)) {
@@ -738,7 +738,7 @@ next_step:
 		/* phase 3 */
 		inode = find_gc_inode(gc_list, dni.ino);
 		if (inode) {
-			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode))
+			start_bidx = start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
 			if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
 				move_encrypted_block(inode, start_bidx);

@@ -358,15 +358,14 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 		} else if (err == -ENOENT) {
 			/* direct node does not exists */
 			if (whence == SEEK_DATA) {
-				pgofs = PGOFS_OF_NEXT_DNODE(pgofs,
-							F2FS_I(inode));
+				pgofs = PGOFS_OF_NEXT_DNODE(pgofs, inode);
 				continue;
 			} else {
 				goto found;
 			}
 		}
 
-		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
+		end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
 
 		/* find data/hole in dnode block */
 		for (; dn.ofs_in_node < end_offset;
@@ -480,7 +479,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		 * we will invalidate all blkaddr in the whole range.
 		 */
 		fofs = start_bidx_of_node(ofs_of_node(dn->node_page),
-						F2FS_I(dn->inode)) + ofs;
+							dn->inode) + ofs;
 		f2fs_update_extent_cache_range(dn, fofs, 0, len);
 		dec_valid_block_count(sbi, dn->inode, nr_free);
 		sync_inode_page(dn);
@@ -568,7 +567,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 		goto out;
 	}
 
-	count = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
+	count = ADDRS_PER_PAGE(dn.node_page, inode);
 
 	count -= dn.ofs_in_node;
 	f2fs_bug_on(sbi, count < 0);
@@ -768,7 +767,7 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 			return err;
 		}
 
-		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
+		end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
 		count = min(end_offset - dn.ofs_in_node, pg_end - pg_start);
 
 		f2fs_bug_on(F2FS_I_SB(inode), count == 0 || count > end_offset);
