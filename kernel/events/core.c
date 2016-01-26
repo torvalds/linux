@@ -1650,7 +1650,7 @@ out:
  */
 static bool is_orphaned_event(struct perf_event *event)
 {
-	return event && !is_kernel_event(event) && !READ_ONCE(event->owner);
+	return event && event->state == PERF_EVENT_STATE_EXIT;
 }
 
 /*
@@ -1771,6 +1771,7 @@ group_sched_out(struct perf_event *group_event,
 }
 
 #define DETACH_GROUP	0x01UL
+#define DETACH_STATE	0x02UL
 
 /*
  * Cross CPU call to remove a performance event
@@ -1790,6 +1791,8 @@ __perf_remove_from_context(struct perf_event *event,
 	if (flags & DETACH_GROUP)
 		perf_group_detach(event);
 	list_del_event(event, ctx);
+	if (flags & DETACH_STATE)
+		event->state = PERF_EVENT_STATE_EXIT;
 
 	if (!ctx->nr_events && ctx->is_active) {
 		ctx->is_active = 0;
@@ -3801,8 +3804,15 @@ static void put_event(struct perf_event *event)
 	 */
 	ctx = perf_event_ctx_lock_nested(event, SINGLE_DEPTH_NESTING);
 	WARN_ON_ONCE(ctx->parent_ctx);
-	perf_remove_from_context(event, DETACH_GROUP);
+	perf_remove_from_context(event, DETACH_GROUP | DETACH_STATE);
 	perf_event_ctx_unlock(event, ctx);
+
+	/*
+	 * At this point we must have event->state == PERF_EVENT_STATE_EXIT,
+	 * either from the above perf_remove_from_context() or through
+	 * perf_event_exit_event().
+	 */
+	WARN_ON_ONCE(event->state != PERF_EVENT_STATE_EXIT);
 
 	_free_event(event);
 }
