@@ -75,6 +75,6 @@ void free_io_pgtable_ops(struct io_pgtable_ops *ops)
 		return;
 
 	iop = container_of(ops, struct io_pgtable, ops);
-	iop->cfg.tlb->tlb_flush_all(iop->cookie);
+	io_pgtable_tlb_flush_all(iop);
 	io_pgtable_init_table[iop->fmt]->free(iop);
 }

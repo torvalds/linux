@@ -144,6 +144,22 @@ struct io_pgtable {
 
 #define io_pgtable_ops_to_pgtable(x) container_of((x), struct io_pgtable, ops)
 
+static inline void io_pgtable_tlb_flush_all(struct io_pgtable *iop)
+{
+	iop->cfg.tlb->tlb_flush_all(iop->cookie);
+}
+
+static inline void io_pgtable_tlb_add_flush(struct io_pgtable *iop,
+		unsigned long iova, size_t size, size_t granule, bool leaf)
+{
+	iop->cfg.tlb->tlb_add_flush(iova, size, granule, leaf, iop->cookie);
+}
+
+static inline void io_pgtable_tlb_sync(struct io_pgtable *iop)
+{
+	iop->cfg.tlb->tlb_sync(iop->cookie);
+}
+
 /**
  * struct io_pgtable_init_fns - Alloc/free a set of page tables for a
  *                              particular format.
