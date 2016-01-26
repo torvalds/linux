@@ -347,11 +347,11 @@ struct iwl_rx_mpdu_desc {
 	/* DW8 */
 	__le32 filter_match;
 	/* DW9 */
-	__le32 gp2_on_air_rise;
-	/* DW10 */
 	__le32 rate_n_flags;
+	/* DW10 */
+	u8 energy_a, energy_b, channel, reserved;
 	/* DW11 */
-	u8 energy_a, energy_b, energy_c, channel;
+	__le32 gp2_on_air_rise;
 	/* DW12 & DW13 */
 	__le64 tsf_on_air_rise;
 } __packed;
