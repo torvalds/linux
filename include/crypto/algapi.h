@@ -184,6 +184,10 @@ int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
+static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
+{
+	return queue->qlen;
+}
 
 /* These functions require the input/output to be aligned as u32. */
 void crypto_inc(u8 *a, unsigned int size);
