@@ -21,6 +21,7 @@ Optional properties:
 			      But if there are two NOR flashes connected to the
 			      bus, you should enable this property.
 			      (Please check the board's schematic.)
+  - big-endian : That means the IP register is big endian
 
 Example:
 
