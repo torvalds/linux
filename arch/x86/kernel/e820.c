@@ -24,6 +24,7 @@
 #include <asm/e820.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
+#include <asm/cpufeature.h>
 
 /*
  * The e820 map is the map that gets modified e.g. with command line parameters

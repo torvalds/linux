@@ -49,7 +49,7 @@
  */
 #ifndef __ASSEMBLY__
 struct task_struct;
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <linux/atomic.h>
 
 struct thread_info {
