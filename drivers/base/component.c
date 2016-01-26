@@ -206,6 +206,8 @@ static void component_match_release(struct device *master,
 		if (mc->release)
 			mc->release(master, mc->data);
 	}
+
+	kfree(match->compare);
 }
 
 static void devm_component_match_release(struct device *dev, void *res)
@@ -221,14 +223,14 @@ static int component_match_realloc(struct device *dev,
 	if (match->alloc == num)
 		return 0;
 
-	new = devm_kmalloc_array(dev, num, sizeof(*new), GFP_KERNEL);
+	new = kmalloc_array(num, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
 	if (match->compare) {
 		memcpy(new, match->compare, sizeof(*new) *
 					    min(match->num, num));
-		devm_kfree(dev, match->compare);
+		kfree(match->compare);
 	}
 	match->compare = new;
 	match->alloc = num;
