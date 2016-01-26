@@ -196,7 +196,6 @@ static void em28xx_wake_i2c(struct em28xx *dev)
 	v4l2_device_call_all(v4l2_dev, 0, core,  reset, 0);
 	v4l2_device_call_all(v4l2_dev, 0, video, s_routing,
 			     INPUT(dev->ctl_input)->vmux, 0, 0);
-	v4l2_device_call_all(v4l2_dev, 0, video, s_stream, 0);
 }
 
 static int em28xx_colorlevels_set_default(struct em28xx *dev)
@@ -962,6 +961,9 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 			f.type = V4L2_TUNER_ANALOG_TV;
 		v4l2_device_call_all(&v4l2->v4l2_dev,
 				     0, tuner, s_frequency, &f);
+
+		/* Enable video stream at TV decoder */
+		v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_stream, 1);
 	}
 
 	v4l2->streaming_users++;
@@ -981,6 +983,9 @@ static void em28xx_stop_streaming(struct vb2_queue *vq)
 	res_free(dev, vq->type);
 
 	if (v4l2->streaming_users-- == 1) {
+		/* Disable video stream at TV decoder */
+		v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_stream, 0);
+
 		/* Last active user, so shutdown all the URBS */
 		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 	}
@@ -1013,6 +1018,9 @@ void em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 	res_free(dev, vq->type);
 
 	if (v4l2->streaming_users-- == 1) {
+		/* Disable video stream at TV decoder */
+		v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_stream, 0);
+
 		/* Last active user, so shutdown all the URBS */
 		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 	}
