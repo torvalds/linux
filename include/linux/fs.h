@@ -2907,7 +2907,7 @@ extern void replace_mount_options(struct super_block *sb, char *options);
 
 static inline bool io_is_direct(struct file *filp)
 {
-	return (filp->f_flags & O_DIRECT) || IS_DAX(file_inode(filp));
+	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
 }
 
 static inline int iocb_flags(struct file *file)
