@@ -12,9 +12,7 @@
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
-#ifdef CONFIG_DEBUG_RODATA
 #include <asm/pgtable.h>
-#endif
 
 #define PROC_INFO							\
 	. = ALIGN(4);							\
@@ -318,6 +316,13 @@ SECTIONS
 
 	STABS_DEBUG
 }
+
+/*
+ * Without CONFIG_DEBUG_ALIGN_RODATA, __start_rodata_section_aligned will
+ * be the first section-aligned location after __start_rodata. Otherwise,
+ * it will be equal to __start_rodata.
+ */
+__start_rodata_section_aligned = ALIGN(__start_rodata, 1 << SECTION_SHIFT);
 
 /*
  * These must never be empty

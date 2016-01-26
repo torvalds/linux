@@ -582,6 +582,9 @@ struct section_perm {
 	pmdval_t clear;
 };
 
+/* First section-aligned location at or after __start_rodata. */
+extern char __start_rodata_section_aligned[];
+
 static struct section_perm nx_perms[] = {
 	/* Make pages tables, etc before _stext RW (set NX). */
 	{
@@ -599,16 +602,14 @@ static struct section_perm nx_perms[] = {
 		.mask	= ~PMD_SECT_XN,
 		.prot	= PMD_SECT_XN,
 	},
-#ifdef CONFIG_DEBUG_ALIGN_RODATA
 	/* Make rodata NX (set RO in ro_perms below). */
 	{
 		.name	= "rodata NX",
-		.start  = (unsigned long)__start_rodata,
+		.start  = (unsigned long)__start_rodata_section_aligned,
 		.end    = (unsigned long)__init_begin,
 		.mask   = ~PMD_SECT_XN,
 		.prot   = PMD_SECT_XN,
 	},
-#endif
 };
 
 static struct section_perm ro_perms[] = {
