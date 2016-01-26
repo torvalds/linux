@@ -2162,7 +2162,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 						 &rx_req, &pdev->dev, "rx");
 
 	if (!host->rx_chan) {
-		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel %u\n", rx_req);
+		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel\n");
 		ret = -ENXIO;
 		goto err_irq;
 	}
@@ -2172,7 +2172,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 						 &tx_req, &pdev->dev, "tx");
 
 	if (!host->tx_chan) {
-		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel %u\n", tx_req);
+		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel\n");
 		ret = -ENXIO;
 		goto err_irq;
 	}
