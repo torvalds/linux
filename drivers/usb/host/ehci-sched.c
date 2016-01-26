@@ -296,10 +296,9 @@ static void compute_tt_budget(u8 budget_table[EHCI_BANDWIDTH_SIZE],
 				if (x <= 125) {
 					budget_line[uf] = x;
 					break;
-				} else {
-					budget_line[uf] = 125;
-					x -= 125;
 				}
+				budget_line[uf] = 125;
+				x -= 125;
 			}
 		}
 	}
