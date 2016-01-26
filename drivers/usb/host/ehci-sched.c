@@ -1060,11 +1060,7 @@ iso_stream_init(
 	epnum = usb_pipeendpoint(urb->pipe);
 	is_input = usb_pipein(urb->pipe) ? USB_DIR_IN : 0;
 	maxp = usb_endpoint_maxp(&urb->ep->desc);
-	if (is_input) {
-		buf1 = (1 << 11);
-	} else {
-		buf1 = 0;
-	}
+	buf1 = is_input ? 1 << 11 : 0;
 
 	/* knows about ITD vs SITD */
 	if (dev->speed == USB_SPEED_HIGH) {
