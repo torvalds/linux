@@ -810,6 +810,11 @@ config RANDOMIZE_BASE
 	  It is the bootloader's job to provide entropy, by passing a
 	  random u64 value in /chosen/kaslr-seed at kernel entry.
 
+	  When booting via the UEFI stub, it will invoke the firmware's
+	  EFI_RNG_PROTOCOL implementation (if available) to supply entropy
+	  to the kernel proper. In addition, it will randomise the physical
+	  location of the kernel Image as well.
+
 	  If unsure, say N.
 
 config RANDOMIZE_MODULE_REGION_FULL
