@@ -346,7 +346,7 @@ max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 30, 0 };
 static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
 {
 	int i;
-	for (i=0; i<7; i++) {
+	for (i = 0; i < 7; i++) {
 		if (max_tt_usecs[i] < tt_usecs[i]) {
 			tt_usecs[i+1] += tt_usecs[i] - max_tt_usecs[i];
 			tt_usecs[i] = max_tt_usecs[i];
