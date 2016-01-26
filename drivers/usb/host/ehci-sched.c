@@ -2379,9 +2379,11 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 static void scan_isoc(struct ehci_hcd *ehci)
 {
-	unsigned	uf, now_frame, frame;
-	unsigned	fmask = ehci->periodic_size - 1;
-	bool		modified, live;
+	unsigned		uf, now_frame, frame;
+	unsigned		fmask = ehci->periodic_size - 1;
+	bool			modified, live;
+	union ehci_shadow	q, *q_p;
+	__hc32			type, *hw_p;
 
 	/*
 	 * When running, scan from last scan point up to "now"
@@ -2399,119 +2401,117 @@ static void scan_isoc(struct ehci_hcd *ehci)
 	ehci->now_frame = now_frame;
 
 	frame = ehci->last_iso_frame;
-	for (;;) {
-		union ehci_shadow	q, *q_p;
-		__hc32			type, *hw_p;
 
 restart:
-		/* scan each element in frame's queue for completions */
-		q_p = &ehci->pshadow [frame];
-		hw_p = &ehci->periodic [frame];
-		q.ptr = q_p->ptr;
-		type = Q_NEXT_TYPE(ehci, *hw_p);
-		modified = false;
+	/* Scan each element in frame's queue for completions */
+	q_p = &ehci->pshadow[frame];
+	hw_p = &ehci->periodic[frame];
+	q.ptr = q_p->ptr;
+	type = Q_NEXT_TYPE(ehci, *hw_p);
+	modified = false;
 
-		while (q.ptr != NULL) {
-			switch (hc32_to_cpu(ehci, type)) {
-			case Q_TYPE_ITD:
-				/* If this ITD is still active, leave it for
-				 * later processing ... check the next entry.
-				 * No need to check for activity unless the
-				 * frame is current.
-				 */
-				if (frame == now_frame && live) {
-					rmb();
-					for (uf = 0; uf < 8; uf++) {
-						if (q.itd->hw_transaction[uf] &
-							    ITD_ACTIVE(ehci))
-							break;
-					}
-					if (uf < 8) {
-						q_p = &q.itd->itd_next;
-						hw_p = &q.itd->hw_next;
-						type = Q_NEXT_TYPE(ehci,
-							q.itd->hw_next);
-						q = *q_p;
+	while (q.ptr != NULL) {
+		switch (hc32_to_cpu(ehci, type)) {
+		case Q_TYPE_ITD:
+			/*
+			 * If this ITD is still active, leave it for
+			 * later processing ... check the next entry.
+			 * No need to check for activity unless the
+			 * frame is current.
+			 */
+			if (frame == now_frame && live) {
+				rmb();
+				for (uf = 0; uf < 8; uf++) {
+					if (q.itd->hw_transaction[uf] &
+							ITD_ACTIVE(ehci))
 						break;
-					}
 				}
-
-				/* Take finished ITDs out of the schedule
-				 * and process them:  recycle, maybe report
-				 * URB completion.  HC won't cache the
-				 * pointer for much longer, if at all.
-				 */
-				*q_p = q.itd->itd_next;
-				if (!ehci->use_dummy_qh ||
-				    q.itd->hw_next != EHCI_LIST_END(ehci))
-					*hw_p = q.itd->hw_next;
-				else
-					*hw_p = cpu_to_hc32(ehci,
-							ehci->dummy->qh_dma);
-				type = Q_NEXT_TYPE(ehci, q.itd->hw_next);
-				wmb();
-				modified = itd_complete (ehci, q.itd);
-				q = *q_p;
-				break;
-			case Q_TYPE_SITD:
-				/* If this SITD is still active, leave it for
-				 * later processing ... check the next entry.
-				 * No need to check for activity unless the
-				 * frame is current.
-				 */
-				if (((frame == now_frame) ||
-				     (((frame + 1) & fmask) == now_frame))
-				    && live
-				    && (q.sitd->hw_results &
-					SITD_ACTIVE(ehci))) {
-
-					q_p = &q.sitd->sitd_next;
-					hw_p = &q.sitd->hw_next;
+				if (uf < 8) {
+					q_p = &q.itd->itd_next;
+					hw_p = &q.itd->hw_next;
 					type = Q_NEXT_TYPE(ehci,
-							q.sitd->hw_next);
+							q.itd->hw_next);
 					q = *q_p;
 					break;
 				}
+			}
 
-				/* Take finished SITDs out of the schedule
-				 * and process them:  recycle, maybe report
-				 * URB completion.
-				 */
-				*q_p = q.sitd->sitd_next;
-				if (!ehci->use_dummy_qh ||
-				    q.sitd->hw_next != EHCI_LIST_END(ehci))
-					*hw_p = q.sitd->hw_next;
-				else
-					*hw_p = cpu_to_hc32(ehci,
-							ehci->dummy->qh_dma);
+			/*
+			 * Take finished ITDs out of the schedule
+			 * and process them:  recycle, maybe report
+			 * URB completion.  HC won't cache the
+			 * pointer for much longer, if at all.
+			 */
+			*q_p = q.itd->itd_next;
+			if (!ehci->use_dummy_qh ||
+					q.itd->hw_next != EHCI_LIST_END(ehci))
+				*hw_p = q.itd->hw_next;
+			else
+				*hw_p = cpu_to_hc32(ehci, ehci->dummy->qh_dma);
+			type = Q_NEXT_TYPE(ehci, q.itd->hw_next);
+			wmb();
+			modified = itd_complete(ehci, q.itd);
+			q = *q_p;
+			break;
+		case Q_TYPE_SITD:
+			/*
+			 * If this SITD is still active, leave it for
+			 * later processing ... check the next entry.
+			 * No need to check for activity unless the
+			 * frame is current.
+			 */
+			if (((frame == now_frame) ||
+					(((frame + 1) & fmask) == now_frame))
+				&& live
+				&& (q.sitd->hw_results & SITD_ACTIVE(ehci))) {
+
+				q_p = &q.sitd->sitd_next;
+				hw_p = &q.sitd->hw_next;
 				type = Q_NEXT_TYPE(ehci, q.sitd->hw_next);
-				wmb();
-				modified = sitd_complete (ehci, q.sitd);
 				q = *q_p;
-				break;
-			default:
-				ehci_dbg(ehci, "corrupt type %d frame %d shadow %p\n",
-					type, frame, q.ptr);
-				// BUG ();
-				/* FALL THROUGH */
-			case Q_TYPE_QH:
-			case Q_TYPE_FSTN:
-				/* End of the iTDs and siTDs */
-				q.ptr = NULL;
 				break;
 			}
 
-			/* assume completion callbacks modify the queue */
-			if (unlikely(modified && ehci->isoc_count > 0))
-				goto restart;
+			/*
+			 * Take finished SITDs out of the schedule
+			 * and process them:  recycle, maybe report
+			 * URB completion.
+			 */
+			*q_p = q.sitd->sitd_next;
+			if (!ehci->use_dummy_qh ||
+					q.sitd->hw_next != EHCI_LIST_END(ehci))
+				*hw_p = q.sitd->hw_next;
+			else
+				*hw_p = cpu_to_hc32(ehci, ehci->dummy->qh_dma);
+			type = Q_NEXT_TYPE(ehci, q.sitd->hw_next);
+			wmb();
+			modified = sitd_complete(ehci, q.sitd);
+			q = *q_p;
+			break;
+		default:
+			ehci_dbg(ehci, "corrupt type %d frame %d shadow %p\n",
+					type, frame, q.ptr);
+			/* BUG(); */
+			/* FALL THROUGH */
+		case Q_TYPE_QH:
+		case Q_TYPE_FSTN:
+			/* End of the iTDs and siTDs */
+			q.ptr = NULL;
+			break;
 		}
 
-		/* Stop when we have reached the current frame */
-		if (frame == now_frame)
-			break;
-
-		/* The last frame may still have active siTDs */
-		ehci->last_iso_frame = frame;
-		frame = (frame + 1) & fmask;
+		/* Assume completion callbacks modify the queue */
+		if (unlikely(modified && ehci->isoc_count > 0))
+			goto restart;
 	}
+
+	/* Stop when we have reached the current frame */
+	if (frame == now_frame)
+		return;
+
+	/* The last frame may still have active siTDs */
+	ehci->last_iso_frame = frame;
+	frame = (frame + 1) & fmask;
+
+	goto restart;
 }
