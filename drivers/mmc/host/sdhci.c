@@ -731,22 +731,35 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	/*
 	 * FIXME: This doesn't account for merging when mapping the
 	 * scatterlist.
+	 *
+	 * The assumption here being that alignment and lengths are
+	 * the same after DMA mapping to device address space.
 	 */
 	if (host->flags & SDHCI_REQ_USE_DMA) {
 		struct scatterlist *sg;
-		unsigned int length_mask;
+		unsigned int length_mask, offset_mask;
 		int i;
 
 		length_mask = 0;
+		offset_mask = 0;
 		if (host->flags & SDHCI_USE_ADMA) {
-			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE)
+			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE) {
 				length_mask = 3;
+				/*
+				 * As we use up to 3 byte chunks to work
+				 * around alignment problems, we need to
+				 * check the offset as well.
+				 */
+				offset_mask = 3;
+			}
 		} else {
 			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE)
 				length_mask = 3;
+			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR)
+				offset_mask = 3;
 		}
 
-		if (unlikely(length_mask)) {
+		if (unlikely(length_mask | offset_mask)) {
 			for_each_sg(data->sg, sg, data->sg_len, i) {
 				if (sg->length & length_mask) {
 					DBG("Reverting to PIO because of transfer size (%d)\n",
@@ -754,35 +767,6 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 					host->flags &= ~SDHCI_REQ_USE_DMA;
 					break;
 				}
-			}
-		}
-	}
-
-	/*
-	 * The assumption here being that alignment is the same after
-	 * translation to device address space.
-	 */
-	if (host->flags & SDHCI_REQ_USE_DMA) {
-		struct scatterlist *sg;
-		unsigned int offset_mask;
-		int i;
-
-		offset_mask = 0;
-		if (host->flags & SDHCI_USE_ADMA) {
-			/*
-			 * As we use 3 byte chunks to work around
-			 * alignment problems, we need to check this
-			 * quirk.
-			 */
-			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE)
-				offset_mask = 3;
-		} else {
-			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR)
-				offset_mask = 3;
-		}
-
-		if (unlikely(offset_mask)) {
-			for_each_sg(data->sg, sg, data->sg_len, i) {
 				if (sg->offset & offset_mask) {
 					DBG("Reverting to PIO because of bad alignment\n");
 					host->flags &= ~SDHCI_REQ_USE_DMA;
