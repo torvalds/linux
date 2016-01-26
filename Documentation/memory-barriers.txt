@@ -1372,6 +1372,10 @@ is possible:
 
 	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0
 
+As an aside, the following outcome is also possible:
+
+	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0 && r5 == 1
+
 Although cpu0(), cpu1(), and cpu2() will see their respective reads and
 writes in order, CPUs not involved in the release-acquire chain might
 well disagree on the order.  This disagreement stems from the fact that
