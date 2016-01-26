@@ -852,10 +852,10 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	tvp5150_reset(sd, 0);
 
 	f->width = decoder->rect.width;
-	f->height = decoder->rect.height;
+	f->height = decoder->rect.height / 2;
 
 	f->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	f->field = V4L2_FIELD_SEQ_TB;
+	f->field = V4L2_FIELD_ALTERNATE;
 	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	v4l2_dbg(1, debug, sd, "width = %d, height = %d\n", f->width,
