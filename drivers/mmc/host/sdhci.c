@@ -427,7 +427,7 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 }
 
 static int sdhci_pre_dma_transfer(struct sdhci_host *host,
-				  struct mmc_data *data)
+				  struct mmc_data *data, int cookie)
 {
 	int sg_count;
 
@@ -446,7 +446,7 @@ static int sdhci_pre_dma_transfer(struct sdhci_host *host,
 		return -ENOSPC;
 
 	data->sg_count = sg_count;
-	data->host_cookie = COOKIE_MAPPED;
+	data->host_cookie = cookie;
 
 	return sg_count;
 }
@@ -791,7 +791,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	}
 
 	if (host->flags & SDHCI_REQ_USE_DMA) {
-		int sg_cnt = sdhci_pre_dma_transfer(host, data);
+		int sg_cnt = sdhci_pre_dma_transfer(host, data, COOKIE_MAPPED);
 
 		if (sg_cnt <= 0) {
 			/*
@@ -2095,7 +2095,7 @@ static void sdhci_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
 	mrq->data->host_cookie = COOKIE_UNMAPPED;
 
 	if (host->flags & SDHCI_REQ_USE_DMA)
-		sdhci_pre_dma_transfer(host, mrq->data);
+		sdhci_pre_dma_transfer(host, mrq->data, COOKIE_MAPPED);
 }
 
 static void sdhci_card_event(struct mmc_host *mmc)
