@@ -698,8 +698,8 @@ static void ceph_aio_retry_work(struct work_struct *work)
 
 	req = ceph_osdc_alloc_request(orig_req->r_osdc, snapc, 2,
 			false, GFP_NOFS);
-	if (IS_ERR(req)) {
-		ret = PTR_ERR(req);
+	if (!req) {
+		ret = -ENOMEM;
 		req = orig_req;
 		goto out;
 	}
