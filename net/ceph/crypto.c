@@ -166,8 +166,7 @@ static int ceph_aes_encrypt(const void *key, int key_len,
 	struct crypto_skcipher *tfm = ceph_crypto_alloc_cipher();
 	SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	int ret;
-	int ivsize = AES_BLOCK_SIZE;
-	char iv[ivsize];
+	char iv[AES_BLOCK_SIZE];
 	size_t zero_padding = (0x10 - (src_len & 0x0f));
 	char pad[16];
 
@@ -186,7 +185,7 @@ static int ceph_aes_encrypt(const void *key, int key_len,
 		goto out_tfm;
 
 	crypto_skcipher_setkey((void *)tfm, key, key_len);
-	memcpy(iv, aes_iv, ivsize);
+	memcpy(iv, aes_iv, AES_BLOCK_SIZE);
 
 	skcipher_request_set_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -229,8 +228,7 @@ static int ceph_aes_encrypt2(const void *key, int key_len, void *dst,
 	struct crypto_skcipher *tfm = ceph_crypto_alloc_cipher();
 	SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	int ret;
-	int ivsize = AES_BLOCK_SIZE;
-	char iv[ivsize];
+	char iv[AES_BLOCK_SIZE];
 	size_t zero_padding = (0x10 - ((src1_len + src2_len) & 0x0f));
 	char pad[16];
 
@@ -250,7 +248,7 @@ static int ceph_aes_encrypt2(const void *key, int key_len, void *dst,
 		goto out_tfm;
 
 	crypto_skcipher_setkey((void *)tfm, key, key_len);
-	memcpy(iv, aes_iv, ivsize);
+	memcpy(iv, aes_iv, AES_BLOCK_SIZE);
 
 	skcipher_request_set_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -294,8 +292,7 @@ static int ceph_aes_decrypt(const void *key, int key_len,
 	struct crypto_skcipher *tfm = ceph_crypto_alloc_cipher();
 	SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	char pad[16];
-	int ivsize = AES_BLOCK_SIZE;
-	char iv[16];
+	char iv[AES_BLOCK_SIZE];
 	int ret;
 	int last_byte;
 
@@ -310,7 +307,7 @@ static int ceph_aes_decrypt(const void *key, int key_len,
 		goto out_tfm;
 
 	crypto_skcipher_setkey((void *)tfm, key, key_len);
-	memcpy(iv, aes_iv, ivsize);
+	memcpy(iv, aes_iv, AES_BLOCK_SIZE);
 
 	skcipher_request_set_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -363,8 +360,7 @@ static int ceph_aes_decrypt2(const void *key, int key_len,
 	struct crypto_skcipher *tfm = ceph_crypto_alloc_cipher();
 	SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	char pad[16];
-	int ivsize = AES_BLOCK_SIZE;
-	char iv[ivsize];
+	char iv[AES_BLOCK_SIZE];
 	int ret;
 	int last_byte;
 
@@ -380,7 +376,7 @@ static int ceph_aes_decrypt2(const void *key, int key_len,
 		goto out_tfm;
 
 	crypto_skcipher_setkey((void *)tfm, key, key_len);
-	memcpy(iv, aes_iv, ivsize);
+	memcpy(iv, aes_iv, AES_BLOCK_SIZE);
 
 	skcipher_request_set_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
