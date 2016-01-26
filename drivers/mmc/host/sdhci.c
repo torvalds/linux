@@ -2532,6 +2532,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	struct sdhci_host *host = dev_id;
 	u32 intmask, mask, unexpected = 0;
 	int max_loops = 16;
+	int cardint = 0;
 
 	spin_lock(&host->lock);
 
@@ -2597,9 +2598,13 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 				mmc_hostname(host->mmc));
 
 		if (intmask & SDHCI_INT_CARD_INT) {
-			sdhci_enable_sdio_irq_nolock(host, false);
-			host->thread_isr |= SDHCI_INT_CARD_INT;
-			result = IRQ_WAKE_THREAD;
+			if (host->mmc->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD) {
+				sdhci_enable_sdio_irq_nolock(host, false);
+				host->thread_isr |= SDHCI_INT_CARD_INT;
+				result = IRQ_WAKE_THREAD;
+			} else {
+				cardint = 1;
+			}
 		}
 
 		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE |
@@ -2626,6 +2631,9 @@ out:
 		sdhci_dumpregs(host);
 	}
 
+	if (cardint && host->mmc->sdio_irqs)
+		mmc_signal_sdio_irq(host->mmc);
+
 	return result;
 }
 
@@ -2646,12 +2654,13 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
 	}
 
 	if (isr & SDHCI_INT_CARD_INT) {
-		sdio_run_irqs(host->mmc);
-
-		spin_lock_irqsave(&host->lock, flags);
-		if (host->flags & SDHCI_SDIO_IRQ_ENABLED)
-			sdhci_enable_sdio_irq_nolock(host, true);
-		spin_unlock_irqrestore(&host->lock, flags);
+		if (host->mmc->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD) {
+			sdio_run_irqs(host->mmc);
+			spin_lock_irqsave(&host->lock, flags);
+			if (host->flags & SDHCI_SDIO_IRQ_ENABLED)
+				sdhci_enable_sdio_irq_nolock(host, true);
+			spin_unlock_irqrestore(&host->lock, flags);
+		}
 	}
 
 	return isr ? IRQ_HANDLED : IRQ_NONE;
