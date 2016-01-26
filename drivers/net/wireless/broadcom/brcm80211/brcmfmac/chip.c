@@ -803,7 +803,14 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 				*eromaddr -= 4;
 				return -EFAULT;
 			}
-		} while (desc != DMP_DESC_ADDRESS);
+		} while (desc != DMP_DESC_ADDRESS &&
+			 desc != DMP_DESC_COMPONENT);
+
+		/* stop if we crossed current component border */
+		if (desc == DMP_DESC_COMPONENT) {
+			*eromaddr -= 4;
+			return 0;
+		}
 
 		/* skip upper 32-bit address descriptor */
 		if (val & DMP_DESC_ADDRSIZE_GT32)
