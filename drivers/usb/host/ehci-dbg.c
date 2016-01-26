@@ -42,7 +42,7 @@ static void dbg_hcs_params(struct ehci_hcd *ehci, char *label)
 	/* Port routing, per EHCI 0.95 Spec, Section 2.2.5 */
 	if (HCS_PORTROUTED(params)) {
 		int i;
-		char buf [46], tmp [7], byte;
+		char buf[46], tmp[7], byte;
 
 		buf[0] = 0;
 		for (i = 0; i < HCS_N_PORTS(params); i++) {
@@ -109,8 +109,8 @@ dbg_qtd(const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 		hc32_to_cpup(ehci, &qtd->hw_next),
 		hc32_to_cpup(ehci, &qtd->hw_alt_next),
 		hc32_to_cpup(ehci, &qtd->hw_token),
-		hc32_to_cpup(ehci, &qtd->hw_buf [0]));
-	if (qtd->hw_buf [1])
+		hc32_to_cpup(ehci, &qtd->hw_buf[0]));
+	if (qtd->hw_buf[1])
 		ehci_dbg(ehci, "  p1=%08x p2=%08x p3=%08x p4=%08x\n",
 			hc32_to_cpup(ehci, &qtd->hw_buf[1]),
 			hc32_to_cpup(ehci, &qtd->hw_buf[2]),
@@ -179,7 +179,7 @@ dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
 {
 	return scnprintf(buf, len,
 		"%s%sstatus %04x%s%s%s%s%s%s%s%s%s%s%s",
-		label, label [0] ? " " : "", status,
+		label, label[0] ? " " : "", status,
 		(status & STS_PPCE_MASK) ? " PPCE" : "",
 		(status & STS_ASS) ? " Async" : "",
 		(status & STS_PSS) ? " Periodic" : "",
@@ -199,7 +199,7 @@ dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
 {
 	return scnprintf(buf, len,
 		"%s%sintrenable %02x%s%s%s%s%s%s%s",
-		label, label [0] ? " " : "", enable,
+		label, label[0] ? " " : "", enable,
 		(enable & STS_PPCE_MASK) ? " PPCE" : "",
 		(enable & STS_IAA) ? " IAA" : "",
 		(enable & STS_FATAL) ? " FATAL" : "",
@@ -210,8 +210,7 @@ dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
 		);
 }
 
-static const char *const fls_strings [] =
-    { "1024", "512", "256", "??" };
+static const char *const fls_strings[] = { "1024", "512", "256", "??" };
 
 static int
 dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
@@ -219,7 +218,7 @@ dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
 	return scnprintf(buf, len,
 		"%s%scommand %07x %s%s%s%s%s%s=%d ithresh=%d%s%s%s%s "
 		"period=%s%s %s",
-		label, label [0] ? " " : "", command,
+		label, label[0] ? " " : "", command,
 		(command & CMD_HIRD) ? " HIRD" : "",
 		(command & CMD_PPCEE) ? " PPCEE" : "",
 		(command & CMD_FSP) ? " FSP" : "",
@@ -232,7 +231,7 @@ dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
 		(command & CMD_IAAD) ? " IAAD" : "",
 		(command & CMD_ASE) ? " Async" : "",
 		(command & CMD_PSE) ? " Periodic" : "",
-		fls_strings [(command >> 2) & 0x3],
+		fls_strings[(command >> 2) & 0x3],
 		(command & CMD_RESET) ? " Reset" : "",
 		(command & CMD_RUN) ? "RUN" : "HALT"
 		);
@@ -254,7 +253,7 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 	return scnprintf(buf, len,
 		"%s%sport:%d status %06x %d %s%s%s%s%s%s "
 		"sig=%s%s%s%s%s%s%s%s%s%s%s",
-		label, label [0] ? " " : "", port, status,
+		label, label[0] ? " " : "", port, status,
 		status>>25,/*device address */
 		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_ACK ?
 						" ACK" : "",
@@ -653,10 +652,10 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 	 */
 	spin_lock_irqsave(&ehci->lock, flags);
 	for (i = 0; i < ehci->periodic_size; i++) {
-		p = ehci->pshadow [i];
+		p = ehci->pshadow[i];
 		if (likely(!p.ptr))
 			continue;
-		tag = Q_NEXT_TYPE(ehci, ehci->periodic [i]);
+		tag = Q_NEXT_TYPE(ehci, ehci->periodic[i]);
 
 		temp = scnprintf(next, size, "%4d: ", i);
 		size -= temp;
@@ -679,7 +678,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				next += temp;
 				/* don't repeat what follows this qh */
 				for (temp = 0; temp < seen_count; temp++) {
-					if (seen [temp].ptr != p.ptr)
+					if (seen[temp].ptr != p.ptr)
 						continue;
 					if (p.qh->qh_next.ptr) {
 						temp = scnprintf(next, size,
@@ -722,7 +721,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 						0x7ff & (scratch >> 16));
 
 					if (seen_count < DBG_SCHED_LIMIT)
-						seen [seen_count++].qh = p.qh;
+						seen[seen_count++].qh = p.qh;
 				} else
 					temp = 0;
 				tag = Q_NEXT_TYPE(ehci, hw->hw_next);
@@ -788,9 +787,9 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	struct ehci_hcd		*ehci;
 	unsigned long		flags;
 	unsigned		temp, size, i;
-	char			*next, scratch [80];
-	static char		fmt [] = "%*s\n";
-	static char		label [] = "";
+	char			*next, scratch[80];
+	static char		fmt[] = "%*s\n";
+	static char		label[] = "";
 
 	hcd = bus_to_hcd(buf->bus);
 	ehci = hcd_to_ehci(hcd);
