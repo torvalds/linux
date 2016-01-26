@@ -1,5 +1,6 @@
 #ifndef __IO_PGTABLE_H
 #define __IO_PGTABLE_H
+#include <linux/bitops.h>
 
 /*
  * Public API for use by IOMMU drivers
@@ -9,6 +10,7 @@ enum io_pgtable_fmt {
 	ARM_32_LPAE_S2,
 	ARM_64_LPAE_S1,
 	ARM_64_LPAE_S2,
+	ARM_V7S,
 	IO_PGTABLE_NUM_FMTS,
 };
 
@@ -45,7 +47,9 @@ struct iommu_gather_ops {
  *                 page table walker.
  */
 struct io_pgtable_cfg {
-	#define IO_PGTABLE_QUIRK_ARM_NS	(1 << 0)	/* Set NS bit in PTEs */
+	#define IO_PGTABLE_QUIRK_ARM_NS		BIT(0) /* Set NS bit in PTEs */
+	#define IO_PGTABLE_QUIRK_NO_PERMS	BIT(1) /* No AP/XN bits */
+	#define IO_PGTABLE_QUIRK_TLBI_ON_MAP	BIT(2) /* TLB Inv. on map */
 	int				quirks;
 	unsigned long			pgsize_bitmap;
 	unsigned int			ias;
@@ -65,6 +69,13 @@ struct io_pgtable_cfg {
 			u64	vttbr;
 			u64	vtcr;
 		} arm_lpae_s2_cfg;
+
+		struct {
+			u32	ttbr[2];
+			u32	tcr;
+			u32	nmrr;
+			u32	prrr;
+		} arm_v7s_cfg;
 	};
 };
 
@@ -149,5 +160,6 @@ extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s1_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;
+extern struct io_pgtable_init_fns io_pgtable_arm_v7s_init_fns;
 
 #endif /* __IO_PGTABLE_H */
