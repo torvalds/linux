@@ -52,7 +52,7 @@ periodic_next_shadow(struct ehci_hcd *ehci, union ehci_shadow *periodic,
 		return &periodic->fstn->fstn_next;
 	case Q_TYPE_ITD:
 		return &periodic->itd->itd_next;
-	// case Q_TYPE_SITD:
+	/* case Q_TYPE_SITD: */
 	default:
 		return &periodic->sitd->sitd_next;
 	}
@@ -491,7 +491,7 @@ static int tt_no_collision(
 				type = Q_NEXT_TYPE(ehci, here.sitd->hw_next);
 				here = here.sitd->sitd_next;
 				continue;
-			// case Q_TYPE_FSTN:
+			/* case Q_TYPE_FSTN: */
 			default:
 				ehci_dbg(ehci,
 					"periodic frame %d bogus type %d\n",
@@ -784,7 +784,7 @@ static int check_period(
 			return 0;
 	}
 
-	// success!
+	/* success! */
 	return 1;
 }
 
@@ -1254,7 +1254,7 @@ iso_sched_free(
 {
 	if (!iso_sched)
 		return;
-	// caller must hold ehci->lock!
+	/* caller must hold ehci->lock! */
 	list_splice(&iso_sched->td_list, &stream->free_list);
 	kfree(iso_sched);
 }
@@ -1715,7 +1715,7 @@ itd_patch(
 	struct ehci_iso_packet	*uf = &iso_sched->packet[index];
 	unsigned		pg = itd->pg;
 
-	// BUG_ON (pg == 6 && uf->cross);
+	/* BUG_ON(pg == 6 && uf->cross); */
 
 	uframe &= 0x07;
 	itd->index[uframe] = index;
@@ -1792,7 +1792,7 @@ static void itd_link_urb(
 			packet < urb->number_of_packets;) {
 		if (itd == NULL) {
 			/* ASSERT:  we have all necessary itds */
-			// BUG_ON (list_empty (&iso_sched->td_list));
+			/* BUG_ON(list_empty(&iso_sched->td_list)); */
 
 			/* ASSERT:  no itds for this endpoint in this uframe */
 
@@ -1894,9 +1894,10 @@ static bool itd_complete(struct ehci_hcd *ehci, struct ehci_itd *itd)
 	if (likely((urb_index + 1) != urb->number_of_packets))
 		goto done;
 
-	/* ASSERT: it's really the last itd for this urb
-	list_for_each_entry (itd, &stream->td_list, itd_list)
-		BUG_ON (itd->urb == urb);
+	/*
+	 * ASSERT: it's really the last itd for this urb
+	 * list_for_each_entry (itd, &stream->td_list, itd_list)
+	 *	 BUG_ON(itd->urb == urb);
 	 */
 
 	/* give urb back to the driver; completion often (re)submits */
@@ -2275,9 +2276,10 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 	if ((urb_index + 1) != urb->number_of_packets)
 		goto done;
 
-	/* ASSERT: it's really the last sitd for this urb
-	list_for_each_entry (sitd, &stream->td_list, sitd_list)
-		BUG_ON (sitd->urb == urb);
+	/*
+	 * ASSERT: it's really the last sitd for this urb
+	 * list_for_each_entry (sitd, &stream->td_list, sitd_list)
+	 *	 BUG_ON(sitd->urb == urb);
 	 */
 
 	/* give urb back to the driver; completion often (re)submits */
