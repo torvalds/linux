@@ -327,7 +327,7 @@ struct ehci_qtd {
 	struct list_head	qtd_list;		/* sw qtd list */
 	struct urb		*urb;			/* qtd's urb */
 	size_t			length;			/* length of buffer */
-} __attribute__ ((aligned (32)));
+} __aligned(32);
 
 /* mask NakCnt+T in qh->hw_alt_next */
 #define QTD_MASK(ehci)	cpu_to_hc32(ehci, ~0x1f)
@@ -410,7 +410,7 @@ struct ehci_qh_hw {
 	__hc32			hw_token;
 	__hc32			hw_buf[5];
 	__hc32			hw_buf_hi[5];
-} __attribute__ ((aligned(32)));
+} __aligned(32);
 
 struct ehci_qh {
 	struct ehci_qh_hw	*hw;		/* Must come first */
@@ -544,7 +544,7 @@ struct ehci_itd {
 	unsigned		frame;		/* where scheduled */
 	unsigned		pg;
 	unsigned		index[8];	/* in urb->iso_frame_desc */
-} __attribute__ ((aligned (32)));
+} __aligned(32);
 
 /*-------------------------------------------------------------------------*/
 
@@ -587,7 +587,7 @@ struct ehci_sitd {
 	struct list_head	sitd_list;	/* list of stream's sitds */
 	unsigned		frame;
 	unsigned		index;
-} __attribute__ ((aligned (32)));
+} __aligned(32);
 
 /*-------------------------------------------------------------------------*/
 
@@ -607,7 +607,7 @@ struct ehci_fstn {
 	/* the rest is HCD-private */
 	dma_addr_t		fstn_dma;
 	union ehci_shadow	fstn_next;	/* ptr to periodic q entry */
-} __attribute__ ((aligned (32)));
+} __aligned(32);
 
 /*-------------------------------------------------------------------------*/
 
