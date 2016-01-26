@@ -31,7 +31,7 @@ struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 void *etnaviv_gem_prime_vmap(struct drm_gem_object *obj)
 {
-	return etnaviv_gem_vaddr(obj);
+	return etnaviv_gem_vmap(obj);
 }
 
 void etnaviv_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)

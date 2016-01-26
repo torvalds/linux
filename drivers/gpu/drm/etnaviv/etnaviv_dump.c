@@ -215,7 +215,7 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 
 		iter.hdr->iova = cpu_to_le64(vram->iova);
 
-		vaddr = etnaviv_gem_vaddr(&obj->base);
+		vaddr = etnaviv_gem_vmap(&obj->base);
 		if (vaddr)
 			memcpy(iter.data, vaddr, obj->base.size);
 

@@ -353,7 +353,7 @@ void etnaviv_gem_put_iova(struct etnaviv_gpu *gpu, struct drm_gem_object *obj)
 	drm_gem_object_unreference_unlocked(obj);
 }
 
-void *etnaviv_gem_vaddr(struct drm_gem_object *obj)
+void *etnaviv_gem_vmap(struct drm_gem_object *obj)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
