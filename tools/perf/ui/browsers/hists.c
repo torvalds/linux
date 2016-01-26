@@ -2303,6 +2303,9 @@ skip_annotation:
 					     &options[nr_options],
 					     socked_id);
 		/* perf script support */
+		if (!is_report_browser(hbt))
+			goto skip_scripting;
+
 		if (browser->he_selection) {
 			if (sort__has_thread && thread) {
 				nr_options += add_script_opt(browser,
@@ -2330,6 +2333,7 @@ skip_annotation:
 					     &options[nr_options], NULL, NULL);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
+skip_scripting:
 		nr_options += add_exit_opt(browser, &actions[nr_options],
 					   &options[nr_options]);
 
