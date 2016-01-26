@@ -27,6 +27,7 @@
  * @chip: chip identifier.
  * @chiprev: chip revision.
  * @cc_caps: chipcommon core capabilities.
+ * @cc_caps_ext: chipcommon core extended capabilities.
  * @pmucaps: PMU capabilities.
  * @pmurev: PMU revision.
  * @rambase: RAM base address (only applicable for ARM CR4 chips).
@@ -38,6 +39,7 @@ struct brcmf_chip {
 	u32 chip;
 	u32 chiprev;
 	u32 cc_caps;
+	u32 cc_caps_ext;
 	u32 pmucaps;
 	u32 pmurev;
 	u32 rambase;

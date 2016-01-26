@@ -1025,6 +1025,9 @@ static int brcmf_chip_setup(struct brcmf_chip_priv *chip)
 	/* get chipcommon capabilites */
 	pub->cc_caps = chip->ops->read32(chip->ctx,
 					 CORE_CC_REG(base, capabilities));
+	pub->cc_caps_ext = chip->ops->read32(chip->ctx,
+					     CORE_CC_REG(base,
+							 capabilities_ext));
 
 	/* get pmu caps & rev */
 	if (pub->cc_caps & CC_CAP_PMU) {
