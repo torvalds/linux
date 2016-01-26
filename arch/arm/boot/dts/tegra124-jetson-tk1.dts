@@ -12,7 +12,11 @@
 	aliases {
 		rtc0 = "/i2c@0,7000d000/pmic@40";
 		rtc1 = "/rtc@0,7000e000";
+
+		/* This order keeps the mapping DB9 connector <-> ttyS0 */
 		serial0 = &uartd;
+		serial1 = &uarta;
+		serial2 = &uartb;
 	};
 
 	memory {
@@ -1365,6 +1369,28 @@
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
 		};
+	};
+
+	/*
+	 * First high speed UART, exposed on the expansion connector J3A2
+	 *   Pin 41: BR_UART1_TXD
+	 *   Pin 44: BR_UART1_RXD
+	 */
+	serial@70006000 {
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		status = "okay";
+	};
+
+	/*
+	 * Second high speed UART, exposed on the expansion connector J3A2
+	 *   Pin 65: UART2_RXD
+	 *   Pin 68: UART2_TXD
+	 *   Pin 71: UART2_CTS_L
+	 *   Pin 74: UART2_RTS_L
+	 */
+	serial@70006040 {
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		status = "okay";
 	};
 
 	/* DB9 serial port */
