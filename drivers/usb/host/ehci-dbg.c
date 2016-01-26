@@ -243,10 +243,18 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 
 	/* signaling state */
 	switch (status & (3 << 10)) {
-	case 0 << 10: sig = "se0"; break;
-	case 1 << 10: sig = "k"; break;		/* low speed */
-	case 2 << 10: sig = "j"; break;
-	default: sig = "?"; break;
+	case 0 << 10:
+		sig = "se0";
+		break;
+	case 1 << 10: /* low speed */
+		sig = "k";
+		break;
+	case 2 << 10:
+		sig = "j";
+		break;
+	default:
+		sig = "?";
+		break;
 	}
 
 	return scnprintf(buf, len,
@@ -451,6 +459,8 @@ static void qh_lines(
 
 	/* hc may be modifying the list as we read it ... */
 	list_for_each(entry, &qh->qtd_list) {
+		char *type;
+
 		td = list_entry(entry, struct ehci_qtd, qtd_list);
 		scratch = hc32_to_cpup(ehci, &td->hw_token);
 		mark = ' ';
@@ -464,16 +474,24 @@ static void qh_lines(
 			else if (td->hw_alt_next != list_end)
 				mark = '/';
 		}
+		switch ((scratch >> 8) & 0x03) {
+		case 0:
+			type = "out";
+			break;
+		case 1:
+			type = "in";
+			break;
+		case 2:
+			type = "setup";
+			break;
+		default:
+			type = "?";
+			break;
+		}
 		temp = snprintf(next, size,
 				"\n\t%p%c%s len=%d %08x urb %p"
 				" [td %08x buf[0] %08x]",
-				td, mark, ({ char *tmp;
-				 switch ((scratch>>8)&0x03) {
-				 case 0: tmp = "out"; break;
-				 case 1: tmp = "in"; break;
-				 case 2: tmp = "setup"; break;
-				 default: tmp = "?"; break;
-				 } tmp;}),
+				td, mark, type,
 				(scratch >> 16) & 0x7fff,
 				scratch,
 				td->urb,
@@ -702,11 +720,15 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 							&p.qh->qtd_list,
 							qtd_list) {
 						temp++;
-						switch (0x03 & (hc32_to_cpu(
-							ehci,
-							qtd->hw_token) >> 8)) {
-						case 0: type = "out"; continue;
-						case 1: type = "in"; continue;
+						switch ((hc32_to_cpu(ehci,
+							qtd->hw_token) >> 8)
+								& 0x03) {
+						case 0:
+							type = "out";
+							continue;
+						case 1:
+							type = "in";
+							continue;
 						}
 					}
 
