@@ -335,13 +335,12 @@ EXPORT_SYMBOL(release_resource);
 /*
  * Finds the lowest iomem resource existing within [res->start.res->end).
  * The caller must specify res->start, res->end, res->flags, and optionally
- * desc and "name".  If found, returns 0, res is overwritten, if not found,
- * returns -1.
+ * desc.  If found, returns 0, res is overwritten, if not found, returns -1.
  * This function walks the whole tree and not just first level children until
  * and unless first_level_children_only is true.
  */
 static int find_next_iomem_res(struct resource *res, unsigned long desc,
-			       char *name, bool first_level_children_only)
+			       bool first_level_children_only)
 {
 	resource_size_t start, end;
 	struct resource *p;
@@ -362,8 +361,6 @@ static int find_next_iomem_res(struct resource *res, unsigned long desc,
 		if ((p->flags & res->flags) != res->flags)
 			continue;
 		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
-			continue;
-		if (name && strcmp(p->name, name))
 			continue;
 		if (p->start > end) {
 			p = NULL;
@@ -411,7 +408,7 @@ int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
 	orig_end = res.end;
 
 	while ((res.start < res.end) &&
-		(!find_next_iomem_res(&res, desc, NULL, false))) {
+		(!find_next_iomem_res(&res, desc, false))) {
 
 		ret = (*func)(res.start, res.end, arg);
 		if (ret)
@@ -421,42 +418,6 @@ int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
 		res.end = orig_end;
 	}
 
-	return ret;
-}
-
-/*
- * Walks through iomem resources and calls @func with matching resource
- * ranges. This walks the whole tree and not just first level children.
- * All the memory ranges which overlap start,end and also match flags and
- * name are valid candidates.
- *
- * @name: name of resource
- * @flags: resource flags
- * @start: start addr
- * @end: end addr
- *
- * NOTE: This function is deprecated and should not be used in new code.
- * Use walk_iomem_res_desc(), instead.
- */
-int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
-		void *arg, int (*func)(u64, u64, void *))
-{
-	struct resource res;
-	u64 orig_end;
-	int ret = -1;
-
-	res.start = start;
-	res.end = end;
-	res.flags = flags;
-	orig_end = res.end;
-	while ((res.start < res.end) &&
-		(!find_next_iomem_res(&res, IORES_DESC_NONE, name, false))) {
-		ret = (*func)(res.start, res.end, arg);
-		if (ret)
-			break;
-		res.start = res.end + 1;
-		res.end = orig_end;
-	}
 	return ret;
 }
 
@@ -479,7 +440,7 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
 	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 	orig_end = res.end;
 	while ((res.start < res.end) &&
-		(!find_next_iomem_res(&res, IORES_DESC_NONE, NULL, true))) {
+		(!find_next_iomem_res(&res, IORES_DESC_NONE, true))) {
 		ret = (*func)(res.start, res.end, arg);
 		if (ret)
 			break;
@@ -509,7 +470,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 	orig_end = res.end;
 	while ((res.start < res.end) &&
-		(find_next_iomem_res(&res, IORES_DESC_NONE, NULL, true) >= 0)) {
+		(find_next_iomem_res(&res, IORES_DESC_NONE, true) >= 0)) {
 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
 		if (end_pfn > pfn)
