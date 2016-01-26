@@ -644,10 +644,10 @@ struct ehci_tt {
 /* Prepare the PORTSC wakeup flags during controller suspend/resume */
 
 #define ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup)	\
-		ehci_adjust_port_wakeup_flags(ehci, true, do_wakeup);
+		ehci_adjust_port_wakeup_flags(ehci, true, do_wakeup)
 
 #define ehci_prepare_ports_for_controller_resume(ehci)			\
-		ehci_adjust_port_wakeup_flags(ehci, false, false);
+		ehci_adjust_port_wakeup_flags(ehci, false, false)
 
 /*-------------------------------------------------------------------------*/
 
