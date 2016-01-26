@@ -1710,15 +1710,16 @@ static void atmel_get_ip_name(struct uart_port *port)
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	int name = atmel_uart_readl(port, ATMEL_US_NAME);
 	u32 version;
-	u32 usart, dbgu_uart;
+	u32 usart, dbgu_uart, new_uart;
 	/* ASCII decoding for IP version */
 	usart = 0x55534152;	/* USAR(T) */
 	dbgu_uart = 0x44424755;	/* DBGU */
+	new_uart = 0x55415254;	/* UART */
 
 	atmel_port->has_hw_timer = false;
 
-	if (name == usart) {
-		dev_dbg(port->dev, "Usart with hw timer\n");
+	if (name == usart || name == new_uart) {
+		dev_dbg(port->dev, "Usart or uart with hw timer\n");
 		atmel_port->has_hw_timer = true;
 	} else if (name == dbgu_uart) {
 		dev_dbg(port->dev, "Dbgu or uart without hw timer\n");
