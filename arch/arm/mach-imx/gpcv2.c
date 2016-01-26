@@ -65,6 +65,7 @@
 #define BM_LPCR_M4_MASK_DSM_TRIGGER		0x80000000
 #define BM_SLPCR_EN_DSM				0x80000000
 #define BM_SLPCR_RBC_EN				0x40000000
+#define BM_SLPCR_REG_BYPASS_COUNT		0x3f000000
 #define BM_SLPCR_VSTBY				0x4
 #define BM_SLPCR_SBYOS				0x2
 #define BM_SLPCR_BYPASS_PMIC_READY		0x1
@@ -410,6 +411,7 @@ void imx_gpcv2_set_cpu_power_gate_in_idle(bool pdn)
 		writel_relaxed(BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK |
 			BM_GPC_PGC_ACK_SEL_A7_DUMMY_PDN_ACK,
 			gpc_base + GPC_PGC_ACK_SEL_A7);
+		imx_gpcv2_enable_rbc(false);
 	}
 	spin_unlock_irqrestore(&gpcv2_lock, flags);
 }
@@ -462,6 +464,40 @@ int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on)
 
 	return 0;
 }
+
+void imx_gpcv2_enable_rbc(bool enable)
+{
+	u32 val;
+
+	/*
+	 * need to mask all interrupts in GPC before
+	 * operating RBC configurations
+	 */
+	imx_gpcv2_mask_all();
+
+	/* configure RBC enable bit */
+	val = readl_relaxed(gpc_base + GPC_SLPCR);
+	val &= ~BM_SLPCR_RBC_EN;
+	val |= enable ? BM_SLPCR_RBC_EN : 0;
+	writel_relaxed(val, gpc_base + GPC_SLPCR);
+
+	/* configure RBC count */
+	val = readl_relaxed(gpc_base + GPC_SLPCR);
+	val &= ~BM_SLPCR_REG_BYPASS_COUNT;
+	val |= enable ? BM_SLPCR_REG_BYPASS_COUNT : 0;
+	writel(val, gpc_base + GPC_SLPCR);
+
+	/*
+	 * need to delay at least 2 cycles of CKIL(32K)
+	 * due to hardware design requirement, which is
+	 * ~61us, here we use 65us for safe
+	 */
+	udelay(65);
+
+	/* restore GPC interrupt mask settings */
+	imx_gpcv2_restore_all();
+}
+
 
 void imx_gpcv2_pre_suspend(bool arm_power_off)
 {
@@ -548,7 +584,7 @@ void imx_gpcv2_post_resume(void)
 	/* set mega/fast mix in A7 domain */
 	writel_relaxed(0x1, gpc_base + GPC_PGC_CPU_MAPPING);
 	/* set SCU timing */
-	writel_relaxed((0x59 << 10) | 0x5B | (0x51 << 20),
+	writel_relaxed((0x59 << 10) | 0x5B | (0x2 << 20),
 		gpc_base + GPC_PGC_SCU_TIMING);
 
 	/* set C0/C1 power up timming per design requirement */
@@ -559,7 +595,7 @@ void imx_gpcv2_post_resume(void)
 
 	val = readl_relaxed(gpc_base + GPC_PGC_C1_PUPSCR);
 	val &= ~BM_GPC_PGC_CORE_PUPSCR;
-	val |= (0x19 << 7);
+	val |= (0x1A << 7);
 	writel_relaxed(val, gpc_base + GPC_PGC_C1_PUPSCR);
 
 	val = readl_relaxed(gpc_base + GPC_SLPCR);
@@ -593,6 +629,9 @@ void imx_gpcv2_post_resume(void)
 	writel_relaxed(BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK |
 		BM_GPC_PGC_ACK_SEL_A7_DUMMY_PDN_ACK,
 		gpc_base + GPC_PGC_ACK_SEL_A7);
+
+	/* disable RBC */
+	imx_gpcv2_enable_rbc(false);
 }
 
 static struct irq_chip imx_gpcv2_chip = {
@@ -796,7 +835,7 @@ static int __init imx_gpcv2_init(struct device_node *node,
 	/* set mega/fast mix in A7 domain */
 	writel_relaxed(0x1, gpc_base + GPC_PGC_CPU_MAPPING);
 	/* set SCU timing */
-	writel_relaxed((0x59 << 10) | 0x5B | (0x51 << 20),
+	writel_relaxed((0x59 << 10) | 0x5B | (0x2 << 20),
 		gpc_base + GPC_PGC_SCU_TIMING);
 
 	/* set C0/C1 power up timming per design requirement */
@@ -807,7 +846,7 @@ static int __init imx_gpcv2_init(struct device_node *node,
 
 	val = readl_relaxed(gpc_base + GPC_PGC_C1_PUPSCR);
 	val &= ~BM_GPC_PGC_CORE_PUPSCR;
-	val |= (0x19 << 7);
+	val |= (0x1A << 7);
 	writel_relaxed(val, gpc_base + GPC_PGC_C1_PUPSCR);
 
 	writel_relaxed(BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK |
@@ -826,6 +865,9 @@ static int __init imx_gpcv2_init(struct device_node *node,
 	val = readl_relaxed(gpc_base + GPC_MLPCR);
 	val |= BM_GPC_MLPCR_MEMLP_CTL_DIS;
 	writel_relaxed(val, gpc_base + GPC_MLPCR);
+
+	/* disable RBC */
+	imx_gpcv2_enable_rbc(false);
 
 	return 0;
 }

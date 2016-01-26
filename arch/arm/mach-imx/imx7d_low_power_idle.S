@@ -35,11 +35,19 @@
 #define PM_INFO_MX7D_SRC_V_OFFSET		0x48
 #define PM_INFO_MX7D_IOMUXC_GPR_P_OFFSET	0x4c
 #define PM_INFO_MX7D_IOMUXC_GPR_V_OFFSET	0x50
+#define PM_INFO_MX7D_GPC_P_OFFSET		0x54
+#define PM_INFO_MX7D_GPC_V_OFFSET		0x58
+#define PM_INFO_MX7D_GIC_DIST_P_OFFSET		0x5c
+#define PM_INFO_MX7D_GIC_DIST_V_OFFSET		0x60
 
 #define MX7D_SRC_GPR1	0x74
 #define MX7D_SRC_GPR2	0x78
 #define MX7D_SRC_GPR3	0x7c
 #define MX7D_SRC_GPR4	0x80
+#define MX7D_GPC_IMR1	0x30
+#define MX7D_GPC_IMR2	0x34
+#define MX7D_GPC_IMR3	0x38
+#define MX7D_GPC_IMR4	0x3c
 #define DDRC_STAT	0x4
 #define DDRC_PWRCTL	0x30
 #define DDRC_DBG1	0x304
@@ -617,6 +625,61 @@ last_cpu:
 	ddrc_enter_self_refresh
 	ccm_enter_idle
 	anatop_enter_idle
+
+	ldr	r10, [r0, #PM_INFO_MX7D_GIC_DIST_V_OFFSET]
+	ldr	r7, =0x0
+	str	r7, [r10]
+
+	ldr	r10, [r0, #PM_INFO_MX7D_GPC_V_OFFSET]
+	ldr	r4, [r10, #MX7D_GPC_IMR1]
+	ldr	r5, [r10, #MX7D_GPC_IMR2]
+	ldr	r6, [r10, #MX7D_GPC_IMR3]
+	ldr	r7, [r10, #MX7D_GPC_IMR4]
+
+	ldr	r8, =0xffffffff
+	str	r8, [r10, #MX7D_GPC_IMR1]
+	str	r8, [r10, #MX7D_GPC_IMR2]
+	str	r8, [r10, #MX7D_GPC_IMR3]
+	str	r8, [r10, #MX7D_GPC_IMR4]
+
+	/*
+	 * enable the RBC bypass counter here
+	 * to hold off the interrupts. RBC counter
+	 * = 8 (240us). With this setting, the latency
+	 * from wakeup interrupt to ARM power up
+	 * is ~250uS.
+	 */
+	ldr	r8, [r10, #0x14]
+	bic	r8, r8, #(0x3f << 24)
+	orr	r8, r8, #(0x8 << 24)
+	str	r8, [r10, #0x14]
+
+	/* enable the counter. */
+	ldr	r8, [r10, #0x14]
+	orr	r8, r8, #(0x1 << 30)
+	str	r8, [r10, #0x14]
+
+	/* unmask all the GPC interrupts. */
+	str	r4, [r10, #MX7D_GPC_IMR1]
+	str	r5, [r10, #MX7D_GPC_IMR2]
+	str	r6, [r10, #MX7D_GPC_IMR3]
+	str	r7, [r10, #MX7D_GPC_IMR4]
+
+	/*
+	 * now delay for a short while (30usec)
+	 * ARM is at 24MHz at this point
+	 * so a short loop should be enough.
+	 * this delay is required to ensure that
+	 * the RBC counter can start counting in
+	 * case an interrupt is already pending
+	 * or in case an interrupt arrives just
+	 * as ARM is about to assert DSM_request.
+	 */
+	ldr	r4, =5
+rbc_loop:
+	subs	r4, r4, #0x1
+	bne	rbc_loop
+
 	/* set low power idle enter flag */
 	ldr	r7, =0x1
 	str	r7, [r0, #PM_INFO_PM_INFO_LPI_ENTER_OFFSET]
@@ -679,6 +742,10 @@ do_exit_wfi:
 	anatop_exit_idle
 	ccm_exit_idle
 	ddrc_exit_self_refresh
+
+	ldr	r10, [r0, #PM_INFO_MX7D_GIC_DIST_V_OFFSET]
+	ldr	r7, =0x1
+	str	r7, [r10]
 	/* clear lpi enter flag */
 	ldr	r7, =0x0
 	str	r7, [r0, #PM_INFO_PM_INFO_LPI_ENTER_OFFSET]

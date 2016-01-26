@@ -40,6 +40,8 @@
 #define MX7D_AIPS2_SIZE                 0x400000
 #define MX7D_AIPS3_BASE_ADDR            0x30900000
 #define MX7D_AIPS3_SIZE                 0x300000
+#define MX7D_GIC_BASE_ADDR              0x31000000
+#define MX7D_GIC_SIZE                   0x100000
 
 #define TT_ATTRIB_NON_CACHEABLE_1M	0x802
 #define MX7_IRAM_TLB_SIZE		0x4000

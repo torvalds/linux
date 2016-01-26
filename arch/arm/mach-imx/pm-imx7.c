@@ -895,6 +895,14 @@ void __init imx7_pm_map_io(void)
 			((MX7D_AIPS3_BASE_ADDR + i * 0x100000) & 0xFFF00000) |
 			TT_ATTRIB_NON_CACHEABLE_1M;
 	}
+
+	/*
+	 * Make sure the GIC virtual address has a mapping in the
+	 * IRAM page table.
+	 */
+	j = ((IMX_IO_P2V(MX7D_GIC_BASE_ADDR) >> 20) << 2) / 4;
+	*((unsigned long *)iram_tlb_base_addr + j) =
+		(MX7D_GIC_BASE_ADDR & 0xFFF00000) | TT_ATTRIB_NON_CACHEABLE_1M;
 }
 
 static int __init imx7_suspend_init(const struct imx7_pm_socdata *socdata)
