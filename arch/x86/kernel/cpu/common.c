@@ -1475,19 +1475,11 @@ void cpu_init(void)
 }
 #endif
 
-#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
-void warn_pre_alternatives(void)
-{
-	WARN(1, "You're using static_cpu_has before alternatives have run!\n");
-}
-EXPORT_SYMBOL_GPL(warn_pre_alternatives);
-#endif
-
-inline bool __static_cpu_has_safe(u16 bit)
+inline bool __static_cpu_has(u16 bit)
 {
 	return boot_cpu_has(bit);
 }
-EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
+EXPORT_SYMBOL_GPL(__static_cpu_has);
 
 static void bsp_resume(void)
 {
