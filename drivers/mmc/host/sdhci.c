@@ -552,18 +552,11 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 static void sdhci_adma_table_post(struct sdhci_host *host,
 	struct mmc_data *data)
 {
-	int direction;
-
 	struct scatterlist *sg;
 	int i, size;
 	void *align;
 	char *buffer;
 	unsigned long flags;
-
-	if (data->flags & MMC_DATA_READ)
-		direction = DMA_FROM_DEVICE;
-	else
-		direction = DMA_TO_DEVICE;
 
 	if (data->flags & MMC_DATA_READ) {
 		bool has_unaligned = false;
@@ -577,7 +570,7 @@ static void sdhci_adma_table_post(struct sdhci_host *host,
 
 		if (has_unaligned) {
 			dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
-				data->sg_len, direction);
+					    data->sg_len, DMA_FROM_DEVICE);
 
 			align = host->align_buffer;
 
@@ -594,12 +587,6 @@ static void sdhci_adma_table_post(struct sdhci_host *host,
 				}
 			}
 		}
-	}
-
-	if (data->host_cookie == COOKIE_MAPPED) {
-		dma_unmap_sg(mmc_dev(host->mmc), data->sg,
-			data->sg_len, direction);
-		data->host_cookie = COOKIE_UNMAPPED;
 	}
 }
 
@@ -920,14 +907,12 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	if (host->flags & SDHCI_REQ_USE_DMA) {
 		if (host->flags & SDHCI_USE_ADMA)
 			sdhci_adma_table_post(host, data);
-		else {
-			if (data->host_cookie == COOKIE_MAPPED) {
-				dma_unmap_sg(mmc_dev(host->mmc),
-					data->sg, data->sg_len,
-					(data->flags & MMC_DATA_READ) ?
-					DMA_FROM_DEVICE : DMA_TO_DEVICE);
-				data->host_cookie = COOKIE_UNMAPPED;
-			}
+
+		if (data->host_cookie == COOKIE_MAPPED) {
+			dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
+				     (data->flags & MMC_DATA_READ) ?
+				     DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			data->host_cookie = COOKIE_UNMAPPED;
 		}
 	}
 
