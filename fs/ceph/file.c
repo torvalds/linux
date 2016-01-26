@@ -716,7 +716,6 @@ static void ceph_aio_retry_work(struct work_struct *work)
 	ceph_osdc_build_request(req, req->r_ops[0].extent.offset,
 				snapc, CEPH_NOSNAP, &aio_req->mtime);
 
-	ceph_put_snap_context(snapc);
 	ceph_osdc_put_request(orig_req);
 
 	req->r_callback = ceph_aio_complete_req;
@@ -731,6 +730,7 @@ out:
 		ceph_aio_complete_req(req, NULL);
 	}
 
+	ceph_put_snap_context(snapc);
 	kfree(aio_work);
 }
 
