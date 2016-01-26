@@ -29,6 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/cputype.h>
+#include <asm/elf.h>
 #include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
 #include <asm/pgtable-hwdef.h>
@@ -431,6 +432,37 @@ __mmap_switched:
 	sub	x2, x2, x0
 	bl	__pi_memset
 	dsb	ishst				// Make zero page visible to PTW
+
+#ifdef CONFIG_RELOCATABLE
+
+	/*
+	 * Iterate over each entry in the relocation table, and apply the
+	 * relocations in place.
+	 */
+	adr_l	x8, __dynsym_start		// start of symbol table
+	adr_l	x9, __reloc_start		// start of reloc table
+	adr_l	x10, __reloc_end		// end of reloc table
+
+0:	cmp	x9, x10
+	b.hs	2f
+	ldp	x11, x12, [x9], #24
+	ldr	x13, [x9, #-8]
+	cmp	w12, #R_AARCH64_RELATIVE
+	b.ne	1f
+	str	x13, [x11]
+	b	0b
+
+1:	cmp	w12, #R_AARCH64_ABS64
+	b.ne	0b
+	add	x12, x12, x12, lsl #1		// symtab offset: 24x top word
+	add	x12, x8, x12, lsr #(32 - 3)	// ... shifted into bottom word
+	ldr	x15, [x12, #8]			// Elf64_Sym::st_value
+	add	x15, x13, x15
+	str	x15, [x11]
+	b	0b
+
+2:
+#endif
 
 	adr_l	sp, initial_sp, x4
 	mov	x4, sp
