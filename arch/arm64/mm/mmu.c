@@ -676,7 +676,8 @@ void __init early_fixmap_init(void)
 	unsigned long addr = FIXADDR_START;
 
 	pgd = pgd_offset_k(addr);
-	if (CONFIG_PGTABLE_LEVELS > 3 && !pgd_none(*pgd)) {
+	if (CONFIG_PGTABLE_LEVELS > 3 &&
+	    !(pgd_none(*pgd) || pgd_page_paddr(*pgd) == __pa(bm_pud))) {
 		/*
 		 * We only end up here if the kernel mapping and the fixmap
 		 * share the top level pgd entry, which should only happen on
@@ -733,11 +734,10 @@ void __set_fixmap(enum fixed_addresses idx,
 	}
 }
 
-void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
+void *__init __fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 {
 	const u64 dt_virt_base = __fix_to_virt(FIX_FDT);
-	pgprot_t prot = PAGE_KERNEL_RO;
-	int size, offset;
+	int offset;
 	void *dt_virt;
 
 	/*
@@ -776,16 +776,27 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	if (fdt_check_header(dt_virt) != 0)
 		return NULL;
 
-	size = fdt_totalsize(dt_virt);
-	if (size > MAX_FDT_SIZE)
+	*size = fdt_totalsize(dt_virt);
+	if (*size > MAX_FDT_SIZE)
 		return NULL;
 
-	if (offset + size > SWAPPER_BLOCK_SIZE)
+	if (offset + *size > SWAPPER_BLOCK_SIZE)
 		create_mapping_noalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
-			       round_up(offset + size, SWAPPER_BLOCK_SIZE), prot);
+			       round_up(offset + *size, SWAPPER_BLOCK_SIZE), prot);
+
+	return dt_virt;
+}
+
+void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
+{
+	void *dt_virt;
+	int size;
+
+	dt_virt = __fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL_RO);
+	if (!dt_virt)
+		return NULL;
 
 	memblock_reserve(dt_phys, size);
-
 	return dt_virt;
 }
 

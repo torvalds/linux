@@ -129,11 +129,15 @@ static void __init clear_pgds(unsigned long start,
 void __init kasan_init(void)
 {
 	u64 kimg_shadow_start, kimg_shadow_end;
+	u64 mod_shadow_start, mod_shadow_end;
 	struct memblock_region *reg;
 	int i;
 
 	kimg_shadow_start = (u64)kasan_mem_to_shadow(_text);
 	kimg_shadow_end = (u64)kasan_mem_to_shadow(_end);
+
+	mod_shadow_start = (u64)kasan_mem_to_shadow((void *)MODULES_VADDR);
+	mod_shadow_end = (u64)kasan_mem_to_shadow((void *)MODULES_END);
 
 	/*
 	 * We are going to perform proper setup of shadow memory.
@@ -158,13 +162,20 @@ void __init kasan_init(void)
 	 * with PMD table mappings at the edges of the shadow region for the
 	 * kernel image.
 	 */
-	if (ARM64_SWAPPER_USES_SECTION_MAPS)
+	if (ARM64_SWAPPER_USES_SECTION_MAPS) {
+		kimg_shadow_start = round_down(kimg_shadow_start,
+					       SWAPPER_BLOCK_SIZE);
 		kimg_shadow_end = round_up(kimg_shadow_end, SWAPPER_BLOCK_SIZE);
+	}
 
 	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
-			kasan_mem_to_shadow((void *)MODULES_VADDR));
+				   (void *)mod_shadow_start);
 	kasan_populate_zero_shadow((void *)kimg_shadow_end,
-			kasan_mem_to_shadow((void *)PAGE_OFFSET));
+				   kasan_mem_to_shadow((void *)PAGE_OFFSET));
+
+	if (kimg_shadow_start > mod_shadow_end)
+		kasan_populate_zero_shadow((void *)mod_shadow_end,
+					   (void *)kimg_shadow_start);
 
 	for_each_memblock(memory, reg) {
 		void *start = (void *)__phys_to_virt(reg->base);
