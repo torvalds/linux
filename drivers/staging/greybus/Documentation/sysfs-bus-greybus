@@ -163,3 +163,11 @@ KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The version number of the firmware in the SVC device.
+
+What:		/sys/bus/greybus/device/N-svc/watchdog
+Date:		October 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		If the SVC watchdog is enabled or not.  Writing 0 to this
+		file will disable the watchdog, writing 1 will enable it.

@@ -70,10 +70,42 @@ static ssize_t intf_eject_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(intf_eject);
 
+static ssize_t watchdog_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+
+	return sprintf(buf, "%s\n",
+		       gb_svc_watchdog_enabled(svc) ? "enabled" : "disabled");
+}
+
+static ssize_t watchdog_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t len)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+	int retval;
+	bool user_request;
+
+	retval = strtobool(buf, &user_request);
+	if (retval)
+		return retval;
+
+	if (user_request)
+		retval = gb_svc_watchdog_enable(svc);
+	else
+		retval = gb_svc_watchdog_disable(svc);
+	if (retval)
+		return retval;
+	return len;
+}
+static DEVICE_ATTR_RW(watchdog);
+
 static struct attribute *svc_attrs[] = {
 	&dev_attr_endo_id.attr,
 	&dev_attr_ap_intf_id.attr,
 	&dev_attr_intf_eject.attr,
+	&dev_attr_watchdog.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(svc);

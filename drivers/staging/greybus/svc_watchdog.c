@@ -15,7 +15,7 @@
 struct gb_svc_watchdog {
 	struct delayed_work	work;
 	struct gb_svc		*svc;
-	bool			finished;
+	bool			enabled;
 };
 
 static struct delayed_work reset_work;
@@ -65,11 +65,16 @@ static void do_work(struct work_struct *work)
 
 		INIT_DELAYED_WORK(&reset_work, greybus_reset);
 		queue_delayed_work(system_wq, &reset_work, HZ/2);
-		return;
+
+		/*
+		 * Disable ourselves, we don't want to trip again unless
+		 * userspace wants us to.
+		 */
+		watchdog->enabled = false;
 	}
 
 	/* resubmit our work to happen again, if we are still "alive" */
-	if (!watchdog->finished)
+	if (watchdog->enabled)
 		queue_delayed_work(system_wq, &watchdog->work,
 				   SVC_WATCHDOG_PERIOD);
 }
@@ -85,14 +90,12 @@ int gb_svc_watchdog_create(struct gb_svc *svc)
 	if (!watchdog)
 		return -ENOMEM;
 
-	watchdog->finished = false;
+	watchdog->enabled = false;
 	watchdog->svc = svc;
 	INIT_DELAYED_WORK(&watchdog->work, do_work);
 	svc->watchdog = watchdog;
 
-	queue_delayed_work(system_wq, &watchdog->work,
-			   SVC_WATCHDOG_PERIOD);
-	return 0;
+	return gb_svc_watchdog_enable(svc);
 }
 
 void gb_svc_watchdog_destroy(struct gb_svc *svc)
@@ -102,8 +105,47 @@ void gb_svc_watchdog_destroy(struct gb_svc *svc)
 	if (!watchdog)
 		return;
 
-	watchdog->finished = true;
-	cancel_delayed_work_sync(&watchdog->work);
+	gb_svc_watchdog_disable(svc);
 	svc->watchdog = NULL;
 	kfree(watchdog);
+}
+
+bool gb_svc_watchdog_enabled(struct gb_svc *svc)
+{
+	if (!svc || !svc->watchdog)
+		return false;
+	return svc->watchdog->enabled;
+}
+
+int gb_svc_watchdog_enable(struct gb_svc *svc)
+{
+	struct gb_svc_watchdog *watchdog;
+
+	if (!svc->watchdog)
+		return -ENODEV;
+
+	watchdog = svc->watchdog;
+	if (watchdog->enabled)
+		return 0;
+
+	watchdog->enabled = true;
+	queue_delayed_work(system_wq, &watchdog->work,
+			   SVC_WATCHDOG_PERIOD);
+	return 0;
+}
+
+int gb_svc_watchdog_disable(struct gb_svc *svc)
+{
+	struct gb_svc_watchdog *watchdog;
+
+	if (!svc->watchdog)
+		return -ENODEV;
+
+	watchdog = svc->watchdog;
+	if (!watchdog->enabled)
+		return 0;
+
+	watchdog->enabled = false;
+	cancel_delayed_work_sync(&watchdog->work);
+	return 0;
 }
