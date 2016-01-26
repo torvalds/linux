@@ -2132,7 +2132,7 @@ sitd_patch(
 )
 {
 	struct ehci_iso_packet	*uf = &iso_sched->packet [index];
-	u64			bufp = uf->bufp;
+	u64			bufp;
 
 	sitd->hw_next = EHCI_LIST_END(ehci);
 	sitd->hw_fullspeed_ep = stream->address;
@@ -2242,7 +2242,7 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 	struct urb				*urb = sitd->urb;
 	struct usb_iso_packet_descriptor	*desc;
 	u32					t;
-	int					urb_index = -1;
+	int					urb_index;
 	struct ehci_iso_stream			*stream = sitd->stream;
 	struct usb_device			*dev;
 	bool					retval = false;
