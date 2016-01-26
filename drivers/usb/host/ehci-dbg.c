@@ -481,11 +481,11 @@ static void qh_lines(struct ehci_hcd *ehci, struct ehci_qh *qh,
 		td = list_entry(entry, struct ehci_qtd, qtd_list);
 		scratch = hc32_to_cpup(ehci, &td->hw_token);
 		mark = ' ';
-		if (hw_curr == td->qtd_dma)
+		if (hw_curr == td->qtd_dma) {
 			mark = '*';
-		else if (hw->hw_qtd_next == cpu_to_hc32(ehci, td->qtd_dma))
+		} else if (hw->hw_qtd_next == cpu_to_hc32(ehci, td->qtd_dma)) {
 			mark = '+';
-		else if (QTD_LENGTH(scratch)) {
+		} else if (QTD_LENGTH(scratch)) {
 			if (td->hw_alt_next == ehci->async->hw->hw_alt_next)
 				mark = '#';
 			else if (td->hw_alt_next != list_end)
@@ -758,8 +758,9 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 
 					if (seen_count < DBG_SCHED_LIMIT)
 						seen[seen_count++].qh = p.qh;
-				} else
+				} else {
 					temp = 0;
+				}
 				tag = Q_NEXT_TYPE(ehci, hw->hw_next);
 				p = p.qh->qh_next;
 				break;
