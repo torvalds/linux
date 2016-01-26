@@ -88,9 +88,10 @@ struct arm64_cpu_capabilities {
 
 		struct {	/* Feature register checking */
 			u32 sys_reg;
-			int field_pos;
-			int min_field_value;
-			int hwcap_type;
+			u8 field_pos;
+			u8 min_field_value;
+			u8 hwcap_type;
+			bool sign;
 			unsigned long hwcap;
 		};
 	};
