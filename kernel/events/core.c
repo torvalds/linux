@@ -3758,19 +3758,7 @@ int perf_event_release_kernel(struct perf_event *event)
 	if (!is_kernel_event(event))
 		perf_remove_from_owner(event);
 
-	/*
-	 * There are two ways this annotation is useful:
-	 *
-	 *  1) there is a lock recursion from perf_event_exit_task
-	 *     see the comment there.
-	 *
-	 *  2) there is a lock-inversion with mmap_sem through
-	 *     perf_read_group(), which takes faults while
-	 *     holding ctx->mutex, however this is called after
-	 *     the last filedesc died, so there is no possibility
-	 *     to trigger the AB-BA case.
-	 */
-	ctx = perf_event_ctx_lock_nested(event, SINGLE_DEPTH_NESTING);
+	ctx = perf_event_ctx_lock(event);
 	WARN_ON_ONCE(ctx->parent_ctx);
 	perf_remove_from_context(event, DETACH_GROUP | DETACH_STATE);
 	perf_event_ctx_unlock(event, ctx);
@@ -8759,14 +8747,6 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 * perf_event_create_kernel_count() which does find_get_context()
 	 * without ctx::mutex (it cannot because of the move_group double mutex
 	 * lock thing). See the comments in perf_install_in_context().
-	 *
-	 * We can recurse on the same lock type through:
-	 *
-	 *   perf_event_exit_event()
-	 *     put_event()
-	 *       mutex_lock(&ctx->mutex)
-	 *
-	 * But since its the parent context it won't be the same instance.
 	 */
 	mutex_lock(&child_ctx->mutex);
 
