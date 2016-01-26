@@ -314,12 +314,12 @@
 	cmp	r7, #0x10
 	beq	22f
 
-	ldr	r7, =0x1d1d1d1d
+	ldr	r7, =0x40404040
 	str	r7, [r5, #DDRPHY_CA_WLDSKEW_CON0]
-	ldr	r7, =0x10101010
+	ldr	r7, =0x18181818
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON0]
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON1]
-	ldr	r7, =0x1d1d1010
+	ldr	r7, =0x40401818
 	str	r7, [r5, #DDRPHY_CA_DSKEW_CON2]
 	b	23f
 22:

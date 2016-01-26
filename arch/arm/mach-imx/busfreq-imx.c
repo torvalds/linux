@@ -1128,9 +1128,16 @@ static int busfreq_probe(struct platform_device *pdev)
 			TT_ATTRIB_NON_CACHEABLE_1M;
 	}
 
-	if (cpu_is_imx7d())
+	if (cpu_is_imx7d()) {
+		ddr_type = imx_ddrc_get_ddr_type();
+		/* reduce ddr3 normal rate to 400M due to CKE issue on TO1.1 */
+		if (imx_get_soc_revision() == IMX_CHIP_REVISION_1_1 &&
+			ddr_type == IMX_DDR_TYPE_DDR3) {
+			ddr_normal_rate = 400000000;
+			pr_info("ddr3 normal rate changed to 400MHz for TO1.1.\n");
+		}
 		err = init_ddrc_ddr_settings(pdev);
-	else if (cpu_is_imx6sx() || cpu_is_imx6ul()) {
+	} else if (cpu_is_imx6sx() || cpu_is_imx6ul()) {
 		ddr_type = imx_mmdc_get_ddr_type();
 		if (ddr_type == IMX_DDR_TYPE_DDR3)
 			err = init_mmdc_ddr3_settings_imx6_up(pdev);
