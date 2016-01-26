@@ -51,7 +51,9 @@ obj-m += gb-arche.o
 ifeq ($(CONFIG_SND_SOC_DYNAMIC_DAILINK),y)
  obj-m += gb-audio-codec.o
 endif
-obj-m += gb-camera.o
+ifeq ($(CONFIG_ARCH_MSM8994),y)
+ obj-m += gb-camera.o
+endif
 obj-m += gb-audio-gb.o
 obj-m += gb-audio-apbridgea.o
 obj-m += gb-audio-manager.o
