@@ -220,6 +220,10 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 
 static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
 {
+	/* disable the clock */
+	if (gpio_is_valid(apb->clk_en_gpio))
+		gpio_set_value(apb->clk_en_gpio, 0);
+
 	if (!IS_ERR(apb->vcore) && regulator_is_enabled(apb->vcore) > 0)
 		regulator_disable(apb->vcore);
 

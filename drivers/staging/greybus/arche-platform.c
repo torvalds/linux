@@ -104,6 +104,7 @@ static void unexport_gpios(struct arche_platform_drvdata *arche_pdata)
 
 static void arche_platform_cleanup(struct arche_platform_drvdata *arche_pdata)
 {
+	clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	/* As part of exit, put APB back in reset state */
 	svc_reset_onoff(arche_pdata->svc_reset_gpio,
 			arche_pdata->is_reset_act_hi);
