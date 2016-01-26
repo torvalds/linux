@@ -484,7 +484,7 @@ static void qh_lines(
 			type = "?";
 			break;
 		}
-		temp = snprintf(next, size,
+		temp = scnprintf(next, size,
 				"\n\t%p%c%s len=%d %08x urb %p"
 				" [td %08x buf[0] %08x]",
 				td, mark, type,
@@ -493,17 +493,13 @@ static void qh_lines(
 				td->urb,
 				(u32) td->qtd_dma,
 				hc32_to_cpup(ehci, &td->hw_buf[0]));
-		if (size < temp)
-			temp = size;
 		size -= temp;
 		next += temp;
 		if (temp == size)
 			goto done;
 	}
 
-	temp = snprintf(next, size, "\n");
-	if (size < temp)
-		temp = size;
+	temp = scnprintf(next, size, "\n");
 	size -= temp;
 	next += temp;
 
