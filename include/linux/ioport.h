@@ -268,6 +268,9 @@ extern int
 walk_system_ram_res(u64 start, u64 end, void *arg,
 		    int (*func)(u64, u64, void *));
 extern int
+walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start, u64 end,
+		    void *arg, int (*func)(u64, u64, void *));
+extern int
 walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end, void *arg,
 	       int (*func)(u64, u64, void *));
 
