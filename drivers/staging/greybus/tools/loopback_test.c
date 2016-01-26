@@ -92,6 +92,7 @@ struct loopback_test {
 	int async_timeout;
 	int async_outstanding_operations;
 	int us_wait;
+	int file_output;
 	char test_name[MAX_STR_LEN];
 	char sysfs_prefix[MAX_SYSFS_PATH];
 	char debugfs_prefix[MAX_SYSFS_PATH];
@@ -202,6 +203,7 @@ void usage(void)
 	"   -o     Async Timeout - Timeout in uSec for async operations\n"
 	"   -c     Max number of outstanding operations for async operations\n"
 	"   -w     Wait in uSec between operations\n"
+	"   -z     Enable output to a CSV file (incompatible with -p)\n"
 	"Examples:\n"
 	"  Send 10000 transfers with a packet size of 128 bytes to all active connections\n"
 	"  loopback_test -t transfer -s 128 -i 10000 -S /sys/bus/greybus/devices/ -D /sys/kernel/debug/gb_loopback/\n"
@@ -527,7 +529,7 @@ static int log_results(struct loopback_test *t)
 	* append to the same CSV with datestamp - representing each test
 	* dataset.
 	*/
-	if (!t->porcelain) {
+	if (t->file_output && !t->porcelain) {
 		snprintf(file_name, sizeof(file_name), "%s_%d_%d.csv",
 			t->test_name, t->size, t->iteration_max);
 
@@ -545,7 +547,7 @@ static int log_results(struct loopback_test *t)
 		len = format_output(t, &t->devices[i].results,
 					t->devices[i].name,
 					data, sizeof(data), &tm);
-		if (!t->porcelain) {
+		if (t->file_output && !t->porcelain) {
 			ret = write(fd, data, len);
 			if (ret == -1)
 				fprintf(stderr, "unable to write %d bytes to csv.\n", len);
@@ -557,14 +559,14 @@ static int log_results(struct loopback_test *t)
 	if (t->aggregate_output) {
 		len = format_output(t, &t->aggregate_results, "aggregate",
 					data, sizeof(data), &tm);
-		if (!t->porcelain) {
+		if (t->file_output && !t->porcelain) {
 			ret = write(fd, data, len);
 			if (ret == -1)
 				fprintf(stderr, "unable to write %d bytes to csv.\n", len);
 		}
 	}
 
-	if (!t->porcelain)
+	if (t->file_output && !t->porcelain)
 		close(fd);
 
 	return 0;
@@ -923,6 +925,8 @@ int main(int argc, char *argv[])
 		case 'w':
 			t.us_wait = atoi(optarg);
 			break;
+		case 'z':
+			t.file_output = 1;
 		default:
 			usage();
 			return -EINVAL;
