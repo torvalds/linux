@@ -55,7 +55,7 @@
  *
  * @adev: amdgpu_device pointer
  *
- * Calculate the number of page directory entries (cayman+).
+ * Calculate the number of page directory entries.
  */
 static unsigned amdgpu_vm_num_pdes(struct amdgpu_device *adev)
 {
@@ -67,7 +67,7 @@ static unsigned amdgpu_vm_num_pdes(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Calculate the size of the page directory in bytes (cayman+).
+ * Calculate the size of the page directory in bytes.
  */
 static unsigned amdgpu_vm_directory_size(struct amdgpu_device *adev)
 {
@@ -155,8 +155,6 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
  * @fence: fence protecting ID from reuse
  *
  * Allocate an id for the vm, adding fences to the sync obj as necessary.
- *
- * Global mutex must be locked!
  */
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence)
@@ -216,9 +214,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
  * @vm: vm we want to flush
  * @updates: last vm update that we waited for
  *
- * Flush the vm (cayman+).
- *
- * Global and local mutex must be locked!
+ * Flush the vm.
  */
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct amdgpu_vm *vm,
@@ -253,7 +249,7 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
  * @vm: requested vm
  * @bo: requested buffer object
  *
- * Find @bo inside the requested vm (cayman+).
+ * Find @bo inside the requested vm.
  * Search inside the @bos vm list for the requested vm
  * Returns the found bo_va or NULL if none is found
  *
@@ -425,10 +421,8 @@ uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
  * @end: end of GPU address range
  *
  * Allocates new page tables if necessary
- * and updates the page directory (cayman+).
+ * and updates the page directory.
  * Returns 0 for success, error for failure.
- *
- * Global and local mutex must be locked!
  */
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm)
@@ -538,8 +532,6 @@ error_free:
  * @pe_end: last PTE to handle
  * @addr: addr those PTEs should point to
  * @flags: hw mapping flags
- *
- * Global and local mutex must be locked!
  */
 static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
 				struct amdgpu_gart *gtt,
@@ -620,9 +612,7 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
  * @dst: destination address to map to
  * @flags: mapping flags
  *
- * Update the page tables in the range @start - @end (cayman+).
- *
- * Global and local mutex must be locked!
+ * Update the page tables in the range @start - @end.
  */
 static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 				  struct amdgpu_gart *gtt,
@@ -1005,7 +995,7 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
  * @vm: requested vm
  * @bo: amdgpu buffer object
  *
- * Add @bo into the requested vm (cayman+).
+ * Add @bo into the requested vm.
  * Add @bo to the list of bos associated with the vm
  * Returns newly added bo_va or NULL for failure
  *
@@ -1237,7 +1227,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @bo_va: requested bo_va
  *
- * Remove @bo_va->bo from the requested vm (cayman+).
+ * Remove @bo_va->bo from the requested vm.
  *
  * Object have to be reserved!
  */
@@ -1282,7 +1272,7 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
  * @vm: requested vm
  * @bo: amdgpu buffer object
  *
- * Mark @bo as invalid (cayman+).
+ * Mark @bo as invalid.
  */
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo)
@@ -1303,7 +1293,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @vm: requested vm
  *
- * Init @vm fields (cayman+).
+ * Init @vm fields.
  */
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
@@ -1364,7 +1354,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
  * @adev: amdgpu_device pointer
  * @vm: requested vm
  *
- * Tear down @vm (cayman+).
+ * Tear down @vm.
  * Unbind the VM and remove all bos from the vm bo list
  */
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
