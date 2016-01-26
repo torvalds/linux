@@ -231,6 +231,12 @@ static inline int crypto_has_skcipher(const char *alg_name, u32 type,
 			      crypto_skcipher_mask(mask));
 }
 
+static inline const char *crypto_skcipher_driver_name(
+	struct crypto_skcipher *tfm)
+{
+	return crypto_tfm_alg_name(crypto_skcipher_tfm(tfm));
+}
+
 /**
  * crypto_skcipher_ivsize() - obtain IV size
  * @tfm: cipher handle
