@@ -733,23 +733,24 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	 * scatterlist.
 	 */
 	if (host->flags & SDHCI_REQ_USE_DMA) {
-		int broken, i;
 		struct scatterlist *sg;
+		unsigned int length_mask;
+		int i;
 
-		broken = 0;
+		length_mask = 0;
 		if (host->flags & SDHCI_USE_ADMA) {
 			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE)
-				broken = 1;
+				length_mask = 3;
 		} else {
 			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE)
-				broken = 1;
+				length_mask = 3;
 		}
 
-		if (unlikely(broken)) {
+		if (unlikely(length_mask)) {
 			for_each_sg(data->sg, sg, data->sg_len, i) {
-				if (sg->length & 0x3) {
+				if (sg->length & length_mask) {
 					DBG("Reverting to PIO because of transfer size (%d)\n",
-						sg->length);
+					    sg->length);
 					host->flags &= ~SDHCI_REQ_USE_DMA;
 					break;
 				}
@@ -762,10 +763,11 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	 * translation to device address space.
 	 */
 	if (host->flags & SDHCI_REQ_USE_DMA) {
-		int broken, i;
 		struct scatterlist *sg;
+		unsigned int offset_mask;
+		int i;
 
-		broken = 0;
+		offset_mask = 0;
 		if (host->flags & SDHCI_USE_ADMA) {
 			/*
 			 * As we use 3 byte chunks to work around
@@ -773,15 +775,15 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 			 * quirk.
 			 */
 			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE)
-				broken = 1;
+				offset_mask = 3;
 		} else {
 			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR)
-				broken = 1;
+				offset_mask = 3;
 		}
 
-		if (unlikely(broken)) {
+		if (unlikely(offset_mask)) {
 			for_each_sg(data->sg, sg, data->sg_len, i) {
-				if (sg->offset & 0x3) {
+				if (sg->offset & offset_mask) {
 					DBG("Reverting to PIO because of bad alignment\n");
 					host->flags &= ~SDHCI_REQ_USE_DMA;
 					break;
