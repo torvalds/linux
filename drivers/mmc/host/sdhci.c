@@ -666,7 +666,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	if (!data)
 		target_timeout = cmd->busy_timeout * 1000;
 	else {
-		target_timeout = data->timeout_ns / 1000;
+		target_timeout = DIV_ROUND_UP(data->timeout_ns, 1000);
 		if (host->clock)
 			target_timeout += data->timeout_clks / host->clock;
 	}
