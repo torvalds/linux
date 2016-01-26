@@ -243,9 +243,10 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 	if (en) {
 		*ei = en->ei;
 		spin_lock(&sbi->extent_lock);
-		if (!list_empty(&en->list))
+		if (!list_empty(&en->list)) {
 			list_move_tail(&en->list, &sbi->extent_list);
-		et->cached_en = en;
+			et->cached_en = en;
+		}
 		spin_unlock(&sbi->extent_lock);
 		ret = true;
 	}
@@ -364,11 +365,12 @@ static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
 		return NULL;
 
 	__try_update_largest_extent(et, en);
-	et->cached_en = en;
 
 	spin_lock(&sbi->extent_lock);
-	if (!list_empty(&en->list))
+	if (!list_empty(&en->list)) {
 		list_move_tail(&en->list, &sbi->extent_list);
+		et->cached_en = en;
+	}
 	spin_unlock(&sbi->extent_lock);
 	return en;
 }
@@ -405,11 +407,11 @@ do_insert:
 		return NULL;
 
 	__try_update_largest_extent(et, en);
-	et->cached_en = en;
 
 	/* update in global extent list */
 	spin_lock(&sbi->extent_lock);
 	list_add_tail(&en->list, &sbi->extent_list);
+	et->cached_en = en;
 	spin_unlock(&sbi->extent_lock);
 	return en;
 }
