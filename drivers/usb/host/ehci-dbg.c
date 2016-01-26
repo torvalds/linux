@@ -288,19 +288,27 @@ dbg_qh(char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 static inline int __maybe_unused
 dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
-{ return 0; }
+{
+	return 0;
+}
 
 static inline int __maybe_unused
 dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
-{ return 0; }
+{
+	return 0;
+}
 
 static inline int __maybe_unused
 dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
-{ return 0; }
+{
+	return 0;
+}
 
 static inline int __maybe_unused
 dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
-{ return 0; }
+{
+	return 0;
+}
 
 #endif	/* CONFIG_DYNAMIC_DEBUG */
 
@@ -404,12 +412,8 @@ static inline char token_mark(struct ehci_hcd *ehci, __hc32 token)
 	return '/';
 }
 
-static void qh_lines(
-	struct ehci_hcd *ehci,
-	struct ehci_qh *qh,
-	char **nextp,
-	unsigned *sizep
-)
+static void qh_lines(struct ehci_hcd *ehci, struct ehci_qh *qh,
+		char **nextp, unsigned *sizep)
 {
 	u32			scratch;
 	u32			hw_curr;
@@ -957,7 +961,7 @@ done:
 }
 
 static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
-				ssize_t (*fill_func)(struct debug_buffer *))
+		ssize_t (*fill_func)(struct debug_buffer *))
 {
 	struct debug_buffer *buf;
 
@@ -997,7 +1001,7 @@ out:
 }
 
 static ssize_t debug_output(struct file *file, char __user *user_buf,
-			    size_t len, loff_t *offset)
+		size_t len, loff_t *offset)
 {
 	struct debug_buffer *buf = file->private_data;
 	int ret = 0;
