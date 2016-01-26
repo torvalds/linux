@@ -741,7 +741,7 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #endif
 
 static inline unsigned int ehci_readl(const struct ehci_hcd *ehci,
-		__u32 __iomem * regs)
+		__u32 __iomem *regs)
 {
 #ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 	return ehci_big_endian_mmio(ehci) ?
