@@ -365,8 +365,9 @@ EXPORT_SYMBOL_GPL(gb_svc_intf_set_power_mode);
 
 int gb_svc_ping(struct gb_svc *svc)
 {
-	return gb_operation_sync(svc->connection, GB_SVC_TYPE_PING,
-				 NULL, 0, NULL, 0);
+	return gb_operation_sync_timeout(svc->connection, GB_SVC_TYPE_PING,
+					 NULL, 0, NULL, 0,
+					 GB_OPERATION_TIMEOUT_DEFAULT * 2);
 }
 EXPORT_SYMBOL_GPL(gb_svc_ping);
 
