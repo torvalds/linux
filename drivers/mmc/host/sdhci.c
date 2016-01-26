@@ -485,8 +485,8 @@ static void sdhci_adma_mark_end(void *desc)
 	dma_desc->cmd |= cpu_to_le16(ADMA2_END);
 }
 
-static int sdhci_adma_table_pre(struct sdhci_host *host,
-	struct mmc_data *data)
+static void sdhci_adma_table_pre(struct sdhci_host *host,
+	struct mmc_data *data, int sg_count)
 {
 	struct scatterlist *sg;
 	unsigned long flags;
@@ -500,9 +500,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 	 * We currently guess that it is LE.
 	 */
 
-	host->sg_count = sdhci_pre_dma_transfer(host, data);
-	if (host->sg_count < 0)
-		return -EINVAL;
+	host->sg_count = sg_count;
 
 	desc = host->adma_table;
 	align = host->align_buffer;
@@ -569,7 +567,6 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		/* Add a terminating entry - nop, end, valid */
 		sdhci_adma_write_desc(host, desc, 0, 0, ADMA2_NOP_END_VALID);
 	}
-	return 0;
 }
 
 static void sdhci_adma_table_post(struct sdhci_host *host,
@@ -710,7 +707,6 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	u8 ctrl;
 	struct mmc_data *data = cmd->data;
-	int ret;
 
 	WARN_ON(host->data);
 
@@ -795,39 +791,27 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	}
 
 	if (host->flags & SDHCI_REQ_USE_DMA) {
-		if (host->flags & SDHCI_USE_ADMA) {
-			ret = sdhci_adma_table_pre(host, data);
-			if (ret) {
-				/*
-				 * This only happens when someone fed
-				 * us an invalid request.
-				 */
-				WARN_ON(1);
-				host->flags &= ~SDHCI_REQ_USE_DMA;
-			} else {
-				sdhci_writel(host, host->adma_addr,
-					SDHCI_ADMA_ADDRESS);
-				if (host->flags & SDHCI_USE_64_BIT_DMA)
-					sdhci_writel(host,
-						     (u64)host->adma_addr >> 32,
-						     SDHCI_ADMA_ADDRESS_HI);
-			}
-		} else {
-			int sg_cnt;
+		int sg_cnt = sdhci_pre_dma_transfer(host, data);
 
-			sg_cnt = sdhci_pre_dma_transfer(host, data);
-			if (sg_cnt <= 0) {
-				/*
-				 * This only happens when someone fed
-				 * us an invalid request.
-				 */
-				WARN_ON(1);
-				host->flags &= ~SDHCI_REQ_USE_DMA;
-			} else {
-				WARN_ON(sg_cnt != 1);
-				sdhci_writel(host, sg_dma_address(data->sg),
-					SDHCI_DMA_ADDRESS);
-			}
+		if (sg_cnt <= 0) {
+			/*
+			 * This only happens when someone fed
+			 * us an invalid request.
+			 */
+			WARN_ON(1);
+			host->flags &= ~SDHCI_REQ_USE_DMA;
+		} else if (host->flags & SDHCI_USE_ADMA) {
+			sdhci_adma_table_pre(host, data, sg_cnt);
+
+			sdhci_writel(host, host->adma_addr, SDHCI_ADMA_ADDRESS);
+			if (host->flags & SDHCI_USE_64_BIT_DMA)
+				sdhci_writel(host,
+					     (u64)host->adma_addr >> 32,
+					     SDHCI_ADMA_ADDRESS_HI);
+		} else {
+			WARN_ON(sg_cnt != 1);
+			sdhci_writel(host, sg_dma_address(data->sg),
+				SDHCI_DMA_ADDRESS);
 		}
 	}
 
