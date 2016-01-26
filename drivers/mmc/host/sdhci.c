@@ -725,21 +725,20 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	host->data_early = 0;
 	host->data->bytes_xfered = 0;
 
-	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA))
-		host->flags |= SDHCI_REQ_USE_DMA;
-
-	/*
-	 * FIXME: This doesn't account for merging when mapping the
-	 * scatterlist.
-	 *
-	 * The assumption here being that alignment and lengths are
-	 * the same after DMA mapping to device address space.
-	 */
-	if (host->flags & SDHCI_REQ_USE_DMA) {
+	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 		struct scatterlist *sg;
 		unsigned int length_mask, offset_mask;
 		int i;
 
+		host->flags |= SDHCI_REQ_USE_DMA;
+
+		/*
+		 * FIXME: This doesn't account for merging when mapping the
+		 * scatterlist.
+		 *
+		 * The assumption here being that alignment and lengths are
+		 * the same after DMA mapping to device address space.
+		 */
 		length_mask = 0;
 		offset_mask = 0;
 		if (host->flags & SDHCI_USE_ADMA) {
