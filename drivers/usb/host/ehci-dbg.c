@@ -312,23 +312,31 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 
 #endif	/* CONFIG_DYNAMIC_DEBUG */
 
-/* functions have the "wrong" filename when they're output... */
-#define dbg_status(ehci, label, status) { \
-	char _buf [80]; \
-	dbg_status_buf (_buf, sizeof _buf, label, status); \
-	ehci_dbg (ehci, "%s\n", _buf); \
+static inline void
+dbg_status(struct ehci_hcd *ehci, const char *label, u32 status)
+{
+	char buf[80];
+
+	dbg_status_buf(buf, sizeof(buf), label, status);
+	ehci_dbg(ehci, "%s\n", buf);
 }
 
-#define dbg_cmd(ehci, label, command) { \
-	char _buf [80]; \
-	dbg_command_buf (_buf, sizeof _buf, label, command); \
-	ehci_dbg (ehci, "%s\n", _buf); \
+static inline void
+dbg_cmd(struct ehci_hcd *ehci, const char *label, u32 command)
+{
+	char buf[80];
+
+	dbg_command_buf(buf, sizeof(buf), label, command);
+	ehci_dbg(ehci, "%s\n", buf);
 }
 
-#define dbg_port(ehci, label, port, status) { \
-	char _buf [80]; \
-	dbg_port_buf (_buf, sizeof _buf, label, port, status); \
-	ehci_dbg (ehci, "%s\n", _buf); \
+static inline void
+dbg_port(struct ehci_hcd *ehci, const char *label, int port, u32 status)
+{
+	char buf[80];
+
+	dbg_port_buf(buf, sizeof(buf), label, port, status);
+	ehci_dbg(ehci, "%s\n", buf);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -393,13 +401,19 @@ struct debug_buffer {
 	size_t alloc_size;
 };
 
-#define speed_char(info1) ({ char tmp; \
-		switch (info1 & (3 << 12)) { \
-		case QH_FULL_SPEED: tmp = 'f'; break; \
-		case QH_LOW_SPEED:  tmp = 'l'; break; \
-		case QH_HIGH_SPEED: tmp = 'h'; break; \
-		default: tmp = '?'; break; \
-		} tmp; })
+static inline char speed_char(u32 info1)
+{
+	switch (info1 & (3 << 12)) {
+	case QH_FULL_SPEED:
+		return 'f';
+	case QH_LOW_SPEED:
+		return 'l';
+	case QH_HIGH_SPEED:
+		return 'h';
+	default:
+		return '?';
+	}
+}
 
 static inline char token_mark(struct ehci_hcd *ehci, __hc32 token)
 {
