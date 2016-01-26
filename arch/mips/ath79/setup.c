@@ -205,10 +205,6 @@ void __init plat_mem_setup(void)
 		__dt_setup_arch((void *)KSEG0ADDR(fdt_start));
 	else if (fw_arg0 == -2)
 		__dt_setup_arch((void *)KSEG0ADDR(fw_arg1));
-#ifdef CONFIG_BUILTIN_DTB
-	else
-		__dt_setup_arch(__dtb_start);
-#endif
 
 	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
 					   AR71XX_RESET_SIZE);
