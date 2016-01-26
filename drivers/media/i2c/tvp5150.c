@@ -975,18 +975,19 @@ static int tvp5150_g_mbus_config(struct v4l2_subdev *sd,
 static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	/* Output format: 8-bit ITU-R BT.656 with embedded syncs */
+	int val = 0x09;
 
 	/* Output format: 8-bit 4:2:2 YUV with discrete sync */
-	if (decoder->mbus_type != V4L2_MBUS_PARALLEL)
-		return 0;
+	if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
+		val = 0x0d;
 
 	/* Initializes TVP5150 to its default values */
 	/* # set PCLK (27MHz) */
 	tvp5150_write(sd, TVP5150_CONF_SHARED_PIN, 0x00);
 
-	/* Output format: 8-bit ITU-R BT.656 with embedded syncs */
 	if (enable)
-		tvp5150_write(sd, TVP5150_MISC_CTL, 0x09);
+		tvp5150_write(sd, TVP5150_MISC_CTL, val);
 	else
 		tvp5150_write(sd, TVP5150_MISC_CTL, 0x00);
 
