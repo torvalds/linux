@@ -84,15 +84,6 @@ config CRYPTO_RNG_DEFAULT
 	tristate
 	select CRYPTO_DRBG_MENU
 
-config CRYPTO_PCOMP
-	tristate
-	select CRYPTO_PCOMP2
-	select CRYPTO_ALGAPI
-
-config CRYPTO_PCOMP2
-	tristate
-	select CRYPTO_ALGAPI2
-
 config CRYPTO_AKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
@@ -122,7 +113,6 @@ config CRYPTO_MANAGER2
 	select CRYPTO_AEAD2
 	select CRYPTO_HASH2
 	select CRYPTO_BLKCIPHER2
-	select CRYPTO_PCOMP2
 	select CRYPTO_AKCIPHER2
 
 config CRYPTO_USER
@@ -1503,15 +1493,6 @@ config CRYPTO_DEFLATE
 	  IPSec with the IPCOMP protocol (RFC3173, RFC2394).
 
 	  You will most probably want this if using IPSec.
-
-config CRYPTO_ZLIB
-	tristate "Zlib compression algorithm"
-	select CRYPTO_PCOMP
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
-	select NLATTR
-	help
-	  This is the zlib algorithm.
 
 config CRYPTO_LZO
 	tristate "LZO compression algorithm"
