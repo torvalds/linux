@@ -883,7 +883,8 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 		rev = (val & DMP_COMP_REVISION) >> DMP_COMP_REVISION_S;
 
 		/* need core with ports */
-		if (nmw + nsw == 0)
+		if (nmw + nsw == 0 &&
+		    id != BCMA_CORE_PMU)
 			continue;
 
 		/* try to obtain register address info */
