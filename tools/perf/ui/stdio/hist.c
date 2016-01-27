@@ -165,6 +165,25 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	return ret;
 }
 
+/*
+ * If have one single callchain root, don't bother printing
+ * its percentage (100 % in fractal mode and the same percentage
+ * than the hist in graph mode). This also avoid one level of column.
+ *
+ * However when percent-limit applied, it's possible that single callchain
+ * node have different (non-100% in fractal mode) percentage.
+ */
+static bool need_percent_display(struct rb_node *node, u64 parent_samples)
+{
+	struct callchain_node *cnode;
+
+	if (rb_next(node))
+		return true;
+
+	cnode = rb_entry(node, struct callchain_node, rb_node);
+	return callchain_cumul_hits(cnode) != parent_samples;
+}
+
 static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 				       u64 total_samples, u64 parent_samples,
 				       int left_margin)
@@ -178,13 +197,8 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	int ret = 0;
 	char bf[1024];
 
-	/*
-	 * If have one single callchain root, don't bother printing
-	 * its percentage (100 % in fractal mode and the same percentage
-	 * than the hist in graph mode). This also avoid one level of column.
-	 */
 	node = rb_first(root);
-	if (node && !rb_next(node)) {
+	if (node && !need_percent_display(node, parent_samples)) {
 		cnode = rb_entry(node, struct callchain_node, rb_node);
 		list_for_each_entry(chain, &cnode->val, list) {
 			/*
