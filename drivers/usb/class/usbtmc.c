@@ -102,6 +102,9 @@ struct usbtmc_device_data {
 	u16            iin_wMaxPacketSize;
 	atomic_t       srq_asserted;
 
+	/* coalesced usb488_caps from usbtmc_dev_capabilities */
+	__u8 usb488_caps;
+
 	u8 rigol_quirk;
 
 	/* attributes from the USB TMC spec for this device */
@@ -993,6 +996,7 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	data->capabilities.device_capabilities = buffer[5];
 	data->capabilities.usb488_interface_capabilities = buffer[14];
 	data->capabilities.usb488_device_capabilities = buffer[15];
+	data->usb488_caps = (buffer[14] & 0x07) | ((buffer[15] & 0x0f) << 4);
 	rv = 0;
 
 err_out:
@@ -1166,6 +1170,14 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case USBTMC_IOCTL_ABORT_BULK_IN:
 		retval = usbtmc_ioctl_abort_bulk_in(data);
+		break;
+
+	case USBTMC488_IOCTL_GET_CAPS:
+		retval = copy_to_user((void __user *)arg,
+				&data->usb488_caps,
+				sizeof(data->usb488_caps));
+		if (retval)
+			retval = -EFAULT;
 		break;
 
 	case USBTMC488_IOCTL_READ_STB:
