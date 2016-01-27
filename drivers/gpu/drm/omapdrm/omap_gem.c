@@ -33,9 +33,7 @@
 /* note: we use upper 8 bits of flags for driver-internal flags: */
 #define OMAP_BO_MEM_DMA_API	0x01000000	/* memory allocated with the dma_alloc_* API */
 #define OMAP_BO_MEM_SHMEM	0x02000000	/* memory allocated through shmem backing */
-#define OMAP_BO_MEM_EXT		0x04000000	/* memory allocated externally */
 #define OMAP_BO_MEM_DMABUF	0x08000000	/* memory imported from a dmabuf */
-#define OMAP_BO_EXT_SYNC	0x10000000	/* externally allocated sync object */
 
 struct omap_gem_object {
 	struct drm_gem_object base;
@@ -107,17 +105,7 @@ struct omap_gem_object {
 	 * sync-object allocated on demand (if needed)
 	 *
 	 * Per-buffer sync-object for tracking pending and completed hw/dma
-	 * read and write operations.  The layout in memory is dictated by
-	 * the SGX firmware, which uses this information to stall the command
-	 * stream if a surface is not ready yet.
-	 *
-	 * Note that when buffer is used by SGX, the sync-object needs to be
-	 * allocated from a special heap of sync-objects.  This way many sync
-	 * objects can be packed in a page, and not waste GPU virtual address
-	 * space.  Because of this we have to have a omap_gem_set_sync_object()
-	 * API to allow replacement of the syncobj after it has (potentially)
-	 * already been allocated.  A bit ugly but I haven't thought of a
-	 * better alternative.
+	 * read and write operations.
 	 */
 	struct {
 		uint32_t write_pending;
@@ -1180,20 +1168,6 @@ unlock:
 	return ret;
 }
 
-/* it is a bit lame to handle updates in this sort of polling way, but
- * in case of PVR, the GPU can directly update read/write complete
- * values, and not really tell us which ones it updated.. this also
- * means that sync_lock is not quite sufficient.  So we'll need to
- * do something a bit better when it comes time to add support for
- * separate 2d hw..
- */
-void omap_gem_op_update(void)
-{
-	spin_lock(&sync_lock);
-	sync_op_update();
-	spin_unlock(&sync_lock);
-}
-
 /* mark the start of read and/or write operation */
 int omap_gem_op_start(struct drm_gem_object *obj, enum omap_gem_op op)
 {
@@ -1261,7 +1235,7 @@ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op)
  * is currently blocked..  fxn() can be called from any context
  *
  * (TODO for now fxn is called back from whichever context calls
- * omap_gem_op_update().. but this could be better defined later
+ * omap_gem_op_finish().. but this could be better defined later
  * if needed)
  *
  * TODO more code in common w/ _sync()..
@@ -1303,43 +1277,6 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 	return 0;
 }
 
-/* special API so PVR can update the buffer to use a sync-object allocated
- * from it's sync-obj heap.  Only used for a newly allocated (from PVR's
- * perspective) sync-object, so we overwrite the new syncobj w/ values
- * from the already allocated syncobj (if there is one)
- */
-int omap_gem_set_sync_object(struct drm_gem_object *obj, void *syncobj)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int ret = 0;
-
-	spin_lock(&sync_lock);
-
-	if ((omap_obj->flags & OMAP_BO_EXT_SYNC) && !syncobj) {
-		/* clearing a previously set syncobj */
-		syncobj = kmemdup(omap_obj->sync, sizeof(*omap_obj->sync),
-				  GFP_ATOMIC);
-		if (!syncobj) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-		omap_obj->flags &= ~OMAP_BO_EXT_SYNC;
-		omap_obj->sync = syncobj;
-	} else if (syncobj && !(omap_obj->flags & OMAP_BO_EXT_SYNC)) {
-		/* replacing an existing syncobj */
-		if (omap_obj->sync) {
-			memcpy(syncobj, omap_obj->sync, sizeof(*omap_obj->sync));
-			kfree(omap_obj->sync);
-		}
-		omap_obj->flags |= OMAP_BO_EXT_SYNC;
-		omap_obj->sync = syncobj;
-	}
-
-unlock:
-	spin_unlock(&sync_lock);
-	return ret;
-}
-
 /* -----------------------------------------------------------------------------
  * Constructor & Destructor
  */
@@ -1363,28 +1300,23 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	 */
 	WARN_ON(omap_obj->paddr_cnt > 0);
 
-	/* don't free externally allocated backing memory */
-	if (!(omap_obj->flags & OMAP_BO_MEM_EXT)) {
-		if (omap_obj->pages) {
-			if (omap_obj->flags & OMAP_BO_MEM_DMABUF)
-				kfree(omap_obj->pages);
-			else
-				omap_gem_detach_pages(obj);
-		}
-
-		if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
-			dma_free_writecombine(dev->dev, obj->size,
-					omap_obj->vaddr, omap_obj->paddr);
-		} else if (omap_obj->vaddr) {
-			vunmap(omap_obj->vaddr);
-		} else if (obj->import_attach) {
-			drm_prime_gem_destroy(obj, omap_obj->sgt);
-		}
+	if (omap_obj->pages) {
+		if (omap_obj->flags & OMAP_BO_MEM_DMABUF)
+			kfree(omap_obj->pages);
+		else
+			omap_gem_detach_pages(obj);
 	}
 
-	/* don't free externally allocated syncobj */
-	if (!(omap_obj->flags & OMAP_BO_EXT_SYNC))
-		kfree(omap_obj->sync);
+	if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
+		dma_free_writecombine(dev->dev, obj->size,
+				omap_obj->vaddr, omap_obj->paddr);
+	} else if (omap_obj->vaddr) {
+		vunmap(omap_obj->vaddr);
+	} else if (obj->import_attach) {
+		drm_prime_gem_destroy(obj, omap_obj->sgt);
+	}
+
+	kfree(omap_obj->sync);
 
 	drm_gem_object_release(obj);
 
@@ -1429,10 +1361,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		 * use contiguous memory only if no TILER is available.
 		 */
 		flags |= OMAP_BO_MEM_DMA_API;
-	} else if (!(flags & (OMAP_BO_MEM_EXT | OMAP_BO_MEM_DMABUF))) {
+	} else if (!(flags & OMAP_BO_MEM_DMABUF)) {
 		/*
-		 * All other buffers not backed by external memory or dma_buf
-		 * are shmem-backed.
+		 * All other buffers not backed by dma_buf are shmem-backed.
 		 */
 		flags |= OMAP_BO_MEM_SHMEM;
 	}
