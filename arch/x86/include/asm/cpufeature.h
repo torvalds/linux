@@ -130,8 +130,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
  */
 
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_X86_FAST_FEATURE_TESTS)
-extern bool __static_cpu_has(u16 bit);
-
 /*
  * Static testing of CPU features.  Used the same as boot_cpu_has().
  * These will statically patch the target code for additional
@@ -139,7 +137,7 @@ extern bool __static_cpu_has(u16 bit);
  */
 static __always_inline __pure bool _static_cpu_has(u16 bit)
 {
-		asm_volatile_goto("1: jmp %l[t_dynamic]\n"
+		asm_volatile_goto("1: jmp 6f\n"
 			 "2:\n"
 			 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
 			         "((5f-4f) - (2b-1b)),0x90\n"
@@ -164,13 +162,20 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 			 " .byte 0\n"			/* repl len */
 			 " .byte 0\n"			/* pad len */
 			 ".previous\n"
-			 : : "i" (bit), "i" (X86_FEATURE_ALWAYS)
-			 : : t_dynamic, t_no);
+			 ".section .altinstr_aux,\"ax\"\n"
+			 "6:\n"
+			 " testb %[bitnum],%[cap_byte]\n"
+			 " jnz %l[t_yes]\n"
+			 " jmp %l[t_no]\n"
+			 ".previous\n"
+			 : : "i" (bit), "i" (X86_FEATURE_ALWAYS),
+			     [bitnum] "i" (1 << (bit & 7)),
+			     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
+			 : : t_yes, t_no);
+	t_yes:
 		return true;
 	t_no:
 		return false;
-	t_dynamic:
-		return __static_cpu_has(bit);
 }
 
 #define static_cpu_has(bit)					\
