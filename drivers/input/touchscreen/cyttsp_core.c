@@ -240,6 +240,16 @@ static int cyttsp_set_sysinfo_regs(struct cyttsp *ts)
 	return retval;
 }
 
+static void cyttsp_hard_reset(struct cyttsp *ts)
+{
+	if (ts->reset_gpio) {
+		gpiod_set_value_cansleep(ts->reset_gpio, 1);
+		msleep(CY_DELAY_DFLT);
+		gpiod_set_value_cansleep(ts->reset_gpio, 0);
+		msleep(CY_DELAY_DFLT);
+	}
+}
+
 static int cyttsp_soft_reset(struct cyttsp *ts)
 {
 	unsigned long timeout;
@@ -665,6 +675,8 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	}
 
 	disable_irq(ts->irq);
+
+	cyttsp_hard_reset(ts);
 
 	error = cyttsp_power_on(ts);
 	if (error)
