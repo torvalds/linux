@@ -3368,3 +3368,17 @@ void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
 		txqi->txq.ac = IEEE80211_AC_BE;
 	}
 }
+
+void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
+			     unsigned long *frame_cnt,
+			     unsigned long *byte_cnt)
+{
+	struct txq_info *txqi = to_txq_info(txq);
+
+	if (frame_cnt)
+		*frame_cnt = txqi->queue.qlen;
+
+	if (byte_cnt)
+		*byte_cnt = txqi->byte_cnt;
+}
+EXPORT_SYMBOL(ieee80211_txq_get_depth);

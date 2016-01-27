@@ -804,6 +804,7 @@ enum txq_info_flags {
 struct txq_info {
 	struct sk_buff_head queue;
 	unsigned long flags;
+	unsigned long byte_cnt;
 
 	/* keep last! */
 	struct ieee80211_txq txq;
