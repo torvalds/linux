@@ -110,30 +110,6 @@ static const struct at91_pmc_caps sama5d3_caps = {
 			  AT91_PMC_CFDEV,
 };
 
-static struct at91_pmc *__init at91_pmc_init(struct device_node *np,
-					     struct regmap *regmap,
-					     void __iomem *regbase,
-					     const struct at91_pmc_caps *caps)
-{
-	struct at91_pmc *pmc;
-
-	if (!regbase || !caps)
-		return NULL;
-
-	at91_pmc_base = regbase;
-
-	pmc = kzalloc(sizeof(*pmc), GFP_KERNEL);
-	if (!pmc)
-		return NULL;
-
-	pmc->regmap = regmap;
-	pmc->caps = caps;
-
-	regmap_write(pmc->regmap, AT91_PMC_IDR, 0xffffffff);
-
-	return pmc;
-}
-
 static void __init of_at91_pmc_setup(struct device_node *np,
 				     const struct at91_pmc_caps *caps)
 {
@@ -141,13 +117,21 @@ static void __init of_at91_pmc_setup(struct device_node *np,
 	void __iomem *regbase = of_iomap(np, 0);
 	struct regmap *regmap;
 
+	at91_pmc_base = regbase;
+
 	regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(regmap))
 		panic("Could not retrieve syscon regmap");
 
-	pmc = at91_pmc_init(np, regmap, regbase, caps);
+	pmc = kzalloc(sizeof(*pmc), GFP_KERNEL);
 	if (!pmc)
 		return;
+
+	pmc->regmap = regmap;
+	pmc->caps = caps;
+
+	regmap_write(pmc->regmap, AT91_PMC_IDR, 0xffffffff);
+
 }
 
 static void __init of_at91rm9200_pmc_setup(struct device_node *np)
