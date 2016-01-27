@@ -358,6 +358,7 @@ struct imx7_cpu_pm_info {
 	struct imx7_pm_base snvs_base;
 	struct imx7_pm_base anatop_base;
 	struct imx7_pm_base lpsr_base;
+	struct imx7_pm_base gic_base;
 	u32 ttbr1; /* Store TTBR1 */
 	u32 ddrc_num; /* Number of DDRC which need saved/restored. */
 	u32 ddrc_val[MX7_MAX_DDRC_NUM][2]; /* To save offset and value */
@@ -981,6 +982,10 @@ static int __init imx7_suspend_init(const struct imx7_pm_socdata *socdata)
 	pm_info->lpsr_base.pbase = MX7D_LPSR_BASE_ADDR;
 	lpsr_base = pm_info->lpsr_base.vbase = (void __iomem *)
 				IMX_IO_P2V(MX7D_LPSR_BASE_ADDR);
+
+	pm_info->gic_base.pbase = MX7D_GIC_BASE_ADDR;
+	pm_info->gic_base.vbase = (void __iomem *)
+				IMX_IO_P2V(MX7D_GIC_BASE_ADDR);
 
 	pm_info->ddrc_num = socdata->ddrc_num;
 	ddrc_offset_array = socdata->ddrc_offset;
