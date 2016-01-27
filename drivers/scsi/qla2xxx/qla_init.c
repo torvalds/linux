@@ -2062,6 +2062,10 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	if (IS_P3P_TYPE(ha))
 		return;
 
+	/*  Hold status IOCBs until ABTS response received. */
+	if (ql2xfwholdabts)
+		ha->fw_options[3] |= BIT_12;
+
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
 		return;
@@ -6410,12 +6414,17 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
+	/*  Hold status IOCBs until ABTS response received. */
+	if (ql2xfwholdabts)
+		ha->fw_options[3] |= BIT_12;
+
 	if (!ql2xetsenable)
-		return;
+		goto out;
 
 	/* Enable ETS Burst. */
 	memset(ha->fw_options, 0, sizeof(ha->fw_options));
 	ha->fw_options[2] |= BIT_9;
+out:
 	qla2x00_set_fw_options(vha, ha->fw_options);
 }
 

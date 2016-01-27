@@ -233,6 +233,13 @@ MODULE_PARM_DESC(ql2xexchoffld,
 		 "Number of exchanges to offload. "
 		 "0 (Default)- Disabled.");
 
+int ql2xfwholdabts = 0;
+module_param(ql2xfwholdabts, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xfwholdabts,
+		"Allow FW to hold status IOCB until ABTS rsp received. "
+		"0 (Default) Do not set fw option. "
+		"1 - Set fw option to hold ABTS.");
+
 /*
  * SCSI host template entry points
  */
