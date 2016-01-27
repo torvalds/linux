@@ -73,8 +73,9 @@ static inline const char *intf_type(struct media_interface *intf)
 __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 					  int idx_max)
 {
-	ent_enum->bmap = kcalloc(DIV_ROUND_UP(idx_max, BITS_PER_LONG),
-				 sizeof(long), GFP_KERNEL);
+	idx_max = ALIGN(idx_max, BITS_PER_LONG);
+	ent_enum->bmap = kcalloc(idx_max / BITS_PER_LONG, sizeof(long),
+				 GFP_KERNEL);
 	if (!ent_enum->bmap)
 		return -ENOMEM;
 
