@@ -4661,6 +4661,69 @@ static int rk3368_lcdc_extern_func(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
+static int rk3368_lcdc_set_wb(struct rk_lcdc_driver *dev_drv)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+	struct rk_fb_reg_wb_data *wb_data;
+	u32 src_w, src_h, dst_w, dst_h, fmt_cfg;
+	u32 xscale_en = 0, x_scale_fac = 0, y_throw = 0;
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
+	wb_data = &dev_drv->wb_data;
+	src_w = dev_drv->cur_screen->xsize;
+	src_h = dev_drv->cur_screen->ysize;
+	dst_w = dev_drv->wb_data.xsize;
+	dst_h = dev_drv->wb_data.ysize;
+	if (src_w > dst_w)
+		xscale_en = 1;
+	else
+		xscale_en = 0;
+	if (wb_data->state && xscale_en)
+		x_scale_fac = GET_SCALE_FACTOR_BILI_DN(src_w, dst_w);
+	if (src_h >= 2 * dst_h)
+		y_throw = 1;
+	else
+		y_throw = 0;
+
+	switch (wb_data->data_format) {
+	case ARGB888:
+		fmt_cfg = 0;
+		break;
+	case RGB888:
+		fmt_cfg = 1;
+		break;
+	case RGB565:
+		fmt_cfg = 2;
+		break;
+	case YUV420:
+		fmt_cfg = 8;
+		break;
+	default:
+		pr_info("unsupport fmt: %d\n", wb_data->data_format);
+		break;
+	}
+	spin_lock(&lcdc_dev->reg_lock);
+	lcdc_msk_reg(lcdc_dev, WB_CTRL0,
+		     m_WB_EN | m_WB_FMT | m_WB_XPSD_BIL_EN |
+		     m_WB_YTHROW_EN,
+		     v_WB_EN(wb_data->state) | v_WB_FMT(fmt_cfg) |
+		     v_WB_XPSD_BIL_EN(xscale_en) |
+		     v_WB_YTHROW_EN(y_throw));
+	lcdc_msk_reg(lcdc_dev, WB_CTRL1,
+		     m_WB_WIDTH | m_WB_XPSD_BIL_FACTOR,
+		     v_WB_WIDTH(dst_w) |
+		     v_WB_XPSD_BIL_FACTOR(x_scale_fac));
+	lcdc_writel(lcdc_dev, WB_YRGB_MST, wb_data->smem_start);
+	lcdc_writel(lcdc_dev, WB_CBR_MST, wb_data->cbr_start);
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return 0;
+}
+
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk3368_lcdc_open,
 	.win_direct_en = rk3368_lcdc_win_direct_en,
@@ -4701,6 +4764,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.set_overscan   = rk3368_lcdc_set_overscan,
 	.extern_func	= rk3368_lcdc_extern_func,
 	.wait_frame_start = rk3368_lcdc_wait_frame_start,
+	.set_wb = rk3368_lcdc_set_wb,
 };
 
 #ifdef LCDC_IRQ_EMPTY_DEBUG
@@ -4780,6 +4844,15 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 			spin_unlock(&(lcdc_dev->driver.cpl_lock));
 		}
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
+		if ((lcdc_dev->soc_type == VOP_FULL_RK3366) &&
+		    (lcdc_dev->driver.wb_data.state)) {
+			if (lcdc_read_bit(lcdc_dev, WB_CTRL0, m_WB_EN)) {
+				lcdc_msk_reg(lcdc_dev, WB_CTRL0,
+					     m_WB_EN, v_WB_EN(0));
+				lcdc_cfg_done(lcdc_dev);
+				lcdc_dev->driver.wb_data.state = 0;
+			}
+		}
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 		if (!(screen->mode.vmode & FB_VMODE_INTERLACED) ||
 		    (line_scane_num >= dsp_vs_st_f1)) {
@@ -4997,6 +5070,14 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 		dev_err(dev, "register fb for lcdc%d failed!\n", lcdc_dev->id);
 		return ret;
 	}
+	if (lcdc_dev->soc_type == VOP_FULL_RK3366)
+		dev_drv->property.feature |= SUPPORT_WRITE_BACK;
+	else if (lcdc_dev->soc_type == VOP_FULL_RK3368)
+		dev_drv->property.feature |= SUPPORT_IFBDC;
+	dev_drv->property.feature |= SUPPORT_VOP_IDENTIFY |
+				SUPPORT_YUV420_OUTPUT;
+	dev_drv->property.max_output_x = 4096;
+	dev_drv->property.max_output_y = 2160;
 	lcdc_dev->screen = dev_drv->screen0;
 	dev_info(dev, "lcdc%d probe ok, iommu %s\n",
 		 lcdc_dev->id, dev_drv->iommu_enabled ? "enabled" : "disabled");
