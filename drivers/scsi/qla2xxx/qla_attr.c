@@ -1917,7 +1917,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (qla2x00_reset_active(vha))
 		goto done;
 
-	stats = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &stats_dma);
+	stats = dma_alloc_coherent(&ha->pdev->dev,
+	    sizeof(struct link_statistics), &stats_dma, GFP_KERNEL);
 	if (stats == NULL) {
 		ql_log(ql_log_warn, vha, 0x707d,
 		    "Failed to allocate memory for stats.\n");
@@ -1965,7 +1966,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	do_div(pfc_host_stat->seconds_since_last_reset, HZ);
 
 done_free:
-        dma_pool_free(ha->s_dma_pool, stats, stats_dma);
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct link_statistics),
+	    stats, stats_dma);
 done:
 	return pfc_host_stat;
 }

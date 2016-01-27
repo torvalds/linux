@@ -2799,7 +2799,8 @@ qla2x00_get_link_status(scsi_qla_host_t *vha, uint16_t loop_id,
 			/* Copy over data -- firmware data is LE. */
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1086,
 			    "Done %s.\n", __func__);
-			dwords = offsetof(struct link_statistics, unused1) / 4;
+			dwords = offsetof(struct link_statistics,
+					link_up_cnt) / 4;
 			siter = diter = &stats->link_fail_cnt;
 			while (dwords--)
 				*diter++ = le32_to_cpu(*siter++);

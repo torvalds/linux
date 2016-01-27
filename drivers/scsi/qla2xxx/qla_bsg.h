@@ -28,6 +28,7 @@
 #define QL_VND_GET_FLASH_UPDATE_CAPS    0x15
 #define QL_VND_SET_FLASH_UPDATE_CAPS    0x16
 #define QL_VND_GET_BBCR_DATA    0x17
+#define QL_VND_GET_PRIV_STATS	0x18
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0

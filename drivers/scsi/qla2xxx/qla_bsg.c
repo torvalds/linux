@@ -2233,6 +2233,64 @@ qla27xx_get_bbcr_data(struct fc_bsg_job *bsg_job)
 }
 
 static int
+qla2x00_get_priv_stats(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+	struct link_statistics *stats = NULL;
+	dma_addr_t stats_dma;
+	int rval = QLA_FUNCTION_FAILED;
+
+	if (test_bit(UNLOADING, &vha->dpc_flags))
+		goto done;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		goto done;
+
+	if (qla2x00_reset_active(vha))
+		goto done;
+
+	if (!IS_FWI2_CAPABLE(ha))
+		goto done;
+
+	stats = dma_alloc_coherent(&ha->pdev->dev,
+		sizeof(struct link_statistics), &stats_dma, GFP_KERNEL);
+	if (!stats) {
+		ql_log(ql_log_warn, vha, 0x70e2,
+		"Failed to allocate memory for stats.\n");
+		goto done;
+	}
+
+	memset(stats, 0, sizeof(struct link_statistics));
+
+	rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma);
+
+	if (rval != QLA_SUCCESS)
+		goto done_free;
+
+	ql_dump_buffer(ql_dbg_user + ql_dbg_verbose, vha, 0x70e3,
+	    (uint8_t *)stats, sizeof(struct link_statistics));
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	bsg_job->reply_payload.sg_cnt, stats, sizeof(struct link_statistics));
+	bsg_job->reply->reply_payload_rcv_len = sizeof(struct link_statistics);
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_OK;
+
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+
+done_free:
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct link_statistics),
+		stats, stats_dma);
+done:
+	return rval;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -2295,6 +2353,9 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_GET_BBCR_DATA:
 		return qla27xx_get_bbcr_data(bsg_job);
+
+	case QL_VND_GET_PRIV_STATS:
+		return qla2x00_get_priv_stats(bsg_job);
 
 	default:
 		return -ENOSYS;
