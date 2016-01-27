@@ -169,7 +169,22 @@ static const struct sdhci_iproc_data iproc_data = {
 	.mmc_caps = MMC_CAP_1_8V_DDR,
 };
 
+static const struct sdhci_pltfm_data sdhci_bcm2835_pltfm_data = {
+	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+		  SDHCI_QUIRK_MISSING_CAPS,
+	.ops = &sdhci_iproc_ops,
+};
+
+static const struct sdhci_iproc_data bcm2835_data = {
+	.pdata = &sdhci_bcm2835_pltfm_data,
+	.caps = SDHCI_CAN_VDD_330,
+	.caps1 = 0x00000000,
+	.mmc_caps = 0x00000000,
+};
+
 static const struct of_device_id sdhci_iproc_of_match[] = {
+	{ .compatible = "brcm,bcm2835-sdhci", .data = &bcm2835_data },
 	{ .compatible = "brcm,sdhci-iproc-cygnus", .data = &iproc_data },
 	{ }
 };
