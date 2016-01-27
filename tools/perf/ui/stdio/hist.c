@@ -349,30 +349,6 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	return 0;
 }
 
-static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
-					    struct hists *hists,
-					    FILE *fp)
-{
-	int left_margin = 0;
-	u64 total_period = hists->stats.total_period;
-
-	if (field_order == NULL && (sort_order == NULL ||
-				    !prefixcmp(sort_order, "comm"))) {
-		struct perf_hpp_fmt *fmt;
-
-		perf_hpp__for_each_format(fmt) {
-			if (!perf_hpp__is_sort_entry(fmt))
-				continue;
-
-			/* must be 'comm' sort entry */
-			left_margin = fmt->width(fmt, NULL, hists_to_evsel(hists));
-			left_margin -= thread__comm_len(he->thread);
-			break;
-		}
-	}
-	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
-}
-
 static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 {
 	const char *sep = symbol_conf.field_sep;
@@ -418,6 +394,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		.buf		= bf,
 		.size		= size,
 	};
+	u64 total_period = hists->stats.total_period;
 
 	if (size == 0 || size > bfsz)
 		size = hpp.size = bfsz;
@@ -427,7 +404,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	ret = fprintf(fp, "%s\n", bf);
 
 	if (symbol_conf.use_callchain)
-		ret += hist_entry__callchain_fprintf(he, hists, fp);
+		ret += hist_entry_callchain__fprintf(he, total_period, 0, fp);
 
 	return ret;
 }
