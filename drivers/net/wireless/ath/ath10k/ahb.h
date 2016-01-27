@@ -20,6 +20,13 @@
 
 #include <linux/platform_device.h>
 
+struct ath10k_ahb {
+	struct platform_device *pdev;
+	void __iomem *mem;
+	void __iomem *gcc_mem;
+	void __iomem *tcsr_mem;
+};
+
 #ifdef CONFIG_ATH10K_AHB
 
 int ath10k_ahb_init(void);

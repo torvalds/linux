@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include "core.h"
 #include "debug.h"
+#include "pci.h"
 #include "ahb.h"
 
 static const struct of_device_id ath10k_ahb_of_match[] = {
@@ -28,6 +29,60 @@ static const struct of_device_id ath10k_ahb_of_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, ath10k_ahb_of_match);
+
+static inline struct ath10k_ahb *ath10k_ahb_priv(struct ath10k *ar)
+{
+	return &((struct ath10k_pci *)ar->drv_priv)->ahb[0];
+}
+
+static void ath10k_ahb_write32(struct ath10k *ar, u32 offset, u32 value)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	iowrite32(value, ar_ahb->mem + offset);
+}
+
+static u32 ath10k_ahb_read32(struct ath10k *ar, u32 offset)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	return ioread32(ar_ahb->mem + offset);
+}
+
+static u32 ath10k_ahb_gcc_read32(struct ath10k *ar, u32 offset)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	return ioread32(ar_ahb->gcc_mem + offset);
+}
+
+static void ath10k_ahb_tcsr_write32(struct ath10k *ar, u32 offset, u32 value)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	iowrite32(value, ar_ahb->tcsr_mem + offset);
+}
+
+static u32 ath10k_ahb_tcsr_read32(struct ath10k *ar, u32 offset)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	return ioread32(ar_ahb->tcsr_mem + offset);
+}
+
+static u32 ath10k_ahb_soc_read32(struct ath10k *ar, u32 addr)
+{
+	return ath10k_ahb_read32(ar, RTC_SOC_BASE_ADDRESS + addr);
+}
+
+static int ath10k_ahb_get_num_banks(struct ath10k *ar)
+{
+	if (ar->hw_rev == ATH10K_HW_QCA4019)
+		return 1;
+
+	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
+	return 1;
+}
 
 static int ath10k_ahb_probe(struct platform_device *pdev)
 {

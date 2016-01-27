@@ -234,6 +234,12 @@ struct ath10k_pci {
 	bool pci_ps;
 
 	const struct ath10k_bus_ops *bus_ops;
+
+	/* Keep this entry in the last, memory for struct ath10k_ahb is
+	 * allocated (ahb support enabled case) in the continuation of
+	 * this struct.
+	 */
+	struct ath10k_ahb ahb[0];
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
