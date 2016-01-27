@@ -555,8 +555,10 @@ static unsigned int intel_gtt_mappable_entries(void)
 static void intel_gtt_teardown_scratch_page(void)
 {
 	set_pages_wb(intel_private.scratch_page, 1);
-	pci_unmap_page(intel_private.pcidev, intel_private.scratch_page_dma,
-		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	if (intel_private.needs_dmar)
+		pci_unmap_page(intel_private.pcidev,
+			       intel_private.scratch_page_dma,
+			       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	__free_page(intel_private.scratch_page);
 }
 
@@ -1430,6 +1432,8 @@ void intel_gmch_remove(void)
 	if (--intel_private.refcount)
 		return;
 
+	if (intel_private.scratch_page)
+		intel_gtt_teardown_scratch_page();
 	if (intel_private.pcidev)
 		pci_dev_put(intel_private.pcidev);
 	if (intel_private.bridge_dev)
