@@ -789,6 +789,7 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 	int dev_id = connection->intf->interface_id;
 	struct gbaudio_codec_info *gbcodec = dev_get_drvdata(dev);
 	struct gb_audio_manager_module_descriptor desc;
+	int ret;
 
 	dev_dbg(dev, "Add DAI device:%d:%s\n", dev_id, dev_name(dev));
 
@@ -800,8 +801,10 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 	/* add/update dai_list*/
 	dai = gbaudio_add_dai(gbcodec, connection->intf_cport_id, connection,
 			       NULL);
-	if (!dai)
-		return -ENOMEM;
+	if (!dai) {
+		ret = -ENOMEM;
+		goto err_free_codec;
+	}
 
 	/* update dai_added count */
 	mutex_lock(&gbcodec->lock);
@@ -825,6 +828,10 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 	mutex_unlock(&gbcodec->lock);
 
 	return 0;
+
+err_free_codec:
+	gbaudio_free_codec(dev, gbcodec);
+	return ret;
 }
 
 static void gbaudio_dai_remove(struct gb_connection *connection)
