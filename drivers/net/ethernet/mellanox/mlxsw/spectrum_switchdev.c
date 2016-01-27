@@ -1051,7 +1051,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				  switchdev_obj_dump_cb_t *cb)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u16 vport_vid = 0, vport_fid = 0;
+	u16 vport_fid = 0;
 	char *sfd_pl;
 	char mac[ETH_ALEN];
 	u16 fid;
@@ -1072,7 +1072,6 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 
 		tmp = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
 		vport_fid = mlxsw_sp_vfid_to_fid(tmp);
-		vport_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
 	}
 
 	mlxsw_reg_sfd_pack(sfd_pl, MLXSW_REG_SFD_OP_QUERY_DUMP, 0);
@@ -1096,12 +1095,13 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				mlxsw_reg_sfd_uc_unpack(sfd_pl, i, mac, &fid,
 							&local_port);
 				if (local_port == mlxsw_sp_port->local_port) {
-					if (vport_fid && vport_fid != fid)
-						continue;
-					else if (vport_fid)
-						fdb->vid = vport_vid;
-					else
+					if (vport_fid && vport_fid == fid)
+						fdb->vid = 0;
+					else if (!vport_fid &&
+						 !mlxsw_sp_fid_is_vfid(fid))
 						fdb->vid = fid;
+					else
+						continue;
 					ether_addr_copy(fdb->addr, mac);
 					fdb->ndm_state = NUD_REACHABLE;
 					err = cb(&fdb->obj);
@@ -1114,12 +1114,13 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 							    mac, &fid, &lag_id);
 				if (mlxsw_sp_port ==
 				    mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id)) {
-					if (vport_fid && vport_fid != fid)
-						continue;
-					else if (vport_fid)
-						fdb->vid = vport_vid;
-					else
+					if (vport_fid && vport_fid == fid)
+						fdb->vid = 0;
+					else if (!vport_fid &&
+						 !mlxsw_sp_fid_is_vfid(fid))
 						fdb->vid = fid;
+					else
+						continue;
 					ether_addr_copy(fdb->addr, mac);
 					fdb->ndm_state = NUD_REACHABLE;
 					err = cb(&fdb->obj);
@@ -1245,7 +1246,7 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 			netdev_err(mlxsw_sp_port->dev, "Failed to find a matching vPort following FDB notification\n");
 			goto just_remove;
 		}
-		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		vid = 0;
 		/* Override the physical port with the vPort. */
 		mlxsw_sp_port = mlxsw_sp_vport;
 	} else {
@@ -1305,8 +1306,8 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 			goto just_remove;
 		}
 
-		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
-		lag_vid = vid;
+		lag_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		vid = 0;
 		/* Override the physical port with the vPort. */
 		mlxsw_sp_port = mlxsw_sp_vport;
 	} else {
