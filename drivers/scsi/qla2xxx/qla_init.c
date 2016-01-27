@@ -157,8 +157,12 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		lio->u.logio.flags |= SRB_LOGIN_RETRIED;
 	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
+	if (rval != QLA_SUCCESS) {
+		fcport->flags &= ~FCF_ASYNC_SENT;
+		fcport->flags |= FCF_LOGIN_NEEDED;
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		goto done_free_sp;
+	}
 
 	ql_dbg(ql_dbg_disc, vha, 0x2072,
 	    "Async-login - hdl=%x, loopid=%x portid=%02x%02x%02x "
