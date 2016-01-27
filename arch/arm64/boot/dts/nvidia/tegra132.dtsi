@@ -315,7 +315,7 @@
 	 * driver and APB DMA based serial driver for higher baudrate
 	 * and performance. To enable the 8250 based driver, the compatible
 	 * is "nvidia,tegra124-uart", "nvidia,tegra20-uart" and to enable
-	 * the APB DMA based serial driver, the comptible is
+	 * the APB DMA based serial driver, the compatible is
 	 * "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart".
 	 */
 	uarta: serial@70006000 {
