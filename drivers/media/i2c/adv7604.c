@@ -1197,6 +1197,20 @@ static int adv76xx_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
+static int adv76xx_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd =
+		&container_of(ctrl->handler, struct adv76xx_state, hdl)->sd;
+
+	if (ctrl->id == V4L2_CID_DV_RX_IT_CONTENT_TYPE) {
+		ctrl->val = V4L2_DV_IT_CONTENT_TYPE_NO_ITC;
+		if ((io_read(sd, 0x60) & 1) && (infoframe_read(sd, 0x03) & 0x80))
+			ctrl->val = (infoframe_read(sd, 0x05) >> 4) & 3;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static inline bool no_power(struct v4l2_subdev *sd)
@@ -2353,6 +2367,7 @@ static int adv76xx_subscribe_event(struct v4l2_subdev *sd,
 
 static const struct v4l2_ctrl_ops adv76xx_ctrl_ops = {
 	.s_ctrl = adv76xx_s_ctrl,
+	.g_volatile_ctrl = adv76xx_g_volatile_ctrl,
 };
 
 static const struct v4l2_subdev_core_ops adv76xx_core_ops = {
@@ -2988,6 +3003,7 @@ static int adv76xx_probe(struct i2c_client *client,
 		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv76xx_state *state;
 	struct v4l2_ctrl_handler *hdl;
+	struct v4l2_ctrl *ctrl;
 	struct v4l2_subdev *sd;
 	unsigned int i;
 	unsigned int val, val2;
@@ -3119,6 +3135,11 @@ static int adv76xx_probe(struct i2c_client *client,
 			V4L2_CID_SATURATION, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(hdl, &adv76xx_ctrl_ops,
 			V4L2_CID_HUE, 0, 128, 1, 0);
+	ctrl = v4l2_ctrl_new_std_menu(hdl, &adv76xx_ctrl_ops,
+			V4L2_CID_DV_RX_IT_CONTENT_TYPE, V4L2_DV_IT_CONTENT_TYPE_NO_ITC,
+			0, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+	if (ctrl)
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl, NULL,
