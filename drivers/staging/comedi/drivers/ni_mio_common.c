@@ -3215,48 +3215,70 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	/* See 3.6.1.2 "Resetting", of DAQ-STC Technical Reference Manual */
+
+	/*
+	 * In the following, the "--sync" comments are meant to denote
+	 * asynchronous boundaries for setting the registers as described in the
+	 * DAQ-STC mostly in the order also described in the DAQ-STC.
+	 */
+
 	struct ni_private *devpriv = dev->private;
 
 	ni_release_ao_mite_channel(dev);
 
+	/* --sync (reset AO) */
+	if (devpriv->is_m_series)
+		/* following example in mhddk for m-series */
+		ni_stc_writew(dev, NISTC_RESET_AO, NISTC_RESET_REG);
+
+	/*--sync (start config) */
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
+
+	/*--sync (Disarm) */
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
-	ni_set_bits(dev, NISTC_INTB_ENA_REG, ~0, 0);
-	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL, NISTC_AO_PERSONAL_REG);
-	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
-	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL |
-			   NISTC_AO_PERSONAL_UPDATE_PW |
-			   NISTC_AO_PERSONAL_TMRDACWR_PW,
-		      NISTC_AO_PERSONAL_REG);
-	ni_stc_writew(dev, 0, NISTC_AO_OUT_CTRL_REG);
-	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
-	devpriv->ao_cmd1 = 0;
-	ni_stc_writew(dev, devpriv->ao_cmd1, NISTC_AO_CMD1_REG);
-	devpriv->ao_cmd2 = 0;
-	ni_stc_writew(dev, devpriv->ao_cmd2, NISTC_AO_CMD2_REG);
+
+	/*
+	 * --sync
+	 * (clear bunch of registers--mseries mhddk examples do not include
+	 * this)
+	 */
+	devpriv->ao_cmd1  = 0;
+	devpriv->ao_cmd2  = 0;
 	devpriv->ao_mode1 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 	devpriv->ao_mode2 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 	if (devpriv->is_m_series)
 		devpriv->ao_mode3 = NISTC_AO_MODE3_LAST_GATE_DISABLE;
 	else
 		devpriv->ao_mode3 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 	devpriv->ao_trigger_select = 0;
-	ni_stc_writew(dev, devpriv->ao_trigger_select,
-		      NISTC_AO_TRIG_SEL_REG);
-	if (devpriv->is_6xxx) {
-		unsigned immediate_bits = 0;
-		unsigned i;
 
-		for (i = 0; i < s->n_chan; ++i)
-			immediate_bits |= 1 << i;
-		ni_ao_win_outw(dev, immediate_bits, NI671X_AO_IMMEDIATE_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_PERSONAL_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_CMD1_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_CMD2_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_MODE1_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_MODE2_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_OUT_CTRL_REG);
+	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_TRIG_SEL_REG);
+
+	/*--sync (disable interrupts) */
+	ni_set_bits(dev, NISTC_INTB_ENA_REG, ~0, 0);
+
+	/*--sync (ack) */
+	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL, NISTC_AO_PERSONAL_REG);
+	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
+
+	/*--not in DAQ-STC.  which doc? */
+	if (devpriv->is_6xxx) {
+		ni_ao_win_outw(dev, (1u << s->n_chan) - 1u,
+			       NI671X_AO_IMMEDIATE_REG);
 		ni_ao_win_outw(dev, NI611X_AO_MISC_CLEAR_WG,
 			       NI611X_AO_MISC_REG);
 	}
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+	/*--end */
 
 	return 0;
 }
