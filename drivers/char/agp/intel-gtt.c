@@ -1348,16 +1348,6 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 {
 	int i, mask;
 
-	/*
-	 * Can be called from the fake agp driver but also directly from
-	 * drm/i915.ko. Hence we need to check whether everything is set up
-	 * already.
-	 */
-	if (intel_private.driver) {
-		intel_private.refcount++;
-		return 1;
-	}
-
 	for (i = 0; intel_gtt_chipsets[i].name != NULL; i++) {
 		if (gpu_pdev) {
 			if (gpu_pdev->device ==
@@ -1378,15 +1368,25 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 	if (!intel_private.driver)
 		return 0;
 
-	intel_private.refcount++;
-
 #if IS_ENABLED(CONFIG_AGP_INTEL)
 	if (bridge) {
+		if (INTEL_GTT_GEN > 1)
+			return 0;
+
 		bridge->driver = &intel_fake_agp_driver;
 		bridge->dev_private_data = &intel_private;
 		bridge->dev = bridge_pdev;
 	}
 #endif
+
+
+	/*
+	 * Can be called from the fake agp driver but also directly from
+	 * drm/i915.ko. Hence we need to check whether everything is set up
+	 * already.
+	 */
+	if (intel_private.refcount++)
+		return 1;
 
 	intel_private.bridge_dev = pci_dev_get(bridge_pdev);
 
