@@ -3019,7 +3019,7 @@ int i915_gem_init_rings(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
-void i915_gem_cleanup_engines(struct drm_device *dev);
+void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
 void __i915_add_request(struct drm_i915_gem_request *req,

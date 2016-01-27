@@ -451,8 +451,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
+	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
-	i915_gem_cleanup_engines(dev);
 	mutex_unlock(&dev->struct_mutex);
 cleanup_irq:
 	intel_guc_ucode_fini(dev);
@@ -1196,8 +1196,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_guc_ucode_fini(dev);
 	mutex_lock(&dev->struct_mutex);
+	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
-	i915_gem_cleanup_engines(dev);
 	mutex_unlock(&dev->struct_mutex);
 	intel_fbc_cleanup_cfb(dev_priv);
 	i915_gem_cleanup_stolen(dev);
