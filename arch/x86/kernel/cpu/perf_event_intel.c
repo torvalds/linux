@@ -1960,7 +1960,8 @@ intel_bts_constraints(struct perf_event *event)
 
 static int intel_alt_er(int idx, u64 config)
 {
-	int alt_idx;
+	int alt_idx = idx;
+
 	if (!(x86_pmu.flags & PMU_FL_HAS_RSP_1))
 		return idx;
 
