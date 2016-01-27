@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -188,6 +188,7 @@ struct mxc_hdmi *g_hdmi;
 
 static bool hdmi_inited;
 static bool hdcp_init;
+static struct regulator *hdmi_regulator;
 
 extern const struct fb_videomode mxc_cea_mode[64];
 extern void mxc_hdmi_cec_handle(u16 cec_stat);
@@ -2834,6 +2835,18 @@ static int mxc_hdmi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hdmi);
 
+	hdmi_regulator = devm_regulator_get(&pdev->dev, "HDMI");
+	if (!IS_ERR(hdmi_regulator)) {
+		ret = regulator_enable(hdmi_regulator);
+		if (ret) {
+			dev_err(&pdev->dev, "enable 5v hdmi regulator failed\n");
+			goto edispdrv;
+		}
+	} else {
+		hdmi_regulator = NULL;
+		dev_warn(&pdev->dev, "No hdmi 5v supply\n");
+	}
+
 	return 0;
 edispdrv:
 	iounmap(hdmi->gpr_base);
@@ -2863,6 +2876,10 @@ static int mxc_hdmi_remove(struct platform_device *pdev)
 	/* No new work will be scheduled, wait for running ISR */
 	free_irq(irq, hdmi);
 	kfree(hdmi);
+
+	if (hdmi_regulator)
+		regulator_disable(hdmi_regulator);
+
 	g_hdmi = NULL;
 
 	return 0;
