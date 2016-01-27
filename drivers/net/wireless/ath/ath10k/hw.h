@@ -200,6 +200,7 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA6174,
 	ATH10K_HW_QCA99X0,
 	ATH10K_HW_QCA9377,
+	ATH10K_HW_QCA4019,
 };
 
 struct ath10k_hw_regs {
@@ -253,6 +254,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
 #define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
+#define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 
 /* Known pecularities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap

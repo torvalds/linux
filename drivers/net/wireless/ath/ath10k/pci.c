@@ -851,6 +851,7 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 		       0x7ff) << 21;
 		break;
 	case ATH10K_HW_QCA99X0:
+	case ATH10K_HW_QCA4019:
 		val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
 		break;
 	}
@@ -1529,6 +1530,7 @@ static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 				   CORE_CTRL_ADDRESS, val);
 		break;
 	case ATH10K_HW_QCA99X0:
+	case ATH10K_HW_QCA4019:
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to mask irq/MSI.
 		 */
@@ -1551,6 +1553,7 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 				   CORE_CTRL_ADDRESS, val);
 		break;
 	case ATH10K_HW_QCA99X0:
+	case ATH10K_HW_QCA4019:
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to unmask irq/MSI.
 		 */
@@ -3231,6 +3234,10 @@ static int __init ath10k_pci_init(void)
 		printk(KERN_ERR "failed to register ath10k pci driver: %d\n",
 		       ret);
 
+	ret = ath10k_ahb_init();
+	if (ret)
+		printk(KERN_ERR "ahb init failed: %d\n", ret);
+
 	return ret;
 }
 module_init(ath10k_pci_init);
@@ -3238,6 +3245,7 @@ module_init(ath10k_pci_init);
 static void __exit ath10k_pci_exit(void)
 {
 	pci_unregister_driver(&ath10k_pci_driver);
+	ath10k_ahb_exit();
 }
 
 module_exit(ath10k_pci_exit);

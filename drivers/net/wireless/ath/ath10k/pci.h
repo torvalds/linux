@@ -22,6 +22,7 @@
 
 #include "hw.h"
 #include "ce.h"
+#include "ahb.h"
 
 /*
  * maximum number of bytes that can be handled atomically by DiagRead/DiagWrite
