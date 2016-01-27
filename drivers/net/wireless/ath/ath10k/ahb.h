@@ -23,6 +23,7 @@
 struct ath10k_ahb {
 	struct platform_device *pdev;
 	void __iomem *mem;
+	unsigned long mem_len;
 	void __iomem *gcc_mem;
 	void __iomem *tcsr_mem;
 
@@ -40,6 +41,12 @@ struct ath10k_ahb {
 };
 
 #ifdef CONFIG_ATH10K_AHB
+
+#define ATH10K_GCC_REG_BASE                  0x1800000
+#define ATH10K_GCC_REG_SIZE                  0x60000
+
+#define ATH10K_TCSR_REG_BASE                 0x1900000
+#define ATH10K_TCSR_REG_SIZE                 0x80000
 
 #define ATH10K_AHB_WLAN_CORE_ID_REG          0x82030
 
