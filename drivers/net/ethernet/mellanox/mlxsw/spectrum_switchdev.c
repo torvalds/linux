@@ -1052,6 +1052,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *orig_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_port *tmp;
 	u16 vport_fid = 0;
 	char *sfd_pl;
 	char mac[ETH_ALEN];
@@ -1113,8 +1114,9 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 			case MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG:
 				mlxsw_reg_sfd_uc_lag_unpack(sfd_pl, i,
 							    mac, &fid, &lag_id);
-				if (mlxsw_sp_port ==
-				    mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id)) {
+				tmp = mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id);
+				if (tmp && tmp->local_port ==
+				    mlxsw_sp_port->local_port) {
 					/* LAG records can only point to LAG
 					 * devices or VLAN devices on top.
 					 */
