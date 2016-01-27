@@ -245,6 +245,7 @@ struct qla_flash_update_caps {
 /* BB_CR Status */
 #define QLA_BBCR_STATUS_DISABLED       0
 #define QLA_BBCR_STATUS_ENABLED        1
+#define QLA_BBCR_STATUS_UNKNOWN        2
 
 /* BB_CR State */
 #define QLA_BBCR_STATE_OFFLINE         0
@@ -262,6 +263,7 @@ struct  qla_bbcr_data {
 	uint8_t   configured_bbscn;       /* 0-15 */
 	uint8_t   negotiated_bbscn;       /* 0-15 */
 	uint8_t   offline_reason_code;
-	uint8_t   reserved[11];
+	uint16_t  mbx1;			/* Port state */
+	uint8_t   reserved[9];
 } __packed;
 #endif

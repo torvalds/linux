@@ -2204,8 +2204,12 @@ qla27xx_get_bbcr_data(struct fc_bsg_job *bsg_job)
 	if (bbcr.status == QLA_BBCR_STATUS_ENABLED) {
 		rval = qla2x00_get_adapter_id(vha, &loop_id, &al_pa,
 			&area, &domain, &topo, &sw_cap);
-		if (rval != QLA_SUCCESS)
-			return -EIO;
+		if (rval != QLA_SUCCESS) {
+			bbcr.status = QLA_BBCR_STATUS_UNKNOWN;
+			bbcr.state = QLA_BBCR_STATE_OFFLINE;
+			bbcr.mbx1 = loop_id;
+			goto done;
+		}
 
 		state = (vha->bbcr >> 12) & 0x1;
 
@@ -2220,6 +2224,7 @@ qla27xx_get_bbcr_data(struct fc_bsg_job *bsg_job)
 		bbcr.configured_bbscn = vha->bbcr & 0xf;
 	}
 
+done:
 	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
 		bsg_job->reply_payload.sg_cnt, &bbcr, sizeof(bbcr));
 	bsg_job->reply->reply_payload_rcv_len = sizeof(bbcr);
