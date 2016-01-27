@@ -142,6 +142,13 @@ struct gbaudio_codec_info {
 	struct mutex lock;
 };
 
+struct gb_audio {
+	struct gb_connection		*mgmt_connection;
+	size_t				num_data_connections;
+	struct gbaudio_codec_info	*gbcodec;
+	struct gb_connection		*data_connection[0];
+};
+
 struct gbaudio_dai *gbaudio_add_dai(struct gbaudio_codec_info *gbcodec,
 				    int data_cport,
 				    struct gb_connection *connection,

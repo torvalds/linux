@@ -15,9 +15,6 @@
 #include "audio_apbridgea.h"
 #include "audio_manager.h"
 
-#define GB_AUDIO_MGMT_DRIVER_NAME	"gb_audio_mgmt"
-#define GB_AUDIO_DATA_DRIVER_NAME	"gb_audio_data"
-
 static DEFINE_MUTEX(gb_codec_list_lock);
 static LIST_HEAD(gb_codec_list);
 
@@ -31,8 +28,8 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 	__u16 i2s_port, cportid;
 
 	struct gbaudio_dai *gb_dai;
-	struct gbaudio_codec_info *gb =
-		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+	struct gb_audio *audio = dev_get_drvdata(dai->dev);
+	struct gbaudio_codec_info *gb = audio->gbcodec;
 
 	/* find the dai */
 	found = 0;
@@ -69,8 +66,8 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	__u16 i2s_port, cportid;
 
 	struct gbaudio_dai *gb_dai;
-	struct gbaudio_codec_info *gb =
-		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+	struct gb_audio *audio = dev_get_drvdata(dai->dev);
+	struct gbaudio_codec_info *gb = audio->gbcodec;
 
 	/* find the dai */
 	found = 0;
@@ -126,8 +123,8 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 	uint32_t format, rate;
 	uint16_t data_cport;
 	struct gbaudio_dai *gb_dai;
-	struct gbaudio_codec_info *gb =
-		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+	struct gb_audio *audio = dev_get_drvdata(dai->dev);
+	struct gbaudio_codec_info *gb = audio->gbcodec;
 
 	/* find the dai */
 	found = 0;
@@ -203,8 +200,8 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 	int ret, found;
 	uint16_t data_cport;
 	struct gbaudio_dai *gb_dai;
-	struct gbaudio_codec_info *gb =
-		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+	struct gb_audio *audio = dev_get_drvdata(dai->dev);
+	struct gbaudio_codec_info *gb = audio->gbcodec;
 
 	/* find the dai */
 	found = 0;
@@ -280,8 +277,8 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 	int ret, found;
 	int tx, rx, start, stop;
 	struct gbaudio_dai *gb_dai;
-	struct gbaudio_codec_info *gb =
-		(struct gbaudio_codec_info *)dev_get_drvdata(dai->dev);
+	struct gb_audio *audio = dev_get_drvdata(dai->dev);
+	struct gbaudio_codec_info *gb = audio->gbcodec;
 
 	/* find the dai */
 	found = 0;
@@ -386,7 +383,8 @@ static int gbcodec_write(struct snd_soc_codec *codec, unsigned int reg,
 			 unsigned int value)
 {
 	int ret = 0;
-	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
+	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
+	struct gbaudio_codec_info *gbcodec = audio->gbcodec;
 	u8 *gbcodec_reg = gbcodec->reg;
 
 	if (reg == SND_SOC_NOPM)
@@ -406,7 +404,8 @@ static unsigned int gbcodec_read(struct snd_soc_codec *codec,
 {
 	unsigned int val = 0;
 
-	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
+	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
+	struct gbaudio_codec_info *gbcodec = audio->gbcodec;
 	u8 *gbcodec_reg = gbcodec->reg;
 
 	if (reg == SND_SOC_NOPM)
@@ -524,6 +523,7 @@ static struct gbaudio_codec_info *gbaudio_get_codec(struct device *dev,
 						    int dev_id)
 {
 	struct gbaudio_codec_info *gbcodec;
+	struct gb_audio *audio = dev_get_drvdata(dev);
 
 	gbcodec = gbaudio_find_codec(dev, dev_id);
 	if (gbcodec)
@@ -539,7 +539,7 @@ static struct gbaudio_codec_info *gbaudio_get_codec(struct device *dev,
 	INIT_LIST_HEAD(&gbcodec->codec_ctl_list);
 	INIT_LIST_HEAD(&gbcodec->widget_ctl_list);
 	gbcodec->dev_id = dev_id;
-	dev_set_drvdata(dev, gbcodec);
+	audio->gbcodec = gbcodec;
 	gbcodec->dev = dev;
 	snprintf(gbcodec->name, NAME_SIZE, "%s.%s", dev->driver->name,
 		 dev_name(dev));
@@ -556,12 +556,14 @@ static struct gbaudio_codec_info *gbaudio_get_codec(struct device *dev,
 static void gbaudio_free_codec(struct device *dev,
 			       struct gbaudio_codec_info *gbcodec)
 {
+	struct gb_audio *audio = dev_get_drvdata(dev);
+
 	mutex_lock(&gb_codec_list_lock);
 	if (!gbcodec->mgmt_connection &&
 			list_empty(&gbcodec->dai_list)) {
 		list_del(&gbcodec->list);
 		mutex_unlock(&gb_codec_list_lock);
-		dev_set_drvdata(dev, NULL);
+		audio->gbcodec = NULL;
 		devm_kfree(dev, gbcodec);
 	} else {
 		mutex_unlock(&gb_codec_list_lock);
@@ -633,12 +635,16 @@ static int gbaudio_codec_probe(struct gb_connection *connection)
 
 	gbcodec->mgmt_connection = connection;
 
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto base_error;
+
 	/* fetch topology data */
 	ret = gb_audio_gb_get_topology(connection, &topology);
 	if (ret) {
 		dev_err(gbcodec->dev,
 			"%d:Error while fetching topology\n", ret);
-		goto base_error;
+		goto err_connection_disable;
 	}
 
 	/* process topology data */
@@ -711,6 +717,8 @@ parse_error:
 	gbcodec->topology = NULL;
 topology_error:
 	kfree(topology);
+err_connection_disable:
+	gb_connection_disable(connection);
 base_error:
 	gbcodec->mgmt_connection = NULL;
 	gbaudio_free_codec(dev, gbcodec);
@@ -753,6 +761,7 @@ static void gbaudio_codec_remove(struct gb_connection *connection)
 	dev->driver = NULL;
 	gbaudio_tplg_release(gbcodec);
 	kfree(gbcodec->topology);
+	gb_connection_disable(connection);
 	gbcodec->mgmt_connection = NULL;
 	mutex_lock(&gbcodec->lock);
 	gbcodec->codec_registered = 0;
@@ -760,7 +769,7 @@ static void gbaudio_codec_remove(struct gb_connection *connection)
 	gbaudio_free_codec(dev, gbcodec);
 }
 
-static int gbaudio_codec_report_event_recv(u8 type, struct gb_operation *op)
+static int gbaudio_codec_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_audio_streaming_event_request *req = op->request->payload;
@@ -772,22 +781,12 @@ static int gbaudio_codec_report_event_recv(u8 type, struct gb_operation *op)
 	return 0;
 }
 
-static struct gb_protocol gb_audio_mgmt_protocol = {
-	.name			= GB_AUDIO_MGMT_DRIVER_NAME,
-	.id			= GREYBUS_PROTOCOL_AUDIO_MGMT,
-	.major			= 0,
-	.minor			= 1,
-	.connection_init	= gbaudio_codec_probe,
-	.connection_exit	= gbaudio_codec_remove,
-	.request_recv		= gbaudio_codec_report_event_recv,
-};
-
 static int gbaudio_dai_probe(struct gb_connection *connection)
 {
 	struct gbaudio_dai *dai;
 	struct device *dev = &connection->bundle->dev;
 	int dev_id = connection->intf->interface_id;
-	struct gbaudio_codec_info *gbcodec = dev_get_drvdata(dev);
+	struct gbaudio_codec_info *gbcodec;
 	struct gb_audio_manager_module_descriptor desc;
 	int ret;
 
@@ -798,12 +797,16 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 	if (!gbcodec)
 		return -ENOMEM;
 
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto err_free_codec;
+
 	/* add/update dai_list*/
 	dai = gbaudio_add_dai(gbcodec, connection->intf_cport_id, connection,
 			       NULL);
 	if (!dai) {
 		ret = -ENOMEM;
-		goto err_free_codec;
+		goto err_connection_disable;
 	}
 
 	/* update dai_added count */
@@ -829,6 +832,8 @@ static int gbaudio_dai_probe(struct gb_connection *connection)
 
 	return 0;
 
+err_connection_disable:
+	gb_connection_disable(connection);
 err_free_codec:
 	gbaudio_free_codec(dev, gbcodec);
 	return ret;
@@ -859,10 +864,11 @@ static void gbaudio_dai_remove(struct gb_connection *connection)
 	gbcodec->dai_added--;
 	mutex_unlock(&gbcodec->lock);
 
+	gb_connection_disable(connection);
 	gbaudio_free_codec(dev, gbcodec);
 }
 
-static int gbaudio_dai_report_event_recv(u8 type, struct gb_operation *op)
+static int gbaudio_dai_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 
@@ -871,50 +877,165 @@ static int gbaudio_dai_report_event_recv(u8 type, struct gb_operation *op)
 	return 0;
 }
 
-static struct gb_protocol gb_audio_data_protocol = {
-	.name			= GB_AUDIO_DATA_DRIVER_NAME,
-	.id			= GREYBUS_PROTOCOL_AUDIO_DATA,
-	.major			= 0,
-	.minor			= 1,
-	.connection_init	= gbaudio_dai_probe,
-	.connection_exit	= gbaudio_dai_remove,
-	.request_recv		= gbaudio_dai_report_event_recv,
-};
-
-/*
- * This is the basic hook get things initialized and registered w/ gb
- */
-
-static int __init gb_audio_protocol_init(void)
+static int gb_audio_add_mgmt_connection(struct gb_audio *audio,
+				struct greybus_descriptor_cport *cport_desc,
+				struct gb_bundle *bundle)
 {
-	int err;
+	struct gb_connection *connection;
 
-	err = gb_protocol_register(&gb_audio_mgmt_protocol);
-	if (err) {
-		pr_err("Can't register i2s mgmt protocol driver: %d\n", -err);
-		return err;
+	/* Management Cport */
+	if (audio->mgmt_connection) {
+		dev_err(&bundle->dev,
+			"Can't have multiple Management connections\n");
+		return -ENODEV;
 	}
 
-	err = gb_protocol_register(&gb_audio_data_protocol);
-	if (err) {
-		pr_err("Can't register Audio protocol driver: %d\n", -err);
-		goto err_unregister_audio_mgmt;
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+					  gbaudio_codec_request_handler);
+	if (IS_ERR(connection))
+		return PTR_ERR(connection);
+
+	connection->private = audio;
+	audio->mgmt_connection = connection;
+
+	return 0;
+}
+
+static int gb_audio_add_data_connection(struct gb_audio *audio,
+				struct greybus_descriptor_cport *cport_desc,
+				struct gb_bundle *bundle, int index)
+{
+	struct gb_connection *connection;
+
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+					  gbaudio_dai_request_handler);
+	if (IS_ERR(connection))
+		return PTR_ERR(connection);
+
+	connection->private = audio;
+	audio->data_connection[index] = connection;
+
+	return 0;
+}
+
+static int gb_audio_probe(struct gb_bundle *bundle,
+			  const struct greybus_bundle_id *id)
+{
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_audio *audio;
+	int ret, i;
+	int count = bundle->num_cports - 1;
+
+	/* There should be at least one Management and one Data cport */
+	if (bundle->num_cports < 2)
+		return -ENODEV;
+
+	/*
+	 * There can be only one Management connection and any number of data
+	 * connections.
+	 */
+	audio = kzalloc(sizeof(*audio) +
+			count * sizeof(*audio->data_connection), GFP_KERNEL);
+	if (!audio)
+		return -ENOMEM;
+
+	audio->num_data_connections = count;
+	greybus_set_drvdata(bundle, audio);
+
+	/* Create all connections */
+	for (count = 0, i = 0; i < bundle->num_cports; i++) {
+		cport_desc = &bundle->cport_desc[i];
+
+		switch (cport_desc->protocol_id) {
+		case GREYBUS_PROTOCOL_AUDIO_MGMT:
+			ret = gb_audio_add_mgmt_connection(audio, cport_desc,
+							   bundle);
+			if (ret)
+				goto destroy_connections;
+			break;
+		case GREYBUS_PROTOCOL_AUDIO_DATA:
+			ret = gb_audio_add_data_connection(audio, cport_desc,
+							   bundle, count);
+			if (ret)
+				goto destroy_connections;
+
+			count++;
+			break;
+		default:
+			dev_err(&bundle->dev, "Unsupported protocol: 0x%02x\n",
+				cport_desc->protocol_id);
+			ret = -ENODEV;
+			goto destroy_connections;
+		}
+	}
+
+	/* There must be a management cport */
+	if (!audio->mgmt_connection) {
+		ret = -EINVAL;
+		dev_err(&bundle->dev, "Missing management connection\n");
+		goto destroy_connections;
+	}
+
+	/* Initialize management connection */
+	ret = gbaudio_codec_probe(audio->mgmt_connection);
+	if (ret)
+		goto destroy_connections;
+
+	/* Initialize data connections */
+	for (i = 0; i < audio->num_data_connections; i++) {
+		ret = gbaudio_dai_probe(audio->data_connection[i]);
+		if (ret)
+			goto remove_dai;
 	}
 
 	return 0;
 
-err_unregister_audio_mgmt:
-	gb_protocol_deregister(&gb_audio_mgmt_protocol);
-	return err;
-}
-module_init(gb_audio_protocol_init);
+remove_dai:
+	while (i--)
+		gbaudio_dai_remove(audio->data_connection[i]);
 
-static void __exit gb_audio_protocol_exit(void)
-{
-	gb_protocol_deregister(&gb_audio_data_protocol);
-	gb_protocol_deregister(&gb_audio_mgmt_protocol);
+	gbaudio_codec_remove(audio->mgmt_connection);
+destroy_connections:
+	while (count--)
+		gb_connection_destroy(audio->data_connection[count]);
+
+	if (audio->mgmt_connection)
+		gb_connection_destroy(audio->mgmt_connection);
+
+	kfree(audio);
+
+	return ret;
 }
-module_exit(gb_audio_protocol_exit);
+
+static void gb_audio_disconnect(struct gb_bundle *bundle)
+{
+	struct gb_audio *audio = greybus_get_drvdata(bundle);
+	int i;
+
+	for (i = audio->num_data_connections - 1; i >= 0; i--) {
+		gbaudio_dai_remove(audio->data_connection[i]);
+		gb_connection_destroy(audio->data_connection[i]);
+	}
+
+	gbaudio_codec_remove(audio->mgmt_connection);
+	gb_connection_destroy(audio->mgmt_connection);
+
+	kfree(audio);
+}
+
+static const struct greybus_bundle_id gb_audio_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_AUDIO_MGMT) },
+	{ }
+};
+MODULE_DEVICE_TABLE(greybus, gb_audio_id_table);
+
+static struct greybus_driver gb_audio_driver = {
+	.name		= "gb-audio",
+	.probe		= gb_audio_probe,
+	.disconnect	= gb_audio_disconnect,
+	.id_table	= gb_audio_id_table,
+};
+module_greybus_driver(gb_audio_driver);
 
 MODULE_DESCRIPTION("Greybus Audio codec driver");
 MODULE_AUTHOR("Vaibhav Agarwal <vaibhav.agarwal@linaro.org>");
