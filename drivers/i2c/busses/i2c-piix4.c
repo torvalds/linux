@@ -139,9 +139,9 @@ static const struct dmi_system_id piix4_dmi_ibm[] = {
 /* SB800 globals */
 static DEFINE_MUTEX(piix4_mutex_sb800);
 static const char *piix4_main_port_names_sb800[PIIX4_MAX_ADAPTERS] = {
-	"SDA0", "SDA2", "SDA3", "SDA4"
+	" port 0", " port 2", " port 3", " port 4"
 };
-static const char *piix4_aux_port_name_sb800 = "SDA1";
+static const char *piix4_aux_port_name_sb800 = " port 1";
 
 struct i2c_piix4_adapdata {
 	unsigned short smba;
@@ -660,7 +660,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 	adap->dev.parent = &dev->dev;
 
 	snprintf(adap->name, sizeof(adap->name),
-		"SMBus PIIX4 adapter %s at %04x", name, smba);
+		"SMBus PIIX4 adapter%s at %04x", name, smba);
 
 	i2c_set_adapdata(adap, adapdata);
 
@@ -712,11 +712,14 @@ error:
 static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int retval;
+	bool is_sb800 = false;
 
 	if ((dev->vendor == PCI_VENDOR_ID_ATI &&
 	     dev->device == PCI_DEVICE_ID_ATI_SBX00_SMBUS &&
 	     dev->revision >= 0x40) ||
 	    dev->vendor == PCI_VENDOR_ID_AMD) {
+		is_sb800 = true;
+
 		if (!request_region(SB800_PIIX4_SMB_IDX, 2, "smba_idx")) {
 			dev_err(&dev->dev,
 			"SMBus base address index region 0x%x already in use!\n",
@@ -746,7 +749,7 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			return retval;
 
 		/* Try to register main SMBus adapter, give up if we can't */
-		retval = piix4_add_adapter(dev, retval, false, 0, "main",
+		retval = piix4_add_adapter(dev, retval, false, 0, "",
 					   &piix4_main_adapters[0]);
 		if (retval < 0)
 			return retval;
@@ -774,7 +777,7 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		/* Try to add the aux adapter if it exists,
 		 * piix4_add_adapter will clean up if this fails */
 		piix4_add_adapter(dev, retval, false, 0,
-				  piix4_aux_port_name_sb800,
+				  is_sb800 ? piix4_aux_port_name_sb800 : "",
 				  &piix4_aux_adapter);
 	}
 
