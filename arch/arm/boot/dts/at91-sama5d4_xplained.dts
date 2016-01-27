@@ -91,7 +91,7 @@
 
 				phy0: ethernet-phy@1 {
 					interrupt-parent = <&pioE>;
-					interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+					interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 					reg = <1>;
 				};
 			};
