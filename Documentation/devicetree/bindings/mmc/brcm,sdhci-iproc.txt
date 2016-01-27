@@ -4,7 +4,10 @@ This file documents differences between the core properties described
 by mmc.txt and the properties that represent the IPROC SDHCI controller.
 
 Required properties:
-- compatible : Should be "brcm,sdhci-iproc-cygnus".
+- compatible : Should be one of the following
+	       "brcm,bcm2835-sdhci"
+	       "brcm,sdhci-iproc-cygnus"
+
 - clocks : The clock feeding the SDHCI controller.
 
 Optional properties:
