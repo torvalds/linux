@@ -1267,7 +1267,7 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	switch (cmd) {
 	case SIOCSIWPRIV:
 	{
-		struct iwreq *wrq = (struct iwreq *) req;
+		struct iwreq *wrq = (struct iwreq *)req;
 
 		size = wrq->u.data.length;
 
