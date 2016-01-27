@@ -660,6 +660,7 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 static int hist_browser__show_callchain_flat(struct hist_browser *browser,
 					     struct rb_root *root,
 					     unsigned short row, u64 total,
+					     u64 parent_total __maybe_unused,
 					     print_callchain_entry_fn print,
 					     struct callchain_print_arg *arg,
 					     check_output_full_fn is_output_full)
@@ -763,6 +764,7 @@ static char *hist_browser__folded_callchain_str(struct hist_browser *browser,
 static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 					       struct rb_root *root,
 					       unsigned short row, u64 total,
+					       u64 parent_total __maybe_unused,
 					       print_callchain_entry_fn print,
 					       struct callchain_print_arg *arg,
 					       check_output_full_fn is_output_full)
@@ -847,14 +849,18 @@ next:
 static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 					struct rb_root *root, int level,
 					unsigned short row, u64 total,
+					u64 parent_total,
 					print_callchain_entry_fn print,
 					struct callchain_print_arg *arg,
 					check_output_full_fn is_output_full)
 {
 	struct rb_node *node;
 	int first_row = row, offset = level * LEVEL_OFFSET_STEP;
-	u64 new_total;
 	bool need_percent;
+	u64 percent_total = total;
+
+	if (callchain_param.mode == CHAIN_GRAPH_REL)
+		percent_total = parent_total;
 
 	node = rb_first(root);
 	need_percent = node && rb_next(node);
@@ -878,7 +884,7 @@ static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 			folded_sign = callchain_list__folded(chain);
 
 			row += hist_browser__show_callchain_list(browser, child,
-							chain, row, total,
+							chain, row, percent_total,
 							was_first && need_percent,
 							offset + extra_offset,
 							print, arg);
@@ -893,13 +899,9 @@ static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 		if (folded_sign == '-') {
 			const int new_level = level + (extra_offset ? 2 : 1);
 
-			if (callchain_param.mode == CHAIN_GRAPH_REL)
-				new_total = child->children_hit;
-			else
-				new_total = total;
-
 			row += hist_browser__show_callchain_graph(browser, &child->rb_root,
-							    new_level, row, new_total,
+							    new_level, row, total,
+							    child->children_hit,
 							    print, arg, is_output_full);
 		}
 		if (is_output_full(browser, row))
@@ -918,27 +920,29 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 					check_output_full_fn is_output_full)
 {
 	u64 total = hists__total_period(entry->hists);
+	u64 parent_total;
 	int printed;
 
-	if (callchain_param.mode == CHAIN_GRAPH_REL) {
-		if (symbol_conf.cumulate_callchain)
-			total = entry->stat_acc->period;
-		else
-			total = entry->stat.period;
-	}
+	if (symbol_conf.cumulate_callchain)
+		parent_total = entry->stat_acc->period;
+	else
+		parent_total = entry->stat.period;
 
 	if (callchain_param.mode == CHAIN_FLAT) {
 		printed = hist_browser__show_callchain_flat(browser,
-						&entry->sorted_chain, row, total,
-						print, arg, is_output_full);
+						&entry->sorted_chain, row,
+						total, parent_total, print, arg,
+						is_output_full);
 	} else if (callchain_param.mode == CHAIN_FOLDED) {
 		printed = hist_browser__show_callchain_folded(browser,
-						&entry->sorted_chain, row, total,
-						print, arg, is_output_full);
+						&entry->sorted_chain, row,
+						total, parent_total, print, arg,
+						is_output_full);
 	} else {
 		printed = hist_browser__show_callchain_graph(browser,
-						&entry->sorted_chain, level, row, total,
-						print, arg, is_output_full);
+						&entry->sorted_chain, level, row,
+						total, parent_total, print, arg,
+						is_output_full);
 	}
 
 	if (arg->is_current_entry)
