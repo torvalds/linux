@@ -110,6 +110,9 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 		    struct comedi_subdevice *s);
+int mite_init_ring_descriptors(struct mite_dma_descriptor_ring *ring,
+			       struct comedi_subdevice *s,
+			       unsigned int nbytes);
 
 enum mite_registers {
 	/*

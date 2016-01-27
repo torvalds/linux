@@ -297,7 +297,6 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 {
 	struct comedi_async *async = s->async;
 	unsigned int n_links;
-	int i;
 
 	if (ring->descriptors) {
 		dma_free_coherent(ring->hw_dev,
@@ -326,17 +325,58 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	}
 	ring->n_links = n_links;
 
-	for (i = 0; i < n_links; i++) {
+	return mite_init_ring_descriptors(ring, s, n_links << PAGE_SHIFT);
+}
+EXPORT_SYMBOL_GPL(mite_buf_change);
+
+/*
+ * initializes the ring buffer descriptors to provide correct DMA transfer links
+ * to the exact amount of memory required.  When the ring buffer is allocated in
+ * mite_buf_change, the default is to initialize the ring to refer to the entire
+ * DMA data buffer.  A command may call this function later to re-initialize and
+ * shorten the amount of memory that will be transferred.
+ */
+int mite_init_ring_descriptors(struct mite_dma_descriptor_ring *ring,
+			       struct comedi_subdevice *s,
+			       unsigned int nbytes)
+{
+	struct comedi_async *async = s->async;
+	unsigned int n_full_links = nbytes >> PAGE_SHIFT;
+	unsigned int remainder = nbytes % PAGE_SIZE;
+	int i;
+
+	dev_dbg(s->device->class_dev,
+		"mite: init ring buffer to %u bytes\n", nbytes);
+
+	if ((n_full_links + (remainder > 0 ? 1 : 0)) > ring->n_links) {
+		dev_err(s->device->class_dev,
+			"mite: ring buffer too small for requested init\n");
+		return -ENOMEM;
+	}
+
+	/* We set the descriptors for all full links. */
+	for (i = 0; i < n_full_links; ++i) {
 		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
 		ring->descriptors[i].addr =
 		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		ring->descriptors[i].next =
-		    cpu_to_le32(ring->descriptors_dma_addr + (i +
-							      1) *
-				sizeof(struct mite_dma_descriptor));
+		    cpu_to_le32(ring->descriptors_dma_addr +
+				(i + 1) * sizeof(struct mite_dma_descriptor));
 	}
-	ring->descriptors[n_links - 1].next =
-	    cpu_to_le32(ring->descriptors_dma_addr);
+
+	/* the last link is either a remainder or was a full link. */
+	if (remainder > 0) {
+		/* set the lesser count for the remainder link */
+		ring->descriptors[i].count = cpu_to_le32(remainder);
+		ring->descriptors[i].addr =
+		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
+		/* increment i so that assignment below refs last link */
+		++i;
+	}
+
+	/* Assign the last link->next to point back to the head of the list. */
+	ring->descriptors[i - 1].next = cpu_to_le32(ring->descriptors_dma_addr);
+
 	/*
 	 * barrier is meant to insure that all the writes to the dma descriptors
 	 * have completed before the dma controller is commanded to read them
@@ -344,7 +384,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	smp_wmb();
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mite_buf_change);
+EXPORT_SYMBOL_GPL(mite_init_ring_descriptors);
 
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits)
@@ -552,6 +592,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 	unsigned int old_alloc_count = async->buf_read_alloc_count;
 	u32 nbytes_ub, nbytes_lb;
 	int count;
+	bool finite_regen = (cmd->stop_src == TRIG_NONE && stop_count != 0);
 
 	/* read alloc as much as we can */
 	comedi_buf_read_alloc(s, async->prealloc_bufsz);
@@ -561,11 +602,24 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 	nbytes_ub = mite_bytes_read_from_memory_ub(mite_chan);
 	if (cmd->stop_src == TRIG_COUNT && (int)(nbytes_ub - stop_count) > 0)
 		nbytes_ub = stop_count;
-	if ((int)(nbytes_ub - old_alloc_count) > 0) {
+
+	if ((!finite_regen || stop_count > old_alloc_count) &&
+	    ((int)(nbytes_ub - old_alloc_count) > 0)) {
 		dev_warn(s->device->class_dev, "mite: DMA underrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
 	}
+
+	if (finite_regen) {
+		/*
+		 * This is a special case where we continuously output a finite
+		 * buffer.  In this case, we do not free any of the memory,
+		 * hence we expect that old_alloc_count will reach a maximum of
+		 * stop_count bytes.
+		 */
+		return 0;
+	}
+
 	count = nbytes_lb - async->buf_read_count;
 	if (count <= 0)
 		return 0;
