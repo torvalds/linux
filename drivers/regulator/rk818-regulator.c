@@ -395,43 +395,16 @@ static struct of_regulator_match rk818_reg_matches[] = {
 	[RK818_ID_SWITCH]	= { .name = "SWITCH_REG" },
 };
 
-static int rk818_regulator_dt_parse_pdata(struct device *dev,
-					  struct device *client_dev,
-					  struct regmap *map)
-{
-	struct device_node *np;
-	int ret;
-
-	np = of_get_child_by_name(client_dev->of_node, "regulators");
-	if (!np)
-		return -ENXIO;
-
-	ret = of_regulator_match(dev, np, rk818_reg_matches,
-				 RK818_NUM_REGULATORS);
-
-	of_node_put(np);
-	return ret;
-}
-
 static int rk818_regulator_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk818 = dev_get_drvdata(pdev->dev.parent);
 	struct i2c_client *client = rk818->i2c;
 	struct regulator_config config = {};
 	struct regulator_dev *rk818_rdev;
-	int ret, i;
-
-	ret = rk818_regulator_dt_parse_pdata(&pdev->dev, &client->dev,
-					     rk818->regmap);
-	if (ret < 0)
-		return ret;
+	int i;
 
 	/* Instantiate the regulators */
 	for (i = 0; i < RK818_NUM_REGULATORS; i++) {
-		if (!rk818_reg_matches[i].init_data ||
-		    !rk818_reg_matches[i].of_node)
-			continue;
-
 		config.dev = &client->dev;
 		config.regmap = rk818->regmap;
 		config.of_node = rk818_reg_matches[i].of_node;
