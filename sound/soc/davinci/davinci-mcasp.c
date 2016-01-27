@@ -1517,6 +1517,8 @@ static int mcasp_reparent_fck(struct platform_device *pdev)
 	if (!parent_name)
 		return 0;
 
+	dev_warn(&pdev->dev, "Update the bindings to use assigned-clocks!\n");
+
 	gfclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gfclk)) {
 		dev_err(&pdev->dev, "failed to get fck\n");
