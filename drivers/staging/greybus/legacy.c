@@ -148,6 +148,9 @@ err_protocol_put:
 
 static void legacy_connection_destroy(struct legacy_connection *lc)
 {
+	if (!lc->connection)
+		return;
+
 	lc->connection->protocol = NULL;
 
 	gb_connection_destroy(lc->connection);
