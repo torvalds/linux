@@ -1500,7 +1500,8 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
-	if (b_status & NISTC_AO_STATUS1_BC_TC)
+	if (s->async->cmd.stop_src != TRIG_NONE &&
+	    b_status & NISTC_AO_STATUS1_BC_TC)
 		s->async->events |= COMEDI_CB_EOA;
 
 #ifndef PCIDMA
@@ -2071,6 +2072,37 @@ static unsigned ni_timer_to_ns(const struct comedi_device *dev, int timer)
 	struct ni_private *devpriv = dev->private;
 
 	return devpriv->clock_ns * (timer + 1);
+}
+
+static void ni_cmd_set_mite_transfer(struct mite_dma_descriptor_ring *ring,
+				     struct comedi_subdevice *sdev,
+				     const struct comedi_cmd *cmd,
+				     unsigned int max_count) {
+#ifdef PCIDMA
+	unsigned int nbytes = max_count;
+
+	if (cmd->stop_arg > 0 && cmd->stop_arg < max_count)
+		nbytes = cmd->stop_arg;
+	nbytes *= comedi_bytes_per_scan(sdev);
+
+	if (nbytes > sdev->async->prealloc_bufsz) {
+		if (cmd->stop_arg > 0)
+			dev_err(sdev->device->class_dev,
+				"ni_cmd_set_mite_transfer: tried exact data transfer limits greater than buffer size\n");
+
+		/*
+		 * we can only transfer up to the size of the buffer.  In this
+		 * case, the user is expected to continue to write into the
+		 * comedi buffer (already implemented as a ring buffer).
+		 */
+		nbytes = sdev->async->prealloc_bufsz;
+	}
+
+	mite_init_ring_descriptors(ring, sdev, nbytes);
+#else
+	dev_err(sdev->device->class_dev,
+		"ni_cmd_set_mite_transfer: exact data transfer limits not implemented yet without DMA\n");
+#endif
 }
 
 static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
@@ -3062,12 +3094,16 @@ static void ni_ao_cmd_set_counters(struct comedi_device *dev,
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_UC_INIT_LOAD_SRC;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 
+	/*
+	 * if a user specifies '0', this automatically assumes the entire 24bit
+	 * address space is available for the (multiple iterations of single
+	 * buffer) MISB.  Otherwise, stop_arg specifies the MISB length that
+	 * will be used, regardless of whether we are in continuous mode or not.
+	 * In continuous mode, the output will just iterate indefinitely over
+	 * the MISB.
+	 */
 	{
-		/*
-		 * Current behavior is to configure the maximum update count
-		 * possible when continuous output mode is requested.
-		 */
-		unsigned int stop_arg = cmd->stop_src == TRIG_COUNT ?
+		unsigned int stop_arg = cmd->stop_arg > 0 ?
 			(cmd->stop_arg & 0xffffff) : 0xffffff;
 
 		if (devpriv->is_m_series) {
@@ -3311,6 +3347,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_ao_cmd_set_channels(dev, s);
 	ni_ao_cmd_set_stop_conditions(dev, cmd);
 	ni_ao_cmd_set_fifo_mode(dev);
+	ni_cmd_set_mite_transfer(devpriv->ao_mite_ring, s, cmd, 0x00ffffff);
 	ni_ao_cmd_set_interrupts(dev, s);
 
 	/*
@@ -3381,11 +3418,7 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
-	else	/* TRIG_NONE */
-		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
 
 	if (err)
 		return 3;
@@ -5240,7 +5273,6 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	unsigned long flags;
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
-	struct mite_struct *mite = devpriv->mite;
 #endif
 
 	if (!dev->attached)
@@ -5252,8 +5284,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	a_status = ni_stc_readw(dev, NISTC_AI_STATUS1_REG);
 	b_status = ni_stc_readw(dev, NISTC_AO_STATUS1_REG);
 #ifdef PCIDMA
-	if (mite) {
-		struct ni_private *devpriv = dev->private;
+	if (devpriv->mite) {
 		unsigned long flags_too;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
@@ -5269,7 +5300,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
 			if (ao_mite_status & CHSR_LINKC)
 				writel(CHOR_CLRLC,
-				       mite->mite_io_addr +
+				       devpriv->mite->mite_io_addr +
 				       MITE_CHOR(devpriv->
 						 ao_mite_chan->channel));
 		}
