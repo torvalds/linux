@@ -99,6 +99,7 @@ struct usbtmc_device_data {
 	int            iin_interval;
 	struct urb    *iin_urb;
 	u16            iin_wMaxPacketSize;
+	atomic_t       srq_asserted;
 
 	u8 rigol_quirk;
 
@@ -113,6 +114,7 @@ struct usbtmc_device_data {
 	struct kref kref;
 	struct mutex io_mutex;	/* only one i/o function running at a time */
 	wait_queue_head_t waitq;
+	struct fasync_struct *fasync;
 };
 #define to_usbtmc_data(d) container_of(d, struct usbtmc_device_data, kref)
 
@@ -404,6 +406,9 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_device_data *data,
 		return -ENOMEM;
 
 	atomic_set(&data->iin_data_valid, 0);
+
+	/* must issue read_stb before using poll or select */
+	atomic_set(&data->srq_asserted, 0);
 
 	rv = usb_control_msg(data->usb_dev,
 			usb_rcvctrlpipe(data->usb_dev, 0),
@@ -1172,6 +1177,13 @@ skip_io_on_zombie:
 	return retval;
 }
 
+static int usbtmc_fasync(int fd, struct file *file, int on)
+{
+	struct usbtmc_device_data *data = file->private_data;
+
+	return fasync_helper(fd, file, on, &data->fasync);
+}
+
 static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
 	.read		= usbtmc_read,
@@ -1179,6 +1191,7 @@ static const struct file_operations fops = {
 	.open		= usbtmc_open,
 	.release	= usbtmc_release,
 	.unlocked_ioctl	= usbtmc_ioctl,
+	.fasync         = usbtmc_fasync,
 	.llseek		= default_llseek,
 };
 
@@ -1205,6 +1218,16 @@ static void usbtmc_interrupt(struct urb *urb)
 			data->bNotify1 = data->iin_buffer[0];
 			data->bNotify2 = data->iin_buffer[1];
 			atomic_set(&data->iin_data_valid, 1);
+			wake_up_interruptible(&data->waitq);
+			goto exit;
+		}
+		/* check for SRQ notification */
+		if (data->iin_buffer[0] == 0x81) {
+			if (data->fasync)
+				kill_fasync(&data->fasync,
+					SIGIO, POLL_IN);
+
+			atomic_set(&data->srq_asserted, 1);
 			wake_up_interruptible(&data->waitq);
 			goto exit;
 		}
@@ -1263,6 +1286,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 	mutex_init(&data->io_mutex);
 	init_waitqueue_head(&data->waitq);
 	atomic_set(&data->iin_data_valid, 0);
+	atomic_set(&data->srq_asserted, 0);
 	data->zombie = 0;
 
 	/* Determine if it is a Rigol or not */
