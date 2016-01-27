@@ -2200,10 +2200,14 @@ err_col_port_enable:
 	return err;
 }
 
+static int mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
+				       struct net_device *br_dev);
+
 static int mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 				   struct net_device *lag_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct mlxsw_sp_upper *lag;
 	u16 lag_id = mlxsw_sp_port->lag_id;
 	int err;
@@ -2219,6 +2223,29 @@ static int mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 	if (err)
 		return err;
+
+	/* In case we leave a LAG device that has bridges built on top,
+	 * then their teardown sequence is never issued and we need to
+	 * invoke the necessary cleanup routines ourselves.
+	 */
+	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
+			    vport.list) {
+		struct net_device *br_dev;
+
+		if (!mlxsw_sp_vport->bridged)
+			continue;
+
+		br_dev = mlxsw_sp_vport_br_get(mlxsw_sp_vport);
+		mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport, br_dev);
+	}
+
+	if (mlxsw_sp_port->bridged) {
+		mlxsw_sp_port_active_vlans_del(mlxsw_sp_port);
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
+
+		if (lag->ref_count == 1)
+			mlxsw_sp_master_bridge_dec(mlxsw_sp, NULL);
+	}
 
 	if (lag->ref_count == 1) {
 		err = mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
@@ -2271,9 +2298,6 @@ static int mlxsw_sp_port_lag_changed(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	return mlxsw_sp_port_lag_tx_en_set(mlxsw_sp_port, info->tx_enabled);
 }
-
-static int mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
-				       struct net_device *br_dev);
 
 static int mlxsw_sp_port_vlan_link(struct mlxsw_sp_port *mlxsw_sp_port,
 				   struct net_device *vlan_dev)

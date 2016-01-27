@@ -254,5 +254,6 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 			   __be16 __always_unused proto, u16 vid);
 int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 vfid,
 			     bool set, bool only_uc);
+void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port);
 
 #endif

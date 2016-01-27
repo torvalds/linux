@@ -936,6 +936,14 @@ static int mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 					 vlan->vid_begin, vlan->vid_end, false);
 }
 
+void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	u16 vid;
+
+	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID)
+		__mlxsw_sp_port_vlans_del(mlxsw_sp_port, vid, vid, false);
+}
+
 static int
 mlxsw_sp_port_fdb_static_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_port_fdb *fdb)
