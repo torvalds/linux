@@ -921,6 +921,9 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	int cp_payload_blks = __cp_payload(sbi);
 	block_t discard_blk = NEXT_FREE_BLKADDR(sbi, curseg);
 	bool invalidate = false;
+	struct super_block *sb = sbi->sb;
+	struct curseg_info *seg_i = CURSEG_I(sbi, CURSEG_HOT_NODE);
+	u64 kbytes_written;
 
 	/*
 	 * This avoids to conduct wrong roll-forward operations and uses
@@ -1034,6 +1037,14 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	write_data_summaries(sbi, start_blk);
 	start_blk += data_sum_blocks;
+
+	/* Record write statistics in the hot node summary */
+	kbytes_written = sbi->kbytes_written;
+	if (sb->s_bdev->bd_part)
+		kbytes_written += BD_PART_WRITTEN(sbi);
+
+	seg_i->sum_blk->info.kbytes_written = cpu_to_le64(kbytes_written);
+
 	if (__remain_node_summaries(cpc->reason)) {
 		write_node_summaries(sbi, start_blk);
 		start_blk += NR_CURSEG_NODE_TYPE;

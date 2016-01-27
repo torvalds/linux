@@ -846,7 +846,18 @@ struct f2fs_sb_info {
 	struct list_head s_list;
 	struct mutex umount_mutex;
 	unsigned int shrinker_run_no;
+
+	/* For write statistics */
+	u64 sectors_written_start;
+	u64 kbytes_written;
 };
+
+/* For write statistics. Suppose sector size is 512 bytes,
+ * and the return value is in kbytes. s is of struct f2fs_sb_info.
+ */
+#define BD_PART_WRITTEN(s)						 \
+(((u64)part_stat_read(s->sb->s_bdev->bd_part, sectors[1]) -		 \
+		s->sectors_written_start) >> 1)
 
 static inline void f2fs_update_time(struct f2fs_sb_info *sbi, int type)
 {

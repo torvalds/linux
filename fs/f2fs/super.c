@@ -126,6 +126,19 @@ static unsigned char *__struct_ptr(struct f2fs_sb_info *sbi, int struct_type)
 	return NULL;
 }
 
+static ssize_t lifetime_write_kbytes_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	struct super_block *sb = sbi->sb;
+
+	if (!sb->s_bdev->bd_part)
+		return snprintf(buf, PAGE_SIZE, "0\n");
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+		(unsigned long long)(sbi->kbytes_written +
+			BD_PART_WRITTEN(sbi)));
+}
+
 static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 			struct f2fs_sb_info *sbi, char *buf)
 {
@@ -204,6 +217,9 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
 		f2fs_sbi_show, f2fs_sbi_store,			\
 		offsetof(struct struct_name, elname))
 
+#define F2FS_GENERAL_RO_ATTR(name) \
+static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
+
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_min_sleep_time, min_sleep_time);
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_max_sleep_time, max_sleep_time);
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_no_gc_sleep_time, no_gc_sleep_time);
@@ -221,6 +237,7 @@ F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, max_victim_search, max_victim_search);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, dir_level, dir_level);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, cp_interval, interval_time[CP_TIME]);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, idle_interval, interval_time[REQ_TIME]);
+F2FS_GENERAL_RO_ATTR(lifetime_write_kbytes);
 
 #define ATTR_LIST(name) (&f2fs_attr_##name.attr)
 static struct attribute *f2fs_attrs[] = {
@@ -241,6 +258,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(dirty_nats_ratio),
 	ATTR_LIST(cp_interval),
 	ATTR_LIST(idle_interval),
+	ATTR_LIST(lifetime_write_kbytes),
 	NULL,
 };
 
@@ -768,14 +786,19 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool need_stop_gc = false;
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
 
-	sync_filesystem(sb);
-
 	/*
 	 * Save the old mount options in case we
 	 * need to restore them.
 	 */
 	org_mount_opt = sbi->mount_opt;
 	active_logs = sbi->active_logs;
+
+	if (*flags & MS_RDONLY) {
+		set_opt(sbi, FASTBOOT);
+		set_sbi_flag(sbi, SBI_IS_DIRTY);
+	}
+
+	sync_filesystem(sb);
 
 	sbi->mount_opt.opt = 0;
 	default_options(sbi);
@@ -1244,6 +1267,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	bool retry = true, need_fsck = false;
 	char *options = NULL;
 	int recovery, i, valid_super_block;
+	struct curseg_info *seg_i;
 
 try_onemore:
 	err = -EINVAL;
@@ -1373,6 +1397,17 @@ try_onemore:
 			"Failed to initialize F2FS node manager");
 		goto free_nm;
 	}
+
+	/* For write statistics */
+	if (sb->s_bdev->bd_part)
+		sbi->sectors_written_start =
+			(u64)part_stat_read(sb->s_bdev->bd_part, sectors[1]);
+
+	/* Read accumulated write IO statistics if exists */
+	seg_i = CURSEG_I(sbi, CURSEG_HOT_NODE);
+	if (__exist_node_summaries(sbi))
+		sbi->kbytes_written =
+			le64_to_cpu(seg_i->sum_blk->info.kbytes_written);
 
 	build_gc_manager(sbi);
 

@@ -106,3 +106,9 @@ Description:
 		 Controls dirty nat entries ratio threshold, if current
 		 ratio exceeds configured threshold, checkpoint will
 		 be triggered for flushing dirty nat entries.
+
+What:		/sys/fs/f2fs/<disk>/lifetime_write_kbytes
+Date:		January 2016
+Contact:	"Shuoran Liu" <liushuoran@huawei.com>
+Description:
+		 Shows total written kbytes issued to disk.

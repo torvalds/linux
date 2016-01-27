@@ -358,6 +358,12 @@ struct summary_footer {
 				sizeof(struct sit_journal_entry))
 #define SIT_JOURNAL_RESERVED	((SUM_JOURNAL_SIZE - 2) %\
 				sizeof(struct sit_journal_entry))
+
+/* Reserved area should make size of f2fs_extra_info equals to
+ * that of nat_journal and sit_journal.
+ */
+#define EXTRA_INFO_RESERVED	(SUM_JOURNAL_SIZE - 2 - 8)
+
 /*
  * frequently updated NAT/SIT entries can be stored in the spare area in
  * summary blocks
@@ -387,6 +393,11 @@ struct sit_journal {
 	__u8 reserved[SIT_JOURNAL_RESERVED];
 } __packed;
 
+struct f2fs_extra_info {
+	__le64 kbytes_written;
+	__u8 reserved[EXTRA_INFO_RESERVED];
+} __packed;
+
 /* 4KB-sized summary block structure */
 struct f2fs_summary_block {
 	struct f2fs_summary entries[ENTRIES_IN_SUM];
@@ -394,10 +405,11 @@ struct f2fs_summary_block {
 		__le16 n_nats;
 		__le16 n_sits;
 	};
-	/* spare area is used by NAT or SIT journals */
+	/* spare area is used by NAT or SIT journals or extra info */
 	union {
 		struct nat_journal nat_j;
 		struct sit_journal sit_j;
+		struct f2fs_extra_info info;
 	};
 	struct summary_footer footer;
 } __packed;
