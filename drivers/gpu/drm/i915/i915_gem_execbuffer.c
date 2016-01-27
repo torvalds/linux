@@ -1401,6 +1401,7 @@ eb_select_ring(struct drm_i915_private *dev_priv,
 			bsd_idx = gen8_dispatch_bsd_ring(dev_priv, file);
 		} else if (bsd_idx >= I915_EXEC_BSD_RING1 &&
 			   bsd_idx <= I915_EXEC_BSD_RING2) {
+			bsd_idx >>= I915_EXEC_BSD_SHIFT;
 			bsd_idx--;
 		} else {
 			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
