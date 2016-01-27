@@ -12,8 +12,6 @@
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
