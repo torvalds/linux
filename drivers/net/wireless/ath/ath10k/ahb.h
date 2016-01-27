@@ -29,6 +29,12 @@ struct ath10k_ahb {
 	struct clk *cmd_clk;
 	struct clk *ref_clk;
 	struct clk *rtc_clk;
+
+	struct reset_control *core_cold_rst;
+	struct reset_control *radio_cold_rst;
+	struct reset_control *radio_warm_rst;
+	struct reset_control *radio_srif_rst;
+	struct reset_control *cpu_init_rst;
 };
 
 #ifdef CONFIG_ATH10K_AHB

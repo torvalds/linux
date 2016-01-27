@@ -16,6 +16,7 @@
  */
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include "core.h"
 #include "debug.h"
 #include "pci.h"
@@ -205,6 +206,143 @@ static void ath10k_ahb_clock_disable(struct ath10k *ar)
 
 	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
 		clk_disable_unprepare(ar_ahb->rtc_clk);
+}
+
+static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+	struct device *dev;
+	int ret;
+
+	dev = &ar_ahb->pdev->dev;
+
+	ar_ahb->core_cold_rst = reset_control_get(dev, "wifi_core_cold");
+	if (IS_ERR_OR_NULL(ar_ahb->core_cold_rst)) {
+		ath10k_err(ar, "failed to get core cold rst ctrl: %ld\n",
+			   PTR_ERR(ar_ahb->core_cold_rst));
+		ret = ar_ahb->core_cold_rst ?
+			PTR_ERR(ar_ahb->core_cold_rst) : -ENODEV;
+		goto out;
+	}
+
+	ar_ahb->radio_cold_rst = reset_control_get(dev, "wifi_radio_cold");
+	if (IS_ERR_OR_NULL(ar_ahb->radio_cold_rst)) {
+		ath10k_err(ar, "failed to get radio cold rst ctrl: %ld\n",
+			   PTR_ERR(ar_ahb->radio_cold_rst));
+		ret = ar_ahb->radio_cold_rst ?
+			PTR_ERR(ar_ahb->radio_cold_rst) : -ENODEV;
+		goto err_core_cold_rst_put;
+	}
+
+	ar_ahb->radio_warm_rst = reset_control_get(dev, "wifi_radio_warm");
+	if (IS_ERR_OR_NULL(ar_ahb->radio_warm_rst)) {
+		ath10k_err(ar, "failed to get radio warm rst ctrl: %ld\n",
+			   PTR_ERR(ar_ahb->radio_warm_rst));
+		ret = ar_ahb->radio_warm_rst ?
+			PTR_ERR(ar_ahb->radio_warm_rst) : -ENODEV;
+		goto err_radio_cold_rst_put;
+	}
+
+	ar_ahb->radio_srif_rst = reset_control_get(dev, "wifi_radio_srif");
+	if (IS_ERR_OR_NULL(ar_ahb->radio_srif_rst)) {
+		ath10k_err(ar, "failed to get radio srif rst ctrl: %ld\n",
+			   PTR_ERR(ar_ahb->radio_srif_rst));
+		ret = ar_ahb->radio_srif_rst ?
+			PTR_ERR(ar_ahb->radio_srif_rst) : -ENODEV;
+		goto err_radio_warm_rst_put;
+	}
+
+	ar_ahb->cpu_init_rst = reset_control_get(dev, "wifi_cpu_init");
+	if (IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
+		ath10k_err(ar, "failed to get cpu init rst ctrl: %ld\n",
+			   PTR_ERR(ar_ahb->cpu_init_rst));
+		ret = ar_ahb->cpu_init_rst ?
+			PTR_ERR(ar_ahb->cpu_init_rst) : -ENODEV;
+		goto err_radio_srif_rst_put;
+	}
+
+	return 0;
+
+err_radio_srif_rst_put:
+	reset_control_put(ar_ahb->radio_srif_rst);
+
+err_radio_warm_rst_put:
+	reset_control_put(ar_ahb->radio_warm_rst);
+
+err_radio_cold_rst_put:
+	reset_control_put(ar_ahb->radio_cold_rst);
+
+err_core_cold_rst_put:
+	reset_control_put(ar_ahb->core_cold_rst);
+
+out:
+	return ret;
+}
+
+static void ath10k_ahb_rst_ctrl_deinit(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->core_cold_rst))
+		reset_control_put(ar_ahb->core_cold_rst);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->radio_cold_rst))
+		reset_control_put(ar_ahb->radio_cold_rst);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->radio_warm_rst))
+		reset_control_put(ar_ahb->radio_warm_rst);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->radio_srif_rst))
+		reset_control_put(ar_ahb->radio_srif_rst);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->cpu_init_rst))
+		reset_control_put(ar_ahb->cpu_init_rst);
+
+	ar_ahb->core_cold_rst = NULL;
+	ar_ahb->radio_cold_rst = NULL;
+	ar_ahb->radio_warm_rst = NULL;
+	ar_ahb->radio_srif_rst = NULL;
+	ar_ahb->cpu_init_rst = NULL;
+}
+
+static int ath10k_ahb_release_reset(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+	int ret;
+
+	if (IS_ERR_OR_NULL(ar_ahb->radio_cold_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->radio_warm_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->radio_srif_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
+		ath10k_err(ar, "rst ctrl(s) is/are not initialized\n");
+		return -EINVAL;
+	}
+
+	ret = reset_control_deassert(ar_ahb->radio_cold_rst);
+	if (ret) {
+		ath10k_err(ar, "failed to deassert radio cold rst: %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_deassert(ar_ahb->radio_warm_rst);
+	if (ret) {
+		ath10k_err(ar, "failed to deassert radio warm rst: %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_deassert(ar_ahb->radio_srif_rst);
+	if (ret) {
+		ath10k_err(ar, "failed to deassert radio srif rst: %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_deassert(ar_ahb->cpu_init_rst);
+	if (ret) {
+		ath10k_err(ar, "failed to deassert cpu init rst: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int ath10k_ahb_probe(struct platform_device *pdev)
