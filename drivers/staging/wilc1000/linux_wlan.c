@@ -993,7 +993,7 @@ int wilc_mac_open(struct net_device *ndev)
 	vif = netdev_priv(ndev);
 	wl = vif->wilc;
 
-	if (!wl|| !wl->dev) {
+	if (!wl || !wl->dev) {
 		netdev_err(ndev, "wilc1000: SPI device not ready\n");
 		return -ENODEV;
 	}
@@ -1054,7 +1054,7 @@ int wilc_mac_open(struct net_device *ndev)
 
 static struct net_device_stats *mac_stats(struct net_device *dev)
 {
-	struct wilc_vif *vif= netdev_priv(dev);
+	struct wilc_vif *vif = netdev_priv(dev);
 
 	return &vif->netstats;
 }
