@@ -19,11 +19,14 @@
 #include <linux/regmap.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/mt6397/core.h>
+#include <linux/mfd/mt6323/core.h>
 #include <linux/mfd/mt6397/registers.h>
+#include <linux/mfd/mt6323/registers.h>
 
 #define MT6397_RTC_BASE		0xe000
 #define MT6397_RTC_SIZE		0x3e
 
+#define MT6323_CID_CODE		0x23
 #define MT6391_CID_CODE		0x91
 #define MT6397_CID_CODE		0x97
 
@@ -37,6 +40,13 @@ static const struct resource mt6397_rtc_resources[] = {
 		.start = MT6397_IRQ_RTC,
 		.end   = MT6397_IRQ_RTC,
 		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static const struct mfd_cell mt6323_devs[] = {
+	{
+		.name = "mt6323-regulator",
+		.of_compatible = "mediatek,mt6323-regulator"
 	},
 };
 
@@ -261,6 +271,15 @@ static int mt6397_probe(struct platform_device *pdev)
 	}
 
 	switch (id & 0xff) {
+	case MT6323_CID_CODE:
+		pmic->int_con[0] = MT6323_INT_CON0;
+		pmic->int_con[1] = MT6323_INT_CON1;
+		pmic->int_status[0] = MT6323_INT_STATUS0;
+		pmic->int_status[1] = MT6323_INT_STATUS1;
+		ret = mfd_add_devices(&pdev->dev, -1, mt6323_devs,
+				ARRAY_SIZE(mt6323_devs), NULL, 0, NULL);
+		break;
+
 	case MT6397_CID_CODE:
 	case MT6391_CID_CODE:
 		pmic->int_con[0] = MT6397_INT_CON0;
@@ -302,6 +321,7 @@ static int mt6397_remove(struct platform_device *pdev)
 
 static const struct of_device_id mt6397_of_match[] = {
 	{ .compatible = "mediatek,mt6397" },
+	{ .compatible = "mediatek,mt6323" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mt6397_of_match);
