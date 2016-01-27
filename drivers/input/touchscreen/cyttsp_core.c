@@ -597,7 +597,11 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, CY_MAXZ, 0, 0);
 
-	input_mt_init_slots(input_dev, CY_MAX_ID, 0);
+	error = input_mt_init_slots(input_dev, CY_MAX_ID, 0);
+	if (error) {
+		dev_err(dev, "Unable to init MT slots.\n");
+		return ERR_PTR(error);
+	}
 
 	error = devm_request_threaded_irq(dev, ts->irq, NULL, cyttsp_irq,
 					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
