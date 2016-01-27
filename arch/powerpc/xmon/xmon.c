@@ -233,7 +233,7 @@ Commands:\n\
 "  S	print special registers\n\
   t	print backtrace\n\
   x	exit monitor and recover\n\
-  X	exit monitor and dont recover\n"
+  X	exit monitor and don't recover\n"
 #if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_BOOK3E)
 "  u	dump segment table or SLB\n"
 #elif defined(CONFIG_PPC_STD_MMU_32)
