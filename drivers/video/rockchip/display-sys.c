@@ -8,38 +8,38 @@
 static struct list_head main_display_device_list;
 static struct list_head aux_display_device_list;
 
-static ssize_t display_name_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", dsp->name);
 }
 
-static DEVICE_ATTR_RO(display_name);
+static DEVICE_ATTR_RO(name);
 
-static ssize_t display_type_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t type_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", dsp->type);
 }
 
-static DEVICE_ATTR_RO(display_type);
+static DEVICE_ATTR_RO(type);
 
-static ssize_t display_property_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
+static ssize_t property_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", dsp->property);
 }
 
-static DEVICE_ATTR_RO(display_property);
+static DEVICE_ATTR_RO(property);
 
-static ssize_t display_enable_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t enable_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int enable;
@@ -51,9 +51,9 @@ static ssize_t display_enable_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", enable);
 }
 
-static ssize_t display_enable_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t size)
+static ssize_t enable_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t size)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int enable;
@@ -65,10 +65,10 @@ static ssize_t display_enable_store(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR_RW(display_enable);
+static DEVICE_ATTR_RW(enable);
 
-static ssize_t display_connect_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t connect_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int connect;
@@ -80,7 +80,7 @@ static ssize_t display_connect_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", connect);
 }
 
-static DEVICE_ATTR_RO(display_connect);
+static DEVICE_ATTR_RO(connect);
 
 static int mode_string(char *buf, unsigned int offset,
 		       const struct fb_videomode *mode)
@@ -107,8 +107,8 @@ static int mode_string(char *buf, unsigned int offset,
 				mode->xres, mode->yres, v, mode->refresh);
 }
 
-static ssize_t display_modes_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t modes_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	struct list_head *modelist, *pos;
@@ -141,10 +141,10 @@ static ssize_t display_modes_show(struct device *dev,
 	return i;
 }
 
-static DEVICE_ATTR_RO(display_modes);
+static DEVICE_ATTR_RO(modes);
 
-static ssize_t display_mode_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t mode_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	struct fb_videomode mode;
@@ -155,9 +155,9 @@ static ssize_t display_mode_show(struct device *dev,
 	return 0;
 }
 
-static ssize_t display_mode_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t mode_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	char mstr[100];
@@ -199,11 +199,11 @@ static ssize_t display_mode_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR_RW(display_mode);
+static DEVICE_ATTR_RW(mode);
 
-static ssize_t display_scale_show(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+static ssize_t scale_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int xscale, yscale;
@@ -219,9 +219,9 @@ static ssize_t display_scale_show(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_scale_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t scale_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int scale = 100;
@@ -252,10 +252,10 @@ static ssize_t display_scale_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR_RW(display_scale);
+static DEVICE_ATTR_RW(scale);
 
-static ssize_t display_3dmode_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t mode3d_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	struct list_head *modelist, *pos;
@@ -290,10 +290,10 @@ static ssize_t display_3dmode_show(struct device *dev,
 		display_modelist = list_entry(pos,
 					      struct display_modelist,
 					      list);
-		if (fb_mode_is_equal(&mode, &display_modelist->mode))
-			break;
-		else
+		if (!fb_mode_is_equal(&mode, &display_modelist->mode))
 			display_modelist = NULL;
+		else
+			break;
 	}
 	if (display_modelist)
 		i = snprintf(buf, PAGE_SIZE, "3dmodes=%d\n",
@@ -320,9 +320,9 @@ static ssize_t display_3dmode_show(struct device *dev,
 	return i;
 }
 
-static ssize_t display_3dmode_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t mode3d_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int mode;
@@ -338,10 +338,10 @@ static ssize_t display_3dmode_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR_RW(display_3dmode);
+static DEVICE_ATTR_RW(mode3d);
 
-static ssize_t display_color_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t color_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int ret = 0;
@@ -353,9 +353,9 @@ static ssize_t display_color_show(struct device *dev,
 	return ret;
 }
 
-static ssize_t display_color_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t color_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 
@@ -370,11 +370,11 @@ static ssize_t display_color_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR_RW(display_color);
+static DEVICE_ATTR_RW(color);
 
-static ssize_t display_sinkaudioinfo_show(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
+static ssize_t audioinfo_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	char audioinfo[200];
@@ -392,10 +392,10 @@ static ssize_t display_sinkaudioinfo_show(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR_RO(display_sinkaudioinfo);
+static DEVICE_ATTR_RO(audioinfo);
 
-static ssize_t display_monspecs_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
+static ssize_t monspecs_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	struct fb_monspecs monspecs;
@@ -414,10 +414,10 @@ static ssize_t display_monspecs_show(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR_RO(display_monspecs);
+static DEVICE_ATTR_RO(monspecs);
 
-static ssize_t display_debug_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t debug_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 	int ret = -EINVAL;
@@ -429,9 +429,9 @@ static ssize_t display_debug_show(struct device *dev,
 	return ret;
 }
 
-static ssize_t display_debug_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t debug_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	int cmd, ret = -EINVAL;
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -446,22 +446,22 @@ static ssize_t display_debug_store(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR_RW(display_debug);
+static DEVICE_ATTR_RW(debug);
 
 static struct attribute *display_device_attrs[] = {
-	&dev_attr_display_name.attr,
-	&dev_attr_display_type.attr,
-	&dev_attr_display_property.attr,
-	&dev_attr_display_enable.attr,
-	&dev_attr_display_connect.attr,
-	&dev_attr_display_modes.attr,
-	&dev_attr_display_mode.attr,
-	&dev_attr_display_scale.attr,
-	&dev_attr_display_3dmode.attr,
-	&dev_attr_display_color.attr,
-	&dev_attr_display_sinkaudioinfo.attr,
-	&dev_attr_display_monspecs.attr,
-	&dev_attr_display_debug.attr,
+	&dev_attr_name.attr,
+	&dev_attr_type.attr,
+	&dev_attr_property.attr,
+	&dev_attr_enable.attr,
+	&dev_attr_connect.attr,
+	&dev_attr_modes.attr,
+	&dev_attr_mode.attr,
+	&dev_attr_scale.attr,
+	&dev_attr_mode3d.attr,
+	&dev_attr_color.attr,
+	&dev_attr_audioinfo.attr,
+	&dev_attr_monspecs.attr,
+	&dev_attr_debug.attr,
 	NULL,
 };
 
@@ -539,7 +539,7 @@ void rk_display_device_enable(struct rk_display_device *ddev)
 			dev_enabled = dev;
 	}
 	/* If no device is connected, enable highest priority device. */
-	if (dev_enable == NULL) {
+	if (!dev_enable) {
 		dev->ops->setenable(dev, 1);
 		return;
 	}
