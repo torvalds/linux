@@ -272,8 +272,8 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 
 		iter = (uint32_t *)buf;
 		chksum = 0;
-		for (cnt = 0; cnt < ((count >> 2) - 1); cnt++)
-			chksum += le32_to_cpu(*iter++);
+		for (cnt = 0; cnt < ((count >> 2) - 1); cnt++, iter++)
+			chksum += le32_to_cpu(*iter);
 		chksum = ~chksum + 1;
 		*iter = cpu_to_le32(chksum);
 	} else {

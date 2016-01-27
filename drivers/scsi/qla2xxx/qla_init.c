@@ -5125,8 +5125,8 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	dptr = (uint32_t *)nv;
 	ha->isp_ops->read_nvram(vha, (uint8_t *)dptr, ha->nvram_base,
 	    ha->nvram_size);
-	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
-		chksum += le32_to_cpu(*dptr++);
+	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
+		chksum += le32_to_cpu(*dptr);
 
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x006a,
 	    "Contents of NVRAM\n");
@@ -5379,8 +5379,8 @@ uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 	wptr = (uint32_t *)(&pri_image_status);
 	cnt = size;
 
-	for (chksum = 0; cnt; cnt--)
-		chksum += le32_to_cpu(*wptr++);
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le32_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x018c,
 		    "Checksum validation failed for primary image (0x%x)\n",
@@ -5407,8 +5407,8 @@ check_sec_image:
 
 	wptr = (uint32_t *)(&sec_image_status);
 	cnt = size;
-	for (chksum = 0; cnt; cnt--)
-		chksum += le32_to_cpu(*wptr++);
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le32_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x018e,
 		    "Checksum validation failed for secondary image (0x%x)\n",
@@ -6161,8 +6161,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
 	    ha->nvram_size);
 	dptr = (uint32_t *)nv;
-	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
-		chksum += le32_to_cpu(*dptr++);
+	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
+		chksum += le32_to_cpu(*dptr);
 
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x0111,
 	    "Contents of NVRAM:\n");

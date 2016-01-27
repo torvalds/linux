@@ -610,8 +610,8 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 
 	wptr = (uint16_t *)req->ring;
 	cnt = sizeof(struct qla_flt_location) >> 1;
-	for (chksum = 0; cnt; cnt--)
-		chksum += le16_to_cpu(*wptr++);
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_log(ql_log_fatal, vha, 0x0045,
 		    "Inconsistent FLTL detected: checksum=0x%x.\n", chksum);
@@ -702,8 +702,8 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	}
 
 	cnt = (sizeof(struct qla_flt_header) + le16_to_cpu(flt->length)) >> 1;
-	for (chksum = 0; cnt; cnt--)
-		chksum += le16_to_cpu(*wptr++);
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_log(ql_log_fatal, vha, 0x0048,
 		    "Inconsistent FLT detected: version=0x%x length=0x%x checksum=0x%x.\n",
@@ -930,9 +930,8 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	    fdt->sig[3] != 'D')
 		goto no_flash_data;
 
-	for (cnt = 0, chksum = 0; cnt < sizeof(struct qla_fdt_layout) >> 1;
-	    cnt++)
-		chksum += le16_to_cpu(*wptr++);
+	for (cnt = 0, chksum = 0; cnt < sizeof(*fdt) >> 1; cnt++, wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x004c,
 		    "Inconsistent FDT detected:"
@@ -1027,7 +1026,8 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 		ha->fcoe_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
 		ha->fcoe_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
 	} else {
-		ha->fcoe_dev_init_timeout = le32_to_cpu(*wptr++);
+		ha->fcoe_dev_init_timeout = le32_to_cpu(*wptr);
+		wptr++;
 		ha->fcoe_reset_timeout = le32_to_cpu(*wptr);
 	}
 	ql_dbg(ql_dbg_init, vha, 0x004e,
@@ -1104,10 +1104,9 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	ha->isp_ops->read_optrom(vha, (uint8_t *)data,
 	    ha->flt_region_npiv_conf << 2, NPIV_CONFIG_SIZE);
 
-	cnt = (sizeof(struct qla_npiv_header) + le16_to_cpu(hdr.entries) *
-	    sizeof(struct qla_npiv_entry)) >> 1;
-	for (wptr = data, chksum = 0; cnt; cnt--)
-		chksum += le16_to_cpu(*wptr++);
+	cnt = (sizeof(hdr) + le16_to_cpu(hdr.entries) * sizeof(*entry)) >> 1;
+	for (wptr = data, chksum = 0; cnt--; wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_user, vha, 0x7092,
 		    "Inconsistent NPIV-Config "
