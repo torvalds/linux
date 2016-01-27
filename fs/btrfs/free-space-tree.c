@@ -164,7 +164,7 @@ static unsigned long *alloc_bitmap(u32 bitmap_size)
 	if  (bitmap_size <= PAGE_SIZE)
 		return kzalloc(bitmap_size, GFP_NOFS);
 
-	mem = kzalloc(bitmap_size, GFP_NOFS | __GFP_HIGHMEM | __GFP_NOWARN);
+	mem = kzalloc(bitmap_size, GFP_NOFS | __GFP_NOWARN);
 	if (mem)
 		return mem;
 
