@@ -26,6 +26,8 @@ struct ath10k_ahb {
 	void __iomem *gcc_mem;
 	void __iomem *tcsr_mem;
 
+	int irq;
+
 	struct clk *cmd_clk;
 	struct clk *ref_clk;
 	struct clk *rtc_clk;

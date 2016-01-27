@@ -458,6 +458,50 @@ static void ath10k_ahb_halt_chip(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_AHB, "core %d reset done\n", core_id);
 }
 
+static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
+{
+	struct ath10k *ar = arg;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	if (!ath10k_pci_irq_pending(ar))
+		return IRQ_NONE;
+
+	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	tasklet_schedule(&ar_pci->intr_tq);
+
+	return IRQ_HANDLED;
+}
+
+static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+	int ret;
+
+	ret = request_irq(ar_ahb->irq,
+			  ath10k_ahb_interrupt_handler,
+			  IRQF_SHARED, "ath10k_ahb", ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to request legacy irq %d: %d\n",
+			    ar_ahb->irq, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void ath10k_ahb_release_irq_legacy(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	free_irq(ar_ahb->irq, ar);
+}
+
+static void ath10k_ahb_irq_disable(struct ath10k *ar)
+{
+	ath10k_ce_disable_interrupts(ar);
+	ath10k_pci_disable_and_clear_legacy_irq(ar);
+}
+
 static int ath10k_ahb_probe(struct platform_device *pdev)
 {
 	return 0;
