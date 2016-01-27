@@ -266,6 +266,20 @@ typedef enum {
 	UNMASK_PAGE_FAULT = 0x2
 } extern_func;
 
+enum rk_vop_feature {
+	SUPPORT_VOP_IDENTIFY	= BIT(0),
+	SUPPORT_IFBDC		= BIT(1),
+	SUPPORT_AFBDC		= BIT(2),
+	SUPPORT_WRITE_BACK	= BIT(3),
+	SUPPORT_YUV420_OUTPUT	= BIT(4)
+};
+
+struct rk_vop_property {
+	u32 feature;
+	u32 max_output_x;
+	u32 max_output_y;
+};
+
 struct rk_fb_rgb {
 	struct fb_bitfield red;
 	struct fb_bitfield green;
@@ -326,6 +340,16 @@ struct rk_lcdc_post_cfg {
 	u32 ypos;
 	u32 xsize;
 	u32 ysize;
+};
+
+struct rk_fb_wb_cfg {
+	u8  data_format;
+	short ion_fd;
+	u32 phy_addr;
+	u16 xsize;
+	u16 ysize;
+	u8 reserved0;
+	u32 reversed1;
 };
 
 struct rk_lcdc_bcsh {
@@ -500,6 +524,7 @@ struct rk_lcdc_drv_ops {
 	int (*area_support_num)(struct rk_lcdc_driver *dev_drv, unsigned int *area_support);
 	int (*extern_func)(struct rk_lcdc_driver *dev_drv, int cmd);
 	int (*wait_frame_start)(struct rk_lcdc_driver *dev_drv, int enable);
+	int (*set_wb)(struct rk_lcdc_driver *dev_drv);
 };
 
 struct rk_fb_area_par {
@@ -540,7 +565,17 @@ struct rk_fb_win_cfg_data {
 	short ret_fence_fd;
 	short rel_fence_fd[RK_MAX_BUF_NUM];
 	struct  rk_fb_win_par win_par[RK30_MAX_LAYER_SUPPORT];
-	struct  rk_lcdc_post_cfg post_cfg;
+	struct  rk_fb_wb_cfg wb_cfg;
+};
+
+struct rk_fb_reg_wb_data {
+	bool state;
+	u8 data_format;
+	struct ion_handle *ion_handle;
+	unsigned long smem_start;
+	unsigned long cbr_start;	/*Cbr memory start address*/
+	u16 xsize;
+	u16 ysize;
 };
 
 struct rk_fb_reg_area_data {
@@ -597,7 +632,7 @@ struct rk_fb_reg_data {
 	int    buf_num;
 	int    acq_num;
 	struct rk_fb_reg_win_data reg_win_data[RK30_MAX_LAYER_SUPPORT];
-	struct rk_lcdc_post_cfg post_cfg;
+	struct rk_fb_reg_wb_data reg_wb_data;
 };
 
 struct rk_lcdc_driver {
@@ -606,8 +641,10 @@ struct rk_lcdc_driver {
 	int  prop;
 	struct device *dev;
 	u32 version;
+	struct rk_vop_property property;
 
 	struct rk_lcdc_win *win[RK_MAX_FB_SUPPORT];
+	struct rk_fb_reg_wb_data wb_data;
 	int lcdc_win_num;
 	int num_buf;		//the num_of buffer
 	int atv_layer_cnt;

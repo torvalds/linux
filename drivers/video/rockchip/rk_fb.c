@@ -1513,6 +1513,18 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 	return 0;
 }
 
+void rk_fb_free_wb_buf(struct rk_lcdc_driver *dev_drv,
+		       struct rk_fb_reg_wb_data *wb_data)
+{
+	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+
+	if (dev_drv->iommu_enabled && wb_data->ion_handle)
+		ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
+				wb_data->ion_handle);
+	if (wb_data->ion_handle)
+		ion_free(rk_fb->ion_client, wb_data->ion_handle);
+}
+
 void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 			struct rk_fb_reg_win_data *reg_win_data)
 {
@@ -1536,7 +1548,6 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 		if (area_data->acq_fence)
 			sync_fence_put(area_data->acq_fence);
 	}
-	memset(reg_win_data, 0, sizeof(struct rk_fb_reg_win_data));
 }
 
 static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
@@ -1817,6 +1828,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			win_data = &regs->reg_win_data[i];
 			rk_fb_free_dma_buf(dev_drv, win_data);
 		}
+		if (dev_drv->property.feature & SUPPORT_WRITE_BACK)
+			rk_fb_free_wb_buf(dev_drv, &regs->reg_wb_data);
+		kfree(regs);
 		return;
 	}
 	/* acq_fence wait */
@@ -1853,6 +1867,13 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
 
+	if (dev_drv->property.feature & SUPPORT_WRITE_BACK) {
+		memcpy(&dev_drv->wb_data, &regs->reg_wb_data,
+		       sizeof(struct rk_fb_reg_wb_data));
+		if (dev_drv->ops->set_wb)
+			dev_drv->ops->set_wb(dev_drv);
+	}
+
 	if (rk_fb_iommu_debug > 0)
 		pagefault = rk_fb_iommu_page_fault_dump(dev_drv);
 
@@ -1887,6 +1908,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			win_data = &dev_drv->front_regs->reg_win_data[i];
 			rk_fb_free_dma_buf(dev_drv, win_data);
 		}
+		if (dev_drv->property.feature & SUPPORT_WRITE_BACK)
+			rk_fb_free_wb_buf(dev_drv,
+					  &dev_drv->front_regs->reg_wb_data);
 		kfree(dev_drv->front_regs);
 
 		mutex_unlock(&dev_drv->front_lock);
@@ -2046,6 +2070,62 @@ static int rk_fb_config_backup(struct rk_lcdc_driver *dev_drv,
 
 	return 0;
 }
+
+static int rk_fb_set_wb_buffer(struct fb_info *info,
+			       struct rk_fb_wb_cfg *wb_cfg,
+			       struct rk_fb_reg_wb_data *wb_data)
+{
+	int ret = 0;
+	ion_phys_addr_t phy_addr;
+	size_t len;
+	u8 fb_data_fmt;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
+
+	if ((wb_cfg->phy_addr == 0) && (wb_cfg->ion_fd == 0)) {
+		wb_data->state = 0;
+		return 0;
+	}
+	if (wb_cfg->phy_addr == 0) {
+		wb_data->ion_handle =
+		    ion_import_dma_buf(rk_fb->ion_client,
+				       wb_cfg->ion_fd);
+		if (IS_ERR(wb_data->ion_handle)) {
+			pr_info("Could not import handle: %ld\n",
+				(long)wb_data->ion_handle);
+			return -EINVAL;
+		}
+		if (dev_drv->iommu_enabled)
+			ret = ion_map_iommu(dev_drv->dev,
+					    rk_fb->ion_client,
+					    wb_data->ion_handle,
+					    (unsigned long *)&phy_addr,
+					    (unsigned long *)&len);
+		else
+			ret = ion_phys(rk_fb->ion_client, wb_data->ion_handle,
+				       &phy_addr, &len);
+		if (ret < 0) {
+			pr_err("ion map to get phy addr failed\n");
+			ion_free(rk_fb->ion_client, wb_data->ion_handle);
+			return -ENOMEM;
+		}
+		wb_data->smem_start = phy_addr;
+	} else {
+		wb_data->smem_start = wb_cfg->phy_addr;
+	}
+
+	fb_data_fmt = rk_fb_data_fmt(wb_cfg->data_format, 0);
+	if (IS_YUV_FMT(fb_data_fmt))
+		wb_data->cbr_start = wb_data->smem_start +
+					wb_cfg->xsize * wb_cfg->ysize;
+	wb_data->xsize = wb_cfg->xsize;
+	wb_data->ysize = wb_cfg->ysize;
+	wb_data->state = 1;
+
+	return 0;
+}
+
 static int rk_fb_set_win_buffer(struct fb_info *info,
 				struct rk_fb_win_par *win_par,
 				struct rk_fb_reg_win_data *reg_win_data)
@@ -2427,7 +2507,9 @@ static int rk_fb_set_win_config(struct fb_info *info,
 				win_data->win_par[i].win_id);
 		}
 	}
-
+	if (dev_drv->property.feature & SUPPORT_WRITE_BACK)
+		rk_fb_set_wb_buffer(info, &win_data->wb_cfg,
+				    &regs->reg_wb_data);
 	if (regs->win_num <= 0)
 		goto err_null_frame;
 
