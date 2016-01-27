@@ -242,7 +242,7 @@ static int octeon_cpu_disable(void)
 	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	octeon_fixup_irqs();
 
-	flush_cache_all();
+	__flush_cache_all();
 	local_flush_tlb_all();
 
 	return 0;
