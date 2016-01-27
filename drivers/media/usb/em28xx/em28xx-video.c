@@ -1442,16 +1442,11 @@ static int vidioc_s_parm(struct file *file, void *priv,
 					  0, video, s_parm, p);
 }
 
-static const char *iname[] = {
-	[EM28XX_VMUX_COMPOSITE1] = "Composite1",
-	[EM28XX_VMUX_COMPOSITE2] = "Composite2",
-	[EM28XX_VMUX_COMPOSITE3] = "Composite3",
-	[EM28XX_VMUX_COMPOSITE4] = "Composite4",
-	[EM28XX_VMUX_SVIDEO]     = "S-Video",
+static const char * const iname[] = {
+	[EM28XX_VMUX_COMPOSITE]	 = "Composite",
+	[EM28XX_VMUX_SVIDEO]	 = "S-Video",
 	[EM28XX_VMUX_TELEVISION] = "Television",
-	[EM28XX_VMUX_CABLE]      = "Cable TV",
-	[EM28XX_VMUX_DVB]        = "DVB",
-	[EM28XX_VMUX_DEBUG]      = "for debug only",
+	[EM28XX_RADIO]		 = "Radio",
 };
 
 static int vidioc_enum_input(struct file *file, void *priv,
@@ -1471,8 +1466,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	strcpy(i->name, iname[INPUT(n)->type]);
 
-	if ((EM28XX_VMUX_TELEVISION == INPUT(n)->type) ||
-	    (EM28XX_VMUX_CABLE == INPUT(n)->type))
+	if ((EM28XX_VMUX_TELEVISION == INPUT(n)->type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
 	i->std = dev->v4l2->vdev.tvnorms;
