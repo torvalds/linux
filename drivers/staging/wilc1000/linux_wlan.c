@@ -1322,6 +1322,9 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 	struct net_device *wilc_netdev;
 	struct wilc_vif *vif;
 
+	if (!wilc)
+		return;
+
 	wilc_netdev = get_if_handler(wilc, buff);
 	if (!wilc_netdev)
 		return;
@@ -1338,13 +1341,7 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 			PRINT_ER("Low memory - packet droped\n");
 			return;
 		}
-
-		if (!wilc || !wilc_netdev)
-			PRINT_ER("wilc_netdev in wilc is NULL");
 		skb->dev = wilc_netdev;
-
-		if (!skb->dev)
-			PRINT_ER("skb->dev is NULL\n");
 
 		memcpy(skb_put(skb, frame_len), buff_to_send, frame_len);
 
