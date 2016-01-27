@@ -228,14 +228,14 @@ wait_div_update2:
 
 	.endm
 
-	.macro set_timings_below_100MHz_operation
+	.macro	set_timings_below_100MHz_operation
 	/* Set MMDCx_MISC[RALAT] = 2 cycles */
 	ldr	r6, [r8, #0x18]
 	bic	r6, r6, #(0x7 << 6)
 	orr	r6, r6, #(0x2 << 6)
 	str	r6, [r8, #0x18]
 
-	/* Adjust LPDDR2 timmings for 24Mhz operation */
+	/* Adjust LPDDR2 timings for 24Mhz operation */
 	ldr	r5, =0x03032073
 	str	r5, [r8, #0xC]  	/* MMDC0_MDCFG0 */
 	ldr	r7, =0x00020482
@@ -264,37 +264,30 @@ skip_below_100Mhz_ch1_timings:
 
 	.endm
 
-	.macro set_timmings_above_100MHz_operation
-	/* Set MMDCx_MISC[RALAT] = 5 cycles */
-	ldr	r6, [r8, #0x18]
-	bic	r6, r6, #(0x7 << 6)
-	orr	r6, r6, #(0x5 << 6)
-	str	r6, [r8, #0x18]
-
-	/* Adjust LPDDR2 timmings for 400Mhz operation */
-	ldr	r5, =0x33374133
-	str	r5, [r8, #0xC]  	/* MMDC0_MDCFG0 */
-	ldr	r7, =0x00100A82
-	str	r7, [r8, #0x10] 	/* MMDC0_MDCFG1 */
-	ldr	r9, =0x00000093
-	str	r9, [r8, #0x14] 	/* MMDC0_MDCFG2 */
-	ldr	r10, =0x001A0889
-	str	r10, [r8, #0x38] 	/* MMDC0_MDCFG3LP */
+	.macro	set_timings_above_100MHz_operation
+	/* restore timing from mmdc_settings_info */
+	ldr	r6, [r1, #0x0]
+	ldr	r7, [r1, #0x4]
+tloop:
+	ldr	r9, [r7], #0x4
+	ldr	r10, [r7], #0x4
+	str	r10, [r8, r9]
+	subs	r6, r6, #0x1
+	bne	tloop
 
 	/* Check if lpddr2 channel 1 is enabled */
 	ldr	r6, [r8, #0x18]
 	ands	r6, r6, #(1 << 2)
 	beq	skip_above_100Mhz_ch1_timings
 
-	ldr	r6, [r4, #0x18]
-	bic	r6, r6, #(0x7 << 6)
-	orr	r6, r6, #(0x5 << 6)
-	str	r6, [r4, #0x18]
-
-	str	r5, [r4, #0xC]  	/* MMDC1_MDCFG0 */
-	str	r7, [r4, #0x10] 	/* MMDC1_MDCFG1 */
-	str	r9, [r4, #0x14] 	/* MMDC1_MDCFG2 */
-	str	r10, [r4, #0x38] 	/* MMDC1_MDCFG3LP */
+	ldr	r6, [r1, #0x0]
+	ldr	r7, [r1, #0x4]
+tloop2:
+	ldr	r9, [r7], #0x4
+	ldr	r10, [r7], #0x4
+	str	r10, [r4, r9]
+	subs	r6, r6, #0x1
+	bne	tloop2
 
 skip_above_100Mhz_ch1_timings:
 
@@ -390,7 +383,7 @@ skip_lower_force_measure_ch1:
 
 	.macro	mmdc_clk_above_100MHz
 
-	set_timmings_above_100MHz_operation
+	set_timings_above_100MHz_operation
 
 	/* Make sure that the PHY measurement unit is NOT in bypass mode */
 	ldr	r5, =0x8B8
@@ -438,7 +431,7 @@ skip_above_force_measure_ch1:
  *  Make sure DDR is in self-refresh.
  *  IRQs are already disabled.
  * r0 : DDR freq.
- * r1: low_bus_freq_mode flag
+ * r1 : mmdc_settings_info
  */
 	.align 3
 ENTRY(mx6q_lpddr2_freq_change)
