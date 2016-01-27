@@ -157,6 +157,12 @@ struct ath10k_pci_supp_chip {
 	u32 rev_id;
 };
 
+struct ath10k_bus_ops {
+	u32 (*read32)(struct ath10k *ar, u32 offset);
+	void (*write32)(struct ath10k *ar, u32 offset, u32 value);
+	int (*get_num_banks)(struct ath10k *ar);
+};
+
 struct ath10k_pci {
 	struct pci_dev *pdev;
 	struct device *dev;
@@ -225,6 +231,8 @@ struct ath10k_pci {
 	 * on MMIO read/write.
 	 */
 	bool pci_ps;
+
+	const struct ath10k_bus_ops *bus_ops;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)

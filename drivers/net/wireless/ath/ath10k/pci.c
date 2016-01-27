@@ -619,7 +619,7 @@ static void ath10k_pci_sleep_sync(struct ath10k *ar)
 	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
 }
 
-void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value)
+static void ath10k_bus_pci_write32(struct ath10k *ar, u32 offset, u32 value)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
@@ -641,7 +641,7 @@ void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value)
 	ath10k_pci_sleep(ar);
 }
 
-u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
+static u32 ath10k_bus_pci_read32(struct ath10k *ar, u32 offset)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	u32 val;
@@ -664,6 +664,20 @@ u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
 	ath10k_pci_sleep(ar);
 
 	return val;
+}
+
+inline void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	ar_pci->bus_ops->write32(ar, offset, value);
+}
+
+inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	return ar_pci->bus_ops->read32(ar, offset);
 }
 
 u32 ath10k_pci_soc_read32(struct ath10k *ar, u32 addr)
@@ -1906,6 +1920,13 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 	return 1;
 }
 
+static int ath10k_bus_get_num_banks(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	return ar_pci->bus_ops->get_num_banks(ar);
+}
+
 int ath10k_pci_init_config(struct ath10k *ar)
 {
 	u32 interconnect_targ_addr;
@@ -2017,7 +2038,7 @@ int ath10k_pci_init_config(struct ath10k *ar)
 	/* first bank is switched to IRAM */
 	ealloc_value |= ((HI_EARLY_ALLOC_MAGIC << HI_EARLY_ALLOC_MAGIC_SHIFT) &
 			 HI_EARLY_ALLOC_MAGIC_MASK);
-	ealloc_value |= ((ath10k_pci_get_num_banks(ar) <<
+	ealloc_value |= ((ath10k_bus_get_num_banks(ar) <<
 			  HI_EARLY_ALLOC_IRAM_BANKS_SHIFT) &
 			 HI_EARLY_ALLOC_IRAM_BANKS_MASK);
 
@@ -2988,6 +3009,12 @@ static bool ath10k_pci_chip_is_supported(u32 dev_id, u32 chip_id)
 	return false;
 }
 
+static const struct ath10k_bus_ops ath10k_pci_bus_ops = {
+	.read32		= ath10k_bus_pci_read32,
+	.write32	= ath10k_bus_pci_write32,
+	.get_num_banks	= ath10k_pci_get_num_banks,
+};
+
 static int ath10k_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *pci_dev)
 {
@@ -3038,6 +3065,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar_pci->ar = ar;
 	ar->dev_id = pci_dev->device;
 	ar_pci->pci_ps = pci_ps;
+	ar_pci->bus_ops = &ath10k_pci_bus_ops;
 
 	ar->id.vendor = pdev->vendor;
 	ar->id.device = pdev->device;
