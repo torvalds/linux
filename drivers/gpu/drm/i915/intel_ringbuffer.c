@@ -2119,6 +2119,9 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 			return ret;
 		}
 
+		/* Access through the GTT requires the device to be awake. */
+		assert_rpm_wakelock_held(dev_priv);
+
 		ringbuf->virtual_start = ioremap_wc(dev_priv->gtt.mappable_base +
 						    i915_gem_obj_ggtt_offset(obj), ringbuf->size);
 		if (ringbuf->virtual_start == NULL) {
