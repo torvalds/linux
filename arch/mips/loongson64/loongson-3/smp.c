@@ -421,7 +421,6 @@ static int loongson3_cpu_disable(void)
 	local_irq_save(flags);
 	fixup_irqs();
 	local_irq_restore(flags);
-	flush_cache_all();
 	local_flush_tlb_all();
 
 	return 0;
