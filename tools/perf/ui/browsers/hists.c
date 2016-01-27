@@ -657,10 +657,24 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	return 1;
 }
 
+static bool check_percent_display(struct rb_node *node, u64 parent_total)
+{
+	struct callchain_node *child;
+
+	if (node == NULL)
+		return false;
+
+	if (rb_next(node))
+		return true;
+
+	child = rb_entry(node, struct callchain_node, rb_node);
+	return callchain_cumul_hits(child) != parent_total;
+}
+
 static int hist_browser__show_callchain_flat(struct hist_browser *browser,
 					     struct rb_root *root,
 					     unsigned short row, u64 total,
-					     u64 parent_total __maybe_unused,
+					     u64 parent_total,
 					     print_callchain_entry_fn print,
 					     struct callchain_print_arg *arg,
 					     check_output_full_fn is_output_full)
@@ -670,7 +684,7 @@ static int hist_browser__show_callchain_flat(struct hist_browser *browser,
 	bool need_percent;
 
 	node = rb_first(root);
-	need_percent = node && rb_next(node);
+	need_percent = check_percent_display(node, parent_total);
 
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
@@ -764,7 +778,7 @@ static char *hist_browser__folded_callchain_str(struct hist_browser *browser,
 static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 					       struct rb_root *root,
 					       unsigned short row, u64 total,
-					       u64 parent_total __maybe_unused,
+					       u64 parent_total,
 					       print_callchain_entry_fn print,
 					       struct callchain_print_arg *arg,
 					       check_output_full_fn is_output_full)
@@ -774,7 +788,7 @@ static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 	bool need_percent;
 
 	node = rb_first(root);
-	need_percent = node && rb_next(node);
+	need_percent = check_percent_display(node, parent_total);
 
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
@@ -863,7 +877,7 @@ static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 		percent_total = parent_total;
 
 	node = rb_first(root);
-	need_percent = node && rb_next(node);
+	need_percent = check_percent_display(node, parent_total);
 
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
