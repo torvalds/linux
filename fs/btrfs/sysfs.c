@@ -804,6 +804,9 @@ void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
 	fs_devs = fs_info->fs_devices;
 	fsid_kobj = &fs_devs->fsid_kobj;
 
+	if (!fsid_kobj->state_initialized)
+		return;
+
 	/*
 	 * FIXME: this is too heavy to update just one value, ideally we'd like
 	 * to use sysfs_update_group but some refactoring is needed first.
