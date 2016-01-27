@@ -14,3 +14,7 @@ using one of the following compatible strings:
   allwinner,sun8i-a83t
   allwinner,sun8i-h3
   allwinner,sun9i-a80
+
+For Allwinner SoCs without any specific needs the generic fallback value of:
+  allwinner,sunxi
+can be used.

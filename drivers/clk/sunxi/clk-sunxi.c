@@ -1052,14 +1052,12 @@ CLK_OF_DECLARE(sun8i_a23_clk_init, "allwinner,sun8i-a23", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_a33_clk_init, "allwinner,sun8i-a33", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_h3_clk_init, "allwinner,sun8i-h3", sun6i_init_clocks);
 
-static void __init sun8i_a83t_init_clocks(struct device_node *node)
+static void __init sunxi_generic_init_clocks(struct device_node *node)
 {
 	sunxi_init_clocks(NULL, 0);
 }
-CLK_OF_DECLARE(sun8i_a83t_clk_init, "allwinner,sun8i-a83t", sun8i_a83t_init_clocks);
-
-static void __init sun9i_init_clocks(struct device_node *node)
-{
-	sunxi_init_clocks(NULL, 0);
-}
-CLK_OF_DECLARE(sun9i_a80_clk_init, "allwinner,sun9i-a80", sun9i_init_clocks);
+CLK_OF_DECLARE(sun8i_a83t_clk_init, "allwinner,sun8i-a83t",
+	       sunxi_generic_init_clocks);
+CLK_OF_DECLARE(sun9i_a80_clk_init, "allwinner,sun9i-a80",
+	       sunxi_generic_init_clocks);
+CLK_OF_DECLARE(sunxi_clk_init, "allwinner,sunxi", sunxi_generic_init_clocks);
