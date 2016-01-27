@@ -89,6 +89,72 @@ periph_clk_switch6:
 
 	.endm
 
+	.macro	switch_to_100MHz
+	/* check if periph_clk_sel is already set. */
+	ldr	r9, [r2, #CCM_CBCDR]
+	and	r9, r9, #(1 << 25)
+	cmp	r9, #(1 << 25)
+	beq	switch_pre_periph_clk_100
+	/*
+	 * set the periph_clk to be sourced from PLL2_PFD_200M
+	 * change periph_clk to be sourced from pll3_clk.
+	 * ensure PLL3 is the source and set the divider to 1.
+	 */
+	ldr	r9, [r2, #CCM_CBCMR]
+	bic	r9, r9, #(0x3 << 12)
+	str	r9, [r2, #CCM_CBCMR]
+
+	ldr	r9, [r2, #CCM_CBCDR]
+	bic	r9, r9, #(0x38 << 24)
+	str	r9, [r2, #CCM_CBCDR]
+
+	/* now switch periph_clk to pll3_main_clk. */
+	ldr	r9, [r2, #CCM_CBCDR]
+	orr	r9, r9, #(1 << 25)
+	str	r9, [r2, #CCM_CBCDR]
+
+periph_clk_switch_100:
+	ldr	r9, [r2, #CCM_CDHIPR]
+	cmp	r9, #0
+	bne	periph_clk_switch_100
+
+switch_pre_periph_clk_100:
+	/* now switch pre_periph_clk to PFD_200MHz. */
+	ldr	r9, [r2, #CCM_CBCMR]
+	orr	r9, r9, #(0xc << 16)
+	str	r9, [r2, #CCM_CBCMR]
+
+	/* set the MMDC_DIV=2, AXI_DIV=4, AHB_DIV=8 */
+	ldr	r9, [r2, #CCM_CBCDR]
+	ldr	r6, =0x3f1f00
+	bic	r9, r9, r6
+	orr	r9, r9, #(0x8 << 16)
+	orr	r9, r9, #(0x3 << 16)
+
+	/*
+	 * if changing AHB divider remember to change
+	 * the IPGPER divider too below.
+	 */
+	orr	r9, r9, #0x1d00
+	str	r9, [r2, #CCM_CBCDR]
+
+wait_div_update_100:
+	ldr	r9, [r2, #CCM_CDHIPR]
+	cmp	r9, #0
+	bne	wait_div_update_100
+
+	/* now switch periph_clk back. */
+	ldr	r9, [r2, #CCM_CBCDR]
+	bic	r9, r9, #(1 << 25)
+	str	r9, [r2, #CCM_CBCDR]
+
+periph_clk_switch2:
+	ldr	r9, [r2, #CCM_CDHIPR]
+	cmp	r9, #0
+	bne	periph_clk_switch2
+
+	.endm
+
 	.macro	switch_to_24MHz
 	/*
 	 * change the freq now try setting DDR to 24MHz.
@@ -544,6 +610,10 @@ set_ddr_mu_above_100:
 	cmp	r0, r10
 	beq	set_to_24MHz
 
+	ldr	r10, =100000000
+	cmp	r0, r10
+	beq set_to_100MHz
+
 	ldr r10, =400000000
 	cmp r0, r10
 	switch_to_400MHz
@@ -554,6 +624,10 @@ set_to_24MHz:
 	switch_to_24MHZ_from_pll2
 */
 	switch_to_24MHz
+	b	done
+
+set_to_100MHz:
+	switch_to_100MHz
 
 done:
 

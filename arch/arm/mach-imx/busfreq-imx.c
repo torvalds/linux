@@ -229,7 +229,7 @@ static void enter_lpm_imx6_smp(void)
 		if (ddr_type == MMDC_MDMISC_DDR_TYPE_DDR3)
 			update_ddr_freq_imx_smp(LOW_AUDIO_CLK);
 		else if (ddr_type == MMDC_MDMISC_DDR_TYPE_LPDDR2)
-			update_lpddr2_freq(LOW_AUDIO_CLK);
+			update_lpddr2_freq_smp(HIGH_AUDIO_CLK);
 		/* Make sure periph clk's parent also got updated */
 		imx_clk_set_parent(periph_clk2_sel_clk, pll3_clk);
 		imx_clk_set_parent(periph_pre_clk, pll2_200_clk);
