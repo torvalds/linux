@@ -25,6 +25,10 @@ struct ath10k_ahb {
 	void __iomem *mem;
 	void __iomem *gcc_mem;
 	void __iomem *tcsr_mem;
+
+	struct clk *cmd_clk;
+	struct clk *ref_clk;
+	struct clk *rtc_clk;
 };
 
 #ifdef CONFIG_ATH10K_AHB

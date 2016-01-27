@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/module.h>
+#include <linux/clk.h>
 #include "core.h"
 #include "debug.h"
 #include "pci.h"
@@ -82,6 +83,128 @@ static int ath10k_ahb_get_num_banks(struct ath10k *ar)
 
 	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
 	return 1;
+}
+
+static int ath10k_ahb_clock_init(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+	struct device *dev;
+	int ret;
+
+	dev = &ar_ahb->pdev->dev;
+
+	ar_ahb->cmd_clk = clk_get(dev, "wifi_wcss_cmd");
+	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk)) {
+		ath10k_err(ar, "failed to get cmd clk: %ld\n",
+			   PTR_ERR(ar_ahb->cmd_clk));
+		ret = ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -ENODEV;
+		goto out;
+	}
+
+	ar_ahb->ref_clk = clk_get(dev, "wifi_wcss_ref");
+	if (IS_ERR_OR_NULL(ar_ahb->ref_clk)) {
+		ath10k_err(ar, "failed to get ref clk: %ld\n",
+			   PTR_ERR(ar_ahb->ref_clk));
+		ret = ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -ENODEV;
+		goto err_cmd_clk_put;
+	}
+
+	ar_ahb->rtc_clk = clk_get(dev, "wifi_wcss_rtc");
+	if (IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
+		ath10k_err(ar, "failed to get rtc clk: %ld\n",
+			   PTR_ERR(ar_ahb->rtc_clk));
+		ret = ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -ENODEV;
+		goto err_ref_clk_put;
+	}
+
+	return 0;
+
+err_ref_clk_put:
+	clk_put(ar_ahb->ref_clk);
+
+err_cmd_clk_put:
+	clk_put(ar_ahb->cmd_clk);
+
+out:
+	return ret;
+}
+
+static void ath10k_ahb_clock_deinit(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->cmd_clk))
+		clk_put(ar_ahb->cmd_clk);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->ref_clk))
+		clk_put(ar_ahb->ref_clk);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
+		clk_put(ar_ahb->rtc_clk);
+
+	ar_ahb->cmd_clk = NULL;
+	ar_ahb->ref_clk = NULL;
+	ar_ahb->rtc_clk = NULL;
+}
+
+static int ath10k_ahb_clock_enable(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+	struct device *dev;
+	int ret;
+
+	dev = &ar_ahb->pdev->dev;
+
+	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk) ||
+	    IS_ERR_OR_NULL(ar_ahb->ref_clk) ||
+	    IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
+		ath10k_err(ar, "clock(s) is/are not initialized\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = clk_prepare_enable(ar_ahb->cmd_clk);
+	if (ret) {
+		ath10k_err(ar, "failed to enable cmd clk: %d\n", ret);
+		goto out;
+	}
+
+	ret = clk_prepare_enable(ar_ahb->ref_clk);
+	if (ret) {
+		ath10k_err(ar, "failed to enable ref clk: %d\n", ret);
+		goto err_cmd_clk_disable;
+	}
+
+	ret = clk_prepare_enable(ar_ahb->rtc_clk);
+	if (ret) {
+		ath10k_err(ar, "failed to enable rtc clk: %d\n", ret);
+		goto err_ref_clk_disable;
+	}
+
+	return 0;
+
+err_ref_clk_disable:
+	clk_disable_unprepare(ar_ahb->ref_clk);
+
+err_cmd_clk_disable:
+	clk_disable_unprepare(ar_ahb->cmd_clk);
+
+out:
+	return ret;
+}
+
+static void ath10k_ahb_clock_disable(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->cmd_clk))
+		clk_disable_unprepare(ar_ahb->cmd_clk);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->ref_clk))
+		clk_disable_unprepare(ar_ahb->ref_clk);
+
+	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
+		clk_disable_unprepare(ar_ahb->rtc_clk);
 }
 
 static int ath10k_ahb_probe(struct platform_device *pdev)
