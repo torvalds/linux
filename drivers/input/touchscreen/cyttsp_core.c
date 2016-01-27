@@ -528,6 +528,14 @@ static void cyttsp_close(struct input_dev *dev)
 		cyttsp_disable(ts);
 }
 
+static void cyttsp_platform_exit(void *data)
+{
+	struct cyttsp *ts = data;
+
+	if (ts->pdata->exit)
+		ts->pdata->exit();
+}
+
 struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size)
 {
@@ -536,17 +544,16 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	struct input_dev *input_dev;
 	int error;
 
-	if (!pdata || !pdata->name || irq <= 0) {
-		error = -EINVAL;
-		goto err_out;
-	}
+	if (!pdata || !pdata->name || irq <= 0)
+		return ERR_PTR(-EINVAL);
 
-	ts = kzalloc(sizeof(*ts) + xfer_buf_size, GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ts || !input_dev) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	ts = devm_kzalloc(dev, sizeof(*ts) + xfer_buf_size, GFP_KERNEL);
+	if (!ts)
+		return ERR_PTR(-ENOMEM);
+
+	input_dev = devm_input_allocate_device(dev);
+	if (!input_dev)
+		return ERR_PTR(-ENOMEM);
 
 	ts->dev = dev;
 	ts->input = input_dev;
@@ -557,12 +564,18 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	init_completion(&ts->bl_ready);
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 
+	error = devm_add_action(dev, cyttsp_platform_exit, ts);
+	if (error) {
+		dev_err(dev, "failed to install exit action: %d\n", error);
+		return ERR_PTR(error);
+	}
+
 	if (pdata->init) {
 		error = pdata->init();
 		if (error) {
 			dev_err(ts->dev, "platform init failed, err: %d\n",
 				error);
-			goto err_free_mem;
+			return ERR_PTR(error);
 		}
 	}
 
@@ -586,52 +599,31 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	input_mt_init_slots(input_dev, CY_MAX_ID, 0);
 
-	error = request_threaded_irq(ts->irq, NULL, cyttsp_irq,
-				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				     pdata->name, ts);
+	error = devm_request_threaded_irq(dev, ts->irq, NULL, cyttsp_irq,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  pdata->name, ts);
 	if (error) {
 		dev_err(ts->dev, "failed to request IRQ %d, err: %d\n",
 			ts->irq, error);
-		goto err_platform_exit;
+		return ERR_PTR(error);
 	}
 
 	disable_irq(ts->irq);
 
 	error = cyttsp_power_on(ts);
 	if (error)
-		goto err_free_irq;
+		return ERR_PTR(error);
 
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(ts->dev, "failed to register input device: %d\n",
 			error);
-		goto err_free_irq;
+		return ERR_PTR(error);
 	}
 
 	return ts;
-
-err_free_irq:
-	free_irq(ts->irq, ts);
-err_platform_exit:
-	if (pdata->exit)
-		pdata->exit();
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(ts);
-err_out:
-	return ERR_PTR(error);
 }
 EXPORT_SYMBOL_GPL(cyttsp_probe);
-
-void cyttsp_remove(struct cyttsp *ts)
-{
-	free_irq(ts->irq, ts);
-	input_unregister_device(ts->input);
-	if (ts->pdata->exit)
-		ts->pdata->exit();
-	kfree(ts);
-}
-EXPORT_SYMBOL_GPL(cyttsp_remove);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cypress TrueTouch(R) Standard touchscreen driver core");
