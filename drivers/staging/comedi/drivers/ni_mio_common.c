@@ -2903,8 +2903,6 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	ni_stc_writew(dev, NISTC_AO_CMD1_UI_ARM |
 			   NISTC_AO_CMD1_UC_ARM |
 			   NISTC_AO_CMD1_BC_ARM |
-			   NISTC_AO_CMD1_DAC1_UPDATE_MODE |
-			   NISTC_AO_CMD1_DAC0_UPDATE_MODE |
 			   devpriv->ao_cmd1,
 		      NISTC_AO_CMD1_REG);
 
@@ -3081,9 +3079,11 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 
-	ni_stc_writew(dev, NISTC_AO_CMD1_DAC1_UPDATE_MODE |
-			   NISTC_AO_CMD1_DAC0_UPDATE_MODE,
-		      NISTC_AO_CMD1_REG);
+	/* Configure DAQ-STC for Timed update mode */
+	devpriv->ao_cmd1 |= NISTC_AO_CMD1_DAC1_UPDATE_MODE |
+			    NISTC_AO_CMD1_DAC0_UPDATE_MODE;
+	/* We are not using UPDATE2-->don't have to set DACx_Source_Select */
+	ni_stc_writew(dev, devpriv->ao_cmd1, NISTC_AO_CMD1_REG);
 
 	devpriv->ao_mode3 |= NISTC_AO_MODE3_STOP_ON_OVERRUN_ERR;
 	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
