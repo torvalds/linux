@@ -1024,7 +1024,7 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 }
 
 static const struct greybus_bundle_id gb_audio_id_table[] = {
-	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_AUDIO_MGMT) },
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_AUDIO) },
 	{ }
 };
 MODULE_DEVICE_TABLE(greybus, gb_audio_id_table);
