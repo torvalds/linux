@@ -1075,7 +1075,6 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
  * kvm_s390_shadow_fault - handle fault on a shadow page table
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
- * @write: =1 map r/w, =0 map r/o
  *
  * Returns: - 0 if the shadow fault was successfully resolved
  *	    - > 0 (pgm exception code) on exceptions while faulting
@@ -1083,7 +1082,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
  *	    - -EFAULT when accessing invalid guest addresses
  *	    - -ENOMEM if out of memory
  */
-int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr, int write)
+int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr)
 {
 	union vaddress vaddr;
 	union page_table_entry pte;
@@ -1104,9 +1103,6 @@ int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr, int write)
 		rc = PGM_PAGE_TRANSLATION;
 	if (!rc && (pte.z || pte.co))
 		rc = PGM_TRANSLATION_SPEC;
-	dat_protection |= pte.p;
-	if (!rc && write && dat_protection)
-		rc = PGM_PROTECTION;
 	if (!rc)
 		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
 	up_read(&sg->mm->mmap_sem);

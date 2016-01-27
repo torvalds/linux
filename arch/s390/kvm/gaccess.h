@@ -361,6 +361,6 @@ void ipte_unlock(struct kvm_vcpu *vcpu);
 int ipte_lock_held(struct kvm_vcpu *vcpu);
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 
-int kvm_s390_shadow_fault(struct gmap *shadow, unsigned long saddr, int write);
+int kvm_s390_shadow_fault(struct gmap *shadow, unsigned long saddr);
 
 #endif /* __KVM_S390_GACCESS_H */
