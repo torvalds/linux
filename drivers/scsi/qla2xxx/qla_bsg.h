@@ -25,6 +25,8 @@
 #define QL_VND_FX00_MGMT_CMD	0x12
 #define QL_VND_SERDES_OP	0x13
 #define	QL_VND_SERDES_OP_EX	0x14
+#define QL_VND_GET_FLASH_UPDATE_CAPS    0x15
+#define QL_VND_SET_FLASH_UPDATE_CAPS    0x16
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -232,4 +234,9 @@ struct qla_serdes_reg_ex {
 	uint32_t val;
 } __packed;
 
+struct qla_flash_update_caps {
+	uint64_t  capabilities;
+	uint32_t  outage_duration;
+	uint8_t   reserved[20];
+} __packed;
 #endif

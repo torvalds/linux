@@ -2107,6 +2107,80 @@ qla8044_serdes_op(struct fc_bsg_job *bsg_job)
 }
 
 static int
+qla27xx_get_flash_upd_cap(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	struct qla_flash_update_caps cap;
+
+	if (!(IS_QLA27XX(ha)))
+		return -EPERM;
+
+	memset(&cap, 0, sizeof(cap));
+	cap.capabilities = (uint64_t)ha->fw_attributes_ext[1] << 48 |
+			   (uint64_t)ha->fw_attributes_ext[0] << 32 |
+			   (uint64_t)ha->fw_attributes_h << 16 |
+			   (uint64_t)ha->fw_attributes;
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, &cap, sizeof(cap));
+	bsg_job->reply->reply_payload_rcv_len = sizeof(cap);
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+	    EXT_STATUS_OK;
+
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+	return 0;
+}
+
+static int
+qla27xx_set_flash_upd_cap(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	uint64_t online_fw_attr = 0;
+	struct qla_flash_update_caps cap;
+
+	if (!(IS_QLA27XX(ha)))
+		return -EPERM;
+
+	memset(&cap, 0, sizeof(cap));
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, &cap, sizeof(cap));
+
+	online_fw_attr = (uint64_t)ha->fw_attributes_ext[1] << 48 |
+			 (uint64_t)ha->fw_attributes_ext[0] << 32 |
+			 (uint64_t)ha->fw_attributes_h << 16 |
+			 (uint64_t)ha->fw_attributes;
+
+	if (online_fw_attr != cap.capabilities) {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_INVALID_PARAM;
+		return -EINVAL;
+	}
+
+	if (cap.outage_duration < MAX_LOOP_TIMEOUT)  {
+		bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+		    EXT_STATUS_INVALID_PARAM;
+		return -EINVAL;
+	}
+
+	bsg_job->reply->reply_payload_rcv_len = 0;
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] =
+	    EXT_STATUS_OK;
+
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+	return 0;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -2160,6 +2234,12 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_SERDES_OP_EX:
 		return qla8044_serdes_op(bsg_job);
+
+	case QL_VND_GET_FLASH_UPDATE_CAPS:
+		return qla27xx_get_flash_upd_cap(bsg_job);
+
+	case QL_VND_SET_FLASH_UPDATE_CAPS:
+		return qla27xx_set_flash_upd_cap(bsg_job);
 
 	default:
 		return -ENOSYS;

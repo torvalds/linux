@@ -1060,6 +1060,12 @@ struct mbx_cmd_32 {
 #define FSTATE_FATAL_ERROR         4
 #define FSTATE_LOOP_BACK_CONN      5
 
+#define QLA27XX_IMG_STATUS_VER_MAJOR   0x01
+#define QLA27XX_IMG_STATUS_VER_MINOR    0x00
+#define QLA27XX_IMG_STATUS_SIGN   0xFACEFADE
+#define QLA27XX_PRIMARY_IMAGE  1
+#define QLA27XX_SECONDARY_IMAGE    2
+
 /*
  * Port Database structure definition
  * Little endian except where noted.
@@ -3433,14 +3439,20 @@ struct qla_hw_data {
 	uint32_t        flt_region_flt;
 	uint32_t        flt_region_fdt;
 	uint32_t        flt_region_boot;
+	uint32_t        flt_region_boot_sec;
 	uint32_t        flt_region_fw;
+	uint32_t        flt_region_fw_sec;
 	uint32_t        flt_region_vpd_nvram;
 	uint32_t        flt_region_vpd;
+	uint32_t        flt_region_vpd_sec;
 	uint32_t        flt_region_nvram;
 	uint32_t        flt_region_npiv_conf;
 	uint32_t	flt_region_gold_fw;
 	uint32_t	flt_region_fcp_prio;
 	uint32_t	flt_region_bootload;
+	uint32_t	flt_region_img_status_pri;
+	uint32_t	flt_region_img_status_sec;
+	uint8_t         active_image;
 
 	/* Needed for BEACON */
 	uint16_t        beacon_blink_led;
@@ -3704,6 +3716,16 @@ typedef struct scsi_qla_host {
 	struct qla8044_reset_template reset_tmplt;
 	struct qla_tgt_counters tgt_counters;
 } scsi_qla_host_t;
+
+struct qla27xx_image_status {
+	uint8_t image_status_mask;
+	uint16_t generation_number;
+	uint8_t reserved[3];
+	uint8_t ver_minor;
+	uint8_t ver_major;
+	uint32_t checksum;
+	uint32_t signature;
+} __packed;
 
 #define SET_VP_IDX	1
 #define SET_AL_PA	2

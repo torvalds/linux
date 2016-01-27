@@ -562,6 +562,7 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t faddr;
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return -EAGAIN;
@@ -569,9 +570,16 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EINVAL;
 
-	if (IS_NOCACHE_VPD_TYPE(ha))
-		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
+	if (IS_NOCACHE_VPD_TYPE(ha)) {
+		faddr = ha->flt_region_vpd << 2;
+
+		if (IS_QLA27XX(ha) &&
+		    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
+			faddr = ha->flt_region_vpd_sec << 2;
+
+		ha->isp_ops->read_optrom(vha, ha->vpd, faddr,
 		    ha->vpd_size);
+	}
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }
 
