@@ -1048,7 +1048,8 @@ static struct mlxsw_sp_port *mlxsw_sp_lag_rep_port(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct switchdev_obj_port_fdb *fdb,
-				  switchdev_obj_dump_cb_t *cb)
+				  switchdev_obj_dump_cb_t *cb,
+				  struct net_device *orig_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u16 vport_fid = 0;
@@ -1114,6 +1115,12 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 							    mac, &fid, &lag_id);
 				if (mlxsw_sp_port ==
 				    mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id)) {
+					/* LAG records can only point to LAG
+					 * devices or VLAN devices on top.
+					 */
+					if (!netif_is_lag_master(orig_dev) &&
+					    !is_vlan_dev(orig_dev))
+						continue;
 					if (vport_fid && vport_fid == fid)
 						fdb->vid = 0;
 					else if (!vport_fid &&
@@ -1185,7 +1192,8 @@ static int mlxsw_sp_port_obj_dump(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = mlxsw_sp_port_fdb_dump(mlxsw_sp_port,
-					     SWITCHDEV_OBJ_PORT_FDB(obj), cb);
+					     SWITCHDEV_OBJ_PORT_FDB(obj), cb,
+					     obj->orig_dev);
 		break;
 	default:
 		err = -EOPNOTSUPP;
