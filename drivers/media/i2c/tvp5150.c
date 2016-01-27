@@ -16,6 +16,7 @@
 #include <media/i2c/tvp5150.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-of.h>
+#include <media/v4l2-mc.h>
 
 #include "tvp5150_reg.h"
 
@@ -37,7 +38,9 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct tvp5150 {
 	struct v4l2_subdev sd;
-	struct media_pad pad;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pads[DEMOD_NUM_PADS];
+#endif
 	struct v4l2_ctrl_handler hdl;
 	struct v4l2_rect rect;
 
@@ -1313,8 +1316,10 @@ static int tvp5150_probe(struct i2c_client *c,
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	core->pad.flags = MEDIA_PAD_FL_SOURCE;
-	res = media_entity_pads_init(&sd->entity, 1, &core->pad);
+	core->pads[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	core->pads[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	core->pads[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	res = media_entity_pads_init(&sd->entity, DEMOD_NUM_PADS, core->pads);
 	if (res < 0)
 		return res;
 #endif
