@@ -165,3 +165,16 @@
 	/* USB VBUS is always on */
 	status = "okay";
 };
+
+&ephy {
+	allwinner,ephy-addr = <0x1>;
+};
+
+&emac {
+	phy = <&phy1>;
+	phy-mode = "mii";
+	status = "okay";
+	phy1: ethernet-phy@1 {
+		reg = <0>;
+	};
+};
