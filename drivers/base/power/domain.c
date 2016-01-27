@@ -160,7 +160,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 
 /**
  * genpd_queue_power_off_work - Queue up the execution of genpd_poweroff().
- * @genpd: PM domait to power off.
+ * @genpd: PM domain to power off.
  *
  * Queue up the execution of genpd_poweroff() unless it's already been done
  * before.
