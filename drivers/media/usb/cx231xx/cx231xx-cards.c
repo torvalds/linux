@@ -1259,7 +1259,7 @@ static int cx231xx_create_media_graph(struct cx231xx *dev)
 		return 0;
 
 	if (tuner) {
-		ret = media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT, decoder, 0,
+		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT, decoder, 0,
 					    MEDIA_LNK_FL_ENABLED);
 		if (ret < 0)
 			return ret;

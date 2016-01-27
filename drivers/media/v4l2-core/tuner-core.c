@@ -697,7 +697,7 @@ static int tuner_probe(struct i2c_client *client,
 register_client:
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	t->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
-	t->pad[TUNER_PAD_IF_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+	t->pad[TUNER_PAD_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
 	t->sd.entity.function = MEDIA_ENT_F_TUNER;
 	t->sd.entity.name = t->name;
 

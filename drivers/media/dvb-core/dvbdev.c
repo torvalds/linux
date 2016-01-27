@@ -661,7 +661,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	if (ntuner && ndemod) {
 		ret = media_create_pad_links(mdev,
 					     MEDIA_ENT_F_TUNER,
-					     tuner, TUNER_PAD_IF_OUTPUT,
+					     tuner, TUNER_PAD_OUTPUT,
 					     MEDIA_ENT_F_DTV_DEMOD,
 					     demod, 0, MEDIA_LNK_FL_ENABLED,
 					     false);

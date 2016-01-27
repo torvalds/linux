@@ -276,7 +276,7 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 		return -EINVAL;
 
 	if (tuner) {
-		ret = media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT,
+		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
 					    decoder, 0,
 					    MEDIA_LNK_FL_ENABLED);
 		if (ret)
