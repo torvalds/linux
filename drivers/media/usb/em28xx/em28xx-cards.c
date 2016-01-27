@@ -3013,6 +3013,48 @@ static void flush_request_modules(struct em28xx *dev)
 	flush_work(&dev->request_module_wk);
 }
 
+static int em28xx_media_device_init(struct em28xx *dev,
+				    struct usb_device *udev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return -ENOMEM;
+
+	mdev->dev = &udev->dev;
+
+	if (!dev->name)
+		strlcpy(mdev->model, "unknown em28xx", sizeof(mdev->model));
+	else
+		strlcpy(mdev->model, dev->name, sizeof(mdev->model));
+	if (udev->serial)
+		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
+	strcpy(mdev->bus_info, udev->devpath);
+	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	media_device_init(mdev);
+
+	dev->media_dev = mdev;
+#endif
+	return 0;
+}
+
+static void em28xx_unregister_media_device(struct em28xx *dev)
+{
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (dev->media_dev) {
+		media_device_unregister(dev->media_dev);
+		media_device_cleanup(dev->media_dev);
+		kfree(dev->media_dev);
+		dev->media_dev = NULL;
+	}
+#endif
+}
+
 /*
  * em28xx_release_resources()
  * unregisters the v4l2,i2c and usb devices
@@ -3023,6 +3065,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	mutex_lock(&dev->lock);
+
+	em28xx_unregister_media_device(dev);
 
 	if (dev->def_i2c_bus)
 		em28xx_i2c_unregister(dev, 1);
@@ -3167,6 +3211,8 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	 * if the device has a sensor (so, it is em2710) or not.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
+
+	em28xx_media_device_init(dev, udev);
 
 	if (dev->is_audio_only) {
 		retval = em28xx_audio_setup(dev);
@@ -3511,9 +3557,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	request_modules(dev);
 
-	/* Should be the last thing to do, to avoid newer udev's to
-	   open the device before fully initializing it
+	/*
+	 * Do it at the end, to reduce dynamic configuration changes during
+	 * the device init. Yet, as request_modules() can be async, the
+	 * topology will likely change after the load of the em28xx subdrivers.
 	 */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	retval = media_device_register(dev->media_dev);
+#endif
 
 	return 0;
 

@@ -866,6 +866,275 @@ static void res_free(struct em28xx *dev, enum v4l2_buf_type f_type)
 	em28xx_videodbg("res: put %d\n", res_type);
 }
 
+static void em28xx_v4l2_media_release(struct em28xx *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	int i;
+
+	for (i = 0; i < MAX_EM28XX_INPUT; i++) {
+		if (!INPUT(i)->type)
+			return;
+		media_device_unregister_entity(&dev->input_ent[i]);
+	}
+#endif
+}
+
+/*
+ * Media Controller helper functions
+ */
+
+static int em28xx_v4l2_create_media_graph(struct em28xx *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity *entity;
+	struct media_entity *if_vid = NULL, *if_aud = NULL;
+	struct media_entity *tuner = NULL, *decoder = NULL;
+	int i, ret;
+
+	if (!mdev)
+		return 0;
+
+	/* Webcams are really simple */
+	if (dev->board.is_webcam) {
+		media_device_for_each_entity(entity, mdev) {
+			if (entity->function != MEDIA_ENT_F_CAM_SENSOR)
+				continue;
+			ret = media_create_pad_link(entity, 0,
+						    &v4l2->vdev.entity, 0,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+		}
+		return 0;
+	}
+
+	/* Non-webcams have analog TV decoder and other complexities */
+
+	media_device_for_each_entity(entity, mdev) {
+		switch (entity->function) {
+		case MEDIA_ENT_F_IF_VID_DECODER:
+			if_vid = entity;
+			break;
+		case MEDIA_ENT_F_IF_AUD_DECODER:
+			if_aud = entity;
+			break;
+		case MEDIA_ENT_F_TUNER:
+			tuner = entity;
+			break;
+		case MEDIA_ENT_F_ATV_DECODER:
+			decoder = entity;
+			break;
+		}
+	}
+
+	/* Analog setup, using tuner as a link */
+
+	/* Something bad happened! */
+	if (!decoder)
+		return -EINVAL;
+
+	if (tuner) {
+		if (if_vid) {
+			ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
+						    if_vid,
+						    IF_VID_DEC_PAD_IF_INPUT,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+			ret = media_create_pad_link(if_vid, IF_VID_DEC_PAD_OUT,
+						decoder, DEMOD_PAD_IF_INPUT,
+						MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+		} else {
+			ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
+						decoder, DEMOD_PAD_IF_INPUT,
+						MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+		}
+
+		if (if_aud) {
+			ret = media_create_pad_link(tuner, TUNER_PAD_AUD_OUT,
+						    if_aud,
+						    IF_AUD_DEC_PAD_IF_INPUT,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+		} else {
+			if_aud = tuner;
+		}
+
+	}
+	ret = media_create_pad_link(decoder, DEMOD_PAD_VID_OUT,
+				    &v4l2->vdev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret)
+		return ret;
+
+	if (em28xx_vbi_supported(dev)) {
+		ret = media_create_pad_link(decoder, DEMOD_PAD_VBI_OUT,
+					    &v4l2->vbi_dev.entity, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < MAX_EM28XX_INPUT; i++) {
+		struct media_entity *ent = &dev->input_ent[i];
+
+		if (!INPUT(i)->type)
+			break;
+
+		switch (INPUT(i)->type) {
+		case EM28XX_VMUX_COMPOSITE:
+		case EM28XX_VMUX_SVIDEO:
+			ret = media_create_pad_link(ent, 0, decoder,
+						    DEMOD_PAD_IF_INPUT, 0);
+			if (ret)
+				return ret;
+			break;
+		default: /* EM28XX_VMUX_TELEVISION or EM28XX_RADIO */
+			if (!tuner)
+				break;
+
+			ret = media_create_pad_link(ent, 0, tuner,
+						    TUNER_PAD_RF_INPUT,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+			break;
+		}
+	}
+#endif
+	return 0;
+}
+
+static int em28xx_enable_analog_tuner(struct em28xx *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev = dev->media_dev;
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+	struct media_entity *source;
+	struct media_link *link, *found_link = NULL;
+	int ret, active_links = 0;
+
+	if (!mdev || !v4l2->decoder)
+		return 0;
+
+	/*
+	 * This will find the tuner that is connected into the decoder.
+	 * Technically, this is not 100% correct, as the device may be
+	 * using an analog input instead of the tuner. However, as we can't
+	 * do DVB streaming while the DMA engine is being used for V4L2,
+	 * this should be enough for the actual needs.
+	 */
+	list_for_each_entry(link, &v4l2->decoder->links, list) {
+		if (link->sink->entity == v4l2->decoder) {
+			found_link = link;
+			if (link->flags & MEDIA_LNK_FL_ENABLED)
+				active_links++;
+			break;
+		}
+	}
+
+	if (active_links == 1 || !found_link)
+		return 0;
+
+	source = found_link->source->entity;
+	list_for_each_entry(link, &source->links, list) {
+		struct media_entity *sink;
+		int flags = 0;
+
+		sink = link->sink->entity;
+
+		if (sink == v4l2->decoder)
+			flags = MEDIA_LNK_FL_ENABLED;
+
+		ret = media_entity_setup_link(link, flags);
+		if (ret) {
+			pr_err("Couldn't change link %s->%s to %s. Error %d\n",
+			       source->name, sink->name,
+			       flags ? "enabled" : "disabled",
+			       ret);
+			return ret;
+		} else
+			em28xx_videodbg("link %s->%s was %s\n",
+					source->name, sink->name,
+					flags ? "ENABLED" : "disabled");
+	}
+#endif
+	return 0;
+}
+
+static const char * const iname[] = {
+	[EM28XX_VMUX_COMPOSITE]  = "Composite",
+	[EM28XX_VMUX_SVIDEO]     = "S-Video",
+	[EM28XX_VMUX_TELEVISION] = "Television",
+	[EM28XX_RADIO]           = "Radio",
+};
+
+static void em28xx_v4l2_create_entities(struct em28xx *dev)
+{
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+	int ret, i;
+
+	/* Initialize Video, VBI and Radio pads */
+	v4l2->video_pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&v4l2->vdev.entity, 1, &v4l2->video_pad);
+	if (ret < 0)
+		pr_err("failed to initialize video media entity!\n");
+
+	if (em28xx_vbi_supported(dev)) {
+		v4l2->vbi_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&v4l2->vbi_dev.entity, 1,
+					     &v4l2->vbi_pad);
+		if (ret < 0)
+			pr_err("failed to initialize vbi media entity!\n");
+	}
+
+	/* Webcams don't have input connectors */
+	if (dev->board.is_webcam)
+		return;
+
+	/* Create entities for each input connector */
+	for (i = 0; i < MAX_EM28XX_INPUT; i++) {
+		struct media_entity *ent = &dev->input_ent[i];
+
+		if (!INPUT(i)->type)
+			break;
+
+		ent->name = iname[INPUT(i)->type];
+		ent->flags = MEDIA_ENT_FL_CONNECTOR;
+		dev->input_pad[i].flags = MEDIA_PAD_FL_SOURCE;
+
+		switch (INPUT(i)->type) {
+		case EM28XX_VMUX_COMPOSITE:
+			ent->function = MEDIA_ENT_F_CONN_COMPOSITE;
+			break;
+		case EM28XX_VMUX_SVIDEO:
+			ent->function = MEDIA_ENT_F_CONN_SVIDEO;
+			break;
+		default: /* EM28XX_VMUX_TELEVISION or EM28XX_RADIO */
+			ent->function = MEDIA_ENT_F_CONN_RF;
+			break;
+		}
+
+		ret = media_entity_pads_init(ent, 1, &dev->input_pad[i]);
+		if (ret < 0)
+			pr_err("failed to initialize input pad[%d]!\n", i);
+
+		ret = media_device_register_entity(dev->media_dev, ent);
+		if (ret < 0)
+			pr_err("failed to register input entity %d!\n", i);
+	}
+#endif
+}
+
+
 /* ------------------------------------------------------------------
 	Videobuf2 operations
    ------------------------------------------------------------------*/
@@ -883,6 +1152,9 @@ static int queue_setup(struct vb2_queue *vq,
 		return sizes[0] < size ? -EINVAL : 0;
 	*nplanes = 1;
 	sizes[0] = size;
+
+	em28xx_enable_analog_tuner(dev);
+
 	return 0;
 }
 
@@ -1453,13 +1725,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 					  0, video, s_parm, p);
 }
 
-static const char * const iname[] = {
-	[EM28XX_VMUX_COMPOSITE]	 = "Composite",
-	[EM28XX_VMUX_SVIDEO]	 = "S-Video",
-	[EM28XX_VMUX_TELEVISION] = "Television",
-	[EM28XX_RADIO]		 = "Radio",
-};
-
 static int vidioc_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *i)
 {
@@ -1974,6 +2239,8 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 
 	em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 
+	em28xx_v4l2_media_release(dev);
+
 	if (video_is_registered(&v4l2->radio_dev)) {
 		em28xx_info("V4L2 device %s deregistered\n",
 			    video_device_node_name(&v4l2->radio_dev));
@@ -2297,6 +2564,9 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->dev = dev;
 	dev->v4l2 = v4l2;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	v4l2->v4l2_dev.mdev = dev->media_dev;
+#endif
 	ret = v4l2_device_register(&dev->udev->dev, &v4l2->v4l2_dev);
 	if (ret < 0) {
 		em28xx_errdev("Call to v4l2_device_register() failed!\n");
@@ -2567,6 +2837,16 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		}
 		em28xx_info("Registered radio device as %s\n",
 			    video_device_node_name(&v4l2->radio_dev));
+	}
+
+	/* Init entities at the Media Controller */
+	em28xx_v4l2_create_entities(dev);
+
+	ret = em28xx_v4l2_create_media_graph(dev);
+	if (ret) {
+		em28xx_errdev("failed to create media graph\n");
+		em28xx_v4l2_media_release(dev);
+		goto unregister_dev;
 	}
 
 	em28xx_info("V4L2 video device registered as %s\n",
