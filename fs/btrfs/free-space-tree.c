@@ -154,6 +154,20 @@ static inline u32 free_space_bitmap_size(u64 size, u32 sectorsize)
 
 static unsigned long *alloc_bitmap(u32 bitmap_size)
 {
+	void *mem;
+
+	/*
+	 * The allocation size varies, observed numbers were < 4K up to 16K.
+	 * Using vmalloc unconditionally would be too heavy, we'll try
+	 * contiguous allocations first.
+	 */
+	if  (bitmap_size <= PAGE_SIZE)
+		return kzalloc(bitmap_size, GFP_NOFS);
+
+	mem = kzalloc(bitmap_size, GFP_NOFS | __GFP_HIGHMEM | __GFP_NOWARN);
+	if (mem)
+		return mem;
+
 	return __vmalloc(bitmap_size, GFP_NOFS | __GFP_HIGHMEM | __GFP_ZERO,
 			 PAGE_KERNEL);
 }
@@ -290,7 +304,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 
 	ret = 0;
 out:
-	vfree(bitmap);
+	kvfree(bitmap);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 	return ret;
@@ -439,7 +453,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 
 	ret = 0;
 out:
-	vfree(bitmap);
+	kvfree(bitmap);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 	return ret;
