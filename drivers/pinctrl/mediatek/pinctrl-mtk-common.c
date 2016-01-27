@@ -47,6 +47,8 @@
 static const char * const mtk_gpio_functions[] = {
 	"func0", "func1", "func2", "func3",
 	"func4", "func5", "func6", "func7",
+	"func8", "func9", "func10", "func11",
+	"func12", "func13", "func14", "func15",
 };
 
 /*
@@ -80,6 +82,9 @@ static int mtk_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 
 	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
+
+	if (pctl->devdata->spec_dir_set)
+		pctl->devdata->spec_dir_set(&reg_addr, offset);
 
 	if (input)
 		/* Different SoC has different alignment offset. */
@@ -675,9 +680,14 @@ static int mtk_pmx_set_mode(struct pinctrl_dev *pctldev,
 	unsigned int mask = (1L << GPIO_MODE_BITS) - 1;
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
+	if (pctl->devdata->spec_pinmux_set)
+		pctl->devdata->spec_pinmux_set(mtk_get_regmap(pctl, pin),
+					pin, mode);
+
 	reg_addr = ((pin / MAX_GPIO_MODE_PER_REG) << pctl->devdata->port_shf)
 			+ pctl->devdata->pinmux_offset;
 
+	mode &= mask;
 	bit = pin % MAX_GPIO_MODE_PER_REG;
 	mask <<= (GPIO_MODE_BITS * bit);
 	val = (mode << (GPIO_MODE_BITS * bit));
@@ -754,6 +764,10 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
+
+	if (pctl->devdata->spec_dir_set)
+		pctl->devdata->spec_dir_set(&reg_addr, offset);
+
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
 	return !(read_val & bit);
 }
