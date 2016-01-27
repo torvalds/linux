@@ -103,6 +103,14 @@
 		};
 	};
 
+	lvds_panel: lvds_panel {
+		compatible ="auo,b101ew05","simple-panel";
+		backlight = <&backlight>;
+		enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&lcd_cs>;
+		status = "disabled";
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -353,6 +361,14 @@
 
 &usb_host1 {
 	status = "okay";
+};
+
+&lvds {
+	rockchip,data-mapping = "jeida";
+	rockchip,data-width = <24>;
+	rockchip,output = "lvds";
+	rockchip,panel = <&lvds_panel>;
+	status = "disabled";
 };
 
 &vopb {
