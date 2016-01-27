@@ -844,7 +844,7 @@ next:
 	return row - first_row;
 }
 
-static int hist_browser__show_callchain(struct hist_browser *browser,
+static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 					struct rb_root *root, int level,
 					unsigned short row, u64 total,
 					print_callchain_entry_fn print,
@@ -898,7 +898,7 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 			else
 				new_total = total;
 
-			row += hist_browser__show_callchain(browser, &child->rb_root,
+			row += hist_browser__show_callchain_graph(browser, &child->rb_root,
 							    new_level, row, new_total,
 							    print, arg, is_output_full);
 		}
@@ -908,6 +908,43 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 	}
 out:
 	return row - first_row;
+}
+
+static int hist_browser__show_callchain(struct hist_browser *browser,
+					struct hist_entry *entry, int level,
+					unsigned short row,
+					print_callchain_entry_fn print,
+					struct callchain_print_arg *arg,
+					check_output_full_fn is_output_full)
+{
+	u64 total = hists__total_period(entry->hists);
+	int printed;
+
+	if (callchain_param.mode == CHAIN_GRAPH_REL) {
+		if (symbol_conf.cumulate_callchain)
+			total = entry->stat_acc->period;
+		else
+			total = entry->stat.period;
+	}
+
+	if (callchain_param.mode == CHAIN_FLAT) {
+		printed = hist_browser__show_callchain_flat(browser,
+						&entry->sorted_chain, row, total,
+						print, arg, is_output_full);
+	} else if (callchain_param.mode == CHAIN_FOLDED) {
+		printed = hist_browser__show_callchain_folded(browser,
+						&entry->sorted_chain, row, total,
+						print, arg, is_output_full);
+	} else {
+		printed = hist_browser__show_callchain_graph(browser,
+						&entry->sorted_chain, level, row, total,
+						print, arg, is_output_full);
+	}
+
+	if (arg->is_current_entry)
+		browser->he_selection = entry;
+
+	return printed;
 }
 
 struct hpp_arg {
@@ -1084,38 +1121,14 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		--row_offset;
 
 	if (folded_sign == '-' && row != browser->b.rows) {
-		u64 total = hists__total_period(entry->hists);
 		struct callchain_print_arg arg = {
 			.row_offset = row_offset,
 			.is_current_entry = current_entry,
 		};
 
-		if (callchain_param.mode == CHAIN_GRAPH_REL) {
-			if (symbol_conf.cumulate_callchain)
-				total = entry->stat_acc->period;
-			else
-				total = entry->stat.period;
-		}
-
-		if (callchain_param.mode == CHAIN_FLAT) {
-			printed += hist_browser__show_callchain_flat(browser,
-					&entry->sorted_chain, row, total,
+		printed += hist_browser__show_callchain(browser, entry, 1, row,
 					hist_browser__show_callchain_entry, &arg,
 					hist_browser__check_output_full);
-		} else if (callchain_param.mode == CHAIN_FOLDED) {
-			printed += hist_browser__show_callchain_folded(browser,
-					&entry->sorted_chain, row, total,
-					hist_browser__show_callchain_entry, &arg,
-					hist_browser__check_output_full);
-		} else {
-			printed += hist_browser__show_callchain(browser,
-					&entry->sorted_chain, 1, row, total,
-					hist_browser__show_callchain_entry, &arg,
-					hist_browser__check_output_full);
-		}
-
-		if (arg.is_current_entry)
-			browser->he_selection = entry;
 	}
 
 	return printed;
@@ -1380,15 +1393,11 @@ do_offset:
 static int hist_browser__fprintf_callchain(struct hist_browser *browser,
 					   struct hist_entry *he, FILE *fp)
 {
-	u64 total = hists__total_period(he->hists);
 	struct callchain_print_arg arg  = {
 		.fp = fp,
 	};
 
-	if (symbol_conf.cumulate_callchain)
-		total = he->stat_acc->period;
-
-	hist_browser__show_callchain(browser, &he->sorted_chain, 1, 0, total,
+	hist_browser__show_callchain(browser, he, 1, 0,
 				     hist_browser__fprintf_callchain_entry, &arg,
 				     hist_browser__check_dump_full);
 	return arg.printed;
