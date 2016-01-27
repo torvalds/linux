@@ -271,8 +271,8 @@ static int max77686_rtc_update(struct max77686_rtc_info *info,
 				 info->drv_data->map[REG_RTC_UPDATE0],
 				 data, data);
 	if (ret < 0)
-		dev_err(info->dev, "%s: fail to write update reg(ret=%d, data=0x%x)\n",
-				__func__, ret, data);
+		dev_err(info->dev, "Fail to write update reg(ret=%d, data=0x%x)\n",
+			ret, data);
 	else {
 		/* Minimum delay required before RTC update. */
 		usleep_range(delay, delay * 2);
@@ -297,7 +297,7 @@ static int max77686_rtc_read_time(struct device *dev, struct rtc_time *tm)
 			       info->drv_data->map[REG_RTC_SEC],
 			       data, ARRAY_SIZE(data));
 	if (ret < 0) {
-		dev_err(info->dev, "%s: fail to read time reg(%d)\n", __func__,	ret);
+		dev_err(info->dev, "Fail to read time reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -326,8 +326,7 @@ static int max77686_rtc_set_time(struct device *dev, struct rtc_time *tm)
 				info->drv_data->map[REG_RTC_SEC],
 				data, ARRAY_SIZE(data));
 	if (ret < 0) {
-		dev_err(info->dev, "%s: fail to write time reg(%d)\n", __func__,
-				ret);
+		dev_err(info->dev, "Fail to write time reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -355,8 +354,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ret = regmap_bulk_read(info->max77686->rtc_regmap,
 			       map[REG_ALARM1_SEC], data, ARRAY_SIZE(data));
 	if (ret < 0) {
-		dev_err(info->dev, "%s:%d fail to read alarm reg(%d)\n",
-				__func__, __LINE__, ret);
+		dev_err(info->dev, "Fail to read alarm reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -394,8 +392,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->pending = 0;
 	ret = regmap_read(info->max77686->regmap, MAX77686_REG_STATUS2, &val);
 	if (ret < 0) {
-		dev_err(info->dev, "%s:%d fail to read status2 reg(%d)\n",
-				__func__, __LINE__, ret);
+		dev_err(info->dev, "Fail to read status2 reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -435,8 +432,7 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 				       map[REG_ALARM1_SEC], data,
 				       ARRAY_SIZE(data));
 		if (ret < 0) {
-			dev_err(info->dev, "%s: fail to read alarm reg(%d)\n",
-				__func__, ret);
+			dev_err(info->dev, "Fail to read alarm reg(%d)\n", ret);
 			goto out;
 		}
 
@@ -451,8 +447,7 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 	}
 
 	if (ret < 0) {
-		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
-				__func__, ret);
+		dev_err(info->dev, "Fail to write alarm reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -483,8 +478,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 				       map[REG_ALARM1_SEC], data,
 				       ARRAY_SIZE(data));
 		if (ret < 0) {
-			dev_err(info->dev, "%s: fail to read alarm reg(%d)\n",
-				__func__, ret);
+			dev_err(info->dev, "Fail to read alarm reg(%d)\n", ret);
 			goto out;
 		}
 
@@ -507,8 +501,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 	}
 
 	if (ret < 0) {
-		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
-				__func__, ret);
+		dev_err(info->dev, "Fail to write alarm reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -538,8 +531,7 @@ static int max77686_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 				data, ARRAY_SIZE(data));
 
 	if (ret < 0) {
-		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
-				__func__, ret);
+		dev_err(info->dev, "Fail to write alarm reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -574,7 +566,7 @@ static irqreturn_t max77686_rtc_alarm_irq(int irq, void *data)
 {
 	struct max77686_rtc_info *info = data;
 
-	dev_info(info->dev, "%s:irq(%d)\n", __func__, irq);
+	dev_dbg(info->dev, "RTC alarm IRQ: %d\n", irq);
 
 	rtc_update_irq(info->rtc_dev, 1, RTC_IRQF | RTC_AF);
 
@@ -604,8 +596,7 @@ static int max77686_rtc_init_reg(struct max77686_rtc_info *info)
 				info->drv_data->map[REG_RTC_CONTROLM],
 				data, ARRAY_SIZE(data));
 	if (ret < 0) {
-		dev_err(info->dev, "%s: fail to write controlm reg(%d)\n",
-				__func__, ret);
+		dev_err(info->dev, "Fail to write controlm reg(%d)\n", ret);
 		return ret;
 	}
 
@@ -619,8 +610,6 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	struct max77686_rtc_info *info;
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int ret;
-
-	dev_info(&pdev->dev, "%s\n", __func__);
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max77686_rtc_info),
 				GFP_KERNEL);
@@ -661,7 +650,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 
 	if (!max77686->rtc_irq_data) {
 		ret = -EINVAL;
-		dev_err(&pdev->dev, "%s: no RTC regmap IRQ chip\n", __func__);
+		dev_err(&pdev->dev, "No RTC regmap IRQ chip\n");
 		goto err_rtc;
 	}
 
