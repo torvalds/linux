@@ -1073,6 +1073,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 
 /**
  * kvm_s390_shadow_fault - handle fault on a shadow page table
+ * @vcpu: virtual cpu
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
  *
@@ -1082,7 +1083,8 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
  *	    - -EFAULT when accessing invalid guest addresses
  *	    - -ENOMEM if out of memory
  */
-int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr)
+int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
+			  unsigned long saddr)
 {
 	union vaddress vaddr;
 	union page_table_entry pte;
@@ -1091,6 +1093,12 @@ int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr)
 	int rc;
 
 	down_read(&sg->mm->mmap_sem);
+	/*
+	 * We don't want any guest-2 tables to change - so the parent
+	 * tables/pointers we read stay valid - unshadowing is however
+	 * always possible - only guest_table_lock protects us.
+	 */
+	ipte_lock(vcpu);
 
 	rc = gmap_shadow_pgt_lookup(sg, saddr, &pgt, &dat_protection);
 	if (rc)
@@ -1105,6 +1113,7 @@ int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr)
 		rc = PGM_TRANSLATION_SPEC;
 	if (!rc)
 		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
+	ipte_unlock(vcpu);
 	up_read(&sg->mm->mmap_sem);
 	return rc;
 }
