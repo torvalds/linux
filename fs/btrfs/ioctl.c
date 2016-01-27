@@ -2794,21 +2794,27 @@ out:
 static struct page *extent_same_get_page(struct inode *inode, pgoff_t index)
 {
 	struct page *page;
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
 	page = grab_cache_page(inode->i_mapping, index);
 	if (!page)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (!PageUptodate(page)) {
-		if (extent_read_full_page_nolock(tree, page, btrfs_get_extent,
-						 0))
-			return NULL;
+		int ret;
+
+		ret = btrfs_readpage(NULL, page);
+		if (ret)
+			return ERR_PTR(ret);
 		lock_page(page);
 		if (!PageUptodate(page)) {
 			unlock_page(page);
 			page_cache_release(page);
-			return NULL;
+			return ERR_PTR(-EIO);
+		}
+		if (page->mapping != inode->i_mapping) {
+			unlock_page(page);
+			page_cache_release(page);
+			return ERR_PTR(-EAGAIN);
 		}
 	}
 
@@ -2822,9 +2828,16 @@ static int gather_extent_pages(struct inode *inode, struct page **pages,
 	pgoff_t index = off >> PAGE_CACHE_SHIFT;
 
 	for (i = 0; i < num_pages; i++) {
+again:
 		pages[i] = extent_same_get_page(inode, index + i);
-		if (!pages[i])
-			return -ENOMEM;
+		if (IS_ERR(pages[i])) {
+			int err = PTR_ERR(pages[i]);
+
+			if (err == -EAGAIN)
+				goto again;
+			pages[i] = NULL;
+			return err;
+		}
 	}
 	return 0;
 }
