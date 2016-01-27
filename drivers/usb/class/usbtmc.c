@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/usb.h>
 #include <linux/usb/tmc.h>
@@ -1184,6 +1185,27 @@ static int usbtmc_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &data->fasync);
 }
 
+static unsigned int usbtmc_poll(struct file *file, poll_table *wait)
+{
+	struct usbtmc_device_data *data = file->private_data;
+	unsigned int mask;
+
+	mutex_lock(&data->io_mutex);
+
+	if (data->zombie) {
+		mask = POLLHUP | POLLERR;
+		goto no_poll;
+	}
+
+	poll_wait(file, &data->waitq, wait);
+
+	mask = (atomic_read(&data->srq_asserted)) ? POLLIN | POLLRDNORM : 0;
+
+no_poll:
+	mutex_unlock(&data->io_mutex);
+	return mask;
+}
+
 static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
 	.read		= usbtmc_read,
@@ -1192,6 +1214,7 @@ static const struct file_operations fops = {
 	.release	= usbtmc_release,
 	.unlocked_ioctl	= usbtmc_ioctl,
 	.fasync         = usbtmc_fasync,
+	.poll           = usbtmc_poll,
 	.llseek		= default_llseek,
 };
 
