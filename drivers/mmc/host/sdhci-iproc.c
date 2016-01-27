@@ -26,6 +26,7 @@ struct sdhci_iproc_data {
 	const struct sdhci_pltfm_data *pdata;
 	u32 caps;
 	u32 caps1;
+	u32 mmc_caps;
 };
 
 struct sdhci_iproc_host {
@@ -165,6 +166,7 @@ static const struct sdhci_iproc_data iproc_data = {
 	.pdata = &sdhci_iproc_pltfm_data,
 	.caps = 0x05E90000,
 	.caps1 = 0x00000064,
+	.mmc_caps = MMC_CAP_1_8V_DDR,
 };
 
 static const struct of_device_id sdhci_iproc_of_match[] = {
@@ -199,8 +201,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 	mmc_of_parse(host->mmc);
 	sdhci_get_of_property(pdev);
 
-	/* Enable EMMC 1/8V DDR capable */
-	host->mmc->caps |= MMC_CAP_1_8V_DDR;
+	host->mmc->caps |= iproc_host->data->mmc_caps;
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pltfm_host->clk)) {
