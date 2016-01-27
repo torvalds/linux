@@ -260,6 +260,7 @@ static int imx6_cpufreq_pm_notify(struct notifier_block *nb,
 	}
 
 	cpufreq_update_policy(0);
+	cpufreq_cpu_put(data);
 
 	return NOTIFY_OK;
 }

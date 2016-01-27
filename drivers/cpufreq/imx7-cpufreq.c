@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -151,6 +151,7 @@ static int imx7_cpufreq_pm_notify(struct notifier_block *nb,
 	}
 
 	cpufreq_update_policy(0);
+	cpufreq_cpu_put(data);
 
 	return NOTIFY_OK;
 }
