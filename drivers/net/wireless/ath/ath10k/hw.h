@@ -605,6 +605,7 @@ enum ath10k_hw_4addr_pad {
 #define FW_INDICATOR_ADDRESS			ar->regs->fw_indicator_address
 #define FW_IND_EVENT_PENDING			1
 #define FW_IND_INITIALIZED			2
+#define FW_IND_HOST_READY			0x80000000
 
 /* HOST_REG interrupt from firmware */
 #define PCIE_INTR_FIRMWARE_MASK			ar->regs->pcie_intr_fw_mask

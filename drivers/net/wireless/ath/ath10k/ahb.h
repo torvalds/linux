@@ -48,6 +48,9 @@ struct ath10k_ahb {
 #define ATH10K_TCSR_REG_BASE                 0x1900000
 #define ATH10K_TCSR_REG_SIZE                 0x80000
 
+#define ATH10K_AHB_GCC_FEPLL_PLL_DIV         0x2f020
+#define ATH10K_AHB_WIFI_SCRATCH_5_REG        0x4f014
+
 #define ATH10K_AHB_WLAN_CORE_ID_REG          0x82030
 
 #define ATH10K_AHB_TCSR_WIFI0_GLB_CFG        0x49000
@@ -62,6 +65,8 @@ struct ath10k_ahb {
 #define ATH10K_AHB_AXI_BUS_HALT_TIMEOUT      10 /* msec */
 #define AHB_AXI_BUS_HALT_REQ                 1
 #define AHB_AXI_BUS_HALT_ACK                 1
+
+#define ATH10K_AHB_CORE_CTRL_CPU_INTR_MASK   1
 
 int ath10k_ahb_init(void);
 void ath10k_ahb_exit(void);
