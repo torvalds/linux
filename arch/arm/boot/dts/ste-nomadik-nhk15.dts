@@ -176,6 +176,50 @@
 	};
 
 	amba {
+		clcd@10120000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&clcd_24bit_mux>;
+			port {
+				nomadik_clcd_pads: endpoint {
+					remote-endpoint = <&nomadik_clcd_panel>;
+					arm,pl11x,tft-r0g0b0-pads = <16 8 0>;
+				};
+			};
+
+			/*
+			 * WVGA connector 21
+			 * WVGA (800x480): 4.3" TPG110 TDO43MTEA2 24-bit RGB
+			 * with TPO touch screen.
+			 */
+			panel {
+				compatible = "tpo,tpg110", "panel-dpi";
+				grestb-gpios = <&stmpe_gpio44 5 GPIO_ACTIVE_LOW>;
+				scen-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+				scl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+				sda-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+				backlight = <&bl>;
+
+				port {
+					nomadik_clcd_panel: endpoint {
+						remote-endpoint = <&nomadik_clcd_pads>;
+					};
+				};
+
+				panel-timing {
+					clock-frequency = <33200000>;
+					hactive = <800>;
+					hback-porch = <216>;
+					hfront-porch = <40>;
+					hsync-len = <1>;
+					vactive = <480>;
+					vback-porch = <35>;
+					vfront-porch = <10>;
+					vsync-len = <1>;
+				};
+			};
+		};
+
 		/* Activate RX/TX and CTS/RTS on UART 0 */
 		uart0: uart@101fd000 {
 			pinctrl-names = "default";
