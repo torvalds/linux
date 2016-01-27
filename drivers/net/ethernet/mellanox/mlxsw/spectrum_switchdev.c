@@ -1202,14 +1202,14 @@ static const struct switchdev_ops mlxsw_sp_port_switchdev_ops = {
 	.switchdev_port_obj_dump	= mlxsw_sp_port_obj_dump,
 };
 
-static void mlxsw_sp_fdb_call_notifiers(bool learning, bool learning_sync,
-					bool adding, char *mac, u16 vid,
+static void mlxsw_sp_fdb_call_notifiers(bool learning_sync, bool adding,
+					char *mac, u16 vid,
 					struct net_device *dev)
 {
 	struct switchdev_notifier_fdb_info info;
 	unsigned long notifier_type;
 
-	if (learning && learning_sync) {
+	if (learning_sync) {
 		info.addr = mac;
 		info.vid = vid;
 		notifier_type = adding ? SWITCHDEV_FDB_ADD : SWITCHDEV_FDB_DEL;
@@ -1265,8 +1265,7 @@ do_fdb_op:
 
 	if (!do_notification)
 		return;
-	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
-				    mlxsw_sp_port->learning_sync,
+	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning_sync,
 				    adding, mac, vid, mlxsw_sp_port->dev);
 	return;
 
@@ -1327,9 +1326,8 @@ do_fdb_op:
 
 	if (!do_notification)
 		return;
-	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
-				    mlxsw_sp_port->learning_sync,
-				    adding, mac, vid,
+	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning_sync, adding, mac,
+				    vid,
 				    mlxsw_sp_lag_get(mlxsw_sp, lag_id)->dev);
 	return;
 
