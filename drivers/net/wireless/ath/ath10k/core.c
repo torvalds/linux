@@ -1980,6 +1980,10 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 		ar->regs = &qca99x0_regs;
 		ar->hw_values = &qca99x0_values;
 		break;
+	case ATH10K_HW_QCA4019:
+		ar->regs = &qca4019_regs;
+		ar->hw_values = &qca4019_values;
+		break;
 	default:
 		ath10k_err(ar, "unsupported core hardware revision %d\n",
 			   hw_rev);

@@ -233,6 +233,7 @@ struct ath10k_hw_regs {
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 extern const struct ath10k_hw_regs qca99x0_regs;
+extern const struct ath10k_hw_regs qca4019_regs;
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -246,6 +247,7 @@ struct ath10k_hw_values {
 extern const struct ath10k_hw_values qca988x_values;
 extern const struct ath10k_hw_values qca6174_values;
 extern const struct ath10k_hw_values qca99x0_values;
+extern const struct ath10k_hw_values qca4019_values;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
