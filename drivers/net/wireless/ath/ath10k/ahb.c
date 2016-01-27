@@ -345,6 +345,119 @@ static int ath10k_ahb_release_reset(struct ath10k *ar)
 	return 0;
 }
 
+static void ath10k_ahb_halt_axi_bus(struct ath10k *ar, u32 haltreq_reg,
+				    u32 haltack_reg)
+{
+	unsigned long timeout;
+	u32 val;
+
+	/* Issue halt axi bus request */
+	val = ath10k_ahb_tcsr_read32(ar, haltreq_reg);
+	val |= AHB_AXI_BUS_HALT_REQ;
+	ath10k_ahb_tcsr_write32(ar, haltreq_reg, val);
+
+	/* Wait for axi bus halted ack */
+	timeout = jiffies + msecs_to_jiffies(ATH10K_AHB_AXI_BUS_HALT_TIMEOUT);
+	do {
+		val = ath10k_ahb_tcsr_read32(ar, haltack_reg);
+		if (val & AHB_AXI_BUS_HALT_ACK)
+			break;
+
+		mdelay(1);
+	} while (time_before(jiffies, timeout));
+
+	if (!(val & AHB_AXI_BUS_HALT_ACK)) {
+		ath10k_err(ar, "failed to halt axi bus: %d\n", val);
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_AHB, "axi bus halted\n");
+}
+
+static void ath10k_ahb_halt_chip(struct ath10k *ar)
+{
+	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
+	u32 core_id, glb_cfg_reg, haltreq_reg, haltack_reg;
+	u32 val;
+	int ret;
+
+	if (IS_ERR_OR_NULL(ar_ahb->core_cold_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->radio_cold_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->radio_warm_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->radio_srif_rst) ||
+	    IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
+		ath10k_err(ar, "rst ctrl(s) is/are not initialized\n");
+		return;
+	}
+
+	core_id = ath10k_ahb_read32(ar, ATH10K_AHB_WLAN_CORE_ID_REG);
+
+	switch (core_id) {
+	case 0:
+		glb_cfg_reg = ATH10K_AHB_TCSR_WIFI0_GLB_CFG;
+		haltreq_reg = ATH10K_AHB_TCSR_WCSS0_HALTREQ;
+		haltack_reg = ATH10K_AHB_TCSR_WCSS0_HALTACK;
+		break;
+	case 1:
+		glb_cfg_reg = ATH10K_AHB_TCSR_WIFI1_GLB_CFG;
+		haltreq_reg = ATH10K_AHB_TCSR_WCSS1_HALTREQ;
+		haltack_reg = ATH10K_AHB_TCSR_WCSS1_HALTACK;
+		break;
+	default:
+		ath10k_err(ar, "invalid core id %d found, skipping reset sequence\n",
+			   core_id);
+		return;
+	}
+
+	ath10k_ahb_halt_axi_bus(ar, haltreq_reg, haltack_reg);
+
+	val = ath10k_ahb_tcsr_read32(ar, glb_cfg_reg);
+	val |= TCSR_WIFIX_GLB_CFG_DISABLE_CORE_CLK;
+	ath10k_ahb_tcsr_write32(ar, glb_cfg_reg, val);
+
+	ret = reset_control_assert(ar_ahb->core_cold_rst);
+	if (ret)
+		ath10k_err(ar, "failed to assert core cold rst: %d\n", ret);
+	msleep(1);
+
+	ret = reset_control_assert(ar_ahb->radio_cold_rst);
+	if (ret)
+		ath10k_err(ar, "failed to assert radio cold rst: %d\n", ret);
+	msleep(1);
+
+	ret = reset_control_assert(ar_ahb->radio_warm_rst);
+	if (ret)
+		ath10k_err(ar, "failed to assert radio warm rst: %d\n", ret);
+	msleep(1);
+
+	ret = reset_control_assert(ar_ahb->radio_srif_rst);
+	if (ret)
+		ath10k_err(ar, "failed to assert radio srif rst: %d\n", ret);
+	msleep(1);
+
+	ret = reset_control_assert(ar_ahb->cpu_init_rst);
+	if (ret)
+		ath10k_err(ar, "failed to assert cpu init rst: %d\n", ret);
+	msleep(10);
+
+	/* Clear halt req and core clock disable req before
+	 * deasserting wifi core reset.
+	 */
+	val = ath10k_ahb_tcsr_read32(ar, haltreq_reg);
+	val &= ~AHB_AXI_BUS_HALT_REQ;
+	ath10k_ahb_tcsr_write32(ar, haltreq_reg, val);
+
+	val = ath10k_ahb_tcsr_read32(ar, glb_cfg_reg);
+	val &= ~TCSR_WIFIX_GLB_CFG_DISABLE_CORE_CLK;
+	ath10k_ahb_tcsr_write32(ar, glb_cfg_reg, val);
+
+	ret = reset_control_deassert(ar_ahb->core_cold_rst);
+	if (ret)
+		ath10k_err(ar, "failed to deassert core cold rst: %d\n", ret);
+
+	ath10k_dbg(ar, ATH10K_DBG_AHB, "core %d reset done\n", core_id);
+}
+
 static int ath10k_ahb_probe(struct platform_device *pdev)
 {
 	return 0;
