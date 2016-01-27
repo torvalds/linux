@@ -54,6 +54,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		ethernet0 = &emac;
 	};
 
 	chosen {
@@ -183,5 +184,12 @@
 
 &usbphy {
 	/* USB VBUS is always on */
+	status = "okay";
+};
+
+&emac {
+	phy-handle = <&int_mii_phy>;
+	phy-mode = "mii";
+	allwinner,leds-active-low;
 	status = "okay";
 };
