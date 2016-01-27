@@ -149,7 +149,7 @@ static int max77686_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		goto out;
 
 	ret = regmap_bulk_read(info->max77686->rtc_regmap,
-				MAX77686_RTC_SEC, data, RTC_NR_TIME);
+				MAX77686_RTC_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to read time reg(%d)\n", __func__,	ret);
 		goto out;
@@ -177,7 +177,7 @@ static int max77686_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	mutex_lock(&info->lock);
 
 	ret = regmap_bulk_write(info->max77686->rtc_regmap,
-				 MAX77686_RTC_SEC, data, RTC_NR_TIME);
+				 MAX77686_RTC_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write time reg(%d)\n", __func__,
 				ret);
@@ -205,7 +205,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		goto out;
 
 	ret = regmap_bulk_read(info->max77686->rtc_regmap,
-				 MAX77686_ALARM1_SEC, data, RTC_NR_TIME);
+				 MAX77686_ALARM1_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s:%d fail to read alarm reg(%d)\n",
 				__func__, __LINE__, ret);
@@ -215,7 +215,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	max77686_rtc_data_to_tm(data, &alrm->time, info->rtc_24hr_mode);
 
 	alrm->enabled = 0;
-	for (i = 0; i < RTC_NR_TIME; i++) {
+	for (i = 0; i < ARRAY_SIZE(data); i++) {
 		if (data[i] & ALARM_ENABLE_MASK) {
 			alrm->enabled = 1;
 			break;
@@ -252,7 +252,7 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 		goto out;
 
 	ret = regmap_bulk_read(info->max77686->rtc_regmap,
-				 MAX77686_ALARM1_SEC, data, RTC_NR_TIME);
+				 MAX77686_ALARM1_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to read alarm reg(%d)\n",
 				__func__, ret);
@@ -261,11 +261,11 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 
 	max77686_rtc_data_to_tm(data, &tm, info->rtc_24hr_mode);
 
-	for (i = 0; i < RTC_NR_TIME; i++)
+	for (i = 0; i < ARRAY_SIZE(data); i++)
 		data[i] &= ~ALARM_ENABLE_MASK;
 
 	ret = regmap_bulk_write(info->max77686->rtc_regmap,
-				 MAX77686_ALARM1_SEC, data, RTC_NR_TIME);
+				 MAX77686_ALARM1_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
 				__func__, ret);
@@ -291,7 +291,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 		goto out;
 
 	ret = regmap_bulk_read(info->max77686->rtc_regmap,
-				 MAX77686_ALARM1_SEC, data, RTC_NR_TIME);
+				 MAX77686_ALARM1_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to read alarm reg(%d)\n",
 				__func__, ret);
@@ -312,7 +312,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 		data[RTC_DATE] |= (1 << ALARM_ENABLE_SHIFT);
 
 	ret = regmap_bulk_write(info->max77686->rtc_regmap,
-				 MAX77686_ALARM1_SEC, data, RTC_NR_TIME);
+				 MAX77686_ALARM1_SEC, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
 				__func__, ret);
@@ -341,7 +341,7 @@ static int max77686_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		goto out;
 
 	ret = regmap_bulk_write(info->max77686->rtc_regmap,
-				 MAX77686_ALARM1_SEC, data, RTC_NR_TIME);
+				 MAX77686_ALARM1_SEC, data, ARRAY_SIZE(data));
 
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
@@ -406,7 +406,8 @@ static int max77686_rtc_init_reg(struct max77686_rtc_info *info)
 
 	info->rtc_24hr_mode = 1;
 
-	ret = regmap_bulk_write(info->max77686->rtc_regmap, MAX77686_RTC_CONTROLM, data, 2);
+	ret = regmap_bulk_write(info->max77686->rtc_regmap,
+				MAX77686_RTC_CONTROLM, data, ARRAY_SIZE(data));
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write controlm reg(%d)\n",
 				__func__, ret);
