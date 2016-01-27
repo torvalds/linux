@@ -713,6 +713,7 @@ topology_error:
 	kfree(topology);
 base_error:
 	gbcodec->mgmt_connection = NULL;
+	gbaudio_free_codec(dev, gbcodec);
 	return ret;
 }
 
