@@ -1349,6 +1349,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
 	if (IS_FWI2_CAPABLE(vha->hw))
 		mcp->in_mb |= MBX_19|MBX_18|MBX_17|MBX_16;
+	if (IS_QLA27XX(vha->hw))
+		mcp->in_mb |= MBX_15;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -1400,6 +1402,9 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 				    wwn_to_u64(vha->port_name));
 			}
 		}
+
+		if (IS_QLA27XX(vha->hw))
+			vha->bbcr = mcp->mb[15];
 	}
 
 	return rval;
@@ -3611,6 +3616,9 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    "port id %02x%02x%02x.\n", vp_idx, MSB(stat),
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
+
+		/* buffer to buffer credit flag */
+		vha->flags.bbcr_enable = (rptid_entry->bbcr & 0xf) != 0;
 
 		/* FA-WWN is only for physical port */
 		if (!vp_idx) {

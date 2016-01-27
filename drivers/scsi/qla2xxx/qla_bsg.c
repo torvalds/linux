@@ -2181,6 +2181,58 @@ qla27xx_set_flash_upd_cap(struct fc_bsg_job *bsg_job)
 }
 
 static int
+qla27xx_get_bbcr_data(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	struct qla_bbcr_data bbcr;
+	uint16_t loop_id, topo, sw_cap;
+	uint8_t domain, area, al_pa, state;
+	int rval;
+
+	if (!(IS_QLA27XX(ha)))
+		return -EPERM;
+
+	memset(&bbcr, 0, sizeof(bbcr));
+
+	if (vha->flags.bbcr_enable)
+		bbcr.status = QLA_BBCR_STATUS_ENABLED;
+	else
+		bbcr.status = QLA_BBCR_STATUS_DISABLED;
+
+	if (bbcr.status == QLA_BBCR_STATUS_ENABLED) {
+		rval = qla2x00_get_adapter_id(vha, &loop_id, &al_pa,
+			&area, &domain, &topo, &sw_cap);
+		if (rval != QLA_SUCCESS)
+			return -EIO;
+
+		state = (vha->bbcr >> 12) & 0x1;
+
+		if (state) {
+			bbcr.state = QLA_BBCR_STATE_OFFLINE;
+			bbcr.offline_reason_code = QLA_BBCR_REASON_LOGIN_REJECT;
+		} else {
+			bbcr.state = QLA_BBCR_STATE_ONLINE;
+			bbcr.negotiated_bbscn = (vha->bbcr >> 8) & 0xf;
+		}
+
+		bbcr.configured_bbscn = vha->bbcr & 0xf;
+	}
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+		bsg_job->reply_payload.sg_cnt, &bbcr, sizeof(bbcr));
+	bsg_job->reply->reply_payload_rcv_len = sizeof(bbcr);
+
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_OK;
+
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job->reply->result = DID_OK << 16;
+	bsg_job->job_done(bsg_job);
+	return 0;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -2240,6 +2292,9 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_SET_FLASH_UPDATE_CAPS:
 		return qla27xx_set_flash_upd_cap(bsg_job);
+
+	case QL_VND_GET_BBCR_DATA:
+		return qla27xx_get_bbcr_data(bsg_job);
 
 	default:
 		return -ENOSYS;
