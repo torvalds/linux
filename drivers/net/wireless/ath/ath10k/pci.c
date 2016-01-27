@@ -3009,6 +3009,37 @@ static bool ath10k_pci_chip_is_supported(u32 dev_id, u32 chip_id)
 	return false;
 }
 
+int ath10k_pci_setup_resource(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret;
+
+	spin_lock_init(&ar_pci->ce_lock);
+	spin_lock_init(&ar_pci->ps_lock);
+
+	setup_timer(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry,
+		    (unsigned long)ar);
+
+	if (QCA_REV_6174(ar))
+		ath10k_pci_override_ce_config(ar);
+
+	ret = ath10k_pci_alloc_pipes(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to allocate copy engine pipes: %d\n",
+			   ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+void ath10k_pci_release_resource(struct ath10k *ar)
+{
+	ath10k_pci_kill_tasklet(ar);
+	ath10k_pci_ce_deinit(ar);
+	ath10k_pci_free_pipes(ar);
+}
+
 static const struct ath10k_bus_ops ath10k_pci_bus_ops = {
 	.read32		= ath10k_bus_pci_read32,
 	.write32	= ath10k_bus_pci_write32,
@@ -3072,34 +3103,25 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar->id.subsystem_vendor = pdev->subsystem_vendor;
 	ar->id.subsystem_device = pdev->subsystem_device;
 
-	spin_lock_init(&ar_pci->ce_lock);
-	spin_lock_init(&ar_pci->ps_lock);
-
-	setup_timer(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry,
-		    (unsigned long)ar);
 	setup_timer(&ar_pci->ps_timer, ath10k_pci_ps_timer,
 		    (unsigned long)ar);
+
+	ret = ath10k_pci_setup_resource(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to setup resource: %d\n", ret);
+		goto err_core_destroy;
+	}
 
 	ret = ath10k_pci_claim(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to claim device: %d\n", ret);
-		goto err_core_destroy;
-	}
-
-	if (QCA_REV_6174(ar))
-		ath10k_pci_override_ce_config(ar);
-
-	ret = ath10k_pci_alloc_pipes(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to allocate copy engine pipes: %d\n",
-			   ret);
-		goto err_sleep;
+		goto err_free_pipes;
 	}
 
 	ret = ath10k_pci_force_wake(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to wake up device : %d\n", ret);
-		goto err_free_pipes;
+		goto err_sleep;
 	}
 
 	ath10k_pci_ce_deinit(ar);
@@ -3108,7 +3130,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ret = ath10k_pci_init_irq(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to init irqs: %d\n", ret);
-		goto err_free_pipes;
+		goto err_sleep;
 	}
 
 	ath10k_info(ar, "pci irq %s interrupts %d irq_mode %d reset_mode %d\n",
@@ -3154,12 +3176,12 @@ err_free_irq:
 err_deinit_irq:
 	ath10k_pci_deinit_irq(ar);
 
-err_free_pipes:
-	ath10k_pci_free_pipes(ar);
-
 err_sleep:
 	ath10k_pci_sleep_sync(ar);
 	ath10k_pci_release(ar);
+
+err_free_pipes:
+	ath10k_pci_free_pipes(ar);
 
 err_core_destroy:
 	ath10k_core_destroy(ar);
@@ -3184,10 +3206,8 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 
 	ath10k_core_unregister(ar);
 	ath10k_pci_free_irq(ar);
-	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_deinit_irq(ar);
-	ath10k_pci_ce_deinit(ar);
-	ath10k_pci_free_pipes(ar);
+	ath10k_pci_release_resource(ar);
 	ath10k_pci_sleep_sync(ar);
 	ath10k_pci_release(ar);
 	ath10k_core_destroy(ar);

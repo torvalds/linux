@@ -292,6 +292,8 @@ void ath10k_pci_enable_legacy_irq(struct ath10k *ar);
 bool ath10k_pci_irq_pending(struct ath10k *ar);
 void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar);
 int ath10k_pci_wait_for_target_init(struct ath10k *ar);
+int ath10k_pci_setup_resource(struct ath10k *ar);
+void ath10k_pci_release_resource(struct ath10k *ar);
 
 /* QCA6174 is known to have Tx/Rx issues when SOC_WAKE register is poked too
  * frequently. To avoid this put SoC to sleep after a very conservative grace
