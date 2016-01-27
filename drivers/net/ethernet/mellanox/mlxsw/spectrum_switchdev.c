@@ -1281,6 +1281,7 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 						bool adding)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct net_device *dev;
 	char mac[ETH_ALEN];
 	u16 lag_vid = 0;
 	u16 lag_id;
@@ -1307,10 +1308,12 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 		}
 
 		lag_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		dev = mlxsw_sp_vport->dev;
 		vid = 0;
 		/* Override the physical port with the vPort. */
 		mlxsw_sp_port = mlxsw_sp_vport;
 	} else {
+		dev = mlxsw_sp_lag_get(mlxsw_sp, lag_id)->dev;
 		vid = fid;
 	}
 
@@ -1328,8 +1331,7 @@ do_fdb_op:
 	if (!do_notification)
 		return;
 	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning_sync, adding, mac,
-				    vid,
-				    mlxsw_sp_lag_get(mlxsw_sp, lag_id)->dev);
+				    vid, dev);
 	return;
 
 just_remove:
