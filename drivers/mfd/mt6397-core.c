@@ -69,8 +69,10 @@ static void mt6397_irq_sync_unlock(struct irq_data *data)
 {
 	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 
-	regmap_write(mt6397->regmap, MT6397_INT_CON0, mt6397->irq_masks_cur[0]);
-	regmap_write(mt6397->regmap, MT6397_INT_CON1, mt6397->irq_masks_cur[1]);
+	regmap_write(mt6397->regmap, mt6397->int_con[0],
+		     mt6397->irq_masks_cur[0]);
+	regmap_write(mt6397->regmap, mt6397->int_con[1],
+		     mt6397->irq_masks_cur[1]);
 
 	mutex_unlock(&mt6397->irqlock);
 }
@@ -147,8 +149,8 @@ static irqreturn_t mt6397_irq_thread(int irq, void *data)
 {
 	struct mt6397_chip *mt6397 = data;
 
-	mt6397_irq_handle_reg(mt6397, MT6397_INT_STATUS0, 0);
-	mt6397_irq_handle_reg(mt6397, MT6397_INT_STATUS1, 16);
+	mt6397_irq_handle_reg(mt6397, mt6397->int_status[0], 0);
+	mt6397_irq_handle_reg(mt6397, mt6397->int_status[1], 16);
 
 	return IRQ_HANDLED;
 }
@@ -177,8 +179,8 @@ static int mt6397_irq_init(struct mt6397_chip *mt6397)
 	mutex_init(&mt6397->irqlock);
 
 	/* Mask all interrupt sources */
-	regmap_write(mt6397->regmap, MT6397_INT_CON0, 0x0);
-	regmap_write(mt6397->regmap, MT6397_INT_CON1, 0x0);
+	regmap_write(mt6397->regmap, mt6397->int_con[0], 0x0);
+	regmap_write(mt6397->regmap, mt6397->int_con[1], 0x0);
 
 	mt6397->irq_domain = irq_domain_add_linear(mt6397->dev->of_node,
 		MT6397_IRQ_NR, &mt6397_irq_domain_ops, mt6397);
@@ -203,8 +205,8 @@ static int mt6397_irq_suspend(struct device *dev)
 {
 	struct mt6397_chip *chip = dev_get_drvdata(dev);
 
-	regmap_write(chip->regmap, MT6397_INT_CON0, chip->wake_mask[0]);
-	regmap_write(chip->regmap, MT6397_INT_CON1, chip->wake_mask[1]);
+	regmap_write(chip->regmap, chip->int_con[0], chip->wake_mask[0]);
+	regmap_write(chip->regmap, chip->int_con[1], chip->wake_mask[1]);
 
 	enable_irq_wake(chip->irq);
 
@@ -215,8 +217,8 @@ static int mt6397_irq_resume(struct device *dev)
 {
 	struct mt6397_chip *chip = dev_get_drvdata(dev);
 
-	regmap_write(chip->regmap, MT6397_INT_CON0, chip->irq_masks_cur[0]);
-	regmap_write(chip->regmap, MT6397_INT_CON1, chip->irq_masks_cur[1]);
+	regmap_write(chip->regmap, chip->int_con[0], chip->irq_masks_cur[0]);
+	regmap_write(chip->regmap, chip->int_con[1], chip->irq_masks_cur[1]);
 
 	disable_irq_wake(chip->irq);
 
@@ -237,6 +239,11 @@ static int mt6397_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mt6397->dev = &pdev->dev;
+	mt6397->int_con[0] = MT6397_INT_CON0;
+	mt6397->int_con[1] = MT6397_INT_CON1;
+	mt6397->int_status[0] = MT6397_INT_STATUS0;
+	mt6397->int_status[1] = MT6397_INT_STATUS1;
+
 	/*
 	 * mt6397 MFD is child device of soc pmic wrapper.
 	 * Regmap is set from its parent.
