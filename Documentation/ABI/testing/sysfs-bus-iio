@@ -1493,3 +1493,10 @@ Description:
 		This ABI is especially applicable for humidity sensors
 		to heatup the device and get rid of any condensation
 		in some humidity environment
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_ph_raw
+KernelVersion:	4.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) pH reading of a substance as a negative
+		base-10 logarithm of hydrodium ions in a litre of water.
