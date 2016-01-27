@@ -2898,14 +2898,12 @@ static void intel_pmu_cpu_starting(int cpu)
 		return;
 
 	if (!(x86_pmu.flags & PMU_FL_NO_HT_SHARING)) {
-		void **onln = &cpuc->kfree_on_online[X86_PERF_KFREE_SHARED];
-
 		for_each_cpu(i, topology_sibling_cpumask(cpu)) {
 			struct intel_shared_regs *pc;
 
 			pc = per_cpu(cpu_hw_events, i).shared_regs;
 			if (pc && pc->core_id == core_id) {
-				*onln = cpuc->shared_regs;
+				cpuc->kfree_on_online[0] = cpuc->shared_regs;
 				cpuc->shared_regs = pc;
 				break;
 			}
