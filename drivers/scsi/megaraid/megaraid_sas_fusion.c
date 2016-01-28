@@ -2125,7 +2125,7 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 
 	req_desc = megasas_get_request_descriptor(instance, index-1);
 	if (!req_desc)
-		return 1;
+		return SCSI_MLQUEUE_HOST_BUSY;
 
 	req_desc->Words = 0;
 	cmd->request_desc = req_desc;
@@ -2134,7 +2134,7 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 		megasas_return_cmd_fusion(instance, cmd);
 		dev_err(&instance->pdev->dev, "Error building command\n");
 		cmd->request_desc = NULL;
-		return 1;
+		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
 	req_desc = cmd->request_desc;

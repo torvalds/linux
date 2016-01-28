@@ -1636,7 +1636,7 @@ megasas_build_and_issue_cmd(struct megasas_instance *instance,
 	return 0;
 out_return_cmd:
 	megasas_return_cmd(instance, cmd);
-	return 1;
+	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 
@@ -1728,12 +1728,7 @@ megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		break;
 	}
 
-	if (instance->instancet->build_and_issue_cmd(instance, scmd)) {
-		dev_err(&instance->pdev->dev, "Err returned from build_and_issue_cmd\n");
-		return SCSI_MLQUEUE_HOST_BUSY;
-	}
-
-	return 0;
+	return instance->instancet->build_and_issue_cmd(instance, scmd);
 
  out_done:
 	scmd->scsi_done(scmd);
