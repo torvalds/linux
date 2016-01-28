@@ -62,6 +62,14 @@ struct mmc_queue {
 	struct mmc_queue_req	mqrq[2];
 	struct mmc_queue_req	*mqrq_cur;
 	struct mmc_queue_req	*mqrq_prev;
+#ifdef CONFIG_MMC_SIMULATE_MAX_SPEED
+	atomic_t max_write_speed;
+	atomic_t max_read_speed;
+	atomic_t cache_size;
+	/* i/o tracking */
+	atomic_long_t cache_used;
+	unsigned long cache_jiffies;
+#endif
 };
 
 extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *, spinlock_t *,
