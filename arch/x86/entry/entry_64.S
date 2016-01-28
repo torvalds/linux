@@ -390,7 +390,6 @@ END(ptregs_\func)
  * rdi: prev task we switched from
  */
 ENTRY(ret_from_fork)
-
 	LOCK ; btr $TIF_FORK, TI_flags(%r8)
 
 	pushq	$0x0002
@@ -398,28 +397,32 @@ ENTRY(ret_from_fork)
 
 	call	schedule_tail			/* rdi: 'prev' task parameter */
 
-	RESTORE_EXTRA_REGS
-
 	testb	$3, CS(%rsp)			/* from kernel_thread? */
+	jnz	1f
 
 	/*
-	 * By the time we get here, we have no idea whether our pt_regs,
-	 * ti flags, and ti status came from the 64-bit SYSCALL fast path,
-	 * the slow path, or one of the 32-bit compat paths.
-	 * Use IRET code path to return, since it can safely handle
-	 * all of the above.
+	 * We came from kernel_thread.  This code path is quite twisted, and
+	 * someone should clean it up.
+	 *
+	 * copy_thread_tls stashes the function pointer in RBX and the
+	 * parameter to be passed in RBP.  The called function is permitted
+	 * to call do_execve and thereby jump to user mode.
 	 */
-	jnz	int_ret_from_sys_call
-
-	/*
-	 * We came from kernel_thread
-	 * nb: we depend on RESTORE_EXTRA_REGS above
-	 */
-	movq	%rbp, %rdi
-	call	*%rbx
+	movq	RBP(%rsp), %rdi
+	call	*RBX(%rsp)
 	movl	$0, RAX(%rsp)
-	RESTORE_EXTRA_REGS
-	jmp	int_ret_from_sys_call
+
+	/*
+	 * Fall through as though we're exiting a syscall.  This makes a
+	 * twisted sort of sense if we just called do_execve.
+	 */
+
+1:
+	movq	%rsp, %rdi
+	call	syscall_return_slowpath	/* returns with IRQs disabled */
+	TRACE_IRQS_ON			/* user mode is traced as IRQS on */
+	SWAPGS
+	jmp	restore_regs_and_iret
 END(ret_from_fork)
 
 /*
