@@ -8,7 +8,7 @@
  *                 scatter/gather formats.
  * Creation Date:  June 21, 2006
  *
- * mpi2.h Version:  02.00.37
+ * mpi2.h Version:  02.00.39
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -94,10 +94,12 @@
  * 06-13-14  02.00.35  Bumped MPI2_HEADER_VERSION_UNIT.
  * 11-18-14  02.00.36  Updated copyright information.
  *                     Bumped MPI2_HEADER_VERSION_UNIT.
- * 03-xx-15  02.00.37  Bumped MPI2_HEADER_VERSION_UNIT.
+ * 03-16-15  02.00.37  Bumped MPI2_HEADER_VERSION_UNIT.
  *                     Added Scratchpad registers to
  *                     MPI2_SYSTEM_INTERFACE_REGS.
  *                     Added MPI2_DIAG_SBR_RELOAD.
+ * 03-19-15  02.00.38  Bumped MPI2_HEADER_VERSION_UNIT.
+ * 05-25-15  02.00.39  Bumped MPI2_HEADER_VERSION_UNIT.
  * --------------------------------------------------------------------------
  */
 
@@ -137,7 +139,7 @@
 #define MPI2_VERSION_02_06		    (0x0206)
 
 /*Unit and Dev versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x23)
+#define MPI2_HEADER_VERSION_UNIT            (0x27)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)

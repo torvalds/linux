@@ -6,7 +6,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.31
+ *   mpi2_cnfg.h Version:  02.00.33
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -182,8 +182,10 @@
  * 11-18-14  02.00.30  Updated copyright information.
  *                     Added MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG.
  *                     Added AdapterOrderAux fields to BIOS Page 3.
- * 03-xx-15  02.00.31  Updated for MPI v2.6.
+ * 03-16-15  02.00.31  Updated for MPI v2.6.
  *                     Added new SAS Phy Event codes
+ * 05-25-15  02.00.33  Added more defines for the BiosOptions field of
+ *                     MPI2_CONFIG_PAGE_BIOS_1.
  * --------------------------------------------------------------------------
  */
 
@@ -1412,6 +1414,7 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 #define MPI2_BIOSPAGE1_PAGEVERSION                      (0x07)
 
 /*values for BIOS Page 1 BiosOptions field */
+#define MPI2_BIOSPAGE1_OPTIONS_BOOT_LIST_ADD_ALT_BOOT_DEVICE    (0x00008000)
 #define MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG                  (0x00004000)
 
 #define MPI2_BIOSPAGE1_OPTIONS_PNS_MASK                         (0x00003800)

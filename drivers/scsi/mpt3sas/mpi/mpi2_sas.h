@@ -33,7 +33,7 @@
  * 08-19-13  02.00.08  Made MPI2_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL obsolete
  *			for anything newer than MPI v2.0.
  * 11-18-14  02.00.09  Updated copyright information.
- * 03-xx-145 02.00.10  Updated for MPI v2.6.
+ * 03-16-15  02.00.10  Updated for MPI v2.6.
  *                     Added MPI2_SATA_PT_REQ_PT_FLAGS_FPDMA.
  * --------------------------------------------------------------------------
  */

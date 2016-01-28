@@ -47,7 +47,8 @@
  * 04-09-13  02.00.15  Added SCSIStatusQualifier field to MPI2_SCSI_IO_REPLY,
  *                     replacing the Reserved4 field.
  * 11-18-14  02.00.16  Updated copyright information.
- * 03-xx-15  02.00.17  Updated for MPI v2.6.
+ * 03-16-15  02.00.17  Updated for MPI v2.6.
+ *                     Added MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH.
  *                     Added MPI2_SEP_REQ_SLOTSTATUS_DEV_OFF and
  *                     MPI2_SEP_REPLY_SLOTSTATUS_DEV_OFF.
  * --------------------------------------------------------------------------

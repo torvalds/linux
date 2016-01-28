@@ -134,7 +134,7 @@
  *			Added Encrypted Hash Extended Image.
  * 12-05-13  02.00.24  Added MPI25_HASH_IMAGE_TYPE_BIOS.
  * 11-18-14  02.00.25  Updated copyright information.
- * 03-xx-15  02.00.26  Added MPI26_FW_HEADER_PID_FAMILY_3324_SAS and
+ * 03-16-15  02.00.26  Added MPI26_FW_HEADER_PID_FAMILY_3324_SAS and
  *                     MPI26_FW_HEADER_PID_FAMILY_3516_SAS.
  *                     Added MPI26_CTRL_OP_SHUTDOWN.
  * --------------------------------------------------------------------------
