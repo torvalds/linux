@@ -880,8 +880,8 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 	}
 
 	list_del_init(&eaction->fpriv_head);
-	eaction->event = NULL;
 	drm_send_event_locked(dev, eaction->event);
+	eaction->event = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
 }
 
