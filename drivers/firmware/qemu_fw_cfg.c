@@ -334,9 +334,103 @@ static struct bin_attribute fw_cfg_sysfs_attr_raw = {
 	.read = fw_cfg_sysfs_read_raw,
 };
 
-/* kobjects representing top-level and by_key folders */
+/*
+ * Create a kset subdirectory matching each '/' delimited dirname token
+ * in 'name', starting with sysfs kset/folder 'dir'; At the end, create
+ * a symlink directed at the given 'target'.
+ * NOTE: We do this on a best-effort basis, since 'name' is not guaranteed
+ * to be a well-behaved path name. Whenever a symlink vs. kset directory
+ * name collision occurs, the kernel will issue big scary warnings while
+ * refusing to add the offending link or directory. We follow up with our
+ * own, slightly less scary error messages explaining the situation :)
+ */
+static int fw_cfg_build_symlink(struct kset *dir,
+				struct kobject *target, const char *name)
+{
+	int ret;
+	struct kset *subdir;
+	struct kobject *ko;
+	char *name_copy, *p, *tok;
+
+	if (!dir || !target || !name || !*name)
+		return -EINVAL;
+
+	/* clone a copy of name for parsing */
+	name_copy = p = kstrdup(name, GFP_KERNEL);
+	if (!name_copy)
+		return -ENOMEM;
+
+	/* create folders for each dirname token, then symlink for basename */
+	while ((tok = strsep(&p, "/")) && *tok) {
+
+		/* last (basename) token? If so, add symlink here */
+		if (!p || !*p) {
+			ret = sysfs_create_link(&dir->kobj, target, tok);
+			break;
+		}
+
+		/* does the current dir contain an item named after tok ? */
+		ko = kset_find_obj(dir, tok);
+		if (ko) {
+			/* drop reference added by kset_find_obj */
+			kobject_put(ko);
+
+			/* ko MUST be a kset - we're about to use it as one ! */
+			if (ko->ktype != dir->kobj.ktype) {
+				ret = -EINVAL;
+				break;
+			}
+
+			/* descend into already existing subdirectory */
+			dir = to_kset(ko);
+		} else {
+			/* create new subdirectory kset */
+			subdir = kzalloc(sizeof(struct kset), GFP_KERNEL);
+			if (!subdir) {
+				ret = -ENOMEM;
+				break;
+			}
+			subdir->kobj.kset = dir;
+			subdir->kobj.ktype = dir->kobj.ktype;
+			ret = kobject_set_name(&subdir->kobj, "%s", tok);
+			if (ret) {
+				kfree(subdir);
+				break;
+			}
+			ret = kset_register(subdir);
+			if (ret) {
+				kfree(subdir);
+				break;
+			}
+
+			/* descend into newly created subdirectory */
+			dir = subdir;
+		}
+	}
+
+	/* we're done with cloned copy of name */
+	kfree(name_copy);
+	return ret;
+}
+
+/* recursively unregister fw_cfg/by_name/ kset directory tree */
+static void fw_cfg_kset_unregister_recursive(struct kset *kset)
+{
+	struct kobject *k, *next;
+
+	list_for_each_entry_safe(k, next, &kset->list, entry)
+		/* all set members are ksets too, but check just in case... */
+		if (k->ktype == kset->kobj.ktype)
+			fw_cfg_kset_unregister_recursive(to_kset(k));
+
+	/* symlinks are cleanly and automatically removed with the directory */
+	kset_unregister(kset);
+}
+
+/* kobjects & kset representing top-level, by_key, and by_name folders */
 static struct kobject *fw_cfg_top_ko;
 static struct kobject *fw_cfg_sel_ko;
+static struct kset *fw_cfg_fname_kset;
 
 /* register an individual fw_cfg file */
 static int fw_cfg_register_file(const struct fw_cfg_file *f)
@@ -362,6 +456,9 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 	err = sysfs_create_bin_file(&entry->kobj, &fw_cfg_sysfs_attr_raw);
 	if (err)
 		goto err_add_raw;
+
+	/* try adding "/sys/firmware/qemu_fw_cfg/by_name/" symlink */
+	fw_cfg_build_symlink(fw_cfg_fname_kset, &entry->kobj, entry->f.name);
 
 	/* success, add entry to global cache */
 	fw_cfg_sysfs_cache_enlist(entry);
@@ -417,18 +514,21 @@ static int fw_cfg_sysfs_probe(struct platform_device *pdev)
 
 	/* NOTE: If we supported multiple fw_cfg devices, we'd first create
 	 * a subdirectory named after e.g. pdev->id, then hang per-device
-	 * by_key subdirectories underneath it. However, only
+	 * by_key (and by_name) subdirectories underneath it. However, only
 	 * one fw_cfg device exist system-wide, so if one was already found
 	 * earlier, we might as well stop here.
 	 */
 	if (fw_cfg_sel_ko)
 		return -EBUSY;
 
-	/* create by_key subdirectory of /sys/firmware/qemu_fw_cfg/ */
+	/* create by_key and by_name subdirs of /sys/firmware/qemu_fw_cfg/ */
 	err = -ENOMEM;
 	fw_cfg_sel_ko = kobject_create_and_add("by_key", fw_cfg_top_ko);
 	if (!fw_cfg_sel_ko)
 		goto err_sel;
+	fw_cfg_fname_kset = kset_create_and_add("by_name", NULL, fw_cfg_top_ko);
+	if (!fw_cfg_fname_kset)
+		goto err_name;
 
 	/* initialize fw_cfg device i/o from platform data */
 	err = fw_cfg_do_platform_probe(pdev);
@@ -457,6 +557,8 @@ err_dir:
 err_rev:
 	fw_cfg_io_cleanup();
 err_probe:
+	fw_cfg_kset_unregister_recursive(fw_cfg_fname_kset);
+err_name:
 	fw_cfg_kobj_cleanup(fw_cfg_sel_ko);
 err_sel:
 	return err;
@@ -466,6 +568,7 @@ static int fw_cfg_sysfs_remove(struct platform_device *pdev)
 {
 	pr_debug("fw_cfg: unloading.\n");
 	fw_cfg_sysfs_cache_cleanup();
+	fw_cfg_kset_unregister_recursive(fw_cfg_fname_kset);
 	fw_cfg_kobj_cleanup(fw_cfg_sel_ko);
 	fw_cfg_io_cleanup();
 	return 0;

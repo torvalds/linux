@@ -56,3 +56,45 @@ Description:
 			  entry via the control register, and reading a number
 			  of bytes equal to the blob size from the data
 			  register.
+
+		--- Listing fw_cfg blobs by file name ---
+
+		While the fw_cfg device does not impose any specific naming
+		convention on the blobs registered in the file directory,
+		QEMU developers have traditionally used path name semantics
+		to give each blob a descriptive name. For example:
+
+			"bootorder"
+			"genroms/kvmvapic.bin"
+			"etc/e820"
+			"etc/boot-fail-wait"
+			"etc/system-states"
+			"etc/table-loader"
+			"etc/acpi/rsdp"
+			"etc/acpi/tables"
+			"etc/smbios/smbios-tables"
+			"etc/smbios/smbios-anchor"
+			...
+
+		In addition to the listing by unique selector key described
+		above, the fw_cfg sysfs driver also attempts to build a tree
+		of directories matching the path name components of fw_cfg
+		blob names, ending in symlinks to the by_key entry for each
+		"basename", as illustrated below (assume current directory is
+		/sys/firmware):
+
+		    qemu_fw_cfg/by_name/bootorder -> ../by_key/38
+		    qemu_fw_cfg/by_name/etc/e820 -> ../../by_key/35
+		    qemu_fw_cfg/by_name/etc/acpi/rsdp -> ../../../by_key/41
+		    ...
+
+		Construction of the directory tree and symlinks is done on a
+		"best-effort" basis, as there is no guarantee that components
+		of fw_cfg blob names are always "well behaved". I.e., there is
+		the possibility that a symlink (basename) will conflict with
+		a dirname component of another fw_cfg blob, in which case the
+		creation of the offending /sys/firmware/qemu_fw_cfg/by_name
+		entry will be skipped.
+
+		The authoritative list of entries will continue to be found
+		under the /sys/firmware/qemu_fw_cfg/by_key directory.
