@@ -152,6 +152,7 @@
 #define MFI_RESET_FLAGS				MFI_INIT_READY| \
 						MFI_INIT_MFIMODE| \
 						MFI_INIT_ABORT
+#define MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE    (0x01)
 
 /*
  * MFI frame flags
@@ -1416,6 +1417,7 @@ enum DCMD_TIMEOUT_ACTION {
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET          0X003FC000
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
 #define MR_MAX_MSIX_REG_ARRAY                   16
+#define MR_RDPQ_MODE_OFFSET			0X00800000
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -1455,8 +1457,9 @@ struct megasas_register_set {
 
 	u32 	outbound_scratch_pad ;		/*00B0h*/
 	u32	outbound_scratch_pad_2;         /*00B4h*/
+	u32	outbound_scratch_pad_3;         /*00B8h*/
 
-	u32	reserved_4[2];			/*00B8h*/
+	u32	reserved_4;			/*00BCh*/
 
 	u32 	inbound_low_queue_port ;	/*00C0h*/
 
@@ -2117,6 +2120,7 @@ struct megasas_instance {
 	u8 mask_interrupts;
 	u16 max_chain_frame_sz;
 	u8 is_imr;
+	u8 is_rdpq;
 	bool dev_handle;
 };
 struct MR_LD_VF_MAP {

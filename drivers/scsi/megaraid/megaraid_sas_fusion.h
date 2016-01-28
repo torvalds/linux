@@ -928,6 +928,12 @@ struct MR_PD_CFG_SEQ_NUM_SYNC {
 	struct MR_PD_CFG_SEQ seq[1];
 } __packed;
 
+struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY {
+	u64 RDPQBaseAddress;
+	u32 Reserved1;
+	u32 Reserved2;
+};
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	dma_addr_t req_frames_desc_phys;
@@ -940,8 +946,8 @@ struct fusion_context {
 	struct dma_pool *sg_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
-	dma_addr_t reply_frames_desc_phys;
-	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc;
+	dma_addr_t reply_frames_desc_phys[MAX_MSIX_QUEUES_FUSION];
+	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc[MAX_MSIX_QUEUES_FUSION];
 	struct dma_pool *reply_frames_desc_pool;
 
 	u16 last_reply_idx[MAX_MSIX_QUEUES_FUSION];
@@ -951,6 +957,8 @@ struct fusion_context {
 	u32 reply_alloc_sz;
 	u32 io_frames_alloc_sz;
 
+	struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY *rdpq_virt;
+	dma_addr_t rdpq_phys;
 	u16	max_sge_in_main_msg;
 	u16	max_sge_in_chain;
 

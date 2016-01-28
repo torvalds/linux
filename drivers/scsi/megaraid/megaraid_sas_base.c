@@ -92,6 +92,10 @@ int smp_affinity_enable = 1;
 module_param(smp_affinity_enable, int, S_IRUGO);
 MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disbale Default: enable(1)");
 
+int rdpq_enable = 1;
+module_param(rdpq_enable, int, S_IRUGO);
+MODULE_PARM_DESC(rdpq_enable, " Allocate reply queue in chunks for large queue depth enable/disable Default: disable(0)");
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux.pdl@avagotech.com");
@@ -5080,6 +5084,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->msix_vectors = ((scratch_pad_2
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
 					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
+				if (rdpq_enable)
+					instance->is_rdpq = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ?
+								1 : 0;
 				fw_msix_count = instance->msix_vectors;
 				/* Save 1-15 reply post index address to local memory
 				 * Index 0 is already saved from reg offset
@@ -5116,6 +5123,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	dev_info(&instance->pdev->dev,
 		"current msix/online cpus\t: (%d/%d)\n",
 		instance->msix_vectors, (unsigned int)num_online_cpus());
+	dev_info(&instance->pdev->dev,
+		"RDPQ mode\t: (%s)\n", instance->is_rdpq ? "enabled" : "disabled");
 
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		(unsigned long)instance);
