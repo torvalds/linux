@@ -44,7 +44,6 @@ static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 
 MODULE_FIRMWARE("amdgpu/topaz_mc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
-MODULE_FIRMWARE("amdgpu/fiji_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -236,8 +235,6 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "tonga";
 		break;
 	case CHIP_FIJI:
-		chip_name = "fiji";
-		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		return 0;
@@ -1007,7 +1004,8 @@ static int gmc_v8_0_hw_init(void *handle)
 
 	gmc_v8_0_mc_program(adev);
 
-	if (!(adev->flags & AMD_IS_APU)) {
+	if ((adev->asic_type == CHIP_TOPAZ) ||
+	    (adev->asic_type == CHIP_TONGA)) {
 		r = gmc_v8_0_mc_load_microcode(adev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
