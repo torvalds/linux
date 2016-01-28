@@ -232,7 +232,6 @@ static int f2fs_write_meta_page(struct page *page,
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto redirty_out;
 
-	f2fs_wait_on_page_writeback(page, META, true);
 	write_meta_page(sbi, page);
 	dec_page_count(sbi, F2FS_DIRTY_META);
 	unlock_page(page);
@@ -315,6 +314,9 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
+			f2fs_wait_on_page_writeback(page, META, true);
+
+			BUG_ON(PageWriteback(page));
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 

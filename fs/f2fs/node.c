@@ -1297,6 +1297,9 @@ continue_unlock:
 				continue;
 			}
 
+			f2fs_wait_on_page_writeback(page, NODE, true);
+
+			BUG_ON(PageWriteback(page));
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
@@ -1401,8 +1404,6 @@ static int f2fs_write_node_page(struct page *page,
 		goto redirty_out;
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto redirty_out;
-
-	f2fs_wait_on_page_writeback(page, NODE, true);
 
 	/* get old block addr of this node page */
 	nid = nid_of_node(page);
