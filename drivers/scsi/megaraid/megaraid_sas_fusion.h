@@ -643,7 +643,8 @@ struct MR_SPAN_BLOCK_INFO {
 struct MR_LD_RAID {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved4:6;
+		u32     reserved4:5;
+		u32     fpBypassRegionLock:1;
 		u32     tmCapable:1;
 		u32	fpNonRWCapable:1;
 		u32     fpReadAcrossStripe:1;
@@ -667,7 +668,8 @@ struct MR_LD_RAID {
 		u32     fpReadAcrossStripe:1;
 		u32	fpNonRWCapable:1;
 		u32     tmCapable:1;
-		u32     reserved4:6;
+		u32     fpBypassRegionLock:1;
+		u32     reserved4:5;
 #endif
 	} capability;
 	__le32     reserved6;
@@ -737,7 +739,7 @@ struct IO_REQUEST_INFO {
 	u8 fpOkForIo;
 	u8 IoforUnevenSpan;
 	u8 start_span;
-	u8 reserved;
+	u8 do_fp_rlbypass;
 	u64 start_row;
 	u8  span_arm;	/* span[7:5], arm[4:0] */
 	u8  pd_after_lb;

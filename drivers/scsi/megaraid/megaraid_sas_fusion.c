@@ -666,6 +666,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	if (instance->max_chain_frame_sz > MEGASAS_CHAIN_FRAME_SZ_MIN)
 		drv_ops->mfi_capabilities.support_ext_io_size = 1;
 
+	drv_ops->mfi_capabilities.support_fp_rlbypass = 1;
+
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
 
@@ -1710,8 +1712,8 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			(MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (fusion->adapter_type == INVADER_SERIES) {
-			if (io_request->RaidContext.regLockFlags ==
-			    REGION_TYPE_UNUSED)
+			if (io_info.do_fp_rlbypass ||
+				(io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED))
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);

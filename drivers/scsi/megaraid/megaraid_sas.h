@@ -1528,7 +1528,9 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:23;
+		u32     reserved:21;
+		u32     support_fp_rlbypass:1;
+		u32     support_vfid_in_ioframe:1;
 		u32     support_ext_io_size:1;
 		u32	support_ext_queue_depth:1;
 		u32     security_protocol_cmds_fw:1;
@@ -1548,7 +1550,9 @@ typedef union _MFI_CAPABILITIES {
 		u32     security_protocol_cmds_fw:1;
 		u32	support_ext_queue_depth:1;
 		u32     support_ext_io_size:1;
-		u32     reserved:23;
+		u32     support_vfid_in_ioframe:1;
+		u32     support_fp_rlbypass:1;
+		u32     reserved:21;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
