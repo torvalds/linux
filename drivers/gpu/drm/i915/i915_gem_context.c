@@ -321,6 +321,14 @@ err_destroy:
 	return ERR_PTR(ret);
 }
 
+static void i915_gem_context_unpin(struct intel_context *ctx,
+				   struct intel_engine_cs *engine)
+{
+	if (engine->id == RCS && ctx->legacy_hw_ctx.rcs_state)
+		i915_gem_object_ggtt_unpin(ctx->legacy_hw_ctx.rcs_state);
+	i915_gem_context_unreference(ctx);
+}
+
 void i915_gem_context_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -329,22 +337,15 @@ void i915_gem_context_reset(struct drm_device *dev)
 	if (i915.enable_execlists) {
 		struct intel_context *ctx;
 
-		list_for_each_entry(ctx, &dev_priv->context_list, link) {
+		list_for_each_entry(ctx, &dev_priv->context_list, link)
 			intel_lr_context_reset(dev, ctx);
-		}
-
-		return;
 	}
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
-		struct intel_context *lctx = ring->last_context;
 
-		if (lctx) {
-			if (lctx->legacy_hw_ctx.rcs_state && i == RCS)
-				i915_gem_object_ggtt_unpin(lctx->legacy_hw_ctx.rcs_state);
-
-			i915_gem_context_unreference(lctx);
+		if (ring->last_context) {
+			i915_gem_context_unpin(ring->last_context, ring);
 			ring->last_context = NULL;
 		}
 	}
@@ -417,13 +418,6 @@ void i915_gem_context_fini(struct drm_device *dev)
 		 * to offset the do_switch part, so that i915_gem_context_unreference()
 		 * can then free the base object correctly. */
 		WARN_ON(!dev_priv->ring[RCS].last_context);
-		if (dev_priv->ring[RCS].last_context == dctx) {
-			/* Fake switch to NULL context */
-			WARN_ON(dctx->legacy_hw_ctx.rcs_state->active);
-			i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
-			i915_gem_context_unreference(dctx);
-			dev_priv->ring[RCS].last_context = NULL;
-		}
 
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
 	}
@@ -432,7 +426,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
 
 		if (ring->last_context) {
-			i915_gem_context_unreference(ring->last_context);
+			i915_gem_context_unpin(ring->last_context, ring);
 			ring->last_context = NULL;
 		}
 	}
