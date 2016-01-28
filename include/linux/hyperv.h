@@ -816,6 +816,12 @@ static inline void *get_per_channel_state(struct vmbus_channel *c)
 	return c->per_channel_state;
 }
 
+static inline void set_channel_pending_send_size(struct vmbus_channel *c,
+						 u32 size)
+{
+	c->outbound.ring_buffer->pending_send_sz = size;
+}
+
 void vmbus_onmessage(void *context);
 
 int vmbus_request_offers(void);
