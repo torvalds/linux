@@ -1036,7 +1036,7 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
 	MLX5_SET(wq, wq, end_padding_mode,
-		 MLX5_GET64(qpc, qpc, end_padding_mode));
+		 MLX5_GET(qpc, qpc, end_padding_mode));
 	MLX5_SET(wq, wq, page_offset, MLX5_GET(qpc, qpc, page_offset));
 	MLX5_SET(wq, wq, pd, MLX5_GET(qpc, qpc, pd));
 	MLX5_SET64(wq, wq, dbr_addr, MLX5_GET64(qpc, qpc, dbr_addr));
