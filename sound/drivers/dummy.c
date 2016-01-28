@@ -87,7 +87,7 @@ MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-128) for dummy driver.");
 module_param(fake_buffer, bool, 0444);
 MODULE_PARM_DESC(fake_buffer, "Fake buffer allocations.");
 #ifdef CONFIG_HIGH_RES_TIMERS
-module_param(hrtimer, bool, 0644);
+module_param(hrtimer, bool, 0444);
 MODULE_PARM_DESC(hrtimer, "Use hrtimer as the timer source.");
 #endif
 
