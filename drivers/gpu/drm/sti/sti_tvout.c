@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "sti_crtc.h"
+#include "sti_vtg.h"
 
 /* glue registers */
 #define TVO_CSC_MAIN_M0                  0x000
@@ -85,19 +86,7 @@
 #define TVO_VIP_SEL_INPUT_BYPASSED       1
 
 #define TVO_SYNC_MAIN_VTG_SET_REF        0x00
-#define TVO_SYNC_MAIN_VTG_SET_1          0x01
-#define TVO_SYNC_MAIN_VTG_SET_2          0x02
-#define TVO_SYNC_MAIN_VTG_SET_3          0x03
-#define TVO_SYNC_MAIN_VTG_SET_4          0x04
-#define TVO_SYNC_MAIN_VTG_SET_5          0x05
-#define TVO_SYNC_MAIN_VTG_SET_6          0x06
 #define TVO_SYNC_AUX_VTG_SET_REF         0x10
-#define TVO_SYNC_AUX_VTG_SET_1           0x11
-#define TVO_SYNC_AUX_VTG_SET_2           0x12
-#define TVO_SYNC_AUX_VTG_SET_3           0x13
-#define TVO_SYNC_AUX_VTG_SET_4           0x14
-#define TVO_SYNC_AUX_VTG_SET_5           0x15
-#define TVO_SYNC_AUX_VTG_SET_6           0x16
 
 #define TVO_SYNC_HD_DCS_SHIFT            8
 
@@ -280,24 +269,26 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 	struct device_node *node = tvout->dev->of_node;
 	bool sel_input_logic_inverted = false;
 	u32 tvo_in_vid_format;
-	int val;
+	int val, tmp;
 
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
 		DRM_DEBUG_DRIVER("main vip for DVO\n");
-		/* Select the input sync for dvo = VTG set 4 */
-		val  = TVO_SYNC_MAIN_VTG_SET_4 << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
-		val |= TVO_SYNC_MAIN_VTG_SET_4 << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
-		val |= TVO_SYNC_MAIN_VTG_SET_4;
+		/* Select the input sync for dvo */
+		tmp = TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_DVO;
+		val  = tmp << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
+		val |= tmp << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
+		val |= tmp;
 		tvout_write(tvout, val, TVO_DVO_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
 		DRM_DEBUG_DRIVER("aux vip for DVO\n");
-		/* Select the input sync for dvo = VTG set 4 */
-		val  = TVO_SYNC_AUX_VTG_SET_4 << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
-		val |= TVO_SYNC_AUX_VTG_SET_4 << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
-		val |= TVO_SYNC_AUX_VTG_SET_4;
+		/* Select the input sync for dvo */
+		tmp = TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_DVO;
+		val  = tmp << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
+		val |= tmp << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
+		val |= tmp;
 		tvout_write(tvout, val, TVO_DVO_SYNC_SEL);
 		tvo_in_vid_format = TVO_AUX_IN_VID_FORMAT;
 	}
@@ -345,13 +336,17 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 
 	if (main_path) {
 		DRM_DEBUG_DRIVER("main vip for hdmi\n");
-		/* select the input sync for hdmi = VTG set 1 */
-		tvout_write(tvout, TVO_SYNC_MAIN_VTG_SET_1, TVO_HDMI_SYNC_SEL);
+		/* select the input sync for hdmi */
+		tvout_write(tvout,
+			    TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDMI,
+			    TVO_HDMI_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
 		DRM_DEBUG_DRIVER("aux vip for hdmi\n");
-		/* select the input sync for hdmi = VTG set 1 */
-		tvout_write(tvout, TVO_SYNC_AUX_VTG_SET_1, TVO_HDMI_SYNC_SEL);
+		/* select the input sync for hdmi */
+		tvout_write(tvout,
+			    TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDMI,
+			    TVO_HDMI_SYNC_SEL);
 		tvo_in_vid_format = TVO_AUX_IN_VID_FORMAT;
 	}
 
@@ -397,13 +392,19 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
-		val = TVO_SYNC_MAIN_VTG_SET_2 << TVO_SYNC_HD_DCS_SHIFT;
-		val |= TVO_SYNC_MAIN_VTG_SET_3;
+		DRM_DEBUG_DRIVER("main vip for HDF\n");
+		/* Select the input sync for HD analog and HD DCS */
+		val  = TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDDCS;
+		val  = val << TVO_SYNC_HD_DCS_SHIFT;
+		val |= TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDF;
 		tvout_write(tvout, val, TVO_HD_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
-		val = TVO_SYNC_AUX_VTG_SET_2 << TVO_SYNC_HD_DCS_SHIFT;
-		val |= TVO_SYNC_AUX_VTG_SET_3;
+		DRM_DEBUG_DRIVER("aux vip for HDF\n");
+		/* Select the input sync for HD analog and HD DCS */
+		val  = TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDDCS;
+		val  = val << TVO_SYNC_HD_DCS_SHIFT;
+		val |= TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDF;
 		tvout_write(tvout, val, TVO_HD_SYNC_SEL);
 		tvo_in_vid_format = TVO_AUX_IN_VID_FORMAT;
 	}
