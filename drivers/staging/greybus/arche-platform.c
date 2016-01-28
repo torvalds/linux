@@ -52,7 +52,7 @@ static void svc_delayed_work(struct work_struct *work)
 		container_of(work, struct arche_platform_drvdata, delayed_work.work);
 	struct device *dev = arche_pdata->dev;
 	struct device_node *np = dev->of_node;
-	int timeout = 10;
+	int timeout = 50;
 	int ret;
 
 	/*
@@ -74,7 +74,7 @@ static void svc_delayed_work(struct work_struct *work)
 		if (gpio_get_value(arche_pdata->wake_detect_gpio) == 0)
 			break;
 
-		msleep(500);
+		msleep(100);
 	} while(timeout--);
 
 	if (timeout >= 0) {
