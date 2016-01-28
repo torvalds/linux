@@ -395,6 +395,9 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 	case MPI2_IOCSTATUS_INSUFFICIENT_RESOURCES:
 		desc = "insufficient resources";
 		break;
+	case MPI2_IOCSTATUS_INSUFFICIENT_POWER:
+		desc = "insufficient power";
+		break;
 	case MPI2_IOCSTATUS_INVALID_FIELD:
 		desc = "invalid field";
 		break;
@@ -1348,6 +1351,7 @@ _base_build_zero_len_sge_ieee(struct MPT3SAS_ADAPTER *ioc, void *paddr)
 	u8 sgl_flags = (MPI2_IEEE_SGE_FLAGS_SIMPLE_ELEMENT |
 		MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR |
 		MPI25_IEEE_SGE_FLAGS_END_OF_LIST);
+
 	_base_add_sg_single_ieee(paddr, sgl_flags, 0, 0, -1);
 }
 
@@ -5226,6 +5230,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		ioc->build_zero_len_sge = &_base_build_zero_len_sge;
 		break;
 	case MPI25_VERSION:
+	case MPI26_VERSION:
 		/*
 		 * In SAS3.0,
 		 * SCSI_IO, SMP_PASSTHRU, SATA_PASSTHRU, Target Assist, and

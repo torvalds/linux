@@ -1589,10 +1589,16 @@ scsih_get_resync(struct device *dev)
 		percent_complete = 0;
 
  out:
-	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+
+	switch (ioc->hba_mpi_version_belonged) {
+	case MPI2_VERSION:
 		raid_set_resync(mpt2sas_raid_template, dev, percent_complete);
-	if (ioc->hba_mpi_version_belonged == MPI25_VERSION)
+		break;
+	case MPI25_VERSION:
+	case MPI26_VERSION:
 		raid_set_resync(mpt3sas_raid_template, dev, percent_complete);
+		break;
+	}
 }
 
 /**
@@ -1650,10 +1656,15 @@ scsih_get_state(struct device *dev)
 		break;
 	}
  out:
-	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+	switch (ioc->hba_mpi_version_belonged) {
+	case MPI2_VERSION:
 		raid_set_state(mpt2sas_raid_template, dev, state);
-	if (ioc->hba_mpi_version_belonged == MPI25_VERSION)
+		break;
+	case MPI25_VERSION:
+	case MPI26_VERSION:
 		raid_set_state(mpt3sas_raid_template, dev, state);
+		break;
+	}
 }
 
 /**
@@ -1682,12 +1693,17 @@ _scsih_set_level(struct MPT3SAS_ADAPTER *ioc,
 		break;
 	}
 
-	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+	switch (ioc->hba_mpi_version_belonged) {
+	case MPI2_VERSION:
 		raid_set_level(mpt2sas_raid_template,
-			       &sdev->sdev_gendev, level);
-	if (ioc->hba_mpi_version_belonged == MPI25_VERSION)
+			&sdev->sdev_gendev, level);
+		break;
+	case MPI25_VERSION:
+	case MPI26_VERSION:
 		raid_set_level(mpt3sas_raid_template,
-			       &sdev->sdev_gendev, level);
+			&sdev->sdev_gendev, level);
+		break;
+	}
 }
 
 
@@ -4084,6 +4100,9 @@ _scsih_scsi_ioc_info(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	case MPI2_IOCSTATUS_EEDP_APP_TAG_ERROR:
 		desc_ioc_state = "eedp app tag error";
 		break;
+	case MPI2_IOCSTATUS_INSUFFICIENT_POWER:
+		desc_ioc_state = "insufficient power";
+		break;
 	default:
 		desc_ioc_state = "unknown";
 		break;
@@ -4609,6 +4628,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	case MPI2_IOCSTATUS_INVALID_STATE:
 	case MPI2_IOCSTATUS_SCSI_IO_DATA_ERROR:
 	case MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
+	case MPI2_IOCSTATUS_INSUFFICIENT_POWER:
 	default:
 		scmd->result = DID_SOFT_ERROR << 16;
 		break;
@@ -8391,7 +8411,8 @@ static struct raid_function_template mpt3sas_raid_functions = {
  * @pdev: PCI device struct
  *
  * return MPI2_VERSION for SAS 2.0 HBA devices,
- *	MPI25_VERSION for SAS 3.0 HBA devices.
+ *	MPI25_VERSION for SAS 3.0 HBA devices, and
+ *	MPI26 VERSION for Cutlass & Invader SAS 3.0 HBA devices
  */
 u16
 _scsih_determine_hba_mpi_version(struct pci_dev *pdev)
@@ -8423,6 +8444,17 @@ _scsih_determine_hba_mpi_version(struct pci_dev *pdev)
 	case MPI25_MFGPAGE_DEVID_SAS3108_5:
 	case MPI25_MFGPAGE_DEVID_SAS3108_6:
 		return MPI25_VERSION;
+	case MPI26_MFGPAGE_DEVID_SAS3216:
+	case MPI26_MFGPAGE_DEVID_SAS3224:
+	case MPI26_MFGPAGE_DEVID_SAS3316_1:
+	case MPI26_MFGPAGE_DEVID_SAS3316_2:
+	case MPI26_MFGPAGE_DEVID_SAS3316_3:
+	case MPI26_MFGPAGE_DEVID_SAS3316_4:
+	case MPI26_MFGPAGE_DEVID_SAS3324_1:
+	case MPI26_MFGPAGE_DEVID_SAS3324_2:
+	case MPI26_MFGPAGE_DEVID_SAS3324_3:
+	case MPI26_MFGPAGE_DEVID_SAS3324_4:
+		return MPI26_VERSION;
 	}
 	return 0;
 }
@@ -8456,7 +8488,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Enumerate only SAS 3.0 HBA's if hbas_to_enumerate is two,
 	 * for other generation HBA's return with -ENODEV
 	 */
-	if ((hbas_to_enumerate == 2) && (hba_mpi_version !=  MPI25_VERSION))
+	if ((hbas_to_enumerate == 2) && (!(hba_mpi_version ==  MPI25_VERSION
+		|| hba_mpi_version ==  MPI26_VERSION)))
 		return -ENODEV;
 
 	switch (hba_mpi_version) {
@@ -8478,6 +8511,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			ioc->mfg_pg10_hide_flag = MFG_PAGE10_EXPOSE_ALL_DISKS;
 		break;
 	case MPI25_VERSION:
+	case MPI26_VERSION:
 		/* Use mpt3sas driver host template for SAS 3.0 HBA's */
 		shost = scsi_host_alloc(&mpt3sas_driver_template,
 		  sizeof(struct MPT3SAS_ADAPTER));
@@ -8488,7 +8522,9 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->hba_mpi_version_belonged = hba_mpi_version;
 		ioc->id = mpt3_ids++;
 		sprintf(ioc->driver_name, "%s", MPT3SAS_DRIVER_NAME);
-		if (pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION)
+		if ((ioc->hba_mpi_version_belonged == MPI25_VERSION &&
+			pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION) ||
+			(ioc->hba_mpi_version_belonged == MPI26_VERSION))
 			ioc->msix96_vector = 1;
 		break;
 	default:
@@ -8865,6 +8901,28 @@ static const struct pci_device_id mpt3sas_pci_table[] = {
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_5,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_6,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Cutlass ~ 3216 and 3224 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3216,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3224,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Intruder ~ 3316 and 3324 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3316_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3316_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3316_3,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3316_4,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_3,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_4,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{0}     /* Terminating entry */
 };
