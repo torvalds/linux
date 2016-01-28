@@ -79,9 +79,11 @@ static void svc_delayed_work(struct work_struct *work)
 
 	if (timeout >= 0) {
 		ret = of_platform_populate(np, NULL, NULL, dev);
-		if (!ret)
-			/* Should we set wake_detect gpio to output again? */
+		if (!ret) {
+			/* re-assert wake_detect to confirm SVC WAKE_OUT */
+			gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
 			return;
+		}
 	}
 
 	/* FIXME: We may want to limit retries here */
