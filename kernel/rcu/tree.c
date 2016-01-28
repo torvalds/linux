@@ -2354,12 +2354,7 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 
 /*
  * Record a quiescent state for the specified CPU to that CPU's rcu_data
- * structure.  This must be either called from the specified CPU, or
- * called when the specified CPU is known to be offline (and when it is
- * also known that no other CPU is concurrently trying to help the offline
- * CPU).  The lastcomp argument is used to make sure we are still in the
- * grace period of interest.  We don't want to end the current grace period
- * based on quiescent states detected in an earlier grace period!
+ * structure.  This must be called from the specified CPU.
  */
 static void
 rcu_report_qs_rdp(int cpu, struct rcu_state *rsp, struct rcu_data *rdp)
