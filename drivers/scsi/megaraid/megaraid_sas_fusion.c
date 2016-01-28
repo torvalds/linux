@@ -3462,52 +3462,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		/* Let SR-IOV VF & PF sync up if there was a HB failure */
 		if (instance->requestorId && !reason) {
 			msleep(MEGASAS_OCR_SETTLE_TIME_VF);
-			/* Look for a late HB update after VF settle time */
-			if (abs_state == MFI_STATE_OPERATIONAL &&
-			    (instance->hb_host_mem->HB.fwCounter !=
-			     instance->hb_host_mem->HB.driverCounter)) {
-					instance->hb_host_mem->HB.driverCounter =
-						instance->hb_host_mem->HB.fwCounter;
-					dev_warn(&instance->pdev->dev, "SR-IOV:"
-					       "Late FW heartbeat update for "
-					       "scsi%d.\n",
-					       instance->host->host_no);
-			} else {
-				/* In VF mode, first poll for FW ready */
-				for (i = 0;
-				     i < (MEGASAS_RESET_WAIT_TIME * 1000);
-				     i += 20) {
-					status_reg =
-						instance->instancet->
-						read_fw_status_reg(
-							instance->reg_set);
-					abs_state = status_reg &
-						MFI_STATE_MASK;
-					if (abs_state == MFI_STATE_READY) {
-						dev_warn(&instance->pdev->dev,
-						       "SR-IOV: FW was found"
-						       "to be in ready state "
-						       "for scsi%d.\n",
-						       instance->host->host_no);
-						break;
-					}
-					msleep(20);
-				}
-				if (abs_state != MFI_STATE_READY) {
-					dev_warn(&instance->pdev->dev, "SR-IOV: "
-					       "FW not in ready state after %d"
-					       " seconds for scsi%d, status_reg = "
-					       "0x%x.\n",
-					       MEGASAS_RESET_WAIT_TIME,
-					       instance->host->host_no,
-					       status_reg);
-					megaraid_sas_kill_hba(instance);
-					instance->skip_heartbeat_timer_del = 1;
-					atomic_set(&instance->adprecovery, MEGASAS_HW_CRITICAL_ERROR);
-					retval = FAILED;
-					goto out;
-				}
-			}
+			goto transition_to_ready;
 		}
 
 		/* Now try to reset the chip */
@@ -3516,25 +3471,28 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			if (instance->instancet->adp_reset
 				(instance, instance->reg_set))
 				continue;
-
+transition_to_ready:
 			/* Wait for FW to become ready */
 			if (megasas_transition_to_ready(instance, 1)) {
-				dev_warn(&instance->pdev->dev, "Failed to "
-				       "transition controller to ready "
-				       "for scsi%d.\n",
-				       instance->host->host_no);
-				continue;
+				dev_warn(&instance->pdev->dev,
+					"Failed to transition controller to ready for "
+					"scsi%d.\n", instance->host->host_no);
+				if (instance->requestorId && !reason)
+					goto fail_kill_adapter;
+				else
+					continue;
 			}
-
 			megasas_reset_reply_desc(instance);
 			megasas_fusion_update_can_queue(instance, OCR_CONTEXT);
 
 			if (megasas_ioc_init_fusion(instance)) {
 				dev_warn(&instance->pdev->dev,
-				       "megasas_ioc_init_fusion() failed!"
-				       " for scsi%d\n",
-				       instance->host->host_no);
-				continue;
+				       "megasas_ioc_init_fusion() failed! for "
+				       "scsi%d\n", instance->host->host_no);
+				if (instance->requestorId && !reason)
+					goto fail_kill_adapter;
+				else
+					continue;
 			}
 
 			megasas_refire_mgmt_cmd(instance);
@@ -3591,6 +3549,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			retval = SUCCESS;
 			goto out;
 		}
+fail_kill_adapter:
 		/* Reset failed, kill the adapter */
 		dev_warn(&instance->pdev->dev, "Reset failed, killing "
 		       "adapter scsi%d.\n", instance->host->host_no);
