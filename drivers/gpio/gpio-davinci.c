@@ -511,7 +511,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 			return irq;
 		}
 
-		irq_domain = irq_domain_add_legacy(NULL, ngpio, irq, 0,
+		irq_domain = irq_domain_add_legacy(dev->of_node, ngpio, irq, 0,
 							&davinci_gpio_irq_ops,
 							chips);
 		if (!irq_domain) {
