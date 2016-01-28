@@ -230,9 +230,14 @@
 		regulator-max-microvolt = <3337000>;
 	};
 
+	/**
+	 * 1.8v required on LS expansion
+	 * for mezzanine boards
+	 */
 	l15 {
 		regulator-min-microvolt = <1750000>;
 		regulator-max-microvolt = <3337000>;
+		regulator-always-on;
 	};
 
 	l16 {
