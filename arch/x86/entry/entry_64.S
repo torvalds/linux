@@ -145,17 +145,11 @@ GLOBAL(entry_SYSCALL_64_after_swapgs)
 	movq	%rsp, PER_CPU_VAR(rsp_scratch)
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
+	TRACE_IRQS_OFF
+
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER_DS			/* pt_regs->ss */
 	pushq	PER_CPU_VAR(rsp_scratch)	/* pt_regs->sp */
-	/*
-	 * Re-enable interrupts.
-	 * We use 'rsp_scratch' as a scratch space, hence irq-off block above
-	 * must execute atomically in the face of possible interrupt-driven
-	 * task preemption. We must enable interrupts only after we're done
-	 * with using rsp_scratch:
-	 */
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushq	%r11				/* pt_regs->flags */
 	pushq	$__USER_CS			/* pt_regs->cs */
 	pushq	%rcx				/* pt_regs->ip */
@@ -171,9 +165,21 @@ GLOBAL(entry_SYSCALL_64_after_swapgs)
 	pushq	%r11				/* pt_regs->r11 */
 	sub	$(6*8), %rsp			/* pt_regs->bp, bx, r12-15 not saved */
 
-	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	tracesys
+	/*
+	 * If we need to do entry work or if we guess we'll need to do
+	 * exit work, go straight to the slow path.
+	 */
+	testl	$_TIF_WORK_SYSCALL_ENTRY|_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	entry_SYSCALL64_slow_path
+
 entry_SYSCALL_64_fastpath:
+	/*
+	 * Easy case: enable interrupts and issue the syscall.  If the syscall
+	 * needs pt_regs, we'll call a stub that disables interrupts again
+	 * and jumps to the slow path.
+	 */
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
 #if __SYSCALL_MASK == ~0
 	cmpq	$__NR_syscall_max, %rax
 #else
@@ -193,88 +199,43 @@ entry_SYSCALL_64_fastpath:
 
 	movq	%rax, RAX(%rsp)
 1:
-/*
- * Syscall return path ending with SYSRET (fast path).
- * Has incompletely filled pt_regs.
- */
-	LOCKDEP_SYS_EXIT
+
 	/*
-	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
-	 * it is too small to ever cause noticeable irq latency.
+	 * If we get here, then we know that pt_regs is clean for SYSRET64.
+	 * If we see that no exit work is required (which we are required
+	 * to check with IRQs off), then we can go straight to SYSRET64.
 	 */
 	DISABLE_INTERRUPTS(CLBR_NONE)
-
-	/*
-	 * We must check ti flags with interrupts (or at least preemption)
-	 * off because we must *never* return to userspace without
-	 * processing exit work that is enqueued if we're preempted here.
-	 * In particular, returning to userspace with any of the one-shot
-	 * flags (TIF_NOTIFY_RESUME, TIF_USER_RETURN_NOTIFY, etc) set is
-	 * very bad.
-	 */
+	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	int_ret_from_sys_call_irqs_off	/* Go to the slow path */
+	jnz	1f
 
-	RESTORE_C_REGS_EXCEPT_RCX_R11
-	movq	RIP(%rsp), %rcx
-	movq	EFLAGS(%rsp), %r11
+	LOCKDEP_SYS_EXIT
+	TRACE_IRQS_ON		/* user mode is traced as IRQs on */
+	RESTORE_C_REGS
 	movq	RSP(%rsp), %rsp
-	/*
-	 * 64-bit SYSRET restores rip from rcx,
-	 * rflags from r11 (but RF and VM bits are forced to 0),
-	 * cs and ss are loaded from MSRs.
-	 * Restoration of rflags re-enables interrupts.
-	 *
-	 * NB: On AMD CPUs with the X86_BUG_SYSRET_SS_ATTRS bug, the ss
-	 * descriptor is not reinitialized.  This means that we should
-	 * avoid SYSRET with SS == NULL, which could happen if we schedule,
-	 * exit the kernel, and re-enter using an interrupt vector.  (All
-	 * interrupt entries on x86_64 set SS to NULL.)  We prevent that
-	 * from happening by reloading SS in __switch_to.  (Actually
-	 * detecting the failure in 64-bit userspace is tricky but can be
-	 * done.)
-	 */
 	USERGS_SYSRET64
 
-GLOBAL(int_ret_from_sys_call_irqs_off)
+1:
+	/*
+	 * The fast path looked good when we started, but something changed
+	 * along the way and we need to switch to the slow path.  Calling
+	 * raise(3) will trigger this, for example.  IRQs are off.
+	 */
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	jmp int_ret_from_sys_call
-
-	/* Do syscall entry tracing */
-tracesys:
-	SAVE_EXTRA_REGS
-	movq	%rsp, %rdi
-	call	syscall_trace_enter
-
-	/*
-	 * Reload registers from stack in case ptrace changed them.
-	 * We don't reload %rax because syscall_trace_enter() returned
-	 * the value it wants us to use in the table lookup.
-	 */
-	RESTORE_C_REGS_EXCEPT_RAX
-#if __SYSCALL_MASK == ~0
-	cmpq	$__NR_syscall_max, %rax
-#else
-	andl	$__SYSCALL_MASK, %eax
-	cmpl	$__NR_syscall_max, %eax
-#endif
-	ja	1f				/* return -ENOSYS (already in pt_regs->ax) */
-	movq	%r10, %rcx			/* fixup for C */
-	call	*sys_call_table(, %rax, 8)
-	movq	%rax, RAX(%rsp)
-	RESTORE_EXTRA_REGS
-1:
-	/* Use IRET because user could have changed pt_regs->foo */
-
-/*
- * Syscall return path ending with IRET.
- * Has correct iret frame.
- */
-GLOBAL(int_ret_from_sys_call)
 	SAVE_EXTRA_REGS
 	movq	%rsp, %rdi
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
+	jmp	return_from_SYSCALL_64
+
+entry_SYSCALL64_slow_path:
+	/* IRQs are off. */
+	SAVE_EXTRA_REGS
+	movq	%rsp, %rdi
+	call	do_syscall_64		/* returns with IRQs disabled */
+
+return_from_SYSCALL_64:
 	RESTORE_EXTRA_REGS
 	TRACE_IRQS_IRETQ		/* we're about to change IF */
 
@@ -364,7 +325,7 @@ ENTRY(stub_ptregs_64)
 
 	/* Called from fast path -- pop return address and jump to slow path */
 	popq	%rax
-	jmp	tracesys	/* called from fast path */
+	jmp	entry_SYSCALL64_slow_path	/* called from fast path */
 
 1:
 	/* Called from C */

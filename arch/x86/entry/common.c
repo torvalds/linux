@@ -344,6 +344,32 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
 	prepare_exit_to_usermode(regs);
 }
 
+#ifdef CONFIG_X86_64
+__visible void do_syscall_64(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	unsigned long nr = regs->orig_ax;
+
+	local_irq_enable();
+
+	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
+		nr = syscall_trace_enter(regs);
+
+	/*
+	 * NB: Native and x32 syscalls are dispatched from the same
+	 * table.  The only functional difference is the x32 bit in
+	 * regs->orig_ax, which changes the behavior of some syscalls.
+	 */
+	if (likely((nr & __SYSCALL_MASK) < NR_syscalls)) {
+		regs->ax = sys_call_table[nr & __SYSCALL_MASK](
+			regs->di, regs->si, regs->dx,
+			regs->r10, regs->r8, regs->r9);
+	}
+
+	syscall_return_slowpath(regs);
+}
+#endif
+
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 /*
  * Does a 32-bit syscall.  Called with IRQs on and does all entry and
