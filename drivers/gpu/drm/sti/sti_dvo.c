@@ -345,12 +345,14 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	if (!dvo->panel)
+	if (!dvo->panel) {
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
+		if (dvo->panel)
+			drm_panel_attach(dvo->panel, connector);
+	}
 
 	if (dvo->panel)
-		if (!drm_panel_attach(dvo->panel, connector))
-			return connector_status_connected;
+		return connector_status_connected;
 
 	return connector_status_disconnected;
 }
