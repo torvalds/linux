@@ -11,10 +11,6 @@
  */
 
 #ifdef CONFIG_X86_32
-/*
- * Some non-Intel clones support out of order store. wmb() ceases to be a
- * nop for these.
- */
 #define mb() asm volatile(ALTERNATIVE("lock; addl $0,0(%%esp)", "mfence", \
 				      X86_FEATURE_XMM2) ::: "memory", "cc")
 #define rmb() asm volatile(ALTERNATIVE("lock; addl $0,0(%%esp)", "lfence", \
