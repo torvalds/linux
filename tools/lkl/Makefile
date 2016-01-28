@@ -11,6 +11,8 @@ endif
 
 OUTPUT_FORMAT=$(shell $(LD) -r -print-output-format)
 
+TEST_TARGETS=test valgrind gdb
+
 lib_source = $(filter-out %-host.c,$(wildcard lib/*.c))
 source = $(wildcard tests/*.c)
 lib = lib/liblkl.a
@@ -83,8 +85,5 @@ endif
 cpfromfs: cptofs
 	if ! [ -e $@ ]; then ln -s $< $@; fi
 
-test:
-	$(MAKE) -C tests
-
-valgrind:
-	$(MAKE) -C tests valgrind
+$(TEST_TARGETS): all
+	$(MAKE) -C tests $@

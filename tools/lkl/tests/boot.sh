@@ -1,4 +1,6 @@
-#!/bin/bash -e
+#!/bin/bash
+
+set -e
 
 if [ "$1" = "-t" ]; then
     shift
@@ -25,7 +27,7 @@ if file ./boot | grep PE32; then
     WINE=wine
 fi
 
-${VALGRIND_CMD} $WINE ./boot -d $file -t $fstype $tap_args $LKL_TEST_DEBUG $@ || err=$?
+${TEST_CMD} $WINE ./boot -d $file -t $fstype $tap_args $LKL_TEST_DEBUG $@ || err=$?
 
 if [ -c /dev/net/tun ]; then
     sudo ip tuntap del dev lkl_boot mode tap || true

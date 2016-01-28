@@ -26,7 +26,6 @@ rm ping6
 
 echo "== TAP tests =="
 if [ -c /dev/net/tun ]; then
-    sudo ip link set dev lkl_ptt0 down || true
     sudo ip tuntap del dev lkl_ptt0 mode tap || true
     sudo ip tuntap add dev lkl_ptt0 mode tap user $USER
     sudo ip link set dev lkl_ptt0 up
