@@ -4,11 +4,11 @@
 
 #include <asm/ia32.h>
 
-#define __SYSCALL_64(nr, sym) [nr] = 1,
+#define __SYSCALL_64(nr, sym, qual) [nr] = 1,
 static char syscalls_64[] = {
 #include <asm/syscalls_64.h>
 };
-#define __SYSCALL_I386(nr, sym) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls_ia32[] = {
 #include <asm/syscalls_32.h>
 };
