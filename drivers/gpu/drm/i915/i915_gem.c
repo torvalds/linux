@@ -2680,7 +2680,7 @@ void i915_gem_request_free(struct kref *req_ref)
 
 	if (ctx) {
 		if (i915.enable_execlists && ctx != req->i915->kernel_context)
-			intel_lr_context_unpin(req);
+			intel_lr_context_unpin(ctx, req->ring);
 
 		i915_gem_context_unreference(ctx);
 	}

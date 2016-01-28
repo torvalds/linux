@@ -101,7 +101,8 @@ void intel_lr_context_free(struct intel_context *ctx);
 uint32_t intel_lr_context_size(struct intel_engine_cs *ring);
 int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 				    struct intel_engine_cs *ring);
-void intel_lr_context_unpin(struct drm_i915_gem_request *req);
+void intel_lr_context_unpin(struct intel_context *ctx,
+			    struct intel_engine_cs *engine);
 void intel_lr_context_reset(struct drm_device *dev,
 			struct intel_context *ctx);
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
