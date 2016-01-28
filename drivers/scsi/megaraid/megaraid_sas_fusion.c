@@ -803,6 +803,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	if (!dual_qdepth_disable)
 		drv_ops->mfi_capabilities.support_ext_queue_depth = 1;
 
+	drv_ops->mfi_capabilities.support_qd_throttling = 1;
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
 
