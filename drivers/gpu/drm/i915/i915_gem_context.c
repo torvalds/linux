@@ -324,9 +324,13 @@ err_destroy:
 static void i915_gem_context_unpin(struct intel_context *ctx,
 				   struct intel_engine_cs *engine)
 {
-	if (engine->id == RCS && ctx->legacy_hw_ctx.rcs_state)
-		i915_gem_object_ggtt_unpin(ctx->legacy_hw_ctx.rcs_state);
-	i915_gem_context_unreference(ctx);
+	if (i915.enable_execlists) {
+		intel_lr_context_unpin(ctx, engine);
+	} else {
+		if (engine->id == RCS && ctx->legacy_hw_ctx.rcs_state)
+			i915_gem_object_ggtt_unpin(ctx->legacy_hw_ctx.rcs_state);
+		i915_gem_context_unreference(ctx);
+	}
 }
 
 void i915_gem_context_reset(struct drm_device *dev)
