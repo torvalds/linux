@@ -5,7 +5,7 @@ general:
 machine:
   # Add some environment variables
   environment:
-   HOST: $(case $CIRCLE_NODE_INDEX in 0) host='' ;; 1) host='i686-w64-mingw32-' ;; esac; echo $host)
+    CROSS_COMPILE: $([[ $CIRCLE_NODE_INDEX -eq 1 ]] && echo 'i686-w64-mingw32-')
 
 ## Customize dependencies
 dependencies:
@@ -20,7 +20,7 @@ test:
   override:
     - cd tools/lkl && make clean:
         parallel: true
-    - cd tools/lkl && CROSS_COMPILE=${HOST} make -j8:
+    - cd tools/lkl && make -j8:
         parallel: true
     - cd tools/lkl && make test:
         parallel: true
