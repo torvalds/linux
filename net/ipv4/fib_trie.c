@@ -1396,9 +1396,10 @@ found:
 		struct fib_info *fi = fa->fa_info;
 		int nhsel, err;
 
-		if ((index >= (1ul << fa->fa_slen)) &&
-		    ((BITS_PER_LONG > KEYLENGTH) || (fa->fa_slen != KEYLENGTH)))
-			continue;
+		if ((BITS_PER_LONG > KEYLENGTH) || (fa->fa_slen < KEYLENGTH)) {
+			if (index >= (1ul << fa->fa_slen))
+				continue;
+		}
 		if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
 			continue;
 		if (fi->fib_dead)
