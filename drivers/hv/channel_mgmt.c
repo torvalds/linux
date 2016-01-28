@@ -459,6 +459,17 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		    cpumask_of_node(primary->numa_node));
 
 	cur_cpu = -1;
+
+	/*
+	 * Normally Hyper-V host doesn't create more subchannels than there
+	 * are VCPUs on the node but it is possible when not all present VCPUs
+	 * on the node are initialized by guest. Clear the alloced_cpus_in_node
+	 * to start over.
+	 */
+	if (cpumask_equal(&primary->alloced_cpus_in_node,
+			  cpumask_of_node(primary->numa_node)))
+		cpumask_clear(&primary->alloced_cpus_in_node);
+
 	while (true) {
 		cur_cpu = cpumask_next(cur_cpu, &available_mask);
 		if (cur_cpu >= nr_cpu_ids) {
