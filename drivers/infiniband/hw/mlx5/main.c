@@ -844,6 +844,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	int err;
 	int i;
 	size_t reqlen;
+	size_t min_req_v2 = offsetof(struct mlx5_ib_alloc_ucontext_req_v2,
+				     max_cqe_version);
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
@@ -854,7 +856,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	reqlen = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
 	if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
 		ver = 0;
-	else if (reqlen >= sizeof(struct mlx5_ib_alloc_ucontext_req_v2))
+	else if (reqlen >= min_req_v2)
 		ver = 2;
 	else
 		return ERR_PTR(-EINVAL);
