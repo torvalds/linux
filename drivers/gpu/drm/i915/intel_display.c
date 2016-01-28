@@ -15591,6 +15591,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 		crtc->base.state->connector_mask = 0;
+		crtc->base.state->encoder_mask = 0;
 
 		/* Because we only establish the connector -> encoder ->
 		 * crtc links if something is active, this means the
@@ -15830,6 +15831,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 				 */
 				encoder->base.crtc->state->connector_mask |=
 					1 << drm_connector_index(&connector->base);
+				encoder->base.crtc->state->encoder_mask |=
+					1 << drm_encoder_index(&encoder->base);
 			}
 
 		} else {

@@ -307,6 +307,7 @@ struct drm_plane_helper_funcs;
  * @connectors_changed: connectors to this crtc have been updated
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
+ * @encoder_mask: bitmask of (1 << drm_encoder_index(encoder)) of attached encoders
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
@@ -341,6 +342,7 @@ struct drm_crtc_state {
 	u32 plane_mask;
 
 	u32 connector_mask;
+	u32 encoder_mask;
 
 	/* last_vblank_count: for vblank waits before cleanup */
 	u32 last_vblank_count;
