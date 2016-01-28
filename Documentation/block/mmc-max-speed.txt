@@ -1,0 +1,38 @@
+eMMC Block layer simulation speed controls in /sys/block/mmcblk*/
+===============================================
+
+Turned on with CONFIG_MMC_SIMULATE_MAX_SPEED which enables MMC device speed
+limiting. Used to test and simulate the behavior of the system when
+confronted with a slow MMC.
+
+Enables max_read_speed, max_write_speed and cache_size attributes and module
+default parameters to control the write or read maximum KB/second speed
+behaviors.
+
+NB: There is room for improving the algorithm for aspects tied directly to
+eMMC specific behavior. For instance, wear leveling and stalls from an
+exhausted erase pool. We would expect that if there was a need to provide
+similar speed simulation controls to other types of block devices, aspects of
+their behavior are modelled separately (e.g. head seek times, heat assist,
+shingling and rotational latency).
+
+/sys/block/mmcblk0/max_read_speed:
+
+Number of KB/second reads allowed to the block device. Used to test and
+simulate the behavior of the system when confronted with a slow reading MMC.
+Set to 0 or "off" to place no speed limit.
+
+/sys/block/mmcblk0/max_write_speed:
+
+Number of KB/second writes allowed to the block device. Used to test and
+simulate the behavior of the system when confronted with a slow writing MMC.
+Set to 0 or "off" to place no speed limit.
+
+/sys/block/mmcblk0/cache_size:
+
+Number of MB of high speed memory or high speed SLC cache expected on the
+eMMC device being simulated. Used to help simulate the write-back behavior
+more accurately. The assumption is the cache has no delay, but draws down
+in the background to the MLC/TLC primary store at the max_write_speed rate.
+Any write speed delays will show up when the cache is full, or when an I/O
+request to flush is issued.

@@ -68,3 +68,15 @@ config MMC_TEST
 
 	  This driver is only of interest to those developing or
 	  testing a host driver. Most people should say N here.
+
+config MMC_SIMULATE_MAX_SPEED
+	bool "Turn on maximum speed control per block device"
+	depends on MMC_BLOCK
+	help
+	  Say Y here to enable MMC device speed limiting. Used to test and
+	  simulate the behavior of the system when confronted with a slow MMC.
+
+	  Enables max_read_speed, max_write_speed and cache_size attributes to
+	  control the write or read maximum KB/second speed behaviors.
+
+	  If unsure, say N here.
