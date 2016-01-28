@@ -1615,15 +1615,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 
 	if (pd) {
 		dev = to_mdev(pd->device);
-	} else {
-		/* being cautious here */
-		if (init_attr->qp_type != IB_QPT_XRC_TGT &&
-		    init_attr->qp_type != MLX5_IB_QPT_REG_UMR) {
-			pr_warn("%s: no PD for transport %s\n", __func__,
-				ib_qp_type_str(init_attr->qp_type));
-			return ERR_PTR(-EINVAL);
-		}
-		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
 			if (!pd->uobject) {
@@ -1634,6 +1625,15 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				return ERR_PTR(-EINVAL);
 			}
 		}
+	} else {
+		/* being cautious here */
+		if (init_attr->qp_type != IB_QPT_XRC_TGT &&
+		    init_attr->qp_type != MLX5_IB_QPT_REG_UMR) {
+			pr_warn("%s: no PD for transport %s\n", __func__,
+				ib_qp_type_str(init_attr->qp_type));
+			return ERR_PTR(-EINVAL);
+		}
+		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 	}
 
 	switch (init_attr->qp_type) {
