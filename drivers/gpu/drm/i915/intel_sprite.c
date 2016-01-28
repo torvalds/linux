@@ -207,15 +207,15 @@ skl_update_plane(struct drm_plane *drm_plane,
 	const int plane = intel_plane->plane + 1;
 	u32 plane_ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	u32 surf_addr;
+	u32 surf_addr = plane_state->main.offset;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
 	int crtc_x = plane_state->dst.x1;
 	int crtc_y = plane_state->dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->dst);
-	uint32_t x = plane_state->src.x1 >> 16;
-	uint32_t y = plane_state->src.y1 >> 16;
+	uint32_t x = plane_state->main.x;
+	uint32_t y = plane_state->main.y;
 	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
 
@@ -238,26 +238,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
 	else if (key->flags & I915_SET_COLORKEY_SOURCE)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
-
-	if (intel_rotation_90_or_270(rotation)) {
-		struct drm_rect r = {
-			.x1 = x,
-			.x2 = x + src_w,
-			.y1 = y,
-			.y2 = y + src_h,
-		};
-
-		/* Rotate src coordinates to match rotated GTT view */
-		drm_rect_rotate(&r, fb->width, fb->height, BIT(DRM_ROTATE_270));
-
-		x = r.x1;
-		y = r.y1;
-		src_w = drm_rect_width(&r);
-		src_h = drm_rect_height(&r);
-	}
-
-	intel_add_fb_offsets(&x, &y, plane_state, 0);
-	surf_addr = intel_compute_tile_offset(&x, &y, plane_state, 0);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -773,6 +753,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	int hscale, vscale;
 	int max_scale, min_scale;
 	bool can_scale;
+	int ret;
 
 	if (!fb) {
 		state->visible = false;
@@ -926,6 +907,12 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	dst->x2 = crtc_x + crtc_w;
 	dst->y1 = crtc_y;
 	dst->y2 = crtc_y + crtc_h;
+
+	if (INTEL_GEN(dev) >= 9) {
+		ret = skl_check_plane_surface(state);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

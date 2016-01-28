@@ -2842,6 +2842,117 @@ valid_fb:
 		  &obj->frontbuffer_bits);
 }
 
+static int skl_max_plane_width(const struct drm_framebuffer *fb, int plane,
+			       unsigned int rotation)
+{
+	int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+
+	switch (fb->modifier[plane]) {
+	case DRM_FORMAT_MOD_NONE:
+	case I915_FORMAT_MOD_X_TILED:
+		switch (cpp) {
+		case 8:
+			return 4096;
+		case 4:
+		case 2:
+		case 1:
+			return 8192;
+		default:
+			MISSING_CASE(cpp);
+			break;
+		}
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		switch (cpp) {
+		case 8:
+			return 2048;
+		case 4:
+			return 4096;
+		case 2:
+		case 1:
+			return 8192;
+		default:
+			MISSING_CASE(cpp);
+			break;
+		}
+		break;
+	default:
+		MISSING_CASE(fb->modifier[plane]);
+	}
+
+	return 2048;
+}
+
+static int skl_check_main_surface(struct intel_plane_state *plane_state)
+{
+	const struct drm_i915_private *dev_priv = to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	int x = plane_state->src.x1 >> 16;
+	int y = plane_state->src.y1 >> 16;
+	int w = drm_rect_width(&plane_state->src) >> 16;
+	int h = drm_rect_height(&plane_state->src) >> 16;
+	int max_width = skl_max_plane_width(fb, 0, rotation);
+	int max_height = 4096;
+	u32 alignment, offset;
+
+	if (w > max_width || h > max_height) {
+		DRM_DEBUG_KMS("requested Y/RGB source size %dx%d too big (limit %dx%d)\n",
+			      w, h, max_width, max_height);
+		return -EINVAL;
+	}
+
+	intel_add_fb_offsets(&x, &y, plane_state, 0);
+	offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
+
+	alignment = intel_surf_alignment(dev_priv, fb->modifier[0]);
+
+	/*
+	 * When using an X-tiled surface, the plane blows up
+	 * if the x offset + width exceed the stride.
+	 *
+	 * TODO: linear and Y-tiled seem fine, Yf untested,
+	 */
+	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED) {
+		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
+		while ((x + w) * cpp > fb->pitches[0]) {
+			if (offset == 0) {
+				DRM_DEBUG_KMS("Unable to find suitable display surface offset\n");
+				return -EINVAL;
+			}
+
+			offset = intel_adjust_tile_offset(&x, &y, plane_state, 0,
+							  offset, offset - alignment);
+		}
+	}
+
+	plane_state->main.offset = offset;
+	plane_state->main.x = x;
+	plane_state->main.y = y;
+
+	return 0;
+}
+
+int skl_check_plane_surface(struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	int ret;
+
+	/* Rotate src coordinates to match rotated GTT view */
+	if (intel_rotation_90_or_270(rotation))
+		drm_rect_rotate(&plane_state->src,
+				fb->width, fb->height, BIT(DRM_ROTATE_270));
+
+	ret = skl_check_main_surface(plane_state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void i9xx_update_primary_plane(struct drm_plane *primary,
 				      const struct intel_crtc_state *crtc_state,
 				      const struct intel_plane_state *plane_state)
@@ -3221,10 +3332,10 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	u32 plane_ctl;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
-	u32 surf_addr;
+	u32 surf_addr = plane_state->main.offset;
 	int scaler_id = plane_state->scaler_id;
-	int src_x = plane_state->src.x1 >> 16;
-	int src_y = plane_state->src.y1 >> 16;
+	int src_x = plane_state->main.x;
+	int src_y = plane_state->main.y;
 	int src_w = drm_rect_width(&plane_state->src) >> 16;
 	int src_h = drm_rect_height(&plane_state->src) >> 16;
 	int dst_x = plane_state->dst.x1;
@@ -3240,26 +3351,6 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
-
-	if (intel_rotation_90_or_270(rotation)) {
-		struct drm_rect r = {
-			.x1 = src_x,
-			.x2 = src_x + src_w,
-			.y1 = src_y,
-			.y2 = src_y + src_h,
-		};
-
-		/* Rotate src coordinates to match rotated GTT view */
-		drm_rect_rotate(&r, fb->width, fb->height, BIT(DRM_ROTATE_270));
-
-		src_x = r.x1;
-		src_y = r.y1;
-		src_w = drm_rect_width(&r);
-		src_h = drm_rect_height(&r);
-	}
-
-	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
-	surf_addr = intel_compute_tile_offset(&src_x, &src_y, plane_state, 0);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -14419,13 +14510,15 @@ intel_check_primary_plane(struct drm_plane *plane,
 			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_crtc *crtc = state->base.crtc;
 	struct drm_framebuffer *fb = state->base.fb;
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
+	int ret;
 
-	if (INTEL_INFO(plane->dev)->gen >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		/* use scaler when colorkey is not required */
 		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
 			min_scale = 1;
@@ -14434,12 +14527,25 @@ intel_check_primary_plane(struct drm_plane *plane,
 		can_position = true;
 	}
 
-	return drm_plane_helper_check_update(plane, crtc, fb, &state->src,
-					     &state->dst, &state->clip,
-					     state->base.rotation,
-					     min_scale, max_scale,
-					     can_position, true,
-					     &state->visible);
+	ret = drm_plane_helper_check_update(plane, crtc, fb, &state->src,
+					    &state->dst, &state->clip,
+					    state->base.rotation,
+					    min_scale, max_scale,
+					    can_position, true,
+					    &state->visible);
+	if (ret)
+		return ret;
+
+	if (!fb)
+		return 0;
+
+	if (INTEL_GEN(dev_priv) >= 9) {
+		ret = skl_check_plane_surface(state);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void intel_begin_crtc_commit(struct drm_crtc *crtc,
