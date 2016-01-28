@@ -6,7 +6,7 @@
 
 /*
  * Force strict CPU ordering.
- * And yes, this is required on UP too when we're talking
+ * And yes, this might be required on UP too when we're talking
  * to devices.
  */
 
