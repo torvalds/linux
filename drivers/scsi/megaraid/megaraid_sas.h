@@ -170,6 +170,7 @@
 
 /* Driver internal */
 #define DRV_DCMD_POLLED_MODE		0x1
+#define DRV_DCMD_SKIP_REFIRE		0x2
 
 /*
  * Definition for cmd_status
@@ -1093,6 +1094,11 @@ enum MR_SCSI_CMD_TYPE {
 	NON_READ_WRITE_SYSPDIO = 3,
 };
 
+enum DCMD_TIMEOUT_ACTION {
+	INITIATE_OCR = 0,
+	KILL_ADAPTER = 1,
+	IGNORE_TIMEOUT = 2,
+};
 /* Frame Type */
 #define IO_FRAME				0
 #define PTHRU_FRAME				1
@@ -1139,6 +1145,7 @@ enum MR_SCSI_CMD_TYPE {
 
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
 #define MFI_POLL_TIMEOUT_SECS			60
+#define MFI_IO_TIMEOUT_SECS			180
 #define MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF	(5 * HZ)
 #define MEGASAS_OCR_SETTLE_TIME_VF		(1000 * 30)
 #define MEGASAS_ROUTINE_WAIT_TIME_VF		300
@@ -1918,7 +1925,7 @@ struct megasas_instance_template {
 	u32 (*init_adapter)(struct megasas_instance *);
 	u32 (*build_and_issue_cmd) (struct megasas_instance *,
 				    struct scsi_cmnd *);
-	void (*issue_dcmd) (struct megasas_instance *instance,
+	int (*issue_dcmd)(struct megasas_instance *instance,
 			    struct megasas_cmd *cmd);
 };
 
@@ -2014,6 +2021,19 @@ struct megasas_mgmt_info {
 	u16 count;
 	struct megasas_instance *instance[MAX_MGMT_ADAPTERS];
 	int max_index;
+};
+
+enum MEGASAS_OCR_CAUSE {
+	FW_FAULT_OCR			= 0,
+	SCSIIO_TIMEOUT_OCR		= 1,
+	MFI_IO_TIMEOUT_OCR		= 2,
+};
+
+enum DCMD_RETURN_STATUS {
+	DCMD_SUCCESS		= 0,
+	DCMD_TIMEOUT		= 1,
+	DCMD_FAILED		= 2,
+	DCMD_NOT_FIRED		= 3,
 };
 
 u8

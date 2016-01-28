@@ -576,11 +576,12 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		msleep(20);
 	}
 
-	if (frame_hdr->cmd_status == 0xff)
-		return -ETIME;
-
-	return (frame_hdr->cmd_status == MFI_STAT_OK) ?
-		0 : 1;
+	if (frame_hdr->cmd_status == MFI_STAT_INVALID_STATUS)
+		return DCMD_TIMEOUT;
+	else if (frame_hdr->cmd_status == MFI_STAT_OK)
+		return DCMD_SUCCESS;
+	else
+		return DCMD_FAILED;
 }
 
 /**
@@ -784,7 +785,8 @@ megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
 
 	/* Below code is only for non pended DCMD */
 	if (instance->ctrl_context && !instance->mask_interrupts)
-		ret = megasas_issue_blocked_cmd(instance, cmd, 60);
+		ret = megasas_issue_blocked_cmd(instance, cmd,
+			MFI_IO_TIMEOUT_SECS);
 	else
 		ret = megasas_issue_polled(instance, cmd);
 
@@ -795,7 +797,10 @@ megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
 		ret = -EINVAL;
 	}
 
-	if (!ret)
+	if (ret == DCMD_TIMEOUT && instance->ctrl_context)
+		megaraid_sas_kill_hba(instance);
+
+	if (ret == DCMD_SUCCESS)
 		instance->pd_seq_map_id++;
 
 	megasas_return_cmd(instance, cmd);
@@ -875,9 +880,12 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 
 	if (instance->ctrl_context && !instance->mask_interrupts)
 		ret = megasas_issue_blocked_cmd(instance, cmd,
-			MEGASAS_BLOCKED_CMD_TIMEOUT);
+			MFI_IO_TIMEOUT_SECS);
 	else
 		ret = megasas_issue_polled(instance, cmd);
+
+	if (ret == DCMD_TIMEOUT && instance->ctrl_context)
+		megaraid_sas_kill_hba(instance);
 
 	megasas_return_cmd(instance, cmd);
 
@@ -2411,7 +2419,7 @@ build_mpt_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
  * @cmd:			mfi cmd pointer
  *
  */
-void
+int
 megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 			  struct megasas_cmd *cmd)
 {
@@ -2419,10 +2427,13 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 
 	req_desc = build_mpt_cmd(instance, cmd);
 	if (!req_desc) {
-		dev_err(&instance->pdev->dev, "Couldn't issue MFI pass thru cmd\n");
-		return;
+		dev_info(&instance->pdev->dev, "Failed from %s %d\n",
+					__func__, __LINE__);
+		return DCMD_NOT_FIRED;
 	}
+
 	megasas_fire_cmd_fusion(instance, req_desc);
+	return DCMD_SUCCESS;
 }
 
 /**
@@ -2583,7 +2594,7 @@ megasas_check_reset_fusion(struct megasas_instance *instance,
 
 /* This function waits for outstanding commands on fusion to complete */
 int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
-					int iotimeout, int *convert)
+					int reason, int *convert)
 {
 	int i, outstanding, retval = 0, hb_seconds_missed = 0;
 	u32 fw_state;
@@ -2599,14 +2610,22 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 			retval = 1;
 			goto out;
 		}
+
+		if (reason == MFI_IO_TIMEOUT_OCR) {
+			dev_info(&instance->pdev->dev,
+				"MFI IO is timed out, initiating OCR\n");
+			retval = 1;
+			goto out;
+		}
+
 		/* If SR-IOV VF mode & heartbeat timeout, don't wait */
-		if (instance->requestorId && !iotimeout) {
+		if (instance->requestorId && !reason) {
 			retval = 1;
 			goto out;
 		}
 
 		/* If SR-IOV VF mode & I/O timeout, check for HB timeout */
-		if (instance->requestorId && iotimeout) {
+		if (instance->requestorId && reason) {
 			if (instance->hb_host_mem->HB.fwCounter !=
 			    instance->hb_host_mem->HB.driverCounter) {
 				instance->hb_host_mem->HB.driverCounter =
@@ -2680,6 +2699,7 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 	struct megasas_cmd *cmd_mfi;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u16 smid;
+	bool refire_cmd = 0;
 
 	fusion = instance->ctrl_context;
 
@@ -2695,10 +2715,12 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 			continue;
 		req_desc = megasas_get_request_descriptor
 					(instance, smid - 1);
-		if (req_desc && ((cmd_mfi->frame->dcmd.opcode !=
+		refire_cmd = req_desc && ((cmd_mfi->frame->dcmd.opcode !=
 				cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) &&
 				 (cmd_mfi->frame->dcmd.opcode !=
-				cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO))))
+				cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO)))
+				&& !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
+		if (refire_cmd)
 			megasas_fire_cmd_fusion(instance, req_desc);
 		else
 			megasas_return_cmd(instance, cmd_mfi);
