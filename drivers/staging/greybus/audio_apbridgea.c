@@ -9,6 +9,7 @@
 #include "greybus.h"
 #include "greybus_protocols.h"
 #include "audio_apbridgea.h"
+#include "audio_codec.h"
 
 int gb_audio_apbridgea_set_config(struct gb_connection *connection,
 				  __u16 i2s_port, __u32 format, __u32 rate,

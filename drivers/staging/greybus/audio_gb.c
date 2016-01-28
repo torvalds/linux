@@ -9,6 +9,7 @@
 #include "greybus.h"
 #include "greybus_protocols.h"
 #include "operation.h"
+#include "audio_codec.h"
 
 /* TODO: Split into separate calls */
 int gb_audio_gb_get_topology(struct gb_connection *connection,
