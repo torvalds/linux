@@ -122,6 +122,7 @@ void exit_event_decode_key(struct perf_kvm_stat *kvm,
 
 bool kvm_exit_event(struct perf_evsel *evsel);
 bool kvm_entry_event(struct perf_evsel *evsel);
+int setup_kvm_events_tp(struct perf_kvm_stat *kvm);
 
 #define define_exit_reasons_table(name, symbols)	\
 	static struct exit_reasons_table name[] = {	\

@@ -1132,6 +1132,11 @@ exit:
 		_p;			\
 	})
 
+int __weak setup_kvm_events_tp(struct perf_kvm_stat *kvm __maybe_unused)
+{
+	return 0;
+}
+
 static int
 kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 {
@@ -1148,7 +1153,14 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		NULL
 	};
 	const char * const *events_tp;
+	int ret;
+
 	events_tp_size = 0;
+	ret = setup_kvm_events_tp(kvm);
+	if (ret < 0) {
+		pr_err("Unable to setup the kvm tracepoints\n");
+		return ret;
+	}
 
 	for (events_tp = kvm_events_tp; *events_tp; events_tp++)
 		events_tp_size++;
@@ -1377,6 +1389,12 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * generate the event list
 	 */
+	err = setup_kvm_events_tp(kvm);
+	if (err < 0) {
+		pr_err("Unable to setup the kvm tracepoints\n");
+		return err;
+	}
+
 	kvm->evlist = kvm_live_event_list();
 	if (kvm->evlist == NULL) {
 		err = -1;
