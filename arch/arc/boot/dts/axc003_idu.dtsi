@@ -25,7 +25,7 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: archs-intc@cpu {
+		core_intc: archs-intc@cpu {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -34,7 +34,7 @@
 		idu_intc: idu-interrupt-controller {
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 
 			/*
 			 * <hwirq  distribution>
@@ -91,7 +91,7 @@
 		arcpct0: pct {
 			compatible = "snps,archs-pct";
 			#interrupt-cells = <1>;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 			interrupts = <20>;
 		};
 	};

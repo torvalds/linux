@@ -25,7 +25,7 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: archs-intc@cpu {
+		core_intc: archs-intc@cpu {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -35,7 +35,7 @@
 			compatible = "snps,dw-apb-uart";
 			reg = <0x5000 0x100>;
 			clock-frequency = <2403200>;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 			interrupts = <19>;
 			baud = <115200>;
 			reg-shift = <2>;
@@ -49,7 +49,7 @@
 		compatible = "snps,dw-apb-ictl";
 		reg = < 0xe0012000 0x200 >;
 		interrupt-controller;
-		interrupt-parent = <&cpu_intc>;
+		interrupt-parent = <&core_intc>;
 		interrupts = < 18 >;
 	};
 
