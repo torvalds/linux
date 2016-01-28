@@ -535,7 +535,18 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "%s(reason=%d)\n", __func__, reason_code);
 
-	rc = wmi_send(wil, WMI_DISCONNECT_CMDID, NULL, 0);
+	if (!(test_bit(wil_status_fwconnecting, wil->status) ||
+	      test_bit(wil_status_fwconnected, wil->status))) {
+		wil_err(wil, "%s: Disconnect was called while disconnected\n",
+			__func__);
+		return 0;
+	}
+
+	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
+		      WMI_DISCONNECT_EVENTID, NULL, 0,
+		      WIL6210_DISCONNECT_TO_MS);
+	if (rc)
+		wil_err(wil, "%s: disconnect error %d\n", __func__, rc);
 
 	return rc;
 }
