@@ -131,6 +131,7 @@ config GPIO_ATH79
 	default y if ATH79
 	depends on ATH79 || COMPILE_TEST
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Select this option to enable GPIO driver for
 	  Atheros AR71XX/AR724X/AR913X SoC devices.
