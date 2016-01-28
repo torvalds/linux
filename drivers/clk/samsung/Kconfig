@@ -1,6 +1,5 @@
 config COMMON_CLK_SAMSUNG
 	bool
-	select COMMON_CLK
 
 config S3C2410_COMMON_CLK
 	bool
