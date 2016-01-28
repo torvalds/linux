@@ -253,7 +253,6 @@ tracesys:
 	 * the value it wants us to use in the table lookup.
 	 */
 	RESTORE_C_REGS_EXCEPT_RAX
-	RESTORE_EXTRA_REGS
 #if __SYSCALL_MASK == ~0
 	cmpq	$__NR_syscall_max, %rax
 #else
@@ -264,6 +263,7 @@ tracesys:
 	movq	%r10, %rcx			/* fixup for C */
 	call	*sys_call_table(, %rax, 8)
 	movq	%rax, RAX(%rsp)
+	RESTORE_EXTRA_REGS
 1:
 	/* Use IRET because user could have changed pt_regs->foo */
 
@@ -383,83 +383,6 @@ END(ptregs_\func)
 #define __SYSCALL_64_QUAL_ptregs(sym) ptregs_stub sym
 #define __SYSCALL_64(nr, sym, qual) __SYSCALL_64_QUAL_##qual(sym)
 #include <asm/syscalls_64.h>
-
-	.macro FORK_LIKE func
-ENTRY(stub_\func)
-	SAVE_EXTRA_REGS 8
-	jmp	sys_\func
-END(stub_\func)
-	.endm
-
-	FORK_LIKE  clone
-	FORK_LIKE  fork
-	FORK_LIKE  vfork
-
-ENTRY(stub_execve)
-	call	sys_execve
-return_from_execve:
-	testl	%eax, %eax
-	jz	1f
-	/* exec failed, can use fast SYSRET code path in this case */
-	ret
-1:
-	/* must use IRET code path (pt_regs->cs may have changed) */
-	addq	$8, %rsp
-	ZERO_EXTRA_REGS
-	movq	%rax, RAX(%rsp)
-	jmp	int_ret_from_sys_call
-END(stub_execve)
-/*
- * Remaining execve stubs are only 7 bytes long.
- * ENTRY() often aligns to 16 bytes, which in this case has no benefits.
- */
-	.align	8
-GLOBAL(stub_execveat)
-	call	sys_execveat
-	jmp	return_from_execve
-END(stub_execveat)
-
-#if defined(CONFIG_X86_X32_ABI)
-	.align	8
-GLOBAL(stub_x32_execve)
-	call	compat_sys_execve
-	jmp	return_from_execve
-END(stub_x32_execve)
-	.align	8
-GLOBAL(stub_x32_execveat)
-	call	compat_sys_execveat
-	jmp	return_from_execve
-END(stub_x32_execveat)
-#endif
-
-/*
- * sigreturn is special because it needs to restore all registers on return.
- * This cannot be done with SYSRET, so use the IRET return path instead.
- */
-ENTRY(stub_rt_sigreturn)
-	/*
-	 * SAVE_EXTRA_REGS result is not normally needed:
-	 * sigreturn overwrites all pt_regs->GPREGS.
-	 * But sigreturn can fail (!), and there is no easy way to detect that.
-	 * To make sure RESTORE_EXTRA_REGS doesn't restore garbage on error,
-	 * we SAVE_EXTRA_REGS here.
-	 */
-	SAVE_EXTRA_REGS 8
-	call	sys_rt_sigreturn
-return_from_stub:
-	addq	$8, %rsp
-	RESTORE_EXTRA_REGS
-	movq	%rax, RAX(%rsp)
-	jmp	int_ret_from_sys_call
-END(stub_rt_sigreturn)
-
-#ifdef CONFIG_X86_X32_ABI
-ENTRY(stub_x32_rt_sigreturn)
-	SAVE_EXTRA_REGS 8
-	call	sys32_x32_rt_sigreturn
-	jmp	return_from_stub
-END(stub_x32_rt_sigreturn)
-#endif
 
 /*
  * A newly forked process directly context switches into this address.
