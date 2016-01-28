@@ -5,12 +5,6 @@
 #include <asm/ia32.h>
 
 #define __SYSCALL_64(nr, sym, compat) [nr] = 1,
-#define __SYSCALL_COMMON(nr, sym, compat) [nr] = 1,
-#ifdef CONFIG_X86_X32_ABI
-# define __SYSCALL_X32(nr, sym, compat) [nr] = 1,
-#else
-# define __SYSCALL_X32(nr, sym, compat) /* nothing */
-#endif
 static char syscalls_64[] = {
 #include <asm/syscalls_64.h>
 };
