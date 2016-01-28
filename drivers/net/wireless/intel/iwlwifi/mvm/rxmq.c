@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,7 +156,14 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 			       u16 len, u8 crypt_len,
 			       struct iwl_rx_cmd_buffer *rxb)
 {
-	unsigned int hdrlen, fraglen;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
+	unsigned int headlen, fraglen, pad_len = 0;
+	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD)
+		pad_len = 2;
+	len -= pad_len;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
 	 * If not, only pull ieee80211_hdr (including crypto if present, and
@@ -170,14 +177,23 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	 * If the latter changes (there are efforts in the standards group
 	 * to do so) we should revisit this and ieee80211_data_to_8023().
 	 */
-	hdrlen = (len <= skb_tailroom(skb)) ? len :
-					      sizeof(*hdr) + crypt_len + 8;
+	headlen = (len <= skb_tailroom(skb)) ? len :
+					       hdrlen + crypt_len + 8;
 
+	/* The firmware may align the packet to DWORD.
+	 * The padding is inserted after the IV.
+	 * After copying the header + IV skip the padding if
+	 * present before copying packet data.
+	 */
+	hdrlen += crypt_len;
 	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
-	fraglen = len - hdrlen;
+	memcpy(skb_put(skb, headlen - hdrlen), (u8 *)hdr + hdrlen + pad_len,
+	       headlen - hdrlen);
+
+	fraglen = len - headlen;
 
 	if (fraglen) {
-		int offset = (void *)hdr + hdrlen -
+		int offset = (void *)hdr + headlen + pad_len -
 			     rxb_addr(rxb) + rxb_offset(rxb);
 
 		skb_add_rx_frag(skb, 0, rxb_steal_page(rxb), offset,
