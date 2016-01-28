@@ -582,6 +582,10 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
 
+	/* The hv_sock driver handles all hv_sock offers. */
+	if (is_hvsock_channel(hv_dev->channel))
+		return drv->hvsock;
+
 	if (hv_vmbus_get_id(drv->id_table, &hv_dev->dev_type))
 		return 1;
 
