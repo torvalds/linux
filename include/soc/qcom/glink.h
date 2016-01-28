@@ -71,8 +71,7 @@ struct glink_open_config {
 	const char *name;
 	unsigned int rx_intent_req_timeout_ms;
 
-	void (*notify_rx)(void *handle, const void *priv, const void *pkt_priv,
-			const void *ptr, size_t size);
+	void (*notify_rx)(void *handle, const void *ptr, size_t size);
 	void (*notify_tx_done)(void *handle, const void *priv,
 			const void *pkt_priv, const void *ptr);
 	void (*notify_state)(void *handle, const void *priv, unsigned event);

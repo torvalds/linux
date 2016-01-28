@@ -213,8 +213,7 @@ struct channel_ctx {
 
 	/* user info */
 	void *user_priv;
-	void (*notify_rx)(void *handle, const void *priv, const void *pkt_priv,
-			const void *ptr, size_t size);
+	int  (*notify_rx)(void *handle, const void *data, size_t size);
 	void (*notify_tx_done)(void *handle, const void *priv,
 			const void *pkt_priv, const void *ptr);
 	void (*notify_state)(void *handle, const void *priv, unsigned event);
@@ -4823,8 +4822,7 @@ void glink_core_rx_put_pkt_ctx(struct glink_transport_if *if_ptr,
 
 	ch_set_local_rx_intent_notified(ctx, intent_ptr);
 	if (ctx->notify_rx && (intent_ptr->data || intent_ptr->bounce_buf)) {
-		ctx->notify_rx(ctx, ctx->user_priv, intent_ptr->pkt_priv,
-			       intent_ptr->data ?
+		ctx->notify_rx(ctx, intent_ptr->data ?
 				intent_ptr->data : intent_ptr->bounce_buf,
 			       intent_ptr->pkt_size);
 	} else if (ctx->notify_rxv) {

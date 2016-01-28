@@ -149,11 +149,12 @@ out:
 }
 EXPORT_SYMBOL(qcom_rpm_smd_write);
 
-static int qcom_smd_rpm_callback(struct qcom_smd_device *qsdev,
+static int qcom_smd_rpm_callback(void *qsdev,
 				 const void *data,
 				 size_t count)
 {
 	const struct qcom_rpm_header *hdr = data;
+	struct qcom_smd_device *qsdev = dev;
 	size_t hdr_length = le32_to_cpu(hdr->length);
 	const struct qcom_rpm_message *msg;
 	struct qcom_smd_rpm *rpm = dev_get_drvdata(&qsdev->dev);
