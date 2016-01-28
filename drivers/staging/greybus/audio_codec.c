@@ -44,6 +44,9 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
 
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
+
 	/* find the dai */
 	mutex_lock(&gb->lock);
 	gb_dai = gbaudio_find_dai(gb, -1, dai->name);
@@ -76,6 +79,9 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
+
+	if (!atomic_read(&gb->is_connected))
+		return;
 
 	/* find the dai */
 	mutex_lock(&gb->lock);
@@ -128,6 +134,9 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 	uint16_t data_cport;
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
+
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
 
 	/* find the dai */
 	mutex_lock(&gb->lock);
@@ -204,6 +213,9 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
 
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
+
 	/* find the dai */
 	mutex_lock(&gb->lock);
 	gb_dai = gbaudio_find_dai(gb, -1, dai->name);
@@ -277,6 +289,9 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 	int tx, rx, start, stop;
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
+
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
 
 	/* find the dai */
 	mutex_lock(&gb->lock);
@@ -776,6 +791,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	desc.devices = 0x2; /* todo */
 	gbcodec->manager_id = gb_audio_manager_add(&desc);
 
+	atomic_set(&gbcodec->is_connected, 1);
 	list_add(&gbcodec->list, &gb_codec_list);
 	dev_dbg(dev, "Add GB Audio device:%s\n", gbcodec->name);
 	mutex_unlock(&gb_codec_list_lock);
@@ -809,6 +825,7 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 	struct gbaudio_dai *dai, *_dai;
 
 	mutex_lock(&gb_codec_list_lock);
+	atomic_set(&gbcodec->is_connected, 0);
 	list_del(&gbcodec->list);
 	/* inform uevent to above layers */
 	gb_audio_manager_remove(gbcodec->manager_id);

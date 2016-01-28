@@ -140,6 +140,9 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
+
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
@@ -186,6 +189,9 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -281,6 +287,9 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
+
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
@@ -314,6 +323,9 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+
+	if (!atomic_read(&gb->is_connected))
+		return -ENODEV;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;

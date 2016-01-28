@@ -108,6 +108,15 @@ struct gbaudio_codec_info {
 	int manager_id;
 	char name[NAME_SIZE];
 
+	/*
+	 * there can be a rece condition between gb_audio_disconnect()
+	 * and dai->trigger from above ASoC layer.
+	 * To avoid any deadlock over codec_info->lock, atomic variable
+	 * is used.
+	 */
+	atomic_t is_connected;
+	struct mutex lock;
+
 	/* soc related data */
 	struct snd_soc_codec *codec;
 	struct device *dev;
@@ -139,7 +148,6 @@ struct gbaudio_codec_info {
 	struct list_head widget_list;
 	struct list_head codec_ctl_list;
 	struct list_head widget_ctl_list;
-	struct mutex lock;
 };
 
 struct gbaudio_dai *gbaudio_find_dai(struct gbaudio_codec_info *gbcodec,
