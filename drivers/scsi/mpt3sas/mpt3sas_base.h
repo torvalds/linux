@@ -129,6 +129,9 @@
 
 #define MPT3SAS_INVALID_DEVICE_HANDLE	0xFFFF
 
+#define MAX_CHAIN_ELEMT_SZ		16
+#define DEFAULT_NUM_FWCHAIN_ELEMTS	8
+
 /*
  * reset phases
  */
@@ -759,7 +762,7 @@ struct mpt3sas_facts {
 	u32			IOCCapabilities;
 	union mpi3_version_union	FWVersion;
 	u16			IOCRequestFrameSize;
-	u16			Reserved3;
+	u16			IOCMaxChainSegmentSize;
 	u16			MaxInitiators;
 	u16			MaxTargets;
 	u16			MaxSasExpanders;
@@ -906,6 +909,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @max_sges_in_chain_message: number sg elements per chain
  * @chains_needed_per_io: max chains per io
  * @chain_depth: total chains allocated
+ * @chain_segment_sz: gives the max number of
+ *			SGEs accommodate on single chain buffer
  * @hi_priority_smid:
  * @hi_priority:
  * @hi_priority_dma:
@@ -1113,6 +1118,7 @@ struct MPT3SAS_ADAPTER {
 	u16		max_sges_in_chain_message;
 	u16		chains_needed_per_io;
 	u32		chain_depth;
+	u16		chain_segment_sz;
 
 	/* hi-priority queue */
 	u16		hi_priority_smid;

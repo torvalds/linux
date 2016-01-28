@@ -3251,6 +3251,19 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	/* reply frame size */
 	ioc->reply_sz = facts->ReplyFrameSize * 4;
 
+	/* chain segment size */
+	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		if (facts->IOCMaxChainSegmentSize)
+			ioc->chain_segment_sz =
+					facts->IOCMaxChainSegmentSize *
+					MAX_CHAIN_ELEMT_SZ;
+		else
+		/* set to 128 bytes size if IOCMaxChainSegmentSize is zero */
+			ioc->chain_segment_sz = DEFAULT_NUM_FWCHAIN_ELEMTS *
+						    MAX_CHAIN_ELEMT_SZ;
+	} else
+		ioc->chain_segment_sz = ioc->request_sz;
+
 	/* calculate the max scatter element size */
 	sge_size = max_t(u16, ioc->sge_size, ioc->sge_size_ieee);
 
@@ -3262,7 +3275,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	ioc->max_sges_in_main_message = max_sge_elements/sge_size;
 
 	/* now do the same for a chain buffer */
-	max_sge_elements = ioc->request_sz - sge_size;
+	max_sge_elements = ioc->chain_segment_sz - sge_size;
 	ioc->max_sges_in_chain_message = max_sge_elements/sge_size;
 
 	/*
@@ -3454,7 +3467,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		goto out;
 	}
 	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
-	    ioc->request_sz, 16, 0);
+	    ioc->chain_segment_sz, 16, 0);
 	if (!ioc->chain_dma_pool) {
 		pr_err(MPT3SAS_FMT "chain_dma_pool: pci_pool_create failed\n",
 			ioc->name);
@@ -3468,13 +3481,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 			ioc->chain_depth = i;
 			goto chain_done;
 		}
-		total_sz += ioc->request_sz;
+		total_sz += ioc->chain_segment_sz;
 	}
  chain_done:
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		"chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
-		ioc->name, ioc->chain_depth, ioc->request_sz,
-		((ioc->chain_depth *  ioc->request_sz))/1024));
+		ioc->name, ioc->chain_depth, ioc->chain_segment_sz,
+		((ioc->chain_depth *  ioc->chain_segment_sz))/1024));
 
 	/* initialize hi-priority queue smid's */
 	ioc->hpr_lookup = kcalloc(ioc->hi_priority_depth,
@@ -4335,6 +4348,10 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	facts->FWVersion.Word = le32_to_cpu(mpi_reply.FWVersion.Word);
 	facts->IOCRequestFrameSize =
 	    le16_to_cpu(mpi_reply.IOCRequestFrameSize);
+	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		facts->IOCMaxChainSegmentSize =
+			le16_to_cpu(mpi_reply.IOCMaxChainSegmentSize);
+	}
 	facts->MaxInitiators = le16_to_cpu(mpi_reply.MaxInitiators);
 	facts->MaxTargets = le16_to_cpu(mpi_reply.MaxTargets);
 	ioc->shost->max_id = -1;
