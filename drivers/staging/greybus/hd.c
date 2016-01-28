@@ -135,9 +135,12 @@ EXPORT_SYMBOL_GPL(gb_hd_add);
 
 void gb_hd_del(struct gb_host_device *hd)
 {
-	gb_interfaces_remove(hd);
-
+	/*
+	 * Tear down the svc and flush any on-going hotplug processing before
+	 * removing the remaining interfaces.
+	 */
 	gb_svc_del(hd->svc);
+	gb_interfaces_remove(hd);
 
 	device_del(&hd->dev);
 }
