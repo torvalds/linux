@@ -16,7 +16,7 @@
  */
 
 #include <asm/kvm_asm.h>
-#include "hyp.h"
+#include <asm/kvm_hyp.h>
 
 __asm__(".arch_extension     virt");
 
