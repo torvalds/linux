@@ -94,8 +94,7 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 	__raw_writel(__pa(shmobile_boot_vector), AVECR);
 
 	/* setup r8a7779 specific SCU bits */
-	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
-	shmobile_smp_scu_prepare_cpus(max_cpus);
+	shmobile_smp_scu_prepare_cpus(R8A7779_SCU_BASE, max_cpus);
 
 	r8a7779_pm_init();
 
