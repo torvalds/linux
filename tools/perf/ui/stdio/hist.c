@@ -233,7 +233,10 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 
 	ret += __callchain__fprintf_graph(fp, root, total_samples,
 					  1, 1, left_margin);
-	ret += fprintf(fp, "\n");
+	if (ret) {
+		/* do not add a blank line if it printed nothing */
+		ret += fprintf(fp, "\n");
+	}
 
 	return ret;
 }
