@@ -1838,20 +1838,6 @@ static inline void ieee802_11_parse_elems(const u8 *start, size_t len,
 	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
 }
 
-static inline bool ieee80211_rx_reorder_ready(struct sk_buff_head *frames)
-{
-	struct sk_buff *tail = skb_peek_tail(frames);
-	struct ieee80211_rx_status *status;
-
-	if (!tail)
-		return false;
-
-	status = IEEE80211_SKB_RXCB(tail);
-	if (status->flag & RX_FLAG_AMSDU_MORE)
-		return false;
-
-	return true;
-}
 
 extern const int ieee802_1d_to_ac[8];
 

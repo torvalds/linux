@@ -4,6 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -798,6 +799,23 @@ static ieee80211_rx_result ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
+static inline bool ieee80211_rx_reorder_ready(struct tid_ampdu_rx *tid_agg_rx,
+					      int index)
+{
+	struct sk_buff_head *frames = &tid_agg_rx->reorder_buf[index];
+	struct sk_buff *tail = skb_peek_tail(frames);
+	struct ieee80211_rx_status *status;
+
+	if (!tail)
+		return false;
+
+	status = IEEE80211_SKB_RXCB(tail);
+	if (status->flag & RX_FLAG_AMSDU_MORE)
+		return false;
+
+	return true;
+}
+
 static void ieee80211_release_reorder_frame(struct ieee80211_sub_if_data *sdata,
 					    struct tid_ampdu_rx *tid_agg_rx,
 					    int index,
@@ -812,7 +830,7 @@ static void ieee80211_release_reorder_frame(struct ieee80211_sub_if_data *sdata,
 	if (skb_queue_empty(skb_list))
 		goto no_frame;
 
-	if (!ieee80211_rx_reorder_ready(skb_list)) {
+	if (!ieee80211_rx_reorder_ready(tid_agg_rx, index)) {
 		__skb_queue_purge(skb_list);
 		goto no_frame;
 	}
@@ -866,7 +884,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 
 	/* release the buffer until next missing frame */
 	index = tid_agg_rx->head_seq_num % tid_agg_rx->buf_size;
-	if (!ieee80211_rx_reorder_ready(&tid_agg_rx->reorder_buf[index]) &&
+	if (!ieee80211_rx_reorder_ready(tid_agg_rx, index) &&
 	    tid_agg_rx->stored_mpdu_num) {
 		/*
 		 * No buffers ready to be released, but check whether any
@@ -875,8 +893,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 		int skipped = 1;
 		for (j = (index + 1) % tid_agg_rx->buf_size; j != index;
 		     j = (j + 1) % tid_agg_rx->buf_size) {
-			if (!ieee80211_rx_reorder_ready(
-					&tid_agg_rx->reorder_buf[j])) {
+			if (!ieee80211_rx_reorder_ready(tid_agg_rx, j)) {
 				skipped++;
 				continue;
 			}
@@ -903,8 +920,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 				 skipped) & IEEE80211_SN_MASK;
 			skipped = 0;
 		}
-	} else while (ieee80211_rx_reorder_ready(
-				&tid_agg_rx->reorder_buf[index])) {
+	} else while (ieee80211_rx_reorder_ready(tid_agg_rx, index)) {
 		ieee80211_release_reorder_frame(sdata, tid_agg_rx, index,
 						frames);
 		index =	tid_agg_rx->head_seq_num % tid_agg_rx->buf_size;
@@ -915,8 +931,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 
 		for (; j != (index - 1) % tid_agg_rx->buf_size;
 		     j = (j + 1) % tid_agg_rx->buf_size) {
-			if (ieee80211_rx_reorder_ready(
-					&tid_agg_rx->reorder_buf[j]))
+			if (ieee80211_rx_reorder_ready(tid_agg_rx, j))
 				break;
 		}
 
@@ -987,7 +1002,7 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	index = mpdu_seq_num % tid_agg_rx->buf_size;
 
 	/* check if we already stored this frame */
-	if (ieee80211_rx_reorder_ready(&tid_agg_rx->reorder_buf[index])) {
+	if (ieee80211_rx_reorder_ready(tid_agg_rx, index)) {
 		dev_kfree_skb(skb);
 		goto out;
 	}
