@@ -357,6 +357,7 @@ struct ocrdma_ah {
 	struct ocrdma_av *av;
 	u16 sgid_index;
 	u32 id;
+	u8 hdr_type;
 };
 
 struct ocrdma_qp_hwq_info {
