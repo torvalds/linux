@@ -17,7 +17,7 @@
 #define GB_CONTROL_VERSION_MINOR	1
 
 
-int gb_control_get_version(struct gb_control *control)
+static int gb_control_get_version(struct gb_control *control)
 {
 	struct gb_interface *intf = control->connection->intf;
 	struct gb_control_version_request request;
