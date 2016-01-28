@@ -104,6 +104,8 @@ static int megasas_ld_list_query(struct megasas_instance *instance,
 static int megasas_issue_init_mfi(struct megasas_instance *instance);
 static int megasas_register_aen(struct megasas_instance *instance,
 				u32 seq_num, u32 class_locale_word);
+static int
+megasas_get_pd_info(struct megasas_instance *instance, u16 device_id);
 /*
  * PCI ID table for all supported controllers
  */
@@ -1795,6 +1797,44 @@ void megasas_update_sdev_properties(struct scsi_device *sdev)
 	}
 }
 
+static void megasas_set_device_queue_depth(struct scsi_device *sdev)
+{
+	u16				pd_index = 0;
+	int		ret = DCMD_FAILED;
+	struct megasas_instance *instance;
+
+	instance = megasas_lookup_instance(sdev->host->host_no);
+
+	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS) {
+		pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) + sdev->id;
+
+		if (instance->pd_info) {
+			mutex_lock(&instance->hba_mutex);
+			ret = megasas_get_pd_info(instance, pd_index);
+			mutex_unlock(&instance->hba_mutex);
+		}
+
+		if (ret != DCMD_SUCCESS)
+			return;
+
+		if (instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
+
+			switch (instance->pd_list[pd_index].interface) {
+			case SAS_PD:
+				scsi_change_queue_depth(sdev, MEGASAS_SAS_QD);
+				break;
+
+			case SATA_PD:
+				scsi_change_queue_depth(sdev, MEGASAS_SATA_QD);
+				break;
+
+			default:
+				scsi_change_queue_depth(sdev, MEGASAS_DEFAULT_PD_QD);
+			}
+		}
+	}
+}
+
 
 static int megasas_slave_configure(struct scsi_device *sdev)
 {
@@ -1812,6 +1852,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 				return -ENXIO;
 		}
 	}
+	megasas_set_device_queue_depth(sdev);
 	megasas_update_sdev_properties(sdev);
 
 	/*
@@ -3921,6 +3962,73 @@ dcmd_timeout_ocr_possible(struct megasas_instance *instance) {
 		return INITIATE_OCR;
 }
 
+static int
+megasas_get_pd_info(struct megasas_instance *instance, u16 device_id)
+{
+	int ret;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+
+	cmd = megasas_get_cmd(instance);
+
+	if (!cmd) {
+		dev_err(&instance->pdev->dev, "Failed to get cmd %s\n", __func__);
+		return -ENOMEM;
+	}
+
+	dcmd = &cmd->frame->dcmd;
+
+	memset(instance->pd_info, 0, sizeof(*instance->pd_info));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->mbox.s[0] = cpu_to_le16(device_id);
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct MR_PD_INFO));
+	dcmd->opcode = cpu_to_le32(MR_DCMD_PD_GET_INFO);
+	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(instance->pd_info_h);
+	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct MR_PD_INFO));
+
+	if (instance->ctrl_context && !instance->mask_interrupts)
+		ret = megasas_issue_blocked_cmd(instance, cmd, MFI_IO_TIMEOUT_SECS);
+	else
+		ret = megasas_issue_polled(instance, cmd);
+
+	switch (ret) {
+	case DCMD_SUCCESS:
+		instance->pd_list[device_id].interface =
+				instance->pd_info->state.ddf.pdType.intf;
+		break;
+
+	case DCMD_TIMEOUT:
+
+		switch (dcmd_timeout_ocr_possible(instance)) {
+		case INITIATE_OCR:
+			cmd->flags |= DRV_DCMD_SKIP_REFIRE;
+			megasas_reset_fusion(instance->host,
+				MFI_IO_TIMEOUT_OCR);
+			break;
+		case KILL_ADAPTER:
+			megaraid_sas_kill_hba(instance);
+			break;
+		case IGNORE_TIMEOUT:
+			dev_info(&instance->pdev->dev, "Ignore DCMD timeout: %s %d\n",
+				__func__, __LINE__);
+			break;
+		}
+
+		break;
+	}
+
+	if (ret != DCMD_TIMEOUT)
+		megasas_return_cmd(instance, cmd);
+
+	return ret;
+}
 /*
  * megasas_get_pd_list_info -	Returns FW's pd_list structure
  * @instance:				Adapter soft state
@@ -5679,6 +5787,12 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		goto fail_alloc_dma_buf;
 	}
 
+	instance->pd_info = pci_alloc_consistent(pdev,
+		sizeof(struct MR_PD_INFO), &instance->pd_info_h);
+
+	if (!instance->pd_info)
+		dev_err(&instance->pdev->dev, "Failed to alloc mem for pd_info\n");
+
 	/*
 	 * Initialize locks and queues
 	 */
@@ -5695,6 +5809,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	spin_lock_init(&instance->completion_lock);
 
 	mutex_init(&instance->reset_mutex);
+	mutex_init(&instance->hba_mutex);
 
 	/*
 	 * Initialize PCI related and misc parameters
@@ -5809,6 +5924,10 @@ fail_alloc_dma_buf:
 				    instance->evt_detail,
 				    instance->evt_detail_h);
 
+	if (instance->pd_info)
+		pci_free_consistent(pdev, sizeof(struct MR_PD_INFO),
+					instance->pd_info,
+					instance->pd_info_h);
 	if (instance->producer)
 		pci_free_consistent(pdev, sizeof(u32), instance->producer,
 				    instance->producer_h);
@@ -6070,6 +6189,10 @@ fail_init_mfi:
 				instance->evt_detail,
 				instance->evt_detail_h);
 
+	if (instance->pd_info)
+		pci_free_consistent(pdev, sizeof(struct MR_PD_INFO),
+					instance->pd_info,
+					instance->pd_info_h);
 	if (instance->producer)
 		pci_free_consistent(pdev, sizeof(u32), instance->producer,
 				instance->producer_h);
@@ -6188,6 +6311,10 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		pci_free_consistent(pdev, sizeof(struct megasas_evt_detail),
 				instance->evt_detail, instance->evt_detail_h);
 
+	if (instance->pd_info)
+		pci_free_consistent(pdev, sizeof(struct MR_PD_INFO),
+					instance->pd_info,
+					instance->pd_info_h);
 	if (instance->vf_affiliation)
 		pci_free_consistent(pdev, (MAX_LOGICAL_DRIVES + 1) *
 				    sizeof(struct MR_LD_VF_AFFILIATION),

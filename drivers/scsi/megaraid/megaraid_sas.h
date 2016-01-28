@@ -215,6 +215,7 @@
 
 #define MR_DCMD_CTRL_SET_CRASH_DUMP_PARAMS	0x01190100
 #define MR_DRIVER_SET_APP_CRASHDUMP_MODE	(0xF0010000 | 0x0600)
+#define MR_DCMD_PD_GET_INFO			0x02020000
 
 /*
  * Global functions
@@ -435,6 +436,257 @@ enum MR_PD_STATE {
 	MR_PD_STATE_SYSTEM              = 0x40,
  };
 
+union MR_PD_REF {
+	struct {
+		u16	 deviceId;
+		u16	 seqNum;
+	} mrPdRef;
+	u32	 ref;
+};
+
+/*
+ * define the DDF Type bit structure
+ */
+union MR_PD_DDF_TYPE {
+	 struct {
+		union {
+			struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+				 u16	 forcedPDGUID:1;
+				 u16	 inVD:1;
+				 u16	 isGlobalSpare:1;
+				 u16	 isSpare:1;
+				 u16	 isForeign:1;
+				 u16	 reserved:7;
+				 u16	 intf:4;
+#else
+				 u16	 intf:4;
+				 u16	 reserved:7;
+				 u16	 isForeign:1;
+				 u16	 isSpare:1;
+				 u16	 isGlobalSpare:1;
+				 u16	 inVD:1;
+				 u16	 forcedPDGUID:1;
+#endif
+			 } pdType;
+			 u16	 type;
+		 };
+		 u16	 reserved;
+	 } ddf;
+	 struct {
+		 u32	reserved;
+	 } nonDisk;
+	 u32	 type;
+} __packed;
+
+/*
+ * defines the progress structure
+ */
+union MR_PROGRESS {
+	struct  {
+		u16 progress;
+		union {
+			u16 elapsedSecs;
+			u16 elapsedSecsForLastPercent;
+		};
+	} mrProgress;
+	u32 w;
+} __packed;
+
+/*
+ * defines the physical drive progress structure
+ */
+struct MR_PD_PROGRESS {
+	struct {
+#ifndef MFI_BIG_ENDIAN
+		u32     rbld:1;
+		u32     patrol:1;
+		u32     clear:1;
+		u32     copyBack:1;
+		u32     erase:1;
+		u32     locate:1;
+		u32     reserved:26;
+#else
+		u32     reserved:26;
+		u32     locate:1;
+		u32     erase:1;
+		u32     copyBack:1;
+		u32     clear:1;
+		u32     patrol:1;
+		u32     rbld:1;
+#endif
+	} active;
+	union MR_PROGRESS     rbld;
+	union MR_PROGRESS     patrol;
+	union {
+		union MR_PROGRESS     clear;
+		union MR_PROGRESS     erase;
+	};
+
+	struct {
+#ifndef MFI_BIG_ENDIAN
+		u32     rbld:1;
+		u32     patrol:1;
+		u32     clear:1;
+		u32     copyBack:1;
+		u32     erase:1;
+		u32     reserved:27;
+#else
+		u32     reserved:27;
+		u32     erase:1;
+		u32     copyBack:1;
+		u32     clear:1;
+		u32     patrol:1;
+		u32     rbld:1;
+#endif
+	} pause;
+
+	union MR_PROGRESS     reserved[3];
+} __packed;
+
+struct  MR_PD_INFO {
+	union MR_PD_REF	ref;
+	u8 inquiryData[96];
+	u8 vpdPage83[64];
+	u8 notSupported;
+	u8 scsiDevType;
+
+	union {
+		u8 connectedPortBitmap;
+		u8 connectedPortNumbers;
+	};
+
+	u8 deviceSpeed;
+	u32 mediaErrCount;
+	u32 otherErrCount;
+	u32 predFailCount;
+	u32 lastPredFailEventSeqNum;
+
+	u16 fwState;
+	u8 disabledForRemoval;
+	u8 linkSpeed;
+	union MR_PD_DDF_TYPE state;
+
+	struct {
+		u8 count;
+#ifndef __BIG_ENDIAN_BITFIELD
+		u8 isPathBroken:4;
+		u8 reserved3:3;
+		u8 widePortCapable:1;
+#else
+		u8 widePortCapable:1;
+		u8 reserved3:3;
+		u8 isPathBroken:4;
+#endif
+
+		u8 connectorIndex[2];
+		u8 reserved[4];
+		u64 sasAddr[2];
+		u8 reserved2[16];
+	} pathInfo;
+
+	u64 rawSize;
+	u64 nonCoercedSize;
+	u64 coercedSize;
+	u16 enclDeviceId;
+	u8 enclIndex;
+
+	union {
+		u8 slotNumber;
+		u8 enclConnectorIndex;
+	};
+
+	struct MR_PD_PROGRESS progInfo;
+	u8 badBlockTableFull;
+	u8 unusableInCurrentConfig;
+	u8 vpdPage83Ext[64];
+	u8 powerState;
+	u8 enclPosition;
+	u32 allowedOps;
+	u16 copyBackPartnerId;
+	u16 enclPartnerDeviceId;
+	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+		u16 fdeCapable:1;
+		u16 fdeEnabled:1;
+		u16 secured:1;
+		u16 locked:1;
+		u16 foreign:1;
+		u16 needsEKM:1;
+		u16 reserved:10;
+#else
+		u16 reserved:10;
+		u16 needsEKM:1;
+		u16 foreign:1;
+		u16 locked:1;
+		u16 secured:1;
+		u16 fdeEnabled:1;
+		u16 fdeCapable:1;
+#endif
+	} security;
+	u8 mediaType;
+	u8 notCertified;
+	u8 bridgeVendor[8];
+	u8 bridgeProductIdentification[16];
+	u8 bridgeProductRevisionLevel[4];
+	u8 satBridgeExists;
+
+	u8 interfaceType;
+	u8 temperature;
+	u8 emulatedBlockSize;
+	u16 userDataBlockSize;
+	u16 reserved2;
+
+	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+		u32 piType:3;
+		u32 piFormatted:1;
+		u32 piEligible:1;
+		u32 NCQ:1;
+		u32 WCE:1;
+		u32 commissionedSpare:1;
+		u32 emergencySpare:1;
+		u32 ineligibleForSSCD:1;
+		u32 ineligibleForLd:1;
+		u32 useSSEraseType:1;
+		u32 wceUnchanged:1;
+		u32 supportScsiUnmap:1;
+		u32 reserved:18;
+#else
+		u32 reserved:18;
+		u32 supportScsiUnmap:1;
+		u32 wceUnchanged:1;
+		u32 useSSEraseType:1;
+		u32 ineligibleForLd:1;
+		u32 ineligibleForSSCD:1;
+		u32 emergencySpare:1;
+		u32 commissionedSpare:1;
+		u32 WCE:1;
+		u32 NCQ:1;
+		u32 piEligible:1;
+		u32 piFormatted:1;
+		u32 piType:3;
+#endif
+	} properties;
+
+	u64 shieldDiagCompletionTime;
+	u8 shieldCounter;
+
+	u8 linkSpeedOther;
+	u8 reserved4[2];
+
+	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+		u32 bbmErrCountSupported:1;
+		u32 bbmErrCount:31;
+#else
+		u32 bbmErrCount:31;
+		u32 bbmErrCountSupported:1;
+#endif
+	} bbmErr;
+
+	u8 reserved1[512-428];
+} __packed;
 
  /*
  * defines the physical drive address structure
@@ -474,6 +726,7 @@ struct megasas_pd_list {
 	u16             tid;
 	u8             driveType;
 	u8             driveState;
+	u8             interface;
 } __packed;
 
  /*
@@ -1718,6 +1971,19 @@ struct MR_DRV_SYSTEM_INFO {
 	u8	reserved[1980];
 };
 
+enum MR_PD_TYPE {
+		 UNKNOWN_DRIVE = 0,
+		 PARALLEL_SCSI = 1,
+		 SAS_PD = 2,
+		 SATA_PD = 3,
+		 FC_PD = 4,
+};
+
+/* JBOD Queue depth definitions */
+#define MEGASAS_SATA_QD	32
+#define MEGASAS_SAS_QD	64
+#define MEGASAS_DEFAULT_PD_QD	64
+
 struct megasas_instance {
 
 	__le32 *producer;
@@ -1732,6 +1998,8 @@ struct megasas_instance {
 	dma_addr_t vf_affiliation_111_h;
 	struct MR_CTRL_HB_HOST_MEM *hb_host_mem;
 	dma_addr_t hb_host_mem_h;
+	struct MR_PD_INFO *pd_info;
+	dma_addr_t pd_info_h;
 
 	__le32 *reply_queue;
 	dma_addr_t reply_queue_h;
@@ -1780,7 +2048,7 @@ struct megasas_instance {
 	struct megasas_evt_detail *evt_detail;
 	dma_addr_t evt_detail_h;
 	struct megasas_cmd *aen_cmd;
-	struct mutex aen_mutex;
+	struct mutex hba_mutex;
 	struct semaphore ioctl_sem;
 
 	struct Scsi_Host *host;
