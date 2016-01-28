@@ -218,6 +218,11 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 		ahid_addr = pd->uctx->ah_tbl.va + attr->dlid;
 		*ahid_addr = 0;
 		*ahid_addr |= ah->id & OCRDMA_AH_ID_MASK;
+		if (ocrdma_is_udp_encap_supported(dev)) {
+			*ahid_addr |= ((u32)ah->hdr_type &
+				       OCRDMA_AH_L3_TYPE_MASK) <<
+				       OCRDMA_AH_L3_TYPE_SHIFT;
+		}
 		if (isvlan)
 			*ahid_addr |= (OCRDMA_AH_VLAN_VALID_MASK <<
 				       OCRDMA_AH_VLAN_VALID_SHIFT);
