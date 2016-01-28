@@ -46,6 +46,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
+	platform_set_drvdata(pdev, ctrl);
 
 	if (np) {
 		err = of_property_read_u32(np, "ngpios", &ath79_gpio_count);
@@ -97,12 +98,21 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int ath79_gpio_remove(struct platform_device *pdev)
+{
+	struct ath79_gpio_ctrl *ctrl = platform_get_drvdata(pdev);
+
+	gpiochip_remove(&ctrl->gc);
+	return 0;
+}
+
 static struct platform_driver ath79_gpio_driver = {
 	.driver = {
 		.name = "ath79-gpio",
 		.of_match_table	= ath79_gpio_of_match,
 	},
 	.probe = ath79_gpio_probe,
+	.remove = ath79_gpio_remove,
 };
 
 module_platform_driver(ath79_gpio_driver);
