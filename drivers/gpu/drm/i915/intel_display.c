@@ -11726,7 +11726,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 cleanup_unpin:
 	intel_unpin_fb_obj(fb, crtc->primary->state);
 cleanup_pending:
-	if (request)
+	if (!IS_ERR_OR_NULL(request))
 		i915_gem_request_cancel(request);
 	atomic_dec(&intel_crtc->unpin_work_count);
 	mutex_unlock(&dev->struct_mutex);

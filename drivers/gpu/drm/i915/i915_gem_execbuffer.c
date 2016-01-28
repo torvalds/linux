@@ -1655,7 +1655,7 @@ err:
 	 * must be freed again. If it was submitted then it is being tracked
 	 * on the active request list and no clean up is required here.
 	 */
-	if (ret && req)
+	if (ret && !IS_ERR_OR_NULL(req))
 		i915_gem_request_cancel(req);
 
 	mutex_unlock(&dev->struct_mutex);
