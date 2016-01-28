@@ -1116,6 +1116,8 @@ static int intel_lr_context_pin(struct intel_context *ctx,
 		ret = intel_lr_context_do_pin(ctx, engine);
 		if (ret)
 			goto reset_pin_count;
+
+		i915_gem_context_reference(ctx);
 	}
 	return ret;
 
@@ -1141,6 +1143,8 @@ void intel_lr_context_unpin(struct intel_context *ctx,
 		ctx->engine[engine->id].lrc_vma = NULL;
 		ctx->engine[engine->id].lrc_desc = 0;
 		ctx->engine[engine->id].lrc_reg_state = NULL;
+
+		i915_gem_context_unreference(ctx);
 	}
 }
 
