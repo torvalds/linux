@@ -3222,6 +3222,7 @@ _scsih_tm_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	Mpi2SasIoUnitControlRequest_t *mpi_request;
 	u16 smid_sas_ctrl;
 	u32 ioc_state;
+	struct _sc_list *delayed_sc;
 
 	if (ioc->remove_host) {
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
@@ -3264,9 +3265,16 @@ _scsih_tm_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	smid_sas_ctrl = mpt3sas_base_get_smid(ioc, ioc->tm_sas_control_cb_idx);
 	if (!smid_sas_ctrl) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
-		return 1;
+		delayed_sc = kzalloc(sizeof(*delayed_sc), GFP_ATOMIC);
+		if (!delayed_sc)
+			return _scsih_check_for_pending_tm(ioc, smid);
+		INIT_LIST_HEAD(&delayed_sc->list);
+		delayed_sc->handle = mpi_request_tm->DevHandle;
+		list_add_tail(&delayed_sc->list, &ioc->delayed_sc_list);
+		dewtprintk(ioc, pr_info(MPT3SAS_FMT
+		    "DELAYED:sc:handle(0x%04x), (open)\n",
+		    ioc->name, handle));
+		return _scsih_check_for_pending_tm(ioc, smid);
 	}
 
 	dewtprintk(ioc, pr_info(MPT3SAS_FMT
@@ -3317,7 +3325,7 @@ _scsih_sas_control_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		pr_err(MPT3SAS_FMT "mpi_reply not valid at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 	}
-	return 1;
+	return mpt3sas_check_for_pending_internal_cmds(ioc, smid);
 }
 
 /**
@@ -3424,6 +3432,142 @@ _scsih_tm_volume_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	return _scsih_check_for_pending_tm(ioc, smid);
 }
 
+/**
+ * _scsih_issue_delayed_event_ack - issue delayed Event ACK messages
+ * @ioc: per adapter object
+ * @smid: system request message index
+ * @event: Event ID
+ * @event_context: used to track events uniquely
+ *
+ * Context - processed in interrupt context.
+ */
+void
+_scsih_issue_delayed_event_ack(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 event,
+				u32 event_context)
+{
+	Mpi2EventAckRequest_t *ack_request;
+	int i = smid - ioc->internal_smid;
+	unsigned long flags;
+
+	/* Without releasing the smid just update the
+	 * call back index and reuse the same smid for
+	 * processing this delayed request
+	 */
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	ioc->internal_lookup[i].cb_idx = ioc->base_cb_idx;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	dewtprintk(ioc, pr_info(MPT3SAS_FMT
+		"EVENT ACK: event(0x%04x), smid(%d), cb(%d)\n",
+		ioc->name, le16_to_cpu(event), smid,
+		ioc->base_cb_idx));
+	ack_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	memset(ack_request, 0, sizeof(Mpi2EventAckRequest_t));
+	ack_request->Function = MPI2_FUNCTION_EVENT_ACK;
+	ack_request->Event = event;
+	ack_request->EventContext = event_context;
+	ack_request->VF_ID = 0;  /* TODO */
+	ack_request->VP_ID = 0;
+	mpt3sas_base_put_smid_default(ioc, smid);
+}
+
+/**
+ * _scsih_issue_delayed_sas_io_unit_ctrl - issue delayed
+ *				sas_io_unit_ctrl messages
+ * @ioc: per adapter object
+ * @smid: system request message index
+ * @handle: device handle
+ *
+ * Context - processed in interrupt context.
+ */
+void
+_scsih_issue_delayed_sas_io_unit_ctrl(struct MPT3SAS_ADAPTER *ioc,
+					u16 smid, u16 handle)
+	{
+		Mpi2SasIoUnitControlRequest_t *mpi_request;
+		u32 ioc_state;
+		int i = smid - ioc->internal_smid;
+		unsigned long flags;
+
+		if (ioc->remove_host) {
+			dewtprintk(ioc, pr_info(MPT3SAS_FMT
+			    "%s: host has been removed\n",
+			     __func__, ioc->name));
+			return;
+		} else if (ioc->pci_error_recovery) {
+			dewtprintk(ioc, pr_info(MPT3SAS_FMT
+			    "%s: host in pci error recovery\n",
+			    __func__, ioc->name));
+		return;
+	}
+	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
+	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
+		dewtprintk(ioc, pr_info(MPT3SAS_FMT
+		    "%s: host is not operational\n",
+		    __func__, ioc->name));
+		return;
+	}
+
+	/* Without releasing the smid just update the
+	 * call back index and reuse the same smid for
+	 * processing this delayed request
+	 */
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	ioc->internal_lookup[i].cb_idx = ioc->tm_sas_control_cb_idx;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	dewtprintk(ioc, pr_info(MPT3SAS_FMT
+	    "sc_send:handle(0x%04x), (open), smid(%d), cb(%d)\n",
+	    ioc->name, le16_to_cpu(handle), smid,
+	    ioc->tm_sas_control_cb_idx));
+	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	memset(mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
+	mpi_request->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
+	mpi_request->DevHandle = handle;
+	mpt3sas_base_put_smid_default(ioc, smid);
+}
+
+/**
+ * _scsih_check_for_pending_internal_cmds - check for pending internal messages
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * Context: Executed in interrupt context
+ *
+ * This will check delayed internal messages list, and process the
+ * next request.
+ *
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
+ */
+u8
+mpt3sas_check_for_pending_internal_cmds(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+{
+	struct _sc_list *delayed_sc;
+	struct _event_ack_list *delayed_event_ack;
+
+	if (!list_empty(&ioc->delayed_event_ack_list)) {
+		delayed_event_ack = list_entry(ioc->delayed_event_ack_list.next,
+						struct _event_ack_list, list);
+		_scsih_issue_delayed_event_ack(ioc, smid,
+		  delayed_event_ack->Event, delayed_event_ack->EventContext);
+		list_del(&delayed_event_ack->list);
+		kfree(delayed_event_ack);
+		return 0;
+	}
+
+	if (!list_empty(&ioc->delayed_sc_list)) {
+		delayed_sc = list_entry(ioc->delayed_sc_list.next,
+						struct _sc_list, list);
+		_scsih_issue_delayed_sas_io_unit_ctrl(ioc, smid,
+						 delayed_sc->handle);
+		list_del(&delayed_sc->list);
+		kfree(delayed_sc);
+		return 0;
+	}
+	return 1;
+}
 
 /**
  * _scsih_check_for_pending_tm - check for pending task management
@@ -8589,6 +8733,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ioc->raid_device_list);
 	INIT_LIST_HEAD(&ioc->sas_hba.sas_port_list);
 	INIT_LIST_HEAD(&ioc->delayed_tr_list);
+	INIT_LIST_HEAD(&ioc->delayed_sc_list);
+	INIT_LIST_HEAD(&ioc->delayed_event_ack_list);
 	INIT_LIST_HEAD(&ioc->delayed_tr_volume_list);
 	INIT_LIST_HEAD(&ioc->reply_queue_list);
 

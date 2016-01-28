@@ -122,6 +122,8 @@
 #define  NO_SLEEP			0
 
 #define INTERNAL_CMDS_COUNT		10	/* reserved cmds */
+/* reserved for issuing internally framed scsi io cmds */
+#define INTERNAL_SCSIIO_CMDS_COUNT	3
 
 #define MPI3_HIM_MASK			0xFFFFFFFF /* mask every bit*/
 
@@ -677,6 +679,25 @@ struct _tr_list {
 	u16	state;
 };
 
+/**
+ * struct _sc_list - delayed SAS_IO_UNIT_CONTROL message list
+ * @handle: device handle
+ */
+struct _sc_list {
+	struct list_head list;
+	u16     handle;
+};
+
+/**
+ * struct _event_ack_list - delayed event acknowledgment list
+ * @Event: Event ID
+ * @EventContext: used to track the event uniquely
+ */
+struct _event_ack_list {
+	struct list_head list;
+	u16     Event;
+	u32     EventContext;
+};
 
 /**
  * struct adapter_reply_queue - the reply queue struct
@@ -922,6 +943,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @replyPostRegisterIndex: index of next position in Reply Desc Post Queue
  * @delayed_tr_list: target reset link list
  * @delayed_tr_volume_list: volume target reset link list
+ * @delayed_sc_list:
+ * @delayed_event_ack_list:
  * @temp_sensors_count: flag to carry the number of temperature sensors
  * @pci_access_mutex: Mutex to synchronize ioctl,sysfs show path and
  *	pci resource handling. PCI resource freeing will lead to free
@@ -1143,6 +1166,8 @@ struct MPT3SAS_ADAPTER {
 
 	struct list_head delayed_tr_list;
 	struct list_head delayed_tr_volume_list;
+	struct list_head delayed_sc_list;
+	struct list_head delayed_event_ack_list;
 	u8		temp_sensors_count;
 	struct mutex pci_access_mutex;
 
@@ -1260,6 +1285,8 @@ void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
 void mpt3sas_device_remove_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
 	u64 sas_address);
+u8 mpt3sas_check_for_pending_internal_cmds(struct MPT3SAS_ADAPTER *ioc,
+	u16 smid);
 
 struct _sas_node *mpt3sas_scsih_expander_find_by_handle(
 	struct MPT3SAS_ADAPTER *ioc, u16 handle);

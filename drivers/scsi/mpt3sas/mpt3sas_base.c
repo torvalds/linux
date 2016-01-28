@@ -775,7 +775,7 @@ mpt3sas_base_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	if (mpi_reply && mpi_reply->Function == MPI2_FUNCTION_EVENT_ACK)
-		return 1;
+		return mpt3sas_check_for_pending_internal_cmds(ioc, smid);
 
 	if (ioc->base_cmds.status == MPT3_CMD_NOT_USED)
 		return 1;
@@ -806,6 +806,7 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 	Mpi2EventNotificationReply_t *mpi_reply;
 	Mpi2EventAckRequest_t *ack_request;
 	u16 smid;
+	struct _event_ack_list *delayed_event_ack;
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	if (!mpi_reply)
@@ -819,8 +820,18 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 		goto out;
 	smid = mpt3sas_base_get_smid(ioc, ioc->base_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		delayed_event_ack = kzalloc(sizeof(*delayed_event_ack),
+					GFP_ATOMIC);
+		if (!delayed_event_ack)
+			goto out;
+		INIT_LIST_HEAD(&delayed_event_ack->list);
+		delayed_event_ack->Event = mpi_reply->Event;
+		delayed_event_ack->EventContext = mpi_reply->EventContext;
+		list_add_tail(&delayed_event_ack->list,
+				&ioc->delayed_event_ack_list);
+		dewtprintk(ioc, pr_info(MPT3SAS_FMT
+				"DELAYED: EVENT ACK: event (0x%04x)\n",
+				ioc->name, le16_to_cpu(mpi_reply->Event)));
 		goto out;
 	}
 
@@ -3189,20 +3200,35 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	}
 	ioc->shost->sg_tablesize = sg_tablesize;
 
-	ioc->hi_priority_depth = facts->HighPriorityCredit;
-	ioc->internal_depth = ioc->hi_priority_depth + (5);
+	ioc->internal_depth = min_t(int, (facts->HighPriorityCredit + (5)),
+		(facts->RequestCredit / 4));
+	if (ioc->internal_depth < INTERNAL_CMDS_COUNT) {
+		if (facts->RequestCredit <= (INTERNAL_CMDS_COUNT +
+				INTERNAL_SCSIIO_CMDS_COUNT)) {
+			pr_err(MPT3SAS_FMT "IOC doesn't have enough Request \
+			    Credits, it has just %d number of credits\n",
+			    ioc->name, facts->RequestCredit);
+			return -ENOMEM;
+		}
+		ioc->internal_depth = 10;
+	}
+
+	ioc->hi_priority_depth = ioc->internal_depth - (5);
 	/* command line tunables  for max controller queue depth */
 	if (max_queue_depth != -1 && max_queue_depth != 0) {
 		max_request_credit = min_t(u16, max_queue_depth +
-		    ioc->hi_priority_depth + ioc->internal_depth,
-		    facts->RequestCredit);
+			ioc->internal_depth, facts->RequestCredit);
 		if (max_request_credit > MAX_HBA_QUEUE_DEPTH)
 			max_request_credit =  MAX_HBA_QUEUE_DEPTH;
 	} else
 		max_request_credit = min_t(u16, facts->RequestCredit,
 		    MAX_HBA_QUEUE_DEPTH);
 
-	ioc->hba_queue_depth = max_request_credit;
+	/* Firmware maintains additional facts->HighPriorityCredit number of
+	 * credits for HiPriprity Request messages, so hba queue depth will be
+	 * sum of max_request_credit and high priority queue depth.
+	 */
+	ioc->hba_queue_depth = max_request_credit + ioc->hi_priority_depth;
 
 	/* request frame size */
 	ioc->request_sz = facts->IOCRequestFrameSize * 4;
@@ -3248,7 +3274,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (ioc->reply_post_queue_depth % 16)
 		ioc->reply_post_queue_depth += 16 -
 		(ioc->reply_post_queue_depth % 16);
-
 
 	if (ioc->reply_post_queue_depth >
 	    facts->MaxReplyDescriptorPostQueueDepth) {
@@ -3331,7 +3356,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	/* set the scsi host can_queue depth
 	 * with some internal commands that could be outstanding
 	 */
-	ioc->shost->can_queue = ioc->scsiio_depth;
+	ioc->shost->can_queue = ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT;
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		"scsi host: can_queue depth (%d)\n",
 		ioc->name, ioc->shost->can_queue));
@@ -3358,8 +3383,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		    ioc->chains_needed_per_io, ioc->request_sz, sz/1024);
 		if (ioc->scsiio_depth < MPT3SAS_SAS_QUEUE_DEPTH)
 			goto out;
-		retry_sz += 64;
-		ioc->hba_queue_depth = max_request_credit - retry_sz;
+		retry_sz = 64;
+		ioc->hba_queue_depth -= retry_sz;
 		goto retry_allocation;
 	}
 
@@ -4977,6 +5002,8 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	u32 reply_address;
 	u16 smid;
 	struct _tr_list *delayed_tr, *delayed_tr_next;
+	struct _sc_list *delayed_sc, *delayed_sc_next;
+	struct _event_ack_list *delayed_event_ack, *delayed_event_ack_next;
 	u8 hide_flag;
 	struct adapter_reply_queue *reply_q;
 	long reply_post_free;
@@ -4997,6 +5024,18 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	    &ioc->delayed_tr_volume_list, list) {
 		list_del(&delayed_tr->list);
 		kfree(delayed_tr);
+	}
+
+	list_for_each_entry_safe(delayed_sc, delayed_sc_next,
+	    &ioc->delayed_sc_list, list) {
+		list_del(&delayed_sc->list);
+		kfree(delayed_sc);
+	}
+
+	list_for_each_entry_safe(delayed_event_ack, delayed_event_ack_next,
+	    &ioc->delayed_event_ack_list, list) {
+		list_del(&delayed_event_ack->list);
+		kfree(delayed_event_ack);
 	}
 
 	/* initialize the scsi lookup free list */
