@@ -299,9 +299,14 @@ static int pcm3168a_set_dai_sysclk(struct snd_soc_dai *dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct pcm3168a_priv *pcm3168a = snd_soc_codec_get_drvdata(dai->codec);
+	int ret;
 
 	if (freq > PCM1368A_MAX_SYSCLK)
 		return -EINVAL;
+
+	ret = clk_set_rate(pcm3168a->scki, freq);
+	if (ret)
+		return ret;
 
 	pcm3168a->sysclk = freq;
 
