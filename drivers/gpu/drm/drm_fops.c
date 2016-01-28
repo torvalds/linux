@@ -678,6 +678,50 @@ unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait)
 EXPORT_SYMBOL(drm_poll);
 
 /**
+ * drm_event_reserve_init_locked - init a DRM event and reserve space for it
+ * @dev: DRM device
+ * @file_priv: DRM file private data
+ * @p: tracking structure for the pending event
+ * @e: actual event data to deliver to userspace
+ *
+ * This function prepares the passed in event for eventual delivery. If the event
+ * doesn't get delivered (because the IOCTL fails later on, before queuing up
+ * anything) then the even must be cancelled and freed using
+ * drm_event_cancel_free(). Successfully initialized events should be sent out
+ * using drm_send_event() or drm_send_event_locked() to signal completion of the
+ * asynchronous event to userspace.
+ *
+ * If callers embedded @p into a larger structure it must be allocated with
+ * kmalloc and @p must be the first member element.
+ *
+ * This is the locked version of drm_event_reserve_init() for callers which
+ * already hold dev->event_lock.
+ *
+ * RETURNS:
+ *
+ * 0 on success or a negative error code on failure.
+ */
+int drm_event_reserve_init_locked(struct drm_device *dev,
+				  struct drm_file *file_priv,
+				  struct drm_pending_event *p,
+				  struct drm_event *e)
+{
+	if (file_priv->event_space < e->length)
+		return -ENOMEM;
+
+	file_priv->event_space -= e->length;
+
+	p->event = e;
+	p->file_priv = file_priv;
+
+	/* we *could* pass this in as arg, but everyone uses kfree: */
+	p->destroy = (void (*) (struct drm_pending_event *)) kfree;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_event_reserve_init_locked);
+
+/**
  * drm_event_reserve_init - init a DRM event and reserve space for it
  * @dev: DRM device
  * @file_priv: DRM file private data
@@ -694,6 +738,9 @@ EXPORT_SYMBOL(drm_poll);
  * If callers embedded @p into a larger structure it must be allocated with
  * kmalloc and @p must be the first member element.
  *
+ * Callers which already hold dev->event_lock should use
+ * drm_event_reserve_init() instead.
+ *
  * RETURNS:
  *
  * 0 on success or a negative error code on failure.
@@ -704,25 +751,12 @@ int drm_event_reserve_init(struct drm_device *dev,
 			   struct drm_event *e)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (file_priv->event_space < e->length) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	file_priv->event_space -= e->length;
-
-	p->event = e;
-	p->file_priv = file_priv;
-
-	/* we *could* pass this in as arg, but everyone uses kfree: */
-	p->destroy = (void (*) (struct drm_pending_event *)) kfree;
-
-out:
+	ret = drm_event_reserve_init_locked(dev, file_priv, p, e);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_event_reserve_init);
