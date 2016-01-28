@@ -7413,6 +7413,71 @@ unlock:
 		buf[len] = 0;
 }
 
+int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
+				   enum wmi_vdev_subtype subtype)
+{
+	switch (subtype) {
+	case WMI_VDEV_SUBTYPE_NONE:
+		return WMI_VDEV_SUBTYPE_LEGACY_NONE;
+	case WMI_VDEV_SUBTYPE_P2P_DEVICE:
+		return WMI_VDEV_SUBTYPE_LEGACY_P2P_DEV;
+	case WMI_VDEV_SUBTYPE_P2P_CLIENT:
+		return WMI_VDEV_SUBTYPE_LEGACY_P2P_CLI;
+	case WMI_VDEV_SUBTYPE_P2P_GO:
+		return WMI_VDEV_SUBTYPE_LEGACY_P2P_GO;
+	case WMI_VDEV_SUBTYPE_PROXY_STA:
+		return WMI_VDEV_SUBTYPE_LEGACY_PROXY_STA;
+	case WMI_VDEV_SUBTYPE_MESH_11S:
+	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
+		return -ENOTSUPP;
+	}
+	return -ENOTSUPP;
+}
+
+static int ath10k_wmi_10_2_4_op_get_vdev_subtype(struct ath10k *ar,
+						 enum wmi_vdev_subtype subtype)
+{
+	switch (subtype) {
+	case WMI_VDEV_SUBTYPE_NONE:
+		return WMI_VDEV_SUBTYPE_10_2_4_NONE;
+	case WMI_VDEV_SUBTYPE_P2P_DEVICE:
+		return WMI_VDEV_SUBTYPE_10_2_4_P2P_DEV;
+	case WMI_VDEV_SUBTYPE_P2P_CLIENT:
+		return WMI_VDEV_SUBTYPE_10_2_4_P2P_CLI;
+	case WMI_VDEV_SUBTYPE_P2P_GO:
+		return WMI_VDEV_SUBTYPE_10_2_4_P2P_GO;
+	case WMI_VDEV_SUBTYPE_PROXY_STA:
+		return WMI_VDEV_SUBTYPE_10_2_4_PROXY_STA;
+	case WMI_VDEV_SUBTYPE_MESH_11S:
+		return WMI_VDEV_SUBTYPE_10_2_4_MESH_11S;
+	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
+		return -ENOTSUPP;
+	}
+	return -ENOTSUPP;
+}
+
+static int ath10k_wmi_10_4_op_get_vdev_subtype(struct ath10k *ar,
+					       enum wmi_vdev_subtype subtype)
+{
+	switch (subtype) {
+	case WMI_VDEV_SUBTYPE_NONE:
+		return WMI_VDEV_SUBTYPE_10_4_NONE;
+	case WMI_VDEV_SUBTYPE_P2P_DEVICE:
+		return WMI_VDEV_SUBTYPE_10_4_P2P_DEV;
+	case WMI_VDEV_SUBTYPE_P2P_CLIENT:
+		return WMI_VDEV_SUBTYPE_10_4_P2P_CLI;
+	case WMI_VDEV_SUBTYPE_P2P_GO:
+		return WMI_VDEV_SUBTYPE_10_4_P2P_GO;
+	case WMI_VDEV_SUBTYPE_PROXY_STA:
+		return WMI_VDEV_SUBTYPE_10_4_PROXY_STA;
+	case WMI_VDEV_SUBTYPE_MESH_11S:
+		return WMI_VDEV_SUBTYPE_10_4_MESH_11S;
+	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
+		return WMI_VDEV_SUBTYPE_10_4_MESH_NON_11S;
+	}
+	return -ENOTSUPP;
+}
+
 static const struct wmi_ops wmi_ops = {
 	.rx = ath10k_wmi_op_rx,
 	.map_svc = wmi_main_svc_map,
@@ -7472,6 +7537,7 @@ static const struct wmi_ops wmi_ops = {
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_main_op_fw_stats_fill,
+	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -7539,6 +7605,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_10x_op_fw_stats_fill,
+	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -7607,6 +7674,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_10x_op_fw_stats_fill,
+	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
 	/* .gen_pdev_enable_adaptive_cca not implemented */
 };
 
@@ -7673,6 +7741,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.fw_stats_fill = ath10k_wmi_10x_op_fw_stats_fill,
 	.gen_pdev_enable_adaptive_cca =
 		ath10k_wmi_op_gen_pdev_enable_adaptive_cca,
+	.get_vdev_subtype = ath10k_wmi_10_2_4_op_get_vdev_subtype,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -7739,6 +7808,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	/* shared with 10.2 */
 	.gen_request_stats = ath10k_wmi_op_gen_request_stats,
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
+	.get_vdev_subtype = ath10k_wmi_10_4_op_get_vdev_subtype,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)

@@ -4295,12 +4295,40 @@ enum wmi_vdev_type {
 };
 
 enum wmi_vdev_subtype {
-	WMI_VDEV_SUBTYPE_NONE       = 0,
-	WMI_VDEV_SUBTYPE_P2P_DEVICE = 1,
-	WMI_VDEV_SUBTYPE_P2P_CLIENT = 2,
-	WMI_VDEV_SUBTYPE_P2P_GO     = 3,
-	WMI_VDEV_SUBTYPE_PROXY_STA	= 4,
-	WMI_VDEV_SUBTYPE_MESH_11S   = 5,
+	WMI_VDEV_SUBTYPE_NONE,
+	WMI_VDEV_SUBTYPE_P2P_DEVICE,
+	WMI_VDEV_SUBTYPE_P2P_CLIENT,
+	WMI_VDEV_SUBTYPE_P2P_GO,
+	WMI_VDEV_SUBTYPE_PROXY_STA,
+	WMI_VDEV_SUBTYPE_MESH_11S,
+	WMI_VDEV_SUBTYPE_MESH_NON_11S,
+};
+
+enum wmi_vdev_subtype_legacy {
+	WMI_VDEV_SUBTYPE_LEGACY_NONE      = 0,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_DEV   = 1,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_CLI   = 2,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_GO    = 3,
+	WMI_VDEV_SUBTYPE_LEGACY_PROXY_STA = 4,
+};
+
+enum wmi_vdev_subtype_10_2_4 {
+	WMI_VDEV_SUBTYPE_10_2_4_NONE      = 0,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_DEV   = 1,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_CLI   = 2,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_GO    = 3,
+	WMI_VDEV_SUBTYPE_10_2_4_PROXY_STA = 4,
+	WMI_VDEV_SUBTYPE_10_2_4_MESH_11S  = 5,
+};
+
+enum wmi_vdev_subtype_10_4 {
+	WMI_VDEV_SUBTYPE_10_4_NONE         = 0,
+	WMI_VDEV_SUBTYPE_10_4_P2P_DEV      = 1,
+	WMI_VDEV_SUBTYPE_10_4_P2P_CLI      = 2,
+	WMI_VDEV_SUBTYPE_10_4_P2P_GO       = 3,
+	WMI_VDEV_SUBTYPE_10_4_PROXY_STA    = 4,
+	WMI_VDEV_SUBTYPE_10_4_MESH_NON_11S = 5,
+	WMI_VDEV_SUBTYPE_10_4_MESH_11S     = 6,
 };
 
 /* values for vdev_subtype */
@@ -6471,5 +6499,7 @@ size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
 void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				      struct ath10k_fw_stats *fw_stats,
 				      char *buf);
+int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
+				   enum wmi_vdev_subtype subtype);
 
 #endif /* _WMI_H_ */

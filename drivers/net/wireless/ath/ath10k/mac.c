@@ -4359,25 +4359,29 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		   bit, ar->free_vdev_map);
 
 	arvif->vdev_id = bit;
-	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
+	arvif->vdev_subtype =
+		ath10k_wmi_get_vdev_subtype(ar, WMI_VDEV_SUBTYPE_NONE);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
 		arvif->vdev_type = WMI_VDEV_TYPE_STA;
-		arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_DEVICE;
+		arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+					(ar, WMI_VDEV_SUBTYPE_P2P_DEVICE);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 		arvif->vdev_type = WMI_VDEV_TYPE_STA;
 		if (vif->p2p)
-			arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_CLIENT;
+			arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+					(ar, WMI_VDEV_SUBTYPE_P2P_CLIENT);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		arvif->vdev_type = WMI_VDEV_TYPE_IBSS;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (test_bit(WMI_SERVICE_MESH_11S, ar->wmi.svc_map)) {
-			arvif->vdev_subtype = WMI_VDEV_SUBTYPE_MESH_11S;
+			arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+						(ar, WMI_VDEV_SUBTYPE_MESH_11S);
 		} else if (!test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 			ret = -EINVAL;
 			ath10k_warn(ar, "must load driver with rawmode=1 to add mesh interfaces\n");
@@ -4389,7 +4393,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		arvif->vdev_type = WMI_VDEV_TYPE_AP;
 
 		if (vif->p2p)
-			arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_GO;
+			arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+						(ar, WMI_VDEV_SUBTYPE_P2P_GO);
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		arvif->vdev_type = WMI_VDEV_TYPE_MONITOR;
