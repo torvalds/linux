@@ -17,6 +17,9 @@
 #include <asm/smp_scu.h>
 #include "common.h"
 
+
+void __iomem *shmobile_scu_base;
+
 static int shmobile_smp_scu_notifier_call(struct notifier_block *nfb,
 					  unsigned long action, void *hcpu)
 {
