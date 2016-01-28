@@ -398,6 +398,7 @@ struct MPT3SAS_DEVICE {
 	u8	configured_lun;
 	u8	block;
 	u8	tlr_snoop_check;
+	u8	ignore_delay_remove;
 };
 
 #define MPT3_CMD_NOT_USED	0x8000	/* free */

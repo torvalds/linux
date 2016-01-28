@@ -1953,7 +1953,15 @@ scsih_slave_configure(struct scsi_device *sdev)
 	if (sas_device->device_info & MPI2_SAS_DEVICE_INFO_SSP_TARGET) {
 		qdepth = MPT3SAS_SAS_QUEUE_DEPTH;
 		ssp_target = 1;
-		ds = "SSP";
+		if (sas_device->device_info &
+				MPI2_SAS_DEVICE_INFO_SEP) {
+			sdev_printk(KERN_WARNING, sdev,
+			"set ignore_delay_remove for handle(0x%04x)\n",
+			sas_device_priv_data->sas_target->handle);
+			sas_device_priv_data->ignore_delay_remove = 1;
+			ds = "SES";
+		} else
+			ds = "SSP";
 	} else {
 		qdepth = MPT3SAS_SATA_QUEUE_DEPTH;
 		if (sas_device->device_info & MPI2_SAS_DEVICE_INFO_STP_TARGET)
@@ -2943,6 +2951,12 @@ _scsih_block_io_all_device(struct MPT3SAS_ADAPTER *ioc)
 			continue;
 		if (sas_device_priv_data->block)
 			continue;
+		if (sas_device_priv_data->ignore_delay_remove) {
+			sdev_printk(KERN_INFO, sdev,
+			"%s skip device_block for SES handle(0x%04x)\n",
+			__func__, sas_device_priv_data->sas_target->handle);
+			continue;
+		}
 		_scsih_internal_device_block(sdev, sas_device_priv_data);
 	}
 }
@@ -2975,6 +2989,12 @@ _scsih_block_io_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 			continue;
 		if (sas_device->pend_sas_rphy_add)
 			continue;
+		if (sas_device_priv_data->ignore_delay_remove) {
+			sdev_printk(KERN_INFO, sdev,
+			"%s skip device_block for SES handle(0x%04x)\n",
+			__func__, sas_device_priv_data->sas_target->handle);
+			continue;
+		}
 		_scsih_internal_device_block(sdev, sas_device_priv_data);
 	}
 
