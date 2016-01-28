@@ -255,7 +255,6 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 
 	tdev->func = func;
 	tdev->pdev = pdev;
-	tdev->irq = -1;
 
 	tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(tdev->vdd)) {
