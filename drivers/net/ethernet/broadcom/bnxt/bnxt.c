@@ -4819,8 +4819,6 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 		stats->multicast += le64_to_cpu(hw_stats->rx_mcast_pkts);
 
-		stats->rx_dropped += le64_to_cpu(hw_stats->rx_drop_pkts);
-
 		stats->tx_dropped += le64_to_cpu(hw_stats->tx_drop_pkts);
 	}
 
