@@ -251,14 +251,22 @@ void arc_local_timer_setup()
 {
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
 	int cpu = smp_processor_id();
+	int irq = TIMER0_IRQ;
 
 	evt->cpumask = cpumask_of(cpu);
 	clockevents_config_and_register(evt, arc_get_core_freq(),
 					0, ARC_TIMER_MAX);
 
-	/* setup the per-cpu timer IRQ handler - for all cpus */
-	arc_request_percpu_irq(TIMER0_IRQ, cpu, timer_irq_handler,
-			       "Timer0 (per-cpu-tick)", evt);
+	if (!cpu) {
+		int rc;
+
+		rc = request_percpu_irq(irq, timer_irq_handler,
+					"Timer0 (per-cpu-tick)", evt);
+		if (rc)
+			panic("Percpu IRQ request failed for TIMER\n");
+	}
+
+	enable_percpu_irq(irq, 0);
 }
 
 /*

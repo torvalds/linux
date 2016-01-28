@@ -50,32 +50,3 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	irq_exit();
 	set_irq_regs(old_regs);
 }
-
-/*
- * API called for requesting percpu interrupts - called by each CPU
- *  - For boot CPU, actually request the IRQ with genirq core + enables
- *  - For subsequent callers only enable called locally
- *
- * Relies on being called by boot cpu first (i.e. request called ahead) of
- * any enable as expected by genirq. Hence Suitable only for TIMER, IPI
- * which are guaranteed to be setup on boot core first.
- * Late probed peripherals such as perf can't use this as there no guarantee
- * of being called on boot CPU first.
- */
-
-void arc_request_percpu_irq(int irq, int cpu,
-                            irqreturn_t (*isr)(int irq, void *dev),
-                            const char *irq_nm,
-                            void *percpu_dev)
-{
-	/* Boot cpu calls request, all call enable */
-	if (!cpu) {
-		int rc;
-
-		rc = request_percpu_irq(irq, isr, irq_nm, percpu_dev);
-		if (rc)
-			panic("Percpu IRQ request failed for %d\n", irq);
-	}
-
-	enable_percpu_irq(irq, 0);
-}

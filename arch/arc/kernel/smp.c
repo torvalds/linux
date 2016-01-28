@@ -346,6 +346,10 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 
 /*
  * API called by platform code to hookup arch-common ISR to their IPI IRQ
+ *
+ * Note: If IPI is provided by platform (vs. say ARC MCIP), their intc setup/map
+ * function needs to call call irq_set_percpu_devid() for IPI IRQ, otherwise
+ * request_percpu_irq() below will fail
  */
 static DEFINE_PER_CPU(int, ipi_dev);
 
@@ -353,7 +357,16 @@ int smp_ipi_irq_setup(int cpu, int irq)
 {
 	int *dev = per_cpu_ptr(&ipi_dev, cpu);
 
-	arc_request_percpu_irq(irq, cpu, do_IPI, "IPI Interrupt", dev);
+	/* Boot cpu calls request, all call enable */
+	if (!cpu) {
+		int rc;
+
+		rc = request_percpu_irq(irq, do_IPI, "IPI Interrupt", dev);
+		if (rc)
+			panic("Percpu IRQ request failed for %d\n", irq);
+	}
+
+	enable_percpu_irq(irq, 0);
 
 	return 0;
 }
