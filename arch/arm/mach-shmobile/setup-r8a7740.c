@@ -26,25 +26,6 @@
 
 #include "common.h"
 
-static struct map_desc r8a7740_io_desc[] __initdata = {
-	 /*
-	  * for CPGA/INTC/PFC
-	  * 0xe6000000-0xefffffff -> 0xe6000000-0xefffffff
-	  */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 160 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init r8a7740_map_io(void)
-{
-	debug_ll_io_init();
-	iotable_init(r8a7740_io_desc, ARRAY_SIZE(r8a7740_io_desc));
-}
-
 /*
  * r8a7740 chip has lasting errata on MERAM buffer.
  * this is work-around for it.
@@ -108,7 +89,6 @@ static const char *const r8a7740_boards_compat_dt[] __initconst = {
 DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.map_io		= r8a7740_map_io,
 	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7740_init_irq_of,
 	.init_machine	= r8a7740_generic_init,
