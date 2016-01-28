@@ -92,6 +92,7 @@ void megasas_start_timer(struct megasas_instance *instance,
 			 void *fn, unsigned long interval);
 extern struct megasas_mgmt_info megasas_mgmt_info;
 extern int resetwaittime;
+extern unsigned int dual_qdepth_disable;
 static void megasas_free_rdpq_fusion(struct megasas_instance *instance);
 static void megasas_free_reply_fusion(struct megasas_instance *instance);
 
@@ -207,6 +208,67 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 #endif
 }
 
+/**
+ * megasas_fusion_update_can_queue -	Do all Adapter Queue depth related calculations here
+ * @instance:							Adapter soft state
+ * fw_boot_context:						Whether this function called during probe or after OCR
+ *
+ * This function is only for fusion controllers.
+ * Update host can queue, if firmware downgrade max supported firmware commands.
+ * Firmware upgrade case will be skiped because underlying firmware has
+ * more resource than exposed to the OS.
+ *
+ */
+static void
+megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_context)
+{
+	u16 cur_max_fw_cmds = 0;
+	u16 ldio_threshold = 0;
+	struct megasas_register_set __iomem *reg_set;
+
+	reg_set = instance->reg_set;
+
+	cur_max_fw_cmds = readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
+
+	if (dual_qdepth_disable || !cur_max_fw_cmds)
+		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
+	else
+		ldio_threshold =
+			(instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF) - MEGASAS_FUSION_IOCTL_CMDS;
+
+	dev_info(&instance->pdev->dev,
+			"Current firmware maximum commands: %d\t LDIO threshold: %d\n",
+			cur_max_fw_cmds, ldio_threshold);
+
+	if (fw_boot_context == OCR_CONTEXT) {
+		cur_max_fw_cmds = cur_max_fw_cmds - 1;
+		if (cur_max_fw_cmds <= instance->max_fw_cmds) {
+			instance->cur_can_queue =
+				cur_max_fw_cmds - (MEGASAS_FUSION_INTERNAL_CMDS +
+						MEGASAS_FUSION_IOCTL_CMDS);
+			instance->host->can_queue = instance->cur_can_queue;
+			instance->ldio_threshold = ldio_threshold;
+		}
+	} else {
+		instance->max_fw_cmds = cur_max_fw_cmds;
+		instance->ldio_threshold = ldio_threshold;
+
+		if (!instance->is_rdpq)
+			instance->max_fw_cmds = min_t(u16, instance->max_fw_cmds, 1024);
+
+		/*
+		* Reduce the max supported cmds by 1. This is to ensure that the
+		* reply_q_sz (1 more than the max cmd that driver may send)
+		* does not exceed max cmds that the FW can support
+		*/
+		instance->max_fw_cmds = instance->max_fw_cmds-1;
+
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+				(MEGASAS_FUSION_INTERNAL_CMDS +
+				MEGASAS_FUSION_IOCTL_CMDS);
+		instance->cur_can_queue = instance->max_scsi_cmds;
+	}
+}
 /**
  * megasas_free_cmds_fusion -	Free all the cmds in the free cmd pool
  * @instance:		Adapter soft state
@@ -738,6 +800,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		drv_ops->mfi_capabilities.support_ext_io_size = 1;
 
 	drv_ops->mfi_capabilities.support_fp_rlbypass = 1;
+	if (!dual_qdepth_disable)
+		drv_ops->mfi_capabilities.support_ext_queue_depth = 1;
 
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
@@ -1153,15 +1217,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	reg_set = instance->reg_set;
 
-	/*
-	 * Get various operational parameters from status register
-	 */
-	instance->max_fw_cmds =
-		instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
-	dev_info(&instance->pdev->dev,
-		"firmware support max fw cmd\t: (%d)\n", instance->max_fw_cmds);
-	if (!instance->is_rdpq)
-		instance->max_fw_cmds = min_t(u16, instance->max_fw_cmds, 1024);
+	megasas_fusion_update_can_queue(instance, PROBE_CONTEXT);
 
 	/*
 	 * Reduce the max supported cmds by 1. This is to ensure that the
@@ -2119,6 +2175,14 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 
 	fusion = instance->ctrl_context;
 
+	if ((megasas_cmd_type(scmd) == READ_WRITE_LDIO) &&
+		instance->ldio_threshold &&
+		(atomic_inc_return(&instance->ldio_outstanding) >
+		instance->ldio_threshold)) {
+		atomic_dec(&instance->ldio_outstanding);
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+	}
+
 	cmd = megasas_get_cmd_fusion(instance, scmd->request->tag);
 
 	index = cmd->index;
@@ -2249,6 +2313,8 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 			map_cmd_status(cmd_fusion, status, extStatus);
 			scsi_io_req->RaidContext.status = 0;
 			scsi_io_req->RaidContext.exStatus = 0;
+			if (megasas_cmd_type(scmd_local) == READ_WRITE_LDIO)
+				atomic_dec(&instance->ldio_outstanding);
 			megasas_return_cmd_fusion(instance, cmd_fusion);
 			scsi_dma_unmap(scmd_local);
 			scmd_local->scsi_done(scmd_local);
@@ -3367,6 +3433,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 				scmd_local->result =
 					megasas_check_mpio_paths(instance,
 							scmd_local);
+				if (megasas_cmd_type(scmd_local) == READ_WRITE_LDIO)
+					atomic_dec(&instance->ldio_outstanding);
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
 				scmd_local->scsi_done(scmd_local);
@@ -3459,6 +3527,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			}
 
 			megasas_reset_reply_desc(instance);
+			megasas_fusion_update_can_queue(instance, OCR_CONTEXT);
+
 			if (megasas_ioc_init_fusion(instance)) {
 				dev_warn(&instance->pdev->dev,
 				       "megasas_ioc_init_fusion() failed!"

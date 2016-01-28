@@ -1353,6 +1353,12 @@ enum DCMD_TIMEOUT_ACTION {
 	KILL_ADAPTER = 1,
 	IGNORE_TIMEOUT = 2,
 };
+
+enum FW_BOOT_CONTEXT {
+	PROBE_CONTEXT = 0,
+	OCR_CONTEXT = 1,
+};
+
 /* Frame Type */
 #define IO_FRAME				0
 #define PTHRU_FRAME				1
@@ -2038,6 +2044,8 @@ struct megasas_instance {
 	u16 max_fw_cmds;
 	u16 max_mfi_cmds;
 	u16 max_scsi_cmds;
+	u16 ldio_threshold;
+	u16 cur_can_queue;
 	u32 max_sectors_per_req;
 	struct megasas_aen_event *ev;
 
@@ -2068,6 +2076,7 @@ struct megasas_instance {
 	u32 fw_support_ieee;
 
 	atomic_t fw_outstanding;
+	atomic_t ldio_outstanding;
 	atomic_t fw_reset_no_pci_access;
 
 	struct megasas_instance_template *instancet;

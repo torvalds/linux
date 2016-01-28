@@ -96,6 +96,10 @@ int rdpq_enable = 1;
 module_param(rdpq_enable, int, S_IRUGO);
 MODULE_PARM_DESC(rdpq_enable, " Allocate reply queue in chunks for large queue depth enable/disable Default: disable(0)");
 
+unsigned int dual_qdepth_disable;
+module_param(dual_qdepth_disable, int, S_IRUGO);
+MODULE_PARM_DESC(dual_qdepth_disable, "Disable dual queue depth feature. Default: 0");
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux.pdl@avagotech.com");
@@ -1976,7 +1980,7 @@ megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 		spin_lock_irqsave(instance->host->host_lock, flags);
 		instance->flag &= ~MEGASAS_FW_BUSY;
 
-		instance->host->can_queue = instance->max_scsi_cmds;
+		instance->host->can_queue = instance->cur_can_queue;
 		spin_unlock_irqrestore(instance->host->host_lock, flags);
 	}
 }
@@ -2941,6 +2945,16 @@ megasas_page_size_show(struct device *cdev,
 	return snprintf(buf, PAGE_SIZE, "%ld\n", (unsigned long)PAGE_SIZE - 1);
 }
 
+static ssize_t
+megasas_ldio_outstanding_show(struct device *cdev, struct device_attribute *attr,
+	char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance = (struct megasas_instance *)shost->hostdata;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&instance->ldio_outstanding));
+}
+
 static DEVICE_ATTR(fw_crash_buffer, S_IRUGO | S_IWUSR,
 	megasas_fw_crash_buffer_show, megasas_fw_crash_buffer_store);
 static DEVICE_ATTR(fw_crash_buffer_size, S_IRUGO,
@@ -2949,12 +2963,15 @@ static DEVICE_ATTR(fw_crash_state, S_IRUGO | S_IWUSR,
 	megasas_fw_crash_state_show, megasas_fw_crash_state_store);
 static DEVICE_ATTR(page_size, S_IRUGO,
 	megasas_page_size_show, NULL);
+static DEVICE_ATTR(ldio_outstanding, S_IRUGO,
+	megasas_ldio_outstanding_show, NULL);
 
 struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_fw_crash_buffer_size,
 	&dev_attr_fw_crash_buffer,
 	&dev_attr_fw_crash_state,
 	&dev_attr_page_size,
+	&dev_attr_ldio_outstanding,
 	NULL,
 };
 
@@ -4749,6 +4766,7 @@ megasas_init_adapter_mfi(struct megasas_instance *instance)
 		sema_init(&instance->ioctl_sem, (MEGASAS_MFI_IOCTL_CMDS));
 	}
 
+	instance->cur_can_queue = instance->max_scsi_cmds;
 	/*
 	 * Create a pool of commands
 	 */
