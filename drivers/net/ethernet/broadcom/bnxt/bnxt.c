@@ -1490,10 +1490,11 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 
 			last = tx_buf->nr_frags;
 			j += 2;
-			for (k = 0; k < last; k++, j = NEXT_TX(j)) {
+			for (k = 0; k < last; k++, j++) {
+				int ring_idx = j & bp->tx_ring_mask;
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[k];
 
-				tx_buf = &txr->tx_buf_ring[j];
+				tx_buf = &txr->tx_buf_ring[ring_idx];
 				dma_unmap_page(
 					&pdev->dev,
 					dma_unmap_addr(tx_buf, mapping),
