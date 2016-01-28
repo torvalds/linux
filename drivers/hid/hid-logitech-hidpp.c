@@ -1226,7 +1226,7 @@ static void hidpp_ff_destroy(struct ff_device *ff)
 	kfree(data->effect_ids);
 }
 
-int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
+static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 {
 	struct hid_device *hid = hidpp->hid_dev;
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
@@ -1337,7 +1337,7 @@ int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 	return 0;
 }
 
-int hidpp_ff_deinit(struct hid_device *hid)
+static int hidpp_ff_deinit(struct hid_device *hid)
 {
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	struct input_dev *dev = hidinput->input;
