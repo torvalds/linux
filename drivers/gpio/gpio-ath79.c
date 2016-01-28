@@ -16,7 +16,10 @@
 #include <linux/platform_data/gpio-ath79.h>
 #include <linux/of_device.h>
 
-#include <asm/mach-ath79/ar71xx_regs.h>
+#define AR71XX_GPIO_REG_OE		0x00
+#define AR71XX_GPIO_REG_IN		0x04
+#define AR71XX_GPIO_REG_SET		0x0c
+#define AR71XX_GPIO_REG_CLEAR		0x10
 
 struct ath79_gpio_ctrl {
 	struct gpio_chip gc;

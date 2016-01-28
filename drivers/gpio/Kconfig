@@ -129,7 +129,7 @@ config GPIO_AMDPT
 config GPIO_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X GPIO support"
 	default y if ATH79
-	depends on ATH79
+	depends on ATH79 || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  Select this option to enable GPIO driver for
