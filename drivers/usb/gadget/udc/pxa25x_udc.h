@@ -125,6 +125,7 @@ struct pxa25x_udc {
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry				*debugfs_udc;
 #endif
+	void __iomem				*regs;
 };
 #define to_pxa25x(g)	(container_of((g), struct pxa25x_udc, gadget))
 
