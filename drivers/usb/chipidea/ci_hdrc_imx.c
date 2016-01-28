@@ -307,9 +307,9 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 				&pdata);
 	if (IS_ERR(data->ci_pdev)) {
 		ret = PTR_ERR(data->ci_pdev);
-		dev_err(&pdev->dev,
-			"Can't register ci_hdrc platform device, err=%d\n",
-			ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"ci_hdrc_add_device failed, err=%d\n", ret);
 		goto err_clk;
 	}
 
