@@ -392,6 +392,10 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_VERSION_RESPONSE		= 15,
 	CHANNELMSG_UNLOAD			= 16,
 	CHANNELMSG_UNLOAD_RESPONSE		= 17,
+	CHANNELMSG_18				= 18,
+	CHANNELMSG_19				= 19,
+	CHANNELMSG_20				= 20,
+	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_COUNT
 };
 
@@ -560,6 +564,13 @@ struct vmbus_channel_initiate_contact {
 	u64 interrupt_page;
 	u64 monitor_page1;
 	u64 monitor_page2;
+} __packed;
+
+/* Hyper-V socket: guest's connect()-ing to host */
+struct vmbus_channel_tl_connect_request {
+	struct vmbus_channel_message_header header;
+	uuid_le guest_endpoint_id;
+	uuid_le host_service_id;
 } __packed;
 
 struct vmbus_channel_version_response {
@@ -1283,4 +1294,6 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 extern __u32 vmbus_proto_version;
 
+int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
+				  const uuid_le *shv_host_servie_id);
 #endif /* _HYPERV_H */

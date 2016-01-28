@@ -958,6 +958,10 @@ struct vmbus_channel_message_table_entry
 	{CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response},
 	{CHANNELMSG_UNLOAD,			0, NULL},
 	{CHANNELMSG_UNLOAD_RESPONSE,		1, vmbus_unload_response},
+	{CHANNELMSG_18,				0, NULL},
+	{CHANNELMSG_19,				0, NULL},
+	{CHANNELMSG_20,				0, NULL},
+	{CHANNELMSG_TL_CONNECT_REQUEST,		0, NULL},
 };
 
 /*

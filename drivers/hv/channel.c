@@ -219,6 +219,21 @@ error0:
 }
 EXPORT_SYMBOL_GPL(vmbus_open);
 
+/* Used for Hyper-V Socket: a guest client's connect() to the host */
+int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
+				  const uuid_le *shv_host_servie_id)
+{
+	struct vmbus_channel_tl_connect_request conn_msg;
+
+	memset(&conn_msg, 0, sizeof(conn_msg));
+	conn_msg.header.msgtype = CHANNELMSG_TL_CONNECT_REQUEST;
+	conn_msg.guest_endpoint_id = *shv_guest_servie_id;
+	conn_msg.host_service_id = *shv_host_servie_id;
+
+	return vmbus_post_msg(&conn_msg, sizeof(conn_msg));
+}
+EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
+
 /*
  * create_gpadl_header - Creates a gpadl for the specified buffer
  */
