@@ -211,6 +211,8 @@ static int arche_platform_probe(struct platform_device *pdev)
 				arche_pdata->wake_detect_gpio);
 		goto exit;
 	}
+	/* deassert wake detect */
+	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
 
 	arche_pdata->dev = &pdev->dev;
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
