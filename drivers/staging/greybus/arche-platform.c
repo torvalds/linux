@@ -191,10 +191,6 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, arche_pdata);
 
-	/* bring SVC out of reset */
-	svc_reset_onoff(arche_pdata->svc_reset_gpio,
-			!arche_pdata->is_reset_act_hi);
-
 	arche_pdata->num_apbs = of_get_child_count(np);
 	dev_dbg(dev, "Number of APB's available - %d\n", arche_pdata->num_apbs);
 
@@ -213,6 +209,10 @@ static int arche_platform_probe(struct platform_device *pdev)
 	}
 	/* deassert wake detect */
 	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
+
+	/* bring SVC out of reset */
+	svc_reset_onoff(arche_pdata->svc_reset_gpio,
+			!arche_pdata->is_reset_act_hi);
 
 	arche_pdata->dev = &pdev->dev;
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
