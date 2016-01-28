@@ -235,6 +235,7 @@ struct vmbus_channel_offer {
 #define VMBUS_CHANNEL_LOOPBACK_OFFER			0x100
 #define VMBUS_CHANNEL_PARENT_OFFER			0x200
 #define VMBUS_CHANNEL_REQUEST_MONITORED_NOTIFICATION	0x400
+#define VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER		0x2000
 
 struct vmpacket_descriptor {
 	u16 type;
@@ -794,6 +795,12 @@ struct vmbus_channel {
 	 */
 	enum hv_signal_policy  signal_policy;
 };
+
+static inline bool is_hvsock_channel(const struct vmbus_channel *c)
+{
+	return !!(c->offermsg.offer.chn_flags &
+		  VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER);
+}
 
 static inline void set_channel_signal_state(struct vmbus_channel *c,
 					    enum hv_signal_policy policy)
