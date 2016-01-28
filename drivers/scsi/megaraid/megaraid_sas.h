@@ -2101,7 +2101,7 @@ struct megasas_instance {
 	u16 drv_supported_vd_count;
 	u16 drv_supported_pd_count;
 
-	u8 adprecovery;
+	atomic_t adprecovery;
 	unsigned long last_time;
 	u32 mfiStatus;
 	u32 last_seq_num;

@@ -2246,7 +2246,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 
 	fusion = instance->ctrl_context;
 
-	if (instance->adprecovery == MEGASAS_HW_CRITICAL_ERROR)
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR)
 		return IRQ_HANDLED;
 
 	desc = fusion->reply_frames_desc[MSIxIndex] +
@@ -2413,7 +2413,7 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 
 	/* If we have already declared adapter dead, donot complete cmds */
 	spin_lock_irqsave(&instance->hba_lock, flags);
-	if (instance->adprecovery == MEGASAS_HW_CRITICAL_ERROR) {
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		spin_unlock_irqrestore(&instance->hba_lock, flags);
 		return;
 	}
@@ -3197,7 +3197,7 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 	fusion = instance->ctrl_context;
 
-	if (instance->adprecovery != MEGASAS_HBA_OPERATIONAL) {
+	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		dev_err(&instance->pdev->dev, "Controller is not OPERATIONAL,"
 		"SCSI host:%d\n", instance->host->host_no);
 		ret = FAILED;
@@ -3277,7 +3277,7 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 	fusion = instance->ctrl_context;
 
-	if (instance->adprecovery != MEGASAS_HBA_OPERATIONAL) {
+	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		dev_err(&instance->pdev->dev, "Controller is not OPERATIONAL,"
 		"SCSI host:%d\n", instance->host->host_no);
 		ret = FAILED;
@@ -3366,7 +3366,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 
 	mutex_lock(&instance->reset_mutex);
 
-	if (instance->adprecovery == MEGASAS_HW_CRITICAL_ERROR) {
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_warn(&instance->pdev->dev, "Hardware critical error, "
 		       "returning FAILED for scsi%d.\n",
 			instance->host->host_no);
@@ -3381,7 +3381,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		instance->crash_dump_app_support && reason) {
 		dev_info(&instance->pdev->dev, "IO/DCMD timeout is detected, "
 			"forcibly FAULT Firmware\n");
-		instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
+		atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_INFAULT);
 		status_reg = readl(&instance->reg_set->doorbell);
 		writel(status_reg | MFI_STATE_FORCE_OCR,
 			&instance->reg_set->doorbell);
@@ -3393,10 +3393,10 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			dev_dbg(&instance->pdev->dev, "waiting for [%d] "
 				"seconds for crash dump collection and OCR "
 				"to be done\n", (io_timeout_in_crash_mode * 3));
-		} while ((instance->adprecovery != MEGASAS_HBA_OPERATIONAL) &&
+		} while ((atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) &&
 			(io_timeout_in_crash_mode < 80));
 
-		if (instance->adprecovery == MEGASAS_HBA_OPERATIONAL) {
+		if (atomic_read(&instance->adprecovery) == MEGASAS_HBA_OPERATIONAL) {
 			dev_info(&instance->pdev->dev, "OCR done for IO "
 				"timeout case\n");
 			retval = SUCCESS;
@@ -3413,14 +3413,14 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
 	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
-	instance->adprecovery = MEGASAS_ADPRESET_SM_POLLING;
+	atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_POLLING);
 	instance->instancet->disable_intr(instance);
 	msleep(1000);
 
 	/* First try waiting for commands to complete */
 	if (megasas_wait_for_outstanding_fusion(instance, reason,
 						&convert)) {
-		instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
+		atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_INFAULT);
 		dev_warn(&instance->pdev->dev, "resetting fusion "
 		       "adapter scsi%d.\n", instance->host->host_no);
 		if (convert)
@@ -3503,8 +3503,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 					       status_reg);
 					megaraid_sas_kill_hba(instance);
 					instance->skip_heartbeat_timer_del = 1;
-					instance->adprecovery =
-						MEGASAS_HW_CRITICAL_ERROR;
+					atomic_set(&instance->adprecovery, MEGASAS_HW_CRITICAL_ERROR);
 					retval = FAILED;
 					goto out;
 				}
@@ -3563,7 +3562,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			clear_bit(MEGASAS_FUSION_IN_RESET,
 				  &instance->reset_flags);
 			instance->instancet->enable_intr(instance);
-			instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
+			atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
 
 			/* Restart SR-IOV heartbeat */
 			if (instance->requestorId) {
@@ -3608,7 +3607,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		}
 		clear_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
 		instance->instancet->enable_intr(instance);
-		instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
+		atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
 	}
 out:
 	clear_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
