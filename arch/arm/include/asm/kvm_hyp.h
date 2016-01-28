@@ -104,6 +104,15 @@
 
 #define VFP_FPEXC	__ACCESS_VFP(FPEXC)
 
+/* AArch64 compatibility macros, only for the timer so far */
+#define read_sysreg_el0(r)		read_sysreg(r##_el0)
+#define write_sysreg_el0(v, r)		write_sysreg(v, r##_el0)
+
+#define cntv_ctl_el0			CNTV_CTL
+#define cntv_cval_el0			CNTV_CVAL
+#define cntvoff_el2			CNTVOFF
+#define cnthctl_el2			CNTHCTL
+
 void __timer_save_state(struct kvm_vcpu *vcpu);
 void __timer_restore_state(struct kvm_vcpu *vcpu);
 
