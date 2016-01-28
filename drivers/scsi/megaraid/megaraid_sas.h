@@ -393,6 +393,7 @@ enum MR_EVT_ARGS {
 
 
 #define SGE_BUFFER_SIZE	4096
+#define MEGASAS_CLUSTER_ID_SIZE	16
 /*
  * define constants for device list query options
  */
@@ -1227,7 +1228,8 @@ struct megasas_ctrl_info {
 	*/
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:26;
+		u32     reserved:25;
+		u32     passive:1;
 		u32     premiumFeatureMismatch:1;
 		u32     ctrlPropIncompatible:1;
 		u32     fwVersionMismatch:1;
@@ -1241,11 +1243,12 @@ struct megasas_ctrl_info {
 		u32     fwVersionMismatch:1;
 		u32     ctrlPropIncompatible:1;
 		u32     premiumFeatureMismatch:1;
-		u32     reserved:26;
+		u32     passive:1;
+		u32     reserved:25;
 #endif
 	} cluster;
 
-	char clusterId[16];                     /*7D4h */
+	char clusterId[MEGASAS_CLUSTER_ID_SIZE]; /*0x7D4 */
 	struct {
 		u8  maxVFsSupported;            /*0x7E4*/
 		u8  numVFsEnabled;              /*0x7E5*/
@@ -2126,7 +2129,9 @@ struct megasas_instance {
 	char skip_heartbeat_timer_del;
 	u8 requestorId;
 	char PlasmaFW111;
-	char mpio;
+	char clusterId[MEGASAS_CLUSTER_ID_SIZE];
+	u8 peerIsPresent;
+	u8 passive;
 	u16 throttlequeuedepth;
 	u8 mask_interrupts;
 	u16 max_chain_frame_sz;

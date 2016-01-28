@@ -1943,7 +1943,7 @@ void megaraid_sas_kill_hba(struct megasas_instance *instance)
 		writel(MFI_STOP_ADP, &instance->reg_set->doorbell);
 		/* Flush */
 		readl(&instance->reg_set->doorbell);
-		if (instance->mpio && instance->requestorId)
+		if (instance->requestorId && instance->peerIsPresent)
 			memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
 	} else {
 		writel(MFI_STOP_ADP,
@@ -5182,7 +5182,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	tmp_sectors = min_t(u32, max_sectors_1, max_sectors_2);
 
-	instance->mpio = ctrl_info->adapterOperations2.mpio;
+	instance->peerIsPresent = ctrl_info->cluster.peerIsPresent;
+	instance->passive = ctrl_info->cluster.passive;
+	memcpy(instance->clusterId, ctrl_info->clusterId, sizeof(instance->clusterId));
 	instance->UnevenSpanSupport =
 		ctrl_info->adapterOperations2.supportUnevenSpans;
 	if (instance->UnevenSpanSupport) {
