@@ -373,6 +373,7 @@ gb_connection_control_disconnected(struct gb_connection *connection)
  */
 static void gb_connection_cancel_operations(struct gb_connection *connection,
 						int errno)
+	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
 
@@ -401,6 +402,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 static void
 gb_connection_flush_incoming_operations(struct gb_connection *connection,
 						int errno)
+	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
 	bool incoming;
