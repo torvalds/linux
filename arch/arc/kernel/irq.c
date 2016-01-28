@@ -72,18 +72,6 @@ void arc_request_percpu_irq(int irq, int cpu,
 	if (!cpu) {
 		int rc;
 
-#ifdef CONFIG_ISA_ARCOMPACT
-		/*
-		 * A subsequent request_percpu_irq() fails if percpu_devid is
-		 * not set. That in turns sets NOAUTOEN, meaning each core needs
-		 * to call enable_percpu_irq()
-		 *
-		 * For ARCv2, this is done in irq map function since we know
-		 * which irqs are strictly per cpu
-		 */
-		irq_set_percpu_devid(irq);
-#endif
-
 		rc = request_percpu_irq(irq, isr, irq_nm, percpu_dev);
 		if (rc)
 			panic("Percpu IRQ request failed for %d\n", irq);

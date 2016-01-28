@@ -79,8 +79,9 @@ static struct irq_chip onchip_intc = {
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
 			       irq_hw_number_t hw)
 {
-	switch (irq) {
+	switch (hw) {
 	case TIMER0_IRQ:
+		irq_set_percpu_devid(irq);
 		irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
 		break;
 	default:
