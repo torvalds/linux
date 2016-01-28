@@ -528,7 +528,6 @@
 					compatible = "qcom,rpm-pm8916-regulators";
 
 					pm8916_s1: s1 {};
-					pm8916_s2: s2 {};
 					pm8916_s3: s3 {};
 					pm8916_s4: s4 {};
 
