@@ -1144,6 +1144,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_pd =
 	    (rsp->max_pd_ca_ack_delay & OCRDMA_MBX_QUERY_CFG_MAX_PD_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_PD_SHIFT;
+	attr->udp_encap = (rsp->max_pd_ca_ack_delay &
+			   OCRDMA_MBX_QUERY_CFG_L3_TYPE_MASK) >>
+			   OCRDMA_MBX_QUERY_CFG_L3_TYPE_SHIFT;
 	attr->max_dpp_pds =
 	   (rsp->max_dpp_pds_credits & OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_OFFSET;
