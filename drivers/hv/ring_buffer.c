@@ -314,7 +314,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 
 /* Write to the ring buffer. */
 int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
-		    struct kvec *kv_list, u32 kv_count, bool *signal)
+		    struct kvec *kv_list, u32 kv_count, bool *signal, bool lock)
 {
 	int i = 0;
 	u32 bytes_avail_towrite;
@@ -324,14 +324,15 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	u32 next_write_location;
 	u32 old_write;
 	u64 prev_indices = 0;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	for (i = 0; i < kv_count; i++)
 		totalbytes_towrite += kv_list[i].iov_len;
 
 	totalbytes_towrite += sizeof(u64);
 
-	spin_lock_irqsave(&outring_info->ring_lock, flags);
+	if (lock)
+		spin_lock_irqsave(&outring_info->ring_lock, flags);
 
 	hv_get_ringbuffer_availbytes(outring_info,
 				&bytes_avail_toread,
@@ -343,7 +344,8 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	 * is empty since the read index == write index.
 	 */
 	if (bytes_avail_towrite <= totalbytes_towrite) {
-		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
+		if (lock)
+			spin_unlock_irqrestore(&outring_info->ring_lock, flags);
 		return -EAGAIN;
 	}
 
@@ -374,7 +376,8 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	hv_set_next_write_location(outring_info, next_write_location);
 
 
-	spin_unlock_irqrestore(&outring_info->ring_lock, flags);
+	if (lock)
+		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
 
 	*signal = hv_need_to_signal(old_write, outring_info);
 	return 0;

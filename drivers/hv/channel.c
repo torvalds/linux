@@ -639,6 +639,7 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	u64 aligned_data = 0;
 	int ret;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 	int num_vecs = ((bufferlen != 0) ? 3 : 1);
 
 
@@ -658,7 +659,7 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, num_vecs,
-				  &signal);
+				  &signal, lock);
 
 	/*
 	 * Signalling the host is conditional on many factors:
@@ -738,6 +739,7 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	struct kvec bufferlist[3];
 	u64 aligned_data = 0;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 
 	if (pagecount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
@@ -774,7 +776,8 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
+				  &signal, lock);
 
 	/*
 	 * Signalling the host is conditional on many factors:
@@ -837,6 +840,7 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	struct kvec bufferlist[3];
 	u64 aligned_data = 0;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 
 	packetlen = desc_size + bufferlen;
 	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
@@ -856,7 +860,8 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
+				  &signal, lock);
 
 	if (ret == 0 && signal)
 		vmbus_setevent(channel);
@@ -881,6 +886,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	struct kvec bufferlist[3];
 	u64 aligned_data = 0;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
 					 multi_pagebuffer->len);
 
@@ -919,7 +925,8 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
+				  &signal, lock);
 
 	if (ret == 0 && signal)
 		vmbus_setevent(channel);

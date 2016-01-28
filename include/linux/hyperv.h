@@ -811,7 +811,23 @@ struct vmbus_channel {
 	 * signaling control.
 	 */
 	enum hv_signal_policy  signal_policy;
+	/*
+	 * On the channel send side, many of the VMBUS
+	 * device drivers explicity serialize access to the
+	 * outgoing ring buffer. Give more control to the
+	 * VMBUS device drivers in terms how to serialize
+	 * accesss to the outgoing ring buffer.
+	 * The default behavior will be to aquire the
+	 * ring lock to preserve the current behavior.
+	 */
+	bool acquire_ring_lock;
+
 };
+
+static inline void set_channel_lock_state(struct vmbus_channel *c, bool state)
+{
+	c->acquire_ring_lock = state;
+}
 
 static inline bool is_hvsock_channel(const struct vmbus_channel *c)
 {
