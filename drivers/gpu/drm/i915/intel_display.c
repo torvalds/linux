@@ -3027,6 +3027,28 @@ static void skl_detach_scalers(struct intel_crtc *intel_crtc)
 	}
 }
 
+u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
+		     unsigned int rotation)
+{
+	const struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	u32 stride = intel_fb_pitch(fb, plane, rotation);
+
+	/*
+	 * The stride is either expressed as a multiple of 64 bytes chunks for
+	 * linear buffers or in number of tiles for tiled buffers.
+	 */
+	if (intel_rotation_90_or_270(rotation)) {
+		int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+
+		stride /= intel_tile_height(dev_priv, fb->modifier[0], cpp);
+	} else {
+		stride /= intel_fb_stride_alignment(dev_priv, fb->modifier[0],
+						    fb->pixel_format);
+	}
+
+	return stride;
+}
+
 u32 skl_plane_ctl_format(uint32_t pixel_format)
 {
 	switch (pixel_format) {
@@ -3117,8 +3139,9 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int pipe = intel_crtc->pipe;
-	u32 plane_ctl, stride;
+	u32 plane_ctl;
 	unsigned int rotation = plane_state->base.rotation;
+	u32 stride = skl_plane_stride(fb, 0, rotation);
 	u32 surf_addr;
 	int scaler_id = plane_state->scaler_id;
 	int src_x = plane_state->src.x1 >> 16;
@@ -3146,8 +3169,6 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 			.y1 = src_y,
 			.y2 = src_y + src_h,
 		};
-		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
 		/* Rotate src coordinates to match rotated GTT view */
 		drm_rect_rotate(&r, fb->width, fb->height, BIT(DRM_ROTATE_270));
@@ -3156,13 +3177,6 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 		src_y = r.y1;
 		src_w = drm_rect_width(&r);
 		src_h = drm_rect_height(&r);
-
-		stride = intel_fb->rotated[0].pitch /
-			intel_tile_height(dev_priv, fb->modifier[0], cpp);
-	} else {
-		stride = fb->pitches[0] /
-			intel_fb_stride_alignment(dev_priv, fb->modifier[0],
-						  fb->pixel_format);
 	}
 
 	intel_add_fb_offsets(&src_x, &src_y, fb, 0, rotation);
@@ -11609,7 +11623,7 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_framebuffer *fb = intel_crtc->base.primary->fb;
 	const enum pipe pipe = intel_crtc->pipe;
-	u32 ctl, stride;
+	u32 ctl, stride = skl_plane_stride(fb, 0, rotation);
 
 	ctl = I915_READ(PLANE_CTL(pipe, 0));
 	ctl &= ~PLANE_CTL_TILED_MASK;
@@ -11627,22 +11641,6 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 		break;
 	default:
 		MISSING_CASE(fb->modifier[0]);
-	}
-
-	/*
-	 * The stride is either expressed as a multiple of 64 bytes chunks for
-	 * linear buffers or in number of tiles for tiled buffers.
-	 */
-	if (intel_rotation_90_or_270(rotation)) {
-		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-
-		stride = intel_fb->rotated[0].pitch /
-			intel_tile_height(dev_priv, fb->modifier[0], cpp);
-	} else {
-		stride = fb->pitches[0] /
-			intel_fb_stride_alignment(dev_priv, fb->modifier[0],
-						  fb->pixel_format);
 	}
 
 	/*

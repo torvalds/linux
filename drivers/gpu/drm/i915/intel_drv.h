@@ -1345,6 +1345,8 @@ u32 intel_fb_gtt_offset(struct drm_framebuffer *fb, unsigned int rotation);
 u32 skl_plane_ctl_format(uint32_t pixel_format);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
 u32 skl_plane_ctl_rotation(unsigned int rotation);
+u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
+		     unsigned int rotation);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);

@@ -203,13 +203,13 @@ skl_update_plane(struct drm_plane *drm_plane,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
-	u32 plane_ctl, stride;
+	u32 plane_ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr;
 	unsigned int rotation = plane_state->base.rotation;
+	u32 stride = skl_plane_stride(fb, 0, rotation);
 	int crtc_x = plane_state->dst.x1;
 	int crtc_y = plane_state->dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->dst);
@@ -246,7 +246,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 			.y1 = y,
 			.y2 = y + src_h,
 		};
-		unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 
 		/* Rotate src coordinates to match rotated GTT view */
 		drm_rect_rotate(&r, fb->width, fb->height, BIT(DRM_ROTATE_270));
@@ -255,13 +254,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 		y = r.y1;
 		src_w = drm_rect_width(&r);
 		src_h = drm_rect_height(&r);
-
-		stride = intel_fb->rotated[0].pitch /
-			intel_tile_height(dev_priv, fb->modifier[0], cpp);
-	} else {
-		stride = fb->pitches[0] /
-			intel_fb_stride_alignment(dev_priv, fb->modifier[0],
-						  fb->pixel_format);
 	}
 
 	intel_add_fb_offsets(&x, &y, fb, 0, rotation);
