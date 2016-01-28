@@ -2455,15 +2455,19 @@ void megasas_sriov_heartbeat_handler(unsigned long instance_addr)
  */
 static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 {
-	int i;
+	int i, sl, outstanding;
 	u32 reset_index;
 	u32 wait_time = MEGASAS_RESET_WAIT_TIME;
 	unsigned long flags;
 	struct list_head clist_local;
 	struct megasas_cmd *reset_cmd;
 	u32 fw_state;
-	u8 kill_adapter_flag;
 
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
+		dev_info(&instance->pdev->dev, "%s:%d HBA is killed.\n",
+		__func__, __LINE__);
+		return FAILED;
+	}
 
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 
@@ -2520,7 +2524,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 	}
 
 	for (i = 0; i < resetwaittime; i++) {
-		int outstanding = atomic_read(&instance->fw_outstanding);
+		outstanding = atomic_read(&instance->fw_outstanding);
 
 		if (!outstanding)
 			break;
@@ -2539,65 +2543,60 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 	}
 
 	i = 0;
-	kill_adapter_flag = 0;
-	do {
-		fw_state = instance->instancet->read_fw_status_reg(
-					instance->reg_set) & MFI_STATE_MASK;
-		if ((fw_state == MFI_STATE_FAULT) &&
-			(instance->disableOnlineCtrlReset == 0)) {
-			if (i == 3) {
-				kill_adapter_flag = 2;
-				break;
-			}
-			megasas_do_ocr(instance);
-			kill_adapter_flag = 1;
+	outstanding = atomic_read(&instance->fw_outstanding);
+	fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
 
-			/* wait for 1 secs to let FW finish the pending cmds */
-			msleep(1000);
+	if ((!outstanding && (fw_state == MFI_STATE_OPERATIONAL)))
+		goto no_outstanding;
+
+	if (instance->disableOnlineCtrlReset)
+		goto kill_hba_and_failed;
+	do {
+		if ((fw_state == MFI_STATE_FAULT) || atomic_read(&instance->fw_outstanding)) {
+			dev_info(&instance->pdev->dev,
+				"%s:%d waiting_for_outstanding: before issue OCR. FW state = 0x%x, oustanding 0x%x\n",
+				__func__, __LINE__, fw_state, atomic_read(&instance->fw_outstanding));
+			if (i == 3)
+				goto kill_hba_and_failed;
+			megasas_do_ocr(instance);
+
+			if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
+				dev_info(&instance->pdev->dev, "%s:%d OCR failed and HBA is killed.\n",
+				__func__, __LINE__);
+				return FAILED;
+			}
+			dev_info(&instance->pdev->dev, "%s:%d waiting_for_outstanding: after issue OCR.\n",
+				__func__, __LINE__);
+
+			for (sl = 0; sl < 10; sl++)
+				msleep(500);
+
+			outstanding = atomic_read(&instance->fw_outstanding);
+
+			fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
+			if ((!outstanding && (fw_state == MFI_STATE_OPERATIONAL)))
+				goto no_outstanding;
 		}
 		i++;
 	} while (i <= 3);
 
-	if (atomic_read(&instance->fw_outstanding) && !kill_adapter_flag) {
-		if (instance->disableOnlineCtrlReset == 0) {
-			megasas_do_ocr(instance);
+no_outstanding:
 
-			/* wait for 5 secs to let FW finish the pending cmds */
-			for (i = 0; i < wait_time; i++) {
-				int outstanding =
-					atomic_read(&instance->fw_outstanding);
-				if (!outstanding)
-					return SUCCESS;
-				msleep(1000);
-			}
-		}
-	}
-
-	if (atomic_read(&instance->fw_outstanding) ||
-					(kill_adapter_flag == 2)) {
-		dev_notice(&instance->pdev->dev, "pending cmds after reset\n");
-		/*
-		 * Send signal to FW to stop processing any pending cmds.
-		 * The controller will be taken offline by the OS now.
-		 */
-		if ((instance->pdev->device ==
-			PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-			(instance->pdev->device ==
-			PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
-			writel(MFI_STOP_ADP,
-				&instance->reg_set->doorbell);
-		} else {
-			writel(MFI_STOP_ADP,
-				&instance->reg_set->inbound_doorbell);
-		}
-		megasas_dump_pending_frames(instance);
-		atomic_set(&instance->adprecovery, MEGASAS_HW_CRITICAL_ERROR);
-		return FAILED;
-	}
-
-	dev_notice(&instance->pdev->dev, "no pending cmds after reset\n");
-
+	dev_info(&instance->pdev->dev, "%s:%d no more pending commands remain after reset handling.\n",
+		__func__, __LINE__);
 	return SUCCESS;
+
+kill_hba_and_failed:
+
+	/* Reset not supported, kill adapter */
+	dev_info(&instance->pdev->dev, "%s:%d killing adapter scsi%d"
+		" disableOnlineCtrlReset %d fw_outstanding %d \n",
+		__func__, __LINE__, instance->host->host_no, instance->disableOnlineCtrlReset,
+		atomic_read(&instance->fw_outstanding));
+	megasas_dump_pending_frames(instance);
+	megaraid_sas_kill_hba(instance);
+
+	return FAILED;
 }
 
 /**
