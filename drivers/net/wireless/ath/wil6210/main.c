@@ -438,6 +438,9 @@ int wil_priv_init(struct wil6210_priv *wil)
 	for (i = 0; i < WIL6210_MAX_CID; i++)
 		spin_lock_init(&wil->sta[i].tid_rx_lock);
 
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++)
+		spin_lock_init(&wil->vring_tx_data[i].lock);
+
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
 	mutex_init(&wil->back_rx_mutex);
