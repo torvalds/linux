@@ -48,7 +48,7 @@
 			linux,code = <KEY_HOME>;
 			label = "home key";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
