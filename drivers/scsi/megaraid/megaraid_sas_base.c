@@ -83,7 +83,7 @@ module_param(throttlequeuedepth, int, S_IRUGO);
 MODULE_PARM_DESC(throttlequeuedepth,
 	"Adapter queue depth when throttled due to I/O timeout. Default: 16");
 
-int resetwaittime = MEGASAS_RESET_WAIT_TIME;
+unsigned int resetwaittime = MEGASAS_RESET_WAIT_TIME;
 module_param(resetwaittime, int, S_IRUGO);
 MODULE_PARM_DESC(resetwaittime, "Wait time in seconds after I/O timeout "
 		 "before resetting adapter. Default: 180");
@@ -99,6 +99,10 @@ MODULE_PARM_DESC(rdpq_enable, " Allocate reply queue in chunks for large queue d
 unsigned int dual_qdepth_disable;
 module_param(dual_qdepth_disable, int, S_IRUGO);
 MODULE_PARM_DESC(dual_qdepth_disable, "Disable dual queue depth feature. Default: 0");
+
+unsigned int scmd_timeout = MEGASAS_DEFAULT_CMD_TIMEOUT;
+module_param(scmd_timeout, int, S_IRUGO);
+MODULE_PARM_DESC(scmd_timeout, "scsi command timeout (10-90s), default 90s. See megasas_reset_timer.");
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
@@ -1850,7 +1854,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 	 * The RAID firmware may require extended timeouts.
 	 */
 	blk_queue_rq_timeout(sdev->request_queue,
-		MEGASAS_DEFAULT_CMD_TIMEOUT * HZ);
+		scmd_timeout * HZ);
 
 	return 0;
 }
@@ -2645,7 +2649,7 @@ blk_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
 	unsigned long flags;
 
 	if (time_after(jiffies, scmd->jiffies_at_alloc +
-				(MEGASAS_DEFAULT_CMD_TIMEOUT * 2) * HZ)) {
+				(scmd_timeout * 2) * HZ)) {
 		return BLK_EH_NOT_HANDLED;
 	}
 
@@ -5254,6 +5258,11 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->throttlequeuedepth =
 				MEGASAS_THROTTLE_QUEUE_DEPTH;
 
+	if (resetwaittime > MEGASAS_RESET_WAIT_TIME)
+		resetwaittime = MEGASAS_RESET_WAIT_TIME;
+
+	if ((scmd_timeout < 10) || (scmd_timeout > MEGASAS_DEFAULT_CMD_TIMEOUT))
+		scmd_timeout = MEGASAS_DEFAULT_CMD_TIMEOUT;
 
 	/* Launch SR-IOV heartbeat timer */
 	if (instance->requestorId) {

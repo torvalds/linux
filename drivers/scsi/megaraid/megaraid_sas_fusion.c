@@ -91,7 +91,7 @@ void megasas_start_timer(struct megasas_instance *instance,
 			struct timer_list *timer,
 			 void *fn, unsigned long interval);
 extern struct megasas_mgmt_info megasas_mgmt_info;
-extern int resetwaittime;
+extern unsigned int resetwaittime;
 extern unsigned int dual_qdepth_disable;
 static void megasas_free_rdpq_fusion(struct megasas_instance *instance);
 static void megasas_free_reply_fusion(struct megasas_instance *instance);
