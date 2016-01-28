@@ -415,6 +415,42 @@ int imx_gpc_mf_request_on(unsigned int irq, unsigned int on)
 }
 EXPORT_SYMBOL_GPL(imx_gpc_mf_request_on);
 
+void imx_gpc_switch_pupscr_clk(bool flag)
+{
+	static u32 pupscr_sw2iso, pupscr_sw;
+	u32 ratio, pupscr = readl_relaxed(gpc_base + GPC_PGC_CPU_PUPSCR);
+
+	if (flag) {
+		/* save the init clock setting IPG/2048 for IPG@66Mhz */
+		pupscr_sw2iso = (pupscr >> GPC_PGC_CPU_SW2ISO_SHIFT) &
+				    GPC_PGC_CPU_SW2ISO_MASK;
+		pupscr_sw = (pupscr >> GPC_PGC_CPU_SW_SHIFT) &
+				GPC_PGC_CPU_SW_MASK;
+		/*
+		 * i.MX6UL TO1.0 ARM power up uses IPG/2048 as clock source,
+		 * from TO1.1, PGC_CPU_PUPSCR bit [5] is re-defined to switch
+		 * clock to IPG/32, enable this bit to speed up the ARM power
+		 * up process in low power idle case(IPG@1.5Mhz). So the sw and
+		 * sw2iso need to be adjusted as below:
+		 * sw_new(sw2iso_new) = (2048 * 1.5 / 66 * 32) * sw(sw2iso)
+		 */
+		ratio = 3072 / (66 * 32);
+		pupscr &= ~(GPC_PGC_CPU_SW_MASK << GPC_PGC_CPU_SW_SHIFT |
+			  GPC_PGC_CPU_SW2ISO_MASK << GPC_PGC_CPU_SW2ISO_SHIFT);
+		pupscr |= (ratio * pupscr_sw + 1) << GPC_PGC_CPU_SW_SHIFT |
+			  1 << 5 | (ratio * pupscr_sw2iso + 1) <<
+			  GPC_PGC_CPU_SW2ISO_SHIFT;
+		writel_relaxed(pupscr, gpc_base + GPC_PGC_CPU_PUPSCR);
+	} else {
+		/* restore back after exit from low power idle */
+		pupscr &= ~(GPC_PGC_CPU_SW_MASK << GPC_PGC_CPU_SW_SHIFT |
+			  GPC_PGC_CPU_SW2ISO_MASK << GPC_PGC_CPU_SW2ISO_SHIFT);
+		pupscr |= pupscr_sw << GPC_PGC_CPU_SW_SHIFT |
+			  pupscr_sw2iso << GPC_PGC_CPU_SW2ISO_SHIFT;
+		writel_relaxed(pupscr, gpc_base + GPC_PGC_CPU_PUPSCR);
+	}
+}
+
 static int imx_pcie_regulator_notify(struct notifier_block *nb,
 					unsigned long event,
 					void *ignored)

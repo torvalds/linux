@@ -97,6 +97,15 @@ static int imx6ul_enter_wait(struct cpuidle_device *dev,
 	if ((index == 1) || ((mode != BUS_FREQ_LOW) && index == 2)) {
 		cpu_do_idle();
 	} else {
+		/*
+		 * i.MX6UL TO1.0 ARM power up uses IPG/2048 as clock source,
+		 * from TO1.1, PGC_CPU_PUPSCR bit [5] is re-defined to switch
+		 * clock to IPG/32, enable this bit to speed up the ARM power
+		 * up process in low power idle case.
+		 */
+		if (cpu_is_imx6ul() && imx_get_soc_revision() >
+			IMX_CHIP_REVISION_1_0)
+			imx_gpc_switch_pupscr_clk(true);
 		/* Need to notify there is a cpu pm operation. */
 		cpu_pm_enter();
 		cpu_cluster_pm_enter();
@@ -106,12 +115,48 @@ static int imx6ul_enter_wait(struct cpuidle_device *dev,
 		cpu_cluster_pm_exit();
 		cpu_pm_exit();
 		imx6_enable_rbc(false);
+
+		if (cpu_is_imx6ul() && imx_get_soc_revision() >
+			IMX_CHIP_REVISION_1_0)
+			imx_gpc_switch_pupscr_clk(false);
 	}
 
 	imx6q_set_lpm(WAIT_CLOCKED);
 
 	return index;
 }
+
+static struct cpuidle_driver imx6ul_cpuidle_driver_v2 = {
+	.name = "imx6ul_cpuidle",
+	.owner = THIS_MODULE,
+	.states = {
+		/* WFI */
+		ARM_CPUIDLE_WFI_STATE,
+		/* WAIT */
+		{
+			.exit_latency = 50,
+			.target_residency = 75,
+			.enter = imx6ul_enter_wait,
+			.name = "WAIT",
+			.desc = "Clock off",
+		},
+		/* LOW POWER IDLE */
+		{
+			/*
+			 * RBC 130us + ARM gating 43us + RBC clear 65us
+			 * + PLL2 relock 450us and some margin, here set
+			 * it to 700us.
+			 */
+			.exit_latency = 700,
+			.target_residency = 1000,
+			.enter = imx6ul_enter_wait,
+			.name = "LOW-POWER-IDLE",
+			.desc = "ARM power off",
+		}
+	},
+	.state_count = 3,
+	.safe_state_index = 0,
+};
 
 static struct cpuidle_driver imx6ul_cpuidle_driver = {
 	.name = "imx6ul_cpuidle",
@@ -252,5 +297,9 @@ int __init imx6ul_cpuidle_init(void)
 	 */
 	val = readl_relaxed(anatop_base  + XTALOSC24M_OSC_CONFIG1);
 
-	return cpuidle_register(&imx6ul_cpuidle_driver, NULL);
+	/* ARM power up time is reduced since TO1.1 */
+	if (imx_get_soc_revision() > IMX_CHIP_REVISION_1_0)
+		return cpuidle_register(&imx6ul_cpuidle_driver_v2, NULL);
+	else
+		return cpuidle_register(&imx6ul_cpuidle_driver, NULL);
 }
