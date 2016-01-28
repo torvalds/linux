@@ -92,8 +92,6 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
 	__raw_writel(__pa(shmobile_boot_vector), AVECR);
-	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
-	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
 	/* setup r8a7779 specific SCU bits */
 	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
