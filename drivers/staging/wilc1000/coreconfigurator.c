@@ -243,14 +243,14 @@ static inline u16 get_asoc_id(u8 *data)
 
 static u8 *get_tim_elm(u8 *pu8msa, u16 rx_len, u16 tag_param_offset)
 {
-	u16 u16index;
+	u16 index;
 
-	u16index = tag_param_offset;
+	index = tag_param_offset;
 
-	while (u16index < (rx_len - FCS_LEN)) {
-		if (pu8msa[u16index] == ITIM)
-			return &pu8msa[u16index];
-		u16index += (IE_HDR_LEN + pu8msa[u16index + 1]);
+	while (index < (rx_len - FCS_LEN)) {
+		if (pu8msa[index] == ITIM)
+			return &pu8msa[index];
+		index += (IE_HDR_LEN + pu8msa[index + 1]);
 	}
 
 	return NULL;
