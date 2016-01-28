@@ -119,6 +119,14 @@ ifeq ($(feature-all), 1)
   # test-all.c passed - just set all the core feature flags to 1:
   #
   $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
+  #
+  # test-all.c does not comprise these tests, so we need to
+  # for this case to get features proper values
+  #
+  $(call feature_check,compile-32)
+  $(call feature_check,compile-x32)
+  $(call feature_check,bionic)
+  $(call feature_check,libbabeltrace)
 else
   $(foreach feat,$(FEATURE_TESTS),$(call feature_check,$(feat)))
 endif
