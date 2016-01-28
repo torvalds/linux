@@ -8,10 +8,24 @@ emit() {
     nr="$2"
     entry="$3"
     compat="$4"
-    if [ -n "$compat" ]; then
-	echo "__SYSCALL_${abi}($nr, $entry, $compat)"
-    elif [ -n "$entry" ]; then
-	echo "__SYSCALL_${abi}($nr, $entry, $entry)"
+
+    if [ "$abi" == "64" -a -n "$compat" ]; then
+	echo "a compat entry for a 64-bit syscall makes no sense" >&2
+	exit 1
+    fi
+
+    if [ -z "$compat" ]; then
+	if [ -n "$entry" ]; then
+	    echo "__SYSCALL_${abi}($nr, $entry)"
+	fi
+    else
+	echo "#ifdef CONFIG_X86_32"
+	if [ -n "$entry" ]; then
+	    echo "__SYSCALL_${abi}($nr, $entry)"
+	fi
+	echo "#else"
+	echo "__SYSCALL_${abi}($nr, $compat)"
+	echo "#endif"
     fi
 }
 

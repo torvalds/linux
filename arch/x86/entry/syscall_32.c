@@ -6,17 +6,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/syscall.h>
 
-#ifdef CONFIG_IA32_EMULATION
-#define SYM(sym, compat) compat
-#else
-#define SYM(sym, compat) sym
-#endif
-
-#define __SYSCALL_I386(nr, sym, compat) extern asmlinkage long SYM(sym, compat)(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long) ;
+#define __SYSCALL_I386(nr, sym) extern asmlinkage long sym(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long) ;
 #include <asm/syscalls_32.h>
 #undef __SYSCALL_I386
 
-#define __SYSCALL_I386(nr, sym, compat) [nr] = SYM(sym, compat),
+#define __SYSCALL_I386(nr, sym) [nr] = sym,
 
 extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 
