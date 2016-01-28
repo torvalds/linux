@@ -1600,7 +1600,7 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 		    SMP_PHY_CONTROL_LINK_RESET);
 
 	/* handle hba phys */
-	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlReply_t));
+	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
 	mpi_request.Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request.Operation = hard_reset ?
 	    MPI2_SAS_OP_PHY_HARD_RESET : MPI2_SAS_OP_PHY_LINK_RESET;

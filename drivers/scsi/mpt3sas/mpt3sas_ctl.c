@@ -401,7 +401,8 @@ mpt3sas_ctl_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	Mpi2EventNotificationReply_t *mpi_reply;
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
-	mpt3sas_ctl_add_to_event_log(ioc, mpi_reply);
+	if (mpi_reply)
+		mpt3sas_ctl_add_to_event_log(ioc, mpi_reply);
 	return 1;
 }
 

@@ -2399,7 +2399,7 @@ _scsih_tm_display_info(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd)
 				 (unsigned long long)
 				 sas_device->enclosure_logical_id,
 				 sas_device->slot);
-			if (sas_device->connector_name)
+			if (sas_device->connector_name[0] != '\0')
 				starget_printk(KERN_INFO, starget,
 				"enclosure level(0x%04x),connector name(%s)\n",
 				 sas_device->enclosure_level,
@@ -3134,7 +3134,7 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 			 " slot(%d)\n", ioc->name, (unsigned long long)
 			  sas_device->enclosure_logical_id,
 			  sas_device->slot));
-		if (sas_device->connector_name)
+		if (sas_device->connector_name[0] != '\0')
 			dewtprintk(ioc, pr_info(MPT3SAS_FMT
 			 "setting delete flag: enclosure level(0x%04x),"
 			 " connector name( %s)\n", ioc->name,
