@@ -1520,6 +1520,15 @@ union megasas_frame {
 	u8 raw_bytes[64];
 };
 
+/**
+ * struct MR_PRIV_DEVICE - sdev private hostdata
+ * @is_tm_capable: firmware managed tm_capable flag
+ * @tm_busy: TM request is in progress
+ */
+struct MR_PRIV_DEVICE {
+	bool is_tm_capable;
+	bool tm_busy;
+};
 struct megasas_cmd;
 
 union megasas_evt_class_locale {
@@ -2073,4 +2082,8 @@ void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
 int megasas_cmd_type(struct scsi_cmnd *cmd);
 void megasas_setup_jbod_map(struct megasas_instance *instance);
 
+void megasas_update_sdev_properties(struct scsi_device *sdev);
+int megasas_reset_fusion(struct Scsi_Host *shost, int reason);
+int megasas_task_abort_fusion(struct scsi_cmnd *scmd);
+int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 #endif				/*LSI_MEGARAID_SAS_H */

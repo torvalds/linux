@@ -189,7 +189,6 @@ int
 wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	int seconds);
 void megasas_reset_reply_desc(struct megasas_instance *instance);
-int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout);
 void megasas_fusion_ocr_wq(struct work_struct *work);
 static int megasas_get_ld_vf_affiliation(struct megasas_instance *instance,
 					 int initial);
@@ -1645,6 +1644,7 @@ megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
 	struct megasas_instance *instance;
 	unsigned long flags;
+	struct MR_PRIV_DEVICE *mr_device_priv_data;
 
 	instance = (struct megasas_instance *)
 	    scmd->device->host->hostdata;
@@ -1681,9 +1681,22 @@ megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		return 0;
 	}
 
+	mr_device_priv_data = scmd->device->hostdata;
+	if (!mr_device_priv_data) {
+		spin_unlock_irqrestore(&instance->hba_lock, flags);
+		scmd->result = DID_NO_CONNECT << 16;
+		scmd->scsi_done(scmd);
+		return 0;
+	}
+
 	if (instance->adprecovery != MEGASAS_HBA_OPERATIONAL) {
 		spin_unlock_irqrestore(&instance->hba_lock, flags);
 		return SCSI_MLQUEUE_HOST_BUSY;
+	}
+
+	if (mr_device_priv_data->tm_busy) {
+		spin_unlock_irqrestore(&instance->hba_lock, flags);
+		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
@@ -1736,27 +1749,39 @@ static struct megasas_instance *megasas_lookup_instance(u16 host_no)
 }
 
 /*
-* megasas_set_dma_alignment - Set DMA alignment for PI enabled VD
+* megasas_update_sdev_properties - Update sdev structure based on controller's FW capabilities
 *
 * @sdev: OS provided scsi device
 *
 * Returns void
 */
-static void megasas_set_dma_alignment(struct scsi_device *sdev)
+void megasas_update_sdev_properties(struct scsi_device *sdev)
 {
+	u16 pd_index = 0;
 	u32 device_id, ld;
 	struct megasas_instance *instance;
 	struct fusion_context *fusion;
+	struct MR_PRIV_DEVICE *mr_device_priv_data;
+	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
 	struct MR_LD_RAID *raid;
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 
 	instance = megasas_lookup_instance(sdev->host->host_no);
 	fusion = instance->ctrl_context;
+	mr_device_priv_data = sdev->hostdata;
 
 	if (!fusion)
 		return;
 
-	if (sdev->channel >= MEGASAS_MAX_PD_CHANNELS) {
+	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS &&
+		instance->use_seqnum_jbod_fp) {
+		pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
+			sdev->id;
+		pd_sync = (void *)fusion->pd_seq_sync
+				[(instance->pd_seq_map_id - 1) & 1];
+		mr_device_priv_data->is_tm_capable =
+			pd_sync->seq[pd_index].capability.tmCapable;
+	} else {
 		device_id = ((sdev->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL)
 					+ sdev->id;
 		local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
@@ -1764,9 +1789,12 @@ static void megasas_set_dma_alignment(struct scsi_device *sdev)
 		raid = MR_LdRaidGet(ld, local_map_ptr);
 
 		if (raid->capability.ldPiMode == MR_PROT_INFO_TYPE_CONTROLLER)
-			blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
+		blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
+		mr_device_priv_data->is_tm_capable =
+			raid->capability.tmCapable;
 	}
 }
+
 
 static int megasas_slave_configure(struct scsi_device *sdev)
 {
@@ -1784,7 +1812,8 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 				return -ENXIO;
 		}
 	}
-	megasas_set_dma_alignment(sdev);
+	megasas_update_sdev_properties(sdev);
+
 	/*
 	 * The RAID firmware may require extended timeouts.
 	 */
@@ -1798,6 +1827,7 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 {
 	u16 pd_index = 0;
 	struct megasas_instance *instance ;
+	struct MR_PRIV_DEVICE *mr_device_priv_data;
 
 	instance = megasas_lookup_instance(sdev->host->host_no);
 	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS) {
@@ -1809,11 +1839,24 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 			sdev->id;
 		if ((instance->allow_fw_scan || instance->pd_list[pd_index].driveState ==
 			MR_PD_STATE_SYSTEM)) {
-			return 0;
+			goto scan_target;
 		}
 		return -ENXIO;
 	}
+
+scan_target:
+	mr_device_priv_data = kzalloc(sizeof(*mr_device_priv_data),
+					GFP_KERNEL);
+	if (!mr_device_priv_data)
+		return -ENOMEM;
+	sdev->hostdata = mr_device_priv_data;
 	return 0;
+}
+
+static void megasas_slave_destroy(struct scsi_device *sdev)
+{
+	kfree(sdev->hostdata);
+	sdev->hostdata = NULL;
 }
 
 /*
@@ -2885,6 +2928,7 @@ static struct scsi_host_template megasas_template = {
 	.proc_name = "megaraid_sas",
 	.slave_configure = megasas_slave_configure,
 	.slave_alloc = megasas_slave_alloc,
+	.slave_destroy = megasas_slave_destroy,
 	.queuecommand = megasas_queue_command,
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
@@ -5434,6 +5478,8 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	if (instance->ctrl_context) {
 		host->hostt->eh_device_reset_handler = NULL;
 		host->hostt->eh_bus_reset_handler = NULL;
+		host->hostt->eh_target_reset_handler = megasas_reset_target_fusion;
+		host->hostt->eh_abort_handler = megasas_task_abort_fusion;
 	}
 
 	/*

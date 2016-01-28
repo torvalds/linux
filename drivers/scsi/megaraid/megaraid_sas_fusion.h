@@ -176,6 +176,7 @@ enum REGION_TYPE {
 #define MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD           (0x0100)
 #define MPI2_SCSIIO_EEDPFLAGS_INSERT_OP             (0x0004)
 #define MPI2_FUNCTION_SCSI_IO_REQUEST               (0x00) /* SCSI IO */
+#define MPI2_FUNCTION_SCSI_TASK_MGMT                (0x01)
 #define MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY       (0x03)
 #define MPI2_REQ_DESCRIPT_FLAGS_FP_IO               (0x06)
 #define MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO                 (0x00)
@@ -277,6 +278,100 @@ union MPI2_SCSI_IO_CDB_UNION {
 	struct MPI2_SCSI_IO_CDB_EEDP32 EEDP32;
 	struct MPI2_SGE_SIMPLE_UNION SGE;
 };
+
+/****************************************************************************
+*  SCSI Task Management messages
+****************************************************************************/
+
+/*SCSI Task Management Request Message */
+struct MPI2_SCSI_TASK_MANAGE_REQUEST {
+	u16 DevHandle;		/*0x00 */
+	u8 ChainOffset;		/*0x02 */
+	u8 Function;		/*0x03 */
+	u8 Reserved1;		/*0x04 */
+	u8 TaskType;		/*0x05 */
+	u8 Reserved2;		/*0x06 */
+	u8 MsgFlags;		/*0x07 */
+	u8 VP_ID;		/*0x08 */
+	u8 VF_ID;		/*0x09 */
+	u16 Reserved3;		/*0x0A */
+	u8 LUN[8];		/*0x0C */
+	u32 Reserved4[7];	/*0x14 */
+	u16 TaskMID;		/*0x30 */
+	u16 Reserved5;		/*0x32 */
+};
+
+
+/*SCSI Task Management Reply Message */
+struct MPI2_SCSI_TASK_MANAGE_REPLY {
+	u16 DevHandle;		/*0x00 */
+	u8 MsgLength;		/*0x02 */
+	u8 Function;		/*0x03 */
+	u8 ResponseCode;	/*0x04 */
+	u8 TaskType;		/*0x05 */
+	u8 Reserved1;		/*0x06 */
+	u8 MsgFlags;		/*0x07 */
+	u8 VP_ID;		/*0x08 */
+	u8 VF_ID;		/*0x09 */
+	u16 Reserved2;		/*0x0A */
+	u16 Reserved3;		/*0x0C */
+	u16 IOCStatus;		/*0x0E */
+	u32 IOCLogInfo;		/*0x10 */
+	u32 TerminationCount;	/*0x14 */
+	u32 ResponseInfo;	/*0x18 */
+};
+
+struct MR_TM_REQUEST {
+	char request[128];
+};
+
+struct MR_TM_REPLY {
+	char reply[128];
+};
+
+/* SCSI Task Management Request Message */
+struct MR_TASK_MANAGE_REQUEST {
+	/*To be type casted to struct MPI2_SCSI_TASK_MANAGE_REQUEST */
+	struct MR_TM_REQUEST         TmRequest;
+	union {
+		struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+			u32 reserved1:30;
+			u32 isTMForPD:1;
+			u32 isTMForLD:1;
+#else
+			u32 isTMForLD:1;
+			u32 isTMForPD:1;
+			u32 reserved1:30;
+#endif
+			u32 reserved2;
+		} tmReqFlags;
+		struct MR_TM_REPLY   TMReply;
+	};
+};
+
+/* TaskType values */
+
+#define MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK           (0x01)
+#define MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET        (0x02)
+#define MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET         (0x03)
+#define MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET   (0x05)
+#define MPI2_SCSITASKMGMT_TASKTYPE_CLEAR_TASK_SET       (0x06)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK           (0x07)
+#define MPI2_SCSITASKMGMT_TASKTYPE_CLR_ACA              (0x08)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_TASK_SET         (0x09)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_ASYNC_EVENT      (0x0A)
+
+/* ResponseCode values */
+
+#define MPI2_SCSITASKMGMT_RSP_TM_COMPLETE               (0x00)
+#define MPI2_SCSITASKMGMT_RSP_INVALID_FRAME             (0x02)
+#define MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED          (0x04)
+#define MPI2_SCSITASKMGMT_RSP_TM_FAILED                 (0x05)
+#define MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED              (0x08)
+#define MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN            (0x09)
+#define MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG         (0x0A)
+#define MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC          (0x80)
 
 /*
  * RAID SCSI IO Request Message
@@ -548,7 +643,8 @@ struct MR_SPAN_BLOCK_INFO {
 struct MR_LD_RAID {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved4:7;
+		u32     reserved4:6;
+		u32     tmCapable:1;
 		u32	fpNonRWCapable:1;
 		u32     fpReadAcrossStripe:1;
 		u32     fpWriteAcrossStripe:1;
@@ -570,7 +666,8 @@ struct MR_LD_RAID {
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
 		u32	fpNonRWCapable:1;
-		u32     reserved4:7;
+		u32     tmCapable:1;
+		u32     reserved4:6;
 #endif
 	} capability;
 	__le32     reserved6;
@@ -695,6 +792,7 @@ struct megasas_cmd_fusion {
 	u32 sync_cmd_idx;
 	u32 index;
 	u8 pd_r1_lb;
+	struct completion done;
 };
 
 struct LD_LOAD_BALANCE_INFO {
@@ -808,9 +906,18 @@ struct MR_FW_RAID_MAP_EXT {
  *  * define MR_PD_CFG_SEQ structure for system PDs
  *   */
 struct MR_PD_CFG_SEQ {
-	__le16 seqNum;
-	__le16 devHandle;
-	u8  reserved[4];
+	u16 seqNum;
+	u16 devHandle;
+	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u8     reserved:7;
+		u8     tmCapable:1;
+#else
+		u8     tmCapable:1;
+		u8     reserved:7;
+#endif
+	} capability;
+	u8  reserved[3];
 } __packed;
 
 struct MR_PD_CFG_SEQ_NUM_SYNC {
