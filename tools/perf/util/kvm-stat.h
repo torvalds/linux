@@ -136,5 +136,10 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid);
 extern const char * const kvm_events_tp[];
 extern struct kvm_reg_events_ops kvm_reg_events_ops[];
 extern const char * const kvm_skip_events[];
+extern const char *vcpu_id_str;
+extern const int decode_str_len;
+extern const char *kvm_exit_reason;
+extern const char *kvm_entry_trace;
+extern const char *kvm_exit_trace;
 
 #endif /* __PERF_KVM_STAT_H */
