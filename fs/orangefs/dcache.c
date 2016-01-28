@@ -43,24 +43,34 @@ static int orangefs_revalidate_lookup(struct dentry *dentry)
 
 	err = service_operation(new_op, "orangefs_lookup",
 			get_interruptible_flag(parent_inode));
-	if (err)
-		goto out_drop;
 
-	if (new_op->downcall.status != 0 ||
-	    !match_handle(new_op->downcall.resp.lookup.refn.khandle, inode)) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			"%s:%s:%d "
-			"lookup failure |%s| or no match |%s|.\n",
-			__FILE__,
-			__func__,
-			__LINE__,
-			new_op->downcall.status ? "true" : "false",
-			match_handle(new_op->downcall.resp.lookup.refn.khandle,
-					inode) ? "false" : "true");
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "%s:%s:%d revalidate failed\n",
-			     __FILE__, __func__, __LINE__);
-		goto out_drop;
+	/* Positive dentry: reject if error or not the same inode. */
+	if (inode) {
+		if (err) {
+			gossip_debug(GOSSIP_DCACHE_DEBUG,
+			    "%s:%s:%d lookup failure.\n",
+			    __FILE__, __func__, __LINE__);
+			goto out_drop;
+		}
+		if (!match_handle(new_op->downcall.resp.lookup.refn.khandle,
+		    inode)) {
+			gossip_debug(GOSSIP_DCACHE_DEBUG,
+			    "%s:%s:%d no match.\n",
+			    __FILE__, __func__, __LINE__);
+			goto out_drop;
+		}
+
+	/* Negative dentry: reject if success or error other than ENOENT. */
+	} else {
+		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: negative dentry.\n",
+		    __func__);
+		if (!err || err != -ENOENT) {
+			if (new_op->downcall.status != 0)
+				gossip_debug(GOSSIP_DCACHE_DEBUG,
+				    "%s:%s:%d lookup failure.\n",
+				    __FILE__, __func__, __LINE__);
+			goto out_drop;
+		}
 	}
 
 	ret = 1;
@@ -70,6 +80,8 @@ out_put_parent:
 	dput(parent_dentry);
 	return ret;
 out_drop:
+	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s:%s:%d revalidate failed\n",
+	    __FILE__, __func__, __LINE__);
 	d_drop(dentry);
 	goto out_release_op;
 }
@@ -81,8 +93,7 @@ out_drop:
  */
 static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode;
-	int ret = 0;
+	int ret;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -90,29 +101,42 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: called on dentry %p.\n",
 		     __func__, dentry);
 
-	/* find inode from dentry */
-	if (!dentry->d_inode) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "%s: negative dentry.\n",
-			     __func__);
-		goto out;
-	}
-
-	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: inode valid.\n", __func__);
-	inode = dentry->d_inode;
-
 	/* skip root handle lookups. */
-	if (is_root_handle(inode)) {
-		ret = 1;
-		goto out;
+	if (dentry->d_inode && is_root_handle(dentry->d_inode))
+		return 1;
+
+	/*
+	 * If this passes, the positive dentry still exists or the negative
+	 * dentry still does not exist.
+	 */
+	if (!orangefs_revalidate_lookup(dentry)) {
+		d_drop(dentry);
+		return 0;
 	}
 
-	/* lookup the object. */
-	if (orangefs_revalidate_lookup(dentry))
-		ret = 1;
+	/* We do not need to continue with negative dentries. */
+	if (!dentry->d_inode)
+		goto out;
+
+	/* Now we must perform a getattr to validate the inode contents. */
+	ret = orangefs_inode_getattr(dentry->d_inode,
+	    ORANGEFS_ATTR_SYS_ALL_NOHINT, 1);
+	if (ret < 0) {
+		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s:%s:%d getattr failure.\n",
+		    __FILE__, __func__, __LINE__);
+		d_drop(dentry);
+		return 0;
+	}
+	if (ret == 0) {
+		d_drop(dentry);
+		return 0;
+	}
 
 out:
-	return ret;
+	gossip_debug(GOSSIP_DCACHE_DEBUG,
+	    "%s: negative dentry or positive dentry and inode valid.\n",
+	    __func__);
+	return 1;
 }
 
 const struct dentry_operations orangefs_dentry_operations = {

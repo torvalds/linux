@@ -467,7 +467,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	/* Make sure generic_write_checks sees an up to date inode size. */
 	if (file->f_flags & O_APPEND) {
 		rc = orangefs_inode_getattr(file->f_mapping->host,
-					 ORANGEFS_ATTR_SYS_SIZE);
+					 ORANGEFS_ATTR_SYS_SIZE, 0);
 		if (rc) {
 			gossip_err("%s: orangefs_inode_getattr failed, rc:%zd:.\n",
 				   __func__, rc);
@@ -681,7 +681,7 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 		 * NOTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */
-		ret = orangefs_inode_getattr(inode, ORANGEFS_ATTR_SYS_SIZE);
+		ret = orangefs_inode_getattr(inode, ORANGEFS_ATTR_SYS_SIZE, 0);
 		if (ret) {
 			gossip_debug(GOSSIP_FILE_DEBUG,
 				     "%s:%s:%d calling make bad inode\n",

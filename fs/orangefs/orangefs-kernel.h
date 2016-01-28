@@ -561,7 +561,7 @@ int orangefs_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, __u32 mask);
+int orangefs_inode_getattr(struct inode *inode, __u32 mask, int check);
 
 int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
 

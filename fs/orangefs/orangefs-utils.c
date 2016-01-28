@@ -353,11 +353,91 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	return 0;
 }
 
+static int compare_attributes_to_inode(struct inode *inode,
+				       struct ORANGEFS_sys_attr_s *attrs,
+				       char *symname)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	loff_t inode_size, rounded_up_size;
+
+	/* Compare file size. */
+
+	switch (attrs->objtype) {
+	case ORANGEFS_TYPE_METAFILE:
+		if(inode->i_flags != orangefs_inode_flags(attrs))
+			return 0;
+		inode_size = attrs->size;
+		rounded_up_size = inode_size + (4096 - (inode_size % 4096));
+		if (inode->i_bytes != inode_size ||
+		    inode->i_blocks != rounded_up_size/512)
+			return 0;
+		break;
+	case ORANGEFS_TYPE_SYMLINK:
+		if (symname && strlen(symname) != inode->i_size)
+			return 0;
+		break;
+	default:
+		if (inode->i_size != PAGE_CACHE_SIZE &&
+		    inode_get_bytes(inode) != PAGE_CACHE_SIZE)
+			return 0;
+	}
+
+	/* Compare general attributes. */
+
+	if (!uid_eq(inode->i_uid, make_kuid(&init_user_ns, attrs->owner)) ||
+	    !gid_eq(inode->i_gid, make_kgid(&init_user_ns, attrs->group)) ||
+	    inode->i_atime.tv_sec != attrs->atime ||
+	    inode->i_mtime.tv_sec != attrs->mtime ||
+	    inode->i_ctime.tv_sec != attrs->ctime ||
+	    inode->i_atime.tv_nsec != 0 ||
+	    inode->i_mtime.tv_nsec != 0 ||
+	    inode->i_ctime.tv_nsec != 0)
+		return 0;
+
+	if ((inode->i_mode & ~(S_ISVTX|S_IFREG|S_IFDIR|S_IFLNK)) !=
+	    orangefs_inode_perms(attrs))
+		return 0;
+
+	if (is_root_handle(inode))
+		if (!(inode->i_mode & S_ISVTX))
+			return 0;
+
+	/* Compare file type. */
+
+	switch (attrs->objtype) {
+	case ORANGEFS_TYPE_METAFILE:
+		if (!(inode->i_mode & S_IFREG))
+			return 0;
+		break;
+	case ORANGEFS_TYPE_DIRECTORY:
+		if (!(inode->i_mode & S_IFDIR))
+			return 0;
+		if (inode->i_nlink != 1)
+			return 0;
+		break;
+	case ORANGEFS_TYPE_SYMLINK:
+		if (!(inode->i_mode & S_IFLNK))
+			return 0;
+		if (orangefs_inode && symname)
+			if (strcmp(orangefs_inode->link_target, symname))
+				return 0;
+		break;
+	default:
+		gossip_err("orangefs: compare_attributes_to_inode: got invalid attribute type %x\n",
+		    attrs->objtype);
+
+	}
+
+	return 1;
+}
+
 /*
- * issues a orangefs getattr request and fills in the appropriate inode
- * attributes if successful.  returns 0 on success; -errno otherwise
+ * Issues a orangefs getattr request and fills in the appropriate inode
+ * attributes if successful. When check is 0, returns 0 on success and -errno
+ * otherwise. When check is 1, returns 1 on success where the inode is valid
+ * and 0 on success where the inode is stale and -errno otherwise.
  */
-int orangefs_inode_getattr(struct inode *inode, __u32 getattr_mask)
+int orangefs_inode_getattr(struct inode *inode, __u32 getattr_mask, int check)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
@@ -379,27 +459,46 @@ int orangefs_inode_getattr(struct inode *inode, __u32 getattr_mask)
 	if (ret != 0)
 		goto out;
 
-	if (copy_attributes_to_inode(inode,
-			&new_op->downcall.resp.getattr.attributes,
-			new_op->downcall.resp.getattr.link_target)) {
-		gossip_err("%s: failed to copy attributes\n", __func__);
-		ret = -ENOENT;
-		goto out;
-	}
+	if (check) {
+		ret = compare_attributes_to_inode(inode,
+		    &new_op->downcall.resp.getattr.attributes,
+		    new_op->downcall.resp.getattr.link_target);
 
-	/*
-	 * Store blksize in orangefs specific part of inode structure; we are
-	 * only going to use this to report to stat to make sure it doesn't
-	 * perturb any inode related code paths.
-	 */
-	if (new_op->downcall.resp.getattr.attributes.objtype ==
-			ORANGEFS_TYPE_METAFILE) {
-		orangefs_inode->blksize =
-			new_op->downcall.resp.getattr.attributes.blksize;
+		if (new_op->downcall.resp.getattr.attributes.objtype ==
+		    ORANGEFS_TYPE_METAFILE) {
+			if (orangefs_inode->blksize !=
+			    new_op->downcall.resp.getattr.attributes.blksize)
+				ret = 0;
+		} else {
+			if (orangefs_inode->blksize != 1 << inode->i_blkbits)
+				ret = 0;
+		}
 	} else {
-		/* mimic behavior of generic_fillattr() for other types. */
-		orangefs_inode->blksize = (1 << inode->i_blkbits);
+		if (copy_attributes_to_inode(inode,
+				&new_op->downcall.resp.getattr.attributes,
+				new_op->downcall.resp.getattr.link_target)) {
+			gossip_err("%s: failed to copy attributes\n", __func__);
+			ret = -ENOENT;
+			goto out;
+		}
 
+		/*
+		 * Store blksize in orangefs specific part of inode structure;
+		 * we are only going to use this to report to stat to make sure
+		 * it doesn't perturb any inode related code paths.
+		 */
+		if (new_op->downcall.resp.getattr.attributes.objtype ==
+				ORANGEFS_TYPE_METAFILE) {
+			orangefs_inode->blksize = new_op->downcall.resp.
+			    getattr.attributes.blksize;
+		} else {
+			/*
+			 * mimic behavior of generic_fillattr() for other file
+			 * types.
+			 */
+			orangefs_inode->blksize = (1 << inode->i_blkbits);
+
+		}
 	}
 
 out:
