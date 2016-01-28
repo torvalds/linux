@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/hyperv.h>
 
 #include "hyperv_vmbus.h"
@@ -589,6 +590,40 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
 
+static void vmbus_wait_for_unload(void)
+{
+	int cpu = smp_processor_id();
+	void *page_addr = hv_context.synic_message_page[cpu];
+	struct hv_message *msg = (struct hv_message *)page_addr +
+				  VMBUS_MESSAGE_SINT;
+	struct vmbus_channel_message_header *hdr;
+	bool unloaded = false;
+
+	while (1) {
+		if (msg->header.message_type == HVMSG_NONE) {
+			mdelay(10);
+			continue;
+		}
+
+		hdr = (struct vmbus_channel_message_header *)msg->u.payload;
+		if (hdr->msgtype == CHANNELMSG_UNLOAD_RESPONSE)
+			unloaded = true;
+
+		msg->header.message_type = HVMSG_NONE;
+		/*
+		 * header.message_type needs to be written before we do
+		 * wrmsrl() below.
+		 */
+		mb();
+
+		if (msg->header.message_flags.msg_pending)
+			wrmsrl(HV_X64_MSR_EOM, 0);
+
+		if (unloaded)
+			break;
+	}
+}
+
 /*
  * vmbus_unload_response - Handler for the unload response.
  */
@@ -614,7 +649,14 @@ void vmbus_initiate_unload(void)
 	hdr.msgtype = CHANNELMSG_UNLOAD;
 	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header));
 
-	wait_for_completion(&vmbus_connection.unload_event);
+	/*
+	 * vmbus_initiate_unload() is also called on crash and the crash can be
+	 * happening in an interrupt context, where scheduling is impossible.
+	 */
+	if (!in_interrupt())
+		wait_for_completion(&vmbus_connection.unload_event);
+	else
+		vmbus_wait_for_unload();
 }
 
 /*
