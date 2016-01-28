@@ -84,6 +84,8 @@ struct gbaudio_control {
 struct gbaudio_dai {
 	__le16 data_cport;
 	char name[NAME_SIZE];
+	/* DAI users */
+	atomic_t users;
 	struct gb_connection *connection;
 	struct list_head list;
 };
@@ -116,8 +118,9 @@ struct gbaudio_codec_info {
 	char *dailink_name[MAX_DAIS];
 	int num_dai_links;
 
-	/* topology related */
 	struct gb_connection *mgmt_connection;
+	size_t num_data_connections;
+	/* topology related */
 	int num_dais;
 	int num_kcontrols;
 	int num_dapm_widgets;
@@ -131,9 +134,6 @@ struct gbaudio_codec_info {
 	struct snd_soc_dapm_route *routes;
 	struct snd_soc_dai_driver *dais;
 
-	/* codec users */
-	atomic_t users;
-
 	/* lists */
 	struct list_head dai_list;
 	struct list_head widget_list;
@@ -142,17 +142,8 @@ struct gbaudio_codec_info {
 	struct mutex lock;
 };
 
-struct gb_audio {
-	struct gb_connection		*mgmt_connection;
-	size_t				num_data_connections;
-	struct gbaudio_codec_info	*gbcodec;
-	struct gb_connection		*data_connection[0];
-};
-
-struct gbaudio_dai *gbaudio_add_dai(struct gbaudio_codec_info *gbcodec,
-				    int data_cport,
-				    struct gb_connection *connection,
-				    const char *name);
+struct gbaudio_dai *gbaudio_find_dai(struct gbaudio_codec_info *gbcodec,
+				     int data_cport, const char *name);
 int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 			       struct gb_audio_topology *tplg_data);
 void gbaudio_tplg_release(struct gbaudio_codec_info *gbcodec);

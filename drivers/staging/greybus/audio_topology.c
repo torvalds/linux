@@ -92,8 +92,7 @@ static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_info *info;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
-	struct gbaudio_codec_info *gbcodec = audio->gbcodec;
+	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -139,8 +138,7 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
-	struct gbaudio_codec_info *gb = audio->gbcodec;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -187,8 +185,7 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
-	struct gbaudio_codec_info *gb = audio->gbcodec;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -282,8 +279,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
-	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
-	struct gbaudio_codec_info *gb = audio->gbcodec;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -317,8 +313,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
-	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
-	struct gbaudio_codec_info *gb = audio->gbcodec;
+	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -524,8 +519,7 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 	int wid;
 	int ret;
 	struct snd_soc_codec *codec = w->codec;
-	struct gb_audio *audio = snd_soc_codec_get_drvdata(codec);
-	struct gbaudio_codec_info *gbcodec = audio->gbcodec;
+	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
 
 	dev_dbg(codec->dev, "%s %s %d\n", __func__, w->name, event);
 
@@ -819,9 +813,9 @@ static int gbaudio_tplg_process_dais(struct gbaudio_codec_info *gbcodec,
 	int i, ret;
 	struct snd_soc_dai_driver *gb_dais;
 	struct gb_audio_dai *curr;
-	struct gbaudio_dai *dai, *_dai;
 	size_t size;
 	char dai_name[NAME_SIZE];
+	struct gbaudio_dai *dai;
 
 	size = sizeof(struct snd_soc_dai_driver) * gbcodec->num_dais;
 	gb_dais = devm_kzalloc(gbcodec->dev, size, GFP_KERNEL);
@@ -839,10 +833,10 @@ static int gbaudio_tplg_process_dais(struct gbaudio_codec_info *gbcodec,
 		/* append dev_id to dai_name */
 		snprintf(dai_name, NAME_SIZE, "%s.%d", curr->name,
 			 gbcodec->dev_id);
-		dai = gbaudio_add_dai(gbcodec, curr->data_cport, NULL,
-				      dai_name);
+		dai = gbaudio_find_dai(gbcodec, curr->data_cport, NULL);
 		if (!dai)
 			goto error;
+		strlcpy(dai->name, dai_name, NAME_SIZE);
 		dev_dbg(gbcodec->dev, "%s:DAI added\n", dai->name);
 		gb_dais[i].name = dai->name;
 		curr++;
@@ -852,10 +846,6 @@ static int gbaudio_tplg_process_dais(struct gbaudio_codec_info *gbcodec,
 	return 0;
 
 error:
-	list_for_each_entry_safe(dai, _dai, &gbcodec->dai_list, list) {
-		list_del(&dai->list);
-		devm_kfree(gbcodec->dev, dai);
-	}
 	devm_kfree(gbcodec->dev, gb_dais);
 	return ret;
 }
@@ -948,68 +938,6 @@ static int gbaudio_tplg_process_header(struct gbaudio_codec_info *gbcodec,
 	return 0;
 }
 
-static struct gbaudio_dai *gbaudio_allocate_dai(struct gbaudio_codec_info *gb,
-					 int data_cport,
-					 struct gb_connection *connection,
-					 const char *name)
-{
-	struct gbaudio_dai *dai;
-
-	mutex_lock(&gb->lock);
-	dai = devm_kzalloc(gb->dev, sizeof(*dai), GFP_KERNEL);
-	if (!dai) {
-		dev_err(gb->dev, "%s:DAI Malloc failure\n", name);
-		mutex_unlock(&gb->lock);
-		return NULL;
-	}
-
-	dai->data_cport = data_cport;
-	dai->connection = connection;
-
-	/* update name */
-	if (name)
-		strlcpy(dai->name, name, NAME_SIZE);
-	list_add(&dai->list, &gb->dai_list);
-	dev_dbg(gb->dev, "%d:%s: DAI added\n", data_cport, dai->name);
-	mutex_unlock(&gb->lock);
-
-	return dai;
-}
-
-struct gbaudio_dai *gbaudio_add_dai(struct gbaudio_codec_info *gbcodec,
-				    int data_cport,
-				    struct gb_connection *connection,
-				    const char *name)
-{
-	struct gbaudio_dai *dai, *_dai;
-
-	/* FIXME need to take care for multiple DAIs */
-	mutex_lock(&gbcodec->lock);
-	if (list_empty(&gbcodec->dai_list)) {
-		mutex_unlock(&gbcodec->lock);
-		return gbaudio_allocate_dai(gbcodec, data_cport, connection,
-					    name);
-	}
-
-	list_for_each_entry_safe(dai, _dai, &gbcodec->dai_list, list) {
-		if (dai->data_cport == data_cport) {
-			if (connection)
-				dai->connection = connection;
-
-			if (name)
-				strlcpy(dai->name, name, NAME_SIZE);
-			dev_dbg(gbcodec->dev, "%d:%s: DAI updated\n",
-				data_cport, dai->name);
-			mutex_unlock(&gbcodec->lock);
-			return dai;
-		}
-	}
-
-	dev_err(gbcodec->dev, "%s:DAI not found\n", name);
-	mutex_unlock(&gbcodec->lock);
-	return NULL;
-}
-
 int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 			       struct gb_audio_topology *tplg_data)
 {
@@ -1074,7 +1002,6 @@ int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 
 void gbaudio_tplg_release(struct gbaudio_codec_info *gbcodec)
 {
-	struct gbaudio_dai *dai, *_dai;
 	struct gbaudio_control *control, *_control;
 	struct gbaudio_widget *widget, *_widget;
 
@@ -1109,12 +1036,4 @@ void gbaudio_tplg_release(struct gbaudio_codec_info *gbcodec)
 	/* release routes */
 	if (gbcodec->routes)
 		devm_kfree(gbcodec->dev, gbcodec->routes);
-
-	/* release DAIs */
-	mutex_lock(&gbcodec->lock);
-	list_for_each_entry_safe(dai, _dai, &gbcodec->dai_list, list) {
-		list_del(&dai->list);
-		devm_kfree(gbcodec->dev, dai);
-	}
-	mutex_unlock(&gbcodec->lock);
 }
