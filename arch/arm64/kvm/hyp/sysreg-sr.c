@@ -19,9 +19,7 @@
 #include <linux/kvm_host.h>
 
 #include <asm/kvm_asm.h>
-#include <asm/kvm_mmu.h>
-
-#include "hyp.h"
+#include <asm/kvm_hyp.h>
 
 /* Yes, this does nothing, on purpose */
 static void __hyp_text __sysreg_do_nothing(struct kvm_cpu_context *ctxt) { }

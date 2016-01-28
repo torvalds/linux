@@ -17,8 +17,7 @@
 
 #include <linux/types.h>
 #include <asm/kvm_asm.h>
-
-#include "hyp.h"
+#include <asm/kvm_hyp.h>
 
 static bool __hyp_text __fpsimd_enabled_nvhe(void)
 {
