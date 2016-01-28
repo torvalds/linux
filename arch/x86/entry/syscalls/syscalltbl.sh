@@ -3,6 +3,19 @@
 in="$1"
 out="$2"
 
+syscall_macro() {
+    abi="$1"
+    nr="$2"
+    entry="$3"
+
+    # Entry can be either just a function name or "function/qualifier"
+    real_entry="${entry%%/*}"
+    qualifier="${entry:${#real_entry}}"		# Strip the function name
+    qualifier="${qualifier:1}"			# Strip the slash, if any
+
+    echo "__SYSCALL_${abi}($nr, $real_entry, $qualifier)"
+}
+
 emit() {
     abi="$1"
     nr="$2"
@@ -16,15 +29,15 @@ emit() {
 
     if [ -z "$compat" ]; then
 	if [ -n "$entry" ]; then
-	    echo "__SYSCALL_${abi}($nr, $entry)"
+	    syscall_macro "$abi" "$nr" "$entry"
 	fi
     else
 	echo "#ifdef CONFIG_X86_32"
 	if [ -n "$entry" ]; then
-	    echo "__SYSCALL_${abi}($nr, $entry)"
+	    syscall_macro "$abi" "$nr" "$entry"
 	fi
 	echo "#else"
-	echo "__SYSCALL_${abi}($nr, $compat)"
+	syscall_macro "$abi" "$nr" "$compat"
 	echo "#endif"
     fi
 }
