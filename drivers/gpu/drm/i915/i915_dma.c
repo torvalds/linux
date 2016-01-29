@@ -1109,8 +1109,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * be lost or delayed, but we use them anyways to avoid
 	 * stuck interrupts on some machines.
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev))
-		pci_enable_msi(dev->pdev);
+	if (!IS_I945G(dev) && !IS_I945GM(dev)) {
+		if (pci_enable_msi(dev->pdev) < 0)
+			DRM_DEBUG_DRIVER("can't enable MSI");
+	}
 
 	intel_device_info_runtime_init(dev);
 
