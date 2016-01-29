@@ -9,11 +9,15 @@
 
 #include <linux/firmware.h>
 
+#include "firmware.h"
 #include "greybus.h"
+
 
 struct gb_firmware {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
+	u8			protocol_major;
+	u8			protocol_minor;
 };
 
 static void free_firmware(struct gb_firmware *firmware)
@@ -223,8 +227,10 @@ static int gb_firmware_ready_to_boot(struct gb_operation *op)
 	return 0;
 }
 
-static int gb_firmware_request_recv(u8 type, struct gb_operation *op)
+static int gb_firmware_request_handler(struct gb_operation *op)
 {
+	u8 type = op->type;
+
 	switch (type) {
 	case GB_FIRMWARE_TYPE_FIRMWARE_SIZE:
 		return gb_firmware_size_request(op);
@@ -239,19 +245,89 @@ static int gb_firmware_request_recv(u8 type, struct gb_operation *op)
 	}
 }
 
-static int gb_firmware_connection_init(struct gb_connection *connection)
+static int gb_firmware_get_version(struct gb_firmware *firmware)
 {
+	struct gb_bundle *bundle = firmware->connection->bundle;
+	struct gb_firmware_version_request request;
+	struct gb_firmware_version_response response;
+	int ret;
+
+	request.major = GB_FIRMWARE_VERSION_MAJOR;
+	request.minor = GB_FIRMWARE_VERSION_MINOR;
+
+	ret = gb_operation_sync(firmware->connection,
+				GB_FIRMWARE_TYPE_VERSION,
+				&request, sizeof(request), &response,
+				sizeof(response));
+	if (ret) {
+		dev_err(&bundle->dev,
+				"failed to get protocol version: %d\n",
+				ret);
+		return ret;
+	}
+
+	if (response.major > request.major) {
+		dev_err(&bundle->dev,
+				"unsupported major protocol version (%u > %u)\n",
+				response.major, request.major);
+		return -ENOTSUPP;
+	}
+
+	firmware->protocol_major = response.major;
+	firmware->protocol_minor = response.minor;
+
+	dev_dbg(&bundle->dev, "%s - %u.%u\n", __func__, response.major,
+			response.minor);
+
+	return 0;
+}
+
+static int gb_firmware_probe(struct gb_bundle *bundle,
+					const struct greybus_bundle_id *id)
+{
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_connection *connection;
 	struct gb_firmware *firmware;
 	int ret;
+
+	if (bundle->num_cports != 1)
+		return -ENODEV;
+
+	cport_desc = &bundle->cport_desc[0];
+	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_FIRMWARE)
+		return -ENODEV;
 
 	firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware)
 		return -ENOMEM;
 
-	firmware->connection = connection;
+	connection = gb_connection_create(bundle,
+						le16_to_cpu(cport_desc->id),
+						gb_firmware_request_handler);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto err_free_firmware;
+	}
+
 	connection->private = firmware;
 
+	firmware->connection = connection;
+
+	greybus_set_drvdata(bundle, firmware);
+
+	ret = gb_connection_enable_tx(connection);
+	if (ret)
+		goto err_connection_destroy;
+
+	ret = gb_firmware_get_version(firmware);
+	if (ret)
+		goto err_connection_disable;
+
 	firmware_es2_fixup_vid_pid(firmware);
+
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto err_connection_disable;
 
 	/* Tell bootrom we're ready. */
 	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_AP_READY, NULL, 0,
@@ -259,40 +335,57 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 	if (ret) {
 		dev_err(&connection->bundle->dev,
 				"failed to send AP READY: %d\n", ret);
-		goto err_free_firmware;
+		goto err_connection_disable;
 	}
 
-	dev_dbg(&connection->bundle->dev, "%s: AP_READY sent\n", __func__);
+	dev_dbg(&bundle->dev, "AP_READY sent\n");
 
 	return 0;
 
+err_connection_disable:
+	gb_connection_disable(connection);
+err_connection_destroy:
+	gb_connection_destroy(connection);
 err_free_firmware:
 	kfree(firmware);
 
 	return ret;
 }
 
-static void gb_firmware_connection_exit(struct gb_connection *connection)
+static void gb_firmware_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_firmware *firmware = connection->private;
+	struct gb_firmware *firmware = greybus_get_drvdata(bundle);
+
+	dev_dbg(&bundle->dev, "%s\n", __func__);
+
+	gb_connection_disable(firmware->connection);
 
 	/* Release firmware */
 	if (firmware->fw)
 		free_firmware(firmware);
 
-	connection->private = NULL;
+	gb_connection_destroy(firmware->connection);
 	kfree(firmware);
-
-	dev_dbg(&connection->bundle->dev, "%s\n", __func__);
 }
 
-static struct gb_protocol firmware_protocol = {
-	.name			= "firmware",
-	.id			= GREYBUS_PROTOCOL_FIRMWARE,
-	.major			= GB_FIRMWARE_VERSION_MAJOR,
-	.minor			= GB_FIRMWARE_VERSION_MINOR,
-	.connection_init	= gb_firmware_connection_init,
-	.connection_exit	= gb_firmware_connection_exit,
-	.request_recv		= gb_firmware_request_recv,
+static const struct greybus_bundle_id gb_firmware_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_FIRMWARE) },
+	{ }
 };
-gb_builtin_protocol_driver(firmware_protocol);
+
+static struct greybus_driver gb_firmware_driver = {
+	.name		= "firmware",
+	.probe		= gb_firmware_probe,
+	.disconnect	= gb_firmware_disconnect,
+	.id_table	= gb_firmware_id_table,
+};
+
+int gb_firmware_init(void)
+{
+	return greybus_register(&gb_firmware_driver);
+}
+
+void gb_firmware_exit(void)
+{
+	greybus_deregister(&gb_firmware_driver);
+}

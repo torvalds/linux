@@ -27,7 +27,6 @@
 #include "manifest.h"
 #include "hd.h"
 #include "svc.h"
-#include "firmware.h"
 #include "control.h"
 #include "interface.h"
 #include "bundle.h"

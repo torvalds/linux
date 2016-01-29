@@ -10,7 +10,7 @@
 #ifndef __FIRMWARE_H
 #define __FIRMWARE_H
 
-int gb_firmware_protocol_init(void);
-void gb_firmware_protocol_exit(void);
+int gb_firmware_init(void);
+void gb_firmware_exit(void);
 
 #endif /* __FIRMWARE_H */

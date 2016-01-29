@@ -203,6 +203,7 @@ struct gb_control_interface_version_response {
 #define GB_FIRMWARE_VERSION_MINOR		0x01
 
 /* Greybus firmware request types */
+#define GB_FIRMWARE_TYPE_VERSION		0x01
 #define GB_FIRMWARE_TYPE_FIRMWARE_SIZE		0x02
 #define GB_FIRMWARE_TYPE_GET_FIRMWARE		0x03
 #define GB_FIRMWARE_TYPE_READY_TO_BOOT		0x04
@@ -225,6 +226,16 @@ struct gb_control_interface_version_response {
 
 /* Max firmware data fetch size in bytes */
 #define GB_FIRMWARE_FETCH_MAX			2000
+
+struct gb_firmware_version_request {
+	__u8	major;
+	__u8	minor;
+} __packed;
+
+struct gb_firmware_version_response {
+	__u8	major;
+	__u8	minor;
+} __packed;
 
 /* Firmware protocol firmware size request/response */
 struct gb_firmware_size_request {

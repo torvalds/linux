@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define CREATE_TRACE_POINTS
+#include "firmware.h"
 #include "greybus.h"
 #include "greybus_trace.h"
 #include "legacy.h"
@@ -243,9 +244,9 @@ static int __init gb_init(void)
 		goto error_operation;
 	}
 
-	retval = gb_firmware_protocol_init();
+	retval = gb_firmware_init();
 	if (retval) {
-		pr_err("gb_firmware_protocol_init failed\n");
+		pr_err("gb_firmware_init failed\n");
 		goto error_firmware;
 	}
 
@@ -258,7 +259,7 @@ static int __init gb_init(void)
 	return 0;	/* Success */
 
 error_legacy:
-	gb_firmware_protocol_exit();
+	gb_firmware_exit();
 error_firmware:
 	gb_operation_exit();
 error_operation:
@@ -275,7 +276,7 @@ module_init(gb_init);
 static void __exit gb_exit(void)
 {
 	gb_legacy_exit();
-	gb_firmware_protocol_exit();
+	gb_firmware_exit();
 	gb_operation_exit();
 	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);
