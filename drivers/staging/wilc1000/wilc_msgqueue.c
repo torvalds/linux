@@ -15,7 +15,7 @@ int wilc_mq_create(struct message_queue *mq)
 {
 	spin_lock_init(&mq->lock);
 	sema_init(&mq->sem, 0);
-	mq->msg_list = NULL;
+	INIT_LIST_HEAD(&mq->msg_list);
 	mq->recv_count = 0;
 	mq->exiting = false;
 	return 0;
@@ -29,6 +29,8 @@ int wilc_mq_create(struct message_queue *mq)
  */
 int wilc_mq_destroy(struct message_queue *mq)
 {
+	struct message *msg;
+
 	mq->exiting = true;
 
 	/* Release any waiting receiver thread. */
@@ -37,11 +39,10 @@ int wilc_mq_destroy(struct message_queue *mq)
 		mq->recv_count--;
 	}
 
-	while (mq->msg_list) {
-		struct message *msg = mq->msg_list->next;
-
-		kfree(mq->msg_list);
-		mq->msg_list = msg;
+	while (!list_empty(&mq->msg_list)) {
+		msg = list_first_entry(&mq->msg_list, struct message, list);
+		list_del(&msg->list);
+		kfree(msg->buf);
 	}
 
 	return 0;
@@ -75,7 +76,7 @@ int wilc_mq_send(struct message_queue *mq,
 		return -ENOMEM;
 
 	new_msg->len = send_buf_size;
-	new_msg->next = NULL;
+	INIT_LIST_HEAD(&new_msg->list);
 	new_msg->buf = kmemdup(send_buf, send_buf_size, GFP_ATOMIC);
 	if (!new_msg->buf) {
 		kfree(new_msg);
@@ -85,16 +86,7 @@ int wilc_mq_send(struct message_queue *mq,
 	spin_lock_irqsave(&mq->lock, flags);
 
 	/* add it to the message queue */
-	if (!mq->msg_list) {
-		mq->msg_list  = new_msg;
-	} else {
-		struct message *tail_msg = mq->msg_list;
-
-		while (tail_msg->next)
-			tail_msg = tail_msg->next;
-
-		tail_msg->next = new_msg;
-	}
+	list_add_tail(&new_msg->list, &mq->msg_list);
 
 	spin_unlock_irqrestore(&mq->lock, flags);
 
@@ -132,13 +124,13 @@ int wilc_mq_recv(struct message_queue *mq,
 	down(&mq->sem);
 	spin_lock_irqsave(&mq->lock, flags);
 
-	msg = mq->msg_list;
-	if (!msg) {
+	if (list_empty(&mq->msg_list)) {
 		spin_unlock_irqrestore(&mq->lock, flags);
 		PRINT_ER("msg is null\n");
 		return -EFAULT;
 	}
 	/* check buffer size */
+	msg = list_first_entry(&mq->msg_list, struct message, list);
 	if (recv_buf_size < msg->len) {
 		spin_unlock_irqrestore(&mq->lock, flags);
 		up(&mq->sem);
@@ -151,7 +143,7 @@ int wilc_mq_recv(struct message_queue *mq,
 	memcpy(recv_buf, msg->buf, msg->len);
 	*recv_len = msg->len;
 
-	mq->msg_list = msg->next;
+	list_del(&msg->list);
 
 	kfree(msg->buf);
 	kfree(msg);

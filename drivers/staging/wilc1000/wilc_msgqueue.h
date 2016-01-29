@@ -2,11 +2,12 @@
 #define __WILC_MSG_QUEUE_H__
 
 #include <linux/semaphore.h>
+#include <linux/list.h>
 
 struct message {
 	void *buf;
 	u32 len;
-	struct message *next;
+	struct list_head list;
 };
 
 struct message_queue {
@@ -14,7 +15,7 @@ struct message_queue {
 	spinlock_t lock;
 	bool exiting;
 	u32 recv_count;
-	struct message *msg_list;
+	struct list_head msg_list;
 };
 
 int wilc_mq_create(struct message_queue *mq);
