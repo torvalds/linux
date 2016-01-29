@@ -211,6 +211,7 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 	dsos__for_each_with_build_id(pos, &machine->dsos.head) {
 		const char *name;
 		size_t name_len;
+		bool in_kernel = false;
 
 		if (!pos->hit)
 			continue;
@@ -227,8 +228,11 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 			name_len = pos->long_name_len + 1;
 		}
 
+		in_kernel = pos->kernel ||
+				is_kernel_module(name,
+					PERF_RECORD_MISC_CPUMODE_UNKNOWN);
 		err = write_buildid(name, name_len, pos->build_id, machine->pid,
-				    pos->kernel ? kmisc : umisc, fd);
+				    in_kernel ? kmisc : umisc, fd);
 		if (err)
 			break;
 	}
