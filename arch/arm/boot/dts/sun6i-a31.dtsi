@@ -709,6 +709,16 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
+			mmc3_8bit_emmc_pins: mmc3@1 {
+				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
+						 "PC10", "PC11", "PC12",
+						 "PC13", "PC14", "PC15",
+						 "PC24";
+				allwinner,function = "mmc3";
+				allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			gmac_pins_mii_a: gmac_mii@0 {
 				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
 						"PA8", "PA9", "PA11",
