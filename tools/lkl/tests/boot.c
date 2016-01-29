@@ -351,9 +351,9 @@ out:
 	return TEST_FAILURE;
 }
 
+#ifndef __MINGW32__
 static int netdev_id = -1;
 
-#ifndef __MINGW32__
 int test_netdev_add(char *str, int len)
 {
 	union lkl_netdev netdev = { -1, };
