@@ -189,12 +189,6 @@ btrfs_alloc_dummy_block_group(unsigned long length)
 		kfree(cache);
 		return NULL;
 	}
-	cache->fs_info = btrfs_alloc_dummy_fs_info();
-	if (!cache->fs_info) {
-		kfree(cache->free_space_ctl);
-		kfree(cache);
-		return NULL;
-	}
 
 	cache->key.objectid = 0;
 	cache->key.offset = length;
