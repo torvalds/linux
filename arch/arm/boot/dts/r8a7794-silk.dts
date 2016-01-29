@@ -126,9 +126,17 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
 	scif2_pins: serial2 {
 		renesas,groups = "scif2_data";
 		renesas,function = "scif2";
+	};
+
+	scif_clk_pins: scif_clk {
+		renesas,groups = "scif_clk";
+		renesas,function = "scif_clk";
 	};
 
 	ether_pins: ether {
@@ -181,6 +189,11 @@
 	pinctrl-0 = <&scif2_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <14745600>;
 	status = "okay";
 };
 
