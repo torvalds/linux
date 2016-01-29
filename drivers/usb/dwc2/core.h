@@ -657,6 +657,7 @@ struct dwc2_hregs_backup {
  *                      periodic_sched_ready because it must be rescheduled for
  *                      the next frame. Otherwise, the item moves to
  *                      periodic_sched_inactive.
+ * @split_order:        List keeping track of channels doing splits, in order.
  * @periodic_usecs:     Total bandwidth claimed so far for periodic transfers.
  *                      This value is in microseconds per (micro)frame. The
  *                      assumption is that all periodic transfers may occur in
@@ -780,6 +781,7 @@ struct dwc2_hsotg {
 	struct list_head periodic_sched_ready;
 	struct list_head periodic_sched_assigned;
 	struct list_head periodic_sched_queued;
+	struct list_head split_order;
 	u16 periodic_usecs;
 	u16 frame_usecs[8];
 	u16 frame_number;

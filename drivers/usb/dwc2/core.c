@@ -1676,6 +1676,8 @@ void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 
 	chan->xfer_started = 0;
 
+	list_del_init(&chan->split_order_list_entry);
+
 	/*
 	 * Clear channel interrupt enables and any unhandled channel interrupt
 	 * conditions

@@ -1045,6 +1045,11 @@ static int dwc2_queue_transaction(struct dwc2_hsotg *hsotg,
 {
 	int retval = 0;
 
+	if (chan->do_split)
+		/* Put ourselves on the list to keep order straight */
+		list_move_tail(&chan->split_order_list_entry,
+			       &hsotg->split_order);
+
 	if (hsotg->core_params->dma_enable > 0) {
 		if (hsotg->core_params->dma_desc_enable > 0) {
 			if (!chan->xfer_started ||
@@ -3153,6 +3158,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	INIT_LIST_HEAD(&hsotg->periodic_sched_assigned);
 	INIT_LIST_HEAD(&hsotg->periodic_sched_queued);
 
+	INIT_LIST_HEAD(&hsotg->split_order);
+
 	/*
 	 * Create a host channel descriptor for each host channel implemented
 	 * in the controller. Initialize the channel descriptor array.
@@ -3166,6 +3173,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 		if (channel == NULL)
 			goto error3;
 		channel->hc_num = i;
+		INIT_LIST_HEAD(&channel->split_order_list_entry);
 		hsotg->hc_ptr_array[i] = channel;
 	}
 

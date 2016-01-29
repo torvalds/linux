@@ -2075,12 +2075,29 @@ static void dwc2_hc_intr(struct dwc2_hsotg *hsotg)
 {
 	u32 haint;
 	int i;
+	struct dwc2_host_chan *chan, *chan_tmp;
 
 	haint = dwc2_readl(hsotg->regs + HAINT);
 	if (dbg_perio()) {
 		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 		dev_vdbg(hsotg->dev, "HAINT=%08x\n", haint);
+	}
+
+	/*
+	 * According to USB 2.0 spec section 11.18.8, a host must
+	 * issue complete-split transactions in a microframe for a
+	 * set of full-/low-speed endpoints in the same relative
+	 * order as the start-splits were issued in a microframe for.
+	 */
+	list_for_each_entry_safe(chan, chan_tmp, &hsotg->split_order,
+				 split_order_list_entry) {
+		int hc_num = chan->hc_num;
+
+		if (haint & (1 << hc_num)) {
+			dwc2_hc_n_intr(hsotg, hc_num);
+			haint &= ~(1 << hc_num);
+		}
 	}
 
 	for (i = 0; i < hsotg->core_params->host_channels; i++) {
