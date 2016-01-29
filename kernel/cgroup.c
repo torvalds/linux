@@ -6057,10 +6057,23 @@ static inline struct cgroup_namespace *to_cg_ns(struct ns_common *ns)
 	return container_of(ns, struct cgroup_namespace, ns);
 }
 
-static int cgroupns_install(struct nsproxy *nsproxy, void *ns)
+static int cgroupns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 {
-	pr_info("setns not supported for cgroup namespace");
-	return -EINVAL;
+	struct cgroup_namespace *cgroup_ns = to_cg_ns(ns);
+
+	if (!ns_capable(current_user_ns(), CAP_SYS_ADMIN) ||
+	    !ns_capable(cgroup_ns->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/* Don't need to do anything if we are attaching to our own cgroupns. */
+	if (cgroup_ns == nsproxy->cgroup_ns)
+		return 0;
+
+	get_cgroup_ns(cgroup_ns);
+	put_cgroup_ns(nsproxy->cgroup_ns);
+	nsproxy->cgroup_ns = cgroup_ns;
+
+	return 0;
 }
 
 static struct ns_common *cgroupns_get(struct task_struct *task)
