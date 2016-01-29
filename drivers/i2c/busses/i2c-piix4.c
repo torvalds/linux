@@ -159,7 +159,7 @@ struct i2c_piix4_adapdata {
 
 	/* SB800 */
 	bool sb800_main;
-	unsigned short port;
+	u8 port;
 };
 
 static int piix4_setup(struct pci_dev *PIIX4_dev,
@@ -655,7 +655,7 @@ static struct i2c_adapter *piix4_main_adapters[PIIX4_MAX_ADAPTERS];
 static struct i2c_adapter *piix4_aux_adapter;
 
 static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
-			     bool sb800_main, unsigned short port,
+			     bool sb800_main, u8 port,
 			     const char *name, struct i2c_adapter **padap)
 {
 	struct i2c_adapter *adap;
