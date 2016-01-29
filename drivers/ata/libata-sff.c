@@ -1296,7 +1296,8 @@ fsm_start:
 		break;
 	default:
 		poll_next = 0;
-		BUG();
+		WARN(true, "ata%d: SFF host state machine in invalid state %d",
+		     ap->print_id, ap->hsm_task_state);
 	}
 
 	return poll_next;
