@@ -1109,9 +1109,13 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 	u32 fspcavail;
 	u32 gintmsk;
 	int status;
-	int no_queue_space = 0;
-	int no_fifo_space = 0;
+	bool no_queue_space = false;
+	bool no_fifo_space = false;
 	u32 qspcavail;
+
+	/* If empty list then just adjust interrupt enables */
+	if (list_empty(&hsotg->periodic_sched_assigned))
+		goto exit;
 
 	if (dbg_perio())
 		dev_vdbg(hsotg->dev, "Queue periodic transactions\n");
@@ -1190,42 +1194,32 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 		}
 	}
 
-	if (hsotg->core_params->dma_enable <= 0) {
-		tx_status = dwc2_readl(hsotg->regs + HPTXSTS);
-		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
-			    TXSTS_QSPCAVAIL_SHIFT;
-		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
-			    TXSTS_FSPCAVAIL_SHIFT;
-		if (dbg_perio()) {
-			dev_vdbg(hsotg->dev,
-				 "  P Tx Req Queue Space Avail (after queue): %d\n",
-				 qspcavail);
-			dev_vdbg(hsotg->dev,
-				 "  P Tx FIFO Space Avail (after queue): %d\n",
-				 fspcavail);
-		}
-
-		if (!list_empty(&hsotg->periodic_sched_assigned) ||
-		    no_queue_space || no_fifo_space) {
-			/*
-			 * May need to queue more transactions as the request
-			 * queue or Tx FIFO empties. Enable the periodic Tx
-			 * FIFO empty interrupt. (Always use the half-empty
-			 * level to ensure that new requests are loaded as
-			 * soon as possible.)
-			 */
-			gintmsk = dwc2_readl(hsotg->regs + GINTMSK);
+exit:
+	if (no_queue_space || no_fifo_space ||
+	    (hsotg->core_params->dma_enable <= 0 &&
+	     !list_empty(&hsotg->periodic_sched_assigned))) {
+		/*
+		 * May need to queue more transactions as the request
+		 * queue or Tx FIFO empties. Enable the periodic Tx
+		 * FIFO empty interrupt. (Always use the half-empty
+		 * level to ensure that new requests are loaded as
+		 * soon as possible.)
+		 */
+		gintmsk = dwc2_readl(hsotg->regs + GINTMSK);
+		if (!(gintmsk & GINTSTS_PTXFEMP)) {
 			gintmsk |= GINTSTS_PTXFEMP;
 			dwc2_writel(gintmsk, hsotg->regs + GINTMSK);
-		} else {
-			/*
-			 * Disable the Tx FIFO empty interrupt since there are
-			 * no more transactions that need to be queued right
-			 * now. This function is called from interrupt
-			 * handlers to queue more transactions as transfer
-			 * states change.
-			 */
-			gintmsk = dwc2_readl(hsotg->regs + GINTMSK);
+		}
+	} else {
+		/*
+		 * Disable the Tx FIFO empty interrupt since there are
+		 * no more transactions that need to be queued right
+		 * now. This function is called from interrupt
+		 * handlers to queue more transactions as transfer
+		 * states change.
+		*/
+		gintmsk = dwc2_readl(hsotg->regs + GINTMSK);
+		if (gintmsk & GINTSTS_PTXFEMP) {
 			gintmsk &= ~GINTSTS_PTXFEMP;
 			dwc2_writel(gintmsk, hsotg->regs + GINTMSK);
 		}
@@ -1372,9 +1366,8 @@ void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 	dev_vdbg(hsotg->dev, "Queue Transactions\n");
 #endif
 	/* Process host channels associated with periodic transfers */
-	if ((tr_type == DWC2_TRANSACTION_PERIODIC ||
-	     tr_type == DWC2_TRANSACTION_ALL) &&
-	    !list_empty(&hsotg->periodic_sched_assigned))
+	if (tr_type == DWC2_TRANSACTION_PERIODIC ||
+	    tr_type == DWC2_TRANSACTION_ALL)
 		dwc2_process_periodic_channels(hsotg);
 
 	/* Process host channels associated with non-periodic transfers */
