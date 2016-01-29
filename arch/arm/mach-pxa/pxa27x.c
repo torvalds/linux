@@ -132,7 +132,8 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 #ifndef CONFIG_IWMMXT
 	u64 acc0;
 
-	asm volatile("mra %Q0, %R0, acc0" : "=r" (acc0));
+	asm volatile(".arch_extension xscale\n\t"
+		     "mra %Q0, %R0, acc0" : "=r" (acc0));
 #endif
 
 	/* ensure voltage-change sequencer not initiated, which hangs */
@@ -151,7 +152,8 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		cpu_suspend(pwrmode, pxa27x_finish_suspend);
 #ifndef CONFIG_IWMMXT
-		asm volatile("mar acc0, %Q0, %R0" : "=r" (acc0));
+		asm volatile(".arch_extension xscale\n\t"
+			     "mar acc0, %Q0, %R0" : "=r" (acc0));
 #endif
 		break;
 	}
