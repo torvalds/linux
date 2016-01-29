@@ -21,6 +21,7 @@
 #include <asm/sections.h>
 
 u64 __read_mostly module_alloc_base;
+u16 __initdata memstart_offset_seed;
 
 static __init u64 get_kaslr_seed(void *fdt)
 {
@@ -122,6 +123,9 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 */
 	mask = ((1UL << (VA_BITS - 2)) - 1) & ~(SZ_2M - 1);
 	offset = seed & mask;
+
+	/* use the top 16 bits to randomize the linear region */
+	memstart_offset_seed = seed >> 48;
 
 	/*
 	 * The kernel Image should not extend across a 1GB/32MB/512MB alignment
