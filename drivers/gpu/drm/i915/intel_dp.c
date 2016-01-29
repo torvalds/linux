@@ -4008,7 +4008,7 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 	} while (--attempts && count);
 
 	if (attempts == 0) {
-		DRM_ERROR("TIMEOUT: Sink CRC counter is not zeroed\n");
+		DRM_DEBUG_KMS("TIMEOUT: Sink CRC counter is not zeroed after calculation is stopped\n");
 		ret = -ETIMEDOUT;
 	}
 
