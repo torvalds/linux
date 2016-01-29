@@ -3584,10 +3584,18 @@ static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
 			       atomic_long_t *stat, unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(rsp, s)) {
-		if (rnp)
+		if (rnp) {
 			mutex_unlock(&rnp->exp_funnel_mutex);
-		else if (rdp)
+			trace_rcu_exp_funnel_lock(rsp->name, rnp->level,
+						  rnp->grplo, rnp->grphi,
+						  TPS("rel"));
+		} else if (rdp) {
 			mutex_unlock(&rdp->exp_funnel_mutex);
+			trace_rcu_exp_funnel_lock(rsp->name,
+						  rdp->mynode->level + 1,
+						  rdp->cpu, rdp->cpu,
+						  TPS("rel"));
+		}
 		/* Ensure test happens before caller kfree(). */
 		smp_mb__before_atomic(); /* ^^^ */
 		atomic_long_inc(stat);
@@ -3619,6 +3627,9 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 			if (sync_exp_work_done(rsp, rnp0, NULL,
 					       &rdp->expedited_workdone0, s))
 				return NULL;
+			trace_rcu_exp_funnel_lock(rsp->name, rnp0->level,
+						  rnp0->grplo, rnp0->grphi,
+						  TPS("acq"));
 			return rnp0;
 		}
 	}
@@ -3634,16 +3645,28 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	if (sync_exp_work_done(rsp, NULL, NULL, &rdp->expedited_workdone1, s))
 		return NULL;
 	mutex_lock(&rdp->exp_funnel_mutex);
+	trace_rcu_exp_funnel_lock(rsp->name, rdp->mynode->level + 1,
+				  rdp->cpu, rdp->cpu, TPS("acq"));
 	rnp0 = rdp->mynode;
 	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
 		if (sync_exp_work_done(rsp, rnp1, rdp,
 				       &rdp->expedited_workdone2, s))
 			return NULL;
 		mutex_lock(&rnp0->exp_funnel_mutex);
-		if (rnp1)
+		trace_rcu_exp_funnel_lock(rsp->name, rnp0->level,
+					  rnp0->grplo, rnp0->grphi, TPS("acq"));
+		if (rnp1) {
 			mutex_unlock(&rnp1->exp_funnel_mutex);
-		else
+			trace_rcu_exp_funnel_lock(rsp->name, rnp1->level,
+						  rnp1->grplo, rnp1->grphi,
+						  TPS("rel"));
+		} else {
 			mutex_unlock(&rdp->exp_funnel_mutex);
+			trace_rcu_exp_funnel_lock(rsp->name,
+						  rdp->mynode->level + 1,
+						  rdp->cpu, rdp->cpu,
+						  TPS("rel"));
+		}
 		rnp1 = rnp0;
 	}
 	if (sync_exp_work_done(rsp, rnp1, rdp,
