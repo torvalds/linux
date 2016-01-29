@@ -439,17 +439,38 @@ static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
 }
 
 /*
- * Return 1 if the entire region is locked, 0 otherwise
+ * Return 1 if the entire region is locked (if @locked is true) or unlocked (if
+ * @locked is false); 0 otherwise
  */
-static int stm_is_locked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
-			    u8 sr)
+static int stm_check_lock_status_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
+				    u8 sr, bool locked)
 {
 	loff_t lock_offs;
 	uint64_t lock_len;
 
+	if (!len)
+		return 1;
+
 	stm_get_locked_range(nor, sr, &lock_offs, &lock_len);
 
-	return (ofs + len <= lock_offs + lock_len) && (ofs >= lock_offs);
+	if (locked)
+		/* Requested range is a sub-range of locked range */
+		return (ofs + len <= lock_offs + lock_len) && (ofs >= lock_offs);
+	else
+		/* Requested range does not overlap with locked range */
+		return (ofs >= lock_offs + lock_len) || (ofs + len <= lock_offs);
+}
+
+static int stm_is_locked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
+			    u8 sr)
+{
+	return stm_check_lock_status_sr(nor, ofs, len, sr, true);
+}
+
+static int stm_is_unlocked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
+			      u8 sr)
+{
+	return stm_check_lock_status_sr(nor, ofs, len, sr, false);
 }
 
 /*
@@ -481,20 +502,24 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	int status_old, status_new;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
 	u8 shift = ffs(mask) - 1, pow, val;
+	loff_t lock_len;
 	int ret;
 
 	status_old = read_sr(nor);
 	if (status_old < 0)
 		return status_old;
 
-	/* SPI NOR always locks to the end */
-	if (ofs + len != mtd->size) {
-		/* Does combined region extend to end? */
-		if (!stm_is_locked_sr(nor, ofs + len, mtd->size - ofs - len,
-				      status_old))
-			return -EINVAL;
-		len = mtd->size - ofs;
-	}
+	/* If nothing in our range is unlocked, we don't need to do anything */
+	if (stm_is_locked_sr(nor, ofs, len, status_old))
+		return 0;
+
+	/* If anything above us is unlocked, we can't use 'top' protection */
+	if (!stm_is_locked_sr(nor, ofs + len, mtd->size - (ofs + len),
+				status_old))
+		return -EINVAL;
+
+	/* lock_len: length of region that should end up locked */
+	lock_len = mtd->size - ofs;
 
 	/*
 	 * Need smallest pow such that:
@@ -505,7 +530,7 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	 *
 	 *   pow = ceil(log2(size / len)) = log2(size) - floor(log2(len))
 	 */
-	pow = ilog2(mtd->size) - ilog2(len);
+	pow = ilog2(mtd->size) - ilog2(lock_len);
 	val = mask - (pow << shift);
 	if (val & ~mask)
 		return -EINVAL;
@@ -541,16 +566,23 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	int status_old, status_new;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
 	u8 shift = ffs(mask) - 1, pow, val;
+	loff_t lock_len;
 	int ret;
 
 	status_old = read_sr(nor);
 	if (status_old < 0)
 		return status_old;
 
-	/* Cannot unlock; would unlock larger region than requested */
-	if (stm_is_locked_sr(nor, ofs - mtd->erasesize, mtd->erasesize,
-			     status_old))
+	/* If nothing in our range is locked, we don't need to do anything */
+	if (stm_is_unlocked_sr(nor, ofs, len, status_old))
+		return 0;
+
+	/* If anything below us is locked, we can't use 'top' protection */
+	if (!stm_is_unlocked_sr(nor, 0, ofs, status_old))
 		return -EINVAL;
+
+	/* lock_len: length of region that should remain locked */
+	lock_len = mtd->size - (ofs + len);
 
 	/*
 	 * Need largest pow such that:
@@ -561,8 +593,8 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	 *
 	 *   pow = floor(log2(size / len)) = log2(size) - ceil(log2(len))
 	 */
-	pow = ilog2(mtd->size) - order_base_2(mtd->size - (ofs + len));
-	if (ofs + len == mtd->size) {
+	pow = ilog2(mtd->size) - order_base_2(lock_len);
+	if (lock_len == 0) {
 		val = 0; /* fully unlocked */
 	} else {
 		val = mask - (pow << shift);
