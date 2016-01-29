@@ -148,9 +148,11 @@ static void dwc2_sof_intr(struct dwc2_hsotg *hsotg)
 	while (qh_entry != &hsotg->periodic_sched_inactive) {
 		qh = list_entry(qh_entry, struct dwc2_qh, qh_list_entry);
 		qh_entry = qh_entry->next;
-		if (dwc2_frame_num_le(qh->sched_frame, hsotg->frame_number)) {
-			dwc2_sch_vdbg(hsotg, "QH=%p ready fn=%04x, sch=%04x\n",
-				      qh, hsotg->frame_number, qh->sched_frame);
+		if (dwc2_frame_num_le(qh->next_active_frame,
+				      hsotg->frame_number)) {
+			dwc2_sch_vdbg(hsotg, "QH=%p ready fn=%04x, nxt=%04x\n",
+				      qh, hsotg->frame_number,
+				      qh->next_active_frame);
 
 			/*
 			 * Move QH to the ready list to be executed next
@@ -1368,7 +1370,7 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 			int frnum = dwc2_hcd_get_frame_number(hsotg);
 
 			if (dwc2_full_frame_num(frnum) !=
-			    dwc2_full_frame_num(chan->qh->sched_frame)) {
+			    dwc2_full_frame_num(chan->qh->next_active_frame)) {
 				/*
 				 * No longer in the same full speed frame.
 				 * Treat this as a transaction error.
