@@ -267,8 +267,9 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 
 int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen);
 size_t kernfs_path_len(struct kernfs_node *kn);
-char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
-				size_t buflen);
+int kernfs_path_from_node(struct kernfs_node *root_kn, struct kernfs_node *kn,
+			  char *buf, size_t buflen);
+char *kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen);
 void pr_cont_kernfs_name(struct kernfs_node *kn);
 void pr_cont_kernfs_path(struct kernfs_node *kn);
 struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn);
@@ -338,8 +339,8 @@ static inline int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 static inline size_t kernfs_path_len(struct kernfs_node *kn)
 { return 0; }
 
-static inline char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
-					      size_t buflen)
+static inline char *kernfs_path(struct kernfs_node *kn, char *buf,
+				size_t buflen)
 { return NULL; }
 
 static inline void pr_cont_kernfs_name(struct kernfs_node *kn) { }
