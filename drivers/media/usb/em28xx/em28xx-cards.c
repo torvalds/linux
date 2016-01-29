@@ -1555,6 +1555,7 @@ struct em28xx_board em28xx_boards[] = {
 		.buttons = std_snapshot_button,
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_YMEC_TVF_5533MF,
+		.tuner_addr   = 0x60,
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
