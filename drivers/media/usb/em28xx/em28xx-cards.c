@@ -3468,7 +3468,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/* allocate device struct */
+	/* allocate device struct and check if the device is a webcam */
 	mutex_init(&dev->lock);
 	retval = em28xx_init_dev(dev, udev, interface, nr);
 	if (retval) {
@@ -3482,6 +3482,15 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			try_bulk = 0;
 	} else {
 		try_bulk = usb_xfer_mode > 0;
+	}
+
+	/* Disable V4L2 if the device doesn't have a decoder */
+	if (has_video &&
+	    dev->board.decoder == EM28XX_NODECODER && !dev->board.is_webcam) {
+		printk(DRIVER_NAME
+		       ": Currently, V4L2 is not supported on this model\n");
+		has_video = false;
+		dev->has_video = false;
 	}
 
 	/* Select USB transfer types to use */
