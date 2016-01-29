@@ -7185,9 +7185,10 @@ static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
-	div = vlv_gpu_freq_div(czclk_freq) / 2;
+	div = vlv_gpu_freq_div(czclk_freq);
 	if (div < 0)
 		return div;
+	div /= 2;
 
 	return DIV_ROUND_CLOSEST(czclk_freq * val, 2 * div) / 2;
 }
@@ -7196,9 +7197,10 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
-	mul = vlv_gpu_freq_div(czclk_freq) / 2;
+	mul = vlv_gpu_freq_div(czclk_freq);
 	if (mul < 0)
 		return mul;
+	mul /= 2;
 
 	/* CHV needs even values */
 	return DIV_ROUND_CLOSEST(val * 2 * mul, czclk_freq) * 2;
