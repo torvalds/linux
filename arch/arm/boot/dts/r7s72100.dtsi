@@ -158,7 +158,7 @@
 			     <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF0>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -171,7 +171,7 @@
 			     <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF1>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -184,7 +184,7 @@
 			     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF2>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -197,7 +197,7 @@
 			     <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF3>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -210,7 +210,7 @@
 			     <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF4>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -223,7 +223,7 @@
 			     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF5>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -236,7 +236,7 @@
 			     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF6>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -249,7 +249,7 @@
 			     <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks R7S72100_CLK_SCIF7>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
