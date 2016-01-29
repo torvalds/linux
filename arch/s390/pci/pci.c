@@ -637,11 +637,9 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 
 int pcibios_add_device(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = to_zpci(pdev);
 	struct resource *res;
 	int i;
 
-	zdev->pdev = pdev;
 	pdev->dev.groups = zpci_attr_groups;
 	zpci_map_resources(pdev);
 
@@ -664,8 +662,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
 
-	zdev->pdev = pdev;
-	zpci_debug_init_device(zdev);
+	zpci_debug_init_device(zdev, dev_name(&pdev->dev));
 	zpci_fmb_enable_device(zdev);
 
 	return pci_enable_resources(pdev, mask);
@@ -677,7 +674,6 @@ void pcibios_disable_device(struct pci_dev *pdev)
 
 	zpci_fmb_disable_device(zdev);
 	zpci_debug_exit_device(zdev);
-	zdev->pdev = NULL;
 }
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
