@@ -986,17 +986,6 @@ struct inode *ccc_object_inode(const struct cl_object *obj)
 }
 
 /**
- * Returns a pointer to cl_page associated with \a vmpage, without acquiring
- * additional reference to the resulting page. This is an unsafe version of
- * cl_vmpage_page() that can only be used under vmpage lock.
- */
-struct cl_page *ccc_vmpage_page_transient(struct page *vmpage)
-{
-	KLASSERT(PageLocked(vmpage));
-	return (struct cl_page *)vmpage->private;
-}
-
-/**
  * Initialize or update CLIO structures for regular files when new
  * meta-data arrives from the server.
  *
