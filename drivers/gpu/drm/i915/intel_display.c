@@ -3156,9 +3156,6 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = to_intel_crtc(crtc)->pipe;
 
-	if (dev_priv->fbc.deactivate)
-		dev_priv->fbc.deactivate(dev_priv);
-
 	I915_WRITE(PLANE_CTL(pipe, 0), 0);
 	I915_WRITE(PLANE_SURF(pipe, 0), 0);
 	POSTING_READ(PLANE_SURF(pipe, 0));
