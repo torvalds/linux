@@ -1565,6 +1565,17 @@ config WATCHDOG_RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
 
+config WATCHDOG_SUN4V
+	tristate "Sun4v Watchdog support"
+	select WATCHDOG_CORE
+	depends on SPARC64
+	help
+	  Say Y here to support the hypervisor watchdog capability embedded
+	  in the SPARC sun4v architecture.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called sun4v_wdt.
+
 # XTENSA Architecture
 
 # Xen Architecture
