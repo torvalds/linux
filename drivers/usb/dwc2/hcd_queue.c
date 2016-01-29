@@ -245,6 +245,70 @@ static int dwc2_find_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 }
 
 /**
+ * dwc2_do_reserve() - Make a periodic reservation
+ *
+ * Try to allocate space in the periodic schedule.  Depending on parameters
+ * this might use the microframe scheduler or the dumb scheduler.
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ * @qh:    QH for the periodic transfer.
+ *
+ * Returns: 0 upon success; error upon failure.
+ */
+static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+{
+	int status;
+
+	if (hsotg->core_params->uframe_sched > 0) {
+		int frame = -1;
+
+		status = dwc2_find_uframe(hsotg, qh);
+		if (status == 0)
+			frame = 7;
+		else if (status > 0)
+			frame = status - 1;
+
+		/* Set the new frame up */
+		if (frame >= 0) {
+			qh->next_active_frame &= ~0x7;
+			qh->next_active_frame |= (frame & 7);
+			dwc2_sch_dbg(hsotg,
+				     "QH=%p sched_p nxt=%04x, uf=%d\n",
+				     qh, qh->next_active_frame, frame);
+		}
+
+		if (status > 0)
+			status = 0;
+	} else {
+		status = dwc2_periodic_channel_available(hsotg);
+		if (status) {
+			dev_info(hsotg->dev,
+				 "%s: No host channel available for periodic transfer\n",
+				 __func__);
+			return status;
+		}
+
+		status = dwc2_check_periodic_bandwidth(hsotg, qh);
+	}
+
+	if (status) {
+		dev_dbg(hsotg->dev,
+			"%s: Insufficient periodic bandwidth for periodic transfer\n",
+			__func__);
+		return status;
+	}
+
+	if (hsotg->core_params->uframe_sched <= 0)
+		/* Reserve periodic channel */
+		hsotg->periodic_channels++;
+
+	/* Update claimed usecs per (micro)frame */
+	hsotg->periodic_usecs += qh->host_us;
+
+	return 0;
+}
+
+/**
  * dwc2_do_unreserve() - Actually release the periodic reservation
  *
  * This function actually releases the periodic bandwidth that was reserved
@@ -393,51 +457,9 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	 * that case.
 	 */
 	if (!qh->unreserve_pending) {
-		if (hsotg->core_params->uframe_sched > 0) {
-			int frame = -1;
-
-			status = dwc2_find_uframe(hsotg, qh);
-			if (status == 0)
-				frame = 7;
-			else if (status > 0)
-				frame = status - 1;
-
-			/* Set the new frame up */
-			if (frame >= 0) {
-				qh->next_active_frame &= ~0x7;
-				qh->next_active_frame |= (frame & 7);
-				dwc2_sch_dbg(hsotg,
-					     "QH=%p sched_p nxt=%04x, uf=%d\n",
-					     qh, qh->next_active_frame, frame);
-			}
-
-			if (status > 0)
-				status = 0;
-		} else {
-			status = dwc2_periodic_channel_available(hsotg);
-			if (status) {
-				dev_info(hsotg->dev,
-					"%s: No host channel available for periodic transfer\n",
-					__func__);
-				return status;
-			}
-
-			status = dwc2_check_periodic_bandwidth(hsotg, qh);
-		}
-
-		if (status) {
-			dev_dbg(hsotg->dev,
-				"%s: Insufficient periodic bandwidth for periodic transfer\n",
-				__func__);
+		status = dwc2_do_reserve(hsotg, qh);
+		if (status)
 			return status;
-		}
-
-		if (hsotg->core_params->uframe_sched <= 0)
-			/* Reserve periodic channel */
-			hsotg->periodic_channels++;
-
-		/* Update claimed usecs per (micro)frame */
-		hsotg->periodic_usecs += qh->host_us;
 	}
 
 	qh->unreserve_pending = 0;
@@ -450,7 +472,7 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		list_add_tail(&qh->qh_list_entry,
 			      &hsotg->periodic_sched_inactive);
 
-	return status;
+	return 0;
 }
 
 /**
