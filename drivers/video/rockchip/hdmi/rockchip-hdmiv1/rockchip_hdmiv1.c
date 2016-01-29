@@ -256,8 +256,7 @@ static int rockchip_hdmiv1_parse_dt(struct hdmi_dev *hdmi_dev)
 		rockchip_hdmiv1_property.defaultmode =
 						HDMI_VIDEO_DEFAULT_MODE;
 	}
-	/*hdmi_dev->grf_base =
-		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");*/
+
 	return 0;
 }
 MODULE_DEVICE_TABLE(of, rockchip_hdmiv1_dt_ids);

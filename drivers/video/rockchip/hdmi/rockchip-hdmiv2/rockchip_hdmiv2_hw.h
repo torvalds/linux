@@ -18,43 +18,53 @@ enum {
 /* Color Space Convertion Mode */
 enum {
 	CSC_RGB_0_255_TO_RGB_16_235_8BIT,	/* RGB 0-255 input to RGB
-						   16-235 output that is 8bit
-						   clolor depth */
+						 * 16-235 output that is 8bit
+						 * clolor depth
+						 */
 	CSC_RGB_0_255_TO_RGB_16_235_10BIT,	/* RGB 0-255 input to RGB
-						   16-235 output that is 8bit
-						   clolor depth */
+						 * 16-235 output that is 8bit
+						 * clolor depth
+						 */
 	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,	/* RGB 0-255 input to YCbCr
-						   16-235 output according
-						   BT601 that is 8bit clolor
-						   depth */
+						 * 16-235 output according
+						 * BT601 that is 8bit clolor
+						 * depth
+						 */
 	CSC_RGB_0_255_TO_ITU601_16_235_10BIT,	/* RGB 0-255 input to YCbCr
-						   16-235 output according
-						   BT601 that is 10bit clolor
-						   depth */
+						 * 16-235 output according
+						 * BT601 that is 10bit clolor
+						 * depth
+						 */
 	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,	/* RGB 0-255 input to YCbCr
-						   16-235 output accroding
-						   BT709 that is 8bit clolor
-						   depth */
+						 * 16-235 output accroding
+						 * BT709 that is 8bit clolor
+						 * depth
+						 */
 	CSC_RGB_0_255_TO_ITU709_16_235_10BIT,	/* RGB 0-255 input to YCbCr
-						   16-235 output accroding
-						   BT709 that is 10bit clolor
-						   depth */
+						 * 16-235 output accroding
+						 * BT709 that is 10bit clolor
+						 * depth
+						 */
 	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,	/* YCbCr 16-235 input to RGB
-						   0-255 output according
-						   BT601 that is 8bit clolor
-						   depth */
+						 * 0-255 output according
+						 * BT601 that is 8bit clolor
+						 * depth
+						 */
 	CSC_ITU709_16_235_TO_RGB_0_255_8BIT,	/* YCbCr 16-235 input to RGB
-						   0-255 output according
-						   BT709 that is 8bit clolor
-						   depth */
+						 * 0-255 output according
+						 * BT709 that is 8bit clolor
+						 * depth
+						 */
 	CSC_ITU601_16_235_TO_RGB_16_235_8BIT,	/* YCbCr 16-235 input to RGB
-						   16-235 output according
-						   BT601 that is 8bit clolor
-						   depth */
+						 * 16-235 output according
+						 * BT601 that is 8bit clolor
+						 * depth
+						 */
 	CSC_ITU709_16_235_TO_RGB_16_235_8BIT	/* YCbCr 16-235 input to RGB
-						   16-235 output according
-						   BT709 that is 8bit clolor
-						   depth */
+						 * 16-235 output according
+						 * BT709 that is 8bit clolor
+						 * depth
+						 */
 };
 
 #define HDMI_SCL_RATE		(100*1000)
@@ -688,6 +698,8 @@ enum {
 #define	FC_PRCONF			0x10e0
 #define m_FC_PR_FACTOR		(0x0f << 4)
 #define v_FC_PR_FACTOR(n)	(((n)&0x0f) << 4)
+#define m_FC_PR_FACTOR_OUT	(0x0f)
+#define v_FC_PR_FACTOR_OUT(n)	((n) & 0x0f)
 
 #define	FC_SCRAMBLER_CTRL		0x10e1
 #define m_FC_SCRAMBLE_UCP	(1 << 4)
@@ -1526,14 +1538,20 @@ struct phy_mpll_config_tab {
 	u16 gmp_cntrl;
 };
 
-/* PHY Defined for RK3228 */
+/* PHY Defined for RK322X */
 #define EXT_PHY_CONTROL		0
 	#define EXT_PHY_ANALOG_RESET_MASK		0x80
 	#define EXT_PHY_DIGITAL_RESET_MASK		0x40
 	#define EXT_PHY_PCLK_INVERT_MASK		0x08
 	#define EXT_PHY_PREPCLK_INVERT_MASK		0x04
 	#define EXT_PHY_TMDSCLK_INVERT_MASK		0x02
-	#define ExT_PHY_SRC_SELECT_MASK			0x01
+	#define EXT_PHY_SRC_SELECT_MASK			0x01
+
+#define EXT_PHY_TERM_CAL		0x03
+	#define EXT_PHY_TERM_CAL_EN_MASK		0x80
+	#define EXT_PHY_TERM_CAL_DIV_H_MASK		0x7f
+
+#define EXT_PHY_TERM_CAL_DIV_L		0x04
 
 #define EXT_PHY_PLL_PRE_DIVIDER		0xe2
 	#define EXT_PHY_PLL_FB_BIT8_MASK		0x80
@@ -1555,9 +1573,11 @@ struct phy_mpll_config_tab {
 	#define EXT_PHY_TMDSCLK_DIVIDERA_MASK		0x0c
 	#define EXT_PHY_TMDSCLK_DIVIDERB_MASK		0x03
 
+#define EXT_PHY_PLL_BW			0xe7
+
 #define EXT_PHY_PPLL_PRE_DIVIDER	0xe9
 	#define EXT_PHY_PPLL_ENABLE_MASK		0xc0
-	#define EXT_PHY_PPLL_PRE_DIVIDER_MASK		0x0f
+	#define EXT_PHY_PPLL_PRE_DIVIDER_MASK		0x1f
 
 #define EXT_PHY_PPLL_FB_DIVIDER		0xea
 
@@ -1565,6 +1585,8 @@ struct phy_mpll_config_tab {
 	#define EXT_PHY_PPLL_FB_DIVIDER_BIT8_MASK	0x80
 	#define EXT_PHY_PPLL_POST_DIVIDER_MASK		0x30
 	#define EXT_PHY_PPLL_LOCK_STATUS_MASK		0x01
+
+#define EXT_PHY_PPLL_BW			0xec
 
 #define EXT_PHY_SIGNAL_CTRL		0xee
 	#define EXT_PHY_TRANSITION_CLK_EN_MASK		0x80
@@ -1595,6 +1617,24 @@ struct phy_mpll_config_tab {
 	#define EXT_PHY_LEVEL_D1_MASK			0xf0
 	#define EXT_PHY_LEVEL_D0_MASK			0x0f
 
+#define EXT_PHY_TERM_RESIS_AUTO		0xf4
+	#define EXT_PHY_AUTO_R50_OHMS			0
+	#define EXT_PHY_AUTO_R75_OHMS			(1 << 2)
+	#define EXT_PHY_AUTO_R100_OHMS			(2 << 2)
+	#define EXT_PHY_AUTO_ROPEN_CIRCUIT		(3 << 2)
+
+#define EXT_PHY_TERM_RESIS_MANUAL_CLK	0xfb
+#define EXT_PHY_TERM_RESIS_MANUAL_D2	0xfc
+#define EXT_PHY_TERM_RESIS_MANUAL_D1	0xfd
+#define EXT_PHY_TERM_RESIS_MANUAL_D0	0xfe
+
+#define RK322X_DDC_MASK_EN	((3 << 13) | (3 << (13 + 16)))
+#define RK322X_IO_3V_DOMAIN	((7 << 4) | (7 << (4 + 16)))
+#define RK322X_PLL_POWER_DOWN	(BIT(12) | BIT(12 + 16))
+#define RK322X_PLL_POWER_UP	BIT(12 + 16)
+#define RK322X_PLL_PDATA_DEN	BIT(11 + 16)
+#define RK322X_PLL_PDATA_EN	(BIT(11) | BIT(11 + 16))
+
 struct ext_pll_config_tab {
 	u32	pix_clock;
 	u32	tmdsclock;
@@ -1609,6 +1649,9 @@ struct ext_pll_config_tab {
 	u8	pclk_divider_c;
 	u8	pclk_divider_d;
 	u8	vco_div_5;
+	u8	ppll_nd;
+	u8	ppll_nf;
+	u8	ppll_no;
 };
 /*
 * HDMI TX PHY Define End

@@ -268,10 +268,6 @@ static void rockchip_hdmiv1_hdcp_interrupt(struct hdmi_dev *hdmi_dev,
 	if (tmds_clk <= (HDMI_SYS_FREG_CLK << 2))
 		hdmi_msk_reg(hdmi_dev, SYS_CTRL, m_REG_CLK_SOURCE,
 			     v_REG_CLK_SOURCE_TMDS);
-/*
-	hdmi_readl(HDCP_ERROR, &temp);
-	DBG("HDCP: Error reg 0x65 = 0x%02x\n", temp);
-*/
 }
 
 /*-----------------------------------------------------------------------------
@@ -346,9 +342,9 @@ static void hdcp_wq_authentication_failure(void)
 		return;
 
 	rockchip_hdmiv1_hdcp_disable(hdcp->hdmi_dev);
-/*
-	rockchip_hdmiv1_hdmi_control_output(false);
- */
+
+	/* rockchip_hdmiv1_hdmi_control_output(false); */
+
 	rockchip_hdmiv1_set_colorbar(hdcp->hdmi_dev, 1);
 	hdcp_cancel_work(&hdcp->pending_wq_event);
 	if (hdcp->retry_cnt && (hdcp->hdmi_state != HDMI_STOPPED)) {
@@ -502,10 +498,12 @@ static void hdcp_work_queue(struct work_struct *work)
 	case HDCP_DISABLED:
 		/* HDCP enable control or re-authentication event */
 		if (event == HDCP_ENABLE_CTL) {
-			/*if (hdcp->retry_times == 0)
+			#if 0
+			if (hdcp->retry_times == 0)
 				hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
 			else
-				hdcp->retry_cnt = hdcp->retry_times;*/
+				hdcp->retry_cnt = hdcp->retry_times;
+			#endif
 			hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
 			if (hdcp->hdmi_state == HDMI_STARTED)
 				hdcp_wq_start_authentication();
@@ -598,10 +596,10 @@ static void hdcp_irq_cb(int status)
 		    (hdcp->hdcp_state != HDCP_ENABLE_PENDING))
 			hdcp_submit_work(HDCP_FAIL_EVENT, 0);
 	}
-/*
+	#if 0
 	else if (interrupt1 & (m_INT_BKSV_READY | m_INT_BKSV_UPDATE))
 		hdcp_submit_work(HDCP_KSV_LIST_RDY_EVENT, 0);
- */
+	#endif
 	else if (interrupt1 & m_INT_AUTH_SUCCESS)
 		hdcp_submit_work(HDCP_AUTH_PASS_EVENT, 0);
 }
@@ -659,10 +657,8 @@ static void hdcp_load_keys_cb(const struct firmware *fw, void *context)
 		return;
 	}
 	hdcp->keys =  kmalloc(HDCP_KEY_SIZE, GFP_KERNEL);
-	if (hdcp->keys == NULL) {
-		pr_err("HDCP: can't allocated space for keys\n");
+	if (!hdcp->keys)
 		return;
-	}
 	memcpy(hdcp->keys, fw->data, HDCP_KEY_SIZE);
 	HDCP_WARN("HDCP: load hdcp key success\n");
 

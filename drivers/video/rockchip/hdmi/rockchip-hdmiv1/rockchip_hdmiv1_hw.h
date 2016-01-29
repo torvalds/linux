@@ -34,23 +34,28 @@ enum {
 /* Color Space Convertion Mode */
 enum {
 	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,/* YCbCr 16-235 input to RGB
-					       0-255 output according BT601
-					       that is 8bit clolor depth */
+					     * 0-255 output according BT601
+					     * that is 8bit clolor depth
+					     */
 	CSC_ITU601_0_255_TO_RGB_0_255_8BIT, /* YCbCr 0-255 input to RGB
-					       0-255 output according BT601
-					       that is 8bit clolor depth */
+					     * 0-255 output according BT601
+					     * that is 8bit clolor depth
+					     */
 	CSC_ITU709_16_235_TO_RGB_0_255_8BIT,/* YCbCr 16-235 input to RGB
-					       0-255 output according BT709
-					       that is 8bit clolor depth */
+					     * 0-255 output according BT709
+					     * that is 8bit clolor depth
+					     */
 	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,/* RGB 0-255 input to YCbCr
-					       16-235 output according BT601
-					       that is 8bit clolor depth */
+					     * 16-235 output according BT601
+					     * that is 8bit clolor depth
+					     */
 	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,/* RGB 0-255 input to YCbCr 16-235
-					       output accroding BT709 that is
-					       8bit clolor depth */
+					     * output accroding BT709 that is
+					     * 8bit clolor depth
+					     */
 	CSC_RGB_0_255_TO_RGB_16_235_8BIT,   /* RGB 0-255 input to RGB 16-235
-					       output that is 8bit clolor depth
-					    */
+					     * output that is 8bit clolor depth
+					     */
 };
 
 
@@ -128,9 +133,10 @@ enum {
 #define m_SOF			(1 << 3)
 #define m_COLOR_RANGE		(1 << 2)
 #define m_CSC			(1 << 0)
-#define v_COLOR_DEPTH_NOT_INDICATED(n) ((n) << 4) /*1: Force GCP CD[3:0] zero
-						    0: GCP CD[3:0] according
-						       color depth*/
+#define v_COLOR_DEPTH_NOT_INDICATED(n) ((n) << 4) /* 1: Force GCP CD[3:0] zero
+						   * 0: GCP CD[3:0] according
+						   *    color depth
+						   */
 #define v_SOF_ENABLE		(0 << 3)
 #define v_SOF_DISABLE		(1 << 3)
 #define v_COLOR_RANGE_FULL	(1 << 2)
@@ -265,10 +271,11 @@ enum {
 #define PACKET_SEND_MANUAL		0x9c
 #define PACKET_SEND_AUTO		0x9d
 	#define m_PACKET_GCP_EN		(1 << 7)
-	#define m_PACKET_MSI_EN		(1 << 6) /*MPEG Source InfoFrame*/
-	#define m_PACKET_SDI_EN		(1 << 5) /*Source product descriptor*/
-	#define m_PACKET_VSI_EN		(1 << 4) /*HDMI Vendor Specific
-						   InfoFrame*/
+	#define m_PACKET_MSI_EN		(1 << 6) /* MPEG Source InfoFrame */
+	#define m_PACKET_SDI_EN		(1 << 5) /* Source product descriptor */
+	#define m_PACKET_VSI_EN		(1 << 4) /* HDMI Vendor Specific
+						  * InfoFrame
+						  */
 	#define v_PACKET_GCP_EN(n)	((n & 1) << 7)
 	#define v_PACKET_MSI_EN(n)	((n & 1) << 6)
 	#define v_PACKET_SDI_EN(n)	((n & 1) << 5)

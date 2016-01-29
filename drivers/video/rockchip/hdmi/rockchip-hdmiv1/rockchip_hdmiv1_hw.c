@@ -168,11 +168,6 @@ int rockchip_hdmiv1_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 				hdmi_readl(hdmi_dev, 0x50, &c);
 				buf[j] = c;
 				checksum += c;
-#ifdef HDMI_DEBUG
-				if (j % 16 == 0)
-					printk("\n>>>0x%02x: ", j);
-				printk("0x%02x ", c);
-#endif
 			}
 
 			if ((checksum & 0xff) == 0) {
@@ -195,62 +190,60 @@ int rockchip_hdmiv1_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 }
 
 static const char coeff_csc[][24] = {
-	/*YUV2RGB:601 SD mode(Y[16:235],UV[16:240],RGB[0:255]):
-	    R = 1.164*Y +1.596*V - 204
-	    G = 1.164*Y - 0.391*U - 0.813*V + 154
-	    B = 1.164*Y + 2.018*U - 258*/
+	/* YUV2RGB:601 SD mode(Y[16:235],UV[16:240],RGB[0:255]):
+	 *  R = 1.164*Y +1.596*V - 204
+	 *  G = 1.164*Y - 0.391*U - 0.813*V + 154
+	 *  B = 1.164*Y + 2.018*U - 258
+	 */
 	{
 	0x04, 0xa7, 0x00, 0x00, 0x06, 0x62, 0x02, 0xcc,
 	0x04, 0xa7, 0x11, 0x90, 0x13, 0x40, 0x00, 0x9a,
 	0x04, 0xa7, 0x08, 0x12, 0x00, 0x00, 0x03, 0x02},
 
-	/*YUV2RGB:601 SD mode(YUV[0:255],RGB[0:255]):
-	    R = Y + 1.402*V - 248
-	    G = Y - 0.344*U - 0.714*V + 135
-	    B = Y + 1.772*U - 227*/
+	/* YUV2RGB:601 SD mode(YUV[0:255],RGB[0:255]):
+	 *  R = Y + 1.402*V - 248
+	 *  G = Y - 0.344*U - 0.714*V + 135
+	 *  B = Y + 1.772*U - 227
+	 */
 	{
 	0x04, 0x00, 0x00, 0x00, 0x05, 0x9b, 0x02, 0xf8,
 	0x04, 0x00, 0x11, 0x60, 0x12, 0xdb, 0x00, 0x87,
 	0x04, 0x00, 0x07, 0x16, 0x00, 0x00, 0x02, 0xe3},
-	/*YUV2RGB:709 HD mode(Y[16:235],UV[16:240],RGB[0:255]):
-	    R = 1.164*Y +1.793*V - 248
-	    G = 1.164*Y - 0.213*U - 0.534*V + 77
-	    B = 1.164*Y + 2.115*U - 289*/
+	/* YUV2RGB:709 HD mode(Y[16:235],UV[16:240],RGB[0:255]):
+	 *  R = 1.164*Y +1.793*V - 248
+	 *  G = 1.164*Y - 0.213*U - 0.534*V + 77
+	 *  B = 1.164*Y + 2.115*U - 289
+	 */
 	{
 	0x04, 0xa7, 0x00, 0x00, 0x07, 0x2c, 0x02, 0xf8,
 	0x04, 0xa7, 0x10, 0xda, 0x12, 0x22, 0x00, 0x4d,
 	0x04, 0xa7, 0x08, 0x74, 0x00, 0x00, 0x03, 0x21},
-	/*RGB2YUV:601 SD mode:
-	    Cb = -0.291G  - 0.148R + 0.439B + 128
-	    Y   = 0.504G   + 0.257R + 0.098B + 16
-	    Cr  = -0.368G + 0.439R - 0.071B + 128*/
+	/* RGB2YUV:601 SD mode:
+	 *  Cb = -0.291G  - 0.148R + 0.439B + 128
+	 *  Y   = 0.504G   + 0.257R + 0.098B + 16
+	 *  Cr  = -0.368G + 0.439R - 0.071B + 128
+	 */
 	{
-	/*0x11, 0x78, 0x01, 0xc1, 0x10, 0x48, 0x00, 0x80,
-	0x02, 0x04, 0x01, 0x07, 0x00, 0x64, 0x00, 0x10,
-	0x11, 0x29, 0x10, 0x97, 0x01, 0xc1, 0x00, 0x80*/
-
-	/*0x11,0x4b,0x01,0x8a,0x10,0x3f,0x00,0x80,
-	0x01,0xbb,0x00,0xe2,0x00,0x56,0x00,0x1d,
-	0x11,0x05,0x10,0x85,0x01,0x8a,0x00,0x80*/
-
 	0x11, 0x5f, 0x01, 0x82, 0x10, 0x23, 0x00, 0x80,
 	0x02, 0x1c, 0x00, 0xa1, 0x00, 0x36, 0x00, 0x1e,
 	0x11, 0x29, 0x10, 0x59, 0x01, 0x82, 0x00, 0x80
 	},
 
-	/*RGB2YUV:709 HD mode:
-	    Cb = - 0.338G - 0.101R +  0.439B + 128
-	    Y  =    0.614G + 0.183R +  0.062B + 16
-	    Cr = - 0.399G + 0.439R  -  0.040B + 128*/
+	/* RGB2YUV:709 HD mode:
+	 *  Cb = - 0.338G - 0.101R +  0.439B + 128
+	 *  Y  =    0.614G + 0.183R +  0.062B + 16
+	 *  Cr = - 0.399G + 0.439R  -  0.040B + 128
+	 */
 	{
 	0x11, 0x98, 0x01, 0xc1, 0x10, 0x28, 0x00, 0x80,
 	0x02, 0x74, 0x00, 0xbb, 0x00, 0x3f, 0x00, 0x10,
 	0x11, 0x5a, 0x10, 0x67, 0x01, 0xc1, 0x00, 0x80
 	},
-	/*RGB[0:255]2RGB[16:235]:
-	R' = R x (235-16)/255 + 16;
-	G' = G x (235-16)/255 + 16;
-	B' = B x (235-16)/255 + 16;*/
+	/* RGB[0:255]2RGB[16:235]:
+	 * R' = R x (235-16)/255 + 16;
+	 * G' = G x (235-16)/255 + 16;
+	 * B' = B x (235-16)/255 + 16;
+	 */
 	{
 	0x00, 0x00, 0x03, 0x6F, 0x00, 0x00, 0x00, 0x10,
 	0x03, 0x6F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
@@ -453,22 +446,26 @@ static int rockchip_hdmiv1_config_vsi(struct hdmi *hdmi,
 	/* PB4 - HDMI_Video_Format into bits 7:5 */
 	info[7] = format << 5;
 	/* PB5 - Depending on the video format, this byte will contain either
-	   the HDMI_VIC code in buts 7:0, OR the 3D_Structure in bits 7:4. */
+	 * the HDMI_VIC code in buts 7:0, OR the 3D_Structure in bits 7:4.
+	 */
 	switch (format) {
 	case HDMI_VIDEO_FORMAT_4KX2K:
 		/* This is a 2x4K mode, set the HDMI_VIC in buts 7:0.  Values
-		   are from HDMI 1.4 Spec, 8.2.3.1 (Table 8-13). */
+		 * are from HDMI 1.4 Spec, 8.2.3.1 (Table 8-13).
+		 */
 		info[2] = 0x06 - 1;
 		info[8] = vic_3d;
 		info[9] = 0;
 		break;
 	case HDMI_VIDEO_FORMAT_3D:
 		/* This is a 3D mode, set the 3D_Structure in buts 7:4
-		   Bits 3:0 are reseved so set to 0.  Values are from HDMI 1.4
-		   Spec, Appendix H (Table H-2). */
+		 * Bits 3:0 are reseved so set to 0.  Values are from HDMI 1.4
+		 * Spec, Appendix H (Table H-2).
+		 */
 		info[8] = vic_3d << 4;
 		/* Add the Extended data field when the 3D format is
-		   Side-by-Side(Half). See Spec Table H-3 for details. */
+		 * Side-by-Side(Half). See Spec Table H-3 for details.
+		 */
 		if ((info[8] >> 4) == HDMI_3D_SIDE_BY_SIDE_HALF) {
 			info[2] = 0x06;
 			info[9] = 0x00;
@@ -562,12 +559,6 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 	if (hdmi_dev->soctype == HDMI_SOC_RK3036) {
 		/*rk3036 vop only can output rgb fmt*/
 		vpara->color_input = HDMI_COLOR_RGB_0_255;
-	} else if (hdmi_dev->soctype == HDMI_SOC_RK312X) {
-		/* rk3128 vop can output yuv444 fmt */
-		/*if (vpara->input_color == VIDEO_INPUT_COLOR_YCBCR444)
-			vpara->output_color = VIDEO_OUTPUT_YCBCR444;
-		else
-			vpara->output_color = VIDEO_OUTPUT_RGB444;*/
 	}
 
 	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vpara->vic);
@@ -585,7 +576,8 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 		     v_AUDIO_MUTE(1) | v_AUDIO_PD(1) | v_VIDEO_MUTE(1));
 
 	/* Input video mode is SDR RGB24bit,
-	   Data enable signal from external */
+	 * Data enable signal from external
+	 */
 	hdmi_writel(hdmi_dev, VIDEO_CONTRL1,
 		    v_VIDEO_INPUT_FORMAT(VIDEO_INPUT_SDR_RGB444) |
 		    v_DE_EXTERNAL);

@@ -34,18 +34,16 @@ static int hdmi_edid_checksum(unsigned char *buf)
 }
 
 /*
-	@Des	Parse Detail Timing Descriptor.
-	@Param	buf	:	pointer to DTD data.
-	@Param	pvic:	VIC of DTD descripted.
+ *	@Des	Parse Detail Timing Descriptor.
+ *	@Param	buf	:	pointer to DTD data.
+ *	@Param	pvic:	VIC of DTD descripted.
  */
 static int hdmi_edid_parse_dtd(unsigned char *block, struct fb_videomode *mode)
 {
 	mode->xres = H_ACTIVE;
 	mode->yres = V_ACTIVE;
 	mode->pixclock = PIXEL_CLOCK;
-/*	mode->pixclock /= 1000;
-	mode->pixclock = KHZ2PICOS(mode->pixclock);
-*/	mode->right_margin = H_SYNC_OFFSET;
+	mode->right_margin = H_SYNC_OFFSET;
 	mode->left_margin = (H_ACTIVE + H_BLANKING) -
 		(H_ACTIVE + H_SYNC_OFFSET + H_SYNC_WIDTH);
 	mode->upper_margin = V_BLANKING - V_SYNC_OFFSET -
@@ -122,8 +120,12 @@ int hdmi_edid_parse_base(unsigned char *buf,
 	fb_edid_to_monspecs(buf, pedid->specs);
 
 out:
+	/* For some sink, edid checksum is failed because several
+	 * byte is wrong. To fix this case, we think it is a good
+	 * edid if 1 <= *extend_num <= 4.
+	 */
 	if ((rc != E_HDMI_EDID_SUCCESS) &&
-	    (*extend_num < 1 && *extend_num > 4))
+	    (*extend_num < 1 || *extend_num > 4))
 		return rc;
 	else
 		return E_HDMI_EDID_SUCCESS;
@@ -141,15 +143,7 @@ static int hdmi_edid_get_cea_svd(unsigned char *buf, struct hdmi_edid *pedid)
 		vic = buf[1 + i] & 0x7f;
 		hdmi_add_vic(vic, &pedid->modelist);
 	}
-/*
-	struct list_head *pos;
-	struct display_modelist *modelist;
-
-	list_for_each(pos, &pedid->modelist) {
-		modelist = list_entry(pos, struct display_modelist, list);
-		pr_info("%s vic %d\n", __FUNCTION__, modelist->vic);
-	}
-*/	return 0;
+	return 0;
 }
 
 /* Parse CEA Short Audio Descriptor */
@@ -169,11 +163,7 @@ static int hdmi_edid_parse_cea_sad(unsigned char *buf, struct hdmi_edid *pedid)
 		pedid->audio[i].rate = buf[1 + i*3 + 1];
 		if (pedid->audio[i].type == HDMI_AUDIO_LPCM)
 			pedid->audio[i].word_length = buf[1 + i*3 + 2];
-
-/*		pr_info("type %d channel %d rate %d word length %d\n",
-			pedid->audio[i].type, pedid->audio[i].channel,
-			pedid->audio[i].rate, pedid->audio[i].word_length);
-*/	}
+	}
 	return E_HDMI_EDID_SUCCESS;
 }
 
@@ -376,7 +366,6 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 {
 	unsigned int ddc_offset, native_dtd_num, cur_offset = 4;
 	unsigned int tag, IEEEOUI = 0, count, i;
-/*	unsigned int underscan_support, baseaudio_support; */
 
 	if (buf == NULL)
 		return E_HDMI_EDID_PARAM;
@@ -388,17 +377,11 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 	}
 
 	ddc_offset = buf[2];
-/*	underscan_support = (buf[3] >> 7) & 0x01;
-*/	pedid->baseaudio_support = (buf[3] >> 6) & 0x01;
+	pedid->baseaudio_support = (buf[3] >> 6) & 0x01;
 	pedid->ycbcr444 = (buf[3] >> 5) & 0x01;
 	pedid->ycbcr422 = (buf[3] >> 4) & 0x01;
 	native_dtd_num = buf[3] & 0x0F;
-/*	EDBG("[CEA] ddc_offset %d underscan_support %d
-	    baseaudio_support %d yuv_support %d
-	    native_dtd_num %d\n",
-	    ddc_offset, underscan_support, baseaudio_support,
-	    yuv_support, native_dtd_num);
-*/	/* Parse data block */
+	/* Parse data block */
 	while (cur_offset < ddc_offset) {
 		tag = buf[cur_offset] >> 5;
 		count = buf[cur_offset] & 0x1F;

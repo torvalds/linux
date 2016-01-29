@@ -392,10 +392,9 @@ static void hdcp_load_keys_cb(const struct firmware *fw,
 			return;
 		}
 		hdcp->seeds = kmalloc(HDCP_KEY_SEED_SIZE, GFP_KERNEL);
-		if (hdcp->seeds == NULL) {
-			pr_err("HDCP: can't allocated space for seed keys\n");
+		if (!hdcp->seeds)
 			return;
-		}
+
 		memcpy(hdcp->seeds, fw->data + HDCP_KEY_SIZE,
 		       HDCP_KEY_SEED_SIZE);
 	}
