@@ -404,6 +404,44 @@ out:
 		return TEST_SUCCESS;
 	return TEST_FAILURE;
 }
+
+static int test_pipe2(char *str, int len)
+{
+	int pipe_fds[2];
+	int READ_IDX = 0, WRITE_IDX = 1;
+	const char msg[] = "Hello world!";
+	int msg_len_bytes = strlen(msg) + 1;
+	int cmp_res = 0;
+
+	if (lkl_sys_pipe2(pipe_fds, O_NONBLOCK)) {
+		perror_msg("pipe2", str);
+		return TEST_FAILURE;
+	}
+
+	if (lkl_sys_write(pipe_fds[WRITE_IDX], msg, msg_len_bytes) !=
+		msg_len_bytes) {
+		perror_msg("write", str);
+		return TEST_FAILURE;
+	}
+
+	if (lkl_sys_read(pipe_fds[READ_IDX], str, msg_len_bytes) !=
+		msg_len_bytes) {
+		perror_msg("read", str);
+		return TEST_FAILURE;
+	}
+
+	if ((cmp_res = memcmp(msg, str, msg_len_bytes))) {
+		snprintf(str, MAX_MSG_LEN, "%d", cmp_res);
+		return TEST_FAILURE;
+	}
+
+	if (lkl_sys_close(pipe_fds[0]) || lkl_sys_close(pipe_fds[1])) {
+		perror_msg("close", str);
+		return TEST_FAILURE;
+	}
+
+	return TEST_SUCCESS;
+}
 #endif /* __MINGW32__ */
 
 static char mnt_point[32];
@@ -605,6 +643,7 @@ int main(int argc, char **argv)
 	TEST(nanosleep);
 	if (netdev_id >= 0)
 		TEST(netdev_ifup);
+	TEST(pipe2);
 #endif  /* __MINGW32__ */
 	TEST(mount);
 	TEST(chdir);
