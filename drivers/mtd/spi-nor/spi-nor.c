@@ -1193,6 +1193,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	    JEDEC_MFR(info) == SNOR_MFR_SST) {
 		write_enable(nor);
 		write_sr(nor, 0);
+		spi_nor_wait_till_ready(nor);
 	}
 
 	if (!mtd->name)
