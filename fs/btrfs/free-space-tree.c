@@ -23,7 +23,6 @@
 #include "locking.h"
 #include "free-space-tree.h"
 #include "transaction.h"
-#include "sysfs.h"
 
 static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_fs_info *fs_info,
@@ -1184,9 +1183,6 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	}
 
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE);
-	btrfs_sysfs_feature_update(fs_info,
-		BTRFS_FEATURE_COMPAT_RO_FREE_SPACE_TREE, FEAT_COMPAT_RO);
-
 	fs_info->creating_free_space_tree = 0;
 
 	ret = btrfs_commit_transaction(trans, tree_root);
@@ -1255,9 +1251,6 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 		return PTR_ERR(trans);
 
 	btrfs_clear_fs_compat_ro(fs_info, FREE_SPACE_TREE);
-	btrfs_sysfs_feature_update(fs_info,
-		BTRFS_FEATURE_COMPAT_RO_FREE_SPACE_TREE, FEAT_COMPAT_RO);
-
 	fs_info->free_space_root = NULL;
 
 	ret = clear_free_space_tree(trans, free_space_root);

@@ -4469,8 +4469,6 @@ static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
 		return;
 
 	btrfs_set_fs_incompat(info, RAID56);
-	btrfs_sysfs_feature_update(info, BTRFS_FEATURE_INCOMPAT_RAID56,
-		FEAT_INCOMPAT);
 }
 
 #define BTRFS_MAX_DEVS(r) ((BTRFS_LEAF_DATA_SIZE(r)		\
