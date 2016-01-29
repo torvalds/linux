@@ -582,6 +582,13 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_leave_shrinker(sbi);
 	mutex_unlock(&sbi->umount_mutex);
 
+	/* our cp_error case, we can wait for any writeback page */
+	if (get_pages(sbi, F2FS_WRITEBACK)) {
+		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+		f2fs_submit_merged_bio(sbi, NODE, WRITE);
+		f2fs_submit_merged_bio(sbi, META, WRITE);
+	}
+
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
 
