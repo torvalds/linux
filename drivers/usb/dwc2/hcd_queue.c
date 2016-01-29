@@ -57,6 +57,194 @@
 #define DWC2_UNRESERVE_DELAY (msecs_to_jiffies(5))
 
 /**
+ * dwc2_periodic_channel_available() - Checks that a channel is available for a
+ * periodic transfer
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ *
+ * Return: 0 if successful, negative error code otherwise
+ */
+static int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
+{
+	/*
+	 * Currently assuming that there is a dedicated host channel for
+	 * each periodic transaction plus at least one host channel for
+	 * non-periodic transactions
+	 */
+	int status;
+	int num_channels;
+
+	num_channels = hsotg->core_params->host_channels;
+	if (hsotg->periodic_channels + hsotg->non_periodic_channels <
+								num_channels
+	    && hsotg->periodic_channels < num_channels - 1) {
+		status = 0;
+	} else {
+		dev_dbg(hsotg->dev,
+			"%s: Total channels: %d, Periodic: %d, "
+			"Non-periodic: %d\n", __func__, num_channels,
+			hsotg->periodic_channels, hsotg->non_periodic_channels);
+		status = -ENOSPC;
+	}
+
+	return status;
+}
+
+/**
+ * dwc2_check_periodic_bandwidth() - Checks that there is sufficient bandwidth
+ * for the specified QH in the periodic schedule
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ * @qh:    QH containing periodic bandwidth required
+ *
+ * Return: 0 if successful, negative error code otherwise
+ *
+ * For simplicity, this calculation assumes that all the transfers in the
+ * periodic schedule may occur in the same (micro)frame
+ */
+static int dwc2_check_periodic_bandwidth(struct dwc2_hsotg *hsotg,
+					 struct dwc2_qh *qh)
+{
+	int status;
+	s16 max_claimed_usecs;
+
+	status = 0;
+
+	if (qh->dev_speed == USB_SPEED_HIGH || qh->do_split) {
+		/*
+		 * High speed mode
+		 * Max periodic usecs is 80% x 125 usec = 100 usec
+		 */
+		max_claimed_usecs = 100 - qh->host_us;
+	} else {
+		/*
+		 * Full speed mode
+		 * Max periodic usecs is 90% x 1000 usec = 900 usec
+		 */
+		max_claimed_usecs = 900 - qh->host_us;
+	}
+
+	if (hsotg->periodic_usecs > max_claimed_usecs) {
+		dev_err(hsotg->dev,
+			"%s: already claimed usecs %d, required usecs %d\n",
+			__func__, hsotg->periodic_usecs, qh->host_us);
+		status = -ENOSPC;
+	}
+
+	return status;
+}
+
+/**
+ * Microframe scheduler
+ * track the total use in hsotg->frame_usecs
+ * keep each qh use in qh->frame_usecs
+ * when surrendering the qh then donate the time back
+ */
+static const unsigned short max_uframe_usecs[] = {
+	100, 100, 100, 100, 100, 100, 30, 0
+};
+
+void dwc2_hcd_init_usecs(struct dwc2_hsotg *hsotg)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		hsotg->frame_usecs[i] = max_uframe_usecs[i];
+}
+
+static int dwc2_find_single_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+{
+	unsigned short utime = qh->host_us;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		/* At the start hsotg->frame_usecs[i] = max_uframe_usecs[i] */
+		if (utime <= hsotg->frame_usecs[i]) {
+			hsotg->frame_usecs[i] -= utime;
+			qh->frame_usecs[i] += utime;
+			return i;
+		}
+	}
+	return -ENOSPC;
+}
+
+/*
+ * use this for FS apps that can span multiple uframes
+ */
+static int dwc2_find_multi_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+{
+	unsigned short utime = qh->host_us;
+	unsigned short xtime;
+	int t_left;
+	int i;
+	int j;
+	int k;
+
+	for (i = 0; i < 8; i++) {
+		if (hsotg->frame_usecs[i] <= 0)
+			continue;
+
+		/*
+		 * we need n consecutive slots so use j as a start slot
+		 * j plus j+1 must be enough time (for now)
+		 */
+		xtime = hsotg->frame_usecs[i];
+		for (j = i + 1; j < 8; j++) {
+			/*
+			 * if we add this frame remaining time to xtime we may
+			 * be OK, if not we need to test j for a complete frame
+			 */
+			if (xtime + hsotg->frame_usecs[j] < utime) {
+				if (hsotg->frame_usecs[j] <
+							max_uframe_usecs[j])
+					continue;
+			}
+			if (xtime >= utime) {
+				t_left = utime;
+				for (k = i; k < 8; k++) {
+					t_left -= hsotg->frame_usecs[k];
+					if (t_left <= 0) {
+						qh->frame_usecs[k] +=
+							hsotg->frame_usecs[k]
+								+ t_left;
+						hsotg->frame_usecs[k] = -t_left;
+						return i;
+					} else {
+						qh->frame_usecs[k] +=
+							hsotg->frame_usecs[k];
+						hsotg->frame_usecs[k] = 0;
+					}
+				}
+			}
+			/* add the frame time to x time */
+			xtime += hsotg->frame_usecs[j];
+			/* we must have a fully available next frame or break */
+			if (xtime < utime &&
+			   hsotg->frame_usecs[j] == max_uframe_usecs[j])
+				continue;
+		}
+	}
+	return -ENOSPC;
+}
+
+static int dwc2_find_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+{
+	int ret;
+
+	if (qh->dev_speed == USB_SPEED_HIGH) {
+		/* if this is a hs transaction we need a full frame */
+		ret = dwc2_find_single_uframe(hsotg, qh);
+	} else {
+		/*
+		 * if this is a fs transaction we may need a sequence
+		 * of frames
+		 */
+		ret = dwc2_find_multi_uframe(hsotg, qh);
+	}
+	return ret;
+}
+
+/**
  * dwc2_do_unreserve() - Actually release the periodic reservation
  *
  * This function actually releases the periodic bandwidth that was reserved
@@ -139,6 +327,167 @@ static void dwc2_unreserve_timer_fn(unsigned long data)
 		dwc2_do_unreserve(hsotg, qh);
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
+}
+
+/**
+ * dwc2_check_max_xfer_size() - Checks that the max transfer size allowed in a
+ * host channel is large enough to handle the maximum data transfer in a single
+ * (micro)frame for a periodic transfer
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ * @qh:    QH for a periodic endpoint
+ *
+ * Return: 0 if successful, negative error code otherwise
+ */
+static int dwc2_check_max_xfer_size(struct dwc2_hsotg *hsotg,
+				    struct dwc2_qh *qh)
+{
+	u32 max_xfer_size;
+	u32 max_channel_xfer_size;
+	int status = 0;
+
+	max_xfer_size = dwc2_max_packet(qh->maxp) * dwc2_hb_mult(qh->maxp);
+	max_channel_xfer_size = hsotg->core_params->max_transfer_size;
+
+	if (max_xfer_size > max_channel_xfer_size) {
+		dev_err(hsotg->dev,
+			"%s: Periodic xfer length %d > max xfer length for channel %d\n",
+			__func__, max_xfer_size, max_channel_xfer_size);
+		status = -ENOSPC;
+	}
+
+	return status;
+}
+
+/**
+ * dwc2_schedule_periodic() - Schedules an interrupt or isochronous transfer in
+ * the periodic schedule
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ * @qh:    QH for the periodic transfer. The QH should already contain the
+ *         scheduling information.
+ *
+ * Return: 0 if successful, negative error code otherwise
+ */
+static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+{
+	int status;
+
+	status = dwc2_check_max_xfer_size(hsotg, qh);
+	if (status) {
+		dev_dbg(hsotg->dev,
+			"%s: Channel max transfer size too small for periodic transfer\n",
+			__func__);
+		return status;
+	}
+
+	/* Cancel pending unreserve; if canceled OK, unreserve was pending */
+	if (del_timer(&qh->unreserve_timer))
+		WARN_ON(!qh->unreserve_pending);
+
+	/*
+	 * Only need to reserve if there's not an unreserve pending, since if an
+	 * unreserve is pending then by definition our old reservation is still
+	 * valid.  Unreserve might still be pending even if we didn't cancel if
+	 * dwc2_unreserve_timer_fn() already started.  Code in the timer handles
+	 * that case.
+	 */
+	if (!qh->unreserve_pending) {
+		if (hsotg->core_params->uframe_sched > 0) {
+			int frame = -1;
+
+			status = dwc2_find_uframe(hsotg, qh);
+			if (status == 0)
+				frame = 7;
+			else if (status > 0)
+				frame = status - 1;
+
+			/* Set the new frame up */
+			if (frame >= 0) {
+				qh->next_active_frame &= ~0x7;
+				qh->next_active_frame |= (frame & 7);
+				dwc2_sch_dbg(hsotg,
+					     "QH=%p sched_p nxt=%04x, uf=%d\n",
+					     qh, qh->next_active_frame, frame);
+			}
+
+			if (status > 0)
+				status = 0;
+		} else {
+			status = dwc2_periodic_channel_available(hsotg);
+			if (status) {
+				dev_info(hsotg->dev,
+					"%s: No host channel available for periodic transfer\n",
+					__func__);
+				return status;
+			}
+
+			status = dwc2_check_periodic_bandwidth(hsotg, qh);
+		}
+
+		if (status) {
+			dev_dbg(hsotg->dev,
+				"%s: Insufficient periodic bandwidth for periodic transfer\n",
+				__func__);
+			return status;
+		}
+
+		if (hsotg->core_params->uframe_sched <= 0)
+			/* Reserve periodic channel */
+			hsotg->periodic_channels++;
+
+		/* Update claimed usecs per (micro)frame */
+		hsotg->periodic_usecs += qh->host_us;
+	}
+
+	qh->unreserve_pending = 0;
+
+	if (hsotg->core_params->dma_desc_enable > 0)
+		/* Don't rely on SOF and start in ready schedule */
+		list_add_tail(&qh->qh_list_entry, &hsotg->periodic_sched_ready);
+	else
+		/* Always start in inactive schedule */
+		list_add_tail(&qh->qh_list_entry,
+			      &hsotg->periodic_sched_inactive);
+
+	return status;
+}
+
+/**
+ * dwc2_deschedule_periodic() - Removes an interrupt or isochronous transfer
+ * from the periodic schedule
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ * @qh:	   QH for the periodic transfer
+ */
+static void dwc2_deschedule_periodic(struct dwc2_hsotg *hsotg,
+				     struct dwc2_qh *qh)
+{
+	bool did_modify;
+
+	assert_spin_locked(&hsotg->lock);
+
+	/*
+	 * Schedule the unreserve to happen in a little bit.  Cases here:
+	 * - Unreserve worker might be sitting there waiting to grab the lock.
+	 *   In this case it will notice it's been schedule again and will
+	 *   quit.
+	 * - Unreserve worker might not be scheduled.
+	 *
+	 * We should never already be scheduled since dwc2_schedule_periodic()
+	 * should have canceled the scheduled unreserve timer (hence the
+	 * warning on did_modify).
+	 *
+	 * We add + 1 to the timer to guarantee that at least 1 jiffy has
+	 * passed (otherwise if the jiffy counter might tick right after we
+	 * read it and we'll get no delay).
+	 */
+	did_modify = mod_timer(&qh->unreserve_timer,
+			       jiffies + DWC2_UNRESERVE_DELAY + 1);
+	WARN_ON(did_modify);
+	qh->unreserve_pending = 1;
+
+	list_del_init(&qh->qh_list_entry);
 }
 
 /**
@@ -343,355 +692,6 @@ void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	if (qh->desc_list)
 		dwc2_hcd_qh_free_ddma(hsotg, qh);
 	kfree(qh);
-}
-
-/**
- * dwc2_periodic_channel_available() - Checks that a channel is available for a
- * periodic transfer
- *
- * @hsotg: The HCD state structure for the DWC OTG controller
- *
- * Return: 0 if successful, negative error code otherwise
- */
-static int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
-{
-	/*
-	 * Currently assuming that there is a dedicated host channel for
-	 * each periodic transaction plus at least one host channel for
-	 * non-periodic transactions
-	 */
-	int status;
-	int num_channels;
-
-	num_channels = hsotg->core_params->host_channels;
-	if (hsotg->periodic_channels + hsotg->non_periodic_channels <
-								num_channels
-	    && hsotg->periodic_channels < num_channels - 1) {
-		status = 0;
-	} else {
-		dev_dbg(hsotg->dev,
-			"%s: Total channels: %d, Periodic: %d, "
-			"Non-periodic: %d\n", __func__, num_channels,
-			hsotg->periodic_channels, hsotg->non_periodic_channels);
-		status = -ENOSPC;
-	}
-
-	return status;
-}
-
-/**
- * dwc2_check_periodic_bandwidth() - Checks that there is sufficient bandwidth
- * for the specified QH in the periodic schedule
- *
- * @hsotg: The HCD state structure for the DWC OTG controller
- * @qh:    QH containing periodic bandwidth required
- *
- * Return: 0 if successful, negative error code otherwise
- *
- * For simplicity, this calculation assumes that all the transfers in the
- * periodic schedule may occur in the same (micro)frame
- */
-static int dwc2_check_periodic_bandwidth(struct dwc2_hsotg *hsotg,
-					 struct dwc2_qh *qh)
-{
-	int status;
-	s16 max_claimed_usecs;
-
-	status = 0;
-
-	if (qh->dev_speed == USB_SPEED_HIGH || qh->do_split) {
-		/*
-		 * High speed mode
-		 * Max periodic usecs is 80% x 125 usec = 100 usec
-		 */
-		max_claimed_usecs = 100 - qh->host_us;
-	} else {
-		/*
-		 * Full speed mode
-		 * Max periodic usecs is 90% x 1000 usec = 900 usec
-		 */
-		max_claimed_usecs = 900 - qh->host_us;
-	}
-
-	if (hsotg->periodic_usecs > max_claimed_usecs) {
-		dev_err(hsotg->dev,
-			"%s: already claimed usecs %d, required usecs %d\n",
-			__func__, hsotg->periodic_usecs, qh->host_us);
-		status = -ENOSPC;
-	}
-
-	return status;
-}
-
-/**
- * Microframe scheduler
- * track the total use in hsotg->frame_usecs
- * keep each qh use in qh->frame_usecs
- * when surrendering the qh then donate the time back
- */
-static const unsigned short max_uframe_usecs[] = {
-	100, 100, 100, 100, 100, 100, 30, 0
-};
-
-void dwc2_hcd_init_usecs(struct dwc2_hsotg *hsotg)
-{
-	int i;
-
-	for (i = 0; i < 8; i++)
-		hsotg->frame_usecs[i] = max_uframe_usecs[i];
-}
-
-static int dwc2_find_single_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
-{
-	unsigned short utime = qh->host_us;
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		/* At the start hsotg->frame_usecs[i] = max_uframe_usecs[i] */
-		if (utime <= hsotg->frame_usecs[i]) {
-			hsotg->frame_usecs[i] -= utime;
-			qh->frame_usecs[i] += utime;
-			return i;
-		}
-	}
-	return -ENOSPC;
-}
-
-/*
- * use this for FS apps that can span multiple uframes
- */
-static int dwc2_find_multi_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
-{
-	unsigned short utime = qh->host_us;
-	unsigned short xtime;
-	int t_left;
-	int i;
-	int j;
-	int k;
-
-	for (i = 0; i < 8; i++) {
-		if (hsotg->frame_usecs[i] <= 0)
-			continue;
-
-		/*
-		 * we need n consecutive slots so use j as a start slot
-		 * j plus j+1 must be enough time (for now)
-		 */
-		xtime = hsotg->frame_usecs[i];
-		for (j = i + 1; j < 8; j++) {
-			/*
-			 * if we add this frame remaining time to xtime we may
-			 * be OK, if not we need to test j for a complete frame
-			 */
-			if (xtime + hsotg->frame_usecs[j] < utime) {
-				if (hsotg->frame_usecs[j] <
-							max_uframe_usecs[j])
-					continue;
-			}
-			if (xtime >= utime) {
-				t_left = utime;
-				for (k = i; k < 8; k++) {
-					t_left -= hsotg->frame_usecs[k];
-					if (t_left <= 0) {
-						qh->frame_usecs[k] +=
-							hsotg->frame_usecs[k]
-								+ t_left;
-						hsotg->frame_usecs[k] = -t_left;
-						return i;
-					} else {
-						qh->frame_usecs[k] +=
-							hsotg->frame_usecs[k];
-						hsotg->frame_usecs[k] = 0;
-					}
-				}
-			}
-			/* add the frame time to x time */
-			xtime += hsotg->frame_usecs[j];
-			/* we must have a fully available next frame or break */
-			if (xtime < utime &&
-			   hsotg->frame_usecs[j] == max_uframe_usecs[j])
-				continue;
-		}
-	}
-	return -ENOSPC;
-}
-
-static int dwc2_find_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
-{
-	int ret;
-
-	if (qh->dev_speed == USB_SPEED_HIGH) {
-		/* if this is a hs transaction we need a full frame */
-		ret = dwc2_find_single_uframe(hsotg, qh);
-	} else {
-		/*
-		 * if this is a fs transaction we may need a sequence
-		 * of frames
-		 */
-		ret = dwc2_find_multi_uframe(hsotg, qh);
-	}
-	return ret;
-}
-
-/**
- * dwc2_check_max_xfer_size() - Checks that the max transfer size allowed in a
- * host channel is large enough to handle the maximum data transfer in a single
- * (micro)frame for a periodic transfer
- *
- * @hsotg: The HCD state structure for the DWC OTG controller
- * @qh:    QH for a periodic endpoint
- *
- * Return: 0 if successful, negative error code otherwise
- */
-static int dwc2_check_max_xfer_size(struct dwc2_hsotg *hsotg,
-				    struct dwc2_qh *qh)
-{
-	u32 max_xfer_size;
-	u32 max_channel_xfer_size;
-	int status = 0;
-
-	max_xfer_size = dwc2_max_packet(qh->maxp) * dwc2_hb_mult(qh->maxp);
-	max_channel_xfer_size = hsotg->core_params->max_transfer_size;
-
-	if (max_xfer_size > max_channel_xfer_size) {
-		dev_err(hsotg->dev,
-			"%s: Periodic xfer length %d > max xfer length for channel %d\n",
-			__func__, max_xfer_size, max_channel_xfer_size);
-		status = -ENOSPC;
-	}
-
-	return status;
-}
-
-/**
- * dwc2_schedule_periodic() - Schedules an interrupt or isochronous transfer in
- * the periodic schedule
- *
- * @hsotg: The HCD state structure for the DWC OTG controller
- * @qh:    QH for the periodic transfer. The QH should already contain the
- *         scheduling information.
- *
- * Return: 0 if successful, negative error code otherwise
- */
-static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
-{
-	int status;
-
-	status = dwc2_check_max_xfer_size(hsotg, qh);
-	if (status) {
-		dev_dbg(hsotg->dev,
-			"%s: Channel max transfer size too small for periodic transfer\n",
-			__func__);
-		return status;
-	}
-
-	/* Cancel pending unreserve; if canceled OK, unreserve was pending */
-	if (del_timer(&qh->unreserve_timer))
-		WARN_ON(!qh->unreserve_pending);
-
-	/*
-	 * Only need to reserve if there's not an unreserve pending, since if an
-	 * unreserve is pending then by definition our old reservation is still
-	 * valid.  Unreserve might still be pending even if we didn't cancel if
-	 * dwc2_unreserve_timer_fn() already started.  Code in the timer handles
-	 * that case.
-	 */
-	if (!qh->unreserve_pending) {
-		if (hsotg->core_params->uframe_sched > 0) {
-			int frame = -1;
-
-			status = dwc2_find_uframe(hsotg, qh);
-			if (status == 0)
-				frame = 7;
-			else if (status > 0)
-				frame = status - 1;
-
-			/* Set the new frame up */
-			if (frame >= 0) {
-				qh->next_active_frame &= ~0x7;
-				qh->next_active_frame |= (frame & 7);
-				dwc2_sch_dbg(hsotg,
-					     "QH=%p sched_p nxt=%04x, uf=%d\n",
-					     qh, qh->next_active_frame, frame);
-			}
-
-			if (status > 0)
-				status = 0;
-		} else {
-			status = dwc2_periodic_channel_available(hsotg);
-			if (status) {
-				dev_info(hsotg->dev,
-					"%s: No host channel available for periodic transfer\n",
-					__func__);
-				return status;
-			}
-
-			status = dwc2_check_periodic_bandwidth(hsotg, qh);
-		}
-
-		if (status) {
-			dev_dbg(hsotg->dev,
-				"%s: Insufficient periodic bandwidth for periodic transfer\n",
-				__func__);
-			return status;
-		}
-
-		if (hsotg->core_params->uframe_sched <= 0)
-			/* Reserve periodic channel */
-			hsotg->periodic_channels++;
-
-		/* Update claimed usecs per (micro)frame */
-		hsotg->periodic_usecs += qh->host_us;
-	}
-
-	qh->unreserve_pending = 0;
-
-	if (hsotg->core_params->dma_desc_enable > 0)
-		/* Don't rely on SOF and start in ready schedule */
-		list_add_tail(&qh->qh_list_entry, &hsotg->periodic_sched_ready);
-	else
-		/* Always start in inactive schedule */
-		list_add_tail(&qh->qh_list_entry,
-			      &hsotg->periodic_sched_inactive);
-
-	return status;
-}
-
-/**
- * dwc2_deschedule_periodic() - Removes an interrupt or isochronous transfer
- * from the periodic schedule
- *
- * @hsotg: The HCD state structure for the DWC OTG controller
- * @qh:	   QH for the periodic transfer
- */
-static void dwc2_deschedule_periodic(struct dwc2_hsotg *hsotg,
-				     struct dwc2_qh *qh)
-{
-	bool did_modify;
-
-	assert_spin_locked(&hsotg->lock);
-
-	/*
-	 * Schedule the unreserve to happen in a little bit.  Cases here:
-	 * - Unreserve worker might be sitting there waiting to grab the lock.
-	 *   In this case it will notice it's been schedule again and will
-	 *   quit.
-	 * - Unreserve worker might not be scheduled.
-	 *
-	 * We should never already be scheduled since dwc2_schedule_periodic()
-	 * should have canceled the scheduled unreserve timer (hence the
-	 * warning on did_modify).
-	 *
-	 * We add + 1 to the timer to guarantee that at least 1 jiffy has
-	 * passed (otherwise if the jiffy counter might tick right after we
-	 * read it and we'll get no delay).
-	 */
-	did_modify = mod_timer(&qh->unreserve_timer,
-			       jiffies + DWC2_UNRESERVE_DELAY + 1);
-	WARN_ON(did_modify);
-	qh->unreserve_pending = 1;
-
-	list_del_init(&qh->qh_list_entry);
 }
 
 /**
