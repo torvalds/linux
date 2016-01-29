@@ -164,6 +164,9 @@ static void dwc2_qh_list_free(struct dwc2_hsotg *hsotg,
 					 qtd_list_entry)
 			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 
+		if (qh->channel && qh->channel->qh == qh)
+			qh->channel->qh = NULL;
+
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 		dwc2_hcd_qh_free(hsotg, qh);
 		spin_lock_irqsave(&hsotg->lock, flags);
@@ -554,7 +557,12 @@ static int dwc2_hcd_endpoint_disable(struct dwc2_hsotg *hsotg,
 		dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 
 	ep->hcpriv = NULL;
+
+	if (qh->channel && qh->channel->qh == qh)
+		qh->channel->qh = NULL;
+
 	spin_unlock_irqrestore(&hsotg->lock, flags);
+
 	dwc2_hcd_qh_free(hsotg, qh);
 
 	return 0;
@@ -2782,6 +2790,8 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 fail3:
 	dwc2_urb->priv = NULL;
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
+	if (qh_allocated && qh->channel && qh->channel->qh == qh)
+		qh->channel->qh = NULL;
 fail2:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	urb->hcpriv = NULL;

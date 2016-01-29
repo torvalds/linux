@@ -1943,6 +1943,16 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 	}
 
 	dwc2_writel(hcint, hsotg->regs + HCINT(chnum));
+
+	/*
+	 * If we got an interrupt after someone called
+	 * dwc2_hcd_endpoint_disable() we don't want to crash below
+	 */
+	if (!chan->qh) {
+		dev_warn(hsotg->dev, "Interrupt on disabled channel\n");
+		return;
+	}
+
 	chan->hcint = hcint;
 	hcint &= hcintmsk;
 
