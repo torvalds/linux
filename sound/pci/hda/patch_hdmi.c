@@ -2257,6 +2257,7 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 		hinfo->nid = 0;
 
 		mutex_lock(&spec->pcm_lock);
+		snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 		clear_bit(pcm_idx, &spec->pcm_in_use);
 		pin_idx = hinfo_to_pin_index(codec, hinfo);
 		if (spec->dyn_pcm_assign && pin_idx < 0) {
@@ -2277,8 +2278,6 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 					    AC_VERB_SET_PIN_WIDGET_CONTROL,
 					    pinctl & ~PIN_OUT);
 		}
-
-		snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 
 		mutex_lock(&per_pin->lock);
 		per_pin->chmap_set = false;
@@ -2562,19 +2561,29 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 		err = generic_hdmi_build_jack(codec, pcm_idx);
 		if (err < 0)
 			return err;
+
+		/* create the spdif for each pcm
+		 * pin will be bound when monitor is connected
+		 */
+		if (spec->dyn_pcm_assign)
+			err = snd_hda_create_dig_out_ctls(codec,
+					  0, spec->cvt_nids[0],
+					  HDA_PCM_TYPE_HDMI);
+		else {
+			struct hdmi_spec_per_pin *per_pin =
+				get_pin(spec, pcm_idx);
+			err = snd_hda_create_dig_out_ctls(codec,
+						  per_pin->pin_nid,
+						  per_pin->mux_nids[0],
+						  HDA_PCM_TYPE_HDMI);
+		}
+		if (err < 0)
+			return err;
+		snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 	}
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
-
-		err = snd_hda_create_dig_out_ctls(codec,
-						  per_pin->pin_nid,
-						  per_pin->mux_nids[0],
-						  HDA_PCM_TYPE_HDMI);
-		if (err < 0)
-			return err;
-		/* pin number is the same with pcm number so far */
-		snd_hda_spdif_ctls_unassign(codec, pin_idx);
 
 		/* add control for ELD Bytes */
 		err = hdmi_create_eld_ctl(codec, pin_idx,
