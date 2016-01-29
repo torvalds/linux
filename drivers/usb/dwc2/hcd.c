@@ -2252,6 +2252,90 @@ void dwc2_host_hub_info(struct dwc2_hsotg *hsotg, void *context, int *hub_addr,
 	*hub_port = urb->dev->ttport;
 }
 
+/**
+ * dwc2_host_get_tt_info() - Get the dwc2_tt associated with context
+ *
+ * This will get the dwc2_tt structure (and ttport) associated with the given
+ * context (which is really just a struct urb pointer).
+ *
+ * The first time this is called for a given TT we allocate memory for our
+ * structure.  When everyone is done and has called dwc2_host_put_tt_info()
+ * then the refcount for the structure will go to 0 and we'll free it.
+ *
+ * @hsotg:     The HCD state structure for the DWC OTG controller.
+ * @qh:        The QH structure.
+ * @context:   The priv pointer from a struct dwc2_hcd_urb.
+ * @mem_flags: Flags for allocating memory.
+ * @ttport:    We'll return this device's port number here.  That's used to
+ *             reference into the bitmap if we're on a multi_tt hub.
+ *
+ * Return: a pointer to a struct dwc2_tt.  Don't forget to call
+ *         dwc2_host_put_tt_info()!  Returns NULL upon memory alloc failure.
+ */
+
+struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg, void *context,
+				      gfp_t mem_flags, int *ttport)
+{
+	struct urb *urb = context;
+	struct dwc2_tt *dwc_tt = NULL;
+
+	if (urb->dev->tt) {
+		*ttport = urb->dev->ttport;
+
+		dwc_tt = urb->dev->tt->hcpriv;
+		if (dwc_tt == NULL) {
+			size_t bitmap_size;
+
+			/*
+			 * For single_tt we need one schedule.  For multi_tt
+			 * we need one per port.
+			 */
+			bitmap_size = DWC2_ELEMENTS_PER_LS_BITMAP *
+				      sizeof(dwc_tt->periodic_bitmaps[0]);
+			if (urb->dev->tt->multi)
+				bitmap_size *= urb->dev->tt->hub->maxchild;
+
+			dwc_tt = kzalloc(sizeof(*dwc_tt) + bitmap_size,
+					 mem_flags);
+			if (dwc_tt == NULL)
+				return NULL;
+
+			dwc_tt->usb_tt = urb->dev->tt;
+			dwc_tt->usb_tt->hcpriv = dwc_tt;
+		}
+
+		dwc_tt->refcount++;
+	}
+
+	return dwc_tt;
+}
+
+/**
+ * dwc2_host_put_tt_info() - Put the dwc2_tt from dwc2_host_get_tt_info()
+ *
+ * Frees resources allocated by dwc2_host_get_tt_info() if all current holders
+ * of the structure are done.
+ *
+ * It's OK to call this with NULL.
+ *
+ * @hsotg:     The HCD state structure for the DWC OTG controller.
+ * @dwc_tt:    The pointer returned by dwc2_host_get_tt_info.
+ */
+void dwc2_host_put_tt_info(struct dwc2_hsotg *hsotg, struct dwc2_tt *dwc_tt)
+{
+	/* Model kfree and make put of NULL a no-op */
+	if (dwc_tt == NULL)
+		return;
+
+	WARN_ON(dwc_tt->refcount < 1);
+
+	dwc_tt->refcount--;
+	if (!dwc_tt->refcount) {
+		dwc_tt->usb_tt->hcpriv = NULL;
+		kfree(dwc_tt);
+	}
+}
+
 int dwc2_host_get_speed(struct dwc2_hsotg *hsotg, void *context)
 {
 	struct urb *urb = context;
@@ -3196,9 +3280,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 		INIT_LIST_HEAD(&channel->split_order_list_entry);
 		hsotg->hc_ptr_array[i] = channel;
 	}
-
-	if (hsotg->core_params->uframe_sched > 0)
-		dwc2_hcd_init_usecs(hsotg);
 
 	/* Initialize hsotg start work */
 	INIT_DELAYED_WORK(&hsotg->start_work, dwc2_hcd_start_func);

@@ -212,6 +212,43 @@ enum dwc2_transaction_type {
 	DWC2_TRANSACTION_ALL,
 };
 
+/* The number of elements per LS bitmap (per port on multi_tt) */
+#define DWC2_ELEMENTS_PER_LS_BITMAP	DIV_ROUND_UP(DWC2_LS_SCHEDULE_SLICES, \
+						     BITS_PER_LONG)
+
+/**
+ * struct dwc2_tt - dwc2 data associated with a usb_tt
+ *
+ * @refcount:           Number of Queue Heads (QHs) holding a reference.
+ * @usb_tt:             Pointer back to the official usb_tt.
+ * @periodic_bitmaps:   Bitmap for which parts of the 1ms frame are accounted
+ *                      for already.  Each is DWC2_ELEMENTS_PER_LS_BITMAP
+ *			elements (so sizeof(long) times that in bytes).
+ *
+ * This structure is stored in the hcpriv of the official usb_tt.
+ */
+struct dwc2_tt {
+	int refcount;
+	struct usb_tt *usb_tt;
+	unsigned long periodic_bitmaps[];
+};
+
+/**
+ * struct dwc2_hs_transfer_time - Info about a transfer on the high speed bus.
+ *
+ * @start_schedule_usecs:  The start time on the main bus schedule.  Note that
+ *                         the main bus schedule is tightly packed and this
+ *			   time should be interpreted as tightly packed (so
+ *			   uFrame 0 starts at 0 us, uFrame 1 starts at 100 us
+ *			   instead of 125 us).
+ * @duration_us:           How long this transfer goes.
+ */
+
+struct dwc2_hs_transfer_time {
+	u32 start_schedule_us;
+	u16 duration_us;
+};
+
 /**
  * struct dwc2_qh - Software queue head structure
  *
@@ -237,18 +274,33 @@ enum dwc2_transaction_type {
  * @td_first:           Index of first activated isochronous transfer descriptor
  * @td_last:            Index of last activated isochronous transfer descriptor
  * @host_us:            Bandwidth in microseconds per transfer as seen by host
+ * @device_us:          Bandwidth in microseconds per transfer as seen by device
  * @host_interval:      Interval between transfers as seen by the host.  If
  *                      the host is high speed and the device is low speed this
  *                      will be 8 times device interval.
- * @next_active_frame:  (Micro)frame before we next need to put something on
+ * @device_interval:    Interval between transfers as seen by the device.
+ *                      interval.
+ * @next_active_frame:  (Micro)frame _before_ we next need to put something on
  *                      the bus.  We'll move the qh to active here.  If the
  *                      host is in high speed mode this will be a uframe.  If
  *                      the host is in low speed mode this will be a full frame.
  * @start_active_frame: If we are partway through a split transfer, this will be
  *			what next_active_frame was when we started.  Otherwise
  *			it should always be the same as next_active_frame.
- * @assigned_uframe:    The uframe (0 -7) assigned by dwc2_find_uframe().
- * @frame_usecs:        Internal variable used by the microframe scheduler
+ * @num_hs_transfers:   Number of transfers in hs_transfers.
+ *                      Normally this is 1 but can be more than one for splits.
+ *                      Always >= 1 unless the host is in low/full speed mode.
+ * @hs_transfers:       Transfers that are scheduled as seen by the high speed
+ *                      bus.  Not used if host is in low or full speed mode (but
+ *                      note that it IS USED if the device is low or full speed
+ *                      as long as the HOST is in high speed mode).
+ * @ls_start_schedule_slice: Start time (in slices) on the low speed bus
+ *                           schedule that's being used by this device.  This
+ *			     will be on the periodic_bitmap in a
+ *                           "struct dwc2_tt".  Not used if this device is high
+ *                           speed.  Note that this is in "schedule slice" which
+ *                           is tightly packed.
+ * @ls_duration_us:     Duration on the low speed bus schedule.
  * @ntd:                Actual number of transfer descriptors in a list
  * @qtd_list:           List of QTDs for this QH
  * @channel:            Host channel currently processing transfers for this QH
@@ -261,8 +313,12 @@ enum dwc2_transaction_type {
  *                      descriptor and indicates original XferSize value for the
  *                      descriptor
  * @unreserve_timer:    Timer for releasing periodic reservation.
+ * @dwc2_tt:            Pointer to our tt info (or NULL if no tt).
+ * @ttport:             Port number within our tt.
  * @tt_buffer_dirty     True if clear_tt_buffer_complete is pending
  * @unreserve_pending:  True if we planned to unreserve but haven't yet.
+ * @schedule_low_speed: True if we have a low/full speed component (either the
+ *			host is in low/full speed mode or do_split).
  *
  * A Queue Head (QH) holds the static characteristics of an endpoint and
  * maintains a list of transfers (QTDs) for that endpoint. A QH structure may
@@ -280,11 +336,14 @@ struct dwc2_qh {
 	u8 td_first;
 	u8 td_last;
 	u16 host_us;
+	u16 device_us;
 	u16 host_interval;
+	u16 device_interval;
 	u16 next_active_frame;
 	u16 start_active_frame;
-	u16 assigned_uframe;
-	u16 frame_usecs[8];
+	s16 num_hs_transfers;
+	struct dwc2_hs_transfer_time hs_transfers[DWC2_HS_SCHEDULE_UFRAMES];
+	u32 ls_start_schedule_slice;
 	u16 ntd;
 	struct list_head qtd_list;
 	struct dwc2_host_chan *channel;
@@ -294,8 +353,11 @@ struct dwc2_qh {
 	u32 desc_list_sz;
 	u32 *n_bytes;
 	struct timer_list unreserve_timer;
+	struct dwc2_tt *dwc_tt;
+	int ttport;
 	unsigned tt_buffer_dirty:1;
 	unsigned unreserve_pending:1;
+	unsigned schedule_low_speed:1;
 };
 
 /**
@@ -462,7 +524,6 @@ extern void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 
 /* Schedule Queue Functions */
 /* Implemented in hcd_queue.c */
-extern void dwc2_hcd_init_usecs(struct dwc2_hsotg *hsotg);
 extern struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 					  struct dwc2_hcd_urb *urb,
 					  gfp_t mem_flags);
@@ -728,6 +789,12 @@ extern void dwc2_host_start(struct dwc2_hsotg *hsotg);
 extern void dwc2_host_disconnect(struct dwc2_hsotg *hsotg);
 extern void dwc2_host_hub_info(struct dwc2_hsotg *hsotg, void *context,
 			       int *hub_addr, int *hub_port);
+extern struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg,
+					     void *context, gfp_t mem_flags,
+					     int *ttport);
+
+extern void dwc2_host_put_tt_info(struct dwc2_hsotg *hsotg,
+				  struct dwc2_tt *dwc_tt);
 extern int dwc2_host_get_speed(struct dwc2_hsotg *hsotg, void *context);
 extern void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 			       int status);
