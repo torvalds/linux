@@ -115,8 +115,6 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 {
 	u32 fbc_ctl;
 
-	dev_priv->fbc.active = false;
-
 	/* Disable compression */
 	fbc_ctl = I915_READ(FBC_CONTROL);
 	if ((fbc_ctl & FBC_CTL_EN) == 0)
@@ -138,8 +136,6 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	int cfb_pitch;
 	int i;
 	u32 fbc_ctl;
-
-	dev_priv->fbc.active = true;
 
 	/* Note: fbc.threshold == 1 for i8xx */
 	cfb_pitch = params->cfb_size / FBC_LL_SIZE;
@@ -187,8 +183,6 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
 
-	dev_priv->fbc.active = true;
-
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane) | DPFC_SR_EN;
 	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
@@ -205,8 +199,6 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 static void g4x_fbc_deactivate(struct drm_i915_private *dev_priv)
 {
 	u32 dpfc_ctl;
-
-	dev_priv->fbc.active = false;
 
 	/* Disable compression */
 	dpfc_ctl = I915_READ(DPFC_CONTROL);
@@ -233,8 +225,6 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
-
-	dev_priv->fbc.active = true;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane);
 	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
@@ -274,8 +264,6 @@ static void ilk_fbc_deactivate(struct drm_i915_private *dev_priv)
 {
 	u32 dpfc_ctl;
 
-	dev_priv->fbc.active = false;
-
 	/* Disable compression */
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
 	if (dpfc_ctl & DPFC_CTL_EN) {
@@ -294,8 +282,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
-
-	dev_priv->fbc.active = true;
 
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
@@ -355,6 +341,10 @@ static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
 
 static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
 {
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	fbc->active = true;
+
 	if (INTEL_INFO(dev_priv)->gen >= 7)
 		gen7_fbc_activate(dev_priv);
 	else if (INTEL_INFO(dev_priv)->gen >= 5)
@@ -367,6 +357,10 @@ static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
 
 static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
 {
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	fbc->active = false;
+
 	if (INTEL_INFO(dev_priv)->gen >= 5)
 		ilk_fbc_deactivate(dev_priv);
 	else if (IS_GM45(dev_priv))
