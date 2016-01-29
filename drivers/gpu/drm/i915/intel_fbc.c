@@ -43,7 +43,7 @@
 
 static inline bool fbc_supported(struct drm_i915_private *dev_priv)
 {
-	return dev_priv->fbc.activate != NULL;
+	return HAS_FBC(dev_priv);
 }
 
 static inline bool fbc_on_pipe_a_only(struct drm_i915_private *dev_priv)
@@ -343,6 +343,38 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	intel_fbc_recompress(dev_priv);
 }
 
+static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_INFO(dev_priv)->gen >= 5)
+		return ilk_fbc_is_active(dev_priv);
+	else if (IS_GM45(dev_priv))
+		return g4x_fbc_is_active(dev_priv);
+	else
+		return i8xx_fbc_is_active(dev_priv);
+}
+
+static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_INFO(dev_priv)->gen >= 7)
+		gen7_fbc_activate(dev_priv);
+	else if (INTEL_INFO(dev_priv)->gen >= 5)
+		ilk_fbc_activate(dev_priv);
+	else if (IS_GM45(dev_priv))
+		g4x_fbc_activate(dev_priv);
+	else
+		i8xx_fbc_activate(dev_priv);
+}
+
+static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_INFO(dev_priv)->gen >= 5)
+		ilk_fbc_deactivate(dev_priv);
+	else if (IS_GM45(dev_priv))
+		g4x_fbc_deactivate(dev_priv);
+	else
+		i8xx_fbc_deactivate(dev_priv);
+}
+
 /**
  * intel_fbc_is_active - Is FBC active?
  * @dev_priv: i915 device instance
@@ -405,7 +437,7 @@ retry:
 		goto retry;
 	}
 
-	fbc->activate(dev_priv);
+	intel_fbc_hw_activate(dev_priv);
 
 	work->scheduled = false;
 
@@ -451,7 +483,7 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv)
 	fbc->work.scheduled = false;
 
 	if (fbc->active)
-		fbc->deactivate(dev_priv);
+		intel_fbc_hw_deactivate(dev_priv);
 }
 
 static bool multiple_pipes_ok(struct intel_crtc *crtc)
@@ -713,7 +745,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc)
 
 	/* FIXME: We lack the proper locking here, so only run this on the
 	 * platforms that need. */
-	if (dev_priv->fbc.activate == ilk_fbc_activate)
+	if (INTEL_INFO(dev_priv)->gen >= 5 && INTEL_INFO(dev_priv)->gen < 7)
 		cache->fb.ilk_ggtt_offset = i915_gem_obj_ggtt_offset(obj);
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
@@ -1223,30 +1255,13 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 			break;
 	}
 
-	if (INTEL_INFO(dev_priv)->gen >= 7) {
-		fbc->is_active = ilk_fbc_is_active;
-		fbc->activate = gen7_fbc_activate;
-		fbc->deactivate = ilk_fbc_deactivate;
-	} else if (INTEL_INFO(dev_priv)->gen >= 5) {
-		fbc->is_active = ilk_fbc_is_active;
-		fbc->activate = ilk_fbc_activate;
-		fbc->deactivate = ilk_fbc_deactivate;
-	} else if (IS_GM45(dev_priv)) {
-		fbc->is_active = g4x_fbc_is_active;
-		fbc->activate = g4x_fbc_activate;
-		fbc->deactivate = g4x_fbc_deactivate;
-	} else {
-		fbc->is_active = i8xx_fbc_is_active;
-		fbc->activate = i8xx_fbc_activate;
-		fbc->deactivate = i8xx_fbc_deactivate;
-
-		/* This value was pulled out of someone's hat */
+	/* This value was pulled out of someone's hat */
+	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_GM45(dev_priv))
 		I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
-	}
 
 	/* We still don't have any sort of hardware state readout for FBC, so
 	 * deactivate it in case the BIOS activated it to make sure software
 	 * matches the hardware state. */
-	if (fbc->is_active(dev_priv))
-		fbc->deactivate(dev_priv);
+	if (intel_fbc_hw_is_active(dev_priv))
+		intel_fbc_hw_deactivate(dev_priv);
 }

@@ -964,10 +964,6 @@ struct intel_fbc {
 	} work;
 
 	const char *no_fbc_reason;
-
-	bool (*is_active)(struct drm_i915_private *dev_priv);
-	void (*activate)(struct drm_i915_private *dev_priv);
-	void (*deactivate)(struct drm_i915_private *dev_priv);
 };
 
 /**
