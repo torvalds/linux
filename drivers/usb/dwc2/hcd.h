@@ -563,6 +563,11 @@ static inline u16 dwc2_frame_num_inc(u16 frame, u16 inc)
 	return (frame + inc) & HFNUM_MAX_FRNUM;
 }
 
+static inline u16 dwc2_frame_num_dec(u16 frame, u16 dec)
+{
+	return (frame + HFNUM_MAX_FRNUM + 1 - dec) & HFNUM_MAX_FRNUM;
+}
+
 static inline u16 dwc2_full_frame_num(u16 frame)
 {
 	return (frame & HFNUM_MAX_FRNUM) >> 3;

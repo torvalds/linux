@@ -113,6 +113,9 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		qh->sched_frame = dwc2_frame_num_inc(hsotg->frame_number,
 						     SCHEDULE_SLOP);
 		qh->interval = urb->interval;
+		dwc2_sch_dbg(hsotg, "QH=%p init sch=%04x, fn=%04x, int=%#x\n",
+			     qh, qh->sched_frame, hsotg->frame_number,
+			     qh->interval);
 #if 0
 		/* Increase interrupt polling rate for debugging */
 		if (qh->ep_type == USB_ENDPOINT_XFER_INT)
@@ -126,6 +129,11 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			qh->interval *= 8;
 			qh->sched_frame |= 0x7;
 			qh->start_split_frame = qh->sched_frame;
+			dwc2_sch_dbg(hsotg,
+				     "QH=%p init*8 sch=%04x, fn=%04x, int=%#x\n",
+				     qh, qh->sched_frame, hsotg->frame_number,
+				     qh->interval);
+
 		}
 		dev_dbg(hsotg->dev, "interval=%d\n", qh->interval);
 	}
@@ -482,6 +490,8 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		if (frame >= 0) {
 			qh->sched_frame &= ~0x7;
 			qh->sched_frame |= (frame & 7);
+			dwc2_sch_dbg(hsotg, "QH=%p sched_p sch=%04x, uf=%d\n",
+				     qh, qh->sched_frame, frame);
 		}
 
 		if (status > 0)
@@ -583,10 +593,16 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	if (!dwc2_frame_num_le(qh->sched_frame, hsotg->frame_number) &&
 			!hsotg->frame_number) {
+		u16 new_frame;
+
 		dev_dbg(hsotg->dev,
 				"reset frame number counter\n");
-		qh->sched_frame = dwc2_frame_num_inc(hsotg->frame_number,
+		new_frame = dwc2_frame_num_inc(hsotg->frame_number,
 				SCHEDULE_SLOP);
+
+		dwc2_sch_vdbg(hsotg, "QH=%p reset sch=%04x=>%04x\n",
+			      qh, qh->sched_frame, new_frame);
+		qh->sched_frame = new_frame;
 	}
 
 	/* Add the new QH to the appropriate schedule */
@@ -652,6 +668,7 @@ static void dwc2_sched_periodic_split(struct dwc2_hsotg *hsotg,
 				      int sched_next_periodic_split)
 {
 	u16 incr;
+	u16 old_frame = qh->sched_frame;
 
 	if (sched_next_periodic_split) {
 		qh->sched_frame = frame_number;
@@ -677,6 +694,11 @@ static void dwc2_sched_periodic_split(struct dwc2_hsotg *hsotg,
 		qh->sched_frame |= 0x7;
 		qh->start_split_frame = qh->sched_frame;
 	}
+
+	dwc2_sch_vdbg(hsotg, "QH=%p next(%d) fn=%04x, sch=%04x=>%04x (%+d)\n",
+		      qh, sched_next_periodic_split, frame_number, old_frame,
+		      qh->sched_frame,
+		      dwc2_frame_num_dec(qh->sched_frame, old_frame));
 }
 
 /*
