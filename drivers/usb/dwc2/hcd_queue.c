@@ -232,13 +232,8 @@ struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
  */
 void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
-	if (qh->desc_list) {
+	if (qh->desc_list)
 		dwc2_hcd_qh_free_ddma(hsotg, qh);
-	} else {
-		/* kfree(NULL) is safe */
-		kfree(qh->dw_align_buf);
-		qh->dw_align_buf_dma = (dma_addr_t)0;
-	}
 	kfree(qh);
 }
 

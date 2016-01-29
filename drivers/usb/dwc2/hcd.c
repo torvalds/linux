@@ -635,9 +635,9 @@ static void dwc2_hc_init_split(struct dwc2_hsotg *hsotg,
 	chan->hub_port = (u8)hub_port;
 }
 
-static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
-			       struct dwc2_host_chan *chan,
-			       struct dwc2_qtd *qtd, void *bufptr)
+static void dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
+			      struct dwc2_host_chan *chan,
+			      struct dwc2_qtd *qtd)
 {
 	struct dwc2_hcd_urb *urb = qtd->urb;
 	struct dwc2_hcd_iso_packet_desc *frame_desc;
@@ -657,7 +657,6 @@ static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 			else
 				chan->xfer_buf = urb->setup_packet;
 			chan->xfer_len = 8;
-			bufptr = NULL;
 			break;
 
 		case DWC2_CONTROL_DATA:
@@ -684,7 +683,6 @@ static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 				chan->xfer_dma = hsotg->status_buf_dma;
 			else
 				chan->xfer_buf = hsotg->status_buf;
-			bufptr = NULL;
 			break;
 		}
 		break;
@@ -717,14 +715,6 @@ static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 
 		chan->xfer_len = frame_desc->length - qtd->isoc_split_offset;
 
-		/* For non-dword aligned buffers */
-		if (hsotg->core_params->dma_enable > 0 &&
-		    (chan->xfer_dma & 0x3))
-			bufptr = (u8 *)urb->buf + frame_desc->offset +
-					qtd->isoc_split_offset;
-		else
-			bufptr = NULL;
-
 		if (chan->xact_pos == DWC2_HCSPLT_XACTPOS_ALL) {
 			if (chan->xfer_len <= 188)
 				chan->xact_pos = DWC2_HCSPLT_XACTPOS_ALL;
@@ -733,61 +723,91 @@ static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 		}
 		break;
 	}
-
-	return bufptr;
 }
 
-static int dwc2_hc_setup_align_buf(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
-				   struct dwc2_host_chan *chan,
-				   struct dwc2_hcd_urb *urb, void *bufptr)
+#define DWC2_USB_DMA_ALIGN 4
+
+struct dma_aligned_buffer {
+	void *kmalloc_ptr;
+	void *old_xfer_buffer;
+	u8 data[0];
+};
+
+static void dwc2_free_dma_aligned_buffer(struct urb *urb)
 {
-	u32 buf_size;
-	struct urb *usb_urb;
-	struct usb_hcd *hcd;
+	struct dma_aligned_buffer *temp;
 
-	if (!qh->dw_align_buf) {
-		if (chan->ep_type != USB_ENDPOINT_XFER_ISOC)
-			buf_size = hsotg->core_params->max_transfer_size;
-		else
-			/* 3072 = 3 max-size Isoc packets */
-			buf_size = 3072;
+	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
+		return;
 
-		qh->dw_align_buf = kmalloc(buf_size, GFP_ATOMIC | GFP_DMA);
-		if (!qh->dw_align_buf)
-			return -ENOMEM;
-		qh->dw_align_buf_size = buf_size;
-	}
+	temp = container_of(urb->transfer_buffer,
+		struct dma_aligned_buffer, data);
 
-	if (chan->xfer_len) {
-		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
-		usb_urb = urb->priv;
+	if (usb_urb_dir_in(urb))
+		memcpy(temp->old_xfer_buffer, temp->data,
+		       urb->transfer_buffer_length);
+	urb->transfer_buffer = temp->old_xfer_buffer;
+	kfree(temp->kmalloc_ptr);
 
-		if (usb_urb) {
-			if (usb_urb->transfer_flags &
-			    (URB_SETUP_MAP_SINGLE | URB_DMA_MAP_SG |
-			     URB_DMA_MAP_PAGE | URB_DMA_MAP_SINGLE)) {
-				hcd = dwc2_hsotg_to_hcd(hsotg);
-				usb_hcd_unmap_urb_for_dma(hcd, usb_urb);
-			}
-			if (!chan->ep_is_in)
-				memcpy(qh->dw_align_buf, bufptr,
-				       chan->xfer_len);
-		} else {
-			dev_warn(hsotg->dev, "no URB in dwc2_urb\n");
-		}
-	}
+	urb->transfer_flags &= ~URB_ALIGNED_TEMP_BUFFER;
+}
 
-	qh->dw_align_buf_dma = dma_map_single(hsotg->dev,
-			qh->dw_align_buf, qh->dw_align_buf_size,
-			chan->ep_is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-	if (dma_mapping_error(hsotg->dev, qh->dw_align_buf_dma)) {
-		dev_err(hsotg->dev, "can't map align_buf\n");
-		chan->align_buf = 0;
-		return -EINVAL;
-	}
+static int dwc2_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
+{
+	struct dma_aligned_buffer *temp, *kmalloc_ptr;
+	size_t kmalloc_size;
 
-	chan->align_buf = qh->dw_align_buf_dma;
+	if (urb->num_sgs || urb->sg ||
+	    urb->transfer_buffer_length == 0 ||
+	    !((uintptr_t)urb->transfer_buffer & (DWC2_USB_DMA_ALIGN - 1)))
+		return 0;
+
+	/* Allocate a buffer with enough padding for alignment */
+	kmalloc_size = urb->transfer_buffer_length +
+		sizeof(struct dma_aligned_buffer) + DWC2_USB_DMA_ALIGN - 1;
+
+	kmalloc_ptr = kmalloc(kmalloc_size, mem_flags);
+	if (!kmalloc_ptr)
+		return -ENOMEM;
+
+	/* Position our struct dma_aligned_buffer such that data is aligned */
+	temp = PTR_ALIGN(kmalloc_ptr + 1, DWC2_USB_DMA_ALIGN) - 1;
+	temp->kmalloc_ptr = kmalloc_ptr;
+	temp->old_xfer_buffer = urb->transfer_buffer;
+	if (usb_urb_dir_out(urb))
+		memcpy(temp->data, urb->transfer_buffer,
+		       urb->transfer_buffer_length);
+	urb->transfer_buffer = temp->data;
+
+	urb->transfer_flags |= URB_ALIGNED_TEMP_BUFFER;
+
 	return 0;
+}
+
+static int dwc2_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
+				      gfp_t mem_flags)
+{
+	int ret;
+
+	/* We assume setup_dma is always aligned; warn if not */
+	WARN_ON_ONCE(urb->setup_dma &&
+		     (urb->setup_dma & (DWC2_USB_DMA_ALIGN - 1)));
+
+	ret = dwc2_alloc_dma_aligned_buffer(urb, mem_flags);
+	if (ret)
+		return ret;
+
+	ret = usb_hcd_map_urb_for_dma(hcd, urb, mem_flags);
+	if (ret)
+		dwc2_free_dma_aligned_buffer(urb);
+
+	return ret;
+}
+
+static void dwc2_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
+{
+	usb_hcd_unmap_urb_for_dma(hcd, urb);
+	dwc2_free_dma_aligned_buffer(urb);
 }
 
 /**
@@ -804,7 +824,6 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	struct dwc2_host_chan *chan;
 	struct dwc2_hcd_urb *urb;
 	struct dwc2_qtd *qtd;
-	void *bufptr = NULL;
 
 	if (dbg_qh(qh))
 		dev_vdbg(hsotg->dev, "%s(%p,%p)\n", __func__, hsotg, qh);
@@ -866,16 +885,10 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		!dwc2_hcd_is_pipe_in(&urb->pipe_info))
 		urb->actual_length = urb->length;
 
-	if (hsotg->core_params->dma_enable > 0) {
+	if (hsotg->core_params->dma_enable > 0)
 		chan->xfer_dma = urb->dma + urb->actual_length;
-
-		/* For non-dword aligned case */
-		if (hsotg->core_params->dma_desc_enable <= 0 &&
-		    (chan->xfer_dma & 0x3))
-			bufptr = (u8 *)urb->buf + urb->actual_length;
-	} else {
+	else
 		chan->xfer_buf = (u8 *)urb->buf + urb->actual_length;
-	}
 
 	chan->xfer_len = urb->length - urb->actual_length;
 	chan->xfer_count = 0;
@@ -887,27 +900,7 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		chan->do_split = 0;
 
 	/* Set the transfer attributes */
-	bufptr = dwc2_hc_init_xfer(hsotg, chan, qtd, bufptr);
-
-	/* Non DWORD-aligned buffer case */
-	if (bufptr) {
-		dev_vdbg(hsotg->dev, "Non-aligned buffer\n");
-		if (dwc2_hc_setup_align_buf(hsotg, qh, chan, urb, bufptr)) {
-			dev_err(hsotg->dev,
-				"%s: Failed to allocate memory to handle non-dword aligned buffer\n",
-				__func__);
-			/* Add channel back to free list */
-			chan->align_buf = 0;
-			chan->multi_count = 0;
-			list_add_tail(&chan->hc_list_entry,
-				      &hsotg->free_hc_list);
-			qtd->in_process = 0;
-			qh->channel = NULL;
-			return -ENOMEM;
-		}
-	} else {
-		chan->align_buf = 0;
-	}
+	dwc2_hc_init_xfer(hsotg, chan, qtd);
 
 	if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 	    chan->ep_type == USB_ENDPOINT_XFER_ISOC)
@@ -2971,6 +2964,9 @@ static struct hc_driver dwc2_hc_driver = {
 
 	.bus_suspend = _dwc2_hcd_suspend,
 	.bus_resume = _dwc2_hcd_resume,
+
+	.map_urb_for_dma	= dwc2_map_urb_for_dma,
+	.unmap_urb_for_dma	= dwc2_unmap_urb_for_dma,
 };
 
 /*

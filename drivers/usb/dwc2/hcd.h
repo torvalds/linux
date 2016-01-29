@@ -75,8 +75,6 @@ struct dwc2_qh;
  *                      (micro)frame
  * @xfer_buf:           Pointer to current transfer buffer position
  * @xfer_dma:           DMA address of xfer_buf
- * @align_buf:          In Buffer DMA mode this will be used if xfer_buf is not
- *                      DWORD aligned
  * @xfer_len:           Total number of bytes to transfer
  * @xfer_count:         Number of bytes transferred so far
  * @start_pkt_count:    Packet count at start of transfer
@@ -133,7 +131,6 @@ struct dwc2_host_chan {
 
 	u8 *xfer_buf;
 	dma_addr_t xfer_dma;
-	dma_addr_t align_buf;
 	u32 xfer_len;
 	u32 xfer_count;
 	u16 start_pkt_count;
@@ -243,10 +240,6 @@ enum dwc2_transaction_type {
  * @frame_usecs:        Internal variable used by the microframe scheduler
  * @start_split_frame:  (Micro)frame at which last start split was initialized
  * @ntd:                Actual number of transfer descriptors in a list
- * @dw_align_buf:       Used instead of original buffer if its physical address
- *                      is not dword-aligned
- * @dw_align_buf_size:  Size of dw_align_buf
- * @dw_align_buf_dma:   DMA address for dw_align_buf
  * @qtd_list:           List of QTDs for this QH
  * @channel:            Host channel currently processing transfers for this QH
  * @qh_list_entry:      Entry for QH in either the periodic or non-periodic
@@ -279,9 +272,6 @@ struct dwc2_qh {
 	u16 frame_usecs[8];
 	u16 start_split_frame;
 	u16 ntd;
-	u8 *dw_align_buf;
-	int dw_align_buf_size;
-	dma_addr_t dw_align_buf_dma;
 	struct list_head qtd_list;
 	struct dwc2_host_chan *channel;
 	struct list_head qh_list_entry;

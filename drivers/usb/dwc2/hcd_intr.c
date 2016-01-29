@@ -472,18 +472,6 @@ static int dwc2_update_urb_state(struct dwc2_hsotg *hsotg,
 		xfer_length = urb->length - urb->actual_length;
 	}
 
-	/* Non DWORD-aligned buffer case handling */
-	if (chan->align_buf && xfer_length) {
-		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
-		dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
-				chan->qh->dw_align_buf_size,
-				chan->ep_is_in ?
-				DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (chan->ep_is_in)
-			memcpy(urb->buf + urb->actual_length,
-					chan->qh->dw_align_buf, xfer_length);
-	}
-
 	dev_vdbg(hsotg->dev, "urb->actual_length=%d xfer_length=%d\n",
 		 urb->actual_length, xfer_length);
 	urb->actual_length += xfer_length;
@@ -573,21 +561,6 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 		frame_desc->status = 0;
 		frame_desc->actual_length = dwc2_get_actual_xfer_length(hsotg,
 					chan, chnum, qtd, halt_status, NULL);
-
-		/* Non DWORD-aligned buffer case handling */
-		if (chan->align_buf && frame_desc->actual_length) {
-			dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n",
-				 __func__);
-			dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
-					chan->qh->dw_align_buf_size,
-					chan->ep_is_in ?
-					DMA_FROM_DEVICE : DMA_TO_DEVICE);
-			if (chan->ep_is_in)
-				memcpy(urb->buf + frame_desc->offset +
-					qtd->isoc_split_offset,
-					chan->qh->dw_align_buf,
-					frame_desc->actual_length);
-		}
 		break;
 	case DWC2_HC_XFER_FRAME_OVERRUN:
 		urb->error_count++;
@@ -607,21 +580,6 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 		frame_desc->status = -EPROTO;
 		frame_desc->actual_length = dwc2_get_actual_xfer_length(hsotg,
 					chan, chnum, qtd, halt_status, NULL);
-
-		/* Non DWORD-aligned buffer case handling */
-		if (chan->align_buf && frame_desc->actual_length) {
-			dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n",
-				 __func__);
-			dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
-					chan->qh->dw_align_buf_size,
-					chan->ep_is_in ?
-					DMA_FROM_DEVICE : DMA_TO_DEVICE);
-			if (chan->ep_is_in)
-				memcpy(urb->buf + frame_desc->offset +
-					qtd->isoc_split_offset,
-					chan->qh->dw_align_buf,
-					frame_desc->actual_length);
-		}
 
 		/* Skip whole frame */
 		if (chan->qh->do_split &&
@@ -688,8 +646,6 @@ static void dwc2_deactivate_qh(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 	}
 
 no_qtd:
-	if (qh->channel)
-		qh->channel->align_buf = 0;
 	qh->channel = NULL;
 	dwc2_hcd_qh_deactivate(hsotg, qh, continue_split);
 }
@@ -954,14 +910,6 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 
 	frame_desc->actual_length += len;
 
-	if (chan->align_buf) {
-		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
-		dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
-				chan->qh->dw_align_buf_size, DMA_FROM_DEVICE);
-		memcpy(qtd->urb->buf + frame_desc->offset +
-		       qtd->isoc_split_offset, chan->qh->dw_align_buf, len);
-	}
-
 	qtd->isoc_split_offset += len;
 
 	if (frame_desc->actual_length >= frame_desc->length) {
@@ -1182,19 +1130,6 @@ static void dwc2_update_urb_state_abn(struct dwc2_hsotg *hsotg,
 	if (urb->actual_length + xfer_length > urb->length) {
 		dev_warn(hsotg->dev, "%s(): trimming xfer length\n", __func__);
 		xfer_length = urb->length - urb->actual_length;
-	}
-
-	/* Non DWORD-aligned buffer case handling */
-	if (chan->align_buf && xfer_length && chan->ep_is_in) {
-		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
-		dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
-				chan->qh->dw_align_buf_size,
-				chan->ep_is_in ?
-				DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (chan->ep_is_in)
-			memcpy(urb->buf + urb->actual_length,
-					chan->qh->dw_align_buf,
-					xfer_length);
 	}
 
 	urb->actual_length += xfer_length;
