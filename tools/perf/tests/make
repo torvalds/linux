@@ -261,6 +261,8 @@ run := $(shell shuf -e $(run))
 run_O := $(shell shuf -e $(run_O))
 endif
 
+max_width := $(shell echo $(run_O) | sed 's/ /\n/g' | wc -L)
+
 ifdef DEBUG
 d := $(info run   $(run))
 d := $(info run_O $(run_O))
@@ -274,7 +276,7 @@ $(run):
 	$(call clean)
 	@TMP_DEST=$$(mktemp -d); \
 	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST $($@)"; \
-	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1; \
 	echo "  test: $(call test,$@)" >> $@ 2>&1; \
 	$(call test,$@) && \
@@ -285,7 +287,7 @@ $(run_O):
 	@TMP_O=$$(mktemp -d); \
 	TMP_DEST=$$(mktemp -d); \
 	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
-	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1 && \
 	echo "  test: $(call test_O,$@)" >> $@ 2>&1; \
 	$(call test_O,$@) && \
