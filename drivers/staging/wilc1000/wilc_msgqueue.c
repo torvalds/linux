@@ -126,6 +126,7 @@ int wilc_mq_recv(struct message_queue *mq,
 
 	if (list_empty(&mq->msg_list)) {
 		spin_unlock_irqrestore(&mq->lock, flags);
+		up(&mq->sem);
 		PRINT_ER("msg is null\n");
 		return -EFAULT;
 	}
